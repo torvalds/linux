@@ -283,7 +283,7 @@ zfcp_qdio_request_handler(struct ccw_device *ccw_device,
 }
 
 /**
- * zfcp_qdio_reqid_check - checks for valid reqids or unsolicited status
+ * zfcp_qdio_reqid_check - checks for valid reqids.
  */
 static void zfcp_qdio_reqid_check(struct zfcp_adapter *adapter,
 				  unsigned long req_id)
@@ -294,14 +294,17 @@ static void zfcp_qdio_reqid_check(struct zfcp_adapter *adapter,
 	debug_long_event(adapter->erp_dbf, 4, req_id);
 
 	spin_lock_irqsave(&adapter->req_list_lock, flags);
-	fsf_req = zfcp_reqlist_ismember(adapter, req_id);
+	fsf_req = zfcp_reqlist_find(adapter, req_id);
 
-	if (!fsf_req) {
-		spin_unlock_irqrestore(&adapter->req_list_lock, flags);
-		panic("error: unknown request id (%ld).\n", req_id);
-	}
+	if (!fsf_req)
+		/*
+		 * Unknown request means that we have potentially memory
+		 * corruption and must stop the machine immediatly.
+		 */
+		panic("error: unknown request id (%ld) on adapter %s.\n",
+		      req_id, zfcp_get_busid_by_adapter(adapter));
 
-	zfcp_reqlist_remove(adapter, req_id);
+	zfcp_reqlist_remove(adapter, fsf_req);
 	atomic_dec(&adapter->reqs_active);
 	spin_unlock_irqrestore(&adapter->req_list_lock, flags);
 

@@ -1090,6 +1090,42 @@ extern void _zfcp_hex_dump(char *, int);
 #define zfcp_get_busid_by_unit(unit) (zfcp_get_busid_by_port(unit->port))
 
 /*
+ * Helper functions for request ID management.
+ */
+static inline int zfcp_reqlist_hash(unsigned long req_id)
+{
+	return req_id % REQUEST_LIST_SIZE;
+}
+
+static inline void zfcp_reqlist_add(struct zfcp_adapter *adapter,
+				    struct zfcp_fsf_req *fsf_req)
+{
+	unsigned int idx;
+
+	idx = zfcp_reqlist_hash(fsf_req->req_id);
+	list_add_tail(&fsf_req->list, &adapter->req_list[idx]);
+}
+
+static inline void zfcp_reqlist_remove(struct zfcp_adapter *adapter,
+				       struct zfcp_fsf_req *fsf_req)
+{
+	list_del(&fsf_req->list);
+}
+
+static inline struct zfcp_fsf_req *
+zfcp_reqlist_find(struct zfcp_adapter *adapter, unsigned long req_id)
+{
+	struct zfcp_fsf_req *request;
+	unsigned int idx;
+
+	idx = zfcp_reqlist_hash(req_id);
+	list_for_each_entry(request, &adapter->req_list[idx], list)
+		if (request->req_id == req_id)
+			return request;
+	return NULL;
+}
+
+/*
  *  functions needed for reference/usage counting
  */
 

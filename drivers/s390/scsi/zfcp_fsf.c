@@ -4787,7 +4787,7 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *fsf_req)
 		retval = -EIO;
 		del_timer(&fsf_req->timer);
 		spin_lock(&adapter->req_list_lock);
-		zfcp_reqlist_remove(adapter, fsf_req->req_id);
+		zfcp_reqlist_remove(adapter, fsf_req);
 		spin_unlock(&adapter->req_list_lock);
 		/* undo changes in request queue made for this request */
 		zfcp_qdio_zero_sbals(req_queue->buffer,

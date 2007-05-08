@@ -407,8 +407,8 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 
 	/* Check whether corresponding fsf_req is still pending */
 	spin_lock(&adapter->req_list_lock);
-	fsf_req = zfcp_reqlist_ismember(adapter, (unsigned long)
-					scpnt->host_scribble);
+	fsf_req = zfcp_reqlist_find(adapter,
+				    (unsigned long) scpnt->host_scribble);
 	spin_unlock(&adapter->req_list_lock);
 	if (!fsf_req) {
 		write_unlock_irqrestore(&adapter->abort_lock, flags);
