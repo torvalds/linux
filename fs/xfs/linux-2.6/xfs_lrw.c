@@ -639,7 +639,6 @@ xfs_write(
 	xfs_fsize_t		isize, new_size;
 	xfs_iocore_t		*io;
 	bhv_vnode_t		*vp;
-	unsigned long		seg;
 	int			iolock;
 	int			eventsent = 0;
 	bhv_vrwlock_t		locktype;
@@ -652,24 +651,9 @@ xfs_write(
 	vp = BHV_TO_VNODE(bdp);
 	xip = XFS_BHVTOI(bdp);
 
-	for (seg = 0; seg < segs; seg++) {
-		const struct iovec *iv = &iovp[seg];
-
-		/*
-		 * If any segment has a negative length, or the cumulative
-		 * length ever wraps negative then return -EINVAL.
-		 */
-		ocount += iv->iov_len;
-		if (unlikely((ssize_t)(ocount|iv->iov_len) < 0))
-			return -EINVAL;
-		if (access_ok(VERIFY_READ, iv->iov_base, iv->iov_len))
-			continue;
-		if (seg == 0)
-			return -EFAULT;
-		segs = seg;
-		ocount -= iv->iov_len;  /* This segment is no good */
-		break;
-	}
+	error = generic_segment_checks(iovp, &segs, &ocount, VERIFY_READ);
+	if (error)
+		return error;
 
 	count = ocount;
 	pos = *offset;
