@@ -33,19 +33,19 @@
 #include "fw-transaction.h"
 #include "fw-ohci.h"
 
-#define descriptor_output_more		0
-#define descriptor_output_last		(1 << 12)
-#define descriptor_input_more		(2 << 12)
-#define descriptor_input_last		(3 << 12)
-#define descriptor_status		(1 << 11)
-#define descriptor_key_immediate	(2 << 8)
-#define descriptor_ping			(1 << 7)
-#define descriptor_yy			(1 << 6)
-#define descriptor_no_irq		(0 << 4)
-#define descriptor_irq_error		(1 << 4)
-#define descriptor_irq_always		(3 << 4)
-#define descriptor_branch_always	(3 << 2)
-#define descriptor_wait			(3 << 0)
+#define DESCRIPTOR_OUTPUT_MORE		0
+#define DESCRIPTOR_OUTPUT_LAST		(1 << 12)
+#define DESCRIPTOR_INPUT_MORE		(2 << 12)
+#define DESCRIPTOR_INPUT_LAST		(3 << 12)
+#define DESCRIPTOR_STATUS		(1 << 11)
+#define DESCRIPTOR_KEY_IMMEDIATE	(2 << 8)
+#define DESCRIPTOR_PING			(1 << 7)
+#define DESCRIPTOR_YY			(1 << 6)
+#define DESCRIPTOR_NO_IRQ		(0 << 4)
+#define DESCRIPTOR_IRQ_ERROR		(1 << 4)
+#define DESCRIPTOR_IRQ_ALWAYS		(3 << 4)
+#define DESCRIPTOR_BRANCH_ALWAYS	(3 << 2)
+#define DESCRIPTOR_WAIT			(3 << 0)
 
 struct descriptor {
 	__le16 req_count;
@@ -70,10 +70,10 @@ struct db_descriptor {
 	__le32 reserved1;
 } __attribute__((aligned(16)));
 
-#define control_set(regs)	(regs)
-#define control_clear(regs)	((regs) + 4)
-#define command_ptr(regs)	((regs) + 12)
-#define context_match(regs)	((regs) + 16)
+#define CONTROL_SET(regs)	(regs)
+#define CONTROL_CLEAR(regs)	((regs) + 4)
+#define COMMAND_PTR(regs)	((regs) + 12)
+#define CONTEXT_MATCH(regs)	((regs) + 16)
 
 struct ar_buffer {
 	struct descriptor descriptor;
@@ -112,12 +112,12 @@ struct context {
 	struct tasklet_struct tasklet;
 };
 
-#define it_header_sy(v)          ((v) <<  0)
-#define it_header_tcode(v)       ((v) <<  4)
-#define it_header_channel(v)     ((v) <<  8)
-#define it_header_tag(v)         ((v) << 14)
-#define it_header_speed(v)       ((v) << 16)
-#define it_header_data_length(v) ((v) << 16)
+#define IT_HEADER_SY(v)          ((v) <<  0)
+#define IT_HEADER_TCODE(v)       ((v) <<  4)
+#define IT_HEADER_CHANNEL(v)     ((v) <<  8)
+#define IT_HEADER_TAG(v)         ((v) << 14)
+#define IT_HEADER_SPEED(v)       ((v) << 16)
+#define IT_HEADER_DATA_LENGTH(v) ((v) << 16)
 
 struct iso_context {
 	struct fw_iso_context base;
@@ -256,9 +256,9 @@ static int ar_context_add_page(struct ar_context *ctx)
 	}
 
 	memset(&ab->descriptor, 0, sizeof ab->descriptor);
-	ab->descriptor.control        = cpu_to_le16(descriptor_input_more |
-						    descriptor_status |
-						    descriptor_branch_always);
+	ab->descriptor.control        = cpu_to_le16(DESCRIPTOR_INPUT_MORE |
+						    DESCRIPTOR_STATUS |
+						    DESCRIPTOR_BRANCH_ALWAYS);
 	offset = offsetof(struct ar_buffer, data);
 	ab->descriptor.req_count      = cpu_to_le16(PAGE_SIZE - offset);
 	ab->descriptor.data_address   = cpu_to_le32(ab_bus + offset);
@@ -271,7 +271,7 @@ static int ar_context_add_page(struct ar_context *ctx)
 	ctx->last_buffer->next = ab;
 	ctx->last_buffer = ab;
 
-	reg_write(ctx->ohci, control_set(ctx->regs), CONTEXT_WAKE);
+	reg_write(ctx->ohci, CONTROL_SET(ctx->regs), CONTEXT_WAKE);
 	flush_writes(ctx->ohci);
 
 	return 0;
@@ -416,8 +416,8 @@ ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci, u32 regs)
 	ctx->current_buffer = ab.next;
 	ctx->pointer = ctx->current_buffer->data;
 
-	reg_write(ctx->ohci, command_ptr(ctx->regs), ab.descriptor.branch_address);
-	reg_write(ctx->ohci, control_set(ctx->regs), CONTEXT_RUN);
+	reg_write(ctx->ohci, COMMAND_PTR(ctx->regs), ab.descriptor.branch_address);
+	reg_write(ctx->ohci, CONTROL_SET(ctx->regs), CONTEXT_RUN);
 	flush_writes(ctx->ohci);
 
 	return 0;
@@ -488,7 +488,7 @@ context_init(struct context *ctx, struct fw_ohci *ohci,
 	 */
 
 	memset(ctx->head_descriptor, 0, sizeof *ctx->head_descriptor);
-	ctx->head_descriptor->control = cpu_to_le16(descriptor_output_last);
+	ctx->head_descriptor->control = cpu_to_le16(DESCRIPTOR_OUTPUT_LAST);
 	ctx->head_descriptor->transfer_status = cpu_to_le16(0x8011);
 	ctx->head_descriptor++;
 
@@ -536,10 +536,10 @@ static void context_run(struct context *ctx, u32 extra)
 {
 	struct fw_ohci *ohci = ctx->ohci;
 
-	reg_write(ohci, command_ptr(ctx->regs),
+	reg_write(ohci, COMMAND_PTR(ctx->regs),
 		  le32_to_cpu(ctx->tail_descriptor_last->branch_address));
-	reg_write(ohci, control_clear(ctx->regs), ~0);
-	reg_write(ohci, control_set(ctx->regs), CONTEXT_RUN | extra);
+	reg_write(ohci, CONTROL_CLEAR(ctx->regs), ~0);
+	reg_write(ohci, CONTROL_SET(ctx->regs), CONTEXT_RUN | extra);
 	flush_writes(ohci);
 }
 
@@ -557,7 +557,7 @@ static void context_append(struct context *ctx,
 	dma_sync_single_for_device(ctx->ohci->card.device, ctx->buffer_bus,
 				   ctx->buffer_size, DMA_TO_DEVICE);
 
-	reg_write(ctx->ohci, control_set(ctx->regs), CONTEXT_WAKE);
+	reg_write(ctx->ohci, CONTROL_SET(ctx->regs), CONTEXT_WAKE);
 	flush_writes(ctx->ohci);
 }
 
@@ -566,11 +566,11 @@ static void context_stop(struct context *ctx)
 	u32 reg;
 	int i;
 
-	reg_write(ctx->ohci, control_clear(ctx->regs), CONTEXT_RUN);
+	reg_write(ctx->ohci, CONTROL_CLEAR(ctx->regs), CONTEXT_RUN);
 	flush_writes(ctx->ohci);
 
 	for (i = 0; i < 10; i++) {
-		reg = reg_read(ctx->ohci, control_set(ctx->regs));
+		reg = reg_read(ctx->ohci, CONTROL_SET(ctx->regs));
 		if ((reg & CONTEXT_ACTIVE) == 0)
 			break;
 
@@ -605,7 +605,7 @@ at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
 		return -1;
 	}
 
-	d[0].control   = cpu_to_le16(descriptor_key_immediate);
+	d[0].control   = cpu_to_le16(DESCRIPTOR_KEY_IMMEDIATE);
 	d[0].res_count = cpu_to_le16(packet->timestamp);
 
 	/*
@@ -660,9 +660,9 @@ at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
 		z = 2;
 	}
 
-	last->control |= cpu_to_le16(descriptor_output_last |
-				     descriptor_irq_always |
-				     descriptor_branch_always);
+	last->control |= cpu_to_le16(DESCRIPTOR_OUTPUT_LAST |
+				     DESCRIPTOR_IRQ_ALWAYS |
+				     DESCRIPTOR_BRANCH_ALWAYS);
 
 	/* FIXME: Document how the locking works. */
 	if (ohci->generation != packet->generation) {
@@ -673,7 +673,7 @@ at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
 	context_append(ctx, d, z, 4 - z);
 
 	/* If the context isn't already running, start it up. */
-	reg = reg_read(ctx->ohci, control_set(ctx->regs));
+	reg = reg_read(ctx->ohci, CONTROL_SET(ctx->regs));
 	if ((reg & CONTEXT_RUN) == 0)
 		context_run(ctx, 0);
 
@@ -750,11 +750,11 @@ static int handle_at_packet(struct context *context,
 	return 1;
 }
 
-#define header_get_destination(q)	(((q) >> 16) & 0xffff)
-#define header_get_tcode(q)		(((q) >> 4) & 0x0f)
-#define header_get_offset_high(q)	(((q) >> 0) & 0xffff)
-#define header_get_data_length(q)	(((q) >> 16) & 0xffff)
-#define header_get_extended_tcode(q)	(((q) >> 0) & 0xffff)
+#define HEADER_GET_DESTINATION(q)	(((q) >> 16) & 0xffff)
+#define HEADER_GET_TCODE(q)		(((q) >> 4) & 0x0f)
+#define HEADER_GET_OFFSET_HIGH(q)	(((q) >> 0) & 0xffff)
+#define HEADER_GET_DATA_LENGTH(q)	(((q) >> 16) & 0xffff)
+#define HEADER_GET_EXTENDED_TCODE(q)	(((q) >> 0) & 0xffff)
 
 static void
 handle_local_rom(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr)
@@ -762,9 +762,9 @@ handle_local_rom(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr)
 	struct fw_packet response;
 	int tcode, length, i;
 
-	tcode = header_get_tcode(packet->header[0]);
+	tcode = HEADER_GET_TCODE(packet->header[0]);
 	if (TCODE_IS_BLOCK_PACKET(tcode))
-		length = header_get_data_length(packet->header[3]);
+		length = HEADER_GET_DATA_LENGTH(packet->header[3]);
 	else
 		length = 4;
 
@@ -791,10 +791,10 @@ handle_local_lock(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr)
 	__be32 *payload, lock_old;
 	u32 lock_arg, lock_data;
 
-	tcode = header_get_tcode(packet->header[0]);
-	length = header_get_data_length(packet->header[3]);
+	tcode = HEADER_GET_TCODE(packet->header[0]);
+	length = HEADER_GET_DATA_LENGTH(packet->header[3]);
 	payload = packet->payload;
-	ext_tcode = header_get_extended_tcode(packet->header[3]);
+	ext_tcode = HEADER_GET_EXTENDED_TCODE(packet->header[3]);
 
 	if (tcode == TCODE_LOCK_REQUEST &&
 	    ext_tcode == EXTCODE_COMPARE_SWAP && length == 8) {
@@ -838,7 +838,7 @@ handle_local_request(struct context *ctx, struct fw_packet *packet)
 
 	offset =
 		((unsigned long long)
-		 header_get_offset_high(packet->header[1]) << 32) |
+		 HEADER_GET_OFFSET_HIGH(packet->header[1]) << 32) |
 		packet->header[2];
 	csr = offset - CSR_REGISTER_BASE;
 
@@ -874,7 +874,7 @@ at_context_transmit(struct context *ctx, struct fw_packet *packet)
 
 	spin_lock_irqsave(&ctx->ohci->lock, flags);
 
-	if (header_get_destination(packet->header[0]) == ctx->ohci->node_id &&
+	if (HEADER_GET_DESTINATION(packet->header[0]) == ctx->ohci->node_id &&
 	    ctx->ohci->generation == packet->generation) {
 		spin_unlock_irqrestore(&ctx->ohci->lock, flags);
 		handle_local_request(ctx, packet);
@@ -1306,7 +1306,7 @@ static int handle_ir_dualbuffer_packet(struct context *context,
 
 	ctx->header_length = i;
 
-	if (le16_to_cpu(db->control) & descriptor_irq_always) {
+	if (le16_to_cpu(db->control) & DESCRIPTOR_IRQ_ALWAYS) {
 		ir_header = (__le32 *) (db + 1);
 		ctx->base.callback(&ctx->base,
 				   le32_to_cpu(ir_header[0]) & 0xffff,
@@ -1329,7 +1329,7 @@ static int handle_it_packet(struct context *context,
 		/* This descriptor isn't done yet, stop iteration. */
 		return 0;
 
-	if (le16_to_cpu(last->control) & descriptor_irq_always)
+	if (le16_to_cpu(last->control) & DESCRIPTOR_IRQ_ALWAYS)
 		ctx->base.callback(&ctx->base, le16_to_cpu(last->res_count),
 				   0, NULL, ctx->base.callback_data);
 
@@ -1428,7 +1428,7 @@ static int ohci_start_iso(struct fw_iso_context *base,
 
 		reg_write(ohci, OHCI1394_IsoRecvIntEventClear, 1 << index);
 		reg_write(ohci, OHCI1394_IsoRecvIntMaskSet, 1 << index);
-		reg_write(ohci, context_match(ctx->context.regs), match);
+		reg_write(ohci, CONTEXT_MATCH(ctx->context.regs), match);
 		context_run(&ctx->context, control);
 	}
 
@@ -1525,17 +1525,17 @@ ohci_queue_iso_transmit(struct fw_iso_context *base,
 		return -ENOMEM;
 
 	if (!p->skip) {
-		d[0].control   = cpu_to_le16(descriptor_key_immediate);
+		d[0].control   = cpu_to_le16(DESCRIPTOR_KEY_IMMEDIATE);
 		d[0].req_count = cpu_to_le16(8);
 
 		header = (__le32 *) &d[1];
-		header[0] = cpu_to_le32(it_header_sy(p->sy) |
-					it_header_tag(p->tag) |
-					it_header_tcode(TCODE_STREAM_DATA) |
-					it_header_channel(ctx->base.channel) |
-					it_header_speed(ctx->base.speed));
+		header[0] = cpu_to_le32(IT_HEADER_SY(p->sy) |
+					IT_HEADER_TAG(p->tag) |
+					IT_HEADER_TCODE(TCODE_STREAM_DATA) |
+					IT_HEADER_CHANNEL(ctx->base.channel) |
+					IT_HEADER_SPEED(ctx->base.speed));
 		header[1] =
-			cpu_to_le32(it_header_data_length(p->header_length +
+			cpu_to_le32(IT_HEADER_DATA_LENGTH(p->header_length +
 							  p->payload_length));
 	}
 
@@ -1562,14 +1562,14 @@ ohci_queue_iso_transmit(struct fw_iso_context *base,
 	}
 
 	if (p->interrupt)
-		irq = descriptor_irq_always;
+		irq = DESCRIPTOR_IRQ_ALWAYS;
 	else
-		irq = descriptor_no_irq;
+		irq = DESCRIPTOR_NO_IRQ;
 
 	last = z == 2 ? d : d + z - 1;
-	last->control |= cpu_to_le16(descriptor_output_last |
-				     descriptor_status |
-				     descriptor_branch_always |
+	last->control |= cpu_to_le16(DESCRIPTOR_OUTPUT_LAST |
+				     DESCRIPTOR_STATUS |
+				     DESCRIPTOR_BRANCH_ALWAYS |
 				     irq);
 
 	context_append(&ctx->context, d, z, header_z);
@@ -1602,9 +1602,9 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 			return -ENOMEM;
 
 		db = (struct db_descriptor *) d;
-		db->control = cpu_to_le16(descriptor_status |
-					  descriptor_branch_always |
-					  descriptor_wait);
+		db->control = cpu_to_le16(DESCRIPTOR_STATUS |
+					  DESCRIPTOR_BRANCH_ALWAYS |
+					  DESCRIPTOR_WAIT);
 		db->first_size = cpu_to_le16(ctx->base.header_size + 4);
 		context_append(&ctx->context, d, 2, 0);
 	}
@@ -1634,8 +1634,8 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 			return -ENOMEM;
 
 		db = (struct db_descriptor *) d;
-		db->control = cpu_to_le16(descriptor_status |
-					  descriptor_branch_always);
+		db->control = cpu_to_le16(DESCRIPTOR_STATUS |
+					  DESCRIPTOR_BRANCH_ALWAYS);
 		db->first_size = cpu_to_le16(ctx->base.header_size + 4);
 		db->first_req_count = cpu_to_le16(header_size);
 		db->first_res_count = db->first_req_count;
@@ -1652,7 +1652,7 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 		db->second_buffer = cpu_to_le32(page_bus + offset);
 
 		if (p->interrupt && length == rest)
-			db->control |= cpu_to_le16(descriptor_irq_always);
+			db->control |= cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS);
 
 		context_append(&ctx->context, d, z, header_z);
 		offset = (offset + length) & ~PAGE_MASK;

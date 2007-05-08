@@ -123,14 +123,14 @@ struct sbp2_device {
 #define SBP2_STATUS_ILLEGAL_REQUEST	0x2
 #define SBP2_STATUS_VENDOR_DEPENDENT	0x3
 
-#define status_get_orb_high(v)		((v).status & 0xffff)
-#define status_get_sbp_status(v)	(((v).status >> 16) & 0xff)
-#define status_get_len(v)		(((v).status >> 24) & 0x07)
-#define status_get_dead(v)		(((v).status >> 27) & 0x01)
-#define status_get_response(v)		(((v).status >> 28) & 0x03)
-#define status_get_source(v)		(((v).status >> 30) & 0x03)
-#define status_get_orb_low(v)		((v).orb_low)
-#define status_get_data(v)		((v).data)
+#define STATUS_GET_ORB_HIGH(v)		((v).status & 0xffff)
+#define STATUS_GET_SBP_STATUS(v)	(((v).status >> 16) & 0xff)
+#define STATUS_GET_LEN(v)		(((v).status >> 24) & 0x07)
+#define STATUS_GET_DEAD(v)		(((v).status >> 27) & 0x01)
+#define STATUS_GET_RESPONSE(v)		(((v).status >> 28) & 0x03)
+#define STATUS_GET_SOURCE(v)		(((v).status >> 30) & 0x03)
+#define STATUS_GET_ORB_LOW(v)		((v).orb_low)
+#define STATUS_GET_DATA(v)		((v).data)
 
 struct sbp2_status {
 	u32 status;
@@ -152,15 +152,15 @@ struct sbp2_orb {
 	struct list_head link;
 };
 
-#define management_orb_lun(v)			((v))
-#define management_orb_function(v)		((v) << 16)
-#define management_orb_reconnect(v)		((v) << 20)
-#define management_orb_exclusive		((1) << 28)
-#define management_orb_request_format(v)	((v) << 29)
-#define management_orb_notify			((1) << 31)
+#define MANAGEMENT_ORB_LUN(v)			((v))
+#define MANAGEMENT_ORB_FUNCTION(v)		((v) << 16)
+#define MANAGEMENT_ORB_RECONNECT(v)		((v) << 20)
+#define MANAGEMENT_ORB_EXCLUSIVE		((1) << 28)
+#define MANAGEMENT_ORB_REQUEST_FORMAT(v)	((v) << 29)
+#define MANAGEMENT_ORB_NOTIFY			((1) << 31)
 
-#define management_orb_response_length(v)	((v))
-#define management_orb_password_length(v)	((v) << 16)
+#define MANAGEMENT_ORB_RESPONSE_LENGTH(v)	((v))
+#define MANAGEMENT_ORB_PASSWORD_LENGTH(v)	((v) << 16)
 
 struct sbp2_management_orb {
 	struct sbp2_orb base;
@@ -177,23 +177,22 @@ struct sbp2_management_orb {
 	struct sbp2_status status;
 };
 
-#define login_response_get_login_id(v)	((v).misc & 0xffff)
-#define login_response_get_length(v)	(((v).misc >> 16) & 0xffff)
+#define LOGIN_RESPONSE_GET_LOGIN_ID(v)	((v).misc & 0xffff)
+#define LOGIN_RESPONSE_GET_LENGTH(v)	(((v).misc >> 16) & 0xffff)
 
 struct sbp2_login_response {
 	u32 misc;
 	struct sbp2_pointer command_block_agent;
 	u32 reconnect_hold;
 };
-
-#define command_orb_data_size(v)	((v))
-#define command_orb_page_size(v)	((v) << 16)
-#define command_orb_page_table_present	((1) << 19)
-#define command_orb_max_payload(v)	((v) << 20)
-#define command_orb_speed(v)		((v) << 24)
-#define command_orb_direction(v)	((v) << 27)
-#define command_orb_request_format(v)	((v) << 29)
-#define command_orb_notify		((1) << 31)
+#define COMMAND_ORB_DATA_SIZE(v)	((v))
+#define COMMAND_ORB_PAGE_SIZE(v)	((v) << 16)
+#define COMMAND_ORB_PAGE_TABLE_PRESENT	((1) << 19)
+#define COMMAND_ORB_MAX_PAYLOAD(v)	((v) << 20)
+#define COMMAND_ORB_SPEED(v)		((v) << 24)
+#define COMMAND_ORB_DIRECTION(v)	((v) << 27)
+#define COMMAND_ORB_REQUEST_FORMAT(v)	((v) << 29)
+#define COMMAND_ORB_NOTIFY		((1) << 31)
 
 struct sbp2_command_orb {
 	struct sbp2_orb base;
@@ -290,7 +289,7 @@ sbp2_status_write(struct fw_card *card, struct fw_request *request,
 	fw_memcpy_from_be32(&status, payload, header_size);
 	if (length > header_size)
 		memcpy(status.data, payload + 8, length - header_size);
-	if (status_get_source(status) == 2 || status_get_source(status) == 3) {
+	if (STATUS_GET_SOURCE(status) == 2 || STATUS_GET_SOURCE(status) == 3) {
 		fw_notify("non-orb related status write, not handled\n");
 		fw_send_response(card, request, RCODE_COMPLETE);
 		return;
@@ -299,8 +298,8 @@ sbp2_status_write(struct fw_card *card, struct fw_request *request,
 	/* Lookup the orb corresponding to this status write. */
 	spin_lock_irqsave(&card->lock, flags);
 	list_for_each_entry(orb, &sd->orb_list, link) {
-		if (status_get_orb_high(status) == 0 &&
-		    status_get_orb_low(status) == orb->request_bus &&
+		if (STATUS_GET_ORB_HIGH(status) == 0 &&
+		    STATUS_GET_ORB_LOW(status) == orb->request_bus &&
 		    orb->rcode == RCODE_COMPLETE) {
 			list_del(&orb->link);
 			break;
@@ -425,11 +424,11 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 	orb->request.response.low     = orb->response_bus;
 
 	orb->request.misc =
-		management_orb_notify |
-		management_orb_function(function) |
-		management_orb_lun(lun);
+		MANAGEMENT_ORB_NOTIFY |
+		MANAGEMENT_ORB_FUNCTION(function) |
+		MANAGEMENT_ORB_LUN(lun);
 	orb->request.length =
-		management_orb_response_length(sizeof orb->response);
+		MANAGEMENT_ORB_RESPONSE_LENGTH(sizeof orb->response);
 
 	orb->request.status_fifo.high = sd->address_handler.offset >> 32;
 	orb->request.status_fifo.low  = sd->address_handler.offset;
@@ -441,8 +440,8 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 	 */
 	if (function == SBP2_LOGIN_REQUEST) {
 		orb->request.misc |=
-			management_orb_exclusive |
-			management_orb_reconnect(0);
+			MANAGEMENT_ORB_EXCLUSIVE |
+			MANAGEMENT_ORB_RECONNECT(0);
 	}
 
 	fw_memcpy_to_be32(&orb->request, &orb->request, sizeof orb->request);
@@ -469,11 +468,11 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 		goto out;
 	}
 
-	if (status_get_response(orb->status) != 0 ||
-	    status_get_sbp_status(orb->status) != 0) {
+	if (STATUS_GET_RESPONSE(orb->status) != 0 ||
+	    STATUS_GET_SBP_STATUS(orb->status) != 0) {
 		fw_error("error status: %d:%d\n",
-			 status_get_response(orb->status),
-			 status_get_sbp_status(orb->status));
+			 STATUS_GET_RESPONSE(orb->status),
+			 STATUS_GET_SBP_STATUS(orb->status));
 		goto out;
 	}
 
@@ -577,7 +576,7 @@ static void sbp2_login(struct work_struct *work)
 	sd->command_block_agent_address =
 		((u64) (response.command_block_agent.high & 0xffff) << 32) |
 		response.command_block_agent.low;
-	sd->login_id = login_response_get_login_id(response);
+	sd->login_id = LOGIN_RESPONSE_GET_LOGIN_ID(response);
 
 	fw_notify("logged in to sbp2 unit %s (%d retries)\n",
 		  unit->device.bus_id, sd->retries);
@@ -828,10 +827,10 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 	int result;
 
 	if (status != NULL) {
-		if (status_get_dead(*status))
+		if (STATUS_GET_DEAD(*status))
 			sbp2_agent_reset(unit);
 
-		switch (status_get_response(*status)) {
+		switch (STATUS_GET_RESPONSE(*status)) {
 		case SBP2_STATUS_REQUEST_COMPLETE:
 			result = DID_OK << 16;
 			break;
@@ -845,8 +844,8 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 			break;
 		}
 
-		if (result == DID_OK << 16 && status_get_len(*status) > 1)
-			result = sbp2_status_to_sense_data(status_get_data(*status),
+		if (result == DID_OK << 16 && STATUS_GET_LEN(*status) > 1)
+			result = sbp2_status_to_sense_data(STATUS_GET_DATA(*status),
 							   orb->cmd->sense_buffer);
 	} else {
 		/*
@@ -906,7 +905,7 @@ static void sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 		orb->request.data_descriptor.high = sd->address_high;
 		orb->request.data_descriptor.low  = sg_dma_address(sg);
 		orb->request.misc |=
-			command_orb_data_size(sg_dma_len(sg));
+			COMMAND_ORB_DATA_SIZE(sg_dma_len(sg));
 		return;
 	}
 
@@ -943,8 +942,8 @@ static void sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 	orb->request.data_descriptor.high = sd->address_high;
 	orb->request.data_descriptor.low  = orb->page_table_bus;
 	orb->request.misc |=
-		command_orb_page_table_present |
-		command_orb_data_size(j);
+		COMMAND_ORB_PAGE_TABLE_PRESENT |
+		COMMAND_ORB_DATA_SIZE(j);
 
 	fw_memcpy_to_be32(orb->page_table, orb->page_table, size);
 }
@@ -969,7 +968,7 @@ static void sbp2_command_orb_map_buffer(struct sbp2_command_orb *orb)
 	orb->request.data_descriptor.high = sd->address_high;
 	orb->request.data_descriptor.low  = orb->request_buffer_bus;
 	orb->request.misc |=
-		command_orb_data_size(orb->cmd->request_bufflen);
+		COMMAND_ORB_DATA_SIZE(orb->cmd->request_bufflen);
 }
 
 /* SCSI stack integration */
@@ -1017,16 +1016,16 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	 * if we set this to max_speed + 7, we get the right value.
 	 */
 	orb->request.misc =
-		command_orb_max_payload(device->node->max_speed + 7) |
-		command_orb_speed(device->node->max_speed) |
-		command_orb_notify;
+		COMMAND_ORB_MAX_PAYLOAD(device->node->max_speed + 7) |
+		COMMAND_ORB_SPEED(device->node->max_speed) |
+		COMMAND_ORB_NOTIFY;
 
 	if (cmd->sc_data_direction == DMA_FROM_DEVICE)
 		orb->request.misc |=
-			command_orb_direction(SBP2_DIRECTION_FROM_MEDIA);
+			COMMAND_ORB_DIRECTION(SBP2_DIRECTION_FROM_MEDIA);
 	else if (cmd->sc_data_direction == DMA_TO_DEVICE)
 		orb->request.misc |=
-			command_orb_direction(SBP2_DIRECTION_TO_MEDIA);
+			COMMAND_ORB_DIRECTION(SBP2_DIRECTION_TO_MEDIA);
 
 	if (cmd->use_sg) {
 		sbp2_command_orb_map_scatterlist(orb);

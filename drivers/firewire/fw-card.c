@@ -44,20 +44,20 @@ static LIST_HEAD(card_list);
 static LIST_HEAD(descriptor_list);
 static int descriptor_count;
 
-#define bib_crc(v)		((v) <<  0)
-#define bib_crc_length(v)	((v) << 16)
-#define bib_info_length(v)	((v) << 24)
+#define BIB_CRC(v)		((v) <<  0)
+#define BIB_CRC_LENGTH(v)	((v) << 16)
+#define BIB_INFO_LENGTH(v)	((v) << 24)
 
-#define bib_link_speed(v)	((v) <<  0)
-#define bib_generation(v)	((v) <<  4)
-#define bib_max_rom(v)		((v) <<  8)
-#define bib_max_receive(v)	((v) << 12)
-#define bib_cyc_clk_acc(v)	((v) << 16)
-#define bib_pmc			((1) << 27)
-#define bib_bmc			((1) << 28)
-#define bib_isc			((1) << 29)
-#define bib_cmc			((1) << 30)
-#define bib_imc			((1) << 31)
+#define BIB_LINK_SPEED(v)	((v) <<  0)
+#define BIB_GENERATION(v)	((v) <<  4)
+#define BIB_MAX_ROM(v)		((v) <<  8)
+#define BIB_MAX_RECEIVE(v)	((v) << 12)
+#define BIB_CYC_CLK_ACC(v)	((v) << 16)
+#define BIB_PMC			((1) << 27)
+#define BIB_BMC			((1) << 28)
+#define BIB_ISC			((1) << 29)
+#define BIB_CMC			((1) << 30)
+#define BIB_IMC			((1) << 31)
 
 static u32 *
 generate_config_rom(struct fw_card *card, size_t *config_rom_length)
@@ -76,15 +76,15 @@ generate_config_rom(struct fw_card *card, size_t *config_rom_length)
 	 */
 
 	memset(config_rom, 0, sizeof config_rom);
-	config_rom[0] = bib_crc_length(4) | bib_info_length(4) | bib_crc(0);
+	config_rom[0] = BIB_CRC_LENGTH(4) | BIB_INFO_LENGTH(4) | BIB_CRC(0);
 	config_rom[1] = 0x31333934;
 
 	config_rom[2] =
-		bib_link_speed(card->link_speed) |
-		bib_generation(card->config_rom_generation++ % 14 + 2) |
-		bib_max_rom(2) |
-		bib_max_receive(card->max_receive) |
-		bib_bmc | bib_isc | bib_cmc | bib_imc;
+		BIB_LINK_SPEED(card->link_speed) |
+		BIB_GENERATION(card->config_rom_generation++ % 14 + 2) |
+		BIB_MAX_ROM(2) |
+		BIB_MAX_RECEIVE(card->max_receive) |
+		BIB_BMC | BIB_ISC | BIB_CMC | BIB_IMC;
 	config_rom[3] = card->guid >> 32;
 	config_rom[4] = card->guid;
 
@@ -318,7 +318,7 @@ fw_card_bm_work(struct work_struct *work)
 		 */
 		spin_unlock_irqrestore(&card->lock, flags);
 		return;
-	} else if (root->config_rom[2] & bib_cmc) {
+	} else if (root->config_rom[2] & BIB_CMC) {
 		/*
 		 * FIXME: I suppose we should set the cmstr bit in the
 		 * STATE_CLEAR register of this node, as described in

@@ -24,16 +24,16 @@
 #include "fw-transaction.h"
 #include "fw-topology.h"
 
-#define self_id_phy_id(q)		(((q) >> 24) & 0x3f)
-#define self_id_extended(q)		(((q) >> 23) & 0x01)
-#define self_id_link_on(q)		(((q) >> 22) & 0x01)
-#define self_id_gap_count(q)		(((q) >> 16) & 0x3f)
-#define self_id_phy_speed(q)		(((q) >> 14) & 0x03)
-#define self_id_contender(q)		(((q) >> 11) & 0x01)
-#define self_id_phy_initiator(q)	(((q) >>  1) & 0x01)
-#define self_id_more_packets(q)		(((q) >>  0) & 0x01)
+#define SELF_ID_PHY_ID(q)		(((q) >> 24) & 0x3f)
+#define SELF_ID_EXTENDED(q)		(((q) >> 23) & 0x01)
+#define SELF_ID_LINK_ON(q)		(((q) >> 22) & 0x01)
+#define SELF_ID_GAP_COUNT(q)		(((q) >> 16) & 0x3f)
+#define SELF_ID_PHY_SPEED(q)		(((q) >> 14) & 0x03)
+#define SELF_ID_CONTENDER(q)		(((q) >> 11) & 0x01)
+#define SELF_ID_PHY_INITIATOR(q)	(((q) >>  1) & 0x01)
+#define SELF_ID_MORE_PACKETS(q)		(((q) >>  0) & 0x01)
 
-#define self_id_ext_sequence(q)		(((q) >> 20) & 0x07)
+#define SELF_ID_EXT_SEQUENCE(q)		(((q) >> 20) & 0x07)
 
 static u32 *count_ports(u32 *sid, int *total_port_count, int *child_port_count)
 {
@@ -61,7 +61,7 @@ static u32 *count_ports(u32 *sid, int *total_port_count, int *child_port_count)
 
 		shift -= 2;
 		if (shift == 0) {
-			if (!self_id_more_packets(q))
+			if (!SELF_ID_MORE_PACKETS(q))
 				return sid + 1;
 
 			shift = 16;
@@ -75,8 +75,8 @@ static u32 *count_ports(u32 *sid, int *total_port_count, int *child_port_count)
 			 * packets increase as expected.
 			 */
 
-			if (!self_id_extended(q) ||
-			    seq != self_id_ext_sequence(q))
+			if (!SELF_ID_EXTENDED(q) ||
+			    seq != SELF_ID_EXT_SEQUENCE(q))
 				return NULL;
 
 			seq++;
@@ -103,9 +103,9 @@ static struct fw_node *fw_node_create(u32 sid, int port_count, int color)
 		return NULL;
 
 	node->color = color;
-	node->node_id = LOCAL_BUS | self_id_phy_id(sid);
-	node->link_on = self_id_link_on(sid);
-	node->phy_speed = self_id_phy_speed(sid);
+	node->node_id = LOCAL_BUS | SELF_ID_PHY_ID(sid);
+	node->link_on = SELF_ID_LINK_ON(sid);
+	node->phy_speed = SELF_ID_PHY_SPEED(sid);
 	node->port_count = port_count;
 
 	atomic_set(&node->ref_count, 1);
@@ -181,7 +181,7 @@ static struct fw_node *build_tree(struct fw_card *card,
 	end = sid + self_id_count;
 	phy_id = 0;
 	irm_node = NULL;
-	gap_count = self_id_gap_count(*sid);
+	gap_count = SELF_ID_GAP_COUNT(*sid);
 	topology_type = 0;
 
 	while (sid < end) {
@@ -193,9 +193,9 @@ static struct fw_node *build_tree(struct fw_card *card,
 		}
 
 		q = *sid;
-		if (phy_id != self_id_phy_id(q)) {
+		if (phy_id != SELF_ID_PHY_ID(q)) {
 			fw_error("PHY ID mismatch in self ID: %d != %d.\n",
-				 phy_id, self_id_phy_id(q));
+				 phy_id, SELF_ID_PHY_ID(q));
 			return NULL;
 		}
 
@@ -221,7 +221,7 @@ static struct fw_node *build_tree(struct fw_card *card,
 		if (phy_id == (card->node_id & 0x3f))
 			local_node = node;
 
-		if (self_id_contender(q))
+		if (SELF_ID_CONTENDER(q))
 			irm_node = node;
 
 		if (node->phy_speed == SCODE_BETA)
@@ -283,7 +283,7 @@ static struct fw_node *build_tree(struct fw_card *card,
 		 * setting, we fall back to 63 which will force a gap
 		 * count reconfiguration and a reset.
 		 */
-		if (self_id_gap_count(q) != gap_count)
+		if (SELF_ID_GAP_COUNT(q) != gap_count)
 			gap_count = 63;
 
 		update_hop_count(node);

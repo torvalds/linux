@@ -34,29 +34,29 @@
 #include "fw-topology.h"
 #include "fw-device.h"
 
-#define header_pri(pri)			((pri) << 0)
-#define header_tcode(tcode)		((tcode) << 4)
-#define header_retry(retry)		((retry) << 8)
-#define header_tlabel(tlabel)		((tlabel) << 10)
-#define header_destination(destination)	((destination) << 16)
-#define header_source(source)		((source) << 16)
-#define header_rcode(rcode)		((rcode) << 12)
-#define header_offset_high(offset_high)	((offset_high) << 0)
-#define header_data_length(length)	((length) << 16)
-#define header_extended_tcode(tcode)	((tcode) << 0)
+#define HEADER_PRI(pri)			((pri) << 0)
+#define HEADER_TCODE(tcode)		((tcode) << 4)
+#define HEADER_RETRY(retry)		((retry) << 8)
+#define HEADER_TLABEL(tlabel)		((tlabel) << 10)
+#define HEADER_DESTINATION(destination)	((destination) << 16)
+#define HEADER_SOURCE(source)		((source) << 16)
+#define HEADER_RCODE(rcode)		((rcode) << 12)
+#define HEADER_OFFSET_HIGH(offset_high)	((offset_high) << 0)
+#define HEADER_DATA_LENGTH(length)	((length) << 16)
+#define HEADER_EXTENDED_TCODE(tcode)	((tcode) << 0)
 
-#define header_get_tcode(q)		(((q) >> 4) & 0x0f)
-#define header_get_tlabel(q)		(((q) >> 10) & 0x3f)
-#define header_get_rcode(q)		(((q) >> 12) & 0x0f)
-#define header_get_destination(q)	(((q) >> 16) & 0xffff)
-#define header_get_source(q)		(((q) >> 16) & 0xffff)
-#define header_get_offset_high(q)	(((q) >> 0) & 0xffff)
-#define header_get_data_length(q)	(((q) >> 16) & 0xffff)
-#define header_get_extended_tcode(q)	(((q) >> 0) & 0xffff)
+#define HEADER_GET_TCODE(q)		(((q) >> 4) & 0x0f)
+#define HEADER_GET_TLABEL(q)		(((q) >> 10) & 0x3f)
+#define HEADER_GET_RCODE(q)		(((q) >> 12) & 0x0f)
+#define HEADER_GET_DESTINATION(q)	(((q) >> 16) & 0xffff)
+#define HEADER_GET_SOURCE(q)		(((q) >> 16) & 0xffff)
+#define HEADER_GET_OFFSET_HIGH(q)	(((q) >> 0) & 0xffff)
+#define HEADER_GET_DATA_LENGTH(q)	(((q) >> 16) & 0xffff)
+#define HEADER_GET_EXTENDED_TCODE(q)	(((q) >> 0) & 0xffff)
 
-#define phy_config_gap_count(gap_count)	(((gap_count) << 16) | (1 << 22))
-#define phy_config_root_id(node_id)	((((node_id) & 0x3f) << 24) | (1 << 23))
-#define phy_identifier(id)		((id) << 30)
+#define PHY_CONFIG_GAP_COUNT(gap_count)	(((gap_count) << 16) | (1 << 22))
+#define PHY_CONFIG_ROOT_ID(node_id)	((((node_id) & 0x3f) << 24) | (1 << 23))
+#define PHY_IDENTIFIER(id)		((id) << 30)
 
 static int
 close_transaction(struct fw_transaction *transaction,
@@ -159,12 +159,12 @@ fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 		ext_tcode = 0;
 
 	packet->header[0] =
-		header_retry(RETRY_X) |
-		header_tlabel(tlabel) |
-		header_tcode(tcode) |
-		header_destination(node_id);
+		HEADER_RETRY(RETRY_X) |
+		HEADER_TLABEL(tlabel) |
+		HEADER_TCODE(tcode) |
+		HEADER_DESTINATION(node_id);
 	packet->header[1] =
-		header_offset_high(offset >> 32) | header_source(source_id);
+		HEADER_OFFSET_HIGH(offset >> 32) | HEADER_SOURCE(source_id);
 	packet->header[2] =
 		offset;
 
@@ -178,8 +178,8 @@ fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 	case TCODE_LOCK_REQUEST:
 	case TCODE_WRITE_BLOCK_REQUEST:
 		packet->header[3] =
-			header_data_length(length) |
-			header_extended_tcode(ext_tcode);
+			HEADER_DATA_LENGTH(length) |
+			HEADER_EXTENDED_TCODE(ext_tcode);
 		packet->header_length = 16;
 		packet->payload = payload;
 		packet->payload_length = length;
@@ -192,8 +192,8 @@ fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 
 	case TCODE_READ_BLOCK_REQUEST:
 		packet->header[3] =
-			header_data_length(length) |
-			header_extended_tcode(ext_tcode);
+			HEADER_DATA_LENGTH(length) |
+			HEADER_EXTENDED_TCODE(ext_tcode);
 		packet->header_length = 16;
 		packet->payload_length = 0;
 		break;
@@ -325,9 +325,9 @@ void fw_send_phy_config(struct fw_card *card,
 {
 	u32 q;
 
-	q = phy_identifier(PHY_PACKET_CONFIG) |
-		phy_config_root_id(node_id) |
-		phy_config_gap_count(gap_count);
+	q = PHY_IDENTIFIER(PHY_PACKET_CONFIG) |
+		PHY_CONFIG_ROOT_ID(node_id) |
+		PHY_CONFIG_GAP_COUNT(gap_count);
 
 	send_phy_packet(card, q, generation);
 }
@@ -485,32 +485,32 @@ fw_fill_response(struct fw_packet *response, u32 *request_header,
 {
 	int tcode, tlabel, extended_tcode, source, destination;
 
-	tcode          = header_get_tcode(request_header[0]);
-	tlabel         = header_get_tlabel(request_header[0]);
-	source         = header_get_destination(request_header[0]);
-	destination    = header_get_source(request_header[1]);
-	extended_tcode = header_get_extended_tcode(request_header[3]);
+	tcode          = HEADER_GET_TCODE(request_header[0]);
+	tlabel         = HEADER_GET_TLABEL(request_header[0]);
+	source         = HEADER_GET_DESTINATION(request_header[0]);
+	destination    = HEADER_GET_SOURCE(request_header[1]);
+	extended_tcode = HEADER_GET_EXTENDED_TCODE(request_header[3]);
 
 	response->header[0] =
-		header_retry(RETRY_1) |
-		header_tlabel(tlabel) |
-		header_destination(destination);
+		HEADER_RETRY(RETRY_1) |
+		HEADER_TLABEL(tlabel) |
+		HEADER_DESTINATION(destination);
 	response->header[1] =
-		header_source(source) |
-		header_rcode(rcode);
+		HEADER_SOURCE(source) |
+		HEADER_RCODE(rcode);
 	response->header[2] = 0;
 
 	switch (tcode) {
 	case TCODE_WRITE_QUADLET_REQUEST:
 	case TCODE_WRITE_BLOCK_REQUEST:
-		response->header[0] |= header_tcode(TCODE_WRITE_RESPONSE);
+		response->header[0] |= HEADER_TCODE(TCODE_WRITE_RESPONSE);
 		response->header_length = 12;
 		response->payload_length = 0;
 		break;
 
 	case TCODE_READ_QUADLET_REQUEST:
 		response->header[0] |=
-			header_tcode(TCODE_READ_QUADLET_RESPONSE);
+			HEADER_TCODE(TCODE_READ_QUADLET_RESPONSE);
 		if (payload != NULL)
 			response->header[3] = *(u32 *)payload;
 		else
@@ -521,10 +521,10 @@ fw_fill_response(struct fw_packet *response, u32 *request_header,
 
 	case TCODE_READ_BLOCK_REQUEST:
 	case TCODE_LOCK_REQUEST:
-		response->header[0] |= header_tcode(tcode + 2);
+		response->header[0] |= HEADER_TCODE(tcode + 2);
 		response->header[3] =
-			header_data_length(length) |
-			header_extended_tcode(extended_tcode);
+			HEADER_DATA_LENGTH(length) |
+			HEADER_EXTENDED_TCODE(extended_tcode);
 		response->header_length = 16;
 		response->payload = payload;
 		response->payload_length = length;
@@ -544,7 +544,7 @@ allocate_request(struct fw_packet *p)
 	u32 *data, length;
 	int request_tcode, t;
 
-	request_tcode = header_get_tcode(p->header[0]);
+	request_tcode = HEADER_GET_TCODE(p->header[0]);
 	switch (request_tcode) {
 	case TCODE_WRITE_QUADLET_REQUEST:
 		data = &p->header[3];
@@ -554,7 +554,7 @@ allocate_request(struct fw_packet *p)
 	case TCODE_WRITE_BLOCK_REQUEST:
 	case TCODE_LOCK_REQUEST:
 		data = p->payload;
-		length = header_get_data_length(p->header[3]);
+		length = HEADER_GET_DATA_LENGTH(p->header[3]);
 		break;
 
 	case TCODE_READ_QUADLET_REQUEST:
@@ -564,7 +564,7 @@ allocate_request(struct fw_packet *p)
 
 	case TCODE_READ_BLOCK_REQUEST:
 		data = NULL;
-		length = header_get_data_length(p->header[3]);
+		length = HEADER_GET_DATA_LENGTH(p->header[3]);
 		break;
 
 	default:
@@ -644,10 +644,10 @@ fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 
 	offset      =
 		((unsigned long long)
-		 header_get_offset_high(p->header[1]) << 32) | p->header[2];
-	tcode       = header_get_tcode(p->header[0]);
-	destination = header_get_destination(p->header[0]);
-	source      = header_get_source(p->header[0]);
+		 HEADER_GET_OFFSET_HIGH(p->header[1]) << 32) | p->header[2];
+	tcode       = HEADER_GET_TCODE(p->header[0]);
+	destination = HEADER_GET_DESTINATION(p->header[0]);
+	source      = HEADER_GET_SOURCE(p->header[0]);
 
 	spin_lock_irqsave(&address_handler_lock, flags);
 	handler = lookup_enclosing_address_handler(&address_handler_list,
@@ -682,11 +682,11 @@ fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 	size_t data_length;
 	int tcode, tlabel, destination, source, rcode;
 
-	tcode       = header_get_tcode(p->header[0]);
-	tlabel      = header_get_tlabel(p->header[0]);
-	destination = header_get_destination(p->header[0]);
-	source      = header_get_source(p->header[1]);
-	rcode       = header_get_rcode(p->header[1]);
+	tcode       = HEADER_GET_TCODE(p->header[0]);
+	tlabel      = HEADER_GET_TLABEL(p->header[0]);
+	destination = HEADER_GET_DESTINATION(p->header[0]);
+	source      = HEADER_GET_SOURCE(p->header[1]);
+	rcode       = HEADER_GET_RCODE(p->header[1]);
 
 	spin_lock_irqsave(&card->lock, flags);
 	list_for_each_entry(t, &card->transaction_list, link) {
@@ -723,7 +723,7 @@ fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 	case TCODE_READ_BLOCK_RESPONSE:
 	case TCODE_LOCK_RESPONSE:
 		data = p->payload;
-		data_length = header_get_data_length(p->header[3]);
+		data_length = HEADER_GET_DATA_LENGTH(p->header[3]);
 		break;
 
 	default:
