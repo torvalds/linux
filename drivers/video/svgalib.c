@@ -194,7 +194,7 @@ void svga_dump_var(struct fb_var_screeninfo *var, int node)
 void svga_settile(struct fb_info *info, struct fb_tilemap *map)
 {
 	const u8 *font = map->data;
-	u8* fb = (u8 *) info->screen_base;
+	u8 __iomem *fb = (u8 __iomem *)info->screen_base;
 	int i, c;
 
 	if ((map->width != 8) || (map->height != 16) ||
@@ -207,7 +207,8 @@ void svga_settile(struct fb_info *info, struct fb_tilemap *map)
 	fb += 2;
 	for (c = 0; c < map->length; c++) {
 		for (i = 0; i < map->height; i++) {
-			fb[i * 4] = font[i];
+			fb_writeb(font[i], fb + i * 4);
+//			fb[i * 4] = font[i];
 		}
 		fb += 128;
 		font += map->height;
@@ -221,8 +222,8 @@ void svga_tilecopy(struct fb_info *info, struct fb_tilearea *area)
 	/*  colstride is halved in this function because u16 are used */
 	int colstride = 1 << (info->fix.type_aux & FB_AUX_TEXT_SVGA_MASK);
 	int rowstride = colstride * (info->var.xres_virtual / 8);
-	u16 *fb = (u16 *) info->screen_base;
-	u16 *src, *dst;
+	u16 __iomem *fb = (u16 __iomem *) info->screen_base;
+	u16 __iomem *src, *dst;
 
 	if ((area->sy > area->dy) ||
 	    ((area->sy == area->dy) && (area->sx > area->dx))) {
@@ -239,10 +240,11 @@ void svga_tilecopy(struct fb_info *info, struct fb_tilearea *area)
 	    }
 
 	for (dy = 0; dy < area->height; dy++) {
-		u16* src2 = src;
-		u16* dst2 = dst;
+		u16 __iomem *src2 = src;
+		u16 __iomem *dst2 = dst;
 		for (dx = 0; dx < area->width; dx++) {
-			*dst2 = *src2;
+			fb_writew(fb_readw(src2), dst2);
+//			*dst2 = *src2;
 			src2 += colstride;
 			dst2 += colstride;
 		}
@@ -258,14 +260,14 @@ void svga_tilefill(struct fb_info *info, struct fb_tilerect *rect)
 	int colstride = 2 << (info->fix.type_aux & FB_AUX_TEXT_SVGA_MASK);
 	int rowstride = colstride * (info->var.xres_virtual / 8);
 	int attr = (0x0F & rect->bg) << 4 | (0x0F & rect->fg);
-	u8  *fb = (u8 *) info->screen_base;
+	u8 __iomem *fb = (u8 __iomem *)info->screen_base;
 	fb += rect->sx * colstride + rect->sy * rowstride;
 
 	for (dy = 0; dy < rect->height; dy++) {
-		u8* fb2 = fb;
+		u8 __iomem *fb2 = fb;
 		for (dx = 0; dx < rect->width; dx++) {
-			fb2[0] = rect->index;
-			fb2[1] = attr;
+			fb_writeb(rect->index, fb2);
+			fb_writeb(attr, fb2 + 1);
 			fb2 += colstride;
 		}
 		fb += rowstride;
@@ -279,15 +281,15 @@ void svga_tileblit(struct fb_info *info, struct fb_tileblit *blit)
 	int colstride = 2 << (info->fix.type_aux & FB_AUX_TEXT_SVGA_MASK);
 	int rowstride = colstride * (info->var.xres_virtual / 8);
 	int attr = (0x0F & blit->bg) << 4 | (0x0F & blit->fg);
-	u8* fb = (u8 *) info->screen_base;
+	u8 __iomem *fb = (u8 __iomem *)info->screen_base;
 	fb += blit->sx * colstride + blit->sy * rowstride;
 
 	i=0;
 	for (dy=0; dy < blit->height; dy ++) {
-		u8* fb2 = fb;
+		u8 __iomem *fb2 = fb;
 		for (dx = 0; dx < blit->width; dx ++) {
-			fb2[0] = blit->indices[i];
-			fb2[1] = attr;
+			fb_writeb(blit->indices[i], fb2);
+			fb_writeb(attr, fb2 + 1);
 			fb2 += colstride;
 			i ++;
 			if (i == blit->length) return;
