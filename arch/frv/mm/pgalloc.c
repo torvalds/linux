@@ -151,9 +151,7 @@ void __init pgtable_cache_init(void)
 	pgd_cache = kmem_cache_create("pgd",
 				      PTRS_PER_PGD * sizeof(pgd_t),
 				      PTRS_PER_PGD * sizeof(pgd_t),
-				      0,
+				      SLAB_PANIC,
 				      pgd_ctor,
 				      pgd_dtor);
-	if (!pgd_cache)
-		panic("pgtable_cache_init(): Cannot create pgd cache");
 }

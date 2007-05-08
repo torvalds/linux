@@ -751,12 +751,9 @@ void __init pgtable_cache_init(void)
 		pmd_cache = kmem_cache_create("pmd",
 					PTRS_PER_PMD*sizeof(pmd_t),
 					PTRS_PER_PMD*sizeof(pmd_t),
-					0,
+					SLAB_PANIC,
 					pmd_ctor,
 					NULL);
-		if (!pmd_cache)
-			panic("pgtable_cache_init(): cannot create pmd cache");
-
 		if (!SHARED_KERNEL_PMD) {
 			/* If we're in PAE mode and have a non-shared
 			   kernel pmd, then the pgd size must be a
@@ -770,11 +767,9 @@ void __init pgtable_cache_init(void)
 	pgd_cache = kmem_cache_create("pgd",
 				pgd_size,
 				pgd_size,
-				0,
+				SLAB_PANIC,
 				pgd_ctor,
 				(!SHARED_KERNEL_PMD) ? pgd_dtor : NULL);
-	if (!pgd_cache)
-		panic("pgtable_cache_init(): Cannot create pgd cache");
 }
 
 /*
