@@ -631,7 +631,8 @@ config HVC_CONSOLE
 
 config HVC_ISERIES
 	bool "iSeries Hypervisor Virtual Console support"
-	depends on PPC_ISERIES && !VIOCONS
+	depends on PPC_ISERIES
+	default y
 	select HVC_DRIVER
 	help
 	  iSeries machines support a hypervisor virtual console.
