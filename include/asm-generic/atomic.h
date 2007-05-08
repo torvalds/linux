@@ -9,7 +9,6 @@
  */
 
 #include <asm/types.h>
-#include <asm/system.h>
 
 /*
  * Suppport for atomic_long_t
@@ -123,8 +122,12 @@ static inline long atomic_long_dec_return(atomic_long_t *l)
 	return (long)atomic64_dec_return(v);
 }
 
-#define atomic_long_add_unless(l, a, u) \
-	atomic64_add_unless((atomic64_t *)(l), (a), (u))
+static inline long atomic_long_add_unless(atomic_long_t *l, long a, long u)
+{
+	atomic64_t *v = (atomic64_t *)l;
+
+	return (long)atomic64_add_unless(v, a, u);
+}
 
 #define atomic_long_inc_not_zero(l) atomic64_inc_not_zero((atomic64_t *)(l))
 
@@ -236,8 +239,12 @@ static inline long atomic_long_dec_return(atomic_long_t *l)
 	return (long)atomic_dec_return(v);
 }
 
-#define atomic_long_add_unless(l, a, u) \
-	atomic_add_unless((atomic_t *)(l), (a), (u))
+static inline long atomic_long_add_unless(atomic_long_t *l, long a, long u)
+{
+	atomic_t *v = (atomic_t *)l;
+
+	return (long)atomic_add_unless(v, a, u);
+}
 
 #define atomic_long_inc_not_zero(l) atomic_inc_not_zero((atomic_t *)(l))
 

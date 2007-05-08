@@ -6,7 +6,6 @@
 
 #include <linux/kernel.h>
 
-#include <asm/atomic.h>
 #include <asm/hw_irq.h>
 
 /*

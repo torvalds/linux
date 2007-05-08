@@ -11,6 +11,7 @@ typedef struct { volatile int counter; } atomic_t;
 #include <linux/compiler.h>
 #include <asm/synch.h>
 #include <asm/asm-compat.h>
+#include <asm/system.h>
 
 #define ATOMIC_INIT(i)		{ (i) }
 
