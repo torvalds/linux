@@ -763,9 +763,9 @@ void *rpc_malloc(struct rpc_task *task, size_t size)
 	else
 		buf = kmalloc(size, gfp);
 	*buf = size;
-	dprintk("RPC: %5u allocated buffer of size %u at %p\n",
+	dprintk("RPC: %5u allocated buffer of size %zu at %p\n",
 			task->tk_pid, size, buf);
-	return (void *) ++buf;
+	return ++buf;
 }
 
 /**
@@ -775,14 +775,14 @@ void *rpc_malloc(struct rpc_task *task, size_t size)
  */
 void rpc_free(void *buffer)
 {
-	size_t size, *buf = (size_t *) buffer;
+	size_t size, *buf = buffer;
 
 	if (!buffer)
 		return;
 	size = *buf;
 	buf--;
 
-	dprintk("RPC:       freeing buffer of size %u at %p\n",
+	dprintk("RPC:       freeing buffer of size %zu at %p\n",
 			size, buf);
 	if (size <= RPC_BUFFER_MAXSIZE)
 		mempool_free(buf, rpc_buffer_mempool);
