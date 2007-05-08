@@ -909,14 +909,19 @@ xfs_qm_export_dquot(
 	 * gets turned off. No need to confuse the user level code,
 	 * so return zeroes in that case.
 	 */
-	if (! XFS_IS_QUOTA_ENFORCED(mp)) {
+	if ((!XFS_IS_UQUOTA_ENFORCED(mp) && src->d_flags == XFS_DQ_USER) ||
+	    (!XFS_IS_OQUOTA_ENFORCED(mp) &&
+			(src->d_flags & (XFS_DQ_PROJ | XFS_DQ_GROUP)))) {
 		dst->d_btimer = 0;
 		dst->d_itimer = 0;
 		dst->d_rtbtimer = 0;
 	}
 
 #ifdef DEBUG
-	if (XFS_IS_QUOTA_ENFORCED(mp) && dst->d_id != 0) {
+	if (((XFS_IS_UQUOTA_ENFORCED(mp) && dst->d_flags == XFS_USER_QUOTA) ||
+	     (XFS_IS_OQUOTA_ENFORCED(mp) &&
+			(dst->d_flags & (XFS_PROJ_QUOTA | XFS_GROUP_QUOTA)))) &&
+	    dst->d_id != 0) {
 		if (((int) dst->d_bcount >= (int) dst->d_blk_softlimit) &&
 		    (dst->d_blk_softlimit > 0)) {
 			ASSERT(dst->d_btimer != 0);
