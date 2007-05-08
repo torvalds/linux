@@ -519,6 +519,7 @@ config FB_VGA16
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select VGASTATE
+	select FONT_8x16 if FRAMEBUFFER_CONSOLE
 	help
 	  This is the frame buffer device driver for VGA 16 color graphic
 	  cards. Say Y if you have such a card.
