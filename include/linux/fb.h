@@ -895,6 +895,12 @@ extern int fb_blank(struct fb_info *info, int blank);
 extern void cfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect); 
 extern void cfb_copyarea(struct fb_info *info, const struct fb_copyarea *area); 
 extern void cfb_imageblit(struct fb_info *info, const struct fb_image *image);
+/*
+ * Drawing operations where framebuffer is in system RAM
+ */
+extern void sys_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
+extern void sys_copyarea(struct fb_info *info, const struct fb_copyarea *area);
+extern void sys_imageblit(struct fb_info *info, const struct fb_image *image);
 
 /* drivers/video/fbmem.c */
 extern int register_framebuffer(struct fb_info *fb_info);
