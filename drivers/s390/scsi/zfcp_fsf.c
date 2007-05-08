@@ -3043,6 +3043,7 @@ zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *fsf_req)
 	queue_designator = &header->fsf_status_qual.fsf_queue_designator;
 
 	atomic_clear_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED |
+			  ZFCP_STATUS_COMMON_ACCESS_BOXED |
 			  ZFCP_STATUS_UNIT_SHARED |
 			  ZFCP_STATUS_UNIT_READONLY,
 			  &unit->status);
