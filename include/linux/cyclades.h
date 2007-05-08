@@ -539,13 +539,9 @@ struct cyclades_chip {
  * (required to support Alpha systems) *
  ***************************************/
 
-#define cy_writeb(port,val)     {writeb((val),(port)); mb();}
-#define cy_writew(port,val)     {writew((val),(port)); mb();}
-#define cy_writel(port,val)     {writel((val),(port)); mb();}
-
-#define cy_readb(port)  readb(port)
-#define cy_readw(port)  readw(port)
-#define cy_readl(port)  readl(port)
+#define cy_writeb(port,val)     do { writeb((val), (port)); mb(); } while (0)
+#define cy_writew(port,val)     do { writew((val), (port)); mb(); } while (0)
+#define cy_writel(port,val)     do { writel((val), (port)); mb(); } while (0)
 
 /*
  * Statistics counters
