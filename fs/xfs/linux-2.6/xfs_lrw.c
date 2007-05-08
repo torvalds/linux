@@ -649,7 +649,7 @@ xfs_write(
 	bhv_vrwlock_t		locktype;
 	size_t			ocount = 0, count;
 	loff_t			pos;
-	int			need_i_mutex = 1, need_flush = 0;
+	int			need_i_mutex;
 
 	XFS_STATS_INC(xs_write_calls);
 
@@ -689,38 +689,19 @@ xfs_write(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	if (ioflags & IO_ISDIRECT) {
-		xfs_buftarg_t	*target =
-			(xip->i_d.di_flags & XFS_DIFLAG_REALTIME) ?
-				mp->m_rtdev_targp : mp->m_ddev_targp;
-
-		if ((pos & target->bt_smask) || (count & target->bt_smask))
-			return XFS_ERROR(-EINVAL);
-
-		if (!VN_CACHED(vp) && pos < i_size_read(inode))
-			need_i_mutex = 0;
-
-		if (VN_CACHED(vp))
-			need_flush = 1;
-	}
-
 relock:
-	if (need_i_mutex) {
-		iolock = XFS_IOLOCK_EXCL;
-		locktype = VRWLOCK_WRITE;
-
-		mutex_lock(&inode->i_mutex);
-	} else {
+	if (ioflags & IO_ISDIRECT) {
 		iolock = XFS_IOLOCK_SHARED;
 		locktype = VRWLOCK_WRITE_DIRECT;
+		need_i_mutex = 0;
+	} else {
+		iolock = XFS_IOLOCK_EXCL;
+		locktype = VRWLOCK_WRITE;
+		need_i_mutex = 1;
+		mutex_lock(&inode->i_mutex);
 	}
 
 	xfs_ilock(xip, XFS_ILOCK_EXCL|iolock);
-
-	isize = i_size_read(inode);
-
-	if (file->f_flags & O_APPEND)
-		*offset = isize;
 
 start:
 	error = -generic_write_checks(file, &pos, &count,
@@ -728,6 +709,29 @@ start:
 	if (error) {
 		xfs_iunlock(xip, XFS_ILOCK_EXCL|iolock);
 		goto out_unlock_mutex;
+	}
+
+	isize = i_size_read(inode);
+
+	if (ioflags & IO_ISDIRECT) {
+		xfs_buftarg_t	*target =
+			(xip->i_d.di_flags & XFS_DIFLAG_REALTIME) ?
+				mp->m_rtdev_targp : mp->m_ddev_targp;
+
+		if ((pos & target->bt_smask) || (count & target->bt_smask)) {
+			xfs_iunlock(xip, XFS_ILOCK_EXCL|iolock);
+			return XFS_ERROR(-EINVAL);
+		}
+
+		if (!need_i_mutex && (VN_CACHED(vp) || pos > isize)) {
+			xfs_iunlock(xip, XFS_ILOCK_EXCL|iolock);
+			iolock = XFS_IOLOCK_EXCL;
+			locktype = VRWLOCK_WRITE;
+			need_i_mutex = 1;
+			mutex_lock(&inode->i_mutex);
+			xfs_ilock(xip, XFS_ILOCK_EXCL|iolock);
+			goto start;
+		}
 	}
 
 	new_size = pos + count;
@@ -761,7 +765,6 @@ start:
 		 * what allows the size to change in the first place.
 		 */
 		if ((file->f_flags & O_APPEND) && savedsize != isize) {
-			pos = isize = xip->i_d.di_size;
 			goto start;
 		}
 	}
@@ -815,7 +818,8 @@ retry:
 	current->backing_dev_info = mapping->backing_dev_info;
 
 	if ((ioflags & IO_ISDIRECT)) {
-		if (need_flush) {
+		if (VN_CACHED(vp)) {
+			WARN_ON(need_i_mutex == 0);
 			xfs_inval_cached_trace(io, pos, -1,
 					ctooff(offtoct(pos)), -1);
 			error = bhv_vop_flushinval_pages(vp, ctooff(offtoct(pos)),
@@ -849,7 +853,6 @@ retry:
 			pos += ret;
 			count -= ret;
 
-			need_i_mutex = 1;
 			ioflags &= ~IO_ISDIRECT;
 			xfs_iunlock(xip, iolock);
 			goto relock;
