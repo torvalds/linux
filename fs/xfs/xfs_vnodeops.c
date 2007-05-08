@@ -4289,7 +4289,6 @@ xfs_free_file_space(
 	int			error;
 	xfs_fsblock_t		firstfsb;
 	xfs_bmap_free_t		free_list;
-	xfs_off_t		ilen;
 	xfs_bmbt_irec_t		imap;
 	xfs_off_t		ioffset;
 	xfs_extlen_t		mod=0;
@@ -4338,10 +4337,7 @@ xfs_free_file_space(
 	}
 
 	rounding = max_t(uint, 1 << mp->m_sb.sb_blocklog, NBPP);
-	ilen = len + (offset & (rounding - 1));
 	ioffset = offset & ~(rounding - 1);
-	if (ilen & (rounding - 1))
-		ilen = (ilen + rounding) & ~(rounding - 1);
 
 	if (VN_CACHED(vp) != 0) {
 		xfs_inval_cached_trace(&ip->i_iocore, ioffset, -1,
