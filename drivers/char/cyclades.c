@@ -5460,10 +5460,11 @@ static const struct tty_operations cy_ops = {
 static int __init cy_init(void)
 {
 	unsigned int i, nboards;
+	int retval = -ENOMEM;
 
 	cy_serial_driver = alloc_tty_driver(NR_PORTS);
 	if (!cy_serial_driver)
-		return -ENOMEM;
+		goto err;
 	show_version();
 
 	/* Initialize the tty_driver structure */
@@ -5481,8 +5482,11 @@ static int __init cy_init(void)
 	cy_serial_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(cy_serial_driver, &cy_ops);
 
-	if (tty_register_driver(cy_serial_driver))
-		panic("Couldn't register Cyclades serial driver\n");
+	retval = tty_register_driver(cy_serial_driver);
+	if (retval) {
+		printk(KERN_ERR "Couldn't register Cyclades serial driver\n");
+		goto err_frtty;
+	}
 
 	for (i = 0; i < NR_CARDS; i++) {
 		/* base_addr=0 indicates board not found */
@@ -5508,7 +5512,18 @@ static int __init cy_init(void)
 	/* look for pci boards */
 	nboards += cy_detect_pci();
 
-	return nboards ? 0 : -ENODEV;
+	if (nboards == 0) {
+		retval = -ENODEV;
+		goto err_unr;
+	}
+
+	return 0;
+err_unr:
+	tty_unregister_driver(cy_serial_driver);
+err_frtty:
+	put_tty_driver(cy_serial_driver);
+err:
+	return retval;
 }				/* cy_init */
 
 static void __exit cy_cleanup_module(void)
