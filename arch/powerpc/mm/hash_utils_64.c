@@ -51,6 +51,7 @@
 #include <asm/cputable.h>
 #include <asm/abs_addr.h>
 #include <asm/sections.h>
+#include <asm/spu.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -601,8 +602,13 @@ static void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
 {
 	if (mm->context.user_psize == MMU_PAGE_4K)
 		return;
+#ifdef CONFIG_PPC_MM_SLICES
+	slice_set_user_psize(mm, MMU_PAGE_4K);
+#else /* CONFIG_PPC_MM_SLICES */
 	mm->context.user_psize = MMU_PAGE_4K;
 	mm->context.sllp = SLB_VSID_USER | mmu_psize_defs[MMU_PAGE_4K].sllp;
+#endif /* CONFIG_PPC_MM_SLICES */
+
 #ifdef CONFIG_SPE_BASE
 	spu_flush_all_slbs(mm);
 #endif
@@ -670,11 +676,14 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	if (user_region && cpus_equal(mm->cpu_vm_mask, tmp))
 		local = 1;
 
+#ifdef CONFIG_HUGETLB_PAGE
 	/* Handle hugepage regions */
-	if (unlikely(in_hugepage_area(mm->context, ea))) {
+	if (HPAGE_SHIFT &&
+	    unlikely(get_slice_psize(mm, ea) == mmu_huge_psize)) {
 		DBG_LOW(" -> huge page !\n");
 		return hash_huge_page(mm, access, ea, vsid, local, trap);
 	}
+#endif /* CONFIG_HUGETLB_PAGE */
 
 	/* Get PTE and page size from page tables */
 	ptep = find_linux_pte(pgdir, ea);
@@ -770,10 +779,13 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	unsigned long flags;
 	int local = 0;
 
-	/* We don't want huge pages prefaulted for now
-	 */
-	if (unlikely(in_hugepage_area(mm->context, ea)))
+	BUG_ON(REGION_ID(ea) != USER_REGION_ID);
+
+#ifdef CONFIG_PPC_MM_SLICES
+	/* We only prefault standard pages for now */
+	if (unlikely(get_slice_psize(mm, ea) != mm->context.user_psize));
 		return;
+#endif
 
 	DBG_LOW("hash_preload(mm=%p, mm->pgdir=%p, ea=%016lx, access=%lx,"
 		" trap=%lx\n", mm, mm->pgd, ea, access, trap);

@@ -122,12 +122,18 @@ int main(void)
 	DEFINE(PACASLBCACHE, offsetof(struct paca_struct, slb_cache));
 	DEFINE(PACASLBCACHEPTR, offsetof(struct paca_struct, slb_cache_ptr));
 	DEFINE(PACACONTEXTID, offsetof(struct paca_struct, context.id));
-	DEFINE(PACACONTEXTSLLP, offsetof(struct paca_struct, context.sllp));
 	DEFINE(PACAVMALLOCSLLP, offsetof(struct paca_struct, vmalloc_sllp));
-#ifdef CONFIG_HUGETLB_PAGE
-	DEFINE(PACALOWHTLBAREAS, offsetof(struct paca_struct, context.low_htlb_areas));
-	DEFINE(PACAHIGHHTLBAREAS, offsetof(struct paca_struct, context.high_htlb_areas));
-#endif /* CONFIG_HUGETLB_PAGE */
+#ifdef CONFIG_PPC_MM_SLICES
+	DEFINE(PACALOWSLICESPSIZE, offsetof(struct paca_struct,
+					    context.low_slices_psize));
+	DEFINE(PACAHIGHSLICEPSIZE, offsetof(struct paca_struct,
+					    context.high_slices_psize));
+	DEFINE(MMUPSIZEDEFSIZE, sizeof(struct mmu_psize_def));
+	DEFINE(MMUPSIZESLLP, offsetof(struct mmu_psize_def, sllp));
+#else
+	DEFINE(PACACONTEXTSLLP, offsetof(struct paca_struct, context.sllp));
+
+#endif /* CONFIG_PPC_MM_SLICES */
 	DEFINE(PACA_EXGEN, offsetof(struct paca_struct, exgen));
 	DEFINE(PACA_EXMC, offsetof(struct paca_struct, exmc));
 	DEFINE(PACA_EXSLB, offsetof(struct paca_struct, exslb));

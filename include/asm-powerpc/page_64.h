@@ -88,57 +88,55 @@ extern unsigned int HPAGE_SHIFT;
 
 #endif /* __ASSEMBLY__ */
 
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_PPC_MM_SLICES
 
-#define HTLB_AREA_SHIFT		40
-#define HTLB_AREA_SIZE		(1UL << HTLB_AREA_SHIFT)
-#define GET_HTLB_AREA(x)	((x) >> HTLB_AREA_SHIFT)
+#define SLICE_LOW_SHIFT		28
+#define SLICE_HIGH_SHIFT	40
 
-#define LOW_ESID_MASK(addr, len)    \
-	(((1U << (GET_ESID(min((addr)+(len)-1, 0x100000000UL))+1)) \
-	  - (1U << GET_ESID(min((addr), 0x100000000UL)))) & 0xffff)
-#define HTLB_AREA_MASK(addr, len)   (((1U << (GET_HTLB_AREA(addr+len-1)+1)) \
-		                      - (1U << GET_HTLB_AREA(addr))) & 0xffff)
+#define SLICE_LOW_TOP		(0x100000000ul)
+#define SLICE_NUM_LOW		(SLICE_LOW_TOP >> SLICE_LOW_SHIFT)
+#define SLICE_NUM_HIGH		(PGTABLE_RANGE >> SLICE_HIGH_SHIFT)
+
+#define GET_LOW_SLICE_INDEX(addr)	((addr) >> SLICE_LOW_SHIFT)
+#define GET_HIGH_SLICE_INDEX(addr)	((addr) >> SLICE_HIGH_SHIFT)
+
+#ifndef __ASSEMBLY__
+
+struct slice_mask {
+	u16 low_slices;
+	u16 high_slices;
+};
+
+struct mm_struct;
+
+extern unsigned long slice_get_unmapped_area(unsigned long addr,
+					     unsigned long len,
+					     unsigned long flags,
+					     unsigned int psize,
+					     int topdown,
+					     int use_cache);
+
+extern unsigned int get_slice_psize(struct mm_struct *mm,
+				    unsigned long addr);
+
+extern void slice_init_context(struct mm_struct *mm, unsigned int psize);
+extern void slice_set_user_psize(struct mm_struct *mm, unsigned int psize);
 
 #define ARCH_HAS_HUGEPAGE_ONLY_RANGE
+extern int is_hugepage_only_range(struct mm_struct *m,
+				  unsigned long addr,
+				  unsigned long len);
+
+#endif /* __ASSEMBLY__ */
+#else
+#define slice_init()
+#endif /* CONFIG_PPC_MM_SLICES */
+
+#ifdef CONFIG_HUGETLB_PAGE
+
 #define ARCH_HAS_HUGETLB_FREE_PGD_RANGE
-#define ARCH_HAS_PREPARE_HUGEPAGE_RANGE
 #define ARCH_HAS_SETCLEAR_HUGE_PTE
-
-#define touches_hugepage_low_range(mm, addr, len) \
-	(((addr) < 0x100000000UL) \
-	 && (LOW_ESID_MASK((addr), (len)) & (mm)->context.low_htlb_areas))
-#define touches_hugepage_high_range(mm, addr, len) \
-	((((addr) + (len)) > 0x100000000UL) \
-	  && (HTLB_AREA_MASK((addr), (len)) & (mm)->context.high_htlb_areas))
-
-#define __within_hugepage_low_range(addr, len, segmask) \
-	( (((addr)+(len)) <= 0x100000000UL) \
-	  && ((LOW_ESID_MASK((addr), (len)) | (segmask)) == (segmask)))
-#define within_hugepage_low_range(addr, len) \
-	__within_hugepage_low_range((addr), (len), \
-				    current->mm->context.low_htlb_areas)
-#define __within_hugepage_high_range(addr, len, zonemask) \
-	( ((addr) >= 0x100000000UL) \
-	  && ((HTLB_AREA_MASK((addr), (len)) | (zonemask)) == (zonemask)))
-#define within_hugepage_high_range(addr, len) \
-	__within_hugepage_high_range((addr), (len), \
-				    current->mm->context.high_htlb_areas)
-
-#define is_hugepage_only_range(mm, addr, len) \
-	(touches_hugepage_high_range((mm), (addr), (len)) || \
-	  touches_hugepage_low_range((mm), (addr), (len)))
 #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
-
-#define in_hugepage_area(context, addr) \
-	(cpu_has_feature(CPU_FTR_16M_PAGE) && \
-	 ( ( (addr) >= 0x100000000UL) \
-	   ? ((1 << GET_HTLB_AREA(addr)) & (context).high_htlb_areas) \
-	   : ((1 << GET_ESID(addr)) & (context).low_htlb_areas) ) )
-
-#else /* !CONFIG_HUGETLB_PAGE */
-
-#define in_hugepage_area(mm, addr)	0
 
 #endif /* !CONFIG_HUGETLB_PAGE */
 
