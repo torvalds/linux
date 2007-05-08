@@ -122,6 +122,11 @@ config FB_SYS_IMAGEBLIT
 	  blitting. This is used by drivers that don't provide their own
 	  (accelerated) version and the framebuffer is in system RAM.
 
+config FB_SYS_FOPS
+       tristate
+       depends on FB
+       default n
+
 config FB_DEFERRED_IO
 	bool
 	depends on FB

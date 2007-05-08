@@ -903,6 +903,10 @@ extern void cfb_imageblit(struct fb_info *info, const struct fb_image *image);
 extern void sys_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
 extern void sys_copyarea(struct fb_info *info, const struct fb_copyarea *area);
 extern void sys_imageblit(struct fb_info *info, const struct fb_image *image);
+extern ssize_t fb_sys_read(struct fb_info *info, char __user *buf,
+			   size_t count, loff_t *ppos);
+extern ssize_t fb_sys_write(struct fb_info *info, const char __user *buf,
+			    size_t count, loff_t *ppos);
 
 /* drivers/video/fbmem.c */
 extern int register_framebuffer(struct fb_info *fb_info);
