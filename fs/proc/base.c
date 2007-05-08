@@ -64,6 +64,7 @@
 #include <linux/smp_lock.h>
 #include <linux/rcupdate.h>
 #include <linux/kallsyms.h>
+#include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/security.h>
 #include <linux/ptrace.h>
@@ -122,6 +123,9 @@ struct pid_entry {
 	NOD(NAME, (S_IFREG|(MODE)), 			\
 		NULL, &proc_info_file_operations,	\
 		{ .proc_read = &proc_##OTYPE } )
+
+int maps_protect;
+EXPORT_SYMBOL(maps_protect);
 
 static struct fs_struct *get_fs_struct(struct task_struct *task)
 {

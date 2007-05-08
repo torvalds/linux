@@ -661,7 +661,7 @@ N: Kees Cook
 E: kees@outflux.net
 W: http://outflux.net/
 P: 1024D/17063E6D 9FA3 C49C 23C9 D1BC 2E30  1975 1FFF 4BA9 1706 3E6D
-D: Minor updates to SCSI code for the Communications type
+D: Minor updates to SCSI types, added /proc/pid/maps protection
 S: (ask for current address)
 S: USA
 

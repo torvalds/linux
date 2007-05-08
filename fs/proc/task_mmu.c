@@ -3,6 +3,7 @@
 #include <linux/mount.h>
 #include <linux/seq_file.h>
 #include <linux/highmem.h>
+#include <linux/ptrace.h>
 #include <linux/pagemap.h>
 #include <linux/mempolicy.h>
 
@@ -141,6 +142,9 @@ static int show_map_internal(struct seq_file *m, void *v, struct mem_size_stats 
 	unsigned long ino = 0;
 	dev_t dev = 0;
 	int len;
+
+	if (maps_protect && !ptrace_may_attach(task))
+		return -EACCES;
 
 	if (file) {
 		struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
@@ -512,11 +516,22 @@ const struct file_operations proc_maps_operations = {
 #ifdef CONFIG_NUMA
 extern int show_numa_map(struct seq_file *m, void *v);
 
+static int show_numa_map_checked(struct seq_file *m, void *v)
+{
+	struct proc_maps_private *priv = m->private;
+	struct task_struct *task = priv->task;
+
+	if (maps_protect && !ptrace_may_attach(task))
+		return -EACCES;
+
+	return show_numa_map(m, v);
+}
+
 static struct seq_operations proc_pid_numa_maps_op = {
         .start  = m_start,
         .next   = m_next,
         .stop   = m_stop,
-        .show   = show_numa_map
+        .show   = show_numa_map_checked
 };
 
 static int numa_maps_open(struct inode *inode, struct file *file)
