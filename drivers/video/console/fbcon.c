@@ -2849,7 +2849,7 @@ static void fbcon_set_all_vcs(struct fb_info *info)
 	struct fbcon_ops *ops = info->fbcon_par;
 	struct vc_data *vc;
 	struct display *p;
-	int i, rows, cols;
+	int i, rows, cols, fg = -1;
 
 	if (!ops || ops->currcon < 0)
 		return;
@@ -2860,34 +2860,23 @@ static void fbcon_set_all_vcs(struct fb_info *info)
 		    registered_fb[con2fb_map[i]] != info)
 			continue;
 
+		if (CON_IS_VISIBLE(vc)) {
+			fg = i;
+			continue;
+		}
+
 		p = &fb_display[vc->vc_num];
 		set_blitting_type(vc, info);
 		var_to_display(p, &info->var, info);
-		cols = FBCON_SWAP(ops->rotate, info->var.xres, info->var.yres);
-		rows = FBCON_SWAP(ops->rotate, info->var.yres, info->var.xres);
+		cols = FBCON_SWAP(p->rotate, info->var.xres, info->var.yres);
+		rows = FBCON_SWAP(p->rotate, info->var.yres, info->var.xres);
 		cols /= vc->vc_font.width;
 		rows /= vc->vc_font.height;
 		vc_resize(vc, cols, rows);
-
-		if (CON_IS_VISIBLE(vc)) {
-			updatescrollmode(p, info, vc);
-			scrollback_max = 0;
-			scrollback_current = 0;
-
-			if (!fbcon_is_inactive(vc, info)) {
-			    ops->var.xoffset = ops->var.yoffset =
-				p->yscroll = 0;
-			    ops->update_start(info);
-			}
-
-			fbcon_set_palette(vc, color_table);
-			update_screen(vc);
-			if (softback_buf)
-				fbcon_update_softback(vc);
-		}
 	}
 
-	ops->p = &fb_display[ops->currcon];
+	if (fg != -1)
+		fbcon_modechanged(info);
 }
 
 static int fbcon_mode_deleted(struct fb_info *info,
