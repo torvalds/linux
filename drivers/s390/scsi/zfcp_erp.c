@@ -179,7 +179,7 @@ static void zfcp_close_fsf(struct zfcp_adapter *adapter)
 static void zfcp_fsf_request_timeout_handler(unsigned long data)
 {
 	struct zfcp_adapter *adapter = (struct zfcp_adapter *) data;
-	zfcp_erp_adapter_reopen(adapter, 0);
+	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED);
 }
 
 void zfcp_fsf_start_timer(struct zfcp_fsf_req *fsf_req, unsigned long timeout)
