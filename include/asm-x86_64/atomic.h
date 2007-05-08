@@ -2,7 +2,7 @@
 #define __ARCH_X86_64_ATOMIC__
 
 #include <asm/alternative.h>
-#include <asm/system.h>
+#include <asm/cmpxchg.h>
 
 /* atomic_t should be 32 bit signed type */
 
