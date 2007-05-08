@@ -23,6 +23,14 @@ static LIST_HEAD(pnp_protocols);
 LIST_HEAD(pnp_global);
 DEFINE_SPINLOCK(pnp_lock);
 
+/*
+ * ACPI or PNPBIOS should tell us about all platform devices, so we can
+ * skip some blind probes.  ISAPNP typically enumerates only plug-in ISA
+ * devices, not built-in things like COM ports.
+ */
+int pnp_platform_devices;
+EXPORT_SYMBOL(pnp_platform_devices);
+
 void *pnp_alloc(long size)
 {
 	void *result;

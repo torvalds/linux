@@ -570,6 +570,7 @@ static int __init pnpbios_init(void)
 	/* scan for pnpbios devices */
 	build_devlist();
 
+	pnp_platform_devices = 1;
 	return 0;
 }
 

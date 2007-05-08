@@ -285,6 +285,7 @@ static int __init pnpacpi_init(void)
 	acpi_get_devices(NULL, pnpacpi_add_device_handler, NULL, NULL);
 	pnp_info("PnP ACPI: found %d devices", num);
 	unregister_acpi_bus_type(&acpi_pnp_bus);
+	pnp_platform_devices = 1;
 	return 0;
 }
 subsys_initcall(pnpacpi_init);
