@@ -131,10 +131,10 @@ void nvidia_create_i2c_busses(struct nvidia_par *par)
 	par->chan[1].par = par;
 	par->chan[2].par = par;
 
-	par->chan[0].ddc_base = 0x3e;
+	par->chan[0].ddc_base = 0x36;
 	nvidia_setup_i2c_bus(&par->chan[0], "nvidia #0");
 
-	par->chan[1].ddc_base = 0x36;
+	par->chan[1].ddc_base = 0x3e;
 	nvidia_setup_i2c_bus(&par->chan[1], "nvidia #1");
 
 	par->chan[2].ddc_base = 0x50;
