@@ -1,7 +1,7 @@
 #ifndef _X86_64_PAGE_H
 #define _X86_64_PAGE_H
 
-#include <asm/const.h>
+#include <linux/const.h>
 
 /* PAGE_SHIFT determines the page size */
 #define PAGE_SHIFT	12

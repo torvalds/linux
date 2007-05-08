@@ -1,7 +1,7 @@
 #ifndef _X86_64_PGTABLE_H
 #define _X86_64_PGTABLE_H
 
-#include <asm/const.h>
+#include <linux/const.h>
 #ifndef __ASSEMBLY__
 
 /*

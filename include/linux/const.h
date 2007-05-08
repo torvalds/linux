@@ -1,11 +1,11 @@
 /* const.h: Macros for dealing with constants.  */
 
-#ifndef _X86_64_CONST_H
-#define _X86_64_CONST_H
+#ifndef _LINUX_CONST_H
+#define _LINUX_CONST_H
 
 /* Some constant macros are used in both assembler and
  * C code.  Therefore we cannot annotate them always with
- * 'UL' and other type specificers unilaterally.  We
+ * 'UL' and other type specifiers unilaterally.  We
  * use the following macros to deal with this.
  */
 
@@ -16,5 +16,4 @@
 #define _AC(X,Y)	__AC(X,Y)
 #endif
 
-
-#endif /* !(_X86_64_CONST_H) */
+#endif /* !(_LINUX_CONST_H) */

@@ -19,4 +19,3 @@ unifdef-y += mce.h
 unifdef-y += msr.h
 unifdef-y += mtrr.h
 unifdef-y += vsyscall.h
-unifdef-y += const.h

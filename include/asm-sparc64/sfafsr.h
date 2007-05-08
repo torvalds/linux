@@ -1,7 +1,7 @@
 #ifndef _SPARC64_SFAFSR_H
 #define _SPARC64_SFAFSR_H
 
-#include <asm/const.h>
+#include <linux/const.h>
 
 /* Spitfire Asynchronous Fault Status register, ASI=0x4C VA<63:0>=0x0 */
 
