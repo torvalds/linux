@@ -46,6 +46,10 @@ struct cmos_rtc {
 	int			irq;
 	struct resource		*iomem;
 
+	void			(*wake_on)(struct device *);
+	void			(*wake_off)(struct device *);
+
+	u8			enabled_wake;
 	u8			suspend_ctrl;
 
 	/* newer hardware extends the original register set */
@@ -405,13 +409,20 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	cmos_rtc.irq = rtc_irq;
 	cmos_rtc.iomem = ports;
 
-	/* For ACPI systems the info comes from the FADT.  On others,
-	 * board specific setup provides it as appropriate.
+	/* For ACPI systems extension info comes from the FADT.  On others,
+	 * board specific setup provides it as appropriate.  Systems where
+	 * the alarm IRQ isn't automatically a wakeup IRQ (like ACPI, and
+	 * some almost-clones) can provide hooks to make that behave.
 	 */
 	if (info) {
 		cmos_rtc.day_alrm = info->rtc_day_alarm;
 		cmos_rtc.mon_alrm = info->rtc_mon_alarm;
 		cmos_rtc.century = info->rtc_century;
+
+		if (info->wake_on && info->wake_off) {
+			cmos_rtc.wake_on = info->wake_on;
+			cmos_rtc.wake_off = info->wake_off;
+		}
 	}
 
 	cmos_rtc.rtc = rtc_device_register(driver_name, dev,
@@ -559,9 +570,13 @@ static int cmos_suspend(struct device *dev, pm_message_t mesg)
 	}
 	spin_unlock_irq(&rtc_lock);
 
-	/* ACPI HOOK:  enable ACPI_EVENT_RTC when (tmp & RTC_AIE)
-	 * ... it'd be best if we could do that under rtc_lock.
-	 */
+	if (tmp & RTC_AIE) {
+		cmos->enabled_wake = 1;
+		if (cmos->wake_on)
+			cmos->wake_on(dev);
+		else
+			enable_irq_wake(cmos->irq);
+	}
 
 	pr_debug("%s: suspend%s, ctrl %02x\n",
 			cmos_rtc.rtc->dev.bus_id,
@@ -576,14 +591,16 @@ static int cmos_resume(struct device *dev)
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 	unsigned char	tmp = cmos->suspend_ctrl;
 
-	/* REVISIT:  a mechanism to resync the system clock (jiffies)
-	 * on resume should be portable between platforms ...
-	 */
-
 	/* re-enable any irqs previously active */
 	if (tmp & (RTC_PIE|RTC_AIE|RTC_UIE)) {
 
-		/* ACPI HOOK:  disable ACPI_EVENT_RTC when (tmp & RTC_AIE) */
+		if (cmos->enabled_wake) {
+			if (cmos->wake_off)
+				cmos->wake_off(dev);
+			else
+				disable_irq_wake(cmos->irq);
+			cmos->enabled_wake = 0;
+		}
 
 		spin_lock_irq(&rtc_lock);
 		CMOS_WRITE(tmp, RTC_CONTROL);
