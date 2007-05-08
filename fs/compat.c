@@ -25,10 +25,8 @@
 #include <linux/namei.h>
 #include <linux/file.h>
 #include <linux/vfs.h>
-#include <linux/ioctl32.h>
 #include <linux/ioctl.h>
 #include <linux/init.h>
-#include <linux/sockios.h>	/* for SIOCDEVPRIVATE */
 #include <linux/smb.h>
 #include <linux/smb_mount.h>
 #include <linux/ncp_mount.h>
@@ -46,12 +44,11 @@
 #include <linux/personality.h>
 #include <linux/rwsem.h>
 #include <linux/tsacct_kern.h>
+#include <linux/security.h>
 #include <linux/highmem.h>
 #include <linux/poll.h>
 #include <linux/mm.h>
 #include <linux/eventpoll.h>
-
-#include <net/sock.h>		/* siocdevprivate_ioctl */
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -310,163 +307,6 @@ asmlinkage long compat_sys_fstatfs64(unsigned int fd, compat_size_t sz, struct c
 		error = put_compat_statfs64(buf, &tmp);
 	fput(file);
 out:
-	return error;
-}
-
-/* ioctl32 stuff, used by sparc64, parisc, s390x, ppc64, x86_64, MIPS */
-
-#define IOCTL_HASHSIZE 256
-static struct ioctl_trans *ioctl32_hash_table[IOCTL_HASHSIZE];
-
-static inline unsigned long ioctl32_hash(unsigned long cmd)
-{
-	return (((cmd >> 6) ^ (cmd >> 4) ^ cmd)) % IOCTL_HASHSIZE;
-}
-
-static void ioctl32_insert_translation(struct ioctl_trans *trans)
-{
-	unsigned long hash;
-	struct ioctl_trans *t;
-
-	hash = ioctl32_hash (trans->cmd);
-	if (!ioctl32_hash_table[hash])
-		ioctl32_hash_table[hash] = trans;
-	else {
-		t = ioctl32_hash_table[hash];
-		while (t->next)
-			t = t->next;
-		trans->next = NULL;
-		t->next = trans;
-	}
-}
-
-static int __init init_sys32_ioctl(void)
-{
-	int i;
-
-	for (i = 0; i < ioctl_table_size; i++) {
-		if (ioctl_start[i].next != 0) { 
-			printk("ioctl translation %d bad\n",i); 
-			return -1;
-		}
-
-		ioctl32_insert_translation(&ioctl_start[i]);
-	}
-	return 0;
-}
-
-__initcall(init_sys32_ioctl);
-
-static void compat_ioctl_error(struct file *filp, unsigned int fd,
-		unsigned int cmd, unsigned long arg)
-{
-	char buf[10];
-	char *fn = "?";
-	char *path;
-
-	/* find the name of the device. */
-	path = (char *)__get_free_page(GFP_KERNEL);
-	if (path) {
-		fn = d_path(filp->f_path.dentry, filp->f_path.mnt, path, PAGE_SIZE);
-		if (IS_ERR(fn))
-			fn = "?";
-	}
-
-	sprintf(buf,"'%c'", (cmd>>_IOC_TYPESHIFT) & _IOC_TYPEMASK);
-	if (!isprint(buf[1]))
-		sprintf(buf, "%02x", buf[1]);
-	compat_printk("ioctl32(%s:%d): Unknown cmd fd(%d) "
-			"cmd(%08x){t:%s;sz:%u} arg(%08x) on %s\n",
-			current->comm, current->pid,
-			(int)fd, (unsigned int)cmd, buf,
-			(cmd >> _IOC_SIZESHIFT) & _IOC_SIZEMASK,
-			(unsigned int)arg, fn);
-
-	if (path)
-		free_page((unsigned long)path);
-}
-
-asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
-				unsigned long arg)
-{
-	struct file *filp;
-	int error = -EBADF;
-	struct ioctl_trans *t;
-	int fput_needed;
-
-	filp = fget_light(fd, &fput_needed);
-	if (!filp)
-		goto out;
-
-	/* RED-PEN how should LSM module know it's handling 32bit? */
-	error = security_file_ioctl(filp, cmd, arg);
-	if (error)
-		goto out_fput;
-
-	/*
-	 * To allow the compat_ioctl handlers to be self contained
-	 * we need to check the common ioctls here first.
-	 * Just handle them with the standard handlers below.
-	 */
-	switch (cmd) {
-	case FIOCLEX:
-	case FIONCLEX:
-	case FIONBIO:
-	case FIOASYNC:
-	case FIOQSIZE:
-		break;
-
-	case FIBMAP:
-	case FIGETBSZ:
-	case FIONREAD:
-		if (S_ISREG(filp->f_path.dentry->d_inode->i_mode))
-			break;
-		/*FALL THROUGH*/
-
-	default:
-		if (filp->f_op && filp->f_op->compat_ioctl) {
-			error = filp->f_op->compat_ioctl(filp, cmd, arg);
-			if (error != -ENOIOCTLCMD)
-				goto out_fput;
-		}
-
-		if (!filp->f_op ||
-		    (!filp->f_op->ioctl && !filp->f_op->unlocked_ioctl))
-			goto do_ioctl;
-		break;
-	}
-
-	for (t = ioctl32_hash_table[ioctl32_hash(cmd)]; t; t = t->next) {
-		if (t->cmd == cmd)
-			goto found_handler;
-	}
-
-	if (S_ISSOCK(filp->f_path.dentry->d_inode->i_mode) &&
-	    cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15)) {
-		error = siocdevprivate_ioctl(fd, cmd, arg);
-	} else {
-		static int count;
-
-		if (++count <= 50)
-			compat_ioctl_error(filp, fd, cmd, arg);
-		error = -EINVAL;
-	}
-
-	goto out_fput;
-
- found_handler:
-	if (t->handler) {
-		lock_kernel();
-		error = t->handler(fd, cmd, arg, filp);
-		unlock_kernel();
-		goto out_fput;
-	}
-
- do_ioctl:
-	error = vfs_ioctl(filp, fd, cmd, arg);
- out_fput:
-	fput_light(filp, fput_needed);
- out:
 	return error;
 }
 
