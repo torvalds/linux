@@ -84,7 +84,7 @@ struct xxx_par;
  * if we don't use modedb. If we do use modedb see xxxfb_init how to use it
  * to get a fb_var_screeninfo. Otherwise define a default var as well. 
  */
-static struct fb_fix_screeninfo xxxfb_fix __initdata = {
+static struct fb_fix_screeninfo xxxfb_fix __devinitdata = {
 	.id =		"FB's name", 
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_PSEUDOCOLOR,
@@ -705,7 +705,7 @@ static int __devinit xxxfb_probe(struct pci_dev *dev,
     info->screen_base = framebuffer_virtual_memory;
     info->fbops = &xxxfb_ops;
     info->fix = xxxfb_fix; /* this will be the only time xxxfb_fix will be
-			    * used, so mark it as __initdata
+			    * used, so mark it as __devinitdata
 			    */
     info->pseudo_palette = pseudo_palette; /* The pseudopalette is an
 					    * 16-member array
@@ -899,6 +899,8 @@ static struct pci_driver xxxfb_driver = {
 	.suspend =      xxxfb_suspend, /* optional but recommended */
 	.resume =       xxxfb_resume,  /* optional but recommended */
 };
+
+MODULE_DEVICE_TABLE(pci, xxxfb_id_table);
 
 int __init xxxfb_init(void)
 {
