@@ -160,14 +160,58 @@ static void rtas_slot_error_detail(struct pci_dn *pdn, int severity,
 static size_t gather_pci_data(struct pci_dn *pdn, char * buf, size_t len)
 {
 	u32 cfg;
+	int cap, i;
 	int n = 0;
 
-	n += scnprintf(buf+n, len-n, "%s\n", pdn->node->name);
+	n += scnprintf(buf+n, len-n, "%s\n", pdn->node->full_name);
+	printk(KERN_WARNING "EEH: of node=%s\n", pdn->node->full_name);
+
 	rtas_read_config(pdn, PCI_VENDOR_ID, 4, &cfg);
-	n += scnprintf(buf+n, len-n, "dev/vend:%x\n", cfg);
+	n += scnprintf(buf+n, len-n, "dev/vend:%08x\n", cfg);
+	printk(KERN_WARNING "EEH: PCI device/vendor: %08x\n", cfg);
+
 	rtas_read_config(pdn, PCI_COMMAND, 4, &cfg);
 	n += scnprintf(buf+n, len-n, "cmd/stat:%x\n", cfg);
+	printk(KERN_WARNING "EEH: PCI cmd/status register: %08x\n", cfg);
 
+	/* Dump out the PCI-X command and status regs */
+	cap = pci_find_capability(pdn->pcidev, PCI_CAP_ID_PCIX);
+	if (cap) {
+		rtas_read_config(pdn, cap, 4, &cfg);
+		n += scnprintf(buf+n, len-n, "pcix-cmd:%x\n", cfg);
+		printk(KERN_WARNING "EEH: PCI-X cmd: %08x\n", cfg);
+
+		rtas_read_config(pdn, cap+4, 4, &cfg);
+		n += scnprintf(buf+n, len-n, "pcix-stat:%x\n", cfg);
+		printk(KERN_WARNING "EEH: PCI-X status: %08x\n", cfg);
+	}
+
+	/* If PCI-E capable, dump PCI-E cap 10, and the AER */
+	cap = pci_find_capability(pdn->pcidev, PCI_CAP_ID_EXP);
+	if (cap) {
+		n += scnprintf(buf+n, len-n, "pci-e cap10:\n");
+		printk(KERN_WARNING
+		       "EEH: PCI-E capabilities and status follow:\n");
+
+		for (i=0; i<=8; i++) {
+			rtas_read_config(pdn, cap+4*i, 4, &cfg);
+			n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
+			printk(KERN_WARNING "EEH: PCI-E %02x: %08x\n", i, cfg);
+		}
+
+		cap = pci_find_ext_capability(pdn->pcidev,PCI_EXT_CAP_ID_ERR);
+		if (cap) {
+			n += scnprintf(buf+n, len-n, "pci-e AER:\n");
+			printk(KERN_WARNING
+			       "EEH: PCI-E AER capability register set follows:\n");
+
+			for (i=0; i<14; i++) {
+				rtas_read_config(pdn, cap+4*i, 4, &cfg);
+				n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
+				printk(KERN_WARNING "EEH: PCI-E AER %02x: %08x\n", i, cfg);
+			}
+		}
+	}
 	return n;
 }
 
