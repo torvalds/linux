@@ -23,6 +23,7 @@
 
 #include <linux/types.h>
 #include <linux/moduleparam.h>
+#include <linux/pci.h>
 #include "atl1.h"
 
 /*
@@ -93,7 +94,7 @@ struct atl1_option {
 	} arg;
 };
 
-static int __devinit atl1_validate_option(int *value, struct atl1_option *opt)
+static int __devinit atl1_validate_option(int *value, struct atl1_option *opt, struct pci_dev *pdev)
 {
 	if (*value == OPTION_UNSET) {
 		*value = opt->def;
@@ -104,19 +105,17 @@ static int __devinit atl1_validate_option(int *value, struct atl1_option *opt)
 	case enable_option:
 		switch (*value) {
 		case OPTION_ENABLED:
-			printk(KERN_INFO "%s: %s Enabled\n", atl1_driver_name,
-				opt->name);
+			dev_info(&pdev->dev, "%s enabled\n", opt->name);
 			return 0;
 		case OPTION_DISABLED:
-			printk(KERN_INFO "%s: %s Disabled\n", atl1_driver_name,
-				opt->name);
+			dev_info(&pdev->dev, "%s disabled\n", opt->name);
 			return 0;
 		}
 		break;
 	case range_option:
 		if (*value >= opt->arg.r.min && *value <= opt->arg.r.max) {
-			printk(KERN_INFO "%s: %s set to %i\n",
-				atl1_driver_name, opt->name, *value);
+			dev_info(&pdev->dev, "%s set to %i\n", opt->name,
+				*value);
 			return 0;
 		}
 		break;
@@ -128,8 +127,8 @@ static int __devinit atl1_validate_option(int *value, struct atl1_option *opt)
 				ent = &opt->arg.l.p[i];
 				if (*value == ent->i) {
 					if (ent->str[0] != '\0')
-						printk(KERN_INFO "%s: %s\n",
-						       atl1_driver_name, ent->str);
+						dev_info(&pdev->dev, "%s\n",
+							ent->str);
 					return 0;
 				}
 			}
@@ -140,8 +139,8 @@ static int __devinit atl1_validate_option(int *value, struct atl1_option *opt)
 		break;
 	}
 
-	printk(KERN_INFO "%s: invalid %s specified (%i) %s\n",
-	       atl1_driver_name, opt->name, *value, opt->err);
+	dev_info(&pdev->dev, "invalid %s specified (%i) %s\n",
+		opt->name, *value, opt->err);
 	*value = opt->def;
 	return -1;
 }
@@ -157,12 +156,11 @@ static int __devinit atl1_validate_option(int *value, struct atl1_option *opt)
  */
 void __devinit atl1_check_options(struct atl1_adapter *adapter)
 {
+	struct pci_dev *pdev = adapter->pdev;
 	int bd = adapter->bd_number;
 	if (bd >= ATL1_MAX_NIC) {
-		printk(KERN_NOTICE "%s: warning: no configuration for board #%i\n",
-			atl1_driver_name, bd);
-		printk(KERN_NOTICE "%s: using defaults for all values\n",
-			atl1_driver_name);
+		dev_notice(&pdev->dev, "no configuration for board#%i\n", bd);
+		dev_notice(&pdev->dev, "using defaults for all values\n");
 	}
 	{			/* Interrupt Moderate Timer */
 		struct atl1_option opt = {
@@ -177,7 +175,7 @@ void __devinit atl1_check_options(struct atl1_adapter *adapter)
 		int val;
 		if (num_int_mod_timer > bd) {
 			val = int_mod_timer[bd];
-			atl1_validate_option(&val, &opt);
+			atl1_validate_option(&val, &opt, pdev);
 			adapter->imt = (u16) val;
 		} else
 			adapter->imt = (u16) (opt.def);
@@ -197,7 +195,7 @@ void __devinit atl1_check_options(struct atl1_adapter *adapter)
 		int val;
 		if (num_flash_vendor > bd) {
 			val = flash_vendor[bd];
-			atl1_validate_option(&val, &opt);
+			atl1_validate_option(&val, &opt, pdev);
 			adapter->hw.flash_vendor = (u8) val;
 		} else
 			adapter->hw.flash_vendor = (u8) (opt.def);

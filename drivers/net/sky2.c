@@ -124,10 +124,7 @@ static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4361) }, /* 88E8050 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4362) }, /* 88E8053 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4363) }, /* 88E8055 */
-#ifdef broken
-	/* This device causes data corruption problems that are not resolved */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4364) }, /* 88E8056 */
-#endif
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4366) }, /* 88EC036 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4367) }, /* 88EC032 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4368) }, /* 88EC034 */
@@ -3581,10 +3578,21 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		goto err_out;
 	}
 
+	/* Some Gigabyte motherboards have 88e8056 but cause problems
+	 * There is some unresolved hardware related problem that causes
+	 * descriptor errors and receive data corruption.
+	 */
+	if (pdev->vendor == PCI_VENDOR_ID_MARVELL &&
+	    pdev->device == 0x4364 && pdev->subsystem_vendor == 0x1458) {
+		dev_err(&pdev->dev,
+			"88E8056 on Gigabyte motherboards not supported\n");
+		goto err_out_disable;
+	}
+
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
 		dev_err(&pdev->dev, "cannot obtain PCI resources\n");
-		goto err_out;
+		goto err_out_disable;
 	}
 
 	pci_set_master(pdev);
@@ -3721,6 +3729,7 @@ err_out_free_hw:
 	kfree(hw);
 err_out_free_regions:
 	pci_release_regions(pdev);
+err_out_disable:
 	pci_disable_device(pdev);
 err_out:
 	return err;

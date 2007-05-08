@@ -1420,7 +1420,7 @@ set_addresses(struct net_device *dev)
     kio_addr_t ioaddr = dev->base_addr;
     local_info_t *lp = netdev_priv(dev);
     struct dev_mc_list *dmi = dev->mc_list;
-    char *addr;
+    unsigned char *addr;
     int i,j,k,n;
 
     SelectPage(k=0x50);
@@ -1429,6 +1429,9 @@ set_addresses(struct net_device *dev)
 	    if (++n > 9)
 		break;
 	    i = 0;
+	    if (n > 1 && n <= dev->mc_count && dmi) {
+	   	 dmi = dmi->next;
+	    }
 	}
 	if (j > 15) {
 	    j = 8;
@@ -1436,10 +1439,9 @@ set_addresses(struct net_device *dev)
 	    SelectPage(k);
 	}
 
-	if (n && n <= dev->mc_count && dmi) {
+	if (n && n <= dev->mc_count && dmi)
 	    addr = dmi->dmi_addr;
-	    dmi = dmi->next;
-	} else
+	else
 	    addr = dev->dev_addr;
 
 	if (lp->mohawk)
@@ -1465,10 +1467,10 @@ set_multicast_list(struct net_device *dev)
     if (dev->flags & IFF_PROMISC) { /* snoop */
 	PutByte(XIRCREG42_SWC1, 0x06); /* set MPE and PME */
     } else if (dev->mc_count > 9 || (dev->flags & IFF_ALLMULTI)) {
-	PutByte(XIRCREG42_SWC1, 0x06); /* set MPE */
+	PutByte(XIRCREG42_SWC1, 0x02); /* set MPE */
     } else if (dev->mc_count) {
 	/* the chip can filter 9 addresses perfectly */
-	PutByte(XIRCREG42_SWC1, 0x00);
+	PutByte(XIRCREG42_SWC1, 0x01);
 	SelectPage(0x40);
 	PutByte(XIRCREG40_CMD0, Offline);
 	set_addresses(dev);

@@ -245,7 +245,6 @@ CONFIG_DEFAULT_IOSCHED="anticipatory"
 #
 CONFIG_HW_HAS_PCI=y
 CONFIG_PCI=y
-CONFIG_ISA=y
 CONFIG_MMU=y
 
 #
@@ -573,7 +572,6 @@ CONFIG_MTD_CFI_UTIL=y
 #
 # Plug and Play support
 #
-# CONFIG_PNP is not set
 # CONFIG_PNPACPI is not set
 
 #
@@ -658,7 +656,6 @@ CONFIG_BLK_DEV_IT8213=m
 # CONFIG_BLK_DEV_VIA82CXXX is not set
 CONFIG_BLK_DEV_TC86C001=m
 # CONFIG_IDE_ARM is not set
-# CONFIG_IDE_CHIPSETS is not set
 CONFIG_BLK_DEV_IDEDMA=y
 # CONFIG_IDEDMA_IVB is not set
 # CONFIG_IDEDMA_AUTO is not set
@@ -675,11 +672,6 @@ CONFIG_RAID_ATTRS=m
 # Serial ATA (prod) and Parallel ATA (experimental) drivers
 #
 # CONFIG_ATA is not set
-
-#
-# Old CD-ROM drivers (not SCSI, not IDE)
-#
-# CONFIG_CD_NO_IDESCSI is not set
 
 #
 # Multi-device support (RAID and LVM)
@@ -742,37 +734,20 @@ CONFIG_NET_ETHERNET=y
 # CONFIG_SUNGEM is not set
 # CONFIG_CASSINI is not set
 # CONFIG_NET_VENDOR_3COM is not set
-# CONFIG_NET_VENDOR_SMC is not set
 # CONFIG_DM9000 is not set
-# CONFIG_NET_VENDOR_RACAL is not set
 
 #
 # Tulip family network device support
 #
 # CONFIG_NET_TULIP is not set
-# CONFIG_AT1700 is not set
-# CONFIG_DEPCA is not set
 # CONFIG_HP100 is not set
-CONFIG_NET_ISA=y
-# CONFIG_E2100 is not set
-# CONFIG_EWRK3 is not set
-# CONFIG_EEXPRESS is not set
-# CONFIG_EEXPRESS_PRO is not set
-# CONFIG_HPLAN_PLUS is not set
-# CONFIG_HPLAN is not set
-# CONFIG_LP486E is not set
-# CONFIG_ETH16I is not set
 CONFIG_NE2000=y
-# CONFIG_SEEQ8005 is not set
 CONFIG_NET_PCI=y
 # CONFIG_PCNET32 is not set
 # CONFIG_AMD8111_ETH is not set
 # CONFIG_ADAPTEC_STARFIRE is not set
-# CONFIG_AC3200 is not set
-# CONFIG_APRICOT is not set
 # CONFIG_B44 is not set
 # CONFIG_FORCEDETH is not set
-# CONFIG_CS89x0 is not set
 # CONFIG_DGRS is not set
 # CONFIG_EEPRO100 is not set
 # CONFIG_E100 is not set
@@ -833,8 +808,6 @@ CONFIG_NET_RADIO=y
 # Obsolete Wireless cards support (pre-802.11)
 #
 # CONFIG_STRIP is not set
-# CONFIG_ARLAN is not set
-# CONFIG_WAVELAN is not set
 
 #
 # Wireless 802.11b ISA/PCI cards support
@@ -920,9 +893,6 @@ CONFIG_KEYBOARD_ATKBD=y
 CONFIG_INPUT_MOUSE=y
 CONFIG_MOUSE_PS2=y
 # CONFIG_MOUSE_SERIAL is not set
-# CONFIG_MOUSE_INPORT is not set
-# CONFIG_MOUSE_LOGIBM is not set
-# CONFIG_MOUSE_PC110PAD is not set
 # CONFIG_MOUSE_VSXXXAA is not set
 # CONFIG_INPUT_JOYSTICK is not set
 # CONFIG_INPUT_TOUCHSCREEN is not set
@@ -1072,7 +1042,6 @@ CONFIG_FB_ATY_CT=y
 #
 CONFIG_VGA_CONSOLE=y
 # CONFIG_VGACON_SOFT_SCROLLBACK is not set
-# CONFIG_MDA_CONSOLE is not set
 CONFIG_DUMMY_CONSOLE=y
 # CONFIG_FRAMEBUFFER_CONSOLE is not set
 

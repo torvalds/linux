@@ -251,5 +251,4 @@ define_machine(pas) {
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= pas_progress,
 	.machine_check_exception = pas_machine_check_handler,
-	.pci_irq_fixup		= pas_pci_irq_fixup,
 };

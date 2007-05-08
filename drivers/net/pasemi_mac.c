@@ -33,6 +33,8 @@
 #include <linux/tcp.h>
 #include <net/checksum.h>
 
+#include <asm/irq.h>
+
 #include "pasemi_mac.h"
 
 
@@ -51,6 +53,16 @@
 #define RX_RING_SIZE 512
 #define TX_RING_SIZE 512
 
+#define DEFAULT_MSG_ENABLE	  \
+	(NETIF_MSG_DRV		| \
+	 NETIF_MSG_PROBE	| \
+	 NETIF_MSG_LINK		| \
+	 NETIF_MSG_TIMER	| \
+	 NETIF_MSG_IFDOWN	| \
+	 NETIF_MSG_IFUP		| \
+	 NETIF_MSG_RX_ERR	| \
+	 NETIF_MSG_TX_ERR)
+
 #define TX_DESC(mac, num)	((mac)->tx->desc[(num) & (TX_RING_SIZE-1)])
 #define TX_DESC_INFO(mac, num)	((mac)->tx->desc_info[(num) & (TX_RING_SIZE-1)])
 #define RX_DESC(mac, num)	((mac)->rx->desc[(num) & (RX_RING_SIZE-1)])
@@ -59,11 +71,13 @@
 
 #define BUF_SIZE 1646 /* 1500 MTU + ETH_HLEN + VLAN_HLEN + 2 64B cachelines */
 
-/* XXXOJN these should come out of the device tree some day */
-#define PAS_DMA_CAP_BASE   0xe00d0040
-#define PAS_DMA_CAP_SIZE   0x100
-#define PAS_DMA_COM_BASE   0xe00d0100
-#define PAS_DMA_COM_SIZE   0x100
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR ("Olof Johansson <olof@lixom.net>");
+MODULE_DESCRIPTION("PA Semi PWRficient Ethernet driver");
+
+static int debug = -1;	/* -1 == use DEFAULT_MSG_ENABLE as value */
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, "PA Semi MAC bitmapped debugging message enable value");
 
 static struct pasdma_status *dma_status;
 
@@ -80,7 +94,12 @@ static int pasemi_get_mac_addr(struct pasemi_mac *mac)
 		return -ENOENT;
 	}
 
-	maddr = of_get_property(dn, "mac-address", NULL);
+	maddr = of_get_property(dn, "local-mac-address", NULL);
+
+	/* Fall back to mac-address for older firmware */
+	if (maddr == NULL)
+		maddr = of_get_property(dn, "mac-address", NULL);
+
 	if (maddr == NULL) {
 		dev_warn(&pdev->dev,
 			 "no mac address in device tree, not configuring\n");
@@ -277,8 +296,8 @@ static void pasemi_mac_free_rx_resources(struct net_device *dev)
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		info = &RX_DESC_INFO(mac, i);
 		dp = &RX_DESC(mac, i);
-		if (info->dma) {
-			if (info->skb) {
+		if (info->skb) {
+			if (info->dma) {
 				pci_unmap_single(mac->dma_pdev,
 						 info->dma,
 						 info->skb->len,
@@ -309,82 +328,120 @@ static void pasemi_mac_replenish_rx_ring(struct net_device *dev)
 	struct pasemi_mac *mac = netdev_priv(dev);
 	unsigned int i;
 	int start = mac->rx->next_to_fill;
-	unsigned int count;
+	unsigned int limit, count;
 
-	count = (mac->rx->next_to_clean + RX_RING_SIZE -
+	limit = (mac->rx->next_to_clean + RX_RING_SIZE -
 		 mac->rx->next_to_fill) & (RX_RING_SIZE - 1);
 
 	/* Check to see if we're doing first-time setup */
 	if (unlikely(mac->rx->next_to_clean == 0 && mac->rx->next_to_fill == 0))
-		count = RX_RING_SIZE;
+		limit = RX_RING_SIZE;
 
-	if (count <= 0)
+	if (limit <= 0)
 		return;
 
-	for (i = start; i < start + count; i++) {
+	i = start;
+	for (count = limit; count; count--) {
 		struct pasemi_mac_buffer *info = &RX_DESC_INFO(mac, i);
 		u64 *buff = &RX_BUFF(mac, i);
 		struct sk_buff *skb;
 		dma_addr_t dma;
 
-		skb = dev_alloc_skb(BUF_SIZE);
+		/* skb might still be in there for recycle on short receives */
+		if (info->skb)
+			skb = info->skb;
+		else
+			skb = dev_alloc_skb(BUF_SIZE);
 
-		if (!skb) {
-			count = i - start;
+		if (unlikely(!skb))
 			break;
-		}
 
 		dma = pci_map_single(mac->dma_pdev, skb->data, skb->len,
 				     PCI_DMA_FROMDEVICE);
 
-		if (dma_mapping_error(dma)) {
+		if (unlikely(dma_mapping_error(dma))) {
 			dev_kfree_skb_irq(info->skb);
-			count = i - start;
 			break;
 		}
 
 		info->skb = skb;
 		info->dma = dma;
 		*buff = XCT_RXB_LEN(BUF_SIZE) | XCT_RXB_ADDR(dma);
+		i++;
 	}
 
 	wmb();
 
 	pci_write_config_dword(mac->dma_pdev,
 			       PAS_DMA_RXCHAN_INCR(mac->dma_rxch),
-			       count);
+			       limit - count);
 	pci_write_config_dword(mac->dma_pdev,
 			       PAS_DMA_RXINT_INCR(mac->dma_if),
-			       count);
+			       limit - count);
 
-	mac->rx->next_to_fill += count;
+	mac->rx->next_to_fill += limit - count;
 }
+
+static void pasemi_mac_restart_rx_intr(struct pasemi_mac *mac)
+{
+	unsigned int reg, stat;
+	/* Re-enable packet count interrupts: finally
+	 * ack the packet count interrupt we got in rx_intr.
+	 */
+
+	pci_read_config_dword(mac->iob_pdev,
+			      PAS_IOB_DMA_RXCH_STAT(mac->dma_rxch),
+			      &stat);
+
+	reg = PAS_IOB_DMA_RXCH_RESET_PCNT(stat & PAS_IOB_DMA_RXCH_STAT_CNTDEL_M)
+		| PAS_IOB_DMA_RXCH_RESET_PINTC;
+
+	pci_write_config_dword(mac->iob_pdev,
+			       PAS_IOB_DMA_RXCH_RESET(mac->dma_rxch),
+			       reg);
+}
+
+static void pasemi_mac_restart_tx_intr(struct pasemi_mac *mac)
+{
+	unsigned int reg, stat;
+
+	/* Re-enable packet count interrupts */
+	pci_read_config_dword(mac->iob_pdev,
+			      PAS_IOB_DMA_TXCH_STAT(mac->dma_txch), &stat);
+
+	reg = PAS_IOB_DMA_TXCH_RESET_PCNT(stat & PAS_IOB_DMA_TXCH_STAT_CNTDEL_M)
+		| PAS_IOB_DMA_TXCH_RESET_PINTC;
+
+	pci_write_config_dword(mac->iob_pdev,
+			       PAS_IOB_DMA_TXCH_RESET(mac->dma_txch), reg);
+}
+
 
 static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 {
-	unsigned int i;
-	int start, count;
+	unsigned int n;
+	int count;
+	struct pas_dma_xct_descr *dp;
+	struct pasemi_mac_buffer *info;
+	struct sk_buff *skb;
+	unsigned int i, len;
+	u64 macrx;
+	dma_addr_t dma;
 
 	spin_lock(&mac->rx->lock);
 
-	start = mac->rx->next_to_clean;
-	count = 0;
+	n = mac->rx->next_to_clean;
 
-	for (i = start; i < (start + RX_RING_SIZE) && count < limit; i++) {
-		struct pas_dma_xct_descr *dp;
-		struct pasemi_mac_buffer *info;
-		struct sk_buff *skb;
-		unsigned int j, len;
-		dma_addr_t dma;
+	for (count = limit; count; count--) {
 
 		rmb();
 
-		dp = &RX_DESC(mac, i);
+		dp = &RX_DESC(mac, n);
+		macrx = dp->macrx;
 
-		if (!(dp->macrx & XCT_MACRX_O))
+		if (!(macrx & XCT_MACRX_O))
 			break;
 
-		count++;
 
 		info = NULL;
 
@@ -396,29 +453,42 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 		 */
 
 		dma = (dp->ptr & XCT_PTR_ADDR_M);
-		for (j = start; j < (start + RX_RING_SIZE); j++) {
-			info = &RX_DESC_INFO(mac, j);
+		for (i = n; i < (n + RX_RING_SIZE); i++) {
+			info = &RX_DESC_INFO(mac, i);
 			if (info->dma == dma)
 				break;
 		}
 
-		BUG_ON(!info);
-		BUG_ON(info->dma != dma);
+		skb = info->skb;
+		info->dma = 0;
 
-		pci_unmap_single(mac->dma_pdev, info->dma, info->skb->len,
+		pci_unmap_single(mac->dma_pdev, dma, skb->len,
 				 PCI_DMA_FROMDEVICE);
 
-		skb = info->skb;
+		len = (macrx & XCT_MACRX_LLEN_M) >> XCT_MACRX_LLEN_S;
 
-		len = (dp->macrx & XCT_MACRX_LLEN_M) >> XCT_MACRX_LLEN_S;
+		if (len < 256) {
+			struct sk_buff *new_skb =
+			    netdev_alloc_skb(mac->netdev, len + NET_IP_ALIGN);
+			if (new_skb) {
+				skb_reserve(new_skb, NET_IP_ALIGN);
+				memcpy(new_skb->data - NET_IP_ALIGN,
+					skb->data - NET_IP_ALIGN,
+					len + NET_IP_ALIGN);
+				/* save the skb in buffer_info as good */
+				skb = new_skb;
+			}
+			/* else just continue with the old one */
+		} else
+			info->skb = NULL;
 
 		skb_put(skb, len);
 
 		skb->protocol = eth_type_trans(skb, mac->netdev);
 
-		if ((dp->macrx & XCT_MACRX_HTY_M) == XCT_MACRX_HTY_IPV4_OK) {
+		if ((macrx & XCT_MACRX_HTY_M) == XCT_MACRX_HTY_IPV4_OK) {
 			skb->ip_summed = CHECKSUM_COMPLETE;
-			skb->csum = (dp->macrx & XCT_MACRX_CSUM_M) >>
+			skb->csum = (macrx & XCT_MACRX_CSUM_M) >>
 					   XCT_MACRX_CSUM_S;
 		} else
 			skb->ip_summed = CHECKSUM_NONE;
@@ -428,13 +498,13 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 
 		netif_receive_skb(skb);
 
-		info->dma = 0;
-		info->skb = NULL;
 		dp->ptr = 0;
 		dp->macrx = 0;
+
+		n++;
 	}
 
-	mac->rx->next_to_clean += count;
+	mac->rx->next_to_clean += limit - count;
 	pasemi_mac_replenish_rx_ring(mac->netdev);
 
 	spin_unlock(&mac->rx->lock);
@@ -476,6 +546,8 @@ static int pasemi_mac_clean_tx(struct pasemi_mac *mac)
 	mac->tx->next_to_clean += count;
 	spin_unlock_irqrestore(&mac->tx->lock, flags);
 
+	netif_wake_queue(mac->netdev);
+
 	return count;
 }
 
@@ -486,17 +558,27 @@ static irqreturn_t pasemi_mac_rx_intr(int irq, void *data)
 	struct pasemi_mac *mac = netdev_priv(dev);
 	unsigned int reg;
 
-	if (!(*mac->rx_status & PAS_STATUS_INT))
+	if (!(*mac->rx_status & PAS_STATUS_CAUSE_M))
 		return IRQ_NONE;
 
-	netif_rx_schedule(dev);
-	pci_write_config_dword(mac->iob_pdev, PAS_IOB_DMA_COM_TIMEOUTCFG,
-			       PAS_IOB_DMA_COM_TIMEOUTCFG_TCNT(0));
+	if (*mac->rx_status & PAS_STATUS_ERROR)
+		printk("rx_status reported error\n");
 
-	reg = PAS_IOB_DMA_RXCH_RESET_PINTC | PAS_IOB_DMA_RXCH_RESET_SINTC |
-	      PAS_IOB_DMA_RXCH_RESET_DINTC;
+	/* Don't reset packet count so it won't fire again but clear
+	 * all others.
+	 */
+
+	pci_read_config_dword(mac->dma_pdev, PAS_DMA_RXINT_RCMDSTA(mac->dma_if), &reg);
+
+	reg = 0;
+	if (*mac->rx_status & PAS_STATUS_SOFT)
+		reg |= PAS_IOB_DMA_RXCH_RESET_SINTC;
+	if (*mac->rx_status & PAS_STATUS_ERROR)
+		reg |= PAS_IOB_DMA_RXCH_RESET_DINTC;
 	if (*mac->rx_status & PAS_STATUS_TIMER)
 		reg |= PAS_IOB_DMA_RXCH_RESET_TINTC;
+
+	netif_rx_schedule(dev);
 
 	pci_write_config_dword(mac->iob_pdev,
 			       PAS_IOB_DMA_RXCH_RESET(mac->dma_rxch), reg);
@@ -510,31 +592,137 @@ static irqreturn_t pasemi_mac_tx_intr(int irq, void *data)
 	struct net_device *dev = data;
 	struct pasemi_mac *mac = netdev_priv(dev);
 	unsigned int reg;
-	int was_full;
 
-	was_full = mac->tx->next_to_clean - mac->tx->next_to_use == TX_RING_SIZE;
-
-	if (!(*mac->tx_status & PAS_STATUS_INT))
+	if (!(*mac->tx_status & PAS_STATUS_CAUSE_M))
 		return IRQ_NONE;
 
 	pasemi_mac_clean_tx(mac);
 
-	reg = PAS_IOB_DMA_TXCH_RESET_PINTC | PAS_IOB_DMA_TXCH_RESET_SINTC;
-	if (*mac->tx_status & PAS_STATUS_TIMER)
-		reg |= PAS_IOB_DMA_TXCH_RESET_TINTC;
+	reg = PAS_IOB_DMA_TXCH_RESET_PINTC;
+
+	if (*mac->tx_status & PAS_STATUS_SOFT)
+		reg |= PAS_IOB_DMA_TXCH_RESET_SINTC;
+	if (*mac->tx_status & PAS_STATUS_ERROR)
+		reg |= PAS_IOB_DMA_TXCH_RESET_DINTC;
 
 	pci_write_config_dword(mac->iob_pdev, PAS_IOB_DMA_TXCH_RESET(mac->dma_txch),
 			       reg);
 
-	if (was_full)
-		netif_wake_queue(dev);
-
 	return IRQ_HANDLED;
 }
+
+static void pasemi_adjust_link(struct net_device *dev)
+{
+	struct pasemi_mac *mac = netdev_priv(dev);
+	int msg;
+	unsigned int flags;
+	unsigned int new_flags;
+
+	if (!mac->phydev->link) {
+		/* If no link, MAC speed settings don't matter. Just report
+		 * link down and return.
+		 */
+		if (mac->link && netif_msg_link(mac))
+			printk(KERN_INFO "%s: Link is down.\n", dev->name);
+
+		netif_carrier_off(dev);
+		mac->link = 0;
+
+		return;
+	} else
+		netif_carrier_on(dev);
+
+	pci_read_config_dword(mac->pdev, PAS_MAC_CFG_PCFG, &flags);
+	new_flags = flags & ~(PAS_MAC_CFG_PCFG_HD | PAS_MAC_CFG_PCFG_SPD_M |
+			      PAS_MAC_CFG_PCFG_TSR_M);
+
+	if (!mac->phydev->duplex)
+		new_flags |= PAS_MAC_CFG_PCFG_HD;
+
+	switch (mac->phydev->speed) {
+	case 1000:
+		new_flags |= PAS_MAC_CFG_PCFG_SPD_1G |
+			     PAS_MAC_CFG_PCFG_TSR_1G;
+		break;
+	case 100:
+		new_flags |= PAS_MAC_CFG_PCFG_SPD_100M |
+			     PAS_MAC_CFG_PCFG_TSR_100M;
+		break;
+	case 10:
+		new_flags |= PAS_MAC_CFG_PCFG_SPD_10M |
+			     PAS_MAC_CFG_PCFG_TSR_10M;
+		break;
+	default:
+		printk("Unsupported speed %d\n", mac->phydev->speed);
+	}
+
+	/* Print on link or speed/duplex change */
+	msg = mac->link != mac->phydev->link || flags != new_flags;
+
+	mac->duplex = mac->phydev->duplex;
+	mac->speed = mac->phydev->speed;
+	mac->link = mac->phydev->link;
+
+	if (new_flags != flags)
+		pci_write_config_dword(mac->pdev, PAS_MAC_CFG_PCFG, new_flags);
+
+	if (msg && netif_msg_link(mac))
+		printk(KERN_INFO "%s: Link is up at %d Mbps, %s duplex.\n",
+		       dev->name, mac->speed, mac->duplex ? "full" : "half");
+}
+
+static int pasemi_mac_phy_init(struct net_device *dev)
+{
+	struct pasemi_mac *mac = netdev_priv(dev);
+	struct device_node *dn, *phy_dn;
+	struct phy_device *phydev;
+	unsigned int phy_id;
+	const phandle *ph;
+	const unsigned int *prop;
+	struct resource r;
+	int ret;
+
+	dn = pci_device_to_OF_node(mac->pdev);
+	ph = of_get_property(dn, "phy-handle", NULL);
+	if (!ph)
+		return -ENODEV;
+	phy_dn = of_find_node_by_phandle(*ph);
+
+	prop = of_get_property(phy_dn, "reg", NULL);
+	ret = of_address_to_resource(phy_dn->parent, 0, &r);
+	if (ret)
+		goto err;
+
+	phy_id = *prop;
+	snprintf(mac->phy_id, BUS_ID_SIZE, PHY_ID_FMT, (int)r.start, phy_id);
+
+	of_node_put(phy_dn);
+
+	mac->link = 0;
+	mac->speed = 0;
+	mac->duplex = -1;
+
+	phydev = phy_connect(dev, mac->phy_id, &pasemi_adjust_link, 0, PHY_INTERFACE_MODE_SGMII);
+
+	if (IS_ERR(phydev)) {
+		printk(KERN_ERR "%s: Could not attach to phy\n", dev->name);
+		return PTR_ERR(phydev);
+	}
+
+	mac->phydev = phydev;
+
+	return 0;
+
+err:
+	of_node_put(phy_dn);
+	return -ENODEV;
+}
+
 
 static int pasemi_mac_open(struct net_device *dev)
 {
 	struct pasemi_mac *mac = netdev_priv(dev);
+	int base_irq;
 	unsigned int flags;
 	int ret;
 
@@ -558,10 +746,18 @@ static int pasemi_mac_open(struct net_device *dev)
 	flags |= PAS_MAC_CFG_PCFG_TSR_1G | PAS_MAC_CFG_PCFG_SPD_1G;
 
 	pci_write_config_dword(mac->iob_pdev, PAS_IOB_DMA_RXCH_CFG(mac->dma_rxch),
-			       PAS_IOB_DMA_RXCH_CFG_CNTTH(30));
+			       PAS_IOB_DMA_RXCH_CFG_CNTTH(1));
 
+	pci_write_config_dword(mac->iob_pdev, PAS_IOB_DMA_TXCH_CFG(mac->dma_txch),
+			       PAS_IOB_DMA_TXCH_CFG_CNTTH(32));
+
+	/* Clear out any residual packet count state from firmware */
+	pasemi_mac_restart_rx_intr(mac);
+	pasemi_mac_restart_tx_intr(mac);
+
+	/* 0xffffff is max value, about 16ms */
 	pci_write_config_dword(mac->iob_pdev, PAS_IOB_DMA_COM_TIMEOUTCFG,
-			       PAS_IOB_DMA_COM_TIMEOUTCFG_TCNT(1000000));
+			       PAS_IOB_DMA_COM_TIMEOUTCFG_TCNT(0xffffff));
 
 	pci_write_config_dword(mac->pdev, PAS_MAC_CFG_PCFG, flags);
 
@@ -595,31 +791,50 @@ static int pasemi_mac_open(struct net_device *dev)
 
 	pasemi_mac_replenish_rx_ring(dev);
 
+	ret = pasemi_mac_phy_init(dev);
+	/* Some configs don't have PHYs (XAUI etc), so don't complain about
+	 * failed init due to -ENODEV.
+	 */
+	if (ret && ret != -ENODEV)
+		dev_warn(&mac->pdev->dev, "phy init failed: %d\n", ret);
+
 	netif_start_queue(dev);
 	netif_poll_enable(dev);
 
-	ret = request_irq(mac->dma_pdev->irq + mac->dma_txch,
-			  &pasemi_mac_tx_intr, IRQF_DISABLED,
+	/* Interrupts are a bit different for our DMA controller: While
+	 * it's got one a regular PCI device header, the interrupt there
+	 * is really the base of the range it's using. Each tx and rx
+	 * channel has it's own interrupt source.
+	 */
+
+	base_irq = virq_to_hw(mac->dma_pdev->irq);
+
+	mac->tx_irq = irq_create_mapping(NULL, base_irq + mac->dma_txch);
+	mac->rx_irq = irq_create_mapping(NULL, base_irq + 20 + mac->dma_txch);
+
+	ret = request_irq(mac->tx_irq, &pasemi_mac_tx_intr, IRQF_DISABLED,
 			  mac->tx->irq_name, dev);
 	if (ret) {
 		dev_err(&mac->pdev->dev, "request_irq of irq %d failed: %d\n",
-		       mac->dma_pdev->irq + mac->dma_txch, ret);
+			base_irq + mac->dma_txch, ret);
 		goto out_tx_int;
 	}
 
-	ret = request_irq(mac->dma_pdev->irq + 20 + mac->dma_rxch,
-			  &pasemi_mac_rx_intr, IRQF_DISABLED,
+	ret = request_irq(mac->rx_irq, &pasemi_mac_rx_intr, IRQF_DISABLED,
 			  mac->rx->irq_name, dev);
 	if (ret) {
 		dev_err(&mac->pdev->dev, "request_irq of irq %d failed: %d\n",
-		       mac->dma_pdev->irq + 20 + mac->dma_rxch, ret);
+			base_irq + 20 + mac->dma_rxch, ret);
 		goto out_rx_int;
 	}
+
+	if (mac->phydev)
+		phy_start(mac->phydev);
 
 	return 0;
 
 out_rx_int:
-	free_irq(mac->dma_pdev->irq + mac->dma_txch, dev);
+	free_irq(mac->tx_irq, dev);
 out_tx_int:
 	netif_poll_disable(dev);
 	netif_stop_queue(dev);
@@ -638,6 +853,11 @@ static int pasemi_mac_close(struct net_device *dev)
 	struct pasemi_mac *mac = netdev_priv(dev);
 	unsigned int stat;
 	int retries;
+
+	if (mac->phydev) {
+		phy_stop(mac->phydev);
+		phy_disconnect(mac->phydev);
+	}
 
 	netif_stop_queue(dev);
 
@@ -660,40 +880,37 @@ static int pasemi_mac_close(struct net_device *dev)
 		pci_read_config_dword(mac->dma_pdev,
 				      PAS_DMA_TXCHAN_TCMDSTA(mac->dma_txch),
 				      &stat);
-		if (stat & PAS_DMA_TXCHAN_TCMDSTA_ACT)
+		if (!(stat & PAS_DMA_TXCHAN_TCMDSTA_ACT))
 			break;
 		cond_resched();
 	}
 
-	if (!(stat & PAS_DMA_TXCHAN_TCMDSTA_ACT)) {
+	if (stat & PAS_DMA_TXCHAN_TCMDSTA_ACT)
 		dev_err(&mac->dma_pdev->dev, "Failed to stop tx channel\n");
-	}
 
 	for (retries = 0; retries < MAX_RETRIES; retries++) {
 		pci_read_config_dword(mac->dma_pdev,
 				      PAS_DMA_RXCHAN_CCMDSTA(mac->dma_rxch),
 				      &stat);
-		if (stat & PAS_DMA_RXCHAN_CCMDSTA_ACT)
+		if (!(stat & PAS_DMA_RXCHAN_CCMDSTA_ACT))
 			break;
 		cond_resched();
 	}
 
-	if (!(stat & PAS_DMA_RXCHAN_CCMDSTA_ACT)) {
+	if (stat & PAS_DMA_RXCHAN_CCMDSTA_ACT)
 		dev_err(&mac->dma_pdev->dev, "Failed to stop rx channel\n");
-	}
 
 	for (retries = 0; retries < MAX_RETRIES; retries++) {
 		pci_read_config_dword(mac->dma_pdev,
 				      PAS_DMA_RXINT_RCMDSTA(mac->dma_if),
 				      &stat);
-		if (stat & PAS_DMA_RXINT_RCMDSTA_ACT)
+		if (!(stat & PAS_DMA_RXINT_RCMDSTA_ACT))
 			break;
 		cond_resched();
 	}
 
-	if (!(stat & PAS_DMA_RXINT_RCMDSTA_ACT)) {
+	if (stat & PAS_DMA_RXINT_RCMDSTA_ACT)
 		dev_err(&mac->dma_pdev->dev, "Failed to stop rx interface\n");
-	}
 
 	/* Then, disable the channel. This must be done separately from
 	 * stopping, since you can't disable when active.
@@ -706,8 +923,8 @@ static int pasemi_mac_close(struct net_device *dev)
 	pci_write_config_dword(mac->dma_pdev,
 			       PAS_DMA_RXINT_RCMDSTA(mac->dma_if), 0);
 
-	free_irq(mac->dma_pdev->irq + mac->dma_txch, dev);
-	free_irq(mac->dma_pdev->irq + 20 + mac->dma_rxch, dev);
+	free_irq(mac->tx_irq, dev);
+	free_irq(mac->rx_irq, dev);
 
 	/* Free resources */
 	pasemi_mac_free_rx_resources(dev);
@@ -802,6 +1019,7 @@ static struct net_device_stats *pasemi_mac_get_stats(struct net_device *dev)
 	return &mac->stats;
 }
 
+
 static void pasemi_mac_set_rx_mode(struct net_device *dev)
 {
 	struct pasemi_mac *mac = netdev_priv(dev);
@@ -826,18 +1044,17 @@ static int pasemi_mac_poll(struct net_device *dev, int *budget)
 
 	pkts = pasemi_mac_clean_rx(mac, limit);
 
+	dev->quota -= pkts;
+	*budget -= pkts;
+
 	if (pkts < limit) {
 		/* all done, no more packets present */
 		netif_rx_complete(dev);
 
-		/* re-enable receive interrupts */
-		pci_write_config_dword(mac->iob_pdev, PAS_IOB_DMA_COM_TIMEOUTCFG,
-				       PAS_IOB_DMA_COM_TIMEOUTCFG_TCNT(1000000));
+		pasemi_mac_restart_rx_intr(mac);
 		return 0;
 	} else {
 		/* used up our quantum, so reschedule */
-		dev->quota -= pkts;
-		*budget -= pkts;
 		return 1;
 	}
 }
@@ -937,6 +1154,11 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mac->rx_status = &dma_status->rx_sta[mac->dma_rxch];
 	mac->tx_status = &dma_status->tx_sta[mac->dma_txch];
 
+	mac->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
+
+	/* Enable most messages by default */
+	mac->msg_enable = (NETIF_MSG_IFUP << 1 ) - 1;
+
 	err = register_netdev(dev);
 
 	if (err) {
@@ -1010,10 +1232,6 @@ int pasemi_mac_init_module(void)
 {
 	return pci_register_driver(&pasemi_mac_driver);
 }
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR ("Olof Johansson <olof@lixom.net>");
-MODULE_DESCRIPTION("PA Semi PWRficient Ethernet driver");
 
 module_init(pasemi_mac_init_module);
 module_exit(pasemi_mac_cleanup_module);

@@ -188,8 +188,7 @@ s32 atl1_setup_ring_resources(struct atl1_adapter *adapter)
 	size = sizeof(struct atl1_buffer) * (tpd_ring->count + rfd_ring->count);
 	tpd_ring->buffer_info = kzalloc(size, GFP_KERNEL);
 	if (unlikely(!tpd_ring->buffer_info)) {
-		printk(KERN_WARNING "%s: kzalloc failed , size = D%d\n",
-			atl1_driver_name, size);
+		dev_err(&pdev->dev, "kzalloc failed , size = D%d\n", size);
 		goto err_nomem;
 	}
 	rfd_ring->buffer_info =
@@ -207,9 +206,7 @@ s32 atl1_setup_ring_resources(struct atl1_adapter *adapter)
 	ring_header->desc = pci_alloc_consistent(pdev, ring_header->size,
 						&ring_header->dma);
 	if (unlikely(!ring_header->desc)) {
-		printk(KERN_WARNING
-			"%s: pci_alloc_consistent failed, size = D%d\n",
-			atl1_driver_name, size);
+		dev_err(&pdev->dev, "pci_alloc_consistent failed\n");
 		goto err_nomem;
 	}
 
@@ -373,8 +370,7 @@ static void atl1_rx_checksum(struct atl1_adapter *adapter,
 		if (rrd->err_flg & (ERR_FLAG_CRC | ERR_FLAG_TRUNC |
 					ERR_FLAG_CODE | ERR_FLAG_OV)) {
 			adapter->hw_csum_err++;
-			printk(KERN_DEBUG "%s: rx checksum error\n",
-				atl1_driver_name);
+			dev_dbg(&adapter->pdev->dev, "rx checksum error\n");
 			return;
 		}
 	}
@@ -393,8 +389,9 @@ static void atl1_rx_checksum(struct atl1_adapter *adapter,
 	}
 
 	/* IPv4, but hardware thinks its checksum is wrong */
-	printk(KERN_DEBUG "%s: hw csum wrong pkt_flag:%x, err_flag:%x\n",
-		atl1_driver_name, rrd->pkt_flg, rrd->err_flg);
+	dev_dbg(&adapter->pdev->dev,
+		"hw csum wrong, pkt_flag:%x, err_flag:%x\n",
+		rrd->pkt_flg, rrd->err_flg);
 	skb->ip_summed = CHECKSUM_COMPLETE;
 	skb->csum = htons(rrd->xsz.xsum_sz.rx_chksum);
 	adapter->hw_csum_err++;
@@ -507,14 +504,13 @@ chk_rrd:
 			/* rrd seems to be bad */
 			if (unlikely(i-- > 0)) {
 				/* rrd may not be DMAed completely */
-				printk(KERN_DEBUG
-					"%s: RRD may not be DMAed completely\n",
-					atl1_driver_name);
+				dev_dbg(&adapter->pdev->dev,
+					"incomplete RRD DMA transfer\n");
 				udelay(1);
 				goto chk_rrd;
 			}
 			/* bad rrd */
-			printk(KERN_DEBUG "%s: bad RRD\n", atl1_driver_name);
+			dev_dbg(&adapter->pdev->dev, "bad RRD\n");
 			/* see if update RFD index */
 			if (rrd->num_buf > 1) {
 				u16 num_buf;
@@ -685,8 +681,8 @@ static void atl1_check_for_link(struct atl1_adapter *adapter)
 	/* notify upper layer link down ASAP */
 	if (!(phy_data & BMSR_LSTATUS)) {	/* Link Down */
 		if (netif_carrier_ok(netdev)) {	/* old link state: Up */
-			printk(KERN_INFO "%s: %s link is down\n",
-			       atl1_driver_name, netdev->name);
+			dev_info(&adapter->pdev->dev, "%s link is down\n",
+				netdev->name);
 			adapter->link_speed = SPEED_0;
 			netif_carrier_off(netdev);
 			netif_stop_queue(netdev);
@@ -731,8 +727,8 @@ static irqreturn_t atl1_intr(int irq, void *data)
 
 		/* check if PCIE PHY Link down */
 		if (status & ISR_PHY_LINKDOWN) {
-			printk(KERN_DEBUG "%s: pcie phy link down %x\n",
-				atl1_driver_name, status);
+			dev_dbg(&adapter->pdev->dev, "pcie phy link down %x\n",
+				status);
 			if (netif_running(adapter->netdev)) {	/* reset MAC */
 				iowrite32(0, adapter->hw.hw_addr + REG_IMR);
 				schedule_work(&adapter->pcie_dma_to_rst_task);
@@ -742,9 +738,9 @@ static irqreturn_t atl1_intr(int irq, void *data)
 
 		/* check if DMA read/write error ? */
 		if (status & (ISR_DMAR_TO_RST | ISR_DMAW_TO_RST)) {
-			printk(KERN_DEBUG
-				"%s: pcie DMA r/w error (status = 0x%x)\n",
-				atl1_driver_name, status);
+			dev_dbg(&adapter->pdev->dev,
+				"pcie DMA r/w error (status = 0x%x)\n",
+				status);
 			iowrite32(0, adapter->hw.hw_addr + REG_IMR);
 			schedule_work(&adapter->pcie_dma_to_rst_task);
 			return IRQ_HANDLED;
@@ -762,14 +758,13 @@ static irqreturn_t atl1_intr(int irq, void *data)
 
 		/* rx exception */
 		if (unlikely(status & (ISR_RXF_OV | ISR_RFD_UNRUN |
+			ISR_RRD_OV | ISR_HOST_RFD_UNRUN |
+			ISR_HOST_RRD_OV | ISR_CMB_RX))) {
+			if (status & (ISR_RXF_OV | ISR_RFD_UNRUN |
 				ISR_RRD_OV | ISR_HOST_RFD_UNRUN |
-				ISR_HOST_RRD_OV | ISR_CMB_RX))) {
-			if (status &
-			    (ISR_RXF_OV | ISR_RFD_UNRUN | ISR_RRD_OV |
-			     ISR_HOST_RFD_UNRUN | ISR_HOST_RRD_OV))
-				printk(KERN_INFO
-					"%s: rx exception: status = 0x%x\n",
-					atl1_driver_name, status);
+				ISR_HOST_RRD_OV))
+				dev_dbg(&adapter->pdev->dev,
+					"rx exception, ISR = 0x%x\n", status);
 			atl1_intr_rx(adapter);
 		}
 
@@ -874,8 +869,7 @@ static u32 atl1_check_link(struct atl1_adapter *adapter)
 	atl1_read_phy_reg(hw, MII_BMSR, &phy_data);
 	if (!(phy_data & BMSR_LSTATUS)) {	/* link down */
 		if (netif_carrier_ok(netdev)) {	/* old link state: Up */
-			printk(KERN_INFO "%s: link is down\n",
-				atl1_driver_name);
+			dev_info(&adapter->pdev->dev, "link is down\n");
 			adapter->link_speed = SPEED_0;
 			netif_carrier_off(netdev);
 			netif_stop_queue(netdev);
@@ -918,11 +912,11 @@ static u32 atl1_check_link(struct atl1_adapter *adapter)
 			adapter->link_speed = speed;
 			adapter->link_duplex = duplex;
 			atl1_setup_mac_ctrl(adapter);
-			printk(KERN_INFO "%s: %s link is up %d Mbps %s\n",
-			       atl1_driver_name, netdev->name,
-			       adapter->link_speed,
-			       adapter->link_duplex ==
-			       FULL_DUPLEX ? "full duplex" : "half duplex");
+			dev_info(&adapter->pdev->dev,
+				"%s link is up %d Mbps %s\n",
+				netdev->name, adapter->link_speed,
+				adapter->link_duplex == FULL_DUPLEX ?
+				"full duplex" : "half duplex");
 		}
 		if (!netif_carrier_ok(netdev)) {	/* Link down -> Up */
 			netif_carrier_on(netdev);
@@ -1330,8 +1324,8 @@ static int atl1_tx_csum(struct atl1_adapter *adapter, struct sk_buff *skb,
 		cso = skb_transport_offset(skb);
 		css = cso + skb->csum_offset;
 		if (unlikely(cso & 0x1)) {
-			printk(KERN_DEBUG "%s: payload offset != even number\n",
-				atl1_driver_name);
+			dev_dbg(&adapter->pdev->dev,
+				"payload offset not an even number\n");
 			return -1;
 		}
 		csum->csumpl |= (cso & CSUM_PARAM_PLOADOFFSET_MASK) <<
@@ -1579,7 +1573,7 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if (!spin_trylock(&adapter->lock)) {
 		/* Can't get lock - tell upper layer to requeue */
 		local_irq_restore(flags);
-		printk(KERN_DEBUG "%s: TX locked\n", atl1_driver_name);
+		dev_dbg(&adapter->pdev->dev, "tx locked\n");
 		return NETDEV_TX_LOCKED;
 	}
 
@@ -1587,7 +1581,7 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		/* not enough descriptors */
 		netif_stop_queue(netdev);
 		spin_unlock_irqrestore(&adapter->lock, flags);
-		printk(KERN_DEBUG "%s: TX busy\n", atl1_driver_name);
+		dev_dbg(&adapter->pdev->dev, "tx busy\n");
 		return NETDEV_TX_BUSY;
 	}
 
@@ -1841,8 +1835,7 @@ static int atl1_change_mtu(struct net_device *netdev, int new_mtu)
 
 	if ((max_frame < MINIMUM_ETHERNET_FRAME_SIZE) ||
 	    (max_frame > MAX_JUMBO_FRAME_SIZE)) {
-		printk(KERN_WARNING "%s: invalid MTU setting\n",
-			atl1_driver_name);
+		dev_warn(&adapter->pdev->dev, "invalid MTU setting\n");
 		return -EINVAL;
 	}
 
@@ -2136,9 +2129,7 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 	if (err) {
 		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (err) {
-			printk(KERN_DEBUG
-				"%s: no usable DMA configuration, aborting\n",
-				atl1_driver_name);
+			dev_err(&pdev->dev, "no usable DMA configuration\n");
 			goto err_dma;
 		}
 		pci_using_64 = false;
@@ -2175,7 +2166,9 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 		goto err_pci_iomap;
 	}
 	/* get device revision number */
-	adapter->hw.dev_rev = ioread16(adapter->hw.hw_addr + (REG_MASTER_CTRL + 2));
+	adapter->hw.dev_rev = ioread16(adapter->hw.hw_addr +
+					(REG_MASTER_CTRL + 2));
+	dev_info(&pdev->dev, "version %s\n", DRIVER_VERSION);
 
 	/* set default ring resource counts */
 	adapter->rfd_ring.count = adapter->rrd_ring.count = ATL1_DEFAULT_RFD;
@@ -2466,8 +2459,6 @@ static void __exit atl1_exit_module(void)
  */
 static int __init atl1_init_module(void)
 {
-	printk(KERN_INFO "%s - version %s\n", atl1_driver_string, DRIVER_VERSION);
-	printk(KERN_INFO "%s\n", atl1_copyright);
 	return pci_register_driver(&atl1_driver);
 }
 

@@ -1682,6 +1682,21 @@ qeth_put_reply(struct qeth_reply *reply)
 		kfree(reply);
 }
 
+static void
+qeth_issue_ipa_msg(struct qeth_ipa_cmd *cmd, struct qeth_card *card)
+{
+	int rc;
+	int com;
+	char * ipa_name;
+
+	com = cmd->hdr.command;
+	rc  = cmd->hdr.return_code;
+	ipa_name = qeth_get_ipa_cmd_name(com);
+
+	PRINT_ERR("%s(x%X) for %s returned x%X \"%s\"\n", ipa_name, com,
+		   QETH_CARD_IFNAME(card), rc, qeth_get_ipa_msg(rc));
+}
+
 static struct qeth_ipa_cmd *
 qeth_check_ipa_data(struct qeth_card *card, struct qeth_cmd_buffer *iob)
 {
@@ -1690,8 +1705,11 @@ qeth_check_ipa_data(struct qeth_card *card, struct qeth_cmd_buffer *iob)
 	QETH_DBF_TEXT(trace,5,"chkipad");
 	if (IS_IPA(iob->data)){
 		cmd = (struct qeth_ipa_cmd *) PDU_ENCAPSULATION(iob->data);
-		if (IS_IPA_REPLY(cmd))
+		if (IS_IPA_REPLY(cmd)) {
+			if (cmd->hdr.return_code)
+				qeth_issue_ipa_msg(cmd, card);
 			return cmd;
+		}
 		else {
 			switch (cmd->hdr.command) {
 			case IPA_CMD_STOPLAN:
@@ -2816,6 +2834,7 @@ qeth_flush_buffers(struct qeth_qdio_out_q *queue, int under_int,
 	struct qeth_qdio_out_buffer *buf;
 	int rc;
 	int i;
+	unsigned int qdio_flags;
 
 	QETH_DBF_TEXT(trace, 6, "flushbuf");
 
@@ -2859,13 +2878,13 @@ qeth_flush_buffers(struct qeth_qdio_out_q *queue, int under_int,
 		queue->card->perf_stats.outbound_do_qdio_start_time =
 			qeth_get_micros();
 	}
+	qdio_flags = QDIO_FLAG_SYNC_OUTPUT;
 	if (under_int)
-		rc = do_QDIO(CARD_DDEV(queue->card),
-			     QDIO_FLAG_SYNC_OUTPUT | QDIO_FLAG_UNDER_INTERRUPT,
-			     queue->queue_no, index, count, NULL);
-	else
-		rc = do_QDIO(CARD_DDEV(queue->card), QDIO_FLAG_SYNC_OUTPUT,
-			     queue->queue_no, index, count, NULL);
+		qdio_flags |= QDIO_FLAG_UNDER_INTERRUPT;
+	if (atomic_read(&queue->set_pci_flags_count))
+		qdio_flags |= QDIO_FLAG_PCI_OUT;
+	rc = do_QDIO(CARD_DDEV(queue->card), qdio_flags,
+		     queue->queue_no, index, count, NULL);
 	if (queue->card->options.performance_stats)
 		queue->card->perf_stats.outbound_do_qdio_time +=
 			qeth_get_micros() -
@@ -4490,7 +4509,8 @@ qeth_send_packet(struct qeth_card *card, struct sk_buff *skb)
 		qeth_fill_header(card, hdr, new_skb, ipv, cast_type);
 	}
 	if (large_send == QETH_LARGE_SEND_EDDP) {
-		ctx = qeth_eddp_create_context(card, new_skb, hdr);
+		ctx = qeth_eddp_create_context(card, new_skb, hdr,
+					       skb->sk->sk_protocol);
 		if (ctx == NULL) {
 			__qeth_free_new_skb(skb, new_skb);
 			PRINT_WARN("could not create eddp context\n");
@@ -5948,9 +5968,6 @@ qeth_layer2_send_setmac_cb(struct qeth_card *card,
 	cmd = (struct qeth_ipa_cmd *) data;
 	if (cmd->hdr.return_code) {
 		QETH_DBF_TEXT_(trace, 2, "L2er%x", cmd->hdr.return_code);
-		PRINT_WARN("Error in registering MAC address on " \
-			   "device %s: x%x\n", CARD_BUS_ID(card),
-			   cmd->hdr.return_code);
 		card->info.mac_bits &= ~QETH_LAYER2_MAC_REGISTERED;
 		cmd->hdr.return_code = -EIO;
 	} else {
@@ -5985,9 +6002,6 @@ qeth_layer2_send_delmac_cb(struct qeth_card *card,
 	QETH_DBF_TEXT(trace, 2, "L2Dmaccb");
 	cmd = (struct qeth_ipa_cmd *) data;
 	if (cmd->hdr.return_code) {
-		PRINT_WARN("Error in deregistering MAC address on " \
-			   "device %s: x%x\n", CARD_BUS_ID(card),
-			   cmd->hdr.return_code);
 		QETH_DBF_TEXT_(trace, 2, "err%d", cmd->hdr.return_code);
 		cmd->hdr.return_code = -EIO;
 		return 0;
@@ -6651,7 +6665,7 @@ qeth_setadpparms_change_macaddr_cb(struct qeth_card *card,
 	QETH_DBF_TEXT(trace,4,"chgmaccb");
 
 	cmd = (struct qeth_ipa_cmd *) data;
-	if (!card->options.layer2 || card->info.guestlan ||
+	if (!card->options.layer2 ||
 	    !(card->info.mac_bits & QETH_LAYER2_MAC_READ)) {
 		memcpy(card->dev->dev_addr,
 		       &cmd->data.setadapterparms.data.change_addr.addr,
@@ -8497,6 +8511,7 @@ __qeth_reboot_event_card(struct device *dev, void *data)
 	card = (struct qeth_card *) dev->driver_data;
 	qeth_clear_ip_list(card, 0, 0);
 	qeth_qdio_clear_card(card, 0);
+	qeth_clear_qdio_buffers(card);
 	return 0;
 }
 

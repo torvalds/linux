@@ -784,7 +784,6 @@ config TOSHIBA_RBTX4927
 	select HAS_TXX9_SERIAL
 	select HW_HAS_PCI
 	select I8259
-	select ISA
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_TX49XX
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -806,7 +805,6 @@ config TOSHIBA_RBTX4938
 	select HAS_TXX9_SERIAL
 	select HW_HAS_PCI
 	select I8259
-	select ISA
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_TX49XX
 	select SYS_SUPPORTS_32BIT_KERNEL

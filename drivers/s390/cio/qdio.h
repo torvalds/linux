@@ -60,6 +60,7 @@
 #define QDIO_ACTIVATE_TIMEOUT ((5*HZ)>>10)
 #define QDIO_CLEANUP_CLEAR_TIMEOUT (20*HZ)
 #define QDIO_CLEANUP_HALT_TIMEOUT (10*HZ)
+#define QDIO_FORCE_CHECK_TIMEOUT (10*HZ)
 
 enum qdio_irq_states {
 	QDIO_IRQ_STATE_INACTIVE,
@@ -511,8 +512,8 @@ struct qdio_q {
 
 	void *irq_ptr;
 
-#ifdef QDIO_USE_TIMERS_FOR_POLLING
 	struct timer_list timer;
+#ifdef QDIO_USE_TIMERS_FOR_POLLING
 	atomic_t timer_already_set;
 	spinlock_t timer_lock;
 #else /* QDIO_USE_TIMERS_FOR_POLLING */
@@ -558,6 +559,7 @@ struct qdio_q {
 	} timing;
 	atomic_t busy_siga_counter;
         unsigned int queue_type;
+	unsigned int is_pci_out;
 
 	/* leave this member at the end. won't be cleared in qdio_fill_qs */
 	struct slib *slib; /* a page is allocated under this pointer,
