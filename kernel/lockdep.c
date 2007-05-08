@@ -340,10 +340,7 @@ static const char *usage_str[] =
 
 const char * __get_key_name(struct lockdep_subclass_key *key, char *str)
 {
-	unsigned long offs, size;
-	char *modname;
-
-	return kallsyms_lookup((unsigned long)key, &size, &offs, &modname, str);
+	return kallsyms_lookup((unsigned long)key, NULL, NULL, NULL, str);
 }
 
 void

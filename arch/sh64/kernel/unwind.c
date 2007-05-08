@@ -46,15 +46,15 @@ static int lookup_prev_stack_frame(unsigned long fp, unsigned long pc,
 		      struct pt_regs *regs)
 {
 	const char *sym;
-	char *modname, namebuf[128];
-	unsigned long offset, size;
+	char namebuf[128];
+	unsigned long offset;
 	unsigned long prologue = 0;
 	unsigned long fp_displacement = 0;
 	unsigned long fp_prev = 0;
 	unsigned long offset_r14 = 0, offset_r18 = 0;
 	int i, found_prologue_end = 0;
 
-	sym = kallsyms_lookup(pc, &size, &offset, &modname, namebuf);
+	sym = kallsyms_lookup(pc, NULL, &offset, NULL, namebuf);
 	if (!sym)
 		return -EINVAL;
 

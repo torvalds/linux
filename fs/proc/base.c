@@ -278,14 +278,13 @@ static int proc_pid_auxv(struct task_struct *task, char *buffer)
  */
 static int proc_pid_wchan(struct task_struct *task, char *buffer)
 {
-	char *modname;
 	const char *sym_name;
-	unsigned long wchan, size, offset;
+	unsigned long wchan;
 	char namebuf[KSYM_NAME_LEN+1];
 
 	wchan = get_wchan(task);
 
-	sym_name = kallsyms_lookup(wchan, &size, &offset, &modname, namebuf);
+	sym_name = kallsyms_lookup(wchan, NULL, NULL, NULL, namebuf);
 	if (sym_name)
 		return sprintf(buffer, "%s", sym_name);
 	return sprintf(buffer, "%lu", wchan);

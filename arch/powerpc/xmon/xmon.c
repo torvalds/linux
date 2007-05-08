@@ -1217,7 +1217,6 @@ static void get_function_bounds(unsigned long pc, unsigned long *startp,
 {
 	unsigned long size, offset;
 	const char *name;
-	char *modname;
 
 	*startp = *endp = 0;
 	if (pc == 0)
@@ -1225,7 +1224,7 @@ static void get_function_bounds(unsigned long pc, unsigned long *startp,
 	if (setjmp(bus_error_jmp) == 0) {
 		catch_memory_errors = 1;
 		sync();
-		name = kallsyms_lookup(pc, &size, &offset, &modname, tmpstr);
+		name = kallsyms_lookup(pc, &size, &offset, NULL, tmpstr);
 		if (name != NULL) {
 			*startp = pc - offset;
 			*endp = pc - offset + size;

@@ -214,8 +214,10 @@ static unsigned long get_symbol_pos(unsigned long addr,
 			symbol_end = (unsigned long)_etext;
 	}
 
-	*symbolsize = symbol_end - symbol_start;
-	*offset = addr - symbol_start;
+	if (symbolsize)
+		*symbolsize = symbol_end - symbol_start;
+	if (offset)
+		*offset = addr - symbol_start;
 
 	return low;
 }

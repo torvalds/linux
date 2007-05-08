@@ -868,13 +868,13 @@ static int __kprobes show_kprobe_addr(struct seq_file *pi, void *v)
 	struct kprobe *p, *kp;
 	const char *sym = NULL;
 	unsigned int i = *(loff_t *) v;
-	unsigned long size, offset = 0;
+	unsigned long offset = 0;
 	char *modname, namebuf[128];
 
 	head = &kprobe_table[i];
 	preempt_disable();
 	hlist_for_each_entry_rcu(p, node, head, hlist) {
-		sym = kallsyms_lookup((unsigned long)p->addr, &size,
+		sym = kallsyms_lookup((unsigned long)p->addr, NULL,
 					&offset, &modname, namebuf);
 		if (p->pre_handler == aggr_pre_handler) {
 			list_for_each_entry_rcu(kp, &p->list, list)

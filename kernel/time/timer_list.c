@@ -40,11 +40,9 @@ static void print_name_offset(struct seq_file *m, void *sym)
 {
 	unsigned long addr = (unsigned long)sym;
 	char namebuf[KSYM_NAME_LEN+1];
-	unsigned long size, offset;
 	const char *sym_name;
-	char *modname;
 
-	sym_name = kallsyms_lookup(addr, &size, &offset, &modname, namebuf);
+	sym_name = kallsyms_lookup(addr, NULL, NULL, NULL, namebuf);
 	if (sym_name)
 		SEQ_printf(m, "%s", sym_name);
 	else
