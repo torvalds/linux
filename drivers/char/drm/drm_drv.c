@@ -15,8 +15,6 @@
  * #define DRIVER_DESC		"Matrox G200/G400"
  * #define DRIVER_DATE		"20001127"
  *
- * #define DRIVER_IOCTL_COUNT	DRM_ARRAY_SIZE( mga_ioctls )
- *
  * #define drm_x		mga_##x
  * \endcode
  */
@@ -120,7 +118,7 @@ static drm_ioctl_desc_t drm_ioctls[] = {
 	[DRM_IOCTL_NR(DRM_IOCTL_UPDATE_DRAW)] = {drm_update_drawable_info, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
 };
 
-#define DRIVER_IOCTL_COUNT	ARRAY_SIZE( drm_ioctls )
+#define DRM_CORE_IOCTL_COUNT	ARRAY_SIZE( drm_ioctls )
 
 /**
  * Take down the DRM device.
@@ -496,11 +494,11 @@ int drm_ioctl(struct inode *inode, struct file *filp,
 		  (long)old_encode_dev(priv->head->device),
 		  priv->authenticated);
 
-	if ((nr >= DRIVER_IOCTL_COUNT) &&
+	if ((nr >= DRM_CORE_IOCTL_COUNT) &&
 	    ((nr < DRM_COMMAND_BASE) || (nr >= DRM_COMMAND_END)))
 		goto err_i1;
-	if ((nr >= DRM_COMMAND_BASE) && (nr < DRM_COMMAND_END)
-		 && (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls))
+	if ((nr >= DRM_COMMAND_BASE) && (nr < DRM_COMMAND_END) &&
+	    (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls))
 		ioctl = &dev->driver->ioctls[nr - DRM_COMMAND_BASE];
 	else if ((nr >= DRM_COMMAND_END) || (nr < DRM_COMMAND_BASE))
 		ioctl = &drm_ioctls[nr];
