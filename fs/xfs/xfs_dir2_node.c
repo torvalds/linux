@@ -904,7 +904,7 @@ xfs_dir2_leafn_remove(
 	 * Log the data block header if needed.
 	 */
 	if (needscan)
-		xfs_dir2_data_freescan(mp, data, &needlog, NULL);
+		xfs_dir2_data_freescan(mp, data, &needlog);
 	if (needlog)
 		xfs_dir2_data_log_header(tp, dbp);
 	xfs_dir2_data_check(dp, dbp);
@@ -1705,7 +1705,7 @@ xfs_dir2_node_addname_int(
 	 * Rescan the block for bestfree if needed.
 	 */
 	if (needscan)
-		xfs_dir2_data_freescan(mp, data, &needlog, NULL);
+		xfs_dir2_data_freescan(mp, data, &needlog);
 	/*
 	 * Log the data block header if needed.
 	 */

@@ -324,8 +324,7 @@ void
 xfs_dir2_data_freescan(
 	xfs_mount_t		*mp,		/* filesystem mount point */
 	xfs_dir2_data_t		*d,		/* data block pointer */
-	int			*loghead,	/* out: log data header */
-	char			*aendp)		/* in: caller's endp */
+	int			*loghead)	/* out: log data header */
 {
 	xfs_dir2_block_tail_t	*btp;		/* block tail */
 	xfs_dir2_data_entry_t	*dep;		/* active data entry */
@@ -346,9 +345,7 @@ xfs_dir2_data_freescan(
 	 * Set up pointers.
 	 */
 	p = (char *)d->u;
-	if (aendp)
-		endp = aendp;
-	else if (be32_to_cpu(d->hdr.magic) == XFS_DIR2_BLOCK_MAGIC) {
+	if (be32_to_cpu(d->hdr.magic) == XFS_DIR2_BLOCK_MAGIC) {
 		btp = XFS_DIR2_BLOCK_TAIL_P(mp, (xfs_dir2_block_t *)d);
 		endp = (char *)XFS_DIR2_BLOCK_LEAF_P(btp);
 	} else

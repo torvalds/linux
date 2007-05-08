@@ -166,7 +166,7 @@ extern xfs_dir2_data_free_t *xfs_dir2_data_freefind(xfs_dir2_data_t *d,
 extern xfs_dir2_data_free_t *xfs_dir2_data_freeinsert(xfs_dir2_data_t *d,
 				xfs_dir2_data_unused_t *dup, int *loghead);
 extern void xfs_dir2_data_freescan(struct xfs_mount *mp, xfs_dir2_data_t *d,
-				int *loghead, char *aendp);
+				int *loghead);
 extern int xfs_dir2_data_init(struct xfs_da_args *args, xfs_dir2_db_t blkno,
 				struct xfs_dabuf **bpp);
 extern void xfs_dir2_data_log_entry(struct xfs_trans *tp, struct xfs_dabuf *bp,
