@@ -82,7 +82,7 @@ void softlockup_tick(void)
  */
 static int watchdog(void * __bind_cpu)
 {
-	struct sched_param param = { .sched_priority = 99 };
+	struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
 
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	current->flags |= PF_NOFREEZE;
