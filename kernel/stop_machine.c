@@ -1,11 +1,12 @@
 /* Copyright 2005 Rusty Russell rusty@rustcorp.com.au IBM Corporation.
  * GPL v2 and any later version.
  */
-#include <linux/stop_machine.h>
-#include <linux/kthread.h>
-#include <linux/sched.h>
 #include <linux/cpu.h>
 #include <linux/err.h>
+#include <linux/kthread.h>
+#include <linux/module.h>
+#include <linux/sched.h>
+#include <linux/stop_machine.h>
 #include <linux/syscalls.h>
 #include <asm/atomic.h>
 #include <asm/semaphore.h>
@@ -208,3 +209,4 @@ int stop_machine_run(int (*fn)(void *), void *data, unsigned int cpu)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(stop_machine_run);
