@@ -67,6 +67,8 @@
 #ifndef _LINUX_CYCLADES_H
 #define _LINUX_CYCLADES_H
 
+#include <linux/types.h>
+
 struct cyclades_monitor {
         unsigned long           int_count;
         unsigned long           char_count;
@@ -172,24 +174,24 @@ typedef __u8   ucchar;			/* 8 bits, unsigned */
  */
 
 struct	CUSTOM_REG {
-	uclong	fpga_id;		/* FPGA Identification Register */
-	uclong	fpga_version;		/* FPGA Version Number Register */
-	uclong	cpu_start;		/* CPU start Register (write) */
-	uclong	cpu_stop;		/* CPU stop Register (write) */
-	uclong	misc_reg;		/* Miscelaneous Register */
-	uclong	idt_mode;		/* IDT mode Register */
-	uclong	uart_irq_status;	/* UART IRQ status Register */
-	uclong	clear_timer0_irq;	/* Clear timer interrupt Register */
-	uclong	clear_timer1_irq;	/* Clear timer interrupt Register */
-	uclong	clear_timer2_irq;	/* Clear timer interrupt Register */
-	uclong	test_register;		/* Test Register */
-	uclong	test_count;		/* Test Count Register */
-	uclong	timer_select;		/* Timer select register */
-	uclong	pr_uart_irq_status;	/* Prioritized UART IRQ stat Reg */
-	uclong	ram_wait_state;		/* RAM wait-state Register */
-	uclong	uart_wait_state;	/* UART wait-state Register */
-	uclong	timer_wait_state;	/* timer wait-state Register */
-	uclong	ack_wait_state;		/* ACK wait State Register */
+	__u32	fpga_id;		/* FPGA Identification Register */
+	__u32	fpga_version;		/* FPGA Version Number Register */
+	__u32	cpu_start;		/* CPU start Register (write) */
+	__u32	cpu_stop;		/* CPU stop Register (write) */
+	__u32	misc_reg;		/* Miscelaneous Register */
+	__u32	idt_mode;		/* IDT mode Register */
+	__u32	uart_irq_status;	/* UART IRQ status Register */
+	__u32	clear_timer0_irq;	/* Clear timer interrupt Register */
+	__u32	clear_timer1_irq;	/* Clear timer interrupt Register */
+	__u32	clear_timer2_irq;	/* Clear timer interrupt Register */
+	__u32	test_register;		/* Test Register */
+	__u32	test_count;		/* Test Count Register */
+	__u32	timer_select;		/* Timer select register */
+	__u32	pr_uart_irq_status;	/* Prioritized UART IRQ stat Reg */
+	__u32	ram_wait_state;		/* RAM wait-state Register */
+	__u32	uart_wait_state;	/* UART wait-state Register */
+	__u32	timer_wait_state;	/* timer wait-state Register */
+	__u32	ack_wait_state;		/* ACK wait State Register */
 };
 
 /*
@@ -199,34 +201,34 @@ struct	CUSTOM_REG {
  */
 
 struct RUNTIME_9060 {
-	uclong	loc_addr_range;	/* 00h - Local Address Range */
-	uclong	loc_addr_base;	/* 04h - Local Address Base */
-	uclong	loc_arbitr;	/* 08h - Local Arbitration */
-	uclong	endian_descr;	/* 0Ch - Big/Little Endian Descriptor */
-	uclong	loc_rom_range;	/* 10h - Local ROM Range */
-	uclong	loc_rom_base;	/* 14h - Local ROM Base */
-	uclong	loc_bus_descr;	/* 18h - Local Bus descriptor */
-	uclong	loc_range_mst;	/* 1Ch - Local Range for Master to PCI */
-	uclong	loc_base_mst;	/* 20h - Local Base for Master PCI */
-	uclong	loc_range_io;	/* 24h - Local Range for Master IO */
-	uclong	pci_base_mst;	/* 28h - PCI Base for Master PCI */
-	uclong	pci_conf_io;	/* 2Ch - PCI configuration for Master IO */
-	uclong	filler1;	/* 30h */
-	uclong	filler2;	/* 34h */
-	uclong	filler3;	/* 38h */
-	uclong	filler4;	/* 3Ch */
-	uclong	mail_box_0;	/* 40h - Mail Box 0 */
-	uclong	mail_box_1;	/* 44h - Mail Box 1 */
-	uclong	mail_box_2;	/* 48h - Mail Box 2 */
-	uclong	mail_box_3;	/* 4Ch - Mail Box 3 */
-	uclong	filler5;	/* 50h */
-	uclong	filler6;	/* 54h */
-	uclong	filler7;	/* 58h */
-	uclong	filler8;	/* 5Ch */
-	uclong	pci_doorbell;	/* 60h - PCI to Local Doorbell */
-	uclong	loc_doorbell;	/* 64h - Local to PCI Doorbell */
-	uclong	intr_ctrl_stat;	/* 68h - Interrupt Control/Status */
-	uclong	init_ctrl;	/* 6Ch - EEPROM control, Init Control, etc */
+	__u32	loc_addr_range;	/* 00h - Local Address Range */
+	__u32	loc_addr_base;	/* 04h - Local Address Base */
+	__u32	loc_arbitr;	/* 08h - Local Arbitration */
+	__u32	endian_descr;	/* 0Ch - Big/Little Endian Descriptor */
+	__u32	loc_rom_range;	/* 10h - Local ROM Range */
+	__u32	loc_rom_base;	/* 14h - Local ROM Base */
+	__u32	loc_bus_descr;	/* 18h - Local Bus descriptor */
+	__u32	loc_range_mst;	/* 1Ch - Local Range for Master to PCI */
+	__u32	loc_base_mst;	/* 20h - Local Base for Master PCI */
+	__u32	loc_range_io;	/* 24h - Local Range for Master IO */
+	__u32	pci_base_mst;	/* 28h - PCI Base for Master PCI */
+	__u32	pci_conf_io;	/* 2Ch - PCI configuration for Master IO */
+	__u32	filler1;	/* 30h */
+	__u32	filler2;	/* 34h */
+	__u32	filler3;	/* 38h */
+	__u32	filler4;	/* 3Ch */
+	__u32	mail_box_0;	/* 40h - Mail Box 0 */
+	__u32	mail_box_1;	/* 44h - Mail Box 1 */
+	__u32	mail_box_2;	/* 48h - Mail Box 2 */
+	__u32	mail_box_3;	/* 4Ch - Mail Box 3 */
+	__u32	filler5;	/* 50h */
+	__u32	filler6;	/* 54h */
+	__u32	filler7;	/* 58h */
+	__u32	filler8;	/* 5Ch */
+	__u32	pci_doorbell;	/* 60h - PCI to Local Doorbell */
+	__u32	loc_doorbell;	/* 64h - Local to PCI Doorbell */
+	__u32	intr_ctrl_stat;	/* 68h - Interrupt Control/Status */
+	__u32	init_ctrl;	/* 6Ch - EEPROM control, Init Control, etc */
 };
 
 /* Values for the Local Base Address re-map register */
@@ -268,8 +270,8 @@ struct RUNTIME_9060 {
 #define	ZF_TINACT	ZF_TINACT_DEF
 
 struct	FIRM_ID {
-	uclong	signature;		/* ZFIRM/U signature */
-	uclong	zfwctrl_addr;		/* pointer to ZFW_CTRL structure */
+	__u32	signature;		/* ZFIRM/U signature */
+	__u32	zfwctrl_addr;		/* pointer to ZFW_CTRL structure */
 };
 
 /* Op. System id */
@@ -406,24 +408,24 @@ struct	FIRM_ID {
  */
 
 struct CH_CTRL {
-	uclong	op_mode;	/* operation mode */
-	uclong	intr_enable;	/* interrupt masking */
-	uclong	sw_flow;	/* SW flow control */
-	uclong	flow_status;	/* output flow status */
-	uclong	comm_baud;	/* baud rate  - numerically specified */
-	uclong	comm_parity;	/* parity */
-	uclong	comm_data_l;	/* data length/stop */
-	uclong	comm_flags;	/* other flags */
-	uclong	hw_flow;	/* HW flow control */
-	uclong	rs_control;	/* RS-232 outputs */
-	uclong	rs_status;	/* RS-232 inputs */
-	uclong	flow_xon;	/* xon char */
-	uclong	flow_xoff;	/* xoff char */
-	uclong	hw_overflow;	/* hw overflow counter */
-	uclong	sw_overflow;	/* sw overflow counter */
-	uclong	comm_error;	/* frame/parity error counter */
-	uclong ichar;
-	uclong filler[7];
+	__u32	op_mode;	/* operation mode */
+	__u32	intr_enable;	/* interrupt masking */
+	__u32	sw_flow;	/* SW flow control */
+	__u32	flow_status;	/* output flow status */
+	__u32	comm_baud;	/* baud rate  - numerically specified */
+	__u32	comm_parity;	/* parity */
+	__u32	comm_data_l;	/* data length/stop */
+	__u32	comm_flags;	/* other flags */
+	__u32	hw_flow;	/* HW flow control */
+	__u32	rs_control;	/* RS-232 outputs */
+	__u32	rs_status;	/* RS-232 inputs */
+	__u32	flow_xon;	/* xon char */
+	__u32	flow_xoff;	/* xoff char */
+	__u32	hw_overflow;	/* hw overflow counter */
+	__u32	sw_overflow;	/* sw overflow counter */
+	__u32	comm_error;	/* frame/parity error counter */
+	__u32 ichar;
+	__u32 filler[7];
 };
 
 
@@ -433,18 +435,18 @@ struct CH_CTRL {
  */
 
 struct	BUF_CTRL	{
-	uclong	flag_dma;	/* buffers are in Host memory */
-	uclong	tx_bufaddr;	/* address of the tx buffer */
-	uclong	tx_bufsize;	/* tx buffer size */
-	uclong	tx_threshold;	/* tx low water mark */
-	uclong	tx_get;		/* tail index tx buf */
-	uclong	tx_put;		/* head index tx buf */
-	uclong	rx_bufaddr;	/* address of the rx buffer */
-	uclong	rx_bufsize;	/* rx buffer size */
-	uclong	rx_threshold;	/* rx high water mark */
-	uclong	rx_get;		/* tail index rx buf */
-	uclong	rx_put;		/* head index rx buf */
-	uclong	filler[5];	/* filler to align structures */
+	__u32	flag_dma;	/* buffers are in Host memory */
+	__u32	tx_bufaddr;	/* address of the tx buffer */
+	__u32	tx_bufsize;	/* tx buffer size */
+	__u32	tx_threshold;	/* tx low water mark */
+	__u32	tx_get;		/* tail index tx buf */
+	__u32	tx_put;		/* head index tx buf */
+	__u32	rx_bufaddr;	/* address of the rx buffer */
+	__u32	rx_bufsize;	/* rx buffer size */
+	__u32	rx_threshold;	/* rx high water mark */
+	__u32	rx_get;		/* tail index rx buf */
+	__u32	rx_put;		/* head index rx buf */
+	__u32	filler[5];	/* filler to align structures */
 };
 
 /*
@@ -455,27 +457,27 @@ struct	BUF_CTRL	{
 struct BOARD_CTRL {
 
 	/* static info provided by the on-board CPU */
-	uclong	n_channel;	/* number of channels */
-	uclong	fw_version;	/* firmware version */
+	__u32	n_channel;	/* number of channels */
+	__u32	fw_version;	/* firmware version */
 
 	/* static info provided by the driver */
-	uclong	op_system;	/* op_system id */
-	uclong	dr_version;	/* driver version */
+	__u32	op_system;	/* op_system id */
+	__u32	dr_version;	/* driver version */
 
 	/* board control area */
-	uclong	inactivity;	/* inactivity control */
+	__u32	inactivity;	/* inactivity control */
 
 	/* host to FW commands */
-	uclong	hcmd_channel;	/* channel number */
-	uclong	hcmd_param;	/* pointer to parameters */
+	__u32	hcmd_channel;	/* channel number */
+	__u32	hcmd_param;	/* pointer to parameters */
 
 	/* FW to Host commands */
-	uclong	fwcmd_channel;	/* channel number */
-	uclong	fwcmd_param;	/* pointer to parameters */
-	uclong	zf_int_queue_addr; /* offset for INT_QUEUE structure */
+	__u32	fwcmd_channel;	/* channel number */
+	__u32	fwcmd_param;	/* pointer to parameters */
+	__u32	zf_int_queue_addr; /* offset for INT_QUEUE structure */
 
 	/* filler so the structures are aligned */
-	uclong	filler[6];
+	__u32	filler[6];
 };
 
 /* Host Interrupt Queue */

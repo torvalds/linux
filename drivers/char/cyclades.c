@@ -669,7 +669,6 @@
 		spin_unlock_irqrestore(&cy_card[info->card].card_lock, flags); \
 		} while (0)
 
-#include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 
@@ -845,7 +844,7 @@ MODULE_DEVICE_TABLE(pci, cy_pci_dev_id);
 
 static void cy_start(struct tty_struct *);
 static void set_line_char(struct cyclades_port *);
-static int cyz_issue_cmd(struct cyclades_card *, uclong, ucchar, uclong);
+static int cyz_issue_cmd(struct cyclades_card *, __u32, __u8, __u32);
 #ifdef CONFIG_ISA
 static unsigned detect_isa_irq(void __iomem *);
 #endif				/* CONFIG_ISA */
@@ -1498,7 +1497,7 @@ static irqreturn_t cyy_interrupt(int irq, void *dev_id)
 
 static int
 cyz_fetch_msg(struct cyclades_card *cinfo,
-		uclong * channel, ucchar * cmd, uclong * param)
+		__u32 * channel, __u8 * cmd, __u32 * param)
 {
 	struct FIRM_ID __iomem *firm_id;
 	struct ZFW_CTRL __iomem *zfw_ctrl;
@@ -1518,7 +1517,7 @@ cyz_fetch_msg(struct cyclades_card *cinfo,
 	if (loc_doorbell) {
 		*cmd = (char)(0xff & loc_doorbell);
 		*channel = cy_readl(&board_ctrl->fwcmd_channel);
-		*param = (uclong) cy_readl(&board_ctrl->fwcmd_param);
+		*param = (__u32) cy_readl(&board_ctrl->fwcmd_param);
 		cy_writel(&((struct RUNTIME_9060 __iomem *)(cinfo->ctl_addr))->
 			  loc_doorbell, 0xffffffff);
 		return 1;
@@ -1528,12 +1527,12 @@ cyz_fetch_msg(struct cyclades_card *cinfo,
 
 static int
 cyz_issue_cmd(struct cyclades_card *cinfo,
-		uclong channel, ucchar cmd, uclong param)
+		__u32 channel, __u8 cmd, __u32 param)
 {
 	struct FIRM_ID __iomem *firm_id;
 	struct ZFW_CTRL __iomem *zfw_ctrl;
 	struct BOARD_CTRL __iomem *board_ctrl;
-	uclong __iomem *pci_doorbell;
+	__u32 __iomem *pci_doorbell;
 	int index;
 
 	firm_id = cinfo->base_addr + ID_ADDRESS;
@@ -1574,7 +1573,7 @@ cyz_handle_rx(struct cyclades_port *info,
 #else
 	char data;
 #endif
-	volatile uclong rx_put, rx_get, new_rx_get, rx_bufsize, rx_bufaddr;
+	volatile __u32 rx_put, rx_get, new_rx_get, rx_bufsize, rx_bufaddr;
 
 	rx_get = new_rx_get = cy_readl(&buf_ctrl->rx_get);
 	rx_put = cy_readl(&buf_ctrl->rx_put);
@@ -1670,7 +1669,7 @@ cyz_handle_tx(struct cyclades_port *info,
 #ifdef BLOCKMOVE
 	int small_count;
 #endif
-	volatile uclong tx_put, tx_get, tx_bufsize, tx_bufaddr;
+	volatile __u32 tx_put, tx_get, tx_bufsize, tx_bufaddr;
 
 	if (info->xmit_cnt <= 0)	/* Nothing to transmit */
 		return;
@@ -1755,10 +1754,10 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 	static volatile struct BOARD_CTRL __iomem *board_ctrl;
 	static volatile struct CH_CTRL __iomem *ch_ctrl;
 	static volatile struct BUF_CTRL __iomem *buf_ctrl;
-	uclong channel;
-	ucchar cmd;
-	uclong param;
-	uclong hw_ver, fw_ver;
+	__u32 channel;
+	__u8 cmd;
+	__u32 param;
+	__u32 hw_ver, fw_ver;
 	int special_count;
 	int delta_count;
 
@@ -1892,7 +1891,7 @@ static void cyz_rx_restart(unsigned long arg)
 	struct cyclades_port *info = (struct cyclades_port *)arg;
 	int retval;
 	int card = info->card;
-	uclong channel = (info->line) - (cy_card[card].first_line);
+	__u32 channel = (info->line) - (cy_card[card].first_line);
 	unsigned long flags;
 
 	CY_LOCK(info, flags);
@@ -2289,7 +2288,7 @@ static void shutdown(struct cyclades_port *info)
 
 		if (!info->tty || (info->tty->termios->c_cflag & HUPCL)) {
 			cy_writel(&ch_ctrl[channel].rs_control,
-				(uclong)(cy_readl(&ch_ctrl[channel].rs_control)&
+				(__u32)(cy_readl(&ch_ctrl[channel].rs_control)&
 					~(C_RS_RTS | C_RS_DTR)));
 			retval = cyz_issue_cmd(&cy_card[info->card], channel,
 					C_CM_IOCTLM, 0L);
@@ -3026,7 +3025,7 @@ static int cy_chars_in_buffer(struct tty_struct *tty)
 		static volatile struct CH_CTRL *ch_ctrl;
 		static volatile struct BUF_CTRL *buf_ctrl;
 		int char_count;
-		volatile uclong tx_put, tx_get, tx_bufsize;
+		volatile __u32 tx_put, tx_get, tx_bufsize;
 
 		firm_id = cy_card[card].base_addr + ID_ADDRESS;
 		zfw_ctrl = cy_card[card].base_addr +
@@ -3055,10 +3054,10 @@ static int cy_chars_in_buffer(struct tty_struct *tty)
  * ------------------------------------------------------------
  */
 
-static void cyy_baud_calc(struct cyclades_port *info, uclong baud)
+static void cyy_baud_calc(struct cyclades_port *info, __u32 baud)
 {
 	int co, co_val, bpr;
-	uclong cy_clock = ((info->chip_rev >= CD1400_REV_J) ? 60000000 :
+	__u32 cy_clock = ((info->chip_rev >= CD1400_REV_J) ? 60000000 :
 			25000000);
 
 	if (baud == 0) {
@@ -3348,7 +3347,7 @@ static void set_line_char(struct cyclades_port *info)
 		struct BOARD_CTRL __iomem *board_ctrl;
 		struct CH_CTRL __iomem *ch_ctrl;
 		struct BUF_CTRL __iomem *buf_ctrl;
-		uclong sw_flow;
+		__u32 sw_flow;
 		int retval;
 
 		firm_id = cy_card[card].base_addr + ID_ADDRESS;
@@ -4721,7 +4720,7 @@ static int __init cy_detect_isa(void)
 #endif				/* CONFIG_ISA */
 }				/* cy_detect_isa */
 
-static void plx_init(void __iomem * addr, uclong initctl)
+static void plx_init(void __iomem * addr, __u32 initctl)
 {
 	/* Reset PLX */
 	cy_writel(addr + initctl, cy_readl(addr + initctl) | 0x40000000);
@@ -4747,14 +4746,14 @@ static int __init cy_detect_pci(void)
 	struct pci_dev *pdev = NULL;
 	unsigned char cyy_rev_id;
 	unsigned char cy_pci_irq = 0;
-	uclong cy_pci_phys0, cy_pci_phys2;
+	__u32 cy_pci_phys0, cy_pci_phys2;
 	void __iomem *cy_pci_addr0, *cy_pci_addr2;
 	unsigned short i, j, cy_pci_nchan, plx_ver;
 	unsigned short device_id, dev_index = 0;
-	uclong mailbox;
-	uclong ZeIndex = 0;
+	__u32 mailbox;
+	__u32 ZeIndex = 0;
 	void __iomem *Ze_addr0[NR_CARDS], *Ze_addr2[NR_CARDS];
-	uclong Ze_phys0[NR_CARDS], Ze_phys2[NR_CARDS];
+	__u32 Ze_phys0[NR_CARDS], Ze_phys2[NR_CARDS];
 	unsigned char Ze_irq[NR_CARDS];
 	struct pci_dev *Ze_pdev[NR_CARDS];
 
@@ -4959,7 +4958,7 @@ static int __init cy_detect_pci(void)
 						cy_pci_irq);
 
 			mailbox =
-			    (uclong)cy_readl(&((struct RUNTIME_9060 __iomem *)
+			    (__u32)cy_readl(&((struct RUNTIME_9060 __iomem *)
 						cy_pci_addr0)->mail_box_0);
 
 			if (pci_resource_flags(pdev, 2) & IORESOURCE_IO) {
@@ -5122,7 +5121,7 @@ static int __init cy_detect_pci(void)
 			Ze_pdev[j] = Ze_pdev[j + 1];
 		}
 		ZeIndex--;
-		mailbox = (uclong)cy_readl(&((struct RUNTIME_9060 __iomem *)
+		mailbox = (__u32)cy_readl(&((struct RUNTIME_9060 __iomem *)
 						cy_pci_addr0)->mail_box_0);
 #ifdef CY_PCI_DEBUG
 		printk("Cyclades-Z/PCI: relocate winaddr=0x%lx ctladdr=0x%lx\n",
