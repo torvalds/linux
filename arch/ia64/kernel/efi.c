@@ -445,11 +445,11 @@ efi_init (void)
 		panic("Woah! Can't find EFI system table.\n");
 	if (efi.systab->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
 		panic("Woah! EFI system table signature incorrect\n");
-	if ((efi.systab->hdr.revision ^ EFI_SYSTEM_TABLE_REVISION) >> 16 != 0)
-		printk(KERN_WARNING "Warning: EFI system table major version mismatch: "
-		       "got %d.%02d, expected %d.%02d\n",
-		       efi.systab->hdr.revision >> 16, efi.systab->hdr.revision & 0xffff,
-		       EFI_SYSTEM_TABLE_REVISION >> 16, EFI_SYSTEM_TABLE_REVISION & 0xffff);
+	if ((efi.systab->hdr.revision >> 16) == 0)
+		printk(KERN_WARNING "Warning: EFI system table version "
+		       "%d.%02d, expected 1.00 or greater\n",
+		       efi.systab->hdr.revision >> 16,
+		       efi.systab->hdr.revision & 0xffff);
 
 	config_tables = __va(efi.systab->tables);
 
