@@ -18,6 +18,7 @@
 #include <linux/fcntl.h>
 #include <linux/fs.h>
 #include <linux/signal.h>
+#include <linux/mutex.h>
 #include <linux/mm.h>
 #include <linux/timer.h>
 #include <linux/wait.h>
@@ -146,7 +147,7 @@ struct capidev {
 
 	struct capincci *nccis;
 
-	struct semaphore ncci_list_sem;
+	struct mutex ncci_list_mtx;
 };
 
 /* -------- global variables ---------------------------------------- */
@@ -394,7 +395,7 @@ static struct capidev *capidev_alloc(void)
 	if (!cdev)
 		return NULL;
 
-	init_MUTEX(&cdev->ncci_list_sem);
+	mutex_init(&cdev->ncci_list_mtx);
 	skb_queue_head_init(&cdev->recvqueue);
 	init_waitqueue_head(&cdev->recvwait);
 	write_lock_irqsave(&capidev_list_lock, flags);
@@ -413,9 +414,9 @@ static void capidev_free(struct capidev *cdev)
 	}
 	skb_queue_purge(&cdev->recvqueue);
 
-	down(&cdev->ncci_list_sem);
+	mutex_lock(&cdev->ncci_list_mtx);
 	capincci_free(cdev, 0xffffffff);
-	up(&cdev->ncci_list_sem);
+	mutex_unlock(&cdev->ncci_list_mtx);
 
 	write_lock_irqsave(&capidev_list_lock, flags);
 	list_del(&cdev->list);
@@ -602,15 +603,15 @@ static void capi_recv_message(struct capi20_appl *ap, struct sk_buff *skb)
 	if (CAPIMSG_CMD(skb->data) == CAPI_CONNECT_B3_CONF) {
 		u16 info = CAPIMSG_U16(skb->data, 12); // Info field
 		if (info == 0) {
-			down(&cdev->ncci_list_sem);
+			mutex_lock(&cdev->ncci_list_mtx);
 			capincci_alloc(cdev, CAPIMSG_NCCI(skb->data));
-			up(&cdev->ncci_list_sem);
+			mutex_unlock(&cdev->ncci_list_mtx);
 		}
 	}
 	if (CAPIMSG_CMD(skb->data) == CAPI_CONNECT_B3_IND) {
-		down(&cdev->ncci_list_sem);
+		mutex_lock(&cdev->ncci_list_mtx);
 		capincci_alloc(cdev, CAPIMSG_NCCI(skb->data));
-		up(&cdev->ncci_list_sem);
+		mutex_unlock(&cdev->ncci_list_mtx);
 	}
 	spin_lock_irqsave(&workaround_lock, flags);
 	if (CAPIMSG_COMMAND(skb->data) != CAPI_DATA_B3) {
@@ -751,9 +752,9 @@ capi_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos
 	CAPIMSG_SETAPPID(skb->data, cdev->ap.applid);
 
 	if (CAPIMSG_CMD(skb->data) == CAPI_DISCONNECT_B3_RESP) {
-		down(&cdev->ncci_list_sem);
+		mutex_lock(&cdev->ncci_list_mtx);
 		capincci_free(cdev, CAPIMSG_NCCI(skb->data));
-		up(&cdev->ncci_list_sem);
+		mutex_unlock(&cdev->ncci_list_mtx);
 	}
 
 	cdev->errcode = capi20_put_message(&cdev->ap, skb);
@@ -938,9 +939,9 @@ capi_ioctl(struct inode *inode, struct file *file,
 			if (copy_from_user(&ncci, argp, sizeof(ncci)))
 				return -EFAULT;
 
-			down(&cdev->ncci_list_sem);
+			mutex_lock(&cdev->ncci_list_mtx);
 			if ((nccip = capincci_find(cdev, (u32) ncci)) == 0) {
-				up(&cdev->ncci_list_sem);
+				mutex_unlock(&cdev->ncci_list_mtx);
 				return 0;
 			}
 #ifdef CONFIG_ISDN_CAPI_MIDDLEWARE
@@ -948,7 +949,7 @@ capi_ioctl(struct inode *inode, struct file *file,
 				count += atomic_read(&mp->ttyopencount);
 			}
 #endif /* CONFIG_ISDN_CAPI_MIDDLEWARE */
-			up(&cdev->ncci_list_sem);
+			mutex_unlock(&cdev->ncci_list_mtx);
 			return count;
 		}
 		return 0;
@@ -963,14 +964,14 @@ capi_ioctl(struct inode *inode, struct file *file,
 			if (copy_from_user(&ncci, argp,
 					   sizeof(ncci)))
 				return -EFAULT;
-			down(&cdev->ncci_list_sem);
+			mutex_lock(&cdev->ncci_list_mtx);
 			nccip = capincci_find(cdev, (u32) ncci);
 			if (!nccip || (mp = nccip->minorp) == 0) {
-				up(&cdev->ncci_list_sem);
+				mutex_unlock(&cdev->ncci_list_mtx);
 				return -ESRCH;
 			}
 			unit = mp->minor;
-			up(&cdev->ncci_list_sem);
+			mutex_unlock(&cdev->ncci_list_mtx);
 			return unit;
 		}
 		return 0;
