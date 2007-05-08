@@ -34,13 +34,22 @@ static inline void pm_restore_console(void) {}
 
 #if defined(CONFIG_PM) && defined(CONFIG_SOFTWARE_SUSPEND)
 /* kernel/power/snapshot.c */
-extern void __init register_nosave_region(unsigned long, unsigned long);
+extern void __register_nosave_region(unsigned long b, unsigned long e, int km);
+static inline void register_nosave_region(unsigned long b, unsigned long e)
+{
+	__register_nosave_region(b, e, 0);
+}
+static inline void register_nosave_region_late(unsigned long b, unsigned long e)
+{
+	__register_nosave_region(b, e, 1);
+}
 extern int swsusp_page_is_forbidden(struct page *);
 extern void swsusp_set_page_free(struct page *);
 extern void swsusp_unset_page_free(struct page *);
 extern unsigned long get_safe_page(gfp_t gfp_mask);
 #else
 static inline void register_nosave_region(unsigned long b, unsigned long e) {}
+static inline void register_nosave_region_late(unsigned long b, unsigned long e) {}
 static inline int swsusp_page_is_forbidden(struct page *p) { return 0; }
 static inline void swsusp_set_page_free(struct page *p) {}
 static inline void swsusp_unset_page_free(struct page *p) {}
