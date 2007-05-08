@@ -74,13 +74,44 @@ struct tvec_t_base_s {
 	tvec_t tv3;
 	tvec_t tv4;
 	tvec_t tv5;
-} ____cacheline_aligned_in_smp;
+} ____cacheline_aligned;
 
 typedef struct tvec_t_base_s tvec_base_t;
 
 tvec_base_t boot_tvec_bases;
 EXPORT_SYMBOL(boot_tvec_bases);
 static DEFINE_PER_CPU(tvec_base_t *, tvec_bases) = &boot_tvec_bases;
+
+/*
+ * Note that all tvec_bases is 2 byte aligned and lower bit of
+ * base in timer_list is guaranteed to be zero. Use the LSB for
+ * the new flag to indicate whether the timer is deferrable
+ */
+#define TBASE_DEFERRABLE_FLAG		(0x1)
+
+/* Functions below help us manage 'deferrable' flag */
+static inline unsigned int tbase_get_deferrable(tvec_base_t *base)
+{
+	return ((unsigned int)(unsigned long)base & TBASE_DEFERRABLE_FLAG);
+}
+
+static inline tvec_base_t *tbase_get_base(tvec_base_t *base)
+{
+	return ((tvec_base_t *)((unsigned long)base & ~TBASE_DEFERRABLE_FLAG));
+}
+
+static inline void timer_set_deferrable(struct timer_list *timer)
+{
+	timer->base = ((tvec_base_t *)((unsigned long)(timer->base) |
+	                               TBASE_DEFERRABLE_FLAG));
+}
+
+static inline void
+timer_set_base(struct timer_list *timer, tvec_base_t *new_base)
+{
+	timer->base = (tvec_base_t *)((unsigned long)(new_base) |
+	                              tbase_get_deferrable(timer->base));
+}
 
 /**
  * __round_jiffies - function to round jiffies to a full second
@@ -295,6 +326,13 @@ void fastcall init_timer(struct timer_list *timer)
 }
 EXPORT_SYMBOL(init_timer);
 
+void fastcall init_timer_deferrable(struct timer_list *timer)
+{
+	init_timer(timer);
+	timer_set_deferrable(timer);
+}
+EXPORT_SYMBOL(init_timer_deferrable);
+
 static inline void detach_timer(struct timer_list *timer,
 				int clear_pending)
 {
@@ -325,10 +363,11 @@ static tvec_base_t *lock_timer_base(struct timer_list *timer,
 	tvec_base_t *base;
 
 	for (;;) {
-		base = timer->base;
+		tvec_base_t *prelock_base = timer->base;
+		base = tbase_get_base(prelock_base);
 		if (likely(base != NULL)) {
 			spin_lock_irqsave(&base->lock, *flags);
-			if (likely(base == timer->base))
+			if (likely(prelock_base == timer->base))
 				return base;
 			/* The timer has migrated to another CPU */
 			spin_unlock_irqrestore(&base->lock, *flags);
@@ -365,11 +404,11 @@ int __mod_timer(struct timer_list *timer, unsigned long expires)
 		 */
 		if (likely(base->running_timer != timer)) {
 			/* See the comment in lock_timer_base() */
-			timer->base = NULL;
+			timer_set_base(timer, NULL);
 			spin_unlock(&base->lock);
 			base = new_base;
 			spin_lock(&base->lock);
-			timer->base = base;
+			timer_set_base(timer, base);
 		}
 	}
 
@@ -397,7 +436,7 @@ void add_timer_on(struct timer_list *timer, int cpu)
 	timer_stats_timer_set_start_info(timer);
   	BUG_ON(timer_pending(timer) || !timer->function);
 	spin_lock_irqsave(&base->lock, flags);
-	timer->base = base;
+	timer_set_base(timer, base);
 	internal_add_timer(base, timer);
 	spin_unlock_irqrestore(&base->lock, flags);
 }
@@ -550,7 +589,7 @@ static int cascade(tvec_base_t *base, tvec_t *tv, int index)
 	 * don't have to detach them individually.
 	 */
 	list_for_each_entry_safe(timer, tmp, &tv_list, entry) {
-		BUG_ON(timer->base != base);
+		BUG_ON(tbase_get_base(timer->base) != base);
 		internal_add_timer(base, timer);
 	}
 
@@ -636,6 +675,9 @@ static unsigned long __next_timer_interrupt(tvec_base_t *base)
 	index = slot = timer_jiffies & TVR_MASK;
 	do {
 		list_for_each_entry(nte, base->tv1.vec + slot, entry) {
+ 			if (tbase_get_deferrable(nte->base))
+ 				continue;
+
 			found = 1;
 			expires = nte->expires;
 			/* Look at the cascade bucket(s)? */
@@ -1617,6 +1659,13 @@ static int __devinit init_timers_cpu(int cpu)
 						cpu_to_node(cpu));
 			if (!base)
 				return -ENOMEM;
+
+			/* Make sure that tvec_base is 2 byte aligned */
+			if (tbase_get_deferrable(base)) {
+				WARN_ON(1);
+				kfree(base);
+				return -ENOMEM;
+			}
 			memset(base, 0, sizeof(*base));
 			per_cpu(tvec_bases, cpu) = base;
 		} else {
@@ -1658,7 +1707,7 @@ static void migrate_timer_list(tvec_base_t *new_base, struct list_head *head)
 	while (!list_empty(head)) {
 		timer = list_entry(head->next, struct timer_list, entry);
 		detach_timer(timer, 0);
-		timer->base = new_base;
+		timer_set_base(timer, new_base);
 		internal_add_timer(new_base, timer);
 	}
 }
