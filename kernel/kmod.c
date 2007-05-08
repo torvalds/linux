@@ -165,6 +165,12 @@ static int ____call_usermodehelper(void *data)
 	/* We can run anywhere, unlike our parent keventd(). */
 	set_cpus_allowed(current, CPU_MASK_ALL);
 
+	/*
+	 * Our parent is keventd, which runs with elevated scheduling priority.
+	 * Avoid propagating that into the userspace child.
+	 */
+	set_user_nice(current, 0);
+
 	retval = -EPERM;
 	if (current->fs->root)
 		retval = kernel_execve(sub_info->path,
