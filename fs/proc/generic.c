@@ -478,14 +478,21 @@ int proc_readdir(struct file * filp,
 			}
 
 			do {
+				struct proc_dir_entry *next;
+
 				/* filldir passes info to user space */
+				de_get(de);
 				spin_unlock(&proc_subdir_lock);
 				if (filldir(dirent, de->name, de->namelen, filp->f_pos,
-					    de->low_ino, de->mode >> 12) < 0)
+					    de->low_ino, de->mode >> 12) < 0) {
+					de_put(de);
 					goto out;
+				}
 				spin_lock(&proc_subdir_lock);
 				filp->f_pos++;
-				de = de->next;
+				next = de->next;
+				de_put(de);
+				de = next;
 			} while (de);
 			spin_unlock(&proc_subdir_lock);
 	}
