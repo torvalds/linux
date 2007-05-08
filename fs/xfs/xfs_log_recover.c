@@ -1509,7 +1509,6 @@ xlog_recover_insert_item_frontq(
 
 STATIC int
 xlog_recover_reorder_trans(
-	xlog_t			*log,
 	xlog_recover_t		*trans)
 {
 	xlog_recover_item_t	*first_item, *itemq, *itemq_next;
@@ -1867,7 +1866,6 @@ xlog_recover_do_inode_buffer(
 /*ARGSUSED*/
 STATIC void
 xlog_recover_do_reg_buffer(
-	xfs_mount_t		*mp,
 	xlog_recover_item_t	*item,
 	xfs_buf_t		*bp,
 	xfs_buf_log_format_t	*buf_f)
@@ -2083,7 +2081,7 @@ xlog_recover_do_dquot_buffer(
 	if (log->l_quotaoffs_flag & type)
 		return;
 
-	xlog_recover_do_reg_buffer(mp, item, bp, buf_f);
+	xlog_recover_do_reg_buffer(item, bp, buf_f);
 }
 
 /*
@@ -2184,7 +2182,7 @@ xlog_recover_do_buffer_trans(
 		  (XFS_BLI_UDQUOT_BUF|XFS_BLI_PDQUOT_BUF|XFS_BLI_GDQUOT_BUF)) {
 		xlog_recover_do_dquot_buffer(mp, log, item, bp, buf_f);
 	} else {
-		xlog_recover_do_reg_buffer(mp, item, bp, buf_f);
+		xlog_recover_do_reg_buffer(item, bp, buf_f);
 	}
 	if (error)
 		return XFS_ERROR(error);
@@ -2765,7 +2763,7 @@ xlog_recover_do_trans(
 	int			error = 0;
 	xlog_recover_item_t	*item, *first_item;
 
-	if ((error = xlog_recover_reorder_trans(log, trans)))
+	if ((error = xlog_recover_reorder_trans(trans)))
 		return error;
 	first_item = item = trans->r_itemq;
 	do {

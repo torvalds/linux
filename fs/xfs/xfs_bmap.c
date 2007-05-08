@@ -130,7 +130,6 @@ STATIC int				/* error */
 xfs_bmap_add_extent_hole_delay(
 	xfs_inode_t		*ip,	/* incore inode pointer */
 	xfs_extnum_t		idx,	/* extent number to update/insert */
-	xfs_btree_cur_t		*cur,	/* if null, not a btree */
 	xfs_bmbt_irec_t		*new,	/* new data to add to file extents */
 	int			*logflagsp,/* inode logging flags */
 	xfs_extdelta_t		*delta, /* Change made to incore extents */
@@ -399,7 +398,6 @@ xfs_bmap_count_leaves(
 
 STATIC int
 xfs_bmap_disk_count_leaves(
-	xfs_ifork_t		*ifp,
 	xfs_extnum_t		idx,
 	xfs_bmbt_block_t	*block,
 	int			numrecs,
@@ -580,7 +578,7 @@ xfs_bmap_add_extent(
 		if (cur)
 			ASSERT((cur->bc_private.b.flags &
 				XFS_BTCUR_BPRV_WASDEL) == 0);
-		if ((error = xfs_bmap_add_extent_hole_delay(ip, idx, cur, new,
+		if ((error = xfs_bmap_add_extent_hole_delay(ip, idx, new,
 				&logflags, delta, rsvd)))
 			goto done;
 	}
@@ -1841,7 +1839,6 @@ STATIC int				/* error */
 xfs_bmap_add_extent_hole_delay(
 	xfs_inode_t		*ip,	/* incore inode pointer */
 	xfs_extnum_t		idx,	/* extent number to update/insert */
-	xfs_btree_cur_t		*cur,	/* if null, not a btree */
 	xfs_bmbt_irec_t		*new,	/* new data to add to file extents */
 	int			*logflagsp, /* inode logging flags */
 	xfs_extdelta_t		*delta, /* Change made to incore extents */
@@ -6425,8 +6422,8 @@ xfs_bmap_count_tree(
 		for (;;) {
 			nextbno = be64_to_cpu(block->bb_rightsib);
 			numrecs = be16_to_cpu(block->bb_numrecs);
-			if (unlikely(xfs_bmap_disk_count_leaves(ifp,
-					0, block, numrecs, count) < 0)) {
+			if (unlikely(xfs_bmap_disk_count_leaves(0,
+					block, numrecs, count) < 0)) {
 				xfs_trans_brelse(tp, bp);
 				XFS_ERROR_REPORT("xfs_bmap_count_tree(2)",
 						 XFS_ERRLEVEL_LOW, mp);
@@ -6472,7 +6469,6 @@ xfs_bmap_count_leaves(
  */
 int
 xfs_bmap_disk_count_leaves(
-	xfs_ifork_t		*ifp,
 	xfs_extnum_t		idx,
 	xfs_bmbt_block_t	*block,
 	int			numrecs,

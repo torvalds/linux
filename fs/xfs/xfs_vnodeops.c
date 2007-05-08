@@ -2120,7 +2120,6 @@ int xfs_rm_attempts;
 STATIC int
 xfs_lock_dir_and_entry(
 	xfs_inode_t	*dp,
-	bhv_vname_t	*dentry,
 	xfs_inode_t	*ip)	/* inode of entry 'name' */
 {
 	int		attempts;
@@ -2439,7 +2438,7 @@ xfs_remove(
 		return error;
 	}
 
-	error = xfs_lock_dir_and_entry(dp, dentry, ip);
+	error = xfs_lock_dir_and_entry(dp, ip);
 	if (error) {
 		REMOVE_DEBUG_TRACE(__LINE__);
 		xfs_trans_cancel(tp, cancel_flags);
@@ -3095,7 +3094,7 @@ xfs_rmdir(
 	 * that the directory entry for the child directory inode has
 	 * not changed while we were obtaining a log reservation.
 	 */
-	error = xfs_lock_dir_and_entry(dp, dentry, cdp);
+	error = xfs_lock_dir_and_entry(dp, cdp);
 	if (error) {
 		xfs_trans_cancel(tp, cancel_flags);
 		IRELE(cdp);
