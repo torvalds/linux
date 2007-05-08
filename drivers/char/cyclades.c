@@ -4651,8 +4651,8 @@ static void __devinit cy_init_card(struct cyclades_card *cinfo,
 
 /* initialize chips on Cyclom-Y card -- return number of valid
    chips (which is number of ports/4) */
-static unsigned short __init
-cyy_init_card(void __iomem * true_base_addr, int index)
+static unsigned short __devinit cyy_init_card(void __iomem *true_base_addr,
+		int index)
 {
 	unsigned int chip_number;
 	void __iomem *base_addr;
