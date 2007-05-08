@@ -1947,7 +1947,7 @@ sisfb_get_northbridge(int basechipid)
 	default:	return NULL;
 	}
 	for(i = 0; i < nbridgenum; i++) {
-		if((pdev = SIS_PCI_GET_DEVICE(PCI_VENDOR_ID_SI,
+		if((pdev = pci_get_device(PCI_VENDOR_ID_SI,
 				nbridgeids[nbridgeidx+i], NULL)))
 			break;
 	}
@@ -4612,9 +4612,9 @@ sisfb_find_host_bridge(struct sis_video_info *ivideo, struct pci_dev *mypdev,
 	unsigned short temp;
 	int ret = 0;
 
-	while((pdev = SIS_PCI_GET_CLASS(PCI_CLASS_BRIDGE_HOST, pdev))) {
+	while((pdev = pci_get_class(PCI_CLASS_BRIDGE_HOST, pdev))) {
 		temp = pdev->vendor;
-		SIS_PCI_PUT_DEVICE(pdev);
+		pci_dev_put(pdev);
 		if(temp == pcivendor) {
 			ret = 1;
 			break;
@@ -5153,24 +5153,24 @@ sisfb_post_xgi(struct pci_dev *pdev)
 			if(reg & 0x80) v2 |= 0x80;
 			v2 |= 0x01;
 
-			if((mypdev = SIS_PCI_GET_DEVICE(PCI_VENDOR_ID_SI, 0x0730, NULL))) {
-				SIS_PCI_PUT_DEVICE(mypdev);
+			if((mypdev = pci_get_device(PCI_VENDOR_ID_SI, 0x0730, NULL))) {
+				pci_dev_put(mypdev);
 				if(((v2 & 0x06) == 2) || ((v2 & 0x06) == 4))
 					v2 &= 0xf9;
 				v2 |= 0x08;
 				v1 &= 0xfe;
 			} else {
-				mypdev = SIS_PCI_GET_DEVICE(PCI_VENDOR_ID_SI, 0x0735, NULL);
+				mypdev = pci_get_device(PCI_VENDOR_ID_SI, 0x0735, NULL);
 				if(!mypdev)
-					mypdev = SIS_PCI_GET_DEVICE(PCI_VENDOR_ID_SI, 0x0645, NULL);
+					mypdev = pci_get_device(PCI_VENDOR_ID_SI, 0x0645, NULL);
 				if(!mypdev)
-					mypdev = SIS_PCI_GET_DEVICE(PCI_VENDOR_ID_SI, 0x0650, NULL);
+					mypdev = pci_get_device(PCI_VENDOR_ID_SI, 0x0650, NULL);
 				if(mypdev) {
 					pci_read_config_dword(mypdev, 0x94, &regd);
 					regd &= 0xfffffeff;
 					pci_write_config_dword(mypdev, 0x94, regd);
 					v1 &= 0xfe;
-					SIS_PCI_PUT_DEVICE(mypdev);
+					pci_dev_put(mypdev);
 				} else if(sisfb_find_host_bridge(ivideo, pdev, PCI_VENDOR_ID_SI)) {
 					v1 &= 0xfe;
 				} else if(sisfb_find_host_bridge(ivideo, pdev, 0x1106) ||
@@ -5193,13 +5193,13 @@ sisfb_post_xgi(struct pci_dev *pdev)
 			if( (!(v1 & 0x02)) && (v2 & 0x30) && (regd < 0xcf) )
 				setSISIDXREG(SISCR, 0x5f, 0xf1, 0x01);
 
-			if((mypdev = SIS_PCI_GET_DEVICE(0x10de, 0x01e0, NULL))) {
+			if((mypdev = pci_get_device(0x10de, 0x01e0, NULL))) {
 				/* TODO: set CR5f &0xf1 | 0x01 for version 6570
 				 * of nforce 2 ROM
 				 */
 				if(0)
 					setSISIDXREG(SISCR, 0x5f, 0xf1, 0x01);
-				SIS_PCI_PUT_DEVICE(mypdev);
+				pci_dev_put(mypdev);
 			}
 		}
 
@@ -5235,9 +5235,9 @@ sisfb_post_xgi(struct pci_dev *pdev)
 		setSISIDXREG(SISCR, 0x75, 0xe0, bios[0x4ff] & 0x1f);
 		setSISIDXREG(SISCR, 0x76, 0xe0, bios[0x500] & 0x1f);
 		v1 = bios[0x501];
-		if((mypdev = SIS_PCI_GET_DEVICE(0x8086, 0x2530, NULL))) {
+		if((mypdev = pci_get_device(0x8086, 0x2530, NULL))) {
 			v1 = 0xf0;
-			SIS_PCI_PUT_DEVICE(mypdev);
+			pci_dev_put(mypdev);
 		}
 		outSISIDXREG(SISCR, 0x77, v1);
 	}
@@ -5946,7 +5946,7 @@ sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if(!ivideo->sisvga_enabled) {
 		if(pci_enable_device(pdev)) {
-			if(ivideo->nbridge) SIS_PCI_PUT_DEVICE(ivideo->nbridge);
+			if(ivideo->nbridge) pci_dev_put(ivideo->nbridge);
 			pci_set_drvdata(pdev, NULL);
 			kfree(sis_fb_info);
 			return -EIO;
@@ -5973,7 +5973,7 @@ sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 					"requiring Chrontel/GPIO setup\n",
 					mychswtable[i].vendorName,
 					mychswtable[i].cardName);
-				ivideo->lpcdev = SIS_PCI_GET_DEVICE(PCI_VENDOR_ID_SI, 0x0008, NULL);
+				ivideo->lpcdev = pci_get_device(PCI_VENDOR_ID_SI, 0x0008, NULL);
 				break;
 			}
 			i++;
@@ -5983,7 +5983,7 @@ sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 #ifdef CONFIG_FB_SIS_315
 	if((ivideo->chip == SIS_760) && (ivideo->nbridge)) {
-		ivideo->lpcdev = SIS_PCI_GET_SLOT(ivideo->nbridge->bus, (2 << 3));
+		ivideo->lpcdev = pci_get_slot(ivideo->nbridge->bus, (2 << 3));
 	}
 #endif
 
@@ -6148,9 +6148,9 @@ error_1:	release_mem_region(ivideo->video_base, ivideo->video_size);
 error_2:	release_mem_region(ivideo->mmio_base, ivideo->mmio_size);
 error_3:	vfree(ivideo->bios_abase);
 		if(ivideo->lpcdev)
-			SIS_PCI_PUT_DEVICE(ivideo->lpcdev);
+			pci_dev_put(ivideo->lpcdev);
 		if(ivideo->nbridge)
-			SIS_PCI_PUT_DEVICE(ivideo->nbridge);
+			pci_dev_put(ivideo->nbridge);
 		pci_set_drvdata(pdev, NULL);
 		if(!ivideo->sisvga_enabled)
 			pci_disable_device(pdev);
@@ -6330,70 +6330,6 @@ error_3:	vfree(ivideo->bios_abase);
 
 		sisfb_set_vparms(ivideo);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-
-		/* ---------------- For 2.4: Now switch the mode ------------------ */
-
-		printk(KERN_INFO "sisfb: Setting mode %dx%dx%d (%dHz)\n",
-			ivideo->video_width, ivideo->video_height, ivideo->video_bpp,
-			ivideo->refresh_rate);
-
-		/* Determine whether or not acceleration is to be
-		 * used. Need to know before pre/post_set_mode()
-		 */
-		ivideo->accel = 0;
-		ivideo->default_var.accel_flags &= ~FB_ACCELF_TEXT;
-		if(ivideo->sisfb_accel) {
-			ivideo->accel = -1;
-			ivideo->default_var.accel_flags |= FB_ACCELF_TEXT;
-		}
-
-		/* Now switch the mode */
-		sisfb_pre_setmode(ivideo);
-
-		if(SiSSetMode(&ivideo->SiS_Pr, ivideo->mode_no) == 0) {
-			printk(KERN_ERR "sisfb: Fatal error: Setting mode[0x%x] failed\n",
-									ivideo->mode_no);
-			ret = -EINVAL;
-			iounmap(ivideo->mmio_vbase);
-			goto error_0;
-		}
-
-		outSISIDXREG(SISSR, IND_SIS_PASSWORD, SIS_PASSWORD);
-
-		sisfb_post_setmode(ivideo);
-
-		/* Maximize regardless of sisfb_max at startup */
-		ivideo->default_var.yres_virtual = 32767;
-
-		/* Force reset of x virtual in crtc_to_var */
-		ivideo->default_var.xres_virtual = 0;
-
-		/* Copy mode timing to var */
-		sisfb_crtc_to_var(ivideo, &ivideo->default_var);
-
-		/* Find out about screen pitch */
-		sisfb_calc_pitch(ivideo, &ivideo->default_var);
-		sisfb_set_pitch(ivideo);
-
-		/* Init the accelerator (does nothing currently) */
-		sisfb_initaccel(ivideo);
-
-		/* Init some fbinfo entries */
-		sis_fb_info->node  = -1;
-		sis_fb_info->flags = FBINFO_FLAG_DEFAULT;
-		sis_fb_info->fbops = &sisfb_ops;
-		sis_fb_info->disp  = &ivideo->sis_disp;
-		sis_fb_info->blank = &sisfb_blank;
-		sis_fb_info->switch_con = &sisfb_switch;
-		sis_fb_info->updatevar  = &sisfb_update_var;
-		sis_fb_info->changevar  = NULL;
-		strcpy(sis_fb_info->fontname, sisfb_fontname);
-
-		sisfb_set_disp(-1, &ivideo->default_var, sis_fb_info);
-
-#else		/* --------- For 2.6: Setup a somewhat sane default var ------------ */
-
 		printk(KERN_INFO "sisfb: Default mode is %dx%dx%d (%dHz)\n",
 			ivideo->video_width, ivideo->video_height, ivideo->video_bpp,
 			ivideo->refresh_rate);
@@ -6453,7 +6389,6 @@ error_3:	vfree(ivideo->bios_abase);
 		sis_fb_info->pseudo_palette = ivideo->pseudo_palette;
 
 		fb_alloc_cmap(&sis_fb_info->cmap, 256 , 0);
-#endif		/* 2.6 */
 
 		printk(KERN_DEBUG "sisfb: Initial vbflags 0x%x\n", (int)ivideo->vbflags);
 
@@ -6563,10 +6498,10 @@ static void __devexit sisfb_remove(struct pci_dev *pdev)
 	vfree(ivideo->bios_abase);
 
 	if(ivideo->lpcdev)
-		SIS_PCI_PUT_DEVICE(ivideo->lpcdev);
+		pci_dev_put(ivideo->lpcdev);
 
 	if(ivideo->nbridge)
-		SIS_PCI_PUT_DEVICE(ivideo->nbridge);
+		pci_dev_put(ivideo->nbridge);
 
 #ifdef CONFIG_MTRR
 	/* Release MTRR region */
