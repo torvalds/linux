@@ -141,6 +141,7 @@ header-y += sockios.h
 header-y += som.h
 header-y += sound.h
 header-y += synclink.h
+header-y += taskstats.h
 header-y += telephony.h
 header-y += termios.h
 header-y += ticable.h
