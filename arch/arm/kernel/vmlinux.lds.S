@@ -119,7 +119,7 @@ SECTIONS
 		 * first, the init task union, aligned
 		 * to an 8192 byte boundary.
 		 */
-		*(.init.task)
+		*(.data.init_task)
 
 #ifdef CONFIG_XIP_KERNEL
 		. = ALIGN(4096);
