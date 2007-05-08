@@ -1,8 +1,5 @@
-/*						-*- c-basic-offset: 8 -*-
- *
- * fw-card.c - card level functions
- *
- * Copyright (C) 2005-2006  Kristian Hoegsberg <krh@bitplanet.net>
+/*
+ * Copyright (C) 2005-2007  Kristian Hoegsberg <krh@bitplanet.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -69,12 +66,14 @@ generate_config_rom (struct fw_card *card, size_t *config_rom_length)
 	static u32 config_rom[256];
 	int i, j, length;
 
-	/* Initialize contents of config rom buffer.  On the OHCI
+	/*
+	 * Initialize contents of config rom buffer.  On the OHCI
 	 * controller, block reads to the config rom accesses the host
 	 * memory, but quadlet read access the hardware bus info block
 	 * registers.  That's just crack, but it means we should make
 	 * sure the contents of bus info block in host memory mathces
-	 * the version stored in the OHCI registers. */
+	 * the version stored in the OHCI registers.
+	 */
 
 	memset(config_rom, 0, sizeof config_rom);
 	config_rom[0] = bib_crc_length(4) | bib_info_length(4) | bib_crc(0);
@@ -143,9 +142,11 @@ fw_core_add_descriptor (struct fw_descriptor *desc)
 {
 	size_t i;
 
-	/* Check descriptor is valid; the length of all blocks in the
+	/*
+	 * Check descriptor is valid; the length of all blocks in the
 	 * descriptor has to add up to exactly the length of the
-	 * block. */
+	 * block.
+	 */
 	i = 0;
 	while (i < desc->length)
 		i += (desc->data[i] >> 16) + 1;
@@ -228,7 +229,8 @@ fw_card_bm_work(struct work_struct *work)
 
 	if (card->bm_generation + 1 == generation ||
 	    (card->bm_generation != generation && grace)) {
-		/* This first step is to figure out who is IRM and
+		/*
+		 * This first step is to figure out who is IRM and
 		 * then try to become bus manager.  If the IRM is not
 		 * well defined (e.g. does not have an active link
 		 * layer or does not responds to our lock request, we
@@ -236,7 +238,8 @@ fw_card_bm_work(struct work_struct *work)
 		 * In that case, we do a goto into the gap count logic
 		 * so that when we do the reset, we still optimize the
 		 * gap count.  That could well save a reset in the
-		 * next generation. */
+		 * next generation.
+		 */
 
 		irm_id = card->irm_node->node_id;
 		if (!card->irm_node->link_on) {
@@ -260,8 +263,10 @@ fw_card_bm_work(struct work_struct *work)
 		wait_for_completion(&bmd.done);
 
 		if (bmd.rcode == RCODE_GENERATION) {
-			/* Another bus reset happened. Just return,
-			 * the BM work has been rescheduled. */
+			/*
+			 * Another bus reset happened. Just return,
+			 * the BM work has been rescheduled.
+			 */
 			return;
 		}
 
@@ -271,48 +276,62 @@ fw_card_bm_work(struct work_struct *work)
 
 		spin_lock_irqsave(&card->lock, flags);
 		if (bmd.rcode != RCODE_COMPLETE) {
-			/* The lock request failed, maybe the IRM
+			/*
+			 * The lock request failed, maybe the IRM
 			 * isn't really IRM capable after all. Let's
 			 * do a bus reset and pick the local node as
-			 * root, and thus, IRM. */
+			 * root, and thus, IRM.
+			 */
 			new_root_id = card->local_node->node_id;
 			fw_notify("BM lock failed, making local node (%02x) root.\n",
 				  new_root_id);
 			goto pick_me;
 		}
 	} else if (card->bm_generation != generation) {
-		/* OK, we weren't BM in the last generation, and it's
+		/*
+		 * OK, we weren't BM in the last generation, and it's
 		 * less than 100ms since last bus reset. Reschedule
-		 * this task 100ms from now. */
+		 * this task 100ms from now.
+		 */
 		spin_unlock_irqrestore(&card->lock, flags);
 		schedule_delayed_work(&card->work, DIV_ROUND_UP(HZ, 10));
 		return;
 	}
 
-	/* We're bus manager for this generation, so next step is to
+	/*
+	 * We're bus manager for this generation, so next step is to
 	 * make sure we have an active cycle master and do gap count
-	 * optimization. */
+	 * optimization.
+	 */
 	card->bm_generation = generation;
 
 	if (root == NULL) {
-		/* Either link_on is false, or we failed to read the
-		 * config rom.  In either case, pick another root. */
+		/*
+		 * Either link_on is false, or we failed to read the
+		 * config rom.  In either case, pick another root.
+		 */
 		new_root_id = card->local_node->node_id;
 	} else if (atomic_read(&root->state) != FW_DEVICE_RUNNING) {
-		/* If we haven't probed this device yet, bail out now
-		 * and let's try again once that's done. */
+		/*
+		 * If we haven't probed this device yet, bail out now
+		 * and let's try again once that's done.
+		 */
 		spin_unlock_irqrestore(&card->lock, flags);
 		return;
 	} else if (root->config_rom[2] & bib_cmc) {
-		/* FIXME: I suppose we should set the cmstr bit in the
+		/*
+		 * FIXME: I suppose we should set the cmstr bit in the
 		 * STATE_CLEAR register of this node, as described in
 		 * 1394-1995, 8.4.2.6.  Also, send out a force root
-		 * packet for this node. */
+		 * packet for this node.
+		 */
 		new_root_id = root_id;
 	} else {
-		/* Current root has an active link layer and we
+		/*
+		 * Current root has an active link layer and we
 		 * successfully read the config rom, but it's not
-		 * cycle master capable. */
+		 * cycle master capable.
+		 */
 		new_root_id = card->local_node->node_id;
 	}
 
@@ -324,9 +343,11 @@ fw_card_bm_work(struct work_struct *work)
 	else
 		gap_count = 63;
 
-	/* Finally, figure out if we should do a reset or not.  If we've
+	/*
+	 * Finally, figure out if we should do a reset or not.  If we've
 	 * done less that 5 resets with the same physical topology and we
-	 * have either a new root or a new gap count setting, let's do it. */
+	 * have either a new root or a new gap count setting, let's do it.
+	 */
 
 	if (card->bm_retries++ < 5 &&
 	    (card->gap_count != gap_count || new_root_id != root_id))
@@ -391,8 +412,10 @@ fw_card_add(struct fw_card *card,
 					 PHY_LINK_ACTIVE | PHY_CONTENDER) < 0)
 		return -EIO;
 
-	/* The subsystem grabs a reference when the card is added and
-	 * drops it when the driver calls fw_core_remove_card. */
+	/*
+	 * The subsystem grabs a reference when the card is added and
+	 * drops it when the driver calls fw_core_remove_card.
+	 */
 	fw_card_get(card);
 
 	down_write(&card_rwsem);
@@ -405,11 +428,13 @@ fw_card_add(struct fw_card *card,
 EXPORT_SYMBOL(fw_card_add);
 
 
-/* The next few functions implements a dummy driver that use once a
+/*
+ * The next few functions implements a dummy driver that use once a
  * card driver shuts down an fw_card.  This allows the driver to
  * cleanly unload, as all IO to the card will be handled by the dummy
  * driver instead of calling into the (possibly) unloaded module.  The
- * dummy driver just fails all IO. */
+ * dummy driver just fails all IO.
+ */
 
 static int
 dummy_enable(struct fw_card *card, u32 *config_rom, size_t length)
@@ -429,8 +454,10 @@ static int
 dummy_set_config_rom(struct fw_card *card,
 		     u32 *config_rom, size_t length)
 {
-	/* We take the card out of card_list before setting the dummy
-	 * driver, so this should never get called. */
+	/*
+	 * We take the card out of card_list before setting the dummy
+	 * driver, so this should never get called.
+	 */
 	BUG();
 	return -1;
 }
@@ -510,9 +537,11 @@ release_card(struct kref *kref)
 	kfree(card);
 }
 
-/* An assumption for fw_card_put() is that the card driver allocates
+/*
+ * An assumption for fw_card_put() is that the card driver allocates
  * the fw_card struct with kalloc and that it has been shut down
- * before the last ref is dropped. */
+ * before the last ref is dropped.
+ */
 void
 fw_card_put(struct fw_card *card)
 {
@@ -524,8 +553,6 @@ int
 fw_core_initiate_bus_reset(struct fw_card *card, int short_reset)
 {
 	int reg = short_reset ? 5 : 1;
-	/* The following values happen to be the same bit. However be
-	 * explicit for clarity. */
 	int bit = short_reset ? PHY_BUS_SHORT_RESET : PHY_BUS_RESET;
 
 	return card->driver->update_phy_reg(card, reg, 0, bit);

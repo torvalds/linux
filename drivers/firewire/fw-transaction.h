@@ -1,7 +1,4 @@
-/*						-*- c-basic-offset: 8 -*-
- *
- * fw-transaction.h - Header for IEEE1394 transaction logic
- *
+/*
  * Copyright (C) 2003-2006 Kristian Hoegsberg <krh@bitplanet.net>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -209,7 +206,8 @@ struct fw_packet {
 	size_t payload_length;
 	u32 timestamp;
 
-	/* This callback is called when the packet transmission has
+	/*
+	 * This callback is called when the packet transmission has
 	 * completed; for successful transmission, the status code is
 	 * the ack received from the destination, otherwise it's a
 	 * negative errno: ENOMEM, ESTALE, ETIMEDOUT, ENODEV, EIO.
@@ -230,8 +228,10 @@ struct fw_transaction {
 
 	struct fw_packet packet;
 
-	/* The data passed to the callback is valid only during the
-	 * callback.  */
+	/*
+	 * The data passed to the callback is valid only during the
+	 * callback.
+	 */
 	fw_transaction_callback_t callback;
 	void *callback_data;
 };
@@ -291,8 +291,10 @@ struct fw_card {
 	int link_speed;
 	int config_rom_generation;
 
-	/* We need to store up to 4 self ID for a maximum of 63
-	 * devices plus 3 words for the topology map header. */
+	/*
+	 * We need to store up to 4 self ID for a maximum of 63
+	 * devices plus 3 words for the topology map header.
+	 */
 	int self_id_count;
 	u32 topology_map[252 + 3];
 
@@ -318,12 +320,14 @@ struct fw_card {
 struct fw_card *fw_card_get(struct fw_card *card);
 void fw_card_put(struct fw_card *card);
 
-/* The iso packet format allows for an immediate header/payload part
+/*
+ * The iso packet format allows for an immediate header/payload part
  * stored in 'header' immediately after the packet info plus an
  * indirect payload part that is pointer to by the 'payload' field.
  * Applications can use one or the other or both to implement simple
  * low-bandwidth streaming (e.g. audio) or more advanced
- * scatter-gather streaming (e.g. assembling video frame automatically). */
+ * scatter-gather streaming (e.g. assembling video frame automatically).
+ */
 
 struct fw_iso_packet {
 	u16 payload_length;	/* Length of indirect payload. */
@@ -352,11 +356,13 @@ typedef void (*fw_iso_callback_t) (struct fw_iso_context *context,
 				   void *header,
 				   void *data);
 
-/* An iso buffer is just a set of pages mapped for DMA in the
+/*
+ * An iso buffer is just a set of pages mapped for DMA in the
  * specified direction.  Since the pages are to be used for DMA, they
  * are not mapped into the kernel virtual address space.  We store the
  * DMA address in the page private. The helper function
- * fw_iso_buffer_map() will map the pages into a given vma. */
+ * fw_iso_buffer_map() will map the pages into a given vma.
+ */
 
 struct fw_iso_buffer {
 	enum dma_data_direction direction;
@@ -408,18 +414,22 @@ fw_iso_context_stop(struct fw_iso_context *ctx);
 struct fw_card_driver {
 	const char *name;
 
-	/* Enable the given card with the given initial config rom.
+	/*
+	 * Enable the given card with the given initial config rom.
 	 * This function is expected to activate the card, and either
 	 * enable the PHY or set the link_on bit and initiate a bus
-	 * reset. */
+	 * reset.
+	 */
 	int (*enable) (struct fw_card *card, u32 *config_rom, size_t length);
 
 	int (*update_phy_reg) (struct fw_card *card, int address,
 			       int clear_bits, int set_bits);
 
-	/* Update the config rom for an enabled card.  This function
+	/*
+	 * Update the config rom for an enabled card.  This function
 	 * should change the config rom that is presented on the bus
-	 * an initiate a bus reset. */
+	 * an initiate a bus reset.
+	 */
 	int (*set_config_rom) (struct fw_card *card,
 			       u32 *config_rom, size_t length);
 
@@ -428,12 +438,14 @@ struct fw_card_driver {
 	/* Calling cancel is valid once a packet has been submitted. */
 	int (*cancel_packet) (struct fw_card *card, struct fw_packet *packet);
 
-	/* Allow the specified node ID to do direct DMA out and in of
+	/*
+	 * Allow the specified node ID to do direct DMA out and in of
 	 * host memory.  The card will disable this for all node when
 	 * a bus reset happens, so driver need to reenable this after
 	 * bus reset.  Returns 0 on success, -ENODEV if the card
 	 * doesn't support this, -ESTALE if the generation doesn't
-	 * match. */
+	 * match.
+	 */
 	int (*enable_phys_dma) (struct fw_card *card,
 				int node_id, int generation);
 
@@ -473,15 +485,15 @@ void fw_flush_transactions(struct fw_card *card);
 void fw_send_phy_config(struct fw_card *card,
 			int node_id, int generation, int gap_count);
 
-/* Called by the topology code to inform the device code of node
- * activity; found, lost, or updated nodes */
+/*
+ * Called by the topology code to inform the device code of node
+ * activity; found, lost, or updated nodes.
+ */
 void
 fw_node_event(struct fw_card *card, struct fw_node *node, int event);
 
 /* API used by card level drivers */
 
-/* Do we need phy speed here also?  If we add more args, maybe we
-   should go back to struct fw_card_info. */
 void
 fw_card_initialize(struct fw_card *card, const struct fw_card_driver *driver,
 		   struct device *device);

@@ -1,7 +1,4 @@
-/*						-*- c-basic-offset: 8 -*-
- *
- * fw-topology.h -- Incremental bus scan, based on bus topology
- *
+/*
  * Copyright (C) 2003-2006 Kristian Hoegsberg <krh@bitplanet.net>
  *
  * This program is free software; you can redistribute it and/or modify

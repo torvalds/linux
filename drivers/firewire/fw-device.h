@@ -1,7 +1,4 @@
-/*						-*- c-basic-offset: 8 -*-
- *
- * fw-device.h - Device probing and sysfs code.
- *
+/*
  * Copyright (C) 2005-2006  Kristian Hoegsberg <krh@bitplanet.net>
  *
  * This program is free software; you can redistribute it and/or modify

@@ -1,6 +1,5 @@
-/*						-*- c-basic-offset: 8 -*-
- *
- * fw-device.c - Device probing and sysfs code.
+/*
+ * Device probing and sysfs code.
  *
  * Copyright (C) 2005-2006  Kristian Hoegsberg <krh@bitplanet.net>
  *
@@ -174,8 +173,10 @@ static void fw_device_release(struct device *dev)
 	struct fw_device *device = fw_device(dev);
 	unsigned long flags;
 
-	/* Take the card lock so we don't set this to NULL while a
-	 * FW_NODE_UPDATED callback is being handled. */
+	/*
+	 * Take the card lock so we don't set this to NULL while a
+	 * FW_NODE_UPDATED callback is being handled.
+	 */
 	spin_lock_irqsave(&device->card->lock, flags);
 	device->node->data = NULL;
 	spin_unlock_irqrestore(&device->card->lock, flags);
@@ -421,34 +422,42 @@ static int read_bus_info_block(struct fw_device *device)
 	for (i = 0; i < 5; i++) {
 		if (read_rom(device, i, &rom[i]) != RCODE_COMPLETE)
 			return -1;
-		/* As per IEEE1212 7.2, during power-up, devices can
+		/*
+		 * As per IEEE1212 7.2, during power-up, devices can
 		 * reply with a 0 for the first quadlet of the config
 		 * rom to indicate that they are booting (for example,
 		 * if the firmware is on the disk of a external
 		 * harddisk).  In that case we just fail, and the
-		 * retry mechanism will try again later. */
+		 * retry mechanism will try again later.
+		 */
 		if (i == 0 && rom[i] == 0)
 			return -1;
 	}
 
-	/* Now parse the config rom.  The config rom is a recursive
+	/*
+	 * Now parse the config rom.  The config rom is a recursive
 	 * directory structure so we parse it using a stack of
 	 * references to the blocks that make up the structure.  We
 	 * push a reference to the root directory on the stack to
-	 * start things off. */
+	 * start things off.
+	 */
 	length = i;
 	sp = 0;
 	stack[sp++] = 0xc0000005;
 	while (sp > 0) {
-		/* Pop the next block reference of the stack.  The
+		/*
+		 * Pop the next block reference of the stack.  The
 		 * lower 24 bits is the offset into the config rom,
 		 * the upper 8 bits are the type of the reference the
-		 * block. */
+		 * block.
+		 */
 		key = stack[--sp];
 		i = key & 0xffffff;
 		if (i >= ARRAY_SIZE(rom))
-			/* The reference points outside the standard
-			 * config rom area, something's fishy. */
+			/*
+			 * The reference points outside the standard
+			 * config rom area, something's fishy.
+			 */
 			return -1;
 
 		/* Read header quadlet for the block to get the length. */
@@ -457,15 +466,19 @@ static int read_bus_info_block(struct fw_device *device)
 		end = i + (rom[i] >> 16) + 1;
 		i++;
 		if (end > ARRAY_SIZE(rom))
-			/* This block extends outside standard config
+			/*
+			 * This block extends outside standard config
 			 * area (and the array we're reading it
 			 * into).  That's broken, so ignore this
-			 * device. */
+			 * device.
+			 */
 			return -1;
 
-		/* Now read in the block.  If this is a directory
+		/*
+		 * Now read in the block.  If this is a directory
 		 * block, check the entries as we read them to see if
-		 * it references another block, and push it in that case. */
+		 * it references another block, and push it in that case.
+		 */
 		while (i < end) {
 			if (read_rom(device, i, &rom[i]) != RCODE_COMPLETE)
 				return -1;
@@ -516,8 +529,10 @@ static void create_units(struct fw_device *device)
 		if (key != (CSR_UNIT | CSR_DIRECTORY))
 			continue;
 
-		/* Get the address of the unit directory and try to
-		 * match the drivers id_tables against it. */
+		/*
+		 * Get the address of the unit directory and try to
+		 * match the drivers id_tables against it.
+		 */
 		unit = kzalloc(sizeof *unit, GFP_KERNEL);
 		if (unit == NULL) {
 			fw_error("failed to allocate memory for unit\n");
@@ -585,14 +600,16 @@ static struct device_type fw_device_type = {
 	.release	= fw_device_release,
 };
 
-/* These defines control the retry behavior for reading the config
+/*
+ * These defines control the retry behavior for reading the config
  * rom.  It shouldn't be necessary to tweak these; if the device
  * doesn't respond to a config rom read within 10 seconds, it's not
  * going to respond at all.  As for the initial delay, a lot of
  * devices will be able to respond within half a second after bus
  * reset.  On the other hand, it's not really worth being more
  * aggressive than that, since it scales pretty well; if 10 devices
- * are plugged in, they're all getting read within one second. */
+ * are plugged in, they're all getting read within one second.
+ */
 
 #define MAX_RETRIES	10
 #define RETRY_DELAY	(3 * HZ)
@@ -604,9 +621,11 @@ static void fw_device_init(struct work_struct *work)
 		container_of(work, struct fw_device, work.work);
 	int minor, err;
 
-	/* All failure paths here set node->data to NULL, so that we
+	/*
+	 * All failure paths here set node->data to NULL, so that we
 	 * don't try to do device_for_each_child() on a kfree()'d
-	 * device. */
+	 * device.
+	 */
 
 	if (read_bus_info_block(device) < 0) {
 		if (device->config_rom_retries < MAX_RETRIES) {
@@ -647,13 +666,15 @@ static void fw_device_init(struct work_struct *work)
 
 	create_units(device);
 
-	/* Transition the device to running state.  If it got pulled
+	/*
+	 * Transition the device to running state.  If it got pulled
 	 * out from under us while we did the intialization work, we
 	 * have to shut down the device again here.  Normally, though,
 	 * fw_node_event will be responsible for shutting it down when
 	 * necessary.  We have to use the atomic cmpxchg here to avoid
 	 * racing with the FW_NODE_DESTROYED case in
-	 * fw_node_event(). */
+	 * fw_node_event().
+	 */
 	if (atomic_cmpxchg(&device->state,
 		    FW_DEVICE_INITIALIZING,
 		    FW_DEVICE_RUNNING) == FW_DEVICE_SHUTDOWN)
@@ -662,10 +683,12 @@ static void fw_device_init(struct work_struct *work)
 		fw_notify("created new fw device %s (%d config rom retries)\n",
 			  device->device.bus_id, device->config_rom_retries);
 
-	/* Reschedule the IRM work if we just finished reading the
+	/*
+	 * Reschedule the IRM work if we just finished reading the
 	 * root node config rom.  If this races with a bus reset we
 	 * just end up running the IRM work a couple of extra times -
-	 * pretty harmless. */
+	 * pretty harmless.
+	 */
 	if (device->node == device->card->root_node)
 		schedule_delayed_work(&device->card->work, 0);
 
@@ -716,12 +739,14 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		if (device == NULL)
 			break;
 
-		/* Do minimal intialization of the device here, the
+		/*
+		 * Do minimal intialization of the device here, the
 		 * rest will happen in fw_device_init().  We need the
 		 * card and node so we can read the config rom and we
 		 * need to do device_initialize() now so
 		 * device_for_each_child() in FW_NODE_UPDATED is
-		 * doesn't freak out. */
+		 * doesn't freak out.
+		 */
 		device_initialize(&device->device);
 		atomic_set(&device->state, FW_DEVICE_INITIALIZING);
 		device->card = fw_card_get(card);
@@ -730,15 +755,19 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		device->generation = card->generation;
 		INIT_LIST_HEAD(&device->client_list);
 
-		/* Set the node data to point back to this device so
+		/*
+		 * Set the node data to point back to this device so
 		 * FW_NODE_UPDATED callbacks can update the node_id
-		 * and generation for the device. */
+		 * and generation for the device.
+		 */
 		node->data = device;
 
-		/* Many devices are slow to respond after bus resets,
+		/*
+		 * Many devices are slow to respond after bus resets,
 		 * especially if they are bus powered and go through
 		 * power-up after getting plugged in.  We schedule the
-		 * first config rom scan half a second after bus reset. */
+		 * first config rom scan half a second after bus reset.
+		 */
 		INIT_DELAYED_WORK(&device->work, fw_device_init);
 		schedule_delayed_work(&device->work, INITIAL_DELAY);
 		break;
@@ -761,7 +790,8 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		if (!node->data)
 			break;
 
-		/* Destroy the device associated with the node.  There
+		/*
+		 * Destroy the device associated with the node.  There
 		 * are two cases here: either the device is fully
 		 * initialized (FW_DEVICE_RUNNING) or we're in the
 		 * process of reading its config rom
@@ -770,7 +800,8 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		 * full fw_device_shutdown().  If not, there's work
 		 * scheduled to read it's config rom, and we just put
 		 * the device in shutdown state to have that code fail
-		 * to create the device. */
+		 * to create the device.
+		 */
 		device = node->data;
 		if (atomic_xchg(&device->state,
 				FW_DEVICE_SHUTDOWN) == FW_DEVICE_RUNNING) {

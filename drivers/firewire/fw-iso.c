@@ -1,6 +1,6 @@
-/*						-*- c-basic-offset: 8 -*-
+/*
+ * Isochronous IO functionality
  *
- * fw-iso.c - Isochronous IO
  * Copyright (C) 2006 Kristian Hoegsberg <krh@bitplanet.net>
  *
  * This program is free software; you can redistribute it and/or modify

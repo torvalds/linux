@@ -1,8 +1,7 @@
-/*						-*- c-basic-offset: 8 -*-
+/*
+ * Char device for device raw access
  *
- * fw-device-cdev.c - Char device for device raw access
- *
- * Copyright (C) 2005-2006  Kristian Hoegsberg <krh@bitplanet.net>
+ * Copyright (C) 2005-2007  Kristian Hoegsberg <krh@bitplanet.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,15 +35,17 @@
 #include "fw-topology.h"
 #include "fw-device.h"
 
-/* dequeue_event() just kfree()'s the event, so the event has to be
- * the first field in the struct. */
-
 struct client;
 struct client_resource {
 	struct list_head link;
 	void (*release)(struct client *client, struct client_resource *r);
 	u32 handle;
 };
+
+/*
+ * dequeue_event() just kfree()'s the event, so the event has to be
+ * the first field in the struct.
+ */
 
 struct event {
 	struct { void *data; size_t size; } v[2];
@@ -691,13 +692,15 @@ static int ioctl_queue_iso(struct client *client, void *buffer)
 	if (ctx == NULL || request->handle != 0)
 		return -EINVAL;
 
-	/* If the user passes a non-NULL data pointer, has mmap()'ed
+	/*
+	 * If the user passes a non-NULL data pointer, has mmap()'ed
 	 * the iso buffer, and the pointer points inside the buffer,
 	 * we setup the payload pointers accordingly.  Otherwise we
 	 * set them both to 0, which will still let packets with
 	 * payload_length == 0 through.  In other words, if no packets
 	 * use the indirect payload, the iso buffer need not be mapped
-	 * and the request->data pointer is ignored.*/
+	 * and the request->data pointer is ignored.
+	 */
 
 	payload = (unsigned long)request->data - client->vm_start;
 	buffer_end = client->buffer.page_count << PAGE_SHIFT;
@@ -720,8 +723,10 @@ static int ioctl_queue_iso(struct client *client, void *buffer)
 		if (ctx->type == FW_ISO_CONTEXT_TRANSMIT) {
 			header_length = u.packet.header_length;
 		} else {
-			/* We require that header_length is a multiple of
-			 * the fixed header size, ctx->header_size */
+			/*
+			 * We require that header_length is a multiple of
+			 * the fixed header size, ctx->header_size.
+			 */
 			if (ctx->header_size == 0) {
 				if (u.packet.header_length > 0)
 					return -EINVAL;
@@ -908,8 +913,10 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	list_for_each_entry_safe(r, next_r, &client->resource_list, link)
 		r->release(client, r);
 
-	/* FIXME: We should wait for the async tasklets to stop
-	 * running before freeing the memory. */
+	/*
+	 * FIXME: We should wait for the async tasklets to stop
+	 * running before freeing the memory.
+	 */
 
 	list_for_each_entry_safe(e, next_e, &client->event_list, link)
 		kfree(e);

@@ -1,5 +1,5 @@
-/*						-*- c-basic-offset: 8 -*-
- * fw-spb2.c -- SBP2 driver (SCSI over IEEE1394)
+/*
+ * SBP2 driver (SCSI over IEEE1394)
  *
  * Copyright (C) 2005-2007  Kristian Hoegsberg <krh@bitplanet.net>
  *
@@ -18,7 +18,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-/* The basic structure of this driver is based the old storage driver,
+/*
+ * The basic structure of this driver is based on the old storage driver,
  * drivers/ieee1394/sbp2.c, originally written by
  *     James Goodwin <jamesg@filanet.com>
  * with later contributions and ongoing maintenance from
@@ -60,11 +61,13 @@ struct sbp2_device {
 	u32 workarounds;
 	int login_id;
 
-	/* We cache these addresses and only update them once we've
+	/*
+	 * We cache these addresses and only update them once we've
 	 * logged in or reconnected to the sbp2 device.  That way, any
 	 * IO to the device will automatically fail and get retried if
 	 * it happens in a window where the device is not ready to
-	 * handle it (e.g. after a bus reset but before we reconnect). */
+	 * handle it (e.g. after a bus reset but before we reconnect).
+	 */
 	int node_id;
 	int address_high;
 	int generation;
@@ -239,10 +242,14 @@ static const struct {
 		.model			= ~0,
 		.workarounds		= SBP2_WORKAROUND_128K_MAX_TRANS,
 	},
-	/* There are iPods (2nd gen, 3rd gen) with model_id == 0, but
+
+	/*
+	 * There are iPods (2nd gen, 3rd gen) with model_id == 0, but
 	 * these iPods do not feature the read_capacity bug according
 	 * to one report.  Read_capacity behaviour as well as model_id
-	 * could change due to Apple-supplied firmware updates though. */
+	 * could change due to Apple-supplied firmware updates though.
+	 */
+
 	/* iPod 4th generation. */ {
 		.firmware_revision	= 0x0a2700,
 		.model			= 0x000021,
@@ -398,9 +405,10 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 	if (orb == NULL)
 		return -ENOMEM;
 
-	/* The sbp2 device is going to send a block read request to
-	 * read out the request from host memory, so map it for
-	 * dma. */
+	/*
+	 * The sbp2 device is going to send a block read request to
+	 * read out the request from host memory, so map it for dma.
+	 */
 	orb->base.request_bus =
 		dma_map_single(device->card->device, &orb->request,
 			       sizeof orb->request, DMA_TO_DEVICE);
@@ -426,10 +434,11 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 	orb->request.status_fifo.high = sd->address_handler.offset >> 32;
 	orb->request.status_fifo.low  = sd->address_handler.offset;
 
-	/* FIXME: Yeah, ok this isn't elegant, we hardwire exclusive
+	/*
+	 * FIXME: Yeah, ok this isn't elegant, we hardwire exclusive
 	 * login and 1 second reconnect time.  The reconnect setting
-	 * is probably fine, but the exclusive login should be an
-	 * option. */
+	 * is probably fine, but the exclusive login should be an option.
+	 */
 	if (function == SBP2_LOGIN_REQUEST) {
 		orb->request.misc |=
 			management_orb_exclusive |
@@ -592,8 +601,10 @@ static void sbp2_login(struct work_struct *work)
 		sbp2_send_management_orb(unit, sd->node_id, sd->generation,
 					 SBP2_LOGOUT_REQUEST, sd->login_id,
 					 NULL);
-		/* Set this back to sbp2_login so we fall back and
-		 * retry login on bus reset. */
+		/*
+		 * Set this back to sbp2_login so we fall back and
+		 * retry login on bus reset.
+		 */
 		PREPARE_DELAYED_WORK(&sd->work, sbp2_login);
 	}
 	kref_put(&sd->kref, release_sbp2_device);
@@ -633,9 +644,11 @@ static int sbp2_probe(struct device *dev)
 		return -EBUSY;
 	}
 
-	/* Scan unit directory to get management agent address,
+	/*
+	 * Scan unit directory to get management agent address,
 	 * firmware revison and model.  Initialize firmware_revision
-	 * and model to values that wont match anything in our table. */
+	 * and model to values that wont match anything in our table.
+	 */
 	firmware_revision = 0xff000000;
 	model = 0xff000000;
 	fw_csr_iterator_init(&ci, unit->directory);
@@ -673,9 +686,11 @@ static int sbp2_probe(struct device *dev)
 
 	get_device(&unit->device);
 
-	/* We schedule work to do the login so we can easily
+	/*
+	 * We schedule work to do the login so we can easily
 	 * reschedule retries. Always get the ref before scheduling
-	 * work.*/
+	 * work.
+	 */
 	INIT_DELAYED_WORK(&sd->work, sbp2_login);
 	if (schedule_delayed_work(&sd->work, 0))
 		kref_get(&sd->kref);
@@ -834,9 +849,11 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 			result = sbp2_status_to_sense_data(status_get_data(*status),
 							   orb->cmd->sense_buffer);
 	} else {
-		/* If the orb completes with status == NULL, something
+		/*
+		 * If the orb completes with status == NULL, something
 		 * went wrong, typically a bus reset happened mid-orb
-		 * or when sending the write (less likely). */
+		 * or when sending the write (less likely).
+		 */
 		result = DID_BUS_BUSY << 16;
 	}
 
@@ -878,11 +895,13 @@ static void sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 	count = dma_map_sg(device->card->device, sg, orb->cmd->use_sg,
 			   orb->cmd->sc_data_direction);
 
-	/* Handle the special case where there is only one element in
+	/*
+	 * Handle the special case where there is only one element in
 	 * the scatter list by converting it to an immediate block
 	 * request. This is also a workaround for broken devices such
 	 * as the second generation iPod which doesn't support page
-	 * tables. */
+	 * tables.
+	 */
 	if (count == 1 && sg_dma_len(sg) < SBP2_MAX_SG_ELEMENT_LENGTH) {
 		orb->request.data_descriptor.high = sd->address_high;
 		orb->request.data_descriptor.low  = sg_dma_address(sg);
@@ -891,8 +910,10 @@ static void sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 		return;
 	}
 
-	/* Convert the scatterlist to an sbp2 page table.  If any
-	 * scatterlist entries are too big for sbp2 we split the as we go. */
+	/*
+	 * Convert the scatterlist to an sbp2 page table.  If any
+	 * scatterlist entries are too big for sbp2 we split the as we go.
+	 */
 	for (i = 0, j = 0; i < count; i++) {
 		sg_len = sg_dma_len(sg + i);
 		sg_addr = sg_dma_address(sg + i);
@@ -908,11 +929,13 @@ static void sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 
 	size = sizeof orb->page_table[0] * j;
 
-	/* The data_descriptor pointer is the one case where we need
+	/*
+	 * The data_descriptor pointer is the one case where we need
 	 * to fill in the node ID part of the address.  All other
 	 * pointers assume that the data referenced reside on the
 	 * initiator (i.e. us), but data_descriptor can refer to data
-	 * on other nodes so we need to put our ID in descriptor.high. */
+	 * on other nodes so we need to put our ID in descriptor.high.
+	 */
 
 	orb->page_table_bus =
 		dma_map_single(device->card->device, orb->page_table,
@@ -933,8 +956,10 @@ static void sbp2_command_orb_map_buffer(struct sbp2_command_orb *orb)
 	struct fw_device *device = fw_device(unit->device.parent);
 	struct sbp2_device *sd = unit->device.driver_data;
 
-	/* As for map_scatterlist, we need to fill in the high bits of
-	 * the data_descriptor pointer. */
+	/*
+	 * As for map_scatterlist, we need to fill in the high bits of
+	 * the data_descriptor pointer.
+	 */
 
 	orb->request_buffer_bus =
 		dma_map_single(device->card->device,
@@ -956,8 +981,10 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	struct sbp2_device *sd = unit->device.driver_data;
 	struct sbp2_command_orb *orb;
 
-	/* Bidirectional commands are not yet implemented, and unknown
-	 * transfer direction not handled. */
+	/*
+	 * Bidirectional commands are not yet implemented, and unknown
+	 * transfer direction not handled.
+	 */
 	if (cmd->sc_data_direction == DMA_BIDIRECTIONAL) {
 		fw_error("Cannot handle DMA_BIDIRECTIONAL - rejecting command");
 		goto fail_alloc;
@@ -983,10 +1010,12 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 
 	orb->request.next.high   = SBP2_ORB_NULL;
 	orb->request.next.low    = 0x0;
-	/* At speed 100 we can do 512 bytes per packet, at speed 200,
+	/*
+	 * At speed 100 we can do 512 bytes per packet, at speed 200,
 	 * 1024 bytes per packet etc.  The SBP-2 max_payload field
 	 * specifies the max payload size as 2 ^ (max_payload + 2), so
-	 * if we set this to max_speed + 7, we get the right value. */
+	 * if we set this to max_speed + 7, we get the right value.
+	 */
 	orb->request.misc =
 		command_orb_max_payload(device->node->max_speed + 7) |
 		command_orb_speed(device->node->max_speed) |
@@ -1002,9 +1031,11 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	if (cmd->use_sg) {
 		sbp2_command_orb_map_scatterlist(orb);
 	} else if (cmd->request_bufflen > SBP2_MAX_SG_ELEMENT_LENGTH) {
-		/* FIXME: Need to split this into a sg list... but
+		/*
+		 * FIXME: Need to split this into a sg list... but
 		 * could we get the scsi or blk layer to do that by
-		 * reporting our max supported block size? */
+		 * reporting our max supported block size?
+		 */
 		fw_error("command > 64k\n");
 		goto fail_bufflen;
 	} else if (cmd->request_bufflen > 0) {

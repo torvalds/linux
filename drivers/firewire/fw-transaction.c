@@ -1,6 +1,5 @@
-/*						-*- c-basic-offset: 8 -*-
- *
- * fw-transaction.c - core IEEE1394 transaction logic
+/*
+ * Core IEEE1394 transaction logic
  *
  * Copyright (C) 2004-2006 Kristian Hoegsberg <krh@bitplanet.net>
  *
@@ -85,21 +84,27 @@ close_transaction(struct fw_transaction *transaction,
 	return -ENOENT;
 }
 
-/* Only valid for transactions that are potentially pending (ie have
- * been sent). */
+/*
+ * Only valid for transactions that are potentially pending (ie have
+ * been sent).
+ */
 int
 fw_cancel_transaction(struct fw_card *card,
 		      struct fw_transaction *transaction)
 {
-	/* Cancel the packet transmission if it's still queued.  That
+	/*
+	 * Cancel the packet transmission if it's still queued.  That
 	 * will call the packet transmission callback which cancels
-	 * the transaction. */
+	 * the transaction.
+	 */
 
 	if (card->driver->cancel_packet(card, &transaction->packet) == 0)
 		return 0;
 
-	/* If the request packet has already been sent, we need to see
-	 * if the transaction is still pending and remove it in that case. */
+	/*
+	 * If the request packet has already been sent, we need to see
+	 * if the transaction is still pending and remove it in that case.
+	 */
 
 	return close_transaction(transaction, card, RCODE_CANCELLED, NULL, 0);
 }
@@ -131,8 +136,10 @@ transmit_complete_callback(struct fw_packet *packet,
 		close_transaction(t, card, RCODE_TYPE_ERROR, NULL, 0);
 		break;
 	default:
-		/* In this case the ack is really a juju specific
-		 * rcode, so just forward that to the callback. */
+		/*
+		 * In this case the ack is really a juju specific
+		 * rcode, so just forward that to the callback.
+		 */
 		close_transaction(t, card, status, NULL, 0);
 		break;
 	}
@@ -243,13 +250,17 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 	unsigned long flags;
 	int tlabel, source;
 
-	/* Bump the flush timer up 100ms first of all so we
-	 * don't race with a flush timer callback. */
+	/*
+	 * Bump the flush timer up 100ms first of all so we
+	 * don't race with a flush timer callback.
+	 */
 
 	mod_timer(&card->flush_timer, jiffies + DIV_ROUND_UP(HZ, 10));
 
-	/* Allocate tlabel from the bitmap and put the transaction on
-	 * the list while holding the card spinlock. */
+	/*
+	 * Allocate tlabel from the bitmap and put the transaction on
+	 * the list while holding the card spinlock.
+	 */
 
 	spin_lock_irqsave(&card->lock, flags);
 
@@ -336,9 +347,11 @@ void fw_flush_transactions(struct fw_card *card)
 	list_for_each_entry_safe(t, next, &list, link) {
 		card->driver->cancel_packet(card, &t->packet);
 
-		/* At this point cancel_packet will never call the
+		/*
+		 * At this point cancel_packet will never call the
 		 * transaction callback, since we just took all the
-		 * transactions out of the list.  So do it here.*/
+		 * transactions out of the list.  So do it here.
+		 */
 		t->callback(card, RCODE_CANCELLED, NULL, 0, t->callback_data);
 	}
 }
@@ -587,9 +600,11 @@ allocate_request(struct fw_packet *p)
 void
 fw_send_response(struct fw_card *card, struct fw_request *request, int rcode)
 {
-	/* Broadcast packets are reported as ACK_COMPLETE, so this
+	/*
+	 * Broadcast packets are reported as ACK_COMPLETE, so this
 	 * check is sufficient to ensure we don't send response to
-	 * broadcast packets or posted writes. */
+	 * broadcast packets or posted writes.
+	 */
 	if (request->ack != ACK_PENDING)
 		return;
 
@@ -639,11 +654,13 @@ fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 						   offset, request->length);
 	spin_unlock_irqrestore(&address_handler_lock, flags);
 
-	/* FIXME: lookup the fw_node corresponding to the sender of
+	/*
+	 * FIXME: lookup the fw_node corresponding to the sender of
 	 * this request and pass that to the address handler instead
 	 * of the node ID.  We may also want to move the address
 	 * allocations to fw_node so we only do this callback if the
-	 * upper layers registered it for this node. */
+	 * upper layers registered it for this node.
+	 */
 
 	if (handler == NULL)
 		fw_send_response(card, request, RCODE_ADDRESS_ERROR);
@@ -687,8 +704,10 @@ fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 		return;
 	}
 
-	/* FIXME: sanity check packet, is length correct, does tcodes
-	 * and addresses match. */
+	/*
+	 * FIXME: sanity check packet, is length correct, does tcodes
+	 * and addresses match.
+	 */
 
 	switch (tcode) {
 	case TCODE_READ_QUADLET_RESPONSE:
@@ -790,11 +809,13 @@ handle_registers(struct fw_card *card, struct fw_request *request,
 	case CSR_BANDWIDTH_AVAILABLE:
 	case CSR_CHANNELS_AVAILABLE_HI:
 	case CSR_CHANNELS_AVAILABLE_LO:
-		/* FIXME: these are handled by the OHCI hardware and
+		/*
+		 * FIXME: these are handled by the OHCI hardware and
 		 * the stack never sees these request. If we add
 		 * support for a new type of controller that doesn't
 		 * handle this in hardware we need to deal with these
-		 * transactions. */
+		 * transactions.
+		 */
 		BUG();
 		break;
 
