@@ -163,10 +163,7 @@ static void inode_go_sync(struct gfs2_glock *gl)
 		if (ip) {
 			struct address_space *mapping = ip->i_inode.i_mapping;
 			int error = filemap_fdatawait(mapping);
-			if (error == -ENOSPC)
-				set_bit(AS_ENOSPC, &mapping->flags);
-			else if (error)
-				set_bit(AS_EIO, &mapping->flags);
+			mapping_set_error(mapping, error);
 		}
 		clear_bit(GLF_DIRTY, &gl->gl_flags);
 		gfs2_ail_empty_gl(gl);

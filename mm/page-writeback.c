@@ -683,12 +683,7 @@ retry:
 			}
 
 			ret = (*writepage)(page, wbc);
-			if (ret) {
-				if (ret == -ENOSPC)
-					set_bit(AS_ENOSPC, &mapping->flags);
-				else
-					set_bit(AS_EIO, &mapping->flags);
-			}
+			mapping_set_error(mapping, ret);
 
 			if (unlikely(ret == AOP_WRITEPAGE_ACTIVATE))
 				unlock_page(page);
