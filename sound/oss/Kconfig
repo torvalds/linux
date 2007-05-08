@@ -5,20 +5,6 @@
 #
 # Prompt user for primary drivers.
 
-config OBSOLETE_OSS
-	bool "Obsolete OSS drivers"
-	depends on SOUND_PRIME
-	help
-	  This option enables support for obsolete OSS drivers that
-	  are scheduled for removal in the near future since there
-	  are ALSA drivers for the same hardware.
-
-	  Please contact Adrian Bunk <bunk@stusta.de> if you had to
-	  say Y here because your soundcard is not properly supported
-	  by ALSA.
-
-	  If unsure, say N.
-
 config SOUND_BT878
 	tristate "BT878 audio dma"
 	depends on SOUND_PRIME && PCI
@@ -44,19 +30,6 @@ config SOUND_BCM_CS4297A
 	  here to enable the sound chip instead of the UART.  Also
 	  note that CONFIG_KGDB should not be enabled at the same
 	  time, since it also attempts to use this UART port.
-
-config SOUND_ES1371
-	tristate "Creative Ensoniq AudioPCI 97 (ES1371)"
-	depends on SOUND_PRIME && PCI && OBSOLETE_OSS
-	help
-	  Say Y or M if you have a PCI sound card utilizing the Ensoniq
-	  ES1371 chipset, such as Ensoniq's AudioPCI97. To find out if
-	  your sound card uses an ES1371 without removing your computer's
-	  cover, use lspci -n and look for the PCI ID 1274:1371. Since
-	  Ensoniq was bought by Creative Labs, Sound Blaster 64/PCI
-	  models are either ES1370 or ES1371 based. This driver differs
-	  slightly from OSS/Free, so PLEASE READ
-	  <file:Documentation/sound/oss/es1371>.
 
 config SOUND_ICH
 	tristate "Intel ICH (i8xx) audio support"
