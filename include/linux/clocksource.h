@@ -12,6 +12,7 @@
 #include <linux/timex.h>
 #include <linux/time.h>
 #include <linux/list.h>
+#include <linux/cache.h>
 #include <linux/timer.h>
 #include <asm/div64.h>
 #include <asm/io.h>
@@ -52,6 +53,9 @@ struct clocksource;
  * @xtime_interval:	Used internally by timekeeping core, please ignore.
  */
 struct clocksource {
+	/*
+	 * First part of structure is read mostly
+	 */
 	char *name;
 	struct list_head list;
 	int rating;
@@ -63,8 +67,15 @@ struct clocksource {
 	cycle_t (*vread)(void);
 
 	/* timekeeping specific data, ignore */
-	cycle_t cycle_last, cycle_interval;
-	u64 xtime_nsec, xtime_interval;
+	cycle_t cycle_interval;
+	u64	xtime_interval;
+	/*
+	 * Second part is written at each timer interrupt
+	 * Keep it in a different cache line to dirty no
+	 * more than one cache line.
+	 */
+	cycle_t cycle_last ____cacheline_aligned_in_smp;
+	u64 xtime_nsec;
 	s64 error;
 
 #ifdef CONFIG_CLOCKSOURCE_WATCHDOG
