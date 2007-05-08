@@ -39,6 +39,8 @@ extern void pci_iommu_table_init(struct iommu *iommu, int tsbsize, u32 dma_offse
 struct pci_controller_info;
 
 struct pci_pbm_info {
+	struct pci_pbm_info		*next;
+
 	/* PCI controller we sit under. */
 	struct pci_controller_info	*parent;
 
@@ -113,12 +115,10 @@ struct pci_pbm_info {
 	unsigned int			pci_first_busno;
 	unsigned int			pci_last_busno;
 	struct pci_bus			*pci_bus;
+	void (*scan_bus)(struct pci_pbm_info *);
 };
 
 struct pci_controller_info {
-	/* List of all PCI controllers. */
-	struct pci_controller_info	*next;
-
 	/* Each controller gets a unique index, used mostly for
 	 * error logging purposes.
 	 */
@@ -129,8 +129,6 @@ struct pci_controller_info {
 	struct pci_pbm_info		pbm_B;
 
 	/* Operations which are controller specific. */
-	void (*scan_bus)(struct pci_controller_info *);
-
 #ifdef CONFIG_PCI_MSI
 	int (*setup_msi_irq)(unsigned int *virt_irq_p, struct pci_dev *pdev,
 			     struct msi_desc *entry);

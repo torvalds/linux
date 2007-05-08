@@ -48,7 +48,7 @@ asmlinkage int sys_pciconfig_write(unsigned long bus, unsigned long dfn,
 #else
 
 /* List of all PCI controllers found in the system. */
-struct pci_controller_info *pci_controller_root = NULL;
+struct pci_pbm_info *pci_pbm_root = NULL;
 
 /* Each PCI controller found gets a unique index. */
 int pci_num_controllers = 0;
@@ -291,7 +291,7 @@ extern const struct pci_iommu_ops pci_sun4u_iommu_ops,
 
 /* Find each controller in the system, attach and initialize
  * software state structure for each and link into the
- * pci_controller_root.  Setup the controller enough such
+ * pci_pbm_root.  Setup the controller enough such
  * that bus scanning can be done.
  */
 static void __init pci_controller_probe(void)
@@ -776,10 +776,10 @@ struct pci_bus * __devinit pci_scan_one_pbm(struct pci_pbm_info *pbm)
 
 static void __init pci_scan_each_controller_bus(void)
 {
-	struct pci_controller_info *p;
+	struct pci_pbm_info *pbm;
 
-	for (p = pci_controller_root; p; p = p->next)
-		p->scan_bus(p);
+	for (pbm = pci_pbm_root; pbm; pbm = pbm->next)
+		pbm->scan_bus(pbm);
 }
 
 extern void power_init(void);
@@ -787,7 +787,7 @@ extern void power_init(void);
 static int __init pcibios_init(void)
 {
 	pci_controller_probe();
-	if (pci_controller_root == NULL)
+	if (pci_pbm_root == NULL)
 		return 0;
 
 	pci_scan_each_controller_bus();

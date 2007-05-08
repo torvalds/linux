@@ -160,21 +160,9 @@ static struct pci_ops pci_fire_ops = {
 	.write	=	fire_write_pci_cfg,
 };
 
-static void pbm_scan_bus(struct pci_controller_info *p,
-			 struct pci_pbm_info *pbm)
+static void pci_fire_scan_bus(struct pci_pbm_info *pbm)
 {
 	pbm->pci_bus = pci_scan_one_pbm(pbm);
-}
-
-static void pci_fire_scan_bus(struct pci_controller_info *p)
-{
-	struct device_node *dp;
-
-	if ((dp = p->pbm_A.prom_node) != NULL)
-		pbm_scan_bus(p, &p->pbm_A);
-
-	if ((dp = p->pbm_B.prom_node) != NULL)
-		pbm_scan_bus(p, &p->pbm_B);
 
 	/* XXX register error interrupt handlers XXX */
 }
@@ -313,7 +301,7 @@ static void pci_fire_hw_init(struct pci_pbm_info *pbm)
 }
 
 static void pci_fire_pbm_init(struct pci_controller_info *p,
-				struct device_node *dp, u32 portid)
+			      struct device_node *dp, u32 portid)
 {
 	const struct linux_prom64_registers *regs;
 	struct pci_pbm_info *pbm;
@@ -322,6 +310,11 @@ static void pci_fire_pbm_init(struct pci_controller_info *p,
 		pbm = &p->pbm_A;
 	else
 		pbm = &p->pbm_B;
+
+	pbm->next = pci_pbm_root;
+	pci_pbm_root = pbm;
+
+	pbm->scan_bus = pci_fire_scan_bus;
 
 	pbm->portid = portid;
 	pbm->parent = p;
@@ -354,19 +347,11 @@ void fire_pci_init(struct device_node *dp, const char *model_name)
 	struct pci_controller_info *p;
 	u32 portid = of_getintprop_default(dp, "portid", 0xff);
 	struct iommu *iommu;
+	struct pci_pbm_info *pbm;
 
-	for (p = pci_controller_root; p; p = p->next) {
-		struct pci_pbm_info *pbm;
-
-		if (p->pbm_A.prom_node && p->pbm_B.prom_node)
-			continue;
-
-		pbm = (p->pbm_A.prom_node ?
-		       &p->pbm_A :
-		       &p->pbm_B);
-
+	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
 		if (portid_compare(pbm->portid, portid)) {
-			pci_fire_pbm_init(p, dp, portid);
+			pci_fire_pbm_init(pbm->parent, dp, portid);
 			return;
 		}
 	}
@@ -387,12 +372,8 @@ void fire_pci_init(struct device_node *dp, const char *model_name)
 
 	p->pbm_B.iommu = iommu;
 
-	p->next = pci_controller_root;
-	pci_controller_root = p;
-
 	p->index = pci_num_controllers++;
 
-	p->scan_bus = pci_fire_scan_bus;
 	/* XXX MSI support XXX */
 	p->pci_ops = &pci_fire_ops;
 

@@ -677,29 +677,15 @@ static struct pci_ops pci_sun4v_ops = {
 };
 
 
-static void pbm_scan_bus(struct pci_controller_info *p,
-			 struct pci_pbm_info *pbm)
-{
-	pbm->pci_bus = pci_scan_one_pbm(pbm);
-}
-
-static void pci_sun4v_scan_bus(struct pci_controller_info *p)
+static void pci_sun4v_scan_bus(struct pci_pbm_info *pbm)
 {
 	struct property *prop;
 	struct device_node *dp;
 
-	if ((dp = p->pbm_A.prom_node) != NULL) {
-		prop = of_find_property(dp, "66mhz-capable", NULL);
-		p->pbm_A.is_66mhz_capable = (prop != NULL);
-
-		pbm_scan_bus(p, &p->pbm_A);
-	}
-	if ((dp = p->pbm_B.prom_node) != NULL) {
-		prop = of_find_property(dp, "66mhz-capable", NULL);
-		p->pbm_B.is_66mhz_capable = (prop != NULL);
-
-		pbm_scan_bus(p, &p->pbm_B);
-	}
+	dp = pbm->prom_node;
+	prop = of_find_property(dp, "66mhz-capable", NULL);
+	pbm->is_66mhz_capable = (prop != NULL);
+	pbm->pci_bus = pci_scan_one_pbm(pbm);
 
 	/* XXX register error interrupt handlers XXX */
 }
@@ -1246,6 +1232,11 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 	else
 		pbm = &p->pbm_A;
 
+	pbm->next = pci_pbm_root;
+	pci_pbm_root = pbm;
+
+	pbm->scan_bus = pci_sun4v_scan_bus;
+
 	pbm->parent = p;
 	pbm->prom_node = dp;
 
@@ -1265,6 +1256,7 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 void sun4v_pci_init(struct device_node *dp, char *model_name)
 {
 	struct pci_controller_info *p;
+	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
 	struct property *prop;
 	struct linux_prom64_registers *regs;
@@ -1276,18 +1268,9 @@ void sun4v_pci_init(struct device_node *dp, char *model_name)
 
 	devhandle = (regs->phys_addr >> 32UL) & 0x0fffffff;
 
-	for (p = pci_controller_root; p; p = p->next) {
-		struct pci_pbm_info *pbm;
-
-		if (p->pbm_A.prom_node && p->pbm_B.prom_node)
-			continue;
-
-		pbm = (p->pbm_A.prom_node ?
-		       &p->pbm_A :
-		       &p->pbm_B);
-
+	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
 		if (pbm->devhandle == (devhandle ^ 0x40)) {
-			pci_sun4v_pbm_init(p, dp, devhandle);
+			pci_sun4v_pbm_init(pbm->parent, dp, devhandle);
 			return;
 		}
 	}
@@ -1317,12 +1300,8 @@ void sun4v_pci_init(struct device_node *dp, char *model_name)
 
 	p->pbm_B.iommu = iommu;
 
-	p->next = pci_controller_root;
-	pci_controller_root = p;
-
 	p->index = pci_num_controllers++;
 
-	p->scan_bus = pci_sun4v_scan_bus;
 #ifdef CONFIG_PCI_MSI
 	p->setup_msi_irq = pci_sun4v_setup_msi_irq;
 	p->teardown_msi_irq = pci_sun4v_teardown_msi_irq;

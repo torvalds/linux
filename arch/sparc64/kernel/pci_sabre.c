@@ -825,9 +825,9 @@ static irqreturn_t sabre_pcierr_intr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void sabre_register_error_handlers(struct pci_controller_info *p)
+static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 {
-	struct pci_pbm_info *pbm = &p->pbm_A; /* arbitrary */
+	struct pci_controller_info *p = pbm->parent;
 	struct device_node *dp = pbm->prom_node;
 	struct of_device *op;
 	unsigned long base = pbm->controller_regs;
@@ -858,22 +858,22 @@ static void sabre_register_error_handlers(struct pci_controller_info *p)
 		     SABRE_UEAFSR_SDRD | SABRE_UEAFSR_SDWR |
 		     SABRE_UEAFSR_SDTE | SABRE_UEAFSR_PDTE));
 
-	request_irq(op->irqs[1], sabre_ue_intr, IRQF_SHARED, "SABRE UE", p);
+	request_irq(op->irqs[1], sabre_ue_intr, 0, "SABRE_UE", p);
 
 	sabre_write(base + SABRE_CE_AFSR,
 		    (SABRE_CEAFSR_PDRD | SABRE_CEAFSR_PDWR |
 		     SABRE_CEAFSR_SDRD | SABRE_CEAFSR_SDWR));
 
-	request_irq(op->irqs[2], sabre_ce_intr, IRQF_SHARED, "SABRE CE", p);
-	request_irq(op->irqs[0], sabre_pcierr_intr, IRQF_SHARED,
-		    "SABRE PCIERR", p);
+	request_irq(op->irqs[2], sabre_ce_intr, 0, "SABRE_CE", p);
+	request_irq(op->irqs[0], sabre_pcierr_intr, 0,
+		    "SABRE_PCIERR", p);
 
 	tmp = sabre_read(base + SABRE_PCICTRL);
 	tmp |= SABRE_PCICTRL_ERREN;
 	sabre_write(base + SABRE_PCICTRL, tmp);
 }
 
-static void apb_init(struct pci_controller_info *p, struct pci_bus *sabre_bus)
+static void apb_init(struct pci_bus *sabre_bus)
 {
 	struct pci_dev *pdev;
 
@@ -909,7 +909,7 @@ static void apb_init(struct pci_controller_info *p, struct pci_bus *sabre_bus)
 	}
 }
 
-static void sabre_scan_bus(struct pci_controller_info *p)
+static void sabre_scan_bus(struct pci_pbm_info *pbm)
 {
 	static int once;
 	struct pci_bus *pbus;
@@ -918,7 +918,7 @@ static void sabre_scan_bus(struct pci_controller_info *p)
 	 * at 66Mhz, but the front side of APB runs at 33Mhz
 	 * for both segments.
 	 */
-	p->pbm_A.is_66mhz_capable = 0;
+	pbm->is_66mhz_capable = 0;
 
 	/* This driver has not been verified to handle
 	 * multiple SABREs yet, so trap this.
@@ -932,15 +932,15 @@ static void sabre_scan_bus(struct pci_controller_info *p)
 	}
 	once++;
 
-	pbus = pci_scan_one_pbm(&p->pbm_A);
+	pbus = pci_scan_one_pbm(pbm);
 	if (!pbus)
 		return;
 
 	sabre_root_bus = pbus;
 
-	apb_init(p, pbus);
+	apb_init(pbus);
 
-	sabre_register_error_handlers(p);
+	sabre_register_error_handlers(pbm);
 }
 
 static void sabre_iommu_init(struct pci_controller_info *p,
@@ -1003,6 +1003,8 @@ static void sabre_pbm_init(struct pci_controller_info *p, struct device_node *dp
 	pbm->name = dp->full_name;
 	printk("%s: SABRE PCI Bus Module\n", pbm->name);
 
+	pbm->scan_bus = sabre_scan_bus;
+
 	pbm->chip_type = PBM_CHIP_TYPE_SABRE;
 	pbm->parent = p;
 	pbm->prom_node = dp;
@@ -1055,12 +1057,11 @@ void sabre_init(struct device_node *dp, char *model_name)
 
 	upa_portid = of_getintprop_default(dp, "upa-portid", 0xff);
 
-	p->next = pci_controller_root;
-	pci_controller_root = p;
+	p->pbm_A.next = pci_pbm_root;
+	pci_pbm_root = &p->pbm_A;
 
 	p->pbm_A.portid = upa_portid;
 	p->index = pci_num_controllers++;
-	p->scan_bus = sabre_scan_bus;
 	p->pci_ops = &sabre_ops;
 
 	/*
