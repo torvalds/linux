@@ -31,8 +31,7 @@ static void save_raw_context_stack(struct stack_trace *trace,
 	}
 }
 
-static void save_context_stack(struct stack_trace *trace,
-	struct task_struct *task, struct pt_regs *regs)
+static void save_context_stack(struct stack_trace *trace, struct pt_regs *regs)
 {
 	unsigned long sp = regs->regs[29];
 #ifdef CONFIG_KALLSYMS
@@ -41,7 +40,7 @@ static void save_context_stack(struct stack_trace *trace,
 
 	if (raw_show_trace || !__kernel_text_address(pc)) {
 		unsigned long stack_page =
-			(unsigned long)task_stack_page(task);
+			(unsigned long)task_stack_page(current);
 		if (stack_page && sp >= stack_page &&
 		    sp <= stack_page + THREAD_SIZE - 32)
 			save_raw_context_stack(trace, sp);
@@ -54,7 +53,7 @@ static void save_context_stack(struct stack_trace *trace,
 			trace->entries[trace->nr_entries++] = pc;
 		if (trace->nr_entries >= trace->max_entries)
 			break;
-		pc = unwind_stack(task, &sp, pc, &ra);
+		pc = unwind_stack(current, &sp, pc, &ra);
 	} while (pc);
 #else
 	save_raw_context_stack(trace, sp);
@@ -64,22 +63,13 @@ static void save_context_stack(struct stack_trace *trace,
 /*
  * Save stack-backtrace addresses into a stack_trace buffer.
  */
-void save_stack_trace(struct stack_trace *trace, struct task_struct *task)
+void save_stack_trace(struct stack_trace *trace)
 {
 	struct pt_regs dummyregs;
 	struct pt_regs *regs = &dummyregs;
 
 	WARN_ON(trace->nr_entries || !trace->max_entries);
 
-	if (task && task != current) {
-		regs->regs[29] = task->thread.reg29;
-		regs->regs[31] = 0;
-		regs->cp0_epc = task->thread.reg31;
-	} else {
-		if (!task)
-			task = current;
-		prepare_frametrace(regs);
-	}
-
-	save_context_stack(trace, task, regs);
+	prepare_frametrace(regs);
+	save_context_stack(trace, regs);
 }

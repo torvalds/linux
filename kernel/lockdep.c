@@ -257,9 +257,8 @@ static int save_trace(struct stack_trace *trace)
 	trace->entries = stack_trace + nr_stack_trace_entries;
 
 	trace->skip = 3;
-	trace->all_contexts = 0;
 
-	save_stack_trace(trace, NULL);
+	save_stack_trace(trace);
 
 	trace->max_entries = trace->nr_entries;
 

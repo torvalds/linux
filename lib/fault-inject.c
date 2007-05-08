@@ -72,9 +72,8 @@ static bool fail_stacktrace(struct fault_attr *attr)
 	trace.entries = entries;
 	trace.max_entries = depth;
 	trace.skip = 1;
-	trace.all_contexts = 0;
 
-	save_stack_trace(&trace, NULL);
+	save_stack_trace(&trace);
 	for (n = 0; n < trace.nr_entries; n++) {
 		if (attr->reject_start <= entries[n] &&
 			       entries[n] < attr->reject_end)

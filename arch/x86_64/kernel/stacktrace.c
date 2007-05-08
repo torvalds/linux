@@ -21,8 +21,7 @@ save_stack_warning_symbol(void *data, char *msg, unsigned long symbol)
 
 static int save_stack_stack(void *data, char *name)
 {
-	struct stack_trace *trace = (struct stack_trace *)data;
-	return trace->all_contexts ? 0 : -1;
+	return -1;
 }
 
 static void save_stack_address(void *data, unsigned long addr)
@@ -46,11 +45,10 @@ static struct stacktrace_ops save_stack_ops = {
 /*
  * Save stack-backtrace addresses into a stack_trace buffer.
  */
-void save_stack_trace(struct stack_trace *trace, struct task_struct *task)
+void save_stack_trace(struct stack_trace *trace)
 {
-	dump_trace(task, NULL, NULL, &save_stack_ops, trace);
+	dump_trace(current, NULL, NULL, &save_stack_ops, trace);
 	if (trace->nr_entries < trace->max_entries)
 		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
 EXPORT_SYMBOL(save_stack_trace);
-

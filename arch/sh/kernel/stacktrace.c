@@ -19,14 +19,7 @@
  */
 void save_stack_trace(struct stack_trace *trace, struct task_struct *task)
 {
-	unsigned long *sp;
-
-	if (!task)
-		task = current;
-	if (task == current)
-		sp = (unsigned long *)current_stack_pointer;
-	else
-		sp = (unsigned long *)task->thread.sp;
+	unsigned long *sp = (unsigned long *)current_stack_pointer;
 
 	while (!kstack_end(sp)) {
 		unsigned long addr = *sp++;
