@@ -146,8 +146,6 @@ struct inode *proc_get_inode(struct super_block *sb, unsigned int ino,
 {
 	struct inode * inode;
 
-	WARN_ON(de && de->deleted);
-
 	if (de != NULL && !try_module_get(de->owner))
 		goto out_mod;
 
