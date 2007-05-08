@@ -78,7 +78,7 @@ struct kprobe {
 	kprobe_opcode_t *addr;
 
 	/* Allow user to indicate symbol name of the probe point */
-	char *symbol_name;
+	const char *symbol_name;
 
 	/* Offset into the symbol */
 	unsigned int offset;
