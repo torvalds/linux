@@ -1049,7 +1049,6 @@ static void cyy_intr_chip(struct cyclades_card *cinfo, int chip,
 		channel = (u_short) (save_xir & CyIRChannel);
 		i = channel + chip * 4 + cinfo->first_line;
 		info = &cy_port[i];
-		info->last_active = jiffies;
 		save_car = readb(base_addr + (CyCAR << index));
 		cy_writeb(base_addr + (CyCAR << index), save_xir);
 
@@ -1225,7 +1224,6 @@ static void cyy_intr_chip(struct cyclades_card *cinfo, int chip,
 			goto txend;
 		}
 		info = &cy_port[i];
-		info->last_active = jiffies;
 		if (info->tty == 0) {
 			cy_writeb(base_addr + (CySRER << index),
 				  readb(base_addr + (CySRER << index)) &
@@ -1339,7 +1337,6 @@ txend:
 		save_xir = (u_char) readb(base_addr + (CyMIR << index));
 		channel = (u_short) (save_xir & CyIRChannel);
 		info = &cy_port[channel + chip * 4 + cinfo->first_line];
-		info->last_active = jiffies;
 		save_car = readb(base_addr + (CyCAR << index));
 		cy_writeb(base_addr + (CyCAR << index), save_xir);
 
@@ -1570,9 +1567,6 @@ cyz_handle_rx(struct cyclades_port *info, struct CH_CTRL __iomem *ch_ctrl,
 		char_count = rx_put - rx_get + rx_bufsize;
 
 	if (char_count) {
-		info->last_active = jiffies;
-		info->jiffies[1] = jiffies;
-
 #ifdef CY_ENABLE_MONITORING
 		info->mon.int_count++;
 		info->mon.char_count += char_count;
@@ -1678,8 +1672,6 @@ cyz_handle_tx(struct cyclades_port *info, struct CH_CTRL __iomem *ch_ctrl,
 			info->x_char = 0;
 			char_count--;
 			info->icount.tx++;
-			info->last_active = jiffies;
-			info->jiffies[2] = jiffies;
 		}
 #ifdef BLOCKMOVE
 		while (0 < (small_count = min_t(unsigned int,
@@ -1699,8 +1691,6 @@ cyz_handle_tx(struct cyclades_port *info, struct CH_CTRL __iomem *ch_ctrl,
 			info->xmit_cnt -= small_count;
 			info->xmit_tail = (info->xmit_tail + small_count) &
 					(SERIAL_XMIT_SIZE - 1);
-			info->last_active = jiffies;
-			info->jiffies[2] = jiffies;
 		}
 #else
 		while (info->xmit_cnt && char_count) {
@@ -1713,8 +1703,6 @@ cyz_handle_tx(struct cyclades_port *info, struct CH_CTRL __iomem *ch_ctrl,
 			tx_put = (tx_put + 1) & (tx_bufsize - 1);
 			char_count--;
 			info->icount.tx++;
-			info->last_active = jiffies;
-			info->jiffies[2] = jiffies;
 		}
 #endif
 ztxdone:

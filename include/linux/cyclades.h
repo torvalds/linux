@@ -569,7 +569,6 @@ struct cyclades_port {
 	int			close_delay;
 	unsigned short		closing_wait;
 	unsigned long		event;
-	unsigned long		last_active;
 	int			count;	/* # of fd on device */
 	int                     breakon;
 	int                     breakoff;
@@ -580,7 +579,6 @@ struct cyclades_port {
 	int			xmit_cnt;
         int                     default_threshold;
         int                     default_timeout;
-	unsigned long		jiffies[3];
 	unsigned long		rflush_count;
 	struct cyclades_monitor	mon;
 	struct cyclades_idle_stats	idle_stats;
