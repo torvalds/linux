@@ -283,7 +283,8 @@
 #define __NR_readlinkat			1291
 #define __NR_fchmodat			1292
 #define __NR_faccessat			1293
-/* 1294, 1295 reserved for pselect/ppoll */
+#define __NR_pselect6			1294
+#define __NR_ppoll			1295
 #define __NR_unshare			1296
 #define __NR_splice			1297
 #define __NR_set_robust_list		1298

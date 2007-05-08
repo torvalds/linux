@@ -1572,8 +1572,8 @@ sys_call_table:
 	data8 sys_readlinkat
 	data8 sys_fchmodat
 	data8 sys_faccessat
-	data8 sys_ni_syscall			// reserved for pselect
-	data8 sys_ni_syscall			// 1295 reserved for ppoll
+	data8 sys_pselect6
+	data8 sys_ppoll
 	data8 sys_unshare
 	data8 sys_splice
 	data8 sys_set_robust_list
