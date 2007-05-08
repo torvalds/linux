@@ -549,7 +549,7 @@ struct cyclades_icount {
 
 struct cyclades_port {
 	int                     magic;
-	int			card;
+	struct cyclades_card	*card;
 	int			line;
 	int			flags; 		/* defined in tty.h */
 	int                     type;		/* UART type */
