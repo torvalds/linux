@@ -509,8 +509,6 @@ struct ZFW_CTRL {
 
 /* Per card data structure */
 struct cyclades_card {
-    unsigned long base_phys;
-    unsigned long ctl_phys;
     void __iomem *base_addr;
     void __iomem *ctl_addr;
     int irq;
@@ -519,7 +517,6 @@ struct cyclades_card {
     int nports;		/* Number of ports in the card */
     int bus_index;	/* address shift - 0 for ISA, 1 for PCI */
     int	intr_enabled;	/* FW Interrupt flag - 0 disabled, 1 enabled */
-    struct pci_dev *pdev;
     spinlock_t card_lock;
 };
 

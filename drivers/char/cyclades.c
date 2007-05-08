@@ -4914,15 +4914,12 @@ static int __devinit cy_init_Ze(unsigned long cy_pci_phys0,
 #endif				/* CONFIG_CYZ_INTR */
 
 	/* set cy_card */
-	cy_card[j].base_phys = cy_pci_phys2;
-	cy_card[j].ctl_phys = cy_pci_phys0;
 	cy_card[j].base_addr = cy_pci_addr2;
 	cy_card[j].ctl_addr = cy_pci_addr0;
 	cy_card[j].irq = (int)cy_pci_irq;
 	cy_card[j].bus_index = 1;
 	cy_card[j].first_line = cy_next_channel;
 	cy_card[j].num_chips = -1;
-	cy_card[j].pdev = pdev;
 	cy_init_card(&cy_card[j], j);
 	pci_set_drvdata(pdev, &cy_card[j]);
 
@@ -5066,15 +5063,12 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 		}
 
 		/* set cy_card */
-		cy_card[j].base_phys = (ulong) cy_pci_phys2;
-		cy_card[j].ctl_phys = (ulong) cy_pci_phys0;
 		cy_card[j].base_addr = cy_pci_addr2;
 		cy_card[j].ctl_addr = cy_pci_addr0;
 		cy_card[j].irq = (int)cy_pci_irq;
 		cy_card[j].bus_index = 1;
 		cy_card[j].first_line = cy_next_channel;
 		cy_card[j].num_chips = cy_pci_nchan / 4;
-		cy_card[j].pdev = pdev;
 		cy_init_card(&cy_card[j], j);
 		pci_set_drvdata(pdev, &cy_card[j]);
 
@@ -5253,15 +5247,12 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 #endif				/* CONFIG_CYZ_INTR */
 
 		/* set cy_card */
-		cy_card[j].base_phys = cy_pci_phys2;
-		cy_card[j].ctl_phys = cy_pci_phys0;
 		cy_card[j].base_addr = cy_pci_addr2;
 		cy_card[j].ctl_addr = cy_pci_addr0;
 		cy_card[j].irq = (int)cy_pci_irq;
 		cy_card[j].bus_index = 1;
 		cy_card[j].first_line = cy_next_channel;
 		cy_card[j].num_chips = -1;
-		cy_card[j].pdev = pdev;
 		cy_init_card(&cy_card[j], j);
 		pci_set_drvdata(pdev, &cy_card[j]);
 
