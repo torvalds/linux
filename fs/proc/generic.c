@@ -398,6 +398,7 @@ struct dentry *proc_lookup(struct inode * dir, struct dentry *dentry, struct nam
 			if (!memcmp(dentry->d_name.name, de->name, de->namelen)) {
 				unsigned int ino = de->low_ino;
 
+				de_get(de);
 				spin_unlock(&proc_subdir_lock);
 				error = -EINVAL;
 				inode = proc_get_inode(dir->i_sb, ino, de);
@@ -414,6 +415,7 @@ struct dentry *proc_lookup(struct inode * dir, struct dentry *dentry, struct nam
 		d_add(dentry, inode);
 		return NULL;
 	}
+	de_put(de);
 	return ERR_PTR(error);
 }
 
