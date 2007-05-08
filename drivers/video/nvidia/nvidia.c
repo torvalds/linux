@@ -1016,7 +1016,7 @@ static int nvidiafb_release(struct fb_info *info, int user)
 	par->open_count--;
 done:
 	mutex_unlock(&par->open_lock);
-	return 0;
+	return err;
 }
 
 static struct fb_ops nvidia_fb_ops = {
