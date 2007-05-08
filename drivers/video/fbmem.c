@@ -803,6 +803,8 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 
 	if ((var->activate & FB_ACTIVATE_FORCE) ||
 	    memcmp(&info->var, var, sizeof(struct fb_var_screeninfo))) {
+		u32 activate = var->activate;
+
 		if (!info->fbops->fb_check_var) {
 			*var = info->var;
 			return 0;
@@ -831,7 +833,7 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 
 			if (!err && (flags & FBINFO_MISC_USEREVENT)) {
 				struct fb_event event;
-				int evnt = (var->activate & FB_ACTIVATE_ALL) ?
+				int evnt = (activate & FB_ACTIVATE_ALL) ?
 					FB_EVENT_MODE_CHANGE_ALL :
 					FB_EVENT_MODE_CHANGE;
 
