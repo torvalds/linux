@@ -542,6 +542,8 @@ static inline int put_compat_shminfo64(struct shminfo64 *smi,
 
 	if (!access_ok(VERIFY_WRITE, up64, sizeof(*up64)))
 		return -EFAULT;
+	if (smi->shmmax > INT_MAX)
+		smi->shmmax = INT_MAX;
 	err  = __put_user(smi->shmmax, &up64->shmmax);
 	err |= __put_user(smi->shmmin, &up64->shmmin);
 	err |= __put_user(smi->shmmni, &up64->shmmni);
@@ -557,6 +559,8 @@ static inline int put_compat_shminfo(struct shminfo64 *smi,
 
 	if (!access_ok(VERIFY_WRITE, up, sizeof(*up)))
 		return -EFAULT;
+	if (smi->shmmax > INT_MAX)
+		smi->shmmax = INT_MAX;
 	err  = __put_user(smi->shmmax, &up->shmmax);
 	err |= __put_user(smi->shmmin, &up->shmmin);
 	err |= __put_user(smi->shmmni, &up->shmmni);
