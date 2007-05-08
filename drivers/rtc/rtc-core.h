@@ -1,5 +1,3 @@
-extern int rtc_interface_register(struct class_interface *intf);
-
 #ifdef CONFIG_RTC_INTF_DEV
 
 extern void __init rtc_dev_init(void);
@@ -13,6 +11,18 @@ extern void rtc_dev_del_device(struct rtc_device *rtc);
 #define rtc_dev_exit()		do{}while(0)
 #define rtc_dev_add_device(r)	do{}while(0)
 #define rtc_dev_del_device(r)	do{}while(0)
+
+#endif
+
+#ifdef CONFIG_RTC_INTF_PROC
+
+void rtc_proc_add_device(struct rtc_device *rtc);
+void rtc_proc_del_device(struct rtc_device *rtc);
+
+#else
+
+#define rtc_proc_add_device(r)	do{}while(0)
+#define rtc_proc_del_device(r)	do{}while(0)
 
 #endif
 

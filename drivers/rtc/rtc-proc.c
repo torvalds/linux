@@ -19,9 +19,6 @@
 #include "rtc-core.h"
 
 
-static struct class_device *rtc_dev = NULL;
-static DEFINE_MUTEX(rtc_lock);
-
 static int rtc_proc_show(struct seq_file *seq, void *offset)
 {
 	int err;
@@ -106,62 +103,22 @@ static const struct file_operations rtc_proc_fops = {
 	.release	= rtc_proc_release,
 };
 
-static int rtc_proc_add_device(struct class_device *class_dev,
-					struct class_interface *class_intf)
+void rtc_proc_add_device(struct rtc_device *rtc)
 {
-	mutex_lock(&rtc_lock);
-	if (rtc_dev == NULL) {
+	if (rtc->id == 0) {
 		struct proc_dir_entry *ent;
-
-		rtc_dev = class_dev;
 
 		ent = create_proc_entry("driver/rtc", 0, NULL);
 		if (ent) {
-			struct rtc_device *rtc = to_rtc_device(class_dev);
-
 			ent->proc_fops = &rtc_proc_fops;
 			ent->owner = rtc->owner;
 			ent->data = rtc;
-
-			dev_dbg(class_dev->dev, "rtc intf: proc\n");
 		}
-		else
-			rtc_dev = NULL;
 	}
-	mutex_unlock(&rtc_lock);
-
-	return 0;
 }
 
-static void rtc_proc_remove_device(struct class_device *class_dev,
-					struct class_interface *class_intf)
+void rtc_proc_del_device(struct rtc_device *rtc)
 {
-	mutex_lock(&rtc_lock);
-	if (rtc_dev == class_dev) {
+	if (rtc->id == 0)
 		remove_proc_entry("driver/rtc", NULL);
-		rtc_dev = NULL;
-	}
-	mutex_unlock(&rtc_lock);
 }
-
-static struct class_interface rtc_proc_interface = {
-	.add = &rtc_proc_add_device,
-	.remove = &rtc_proc_remove_device,
-};
-
-static int __init rtc_proc_init(void)
-{
-	return rtc_interface_register(&rtc_proc_interface);
-}
-
-static void __exit rtc_proc_exit(void)
-{
-	class_interface_unregister(&rtc_proc_interface);
-}
-
-subsys_initcall(rtc_proc_init);
-module_exit(rtc_proc_exit);
-
-MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
-MODULE_DESCRIPTION("RTC class proc interface");
-MODULE_LICENSE("GPL");

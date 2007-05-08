@@ -90,6 +90,7 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 
 	rtc_dev_add_device(rtc);
 	rtc_sysfs_add_device(rtc);
+	rtc_proc_add_device(rtc);
 
 	dev_info(dev, "rtc core: registered %s as %s\n",
 			rtc->name, rtc->class_dev.class_id);
@@ -126,6 +127,7 @@ void rtc_device_unregister(struct rtc_device *rtc)
 		 */
 		rtc_sysfs_del_device(rtc);
 		rtc_dev_del_device(rtc);
+		rtc_proc_del_device(rtc);
 		class_device_unregister(&rtc->class_dev);
 		rtc->ops = NULL;
 		mutex_unlock(&rtc->ops_lock);
@@ -133,13 +135,6 @@ void rtc_device_unregister(struct rtc_device *rtc)
 	}
 }
 EXPORT_SYMBOL_GPL(rtc_device_unregister);
-
-int rtc_interface_register(struct class_interface *intf)
-{
-	intf->class = rtc_class;
-	return class_interface_register(intf);
-}
-EXPORT_SYMBOL_GPL(rtc_interface_register);
 
 static int __init rtc_init(void)
 {

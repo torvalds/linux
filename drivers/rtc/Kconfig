@@ -59,7 +59,7 @@ config RTC_INTF_SYSFS
 	  will be called rtc-sysfs.
 
 config RTC_INTF_PROC
-	tristate "proc"
+	boolean "proc"
 	depends on RTC_CLASS && PROC_FS
 	default RTC_CLASS
 	help
