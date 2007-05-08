@@ -177,6 +177,7 @@ static inline void pnp_set_card_drvdata (struct pnp_card_link *pcard, void *data
 
 struct pnp_dev {
 	struct device dev;		/* Driver Model device interface */
+	u64 dma_mask;
 	unsigned char number;		/* used as an index, must be unique */
 	int status;
 

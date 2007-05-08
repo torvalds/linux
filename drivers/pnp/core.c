@@ -14,6 +14,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
+#include <linux/dma-mapping.h>
 
 #include "base.h"
 
@@ -114,6 +115,8 @@ int __pnp_add_device(struct pnp_dev *dev)
 	int ret;
 	pnp_fixup_device(dev);
 	dev->dev.bus = &pnp_bus_type;
+	dev->dev.dma_mask = &dev->dma_mask;
+	dev->dma_mask = dev->dev.coherent_dma_mask = DMA_24BIT_MASK;
 	dev->dev.release = &pnp_release_device;
 	dev->status = PNP_READY;
 	spin_lock(&pnp_lock);
