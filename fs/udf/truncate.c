@@ -88,8 +88,9 @@ void udf_discard_prealloc(struct inode * inode)
 	{
 		etype = netype;
 		lbcount += elen;
-		if (lbcount > inode->i_size && lbcount - inode->i_size < inode->i_sb->s_blocksize)
+		if (lbcount > inode->i_size && lbcount - elen < inode->i_size)
 		{
+			WARN_ON(lbcount - inode->i_size >= inode->i_sb->s_blocksize);
 			nelen = elen - (lbcount - inode->i_size);
 			epos.offset -= adsize;
 			extent_trunc(inode, &epos, eloc, etype, elen, nelen);
@@ -119,6 +120,7 @@ void udf_discard_prealloc(struct inode * inode)
 	}
 	UDF_I_LENEXTENTS(inode) = lbcount;
 
+	WARN_ON(lbcount != inode->i_size);
 	brelse(epos.bh);
 }
 
