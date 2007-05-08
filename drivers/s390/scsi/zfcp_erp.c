@@ -1591,6 +1591,62 @@ zfcp_erp_strategy_check_adapter(struct zfcp_adapter *adapter, int result)
 	return result;
 }
 
+struct zfcp_erp_add_work {
+	struct zfcp_unit  *unit;
+	struct work_struct work;
+};
+
+/**
+ * zfcp_erp_scsi_scan
+ * @data: pointer to a struct zfcp_erp_add_work
+ *
+ * Registers a logical unit with the SCSI stack.
+ */
+static void zfcp_erp_scsi_scan(struct work_struct *work)
+{
+	struct zfcp_erp_add_work *p =
+		container_of(work, struct zfcp_erp_add_work, work);
+	struct zfcp_unit *unit = p->unit;
+	struct fc_rport *rport = unit->port->rport;
+	scsi_scan_target(&rport->dev, 0, rport->scsi_target_id,
+			 unit->scsi_lun, 0);
+	atomic_clear_mask(ZFCP_STATUS_UNIT_SCSI_WORK_PENDING, &unit->status);
+	wake_up(&unit->scsi_scan_wq);
+	zfcp_unit_put(unit);
+	kfree(p);
+}
+
+/**
+ * zfcp_erp_schedule_work
+ * @unit: pointer to unit which should be registered with SCSI stack
+ *
+ * Schedules work which registers a unit with the SCSI stack
+ */
+static void
+zfcp_erp_schedule_work(struct zfcp_unit *unit)
+{
+	struct zfcp_erp_add_work *p;
+
+	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	if (!p) {
+		ZFCP_LOG_NORMAL("error: Out of resources. Could not register "
+				"the FCP-LUN 0x%Lx connected to "
+				"the port with WWPN 0x%Lx connected to "
+				"the adapter %s with the SCSI stack.\n",
+				unit->fcp_lun,
+				unit->port->wwpn,
+				zfcp_get_busid_by_unit(unit));
+		return;
+	}
+
+	zfcp_unit_get(unit);
+	memset(p, 0, sizeof(*p));
+	atomic_set_mask(ZFCP_STATUS_UNIT_SCSI_WORK_PENDING, &unit->status);
+	INIT_WORK(&p->work, zfcp_erp_scsi_scan);
+	p->unit = unit;
+	schedule_work(&p->work);
+}
+
 /*
  * function:	
  *
@@ -3092,9 +3148,9 @@ zfcp_erp_action_cleanup(int action, struct zfcp_adapter *adapter,
 		    && port->rport) {
 			atomic_set_mask(ZFCP_STATUS_UNIT_REGISTERED,
 					&unit->status);
- 			scsi_scan_target(&port->rport->dev, 0,
-					 port->rport->scsi_target_id,
-					 unit->scsi_lun, 0);
+			if (atomic_test_mask(ZFCP_STATUS_UNIT_SCSI_WORK_PENDING,
+					     &unit->status) == 0)
+				zfcp_erp_schedule_work(unit);
 		}
 		zfcp_unit_put(unit);
 		break;
@@ -3121,7 +3177,7 @@ zfcp_erp_action_cleanup(int action, struct zfcp_adapter *adapter,
 						zfcp_get_busid_by_port(port),
 						port->wwpn);
 			else {
-				scsi_flush_work(adapter->scsi_host);
+				scsi_target_unblock(&port->rport->dev);
 				port->rport->maxframe_size = port->maxframe_size;
 				port->rport->supported_classes =
 					port->supported_classes;
