@@ -32,12 +32,14 @@ static struct page* fb_deferred_io_nopage(struct vm_area_struct *vma,
 	unsigned long offset;
 	struct page *page;
 	struct fb_info *info = vma->vm_private_data;
+	/* info->screen_base is in System RAM */
+	void *screen_base = (void __force *) info->screen_base;
 
 	offset = (vaddr - vma->vm_start) + (vma->vm_pgoff << PAGE_SHIFT);
 	if (offset >= info->fix.smem_len)
 		return NOPAGE_SIGBUS;
 
-	page = vmalloc_to_page(info->screen_base + offset);
+	page = vmalloc_to_page(screen_base + offset);
 	if (!page)
 		return NOPAGE_OOM;
 
