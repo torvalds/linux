@@ -369,7 +369,7 @@ static void arcfb_fillrect(struct fb_info *info,
 {
 	struct arcfb_par *par = info->par;
 
-	cfb_fillrect(info, rect);
+	sys_fillrect(info, rect);
 
 	/* update the physical lcd */
 	arcfb_lcd_update(par, rect->dx, rect->dy, rect->width, rect->height);
@@ -380,7 +380,7 @@ static void arcfb_copyarea(struct fb_info *info,
 {
 	struct arcfb_par *par = info->par;
 
-	cfb_copyarea(info, area);
+	sys_copyarea(info, area);
 
 	/* update the physical lcd */
 	arcfb_lcd_update(par, area->dx, area->dy, area->width, area->height);
@@ -390,7 +390,7 @@ static void arcfb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct arcfb_par *par = info->par;
 
-	cfb_imageblit(info, image);
+	sys_imageblit(info, image);
 
 	/* update the physical lcd */
 	arcfb_lcd_update(par, image->dx, image->dy, image->width,
