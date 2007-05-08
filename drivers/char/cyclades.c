@@ -4049,14 +4049,6 @@ cy_ioctl(struct tty_struct *tty, struct file *file,
 	case CYGETRTSDTR_INV:
 		ret_val = info->rtsdtr_inv;
 		break;
-	case CYGETCARDINFO:
-		if (copy_to_user(argp, &cy_card[info->card],
-				 sizeof(struct cyclades_card))) {
-			ret_val = -EFAULT;
-			break;
-		}
-		ret_val = 0;
-		break;
 	case CYGETCD1400VER:
 		ret_val = info->chip_rev;
 		break;

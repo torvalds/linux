@@ -110,7 +110,6 @@ struct cyclades_idle_stats {
 #define CYZSETPOLLCYCLE		0x43590e
 #define CYZGETPOLLCYCLE		0x43590f
 #define CYGETCD1400VER		0x435910
-#define CYGETCARDINFO		0x435911
 #define	CYSETWAIT		0x435912
 #define	CYGETWAIT		0x435913
 
@@ -506,8 +505,9 @@ struct ZFW_CTRL {
 /****************** ****************** *******************/
 #endif
 
+#ifdef __KERNEL__
+
 /* Per card data structure */
-struct resource;
 struct cyclades_card {
     unsigned long base_phys;
     unsigned long ctl_phys;
@@ -520,19 +520,8 @@ struct cyclades_card {
     int bus_index;	/* address shift - 0 for ISA, 1 for PCI */
     int	intr_enabled;	/* FW Interrupt flag - 0 disabled, 1 enabled */
     struct pci_dev *pdev;
-#ifdef __KERNEL__
     spinlock_t card_lock;
-#else
-    unsigned long filler;
-#endif
 };
-
-struct cyclades_chip {
-  int filler;
-};
-
-
-#ifdef __KERNEL__
 
 /***************************************
  * Memory access functions/macros      *
