@@ -3884,8 +3884,7 @@ xlog_recover(
 		 * under the vfs layer, so we can get away with it unless
 		 * the device itself is read-only, in which case we fail.
 		 */
-		if ((error = xfs_dev_is_read_only(log->l_mp,
-						"recovery required"))) {
+		if ((error = xfs_dev_is_read_only(log->l_mp, "recovery"))) {
 			return error;
 		}
 
