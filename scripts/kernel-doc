@@ -1456,7 +1456,16 @@ sub create_parameterlist($$$) {
 	    if ($args[0] =~ m/\*/) {
 		$args[0] =~ s/(\*+)\s*/ $1/;
 	    }
-	    my @first_arg = split('\s+', shift @args);
+
+	    my @first_arg;
+	    if ($args[0] =~ /^(.*\s+)(.*?\[.*\].*)$/) {
+		    shift @args;
+		    push(@first_arg, split('\s+', $1));
+		    push(@first_arg, $2);
+	    } else {
+		    @first_arg = split('\s+', shift @args);
+	    }
+
 	    unshift(@args, pop @first_arg);
 	    $type = join " ", @first_arg;
 
