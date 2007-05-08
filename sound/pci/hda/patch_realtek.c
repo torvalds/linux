@@ -117,6 +117,7 @@ enum {
 	ALC861VD_3ST,
 	ALC861VD_3ST_DIG,
 	ALC861VD_6ST_DIG,
+	ALC861VD_LENOVO,
 	ALC861VD_AUTO,
 	ALC861VD_MODEL_LAST,
 };
@@ -137,6 +138,7 @@ enum {
 	ALC882_3ST_DIG,
 	ALC882_6ST_DIG,
 	ALC882_ARIMA,
+	ALC882_W2JC,
 	ALC882_AUTO,
 	ALC885_MACPRO,
 	ALC882_MODEL_LAST,
@@ -635,6 +637,13 @@ static struct hda_verb alc_gpio2_init_verbs[] = {
 	{ }
 };
 
+static struct hda_verb alc_gpio3_init_verbs[] = {
+	{0x01, AC_VERB_SET_GPIO_MASK, 0x03},
+	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x03},
+	{0x01, AC_VERB_SET_GPIO_DATA, 0x03},
+	{ }
+};
+
 /* 32-bit subsystem ID for BIOS loading in HD Audio codec.
  *	31 ~ 16 :	Manufacture ID
  *	15 ~ 8	:	SKU ID
@@ -660,7 +669,22 @@ static void alc_subsystem_id(struct hda_codec *codec,
 	case 3:
 		snd_hda_sequence_write(codec, alc_gpio2_init_verbs);
 		break;
+	case 7:
+		snd_hda_sequence_write(codec, alc_gpio3_init_verbs);
+		break;
 	case 5:
+		switch (codec->vendor_id) {
+		case 0x10ec0862:
+		case 0x10ec0660:
+		case 0x10ec0662:	
+		case 0x10ec0267:
+		case 0x10ec0268:
+			snd_hda_codec_write(codec, 0x14, 0,
+					    AC_VERB_SET_EAPD_BTLENABLE, 2);
+			snd_hda_codec_write(codec, 0x15, 0,
+					    AC_VERB_SET_EAPD_BTLENABLE, 2);
+			return;
+		}
 	case 6:
 		if (ass & 4) {	/* bit 2 : 0 = Desktop, 1 = Laptop */
 			hda_nid_t port = 0;
@@ -4785,6 +4809,21 @@ static struct snd_kcontrol_new alc882_base_mixer[] = {
 	{ } /* end */
 };
 
+static struct snd_kcontrol_new alc882_w2jc_mixer[] = {
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x0b, 0x05, HDA_INPUT),
+	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x0b, 0x05, HDA_INPUT),
+	{ } /* end */
+};
+
 static struct snd_kcontrol_new alc882_chmode_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -5104,6 +5143,7 @@ static const char *alc882_models[ALC882_MODEL_LAST] = {
 	[ALC882_3ST_DIG]	= "3stack-dig",
 	[ALC882_6ST_DIG]	= "6stack-dig",
 	[ALC882_ARIMA]		= "arima",
+	[ALC882_W2JC]		= "w2jc",
 	[ALC885_MACPRO]		= "macpro",
 	[ALC882_AUTO]		= "auto",
 };
@@ -5114,6 +5154,7 @@ static struct snd_pci_quirk alc882_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1462, 0x6668, "MSI", ALC882_6ST_DIG),
 	SND_PCI_QUIRK(0x161f, 0x2054, "Arima W820", ALC882_ARIMA),
 	SND_PCI_QUIRK(0x1043, 0x81d8, "Asus P5WD", ALC882_6ST_DIG),
+	SND_PCI_QUIRK(0x1043, 0x1971, "Asus W2JC", ALC882_W2JC),
 	{}
 };
 
@@ -5149,6 +5190,18 @@ static struct alc_config_preset alc882_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc882_sixstack_modes),
 		.channel_mode = alc882_sixstack_modes,
 		.input_mux = &alc882_capture_source,
+	},
+	[ALC882_W2JC] = {
+		.mixers = { alc882_w2jc_mixer, alc882_chmode_mixer },
+		.init_verbs = { alc882_init_verbs, alc882_eapd_verbs,
+				alc880_gpio1_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
+		.dac_nids = alc882_dac_nids,
+		.num_channel_mode = ARRAY_SIZE(alc880_threestack_modes),
+		.channel_mode = alc880_threestack_modes,
+		.need_dac_fix = 1,
+		.input_mux = &alc882_capture_source,
+		.dig_out_nid = ALC882_DIGOUT_NID,
 	},
 	[ALC885_MACPRO] = {
 		.mixers = { alc882_macpro_mixer },
@@ -8708,6 +8761,27 @@ static struct snd_kcontrol_new alc861vd_3st_mixer[] = {
 	{ } /* end */
 };
 
+static struct snd_kcontrol_new alc861vd_lenovo_mixer[] = {
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x02, 0x0, HDA_OUTPUT),
+	/*HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),*/
+	HDA_CODEC_MUTE("Front Playback Switch", 0x14, 0x0, HDA_OUTPUT),
+
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
+
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+
+	HDA_CODEC_VOLUME("Front Mic Boost", 0x19, 0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
+
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
+
+	{ } /* end */
+};
+
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
@@ -8729,10 +8803,10 @@ static struct hda_verb alc861vd_volume_init_verbs[] = {
 	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
 
 	/* Capture mixer: unmute Mic, F-Mic, Line, CD inputs */
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(5)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(6)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(8)},
 
 	/*
 	 * Set up output mixers (0x02 - 0x05)
@@ -8833,6 +8907,68 @@ static struct hda_verb alc861vd_6stack_init_verbs[] = {
 	{ }
 };
 
+static struct hda_verb alc861vd_eapd_verbs[] = {
+	{0x14, AC_VERB_SET_EAPD_BTLENABLE, 2},
+	{ }
+};
+
+static struct hda_verb alc861vd_lenovo_unsol_verbs[] = {
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(5)},
+	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
+	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_MIC_EVENT},	
+	{}
+};
+
+/* toggle speaker-output according to the hp-jack state */
+static void alc861vd_lenovo_hp_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+	unsigned char bits;
+
+	present = snd_hda_codec_read(codec, 0x1b, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	bits = present ? 0x80 : 0;
+	snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
+				 0x80, bits);
+	snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
+				 0x80, bits);
+}
+
+static void alc861vd_lenovo_mic_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+	unsigned char bits;
+
+	present = snd_hda_codec_read(codec, 0x18, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	bits = present ? 0x80 : 0;
+	snd_hda_codec_amp_update(codec, 0x0b, 0, HDA_INPUT, 1,
+				 0x80, bits);
+	snd_hda_codec_amp_update(codec, 0x0b, 1, HDA_INPUT, 1,
+				 0x80, bits);
+}
+
+static void alc861vd_lenovo_automute(struct hda_codec *codec)
+{
+	alc861vd_lenovo_hp_automute(codec);
+	alc861vd_lenovo_mic_automute(codec);
+}
+
+static void alc861vd_lenovo_unsol_event(struct hda_codec *codec,
+					unsigned int res)
+{
+	switch (res >> 26) {
+	case ALC880_HP_EVENT:
+		alc861vd_lenovo_hp_automute(codec);
+		break;
+	case ALC880_MIC_EVENT:
+		alc861vd_lenovo_mic_automute(codec);
+		break;
+	}
+}
+
 /* pcm configuration: identiacal with ALC880 */
 #define alc861vd_pcm_analog_playback	alc880_pcm_analog_playback
 #define alc861vd_pcm_analog_capture	alc880_pcm_analog_capture
@@ -8847,6 +8983,7 @@ static const char *alc861vd_models[ALC861VD_MODEL_LAST] = {
 	[ALC861VD_3ST]		= "3stack",
 	[ALC861VD_3ST_DIG]	= "3stack-digout",
 	[ALC861VD_6ST_DIG]	= "6stack-digout",
+	[ALC861VD_LENOVO]	= "lenovo",
 	[ALC861VD_AUTO]		= "auto",
 };
 
@@ -8856,7 +8993,8 @@ static struct snd_pci_quirk alc861vd_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x10de, 0x03f0, "Realtek ALC660 demo", ALC660VD_3ST),
 	SND_PCI_QUIRK(0x1019, 0xa88d, "Realtek ALC660 demo", ALC660VD_3ST),
 
-	SND_PCI_QUIRK(0x17aa, 0x3802, "Lenovo 3000 C200", ALC861VD_3ST),
+	SND_PCI_QUIRK(0x17aa, 0x3802, "Lenovo 3000 C200", ALC861VD_LENOVO),
+	SND_PCI_QUIRK(0x17aa, 0x2066, "Lenovo", ALC861VD_LENOVO),
 	{}
 };
 
@@ -8904,6 +9042,22 @@ static struct alc_config_preset alc861vd_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc861vd_6stack_modes),
 		.channel_mode = alc861vd_6stack_modes,
 		.input_mux = &alc861vd_capture_source,
+	},
+	[ALC861VD_LENOVO] = {
+		.mixers = { alc861vd_lenovo_mixer },
+		.init_verbs = { alc861vd_volume_init_verbs,
+				alc861vd_3stack_init_verbs,
+				alc861vd_eapd_verbs,
+				alc861vd_lenovo_unsol_verbs },
+		.num_dacs = ARRAY_SIZE(alc660vd_dac_nids),
+		.dac_nids = alc660vd_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc861vd_adc_nids),
+		.adc_nids = alc861vd_adc_nids,
+		.num_channel_mode = ARRAY_SIZE(alc861vd_3stack_2ch_modes),
+		.channel_mode = alc861vd_3stack_2ch_modes,
+		.input_mux = &alc861vd_capture_source,
+		.unsol_event = alc861vd_lenovo_unsol_event,
+		.init_hook = alc861vd_lenovo_automute,
 	},
 };
 
@@ -9028,7 +9182,7 @@ static int alc861vd_auto_create_multi_out_ctls(struct alc_spec *spec,
 				return err;
 			sprintf(name, "%s Playback Switch", chname[i]);
 			err = add_control(spec, ALC_CTL_BIND_MUTE, name,
-					  HDA_COMPOSE_AMP_VAL(nid_v, 3, 2,
+					  HDA_COMPOSE_AMP_VAL(nid_s, 3, 2,
 							      HDA_INPUT));
 			if (err < 0)
 				return err;

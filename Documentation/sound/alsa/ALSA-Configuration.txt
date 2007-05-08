@@ -821,6 +821,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  6stack-dig	6-jack digital with SPDIF I/O
 	  arima		Arima W820Di1
 	  macpro	MacPro support
+	  w2jc		ASUS W2JC
 	  auto		auto-config reading BIOS (default)
 
 	ALC883/888
@@ -852,6 +853,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack-dig	3-jack with SPDIF OUT
 	  6stack-dig	6-jack with SPDIF OUT
 	  3stack-660	3-jack (for ALC660VD)
+	  lenovo	Lenovo 3000 C200
 	  auto		auto-config reading BIOS (default)
 
 	CMI9880
