@@ -200,7 +200,7 @@ static int nvidia_panel_tweak(struct nvidia_par *par,
    return tweak;
 }
 
-static void nvidia_vga_protect(struct nvidia_par *par, int on)
+static void nvidia_screen_off(struct nvidia_par *par, int on)
 {
 	unsigned char tmp;
 
@@ -649,7 +649,7 @@ static int nvidiafb_set_par(struct fb_info *info)
 		NVLockUnlock(par, 0);
 	}
 
-	nvidia_vga_protect(par, 1);
+	nvidia_screen_off(par, 1);
 
 	nvidia_write_regs(par, &par->ModeReg);
 	NVSetStartAddress(par, 0);
@@ -687,7 +687,7 @@ static int nvidiafb_set_par(struct fb_info *info)
 
 	par->cursor_reset = 1;
 
-	nvidia_vga_protect(par, 0);
+	nvidia_screen_off(par, 0);
 
 #ifdef CONFIG_BOOTX_TEXT
 	/* Update debug text engine */
@@ -696,6 +696,7 @@ static int nvidiafb_set_par(struct fb_info *info)
 			     info->var.bits_per_pixel, info->fix.line_length);
 #endif
 
+	NVLockUnlock(par, 0);
 	NVTRACE_LEAVE();
 	return 0;
 }
