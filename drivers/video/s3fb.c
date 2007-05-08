@@ -183,7 +183,10 @@ static void s3fb_settile_fast(struct fb_info *info, struct fb_tilemap *map)
 	}
 }
 
-
+static int s3fb_get_tilemax(struct fb_info *info)
+{
+	return 256;
+}
 
 static struct fb_tile_ops s3fb_tile_ops = {
 	.fb_settile	= svga_settile,
@@ -191,6 +194,7 @@ static struct fb_tile_ops s3fb_tile_ops = {
 	.fb_tilefill    = svga_tilefill,
 	.fb_tileblit    = svga_tileblit,
 	.fb_tilecursor  = svga_tilecursor,
+	.fb_get_tilemax = s3fb_get_tilemax,
 };
 
 static struct fb_tile_ops s3fb_fast_tile_ops = {
@@ -199,6 +203,7 @@ static struct fb_tile_ops s3fb_fast_tile_ops = {
 	.fb_tilefill    = svga_tilefill,
 	.fb_tileblit    = svga_tileblit,
 	.fb_tilecursor  = svga_tilecursor,
+	.fb_get_tilemax = s3fb_get_tilemax,
 };
 
 
