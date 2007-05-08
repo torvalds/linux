@@ -127,7 +127,7 @@ static int display_resume(struct device *dev)
 
 static struct mutex allocated_dsp_lock;
 static DEFINE_IDR(allocated_dsp);
-struct class *display_class;
+static struct class *display_class;
 
 struct display_device *display_device_register(struct display_driver *driver,
 						struct device *parent, void *devdata)
