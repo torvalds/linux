@@ -62,6 +62,7 @@
 #include <linux/delay.h>
 #include <linux/acpi.h>
 #include <linux/freezer.h>
+#include <linux/kthread.h>
 
 #include <asm/page.h>
 #include <asm/desc.h>
@@ -159,9 +160,7 @@ static int pnp_dock_thread(void * unused)
 {
 	static struct pnp_docking_station_info now;
 	int docked = -1, d = 0;
-	daemonize("kpnpbiosd");
-	allow_signal(SIGKILL);
-	while(!unloading && !signal_pending(current))
+	while (!unloading)
 	{
 		int status;
 		
@@ -170,11 +169,8 @@ static int pnp_dock_thread(void * unused)
 		 */
 		msleep_interruptible(2000);
 
-		if(signal_pending(current)) {
-			if (try_to_freeze())
-				continue;
-			break;
-		}
+		if (try_to_freeze())
+			continue;
 
 		status = pnp_bios_dock_station_info(&now);
 
@@ -581,6 +577,7 @@ subsys_initcall(pnpbios_init);
 
 static int __init pnpbios_thread_init(void)
 {
+	struct task_struct *task;
 #if defined(CONFIG_PPC_MERGE)
 	if (check_legacy_ioport(PNPBIOS_BASE))
 		return 0;
@@ -589,7 +586,8 @@ static int __init pnpbios_thread_init(void)
 		return 0;
 #ifdef CONFIG_HOTPLUG
 	init_completion(&unload_sem);
-	if (kernel_thread(pnp_dock_thread, NULL, CLONE_KERNEL) > 0)
+	task = kthread_run(pnp_dock_thread, NULL, "kpnpbiosd");
+	if (!IS_ERR(task))
 		unloading = 0;
 #endif
 	return 0;
