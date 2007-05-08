@@ -33,8 +33,3 @@ void __init setup_early_printk(void)
 {
 	register_console(&early_console);
 }
-
-void __init disable_early_printk(void)
-{
-	unregister_console(&early_console);
-}
