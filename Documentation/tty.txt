@@ -108,7 +108,9 @@ hardware driver through the function pointers within the tty->driver
 structure:
 
 write()			Write a block of characters to the tty device.
-			Returns the number of characters accepted.
+			Returns the number of characters accepted. The
+			character buffer passed to this method is already
+			in kernel space.
 
 put_char()		Queues a character for writing to the tty device.
 			If there is no room in the queue, the character is
