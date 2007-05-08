@@ -156,6 +156,8 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	strlcpy(rtc->name, name, RTC_DEVICE_NAME_SIZE);
 	snprintf(rtc->dev.bus_id, BUS_ID_SIZE, "rtc%d", id);
 
+	rtc_dev_prepare(rtc);
+
 	err = device_register(&rtc->dev);
 	if (err)
 		goto exit_kfree;

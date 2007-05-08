@@ -396,7 +396,7 @@ static const struct file_operations rtc_dev_fops = {
 
 /* insertion/removal hooks */
 
-void rtc_dev_add_device(struct rtc_device *rtc)
+void rtc_dev_prepare(struct rtc_device *rtc)
 {
 	if (!rtc_devt)
 		return;
@@ -418,7 +418,10 @@ void rtc_dev_add_device(struct rtc_device *rtc)
 
 	cdev_init(&rtc->char_dev, &rtc_dev_fops);
 	rtc->char_dev.owner = rtc->owner;
+}
 
+void rtc_dev_add_device(struct rtc_device *rtc)
+{
 	if (cdev_add(&rtc->char_dev, rtc->dev.devt, 1))
 		printk(KERN_WARNING "%s: failed to add char device %d:%d\n",
 			rtc->name, MAJOR(rtc_devt), rtc->id);
