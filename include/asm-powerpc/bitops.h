@@ -39,7 +39,6 @@
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>
-#include <asm/atomic.h>
 #include <asm/asm-compat.h>
 #include <asm/synch.h>
 
