@@ -134,8 +134,7 @@ kprobe_opcode_t __kprobes *get_insn_slot(void)
 	struct hlist_node *pos;
 
       retry:
-	hlist_for_each(pos, &kprobe_insn_pages) {
-		kip = hlist_entry(pos, struct kprobe_insn_page, hlist);
+	hlist_for_each_entry(kip, pos, &kprobe_insn_pages, hlist) {
 		if (kip->nused < INSNS_PER_PAGE) {
 			int i;
 			for (i = 0; i < INSNS_PER_PAGE; i++) {
@@ -214,9 +213,8 @@ static int __kprobes collect_garbage_slots(void)
 	if (check_safety() != 0)
 		return -EAGAIN;
 
-	hlist_for_each_safe(pos, next, &kprobe_insn_pages) {
+	hlist_for_each_entry_safe(kip, pos, next, &kprobe_insn_pages, hlist) {
 		int i;
-		kip = hlist_entry(pos, struct kprobe_insn_page, hlist);
 		if (kip->ngarbage == 0)
 			continue;
 		kip->ngarbage = 0;	/* we will collect all garbages */
@@ -235,8 +233,7 @@ void __kprobes free_insn_slot(kprobe_opcode_t * slot, int dirty)
 	struct kprobe_insn_page *kip;
 	struct hlist_node *pos;
 
-	hlist_for_each(pos, &kprobe_insn_pages) {
-		kip = hlist_entry(pos, struct kprobe_insn_page, hlist);
+	hlist_for_each_entry(kip, pos, &kprobe_insn_pages, hlist) {
 		if (kip->insns <= slot &&
 		    slot < kip->insns + (INSNS_PER_PAGE * MAX_INSN_SIZE)) {
 			int i = (slot - kip->insns) / MAX_INSN_SIZE;
