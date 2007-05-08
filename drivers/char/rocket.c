@@ -65,10 +65,6 @@
 
 /****** Kernel includes ******/
 
-#ifdef MODVERSIONS
-#include <config/modversions.h>
-#endif				
-
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/major.h>
