@@ -4645,23 +4645,22 @@ zfcp_fsf_req_create(struct zfcp_adapter *adapter, u32 fsf_cmd, int req_flags,
 	fsf_req->adapter = adapter;
 	fsf_req->fsf_command = fsf_cmd;
 	INIT_LIST_HEAD(&fsf_req->list);
-	
-	/* this is serialized (we are holding req_queue-lock of adapter */
-	if (adapter->req_no == 0)
-		adapter->req_no++;
-	fsf_req->req_id = adapter->req_no++;
-
 	init_timer(&fsf_req->timer);
-	zfcp_fsf_req_qtcb_init(fsf_req);
 
 	/* initialize waitqueue which may be used to wait on 
 	   this request completion */
 	init_waitqueue_head(&fsf_req->completion_wq);
 
         ret = zfcp_fsf_req_sbal_get(adapter, req_flags, lock_flags);
-        if(ret < 0) {
+        if (ret < 0)
                 goto failed_sbals;
-	}
+
+	/* this is serialized (we are holding req_queue-lock of adapter) */
+	if (adapter->req_no == 0)
+		adapter->req_no++;
+	fsf_req->req_id = adapter->req_no++;
+
+	zfcp_fsf_req_qtcb_init(fsf_req);
 
 	/*
 	 * We hold queue_lock here. Check if QDIOUP is set and let request fail
