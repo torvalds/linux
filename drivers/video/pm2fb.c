@@ -302,10 +302,10 @@ static void pm2v_mnp(u32 clk, unsigned char* mm, unsigned char* nn,
 	s32 delta = 1000;
 
 	*mm = *nn = *pp = 0;
-	for (n = 1; n; n++) {
-		for ( m = 1; m; m++) {
+	for ( m = 1; m < 128; m++) {
+		for (n = 2 * m + 1; n; n++) {
 			for ( p = 0; p < 2; p++) {
-				f = PM2_REFERENCE_CLOCK * n / (m * (1 << (p + 1)));
+				f = ( PM2_REFERENCE_CLOCK >> ( p + 1 )) * n / m;
 				if ( clk > f - delta && clk < f + delta ) {
 					delta = ( clk > f ) ? clk - f : f - clk;
 					*mm=m;
