@@ -309,6 +309,7 @@ static ssize_t hecubafb_write(struct fb_info *info, const char __user *buf,
 
 static struct fb_ops hecubafb_ops = {
 	.owner		= THIS_MODULE,
+	.fb_read        = fb_sys_read,
 	.fb_write	= hecubafb_write,
 	.fb_fillrect	= hecubafb_fillrect,
 	.fb_copyarea	= hecubafb_copyarea,
