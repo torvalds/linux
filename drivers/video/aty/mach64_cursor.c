@@ -11,7 +11,6 @@
 #include <asm/uaccess.h>
 
 #ifdef __sparc__
-#include <asm/pbm.h>
 #include <asm/fbio.h>
 #endif
 

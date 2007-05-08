@@ -80,8 +80,9 @@
 #include "../macmodes.h"
 #endif
 #ifdef __sparc__
-#include <asm/pbm.h>
 #include <asm/fbio.h>
+#include <asm/oplib.h>
+#include <asm/prom.h>
 #endif
 
 #ifdef CONFIG_ADB_PMU
