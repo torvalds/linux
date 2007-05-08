@@ -546,9 +546,15 @@ config NODES_SPAN_OTHER_NODES
 	def_bool y
 	depends on NEED_MULTIPLE_NODES
 
+config PPC_HAS_HASH_64K
+	bool
+	depends on PPC64
+	default n
+
 config PPC_64K_PAGES
 	bool "64k page size"
 	depends on PPC64
+	select PPC_HAS_HASH_64K
 	help
 	  This option changes the kernel logical page size to 64k. On machines
 	  without processor support for 64k pages, the kernel will simulate

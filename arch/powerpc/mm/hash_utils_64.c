@@ -420,7 +420,7 @@ static void __init htab_finish_init(void)
 	extern unsigned int *htab_call_hpte_remove;
 	extern unsigned int *htab_call_hpte_updatepp;
 
-#ifdef CONFIG_PPC_64K_PAGES
+#ifdef CONFIG_PPC_HAS_HASH_64K
 	extern unsigned int *ht64_call_hpte_insert1;
 	extern unsigned int *ht64_call_hpte_insert2;
 	extern unsigned int *ht64_call_hpte_remove;
@@ -648,7 +648,11 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 			return 1;
 		}
 		vsid = get_vsid(mm->context.id, ea);
+#ifdef CONFIG_PPC_MM_SLICES
+		psize = get_slice_psize(mm, ea);
+#else
 		psize = mm->context.user_psize;
+#endif
 		break;
 	case VMALLOC_REGION_ID:
 		mm = &init_mm;
@@ -678,12 +682,20 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 
 #ifdef CONFIG_HUGETLB_PAGE
 	/* Handle hugepage regions */
-	if (HPAGE_SHIFT &&
-	    unlikely(get_slice_psize(mm, ea) == mmu_huge_psize)) {
+	if (HPAGE_SHIFT && psize == mmu_huge_psize) {
 		DBG_LOW(" -> huge page !\n");
 		return hash_huge_page(mm, access, ea, vsid, local, trap);
 	}
 #endif /* CONFIG_HUGETLB_PAGE */
+
+#ifndef CONFIG_PPC_64K_PAGES
+	/* If we use 4K pages and our psize is not 4K, then we are hitting
+	 * a special driver mapping, we need to align the address before
+	 * we fetch the PTE
+	 */
+	if (psize != MMU_PAGE_4K)
+		ea &= ~((1ul << mmu_psize_defs[psize].shift) - 1);
+#endif /* CONFIG_PPC_64K_PAGES */
 
 	/* Get PTE and page size from page tables */
 	ptep = find_linux_pte(pgdir, ea);
@@ -707,9 +719,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	}
 
 	/* Do actual hashing */
-#ifndef CONFIG_PPC_64K_PAGES
-	rc = __hash_page_4K(ea, access, vsid, ptep, trap, local);
-#else
+#ifdef CONFIG_PPC_64K_PAGES
 	/* If _PAGE_4K_PFN is set, make sure this is a 4k segment */
 	if (pte_val(*ptep) & _PAGE_4K_PFN) {
 		demote_segment_4k(mm, ea);
@@ -751,12 +761,14 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 			mmu_psize_defs[mmu_vmalloc_psize].sllp;
 		slb_flush_and_rebolt();
 	}
+#endif /* CONFIG_PPC_64K_PAGES */
 
+#ifdef CONFIG_PPC_HAS_HASH_64K
 	if (psize == MMU_PAGE_64K)
 		rc = __hash_page_64K(ea, access, vsid, ptep, trap, local);
 	else
+#endif /* CONFIG_PPC_HAS_HASH_64K */
 		rc = __hash_page_4K(ea, access, vsid, ptep, trap, local);
-#endif /* CONFIG_PPC_64K_PAGES */
 
 #ifndef CONFIG_PPC_64K_PAGES
 	DBG_LOW(" o-pte: %016lx\n", pte_val(*ptep));
@@ -812,19 +824,22 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	/* Get VSID */
 	vsid = get_vsid(mm->context.id, ea);
 
-	/* Hash it in */
+	/* Hash doesn't like irqs */
 	local_irq_save(flags);
+
+	/* Is that local to this CPU ? */
 	mask = cpumask_of_cpu(smp_processor_id());
 	if (cpus_equal(mm->cpu_vm_mask, mask))
 		local = 1;
-#ifndef CONFIG_PPC_64K_PAGES
-	__hash_page_4K(ea, access, vsid, ptep, trap, local);
-#else
+
+	/* Hash it in */
+#ifdef CONFIG_PPC_HAS_HASH_64K
 	if (mm->context.user_psize == MMU_PAGE_64K)
 		__hash_page_64K(ea, access, vsid, ptep, trap, local);
 	else
-		__hash_page_4K(ea, access, vsid, ptep, trap, local);
 #endif /* CONFIG_PPC_64K_PAGES */
+		__hash_page_4K(ea, access, vsid, ptep, trap, local);
+
 	local_irq_restore(flags);
 }
 

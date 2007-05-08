@@ -80,7 +80,11 @@
 
 #define pte_iterate_hashed_end() } while(0)
 
-#define pte_pagesize_index(pte)	MMU_PAGE_4K
+#ifdef CONFIG_PPC_HAS_HASH_64K
+#define pte_pagesize_index(mm, addr, pte)	get_slice_psize(mm, addr)
+#else
+#define pte_pagesize_index(mm, addr, pte)	MMU_PAGE_4K
+#endif
 
 /*
  * 4-level page tables related bits

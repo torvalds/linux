@@ -143,16 +143,22 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 	 */
 	addr &= PAGE_MASK;
 
-	/* Get page size (maybe move back to caller) */
+	/* Get page size (maybe move back to caller).
+	 *
+	 * NOTE: when using special 64K mappings in 4K environment like
+	 * for SPEs, we obtain the page size from the slice, which thus
+	 * must still exist (and thus the VMA not reused) at the time
+	 * of this call
+	 */
 	if (huge) {
 #ifdef CONFIG_HUGETLB_PAGE
 		psize = mmu_huge_psize;
 #else
 		BUG();
-		psize = pte_pagesize_index(pte); /* shutup gcc */
+		psize = pte_pagesize_index(mm, addr, pte); /* shutup gcc */
 #endif
 	} else
-		psize = pte_pagesize_index(pte);
+		psize = pte_pagesize_index(mm, addr, pte);
 
 	/* Build full vaddr */
 	if (!is_kernel_addr(addr)) {
