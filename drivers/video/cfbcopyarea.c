@@ -22,8 +22,6 @@
  *  help moving some redundant computations and branches out of the loop, too.
  */
 
-
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -31,6 +29,7 @@
 #include <linux/slab.h>
 #include <asm/types.h>
 #include <asm/io.h>
+#include "fb_draw.h"
 
 #if BITS_PER_LONG == 32
 #  define FB_WRITEL fb_writel
@@ -39,17 +38,6 @@
 #  define FB_WRITEL fb_writeq
 #  define FB_READL  fb_readq
 #endif
-
-    /*
-     *  Compose two values, using a bitmask as decision value
-     *  This is equivalent to (a & mask) | (b & ~mask)
-     */
-
-static inline unsigned long
-comp(unsigned long a, unsigned long b, unsigned long mask)
-{
-    return ((a ^ b) & mask) ^ b;
-}
 
     /*
      *  Generic bitwise copy algorithm

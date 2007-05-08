@@ -19,17 +19,7 @@
 #include <linux/slab.h>
 #include <asm/types.h>
 #include <asm/io.h>
-
-    /*
-     *  Compose two values, using a bitmask as decision value
-     *  This is equivalent to (a & mask) | (b & ~mask)
-     */
-
-static inline unsigned long
-comp(unsigned long a, unsigned long b, unsigned long mask)
-{
-    return ((a ^ b) & mask) ^ b;
-}
+#include "fb_draw.h"
 
     /*
      *  Generic bitwise copy algorithm
