@@ -45,8 +45,6 @@
 /* We can also handle crash dumps from 64 bit kernel. */
 #define vmcore_elf_check_arch_cross(x) ((x)->e_machine == EM_X86_64)
 
-#define MAX_NOTE_BYTES 1024
-
 /* CPU does not save ss and esp on stack if execution is already
  * running in kernel mode at the time of NMI occurrence. This code
  * fixes it.
