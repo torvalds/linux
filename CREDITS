@@ -2580,10 +2580,9 @@ S: Australia
 
 N: Miguel Ojeda Sandonis
 E: maxextreme@gmail.com
-D: Author: Auxiliary LCD Controller driver (ks0108)
-D: Author: Auxiliary LCD driver (cfag12864b)
-D: Author: Auxiliary LCD framebuffer driver (cfag12864bfb)
-D: Maintainer: Auxiliary display drivers tree (drivers/auxdisplay/*)
+W: http://maxextreme.googlepages.com/
+D: Author of the ks0108, cfag12864b and cfag12864bfb auxiliary display drivers.
+D: Maintainer of the auxiliary display drivers tree (drivers/auxdisplay/*)
 S: C/ Mieses 20, 9-B
 S: Valladolid 47009
 S: Spain
