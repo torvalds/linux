@@ -148,7 +148,7 @@ int xxxfb_setup(char*);
  *
  *	Returns negative errno on error, or zero on success.
  */
-static int xxxfb_open(const struct fb_info *info, int user)
+static int xxxfb_open(struct fb_info *info, int user)
 {
     return 0;
 }
@@ -167,7 +167,7 @@ static int xxxfb_open(const struct fb_info *info, int user)
  *
  *	Returns negative errno on error, or zero on success.
  */
-static int xxxfb_release(const struct fb_info *info, int user)
+static int xxxfb_release(struct fb_info *info, int user)
 {
     return 0;
 }
@@ -629,19 +629,6 @@ void xxxfb_rotate(struct fb_info *info, int angle)
 }
 
 /**
- *	xxxfb_poll - NOT a required function. The purpose of this
- *		     function is to provide a way for some process
- *		     to wait until a specific hardware event occurs
- *		     for the framebuffer device.
- * 				 
- *      @info: frame buffer structure that represents a single frame buffer
- *	@wait: poll table where we store process that await a event.     
- */
-void xxxfb_poll(struct fb_info *info, poll_table *wait)
-{
-}
-
-/**
  *	xxxfb_sync - NOT a required function. Normally the accel engine 
  *		     for a graphics card take a specific amount of time.
  *		     Often we have to wait for the accelerator to finish
@@ -678,7 +665,6 @@ static struct fb_ops xxxfb_ops = {
 	.fb_imageblit	= xxxfb_imageblit,	/* Needed !!! */
 	.fb_cursor	= xxxfb_cursor,		/* Optional !!! */
 	.fb_rotate	= xxxfb_rotate,
-	.fb_poll	= xxxfb_poll,
 	.fb_sync	= xxxfb_sync,
 	.fb_ioctl	= xxxfb_ioctl,
 	.fb_mmap	= xxxfb_mmap,
@@ -692,7 +678,7 @@ static struct fb_ops xxxfb_ops = {
 
 /* static int __init xxfb_probe (struct device *device) -- for platform devs */
 static int __devinit xxxfb_probe(struct pci_dev *dev,
-			      const_struct pci_device_id *ent)
+			      const struct pci_device_id *ent)
 {
     struct fb_info *info;
     struct xxx_par *par;
@@ -858,8 +844,6 @@ static void __devexit xxxfb_remove(struct pci_dev *dev)
 		/* ... */
 		framebuffer_release(info);
 	}
-
-	return 0;
 }
 
 #ifdef CONFIG_PCI
@@ -902,7 +886,7 @@ static int xxxfb_resume(struct pci_dev *dev)
 static struct pci_device_id xxxfb_id_table[] = {
 	{ PCI_VENDOR_ID_XXX, PCI_DEVICE_ID_XXX,
 	  PCI_ANY_ID, PCI_ANY_ID, PCI_BASE_CLASS_DISPLAY << 16,
-	  ADDR, 0 },
+	  PCI_CLASS_MASK, 0 },
 	{ 0, }
 };
 
@@ -1033,7 +1017,7 @@ int __init xxxfb_setup(char *options)
 {
     /* Parse user speficied options (`video=xxxfb:') */
 }
-#endif /* MODULE *?
+#endif /* MODULE */
 
 /* ------------------------------------------------------------------------- */
 
