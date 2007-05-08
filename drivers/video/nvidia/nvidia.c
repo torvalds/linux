@@ -949,8 +949,80 @@ static int nvidiafb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
+/*
+ * Because the VGA registers are not mapped linearly in its MMIO space,
+ * restrict VGA register saving and restore to x86 only, where legacy VGA IO
+ * access is legal. Consequently, we must also check if the device is the
+ * primary display.
+ */
+#ifdef CONFIG_X86
+static void save_vga_x86(struct nvidia_par *par)
+{
+	struct resource *res= &par->pci_dev->resource[PCI_ROM_RESOURCE];
+
+	if (res && res->flags & IORESOURCE_ROM_SHADOW) {
+		memset(&par->vgastate, 0, sizeof(par->vgastate));
+		par->vgastate.flags = VGA_SAVE_MODE | VGA_SAVE_FONTS |
+			VGA_SAVE_CMAP;
+		save_vga(&par->vgastate);
+	}
+}
+
+static void restore_vga_x86(struct nvidia_par *par)
+{
+	struct resource *res= &par->pci_dev->resource[PCI_ROM_RESOURCE];
+
+	if (res && res->flags & IORESOURCE_ROM_SHADOW)
+		restore_vga(&par->vgastate);
+}
+#else
+#define save_vga_x86(x) do {} while (0)
+#define restore_vga_x86(x) do {} while (0)
+#endif /* X86 */
+
+static int nvidiafb_open(struct fb_info *info, int user)
+{
+	struct nvidia_par *par = info->par;
+
+	mutex_lock(&par->open_lock);
+
+	if (!par->open_count) {
+		save_vga_x86(par);
+		nvidia_save_vga(par, &par->initial_state);
+	}
+
+	par->open_count++;
+	mutex_unlock(&par->open_lock);
+	return 0;
+}
+
+static int nvidiafb_release(struct fb_info *info, int user)
+{
+	struct nvidia_par *par = info->par;
+	int err = 0;
+
+	mutex_lock(&par->open_lock);
+
+	if (!par->open_count) {
+		err = -EINVAL;
+		goto done;
+	}
+
+	if (par->open_count == 1) {
+		nvidia_write_regs(par, &par->initial_state);
+		restore_vga_x86(par);
+	}
+
+	par->open_count--;
+done:
+	mutex_unlock(&par->open_lock);
+	return 0;
+}
+
 static struct fb_ops nvidia_fb_ops = {
 	.owner          = THIS_MODULE,
+	.fb_open        = nvidiafb_open,
+	.fb_release     = nvidiafb_release,
 	.fb_check_var   = nvidiafb_check_var,
 	.fb_set_par     = nvidiafb_set_par,
 	.fb_setcolreg   = nvidiafb_setcolreg,
@@ -1208,7 +1280,7 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 
 	par = info->par;
 	par->pci_dev = pd;
-
+	mutex_init(&par->open_lock);
 	info->pixmap.addr = kzalloc(8 * 1024, GFP_KERNEL);
 
 	if (info->pixmap.addr == NULL)
