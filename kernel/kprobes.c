@@ -35,6 +35,7 @@
 #include <linux/hash.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/stddef.h>
 #include <linux/module.h>
 #include <linux/moduleloader.h>
 #include <linux/kallsyms.h>
@@ -912,7 +913,7 @@ static int __kprobes debugfs_kprobe_init(void)
 	if (!dir)
 		return -ENOMEM;
 
-	file = debugfs_create_file("list", 0444, dir , 0 ,
+	file = debugfs_create_file("list", 0444, dir, NULL,
 				&debugfs_kprobes_operations);
 	if (!file) {
 		debugfs_remove(dir);
