@@ -50,7 +50,7 @@ extern void assfail(char *expr, char *f, int l);
 #else /* DEBUG */
 
 # define ASSERT(expr)	ASSERT_ALWAYS(expr)
-extern unsigned long random(void);
+# include <linux/random.h>
 
 #ifndef STATIC
 # define STATIC noinline

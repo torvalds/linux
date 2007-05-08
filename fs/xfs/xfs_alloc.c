@@ -764,7 +764,7 @@ xfs_alloc_ag_vextent_near(
 	 */
 	int		dofirst;	/* set to do first algorithm */
 
-	dofirst = random() & 1;
+	dofirst = random32() & 1;
 #endif
 	/*
 	 * Get a cursor for the by-size btree.
