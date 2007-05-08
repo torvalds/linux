@@ -97,6 +97,7 @@ static DEFINE_SPINLOCK(rtc_lock);
 static char rtc_name[] = "RTC";
 static unsigned long periodic_frequency;
 static unsigned long periodic_count;
+static unsigned int alarm_enabled;
 
 struct resource rtc_resource[2] = {
 	{	.name	= rtc_name,
@@ -188,6 +189,7 @@ static int vr41xx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 	low = rtc1_read(ECMPLREG);
 	mid = rtc1_read(ECMPMREG);
 	high = rtc1_read(ECMPHREG);
+	wkalrm->enabled = alarm_enabled;
 
 	spin_unlock_irq(&rtc_lock);
 
@@ -206,9 +208,17 @@ static int vr41xx_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 
 	spin_lock_irq(&rtc_lock);
 
+	if (alarm_enabled)
+		disable_irq(ELAPSEDTIME_IRQ);
+
 	rtc1_write(ECMPLREG, (uint16_t)(alarm_sec << 15));
 	rtc1_write(ECMPMREG, (uint16_t)(alarm_sec >> 1));
 	rtc1_write(ECMPHREG, (uint16_t)(alarm_sec >> 17));
+
+	if (wkalrm->enabled)
+		enable_irq(ELAPSEDTIME_IRQ);
+
+	alarm_enabled = wkalrm->enabled;
 
 	spin_unlock_irq(&rtc_lock);
 
@@ -221,10 +231,24 @@ static int vr41xx_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long 
 
 	switch (cmd) {
 	case RTC_AIE_ON:
-		enable_irq(ELAPSEDTIME_IRQ);
+		spin_lock_irq(&rtc_lock);
+
+		if (!alarm_enabled) {
+			enable_irq(ELAPSEDTIME_IRQ);
+			alarm_enabled = 1;
+		}
+
+		spin_unlock_irq(&rtc_lock);
 		break;
 	case RTC_AIE_OFF:
-		disable_irq(ELAPSEDTIME_IRQ);
+		spin_lock_irq(&rtc_lock);
+
+		if (alarm_enabled) {
+			disable_irq(ELAPSEDTIME_IRQ);
+			alarm_enabled = 0;
+		}
+
+		spin_unlock_irq(&rtc_lock);
 		break;
 	case RTC_PIE_ON:
 		enable_irq(RTCLONG1_IRQ);
