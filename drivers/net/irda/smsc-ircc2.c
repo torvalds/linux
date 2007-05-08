@@ -79,11 +79,13 @@ MODULE_AUTHOR("Daniele Peri <peri@csai.unipa.it>");
 MODULE_DESCRIPTION("SMC IrCC SIR/FIR controller driver");
 MODULE_LICENSE("GPL");
 
-static int ircc_dma = 255;
+#define DMA_INVAL 255
+static int ircc_dma = DMA_INVAL;
 module_param(ircc_dma, int, 0);
 MODULE_PARM_DESC(ircc_dma, "DMA channel");
 
-static int ircc_irq = 255;
+#define IRQ_INVAL 255
+static int ircc_irq = IRQ_INVAL;
 module_param(ircc_irq, int, 0);
 MODULE_PARM_DESC(ircc_irq, "IRQ line");
 
@@ -646,7 +648,7 @@ static void smsc_ircc_setup_io(struct smsc_ircc_cb *self,
 	self->io.fifo_size = SMSC_IRCC2_FIFO_SIZE;
 	self->io.speed = SMSC_IRCC2_C_IRDA_FALLBACK_SPEED;
 
-	if (irq < 255) {
+	if (irq != IRQ_INVAL) {
 		if (irq != chip_irq)
 			IRDA_MESSAGE("%s, Overriding IRQ - chip says %d, using %d\n",
 				     driver_name, chip_irq, irq);
@@ -654,7 +656,7 @@ static void smsc_ircc_setup_io(struct smsc_ircc_cb *self,
 	} else
 		self->io.irq = chip_irq;
 
-	if (dma < 255) {
+	if (dma != DMA_INVAL) {
 		if (dma != chip_dma)
 			IRDA_MESSAGE("%s, Overriding DMA - chip says %d, using %d\n",
 				     driver_name, chip_dma, dma);
@@ -2836,9 +2838,9 @@ static int __init smsc_ircc_preconfigure_subsystems(unsigned short ircc_cfg,
 					tmpconf.fir_io = ircc_fir;
 				if (ircc_sir != 0)
 					tmpconf.sir_io = ircc_sir;
-				if (ircc_dma != 0xff)
+				if (ircc_dma != DMA_INVAL)
 					tmpconf.fir_dma = ircc_dma;
-				if (ircc_irq != 0xff)
+				if (ircc_irq != IRQ_INVAL)
 					tmpconf.fir_irq = ircc_irq;
 
 				IRDA_MESSAGE("Detected unconfigured %s SMSC IrDA chip, pre-configuring device.\n", conf->name);
