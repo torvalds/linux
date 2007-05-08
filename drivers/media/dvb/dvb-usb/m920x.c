@@ -22,6 +22,8 @@ static int dvb_usb_m920x_debug;
 module_param_named(debug,dvb_usb_m920x_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
 
+static int m920x_set_filter(struct dvb_usb_device *d, int type, int idx, int pid);
+
 static inline int m920x_read(struct usb_device *udev, u8 request, u16 value,
 			     u16 index, void *data, int size)
 {
@@ -57,7 +59,8 @@ static inline int m920x_write(struct usb_device *udev, u8 request,
 
 static int m920x_init(struct dvb_usb_device *d, struct m920x_inits *rc_seq)
 {
-	int ret = 0;
+	int ret = 0, i, epi;
+	int adap_enabled[M9206_MAX_ADAPTERS] = { 0 };
 
 	/* Remote controller init. */
 	if (d->props.rc_query) {
@@ -74,6 +77,28 @@ static int m920x_init(struct dvb_usb_device *d, struct m920x_inits *rc_seq)
 		}
 
 		deb("Initialising remote control success\n");
+	}
+
+	for (i = 0; i < d->props.num_adapters; i++) {
+		epi = d->adapter[i].props.stream.endpoint - 0x81;
+
+		if (epi < 0 || epi >= M9206_MAX_ADAPTERS) {
+			printk(KERN_INFO "m920x: Unexpected adapter endpoint!\n");
+			return -EINVAL;
+		}
+
+		adap_enabled[epi] = 1;
+	}
+
+	for (i = 0; i < M9206_MAX_ADAPTERS; i++) {
+		if (adap_enabled[i])
+			continue;
+
+		if ((ret = m920x_set_filter(d, 0x81 + i, 0, 0x0)) != 0)
+			return ret;
+
+		if ((ret = m920x_set_filter(d, 0x81 + i, 0, 0x02f5)) != 0)
+			return ret;
 	}
 
 	return ret;
@@ -211,8 +236,7 @@ static struct i2c_algorithm m920x_i2c_algo = {
 };
 
 /* pid filter */
-static int m920x_set_filter(struct dvb_usb_adapter *adap,
-			    int type, int idx, int pid)
+static int m920x_set_filter(struct dvb_usb_device *d, int type, int idx, int pid)
 {
 	int ret = 0;
 
@@ -221,10 +245,10 @@ static int m920x_set_filter(struct dvb_usb_adapter *adap,
 
 	pid |= 0x8000;
 
-	if ((ret = m920x_write(adap->dev->udev, M9206_FILTER, pid, (type << 8) | (idx * 4) )) != 0)
+	if ((ret = m920x_write(d->udev, M9206_FILTER, pid, (type << 8) | (idx * 4) )) != 0)
 		return ret;
 
-	if ((ret = m920x_write(adap->dev->udev, M9206_FILTER, 0, (type << 8) | (idx * 4) )) != 0)
+	if ((ret = m920x_write(d->udev, M9206_FILTER, 0, (type << 8) | (idx * 4) )) != 0)
 		return ret;
 
 	return ret;
@@ -233,39 +257,34 @@ static int m920x_set_filter(struct dvb_usb_adapter *adap,
 static int m920x_update_filters(struct dvb_usb_adapter *adap)
 {
 	struct m920x_state *m = adap->dev->priv;
-	int enabled = m->filtering_enabled;
+	int enabled = m->filtering_enabled[adap->id];
 	int i, ret = 0, filter = 0;
+	int ep = adap->props.stream.endpoint;
 
 	for (i = 0; i < M9206_MAX_FILTERS; i++)
-		if (m->filters[i] == 8192)
+		if (m->filters[adap->id][i] == 8192)
 			enabled = 0;
 
 	/* Disable all filters */
-	if ((ret = m920x_set_filter(adap, 0x81, 1, enabled)) != 0)
+	if ((ret = m920x_set_filter(adap->dev, ep, 1, enabled)) != 0)
 		return ret;
 
 	for (i = 0; i < M9206_MAX_FILTERS; i++)
-		if ((ret = m920x_set_filter(adap, 0x81, i + 2, 0)) != 0)
+		if ((ret = m920x_set_filter(adap->dev, ep, i + 2, 0)) != 0)
 			return ret;
-
-	if ((ret = m920x_set_filter(adap, 0x82, 0, 0x0)) != 0)
-		return ret;
 
 	/* Set */
 	if (enabled) {
 		for (i = 0; i < M9206_MAX_FILTERS; i++) {
-			if (m->filters[i] == 0)
+			if (m->filters[adap->id][i] == 0)
 				continue;
 
-			if ((ret = m920x_set_filter(adap, 0x81, filter + 2, m->filters[i])) != 0)
+			if ((ret = m920x_set_filter(adap->dev, ep, filter + 2, m->filters[adap->id][i])) != 0)
 				return ret;
 
 			filter++;
 		}
 	}
-
-	if ((ret = m920x_set_filter(adap, 0x82, 0, 0x02f5)) != 0)
-		return ret;
 
 	return ret;
 }
@@ -274,7 +293,7 @@ static int m920x_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
 	struct m920x_state *m = adap->dev->priv;
 
-	m->filtering_enabled = onoff ? 1 : 0;
+	m->filtering_enabled[adap->id] = onoff ? 1 : 0;
 
 	return m920x_update_filters(adap);
 }
@@ -283,7 +302,7 @@ static int m920x_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, in
 {
 	struct m920x_state *m = adap->dev->priv;
 
-	m->filters[index] = onoff ? pid : 0;
+	m->filters[adap->id][index] = onoff ? pid : 0;
 
 	return m920x_update_filters(adap);
 }
