@@ -7,22 +7,38 @@ extern void rtc_dev_del_device(struct rtc_device *rtc);
 
 #else
 
-#define rtc_dev_init()		do{}while(0)
-#define rtc_dev_exit()		do{}while(0)
-#define rtc_dev_add_device(r)	do{}while(0)
-#define rtc_dev_del_device(r)	do{}while(0)
+static inline void rtc_dev_init(void)
+{
+}
+
+static inline void rtc_dev_exit(void)
+{
+}
+
+static inline void rtc_dev_add_device(struct rtc_device *rtc)
+{
+}
+
+static inline void rtc_dev_del_device(struct rtc_device *rtc)
+{
+}
 
 #endif
 
 #ifdef CONFIG_RTC_INTF_PROC
 
-void rtc_proc_add_device(struct rtc_device *rtc);
-void rtc_proc_del_device(struct rtc_device *rtc);
+extern void rtc_proc_add_device(struct rtc_device *rtc);
+extern void rtc_proc_del_device(struct rtc_device *rtc);
 
 #else
 
-#define rtc_proc_add_device(r)	do{}while(0)
-#define rtc_proc_del_device(r)	do{}while(0)
+static inline void rtc_proc_add_device(struct rtc_device *rtc)
+{
+}
+
+static inline void rtc_proc_del_device(struct rtc_device *rtc)
+{
+}
 
 #endif
 
@@ -34,8 +50,16 @@ extern void rtc_sysfs_del_device(struct rtc_device *rtc);
 
 #else
 
-#define rtc_sysfs_init(c)	do{}while(0)
-#define rtc_sysfs_add_device(r)	do{}while(0)
-#define rtc_sysfs_del_device(r)	do{}while(0)
+static inline void rtc_sysfs_init(struct class *rtc)
+{
+}
+
+static inline void rtc_sysfs_add_device(struct rtc_device *rtc)
+{
+}
+
+static inline void rtc_sysfs_del_device(struct rtc_device *rtc)
+{
+}
 
 #endif
