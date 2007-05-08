@@ -15,31 +15,6 @@
  * published by the Free Software Foundation.
  *
  *  Serial driver for TX3927/TX4927/TX4925/TX4938 internal SIO controller
- *
- *  Revision History:
- *	0.30	Initial revision. (Renamed from serial_txx927.c)
- *	0.31	Use save_flags instead of local_irq_save.
- *	0.32	Support SCLK.
- *	0.33	Switch TXX9_TTY_NAME by CONFIG_SERIAL_TXX9_STDSERIAL.
- *		Support TIOCSERGETLSR.
- *	0.34	Support slow baudrate.
- *	0.40	Merge codes from mainstream kernel (2.4.22).
- *	0.41	Fix console checking in rs_shutdown_port().
- *		Disable flow-control in serial_console_write().
- *	0.42	Fix minor compiler warning.
- *	1.00	Kernel 2.6.  Converted to new serial core (based on 8250.c).
- *	1.01	Set fifosize to make tx_empry called properly.
- *		Use standard uart_get_divisor.
- *	1.02	Cleanup. (import 8250.c changes)
- *	1.03	Fix low-latency mode. (import 8250.c changes)
- *	1.04	Remove usage of deprecated functions, cleanup.
- *	1.05	More strict check in verify_port.  Cleanup.
- *	1.06	Do not insert a char caused previous overrun.
- *		Fix some spin_locks.
- *		Do not call uart_add_one_port for absent ports.
- *	1.07	Use CONFIG_SERIAL_TXX9_NR_UARTS.  Cleanup.
- *	1.08	Use platform_device.
- *		Fix and cleanup suspend/resume/initialization codes.
  */
 
 #if defined(CONFIG_SERIAL_TXX9_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
