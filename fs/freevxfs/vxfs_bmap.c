@@ -137,7 +137,7 @@ vxfs_bmap_indir(struct inode *ip, long indir, int size, long block)
 
 		bp = sb_bread(ip->i_sb,
 				indir + (i / VXFS_TYPED_PER_BLOCK(ip->i_sb)));
-		if (!buffer_mapped(bp))
+		if (!bp || !buffer_mapped(bp))
 			return 0;
 
 		typ = ((struct vxfs_typed *)bp->b_data) +
