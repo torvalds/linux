@@ -1426,7 +1426,7 @@ xfs_free_bufhash(
 /*
  *	buftarg list for delwrite queue processing
  */
-LIST_HEAD(xfs_buftarg_list);
+static LIST_HEAD(xfs_buftarg_list);
 static DEFINE_SPINLOCK(xfs_buftarg_lock);
 
 STATIC void
@@ -1867,3 +1867,11 @@ xfs_buf_terminate(void)
 	ktrace_free(xfs_buf_trace_buf);
 #endif
 }
+
+#ifdef CONFIG_KDB_MODULES
+struct list_head *
+xfs_get_buftarg_list(void)
+{
+	return &xfs_buftarg_list;
+}
+#endif

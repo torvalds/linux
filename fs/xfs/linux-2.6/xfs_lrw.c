@@ -191,7 +191,7 @@ xfs_read(
 	struct file		*file = iocb->ki_filp;
 	struct inode		*inode = file->f_mapping->host;
 	size_t			size = 0;
-	ssize_t			ret;
+	ssize_t			ret = 0;
 	xfs_fsize_t		n;
 	xfs_inode_t		*ip;
 	xfs_mount_t		*mp;
@@ -224,7 +224,7 @@ xfs_read(
 				mp->m_rtdev_targp : mp->m_ddev_targp;
 		if ((*offset & target->bt_smask) ||
 		    (size & target->bt_smask)) {
-			if (*offset == ip->i_d.di_size) {
+			if (*offset == ip->i_size) {
 				return (0);
 			}
 			return -XFS_ERROR(EINVAL);
@@ -263,9 +263,13 @@ xfs_read(
 
 	if (unlikely(ioflags & IO_ISDIRECT)) {
 		if (VN_CACHED(vp))
-			bhv_vop_flushinval_pages(vp, ctooff(offtoct(*offset)),
+			ret = bhv_vop_flushinval_pages(vp, ctooff(offtoct(*offset)),
 						 -1, FI_REMAPF_LOCKED);
 		mutex_unlock(&inode->i_mutex);
+		if (ret) {
+			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
+			return ret;
+		}
 	}
 
 	xfs_rw_enter_trace(XFS_READ_ENTER, &ip->i_iocore,
@@ -383,9 +387,10 @@ xfs_splice_write(
 {
 	xfs_inode_t		*ip = XFS_BHVTOI(bdp);
 	xfs_mount_t		*mp = ip->i_mount;
+	xfs_iocore_t		*io = &ip->i_iocore;
 	ssize_t			ret;
 	struct inode		*inode = outfilp->f_mapping->host;
-	xfs_fsize_t		isize;
+	xfs_fsize_t		isize, new_size;
 
 	XFS_STATS_INC(xs_write_calls);
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
@@ -406,6 +411,14 @@ xfs_splice_write(
 			return -error;
 		}
 	}
+
+	new_size = *ppos + count;
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	if (new_size > ip->i_size)
+		io->io_new_size = new_size;
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+
 	xfs_rw_enter_trace(XFS_SPLICE_WRITE_ENTER, &ip->i_iocore,
 			   pipe, count, *ppos, ioflags);
 	ret = generic_file_splice_write(pipe, outfilp, ppos, count, flags);
@@ -416,14 +429,18 @@ xfs_splice_write(
 	if (unlikely(ret < 0 && ret != -EFAULT && *ppos > isize))
 		*ppos = isize;
 
-	if (*ppos > ip->i_d.di_size) {
+	if (*ppos > ip->i_size) {
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		if (*ppos > ip->i_d.di_size) {
-			ip->i_d.di_size = *ppos;
-			i_size_write(inode, *ppos);
-			ip->i_update_core = 1;
-			ip->i_update_size = 1;
-		}
+		if (*ppos > ip->i_size)
+			ip->i_size = *ppos;
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	}
+
+	if (io->io_new_size) {
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		io->io_new_size = 0;
+		if (ip->i_d.di_size > ip->i_size)
+			ip->i_d.di_size = ip->i_size;
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	}
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
@@ -644,7 +661,7 @@ xfs_write(
 	bhv_vrwlock_t		locktype;
 	size_t			ocount = 0, count;
 	loff_t			pos;
-	int			need_i_mutex = 1, need_flush = 0;
+	int			need_i_mutex;
 
 	XFS_STATS_INC(xs_write_calls);
 
@@ -669,38 +686,19 @@ xfs_write(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	if (ioflags & IO_ISDIRECT) {
-		xfs_buftarg_t	*target =
-			(xip->i_d.di_flags & XFS_DIFLAG_REALTIME) ?
-				mp->m_rtdev_targp : mp->m_ddev_targp;
-
-		if ((pos & target->bt_smask) || (count & target->bt_smask))
-			return XFS_ERROR(-EINVAL);
-
-		if (!VN_CACHED(vp) && pos < i_size_read(inode))
-			need_i_mutex = 0;
-
-		if (VN_CACHED(vp))
-			need_flush = 1;
-	}
-
 relock:
-	if (need_i_mutex) {
-		iolock = XFS_IOLOCK_EXCL;
-		locktype = VRWLOCK_WRITE;
-
-		mutex_lock(&inode->i_mutex);
-	} else {
+	if (ioflags & IO_ISDIRECT) {
 		iolock = XFS_IOLOCK_SHARED;
 		locktype = VRWLOCK_WRITE_DIRECT;
+		need_i_mutex = 0;
+	} else {
+		iolock = XFS_IOLOCK_EXCL;
+		locktype = VRWLOCK_WRITE;
+		need_i_mutex = 1;
+		mutex_lock(&inode->i_mutex);
 	}
 
 	xfs_ilock(xip, XFS_ILOCK_EXCL|iolock);
-
-	isize = i_size_read(inode);
-
-	if (file->f_flags & O_APPEND)
-		*offset = isize;
 
 start:
 	error = -generic_write_checks(file, &pos, &count,
@@ -710,13 +708,8 @@ start:
 		goto out_unlock_mutex;
 	}
 
-	new_size = pos + count;
-	if (new_size > isize)
-		io->io_new_size = new_size;
-
 	if ((DM_EVENT_ENABLED(vp->v_vfsp, xip, DM_EVENT_WRITE) &&
 	    !(ioflags & IO_INVIS) && !eventsent)) {
-		loff_t		savedsize = pos;
 		int		dmflags = FILP_DELAY_FLAG(file);
 
 		if (need_i_mutex)
@@ -727,8 +720,7 @@ start:
 				      pos, count,
 				      dmflags, &locktype);
 		if (error) {
-			xfs_iunlock(xip, iolock);
-			goto out_unlock_mutex;
+			goto out_unlock_internal;
 		}
 		xfs_ilock(xip, XFS_ILOCK_EXCL);
 		eventsent = 1;
@@ -740,11 +732,34 @@ start:
 		 * event prevents another call to XFS_SEND_DATA, which is
 		 * what allows the size to change in the first place.
 		 */
-		if ((file->f_flags & O_APPEND) && savedsize != isize) {
-			pos = isize = xip->i_d.di_size;
+		if ((file->f_flags & O_APPEND) && pos != xip->i_size)
+			goto start;
+	}
+
+	if (ioflags & IO_ISDIRECT) {
+		xfs_buftarg_t	*target =
+			(xip->i_d.di_flags & XFS_DIFLAG_REALTIME) ?
+				mp->m_rtdev_targp : mp->m_ddev_targp;
+
+		if ((pos & target->bt_smask) || (count & target->bt_smask)) {
+			xfs_iunlock(xip, XFS_ILOCK_EXCL|iolock);
+			return XFS_ERROR(-EINVAL);
+		}
+
+		if (!need_i_mutex && (VN_CACHED(vp) || pos > xip->i_size)) {
+			xfs_iunlock(xip, XFS_ILOCK_EXCL|iolock);
+			iolock = XFS_IOLOCK_EXCL;
+			locktype = VRWLOCK_WRITE;
+			need_i_mutex = 1;
+			mutex_lock(&inode->i_mutex);
+			xfs_ilock(xip, XFS_ILOCK_EXCL|iolock);
 			goto start;
 		}
 	}
+
+	new_size = pos + count;
+	if (new_size > xip->i_size)
+		io->io_new_size = new_size;
 
 	if (likely(!(ioflags & IO_INVIS))) {
 		file_update_time(file);
@@ -761,11 +776,11 @@ start:
 	 * to zero it out up to the new size.
 	 */
 
-	if (pos > isize) {
-		error = xfs_zero_eof(BHV_TO_VNODE(bdp), io, pos, isize);
+	if (pos > xip->i_size) {
+		error = xfs_zero_eof(BHV_TO_VNODE(bdp), io, pos, xip->i_size);
 		if (error) {
-			xfs_iunlock(xip, XFS_ILOCK_EXCL|iolock);
-			goto out_unlock_mutex;
+			xfs_iunlock(xip, XFS_ILOCK_EXCL);
+			goto out_unlock_internal;
 		}
 	}
 	xfs_iunlock(xip, XFS_ILOCK_EXCL);
@@ -785,8 +800,7 @@ start:
 		if (likely(!error))
 			error = -remove_suid(file->f_path.dentry);
 		if (unlikely(error)) {
-			xfs_iunlock(xip, iolock);
-			goto out_unlock_mutex;
+			goto out_unlock_internal;
 		}
 	}
 
@@ -795,11 +809,14 @@ retry:
 	current->backing_dev_info = mapping->backing_dev_info;
 
 	if ((ioflags & IO_ISDIRECT)) {
-		if (need_flush) {
+		if (VN_CACHED(vp)) {
+			WARN_ON(need_i_mutex == 0);
 			xfs_inval_cached_trace(io, pos, -1,
 					ctooff(offtoct(pos)), -1);
-			bhv_vop_flushinval_pages(vp, ctooff(offtoct(pos)),
+			error = bhv_vop_flushinval_pages(vp, ctooff(offtoct(pos)),
 					-1, FI_REMAPF_LOCKED);
+			if (error)
+				goto out_unlock_internal;
 		}
 
 		if (need_i_mutex) {
@@ -827,7 +844,6 @@ retry:
 			pos += ret;
 			count -= ret;
 
-			need_i_mutex = 1;
 			ioflags &= ~IO_ISDIRECT;
 			xfs_iunlock(xip, iolock);
 			goto relock;
@@ -854,12 +870,12 @@ retry:
 		error = XFS_SEND_NAMESP(xip->i_mount, DM_EVENT_NOSPACE, vp,
 				DM_RIGHT_NULL, vp, DM_RIGHT_NULL, NULL, NULL,
 				0, 0, 0); /* Delay flag intentionally  unused */
-		if (error)
-			goto out_nounlocks;
 		if (need_i_mutex)
 			mutex_lock(&inode->i_mutex);
 		xfs_rwlock(bdp, locktype);
-		pos = xip->i_d.di_size;
+		if (error)
+			goto out_unlock_internal;
+		pos = xip->i_size;
 		ret = 0;
 		goto retry;
 	}
@@ -868,14 +884,10 @@ retry:
 	if (unlikely(ret < 0 && ret != -EFAULT && *offset > isize))
 		*offset = isize;
 
-	if (*offset > xip->i_d.di_size) {
+	if (*offset > xip->i_size) {
 		xfs_ilock(xip, XFS_ILOCK_EXCL);
-		if (*offset > xip->i_d.di_size) {
-			xip->i_d.di_size = *offset;
-			i_size_write(inode, *offset);
-			xip->i_update_core = 1;
-			xip->i_update_size = 1;
-		}
+		if (*offset > xip->i_size)
+			xip->i_size = *offset;
 		xfs_iunlock(xip, XFS_ILOCK_EXCL);
 	}
 
@@ -897,16 +909,31 @@ retry:
 
 		error = sync_page_range(inode, mapping, pos, ret);
 		if (!error)
-			error = ret;
-		return error;
+			error = -ret;
+		if (need_i_mutex)
+			mutex_lock(&inode->i_mutex);
+		xfs_rwlock(bdp, locktype);
 	}
 
  out_unlock_internal:
+	if (io->io_new_size) {
+		xfs_ilock(xip, XFS_ILOCK_EXCL);
+		io->io_new_size = 0;
+		/*
+		 * If this was a direct or synchronous I/O that failed (such
+		 * as ENOSPC) then part of the I/O may have been written to
+		 * disk before the error occured.  In this case the on-disk
+		 * file size may have been adjusted beyond the in-memory file
+		 * size and now needs to be truncated back.
+		 */
+		if (xip->i_d.di_size > xip->i_size)
+			xip->i_d.di_size = xip->i_size;
+		xfs_iunlock(xip, XFS_ILOCK_EXCL);
+	}
 	xfs_rwunlock(bdp, locktype);
  out_unlock_mutex:
 	if (need_i_mutex)
 		mutex_unlock(&inode->i_mutex);
- out_nounlocks:
 	return -error;
 }
 

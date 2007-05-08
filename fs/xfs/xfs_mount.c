@@ -1653,7 +1653,7 @@ xfs_mount_log_sbunit(
 		return;
 	}
 	xfs_mod_sb(tp, fields);
-	xfs_trans_commit(tp, 0, NULL);
+	xfs_trans_commit(tp, 0);
 }
 
 

@@ -81,20 +81,3 @@ assfail(char *expr, char *file, int line)
 	printk("Assertion failed: %s, file: %s, line: %d\n", expr, file, line);
 	BUG();
 }
-
-#if ((defined(DEBUG) || defined(INDUCE_IO_ERRROR)) && !defined(NO_WANT_RANDOM))
-unsigned long random(void)
-{
-	static unsigned long	RandomValue = 1;
-	/* cycles pseudo-randomly through all values between 1 and 2^31 - 2 */
-	register long	rv = RandomValue;
-	register long	lo;
-	register long	hi;
-
-	hi = rv / 127773;
-	lo = rv % 127773;
-	rv = 16807 * lo - 2836 * hi;
-	if (rv <= 0) rv += 2147483647;
-	return RandomValue = rv;
-}
-#endif /* DEBUG || INDUCE_IO_ERRROR || !NO_WANT_RANDOM */

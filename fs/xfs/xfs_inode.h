@@ -287,6 +287,7 @@ typedef struct xfs_inode {
 	struct xfs_inode	*i_cnext;	/* cluster hash link forward */
 	struct xfs_inode	*i_cprev;	/* cluster hash link backward */
 
+	xfs_fsize_t		i_size;		/* in-memory size */
 	/* Trace buffers per inode. */
 #ifdef XFS_BMAP_TRACE
 	struct ktrace		*i_xtrace;	/* inode extent list trace */
@@ -305,6 +306,8 @@ typedef struct xfs_inode {
 #endif
 } xfs_inode_t;
 
+#define XFS_ISIZE(ip)	(((ip)->i_d.di_mode & S_IFMT) == S_IFREG) ? \
+				(ip)->i_size : (ip)->i_d.di_size;
 
 /*
  * i_flags helper functions
@@ -379,26 +382,58 @@ xfs_iflags_test(xfs_inode_t *ip, unsigned short flags)
 
 /*
  * Flags for inode locking.
+ * Bit ranges:	1<<1  - 1<<16-1 -- iolock/ilock modes (bitfield)
+ *		1<<16 - 1<<32-1 -- lockdep annotation (integers)
  */
-#define	XFS_IOLOCK_EXCL		0x001
-#define	XFS_IOLOCK_SHARED	0x002
-#define	XFS_ILOCK_EXCL		0x004
-#define	XFS_ILOCK_SHARED	0x008
-#define	XFS_IUNLOCK_NONOTIFY	0x010
-/*	XFS_IOLOCK_NESTED	0x020 */
-#define XFS_EXTENT_TOKEN_RD	0x040
-#define XFS_SIZE_TOKEN_RD	0x080
+#define	XFS_IOLOCK_EXCL		(1<<0)
+#define	XFS_IOLOCK_SHARED	(1<<1)
+#define	XFS_ILOCK_EXCL		(1<<2)
+#define	XFS_ILOCK_SHARED	(1<<3)
+#define	XFS_IUNLOCK_NONOTIFY	(1<<4)
+/*	#define XFS_IOLOCK_NESTED	(1<<5)	*/
+#define XFS_EXTENT_TOKEN_RD	(1<<6)
+#define XFS_SIZE_TOKEN_RD	(1<<7)
 #define XFS_EXTSIZE_RD		(XFS_EXTENT_TOKEN_RD|XFS_SIZE_TOKEN_RD)
-#define XFS_WILLLEND		0x100	/* Always acquire tokens for lending */
+#define XFS_WILLLEND		(1<<8)	/* Always acquire tokens for lending */
 #define XFS_EXTENT_TOKEN_WR	(XFS_EXTENT_TOKEN_RD | XFS_WILLLEND)
 #define XFS_SIZE_TOKEN_WR       (XFS_SIZE_TOKEN_RD | XFS_WILLLEND)
 #define XFS_EXTSIZE_WR		(XFS_EXTSIZE_RD | XFS_WILLLEND)
-/*	XFS_SIZE_TOKEN_WANT	0x200 */
+/* TODO:XFS_SIZE_TOKEN_WANT	(1<<9) */
 
-#define XFS_LOCK_MASK	\
-	(XFS_IOLOCK_EXCL | XFS_IOLOCK_SHARED | XFS_ILOCK_EXCL | \
-	 XFS_ILOCK_SHARED | XFS_EXTENT_TOKEN_RD | XFS_SIZE_TOKEN_RD | \
-	 XFS_WILLLEND)
+#define XFS_LOCK_MASK		(XFS_IOLOCK_EXCL | XFS_IOLOCK_SHARED \
+				| XFS_ILOCK_EXCL | XFS_ILOCK_SHARED \
+				| XFS_EXTENT_TOKEN_RD | XFS_SIZE_TOKEN_RD \
+				| XFS_WILLLEND)
+
+/*
+ * Flags for lockdep annotations.
+ *
+ * XFS_I[O]LOCK_PARENT - for operations that require locking two inodes
+ * (ie directory operations that require locking a directory inode and
+ * an entry inode).  The first inode gets locked with this flag so it
+ * gets a lockdep subclass of 1 and the second lock will have a lockdep
+ * subclass of 0.
+ *
+ * XFS_I[O]LOCK_INUMORDER - for locking several inodes at the some time
+ * with xfs_lock_inodes().  This flag is used as the starting subclass
+ * and each subsequent lock acquired will increment the subclass by one.
+ * So the first lock acquired will have a lockdep subclass of 2, the
+ * second lock will have a lockdep subclass of 3, and so on.
+ */
+#define XFS_IOLOCK_SHIFT	16
+#define	XFS_IOLOCK_PARENT	(1 << XFS_IOLOCK_SHIFT)
+#define	XFS_IOLOCK_INUMORDER	(2 << XFS_IOLOCK_SHIFT)
+
+#define XFS_ILOCK_SHIFT		24
+#define	XFS_ILOCK_PARENT	(1 << XFS_ILOCK_SHIFT)
+#define	XFS_ILOCK_INUMORDER	(2 << XFS_ILOCK_SHIFT)
+
+#define XFS_IOLOCK_DEP_MASK	0x00ff0000
+#define XFS_ILOCK_DEP_MASK	0xff000000
+#define XFS_LOCK_DEP_MASK	(XFS_IOLOCK_DEP_MASK | XFS_ILOCK_DEP_MASK)
+
+#define XFS_IOLOCK_DEP(flags)	(((flags) & XFS_IOLOCK_DEP_MASK) >> XFS_IOLOCK_SHIFT)
+#define XFS_ILOCK_DEP(flags)	(((flags) & XFS_ILOCK_DEP_MASK) >> XFS_ILOCK_SHIFT)
 
 /*
  * Flags for xfs_iflush()
@@ -481,7 +516,7 @@ uint		xfs_ip2xflags(struct xfs_inode *);
 uint		xfs_dic2xflags(struct xfs_dinode_core *);
 int		xfs_ifree(struct xfs_trans *, xfs_inode_t *,
 			   struct xfs_bmap_free *);
-void		xfs_itruncate_start(xfs_inode_t *, uint, xfs_fsize_t);
+int		xfs_itruncate_start(xfs_inode_t *, uint, xfs_fsize_t);
 int		xfs_itruncate_finish(struct xfs_trans **, xfs_inode_t *,
 				     xfs_fsize_t, int, int);
 int		xfs_iunlink(struct xfs_trans *, xfs_inode_t *);

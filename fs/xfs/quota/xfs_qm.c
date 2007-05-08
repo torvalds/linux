@@ -388,6 +388,17 @@ xfs_qm_mount_quotas(
 			return XFS_ERROR(error);
 		}
 	}
+	/* 
+	 * If one type of quotas is off, then it will lose its
+	 * quotachecked status, since we won't be doing accounting for
+	 * that type anymore.
+	 */
+	if (!XFS_IS_UQUOTA_ON(mp)) {
+		mp->m_qflags &= ~XFS_UQUOTA_CHKD;
+	}
+	if (!(XFS_IS_GQUOTA_ON(mp) || XFS_IS_PQUOTA_ON(mp))) {
+		mp->m_qflags &= ~XFS_OQUOTA_CHKD;
+	}
 
  write_changes:
 	/*
@@ -1453,8 +1464,7 @@ xfs_qm_qino_alloc(
 	XFS_SB_UNLOCK(mp, s);
 	xfs_mod_sb(tp, sbfields);
 
-	if ((error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES,
-				     NULL))) {
+	if ((error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES))) {
 		xfs_fs_cmn_err(CE_ALERT, mp, "XFS qino_alloc failed!");
 		return error;
 	}
@@ -2405,7 +2415,7 @@ xfs_qm_write_sb_changes(
 	}
 
 	xfs_mod_sb(tp, flags);
-	(void) xfs_trans_commit(tp, 0, NULL);
+	(void) xfs_trans_commit(tp, 0);
 
 	return 0;
 }

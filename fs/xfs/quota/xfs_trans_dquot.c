@@ -656,7 +656,9 @@ xfs_trans_dqresv(
 
 	if ((flags & XFS_QMOPT_FORCE_RES) == 0 &&
 	    dqp->q_core.d_id &&
-	    XFS_IS_QUOTA_ENFORCED(dqp->q_mount)) {
+	    ((XFS_IS_UQUOTA_ENFORCED(dqp->q_mount) && XFS_QM_ISUDQ(dqp)) ||
+	     (XFS_IS_OQUOTA_ENFORCED(dqp->q_mount) &&
+	      (XFS_QM_ISPDQ(dqp) || XFS_QM_ISGDQ(dqp))))) {
 #ifdef QUOTADEBUG
 		cmn_err(CE_DEBUG, "BLK Res: nblks=%ld + resbcount=%Ld"
 			  " > hardlimit=%Ld?", nblks, *resbcountp, hardlimit);
