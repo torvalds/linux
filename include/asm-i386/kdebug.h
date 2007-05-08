@@ -38,6 +38,7 @@ enum die_val {
 	DIE_GPF,
 	DIE_CALL,
 	DIE_NMI_IPI,
+	DIE_NMI_POST,
 	DIE_PAGE_FAULT,
 };
 
