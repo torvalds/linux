@@ -160,6 +160,11 @@ static void platform_device_release(struct device *dev)
  *
  *	Create a platform device object which can have other objects attached
  *	to it, and which will have attached objects freed when it is released.
+ *
+ *	This device will be marked as not supporting hotpluggable drivers; no
+ *	device add/remove uevents will be generated.  In the unusual case that
+ *	the device isn't being dynamically allocated as a legacy "probe the
+ *	hardware" driver, infrastructure code should reverse this marking.
  */
 struct platform_device *platform_device_alloc(const char *name, unsigned int id)
 {
@@ -172,6 +177,12 @@ struct platform_device *platform_device_alloc(const char *name, unsigned int id)
 		pa->pdev.id = id;
 		device_initialize(&pa->pdev.dev);
 		pa->pdev.dev.release = platform_device_release;
+
+		/* prevent hotplug "modprobe $(MODALIAS)" from causing trouble in
+		 * legacy probe-the-hardware drivers, which don't properly split
+		 * out device enumeration logic from drivers.
+		 */
+		pa->pdev.dev.uevent_suppress = 1;
 	}
 
 	return pa ? &pa->pdev : NULL;
@@ -351,6 +362,13 @@ EXPORT_SYMBOL_GPL(platform_device_unregister);
  *	memory allocated for the device allows drivers using such devices
  *	to be unloaded iwithout waiting for the last reference to the device
  *	to be dropped.
+ *
+ *	This interface is primarily intended for use with legacy drivers
+ *	which probe hardware directly.  Because such drivers create sysfs
+ *	device nodes themselves, rather than letting system infrastructure
+ *	handle such device enumeration tasks, they don't fully conform to
+ *	the Linux driver model.  In particular, when such drivers are built
+ *	as modules, they can't be "hotplugged".
  */
 struct platform_device *platform_device_register_simple(char *name, unsigned int id,
 							struct resource *res, unsigned int num)

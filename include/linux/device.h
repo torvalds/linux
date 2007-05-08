@@ -412,12 +412,13 @@ struct device {
 	struct klist_node	knode_parent;		/* node in sibling list */
 	struct klist_node	knode_driver;
 	struct klist_node	knode_bus;
-	struct device 	* parent;
+	struct device		*parent;
 
 	struct kobject kobj;
 	char	bus_id[BUS_ID_SIZE];	/* position on parent bus */
 	struct device_type	*type;
 	unsigned		is_registered:1;
+	unsigned		uevent_suppress:1;
 	struct device_attribute uevent_attr;
 	struct device_attribute *devt_attr;
 
@@ -458,7 +459,6 @@ struct device {
 	struct class		*class;
 	dev_t			devt;		/* dev_t, creates the sysfs "dev" */
 	struct attribute_group	**groups;	/* optional groups */
-	int			uevent_suppress;
 
 	void	(*release)(struct device * dev);
 };
