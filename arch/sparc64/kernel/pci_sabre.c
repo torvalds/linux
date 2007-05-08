@@ -1006,8 +1006,7 @@ static void sabre_pbm_init(struct pci_controller_info *p, struct device_node *dp
 	pbm->chip_type = PBM_CHIP_TYPE_SABRE;
 	pbm->parent = p;
 	pbm->prom_node = dp;
-	pbm->pci_first_busno = p->pci_first_busno;
-	pbm->pci_last_busno = p->pci_last_busno;
+	pci_get_pbm_props(pbm);
 
 	pci_determine_mem_io_space(pbm);
 }
@@ -1018,7 +1017,6 @@ void sabre_init(struct device_node *dp, char *model_name)
 	struct pci_controller_info *p;
 	struct iommu *iommu;
 	int tsbsize;
-	const u32 *busrange;
 	const u32 *vdma;
 	u32 upa_portid, dma_mask;
 	u64 clear_irq;
@@ -1118,10 +1116,6 @@ void sabre_init(struct device_node *dp, char *model_name)
 	}
 
 	sabre_iommu_init(p, tsbsize, vdma[0], dma_mask);
-
-	busrange = of_get_property(dp, "bus-range", NULL);
-	p->pci_first_busno = busrange[0];
-	p->pci_last_busno = busrange[1];
 
 	/*
 	 * Look for APB underneath.

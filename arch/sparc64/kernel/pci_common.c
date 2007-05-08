@@ -15,6 +15,20 @@
 
 #include "pci_impl.h"
 
+void pci_get_pbm_props(struct pci_pbm_info *pbm)
+{
+	const u32 *val = of_get_property(pbm->prom_node, "bus-range", NULL);
+
+	pbm->pci_first_busno = val[0];
+	pbm->pci_last_busno = val[1];
+
+	val = of_get_property(pbm->prom_node, "ino-bitmap", NULL);
+	if (val) {
+		pbm->ino_bitmap = (((u64)val[1] << 32UL) |
+				   ((u64)val[0] <<  0UL));
+	}
+}
+
 static void pci_register_legacy_regions(struct resource *io_res,
 					struct resource *mem_res)
 {

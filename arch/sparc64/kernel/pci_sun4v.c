@@ -802,20 +802,6 @@ static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 		       pbm->name, sz);
 }
 
-static void pci_sun4v_get_bus_range(struct pci_pbm_info *pbm)
-{
-	struct property *prop;
-	unsigned int *busrange;
-
-	prop = of_find_property(pbm->prom_node, "bus-range", NULL);
-
-	busrange = prop->value;
-
-	pbm->pci_first_busno = busrange[0];
-	pbm->pci_last_busno = busrange[1];
-
-}
-
 #ifdef CONFIG_PCI_MSI
 struct pci_sun4v_msiq_entry {
 	u64		version_type;
@@ -1271,7 +1257,7 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 
 	pci_determine_mem_io_space(pbm);
 
-	pci_sun4v_get_bus_range(pbm);
+	pci_get_pbm_props(pbm);
 	pci_sun4v_iommu_init(pbm);
 	pci_sun4v_msi_init(pbm);
 }

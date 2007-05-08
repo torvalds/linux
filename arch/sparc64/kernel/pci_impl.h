@@ -17,6 +17,7 @@ extern unsigned long pci_memspace_mask;
 extern int pci_num_controllers;
 
 /* PCI bus scanning and fixup support. */
+extern void pci_get_pbm_props(struct pci_pbm_info *pbm);
 extern struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm);
 extern void pci_determine_mem_io_space(struct pci_pbm_info *pbm);
 

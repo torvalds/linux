@@ -1491,10 +1491,8 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 			    int chip_type)
 {
 	const struct linux_prom64_registers *regs;
-	const unsigned int *busrange;
 	struct pci_pbm_info *pbm;
 	const char *chipset_name;
-	const u32 *ino_bitmap;
 	int is_pbm_a;
 
 	switch (chip_type) {
@@ -1555,13 +1553,7 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 
 	pci_determine_mem_io_space(pbm);
 
-	ino_bitmap = of_get_property(dp, "ino-bitmap", NULL);
-	pbm->ino_bitmap = (((u64)ino_bitmap[1] << 32UL) |
-			   ((u64)ino_bitmap[0] <<  0UL));
-
-	busrange = of_get_property(dp, "bus-range", NULL);
-	pbm->pci_first_busno = busrange[0];
-	pbm->pci_last_busno = busrange[1];
+	pci_get_pbm_props(pbm);
 
 	schizo_pbm_iommu_init(pbm);
 	schizo_pbm_strbuf_init(pbm);

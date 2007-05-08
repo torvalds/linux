@@ -145,8 +145,6 @@ struct pci_controller_info {
 
 	/* Now things for the actual PCI bus probes. */
 	struct pci_ops			*pci_ops;
-	unsigned int			pci_first_busno;
-	unsigned int			pci_last_busno;
 };
 
 #endif /* !(__SPARC64_PBM_H) */

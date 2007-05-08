@@ -317,8 +317,6 @@ static void pci_fire_pbm_init(struct pci_controller_info *p,
 {
 	const struct linux_prom64_registers *regs;
 	struct pci_pbm_info *pbm;
-	const u32 *ino_bitmap;
-	const unsigned int *busrange;
 
 	if ((portid & 1) == 0)
 		pbm = &p->pbm_A;
@@ -338,13 +336,7 @@ static void pci_fire_pbm_init(struct pci_controller_info *p,
 
 	pci_determine_mem_io_space(pbm);
 
-	ino_bitmap = of_get_property(dp, "ino-bitmap", NULL);
-	pbm->ino_bitmap = (((u64)ino_bitmap[1] << 32UL) |
-			   ((u64)ino_bitmap[0] <<  0UL));
-
-	busrange = of_get_property(dp, "bus-range", NULL);
-	pbm->pci_first_busno = busrange[0];
-	pbm->pci_last_busno = busrange[1];
+	pci_get_pbm_props(pbm);
 
 	pci_fire_hw_init(pbm);
 	pci_fire_pbm_iommu_init(pbm);

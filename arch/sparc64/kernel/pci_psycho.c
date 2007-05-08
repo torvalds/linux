@@ -1088,7 +1088,6 @@ static void psycho_pbm_strbuf_init(struct pci_controller_info *p,
 static void psycho_pbm_init(struct pci_controller_info *p,
 			    struct device_node *dp, int is_pbm_a)
 {
-	unsigned int *busrange;
 	struct property *prop;
 	struct pci_pbm_info *pbm;
 
@@ -1117,10 +1116,7 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 
 	pci_determine_mem_io_space(pbm);
 
-	prop = of_find_property(dp, "bus-range", NULL);
-	busrange = prop->value;
-	pbm->pci_first_busno = busrange[0];
-	pbm->pci_last_busno = busrange[1];
+	pci_get_pbm_props(pbm);
 
 	psycho_pbm_strbuf_init(p, pbm, is_pbm_a);
 }
