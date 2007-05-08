@@ -443,7 +443,7 @@ ergo_inithardware(hysdn_card * card)
 	card->waitpofready = ergo_waitpofready;
 	card->set_errlog_state = ergo_set_errlog_state;
 	INIT_WORK(&card->irq_queue, ergo_irq_bh);
-	card->hysdn_lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&card->hysdn_lock);
 
 	return (0);
 }				/* ergo_inithardware */
