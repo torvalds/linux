@@ -28,11 +28,13 @@
 #include <linux/interrupt.h>
 #include <linux/mm.h>
 #include <linux/init.h>
+#include <linux/mutex.h>
 #include <linux/vt_kern.h>
 #include <linux/selection.h>
 #include <linux/kbd_kern.h>
 #include <linux/console.h>
 #include <linux/device.h>
+
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
@@ -69,11 +71,11 @@ static loff_t vcs_lseek(struct file *file, loff_t offset, int orig)
 {
 	int size;
 
-	down(&con_buf_sem);
+	mutex_lock(&con_buf_mtx);
 	size = vcs_size(file->f_path.dentry->d_inode);
 	switch (orig) {
 		default:
-			up(&con_buf_sem);
+			mutex_unlock(&con_buf_mtx);
 			return -EINVAL;
 		case 2:
 			offset += size;
@@ -84,11 +86,11 @@ static loff_t vcs_lseek(struct file *file, loff_t offset, int orig)
 			break;
 	}
 	if (offset < 0 || offset > size) {
-		up(&con_buf_sem);
+		mutex_unlock(&con_buf_mtx);
 		return -EINVAL;
 	}
 	file->f_pos = offset;
-	up(&con_buf_sem);
+	mutex_unlock(&con_buf_mtx);
 	return file->f_pos;
 }
 
@@ -105,7 +107,7 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	unsigned short *org = NULL;
 	ssize_t ret;
 
-	down(&con_buf_sem);
+	mutex_lock(&con_buf_mtx);
 
 	pos = *ppos;
 
@@ -262,7 +264,7 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		ret = read;
 unlock_out:
 	release_console_sem();
-	up(&con_buf_sem);
+	mutex_unlock(&con_buf_mtx);
 	return ret;
 }
 
@@ -279,7 +281,7 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	u16 *org0 = NULL, *org = NULL;
 	size_t ret;
 
-	down(&con_buf_sem);
+	mutex_lock(&con_buf_mtx);
 
 	pos = *ppos;
 
@@ -449,7 +451,7 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 unlock_out:
 	release_console_sem();
 
-	up(&con_buf_sem);
+	mutex_unlock(&con_buf_mtx);
 
 	return ret;
 }

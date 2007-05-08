@@ -86,6 +86,7 @@
 #include <linux/mm.h>
 #include <linux/console.h>
 #include <linux/init.h>
+#include <linux/mutex.h>
 #include <linux/vt_kern.h>
 #include <linux/selection.h>
 #include <linux/tiocl.h>
@@ -1952,7 +1953,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
  * kernel memory allocation is available.
  */
 char con_buf[CON_BUF_SIZE];
-DECLARE_MUTEX(con_buf_sem);
+DEFINE_MUTEX(con_buf_mtx);
 
 /* is_double_width() is based on the wcwidth() implementation by
  * Markus Kuhn -- 2003-05-20 (Unicode 4.0)
@@ -2049,7 +2050,7 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 
 	/* At this point 'buf' is guaranteed to be a kernel buffer
 	 * and therefore no access to userspace (and therefore sleeping)
-	 * will be needed.  The con_buf_sem serializes all tty based
+	 * will be needed.  The con_buf_mtx serializes all tty based
 	 * console rendering and vcs write/read operations.  We hold
 	 * the console spinlock during the entire write.
 	 */
