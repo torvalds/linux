@@ -133,7 +133,7 @@ kprobe_opcode_t __kprobes *get_insn_slot(void)
 	struct kprobe_insn_page *kip;
 	struct hlist_node *pos;
 
-      retry:
+ retry:
 	hlist_for_each_entry(kip, pos, &kprobe_insn_pages, hlist) {
 		if (kip->nused < INSNS_PER_PAGE) {
 			int i;
@@ -155,9 +155,8 @@ kprobe_opcode_t __kprobes *get_insn_slot(void)
 	}
 	/* All out of space.  Need to allocate a new page. Use slot 0. */
 	kip = kmalloc(sizeof(struct kprobe_insn_page), GFP_KERNEL);
-	if (!kip) {
+	if (!kip)
 		return NULL;
-	}
 
 	/*
 	 * Use module_alloc so this page is within +/- 2GB of where the
@@ -246,9 +245,9 @@ void __kprobes free_insn_slot(kprobe_opcode_t * slot, int dirty)
 			break;
 		}
 	}
-	if (dirty && (++kprobe_garbage_slots > INSNS_PER_PAGE)) {
+
+	if (dirty && ++kprobe_garbage_slots > INSNS_PER_PAGE)
 		collect_garbage_slots();
-	}
 }
 #endif
 
@@ -314,7 +313,6 @@ static void __kprobes aggr_post_handler(struct kprobe *p, struct pt_regs *regs,
 			reset_kprobe_instance();
 		}
 	}
-	return;
 }
 
 static int __kprobes aggr_fault_handler(struct kprobe *p, struct pt_regs *regs,
@@ -533,8 +531,8 @@ static int __kprobes register_aggr_kprobe(struct kprobe *old_p,
 
 static int __kprobes in_kprobes_functions(unsigned long addr)
 {
-	if (addr >= (unsigned long)__kprobes_text_start
-		&& addr < (unsigned long)__kprobes_text_end)
+	if (addr >= (unsigned long)__kprobes_text_start &&
+	    addr < (unsigned long)__kprobes_text_end)
 		return -EINVAL;
 	return 0;
 }
@@ -561,19 +559,24 @@ static int __kprobes __register_kprobe(struct kprobe *p,
 		return -EINVAL;
 	p->addr = (kprobe_opcode_t *)(((char *)p->addr)+ p->offset);
 
-	if ((!kernel_text_address((unsigned long) p->addr)) ||
-		in_kprobes_functions((unsigned long) p->addr))
+	if (!kernel_text_address((unsigned long) p->addr) ||
+	    in_kprobes_functions((unsigned long) p->addr))
 		return -EINVAL;
 
 	p->mod_refcounted = 0;
-	/* Check are we probing a module */
-	if ((probed_mod = module_text_address((unsigned long) p->addr))) {
+
+	/*
+	 * Check if are we probing a module.
+	 */
+	probed_mod = module_text_address((unsigned long) p->addr);
+	if (probed_mod) {
 		struct module *calling_mod = module_text_address(called_from);
-		/* We must allow modules to probe themself and
-		 * in this case avoid incrementing the module refcount,
-		 * so as to allow unloading of self probing modules.
+		/*
+		 * We must allow modules to probe themself and in this case
+		 * avoid incrementing the module refcount, so as to allow
+		 * unloading of self probing modules.
 		 */
-		if (calling_mod && (calling_mod != probed_mod)) {
+		if (calling_mod && calling_mod != probed_mod) {
 			if (unlikely(!try_module_get(probed_mod)))
 				return -EINVAL;
 			p->mod_refcounted = 1;
@@ -591,7 +594,8 @@ static int __kprobes __register_kprobe(struct kprobe *p,
 		goto out;
 	}
 
-	if ((ret = arch_prepare_kprobe(p)) != 0)
+	ret = arch_prepare_kprobe(p);
+	if (ret)
 		goto out;
 
 	INIT_HLIST_NODE(&p->hlist);
@@ -614,8 +618,7 @@ out:
 
 int __kprobes register_kprobe(struct kprobe *p)
 {
-	return __register_kprobe(p,
-		(unsigned long)__builtin_return_address(0));
+	return __register_kprobe(p, (unsigned long)__builtin_return_address(0));
 }
 
 void __kprobes unregister_kprobe(struct kprobe *p)
@@ -639,9 +642,9 @@ void __kprobes unregister_kprobe(struct kprobe *p)
 		return;
 	}
 valid_p:
-	if ((old_p == p) || ((old_p->pre_handler == aggr_pre_handler) &&
-		(p->list.next == &old_p->list) &&
-		(p->list.prev == &old_p->list))) {
+	if (old_p == p ||
+	    (old_p->pre_handler == aggr_pre_handler &&
+	     p->list.next == &old_p->list && p->list.prev == &old_p->list)) {
 		/* Only probe on the hash list */
 		arch_disarm_kprobe(p);
 		hlist_del_rcu(&old_p->hlist);
@@ -654,9 +657,11 @@ valid_p:
 	mutex_unlock(&kprobe_mutex);
 
 	synchronize_sched();
-	if (p->mod_refcounted &&
-	    (mod = module_text_address((unsigned long)p->addr)))
-		module_put(mod);
+	if (p->mod_refcounted) {
+		mod = module_text_address((unsigned long)p->addr);
+		if (mod)
+			module_put(mod);
+	}
 
 	if (cleanup_p) {
 		if (p != old_p) {
