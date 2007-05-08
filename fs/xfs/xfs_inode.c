@@ -1746,7 +1746,7 @@ xfs_itruncate_finish(
 			xfs_trans_log_inode(ntp, ip, XFS_ILOG_CORE);
 		}
 		ntp = xfs_trans_dup(ntp);
-		(void) xfs_trans_commit(*tp, 0, NULL);
+		(void) xfs_trans_commit(*tp, 0);
 		*tp = ntp;
 		error = xfs_trans_reserve(ntp, 0, XFS_ITRUNCATE_LOG_RES(mp), 0,
 					  XFS_TRANS_PERM_LOG_RES,

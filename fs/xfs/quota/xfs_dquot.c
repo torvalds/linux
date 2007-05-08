@@ -753,8 +753,7 @@ xfs_qm_idtodq(
 		goto error0;
 	}
 	if (tp) {
-		if ((error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES,
-					     NULL)))
+		if ((error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES)))
 			goto error1;
 	}
 

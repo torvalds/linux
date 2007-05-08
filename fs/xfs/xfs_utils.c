@@ -222,7 +222,7 @@ xfs_dir_ialloc(
 		}
 
 		ntp = xfs_trans_dup(tp);
-		code = xfs_trans_commit(tp, 0, NULL);
+		code = xfs_trans_commit(tp, 0);
 		tp = ntp;
 		if (committed != NULL) {
 			*committed = 1;
@@ -460,8 +460,7 @@ xfs_truncate_file(
 				 XFS_TRANS_ABORT);
 	} else {
 		xfs_ichgtime(ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
-		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES,
-					 NULL);
+		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 	}
 	xfs_iunlock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
 

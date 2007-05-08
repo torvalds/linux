@@ -328,8 +328,7 @@ xfs_attr_set_int(xfs_inode_t *dp, const char *name, int namelen,
 				xfs_trans_set_sync(args.trans);
 			}
 			err2 = xfs_trans_commit(args.trans,
-						 XFS_TRANS_RELEASE_LOG_RES,
-						 NULL);
+						 XFS_TRANS_RELEASE_LOG_RES);
 			xfs_iunlock(dp, XFS_ILOCK_EXCL);
 
 			/*
@@ -397,8 +396,7 @@ xfs_attr_set_int(xfs_inode_t *dp, const char *name, int namelen,
 	 * Commit the last in the sequence of transactions.
 	 */
 	xfs_trans_log_inode(args.trans, dp, XFS_ILOG_CORE);
-	error = xfs_trans_commit(args.trans, XFS_TRANS_RELEASE_LOG_RES,
-				 NULL);
+	error = xfs_trans_commit(args.trans, XFS_TRANS_RELEASE_LOG_RES);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
 
 	/*
@@ -544,8 +542,7 @@ xfs_attr_remove_int(xfs_inode_t *dp, const char *name, int namelen, int flags)
 	 * Commit the last in the sequence of transactions.
 	 */
 	xfs_trans_log_inode(args.trans, dp, XFS_ILOG_CORE);
-	error = xfs_trans_commit(args.trans, XFS_TRANS_RELEASE_LOG_RES,
-				 NULL);
+	error = xfs_trans_commit(args.trans, XFS_TRANS_RELEASE_LOG_RES);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
 
 	/*
@@ -859,8 +856,7 @@ xfs_attr_inactive(xfs_inode_t *dp)
 	 * Commit the last in the sequence of transactions.
 	 */
 	xfs_trans_log_inode(trans, dp, XFS_ILOG_CORE);
-	error = xfs_trans_commit(trans, XFS_TRANS_RELEASE_LOG_RES,
-				 NULL);
+	error = xfs_trans_commit(trans, XFS_TRANS_RELEASE_LOG_RES);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
 
 	return(error);

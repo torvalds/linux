@@ -873,7 +873,7 @@ xfs_setattr(
 		if (mp->m_flags & XFS_MOUNT_WSYNC)
 			xfs_trans_set_sync(tp);
 
-		code = xfs_trans_commit(tp, commit_flags, NULL);
+		code = xfs_trans_commit(tp, commit_flags);
 	}
 
 	/*
@@ -1176,7 +1176,7 @@ xfs_fsync(
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 		if (flag & FSYNC_WAIT)
 			xfs_trans_set_sync(tp);
-		error = _xfs_trans_commit(tp, 0, NULL, &log_flushed);
+		error = _xfs_trans_commit(tp, 0, &log_flushed);
 
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	}
@@ -1291,8 +1291,7 @@ xfs_inactive_free_eofblocks(
 					  XFS_TRANS_ABORT));
 		} else {
 			error = xfs_trans_commit(tp,
-						XFS_TRANS_RELEASE_LOG_RES,
-						NULL);
+						XFS_TRANS_RELEASE_LOG_RES);
 		}
 		xfs_iunlock(ip, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
 	}
@@ -1406,7 +1405,7 @@ xfs_inactive_symlink_rmt(
 	 * we need to unlock the inode since the new transaction doesn't
 	 * have the inode attached.
 	 */
-	error = xfs_trans_commit(tp, 0, NULL);
+	error = xfs_trans_commit(tp, 0);
 	tp = ntp;
 	if (error) {
 		ASSERT(XFS_FORCED_SHUTDOWN(mp));
@@ -1503,7 +1502,7 @@ xfs_inactive_attrs(
 	tp = *tpp;
 	mp = ip->i_mount;
 	ASSERT(ip->i_d.di_forkoff != 0);
-	xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES, NULL);
+	xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
 	error = xfs_attr_inactive(ip);
@@ -1790,7 +1789,7 @@ xfs_inactive(
 		 * nothing we can do except to try to keep going.
 		 */
 		(void) xfs_bmap_finish(&tp,  &free_list, &committed);
-		(void) xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES, NULL);
+		(void) xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 	}
 	/*
 	 * Release the dquots held by inode, if any.
@@ -2026,7 +2025,7 @@ xfs_create(
 		goto abort_rele;
 	}
 
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES, NULL);
+	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 	if (error) {
 		IRELE(ip);
 		tp = NULL;
@@ -2511,7 +2510,7 @@ xfs_remove(
 		goto error_rele;
 	}
 
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES, NULL);
+	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 	if (error) {
 		IRELE(ip);
 		goto std_return;
@@ -2719,7 +2718,7 @@ xfs_link(
 		goto abort_return;
 	}
 
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES, NULL);
+	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 	if (error)
 		goto std_return;
 
@@ -2936,7 +2935,7 @@ xfs_mkdir(
 		goto error2;
 	}
 
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES, NULL);
+	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 	XFS_QM_DQRELE(mp, udqp);
 	XFS_QM_DQRELE(mp, gdqp);
 	if (error) {
@@ -3190,7 +3189,7 @@ xfs_rmdir(
 		goto std_return;
 	}
 
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES, NULL);
+	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 	if (error) {
 		IRELE(cdp);
 		goto std_return;
@@ -3535,7 +3534,7 @@ xfs_symlink(
 	if (error) {
 		goto error2;
 	}
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES, NULL);
+	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 	XFS_QM_DQRELE(mp, udqp);
 	XFS_QM_DQRELE(mp, gdqp);
 
@@ -3790,7 +3789,7 @@ xfs_set_dmattrs (
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	IHOLD(ip);
-	error = xfs_trans_commit(tp, 0, NULL);
+	error = xfs_trans_commit(tp, 0);
 
 	return error;
 }
@@ -4148,7 +4147,7 @@ retry:
 			goto error0;
 		}
 
-		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES, NULL);
+		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		if (error) {
 			break;
@@ -4455,7 +4454,7 @@ xfs_free_file_space(
 			goto error0;
 		}
 
-		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES, NULL);
+		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	}
 
@@ -4649,7 +4648,7 @@ xfs_change_file_space(
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	xfs_trans_set_sync(tp);
 
-	error = xfs_trans_commit(tp, 0, NULL);
+	error = xfs_trans_commit(tp, 0);
 
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 

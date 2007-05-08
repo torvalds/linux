@@ -83,7 +83,7 @@ xfs_write_clear_setuid(
 	}
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	xfs_trans_set_sync(tp);
-	error = xfs_trans_commit(tp, 0, NULL);
+	error = xfs_trans_commit(tp, 0);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return 0;
 }
@@ -164,7 +164,7 @@ xfs_write_sync_logforce(
 			xfs_trans_ihold(tp, ip);
 			xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 			xfs_trans_set_sync(tp);
-			error = xfs_trans_commit(tp, 0, NULL);
+			error = xfs_trans_commit(tp, 0);
 			xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		}
 	}

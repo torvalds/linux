@@ -382,7 +382,7 @@ xfs_swap_extents(
 		xfs_trans_set_sync(tp);
 	}
 
-	error = xfs_trans_commit(tp, XFS_TRANS_SWAPEXT, NULL);
+	error = xfs_trans_commit(tp, XFS_TRANS_SWAPEXT);
 	locked = 0;
 
  error0:
