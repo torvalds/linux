@@ -314,7 +314,7 @@ config REISERFS_CHECK
 
 config REISERFS_PROC_INFO
 	bool "Stats in /proc/fs/reiserfs"
-	depends on REISERFS_FS
+	depends on REISERFS_FS && PROC_FS
 	help
 	  Create under /proc/fs/reiserfs a hierarchy of files, displaying
 	  various ReiserFS statistics and internal data at the expense of
