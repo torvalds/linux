@@ -5341,6 +5341,17 @@ static void __devexit cy_pci_release(struct pci_dev *pdev)
 	struct cyclades_card *cinfo = pci_get_drvdata(pdev);
 	unsigned int i;
 
+	/* non-Z with old PLX */
+	if (cinfo->num_chips != -1 && (readb(cinfo->base_addr + CyPLX_VER) &
+				0x0f) == PLX_9050)
+		cy_writeb(cinfo->ctl_addr + 0x4c, 0);
+	else
+#ifndef CONFIG_CYZ_INTR
+		if (cinfo->num_chips != -1)
+#endif
+		cy_writew(cinfo->ctl_addr + 0x68,
+				readw(cinfo->ctl_addr + 0x68) & ~0x0900);
+
 	pci_iounmap(pdev, cinfo->base_addr);
 	if (cinfo->ctl_addr)
 		pci_iounmap(pdev, cinfo->ctl_addr);
@@ -5560,6 +5571,8 @@ static void __exit cy_cleanup_module(void)
 				cy_pci_release(cy_card[i].pdev);
 				continue;
 			}
+			/* clear interrupt */
+			cy_writeb(cy_card[i].base_addr + Cy_ClrIntr, 0);
 			iounmap(cy_card[i].base_addr);
 			if (cy_card[i].ctl_addr)
 				iounmap(cy_card[i].ctl_addr);
