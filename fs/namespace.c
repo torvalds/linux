@@ -377,6 +377,10 @@ static int show_vfsmnt(struct seq_file *m, void *v)
 	seq_path(m, mnt, mnt->mnt_root, " \t\n\\");
 	seq_putc(m, ' ');
 	mangle(m, mnt->mnt_sb->s_type->name);
+	if (mnt->mnt_sb->s_subtype && mnt->mnt_sb->s_subtype[0]) {
+		seq_putc(m, '.');
+		mangle(m, mnt->mnt_sb->s_subtype);
+	}
 	seq_puts(m, mnt->mnt_sb->s_flags & MS_RDONLY ? " ro" : " rw");
 	for (fs_infop = fs_info; fs_infop->flag; fs_infop++) {
 		if (mnt->mnt_sb->s_flags & fs_infop->flag)
