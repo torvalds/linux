@@ -557,6 +557,20 @@ config FB_IMAC
 	help
 	  This is the frame buffer device driver for the Intel-based Macintosh
 
+config FB_HECUBA
+       tristate "Hecuba board support"
+       depends on FB && X86 && MMU
+       select FB_CFB_FILLRECT
+       select FB_CFB_COPYAREA
+       select FB_CFB_IMAGEBLIT
+       select FB_DEFERRED_IO
+       help
+         This enables support for the Hecuba board. This driver was tested
+         with an E-Ink 800x600 display and x86 SBCs through a 16 bit GPIO
+         interface (8 bit data, 4 bit control). If you anticpate using
+         this driver, say Y or M; otherwise say N. You must specify the
+         GPIO IO address to be used for setting control and data.
+
 config FB_HGA
 	tristate "Hercules mono graphics support"
 	depends on FB && X86
