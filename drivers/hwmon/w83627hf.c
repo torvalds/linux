@@ -1181,12 +1181,16 @@ static int w83627hf_detect(struct i2c_adapter *adapter)
 					&dev_attr_temp3_type)))
 			goto ERROR4;
 
-	if (kind != w83697hf && data->vid != 0xff)
+	if (kind != w83697hf && data->vid != 0xff) {
+		/* Convert VID to voltage based on VRM */
+		data->vrm = vid_which_vrm();
+
 		if ((err = device_create_file(&new_client->dev,
 					&dev_attr_cpu0_vid))
 		 || (err = device_create_file(&new_client->dev,
 					&dev_attr_vrm)))
 			goto ERROR4;
+	}
 
 	if (kind == w83627thf || kind == w83637hf || kind == w83687thf)
 		if ((err = device_create_file(&new_client->dev,
@@ -1419,9 +1423,6 @@ static void w83627hf_init_client(struct i2c_client *client)
 		data->vrm_ovt = 
 			w83627hf_read_value(client, W83627THF_REG_VRM_OVT_CFG);
 	}
-
-	/* Convert VID to voltage based on VRM */
-	data->vrm = vid_which_vrm();
 
 	tmp = w83627hf_read_value(client, W83781D_REG_SCFG1);
 	for (i = 1; i <= 3; i++) {
