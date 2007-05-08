@@ -137,11 +137,10 @@
 #define InterruptTheCard(base) outw(0, (base) + 0xc)
 #define ClearInterrupt(base) inw((base) + 0x0a)
 
+#define pr_dbg(str...) pr_debug("ISICOM: " str)
 #ifdef DEBUG
-#define pr_dbg(str...) printk(KERN_DEBUG "ISICOM: " str)
 #define isicom_paranoia_check(a, b, c) __isicom_paranoia_check((a), (b), (c))
 #else
-#define pr_dbg(str...) do { } while (0)
 #define isicom_paranoia_check(a, b, c) 0
 #endif
 
