@@ -219,9 +219,6 @@ int __init ams_init(void)
 		/* Found PMU motion sensor */
 		return ams_pmu_init(np);
 #endif
-
-	printk(KERN_ERR "ams: No motion sensor found.\n");
-
 	return -ENODEV;
 }
 
