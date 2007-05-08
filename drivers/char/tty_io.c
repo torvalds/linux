@@ -3834,7 +3834,6 @@ void proc_clear_tty(struct task_struct *p)
 	p->signal->tty = NULL;
 	spin_unlock_irq(&p->sighand->siglock);
 }
-EXPORT_SYMBOL(proc_clear_tty);
 
 static struct pid *__proc_set_tty(struct task_struct *tsk, struct tty_struct *tty)
 {
