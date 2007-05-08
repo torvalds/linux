@@ -684,8 +684,10 @@ static int hdio_getgeo(unsigned int fd, unsigned int cmd, unsigned long arg)
 	if (!err) {
 		err = copy_to_user (ugeo, &geo, 4);
 		err |= __put_user (geo.start, &ugeo->start);
+		if (err)
+			err = -EFAULT;
 	}
-	return err ? -EFAULT : 0;
+	return err;
 }
 
 static int hdio_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
