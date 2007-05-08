@@ -53,6 +53,7 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/pnp.h>
+#include <linux/platform_device.h>
 #include <linux/sysctl.h>
 
 #include <asm/io.h>
@@ -2156,6 +2157,17 @@ struct parport *parport_pc_probe_port (unsigned long int base,
 	struct resource *base_res;
 	struct resource	*ECR_res = NULL;
 	struct resource	*EPP_res = NULL;
+	struct platform_device *pdev = NULL;
+
+	if (!dev) {
+		/* We need a physical device to attach to, but none was
+		 * provided. Create our own. */
+		pdev = platform_device_register_simple("parport_pc",
+						       base, NULL, 0);
+		if (IS_ERR(pdev))
+			return NULL;
+		dev = &pdev->dev;
+	}
 
 	ops = kmalloc(sizeof (struct parport_operations), GFP_KERNEL);
 	if (!ops)
@@ -2359,6 +2371,8 @@ out3:
 out2:
 	kfree (ops);
 out1:
+	if (pdev)
+		platform_device_unregister(pdev);
 	return NULL;
 }
 
@@ -3106,6 +3120,21 @@ static struct pnp_driver parport_pc_pnp_driver = {
 };
 
 
+static int __devinit parport_pc_platform_probe(struct platform_device *pdev)
+{
+	/* Always succeed, the actual probing is done in
+	 * parport_pc_probe_port(). */
+	return 0;
+}
+
+static struct platform_driver parport_pc_platform_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "parport_pc",
+	},
+	.probe		= parport_pc_platform_probe,
+};
+
 /* This is called by parport_pc_find_nonpci_ports (in asm/parport.h) */
 static int __devinit __attribute__((unused))
 parport_pc_find_isa_ports (int autoirq, int autodma)
@@ -3381,8 +3410,14 @@ __setup("parport_init_mode=",parport_init_mode_setup);
 
 static int __init parport_pc_init(void)
 {
+	int err;
+
 	if (parse_parport_params())
 		return -EINVAL;
+
+	err = platform_driver_register(&parport_pc_platform_driver);
+	if (err)
+		return err;
 
 	if (io[0]) {
 		int i;
@@ -3408,6 +3443,7 @@ static void __exit parport_pc_exit(void)
 		pci_unregister_driver (&parport_pc_pci_driver);
 	if (pnp_registered_parport)
 		pnp_unregister_driver (&parport_pc_pnp_driver);
+	platform_driver_unregister(&parport_pc_platform_driver);
 
 	spin_lock(&ports_lock);
 	while (!list_empty(&ports_list)) {
@@ -3416,6 +3452,9 @@ static void __exit parport_pc_exit(void)
 		priv = list_entry(ports_list.next,
 				  struct parport_pc_private, list);
 		port = priv->port;
+		if (port->dev && port->dev->bus == &platform_bus_type)
+			platform_device_unregister(
+				to_platform_device(port->dev));
 		spin_unlock(&ports_lock);
 		parport_pc_unregister_port(port);
 		spin_lock(&ports_lock);
