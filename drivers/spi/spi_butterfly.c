@@ -40,8 +40,6 @@
  * and use this custom parallel port cable.
  */
 
-#undef	HAVE_USI	/* nyet */
-
 
 /* DATA output bits (pins 2..9 == D0..D7) */
 #define	butterfly_nreset (1 << 1)		/* pin 3 */
@@ -49,34 +47,19 @@
 #define	spi_sck_bit	(1 << 0)		/* pin 2 */
 #define	spi_mosi_bit	(1 << 7)		/* pin 9 */
 
-#define	usi_sck_bit	(1 << 3)		/* pin 5 */
-#define	usi_mosi_bit	(1 << 4)		/* pin 6 */
-
 #define	vcc_bits	((1 << 6) | (1 << 5))	/* pins 7, 8 */
 
 /* STATUS input bits */
 #define	spi_miso_bit	PARPORT_STATUS_BUSY	/* pin 11 */
 
-#define	usi_miso_bit	PARPORT_STATUS_PAPEROUT	/* pin 12 */
-
 /* CONTROL output bits */
 #define	spi_cs_bit	PARPORT_CONTROL_SELECT	/* pin 17 */
-/* USI uses no chipselect */
 
 
 
 static inline struct butterfly *spidev_to_pp(struct spi_device *spi)
 {
 	return spi->controller_data;
-}
-
-static inline int is_usidev(struct spi_device *spi)
-{
-#ifdef	HAVE_USI
-	return spi->chip_select != 1;
-#else
-	return 0;
-#endif
 }
 
 
@@ -97,23 +80,13 @@ struct butterfly {
 
 /*----------------------------------------------------------------------*/
 
-/*
- * these routines may be slower than necessary because they're hiding
- * the fact that there are two different SPI busses on this cable: one
- * to the DataFlash chip (or AVR SPI controller), the other to the
- * AVR USI controller.
- */
-
 static inline void
 setsck(struct spi_device *spi, int is_on)
 {
 	struct butterfly	*pp = spidev_to_pp(spi);
 	u8			bit, byte = pp->lastbyte;
 
-	if (is_usidev(spi))
-		bit = usi_sck_bit;
-	else
-		bit = spi_sck_bit;
+	bit = spi_sck_bit;
 
 	if (is_on)
 		byte |= bit;
@@ -129,10 +102,7 @@ setmosi(struct spi_device *spi, int is_on)
 	struct butterfly	*pp = spidev_to_pp(spi);
 	u8			bit, byte = pp->lastbyte;
 
-	if (is_usidev(spi))
-		bit = usi_mosi_bit;
-	else
-		bit = spi_mosi_bit;
+	bit = spi_mosi_bit;
 
 	if (is_on)
 		byte |= bit;
@@ -148,10 +118,7 @@ static inline int getmiso(struct spi_device *spi)
 	int			value;
 	u8			bit;
 
-	if (is_usidev(spi))
-		bit = usi_miso_bit;
-	else
-		bit = spi_miso_bit;
+	bit = spi_miso_bit;
 
 	/* only STATUS_BUSY is NOT negated */
 	value = !(parport_read_status(pp->port) & bit);
@@ -165,10 +132,6 @@ static void butterfly_chipselect(struct spi_device *spi, int value)
 	/* set default clock polarity */
 	if (value != BITBANG_CS_INACTIVE)
 		setsck(spi, spi->mode & SPI_CPOL);
-
-	/* no chipselect on this USI link config */
-	if (is_usidev(spi))
-		return;
 
 	/* here, value == "activate or not";
 	 * most PARPORT_CONTROL_* bits are negated, so we must
@@ -292,7 +255,7 @@ static void butterfly_attach(struct parport *p)
 	parport_frob_control(pp->port, spi_cs_bit, 0);
 
 	/* stabilize power with chip in reset (nRESET), and
-	 * both spi_sck_bit and usi_sck_bit clear (CPOL=0)
+	 * spi_sck_bit clear (CPOL=0)
 	 */
 	pp->lastbyte |= vcc_bits;
 	parport_write_data(pp->port, pp->lastbyte);
@@ -325,23 +288,6 @@ static void butterfly_attach(struct parport *p)
 	if (pp->dataflash)
 		pr_debug("%s: dataflash at %s\n", p->name,
 				pp->dataflash->dev.bus_id);
-
-#ifdef	HAVE_USI
-	/* Bus 2 is only for talking to the AVR, and it can work no
-	 * matter who masters bus 1; needs appropriate AVR firmware.
-	 */
-	pp->info[1].max_speed_hz = 10 /* ?? */ * 1000 * 1000;
-	strcpy(pp->info[1].modalias, "butterfly");
-	// pp->info[1].platform_data = ... TBD ... ;
-	pp->info[1].chip_select = 2,
-	pp->info[1].controller_data = pp;
-	pp->butterfly = spi_new_device(pp->bitbang.master, &pp->info[1]);
-	if (pp->butterfly)
-		pr_debug("%s: butterfly at %s\n", p->name,
-				pp->butterfly->dev.bus_id);
-
-	/* FIXME setup ACK for the IRQ line ...  */
-#endif
 
 	// dev_info(_what?_, ...)
 	pr_info("%s: AVR Butterfly\n", p->name);
