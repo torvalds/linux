@@ -52,7 +52,7 @@ static __inline__ void atomic_add(int i, atomic_t *v)
 }
 
 /**
- * atomic_sub - subtract the atomic variable
+ * atomic_sub - subtract integer from atomic variable
  * @i: integer value to subtract
  * @v: pointer of type atomic_t
  * 
@@ -171,7 +171,7 @@ static __inline__ int atomic_add_negative(int i, atomic_t *v)
 }
 
 /**
- * atomic_add_return - add and return
+ * atomic_add_return - add integer and return
  * @v: pointer of type atomic_t
  * @i: integer value to add
  *
@@ -203,6 +203,13 @@ no_xadd: /* Legacy 386 processor */
 #endif
 }
 
+/**
+ * atomic_sub_return - subtract integer and return
+ * @v: pointer of type atomic_t
+ * @i: integer value to subtract
+ *
+ * Atomically subtracts @i from @v and returns @v - @i
+ */
 static __inline__ int atomic_sub_return(int i, atomic_t *v)
 {
 	return atomic_add_return(-i,v);
