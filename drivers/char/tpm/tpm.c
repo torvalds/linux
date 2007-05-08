@@ -942,12 +942,12 @@ int tpm_release(struct inode *inode, struct file *file)
 {
 	struct tpm_chip *chip = file->private_data;
 
+	flush_scheduled_work();
 	spin_lock(&driver_lock);
 	file->private_data = NULL;
-	chip->num_opens--;
 	del_singleshot_timer_sync(&chip->user_read_timer);
-	flush_scheduled_work();
 	atomic_set(&chip->data_pending, 0);
+	chip->num_opens--;
 	put_device(chip->dev);
 	kfree(chip->data_buffer);
 	spin_unlock(&driver_lock);
@@ -1097,8 +1097,13 @@ struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vend
 
 	/* Driver specific per-device data */
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	if (chip == NULL)
+	devname = kmalloc(DEVNAME_SIZE, GFP_KERNEL);
+
+	if (chip == NULL || devname == NULL) {
+		kfree(chip);
+		kfree(devname);
 		return NULL;
+	}
 
 	init_MUTEX(&chip->buffer_mutex);
 	init_MUTEX(&chip->tpm_mutex);
@@ -1124,7 +1129,6 @@ struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vend
 
 	set_bit(chip->dev_num, dev_mask);
 
-	devname = kmalloc(DEVNAME_SIZE, GFP_KERNEL);
 	scnprintf(devname, DEVNAME_SIZE, "%s%d", "tpm", chip->dev_num);
 	chip->vendor.miscdev.name = devname;
 
