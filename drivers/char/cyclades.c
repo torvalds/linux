@@ -1444,6 +1444,10 @@ static irqreturn_t cyy_interrupt(int irq, void *dev_id)
 	card_base_addr = cinfo->base_addr;
 	index = cinfo->bus_index;
 
+	/* card was not initialized yet (e.g. DEBUG_SHIRQ) */
+	if (unlikely(card_base_addr == NULL))
+		return IRQ_HANDLED;
+
 	/* This loop checks all chips in the card.  Make a note whenever
 	   _any_ chip had some work to do, as this is considered an
 	   indication that there will be more to do.  Only when no chip
