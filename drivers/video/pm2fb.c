@@ -645,6 +645,8 @@ static int pm2fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		return -EINVAL;
 	}
 
+	var->transp.offset = 0;
+	var->transp.length = 0;
 	switch(var->bits_per_pixel) {
 	case 8:
 		var->red.length = var->green.length = var->blue.length = 8;
