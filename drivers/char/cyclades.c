@@ -4841,6 +4841,9 @@ static int __init cy_detect_isa(void)
 			cy_isa_irq);
 		printk("%d channels starting from port %d.\n",
 			cy_isa_nchan, cy_next_channel);
+		for (j = cy_next_channel;
+				j < cy_next_channel + cy_isa_nchan; j++)
+			tty_register_device(cy_serial_driver, j, NULL);
 		cy_next_channel += cy_isa_nchan;
 	}
 	return nboard;
@@ -4948,6 +4951,8 @@ static int __devinit cy_init_Ze(unsigned long cy_pci_phys0,
 
 	printk("%d channels starting from port %d.\n",
 		cy_pci_nchan, cy_next_channel);
+	for (j = cy_next_channel; j < cy_next_channel + cy_pci_nchan; j++)
+		tty_register_device(cy_serial_driver, j, &pdev->dev);
 	cy_next_channel += cy_pci_nchan;
 
 	return 0;
@@ -5115,6 +5120,9 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 			(int)cy_pci_irq);
 		printk("%d channels starting from port %d.\n",
 			cy_pci_nchan, cy_next_channel);
+		for (j = cy_next_channel;
+				j < cy_next_channel + cy_pci_nchan; j++)
+			tty_register_device(cy_serial_driver, j, &pdev->dev);
 
 		cy_next_channel += cy_pci_nchan;
 	} else if (device_id == PCI_DEVICE_ID_CYCLOM_Z_Lo) {
@@ -5282,6 +5290,9 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 
 		printk("%d channels starting from port %d.\n",
 				cy_pci_nchan, cy_next_channel);
+		for (j = cy_next_channel;
+				j < cy_next_channel + cy_pci_nchan; j++)
+			tty_register_device(cy_serial_driver, j, &pdev->dev);
 		cy_next_channel += cy_pci_nchan;
 	}
 
@@ -5346,6 +5357,9 @@ static void __devexit cy_pci_release(struct pci_dev *pdev)
 		cy_port[i].line = -1;
 		cy_port[i].magic = -1;
 	}
+	for (i = cinfo->first_line; i < cinfo->first_line +
+			cinfo->nports; i++)
+		tty_unregister_device(cy_serial_driver, i);
 #endif
 }
 
@@ -5479,7 +5493,7 @@ static int __init cy_init(void)
 	cy_serial_driver->init_termios = tty_std_termios;
 	cy_serial_driver->init_termios.c_cflag =
 	    B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-	cy_serial_driver->flags = TTY_DRIVER_REAL_RAW;
+	cy_serial_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	tty_set_operations(cy_serial_driver, &cy_ops);
 
 	retval = tty_register_driver(cy_serial_driver);
@@ -5555,6 +5569,10 @@ static void __exit cy_cleanup_module(void)
 #endif /* CONFIG_CYZ_INTR */
 				)
 				free_irq(cy_card[i].irq, &cy_card[i]);
+			for (e1 = cy_card[i].first_line;
+					e1 < cy_card[i].first_line +
+					cy_card[i].nports; e1++)
+				tty_unregister_device(cy_serial_driver, e1);
 		}
 	}
 } /* cy_cleanup_module */
