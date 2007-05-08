@@ -15,6 +15,7 @@
  *  published by the Free Software Foundation.
  */
 
+#include <linux/kernel.h>
 #include <linux/linkage.h>
 #include <linux/compat.h>
 #include <linux/errno.h>
@@ -902,8 +903,6 @@ asmlinkage long compat_sys_mount(char __user * dev_name, char __user * dir_name,
 }
 
 #define NAME_OFFSET(de) ((int) ((de)->d_name - (char __user *) (de)))
-#define COMPAT_ROUND_UP(x) (((x)+sizeof(compat_long_t)-1) & \
-				~(sizeof(compat_long_t)-1))
 
 struct compat_old_linux_dirent {
 	compat_ulong_t	d_ino;
@@ -991,7 +990,7 @@ static int compat_filldir(void *__buf, const char *name, int namlen,
 	struct compat_linux_dirent __user * dirent;
 	struct compat_getdents_callback *buf = __buf;
 	compat_ulong_t d_ino;
-	int reclen = COMPAT_ROUND_UP(NAME_OFFSET(dirent) + namlen + 2);
+	int reclen = ALIGN(NAME_OFFSET(dirent) + namlen + 2, sizeof(compat_long_t));
 
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
@@ -1066,7 +1065,6 @@ out:
 }
 
 #ifndef __ARCH_OMIT_COMPAT_SYS_GETDENTS64
-#define COMPAT_ROUND_UP64(x) (((x)+sizeof(u64)-1) & ~(sizeof(u64)-1))
 
 struct compat_getdents_callback64 {
 	struct linux_dirent64 __user *current_dir;
@@ -1081,7 +1079,7 @@ static int compat_filldir64(void * __buf, const char * name, int namlen, loff_t 
 	struct linux_dirent64 __user *dirent;
 	struct compat_getdents_callback64 *buf = __buf;
 	int jj = NAME_OFFSET(dirent);
-	int reclen = COMPAT_ROUND_UP64(jj + namlen + 1);
+	int reclen = ALIGN(jj + namlen + 1, sizeof(u64));
 	u64 off;
 
 	buf->error = -EINVAL;	/* only used if we fail.. */
@@ -1594,8 +1592,6 @@ out_ret:
 
 #define __COMPAT_NFDBITS       (8 * sizeof(compat_ulong_t))
 
-#define ROUND_UP(x,y) (((x)+(y)-1)/(y))
-
 /*
  * Ooo, nasty.  We need here to frob 32-bit unsigned longs to
  * 64-bit unsigned longs.
@@ -1604,7 +1600,7 @@ static
 int compat_get_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 			unsigned long *fdset)
 {
-	nr = ROUND_UP(nr, __COMPAT_NFDBITS);
+	nr = DIV_ROUND_UP(nr, __COMPAT_NFDBITS);
 	if (ufdset) {
 		unsigned long odd;
 
@@ -1638,7 +1634,7 @@ int compat_set_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 		      unsigned long *fdset)
 {
 	unsigned long odd;
-	nr = ROUND_UP(nr, __COMPAT_NFDBITS);
+	nr = DIV_ROUND_UP(nr, __COMPAT_NFDBITS);
 
 	if (!ufdset)
 		return 0;
@@ -1760,7 +1756,7 @@ asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
 		if ((u64)tv.tv_sec >= (u64)MAX_INT64_SECONDS)
 			timeout = -1;	/* infinite */
 		else {
-			timeout = ROUND_UP(tv.tv_usec, 1000000/HZ);
+			timeout = DIV_ROUND_UP(tv.tv_usec, 1000000/HZ);
 			timeout += tv.tv_sec * HZ;
 		}
 	}
@@ -1828,7 +1824,7 @@ asmlinkage long compat_sys_pselect7(int n, compat_ulong_t __user *inp,
 	do {
 		if (tsp) {
 			if ((unsigned long)ts.tv_sec < MAX_SELECT_SECONDS) {
-				timeout = ROUND_UP(ts.tv_nsec, 1000000000/HZ);
+				timeout = DIV_ROUND_UP(ts.tv_nsec, 1000000000/HZ);
 				timeout += ts.tv_sec * (unsigned long)HZ;
 				ts.tv_sec = 0;
 				ts.tv_nsec = 0;
@@ -1924,7 +1920,7 @@ asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
 		/* We assume that ts.tv_sec is always lower than
 		   the number of seconds that can be expressed in
 		   an s64. Otherwise the compiler bitches at us */
-		timeout = ROUND_UP(ts.tv_nsec, 1000000000/HZ);
+		timeout = DIV_ROUND_UP(ts.tv_nsec, 1000000000/HZ);
 		timeout += ts.tv_sec * HZ;
 	}
 
