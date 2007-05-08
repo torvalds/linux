@@ -16,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/pnp.h>
+#include <linux/io.h>
 #include "base.h"
 
 
@@ -106,6 +107,34 @@ static void quirk_sb16audio_resources(struct pnp_dev *dev)
 	return;
 }
 
+static void quirk_smc_enable(struct pnp_dev *dev)
+{
+	unsigned int firbase;
+
+	if (!dev->active || !pnp_port_valid(dev, 1))
+		return;
+
+	/*
+	 * On the HP/Compaq nw8240 (and probably other similar machines),
+	 * there is an SMCF010 device with two I/O port regions:
+	 *
+	 *	0x3e8-0x3ef SIR
+	 *	0x100-0x10f FIR
+	 *
+	 * _STA reports the device is enabled, but in fact, the BIOS
+	 * neglects to enable the FIR range.  Fortunately, it does fully
+	 * enable the device if we call _SRS.
+	 */
+	firbase = pnp_port_start(dev, 1);
+	if (inb(firbase + 0x7 /* IRCC_MASTER */) == 0xff) {
+		pnp_err("%s (%s) enabled but not responding, disabling and "
+			"re-enabling", dev->dev.bus_id, pnp_dev_name(dev));
+		pnp_disable_dev(dev);
+		pnp_activate_dev(dev);
+	}
+}
+
+
 /*
  *  PnP Quirks
  *  Cards or devices that need some tweaking due to incomplete resource info
@@ -126,6 +155,7 @@ static struct pnp_fixup pnp_fixups[] = {
 	{ "CTL0043", quirk_sb16audio_resources },
 	{ "CTL0044", quirk_sb16audio_resources },
 	{ "CTL0045", quirk_sb16audio_resources },
+	{ "SMCf010", quirk_smc_enable },
 	{ "" }
 };
 
