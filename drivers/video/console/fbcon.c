@@ -685,6 +685,17 @@ static void set_blitting_type(struct vc_data *vc, struct fb_info *info)
 		fbcon_set_bitops(ops);
 	}
 }
+
+static int fbcon_invalid_charcount(struct fb_info *info, unsigned charcount)
+{
+	int err = 0;
+
+	if (info->flags & FBINFO_MISC_TILEBLITTING &&
+	    info->tileops->fb_get_tilemax(info) < charcount)
+		err = 1;
+
+	return err;
+}
 #else
 static void set_blitting_type(struct vc_data *vc, struct fb_info *info)
 {
@@ -695,6 +706,12 @@ static void set_blitting_type(struct vc_data *vc, struct fb_info *info)
 	fbcon_set_rotation(info);
 	fbcon_set_bitops(ops);
 }
+
+static int fbcon_invalid_charcount(struct fb_info *info, unsigned charcount)
+{
+	return 0;
+}
+
 #endif /* CONFIG_MISC_TILEBLITTING */
 
 
@@ -2516,6 +2533,10 @@ static int fbcon_set_font(struct vc_data *vc, struct console_font *font, unsigne
 	/* Make sure drawing engine can handle the font */
 	if (!(info->pixmap.blit_x & (1 << (font->width - 1))) ||
 	    !(info->pixmap.blit_y & (1 << (font->height - 1))))
+		return -EINVAL;
+
+	/* Make sure driver can handle the font length */
+	if (fbcon_invalid_charcount(info, charcount))
 		return -EINVAL;
 
 	size = h * pitch * charcount;
