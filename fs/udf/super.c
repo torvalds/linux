@@ -1403,6 +1403,8 @@ udf_load_partition(struct super_block *sb, kernel_lb_addr *fileset)
 
 					pos = udf_block_map(UDF_SB_VAT(sb), 0);
 					bh = sb_bread(sb, pos);
+					if (!bh)
+						return 1;
 					UDF_SB_TYPEVIRT(sb,i).s_start_offset =
 						le16_to_cpu(((struct virtualAllocationTable20 *)bh->b_data + udf_ext0_offset(UDF_SB_VAT(sb)))->lengthHeader) +
 							udf_ext0_offset(UDF_SB_VAT(sb));
