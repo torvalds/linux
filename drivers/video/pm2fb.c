@@ -1141,10 +1141,10 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 		default_par->mem_control, default_par->boot_address,
 		default_par->mem_config);
 
-	default_par->memclock = CVPPC_MEMCLOCK;
 	if(default_par->mem_control == 0 &&
 		default_par->boot_address == 0x31 &&
 		default_par->mem_config == 0x259fffff) {
+		default_par->memclock = CVPPC_MEMCLOCK;
 		default_par->mem_control=0;
 		default_par->boot_address=0x20;
 		default_par->mem_config=0xe6002021;
@@ -1164,7 +1164,7 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 			DPRINTK("We have not been initialized by VGA BIOS "
 				"and are running on an 3dlabs reference board\n");
 			DPRINTK("Initializing card timings manually...\n");
-			default_par->memclock=70000;
+			default_par->memclock=74894;
 		}
 	}
 
