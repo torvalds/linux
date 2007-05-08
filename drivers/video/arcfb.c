@@ -262,7 +262,8 @@ static void arcfb_lcd_update_page(struct arcfb_par *par, unsigned int upper,
 	ks108_set_yaddr(par, chipindex, upper/8);
 
 	linesize = par->info->var.xres/8;
-	src = par->info->screen_base + (left/8) + (upper * linesize);
+	src = (unsigned char __force *) par->info->screen_base + (left/8) +
+		(upper * linesize);
 	ks108_set_xaddr(par, chipindex, left);
 
 	bitmask=1;
@@ -477,7 +478,7 @@ static ssize_t arcfb_write(struct file *file, const char __user *buf, size_t cou
 	if (count) {
 		char *base_addr;
 
-		base_addr = info->screen_base;
+		base_addr = (char __force *)info->screen_base;
 		count -= copy_from_user(base_addr + p, buf, count);
 		*ppos += count;
 		err = -EFAULT;
@@ -603,7 +604,7 @@ static int arcfb_remove(struct platform_device *dev)
 
 	if (info) {
 		unregister_framebuffer(info);
-		vfree(info->screen_base);
+		vfree((void __force *)info->screen_base);
 		framebuffer_release(info);
 	}
 	return 0;
