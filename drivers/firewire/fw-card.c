@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/device.h>
-#include <linux/rwsem.h>
+#include <linux/mutex.h>
 #include <linux/crc-itu-t.h>
 #include "fw-transaction.h"
 #include "fw-topology.h"
@@ -38,7 +38,7 @@ int fw_compute_block_crc(u32 *block)
 	return length;
 }
 
-static DECLARE_RWSEM(card_rwsem);
+static DEFINE_MUTEX(card_mutex);
 static LIST_HEAD(card_list);
 
 static LIST_HEAD(descriptor_list);
@@ -154,7 +154,7 @@ fw_core_add_descriptor (struct fw_descriptor *desc)
 	if (i != desc->length)
 		return -EINVAL;
 
-	down_write(&card_rwsem);
+	mutex_lock(&card_mutex);
 
 	list_add_tail (&desc->link, &descriptor_list);
 	descriptor_count++;
@@ -162,7 +162,7 @@ fw_core_add_descriptor (struct fw_descriptor *desc)
 		descriptor_count++;
 	update_config_roms();
 
-	up_write(&card_rwsem);
+	mutex_unlock(&card_mutex);
 
 	return 0;
 }
@@ -171,7 +171,7 @@ EXPORT_SYMBOL(fw_core_add_descriptor);
 void
 fw_core_remove_descriptor (struct fw_descriptor *desc)
 {
-	down_write(&card_rwsem);
+	mutex_lock(&card_mutex);
 
 	list_del(&desc->link);
 	descriptor_count--;
@@ -179,7 +179,7 @@ fw_core_remove_descriptor (struct fw_descriptor *desc)
 		descriptor_count--;
 	update_config_roms();
 
-	up_write(&card_rwsem);
+	mutex_unlock(&card_mutex);
 }
 EXPORT_SYMBOL(fw_core_remove_descriptor);
 
@@ -418,10 +418,10 @@ fw_card_add(struct fw_card *card,
 	 */
 	fw_card_get(card);
 
-	down_write(&card_rwsem);
+	mutex_lock(&card_mutex);
 	config_rom = generate_config_rom (card, &length);
 	list_add_tail(&card->link, &card_list);
-	up_write(&card_rwsem);
+	mutex_unlock(&card_mutex);
 
 	return card->driver->enable(card, config_rom, length);
 }
@@ -505,9 +505,9 @@ fw_core_remove_card(struct fw_card *card)
 				     PHY_LINK_ACTIVE | PHY_CONTENDER, 0);
 	fw_core_initiate_bus_reset(card, 1);
 
-	down_write(&card_rwsem);
+	mutex_lock(&card_mutex);
 	list_del(&card->link);
-	up_write(&card_rwsem);
+	mutex_unlock(&card_mutex);
 
 	/* Set up the dummy driver. */
 	card->driver = &dummy_driver;
