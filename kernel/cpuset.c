@@ -2200,10 +2200,6 @@ void cpuset_fork(struct task_struct *child)
  * it is holding that mutex while calling check_for_release(),
  * which calls kmalloc(), so can't be called holding callback_mutex().
  *
- * We don't need to task_lock() this reference to tsk->cpuset,
- * because tsk is already marked PF_EXITING, so attach_task() won't
- * mess with it, or task is a failed fork, never visible to attach_task.
- *
  * the_top_cpuset_hack:
  *
  *    Set the exiting tasks cpuset to the root cpuset (top_cpuset).
@@ -2242,8 +2238,10 @@ void cpuset_exit(struct task_struct *tsk)
 {
 	struct cpuset *cs;
 
+	task_lock(current);
 	cs = tsk->cpuset;
 	tsk->cpuset = &top_cpuset;	/* the_top_cpuset_hack - see above */
+	task_unlock(current);
 
 	if (notify_on_release(cs)) {
 		char *pathbuf = NULL;
