@@ -9,8 +9,6 @@
 #include <asm/user.h>
 #include <asm/auxvec.h>
 
-#include <linux/utsname.h>
-
 #define R_386_NONE	0
 #define R_386_32	1
 #define R_386_PC32	2
