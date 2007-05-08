@@ -3,11 +3,10 @@
 #
 
 comment "MMC/SD Card Drivers"
-	depends MMC
 
 config MMC_BLOCK
 	tristate "MMC block device driver"
-	depends on MMC && BLOCK
+	depends on BLOCK
 	default y
 	help
 	  Say Y here to enable the MMC block device driver support.

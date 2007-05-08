@@ -4,7 +4,6 @@
 
 config MMC_UNSAFE_RESUME
 	bool "Allow unsafe resume (DANGEROUS)"
-	depends on MMC != n
 	help
 	  If you say Y here, the MMC layer will assume that all cards
 	  stayed in their respective slots during the suspend. The

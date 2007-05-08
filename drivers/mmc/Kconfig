@@ -2,10 +2,8 @@
 # MMC subsystem configuration
 #
 
-menu "MMC/SD Card support"
-
-config MMC
-	tristate "MMC support"
+menuconfig MMC
+	tristate "MMC/SD card support"
 	help
 	  MMC is the "multi-media card" bus protocol.
 
@@ -19,10 +17,12 @@ config MMC_DEBUG
 	  This is an option for use by developers; most people should
 	  say N here.  This enables MMC core and driver debugging.
 
+if MMC
+
 source "drivers/mmc/core/Kconfig"
 
 source "drivers/mmc/card/Kconfig"
 
 source "drivers/mmc/host/Kconfig"
 
-endmenu
+endif # MMC

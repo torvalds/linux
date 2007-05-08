@@ -3,11 +3,10 @@
 #
 
 comment "MMC/SD Host Controller Drivers"
-	depends on MMC
 
 config MMC_ARMMMCI
 	tristate "ARM AMBA Multimedia Card Interface support"
-	depends on ARM_AMBA && MMC
+	depends on ARM_AMBA
 	help
 	  This selects the ARM(R) AMBA(R) PrimeCell Multimedia Card
 	  Interface (PL180 and PL181) support.  If you have an ARM(R)
@@ -17,7 +16,7 @@ config MMC_ARMMMCI
 
 config MMC_PXA
 	tristate "Intel PXA25x/26x/27x Multimedia Card Interface support"
-	depends on ARCH_PXA && MMC
+	depends on ARCH_PXA
 	help
 	  This selects the Intel(R) PXA(R) Multimedia card Interface.
 	  If you have a PXA(R) platform with a Multimedia Card slot,
@@ -27,7 +26,7 @@ config MMC_PXA
 
 config MMC_SDHCI
 	tristate "Secure Digital Host Controller Interface support  (EXPERIMENTAL)"
-	depends on PCI && MMC && EXPERIMENTAL
+	depends on PCI && EXPERIMENTAL
 	help
 	  This select the generic Secure Digital Host Controller Interface.
 	  It is used by manufacturers such as Texas Instruments(R), Ricoh(R)
@@ -38,7 +37,7 @@ config MMC_SDHCI
 
 config MMC_OMAP
 	tristate "TI OMAP Multimedia Card Interface support"
-	depends on ARCH_OMAP && MMC
+	depends on ARCH_OMAP
 	select TPS65010 if MACH_OMAP_H2
 	help
 	  This selects the TI OMAP Multimedia card Interface.
@@ -49,7 +48,7 @@ config MMC_OMAP
 
 config MMC_WBSD
 	tristate "Winbond W83L51xD SD/MMC Card Interface support"
-	depends on MMC && ISA_DMA_API
+	depends on ISA_DMA_API
 	help
 	  This selects the Winbond(R) W83L51xD Secure digital and
           Multimedia card Interface.
@@ -60,7 +59,7 @@ config MMC_WBSD
 
 config MMC_AU1X
 	tristate "Alchemy AU1XX0 MMC Card Interface support"
-	depends on MMC && SOC_AU1200
+	depends on SOC_AU1200
 	help
 	  This selects the AMD Alchemy(R) Multimedia card interface.
 	  If you have a Alchemy platform with a MMC slot, say Y or M here.
@@ -69,7 +68,7 @@ config MMC_AU1X
 
 config MMC_AT91
 	tristate "AT91 SD/MMC Card Interface support"
-	depends on ARCH_AT91 && MMC
+	depends on ARCH_AT91
 	help
 	  This selects the AT91 MCI controller.
 
@@ -77,7 +76,7 @@ config MMC_AT91
 
 config MMC_IMX
 	tristate "Motorola i.MX Multimedia Card Interface support"
-	depends on ARCH_IMX && MMC
+	depends on ARCH_IMX
 	help
 	  This selects the Motorola i.MX Multimedia card Interface.
 	  If you have a i.MX platform with a Multimedia Card slot,
@@ -87,7 +86,7 @@ config MMC_IMX
 
 config MMC_TIFM_SD
 	tristate "TI Flash Media MMC/SD Interface support  (EXPERIMENTAL)"
-	depends on MMC && EXPERIMENTAL && PCI
+	depends on EXPERIMENTAL && PCI
 	select TIFM_CORE
 	help
 	  Say Y here if you want to be able to access MMC/SD cards with
