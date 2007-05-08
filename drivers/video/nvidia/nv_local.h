@@ -73,9 +73,9 @@
 #define NVDmaNext(par, data) \
      NV_WR32(&(par)->dmaBase[(par)->dmaCurrent++], 0, (data))
 
-#define NVDmaStart(par, tag, size) {          \
+#define NVDmaStart(info, par, tag, size) {    \
      if((par)->dmaFree <= (size))             \
-        NVDmaWait(par, size);                 \
+        NVDmaWait(info, size);                \
      NVDmaNext(par, ((size) << 18) | (tag));  \
      (par)->dmaFree -= ((size) + 1);          \
 }
