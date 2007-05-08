@@ -41,6 +41,7 @@
 #include <linux/kernel.h>
 #include <linux/major.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/stat.h>
@@ -53,7 +54,7 @@
  * Head entry for the doubly linked miscdevice list
  */
 static LIST_HEAD(misc_list);
-static DECLARE_MUTEX(misc_sem);
+static DEFINE_MUTEX(misc_mtx);
 
 /*
  * Assigned numbers, used for dynamic minors
@@ -69,7 +70,7 @@ static void *misc_seq_start(struct seq_file *seq, loff_t *pos)
 	struct miscdevice *p;
 	loff_t off = 0;
 
-	down(&misc_sem);
+	mutex_lock(&misc_mtx);
 	list_for_each_entry(p, &misc_list, list) {
 		if (*pos == off++) 
 			return p;
@@ -89,7 +90,7 @@ static void *misc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static void misc_seq_stop(struct seq_file *seq, void *v)
 {
-	up(&misc_sem);
+	mutex_unlock(&misc_mtx);
 }
 
 static int misc_seq_show(struct seq_file *seq, void *v)
@@ -129,7 +130,7 @@ static int misc_open(struct inode * inode, struct file * file)
 	int err = -ENODEV;
 	const struct file_operations *old_fops, *new_fops = NULL;
 	
-	down(&misc_sem);
+	mutex_lock(&misc_mtx);
 	
 	list_for_each_entry(c, &misc_list, list) {
 		if (c->minor == minor) {
@@ -139,9 +140,9 @@ static int misc_open(struct inode * inode, struct file * file)
 	}
 		
 	if (!new_fops) {
-		up(&misc_sem);
+		mutex_unlock(&misc_mtx);
 		request_module("char-major-%d-%d", MISC_MAJOR, minor);
-		down(&misc_sem);
+		mutex_lock(&misc_mtx);
 
 		list_for_each_entry(c, &misc_list, list) {
 			if (c->minor == minor) {
@@ -165,7 +166,7 @@ static int misc_open(struct inode * inode, struct file * file)
 	}
 	fops_put(old_fops);
 fail:
-	up(&misc_sem);
+	mutex_unlock(&misc_mtx);
 	return err;
 }
 
@@ -201,10 +202,10 @@ int misc_register(struct miscdevice * misc)
 
 	INIT_LIST_HEAD(&misc->list);
 
-	down(&misc_sem);
+	mutex_lock(&misc_mtx);
 	list_for_each_entry(c, &misc_list, list) {
 		if (c->minor == misc->minor) {
-			up(&misc_sem);
+			mutex_unlock(&misc_mtx);
 			return -EBUSY;
 		}
 	}
@@ -215,7 +216,7 @@ int misc_register(struct miscdevice * misc)
 			if ( (misc_minors[i>>3] & (1 << (i&7))) == 0)
 				break;
 		if (i<0) {
-			up(&misc_sem);
+			mutex_unlock(&misc_mtx);
 			return -EBUSY;
 		}
 		misc->minor = i;
@@ -238,7 +239,7 @@ int misc_register(struct miscdevice * misc)
 	 */
 	list_add(&misc->list, &misc_list);
  out:
-	up(&misc_sem);
+	mutex_unlock(&misc_mtx);
 	return err;
 }
 
@@ -259,13 +260,13 @@ int misc_deregister(struct miscdevice * misc)
 	if (list_empty(&misc->list))
 		return -EINVAL;
 
-	down(&misc_sem);
+	mutex_lock(&misc_mtx);
 	list_del(&misc->list);
 	device_destroy(misc_class, MKDEV(MISC_MAJOR, misc->minor));
 	if (i < DYNAMIC_MINORS && i>0) {
 		misc_minors[i>>3] &= ~(1 << (misc->minor & 7));
 	}
-	up(&misc_sem);
+	mutex_unlock(&misc_mtx);
 	return 0;
 }
 
