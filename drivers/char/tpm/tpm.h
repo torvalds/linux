@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
+#include <linux/mutex.h>
 #include <linux/sched.h>
 #include <linux/miscdevice.h>
 #include <linux/platform_device.h>
@@ -94,11 +95,11 @@ struct tpm_chip {
 	/* Data passed to and from the tpm via the read/write calls */
 	u8 *data_buffer;
 	atomic_t data_pending;
-	struct semaphore buffer_mutex;
+	struct mutex buffer_mutex;
 
 	struct timer_list user_read_timer;	/* user needs to claim result */
 	struct work_struct work;
-	struct semaphore tpm_mutex;	/* tpm is processing */
+	struct mutex tpm_mutex;	/* tpm is processing */
 
 	struct tpm_vendor_specific vendor;
 
