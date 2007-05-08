@@ -305,19 +305,20 @@ static void pasemi_mac_replenish_rx_ring(struct net_device *dev)
 	struct pasemi_mac *mac = netdev_priv(dev);
 	unsigned int i;
 	int start = mac->rx->next_to_fill;
-	unsigned int count;
+	unsigned int limit, count;
 
-	count = (mac->rx->next_to_clean + RX_RING_SIZE -
+	limit = (mac->rx->next_to_clean + RX_RING_SIZE -
 		 mac->rx->next_to_fill) & (RX_RING_SIZE - 1);
 
 	/* Check to see if we're doing first-time setup */
 	if (unlikely(mac->rx->next_to_clean == 0 && mac->rx->next_to_fill == 0))
-		count = RX_RING_SIZE;
+		limit = RX_RING_SIZE;
 
-	if (count <= 0)
+	if (limit <= 0)
 		return;
 
-	for (i = start; i < start + count; i++) {
+	i = start;
+	for (count = limit; count; count--) {
 		struct pasemi_mac_buffer *info = &RX_DESC_INFO(mac, i);
 		u64 *buff = &RX_BUFF(mac, i);
 		struct sk_buff *skb;
@@ -335,27 +336,27 @@ static void pasemi_mac_replenish_rx_ring(struct net_device *dev)
 		dma = pci_map_single(mac->dma_pdev, skb->data, skb->len,
 				     PCI_DMA_FROMDEVICE);
 
-		if (dma_mapping_error(dma)) {
+		if (unlikely(dma_mapping_error(dma))) {
 			dev_kfree_skb_irq(info->skb);
-			count = i - start;
 			break;
 		}
 
 		info->skb = skb;
 		info->dma = dma;
 		*buff = XCT_RXB_LEN(BUF_SIZE) | XCT_RXB_ADDR(dma);
+		i++;
 	}
 
 	wmb();
 
 	pci_write_config_dword(mac->dma_pdev,
 			       PAS_DMA_RXCHAN_INCR(mac->dma_rxch),
-			       count);
+			       limit - count);
 	pci_write_config_dword(mac->dma_pdev,
 			       PAS_DMA_RXINT_INCR(mac->dma_if),
-			       count);
+			       limit - count);
 
-	mac->rx->next_to_fill += count;
+	mac->rx->next_to_fill += limit - count;
 }
 
 static void pasemi_mac_restart_rx_intr(struct pasemi_mac *mac)
@@ -393,32 +394,31 @@ static void pasemi_mac_restart_tx_intr(struct pasemi_mac *mac)
 }
 
 
-
 static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 {
-	unsigned int i;
-	int start, count;
+	unsigned int n;
+	int count;
+	struct pas_dma_xct_descr *dp;
+	struct pasemi_mac_buffer *info;
+	struct sk_buff *skb;
+	unsigned int i, len;
+	u64 macrx;
+	dma_addr_t dma;
 
 	spin_lock(&mac->rx->lock);
 
-	start = mac->rx->next_to_clean;
-	count = 0;
+	n = mac->rx->next_to_clean;
 
-	for (i = start; i < (start + RX_RING_SIZE) && count < limit; i++) {
-		struct pas_dma_xct_descr *dp;
-		struct pasemi_mac_buffer *info;
-		struct sk_buff *skb;
-		unsigned int j, len;
-		dma_addr_t dma;
+	for (count = limit; count; count--) {
 
 		rmb();
 
-		dp = &RX_DESC(mac, i);
+		dp = &RX_DESC(mac, n);
+		macrx = dp->macrx;
 
-		if (!(dp->macrx & XCT_MACRX_O))
+		if (!(macrx & XCT_MACRX_O))
 			break;
 
-		count++;
 
 		info = NULL;
 
@@ -430,22 +430,20 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 		 */
 
 		dma = (dp->ptr & XCT_PTR_ADDR_M);
-		for (j = start; j < (start + RX_RING_SIZE); j++) {
-			info = &RX_DESC_INFO(mac, j);
+		for (i = n; i < (n + RX_RING_SIZE); i++) {
+			info = &RX_DESC_INFO(mac, i);
 			if (info->dma == dma)
 				break;
 		}
 
-		BUG_ON(!info);
-		BUG_ON(info->dma != dma);
 		skb = info->skb;
-
-		pci_unmap_single(mac->dma_pdev, info->dma, info->skb->len,
-				 PCI_DMA_FROMDEVICE);
 		info->dma = 0;
 
+		pci_unmap_single(mac->dma_pdev, dma, skb->len,
+				 PCI_DMA_FROMDEVICE);
 
-		len = (dp->macrx & XCT_MACRX_LLEN_M) >> XCT_MACRX_LLEN_S;
+		len = (macrx & XCT_MACRX_LLEN_M) >> XCT_MACRX_LLEN_S;
+
 		if (len < 256) {
 			struct sk_buff *new_skb =
 			    netdev_alloc_skb(mac->netdev, len + NET_IP_ALIGN);
@@ -465,9 +463,9 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 
 		skb->protocol = eth_type_trans(skb, mac->netdev);
 
-		if ((dp->macrx & XCT_MACRX_HTY_M) == XCT_MACRX_HTY_IPV4_OK) {
+		if ((macrx & XCT_MACRX_HTY_M) == XCT_MACRX_HTY_IPV4_OK) {
 			skb->ip_summed = CHECKSUM_COMPLETE;
-			skb->csum = (dp->macrx & XCT_MACRX_CSUM_M) >>
+			skb->csum = (macrx & XCT_MACRX_CSUM_M) >>
 					   XCT_MACRX_CSUM_S;
 		} else
 			skb->ip_summed = CHECKSUM_NONE;
@@ -477,13 +475,13 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 
 		netif_receive_skb(skb);
 
-		info->dma = 0;
-		info->skb = NULL;
 		dp->ptr = 0;
 		dp->macrx = 0;
+
+		n++;
 	}
 
-	mac->rx->next_to_clean += count;
+	mac->rx->next_to_clean += limit - count;
 	pasemi_mac_replenish_rx_ring(mac->netdev);
 
 	spin_unlock(&mac->rx->lock);
@@ -899,6 +897,9 @@ static int pasemi_mac_poll(struct net_device *dev, int *budget)
 
 	pkts = pasemi_mac_clean_rx(mac, limit);
 
+	dev->quota -= pkts;
+	*budget -= pkts;
+
 	if (pkts < limit) {
 		/* all done, no more packets present */
 		netif_rx_complete(dev);
@@ -907,8 +908,6 @@ static int pasemi_mac_poll(struct net_device *dev, int *budget)
 		return 0;
 	} else {
 		/* used up our quantum, so reschedule */
-		dev->quota -= pkts;
-		*budget -= pkts;
 		return 1;
 	}
 }
