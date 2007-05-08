@@ -36,6 +36,8 @@
 #include <asm/mpic.h>
 #include <asm/smp.h>
 
+#include "mpic.h"
+
 #ifdef DEBUG
 #define DBG(fmt...) printk(fmt)
 #else
@@ -890,6 +892,8 @@ static int mpic_host_map(struct irq_host *h, unsigned int virq,
 
 	if (hw >= mpic->irq_count)
 		return -EINVAL;
+
+	mpic_msi_reserve_hwirq(mpic, hw);
 
 	/* Default chip */
 	chip = &mpic->hc_irq;

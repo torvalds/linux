@@ -301,6 +301,11 @@ struct mpic
 	u32			*hw_set;
 #endif
 
+#ifdef CONFIG_PCI_MSI
+	spinlock_t		bitmap_lock;
+	unsigned long		*hwirq_bitmap;
+#endif
+
 	/* link */
 	struct mpic		*next;
 

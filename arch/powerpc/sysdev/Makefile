@@ -2,7 +2,9 @@ ifeq ($(CONFIG_PPC64),y)
 EXTRA_CFLAGS			+= -mno-minimal-toc
 endif
 
-obj-$(CONFIG_MPIC)		+= mpic.o
+mpic-msi-obj-$(CONFIG_PCI_MSI)	+= mpic_msi.o
+obj-$(CONFIG_MPIC)		+= mpic.o $(mpic-msi-obj-y)
+
 obj-$(CONFIG_PPC_INDIRECT_PCI)	+= indirect_pci.o
 obj-$(CONFIG_PPC_MPC106)	+= grackle.o
 obj-$(CONFIG_PPC_DCR)		+= dcr.o
