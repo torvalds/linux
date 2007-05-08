@@ -428,18 +428,11 @@ static int slabstats_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static int slabstats_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *m = file->private_data;
-	kfree(m->private);
-	return seq_release(inode, file);
-}
-
 static const struct file_operations proc_slabstats_operations = {
 	.open		= slabstats_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= slabstats_release,
+	.release	= seq_release_private,
 };
 #endif
 #endif
