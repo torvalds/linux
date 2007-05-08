@@ -23,11 +23,15 @@ SECTIONS
 #else
 	. = PAGE_OFFSET + TEXT_OFFSET;
 #endif
-	.init : {			/* Init code and data		*/
+	.text.head : {
 		_stext = .;
-			_sinittext = .;
+		_sinittext = .;
+		*(.text.head)
+	}
+
+	.init : {			/* Init code and data		*/
 			*(.init.text)
-			_einittext = .;
+		_einittext = .;
 		__proc_info_begin = .;
 			*(.proc.info.init)
 		__proc_info_end = .;
