@@ -1172,7 +1172,7 @@ static void reinit_timer(void)
 	unsigned long flags;
 
 	spin_lock_irqsave(&i8253_lock, flags);
-	/* set the clock to 100 Hz */
+	/* set the clock to HZ */
 	outb_p(0x34, PIT_MODE);		/* binary, mode 2, LSB/MSB, ch 0 */
 	udelay(10);
 	outb_p(LATCH & 0xff, PIT_CH0);	/* LSB */
