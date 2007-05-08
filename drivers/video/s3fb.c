@@ -65,7 +65,7 @@ static const struct svga_fb_format s3fb_formats[] = {
 
 
 static const struct svga_pll s3_pll = {3, 129, 3, 33, 0, 3,
-	60000, 240000, 14318};
+	35000, 240000, 14318};
 
 static const int s3_memsizes[] = {4096, 0, 3072, 8192, 2048, 6144, 1024, 512};
 
@@ -331,8 +331,13 @@ static void s3_set_pixclock(struct fb_info *info, u32 pixclock)
 {
 	u16 m, n, r;
 	u8 regval;
+	int rv;
 
-	svga_compute_pll(&s3_pll, 1000000000 / pixclock, &m, &n, &r, info->node);
+	rv = svga_compute_pll(&s3_pll, 1000000000 / pixclock, &m, &n, &r, info->node);
+	if (rv < 0) {
+		printk(KERN_ERR "fb%d: cannot set requested pixclock, keeping old value\n", info->node);
+		return;
+	}
 
 	/* Set VGA misc register  */
 	regval = vga_r(NULL, VGA_MIS_R);
@@ -710,7 +715,7 @@ static int s3fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		break;
 	case 16:
 		if (regno >= 16)
-			return -EINVAL;
+			return 0;
 
 		if (fb->var.green.length == 5)
 			((u32*)fb->pseudo_palette)[regno] = ((red & 0xF800) >> 1) |
@@ -723,9 +728,9 @@ static int s3fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	case 24:
 	case 32:
 		if (regno >= 16)
-			return -EINVAL;
+			return 0;
 
-		((u32*)fb->pseudo_palette)[regno] = ((transp & 0xFF00) << 16) | ((red & 0xFF00) << 8) |
+		((u32*)fb->pseudo_palette)[regno] = ((red & 0xFF00) << 8) |
 			(green & 0xFF00) | ((blue & 0xFF00) >> 8);
 		break;
 	default:
@@ -777,12 +782,6 @@ static int s3fb_blank(int blank_mode, struct fb_info *info)
 static int s3fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info) {
 
 	unsigned int offset;
-
-	/* Validate the offsets */
-	if ((var->xoffset + var->xres) > var->xres_virtual)
-		return -EINVAL;
-	if ((var->yoffset + var->yres) > var->yres_virtual)
-		return -EINVAL;
 
 	/* Calculate the offset */
 	if (var->bits_per_pixel == 0) {
