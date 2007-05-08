@@ -1040,6 +1040,12 @@ P:	Simon Arlott
 M:	cxacru@fire.lp0.eu
 S:	Maintained
 
+CORETEMP HARDWARE MONITORING DRIVER
+P:	Rudolf Marek
+M:	r.marek@assembler.cz
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 COSA/SRP SYNC SERIAL DRIVER
 P:	Jan "Yenya" Kasprzak
 M:	kas@fi.muni.cz
@@ -2312,6 +2318,12 @@ MATROX FRAMEBUFFER DRIVER
 P:	Petr Vandrovec
 M:	vandrove@vc.cvut.cz
 L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
+S:	Maintained
+
+MAX6650 HARDWARE MONITOR AND FAN CONTROLLER DRIVER
+P:	Hans J. Koch
+M:	hjk@linutronix.de
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 MEGARAID SCSI DRIVERS

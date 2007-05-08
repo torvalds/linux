@@ -45,104 +45,6 @@
 
 static struct class *msr_class;
 
-static inline int wrmsr_eio(u32 reg, u32 eax, u32 edx)
-{
-	int err;
-
-	err = wrmsr_safe(reg, eax, edx);
-	if (err)
-		err = -EIO;
-	return err;
-}
-
-static inline int rdmsr_eio(u32 reg, u32 *eax, u32 *edx)
-{
-	int err;
-
-	err = rdmsr_safe(reg, eax, edx);
-	if (err)
-		err = -EIO;
-	return err;
-}
-
-#ifdef CONFIG_SMP
-
-struct msr_command {
-	int err;
-	u32 reg;
-	u32 data[2];
-};
-
-static void msr_smp_wrmsr(void *cmd_block)
-{
-	struct msr_command *cmd = (struct msr_command *)cmd_block;
-
-	cmd->err = wrmsr_eio(cmd->reg, cmd->data[0], cmd->data[1]);
-}
-
-static void msr_smp_rdmsr(void *cmd_block)
-{
-	struct msr_command *cmd = (struct msr_command *)cmd_block;
-
-	cmd->err = rdmsr_eio(cmd->reg, &cmd->data[0], &cmd->data[1]);
-}
-
-static inline int do_wrmsr(int cpu, u32 reg, u32 eax, u32 edx)
-{
-	struct msr_command cmd;
-	int ret;
-
-	preempt_disable();
-	if (cpu == smp_processor_id()) {
-		ret = wrmsr_eio(reg, eax, edx);
-	} else {
-		cmd.reg = reg;
-		cmd.data[0] = eax;
-		cmd.data[1] = edx;
-
-		smp_call_function_single(cpu, msr_smp_wrmsr, &cmd, 1, 1);
-		ret = cmd.err;
-	}
-	preempt_enable();
-	return ret;
-}
-
-static inline int do_rdmsr(int cpu, u32 reg, u32 * eax, u32 * edx)
-{
-	struct msr_command cmd;
-	int ret;
-
-	preempt_disable();
-	if (cpu == smp_processor_id()) {
-		ret = rdmsr_eio(reg, eax, edx);
-	} else {
-		cmd.reg = reg;
-
-		smp_call_function_single(cpu, msr_smp_rdmsr, &cmd, 1, 1);
-
-		*eax = cmd.data[0];
-		*edx = cmd.data[1];
-
-		ret = cmd.err;
-	}
-	preempt_enable();
-	return ret;
-}
-
-#else				/* ! CONFIG_SMP */
-
-static inline int do_wrmsr(int cpu, u32 reg, u32 eax, u32 edx)
-{
-	return wrmsr_eio(reg, eax, edx);
-}
-
-static inline int do_rdmsr(int cpu, u32 reg, u32 *eax, u32 *edx)
-{
-	return rdmsr_eio(reg, eax, edx);
-}
-
-#endif				/* ! CONFIG_SMP */
-
 static loff_t msr_seek(struct file *file, loff_t offset, int orig)
 {
 	loff_t ret = -EINVAL;
@@ -174,9 +76,9 @@ static ssize_t msr_read(struct file *file, char __user * buf,
 		return -EINVAL;	/* Invalid chunk size */
 
 	for (; count; count -= 8) {
-		err = do_rdmsr(cpu, reg, &data[0], &data[1]);
+		err = rdmsr_safe_on_cpu(cpu, reg, &data[0], &data[1]);
 		if (err)
-			return err;
+			return -EIO;
 		if (copy_to_user(tmp, &data, 8))
 			return -EFAULT;
 		tmp += 2;
@@ -200,9 +102,9 @@ static ssize_t msr_write(struct file *file, const char __user *buf,
 	for (; count; count -= 8) {
 		if (copy_from_user(&data, tmp, 8))
 			return -EFAULT;
-		err = do_wrmsr(cpu, reg, data[0], data[1]);
+		err = wrmsr_safe_on_cpu(cpu, reg, data[0], data[1]);
 		if (err)
-			return err;
+			return -EIO;
 		tmp += 2;
 	}
 

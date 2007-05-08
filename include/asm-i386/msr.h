@@ -77,7 +77,7 @@ static inline unsigned long long native_read_pmc(void)
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
-
+#include <linux/errno.h>
 /*
  * Access to machine-specific registers (available on 586 and better only)
  * Note: the rd* operations modify the parameters directly (without using
@@ -148,6 +148,8 @@ static inline void wrmsrl (unsigned long msr, unsigned long long val)
 #ifdef CONFIG_SMP
 void rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h);
 void wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h);
+int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h);
+int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h);
 #else  /*  CONFIG_SMP  */
 static inline void rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
 {
@@ -156,6 +158,14 @@ static inline void rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
 static inline void wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 {
 	wrmsr(msr_no, l, h);
+}
+static inline int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
+{
+	return rdmsr_safe(msr_no, l, h);
+}
+static inline int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
+{
+	return wrmsr_safe(msr_no, l, h);
 }
 #endif  /*  CONFIG_SMP  */
 #endif
