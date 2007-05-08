@@ -9,9 +9,9 @@
 #include <linux/pci.h>
 #include <linux/device.h>
 
-#include <asm/pbm.h>
 #include <asm/prom.h>
 #include <asm/of_device.h>
+#include <asm/oplib.h>
 
 #include "pci_impl.h"
 

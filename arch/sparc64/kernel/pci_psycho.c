@@ -12,12 +12,12 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 
-#include <asm/pbm.h>
 #include <asm/iommu.h>
 #include <asm/irq.h>
 #include <asm/starfire.h>
 #include <asm/prom.h>
 #include <asm/of_device.h>
+#include <asm/oplib.h>
 
 #include "pci_impl.h"
 #include "iommu_common.h"

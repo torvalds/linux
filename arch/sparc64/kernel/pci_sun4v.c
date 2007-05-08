@@ -13,7 +13,6 @@
 #include <linux/irq.h>
 #include <linux/msi.h>
 
-#include <asm/pbm.h>
 #include <asm/iommu.h>
 #include <asm/irq.h>
 #include <asm/upa.h>

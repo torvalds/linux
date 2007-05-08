@@ -7,7 +7,6 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 
-#include <asm/pbm.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
 

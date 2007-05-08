@@ -14,12 +14,12 @@
 #include <linux/sched.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
+#include <linux/pci.h>
 #include <linux/msi.h>
 #include <linux/irq.h>
 #include <linux/init.h>
 
 #include <asm/uaccess.h>
-#include <asm/pbm.h>
 #include <asm/pgtable.h>
 #include <asm/irq.h>
 #include <asm/ebus.h>

@@ -13,12 +13,12 @@
 #include <linux/interrupt.h>
 
 #include <asm/apb.h>
-#include <asm/pbm.h>
 #include <asm/iommu.h>
 #include <asm/irq.h>
 #include <asm/smp.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
+#include <asm/of_device.h>
 
 #include "pci_impl.h"
 #include "iommu_common.h"
