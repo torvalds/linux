@@ -20,7 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/platform_device.h>
+#include <linux/device.h>
 #include <linux/parport.h>
 
 #include <linux/sched.h>
@@ -237,24 +237,16 @@ static void butterfly_attach(struct parport *p)
 	int			status;
 	struct butterfly	*pp;
 	struct spi_master	*master;
-	struct platform_device	*pdev;
+	struct device		*dev = p->physport->dev;
 
-	if (butterfly)
+	if (butterfly || !dev)
 		return;
 
 	/* REVISIT:  this just _assumes_ a butterfly is there ... no probe,
 	 * and no way to be selective about what it binds to.
 	 */
 
-	/* FIXME where should master->cdev.dev come from?
-	 * e.g. /sys/bus/pnp0/00:0b, some PCI thing, etc
-	 * setting up a platform device like this is an ugly kluge...
-	 */
-	pdev = platform_device_register_simple("butterfly", -1, NULL, 0);
-	if (IS_ERR(pdev))
-		return;
-
-	master = spi_alloc_master(&pdev->dev, sizeof *pp);
+	master = spi_alloc_master(dev, sizeof *pp);
 	if (!master) {
 		status = -ENOMEM;
 		goto done;
@@ -366,14 +358,12 @@ clean1:
 clean0:
 	(void) spi_master_put(pp->bitbang.master);
 done:
-	platform_device_unregister(pdev);
 	pr_debug("%s: butterfly probe, fail %d\n", p->name, status);
 }
 
 static void butterfly_detach(struct parport *p)
 {
 	struct butterfly	*pp;
-	struct platform_device	*pdev;
 	int			status;
 
 	/* FIXME this global is ugly ... but, how to quickly get from
@@ -386,7 +376,6 @@ static void butterfly_detach(struct parport *p)
 	butterfly = NULL;
 
 	/* stop() unregisters child devices too */
-	pdev = to_platform_device(pp->bitbang.master->cdev.dev);
 	status = spi_bitbang_stop(&pp->bitbang);
 
 	/* turn off VCC */
@@ -397,8 +386,6 @@ static void butterfly_detach(struct parport *p)
 	parport_unregister_device(pp->pd);
 
 	(void) spi_master_put(pp->bitbang.master);
-
-	platform_device_unregister(pdev);
 }
 
 static struct parport_driver butterfly_driver = {

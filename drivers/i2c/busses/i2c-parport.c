@@ -175,6 +175,7 @@ static void i2c_parport_attach (struct parport *port)
 	}
 	adapter->algo_data.data = port;
 	adapter->adapter.algo_data = &adapter->algo_data;
+	adapter->adapter.dev.parent = port->physport->dev;
 
 	if (parport_claim_or_block(adapter->pdev) < 0) {
 		printk(KERN_ERR "i2c-parport: Could not claim parallel port\n");
