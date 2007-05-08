@@ -696,7 +696,7 @@ xfs_unmount_flush(
 	bhv_vnode_t	*rvp = XFS_ITOV(rip);
 	int		error;
 
-	xfs_ilock(rip, XFS_ILOCK_EXCL);
+	xfs_ilock(rip, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
 	xfs_iflock(rip);
 
 	/*

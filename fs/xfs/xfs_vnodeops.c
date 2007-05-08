@@ -1947,7 +1947,7 @@ xfs_create(
 		goto error_return;
 	}
 
-	xfs_ilock(dp, XFS_ILOCK_EXCL);
+	xfs_ilock(dp, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
 
 	XFS_BMAP_INIT(&free_list, &first_block);
 
@@ -2141,7 +2141,7 @@ xfs_lock_dir_and_entry(
 	attempts = 0;
 
 again:
-	xfs_ilock(dp, XFS_ILOCK_EXCL);
+	xfs_ilock(dp, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
 
 	e_inum = ip->i_ino;
 
@@ -2210,6 +2210,21 @@ int xfs_lock_delays;
 #endif
 
 /*
+ * Bump the subclass so xfs_lock_inodes() acquires each lock with
+ * a different value
+ */
+static inline int
+xfs_lock_inumorder(int lock_mode, int subclass)
+{
+	if (lock_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL))
+		lock_mode |= (subclass + XFS_IOLOCK_INUMORDER) << XFS_IOLOCK_SHIFT;
+	if (lock_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL))
+		lock_mode |= (subclass + XFS_ILOCK_INUMORDER) << XFS_ILOCK_SHIFT;
+
+	return lock_mode;
+}
+
+/*
  * The following routine will lock n inodes in exclusive mode.
  * We assume the caller calls us with the inodes in i_ino order.
  *
@@ -2276,7 +2291,7 @@ again:
 			 * that is in the AIL.
 			 */
 			ASSERT(i != 0);
-			if (!xfs_ilock_nowait(ips[i], lock_mode)) {
+			if (!xfs_ilock_nowait(ips[i], xfs_lock_inumorder(lock_mode, i))) {
 				attempts++;
 
 				/*
@@ -2311,7 +2326,7 @@ again:
 				goto again;
 			}
 		} else {
-			xfs_ilock(ips[i], lock_mode);
+			xfs_ilock(ips[i], xfs_lock_inumorder(lock_mode, i));
 		}
 	}
 
@@ -2845,7 +2860,7 @@ xfs_mkdir(
 		goto error_return;
 	}
 
-	xfs_ilock(dp, XFS_ILOCK_EXCL);
+	xfs_ilock(dp, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
 
 	/*
 	 * Check for directory link count overflow.
@@ -3399,7 +3414,7 @@ xfs_symlink(
 		goto error_return;
 	}
 
-	xfs_ilock(dp, XFS_ILOCK_EXCL);
+	xfs_ilock(dp, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
 
 	/*
 	 * Check whether the directory allows new symlinks or not.
