@@ -60,7 +60,7 @@ static int descriptor_count;
 #define bib_imc			((1) << 31)
 
 static u32 *
-generate_config_rom (struct fw_card *card, size_t *config_rom_length)
+generate_config_rom(struct fw_card *card, size_t *config_rom_length)
 {
 	struct fw_descriptor *desc;
 	static u32 config_rom[256];
@@ -125,7 +125,7 @@ generate_config_rom (struct fw_card *card, size_t *config_rom_length)
 }
 
 static void
-update_config_roms (void)
+update_config_roms(void)
 {
 	struct fw_card *card;
 	u32 *config_rom;
@@ -138,7 +138,7 @@ update_config_roms (void)
 }
 
 int
-fw_core_add_descriptor (struct fw_descriptor *desc)
+fw_core_add_descriptor(struct fw_descriptor *desc)
 {
 	size_t i;
 
@@ -156,7 +156,7 @@ fw_core_add_descriptor (struct fw_descriptor *desc)
 
 	mutex_lock(&card_mutex);
 
-	list_add_tail (&desc->link, &descriptor_list);
+	list_add_tail(&desc->link, &descriptor_list);
 	descriptor_count++;
 	if (desc->immediate > 0)
 		descriptor_count++;
@@ -169,7 +169,7 @@ fw_core_add_descriptor (struct fw_descriptor *desc)
 EXPORT_SYMBOL(fw_core_add_descriptor);
 
 void
-fw_core_remove_descriptor (struct fw_descriptor *desc)
+fw_core_remove_descriptor(struct fw_descriptor *desc)
 {
 	mutex_lock(&card_mutex);
 
@@ -419,7 +419,7 @@ fw_card_add(struct fw_card *card,
 	fw_card_get(card);
 
 	mutex_lock(&card_mutex);
-	config_rom = generate_config_rom (card, &length);
+	config_rom = generate_config_rom(card, &length);
 	list_add_tail(&card->link, &card_list);
 	mutex_unlock(&card_mutex);
 

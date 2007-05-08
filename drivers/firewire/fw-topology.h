@@ -64,7 +64,7 @@ struct fw_node {
 static inline struct fw_node *
 fw_node(struct list_head *l)
 {
-	return list_entry (l, struct fw_node, link);
+	return list_entry(l, struct fw_node, link);
 }
 
 static inline struct fw_node *

@@ -172,11 +172,11 @@ struct fw_descriptor {
 	const u32 *data;
 };
 
-int fw_core_add_descriptor (struct fw_descriptor *desc);
-void fw_core_remove_descriptor (struct fw_descriptor *desc);
+int fw_core_add_descriptor(struct fw_descriptor *desc);
+void fw_core_remove_descriptor(struct fw_descriptor *desc);
 
-typedef void (*fw_packet_callback_t) (struct fw_packet *packet,
-				      struct fw_card *card, int status);
+typedef void (*fw_packet_callback_t)(struct fw_packet *packet,
+				     struct fw_card *card, int status);
 
 typedef void (*fw_transaction_callback_t)(struct fw_card *card, int rcode,
 					  void *data,
@@ -239,7 +239,7 @@ struct fw_transaction {
 static inline struct fw_packet *
 fw_packet(struct list_head *l)
 {
-	return list_entry (l, struct fw_packet, link);
+	return list_entry(l, struct fw_packet, link);
 }
 
 struct fw_address_handler {
@@ -350,11 +350,11 @@ struct fw_iso_packet {
 
 struct fw_iso_context;
 
-typedef void (*fw_iso_callback_t) (struct fw_iso_context *context,
-				   u32 cycle,
-				   size_t header_length,
-				   void *header,
-				   void *data);
+typedef void (*fw_iso_callback_t)(struct fw_iso_context *context,
+				  u32 cycle,
+				  size_t header_length,
+				  void *header,
+				  void *data);
 
 /*
  * An iso buffer is just a set of pages mapped for DMA in the
@@ -420,23 +420,23 @@ struct fw_card_driver {
 	 * enable the PHY or set the link_on bit and initiate a bus
 	 * reset.
 	 */
-	int (*enable) (struct fw_card *card, u32 *config_rom, size_t length);
+	int (*enable)(struct fw_card *card, u32 *config_rom, size_t length);
 
-	int (*update_phy_reg) (struct fw_card *card, int address,
-			       int clear_bits, int set_bits);
+	int (*update_phy_reg)(struct fw_card *card, int address,
+			      int clear_bits, int set_bits);
 
 	/*
 	 * Update the config rom for an enabled card.  This function
 	 * should change the config rom that is presented on the bus
 	 * an initiate a bus reset.
 	 */
-	int (*set_config_rom) (struct fw_card *card,
-			       u32 *config_rom, size_t length);
+	int (*set_config_rom)(struct fw_card *card,
+			      u32 *config_rom, size_t length);
 
-	void (*send_request) (struct fw_card *card, struct fw_packet *packet);
-	void (*send_response) (struct fw_card *card, struct fw_packet *packet);
+	void (*send_request)(struct fw_card *card, struct fw_packet *packet);
+	void (*send_response)(struct fw_card *card, struct fw_packet *packet);
 	/* Calling cancel is valid once a packet has been submitted. */
-	int (*cancel_packet) (struct fw_card *card, struct fw_packet *packet);
+	int (*cancel_packet)(struct fw_card *card, struct fw_packet *packet);
 
 	/*
 	 * Allow the specified node ID to do direct DMA out and in of
@@ -446,10 +446,10 @@ struct fw_card_driver {
 	 * doesn't support this, -ESTALE if the generation doesn't
 	 * match.
 	 */
-	int (*enable_phys_dma) (struct fw_card *card,
-				int node_id, int generation);
+	int (*enable_phys_dma)(struct fw_card *card,
+			       int node_id, int generation);
 
-	u64 (*get_bus_time) (struct fw_card *card);
+	u64 (*get_bus_time)(struct fw_card *card);
 
 	struct fw_iso_context *
 	(*allocate_iso_context)(struct fw_card *card,

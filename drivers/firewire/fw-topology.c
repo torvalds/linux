@@ -300,9 +300,9 @@ static struct fw_node *build_tree(struct fw_card *card,
 	return local_node;
 }
 
-typedef void (*fw_node_callback_t) (struct fw_card * card,
-				    struct fw_node * node,
-				    struct fw_node * parent);
+typedef void (*fw_node_callback_t)(struct fw_card * card,
+				   struct fw_node * node,
+				   struct fw_node * parent);
 
 static void
 for_each_fw_node(struct fw_card *card, struct fw_node *root,

@@ -47,7 +47,7 @@
 #include "fw-device.h"
 
 /* I don't know why the SCSI stack doesn't define something like this... */
-typedef void (*scsi_done_fn_t) (struct scsi_cmnd *);
+typedef void (*scsi_done_fn_t)(struct scsi_cmnd *);
 
 static const char sbp2_driver_name[] = "sbp2";
 
@@ -148,7 +148,7 @@ struct sbp2_orb {
 	dma_addr_t request_bus;
 	int rcode;
 	struct sbp2_pointer pointer;
-	void (*callback) (struct sbp2_orb * orb, struct sbp2_status * status);
+	void (*callback)(struct sbp2_orb * orb, struct sbp2_status * status);
 	struct list_head link;
 };
 
