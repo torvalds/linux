@@ -1497,7 +1497,7 @@ zfcp_fsf_incoming_els_plogi(struct zfcp_adapter *adapter,
 
 	if (!port || (port->wwpn != (*(wwn_t *) &els_plogi->serv_param.wwpn))) {
 		ZFCP_LOG_DEBUG("ignored incoming PLOGI for nonexisting port "
-			       "with d_id 0x%08x on adapter %s\n",
+			       "with d_id 0x%06x on adapter %s\n",
 			       status_buffer->d_id,
 			       zfcp_get_busid_by_adapter(adapter));
 	} else {
@@ -1522,7 +1522,7 @@ zfcp_fsf_incoming_els_logo(struct zfcp_adapter *adapter,
 
 	if (!port || (port->wwpn != els_logo->nport_wwpn)) {
 		ZFCP_LOG_DEBUG("ignored incoming LOGO for nonexisting port "
-			       "with d_id 0x%08x on adapter %s\n",
+			       "with d_id 0x%06x on adapter %s\n",
 			       status_buffer->d_id,
 			       zfcp_get_busid_by_adapter(adapter));
 	} else {
@@ -1704,7 +1704,7 @@ static void zfcp_ns_gid_pn_handler(unsigned long data)
 	/* looks like a valid d_id */
         port->d_id = ct_iu_resp->d_id & ZFCP_DID_MASK;
 	atomic_set_mask(ZFCP_STATUS_PORT_DID_DID, &port->status);
-	ZFCP_LOG_DEBUG("adapter %s:  wwpn=0x%016Lx ---> d_id=0x%08x\n",
+	ZFCP_LOG_DEBUG("adapter %s:  wwpn=0x%016Lx ---> d_id=0x%06x\n",
 		       zfcp_get_busid_by_port(port), port->wwpn, port->d_id);
 	goto out;
 

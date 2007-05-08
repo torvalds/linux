@@ -342,9 +342,9 @@ zfcp_erp_adisc(struct zfcp_port *port)
 	adisc->wwpn = fc_host_port_name(adapter->scsi_host);
 	adisc->wwnn = fc_host_node_name(adapter->scsi_host);
 	adisc->nport_id = fc_host_port_id(adapter->scsi_host);
-	ZFCP_LOG_INFO("ADISC request from s_id 0x%08x to d_id 0x%08x "
+	ZFCP_LOG_INFO("ADISC request from s_id 0x%06x to d_id 0x%06x "
 		      "(wwpn=0x%016Lx, wwnn=0x%016Lx, "
-		      "hard_nport_id=0x%08x, nport_id=0x%08x)\n",
+		      "hard_nport_id=0x%06x, nport_id=0x%06x)\n",
 		      adisc->nport_id, send_els->d_id, (wwn_t) adisc->wwpn,
 		      (wwn_t) adisc->wwnn, adisc->hard_nport_id,
 		      adisc->nport_id);
@@ -352,7 +352,7 @@ zfcp_erp_adisc(struct zfcp_port *port)
 	retval = zfcp_fsf_send_els(send_els);
 	if (retval != 0) {
 		ZFCP_LOG_NORMAL("error: initiation of Send ELS failed for port "
-				"0x%08x on adapter %s\n", send_els->d_id,
+				"0x%06x on adapter %s\n", send_els->d_id,
 				zfcp_get_busid_by_adapter(adapter));
 		goto freemem;
 	}
@@ -398,7 +398,7 @@ zfcp_erp_adisc_handler(unsigned long data)
 	if (send_els->status != 0) {
 		ZFCP_LOG_NORMAL("ELS request rejected/timed out, "
 				"force physical port reopen "
-				"(adapter %s, port d_id=0x%08x)\n",
+				"(adapter %s, port d_id=0x%06x)\n",
 				zfcp_get_busid_by_adapter(adapter), d_id);
 		debug_text_event(adapter->erp_dbf, 3, "forcreop");
 		if (zfcp_erp_port_forced_reopen(port, 0))
@@ -411,9 +411,9 @@ zfcp_erp_adisc_handler(unsigned long data)
 
 	adisc = zfcp_sg_to_address(send_els->resp);
 
-	ZFCP_LOG_INFO("ADISC response from d_id 0x%08x to s_id "
-		      "0x%08x (wwpn=0x%016Lx, wwnn=0x%016Lx, "
-		      "hard_nport_id=0x%08x, nport_id=0x%08x)\n",
+	ZFCP_LOG_INFO("ADISC response from d_id 0x%06x to s_id "
+		      "0x%06x (wwpn=0x%016Lx, wwnn=0x%016Lx, "
+		      "hard_nport_id=0x%06x, nport_id=0x%06x)\n",
 		      d_id, fc_host_port_id(adapter->scsi_host),
 		      (wwn_t) adisc->wwpn, (wwn_t) adisc->wwnn,
 		      adisc->hard_nport_id, adisc->nport_id);
@@ -1377,7 +1377,7 @@ zfcp_erp_port_failed(struct zfcp_port *port)
 
 	if (atomic_test_mask(ZFCP_STATUS_PORT_WKA, &port->status))
 		ZFCP_LOG_NORMAL("port erp failed (adapter %s, "
-				"port d_id=0x%08x)\n",
+				"port d_id=0x%06x)\n",
 				zfcp_get_busid_by_port(port), port->d_id);
 	else
 		ZFCP_LOG_NORMAL("port erp failed (adapter %s, wwpn=0x%016Lx)\n",
@@ -2401,7 +2401,7 @@ zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *erp_action)
 				retval = ZFCP_ERP_FAILED;
 			}
 		} else {
-			ZFCP_LOG_DEBUG("port 0x%016Lx has d_id=0x%08x -> "
+			ZFCP_LOG_DEBUG("port 0x%016Lx has d_id=0x%06x -> "
 				       "trying open\n", port->wwpn, port->d_id);
 			retval = zfcp_erp_port_strategy_open_port(erp_action);
 		}
@@ -2441,7 +2441,7 @@ zfcp_erp_port_strategy_open_nameserver(struct zfcp_erp_action *erp_action)
 	case ZFCP_ERP_STEP_UNINITIALIZED:
 	case ZFCP_ERP_STEP_PHYS_PORT_CLOSING:
 	case ZFCP_ERP_STEP_PORT_CLOSING:
-		ZFCP_LOG_DEBUG("port 0x%016Lx has d_id=0x%08x -> trying open\n",
+		ZFCP_LOG_DEBUG("port 0x%016Lx has d_id=0x%06x -> trying open\n",
 			       port->wwpn, port->d_id);
 		retval = zfcp_erp_port_strategy_open_port(erp_action);
 		break;
