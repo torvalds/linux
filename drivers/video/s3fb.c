@@ -1061,6 +1061,7 @@ static int s3_pci_resume(struct pci_dev* dev)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
 	struct s3fb_info *par = info->par;
+	int err;
 
 	dev_info(&(dev->dev), "resume\n");
 
@@ -1075,7 +1076,13 @@ static int s3_pci_resume(struct pci_dev* dev)
 
 	pci_set_power_state(dev, PCI_D0);
 	pci_restore_state(dev);
-	pci_enable_device(dev);
+	err = pci_enable_device(dev);
+	if (err) {
+		mutex_unlock(&(par->open_lock));
+		release_console_sem();
+		dev_err(&(dev->dev), "error %d enabling device for resume\n", err);
+		return err;
+	}
 	pci_set_master(dev);
 
 	s3fb_set_par(info);
