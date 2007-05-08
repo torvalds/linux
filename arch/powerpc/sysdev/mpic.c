@@ -389,6 +389,50 @@ static void mpic_shutdown_ht_interrupt(struct mpic *mpic, unsigned int source,
 #endif
 }
 
+#ifdef CONFIG_PCI_MSI
+static void __init mpic_scan_ht_msi(struct mpic *mpic, u8 __iomem *devbase,
+				    unsigned int devfn)
+{
+	u8 __iomem *base;
+	u8 pos, flags;
+	u64 addr = 0;
+
+	for (pos = readb(devbase + PCI_CAPABILITY_LIST); pos != 0;
+	     pos = readb(devbase + pos + PCI_CAP_LIST_NEXT)) {
+		u8 id = readb(devbase + pos + PCI_CAP_LIST_ID);
+		if (id == PCI_CAP_ID_HT) {
+			id = readb(devbase + pos + 3);
+			if ((id & HT_5BIT_CAP_MASK) == HT_CAPTYPE_MSI_MAPPING)
+				break;
+		}
+	}
+
+	if (pos == 0)
+		return;
+
+	base = devbase + pos;
+
+	flags = readb(base + HT_MSI_FLAGS);
+	if (!(flags & HT_MSI_FLAGS_FIXED)) {
+		addr = readl(base + HT_MSI_ADDR_LO) & HT_MSI_ADDR_LO_MASK;
+		addr = addr | ((u64)readl(base + HT_MSI_ADDR_HI) << 32);
+	}
+
+	printk(KERN_DEBUG "mpic:   - HT:%02x.%x %s MSI mapping found @ 0x%lx\n",
+		PCI_SLOT(devfn), PCI_FUNC(devfn),
+		flags & HT_MSI_FLAGS_ENABLE ? "enabled" : "disabled", addr);
+
+	if (!(flags & HT_MSI_FLAGS_ENABLE))
+		writeb(flags | HT_MSI_FLAGS_ENABLE, base + HT_MSI_FLAGS);
+}
+#else
+static void __init mpic_scan_ht_msi(struct mpic *mpic, u8 __iomem *devbase,
+				    unsigned int devfn)
+{
+	return;
+}
+#endif
+
 static void __init mpic_scan_ht_pic(struct mpic *mpic, u8 __iomem *devbase,
 				    unsigned int devfn, u32 vdid)
 {
@@ -480,6 +524,7 @@ static void __init mpic_scan_ht_pics(struct mpic *mpic)
 			goto next;
 
 		mpic_scan_ht_pic(mpic, devbase, devfn, l);
+		mpic_scan_ht_msi(mpic, devbase, devfn);
 
 	next:
 		/* next device, if function 0 */
