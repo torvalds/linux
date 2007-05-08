@@ -48,8 +48,8 @@ static struct page* fb_deferred_io_nopage(struct vm_area_struct *vma,
 }
 
 /* vm_ops->page_mkwrite handler */
-int fb_deferred_io_mkwrite(struct vm_area_struct *vma,
-					struct page *page)
+static int fb_deferred_io_mkwrite(struct vm_area_struct *vma,
+				  struct page *page)
 {
 	struct fb_info *info = vma->vm_private_data;
 	struct fb_deferred_io *fbdefio = info->fbdefio;
