@@ -15,6 +15,37 @@
 	.text
 
 /*
+ * Do an IO access in AS1
+ */
+_GLOBAL(as1_readb)
+	mfmsr	r7
+	ori	r0,r7,MSR_DS
+	sync
+	mtmsr	r0
+	sync
+	isync
+	lbz	r3,0(r3)
+	sync
+	mtmsr	r7
+	sync
+	isync
+	blr
+
+_GLOBAL(as1_writeb)
+	mfmsr	r7
+	ori	r0,r7,MSR_DS
+	sync
+	mtmsr	r0
+	sync
+	isync
+	stb	r3,0(r4)
+	sync
+	mtmsr	r7
+	sync
+	isync
+	blr
+
+/*
  * void ppc44x_reset_system(char *cmd)
  *
  * At present, this routine just applies a system reset.

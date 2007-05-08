@@ -51,6 +51,9 @@ void __init udbg_early_init(void)
 	udbg_init_pas_realmode();
 #elif defined(CONFIG_BOOTX_TEXT)
 	udbg_init_btext();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_44x)
+	/* PPC44x debug */
+	udbg_init_44x_as1();
 #endif
 }
 

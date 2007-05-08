@@ -29,7 +29,6 @@
 #include <asm/ppc-pci.h>
 #include <asm/atomic.h>
 
-
 /*
  * The list of OF IDs below is used for matching bus types in the
  * system whose devices are to be exposed as of_platform_devices.

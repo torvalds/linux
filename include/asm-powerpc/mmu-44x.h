@@ -64,7 +64,13 @@ typedef struct {
 
 #endif /* !__ASSEMBLY__ */
 
+#ifndef CONFIG_PPC_EARLY_DEBUG_44x
 #define PPC44x_EARLY_TLBS	1
+#else
+#define PPC44x_EARLY_TLBS	2
+#define PPC44x_EARLY_DEBUG_VIRTADDR	(ASM_CONST(0xf0000000) \
+	| (ASM_CONST(CONFIG_PPC_EARLY_DEBUG_44x_PHYSLOW) & 0xffff))
+#endif
 
 /* Size of the TLBs used for pinning in lowmem */
 #define PPC_PIN_SIZE	(1 << 28)	/* 256M */
