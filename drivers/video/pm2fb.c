@@ -81,8 +81,6 @@ static int lowvsync;
 struct pm2fb_par
 {
 	pm2type_t	type;		/* Board type */
-	u32		fb_size;	/* framebuffer memory size */
-	unsigned char	__iomem *v_fb;  /* virtual address of frame buffer */
 	unsigned char	__iomem *v_regs;/* virtual address of p_regs */
 	u32 	   	memclock;	/* memclock */
 	u32		video;		/* video flags before blanking */
@@ -1293,20 +1291,19 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 	/* Now work out how big lfb is going to be. */
 	switch(default_par->mem_config & PM2F_MEM_CONFIG_RAM_MASK) {
 	case PM2F_MEM_BANKS_1:
-		default_par->fb_size=0x200000;
+		pm2fb_fix.smem_len=0x200000;
 		break;
 	case PM2F_MEM_BANKS_2:
-		default_par->fb_size=0x400000;
+		pm2fb_fix.smem_len=0x400000;
 		break;
 	case PM2F_MEM_BANKS_3:
-		default_par->fb_size=0x600000;
+		pm2fb_fix.smem_len=0x600000;
 		break;
 	case PM2F_MEM_BANKS_4:
-		default_par->fb_size=0x800000;
+		pm2fb_fix.smem_len=0x800000;
 		break;
 	}
 	pm2fb_fix.smem_start = pci_resource_start(pdev, 1);
-	pm2fb_fix.smem_len = default_par->fb_size;
 
 	/* Linear frame buffer - request region and map it. */
 	if ( !request_mem_region(pm2fb_fix.smem_start, pm2fb_fix.smem_len,
@@ -1314,9 +1311,9 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 		printk(KERN_WARNING "pm2fb: Can't reserve smem.\n");
 		goto err_exit_mmio;
 	}
-	info->screen_base = default_par->v_fb =
+	info->screen_base =
 		ioremap_nocache(pm2fb_fix.smem_start, pm2fb_fix.smem_len);
-	if ( !default_par->v_fb ) {
+	if ( !info->screen_base ) {
 		printk(KERN_WARNING "pm2fb: Can't ioremap smem area.\n");
 		release_mem_region(pm2fb_fix.smem_start, pm2fb_fix.smem_len);
 		goto err_exit_mmio;
@@ -1344,7 +1341,7 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 		goto err_exit_both;
 
 	printk(KERN_INFO "fb%d: %s frame buffer device, memory = %dK.\n",
-	       info->node, info->fix.id, default_par->fb_size / 1024);
+	       info->node, info->fix.id, pm2fb_fix.smem_len / 1024);
 
 	/*
 	 * Our driver data
