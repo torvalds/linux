@@ -9,6 +9,7 @@
 #include <linux/delay.h>
 #include <linux/mount.h>
 #include <linux/device.h>
+#include <linux/init.h>
 
 #include <linux/nfs_fs.h>
 #include <linux/nfs_fs_sb.h>
