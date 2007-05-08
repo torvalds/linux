@@ -41,7 +41,6 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 #include <linux/fcntl.h>
 #include <linux/init.h>
 #include <linux/poll.h>
-#include <linux/smp_lock.h>
 #include <linux/moduleparam.h>
 #include <linux/cdev.h>
 #include <linux/seq_file.h>

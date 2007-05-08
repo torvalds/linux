@@ -66,7 +66,6 @@
 #include <linux/poll.h>
 #include <linux/major.h>
 #include <linux/ppdev.h>
-#include <linux/smp_lock.h>
 #include <linux/device.h>
 #include <asm/uaccess.h>
 

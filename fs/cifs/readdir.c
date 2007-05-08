@@ -23,7 +23,6 @@
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/stat.h>
-#include <linux/smp_lock.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"

@@ -2,7 +2,6 @@
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 #include <linux/namei.h>
 
 struct export_operations export_op_default;

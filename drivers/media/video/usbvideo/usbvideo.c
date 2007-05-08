@@ -20,7 +20,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>

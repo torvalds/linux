@@ -35,7 +35,6 @@
 #include <linux/signal.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
 #include <linux/seq_file.h>
 #include <linux/times.h>
 #include <linux/profile.h>

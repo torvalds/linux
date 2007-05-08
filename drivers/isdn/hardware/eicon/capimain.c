@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <asm/uaccess.h>
-#include <linux/smp_lock.h>
 #include <linux/skbuff.h>
 
 #include "os_capi.h"

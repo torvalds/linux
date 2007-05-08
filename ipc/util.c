@@ -21,7 +21,6 @@
 #include <linux/shm.h>
 #include <linux/init.h>
 #include <linux/msg.h>
-#include <linux/smp_lock.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/capability.h>

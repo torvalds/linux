@@ -32,7 +32,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/smp_lock.h>
 #include <linux/fs.h>
 
 #include "av7110.h"

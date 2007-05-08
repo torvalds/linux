@@ -10,7 +10,6 @@
  */
 
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/fs.h>
 #include <linux/unistd.h>
 #include <linux/string.h>

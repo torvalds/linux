@@ -42,7 +42,6 @@
 #include <linux/proc_fs.h>
 #include <linux/module.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
 

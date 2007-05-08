@@ -42,7 +42,6 @@
 
 #include <linux/mm.h>
 #include <linux/kernel_stat.h>
-#include <linux/smp_lock.h>
 #include <linux/bootmem.h>
 #include <linux/thread_info.h>
 #include <linux/module.h>

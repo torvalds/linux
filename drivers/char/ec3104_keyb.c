@@ -41,7 +41,6 @@
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
 #include <linux/kbd_kern.h>
-#include <linux/smp_lock.h>
 #include <linux/bitops.h>
 
 #include <asm/keyboard.h>

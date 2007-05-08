@@ -13,7 +13,6 @@
  */
 
 #include <linux/pagemap.h>
-#include <linux/smp_lock.h>
 #include "sysv.h"
 
 static int add_nondir(struct dentry *dentry, struct inode *inode)

@@ -19,7 +19,6 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/bootmem.h>
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/mc146818rtc.h>
 #include <linux/kernel_stat.h>

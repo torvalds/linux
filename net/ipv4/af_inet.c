@@ -92,7 +92,6 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-#include <linux/smp_lock.h>
 #include <linux/inet.h>
 #include <linux/igmp.h>
 #include <linux/inetdevice.h>

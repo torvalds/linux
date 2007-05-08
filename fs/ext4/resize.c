@@ -11,7 +11,6 @@
 
 #define EXT4FS_DEBUG
 
-#include <linux/smp_lock.h>
 #include <linux/ext4_jbd2.h>
 
 #include <linux/errno.h>

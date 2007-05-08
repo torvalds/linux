@@ -24,7 +24,6 @@
 #include <linux/mm.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/capability.h>
 #include <linux/blkdev.h>
 #include <linux/file.h>

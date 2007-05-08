@@ -48,7 +48,6 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/major.h>
-#include <linux/smp_lock.h>
 #include <linux/random.h>
 #include <linux/time.h>
 #include <linux/device.h>

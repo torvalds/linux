@@ -17,7 +17,6 @@
 #include <linux/mm.h>
 #include <linux/tty.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/binfmts.h>	/* do_coredum */
 #include <linux/bitops.h>
 

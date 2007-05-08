@@ -7,7 +7,6 @@
 #include <linux/fs.h>
 #include <linux/reiserfs_fs.h>
 #include <linux/stat.h>
-#include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <asm/uaccess.h>
 

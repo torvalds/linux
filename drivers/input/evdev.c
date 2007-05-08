@@ -18,7 +18,6 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/major.h>
-#include <linux/smp_lock.h>
 #include <linux/device.h>
 #include <linux/compat.h>
 

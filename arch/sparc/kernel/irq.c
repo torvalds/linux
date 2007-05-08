@@ -24,7 +24,6 @@
 #include <linux/random.h>
 #include <linux/init.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/delay.h>
 #include <linux/threads.h>
 #include <linux/spinlock.h>

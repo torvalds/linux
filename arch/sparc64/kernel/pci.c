@@ -14,7 +14,6 @@
 #include <linux/sched.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
-#include <linux/smp_lock.h>
 #include <linux/msi.h>
 #include <linux/irq.h>
 #include <linux/init.h>

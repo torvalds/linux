@@ -14,7 +14,6 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/unistd.h>
-#include <linux/smp_lock.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/completion.h>

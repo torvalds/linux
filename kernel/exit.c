@@ -7,7 +7,6 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/smp_lock.h>
 #include <linux/module.h>
 #include <linux/capability.h>
 #include <linux/completion.h>

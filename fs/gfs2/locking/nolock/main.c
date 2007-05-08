@@ -13,7 +13,6 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/fs.h>
-#include <linux/smp_lock.h>
 #include <linux/lm_interface.h>
 
 struct nolock_lockspace {

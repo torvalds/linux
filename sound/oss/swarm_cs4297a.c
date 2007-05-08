@@ -75,7 +75,6 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/poll.h>
-#include <linux/smp_lock.h>
 #include <linux/mutex.h>
 #include <linux/kernel.h>
 

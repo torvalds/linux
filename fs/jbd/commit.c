@@ -20,7 +20,6 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
-#include <linux/smp_lock.h>
 
 /*
  * Default IO end handler for temporary BJ_IO buffer_heads.

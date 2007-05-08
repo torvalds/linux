@@ -5,7 +5,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/smp_lock.h>
 #include <linux/errno.h>
 
 #include <asm/uaccess.h>

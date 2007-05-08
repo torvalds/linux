@@ -21,7 +21,6 @@
 #include <linux/fsnotify.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
 #include <linux/hash.h>
 #include <linux/cache.h>
 #include <linux/module.h>

@@ -51,7 +51,6 @@
 #include <linux/ioctl32.h>
 #define SIS_OLD_CONFIG_COMPAT
 #else
-#include <linux/smp_lock.h>
 #define SIS_NEW_CONFIG_COMPAT
 #endif
 #endif	/* CONFIG_COMPAT */

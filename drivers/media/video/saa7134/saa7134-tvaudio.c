@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/smp_lock.h>
 #include <asm/div64.h>
 
 #include "saa7134-reg.h"

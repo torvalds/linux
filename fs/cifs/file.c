@@ -27,7 +27,6 @@
 #include <linux/fcntl.h>
 #include <linux/pagemap.h>
 #include <linux/pagevec.h>
-#include <linux/smp_lock.h>
 #include <linux/writeback.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/delay.h>

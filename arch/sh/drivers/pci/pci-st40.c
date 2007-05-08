@@ -9,7 +9,6 @@
 
 #include <linux/kernel.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/pci.h>

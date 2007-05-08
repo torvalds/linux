@@ -62,7 +62,6 @@
 #include <linux/selection.h>
 #include <linux/spinlock.h>
 #include <linux/kref.h>
-#include <linux/smp_lock.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/vmalloc.h>

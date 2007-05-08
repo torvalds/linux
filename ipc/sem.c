@@ -75,7 +75,6 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/time.h>
-#include <linux/smp_lock.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/audit.h>

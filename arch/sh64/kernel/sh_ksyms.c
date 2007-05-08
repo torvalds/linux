@@ -17,7 +17,6 @@
 #include <linux/sched.h>
 #include <linux/in6.h>
 #include <linux/interrupt.h>
-#include <linux/smp_lock.h>
 #include <linux/screen_info.h>
 
 #include <asm/semaphore.h>

@@ -19,7 +19,6 @@
 #include <linux/fs.h>
 #include <linux/signal.h>
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
 #include <linux/timer.h>
 #include <linux/wait.h>
 #ifdef CONFIG_ISDN_CAPI_MIDDLEWARE

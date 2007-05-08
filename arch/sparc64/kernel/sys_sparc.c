@@ -19,7 +19,6 @@
 #include <linux/mman.h>
 #include <linux/utsname.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <linux/syscalls.h>
 #include <linux/ipc.h>

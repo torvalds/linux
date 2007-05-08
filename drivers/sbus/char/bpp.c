@@ -15,7 +15,6 @@
 #include <linux/fs.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>

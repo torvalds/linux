@@ -39,7 +39,6 @@
 #include <linux/pci.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
-#include <linux/smp_lock.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
 #include <linux/types.h>

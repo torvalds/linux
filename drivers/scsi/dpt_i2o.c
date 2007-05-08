@@ -55,7 +55,6 @@ MODULE_DESCRIPTION("Adaptec I2O RAID Driver");
 #include <linux/sched.h>
 #include <linux/reboot.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <linux/dma-mapping.h>
 
 #include <linux/timer.h>

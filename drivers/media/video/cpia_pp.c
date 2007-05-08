@@ -34,7 +34,6 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
-#include <linux/smp_lock.h>
 #include <linux/sched.h>
 
 #include <linux/kmod.h>

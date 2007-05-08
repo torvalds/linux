@@ -21,7 +21,6 @@
 #include <linux/backing-dev.h>
 
 #include <asm/uaccess.h>
-#include <linux/smp_lock.h>
 
 #include "delegation.h"
 #include "internal.h"

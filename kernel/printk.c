@@ -20,7 +20,6 @@
 #include <linux/mm.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
-#include <linux/smp_lock.h>
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/module.h>

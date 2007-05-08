@@ -23,7 +23,6 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
-#include <linux/smp_lock.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 

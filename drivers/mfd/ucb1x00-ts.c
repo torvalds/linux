@@ -21,7 +21,6 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/sched.h>
 #include <linux/completion.h>
 #include <linux/delay.h>

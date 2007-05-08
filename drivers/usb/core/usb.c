@@ -31,7 +31,6 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
-#include <linux/smp_lock.h>
 #include <linux/usb.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>

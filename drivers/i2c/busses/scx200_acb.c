@@ -28,7 +28,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
-#include <linux/smp_lock.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>

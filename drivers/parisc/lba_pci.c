@@ -38,7 +38,6 @@
 #include <linux/pci.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 
 #include <asm/byteorder.h>
 #include <asm/pdc.h>

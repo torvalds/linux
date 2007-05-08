@@ -30,7 +30,6 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/kmod.h>
 #include <linux/delay.h>

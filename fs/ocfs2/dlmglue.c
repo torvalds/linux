@@ -27,7 +27,6 @@
 #include <linux/slab.h>
 #include <linux/highmem.h>
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
 #include <linux/crc32.h>
 #include <linux/kthread.h>
 #include <linux/pagemap.h>

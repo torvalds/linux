@@ -25,7 +25,6 @@
 #include <linux/mm.h>
 #include <linux/spinlock.h>
 #include <linux/kernel_stat.h>
-#include <linux/smp_lock.h>
 #include <linux/delay.h>
 #include <linux/cache.h>
 #include <linux/interrupt.h>

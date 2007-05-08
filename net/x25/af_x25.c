@@ -1605,7 +1605,6 @@ static const struct proto_ops SOCKOPS_WRAPPED(x25_proto_ops) = {
 	.sendpage =	sock_no_sendpage,
 };
 
-#include <linux/smp_lock.h>
 SOCKOPS_WRAP(x25_proto, AF_X25);
 
 static struct packet_type x25_packet_type = {

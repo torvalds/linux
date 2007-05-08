@@ -69,7 +69,6 @@
 #include <linux/file.h>
 #include <linux/slab.h>
 #include <linux/sysctl.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>

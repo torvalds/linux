@@ -23,7 +23,6 @@
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
 #include <linux/kmod.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <linux/mnt_namespace.h>
 #include <linux/completion.h>

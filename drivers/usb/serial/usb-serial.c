@@ -28,7 +28,6 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
-#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>

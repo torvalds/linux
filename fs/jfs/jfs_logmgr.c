@@ -62,7 +62,6 @@
 #include <linux/fs.h>
 #include <linux/blkdev.h>
 #include <linux/interrupt.h>
-#include <linux/smp_lock.h>
 #include <linux/completion.h>
 #include <linux/kthread.h>
 #include <linux/buffer_head.h>		/* for sync_blockdev() */

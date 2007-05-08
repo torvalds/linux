@@ -41,7 +41,6 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/smp_lock.h>
 #include <linux/file.h>
 #include <linux/pagemap.h>
 #include <linux/kref.h>

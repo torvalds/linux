@@ -9,7 +9,6 @@
  * fragmentation.
  */
 
-#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/bitops.h>
 

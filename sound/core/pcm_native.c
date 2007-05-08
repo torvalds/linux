@@ -21,7 +21,6 @@
 
 #include <sound/driver.h>
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
 #include <linux/file.h>
 #include <linux/slab.h>
 #include <linux/time.h>

@@ -22,7 +22,6 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
-#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/list.h>
 #include <linux/hash.h>

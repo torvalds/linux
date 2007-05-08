@@ -42,7 +42,6 @@
 #include <linux/seq_file.h>
 #include <linux/security.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/stat.h>
 #include <linux/string.h>

@@ -20,7 +20,6 @@
 #include <linux/pm.h>
 #include <linux/tty.h>
 #include <linux/vt_kern.h>
-#include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 
 #include <asm/byteorder.h>

@@ -31,7 +31,6 @@
 #include <linux/timex.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
-#include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 #include <linux/security.h>
 #include <linux/fs.h>

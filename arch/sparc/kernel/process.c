@@ -23,7 +23,6 @@
 #include <linux/user.h>
 #include <linux/a.out.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/pm.h>

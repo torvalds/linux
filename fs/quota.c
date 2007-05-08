@@ -11,7 +11,6 @@
 #include <asm/current.h>
 #include <asm/uaccess.h>
 #include <linux/kernel.h>
-#include <linux/smp_lock.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/buffer_head.h>

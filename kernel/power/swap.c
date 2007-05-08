@@ -12,7 +12,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 #include <linux/file.h>
 #include <linux/utsname.h>
 #include <linux/version.h>

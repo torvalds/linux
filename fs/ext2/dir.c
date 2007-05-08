@@ -23,7 +23,6 @@
 
 #include "ext2.h"
 #include <linux/pagemap.h>
-#include <linux/smp_lock.h>
 
 typedef struct ext2_dir_entry_2 ext2_dirent;
 

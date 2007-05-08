@@ -1844,7 +1844,6 @@ static const struct proto_ops SOCKOPS_WRAPPED(atalk_dgram_ops) = {
 	.sendpage	= sock_no_sendpage,
 };
 
-#include <linux/smp_lock.h>
 SOCKOPS_WRAP(atalk_dgram, PF_APPLETALK);
 
 static struct notifier_block ddp_notifier = {

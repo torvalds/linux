@@ -12,7 +12,6 @@
 #include <linux/string.h>
 #include <linux/stat.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/binfmts.h>
 #include <linux/elf.h>
 #include <linux/init.h>

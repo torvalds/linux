@@ -14,7 +14,6 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <linux/smp.h>
 #include <linux/kernel_stat.h>
 #include <linux/mc146818rtc.h>

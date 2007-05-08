@@ -74,7 +74,6 @@
 #include <linux/stat.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/smp_lock.h>
 #include <linux/usb/input.h>
 
 #define DRIVER_VERSION "v0.0.6"

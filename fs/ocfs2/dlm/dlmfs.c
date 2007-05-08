@@ -42,7 +42,6 @@
 #include <linux/highmem.h>
 #include <linux/init.h>
 #include <linux/string.h>
-#include <linux/smp_lock.h>
 #include <linux/backing-dev.h>
 
 #include <asm/uaccess.h>

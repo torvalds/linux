@@ -8,7 +8,6 @@
 
 #undef DEBUG
 
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/suspend.h>
 #include <linux/module.h>

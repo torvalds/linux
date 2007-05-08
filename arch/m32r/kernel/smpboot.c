@@ -43,7 +43,6 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
 #include <linux/irq.h>
 #include <linux/bootmem.h>
 #include <linux/delay.h>

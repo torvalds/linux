@@ -79,7 +79,6 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <linux/usb.h>
-#include <linux/smp_lock.h>
 
 /*
  * Version Information

@@ -12,7 +12,6 @@
 #include <linux/binfmts.h>
 #include <linux/init.h>
 #include <linux/file.h>
-#include <linux/smp_lock.h>
 #include <linux/err.h>
 #include <linux/fs.h>
 

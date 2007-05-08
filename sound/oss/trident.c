@@ -207,7 +207,6 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <linux/ac97_codec.h>
 #include <linux/bitops.h>
 #include <linux/proc_fs.h>

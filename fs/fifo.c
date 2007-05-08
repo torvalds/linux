@@ -11,7 +11,6 @@
 
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/fs.h>
 #include <linux/pipe_fs_i.h>
 

@@ -17,7 +17,6 @@
 #include <linux/stat.h>
 #include <linux/param.h>
 #include <linux/time.h>
-#include <linux/smp_lock.h>
 #include "autofs_i.h"
 
 static int autofs4_dir_symlink(struct inode *,struct dentry *,const char *);

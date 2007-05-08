@@ -32,7 +32,6 @@
 #include <linux/selection.h>
 #include <linux/kbd_kern.h>
 #include <linux/console.h>
-#include <linux/smp_lock.h>
 #include <linux/device.h>
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>

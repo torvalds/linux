@@ -4,7 +4,6 @@
 #include <linux/sched.h>
 #include <linux/in6.h>
 #include <linux/interrupt.h>
-#include <linux/smp_lock.h>
 #include <linux/pm.h>
 #include <linux/kernel.h>
 #include <linux/string.h>

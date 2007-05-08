@@ -46,7 +46,6 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
-#include <linux/smp_lock.h>
 #include <linux/mutex.h>
 
 #include "../pci.h"

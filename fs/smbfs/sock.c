@@ -17,7 +17,6 @@
 #include <linux/net.h>
 #include <linux/mm.h>
 #include <linux/netdevice.h>
-#include <linux/smp_lock.h>
 #include <linux/workqueue.h>
 #include <net/scm.h>
 #include <net/tcp_states.h>

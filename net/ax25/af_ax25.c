@@ -23,7 +23,6 @@
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/string.h>
-#include <linux/smp_lock.h>
 #include <linux/sockios.h>
 #include <linux/net.h>
 #include <net/ax25.h>

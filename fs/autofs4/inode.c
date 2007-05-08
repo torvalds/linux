@@ -18,7 +18,6 @@
 #include <linux/pagemap.h>
 #include <linux/parser.h>
 #include <linux/bitops.h>
-#include <linux/smp_lock.h>
 #include <linux/magic.h>
 #include "autofs_i.h"
 #include <linux/module.h>

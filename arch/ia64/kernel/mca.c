@@ -63,7 +63,6 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/smp_lock.h>
 #include <linux/bootmem.h>
 #include <linux/acpi.h>
 #include <linux/timer.h>

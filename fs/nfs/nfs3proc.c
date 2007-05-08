@@ -16,7 +16,6 @@
 #include <linux/nfs_fs.h>
 #include <linux/nfs_page.h>
 #include <linux/lockd/bind.h>
-#include <linux/smp_lock.h>
 #include <linux/nfs_mount.h>
 
 #include "iostat.h"

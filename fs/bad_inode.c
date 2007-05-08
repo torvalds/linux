@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/stat.h>
 #include <linux/time.h>
-#include <linux/smp_lock.h>
 #include <linux/namei.h>
 #include <linux/poll.h>
 

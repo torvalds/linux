@@ -28,7 +28,6 @@
 #include <linux/mount.h>
 #include <linux/pagemap.h>
 #include <linux/security.h>
-#include <linux/smp_lock.h>
 #include <linux/compat.h>
 #include <linux/fs_stack.h>
 #include "ecryptfs_kernel.h"

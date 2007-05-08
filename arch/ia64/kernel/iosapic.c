@@ -87,7 +87,6 @@
 #include <linux/list.h>
 #include <linux/pci.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/bootmem.h>
 

@@ -19,7 +19,6 @@
 #include <linux/fcntl.h>
 #include <linux/poll.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
 #include <asm/io.h>
 #include <asm/mostek.h>
 #include <asm/system.h>

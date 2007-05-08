@@ -30,7 +30,6 @@
 #include <linux/file.h>
 #include <linux/stat.h>
 #include <linux/string.h>
-#include <linux/smp_lock.h>
 #include <linux/inet.h>
 #include <linux/list.h>
 #include <asm/uaccess.h>

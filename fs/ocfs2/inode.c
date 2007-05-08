@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
-#include <linux/smp_lock.h>
 
 #include <asm/byteorder.h>
 

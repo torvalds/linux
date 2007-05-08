@@ -44,7 +44,6 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/reboot.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <asm/uaccess.h>

@@ -22,7 +22,6 @@
 #include <linux/quotaops.h>
 #include <linux/pagemap.h>
 #include <linux/fsnotify.h>
-#include <linux/smp_lock.h>
 #include <linux/personality.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>

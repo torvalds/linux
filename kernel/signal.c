@@ -12,7 +12,6 @@
 
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/fs.h>

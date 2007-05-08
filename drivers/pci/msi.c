@@ -12,7 +12,6 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
-#include <linux/smp_lock.h>
 #include <linux/pci.h>
 #include <linux/proc_fs.h>
 #include <linux/msi.h>

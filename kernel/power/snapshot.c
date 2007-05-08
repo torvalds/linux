@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/suspend.h>
-#include <linux/smp_lock.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
 #include <linux/spinlock.h>

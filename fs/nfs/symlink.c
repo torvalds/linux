@@ -22,7 +22,6 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/smp_lock.h>
 #include <linux/namei.h>
 
 /* Symlink caching in the page cache is even more simplistic

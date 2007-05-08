@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/rwsem.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/errno.h>

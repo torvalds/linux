@@ -9,7 +9,6 @@
  */
 #include <linux/fs.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/file.h>
 #include <linux/xattr.h>
 #include <linux/namei.h>

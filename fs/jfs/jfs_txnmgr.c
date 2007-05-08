@@ -44,7 +44,6 @@
 
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
-#include <linux/smp_lock.h>
 #include <linux/completion.h>
 #include <linux/freezer.h>
 #include <linux/module.h>

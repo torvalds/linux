@@ -27,7 +27,6 @@
 #include <linux/random.h>	/* for rand_initialize_irq() */
 #include <linux/signal.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/threads.h>
 #include <linux/bitops.h>
 #include <linux/irq.h>

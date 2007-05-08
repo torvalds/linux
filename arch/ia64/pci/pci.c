@@ -18,7 +18,6 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 
 #include <asm/machvec.h>

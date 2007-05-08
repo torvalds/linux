@@ -27,7 +27,6 @@
 #include <linux/time.h>
 #include <linux/ext4_jbd2.h>
 #include <linux/jbd2.h>
-#include <linux/smp_lock.h>
 #include <linux/highuid.h>
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>

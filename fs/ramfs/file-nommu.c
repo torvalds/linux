@@ -16,7 +16,6 @@
 #include <linux/highmem.h>
 #include <linux/init.h>
 #include <linux/string.h>
-#include <linux/smp_lock.h>
 #include <linux/backing-dev.h>
 #include <linux/ramfs.h>
 #include <linux/quotaops.h>

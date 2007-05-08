@@ -25,7 +25,6 @@
 #include <linux/jbd.h>
 #include <linux/ext3_fs.h>
 #include <linux/buffer_head.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <linux/rbtree.h>
 

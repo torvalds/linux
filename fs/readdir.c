@@ -10,7 +10,6 @@
 #include <linux/errno.h>
 #include <linux/stat.h>
 #include <linux/file.h>
-#include <linux/smp_lock.h>
 #include <linux/fs.h>
 #include <linux/dirent.h>
 #include <linux/security.h>

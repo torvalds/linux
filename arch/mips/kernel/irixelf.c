@@ -31,7 +31,6 @@
 #include <linux/shm.h>
 #include <linux/personality.h>
 #include <linux/elfcore.h>
-#include <linux/smp_lock.h>
 
 #include <asm/mipsregs.h>
 #include <asm/namei.h>

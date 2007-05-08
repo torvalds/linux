@@ -36,7 +36,6 @@
 #include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 #include <linux/bio.h>
-#include <linux/smp_lock.h>
 
 #include "namei.h"
 #include "xattr.h"

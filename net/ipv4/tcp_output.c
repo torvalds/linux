@@ -40,7 +40,6 @@
 
 #include <linux/compiler.h>
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 
 /* People can turn this off for buggy TCP's found in printers etc. */
 int sysctl_tcp_retrans_collapse __read_mostly = 1;
