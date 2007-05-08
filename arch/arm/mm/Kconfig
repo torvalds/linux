@@ -366,6 +366,19 @@ config CPU_32v6K
 	  enabled will not boot on processors with do not support these
 	  instructions.
 
+# ARMv7
+config CPU_V7
+	bool "Support ARM V7 processor"
+	depends on ARCH_INTEGRATOR
+	select CPU_32v6K
+	select CPU_32v7
+	select CPU_ABRT_EV7
+	select CPU_CACHE_V7
+	select CPU_CACHE_VIPT
+	select CPU_CP15_MMU
+	select CPU_COPY_V6 if MMU
+	select CPU_TLB_V6 if MMU
+
 # Figure out what processor architecture version we should be using.
 # This defines the compiler instruction set which depends on the machine type.
 config CPU_32v3
@@ -391,6 +404,9 @@ config CPU_32v5
 config CPU_32v6
 	bool
 
+config CPU_32v7
+	bool
+
 # The abort model
 config CPU_ABRT_NOMMU
 	bool
@@ -413,6 +429,9 @@ config CPU_ABRT_EV5TJ
 config CPU_ABRT_EV6
 	bool
 
+config CPU_ABRT_EV7
+	bool
+
 # The cache model
 config CPU_CACHE_V3
 	bool
@@ -427,6 +446,9 @@ config CPU_CACHE_V4WB
 	bool
 
 config CPU_CACHE_V6
+	bool
+
+config CPU_CACHE_V7
 	bool
 
 config CPU_CACHE_VIVT
@@ -503,7 +525,7 @@ comment "Processor Features"
 
 config ARM_THUMB
 	bool "Support Thumb user binaries"
-	depends on CPU_ARM720T || CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM946E || CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || CPU_XSCALE || CPU_XSC3 || CPU_V6
+	depends on CPU_ARM720T || CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM946E || CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || CPU_XSCALE || CPU_XSC3 || CPU_V6 || CPU_V7
 	default y
 	help
 	  Say Y if you want to include kernel support for running user space
@@ -578,9 +600,15 @@ config CPU_CACHE_ROUND_ROBIN
 	  Say Y here to use the predictable round-robin cache replacement
 	  policy.  Unless you specifically require this or are unsure, say N.
 
+config CPU_L2CACHE_DISABLE
+	bool "Disable level 2 cache"
+	depends on CPU_V7
+	help
+	  Say Y here to disable the level 2 cache.  If unsure, say N.
+
 config CPU_BPREDICT_DISABLE
 	bool "Disable branch prediction"
-	depends on CPU_ARM1020 || CPU_V6 || CPU_XSC3
+	depends on CPU_ARM1020 || CPU_V6 || CPU_XSC3 || CPU_V7
 	help
 	  Say Y here to disable branch prediction.  If unsure, say N.
 
