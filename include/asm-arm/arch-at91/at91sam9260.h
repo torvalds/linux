@@ -117,13 +117,4 @@
 #define AT91SAM9XE_SRAM_BASE	0x00300000	/* Internal SRAM base address */
 
 
-#if 0
-/*
- * PIO pin definitions (peripheral A/B multiplexing).
- */
-
-// TODO: Add
-
-#endif
-
 #endif
