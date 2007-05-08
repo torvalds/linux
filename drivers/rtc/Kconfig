@@ -48,7 +48,7 @@ comment "RTC interfaces"
 	depends on RTC_CLASS
 
 config RTC_INTF_SYSFS
-	tristate "sysfs"
+	boolean "sysfs"
 	depends on RTC_CLASS && SYSFS
 	default RTC_CLASS
 	help

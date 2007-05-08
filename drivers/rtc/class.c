@@ -89,6 +89,7 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 		goto exit_kfree;
 
 	rtc_dev_add_device(rtc);
+	rtc_sysfs_add_device(rtc);
 
 	dev_info(dev, "rtc core: registered %s as %s\n",
 			rtc->name, rtc->class_dev.class_id);
@@ -123,6 +124,7 @@ void rtc_device_unregister(struct rtc_device *rtc)
 		/* remove innards of this RTC, then disable it, before
 		 * letting any rtc_class_open() users access it again
 		 */
+		rtc_sysfs_del_device(rtc);
 		rtc_dev_del_device(rtc);
 		class_device_unregister(&rtc->class_dev);
 		rtc->ops = NULL;
@@ -147,6 +149,7 @@ static int __init rtc_init(void)
 		return PTR_ERR(rtc_class);
 	}
 	rtc_dev_init();
+	rtc_sysfs_init(rtc_class);
 	return 0;
 }
 

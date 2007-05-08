@@ -21,7 +21,6 @@ static ssize_t rtc_sysfs_show_name(struct class_device *dev, char *buf)
 {
 	return sprintf(buf, "%s\n", to_rtc_device(dev)->name);
 }
-static CLASS_DEVICE_ATTR(name, S_IRUGO, rtc_sysfs_show_name, NULL);
 
 static ssize_t rtc_sysfs_show_date(struct class_device *dev, char *buf)
 {
@@ -36,7 +35,6 @@ static ssize_t rtc_sysfs_show_date(struct class_device *dev, char *buf)
 
 	return retval;
 }
-static CLASS_DEVICE_ATTR(date, S_IRUGO, rtc_sysfs_show_date, NULL);
 
 static ssize_t rtc_sysfs_show_time(struct class_device *dev, char *buf)
 {
@@ -51,7 +49,6 @@ static ssize_t rtc_sysfs_show_time(struct class_device *dev, char *buf)
 
 	return retval;
 }
-static CLASS_DEVICE_ATTR(time, S_IRUGO, rtc_sysfs_show_time, NULL);
 
 static ssize_t rtc_sysfs_show_since_epoch(struct class_device *dev, char *buf)
 {
@@ -67,20 +64,14 @@ static ssize_t rtc_sysfs_show_since_epoch(struct class_device *dev, char *buf)
 
 	return retval;
 }
-static CLASS_DEVICE_ATTR(since_epoch, S_IRUGO, rtc_sysfs_show_since_epoch, NULL);
 
-static struct attribute *rtc_attrs[] = {
-	&class_device_attr_name.attr,
-	&class_device_attr_date.attr,
-	&class_device_attr_time.attr,
-	&class_device_attr_since_epoch.attr,
-	NULL,
+static struct class_device_attribute rtc_attrs[] = {
+	__ATTR(name, S_IRUGO, rtc_sysfs_show_name, NULL),
+	__ATTR(date, S_IRUGO, rtc_sysfs_show_date, NULL),
+	__ATTR(time, S_IRUGO, rtc_sysfs_show_time, NULL),
+	__ATTR(since_epoch, S_IRUGO, rtc_sysfs_show_since_epoch, NULL),
+	{ },
 };
-
-static struct attribute_group rtc_attr_group = {
-	.attrs = rtc_attrs,
-};
-
 
 static ssize_t
 rtc_sysfs_show_wakealarm(struct class_device *dev, char *buf)
@@ -157,71 +148,39 @@ static const CLASS_DEVICE_ATTR(wakealarm, S_IRUGO | S_IWUSR,
  * suspend-to-disk.  So: no attribute unless that side effect is possible.
  * (Userspace may disable that mechanism later.)
  */
-static inline int rtc_does_wakealarm(struct class_device *class_dev)
+static inline int rtc_does_wakealarm(struct rtc_device *rtc)
 {
-	struct rtc_device *rtc;
-
-	if (!device_can_wakeup(class_dev->dev))
+	if (!device_can_wakeup(rtc->class_dev.dev))
 		return 0;
-	rtc = to_rtc_device(class_dev);
 	return rtc->ops->set_alarm != NULL;
 }
 
 
-static int rtc_sysfs_add_device(struct class_device *class_dev,
-					struct class_interface *class_intf)
+void rtc_sysfs_add_device(struct rtc_device *rtc)
 {
 	int err;
 
-	dev_dbg(class_dev->dev, "rtc intf: sysfs\n");
+	/* not all RTCs support both alarms and wakeup */
+	if (!rtc_does_wakealarm(rtc))
+		return;
 
-	err = sysfs_create_group(&class_dev->kobj, &rtc_attr_group);
-	if (err)
-		dev_err(class_dev->dev, "failed to create %s\n",
-				"sysfs attributes");
-	else if (rtc_does_wakealarm(class_dev)) {
-		/* not all RTCs support both alarms and wakeup */
-		err = class_device_create_file(class_dev,
-					&class_device_attr_wakealarm);
-		if (err) {
-			dev_err(class_dev->dev, "failed to create %s\n",
-					"alarm attribute");
-			sysfs_remove_group(&class_dev->kobj, &rtc_attr_group);
-		}
-	}
-
-	return err;
-}
-
-static void rtc_sysfs_remove_device(struct class_device *class_dev,
-				struct class_interface *class_intf)
-{
-	if (rtc_does_wakealarm(class_dev))
-		class_device_remove_file(class_dev,
+	err = class_device_create_file(&rtc->class_dev,
 				&class_device_attr_wakealarm);
-	sysfs_remove_group(&class_dev->kobj, &rtc_attr_group);
+	if (err)
+		dev_err(rtc->class_dev.dev, "failed to create "
+				"alarm attribute, %d",
+				err);
 }
 
-/* interface registration */
-
-static struct class_interface rtc_sysfs_interface = {
-	.add = &rtc_sysfs_add_device,
-	.remove = &rtc_sysfs_remove_device,
-};
-
-static int __init rtc_sysfs_init(void)
+void rtc_sysfs_del_device(struct rtc_device *rtc)
 {
-	return rtc_interface_register(&rtc_sysfs_interface);
+	/* REVISIT did we add it successfully? */
+	if (rtc_does_wakealarm(rtc))
+		class_device_remove_file(&rtc->class_dev,
+				&class_device_attr_wakealarm);
 }
 
-static void __exit rtc_sysfs_exit(void)
+void __init rtc_sysfs_init(struct class *rtc_class)
 {
-	class_interface_unregister(&rtc_sysfs_interface);
+	rtc_class->class_dev_attrs = rtc_attrs;
 }
-
-subsys_initcall(rtc_sysfs_init);
-module_exit(rtc_sysfs_exit);
-
-MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
-MODULE_DESCRIPTION("RTC class sysfs interface");
-MODULE_LICENSE("GPL");
