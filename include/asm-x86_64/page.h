@@ -79,9 +79,10 @@ extern unsigned long phys_base;
 
 #define __PHYSICAL_START	CONFIG_PHYSICAL_START
 #define __KERNEL_ALIGN		0x200000
+
 #define __START_KERNEL		(__START_KERNEL_map + __PHYSICAL_START)
-#define __START_KERNEL_map	0xffffffff80000000
-#define __PAGE_OFFSET           0xffff810000000000
+#define __START_KERNEL_map	_AC(0xffffffff80000000, UL)
+#define __PAGE_OFFSET           _AC(0xffff810000000000, UL)
 
 /* to align the pointer to the (next) page boundary */
 #define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
@@ -93,7 +94,7 @@ extern unsigned long phys_base;
 #define __VIRTUAL_MASK		((_AC(1,UL) << __VIRTUAL_MASK_SHIFT) - 1)
 
 #define KERNEL_TEXT_SIZE  (40*1024*1024)
-#define KERNEL_TEXT_START 0xffffffff80000000
+#define KERNEL_TEXT_START _AC(0xffffffff80000000, UL)
 #define PAGE_OFFSET		__PAGE_OFFSET
 
 #ifndef __ASSEMBLY__

@@ -134,11 +134,11 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long 
 #define USER_PTRS_PER_PGD	((TASK_SIZE-1)/PGDIR_SIZE+1)
 #define FIRST_USER_ADDRESS	0
 
-#define MAXMEM		 0x3fffffffffff
-#define VMALLOC_START    0xffffc20000000000
-#define VMALLOC_END      0xffffe1ffffffffff
-#define MODULES_VADDR    0xffffffff88000000
-#define MODULES_END      0xfffffffffff00000
+#define MAXMEM		 _AC(0x3fffffffffff, UL)
+#define VMALLOC_START    _AC(0xffffc20000000000, UL)
+#define VMALLOC_END      _AC(0xffffe1ffffffffff, UL)
+#define MODULES_VADDR    _AC(0xffffffff88000000, UL)
+#define MODULES_END      _AC(0xfffffffffff00000, UL)
 #define MODULES_LEN   (MODULES_END - MODULES_VADDR)
 
 #define _PAGE_BIT_PRESENT	0
