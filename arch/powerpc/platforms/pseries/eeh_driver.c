@@ -362,9 +362,11 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	}
 
 	printk(KERN_WARNING
-	   "EEH: This PCI device has failed %d times since last reboot: "
-		"location=%s driver=%s pci addr=%s\n",
-		frozen_pdn->eeh_freeze_count, location, drv_str, pci_str);
+	   "EEH: This PCI device has failed %d times in the last hour:\n",
+		frozen_pdn->eeh_freeze_count);
+	printk(KERN_WARNING
+		"EEH: location=%s driver=%s pci addr=%s\n",
+		location, drv_str, pci_str);
 
 	/* Walk the various device drivers attached to this slot through
 	 * a reset sequence, giving each an opportunity to do what it needs
