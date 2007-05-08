@@ -87,6 +87,21 @@ Clarity:	It helps if anyone can see how to fix the driver. It helps
 		driver that intentionally obfuscates how the hardware works
 		it will go in the bitbucket.
 
+PM support:	Since Linux is used on many portable and desktop systems, your
+		driver is likely to be used on such a system and therefore it
+		should support basic power management by implementing, if
+		necessary, the .suspend and .resume methods used during the
+		system-wide suspend and resume transitions.  You should verify
+		that your driver correctly handles the suspend and resume, but
+		if you are unable to ensure that, please at least define the
+		.suspend method returning the -ENOSYS ("Function not
+		implemented") error.  You should also try to make sure that your
+		driver uses as little power as possible when it's not doing
+		anything.  For the driver testing instructions see
+		Documentation/power/drivers-testing.txt and for a relatively
+		complete overview of the power management issues related to
+		drivers see Documentation/power/devices.txt .
+
 Control:	In general if there is active maintainance of a driver by
 		the author then patches will be redirected to them unless
 		they are totally obvious and without need of checking.
