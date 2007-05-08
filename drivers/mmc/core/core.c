@@ -500,9 +500,10 @@ void __mmc_release_bus(struct mmc_host *host)
 void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 {
 #ifdef CONFIG_MMC_DEBUG
-	mmc_claim_host(host);
+	unsigned long flags;
+	spin_lock_irqsave(host->lock, flags);
 	BUG_ON(host->removed);
-	mmc_release_host(host);
+	spin_unlock_irqrestore(host->lock, flags);
 #endif
 
 	mmc_schedule_delayed_work(&host->detect, delay);
@@ -625,9 +626,10 @@ EXPORT_SYMBOL(mmc_add_host);
 void mmc_remove_host(struct mmc_host *host)
 {
 #ifdef CONFIG_MMC_DEBUG
-	mmc_claim_host(host);
+	unsigned long flags;
+	spin_lock_irqsave(&host->lock, flags);
 	host->removed = 1;
-	mmc_release_host(host);
+	spin_unlock_irqrestore(&host->lock, flags);
 #endif
 
 	mmc_flush_scheduled_work();
