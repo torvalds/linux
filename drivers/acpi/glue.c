@@ -245,6 +245,35 @@ arch_initcall(init_acpi_device_notify);
 
 #if defined(CONFIG_RTC_DRV_CMOS) || defined(CONFIG_RTC_DRV_CMOS_MODULE)
 
+#ifdef CONFIG_PM
+static u32 rtc_handler(void *context)
+{
+	acpi_clear_event(ACPI_EVENT_RTC);
+	acpi_disable_event(ACPI_EVENT_RTC, 0);
+	return ACPI_INTERRUPT_HANDLED;
+}
+
+static inline void rtc_wake_setup(void)
+{
+	acpi_install_fixed_event_handler(ACPI_EVENT_RTC, rtc_handler, NULL);
+}
+
+static void rtc_wake_on(struct device *dev)
+{
+	acpi_clear_event(ACPI_EVENT_RTC);
+	acpi_enable_event(ACPI_EVENT_RTC, 0);
+}
+
+static void rtc_wake_off(struct device *dev)
+{
+	acpi_disable_event(ACPI_EVENT_RTC, 0);
+}
+#else
+#define rtc_wake_setup()	do{}while(0)
+#define rtc_wake_on		NULL
+#define rtc_wake_off		NULL
+#endif
+
 /* Every ACPI platform has a mc146818 compatible "cmos rtc".  Here we find
  * its device node and pass extra config data.  This helps its driver use
  * capabilities that the now-obsolete mc146818 didn't have, and informs it
@@ -283,11 +312,17 @@ static int __init acpi_rtc_init(void)
 	struct device *dev = get_rtc_dev();
 
 	if (dev) {
+		rtc_wake_setup();
+		rtc_info.wake_on = rtc_wake_on;
+		rtc_info.wake_off = rtc_wake_off;
+
 		rtc_info.rtc_day_alarm = acpi_gbl_FADT.day_alarm;
 		rtc_info.rtc_mon_alarm = acpi_gbl_FADT.month_alarm;
 		rtc_info.rtc_century = acpi_gbl_FADT.century;
 
-		/* NOTE:  acpi_gbl_FADT->rtcs4 is NOT currently useful */
+		/* NOTE:  S4_RTC_WAKE is NOT currently useful to Linux */
+		if (acpi_gbl_FADT.flags & ACPI_FADT_S4_RTC_WAKE)
+			printk("ACPI: RTC can wake from S4\n");
 
 		dev->platform_data = &rtc_info;
 
