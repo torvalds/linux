@@ -2377,6 +2377,9 @@ static int __devinit aty_init(struct fb_info *info)
 		/* for many chips, the mclk is 67 MHz for SDRAM, 63 MHz otherwise */
 		if (par->pll_limits.mclk == 67 && par->ram_type < SDRAM)
 			par->pll_limits.mclk = 63;
+		/* Mobility + 32bit memory interface need halved XCLK. */
+		if (M64_HAS(MOBIL_BUS) && par->ram_type == SDRAM32)
+			par->pll_limits.xclk = (par->pll_limits.xclk + 1) >> 1;
 	}
 #endif
 
