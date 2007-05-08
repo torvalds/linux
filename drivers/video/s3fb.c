@@ -164,7 +164,7 @@ MODULE_PARM_DESC(fasttext, "Enable S3 fast text mode (1=enable, 0=disable, defau
 static void s3fb_settile_fast(struct fb_info *info, struct fb_tilemap *map)
 {
 	const u8 *font = map->data;
-	u8* fb = (u8 *) info->screen_base;
+	u8 __iomem *fb = (u8 __iomem *) info->screen_base;
 	int i, c;
 
 	if ((map->width != 8) || (map->height != 16) ||
@@ -177,7 +177,7 @@ static void s3fb_settile_fast(struct fb_info *info, struct fb_tilemap *map)
 	fb += 2;
 	for (i = 0; i < map->height; i++) {
 		for (c = 0; c < map->length; c++) {
-			fb[c * 4] = font[c * map->height + i];
+			fb_writeb(font[c * map->height + i], fb + c * 4);
 		}
 		fb += 1024;
 	}
@@ -656,7 +656,7 @@ static int s3fb_set_par(struct fb_info *info)
 	value = ((value * hmul) / 8) - 5;
 	vga_wcrt(NULL, 0x3C, (value + 1) / 2);
 
-	memset((u8*)info->screen_base, 0x00, screen_size);
+	memset_io(info->screen_base, 0x00, screen_size);
 	/* Device and screen back on */
 	svga_wcrt_mask(0x17, 0x80, 0x80);
 	svga_wseq_mask(0x01, 0x00, 0x20);
