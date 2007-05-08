@@ -139,7 +139,7 @@ asmlinkage off_t sys_lseek(unsigned int fd, off_t offset, unsigned int origin)
 		goto bad;
 
 	retval = -EINVAL;
-	if (origin <= 2) {
+	if (origin <= SEEK_MAX) {
 		loff_t res = vfs_llseek(file, offset, origin);
 		retval = res;
 		if (res != (loff_t)retval)
@@ -166,7 +166,7 @@ asmlinkage long sys_llseek(unsigned int fd, unsigned long offset_high,
 		goto bad;
 
 	retval = -EINVAL;
-	if (origin > 2)
+	if (origin > SEEK_MAX)
 		goto out_putf;
 
 	offset = vfs_llseek(file, ((loff_t) offset_high << 32) | offset_low,
