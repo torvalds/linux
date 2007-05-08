@@ -3048,14 +3048,14 @@ static void fbcon_get_requirement(struct fb_info *info,
 {
 	struct vc_data *vc;
 	struct display *p;
-	int charcnt;
 
 	if (caps->flags) {
-		int i;
+		int i, charcnt;
 
 		for (i = first_fb_vc; i <= last_fb_vc; i++) {
 			vc = vc_cons[i].d;
-			if (vc && vc->vc_mode == KD_TEXT) {
+			if (vc && vc->vc_mode == KD_TEXT &&
+			    info->node == con2fb_map[i]) {
 				p = &fb_display[i];
 				caps->x |= 1 << (vc->vc_font.width - 1);
 				caps->y |= 1 << (vc->vc_font.height - 1);
@@ -3068,14 +3068,13 @@ static void fbcon_get_requirement(struct fb_info *info,
 	} else {
 		vc = vc_cons[fg_console].d;
 
-		if (vc && vc->vc_mode == KD_TEXT) {
+		if (vc && vc->vc_mode == KD_TEXT &&
+		    info->node == con2fb_map[fg_console]) {
 			p = &fb_display[fg_console];
-			caps->x |= 1 << (vc->vc_font.width - 1);
-			caps->y |= 1 << (vc->vc_font.height - 1);
-			charcnt = (p->userfont) ?
+			caps->x = 1 << (vc->vc_font.width - 1);
+			caps->y = 1 << (vc->vc_font.height - 1);
+			caps->len = (p->userfont) ?
 				FNTCHARCNT(p->fontdata) : 256;
-			if (caps->len < charcnt)
-				caps->len = charcnt;
 		}
 	}
 }
