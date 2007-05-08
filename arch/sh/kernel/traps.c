@@ -505,7 +505,7 @@ static int handle_unaligned_access(u16 instruction, struct pt_regs *regs)
  simple:
 	ret = handle_unaligned_ins(instruction,regs);
 	if (ret==0)
-		regs->pc += 2;
+		regs->pc += instruction_size(instruction);
 	return ret;
 }
 #endif /* CONFIG_CPU_SH2A */
@@ -682,7 +682,7 @@ asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 
 	err = do_fpu_inst(inst, regs);
 	if (!err) {
-		regs->pc += 2;
+		regs->pc += instruction_size(inst);
 		return;
 	}
 	/* not a FPU inst. */
