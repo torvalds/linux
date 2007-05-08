@@ -44,6 +44,9 @@
  * IRQF_TIMER - Flag to mark this interrupt as timer interrupt
  * IRQF_PERCPU - Interrupt is per cpu
  * IRQF_NOBALANCING - Flag to exclude this interrupt from irq balancing
+ * IRQF_IRQPOLL - Interrupt is used for polling (only the interrupt that is
+ *                registered first in an shared interrupt is considered for
+ *                performance reasons)
  */
 #define IRQF_DISABLED		0x00000020
 #define IRQF_SAMPLE_RANDOM	0x00000040
@@ -52,6 +55,7 @@
 #define IRQF_TIMER		0x00000200
 #define IRQF_PERCPU		0x00000400
 #define IRQF_NOBALANCING	0x00000800
+#define IRQF_IRQPOLL		0x00001000
 
 /*
  * Migration helpers. Scheduled for removal in 9/2007
