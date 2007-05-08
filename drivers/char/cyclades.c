@@ -10,15 +10,14 @@
  *
  * Initially written by Randolph Bentson <bentson@grieg.seaslug.org>.
  * Modified and maintained by Marcio Saito <marcio@cyclades.com>.
- * Currently maintained by Cyclades team <async@cyclades.com>.
  *
- * For Technical support and installation problems, please send e-mail
- * to support@cyclades.com.
+ * Copyright (C) 2007 Jiri Slaby <jirislaby@gmail.com>
  *
  * Much of the design and some of the code came from serial.c
  * which was copyright (C) 1991, 1992  Linus Torvalds.  It was
  * extensively rewritten by Theodore Ts'o, 8/16/92 -- 9/14/92,
  * and then fixed as suggested by Michael K. Johnson 12/12/92.
+ * Converted to pci probing and cleaned up by Jiri Slaby.
  *
  * This version supports shared IRQ's (only for PCI boards).
  *
@@ -591,7 +590,7 @@
  *
  */
 
-#define CY_VERSION	"2.4"
+#define CY_VERSION	"2.5"
 
 /* If you need to install more boards than NR_CARDS, change the constant
    in the definition below. No other change is necessary to support up to
@@ -5240,3 +5239,4 @@ module_init(cy_init);
 module_exit(cy_cleanup_module);
 
 MODULE_LICENSE("GPL");
+MODULE_VERSION(CY_VERSION);
