@@ -160,6 +160,21 @@ supply of new-lines on your screen is not a renewable resource (think
 25-line terminal screens here), you have more empty lines to put
 comments on.
 
+Do not unnecessarily use braces where a single statement will do.
+
+if (condition)
+	action();
+
+This does not apply if one branch of a conditional statement is a single
+statement. Use braces in both branches.
+
+if (condition) {
+	do_this();
+	do_that();
+} else {
+	otherwise();
+}
+
 		3.1:  Spaces
 
 Linux kernel style for use of spaces depends (mostly) on
