@@ -747,7 +747,7 @@ int omap_set_dma_callback(int lch,
  */
 dma_addr_t omap_get_dma_src_pos(int lch)
 {
-	dma_addr_t offset;
+	dma_addr_t offset = 0;
 
 	if (cpu_class_is_omap1())
 		offset = (dma_addr_t) (OMAP1_DMA_CSSA_L_REG(lch) |
@@ -769,7 +769,7 @@ dma_addr_t omap_get_dma_src_pos(int lch)
  */
 dma_addr_t omap_get_dma_dst_pos(int lch)
 {
-	dma_addr_t offset;
+	dma_addr_t offset = 0;
 
 	if (cpu_class_is_omap1())
 		offset = (dma_addr_t) (OMAP1_DMA_CDSA_L_REG(lch) |
