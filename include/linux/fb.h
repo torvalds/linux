@@ -4,6 +4,8 @@
 #include <asm/types.h>
 #include <linux/i2c.h>
 
+struct dentry;
+
 /* Definitions of frame buffers						*/
 
 #define FB_MAJOR		29
@@ -927,11 +929,11 @@ static inline void __fb_pad_aligned_buffer(u8 *dst, u32 d_pitch,
 	}
 }
 
-#ifdef CONFIG_FB_DEFERRED_IO
 /* drivers/video/fb_defio.c */
 extern void fb_deferred_io_init(struct fb_info *info);
 extern void fb_deferred_io_cleanup(struct fb_info *info);
-#endif
+extern int fb_deferred_io_fsync(struct file *file, struct dentry *dentry,
+				int datasync);
 
 /* drivers/video/fbsysfs.c */
 extern struct fb_info *framebuffer_alloc(size_t size, struct device *dev);
