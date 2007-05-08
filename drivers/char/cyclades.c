@@ -3616,11 +3616,6 @@ static int cy_tiocmget(struct tty_struct *tty, struct file *file)
 			((status & CyCTS) ? TIOCM_CTS : 0);
 	} else {
 		base_addr = cy_card[card].base_addr;
-
-		if (cy_card[card].num_chips != -1) {
-			return -EINVAL;
-		}
-
 		firm_id = cy_card[card].base_addr + ID_ADDRESS;
 		if (ISZLOADED(cy_card[card])) {
 			zfw_ctrl = cy_card[card].base_addr +
@@ -4513,7 +4508,7 @@ static void __devinit cy_init_card(struct cyclades_card *cinfo,
 	unsigned short chip_number;
 	int index, port;
 
-	if (cinfo->num_chips == -1) {	/* Cyclades-Z */
+	if (IS_CYC_Z(*cinfo)) {	/* Cyclades-Z */
 		mailbox = readl(&((struct RUNTIME_9060 __iomem *)
 				     cinfo->ctl_addr)->mail_box_0);
 		nports = (mailbox == ZE_V1) ? ZE_V1_NPORTS : 8;
@@ -5346,12 +5341,12 @@ static void __devexit cy_pci_release(struct pci_dev *pdev)
 	unsigned int i;
 
 	/* non-Z with old PLX */
-	if (cinfo->num_chips != -1 && (readb(cinfo->base_addr + CyPLX_VER) &
-				0x0f) == PLX_9050)
+	if (!IS_CYC_Z(*cinfo) && (readb(cinfo->base_addr + CyPLX_VER) & 0x0f) ==
+			PLX_9050)
 		cy_writeb(cinfo->ctl_addr + 0x4c, 0);
 	else
 #ifndef CONFIG_CYZ_INTR
-		if (cinfo->num_chips != -1)
+		if (!IS_CYC_Z(*cinfo))
 #endif
 		cy_writew(cinfo->ctl_addr + 0x68,
 				readw(cinfo->ctl_addr + 0x68) & ~0x0900);
@@ -5361,7 +5356,7 @@ static void __devexit cy_pci_release(struct pci_dev *pdev)
 		pci_iounmap(pdev, cinfo->ctl_addr);
 	if (cinfo->irq
 #ifndef CONFIG_CYZ_INTR
-		&& cinfo->num_chips != -1 /* not a Z card */
+		&& !IS_CYC_Z(*cinfo)
 #endif /* CONFIG_CYZ_INTR */
 		)
 		free_irq(cinfo->irq, cinfo);
@@ -5582,7 +5577,7 @@ static void __exit cy_cleanup_module(void)
 				iounmap(cy_card[i].ctl_addr);
 			if (cy_card[i].irq
 #ifndef CONFIG_CYZ_INTR
-				&& cy_card[i].num_chips != -1 /* not a Z card */
+				&& !IS_CYC_Z(cy_card[i])
 #endif /* CONFIG_CYZ_INTR */
 				)
 				free_irq(cy_card[i].irq, &cy_card[i]);
