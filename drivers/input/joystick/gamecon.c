@@ -48,16 +48,16 @@ MODULE_LICENSE("GPL");
 
 struct gc_config {
 	int args[GC_MAX_DEVICES + 1];
-	int nargs;
+	unsigned int nargs;
 };
 
-static struct gc_config gc[GC_MAX_PORTS] __initdata;
+static struct gc_config gc_cfg[GC_MAX_PORTS] __initdata;
 
-module_param_array_named(map, gc[0].args, int, &gc[0].nargs, 0);
+module_param_array_named(map, gc_cfg[0].args, int, &gc_cfg[0].nargs, 0);
 MODULE_PARM_DESC(map, "Describes first set of devices (<parport#>,<pad1>,<pad2>,..<pad5>)");
-module_param_array_named(map2, gc[1].args, int, &gc[1].nargs, 0);
+module_param_array_named(map2, gc_cfg[1].args, int, &gc_cfg[1].nargs, 0);
 MODULE_PARM_DESC(map2, "Describes second set of devices");
-module_param_array_named(map3, gc[2].args, int, &gc[2].nargs, 0);
+module_param_array_named(map3, gc_cfg[2].args, int, &gc_cfg[2].nargs, 0);
 MODULE_PARM_DESC(map3, "Describes third set of devices");
 
 /* see also gs_psx_delay parameter in PSX support section */
@@ -810,16 +810,17 @@ static int __init gc_init(void)
 	int err = 0;
 
 	for (i = 0; i < GC_MAX_PORTS; i++) {
-		if (gc[i].nargs == 0 || gc[i].args[0] < 0)
+		if (gc_cfg[i].nargs == 0 || gc_cfg[i].args[0] < 0)
 			continue;
 
-		if (gc[i].nargs < 2) {
+		if (gc_cfg[i].nargs < 2) {
 			printk(KERN_ERR "gamecon.c: at least one device must be specified\n");
 			err = -EINVAL;
 			break;
 		}
 
-		gc_base[i] = gc_probe(gc[i].args[0], gc[i].args + 1, gc[i].nargs - 1);
+		gc_base[i] = gc_probe(gc_cfg[i].args[0],
+				      gc_cfg[i].args + 1, gc_cfg[i].nargs - 1);
 		if (IS_ERR(gc_base[i])) {
 			err = PTR_ERR(gc_base[i]);
 			break;

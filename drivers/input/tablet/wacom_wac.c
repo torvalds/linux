@@ -1,5 +1,5 @@
 /*
- * drivers/usb/input/wacom_wac.c
+ * drivers/input/tablet/wacom_wac.c
  *
  *  USB Wacom Graphire and Wacom Intuos tablet support - Wacom specific code
  *

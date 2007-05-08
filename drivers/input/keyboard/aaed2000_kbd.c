@@ -14,12 +14,11 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>
-#include <linux/input.h>
+#include <linux/input-polldev.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/workqueue.h>
 
 #include <asm/arch/hardware.h>
 #include <asm/arch/aaed2000.h>
@@ -46,8 +45,7 @@ static unsigned char aaedkbd_keycode[NR_SCANCODES] = {
 
 struct aaedkbd {
 	unsigned char keycode[ARRAY_SIZE(aaedkbd_keycode)];
-	struct input_dev *input;
-	struct work_struct workq;
+	struct input_polled_dev *poll_dev;
 	int kbdscan_state[KB_COLS];
 	int kbdscan_count[KB_COLS];
 };
@@ -64,14 +62,15 @@ static void aaedkbd_report_col(struct aaedkbd *aaedkbd,
 		scancode = SCANCODE(row, col);
 		pressed = rowd & KB_ROWMASK(row);
 
-		input_report_key(aaedkbd->input, aaedkbd->keycode[scancode], pressed);
+		input_report_key(aaedkbd->poll_dev->input,
+				 aaedkbd->keycode[scancode], pressed);
 	}
 }
 
 /* Scan the hardware keyboard and push any changes up through the input layer */
-static void aaedkbd_work(void *data)
+static void aaedkbd_poll(struct input_polled_dev *dev)
 {
-	struct aaedkbd *aaedkbd = data;
+	struct aaedkbd *aaedkbd = dev->private;
 	unsigned int col, rowd;
 
 	col = 0;
@@ -90,51 +89,34 @@ static void aaedkbd_work(void *data)
 	} while (col < KB_COLS);
 
 	AAEC_GPIO_KSCAN = 0x07;
-	input_sync(aaedkbd->input);
-
-	schedule_delayed_work(&aaedkbd->workq, msecs_to_jiffies(SCAN_INTERVAL));
-}
-
-static int aaedkbd_open(struct input_dev *indev)
-{
-	struct aaedkbd *aaedkbd = input_get_drvdata(indev);
-
-	schedule_delayed_work(&aaedkbd->workq, msecs_to_jiffies(SCAN_INTERVAL));
-
-	return 0;
-}
-
-static void aaedkbd_close(struct input_dev *indev)
-{
-	struct aaedkbd *aaedkbd = input_get_drvdata(indev);
-
-	cancel_delayed_work(&aaedkbd->workq);
-	flush_scheduled_work();
+	input_sync(dev->input);
 }
 
 static int __devinit aaedkbd_probe(struct platform_device *pdev)
 {
 	struct aaedkbd *aaedkbd;
+	struct input_polled_dev *poll_dev;
 	struct input_dev *input_dev;
 	int i;
 	int error;
 
 	aaedkbd = kzalloc(sizeof(struct aaedkbd), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!aaedkbd || !input_dev) {
+	poll_dev = input_allocate_polled_device();
+	if (!aaedkbd || !poll_dev) {
 		error = -ENOMEM;
 		goto fail;
 	}
 
 	platform_set_drvdata(pdev, aaedkbd);
 
-	aaedkbd->input = input_dev;
-
-	/* Init keyboard rescan workqueue */
-	INIT_WORK(&aaedkbd->workq, aaedkbd_work, aaedkbd);
-
+	aaedkbd->poll_dev = poll_dev;
 	memcpy(aaedkbd->keycode, aaedkbd_keycode, sizeof(aaedkbd->keycode));
 
+	poll_dev->private = aaedkbd;
+	poll_dev->poll = aaedkbd_poll;
+	poll_dev->poll_interval = SCAN_INTERVAL;
+
+	input_dev = poll_dev->input;
 	input_dev->name = "AAED-2000 Keyboard";
 	input_dev->phys = "aaedkbd/input0";
 	input_dev->id.bustype = BUS_HOST;
@@ -142,8 +124,6 @@ static int __devinit aaedkbd_probe(struct platform_device *pdev)
 	input_dev->id.product = 0x0001;
 	input_dev->id.version = 0x0100;
 	input_dev->dev.parent = &pdev->dev;
-
-	input_set_drvdata(input_dev, aaedkbd);
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
 	input_dev->keycode = aaedkbd->keycode;
@@ -154,17 +134,14 @@ static int __devinit aaedkbd_probe(struct platform_device *pdev)
 		set_bit(aaedkbd->keycode[i], input_dev->keybit);
 	clear_bit(0, input_dev->keybit);
 
-	input_dev->open = aaedkbd_open;
-	input_dev->close = aaedkbd_close;
-
-	error = input_register_device(aaedkbd->input);
+	error = input_register_polled_device(aaedkbd->poll_dev);
 	if (error)
 		goto fail;
 
 	return 0;
 
  fail:	kfree(aaedkbd);
-	input_free_device(input_dev);
+	input_free_polled_device(poll_dev);
 	return error;
 }
 
@@ -172,7 +149,8 @@ static int __devexit aaedkbd_remove(struct platform_device *pdev)
 {
 	struct aaedkbd *aaedkbd = platform_get_drvdata(pdev);
 
-	input_unregister_device(aaedkbd->input);
+	input_unregister_polled_device(aaedkbd->poll_dev);
+	input_free_polled_device(aaedkbd->poll_dev);
 	kfree(aaedkbd);
 
 	return 0;

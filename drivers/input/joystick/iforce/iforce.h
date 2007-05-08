@@ -124,7 +124,7 @@ struct iforce {
 	/* Buffer used for asynchronous sending of bytes to the device */
 	struct circ_buf xmit;
 	unsigned char xmit_data[XMIT_SIZE];
-	long xmit_flags[1];
+	unsigned long xmit_flags[1];
 
 					/* Force Feedback */
 	wait_queue_head_t wait;

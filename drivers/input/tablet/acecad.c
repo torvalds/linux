@@ -54,7 +54,7 @@ struct usb_acecad {
 	struct input_dev *input;
 	struct urb *irq;
 
-	signed char *data;
+	unsigned char *data;
 	dma_addr_t data_dma;
 };
 

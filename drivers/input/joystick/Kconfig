@@ -2,7 +2,7 @@
 # Joystick driver configuration
 #
 menuconfig INPUT_JOYSTICK
-	bool "Joysticks"
+	bool "Joysticks/Gamepads"
 	help
 	  If you have a joystick, 6dof controller, gamepad, steering wheel,
 	  weapon control system or something like that you can say Y here
@@ -196,7 +196,7 @@ config JOYSTICK_TWIDJOY
 config JOYSTICK_DB9
 	tristate "Multisystem, Sega Genesis, Saturn joysticks and gamepads"
 	depends on PARPORT
-	---help---
+	help
 	  Say Y here if you have a Sega Master System gamepad, Sega Genesis
 	  gamepad, Sega Saturn gamepad, or a Multisystem -- Atari, Amiga,
 	  Commodore, Amstrad CPC joystick connected to your parallel port.
@@ -252,5 +252,19 @@ config JOYSTICK_JOYDUMP
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called joydump.
+
+config JOYSTICK_XPAD
+	tristate "X-Box gamepad support"
+	select USB
+	help
+	  Say Y here if you want to use the X-Box pad with your computer.
+	  Make sure to say Y to "Joystick support" (CONFIG_INPUT_JOYDEV)
+	  and/or "Event interface support" (CONFIG_INPUT_EVDEV) as well.
+
+	  For information about how to connect the X-Box pad to USB, see
+	  <file:Documentation/input/xpad.txt>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xpad.
 
 endif

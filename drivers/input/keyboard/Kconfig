@@ -226,6 +226,7 @@ config KEYBOARD_PXA27x
 config KEYBOARD_AAED2000
 	tristate "AAED-2000 keyboard"
 	depends on MACH_AAED2000
+	select INPUT_POLLDEV
 	default y
 	help
 	  Say Y here to enable the keyboard on the Agilent AAED-2000

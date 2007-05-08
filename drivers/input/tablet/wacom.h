@@ -1,5 +1,5 @@
 /*
- * drivers/usb/input/wacom.h
+ * drivers/input/tablet/wacom.h
  *
  *  USB Wacom Graphire and Wacom Intuos tablet support
  *

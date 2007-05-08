@@ -526,6 +526,33 @@ static irqreturn_t __devinit i8042_aux_test_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+/*
+ * i8042_toggle_aux - enables or disables AUX port on i8042 via command and
+ * verifies success by readinng CTR. Used when testing for presence of AUX
+ * port.
+ */
+static int __devinit i8042_toggle_aux(int on)
+{
+	unsigned char param;
+	int i;
+
+	if (i8042_command(&param,
+			on ? I8042_CMD_AUX_ENABLE : I8042_CMD_AUX_DISABLE))
+		return -1;
+
+	/* some chips need some time to set the I8042_CTR_AUXDIS bit */
+	for (i = 0; i < 100; i++) {
+		udelay(50);
+
+		if (i8042_command(&param, I8042_CMD_CTL_RCTR))
+			return -1;
+
+		if (!(param & I8042_CTR_AUXDIS) == on)
+			return 0;
+	}
+
+	return -1;
+}
 
 /*
  * i8042_check_aux() applies as much paranoia as it can at detecting
@@ -580,16 +607,12 @@ static int __devinit i8042_check_aux(void)
  * Bit assignment test - filters out PS/2 i8042's in AT mode
  */
 
-	if (i8042_command(&param, I8042_CMD_AUX_DISABLE))
-		return -1;
-	if (i8042_command(&param, I8042_CMD_CTL_RCTR) || (~param & I8042_CTR_AUXDIS)) {
+	if (i8042_toggle_aux(0)) {
 		printk(KERN_WARNING "Failed to disable AUX port, but continuing anyway... Is this a SiS?\n");
 		printk(KERN_WARNING "If AUX port is really absent please use the 'i8042.noaux' option.\n");
 	}
 
-	if (i8042_command(&param, I8042_CMD_AUX_ENABLE))
-		return -1;
-	if (i8042_command(&param, I8042_CMD_CTL_RCTR) || (param & I8042_CTR_AUXDIS))
+	if (i8042_toggle_aux(1))
 		return -1;
 
 /*

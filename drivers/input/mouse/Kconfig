@@ -2,7 +2,7 @@
 # Mouse driver configuration
 #
 menuconfig INPUT_MOUSE
-	bool "Mouse"
+	bool "Mice"
 	default y
 	help
 	  Say Y here, and a list of supported mice will be displayed.
@@ -19,7 +19,7 @@ config MOUSE_PS2
 	select SERIO_LIBPS2
 	select SERIO_I8042 if X86_PC
 	select SERIO_GSCPS2 if GSC
-	---help---
+	help
 	  Say Y here if you have a PS/2 mouse connected to your system. This
 	  includes the standard 2 or 3-button PS/2 mouse, as well as PS/2
 	  mice with wheels and extra buttons, Microsoft, Logitech or Genius
@@ -41,7 +41,7 @@ config MOUSE_PS2_ALPS
 	bool "ALPS PS/2 mouse protocol extension" if EMBEDDED
 	default y
 	depends on MOUSE_PS2
-	---help---
+	help
 	  Say Y here if you have an ALPS PS/2 touchpad connected to
 	  your system.
 
@@ -51,7 +51,7 @@ config MOUSE_PS2_LOGIPS2PP
 	bool "Logictech PS/2++ mouse protocol extension" if EMBEDDED
 	default y
 	depends on MOUSE_PS2
-	---help---
+	help
 	  Say Y here if you have a Logictech PS/2++ mouse connected to
 	  your system.
 
@@ -61,7 +61,7 @@ config MOUSE_PS2_SYNAPTICS
 	bool "Synaptics PS/2 mouse protocol extension" if EMBEDDED
 	default y
 	depends on MOUSE_PS2
-	---help---
+	help
 	  Say Y here if you have a Synaptics PS/2 TouchPad connected to
 	  your system.
 
@@ -71,7 +71,7 @@ config MOUSE_PS2_LIFEBOOK
 	bool "Fujitsu Lifebook PS/2 mouse protocol extension" if EMBEDDED
 	default y
 	depends on MOUSE_PS2
-	---help---
+	help
 	  Say Y here if you have a Fujitsu B-series Lifebook PS/2
 	  TouchScreen connected to your system.
 
@@ -81,7 +81,7 @@ config MOUSE_PS2_TRACKPOINT
 	bool "IBM Trackpoint PS/2 mouse protocol extension" if EMBEDDED
 	default y
 	depends on MOUSE_PS2
-	---help---
+	help
 	  Say Y here if you have an IBM Trackpoint PS/2 mouse connected
 	  to your system.
 
@@ -90,7 +90,7 @@ config MOUSE_PS2_TRACKPOINT
 config MOUSE_PS2_TOUCHKIT
 	bool "eGalax TouchKit PS/2 protocol extension"
 	depends on MOUSE_PS2
-	---help---
+	help
 	  Say Y here if you have an eGalax TouchKit PS/2 touchscreen
 	  connected to your system.
 
@@ -99,7 +99,7 @@ config MOUSE_PS2_TOUCHKIT
 config MOUSE_SERIAL
 	tristate "Serial mouse"
 	select SERIO
-	---help---
+	help
 	  Say Y here if you have a serial (RS-232, COM port) mouse connected
 	  to your system. This includes Sun, MouseSystems, Microsoft,
 	  Logitech and all other compatible serial mice.
@@ -108,6 +108,26 @@ config MOUSE_SERIAL
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sermouse.
+
+config MOUSE_APPLETOUCH
+	tristate "Apple USB Touchpad support"
+	select USB
+	help
+	  Say Y here if you want to use an Apple USB Touchpad.
+
+	  These are the touchpads that can be found on post-February 2005
+	  Apple Powerbooks (prior models have a Synaptics touchpad connected
+	  to the ADB bus).
+
+	  This driver provides a basic mouse driver but can be interfaced
+	  with the synaptics X11 driver to provide acceleration and
+	  scrolling in X11.
+
+	  For further information, see
+	  <file:Documentation/input/appletouch.txt>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called appletouch.
 
 config MOUSE_INPORT
 	tristate "InPort/MS/ATIXL busmouse"

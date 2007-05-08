@@ -668,9 +668,8 @@ static void usbtouch_close(struct input_dev *input)
 static void usbtouch_free_buffers(struct usb_device *udev,
 				  struct usbtouch_usb *usbtouch)
 {
-	if (usbtouch->data)
-		usb_buffer_free(udev, usbtouch->type->rept_size,
-		                usbtouch->data, usbtouch->data_dma);
+	usb_buffer_free(udev, usbtouch->type->rept_size,
+	                usbtouch->data, usbtouch->data_dma);
 	kfree(usbtouch->buffer);
 }
 
