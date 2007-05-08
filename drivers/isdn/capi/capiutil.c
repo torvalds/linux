@@ -855,7 +855,7 @@ static _cdebbuf *g_debbuf;
 static u_long g_debbuf_lock;
 static _cmsg *g_cmsg;
 
-_cdebbuf *cdebbuf_alloc(void)
+static _cdebbuf *cdebbuf_alloc(void)
 {
 	_cdebbuf *cdb;
 
@@ -989,11 +989,6 @@ _cdebbuf *capi_cmsg2str(_cmsg * cmsg)
 	return &g_debbuf;
 }
 
-_cdebbuf *cdebbuf_alloc(void)
-{
-	return &g_debbuf;
-}
-
 void cdebbuf_free(_cdebbuf *cdb)
 {
 }
@@ -1009,7 +1004,6 @@ void __exit cdebug_exit(void)
 
 #endif
 
-EXPORT_SYMBOL(cdebbuf_alloc);
 EXPORT_SYMBOL(cdebbuf_free);
 EXPORT_SYMBOL(capi_cmsg2message);
 EXPORT_SYMBOL(capi_message2cmsg);
