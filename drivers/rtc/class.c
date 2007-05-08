@@ -16,6 +16,9 @@
 #include <linux/kdev_t.h>
 #include <linux/idr.h>
 
+#include "rtc-core.h"
+
+
 static DEFINE_IDR(rtc_idr);
 static DEFINE_MUTEX(idr_lock);
 struct class *rtc_class;
@@ -85,6 +88,8 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	if (err)
 		goto exit_kfree;
 
+	rtc_dev_add_device(rtc);
+
 	dev_info(dev, "rtc core: registered %s as %s\n",
 			rtc->name, rtc->class_dev.class_id);
 
@@ -118,6 +123,7 @@ void rtc_device_unregister(struct rtc_device *rtc)
 		/* remove innards of this RTC, then disable it, before
 		 * letting any rtc_class_open() users access it again
 		 */
+		rtc_dev_del_device(rtc);
 		class_device_unregister(&rtc->class_dev);
 		rtc->ops = NULL;
 		mutex_unlock(&rtc->ops_lock);
@@ -140,11 +146,13 @@ static int __init rtc_init(void)
 		printk(KERN_ERR "%s: couldn't create class\n", __FILE__);
 		return PTR_ERR(rtc_class);
 	}
+	rtc_dev_init();
 	return 0;
 }
 
 static void __exit rtc_exit(void)
 {
+	rtc_dev_exit();
 	class_destroy(rtc_class);
 }
 

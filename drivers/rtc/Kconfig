@@ -71,7 +71,7 @@ config RTC_INTF_PROC
 	  will be called rtc-proc.
 
 config RTC_INTF_DEV
-	tristate "dev"
+	boolean "dev"
 	depends on RTC_CLASS
 	default RTC_CLASS
 	help

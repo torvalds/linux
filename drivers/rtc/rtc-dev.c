@@ -13,8 +13,8 @@
 
 #include <linux/module.h>
 #include <linux/rtc.h>
+#include "rtc-core.h"
 
-static struct class *rtc_dev_class;
 static dev_t rtc_devt;
 
 #define RTC_DEV_MAX 16 /* 16 RTCs should be enough for everyone... */
@@ -397,16 +397,17 @@ static const struct file_operations rtc_dev_fops = {
 
 /* insertion/removal hooks */
 
-static int rtc_dev_add_device(struct class_device *class_dev,
-				struct class_interface *class_intf)
+void rtc_dev_add_device(struct rtc_device *rtc)
 {
-	int err = 0;
-	struct rtc_device *rtc = to_rtc_device(class_dev);
+	if (!rtc_devt)
+		return;
 
 	if (rtc->id >= RTC_DEV_MAX) {
-		dev_err(class_dev->dev, "too many RTCs\n");
-		return -EINVAL;
+		pr_debug("%s: too many RTC devices\n", rtc->name);
+		return;
 	}
+
+	rtc->class_dev.devt = MKDEV(MAJOR(rtc_devt), rtc->id);
 
 	mutex_init(&rtc->char_lock);
 	spin_lock_init(&rtc->irq_lock);
@@ -419,99 +420,32 @@ static int rtc_dev_add_device(struct class_device *class_dev,
 	cdev_init(&rtc->char_dev, &rtc_dev_fops);
 	rtc->char_dev.owner = rtc->owner;
 
-	if (cdev_add(&rtc->char_dev, MKDEV(MAJOR(rtc_devt), rtc->id), 1)) {
-		dev_err(class_dev->dev,
-			"failed to add char device %d:%d\n",
+	if (cdev_add(&rtc->char_dev, rtc->class_dev.devt, 1))
+		printk(KERN_WARNING "%s: failed to add char device %d:%d\n",
+			rtc->name, MAJOR(rtc_devt), rtc->id);
+	else
+		pr_debug("%s: dev (%d:%d)\n", rtc->name,
 			MAJOR(rtc_devt), rtc->id);
-		return -ENODEV;
-	}
-
-	rtc->rtc_dev = class_device_create(rtc_dev_class, NULL,
-						MKDEV(MAJOR(rtc_devt), rtc->id),
-						class_dev->dev, "rtc%d", rtc->id);
-	if (IS_ERR(rtc->rtc_dev)) {
-		dev_err(class_dev->dev, "cannot create rtc_dev device\n");
-		err = PTR_ERR(rtc->rtc_dev);
-		goto err_cdev_del;
-	}
-
-	dev_dbg(class_dev->dev, "rtc intf: dev (%d:%d)\n",
-		MAJOR(rtc->rtc_dev->devt),
-		MINOR(rtc->rtc_dev->devt));
-
-	return 0;
-
-err_cdev_del:
-
-	cdev_del(&rtc->char_dev);
-	return err;
 }
 
-static void rtc_dev_remove_device(struct class_device *class_dev,
-					struct class_interface *class_intf)
+void rtc_dev_del_device(struct rtc_device *rtc)
 {
-	struct rtc_device *rtc = to_rtc_device(class_dev);
-
-	if (rtc->rtc_dev) {
-		dev_dbg(class_dev->dev, "removing char %d:%d\n",
-			MAJOR(rtc->rtc_dev->devt),
-			MINOR(rtc->rtc_dev->devt));
-
-		class_device_unregister(rtc->rtc_dev);
+	if (rtc->class_dev.devt)
 		cdev_del(&rtc->char_dev);
-	}
 }
 
-/* interface registration */
-
-static struct class_interface rtc_dev_interface = {
-	.add = &rtc_dev_add_device,
-	.remove = &rtc_dev_remove_device,
-};
-
-static int __init rtc_dev_init(void)
+void __init rtc_dev_init(void)
 {
 	int err;
 
-	rtc_dev_class = class_create(THIS_MODULE, "rtc-dev");
-	if (IS_ERR(rtc_dev_class))
-		return PTR_ERR(rtc_dev_class);
-
 	err = alloc_chrdev_region(&rtc_devt, 0, RTC_DEV_MAX, "rtc");
-	if (err < 0) {
+	if (err < 0)
 		printk(KERN_ERR "%s: failed to allocate char dev region\n",
 			__FILE__);
-		goto err_destroy_class;
-	}
-
-	err = rtc_interface_register(&rtc_dev_interface);
-	if (err < 0) {
-		printk(KERN_ERR "%s: failed to register the interface\n",
-			__FILE__);
-		goto err_unregister_chrdev;
-	}
-
-	return 0;
-
-err_unregister_chrdev:
-	unregister_chrdev_region(rtc_devt, RTC_DEV_MAX);
-
-err_destroy_class:
-	class_destroy(rtc_dev_class);
-
-	return err;
 }
 
-static void __exit rtc_dev_exit(void)
+void __exit rtc_dev_exit(void)
 {
-	class_interface_unregister(&rtc_dev_interface);
-	class_destroy(rtc_dev_class);
-	unregister_chrdev_region(rtc_devt, RTC_DEV_MAX);
+	if (rtc_devt)
+		unregister_chrdev_region(rtc_devt, RTC_DEV_MAX);
 }
-
-subsys_initcall(rtc_dev_init);
-module_exit(rtc_dev_exit);
-
-MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
-MODULE_DESCRIPTION("RTC class dev interface");
-MODULE_LICENSE("GPL");

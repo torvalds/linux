@@ -145,7 +145,6 @@ struct rtc_device
 	const struct rtc_class_ops *ops;
 	struct mutex ops_lock;
 
-	struct class_device *rtc_dev;
 	struct cdev char_dev;
 	struct mutex char_lock;
 
