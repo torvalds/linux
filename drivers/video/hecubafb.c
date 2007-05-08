@@ -214,7 +214,7 @@ static void apollo_send_command(struct hecubafb_par *par, unsigned char data)
 static void hecubafb_dpy_update(struct hecubafb_par *par)
 {
 	int i;
-	unsigned char *buf = par->info->screen_base;
+	unsigned char *buf = (unsigned char __force *)par->info->screen_base;
 
 	apollo_send_command(par, 0xA0);
 
@@ -303,7 +303,7 @@ static ssize_t hecubafb_write(struct file *file, const char __user *buf,
 	if (count) {
 		char *base_addr;
 
-		base_addr = info->screen_base;
+		base_addr = (char __force *)info->screen_base;
 		count -= copy_from_user(base_addr + p, buf, count);
 		*ppos += count;
 		err = -EFAULT;
@@ -409,7 +409,7 @@ static int __devexit hecubafb_remove(struct platform_device *dev)
 	if (info) {
 		fb_deferred_io_cleanup(info);
 		unregister_framebuffer(info);
-		vfree(info->screen_base);
+		vfree((void __force *)info->screen_base);
 		framebuffer_release(info);
 	}
 	return 0;
