@@ -709,16 +709,6 @@ _GLOBAL(giveup_fpu)
 	blr
 #endif
 
-/*
- * extern void abort(void)
- *
- * At present, this routine just applies a system reset.
- */
-_GLOBAL(abort)
-        mfspr   r13,SPRN_DBCR0
-        oris    r13,r13,DBCR0_RST_SYSTEM@h
-        mtspr   SPRN_DBCR0,r13
-
 _GLOBAL(set_context)
 
 #ifdef CONFIG_BDI_SWITCH
