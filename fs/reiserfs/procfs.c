@@ -20,7 +20,7 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 
-#if defined( REISERFS_PROC_INFO )
+#ifdef CONFIG_REISERFS_PROC_INFO
 
 /*
  * LOCKING:
