@@ -1589,7 +1589,7 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		LOGGC_UNLOCK(log);
 		schedule();
-		current->state = TASK_RUNNING;
+		__set_current_state(TASK_RUNNING);
 		LOGGC_LOCK(log);
 		remove_wait_queue(&target->gcwait, &__wait);
 	}
@@ -2353,14 +2353,15 @@ int jfsIOWait(void *arg)
 			lbmStartIO(bp);
 			spin_lock_irq(&log_redrive_lock);
 		}
-		spin_unlock_irq(&log_redrive_lock);
 
 		if (freezing(current)) {
+			spin_unlock_irq(&log_redrive_lock);
 			refrigerator();
 		} else {
 			set_current_state(TASK_INTERRUPTIBLE);
+			spin_unlock_irq(&log_redrive_lock);
 			schedule();
-			current->state = TASK_RUNNING;
+			__set_current_state(TASK_RUNNING);
 		}
 	} while (!kthread_should_stop());
 

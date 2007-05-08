@@ -3078,6 +3078,7 @@ static int copy_from_dinode(struct dinode * dip, struct inode *ip)
 
 	jfs_ip->fileset = le32_to_cpu(dip->di_fileset);
 	jfs_ip->mode2 = le32_to_cpu(dip->di_mode);
+	jfs_set_inode_flags(ip);
 
 	ip->i_mode = le32_to_cpu(dip->di_mode) & 0xffff;
 	if (sbi->umask != -1) {
@@ -3174,6 +3175,7 @@ static void copy_to_dinode(struct dinode * dip, struct inode *ip)
 		dip->di_gid = cpu_to_le32(ip->i_gid);
 	else
 		dip->di_gid = cpu_to_le32(jfs_ip->saved_gid);
+	jfs_get_inode_flags(jfs_ip);
 	/*
 	 * mode2 is only needed for storing the higher order bits.
 	 * Trust i_mode for the lower order ones

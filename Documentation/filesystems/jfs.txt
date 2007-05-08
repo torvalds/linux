@@ -29,7 +29,13 @@ errors=continue		Keep going on a filesystem error.
 errors=remount-ro	Default. Remount the filesystem read-only on an error.
 errors=panic		Panic and halt the machine if an error occurs.
 
-Please send bugs, comments, cards and letters to shaggy@austin.ibm.com.
+uid=value	Override on-disk uid with specified value
+gid=value	Override on-disk gid with specified value
+umask=value	Override on-disk umask with specified octal value.  For
+		directories, the execute bit will be set if the corresponding
+		read bit is set.
+
+Please send bugs, comments, cards and letters to shaggy@linux.vnet.ibm.com.
 
 The JFS mailing list can be subscribed to by using the link labeled
 "Mail list Subscribe" at our web page http://jfs.sourceforge.net/
