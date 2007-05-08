@@ -462,21 +462,43 @@ static void set_memclock(struct pm2fb_par* par, u32 clk)
 	int i;
 	unsigned char m, n, p;
 
-	pm2_mnp(clk, &m, &n, &p);
-	WAIT_FIFO(par, 10);
-	pm2_RDAC_WR(par, PM2I_RD_MEMORY_CLOCK_3, 6);
-	wmb();
-	pm2_RDAC_WR(par, PM2I_RD_MEMORY_CLOCK_1, m);
-	pm2_RDAC_WR(par, PM2I_RD_MEMORY_CLOCK_2, n);
-	wmb();
-	pm2_RDAC_WR(par, PM2I_RD_MEMORY_CLOCK_3, 8|p);
-	wmb();
-	pm2_RDAC_RD(par, PM2I_RD_MEMORY_CLOCK_STATUS);
-	rmb();
-	for (i = 256;
-	     i && !(pm2_RD(par, PM2R_RD_INDEXED_DATA) & PM2F_PLL_LOCKED);
-	     i--)
-		;
+	switch (par->type) {
+	case PM2_TYPE_PERMEDIA2V:
+		pm2v_mnp(clk/2, &m, &n, &p);
+		WAIT_FIFO(par, 8);
+		pm2_WR(par, PM2VR_RD_INDEX_HIGH, PM2VI_RD_MCLK_CONTROL >> 8);
+		pm2v_RDAC_WR(par, PM2VI_RD_MCLK_CONTROL, 0);
+		wmb();
+		pm2v_RDAC_WR(par, PM2VI_RD_MCLK_PRESCALE, m);
+		pm2v_RDAC_WR(par, PM2VI_RD_MCLK_FEEDBACK, n);
+		pm2v_RDAC_WR(par, PM2VI_RD_MCLK_POSTSCALE, p);
+		wmb();
+		pm2v_RDAC_WR(par, PM2VI_RD_MCLK_CONTROL, 1);
+		rmb();
+		for (i = 256;
+		     i && !(pm2_RDAC_RD(par, PM2VI_RD_MCLK_CONTROL) & 2);
+		     i--)
+			;
+		pm2_WR(par, PM2VR_RD_INDEX_HIGH, 0);
+		break;
+	case PM2_TYPE_PERMEDIA2:
+		pm2_mnp(clk, &m, &n, &p);
+		WAIT_FIFO(par, 10);
+		pm2_RDAC_WR(par, PM2I_RD_MEMORY_CLOCK_3, 6);
+		wmb();
+		pm2_RDAC_WR(par, PM2I_RD_MEMORY_CLOCK_1, m);
+		pm2_RDAC_WR(par, PM2I_RD_MEMORY_CLOCK_2, n);
+		wmb();
+		pm2_RDAC_WR(par, PM2I_RD_MEMORY_CLOCK_3, 8|p);
+		wmb();
+		pm2_RDAC_RD(par, PM2I_RD_MEMORY_CLOCK_STATUS);
+		rmb();
+		for (i = 256;
+		     i && !(pm2_RD(par, PM2R_RD_INDEXED_DATA) & PM2F_PLL_LOCKED);
+		     i--)
+			;
+		break;
+	}
 }
 
 static void set_pixclock(struct pm2fb_par* par, u32 clk)
