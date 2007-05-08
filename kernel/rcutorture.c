@@ -866,7 +866,7 @@ rcu_torture_cleanup(void)
 		rcu_torture_print_module_parms("End of test: SUCCESS");
 }
 
-static int
+static int __init
 rcu_torture_init(void)
 {
 	int i;
