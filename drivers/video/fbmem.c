@@ -1321,6 +1321,12 @@ register_framebuffer(struct fb_info *fb_info)
 	}	
 	fb_info->pixmap.offset = 0;
 
+	if (!fb_info->pixmap.blit_x)
+		fb_info->pixmap.blit_x = ~(u32)0;
+
+	if (!fb_info->pixmap.blit_y)
+		fb_info->pixmap.blit_y = ~(u32)0;
+
 	if (!fb_info->modelist.prev || !fb_info->modelist.next)
 		INIT_LIST_HEAD(&fb_info->modelist);
 

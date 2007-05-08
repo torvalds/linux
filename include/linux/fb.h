@@ -558,6 +558,10 @@ struct fb_pixmap {
 	u32 scan_align;		/* alignment per scanline		*/
 	u32 access_align;	/* alignment per read/write (bits)	*/
 	u32 flags;		/* see FB_PIXMAP_*			*/
+	u32 blit_x;             /* supported bit block dimensions (1-32)*/
+	u32 blit_y;             /* Format: blit_x = 1 << (width - 1)    */
+	                        /*         blit_y = 1 << (height - 1)   */
+	                        /* if 0, will be set to 0xffffffff (all)*/
 	/* access methods */
 	void (*writeio)(struct fb_info *info, void __iomem *dst, void *src, unsigned int size);
 	void (*readio) (struct fb_info *info, void *dst, void __iomem *src, unsigned int size);
