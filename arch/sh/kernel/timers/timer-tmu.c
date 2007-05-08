@@ -99,7 +99,7 @@ static irqreturn_t tmu_timer_interrupt(int irq, void *dummy)
 static struct irqaction tmu_irq = {
 	.name		= "timer",
 	.handler	= tmu_timer_interrupt,
-	.flags		= IRQF_DISABLED | IRQF_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 	.mask		= CPU_MASK_NONE,
 };
 
