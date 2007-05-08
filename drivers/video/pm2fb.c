@@ -1335,10 +1335,10 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 		info->var = pm2fb_var;
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0)
-		goto err_exit_all;
+		goto err_exit_both;
 
 	if (register_framebuffer(info) < 0)
-		goto err_exit_both;
+		goto err_exit_all;
 
 	printk(KERN_INFO "fb%d: %s frame buffer device, memory = %dK.\n",
 	       info->node, info->fix.id, pm2fb_fix.smem_len / 1024);
