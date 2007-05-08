@@ -818,9 +818,6 @@ static int cy_chip_offset[] = { 0x0000,
 
 /* PCI related definitions */
 
-static unsigned short cy_pci_nboard;
-static unsigned short cy_isa_nboard;
-static unsigned short cy_nboard;
 #ifdef CONFIG_PCI
 static struct pci_device_id cy_pci_dev_id[] __devinitdata = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CYCLADES, PCI_DEVICE_ID_CYCLOM_Y_Lo) },	/* PCI < 1Mb */
@@ -5462,7 +5459,7 @@ static const struct tty_operations cy_ops = {
 
 static int __init cy_init(void)
 {
-	unsigned int i;
+	unsigned int i, nboards;
 
 	cy_serial_driver = alloc_tty_driver(NR_PORTS);
 	if (!cy_serial_driver)
@@ -5506,14 +5503,12 @@ static int __init cy_init(void)
 	   the cy_next_channel. */
 
 	/* look for isa boards */
-	cy_isa_nboard = cy_detect_isa();
+	nboards = cy_detect_isa();
 
 	/* look for pci boards */
-	cy_pci_nboard = cy_detect_pci();
+	nboards += cy_detect_pci();
 
-	cy_nboard = cy_isa_nboard + cy_pci_nboard;
-
-	return 0;
+	return nboards ? 0 : -ENODEV;
 }				/* cy_init */
 
 static void __exit cy_cleanup_module(void)
