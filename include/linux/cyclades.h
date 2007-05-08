@@ -518,6 +518,7 @@ struct cyclades_card {
     int bus_index;	/* address shift - 0 for ISA, 1 for PCI */
     int	intr_enabled;	/* FW Interrupt flag - 0 disabled, 1 enabled */
     spinlock_t card_lock;
+    struct cyclades_port *ports;
 };
 
 /***************************************
