@@ -24,6 +24,7 @@
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/spinlock.h>
+#include <linux/phy.h>
 
 struct pasemi_mac_txring {
 	spinlock_t	 lock;
@@ -54,6 +55,7 @@ struct pasemi_mac {
 	struct pci_dev *pdev;
 	struct pci_dev *dma_pdev;
 	struct pci_dev *iob_pdev;
+	struct phy_device *phydev;
 	struct net_device_stats stats;
 
 	/* Pointer to the cacheable per-channel status registers */
@@ -75,8 +77,12 @@ struct pasemi_mac {
 	struct pasemi_mac_rxring *rx;
 	unsigned long	tx_irq;
 	unsigned long	rx_irq;
+	int	link;
+	int	speed;
+	int	duplex;
 
 	unsigned int	msg_enable;
+	char	phy_id[BUS_ID_SIZE];
 };
 
 /* Software status descriptor (desc_info) */
