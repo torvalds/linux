@@ -275,7 +275,7 @@ static void dispose_list(struct list_head *head)
 	while (!list_empty(head)) {
 		struct inode *inode;
 
-		inode = list_entry(head->next, struct inode, i_list);
+		inode = list_first_entry(head, struct inode, i_list);
 		list_del(&inode->i_list);
 
 		if (inode->i_data.nrpages)

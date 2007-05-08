@@ -499,7 +499,7 @@ void release_mounts(struct list_head *head)
 {
 	struct vfsmount *mnt;
 	while (!list_empty(head)) {
-		mnt = list_entry(head->next, struct vfsmount, mnt_hash);
+		mnt = list_first_entry(head, struct vfsmount, mnt_hash);
 		list_del_init(&mnt->mnt_hash);
 		if (mnt->mnt_parent != mnt) {
 			struct dentry *dentry;
@@ -1177,7 +1177,7 @@ static void expire_mount_list(struct list_head *graveyard, struct list_head *mou
 
 	while (!list_empty(graveyard)) {
 		LIST_HEAD(umounts);
-		mnt = list_entry(graveyard->next, struct vfsmount, mnt_expire);
+		mnt = list_first_entry(graveyard, struct vfsmount, mnt_expire);
 		list_del_init(&mnt->mnt_expire);
 
 		/* don't do anything if the namespace is dead - all the

@@ -474,7 +474,7 @@ int vfs_quota_sync(struct super_block *sb, int type)
 		spin_lock(&dq_list_lock);
 		dirty = &dqopt->info[cnt].dqi_dirty_list;
 		while (!list_empty(dirty)) {
-			dquot = list_entry(dirty->next, struct dquot, dq_dirty);
+			dquot = list_first_entry(dirty, struct dquot, dq_dirty);
 			/* Dirty and inactive can be only bad dquot... */
 			if (!test_bit(DQ_ACTIVE_B, &dquot->dq_flags)) {
 				clear_dquot_dirty(dquot);

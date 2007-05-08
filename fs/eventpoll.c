@@ -453,7 +453,7 @@ void eventpoll_release_file(struct file *file)
 	mutex_lock(&epmutex);
 
 	while (!list_empty(lsthead)) {
-		epi = list_entry(lsthead->next, struct epitem, fllink);
+		epi = list_first_entry(lsthead, struct epitem, fllink);
 
 		ep = epi->ep;
 		list_del_init(&epi->fllink);
@@ -1143,7 +1143,7 @@ static void ep_unregister_pollwait(struct eventpoll *ep, struct epitem *epi)
 
 	if (nwait) {
 		while (!list_empty(lsthead)) {
-			pwq = list_entry(lsthead->next, struct eppoll_entry, llink);
+			pwq = list_first_entry(lsthead, struct eppoll_entry, llink);
 
 			list_del_init(&pwq->llink);
 			remove_wait_queue(pwq->whead, &pwq->wait);
@@ -1359,7 +1359,7 @@ static int ep_send_events(struct eventpoll *ep, struct list_head *txlist,
 	 * read.
 	 */
 	for (eventcnt = 0; !list_empty(txlist) && eventcnt < maxevents;) {
-		epi = list_entry(txlist->next, struct epitem, rdllink);
+		epi = list_first_entry(txlist, struct epitem, rdllink);
 		prefetch(epi->rdllink.next);
 
 		/*
