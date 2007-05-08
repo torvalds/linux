@@ -370,15 +370,13 @@ struct module *module_text_address(unsigned long addr);
 struct module *__module_text_address(unsigned long addr);
 int is_module_address(unsigned long addr);
 
-/* Returns module and fills in value, defined and namebuf, or NULL if
+/* Returns 0 and fills in value, defined and namebuf, or -ERANGE if
    symnum out of range. */
-struct module *module_get_kallsym(unsigned int symnum, unsigned long *value,
-				char *type, char *name);
+int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
+			char *name, char *module_name, int *exported);
 
 /* Look for this name: can be of form module:name. */
 unsigned long module_kallsyms_lookup_name(const char *name);
-
-int is_exported(const char *name, const struct module *mod);
 
 extern void __module_put_and_exit(struct module *mod, long code)
 	__attribute__((noreturn));
@@ -527,19 +525,14 @@ static inline const char *module_address_lookup(unsigned long addr,
 	return NULL;
 }
 
-static inline struct module *module_get_kallsym(unsigned int symnum,
-						unsigned long *value,
-						char *type, char *name)
+static inline int module_get_kallsym(unsigned int symnum, unsigned long *value,
+					char *type, char *name,
+					char *module_name, int *exported)
 {
-	return NULL;
+	return -ERANGE;
 }
 
 static inline unsigned long module_kallsyms_lookup_name(const char *name)
-{
-	return 0;
-}
-
-static inline int is_exported(const char *name, const struct module *mod)
 {
 	return 0;
 }
