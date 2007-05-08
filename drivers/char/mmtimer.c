@@ -705,14 +705,12 @@ static int __init mmtimer_init(void)
 	maxn++;
 
 	/* Allocate list of node ptrs to mmtimer_t's */
-	timers = kmalloc(sizeof(mmtimer_t *)*maxn, GFP_KERNEL);
+	timers = kzalloc(sizeof(mmtimer_t *)*maxn, GFP_KERNEL);
 	if (timers == NULL) {
 		printk(KERN_ERR "%s: failed to allocate memory for device\n",
 				MMTIMER_NAME);
 		goto out3;
 	}
-
-	memset(timers,0,(sizeof(mmtimer_t *)*maxn));
 
 	/* Allocate mmtimer_t's for each online node */
 	for_each_online_node(node) {
