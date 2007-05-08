@@ -23,31 +23,22 @@
 #include <linux/errno.h>
 #include <linux/device.h>
 #include <linux/rwsem.h>
+#include <linux/crc-itu-t.h>
 #include "fw-transaction.h"
 #include "fw-topology.h"
 #include "fw-device.h"
 
-/* The lib/crc16.c implementation uses the standard (0x8005)
- * polynomial, but we need the ITU-T (or CCITT) polynomial (0x1021).
- * The implementation below works on an array of host-endian u32
- * words, assuming they'll be transmited msb first. */
-u16
-crc16_itu_t(const u32 *buffer, size_t length)
+int fw_compute_block_crc(u32 *block)
 {
-	int shift, i;
-	u32 data;
-	u16 sum, crc = 0;
+	__be32 be32_block[256];
+	int i, length;
 
-	for (i = 0; i < length; i++) {
-		data = *buffer++;
-		for (shift = 28; shift >= 0; shift -= 4 ) {
-			sum = ((crc >> 12) ^ (data >> shift)) & 0xf;
-			crc = (crc << 4) ^ (sum << 12) ^ (sum << 5) ^ (sum);
-		}
-		crc &= 0xffff;
-	}
+	length = (*block >> 16) & 0xff;
+	for (i = 0; i < length; i++)
+		be32_block[i] = cpu_to_be32(block[i + 1]);
+	*block |= crc_itu_t(0, (u8 *) be32_block, length * 4);
 
-	return crc;
+	return length;
 }
 
 static DECLARE_RWSEM(card_rwsem);
@@ -126,10 +117,8 @@ generate_config_rom (struct fw_card *card, size_t *config_rom_length)
 	 * assumes that CRC length and info length are identical for
 	 * the bus info block, which is always the case for this
 	 * implementation. */
-	for (i = 0; i < j; i += length + 1) {
-		length = (config_rom[i] >> 16) & 0xff;
-		config_rom[i] |= crc16_itu_t(&config_rom[i + 1], length);
-	}
+	for (i = 0; i < j; i += length + 1)
+		length = fw_compute_block_crc(config_rom + i);
 
 	*config_rom_length = j;
 

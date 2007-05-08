@@ -465,14 +465,13 @@ static void
 update_topology_map(struct fw_card *card, u32 *self_ids, int self_id_count)
 {
 	int node_count;
-	u32 crc;
 
 	card->topology_map[1]++;
 	node_count = (card->root_node->node_id & 0x3f) + 1;
 	card->topology_map[2] = (node_count << 16) | self_id_count;
-	crc = crc16_itu_t(card->topology_map + 1, self_id_count + 2);
-	card->topology_map[0] = ((self_id_count + 2) << 16) | crc;
+	card->topology_map[0] = (self_id_count + 2) << 16;
 	memcpy(&card->topology_map[3], self_ids, self_id_count * 4);
+	fw_compute_block_crc(card->topology_map);
 }
 
 void

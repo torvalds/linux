@@ -6,6 +6,7 @@ comment "An alternative FireWire stack is available with EXPERIMENTAL=y"
 config FIREWIRE
 	tristate "IEEE 1394 (FireWire) support (JUJU alternative stack, experimental)"
 	depends on EXPERIMENTAL
+	select CRC_ITU_T
 	help
 	  IEEE 1394 describes a high performance serial bus, which is also
 	  known as FireWire(tm) or i.Link(tm) and is used for connecting all
