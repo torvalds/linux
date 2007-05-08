@@ -569,7 +569,7 @@ static void as_update_iohist(struct as_data *ad, struct as_io_context *aic,
 static int as_close_req(struct as_data *ad, struct as_io_context *aic,
 			struct request *rq)
 {
-	unsigned long delay;	/* milliseconds */
+	unsigned long delay;	/* jiffies */
 	sector_t last = ad->last_sector[ad->batch_data_dir];
 	sector_t next = rq->sector;
 	sector_t delta; /* acceptable close offset (in sectors) */
@@ -578,11 +578,11 @@ static int as_close_req(struct as_data *ad, struct as_io_context *aic,
 	if (ad->antic_status == ANTIC_OFF || !ad->ioc_finished)
 		delay = 0;
 	else
-		delay = ((jiffies - ad->antic_start) * 1000) / HZ;
+		delay = jiffies - ad->antic_start;
 
 	if (delay == 0)
 		delta = 8192;
-	else if (delay <= 20 && delay <= ad->antic_expire)
+	else if (delay <= (20 * HZ / 1000) && delay <= ad->antic_expire)
 		delta = 8192 << delay;
 	else
 		return 1;
