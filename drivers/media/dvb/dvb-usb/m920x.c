@@ -59,7 +59,7 @@ static inline int m920x_write(struct usb_device *udev, u8 request,
 
 static int m920x_init(struct dvb_usb_device *d, struct m920x_inits *rc_seq)
 {
-	int ret = 0, i, epi;
+	int ret = 0, i, epi, flags = 0;
 	int adap_enabled[M9206_MAX_ADAPTERS] = { 0 };
 
 	/* Remote controller init. */
@@ -79,26 +79,32 @@ static int m920x_init(struct dvb_usb_device *d, struct m920x_inits *rc_seq)
 		deb("Initialising remote control success\n");
 	}
 
-	for (i = 0; i < d->props.num_adapters; i++) {
-		epi = d->adapter[i].props.stream.endpoint - 0x81;
+	for (i = 0; i < d->props.num_adapters; i++)
+		flags |= d->adapter[i].props.caps;
 
-		if (epi < 0 || epi >= M9206_MAX_ADAPTERS) {
-			printk(KERN_INFO "m920x: Unexpected adapter endpoint!\n");
-			return -EINVAL;
+	/* Some devices(Dposh) might crash if we attempt touch at all. */
+	if (flags & DVB_USB_ADAP_HAS_PID_FILTER) {
+		for (i = 0; i < d->props.num_adapters; i++) {
+			epi = d->adapter[i].props.stream.endpoint - 0x81;
+
+			if (epi < 0 || epi >= M9206_MAX_ADAPTERS) {
+				printk(KERN_INFO "m920x: Unexpected adapter endpoint!\n");
+				return -EINVAL;
+			}
+
+			adap_enabled[epi] = 1;
 		}
 
-		adap_enabled[epi] = 1;
-	}
+		for (i = 0; i < M9206_MAX_ADAPTERS; i++) {
+			if (adap_enabled[i])
+				continue;
 
-	for (i = 0; i < M9206_MAX_ADAPTERS; i++) {
-		if (adap_enabled[i])
-			continue;
+			if ((ret = m920x_set_filter(d, 0x81 + i, 0, 0x0)) != 0)
+				return ret;
 
-		if ((ret = m920x_set_filter(d, 0x81 + i, 0, 0x0)) != 0)
-			return ret;
-
-		if ((ret = m920x_set_filter(d, 0x81 + i, 0, 0x02f5)) != 0)
-			return ret;
+			if ((ret = m920x_set_filter(d, 0x81 + i, 0, 0x02f5)) != 0)
+				return ret;
+		}
 	}
 
 	return ret;
