@@ -382,6 +382,12 @@ L:	linux-laptop@vger.kernel.org
 W:	http://www.canb.auug.org.au/~sfr/
 S:	Supported
 
+APPLE SMC DRIVER
+P:	Nicolas Boichat
+M:	nicolas@boichat.ch
+L:	mactel-linux-devel@lists.sourceforge.net
+S:	Maintained
+
 APPLETALK NETWORK LAYER
 P:	Arnaldo Carvalho de Melo
 M:	acme@ghostprotocols.net

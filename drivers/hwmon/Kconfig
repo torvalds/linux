@@ -594,6 +594,30 @@ config SENSORS_HDAPS
 	  Say Y here if you have an applicable laptop and want to experience
 	  the awesome power of hdaps.
 
+config SENSORS_APPLESMC
+	tristate "Apple SMC (Motion sensor, light sensor, keyboard backlight)"
+	depends on HWMON && INPUT && X86
+	select NEW_LEDS
+	select LEDS_CLASS
+	default n
+	help
+	  This driver provides support for the Apple System Management
+	  Controller, which provides an accelerometer (Apple Sudden Motion
+	  Sensor), light sensors, temperature sensors, keyboard backlight
+	  control and fan control.
+
+	  Only Intel-based Apple's computers are supported (MacBook Pro,
+	  MacBook, MacMini).
+
+	  Data from the different sensors, keyboard backlight control and fan
+	  control are accessible via sysfs.
+
+	  This driver also provides an absolute input class device, allowing
+	  the laptop to act as a pinball machine-esque joystick.
+
+	  Say Y here if you have an applicable laptop and want to experience
+	  the awesome power of applesmc.
+
 config HWMON_DEBUG_CHIP
 	bool "Hardware Monitoring Chip debugging messages"
 	depends on HWMON
