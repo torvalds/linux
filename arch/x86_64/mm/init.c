@@ -172,7 +172,7 @@ __set_fixmap (enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 	set_pte_phys(address, phys, prot);
 }
 
-unsigned long __initdata table_start, table_end; 
+unsigned long __meminitdata table_start, table_end;
 
 static __meminit void *alloc_low_page(unsigned long *phys)
 { 
@@ -204,7 +204,7 @@ static __meminit void unmap_low_page(void *adr)
 } 
 
 /* Must run before zap_low_mappings */
-__init void *early_ioremap(unsigned long addr, unsigned long size)
+__meminit void *early_ioremap(unsigned long addr, unsigned long size)
 {
 	unsigned long vaddr;
 	pmd_t *pmd, *last_pmd;
@@ -233,7 +233,7 @@ __init void *early_ioremap(unsigned long addr, unsigned long size)
 }
 
 /* To avoid virtual aliases later */
-__init void early_iounmap(void *addr, unsigned long size)
+__meminit void early_iounmap(void *addr, unsigned long size)
 {
 	unsigned long vaddr;
 	pmd_t *pmd;

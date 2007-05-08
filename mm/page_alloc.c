@@ -103,7 +103,7 @@ int min_free_kbytes = 1024;
 
 unsigned long __meminitdata nr_kernel_pages;
 unsigned long __meminitdata nr_all_pages;
-static unsigned long __initdata dma_reserve;
+static unsigned long __meminitdata dma_reserve;
 
 #ifdef CONFIG_ARCH_POPULATES_NODE_MAP
   /*
@@ -126,10 +126,10 @@ static unsigned long __initdata dma_reserve;
     #endif
   #endif
 
-  struct node_active_region __initdata early_node_map[MAX_ACTIVE_REGIONS];
-  int __initdata nr_nodemap_entries;
-  unsigned long __initdata arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
-  unsigned long __initdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
+  struct node_active_region __meminitdata early_node_map[MAX_ACTIVE_REGIONS];
+  int __meminitdata nr_nodemap_entries;
+  unsigned long __meminitdata arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
+  unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
 #ifdef CONFIG_MEMORY_HOTPLUG_RESERVE
   unsigned long __initdata node_boundary_start_pfn[MAX_NUMNODES];
   unsigned long __initdata node_boundary_end_pfn[MAX_NUMNODES];
@@ -2267,7 +2267,7 @@ __meminit int init_currently_empty_zone(struct zone *zone,
  * Basic iterator support. Return the first range of PFNs for a node
  * Note: nid == MAX_NUMNODES returns first region regardless of node
  */
-static int __init first_active_region_index_in_nid(int nid)
+static int __meminit first_active_region_index_in_nid(int nid)
 {
 	int i;
 
@@ -2282,7 +2282,7 @@ static int __init first_active_region_index_in_nid(int nid)
  * Basic iterator support. Return the next active range of PFNs for a node
  * Note: nid == MAX_NUMNODES returns next region regardles of node
  */
-static int __init next_active_region_index_in_nid(int index, int nid)
+static int __meminit next_active_region_index_in_nid(int index, int nid)
 {
 	for (index = index + 1; index < nr_nodemap_entries; index++)
 		if (nid == MAX_NUMNODES || early_node_map[index].nid == nid)
@@ -2435,7 +2435,7 @@ static void __init account_node_boundary(unsigned int nid,
  * with no available memory, a warning is printed and the start and end
  * PFNs will be 0.
  */
-void __init get_pfn_range_for_nid(unsigned int nid,
+void __meminit get_pfn_range_for_nid(unsigned int nid,
 			unsigned long *start_pfn, unsigned long *end_pfn)
 {
 	int i;
@@ -2460,7 +2460,7 @@ void __init get_pfn_range_for_nid(unsigned int nid,
  * Return the number of pages a zone spans in a node, including holes
  * present_pages = zone_spanned_pages_in_node() - zone_absent_pages_in_node()
  */
-unsigned long __init zone_spanned_pages_in_node(int nid,
+unsigned long __meminit zone_spanned_pages_in_node(int nid,
 					unsigned long zone_type,
 					unsigned long *ignored)
 {
@@ -2488,7 +2488,7 @@ unsigned long __init zone_spanned_pages_in_node(int nid,
  * Return the number of holes in a range on a node. If nid is MAX_NUMNODES,
  * then all holes in the requested range will be accounted for.
  */
-unsigned long __init __absent_pages_in_range(int nid,
+unsigned long __meminit __absent_pages_in_range(int nid,
 				unsigned long range_start_pfn,
 				unsigned long range_end_pfn)
 {
@@ -2548,7 +2548,7 @@ unsigned long __init absent_pages_in_range(unsigned long start_pfn,
 }
 
 /* Return the number of page frames in holes in a zone on a node */
-unsigned long __init zone_absent_pages_in_node(int nid,
+unsigned long __meminit zone_absent_pages_in_node(int nid,
 					unsigned long zone_type,
 					unsigned long *ignored)
 {
@@ -2584,7 +2584,7 @@ static inline unsigned long zone_absent_pages_in_node(int nid,
 
 #endif
 
-static void __init calculate_node_totalpages(struct pglist_data *pgdat,
+static void __meminit calculate_node_totalpages(struct pglist_data *pgdat,
 		unsigned long *zones_size, unsigned long *zholes_size)
 {
 	unsigned long realtotalpages, totalpages = 0;
@@ -2692,7 +2692,7 @@ static void __meminit free_area_init_core(struct pglist_data *pgdat,
 	}
 }
 
-static void __init alloc_node_mem_map(struct pglist_data *pgdat)
+static void __meminit alloc_node_mem_map(struct pglist_data *pgdat)
 {
 	/* Skip empty nodes */
 	if (!pgdat->node_spanned_pages)
