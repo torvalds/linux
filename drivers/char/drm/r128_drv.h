@@ -383,6 +383,8 @@ extern long r128_compat_ioctl(struct file *filp, unsigned int cmd,
 
 #define R128_PERFORMANCE_BOXES		0
 
+#define R128_PCIGART_TABLE_SIZE         32768
+
 #define R128_READ(reg)		DRM_READ32(  dev_priv->mmio, (reg) )
 #define R128_WRITE(reg,val)	DRM_WRITE32( dev_priv->mmio, (reg), (val) )
 #define R128_READ8(reg)		DRM_READ8(   dev_priv->mmio, (reg) )

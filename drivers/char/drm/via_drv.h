@@ -29,11 +29,11 @@
 
 #define DRIVER_NAME		"via"
 #define DRIVER_DESC		"VIA Unichrome / Pro"
-#define DRIVER_DATE		"20061227"
+#define DRIVER_DATE		"20070202"
 
 #define DRIVER_MAJOR		2
 #define DRIVER_MINOR		11
-#define DRIVER_PATCHLEVEL	0
+#define DRIVER_PATCHLEVEL	1
 
 #include "via_verifier.h"
 
@@ -93,6 +93,7 @@ typedef struct drm_via_private {
 	unsigned long vram_offset;
 	unsigned long agp_offset;
 	drm_via_blitq_t blit_queues[VIA_NUM_BLIT_ENGINES];
+	uint32_t dma_diff;
 } drm_via_private_t;
 
 enum via_family {
