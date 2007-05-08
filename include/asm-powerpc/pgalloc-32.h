@@ -12,10 +12,10 @@ extern void pgd_free(pgd_t *pgd);
  * We don't have any real pmd's, and this code never triggers because
  * the pgd will always be present..
  */
-#define pmd_alloc_one(mm,address)       ({ BUG(); ((pmd_t *)2); })
+/* #define pmd_alloc_one(mm,address)       ({ BUG(); ((pmd_t *)2); }) */
 #define pmd_free(x)                     do { } while (0)
 #define __pmd_free_tlb(tlb,x)		do { } while (0)
-#define pgd_populate(mm, pmd, pte)      BUG()
+/* #define pgd_populate(mm, pmd, pte)      BUG() */
 
 #ifndef CONFIG_BOOKE
 #define pmd_populate_kernel(mm, pmd, pte)	\

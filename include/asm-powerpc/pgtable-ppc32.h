@@ -1,7 +1,7 @@
 #ifndef _ASM_POWERPC_PGTABLE_PPC32_H
 #define _ASM_POWERPC_PGTABLE_PPC32_H
 
-#include <asm-generic/4level-fixup.h>
+#include <asm-generic/pgtable-nopmd.h>
 
 #ifndef __ASSEMBLY__
 #include <linux/sched.h>
@@ -76,13 +76,8 @@ extern unsigned long ioremap_bot, ioremap_base;
  * level has 2048 entries and the second level has 512 64-bit PTE entries.
  * -Matt
  */
-/* PMD_SHIFT determines the size of the area mapped by the PTE pages */
-#define PMD_SHIFT	(PAGE_SHIFT + PTE_SHIFT)
-#define PMD_SIZE	(1UL << PMD_SHIFT)
-#define PMD_MASK	(~(PMD_SIZE-1))
-
 /* PGDIR_SHIFT determines what a top-level page table entry can map */
-#define PGDIR_SHIFT	PMD_SHIFT
+#define PGDIR_SHIFT	(PAGE_SHIFT + PTE_SHIFT)
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
@@ -103,8 +98,6 @@ extern unsigned long ioremap_bot, ioremap_base;
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %llx.\n", __FILE__, __LINE__, \
 		(unsigned long long)pte_val(e))
-#define pmd_ERROR(e) \
-	printk("%s:%d: bad pmd %08lx.\n", __FILE__, __LINE__, pmd_val(e))
 #define pgd_ERROR(e) \
 	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
@@ -516,19 +509,6 @@ extern unsigned long empty_zero_page[1024];
 
 #ifndef __ASSEMBLY__
 /*
- * The "pgd_xxx()" functions here are trivial for a folded two-level
- * setup: the pgd is never bad, and a pmd always exists (as it's folded
- * into the pgd entry)
- */
-static inline int pgd_none(pgd_t pgd)		{ return 0; }
-static inline int pgd_bad(pgd_t pgd)		{ return 0; }
-static inline int pgd_present(pgd_t pgd)	{ return 1; }
-#define pgd_clear(xp)				do { } while (0)
-
-#define pgd_page_vaddr(pgd) \
-	((unsigned long) __va(pgd_val(pgd) & PAGE_MASK))
-
-/*
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
  */
@@ -736,12 +716,6 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 /* to find an entry in a page-table-directory */
 #define pgd_index(address)	 ((address) >> PGDIR_SHIFT)
 #define pgd_offset(mm, address)	 ((mm)->pgd + pgd_index(address))
-
-/* Find an entry in the second-level page table.. */
-static inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
-{
-	return (pmd_t *) dir;
-}
 
 /* Find an entry in the third-level page table.. */
 #define pte_index(address)		\
