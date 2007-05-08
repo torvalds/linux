@@ -496,9 +496,11 @@ mode_set:
 	cmpb	$VIDEO_FIRST_V7>>8, %ah
 	jz	setv7
 	
+#ifdef CONFIG_FB
 	cmpb	$VIDEO_FIRST_VESA>>8, %ah
 	jnc	check_vesa
-	
+#endif
+
 	orb	%ah, %ah
 	jz	setmenu
 	
