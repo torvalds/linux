@@ -2274,11 +2274,11 @@ static int __init vmx_init(void)
 	iova = kmap(vmx_io_bitmap_a);
 	memset(iova, 0xff, PAGE_SIZE);
 	clear_bit(0x80, iova);
-	kunmap(iova);
+	kunmap(vmx_io_bitmap_a);
 
 	iova = kmap(vmx_io_bitmap_b);
 	memset(iova, 0xff, PAGE_SIZE);
-	kunmap(iova);
+	kunmap(vmx_io_bitmap_b);
 
 	r = kvm_init_arch(&vmx_arch_ops, THIS_MODULE);
 	if (r)
