@@ -33,11 +33,12 @@
 /**
  *	ns87410_pre_reset		-	probe begin
  *	@ap: ATA port
+ *	@deadline: deadline jiffies for the operation
  *
  *	Check enabled ports
  */
 
-static int ns87410_pre_reset(struct ata_port *ap)
+static int ns87410_pre_reset(struct ata_port *ap, unsigned long deadline)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	static const struct pci_bits ns87410_enable_bits[] = {
@@ -47,7 +48,8 @@ static int ns87410_pre_reset(struct ata_port *ap)
 
 	if (!pci_test_config_bits(pdev, &ns87410_enable_bits[ap->port_no]))
 		return -ENOENT;
-	return ata_std_prereset(ap);
+
+	return ata_std_prereset(ap, deadline);
 }
 
 /**

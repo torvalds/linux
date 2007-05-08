@@ -268,6 +268,7 @@ static void svia_noop_freeze(struct ata_port *ap)
 /**
  *	vt6420_prereset - prereset for vt6420
  *	@ap: target ATA port
+ *	@deadline: deadline jiffies for the operation
  *
  *	SCR registers on vt6420 are pieces of shit and may hang the
  *	whole machine completely if accessed with the wrong timing.
@@ -284,7 +285,7 @@ static void svia_noop_freeze(struct ata_port *ap)
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-static int vt6420_prereset(struct ata_port *ap)
+static int vt6420_prereset(struct ata_port *ap, unsigned long deadline)
 {
 	struct ata_eh_context *ehc = &ap->eh_context;
 	unsigned long timeout = jiffies + (HZ * 5);
@@ -329,7 +330,7 @@ static int vt6420_prereset(struct ata_port *ap)
 
  skip_scr:
 	/* wait for !BSY */
-	ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT);
+	ata_wait_ready(ap, deadline);
 
 	return 0;
 }

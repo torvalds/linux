@@ -420,7 +420,8 @@ static void inic_thaw(struct ata_port *ap)
  * SRST and SControl hardreset don't give valid signature on this
  * controller.  Only controller specific hardreset mechanism works.
  */
-static int inic_hardreset(struct ata_port *ap, unsigned int *class)
+static int inic_hardreset(struct ata_port *ap, unsigned int *class,
+			  unsigned long deadline)
 {
 	void __iomem *port_base = inic_port_base(ap);
 	void __iomem *idma_ctl = port_base + PORT_IDMA_CTL;
@@ -437,7 +438,7 @@ static int inic_hardreset(struct ata_port *ap, unsigned int *class)
 	msleep(1);
 	writew(val & ~IDMA_CTL_RST_ATA, idma_ctl);
 
-	rc = sata_phy_resume(ap, timing);
+	rc = sata_phy_resume(ap, timing, deadline);
 	if (rc) {
 		ata_port_printk(ap, KERN_WARNING, "failed to resume "
 				"link after reset (errno=%d)\n", rc);
@@ -451,10 +452,12 @@ static int inic_hardreset(struct ata_port *ap, unsigned int *class)
 		/* wait a while before checking status */
 		msleep(150);
 
-		if (ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT)) {
-			ata_port_printk(ap, KERN_WARNING,
-					"device busy after hardreset\n");
-			return -EIO;
+		rc = ata_wait_ready(ap, deadline);
+		/* link occupied, -ENODEV too is an error */
+		if (rc) {
+			ata_port_printk(ap, KERN_WARNING, "device not ready "
+					"after hardreset (errno=%d)\n", rc);
+			return rc;
 		}
 
 		ata_tf_read(ap, &tf);

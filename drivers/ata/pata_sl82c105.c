@@ -44,11 +44,12 @@ enum {
 /**
  *	sl82c105_pre_reset		-	probe begin
  *	@ap: ATA port
+ *	@deadline: deadline jiffies for the operation
  *
  *	Set up cable type and use generic probe init
  */
 
-static int sl82c105_pre_reset(struct ata_port *ap)
+static int sl82c105_pre_reset(struct ata_port *ap, unsigned long deadline)
 {
 	static const struct pci_bits sl82c105_enable_bits[] = {
 		{ 0x40, 1, 0x01, 0x01 },
@@ -58,7 +59,7 @@ static int sl82c105_pre_reset(struct ata_port *ap)
 
 	if (ap->port_no && !pci_test_config_bits(pdev, &sl82c105_enable_bits[ap->port_no]))
 		return -ENOENT;
-	return ata_std_prereset(ap);
+	return ata_std_prereset(ap, deadline);
 }
 
 

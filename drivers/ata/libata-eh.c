@@ -50,6 +50,28 @@ enum {
 	ATA_EH_SPDN_FALLBACK_TO_PIO	= (1 << 2),
 };
 
+/* Waiting in ->prereset can never be reliable.  It's sometimes nice
+ * to wait there but it can't be depended upon; otherwise, we wouldn't
+ * be resetting.  Just give it enough time for most drives to spin up.
+ */
+enum {
+	ATA_EH_PRERESET_TIMEOUT		= 10 * HZ,
+};
+
+/* The following table determines how we sequence resets.  Each entry
+ * represents timeout for that try.  The first try can be soft or
+ * hardreset.  All others are hardreset if available.  In most cases
+ * the first reset w/ 10sec timeout should succeed.  Following entries
+ * are mostly for error handling, hotplug and retarded devices.
+ */
+static const unsigned long ata_eh_reset_timeouts[] = {
+	10 * HZ,	/* most drives spin up by 10sec */
+	10 * HZ,	/* > 99% working drives spin up before 20sec */
+	35 * HZ,	/* give > 30 secs of idleness for retarded devices */
+	5 * HZ,		/* and sweet one last chance */
+	/* > 1 min has elapsed, give up */
+};
+
 static void __ata_port_freeze(struct ata_port *ap);
 static void ata_eh_finish(struct ata_port *ap);
 #ifdef CONFIG_PM
@@ -1558,14 +1580,14 @@ static void ata_eh_report(struct ata_port *ap)
 }
 
 static int ata_do_reset(struct ata_port *ap, ata_reset_fn_t reset,
-			unsigned int *classes)
+			unsigned int *classes, unsigned long deadline)
 {
 	int i, rc;
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++)
 		classes[i] = ATA_DEV_UNKNOWN;
 
-	rc = reset(ap, classes);
+	rc = reset(ap, classes, deadline);
 	if (rc)
 		return rc;
 
@@ -1603,8 +1625,9 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 {
 	struct ata_eh_context *ehc = &ap->eh_context;
 	unsigned int *classes = ehc->classes;
-	int tries = ATA_EH_RESET_TRIES;
 	int verbose = !(ehc->i.flags & ATA_EHI_QUIET);
+	int try = 0;
+	unsigned long deadline;
 	unsigned int action;
 	ata_reset_fn_t reset;
 	int i, did_followup_srst, rc;
@@ -1624,7 +1647,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 		ehc->i.action |= ATA_EH_HARDRESET;
 
 	if (prereset) {
-		rc = prereset(ap);
+		rc = prereset(ap, jiffies + ATA_EH_PRERESET_TIMEOUT);
 		if (rc) {
 			if (rc == -ENOENT) {
 				ata_port_printk(ap, KERN_DEBUG,
@@ -1665,6 +1688,8 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 	}
 
  retry:
+	deadline = jiffies + ata_eh_reset_timeouts[try++];
+
 	/* shut up during boot probing */
 	if (verbose)
 		ata_port_printk(ap, KERN_INFO, "%s resetting port\n",
@@ -1676,7 +1701,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 	else
 		ehc->i.flags |= ATA_EHI_DID_SOFTRESET;
 
-	rc = ata_do_reset(ap, reset, classes);
+	rc = ata_do_reset(ap, reset, classes, deadline);
 
 	did_followup_srst = 0;
 	if (reset == hardreset &&
@@ -1693,7 +1718,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 		}
 
 		ata_eh_about_to_do(ap, NULL, ATA_EH_RESET_MASK);
-		rc = ata_do_reset(ap, reset, classes);
+		rc = ata_do_reset(ap, reset, classes, deadline);
 
 		if (rc == 0 && classify &&
 		    classes[0] == ATA_DEV_UNKNOWN) {
@@ -1703,22 +1728,21 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 		}
 	}
 
-	if (rc && --tries) {
-		const char *type;
+	if (rc && try < ARRAY_SIZE(ata_eh_reset_timeouts)) {
+		unsigned long now = jiffies;
 
-		if (reset == softreset) {
-			if (did_followup_srst)
-				type = "follow-up soft";
-			else
-				type = "soft";
-		} else
-			type = "hard";
+		if (time_before(now, deadline)) {
+			unsigned long delta = deadline - jiffies;
 
-		ata_port_printk(ap, KERN_WARNING,
-				"%sreset failed, retrying in 5 secs\n", type);
-		ssleep(5);
+			ata_port_printk(ap, KERN_WARNING, "reset failed "
+				"(errno=%d), retrying in %u secs\n",
+				rc, (jiffies_to_msecs(delta) + 999) / 1000);
 
-		if (reset == hardreset)
+			schedule_timeout_uninterruptible(delta);
+		}
+
+		if (reset == hardreset &&
+		    try == ARRAY_SIZE(ata_eh_reset_timeouts) - 1)
 			sata_down_spd_limit(ap);
 		if (hardreset)
 			reset = hardreset;
