@@ -949,7 +949,7 @@ static int block_til_ready(struct tty_struct *tty,
 
 	} /* End forever while  */
 
-	current->state = TASK_RUNNING;
+	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&ch->open_wait, &wait);
 	if (!tty_hung_up_p(filp))
 		ch->count++;

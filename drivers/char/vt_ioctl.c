@@ -1061,7 +1061,7 @@ int vt_waitactive(int vt)
 		schedule();
 	}
 	remove_wait_queue(&vt_activate_queue, &wait);
-	current->state = TASK_RUNNING;
+	__set_current_state(TASK_RUNNING);
 	return retval;
 }
 

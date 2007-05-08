@@ -207,7 +207,7 @@ static ssize_t gen_rtc_read(struct file *file, char __user *buf,
 			sizeof(unsigned long);
 	}
  out:
-	current->state = TASK_RUNNING;
+	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&gen_rtc_wait, &wait);
 
 	return retval;

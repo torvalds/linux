@@ -1088,13 +1088,13 @@ static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
 			/* block until there is a message: */
 			add_wait_queue(&pInfo->read_wait, &wait);
 repeat:
-			current->state = TASK_INTERRUPTIBLE;
+			__set_current_state(TASK_INTERRUPTIBLE);
 			pMsg = remove_msg(pInfo, pClient);
 			if (!pMsg && !signal_pending(current)) {
 				schedule();
 				goto repeat;
 			}
-			current->state = TASK_RUNNING;
+			__set_current_state(TASK_RUNNING);
 			remove_wait_queue(&pInfo->read_wait, &wait);
 		}
 

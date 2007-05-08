@@ -299,7 +299,7 @@ int paste_selection(struct tty_struct *tty)
 		pasted += count;
 	}
 	remove_wait_queue(&vc->paste_wait, &wait);
-	current->state = TASK_RUNNING;
+	__set_current_state(TASK_RUNNING);
 
 	tty_ldisc_deref(ld);
 	return 0;
