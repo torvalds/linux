@@ -236,3 +236,12 @@ config EFI_PARTITION
 	help
 	  Say Y here if you would like to use hard disks under Linux which
 	  were partitioned using EFI GPT.
+
+config SYSV68_PARTITION
+	bool "SYSV68 partition table support" if PARTITION_ADVANCED
+	default y if M68K
+	help
+	  Say Y here if you would like to be able to read the hard disk
+	  partition table format used by Motorola Delta machines (using
+	  sysv68).
+	  Otherwise, say N.

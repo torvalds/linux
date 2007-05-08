@@ -34,6 +34,7 @@
 #include "ultrix.h"
 #include "efi.h"
 #include "karma.h"
+#include "sysv68.h"
 
 #ifdef CONFIG_BLK_DEV_MD
 extern void md_autodetect_dev(dev_t dev);
@@ -104,6 +105,9 @@ static int (*check_part[])(struct parsed_partitions *, struct block_device *) = 
 #endif
 #ifdef CONFIG_KARMA_PARTITION
 	karma_partition,
+#endif
+#ifdef CONFIG_SYSV68_PARTITION
+	sysv68_partition,
 #endif
 	NULL
 };
