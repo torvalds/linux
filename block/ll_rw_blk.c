@@ -2558,6 +2558,7 @@ int blk_rq_map_kern(request_queue_t *q, struct request *rq, void *kbuf,
 		bio->bi_rw |= (1 << BIO_RW);
 
 	blk_rq_bio_prep(q, rq, bio);
+	blk_queue_bounce(q, &rq->bio);
 	rq->buffer = rq->data = NULL;
 	return 0;
 }
