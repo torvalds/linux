@@ -49,9 +49,7 @@ static inline void get_uts_ns(struct uts_namespace *ns)
 }
 
 #ifdef CONFIG_UTS_NS
-extern int unshare_utsname(unsigned long unshare_flags,
-				struct uts_namespace **new_uts);
-extern int copy_utsname(int flags, struct task_struct *tsk);
+extern struct uts_namespace *copy_utsname(int flags, struct uts_namespace *ns);
 extern void free_uts_ns(struct kref *kref);
 
 static inline void put_uts_ns(struct uts_namespace *ns)
@@ -59,21 +57,12 @@ static inline void put_uts_ns(struct uts_namespace *ns)
 	kref_put(&ns->kref, free_uts_ns);
 }
 #else
-static inline int unshare_utsname(unsigned long unshare_flags,
-			struct uts_namespace **new_uts)
+static inline struct uts_namespace *copy_utsname(int flags,
+						struct uts_namespace *ns)
 {
-	if (unshare_flags & CLONE_NEWUTS)
-		return -EINVAL;
-
-	return 0;
+	return ns;
 }
 
-static inline int copy_utsname(int flags, struct task_struct *tsk)
-{
-	if (flags & CLONE_NEWUTS)
-		return -EINVAL;
-	return 0;
-}
 static inline void put_uts_ns(struct uts_namespace *ns)
 {
 }

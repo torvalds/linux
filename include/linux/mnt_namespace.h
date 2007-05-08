@@ -14,10 +14,9 @@ struct mnt_namespace {
 	int event;
 };
 
-extern int copy_mnt_ns(int, struct task_struct *);
-extern void __put_mnt_ns(struct mnt_namespace *ns);
-extern struct mnt_namespace *dup_mnt_ns(struct task_struct *,
+extern struct mnt_namespace *copy_mnt_ns(int, struct mnt_namespace *,
 		struct fs_struct *);
+extern void __put_mnt_ns(struct mnt_namespace *ns);
 
 static inline void put_mnt_ns(struct mnt_namespace *ns)
 {
