@@ -19,6 +19,7 @@
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
+#include <asm/system.h>
 #include <asm/ubc.h>
 
 static int hlt_counter;
@@ -497,7 +498,7 @@ asmlinkage void debug_trap_handler(unsigned long r4, unsigned long r5,
 	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 
 	/* Rewind */
-	regs->pc -= 2;
+	regs->pc -= instruction_size(regs->pc);
 
 	if (notify_die(DIE_TRAP, regs, regs->tra & 0xff,
 		       SIGTRAP) == NOTIFY_STOP)
@@ -516,7 +517,7 @@ asmlinkage void bug_trap_handler(unsigned long r4, unsigned long r5,
 	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 
 	/* Rewind */
-	regs->pc -= 2;
+	regs->pc -= instruction_size(regs->pc);
 
 	if (notify_die(DIE_TRAP, regs, TRAPA_BUG_OPCODE & 0xff,
 		       SIGTRAP) == NOTIFY_STOP)

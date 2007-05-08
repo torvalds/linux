@@ -867,7 +867,7 @@ static void kgdb_command_loop(const int excep_code, const int trapa_value)
 	   trap 0xff, since that indicates a compiled-in breakpoint which
 	   will not be replaced (and we would retake the trap forever) */
 	if ((excep_code == TRAP_VEC) && (trapa_value != (0x3c << 2)))
-		trap_registers.pc -= 2;
+		trap_registers.pc -= instruction_size(trap_registers.pc);
 
 	/* Undo any stepping we may have done */
 	undo_single_step();
