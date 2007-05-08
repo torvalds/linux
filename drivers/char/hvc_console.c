@@ -111,7 +111,7 @@ static int last_hvc = -1;
  * lock held.  If successful, this function increments the kobject reference
  * count against the target hvc_struct so it should be released when finished.
  */
-struct hvc_struct *hvc_get_by_index(int index)
+static struct hvc_struct *hvc_get_by_index(int index)
 {
 	struct hvc_struct *hp;
 	unsigned long flags;
@@ -150,7 +150,8 @@ static uint32_t vtermnos[MAX_NR_HVC_CONSOLES] =
  * hvc_console_setup() finds adapters.
  */
 
-void hvc_console_print(struct console *co, const char *b, unsigned count)
+static void hvc_console_print(struct console *co, const char *b,
+			      unsigned count)
 {
 	char c[N_OUTBUF] __ALIGNED__;
 	unsigned i = 0, n = 0;
@@ -208,7 +209,7 @@ static int __init hvc_console_setup(struct console *co, char *options)
 	return 0;
 }
 
-struct console hvc_con_driver = {
+static struct console hvc_con_driver = {
 	.name		= "hvc",
 	.write		= hvc_console_print,
 	.device		= hvc_console_device,
@@ -278,7 +279,6 @@ int hvc_instantiate(uint32_t vtermno, int index, struct hv_ops *ops)
 
 	return 0;
 }
-EXPORT_SYMBOL(hvc_instantiate);
 
 /* Wake the sleeping khvcd */
 static void hvc_kick(void)
@@ -792,7 +792,6 @@ struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int irq,
 
 	return hp;
 }
-EXPORT_SYMBOL(hvc_alloc);
 
 int __devexit hvc_remove(struct hvc_struct *hp)
 {
@@ -828,11 +827,10 @@ int __devexit hvc_remove(struct hvc_struct *hp)
 		tty_hangup(tty);
 	return 0;
 }
-EXPORT_SYMBOL(hvc_remove);
 
 /* Driver initialization.  Follow console initialization.  This is where the TTY
  * interfaces start to become available. */
-int __init hvc_init(void)
+static int __init hvc_init(void)
 {
 	struct tty_driver *drv;
 
