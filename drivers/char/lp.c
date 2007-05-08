@@ -138,9 +138,6 @@
 /* if you have more than 8 printers, remember to increase LP_NO */
 #define LP_NO 8
 
-/* ROUND_UP macro from fs/select.c */
-#define ROUND_UP(x,y) (((x)+(y)-1)/(y))
-
 static struct lp_struct lp_table[LP_NO];
 
 static unsigned int lp_count = 0;
@@ -651,7 +648,7 @@ static int lp_ioctl(struct inode *inode, struct file *file,
 			    (par_timeout.tv_usec < 0)) {
 				return -EINVAL;
 			}
-			to_jiffies = ROUND_UP(par_timeout.tv_usec, 1000000/HZ);
+			to_jiffies = DIV_ROUND_UP(par_timeout.tv_usec, 1000000/HZ);
 			to_jiffies += par_timeout.tv_sec * (long) HZ;
 			if (to_jiffies <= 0) {
 				return -EINVAL;
