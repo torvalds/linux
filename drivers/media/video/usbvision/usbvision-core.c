@@ -1831,10 +1831,10 @@ int usbvision_set_output(struct usb_usbvision *usbvision, int width,
 		frameRate = FRAMERATE_MAX;
 	}
 
-	if (usbvision->tvnorm->id & V4L2_STD_625_50) {
+	if (usbvision->tvnormId & V4L2_STD_625_50) {
 		frameDrop = frameRate * 32 / 25 - 1;
 	}
-	else if (usbvision->tvnorm->id & V4L2_STD_525_60) {
+	else if (usbvision->tvnormId & V4L2_STD_525_60) {
 		frameDrop = frameRate * 32 / 30 - 1;
 	}
 
@@ -2067,7 +2067,7 @@ int usbvision_set_input(struct usb_usbvision *usbvision)
 	}
 
 
-	if (usbvision->tvnorm->id & V4L2_STD_PAL) {
+	if (usbvision->tvnormId & V4L2_STD_PAL) {
 		value[0] = 0xC0;
 		value[1] = 0x02;	//0x02C0 -> 704 Input video line length
 		value[2] = 0x20;
@@ -2076,7 +2076,7 @@ int usbvision_set_input(struct usb_usbvision *usbvision)
 		value[5] = 0x00;	//0x0060 -> 96 Input video h offset
 		value[6] = 0x16;
 		value[7] = 0x00;	//0x0016 -> 22 Input video v offset
-	} else if (usbvision->tvnorm->id & V4L2_STD_SECAM) {
+	} else if (usbvision->tvnormId & V4L2_STD_SECAM) {
 		value[0] = 0xC0;
 		value[1] = 0x02;	//0x02C0 -> 704 Input video line length
 		value[2] = 0x20;

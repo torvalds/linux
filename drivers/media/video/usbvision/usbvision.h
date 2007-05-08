@@ -221,6 +221,8 @@ enum {
 
 #define I2C_USB_ADAP_MAX	16
 
+#define USBVISION_NORMS (V4L2_STD_PAL | V4L2_STD_NTSC | V4L2_STD_SECAM | V4L2_STD_PAL_M)
+
 /* ----------------------------------------------------------------- */
 /* usbvision video structures                                        */
 /* ----------------------------------------------------------------- */
@@ -299,14 +301,6 @@ struct usbvision_frame_header {
 	unsigned char frameHeightHi;			/* 11 */
 	__u16 frameWidth;				/* 8 - 9 after endian correction*/
 	__u16 frameHeight;				/* 10 - 11 after endian correction*/
-};
-
-/* tvnorms */
-struct usbvision_tvnorm {
-	char *name;
-	v4l2_std_id id;
-	/* mode for saa7113h */
-	int mode;
 };
 
 struct usbvision_frame {
@@ -441,7 +435,7 @@ struct usb_usbvision {
 
 	struct v4l2_capability vcap;					/* Video capabilities */
 	unsigned int ctl_input;						/* selected input */
-	struct usbvision_tvnorm *tvnorm;				/* selected tv norm */
+	v4l2_std_id tvnormId;						/* selected tv norm */
 	unsigned char video_endp;					/* 0x82 for USBVISION devices based */
 
 	// Decompression stuff:
