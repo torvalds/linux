@@ -388,6 +388,17 @@ xfs_qm_mount_quotas(
 			return XFS_ERROR(error);
 		}
 	}
+	/* 
+	 * If one type of quotas is off, then it will lose its
+	 * quotachecked status, since we won't be doing accounting for
+	 * that type anymore.
+	 */
+	if (!XFS_IS_UQUOTA_ON(mp)) {
+		mp->m_qflags &= ~XFS_UQUOTA_CHKD;
+	}
+	if (!(XFS_IS_GQUOTA_ON(mp) || XFS_IS_PQUOTA_ON(mp))) {
+		mp->m_qflags &= ~XFS_OQUOTA_CHKD;
+	}
 
  write_changes:
 	/*
