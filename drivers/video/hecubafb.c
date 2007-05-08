@@ -238,7 +238,7 @@ static void hecubafb_fillrect(struct fb_info *info,
 {
 	struct hecubafb_par *par = info->par;
 
-	cfb_fillrect(info, rect);
+	sys_fillrect(info, rect);
 
 	hecubafb_dpy_update(par);
 }
@@ -248,7 +248,7 @@ static void hecubafb_copyarea(struct fb_info *info,
 {
 	struct hecubafb_par *par = info->par;
 
-	cfb_copyarea(info, area);
+	sys_copyarea(info, area);
 
 	hecubafb_dpy_update(par);
 }
@@ -258,7 +258,7 @@ static void hecubafb_imageblit(struct fb_info *info,
 {
 	struct hecubafb_par *par = info->par;
 
-	cfb_imageblit(info, image);
+	sys_imageblit(info, image);
 
 	hecubafb_dpy_update(par);
 }
