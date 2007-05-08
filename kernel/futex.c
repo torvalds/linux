@@ -980,12 +980,15 @@ static void unqueue_me_pi(struct futex_q *q, struct futex_hash_bucket *hb)
 	drop_futex_key_refs(&q->key);
 }
 
-static int futex_wait(u32 __user *uaddr, u32 val, unsigned long time)
+static long futex_wait_restart(struct restart_block *restart);
+static int futex_wait_abstime(u32 __user *uaddr, u32 val,
+			int timed, unsigned long abs_time)
 {
 	struct task_struct *curr = current;
 	DECLARE_WAITQUEUE(wait, curr);
 	struct futex_hash_bucket *hb;
 	struct futex_q q;
+	unsigned long time_left = 0;
 	u32 uval;
 	int ret;
 
@@ -1065,8 +1068,21 @@ static int futex_wait(u32 __user *uaddr, u32 val, unsigned long time)
 	 * !list_empty() is safe here without any lock.
 	 * q.lock_ptr != 0 is not safe, because of ordering against wakeup.
 	 */
-	if (likely(!list_empty(&q.list)))
-		time = schedule_timeout(time);
+	time_left = 0;
+	if (likely(!list_empty(&q.list))) {
+		unsigned long rel_time;
+
+		if (timed) {
+			unsigned long now = jiffies;
+			if (time_after(now, abs_time))
+				rel_time = 0;
+			else
+				rel_time = abs_time - now;
+		} else
+			rel_time = MAX_SCHEDULE_TIMEOUT;
+
+		time_left = schedule_timeout(rel_time);
+	}
 	__set_current_state(TASK_RUNNING);
 
 	/*
@@ -1077,13 +1093,25 @@ static int futex_wait(u32 __user *uaddr, u32 val, unsigned long time)
 	/* If we were woken (and unqueued), we succeeded, whatever. */
 	if (!unqueue_me(&q))
 		return 0;
-	if (time == 0)
+	if (time_left == 0)
 		return -ETIMEDOUT;
+
 	/*
 	 * We expect signal_pending(current), but another thread may
 	 * have handled it for us already.
 	 */
-	return -EINTR;
+	if (time_left == MAX_SCHEDULE_TIMEOUT)
+		return -ERESTARTSYS;
+	else {
+		struct restart_block *restart;
+		restart = &current_thread_info()->restart_block;
+		restart->fn = futex_wait_restart;
+		restart->arg0 = (unsigned long)uaddr;
+		restart->arg1 = (unsigned long)val;
+		restart->arg2 = (unsigned long)timed;
+		restart->arg3 = abs_time;
+		return -ERESTART_RESTARTBLOCK;
+	}
 
  out_unlock_release_sem:
 	queue_unlock(&q, hb);
@@ -1092,6 +1120,24 @@ static int futex_wait(u32 __user *uaddr, u32 val, unsigned long time)
 	up_read(&curr->mm->mmap_sem);
 	return ret;
 }
+
+static int futex_wait(u32 __user *uaddr, u32 val, unsigned long rel_time)
+{
+	int timed = (rel_time != MAX_SCHEDULE_TIMEOUT);
+	return futex_wait_abstime(uaddr, val, timed, jiffies+rel_time);
+}
+
+static long futex_wait_restart(struct restart_block *restart)
+{
+	u32 __user *uaddr = (u32 __user *)restart->arg0;
+	u32 val = (u32)restart->arg1;
+	int timed = (int)restart->arg2;
+	unsigned long abs_time = restart->arg3;
+
+	restart->fn = do_no_restart_syscall;
+	return (long)futex_wait_abstime(uaddr, val, timed, abs_time);
+}
+
 
 /*
  * Userspace tried a 0 -> TID atomic transition of the futex value
