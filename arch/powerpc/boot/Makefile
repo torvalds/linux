@@ -42,8 +42,10 @@ $(addprefix $(obj)/,$(zlib) gunzip_util.o main.o): \
 
 src-wlib := string.S crt0.S stdio.c main.c flatdevtree.c flatdevtree_misc.c \
 		ns16550.c serial.c simple_alloc.c div64.S util.S \
-		gunzip_util.c elf_util.c $(zlib) devtree.c
-src-plat := of.c cuboot-83xx.c cuboot-85xx.c holly.c
+		gunzip_util.c elf_util.c $(zlib) devtree.c \
+		44x.c ebony.c
+src-plat := of.c cuboot-83xx.c cuboot-85xx.c holly.c \
+		cuboot-ebony.c treeboot-ebony.c
 src-boot := $(src-wlib) $(src-plat) empty.c
 
 src-boot := $(addprefix $(obj)/, $(src-boot))
@@ -135,6 +137,7 @@ image-$(CONFIG_DEFAULT_UIMAGE)		+= uImage
 ifneq ($(CONFIG_DEVICE_TREE),"")
 image-$(CONFIG_PPC_83xx)		+= cuImage.83xx
 image-$(CONFIG_PPC_85xx)		+= cuImage.85xx
+image-$(CONFIG_EBONY)			+= treeImage.ebony cuImage.ebony
 endif
 
 # For 32-bit powermacs, build the COFF and miboot images
@@ -144,7 +147,8 @@ image-$(CONFIG_PPC_PMAC)	+= zImage.coff zImage.miboot
 endif
 
 initrd-  := $(patsubst zImage%, zImage.initrd%, $(image-n) $(image-))
-initrd-y := $(patsubst zImage%, zImage.initrd%, $(image-y))
+initrd-y := $(patsubst zImage%, zImage.initrd%, \
+		$(patsubst treeImage%, treeImage.initrd%, $(image-y)))
 initrd-y := $(filter-out $(image-y), $(initrd-y))
 targets	+= $(image-y) $(initrd-y)
 
@@ -181,6 +185,12 @@ dts = $(if $(shell echo $(CONFIG_DEVICE_TREE) | grep '^/'),\
 $(obj)/cuImage.%: vmlinux $(dts) $(wrapperbits)
 	$(call if_changed,wrap,cuboot-$*,$(dts))
 
+$(obj)/treeImage.%: vmlinux $(dts) $(wrapperbits)
+	$(call if_changed,wrap,treeboot-$*,$(dts))
+
+$(obj)/treeImage.initrd.%: vmlinux $(dts) $(wrapperbits)
+	$(call if_changed,wrap,treeboot-$*,$(dts),,$(obj)/ramdisk.image.gz)
+
 $(obj)/zImage:		$(addprefix $(obj)/, $(image-y))
 	@rm -f $@; ln $< $@
 $(obj)/zImage.initrd:	$(addprefix $(obj)/, $(initrd-y))
@@ -190,7 +200,8 @@ install: $(CONFIGURE) $(addprefix $(obj)/, $(image-y))
 	sh -x $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" vmlinux System.map "$(INSTALL_PATH)" $<
 
 # anything not in $(targets)
-clean-files += $(image-) $(initrd-) zImage zImage.initrd cuImage.*
+clean-files += $(image-) $(initrd-) zImage zImage.initrd cuImage.* \
+	treeImage.*
 
 # clean up files cached by wrapper
 clean-kernel := vmlinux.strip vmlinux.bin

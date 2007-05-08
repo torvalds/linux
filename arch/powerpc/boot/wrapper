@@ -231,4 +231,12 @@ cuboot*)
     mkimage -A ppc -O linux -T kernel -C gzip -a "$base" -e "$entry" \
             $uboot_version -d "$ofile".bin.gz "$ofile"
     ;;
+treeboot*)
+    mv "$ofile" "$ofile.elf"
+    $object/mktree "$ofile.elf" "$ofile" "$base" "$entry"
+    if [ -z "$cacheit" ]; then
+	rm -f "$ofile.elf"
+    fi
+    exit 0
+    ;;
 esac

@@ -214,6 +214,7 @@ config 40x
 config 44x
 	bool "AMCC 44x"
 	select PPC_DCR_NATIVE
+	select WANT_DEVICE_TREE
 
 config E200
 	bool "Freescale e200"
@@ -278,9 +279,14 @@ config PPC_OF_PLATFORM_PCI
 	depends on PPC64 # not supported on 32 bits yet
 	default n
 
+config 4xx
+	bool
+	depends on 40x || 44x
+	default y
+
 config BOOKE
 	bool
-	depends on E200 || E500
+	depends on E200 || E500 || 44x
 	default y
 
 config FSL_BOOKE
