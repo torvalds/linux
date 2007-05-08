@@ -1350,17 +1350,6 @@ struct dentry *lookup_one_len_kern(const char *name, struct dentry *base, int le
 	return __lookup_hash_kern(&this, base, NULL);
 }
 
-/*
- *	namei()
- *
- * is used by most simple commands to get the inode of a specified name.
- * Open, link etc use their own routines, but this is enough for things
- * like 'chmod' etc.
- *
- * namei exists in two versions: namei/lnamei. The only difference is
- * that namei follows links, while lnamei does not.
- * SMP-safe
- */
 int fastcall __user_walk_fd(int dfd, const char __user *name, unsigned flags,
 			    struct nameidata *nd)
 {
