@@ -44,13 +44,13 @@ static inline void pgd_free(pgd_t *pgd)
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 					  unsigned long address)
 {
-	return quicklist_alloc(QUICK_PT, GFP_KERNEL, NULL);
+	return quicklist_alloc(QUICK_PT, GFP_KERNEL | __GFP_REPEAT, NULL);
 }
 
 static inline struct page *pte_alloc_one(struct mm_struct *mm,
 					 unsigned long address)
 {
-	void *pg = quicklist_alloc(QUICK_PT, GFP_KERNEL, NULL);
+	void *pg = quicklist_alloc(QUICK_PT, GFP_KERNEL | __GFP_REPEAT, NULL);
 	return pg ? virt_to_page(pg) : NULL;
 }
 
