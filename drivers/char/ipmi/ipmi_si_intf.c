@@ -2189,12 +2189,15 @@ static int __devinit ipmi_pci_probe(struct pci_dev *pdev,
 		info->irq_setup = std_irq_setup;
 
 	info->dev = &pdev->dev;
+	pci_set_drvdata(pdev, info);
 
 	return try_smi_init(info);
 }
 
 static void __devexit ipmi_pci_remove(struct pci_dev *pdev)
 {
+	struct smi_info *info = pci_get_drvdata(pdev);
+	cleanup_one_si(info);
 }
 
 #ifdef CONFIG_PM
