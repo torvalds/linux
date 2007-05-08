@@ -526,17 +526,27 @@ static irqreturn_t pasemi_mac_rx_intr(int irq, void *data)
 	struct pasemi_mac *mac = netdev_priv(dev);
 	unsigned int reg;
 
-	if (!(*mac->rx_status & PAS_STATUS_INT))
+	if (!(*mac->rx_status & PAS_STATUS_CAUSE_M))
 		return IRQ_NONE;
 
-	netif_rx_schedule(dev);
-	pci_write_config_dword(mac->iob_pdev, PAS_IOB_DMA_COM_TIMEOUTCFG,
-			       PAS_IOB_DMA_COM_TIMEOUTCFG_TCNT(0));
+	if (*mac->rx_status & PAS_STATUS_ERROR)
+		printk("rx_status reported error\n");
 
-	reg = PAS_IOB_DMA_RXCH_RESET_PINTC | PAS_IOB_DMA_RXCH_RESET_SINTC |
-	      PAS_IOB_DMA_RXCH_RESET_DINTC;
+	/* Don't reset packet count so it won't fire again but clear
+	 * all others.
+	 */
+
+	pci_read_config_dword(mac->dma_pdev, PAS_DMA_RXINT_RCMDSTA(mac->dma_if), &reg);
+
+	reg = 0;
+	if (*mac->rx_status & PAS_STATUS_SOFT)
+		reg |= PAS_IOB_DMA_RXCH_RESET_SINTC;
+	if (*mac->rx_status & PAS_STATUS_ERROR)
+		reg |= PAS_IOB_DMA_RXCH_RESET_DINTC;
 	if (*mac->rx_status & PAS_STATUS_TIMER)
 		reg |= PAS_IOB_DMA_RXCH_RESET_TINTC;
+
+	netif_rx_schedule(dev);
 
 	pci_write_config_dword(mac->iob_pdev,
 			       PAS_IOB_DMA_RXCH_RESET(mac->dma_rxch), reg);
@@ -551,14 +561,17 @@ static irqreturn_t pasemi_mac_tx_intr(int irq, void *data)
 	struct pasemi_mac *mac = netdev_priv(dev);
 	unsigned int reg;
 
-	if (!(*mac->tx_status & PAS_STATUS_INT))
+	if (!(*mac->tx_status & PAS_STATUS_CAUSE_M))
 		return IRQ_NONE;
 
 	pasemi_mac_clean_tx(mac);
 
-	reg = PAS_IOB_DMA_TXCH_RESET_PINTC | PAS_IOB_DMA_TXCH_RESET_SINTC;
-	if (*mac->tx_status & PAS_STATUS_TIMER)
-		reg |= PAS_IOB_DMA_TXCH_RESET_TINTC;
+	reg = PAS_IOB_DMA_TXCH_RESET_PINTC;
+
+	if (*mac->tx_status & PAS_STATUS_SOFT)
+		reg |= PAS_IOB_DMA_TXCH_RESET_SINTC;
+	if (*mac->tx_status & PAS_STATUS_ERROR)
+		reg |= PAS_IOB_DMA_TXCH_RESET_DINTC;
 
 	pci_write_config_dword(mac->iob_pdev, PAS_IOB_DMA_TXCH_RESET(mac->dma_txch),
 			       reg);
@@ -593,14 +606,18 @@ static int pasemi_mac_open(struct net_device *dev)
 	flags |= PAS_MAC_CFG_PCFG_TSR_1G | PAS_MAC_CFG_PCFG_SPD_1G;
 
 	pci_write_config_dword(mac->iob_pdev, PAS_IOB_DMA_RXCH_CFG(mac->dma_rxch),
-			       PAS_IOB_DMA_RXCH_CFG_CNTTH(30));
+			       PAS_IOB_DMA_RXCH_CFG_CNTTH(1));
+
+	pci_write_config_dword(mac->iob_pdev, PAS_IOB_DMA_TXCH_CFG(mac->dma_txch),
+			       PAS_IOB_DMA_TXCH_CFG_CNTTH(32));
 
 	/* Clear out any residual packet count state from firmware */
 	pasemi_mac_restart_rx_intr(mac);
 	pasemi_mac_restart_tx_intr(mac);
 
+	/* 0xffffff is max value, about 16ms */
 	pci_write_config_dword(mac->iob_pdev, PAS_IOB_DMA_COM_TIMEOUTCFG,
-			       PAS_IOB_DMA_COM_TIMEOUTCFG_TCNT(1000000));
+			       PAS_IOB_DMA_COM_TIMEOUTCFG_TCNT(0xffffff));
 
 	pci_write_config_dword(mac->pdev, PAS_MAC_CFG_PCFG, flags);
 
