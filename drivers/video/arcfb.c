@@ -494,6 +494,7 @@ static ssize_t arcfb_write(struct fb_info *info, const char __user *buf,
 static struct fb_ops arcfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= arcfb_open,
+	.fb_read        = fb_sys_read,
 	.fb_write	= arcfb_write,
 	.fb_release	= arcfb_release,
 	.fb_pan_display	= arcfb_pan_display,
