@@ -1,6 +1,6 @@
 /*
     smsc47m192.c - Support for hardware monitoring block of
-                   SMSC LPC47M192 and LPC47M997 Super I/O chips
+                   SMSC LPC47M192 and compatible Super I/O chips
 
     Copyright (C) 2006  Hartmut Rick <linux@rick.claranet.de>
 
@@ -518,7 +518,7 @@ static int smsc47m192_detect(struct i2c_adapter *adapter, int address,
 		 && (i2c_smbus_read_byte_data(client,
 				SMSC47M192_REG_VID4) & 0xfe) == 0x80) {
 			dev_info(&adapter->dev,
-				 "found SMSC47M192 or SMSC47M997, "
+				 "found SMSC47M192 or compatible, "
 				 "version 2, stepping A%d\n", version & 0x0f);
 		} else {
 			dev_dbg(&adapter->dev,
