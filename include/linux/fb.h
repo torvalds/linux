@@ -527,12 +527,20 @@ struct fb_cursor_user {
 #define FB_EVENT_MODE_CHANGE_ALL	0x0B
 /*	A software display blank change occured */
 #define FB_EVENT_CONBLANK               0x0C
+/*      Get drawing requirements        */
+#define FB_EVENT_GET_REQ                0x0D
 
 struct fb_event {
 	struct fb_info *info;
 	void *data;
 };
 
+struct fb_blit_caps {
+	u32 x;
+	u32 y;
+	u32 len;
+	u32 flags;
+};
 
 extern int fb_register_client(struct notifier_block *nb);
 extern int fb_unregister_client(struct notifier_block *nb);
@@ -652,6 +660,10 @@ struct fb_ops {
 
 	/* restore saved state */
 	void (*fb_restore_state)(struct fb_info *info);
+
+	/* get capability given var */
+	void (*fb_get_caps)(struct fb_info *info, struct fb_blit_caps *caps,
+			    struct fb_var_screeninfo *var);
 };
 
 #ifdef CONFIG_FB_TILEBLITTING
