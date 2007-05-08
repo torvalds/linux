@@ -104,6 +104,20 @@ static int m920x_init(struct dvb_usb_device *d, struct m920x_inits *rc_seq)
 	return ret;
 }
 
+static int m920x_init_ep(struct usb_interface *intf)
+{
+	struct usb_device *udev = interface_to_usbdev(intf);
+	struct usb_host_interface *alt;
+
+	if ((alt = usb_altnum_to_altsetting(intf, 1)) == NULL) {
+		deb("No alt found!\n");
+		return -ENODEV;
+	}
+
+	return usb_set_interface(udev, alt->desc.bInterfaceNumber,
+				 alt->desc.bAlternateSetting);
+}
+
 static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	struct m920x_state *m = d->priv;
@@ -577,8 +591,7 @@ static struct dvb_usb_device_properties dposh_properties;
 static int m920x_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
 {
-	struct dvb_usb_device *d;
-	struct usb_host_interface *alt;
+	struct dvb_usb_device *d = NULL;
 	int ret;
 	struct m920x_inits *rc_init_seq = NULL;
 	int bInterfaceNumber = intf->cur_altsetting->desc.bInterfaceNumber;
@@ -623,23 +636,13 @@ static int m920x_probe(struct usb_interface *intf,
 		 * tvwalkertwin_properties already configured both
 		 * tuners, so there is nothing for us to do here
 		 */
-
-		return -ENODEV;
 	}
 
  found:
-	alt = usb_altnum_to_altsetting(intf, 1);
-	if (alt == NULL) {
-		deb("No alt found!\n");
-		return -ENODEV;
-	}
-
-	ret = usb_set_interface(d->udev, alt->desc.bInterfaceNumber,
-				alt->desc.bAlternateSetting);
-	if (ret < 0)
+	if ((ret = m920x_init_ep(intf)) < 0)
 		return ret;
 
-	if ((ret = m920x_init(d, rc_init_seq)) != 0)
+	if (d && (ret = m920x_init(d, rc_init_seq)) != 0)
 		return ret;
 
 	return ret;
