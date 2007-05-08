@@ -3145,9 +3145,15 @@ static int radeon_cp_setparam(DRM_IOCTL_ARGS)
 		break;
 	case RADEON_SETPARAM_PCIGART_LOCATION:
 		dev_priv->pcigart_offset = sp.value;
+		dev_priv->pcigart_offset_set = 1;
 		break;
 	case RADEON_SETPARAM_NEW_MEMMAP:
 		dev_priv->new_memmap = sp.value;
+		break;
+	case RADEON_SETPARAM_PCIGART_TABLE_SIZE:
+		dev_priv->gart_info.table_size = sp.value;
+		if (dev_priv->gart_info.table_size < RADEON_PCIGART_TABLE_SIZE)
+			dev_priv->gart_info.table_size = RADEON_PCIGART_TABLE_SIZE;
 		break;
 	default:
 		DRM_DEBUG("Invalid parameter %d\n", sp.param);
