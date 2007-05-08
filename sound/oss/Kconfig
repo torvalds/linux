@@ -5,9 +5,22 @@
 #
 # Prompt user for primary drivers.
 
+config OSS_OBSOLETE
+	bool "Obsolete OSS drivers"
+	depends on SOUND_PRIME
+	help
+	  This option enables support for obsolete OSS drivers that
+	  are scheduled for removal in the near future.
+
+	  Please contact Adrian Bunk <bunk@stusta.de> if you had to
+	  say Y here because your hardware is not properly supported
+	  by ALSA.
+
+	  If unsure, say N.
+
 config SOUND_BT878
 	tristate "BT878 audio dma"
-	depends on SOUND_PRIME && PCI
+	depends on SOUND_PRIME && PCI && OSS_OBSOLETE
 	---help---
 	  Audio DMA support for bt878 based grabber boards.  As you might have
 	  already noticed, bt878 is listed with two functions in /proc/pci.
@@ -33,7 +46,7 @@ config SOUND_BCM_CS4297A
 
 config SOUND_ICH
 	tristate "Intel ICH (i8xx) audio support"
-	depends on SOUND_PRIME && PCI
+	depends on SOUND_PRIME && PCI && OSS_OBSOLETE
 	help
 	  Support for integral audio in Intel's I/O Controller Hub (ICH)
 	  chipset, as used on the 810/820/840 motherboards.
@@ -335,7 +348,7 @@ config MSND_FIFOSIZE
 
 config SOUND_VIA82CXXX
 	tristate "VIA 82C686 Audio Codec"
-	depends on SOUND_PRIME && PCI
+	depends on SOUND_PRIME && PCI && OSS_OBSOLETE
 	help
 	  Say Y here to include support for the audio codec found on VIA
 	  82Cxxx-based chips. Typically these are built into a motherboard.
@@ -389,7 +402,7 @@ config SOUND_DMAP
 
 config SOUND_CS4232
 	tristate "Crystal CS4232 based (PnP) cards"
-	depends on SOUND_OSS
+	depends on SOUND_OSS && OSS_OBSOLETE
 	help
 	  Say Y here if you have a card based on the Crystal CS4232 chip set,
 	  which uses its own Plug and Play protocol.
@@ -708,7 +721,7 @@ config SOUND_WAVEARTIST
 
 config SOUND_TVMIXER
 	tristate "TV card (bt848) mixer support"
-	depends on SOUND_PRIME && I2C && VIDEO_V4L1
+	depends on SOUND_PRIME && I2C && VIDEO_V4L1 && OSS_OBSOLETE
 	help
 	  Support for audio mixer facilities on the BT848 TV frame-grabber
 	  card.
