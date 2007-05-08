@@ -312,7 +312,7 @@ static int get_ksymbol_mod(struct kallsym_iter *iter)
 {
 	iter->owner = module_get_kallsym(iter->pos - kallsyms_num_syms,
 					 &iter->value, &iter->type,
-					 iter->name, sizeof(iter->name));
+					 iter->name);
 	if (iter->owner == NULL)
 		return 0;
 

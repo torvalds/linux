@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/moduleloader.h>
 #include <linux/init.h>
+#include <linux/kallsyms.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -2124,7 +2125,7 @@ const char *module_address_lookup(unsigned long addr,
 }
 
 struct module *module_get_kallsym(unsigned int symnum, unsigned long *value,
-				char *type, char *name, size_t namelen)
+				char *type, char *name)
 {
 	struct module *mod;
 
@@ -2134,7 +2135,7 @@ struct module *module_get_kallsym(unsigned int symnum, unsigned long *value,
 			*value = mod->symtab[symnum].st_value;
 			*type = mod->symtab[symnum].st_info;
 			strlcpy(name, mod->strtab + mod->symtab[symnum].st_name,
-				namelen);
+				KSYM_NAME_LEN + 1);
 			mutex_unlock(&module_mutex);
 			return mod;
 		}
