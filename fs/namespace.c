@@ -886,6 +886,9 @@ static int do_change_type(struct nameidata *nd, int flag)
 	int recurse = flag & MS_REC;
 	int type = flag & ~MS_REC;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	if (nd->dentry != nd->mnt->mnt_root)
 		return -EINVAL;
 
