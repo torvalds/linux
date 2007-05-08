@@ -85,6 +85,12 @@ typedef struct {
 				RW_DEP_MAP_INIT(lockname) }
 #endif
 
+/*
+ * SPIN_LOCK_UNLOCKED and RW_LOCK_UNLOCKED defeat lockdep state tracking and
+ * are hence deprecated.
+ * Please use DEFINE_SPINLOCK()/DEFINE_RWLOCK() or
+ * __SPIN_LOCK_UNLOCKED()/__RW_LOCK_UNLOCKED() as appropriate.
+ */
 #define SPIN_LOCK_UNLOCKED	__SPIN_LOCK_UNLOCKED(old_style_spin_init)
 #define RW_LOCK_UNLOCKED	__RW_LOCK_UNLOCKED(old_style_rw_init)
 
