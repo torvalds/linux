@@ -456,9 +456,7 @@ xfs_qm_scall_quotaon(
 	    ||
 	    ((flags & XFS_PQUOTA_ACCT) == 0 &&
 	    (mp->m_sb.sb_qflags & XFS_PQUOTA_ACCT) == 0 &&
-	    (flags & XFS_OQUOTA_ENFD))
-	    ||
-	    ((flags & XFS_GQUOTA_ACCT) == 0 &&
+	    (flags & XFS_GQUOTA_ACCT) == 0 &&
 	    (mp->m_sb.sb_qflags & XFS_GQUOTA_ACCT) == 0 &&
 	    (flags & XFS_OQUOTA_ENFD))) {
 		qdprintk("Can't enforce without acct, flags=%x sbflags=%x\n",
