@@ -624,12 +624,6 @@
 #undef	CY_ENABLE_MONITORING
 #undef	CY_PCI_DEBUG
 
-#if 0
-#define PAUSE __asm__("nop")
-#else
-#define PAUSE do {} while (0)
-#endif
-
 /*
  * Include section 
  */
@@ -5009,7 +5003,6 @@ static int __init cy_detect_pci(void)
 				cy_writel(&((struct RUNTIME_9060 *)
 					(cy_pci_addr0))->loc_addr_base,
 					WIN_CREG);
-				PAUSE;
 				printk("Cyclades-8Zo/PCI: FPGA id %lx, ver "
 					"%lx\n", (ulong) (0xff &
 					cy_readl(&((struct CUSTOM_REG *)
@@ -5030,7 +5023,6 @@ static int __init cy_detect_pci(void)
 			   ensures that the driver will not attempt to talk to
 			   the board until it has been properly initialized.
 			 */
-			PAUSE;
 			if ((mailbox == ZO_V1) || (mailbox == ZO_V2))
 				cy_writel(cy_pci_addr2 + ID_ADDRESS, 0L);
 
@@ -5129,7 +5121,6 @@ static int __init cy_detect_pci(void)
 		printk("Cyclades-Z/PCI: New Cyclades-Z board.  FPGA not "
 				"loaded\n");
 #endif
-		PAUSE;
 		/* This must be the new Cyclades-Ze/PCI. */
 		cy_pci_nchan = ZE_V1_NPORTS;
 
