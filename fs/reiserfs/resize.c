@@ -131,6 +131,10 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 			/* don't use read_bitmap_block since it will cache
 			 * the uninitialized bitmap */
 			bh = sb_bread(s, i * s->s_blocksize * 8);
+			if (!bh) {
+				vfree(bitmap);
+				return -EIO;
+			}
 			memset(bh->b_data, 0, sb_blocksize(sb));
 			reiserfs_test_and_set_le_bit(0, bh->b_data);
 			reiserfs_cache_bitmap_metadata(s, bh, bitmap + i);
