@@ -821,11 +821,22 @@ static int update_cpumask(struct cpuset *cs, char *buf)
 		return -EACCES;
 
 	trialcs = *cs;
-	retval = cpulist_parse(buf, trialcs.cpus_allowed);
-	if (retval < 0)
-		return retval;
+
+	/*
+	 * We allow a cpuset's cpus_allowed to be empty; if it has attached
+	 * tasks, we'll catch it later when we validate the change and return
+	 * -ENOSPC.
+	 */
+	if (!buf[0] || (buf[0] == '\n' && !buf[1])) {
+		cpus_clear(trialcs.cpus_allowed);
+	} else {
+		retval = cpulist_parse(buf, trialcs.cpus_allowed);
+		if (retval < 0)
+			return retval;
+	}
 	cpus_and(trialcs.cpus_allowed, trialcs.cpus_allowed, cpu_online_map);
-	if (cpus_empty(trialcs.cpus_allowed))
+	/* cpus_allowed cannot be empty for a cpuset with attached tasks. */
+	if (atomic_read(&cs->count) && cpus_empty(trialcs.cpus_allowed))
 		return -ENOSPC;
 	retval = validate_change(cs, &trialcs);
 	if (retval < 0)
@@ -918,16 +929,27 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 		return -EACCES;
 
 	trialcs = *cs;
-	retval = nodelist_parse(buf, trialcs.mems_allowed);
-	if (retval < 0)
-		goto done;
+
+	/*
+	 * We allow a cpuset's mems_allowed to be empty; if it has attached
+	 * tasks, we'll catch it later when we validate the change and return
+	 * -ENOSPC.
+	 */
+	if (!buf[0] || (buf[0] == '\n' && !buf[1])) {
+		nodes_clear(trialcs.mems_allowed);
+	} else {
+		retval = nodelist_parse(buf, trialcs.mems_allowed);
+		if (retval < 0)
+			goto done;
+	}
 	nodes_and(trialcs.mems_allowed, trialcs.mems_allowed, node_online_map);
 	oldmem = cs->mems_allowed;
 	if (nodes_equal(oldmem, trialcs.mems_allowed)) {
 		retval = 0;		/* Too easy - nothing to do */
 		goto done;
 	}
-	if (nodes_empty(trialcs.mems_allowed)) {
+	/* mems_allowed cannot be empty for a cpuset with attached tasks. */
+	if (atomic_read(&cs->count) && nodes_empty(trialcs.mems_allowed)) {
 		retval = -ENOSPC;
 		goto done;
 	}
