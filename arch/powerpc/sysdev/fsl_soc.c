@@ -907,7 +907,7 @@ static int __init fs_enet_of_init(void)
 		struct fs_platform_info fs_enet_data;
 		const unsigned int *id;
 		const unsigned int *phy_addr;
-		void *mac_addr;
+		const void *mac_addr;
 		const phandle *ph;
 		const char *model;
 
