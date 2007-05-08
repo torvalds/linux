@@ -934,6 +934,10 @@ int default_grn[] = {0x00,0x00,0xaa,0x55,0x00,0x00,0xaa,0xaa,
 int default_blu[] = {0x00,0x00,0x00,0x00,0xaa,0xaa,0xaa,0xaa,
     0x55,0x55,0x55,0x55,0xff,0xff,0xff,0xff};
 
+module_param_array(default_red, int, NULL, S_IRUGO | S_IWUSR);
+module_param_array(default_grn, int, NULL, S_IRUGO | S_IWUSR);
+module_param_array(default_blu, int, NULL, S_IRUGO | S_IWUSR);
+
 /*
  * gotoxy() must verify all boundaries, because the arguments
  * might also be negative. If the given position is out of
