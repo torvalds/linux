@@ -133,7 +133,7 @@
 /* Masks (AND ops) and OR's */
 #define FB_START_MASK               (0x3f << (32 - 6))
 #define MMIO_ADDR_MASK              (0x1FFF << (32 - 13))
-#define FREQ_MASK                   0x1EF
+#define FREQ_MASK                   (1 << 4)
 #define SCR_OFF                     0x20
 #define DRAM_ON                     0x08            
 #define DRAM_OFF                    0xE7
