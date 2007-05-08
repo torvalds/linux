@@ -31,6 +31,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
+#include <linux/ioport.h>
 #include <asm/io.h>
 
 static struct platform_device *pdev;
@@ -429,6 +430,12 @@ static int __devinit pc87427_probe(struct platform_device *pdev)
 	/* This will need to be revisited when we add support for
 	   temperature and voltage monitoring. */
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if (!request_region(res->start, res->end - res->start + 1, DRVNAME)) {
+		err = -EBUSY;
+		dev_err(&pdev->dev, "Failed to request region 0x%lx-0x%lx\n",
+			(unsigned long)res->start, (unsigned long)res->end);
+		goto exit_kfree;
+	}
 	data->address[0] = res->start;
 
 	mutex_init(&data->lock);
@@ -438,7 +445,7 @@ static int __devinit pc87427_probe(struct platform_device *pdev)
 
 	/* Register sysfs hooks */
 	if ((err = device_create_file(&pdev->dev, &dev_attr_name)))
-		goto exit_kfree;
+		goto exit_release_region;
 	for (i = 0; i < 8; i++) {
 		if (!(data->fan_enabled & (1 << i)))
 			continue;
@@ -462,6 +469,8 @@ exit_remove_files:
 			continue;
 		sysfs_remove_group(&pdev->dev.kobj, &pc87427_group_fan[i]);
 	}
+exit_release_region:
+	release_region(res->start, res->end - res->start + 1);
 exit_kfree:
 	platform_set_drvdata(pdev, NULL);
 	kfree(data);
@@ -472,6 +481,7 @@ exit:
 static int __devexit pc87427_remove(struct platform_device *pdev)
 {
 	struct pc87427_data *data = platform_get_drvdata(pdev);
+	struct resource *res;
 	int i;
 
 	platform_set_drvdata(pdev, NULL);
@@ -483,6 +493,9 @@ static int __devexit pc87427_remove(struct platform_device *pdev)
 		sysfs_remove_group(&pdev->dev.kobj, &pc87427_group_fan[i]);
 	}
 	kfree(data);
+
+	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	release_region(res->start, res->end - res->start + 1);
 
 	return 0;
 }

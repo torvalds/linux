@@ -35,6 +35,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
+#include <linux/ioport.h>
 #include <asm/io.h>
 
 static struct platform_device *pdev;
@@ -1140,6 +1141,13 @@ static int __devinit f71805f_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if (!request_region(res->start + ADDR_REG_OFFSET, 2, DRVNAME)) {
+		err = -EBUSY;
+		dev_err(&pdev->dev, "Failed to request region 0x%lx-0x%lx\n",
+			(unsigned long)(res->start + ADDR_REG_OFFSET),
+			(unsigned long)(res->start + ADDR_REG_OFFSET + 1));
+		goto exit_free;
+	}
 	data->addr = res->start;
 	data->name = names[sio_data->kind];
 	mutex_init(&data->update_lock);
@@ -1165,7 +1173,7 @@ static int __devinit f71805f_probe(struct platform_device *pdev)
 
 	/* Register sysfs interface files */
 	if ((err = sysfs_create_group(&pdev->dev.kobj, &f71805f_group)))
-		goto exit_free;
+		goto exit_release_region;
 	if (data->has_in & (1 << 4)) { /* in4 */
 		if ((err = sysfs_create_group(&pdev->dev.kobj,
 					      &f71805f_group_optin[0])))
@@ -1219,6 +1227,8 @@ exit_remove_files:
 	for (i = 0; i < 4; i++)
 		sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_optin[i]);
 	sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_pwm_freq);
+exit_release_region:
+	release_region(res->start + ADDR_REG_OFFSET, 2);
 exit_free:
 	platform_set_drvdata(pdev, NULL);
 	kfree(data);
@@ -1229,6 +1239,7 @@ exit:
 static int __devexit f71805f_remove(struct platform_device *pdev)
 {
 	struct f71805f_data *data = platform_get_drvdata(pdev);
+	struct resource *res;
 	int i;
 
 	platform_set_drvdata(pdev, NULL);
@@ -1238,6 +1249,9 @@ static int __devexit f71805f_remove(struct platform_device *pdev)
 		sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_optin[i]);
 	sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_pwm_freq);
 	kfree(data);
+
+	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	release_region(res->start + ADDR_REG_OFFSET, 2);
 
 	return 0;
 }
