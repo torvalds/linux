@@ -27,7 +27,7 @@ int rtc_read_time(struct rtc_device *rtc, struct rtc_time *tm)
 		err = -EINVAL;
 	else {
 		memset(tm, 0, sizeof(struct rtc_time));
-		err = rtc->ops->read_time(rtc->class_dev.dev, tm);
+		err = rtc->ops->read_time(rtc->dev.parent, tm);
 	}
 
 	mutex_unlock(&rtc->ops_lock);
@@ -52,7 +52,7 @@ int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm)
 	else if (!rtc->ops->set_time)
 		err = -EINVAL;
 	else
-		err = rtc->ops->set_time(rtc->class_dev.dev, tm);
+		err = rtc->ops->set_time(rtc->dev.parent, tm);
 
 	mutex_unlock(&rtc->ops_lock);
 	return err;
@@ -70,11 +70,11 @@ int rtc_set_mmss(struct rtc_device *rtc, unsigned long secs)
 	if (!rtc->ops)
 		err = -ENODEV;
 	else if (rtc->ops->set_mmss)
-		err = rtc->ops->set_mmss(rtc->class_dev.dev, secs);
+		err = rtc->ops->set_mmss(rtc->dev.parent, secs);
 	else if (rtc->ops->read_time && rtc->ops->set_time) {
 		struct rtc_time new, old;
 
-		err = rtc->ops->read_time(rtc->class_dev.dev, &old);
+		err = rtc->ops->read_time(rtc->dev.parent, &old);
 		if (err == 0) {
 			rtc_time_to_tm(secs, &new);
 
@@ -86,7 +86,7 @@ int rtc_set_mmss(struct rtc_device *rtc, unsigned long secs)
 			 */
 			if (!((old.tm_hour == 23 && old.tm_min == 59) ||
 				(new.tm_hour == 23 && new.tm_min == 59)))
-				err = rtc->ops->set_time(rtc->class_dev.dev,
+				err = rtc->ops->set_time(rtc->dev.parent,
 						&new);
 		}
 	}
@@ -113,7 +113,7 @@ int rtc_read_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 		err = -EINVAL;
 	else {
 		memset(alarm, 0, sizeof(struct rtc_wkalrm));
-		err = rtc->ops->read_alarm(rtc->class_dev.dev, alarm);
+		err = rtc->ops->read_alarm(rtc->dev.parent, alarm);
 	}
 
 	mutex_unlock(&rtc->ops_lock);
@@ -134,7 +134,7 @@ int rtc_set_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 	else if (!rtc->ops->set_alarm)
 		err = -EINVAL;
 	else
-		err = rtc->ops->set_alarm(rtc->class_dev.dev, alarm);
+		err = rtc->ops->set_alarm(rtc->dev.parent, alarm);
 
 	mutex_unlock(&rtc->ops_lock);
 	return err;
@@ -167,22 +167,22 @@ EXPORT_SYMBOL_GPL(rtc_update_irq);
 
 struct rtc_device *rtc_class_open(char *name)
 {
-	struct class_device *class_dev_tmp;
+	struct device *dev;
 	struct rtc_device *rtc = NULL;
 
 	down(&rtc_class->sem);
-	list_for_each_entry(class_dev_tmp, &rtc_class->children, node) {
-		if (strncmp(class_dev_tmp->class_id, name, BUS_ID_SIZE) == 0) {
-			class_dev_tmp = class_device_get(class_dev_tmp);
-			if (class_dev_tmp)
-				rtc = to_rtc_device(class_dev_tmp);
+	list_for_each_entry(dev, &rtc_class->devices, node) {
+		if (strncmp(dev->bus_id, name, BUS_ID_SIZE) == 0) {
+			dev = get_device(dev);
+			if (dev)
+				rtc = to_rtc_device(dev);
 			break;
 		}
 	}
 
 	if (rtc) {
 		if (!try_module_get(rtc->owner)) {
-			class_device_put(class_dev_tmp);
+			put_device(dev);
 			rtc = NULL;
 		}
 	}
@@ -195,7 +195,7 @@ EXPORT_SYMBOL_GPL(rtc_class_open);
 void rtc_class_close(struct rtc_device *rtc)
 {
 	module_put(rtc->owner);
-	class_device_put(&rtc->class_dev);
+	put_device(&rtc->dev);
 }
 EXPORT_SYMBOL_GPL(rtc_class_close);
 
@@ -241,7 +241,7 @@ int rtc_irq_set_state(struct rtc_device *rtc, struct rtc_task *task, int enabled
 	spin_unlock_irqrestore(&rtc->irq_task_lock, flags);
 
 	if (err == 0)
-		err = rtc->ops->irq_set_state(rtc->class_dev.dev, enabled);
+		err = rtc->ops->irq_set_state(rtc->dev.parent, enabled);
 
 	return err;
 }
@@ -261,7 +261,7 @@ int rtc_irq_set_freq(struct rtc_device *rtc, struct rtc_task *task, int freq)
 	spin_unlock_irqrestore(&rtc->irq_task_lock, flags);
 
 	if (err == 0) {
-		err = rtc->ops->irq_set_freq(rtc->class_dev.dev, freq);
+		err = rtc->ops->irq_set_freq(rtc->dev.parent, freq);
 		if (err == 0)
 			rtc->irq_freq = freq;
 	}

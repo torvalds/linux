@@ -46,7 +46,7 @@ static int __init rtc_hctosys(void)
 
 			do_settimeofday(&tv);
 
-			dev_info(rtc->class_dev.dev,
+			dev_info(rtc->dev.parent,
 				"setting the system clock to "
 				"%d-%02d-%02d %02d:%02d:%02d (%u)\n",
 				tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
@@ -54,11 +54,11 @@ static int __init rtc_hctosys(void)
 				(unsigned int) tv.tv_sec);
 		}
 		else
-			dev_err(rtc->class_dev.dev,
+			dev_err(rtc->dev.parent,
 				"hctosys: invalid date/time\n");
 	}
 	else
-		dev_err(rtc->class_dev.dev,
+		dev_err(rtc->dev.parent,
 			"hctosys: unable to read the hardware clock\n");
 
 	rtc_class_close(rtc);

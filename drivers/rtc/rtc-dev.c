@@ -34,7 +34,7 @@ static int rtc_dev_open(struct inode *inode, struct file *file)
 
 	file->private_data = rtc;
 
-	err = ops->open ? ops->open(rtc->class_dev.dev) : 0;
+	err = ops->open ? ops->open(rtc->dev.parent) : 0;
 	if (err == 0) {
 		spin_lock_irq(&rtc->irq_lock);
 		rtc->irq_data = 0;
@@ -180,7 +180,7 @@ rtc_dev_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	if (ret == 0) {
 		/* Check for any data updates */
 		if (rtc->ops->read_callback)
-			data = rtc->ops->read_callback(rtc->class_dev.dev,
+			data = rtc->ops->read_callback(rtc->dev.parent,
 						       data);
 
 		if (sizeof(int) != sizeof(long) &&
@@ -251,7 +251,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 
 	/* try the driver's ioctl interface */
 	if (ops->ioctl) {
-		err = ops->ioctl(rtc->class_dev.dev, cmd, arg);
+		err = ops->ioctl(rtc->dev.parent, cmd, arg);
 		if (err != -ENOIOCTLCMD)
 			return err;
 	}
@@ -371,7 +371,7 @@ static int rtc_dev_release(struct inode *inode, struct file *file)
 	clear_uie(rtc);
 #endif
 	if (rtc->ops->release)
-		rtc->ops->release(rtc->class_dev.dev);
+		rtc->ops->release(rtc->dev.parent);
 
 	mutex_unlock(&rtc->char_lock);
 	return 0;
@@ -406,7 +406,7 @@ void rtc_dev_add_device(struct rtc_device *rtc)
 		return;
 	}
 
-	rtc->class_dev.devt = MKDEV(MAJOR(rtc_devt), rtc->id);
+	rtc->dev.devt = MKDEV(MAJOR(rtc_devt), rtc->id);
 
 	mutex_init(&rtc->char_lock);
 	spin_lock_init(&rtc->irq_lock);
@@ -419,7 +419,7 @@ void rtc_dev_add_device(struct rtc_device *rtc)
 	cdev_init(&rtc->char_dev, &rtc_dev_fops);
 	rtc->char_dev.owner = rtc->owner;
 
-	if (cdev_add(&rtc->char_dev, rtc->class_dev.devt, 1))
+	if (cdev_add(&rtc->char_dev, rtc->dev.devt, 1))
 		printk(KERN_WARNING "%s: failed to add char device %d:%d\n",
 			rtc->name, MAJOR(rtc_devt), rtc->id);
 	else
@@ -429,7 +429,7 @@ void rtc_dev_add_device(struct rtc_device *rtc)
 
 void rtc_dev_del_device(struct rtc_device *rtc)
 {
-	if (rtc->class_dev.devt)
+	if (rtc->dev.devt)
 		cdev_del(&rtc->char_dev);
 }
 

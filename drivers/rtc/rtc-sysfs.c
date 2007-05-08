@@ -17,12 +17,16 @@
 
 /* device attributes */
 
-static ssize_t rtc_sysfs_show_name(struct class_device *dev, char *buf)
+static ssize_t
+rtc_sysfs_show_name(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	return sprintf(buf, "%s\n", to_rtc_device(dev)->name);
 }
 
-static ssize_t rtc_sysfs_show_date(struct class_device *dev, char *buf)
+static ssize_t
+rtc_sysfs_show_date(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	ssize_t retval;
 	struct rtc_time tm;
@@ -36,7 +40,9 @@ static ssize_t rtc_sysfs_show_date(struct class_device *dev, char *buf)
 	return retval;
 }
 
-static ssize_t rtc_sysfs_show_time(struct class_device *dev, char *buf)
+static ssize_t
+rtc_sysfs_show_time(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	ssize_t retval;
 	struct rtc_time tm;
@@ -50,7 +56,9 @@ static ssize_t rtc_sysfs_show_time(struct class_device *dev, char *buf)
 	return retval;
 }
 
-static ssize_t rtc_sysfs_show_since_epoch(struct class_device *dev, char *buf)
+static ssize_t
+rtc_sysfs_show_since_epoch(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	ssize_t retval;
 	struct rtc_time tm;
@@ -65,7 +73,7 @@ static ssize_t rtc_sysfs_show_since_epoch(struct class_device *dev, char *buf)
 	return retval;
 }
 
-static struct class_device_attribute rtc_attrs[] = {
+static struct device_attribute rtc_attrs[] = {
 	__ATTR(name, S_IRUGO, rtc_sysfs_show_name, NULL),
 	__ATTR(date, S_IRUGO, rtc_sysfs_show_date, NULL),
 	__ATTR(time, S_IRUGO, rtc_sysfs_show_time, NULL),
@@ -74,7 +82,8 @@ static struct class_device_attribute rtc_attrs[] = {
 };
 
 static ssize_t
-rtc_sysfs_show_wakealarm(struct class_device *dev, char *buf)
+rtc_sysfs_show_wakealarm(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	ssize_t retval;
 	unsigned long alarm;
@@ -98,7 +107,8 @@ rtc_sysfs_show_wakealarm(struct class_device *dev, char *buf)
 }
 
 static ssize_t
-rtc_sysfs_set_wakealarm(struct class_device *dev, const char *buf, size_t n)
+rtc_sysfs_set_wakealarm(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t n)
 {
 	ssize_t retval;
 	unsigned long now, alarm;
@@ -139,7 +149,7 @@ rtc_sysfs_set_wakealarm(struct class_device *dev, const char *buf, size_t n)
 	retval = rtc_set_alarm(rtc, &alm);
 	return (retval < 0) ? retval : n;
 }
-static const CLASS_DEVICE_ATTR(wakealarm, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(wakealarm, S_IRUGO | S_IWUSR,
 		rtc_sysfs_show_wakealarm, rtc_sysfs_set_wakealarm);
 
 
@@ -150,7 +160,7 @@ static const CLASS_DEVICE_ATTR(wakealarm, S_IRUGO | S_IWUSR,
  */
 static inline int rtc_does_wakealarm(struct rtc_device *rtc)
 {
-	if (!device_can_wakeup(rtc->class_dev.dev))
+	if (!device_can_wakeup(rtc->dev.parent))
 		return 0;
 	return rtc->ops->set_alarm != NULL;
 }
@@ -164,10 +174,9 @@ void rtc_sysfs_add_device(struct rtc_device *rtc)
 	if (!rtc_does_wakealarm(rtc))
 		return;
 
-	err = class_device_create_file(&rtc->class_dev,
-				&class_device_attr_wakealarm);
+	err = device_create_file(&rtc->dev, &dev_attr_wakealarm);
 	if (err)
-		dev_err(rtc->class_dev.dev, "failed to create "
+		dev_err(rtc->dev.parent, "failed to create "
 				"alarm attribute, %d",
 				err);
 }
@@ -176,11 +185,10 @@ void rtc_sysfs_del_device(struct rtc_device *rtc)
 {
 	/* REVISIT did we add it successfully? */
 	if (rtc_does_wakealarm(rtc))
-		class_device_remove_file(&rtc->class_dev,
-				&class_device_attr_wakealarm);
+		device_remove_file(&rtc->dev, &dev_attr_wakealarm);
 }
 
 void __init rtc_sysfs_init(struct class *rtc_class)
 {
-	rtc_class->class_dev_attrs = rtc_attrs;
+	rtc_class->dev_attrs = rtc_attrs;
 }

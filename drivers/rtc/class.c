@@ -23,9 +23,9 @@ static DEFINE_IDR(rtc_idr);
 static DEFINE_MUTEX(idr_lock);
 struct class *rtc_class;
 
-static void rtc_device_release(struct class_device *class_dev)
+static void rtc_device_release(struct device *dev)
 {
-	struct rtc_device *rtc = to_rtc_device(class_dev);
+	struct rtc_device *rtc = to_rtc_device(dev);
 	mutex_lock(&idr_lock);
 	idr_remove(&rtc_idr, rtc->id);
 	mutex_unlock(&idr_lock);
@@ -73,18 +73,18 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	rtc->ops = ops;
 	rtc->owner = owner;
 	rtc->max_user_freq = 64;
-	rtc->class_dev.dev = dev;
-	rtc->class_dev.class = rtc_class;
-	rtc->class_dev.release = rtc_device_release;
+	rtc->dev.parent = dev;
+	rtc->dev.class = rtc_class;
+	rtc->dev.release = rtc_device_release;
 
 	mutex_init(&rtc->ops_lock);
 	spin_lock_init(&rtc->irq_lock);
 	spin_lock_init(&rtc->irq_task_lock);
 
 	strlcpy(rtc->name, name, RTC_DEVICE_NAME_SIZE);
-	snprintf(rtc->class_dev.class_id, BUS_ID_SIZE, "rtc%d", id);
+	snprintf(rtc->dev.bus_id, BUS_ID_SIZE, "rtc%d", id);
 
-	err = class_device_register(&rtc->class_dev);
+	err = device_register(&rtc->dev);
 	if (err)
 		goto exit_kfree;
 
@@ -93,7 +93,7 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	rtc_proc_add_device(rtc);
 
 	dev_info(dev, "rtc core: registered %s as %s\n",
-			rtc->name, rtc->class_dev.class_id);
+			rtc->name, rtc->dev.bus_id);
 
 	return rtc;
 
@@ -120,7 +120,7 @@ EXPORT_SYMBOL_GPL(rtc_device_register);
  */
 void rtc_device_unregister(struct rtc_device *rtc)
 {
-	if (class_device_get(&rtc->class_dev) != NULL) {
+	if (get_device(&rtc->dev) != NULL) {
 		mutex_lock(&rtc->ops_lock);
 		/* remove innards of this RTC, then disable it, before
 		 * letting any rtc_class_open() users access it again
@@ -128,10 +128,10 @@ void rtc_device_unregister(struct rtc_device *rtc)
 		rtc_sysfs_del_device(rtc);
 		rtc_dev_del_device(rtc);
 		rtc_proc_del_device(rtc);
-		class_device_unregister(&rtc->class_dev);
+		device_unregister(&rtc->dev);
 		rtc->ops = NULL;
 		mutex_unlock(&rtc->ops_lock);
-		class_device_put(&rtc->class_dev);
+		put_device(&rtc->dev);
 	}
 }
 EXPORT_SYMBOL_GPL(rtc_device_unregister);

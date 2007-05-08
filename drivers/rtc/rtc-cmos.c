@@ -434,7 +434,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 			goto cleanup0;
 		}
 	}
-	rename_region(ports, cmos_rtc.rtc->class_dev.class_id);
+	rename_region(ports, cmos_rtc.rtc->dev.bus_id);
 
 	spin_lock_irq(&rtc_lock);
 
@@ -470,7 +470,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 
 	if (is_valid_irq(rtc_irq))
 		retval = request_irq(rtc_irq, cmos_interrupt, IRQF_DISABLED,
-				cmos_rtc.rtc->class_dev.class_id,
+				cmos_rtc.rtc->dev.bus_id,
 				cmos_rtc.rtc);
 	if (retval < 0) {
 		dev_dbg(dev, "IRQ %d is already in use\n", rtc_irq);
@@ -483,7 +483,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	 */
 
 	pr_info("%s: alarms up to one %s%s\n",
-			cmos_rtc.rtc->class_dev.class_id,
+			cmos_rtc.rtc->dev.bus_id,
 			is_valid_irq(rtc_irq)
 				?  (cmos_rtc.mon_alrm
 					? "year"
@@ -525,7 +525,7 @@ static void __exit cmos_do_remove(struct device *dev)
 	rename_region(cmos->iomem, NULL);
 
 	if (is_valid_irq(cmos->irq))
-		free_irq(cmos->irq, &cmos_rtc.rtc->class_dev);
+		free_irq(cmos->irq, cmos_rtc.rtc);
 
 	rtc_device_unregister(cmos_rtc.rtc);
 
@@ -564,7 +564,7 @@ static int cmos_suspend(struct device *dev, pm_message_t mesg)
 	 */
 
 	pr_debug("%s: suspend%s, ctrl %02x\n",
-			cmos_rtc.rtc->class_dev.class_id,
+			cmos_rtc.rtc->dev.bus_id,
 			(tmp & RTC_AIE) ? ", alarm may wake" : "",
 			tmp);
 
@@ -595,7 +595,7 @@ static int cmos_resume(struct device *dev)
 	}
 
 	pr_debug("%s: resume, ctrl %02x\n",
-			cmos_rtc.rtc->class_dev.class_id,
+			cmos_rtc.rtc->dev.bus_id,
 			cmos->suspend_ctrl);
 
 

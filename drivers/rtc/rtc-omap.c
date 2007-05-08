@@ -399,7 +399,7 @@ static int __devinit omap_rtc_probe(struct platform_device *pdev)
 		goto fail;
 	}
 	platform_set_drvdata(pdev, rtc);
-	class_set_devdata(&rtc->class_dev, mem);
+	dev_set_devdata(&rtc->dev, mem);
 
 	/* clear pending irqs, and set 1/second periodic,
 	 * which we'll use instead of update irqs
@@ -418,13 +418,13 @@ static int __devinit omap_rtc_probe(struct platform_device *pdev)
 
 	/* handle periodic and alarm irqs */
 	if (request_irq(omap_rtc_timer, rtc_irq, IRQF_DISABLED,
-			rtc->class_dev.class_id, &rtc->class_dev)) {
+			rtc->dev.bus_id, rtc)) {
 		pr_debug("%s: RTC timer interrupt IRQ%d already claimed\n",
 			pdev->name, omap_rtc_timer);
 		goto fail0;
 	}
 	if (request_irq(omap_rtc_alarm, rtc_irq, IRQF_DISABLED,
-			rtc->class_dev.class_id, &rtc->class_dev)) {
+			rtc->dev.bus_id, rtc)) {
 		pr_debug("%s: RTC alarm interrupt IRQ%d already claimed\n",
 			pdev->name, omap_rtc_alarm);
 		goto fail1;
@@ -481,7 +481,7 @@ static int __devexit omap_rtc_remove(struct platform_device *pdev)
 	free_irq(omap_rtc_timer, rtc);
 	free_irq(omap_rtc_alarm, rtc);
 
-	release_resource(class_get_devdata(&rtc->class_dev));
+	release_resource(dev_get_devdata(&rtc->dev));
 	rtc_device_unregister(rtc);
 	return 0;
 }

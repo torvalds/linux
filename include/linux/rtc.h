@@ -136,7 +136,7 @@ struct rtc_task;
 
 struct rtc_device
 {
-	struct class_device class_dev;
+	struct device dev;
 	struct module *owner;
 
 	int id;
@@ -168,7 +168,7 @@ struct rtc_device
 	unsigned int uie_timer_active:1;
 #endif
 };
-#define to_rtc_device(d) container_of(d, struct rtc_device, class_dev)
+#define to_rtc_device(d) container_of(d, struct rtc_device, dev)
 
 extern struct rtc_device *rtc_device_register(const char *name,
 					struct device *dev,

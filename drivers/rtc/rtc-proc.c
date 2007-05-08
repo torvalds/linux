@@ -74,7 +74,7 @@ static int rtc_proc_show(struct seq_file *seq, void *offset)
 	seq_printf(seq, "24hr\t\t: yes\n");
 
 	if (ops->proc)
-		ops->proc(rtc->class_dev.dev, seq);
+		ops->proc(rtc->dev.parent, seq);
 
 	return 0;
 }
