@@ -191,7 +191,7 @@ xfs_read(
 	struct file		*file = iocb->ki_filp;
 	struct inode		*inode = file->f_mapping->host;
 	size_t			size = 0;
-	ssize_t			ret;
+	ssize_t			ret = 0;
 	xfs_fsize_t		n;
 	xfs_inode_t		*ip;
 	xfs_mount_t		*mp;
@@ -263,9 +263,13 @@ xfs_read(
 
 	if (unlikely(ioflags & IO_ISDIRECT)) {
 		if (VN_CACHED(vp))
-			bhv_vop_flushinval_pages(vp, ctooff(offtoct(*offset)),
+			ret = bhv_vop_flushinval_pages(vp, ctooff(offtoct(*offset)),
 						 -1, FI_REMAPF_LOCKED);
 		mutex_unlock(&inode->i_mutex);
+		if (ret) {
+			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
+			return ret;
+		}
 	}
 
 	xfs_rw_enter_trace(XFS_READ_ENTER, &ip->i_iocore,
@@ -814,8 +818,10 @@ retry:
 		if (need_flush) {
 			xfs_inval_cached_trace(io, pos, -1,
 					ctooff(offtoct(pos)), -1);
-			bhv_vop_flushinval_pages(vp, ctooff(offtoct(pos)),
+			error = bhv_vop_flushinval_pages(vp, ctooff(offtoct(pos)),
 					-1, FI_REMAPF_LOCKED);
+			if (error)
+				goto out_unlock_internal;
 		}
 
 		if (need_i_mutex) {

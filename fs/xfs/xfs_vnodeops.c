@@ -1257,8 +1257,12 @@ xfs_inactive_free_eofblocks(
 		 * do that within a transaction.
 		 */
 		xfs_ilock(ip, XFS_IOLOCK_EXCL);
-		xfs_itruncate_start(ip, XFS_ITRUNC_DEFINITE,
+		error = xfs_itruncate_start(ip, XFS_ITRUNC_DEFINITE,
 				    ip->i_d.di_size);
+		if (error) {
+			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+			return error;
+		}
 
 		error = xfs_trans_reserve(tp, 0,
 					  XFS_ITRUNCATE_LOG_RES(mp),
@@ -1674,7 +1678,11 @@ xfs_inactive(
 		 */
 		xfs_ilock(ip, XFS_IOLOCK_EXCL);
 
-		xfs_itruncate_start(ip, XFS_ITRUNC_DEFINITE, 0);
+		error = xfs_itruncate_start(ip, XFS_ITRUNC_DEFINITE, 0);
+		if (error) {
+			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+			return VN_INACTIVE_CACHE;
+		}
 
 		error = xfs_trans_reserve(tp, 0,
 					  XFS_ITRUNCATE_LOG_RES(mp),
@@ -4338,8 +4346,10 @@ xfs_free_file_space(
 	if (VN_CACHED(vp) != 0) {
 		xfs_inval_cached_trace(&ip->i_iocore, ioffset, -1,
 				ctooff(offtoct(ioffset)), -1);
-		bhv_vop_flushinval_pages(vp, ctooff(offtoct(ioffset)),
+		error = bhv_vop_flushinval_pages(vp, ctooff(offtoct(ioffset)),
 				-1, FI_REMAPF_LOCKED);
+		if (error)
+			goto out_unlock_iolock;
 	}
 
 	/*

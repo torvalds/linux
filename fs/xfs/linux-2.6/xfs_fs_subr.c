@@ -35,7 +35,7 @@ fs_tosspages(
 		truncate_inode_pages(ip->i_mapping, first);
 }
 
-void
+int
 fs_flushinval_pages(
 	bhv_desc_t	*bdp,
 	xfs_off_t	first,
@@ -44,13 +44,16 @@ fs_flushinval_pages(
 {
 	bhv_vnode_t	*vp = BHV_TO_VNODE(bdp);
 	struct inode	*ip = vn_to_inode(vp);
+	int		ret = 0;
 
 	if (VN_CACHED(vp)) {
 		if (VN_TRUNC(vp))
 			VUNTRUNCATE(vp);
-		filemap_write_and_wait(ip->i_mapping);
-		truncate_inode_pages(ip->i_mapping, first);
+		ret = filemap_write_and_wait(ip->i_mapping);
+		if (!ret)
+			truncate_inode_pages(ip->i_mapping, first);
 	}
+	return ret;
 }
 
 int
@@ -63,14 +66,18 @@ fs_flush_pages(
 {
 	bhv_vnode_t	*vp = BHV_TO_VNODE(bdp);
 	struct inode	*ip = vn_to_inode(vp);
+	int		ret = 0;
+	int		ret2;
 
 	if (VN_DIRTY(vp)) {
 		if (VN_TRUNC(vp))
 			VUNTRUNCATE(vp);
-		filemap_fdatawrite(ip->i_mapping);
+		ret = filemap_fdatawrite(ip->i_mapping);
 		if (flags & XFS_B_ASYNC)
-			return 0;
-		filemap_fdatawait(ip->i_mapping);
+			return ret;
+		ret2 = filemap_fdatawait(ip->i_mapping);
+		if (!ret)
+			ret = ret2;
 	}
-	return 0;
+	return ret;
 }

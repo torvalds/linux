@@ -420,7 +420,11 @@ xfs_truncate_file(
 	 * in a transaction.
 	 */
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
-	xfs_itruncate_start(ip, XFS_ITRUNC_DEFINITE, (xfs_fsize_t)0);
+	error = xfs_itruncate_start(ip, XFS_ITRUNC_DEFINITE, (xfs_fsize_t)0);
+	if (error) {
+		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+		return error;
+	}
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_TRUNCATE_FILE);
 	if ((error = xfs_trans_reserve(tp, 0, XFS_ITRUNCATE_LOG_RES(mp), 0,

@@ -1147,7 +1147,7 @@ xfs_sync_inodes(
 			if (XFS_FORCED_SHUTDOWN(mp)) {
 				bhv_vop_toss_pages(vp, 0, -1, FI_REMAPF);
 			} else {
-				bhv_vop_flushinval_pages(vp, 0, -1, FI_REMAPF);
+				error = bhv_vop_flushinval_pages(vp, 0, -1, FI_REMAPF);
 			}
 
 			xfs_ilock(ip, XFS_ILOCK_SHARED);

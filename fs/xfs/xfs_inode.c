@@ -1421,7 +1421,7 @@ xfs_itrunc_trace(
  * must be called again with all the same restrictions as the initial
  * call.
  */
-void
+int
 xfs_itruncate_start(
 	xfs_inode_t	*ip,
 	uint		flags,
@@ -1431,6 +1431,7 @@ xfs_itruncate_start(
 	xfs_off_t	toss_start;
 	xfs_mount_t	*mp;
 	bhv_vnode_t	*vp;
+	int		error = 0;
 
 	ASSERT(ismrlocked(&ip->i_iolock, MR_UPDATE) != 0);
 	ASSERT((new_size == 0) || (new_size <= ip->i_d.di_size));
@@ -1468,7 +1469,7 @@ xfs_itruncate_start(
 		 * file size, so there is no way that the data extended
 		 * out there.
 		 */
-		return;
+		return 0;
 	}
 	last_byte = xfs_file_last_byte(ip);
 	xfs_itrunc_trace(XFS_ITRUNC_START, ip, flags, new_size, toss_start,
@@ -1477,7 +1478,7 @@ xfs_itruncate_start(
 		if (flags & XFS_ITRUNC_DEFINITE) {
 			bhv_vop_toss_pages(vp, toss_start, -1, FI_REMAPF_LOCKED);
 		} else {
-			bhv_vop_flushinval_pages(vp, toss_start, -1, FI_REMAPF_LOCKED);
+			error = bhv_vop_flushinval_pages(vp, toss_start, -1, FI_REMAPF_LOCKED);
 		}
 	}
 
@@ -1486,6 +1487,7 @@ xfs_itruncate_start(
 		ASSERT(VN_CACHED(vp) == 0);
 	}
 #endif
+	return error;
 }
 
 /*
