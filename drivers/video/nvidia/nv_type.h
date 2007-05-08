@@ -4,7 +4,6 @@
 #include <linux/fb.h>
 #include <linux/types.h>
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/i2c-algo-bit.h>
 
 #define NV_ARCH_04  0x04
@@ -100,7 +99,6 @@ struct nvidia_par {
 	u32 Architecture;
 	u32 CursorStart;
 	int Chipset;
-	int bus;
 	unsigned long FbAddress;
 	u8 __iomem *FbStart;
 	u32 FbMapSize;

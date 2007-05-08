@@ -127,8 +127,6 @@ static int nvidia_setup_i2c_bus(struct nvidia_i2c_chan *chan, const char *name,
 
 void nvidia_create_i2c_busses(struct nvidia_par *par)
 {
-	par->bus = 3;
-
 	par->chan[0].par = par;
 	par->chan[1].par = par;
 	par->chan[2].par = par;
@@ -145,18 +143,14 @@ void nvidia_create_i2c_busses(struct nvidia_par *par)
 
 void nvidia_delete_i2c_busses(struct nvidia_par *par)
 {
-	if (par->chan[0].par)
-		i2c_del_adapter(&par->chan[0].adapter);
-	par->chan[0].par = NULL;
+	int i;
 
-	if (par->chan[1].par)
-		i2c_del_adapter(&par->chan[1].adapter);
-	par->chan[1].par = NULL;
-
-	if (par->chan[2].par)
-		i2c_del_adapter(&par->chan[2].adapter);
-	par->chan[2].par = NULL;
-
+	for (i = 0; i < 3; i++) {
+		if (!par->chan[i].par)
+			continue;
+		i2c_del_adapter(&par->chan[i].adapter);
+		par->chan[i].par = NULL;
+	}
 }
 
 int nvidia_probe_i2c_connector(struct fb_info *info, int conn, u8 **out_edid)

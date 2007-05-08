@@ -1788,10 +1788,10 @@ static int __devinit riva_get_EDID_i2c(struct fb_info *info)
 
 	NVTRACE_ENTER();
 	riva_create_i2c_busses(par);
-	for (i = 0; i < par->bus; i++) {
+	for (i = 0; i < 3; i++) {
 		if (!par->chan[i].par)
 			continue;
-		riva_probe_i2c_connector(par, i+1, &par->EDID);
+		riva_probe_i2c_connector(par, i, &par->EDID);
 		if (par->EDID && !fb_parse_edid(par->EDID, &var)) {
 			printk(PFX "Found EDID Block from BUS %i\n", i);
 			break;
