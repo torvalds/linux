@@ -2112,6 +2112,32 @@ static int __devinit is_in_nid_list(hda_nid_t nid, hda_nid_t *list)
 	return 0;
 }
 
+
+/*
+ * Sort an associated group of pins according to their sequence numbers.
+ */
+static void sort_pins_by_sequence(hda_nid_t * pins, short * sequences,
+				  int num_pins)
+{
+	int i, j;
+	short seq;
+	hda_nid_t nid;
+	
+	for (i = 0; i < num_pins; i++) {
+		for (j = i + 1; j < num_pins; j++) {
+			if (sequences[i] > sequences[j]) {
+				seq = sequences[i];
+				sequences[i] = sequences[j];
+				sequences[j] = seq;
+				nid = pins[i];
+				pins[i] = pins[j];
+				pins[j] = nid;
+			}
+		}
+	}
+}
+
+
 /*
  * Parse all pin widgets and store the useful pin nids to cfg
  *
@@ -2134,13 +2160,16 @@ int __devinit snd_hda_parse_pin_def_config(struct hda_codec *codec,
 					   hda_nid_t *ignore_nids)
 {
 	hda_nid_t nid, nid_start;
-	int i, j, nodes;
-	short seq, assoc_line_out, sequences[ARRAY_SIZE(cfg->line_out_pins)];
+	int nodes;
+	short seq, assoc_line_out, assoc_speaker;
+	short sequences_line_out[ARRAY_SIZE(cfg->line_out_pins)];
+	short sequences_speaker[ARRAY_SIZE(cfg->speaker_pins)];
 
 	memset(cfg, 0, sizeof(*cfg));
 
-	memset(sequences, 0, sizeof(sequences));
-	assoc_line_out = 0;
+	memset(sequences_line_out, 0, sizeof(sequences_line_out));
+	memset(sequences_speaker, 0, sizeof(sequences_speaker));
+	assoc_line_out = assoc_speaker = 0;
 
 	nodes = snd_hda_get_sub_nodes(codec, codec->afg, &nid_start);
 	for (nid = nid_start; nid < nodes + nid_start; nid++) {
@@ -2175,13 +2204,22 @@ int __devinit snd_hda_parse_pin_def_config(struct hda_codec *codec,
 			if (cfg->line_outs >= ARRAY_SIZE(cfg->line_out_pins))
 				continue;
 			cfg->line_out_pins[cfg->line_outs] = nid;
-			sequences[cfg->line_outs] = seq;
+			sequences_line_out[cfg->line_outs] = seq;
 			cfg->line_outs++;
 			break;
 		case AC_JACK_SPEAKER:
+			seq = get_defcfg_sequence(def_conf);
+			assoc = get_defcfg_association(def_conf);
+			if (! assoc)
+				continue;
+			if (! assoc_speaker)
+				assoc_speaker = assoc;
+			else if (assoc_speaker != assoc)
+				continue;
 			if (cfg->speaker_outs >= ARRAY_SIZE(cfg->speaker_pins))
 				continue;
 			cfg->speaker_pins[cfg->speaker_outs] = nid;
+			sequences_speaker[cfg->speaker_outs] = seq;
 			cfg->speaker_outs++;
 			break;
 		case AC_JACK_HP_OUT:
@@ -2227,16 +2265,32 @@ int __devinit snd_hda_parse_pin_def_config(struct hda_codec *codec,
 	}
 
 	/* sort by sequence */
-	for (i = 0; i < cfg->line_outs; i++)
-		for (j = i + 1; j < cfg->line_outs; j++)
-			if (sequences[i] > sequences[j]) {
-				seq = sequences[i];
-				sequences[i] = sequences[j];
-				sequences[j] = seq;
-				nid = cfg->line_out_pins[i];
-				cfg->line_out_pins[i] = cfg->line_out_pins[j];
-				cfg->line_out_pins[j] = nid;
-			}
+	sort_pins_by_sequence(cfg->line_out_pins, sequences_line_out,
+			      cfg->line_outs);
+	sort_pins_by_sequence(cfg->speaker_pins, sequences_speaker,
+			      cfg->speaker_outs);
+	
+	/*
+	 * FIX-UP: if no line-outs are detected, try to use speaker or HP pin
+	 * as a primary output
+	 */
+	if (!cfg->line_outs) {
+		if (cfg->speaker_outs) {
+			cfg->line_outs = cfg->speaker_outs;
+			memcpy(cfg->line_out_pins, cfg->speaker_pins,
+			       sizeof(cfg->speaker_pins));
+			cfg->speaker_outs = 0;
+			memset(cfg->speaker_pins, 0, sizeof(cfg->speaker_pins));
+			cfg->line_out_type = AUTO_PIN_SPEAKER_OUT;
+		} else if (cfg->hp_outs) {
+			cfg->line_outs = cfg->hp_outs;
+			memcpy(cfg->line_out_pins, cfg->hp_pins,
+			       sizeof(cfg->hp_pins));
+			cfg->hp_outs = 0;
+			memset(cfg->hp_pins, 0, sizeof(cfg->hp_pins));
+			cfg->line_out_type = AUTO_PIN_HP_OUT;
+		}
+	}
 
 	/* Reorder the surround channels
 	 * ALSA sequence is front/surr/clfe/side
@@ -2277,28 +2331,6 @@ int __devinit snd_hda_parse_pin_def_config(struct hda_codec *codec,
 		   cfg->input_pins[AUTO_PIN_FRONT_LINE],
 		   cfg->input_pins[AUTO_PIN_CD],
 		   cfg->input_pins[AUTO_PIN_AUX]);
-
-	/*
-	 * FIX-UP: if no line-outs are detected, try to use speaker or HP pin
-	 * as a primary output
-	 */
-	if (!cfg->line_outs) {
-		if (cfg->speaker_outs) {
-			cfg->line_outs = cfg->speaker_outs;
-			memcpy(cfg->line_out_pins, cfg->speaker_pins,
-			       sizeof(cfg->speaker_pins));
-			cfg->speaker_outs = 0;
-			memset(cfg->speaker_pins, 0, sizeof(cfg->speaker_pins));
-			cfg->line_out_type = AUTO_PIN_SPEAKER_OUT;
-		} else if (cfg->hp_outs) {
-			cfg->line_outs = cfg->hp_outs;
-			memcpy(cfg->line_out_pins, cfg->hp_pins,
-			       sizeof(cfg->hp_pins));
-			cfg->hp_outs = 0;
-			memset(cfg->hp_pins, 0, sizeof(cfg->hp_pins));
-			cfg->line_out_type = AUTO_PIN_HP_OUT;
-		}
-	}
 
 	return 0;
 }
