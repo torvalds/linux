@@ -1853,6 +1853,16 @@ char * d_path(struct dentry *dentry, struct vfsmount *vfsmnt,
 	struct vfsmount *rootmnt;
 	struct dentry *root;
 
+	/*
+	 * We have various synthetic filesystems that never get mounted.  On
+	 * these filesystems dentries are never used for lookup purposes, and
+	 * thus don't need to be hashed.  They also don't need a name until a
+	 * user wants to identify the object in /proc/pid/fd/.  The little hack
+	 * below allows us to generate a name for these objects on demand:
+	 */
+	if (dentry->d_op && dentry->d_op->d_dname)
+		return dentry->d_op->d_dname(dentry, buf, buflen);
+
 	read_lock(&current->fs->lock);
 	rootmnt = mntget(current->fs->rootmnt);
 	root = dget(current->fs->root);
@@ -1863,6 +1873,27 @@ char * d_path(struct dentry *dentry, struct vfsmount *vfsmnt,
 	dput(root);
 	mntput(rootmnt);
 	return res;
+}
+
+/*
+ * Helper function for dentry_operations.d_dname() members
+ */
+char *dynamic_dname(struct dentry *dentry, char *buffer, int buflen,
+			const char *fmt, ...)
+{
+	va_list args;
+	char temp[64];
+	int sz;
+
+	va_start(args, fmt);
+	sz = vsnprintf(temp, sizeof(temp), fmt, args) + 1;
+	va_end(args);
+
+	if (sz > sizeof(temp) || sz > buflen)
+		return ERR_PTR(-ENAMETOOLONG);
+
+	buffer += buflen - sz;
+	return memcpy(buffer, temp, sz);
 }
 
 /*

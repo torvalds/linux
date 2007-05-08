@@ -133,6 +133,7 @@ struct dentry_operations {
 	int (*d_delete)(struct dentry *);
 	void (*d_release)(struct dentry *);
 	void (*d_iput)(struct dentry *, struct inode *);
+	char *(*d_dname)(struct dentry *, char *, int);
 };
 
 /* the dentry parameter passed to d_hash and d_compare is the parent
@@ -292,6 +293,11 @@ extern struct dentry * d_hash_and_lookup(struct dentry *, struct qstr *);
 
 /* validate "insecure" dentry pointer */
 extern int d_validate(struct dentry *, struct dentry *);
+
+/*
+ * helper function for dentry_operations.d_dname() members
+ */
+extern char *dynamic_dname(struct dentry *, char *, int, const char *, ...);
 
 extern char * d_path(struct dentry *, struct vfsmount *, char *, int);
   

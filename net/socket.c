@@ -313,8 +313,19 @@ static int sockfs_delete_dentry(struct dentry *dentry)
 	dentry->d_flags |= DCACHE_UNHASHED;
 	return 0;
 }
+
+/*
+ * sockfs_dname() is called from d_path().
+ */
+static char *sockfs_dname(struct dentry *dentry, char *buffer, int buflen)
+{
+	return dynamic_dname(dentry, buffer, buflen, "socket:[%lu]",
+				dentry->d_inode->i_ino);
+}
+
 static struct dentry_operations sockfs_dentry_operations = {
 	.d_delete = sockfs_delete_dentry,
+	.d_dname  = sockfs_dname,
 };
 
 /*
@@ -354,14 +365,9 @@ static int sock_alloc_fd(struct file **filep)
 
 static int sock_attach_fd(struct socket *sock, struct file *file)
 {
-	struct qstr this;
-	char name[32];
+	struct qstr name = { .name = "" };
 
-	this.len = sprintf(name, "[%lu]", SOCK_INODE(sock)->i_ino);
-	this.name = name;
-	this.hash = 0;
-
-	file->f_path.dentry = d_alloc(sock_mnt->mnt_sb->s_root, &this);
+	file->f_path.dentry = d_alloc(sock_mnt->mnt_sb->s_root, &name);
 	if (unlikely(!file->f_path.dentry))
 		return -ENOMEM;
 

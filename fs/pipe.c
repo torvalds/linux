@@ -841,8 +841,18 @@ static int pipefs_delete_dentry(struct dentry *dentry)
 	return 0;
 }
 
+/*
+ * pipefs_dname() is called from d_path().
+ */
+static char *pipefs_dname(struct dentry *dentry, char *buffer, int buflen)
+{
+	return dynamic_dname(dentry, buffer, buflen, "pipe:[%lu]",
+				dentry->d_inode->i_ino);
+}
+
 static struct dentry_operations pipefs_dentry_operations = {
 	.d_delete	= pipefs_delete_dentry,
+	.d_dname	= pipefs_dname,
 };
 
 static struct inode * get_pipe_inode(void)
@@ -888,8 +898,7 @@ struct file *create_write_pipe(void)
 	struct inode *inode;
 	struct file *f;
 	struct dentry *dentry;
-	char name[32];
-	struct qstr this;
+	struct qstr name = { .name = "" };
 
 	f = get_empty_filp();
 	if (!f)
@@ -899,11 +908,8 @@ struct file *create_write_pipe(void)
 	if (!inode)
 		goto err_file;
 
-	this.len = sprintf(name, "[%lu]", inode->i_ino);
-	this.name = name;
-	this.hash = 0;
 	err = -ENOMEM;
-	dentry = d_alloc(pipe_mnt->mnt_sb->s_root, &this);
+	dentry = d_alloc(pipe_mnt->mnt_sb->s_root, &name);
 	if (!dentry)
 		goto err_inode;
 
