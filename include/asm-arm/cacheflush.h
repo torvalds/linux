@@ -426,11 +426,18 @@ static inline void flush_anon_page(struct vm_area_struct *vma,
  */
 #define flush_icache_page(vma,page)	do { } while (0)
 
-#define __cacheid_present(val)		(val != read_cpuid(CPUID_ID))
-#define __cacheid_vivt(val)		((val & (15 << 25)) != (14 << 25))
-#define __cacheid_vipt(val)		((val & (15 << 25)) == (14 << 25))
-#define __cacheid_vipt_nonaliasing(val)	((val & (15 << 25 | 1 << 23)) == (14 << 25))
-#define __cacheid_vipt_aliasing(val)	((val & (15 << 25 | 1 << 23)) == (14 << 25 | 1 << 23))
+#define __cacheid_present(val)			(val != read_cpuid(CPUID_ID))
+#define __cacheid_type_v7(val)			((val & (7 << 29)) == (4 << 29))
+
+#define __cacheid_vivt_prev7(val)		((val & (15 << 25)) != (14 << 25))
+#define __cacheid_vipt_prev7(val)		((val & (15 << 25)) == (14 << 25))
+#define __cacheid_vipt_nonaliasing_prev7(val)	((val & (15 << 25 | 1 << 23)) == (14 << 25))
+#define __cacheid_vipt_aliasing_prev7(val)	((val & (15 << 25 | 1 << 23)) == (14 << 25 | 1 << 23))
+
+#define __cacheid_vivt(val)			(__cacheid_type_v7(val) ? 0 : __cacheid_vivt_prev7(val))
+#define __cacheid_vipt(val)			(__cacheid_type_v7(val) ? 1 : __cacheid_vipt_prev7(val))
+#define __cacheid_vipt_nonaliasing(val)		(__cacheid_type_v7(val) ? 1 : __cacheid_vipt_nonaliasing_prev7(val))
+#define __cacheid_vipt_aliasing(val)		(__cacheid_type_v7(val) ? 0 : __cacheid_vipt_aliasing_prev7(val))
 
 #if defined(CONFIG_CPU_CACHE_VIVT) && !defined(CONFIG_CPU_CACHE_VIPT)
 
