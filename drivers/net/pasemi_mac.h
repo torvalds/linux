@@ -73,6 +73,8 @@ struct pasemi_mac {
 
 	struct pasemi_mac_txring *tx;
 	struct pasemi_mac_rxring *rx;
+	unsigned long	tx_irq;
+	unsigned long	rx_irq;
 };
 
 /* Software status descriptor (desc_info) */

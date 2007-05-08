@@ -33,6 +33,8 @@
 #include <linux/tcp.h>
 #include <net/checksum.h>
 
+#include <asm/irq.h>
+
 #include "pasemi_mac.h"
 
 
@@ -531,6 +533,7 @@ static irqreturn_t pasemi_mac_tx_intr(int irq, void *data)
 static int pasemi_mac_open(struct net_device *dev)
 {
 	struct pasemi_mac *mac = netdev_priv(dev);
+	int base_irq;
 	unsigned int flags;
 	int ret;
 
@@ -594,28 +597,37 @@ static int pasemi_mac_open(struct net_device *dev)
 	netif_start_queue(dev);
 	netif_poll_enable(dev);
 
-	ret = request_irq(mac->dma_pdev->irq + mac->dma_txch,
-			  &pasemi_mac_tx_intr, IRQF_DISABLED,
+	/* Interrupts are a bit different for our DMA controller: While
+	 * it's got one a regular PCI device header, the interrupt there
+	 * is really the base of the range it's using. Each tx and rx
+	 * channel has it's own interrupt source.
+	 */
+
+	base_irq = virq_to_hw(mac->dma_pdev->irq);
+
+	mac->tx_irq = irq_create_mapping(NULL, base_irq + mac->dma_txch);
+	mac->rx_irq = irq_create_mapping(NULL, base_irq + 20 + mac->dma_txch);
+
+	ret = request_irq(mac->tx_irq, &pasemi_mac_tx_intr, IRQF_DISABLED,
 			  mac->tx->irq_name, dev);
 	if (ret) {
 		dev_err(&mac->pdev->dev, "request_irq of irq %d failed: %d\n",
-		       mac->dma_pdev->irq + mac->dma_txch, ret);
+			base_irq + mac->dma_txch, ret);
 		goto out_tx_int;
 	}
 
-	ret = request_irq(mac->dma_pdev->irq + 20 + mac->dma_rxch,
-			  &pasemi_mac_rx_intr, IRQF_DISABLED,
+	ret = request_irq(mac->rx_irq, &pasemi_mac_rx_intr, IRQF_DISABLED,
 			  mac->rx->irq_name, dev);
 	if (ret) {
 		dev_err(&mac->pdev->dev, "request_irq of irq %d failed: %d\n",
-		       mac->dma_pdev->irq + 20 + mac->dma_rxch, ret);
+			base_irq + 20 + mac->dma_rxch, ret);
 		goto out_rx_int;
 	}
 
 	return 0;
 
 out_rx_int:
-	free_irq(mac->dma_pdev->irq + mac->dma_txch, dev);
+	free_irq(mac->tx_irq, dev);
 out_tx_int:
 	netif_poll_disable(dev);
 	netif_stop_queue(dev);
@@ -699,8 +711,8 @@ static int pasemi_mac_close(struct net_device *dev)
 	pci_write_config_dword(mac->dma_pdev,
 			       PAS_DMA_RXINT_RCMDSTA(mac->dma_if), 0);
 
-	free_irq(mac->dma_pdev->irq + mac->dma_txch, dev);
-	free_irq(mac->dma_pdev->irq + 20 + mac->dma_rxch, dev);
+	free_irq(mac->tx_irq, dev);
+	free_irq(mac->rx_irq, dev);
 
 	/* Free resources */
 	pasemi_mac_free_rx_resources(dev);
