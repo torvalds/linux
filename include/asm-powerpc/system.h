@@ -335,8 +335,6 @@ __xchg_local(volatile void *ptr, unsigned long x, unsigned int size)
      		(unsigned long)_x_, sizeof(*(ptr))); 			     \
   })
 
-#define tas(ptr) (xchg((ptr),1))
-
 /*
  * Compare and exchange - if *p == old, set it to new,
  * and return the old value of *p.

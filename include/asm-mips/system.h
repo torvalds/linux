@@ -201,7 +201,6 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 }
 
 #define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
-#define tas(ptr) (xchg((ptr),1))
 
 #define __HAVE_ARCH_CMPXCHG 1
 

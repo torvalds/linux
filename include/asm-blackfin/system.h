@@ -138,7 +138,6 @@ extern unsigned long irq_flags;
 #endif
 
 #define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
-#define tas(ptr) ((void)xchg((ptr),1))
 
 struct __xchg_dummy {
 	unsigned long a[100];

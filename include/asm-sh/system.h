@@ -82,16 +82,6 @@ static inline void sched_cacheflush(void)
 }
 #endif
 
-static inline unsigned long tas(volatile int *m)
-{
-	unsigned long retval;
-
-	__asm__ __volatile__ ("tas.b	@%1\n\t"
-			      "movt	%0"
-			      : "=r" (retval): "r" (m): "t", "memory");
-	return retval;
-}
-
 /*
  * A brief note on ctrl_barrier(), the control register write barrier.
  *

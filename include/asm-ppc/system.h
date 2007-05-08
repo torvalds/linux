@@ -169,7 +169,6 @@ xchg_u32(volatile void *p, unsigned long val)
 extern void __xchg_called_with_bad_pointer(void);
 
 #define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
-#define tas(ptr) (xchg((ptr),1))
 
 static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
 {

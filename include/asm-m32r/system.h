@@ -122,8 +122,6 @@ static inline void local_irq_disable(void)
 #define xchg(ptr,x) \
 	((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
 
-#define tas(ptr)	(xchg((ptr),1))
-
 #ifdef CONFIG_SMP
 extern void  __xchg_called_with_bad_pointer(void);
 #endif

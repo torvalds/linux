@@ -548,9 +548,6 @@ __xchg_u64_local(volatile long *m, unsigned long val)
      		sizeof(*(ptr))); \
   })
 
-#define tas(ptr) (xchg((ptr),1))
-
-
 /* 
  * Atomic compare and exchange.  Compare OLD with MEM, if identical,
  * store NEW in MEM.  Return the initial value in MEM.  Success is
