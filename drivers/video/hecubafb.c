@@ -145,7 +145,7 @@ static int __devinit apollo_init_control(struct hecubafb_par *par)
 	return 0;
 }
 
-void hcb_wait_for_ack(struct hecubafb_par *par)
+static void hcb_wait_for_ack(struct hecubafb_par *par)
 {
 
 	int timeout;
@@ -161,7 +161,7 @@ void hcb_wait_for_ack(struct hecubafb_par *par)
 	printk(KERN_ERR "timed out waiting for ack\n");
 }
 
-void hcb_wait_for_ack_clear(struct hecubafb_par *par)
+static void hcb_wait_for_ack_clear(struct hecubafb_par *par)
 {
 
 	int timeout;
@@ -177,7 +177,7 @@ void hcb_wait_for_ack_clear(struct hecubafb_par *par)
 	printk(KERN_ERR "timed out waiting for clear\n");
 }
 
-void apollo_send_data(struct hecubafb_par *par, unsigned char data)
+static void apollo_send_data(struct hecubafb_par *par, unsigned char data)
 {
 	/* set data */
 	hcb_set_data(par, data);
@@ -195,7 +195,7 @@ void apollo_send_data(struct hecubafb_par *par, unsigned char data)
 	hcb_wait_for_ack_clear(par);
 }
 
-void apollo_send_command(struct hecubafb_par *par, unsigned char data)
+static void apollo_send_command(struct hecubafb_par *par, unsigned char data)
 {
 	/* command so set CD to high */
 	par->ctl &= ~(HCB_NCD_BIT);
