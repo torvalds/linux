@@ -100,6 +100,9 @@ static unsigned char slot_errbuf[RTAS_ERROR_LOG_MAX];
 static DEFINE_SPINLOCK(slot_errbuf_lock);
 static int eeh_error_buf_size;
 
+#define EEH_PCI_REGS_LOG_LEN 4096
+static unsigned char pci_regs_buf[EEH_PCI_REGS_LOG_LEN];
+
 /* System monitoring statistics */
 static unsigned long no_device;
 static unsigned long no_dn;
@@ -115,7 +118,8 @@ static unsigned long slot_resets;
 /* --------------------------------------------------------------- */
 /* Below lies the EEH event infrastructure */
 
-void eeh_slot_error_detail (struct pci_dn *pdn, int severity)
+static void rtas_slot_error_detail(struct pci_dn *pdn, int severity,
+                                   char *driver_log, size_t loglen)
 {
 	int config_addr;
 	unsigned long flags;
@@ -133,7 +137,8 @@ void eeh_slot_error_detail (struct pci_dn *pdn, int severity)
 	rc = rtas_call(ibm_slot_error_detail,
 	               8, 1, NULL, config_addr,
 	               BUID_HI(pdn->phb->buid),
-	               BUID_LO(pdn->phb->buid), NULL, 0,
+	               BUID_LO(pdn->phb->buid),
+	               virt_to_phys(driver_log), loglen,
 	               virt_to_phys(slot_errbuf),
 	               eeh_error_buf_size,
 	               severity);
@@ -141,6 +146,40 @@ void eeh_slot_error_detail (struct pci_dn *pdn, int severity)
 	if (rc == 0)
 		log_error(slot_errbuf, ERR_TYPE_RTAS_LOG, 0);
 	spin_unlock_irqrestore(&slot_errbuf_lock, flags);
+}
+
+/**
+ * gather_pci_data - copy assorted PCI config space registers to buff
+ * @pdn: device to report data for
+ * @buf: point to buffer in which to log
+ * @len: amount of room in buffer
+ *
+ * This routine captures assorted PCI configuration space data,
+ * and puts them into a buffer for RTAS error logging.
+ */
+static size_t gather_pci_data(struct pci_dn *pdn, char * buf, size_t len)
+{
+	u32 cfg;
+	int n = 0;
+
+	n += scnprintf(buf+n, len-n, "%s\n", pdn->node->name);
+	rtas_read_config(pdn, PCI_VENDOR_ID, 4, &cfg);
+	n += scnprintf(buf+n, len-n, "dev/vend:%x\n", cfg);
+	rtas_read_config(pdn, PCI_COMMAND, 4, &cfg);
+	n += scnprintf(buf+n, len-n, "cmd/stat:%x\n", cfg);
+
+	return n;
+}
+
+void eeh_slot_error_detail(struct pci_dn *pdn, int severity)
+{
+	size_t loglen = 0;
+	memset(pci_regs_buf, 0, EEH_PCI_REGS_LOG_LEN);
+
+	rtas_pci_enable(pdn, EEH_THAW_MMIO);
+	loglen = gather_pci_data(pdn, pci_regs_buf, EEH_PCI_REGS_LOG_LEN);
+
+	rtas_slot_error_detail(pdn, severity, pci_regs_buf, loglen);
 }
 
 /**
