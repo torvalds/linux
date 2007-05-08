@@ -103,6 +103,9 @@ struct pci_pbm_info {
 	u32				msi64_len;
 	void				*msi_queues;
 	unsigned long			*msi_bitmap;
+	int (*setup_msi_irq)(unsigned int *virt_irq_p, struct pci_dev *pdev,
+			     struct msi_desc *entry);
+	void (*teardown_msi_irq)(unsigned int virt_irq, struct pci_dev *pdev);
 #endif /* !(CONFIG_PCI_MSI) */
 
 	/* This PBM's streaming buffer. */
@@ -128,13 +131,6 @@ struct pci_controller_info {
 	/* The PCI bus modules controlled by us. */
 	struct pci_pbm_info		pbm_A;
 	struct pci_pbm_info		pbm_B;
-
-	/* Operations which are controller specific. */
-#ifdef CONFIG_PCI_MSI
-	int (*setup_msi_irq)(unsigned int *virt_irq_p, struct pci_dev *pdev,
-			     struct msi_desc *entry);
-	void (*teardown_msi_irq)(unsigned int virt_irq, struct pci_dev *pdev);
-#endif
 };
 
 #endif /* !(__SPARC64_PBM_H) */

@@ -1092,17 +1092,12 @@ EXPORT_SYMBOL(pci_domain_nr);
 int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 {
 	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	struct pci_controller_info *p = pbm->parent;
-	int virt_irq, err;
+	int virt_irq;
 
-	if (!pbm->msi_num || !p->setup_msi_irq)
+	if (!pbm->setup_msi_irq)
 		return -EINVAL;
 
-	err = p->setup_msi_irq(&virt_irq, pdev, desc);
-	if (err)
-		return err;
-
-	return 0;
+	return pbm->setup_msi_irq(&virt_irq, pdev, desc);
 }
 
 void arch_teardown_msi_irq(unsigned int virt_irq)
@@ -1110,12 +1105,11 @@ void arch_teardown_msi_irq(unsigned int virt_irq)
 	struct msi_desc *entry = get_irq_msi(virt_irq);
 	struct pci_dev *pdev = entry->dev;
 	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	struct pci_controller_info *p = pbm->parent;
 
-	if (!pbm->msi_num || !p->setup_msi_irq)
+	if (!pbm->teardown_msi_irq)
 		return;
 
-	return p->teardown_msi_irq(virt_irq, pdev);
+	return pbm->teardown_msi_irq(virt_irq, pdev);
 }
 #endif /* !(CONFIG_PCI_MSI) */
 
