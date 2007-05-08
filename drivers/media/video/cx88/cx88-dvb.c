@@ -634,10 +634,6 @@ static int dvb_register(struct cx8802_dev *dev)
 		return -1;
 	}
 
-	if (dev->core->pll_desc) {
-		dev->dvb.frontend->ops.info.frequency_min = dev->core->pll_desc->min;
-		dev->dvb.frontend->ops.info.frequency_max = dev->core->pll_desc->max;
-	}
 	/* Ensure all frontends negotiate bus access */
 	dev->dvb.frontend->ops.ts_bus_ctrl = cx88_dvb_bus_ctrl;
 
