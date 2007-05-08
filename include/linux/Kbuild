@@ -33,7 +33,6 @@ header-y += atmsvc.h
 header-y += atm_zatm.h
 header-y += auto_fs4.h
 header-y += auxvec.h
-header-y += awe_voice.h
 header-y += ax25.h
 header-y += b1lli.h
 header-y += baycom.h
