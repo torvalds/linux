@@ -660,7 +660,6 @@ static ssize_t oom_adjust_read(struct file *file, char __user *buf,
 	char buffer[PROC_NUMBUF];
 	size_t len;
 	int oom_adjust;
-	loff_t __ppos = *ppos;
 
 	if (!task)
 		return -ESRCH;
@@ -668,14 +667,8 @@ static ssize_t oom_adjust_read(struct file *file, char __user *buf,
 	put_task_struct(task);
 
 	len = snprintf(buffer, sizeof(buffer), "%i\n", oom_adjust);
-	if (__ppos >= len)
-		return 0;
-	if (count > len-__ppos)
-		count = len-__ppos;
-	if (copy_to_user(buf, buffer + __ppos, count))
-		return -EFAULT;
-	*ppos = __ppos + count;
-	return count;
+
+	return simple_read_from_buffer(buf, count, ppos, buffer, len);
 }
 
 static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
@@ -823,7 +816,6 @@ static ssize_t seccomp_read(struct file *file, char __user *buf,
 {
 	struct task_struct *tsk = get_proc_task(file->f_dentry->d_inode);
 	char __buf[20];
-	loff_t __ppos = *ppos;
 	size_t len;
 
 	if (!tsk)
@@ -831,14 +823,8 @@ static ssize_t seccomp_read(struct file *file, char __user *buf,
 	/* no need to print the trailing zero, so use only len */
 	len = sprintf(__buf, "%u\n", tsk->seccomp.mode);
 	put_task_struct(tsk);
-	if (__ppos >= len)
-		return 0;
-	if (count > len - __ppos)
-		count = len - __ppos;
-	if (copy_to_user(buf, __buf + __ppos, count))
-		return -EFAULT;
-	*ppos = __ppos + count;
-	return count;
+
+	return simple_read_from_buffer(buf, count, ppos, __buf, len);
 }
 
 static ssize_t seccomp_write(struct file *file, const char __user *buf,
@@ -897,7 +883,6 @@ static ssize_t proc_fault_inject_read(struct file * file, char __user * buf,
 	char buffer[PROC_NUMBUF];
 	size_t len;
 	int make_it_fail;
-	loff_t __ppos = *ppos;
 
 	if (!task)
 		return -ESRCH;
@@ -905,14 +890,8 @@ static ssize_t proc_fault_inject_read(struct file * file, char __user * buf,
 	put_task_struct(task);
 
 	len = snprintf(buffer, sizeof(buffer), "%i\n", make_it_fail);
-	if (__ppos >= len)
-		return 0;
-	if (count > len-__ppos)
-		count = len-__ppos;
-	if (copy_to_user(buf, buffer + __ppos, count))
-		return -EFAULT;
-	*ppos = __ppos + count;
-	return count;
+
+	return simple_read_from_buffer(buf, count, ppos, buffer, len);
 }
 
 static ssize_t proc_fault_inject_write(struct file * file,
@@ -975,7 +954,7 @@ static int do_proc_readlink(struct dentry *dentry, struct vfsmount *mnt,
 
 	if (!tmp)
 		return -ENOMEM;
-		
+
 	inode = dentry->d_inode;
 	path = d_path(dentry, mnt, tmp, PAGE_SIZE);
 	len = PTR_ERR(path);
