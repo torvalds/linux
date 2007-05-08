@@ -1440,6 +1440,11 @@ w83781d_init_device(struct device *dev)
 	int type = data->type;
 	u8 tmp;
 
+	if (type == w83627hf)
+		dev_info(dev, "The W83627HF chip is better supported by the "
+			 "w83627hf driver, support will be dropped from the "
+			 "w83781d driver soon\n");
+
 	if (reset && type != as99127f) { /* this resets registers we don't have
 					   documentation for on the as99127f */
 		/* Resetting the chip has been the default for a long time,
