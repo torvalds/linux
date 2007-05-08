@@ -77,6 +77,13 @@ struct ustr
 	uint8_t u_len;
 };
 
+struct extent_position {
+	struct buffer_head *bh;
+	uint32_t offset;
+	kernel_lb_addr block;
+};
+
+
 /* super.c */
 extern void udf_error(struct super_block *, const char *, const char *, ...);
 extern void udf_warning(struct super_block *, const char *, const char *, ...);
@@ -99,12 +106,12 @@ extern void udf_delete_inode(struct inode *);
 extern void udf_clear_inode(struct inode *);
 extern int udf_write_inode(struct inode *, int);
 extern long udf_block_map(struct inode *, sector_t);
-extern int8_t inode_bmap(struct inode *, sector_t, kernel_lb_addr *, uint32_t *, kernel_lb_addr *, uint32_t *, sector_t *, struct buffer_head **);
-extern int8_t udf_add_aext(struct inode *, kernel_lb_addr *, int *, kernel_lb_addr, uint32_t, struct buffer_head **, int);
-extern int8_t udf_write_aext(struct inode *, kernel_lb_addr, int *, kernel_lb_addr, uint32_t, struct buffer_head *, int);
-extern int8_t udf_delete_aext(struct inode *, kernel_lb_addr, int, kernel_lb_addr, uint32_t, struct buffer_head *);
-extern int8_t udf_next_aext(struct inode *, kernel_lb_addr *, int *, kernel_lb_addr *, uint32_t *, struct buffer_head **, int);
-extern int8_t udf_current_aext(struct inode *, kernel_lb_addr *, int *, kernel_lb_addr *, uint32_t *, struct buffer_head **, int);
+extern int8_t inode_bmap(struct inode *, sector_t, struct extent_position *, kernel_lb_addr *, uint32_t *, sector_t *);
+extern int8_t udf_add_aext(struct inode *, struct extent_position *, kernel_lb_addr, uint32_t, int);
+extern int8_t udf_write_aext(struct inode *, struct extent_position *, kernel_lb_addr, uint32_t, int);
+extern int8_t udf_delete_aext(struct inode *, struct extent_position, kernel_lb_addr, uint32_t);
+extern int8_t udf_next_aext(struct inode *, struct extent_position *, kernel_lb_addr *, uint32_t *, int);
+extern int8_t udf_current_aext(struct inode *, struct extent_position *, kernel_lb_addr *, uint32_t *, int);
 
 /* misc.c */
 extern struct buffer_head *udf_tgetblk(struct super_block *, int);
@@ -151,7 +158,7 @@ extern int udf_new_block(struct super_block *, struct inode *, uint16_t, uint32_
 extern int udf_fsync_file(struct file *, struct dentry *, int);
 
 /* directory.c */
-extern struct fileIdentDesc * udf_fileident_read(struct inode *, loff_t *, struct udf_fileident_bh *, struct fileIdentDesc *, kernel_lb_addr *, uint32_t *, kernel_lb_addr *, uint32_t *, sector_t *, struct buffer_head **);
+extern struct fileIdentDesc * udf_fileident_read(struct inode *, loff_t *, struct udf_fileident_bh *, struct fileIdentDesc *, struct extent_position *, kernel_lb_addr *, uint32_t *, sector_t *);
 extern struct fileIdentDesc * udf_get_fileident(void * buffer, int bufsize, int * offset);
 extern long_ad * udf_get_filelongad(uint8_t *, int, int *, int);
 extern short_ad * udf_get_fileshortad(uint8_t *, int, int *, int);
