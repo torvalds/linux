@@ -133,11 +133,11 @@ void __devinit riva_create_i2c_busses(struct riva_par *par)
 	par->chan[1].par	= par;
 	par->chan[2].par        = par;
 
-	par->chan[0].ddc_base = 0x3e;
-	par->chan[1].ddc_base = 0x36;
+	par->chan[0].ddc_base = 0x36;
+	par->chan[1].ddc_base = 0x3e;
 	par->chan[2].ddc_base = 0x50;
-	riva_setup_i2c_bus(&par->chan[0], "BUS1", 0);
-	riva_setup_i2c_bus(&par->chan[1], "BUS2", I2C_CLASS_HWMON);
+	riva_setup_i2c_bus(&par->chan[0], "BUS1", I2C_CLASS_HWMON);
+	riva_setup_i2c_bus(&par->chan[1], "BUS2", 0);
 	riva_setup_i2c_bus(&par->chan[2], "BUS3", 0);
 }
 
