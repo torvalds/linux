@@ -648,6 +648,7 @@ static void __init do_initcalls(void)
 	int count = preempt_count();
 
 	for (call = __initcall_start; call < __initcall_end; call++) {
+		ktime_t t0, t1, delta;
 		char *msg = NULL;
 		char msgbuf[40];
 		int result;
@@ -657,9 +658,25 @@ static void __init do_initcalls(void)
 			print_fn_descriptor_symbol(": %s()",
 					(unsigned long) *call);
 			printk("\n");
+			t0 = ktime_get();
 		}
 
 		result = (*call)();
+
+		if (initcall_debug) {
+			t1 = ktime_get();
+			delta = ktime_sub(t1, t0);
+
+			printk("initcall 0x%p", *call);
+			print_fn_descriptor_symbol(": %s()",
+					(unsigned long) *call);
+			printk(" returned %d.\n", result);
+
+			printk("initcall 0x%p ran for %Ld msecs: ",
+				*call, (unsigned long long)delta.tv64 >> 20);
+			print_fn_descriptor_symbol("%s()\n",
+				(unsigned long) *call);
+		}
 
 		if (result && result != -ENODEV && initcall_debug) {
 			sprintf(msgbuf, "error code %d", result);
