@@ -14,6 +14,7 @@
 #define CPU_ARCH_ARMv5TE	6
 #define CPU_ARCH_ARMv5TEJ	7
 #define CPU_ARCH_ARMv6		8
+#define CPU_ARCH_ARMv7		9
 
 /*
  * CR1 bits (CP#15 CR1)

@@ -38,6 +38,7 @@
  *	  v5tej_early	- ARMv5 with Thumb and Java early abort handler
  *	  xscale	- ARMv5 with Thumb with Xscale extensions
  *	  v6_early	- ARMv6 generic early abort handler
+ *	  v7_early	- ARMv7 generic early abort handler
  */
 #undef CPU_ABORT_HANDLER
 #undef MULTI_ABORT
@@ -103,6 +104,14 @@
 #  define MULTI_ABORT 1
 # else
 #  define CPU_ABORT_HANDLER v6_early_abort
+# endif
+#endif
+
+#ifdef CONFIG_CPU_ABRT_EV7
+# ifdef CPU_ABORT_HANDLER
+#  define MULTI_ABORT 1
+# else
+#  define CPU_ABORT_HANDLER v7_early_abort
 # endif
 #endif
 
