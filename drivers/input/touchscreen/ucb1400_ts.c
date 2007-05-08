@@ -97,6 +97,8 @@ struct ucb1400 {
 };
 
 static int adcsync;
+static int ts_delay = 55; /* us */
+static int ts_delay_pressure;	/* us */
 
 static inline u16 ucb1400_reg_read(struct ucb1400 *ucb, u16 reg)
 {
@@ -159,6 +161,7 @@ static inline unsigned int ucb1400_ts_read_pressure(struct ucb1400 *ucb)
 			UCB_TS_CR_TSMX_POW | UCB_TS_CR_TSPX_POW |
 			UCB_TS_CR_TSMY_GND | UCB_TS_CR_TSPY_GND |
 			UCB_TS_CR_MODE_PRES | UCB_TS_CR_BIAS_ENA);
+	udelay(ts_delay_pressure);
 	return ucb1400_adc_read(ucb, UCB_ADC_INP_TSPY);
 }
 
@@ -180,7 +183,7 @@ static inline unsigned int ucb1400_ts_read_xpos(struct ucb1400 *ucb)
 			UCB_TS_CR_TSMX_GND | UCB_TS_CR_TSPX_POW |
 			UCB_TS_CR_MODE_POS | UCB_TS_CR_BIAS_ENA);
 
-	udelay(55);
+	udelay(ts_delay);
 
 	return ucb1400_adc_read(ucb, UCB_ADC_INP_TSPY);
 }
@@ -203,7 +206,7 @@ static inline unsigned int ucb1400_ts_read_ypos(struct ucb1400 *ucb)
 			UCB_TS_CR_TSMY_GND | UCB_TS_CR_TSPY_POW |
 			UCB_TS_CR_MODE_POS | UCB_TS_CR_BIAS_ENA);
 
-	udelay(55);
+	udelay(ts_delay);
 
 	return ucb1400_adc_read(ucb, UCB_ADC_INP_TSPX);
 }
@@ -369,7 +372,7 @@ static irqreturn_t ucb1400_hard_irq(int irqnr, void *devid)
 
 static int ucb1400_ts_open(struct input_dev *idev)
 {
-	struct ucb1400 *ucb = idev->private;
+	struct ucb1400 *ucb = input_get_drvdata(idev);
 	int ret = 0;
 
 	BUG_ON(ucb->ts_task);
@@ -385,7 +388,7 @@ static int ucb1400_ts_open(struct input_dev *idev)
 
 static void ucb1400_ts_close(struct input_dev *idev)
 {
-	struct ucb1400 *ucb = idev->private;
+	struct ucb1400 *ucb = input_get_drvdata(idev);
 
 	if (ucb->ts_task)
 		kthread_stop(ucb->ts_task);
@@ -507,8 +510,9 @@ static int ucb1400_ts_probe(struct device *dev)
 	}
 	printk(KERN_DEBUG "UCB1400: found IRQ %d\n", ucb->irq);
 
-	idev->private		= ucb;
-	idev->cdev.dev		= dev;
+	input_set_drvdata(idev, ucb);
+
+	idev->dev.parent	= dev;
 	idev->name		= "UCB1400 touchscreen interface";
 	idev->id.vendor		= ucb1400_reg_read(ucb, AC97_VENDOR_ID1);
 	idev->id.product	= id;
@@ -571,7 +575,15 @@ static void __exit ucb1400_ts_exit(void)
 	driver_unregister(&ucb1400_ts_driver);
 }
 
-module_param(adcsync, int, 0444);
+module_param(adcsync, bool, 0444);
+MODULE_PARM_DESC(adcsync, "Synchronize touch readings with ADCSYNC pin.");
+
+module_param(ts_delay, int, 0444);
+MODULE_PARM_DESC(ts_delay, "Delay between panel setup and position read. Default = 55us.");
+
+module_param(ts_delay_pressure, int, 0444);
+MODULE_PARM_DESC(ts_delay_pressure,
+		  "delay between panel setup and pressure read.  Default = 0us.");
 
 module_init(ucb1400_ts_init);
 module_exit(ucb1400_ts_exit);

@@ -1,6 +1,8 @@
 #ifndef LINUX_MSI_H
 #define LINUX_MSI_H
 
+#include <linux/list.h>
+
 struct msi_msg {
 	u32	address_lo;	/* low 32 bits of msi message address */
 	u32	address_hi;	/* high 32 bits of msi message address */
@@ -24,10 +26,8 @@ struct msi_desc {
 		unsigned default_irq;	/* default pre-assigned irq	  */
 	}msi_attrib;
 
-	struct {
-		__u16	head;
-		__u16	tail;
-	}link;
+	unsigned int irq;
+	struct list_head list;
 
 	void __iomem *mask_base;
 	struct pci_dev *dev;
@@ -41,6 +41,9 @@ struct msi_desc {
  */
 int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc);
 void arch_teardown_msi_irq(unsigned int irq);
+extern int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type);
+extern void arch_teardown_msi_irqs(struct pci_dev *dev);
+extern int arch_msi_check_device(struct pci_dev* dev, int nvec, int type);
 
 
 #endif /* LINUX_MSI_H */

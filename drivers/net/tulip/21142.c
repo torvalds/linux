@@ -14,7 +14,6 @@
 
 */
 
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include "tulip.h"
 

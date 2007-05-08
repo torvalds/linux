@@ -100,7 +100,7 @@ config NF_CT_PROTO_SCTP
 	  tracking code will be able to do state tracking on SCTP connections.
 
 	  If you want to compile it as a module, say M here and read
-	  Documentation/modules.txt.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
 config NF_CONNTRACK_AMANDA
 	tristate "Amanda backup protocol support"
@@ -279,8 +279,8 @@ config NETFILTER_XT_TARGET_CONNMARK
 	  affects the connection mark value rather than the packet mark value.
 	
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  The module will be called
-	  ipt_CONNMARK.o.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.txt>.  The module will be called
+	  ipt_CONNMARK.ko.  If unsure, say `N'.
 
 config NETFILTER_XT_TARGET_DSCP
 	tristate '"DSCP" target support'
@@ -341,7 +341,7 @@ config NETFILTER_XT_TARGET_NOTRACK
 	  no protocol helpers for the selected packets).
 	
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
 config NETFILTER_XT_TARGET_SECMARK
 	tristate '"SECMARK" target support'
@@ -397,7 +397,7 @@ config NETFILTER_XT_MATCH_COMMENT
 	  comments in your iptables ruleset.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_CONNBYTES
 	tristate  '"connbytes" per-connection counter match support'
@@ -409,7 +409,7 @@ config NETFILTER_XT_MATCH_CONNBYTES
 	  number of bytes and/or packets for each direction within a connection.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_CONNMARK
 	tristate  '"connmark" connection mark match support'
@@ -421,8 +421,8 @@ config NETFILTER_XT_MATCH_CONNMARK
 	  connection mark value previously set for the session by `CONNMARK'. 
 	
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  The module will be called
-	  ipt_connmark.o.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.txt>.  The module will be called
+	  ipt_connmark.ko.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_CONNTRACK
 	tristate '"conntrack" connection tracking match support'
@@ -446,7 +446,7 @@ config NETFILTER_XT_MATCH_DCCP
 	  and DCCP flags.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_DSCP
 	tristate '"DSCP" match support'
@@ -565,7 +565,7 @@ config NETFILTER_XT_MATCH_QUOTA
 	  byte counter.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_REALM
 	tristate  '"realm" match support'
@@ -579,7 +579,7 @@ config NETFILTER_XT_MATCH_REALM
 	  in tc world.
 	
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_SCTP
 	tristate  '"sctp" protocol match support (EXPERIMENTAL)'
@@ -590,7 +590,7 @@ config NETFILTER_XT_MATCH_SCTP
 	  and SCTP chunk types.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_STATE
 	tristate '"state" match support'

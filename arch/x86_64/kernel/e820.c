@@ -17,6 +17,8 @@
 #include <linux/kexec.h>
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <linux/suspend.h>
+#include <linux/pfn.h>
 
 #include <asm/pgtable.h>
 #include <asm/page.h>
@@ -25,7 +27,7 @@
 #include <asm/bootsetup.h>
 #include <asm/sections.h>
 
-struct e820map e820 __initdata;
+struct e820map e820;
 
 /* 
  * PFN of last memory page.
@@ -98,7 +100,7 @@ static inline int bad_addr(unsigned long *addrp, unsigned long size)
  * This function checks if any part of the range <start,end> is mapped
  * with type.
  */
-int __meminit
+int
 e820_any_mapped(unsigned long start, unsigned long end, unsigned type)
 { 
 	int i;
@@ -112,6 +114,7 @@ e820_any_mapped(unsigned long start, unsigned long end, unsigned type)
 	} 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(e820_any_mapped);
 
 /*
  * This function checks if the entire range <start,end> is mapped with type.
@@ -255,22 +258,6 @@ void __init e820_reserve_resources(void)
 	}
 }
 
-/* Mark pages corresponding to given address range as nosave */
-static void __init
-e820_mark_nosave_range(unsigned long start, unsigned long end)
-{
-	unsigned long pfn, max_pfn;
-
-	if (start >= end)
-		return;
-
-	printk("Nosave address range: %016lx - %016lx\n", start, end);
-	max_pfn = end >> PAGE_SHIFT;
-	for (pfn = start >> PAGE_SHIFT; pfn < max_pfn; pfn++)
-		if (pfn_valid(pfn))
-			SetPageNosave(pfn_to_page(pfn));
-}
-
 /*
  * Find the ranges of physical addresses that do not correspond to
  * e820 RAM areas and mark the corresponding pages as nosave for software
@@ -289,13 +276,13 @@ void __init e820_mark_nosave_regions(void)
 		struct e820entry *ei = &e820.map[i];
 
 		if (paddr < ei->addr)
-			e820_mark_nosave_range(paddr,
-					round_up(ei->addr, PAGE_SIZE));
+			register_nosave_region(PFN_DOWN(paddr),
+						PFN_UP(ei->addr));
 
 		paddr = round_down(ei->addr + ei->size, PAGE_SIZE);
 		if (ei->type != E820_RAM)
-			e820_mark_nosave_range(round_up(ei->addr, PAGE_SIZE),
-					paddr);
+			register_nosave_region(PFN_UP(ei->addr),
+						PFN_DOWN(paddr));
 
 		if (paddr >= (end_pfn << PAGE_SHIFT))
 			break;

@@ -35,11 +35,14 @@ static irqreturn_t gpio_keys_isr(int irq, void *dev_id)
 	struct input_dev *input = platform_get_drvdata(pdev);
 
 	for (i = 0; i < pdata->nbuttons; i++) {
-		int gpio = pdata->buttons[i].gpio;
-		if (irq == gpio_to_irq(gpio)) {
-			int state = (gpio_get_value(gpio) ? 1 : 0) ^ (pdata->buttons[i].active_low);
+		struct gpio_keys_button *button = &pdata->buttons[i];
+		int gpio = button->gpio;
 
-			input_report_key(input, pdata->buttons[i].keycode, state);
+		if (irq == gpio_to_irq(gpio)) {
+			unsigned int type = button->type ?: EV_KEY;
+			int state = (gpio_get_value(gpio) ? 1 : 0) ^ button->active_low;
+
+			input_event(input, type, button->code, !!state);
 			input_sync(input);
 		}
 	}
@@ -63,8 +66,7 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 
 	input->name = pdev->name;
 	input->phys = "gpio-keys/input0";
-	input->cdev.dev = &pdev->dev;
-	input->private = pdata;
+	input->dev.parent = &pdev->dev;
 
 	input->id.bustype = BUS_HOST;
 	input->id.vendor = 0x0001;
@@ -72,19 +74,21 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 	input->id.version = 0x0100;
 
 	for (i = 0; i < pdata->nbuttons; i++) {
-		int code = pdata->buttons[i].keycode;
-		int irq = gpio_to_irq(pdata->buttons[i].gpio);
+		struct gpio_keys_button *button = &pdata->buttons[i];
+		int irq = gpio_to_irq(button->gpio);
+		unsigned int type = button->type ?: EV_KEY;
 
 		set_irq_type(irq, IRQ_TYPE_EDGE_BOTH);
 		error = request_irq(irq, gpio_keys_isr, IRQF_SAMPLE_RANDOM,
-				     pdata->buttons[i].desc ? pdata->buttons[i].desc : "gpio_keys",
+				     button->desc ? button->desc : "gpio_keys",
 				     pdev);
 		if (error) {
 			printk(KERN_ERR "gpio-keys: unable to claim irq %d; error %d\n",
 				irq, error);
 			goto fail;
 		}
-		set_bit(code, input->keybit);
+
+		input_set_capability(input, type, button->code);
 	}
 
 	error = input_register_device(input);

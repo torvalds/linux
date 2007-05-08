@@ -424,7 +424,7 @@ static void drm_locked_tasklet_func(unsigned long data)
 	spin_lock_irqsave(&dev->tasklet_lock, irqflags);
 
 	if (!dev->locked_tasklet_func ||
-	    !drm_lock_take(&dev->lock.hw_lock->lock,
+	    !drm_lock_take(&dev->lock,
 			   DRM_KERNEL_CONTEXT)) {
 		spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
 		return;
@@ -435,7 +435,7 @@ static void drm_locked_tasklet_func(unsigned long data)
 
 	dev->locked_tasklet_func(dev);
 
-	drm_lock_free(dev, &dev->lock.hw_lock->lock,
+	drm_lock_free(&dev->lock,
 		      DRM_KERNEL_CONTEXT);
 
 	dev->locked_tasklet_func = NULL;

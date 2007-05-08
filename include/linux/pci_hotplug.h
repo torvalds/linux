@@ -174,7 +174,7 @@ extern int pci_hp_register		(struct hotplug_slot *slot);
 extern int pci_hp_deregister		(struct hotplug_slot *slot);
 extern int __must_check pci_hp_change_slot_info	(struct hotplug_slot *slot,
 						 struct hotplug_slot_info *info);
-extern struct subsystem pci_hotplug_slots_subsys;
+extern struct kset pci_hotplug_slots_subsys;
 
 /* PCI Setting Record (Type 0) */
 struct hpp_type0 {

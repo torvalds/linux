@@ -24,33 +24,16 @@
 #include <linux/kmod.h>
 #include <linux/completion.h>
 #include <linux/sched.h>
+#include <linux/kthread.h>
 #include <asm/desc.h>
 #include <asm/voyager.h>
 #include <asm/vic.h>
 #include <asm/mtrr.h>
 #include <asm/msr.h>
 
-#define THREAD_NAME "kvoyagerd"
 
-/* external variables */
-int kvoyagerd_running = 0;
-DECLARE_MUTEX_LOCKED(kvoyagerd_sem);
-
-static int thread(void *);
-
-static __u8 set_timeout = 0;
-
-/* Start the machine monitor thread.  Return 1 if OK, 0 if fail */
-static int __init
-voyager_thread_start(void)
-{
-	if(kernel_thread(thread, NULL, CLONE_KERNEL) < 0) {
-		/* This is serious, but not fatal */
-		printk(KERN_ERR "Voyager: Failed to create system monitor thread!!!\n");
-		return 1;
-	}
-	return 0;
-}
+struct task_struct *voyager_thread;
+static __u8 set_timeout;
 
 static int
 execute(const char *string)
@@ -110,31 +93,15 @@ check_continuing_condition(void)
 	}
 }
 
-static void
-wakeup(unsigned long unused)
-{
-	up(&kvoyagerd_sem);
-}
-
 static int
 thread(void *unused)
 {
-	struct timer_list wakeup_timer;
-
-	kvoyagerd_running = 1;
-
-	daemonize(THREAD_NAME);
-
-	set_timeout = 0;
-
-	init_timer(&wakeup_timer);
-
-	sigfillset(&current->blocked);
-
 	printk(KERN_NOTICE "Voyager starting monitor thread\n");
 
-	for(;;) {
-		down_interruptible(&kvoyagerd_sem);
+	for (;;) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(set_timeout ? HZ : MAX_SCHEDULE_TIMEOUT);
+
 		VDEBUG(("Voyager Daemon awoken\n"));
 		if(voyager_status.request_from_kernel == 0) {
 			/* probably awoken from timeout */
@@ -143,20 +110,26 @@ thread(void *unused)
 			check_from_kernel();
 			voyager_status.request_from_kernel = 0;
 		}
-		if(set_timeout) {
-			del_timer(&wakeup_timer);
-			wakeup_timer.expires = HZ + jiffies;
-			wakeup_timer.function = wakeup;
-			add_timer(&wakeup_timer);
-		}
 	}
 }
+
+static int __init
+voyager_thread_start(void)
+{
+	voyager_thread = kthread_run(thread, NULL, "kvoyagerd");
+	if (IS_ERR(voyager_thread)) {
+		printk(KERN_ERR "Voyager: Failed to create system monitor thread.\n");
+		return PTR_ERR(voyager_thread);
+	}
+	return 0;
+}
+
 
 static void __exit
 voyager_thread_stop(void)
 {
-	/* FIXME: do nothing at the moment */
+	kthread_stop(voyager_thread);
 }
 
 module_init(voyager_thread_start);
-//module_exit(voyager_thread_stop);
+module_exit(voyager_thread_stop);

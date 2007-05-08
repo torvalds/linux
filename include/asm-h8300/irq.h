@@ -61,6 +61,5 @@ static __inline__ int irq_canonicalize(int irq)
 
 extern void enable_irq(unsigned int);
 extern void disable_irq(unsigned int);
-#define disable_irq_nosync(x)	disable_irq(x)
 
 #endif /* _H8300_IRQ_H_ */

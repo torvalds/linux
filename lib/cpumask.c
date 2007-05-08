@@ -15,9 +15,6 @@ int __next_cpu(int n, const cpumask_t *srcp)
 }
 EXPORT_SYMBOL(__next_cpu);
 
-int nr_cpu_ids;
-EXPORT_SYMBOL(nr_cpu_ids);
-
 int __any_online_cpu(const cpumask_t *mask)
 {
 	int cpu;

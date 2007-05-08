@@ -71,9 +71,6 @@ static struct mem_info m68k_ramdisk;
 
 static char m68k_command_line[CL_SIZE];
 
-char m68k_debug_device[6] = "";
-EXPORT_SYMBOL(m68k_debug_device);
-
 void (*mach_sched_init) (irq_handler_t handler) __initdata = NULL;
 /* machine dependent irq functions */
 void (*mach_init_IRQ) (void) __initdata = NULL;
@@ -133,78 +130,78 @@ extern void config_hp300(void);
 extern void config_q40(void);
 extern void config_sun3x(void);
 
-extern void mac_debugging_short (int, short);
-extern void mac_debugging_long  (int, long);
-
 #define MASK_256K 0xfffc0000
 
 extern void paging_init(void);
 
 static void __init m68k_parse_bootinfo(const struct bi_record *record)
 {
-    while (record->tag != BI_LAST) {
-	int unknown = 0;
-	const unsigned long *data = record->data;
-	switch (record->tag) {
-	    case BI_MACHTYPE:
-	    case BI_CPUTYPE:
-	    case BI_FPUTYPE:
-	    case BI_MMUTYPE:
-		/* Already set up by head.S */
-		break;
+	while (record->tag != BI_LAST) {
+		int unknown = 0;
+		const unsigned long *data = record->data;
 
-	    case BI_MEMCHUNK:
-		if (m68k_num_memory < NUM_MEMINFO) {
-		    m68k_memory[m68k_num_memory].addr = data[0];
-		    m68k_memory[m68k_num_memory].size = data[1];
-		    m68k_num_memory++;
-		} else
-		    printk("m68k_parse_bootinfo: too many memory chunks\n");
-		break;
+		switch (record->tag) {
+		case BI_MACHTYPE:
+		case BI_CPUTYPE:
+		case BI_FPUTYPE:
+		case BI_MMUTYPE:
+			/* Already set up by head.S */
+			break;
 
-	    case BI_RAMDISK:
-		m68k_ramdisk.addr = data[0];
-		m68k_ramdisk.size = data[1];
-		break;
+		case BI_MEMCHUNK:
+			if (m68k_num_memory < NUM_MEMINFO) {
+				m68k_memory[m68k_num_memory].addr = data[0];
+				m68k_memory[m68k_num_memory].size = data[1];
+				m68k_num_memory++;
+			} else
+				printk("m68k_parse_bootinfo: too many memory chunks\n");
+			break;
 
-	    case BI_COMMAND_LINE:
-		strlcpy(m68k_command_line, (const char *)data, sizeof(m68k_command_line));
-		break;
+		case BI_RAMDISK:
+			m68k_ramdisk.addr = data[0];
+			m68k_ramdisk.size = data[1];
+			break;
 
-	    default:
-		if (MACH_IS_AMIGA)
-		    unknown = amiga_parse_bootinfo(record);
-		else if (MACH_IS_ATARI)
-		    unknown = atari_parse_bootinfo(record);
-		else if (MACH_IS_MAC)
-		    unknown = mac_parse_bootinfo(record);
-		else if (MACH_IS_Q40)
-		    unknown = q40_parse_bootinfo(record);
-		else if (MACH_IS_BVME6000)
-		    unknown = bvme6000_parse_bootinfo(record);
-		else if (MACH_IS_MVME16x)
-		    unknown = mvme16x_parse_bootinfo(record);
-		else if (MACH_IS_MVME147)
-		    unknown = mvme147_parse_bootinfo(record);
-		else if (MACH_IS_HP300)
-		    unknown = hp300_parse_bootinfo(record);
-		else
-		    unknown = 1;
+		case BI_COMMAND_LINE:
+			strlcpy(m68k_command_line, (const char *)data,
+				sizeof(m68k_command_line));
+			break;
+
+		default:
+			if (MACH_IS_AMIGA)
+				unknown = amiga_parse_bootinfo(record);
+			else if (MACH_IS_ATARI)
+				unknown = atari_parse_bootinfo(record);
+			else if (MACH_IS_MAC)
+				unknown = mac_parse_bootinfo(record);
+			else if (MACH_IS_Q40)
+				unknown = q40_parse_bootinfo(record);
+			else if (MACH_IS_BVME6000)
+				unknown = bvme6000_parse_bootinfo(record);
+			else if (MACH_IS_MVME16x)
+				unknown = mvme16x_parse_bootinfo(record);
+			else if (MACH_IS_MVME147)
+				unknown = mvme147_parse_bootinfo(record);
+			else if (MACH_IS_HP300)
+				unknown = hp300_parse_bootinfo(record);
+			else
+				unknown = 1;
+		}
+		if (unknown)
+			printk("m68k_parse_bootinfo: unknown tag 0x%04x ignored\n",
+			       record->tag);
+		record = (struct bi_record *)((unsigned long)record +
+					      record->size);
 	}
-	if (unknown)
-	    printk("m68k_parse_bootinfo: unknown tag 0x%04x ignored\n",
-		   record->tag);
-	record = (struct bi_record *)((unsigned long)record+record->size);
-    }
 
-    m68k_realnum_memory = m68k_num_memory;
+	m68k_realnum_memory = m68k_num_memory;
 #ifdef CONFIG_SINGLE_MEMORY_CHUNK
-    if (m68k_num_memory > 1) {
-	printk("Ignoring last %i chunks of physical memory\n",
-	       (m68k_num_memory - 1));
-	m68k_num_memory = 1;
-    }
-    m68k_memoffset = m68k_memory[0].addr-PAGE_OFFSET;
+	if (m68k_num_memory > 1) {
+		printk("Ignoring last %i chunks of physical memory\n",
+		       (m68k_num_memory - 1));
+		m68k_num_memory = 1;
+	}
+	m68k_memoffset = m68k_memory[0].addr-PAGE_OFFSET;
 #endif
 }
 
@@ -215,7 +212,6 @@ void __init setup_arch(char **cmdline_p)
 	unsigned long endmem, startmem;
 #endif
 	int i;
-	char *p, *q;
 
 	/* The bootinfo is located right after the kernel bss */
 	m68k_parse_bootinfo((const struct bi_record *)&_end);
@@ -234,7 +230,7 @@ void __init setup_arch(char **cmdline_p)
 	/* clear the fpu if we have one */
 	if (m68k_fputype & (FPU_68881|FPU_68882|FPU_68040|FPU_68060)) {
 		volatile int zero = 0;
-		asm __volatile__ ("frestore %0" : : "m" (zero));
+		asm volatile ("frestore %0" : : "m" (zero));
 	}
 #endif
 
@@ -258,37 +254,7 @@ void __init setup_arch(char **cmdline_p)
 	*cmdline_p = m68k_command_line;
 	memcpy(boot_command_line, *cmdline_p, CL_SIZE);
 
-	/* Parse the command line for arch-specific options.
-	 * For the m68k, this is currently only "debug=xxx" to enable printing
-	 * certain kernel messages to some machine-specific device.
-	 */
-	for( p = *cmdline_p; p && *p; ) {
-	    i = 0;
-	    if (!strncmp( p, "debug=", 6 )) {
-		strlcpy( m68k_debug_device, p+6, sizeof(m68k_debug_device) );
-		if ((q = strchr( m68k_debug_device, ' ' ))) *q = 0;
-		i = 1;
-	    }
-#ifdef CONFIG_ATARI
-	    /* This option must be parsed very early */
-	    if (!strncmp( p, "switches=", 9 )) {
-		extern void atari_switches_setup( const char *, int );
-		atari_switches_setup( p+9, (q = strchr( p+9, ' ' )) ?
-				           (q - (p+9)) : strlen(p+9) );
-		i = 1;
-	    }
-#endif
-
-	    if (i) {
-		/* option processed, delete it */
-		if ((q = strchr( p, ' ' )))
-		    strcpy( p, q+1 );
-		else
-		    *p = 0;
-	    } else {
-		if ((p = strchr( p, ' ' ))) ++p;
-	    }
-	}
+	parse_early_param();
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
@@ -296,62 +262,62 @@ void __init setup_arch(char **cmdline_p)
 
 	switch (m68k_machtype) {
 #ifdef CONFIG_AMIGA
-	    case MACH_AMIGA:
+	case MACH_AMIGA:
 		config_amiga();
 		break;
 #endif
 #ifdef CONFIG_ATARI
-	    case MACH_ATARI:
+	case MACH_ATARI:
 		config_atari();
 		break;
 #endif
 #ifdef CONFIG_MAC
-	    case MACH_MAC:
+	case MACH_MAC:
 		config_mac();
 		break;
 #endif
 #ifdef CONFIG_SUN3
-	    case MACH_SUN3:
+	case MACH_SUN3:
 		config_sun3();
 		break;
 #endif
 #ifdef CONFIG_APOLLO
-	    case MACH_APOLLO:
+	case MACH_APOLLO:
 		config_apollo();
 		break;
 #endif
 #ifdef CONFIG_MVME147
-	    case MACH_MVME147:
+	case MACH_MVME147:
 		config_mvme147();
 		break;
 #endif
 #ifdef CONFIG_MVME16x
-	    case MACH_MVME16x:
+	case MACH_MVME16x:
 		config_mvme16x();
 		break;
 #endif
 #ifdef CONFIG_BVME6000
-	    case MACH_BVME6000:
+	case MACH_BVME6000:
 		config_bvme6000();
 		break;
 #endif
 #ifdef CONFIG_HP300
-	    case MACH_HP300:
+	case MACH_HP300:
 		config_hp300();
 		break;
 #endif
 #ifdef CONFIG_Q40
-	    case MACH_Q40:
-	        config_q40();
+	case MACH_Q40:
+		config_q40();
 		break;
 #endif
 #ifdef CONFIG_SUN3X
-	    case MACH_SUN3X:
+	case MACH_SUN3X:
 		config_sun3x();
 		break;
 #endif
-	    default:
-		panic ("No configuration setup");
+	default:
+		panic("No configuration setup");
 	}
 
 #ifndef CONFIG_SUN3
@@ -380,7 +346,7 @@ void __init setup_arch(char **cmdline_p)
 		reserve_bootmem(m68k_ramdisk.addr, m68k_ramdisk.size);
 		initrd_start = (unsigned long)phys_to_virt(m68k_ramdisk.addr);
 		initrd_end = initrd_start + m68k_ramdisk.size;
-		printk ("initrd: %08lx - %08lx\n", initrd_start, initrd_end);
+		printk("initrd: %08lx - %08lx\n", initrd_start, initrd_end);
 	}
 #endif
 
@@ -402,18 +368,18 @@ void __init setup_arch(char **cmdline_p)
 #if defined(CONFIG_ISA) && defined(MULTI_ISA)
 #if defined(CONFIG_Q40)
 	if (MACH_IS_Q40) {
-	    isa_type = Q40_ISA;
-	    isa_sex = 0;
+		isa_type = Q40_ISA;
+		isa_sex = 0;
 	}
 #elif defined(CONFIG_GG2)
-	if (MACH_IS_AMIGA && AMIGAHW_PRESENT(GG2_ISA)){
-	    isa_type = GG2_ISA;
-	    isa_sex = 0;
+	if (MACH_IS_AMIGA && AMIGAHW_PRESENT(GG2_ISA)) {
+		isa_type = GG2_ISA;
+		isa_sex = 0;
 	}
 #elif defined(CONFIG_AMIGA_PCMCIA)
-	if (MACH_IS_AMIGA && AMIGAHW_PRESENT(PCMCIA)){
-	    isa_type = AG_ISA;
-	    isa_sex = 1;
+	if (MACH_IS_AMIGA && AMIGAHW_PRESENT(PCMCIA)) {
+		isa_type = AG_ISA;
+		isa_sex = 1;
 	}
 #endif
 #endif
@@ -421,66 +387,66 @@ void __init setup_arch(char **cmdline_p)
 
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
-    const char *cpu, *mmu, *fpu;
-    unsigned long clockfreq, clockfactor;
+	const char *cpu, *mmu, *fpu;
+	unsigned long clockfreq, clockfactor;
 
 #define LOOP_CYCLES_68020	(8)
 #define LOOP_CYCLES_68030	(8)
 #define LOOP_CYCLES_68040	(3)
 #define LOOP_CYCLES_68060	(1)
 
-    if (CPU_IS_020) {
-	cpu = "68020";
-	clockfactor = LOOP_CYCLES_68020;
-    } else if (CPU_IS_030) {
-	cpu = "68030";
-	clockfactor = LOOP_CYCLES_68030;
-    } else if (CPU_IS_040) {
-	cpu = "68040";
-	clockfactor = LOOP_CYCLES_68040;
-    } else if (CPU_IS_060) {
-	cpu = "68060";
-	clockfactor = LOOP_CYCLES_68060;
-    } else {
-	cpu = "680x0";
-	clockfactor = 0;
-    }
+	if (CPU_IS_020) {
+		cpu = "68020";
+		clockfactor = LOOP_CYCLES_68020;
+	} else if (CPU_IS_030) {
+		cpu = "68030";
+		clockfactor = LOOP_CYCLES_68030;
+	} else if (CPU_IS_040) {
+		cpu = "68040";
+		clockfactor = LOOP_CYCLES_68040;
+	} else if (CPU_IS_060) {
+		cpu = "68060";
+		clockfactor = LOOP_CYCLES_68060;
+	} else {
+		cpu = "680x0";
+		clockfactor = 0;
+	}
 
 #ifdef CONFIG_M68KFPU_EMU_ONLY
-    fpu="none(soft float)";
+	fpu = "none(soft float)";
 #else
-    if (m68k_fputype & FPU_68881)
-	fpu = "68881";
-    else if (m68k_fputype & FPU_68882)
-	fpu = "68882";
-    else if (m68k_fputype & FPU_68040)
-	fpu = "68040";
-    else if (m68k_fputype & FPU_68060)
-	fpu = "68060";
-    else if (m68k_fputype & FPU_SUNFPA)
-	fpu = "Sun FPA";
-    else
-	fpu = "none";
+	if (m68k_fputype & FPU_68881)
+		fpu = "68881";
+	else if (m68k_fputype & FPU_68882)
+		fpu = "68882";
+	else if (m68k_fputype & FPU_68040)
+		fpu = "68040";
+	else if (m68k_fputype & FPU_68060)
+		fpu = "68060";
+	else if (m68k_fputype & FPU_SUNFPA)
+		fpu = "Sun FPA";
+	else
+		fpu = "none";
 #endif
 
-    if (m68k_mmutype & MMU_68851)
-	mmu = "68851";
-    else if (m68k_mmutype & MMU_68030)
-	mmu = "68030";
-    else if (m68k_mmutype & MMU_68040)
-	mmu = "68040";
-    else if (m68k_mmutype & MMU_68060)
-	mmu = "68060";
-    else if (m68k_mmutype & MMU_SUN3)
-	mmu = "Sun-3";
-    else if (m68k_mmutype & MMU_APOLLO)
-	mmu = "Apollo";
-    else
-	mmu = "unknown";
+	if (m68k_mmutype & MMU_68851)
+		mmu = "68851";
+	else if (m68k_mmutype & MMU_68030)
+		mmu = "68030";
+	else if (m68k_mmutype & MMU_68040)
+		mmu = "68040";
+	else if (m68k_mmutype & MMU_68060)
+		mmu = "68060";
+	else if (m68k_mmutype & MMU_SUN3)
+		mmu = "Sun-3";
+	else if (m68k_mmutype & MMU_APOLLO)
+		mmu = "Apollo";
+	else
+		mmu = "unknown";
 
-    clockfreq = loops_per_jiffy*HZ*clockfactor;
+	clockfreq = loops_per_jiffy * HZ * clockfactor;
 
-    seq_printf(m, "CPU:\t\t%s\n"
+	seq_printf(m, "CPU:\t\t%s\n"
 		   "MMU:\t\t%s\n"
 		   "FPU:\t\t%s\n"
 		   "Clocking:\t%lu.%1luMHz\n"
@@ -490,7 +456,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   clockfreq/1000000,(clockfreq/100000)%10,
 		   loops_per_jiffy/(500000/HZ),(loops_per_jiffy/(5000/HZ))%100,
 		   loops_per_jiffy);
-    return 0;
+	return 0;
 }
 
 static void *c_start(struct seq_file *m, loff_t *pos)
@@ -506,44 +472,54 @@ static void c_stop(struct seq_file *m, void *v)
 {
 }
 struct seq_operations cpuinfo_op = {
-	.start =	c_start,
-	.next =		c_next,
-	.stop =		c_stop,
-	.show =		show_cpuinfo,
+	.start	= c_start,
+	.next	= c_next,
+	.stop	= c_stop,
+	.show	= show_cpuinfo,
 };
 
 int get_hardware_list(char *buffer)
 {
-    int len = 0;
-    char model[80];
-    unsigned long mem;
-    int i;
+	int len = 0;
+	char model[80];
+	unsigned long mem;
+	int i;
 
-    if (mach_get_model)
-	mach_get_model(model);
-    else
-	strcpy(model, "Unknown m68k");
+	if (mach_get_model)
+		mach_get_model(model);
+	else
+		strcpy(model, "Unknown m68k");
 
-    len += sprintf(buffer+len, "Model:\t\t%s\n", model);
-    for (mem = 0, i = 0; i < m68k_num_memory; i++)
-	mem += m68k_memory[i].size;
-    len += sprintf(buffer+len, "System Memory:\t%ldK\n", mem>>10);
+	len += sprintf(buffer + len, "Model:\t\t%s\n", model);
+	for (mem = 0, i = 0; i < m68k_num_memory; i++)
+		mem += m68k_memory[i].size;
+	len += sprintf(buffer + len, "System Memory:\t%ldK\n", mem >> 10);
 
-    if (mach_get_hardware_list)
-	len += mach_get_hardware_list(buffer+len);
+	if (mach_get_hardware_list)
+		len += mach_get_hardware_list(buffer + len);
 
-    return(len);
+	return len;
 }
 
 void check_bugs(void)
 {
 #ifndef CONFIG_M68KFPU_EMU
 	if (m68k_fputype == 0) {
-		printk( KERN_EMERG "*** YOU DO NOT HAVE A FLOATING POINT UNIT, "
-				"WHICH IS REQUIRED BY LINUX/M68K ***\n" );
-		printk( KERN_EMERG "Upgrade your hardware or join the FPU "
-				"emulation project\n" );
-		panic( "no FPU" );
+		printk(KERN_EMERG "*** YOU DO NOT HAVE A FLOATING POINT UNIT, "
+			"WHICH IS REQUIRED BY LINUX/M68K ***\n");
+		printk(KERN_EMERG "Upgrade your hardware or join the FPU "
+			"emulation project\n");
+		panic("no FPU");
 	}
 #endif /* !CONFIG_M68KFPU_EMU */
 }
+
+#ifdef CONFIG_ADB
+static int __init adb_probe_sync_enable (char *str) {
+	extern int __adb_probe_sync;
+	__adb_probe_sync = 1;
+	return 1;
+}
+
+__setup("adb_sync", adb_probe_sync_enable);
+#endif /* CONFIG_ADB */

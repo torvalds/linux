@@ -100,7 +100,7 @@ MODULE_DEVICE_TABLE(usb, kbtab_ids);
 
 static int kbtab_open(struct input_dev *dev)
 {
-	struct kbtab *kbtab = dev->private;
+	struct kbtab *kbtab = input_get_drvdata(dev);
 
 	kbtab->irq->dev = kbtab->usbdev;
 	if (usb_submit_urb(kbtab->irq, GFP_KERNEL))
@@ -111,7 +111,7 @@ static int kbtab_open(struct input_dev *dev)
 
 static void kbtab_close(struct input_dev *dev)
 {
-	struct kbtab *kbtab = dev->private;
+	struct kbtab *kbtab = input_get_drvdata(dev);
 
 	usb_kill_urb(kbtab->irq);
 }
@@ -122,6 +122,7 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	struct usb_endpoint_descriptor *endpoint;
 	struct kbtab *kbtab;
 	struct input_dev *input_dev;
+	int error = -ENOMEM;
 
 	kbtab = kzalloc(sizeof(struct kbtab), GFP_KERNEL);
 	input_dev = input_allocate_device();
@@ -145,8 +146,9 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	input_dev->name = "KB Gear Tablet";
 	input_dev->phys = kbtab->phys;
 	usb_to_input_id(dev, &input_dev->id);
-	input_dev->cdev.dev = &intf->dev;
-	input_dev->private = kbtab;
+	input_dev->dev.parent = &intf->dev;
+
+	input_set_drvdata(input_dev, kbtab);
 
 	input_dev->open = kbtab_open;
 	input_dev->close = kbtab_close;
@@ -168,15 +170,19 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	kbtab->irq->transfer_dma = kbtab->data_dma;
 	kbtab->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	input_register_device(kbtab->dev);
+	error = input_register_device(kbtab->dev);
+	if (error)
+		goto fail3;
 
 	usb_set_intfdata(intf, kbtab);
+
 	return 0;
 
-fail2:	usb_buffer_free(dev, 10, kbtab->data, kbtab->data_dma);
-fail1:	input_free_device(input_dev);
+ fail3:	usb_free_urb(kbtab->irq);
+ fail2:	usb_buffer_free(dev, 10, kbtab->data, kbtab->data_dma);
+ fail1:	input_free_device(input_dev);
 	kfree(kbtab);
-	return -ENOMEM;
+	return error;
 }
 
 static void kbtab_disconnect(struct usb_interface *intf)

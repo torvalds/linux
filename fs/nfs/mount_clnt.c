@@ -133,13 +133,15 @@ xdr_decode_fhstatus3(struct rpc_rqst *req, __be32 *p, struct mnt_fhstatus *res)
 
 #define MNT_dirpath_sz		(1 + 256)
 #define MNT_fhstatus_sz		(1 + 8)
+#define MNT_fhstatus3_sz	(1 + 16)
 
 static struct rpc_procinfo	mnt_procedures[] = {
 [MNTPROC_MNT] = {
 	  .p_proc		= MNTPROC_MNT,
 	  .p_encode		= (kxdrproc_t) xdr_encode_dirpath,	
 	  .p_decode		= (kxdrproc_t) xdr_decode_fhstatus,
-	  .p_bufsiz		= MNT_dirpath_sz << 2,
+	  .p_arglen		= MNT_dirpath_sz,
+	  .p_replen		= MNT_fhstatus_sz,
 	  .p_statidx		= MNTPROC_MNT,
 	  .p_name		= "MOUNT",
 	},
@@ -150,7 +152,8 @@ static struct rpc_procinfo mnt3_procedures[] = {
 	  .p_proc		= MOUNTPROC3_MNT,
 	  .p_encode		= (kxdrproc_t) xdr_encode_dirpath,
 	  .p_decode		= (kxdrproc_t) xdr_decode_fhstatus3,
-	  .p_bufsiz		= MNT_dirpath_sz << 2,
+	  .p_arglen		= MNT_dirpath_sz,
+	  .p_replen		= MNT_fhstatus3_sz,
 	  .p_statidx		= MOUNTPROC3_MNT,
 	  .p_name		= "MOUNT",
 	},

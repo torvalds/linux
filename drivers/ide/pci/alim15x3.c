@@ -534,7 +534,7 @@ static int ali15x3_config_drive_for_dma(ide_drive_t *drive)
 	struct hd_driveid *id	= drive->id;
 
 	if ((m5229_revision<=0x20) && (drive->media!=ide_disk))
-		goto no_dma_set;
+		goto ata_pio;
 
 	drive->init_speed = 0;
 
@@ -555,20 +555,19 @@ try_dma_modes:
 			    (id->dma_1word & hwif->swdma_mask)) {
 				/* Force if Capable regular DMA modes */
 				if (!config_chipset_for_dma(drive))
-					goto no_dma_set;
+					goto ata_pio;
 			}
 		} else if (__ide_dma_good_drive(drive) &&
 			   (id->eide_dma_time < 150)) {
 			/* Consult the list of known "good" drives */
 			if (!config_chipset_for_dma(drive))
-				goto no_dma_set;
+				goto ata_pio;
 		} else {
 			goto ata_pio;
 		}
 	} else {
 ata_pio:
 		hwif->tuneproc(drive, 255);
-no_dma_set:
 		return -1;
 	}
 

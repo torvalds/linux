@@ -28,18 +28,18 @@ enum nubus_category {
 };
 
 enum nubus_type_network {
-	NUBUS_TYPE_ETHERNET 	 = 0x0001,
-	NUBUS_TYPE_RS232    	 = 0x0002
+	NUBUS_TYPE_ETHERNET      = 0x0001,
+	NUBUS_TYPE_RS232         = 0x0002
 };
 
 enum nubus_type_display {
-	NUBUS_TYPE_VIDEO 	 = 0x0001
+	NUBUS_TYPE_VIDEO         = 0x0001
 };
 
 enum nubus_type_cpu {
-	NUBUS_TYPE_68020 	 = 0x0003,
-	NUBUS_TYPE_68030 	 = 0x0004,
-	NUBUS_TYPE_68040 	 = 0x0005
+	NUBUS_TYPE_68020         = 0x0003,
+	NUBUS_TYPE_68030         = 0x0004,
+	NUBUS_TYPE_68040         = 0x0005
 };
 
 /* Known <Cat,Type,SW,HW> tuples: (according to TattleTech and Slots)
@@ -56,6 +56,7 @@ enum nubus_type_cpu {
  *
  *  SONIC comm-slot/on-board and DuoDock Ethernet: <4,1,1,272>
  *  SONIC LC-PDS Ethernet (Dayna, but like Apple 16-bit, sort of): <4,1,1,271>
+ *  Apple SONIC LC-PDS Ethernet ("Apple Ethernet LC Twisted-Pair Card"): <4,1,0,281>
  *  Sonic Systems Ethernet A-Series Card: <4,1,268,256>
  *  Asante MacCon NuBus-A: <4,1,260,256> (alpha-1.0,1.1 revision)
  *   ROM on the above card: <2,1,0,0>
@@ -80,24 +81,26 @@ enum nubus_type_cpu {
 /* Add known DrSW values here */
 enum nubus_drsw {
 	/* NUBUS_CAT_DISPLAY */
-	NUBUS_DRSW_APPLE       	= 0x0001,
-	NUBUS_DRSW_APPLE_HIRES 	= 0x0013, /* MacII HiRes card driver */
+	NUBUS_DRSW_APPLE        = 0x0001,
+	NUBUS_DRSW_APPLE_HIRES  = 0x0013, /* MacII HiRes card driver */
 	
 	/* NUBUS_CAT_NETWORK */
-	NUBUS_DRSW_CABLETRON   	= 0x0001,
-	NUBUS_DRSW_SONIC_LC    	= 0x0001,
-	NUBUS_DRSW_KINETICS    	= 0x0103,
-	NUBUS_DRSW_ASANTE      	= 0x0104,
-	NUBUS_DRSW_DAYNA       	= 0x010b,
-	NUBUS_DRSW_FARALLON    	= 0x010c,
-	NUBUS_DRSW_APPLE_SN    	= 0x010f,
-	NUBUS_DRSW_DAYNA2	= 0x0115,
+	NUBUS_DRSW_3COM         = 0x0000,
+	NUBUS_DRSW_CABLETRON    = 0x0001,
+	NUBUS_DRSW_SONIC_LC     = 0x0001,
+	NUBUS_DRSW_KINETICS     = 0x0103,
+	NUBUS_DRSW_ASANTE       = 0x0104,
+	NUBUS_DRSW_TECHWORKS    = 0x0109,
+	NUBUS_DRSW_DAYNA        = 0x010b,
+	NUBUS_DRSW_FARALLON     = 0x010c,
+	NUBUS_DRSW_APPLE_SN     = 0x010f,
+	NUBUS_DRSW_DAYNA2       = 0x0115,
 	NUBUS_DRSW_FOCUS        = 0x011a,
 	NUBUS_DRSW_ASANTE_CS    = 0x011d, /* use asante SMC9194 driver */
-	NUBUS_DRSW_DAYNA_LC	= 0x011e,
+	NUBUS_DRSW_DAYNA_LC     = 0x011e,
 
 	/* NUBUS_CAT_CPU */
-	NUBUS_DRSW_NONE        	= 0x0000,
+	NUBUS_DRSW_NONE         = 0x0000,
 };
 
 /* DrHW: Uniquely identifies the hardware interface to a board (or at
@@ -107,27 +110,48 @@ enum nubus_drsw {
 /* Add known DrHW values here */
 enum nubus_drhw {
 	/* NUBUS_CAT_DISPLAY */
-	NUBUS_DRHW_APPLE_TFB	= 0x0001, /* Toby frame buffer card */
-	NUBUS_DRHW_APPLE_HRVC	= 0x0013, /* Mac II High Res Video card */
-	NUBUS_DRHW_APPLE_RBV1   = 0x0018, /* IIci RBV video */
-	NUBUS_DRHW_APPLE_MDC    = 0x0019, /* Macintosh Display Card */
-	NUBUS_DRHW_APPLE_SONORA = 0x0022, /* Sonora built-in video */
-	NUBUS_DRHW_APPLE_JET 	= 0x0029, /* Jet framebuffer (DuoDock) */
+	NUBUS_DRHW_APPLE_TFB      = 0x0001, /* Toby frame buffer card */
+	NUBUS_DRHW_APPLE_WVC      = 0x0006, /* Apple Workstation Video Card */
+	NUBUS_DRHW_SIGMA_CLRMAX   = 0x0007, /* Sigma Design ColorMax */
+	NUBUS_DRHW_APPLE_SE30     = 0x0009, /* Apple SE/30 video */
+	NUBUS_DRHW_APPLE_HRVC     = 0x0013, /* Mac II High-Res Video Card */
+	NUBUS_DRHW_APPLE_PVC      = 0x0017, /* Mac II Portrait Video Card */
+	NUBUS_DRHW_APPLE_RBV1     = 0x0018, /* IIci RBV video */
+	NUBUS_DRHW_APPLE_MDC      = 0x0019, /* Macintosh Display Card */
+	NUBUS_DRHW_APPLE_SONORA   = 0x0022, /* Sonora built-in video */
+	NUBUS_DRHW_APPLE_24AC     = 0x002b, /* Mac 24AC Video Card */
 	NUBUS_DRHW_APPLE_VALKYRIE = 0x002e,
-	NUBUS_DRHW_THUNDER24	= 0x02cb, /* SuperMac Thunder/24 */
+	NUBUS_DRHW_APPLE_JET      = 0x0029, /* Jet framebuffer (DuoDock) */
+	NUBUS_DRHW_SMAC_GFX       = 0x0105, /* SuperMac GFX */
+	NUBUS_DRHW_RASTER_CB264   = 0x013B, /* RasterOps ColorBoard 264 */
+	NUBUS_DRHW_MICRON_XCEED   = 0x0146, /* Micron Exceed color */
+	NUBUS_DRHW_RDIUS_GSC      = 0x0153, /* Radius GS/C */
+	NUBUS_DRHW_SMAC_SPEC8     = 0x017B, /* SuperMac Spectrum/8 */
+	NUBUS_DRHW_SMAC_SPEC24    = 0x017C, /* SuperMac Spectrum/24 */
+	NUBUS_DRHW_RASTER_CB364   = 0x026F, /* RasterOps ColorBoard 364 */
+	NUBUS_DRHW_RDIUS_DCGX     = 0x027C, /* Radius DirectColor/GX */
+	NUBUS_DRHW_RDIUS_PC8      = 0x0291, /* Radius PrecisionColor 8 */
+	NUBUS_DRHW_LAPIS_PCS8     = 0x0292, /* Lapis ProColorServer 8 */
+	NUBUS_DRHW_RASTER_24LXI   = 0x02A0, /* RasterOps 8/24 XLi */
+	NUBUS_DRHW_RASTER_PBPGT   = 0x02A5, /* RasterOps PaintBoard Prism GT */
+	NUBUS_DRHW_EMACH_FSX      = 0x02AE, /* E-Machines Futura SX */
+	NUBUS_DRHW_SMAC_THUND24   = 0x02CB, /* SuperMac Thunder/24 */
+	NUBUS_DRHW_RDIUS_PC24XP   = 0x0406, /* Radius PrecisionColor 24Xp */
+	NUBUS_DRHW_RDIUS_PC24X    = 0x040A, /* Radius PrecisionColor 24X */
+	NUBUS_DRHW_RDIUS_PC8XJ    = 0x040B, /* Radius PrecisionColor 8XJ */
 	
 	/* NUBUS_CAT_NETWORK */
-	NUBUS_DRHW_INTERLAN     = 0x0100,
-	NUBUS_DRHW_SMC9194      = 0x0101,
-	NUBUS_DRHW_KINETICS     = 0x0106,
-	NUBUS_DRHW_CABLETRON    = 0x0109,
-	NUBUS_DRHW_ASANTE_LC    = 0x010f,
-	NUBUS_DRHW_SONIC        = 0x0110,
-	NUBUS_DRHW_SONIC_NB	= 0x0118,
-	NUBUS_DRHW_SONIC_LC	= 0x0119,
-	
-	/* NUBUS_CAT_COMMUNICATIONS */
-	NUBUS_DRHW_DOVEFAX	= 0x0100,
+	NUBUS_DRHW_INTERLAN       = 0x0100,
+	NUBUS_DRHW_SMC9194        = 0x0101,
+	NUBUS_DRHW_KINETICS       = 0x0106,
+	NUBUS_DRHW_CABLETRON      = 0x0109,
+	NUBUS_DRHW_ASANTE_LC      = 0x010f,
+	NUBUS_DRHW_SONIC          = 0x0110,
+	NUBUS_DRHW_TECHWORKS      = 0x0112,
+	NUBUS_DRHW_APPLE_SONIC_NB = 0x0118,
+	NUBUS_DRHW_APPLE_SONIC_LC = 0x0119,
+	NUBUS_DRHW_FOCUS          = 0x011c,
+	NUBUS_DRHW_SONNET         = 0x011d,
 };
 
 /* Resource IDs: These are the identifiers for the various weird and
@@ -153,17 +177,17 @@ enum nubus_res_id {
 
 /* Category-specific resources. */
 enum nubus_board_res_id {
-	NUBUS_RESID_BOARDID	 = 0x0020,
+	NUBUS_RESID_BOARDID      = 0x0020,
 	NUBUS_RESID_PRAMINITDATA = 0x0021,
-	NUBUS_RESID_PRIMARYINIT	 = 0x0022,
+	NUBUS_RESID_PRIMARYINIT  = 0x0022,
 	NUBUS_RESID_TIMEOUTCONST = 0x0023,
-	NUBUS_RESID_VENDORINFO	 = 0x0024,
-	NUBUS_RESID_BOARDFLAGS	 = 0x0025,
-	NUBUS_RESID_SECONDINIT	 = 0x0026,
+	NUBUS_RESID_VENDORINFO   = 0x0024,
+	NUBUS_RESID_BOARDFLAGS   = 0x0025,
+	NUBUS_RESID_SECONDINIT   = 0x0026,
 
 	/* Not sure why Apple put these next two in here */
-	NUBUS_RESID_VIDNAMES 	 = 0x0041,
-	NUBUS_RESID_VIDMODES 	 = 0x007e
+	NUBUS_RESID_VIDNAMES     = 0x0041,
+	NUBUS_RESID_VIDMODES     = 0x007e
 };
 
 /* Fields within the vendor info directory */
@@ -185,13 +209,13 @@ enum nubus_cpu_res_id {
 };
 
 enum nubus_display_res_id {
-	NUBUS_RESID_GAMMADIR	= 0x0040,
-	NUBUS_RESID_FIRSTMODE	= 0x0080,
-	NUBUS_RESID_SECONDMODE	= 0x0081,
-	NUBUS_RESID_THIRDMODE	= 0x0082,
-	NUBUS_RESID_FOURTHMODE	= 0x0083,
-	NUBUS_RESID_FIFTHMODE	= 0x0084,
-	NUBUS_RESID_SIXTHMODE	= 0x0085
+	NUBUS_RESID_GAMMADIR    = 0x0040,
+	NUBUS_RESID_FIRSTMODE   = 0x0080,
+	NUBUS_RESID_SECONDMODE  = 0x0081,
+	NUBUS_RESID_THIRDMODE   = 0x0082,
+	NUBUS_RESID_FOURTHMODE  = 0x0083,
+	NUBUS_RESID_FIFTHMODE   = 0x0084,
+	NUBUS_RESID_SIXTHMODE   = 0x0085
 };
 
 struct nubus_dir
@@ -214,7 +238,7 @@ struct nubus_board {
 	struct nubus_board* next;
 	struct nubus_dev* first_dev;
 	
-        /* Only 9-E actually exist, though 0-8 are also theoretically
+	/* Only 9-E actually exist, though 0-8 are also theoretically
 	   possible, and 0 is a special case which represents the
 	   motherboard and onboard peripherals (Ethernet, video) */
 	int slot;

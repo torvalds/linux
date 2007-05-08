@@ -37,7 +37,6 @@
  */
 
 #include <linux/io.h>
-#include <linux/pci.h>
 #include <asm/byteorder.h>
 
 #include "ipath_kernel.h"

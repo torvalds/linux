@@ -30,12 +30,12 @@
 	mov.l	er0,@-sp
 
 	stc	ccr,r0l				/* check kernel mode */
-	orc	#0x10,ccr
 	btst	#4,r0l
 	bne	5f
 
 	mov.l	sp,@SYMBOL_NAME(sw_usp)		/* user mode */
 	mov.l	@sp,er0
+	orc	#0x10,ccr
 	mov.l	@SYMBOL_NAME(sw_ksp),sp
 	sub.l	#(LRET-LORIG),sp		/* allocate LORIG - LRET */ 
 	mov.l	er0,@-sp
@@ -165,7 +165,7 @@ SYMBOL_NAME_LABEL(interrupt_entry)
 	dec.l	#1,er0
 	mov.l	sp,er1
 	subs	#4,er1				/* adjust ret_pc */
-	jsr	@SYMBOL_NAME(process_int)
+	jsr	@SYMBOL_NAME(do_IRQ)
 	mov.l	@SYMBOL_NAME(irq_stat)+CPUSTAT_SOFTIRQ_PENDING,er0
 	beq	1f
 	jsr	@SYMBOL_NAME(do_softirq)

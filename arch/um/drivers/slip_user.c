@@ -8,7 +8,6 @@
 #include <sys/termios.h>
 #include <sys/wait.h>
 #include <sys/signal.h>
-#include "user_util.h"
 #include "kern_util.h"
 #include "user.h"
 #include "net_user.h"
@@ -16,12 +15,14 @@
 #include "slip_common.h"
 #include "os.h"
 #include "um_malloc.h"
+#include "kern_constants.h"
 
-void slip_user_init(void *data, void *dev)
+static int slip_user_init(void *data, void *dev)
 {
 	struct slip_data *pri = data;
 
 	pri->dev = dev;
+	return 0;
 }
 
 static int set_up_tty(int fd)
@@ -89,7 +90,7 @@ static int slip_tramp(char **argv, int fd)
 		goto out_close;
 	pid = err;
 
-	output_len = page_size();
+	output_len = UM_KERN_PAGE_SIZE;
 	output = um_kmalloc(output_len);
 	if(output == NULL){
 		printk("slip_tramp : failed to allocate output buffer\n");

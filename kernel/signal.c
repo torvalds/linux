@@ -2636,9 +2636,5 @@ __attribute__((weak)) const char *arch_vma_name(struct vm_area_struct *vma)
 
 void __init signals_init(void)
 {
-	sigqueue_cachep =
-		kmem_cache_create("sigqueue",
-				  sizeof(struct sigqueue),
-				  __alignof__(struct sigqueue),
-				  SLAB_PANIC, NULL, NULL);
+	sigqueue_cachep = KMEM_CACHE(sigqueue, SLAB_PANIC);
 }

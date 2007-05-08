@@ -22,7 +22,6 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
-#include <linux/pci.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <asm/system.h>

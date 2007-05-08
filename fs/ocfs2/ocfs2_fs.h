@@ -166,6 +166,8 @@
  */
 #define OCFS2_IOC_GETFLAGS	_IOR('f', 1, long)
 #define OCFS2_IOC_SETFLAGS	_IOW('f', 2, long)
+#define OCFS2_IOC32_GETFLAGS	_IOR('f', 1, int)
+#define OCFS2_IOC32_SETFLAGS	_IOW('f', 2, int)
 
 /*
  * Journal Flags (ocfs2_dinode.id1.journal1.i_flags)

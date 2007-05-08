@@ -2,94 +2,13 @@
 #define __ASM_SH_IRQ_H
 
 #include <asm/machvec.h>
-#include <asm/ptrace.h>		/* for pt_regs */
 
-/* NR_IRQS is made from three components:
- *   1. ONCHIP_NR_IRQS - number of IRLS + on-chip peripherial modules
- *   2. PINT_NR_IRQS   - number of PINT interrupts
- *   3. OFFCHIP_NR_IRQS - numbe of IRQs from off-chip peripherial modules
+/*
+ * A sane default based on a reasonable vector table size, platforms are
+ * advised to cap this at the hard limit that they're interested in
+ * through the machvec.
  */
-
-/* 1. ONCHIP_NR_IRQS */
-#if defined(CONFIG_CPU_SUBTYPE_SH7604)
-# define ONCHIP_NR_IRQS 24	// Actually 21
-#elif defined(CONFIG_CPU_SUBTYPE_SH7707)
-# define ONCHIP_NR_IRQS 64
-# define PINT_NR_IRQS   16
-#elif defined(CONFIG_CPU_SUBTYPE_SH7708)
-# define ONCHIP_NR_IRQS 32
-#elif defined(CONFIG_CPU_SUBTYPE_SH7709) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7706) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7705)
-# define ONCHIP_NR_IRQS 64	// Actually 61
-# define PINT_NR_IRQS   16
-#elif defined(CONFIG_CPU_SUBTYPE_SH7710)
-# define ONCHIP_NR_IRQS 104
-#elif defined(CONFIG_CPU_SUBTYPE_SH7750)
-# define ONCHIP_NR_IRQS 48	// Actually 44
-#elif defined(CONFIG_CPU_SUBTYPE_SH7751)
-# define ONCHIP_NR_IRQS 72
-#elif defined(CONFIG_CPU_SUBTYPE_SH7760)
-# define ONCHIP_NR_IRQS 112	/* XXX */
-#elif defined(CONFIG_CPU_SUBTYPE_SH4_202)
-# define ONCHIP_NR_IRQS 72
-#elif defined(CONFIG_CPU_SUBTYPE_ST40STB1)
-# define ONCHIP_NR_IRQS 144
-#elif defined(CONFIG_CPU_SUBTYPE_SH7300) || \
-      defined(CONFIG_CPU_SUBTYPE_SH73180) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7343) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7722)
-# define ONCHIP_NR_IRQS 109
-#elif defined(CONFIG_CPU_SUBTYPE_SH7780)
-# define ONCHIP_NR_IRQS 111
-#elif defined(CONFIG_CPU_SUBTYPE_SH7206)
-# define ONCHIP_NR_IRQS 256
-#elif defined(CONFIG_CPU_SUBTYPE_SH7619)
-# define ONCHIP_NR_IRQS 128
-#elif defined(CONFIG_SH_UNKNOWN)	/* Most be last */
-# define ONCHIP_NR_IRQS 144
-#endif
-
-/* 2. PINT_NR_IRQS */
-#ifdef CONFIG_SH_UNKNOWN
-# define PINT_NR_IRQS 16
-#else
-# ifndef PINT_NR_IRQS
-#  define PINT_NR_IRQS 0
-# endif
-#endif
-
-#if PINT_NR_IRQS > 0
-# define PINT_IRQ_BASE  ONCHIP_NR_IRQS
-#endif
-
-/* 3. OFFCHIP_NR_IRQS */
-#if defined(CONFIG_HD64461)
-# define OFFCHIP_NR_IRQS 18
-#elif defined(CONFIG_HD64465)
-# define OFFCHIP_NR_IRQS 16
-#elif defined (CONFIG_SH_DREAMCAST)
-# define OFFCHIP_NR_IRQS 96
-#elif defined (CONFIG_SH_TITAN)
-# define OFFCHIP_NR_IRQS 4
-#elif defined(CONFIG_SH_R7780RP)
-# define OFFCHIP_NR_IRQS 16
-#elif defined(CONFIG_SH_7343_SOLUTION_ENGINE)
-# define OFFCHIP_NR_IRQS 12
-#elif defined(CONFIG_SH_7722_SOLUTION_ENGINE)
-# define OFFCHIP_NR_IRQS 14
-#elif defined(CONFIG_SH_UNKNOWN)
-# define OFFCHIP_NR_IRQS 16	/* Must also be last */
-#else
-# define OFFCHIP_NR_IRQS 0
-#endif
-
-#if OFFCHIP_NR_IRQS > 0
-# define OFFCHIP_IRQ_BASE (ONCHIP_NR_IRQS + PINT_NR_IRQS)
-#endif
-
-/* NR_IRQS. 1+2+3 */
-#define NR_IRQS (ONCHIP_NR_IRQS + PINT_NR_IRQS + OFFCHIP_NR_IRQS)
+#define NR_IRQS 256
 
 /*
  * Convert back and forth between INTEVT and IRQ values.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org) and 
+ * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org) and
  * James Leu (jleu@mindspring.net).
  * Copyright (C) 2001 by various other people who didn't put their name here.
  * Licensed under the GPL.
@@ -16,19 +16,20 @@
 #include <net/if.h>
 #include "user.h"
 #include "kern_util.h"
-#include "user_util.h"
 #include "net_user.h"
 #include "etap.h"
 #include "os.h"
 #include "um_malloc.h"
+#include "kern_constants.h"
 
 #define MAX_PACKET ETH_MAX_PACKET
 
-void etap_user_init(void *data, void *dev)
+static int etap_user_init(void *data, void *dev)
 {
 	struct ethertap_data *pri = data;
 
 	pri->dev = dev;
+	return 0;
 }
 
 struct addr_change {
@@ -47,13 +48,16 @@ static void etap_change(int op, unsigned char *addr, unsigned char *netmask,
 	change.what = op;
 	memcpy(change.addr, addr, sizeof(change.addr));
 	memcpy(change.netmask, netmask, sizeof(change.netmask));
-	n = os_write_file(fd, &change, sizeof(change));
-	if(n != sizeof(change))
-		printk("etap_change - request failed, err = %d\n", -n);
-	output = um_kmalloc(page_size());
+	CATCH_EINTR(n = write(fd, &change, sizeof(change)));
+	if(n != sizeof(change)){
+		printk("etap_change - request failed, err = %d\n", errno);
+		return;
+	}
+
+	output = um_kmalloc(UM_KERN_PAGE_SIZE);
 	if(output == NULL)
 		printk("etap_change : Failed to allocate output buffer\n");
-	read_output(fd, output, page_size());
+	read_output(fd, output, UM_KERN_PAGE_SIZE);
 	if(output != NULL){
 		printk("%s", output);
 		kfree(output);
@@ -115,13 +119,15 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 	pe_data.data_me = data_me;
 	pid = run_helper(etap_pre_exec, &pe_data, args, NULL);
 
-	if(pid < 0) err = pid;
+	if(pid < 0)
+		err = pid;
 	os_close_file(data_remote);
 	os_close_file(control_remote);
-	n = os_read_file(control_me, &c, sizeof(c));
+	CATCH_EINTR(n = read(control_me, &c, sizeof(c)));
 	if(n != sizeof(c)){
-		printk("etap_tramp : read of status failed, err = %d\n", -n);
-		return(-EINVAL);
+		err = -errno;
+		printk("etap_tramp : read of status failed, err = %d\n", -err);
+		return err;
 	}
 	if(c != 1){
 		printk("etap_tramp : uml_net failed\n");
@@ -132,7 +138,7 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 		else if(!WIFEXITED(status) || (WEXITSTATUS(status) != 1))
 			printk("uml_net didn't exit with status 1\n");
 	}
-	return(err);
+	return err;
 }
 
 static int etap_open(void *data)
@@ -142,23 +148,24 @@ static int etap_open(void *data)
 	int data_fds[2], control_fds[2], err, output_len;
 
 	err = tap_open_common(pri->dev, pri->gate_addr);
-	if(err) return(err);
+	if(err)
+		return err;
 
 	err = os_pipe(data_fds, 0, 0);
 	if(err < 0){
 		printk("data os_pipe failed - err = %d\n", -err);
-		return(err);
+		return err;
 	}
 
 	err = os_pipe(control_fds, 1, 0);
 	if(err < 0){
 		printk("control os_pipe failed - err = %d\n", -err);
-		return(err);
+		return err;
 	}
-	
+
 	err = etap_tramp(pri->dev_name, pri->gate_addr, control_fds[0], 
 			 control_fds[1], data_fds[0], data_fds[1]);
-	output_len = page_size();
+	output_len = UM_KERN_PAGE_SIZE;
 	output = um_kmalloc(output_len);
 	read_output(control_fds[0], output, output_len);
 
@@ -171,13 +178,13 @@ static int etap_open(void *data)
 
 	if(err < 0){
 		printk("etap_tramp failed - err = %d\n", -err);
-		return(err);
+		return err;
 	}
 
 	pri->data_fd = data_fds[0];
 	pri->control_fd = control_fds[0];
 	iter_addresses(pri->dev, etap_open_addr, &pri->control_fd);
-	return(data_fds[0]);
+	return data_fds[0];
 }
 
 static void etap_close(int fd, void *data)
@@ -195,7 +202,7 @@ static void etap_close(int fd, void *data)
 
 static int etap_set_mtu(int mtu, void *data)
 {
-	return(mtu);
+	return mtu;
 }
 
 static void etap_add_addr(unsigned char *addr, unsigned char *netmask,
@@ -204,7 +211,8 @@ static void etap_add_addr(unsigned char *addr, unsigned char *netmask,
 	struct ethertap_data *pri = data;
 
 	tap_check_ips(pri->gate_addr, addr);
-	if(pri->control_fd == -1) return;
+	if(pri->control_fd == -1)
+		return;
 	etap_open_addr(addr, netmask, &pri->control_fd);
 }
 
@@ -213,7 +221,8 @@ static void etap_del_addr(unsigned char *addr, unsigned char *netmask,
 {
 	struct ethertap_data *pri = data;
 
-	if(pri->control_fd == -1) return;
+	if(pri->control_fd == -1)
+		return;
 	etap_close_addr(addr, netmask, &pri->control_fd);
 }
 
@@ -227,14 +236,3 @@ const struct net_user_info ethertap_user_info = {
 	.delete_address = etap_del_addr,
 	.max_packet	= MAX_PACKET - ETH_HEADER_ETHERTAP
 };
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

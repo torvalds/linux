@@ -109,7 +109,8 @@ static int br_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 	struct net_device *dev;
 	int idx;
 
-	for (dev = dev_base, idx = 0; dev; dev = dev->next) {
+	idx = 0;
+	for_each_netdev(dev) {
 		/* not a bridge port */
 		if (dev->br_port == NULL || idx < cb->args[0])
 			goto skip;

@@ -394,7 +394,7 @@ resubmit:
 
 static int keyspan_open(struct input_dev *dev)
 {
-	struct usb_keyspan *remote = dev->private;
+	struct usb_keyspan *remote = input_get_drvdata(dev);
 
 	remote->irq_urb->dev = remote->udev;
 	if (usb_submit_urb(remote->irq_urb, GFP_KERNEL))
@@ -405,7 +405,7 @@ static int keyspan_open(struct input_dev *dev)
 
 static void keyspan_close(struct input_dev *dev)
 {
-	struct usb_keyspan *remote = dev->private;
+	struct usb_keyspan *remote = input_get_drvdata(dev);
 
 	usb_kill_urb(remote->irq_urb);
 }
@@ -437,7 +437,7 @@ static int keyspan_probe(struct usb_interface *interface, const struct usb_devic
 	struct usb_endpoint_descriptor *endpoint;
 	struct usb_keyspan *remote;
 	struct input_dev *input_dev;
-	int i, retval;
+	int i, error;
 
 	endpoint = keyspan_get_in_endpoint(interface->cur_altsetting);
 	if (!endpoint)
@@ -446,7 +446,7 @@ static int keyspan_probe(struct usb_interface *interface, const struct usb_devic
 	remote = kzalloc(sizeof(*remote), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!remote || !input_dev) {
-		retval = -ENOMEM;
+		error = -ENOMEM;
 		goto fail1;
 	}
 
@@ -458,19 +458,19 @@ static int keyspan_probe(struct usb_interface *interface, const struct usb_devic
 
 	remote->in_buffer = usb_buffer_alloc(udev, RECV_SIZE, GFP_ATOMIC, &remote->in_dma);
 	if (!remote->in_buffer) {
-		retval = -ENOMEM;
+		error = -ENOMEM;
 		goto fail1;
 	}
 
 	remote->irq_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!remote->irq_urb) {
-		retval = -ENOMEM;
+		error = -ENOMEM;
 		goto fail2;
 	}
 
-	retval = keyspan_setup(udev);
-	if (retval) {
-		retval = -ENODEV;
+	error = keyspan_setup(udev);
+	if (error) {
+		error = -ENODEV;
 		goto fail3;
 	}
 
@@ -495,14 +495,15 @@ static int keyspan_probe(struct usb_interface *interface, const struct usb_devic
 	input_dev->name = remote->name;
 	input_dev->phys = remote->phys;
 	usb_to_input_id(udev, &input_dev->id);
-	input_dev->cdev.dev = &interface->dev;
+	input_dev->dev.parent = &interface->dev;
 
 	input_dev->evbit[0] = BIT(EV_KEY);		/* We will only report KEY events. */
 	for (i = 0; i < ARRAY_SIZE(keyspan_key_table); i++)
 		if (keyspan_key_table[i] != KEY_RESERVED)
 			set_bit(keyspan_key_table[i], input_dev->keybit);
 
-	input_dev->private = remote;
+	input_set_drvdata(input_dev, remote);
+
 	input_dev->open = keyspan_open;
 	input_dev->close = keyspan_close;
 
@@ -517,7 +518,9 @@ static int keyspan_probe(struct usb_interface *interface, const struct usb_devic
 	remote->irq_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	/* we can register the device now, as it is ready */
-	input_register_device(remote->input);
+	error = input_register_device(remote->input);
+	if (error)
+		goto fail3;
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, remote);
@@ -529,7 +532,7 @@ static int keyspan_probe(struct usb_interface *interface, const struct usb_devic
  fail1:	kfree(remote);
 	input_free_device(input_dev);
 
-	return retval;
+	return error;
 }
 
 /*

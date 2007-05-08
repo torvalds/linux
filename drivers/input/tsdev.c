@@ -111,13 +111,13 @@ struct tsdev {
 	int minor;
 	char name[8];
 	wait_queue_head_t wait;
-	struct list_head list;
+	struct list_head client_list;
 	struct input_handle handle;
 	int x, y, pressure;
 	struct ts_calibration cal;
 };
 
-struct tsdev_list {
+struct tsdev_client {
 	struct fasync_struct *fasync;
 	struct list_head node;
 	struct tsdev *tsdev;
@@ -139,38 +139,49 @@ static struct tsdev *tsdev_table[TSDEV_MINORS/2];
 
 static int tsdev_fasync(int fd, struct file *file, int on)
 {
-	struct tsdev_list *list = file->private_data;
+	struct tsdev_client *client = file->private_data;
 	int retval;
 
-	retval = fasync_helper(fd, file, on, &list->fasync);
+	retval = fasync_helper(fd, file, on, &client->fasync);
 	return retval < 0 ? retval : 0;
 }
 
 static int tsdev_open(struct inode *inode, struct file *file)
 {
 	int i = iminor(inode) - TSDEV_MINOR_BASE;
-	struct tsdev_list *list;
+	struct tsdev_client *client;
+	struct tsdev *tsdev;
+	int error;
 
 	printk(KERN_WARNING "tsdev (compaq touchscreen emulation) is scheduled "
 		"for removal.\nSee Documentation/feature-removal-schedule.txt "
 		"for details.\n");
 
-	if (i >= TSDEV_MINORS || !tsdev_table[i & TSDEV_MINOR_MASK])
+	if (i >= TSDEV_MINORS)
 		return -ENODEV;
 
-	if (!(list = kzalloc(sizeof(struct tsdev_list), GFP_KERNEL)))
+	tsdev = tsdev_table[i & TSDEV_MINOR_MASK];
+	if (!tsdev || !tsdev->exist)
+		return -ENODEV;
+
+	client = kzalloc(sizeof(struct tsdev_client), GFP_KERNEL);
+	if (!client)
 		return -ENOMEM;
 
-	list->raw = (i >= TSDEV_MINORS/2) ? 1 : 0;
+	client->tsdev = tsdev;
+	client->raw = (i >= TSDEV_MINORS / 2) ? 1 : 0;
+	list_add_tail(&client->node, &tsdev->client_list);
 
-	i &= TSDEV_MINOR_MASK;
-	list->tsdev = tsdev_table[i];
-	list_add_tail(&list->node, &tsdev_table[i]->list);
-	file->private_data = list;
+	if (!tsdev->open++ && tsdev->exist) {
+		error = input_open_device(&tsdev->handle);
+		if (error) {
+			list_del(&client->node);
+			kfree(client);
+			return error;
+		}
+	}
 
-	if (!list->tsdev->open++)
-		if (list->tsdev->exist)
-			input_open_device(&list->tsdev->handle);
+	file->private_data = client;
 	return 0;
 }
 
@@ -182,45 +193,48 @@ static void tsdev_free(struct tsdev *tsdev)
 
 static int tsdev_release(struct inode *inode, struct file *file)
 {
-	struct tsdev_list *list = file->private_data;
+	struct tsdev_client *client = file->private_data;
+	struct tsdev *tsdev = client->tsdev;
 
 	tsdev_fasync(-1, file, 0);
-	list_del(&list->node);
 
-	if (!--list->tsdev->open) {
-		if (list->tsdev->exist)
-			input_close_device(&list->tsdev->handle);
+	list_del(&client->node);
+	kfree(client);
+
+	if (!--tsdev->open) {
+		if (tsdev->exist)
+			input_close_device(&tsdev->handle);
 		else
-			tsdev_free(list->tsdev);
+			tsdev_free(tsdev);
 	}
-	kfree(list);
+
 	return 0;
 }
 
 static ssize_t tsdev_read(struct file *file, char __user *buffer, size_t count,
-			  loff_t * ppos)
+			  loff_t *ppos)
 {
-	struct tsdev_list *list = file->private_data;
+	struct tsdev_client *client = file->private_data;
+	struct tsdev *tsdev = client->tsdev;
 	int retval = 0;
 
-	if (list->head == list->tail && list->tsdev->exist && (file->f_flags & O_NONBLOCK))
+	if (client->head == client->tail && tsdev->exist && (file->f_flags & O_NONBLOCK))
 		return -EAGAIN;
 
-	retval = wait_event_interruptible(list->tsdev->wait,
-			list->head != list->tail || !list->tsdev->exist);
-
+	retval = wait_event_interruptible(tsdev->wait,
+			client->head != client->tail || !tsdev->exist);
 	if (retval)
 		return retval;
 
-	if (!list->tsdev->exist)
+	if (!tsdev->exist)
 		return -ENODEV;
 
-	while (list->head != list->tail &&
+	while (client->head != client->tail &&
 	       retval + sizeof (struct ts_event) <= count) {
-		if (copy_to_user (buffer + retval, list->event + list->tail,
+		if (copy_to_user (buffer + retval, client->event + client->tail,
 				  sizeof (struct ts_event)))
 			return -EFAULT;
-		list->tail = (list->tail + 1) & (TSDEV_BUFFER_SIZE - 1);
+		client->tail = (client->tail + 1) & (TSDEV_BUFFER_SIZE - 1);
 		retval += sizeof (struct ts_event);
 	}
 
@@ -228,32 +242,33 @@ static ssize_t tsdev_read(struct file *file, char __user *buffer, size_t count,
 }
 
 /* No kernel lock - fine */
-static unsigned int tsdev_poll(struct file *file, poll_table * wait)
+static unsigned int tsdev_poll(struct file *file, poll_table *wait)
 {
-	struct tsdev_list *list = file->private_data;
+	struct tsdev_client *client = file->private_data;
+	struct tsdev *tsdev = client->tsdev;
 
-	poll_wait(file, &list->tsdev->wait, wait);
-	return ((list->head == list->tail) ? 0 : (POLLIN | POLLRDNORM)) |
-		(list->tsdev->exist ? 0 : (POLLHUP | POLLERR));
+	poll_wait(file, &tsdev->wait, wait);
+	return ((client->head == client->tail) ? 0 : (POLLIN | POLLRDNORM)) |
+		(tsdev->exist ? 0 : (POLLHUP | POLLERR));
 }
 
 static int tsdev_ioctl(struct inode *inode, struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
-	struct tsdev_list *list = file->private_data;
-	struct tsdev *tsdev = list->tsdev;
+	struct tsdev_client *client = file->private_data;
+	struct tsdev *tsdev = client->tsdev;
 	int retval = 0;
 
 	switch (cmd) {
 	case TS_GET_CAL:
-		if (copy_to_user ((void __user *)arg, &tsdev->cal,
-				  sizeof (struct ts_calibration)))
+		if (copy_to_user((void __user *)arg, &tsdev->cal,
+				 sizeof (struct ts_calibration)))
 			retval = -EFAULT;
 		break;
 
 	case TS_SET_CAL:
-		if (copy_from_user (&tsdev->cal, (void __user *)arg,
-				    sizeof (struct ts_calibration)))
+		if (copy_from_user(&tsdev->cal, (void __user *)arg,
+				   sizeof (struct ts_calibration)))
 			retval = -EFAULT;
 		break;
 
@@ -279,7 +294,7 @@ static void tsdev_event(struct input_handle *handle, unsigned int type,
 			unsigned int code, int value)
 {
 	struct tsdev *tsdev = handle->private;
-	struct tsdev_list *list;
+	struct tsdev_client *client;
 	struct timeval time;
 
 	switch (type) {
@@ -343,18 +358,18 @@ static void tsdev_event(struct input_handle *handle, unsigned int type,
 	if (type != EV_SYN || code != SYN_REPORT)
 		return;
 
-	list_for_each_entry(list, &tsdev->list, node) {
+	list_for_each_entry(client, &tsdev->client_list, node) {
 		int x, y, tmp;
 
 		do_gettimeofday(&time);
-		list->event[list->head].millisecs = time.tv_usec / 100;
-		list->event[list->head].pressure = tsdev->pressure;
+		client->event[client->head].millisecs = time.tv_usec / 100;
+		client->event[client->head].pressure = tsdev->pressure;
 
 		x = tsdev->x;
 		y = tsdev->y;
 
 		/* Calibration */
-		if (!list->raw) {
+		if (!client->raw) {
 			x = ((x * tsdev->cal.xscale) >> 8) + tsdev->cal.xtrans;
 			y = ((y * tsdev->cal.yscale) >> 8) + tsdev->cal.ytrans;
 			if (tsdev->cal.xyswap) {
@@ -362,33 +377,35 @@ static void tsdev_event(struct input_handle *handle, unsigned int type,
 			}
 		}
 
-		list->event[list->head].x = x;
-		list->event[list->head].y = y;
-		list->head = (list->head + 1) & (TSDEV_BUFFER_SIZE - 1);
-		kill_fasync(&list->fasync, SIGIO, POLL_IN);
+		client->event[client->head].x = x;
+		client->event[client->head].y = y;
+		client->head = (client->head + 1) & (TSDEV_BUFFER_SIZE - 1);
+		kill_fasync(&client->fasync, SIGIO, POLL_IN);
 	}
 	wake_up_interruptible(&tsdev->wait);
 }
 
-static struct input_handle *tsdev_connect(struct input_handler *handler,
-					  struct input_dev *dev,
-					  const struct input_device_id *id)
+static int tsdev_connect(struct input_handler *handler, struct input_dev *dev,
+			 const struct input_device_id *id)
 {
 	struct tsdev *tsdev;
 	struct class_device *cdev;
+	dev_t devt;
 	int minor, delta;
+	int error;
 
 	for (minor = 0; minor < TSDEV_MINORS / 2 && tsdev_table[minor]; minor++);
 	if (minor >= TSDEV_MINORS / 2) {
 		printk(KERN_ERR
 		       "tsdev: You have way too many touchscreens\n");
-		return NULL;
+		return -ENFILE;
 	}
 
-	if (!(tsdev = kzalloc(sizeof(struct tsdev), GFP_KERNEL)))
-		return NULL;
+	tsdev = kzalloc(sizeof(struct tsdev), GFP_KERNEL);
+	if (!tsdev)
+		return -ENOMEM;
 
-	INIT_LIST_HEAD(&tsdev->list);
+	INIT_LIST_HEAD(&tsdev->client_list);
 	init_waitqueue_head(&tsdev->wait);
 
 	sprintf(tsdev->name, "ts%d", minor);
@@ -415,23 +432,45 @@ static struct input_handle *tsdev_connect(struct input_handler *handler,
 
 	tsdev_table[minor] = tsdev;
 
-	cdev = class_device_create(&input_class, &dev->cdev,
-			MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + minor),
-			dev->cdev.dev, tsdev->name);
+	devt = MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + minor),
+
+	cdev = class_device_create(&input_class, &dev->cdev, devt,
+				   dev->cdev.dev, tsdev->name);
+	if (IS_ERR(cdev)) {
+		error = PTR_ERR(cdev);
+		goto err_free_tsdev;
+	}
 
 	/* temporary symlink to keep userspace happy */
-	sysfs_create_link(&input_class.subsys.kset.kobj, &cdev->kobj,
-			  tsdev->name);
+	error = sysfs_create_link(&input_class.subsys.kobj,
+				  &cdev->kobj, tsdev->name);
+	if (error)
+		goto err_cdev_destroy;
 
-	return &tsdev->handle;
+	error = input_register_handle(&tsdev->handle);
+	if (error)
+		goto err_remove_link;
+
+	return 0;
+
+ err_remove_link:
+	sysfs_remove_link(&input_class.subsys.kobj, tsdev->name);
+ err_cdev_destroy:
+	class_device_destroy(&input_class, devt);
+ err_free_tsdev:
+	tsdev_table[minor] = NULL;
+	kfree(tsdev);
+	return error;
 }
 
 static void tsdev_disconnect(struct input_handle *handle)
 {
 	struct tsdev *tsdev = handle->private;
-	struct tsdev_list *list;
+	struct tsdev_client *client;
 
-	sysfs_remove_link(&input_class.subsys.kset.kobj, tsdev->name);
+	input_unregister_handle(handle);
+
+	sysfs_remove_link(&input_class.subsys.kobj, tsdev->name);
 	class_device_destroy(&input_class,
 			MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + tsdev->minor));
 	tsdev->exist = 0;
@@ -439,8 +478,8 @@ static void tsdev_disconnect(struct input_handle *handle)
 	if (tsdev->open) {
 		input_close_device(handle);
 		wake_up_interruptible(&tsdev->wait);
-		list_for_each_entry(list, &tsdev->list, node)
-			kill_fasync(&list->fasync, SIGIO, POLL_HUP);
+		list_for_each_entry(client, &tsdev->client_list, node)
+			kill_fasync(&client->fasync, SIGIO, POLL_HUP);
 	} else
 		tsdev_free(tsdev);
 }

@@ -520,17 +520,17 @@ static struct pdcspath_entry *pdcspath_entries[] = {
 
 /**
  * pdcs_size_read - Stable Storage size output.
- * @entry: An allocated and populated subsytem struct. We don't use it tho.
+ * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  */
 static ssize_t
-pdcs_size_read(struct subsystem *entry, char *buf)
+pdcs_size_read(struct kset *kset, char *buf)
 {
 	char *out = buf;
-	
-	if (!entry || !buf)
+
+	if (!kset || !buf)
 		return -EINVAL;
-		
+
 	/* show the size of the stable storage */
 	out += sprintf(out, "%ld\n", pdcs_size);
 
@@ -539,17 +539,17 @@ pdcs_size_read(struct subsystem *entry, char *buf)
 
 /**
  * pdcs_auto_read - Stable Storage autoboot/search flag output.
- * @entry: An allocated and populated subsytem struct. We don't use it tho.
+ * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  * @knob: The PF_AUTOBOOT or PF_AUTOSEARCH flag
  */
 static ssize_t
-pdcs_auto_read(struct subsystem *entry, char *buf, int knob)
+pdcs_auto_read(struct kset *kset, char *buf, int knob)
 {
 	char *out = buf;
 	struct pdcspath_entry *pathentry;
 
-	if (!entry || !buf)
+	if (!kset || !buf)
 		return -EINVAL;
 
 	/* Current flags are stored in primary boot path entry */
@@ -565,40 +565,40 @@ pdcs_auto_read(struct subsystem *entry, char *buf, int knob)
 
 /**
  * pdcs_autoboot_read - Stable Storage autoboot flag output.
- * @entry: An allocated and populated subsytem struct. We don't use it tho.
+ * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  */
 static inline ssize_t
-pdcs_autoboot_read(struct subsystem *entry, char *buf)
+pdcs_autoboot_read(struct kset *kset, char *buf)
 {
-	return pdcs_auto_read(entry, buf, PF_AUTOBOOT);
+	return pdcs_auto_read(kset, buf, PF_AUTOBOOT);
 }
 
 /**
  * pdcs_autosearch_read - Stable Storage autoboot flag output.
- * @entry: An allocated and populated subsytem struct. We don't use it tho.
+ * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  */
 static inline ssize_t
-pdcs_autosearch_read(struct subsystem *entry, char *buf)
+pdcs_autosearch_read(struct kset *kset, char *buf)
 {
-	return pdcs_auto_read(entry, buf, PF_AUTOSEARCH);
+	return pdcs_auto_read(kset, buf, PF_AUTOSEARCH);
 }
 
 /**
  * pdcs_timer_read - Stable Storage timer count output (in seconds).
- * @entry: An allocated and populated subsytem struct. We don't use it tho.
+ * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  *
  * The value of the timer field correponds to a number of seconds in powers of 2.
  */
 static ssize_t
-pdcs_timer_read(struct subsystem *entry, char *buf)
+pdcs_timer_read(struct kset *kset, char *buf)
 {
 	char *out = buf;
 	struct pdcspath_entry *pathentry;
 
-	if (!entry || !buf)
+	if (!kset || !buf)
 		return -EINVAL;
 
 	/* Current flags are stored in primary boot path entry */
@@ -615,15 +615,15 @@ pdcs_timer_read(struct subsystem *entry, char *buf)
 
 /**
  * pdcs_osid_read - Stable Storage OS ID register output.
- * @entry: An allocated and populated subsytem struct. We don't use it tho.
+ * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  */
 static ssize_t
-pdcs_osid_read(struct subsystem *entry, char *buf)
+pdcs_osid_read(struct kset *kset, char *buf)
 {
 	char *out = buf;
 
-	if (!entry || !buf)
+	if (!kset || !buf)
 		return -EINVAL;
 
 	out += sprintf(out, "%s dependent data (0x%.4x)\n",
@@ -634,18 +634,18 @@ pdcs_osid_read(struct subsystem *entry, char *buf)
 
 /**
  * pdcs_osdep1_read - Stable Storage OS-Dependent data area 1 output.
- * @entry: An allocated and populated subsytem struct. We don't use it tho.
+ * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  *
  * This can hold 16 bytes of OS-Dependent data.
  */
 static ssize_t
-pdcs_osdep1_read(struct subsystem *entry, char *buf)
+pdcs_osdep1_read(struct kset *kset, char *buf)
 {
 	char *out = buf;
 	u32 result[4];
 
-	if (!entry || !buf)
+	if (!kset || !buf)
 		return -EINVAL;
 
 	if (pdc_stable_read(PDCS_ADDR_OSD1, &result, sizeof(result)) != PDC_OK)
@@ -661,18 +661,18 @@ pdcs_osdep1_read(struct subsystem *entry, char *buf)
 
 /**
  * pdcs_diagnostic_read - Stable Storage Diagnostic register output.
- * @entry: An allocated and populated subsytem struct. We don't use it tho.
+ * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  *
  * I have NFC how to interpret the content of that register ;-).
  */
 static ssize_t
-pdcs_diagnostic_read(struct subsystem *entry, char *buf)
+pdcs_diagnostic_read(struct kset *kset, char *buf)
 {
 	char *out = buf;
 	u32 result;
 
-	if (!entry || !buf)
+	if (!kset || !buf)
 		return -EINVAL;
 
 	/* get diagnostic */
@@ -686,18 +686,18 @@ pdcs_diagnostic_read(struct subsystem *entry, char *buf)
 
 /**
  * pdcs_fastsize_read - Stable Storage FastSize register output.
- * @entry: An allocated and populated subsytem struct. We don't use it tho.
+ * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  *
  * This register holds the amount of system RAM to be tested during boot sequence.
  */
 static ssize_t
-pdcs_fastsize_read(struct subsystem *entry, char *buf)
+pdcs_fastsize_read(struct kset *kset, char *buf)
 {
 	char *out = buf;
 	u32 result;
 
-	if (!entry || !buf)
+	if (!kset || !buf)
 		return -EINVAL;
 
 	/* get fast-size */
@@ -715,13 +715,13 @@ pdcs_fastsize_read(struct subsystem *entry, char *buf)
 
 /**
  * pdcs_osdep2_read - Stable Storage OS-Dependent data area 2 output.
- * @entry: An allocated and populated subsytem struct. We don't use it tho.
+ * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  *
  * This can hold pdcs_size - 224 bytes of OS-Dependent data, when available.
  */
 static ssize_t
-pdcs_osdep2_read(struct subsystem *entry, char *buf)
+pdcs_osdep2_read(struct kset *kset, char *buf)
 {
 	char *out = buf;
 	unsigned long size;
@@ -733,7 +733,7 @@ pdcs_osdep2_read(struct subsystem *entry, char *buf)
 
 	size = pdcs_size - 224;
 
-	if (!entry || !buf)
+	if (!kset || !buf)
 		return -EINVAL;
 
 	for (i=0; i<size; i+=4) {
@@ -748,7 +748,7 @@ pdcs_osdep2_read(struct subsystem *entry, char *buf)
 
 /**
  * pdcs_auto_write - This function handles autoboot/search flag modifying.
- * @entry: An allocated and populated subsytem struct. We don't use it tho.
+ * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The input buffer to read from.
  * @count: The number of bytes to be read.
  * @knob: The PF_AUTOBOOT or PF_AUTOSEARCH flag
@@ -758,7 +758,7 @@ pdcs_osdep2_read(struct subsystem *entry, char *buf)
  *	\"n\" (n == 0 or 1) to toggle AutoBoot Off or On
  */
 static ssize_t
-pdcs_auto_write(struct subsystem *entry, const char *buf, size_t count, int knob)
+pdcs_auto_write(struct kset *kset, const char *buf, size_t count, int knob)
 {
 	struct pdcspath_entry *pathentry;
 	unsigned char flags;
@@ -768,7 +768,7 @@ pdcs_auto_write(struct subsystem *entry, const char *buf, size_t count, int knob
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	if (!entry || !buf || !count)
+	if (!kset || !buf || !count)
 		return -EINVAL;
 
 	/* We'll use a local copy of buf */
@@ -823,7 +823,7 @@ parse_error:
 
 /**
  * pdcs_autoboot_write - This function handles autoboot flag modifying.
- * @entry: An allocated and populated subsytem struct. We don't use it tho.
+ * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The input buffer to read from.
  * @count: The number of bytes to be read.
  *
@@ -832,14 +832,14 @@ parse_error:
  *	\"n\" (n == 0 or 1) to toggle AutoSearch Off or On
  */
 static inline ssize_t
-pdcs_autoboot_write(struct subsystem *entry, const char *buf, size_t count)
+pdcs_autoboot_write(struct kset *kset, const char *buf, size_t count)
 {
-	return pdcs_auto_write(entry, buf, count, PF_AUTOBOOT);
+	return pdcs_auto_write(kset, buf, count, PF_AUTOBOOT);
 }
 
 /**
  * pdcs_autosearch_write - This function handles autosearch flag modifying.
- * @entry: An allocated and populated subsytem struct. We don't use it tho.
+ * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The input buffer to read from.
  * @count: The number of bytes to be read.
  *
@@ -848,14 +848,14 @@ pdcs_autoboot_write(struct subsystem *entry, const char *buf, size_t count)
  *	\"n\" (n == 0 or 1) to toggle AutoSearch Off or On
  */
 static inline ssize_t
-pdcs_autosearch_write(struct subsystem *entry, const char *buf, size_t count)
+pdcs_autosearch_write(struct kset *kset, const char *buf, size_t count)
 {
-	return pdcs_auto_write(entry, buf, count, PF_AUTOSEARCH);
+	return pdcs_auto_write(kset, buf, count, PF_AUTOSEARCH);
 }
 
 /**
  * pdcs_osdep1_write - Stable Storage OS-Dependent data area 1 input.
- * @entry: An allocated and populated subsytem struct. We don't use it tho.
+ * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The input buffer to read from.
  * @count: The number of bytes to be read.
  *
@@ -864,14 +864,14 @@ pdcs_autosearch_write(struct subsystem *entry, const char *buf, size_t count)
  * its input buffer.
  */
 static ssize_t
-pdcs_osdep1_write(struct subsystem *entry, const char *buf, size_t count)
+pdcs_osdep1_write(struct kset *kset, const char *buf, size_t count)
 {
 	u8 in[16];
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	if (!entry || !buf || !count)
+	if (!kset || !buf || !count)
 		return -EINVAL;
 
 	if (unlikely(pdcs_osid != OS_ID_LINUX))
@@ -892,7 +892,7 @@ pdcs_osdep1_write(struct subsystem *entry, const char *buf, size_t count)
 
 /**
  * pdcs_osdep2_write - Stable Storage OS-Dependent data area 2 input.
- * @entry: An allocated and populated subsytem struct. We don't use it tho.
+ * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The input buffer to read from.
  * @count: The number of bytes to be read.
  *
@@ -901,7 +901,7 @@ pdcs_osdep1_write(struct subsystem *entry, const char *buf, size_t count)
  * constructing its input buffer.
  */
 static ssize_t
-pdcs_osdep2_write(struct subsystem *entry, const char *buf, size_t count)
+pdcs_osdep2_write(struct kset *kset, const char *buf, size_t count)
 {
 	unsigned long size;
 	unsigned short i;
@@ -910,7 +910,7 @@ pdcs_osdep2_write(struct subsystem *entry, const char *buf, size_t count)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	if (!entry || !buf || !count)
+	if (!kset || !buf || !count)
 		return -EINVAL;
 
 	if (unlikely(pdcs_size <= 224))

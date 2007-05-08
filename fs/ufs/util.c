@@ -251,13 +251,11 @@ struct page *ufs_get_locked_page(struct address_space *mapping,
 
 	page = find_lock_page(mapping, index);
 	if (!page) {
-		page = read_cache_page(mapping, index,
-				       (filler_t*)mapping->a_ops->readpage,
-				       NULL);
+		page = read_mapping_page(mapping, index, NULL);
 
 		if (IS_ERR(page)) {
 			printk(KERN_ERR "ufs_change_blocknr: "
-			       "read_cache_page error: ino %lu, index: %lu\n",
+			       "read_mapping_page error: ino %lu, index: %lu\n",
 			       mapping->host->i_ino, index);
 			goto out;
 		}

@@ -57,7 +57,8 @@ static drm_map_list_t *drm_find_matching_map(drm_device_t *dev,
 	list_for_each(list, &dev->maplist->head) {
 		drm_map_list_t *entry = list_entry(list, drm_map_list_t, head);
 		if (entry->map && map->type == entry->map->type &&
-		    entry->map->offset == map->offset) {
+		    ((entry->map->offset == map->offset) ||
+		     (map->type == _DRM_SHM && map->flags==_DRM_CONTAINS_LOCK))) {
 			return entry;
 		}
 	}
@@ -180,8 +181,20 @@ static int drm_addmap_core(drm_device_t * dev, unsigned int offset,
 		if (map->type == _DRM_REGISTERS)
 			map->handle = ioremap(map->offset, map->size);
 		break;
-
 	case _DRM_SHM:
+		list = drm_find_matching_map(dev, map);
+		if (list != NULL) {
+			if(list->map->size != map->size) {
+				DRM_DEBUG("Matching maps of type %d with "
+					  "mismatched sizes, (%ld vs %ld)\n",
+					  map->type, map->size, list->map->size);
+				list->map->size = map->size;
+			}
+
+			drm_free(map, sizeof(*map), DRM_MEM_MAPS);
+			*maplist = list;
+			return 0;
+		}
 		map->handle = vmalloc_user(map->size);
 		DRM_DEBUG("%lu %d %p\n",
 			  map->size, drm_order(map->size), map->handle);
@@ -200,15 +213,45 @@ static int drm_addmap_core(drm_device_t * dev, unsigned int offset,
 			dev->sigdata.lock = dev->lock.hw_lock = map->handle;	/* Pointer to lock */
 		}
 		break;
-	case _DRM_AGP:
-		if (drm_core_has_AGP(dev)) {
-#ifdef __alpha__
-			map->offset += dev->hose->mem_space->start;
-#endif
-			map->offset += dev->agp->base;
-			map->mtrr = dev->agp->agp_mtrr;	/* for getmap */
+	case _DRM_AGP: {
+		drm_agp_mem_t *entry;
+		int valid = 0;
+
+		if (!drm_core_has_AGP(dev)) {
+			drm_free(map, sizeof(*map), DRM_MEM_MAPS);
+			return -EINVAL;
 		}
+#ifdef __alpha__
+		map->offset += dev->hose->mem_space->start;
+#endif
+		/* Note: dev->agp->base may actually be 0 when the DRM
+		 * is not in control of AGP space. But if user space is
+		 * it should already have added the AGP base itself.
+		 */
+		map->offset += dev->agp->base;
+		map->mtrr = dev->agp->agp_mtrr;	/* for getmap */
+
+		/* This assumes the DRM is in total control of AGP space.
+		 * It's not always the case as AGP can be in the control
+		 * of user space (i.e. i810 driver). So this loop will get
+		 * skipped and we double check that dev->agp->memory is
+		 * actually set as well as being invalid before EPERM'ing
+		 */
+		for (entry = dev->agp->memory; entry; entry = entry->next) {
+			if ((map->offset >= entry->bound) &&
+			    (map->offset + map->size <= entry->bound + entry->pages * PAGE_SIZE)) {
+				valid = 1;
+				break;
+			}
+		}
+		if (dev->agp->memory && !valid) {
+			drm_free(map, sizeof(*map), DRM_MEM_MAPS);
+			return -EPERM;
+		}
+		DRM_DEBUG("AGP offset = 0x%08lx, size = 0x%08lx\n", map->offset, map->size);
+
 		break;
+	}
 	case _DRM_SCATTER_GATHER:
 		if (!dev->sg) {
 			drm_free(map, sizeof(*map), DRM_MEM_MAPS);
@@ -267,7 +310,7 @@ static int drm_addmap_core(drm_device_t * dev, unsigned int offset,
 
 	*maplist = list;
 	return 0;
-}
+	}
 
 int drm_addmap(drm_device_t * dev, unsigned int offset,
 	       unsigned int size, drm_map_type_t type,
@@ -519,6 +562,7 @@ int drm_addbufs_agp(drm_device_t * dev, drm_buf_desc_t * request)
 {
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_entry_t *entry;
+	drm_agp_mem_t *agp_entry;
 	drm_buf_t *buf;
 	unsigned long offset;
 	unsigned long agp_offset;
@@ -529,7 +573,7 @@ int drm_addbufs_agp(drm_device_t * dev, drm_buf_desc_t * request)
 	int page_order;
 	int total;
 	int byte_count;
-	int i;
+	int i, valid;
 	drm_buf_t **temp_buflist;
 
 	if (!dma)
@@ -560,6 +604,19 @@ int drm_addbufs_agp(drm_device_t * dev, drm_buf_desc_t * request)
 	if (dev->queue_count)
 		return -EBUSY;	/* Not while in use */
 
+	/* Make sure buffers are located in AGP memory that we own */
+	valid = 0;
+	for (agp_entry = dev->agp->memory; agp_entry; agp_entry = agp_entry->next) {
+		if ((agp_offset >= agp_entry->bound) &&
+		    (agp_offset + total * count <= agp_entry->bound + agp_entry->pages * PAGE_SIZE)) {
+			valid = 1;
+			break;
+		}
+	}
+	if (dev->agp->memory && !valid) {
+		DRM_DEBUG("zone invalid\n");
+		return -EINVAL;
+	}
 	spin_lock(&dev->count_lock);
 	if (dev->buf_use) {
 		spin_unlock(&dev->count_lock);

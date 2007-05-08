@@ -507,7 +507,7 @@ error:
 	return ret;
 }
 
-static struct dma_mapping_ops calgary_dma_ops = {
+static const struct dma_mapping_ops calgary_dma_ops = {
 	.alloc_coherent = calgary_alloc_coherent,
 	.map_single = calgary_map_single,
 	.unmap_single = calgary_unmap_single,

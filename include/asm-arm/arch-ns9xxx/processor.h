@@ -13,6 +13,7 @@
 
 #include <asm/mach-types.h>
 
-#define processor_is_ns9360()	(machine_is_cc9p9360dev())
+#define processor_is_ns9360()	(machine_is_cc9p9360dev()		\
+		|| machine_is_cc9p9360js())
 
 #endif /* ifndef __ASM_ARCH_PROCESSOR_H */

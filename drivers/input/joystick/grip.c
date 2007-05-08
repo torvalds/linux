@@ -285,7 +285,7 @@ static void grip_poll(struct gameport *gameport)
 
 static int grip_open(struct input_dev *dev)
 {
-	struct grip *grip = dev->private;
+	struct grip *grip = input_get_drvdata(dev);
 
 	gameport_start_polling(grip->gameport);
 	return 0;
@@ -293,7 +293,7 @@ static int grip_open(struct input_dev *dev)
 
 static void grip_close(struct input_dev *dev)
 {
-	struct grip *grip = dev->private;
+	struct grip *grip = input_get_drvdata(dev);
 
 	gameport_stop_polling(grip->gameport);
 }
@@ -363,8 +363,9 @@ static int grip_connect(struct gameport *gameport, struct gameport_driver *drv)
 		input_dev->id.vendor = GAMEPORT_ID_VENDOR_GRAVIS;
 		input_dev->id.product = grip->mode[i];
 		input_dev->id.version = 0x0100;
-		input_dev->cdev.dev = &gameport->dev;
-		input_dev->private = grip;
+		input_dev->dev.parent = &gameport->dev;
+
+		input_set_drvdata(input_dev, grip);
 
 		input_dev->open = grip_open;
 		input_dev->close = grip_close;

@@ -15,7 +15,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
-#include <linux/ptrace.h>
 #include <linux/proc_fs.h>
 #include <linux/init.h>
 

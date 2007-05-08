@@ -74,9 +74,6 @@ static int aac_nark_ioremap(struct aac_dev * dev, u32 size)
 
 int aac_nark_init(struct aac_dev * dev)
 {
-	extern int _aac_rx_init(struct aac_dev *dev);
-	extern int aac_rx_select_comm(struct aac_dev *dev, int comm);
-
 	/*
 	 *	Fill in the function dispatch table.
 	 */

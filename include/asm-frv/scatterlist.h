@@ -1,6 +1,8 @@
 #ifndef _ASM_SCATTERLIST_H
 #define _ASM_SCATTERLIST_H
 
+#include <asm/types.h>
+
 /*
  * Drivers must set either ->address or (preferred) ->page and ->offset
  * to indicate where data must be transferred to/from.

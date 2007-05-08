@@ -894,9 +894,10 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 	s_idx = cb->args[0];
 	s_q_idx = q_idx = cb->args[1];
 	read_lock(&dev_base_lock);
-	for (dev=dev_base, idx=0; dev; dev = dev->next, idx++) {
+	idx = 0;
+	for_each_netdev(dev) {
 		if (idx < s_idx)
-			continue;
+			goto cont;
 		if (idx > s_idx)
 			s_q_idx = 0;
 		q_idx = 0;
@@ -910,6 +911,8 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 				goto done;
 			q_idx++;
 		}
+cont:
+		idx++;
 	}
 
 done:

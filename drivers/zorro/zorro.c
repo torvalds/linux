@@ -164,7 +164,8 @@ static int __init zorro_init(void)
 	if (request_resource(zorro_find_parent_resource(z), &z->resource))
 	    printk(KERN_ERR "Zorro: Address space collision on device %s "
 		   "[%lx:%lx]\n",
-		   z->name, zorro_resource_start(z), zorro_resource_end(z));
+		   z->name, (unsigned long)zorro_resource_start(z),
+		   (unsigned long)zorro_resource_end(z));
 	sprintf(z->dev.bus_id, "%02x", i);
 	z->dev.parent = &zorro_bus.dev;
 	z->dev.bus = &zorro_bus_type;

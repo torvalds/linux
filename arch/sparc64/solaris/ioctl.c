@@ -686,7 +686,8 @@ static inline int solaris_i(unsigned int fd, unsigned int cmd, u32 arg)
 			int i = 0;
 			
 			read_lock_bh(&dev_base_lock);
-			for (d = dev_base; d; d = d->next) i++;
+			for_each_netdev(d)
+				i++;
 			read_unlock_bh(&dev_base_lock);
 
 			if (put_user (i, (int __user *)A(arg)))

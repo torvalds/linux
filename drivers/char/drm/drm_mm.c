@@ -274,7 +274,6 @@ int drm_mm_init(drm_mm_t * mm, unsigned long start, unsigned long size)
 	return drm_mm_create_tail_node(mm, start, size);
 }
 
-EXPORT_SYMBOL(drm_mm_init);
 
 void drm_mm_takedown(drm_mm_t * mm)
 {
@@ -295,4 +294,3 @@ void drm_mm_takedown(drm_mm_t * mm)
 	drm_free(entry, sizeof(*entry), DRM_MEM_MM);
 }
 
-EXPORT_SYMBOL(drm_mm_takedown);

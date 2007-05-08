@@ -149,7 +149,7 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	pxa_gpio_mode(gpio_bus[pxa_i2s.master].tx);
 	pxa_gpio_mode(gpio_bus[pxa_i2s.master].frm);
 	pxa_gpio_mode(gpio_bus[pxa_i2s.master].clk);
-	pxa_set_cken(CKEN8_I2S, 1);
+	pxa_set_cken(CKEN_I2S, 1);
 	pxa_i2s_wait();
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -234,7 +234,7 @@ static void pxa2xx_i2s_shutdown(struct snd_pcm_substream *substream)
 	if (SACR1 & (SACR1_DREC | SACR1_DRPL)) {
 		SACR0 &= ~SACR0_ENB;
 		pxa_i2s_wait();
-		pxa_set_cken(CKEN8_I2S, 0);
+		pxa_set_cken(CKEN_I2S, 0);
 	}
 }
 

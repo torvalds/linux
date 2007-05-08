@@ -42,6 +42,8 @@
 #include <linux/spinlock.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/clocksource.h>
+#include <linux/clockchips.h>
 
 #include <asm/system.h>
 #include <asm/hardware.h>
@@ -80,13 +82,13 @@ struct sys_timer omap_timer;
 #define OMAP1_32K_TIMER_TVR		0x00
 #define OMAP1_32K_TIMER_TCR		0x04
 
-#define OMAP_32K_TICKS_PER_HZ		(32768 / HZ)
+#define OMAP_32K_TICKS_PER_SEC		(32768)
 
 /*
  * TRM says 1 / HZ = ( TVR + 1) / 32768, so TRV = (32768 / HZ) - 1
  * so with HZ = 128, TVR = 255.
  */
-#define OMAP_32K_TIMER_TICK_PERIOD	((32768 / HZ) - 1)
+#define OMAP_32K_TIMER_TICK_PERIOD	((OMAP_32K_TICKS_PER_SEC / HZ) - 1)
 
 #define JIFFIES_TO_HW_TICKS(nr_jiffies, clock_rate)			\
 				(((nr_jiffies) * (clock_rate)) / HZ)
@@ -142,6 +144,28 @@ static inline void omap_32k_timer_ack_irq(void)
 
 #endif
 
+static void omap_32k_timer_set_mode(enum clock_event_mode mode,
+				    struct clock_event_device *evt)
+{
+	switch (mode) {
+	case CLOCK_EVT_MODE_ONESHOT:
+	case CLOCK_EVT_MODE_PERIODIC:
+		omap_32k_timer_start(OMAP_32K_TIMER_TICK_PERIOD);
+		break;
+	case CLOCK_EVT_MODE_UNUSED:
+	case CLOCK_EVT_MODE_SHUTDOWN:
+		omap_32k_timer_stop();
+		break;
+	}
+}
+
+static struct clock_event_device clockevent_32k_timer = {
+	.name		= "32k-timer",
+	.features       = CLOCK_EVT_FEAT_PERIODIC,
+	.shift		= 32,
+	.set_mode	= omap_32k_timer_set_mode,
+};
+
 /*
  * The 32KHz synchronized timer is an additional timer on 16xx.
  * It is always running.
@@ -171,15 +195,6 @@ omap_32k_ticks_to_nsecs(unsigned long ticks_32k)
 static unsigned long omap_32k_last_tick = 0;
 
 /*
- * Returns elapsed usecs since last 32k timer interrupt
- */
-static unsigned long omap_32k_timer_gettimeoffset(void)
-{
-	unsigned long now = omap_32k_sync_timer_read();
-	return omap_32k_ticks_to_usecs(now - omap_32k_last_tick);
-}
-
-/*
  * Returns current time from boot in nsecs. It's OK for this to wrap
  * around for now, as it's just a relative time stamp.
  */
@@ -188,94 +203,15 @@ unsigned long long sched_clock(void)
 	return omap_32k_ticks_to_nsecs(omap_32k_sync_timer_read());
 }
 
-/*
- * Timer interrupt for 32KHz timer. When dynamic tick is enabled, this
- * function is also called from other interrupts to remove latency
- * issues with dynamic tick. In the dynamic tick case, we need to lock
- * with irqsave.
- */
-static inline irqreturn_t _omap_32k_timer_interrupt(int irq, void *dev_id)
-{
-	unsigned long now;
-
-	omap_32k_timer_ack_irq();
-	now = omap_32k_sync_timer_read();
-
-	while ((signed long)(now - omap_32k_last_tick)
-						>= OMAP_32K_TICKS_PER_HZ) {
-		omap_32k_last_tick += OMAP_32K_TICKS_PER_HZ;
-		timer_tick();
-	}
-
-	/* Restart timer so we don't drift off due to modulo or dynamic tick.
-	 * By default we program the next timer to be continuous to avoid
-	 * latencies during high system load. During dynamic tick operation the
-	 * continuous timer can be overridden from pm_idle to be longer.
-	 */
-	omap_32k_timer_start(omap_32k_last_tick + OMAP_32K_TICKS_PER_HZ - now);
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t omap_32k_timer_handler(int irq, void *dev_id)
-{
-	return _omap_32k_timer_interrupt(irq, dev_id);
-}
-
 static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id)
 {
-	unsigned long flags;
+	struct clock_event_device *evt = &clockevent_32k_timer;
+	omap_32k_timer_ack_irq();
 
-	write_seqlock_irqsave(&xtime_lock, flags);
-	_omap_32k_timer_interrupt(irq, dev_id);
-	write_sequnlock_irqrestore(&xtime_lock, flags);
+	evt->event_handler(evt);
 
 	return IRQ_HANDLED;
 }
-
-#ifdef CONFIG_NO_IDLE_HZ
-/*
- * Programs the next timer interrupt needed. Called when dynamic tick is
- * enabled, and to reprogram the ticks to skip from pm_idle. Note that
- * we can keep the timer continuous, and don't need to set it to run in
- * one-shot mode. This is because the timer will get reprogrammed again
- * after next interrupt.
- */
-void omap_32k_timer_reprogram(unsigned long next_tick)
-{
-	unsigned long ticks = JIFFIES_TO_HW_TICKS(next_tick, 32768) + 1;
-	unsigned long now = omap_32k_sync_timer_read();
-	unsigned long idled = now - omap_32k_last_tick;
-
-	if (idled + 1 < ticks)
-		ticks -= idled;
-	else
-		ticks = 1;
-	omap_32k_timer_start(ticks);
-}
-
-static struct irqaction omap_32k_timer_irq;
-extern struct timer_update_handler timer_update;
-
-static int omap_32k_timer_enable_dyn_tick(void)
-{
-	/* No need to reprogram timer, just use the next interrupt */
-	return 0;
-}
-
-static int omap_32k_timer_disable_dyn_tick(void)
-{
-	omap_32k_timer_start(OMAP_32K_TIMER_TICK_PERIOD);
-	return 0;
-}
-
-static struct dyn_tick_timer omap_dyn_tick_timer = {
-	.enable		= omap_32k_timer_enable_dyn_tick,
-	.disable	= omap_32k_timer_disable_dyn_tick,
-	.reprogram	= omap_32k_timer_reprogram,
-	.handler	= omap_32k_timer_handler,
-};
-#endif	/* CONFIG_NO_IDLE_HZ */
 
 static struct irqaction omap_32k_timer_irq = {
 	.name		= "32KHz timer",
@@ -285,13 +221,8 @@ static struct irqaction omap_32k_timer_irq = {
 
 static __init void omap_init_32k_timer(void)
 {
-#ifdef CONFIG_NO_IDLE_HZ
-	omap_timer.dyn_tick = &omap_dyn_tick_timer;
-#endif
-
 	if (cpu_class_is_omap1())
 		setup_irq(INT_OS_TIMER, &omap_32k_timer_irq);
-	omap_timer.offset  = omap_32k_timer_gettimeoffset;
 	omap_32k_last_tick = omap_32k_sync_timer_read();
 
 #ifdef CONFIG_ARCH_OMAP2
@@ -308,7 +239,16 @@ static __init void omap_init_32k_timer(void)
 	}
 #endif
 
-	omap_32k_timer_start(OMAP_32K_TIMER_TICK_PERIOD);
+	clockevent_32k_timer.mult = div_sc(OMAP_32K_TICKS_PER_SEC,
+					   NSEC_PER_SEC,
+					   clockevent_32k_timer.shift);
+	clockevent_32k_timer.max_delta_ns =
+		clockevent_delta2ns(0xfffffffe, &clockevent_32k_timer);
+	clockevent_32k_timer.min_delta_ns =
+		clockevent_delta2ns(1, &clockevent_32k_timer);
+
+	clockevent_32k_timer.cpumask = cpumask_of_cpu(0);
+	clockevents_register_device(&clockevent_32k_timer);
 }
 
 /*
@@ -326,5 +266,4 @@ static void __init omap_timer_init(void)
 
 struct sys_timer omap_timer = {
 	.init		= omap_timer_init,
-	.offset		= NULL,		/* Initialized later */
 };

@@ -28,6 +28,7 @@
 #include "alps.h"
 #include "lifebook.h"
 #include "trackpoint.h"
+#include "touchkit_ps2.h"
 
 #define DRIVER_DESC	"PS/2 mouse driver"
 
@@ -569,7 +570,9 @@ static int psmouse_extensions(struct psmouse *psmouse,
 		return PSMOUSE_THINKPS;
 
 /*
- * Try Synaptics TouchPad
+ * Try Synaptics TouchPad. Note that probing is done even if Synaptics protocol
+ * support is disabled in config - we need to know if it is synaptics so we
+ * can reset it properly after probing for intellimouse.
  */
 	if (max_proto > PSMOUSE_PS2 && synaptics_detect(psmouse, set_properties) == 0) {
 		synaptics_hardware = 1;
@@ -605,14 +608,20 @@ static int psmouse_extensions(struct psmouse *psmouse,
 		}
 	}
 
-	if (max_proto > PSMOUSE_IMEX && genius_detect(psmouse, set_properties) == 0)
-		return PSMOUSE_GENPS;
+	if (max_proto > PSMOUSE_IMEX) {
 
-	if (max_proto > PSMOUSE_IMEX && ps2pp_init(psmouse, set_properties) == 0)
-		return PSMOUSE_PS2PP;
+		if (genius_detect(psmouse, set_properties) == 0)
+			return PSMOUSE_GENPS;
 
-	if (max_proto > PSMOUSE_IMEX && trackpoint_detect(psmouse, set_properties) == 0)
-		return PSMOUSE_TRACKPOINT;
+		if (ps2pp_init(psmouse, set_properties) == 0)
+			return PSMOUSE_PS2PP;
+
+		if (trackpoint_detect(psmouse, set_properties) == 0)
+			return PSMOUSE_TRACKPOINT;
+
+		if (touchkit_ps2_detect(psmouse, set_properties) == 0)
+			return PSMOUSE_TOUCHKIT_PS2;
+	}
 
 /*
  * Reset to defaults in case the device got confused by extended
@@ -654,12 +663,14 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.maxproto	= 1,
 		.detect		= ps2bare_detect,
 	},
+#ifdef CONFIG_MOUSE_PS2_LOGIPS2PP
 	{
 		.type		= PSMOUSE_PS2PP,
 		.name		= "PS2++",
 		.alias		= "logitech",
 		.detect		= ps2pp_init,
 	},
+#endif
 	{
 		.type		= PSMOUSE_THINKPS,
 		.name		= "ThinkPS/2",
@@ -686,6 +697,7 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.maxproto	= 1,
 		.detect		= im_explorer_detect,
 	},
+#ifdef CONFIG_MOUSE_PS2_SYNAPTICS
 	{
 		.type		= PSMOUSE_SYNAPTICS,
 		.name		= "SynPS/2",
@@ -693,6 +705,8 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.detect		= synaptics_detect,
 		.init		= synaptics_init,
 	},
+#endif
+#ifdef CONFIG_MOUSE_PS2_ALPS
 	{
 		.type		= PSMOUSE_ALPS,
 		.name		= "AlpsPS/2",
@@ -700,18 +714,31 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.detect		= alps_detect,
 		.init		= alps_init,
 	},
+#endif
+#ifdef CONFIG_MOUSE_PS2_LIFEBOOK
 	{
 		.type		= PSMOUSE_LIFEBOOK,
 		.name		= "LBPS/2",
 		.alias		= "lifebook",
 		.init		= lifebook_init,
 	},
+#endif
+#ifdef CONFIG_MOUSE_PS2_TRACKPOINT
 	{
 		.type		= PSMOUSE_TRACKPOINT,
 		.name		= "TPPS/2",
 		.alias		= "trackpoint",
 		.detect		= trackpoint_detect,
 	},
+#endif
+#ifdef CONFIG_MOUSE_PS2_TOUCHKIT
+	{
+		.type		= PSMOUSE_TOUCHKIT_PS2,
+		.name		= "touchkitPS/2",
+		.alias		= "touchkit",
+		.detect		= touchkit_ps2_detect,
+	},
+#endif
 	{
 		.type		= PSMOUSE_AUTO,
 		.name		= "auto",
@@ -822,12 +849,6 @@ static void psmouse_set_rate(struct psmouse *psmouse, unsigned int rate)
 
 static void psmouse_initialize(struct psmouse *psmouse)
 {
-/*
- * We set the mouse into streaming mode.
- */
-
-	ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_SETSTREAM);
-
 /*
  * We set the mouse report rate, resolution and scaling.
  */
@@ -1062,8 +1083,7 @@ static int psmouse_switch_protocol(struct psmouse *psmouse, const struct psmouse
 {
 	struct input_dev *input_dev = psmouse->dev;
 
-	input_dev->private = psmouse;
-	input_dev->cdev.dev = &psmouse->ps2dev.serio->dev;
+	input_dev->dev.parent = &psmouse->ps2dev.serio->dev;
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
 	input_dev->keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);

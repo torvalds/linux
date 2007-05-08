@@ -22,7 +22,6 @@
  *
  */
 
-#include <linux/pci.h>
 #include <linux/scatterlist.h>
 
 #include "sas_internal.h"

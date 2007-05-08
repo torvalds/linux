@@ -147,7 +147,7 @@ enum flite_pwr {
 unsigned int h3600_flite_power(struct input_dev *dev, enum flite_pwr pwr)
 {
 	unsigned char brightness = (pwr == FLITE_PWR_OFF) ? 0 : flite_brightness;
-	struct h3600_dev *ts = dev->private;
+	struct h3600_dev *ts = input_get_drvdata(dev);
 
 	/* Must be in this order */
 	ts->serio->write(ts->serio, 1);
@@ -260,7 +260,7 @@ static int h3600ts_event(struct input_dev *dev, unsigned int type,
 			 unsigned int code, int value)
 {
 #if 0
-	struct h3600_dev *ts = dev->private;
+	struct h3600_dev *ts = input_get_drvdata(dev);
 
 	switch (type) {
 		case EV_LED: {
@@ -367,8 +367,9 @@ static int h3600ts_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->id.vendor = SERIO_H3600;
 	input_dev->id.product = 0x0666;  /* FIXME !!! We can ask the hardware */
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = &serio->dev;
-	input_dev->private = ts;
+	input_dev->dev.parent = &serio->dev;
+
+	input_set_drvdata(input_dev, ts);
 
 	input_dev->event = h3600ts_event;
 

@@ -170,7 +170,7 @@ static void sctp_get_local_addr_list(void)
 	struct sctp_af *af;
 
 	read_lock(&dev_base_lock);
-	for (dev = dev_base; dev; dev = dev->next) {
+	for_each_netdev(dev) {
 		__list_for_each(pos, &sctp_address_families) {
 			af = list_entry(pos, struct sctp_af, list);
 			af->copy_addrlist(&sctp_local_addr_list, dev);
@@ -975,28 +975,14 @@ SCTP_STATIC __init int sctp_init(void)
 	if (!sctp_sanity_check())
 		goto out;
 
-	status = proto_register(&sctp_prot, 1);
-	if (status)
-		goto out;
-
-	/* Add SCTP to inet_protos hash table.  */
-	status = -EAGAIN;
-	if (inet_add_protocol(&sctp_protocol, IPPROTO_SCTP) < 0)
-		goto err_add_protocol;
-
-	/* Add SCTP(TCP and UDP style) to inetsw linked list.  */
-	inet_register_protosw(&sctp_seqpacket_protosw);
-	inet_register_protosw(&sctp_stream_protosw);
-
-	/* Allocate a cache pools. */
+	/* Allocate bind_bucket and chunk caches. */
 	status = -ENOBUFS;
 	sctp_bucket_cachep = kmem_cache_create("sctp_bind_bucket",
 					       sizeof(struct sctp_bind_bucket),
 					       0, SLAB_HWCACHE_ALIGN,
 					       NULL, NULL);
-
 	if (!sctp_bucket_cachep)
-		goto err_bucket_cachep;
+		goto out;
 
 	sctp_chunk_cachep = kmem_cache_create("sctp_chunk",
 					       sizeof(struct sctp_chunk),
@@ -1153,6 +1139,14 @@ SCTP_STATIC __init int sctp_init(void)
 	INIT_LIST_HEAD(&sctp_address_families);
 	sctp_register_af(&sctp_ipv4_specific);
 
+	status = proto_register(&sctp_prot, 1);
+	if (status)
+		goto err_proto_register;
+
+	/* Register SCTP(UDP and TCP style) with socket layer.  */
+	inet_register_protosw(&sctp_seqpacket_protosw);
+	inet_register_protosw(&sctp_stream_protosw);
+
 	status = sctp_v6_init();
 	if (status)
 		goto err_v6_init;
@@ -1166,19 +1160,39 @@ SCTP_STATIC __init int sctp_init(void)
 
 	/* Initialize the local address list. */
 	INIT_LIST_HEAD(&sctp_local_addr_list);
-
 	sctp_get_local_addr_list();
 
 	/* Register notifier for inet address additions/deletions. */
 	register_inetaddr_notifier(&sctp_inetaddr_notifier);
 
+	/* Register SCTP with inet layer.  */
+	if (inet_add_protocol(&sctp_protocol, IPPROTO_SCTP) < 0) {
+		status = -EAGAIN;
+		goto err_add_protocol;
+	}
+
+	/* Register SCTP with inet6 layer.  */
+	status = sctp_v6_add_protocol();
+	if (status)
+		goto err_v6_add_protocol;
+
 	__unsafe(THIS_MODULE);
 	status = 0;
 out:
 	return status;
+err_v6_add_protocol:
+	inet_del_protocol(&sctp_protocol, IPPROTO_SCTP);
+	unregister_inetaddr_notifier(&sctp_inetaddr_notifier);
+err_add_protocol:
+	sctp_free_local_addr_list();
+	sock_release(sctp_ctl_socket);
 err_ctl_sock_init:
 	sctp_v6_exit();
 err_v6_init:
+	inet_unregister_protosw(&sctp_stream_protosw);
+	inet_unregister_protosw(&sctp_seqpacket_protosw);
+	proto_unregister(&sctp_prot);
+err_proto_register:
 	sctp_sysctl_unregister();
 	list_del(&sctp_ipv4_specific.list);
 	free_pages((unsigned long)sctp_port_hashtable,
@@ -1192,19 +1206,13 @@ err_ehash_alloc:
 			     sizeof(struct sctp_hashbucket)));
 err_ahash_alloc:
 	sctp_dbg_objcnt_exit();
-err_init_proc:
 	sctp_proc_exit();
+err_init_proc:
 	cleanup_sctp_mibs();
 err_init_mibs:
 	kmem_cache_destroy(sctp_chunk_cachep);
 err_chunk_cachep:
 	kmem_cache_destroy(sctp_bucket_cachep);
-err_bucket_cachep:
-	inet_del_protocol(&sctp_protocol, IPPROTO_SCTP);
-	inet_unregister_protosw(&sctp_seqpacket_protosw);
-	inet_unregister_protosw(&sctp_stream_protosw);
-err_add_protocol:
-	proto_unregister(&sctp_prot);
 	goto out;
 }
 
@@ -1215,8 +1223,9 @@ SCTP_STATIC __exit void sctp_exit(void)
 	 * up all the remaining associations and all that memory.
 	 */
 
-	/* Unregister notifier for inet address additions/deletions. */
-	unregister_inetaddr_notifier(&sctp_inetaddr_notifier);
+	/* Unregister with inet6/inet layers. */
+	sctp_v6_del_protocol();
+	inet_del_protocol(&sctp_protocol, IPPROTO_SCTP);
 
 	/* Free the local address list.  */
 	sctp_free_local_addr_list();
@@ -1224,7 +1233,16 @@ SCTP_STATIC __exit void sctp_exit(void)
 	/* Free the control endpoint.  */
 	sock_release(sctp_ctl_socket);
 
+	/* Cleanup v6 initializations. */
 	sctp_v6_exit();
+
+	/* Unregister with socket layer. */
+	inet_unregister_protosw(&sctp_stream_protosw);
+	inet_unregister_protosw(&sctp_seqpacket_protosw);
+
+	/* Unregister notifier for inet address additions/deletions. */
+	unregister_inetaddr_notifier(&sctp_inetaddr_notifier);
+
 	sctp_sysctl_unregister();
 	list_del(&sctp_ipv4_specific.list);
 
@@ -1236,16 +1254,13 @@ SCTP_STATIC __exit void sctp_exit(void)
 		   get_order(sctp_port_hashsize *
 			     sizeof(struct sctp_bind_hashbucket)));
 
-	kmem_cache_destroy(sctp_chunk_cachep);
-	kmem_cache_destroy(sctp_bucket_cachep);
-
 	sctp_dbg_objcnt_exit();
 	sctp_proc_exit();
 	cleanup_sctp_mibs();
 
-	inet_del_protocol(&sctp_protocol, IPPROTO_SCTP);
-	inet_unregister_protosw(&sctp_seqpacket_protosw);
-	inet_unregister_protosw(&sctp_stream_protosw);
+	kmem_cache_destroy(sctp_chunk_cachep);
+	kmem_cache_destroy(sctp_bucket_cachep);
+
 	proto_unregister(&sctp_prot);
 }
 

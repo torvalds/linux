@@ -50,29 +50,6 @@ static int sonic_open(struct net_device *dev)
 	if (sonic_debug > 2)
 		printk("sonic_open: initializing sonic driver.\n");
 
-	/*
-	 * We don't need to deal with auto-irq stuff since we
-	 * hardwire the sonic interrupt.
-	 */
-/*
- * XXX Horrible work around:  We install sonic_interrupt as fast interrupt.
- * This means that during execution of the handler interrupt are disabled
- * covering another bug otherwise corrupting data.  This doesn't mean
- * this glue works ok under all situations.
- *
- * Note (dhd): this also appears to prevent lockups on the Macintrash
- * when more than one Ethernet card is installed (knock on wood)
- *
- * Note (fthain): whether the above is still true is anyones guess. Certainly
- * the buffer handling algorithms will not tolerate re-entrance without some
- * mutual exclusion added. Anyway, the memcpy has now been eliminated from the
- * rx code to make this a faster "fast interrupt".
- */
-	if (request_irq(dev->irq, &sonic_interrupt, SONIC_IRQ_FLAG, "sonic", dev)) {
-		printk(KERN_ERR "\n%s: unable to get IRQ %d .\n", dev->name, dev->irq);
-		return -EAGAIN;
-	}
-
 	for (i = 0; i < SONIC_NUM_RRS; i++) {
 		struct sk_buff *skb = dev_alloc_skb(SONIC_RBSIZE + 2);
 		if (skb == NULL) {
@@ -169,8 +146,6 @@ static int sonic_close(struct net_device *dev)
 		}
 	}
 
-	free_irq(dev->irq, dev);	/* release the IRQ */
-
 	return 0;
 }
 
@@ -178,8 +153,13 @@ static void sonic_tx_timeout(struct net_device *dev)
 {
 	struct sonic_local *lp = netdev_priv(dev);
 	int i;
-	/* Stop the interrupts for this */
+	/*
+	 * put the Sonic into software-reset mode and
+	 * disable all interrupts before releasing DMA buffers
+	 */
 	SONIC_WRITE(SONIC_IMR, 0);
+	SONIC_WRITE(SONIC_ISR, 0x7fff);
+	SONIC_WRITE(SONIC_CMD, SONIC_CR_RST);
 	/* We could resend the original skbs. Easier to re-initialise. */
 	for (i = 0; i < SONIC_NUM_TDS; i++) {
 		if(lp->tx_laddr[i]) {

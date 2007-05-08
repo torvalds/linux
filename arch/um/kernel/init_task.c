@@ -10,7 +10,6 @@
 #include "linux/mqueue.h"
 #include "asm/uaccess.h"
 #include "asm/pgtable.h"
-#include "user_util.h"
 #include "mem_user.h"
 #include "os.h"
 

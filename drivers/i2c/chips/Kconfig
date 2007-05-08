@@ -3,11 +3,10 @@
 #
 
 menu "Miscellaneous I2C Chip support"
-	depends on I2C
 
 config SENSORS_DS1337
 	tristate "Dallas Semiconductor DS1337 and DS1339 Real Time Clock"
-	depends on I2C && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	help
 	  If you say yes here you get support for Dallas Semiconductor
 	  DS1337 and DS1339 real-time clock chips.
@@ -17,7 +16,7 @@ config SENSORS_DS1337
 
 config SENSORS_DS1374
 	tristate "Maxim/Dallas Semiconductor DS1374 Real Time Clock"
-	depends on I2C && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	help
 	  If you say yes here you get support for Dallas Semiconductor
 	  DS1374 real-time clock chips.
@@ -27,7 +26,7 @@ config SENSORS_DS1374
 
 config SENSORS_EEPROM
 	tristate "EEPROM reader"
-	depends on I2C && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	help
 	  If you say yes here you get read-only access to the EEPROM data
 	  available on modern memory DIMMs and Sony Vaio laptops.  Such
@@ -38,7 +37,7 @@ config SENSORS_EEPROM
 
 config SENSORS_PCF8574
 	tristate "Philips PCF8574 and PCF8574A"
-	depends on I2C && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	default n
 	help
 	  If you say yes here you get support for Philips PCF8574 and 
@@ -52,7 +51,7 @@ config SENSORS_PCF8574
 
 config SENSORS_PCA9539
 	tristate "Philips PCA9539 16-bit I/O port"
-	depends on I2C && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	help
 	  If you say yes here you get support for the Philips PCA9539
 	  16-bit I/O port.
@@ -62,7 +61,7 @@ config SENSORS_PCA9539
 
 config SENSORS_PCF8591
 	tristate "Philips PCF8591"
-	depends on I2C && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	default n
 	help
 	  If you say yes here you get support for Philips PCF8591 chips.
@@ -75,7 +74,7 @@ config SENSORS_PCF8591
 
 config ISP1301_OMAP
 	tristate "Philips ISP1301 with OMAP OTG"
-	depends on I2C && ARCH_OMAP_OTG
+	depends on ARCH_OMAP_OTG
 	help
 	  If you say yes here you get support for the Philips ISP1301
 	  USB-On-The-Go transceiver working with the OMAP OTG controller.
@@ -90,7 +89,7 @@ config ISP1301_OMAP
 # and having mostly OMAP-specific board support
 config TPS65010
 	tristate "TPS6501x Power Management chips"
-	depends on I2C && ARCH_OMAP
+	depends on ARCH_OMAP
 	default y if MACH_OMAP_H2 || MACH_OMAP_H3 || MACH_OMAP_OSK
 	help
 	  If you say yes here you get support for the TPS6501x series of
@@ -103,7 +102,7 @@ config TPS65010
 
 config SENSORS_M41T00
 	tristate "ST M41T00 RTC chip"
-	depends on I2C && PPC32
+	depends on PPC32
 	help
 	  If you say yes here you get support for the ST M41T00 RTC chip.
 
@@ -112,7 +111,7 @@ config SENSORS_M41T00
 
 config SENSORS_MAX6875
 	tristate "Maxim MAX6875 Power supply supervisor"
-	depends on I2C && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	help
 	  If you say yes here you get support for the Maxim MAX6875
 	  EEPROM-programmable, quad power-supply sequencer/supervisor.

@@ -166,7 +166,7 @@ extern u8 shpchp_handle_power_fault(u8 hp_slot, struct controller *ctrl);
 extern int shpchp_configure_device(struct slot *p_slot);
 extern int shpchp_unconfigure_device(struct slot *p_slot);
 extern void cleanup_slots(struct controller *ctrl);
-extern void queue_pushbutton_work(struct work_struct *work);
+extern void shpchp_queue_pushbutton_work(struct work_struct *work);
 extern int shpc_init( struct controller *ctrl, struct pci_dev *pdev);
 
 #ifdef CONFIG_ACPI

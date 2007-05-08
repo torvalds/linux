@@ -582,7 +582,7 @@ static int rxrpc_send_data(struct kiocb *iocb,
 			max &= ~(call->conn->size_align - 1UL);
 
 			chunk = max;
-			if (chunk > len)
+			if (chunk > len && !more)
 				chunk = len;
 
 			space = chunk + call->conn->size_align;

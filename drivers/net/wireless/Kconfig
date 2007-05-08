@@ -153,8 +153,8 @@ config IPW2100
  
           If you want to compile the driver as a module ( = code which can be
           inserted in and removed from the running kernel whenever you want),
-          say M here and read <file:Documentation/modules.txt>.  The module
-          will be called ipw2100.ko.
+          say M here and read <file:Documentation/kbuild/modules.txt>.
+          The module will be called ipw2100.ko.
 	
 config IPW2100_MONITOR
         bool "Enable promiscuous mode"
@@ -208,8 +208,8 @@ config IPW2200
  
           If you want to compile the driver as a module ( = code which can be
           inserted in and removed from the running kernel whenever you want),
-          say M here and read <file:Documentation/modules.txt>.  The module
-          will be called ipw2200.ko.
+          say M here and read <file:Documentation/kbuild/modules.txt>.
+          The module will be called ipw2200.ko.
 
 config IPW2200_MONITOR
         bool "Enable promiscuous mode"
@@ -517,8 +517,8 @@ config PRISM54
 	  
 	  If you want to compile the driver as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/modules.txt>.  The module
-	  will be called prism54.ko.
+	  say M here and read <file:Documentation/kbuild/modules.txt>.
+	  The module will be called prism54.ko.
 
 config USB_ZD1201
 	tristate "USB ZD1201 based Wireless device support"

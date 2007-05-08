@@ -49,7 +49,15 @@ config GENERIC_HWEIGHT
 	bool
 	default y
 
+config GENERIC_HARDIRQS
+	bool
+	default y
+
 config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+config GENERIC_TIME
 	bool
 	default y
 

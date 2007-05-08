@@ -100,6 +100,8 @@ typedef enum {
 	SCTP_CMD_T3_RTX_TIMERS_STOP, /* Stops T3-rtx pending timers */
 	SCTP_CMD_FORCE_PRIM_RETRAN,  /* Forces retrans. over primary path. */
 	SCTP_CMD_SET_SK_ERR,	 /* Set sk_err */
+	SCTP_CMD_ASSOC_CHANGE,	 /* generate and send assoc_change event */
+	SCTP_CMD_ADAPTATION_IND, /* generate and send adaptation event */
 	SCTP_CMD_LAST
 } sctp_verb_t;
 

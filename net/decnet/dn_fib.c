@@ -602,7 +602,7 @@ static void dn_fib_del_ifaddr(struct dn_ifaddr *ifa)
 
 	/* Scan device list */
 	read_lock(&dev_base_lock);
-	for(dev = dev_base; dev; dev = dev->next) {
+	for_each_netdev(dev) {
 		dn_db = dev->dn_ptr;
 		if (dn_db == NULL)
 			continue;

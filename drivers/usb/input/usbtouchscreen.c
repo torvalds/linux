@@ -647,7 +647,7 @@ exit:
 
 static int usbtouch_open(struct input_dev *input)
 {
-	struct usbtouch_usb *usbtouch = input->private;
+	struct usbtouch_usb *usbtouch = input_get_drvdata(input);
 
 	usbtouch->irq->dev = usbtouch->udev;
 
@@ -659,7 +659,7 @@ static int usbtouch_open(struct input_dev *input)
 
 static void usbtouch_close(struct input_dev *input)
 {
-	struct usbtouch_usb *usbtouch = input->private;
+	struct usbtouch_usb *usbtouch = input_get_drvdata(input);
 
 	usb_kill_urb(usbtouch->irq);
 }
@@ -740,8 +740,10 @@ static int usbtouch_probe(struct usb_interface *intf,
 	input_dev->name = usbtouch->name;
 	input_dev->phys = usbtouch->phys;
 	usb_to_input_id(udev, &input_dev->id);
-	input_dev->cdev.dev = &intf->dev;
-	input_dev->private = usbtouch;
+	input_dev->dev.parent = &intf->dev;
+
+	input_set_drvdata(input_dev, usbtouch);
+
 	input_dev->open = usbtouch_open;
 	input_dev->close = usbtouch_close;
 

@@ -320,6 +320,9 @@ csum_partial_copy_from_user(const void __user *src, void *dst,
 	return(sum);
 }
 
+EXPORT_SYMBOL(csum_partial_copy_from_user);
+
+
 /*
  * copy from kernel space while checksumming, otherwise like csum_partial
  */

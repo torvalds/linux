@@ -1,10 +1,7 @@
-/* $Id: cmd64x.c,v 1.21 2000/01/30 23:23:16
- *
- * linux/drivers/ide/pci/cmd64x.c		Version 1.42	Feb 8, 2007
+/*
+ * linux/drivers/ide/pci/cmd64x.c		Version 1.47	Mar 19, 2007
  *
  * cmd64x.c: Enable interrupts at initialization time on Ultra/PCI machines.
- *           Note, this driver is not used at all on other systems because
- *           there the "BIOS" has done all of the following already.
  *           Due to massive hardware bugs, UltraDMA is only supported
  *           on the 646U2 and not on the 646U.
  *
@@ -39,11 +36,12 @@
  * CMD64x specific registers definition.
  */
 #define CFR		0x50
-#define   CFR_INTR_CH0		0x02
+#define   CFR_INTR_CH0		0x04
 #define CNTRL		0x51
-#define	  CNTRL_DIS_RA0		0x40
-#define   CNTRL_DIS_RA1		0x80
-#define	  CNTRL_ENA_2ND		0x08
+#define   CNTRL_ENA_1ST 	0x04
+#define   CNTRL_ENA_2ND 	0x08
+#define   CNTRL_DIS_RA0 	0x40
+#define   CNTRL_DIS_RA1 	0x80
 
 #define	CMDTIM		0x52
 #define	ARTTIM0		0x53
@@ -90,86 +88,67 @@ static int n_cmd_devs;
 static char * print_cmd64x_get_info (char *buf, struct pci_dev *dev, int index)
 {
 	char *p = buf;
-
-	u8 reg53 = 0, reg54 = 0, reg55 = 0, reg56 = 0;	/* primary */
-	u8 reg57 = 0, reg58 = 0, reg5b;			/* secondary */
 	u8 reg72 = 0, reg73 = 0;			/* primary */
 	u8 reg7a = 0, reg7b = 0;			/* secondary */
-	u8 reg50 = 0, reg71 = 0;			/* extra */
+	u8 reg50 = 1, reg51 = 1, reg57 = 0, reg71 = 0;	/* extra */
+	u8 rev = 0;
 
 	p += sprintf(p, "\nController: %d\n", index);
-	p += sprintf(p, "CMD%x Chipset.\n", dev->device);
+	p += sprintf(p, "PCI-%x Chipset.\n", dev->device);
+
 	(void) pci_read_config_byte(dev, CFR,       &reg50);
-	(void) pci_read_config_byte(dev, ARTTIM0,   &reg53);
-	(void) pci_read_config_byte(dev, DRWTIM0,   &reg54);
-	(void) pci_read_config_byte(dev, ARTTIM1,   &reg55);
-	(void) pci_read_config_byte(dev, DRWTIM1,   &reg56);
-	(void) pci_read_config_byte(dev, ARTTIM2,   &reg57);
-	(void) pci_read_config_byte(dev, DRWTIM2,   &reg58);
-	(void) pci_read_config_byte(dev, DRWTIM3,   &reg5b);
+	(void) pci_read_config_byte(dev, CNTRL,     &reg51);
+	(void) pci_read_config_byte(dev, ARTTIM23,  &reg57);
 	(void) pci_read_config_byte(dev, MRDMODE,   &reg71);
 	(void) pci_read_config_byte(dev, BMIDESR0,  &reg72);
 	(void) pci_read_config_byte(dev, UDIDETCR0, &reg73);
 	(void) pci_read_config_byte(dev, BMIDESR1,  &reg7a);
 	(void) pci_read_config_byte(dev, UDIDETCR1, &reg7b);
 
-	p += sprintf(p, "--------------- Primary Channel "
-			"---------------- Secondary Channel "
-			"-------------\n");
-	p += sprintf(p, "                %sabled           "
-			"              %sabled\n",
-		(reg72&0x80)?"dis":" en",
-		(reg7a&0x80)?"dis":" en");
-	p += sprintf(p, "--------------- drive0 "
-		"--------- drive1 -------- drive0 "
-		"---------- drive1 ------\n");
-	p += sprintf(p, "DMA enabled:    %s              %s"
-			"             %s               %s\n",
-		(reg72&0x20)?"yes":"no ", (reg72&0x40)?"yes":"no ",
-		(reg7a&0x20)?"yes":"no ", (reg7a&0x40)?"yes":"no ");
+	/* PCI0643/6 originally didn't have the primary channel enable bit */
+	(void) pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
+	if ((dev->device == PCI_DEVICE_ID_CMD_643) ||
+	    (dev->device == PCI_DEVICE_ID_CMD_646 && rev < 3))
+		reg51 |= CNTRL_ENA_1ST;
 
-	p += sprintf(p, "DMA Mode:       %s(%s)          %s(%s)",
-		(reg72&0x20)?((reg73&0x01)?"UDMA":" DMA"):" PIO",
-		(reg72&0x20)?(
-			((reg73&0x30)==0x30)?(((reg73&0x35)==0x35)?"3":"0"):
-			((reg73&0x20)==0x20)?(((reg73&0x25)==0x25)?"3":"1"):
-			((reg73&0x10)==0x10)?(((reg73&0x15)==0x15)?"4":"2"):
-			((reg73&0x00)==0x00)?(((reg73&0x05)==0x05)?"5":"2"):
-			"X"):"?",
-		(reg72&0x40)?((reg73&0x02)?"UDMA":" DMA"):" PIO",
-		(reg72&0x40)?(
-			((reg73&0xC0)==0xC0)?(((reg73&0xC5)==0xC5)?"3":"0"):
-			((reg73&0x80)==0x80)?(((reg73&0x85)==0x85)?"3":"1"):
-			((reg73&0x40)==0x40)?(((reg73&0x4A)==0x4A)?"4":"2"):
-			((reg73&0x00)==0x00)?(((reg73&0x0A)==0x0A)?"5":"2"):
-			"X"):"?");
-	p += sprintf(p, "         %s(%s)           %s(%s)\n",
-		(reg7a&0x20)?((reg7b&0x01)?"UDMA":" DMA"):" PIO",
-		(reg7a&0x20)?(
-			((reg7b&0x30)==0x30)?(((reg7b&0x35)==0x35)?"3":"0"):
-			((reg7b&0x20)==0x20)?(((reg7b&0x25)==0x25)?"3":"1"):
-			((reg7b&0x10)==0x10)?(((reg7b&0x15)==0x15)?"4":"2"):
-			((reg7b&0x00)==0x00)?(((reg7b&0x05)==0x05)?"5":"2"):
-			"X"):"?",
-		(reg7a&0x40)?((reg7b&0x02)?"UDMA":" DMA"):" PIO",
-		(reg7a&0x40)?(
-			((reg7b&0xC0)==0xC0)?(((reg7b&0xC5)==0xC5)?"3":"0"):
-			((reg7b&0x80)==0x80)?(((reg7b&0x85)==0x85)?"3":"1"):
-			((reg7b&0x40)==0x40)?(((reg7b&0x4A)==0x4A)?"4":"2"):
-			((reg7b&0x00)==0x00)?(((reg7b&0x0A)==0x0A)?"5":"2"):
-			"X"):"?" );
-	p += sprintf(p, "PIO Mode:       %s                %s"
-			"               %s                 %s\n",
-			"?", "?", "?", "?");
-	p += sprintf(p, "                %s                     %s\n",
-		(reg50 & CFR_INTR_CH0) ? "interrupting" : "polling     ",
-		(reg57 & ARTTIM23_INTR_CH1) ? "interrupting" : "polling");
-	p += sprintf(p, "                %s                          %s\n",
-		(reg71 & MRDMODE_INTR_CH0) ? "pending" : "clear  ",
-		(reg71 & MRDMODE_INTR_CH1) ? "pending" : "clear");
-	p += sprintf(p, "                %s                          %s\n",
-		(reg71 & MRDMODE_BLK_CH0) ? "blocked" : "enabled",
-		(reg71 & MRDMODE_BLK_CH1) ? "blocked" : "enabled");
+	p += sprintf(p, "---------------- Primary Channel "
+			"---------------- Secondary Channel ------------\n");
+	p += sprintf(p, "                 %s                         %s\n",
+		 (reg51 & CNTRL_ENA_1ST) ? "enabled " : "disabled",
+		 (reg51 & CNTRL_ENA_2ND) ? "enabled " : "disabled");
+	p += sprintf(p, "---------------- drive0 --------- drive1 "
+			"-------- drive0 --------- drive1 ------\n");
+	p += sprintf(p, "DMA enabled:     %s              %s"
+			"             %s              %s\n",
+		(reg72 & 0x20) ? "yes" : "no ", (reg72 & 0x40) ? "yes" : "no ",
+		(reg7a & 0x20) ? "yes" : "no ", (reg7a & 0x40) ? "yes" : "no ");
+	p += sprintf(p, "UltraDMA mode:   %s (%c)          %s (%c)",
+		( reg73 & 0x01) ? " on" : "off",
+		((reg73 & 0x30) == 0x30) ? ((reg73 & 0x04) ? '3' : '0') :
+		((reg73 & 0x30) == 0x20) ? ((reg73 & 0x04) ? '3' : '1') :
+		((reg73 & 0x30) == 0x10) ? ((reg73 & 0x04) ? '4' : '2') :
+		((reg73 & 0x30) == 0x00) ? ((reg73 & 0x04) ? '5' : '2') : '?',
+		( reg73 & 0x02) ? " on" : "off",
+		((reg73 & 0xC0) == 0xC0) ? ((reg73 & 0x08) ? '3' : '0') :
+		((reg73 & 0xC0) == 0x80) ? ((reg73 & 0x08) ? '3' : '1') :
+		((reg73 & 0xC0) == 0x40) ? ((reg73 & 0x08) ? '4' : '2') :
+		((reg73 & 0xC0) == 0x00) ? ((reg73 & 0x08) ? '5' : '2') : '?');
+	p += sprintf(p, "         %s (%c)          %s (%c)\n",
+		( reg7b & 0x01) ? " on" : "off",
+		((reg7b & 0x30) == 0x30) ? ((reg7b & 0x04) ? '3' : '0') :
+		((reg7b & 0x30) == 0x20) ? ((reg7b & 0x04) ? '3' : '1') :
+		((reg7b & 0x30) == 0x10) ? ((reg7b & 0x04) ? '4' : '2') :
+		((reg7b & 0x30) == 0x00) ? ((reg7b & 0x04) ? '5' : '2') : '?',
+		( reg7b & 0x02) ? " on" : "off",
+		((reg7b & 0xC0) == 0xC0) ? ((reg7b & 0x08) ? '3' : '0') :
+		((reg7b & 0xC0) == 0x80) ? ((reg7b & 0x08) ? '3' : '1') :
+		((reg7b & 0xC0) == 0x40) ? ((reg7b & 0x08) ? '4' : '2') :
+		((reg7b & 0xC0) == 0x00) ? ((reg7b & 0x08) ? '5' : '2') : '?');
+	p += sprintf(p, "Interrupt:       %s, %s                 %s, %s\n",
+		(reg71 & MRDMODE_BLK_CH0  ) ? "blocked" : "enabled",
+		(reg50 & CFR_INTR_CH0	  ) ? "pending" : "clear  ",
+		(reg71 & MRDMODE_BLK_CH1  ) ? "blocked" : "enabled",
+		(reg57 & ARTTIM23_INTR_CH1) ? "pending" : "clear  ");
 
 	return (char *)p;
 }
@@ -179,7 +158,6 @@ static int cmd64x_get_info (char *buffer, char **addr, off_t offset, int count)
 	char *p = buffer;
 	int i;
 
-	p += sprintf(p, "\n");
 	for (i = 0; i < n_cmd_devs; i++) {
 		struct pci_dev *dev	= cmd_devs[i];
 		p = print_cmd64x_get_info(p, dev, i);
@@ -195,116 +173,103 @@ static u8 quantize_timing(int timing, int quant)
 }
 
 /*
- * This routine writes the prepared setup/active/recovery counts
- * for a drive into the cmd646 chipset registers to active them.
+ * This routine calculates active/recovery counts and then writes them into
+ * the chipset registers.
  */
-static void program_drive_counts (ide_drive_t *drive, int setup_count, int active_count, int recovery_count)
+static void program_cycle_times (ide_drive_t *drive, int cycle_time, int active_time)
 {
-	unsigned long flags;
-	struct pci_dev *dev = HWIF(drive)->pci_dev;
-	ide_drive_t *drives = HWIF(drive)->drives;
-	u8 temp_b;
-	static const u8 setup_counts[] = {0x40, 0x40, 0x40, 0x80, 0, 0xc0};
-	static const u8 recovery_counts[] =
+	struct pci_dev *dev	= HWIF(drive)->pci_dev;
+	int clock_time		= 1000 / system_bus_clock();
+	u8  cycle_count, active_count, recovery_count, drwtim;
+	static const u8 recovery_values[] =
 		{15, 15, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0};
-	static const u8 arttim_regs[2][2] = {
-			{ ARTTIM0, ARTTIM1 },
-			{ ARTTIM23, ARTTIM23 }
-		};
-	static const u8 drwtim_regs[2][2] = {
-			{ DRWTIM0, DRWTIM1 },
-			{ DRWTIM2, DRWTIM3 }
-		};
-	int channel = (int) HWIF(drive)->channel;
-	int slave = (drives != drive);  /* Is this really the best way to determine this?? */
+	static const u8 drwtim_regs[4] = {DRWTIM0, DRWTIM1, DRWTIM2, DRWTIM3};
 
-	cmdprintk("program_drive_count parameters = s(%d),a(%d),r(%d),p(%d)\n",
-		setup_count, active_count, recovery_count, drive->present);
-	/*
-	 * Set up address setup count registers.
-	 * Primary interface has individual count/timing registers for
-	 * each drive.  Secondary interface has one common set of registers,
-	 * for address setup so we merge these timings, using the slowest
-	 * value.
-	 */
-	if (channel) {
-		drive->drive_data = setup_count;
-		setup_count = max(drives[0].drive_data,
-					drives[1].drive_data);
-		cmdprintk("Secondary interface, setup_count = %d\n",
-					setup_count);
-	}
+	cmdprintk("program_cycle_times parameters: total=%d, active=%d\n",
+		  cycle_time, active_time);
+
+	cycle_count	= quantize_timing( cycle_time, clock_time);
+	active_count	= quantize_timing(active_time, clock_time);
+	recovery_count	= cycle_count - active_count;
 
 	/*
-	 * Convert values to internal chipset representation
+	 * In case we've got too long recovery phase, try to lengthen
+	 * the active phase
 	 */
-	setup_count = (setup_count > 5) ? 0xc0 : (int) setup_counts[setup_count];
-	active_count &= 0xf; /* Remember, max value is 16 */
-	recovery_count = (int) recovery_counts[recovery_count];
-
-	cmdprintk("Final values = %d,%d,%d\n",
-		setup_count, active_count, recovery_count);
-
-	/*
-	 * Now that everything is ready, program the new timings
-	 */
-	local_irq_save(flags);
-	/*
-	 * Program the address_setup clocks into ARTTIM reg,
-	 * and then the active/recovery counts into the DRWTIM reg
-	 */
-	(void) pci_read_config_byte(dev, arttim_regs[channel][slave], &temp_b);
-	(void) pci_write_config_byte(dev, arttim_regs[channel][slave],
-		((u8) setup_count) | (temp_b & 0x3f));
-	(void) pci_write_config_byte(dev, drwtim_regs[channel][slave],
-		(u8) ((active_count << 4) | recovery_count));
-	cmdprintk ("Write %x to %x\n",
-		((u8) setup_count) | (temp_b & 0x3f),
-		arttim_regs[channel][slave]);
-	cmdprintk ("Write %x to %x\n",
-		(u8) ((active_count << 4) | recovery_count),
-		drwtim_regs[channel][slave]);
-	local_irq_restore(flags);
-}
-
-/*
- * This routine selects drive's best PIO mode, calculates setup/active/recovery
- * counts, and then writes them into the chipset registers.
- */
-static u8 cmd64x_tune_pio (ide_drive_t *drive, u8 mode_wanted)
-{
-	int setup_time, active_time, cycle_time;
-	u8  cycle_count, setup_count, active_count, recovery_count;
-	u8  pio_mode;
-	int clock_time = 1000 / system_bus_clock();
-	ide_pio_data_t pio;
-
-	pio_mode = ide_get_best_pio_mode(drive, mode_wanted, 5, &pio);
-	cycle_time = pio.cycle_time;
-
-	setup_time  = ide_pio_timings[pio_mode].setup_time;
-	active_time = ide_pio_timings[pio_mode].active_time;
-
-	setup_count  = quantize_timing( setup_time, clock_time);
-	cycle_count  = quantize_timing( cycle_time, clock_time);
-	active_count = quantize_timing(active_time, clock_time);
-
-	recovery_count = cycle_count - active_count;
-	/* program_drive_counts() takes care of zero recovery cycles */
 	if (recovery_count > 16) {
 		active_count += recovery_count - 16;
 		recovery_count = 16;
 	}
-	if (active_count > 16)
-		active_count = 16; /* maximum allowed by cmd64x */
+	if (active_count > 16)		/* shouldn't actually happen... */
+	 	active_count = 16;
 
-	program_drive_counts (drive, setup_count, active_count, recovery_count);
+	cmdprintk("Final counts: total=%d, active=%d, recovery=%d\n",
+		  cycle_count, active_count, recovery_count);
 
-	cmdprintk("%s: PIO mode wanted %d, selected %d (%dns)%s, "
-		"clocks=%d/%d/%d\n",
-		drive->name, mode_wanted, pio_mode, cycle_time,
-		pio.overridden ? " (overriding vendor mode)" : "",
-		setup_count, active_count, recovery_count);
+	/*
+	 * Convert values to internal chipset representation
+	 */
+	recovery_count = recovery_values[recovery_count];
+ 	active_count  &= 0x0f;
+
+	/* Program the active/recovery counts into the DRWTIM register */
+	drwtim = (active_count << 4) | recovery_count;
+	(void) pci_write_config_byte(dev, drwtim_regs[drive->dn], drwtim);
+	cmdprintk("Write 0x%02x to reg 0x%x\n", drwtim, drwtim_regs[drive->dn]);
+}
+
+/*
+ * This routine selects drive's best PIO mode and writes into the chipset
+ * registers setup/active/recovery timings.
+ */
+static u8 cmd64x_tune_pio (ide_drive_t *drive, u8 mode_wanted)
+{
+	ide_hwif_t *hwif	= HWIF(drive);
+	struct pci_dev *dev	= hwif->pci_dev;
+	ide_pio_data_t pio;
+	u8 pio_mode, setup_count, arttim = 0;
+	static const u8 setup_values[] = {0x40, 0x40, 0x40, 0x80, 0, 0xc0};
+	static const u8 arttim_regs[4] = {ARTTIM0, ARTTIM1, ARTTIM23, ARTTIM23};
+	pio_mode = ide_get_best_pio_mode(drive, mode_wanted, 5, &pio);
+
+	cmdprintk("%s: PIO mode wanted %d, selected %d (%d ns)%s\n",
+		  drive->name, mode_wanted, pio_mode, pio.cycle_time,
+		  pio.overridden ? " (overriding vendor mode)" : "");
+
+	program_cycle_times(drive, pio.cycle_time,
+			    ide_pio_timings[pio_mode].active_time);
+
+	setup_count = quantize_timing(ide_pio_timings[pio_mode].setup_time,
+				      1000 / system_bus_clock());
+
+	/*
+	 * The primary channel has individual address setup timing registers
+	 * for each drive and the hardware selects the slowest timing itself.
+	 * The secondary channel has one common register and we have to select
+	 * the slowest address setup timing ourselves.
+	 */
+	if (hwif->channel) {
+		ide_drive_t *drives = hwif->drives;
+
+		drive->drive_data = setup_count;
+		setup_count = max(drives[0].drive_data, drives[1].drive_data);
+	}
+
+	if (setup_count > 5)		/* shouldn't actually happen... */
+		setup_count = 5;
+	cmdprintk("Final address setup count: %d\n", setup_count);
+
+	/*
+	 * Program the address setup clocks into the ARTTIM registers.
+	 * Avoid clearing the secondary channel's interrupt bit.
+	 */
+	(void) pci_read_config_byte (dev, arttim_regs[drive->dn], &arttim);
+	if (hwif->channel)
+		arttim &= ~ARTTIM23_INTR_CH1;
+	arttim &= ~0xc0;
+	arttim |= setup_values[setup_count];
+	(void) pci_write_config_byte(dev, arttim_regs[drive->dn], arttim);
+	cmdprintk("Write 0x%02x to reg 0x%x\n", arttim, arttim_regs[drive->dn]);
 
 	return pio_mode;
 }
@@ -376,61 +341,64 @@ static u8 cmd64x_ratemask (ide_drive_t *drive)
 	return mode;
 }
 
-static int cmd64x_tune_chipset (ide_drive_t *drive, u8 xferspeed)
+static int cmd64x_tune_chipset (ide_drive_t *drive, u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
+	u8 unit			= drive->dn & 0x01;
+	u8 regU = 0, pciU	= hwif->channel ? UDIDETCR1 : UDIDETCR0;
 
-	u8 unit			= (drive->select.b.unit & 0x01);
-	u8 regU = 0, pciU	= (hwif->channel) ? UDIDETCR1 : UDIDETCR0;
-	u8 regD = 0, pciD	= (hwif->channel) ? BMIDESR1 : BMIDESR0;
-
-	u8 speed	= ide_rate_filter(cmd64x_ratemask(drive), xferspeed);
+	speed = ide_rate_filter(cmd64x_ratemask(drive), speed);
 
 	if (speed >= XFER_SW_DMA_0) {
-		(void) pci_read_config_byte(dev, pciD, &regD);
 		(void) pci_read_config_byte(dev, pciU, &regU);
-		regD &= ~(unit ? 0x40 : 0x20);
 		regU &= ~(unit ? 0xCA : 0x35);
-		(void) pci_write_config_byte(dev, pciD, regD);
-		(void) pci_write_config_byte(dev, pciU, regU);
-		(void) pci_read_config_byte(dev, pciD, &regD);
-		(void) pci_read_config_byte(dev, pciU, &regU);
 	}
 
 	switch(speed) {
-		case XFER_UDMA_5:	regU |= (unit ? 0x0A : 0x05); break;
-		case XFER_UDMA_4:	regU |= (unit ? 0x4A : 0x15); break;
-		case XFER_UDMA_3:	regU |= (unit ? 0x8A : 0x25); break;
-		case XFER_UDMA_2:	regU |= (unit ? 0x42 : 0x11); break;
-		case XFER_UDMA_1:	regU |= (unit ? 0x82 : 0x21); break;
-		case XFER_UDMA_0:	regU |= (unit ? 0xC2 : 0x31); break;
-		case XFER_MW_DMA_2:	regD |= (unit ? 0x40 : 0x10); break;
-		case XFER_MW_DMA_1:	regD |= (unit ? 0x80 : 0x20); break;
-		case XFER_MW_DMA_0:	regD |= (unit ? 0xC0 : 0x30); break;
-		case XFER_SW_DMA_2:	regD |= (unit ? 0x40 : 0x10); break;
-		case XFER_SW_DMA_1:	regD |= (unit ? 0x80 : 0x20); break;
-		case XFER_SW_DMA_0:	regD |= (unit ? 0xC0 : 0x30); break;
-		case XFER_PIO_5:
-		case XFER_PIO_4:
-		case XFER_PIO_3:
-		case XFER_PIO_2:
-		case XFER_PIO_1:
-		case XFER_PIO_0:
-			(void) cmd64x_tune_pio(drive, speed - XFER_PIO_0);
-			break;
-
-		default:
-			return 1;
+	case XFER_UDMA_5:
+		regU |= unit ? 0x0A : 0x05;
+		break;
+	case XFER_UDMA_4:
+		regU |= unit ? 0x4A : 0x15;
+		break;
+	case XFER_UDMA_3:
+		regU |= unit ? 0x8A : 0x25;
+		break;
+	case XFER_UDMA_2:
+		regU |= unit ? 0x42 : 0x11;
+		break;
+	case XFER_UDMA_1:
+		regU |= unit ? 0x82 : 0x21;
+		break;
+	case XFER_UDMA_0:
+		regU |= unit ? 0xC2 : 0x31;
+		break;
+	case XFER_MW_DMA_2:
+		program_cycle_times(drive, 120, 70);
+		break;
+	case XFER_MW_DMA_1:
+		program_cycle_times(drive, 150, 80);
+		break;
+	case XFER_MW_DMA_0:
+		program_cycle_times(drive, 480, 215);
+		break;
+	case XFER_PIO_5:
+	case XFER_PIO_4:
+	case XFER_PIO_3:
+	case XFER_PIO_2:
+	case XFER_PIO_1:
+	case XFER_PIO_0:
+		(void) cmd64x_tune_pio(drive, speed - XFER_PIO_0);
+		break;
+	default:
+		return 1;
 	}
 
-	if (speed >= XFER_SW_DMA_0) {
+	if (speed >= XFER_SW_DMA_0)
 		(void) pci_write_config_byte(dev, pciU, regU);
-		regD |= (unit ? 0x40 : 0x20);
-		(void) pci_write_config_byte(dev, pciD, regD);
-	}
 
-	return (ide_config_drive_speed(drive, speed));
+	return ide_config_drive_speed(drive, speed);
 }
 
 static int config_chipset_for_dma (ide_drive_t *drive)
@@ -457,67 +425,80 @@ static int cmd64x_config_drive_for_dma (ide_drive_t *drive)
 	return -1;
 }
 
-static int cmd64x_alt_dma_status (struct pci_dev *dev)
+static int cmd648_ide_dma_end (ide_drive_t *drive)
 {
-	switch(dev->device) {
-		case PCI_DEVICE_ID_CMD_648:
-		case PCI_DEVICE_ID_CMD_649:
-			return 1;
-		default:
-			break;
-	}
-	return 0;
+	ide_hwif_t *hwif	= HWIF(drive);
+	int err			= __ide_dma_end(drive);
+	u8  irq_mask		= hwif->channel ? MRDMODE_INTR_CH1 :
+						  MRDMODE_INTR_CH0;
+	u8  mrdmode		= inb(hwif->dma_master + 0x01);
+
+	/* clear the interrupt bit */
+	outb(mrdmode | irq_mask, hwif->dma_master + 0x01);
+
+	return err;
 }
 
 static int cmd64x_ide_dma_end (ide_drive_t *drive)
 {
-	u8 dma_stat = 0, dma_cmd = 0;
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
+	int irq_reg		= hwif->channel ? ARTTIM23 : CFR;
+	u8  irq_mask		= hwif->channel ? ARTTIM23_INTR_CH1 :
+						  CFR_INTR_CH0;
+	u8  irq_stat		= 0;
+	int err			= __ide_dma_end(drive);
 
-	drive->waiting_for_dma = 0;
-	/* read DMA command state */
-	dma_cmd = inb(hwif->dma_command);
-	/* stop DMA */
-	outb(dma_cmd & ~1, hwif->dma_command);
-	/* get DMA status */
-	dma_stat = inb(hwif->dma_status);
-	/* clear the INTR & ERROR bits */
-	outb(dma_stat | 6, hwif->dma_status);
-	if (cmd64x_alt_dma_status(dev)) {
-		u8 dma_intr	= 0;
-		u8 dma_mask	= (hwif->channel) ? ARTTIM23_INTR_CH1 :
-						    CFR_INTR_CH0;
-		u8 dma_reg	= (hwif->channel) ? ARTTIM2 : CFR;
-		(void) pci_read_config_byte(dev, dma_reg, &dma_intr);
-		/* clear the INTR bit */
-		(void) pci_write_config_byte(dev, dma_reg, dma_intr|dma_mask);
-	}
-	/* purge DMA mappings */
-	ide_destroy_dmatable(drive);
-	/* verify good DMA status */
-	return (dma_stat & 7) != 4;
+	(void) pci_read_config_byte(dev, irq_reg, &irq_stat);
+	/* clear the interrupt bit */
+	(void) pci_write_config_byte(dev, irq_reg, irq_stat | irq_mask);
+
+	return err;
+}
+
+static int cmd648_ide_dma_test_irq (ide_drive_t *drive)
+{
+	ide_hwif_t *hwif	= HWIF(drive);
+	u8 irq_mask		= hwif->channel ? MRDMODE_INTR_CH1 :
+						  MRDMODE_INTR_CH0;
+	u8 dma_stat		= inb(hwif->dma_status);
+	u8 mrdmode		= inb(hwif->dma_master + 0x01);
+
+#ifdef DEBUG
+	printk("%s: dma_stat: 0x%02x mrdmode: 0x%02x irq_mask: 0x%02x\n",
+	       drive->name, dma_stat, mrdmode, irq_mask);
+#endif
+	if (!(mrdmode & irq_mask))
+		return 0;
+
+	/* return 1 if INTR asserted */
+	if (dma_stat & 4)
+		return 1;
+
+	return 0;
 }
 
 static int cmd64x_ide_dma_test_irq (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif		= HWIF(drive);
-	struct pci_dev *dev		= hwif->pci_dev;
-        u8 dma_alt_stat = 0, mask	= (hwif->channel) ? MRDMODE_INTR_CH1 :
-							    MRDMODE_INTR_CH0;
-	u8 dma_stat = inb(hwif->dma_status);
+	ide_hwif_t *hwif	= HWIF(drive);
+	struct pci_dev *dev	= hwif->pci_dev;
+	int irq_reg		= hwif->channel ? ARTTIM23 : CFR;
+	u8  irq_mask		= hwif->channel ? ARTTIM23_INTR_CH1 :
+						  CFR_INTR_CH0;
+	u8  dma_stat		= inb(hwif->dma_status);
+	u8  irq_stat		= 0;
 
-	(void) pci_read_config_byte(dev, MRDMODE, &dma_alt_stat);
+	(void) pci_read_config_byte(dev, irq_reg, &irq_stat);
+
 #ifdef DEBUG
-	printk("%s: dma_stat: 0x%02x dma_alt_stat: "
-		"0x%02x mask: 0x%02x\n", drive->name,
-		dma_stat, dma_alt_stat, mask);
+	printk("%s: dma_stat: 0x%02x irq_stat: 0x%02x irq_mask: 0x%02x\n",
+	       drive->name, dma_stat, irq_stat, irq_mask);
 #endif
-	if (!(dma_alt_stat & mask))
+	if (!(irq_stat & irq_mask))
 		return 0;
 
 	/* return 1 if INTR asserted */
-	if ((dma_stat & 4) == 4)
+	if (dma_stat & 4)
 		return 1;
 
 	return 0;
@@ -665,7 +646,6 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 
 	hwif->ultra_mask = 0x3f;
 	hwif->mwdma_mask = 0x07;
-	hwif->swdma_mask = 0x07;
 
 	if (dev->device == PCI_DEVICE_ID_CMD_643)
 		hwif->ultra_mask = 0x80;
@@ -678,17 +658,25 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 	if (!(hwif->udma_four))
 		hwif->udma_four = ata66_cmd64x(hwif);
 
-	if (dev->device == PCI_DEVICE_ID_CMD_646) {
+	switch(dev->device) {
+	case PCI_DEVICE_ID_CMD_648:
+	case PCI_DEVICE_ID_CMD_649:
+	alt_irq_bits:
+		hwif->ide_dma_end	= &cmd648_ide_dma_end;
+		hwif->ide_dma_test_irq	= &cmd648_ide_dma_test_irq;
+		break;
+	case PCI_DEVICE_ID_CMD_646:
 		hwif->chipset = ide_cmd646;
 		if (class_rev == 0x01) {
 			hwif->ide_dma_end = &cmd646_1_ide_dma_end;
-		} else {
-			hwif->ide_dma_end = &cmd64x_ide_dma_end;
-			hwif->ide_dma_test_irq = &cmd64x_ide_dma_test_irq;
-		}
-	} else {
-		hwif->ide_dma_end = &cmd64x_ide_dma_end;
-		hwif->ide_dma_test_irq = &cmd64x_ide_dma_test_irq;
+			break;
+		} else if (class_rev >= 0x03)
+			goto alt_irq_bits;
+		/* fall thru */
+	default:
+		hwif->ide_dma_end	= &cmd64x_ide_dma_end;
+		hwif->ide_dma_test_irq	= &cmd64x_ide_dma_test_irq;
+		break;
 	}
 
 
@@ -698,42 +686,75 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 	hwif->drives[1].autodma = hwif->autodma;
 }
 
+static int __devinit init_setup_cmd64x(struct pci_dev *dev, ide_pci_device_t *d)
+{
+	return ide_setup_pci_device(dev, d);
+}
+
+static int __devinit init_setup_cmd646(struct pci_dev *dev, ide_pci_device_t *d)
+{
+	u8 rev = 0;
+
+	/*
+	 * The original PCI0646 didn't have the primary channel enable bit,
+	 * it appeared starting with PCI0646U (i.e. revision ID 3).
+	 */
+	pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
+	if (rev < 3)
+		d->enablebits[0].reg = 0;
+
+	return ide_setup_pci_device(dev, d);
+}
+
 static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "CMD643",
+		.init_setup	= init_setup_cmd64x,
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
 		.channels	= 2,
 		.autodma	= AUTODMA,
+		.enablebits	= {{0x00,0x00,0x00}, {0x51,0x08,0x08}},
 		.bootable	= ON_BOARD,
 	},{	/* 1 */
 		.name		= "CMD646",
+		.init_setup	= init_setup_cmd646,
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
 		.channels	= 2,
 		.autodma	= AUTODMA,
-		.enablebits	= {{0x00,0x00,0x00}, {0x51,0x80,0x80}},
+		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.bootable	= ON_BOARD,
 	},{	/* 2 */
 		.name		= "CMD648",
+		.init_setup	= init_setup_cmd64x,
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
 		.channels	= 2,
 		.autodma	= AUTODMA,
+		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.bootable	= ON_BOARD,
 	},{	/* 3 */
 		.name		= "CMD649",
+		.init_setup	= init_setup_cmd64x,
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
 		.channels	= 2,
 		.autodma	= AUTODMA,
+		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.bootable	= ON_BOARD,
 	}
 };
 
+/*
+ * We may have to modify enablebits for PCI0646, so we'd better pass
+ * a local copy of the ide_pci_device_t structure down the call chain...
+ */
 static int __devinit cmd64x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &cmd64x_chipsets[id->driver_data]);
+	ide_pci_device_t d = cmd64x_chipsets[id->driver_data];
+
+	return d.init_setup(dev, &d);
 }
 
 static struct pci_device_id cmd64x_pci_tbl[] = {

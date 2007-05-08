@@ -42,7 +42,7 @@ ConnectTech WhiteHEAT 4 port converter
   http://www.connecttech.com
 
   For any questions or problems with this driver, please contact
-  Stuart MacDonald at stuartm@connecttech.com
+  Connect Tech's Support Department at support@connecttech.com
 
 
 HandSpring Visor, Palm USB, and Clié USB driver

@@ -730,7 +730,7 @@ static int speed_cris_ide(ide_drive_t *drive, u8 speed)
 
 	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4) {
 		tune_cris_ide(drive, speed - XFER_PIO_0);
-		return 0;
+		return ide_config_drive_speed(drive, speed);
 	}
 
 	switch(speed)
@@ -760,7 +760,8 @@ static int speed_cris_ide(ide_drive_t *drive, u8 speed)
 			hold = ATA_DMA2_HOLD;
 			break;
 		default:
-			return 0;
+			BUG();
+			break;
 	}
 
 	if (speed >= XFER_UDMA_0)
@@ -768,7 +769,7 @@ static int speed_cris_ide(ide_drive_t *drive, u8 speed)
 	else
 		cris_ide_set_speed(TYPE_DMA, 0, strobe, hold);
 
-	return 0;
+	return ide_config_drive_speed(drive, speed);
 }
 
 void __init
@@ -821,7 +822,6 @@ init_e100_ide (void)
 		hwif->udma_four = 0;
 		hwif->ultra_mask = cris_ultra_mask;
 		hwif->mwdma_mask = 0x07; /* Multiword DMA 0-2 */
-		hwif->swdma_mask = 0x07; /* Singleword DMA 0-2 */
 		hwif->autodma = 1;
 		hwif->drives[0].autodma = 1;
 		hwif->drives[1].autodma = 1;
@@ -1010,7 +1010,6 @@ static int cris_config_drive_for_dma (ide_drive_t *drive)
 		return 0;
 
 	speed_cris_ide(drive, speed);
-	ide_config_drive_speed(drive, speed);
 
 	return ide_dma_enable(drive);
 }

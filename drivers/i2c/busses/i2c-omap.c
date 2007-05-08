@@ -605,7 +605,8 @@ omap_i2c_probe(struct platform_device *pdev)
 	adap->dev.parent = &pdev->dev;
 
 	/* i2c device drivers may be active on return from add_adapter() */
-	r = i2c_add_adapter(adap);
+	adap->nr = pdev->id;
+	r = i2c_add_numbered_adapter(adap);
 	if (r) {
 		dev_err(dev->dev, "failure adding adapter\n");
 		goto err_free_irq;

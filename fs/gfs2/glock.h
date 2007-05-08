@@ -38,7 +38,7 @@ static inline int gfs2_glock_is_locked_by_me(struct gfs2_glock *gl)
 	/* Look in glock's list of holders for one with current task as owner */
 	spin_lock(&gl->gl_spin);
 	list_for_each_entry(gh, &gl->gl_holders, gh_list) {
-		if (gh->gh_owner == current) {
+		if (gh->gh_owner_pid == current->pid) {
 			locked = 1;
 			break;
 		}
@@ -67,7 +67,7 @@ static inline int gfs2_glock_is_blocking(struct gfs2_glock *gl)
 {
 	int ret;
 	spin_lock(&gl->gl_spin);
-	ret = !list_empty(&gl->gl_waiters2) || !list_empty(&gl->gl_waiters3);
+	ret = test_bit(GLF_DEMOTE, &gl->gl_flags) || !list_empty(&gl->gl_waiters3);
 	spin_unlock(&gl->gl_spin);
 	return ret;
 }
@@ -135,5 +135,9 @@ void gfs2_scand_internal(struct gfs2_sbd *sdp);
 void gfs2_gl_hash_clear(struct gfs2_sbd *sdp, int wait);
 
 int __init gfs2_glock_init(void);
+int gfs2_create_debugfs_file(struct gfs2_sbd *sdp);
+void gfs2_delete_debugfs_file(struct gfs2_sbd *sdp);
+int gfs2_register_debugfs(void);
+void gfs2_unregister_debugfs(void);
 
 #endif /* __GLOCK_DOT_H__ */

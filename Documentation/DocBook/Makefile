@@ -41,7 +41,7 @@ psdocs: $(PS)
 PDF := $(patsubst %.xml, %.pdf, $(BOOKS))
 pdfdocs: $(PDF)
 
-HTML := $(patsubst %.xml, %.html, $(BOOKS))
+HTML := $(sort $(patsubst %.xml, %.html, $(BOOKS)))
 htmldocs: $(HTML)
 
 MAN := $(patsubst %.xml, %.9, $(BOOKS))
@@ -152,6 +152,7 @@ quiet_cmd_db2man = MAN     $@
 	@(which xmlto > /dev/null 2>&1) || \
 	 (echo "*** You need to install xmlto ***"; \
 	  exit 1)
+	$(Q)mkdir -p $(obj)/man
 	$(call cmd,db2man)
 	@touch $@
 
@@ -212,11 +213,7 @@ clean-files := $(DOCBOOKS) \
 	$(patsubst %.xml, %.9,    $(DOCBOOKS)) \
 	$(C-procfs-example)
 
-clean-dirs := $(patsubst %.xml,%,$(DOCBOOKS))
-
-#man put files in man subdir - traverse down
-subdir- := man/
-
+clean-dirs := $(patsubst %.xml,%,$(DOCBOOKS)) man
 
 # Declare the contents of the .PHONY variable as phony.  We keep that
 # information in a variable se we can use it in if_changed and friends.

@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/inode.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2005
+ *   Copyright (C) International Business Machines  Corp., 2002,2007
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -90,7 +90,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 				(*pinode)->i_ino =
 					(unsigned long)findData.UniqueId;
 			} /* note ino incremented to unique num in new_inode */
-			if(sb->s_flags & MS_NOATIME)
+			if (sb->s_flags & MS_NOATIME)
 				(*pinode)->i_flags |= S_NOATIME | S_NOCMTIME;
 				
 			insert_inode_hash(*pinode);
@@ -139,8 +139,17 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 			inode->i_mode |= S_IFREG;
 			cFYI(1,("unknown type %d",type));
 		}
-		inode->i_uid = le64_to_cpu(findData.Uid);
-		inode->i_gid = le64_to_cpu(findData.Gid);
+		
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID)
+			inode->i_uid = cifs_sb->mnt_uid;
+		else
+			inode->i_uid = le64_to_cpu(findData.Uid);
+
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID)
+			inode->i_gid = cifs_sb->mnt_gid;
+		else
+			inode->i_gid = le64_to_cpu(findData.Gid);
+			
 		inode->i_nlink = le64_to_cpu(findData.Nlinks);
 
 		spin_lock(&inode->i_lock);
@@ -178,13 +187,13 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 						&cifs_file_direct_nobrl_ops;
 				else
 					inode->i_fop = &cifs_file_direct_ops;
-			} else if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+			} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
 				inode->i_fop = &cifs_file_nobrl_ops;
 			else /* not direct, send byte range locks */ 
 				inode->i_fop = &cifs_file_ops;
 
 			/* check if server can support readpages */
-			if(pTcon->ses->server->maxBuf < 
+			if (pTcon->ses->server->maxBuf < 
 			    PAGE_CACHE_SIZE + MAX_CIFS_HDR_SIZE)
 				inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
 			else
@@ -220,7 +229,7 @@ static int decode_sfu_inode(struct inode * inode, __u64 size,
 
 	pbuf = buf;
 
-	if(size == 0) {
+	if (size == 0) {
 		inode->i_mode |= S_IFIFO;
 		return 0;
 	} else if (size < 8) {
@@ -239,11 +248,11 @@ static int decode_sfu_inode(struct inode * inode, __u64 size,
 			         netfid,
 				 24 /* length */, 0 /* offset */,
 				 &bytes_read, &pbuf, &buf_type);
-		if((rc == 0) && (bytes_read >= 8)) {
-			if(memcmp("IntxBLK", pbuf, 8) == 0) {
+		if ((rc == 0) && (bytes_read >= 8)) {
+			if (memcmp("IntxBLK", pbuf, 8) == 0) {
 				cFYI(1,("Block device"));
 				inode->i_mode |= S_IFBLK;
-				if(bytes_read == 24) {
+				if (bytes_read == 24) {
 					/* we have enough to decode dev num */
 					__u64 mjr; /* major */
 					__u64 mnr; /* minor */
@@ -251,10 +260,10 @@ static int decode_sfu_inode(struct inode * inode, __u64 size,
 					mnr = le64_to_cpu(*(__le64 *)(pbuf+16));
 					inode->i_rdev = MKDEV(mjr, mnr);
 				}
-			} else if(memcmp("IntxCHR", pbuf, 8) == 0) {
+			} else if (memcmp("IntxCHR", pbuf, 8) == 0) {
 				cFYI(1,("Char device"));
 				inode->i_mode |= S_IFCHR;
-				if(bytes_read == 24) {
+				if (bytes_read == 24) {
 					/* we have enough to decode dev num */
 					__u64 mjr; /* major */
 					__u64 mnr; /* minor */
@@ -262,7 +271,7 @@ static int decode_sfu_inode(struct inode * inode, __u64 size,
 					mnr = le64_to_cpu(*(__le64 *)(pbuf+16));
 					inode->i_rdev = MKDEV(mjr, mnr);
                                 }
-			} else if(memcmp("IntxLNK", pbuf, 7) == 0) {
+			} else if (memcmp("IntxLNK", pbuf, 7) == 0) {
 				cFYI(1,("Symlink"));
 				inode->i_mode |= S_IFLNK;
 			} else {
@@ -293,7 +302,7 @@ static int get_sfu_uid_mode(struct inode * inode,
 	rc = CIFSSMBQueryEA(xid, cifs_sb->tcon, path, "SETFILEBITS",
 			ea_value, 4 /* size of buf */, cifs_sb->local_nls,
                         cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
-	if(rc < 0)
+	if (rc < 0)
 		return (int)rc;
 	else if (rc > 3) {
 		mode = le32_to_cpu(*((__le32 *)ea_value));
@@ -348,7 +357,7 @@ int cifs_get_inode_info(struct inode **pinode,
 		/* BB optimize code so we do not make the above call
 		when server claims no NT SMB support and the above call
 		failed at least once - set flag in tcon or mount */
-		if((rc == -EOPNOTSUPP) || (rc == -EINVAL)) {
+		if ((rc == -EOPNOTSUPP) || (rc == -EINVAL)) {
 			rc = SMBQueryInformation(xid, pTcon, search_path,
 					pfindData, cifs_sb->local_nls, 
 					cifs_sb->mnt_cifs_flags &
@@ -425,7 +434,7 @@ int cifs_get_inode_info(struct inode **pinode,
 				} else /* do we need cast or hash to ino? */
 					(*pinode)->i_ino = inode_num;
 			} /* else ino incremented to unique num in new_inode*/
-			if(sb->s_flags & MS_NOATIME)
+			if (sb->s_flags & MS_NOATIME)
 				(*pinode)->i_flags |= S_NOATIME | S_NOCMTIME;
 			insert_inode_hash(*pinode);
 		}
@@ -442,7 +451,7 @@ int cifs_get_inode_info(struct inode **pinode,
 		(pTcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE) & 0xFFFFFE00;*/
 
 		/* Linux can not store file creation time so ignore it */
-		if(pfindData->LastAccessTime)
+		if (pfindData->LastAccessTime)
 			inode->i_atime = cifs_NTtimeToUnix
 				(le64_to_cpu(pfindData->LastAccessTime));
 		else /* do not need to use current_fs_time - time not stored */
@@ -452,7 +461,7 @@ int cifs_get_inode_info(struct inode **pinode,
 		inode->i_ctime =
 		    cifs_NTtimeToUnix(le64_to_cpu(pfindData->ChangeTime));
 		cFYI(0, ("Attributes came in as 0x%x", attr));
-		if(adjustTZ && (pTcon->ses) && (pTcon->ses->server)) {
+		if (adjustTZ && (pTcon->ses) && (pTcon->ses->server)) {
 			inode->i_ctime.tv_sec += pTcon->ses->server->timeAdj;
 	                inode->i_mtime.tv_sec += pTcon->ses->server->timeAdj;
 		}
@@ -521,8 +530,10 @@ int cifs_get_inode_info(struct inode **pinode,
 
 		/* BB fill in uid and gid here? with help from winbind? 
 		   or retrieve from NTFS stream extended attribute */
-		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
 			/* fill in uid, gid, mode from server ACL */
+			/* BB FIXME this should also take into account the
+			 * default uid specified on mount if present */
 			get_sfu_uid_mode(inode, search_path, cifs_sb, xid);
 		} else if (atomic_read(&cifsInfo->inUse) == 0) {
 			inode->i_uid = cifs_sb->mnt_uid;
@@ -541,12 +552,12 @@ int cifs_get_inode_info(struct inode **pinode,
 						&cifs_file_direct_nobrl_ops;
 				else
 					inode->i_fop = &cifs_file_direct_ops;
-			} else if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+			} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
 				inode->i_fop = &cifs_file_nobrl_ops;
 			else /* not direct, send byte range locks */
 				inode->i_fop = &cifs_file_ops;
 
-			if(pTcon->ses->server->maxBuf < 
+			if (pTcon->ses->server->maxBuf < 
 			     PAGE_CACHE_SIZE + MAX_CIFS_HDR_SIZE)
 				inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
 			else
@@ -597,7 +608,7 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 
 	xid = GetXid();
 
-	if(inode)
+	if (inode)
 		cifs_sb = CIFS_SB(inode->i_sb);
 	else
 		cifs_sb = CIFS_SB(direntry->d_sb);
@@ -723,7 +734,7 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 					   when needed */
 		direntry->d_inode->i_ctime = current_fs_time(inode->i_sb);
 	}
-	if(inode) {
+	if (inode) {
 		inode->i_ctime = inode->i_mtime = current_fs_time(inode->i_sb);
 		cifsInode = CIFS_I(inode);
 		cifsInode->time = 0;	/* force revalidate of dir as well */
@@ -732,6 +743,136 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 	kfree(full_path);
 	FreeXid(xid);
 	return rc;
+}
+
+static void posix_fill_in_inode(struct inode *tmp_inode,
+	FILE_UNIX_BASIC_INFO *pData, int *pobject_type, int isNewInode)
+{
+	loff_t local_size;
+	struct timespec local_mtime;
+
+	struct cifsInodeInfo *cifsInfo = CIFS_I(tmp_inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(tmp_inode->i_sb);
+
+	__u32 type = le32_to_cpu(pData->Type);
+	__u64 num_of_bytes = le64_to_cpu(pData->NumOfBytes);
+	__u64 end_of_file = le64_to_cpu(pData->EndOfFile);
+	cifsInfo->time = jiffies;
+	atomic_inc(&cifsInfo->inUse);
+
+	/* save mtime and size */
+	local_mtime = tmp_inode->i_mtime;
+	local_size  = tmp_inode->i_size;
+
+	tmp_inode->i_atime =
+	    cifs_NTtimeToUnix(le64_to_cpu(pData->LastAccessTime));
+	tmp_inode->i_mtime =
+	    cifs_NTtimeToUnix(le64_to_cpu(pData->LastModificationTime));
+	tmp_inode->i_ctime =
+	    cifs_NTtimeToUnix(le64_to_cpu(pData->LastStatusChange));
+
+	tmp_inode->i_mode = le64_to_cpu(pData->Permissions);
+	/* since we set the inode type below we need to mask off type
+           to avoid strange results if bits above were corrupt */
+        tmp_inode->i_mode &= ~S_IFMT;
+	if (type == UNIX_FILE) {
+		*pobject_type = DT_REG;
+		tmp_inode->i_mode |= S_IFREG;
+	} else if (type == UNIX_SYMLINK) {
+		*pobject_type = DT_LNK;
+		tmp_inode->i_mode |= S_IFLNK;
+	} else if (type == UNIX_DIR) {
+		*pobject_type = DT_DIR;
+		tmp_inode->i_mode |= S_IFDIR;
+	} else if (type == UNIX_CHARDEV) {
+		*pobject_type = DT_CHR;
+		tmp_inode->i_mode |= S_IFCHR;
+		tmp_inode->i_rdev = MKDEV(le64_to_cpu(pData->DevMajor),
+				le64_to_cpu(pData->DevMinor) & MINORMASK);
+	} else if (type == UNIX_BLOCKDEV) {
+		*pobject_type = DT_BLK;
+		tmp_inode->i_mode |= S_IFBLK;
+		tmp_inode->i_rdev = MKDEV(le64_to_cpu(pData->DevMajor),
+				le64_to_cpu(pData->DevMinor) & MINORMASK);
+	} else if (type == UNIX_FIFO) {
+		*pobject_type = DT_FIFO;
+		tmp_inode->i_mode |= S_IFIFO;
+	} else if (type == UNIX_SOCKET) {
+		*pobject_type = DT_SOCK;
+		tmp_inode->i_mode |= S_IFSOCK;
+	} else {
+		/* safest to just call it a file */
+		*pobject_type = DT_REG;
+		tmp_inode->i_mode |= S_IFREG;
+		cFYI(1,("unknown inode type %d",type)); 
+	}
+
+#ifdef CONFIG_CIFS_DEBUG2
+	cFYI(1,("object type: %d", type));
+#endif
+	tmp_inode->i_uid = le64_to_cpu(pData->Uid);
+	tmp_inode->i_gid = le64_to_cpu(pData->Gid);
+	tmp_inode->i_nlink = le64_to_cpu(pData->Nlinks);
+
+	spin_lock(&tmp_inode->i_lock);
+	if (is_size_safe_to_change(cifsInfo, end_of_file)) {
+		/* can not safely change the file size here if the 
+		client is writing to it due to potential races */
+		i_size_write(tmp_inode, end_of_file);
+
+	/* 512 bytes (2**9) is the fake blocksize that must be used */
+	/* for this calculation, not the real blocksize */
+		tmp_inode->i_blocks = (512 - 1 + num_of_bytes) >> 9;
+	}
+	spin_unlock(&tmp_inode->i_lock);
+
+	if (S_ISREG(tmp_inode->i_mode)) {
+		cFYI(1, ("File inode"));
+		tmp_inode->i_op = &cifs_file_inode_ops;
+
+		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO) {
+			if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+				tmp_inode->i_fop = &cifs_file_direct_nobrl_ops;
+			else
+				tmp_inode->i_fop = &cifs_file_direct_ops;
+		
+		} else if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+			tmp_inode->i_fop = &cifs_file_nobrl_ops;
+		else
+			tmp_inode->i_fop = &cifs_file_ops;
+
+		if((cifs_sb->tcon) && (cifs_sb->tcon->ses) &&
+		   (cifs_sb->tcon->ses->server->maxBuf < 
+			PAGE_CACHE_SIZE + MAX_CIFS_HDR_SIZE))
+			tmp_inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
+		else
+			tmp_inode->i_data.a_ops = &cifs_addr_ops;
+
+		if(isNewInode)
+			return; /* No sense invalidating pages for new inode since we
+					   have not started caching readahead file data yet */
+
+		if (timespec_equal(&tmp_inode->i_mtime, &local_mtime) &&
+			(local_size == tmp_inode->i_size)) {
+			cFYI(1, ("inode exists but unchanged"));
+		} else {
+			/* file may have changed on server */
+			cFYI(1, ("invalidate inode, readdir detected change"));
+			invalidate_remote_inode(tmp_inode);
+		}
+	} else if (S_ISDIR(tmp_inode->i_mode)) {
+		cFYI(1, ("Directory inode"));
+		tmp_inode->i_op = &cifs_dir_inode_ops;
+		tmp_inode->i_fop = &cifs_dir_ops;
+	} else if (S_ISLNK(tmp_inode->i_mode)) {
+		cFYI(1, ("Symbolic Link inode"));
+		tmp_inode->i_op = &cifs_symlink_inode_ops;
+/* tmp_inode->i_fop = *//* do not need to set to anything */
+	} else {
+		cFYI(1, ("Special inode")); 
+		init_special_inode(tmp_inode, tmp_inode->i_mode,
+				   tmp_inode->i_rdev);
+	}	
 }
 
 int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
@@ -755,6 +896,71 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 		FreeXid(xid);
 		return -ENOMEM;
 	}
+	
+	if((pTcon->ses->capabilities & CAP_UNIX) && 
+		(CIFS_UNIX_POSIX_PATH_OPS_CAP &	
+			le64_to_cpu(pTcon->fsUnixInfo.Capability))) {
+		u32 oplock = 0;
+		FILE_UNIX_BASIC_INFO * pInfo = 
+			kzalloc(sizeof(FILE_UNIX_BASIC_INFO), GFP_KERNEL);
+		if(pInfo == NULL) {
+			rc = -ENOMEM;
+			goto mkdir_out;
+		}
+			
+		rc = CIFSPOSIXCreate(xid, pTcon, SMB_O_DIRECTORY | SMB_O_CREAT,
+				mode, NULL /* netfid */, pInfo, &oplock,
+				full_path, cifs_sb->local_nls, 
+				cifs_sb->mnt_cifs_flags & 
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (rc) {
+			cFYI(1, ("posix mkdir returned 0x%x", rc));
+			d_drop(direntry);
+		} else {
+			int obj_type;
+			if (pInfo->Type == -1) /* no return info - go query */
+				goto mkdir_get_info; 
+/*BB check (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID ) to see if need to set uid/gid */
+			inc_nlink(inode);
+			if (pTcon->nocase)
+				direntry->d_op = &cifs_ci_dentry_ops;
+			else
+				direntry->d_op = &cifs_dentry_ops;
+
+			newinode = new_inode(inode->i_sb);
+			if (newinode == NULL)
+				goto mkdir_get_info;
+			/* Is an i_ino of zero legal? */
+			/* Are there sanity checks we can use to ensure that
+			   the server is really filling in that field? */
+			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
+				newinode->i_ino =
+					(unsigned long)pInfo->UniqueId;
+			} /* note ino incremented to unique num in new_inode */
+			if(inode->i_sb->s_flags & MS_NOATIME)
+				newinode->i_flags |= S_NOATIME | S_NOCMTIME;
+			newinode->i_nlink = 2;
+
+			insert_inode_hash(newinode);
+			d_instantiate(direntry, newinode);
+
+			/* we already checked in POSIXCreate whether
+			   frame was long enough */
+			posix_fill_in_inode(direntry->d_inode,
+					pInfo, &obj_type, 1 /* NewInode */);
+#ifdef CONFIG_CIFS_DEBUG2
+			cFYI(1,("instantiated dentry %p %s to inode %p",
+				direntry, direntry->d_name.name, newinode));
+
+			if(newinode->i_nlink != 2)
+				cFYI(1,("unexpected number of links %d",
+					newinode->i_nlink));
+#endif
+		}
+		kfree(pInfo);
+		goto mkdir_out;
+	}	
+	
 	/* BB add setting the equivalent of mode via CreateX w/ACLs */
 	rc = CIFSSMBMkDir(xid, pTcon, full_path, cifs_sb->local_nls,
 			  cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
@@ -762,6 +968,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 		cFYI(1, ("cifs_mkdir returned 0x%x", rc));
 		d_drop(direntry);
 	} else {
+mkdir_get_info:		
 		inc_nlink(inode);
 		if (pTcon->ses->capabilities & CAP_UNIX)
 			rc = cifs_get_inode_info_unix(&newinode, full_path,
@@ -775,8 +982,10 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 		else
 			direntry->d_op = &cifs_dentry_ops;
 		d_instantiate(direntry, newinode);
-		if (direntry->d_inode)
-			direntry->d_inode->i_nlink = 2;
+		 /* setting nlink not necessary except in cases where we
+		  * failed to get it from the server or was set bogus */ 
+		if ((direntry->d_inode) && (direntry->d_inode->i_nlink < 2))
+				direntry->d_inode->i_nlink = 2; 
 		if (cifs_sb->tcon->ses->capabilities & CAP_UNIX)
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 				CIFSSMBUnixSetPerms(xid, pTcon, full_path,
@@ -812,6 +1021,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			}
 		}
 	}
+mkdir_out:	
 	kfree(full_path);
 	FreeXid(xid);
 	return rc;
@@ -1339,17 +1549,17 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 					cpu_to_le32(cifsInode->cifsAttrs |
 						    ATTR_READONLY);
 			}
-		} else if ((mode & S_IWUGO) == S_IWUGO) {
-			if (cifsInode->cifsAttrs & ATTR_READONLY) {
-				set_dosattr = TRUE;
-				time_buf.Attributes =
-					cpu_to_le32(cifsInode->cifsAttrs &
-						    (~ATTR_READONLY));
-				/* Windows ignores set to zero */
-				if(time_buf.Attributes == 0)
-					time_buf.Attributes |= 
-						cpu_to_le32(ATTR_NORMAL);
-			}
+		} else if (cifsInode->cifsAttrs & ATTR_READONLY) {
+			/* If file is readonly on server, we would
+			not be able to write to it - so if any write
+			bit is enabled for user or group or other we
+			need to at least try to remove r/o dos attr */
+			set_dosattr = TRUE;
+			time_buf.Attributes = cpu_to_le32(cifsInode->cifsAttrs &
+					    (~ATTR_READONLY));
+			/* Windows ignores set to zero */
+			if(time_buf.Attributes == 0)
+				time_buf.Attributes |= cpu_to_le32(ATTR_NORMAL);
 		}
 		/* BB to be implemented -
 		   via Windows security descriptors or streams */

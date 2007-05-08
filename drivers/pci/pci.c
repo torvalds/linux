@@ -35,8 +35,7 @@ unsigned long pci_cardbus_mem_size = DEFAULT_CARDBUS_MEM_SIZE;
  * Given a PCI bus, returns the highest PCI bus number present in the set
  * including the given PCI bus and its list of child PCI buses.
  */
-unsigned char __devinit
-pci_bus_max_busnr(struct pci_bus* bus)
+unsigned char pci_bus_max_busnr(struct pci_bus* bus)
 {
 	struct list_head *tmp;
 	unsigned char max, n;
@@ -892,6 +891,34 @@ pci_disable_device(struct pci_dev *dev)
 }
 
 /**
+ * pcibios_set_pcie_reset_state - set reset state for device dev
+ * @dev: the PCI-E device reset
+ * @state: Reset state to enter into
+ *
+ *
+ * Sets the PCI-E reset state for the device. This is the default
+ * implementation. Architecture implementations can override this.
+ */
+int __attribute__ ((weak)) pcibios_set_pcie_reset_state(struct pci_dev *dev,
+							enum pcie_reset_state state)
+{
+	return -EINVAL;
+}
+
+/**
+ * pci_set_pcie_reset_state - set reset state for device dev
+ * @dev: the PCI-E device reset
+ * @state: Reset state to enter into
+ *
+ *
+ * Sets the PCI reset state for the device.
+ */
+int pci_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state state)
+{
+	return pcibios_set_pcie_reset_state(dev, state);
+}
+
+/**
  * pci_enable_wake - enable PCI device as wakeup event source
  * @dev: PCI device affected
  * @state: PCI state from which device will issue wakeup events
@@ -1295,7 +1322,7 @@ pci_intx(struct pci_dev *pdev, int enable)
 
 /**
  * pci_msi_off - disables any msi or msix capabilities
- * @pdev: the PCI device to operate on
+ * @dev: the PCI device to operate on
  *
  * If you want to use msi see pci_enable_msi and friends.
  * This is a lower level primitive that allows us to disable
@@ -1427,4 +1454,5 @@ EXPORT_SYMBOL(pci_set_power_state);
 EXPORT_SYMBOL(pci_save_state);
 EXPORT_SYMBOL(pci_restore_state);
 EXPORT_SYMBOL(pci_enable_wake);
+EXPORT_SYMBOL_GPL(pci_set_pcie_reset_state);
 

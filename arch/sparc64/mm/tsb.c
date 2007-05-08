@@ -252,7 +252,7 @@ static const char *tsb_cache_names[8] = {
 	"tsb_1MB",
 };
 
-void __init tsb_cache_init(void)
+void __init pgtable_cache_init(void)
 {
 	unsigned long i;
 
@@ -262,8 +262,7 @@ void __init tsb_cache_init(void)
 
 		tsb_caches[i] = kmem_cache_create(name,
 						  size, size,
-						  SLAB_HWCACHE_ALIGN |
-						  SLAB_MUST_HWCACHE_ALIGN,
+						  0,
 						  NULL, NULL);
 		if (!tsb_caches[i]) {
 			prom_printf("Could not create %s cache\n", name);

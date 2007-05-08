@@ -398,8 +398,6 @@ static const struct file_operations proc_modules_operations = {
 #endif
 
 #ifdef CONFIG_SLAB
-extern struct seq_operations slabinfo_op;
-extern ssize_t slabinfo_write(struct file *, const char __user *, size_t, loff_t *);
 static int slabinfo_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &slabinfo_op);

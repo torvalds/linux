@@ -191,7 +191,7 @@ config FB_ARMCLCD
 
 	  If you want to compile this as a module (=code which can be
 	  inserted into and removed from the running kernel), say M
-	  here and read <file:Documentation/modules.txt>.  The module
+	  here and read <file:Documentation/kbuild/modules.txt>.  The module
 	  will be called amba-clcd.
 
 choice
@@ -389,7 +389,10 @@ config FB_ARC
 
 config FB_ATARI
 	bool "Atari native chipset support"
-	depends on (FB = y) && ATARI && BROKEN
+	depends on (FB = y) && ATARI
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
 	help
 	  This is the frame buffer device driver for the builtin graphics
 	  chipset found in Ataris.
@@ -1380,6 +1383,32 @@ config FB_LEO
 	  This is the frame buffer device driver for the SBUS-based Sun ZX
 	  (leo) frame buffer cards.
 
+config FB_XVR500
+	bool "Sun XVR-500 3DLABS Wildcat support"
+	depends on FB && PCI && SPARC64
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This is the framebuffer device for the Sun XVR-500 and similar
+	  graphics cards based upon the 3DLABS Wildcat chipset.  The driver
+	  only works on sparc64 systems where the system firwmare has
+	  mostly initialized the card already.  It is treated as a
+	  completely dumb framebuffer device.
+
+config FB_XVR2500
+	bool "Sun XVR-2500 3DLABS Wildcat support"
+	depends on FB && PCI && SPARC64
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This is the framebuffer device for the Sun XVR-2500 and similar
+	  graphics cards based upon the 3DLABS Wildcat chipset.  The driver
+	  only works on sparc64 systems where the system firwmare has
+	  mostly initialized the card already.  It is treated as a
+	  completely dumb framebuffer device.
+
 config FB_PCI
 	bool "PCI framebuffers"
 	depends on (FB = y) && PCI && SPARC
@@ -1491,7 +1520,7 @@ config FB_PXA
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
 	  module will be called pxafb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.txt>.
 
 	  If unsure, say N.
 
@@ -1544,7 +1573,7 @@ config FB_W100
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
 	  module will be called w100fb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.txt>.
 
 	  If unsure, say N.
 
@@ -1561,7 +1590,7 @@ config FB_S3C2410
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
 	  module will be called s3c2410fb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.txt>.
 
 	  If unsure, say N.
 config FB_S3C2410_DEBUG

@@ -19,7 +19,7 @@ int dvb_usb_i2c_init(struct dvb_usb_device *d)
 		return -EINVAL;
 	}
 
-	strncpy(d->i2c_adap.name,d->desc->name,I2C_NAME_SIZE);
+	strncpy(d->i2c_adap.name, d->desc->name, sizeof(d->i2c_adap.name));
 #ifdef I2C_ADAP_CLASS_TV_DIGITAL
 	d->i2c_adap.class = I2C_ADAP_CLASS_TV_DIGITAL,
 #else

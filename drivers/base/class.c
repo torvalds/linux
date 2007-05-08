@@ -19,10 +19,8 @@
 #include <linux/slab.h>
 #include "base.h"
 
-extern struct subsystem devices_subsys;
-
 #define to_class_attr(_attr) container_of(_attr, struct class_attribute, attr)
-#define to_class(obj) container_of(obj, struct class, subsys.kset.kobj)
+#define to_class(obj) container_of(obj, struct class, subsys.kobj)
 
 static ssize_t
 class_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
@@ -80,7 +78,7 @@ int class_create_file(struct class * cls, const struct class_attribute * attr)
 {
 	int error;
 	if (cls) {
-		error = sysfs_create_file(&cls->subsys.kset.kobj, &attr->attr);
+		error = sysfs_create_file(&cls->subsys.kobj, &attr->attr);
 	} else
 		error = -EINVAL;
 	return error;
@@ -89,7 +87,7 @@ int class_create_file(struct class * cls, const struct class_attribute * attr)
 void class_remove_file(struct class * cls, const struct class_attribute * attr)
 {
 	if (cls)
-		sysfs_remove_file(&cls->subsys.kset.kobj, &attr->attr);
+		sysfs_remove_file(&cls->subsys.kobj, &attr->attr);
 }
 
 static struct class *class_get(struct class *cls)
@@ -147,7 +145,7 @@ int class_register(struct class * cls)
 	INIT_LIST_HEAD(&cls->interfaces);
 	kset_init(&cls->class_dirs);
 	init_MUTEX(&cls->sem);
-	error = kobject_set_name(&cls->subsys.kset.kobj, "%s", cls->name);
+	error = kobject_set_name(&cls->subsys.kobj, "%s", cls->name);
 	if (error)
 		return error;
 
@@ -611,7 +609,7 @@ int class_device_add(struct class_device *class_dev)
 	if (parent_class_dev)
 		class_dev->kobj.parent = &parent_class_dev->kobj;
 	else
-		class_dev->kobj.parent = &parent_class->subsys.kset.kobj;
+		class_dev->kobj.parent = &parent_class->subsys.kobj;
 
 	error = kobject_add(&class_dev->kobj);
 	if (error)
@@ -619,7 +617,7 @@ int class_device_add(struct class_device *class_dev)
 
 	/* add the needed attributes to this device */
 	error = sysfs_create_link(&class_dev->kobj,
-				  &parent_class->subsys.kset.kobj, "subsystem");
+				  &parent_class->subsys.kobj, "subsystem");
 	if (error)
 		goto out3;
 	class_dev->uevent_attr.attr.name = "uevent";
@@ -917,8 +915,8 @@ int __init classes_init(void)
 	/* ick, this is ugly, the things we go through to keep from showing up
 	 * in sysfs... */
 	subsystem_init(&class_obj_subsys);
-	if (!class_obj_subsys.kset.subsys)
-			class_obj_subsys.kset.subsys = &class_obj_subsys;
+	if (!class_obj_subsys.kobj.parent)
+		class_obj_subsys.kobj.parent = &class_obj_subsys.kobj;
 	return 0;
 }
 

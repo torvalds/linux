@@ -21,28 +21,25 @@ typedef struct kmem_cache kmem_cache_t __deprecated;
  * The ones marked DEBUG are only valid if CONFIG_SLAB_DEBUG is set.
  */
 #define SLAB_DEBUG_FREE		0x00000100UL	/* DEBUG: Perform (expensive) checks on free */
-#define SLAB_DEBUG_INITIAL	0x00000200UL	/* DEBUG: Call constructor (as verifier) */
 #define SLAB_RED_ZONE		0x00000400UL	/* DEBUG: Red zone objs in a cache */
 #define SLAB_POISON		0x00000800UL	/* DEBUG: Poison objects */
 #define SLAB_HWCACHE_ALIGN	0x00002000UL	/* Align objs on cache lines */
 #define SLAB_CACHE_DMA		0x00004000UL	/* Use GFP_DMA memory */
-#define SLAB_MUST_HWCACHE_ALIGN	0x00008000UL	/* Force alignment even if debuggin is active */
 #define SLAB_STORE_USER		0x00010000UL	/* DEBUG: Store the last owner for bug hunting */
 #define SLAB_RECLAIM_ACCOUNT	0x00020000UL	/* Objects are reclaimable */
 #define SLAB_PANIC		0x00040000UL	/* Panic if kmem_cache_create() fails */
 #define SLAB_DESTROY_BY_RCU	0x00080000UL	/* Defer freeing slabs to RCU */
 #define SLAB_MEM_SPREAD		0x00100000UL	/* Spread some memory over cpuset */
+#define SLAB_TRACE		0x00200000UL	/* Trace allocations and frees */
 
 /* Flags passed to a constructor functions */
 #define SLAB_CTOR_CONSTRUCTOR	0x001UL		/* If not set, then deconstructor */
-#define SLAB_CTOR_ATOMIC	0x002UL		/* Tell constructor it can't sleep */
-#define SLAB_CTOR_VERIFY	0x004UL		/* Tell constructor it's a verify call */
 
 /*
  * struct kmem_cache related prototypes
  */
 void __init kmem_cache_init(void);
-extern int slab_is_available(void);
+int slab_is_available(void);
 
 struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
 			unsigned long,
@@ -56,6 +53,18 @@ void kmem_cache_free(struct kmem_cache *, void *);
 unsigned int kmem_cache_size(struct kmem_cache *);
 const char *kmem_cache_name(struct kmem_cache *);
 int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
+
+/*
+ * Please use this macro to create slab caches. Simply specify the
+ * name of the structure and maybe some flags that are listed above.
+ *
+ * The alignment of the struct determines object alignment. If you
+ * f.e. add ____cacheline_aligned_in_smp to the struct declaration
+ * then the objects will be properly aligned in SMP configurations.
+ */
+#define KMEM_CACHE(__struct, __flags) kmem_cache_create(#__struct,\
+		sizeof(struct __struct), __alignof__(struct __struct),\
+		(__flags), NULL, NULL)
 
 #ifdef CONFIG_NUMA
 extern void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
@@ -72,8 +81,9 @@ static inline void *kmem_cache_alloc_node(struct kmem_cache *cachep,
  */
 void *__kmalloc(size_t, gfp_t);
 void *__kzalloc(size_t, gfp_t);
+void * __must_check krealloc(const void *, size_t, gfp_t);
 void kfree(const void *);
-unsigned int ksize(const void *);
+size_t ksize(const void *);
 
 /**
  * kcalloc - allocate memory for an array. The memory is set to zero.
@@ -94,9 +104,14 @@ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
  * the appropriate general cache at compile time.
  */
 
-#ifdef CONFIG_SLAB
-#include <linux/slab_def.h>
+#if defined(CONFIG_SLAB) || defined(CONFIG_SLUB)
+#ifdef CONFIG_SLUB
+#include <linux/slub_def.h>
 #else
+#include <linux/slab_def.h>
+#endif /* !CONFIG_SLUB */
+#else
+
 /*
  * Fallback definitions for an allocator not wanting to provide
  * its own optimized kmalloc definitions (like SLOB).
@@ -183,7 +198,7 @@ static inline void *__kmalloc_node(size_t size, gfp_t flags, int node)
  * allocator where we care about the real place the memory allocation
  * request comes from.
  */
-#ifdef CONFIG_DEBUG_SLAB
+#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB)
 extern void *__kmalloc_track_caller(size_t, gfp_t, void*);
 #define kmalloc_track_caller(size, flags) \
 	__kmalloc_track_caller(size, flags, __builtin_return_address(0))
@@ -201,7 +216,7 @@ extern void *__kmalloc_track_caller(size_t, gfp_t, void*);
  * standard allocator where we care about the real place the memory
  * allocation request comes from.
  */
-#ifdef CONFIG_DEBUG_SLAB
+#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB)
 extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, void *);
 #define kmalloc_node_track_caller(size, flags, node) \
 	__kmalloc_node_track_caller(size, flags, node, \
@@ -217,6 +232,9 @@ extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, void *);
 	kmalloc_track_caller(size, flags)
 
 #endif /* DEBUG_SLAB */
+
+extern const struct seq_operations slabinfo_op;
+ssize_t slabinfo_write(struct file *, const char __user *, size_t, loff_t *);
 
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_SLAB_H */

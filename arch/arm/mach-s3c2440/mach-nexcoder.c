@@ -116,12 +116,6 @@ static struct platform_device *nexcoder_devices[] __initdata = {
 	&nexcoder_device_nor,
 };
 
-static struct s3c24xx_board nexcoder_board __initdata = {
-	.devices       = nexcoder_devices,
-	.devices_count = ARRAY_SIZE(nexcoder_devices),
-};
-
-
 static void __init nexcoder_sensorboard_init(void)
 {
 	// Initialize SCCB bus
@@ -142,10 +136,14 @@ static void __init nexcoder_map_io(void)
 	s3c24xx_init_io(nexcoder_iodesc, ARRAY_SIZE(nexcoder_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(nexcoder_uartcfgs, ARRAY_SIZE(nexcoder_uartcfgs));
-	s3c24xx_set_board(&nexcoder_board);
+
 	nexcoder_sensorboard_init();
 }
 
+static void __init nexcoder_init(void)
+{
+	platform_add_devices(nexcoder_devices, ARRAY_SIZE(nexcoder_devices));
+};
 
 MACHINE_START(NEXCODER_2440, "NexVision - Nexcoder 2440")
 	/* Maintainer: Guillaume GOURAT <guillaume.gourat@nexvision.tv> */
@@ -153,6 +151,7 @@ MACHINE_START(NEXCODER_2440, "NexVision - Nexcoder 2440")
 	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= nexcoder_map_io,
+	.init_machine	= nexcoder_init,
 	.init_irq	= s3c24xx_init_irq,
 	.timer		= &s3c24xx_timer,
 MACHINE_END

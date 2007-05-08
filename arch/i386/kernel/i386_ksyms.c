@@ -28,5 +28,3 @@ EXPORT_SYMBOL(__read_lock_failed);
 #endif
 
 EXPORT_SYMBOL(csum_partial);
-
-EXPORT_SYMBOL(_proxy_pda);

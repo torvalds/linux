@@ -18,7 +18,6 @@
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
 #include <linux/hdpu_features.h>
-#include <linux/pci.h>
 
 #include <linux/platform_device.h>
 

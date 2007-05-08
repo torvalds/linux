@@ -2,7 +2,7 @@
 # Makefile for x86-compatible CPU details and quirks
 #
 
-obj-y	:=	common.o proc.o
+obj-y	:=	common.o proc.o bugs.o
 
 obj-y	+=	amd.o
 obj-y	+=	cyrix.o
@@ -17,3 +17,5 @@ obj-$(CONFIG_X86_MCE)	+=	mcheck/
 
 obj-$(CONFIG_MTRR)	+= 	mtrr/
 obj-$(CONFIG_CPU_FREQ)	+=	cpufreq/
+
+obj-$(CONFIG_X86_LOCAL_APIC) += perfctr-watchdog.o

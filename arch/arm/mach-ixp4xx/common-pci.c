@@ -374,7 +374,7 @@ void __init ixp4xx_pci_preinit(void)
 	 * Determine which PCI read method to use.
 	 * Rev 0 IXP425 requires workaround.
 	 */
-	if (!(processor_id & 0xf) && !cpu_is_ixp46x()) {
+	if (!(processor_id & 0xf) && cpu_is_ixp42x()) {
 		printk("PCI: IXP42x A0 silicon detected - "
 			"PCI Non-Prefetch Workaround Enabled\n");
 		ixp4xx_pci_read = ixp4xx_pci_read_errata;
@@ -480,7 +480,7 @@ int ixp4xx_setup(int nr, struct pci_sys_data *sys)
 	res[0].flags = IORESOURCE_IO;
 
 	res[1].name = "PCI Memory Space";
-	res[1].start = 0x48000000;
+	res[1].start = PCIBIOS_MIN_MEM;
 #ifndef CONFIG_IXP4XX_INDIRECT_PCI
 	res[1].end = 0x4bffffff;
 #else

@@ -54,17 +54,9 @@ static struct page * dir_get_page(struct inode *dir, unsigned long n)
 {
 	struct address_space *mapping = dir->i_mapping;
 	struct page *page = read_mapping_page(mapping, n, NULL);
-	if (!IS_ERR(page)) {
-		wait_on_page_locked(page);
+	if (!IS_ERR(page))
 		kmap(page);
-		if (!PageUptodate(page))
-			goto fail;
-	}
 	return page;
-
-fail:
-	dir_put_page(page);
-	return ERR_PTR(-EIO);
 }
 
 static int sysv_readdir(struct file * filp, void * dirent, filldir_t filldir)

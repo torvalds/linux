@@ -20,6 +20,7 @@
 #include <asm/percpu.h>
 #include <linux/personality.h>
 #include <linux/cpumask.h>
+#include <asm/processor-flags.h>
 
 #define TF_MASK		0x00000100
 #define IF_MASK		0x00000200
@@ -103,42 +104,6 @@ extern unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c);
 extern unsigned short num_cache_leaves;
 
 /*
- * EFLAGS bits
- */
-#define X86_EFLAGS_CF	0x00000001 /* Carry Flag */
-#define X86_EFLAGS_PF	0x00000004 /* Parity Flag */
-#define X86_EFLAGS_AF	0x00000010 /* Auxillary carry Flag */
-#define X86_EFLAGS_ZF	0x00000040 /* Zero Flag */
-#define X86_EFLAGS_SF	0x00000080 /* Sign Flag */
-#define X86_EFLAGS_TF	0x00000100 /* Trap Flag */
-#define X86_EFLAGS_IF	0x00000200 /* Interrupt Flag */
-#define X86_EFLAGS_DF	0x00000400 /* Direction Flag */
-#define X86_EFLAGS_OF	0x00000800 /* Overflow Flag */
-#define X86_EFLAGS_IOPL	0x00003000 /* IOPL mask */
-#define X86_EFLAGS_NT	0x00004000 /* Nested Task */
-#define X86_EFLAGS_RF	0x00010000 /* Resume Flag */
-#define X86_EFLAGS_VM	0x00020000 /* Virtual Mode */
-#define X86_EFLAGS_AC	0x00040000 /* Alignment Check */
-#define X86_EFLAGS_VIF	0x00080000 /* Virtual Interrupt Flag */
-#define X86_EFLAGS_VIP	0x00100000 /* Virtual Interrupt Pending */
-#define X86_EFLAGS_ID	0x00200000 /* CPUID detection flag */
-
-/*
- * Intel CPU features in CR4
- */
-#define X86_CR4_VME		0x0001	/* enable vm86 extensions */
-#define X86_CR4_PVI		0x0002	/* virtual interrupts flag enable */
-#define X86_CR4_TSD		0x0004	/* disable time stamp at ipl 3 */
-#define X86_CR4_DE		0x0008	/* enable debugging extensions */
-#define X86_CR4_PSE		0x0010	/* enable page size extensions */
-#define X86_CR4_PAE		0x0020	/* enable physical address extensions */
-#define X86_CR4_MCE		0x0040	/* Machine check enable */
-#define X86_CR4_PGE		0x0080	/* enable global pages */
-#define X86_CR4_PCE		0x0100	/* enable performance counters at ipl 3 */
-#define X86_CR4_OSFXSR		0x0200	/* enable fast FPU save and restore */
-#define X86_CR4_OSXMMEXCPT	0x0400	/* enable unmasked SSE exceptions */
-
-/*
  * Save the cr4 feature set we're using (ie
  * Pentium 4MB enable and PPro Global page
  * enable), so that any CPU's that boot up
@@ -201,7 +166,7 @@ struct i387_fxsave_struct {
 	u32	mxcsr;
 	u32	mxcsr_mask;
 	u32	st_space[32];	/* 8*16 bytes for each FP-reg = 128 bytes */
-	u32	xmm_space[64];	/* 16*16 bytes for each XMM-reg = 128 bytes */
+	u32	xmm_space[64];	/* 16*16 bytes for each XMM-reg = 256 bytes */
 	u32	padding[24];
 } __attribute__ ((aligned (16)));
 
@@ -425,22 +390,6 @@ static inline void prefetchw(void *x)
 #define spin_lock_prefetch(x)  prefetchw(x)
 
 #define cpu_relax()   rep_nop()
-
-/*
- *      NSC/Cyrix CPU configuration register indexes
- */
-#define CX86_CCR0 0xc0
-#define CX86_CCR1 0xc1
-#define CX86_CCR2 0xc2
-#define CX86_CCR3 0xc3
-#define CX86_CCR4 0xe8
-#define CX86_CCR5 0xe9
-#define CX86_CCR6 0xea
-#define CX86_CCR7 0xeb
-#define CX86_DIR0 0xfe
-#define CX86_DIR1 0xff
-#define CX86_ARR_BASE 0xc4
-#define CX86_RCR_BASE 0xdc
 
 /*
  *      NSC/Cyrix CPU indexed register access macros

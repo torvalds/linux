@@ -767,7 +767,7 @@ ENTRY(ia64_leave_syscall)
 	ld8.fill r15=[r3]			// M0|1 restore r15
 	mov b6=r18				// I0   restore b6
 
-	addl r17=THIS_CPU(ia64_phys_stacked_size_p8),r0 // A
+	LOAD_PHYS_STACK_REG_SIZE(r17)
 	mov f9=f0					// F    clear f9
 (pKStk) br.cond.dpnt.many skip_rbs_switch		// B
 
@@ -775,7 +775,6 @@ ENTRY(ia64_leave_syscall)
 	shr.u r18=r19,16		// I0|1 get byte size of existing "dirty" partition
 	cover				// B    add current frame into dirty partition & set cr.ifs
 	;;
-(pUStk) ld4 r17=[r17]			// M0|1 r17 = cpu_data->phys_stacked_size_p8
 	mov r19=ar.bsp			// M2   get new backing store pointer
 	mov f10=f0			// F    clear f10
 
@@ -953,9 +952,7 @@ GLOBAL_ENTRY(ia64_leave_kernel)
 	shr.u r18=r19,16	// get byte size of existing "dirty" partition
 	;;
 	mov r16=ar.bsp		// get existing backing store pointer
-	addl r17=THIS_CPU(ia64_phys_stacked_size_p8),r0
-	;;
-	ld4 r17=[r17]		// r17 = cpu_data->phys_stacked_size_p8
+	LOAD_PHYS_STACK_REG_SIZE(r17)
 (pKStk)	br.cond.dpnt skip_rbs_switch
 
 	/*

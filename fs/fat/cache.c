@@ -40,8 +40,7 @@ static void init_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct fat_cache *cache = (struct fat_cache *)foo;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR)
+	if (flags & SLAB_CTOR_CONSTRUCTOR)
 		INIT_LIST_HEAD(&cache->cache_list);
 }
 

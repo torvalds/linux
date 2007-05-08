@@ -327,6 +327,7 @@ void restore_time_delta(struct timespec *delta, struct timespec *rtc)
 }
 EXPORT_SYMBOL(restore_time_delta);
 
+#ifndef CONFIG_GENERIC_CLOCKEVENTS
 /*
  * Kernel system timer support.
  */
@@ -340,8 +341,9 @@ void timer_tick(void)
 	update_process_times(user_mode(get_irq_regs()));
 #endif
 }
+#endif
 
-#ifdef CONFIG_PM
+#if defined(CONFIG_PM) && !defined(CONFIG_GENERIC_CLOCKEVENTS)
 static int timer_suspend(struct sys_device *dev, pm_message_t state)
 {
 	struct sys_timer *timer = container_of(dev, struct sys_timer, dev);

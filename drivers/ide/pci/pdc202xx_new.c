@@ -255,9 +255,6 @@ static int config_chipset_for_dma(ide_drive_t *drive)
 		printk(KERN_WARNING "%s reduced to Ultra33 mode.\n", drive->name);
 	}
 
-	if (drive->media != ide_disk && drive->media != ide_cdrom)
-		return 0;
-
 	if (id->capability & 4) {
 		/*
 		 * Set IORDY_EN & PREFETCH_EN (this seems to have

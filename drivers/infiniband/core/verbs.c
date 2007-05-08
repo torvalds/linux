@@ -609,11 +609,11 @@ EXPORT_SYMBOL(ib_destroy_qp);
 struct ib_cq *ib_create_cq(struct ib_device *device,
 			   ib_comp_handler comp_handler,
 			   void (*event_handler)(struct ib_event *, void *),
-			   void *cq_context, int cqe)
+			   void *cq_context, int cqe, int comp_vector)
 {
 	struct ib_cq *cq;
 
-	cq = device->create_cq(device, cqe, NULL, NULL);
+	cq = device->create_cq(device, cqe, comp_vector, NULL, NULL);
 
 	if (!IS_ERR(cq)) {
 		cq->device        = device;

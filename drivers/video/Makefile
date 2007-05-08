@@ -63,9 +63,12 @@ obj-$(CONFIG_FB_TCX)              += tcx.o sbuslib.o
 obj-$(CONFIG_FB_LEO)              += leo.o sbuslib.o
 obj-$(CONFIG_FB_SGIVW)            += sgivwfb.o
 obj-$(CONFIG_FB_ACORN)            += acornfb.o
-obj-$(CONFIG_FB_ATARI)            += atafb.o
+obj-$(CONFIG_FB_ATARI)            += atafb.o c2p.o atafb_mfb.o \
+                                     atafb_iplan2p2.o atafb_iplan2p4.o atafb_iplan2p8.o
 obj-$(CONFIG_FB_MAC)              += macfb.o
 obj-$(CONFIG_FB_HGA)              += hgafb.o
+obj-$(CONFIG_FB_XVR500)           += sunxvr500.o
+obj-$(CONFIG_FB_XVR2500)          += sunxvr2500.o
 obj-$(CONFIG_FB_IGA)              += igafb.o
 obj-$(CONFIG_FB_APOLLO)           += dnfb.o
 obj-$(CONFIG_FB_Q40)              += q40fb.o

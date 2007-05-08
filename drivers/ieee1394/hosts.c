@@ -15,7 +15,6 @@
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/pci.h>
 #include <linux/timer.h>
 #include <linux/jiffies.h>
 #include <linux/mutex.h>

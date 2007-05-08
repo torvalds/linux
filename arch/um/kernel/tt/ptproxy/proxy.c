@@ -26,7 +26,6 @@ Jeff Dike (jdike@karaya.com) : Modified for integration into uml
 #include "sysdep.h"
 #include "wait.h"
 
-#include "user_util.h"
 #include "user.h"
 #include "os.h"
 #include "tempfile.h"
@@ -339,11 +338,12 @@ int start_debugger(char *prog, int startup, int stop, int *fd_out)
 			       "err = %d\n", -fd);
 			exit(1);
 		}
-		os_write_file(fd, gdb_init_string, sizeof(gdb_init_string) - 1);
+		os_write_file(fd, gdb_init_string,
+			      sizeof(gdb_init_string) - 1);
 		if(startup){
 			if(stop){
 				os_write_file(fd, "b start_kernel\n",
-				      strlen("b start_kernel\n"));
+						strlen("b start_kernel\n"));
 			}
 			os_write_file(fd, "c\n", strlen("c\n"));
 		}

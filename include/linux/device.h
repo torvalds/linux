@@ -53,7 +53,7 @@ struct bus_type {
 	const char		* name;
 	struct module		* owner;
 
-	struct subsystem	subsys;
+	struct kset		subsys;
 	struct kset		drivers;
 	struct kset		devices;
 	struct klist		klist_devices;
@@ -80,7 +80,6 @@ struct bus_type {
 	int (*resume)(struct device * dev);
 
 	unsigned int drivers_autoprobe:1;
-	unsigned int multithread_probe:1;
 };
 
 extern int __must_check bus_register(struct bus_type * bus);
@@ -179,7 +178,7 @@ struct class {
 	const char		* name;
 	struct module		* owner;
 
-	struct subsystem	subsys;
+	struct kset		subsys;
 	struct list_head	children;
 	struct list_head	devices;
 	struct list_head	interfaces;
@@ -559,8 +558,8 @@ extern void device_shutdown(void);
 
 
 /* drivers/base/firmware.c */
-extern int __must_check firmware_register(struct subsystem *);
-extern void firmware_unregister(struct subsystem *);
+extern int __must_check firmware_register(struct kset *);
+extern void firmware_unregister(struct kset *);
 
 /* debugging and troubleshooting/diagnostic helpers. */
 extern const char *dev_driver_string(struct device *dev);

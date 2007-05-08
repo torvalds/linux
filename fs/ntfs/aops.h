@@ -89,9 +89,8 @@ static inline struct page *ntfs_map_page(struct address_space *mapping,
 	struct page *page = read_mapping_page(mapping, index, NULL);
 
 	if (!IS_ERR(page)) {
-		wait_on_page_locked(page);
 		kmap(page);
-		if (PageUptodate(page) && !PageError(page))
+		if (!PageError(page))
 			return page;
 		ntfs_unmap_page(page);
 		return ERR_PTR(-EIO);

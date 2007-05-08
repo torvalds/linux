@@ -798,7 +798,7 @@ MODULE_DEVICE_TABLE(usb, aiptek_ids);
  */
 static int aiptek_open(struct input_dev *inputdev)
 {
-	struct aiptek *aiptek = inputdev->private;
+	struct aiptek *aiptek = input_get_drvdata(inputdev);
 
 	aiptek->urb->dev = aiptek->usbdev;
 	if (usb_submit_urb(aiptek->urb, GFP_KERNEL) != 0)
@@ -812,7 +812,7 @@ static int aiptek_open(struct input_dev *inputdev)
  */
 static void aiptek_close(struct input_dev *inputdev)
 {
-	struct aiptek *aiptek = inputdev->private;
+	struct aiptek *aiptek = input_get_drvdata(inputdev);
 
 	usb_kill_urb(aiptek->urb);
 }
@@ -1972,6 +1972,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		AIPTEK_PROGRAMMABLE_DELAY_200,
 		AIPTEK_PROGRAMMABLE_DELAY_300
 	};
+	int err = -ENOMEM;
 
 	/* programmableDelay is where the command-line specified
 	 * delay is kept. We make it the first element of speeds[],
@@ -2043,8 +2044,10 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	inputdev->name = "Aiptek";
 	inputdev->phys = aiptek->features.usbPath;
 	usb_to_input_id(usbdev, &inputdev->id);
-	inputdev->cdev.dev = &intf->dev;
-	inputdev->private = aiptek;
+	inputdev->dev.parent = &intf->dev;
+
+	input_set_drvdata(inputdev, aiptek);
+
 	inputdev->open = aiptek_open;
 	inputdev->close = aiptek_close;
 
@@ -2133,7 +2136,9 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	/* Register the tablet as an Input Device
 	 */
-	input_register_device(aiptek->inputdev);
+	err = input_register_device(aiptek->inputdev);
+	if (err)
+		goto fail2;
 
 	/* We now will look for the evdev device which is mapped to
 	 * the tablet. The partial name is kept in the link list of
@@ -2165,22 +2170,12 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	return 0;
 
-fail2:	usb_buffer_free(usbdev, AIPTEK_PACKET_LENGTH, aiptek->data,
+ fail2:	usb_buffer_free(usbdev, AIPTEK_PACKET_LENGTH, aiptek->data,
 			aiptek->data_dma);
-fail1:	input_free_device(inputdev);
+ fail1:	input_free_device(inputdev);
 	kfree(aiptek);
-	return -ENOMEM;
+	return err;
 }
-
-/* Forward declaration */
-static void aiptek_disconnect(struct usb_interface *intf);
-
-static struct usb_driver aiptek_driver = {
-	.name = "aiptek",
-	.probe = aiptek_probe,
-	.disconnect = aiptek_disconnect,
-	.id_table = aiptek_ids,
-};
 
 /***********************************************************************
  * Deal with tablet disconnecting from the system.
@@ -2205,6 +2200,13 @@ static void aiptek_disconnect(struct usb_interface *intf)
 		kfree(aiptek);
 	}
 }
+
+static struct usb_driver aiptek_driver = {
+	.name = "aiptek",
+	.probe = aiptek_probe,
+	.disconnect = aiptek_disconnect,
+	.id_table = aiptek_ids,
+};
 
 static int __init aiptek_init(void)
 {

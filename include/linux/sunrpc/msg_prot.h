@@ -78,10 +78,6 @@ enum rpc_auth_stat {
 	RPCSEC_GSS_CTXPROBLEM = 14
 };
 
-#define RPC_PMAP_PROGRAM	100000
-#define RPC_PMAP_VERSION	2
-#define RPC_PMAP_PORT		111
-
 #define RPC_MAXNETNAMELEN	256
 
 /*

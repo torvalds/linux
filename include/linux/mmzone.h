@@ -784,6 +784,18 @@ void sparse_init(void);
 void memory_present(int nid, unsigned long start, unsigned long end);
 unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
 
+/*
+ * If it is possible to have holes within a MAX_ORDER_NR_PAGES, then we
+ * need to check pfn validility within that MAX_ORDER_NR_PAGES block.
+ * pfn_valid_within() should be used in this case; we optimise this away
+ * when we have no holes within a MAX_ORDER_NR_PAGES block.
+ */
+#ifdef CONFIG_HOLES_IN_ZONE
+#define pfn_valid_within(pfn) pfn_valid(pfn)
+#else
+#define pfn_valid_within(pfn) (1)
+#endif
+
 #endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MMZONE_H */

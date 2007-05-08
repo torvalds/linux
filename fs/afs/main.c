@@ -54,7 +54,7 @@ static int __init afs_get_client_UUID(void)
 
 	/* read the MAC address of one of the external interfaces and construct
 	 * a UUID from it */
-	ret = afs_get_MAC_address(afs_uuid.node);
+	ret = afs_get_MAC_address(afs_uuid.node, sizeof(afs_uuid.node));
 	if (ret < 0)
 		return ret;
 

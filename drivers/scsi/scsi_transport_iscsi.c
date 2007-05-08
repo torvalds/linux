@@ -49,7 +49,7 @@ struct iscsi_internal {
 	struct class_device_attribute *session_attrs[ISCSI_SESSION_ATTRS + 1];
 };
 
-static int iscsi_session_nr;	/* sysfs session id for next new session */
+static atomic_t iscsi_session_nr; /* sysfs session id for next new session */
 
 /*
  * list of registered transports and lock that must
@@ -300,7 +300,7 @@ int iscsi_add_session(struct iscsi_cls_session *session, unsigned int target_id)
 	int err;
 
 	ihost = shost->shost_data;
-	session->sid = iscsi_session_nr++;
+	session->sid = atomic_add_return(1, &iscsi_session_nr);
 	session->target_id = target_id;
 
 	snprintf(session->dev.bus_id, BUS_ID_SIZE, "session%u",
@@ -1418,6 +1418,8 @@ static __init int iscsi_transport_init(void)
 
 	printk(KERN_INFO "Loading iSCSI transport class v%s.\n",
 		ISCSI_TRANSPORT_VERSION);
+
+	atomic_set(&iscsi_session_nr, 0);
 
 	err = class_register(&iscsi_transport_class);
 	if (err)

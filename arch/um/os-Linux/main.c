@@ -13,8 +13,8 @@
 #include <sys/mman.h>
 #include <sys/user.h>
 #include <asm/page.h>
-#include "user_util.h"
 #include "kern_util.h"
+#include "as-layout.h"
 #include "mem_user.h"
 #include "irq_user.h"
 #include "user.h"
@@ -25,12 +25,7 @@
 #include "os.h"
 #include "um_malloc.h"
 
-/* Set in set_stklim, which is called from main and __wrap_malloc.
- * __wrap_malloc only calls it if main hasn't started.
- */
-unsigned long stacksizelim;
-
-/* Set in main */
+/* Set in main, unchanged thereafter */
 char *linux_prog;
 
 #define PGD_BOUND (4 * 1024 * 1024)
@@ -52,7 +47,6 @@ static void set_stklim(void)
 			exit(1);
 		}
 	}
-	stacksizelim = (lim.rlim_cur + PGD_BOUND - 1) & ~(PGD_BOUND - 1);
 }
 
 static __init void do_uml_initcalls(void)
@@ -126,7 +120,7 @@ extern int uml_exitcode;
 
 extern void scan_elf_aux( char **envp);
 
-int main(int argc, char **argv, char **envp)
+int __init main(int argc, char **argv, char **envp)
 {
 	char **new_argv;
 	int ret, i, err;
@@ -224,7 +218,7 @@ int main(int argc, char **argv, char **envp)
 		ret = 1;
 	}
 	printf("\n");
-	return(uml_exitcode);
+	return uml_exitcode;
 }
 
 #define CAN_KMALLOC() \
@@ -237,7 +231,7 @@ void *__wrap_malloc(int size)
 	void *ret;
 
 	if(!CAN_KMALLOC())
-		return(__real_malloc(size));
+		return __real_malloc(size);
 	else if(size <= PAGE_SIZE) /* finding contiguos pages can be hard*/
 		ret = um_kmalloc(size);
 	else ret = um_vmalloc(size);
@@ -248,16 +242,17 @@ void *__wrap_malloc(int size)
 	if(ret == NULL)
 		errno = ENOMEM;
 
-	return(ret);
+	return ret;
 }
 
 void *__wrap_calloc(int n, int size)
 {
 	void *ptr = __wrap_malloc(n * size);
 
-	if(ptr == NULL) return(NULL);
+	if(ptr == NULL)
+		return NULL;
 	memset(ptr, 0, n * size);
-	return(ptr);
+	return ptr;
 }
 
 extern void __real_free(void *);

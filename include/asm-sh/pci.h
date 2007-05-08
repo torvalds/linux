@@ -35,7 +35,7 @@ extern struct pci_channel board_pci_channels[];
 /*
  * I/O routine helpers
  */
-#ifdef CONFIG_CPU_SUBTYPE_SH7780
+#if defined(CONFIG_CPU_SUBTYPE_SH7780) || defined(CONFIG_CPU_SUBTYPE_SH7785)
 #define PCI_IO_AREA		0xFE400000
 #define PCI_IO_SIZE		0x00400000
 #else

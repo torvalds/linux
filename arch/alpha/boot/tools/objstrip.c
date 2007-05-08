@@ -25,7 +25,6 @@
 #include <linux/a.out.h>
 #include <linux/coff.h>
 #include <linux/param.h>
-#include <linux/string.h>
 #ifdef __ELF__
 # include <linux/elf.h>
 #endif

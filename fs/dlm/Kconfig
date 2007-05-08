@@ -3,36 +3,19 @@ menu "Distributed Lock Manager"
 
 config DLM
 	tristate "Distributed Lock Manager (DLM)"
-	depends on SYSFS && (IPV6 || IPV6=n)
+	depends on IPV6 || IPV6=n
 	select CONFIGFS_FS
-	select IP_SCTP if DLM_SCTP
+	select IP_SCTP
 	help
-	  A general purpose distributed lock manager for kernel or userspace
-	  applications.
-
-choice
-	prompt "Select DLM communications protocol"
-	depends on DLM
-	default DLM_TCP
-	help
-	  The DLM Can use TCP or SCTP for it's network communications.
-	  SCTP supports multi-homed operations whereas TCP doesn't.
-	  However, SCTP seems to have stability problems at the moment.
-
-config DLM_TCP
-	bool "TCP/IP"
-
-config DLM_SCTP
-	bool "SCTP"
-
-endchoice
+	A general purpose distributed lock manager for kernel or userspace
+	applications.
 
 config DLM_DEBUG
 	bool "DLM debugging"
 	depends on DLM
 	help
-	  Under the debugfs mount point, the name of each lockspace will
-	  appear as a file in the "dlm" directory.  The output is the
-	  list of resource and locks the local node knows about.
+	Under the debugfs mount point, the name of each lockspace will
+	appear as a file in the "dlm" directory.  The output is the
+	list of resource and locks the local node knows about.
 
 endmenu

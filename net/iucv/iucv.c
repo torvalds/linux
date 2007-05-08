@@ -32,7 +32,6 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-
 #include <linux/spinlock.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -69,7 +68,7 @@
 #define IUCV_IPNORPY	0x10
 #define IUCV_IPALL	0x80
 
-static int iucv_bus_match (struct device *dev, struct device_driver *drv)
+static int iucv_bus_match(struct device *dev, struct device_driver *drv)
 {
 	return 0;
 }
@@ -78,8 +77,11 @@ struct bus_type iucv_bus = {
 	.name = "iucv",
 	.match = iucv_bus_match,
 };
+EXPORT_SYMBOL(iucv_bus);
 
 struct device *iucv_root;
+EXPORT_SYMBOL(iucv_root);
+
 static int iucv_available;
 
 /* General IUCV interrupt structure */
@@ -405,7 +407,7 @@ static void iucv_declare_cpu(void *data)
 	rc = iucv_call_b2f0(IUCV_DECLARE_BUFFER, parm);
 	if (rc) {
 		char *err = "Unknown";
-		switch(rc) {
+		switch (rc) {
 		case 0x03:
 			err = "Directory error";
 			break;
@@ -588,7 +590,7 @@ static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block iucv_cpu_notifier = {
+static struct notifier_block __cpuinitdata iucv_cpu_notifier = {
 	.notifier_call = iucv_cpu_notify,
 };
 
@@ -691,6 +693,7 @@ out_mutex:
 	mutex_unlock(&iucv_register_mutex);
 	return rc;
 }
+EXPORT_SYMBOL(iucv_register);
 
 /**
  * iucv_unregister
@@ -723,6 +726,7 @@ void iucv_unregister(struct iucv_handler *handler, int smp)
 		iucv_setmask_mp();
 	mutex_unlock(&iucv_register_mutex);
 }
+EXPORT_SYMBOL(iucv_unregister);
 
 /**
  * iucv_path_accept
@@ -761,6 +765,7 @@ int iucv_path_accept(struct iucv_path *path, struct iucv_handler *handler,
 	local_bh_enable();
 	return rc;
 }
+EXPORT_SYMBOL(iucv_path_accept);
 
 /**
  * iucv_path_connect
@@ -824,6 +829,7 @@ int iucv_path_connect(struct iucv_path *path, struct iucv_handler *handler,
 	spin_unlock_bh(&iucv_table_lock);
 	return rc;
 }
+EXPORT_SYMBOL(iucv_path_connect);
 
 /**
  * iucv_path_quiesce:
@@ -850,6 +856,7 @@ int iucv_path_quiesce(struct iucv_path *path, u8 userdata[16])
 	local_bh_enable();
 	return rc;
 }
+EXPORT_SYMBOL(iucv_path_quiesce);
 
 /**
  * iucv_path_resume:
@@ -890,7 +897,6 @@ int iucv_path_sever(struct iucv_path *path, u8 userdata[16])
 {
 	int rc;
 
-
 	preempt_disable();
 	if (iucv_active_cpu != smp_processor_id())
 		spin_lock_bh(&iucv_table_lock);
@@ -904,6 +910,7 @@ int iucv_path_sever(struct iucv_path *path, u8 userdata[16])
 	preempt_enable();
 	return rc;
 }
+EXPORT_SYMBOL(iucv_path_sever);
 
 /**
  * iucv_message_purge
@@ -936,6 +943,7 @@ int iucv_message_purge(struct iucv_path *path, struct iucv_message *msg,
 	local_bh_enable();
 	return rc;
 }
+EXPORT_SYMBOL(iucv_message_purge);
 
 /**
  * iucv_message_receive
@@ -1006,6 +1014,7 @@ int iucv_message_receive(struct iucv_path *path, struct iucv_message *msg,
 	local_bh_enable();
 	return rc;
 }
+EXPORT_SYMBOL(iucv_message_receive);
 
 /**
  * iucv_message_reject
@@ -1034,6 +1043,7 @@ int iucv_message_reject(struct iucv_path *path, struct iucv_message *msg)
 	local_bh_enable();
 	return rc;
 }
+EXPORT_SYMBOL(iucv_message_reject);
 
 /**
  * iucv_message_reply
@@ -1077,6 +1087,7 @@ int iucv_message_reply(struct iucv_path *path, struct iucv_message *msg,
 	local_bh_enable();
 	return rc;
 }
+EXPORT_SYMBOL(iucv_message_reply);
 
 /**
  * iucv_message_send
@@ -1125,6 +1136,7 @@ int iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
 	local_bh_enable();
 	return rc;
 }
+EXPORT_SYMBOL(iucv_message_send);
 
 /**
  * iucv_message_send2way
@@ -1181,6 +1193,7 @@ int iucv_message_send2way(struct iucv_path *path, struct iucv_message *msg,
 	local_bh_enable();
 	return rc;
 }
+EXPORT_SYMBOL(iucv_message_send2way);
 
 /**
  * iucv_path_pending
@@ -1572,7 +1585,7 @@ static void iucv_external_interrupt(u16 code)
  *
  * Allocates and initializes various data structures.
  */
-static int iucv_init(void)
+static int __init iucv_init(void)
 {
 	int rc;
 
@@ -1583,7 +1596,7 @@ static int iucv_init(void)
 	rc = iucv_query_maxconn();
 	if (rc)
 		goto out;
-	rc = register_external_interrupt (0x4000, iucv_external_interrupt);
+	rc = register_external_interrupt(0x4000, iucv_external_interrupt);
 	if (rc)
 		goto out;
 	rc = bus_register(&iucv_bus);
@@ -1594,7 +1607,7 @@ static int iucv_init(void)
 		rc = PTR_ERR(iucv_root);
 		goto out_bus;
 	}
-	/* Note: GFP_DMA used used to get memory below 2G */
+	/* Note: GFP_DMA used to get memory below 2G */
 	iucv_irq_data = percpu_alloc(sizeof(struct iucv_irq_data),
 				     GFP_KERNEL|GFP_DMA);
 	if (!iucv_irq_data) {
@@ -1632,7 +1645,7 @@ out:
  *
  * Frees everything allocated from iucv_init.
  */
-static void iucv_exit(void)
+static void __exit iucv_exit(void)
 {
 	struct iucv_irq_list *p, *n;
 
@@ -1652,24 +1665,6 @@ static void iucv_exit(void)
 
 subsys_initcall(iucv_init);
 module_exit(iucv_exit);
-
-/**
- * Export all public stuff
- */
-EXPORT_SYMBOL (iucv_bus);
-EXPORT_SYMBOL (iucv_root);
-EXPORT_SYMBOL (iucv_register);
-EXPORT_SYMBOL (iucv_unregister);
-EXPORT_SYMBOL (iucv_path_accept);
-EXPORT_SYMBOL (iucv_path_connect);
-EXPORT_SYMBOL (iucv_path_quiesce);
-EXPORT_SYMBOL (iucv_path_sever);
-EXPORT_SYMBOL (iucv_message_purge);
-EXPORT_SYMBOL (iucv_message_receive);
-EXPORT_SYMBOL (iucv_message_reject);
-EXPORT_SYMBOL (iucv_message_reply);
-EXPORT_SYMBOL (iucv_message_send);
-EXPORT_SYMBOL (iucv_message_send2way);
 
 MODULE_AUTHOR("(C) 2001 IBM Corp. by Fritz Elfert (felfert@millenux.com)");
 MODULE_DESCRIPTION("Linux for S/390 IUCV lowlevel driver");

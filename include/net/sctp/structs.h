@@ -1857,6 +1857,7 @@ int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *,
 int sctp_assoc_set_bind_addr_from_cookie(struct sctp_association *,
 					 struct sctp_cookie*,
 					 gfp_t gfp);
+int sctp_assoc_set_id(struct sctp_association *, gfp_t);
 
 int sctp_cmp_addr_exact(const union sctp_addr *ss1,
 			const union sctp_addr *ss2);

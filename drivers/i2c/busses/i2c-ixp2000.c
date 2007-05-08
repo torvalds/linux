@@ -118,7 +118,7 @@ static int ixp2000_i2c_probe(struct platform_device *plat_dev)
 
 	drv_data->adapter.id = I2C_HW_B_IXP2000,
 	strlcpy(drv_data->adapter.name, plat_dev->dev.driver->name,
-		I2C_NAME_SIZE);
+		sizeof(drv_data->adapter.name));
 	drv_data->adapter.algo_data = &drv_data->algo_data,
 
 	drv_data->adapter.dev.parent = &plat_dev->dev;

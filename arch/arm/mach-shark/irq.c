@@ -10,7 +10,6 @@
 
 #include <linux/init.h>
 #include <linux/fs.h>
-#include <linux/ptrace.h>
 #include <linux/interrupt.h>
 
 #include <asm/irq.h>

@@ -53,13 +53,12 @@
 #include <asm/desc.h>
 #include <asm/arch_hooks.h>
 #include <asm/nmi.h>
-#include <asm/pda.h>
-#include <asm/genapic.h>
 
 #include <mach_apic.h>
 #include <mach_wakecpu.h>
 #include <smpboot_hooks.h>
 #include <asm/vmi.h>
+#include <asm/mtrr.h>
 
 /* Set if we find a B stepping CPU */
 static int __devinitdata smp_b_stepping;
@@ -99,6 +98,9 @@ u8 x86_cpu_to_apicid[NR_CPUS] __read_mostly =
 EXPORT_SYMBOL(x86_cpu_to_apicid);
 
 u8 apicid_2_node[MAX_APICID];
+
+DEFINE_PER_CPU(unsigned long, this_cpu_off);
+EXPORT_PER_CPU_SYMBOL(this_cpu_off);
 
 /*
  * Trampoline 80x86 program as an array.
@@ -156,7 +158,7 @@ static void __cpuinit smp_store_cpu_info(int id)
 
 	*c = boot_cpu_data;
 	if (id!=0)
-		identify_cpu(c);
+		identify_secondary_cpu(c);
 	/*
 	 * Mask B, Pentium, but not Pentium MMX
 	 */
@@ -379,14 +381,14 @@ set_cpu_sibling_map(int cpu)
 static void __cpuinit start_secondary(void *unused)
 {
 	/*
-	 * Don't put *anything* before secondary_cpu_init(), SMP
-	 * booting is too fragile that we want to limit the
-	 * things done here to the most necessary things.
+	 * Don't put *anything* before cpu_init(), SMP booting is too
+	 * fragile that we want to limit the things done here to the
+	 * most necessary things.
 	 */
 #ifdef CONFIG_VMI
 	vmi_bringup();
 #endif
-	secondary_cpu_init();
+	cpu_init();
 	preempt_disable();
 	smp_callin();
 	while (!cpu_isset(smp_processor_id(), smp_commenced_mask))
@@ -441,12 +443,6 @@ static void __cpuinit start_secondary(void *unused)
 void __devinit initialize_secondary(void)
 {
 	/*
-	 * switch to the per CPU GDT we already set up
-	 * in do_boot_cpu()
-	 */
-	cpu_set_gdt(current_thread_info()->cpu);
-
-	/*
 	 * We don't actually need to load the full TSS,
 	 * basically just the stack pointer and the eip.
 	 */
@@ -463,7 +459,6 @@ extern struct {
 	void * esp;
 	unsigned short ss;
 } stack_start;
-extern struct i386_pda *start_pda;
 
 #ifdef CONFIG_NUMA
 
@@ -521,12 +516,12 @@ static void unmap_cpu_to_logical_apicid(int cpu)
 	unmap_cpu_to_node(cpu);
 }
 
-#if APIC_DEBUG
 static inline void __inquire_remote_apic(int apicid)
 {
 	int i, regs[] = { APIC_ID >> 4, APIC_LVR >> 4, APIC_SPIV >> 4 };
 	char *names[] = { "ID", "VERSION", "SPIV" };
-	int timeout, status;
+	int timeout;
+	unsigned long status;
 
 	printk("Inquiring remote APIC #%d...\n", apicid);
 
@@ -536,7 +531,9 @@ static inline void __inquire_remote_apic(int apicid)
 		/*
 		 * Wait for idle.
 		 */
-		apic_wait_icr_idle();
+		status = safe_apic_wait_icr_idle();
+		if (status)
+			printk("a previous APIC delivery may have failed\n");
 
 		apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(apicid));
 		apic_write_around(APIC_ICR, APIC_DM_REMRD | regs[i]);
@@ -550,14 +547,13 @@ static inline void __inquire_remote_apic(int apicid)
 		switch (status) {
 		case APIC_ICR_RR_VALID:
 			status = apic_read(APIC_RRR);
-			printk("%08x\n", status);
+			printk("%lx\n", status);
 			break;
 		default:
 			printk("failed\n");
 		}
 	}
 }
-#endif
 
 #ifdef WAKE_SECONDARY_VIA_NMI
 /* 
@@ -568,8 +564,8 @@ static inline void __inquire_remote_apic(int apicid)
 static int __devinit
 wakeup_secondary_cpu(int logical_apicid, unsigned long start_eip)
 {
-	unsigned long send_status = 0, accept_status = 0;
-	int timeout, maxlvt;
+	unsigned long send_status, accept_status = 0;
+	int maxlvt;
 
 	/* Target chip */
 	apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(logical_apicid));
@@ -579,12 +575,7 @@ wakeup_secondary_cpu(int logical_apicid, unsigned long start_eip)
 	apic_write_around(APIC_ICR, APIC_DM_NMI | APIC_DEST_LOGICAL);
 
 	Dprintk("Waiting for send to finish...\n");
-	timeout = 0;
-	do {
-		Dprintk("+");
-		udelay(100);
-		send_status = apic_read(APIC_ICR) & APIC_ICR_BUSY;
-	} while (send_status && (timeout++ < 1000));
+	send_status = safe_apic_wait_icr_idle();
 
 	/*
 	 * Give the other CPU some time to accept the IPI.
@@ -614,8 +605,8 @@ wakeup_secondary_cpu(int logical_apicid, unsigned long start_eip)
 static int __devinit
 wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 {
-	unsigned long send_status = 0, accept_status = 0;
-	int maxlvt, timeout, num_starts, j;
+	unsigned long send_status, accept_status = 0;
+	int maxlvt, num_starts, j;
 
 	/*
 	 * Be paranoid about clearing APIC errors.
@@ -640,12 +631,7 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 				| APIC_DM_INIT);
 
 	Dprintk("Waiting for send to finish...\n");
-	timeout = 0;
-	do {
-		Dprintk("+");
-		udelay(100);
-		send_status = apic_read(APIC_ICR) & APIC_ICR_BUSY;
-	} while (send_status && (timeout++ < 1000));
+	send_status = safe_apic_wait_icr_idle();
 
 	mdelay(10);
 
@@ -658,12 +644,7 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 	apic_write_around(APIC_ICR, APIC_INT_LEVELTRIG | APIC_DM_INIT);
 
 	Dprintk("Waiting for send to finish...\n");
-	timeout = 0;
-	do {
-		Dprintk("+");
-		udelay(100);
-		send_status = apic_read(APIC_ICR) & APIC_ICR_BUSY;
-	} while (send_status && (timeout++ < 1000));
+	send_status = safe_apic_wait_icr_idle();
 
 	atomic_set(&init_deasserted, 1);
 
@@ -719,12 +700,7 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 		Dprintk("Startup point 1.\n");
 
 		Dprintk("Waiting for send to finish...\n");
-		timeout = 0;
-		do {
-			Dprintk("+");
-			udelay(100);
-			send_status = apic_read(APIC_ICR) & APIC_ICR_BUSY;
-		} while (send_status && (timeout++ < 1000));
+		send_status = safe_apic_wait_icr_idle();
 
 		/*
 		 * Give the other CPU some time to accept the IPI.
@@ -788,6 +764,25 @@ static inline struct task_struct * alloc_idle_task(int cpu)
 #define alloc_idle_task(cpu) fork_idle(cpu)
 #endif
 
+/* Initialize the CPU's GDT.  This is either the boot CPU doing itself
+   (still using the master per-cpu area), or a CPU doing it for a
+   secondary which will soon come up. */
+static __cpuinit void init_gdt(int cpu)
+{
+	struct desc_struct *gdt = get_cpu_gdt_table(cpu);
+
+	pack_descriptor((u32 *)&gdt[GDT_ENTRY_PERCPU].a,
+			(u32 *)&gdt[GDT_ENTRY_PERCPU].b,
+			__per_cpu_offset[cpu], 0xFFFFF,
+			0x80 | DESCTYPE_S | 0x2, 0x8);
+
+	per_cpu(this_cpu_off, cpu) = __per_cpu_offset[cpu];
+	per_cpu(cpu_number, cpu) = cpu;
+}
+
+/* Defined in head.S */
+extern struct Xgt_desc_struct early_gdt_descr;
+
 static int __cpuinit do_boot_cpu(int apicid, int cpu)
 /*
  * NOTE - on most systems this is a PHYSICAL apic ID, but on multiquad
@@ -802,6 +797,12 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 	unsigned short nmi_high = 0, nmi_low = 0;
 
 	/*
+	 * Save current MTRR state in case it was changed since early boot
+	 * (e.g. by the ACPI SMI) to initialize new CPUs with MTRRs in sync:
+	 */
+	mtrr_save_state();
+
+	/*
 	 * We can't use kernel_thread since we must avoid to
 	 * reschedule the child.
 	 */
@@ -809,13 +810,9 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 	if (IS_ERR(idle))
 		panic("failed fork for CPU %d", cpu);
 
-	/* Pre-allocate and initialize the CPU's GDT and PDA so it
-	   doesn't have to do any memory allocation during the
-	   delicate CPU-bringup phase. */
-	if (!init_gdt(cpu, idle)) {
-		printk(KERN_INFO "Couldn't allocate GDT/PDA for CPU %d\n", cpu);
-		return -1;	/* ? */
-	}
+	init_gdt(cpu);
+ 	per_cpu(current_task, cpu) = idle;
+	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 
 	idle->thread.eip = (unsigned long) start_secondary;
 	/* start_eip had better be page-aligned! */
@@ -941,24 +938,11 @@ static int __cpuinit __smp_prepare_cpu(int cpu)
 	DECLARE_COMPLETION_ONSTACK(done);
 	struct warm_boot_cpu_info info;
 	int	apicid, ret;
-	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
 
 	apicid = x86_cpu_to_apicid[cpu];
 	if (apicid == BAD_APICID) {
 		ret = -ENODEV;
 		goto exit;
-	}
-
-	/*
-	 * the CPU isn't initialized at boot time, allocate gdt table here.
-	 * cpu_init will initialize it
-	 */
-	if (!cpu_gdt_descr->address) {
-		cpu_gdt_descr->address = get_zeroed_page(GFP_KERNEL);
-		if (!cpu_gdt_descr->address)
-			printk(KERN_CRIT "CPU%d failed to allocate GDT\n", cpu);
-			ret = -ENOMEM;
-			goto exit;
 	}
 
 	info.complete = &done;
@@ -1173,7 +1157,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 
 /* These are wrappers to interface to the new boot process.  Someone
    who understands all this stuff should rewrite it properly. --RR 15/Jul/02 */
-void __init smp_prepare_cpus(unsigned int max_cpus)
+void __init native_smp_prepare_cpus(unsigned int max_cpus)
 {
 	smp_commenced_mask = cpumask_of_cpu(0);
 	cpu_callin_map = cpumask_of_cpu(0);
@@ -1181,13 +1165,18 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	smp_boot_cpus(max_cpus);
 }
 
-void __devinit smp_prepare_boot_cpu(void)
+void __init native_smp_prepare_boot_cpu(void)
 {
-	cpu_set(smp_processor_id(), cpu_online_map);
-	cpu_set(smp_processor_id(), cpu_callout_map);
-	cpu_set(smp_processor_id(), cpu_present_map);
-	cpu_set(smp_processor_id(), cpu_possible_map);
-	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
+	unsigned int cpu = smp_processor_id();
+
+	init_gdt(cpu);
+	switch_to_new_gdt();
+
+	cpu_set(cpu, cpu_online_map);
+	cpu_set(cpu, cpu_callout_map);
+	cpu_set(cpu, cpu_present_map);
+	cpu_set(cpu, cpu_possible_map);
+	__get_cpu_var(cpu_state) = CPU_ONLINE;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -1277,7 +1266,7 @@ void __cpu_die(unsigned int cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-int __cpuinit __cpu_up(unsigned int cpu)
+int __cpuinit native_cpu_up(unsigned int cpu)
 {
 	unsigned long flags;
 #ifdef CONFIG_HOTPLUG_CPU
@@ -1319,15 +1308,10 @@ int __cpuinit __cpu_up(unsigned int cpu)
 		touch_nmi_watchdog();
 	}
 
-#ifdef CONFIG_X86_GENERICARCH
-	if (num_online_cpus() > 8 && genapic == &apic_default)
-		panic("Default flat APIC routing can't be used with > 8 cpus\n");
-#endif
-
 	return 0;
 }
 
-void __init smp_cpus_done(unsigned int max_cpus)
+void __init native_smp_cpus_done(unsigned int max_cpus)
 {
 #ifdef CONFIG_X86_IO_APIC
 	setup_ioapic_dest();

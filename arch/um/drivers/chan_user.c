@@ -14,7 +14,6 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include "kern_util.h"
-#include "user_util.h"
 #include "chan_user.h"
 #include "user.h"
 #include "os.h"
@@ -158,7 +157,7 @@ static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out)
 	 */
 	err = run_helper_thread(winch_thread, &data, CLONE_FILES, &stack, 0);
 	if(err < 0){
-		printk("fork of winch_thread failed - errno = %d\n", errno);
+		printk("fork of winch_thread failed - errno = %d\n", -err);
 		goto out_close;
 	}
 
@@ -204,14 +203,3 @@ void register_winch(int fd, struct tty_struct *tty)
 		}
 	}
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

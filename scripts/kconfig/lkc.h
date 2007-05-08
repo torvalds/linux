@@ -64,6 +64,7 @@ int zconf_lineno(void);
 char *zconf_curname(void);
 
 /* confdata.c */
+const char *conf_get_configname(void);
 char *conf_get_default_confname(void);
 void sym_set_change_count(int count);
 void sym_add_change_count(int count);

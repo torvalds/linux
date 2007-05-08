@@ -14,6 +14,7 @@
 #include <linux/agp_backend.h>
 #include <linux/mmzone.h>
 #include <asm/page.h>		/* PAGE_SIZE */
+#include <asm/e820.h>
 #include <asm/k8.h>
 #include "agp.h"
 
@@ -259,7 +260,6 @@ static const struct agp_bridge_driver amd_8151_driver = {
 /* Some basic sanity checks for the aperture. */
 static int __devinit aperture_valid(u64 aper, u32 size)
 {
-	u32 pfn, c;
 	if (aper == 0) {
 		printk(KERN_ERR PFX "No aperture\n");
 		return 0;
@@ -272,14 +272,9 @@ static int __devinit aperture_valid(u64 aper, u32 size)
 		printk(KERN_ERR PFX "Aperture out of bounds\n");
 		return 0;
 	}
-	pfn = aper >> PAGE_SHIFT;
-	for (c = 0; c < size/PAGE_SIZE; c++) {
-		if (!pfn_valid(pfn + c))
-			break;
-		if (!PageReserved(pfn_to_page(pfn + c))) {
-			printk(KERN_ERR PFX "Aperture pointing to RAM\n");
-			return 0;
-		}
+	if (e820_any_mapped(aper, aper + size, E820_RAM)) {
+		printk(KERN_ERR PFX "Aperture pointing to RAM\n");
+		return 0;
 	}
 
 	/* Request the Aperture. This catches cases when someone else

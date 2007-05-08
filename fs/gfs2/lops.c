@@ -33,16 +33,17 @@ static void glock_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 
 	tr->tr_touched = 1;
 
-	if (!list_empty(&le->le_list))
-		return;
-
 	gl = container_of(le, struct gfs2_glock, gl_le);
 	if (gfs2_assert_withdraw(sdp, gfs2_glock_is_held_excl(gl)))
 		return;
-	gfs2_glock_hold(gl);
-	set_bit(GLF_DIRTY, &gl->gl_flags);
 
 	gfs2_log_lock(sdp);
+	if (!list_empty(&le->le_list)){
+		gfs2_log_unlock(sdp);
+		return;
+	}
+	gfs2_glock_hold(gl);
+	set_bit(GLF_DIRTY, &gl->gl_flags);
 	sdp->sd_log_num_gl++;
 	list_add(&le->le_list, &sdp->sd_log_le_gl);
 	gfs2_log_unlock(sdp);
@@ -415,13 +416,14 @@ static void rg_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 
 	tr->tr_touched = 1;
 
-	if (!list_empty(&le->le_list))
-		return;
-
 	rgd = container_of(le, struct gfs2_rgrpd, rd_le);
-	gfs2_rgrp_bh_hold(rgd);
 
 	gfs2_log_lock(sdp);
+	if (!list_empty(&le->le_list)){
+		gfs2_log_unlock(sdp);
+		return;
+	}
+	gfs2_rgrp_bh_hold(rgd);
 	sdp->sd_log_num_rg++;
 	list_add(&le->le_list, &sdp->sd_log_le_rg);
 	gfs2_log_unlock(sdp);

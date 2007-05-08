@@ -1476,7 +1476,10 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 		ret = -ENOMEM;
 		goto err_lk;
 	}
+	INIT_LIST_HEAD(&idev->pending_mmaps);
 	spin_lock_init(&idev->pending_lock);
+	idev->mmap_offset = PAGE_SIZE;
+	spin_lock_init(&idev->mmap_offset_lock);
 	INIT_LIST_HEAD(&idev->pending[0]);
 	INIT_LIST_HEAD(&idev->pending[1]);
 	INIT_LIST_HEAD(&idev->pending[2]);
@@ -1558,6 +1561,7 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 		(1ull << IB_USER_VERBS_CMD_POST_SRQ_RECV);
 	dev->node_type = RDMA_NODE_IB_CA;
 	dev->phys_port_cnt = 1;
+	dev->num_comp_vectors = 1;
 	dev->dma_device = &dd->pcidev->dev;
 	dev->query_device = ipath_query_device;
 	dev->modify_device = ipath_modify_device;

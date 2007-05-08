@@ -33,6 +33,7 @@ config EARLY_SCIF_CONSOLE_PORT
 	default "0xffe00000" if CPU_SUBTYPE_SH7780
 	default "0xfffe9800" if CPU_SUBTYPE_SH7206
 	default "0xf8420000" if CPU_SUBTYPE_SH7619
+	default "0xa4400000" if CPU_SUBTYPE_SH7712 || CPU_SUBTYPE_SH7705
 	default "0xffe80000" if CPU_SH4
 
 config EARLY_PRINTK
@@ -77,16 +78,17 @@ config 4KSTACKS
 	  on the VM subsystem for higher order allocations. This option
 	  will also use IRQ stacks to compensate for the reduced stackspace.
 
-config KGDB
+config SH_KGDB
 	bool "Include KGDB kernel debugger"
 	select FRAME_POINTER
+	select DEBUG_INFO
 	help
 	  Include in-kernel hooks for kgdb, the Linux kernel source level
 	  debugger.  See <http://kgdb.sourceforge.net/> for more information.
 	  Unless you are intending to debug the kernel, say N here.
 
 menu "KGDB configuration options"
-	depends on KGDB
+	depends on SH_KGDB
 
 config MORE_COMPILE_OPTIONS
 	bool "Add any additional compile options"
@@ -103,21 +105,15 @@ config KGDB_NMI
 	bool "Enter KGDB on NMI"
 	default n
 
-config KGDB_THREAD
-	bool "Include KGDB thread support"
-	default y
-
 config SH_KGDB_CONSOLE
 	bool "Console messages through GDB"
+	depends on !SERIAL_SH_SCI_CONSOLE
+	select SERIAL_CORE_CONSOLE
 	default n
 
 config KGDB_SYSRQ
 	bool "Allow SysRq 'G' to enter KGDB"
 	default y
-
-config KGDB_KERNEL_ASSERTS
-	bool "Include KGDB kernel assertions"
-	default n
 
 comment "Serial port setup"
 
@@ -131,7 +127,7 @@ config KGDB_DEFBAUD
 
 choice
 	prompt "Parity"
-	depends on KGDB
+	depends on SH_KGDB
 	default KGDB_DEFPARITY_N
 
 config KGDB_DEFPARITY_N
@@ -147,7 +143,7 @@ endchoice
 
 choice
 	prompt "Data bits"
-	depends on KGDB
+	depends on SH_KGDB
 	default KGDB_DEFBITS_8
 
 config KGDB_DEFBITS_8

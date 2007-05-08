@@ -419,8 +419,7 @@ static void op_inode_init_once(void *data, struct kmem_cache * cachep, unsigned 
 {
 	struct op_inode_info *oi = (struct op_inode_info *) data;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR)
+	if (flags & SLAB_CTOR_CONSTRUCTOR)
 		inode_init_once(&oi->vfs_inode);
 }
 

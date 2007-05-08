@@ -78,6 +78,13 @@ SECTIONS
 	  __stop___mca_table = .;
 	}
 
+  .data.patch.phys_stack_reg : AT(ADDR(.data.patch.phys_stack_reg) - LOAD_OFFSET)
+	{
+	  __start___phys_stack_reg_patchlist = .;
+	  *(.data.patch.phys_stack_reg)
+	  __end___phys_stack_reg_patchlist = .;
+	}
+
   /* Global data */
   _data = .;
 

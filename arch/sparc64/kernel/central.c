@@ -98,7 +98,7 @@ void apply_central_ranges(struct linux_central *central,
 			    central->num_central_ranges);
 }
 
-void * __init central_alloc_bootmem(unsigned long size)
+static void * __init central_alloc_bootmem(unsigned long size)
 {
 	void *ret;
 
@@ -116,7 +116,7 @@ static unsigned long prom_reg_to_paddr(struct linux_prom_registers *r)
 	return ret | (unsigned long) r->phys_addr;
 }
 
-static void probe_other_fhcs(void)
+static void __init probe_other_fhcs(void)
 {
 	struct device_node *dp;
 	const struct linux_prom64_registers *fpregs;
@@ -298,7 +298,7 @@ static void init_all_fhc_hw(void)
 
 }
 
-void central_probe(void)
+void __init central_probe(void)
 {
 	struct linux_prom_registers fpregs[6];
 	const struct linux_prom_registers *pr;

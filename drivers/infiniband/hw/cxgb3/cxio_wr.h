@@ -38,6 +38,7 @@
 #include "firmware_exports.h"
 
 #define T3_MAX_SGE      4
+#define T3_MAX_INLINE	64
 
 #define Q_EMPTY(rptr,wptr) ((rptr)==(wptr))
 #define Q_FULL(rptr,wptr,size_log2)  ( (((wptr)-(rptr))>>(size_log2)) && \

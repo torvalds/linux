@@ -35,8 +35,16 @@ static inline cycles_t get_cycles(void)
 static __always_inline cycles_t get_cycles_sync(void)
 {
 	unsigned long long ret;
-#ifdef X86_FEATURE_SYNC_RDTSC
 	unsigned eax;
+
+	/*
+  	 * Use RDTSCP if possible; it is guaranteed to be synchronous
+ 	 * and doesn't cause a VMEXIT on Hypervisors
+	 */
+	alternative_io(ASM_NOP3, ".byte 0x0f,0x01,0xf9", X86_FEATURE_RDTSCP,
+			 	 "=A" (ret), "0" (0ULL) : "ecx", "memory");
+	if (ret)
+		return ret;
 
 	/*
 	 * Don't do an additional sync on CPUs where we know
@@ -44,16 +52,13 @@ static __always_inline cycles_t get_cycles_sync(void)
 	 */
 	alternative_io("cpuid", ASM_NOP2, X86_FEATURE_SYNC_RDTSC,
 			  "=a" (eax), "0" (1) : "ebx","ecx","edx","memory");
-#else
-	sync_core();
-#endif
 	rdtscll(ret);
 
 	return ret;
 }
 
 extern void tsc_init(void);
-extern void mark_tsc_unstable(void);
+extern void mark_tsc_unstable(char *reason);
 extern int unsynchronized_tsc(void);
 extern void init_tsc_clocksource(void);
 

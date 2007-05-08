@@ -21,11 +21,7 @@
 int atari_scsi_detect (struct scsi_host_template *);
 const char *atari_scsi_info (struct Scsi_Host *);
 int atari_scsi_reset (Scsi_Cmnd *, unsigned int);
-#ifdef MODULE
 int atari_scsi_release (struct Scsi_Host *);
-#else
-#define atari_scsi_release NULL
-#endif
 
 /* The values for CMD_PER_LUN and CAN_QUEUE are somehow arbitrary. Higher
  * values should work, too; try it! (but cmd_per_lun costs memory!) */
@@ -63,6 +59,32 @@ int atari_scsi_release (struct Scsi_Host *);
 #define	NCR5380_dma_xfer_len(i,cmd,phase) \
 	atari_dma_xfer_len(cmd->SCp.this_residual,cmd,((phase) & SR_IO) ? 0 : 1)
 
+/* former generic SCSI error handling stuff */
+
+#define SCSI_ABORT_SNOOZE 0
+#define SCSI_ABORT_SUCCESS 1
+#define SCSI_ABORT_PENDING 2
+#define SCSI_ABORT_BUSY 3
+#define SCSI_ABORT_NOT_RUNNING 4
+#define SCSI_ABORT_ERROR 5
+
+#define SCSI_RESET_SNOOZE 0
+#define SCSI_RESET_PUNT 1
+#define SCSI_RESET_SUCCESS 2
+#define SCSI_RESET_PENDING 3
+#define SCSI_RESET_WAKEUP 4
+#define SCSI_RESET_NOT_RUNNING 5
+#define SCSI_RESET_ERROR 6
+
+#define SCSI_RESET_SYNCHRONOUS		0x01
+#define SCSI_RESET_ASYNCHRONOUS		0x02
+#define SCSI_RESET_SUGGEST_BUS_RESET	0x04
+#define SCSI_RESET_SUGGEST_HOST_RESET	0x08
+
+#define SCSI_RESET_BUS_RESET 0x100
+#define SCSI_RESET_HOST_RESET 0x200
+#define SCSI_RESET_ACTION   0xff
+
 /* Debugging printk definitions:
  *
  *  ARB  -> arbitration
@@ -91,144 +113,58 @@ int atari_scsi_release (struct Scsi_Host *);
  *
  */
 
-#if NDEBUG & NDEBUG_ARBITRATION
+#define dprint(flg, format...)			\
+({						\
+	if (NDEBUG & (flg))			\
+		printk(KERN_DEBUG format);	\
+})
+
 #define ARB_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define ARB_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_AUTOSENSE
+	dprint(NDEBUG_ARBITRATION, format , ## args)
 #define ASEN_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define ASEN_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_DMA
+	dprint(NDEBUG_AUTOSENSE, format , ## args)
 #define DMA_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define DMA_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_HANDSHAKE
+	dprint(NDEBUG_DMA, format , ## args)
 #define HSH_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define HSH_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_INFORMATION
+	dprint(NDEBUG_HANDSHAKE, format , ## args)
 #define INF_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define INF_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_INIT
+	dprint(NDEBUG_INFORMATION, format , ## args)
 #define INI_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define INI_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_INTR
+	dprint(NDEBUG_INIT, format , ## args)
 #define INT_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define INT_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_LINKED
+	dprint(NDEBUG_INTR, format , ## args)
 #define LNK_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define LNK_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_MAIN
+	dprint(NDEBUG_LINKED, format , ## args)
 #define MAIN_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define MAIN_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_NO_DATAOUT
+	dprint(NDEBUG_MAIN, format , ## args)
 #define NDAT_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define NDAT_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_NO_WRITE
+	dprint(NDEBUG_NO_DATAOUT, format , ## args)
 #define NWR_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define NWR_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_PIO
+	dprint(NDEBUG_NO_WRITE, format , ## args)
 #define PIO_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define PIO_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_PSEUDO_DMA
+	dprint(NDEBUG_PIO, format , ## args)
 #define PDMA_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define PDMA_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_QUEUES
+	dprint(NDEBUG_PSEUDO_DMA, format , ## args)
 #define QU_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define QU_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_RESELECTION
+	dprint(NDEBUG_QUEUES, format , ## args)
 #define RSL_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define RSL_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_SELECTION
+	dprint(NDEBUG_RESELECTION, format , ## args)
 #define SEL_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define SEL_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_USLEEP
+	dprint(NDEBUG_SELECTION, format , ## args)
 #define USL_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define USL_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_LAST_BYTE_SENT
+	dprint(NDEBUG_USLEEP, format , ## args)
 #define LBS_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define LBS_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_RESTART_SELECT
+	dprint(NDEBUG_LAST_BYTE_SENT, format , ## args)
 #define RSS_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define RSS_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_EXTENDED
+	dprint(NDEBUG_RESTART_SELECT, format , ## args)
 #define EXT_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define EXT_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_ABORT
+	dprint(NDEBUG_EXTENDED, format , ## args)
 #define ABRT_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define ABRT_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_TAGS
+	dprint(NDEBUG_ABORT, format , ## args)
 #define TAG_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define TAG_PRINTK(format, args...)
-#endif
-#if NDEBUG & NDEBUG_MERGING
+	dprint(NDEBUG_TAGS, format , ## args)
 #define MER_PRINTK(format, args...) \
-	printk(KERN_DEBUG format , ## args)
-#else
-#define MER_PRINTK(format, args...)
-#endif
+	dprint(NDEBUG_MERGING, format , ## args)
 
 /* conditional macros for NCR5380_print_{,phase,status} */
 

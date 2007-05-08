@@ -12,7 +12,6 @@
 #include <linux/tty_flip.h>
 #include <asm/irq.h>
 #include "chan_kern.h"
-#include "user_util.h"
 #include "kern.h"
 #include "irq_user.h"
 #include "sigio.h"

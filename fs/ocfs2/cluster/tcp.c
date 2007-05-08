@@ -1496,7 +1496,7 @@ static void o2net_start_connect(struct work_struct *work)
 	sock->sk->sk_allocation = GFP_ATOMIC;
 
 	myaddr.sin_family = AF_INET;
-	myaddr.sin_addr.s_addr = (__force u32)mynode->nd_ipv4_address;
+	myaddr.sin_addr.s_addr = mynode->nd_ipv4_address;
 	myaddr.sin_port = (__force u16)htons(0); /* any port */
 
 	ret = sock->ops->bind(sock, (struct sockaddr *)&myaddr,
@@ -1521,8 +1521,8 @@ static void o2net_start_connect(struct work_struct *work)
 	spin_unlock(&nn->nn_lock);
 
 	remoteaddr.sin_family = AF_INET;
-	remoteaddr.sin_addr.s_addr = (__force u32)node->nd_ipv4_address;
-	remoteaddr.sin_port = (__force u16)node->nd_ipv4_port;
+	remoteaddr.sin_addr.s_addr = node->nd_ipv4_address;
+	remoteaddr.sin_port = node->nd_ipv4_port;
 
 	ret = sc->sc_sock->ops->connect(sc->sc_sock,
 					(struct sockaddr *)&remoteaddr,
@@ -1810,8 +1810,8 @@ static int o2net_open_listening_sock(__be32 addr, __be16 port)
 	int ret;
 	struct sockaddr_in sin = {
 		.sin_family = PF_INET,
-		.sin_addr = { .s_addr = (__force u32)addr },
-		.sin_port = (__force u16)port,
+		.sin_addr = { .s_addr = addr },
+		.sin_port = port,
 	};
 
 	ret = sock_create(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);

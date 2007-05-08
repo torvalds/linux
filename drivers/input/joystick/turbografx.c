@@ -122,7 +122,7 @@ static void tgfx_timer(unsigned long private)
 
 static int tgfx_open(struct input_dev *dev)
 {
-	struct tgfx *tgfx = dev->private;
+	struct tgfx *tgfx = input_get_drvdata(dev);
 	int err;
 
 	err = mutex_lock_interruptible(&tgfx->sem);
@@ -141,7 +141,7 @@ static int tgfx_open(struct input_dev *dev)
 
 static void tgfx_close(struct input_dev *dev)
 {
-	struct tgfx *tgfx = dev->private;
+	struct tgfx *tgfx = input_get_drvdata(dev);
 
 	mutex_lock(&tgfx->sem);
 	if (!--tgfx->used) {
@@ -224,7 +224,8 @@ static struct tgfx __init *tgfx_probe(int parport, int *n_buttons, int n_devs)
 		input_dev->id.product = n_buttons[i];
 		input_dev->id.version = 0x0100;
 
-		input_dev->private = tgfx;
+		input_set_drvdata(input_dev, tgfx);
+
 		input_dev->open = tgfx_open;
 		input_dev->close = tgfx_close;
 

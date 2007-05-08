@@ -403,7 +403,7 @@ static void __exit rd_cleanup(void)
 		struct block_device *bdev = rd_bdev[i];
 		rd_bdev[i] = NULL;
 		if (bdev) {
-			invalidate_bdev(bdev, 1);
+			invalidate_bdev(bdev);
 			blkdev_put(bdev);
 		}
 		del_gendisk(rd_disks[i]);

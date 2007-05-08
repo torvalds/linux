@@ -340,7 +340,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	struct pci_dev *dev;
 	const char *type;
 
-	dev = kzalloc(sizeof(struct pci_dev), GFP_KERNEL);
+	dev = alloc_pci_dev();
 	if (!dev)
 		return NULL;
 	type = of_get_property(node, "device_type", NULL);

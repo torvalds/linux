@@ -18,10 +18,8 @@
  * Subject to the GNU Public License, v.2
  */
 
-#include <asm/fixmap.h>
 #include <asm/hw_irq.h>
-#include <asm/apicdef.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 
 /*
  * the following functions deal with sending IPIs between CPUs.
@@ -76,10 +74,42 @@ static inline void __send_IPI_shortcut(unsigned int shortcut, int vector, unsign
 	apic_write(APIC_ICR, cfg);
 }
 
+/*
+ * This is used to send an IPI with no shorthand notation (the destination is
+ * specified in bits 56 to 63 of the ICR).
+ */
+static inline void __send_IPI_dest_field(unsigned int mask, int vector, unsigned int dest)
+{
+	unsigned long cfg;
+
+	/*
+	 * Wait for idle.
+	 */
+	if (unlikely(vector == NMI_VECTOR))
+		safe_apic_wait_icr_idle();
+	else
+		apic_wait_icr_idle();
+
+	/*
+	 * prepare target chip field
+	 */
+	cfg = __prepare_ICR2(mask);
+	apic_write(APIC_ICR2, cfg);
+
+	/*
+	 * program the ICR
+	 */
+	cfg = __prepare_ICR(0, vector, dest);
+
+	/*
+	 * Send the IPI. The write to APIC_ICR fires this off.
+	 */
+	apic_write(APIC_ICR, cfg);
+}
 
 static inline void send_IPI_mask_sequence(cpumask_t mask, int vector)
 {
-	unsigned long cfg, flags;
+	unsigned long flags;
 	unsigned long query_cpu;
 
 	/*
@@ -88,28 +118,9 @@ static inline void send_IPI_mask_sequence(cpumask_t mask, int vector)
 	 * - mbligh
 	 */
 	local_irq_save(flags);
-
 	for_each_cpu_mask(query_cpu, mask) {
-		/*
-		 * Wait for idle.
-		 */
-		apic_wait_icr_idle();
-
-		/*
-		 * prepare target chip field
-		 */
-		cfg = __prepare_ICR2(x86_cpu_to_apicid[query_cpu]);
-		apic_write(APIC_ICR2, cfg);
-
-		/*
-		 * program the ICR
-		 */
-		cfg = __prepare_ICR(0, vector, APIC_DEST_PHYSICAL);
-
-		/*
-		 * Send the IPI. The write to APIC_ICR fires this off.
-		 */
-		apic_write(APIC_ICR, cfg);
+		__send_IPI_dest_field(x86_cpu_to_apicid[query_cpu],
+				      vector, APIC_DEST_PHYSICAL);
 	}
 	local_irq_restore(flags);
 }

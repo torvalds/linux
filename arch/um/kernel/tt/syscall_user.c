@@ -11,7 +11,6 @@
 #include "sigcontext.h"
 #include "ptrace_user.h"
 #include "task.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "syscall.h"
 #include "tt.h"

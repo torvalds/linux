@@ -143,96 +143,6 @@ static struct agp_bridge_driver sis_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static struct agp_device_ids sis_agp_device_ids[] __devinitdata =
-{
-	{
-		.device_id	= PCI_DEVICE_ID_SI_5591_AGP,
-		.chipset_name	= "5591",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_530,
-		.chipset_name	= "530",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_540,
-		.chipset_name	= "540",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_550,
-		.chipset_name	= "550",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_620,
-		.chipset_name	= "620",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_630,
-		.chipset_name	= "630",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_635,
-		.chipset_name	= "635",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_645,
-		.chipset_name	= "645",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_646,
-		.chipset_name	= "646",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_648,
-		.chipset_name	= "648",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_650,
-		.chipset_name	= "650",
-	},
-	{
-		.device_id  = PCI_DEVICE_ID_SI_651,
-		.chipset_name   = "651",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_655,
-		.chipset_name	= "655",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_661,
-		.chipset_name	= "661",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_730,
-		.chipset_name	= "730",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_735,
-		.chipset_name	= "735",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_740,
-		.chipset_name	= "740",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_741,
-		.chipset_name	= "741",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_745,
-		.chipset_name	= "745",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_746,
-		.chipset_name	= "746",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_SI_760,
-		.chipset_name	= "760",
-	},
-	{ }, /* dummy final entry, always present */
-};
-
-
 // chipsets that require the 'delay hack'
 static int sis_broken_chipsets[] __devinitdata = {
 	PCI_DEVICE_ID_SI_648,
@@ -269,29 +179,15 @@ static void __devinit sis_get_driver(struct agp_bridge_data *bridge)
 static int __devinit agp_sis_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *ent)
 {
-	struct agp_device_ids *devs = sis_agp_device_ids;
 	struct agp_bridge_data *bridge;
 	u8 cap_ptr;
-	int j;
 
 	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 	if (!cap_ptr)
 		return -ENODEV;
 
-	/* probe for known chipsets */
-	for (j = 0; devs[j].chipset_name; j++) {
-		if (pdev->device == devs[j].device_id) {
-			printk(KERN_INFO PFX "Detected SiS %s chipset\n",
-					devs[j].chipset_name);
-			goto found;
-		}
-	}
 
-	printk(KERN_ERR PFX "Unsupported SiS chipset (device id: %04x)\n",
-		    pdev->device);
-	return -ENODEV;
-
-found:
+	printk(KERN_INFO PFX "Detected SiS chipset - id:%i\n", pdev->device);
 	bridge = agp_alloc_bridge();
 	if (!bridge)
 		return -ENOMEM;
@@ -320,12 +216,172 @@ static void __devexit agp_sis_remove(struct pci_dev *pdev)
 
 static struct pci_device_id agp_sis_pci_table[] = {
 	{
-	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
-	.class_mask	= ~0,
-	.vendor		= PCI_VENDOR_ID_SI,
-	.device		= PCI_ANY_ID,
-	.subvendor	= PCI_ANY_ID,
-	.subdevice	= PCI_ANY_ID,
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_5591_AGP,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_530,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_540,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_550,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_620,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_630,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_635,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_645,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_646,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_648,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_650,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_651,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_655,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_661,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_730,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_735,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_740,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_741,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_745,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_746,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_760,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
 	},
 	{ }
 };

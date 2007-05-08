@@ -24,5 +24,14 @@
 
 #include <asm/hardware/iop3xx.h>
 
+/* ATU Parameters
+ * set up a 1:1 bus to physical ram relationship
+ * w/ physical ram on top of pci in the memory map
+ */
+#define IOP32X_MAX_RAM_SIZE            0x40000000UL
+#define IOP3XX_MAX_RAM_SIZE            IOP32X_MAX_RAM_SIZE
+#define IOP3XX_PCI_LOWER_MEM_BA        0x80000000
+#define IOP32X_PCI_MEM_WINDOW_SIZE     0x04000000
+#define IOP3XX_PCI_MEM_WINDOW_SIZE     IOP32X_PCI_MEM_WINDOW_SIZE
 
 #endif

@@ -506,6 +506,7 @@ struct input_absinfo {
 #define KEY_VOICEMAIL		0x1ac
 #define KEY_ADDRESSBOOK		0x1ad
 #define KEY_MESSENGER		0x1ae
+#define KEY_DISPLAYTOGGLE	0x1af	/* Turn display (LCD) on and off */
 
 #define KEY_DEL_EOL		0x1c0
 #define KEY_DEL_EOS		0x1c1
@@ -676,6 +677,7 @@ struct input_absinfo {
 #define BUS_I2C			0x18
 #define BUS_HOST		0x19
 #define BUS_GSC			0x1A
+#define BUS_ATARI		0x1B
 
 /*
  * Values describing the status of a force-feedback effect
@@ -913,33 +915,6 @@ struct ff_effect {
 #define BIT(x)	(1UL<<((x)%BITS_PER_LONG))
 #define LONG(x) ((x)/BITS_PER_LONG)
 
-#define INPUT_KEYCODE(dev, scancode) ((dev->keycodesize == 1) ? ((u8*)dev->keycode)[scancode] : \
-	((dev->keycodesize == 2) ? ((u16*)dev->keycode)[scancode] : (((u32*)dev->keycode)[scancode])))
-
-#define SET_INPUT_KEYCODE(dev, scancode, val)			\
-		({	unsigned __old;				\
-		switch (dev->keycodesize) {			\
-			case 1: {				\
-				u8 *k = (u8 *)dev->keycode;	\
-				__old = k[scancode];		\
-				k[scancode] = val;		\
-				break;				\
-			}					\
-			case 2: {				\
-				u16 *k = (u16 *)dev->keycode;	\
-				__old = k[scancode];		\
-				k[scancode] = val;		\
-				break;				\
-			}					\
-			default: {				\
-				u32 *k = (u32 *)dev->keycode;	\
-				__old = k[scancode];		\
-				k[scancode] = val;		\
-				break;				\
-			}					\
-		}						\
-		__old; })
-
 struct input_dev {
 
 	void *private;
@@ -962,6 +937,8 @@ struct input_dev {
 	unsigned int keycodemax;
 	unsigned int keycodesize;
 	void *keycode;
+	int (*setkeycode)(struct input_dev *dev, int scancode, int keycode);
+	int (*getkeycode)(struct input_dev *dev, int scancode, int *keycode);
 
 	struct ff_device *ff;
 
@@ -996,6 +973,9 @@ struct input_dev {
 	unsigned int users;
 
 	struct class_device cdev;
+	union {			/* temporarily so while we switching to struct device */
+		struct device *parent;
+	} dev;
 
 	struct list_head	h_list;
 	struct list_head	node;
@@ -1008,6 +988,10 @@ struct input_dev {
 
 #if EV_MAX != INPUT_DEVICE_ID_EV_MAX
 #error "EV_MAX and INPUT_DEVICE_ID_EV_MAX do not match"
+#endif
+
+#if KEY_MIN_INTERESTING != INPUT_DEVICE_ID_KEY_MIN_INTERESTING
+#error "KEY_MIN_INTERESTING and INPUT_DEVICE_ID_KEY_MIN_INTERESTING do not match"
 #endif
 
 #if KEY_MAX != INPUT_DEVICE_ID_KEY_MAX
@@ -1074,7 +1058,7 @@ struct input_handler {
 	void *private;
 
 	void (*event)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
-	struct input_handle* (*connect)(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id);
+	int (*connect)(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id);
 	void (*disconnect)(struct input_handle *handle);
 	void (*start)(struct input_handle *handle);
 
@@ -1104,7 +1088,7 @@ struct input_handle {
 };
 
 #define to_dev(n) container_of(n,struct input_dev,node)
-#define to_handler(n) container_of(n,struct input_handler,node);
+#define to_handler(n) container_of(n,struct input_handler,node)
 #define to_handle(n) container_of(n,struct input_handle,d_node)
 #define to_handle_h(n) container_of(n,struct input_handle,h_node)
 
@@ -1121,11 +1105,24 @@ static inline void input_put_device(struct input_dev *dev)
 	class_device_put(&dev->cdev);
 }
 
+static inline void *input_get_drvdata(struct input_dev *dev)
+{
+	return dev->private;
+}
+
+static inline void input_set_drvdata(struct input_dev *dev, void *data)
+{
+	dev->private = data;
+}
+
 int input_register_device(struct input_dev *);
 void input_unregister_device(struct input_dev *);
 
 int input_register_handler(struct input_handler *);
 void input_unregister_handler(struct input_handler *);
+
+int input_register_handle(struct input_handle *);
+void input_unregister_handle(struct input_handle *);
 
 int input_grab_device(struct input_handle *);
 void input_release_device(struct input_handle *);
@@ -1167,6 +1164,8 @@ static inline void input_sync(struct input_dev *dev)
 {
 	input_event(dev, EV_SYN, SYN_REPORT, 0);
 }
+
+void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int code);
 
 static inline void input_set_abs_params(struct input_dev *dev, int axis, int min, int max, int fuzz, int flat)
 {

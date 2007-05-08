@@ -75,6 +75,9 @@ void amd_mcheck_init(struct cpuinfo_x86 *c)
 	machine_check_vector = k7_machine_check;
 	wmb();
 
+	if (!cpu_has(c, X86_FEATURE_MCE))
+		return;
+
 	printk (KERN_INFO "Intel machine check architecture supported.\n");
 	rdmsr (MSR_IA32_MCG_CAP, l, h);
 	if (l & (1<<8))	/* Control register present ? */
@@ -82,9 +85,13 @@ void amd_mcheck_init(struct cpuinfo_x86 *c)
 	nr_mce_banks = l & 0xff;
 
 	/* Clear status for MC index 0 separately, we don't touch CTL,
-	 * as some Athlons cause spurious MCEs when its enabled. */
-	wrmsr (MSR_IA32_MC0_STATUS, 0x0, 0x0);
-	for (i=1; i<nr_mce_banks; i++) {
+	 * as some K7 Athlons cause spurious MCEs when its enabled. */
+	if (boot_cpu_data.x86 == 6) {
+		wrmsr (MSR_IA32_MC0_STATUS, 0x0, 0x0);
+		i = 1;
+	} else
+		i = 0;
+	for (; i<nr_mce_banks; i++) {
 		wrmsr (MSR_IA32_MC0_CTL+4*i, 0xffffffff, 0xffffffff);
 		wrmsr (MSR_IA32_MC0_STATUS+4*i, 0x0, 0x0);
 	}

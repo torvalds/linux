@@ -25,6 +25,7 @@
 #include <linux/mutex.h>
 #include <linux/kfifo.h>
 #include <linux/delay.h>
+#include <asm/unaligned.h>
 #include <net/tcp.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
@@ -269,14 +270,14 @@ invalid_datalen:
 			goto out;
 		}
 
-		senselen = be16_to_cpu(*(__be16 *)data);
+		senselen = be16_to_cpu(get_unaligned((__be16 *) data));
 		if (datalen < senselen)
 			goto invalid_datalen;
 
 		memcpy(sc->sense_buffer, data + 2,
 		       min_t(uint16_t, senselen, SCSI_SENSE_BUFFERSIZE));
 		debug_scsi("copied %d bytes of sense\n",
-			   min(senselen, SCSI_SENSE_BUFFERSIZE));
+			   min_t(uint16_t, senselen, SCSI_SENSE_BUFFERSIZE));
 	}
 
 	if (sc->sc_data_direction == DMA_TO_DEVICE)
@@ -577,7 +578,7 @@ void iscsi_conn_failure(struct iscsi_conn *conn, enum iscsi_err err)
 }
 EXPORT_SYMBOL_GPL(iscsi_conn_failure);
 
-static int iscsi_xmit_imm_task(struct iscsi_conn *conn)
+static int iscsi_xmit_mtask(struct iscsi_conn *conn)
 {
 	struct iscsi_hdr *hdr = conn->mtask->hdr;
 	int rc, was_logout = 0;
@@ -590,6 +591,9 @@ static int iscsi_xmit_imm_task(struct iscsi_conn *conn)
 	rc = conn->session->tt->xmit_mgmt_task(conn, conn->mtask);
 	if (rc)
 		return rc;
+
+	/* done with this in-progress mtask */
+	conn->mtask = NULL;
 
 	if (was_logout) {
 		set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
@@ -643,11 +647,9 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 		conn->ctask = NULL;
 	}
 	if (conn->mtask) {
-		rc = iscsi_xmit_imm_task(conn);
+		rc = iscsi_xmit_mtask(conn);
 	        if (rc)
 		        goto again;
-		/* done with this in-progress mtask */
-		conn->mtask = NULL;
 	}
 
 	/* process immediate first */
@@ -658,12 +660,10 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 			list_add_tail(&conn->mtask->running,
 				      &conn->mgmt_run_list);
 			spin_unlock_bh(&conn->session->lock);
-			rc = iscsi_xmit_imm_task(conn);
+			rc = iscsi_xmit_mtask(conn);
 		        if (rc)
 			        goto again;
 	        }
-		/* done with this mtask */
-		conn->mtask = NULL;
 	}
 
 	/* process command queue */
@@ -701,12 +701,10 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 			list_add_tail(&conn->mtask->running,
 				      &conn->mgmt_run_list);
 			spin_unlock_bh(&conn->session->lock);
-		        rc = tt->xmit_mgmt_task(conn, conn->mtask);
-			if (rc)
+			rc = iscsi_xmit_mtask(conn);
+		        if (rc)
 			        goto again;
 	        }
-		/* done with this mtask */
-		conn->mtask = NULL;
 	}
 
 	return -ENODATA;
@@ -1523,7 +1521,7 @@ iscsi_conn_setup(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	}
 	spin_unlock_bh(&session->lock);
 
-	data = kmalloc(DEFAULT_MAX_RECV_DATA_SEGMENT_LENGTH, GFP_KERNEL);
+	data = kmalloc(ISCSI_DEF_MAX_RECV_SEG_LEN, GFP_KERNEL);
 	if (!data)
 		goto login_mtask_data_alloc_fail;
 	conn->login_mtask->data = conn->data = data;
@@ -1596,6 +1594,9 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 		 */
 		wake_up(&conn->ehwait);
 	}
+
+	/* flush queued up work because we free the connection below */
+	scsi_flush_work(session->host);
 
 	spin_lock_bh(&session->lock);
 	kfree(conn->data);

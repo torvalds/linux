@@ -14,9 +14,7 @@ struct host_vm_op {
 		struct {
 			unsigned long addr;
 			unsigned long len;
-			unsigned int r:1;
-			unsigned int w:1;
-			unsigned int x:1;
+			unsigned int prot;
 			int fd;
 			__u64 offset;
 		} mmap;
@@ -27,9 +25,7 @@ struct host_vm_op {
 		struct {
 			unsigned long addr;
 			unsigned long len;
-			unsigned int r:1;
-			unsigned int w:1;
-			unsigned int x:1;
+			unsigned int prot;
 		} mprotect;
 	} u;
 };

@@ -510,17 +510,20 @@ nlmclt_decode_res(struct rpc_rqst *req, __be32 *p, struct nlm_res *resp)
 	return 0;
 }
 
+#if (NLMCLNT_OHSIZE > XDR_MAX_NETOBJ)
+#  error "NLM host name cannot be larger than XDR_MAX_NETOBJ!"
+#endif
+
 /*
  * Buffer requirements for NLM
  */
 #define NLM_void_sz		0
 #define NLM_cookie_sz		1+XDR_QUADLEN(NLM_MAXCOOKIELEN)
-#define NLM_caller_sz		1+XDR_QUADLEN(sizeof(utsname()->nodename))
-#define NLM_netobj_sz		1+XDR_QUADLEN(XDR_MAX_NETOBJ)
-/* #define NLM_owner_sz		1+XDR_QUADLEN(NLM_MAXOWNER) */
+#define NLM_caller_sz		1+XDR_QUADLEN(NLMCLNT_OHSIZE)
+#define NLM_owner_sz		1+XDR_QUADLEN(NLMCLNT_OHSIZE)
 #define NLM_fhandle_sz		1+XDR_QUADLEN(NFS2_FHSIZE)
-#define NLM_lock_sz		3+NLM_caller_sz+NLM_netobj_sz+NLM_fhandle_sz
-#define NLM_holder_sz		4+NLM_netobj_sz
+#define NLM_lock_sz		3+NLM_caller_sz+NLM_owner_sz+NLM_fhandle_sz
+#define NLM_holder_sz		4+NLM_owner_sz
 
 #define NLM_testargs_sz		NLM_cookie_sz+1+NLM_lock_sz
 #define NLM_lockargs_sz		NLM_cookie_sz+4+NLM_lock_sz
@@ -530,10 +533,6 @@ nlmclt_decode_res(struct rpc_rqst *req, __be32 *p, struct nlm_res *resp)
 #define NLM_testres_sz		NLM_cookie_sz+1+NLM_holder_sz
 #define NLM_res_sz		NLM_cookie_sz+1
 #define NLM_norep_sz		0
-
-#ifndef MAX
-# define MAX(a, b)		(((a) > (b))? (a) : (b))
-#endif
 
 /*
  * For NLM, a void procedure really returns nothing
@@ -545,7 +544,8 @@ nlmclt_decode_res(struct rpc_rqst *req, __be32 *p, struct nlm_res *resp)
 	.p_proc      = NLMPROC_##proc,					\
 	.p_encode    = (kxdrproc_t) nlmclt_encode_##argtype,		\
 	.p_decode    = (kxdrproc_t) nlmclt_decode_##restype,		\
-	.p_bufsiz    = MAX(NLM_##argtype##_sz, NLM_##restype##_sz) << 2,	\
+	.p_arglen    = NLM_##argtype##_sz,				\
+	.p_replen    = NLM_##restype##_sz,				\
 	.p_statidx   = NLMPROC_##proc,					\
 	.p_name      = #proc,						\
 	}

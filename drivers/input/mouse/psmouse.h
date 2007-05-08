@@ -87,6 +87,7 @@ enum psmouse_type {
 	PSMOUSE_ALPS,
 	PSMOUSE_LIFEBOOK,
 	PSMOUSE_TRACKPOINT,
+	PSMOUSE_TOUCHKIT_PS2,
 	PSMOUSE_AUTO		/* This one should always be last */
 };
 

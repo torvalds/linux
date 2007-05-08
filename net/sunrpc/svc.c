@@ -757,7 +757,7 @@ svc_register(struct svc_serv *serv, int proto, unsigned short port)
 			if (progp->pg_vers[i]->vs_hidden)
 				continue;
 
-			error = rpc_register(progp->pg_prog, i, proto, port, &dummy);
+			error = rpcb_register(progp->pg_prog, i, proto, port, &dummy);
 			if (error < 0)
 				break;
 			if (port && !dummy) {

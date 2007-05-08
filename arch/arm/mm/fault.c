@@ -10,7 +10,6 @@
  */
 #include <linux/module.h>
 #include <linux/signal.h>
-#include <linux/ptrace.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 
@@ -438,7 +437,7 @@ hook_fault_code(int nr, int (*fn)(unsigned long, unsigned int, struct pt_regs *)
 /*
  * Dispatch a data abort to the relevant handler.
  */
-asmlinkage void
+asmlinkage void __exception
 do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
 	const struct fsr_info *inf = fsr_info + (fsr & 15) + ((fsr & (1 << 10)) >> 6);
@@ -457,7 +456,7 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	notify_die("", regs, &info, fsr, 0);
 }
 
-asmlinkage void
+asmlinkage void __exception
 do_PrefetchAbort(unsigned long addr, struct pt_regs *regs)
 {
 	do_translation_fault(addr, 0, regs);

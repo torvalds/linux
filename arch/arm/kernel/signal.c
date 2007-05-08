@@ -9,7 +9,6 @@
  */
 #include <linux/errno.h>
 #include <linux/signal.h>
-#include <linux/ptrace.h>
 #include <linux/personality.h>
 #include <linux/freezer.h>
 
@@ -285,11 +284,7 @@ asmlinkage int sys_sigreturn(struct pt_regs *regs)
 	if (restore_sigframe(regs, frame))
 		goto badframe;
 
-	/* Send SIGTRAP if we're single-stepping */
-	if (current->ptrace & PT_SINGLESTEP) {
-		ptrace_cancel_bpt(current);
-		send_sig(SIGTRAP, current, 1);
-	}
+	single_step_trap(current);
 
 	return regs->ARM_r0;
 
@@ -324,11 +319,7 @@ asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 	if (do_sigaltstack(&frame->sig.uc.uc_stack, NULL, regs->ARM_sp) == -EFAULT)
 		goto badframe;
 
-	/* Send SIGTRAP if we're single-stepping */
-	if (current->ptrace & PT_SINGLESTEP) {
-		ptrace_cancel_bpt(current);
-		send_sig(SIGTRAP, current, 1);
-	}
+	single_step_trap(current);
 
 	return regs->ARM_r0;
 
@@ -644,14 +635,12 @@ static int do_signal(sigset_t *oldset, struct pt_regs *regs, int syscall)
 	if (try_to_freeze())
 		goto no_signal;
 
-	if (current->ptrace & PT_SINGLESTEP)
-		ptrace_cancel_bpt(current);
+	single_step_clear(current);
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		handle_signal(signr, &ka, &info, oldset, regs, syscall);
-		if (current->ptrace & PT_SINGLESTEP)
-			ptrace_set_bpt(current);
+		single_step_set(current);
 		return 1;
 	}
 
@@ -705,8 +694,7 @@ static int do_signal(sigset_t *oldset, struct pt_regs *regs, int syscall)
 			restart_syscall(regs);
 		}
 	}
-	if (current->ptrace & PT_SINGLESTEP)
-		ptrace_set_bpt(current);
+	single_step_set(current);
 	return 0;
 }
 

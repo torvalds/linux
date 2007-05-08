@@ -62,6 +62,12 @@ config MACH_IXDP465
 	  IXDP465 Development Platform (Also known as BMP).
 	  For more information on this platform, see <file:Documentation/arm/IXP4xx>.
 
+config MACH_KIXRP435
+	bool "KIXRP435"
+	help
+	  Say 'Y' here if you want your kernel to support Intel's
+	  KIXRP435 Reference Platform.
+	  For more information on this platform, see <file:Documentation/arm/IXP4xx>.
 
 #
 # IXCDP1100 is the exact same HW as IXDP425, but with a different machine 
@@ -89,12 +95,21 @@ config MACH_NAS100D
 	  NAS 100d device. For more information on this platform,
 	  see http://www.nslu2-linux.org/wiki/NAS100d/HomePage
 
+config MACH_DSMG600
+	bool
+	prompt "D-Link DSM-G600 RevA"
+	select PCI
+	help
+	  Say 'Y' here if you want your kernel to support D-Link's
+	  DSM-G600 RevA device. For more information on this platform,
+	  see http://www.nslu2-linux.org/wiki/DSMG600/HomePage
+
 #
 # Avila and IXDP share the same source for now. Will change in future
 #
 config	ARCH_IXDP4XX
 	bool
-	depends on ARCH_IXDP425 || MACH_IXDP465
+	depends on ARCH_IXDP425 || MACH_IXDP465 || MACH_KIXRP435
 	default y
 
 #
@@ -103,6 +118,11 @@ config	ARCH_IXDP4XX
 config CPU_IXP46X
 	bool
 	depends on MACH_IXDP465
+	default y
+
+config CPU_IXP43X
+	bool
+	depends on MACH_KIXRP435
 	default y
 
 config MACH_GTWX5715

@@ -43,7 +43,16 @@ int drm_ht_create(drm_open_hash_t *ht, unsigned int order)
 	ht->size = 1 << order;
 	ht->order = order;
 	ht->fill = 0;
-	ht->table = vmalloc(ht->size*sizeof(*ht->table));
+	ht->table = NULL;
+	ht->use_vmalloc = ((ht->size * sizeof(*ht->table)) > PAGE_SIZE);
+	if (!ht->use_vmalloc) {
+		ht->table = drm_calloc(ht->size, sizeof(*ht->table),
+				       DRM_MEM_HASHTAB);
+	}
+	if (!ht->table) {
+		ht->use_vmalloc = 1;
+		ht->table = vmalloc(ht->size*sizeof(*ht->table));
+	}
 	if (!ht->table) {
 		DRM_ERROR("Out of memory for hash table\n");
 		return -ENOMEM;
@@ -183,7 +192,11 @@ int drm_ht_remove_item(drm_open_hash_t *ht, drm_hash_item_t *item)
 void drm_ht_remove(drm_open_hash_t *ht)
 {
 	if (ht->table) {
-		vfree(ht->table);
+		if (ht->use_vmalloc)
+			vfree(ht->table);
+		else
+			drm_free(ht->table, ht->size * sizeof(*ht->table),
+				 DRM_MEM_HASHTAB);
 		ht->table = NULL;
 	}
 }

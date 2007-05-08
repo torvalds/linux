@@ -1531,9 +1531,6 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		error = PTR_ERR(page);
 		goto bad_swap;
 	}
-	wait_on_page_locked(page);
-	if (!PageUptodate(page))
-		goto bad_swap;
 	kmap(page);
 	swap_header = page_address(page);
 

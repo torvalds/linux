@@ -188,6 +188,7 @@ int on_key_esc(WINDOW *win);
 int on_key_resize(void);
 
 void init_dialog(const char *backtitle);
+void set_dialog_backtitle(const char *backtitle);
 void reset_dialog(void);
 void end_dialog(void);
 void attr_clear(WINDOW * win, int height, int width, chtype attr);

@@ -467,3 +467,9 @@ start_kernel(void)
 #endif
 	runkernel();
 }
+
+ /* dummy function, should never be called. */
+void *__kmalloc(size_t size, gfp_t flags)
+{
+	return (void *)NULL;
+}

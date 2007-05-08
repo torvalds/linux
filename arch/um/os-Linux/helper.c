@@ -13,9 +13,9 @@
 #include <sys/wait.h>
 #include "user.h"
 #include "kern_util.h"
-#include "user_util.h"
 #include "os.h"
 #include "um_malloc.h"
+#include "kern_constants.h"
 
 struct helper_data {
 	void (*pre_exec)(void*);
@@ -25,28 +25,18 @@ struct helper_data {
 	char *buf;
 };
 
-/* Debugging aid, changed only from gdb */
-int helper_pause = 0;
-
-static void helper_hup(int sig)
-{
-}
-
 static int helper_child(void *arg)
 {
 	struct helper_data *data = arg;
 	char **argv = data->argv;
 	int errval;
 
-	if (helper_pause){
-		signal(SIGHUP, helper_hup);
-		pause();
-	}
 	if (data->pre_exec != NULL)
 		(*data->pre_exec)(data->pre_data);
 	errval = execvp_noalloc(data->buf, argv[0], argv);
-	printk("helper_child - execvp of '%s' failed - errno = %d\n", argv[0], -errval);
-	os_write_file(data->fd, &errval, sizeof(errval));
+	printk("helper_child - execvp of '%s' failed - errno = %d\n", argv[0],
+	       -errval);
+	write(data->fd, &errval, sizeof(errval));
 	kill(os_getpid(), SIGKILL);
 	return 0;
 }
@@ -81,7 +71,7 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv,
 		goto out_close;
 	}
 
-	sp = stack + page_size() - sizeof(void *);
+	sp = stack + UM_KERN_PAGE_SIZE - sizeof(void *);
 	data.pre_exec = pre_exec;
 	data.pre_data = pre_data;
 	data.argv = argv;
@@ -98,13 +88,16 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv,
 	close(fds[1]);
 	fds[1] = -1;
 
-	/* Read the errno value from the child, if the exec failed, or get 0 if
-	 * the exec succeeded because the pipe fd was set as close-on-exec. */
-	n = os_read_file(fds[0], &ret, sizeof(ret));
+	/*
+	 * Read the errno value from the child, if the exec failed, or get 0 if
+	 * the exec succeeded because the pipe fd was set as close-on-exec.
+	 */
+	n = read(fds[0], &ret, sizeof(ret));
 	if (n == 0) {
 		ret = pid;
 	} else {
 		if (n < 0) {
+			n = -errno;
 			printk("run_helper : read on pipe failed, ret = %d\n",
 			       -n);
 			ret = n;
@@ -135,7 +128,7 @@ int run_helper_thread(int (*proc)(void *), void *arg, unsigned int flags,
 	if (stack == 0)
 		return -ENOMEM;
 
-	sp = stack + (page_size() << stack_order) - sizeof(void *);
+	sp = stack + (UM_KERN_PAGE_SIZE << stack_order) - sizeof(void *);
 	pid = clone(proc, (void *) sp, flags | SIGCHLD, arg);
 	if (pid < 0) {
 		err = -errno;

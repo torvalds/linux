@@ -73,9 +73,6 @@ struct scsi_cmnd {
 	unsigned short use_sg;	/* Number of pieces of scatter-gather */
 	unsigned short sglist_len;	/* size of malloc'd scatter-gather list */
 
-	/* offset in cmd we are at (for multi-transfer tgt cmds) */
-	unsigned offset;
-
 	unsigned underflow;	/* Return error if less than
 				   this amount is transferred */
 

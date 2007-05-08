@@ -35,6 +35,7 @@
 #include <linux/msi.h>
 #include <linux/htirq.h>
 #include <linux/freezer.h>
+#include <linux/kthread.h>
 
 #include <asm/io.h>
 #include <asm/smp.h>
@@ -661,8 +662,6 @@ static int balanced_irq(void *unused)
 	unsigned long prev_balance_time = jiffies;
 	long time_remaining = balanced_irq_interval;
 
-	daemonize("kirqd");
-	
 	/* push everything to CPU 0 to give us a starting point.  */
 	for (i = 0 ; i < NR_IRQS ; i++) {
 		irq_desc[i].pending_mask = cpumask_of_cpu(0);
@@ -722,10 +721,9 @@ static int __init balanced_irq_init(void)
 	}
 	
 	printk(KERN_INFO "Starting balanced_irq\n");
-	if (kernel_thread(balanced_irq, NULL, CLONE_KERNEL) >= 0) 
+	if (!IS_ERR(kthread_run(balanced_irq, NULL, "kirqd")))
 		return 0;
-	else 
-		printk(KERN_ERR "balanced_irq_init: failed to spawn balanced_irq");
+	printk(KERN_ERR "balanced_irq_init: failed to spawn balanced_irq");
 failed:
 	for_each_possible_cpu(i) {
 		kfree(irq_cpu_data[i].irq_delta);
@@ -1403,10 +1401,6 @@ static void __init setup_ExtINT_IRQ0_pin(unsigned int apic, unsigned int pin, in
 	enable_8259A_irq(0);
 }
 
-static inline void UNEXPECTED_IO_APIC(void)
-{
-}
-
 void __init print_IO_APIC(void)
 {
 	int apic, i;
@@ -1446,34 +1440,12 @@ void __init print_IO_APIC(void)
 	printk(KERN_DEBUG ".......    : physical APIC id: %02X\n", reg_00.bits.ID);
 	printk(KERN_DEBUG ".......    : Delivery Type: %X\n", reg_00.bits.delivery_type);
 	printk(KERN_DEBUG ".......    : LTS          : %X\n", reg_00.bits.LTS);
-	if (reg_00.bits.ID >= get_physical_broadcast())
-		UNEXPECTED_IO_APIC();
-	if (reg_00.bits.__reserved_1 || reg_00.bits.__reserved_2)
-		UNEXPECTED_IO_APIC();
 
 	printk(KERN_DEBUG ".... register #01: %08X\n", reg_01.raw);
 	printk(KERN_DEBUG ".......     : max redirection entries: %04X\n", reg_01.bits.entries);
-	if (	(reg_01.bits.entries != 0x0f) && /* older (Neptune) boards */
-		(reg_01.bits.entries != 0x17) && /* typical ISA+PCI boards */
-		(reg_01.bits.entries != 0x1b) && /* Compaq Proliant boards */
-		(reg_01.bits.entries != 0x1f) && /* dual Xeon boards */
-		(reg_01.bits.entries != 0x22) && /* bigger Xeon boards */
-		(reg_01.bits.entries != 0x2E) &&
-		(reg_01.bits.entries != 0x3F)
-	)
-		UNEXPECTED_IO_APIC();
 
 	printk(KERN_DEBUG ".......     : PRQ implemented: %X\n", reg_01.bits.PRQ);
 	printk(KERN_DEBUG ".......     : IO APIC version: %04X\n", reg_01.bits.version);
-	if (	(reg_01.bits.version != 0x01) && /* 82489DX IO-APICs */
-		(reg_01.bits.version != 0x10) && /* oldest IO-APICs */
-		(reg_01.bits.version != 0x11) && /* Pentium/Pro IO-APICs */
-		(reg_01.bits.version != 0x13) && /* Xeon IO-APICs */
-		(reg_01.bits.version != 0x20)    /* Intel P64H (82806 AA) */
-	)
-		UNEXPECTED_IO_APIC();
-	if (reg_01.bits.__reserved_1 || reg_01.bits.__reserved_2)
-		UNEXPECTED_IO_APIC();
 
 	/*
 	 * Some Intel chipsets with IO APIC VERSION of 0x1? don't have reg_02,
@@ -1483,8 +1455,6 @@ void __init print_IO_APIC(void)
 	if (reg_01.bits.version >= 0x10 && reg_02.raw != reg_01.raw) {
 		printk(KERN_DEBUG ".... register #02: %08X\n", reg_02.raw);
 		printk(KERN_DEBUG ".......     : arbitration: %02X\n", reg_02.bits.arbitration);
-		if (reg_02.bits.__reserved_1 || reg_02.bits.__reserved_2)
-			UNEXPECTED_IO_APIC();
 	}
 
 	/*
@@ -1496,8 +1466,6 @@ void __init print_IO_APIC(void)
 	    reg_03.raw != reg_01.raw) {
 		printk(KERN_DEBUG ".... register #03: %08X\n", reg_03.raw);
 		printk(KERN_DEBUG ".......     : Boot DT    : %X\n", reg_03.bits.boot_DT);
-		if (reg_03.bits.__reserved_1)
-			UNEXPECTED_IO_APIC();
 	}
 
 	printk(KERN_DEBUG ".... IRQ redirection table:\n");
@@ -2611,19 +2579,19 @@ int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 	if (irq < 0)
 		return irq;
 
-	set_irq_msi(irq, desc);
 	ret = msi_compose_msg(dev, irq, &msg);
 	if (ret < 0) {
 		destroy_irq(irq);
 		return ret;
 	}
 
+	set_irq_msi(irq, desc);
 	write_msi_msg(irq, &msg);
 
 	set_irq_chip_and_handler_name(irq, &msi_chip, handle_edge_irq,
 				      "edge");
 
-	return irq;
+	return 0;
 }
 
 void arch_teardown_msi_irq(unsigned int irq)

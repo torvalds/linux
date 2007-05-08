@@ -948,6 +948,8 @@ static void ipoib_setup(struct net_device *dev)
 	dev->hard_header 	 = ipoib_hard_header;
 	dev->set_multicast_list  = ipoib_set_mcast_list;
 	dev->neigh_setup         = ipoib_neigh_setup_dev;
+	dev->poll                = ipoib_poll;
+	dev->weight              = 100;
 
 	dev->watchdog_timeo 	 = HZ;
 

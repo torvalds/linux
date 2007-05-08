@@ -34,7 +34,6 @@
 #define _IXGB_OSDEP_H_
 
 #include <linux/types.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <asm/io.h>
 #include <linux/interrupt.h>

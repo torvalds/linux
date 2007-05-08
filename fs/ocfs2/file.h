@@ -56,11 +56,6 @@ int ocfs2_getattr(struct vfsmount *mnt, struct dentry *dentry,
 int ocfs2_permission(struct inode *inode, int mask,
 		     struct nameidata *nd);
 
-int ocfs2_set_inode_size(handle_t *handle,
-			 struct inode *inode,
-			 struct buffer_head *fe_bh,
-			 u64 new_i_size);
-
 int ocfs2_should_update_atime(struct inode *inode,
 			      struct vfsmount *vfsmnt);
 int ocfs2_update_inode_atime(struct inode *inode,

@@ -26,8 +26,6 @@
  * Note that ADDR_LIMIT is either 0 or 0xc0000000.
  * Note also that it is intended that __get_user_bad is not global.
  */
-#include <asm/asm-offsets.h>
-#include <asm/thread_info.h>
 #include <asm/errno.h>
 
 	.global	__get_user_1

@@ -515,7 +515,7 @@ static int
 lkkbd_event (struct input_dev *dev, unsigned int type, unsigned int code,
 		int value)
 {
-	struct lkkbd *lk = dev->private;
+	struct lkkbd *lk = input_get_drvdata (dev);
 	unsigned char leds_on = 0;
 	unsigned char leds_off = 0;
 
@@ -666,9 +666,10 @@ lkkbd_connect (struct serio *serio, struct serio_driver *drv)
 	input_dev->id.vendor = SERIO_LKKBD;
 	input_dev->id.product = 0;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = &serio->dev;
+	input_dev->dev.parent = &serio->dev;
 	input_dev->event = lkkbd_event;
-	input_dev->private = lk;
+
+	input_set_drvdata (input_dev, lk);
 
 	set_bit (EV_KEY, input_dev->evbit);
 	set_bit (EV_LED, input_dev->evbit);

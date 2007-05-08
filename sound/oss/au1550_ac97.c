@@ -47,7 +47,6 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/poll.h>
-#include <linux/pci.h>
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
 #include <linux/smp_lock.h>

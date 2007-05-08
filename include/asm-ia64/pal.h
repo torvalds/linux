@@ -89,6 +89,8 @@
 #define PAL_GET_PSTATE_TYPE_AVGNORESET	2
 #define PAL_GET_PSTATE_TYPE_INSTANT	3
 
+#define PAL_MC_ERROR_INJECT	276	/* Injects processor error or returns injection capabilities */
+
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
@@ -1232,6 +1234,37 @@ ia64_pal_mc_error_info (u64 info_index, u64 type_index, u64 *size, u64 *error_in
 		*size = iprv.v0;
 	if (error_info)
 		*error_info = iprv.v1;
+	return iprv.status;
+}
+
+/* Injects the requested processor error or returns info on
+ * supported injection capabilities for current processor implementation
+ */
+static inline s64
+ia64_pal_mc_error_inject_phys (u64 err_type_info, u64 err_struct_info,
+			u64 err_data_buffer, u64 *capabilities, u64 *resources)
+{
+	struct ia64_pal_retval iprv;
+	PAL_CALL_PHYS_STK(iprv, PAL_MC_ERROR_INJECT, err_type_info,
+			  err_struct_info, err_data_buffer);
+	if (capabilities)
+		*capabilities= iprv.v0;
+	if (resources)
+		*resources= iprv.v1;
+	return iprv.status;
+}
+
+static inline s64
+ia64_pal_mc_error_inject_virt (u64 err_type_info, u64 err_struct_info,
+			u64 err_data_buffer, u64 *capabilities, u64 *resources)
+{
+	struct ia64_pal_retval iprv;
+	PAL_CALL_STK(iprv, PAL_MC_ERROR_INJECT, err_type_info,
+			  err_struct_info, err_data_buffer);
+	if (capabilities)
+		*capabilities= iprv.v0;
+	if (resources)
+		*resources= iprv.v1;
 	return iprv.status;
 }
 

@@ -76,6 +76,8 @@
 #include <linux/linkage.h>
 #include <linux/irqflags.h>
 
+#define __exception	__attribute__((section(".exception.text")))
+
 struct thread_info;
 struct task_struct;
 

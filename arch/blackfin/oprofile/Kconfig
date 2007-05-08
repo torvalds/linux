@@ -1,0 +1,29 @@
+menu "Profiling support"
+depends on EXPERIMENTAL
+
+config PROFILING
+	bool "Profiling support (EXPERIMENTAL)"
+	help
+	  Say Y here to enable the extended profiling support mechanisms used
+	  by profilers such as OProfile.
+
+config OPROFILE
+	tristate "OProfile system profiling (EXPERIMENTAL)"
+	depends on PROFILING
+	help
+	  OProfile is a profiling system capable of profiling the
+	  whole system, include the kernel, kernel modules, libraries,
+	  and applications.
+
+	  If unsure, say N.
+
+config HARDWARE_PM
+	tristate "Hardware Performance Monitor Profiling"
+	depends on PROFILING
+	help
+	  take use of hardware performance monitor to profiling the kernel
+	  and application.
+
+	  If unsure, say N.
+
+endmenu

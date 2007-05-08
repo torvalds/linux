@@ -290,7 +290,7 @@ static int c2_destroy_qp(struct ib_qp *ib_qp)
 	return 0;
 }
 
-static struct ib_cq *c2_create_cq(struct ib_device *ibdev, int entries,
+static struct ib_cq *c2_create_cq(struct ib_device *ibdev, int entries, int vector,
 				  struct ib_ucontext *context,
 				  struct ib_udata *udata)
 {
@@ -795,6 +795,7 @@ int c2_register_device(struct c2_dev *dev)
 	memset(&dev->ibdev.node_guid, 0, sizeof(dev->ibdev.node_guid));
 	memcpy(&dev->ibdev.node_guid, dev->pseudo_netdev->dev_addr, 6);
 	dev->ibdev.phys_port_cnt = 1;
+	dev->ibdev.num_comp_vectors = 1;
 	dev->ibdev.dma_device = &dev->pcidev->dev;
 	dev->ibdev.query_device = c2_query_device;
 	dev->ibdev.query_port = c2_query_port;

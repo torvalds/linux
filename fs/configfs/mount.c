@@ -140,7 +140,7 @@ static int __init configfs_init(void)
 	if (!configfs_dir_cachep)
 		goto out;
 
-	kset_set_kset_s(&config_subsys, kernel_subsys);
+	kobj_set_kset_s(&config_subsys, kernel_subsys);
 	err = subsystem_register(&config_subsys);
 	if (err) {
 		kmem_cache_destroy(configfs_dir_cachep);

@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -210,6 +210,9 @@ struct dlm_args {
 #define DLM_IFL_MSTCPY		0x00010000
 #define DLM_IFL_RESEND		0x00020000
 #define DLM_IFL_DEAD		0x00040000
+#define DLM_IFL_OVERLAP_UNLOCK  0x00080000
+#define DLM_IFL_OVERLAP_CANCEL  0x00100000
+#define DLM_IFL_ENDOFLIFE	0x00200000
 #define DLM_IFL_USER		0x00000001
 #define DLM_IFL_ORPHAN		0x00000002
 
@@ -230,8 +233,8 @@ struct dlm_lkb {
 	int8_t			lkb_grmode;	/* granted lock mode */
 	int8_t			lkb_bastmode;	/* requested mode */
 	int8_t			lkb_highbast;	/* highest mode bast sent for */
-
 	int8_t			lkb_wait_type;	/* type of reply waiting for */
+	int8_t			lkb_wait_count;
 	int8_t			lkb_ast_type;	/* type of ast queued for */
 
 	struct list_head	lkb_idtbl_list;	/* lockspace lkbtbl */
@@ -339,6 +342,7 @@ struct dlm_header {
 #define DLM_MSG_LOOKUP		11
 #define DLM_MSG_REMOVE		12
 #define DLM_MSG_LOOKUP_REPLY	13
+#define DLM_MSG_PURGE		14
 
 struct dlm_message {
 	struct dlm_header	m_header;
@@ -439,6 +443,9 @@ struct dlm_ls {
 
 	struct mutex		ls_waiters_mutex;
 	struct list_head	ls_waiters;	/* lkbs needing a reply */
+
+	struct mutex		ls_orphans_mutex;
+	struct list_head	ls_orphans;
 
 	struct list_head	ls_nodes;	/* current nodes in ls */
 	struct list_head	ls_nodes_gone;	/* dead node list, recovery */

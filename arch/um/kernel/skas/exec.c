@@ -17,7 +17,17 @@
 
 void flush_thread_skas(void)
 {
-	force_flush_all();
+	void *data = NULL;
+	unsigned long end = proc_mm ? task_size : CONFIG_STUB_START;
+	int ret;
+
+	ret = unmap(&current->mm->context.skas.id, 0, end, 1, &data);
+	if(ret){
+		printk("flush_thread_skas - clearing address space failed, "
+		       "err = %d\n", ret);
+		force_sig(SIGKILL, current);
+	}
+
 	switch_mm_skas(&current->mm->context.skas.id);
 }
 

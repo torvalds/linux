@@ -27,6 +27,8 @@ static inline void flush_kernel_dcache_page(struct page *page)
 unsigned int nr_free_highpages(void);
 extern unsigned long totalhigh_pages;
 
+void kmap_flush_unused(void);
+
 #else /* CONFIG_HIGHMEM */
 
 static inline unsigned int nr_free_highpages(void) { return 0; }
@@ -42,11 +44,20 @@ static inline void *kmap(struct page *page)
 
 #define kunmap(page) do { (void) (page); } while (0)
 
-#define kmap_atomic(page, idx) \
-	({ pagefault_disable(); page_address(page); })
+#include <asm/kmap_types.h>
+
+static inline void *kmap_atomic(struct page *page, enum km_type idx)
+{
+	pagefault_disable();
+	return page_address(page);
+}
+#define kmap_atomic_prot(page, idx, prot)	kmap_atomic(page, idx)
+
 #define kunmap_atomic(addr, idx)	do { pagefault_enable(); } while (0)
 #define kmap_atomic_pfn(pfn, idx)	kmap_atomic(pfn_to_page(pfn), (idx))
 #define kmap_atomic_to_page(ptr)	virt_to_page(ptr)
+
+#define kmap_flush_unused()	do {} while(0)
 #endif
 
 #endif /* CONFIG_HIGHMEM */

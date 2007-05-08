@@ -752,7 +752,7 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	spin_unlock(&map_lock);
 
 	uverbs_dev->ib_dev           = device;
-	uverbs_dev->num_comp_vectors = 1;
+	uverbs_dev->num_comp_vectors = device->num_comp_vectors;
 
 	uverbs_dev->dev = cdev_alloc();
 	if (!uverbs_dev->dev)

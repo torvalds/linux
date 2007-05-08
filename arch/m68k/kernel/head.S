@@ -3195,7 +3195,7 @@ func_start	serial_putc,%d0/%d1/%a0/%a1
 	jbra	L(serial_putc_done)
 3:
 #endif
-	
+
 L(serial_putc_done):
 func_return	serial_putc
 

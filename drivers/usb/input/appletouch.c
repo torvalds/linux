@@ -466,7 +466,7 @@ exit:
 
 static int atp_open(struct input_dev *input)
 {
-	struct atp *dev = input->private;
+	struct atp *dev = input_get_drvdata(input);
 
 	if (usb_submit_urb(dev->urb, GFP_ATOMIC))
 		return -EIO;
@@ -477,7 +477,7 @@ static int atp_open(struct input_dev *input)
 
 static void atp_close(struct input_dev *input)
 {
-	struct atp *dev = input->private;
+	struct atp *dev = input_get_drvdata(input);
 
 	usb_kill_urb(dev->urb);
 	dev->open = 0;
@@ -491,8 +491,7 @@ static int atp_probe(struct usb_interface *iface, const struct usb_device_id *id
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
 	int int_in_endpointAddr = 0;
-	int i, retval = -ENOMEM;
-
+	int i, error = -ENOMEM;
 
 	/* set up the endpoint information */
 	/* use only the first interrupt-in endpoint */
@@ -567,17 +566,13 @@ static int atp_probe(struct usb_interface *iface, const struct usb_device_id *id
 	}
 
 	dev->urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->urb) {
-		retval = -ENOMEM;
+	if (!dev->urb)
 		goto err_free_devs;
-	}
 
 	dev->data = usb_buffer_alloc(dev->udev, dev->datalen, GFP_KERNEL,
 				     &dev->urb->transfer_dma);
-	if (!dev->data) {
-		retval = -ENOMEM;
+	if (!dev->data)
 		goto err_free_urb;
-	}
 
 	usb_fill_int_urb(dev->urb, udev,
 			 usb_rcvintpipe(udev, int_in_endpointAddr),
@@ -589,9 +584,10 @@ static int atp_probe(struct usb_interface *iface, const struct usb_device_id *id
 	input_dev->name = "appletouch";
 	input_dev->phys = dev->phys;
 	usb_to_input_id(dev->udev, &input_dev->id);
-	input_dev->cdev.dev = &iface->dev;
+	input_dev->dev.parent = &iface->dev;
 
-	input_dev->private = dev;
+	input_set_drvdata(input_dev, dev);
+
 	input_dev->open = atp_open;
 	input_dev->close = atp_close;
 
@@ -633,20 +629,25 @@ static int atp_probe(struct usb_interface *iface, const struct usb_device_id *id
 	set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
 	set_bit(BTN_LEFT, input_dev->keybit);
 
-	input_register_device(dev->input);
+	error = input_register_device(dev->input);
+	if (error)
+		goto err_free_buffer;
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(iface, dev);
 
 	return 0;
 
+ err_free_buffer:
+	usb_buffer_free(dev->udev, dev->datalen,
+			dev->data, dev->urb->transfer_dma);
  err_free_urb:
 	usb_free_urb(dev->urb);
  err_free_devs:
 	usb_set_intfdata(iface, NULL);
 	kfree(dev);
 	input_free_device(input_dev);
-	return retval;
+	return error;
 }
 
 static void atp_disconnect(struct usb_interface *iface)

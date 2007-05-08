@@ -278,7 +278,7 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
 
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
-int mlog_sys_init(struct subsystem *o2cb_subsys);
+int mlog_sys_init(struct kset *o2cb_subsys);
 void mlog_sys_shutdown(void);
 
 #endif /* O2CLUSTER_MASKLOG_H */

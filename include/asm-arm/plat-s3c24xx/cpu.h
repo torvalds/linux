@@ -40,22 +40,6 @@ extern void s3c24xx_init_uartdevs(char *name,
 				  struct s3c24xx_uart_resources *res,
 				  struct s3c2410_uartcfg *cfg, int no);
 
-/* the board structure is used at first initialsation time
- * to get info such as the devices to register for this
- * board. This is done because platfrom_add_devices() cannot
- * be called from the map_io entry.
-*/
-
-struct s3c24xx_board {
-	struct platform_device  **devices;
-	unsigned int              devices_count;
-
-	struct clk		**clocks;
-	unsigned int		  clocks_count;
-};
-
-extern void s3c24xx_set_board(struct s3c24xx_board *board);
-
 /* timer for 2410/2440 */
 
 struct sys_timer;

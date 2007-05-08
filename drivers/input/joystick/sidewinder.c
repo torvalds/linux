@@ -509,7 +509,7 @@ static void sw_poll(struct gameport *gameport)
 
 static int sw_open(struct input_dev *dev)
 {
-	struct sw *sw = dev->private;
+	struct sw *sw = input_get_drvdata(dev);
 
 	gameport_start_polling(sw->gameport);
 	return 0;
@@ -517,7 +517,7 @@ static int sw_open(struct input_dev *dev)
 
 static void sw_close(struct input_dev *dev)
 {
-	struct sw *sw = dev->private;
+	struct sw *sw = input_get_drvdata(dev);
 
 	gameport_stop_polling(sw->gameport);
 }
@@ -751,8 +751,9 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 		input_dev->id.vendor = GAMEPORT_ID_VENDOR_MICROSOFT;
 		input_dev->id.product = sw->type;
 		input_dev->id.version = 0x0100;
-		input_dev->cdev.dev = &gameport->dev;
-		input_dev->private = sw;
+		input_dev->dev.parent = &gameport->dev;
+
+		input_set_drvdata(input_dev, sw);
 
 		input_dev->open = sw_open;
 		input_dev->close = sw_close;

@@ -21,7 +21,7 @@
 static void do_softint(void *data);
 
 static struct input_dev *hp680_ts_dev;
-static DECLARE_WORK(work, do_softint, 0);
+static DECLARE_WORK(work, do_softint);
 
 static void do_softint(void *data)
 {

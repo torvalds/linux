@@ -2212,7 +2212,7 @@ static void __devinit esp_init_swstate(struct esp *esp)
 }
 
 /* This places the ESP into a known state at boot time. */
-static void __devinit esp_bootup_reset(struct esp *esp)
+static void esp_bootup_reset(struct esp *esp)
 {
 	u8 val;
 

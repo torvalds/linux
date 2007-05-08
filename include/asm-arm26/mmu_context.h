@@ -13,6 +13,8 @@
 #ifndef __ASM_ARM_MMU_CONTEXT_H
 #define __ASM_ARM_MMU_CONTEXT_H
 
+#include <asm-generic/mm_hooks.h>
+
 #define init_new_context(tsk,mm)	0
 #define destroy_context(mm)		do { } while(0)
 

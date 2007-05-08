@@ -786,13 +786,15 @@ static struct symbol *sym_check_expr_deps(struct expr *e)
 	return NULL;
 }
 
+/* return NULL when dependencies are OK */
 struct symbol *sym_check_deps(struct symbol *sym)
 {
 	struct symbol *sym2;
 	struct property *prop;
 
 	if (sym->flags & SYMBOL_CHECK) {
-		printf("Warning! Found recursive dependency: %s", sym->name);
+		fprintf(stderr, "%s:%d:error: found recursive dependency: %s",
+		        sym->prop->file->name, sym->prop->lineno, sym->name);
 		return sym;
 	}
 	if (sym->flags & SYMBOL_CHECKED)
@@ -816,13 +818,8 @@ struct symbol *sym_check_deps(struct symbol *sym)
 			goto out;
 	}
 out:
-	if (sym2) {
-		printf(" %s", sym->name);
-		if (sym2 == sym) {
-			printf("\n");
-			sym2 = NULL;
-		}
-	}
+	if (sym2)
+		fprintf(stderr, " -> %s%s", sym->name, sym2 == sym? "\n": "");
 	sym->flags &= ~SYMBOL_CHECK;
 	return sym2;
 }

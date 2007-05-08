@@ -32,6 +32,7 @@ struct iommu {
 	unsigned long		iommu_control;
 	unsigned long		iommu_tsbbase;
 	unsigned long		iommu_flush;
+	unsigned long		iommu_flushinv;
 	unsigned long		iommu_ctxflush;
 	unsigned long		write_complete_reg;
 	unsigned long		dummy_page;
