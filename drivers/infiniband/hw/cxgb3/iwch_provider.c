@@ -139,7 +139,7 @@ static int iwch_destroy_cq(struct ib_cq *ib_cq)
 	return 0;
 }
 
-static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries,
+static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int vector,
 			     struct ib_ucontext *ib_context,
 			     struct ib_udata *udata)
 {
@@ -292,7 +292,7 @@ static int iwch_resize_cq(struct ib_cq *cq, int cqe, struct ib_udata *udata)
 #endif
 }
 
-static int iwch_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
+static int iwch_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 {
 	struct iwch_dev *rhp;
 	struct iwch_cq *chp;
@@ -303,7 +303,7 @@ static int iwch_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
 
 	chp = to_iwch_cq(ibcq);
 	rhp = chp->rhp;
-	if (notify == IB_CQ_SOLICITED)
+	if ((flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED)
 		cq_op = CQ_ARM_SE;
 	else
 		cq_op = CQ_ARM_AN;
@@ -317,9 +317,11 @@ static int iwch_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
 	PDBG("%s rptr 0x%x\n", __FUNCTION__, chp->cq.rptr);
 	err = cxio_hal_cq_op(&rhp->rdev, &chp->cq, cq_op, 0);
 	spin_unlock_irqrestore(&chp->lock, flag);
-	if (err)
+	if (err < 0)
 		printk(KERN_ERR MOD "Error %d rearming CQID 0x%x\n", err,
 		       chp->cq.cqid);
+	if (err > 0 && !(flags & IB_CQ_REPORT_MISSED_EVENTS))
+		err = 0;
 	return err;
 }
 
@@ -780,6 +782,9 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 	if (rqsize > T3_MAX_RQ_SIZE)
 		return ERR_PTR(-EINVAL);
 
+	if (attrs->cap.max_inline_data > T3_MAX_INLINE)
+		return ERR_PTR(-EINVAL);
+
 	/*
 	 * NOTE: The SQ and total WQ sizes don't need to be
 	 * a power of two.  However, all the code assumes
@@ -1107,6 +1112,7 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.node_type = RDMA_NODE_RNIC;
 	memcpy(dev->ibdev.node_desc, IWCH_NODE_DESC, sizeof(IWCH_NODE_DESC));
 	dev->ibdev.phys_port_cnt = dev->rdev.port_info.nports;
+	dev->ibdev.num_comp_vectors = 1;
 	dev->ibdev.dma_device = &(dev->rdev.rnic_info.pdev->dev);
 	dev->ibdev.query_device = iwch_query_device;
 	dev->ibdev.query_port = iwch_query_port;

@@ -17,8 +17,8 @@
 
 static struct resource sh7751_io_resource = {
 	.name = "SH7751 IO",
-	.start = 0x4000,
-	.end = 0x4000 + SH7751_PCI_IO_SIZE - 1,
+	.start = SH7751_PCI_IO_BASE,
+	.end = SH7751_PCI_IO_BASE + SH7751_PCI_IO_SIZE - 1,
 	.flags = IORESOURCE_IO
 };
 

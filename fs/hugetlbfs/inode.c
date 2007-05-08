@@ -22,6 +22,7 @@
 #include <linux/backing-dev.h>
 #include <linux/hugetlb.h>
 #include <linux/pagevec.h>
+#include <linux/mman.h>
 #include <linux/quotaops.h>
 #include <linux/slab.h>
 #include <linux/dnotify.h>
@@ -98,10 +99,7 @@ out:
  * Called under down_write(mmap_sem).
  */
 
-#ifdef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
-unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
-		unsigned long len, unsigned long pgoff, unsigned long flags);
-#else
+#ifndef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
 static unsigned long
 hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 		unsigned long len, unsigned long pgoff, unsigned long flags)
@@ -114,6 +112,12 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 		return -EINVAL;
 	if (len > TASK_SIZE)
 		return -ENOMEM;
+
+	if (flags & MAP_FIXED) {
+		if (prepare_hugepage_range(addr, len, pgoff))
+			return -EINVAL;
+		return addr;
+	}
 
 	if (addr) {
 		addr = ALIGN(addr, HPAGE_SIZE);
@@ -453,7 +457,7 @@ static int hugetlbfs_symlink(struct inode *dir,
  */
 static int hugetlbfs_set_page_dirty(struct page *page)
 {
-	struct page *head = (struct page *)page_private(page);
+	struct page *head = compound_head(page);
 
 	SetPageDirty(head);
 	return 0;
@@ -552,8 +556,7 @@ static void init_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct hugetlbfs_inode_info *ei = (struct hugetlbfs_inode_info *)foo;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR)
+	if (flags & SLAB_CTOR_CONSTRUCTOR)
 		inode_init_once(&ei->vfs_inode);
 }
 
@@ -743,6 +746,9 @@ struct file *hugetlb_zero_setup(size_t size)
 	struct qstr quick_string;
 	char buf[16];
 	static atomic_t counter;
+
+	if (!hugetlbfs_vfsmount)
+		return ERR_PTR(-ENOENT);
 
 	if (!can_do_hugetlb_shm())
 		return ERR_PTR(-EPERM);

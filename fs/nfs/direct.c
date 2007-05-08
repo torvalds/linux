@@ -54,6 +54,7 @@
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
 
+#include "internal.h"
 #include "iostat.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
@@ -271,7 +272,7 @@ static ssize_t nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned lo
 		bytes = min(rsize,count);
 
 		result = -ENOMEM;
-		data = nfs_readdata_alloc(pgbase + bytes);
+		data = nfs_readdata_alloc(nfs_page_array_len(pgbase, bytes));
 		if (unlikely(!data))
 			break;
 
@@ -602,7 +603,7 @@ static ssize_t nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned l
 		bytes = min(wsize,count);
 
 		result = -ENOMEM;
-		data = nfs_writedata_alloc(pgbase + bytes);
+		data = nfs_writedata_alloc(nfs_page_array_len(pgbase, bytes));
 		if (unlikely(!data))
 			break;
 

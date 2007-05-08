@@ -39,6 +39,7 @@
 #include <linux/random.h>
 #include <linux/personality.h>
 #include <linux/tick.h>
+#include <linux/percpu.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -57,7 +58,6 @@
 
 #include <asm/tlbflush.h>
 #include <asm/cpu.h>
-#include <asm/pda.h>
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 
@@ -65,6 +65,12 @@ static int hlt_counter;
 
 unsigned long boot_option_idle_override = 0;
 EXPORT_SYMBOL(boot_option_idle_override);
+
+DEFINE_PER_CPU(struct task_struct *, current_task) = &init_task;
+EXPORT_PER_CPU_SYMBOL(current_task);
+
+DEFINE_PER_CPU(int, cpu_number);
+EXPORT_PER_CPU_SYMBOL(cpu_number);
 
 /*
  * Return saved PC of a blocked thread.
@@ -272,25 +278,24 @@ void __devinit select_idle_routine(const struct cpuinfo_x86 *c)
 	}
 }
 
-static int __init idle_setup (char *str)
+static int __init idle_setup(char *str)
 {
-	if (!strncmp(str, "poll", 4)) {
+	if (!strcmp(str, "poll")) {
 		printk("using polling idle threads.\n");
 		pm_idle = poll_idle;
 #ifdef CONFIG_X86_SMP
 		if (smp_num_siblings > 1)
 			printk("WARNING: polling idle and HT enabled, performance may degrade.\n");
 #endif
-	} else if (!strncmp(str, "halt", 4)) {
-		printk("using halt in idle threads.\n");
-		pm_idle = default_idle;
-	}
+	} else if (!strcmp(str, "mwait"))
+		force_mwait = 1;
+	else
+		return -1;
 
 	boot_option_idle_override = 1;
-	return 1;
+	return 0;
 }
-
-__setup("idle=", idle_setup);
+early_param("idle", idle_setup);
 
 void show_regs(struct pt_regs * regs)
 {
@@ -343,7 +348,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 
 	regs.xds = __USER_DS;
 	regs.xes = __USER_DS;
-	regs.xfs = __KERNEL_PDA;
+	regs.xfs = __KERNEL_PERCPU;
 	regs.orig_eax = -1;
 	regs.eip = (unsigned long) kernel_thread_helper;
 	regs.xcs = __KERNEL_CS | get_kernel_rpl();
@@ -376,7 +381,7 @@ void exit_thread(void)
 		t->io_bitmap_max = 0;
 		tss->io_bitmap_owner = NULL;
 		tss->io_bitmap_max = 0;
-		tss->io_bitmap_base = INVALID_IO_BITMAP_OFFSET;
+		tss->x86_tss.io_bitmap_base = INVALID_IO_BITMAP_OFFSET;
 		put_cpu();
 	}
 }
@@ -555,7 +560,7 @@ static noinline void __switch_to_xtra(struct task_struct *next_p,
 		 * Disable the bitmap via an invalid offset. We still cache
 		 * the previous bitmap owner and the IO bitmap contents:
 		 */
-		tss->io_bitmap_base = INVALID_IO_BITMAP_OFFSET;
+		tss->x86_tss.io_bitmap_base = INVALID_IO_BITMAP_OFFSET;
 		return;
 	}
 
@@ -565,7 +570,7 @@ static noinline void __switch_to_xtra(struct task_struct *next_p,
 		 * matches the next task, we dont have to do anything but
 		 * to set a valid offset in the TSS:
 		 */
-		tss->io_bitmap_base = IO_BITMAP_OFFSET;
+		tss->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET;
 		return;
 	}
 	/*
@@ -577,7 +582,7 @@ static noinline void __switch_to_xtra(struct task_struct *next_p,
 	 * redundant copies when the currently switched task does not
 	 * perform any I/O during its timeslice.
 	 */
-	tss->io_bitmap_base = INVALID_IO_BITMAP_OFFSET_LAZY;
+	tss->x86_tss.io_bitmap_base = INVALID_IO_BITMAP_OFFSET_LAZY;
 }
 
 /*
@@ -712,7 +717,7 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	if (prev->gs | next->gs)
 		loadsegment(gs, next->gs);
 
-	write_pda(pcurrent, next_p);
+	x86_write_percpu(current_task, next_p);
 
 	return prev_p;
 }

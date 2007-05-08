@@ -122,21 +122,22 @@ subdirectory has the entries listed in Table 1-1.
 
 Table 1-1: Process specific entries in /proc 
 ..............................................................................
- File    Content                                        
- cmdline Command line arguments                         
- cpu	 Current and last cpu in which it was executed		(2.4)(smp)
- cwd	 Link to the current working directory
- environ Values of environment variables      
- exe	 Link to the executable of this process
- fd      Directory, which contains all file descriptors 
- maps	 Memory maps to executables and library files		(2.4)
- mem     Memory held by this process                    
- root	 Link to the root directory of this process
- stat    Process status                                 
- statm   Process memory status information              
- status  Process status in human readable form          
- wchan   If CONFIG_KALLSYMS is set, a pre-decoded wchan
- smaps	 Extension based on maps, presenting the rss size for each mapped file
+ File		Content
+ clear_refs	Clears page referenced bits shown in smaps output
+ cmdline	Command line arguments
+ cpu		Current and last cpu in which it was executed	(2.4)(smp)
+ cwd		Link to the current working directory
+ environ	Values of environment variables
+ exe		Link to the executable of this process
+ fd		Directory, which contains all file descriptors
+ maps		Memory maps to executables and library files	(2.4)
+ mem		Memory held by this process
+ root		Link to the root directory of this process
+ stat		Process status
+ statm		Process memory status information
+ status		Process status in human readable form
+ wchan		If CONFIG_KALLSYMS is set, a pre-decoded wchan
+ smaps		Extension based on maps, the rss size for each mapped file
 ..............................................................................
 
 For example, to get the status information of a process, all you have to do is

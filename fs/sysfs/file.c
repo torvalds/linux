@@ -13,8 +13,7 @@
 
 #include "sysfs.h"
 
-#define to_subsys(k) container_of(k,struct subsystem,kset.kobj)
-#define to_sattr(a) container_of(a,struct subsys_attribute,attr)
+#define to_sattr(a) container_of(a,struct subsys_attribute, attr)
 
 /*
  * Subsystem file operations.
@@ -24,12 +23,12 @@
 static ssize_t 
 subsys_attr_show(struct kobject * kobj, struct attribute * attr, char * page)
 {
-	struct subsystem * s = to_subsys(kobj);
+	struct kset *kset = to_kset(kobj);
 	struct subsys_attribute * sattr = to_sattr(attr);
 	ssize_t ret = -EIO;
 
 	if (sattr->show)
-		ret = sattr->show(s,page);
+		ret = sattr->show(kset, page);
 	return ret;
 }
 
@@ -37,12 +36,12 @@ static ssize_t
 subsys_attr_store(struct kobject * kobj, struct attribute * attr, 
 		  const char * page, size_t count)
 {
-	struct subsystem * s = to_subsys(kobj);
+	struct kset *kset = to_kset(kobj);
 	struct subsys_attribute * sattr = to_sattr(attr);
 	ssize_t ret = -EIO;
 
 	if (sattr->store)
-		ret = sattr->store(s,page,count);
+		ret = sattr->store(kset, page, count);
 	return ret;
 }
 

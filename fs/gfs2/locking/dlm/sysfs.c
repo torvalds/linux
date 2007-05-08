@@ -190,7 +190,6 @@ static struct kobj_type gdlm_ktype = {
 };
 
 static struct kset gdlm_kset = {
-	.subsys = &kernel_subsys,
 	.kobj   = {.name = "lock_dlm",},
 	.ktype  = &gdlm_ktype,
 };
@@ -225,6 +224,7 @@ int gdlm_sysfs_init(void)
 {
 	int error;
 
+	kobj_set_kset_s(&gdlm_kset, kernel_subsys);
 	error = kset_register(&gdlm_kset);
 	if (error)
 		printk("lock_dlm: cannot register kset %d\n", error);

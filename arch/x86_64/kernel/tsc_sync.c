@@ -50,7 +50,7 @@ static __cpuinit void check_tsc_warp(void)
 	/*
 	 * The measurement runs for 20 msecs:
 	 */
-	end = start + cpu_khz * 20ULL;
+	end = start + tsc_khz * 20ULL;
 	now = start;
 
 	for (i = 0; ; i++) {
@@ -138,7 +138,7 @@ void __cpuinit check_tsc_sync_source(int cpu)
 		printk("\n");
 		printk(KERN_WARNING "Measured %Ld cycles TSC warp between CPUs,"
 				    " turning off TSC clock.\n", max_warp);
-		mark_tsc_unstable();
+		mark_tsc_unstable("check_tsc_sync_source failed");
 		nr_warps = 0;
 		max_warp = 0;
 		last_tsc = 0;

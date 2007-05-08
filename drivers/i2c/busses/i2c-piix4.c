@@ -428,7 +428,7 @@ static int __devinit piix4_probe(struct pci_dev *dev,
 	/* set up the sysfs linkage to our parent device */
 	piix4_adapter.dev.parent = &dev->dev;
 
-	snprintf(piix4_adapter.name, I2C_NAME_SIZE,
+	snprintf(piix4_adapter.name, sizeof(piix4_adapter.name),
 		"SMBus PIIX4 adapter at %04x", piix4_smba);
 
 	if ((retval = i2c_add_adapter(&piix4_adapter))) {

@@ -4546,16 +4546,13 @@ nfs4_stat_to_errno(int stat)
 	return stat;
 }
 
-#ifndef MAX
-# define MAX(a, b)	(((a) > (b))? (a) : (b))
-#endif
-
 #define PROC(proc, argtype, restype)				\
 [NFSPROC4_CLNT_##proc] = {					\
 	.p_proc   = NFSPROC4_COMPOUND,				\
 	.p_encode = (kxdrproc_t) nfs4_xdr_##argtype,		\
 	.p_decode = (kxdrproc_t) nfs4_xdr_##restype,		\
-	.p_bufsiz = MAX(NFS4_##argtype##_sz,NFS4_##restype##_sz) << 2,	\
+	.p_arglen = NFS4_##argtype##_sz,			\
+	.p_replen = NFS4_##restype##_sz,			\
 	.p_statidx = NFSPROC4_CLNT_##proc,			\
 	.p_name   = #proc,					\
     }

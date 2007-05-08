@@ -41,7 +41,7 @@ static int crypto_init_hash_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 }
 
 static void crypto_hash_show(struct seq_file *m, struct crypto_alg *alg)
-	__attribute_used__;
+	__attribute__ ((unused));
 static void crypto_hash_show(struct seq_file *m, struct crypto_alg *alg)
 {
 	seq_printf(m, "type         : hash\n");

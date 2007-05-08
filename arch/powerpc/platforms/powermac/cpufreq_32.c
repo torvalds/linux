@@ -25,7 +25,6 @@
 #include <linux/cpufreq.h>
 #include <linux/init.h>
 #include <linux/sysdev.h>
-#include <linux/i2c.h>
 #include <linux/hardirq.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>

@@ -1,6 +1,8 @@
 #ifndef __CRIS_MMU_CONTEXT_H
 #define __CRIS_MMU_CONTEXT_H
 
+#include <asm-generic/mm_hooks.h>
+
 extern int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
 extern void get_mmu_context(struct mm_struct *mm);
 extern void destroy_context(struct mm_struct *mm);

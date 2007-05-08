@@ -568,7 +568,7 @@ struct device_driver;
 #ifdef CONFIG_SYSFS
 struct module;
 
-extern struct subsystem module_subsys;
+extern struct kset module_subsys;
 
 int mod_sysfs_init(struct module *mod);
 int mod_sysfs_setup(struct module *mod,

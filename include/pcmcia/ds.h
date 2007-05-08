@@ -108,6 +108,11 @@ typedef struct dev_node_t {
 struct pcmcia_socket;
 struct config_t;
 
+struct pcmcia_dynids {
+	spinlock_t		lock;
+	struct list_head	list;
+};
+
 struct pcmcia_driver {
 	int (*probe)		(struct pcmcia_device *dev);
 	void (*remove)		(struct pcmcia_device *dev);
@@ -118,6 +123,7 @@ struct pcmcia_driver {
 	struct module		*owner;
 	struct pcmcia_device_id	*id_table;
 	struct device_driver	drv;
+	struct pcmcia_dynids	dynids;
 };
 
 /* driver registration */

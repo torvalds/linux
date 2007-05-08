@@ -73,7 +73,7 @@ const char *tape_op_verbose[TO_SIZE] =
 	[TO_DIS] = "DIS",	[TO_ASSIGN] = "ASS",
 	[TO_UNASSIGN] = "UAS",  [TO_CRYPT_ON] = "CON",
 	[TO_CRYPT_OFF] = "COF",	[TO_KEKL_SET] = "KLS",
-	[TO_KEKL_QUERY] = "KLQ",
+	[TO_KEKL_QUERY] = "KLQ",[TO_RDC] = "RDC",
 };
 
 static int
@@ -911,6 +911,7 @@ __tape_start_request(struct tape_device *device, struct tape_request *request)
 		case TO_ASSIGN:
 		case TO_UNASSIGN:
 		case TO_READ_ATTMSG:
+		case TO_RDC:
 			if (device->tape_state == TS_INIT)
 				break;
 			if (device->tape_state == TS_UNUSED)

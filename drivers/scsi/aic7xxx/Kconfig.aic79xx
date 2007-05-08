@@ -57,18 +57,6 @@ config AIC79XX_BUILD_FIRMWARE
 	or modify the assembler Makefile or the files it includes if your
 	build environment is different than that of the author.
 
-config AIC79XX_ENABLE_RD_STRM
-	bool "Enable Read Streaming for All Targets"
-	depends on SCSI_AIC79XX
-	default n
-	help
-	Read Streaming is a U320 protocol option that should enhance
-	performance.  Early U320 drive firmware actually performs slower
-	with read streaming enabled so it is disabled by default.  Read
-	Streaming can be configured in much the same way as tagged queueing
-	using the "rd_strm" command line option.  See
-	drivers/scsi/aic7xxx/README.aic79xx for details.
-
 config AIC79XX_DEBUG_ENABLE
 	bool "Compile in Debugging Code"
 	depends on SCSI_AIC79XX

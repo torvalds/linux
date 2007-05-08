@@ -7,6 +7,7 @@
 #define __UM_TLBFLUSH_H
 
 #include <linux/mm.h>
+#include "choose-mode.h"
 
 /*
  * TLB flushing:
@@ -24,6 +25,18 @@ extern void flush_tlb_all(void);
 extern void flush_tlb_mm(struct mm_struct *mm);
 extern void flush_tlb_range(struct vm_area_struct *vma, unsigned long start, 
 			    unsigned long end);
+extern void flush_tlb_page_skas(struct vm_area_struct *vma,
+				unsigned long address);
+
+static inline void flush_tlb_page(struct vm_area_struct *vma,
+				  unsigned long address)
+{
+	address &= PAGE_MASK;
+
+	CHOOSE_MODE(flush_tlb_range(vma, address, address + PAGE_SIZE),
+		    flush_tlb_page_skas(vma, address));
+}
+
 extern void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
 extern void flush_tlb_kernel_vm(void);
 extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
@@ -35,14 +48,3 @@ static inline void flush_tlb_pgtables(struct mm_struct *mm,
 }
 
 #endif
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

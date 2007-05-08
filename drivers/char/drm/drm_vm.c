@@ -41,6 +41,30 @@
 static void drm_vm_open(struct vm_area_struct *vma);
 static void drm_vm_close(struct vm_area_struct *vma);
 
+static pgprot_t drm_io_prot(uint32_t map_type, struct vm_area_struct *vma)
+{
+	pgprot_t tmp = vm_get_page_prot(vma->vm_flags);
+
+#if defined(__i386__) || defined(__x86_64__)
+	if (boot_cpu_data.x86 > 3 && map_type != _DRM_AGP) {
+		pgprot_val(tmp) |= _PAGE_PCD;
+		pgprot_val(tmp) &= ~_PAGE_PWT;
+	}
+#elif defined(__powerpc__)
+	pgprot_val(tmp) |= _PAGE_NO_CACHE;
+	if (map_type == _DRM_REGISTERS)
+		pgprot_val(tmp) |= _PAGE_GUARDED;
+#endif
+#if defined(__ia64__)
+	if (efi_range_is_wc(vma->vm_start, vma->vm_end -
+				    vma->vm_start))
+		tmp = pgprot_writecombine(tmp);
+	else
+		tmp = pgprot_noncached(tmp);
+#endif
+	return tmp;
+}
+
 /**
  * \c nopage method for AGP virtual memory.
  *
@@ -151,8 +175,7 @@ static __inline__ struct page *drm_do_vm_shm_nopage(struct vm_area_struct *vma,
 
 	offset = address - vma->vm_start;
 	i = (unsigned long)map->handle + offset;
-	page = (map->type == _DRM_CONSISTENT) ?
-		virt_to_page((void *)i) : vmalloc_to_page((void *)i);
+	page = vmalloc_to_page((void *)i);
 	if (!page)
 		return NOPAGE_SIGBUS;
 	get_page(page);
@@ -389,7 +412,7 @@ static struct vm_operations_struct drm_vm_sg_ops = {
  * Create a new drm_vma_entry structure as the \p vma private data entry and
  * add it to drm_device::vmalist.
  */
-static void drm_vm_open(struct vm_area_struct *vma)
+static void drm_vm_open_locked(struct vm_area_struct *vma)
 {
 	drm_file_t *priv = vma->vm_file->private_data;
 	drm_device_t *dev = priv->head->dev;
@@ -401,13 +424,21 @@ static void drm_vm_open(struct vm_area_struct *vma)
 
 	vma_entry = drm_alloc(sizeof(*vma_entry), DRM_MEM_VMAS);
 	if (vma_entry) {
-		mutex_lock(&dev->struct_mutex);
 		vma_entry->vma = vma;
 		vma_entry->next = dev->vmalist;
 		vma_entry->pid = current->pid;
 		dev->vmalist = vma_entry;
-		mutex_unlock(&dev->struct_mutex);
 	}
+}
+
+static void drm_vm_open(struct vm_area_struct *vma)
+{
+	drm_file_t *priv = vma->vm_file->private_data;
+	drm_device_t *dev = priv->head->dev;
+
+	mutex_lock(&dev->struct_mutex);
+	drm_vm_open_locked(vma);
+	mutex_unlock(&dev->struct_mutex);
 }
 
 /**
@@ -460,7 +491,6 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 	drm_device_dma_t *dma;
 	unsigned long length = vma->vm_end - vma->vm_start;
 
-	lock_kernel();
 	dev = priv->head->dev;
 	dma = dev->dma;
 	DRM_DEBUG("start = 0x%lx, end = 0x%lx, page offset = 0x%lx\n",
@@ -468,10 +498,8 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 
 	/* Length must match exact page count */
 	if (!dma || (length >> PAGE_SHIFT) != dma->page_count) {
-		unlock_kernel();
 		return -EINVAL;
 	}
-	unlock_kernel();
 
 	if (!capable(CAP_SYS_ADMIN) &&
 	    (dma->flags & _DRM_DMA_USE_PCI_RO)) {
@@ -494,7 +522,7 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_RESERVED;	/* Don't swap */
 
 	vma->vm_file = filp;	/* Needed for drm_vm_open() */
-	drm_vm_open(vma);
+	drm_vm_open_locked(vma);
 	return 0;
 }
 
@@ -529,7 +557,7 @@ EXPORT_SYMBOL(drm_core_get_reg_ofs);
  * according to the mapping type and remaps the pages. Finally sets the file
  * pointer and calls vm_open().
  */
-int drm_mmap(struct file *filp, struct vm_area_struct *vma)
+static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
@@ -565,7 +593,7 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 		return -EPERM;
 
 	/* Check for valid size. */
-	if (map->size != vma->vm_end - vma->vm_start)
+	if (map->size < vma->vm_end - vma->vm_start)
 		return -EINVAL;
 
 	if (!capable(CAP_SYS_ADMIN) && (map->flags & _DRM_READ_ONLY)) {
@@ -600,37 +628,16 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 		/* fall through to _DRM_FRAME_BUFFER... */
 	case _DRM_FRAME_BUFFER:
 	case _DRM_REGISTERS:
-#if defined(__i386__) || defined(__x86_64__)
-		if (boot_cpu_data.x86 > 3 && map->type != _DRM_AGP) {
-			pgprot_val(vma->vm_page_prot) |= _PAGE_PCD;
-			pgprot_val(vma->vm_page_prot) &= ~_PAGE_PWT;
-		}
-#elif defined(__powerpc__)
-		pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
-		if (map->type == _DRM_REGISTERS)
-			pgprot_val(vma->vm_page_prot) |= _PAGE_GUARDED;
-#endif
-		vma->vm_flags |= VM_IO;	/* not in core dump */
-#if defined(__ia64__)
-		if (efi_range_is_wc(vma->vm_start, vma->vm_end - vma->vm_start))
-			vma->vm_page_prot =
-			    pgprot_writecombine(vma->vm_page_prot);
-		else
-			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-#endif
 		offset = dev->driver->get_reg_ofs(dev);
+		vma->vm_flags |= VM_IO;	/* not in core dump */
+		vma->vm_page_prot = drm_io_prot(map->type, vma);
 #ifdef __sparc__
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		if (io_remap_pfn_range(vma, vma->vm_start,
-				       (map->offset + offset) >> PAGE_SHIFT,
-				       vma->vm_end - vma->vm_start,
-				       vma->vm_page_prot))
-#else
-		if (io_remap_pfn_range(vma, vma->vm_start,
-				       (map->offset + offset) >> PAGE_SHIFT,
-				       vma->vm_end - vma->vm_start,
-				       vma->vm_page_prot))
 #endif
+		if (io_remap_pfn_range(vma, vma->vm_start,
+				       (map->offset + offset) >> PAGE_SHIFT,
+				       vma->vm_end - vma->vm_start,
+				       vma->vm_page_prot))
 			return -EAGAIN;
 		DRM_DEBUG("   Type = %d; start = 0x%lx, end = 0x%lx,"
 			  " offset = 0x%lx\n",
@@ -638,10 +645,15 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 			  vma->vm_start, vma->vm_end, map->offset + offset);
 		vma->vm_ops = &drm_vm_ops;
 		break;
-	case _DRM_SHM:
 	case _DRM_CONSISTENT:
-		/* Consistent memory is really like shared memory. It's only
-		 * allocate in a different way */
+		/* Consistent memory is really like shared memory. But
+		 * it's allocated in a different way, so avoid nopage */
+		if (remap_pfn_range(vma, vma->vm_start,
+		    page_to_pfn(virt_to_page(map->handle)),
+		    vma->vm_end - vma->vm_start, vma->vm_page_prot))
+			return -EAGAIN;
+	/* fall through to _DRM_SHM */
+	case _DRM_SHM:
 		vma->vm_ops = &drm_vm_shm_ops;
 		vma->vm_private_data = (void *)map;
 		/* Don't let this area swap.  Change when
@@ -659,8 +671,20 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_RESERVED;	/* Don't swap */
 
 	vma->vm_file = filp;	/* Needed for drm_vm_open() */
-	drm_vm_open(vma);
+	drm_vm_open_locked(vma);
 	return 0;
 }
 
+int drm_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	drm_file_t *priv = filp->private_data;
+	drm_device_t *dev = priv->head->dev;
+	int ret;
+
+	mutex_lock(&dev->struct_mutex);
+	ret = drm_mmap_locked(filp, vma);
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
+}
 EXPORT_SYMBOL(drm_mmap);

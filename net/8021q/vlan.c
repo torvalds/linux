@@ -117,8 +117,7 @@ static void __exit vlan_cleanup_devices(void)
 	struct net_device *dev, *nxt;
 
 	rtnl_lock();
-	for (dev = dev_base; dev; dev = nxt) {
-		nxt = dev->next;
+	for_each_netdev_safe(dev, nxt) {
 		if (dev->priv_flags & IFF_802_1Q_VLAN) {
 			unregister_vlan_dev(VLAN_DEV_INFO(dev)->real_dev,
 					    VLAN_DEV_INFO(dev)->vlan_id);

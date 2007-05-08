@@ -80,7 +80,7 @@ static int pxa27x_start_hc(struct device *dev)
 
 	inf = dev->platform_data;
 
-	pxa_set_cken(CKEN10_USBHOST, 1);
+	pxa_set_cken(CKEN_USBHOST, 1);
 
 	UHCHR |= UHCHR_FHR;
 	udelay(11);
@@ -123,7 +123,7 @@ static void pxa27x_stop_hc(struct device *dev)
 	UHCCOMS |= 1;
 	udelay(10);
 
-	pxa_set_cken(CKEN10_USBHOST, 0);
+	pxa_set_cken(CKEN_USBHOST, 0);
 }
 
 

@@ -37,19 +37,19 @@ static void dump_cifs_file_struct(struct file *file, char *label)
 {
 	struct cifsFileInfo * cf;
 
-	if(file) {
+	if (file) {
 		cf = file->private_data;
-		if(cf == NULL) {
+		if (cf == NULL) {
 			cFYI(1,("empty cifs private file data"));
 			return;
 		}
-		if(cf->invalidHandle) {
+		if (cf->invalidHandle) {
 			cFYI(1,("invalid handle"));
 		}
-		if(cf->srch_inf.endOfSearch) {
+		if (cf->srch_inf.endOfSearch) {
 			cFYI(1,("end of search"));
 		}
-		if(cf->srch_inf.emptyDir) {
+		if (cf->srch_inf.emptyDir) {
 			cFYI(1,("empty dir"));
 		}
 		
@@ -77,17 +77,17 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 		cFYI(0, ("existing dentry with inode 0x%p", tmp_dentry->d_inode));
 		*ptmp_inode = tmp_dentry->d_inode;
 /* BB overwrite old name? i.e. tmp_dentry->d_name and tmp_dentry->d_name.len??*/
-		if(*ptmp_inode == NULL) {
+		if (*ptmp_inode == NULL) {
 			*ptmp_inode = new_inode(file->f_path.dentry->d_sb);
-			if(*ptmp_inode == NULL)
+			if (*ptmp_inode == NULL)
 				return rc;
 			rc = 1;
 		}
-		if(file->f_path.dentry->d_sb->s_flags & MS_NOATIME)
+		if (file->f_path.dentry->d_sb->s_flags & MS_NOATIME)
 			(*ptmp_inode)->i_flags |= S_NOATIME | S_NOCMTIME;
 	} else {
 		tmp_dentry = d_alloc(file->f_path.dentry, qstring);
-		if(tmp_dentry == NULL) {
+		if (tmp_dentry == NULL) {
 			cERROR(1,("Failed allocating dentry"));
 			*ptmp_inode = NULL;
 			return rc;
@@ -98,9 +98,9 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 			tmp_dentry->d_op = &cifs_ci_dentry_ops;
 		else
 			tmp_dentry->d_op = &cifs_dentry_ops;
-		if(*ptmp_inode == NULL)
+		if (*ptmp_inode == NULL)
 			return rc;
-		if(file->f_path.dentry->d_sb->s_flags & MS_NOATIME)
+		if (file->f_path.dentry->d_sb->s_flags & MS_NOATIME)
 			(*ptmp_inode)->i_flags |= S_NOATIME | S_NOCMTIME;			
 		rc = 2;
 	}
@@ -112,7 +112,7 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 
 static void AdjustForTZ(struct cifsTconInfo * tcon, struct inode * inode)
 {
-	if((tcon) && (tcon->ses) && (tcon->ses->server)) {
+	if ((tcon) && (tcon->ses) && (tcon->ses->server)) {
 		inode->i_ctime.tv_sec += tcon->ses->server->timeAdj;
 		inode->i_mtime.tv_sec += tcon->ses->server->timeAdj;
 		inode->i_atime.tv_sec += tcon->ses->server->timeAdj;
@@ -137,7 +137,7 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 	local_mtime = tmp_inode->i_mtime;
 	local_size  = tmp_inode->i_size;
 
-	if(new_buf_type) {
+	if (new_buf_type) {
 		FILE_DIRECTORY_INFO *pfindData = (FILE_DIRECTORY_INFO *)buf;
 
 		attr = le32_to_cpu(pfindData->ExtFileAttributes);
@@ -193,7 +193,7 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 	if (attr & ATTR_DIRECTORY) {
 		*pobject_type = DT_DIR;
 		/* override default perms since we do not lock dirs */
-		if(atomic_read(&cifsInfo->inUse) == 0) {
+		if (atomic_read(&cifsInfo->inUse) == 0) {
 			tmp_inode->i_mode = cifs_sb->mnt_dir_mode;
 		}
 		tmp_inode->i_mode |= S_IFDIR;
@@ -250,25 +250,25 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 	if (S_ISREG(tmp_inode->i_mode)) {
 		cFYI(1, ("File inode"));
 		tmp_inode->i_op = &cifs_file_inode_ops;
-		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO) {
-			if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO) {
+			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
 				tmp_inode->i_fop = &cifs_file_direct_nobrl_ops;
 			else
 				tmp_inode->i_fop = &cifs_file_direct_ops;
 		
-		} else if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+		} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
 			tmp_inode->i_fop = &cifs_file_nobrl_ops;
 		else
 			tmp_inode->i_fop = &cifs_file_ops;
 
-		if((cifs_sb->tcon) && (cifs_sb->tcon->ses) &&
+		if ((cifs_sb->tcon) && (cifs_sb->tcon->ses) &&
 		   (cifs_sb->tcon->ses->server->maxBuf <
 			PAGE_CACHE_SIZE + MAX_CIFS_HDR_SIZE))
 			tmp_inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
 		else
 			tmp_inode->i_data.a_ops = &cifs_addr_ops;
 
-		if(isNewInode)
+		if (isNewInode)
 			return; /* No sense invalidating pages for new inode
 				   since have not started caching readahead file
 				   data yet */
@@ -357,8 +357,14 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 		cFYI(1,("unknown inode type %d",type)); 
 	}
 
-	tmp_inode->i_uid = le64_to_cpu(pfindData->Uid);
-	tmp_inode->i_gid = le64_to_cpu(pfindData->Gid);
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID)
+		tmp_inode->i_uid = cifs_sb->mnt_uid;
+	else
+		tmp_inode->i_uid = le64_to_cpu(pfindData->Uid);
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID)
+		tmp_inode->i_gid = cifs_sb->mnt_gid;
+	else
+		tmp_inode->i_gid = le64_to_cpu(pfindData->Gid);
 	tmp_inode->i_nlink = le64_to_cpu(pfindData->Nlinks);
 
 	spin_lock(&tmp_inode->i_lock);
@@ -377,25 +383,24 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 		cFYI(1, ("File inode"));
 		tmp_inode->i_op = &cifs_file_inode_ops;
 
-		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO) {
-			if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO) {
+			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
 				tmp_inode->i_fop = &cifs_file_direct_nobrl_ops;
 			else
 				tmp_inode->i_fop = &cifs_file_direct_ops;
-		
-		} else if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+		} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
 			tmp_inode->i_fop = &cifs_file_nobrl_ops;
 		else
 			tmp_inode->i_fop = &cifs_file_ops;
 
-		if((cifs_sb->tcon) && (cifs_sb->tcon->ses) &&
+		if ((cifs_sb->tcon) && (cifs_sb->tcon->ses) &&
 		   (cifs_sb->tcon->ses->server->maxBuf < 
 			PAGE_CACHE_SIZE + MAX_CIFS_HDR_SIZE))
 			tmp_inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
 		else
 			tmp_inode->i_data.a_ops = &cifs_addr_ops;
 
-		if(isNewInode)
+		if (isNewInode)
 			return; /* No sense invalidating pages for new inode since we
 					   have not started caching readahead file data yet */
 
@@ -430,34 +435,28 @@ static int initiate_cifs_search(const int xid, struct file *file)
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
 
-	if(file->private_data == NULL) {
+	if (file->private_data == NULL) {
 		file->private_data = 
-			kmalloc(sizeof(struct cifsFileInfo),GFP_KERNEL);
+			kzalloc(sizeof(struct cifsFileInfo),GFP_KERNEL);
 	}
 
-	if(file->private_data == NULL) {
+	if (file->private_data == NULL)
 		return -ENOMEM;
-	} else {
-		memset(file->private_data,0,sizeof(struct cifsFileInfo));
-	}
 	cifsFile = file->private_data;
 	cifsFile->invalidHandle = TRUE;
 	cifsFile->srch_inf.endOfSearch = FALSE;
 
-	if(file->f_path.dentry == NULL)
-		return -ENOENT;
-
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
-	if(cifs_sb == NULL)
+	if (cifs_sb == NULL)
 		return -EINVAL;
 
 	pTcon = cifs_sb->tcon;
-	if(pTcon == NULL)
+	if (pTcon == NULL)
 		return -EINVAL;
 
 	full_path = build_path_from_dentry(file->f_path.dentry);
 
-	if(full_path == NULL) {
+	if (full_path == NULL) {
 		return -ENOMEM;
 	}
 
@@ -480,9 +479,9 @@ ffirst_retry:
 		&cifsFile->netfid, &cifsFile->srch_inf,
 		cifs_sb->mnt_cifs_flags & 
 			CIFS_MOUNT_MAP_SPECIAL_CHR, CIFS_DIR_SEP(cifs_sb));
-	if(rc == 0)
+	if (rc == 0)
 		cifsFile->invalidHandle = FALSE;
-	if((rc == -EOPNOTSUPP) && 
+	if ((rc == -EOPNOTSUPP) && 
 		(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)) {
 		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
 		goto ffirst_retry;
@@ -498,7 +497,7 @@ static int cifs_unicode_bytelen(char *str)
 	__le16 * ustr = (__le16 *)str;
 
 	for(len=0;len <= PATH_MAX;len++) {
-		if(ustr[len] == 0)
+		if (ustr[len] == 0)
 			return len << 1;
 	}
 	cFYI(1,("Unicode string longer than PATH_MAX found"));
@@ -510,7 +509,7 @@ static char *nxt_dir_entry(char *old_entry, char *end_of_smb, int level)
 	char * new_entry;
 	FILE_DIRECTORY_INFO * pDirInfo = (FILE_DIRECTORY_INFO *)old_entry;
 
-	if(level == SMB_FIND_FILE_INFO_STANDARD) {
+	if (level == SMB_FIND_FILE_INFO_STANDARD) {
 		FIND_FILE_STANDARD_INFO * pfData;
 		pfData = (FIND_FILE_STANDARD_INFO *)pDirInfo;
 
@@ -520,12 +519,12 @@ static char *nxt_dir_entry(char *old_entry, char *end_of_smb, int level)
 		new_entry = old_entry + le32_to_cpu(pDirInfo->NextEntryOffset);
 	cFYI(1,("new entry %p old entry %p",new_entry,old_entry));
 	/* validate that new_entry is not past end of SMB */
-	if(new_entry >= end_of_smb) {
+	if (new_entry >= end_of_smb) {
 		cERROR(1,
 		      ("search entry %p began after end of SMB %p old entry %p",
 			new_entry, end_of_smb, old_entry)); 
 		return NULL;
-	} else if(((level == SMB_FIND_FILE_INFO_STANDARD) &&
+	} else if (((level == SMB_FIND_FILE_INFO_STANDARD) &&
 		   (new_entry + sizeof(FIND_FILE_STANDARD_INFO) > end_of_smb)) ||
 		  ((level != SMB_FIND_FILE_INFO_STANDARD) &&
 		   (new_entry + sizeof(FILE_DIRECTORY_INFO) > end_of_smb)))  {
@@ -546,39 +545,39 @@ static int cifs_entry_is_dot(char *current_entry, struct cifsFileInfo *cfile)
 	char * filename = NULL;
 	int len = 0; 
 
-	if(cfile->srch_inf.info_level == SMB_FIND_FILE_UNIX) {
+	if (cfile->srch_inf.info_level == SMB_FIND_FILE_UNIX) {
 		FILE_UNIX_INFO * pFindData = (FILE_UNIX_INFO *)current_entry;
 		filename = &pFindData->FileName[0];
-		if(cfile->srch_inf.unicode) {
+		if (cfile->srch_inf.unicode) {
 			len = cifs_unicode_bytelen(filename);
 		} else {
 			/* BB should we make this strnlen of PATH_MAX? */
 			len = strnlen(filename, 5);
 		}
-	} else if(cfile->srch_inf.info_level == SMB_FIND_FILE_DIRECTORY_INFO) {
+	} else if (cfile->srch_inf.info_level == SMB_FIND_FILE_DIRECTORY_INFO) {
 		FILE_DIRECTORY_INFO * pFindData = 
 			(FILE_DIRECTORY_INFO *)current_entry;
 		filename = &pFindData->FileName[0];
 		len = le32_to_cpu(pFindData->FileNameLength);
-	} else if(cfile->srch_inf.info_level == 
+	} else if (cfile->srch_inf.info_level == 
 			SMB_FIND_FILE_FULL_DIRECTORY_INFO) {
 		FILE_FULL_DIRECTORY_INFO * pFindData = 
 			(FILE_FULL_DIRECTORY_INFO *)current_entry;
 		filename = &pFindData->FileName[0];
 		len = le32_to_cpu(pFindData->FileNameLength);
-	} else if(cfile->srch_inf.info_level ==
+	} else if (cfile->srch_inf.info_level ==
 			SMB_FIND_FILE_ID_FULL_DIR_INFO) {
 		SEARCH_ID_FULL_DIR_INFO * pFindData = 
 			(SEARCH_ID_FULL_DIR_INFO *)current_entry;
 		filename = &pFindData->FileName[0];
 		len = le32_to_cpu(pFindData->FileNameLength);
-	} else if(cfile->srch_inf.info_level == 
+	} else if (cfile->srch_inf.info_level == 
 			SMB_FIND_FILE_BOTH_DIRECTORY_INFO) {
 		FILE_BOTH_DIRECTORY_INFO * pFindData = 
 			(FILE_BOTH_DIRECTORY_INFO *)current_entry;
 		filename = &pFindData->FileName[0];
 		len = le32_to_cpu(pFindData->FileNameLength);
-	} else if(cfile->srch_inf.info_level == SMB_FIND_FILE_INFO_STANDARD) {
+	} else if (cfile->srch_inf.info_level == SMB_FIND_FILE_INFO_STANDARD) {
 		FIND_FILE_STANDARD_INFO * pFindData =
 			(FIND_FILE_STANDARD_INFO *)current_entry;
 		filename = &pFindData->FileName[0];
@@ -587,25 +586,25 @@ static int cifs_entry_is_dot(char *current_entry, struct cifsFileInfo *cfile)
 		cFYI(1,("Unknown findfirst level %d",cfile->srch_inf.info_level));
 	}
 
-	if(filename) {
-		if(cfile->srch_inf.unicode) {
+	if (filename) {
+		if (cfile->srch_inf.unicode) {
 			__le16 *ufilename = (__le16 *)filename;
-			if(len == 2) {
+			if (len == 2) {
 				/* check for . */
-				if(ufilename[0] == UNICODE_DOT)
+				if (ufilename[0] == UNICODE_DOT)
 					rc = 1;
-			} else if(len == 4) {
+			} else if (len == 4) {
 				/* check for .. */
-				if((ufilename[0] == UNICODE_DOT)
+				if ((ufilename[0] == UNICODE_DOT)
 				   &&(ufilename[1] == UNICODE_DOT))
 					rc = 2;
 			}
 		} else /* ASCII */ {
-			if(len == 1) {
-				if(filename[0] == '.') 
+			if (len == 1) {
+				if (filename[0] == '.') 
 					rc = 1;
-			} else if(len == 2) {
-				if((filename[0] == '.') && (filename[1] == '.')) 
+			} else if (len == 2) {
+				if((filename[0] == '.') && (filename[1] == '.'))
 					rc = 2;
 			}
 		}
@@ -618,20 +617,10 @@ static int cifs_entry_is_dot(char *current_entry, struct cifsFileInfo *cfile)
    whether we can use the cached search results from the previous search */
 static int is_dir_changed(struct file * file)
 {
-	struct inode * inode;
-	struct cifsInodeInfo *cifsInfo;
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct cifsInodeInfo *cifsInfo = CIFS_I(inode);
 
-	if(file->f_path.dentry == NULL)
-		return 0;
-
-	inode = file->f_path.dentry->d_inode;
-
-	if(inode == NULL)
-		return 0;
-
-	cifsInfo = CIFS_I(inode);
-
-	if(cifsInfo->time == 0)
+	if (cifsInfo->time == 0)
 		return 1; /* directory was changed, perhaps due to unlink */
 	else
 		return 0;
@@ -654,7 +643,7 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	struct cifsFileInfo * cifsFile = file->private_data;
 	/* check if index in the buffer */
 	
-	if((cifsFile == NULL) || (ppCurrentEntry == NULL) || 
+	if ((cifsFile == NULL) || (ppCurrentEntry == NULL) || 
 	   (num_to_ret == NULL))
 		return -ENOENT;
 	
@@ -672,7 +661,7 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 #ifdef CONFIG_CIFS_DEBUG2
 	dump_cifs_file_struct(file, "In fce ");
 #endif
-	if(((index_to_find < cifsFile->srch_inf.index_of_last_entry) && 
+	if (((index_to_find < cifsFile->srch_inf.index_of_last_entry) && 
 	     is_dir_changed(file)) || 
 	   (index_to_find < first_entry_in_buffer)) {
 		/* close and restart search */
@@ -681,9 +670,9 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 		CIFSFindClose(xid, pTcon, cifsFile->netfid);
 		kfree(cifsFile->search_resume_name);
 		cifsFile->search_resume_name = NULL;
-		if(cifsFile->srch_inf.ntwrk_buf_start) {
+		if (cifsFile->srch_inf.ntwrk_buf_start) {
 			cFYI(1,("freeing SMB ff cache buf on search rewind"));
-			if(cifsFile->srch_inf.smallBuf)
+			if (cifsFile->srch_inf.smallBuf)
 				cifs_small_buf_release(cifsFile->srch_inf.
 						ntwrk_buf_start);
 			else
@@ -691,7 +680,7 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 						ntwrk_buf_start);
 		}
 		rc = initiate_cifs_search(xid,file);
-		if(rc) {
+		if (rc) {
 			cFYI(1,("error %d reinitiating a search on rewind",rc));
 			return rc;
 		}
@@ -702,10 +691,10 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	 	cFYI(1,("calling findnext2"));
 		rc = CIFSFindNext(xid,pTcon,cifsFile->netfid, 
 				  &cifsFile->srch_inf);
-		if(rc)
+		if (rc)
 			return -ENOENT;
 	}
-	if(index_to_find < cifsFile->srch_inf.index_of_last_entry) {
+	if (index_to_find < cifsFile->srch_inf.index_of_last_entry) {
 		/* we found the buffer that contains the entry */
 		/* scan and find it */
 		int i;
@@ -851,9 +840,6 @@ static int cifs_filldir(char *pfindEntry, struct file *file,
 	if((scratch_buf == NULL) || (pfindEntry == NULL) || (pCifsF == NULL))
 		return -ENOENT;
 
-	if(file->f_path.dentry == NULL)
-		return -ENOENT;
-
 	rc = cifs_entry_is_dot(pfindEntry,pCifsF);
 	/* skip . and .. since we added them first */
 	if(rc != 0) 
@@ -996,11 +982,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	int max_len;
 
 	xid = GetXid();
-
-	if(file->f_path.dentry == NULL) {
-		FreeXid(xid);
-		return -EIO;
-	}
 
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	pTcon = cifs_sb->tcon;

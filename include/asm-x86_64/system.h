@@ -89,6 +89,11 @@ static inline unsigned long read_cr3(void)
 	return cr3;
 } 
 
+static inline void write_cr3(unsigned long val)
+{
+	asm volatile("movq %0,%%cr3" :: "r" (val) : "memory");
+}
+
 static inline unsigned long read_cr4(void)
 { 
 	unsigned long cr4;
@@ -98,7 +103,7 @@ static inline unsigned long read_cr4(void)
 
 static inline void write_cr4(unsigned long val)
 { 
-	asm volatile("movq %0,%%cr4" :: "r" (val));
+	asm volatile("movq %0,%%cr4" :: "r" (val) : "memory");
 } 
 
 #define stts() write_cr0(8 | read_cr0())

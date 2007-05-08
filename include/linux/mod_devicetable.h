@@ -262,6 +262,7 @@ struct i2c_device_id {
 
 /* Input */
 #define INPUT_DEVICE_ID_EV_MAX		0x1f
+#define INPUT_DEVICE_ID_KEY_MIN_INTERESTING	0x71
 #define INPUT_DEVICE_ID_KEY_MAX		0x1ff
 #define INPUT_DEVICE_ID_REL_MAX		0x0f
 #define INPUT_DEVICE_ID_ABS_MAX		0x3f

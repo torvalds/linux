@@ -215,8 +215,7 @@ static void init_once(void *foo, struct kmem_cache * cachep, unsigned long flags
 {
 	struct mqueue_inode_info *p = (struct mqueue_inode_info *) foo;
 
-	if ((flags & (SLAB_CTOR_VERIFY | SLAB_CTOR_CONSTRUCTOR)) ==
-		SLAB_CTOR_CONSTRUCTOR)
+	if (flags & SLAB_CTOR_CONSTRUCTOR)
 		inode_init_once(&p->vfs_inode);
 }
 

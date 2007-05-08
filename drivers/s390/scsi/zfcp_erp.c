@@ -186,7 +186,7 @@ void zfcp_fsf_start_timer(struct zfcp_fsf_req *fsf_req, unsigned long timeout)
 {
 	fsf_req->timer.function = zfcp_fsf_request_timeout_handler;
 	fsf_req->timer.data = (unsigned long) fsf_req->adapter;
-	fsf_req->timer.expires = timeout;
+	fsf_req->timer.expires = jiffies + timeout;
 	add_timer(&fsf_req->timer);
 }
 

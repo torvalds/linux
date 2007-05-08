@@ -2174,6 +2174,51 @@ dasd_generic_notify(struct ccw_device *cdev, int event)
 	return ret;
 }
 
+struct dasd_ccw_req * dasd_generic_build_rdc(struct dasd_device *device,
+					     void *rdc_buffer,
+					     int rdc_buffer_size, char *magic)
+{
+	struct dasd_ccw_req *cqr;
+	struct ccw1 *ccw;
+
+	cqr = dasd_smalloc_request(magic, 1 /* RDC */, rdc_buffer_size, device);
+
+	if (IS_ERR(cqr)) {
+		DEV_MESSAGE(KERN_WARNING, device, "%s",
+			    "Could not allocate RDC request");
+		return cqr;
+	}
+
+	ccw = cqr->cpaddr;
+	ccw->cmd_code = CCW_CMD_RDC;
+	ccw->cda = (__u32)(addr_t)rdc_buffer;
+	ccw->count = rdc_buffer_size;
+
+	cqr->device = device;
+	cqr->expires = 10*HZ;
+	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
+	cqr->retries = 2;
+	cqr->buildclk = get_clock();
+	cqr->status = DASD_CQR_FILLED;
+	return cqr;
+}
+
+
+int dasd_generic_read_dev_chars(struct dasd_device *device, char *magic,
+				void **rdc_buffer, int rdc_buffer_size)
+{
+	int ret;
+	struct dasd_ccw_req *cqr;
+
+	cqr = dasd_generic_build_rdc(device, *rdc_buffer, rdc_buffer_size,
+				     magic);
+	if (IS_ERR(cqr))
+		return PTR_ERR(cqr);
+
+	ret = dasd_sleep_on(cqr);
+	dasd_sfree_request(cqr, cqr->device);
+	return ret;
+}
 
 static int __init
 dasd_init(void)

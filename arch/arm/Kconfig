@@ -29,6 +29,10 @@ config GENERIC_TIME
 	bool
 	default n
 
+config GENERIC_CLOCKEVENTS
+	bool
+	default n
+
 config MMU
 	bool
 	default y
@@ -64,6 +68,14 @@ config MCA
 	  there) before attempting to build an MCA bus kernel.
 
 config GENERIC_HARDIRQS
+	bool
+	default y
+
+config STACKTRACE_SUPPORT
+	bool
+	default y
+
+config LOCKDEP_SUPPORT
 	bool
 	default y
 
@@ -162,6 +174,8 @@ config ARCH_VERSATILE
 	select ARM_AMBA
 	select ARM_VIC
 	select ICST307
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	help
 	  This enables support for ARM Ltd Versatile board.
 
@@ -255,6 +269,7 @@ config ARCH_IOP13XX
 	depends on MMU
 	select PLAT_IOP
 	select PCI
+	select ARCH_SUPPORTS_MSI
 	help
 	  Support for Intel's IOP13XX (XScale) family of processors.
 
@@ -262,6 +277,7 @@ config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	depends on MMU
 	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	help
 	  Support for Intel's IXP4XX (XScale) family of processors.
 
@@ -363,6 +379,7 @@ config ARCH_LH7A40X
 config ARCH_OMAP
 	bool "TI OMAP"
 	select GENERIC_GPIO
+	select GENERIC_TIME
 	help
 	  Support for TI's OMAP platform (OMAP1 and OMAP2).
 
@@ -513,6 +530,8 @@ endmenu
 
 menu "Kernel Features"
 
+source "kernel/time/Kconfig"
+
 config SMP
 	bool "Symmetric Multi-Processing (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && REALVIEW_MPCORE
@@ -572,6 +591,7 @@ config PREEMPT
 
 config NO_IDLE_HZ
 	bool "Dynamic tick timer"
+	depends on !GENERIC_CLOCKEVENTS
 	help
 	  Select this option if you want to disable continuous timer ticks
 	  and have them programmed to occur as required. This option saves
@@ -669,6 +689,7 @@ config LEDS_TIMER
 	bool "Timer LED" if (!ARCH_CDB89712 && !ARCH_OMAP) || \
 			    MACH_OMAP_H2 || MACH_OMAP_PERSEUS2
 	depends on LEDS
+	depends on !GENERIC_CLOCKEVENTS
 	default y if ARCH_EBSA110
 	help
 	  If you say Y here, one of the system LEDs (the green one on the

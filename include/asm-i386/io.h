@@ -250,19 +250,22 @@ static inline void flush_write_buffers(void)
 
 #endif /* __KERNEL__ */
 
+static inline void native_io_delay(void)
+{
+	asm volatile("outb %%al,$0x80" : : : "memory");
+}
+
 #if defined(CONFIG_PARAVIRT)
 #include <asm/paravirt.h>
 #else
 
-#define __SLOW_DOWN_IO "outb %%al,$0x80;"
-
 static inline void slow_down_io(void) {
-	__asm__ __volatile__(
-		__SLOW_DOWN_IO
+	native_io_delay();
 #ifdef REALLY_SLOW_IO
-		__SLOW_DOWN_IO __SLOW_DOWN_IO __SLOW_DOWN_IO
+	native_io_delay();
+	native_io_delay();
+	native_io_delay();
 #endif
-		: : );
 }
 
 #endif

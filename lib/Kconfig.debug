@@ -320,7 +320,7 @@ config DEBUG_HIGHMEM
 config DEBUG_BUGVERBOSE
 	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL && EMBEDDED
 	depends on BUG
-	depends on ARM || ARM26 || AVR32 || M32R || M68K || SPARC32 || SPARC64 || FRV || SUPERH || GENERIC_BUG
+	depends on ARM || ARM26 || AVR32 || M32R || M68K || SPARC32 || SPARC64 || FRV || SUPERH || GENERIC_BUG || BFIN
 	default !EMBEDDED
 	help
 	  Say Y here to make BUG() panics output the file name and line number
@@ -333,6 +333,9 @@ config DEBUG_INFO
 	help
           If you say Y here the resulting kernel image will include
 	  debugging info resulting in a larger kernel image.
+	  This adds debug symbols to the kernel and modules (gcc -g), and
+	  is needed if you intend to use kernel crashdump or binary object
+	  tools like crash, kgdb, LKCD, gdb, etc on the kernel.
 	  Say Y here only if you plan to debug the kernel.
 
 	  If unsure, say N.
@@ -357,7 +360,7 @@ config DEBUG_LIST
 
 config FRAME_POINTER
 	bool "Compile the kernel with frame pointers"
-	depends on DEBUG_KERNEL && (X86 || CRIS || M68K || M68KNOMMU || FRV || UML || S390 || AVR32 || SUPERH)
+	depends on DEBUG_KERNEL && (X86 || CRIS || M68K || M68KNOMMU || FRV || UML || S390 || AVR32 || SUPERH || BFIN)
 	default y if DEBUG_INFO && UML
 	help
 	  If you say Y here the resulting kernel image will be slightly larger

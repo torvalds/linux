@@ -910,7 +910,7 @@ no_in_dev:
 	 */
 	read_lock(&dev_base_lock);
 	rcu_read_lock();
-	for (dev = dev_base; dev; dev = dev->next) {
+	for_each_netdev(dev) {
 		if ((in_dev = __in_dev_get_rcu(dev)) == NULL)
 			continue;
 
@@ -989,7 +989,7 @@ __be32 inet_confirm_addr(const struct net_device *dev, __be32 dst, __be32 local,
 
 	read_lock(&dev_base_lock);
 	rcu_read_lock();
-	for (dev = dev_base; dev; dev = dev->next) {
+	for_each_netdev(dev) {
 		if ((in_dev = __in_dev_get_rcu(dev))) {
 			addr = confirm_addr_indev(in_dev, dst, local, scope);
 			if (addr)
@@ -1182,23 +1182,26 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 	int s_ip_idx, s_idx = cb->args[0];
 
 	s_ip_idx = ip_idx = cb->args[1];
-	for (dev = dev_base, idx = 0; dev; dev = dev->next, idx++) {
+	idx = 0;
+	for_each_netdev(dev) {
 		if (idx < s_idx)
-			continue;
+			goto cont;
 		if (idx > s_idx)
 			s_ip_idx = 0;
 		if ((in_dev = __in_dev_get_rtnl(dev)) == NULL)
-			continue;
+			goto cont;
 
 		for (ifa = in_dev->ifa_list, ip_idx = 0; ifa;
 		     ifa = ifa->ifa_next, ip_idx++) {
 			if (ip_idx < s_ip_idx)
-				continue;
+				goto cont;
 			if (inet_fill_ifaddr(skb, ifa, NETLINK_CB(cb->skb).pid,
 					     cb->nlh->nlmsg_seq,
 					     RTM_NEWADDR, NLM_F_MULTI) <= 0)
 				goto done;
 		}
+cont:
+		idx++;
 	}
 
 done:
@@ -1243,7 +1246,7 @@ void inet_forward_change(void)
 	ipv4_devconf_dflt.forwarding = on;
 
 	read_lock(&dev_base_lock);
-	for (dev = dev_base; dev; dev = dev->next) {
+	for_each_netdev(dev) {
 		struct in_device *in_dev;
 		rcu_read_lock();
 		in_dev = __in_dev_get_rcu(dev);

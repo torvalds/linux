@@ -12,7 +12,6 @@
  *  License.  See linux/COPYING for more information.
  *
  */
-
 #undef DEBUG
 
 #include <linux/init.h>
@@ -28,7 +27,7 @@
  * Initialization. Try all known PCI access methods. Note that we support
  * using both PCI BIOS and direct access: in such cases, we use I/O ports
  * to access config space.
- * 
+ *
  * Note that the platform specific initialization (BSC registers, and memory
  * space mapping) will be called via the platform defined function
  * pcibios_init_platform().
@@ -115,7 +114,7 @@ int __init sh7751_pcic_init(struct sh4_pci_address_map *map)
 	 * Wait Cycle Control + Parity Enable + Bus Master +
 	 * Mem space enable
 	 */
-	word = SH7751_PCICONF1_WCC | SH7751_PCICONF1_PER | 
+	word = SH7751_PCICONF1_WCC | SH7751_PCICONF1_PER |
 	       SH7751_PCICONF1_BUM | SH7751_PCICONF1_MES;
 	pci_write_reg(word, SH7751_PCICONF1);
 
@@ -123,10 +122,10 @@ int __init sh7751_pcic_init(struct sh4_pci_address_map *map)
 	word = PCI_BASE_CLASS_BRIDGE << 24;
 	pci_write_reg(word, SH7751_PCICONF2);
 
-	/* Set IO and Mem windows to local address 
-	 * Make PCI and local address the same for easy 1 to 1 mapping 
+	/* Set IO and Mem windows to local address
+	 * Make PCI and local address the same for easy 1 to 1 mapping
 	 * Window0 = map->window0.size @ non-cached area base = SDRAM
-	 * Window1 = map->window1.size @ cached area base = SDRAM 
+	 * Window1 = map->window1.size @ cached area base = SDRAM
 	 */
 	word = map->window0.size - 1;
 	pci_write_reg(word, SH4_PCILSR0);
@@ -175,7 +174,7 @@ int __init sh7751_pcic_init(struct sh4_pci_address_map *map)
 	case SH7751_CS5_BASE_ADDR: word = __area_sdram_check(5); break;
 	case SH7751_CS6_BASE_ADDR: word = __area_sdram_check(6); break;
 	}
-	
+
 	if (!word)
 		return 0;
 
@@ -194,9 +193,7 @@ int __init sh7751_pcic_init(struct sh4_pci_address_map *map)
 	 * DMA interrupts...
 	 */
 
-#ifdef CONFIG_SH_RTS7751R2D
 	pci_fixup_pcic();
-#endif
 
 	/* SH7751 init done, set central function init complete */
 	/* use round robin mode to stop a device starving/overruning */

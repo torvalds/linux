@@ -119,7 +119,8 @@ static struct crypto_alg aes_alg = {
 	.cra_name		=	"aes",
 	.cra_driver_name	=	"aes-s390",
 	.cra_priority		=	CRYPT_S390_PRIORITY,
-	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
+	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER |
+					CRYPTO_ALG_NEED_FALLBACK,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct s390_aes_ctx),
 	.cra_module		=	THIS_MODULE,
@@ -206,7 +207,8 @@ static struct crypto_alg ecb_aes_alg = {
 	.cra_name		=	"ecb(aes)",
 	.cra_driver_name	=	"ecb-aes-s390",
 	.cra_priority		=	CRYPT_S390_COMPOSITE_PRIORITY,
-	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER |
+					CRYPTO_ALG_NEED_FALLBACK,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct s390_aes_ctx),
 	.cra_type		=	&crypto_blkcipher_type,
@@ -300,7 +302,8 @@ static struct crypto_alg cbc_aes_alg = {
 	.cra_name		=	"cbc(aes)",
 	.cra_driver_name	=	"cbc-aes-s390",
 	.cra_priority		=	CRYPT_S390_COMPOSITE_PRIORITY,
-	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER |
+					CRYPTO_ALG_NEED_FALLBACK,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct s390_aes_ctx),
 	.cra_type		=	&crypto_blkcipher_type,
@@ -333,10 +336,14 @@ static int __init aes_init(void)
 		return -EOPNOTSUPP;
 
 	/* z9 109 and z9 BC/EC only support 128 bit key length */
-	if (keylen_flag == AES_KEYLEN_128)
+	if (keylen_flag == AES_KEYLEN_128) {
+		aes_alg.cra_u.cipher.cia_max_keysize = AES_MIN_KEY_SIZE;
+		ecb_aes_alg.cra_u.blkcipher.max_keysize = AES_MIN_KEY_SIZE;
+		cbc_aes_alg.cra_u.blkcipher.max_keysize = AES_MIN_KEY_SIZE;
 		printk(KERN_INFO
 		       "aes_s390: hardware acceleration only available for"
 		       "128 bit keys\n");
+	}
 
 	ret = crypto_register_alg(&aes_alg);
 	if (ret)

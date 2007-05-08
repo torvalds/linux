@@ -4,7 +4,7 @@
 #ifndef ASMARM_MACH_MMC_H
 #define ASMARM_MACH_MMC_H
 
-#include <linux/mmc/protocol.h>
+#include <linux/mmc/host.h>
 
 struct mmc_platform_data {
 	unsigned int ocr_mask;			/* available voltages */

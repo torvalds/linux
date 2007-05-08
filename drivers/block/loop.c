@@ -833,7 +833,7 @@ out_clr:
 	lo->lo_backing_file = NULL;
 	lo->lo_flags = 0;
 	set_capacity(disks[lo->lo_number], 0);
-	invalidate_bdev(bdev, 0);
+	invalidate_bdev(bdev);
 	bd_set_size(bdev, 0);
 	mapping_set_gfp_mask(mapping, lo->old_gfp_mask);
 	lo->lo_state = Lo_unbound;
@@ -917,7 +917,7 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 	memset(lo->lo_encrypt_key, 0, LO_KEY_SIZE);
 	memset(lo->lo_crypt_name, 0, LO_NAME_SIZE);
 	memset(lo->lo_file_name, 0, LO_NAME_SIZE);
-	invalidate_bdev(bdev, 0);
+	invalidate_bdev(bdev);
 	set_capacity(disks[lo->lo_number], 0);
 	bd_set_size(bdev, 0);
 	mapping_set_gfp_mask(filp->f_mapping, gfp);

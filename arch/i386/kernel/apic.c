@@ -129,6 +129,28 @@ static int modern_apic(void)
 	return lapic_get_version() >= 0x14;
 }
 
+void apic_wait_icr_idle(void)
+{
+	while (apic_read(APIC_ICR) & APIC_ICR_BUSY)
+		cpu_relax();
+}
+
+unsigned long safe_apic_wait_icr_idle(void)
+{
+	unsigned long send_status;
+	int timeout;
+
+	timeout = 0;
+	do {
+		send_status = apic_read(APIC_ICR) & APIC_ICR_BUSY;
+		if (!send_status)
+			break;
+		udelay(100);
+	} while (timeout++ < 1000);
+
+	return send_status;
+}
+
 /**
  * enable_NMI_through_LVT0 - enable NMI through local vector table 0
  */

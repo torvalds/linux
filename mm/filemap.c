@@ -868,6 +868,7 @@ void do_generic_mapping_read(struct address_space *mapping,
 	unsigned long last_index;
 	unsigned long next_index;
 	unsigned long prev_index;
+	unsigned int prev_offset;
 	loff_t isize;
 	struct page *cached_page;
 	int error;
@@ -876,7 +877,8 @@ void do_generic_mapping_read(struct address_space *mapping,
 	cached_page = NULL;
 	index = *ppos >> PAGE_CACHE_SHIFT;
 	next_index = index;
-	prev_index = ra.prev_page;
+	prev_index = ra.prev_index;
+	prev_offset = ra.prev_offset;
 	last_index = (*ppos + desc->count + PAGE_CACHE_SIZE-1) >> PAGE_CACHE_SHIFT;
 	offset = *ppos & ~PAGE_CACHE_MASK;
 
@@ -924,10 +926,10 @@ page_ok:
 			flush_dcache_page(page);
 
 		/*
-		 * When (part of) the same page is read multiple times
-		 * in succession, only mark it as accessed the first time.
+		 * When a sequential read accesses a page several times,
+		 * only mark it as accessed the first time.
 		 */
-		if (prev_index != index)
+		if (prev_index != index || offset != prev_offset)
 			mark_page_accessed(page);
 		prev_index = index;
 
@@ -945,6 +947,8 @@ page_ok:
 		offset += ret;
 		index += offset >> PAGE_CACHE_SHIFT;
 		offset &= ~PAGE_CACHE_MASK;
+		prev_offset = offset;
+		ra.prev_offset = offset;
 
 		page_cache_release(page);
 		if (ret == nr && desc->count)
@@ -1446,30 +1450,6 @@ page_not_uptodate:
 		majmin = VM_FAULT_MAJOR;
 		count_vm_event(PGMAJFAULT);
 	}
-	lock_page(page);
-
-	/* Did it get unhashed while we waited for it? */
-	if (!page->mapping) {
-		unlock_page(page);
-		page_cache_release(page);
-		goto retry_all;
-	}
-
-	/* Did somebody else get it up-to-date? */
-	if (PageUptodate(page)) {
-		unlock_page(page);
-		goto success;
-	}
-
-	error = mapping->a_ops->readpage(file, page);
-	if (!error) {
-		wait_on_page_locked(page);
-		if (PageUptodate(page))
-			goto success;
-	} else if (error == AOP_TRUNCATED_PAGE) {
-		page_cache_release(page);
-		goto retry_find;
-	}
 
 	/*
 	 * Umm, take care of errors if the page isn't up-to-date.
@@ -1726,7 +1706,7 @@ int generic_file_readonly_mmap(struct file * file, struct vm_area_struct * vma)
 EXPORT_SYMBOL(generic_file_mmap);
 EXPORT_SYMBOL(generic_file_readonly_mmap);
 
-static inline struct page *__read_cache_page(struct address_space *mapping,
+static struct page *__read_cache_page(struct address_space *mapping,
 				unsigned long index,
 				int (*filler)(void *,struct page*),
 				void *data)
@@ -1763,17 +1743,11 @@ repeat:
 	return page;
 }
 
-/**
- * read_cache_page - read into page cache, fill it if needed
- * @mapping:	the page's address_space
- * @index:	the page index
- * @filler:	function to perform the read
- * @data:	destination for read data
- *
- * Read into the page cache. If a page already exists,
- * and PageUptodate() is not set, try to fill the page.
+/*
+ * Same as read_cache_page, but don't wait for page to become unlocked
+ * after submitting it to the filler.
  */
-struct page *read_cache_page(struct address_space *mapping,
+struct page *read_cache_page_async(struct address_space *mapping,
 				unsigned long index,
 				int (*filler)(void *,struct page*),
 				void *data)
@@ -1803,6 +1777,39 @@ retry:
 	if (err < 0) {
 		page_cache_release(page);
 		page = ERR_PTR(err);
+	}
+ out:
+	mark_page_accessed(page);
+	return page;
+}
+EXPORT_SYMBOL(read_cache_page_async);
+
+/**
+ * read_cache_page - read into page cache, fill it if needed
+ * @mapping:	the page's address_space
+ * @index:	the page index
+ * @filler:	function to perform the read
+ * @data:	destination for read data
+ *
+ * Read into the page cache. If a page already exists, and PageUptodate() is
+ * not set, try to fill the page then wait for it to become unlocked.
+ *
+ * If the page does not get brought uptodate, return -EIO.
+ */
+struct page *read_cache_page(struct address_space *mapping,
+				unsigned long index,
+				int (*filler)(void *,struct page*),
+				void *data)
+{
+	struct page *page;
+
+	page = read_cache_page_async(mapping, index, filler, data);
+	if (IS_ERR(page))
+		goto out;
+	wait_on_page_locked(page);
+	if (!PageUptodate(page)) {
+		page_cache_release(page);
+		page = ERR_PTR(-EIO);
 	}
  out:
 	return page;

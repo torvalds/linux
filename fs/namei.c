@@ -2671,19 +2671,9 @@ static char *page_getlink(struct dentry * dentry, struct page **ppage)
 	struct address_space *mapping = dentry->d_inode->i_mapping;
 	page = read_mapping_page(mapping, 0, NULL);
 	if (IS_ERR(page))
-		goto sync_fail;
-	wait_on_page_locked(page);
-	if (!PageUptodate(page))
-		goto async_fail;
+		return (char*)page;
 	*ppage = page;
 	return kmap(page);
-
-async_fail:
-	page_cache_release(page);
-	return ERR_PTR(-EIO);
-
-sync_fail:
-	return (char*)page;
 }
 
 int page_readlink(struct dentry *dentry, char __user *buffer, int buflen)

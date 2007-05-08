@@ -16,15 +16,13 @@ struct __old_kernel_stat {
 };
 
 struct stat {
-	unsigned short st_dev;
-	unsigned short __pad1;
-	unsigned long st_ino;
+	unsigned long  st_dev;
+	unsigned long  st_ino;
 	unsigned short st_mode;
 	unsigned short st_nlink;
 	unsigned short st_uid;
 	unsigned short st_gid;
-	unsigned short st_rdev;
-	unsigned short __pad2;
+	unsigned long  st_rdev;
 	unsigned long  st_size;
 	unsigned long  st_blksize;
 	unsigned long  st_blocks;
@@ -38,8 +36,6 @@ struct stat {
 	unsigned long  __unused5;
 };
 
-#define STAT_HAVE_NSEC 1
-
 /* This matches struct stat64 in glibc2.1, hence the absolutely
  * insane amounts of padding around dev_t's.
  */
@@ -47,7 +43,9 @@ struct stat64 {
 	unsigned long long	st_dev;
 	unsigned char	__pad0[4];
 
-	unsigned long	st_ino;
+#define STAT64_HAS_BROKEN_ST_INO	1
+	unsigned long	__st_ino;
+
 	unsigned int	st_mode;
 	unsigned int	st_nlink;
 
@@ -71,8 +69,9 @@ struct stat64 {
 	unsigned long	st_ctime;
 	unsigned long	st_ctime_nsec; 
 
-	unsigned long	__unused1;
-	unsigned long	__unused2;
+	unsigned long long	st_ino;
 };
+
+#define STAT_HAVE_NSEC 1
 
 #endif /* __ASM_SH_STAT_H */

@@ -60,7 +60,6 @@
 #include <asm/irq.h>
 #include <asm/hw_irq.h>
 #include <asm/numa.h>
-#include <asm/genapic.h>
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
@@ -68,7 +67,6 @@ EXPORT_SYMBOL(smp_num_siblings);
 
 /* Last level cache ID of each logical CPU */
 u8 cpu_llc_id[NR_CPUS] __cpuinitdata  = {[0 ... NR_CPUS-1] = BAD_APICID};
-EXPORT_SYMBOL(cpu_llc_id);
 
 /* Bitmask of currently online CPUs */
 cpumask_t cpu_online_map __read_mostly;
@@ -392,7 +390,8 @@ static void inquire_remote_apic(int apicid)
 {
 	unsigned i, regs[] = { APIC_ID >> 4, APIC_LVR >> 4, APIC_SPIV >> 4 };
 	char *names[] = { "ID", "VERSION", "SPIV" };
-	int timeout, status;
+	int timeout;
+	unsigned int status;
 
 	printk(KERN_INFO "Inquiring remote APIC #%d...\n", apicid);
 
@@ -402,7 +401,9 @@ static void inquire_remote_apic(int apicid)
 		/*
 		 * Wait for idle.
 		 */
-		apic_wait_icr_idle();
+		status = safe_apic_wait_icr_idle();
+		if (status)
+			printk("a previous APIC delivery may have failed\n");
 
 		apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(apicid));
 		apic_write(APIC_ICR, APIC_DM_REMRD | regs[i]);
@@ -430,8 +431,8 @@ static void inquire_remote_apic(int apicid)
  */
 static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int start_rip)
 {
-	unsigned long send_status = 0, accept_status = 0;
-	int maxlvt, timeout, num_starts, j;
+	unsigned long send_status, accept_status = 0;
+	int maxlvt, num_starts, j;
 
 	Dprintk("Asserting INIT.\n");
 
@@ -447,12 +448,7 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 				| APIC_DM_INIT);
 
 	Dprintk("Waiting for send to finish...\n");
-	timeout = 0;
-	do {
-		Dprintk("+");
-		udelay(100);
-		send_status = apic_read(APIC_ICR) & APIC_ICR_BUSY;
-	} while (send_status && (timeout++ < 1000));
+	send_status = safe_apic_wait_icr_idle();
 
 	mdelay(10);
 
@@ -465,12 +461,7 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 	apic_write(APIC_ICR, APIC_INT_LEVELTRIG | APIC_DM_INIT);
 
 	Dprintk("Waiting for send to finish...\n");
-	timeout = 0;
-	do {
-		Dprintk("+");
-		udelay(100);
-		send_status = apic_read(APIC_ICR) & APIC_ICR_BUSY;
-	} while (send_status && (timeout++ < 1000));
+	send_status = safe_apic_wait_icr_idle();
 
 	mb();
 	atomic_set(&init_deasserted, 1);
@@ -509,12 +500,7 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 		Dprintk("Startup point 1.\n");
 
 		Dprintk("Waiting for send to finish...\n");
-		timeout = 0;
-		do {
-			Dprintk("+");
-			udelay(100);
-			send_status = apic_read(APIC_ICR) & APIC_ICR_BUSY;
-		} while (send_status && (timeout++ < 1000));
+		send_status = safe_apic_wait_icr_idle();
 
 		/*
 		 * Give the other CPU some time to accept the IPI.
@@ -945,6 +931,12 @@ int __cpuinit __cpu_up(unsigned int cpu)
  		return -ENOSYS;
 	}
 
+	/*
+	 * Save current MTRR state in case it was changed since early boot
+	 * (e.g. by the ACPI SMI) to initialize new CPUs with MTRRs in sync:
+	 */
+	mtrr_save_state();
+
 	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 	/* Boot it! */
 	err = do_boot_cpu(cpu, apicid);
@@ -965,13 +957,6 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 	while (!cpu_isset(cpu, cpu_online_map))
 		cpu_relax();
-
-	if (num_online_cpus() > 8 && genapic == &apic_flat) {
-		printk(KERN_WARNING
-		       "flat APIC routing can't be used with > 8 cpus\n");
-		BUG();
-	}
-
 	err = 0;
 
 	return err;

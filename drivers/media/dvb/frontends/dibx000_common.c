@@ -105,9 +105,9 @@ struct i2c_adapter * dibx000_get_i2c_adapter(struct dibx000_i2c_master *mst, enu
 }
 EXPORT_SYMBOL(dibx000_get_i2c_adapter);
 
-static int i2c_adapter_init(struct i2c_adapter *i2c_adap, struct i2c_algorithm *algo, const char name[I2C_NAME_SIZE], struct dibx000_i2c_master *mst)
+static int i2c_adapter_init(struct i2c_adapter *i2c_adap, struct i2c_algorithm *algo, const char *name, struct dibx000_i2c_master *mst)
 {
-	strncpy(i2c_adap->name, name, I2C_NAME_SIZE);
+	strncpy(i2c_adap->name, name, sizeof(i2c_adap->name));
 	i2c_adap->class     = I2C_CLASS_TV_DIGITAL,
 	i2c_adap->algo      = algo;
 	i2c_adap->algo_data = NULL;

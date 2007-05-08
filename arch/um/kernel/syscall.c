@@ -18,7 +18,6 @@
 #include "asm/mman.h"
 #include "asm/uaccess.h"
 #include "kern_util.h"
-#include "user_util.h"
 #include "sysdep/syscalls.h"
 #include "mode_kern.h"
 #include "choose-mode.h"

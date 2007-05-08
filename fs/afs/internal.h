@@ -349,7 +349,6 @@ struct afs_permits {
  * record of one of a system's set of network interfaces
  */
 struct afs_interface {
-	unsigned	index;		/* interface index */
 	struct in_addr	address;	/* IPv4 address bound to interface */
 	struct in_addr	netmask;	/* netmask applied to address */
 	unsigned	mtu;		/* MTU of interface */
@@ -392,7 +391,7 @@ extern void afs_give_up_callback(struct afs_vnode *);
 extern void afs_dispatch_give_up_callbacks(struct work_struct *);
 extern void afs_flush_callback_breaks(struct afs_server *);
 extern int __init afs_callback_update_init(void);
-extern void __exit afs_callback_update_kill(void);
+extern void afs_callback_update_kill(void);
 
 /*
  * cell.c
@@ -564,7 +563,7 @@ extern void afs_fs_exit(void);
  * use-rtnetlink.c
  */
 extern int afs_get_ipv4_interfaces(struct afs_interface *, size_t, bool);
-extern int afs_get_MAC_address(u8 [6]);
+extern int afs_get_MAC_address(u8 *, size_t);
 
 /*
  * vlclient.c
@@ -591,7 +590,7 @@ extern struct afs_vlocation *afs_vlocation_lookup(struct afs_cell *,
 						  struct key *,
 						  const char *, size_t);
 extern void afs_put_vlocation(struct afs_vlocation *);
-extern void __exit afs_vlocation_purge(void);
+extern void afs_vlocation_purge(void);
 
 /*
  * vnode.c

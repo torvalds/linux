@@ -20,7 +20,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/pci.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>

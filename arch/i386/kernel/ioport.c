@@ -16,6 +16,7 @@
 #include <linux/stddef.h>
 #include <linux/slab.h>
 #include <linux/thread_info.h>
+#include <linux/syscalls.h>
 
 /* Set EXTENT bits starting at BASE in BITMAP to value TURN_ON. */
 static void set_bitmap(unsigned long *bitmap, unsigned int base, unsigned int extent, int new_value)
@@ -113,7 +114,7 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	 * Reset the owner so that a process switch will not set
 	 * tss->io_bitmap_base to IO_BITMAP_OFFSET.
 	 */
-	tss->io_bitmap_base = INVALID_IO_BITMAP_OFFSET_LAZY;
+	tss->x86_tss.io_bitmap_base = INVALID_IO_BITMAP_OFFSET_LAZY;
 	tss->io_bitmap_owner = NULL;
 
 	put_cpu();

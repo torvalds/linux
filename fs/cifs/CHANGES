@@ -1,4 +1,16 @@
-Verison 1.48
+Version 1.49
+------------
+IPv6 support.  Enable ipv6 addresses to be passed on mount (put the ipv6
+address after the "ip=" mount option, at least until mount.cifs is fixed to
+handle DNS host to ipv6 name translation).  Accept override of uid or gid
+on mount even when Unix Extensions are negotiated (it used to be ignored
+when Unix Extensions were ignored).  This allows users to override the
+default uid and gid for files when they are certain that the uids or
+gids on the server do not match those of the client.  Make "sec=none"
+mount override username (so that null user connection is attempted)
+to match what documentation said.
+
+Version 1.48
 ------------
 Fix mtime bouncing around from local idea of last write times to remote time.
 Fix hang (in i_size_read) when simultaneous size update of same remote file
@@ -9,7 +21,13 @@ from read-only back to read-write, reflect this change in default file mode
 (we had been leaving a file's mode read-only until the inode were reloaded).
 Allow setting of attribute back to ATTR_NORMAL (removing readonly dos attribute
 when archive dos attribute not set and we are changing mode back to writeable
-on server which does not support the Unix Extensions).
+on server which does not support the Unix Extensions).  Remove read only dos
+attribute on chmod when adding any write permission (ie on any of
+user/group/other (not all of user/group/other ie  0222) when
+mounted to windows.  Add support for POSIX MkDir (slight performance
+enhancement and eliminates the network race between the mkdir and set 
+path info of the mode).
+
 
 Version 1.47
 ------------

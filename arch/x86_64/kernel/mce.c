@@ -323,10 +323,13 @@ void mce_log_therm_throt_event(unsigned int cpu, __u64 status)
 #endif /* CONFIG_X86_MCE_INTEL */
 
 /*
- * Periodic polling timer for "silent" machine check errors.
+ * Periodic polling timer for "silent" machine check errors.  If the
+ * poller finds an MCE, poll 2x faster.  When the poller finds no more
+ * errors, poll 2x slower (up to check_interval seconds).
  */
 
 static int check_interval = 5 * 60; /* 5 minutes */
+static int next_interval; /* in jiffies */
 static void mcheck_timer(struct work_struct *work);
 static DECLARE_DELAYED_WORK(mcheck_work, mcheck_timer);
 
@@ -339,7 +342,6 @@ static void mcheck_check_cpu(void *info)
 static void mcheck_timer(struct work_struct *work)
 {
 	on_each_cpu(mcheck_check_cpu, NULL, 1, 1);
-	schedule_delayed_work(&mcheck_work, check_interval * HZ);
 
 	/*
 	 * It's ok to read stale data here for notify_user and
@@ -349,17 +351,30 @@ static void mcheck_timer(struct work_struct *work)
 	 * writes.
 	 */
 	if (notify_user && console_logged) {
+		static unsigned long last_print;
+		unsigned long now = jiffies;
+
+		/* if we logged an MCE, reduce the polling interval */
+		next_interval = max(next_interval/2, HZ/100);
 		notify_user = 0;
 		clear_bit(0, &console_logged);
-		printk(KERN_INFO "Machine check events logged\n");
+		if (time_after_eq(now, last_print + (check_interval*HZ))) {
+			last_print = now;
+			printk(KERN_INFO "Machine check events logged\n");
+		}
+	} else {
+		next_interval = min(next_interval*2, check_interval*HZ);
 	}
+
+	schedule_delayed_work(&mcheck_work, next_interval);
 }
 
 
 static __init int periodic_mcheck_init(void)
 { 
-	if (check_interval)
-		schedule_delayed_work(&mcheck_work, check_interval*HZ);
+	next_interval = check_interval * HZ;
+	if (next_interval)
+		schedule_delayed_work(&mcheck_work, next_interval);
 	return 0;
 } 
 __initcall(periodic_mcheck_init);
@@ -597,12 +612,13 @@ static int mce_resume(struct sys_device *dev)
 /* Reinit MCEs after user configuration changes */
 static void mce_restart(void) 
 { 
-	if (check_interval)
+	if (next_interval)
 		cancel_delayed_work(&mcheck_work);
 	/* Timer race is harmless here */
 	on_each_cpu(mce_init, NULL, 1, 1);       
-	if (check_interval)
-		schedule_delayed_work(&mcheck_work, check_interval*HZ);
+	next_interval = check_interval * HZ;
+	if (next_interval)
+		schedule_delayed_work(&mcheck_work, next_interval);
 }
 
 static struct sysdev_class mce_sysclass = {

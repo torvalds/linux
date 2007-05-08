@@ -487,15 +487,11 @@ extern struct voyager_qic_cpi *voyager_quad_cpi_addr[NR_CPUS];
 extern struct voyager_SUS *voyager_SUS;
 
 /* variables exported always */
+extern struct task_struct *voyager_thread;
 extern int voyager_level;
-extern int kvoyagerd_running;
-extern struct semaphore kvoyagerd_sem;
 extern struct voyager_status voyager_status;
 
-
-
 /* functions exported by the voyager and voyager_smp modules */
-
 extern int voyager_cat_readb(__u8 module, __u8 asic, int reg);
 extern void voyager_cat_init(void);
 extern void voyager_detect(struct voyager_bios_info *);

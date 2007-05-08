@@ -19,7 +19,7 @@
 
 /* Version of the device interface */
 #define DLM_DEVICE_VERSION_MAJOR 5
-#define DLM_DEVICE_VERSION_MINOR 0
+#define DLM_DEVICE_VERSION_MINOR 1
 #define DLM_DEVICE_VERSION_PATCH 0
 
 /* struct passed to the lock write */
@@ -44,6 +44,11 @@ struct dlm_lspace_params {
 	char name[0];
 };
 
+struct dlm_purge_params {
+	__u32 nodeid;
+	__u32 pid;
+};
+
 struct dlm_write_request {
 	__u32 version[3];
 	__u8 cmd;
@@ -53,6 +58,7 @@ struct dlm_write_request {
 	union  {
 		struct dlm_lock_params   lock;
 		struct dlm_lspace_params lspace;
+		struct dlm_purge_params  purge;
 	} i;
 };
 
@@ -76,6 +82,7 @@ struct dlm_lock_result {
 #define DLM_USER_QUERY        3
 #define DLM_USER_CREATE_LOCKSPACE  4
 #define DLM_USER_REMOVE_LOCKSPACE  5
+#define DLM_USER_PURGE        6
 
 /* Arbitrary length restriction */
 #define MAX_LS_NAME_LEN 64

@@ -51,7 +51,6 @@
 #include <linux/fb.h>
 #include <linux/selection.h>
 #include <linux/init.h>
-#include <linux/pci.h>
 #include <linux/nvram.h>
 #include <linux/adb.h>
 #include <linux/cuda.h>

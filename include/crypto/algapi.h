@@ -13,8 +13,11 @@
 #define _CRYPTO_ALGAPI_H
 
 #include <linux/crypto.h>
+#include <linux/list.h>
+#include <linux/kernel.h>
 
 struct module;
+struct rtattr;
 struct seq_file;
 
 struct crypto_type {
@@ -38,7 +41,7 @@ struct crypto_template {
 	struct hlist_head instances;
 	struct module *module;
 
-	struct crypto_instance *(*alloc)(void *param, unsigned int len);
+	struct crypto_instance *(*alloc)(struct rtattr **tb);
 	void (*free)(struct crypto_instance *inst);
 
 	char name[CRYPTO_MAX_ALG_NAME];
@@ -48,6 +51,15 @@ struct crypto_spawn {
 	struct list_head list;
 	struct crypto_alg *alg;
 	struct crypto_instance *inst;
+	u32 mask;
+};
+
+struct crypto_queue {
+	struct list_head list;
+	struct list_head *backlog;
+
+	unsigned int qlen;
+	unsigned int max_qlen;
 };
 
 struct scatter_walk {
@@ -81,6 +93,7 @@ struct blkcipher_walk {
 	int flags;
 };
 
+extern const struct crypto_type crypto_ablkcipher_type;
 extern const struct crypto_type crypto_blkcipher_type;
 extern const struct crypto_type crypto_hash_type;
 
@@ -91,15 +104,22 @@ void crypto_unregister_template(struct crypto_template *tmpl);
 struct crypto_template *crypto_lookup_template(const char *name);
 
 int crypto_init_spawn(struct crypto_spawn *spawn, struct crypto_alg *alg,
-		      struct crypto_instance *inst);
+		      struct crypto_instance *inst, u32 mask);
 void crypto_drop_spawn(struct crypto_spawn *spawn);
 struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn, u32 type,
 				    u32 mask);
 
-struct crypto_alg *crypto_get_attr_alg(void *param, unsigned int len,
-				       u32 type, u32 mask);
+struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb);
+int crypto_check_attr_type(struct rtattr **tb, u32 type);
+struct crypto_alg *crypto_get_attr_alg(struct rtattr **tb, u32 type, u32 mask);
 struct crypto_instance *crypto_alloc_instance(const char *name,
 					      struct crypto_alg *alg);
+
+void crypto_init_queue(struct crypto_queue *queue, unsigned int max_qlen);
+int crypto_enqueue_request(struct crypto_queue *queue,
+			   struct crypto_async_request *request);
+struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue);
+int crypto_tfm_in_queue(struct crypto_queue *queue, struct crypto_tfm *tfm);
 
 int blkcipher_walk_done(struct blkcipher_desc *desc,
 			struct blkcipher_walk *walk, int err);
@@ -118,9 +138,35 @@ static inline void *crypto_tfm_ctx_aligned(struct crypto_tfm *tfm)
 	return (void *)ALIGN(addr, align);
 }
 
+static inline struct crypto_instance *crypto_tfm_alg_instance(
+	struct crypto_tfm *tfm)
+{
+	return container_of(tfm->__crt_alg, struct crypto_instance, alg);
+}
+
 static inline void *crypto_instance_ctx(struct crypto_instance *inst)
 {
 	return inst->__ctx;
+}
+
+static inline struct ablkcipher_alg *crypto_ablkcipher_alg(
+	struct crypto_ablkcipher *tfm)
+{
+	return &crypto_ablkcipher_tfm(tfm)->__crt_alg->cra_ablkcipher;
+}
+
+static inline void *crypto_ablkcipher_ctx(struct crypto_ablkcipher *tfm)
+{
+	return crypto_tfm_ctx(&tfm->base);
+}
+
+static inline struct crypto_blkcipher *crypto_spawn_blkcipher(
+	struct crypto_spawn *spawn)
+{
+	u32 type = CRYPTO_ALG_TYPE_BLKCIPHER;
+	u32 mask = CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC;
+
+	return __crypto_blkcipher_cast(crypto_spawn_tfm(spawn, type, mask));
 }
 
 static inline void *crypto_blkcipher_ctx(struct crypto_blkcipher *tfm)
@@ -168,6 +214,36 @@ static inline void blkcipher_walk_init(struct blkcipher_walk *walk,
 	walk->in.sg = src;
 	walk->out.sg = dst;
 	walk->total = nbytes;
+}
+
+static inline struct crypto_async_request *crypto_get_backlog(
+	struct crypto_queue *queue)
+{
+	return queue->backlog == &queue->list ? NULL :
+	       container_of(queue->backlog, struct crypto_async_request, list);
+}
+
+static inline int ablkcipher_enqueue_request(struct ablkcipher_alg *alg,
+					     struct ablkcipher_request *request)
+{
+	return crypto_enqueue_request(alg->queue, &request->base);
+}
+
+static inline struct ablkcipher_request *ablkcipher_dequeue_request(
+	struct ablkcipher_alg *alg)
+{
+	return ablkcipher_request_cast(crypto_dequeue_request(alg->queue));
+}
+
+static inline void *ablkcipher_request_ctx(struct ablkcipher_request *req)
+{
+	return req->__ctx;
+}
+
+static inline int ablkcipher_tfm_in_queue(struct crypto_ablkcipher *tfm)
+{
+	return crypto_tfm_in_queue(crypto_ablkcipher_alg(tfm)->queue,
+				   crypto_ablkcipher_tfm(tfm));
 }
 
 #endif	/* _CRYPTO_ALGAPI_H */

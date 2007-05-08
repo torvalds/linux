@@ -197,7 +197,7 @@ typedef unsigned char *sk_buff_data_t;
  *	@tstamp: Time we arrived
  *	@dev: Device we arrived on/are leaving by
  *	@iif: ifindex of device we arrived on
- *	@h: Transport layer header
+ *	@transport_header: Transport layer header
  *	@network_header: Network layer header
  *	@mac_header: Link layer header
  *	@dst: destination entry

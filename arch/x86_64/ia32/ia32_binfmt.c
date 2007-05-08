@@ -5,6 +5,11 @@
  * This tricks binfmt_elf.c into loading 32bit binaries using lots 
  * of ugly preprocessor tricks. Talk about very very poor man's inheritance.
  */ 
+#define __ASM_X86_64_ELF_H 1
+
+#undef ELF_CLASS
+#define ELF_CLASS ELFCLASS32
+
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/rwsem.h>
@@ -49,9 +54,6 @@ struct elf_phdr;
 
 #undef ELF_ARCH
 #define ELF_ARCH EM_386
-
-#undef ELF_CLASS
-#define ELF_CLASS ELFCLASS32
 
 #define ELF_DATA	ELFDATA2LSB
 
@@ -136,7 +138,7 @@ struct elf_prpsinfo
 
 #define user user32
 
-#define __ASM_X86_64_ELF_H 1
+#undef elf_read_implies_exec
 #define elf_read_implies_exec(ex, executable_stack)     (executable_stack != EXSTACK_DISABLE_X)
 //#include <asm/ia32.h>
 #include <linux/elf.h>

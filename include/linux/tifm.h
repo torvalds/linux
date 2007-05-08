@@ -14,16 +14,16 @@
 
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
-#include <linux/wait.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
-#include <linux/kthread.h>
+#include <linux/workqueue.h>
 
 /* Host registers (relative to pci base address): */
 enum {
 	FM_SET_INTERRUPT_ENABLE   = 0x008,
 	FM_CLEAR_INTERRUPT_ENABLE = 0x00c,
-	FM_INTERRUPT_STATUS       = 0x014 };
+	FM_INTERRUPT_STATUS       = 0x014
+};
 
 /* Socket registers (relative to socket base address): */
 enum {
@@ -58,14 +58,8 @@ enum {
 	SOCK_MS_DATA                   = 0x188,
 	SOCK_MS_STATUS                 = 0x18c,
 	SOCK_MS_SYSTEM                 = 0x190,
-	SOCK_FIFO_ACCESS               = 0x200 };
-
-
-#define TIFM_IRQ_ENABLE           0x80000000
-#define TIFM_IRQ_SOCKMASK(x)      (x)
-#define TIFM_IRQ_CARDMASK(x)      ((x) << 8)
-#define TIFM_IRQ_FIFOMASK(x)      ((x) << 16)
-#define TIFM_IRQ_SETALL           0xffffffff
+	SOCK_FIFO_ACCESS               = 0x200
+};
 
 #define TIFM_CTRL_LED             0x00000040
 #define TIFM_CTRL_FAST_CLK        0x00000100
@@ -73,63 +67,76 @@ enum {
 #define TIFM_SOCK_STATE_OCCUPIED  0x00000008
 #define TIFM_SOCK_STATE_POWERED   0x00000080
 
-#define TIFM_FIFO_ENABLE          0x00000001 /* Meaning of this constant is unverified */
+#define TIFM_FIFO_ENABLE          0x00000001
+#define TIFM_FIFO_READY           0x00000001
 #define TIFM_FIFO_INT_SETALL      0x0000ffff
-#define TIFM_FIFO_INTMASK         0x00000005 /* Meaning of this constant is unverified */
+#define TIFM_FIFO_INTMASK         0x00000005
 
-#define TIFM_DMA_RESET            0x00000002 /* Meaning of this constant is unverified */
-#define TIFM_DMA_TX               0x00008000 /* Meaning of this constant is unverified */
-#define TIFM_DMA_EN               0x00000001 /* Meaning of this constant is unverified */
+#define TIFM_DMA_RESET            0x00000002
+#define TIFM_DMA_TX               0x00008000
+#define TIFM_DMA_EN               0x00000001
+#define TIFM_DMA_TSIZE            0x0000007f
 
-typedef enum {FM_NULL = 0, FM_XD = 0x01, FM_MS = 0x02, FM_SD = 0x03} tifm_media_id;
+#define TIFM_TYPE_XD 1
+#define TIFM_TYPE_MS 2
+#define TIFM_TYPE_SD 3
+
+struct tifm_device_id {
+	unsigned char type;
+};
 
 struct tifm_driver;
 struct tifm_dev {
-	char __iomem            *addr;
-	spinlock_t              lock;
-	tifm_media_id           media_id;
-	unsigned int            socket_id;
+	char __iomem  *addr;
+	spinlock_t    lock;
+	unsigned char type;
+	unsigned int  socket_id;
 
-	void                    (*signal_irq)(struct tifm_dev *sock,
-					      unsigned int sock_irq_status);
+	void          (*card_event)(struct tifm_dev *sock);
+	void          (*data_event)(struct tifm_dev *sock);
 
-	struct tifm_driver      *drv;
-	struct device           dev;
+	struct device dev;
 };
 
 struct tifm_driver {
-	tifm_media_id        *id_table;
-	int                  (*probe)(struct tifm_dev *dev);
-	void                 (*remove)(struct tifm_dev *dev);
-	int                  (*suspend)(struct tifm_dev *dev,
-                                        pm_message_t state);
-	int                  (*resume)(struct tifm_dev *dev);
+	struct tifm_device_id *id_table;
+	int                   (*probe)(struct tifm_dev *dev);
+	void                  (*remove)(struct tifm_dev *dev);
+	int                   (*suspend)(struct tifm_dev *dev,
+					 pm_message_t state);
+	int                   (*resume)(struct tifm_dev *dev);
 
-	struct device_driver driver;
+	struct device_driver  driver;
 };
 
 struct tifm_adapter {
-	char __iomem            *addr;
-	spinlock_t              lock;
-	unsigned int            irq_status;
-	unsigned int            socket_change_set;
-	wait_queue_head_t       change_set_notify;
-	unsigned int            id;
-	unsigned int            num_sockets;
-	struct tifm_dev         **sockets;
-	struct task_struct      *media_switcher;
-	struct class_device     cdev;
-	struct device           *dev;
+	char __iomem        *addr;
+	spinlock_t          lock;
+	unsigned int        irq_status;
+	unsigned int        socket_change_set;
+	unsigned int        id;
+	unsigned int        num_sockets;
+	struct completion   *finish_me;
 
-	void                    (*eject)(struct tifm_adapter *fm, struct tifm_dev *sock);
+	struct work_struct  media_switcher;
+	struct class_device cdev;
+
+	void                (*eject)(struct tifm_adapter *fm,
+				     struct tifm_dev *sock);
+
+	struct tifm_dev     *sockets[0];
 };
 
-struct tifm_adapter *tifm_alloc_adapter(void);
-void tifm_free_device(struct device *dev);
-void tifm_free_adapter(struct tifm_adapter *fm);
-int tifm_add_adapter(struct tifm_adapter *fm, int (*mediathreadfn)(void *data));
+struct tifm_adapter *tifm_alloc_adapter(unsigned int num_sockets,
+					struct device *dev);
+int tifm_add_adapter(struct tifm_adapter *fm);
 void tifm_remove_adapter(struct tifm_adapter *fm);
-struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm);
+void tifm_free_adapter(struct tifm_adapter *fm);
+
+void tifm_free_device(struct device *dev);
+struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm, unsigned int id,
+				   unsigned char type);
+
 int tifm_register_driver(struct tifm_driver *drv);
 void tifm_unregister_driver(struct tifm_driver *drv);
 void tifm_eject(struct tifm_dev *sock);
@@ -137,20 +144,16 @@ int tifm_map_sg(struct tifm_dev *sock, struct scatterlist *sg, int nents,
 		int direction);
 void tifm_unmap_sg(struct tifm_dev *sock, struct scatterlist *sg, int nents,
 		   int direction);
-
+void tifm_queue_work(struct work_struct *work);
 
 static inline void *tifm_get_drvdata(struct tifm_dev *dev)
 {
-        return dev_get_drvdata(&dev->dev);
+	return dev_get_drvdata(&dev->dev);
 }
 
 static inline void tifm_set_drvdata(struct tifm_dev *dev, void *data)
 {
 	dev_set_drvdata(&dev->dev, data);
 }
-
-struct tifm_device_id {
-	tifm_media_id media_id;
-};
 
 #endif

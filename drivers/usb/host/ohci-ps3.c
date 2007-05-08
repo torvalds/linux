@@ -75,14 +75,6 @@ static const struct hc_driver ps3_ohci_hc_driver = {
 #endif
 };
 
-/* redefine dev_dbg to do a syntax check */
-
-#if !defined(DEBUG)
-#undef dev_dbg
-static inline int __attribute__ ((format (printf, 2, 3))) dev_dbg(
-	const struct device *_dev, const char *fmt, ...) {return 0;}
-#endif
-
 static int ps3_ohci_sb_probe(struct ps3_system_bus_device *dev)
 {
 	int result;

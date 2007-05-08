@@ -21,7 +21,7 @@ AS += -m68020
 LDFLAGS := -m m68kelf
 ifneq ($(COMPILE_ARCH),$(ARCH))
 	# prefix for cross-compiling binaries
-	CROSS_COMPILE = m68k-linux-
+	CROSS_COMPILE = m68k-linux-gnu-
 endif
 
 ifdef CONFIG_SUN3

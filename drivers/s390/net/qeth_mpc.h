@@ -37,6 +37,7 @@ extern unsigned char IPA_PDU_HEADER[];
 
 #define QETH_CLEAR_CHANNEL_PARM	-10
 #define QETH_HALT_CHANNEL_PARM	-11
+#define QETH_RCD_PARM -12
 
 /*****************************************************************************/
 /* IP Assist related definitions                                             */

@@ -55,7 +55,7 @@ static u32 iop3xx_cfg_address(struct pci_bus *bus, int devfn, int where)
  * This routine checks the status of the last configuration cycle.  If an error
  * was detected it returns a 1, else it returns a 0.  The errors being checked
  * are parity, master abort, target abort (master and target).  These types of
- * errors occure during a config cycle where there is no device, like during
+ * errors occur during a config cycle where there is no device, like during
  * the discovery stage.
  */
 static int iop3xx_pci_status(void)
@@ -223,8 +223,111 @@ struct pci_bus *iop3xx_pci_scan_bus(int nr, struct pci_sys_data *sys)
 	return pci_scan_bus(sys->busnr, &iop3xx_ops, sys);
 }
 
+void __init iop3xx_atu_setup(void)
+{
+	/* BAR 0 ( Disabled ) */
+	*IOP3XX_IAUBAR0 = 0x0;
+	*IOP3XX_IABAR0  = 0x0;
+	*IOP3XX_IATVR0  = 0x0;
+	*IOP3XX_IALR0   = 0x0;
+
+	/* BAR 1 ( Disabled ) */
+	*IOP3XX_IAUBAR1 = 0x0;
+	*IOP3XX_IABAR1  = 0x0;
+	*IOP3XX_IALR1   = 0x0;
+
+	/* BAR 2 (1:1 mapping with Physical RAM) */
+	/* Set limit and enable */
+	*IOP3XX_IALR2 = ~((u32)IOP3XX_MAX_RAM_SIZE - 1) & ~0x1;
+	*IOP3XX_IAUBAR2 = 0x0;
+
+	/* Align the inbound bar with the base of memory */
+	*IOP3XX_IABAR2 = PHYS_OFFSET |
+			       PCI_BASE_ADDRESS_MEM_TYPE_64 |
+			       PCI_BASE_ADDRESS_MEM_PREFETCH;
+
+	*IOP3XX_IATVR2 = PHYS_OFFSET;
+
+	/* Outbound window 0 */
+	*IOP3XX_OMWTVR0 = IOP3XX_PCI_LOWER_MEM_PA;
+	*IOP3XX_OUMWTVR0 = 0;
+
+	/* Outbound window 1 */
+	*IOP3XX_OMWTVR1 = IOP3XX_PCI_LOWER_MEM_PA + IOP3XX_PCI_MEM_WINDOW_SIZE;
+	*IOP3XX_OUMWTVR1 = 0;
+
+	/* BAR 3 ( Disabled ) */
+	*IOP3XX_IAUBAR3 = 0x0;
+	*IOP3XX_IABAR3  = 0x0;
+	*IOP3XX_IATVR3  = 0x0;
+	*IOP3XX_IALR3   = 0x0;
+
+	/* Setup the I/O Bar
+	 */
+	*IOP3XX_OIOWTVR = IOP3XX_PCI_LOWER_IO_PA;;
+
+	/* Enable inbound and outbound cycles
+	 */
+	*IOP3XX_ATUCMD |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
+			       PCI_COMMAND_PARITY | PCI_COMMAND_SERR;
+	*IOP3XX_ATUCR |= IOP3XX_ATUCR_OUT_EN;
+}
+
+void __init iop3xx_atu_disable(void)
+{
+	*IOP3XX_ATUCMD = 0;
+	*IOP3XX_ATUCR = 0;
+
+	/* wait for cycles to quiesce */
+	while (*IOP3XX_PCSR & (IOP3XX_PCSR_OUT_Q_BUSY |
+				     IOP3XX_PCSR_IN_Q_BUSY))
+		cpu_relax();
+
+	/* BAR 0 ( Disabled ) */
+	*IOP3XX_IAUBAR0 = 0x0;
+	*IOP3XX_IABAR0  = 0x0;
+	*IOP3XX_IATVR0  = 0x0;
+	*IOP3XX_IALR0   = 0x0;
+
+	/* BAR 1 ( Disabled ) */
+	*IOP3XX_IAUBAR1 = 0x0;
+	*IOP3XX_IABAR1  = 0x0;
+	*IOP3XX_IALR1   = 0x0;
+
+	/* BAR 2 ( Disabled ) */
+	*IOP3XX_IAUBAR2 = 0x0;
+	*IOP3XX_IABAR2  = 0x0;
+	*IOP3XX_IATVR2  = 0x0;
+	*IOP3XX_IALR2   = 0x0;
+
+	/* BAR 3 ( Disabled ) */
+	*IOP3XX_IAUBAR3 = 0x0;
+	*IOP3XX_IABAR3  = 0x0;
+	*IOP3XX_IATVR3  = 0x0;
+	*IOP3XX_IALR3   = 0x0;
+
+	/* Clear the outbound windows */
+	*IOP3XX_OIOWTVR  = 0;
+
+	/* Outbound window 0 */
+	*IOP3XX_OMWTVR0 = 0;
+	*IOP3XX_OUMWTVR0 = 0;
+
+	/* Outbound window 1 */
+	*IOP3XX_OMWTVR1 = 0;
+	*IOP3XX_OUMWTVR1 = 0;
+}
+
+/* Flag to determine whether the ATU is initialized and the PCI bus scanned */
+int init_atu;
+
 void iop3xx_pci_preinit(void)
 {
+	if (iop3xx_get_init_atu() == IOP3XX_INIT_ATU_ENABLE) {
+		iop3xx_atu_disable();
+		iop3xx_atu_setup();
+	}
+
 	DBG("PCI:  Intel 803xx PCI init code.\n");
 	DBG("ATU: IOP3XX_ATUCMD=0x%04x\n", *IOP3XX_ATUCMD);
 	DBG("ATU: IOP3XX_OMWTVR0=0x%04x, IOP3XX_OIOWTVR=0x%04x\n",
@@ -245,3 +348,38 @@ void iop3xx_pci_preinit(void)
 
 	hook_fault_code(16+6, iop3xx_pci_abort, SIGBUS, "imprecise external abort");
 }
+
+/* allow init_atu to be user overridden */
+static int __init iop3xx_init_atu_setup(char *str)
+{
+	init_atu = IOP3XX_INIT_ATU_DEFAULT;
+	if (str) {
+		while (*str != '\0') {
+			switch (*str) {
+			case 'y':
+			case 'Y':
+				init_atu = IOP3XX_INIT_ATU_ENABLE;
+				break;
+			case 'n':
+			case 'N':
+				init_atu = IOP3XX_INIT_ATU_DISABLE;
+				break;
+			case ',':
+			case '=':
+				break;
+			default:
+				printk(KERN_DEBUG "\"%s\" malformed at "
+					    "character: \'%c\'",
+					    __FUNCTION__,
+					    *str);
+				*(str + 1) = '\0';
+			}
+			str++;
+		}
+	}
+
+	return 1;
+}
+
+__setup("iop3xx_init_atu", iop3xx_init_atu_setup);
+

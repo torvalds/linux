@@ -20,6 +20,7 @@
 #include <linux/tty.h>
 #include <linux/vt_kern.h>		/* For unblank_screen() */
 #include <linux/highmem.h>
+#include <linux/bootmem.h>		/* for max_low_pfn */
 #include <linux/module.h>
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
@@ -301,7 +302,6 @@ fastcall void __kprobes do_page_fault(struct pt_regs *regs,
 	struct mm_struct *mm;
 	struct vm_area_struct * vma;
 	unsigned long address;
-	unsigned long page;
 	int write, si_code;
 
 	/* get the address */
@@ -510,7 +510,9 @@ no_context:
 	bust_spinlocks(1);
 
 	if (oops_may_print()) {
-	#ifdef CONFIG_X86_PAE
+		__typeof__(pte_val(__pte(0))) page;
+
+#ifdef CONFIG_X86_PAE
 		if (error_code & 16) {
 			pte_t *pte = lookup_address(address);
 
@@ -519,7 +521,7 @@ no_context:
 					"NX-protected page - exploit attempt? "
 					"(uid: %d)\n", current->uid);
 		}
-	#endif
+#endif
 		if (address < PAGE_SIZE)
 			printk(KERN_ALERT "BUG: unable to handle kernel NULL "
 					"pointer dereference");
@@ -529,25 +531,38 @@ no_context:
 		printk(" at virtual address %08lx\n",address);
 		printk(KERN_ALERT " printing eip:\n");
 		printk("%08lx\n", regs->eip);
-	}
-	page = read_cr3();
-	page = ((unsigned long *) __va(page))[address >> 22];
-	if (oops_may_print())
+
+		page = read_cr3();
+		page = ((__typeof__(page) *) __va(page))[address >> PGDIR_SHIFT];
+#ifdef CONFIG_X86_PAE
+		printk(KERN_ALERT "*pdpt = %016Lx\n", page);
+		if ((page >> PAGE_SHIFT) < max_low_pfn
+		    && page & _PAGE_PRESENT) {
+			page &= PAGE_MASK;
+			page = ((__typeof__(page) *) __va(page))[(address >> PMD_SHIFT)
+			                                         & (PTRS_PER_PMD - 1)];
+			printk(KERN_ALERT "*pde = %016Lx\n", page);
+			page &= ~_PAGE_NX;
+		}
+#else
 		printk(KERN_ALERT "*pde = %08lx\n", page);
-	/*
-	 * We must not directly access the pte in the highpte
-	 * case, the page table might be allocated in highmem.
-	 * And lets rather not kmap-atomic the pte, just in case
-	 * it's allocated already.
-	 */
-#ifndef CONFIG_HIGHPTE
-	if ((page & 1) && oops_may_print()) {
-		page &= PAGE_MASK;
-		address &= 0x003ff000;
-		page = ((unsigned long *) __va(page))[address >> PAGE_SHIFT];
-		printk(KERN_ALERT "*pte = %08lx\n", page);
-	}
 #endif
+
+		/*
+		 * We must not directly access the pte in the highpte
+		 * case if the page table is located in highmem.
+		 * And let's rather not kmap-atomic the pte, just in case
+		 * it's allocated already.
+		 */
+		if ((page >> PAGE_SHIFT) < max_low_pfn
+		    && (page & _PAGE_PRESENT)) {
+			page &= PAGE_MASK;
+			page = ((__typeof__(page) *) __va(page))[(address >> PAGE_SHIFT)
+			                                         & (PTRS_PER_PTE - 1)];
+			printk(KERN_ALERT "*pte = %0*Lx\n", sizeof(page)*2, (u64)page);
+		}
+	}
+
 	tsk->thread.cr2 = address;
 	tsk->thread.trap_no = 14;
 	tsk->thread.error_code = error_code;
@@ -588,7 +603,6 @@ do_sigbus:
 	force_sig_info_fault(SIGBUS, BUS_ADRERR, address, tsk);
 }
 
-#ifndef CONFIG_X86_PAE
 void vmalloc_sync_all(void)
 {
 	/*
@@ -600,6 +614,9 @@ void vmalloc_sync_all(void)
 	static DECLARE_BITMAP(insync, PTRS_PER_PGD);
 	static unsigned long start = TASK_SIZE;
 	unsigned long address;
+
+	if (SHARED_KERNEL_PMD)
+		return;
 
 	BUILD_BUG_ON(TASK_SIZE & ~PGDIR_MASK);
 	for (address = start; address >= TASK_SIZE; address += PGDIR_SIZE) {
@@ -623,4 +640,3 @@ void vmalloc_sync_all(void)
 			start = address + PGDIR_SIZE;
 	}
 }
-#endif

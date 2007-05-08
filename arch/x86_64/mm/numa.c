@@ -273,125 +273,213 @@ void __init numa_init_array(void)
 
 #ifdef CONFIG_NUMA_EMU
 /* Numa emulation */
-int numa_fake __initdata = 0;
+#define E820_ADDR_HOLE_SIZE(start, end)					\
+	(e820_hole_size((start) >> PAGE_SHIFT, (end) >> PAGE_SHIFT) <<	\
+	PAGE_SHIFT)
+char *cmdline __initdata;
 
 /*
- * This function is used to find out if the start and end correspond to
- * different zones.
+ * Setups up nid to range from addr to addr + size.  If the end boundary is
+ * greater than max_addr, then max_addr is used instead.  The return value is 0
+ * if there is additional memory left for allocation past addr and -1 otherwise.
+ * addr is adjusted to be at the end of the node.
  */
-int zone_cross_over(unsigned long start, unsigned long end)
+static int __init setup_node_range(int nid, struct bootnode *nodes, u64 *addr,
+				   u64 size, u64 max_addr)
 {
-	if ((start < (MAX_DMA32_PFN << PAGE_SHIFT)) &&
-			(end >= (MAX_DMA32_PFN << PAGE_SHIFT)))
-		return 1;
-	return 0;
+	int ret = 0;
+	nodes[nid].start = *addr;
+	*addr += size;
+	if (*addr >= max_addr) {
+		*addr = max_addr;
+		ret = -1;
+	}
+	nodes[nid].end = *addr;
+	node_set(nid, node_possible_map);
+	printk(KERN_INFO "Faking node %d at %016Lx-%016Lx (%LuMB)\n", nid,
+	       nodes[nid].start, nodes[nid].end,
+	       (nodes[nid].end - nodes[nid].start) >> 20);
+	return ret;
 }
 
-static int __init numa_emulation(unsigned long start_pfn, unsigned long end_pfn)
+/*
+ * Splits num_nodes nodes up equally starting at node_start.  The return value
+ * is the number of nodes split up and addr is adjusted to be at the end of the
+ * last node allocated.
+ */
+static int __init split_nodes_equally(struct bootnode *nodes, u64 *addr,
+				      u64 max_addr, int node_start,
+				      int num_nodes)
 {
- 	int i, big;
- 	struct bootnode nodes[MAX_NUMNODES];
- 	unsigned long sz, old_sz;
-	unsigned long hole_size;
-	unsigned long start, end;
-	unsigned long max_addr = (end_pfn << PAGE_SHIFT);
+	unsigned int big;
+	u64 size;
+	int i;
 
-	start = (start_pfn << PAGE_SHIFT);
-	hole_size = e820_hole_size(start, max_addr);
-	sz = (max_addr - start - hole_size) / numa_fake;
-
- 	/* Kludge needed for the hash function */
-
-	old_sz = sz;
+	if (num_nodes <= 0)
+		return -1;
+	if (num_nodes > MAX_NUMNODES)
+		num_nodes = MAX_NUMNODES;
+	size = (max_addr - *addr - E820_ADDR_HOLE_SIZE(*addr, max_addr)) /
+	       num_nodes;
 	/*
-	 * Round down to the nearest FAKE_NODE_MIN_SIZE.
+	 * Calculate the number of big nodes that can be allocated as a result
+	 * of consolidating the leftovers.
 	 */
-	sz &= FAKE_NODE_MIN_HASH_MASK;
+	big = ((size & ~FAKE_NODE_MIN_HASH_MASK) * num_nodes) /
+	      FAKE_NODE_MIN_SIZE;
 
-	/*
-	 * We ensure that each node is at least 64MB big.  Smaller than this
-	 * size can cause VM hiccups.
-	 */
-	if (sz == 0) {
-		printk(KERN_INFO "Not enough memory for %d nodes.  Reducing "
-				"the number of nodes\n", numa_fake);
-		numa_fake = (max_addr - start - hole_size) / FAKE_NODE_MIN_SIZE;
-		printk(KERN_INFO "Number of fake nodes will be = %d\n",
-				numa_fake);
-		sz = FAKE_NODE_MIN_SIZE;
+	/* Round down to nearest FAKE_NODE_MIN_SIZE. */
+	size &= FAKE_NODE_MIN_HASH_MASK;
+	if (!size) {
+		printk(KERN_ERR "Not enough memory for each node.  "
+		       "NUMA emulation disabled.\n");
+		return -1;
 	}
-	/*
-	 * Find out how many nodes can get an extra NODE_MIN_SIZE granule.
-	 * This logic ensures the extra memory gets distributed among as many
-	 * nodes as possible (as compared to one single node getting all that
-	 * extra memory.
-	 */
-	big = ((old_sz - sz) * numa_fake) / FAKE_NODE_MIN_SIZE;
-	printk(KERN_INFO "Fake node Size: %luMB hole_size: %luMB big nodes: "
-			"%d\n",
-			(sz >> 20), (hole_size >> 20), big);
- 	memset(&nodes,0,sizeof(nodes));
-	end = start;
- 	for (i = 0; i < numa_fake; i++) {
-		/*
-		 * In case we are not able to allocate enough memory for all
-		 * the nodes, we reduce the number of fake nodes.
-		 */
-		if (end >= max_addr) {
-			numa_fake = i - 1;
-			break;
-		}
- 		start = nodes[i].start = end;
-		/*
-		 * Final node can have all the remaining memory.
-		 */
- 		if (i == numa_fake-1)
- 			sz = max_addr - start;
- 		end = nodes[i].start + sz;
-		/*
-		 * Fir "big" number of nodes get extra granule.
-		 */
+
+	for (i = node_start; i < num_nodes + node_start; i++) {
+		u64 end = *addr + size;
 		if (i < big)
 			end += FAKE_NODE_MIN_SIZE;
 		/*
-		 * Iterate over the range to ensure that this node gets at
-		 * least sz amount of RAM (excluding holes)
+		 * The final node can have the remaining system RAM.  Other
+		 * nodes receive roughly the same amount of available pages.
 		 */
-		while ((end - start - e820_hole_size(start, end)) < sz) {
-			end += FAKE_NODE_MIN_SIZE;
-			if (end >= max_addr)
-				break;
-		}
-		/*
-		 * Look at the next node to make sure there is some real memory
-		 * to map.  Bad things happen when the only memory present
-		 * in a zone on a fake node is IO hole.
-		 */
-		while (e820_hole_size(end, end + FAKE_NODE_MIN_SIZE) > 0) {
-			if (zone_cross_over(start, end + sz)) {
-				end = (MAX_DMA32_PFN << PAGE_SHIFT);
-				break;
-			}
-			if (end >= max_addr)
-				break;
-			end += FAKE_NODE_MIN_SIZE;
-		}
-		if (end > max_addr)
+		if (i == num_nodes + node_start - 1)
 			end = max_addr;
-		nodes[i].end = end;
- 		printk(KERN_INFO "Faking node %d at %016Lx-%016Lx (%LuMB)\n",
- 		       i,
- 		       nodes[i].start, nodes[i].end,
- 		       (nodes[i].end - nodes[i].start) >> 20);
-		node_set_online(i);
- 	}
- 	memnode_shift = compute_hash_shift(nodes, numa_fake);
- 	if (memnode_shift < 0) {
- 		memnode_shift = 0;
- 		printk(KERN_ERR "No NUMA hash function found. Emulation disabled.\n");
- 		return -1;
- 	}
- 	for_each_online_node(i) {
+		else
+			while (end - *addr - E820_ADDR_HOLE_SIZE(*addr, end) <
+			       size) {
+				end += FAKE_NODE_MIN_SIZE;
+				if (end > max_addr) {
+					end = max_addr;
+					break;
+				}
+			}
+		if (setup_node_range(i, nodes, addr, end - *addr, max_addr) < 0)
+			break;
+	}
+	return i - node_start + 1;
+}
+
+/*
+ * Splits the remaining system RAM into chunks of size.  The remaining memory is
+ * always assigned to a final node and can be asymmetric.  Returns the number of
+ * nodes split.
+ */
+static int __init split_nodes_by_size(struct bootnode *nodes, u64 *addr,
+				      u64 max_addr, int node_start, u64 size)
+{
+	int i = node_start;
+	size = (size << 20) & FAKE_NODE_MIN_HASH_MASK;
+	while (!setup_node_range(i++, nodes, addr, size, max_addr))
+		;
+	return i - node_start;
+}
+
+/*
+ * Sets up the system RAM area from start_pfn to end_pfn according to the
+ * numa=fake command-line option.
+ */
+static int __init numa_emulation(unsigned long start_pfn, unsigned long end_pfn)
+{
+	struct bootnode nodes[MAX_NUMNODES];
+	u64 addr = start_pfn << PAGE_SHIFT;
+	u64 max_addr = end_pfn << PAGE_SHIFT;
+	int num_nodes = 0;
+	int coeff_flag;
+	int coeff = -1;
+	int num = 0;
+	u64 size;
+	int i;
+
+	memset(&nodes, 0, sizeof(nodes));
+	/*
+	 * If the numa=fake command-line is just a single number N, split the
+	 * system RAM into N fake nodes.
+	 */
+	if (!strchr(cmdline, '*') && !strchr(cmdline, ',')) {
+		num_nodes = split_nodes_equally(nodes, &addr, max_addr, 0,
+						simple_strtol(cmdline, NULL, 0));
+		if (num_nodes < 0)
+			return num_nodes;
+		goto out;
+	}
+
+	/* Parse the command line. */
+	for (coeff_flag = 0; ; cmdline++) {
+		if (*cmdline && isdigit(*cmdline)) {
+			num = num * 10 + *cmdline - '0';
+			continue;
+		}
+		if (*cmdline == '*') {
+			if (num > 0)
+				coeff = num;
+			coeff_flag = 1;
+		}
+		if (!*cmdline || *cmdline == ',') {
+			if (!coeff_flag)
+				coeff = 1;
+			/*
+			 * Round down to the nearest FAKE_NODE_MIN_SIZE.
+			 * Command-line coefficients are in megabytes.
+			 */
+			size = ((u64)num << 20) & FAKE_NODE_MIN_HASH_MASK;
+			if (size)
+				for (i = 0; i < coeff; i++, num_nodes++)
+					if (setup_node_range(num_nodes, nodes,
+						&addr, size, max_addr) < 0)
+						goto done;
+			if (!*cmdline)
+				break;
+			coeff_flag = 0;
+			coeff = -1;
+		}
+		num = 0;
+	}
+done:
+	if (!num_nodes)
+		return -1;
+	/* Fill remainder of system RAM, if appropriate. */
+	if (addr < max_addr) {
+		if (coeff_flag && coeff < 0) {
+			/* Split remaining nodes into num-sized chunks */
+			num_nodes += split_nodes_by_size(nodes, &addr, max_addr,
+							 num_nodes, num);
+			goto out;
+		}
+		switch (*(cmdline - 1)) {
+		case '*':
+			/* Split remaining nodes into coeff chunks */
+			if (coeff <= 0)
+				break;
+			num_nodes += split_nodes_equally(nodes, &addr, max_addr,
+							 num_nodes, coeff);
+			break;
+		case ',':
+			/* Do not allocate remaining system RAM */
+			break;
+		default:
+			/* Give one final node */
+			setup_node_range(num_nodes, nodes, &addr,
+					 max_addr - addr, max_addr);
+			num_nodes++;
+		}
+	}
+out:
+	memnode_shift = compute_hash_shift(nodes, num_nodes);
+	if (memnode_shift < 0) {
+		memnode_shift = 0;
+		printk(KERN_ERR "No NUMA hash function found.  NUMA emulation "
+		       "disabled.\n");
+		return -1;
+	}
+
+	/*
+	 * We need to vacate all active ranges that may have been registered by
+	 * SRAT.
+	 */
+	remove_all_active_ranges();
+	for_each_node_mask(i, node_possible_map) {
 		e820_register_active_regions(i, nodes[i].start >> PAGE_SHIFT,
 						nodes[i].end >> PAGE_SHIFT);
  		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
@@ -399,26 +487,32 @@ static int __init numa_emulation(unsigned long start_pfn, unsigned long end_pfn)
  	numa_init_array();
  	return 0;
 }
-#endif
+#undef E820_ADDR_HOLE_SIZE
+#endif /* CONFIG_NUMA_EMU */
 
 void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 { 
 	int i;
 
+	nodes_clear(node_possible_map);
+
 #ifdef CONFIG_NUMA_EMU
-	if (numa_fake && !numa_emulation(start_pfn, end_pfn))
+	if (cmdline && !numa_emulation(start_pfn, end_pfn))
  		return;
+	nodes_clear(node_possible_map);
 #endif
 
 #ifdef CONFIG_ACPI_NUMA
 	if (!numa_off && !acpi_scan_nodes(start_pfn << PAGE_SHIFT,
 					  end_pfn << PAGE_SHIFT))
  		return;
+	nodes_clear(node_possible_map);
 #endif
 
 #ifdef CONFIG_K8_NUMA
 	if (!numa_off && !k8_scan_nodes(start_pfn<<PAGE_SHIFT, end_pfn<<PAGE_SHIFT))
 		return;
+	nodes_clear(node_possible_map);
 #endif
 	printk(KERN_INFO "%s\n",
 	       numa_off ? "NUMA turned off" : "No NUMA configuration found");
@@ -432,6 +526,7 @@ void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 	memnodemap[0] = 0;
 	nodes_clear(node_online_map);
 	node_set_online(0);
+	node_set(0, node_possible_map);
 	for (i = 0; i < NR_CPUS; i++)
 		numa_set_node(i, 0);
 	node_to_cpumask[0] = cpumask_of_cpu(0);
@@ -486,11 +581,8 @@ static __init int numa_setup(char *opt)
 	if (!strncmp(opt,"off",3))
 		numa_off = 1;
 #ifdef CONFIG_NUMA_EMU
-	if(!strncmp(opt, "fake=", 5)) {
-		numa_fake = simple_strtoul(opt+5,NULL,0); ;
-		if (numa_fake >= MAX_NUMNODES)
-			numa_fake = MAX_NUMNODES;
-	}
+	if (!strncmp(opt, "fake=", 5))
+		cmdline = opt + 5;
 #endif
 #ifdef CONFIG_ACPI_NUMA
  	if (!strncmp(opt,"noacpi",6))

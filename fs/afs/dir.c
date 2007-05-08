@@ -194,10 +194,7 @@ static struct page *afs_dir_get_page(struct inode *dir, unsigned long index,
 
 	page = read_mapping_page(dir->i_mapping, index, &file);
 	if (!IS_ERR(page)) {
-		wait_on_page_locked(page);
 		kmap(page);
-		if (!PageUptodate(page))
-			goto fail;
 		if (!PageChecked(page))
 			afs_dir_check_page(dir, page);
 		if (PageError(page))

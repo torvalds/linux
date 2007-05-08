@@ -61,6 +61,8 @@ struct s3c24xx_i2c {
 	unsigned int		msg_idx;
 	unsigned int		msg_ptr;
 
+	unsigned int		tx_setup;
+
 	enum s3c24xx_i2c_state	state;
 
 	void __iomem		*regs;
@@ -199,8 +201,11 @@ static void s3c24xx_i2c_message_start(struct s3c24xx_i2c *i2c,
 	dev_dbg(i2c->dev, "START: %08lx to IICSTAT, %02x to DS\n", stat, addr);
 	writeb(addr, i2c->regs + S3C2410_IICDS);
 	
-	// delay a bit and reset iiccon before setting start (per samsung)
-	udelay(1);
+	/* delay here to ensure the data byte has gotten onto the bus
+	 * before the transaction is started */
+
+	ndelay(i2c->tx_setup);
+
 	dev_dbg(i2c->dev, "iiccon, %08lx\n", iiccon);
 	writel(iiccon, i2c->regs + S3C2410_IICCON);
 	
@@ -322,7 +327,15 @@ static int i2s_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
 		if (!is_msgend(i2c)) {
 			byte = i2c->msg->buf[i2c->msg_ptr++];
 			writeb(byte, i2c->regs + S3C2410_IICDS);
-			
+
+			/* delay after writing the byte to allow the
+			 * data setup time on the bus, as writing the
+			 * data to the register causes the first bit
+			 * to appear on SDA, and SCL will change as
+			 * soon as the interrupt is acknowledged */
+
+			ndelay(i2c->tx_setup);
+
 		} else if (!is_lastmsg(i2c)) {
 			/* we need to go to the next i2c message */
 
@@ -570,9 +583,10 @@ static const struct i2c_algorithm s3c24xx_i2c_algorithm = {
 };
 
 static struct s3c24xx_i2c s3c24xx_i2c = {
-	.lock	= SPIN_LOCK_UNLOCKED,
-	.wait	= __WAIT_QUEUE_HEAD_INITIALIZER(s3c24xx_i2c.wait),
-	.adap	= {
+	.lock		= __SPIN_LOCK_UNLOCKED(s3c24xx_i2c.lock),
+	.wait		= __WAIT_QUEUE_HEAD_INITIALIZER(s3c24xx_i2c.wait),
+	.tx_setup	= 50,
+	.adap		= {
 		.name			= "s3c2410-i2c",
 		.owner			= THIS_MODULE,
 		.algo			= &s3c24xx_i2c_algorithm,
@@ -731,26 +745,6 @@ static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)
 	return 0;
 }
 
-static void s3c24xx_i2c_free(struct s3c24xx_i2c *i2c)
-{
-	if (i2c->clk != NULL && !IS_ERR(i2c->clk)) {
-		clk_disable(i2c->clk);
-		clk_put(i2c->clk);
-		i2c->clk = NULL;
-	}
-
-	if (i2c->regs != NULL) {
-		iounmap(i2c->regs);
-		i2c->regs = NULL;
-	}
-
-	if (i2c->ioarea != NULL) {
-		release_resource(i2c->ioarea);
-		kfree(i2c->ioarea);
-		i2c->ioarea = NULL;
-	}
-}
-
 /* s3c24xx_i2c_probe
  *
  * called by the bus driver when a suitable device is found
@@ -769,7 +763,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(i2c->clk)) {
 		dev_err(&pdev->dev, "cannot get clock\n");
 		ret = -ENOENT;
-		goto out;
+		goto err_noclk;
 	}
 
 	dev_dbg(&pdev->dev, "clock source %p\n", i2c->clk);
@@ -782,7 +776,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	if (res == NULL) {
 		dev_err(&pdev->dev, "cannot find IO resource\n");
 		ret = -ENOENT;
-		goto out;
+		goto err_clk;
 	}
 
 	i2c->ioarea = request_mem_region(res->start, (res->end-res->start)+1,
@@ -791,7 +785,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	if (i2c->ioarea == NULL) {
 		dev_err(&pdev->dev, "cannot request IO\n");
 		ret = -ENXIO;
-		goto out;
+		goto err_clk;
 	}
 
 	i2c->regs = ioremap(res->start, (res->end-res->start)+1);
@@ -799,7 +793,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	if (i2c->regs == NULL) {
 		dev_err(&pdev->dev, "cannot map IO\n");
 		ret = -ENXIO;
-		goto out;
+		goto err_ioarea;
 	}
 
 	dev_dbg(&pdev->dev, "registers %p (%p, %p)\n", i2c->regs, i2c->ioarea, res);
@@ -813,7 +807,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 
 	ret = s3c24xx_i2c_init(i2c);
 	if (ret != 0)
-		goto out;
+		goto err_iomap;
 
 	/* find the IRQ for this unit (note, this relies on the init call to
 	 * ensure no current IRQs pending 
@@ -823,7 +817,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	if (res == NULL) {
 		dev_err(&pdev->dev, "cannot find IRQ\n");
 		ret = -ENOENT;
-		goto out;
+		goto err_iomap;
 	}
 
 	ret = request_irq(res->start, s3c24xx_i2c_irq, IRQF_DISABLED,
@@ -831,7 +825,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 
 	if (ret != 0) {
 		dev_err(&pdev->dev, "cannot claim IRQ\n");
-		goto out;
+		goto err_iomap;
 	}
 
 	i2c->irq = res;
@@ -841,17 +835,29 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to add bus to i2c core\n");
-		goto out;
+		goto err_irq;
 	}
 
 	platform_set_drvdata(pdev, i2c);
 
 	dev_info(&pdev->dev, "%s: S3C I2C adapter\n", i2c->adap.dev.bus_id);
+	return 0;
 
- out:
-	if (ret < 0)
-		s3c24xx_i2c_free(i2c);
+ err_irq:
+	free_irq(i2c->irq->start, i2c);
 
+ err_iomap:
+	iounmap(i2c->regs);
+
+ err_ioarea:
+	release_resource(i2c->ioarea);
+	kfree(i2c->ioarea);
+
+ err_clk:
+	clk_disable(i2c->clk);
+	clk_put(i2c->clk);
+
+ err_noclk:
 	return ret;
 }
 
@@ -863,11 +869,17 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 static int s3c24xx_i2c_remove(struct platform_device *pdev)
 {
 	struct s3c24xx_i2c *i2c = platform_get_drvdata(pdev);
-	
-	if (i2c != NULL) {
-		s3c24xx_i2c_free(i2c);
-		platform_set_drvdata(pdev, NULL);
-	}
+
+	i2c_del_adapter(&i2c->adap);
+	free_irq(i2c->irq->start, i2c);
+
+	clk_disable(i2c->clk);
+	clk_put(i2c->clk);
+
+	iounmap(i2c->regs);
+
+	release_resource(i2c->ioarea);
+	kfree(i2c->ioarea);
 
 	return 0;
 }

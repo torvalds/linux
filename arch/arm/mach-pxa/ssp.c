@@ -52,13 +52,13 @@ struct ssp_info_ {
  */
 static const struct ssp_info_ ssp_info[PXA_SSP_PORTS] = {
 #if defined (CONFIG_PXA27x)
-	{IRQ_SSP,	CKEN23_SSP1},
-	{IRQ_SSP2,	CKEN3_SSP2},
-	{IRQ_SSP3,	CKEN4_SSP3},
+	{IRQ_SSP,	CKEN_SSP1},
+	{IRQ_SSP2,	CKEN_SSP2},
+	{IRQ_SSP3,	CKEN_SSP3},
 #else
-	{IRQ_SSP,	CKEN3_SSP},
-	{IRQ_NSSP,	CKEN9_NSSP},
-	{IRQ_ASSP,	CKEN10_ASSP},
+	{IRQ_SSP,	CKEN_SSP},
+	{IRQ_NSSP,	CKEN_NSSP},
+	{IRQ_ASSP,	CKEN_ASSP},
 #endif
 };
 

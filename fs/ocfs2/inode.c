@@ -89,6 +89,25 @@ void ocfs2_set_inode_flags(struct inode *inode)
 		inode->i_flags |= S_DIRSYNC;
 }
 
+/* Propagate flags from i_flags to OCFS2_I(inode)->ip_attr */
+void ocfs2_get_inode_flags(struct ocfs2_inode_info *oi)
+{
+	unsigned int flags = oi->vfs_inode.i_flags;
+
+	oi->ip_attr &= ~(OCFS2_SYNC_FL|OCFS2_APPEND_FL|
+			OCFS2_IMMUTABLE_FL|OCFS2_NOATIME_FL|OCFS2_DIRSYNC_FL);
+	if (flags & S_SYNC)
+		oi->ip_attr |= OCFS2_SYNC_FL;
+	if (flags & S_APPEND)
+		oi->ip_attr |= OCFS2_APPEND_FL;
+	if (flags & S_IMMUTABLE)
+		oi->ip_attr |= OCFS2_IMMUTABLE_FL;
+	if (flags & S_NOATIME)
+		oi->ip_attr |= OCFS2_NOATIME_FL;
+	if (flags & S_DIRSYNC)
+		oi->ip_attr |= OCFS2_DIRSYNC_FL;
+}
+
 struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, int flags)
 {
 	struct inode *inode = NULL;
@@ -196,7 +215,7 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 	int status = -EINVAL;
 
 	mlog_entry("(0x%p, size:%llu)\n", inode,
-		   (unsigned long long)fe->i_size);
+		   (unsigned long long)le64_to_cpu(fe->i_size));
 
 	sb = inode->i_sb;
 	osb = OCFS2_SB(sb);
@@ -248,7 +267,7 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 		mlog(ML_ERROR,
 		     "ip_blkno %llu != i_blkno %llu!\n",
 		     (unsigned long long)OCFS2_I(inode)->ip_blkno,
-		     (unsigned long long)fe->i_blkno);
+		     (unsigned long long)le64_to_cpu(fe->i_blkno));
 
 	inode->i_nlink = le16_to_cpu(fe->i_links_count);
 
@@ -301,7 +320,7 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 		 * the generation argument to
 		 * ocfs2_inode_lock_res_init() will have to change.
 		 */
-		BUG_ON(fe->i_flags & cpu_to_le32(OCFS2_SYSTEM_FL));
+		BUG_ON(le32_to_cpu(fe->i_flags) & OCFS2_SYSTEM_FL);
 
 		ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_meta_lockres,
 					  OCFS2_LOCK_TYPE_META, 0, inode);
@@ -437,7 +456,8 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	fe = (struct ocfs2_dinode *) bh->b_data;
 	if (!OCFS2_IS_VALID_DINODE(fe)) {
 		mlog(ML_ERROR, "Invalid dinode #%llu: signature = %.*s\n",
-		     (unsigned long long)fe->i_blkno, 7, fe->i_signature);
+		     (unsigned long long)le64_to_cpu(fe->i_blkno), 7,
+		     fe->i_signature);
 		goto bail;
 	}
 
@@ -812,8 +832,8 @@ static int ocfs2_query_inode_wipe(struct inode *inode,
 		     "Inode %llu (on-disk %llu) not orphaned! "
 		     "Disk flags  0x%x, inode flags 0x%x\n",
 		     (unsigned long long)oi->ip_blkno,
-		     (unsigned long long)di->i_blkno, di->i_flags,
-		     oi->ip_flags);
+		     (unsigned long long)le64_to_cpu(di->i_blkno),
+		     le32_to_cpu(di->i_flags), oi->ip_flags);
 		goto bail;
 	}
 
@@ -1106,8 +1126,10 @@ struct buffer_head *ocfs2_bread(struct inode *inode,
 		return NULL;
 	}
 
+	down_read(&OCFS2_I(inode)->ip_alloc_sem);
 	tmperr = ocfs2_extent_map_get_blocks(inode, block, &p_blkno, NULL,
 					     NULL);
+	up_read(&OCFS2_I(inode)->ip_alloc_sem);
 	if (tmperr < 0) {
 		mlog_errno(tmperr);
 		goto fail;
@@ -1197,6 +1219,7 @@ int ocfs2_mark_inode_dirty(handle_t *handle,
 
 	spin_lock(&OCFS2_I(inode)->ip_lock);
 	fe->i_clusters = cpu_to_le32(OCFS2_I(inode)->ip_clusters);
+	ocfs2_get_inode_flags(OCFS2_I(inode));
 	fe->i_attr = cpu_to_le32(OCFS2_I(inode)->ip_attr);
 	spin_unlock(&OCFS2_I(inode)->ip_lock);
 

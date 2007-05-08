@@ -17,18 +17,25 @@
 #include <asm/io.h>
 #include "pci-sh4.h"
 
+static char r7780rp_irq_tab[] __initdata = {
+	0, 1, 2, 3,
+};
+
+static char r7780mp_irq_tab[] __initdata = {
+	65, 66, 67, 68,
+};
+
 int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
 {
-        switch (slot) {
-	case 0: return IRQ_PCISLOT1;		/* PCI Interrupt #1 */
-	case 1: return IRQ_PCISLOT2;		/* PCI Interrupt #2 */
-	case 2: return IRQ_PCISLOT3;		/* PCI Interrupt #3 */
-	case 3: return IRQ_PCISLOT4;		/* PCI Interrupt E4 */
-	default:
-		printk(KERN_ERR "PCI: Bad IRQ mapping "
-		       "request for slot %d, func %d\n", slot, pin-1);
-		return -1;
-	}
+	if (mach_is_r7780rp())
+		return r7780rp_irq_tab[slot];
+	if (mach_is_r7780mp() || mach_is_r7785rp())
+		return r7780mp_irq_tab[slot];
+
+	printk(KERN_ERR "PCI: Bad IRQ mapping "
+	       "request for slot %d, func %d\n", slot, pin-1);
+
+	return -1;
 }
 
 static struct resource sh7780_io_resource = {

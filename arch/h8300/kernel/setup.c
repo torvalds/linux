@@ -33,10 +33,7 @@
 
 #include <asm/setup.h>
 #include <asm/irq.h>
-
-#ifdef CONFIG_BLK_DEV_INITRD
 #include <asm/pgtable.h>
-#endif
 
 #if defined(__H8300H__)
 #define CPU "H8/300H"

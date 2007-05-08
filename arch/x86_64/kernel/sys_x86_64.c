@@ -93,6 +93,9 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	unsigned long start_addr;
 	unsigned long begin, end;
 	
+	if (flags & MAP_FIXED)
+		return addr;
+
 	find_start_end(flags, &begin, &end); 
 
 	if (len > end)

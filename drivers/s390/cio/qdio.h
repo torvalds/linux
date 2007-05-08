@@ -406,21 +406,43 @@ do_clear_global_summary(void)
 #define CHSC_FLAG_SIGA_SYNC_DONE_ON_OUTB_PCIS 0x04
 
 struct qdio_perf_stats {
-	unsigned long tl_runs;
+#ifdef CONFIG_64BIT
+	atomic64_t tl_runs;
+	atomic64_t outbound_tl_runs;
+	atomic64_t outbound_tl_runs_resched;
+	atomic64_t inbound_tl_runs;
+	atomic64_t inbound_tl_runs_resched;
+	atomic64_t inbound_thin_tl_runs;
+	atomic64_t inbound_thin_tl_runs_resched;
 
-	unsigned long siga_outs;
-	unsigned long siga_ins;
-	unsigned long siga_syncs;
-	unsigned long pcis;
-	unsigned long thinints;
-	unsigned long fast_reqs;
+	atomic64_t siga_outs;
+	atomic64_t siga_ins;
+	atomic64_t siga_syncs;
+	atomic64_t pcis;
+	atomic64_t thinints;
+	atomic64_t fast_reqs;
 
-	__u64 start_time_outbound;
-	unsigned long outbound_cnt;
-	unsigned long outbound_time;
-	__u64 start_time_inbound;
-	unsigned long inbound_cnt;
-	unsigned long inbound_time;
+	atomic64_t outbound_cnt;
+	atomic64_t inbound_cnt;
+#else /* CONFIG_64BIT */
+	atomic_t tl_runs;
+	atomic_t outbound_tl_runs;
+	atomic_t outbound_tl_runs_resched;
+	atomic_t inbound_tl_runs;
+	atomic_t inbound_tl_runs_resched;
+	atomic_t inbound_thin_tl_runs;
+	atomic_t inbound_thin_tl_runs_resched;
+
+	atomic_t siga_outs;
+	atomic_t siga_ins;
+	atomic_t siga_syncs;
+	atomic_t pcis;
+	atomic_t thinints;
+	atomic_t fast_reqs;
+
+	atomic_t outbound_cnt;
+	atomic_t inbound_cnt;
+#endif /* CONFIG_64BIT */
 };
 
 /* unlikely as the later the better */

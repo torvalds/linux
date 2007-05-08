@@ -799,9 +799,10 @@ static int dn_nl_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 	skip_ndevs = cb->args[0];
 	skip_naddr = cb->args[1];
 
-	for (dev = dev_base, idx = 0; dev; dev = dev->next, idx++) {
+	idx = 0;
+	for_each_netdev(dev) {
 		if (idx < skip_ndevs)
-			continue;
+			goto cont;
 		else if (idx > skip_ndevs) {
 			/* Only skip over addresses for first dev dumped
 			 * in this iteration (idx == skip_ndevs) */
@@ -809,18 +810,20 @@ static int dn_nl_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 		}
 
 		if ((dn_db = dev->dn_ptr) == NULL)
-			continue;
+			goto cont;
 
 		for (ifa = dn_db->ifa_list, dn_idx = 0; ifa;
 		     ifa = ifa->ifa_next, dn_idx++) {
 			if (dn_idx < skip_naddr)
-				continue;
+				goto cont;
 
 			if (dn_nl_fill_ifaddr(skb, ifa, NETLINK_CB(cb->skb).pid,
 					      cb->nlh->nlmsg_seq, RTM_NEWADDR,
 					      NLM_F_MULTI) < 0)
 				goto done;
 		}
+cont:
+		idx++;
 	}
 done:
 	cb->args[0] = idx;
@@ -1296,7 +1299,7 @@ void dn_dev_devices_off(void)
 	struct net_device *dev;
 
 	rtnl_lock();
-	for(dev = dev_base; dev; dev = dev->next)
+	for_each_netdev(dev)
 		dn_dev_down(dev);
 	rtnl_unlock();
 
@@ -1307,7 +1310,7 @@ void dn_dev_devices_on(void)
 	struct net_device *dev;
 
 	rtnl_lock();
-	for(dev = dev_base; dev; dev = dev->next) {
+	for_each_netdev(dev) {
 		if (dev->flags & IFF_UP)
 			dn_dev_up(dev);
 	}
@@ -1325,62 +1328,56 @@ int unregister_dnaddr_notifier(struct notifier_block *nb)
 }
 
 #ifdef CONFIG_PROC_FS
-static inline struct net_device *dn_dev_get_next(struct seq_file *seq, struct net_device *dev)
+static inline int is_dn_dev(struct net_device *dev)
 {
-	do {
-		dev = dev->next;
-	} while(dev && !dev->dn_ptr);
-
-	return dev;
-}
-
-static struct net_device *dn_dev_get_idx(struct seq_file *seq, loff_t pos)
-{
-	struct net_device *dev;
-
-	dev = dev_base;
-	if (dev && !dev->dn_ptr)
-		dev = dn_dev_get_next(seq, dev);
-	if (pos) {
-		while(dev && (dev = dn_dev_get_next(seq, dev)))
-			--pos;
-	}
-	return dev;
+	return dev->dn_ptr != NULL;
 }
 
 static void *dn_dev_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	if (*pos) {
-		struct net_device *dev;
-		read_lock(&dev_base_lock);
-		dev = dn_dev_get_idx(seq, *pos - 1);
-		if (dev == NULL)
-			read_unlock(&dev_base_lock);
-		return dev;
+	int i;
+	struct net_device *dev;
+
+	read_lock(&dev_base_lock);
+
+	if (*pos == 0)
+		return SEQ_START_TOKEN;
+
+	i = 1;
+	for_each_netdev(dev) {
+		if (!is_dn_dev(dev))
+			continue;
+
+		if (i++ == *pos)
+			return dev;
 	}
-	return SEQ_START_TOKEN;
+
+	return NULL;
 }
 
 static void *dn_dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct net_device *dev = v;
-	loff_t one = 1;
+	struct net_device *dev;
 
-	if (v == SEQ_START_TOKEN) {
-		dev = dn_dev_seq_start(seq, &one);
-	} else {
-		dev = dn_dev_get_next(seq, dev);
-		if (dev == NULL)
-			read_unlock(&dev_base_lock);
-	}
 	++*pos;
-	return dev;
+
+	dev = (struct net_device *)v;
+	if (v == SEQ_START_TOKEN)
+		dev = net_device_entry(&dev_base_head);
+
+	for_each_netdev_continue(dev) {
+		if (!is_dn_dev(dev))
+			continue;
+
+		return dev;
+	}
+
+	return NULL;
 }
 
 static void dn_dev_seq_stop(struct seq_file *seq, void *v)
 {
-	if (v && v != SEQ_START_TOKEN)
-		read_unlock(&dev_base_lock);
+	read_unlock(&dev_base_lock);
 }
 
 static char *dn_type2asc(char type)

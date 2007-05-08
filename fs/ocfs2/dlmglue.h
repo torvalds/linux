@@ -119,11 +119,4 @@ void ocfs2_process_blocked_lock(struct ocfs2_super *osb,
 struct ocfs2_dlm_debug *ocfs2_new_dlm_debug(void);
 void ocfs2_put_dlm_debug(struct ocfs2_dlm_debug *dlm_debug);
 
-/* aids in debugging and tracking lvbs */
-void ocfs2_dump_meta_lvb_info(u64 level,
-			      const char *function,
-			      unsigned int line,
-			      struct ocfs2_lock_res *lockres);
-#define mlog_meta_lvb(__level, __lockres) ocfs2_dump_meta_lvb_info(__level, __PRETTY_FUNCTION__, __LINE__, __lockres)
-
 #endif	/* DLMGLUE_H */

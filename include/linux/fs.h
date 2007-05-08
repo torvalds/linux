@@ -696,12 +696,13 @@ struct file_ra_state {
 	unsigned long size;
 	unsigned long flags;		/* ra flags RA_FLAG_xxx*/
 	unsigned long cache_hit;	/* cache hit count*/
-	unsigned long prev_page;	/* Cache last read() position */
+	unsigned long prev_index;	/* Cache last read() position */
 	unsigned long ahead_start;	/* Ahead window */
 	unsigned long ahead_size;
 	unsigned long ra_pages;		/* Maximum readahead window */
 	unsigned long mmap_hit;		/* Cache hit stat for mmap accesses */
 	unsigned long mmap_miss;	/* Cache miss stat for mmap accesses */
+	unsigned int prev_offset;	/* Offset where last read() ended in a page */
 };
 #define RA_FLAG_MISS 0x01	/* a cache miss occured against this file */
 #define RA_FLAG_INCACHE 0x02	/* file is already in cache */
@@ -785,6 +786,7 @@ struct file_lock_operations {
 struct lock_manager_operations {
 	int (*fl_compare_owner)(struct file_lock *, struct file_lock *);
 	void (*fl_notify)(struct file_lock *);	/* unblock callback */
+	int (*fl_grant)(struct file_lock *, struct file_lock *, int);
 	void (*fl_copy_lock)(struct file_lock *, struct file_lock *);
 	void (*fl_release_private)(struct file_lock *);
 	void (*fl_break)(struct file_lock *);
@@ -856,11 +858,13 @@ extern void locks_init_lock(struct file_lock *);
 extern void locks_copy_lock(struct file_lock *, struct file_lock *);
 extern void locks_remove_posix(struct file *, fl_owner_t);
 extern void locks_remove_flock(struct file *);
-extern int posix_test_lock(struct file *, struct file_lock *, struct file_lock *);
-extern int posix_lock_file_conf(struct file *, struct file_lock *, struct file_lock *);
-extern int posix_lock_file(struct file *, struct file_lock *);
+extern int posix_test_lock(struct file *, struct file_lock *);
+extern int posix_lock_file(struct file *, struct file_lock *, struct file_lock *);
 extern int posix_lock_file_wait(struct file *, struct file_lock *);
 extern int posix_unblock_lock(struct file *, struct file_lock *);
+extern int vfs_test_lock(struct file *, struct file_lock *);
+extern int vfs_lock_file(struct file *, unsigned int, struct file_lock *, struct file_lock *);
+extern int vfs_cancel_lock(struct file *filp, struct file_lock *fl);
 extern int flock_lock_file_wait(struct file *filp, struct file_lock *fl);
 extern int __break_lease(struct inode *inode, unsigned int flags);
 extern void lease_get_mtime(struct inode *, struct timespec *time);
@@ -1416,7 +1420,7 @@ extern void mnt_set_mountpoint(struct vfsmount *, struct dentry *,
 extern int vfs_statfs(struct dentry *, struct kstatfs *);
 
 /* /sys/fs */
-extern struct subsystem fs_subsys;
+extern struct kset fs_subsys;
 
 #define FLOCK_VERIFY_READ  1
 #define FLOCK_VERIFY_WRITE 2

@@ -405,7 +405,7 @@ void __init smp4m_blackbox_current(unsigned *addr)
 	
 	addr[0] = 0x81580000 | rd;		/* rd %tbr, reg */
 	addr[2] = 0x8130200a | rd | rs1;    	/* srl reg, 0xa, reg */
-	addr[4] = 0x8008200c | rd | rs1;	/* and reg, 3, reg */
+	addr[4] = 0x8008200c | rd | rs1;	/* and reg, 0xc, reg */
 }
 
 void __init sun4m_init_smp(void)

@@ -38,11 +38,14 @@ struct i2c_algo_bit_data {
 	int  (*getscl) (void *data);
 
 	/* local settings */
-	int udelay;		/* half-clock-cycle time in microsecs */
-				/* i.e. clock is (500 / udelay) KHz */
+	int udelay;		/* half clock cycle time in us,
+				   minimum 2 us for fast-mode I2C,
+				   minimum 5 us for standard-mode I2C and SMBus,
+				   maximum 50 us for SMBus */
 	int timeout;		/* in jiffies */
 };
 
 int i2c_bit_add_bus(struct i2c_adapter *);
+int i2c_bit_add_numbered_bus(struct i2c_adapter *);
 
 #endif /* _LINUX_I2C_ALGO_BIT_H */

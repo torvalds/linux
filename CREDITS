@@ -1745,8 +1745,9 @@ S: D-64295
 S: Germany
 
 N: Andi Kleen
-E: ak@muc.de
-D: network hacker, syncookies
+E: andi@firstfloor.org
+U: http://www.halobates.de
+D: network, x86, NUMA, various hacks
 S: Schwalbenstr. 96
 S: 85551 Ottobrunn
 S: Germany

@@ -104,6 +104,35 @@ static int ocfs2_dentry_convert_worker(struct ocfs2_lock_res *lockres,
 static void ocfs2_dentry_post_unlock(struct ocfs2_super *osb,
 				     struct ocfs2_lock_res *lockres);
 
+
+#define mlog_meta_lvb(__level, __lockres) ocfs2_dump_meta_lvb_info(__level, __PRETTY_FUNCTION__, __LINE__, __lockres)
+
+/* This aids in debugging situations where a bad LVB might be involved. */
+static void ocfs2_dump_meta_lvb_info(u64 level,
+				     const char *function,
+				     unsigned int line,
+				     struct ocfs2_lock_res *lockres)
+{
+	struct ocfs2_meta_lvb *lvb = (struct ocfs2_meta_lvb *) lockres->l_lksb.lvb;
+
+	mlog(level, "LVB information for %s (called from %s:%u):\n",
+	     lockres->l_name, function, line);
+	mlog(level, "version: %u, clusters: %u, generation: 0x%x\n",
+	     lvb->lvb_version, be32_to_cpu(lvb->lvb_iclusters),
+	     be32_to_cpu(lvb->lvb_igeneration));
+	mlog(level, "size: %llu, uid %u, gid %u, mode 0x%x\n",
+	     (unsigned long long)be64_to_cpu(lvb->lvb_isize),
+	     be32_to_cpu(lvb->lvb_iuid), be32_to_cpu(lvb->lvb_igid),
+	     be16_to_cpu(lvb->lvb_imode));
+	mlog(level, "nlink %u, atime_packed 0x%llx, ctime_packed 0x%llx, "
+	     "mtime_packed 0x%llx iattr 0x%x\n", be16_to_cpu(lvb->lvb_inlink),
+	     (long long)be64_to_cpu(lvb->lvb_iatime_packed),
+	     (long long)be64_to_cpu(lvb->lvb_ictime_packed),
+	     (long long)be64_to_cpu(lvb->lvb_imtime_packed),
+	     be32_to_cpu(lvb->lvb_iattr));
+}
+
+
 /*
  * OCFS2 Lock Resource Operations
  *
@@ -3077,29 +3106,4 @@ static void ocfs2_schedule_blocked_lock(struct ocfs2_super *osb,
 	spin_unlock(&osb->vote_task_lock);
 
 	mlog_exit_void();
-}
-
-/* This aids in debugging situations where a bad LVB might be involved. */
-void ocfs2_dump_meta_lvb_info(u64 level,
-			      const char *function,
-			      unsigned int line,
-			      struct ocfs2_lock_res *lockres)
-{
-	struct ocfs2_meta_lvb *lvb = (struct ocfs2_meta_lvb *) lockres->l_lksb.lvb;
-
-	mlog(level, "LVB information for %s (called from %s:%u):\n",
-	     lockres->l_name, function, line);
-	mlog(level, "version: %u, clusters: %u, generation: 0x%x\n",
-	     lvb->lvb_version, be32_to_cpu(lvb->lvb_iclusters),
-	     be32_to_cpu(lvb->lvb_igeneration));
-	mlog(level, "size: %llu, uid %u, gid %u, mode 0x%x\n",
-	     (unsigned long long)be64_to_cpu(lvb->lvb_isize),
-	     be32_to_cpu(lvb->lvb_iuid), be32_to_cpu(lvb->lvb_igid),
-	     be16_to_cpu(lvb->lvb_imode));
-	mlog(level, "nlink %u, atime_packed 0x%llx, ctime_packed 0x%llx, "
-	     "mtime_packed 0x%llx iattr 0x%x\n", be16_to_cpu(lvb->lvb_inlink),
-	     (long long)be64_to_cpu(lvb->lvb_iatime_packed),
-	     (long long)be64_to_cpu(lvb->lvb_ictime_packed),
-	     (long long)be64_to_cpu(lvb->lvb_imtime_packed),
-	     be32_to_cpu(lvb->lvb_iattr));
 }

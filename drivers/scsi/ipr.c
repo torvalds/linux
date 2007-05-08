@@ -89,10 +89,9 @@ static unsigned int ipr_log_level = IPR_DEFAULT_LOG_LEVEL;
 static unsigned int ipr_max_speed = 1;
 static int ipr_testmode = 0;
 static unsigned int ipr_fastfail = 0;
-static unsigned int ipr_transop_timeout = IPR_OPERATIONAL_TIMEOUT;
+static unsigned int ipr_transop_timeout = 0;
 static unsigned int ipr_enable_cache = 1;
 static unsigned int ipr_debug = 0;
-static int ipr_auto_create = 1;
 static DEFINE_SPINLOCK(ipr_driver_lock);
 
 /* This table describes the differences between DMA controller chips */
@@ -159,15 +158,13 @@ module_param_named(enable_cache, ipr_enable_cache, int, 0);
 MODULE_PARM_DESC(enable_cache, "Enable adapter's non-volatile write cache (default: 1)");
 module_param_named(debug, ipr_debug, int, 0);
 MODULE_PARM_DESC(debug, "Enable device driver debugging logging. Set to 1 to enable. (default: 0)");
-module_param_named(auto_create, ipr_auto_create, int, 0);
-MODULE_PARM_DESC(auto_create, "Auto-create single device RAID 0 arrays when initialized (default: 1)");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(IPR_DRIVER_VERSION);
 
 /*  A constant array of IOASCs/URCs/Error Messages */
 static const
 struct ipr_error_table_t ipr_error_table[] = {
-	{0x00000000, 1, 1,
+	{0x00000000, 1, IPR_DEFAULT_LOG_LEVEL,
 	"8155: An unknown error was received"},
 	{0x00330000, 0, 0,
 	"Soft underlength error"},
@@ -175,37 +172,37 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"Command to be cancelled not found"},
 	{0x00808000, 0, 0,
 	"Qualified success"},
-	{0x01080000, 1, 1,
+	{0x01080000, 1, IPR_DEFAULT_LOG_LEVEL,
 	"FFFE: Soft device bus error recovered by the IOA"},
-	{0x01088100, 0, 1,
+	{0x01088100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4101: Soft device bus fabric error"},
-	{0x01170600, 0, 1,
+	{0x01170600, 0, IPR_DEFAULT_LOG_LEVEL,
 	"FFF9: Device sector reassign successful"},
-	{0x01170900, 0, 1,
+	{0x01170900, 0, IPR_DEFAULT_LOG_LEVEL,
 	"FFF7: Media error recovered by device rewrite procedures"},
-	{0x01180200, 0, 1,
+	{0x01180200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"7001: IOA sector reassignment successful"},
-	{0x01180500, 0, 1,
+	{0x01180500, 0, IPR_DEFAULT_LOG_LEVEL,
 	"FFF9: Soft media error. Sector reassignment recommended"},
-	{0x01180600, 0, 1,
+	{0x01180600, 0, IPR_DEFAULT_LOG_LEVEL,
 	"FFF7: Media error recovered by IOA rewrite procedures"},
-	{0x01418000, 0, 1,
+	{0x01418000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"FF3D: Soft PCI bus error recovered by the IOA"},
-	{0x01440000, 1, 1,
+	{0x01440000, 1, IPR_DEFAULT_LOG_LEVEL,
 	"FFF6: Device hardware error recovered by the IOA"},
-	{0x01448100, 0, 1,
+	{0x01448100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"FFF6: Device hardware error recovered by the device"},
-	{0x01448200, 1, 1,
+	{0x01448200, 1, IPR_DEFAULT_LOG_LEVEL,
 	"FF3D: Soft IOA error recovered by the IOA"},
-	{0x01448300, 0, 1,
+	{0x01448300, 0, IPR_DEFAULT_LOG_LEVEL,
 	"FFFA: Undefined device response recovered by the IOA"},
-	{0x014A0000, 1, 1,
+	{0x014A0000, 1, IPR_DEFAULT_LOG_LEVEL,
 	"FFF6: Device bus error, message or command phase"},
-	{0x014A8000, 0, 1,
+	{0x014A8000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"FFFE: Task Management Function failed"},
-	{0x015D0000, 0, 1,
+	{0x015D0000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"FFF6: Failure prediction threshold exceeded"},
-	{0x015D9200, 0, 1,
+	{0x015D9200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"8009: Impending cache battery pack failure"},
 	{0x02040400, 0, 0,
 	"34FF: Disk device format in progress"},
@@ -215,85 +212,85 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"No ready, IOA shutdown"},
 	{0x025A0000, 0, 0,
 	"Not ready, IOA has been shutdown"},
-	{0x02670100, 0, 1,
+	{0x02670100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"3020: Storage subsystem configuration error"},
 	{0x03110B00, 0, 0,
 	"FFF5: Medium error, data unreadable, recommend reassign"},
 	{0x03110C00, 0, 0,
 	"7000: Medium error, data unreadable, do not reassign"},
-	{0x03310000, 0, 1,
+	{0x03310000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"FFF3: Disk media format bad"},
-	{0x04050000, 0, 1,
+	{0x04050000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"3002: Addressed device failed to respond to selection"},
-	{0x04080000, 1, 1,
+	{0x04080000, 1, IPR_DEFAULT_LOG_LEVEL,
 	"3100: Device bus error"},
-	{0x04080100, 0, 1,
+	{0x04080100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"3109: IOA timed out a device command"},
 	{0x04088000, 0, 0,
 	"3120: SCSI bus is not operational"},
-	{0x04088100, 0, 1,
+	{0x04088100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4100: Hard device bus fabric error"},
-	{0x04118000, 0, 1,
+	{0x04118000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9000: IOA reserved area data check"},
-	{0x04118100, 0, 1,
+	{0x04118100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9001: IOA reserved area invalid data pattern"},
-	{0x04118200, 0, 1,
+	{0x04118200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9002: IOA reserved area LRC error"},
-	{0x04320000, 0, 1,
+	{0x04320000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"102E: Out of alternate sectors for disk storage"},
-	{0x04330000, 1, 1,
+	{0x04330000, 1, IPR_DEFAULT_LOG_LEVEL,
 	"FFF4: Data transfer underlength error"},
-	{0x04338000, 1, 1,
+	{0x04338000, 1, IPR_DEFAULT_LOG_LEVEL,
 	"FFF4: Data transfer overlength error"},
-	{0x043E0100, 0, 1,
+	{0x043E0100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"3400: Logical unit failure"},
-	{0x04408500, 0, 1,
+	{0x04408500, 0, IPR_DEFAULT_LOG_LEVEL,
 	"FFF4: Device microcode is corrupt"},
-	{0x04418000, 1, 1,
+	{0x04418000, 1, IPR_DEFAULT_LOG_LEVEL,
 	"8150: PCI bus error"},
 	{0x04430000, 1, 0,
 	"Unsupported device bus message received"},
-	{0x04440000, 1, 1,
+	{0x04440000, 1, IPR_DEFAULT_LOG_LEVEL,
 	"FFF4: Disk device problem"},
-	{0x04448200, 1, 1,
+	{0x04448200, 1, IPR_DEFAULT_LOG_LEVEL,
 	"8150: Permanent IOA failure"},
-	{0x04448300, 0, 1,
+	{0x04448300, 0, IPR_DEFAULT_LOG_LEVEL,
 	"3010: Disk device returned wrong response to IOA"},
-	{0x04448400, 0, 1,
+	{0x04448400, 0, IPR_DEFAULT_LOG_LEVEL,
 	"8151: IOA microcode error"},
 	{0x04448500, 0, 0,
 	"Device bus status error"},
-	{0x04448600, 0, 1,
+	{0x04448600, 0, IPR_DEFAULT_LOG_LEVEL,
 	"8157: IOA error requiring IOA reset to recover"},
 	{0x04448700, 0, 0,
 	"ATA device status error"},
 	{0x04490000, 0, 0,
 	"Message reject received from the device"},
-	{0x04449200, 0, 1,
+	{0x04449200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"8008: A permanent cache battery pack failure occurred"},
-	{0x0444A000, 0, 1,
+	{0x0444A000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9090: Disk unit has been modified after the last known status"},
-	{0x0444A200, 0, 1,
+	{0x0444A200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9081: IOA detected device error"},
-	{0x0444A300, 0, 1,
+	{0x0444A300, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9082: IOA detected device error"},
-	{0x044A0000, 1, 1,
+	{0x044A0000, 1, IPR_DEFAULT_LOG_LEVEL,
 	"3110: Device bus error, message or command phase"},
-	{0x044A8000, 1, 1,
+	{0x044A8000, 1, IPR_DEFAULT_LOG_LEVEL,
 	"3110: SAS Command / Task Management Function failed"},
-	{0x04670400, 0, 1,
+	{0x04670400, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9091: Incorrect hardware configuration change has been detected"},
-	{0x04678000, 0, 1,
+	{0x04678000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9073: Invalid multi-adapter configuration"},
-	{0x04678100, 0, 1,
+	{0x04678100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4010: Incorrect connection between cascaded expanders"},
-	{0x04678200, 0, 1,
+	{0x04678200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4020: Connections exceed IOA design limits"},
-	{0x04678300, 0, 1,
+	{0x04678300, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4030: Incorrect multipath connection"},
-	{0x04679000, 0, 1,
+	{0x04679000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4110: Unsupported enclosure function"},
-	{0x046E0000, 0, 1,
+	{0x046E0000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"FFF4: Command to logical unit failed"},
 	{0x05240000, 1, 0,
 	"Illegal request, invalid request type or request packet"},
@@ -313,101 +310,103 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"Illegal request, command sequence error"},
 	{0x052C8000, 1, 0,
 	"Illegal request, dual adapter support not enabled"},
-	{0x06040500, 0, 1,
+	{0x06040500, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9031: Array protection temporarily suspended, protection resuming"},
-	{0x06040600, 0, 1,
+	{0x06040600, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9040: Array protection temporarily suspended, protection resuming"},
-	{0x06288000, 0, 1,
+	{0x06288000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"3140: Device bus not ready to ready transition"},
-	{0x06290000, 0, 1,
+	{0x06290000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"FFFB: SCSI bus was reset"},
 	{0x06290500, 0, 0,
 	"FFFE: SCSI bus transition to single ended"},
 	{0x06290600, 0, 0,
 	"FFFE: SCSI bus transition to LVD"},
-	{0x06298000, 0, 1,
+	{0x06298000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"FFFB: SCSI bus was reset by another initiator"},
-	{0x063F0300, 0, 1,
+	{0x063F0300, 0, IPR_DEFAULT_LOG_LEVEL,
 	"3029: A device replacement has occurred"},
-	{0x064C8000, 0, 1,
+	{0x064C8000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9051: IOA cache data exists for a missing or failed device"},
-	{0x064C8100, 0, 1,
+	{0x064C8100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9055: Auxiliary cache IOA contains cache data needed by the primary IOA"},
-	{0x06670100, 0, 1,
+	{0x06670100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9025: Disk unit is not supported at its physical location"},
-	{0x06670600, 0, 1,
+	{0x06670600, 0, IPR_DEFAULT_LOG_LEVEL,
 	"3020: IOA detected a SCSI bus configuration error"},
-	{0x06678000, 0, 1,
+	{0x06678000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"3150: SCSI bus configuration error"},
-	{0x06678100, 0, 1,
+	{0x06678100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9074: Asymmetric advanced function disk configuration"},
-	{0x06678300, 0, 1,
+	{0x06678300, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4040: Incomplete multipath connection between IOA and enclosure"},
-	{0x06678400, 0, 1,
+	{0x06678400, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4041: Incomplete multipath connection between enclosure and device"},
-	{0x06678500, 0, 1,
+	{0x06678500, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9075: Incomplete multipath connection between IOA and remote IOA"},
-	{0x06678600, 0, 1,
+	{0x06678600, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9076: Configuration error, missing remote IOA"},
-	{0x06679100, 0, 1,
+	{0x06679100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4050: Enclosure does not support a required multipath function"},
-	{0x06690200, 0, 1,
+	{0x06690200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9041: Array protection temporarily suspended"},
-	{0x06698200, 0, 1,
+	{0x06698200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9042: Corrupt array parity detected on specified device"},
-	{0x066B0200, 0, 1,
+	{0x066B0200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9030: Array no longer protected due to missing or failed disk unit"},
-	{0x066B8000, 0, 1,
+	{0x066B8000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9071: Link operational transition"},
-	{0x066B8100, 0, 1,
+	{0x066B8100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9072: Link not operational transition"},
-	{0x066B8200, 0, 1,
+	{0x066B8200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9032: Array exposed but still protected"},
-	{0x066B9100, 0, 1,
+	{0x066B8300, 0, IPR_DEFAULT_LOG_LEVEL + 1,
+	"70DD: Device forced failed by disrupt device command"},
+	{0x066B9100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4061: Multipath redundancy level got better"},
-	{0x066B9200, 0, 1,
+	{0x066B9200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4060: Multipath redundancy level got worse"},
 	{0x07270000, 0, 0,
 	"Failure due to other device"},
-	{0x07278000, 0, 1,
+	{0x07278000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9008: IOA does not support functions expected by devices"},
-	{0x07278100, 0, 1,
+	{0x07278100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9010: Cache data associated with attached devices cannot be found"},
-	{0x07278200, 0, 1,
+	{0x07278200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9011: Cache data belongs to devices other than those attached"},
-	{0x07278400, 0, 1,
+	{0x07278400, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9020: Array missing 2 or more devices with only 1 device present"},
-	{0x07278500, 0, 1,
+	{0x07278500, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9021: Array missing 2 or more devices with 2 or more devices present"},
-	{0x07278600, 0, 1,
+	{0x07278600, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9022: Exposed array is missing a required device"},
-	{0x07278700, 0, 1,
+	{0x07278700, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9023: Array member(s) not at required physical locations"},
-	{0x07278800, 0, 1,
+	{0x07278800, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9024: Array not functional due to present hardware configuration"},
-	{0x07278900, 0, 1,
+	{0x07278900, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9026: Array not functional due to present hardware configuration"},
-	{0x07278A00, 0, 1,
+	{0x07278A00, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9027: Array is missing a device and parity is out of sync"},
-	{0x07278B00, 0, 1,
+	{0x07278B00, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9028: Maximum number of arrays already exist"},
-	{0x07278C00, 0, 1,
+	{0x07278C00, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9050: Required cache data cannot be located for a disk unit"},
-	{0x07278D00, 0, 1,
+	{0x07278D00, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9052: Cache data exists for a device that has been modified"},
-	{0x07278F00, 0, 1,
+	{0x07278F00, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9054: IOA resources not available due to previous problems"},
-	{0x07279100, 0, 1,
+	{0x07279100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9092: Disk unit requires initialization before use"},
-	{0x07279200, 0, 1,
+	{0x07279200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9029: Incorrect hardware configuration change has been detected"},
-	{0x07279600, 0, 1,
+	{0x07279600, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9060: One or more disk pairs are missing from an array"},
-	{0x07279700, 0, 1,
+	{0x07279700, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9061: One or more disks are missing from an array"},
-	{0x07279800, 0, 1,
+	{0x07279800, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9062: One or more disks are missing from an array"},
-	{0x07279900, 0, 1,
+	{0x07279900, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9063: Maximum number of functional arrays has been exceeded"},
 	{0x0B260000, 0, 0,
 	"Aborted command, invalid descriptor"},
@@ -481,12 +480,16 @@ static void ipr_reinit_ipr_cmnd(struct ipr_cmnd *ipr_cmd)
 {
 	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
 	struct ipr_ioasa *ioasa = &ipr_cmd->ioasa;
+	dma_addr_t dma_addr = be32_to_cpu(ioarcb->ioarcb_host_pci_addr);
 
 	memset(&ioarcb->cmd_pkt, 0, sizeof(struct ipr_cmd_pkt));
 	ioarcb->write_data_transfer_length = 0;
 	ioarcb->read_data_transfer_length = 0;
 	ioarcb->write_ioadl_len = 0;
 	ioarcb->read_ioadl_len = 0;
+	ioarcb->write_ioadl_addr =
+		cpu_to_be32(dma_addr + offsetof(struct ipr_cmnd, ioadl));
+	ioarcb->read_ioadl_addr = ioarcb->write_ioadl_addr;
 	ioasa->ioasc = 0;
 	ioasa->residual_data_len = 0;
 	ioasa->u.gata.status = 0;
@@ -1610,7 +1613,7 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 	/* Set indication we have logged an error */
 	ioa_cfg->errors_logged++;
 
-	if (ioa_cfg->log_level < IPR_DEFAULT_LOG_LEVEL)
+	if (ioa_cfg->log_level < ipr_error_table[error_index].log_hcam)
 		return;
 	if (be32_to_cpu(hostrcb->hcam.length) > sizeof(hostrcb->hcam.u.raw))
 		hostrcb->hcam.length = cpu_to_be32(sizeof(hostrcb->hcam.u.raw));
@@ -3850,6 +3853,8 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd * scsi_cmd)
 		if (ipr_cmd->ioarcb.res_handle == res->cfgte.res_handle) {
 			if (ipr_cmd->scsi_cmd)
 				ipr_cmd->done = ipr_scsi_eh_done;
+			if (ipr_cmd->qc)
+				ipr_cmd->done = ipr_sata_eh_done;
 			if (ipr_cmd->qc && !(ipr_cmd->qc->flags & ATA_QCFLAG_FAILED)) {
 				ipr_cmd->qc->err_mask |= AC_ERR_TIMEOUT;
 				ipr_cmd->qc->flags |= ATA_QCFLAG_FAILED;
@@ -4230,6 +4235,14 @@ static int ipr_build_ioadl(struct ipr_ioa_cfg *ioa_cfg,
 
 		sglist = scsi_cmd->request_buffer;
 
+		if (ipr_cmd->dma_use_sg <= ARRAY_SIZE(ioarcb->add_data.u.ioadl)) {
+			ioadl = ioarcb->add_data.u.ioadl;
+			ioarcb->write_ioadl_addr =
+				cpu_to_be32(be32_to_cpu(ioarcb->ioarcb_host_pci_addr) +
+					    offsetof(struct ipr_ioarcb, add_data));
+			ioarcb->read_ioadl_addr = ioarcb->write_ioadl_addr;
+		}
+
 		for (i = 0; i < ipr_cmd->dma_use_sg; i++) {
 			ioadl[i].flags_and_data_len =
 				cpu_to_be32(ioadl_flags | sg_dma_len(&sglist[i]));
@@ -4260,6 +4273,11 @@ static int ipr_build_ioadl(struct ipr_ioa_cfg *ioa_cfg,
 						     scsi_cmd->sc_data_direction);
 
 		if (likely(!pci_dma_mapping_error(ipr_cmd->dma_handle))) {
+			ioadl = ioarcb->add_data.u.ioadl;
+			ioarcb->write_ioadl_addr =
+				cpu_to_be32(be32_to_cpu(ioarcb->ioarcb_host_pci_addr) +
+					    offsetof(struct ipr_ioarcb, add_data));
+			ioarcb->read_ioadl_addr = ioarcb->write_ioadl_addr;
 			ipr_cmd->dma_use_sg = 1;
 			ioadl[0].flags_and_data_len =
 				cpu_to_be32(ioadl_flags | length | IPR_IOADL_FLAGS_LAST);
@@ -4346,11 +4364,9 @@ static void ipr_erp_done(struct ipr_cmnd *ipr_cmd)
  **/
 static void ipr_reinit_ipr_cmnd_for_erp(struct ipr_cmnd *ipr_cmd)
 {
-	struct ipr_ioarcb *ioarcb;
-	struct ipr_ioasa *ioasa;
-
-	ioarcb = &ipr_cmd->ioarcb;
-	ioasa = &ipr_cmd->ioasa;
+	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
+	struct ipr_ioasa *ioasa = &ipr_cmd->ioasa;
+	dma_addr_t dma_addr = be32_to_cpu(ioarcb->ioarcb_host_pci_addr);
 
 	memset(&ioarcb->cmd_pkt, 0, sizeof(struct ipr_cmd_pkt));
 	ioarcb->write_data_transfer_length = 0;
@@ -4359,6 +4375,9 @@ static void ipr_reinit_ipr_cmnd_for_erp(struct ipr_cmnd *ipr_cmd)
 	ioarcb->read_ioadl_len = 0;
 	ioasa->ioasc = 0;
 	ioasa->residual_data_len = 0;
+	ioarcb->write_ioadl_addr =
+		cpu_to_be32(dma_addr + offsetof(struct ipr_cmnd, ioadl));
+	ioarcb->read_ioadl_addr = ioarcb->write_ioadl_addr;
 }
 
 /**
@@ -4457,12 +4476,13 @@ static void ipr_dump_ioasa(struct ipr_ioa_cfg *ioa_cfg,
 {
 	int i;
 	u16 data_len;
-	u32 ioasc;
+	u32 ioasc, fd_ioasc;
 	struct ipr_ioasa *ioasa = &ipr_cmd->ioasa;
 	__be32 *ioasa_data = (__be32 *)ioasa;
 	int error_index;
 
 	ioasc = be32_to_cpu(ioasa->ioasc) & IPR_IOASC_IOASC_MASK;
+	fd_ioasc = be32_to_cpu(ioasa->fd_ioasc) & IPR_IOASC_IOASC_MASK;
 
 	if (0 == ioasc)
 		return;
@@ -4470,11 +4490,17 @@ static void ipr_dump_ioasa(struct ipr_ioa_cfg *ioa_cfg,
 	if (ioa_cfg->log_level < IPR_DEFAULT_LOG_LEVEL)
 		return;
 
-	error_index = ipr_get_error(ioasc);
+	if (ioasc == IPR_IOASC_BUS_WAS_RESET && fd_ioasc)
+		error_index = ipr_get_error(fd_ioasc);
+	else
+		error_index = ipr_get_error(ioasc);
 
 	if (ioa_cfg->log_level < IPR_MAX_LOG_LEVEL) {
 		/* Don't log an error if the IOA already logged one */
 		if (ioasa->ilid != 0)
+			return;
+
+		if (!ipr_is_gscsi(res))
 			return;
 
 		if (ipr_error_table[error_index].log_ioasa == 0)
@@ -4636,10 +4662,10 @@ static void ipr_erp_start(struct ipr_ioa_cfg *ioa_cfg,
 		return;
 	}
 
-	if (ipr_is_gscsi(res))
-		ipr_dump_ioasa(ioa_cfg, ipr_cmd, res);
-	else
+	if (!ipr_is_gscsi(res))
 		ipr_gen_sense(ipr_cmd);
+
+	ipr_dump_ioasa(ioa_cfg, ipr_cmd, res);
 
 	switch (ioasc & IPR_IOASC_IOASC_MASK) {
 	case IPR_IOASC_ABORTED_CMD_TERM_BY_HOST:
@@ -5121,7 +5147,7 @@ static unsigned int ipr_qc_issue(struct ata_queued_cmd *qc)
 	struct ipr_ioarcb_ata_regs *regs;
 
 	if (unlikely(!ioa_cfg->allow_cmds || ioa_cfg->ioa_is_dead))
-		return -EIO;
+		return AC_ERR_SYSTEM;
 
 	ipr_cmd = ipr_get_free_ipr_cmnd(ioa_cfg);
 	ioarcb = &ipr_cmd->ioarcb;
@@ -5166,7 +5192,7 @@ static unsigned int ipr_qc_issue(struct ata_queued_cmd *qc)
 
 	default:
 		WARN_ON(1);
-		return -1;
+		return AC_ERR_INVALID;
 	}
 
 	mb();
@@ -6188,7 +6214,7 @@ static int ipr_reset_enable_ioa(struct ipr_cmnd *ipr_cmd)
 	dev_info(&ioa_cfg->pdev->dev, "Initializing IOA.\n");
 
 	ipr_cmd->timer.data = (unsigned long) ipr_cmd;
-	ipr_cmd->timer.expires = jiffies + (ipr_transop_timeout * HZ);
+	ipr_cmd->timer.expires = jiffies + (ioa_cfg->transop_timeout * HZ);
 	ipr_cmd->timer.function = (void (*)(unsigned long))ipr_oper_timeout;
 	ipr_cmd->done = ipr_reset_ioa_job;
 	add_timer(&ipr_cmd->timer);
@@ -6385,6 +6411,7 @@ static int ipr_reset_start_bist(struct ipr_cmnd *ipr_cmd)
 	rc = pci_write_config_byte(ioa_cfg->pdev, PCI_BIST, PCI_BIST_START);
 
 	if (rc != PCIBIOS_SUCCESSFUL) {
+		pci_unblock_user_cfg_access(ipr_cmd->ioa_cfg->pdev);
 		ipr_cmd->ioasa.ioasc = cpu_to_be32(IPR_IOASC_PCI_ACCESS_ERROR);
 		rc = IPR_RC_JOB_CONTINUE;
 	} else {
@@ -7117,8 +7144,6 @@ static void __devinit ipr_init_ioa_cfg(struct ipr_ioa_cfg *ioa_cfg,
 	ioa_cfg->pdev = pdev;
 	ioa_cfg->log_level = ipr_log_level;
 	ioa_cfg->doorbell = IPR_DOORBELL;
-	if (!ipr_auto_create)
-		ioa_cfg->doorbell |= IPR_RUNTIME_RESET;
 	sprintf(ioa_cfg->eye_catcher, IPR_EYECATCHER);
 	sprintf(ioa_cfg->trace_start, IPR_TRACE_START_LABEL);
 	sprintf(ioa_cfg->ipr_free_label, IPR_FREEQ_LABEL);
@@ -7232,6 +7257,13 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 			dev_id->vendor, dev_id->device);
 		goto out_scsi_host_put;
 	}
+
+	if (ipr_transop_timeout)
+		ioa_cfg->transop_timeout = ipr_transop_timeout;
+	else if (dev_id->driver_data & IPR_USE_LONG_TRANSOP_TIMEOUT)
+		ioa_cfg->transop_timeout = IPR_LONG_OPERATIONAL_TIMEOUT;
+	else
+		ioa_cfg->transop_timeout = IPR_OPERATIONAL_TIMEOUT;
 
 	ipr_regs_pci = pci_resource_start(pdev, 0);
 
@@ -7540,29 +7572,45 @@ static struct pci_device_id ipr_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CITRINE,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_571A, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CITRINE,
-		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575B, 0, 0, 0 },
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575B, 0, 0,
+		IPR_USE_LONG_TRANSOP_TIMEOUT },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN,
 	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572A, 0, 0, 0 },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN,
 	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572B, 0, 0, 0 },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN,
-	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575C, 0, 0, 0 },
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575C, 0, 0,
+	      IPR_USE_LONG_TRANSOP_TIMEOUT },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN,
 	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572A, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN,
 	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572B, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN,
-	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575C, 0, 0, 0 },
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575C, 0, 0,
+	      IPR_USE_LONG_TRANSOP_TIMEOUT },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN_E,
-	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57B7, 0, 0, 0 },
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_574E, 0, 0, 0 },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN_E,
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575D, 0, 0,
+	      IPR_USE_LONG_TRANSOP_TIMEOUT },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN_E,
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57B3, 0, 0, 0 },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN_E,
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57B7, 0, 0,
+	      IPR_USE_LONG_TRANSOP_TIMEOUT },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_SNIPE,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_2780, 0, 0, 0 },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_571E, 0, 0, 0 },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP,
-		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_571F, 0, 0, 0 },
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_571F, 0, 0,
+		IPR_USE_LONG_TRANSOP_TIMEOUT },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP,
-		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572F, 0, 0, 0 },
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572F, 0, 0,
+		IPR_USE_LONG_TRANSOP_TIMEOUT },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_SCAMP_E,
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_574D, 0, 0,
+		IPR_USE_LONG_TRANSOP_TIMEOUT },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, ipr_pci_table);

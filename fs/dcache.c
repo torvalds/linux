@@ -2052,12 +2052,8 @@ static void __init dcache_init(unsigned long mempages)
 	 * but it is probably not worth it because of the cache nature
 	 * of the dcache. 
 	 */
-	dentry_cache = kmem_cache_create("dentry_cache",
-					 sizeof(struct dentry),
-					 0,
-					 (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
-					 SLAB_MEM_SPREAD),
-					 NULL, NULL);
+	dentry_cache = KMEM_CACHE(dentry,
+		SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD);
 	
 	set_shrinker(DEFAULT_SEEKS, shrink_dcache_memory);
 

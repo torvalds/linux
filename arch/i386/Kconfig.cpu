@@ -43,6 +43,7 @@ config M386
 	  - "Geode GX/LX" For AMD Geode GX and LX processors.
 	  - "CyrixIII/VIA C3" for VIA Cyrix III or VIA C3.
 	  - "VIA C3-2" for VIA C3-2 "Nehemiah" (model 9 and above).
+	  - "VIA C7" for VIA C7.
 
 	  If you don't know what to do, choose "386".
 
@@ -203,6 +204,12 @@ config MVIAC3_2
 	  of SSE and tells gcc to treat the CPU as a 686.
 	  Note, this kernel will not boot on older (pre model 9) C3s.
 
+config MVIAC7
+	bool "VIA C7"
+	help
+	  Select this for a VIA C7.  Selecting this uses the correct cache
+	  shift and tells gcc to treat the CPU as a 686.
+
 endchoice
 
 config X86_GENERIC
@@ -231,16 +238,21 @@ config X86_L1_CACHE_SHIFT
 	default "7" if MPENTIUM4 || X86_GENERIC
 	default "4" if X86_ELAN || M486 || M386 || MGEODEGX1
 	default "5" if MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCRUSOE || MEFFICEON || MCYRIXIII || MK6 || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || M586 || MVIAC3_2 || MGEODE_LX
-	default "6" if MK7 || MK8 || MPENTIUMM || MCORE2
+	default "6" if MK7 || MK8 || MPENTIUMM || MCORE2 || MVIAC7
+
+config X86_XADD
+	bool
+	depends on !M386
+	default y
 
 config RWSEM_GENERIC_SPINLOCK
 	bool
-	depends on M386
+	depends on !X86_XADD
 	default y
 
 config RWSEM_XCHGADD_ALGORITHM
 	bool
-	depends on !M386
+	depends on X86_XADD
 	default y
 
 config ARCH_HAS_ILOG2_U32
@@ -297,7 +309,7 @@ config X86_ALIGNMENT_16
 
 config X86_GOOD_APIC
 	bool
-	depends on MK7 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || MK8 || MEFFICEON || MCORE2
+	depends on MK7 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || MK8 || MEFFICEON || MCORE2 || MVIAC7
 	default y
 
 config X86_INTEL_USERCOPY
@@ -322,5 +334,18 @@ config X86_OOSTORE
 
 config X86_TSC
 	bool
-	depends on (MWINCHIP3D || MWINCHIP2 || MCRUSOE || MEFFICEON || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || MK8 || MVIAC3_2 || MGEODEGX1 || MGEODE_LX || MCORE2) && !X86_NUMAQ
+	depends on (MWINCHIP3D || MWINCHIP2 || MCRUSOE || MEFFICEON || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || MK8 || MVIAC3_2 || MVIAC7 || MGEODEGX1 || MGEODE_LX || MCORE2) && !X86_NUMAQ
 	default y
+
+# this should be set for all -march=.. options where the compiler
+# generates cmov.
+config X86_CMOV
+	bool
+	depends on (MK7 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MVIAC3_2 || MVIAC7)
+	default y
+
+config X86_MINIMUM_CPU_MODEL
+	int
+	default "4" if X86_XADD || X86_CMPXCHG || X86_BSWAP
+	default "0"
+

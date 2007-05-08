@@ -14,10 +14,12 @@
 #include <linux/io.h>
 #include <asm/r7780rp.h>
 
-#ifdef CONFIG_SH_R7780MP
-static int mask_pos[] = {12, 11, 9, 14, 15, 8, 13, 6, 5, 4, 3, 2, 0, 0, 1, 0};
-#else
+#ifdef CONFIG_SH_R7780RP
 static int mask_pos[] = {15, 14, 13, 12, 11, 10, 9, 8, 7, 5, 6, 4, 0, 1, 2, 0};
+#elif defined(CONFIG_SH_R7780MP)
+static int mask_pos[] = {12, 11, 9, 14, 15, 8, 13, 6, 5, 4, 3, 2, 0, 0, 1, 0};
+#elif defined(CONFIG_SH_R7785RP)
+static int mask_pos[] = {2, 11, 2, 2, 2, 2, 9, 8, 7, 5, 10, 2, 2, 2, 2, 2};
 #endif
 
 static void enable_r7780rp_irq(unsigned int irq)
@@ -40,17 +42,10 @@ static struct irq_chip r7780rp_irq_chip __read_mostly = {
 	.mask_ack	= disable_r7780rp_irq,
 };
 
-/*
- * Initialize IRQ setting
- */
-void __init init_r7780rp_IRQ(void)
+void make_r7780rp_irq(unsigned int irq)
 {
-	int i;
-
-	for (i = 0; i < 15; i++) {
-		disable_irq_nosync(i);
-		set_irq_chip_and_handler_name(i, &r7780rp_irq_chip,
-					      handle_level_irq, "level");
-		enable_r7780rp_irq(i);
-	}
+	disable_irq_nosync(irq);
+	set_irq_chip_and_handler_name(irq, &r7780rp_irq_chip,
+				      handle_level_irq, "level");
+	enable_r7780rp_irq(irq);
 }

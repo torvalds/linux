@@ -13,11 +13,20 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/io.h>
+
 #include <asm/pgalloc.h>
 #include <asm/fixmap.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <asm/proto.h>
+
+unsigned long __phys_addr(unsigned long x)
+{
+	if (x >= __START_KERNEL_map)
+		return x - __START_KERNEL_map + phys_base;
+	return x - PAGE_OFFSET;
+}
+EXPORT_SYMBOL(__phys_addr);
 
 #define ISA_START_ADDRESS      0xa0000
 #define ISA_END_ADDRESS                0x100000

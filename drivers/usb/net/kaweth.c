@@ -55,7 +55,6 @@
 #include <linux/usb.h>
 #include <linux/types.h>
 #include <linux/ethtool.h>
-#include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/wait.h>
 #include <asm/uaccess.h>

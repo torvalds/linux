@@ -23,9 +23,13 @@
 #include "skas.h"
 #endif
 
-/* If needed we can detect when it's uninitialized. */
+/*
+ * If needed we can detect when it's uninitialized.
+ *
+ * These are initialized in an initcall and unchanged thereafter.
+ */
 static int host_supports_tls = -1;
-int host_gdt_entry_tls_min = -1;
+int host_gdt_entry_tls_min;
 
 #ifdef CONFIG_MODE_SKAS
 int do_set_thread_area_skas(struct user_desc *info)
@@ -361,7 +365,8 @@ out:
 
 /* XXX: This part is probably common to i386 and x86-64. Don't create a common
  * file for now, do that when implementing x86-64 support.*/
-static int __init __setup_host_supports_tls(void) {
+static int __init __setup_host_supports_tls(void)
+{
 	check_host_supports_tls(&host_supports_tls, &host_gdt_entry_tls_min);
 	if (host_supports_tls) {
 		printk(KERN_INFO "Host TLS support detected\n");

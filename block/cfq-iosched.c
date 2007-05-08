@@ -2090,13 +2090,11 @@ static void cfq_slab_kill(void)
 
 static int __init cfq_slab_setup(void)
 {
-	cfq_pool = kmem_cache_create("cfq_pool", sizeof(struct cfq_queue), 0, 0,
-					NULL, NULL);
+	cfq_pool = KMEM_CACHE(cfq_queue, 0);
 	if (!cfq_pool)
 		goto fail;
 
-	cfq_ioc_pool = kmem_cache_create("cfq_ioc_pool",
-			sizeof(struct cfq_io_context), 0, 0, NULL, NULL);
+	cfq_ioc_pool = KMEM_CACHE(cfq_io_context, 0);
 	if (!cfq_ioc_pool)
 		goto fail;
 

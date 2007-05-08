@@ -363,9 +363,9 @@ static inline int ocfs2_mount_local(struct ocfs2_super *osb)
 	typeof(__di) ____di = (__di);					\
 	ocfs2_error((__sb), 						\
 		"Dinode # %llu has bad signature %.*s",			\
-		(unsigned long long)(____di)->i_blkno, 7,		\
+		(unsigned long long)le64_to_cpu((____di)->i_blkno), 7, 	\
 		(____di)->i_signature);					\
-} while (0);
+} while (0)
 
 #define OCFS2_IS_VALID_EXTENT_BLOCK(ptr)				\
 	(!strcmp((ptr)->h_signature, OCFS2_EXTENT_BLOCK_SIGNATURE))
@@ -374,9 +374,9 @@ static inline int ocfs2_mount_local(struct ocfs2_super *osb)
 	typeof(__eb) ____eb = (__eb);					\
 	ocfs2_error((__sb), 						\
 		"Extent Block # %llu has bad signature %.*s",		\
-		(unsigned long long)(____eb)->h_blkno, 7,		\
+		(unsigned long long)le64_to_cpu((____eb)->h_blkno), 7,	\
 		(____eb)->h_signature);					\
-} while (0);
+} while (0)
 
 #define OCFS2_IS_VALID_GROUP_DESC(ptr)					\
 	(!strcmp((ptr)->bg_signature, OCFS2_GROUP_DESC_SIGNATURE))
@@ -385,9 +385,9 @@ static inline int ocfs2_mount_local(struct ocfs2_super *osb)
 	typeof(__gd) ____gd = (__gd);					\
 		ocfs2_error((__sb),					\
 		"Group Descriptor # %llu has bad signature %.*s",	\
-		(unsigned long long)(____gd)->bg_blkno, 7,		\
+		(unsigned long long)le64_to_cpu((____gd)->bg_blkno), 7, \
 		(____gd)->bg_signature);				\
-} while (0);
+} while (0)
 
 static inline unsigned long ino_from_blkno(struct super_block *sb,
 					   u64 blkno)

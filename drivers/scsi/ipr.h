@@ -37,8 +37,8 @@
 /*
  * Literals
  */
-#define IPR_DRIVER_VERSION "2.3.1"
-#define IPR_DRIVER_DATE "(January 23, 2007)"
+#define IPR_DRIVER_VERSION "2.3.2"
+#define IPR_DRIVER_DATE "(March 23, 2007)"
 
 /*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
@@ -55,6 +55,7 @@
 #define IPR_NUM_BASE_CMD_BLKS				100
 
 #define PCI_DEVICE_ID_IBM_OBSIDIAN_E	0x0339
+#define PCI_DEVICE_ID_IBM_SCAMP_E		0x034A
 
 #define IPR_SUBS_DEV_ID_2780	0x0264
 #define IPR_SUBS_DEV_ID_5702	0x0266
@@ -69,8 +70,12 @@
 #define IPR_SUBS_DEV_ID_572A	0x02C1
 #define IPR_SUBS_DEV_ID_572B	0x02C2
 #define IPR_SUBS_DEV_ID_572F	0x02C3
+#define IPR_SUBS_DEV_ID_574D	0x030B
+#define IPR_SUBS_DEV_ID_574E	0x030A
 #define IPR_SUBS_DEV_ID_575B	0x030D
 #define IPR_SUBS_DEV_ID_575C	0x0338
+#define IPR_SUBS_DEV_ID_575D	0x033E
+#define IPR_SUBS_DEV_ID_57B3	0x033A
 #define IPR_SUBS_DEV_ID_57B7	0x0360
 #define IPR_SUBS_DEV_ID_57B8	0x02C2
 
@@ -103,6 +108,9 @@
 #define IPR_FIRST_DRIVER_IOASC			0x10000000
 #define IPR_IOASC_IOA_WAS_RESET			0x10000001
 #define IPR_IOASC_PCI_ACCESS_ERROR			0x10000002
+
+/* Driver data flags */
+#define IPR_USE_LONG_TRANSOP_TIMEOUT		0x00000001
 
 #define IPR_DEFAULT_MAX_ERROR_DUMP			984
 #define IPR_NUM_LOG_HCAMS				2
@@ -179,6 +187,7 @@
 #define IPR_SET_SUP_DEVICE_TIMEOUT		(2 * 60 * HZ)
 #define IPR_REQUEST_SENSE_TIMEOUT		(10 * HZ)
 #define IPR_OPERATIONAL_TIMEOUT		(5 * 60)
+#define IPR_LONG_OPERATIONAL_TIMEOUT	(12 * 60)
 #define IPR_WAIT_FOR_RESET_TIMEOUT		(2 * HZ)
 #define IPR_CHECK_FOR_RESET_TIMEOUT		(HZ / 10)
 #define IPR_WAIT_FOR_BIST_TIMEOUT		(2 * HZ)
@@ -413,9 +422,25 @@ struct ipr_ioarcb_ata_regs {
 	u8 ctl;
 }__attribute__ ((packed, aligned(4)));
 
+struct ipr_ioadl_desc {
+	__be32 flags_and_data_len;
+#define IPR_IOADL_FLAGS_MASK		0xff000000
+#define IPR_IOADL_GET_FLAGS(x) (be32_to_cpu(x) & IPR_IOADL_FLAGS_MASK)
+#define IPR_IOADL_DATA_LEN_MASK		0x00ffffff
+#define IPR_IOADL_GET_DATA_LEN(x) (be32_to_cpu(x) & IPR_IOADL_DATA_LEN_MASK)
+#define IPR_IOADL_FLAGS_READ		0x48000000
+#define IPR_IOADL_FLAGS_READ_LAST	0x49000000
+#define IPR_IOADL_FLAGS_WRITE		0x68000000
+#define IPR_IOADL_FLAGS_WRITE_LAST	0x69000000
+#define IPR_IOADL_FLAGS_LAST		0x01000000
+
+	__be32 address;
+}__attribute__((packed, aligned (8)));
+
 struct ipr_ioarcb_add_data {
 	union {
 		struct ipr_ioarcb_ata_regs regs;
+		struct ipr_ioadl_desc ioadl[5];
 		__be32 add_cmd_parms[10];
 	}u;
 }__attribute__ ((packed, aligned(4)));
@@ -446,21 +471,6 @@ struct ipr_ioarcb {
 	__be32 add_cmd_parms_len;
 	struct ipr_ioarcb_add_data add_data;
 }__attribute__((packed, aligned (4)));
-
-struct ipr_ioadl_desc {
-	__be32 flags_and_data_len;
-#define IPR_IOADL_FLAGS_MASK		0xff000000
-#define IPR_IOADL_GET_FLAGS(x) (be32_to_cpu(x) & IPR_IOADL_FLAGS_MASK)
-#define IPR_IOADL_DATA_LEN_MASK		0x00ffffff
-#define IPR_IOADL_GET_DATA_LEN(x) (be32_to_cpu(x) & IPR_IOADL_DATA_LEN_MASK)
-#define IPR_IOADL_FLAGS_READ		0x48000000
-#define IPR_IOADL_FLAGS_READ_LAST	0x49000000
-#define IPR_IOADL_FLAGS_WRITE		0x68000000
-#define IPR_IOADL_FLAGS_WRITE_LAST	0x69000000
-#define IPR_IOADL_FLAGS_LAST		0x01000000
-
-	__be32 address;
-}__attribute__((packed, aligned (8)));
 
 struct ipr_ioasa_vset {
 	__be32 failing_lba_hi;
@@ -1119,6 +1129,7 @@ struct ipr_ioa_cfg {
 
 	struct ipr_bus_attributes bus_attr[IPR_MAX_NUM_BUSES];
 
+	unsigned int transop_timeout;
 	const struct ipr_chip_cfg_t *chip_cfg;
 
 	void __iomem *hdw_dma_regs;	/* iomapped PCI memory space */

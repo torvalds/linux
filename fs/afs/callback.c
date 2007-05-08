@@ -468,7 +468,7 @@ int __init afs_callback_update_init(void)
 /*
  * shut down the callback update process
  */
-void __exit afs_callback_update_kill(void)
+void afs_callback_update_kill(void)
 {
 	destroy_workqueue(afs_callback_update_worker);
 }

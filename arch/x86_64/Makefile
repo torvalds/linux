@@ -40,10 +40,6 @@ cflags-y += -m64
 cflags-y += -mno-red-zone
 cflags-y += -mcmodel=kernel
 cflags-y += -pipe
-cflags-kernel-$(CONFIG_REORDER) += -ffunction-sections
-# this makes reading assembly source easier, but produces worse code
-# actually it makes the kernel smaller too.
-cflags-y += -fno-reorder-blocks
 cflags-y += -Wno-sign-compare
 cflags-y += -fno-asynchronous-unwind-tables
 ifneq ($(CONFIG_DEBUG_INFO),y)

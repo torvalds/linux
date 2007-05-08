@@ -717,7 +717,7 @@ struct uart_ops serial_pxa_pops = {
 static struct uart_pxa_port serial_pxa_ports[] = {
      {	/* FFUART */
 	.name	= "FFUART",
-	.cken	= CKEN6_FFUART,
+	.cken	= CKEN_FFUART,
 	.port	= {
 		.type		= PORT_PXA,
 		.iotype		= UPIO_MEM,
@@ -731,7 +731,7 @@ static struct uart_pxa_port serial_pxa_ports[] = {
 	},
   }, {	/* BTUART */
 	.name	= "BTUART",
-	.cken	= CKEN7_BTUART,
+	.cken	= CKEN_BTUART,
 	.port	= {
 		.type		= PORT_PXA,
 		.iotype		= UPIO_MEM,
@@ -745,7 +745,7 @@ static struct uart_pxa_port serial_pxa_ports[] = {
 	},
   }, {	/* STUART */
 	.name	= "STUART",
-	.cken	= CKEN5_STUART,
+	.cken	= CKEN_STUART,
 	.port	= {
 		.type		= PORT_PXA,
 		.iotype		= UPIO_MEM,
@@ -759,7 +759,7 @@ static struct uart_pxa_port serial_pxa_ports[] = {
 	},
   }, {  /* HWUART */
 	.name	= "HWUART",
-	.cken	= CKEN4_HWUART,
+	.cken	= CKEN_HWUART,
 	.port = {
 		.type		= PORT_PXA,
 		.iotype		= UPIO_MEM,

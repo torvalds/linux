@@ -1971,8 +1971,7 @@ static struct net_device *get_strip_dev(struct strip *strip_info)
 		      sizeof(zero_address))) {
 		struct net_device *dev;
 		read_lock_bh(&dev_base_lock);
-		dev = dev_base;
-		while (dev) {
+		for_each_netdev(dev) {
 			if (dev->type == strip_info->dev->type &&
 			    !memcmp(dev->dev_addr,
 				    &strip_info->true_dev_addr,
@@ -1983,7 +1982,6 @@ static struct net_device *get_strip_dev(struct strip *strip_info)
 				read_unlock_bh(&dev_base_lock);
 				return (dev);
 			}
-			dev = dev->next;
 		}
 		read_unlock_bh(&dev_base_lock);
 	}

@@ -44,6 +44,8 @@ struct Scsi_Host;
  */
 #define MAX_INDIRECT_BUFS 10
 
+#define IBMVSCSI_MAX_REQUESTS_DEFAULT 100
+
 /* ------------------------------------------------------------
  * Data Structures
  */

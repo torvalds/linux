@@ -562,11 +562,6 @@ if only one has a flaw for some SCSI feature, you can disable the
 support by the driver of this feature at linux start-up and enable
 this feature after boot-up only for devices that support it safely.
 
-CONFIG_SCSI_NCR53C8XX_PROFILE_SUPPORT  (default answer: n)
-    This option must be set for profiling information to be gathered 
-    and printed out through the proc file system. This features may 
-    impact performances.
-
 CONFIG_SCSI_NCR53C8XX_IOMAPPED       (default answer: n)
     Answer "y" if you suspect your mother board to not allow memory mapped I/O.
     May slow down performance a little.  This option is required by

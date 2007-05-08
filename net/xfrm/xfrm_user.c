@@ -674,7 +674,9 @@ static struct sk_buff *xfrm_state_netlink(struct sk_buff *in_skb,
 
 static int build_spdinfo(struct sk_buff *skb, u32 pid, u32 seq, u32 flags)
 {
-	struct xfrm_spdinfo si;
+	struct xfrmk_spdinfo si;
+	struct xfrmu_spdinfo spc;
+	struct xfrmu_spdhinfo sph;
 	struct nlmsghdr *nlh;
 	u32 *f;
 
@@ -685,23 +687,17 @@ static int build_spdinfo(struct sk_buff *skb, u32 pid, u32 seq, u32 flags)
 	f = nlmsg_data(nlh);
 	*f = flags;
 	xfrm_spd_getinfo(&si);
+	spc.incnt = si.incnt;
+	spc.outcnt = si.outcnt;
+	spc.fwdcnt = si.fwdcnt;
+	spc.inscnt = si.inscnt;
+	spc.outscnt = si.outscnt;
+	spc.fwdscnt = si.fwdscnt;
+	sph.spdhcnt = si.spdhcnt;
+	sph.spdhmcnt = si.spdhmcnt;
 
-	if (flags & XFRM_SPD_HMASK)
-		NLA_PUT_U32(skb, XFRMA_SPDHMASK, si.spdhcnt);
-	if (flags & XFRM_SPD_HMAX)
-		NLA_PUT_U32(skb, XFRMA_SPDHMAX, si.spdhmcnt);
-	if (flags & XFRM_SPD_ICNT)
-		NLA_PUT_U32(skb, XFRMA_SPDICNT, si.incnt);
-	if (flags & XFRM_SPD_OCNT)
-		NLA_PUT_U32(skb, XFRMA_SPDOCNT, si.outcnt);
-	if (flags & XFRM_SPD_FCNT)
-		NLA_PUT_U32(skb, XFRMA_SPDFCNT, si.fwdcnt);
-	if (flags & XFRM_SPD_ISCNT)
-		NLA_PUT_U32(skb, XFRMA_SPDISCNT, si.inscnt);
-	if (flags & XFRM_SPD_OSCNT)
-		NLA_PUT_U32(skb, XFRMA_SPDOSCNT, si.inscnt);
-	if (flags & XFRM_SPD_FSCNT)
-		NLA_PUT_U32(skb, XFRMA_SPDFSCNT, si.inscnt);
+	NLA_PUT(skb, XFRMA_SPD_INFO, sizeof(spc), &spc);
+	NLA_PUT(skb, XFRMA_SPD_HINFO, sizeof(sph), &sph);
 
 	return nlmsg_end(skb, nlh);
 
@@ -719,23 +715,8 @@ static int xfrm_get_spdinfo(struct sk_buff *skb, struct nlmsghdr *nlh,
 	u32 seq = nlh->nlmsg_seq;
 	int len = NLMSG_LENGTH(sizeof(u32));
 
-
-	if (*flags & XFRM_SPD_HMASK)
-		len += RTA_SPACE(sizeof(u32));
-	if (*flags & XFRM_SPD_HMAX)
-		len += RTA_SPACE(sizeof(u32));
-	if (*flags & XFRM_SPD_ICNT)
-		len += RTA_SPACE(sizeof(u32));
-	if (*flags & XFRM_SPD_OCNT)
-		len += RTA_SPACE(sizeof(u32));
-	if (*flags & XFRM_SPD_FCNT)
-		len += RTA_SPACE(sizeof(u32));
-	if (*flags & XFRM_SPD_ISCNT)
-		len += RTA_SPACE(sizeof(u32));
-	if (*flags & XFRM_SPD_OSCNT)
-		len += RTA_SPACE(sizeof(u32));
-	if (*flags & XFRM_SPD_FSCNT)
-		len += RTA_SPACE(sizeof(u32));
+	len += RTA_SPACE(sizeof(struct xfrmu_spdinfo));
+	len += RTA_SPACE(sizeof(struct xfrmu_spdhinfo));
 
 	r_skb = alloc_skb(len, GFP_ATOMIC);
 	if (r_skb == NULL)
@@ -749,7 +730,8 @@ static int xfrm_get_spdinfo(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 static int build_sadinfo(struct sk_buff *skb, u32 pid, u32 seq, u32 flags)
 {
-	struct xfrm_sadinfo si;
+	struct xfrmk_sadinfo si;
+	struct xfrmu_sadhinfo sh;
 	struct nlmsghdr *nlh;
 	u32 *f;
 
@@ -761,12 +743,11 @@ static int build_sadinfo(struct sk_buff *skb, u32 pid, u32 seq, u32 flags)
 	*f = flags;
 	xfrm_sad_getinfo(&si);
 
-	if (flags & XFRM_SAD_HMASK)
-		NLA_PUT_U32(skb, XFRMA_SADHMASK, si.sadhcnt);
-	if (flags & XFRM_SAD_HMAX)
-		NLA_PUT_U32(skb, XFRMA_SADHMAX, si.sadhmcnt);
-	if (flags & XFRM_SAD_CNT)
-		NLA_PUT_U32(skb, XFRMA_SADCNT, si.sadcnt);
+	sh.sadhmcnt = si.sadhmcnt;
+	sh.sadhcnt = si.sadhcnt;
+
+	NLA_PUT_U32(skb, XFRMA_SAD_CNT, si.sadcnt);
+	NLA_PUT(skb, XFRMA_SAD_HINFO, sizeof(sh), &sh);
 
 	return nlmsg_end(skb, nlh);
 
@@ -784,12 +765,8 @@ static int xfrm_get_sadinfo(struct sk_buff *skb, struct nlmsghdr *nlh,
 	u32 seq = nlh->nlmsg_seq;
 	int len = NLMSG_LENGTH(sizeof(u32));
 
-	if (*flags & XFRM_SAD_HMASK)
-		len += RTA_SPACE(sizeof(u32));
-	if (*flags & XFRM_SAD_HMAX)
-		len += RTA_SPACE(sizeof(u32));
-	if (*flags & XFRM_SAD_CNT)
-		len += RTA_SPACE(sizeof(u32));
+	len += RTA_SPACE(sizeof(struct xfrmu_sadhinfo));
+	len += RTA_SPACE(sizeof(u32));
 
 	r_skb = alloc_skb(len, GFP_ATOMIC);
 

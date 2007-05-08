@@ -517,9 +517,10 @@ static void rfcomm_dev_state_change(struct rfcomm_dlc *dlc, int err)
 	if (dlc->state == BT_CLOSED) {
 		if (!dev->tty) {
 			if (test_bit(RFCOMM_RELEASE_ONHUP, &dev->flags)) {
-				rfcomm_dev_hold(dev);
-				rfcomm_dev_del(dev);
+				if (rfcomm_dev_get(dev->id) == NULL)
+					return;
 
+				rfcomm_dev_del(dev);
 				/* We have to drop DLC lock here, otherwise
 				   rfcomm_dev_put() will dead lock if it's
 				   the last reference. */
@@ -974,8 +975,12 @@ static void rfcomm_tty_hangup(struct tty_struct *tty)
 
 	rfcomm_tty_flush_buffer(tty);
 
-	if (test_bit(RFCOMM_RELEASE_ONHUP, &dev->flags))
+	if (test_bit(RFCOMM_RELEASE_ONHUP, &dev->flags)) {
+		if (rfcomm_dev_get(dev->id) == NULL)
+			return;
 		rfcomm_dev_del(dev);
+		rfcomm_dev_put(dev);
+	}
 }
 
 static int rfcomm_tty_read_proc(char *buf, char **start, off_t offset, int len, int *eof, void *unused)

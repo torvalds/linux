@@ -184,10 +184,19 @@ int scsi_delete_timer(struct scsi_cmnd *scmd)
  **/
 void scsi_times_out(struct scsi_cmnd *scmd)
 {
+	enum scsi_eh_timer_return (* eh_timed_out)(struct scsi_cmnd *);
+
 	scsi_log_completion(scmd, TIMEOUT_ERROR);
 
 	if (scmd->device->host->transportt->eh_timed_out)
-		switch (scmd->device->host->transportt->eh_timed_out(scmd)) {
+		eh_timed_out = scmd->device->host->transportt->eh_timed_out;
+	else if (scmd->device->host->hostt->eh_timed_out)
+		eh_timed_out = scmd->device->host->hostt->eh_timed_out;
+	else
+		eh_timed_out = NULL;
+
+	if (eh_timed_out)
+		switch (eh_timed_out(scmd)) {
 		case EH_HANDLED:
 			__scsi_done(scmd);
 			return;
@@ -923,10 +932,12 @@ static int scsi_eh_try_stu(struct scsi_cmnd *scmd)
 	static unsigned char stu_command[6] = {START_STOP, 0, 0, 0, 1, 0};
 
 	if (scmd->device->allow_restart) {
-		int rtn;
+		int i, rtn = NEEDS_RETRY;
 
-		rtn = scsi_send_eh_cmnd(scmd, stu_command, 6,
-					START_UNIT_TIMEOUT, 0);
+		for (i = 0; rtn == NEEDS_RETRY && i < 2; i++)
+			rtn = scsi_send_eh_cmnd(scmd, stu_command, 6,
+						START_UNIT_TIMEOUT, 0);
+
 		if (rtn == SUCCESS)
 			return 0;
 	}

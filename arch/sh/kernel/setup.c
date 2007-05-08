@@ -4,7 +4,7 @@
  * This file handles the architecture-dependent parts of initialization
  *
  *  Copyright (C) 1999  Niibe Yutaka
- *  Copyright (C) 2002 - 2006 Paul Mundt
+ *  Copyright (C) 2002 - 2007 Paul Mundt
  */
 #include <linux/screen_info.h>
 #include <linux/ioport.h>
@@ -15,21 +15,22 @@
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/utsname.h>
+#include <linux/nodemask.h>
 #include <linux/cpu.h>
 #include <linux/pfn.h>
 #include <linux/fs.h>
+#include <linux/mm.h>
+#include <linux/kexec.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/sections.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/clock.h>
+#include <asm/mmu_context.h>
 
-#ifdef CONFIG_SH_KGDB
-#include <asm/kgdb.h>
-static int kgdb_parse_options(char *options);
-#endif
 extern void * __rd_start, * __rd_end;
+
 /*
  * Machine setup..
  */
@@ -205,13 +206,117 @@ static int __init sh_mv_setup(char **cmdline_p)
 	return 0;
 }
 
-void __init setup_arch(char **cmdline_p)
+/*
+ * Register fully available low RAM pages with the bootmem allocator.
+ */
+static void __init register_bootmem_low_pages(void)
+{
+	unsigned long curr_pfn, last_pfn, pages;
+
+	/*
+	 * We are rounding up the start address of usable memory:
+	 */
+	curr_pfn = PFN_UP(__MEMORY_START);
+
+	/*
+	 * ... and at the end of the usable range downwards:
+	 */
+	last_pfn = PFN_DOWN(__pa(memory_end));
+
+	if (last_pfn > max_low_pfn)
+		last_pfn = max_low_pfn;
+
+	pages = last_pfn - curr_pfn;
+	free_bootmem(PFN_PHYS(curr_pfn), PFN_PHYS(pages));
+}
+
+void __init setup_bootmem_allocator(unsigned long start_pfn)
 {
 	unsigned long bootmap_size;
-	unsigned long start_pfn, max_pfn, max_low_pfn;
+
+	/*
+	 * Find a proper area for the bootmem bitmap. After this
+	 * bootstrap step all allocations (until the page allocator
+	 * is intact) must be done via bootmem_alloc().
+	 */
+	bootmap_size = init_bootmem_node(NODE_DATA(0), start_pfn,
+					 min_low_pfn, max_low_pfn);
+
+	register_bootmem_low_pages();
+
+	node_set_online(0);
+
+	/*
+	 * Reserve the kernel text and
+	 * Reserve the bootmem bitmap. We do this in two steps (first step
+	 * was init_bootmem()), because this catches the (definitely buggy)
+	 * case of us accidentally initializing the bootmem allocator with
+	 * an invalid RAM area.
+	 */
+	reserve_bootmem(__MEMORY_START+PAGE_SIZE,
+		(PFN_PHYS(start_pfn)+bootmap_size+PAGE_SIZE-1)-__MEMORY_START);
+
+	/*
+	 * reserve physical page 0 - it's a special BIOS page on many boxes,
+	 * enabling clean reboots, SMP operation, laptop functions.
+	 */
+	reserve_bootmem(__MEMORY_START, PAGE_SIZE);
+
+#ifdef CONFIG_BLK_DEV_INITRD
+	ROOT_DEV = MKDEV(RAMDISK_MAJOR, 0);
+	if (&__rd_start != &__rd_end) {
+		LOADER_TYPE = 1;
+		INITRD_START = PHYSADDR((unsigned long)&__rd_start) -
+					__MEMORY_START;
+		INITRD_SIZE = (unsigned long)&__rd_end -
+			      (unsigned long)&__rd_start;
+	}
+
+	if (LOADER_TYPE && INITRD_START) {
+		if (INITRD_START + INITRD_SIZE <= (max_low_pfn << PAGE_SHIFT)) {
+			reserve_bootmem(INITRD_START + __MEMORY_START,
+					INITRD_SIZE);
+			initrd_start = INITRD_START + PAGE_OFFSET +
+					__MEMORY_START;
+			initrd_end = initrd_start + INITRD_SIZE;
+		} else {
+			printk("initrd extends beyond end of memory "
+			    "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
+				    INITRD_START + INITRD_SIZE,
+				    max_low_pfn << PAGE_SHIFT);
+			initrd_start = 0;
+		}
+	}
+#endif
+#ifdef CONFIG_KEXEC
+	if (crashk_res.start != crashk_res.end)
+		reserve_bootmem(crashk_res.start,
+			crashk_res.end - crashk_res.start + 1);
+#endif
+}
+
+#ifndef CONFIG_NEED_MULTIPLE_NODES
+static void __init setup_memory(void)
+{
+	unsigned long start_pfn;
+
+	/*
+	 * Partially used pages are not usable - thus
+	 * we are rounding upwards:
+	 */
+	start_pfn = PFN_UP(__pa(_end));
+	setup_bootmem_allocator(start_pfn);
+}
+#else
+extern void __init setup_memory(void);
+#endif
+
+void __init setup_arch(char **cmdline_p)
+{
+	enable_mmu();
 
 #ifdef CONFIG_CMDLINE_BOOL
-        strcpy(COMMAND_LINE, CONFIG_CMDLINE);
+	strcpy(COMMAND_LINE, CONFIG_CMDLINE);
 #endif
 
 	ROOT_DEV = old_decode_dev(ORIG_ROOT_DEV);
@@ -229,13 +334,14 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_data = (unsigned long) _edata;
 	init_mm.brk = (unsigned long) _end;
 
-	code_resource.start = (unsigned long)virt_to_phys(_text);
-	code_resource.end = (unsigned long)virt_to_phys(_etext)-1;
-	data_resource.start = (unsigned long)virt_to_phys(_etext);
-	data_resource.end = (unsigned long)virt_to_phys(_edata)-1;
+	code_resource.start = virt_to_phys(_text);
+	code_resource.end = virt_to_phys(_etext)-1;
+	data_resource.start = virt_to_phys(_etext);
+	data_resource.end = virt_to_phys(_edata)-1;
+
+	parse_early_param();
 
 	sh_mv_setup(cmdline_p);
-
 
 	/*
 	 * Find the highest page frame number we have available
@@ -246,87 +352,12 @@ void __init setup_arch(char **cmdline_p)
 	 * Determine low and high memory ranges:
 	 */
 	max_low_pfn = max_pfn;
+	min_low_pfn = __MEMORY_START >> PAGE_SHIFT;
 
-	/*
-	 * Partially used pages are not usable - thus
-	 * we are rounding upwards:
-	 */
-	start_pfn = PFN_UP(__pa(_end));
-
-	/*
-	 * Find a proper area for the bootmem bitmap. After this
-	 * bootstrap step all allocations (until the page allocator
-	 * is intact) must be done via bootmem_alloc().
-	 */
-	bootmap_size = init_bootmem_node(NODE_DATA(0), start_pfn,
-					 __MEMORY_START>>PAGE_SHIFT,
-					 max_low_pfn);
-	/*
-	 * Register fully available low RAM pages with the bootmem allocator.
-	 */
-	{
-		unsigned long curr_pfn, last_pfn, pages;
-
-		/*
-		 * We are rounding up the start address of usable memory:
-		 */
-		curr_pfn = PFN_UP(__MEMORY_START);
-		/*
-		 * ... and at the end of the usable range downwards:
-		 */
-		last_pfn = PFN_DOWN(__pa(memory_end));
-
-		if (last_pfn > max_low_pfn)
-			last_pfn = max_low_pfn;
-
-		pages = last_pfn - curr_pfn;
-		free_bootmem_node(NODE_DATA(0), PFN_PHYS(curr_pfn),
-				  PFN_PHYS(pages));
-	}
-
-
-	/*
-	 * Reserve the kernel text and
-	 * Reserve the bootmem bitmap. We do this in two steps (first step
-	 * was init_bootmem()), because this catches the (definitely buggy)
-	 * case of us accidentally initializing the bootmem allocator with
-	 * an invalid RAM area.
-	 */
-	reserve_bootmem_node(NODE_DATA(0), __MEMORY_START+PAGE_SIZE,
-		(PFN_PHYS(start_pfn)+bootmap_size+PAGE_SIZE-1)-__MEMORY_START);
-
-	/*
-	 * reserve physical page 0 - it's a special BIOS page on many boxes,
-	 * enabling clean reboots, SMP operation, laptop functions.
-	 */
-	reserve_bootmem_node(NODE_DATA(0), __MEMORY_START, PAGE_SIZE);
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	ROOT_DEV = MKDEV(RAMDISK_MAJOR, 0);
-	if (&__rd_start != &__rd_end) {
-		LOADER_TYPE = 1;
-		INITRD_START = PHYSADDR((unsigned long)&__rd_start) -
-					__MEMORY_START;
-		INITRD_SIZE = (unsigned long)&__rd_end -
-			      (unsigned long)&__rd_start;
-	}
-
-	if (LOADER_TYPE && INITRD_START) {
-		if (INITRD_START + INITRD_SIZE <= (max_low_pfn << PAGE_SHIFT)) {
-			reserve_bootmem_node(NODE_DATA(0), INITRD_START +
-						__MEMORY_START, INITRD_SIZE);
-			initrd_start = INITRD_START + PAGE_OFFSET +
-					__MEMORY_START;
-			initrd_end = initrd_start + INITRD_SIZE;
-		} else {
-			printk("initrd extends beyond end of memory "
-			    "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
-				    INITRD_START + INITRD_SIZE,
-				    max_low_pfn << PAGE_SHIFT);
-			initrd_start = 0;
-		}
-	}
-#endif
+	nodes_clear(node_online_map);
+	setup_memory();
+	paging_init();
+	sparse_init();
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
@@ -335,8 +366,6 @@ void __init setup_arch(char **cmdline_p)
 	/* Perform the machine specific initialisation */
 	if (likely(sh_mv.mv_setup))
 		sh_mv.mv_setup(cmdline_p);
-
-	paging_init();
 }
 
 struct sh_machine_vector* __init get_mv_byname(const char* name)
@@ -380,6 +409,7 @@ static const char *cpu_name[] = {
 	[CPU_SH7705]	= "SH7705",	[CPU_SH7706]	= "SH7706",
 	[CPU_SH7707]	= "SH7707",	[CPU_SH7708]	= "SH7708",
 	[CPU_SH7709]	= "SH7709",	[CPU_SH7710]	= "SH7710",
+	[CPU_SH7712]	= "SH7712",
 	[CPU_SH7729]	= "SH7729",	[CPU_SH7750]	= "SH7750",
 	[CPU_SH7750S]	= "SH7750S",	[CPU_SH7750R]	= "SH7750R",
 	[CPU_SH7751]	= "SH7751",	[CPU_SH7751R]	= "SH7751R",
@@ -477,7 +507,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		     c->loops_per_jiffy/(500000/HZ),
 		     (c->loops_per_jiffy/(5000/HZ)) % 100);
 
-	return show_clocks(m);
+	return 0;
 }
 
 static void *c_start(struct seq_file *m, loff_t *pos)
@@ -499,92 +529,3 @@ struct seq_operations cpuinfo_op = {
 	.show	= show_cpuinfo,
 };
 #endif /* CONFIG_PROC_FS */
-
-#ifdef CONFIG_SH_KGDB
-/*
- * Parse command-line kgdb options.  By default KGDB is enabled,
- * entered on error (or other action) using default serial info.
- * The command-line option can include a serial port specification
- * and an action to override default or configured behavior.
- */
-struct kgdb_sermap kgdb_sci_sermap =
-{ "ttySC", 5, kgdb_sci_setup, NULL };
-
-struct kgdb_sermap *kgdb_serlist = &kgdb_sci_sermap;
-struct kgdb_sermap *kgdb_porttype = &kgdb_sci_sermap;
-
-void kgdb_register_sermap(struct kgdb_sermap *map)
-{
-	struct kgdb_sermap *last;
-
-	for (last = kgdb_serlist; last->next; last = last->next)
-		;
-	last->next = map;
-	if (!map->namelen) {
-		map->namelen = strlen(map->name);
-	}
-}
-
-static int __init kgdb_parse_options(char *options)
-{
-	char c;
-	int baud;
-
-	/* Check for port spec (or use default) */
-
-	/* Determine port type and instance */
-	if (!memcmp(options, "tty", 3)) {
-		struct kgdb_sermap *map = kgdb_serlist;
-
-		while (map && memcmp(options, map->name, map->namelen))
-			map = map->next;
-
-		if (!map) {
-			KGDB_PRINTK("unknown port spec in %s\n", options);
-			return -1;
-		}
-
-		kgdb_porttype = map;
-		kgdb_serial_setup = map->setup_fn;
-		kgdb_portnum = options[map->namelen] - '0';
-		options += map->namelen + 1;
-
-		options = (*options == ',') ? options+1 : options;
-
-		/* Read optional parameters (baud/parity/bits) */
-		baud = simple_strtoul(options, &options, 10);
-		if (baud != 0) {
-			kgdb_baud = baud;
-
-			c = toupper(*options);
-			if (c == 'E' || c == 'O' || c == 'N') {
-				kgdb_parity = c;
-				options++;
-			}
-
-			c = *options;
-			if (c == '7' || c == '8') {
-				kgdb_bits = c;
-				options++;
-			}
-			options = (*options == ',') ? options+1 : options;
-		}
-	}
-
-	/* Check for action specification */
-	if (!memcmp(options, "halt", 4)) {
-		kgdb_halt = 1;
-		options += 4;
-	} else if (!memcmp(options, "disabled", 8)) {
-		kgdb_enabled = 0;
-		options += 8;
-	}
-
-	if (*options) {
-                KGDB_PRINTK("ignored unknown options: %s\n", options);
-		return 0;
-	}
-	return 1;
-}
-__setup("kgdb=", kgdb_parse_options);
-#endif /* CONFIG_SH_KGDB */

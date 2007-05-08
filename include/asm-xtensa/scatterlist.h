@@ -11,6 +11,8 @@
 #ifndef _XTENSA_SCATTERLIST_H
 #define _XTENSA_SCATTERLIST_H
 
+#include <asm/types.h>
+
 struct scatterlist {
 	struct page 	*page;
 	unsigned int	offset;

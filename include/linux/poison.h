@@ -18,6 +18,9 @@
 #define	RED_INACTIVE	0x5A2CF071UL	/* when obj is inactive */
 #define	RED_ACTIVE	0x170FC2A5UL	/* when obj is active */
 
+#define SLUB_RED_INACTIVE	0xbb
+#define SLUB_RED_ACTIVE		0xcc
+
 /* ...and for poisoning */
 #define	POISON_INUSE	0x5a	/* for use-uninitialised poisoning */
 #define POISON_FREE	0x6b	/* for use-after-free poisoning */
@@ -25,9 +28,6 @@
 
 /********** arch/$ARCH/mm/init.c **********/
 #define POISON_FREE_INITMEM	0xcc
-
-/********** arch/x86_64/mm/init.c **********/
-#define	POISON_FREE_INITDATA	0xba
 
 /********** arch/ia64/hp/common/sba_iommu.c **********/
 /*

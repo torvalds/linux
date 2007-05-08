@@ -17,7 +17,7 @@
 #include <linux/buffer_head.h>
 #include <linux/mutex.h>
 
-struct subsystem block_subsys;
+struct kset block_subsys;
 static DEFINE_MUTEX(block_subsys_lock);
 
 /*
@@ -221,7 +221,7 @@ static void *part_start(struct seq_file *part, loff_t *pos)
 	loff_t l = *pos;
 
 	mutex_lock(&block_subsys_lock);
-	list_for_each(p, &block_subsys.kset.list)
+	list_for_each(p, &block_subsys.list)
 		if (!l--)
 			return list_entry(p, struct gendisk, kobj.entry);
 	return NULL;
@@ -231,7 +231,7 @@ static void *part_next(struct seq_file *part, void *v, loff_t *pos)
 {
 	struct list_head *p = ((struct gendisk *)v)->kobj.entry.next;
 	++*pos;
-	return p==&block_subsys.kset.list ? NULL : 
+	return p==&block_subsys.list ? NULL :
 		list_entry(p, struct gendisk, kobj.entry);
 }
 
@@ -246,7 +246,7 @@ static int show_partition(struct seq_file *part, void *v)
 	int n;
 	char buf[BDEVNAME_SIZE];
 
-	if (&sgp->kobj.entry == block_subsys.kset.list.next)
+	if (&sgp->kobj.entry == block_subsys.list.next)
 		seq_puts(part, "major minor  #blocks  name\n\n");
 
 	/* Don't show non-partitionable removeable devices or empty devices */
@@ -565,7 +565,7 @@ static void *diskstats_start(struct seq_file *part, loff_t *pos)
 	struct list_head *p;
 
 	mutex_lock(&block_subsys_lock);
-	list_for_each(p, &block_subsys.kset.list)
+	list_for_each(p, &block_subsys.list)
 		if (!k--)
 			return list_entry(p, struct gendisk, kobj.entry);
 	return NULL;
@@ -575,7 +575,7 @@ static void *diskstats_next(struct seq_file *part, void *v, loff_t *pos)
 {
 	struct list_head *p = ((struct gendisk *)v)->kobj.entry.next;
 	++*pos;
-	return p==&block_subsys.kset.list ? NULL :
+	return p==&block_subsys.list ? NULL :
 		list_entry(p, struct gendisk, kobj.entry);
 }
 

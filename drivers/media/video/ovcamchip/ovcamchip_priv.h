@@ -15,6 +15,7 @@
 #ifndef __LINUX_OVCAMCHIP_PRIV_H
 #define __LINUX_OVCAMCHIP_PRIV_H
 
+#include <linux/i2c.h>
 #include <media/ovcamchip.h>
 
 #ifdef DEBUG

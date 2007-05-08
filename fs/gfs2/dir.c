@@ -1262,9 +1262,10 @@ static int gfs2_dir_read_leaf(struct inode *inode, u64 *offset, void *opaque,
 			      u64 leaf_no)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct buffer_head *bh;
 	struct gfs2_leaf *lf;
-	unsigned entries = 0;
+	unsigned entries = 0, entries2 = 0;
 	unsigned leaves = 0;
 	const struct gfs2_dirent **darr, *dent;
 	struct dirent_gather g;
@@ -1290,7 +1291,13 @@ static int gfs2_dir_read_leaf(struct inode *inode, u64 *offset, void *opaque,
 		return 0;
 
 	error = -ENOMEM;
-	larr = vmalloc((leaves + entries) * sizeof(void *));
+	/*
+	 * The extra 99 entries are not normally used, but are a buffer
+	 * zone in case the number of entries in the leaf is corrupt.
+	 * 99 is the maximum number of entries that can fit in a single
+	 * leaf block.
+	 */
+	larr = vmalloc((leaves + entries + 99) * sizeof(void *));
 	if (!larr)
 		goto out;
 	darr = (const struct gfs2_dirent **)(larr + leaves);
@@ -1305,10 +1312,20 @@ static int gfs2_dir_read_leaf(struct inode *inode, u64 *offset, void *opaque,
 		lf = (struct gfs2_leaf *)bh->b_data;
 		lfn = be64_to_cpu(lf->lf_next);
 		if (lf->lf_entries) {
+			entries2 += be16_to_cpu(lf->lf_entries);
 			dent = gfs2_dirent_scan(inode, bh->b_data, bh->b_size,
 						gfs2_dirent_gather, NULL, &g);
 			error = PTR_ERR(dent);
-			if (IS_ERR(dent)) {
+			if (IS_ERR(dent))
+				goto out_kfree;
+			if (entries2 != g.offset) {
+				fs_warn(sdp, "Number of entries corrupt in dir "
+						"leaf %llu, entries2 (%u) != "
+						"g.offset (%u)\n",
+					(unsigned long long)bh->b_blocknr,
+					entries2, g.offset);
+					
+				error = -EIO;
 				goto out_kfree;
 			}
 			error = 0;
@@ -1318,6 +1335,7 @@ static int gfs2_dir_read_leaf(struct inode *inode, u64 *offset, void *opaque,
 		}
 	} while(lfn);
 
+	BUG_ON(entries2 != entries);
 	error = do_filldir_main(ip, offset, opaque, filldir, darr,
 				entries, copied);
 out_kfree:
@@ -1401,6 +1419,7 @@ int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
 		  filldir_t filldir)
 {
 	struct gfs2_inode *dip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct dirent_gather g;
 	const struct gfs2_dirent **darr, *dent;
 	struct buffer_head *dibh;
@@ -1423,8 +1442,8 @@ int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
 		return error;
 
 	error = -ENOMEM;
-	darr = kmalloc(dip->i_di.di_entries * sizeof(struct gfs2_dirent *),
-		       GFP_KERNEL);
+	/* 96 is max number of dirents which can be stuffed into an inode */
+	darr = kmalloc(96 * sizeof(struct gfs2_dirent *), GFP_KERNEL);
 	if (darr) {
 		g.pdent = darr;
 		g.offset = 0;
@@ -1432,6 +1451,15 @@ int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
 					gfs2_dirent_gather, NULL, &g);
 		if (IS_ERR(dent)) {
 			error = PTR_ERR(dent);
+			goto out;
+		}
+		if (dip->i_di.di_entries != g.offset) {
+			fs_warn(sdp, "Number of entries corrupt in dir %llu, "
+				"ip->i_di.di_entries (%u) != g.offset (%u)\n",
+				(unsigned long long)dip->i_num.no_addr,
+				dip->i_di.di_entries,
+				g.offset);
+			error = -EIO;
 			goto out;
 		}
 		error = do_filldir_main(dip, offset, opaque, filldir, darr,

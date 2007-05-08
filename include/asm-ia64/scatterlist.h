@@ -6,6 +6,8 @@
  *	David Mosberger-Tang <davidm@hpl.hp.com>, Hewlett-Packard Co
  */
 
+#include <asm/types.h>
+
 struct scatterlist {
 	struct page *page;
 	unsigned int offset;

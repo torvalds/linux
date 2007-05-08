@@ -286,6 +286,8 @@ static inline int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 		if (retval)
 			goto out;
 	}
+	/* a new mm has just been created */
+	arch_dup_mmap(oldmm, mm);
 	retval = 0;
 out:
 	up_write(&mm->mmap_sem);
@@ -1423,8 +1425,7 @@ static void sighand_ctor(void *data, struct kmem_cache *cachep, unsigned long fl
 {
 	struct sighand_struct *sighand = data;
 
-	if ((flags & (SLAB_CTOR_VERIFY | SLAB_CTOR_CONSTRUCTOR)) ==
-					SLAB_CTOR_CONSTRUCTOR)
+	if (flags & SLAB_CTOR_CONSTRUCTOR)
 		spin_lock_init(&sighand->siglock);
 }
 

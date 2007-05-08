@@ -237,13 +237,9 @@ int vlan_proc_rem_dev(struct net_device *vlandev)
  * The following few functions build the content of /proc/net/vlan/config
  */
 
-/* starting at dev, find a VLAN device */
-static struct net_device *vlan_skip(struct net_device *dev)
+static inline int is_vlan_dev(struct net_device *dev)
 {
-	while (dev && !(dev->priv_flags & IFF_802_1Q_VLAN))
-		dev = dev->next;
-
-	return dev;
+	return dev->priv_flags & IFF_802_1Q_VLAN;
 }
 
 /* start read of /proc/net/vlan/config */
@@ -257,19 +253,35 @@ static void *vlan_seq_start(struct seq_file *seq, loff_t *pos)
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	for (dev = vlan_skip(dev_base); dev && i < *pos;
-	     dev = vlan_skip(dev->next), ++i);
+	for_each_netdev(dev) {
+		if (!is_vlan_dev(dev))
+			continue;
 
-	return  (i == *pos) ? dev : NULL;
+		if (i++ == *pos)
+			return dev;
+	}
+
+	return  NULL;
 }
 
 static void *vlan_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
+	struct net_device *dev;
+
 	++*pos;
 
-	return vlan_skip((v == SEQ_START_TOKEN)
-			    ? dev_base
-			    : ((struct net_device *)v)->next);
+	dev = (struct net_device *)v;
+	if (v == SEQ_START_TOKEN)
+		dev = net_device_entry(&dev_base_head);
+
+	for_each_netdev_continue(dev) {
+		if (!is_vlan_dev(dev))
+			continue;
+
+		return dev;
+	}
+
+	return NULL;
 }
 
 static void vlan_seq_stop(struct seq_file *seq, void *v)

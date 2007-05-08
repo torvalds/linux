@@ -37,7 +37,6 @@
 #include <linux/major.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
-#include <linux/pci.h>
 #include <linux/signal.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>

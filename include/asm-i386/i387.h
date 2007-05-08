@@ -74,17 +74,18 @@ static inline void __save_init_fpu( struct task_struct *tsk )
 	task_thread_info(tsk)->status &= ~TS_USEDFPU;
 }
 
-#define __unlazy_fpu( tsk ) do { \
-	if (task_thread_info(tsk)->status & TS_USEDFPU) \
-		save_init_fpu( tsk ); 			\
-	else						\
-		tsk->fpu_counter = 0;			\
+#define __unlazy_fpu( tsk ) do {				\
+	if (task_thread_info(tsk)->status & TS_USEDFPU) {	\
+		__save_init_fpu(tsk);				\
+		stts();						\
+	} else							\
+		tsk->fpu_counter = 0;				\
 } while (0)
 
 #define __clear_fpu( tsk )					\
 do {								\
-	if (task_thread_info(tsk)->status & TS_USEDFPU) {		\
-		asm volatile("fnclex ; fwait");				\
+	if (task_thread_info(tsk)->status & TS_USEDFPU) {	\
+		asm volatile("fnclex ; fwait");			\
 		task_thread_info(tsk)->status &= ~TS_USEDFPU;	\
 		stts();						\
 	}							\
@@ -113,7 +114,7 @@ static inline void save_init_fpu( struct task_struct *tsk )
 	__clear_fpu( tsk );	\
 	preempt_enable();	\
 } while (0)
-					\
+
 /*
  * FPU state interaction...
  */

@@ -58,6 +58,12 @@ config SPI_ATMEL
 	  This selects a driver for the Atmel SPI Controller, present on
 	  many AT32 (AVR32) and AT91 (ARM) chips.
 
+config SPI_BFIN
+	tristate "SPI controller driver for ADI Blackfin5xx"
+	depends on SPI_MASTER && BFIN
+	help
+	  This is the SPI controller master driver for Blackfin 5xx processor.
+
 config SPI_BITBANG
 	tristate "Bitbanging SPI master"
 	depends on SPI_MASTER && EXPERIMENTAL
@@ -156,7 +162,6 @@ config SPI_AT25
 #
 # Add new SPI protocol masters in alphabetical order above this line
 #
-
 
 # (slave support would go here)
 

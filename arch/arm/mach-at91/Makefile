@@ -25,6 +25,7 @@ obj-$(CONFIG_MACH_CARMEVA)	+= board-carmeva.o
 obj-$(CONFIG_MACH_KB9200)	+= board-kb9202.o
 obj-$(CONFIG_MACH_ATEB9200)	+= board-eb9200.o
 obj-$(CONFIG_MACH_KAFA)		+= board-kafa.o
+obj-$(CONFIG_MACH_PICOTUX2XX)	+= board-picotux200.o
 
 # AT91SAM9260 board-specific support
 obj-$(CONFIG_MACH_AT91SAM9260EK) += board-sam9260ek.o

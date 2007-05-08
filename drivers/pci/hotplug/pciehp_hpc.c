@@ -71,6 +71,8 @@
 #define DBG_LEAVE_ROUTINE
 #endif				/* DEBUG */
 
+static atomic_t pciehp_num_controllers = ATOMIC_INIT(0);
+
 struct ctrl_reg {
 	u8 cap_id;
 	u8 nxt_ptr;
@@ -219,10 +221,7 @@ static inline int pciehp_writel(struct controller *ctrl, int reg, u32 value)
 #define EMI_STATE		0x0080
 #define EMI_STATUS_BIT		7
 
-static spinlock_t hpc_event_lock;
-
 DEFINE_DBG_BUFFER		/* Debug string buffer for entire HPC defined here */
-static int ctlr_seq_num = 0;	/* Controller sequence # */
 
 static irqreturn_t pcie_isr(int irq, void *dev_id);
 static void start_int_poll_timer(struct controller *ctrl, int sec);
@@ -655,6 +654,13 @@ static void hpc_release_ctlr(struct controller *ctrl)
 		del_timer(&ctrl->poll_timer);
 	else
 		free_irq(ctrl->pci_dev->irq, ctrl);
+
+	/*
+	 * If this is the last controller to be released, destroy the
+	 * pciehp work queue
+	 */
+	if (atomic_dec_and_test(&pciehp_num_controllers))
+		destroy_workqueue(pciehp_wq);
 
 	DBG_LEAVE_ROUTINE
 }
@@ -1152,7 +1158,6 @@ int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 {
 	int rc;
-	static int first = 1;
 	u16 temp_word;
 	u16 cap_reg;
 	u16 intr_enable = 0;
@@ -1221,11 +1226,6 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 	dbg("%s: SLOTCTRL offset %x slot_ctrl %x\n",
 	    __FUNCTION__, ctrl->cap_base + SLOTCTRL, slot_ctrl);
 
-	if (first) {
-		spin_lock_init(&hpc_event_lock);
-		first = 0;
-	}
-
 	for ( rc = 0; rc < DEVICE_COUNT_RESOURCE; rc++)
 		if (pci_resource_len(pdev, rc) > 0)
 			dbg("pci resource[%d] start=0x%llx(len=0x%llx)\n", rc,
@@ -1286,7 +1286,8 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 		rc = request_irq(ctrl->pci_dev->irq, pcie_isr, IRQF_SHARED,
 				 MY_NAME, (void *)ctrl);
 		dbg("%s: request_irq %d for hpc%d (returns %d)\n",
-		    __FUNCTION__, ctrl->pci_dev->irq, ctlr_seq_num, rc);
+		    __FUNCTION__, ctrl->pci_dev->irq,
+		    atomic_read(&pciehp_num_controllers), rc);
 		if (rc) {
 			err("Can't get irq %d for the hotplug controller\n",
 			    ctrl->pci_dev->irq);
@@ -1295,6 +1296,18 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 	}
 	dbg("pciehp ctrl b:d:f:irq=0x%x:%x:%x:%x\n", pdev->bus->number,
 		PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn), dev->irq);
+
+	/*
+	 * If this is the first controller to be initialized,
+	 * initialize the pciehp work queue
+	 */
+	if (atomic_add_return(1, &pciehp_num_controllers) == 1) {
+		pciehp_wq = create_singlethread_workqueue("pciehpd");
+		if (!pciehp_wq) {
+			rc = -ENOMEM;
+			goto abort_free_irq;
+		}
+	}
 
 	rc = pciehp_readw(ctrl, SLOTCTRL, &temp_word);
 	if (rc) {
@@ -1349,7 +1362,6 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 			goto abort_disable_intr;
 	}
 
-	ctlr_seq_num++;
 	ctrl->hpc_ops = &pciehp_hpc_ops;
 
 	DBG_LEAVE_ROUTINE

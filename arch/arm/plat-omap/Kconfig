@@ -11,6 +11,7 @@ choice
 
 config ARCH_OMAP1
 	bool "TI OMAP1"
+	select GENERIC_CLOCKEVENTS
 
 config ARCH_OMAP2
 	bool "TI OMAP2"

@@ -428,7 +428,7 @@ static int __init root_nfs_getport(int program, int version, int proto)
 	printk(KERN_NOTICE "Looking up port of RPC %d/%d on %u.%u.%u.%u\n",
 		program, version, NIPQUAD(servaddr));
 	set_sockaddr(&sin, servaddr, 0);
-	return rpc_getport_external(&sin, program, version, proto);
+	return rpcb_getport_external(&sin, program, version, proto);
 }
 
 

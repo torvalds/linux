@@ -11,7 +11,6 @@
 #include <sys/statfs.h>
 #include "kern_util.h"
 #include "user.h"
-#include "user_util.h"
 #include "mem_user.h"
 #include "init.h"
 #include "os.h"
@@ -165,7 +164,8 @@ found:
  * (file: kernel/tt/ptproxy/proxy.c, proc: start_debugger).
  * So it isn't 'static' yet.
  */
-int make_tempfile(const char *template, char **out_tempname, int do_unlink)
+int __init make_tempfile(const char *template, char **out_tempname,
+			 int do_unlink)
 {
 	char *tempname;
 	int fd;
@@ -206,7 +206,7 @@ out:
  * This proc is used in start_up.c
  * So it isn't 'static'.
  */
-int create_tmp_file(unsigned long long len)
+int __init create_tmp_file(unsigned long long len)
 {
 	int fd, err;
 	char zero;
@@ -232,17 +232,16 @@ int create_tmp_file(unsigned long long len)
 
 	zero = 0;
 
-	err = os_write_file(fd, &zero, 1);
+	err = write(fd, &zero, 1);
 	if(err != 1){
-		errno = -err;
-		perror("os_write_file");
+		perror("write");
 		exit(1);
 	}
 
 	return fd;
 }
 
-int create_mem_file(unsigned long long len)
+int __init create_mem_file(unsigned long long len)
 {
 	int err, fd;
 
@@ -257,7 +256,7 @@ int create_mem_file(unsigned long long len)
 }
 
 
-void check_tmpexec(void)
+void __init check_tmpexec(void)
 {
 	void *addr;
 	int err, fd = create_tmp_file(UM_KERN_PAGE_SIZE);

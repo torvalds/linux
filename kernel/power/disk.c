@@ -130,15 +130,25 @@ int pm_suspend_disk(void)
 {
 	int error;
 
+	/* The snapshot device should not be opened while we're running */
+	if (!atomic_add_unless(&snapshot_device_available, -1, 0))
+		return -EBUSY;
+
+	/* Allocate memory management structures */
+	error = create_basic_memory_bitmaps();
+	if (error)
+		goto Exit;
+
 	error = prepare_processes();
 	if (error)
-		return error;
+		goto Finish;
 
 	if (pm_disk_mode == PM_DISK_TESTPROC) {
 		printk("swsusp debug: Waiting for 5 seconds.\n");
 		mdelay(5000);
 		goto Thaw;
 	}
+
 	/* Free memory before shutting down devices. */
 	error = swsusp_shrink_memory();
 	if (error)
@@ -196,6 +206,10 @@ int pm_suspend_disk(void)
 	resume_console();
  Thaw:
 	unprepare_processes();
+ Finish:
+	free_basic_memory_bitmaps();
+ Exit:
+	atomic_inc(&snapshot_device_available);
 	return error;
 }
 
@@ -239,13 +253,21 @@ static int software_resume(void)
 	}
 
 	pr_debug("PM: Checking swsusp image.\n");
-
 	error = swsusp_check();
 	if (error)
-		goto Done;
+		goto Unlock;
+
+	/* The snapshot device should not be opened while we're running */
+	if (!atomic_add_unless(&snapshot_device_available, -1, 0)) {
+		error = -EBUSY;
+		goto Unlock;
+	}
+
+	error = create_basic_memory_bitmaps();
+	if (error)
+		goto Finish;
 
 	pr_debug("PM: Preparing processes for restore.\n");
-
 	error = prepare_processes();
 	if (error) {
 		swsusp_close();
@@ -280,7 +302,11 @@ static int software_resume(void)
 	printk(KERN_ERR "PM: Restore failed, recovering.\n");
 	unprepare_processes();
  Done:
+	free_basic_memory_bitmaps();
+ Finish:
+	atomic_inc(&snapshot_device_available);
 	/* For success case, the suspend path will release the lock */
+ Unlock:
 	mutex_unlock(&pm_mutex);
 	pr_debug("PM: Resume from disk failed.\n");
 	return 0;
@@ -322,13 +348,40 @@ static const char * const pm_disk_modes[] = {
  *	supports it (as determined from pm_ops->pm_disk_mode).
  */
 
-static ssize_t disk_show(struct subsystem * subsys, char * buf)
+static ssize_t disk_show(struct kset *kset, char *buf)
 {
-	return sprintf(buf, "%s\n", pm_disk_modes[pm_disk_mode]);
+	int i;
+	char *start = buf;
+
+	for (i = PM_DISK_PLATFORM; i < PM_DISK_MAX; i++) {
+		if (!pm_disk_modes[i])
+			continue;
+		switch (i) {
+		case PM_DISK_SHUTDOWN:
+		case PM_DISK_REBOOT:
+		case PM_DISK_TEST:
+		case PM_DISK_TESTPROC:
+			break;
+		default:
+			if (pm_ops && pm_ops->enter &&
+			    (i == pm_ops->pm_disk_mode))
+				break;
+			/* not a valid mode, continue with loop */
+			continue;
+		}
+		if (i == pm_disk_mode)
+			buf += sprintf(buf, "[%s]", pm_disk_modes[i]);
+		else
+			buf += sprintf(buf, "%s", pm_disk_modes[i]);
+		if (i+1 != PM_DISK_MAX)
+			buf += sprintf(buf, " ");
+	}
+	buf += sprintf(buf, "\n");
+	return buf-start;
 }
 
 
-static ssize_t disk_store(struct subsystem * s, const char * buf, size_t n)
+static ssize_t disk_store(struct kset *kset, const char *buf, size_t n)
 {
 	int error = 0;
 	int i;
@@ -373,13 +426,13 @@ static ssize_t disk_store(struct subsystem * s, const char * buf, size_t n)
 
 power_attr(disk);
 
-static ssize_t resume_show(struct subsystem * subsys, char *buf)
+static ssize_t resume_show(struct kset *kset, char *buf)
 {
 	return sprintf(buf,"%d:%d\n", MAJOR(swsusp_resume_device),
 		       MINOR(swsusp_resume_device));
 }
 
-static ssize_t resume_store(struct subsystem *subsys, const char *buf, size_t n)
+static ssize_t resume_store(struct kset *kset, const char *buf, size_t n)
 {
 	unsigned int maj, min;
 	dev_t res;
@@ -405,12 +458,12 @@ static ssize_t resume_store(struct subsystem *subsys, const char *buf, size_t n)
 
 power_attr(resume);
 
-static ssize_t image_size_show(struct subsystem * subsys, char *buf)
+static ssize_t image_size_show(struct kset *kset, char *buf)
 {
 	return sprintf(buf, "%lu\n", image_size);
 }
 
-static ssize_t image_size_store(struct subsystem * subsys, const char * buf, size_t n)
+static ssize_t image_size_store(struct kset *kset, const char *buf, size_t n)
 {
 	unsigned long size;
 
@@ -439,7 +492,7 @@ static struct attribute_group attr_group = {
 
 static int __init pm_disk_init(void)
 {
-	return sysfs_create_group(&power_subsys.kset.kobj,&attr_group);
+	return sysfs_create_group(&power_subsys.kobj, &attr_group);
 }
 
 core_initcall(pm_disk_init);

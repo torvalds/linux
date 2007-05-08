@@ -98,13 +98,21 @@ static int ipath_make_rc_ack(struct ipath_qp *qp,
 	case OP(RDMA_READ_RESPONSE_LAST):
 	case OP(RDMA_READ_RESPONSE_ONLY):
 	case OP(ATOMIC_ACKNOWLEDGE):
-		qp->s_ack_state = OP(ACKNOWLEDGE);
+		/*
+		 * We can increment the tail pointer now that the last
+		 * response has been sent instead of only being
+		 * constructed.
+		 */
+		if (++qp->s_tail_ack_queue > IPATH_MAX_RDMA_ATOMIC)
+			qp->s_tail_ack_queue = 0;
 		/* FALLTHROUGH */
+	case OP(SEND_ONLY):
 	case OP(ACKNOWLEDGE):
 		/* Check for no next entry in the queue. */
 		if (qp->r_head_ack_queue == qp->s_tail_ack_queue) {
 			if (qp->s_flags & IPATH_S_ACK_PENDING)
 				goto normal;
+			qp->s_ack_state = OP(ACKNOWLEDGE);
 			goto bail;
 		}
 
@@ -117,12 +125,8 @@ static int ipath_make_rc_ack(struct ipath_qp *qp,
 			if (len > pmtu) {
 				len = pmtu;
 				qp->s_ack_state = OP(RDMA_READ_RESPONSE_FIRST);
-			} else {
+			} else
 				qp->s_ack_state = OP(RDMA_READ_RESPONSE_ONLY);
-				if (++qp->s_tail_ack_queue >
-				    IPATH_MAX_RDMA_ATOMIC)
-					qp->s_tail_ack_queue = 0;
-			}
 			ohdr->u.aeth = ipath_compute_aeth(qp);
 			hwords++;
 			qp->s_ack_rdma_psn = e->psn;
@@ -139,8 +143,6 @@ static int ipath_make_rc_ack(struct ipath_qp *qp,
 				cpu_to_be32(e->atomic_data);
 			hwords += sizeof(ohdr->u.at) / sizeof(u32);
 			bth2 = e->psn;
-			if (++qp->s_tail_ack_queue > IPATH_MAX_RDMA_ATOMIC)
-				qp->s_tail_ack_queue = 0;
 		}
 		bth0 = qp->s_ack_state << 24;
 		break;
@@ -156,8 +158,6 @@ static int ipath_make_rc_ack(struct ipath_qp *qp,
 			ohdr->u.aeth = ipath_compute_aeth(qp);
 			hwords++;
 			qp->s_ack_state = OP(RDMA_READ_RESPONSE_LAST);
-			if (++qp->s_tail_ack_queue > IPATH_MAX_RDMA_ATOMIC)
-				qp->s_tail_ack_queue = 0;
 		}
 		bth0 = qp->s_ack_state << 24;
 		bth2 = qp->s_ack_rdma_psn++ & IPATH_PSN_MASK;
@@ -171,7 +171,7 @@ static int ipath_make_rc_ack(struct ipath_qp *qp,
 		 * the ACK before setting s_ack_state to ACKNOWLEDGE
 		 * (see above).
 		 */
-		qp->s_ack_state = OP(ATOMIC_ACKNOWLEDGE);
+		qp->s_ack_state = OP(SEND_ONLY);
 		qp->s_flags &= ~IPATH_S_ACK_PENDING;
 		qp->s_cur_sge = NULL;
 		if (qp->s_nak_state)
@@ -223,23 +223,18 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 	/* Sending responses has higher priority over sending requests. */
 	if ((qp->r_head_ack_queue != qp->s_tail_ack_queue ||
 	     (qp->s_flags & IPATH_S_ACK_PENDING) ||
-	     qp->s_ack_state != IB_OPCODE_RC_ACKNOWLEDGE) &&
+	     qp->s_ack_state != OP(ACKNOWLEDGE)) &&
 	    ipath_make_rc_ack(qp, ohdr, pmtu, bth0p, bth2p))
 		goto done;
 
 	if (!(ib_ipath_state_ops[qp->state] & IPATH_PROCESS_SEND_OK) ||
-	    qp->s_rnr_timeout)
+	    qp->s_rnr_timeout || qp->s_wait_credit)
 		goto bail;
 
 	/* Limit the number of packets sent without an ACK. */
 	if (ipath_cmp24(qp->s_psn, qp->s_last_psn + IPATH_PSN_CREDIT) > 0) {
 		qp->s_wait_credit = 1;
 		dev->n_rc_stalls++;
-		spin_lock(&dev->pending_lock);
-		if (list_empty(&qp->timerwait))
-			list_add_tail(&qp->timerwait,
-				      &dev->pending[dev->pending_index]);
-		spin_unlock(&dev->pending_lock);
 		goto bail;
 	}
 
@@ -587,9 +582,12 @@ static void send_rc_ack(struct ipath_qp *qp)
 	u32 hwords;
 	struct ipath_ib_header hdr;
 	struct ipath_other_headers *ohdr;
+	unsigned long flags;
 
 	/* Don't send ACK or NAK if a RDMA read or atomic is pending. */
-	if (qp->r_head_ack_queue != qp->s_tail_ack_queue)
+	if (qp->r_head_ack_queue != qp->s_tail_ack_queue ||
+	    (qp->s_flags & IPATH_S_ACK_PENDING) ||
+	    qp->s_ack_state != OP(ACKNOWLEDGE))
 		goto queue_ack;
 
 	/* Construct the header. */
@@ -640,11 +638,11 @@ static void send_rc_ack(struct ipath_qp *qp)
 	dev->n_rc_qacks++;
 
 queue_ack:
-	spin_lock_irq(&qp->s_lock);
+	spin_lock_irqsave(&qp->s_lock, flags);
 	qp->s_flags |= IPATH_S_ACK_PENDING;
 	qp->s_nak_state = qp->r_nak_state;
 	qp->s_ack_psn = qp->r_ack_psn;
-	spin_unlock_irq(&qp->s_lock);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 
 	/* Call ipath_do_rc_send() in another thread. */
 	tasklet_hi_schedule(&qp->s_task);
@@ -1261,6 +1259,7 @@ ack_err:
 	wc.dlid_path_bits = 0;
 	wc.port_num = 0;
 	ipath_sqerror_qp(qp, &wc);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 bail:
 	return;
 }
@@ -1294,6 +1293,7 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 	struct ipath_ack_entry *e;
 	u8 i, prev;
 	int old_req;
+	unsigned long flags;
 
 	if (diff > 0) {
 		/*
@@ -1327,7 +1327,7 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 	psn &= IPATH_PSN_MASK;
 	e = NULL;
 	old_req = 1;
-	spin_lock_irq(&qp->s_lock);
+	spin_lock_irqsave(&qp->s_lock, flags);
 	for (i = qp->r_head_ack_queue; ; i = prev) {
 		if (i == qp->s_tail_ack_queue)
 			old_req = 0;
@@ -1425,7 +1425,7 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 		 * after all the previous RDMA reads and atomics.
 		 */
 		if (i == qp->r_head_ack_queue) {
-			spin_unlock_irq(&qp->s_lock);
+			spin_unlock_irqrestore(&qp->s_lock, flags);
 			qp->r_nak_state = 0;
 			qp->r_ack_psn = qp->r_psn - 1;
 			goto send_ack;
@@ -1439,11 +1439,10 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 		break;
 	}
 	qp->r_nak_state = 0;
-	spin_unlock_irq(&qp->s_lock);
 	tasklet_hi_schedule(&qp->s_task);
 
 unlock_done:
-	spin_unlock_irq(&qp->s_lock);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 done:
 	return 1;
 
@@ -1453,10 +1452,12 @@ send_ack:
 
 static void ipath_rc_error(struct ipath_qp *qp, enum ib_wc_status err)
 {
-	spin_lock_irq(&qp->s_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&qp->s_lock, flags);
 	qp->state = IB_QPS_ERR;
 	ipath_error_qp(qp, err);
-	spin_unlock_irq(&qp->s_lock);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 }
 
 /**

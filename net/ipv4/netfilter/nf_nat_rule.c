@@ -226,10 +226,6 @@ static int ipt_dnat_checkentry(const char *tablename,
 		printk("DNAT: multiple ranges no longer supported\n");
 		return 0;
 	}
-	if (mr->range[0].flags & IP_NAT_RANGE_PROTO_RANDOM) {
-		printk("DNAT: port randomization not supported\n");
-		return 0;
-	}
 	return 1;
 }
 

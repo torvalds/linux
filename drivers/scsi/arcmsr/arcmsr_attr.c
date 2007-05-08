@@ -49,7 +49,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
-#include <linux/pci.h>
 
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>

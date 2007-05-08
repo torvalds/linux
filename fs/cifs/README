@@ -257,13 +257,19 @@ A partial list of the supported mount options follows:
 		mount.	
   domain	Set the SMB/CIFS workgroup name prepended to the
 		username during CIFS session establishment
-  uid		If CIFS Unix extensions are not supported by the server
-		this overrides the default uid for inodes. For mounts to
-		servers which do support the CIFS Unix extensions, such
-		as a properly configured Samba server, the server provides
-		the uid, gid and mode.  For servers which do not support
-		the Unix extensions, the default uid (and gid) returned on
-		lookup of existing files is the uid (gid) of the person
+  uid		Set the default uid for inodes. For mounts to servers
+		which do support the CIFS Unix extensions, such as a
+		properly configured Samba server, the server provides
+		the uid, gid and mode so this parameter should  not be
+		specified unless the server and clients uid and gid
+		numbering differ.  If the server and client are in the
+		same domain (e.g. running winbind or nss_ldap) and
+		the server supports the Unix Extensions then the uid
+		and gid can be retrieved from the server (and uid
+		and gid would not have to be specifed on the mount. 
+		For servers which do not support the CIFS Unix
+		extensions, the default uid (and gid) returned on lookup
+		of existing files will be the uid (gid) of the person
 		who executed the mount (root, except when mount.cifs
 		is configured setuid for user mounts) unless the "uid=" 
 		(gid) mount option is specified.  For the uid (gid) of newly
@@ -281,8 +287,7 @@ A partial list of the supported mount options follows:
 		the client.  Note that the mount.cifs helper must be
 		at version 1.10 or higher to support specifying the uid
 		(or gid) in non-numberic form.
-  gid		If CIFS Unix extensions are not supported by the server
-		this overrides the default gid for inodes.
+  gid		Set the default gid for inodes (similar to above).
   file_mode     If CIFS Unix extensions are not supported by the server
 		this overrides the default mode for file inodes.
   dir_mode      If CIFS Unix extensions are not supported by the server 
@@ -467,7 +472,7 @@ including:
 	-V      print mount.cifs version
 	-?      display simple usage information
 
-With recent 2.6 kernel versions of modutils, the version of the cifs kernel
+With most 2.6 kernel versions of modutils, the version of the cifs kernel
 module can be displayed via modinfo.
 
 Misc /proc/fs/cifs Flags and Debug Info
@@ -516,8 +521,22 @@ SecurityFlags		Flags which control security negotiation and
 			must use plaintext passwords			0x20020
 			(reserved for future packet encryption)		0x00040
 
-cifsFYI			If set to one, additional debug information is
-			logged to the system error log. (default 0)
+cifsFYI			If set to non-zero value, additional debug information
+			will be logged to the system error log.  This field
+			contains three flags controlling different classes of
+			debugging entries.  The maximum value it can be set
+			to is 7 which enables all debugging points (default 0).
+			Some debugging statements are not compiled into the
+			cifs kernel unless CONFIG_CIFS_DEBUG2 is enabled in the
+			kernel configuration. cifsFYI may be set to one or
+			nore of the following flags (7 sets them all):
+
+			log cifs informational messages			0x01
+			log return codes from cifs entry points		0x02
+			log slow responses (ie which take longer than 1 second)
+			  CONFIG_CIFS_STATS2 must be enabled in .config	0x04
+				
+				
 traceSMB		If set to one, debug information is logged to the
 			system error log with the start of smb requests
 			and responses (default 0)

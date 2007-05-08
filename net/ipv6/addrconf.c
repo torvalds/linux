@@ -449,7 +449,7 @@ static void addrconf_forward_change(void)
 	struct inet6_dev *idev;
 
 	read_lock(&dev_base_lock);
-	for (dev=dev_base; dev; dev=dev->next) {
+	for_each_netdev(dev) {
 		rcu_read_lock();
 		idev = __in6_dev_get(dev);
 		if (idev) {
@@ -911,7 +911,7 @@ int ipv6_dev_get_saddr(struct net_device *daddr_dev,
 	read_lock(&dev_base_lock);
 	rcu_read_lock();
 
-	for (dev = dev_base; dev; dev=dev->next) {
+	for_each_netdev(dev) {
 		struct inet6_dev *idev;
 		struct inet6_ifaddr *ifa;
 
@@ -2064,7 +2064,7 @@ static void sit_add_v4_addrs(struct inet6_dev *idev)
 		return;
 	}
 
-	for (dev = dev_base; dev != NULL; dev = dev->next) {
+	for_each_netdev(dev) {
 		struct in_device * in_dev = __in_dev_get_rtnl(dev);
 		if (in_dev && (dev->flags & IFF_UP)) {
 			struct in_ifaddr * ifa;
@@ -2225,7 +2225,7 @@ static void ip6_tnl_add_linklocal(struct inet6_dev *idev)
 			return;
 	}
 	/* then try to inherit it from any device */
-	for (link_dev = dev_base; link_dev; link_dev = link_dev->next) {
+	for_each_netdev(link_dev) {
 		if (!ipv6_inherit_linklocal(idev, link_dev))
 			return;
 	}
@@ -3257,14 +3257,15 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 	s_idx = cb->args[0];
 	s_ip_idx = ip_idx = cb->args[1];
 
-	for (dev = dev_base, idx = 0; dev; dev = dev->next, idx++) {
+	idx = 0;
+	for_each_netdev(dev) {
 		if (idx < s_idx)
-			continue;
+			goto cont;
 		if (idx > s_idx)
 			s_ip_idx = 0;
 		ip_idx = 0;
 		if ((idev = in6_dev_get(dev)) == NULL)
-			continue;
+			goto cont;
 		read_lock_bh(&idev->lock);
 		switch (type) {
 		case UNICAST_ADDR:
@@ -3311,6 +3312,8 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 		}
 		read_unlock_bh(&idev->lock);
 		in6_dev_put(idev);
+cont:
+		idx++;
 	}
 done:
 	if (err <= 0) {
@@ -3575,16 +3578,19 @@ static int inet6_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 	struct inet6_dev *idev;
 
 	read_lock(&dev_base_lock);
-	for (dev=dev_base, idx=0; dev; dev = dev->next, idx++) {
+	idx = 0;
+	for_each_netdev(dev) {
 		if (idx < s_idx)
-			continue;
+			goto cont;
 		if ((idev = in6_dev_get(dev)) == NULL)
-			continue;
+			goto cont;
 		err = inet6_fill_ifinfo(skb, idev, NETLINK_CB(cb->skb).pid,
 				cb->nlh->nlmsg_seq, RTM_NEWLINK, NLM_F_MULTI);
 		in6_dev_put(idev);
 		if (err <= 0)
 			break;
+cont:
+		idx++;
 	}
 	read_unlock(&dev_base_lock);
 	cb->args[0] = idx;
@@ -4247,7 +4253,7 @@ void __exit addrconf_cleanup(void)
 	 *	clean dev list.
 	 */
 
-	for (dev=dev_base; dev; dev=dev->next) {
+	for_each_netdev(dev) {
 		if ((idev = __in6_dev_get(dev)) == NULL)
 			continue;
 		addrconf_ifdown(dev, 1);

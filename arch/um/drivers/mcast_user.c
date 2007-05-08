@@ -20,7 +20,6 @@
 #include "net_user.h"
 #include "mcast.h"
 #include "kern_util.h"
-#include "user_util.h"
 #include "user.h"
 #include "os.h"
 #include "um_malloc.h"
@@ -34,20 +33,21 @@ static struct sockaddr_in *new_addr(char *addr, unsigned short port)
 	sin = um_kmalloc(sizeof(struct sockaddr_in));
 	if(sin == NULL){
 		printk("new_addr: allocation of sockaddr_in failed\n");
-		return(NULL);
+		return NULL;
 	}
 	sin->sin_family = AF_INET;
 	sin->sin_addr.s_addr = in_aton(addr);
 	sin->sin_port = htons(port);
-	return(sin);
+	return sin;
 }
 
-static void mcast_user_init(void *data, void *dev)
+static int mcast_user_init(void *data, void *dev)
 {
 	struct mcast_data *pri = data;
 
 	pri->mcast_addr = new_addr(pri->addr, pri->port);
 	pri->dev = dev;
+	return 0;
 }
 
 static void mcast_remove(void *data)
@@ -107,8 +107,8 @@ static int mcast_open(void *data)
 		err = -errno;
 		printk("mcast_open : data bind failed, errno = %d\n", errno);
 		goto out_close;
-	}		
-	
+	}
+
 	/* subscribe to the multicast group */
 	mreq.imr_multiaddr.s_addr = sin->sin_addr.s_addr;
 	mreq.imr_interface.s_addr = 0;
@@ -153,12 +153,12 @@ int mcast_user_write(int fd, void *buf, int len, struct mcast_data *pri)
 {
 	struct sockaddr_in *data_addr = pri->mcast_addr;
 
-	return(net_sendto(fd, buf, len, data_addr, sizeof(*data_addr)));
+	return net_sendto(fd, buf, len, data_addr, sizeof(*data_addr));
 }
 
 static int mcast_set_mtu(int mtu, void *data)
 {
-	return(mtu);
+	return mtu;
 }
 
 const struct net_user_info mcast_user_info = {

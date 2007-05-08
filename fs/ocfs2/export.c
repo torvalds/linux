@@ -140,7 +140,7 @@ bail:
 	return parent;
 }
 
-static int ocfs2_encode_fh(struct dentry *dentry, __be32 *fh, int *max_len,
+static int ocfs2_encode_fh(struct dentry *dentry, u32 *fh_in, int *max_len,
 			   int connectable)
 {
 	struct inode *inode = dentry->d_inode;
@@ -148,6 +148,7 @@ static int ocfs2_encode_fh(struct dentry *dentry, __be32 *fh, int *max_len,
 	int type = 1;
 	u64 blkno;
 	u32 generation;
+	__le32 *fh = (__force __le32 *) fh_in;
 
 	mlog_entry("(0x%p, '%.*s', 0x%p, %d, %d)\n", dentry,
 		   dentry->d_name.len, dentry->d_name.name,
@@ -199,7 +200,7 @@ bail:
 	return type;
 }
 
-static struct dentry *ocfs2_decode_fh(struct super_block *sb, __be32 *fh,
+static struct dentry *ocfs2_decode_fh(struct super_block *sb, u32 *fh_in,
 				      int fh_len, int fileid_type,
 				      int (*acceptable)(void *context,
 						        struct dentry *de),
@@ -207,6 +208,7 @@ static struct dentry *ocfs2_decode_fh(struct super_block *sb, __be32 *fh,
 {
 	struct ocfs2_inode_handle handle, parent;
 	struct dentry *ret = NULL;
+	__le32 *fh = (__force __le32 *) fh_in;
 
 	mlog_entry("(0x%p, 0x%p, %d, %d, 0x%p, 0x%p)\n",
 		   sb, fh, fh_len, fileid_type, acceptable, context);

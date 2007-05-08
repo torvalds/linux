@@ -849,9 +849,9 @@ static int ocfs2_relink_block_group(handle_t *handle,
 	}
 
 	mlog(0, "Suballoc %llu, chain %u, move group %llu to top, prev = %llu\n",
-	     (unsigned long long)fe->i_blkno, chain,
-	     (unsigned long long)bg->bg_blkno,
-	     (unsigned long long)prev_bg->bg_blkno);
+	     (unsigned long long)le64_to_cpu(fe->i_blkno), chain,
+	     (unsigned long long)le64_to_cpu(bg->bg_blkno),
+	     (unsigned long long)le64_to_cpu(prev_bg->bg_blkno));
 
 	fe_ptr = le64_to_cpu(fe->id2.i_chain.cl_recs[chain].c_blkno);
 	bg_ptr = le64_to_cpu(bg->bg_next_group);
@@ -1162,7 +1162,7 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 	}
 
 	mlog(0, "alloc succeeds: we give %u bits from block group %llu\n",
-	     tmp_bits, (unsigned long long)bg->bg_blkno);
+	     tmp_bits, (unsigned long long)le64_to_cpu(bg->bg_blkno));
 
 	*num_bits = tmp_bits;
 
@@ -1227,7 +1227,7 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 	}
 
 	mlog(0, "Allocated %u bits from suballocator %llu\n", *num_bits,
-	     (unsigned long long)fe->i_blkno);
+	     (unsigned long long)le64_to_cpu(fe->i_blkno));
 
 	*bg_blkno = le64_to_cpu(bg->bg_blkno);
 	*bits_left = le16_to_cpu(bg->bg_free_bits_count);

@@ -14,7 +14,7 @@
 #define UML_NET_VERSION (4)
 
 struct net_user_info {
-	void (*init)(void *, void *);
+	int (*init)(void *, void *);
 	int (*open)(void *);
 	void (*close)(int, void *);
 	void (*remove)(void *);

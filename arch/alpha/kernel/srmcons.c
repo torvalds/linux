@@ -164,9 +164,9 @@ srmcons_get_private_struct(struct srmcons_private **ps)
 	int retval = 0;
 
 	if (srmconsp == NULL) {
+		srmconsp = kmalloc(sizeof(*srmconsp), GFP_KERNEL);
 		spin_lock_irqsave(&srmconsp_lock, flags);
 
-		srmconsp = kmalloc(sizeof(*srmconsp), GFP_KERNEL);
 		if (srmconsp == NULL)
 			retval = -ENOMEM;
 		else {

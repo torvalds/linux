@@ -188,7 +188,8 @@ static inline int dump_task_fpu(struct task_struct *tsk, elf_fpregset_t *fpregs)
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports. */
 
-#define ELF_HWCAP (0)
+extern unsigned long elf_hwcap;
+#define ELF_HWCAP (elf_hwcap)
 
 /* This yields a string that ld.so will use to load implementation
    specific libraries for optimization.  This is more specific in
@@ -197,7 +198,9 @@ static inline int dump_task_fpu(struct task_struct *tsk, elf_fpregset_t *fpregs)
    For the moment, we have only optimizations for the Intel generations,
    but that could change... */
 
-#define ELF_PLATFORM (NULL)
+#define ELF_PLATFORM_SIZE 8
+extern char elf_platform[];
+#define ELF_PLATFORM (elf_platform)
 
 #ifndef __s390x__
 #define SET_PERSONALITY(ex, ibcs2) set_personality((ibcs2)?PER_SVR4:PER_LINUX)

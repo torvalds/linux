@@ -204,9 +204,9 @@ struct ip6_flowlabel
 {
 	struct ip6_flowlabel	*next;
 	__be32			label;
+	atomic_t		users;
 	struct in6_addr		dst;
 	struct ipv6_txoptions	*opt;
-	atomic_t		users;
 	unsigned long		linger;
 	u8			share;
 	u32			owner;
@@ -291,7 +291,7 @@ static inline int ipv6_addr_src_scope(const struct in6_addr *addr)
 
 static inline int ipv6_addr_cmp(const struct in6_addr *a1, const struct in6_addr *a2)
 {
-	return memcmp((const void *) a1, (const void *) a2, sizeof(struct in6_addr));
+	return memcmp(a1, a2, sizeof(struct in6_addr));
 }
 
 static inline int
@@ -308,7 +308,7 @@ ipv6_masked_addr_cmp(const struct in6_addr *a1, const struct in6_addr *m,
 
 static inline void ipv6_addr_copy(struct in6_addr *a1, const struct in6_addr *a2)
 {
-	memcpy((void *) a1, (const void *) a2, sizeof(struct in6_addr));
+	memcpy(a1, a2, sizeof(struct in6_addr));
 }
 
 static inline void ipv6_addr_prefix(struct in6_addr *pfx, 
@@ -319,16 +319,12 @@ static inline void ipv6_addr_prefix(struct in6_addr *pfx,
 	int o = plen >> 3,
 	    b = plen & 0x7;
 
+	memset(pfx->s6_addr, 0, sizeof(pfx->s6_addr));
 	memcpy(pfx->s6_addr, addr, o);
-	if (b != 0) {
+	if (b != 0)
 		pfx->s6_addr[o] = addr->s6_addr[o] & (0xff00 >> b);
-		o++;
-	}
-	if (o < 16)
-		memset(pfx->s6_addr + o, 0, 16 - o);
 }
 
-#ifndef __HAVE_ARCH_ADDR_SET
 static inline void ipv6_addr_set(struct in6_addr *addr, 
 				     __be32 w1, __be32 w2,
 				     __be32 w3, __be32 w4)
@@ -338,7 +334,6 @@ static inline void ipv6_addr_set(struct in6_addr *addr,
 	addr->s6_addr32[2] = w3;
 	addr->s6_addr32[3] = w4;
 }
-#endif
 
 static inline int ipv6_addr_equal(const struct in6_addr *a1,
 				  const struct in6_addr *a2)

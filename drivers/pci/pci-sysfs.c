@@ -620,7 +620,8 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 		goto err_bin_file;
 
 	/* If the device has a ROM, try to expose it in sysfs. */
-	if (pci_resource_len(pdev, PCI_ROM_RESOURCE)) {
+	if (pci_resource_len(pdev, PCI_ROM_RESOURCE) ||
+	    (pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW)) {
 		rom_attr = kzalloc(sizeof(*rom_attr), GFP_ATOMIC);
 		if (rom_attr) {
 			pdev->rom_attr = rom_attr;
@@ -635,7 +636,7 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 				goto err_rom;
 		} else {
 			retval = -ENOMEM;
-			goto err_bin_file;
+			goto err_resource_files;
 		}
 	}
 	/* add platform-specific attributes */
@@ -645,6 +646,8 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 
 err_rom:
 	kfree(rom_attr);
+err_resource_files:
+	pci_remove_resource_files(pdev);
 err_bin_file:
 	if (pdev->cfg_size < 4096)
 		sysfs_remove_bin_file(&pdev->dev.kobj, &pci_config_attr);
@@ -695,4 +698,4 @@ static int __init pci_sysfs_init(void)
 	return 0;
 }
 
-__initcall(pci_sysfs_init);
+late_initcall(pci_sysfs_init);

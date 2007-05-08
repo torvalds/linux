@@ -20,7 +20,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/reboot.h>
-#include <linux/pci.h>
 #include <linux/kdev_t.h>
 #include <linux/types.h>
 #include <linux/major.h>

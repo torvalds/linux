@@ -40,12 +40,10 @@ struct block2mtd_dev {
 static LIST_HEAD(blkmtd_device_list);
 
 
-static struct page* page_read(struct address_space *mapping, int index)
+static struct page *page_read(struct address_space *mapping, int index)
 {
-	filler_t *filler = (filler_t*)mapping->a_ops->readpage;
-	return read_cache_page(mapping, index, filler, NULL);
+	return read_mapping_page(mapping, index, NULL);
 }
-
 
 /* erase a specified part of the device */
 static int _block2mtd_erase(struct block2mtd_dev *dev, loff_t to, size_t len)

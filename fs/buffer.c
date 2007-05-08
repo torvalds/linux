@@ -44,7 +44,6 @@
 #include <linux/bit_spinlock.h>
 
 static int fsync_buffers_list(spinlock_t *lock, struct list_head *list);
-static void invalidate_bh_lrus(void);
 
 #define BH_ENTRY(list) list_entry((list), struct buffer_head, b_assoc_buffers)
 
@@ -333,7 +332,7 @@ out:
    we think the disk contains more recent information than the buffercache.
    The update == 1 pass marks the buffers we need to update, the update == 2
    pass does the actual I/O. */
-void invalidate_bdev(struct block_device *bdev, int destroy_dirty_buffers)
+void invalidate_bdev(struct block_device *bdev)
 {
 	struct address_space *mapping = bdev->bd_inode->i_mapping;
 
@@ -341,11 +340,6 @@ void invalidate_bdev(struct block_device *bdev, int destroy_dirty_buffers)
 		return;
 
 	invalidate_bh_lrus();
-	/*
-	 * FIXME: what about destroy_dirty_buffers?
-	 * We really want to use invalidate_inode_pages2() for
-	 * that, but not until that's cleaned up.
-	 */
 	invalidate_mapping_pages(mapping, 0, -1);
 }
 
@@ -1408,7 +1402,7 @@ static void invalidate_bh_lru(void *arg)
 	put_cpu_var(bh_lrus);
 }
 	
-static void invalidate_bh_lrus(void)
+void invalidate_bh_lrus(void)
 {
 	on_each_cpu(invalidate_bh_lru, NULL, 1, 1);
 }
@@ -1700,17 +1694,8 @@ done:
 		 * clean.  Someone wrote them back by hand with
 		 * ll_rw_block/submit_bh.  A rare case.
 		 */
-		int uptodate = 1;
-		do {
-			if (!buffer_uptodate(bh)) {
-				uptodate = 0;
-				break;
-			}
-			bh = bh->b_this_page;
-		} while (bh != head);
-		if (uptodate)
-			SetPageUptodate(page);
 		end_page_writeback(page);
+
 		/*
 		 * The page and buffer_heads can be released at any time from
 		 * here on.
@@ -2968,8 +2953,7 @@ EXPORT_SYMBOL(free_buffer_head);
 static void
 init_buffer_head(void *data, struct kmem_cache *cachep, unsigned long flags)
 {
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-			    SLAB_CTOR_CONSTRUCTOR) {
+	if (flags & SLAB_CTOR_CONSTRUCTOR) {
 		struct buffer_head * bh = (struct buffer_head *)data;
 
 		memset(bh, 0, sizeof(*bh));

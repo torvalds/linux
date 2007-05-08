@@ -82,7 +82,7 @@
 #warning gcc-4.1.0 is known to miscompile the kernel.  A different compiler version is recommended.
 #endif
 
-static int init(void *);
+static int kernel_init(void *);
 
 extern void init_IRQ(void);
 extern void fork_init(unsigned long);
@@ -369,12 +369,8 @@ static void __init setup_per_cpu_areas(void)
 	unsigned long nr_possible_cpus = num_possible_cpus();
 
 	/* Copy section for each CPU (we discard the original) */
-	size = ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES);
-#ifdef CONFIG_MODULES
-	if (size < PERCPU_ENOUGH_ROOM)
-		size = PERCPU_ENOUGH_ROOM;
-#endif
-	ptr = alloc_bootmem(size * nr_possible_cpus);
+	size = ALIGN(PERCPU_ENOUGH_ROOM, PAGE_SIZE);
+	ptr = alloc_bootmem_pages(size * nr_possible_cpus);
 
 	for_each_possible_cpu(i) {
 		__per_cpu_offset[i] = ptr - __per_cpu_start;
@@ -388,11 +384,6 @@ static void __init setup_per_cpu_areas(void)
 static void __init smp_init(void)
 {
 	unsigned int cpu;
-	unsigned highest = 0;
-
-	for_each_cpu_mask(cpu, cpu_possible_map)
-		highest = cpu;
-	nr_cpu_ids = highest + 1;
 
 	/* FIXME: This should be done in userspace --RR */
 	for_each_present_cpu(cpu) {
@@ -435,7 +426,7 @@ static void __init setup_command_line(char *command_line)
 static void noinline rest_init(void)
 	__releases(kernel_lock)
 {
-	kernel_thread(init, NULL, CLONE_FS | CLONE_SIGHAND);
+	kernel_thread(kernel_init, NULL, CLONE_FS | CLONE_SIGHAND);
 	numa_default_policy();
 	unlock_kernel();
 
@@ -772,7 +763,7 @@ static int noinline init_post(void)
 	panic("No init found.  Try passing init= option to kernel.");
 }
 
-static int __init init(void * unused)
+static int __init kernel_init(void * unused)
 {
 	lock_kernel();
 	/*

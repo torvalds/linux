@@ -184,17 +184,21 @@ static void suspend_finish(suspend_state_t state)
 static const char * const pm_states[PM_SUSPEND_MAX] = {
 	[PM_SUSPEND_STANDBY]	= "standby",
 	[PM_SUSPEND_MEM]	= "mem",
-#ifdef CONFIG_SOFTWARE_SUSPEND
 	[PM_SUSPEND_DISK]	= "disk",
-#endif
 };
 
 static inline int valid_state(suspend_state_t state)
 {
 	/* Suspend-to-disk does not really need low-level support.
-	 * It can work with reboot if needed. */
+	 * It can work with shutdown/reboot if needed. If it isn't
+	 * configured, then it cannot be supported.
+	 */
 	if (state == PM_SUSPEND_DISK)
+#ifdef CONFIG_SOFTWARE_SUSPEND
 		return 1;
+#else
+		return 0;
+#endif
 
 	/* all other states need lowlevel support and need to be
 	 * valid to the lowlevel implementation, no valid callback
@@ -244,15 +248,6 @@ static int enter_state(suspend_state_t state)
 	return error;
 }
 
-/*
- * This is main interface to the outside world. It needs to be
- * called from process context.
- */
-int software_suspend(void)
-{
-	return enter_state(PM_SUSPEND_DISK);
-}
-
 
 /**
  *	pm_suspend - Externally visible function for suspending system.
@@ -285,7 +280,7 @@ decl_subsys(power,NULL,NULL);
  *	proper enumerated value, and initiates a suspend transition.
  */
 
-static ssize_t state_show(struct subsystem * subsys, char * buf)
+static ssize_t state_show(struct kset *kset, char *buf)
 {
 	int i;
 	char * s = buf;
@@ -298,7 +293,7 @@ static ssize_t state_show(struct subsystem * subsys, char * buf)
 	return (s - buf);
 }
 
-static ssize_t state_store(struct subsystem * subsys, const char * buf, size_t n)
+static ssize_t state_store(struct kset *kset, const char *buf, size_t n)
 {
 	suspend_state_t state = PM_SUSPEND_STANDBY;
 	const char * const *s;
@@ -325,13 +320,13 @@ power_attr(state);
 #ifdef CONFIG_PM_TRACE
 int pm_trace_enabled;
 
-static ssize_t pm_trace_show(struct subsystem * subsys, char * buf)
+static ssize_t pm_trace_show(struct kset *kset, char *buf)
 {
 	return sprintf(buf, "%d\n", pm_trace_enabled);
 }
 
 static ssize_t
-pm_trace_store(struct subsystem * subsys, const char * buf, size_t n)
+pm_trace_store(struct kset *kset, const char *buf, size_t n)
 {
 	int val;
 
@@ -365,7 +360,7 @@ static int __init pm_init(void)
 {
 	int error = subsystem_register(&power_subsys);
 	if (!error)
-		error = sysfs_create_group(&power_subsys.kset.kobj,&attr_group);
+		error = sysfs_create_group(&power_subsys.kobj,&attr_group);
 	return error;
 }
 

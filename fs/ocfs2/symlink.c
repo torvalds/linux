@@ -67,15 +67,8 @@ static char *ocfs2_page_getlink(struct dentry * dentry,
 	page = read_mapping_page(mapping, 0, NULL);
 	if (IS_ERR(page))
 		goto sync_fail;
-	wait_on_page_locked(page);
-	if (!PageUptodate(page))
-		goto async_fail;
 	*ppage = page;
 	return kmap(page);
-
-async_fail:
-	page_cache_release(page);
-	return ERR_PTR(-EIO);
 
 sync_fail:
 	return (char*)page;

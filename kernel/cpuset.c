@@ -2351,6 +2351,8 @@ static const struct cpuset *nearest_exclusive_ancestor(const struct cpuset *cs)
  * z's node is in our tasks mems_allowed, yes.  If it's not a
  * __GFP_HARDWALL request and this zone's nodes is in the nearest
  * mem_exclusive cpuset ancestor to this tasks cpuset, yes.
+ * If the task has been OOM killed and has access to memory reserves
+ * as specified by the TIF_MEMDIE flag, yes.
  * Otherwise, no.
  *
  * If __GFP_HARDWALL is set, cpuset_zone_allowed_softwall()
@@ -2368,7 +2370,8 @@ static const struct cpuset *nearest_exclusive_ancestor(const struct cpuset *cs)
  * calls get to this routine, we should just shut up and say 'yes'.
  *
  * GFP_USER allocations are marked with the __GFP_HARDWALL bit,
- * and do not allow allocations outside the current tasks cpuset.
+ * and do not allow allocations outside the current tasks cpuset
+ * unless the task has been OOM killed as is marked TIF_MEMDIE.
  * GFP_KERNEL allocations are not so marked, so can escape to the
  * nearest enclosing mem_exclusive ancestor cpuset.
  *
@@ -2392,6 +2395,7 @@ static const struct cpuset *nearest_exclusive_ancestor(const struct cpuset *cs)
  * affect that:
  *	in_interrupt - any node ok (current task context irrelevant)
  *	GFP_ATOMIC   - any node ok
+ *	TIF_MEMDIE   - any node ok
  *	GFP_KERNEL   - any node in enclosing mem_exclusive cpuset ok
  *	GFP_USER     - only nodes in current tasks mems allowed ok.
  *
@@ -2412,6 +2416,12 @@ int __cpuset_zone_allowed_softwall(struct zone *z, gfp_t gfp_mask)
 	node = zone_to_nid(z);
 	might_sleep_if(!(gfp_mask & __GFP_HARDWALL));
 	if (node_isset(node, current->mems_allowed))
+		return 1;
+	/*
+	 * Allow tasks that have access to memory reserves because they have
+	 * been OOM killed to get memory anywhere.
+	 */
+	if (unlikely(test_thread_flag(TIF_MEMDIE)))
 		return 1;
 	if (gfp_mask & __GFP_HARDWALL)	/* If hardwall request, stop here */
 		return 0;
@@ -2438,7 +2448,9 @@ int __cpuset_zone_allowed_softwall(struct zone *z, gfp_t gfp_mask)
  *
  * If we're in interrupt, yes, we can always allocate.
  * If __GFP_THISNODE is set, yes, we can always allocate.  If zone
- * z's node is in our tasks mems_allowed, yes.   Otherwise, no.
+ * z's node is in our tasks mems_allowed, yes.   If the task has been
+ * OOM killed and has access to memory reserves as specified by the
+ * TIF_MEMDIE flag, yes.  Otherwise, no.
  *
  * The __GFP_THISNODE placement logic is really handled elsewhere,
  * by forcibly using a zonelist starting at a specified node, and by
@@ -2462,6 +2474,12 @@ int __cpuset_zone_allowed_hardwall(struct zone *z, gfp_t gfp_mask)
 	node = zone_to_nid(z);
 	if (node_isset(node, current->mems_allowed))
 		return 1;
+        /*
+         * Allow tasks that have access to memory reserves because they have
+         * been OOM killed to get memory anywhere.
+         */
+        if (unlikely(test_thread_flag(TIF_MEMDIE)))
+                return 1;
 	return 0;
 }
 

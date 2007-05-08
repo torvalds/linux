@@ -220,9 +220,12 @@ config FIB_RULES
 menu "Wireless"
 
 source "net/wireless/Kconfig"
+source "net/mac80211/Kconfig"
 source "net/ieee80211/Kconfig"
 
 endmenu
+
+source "net/rfkill/Kconfig"
 
 endif   # if NET
 endmenu # Networking

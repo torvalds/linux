@@ -426,8 +426,7 @@ void show_registers(struct pt_regs *regs)
 	const int cpu = smp_processor_id();
 	struct task_struct *cur = cpu_pda(cpu)->pcurrent;
 
-		rsp = regs->rsp;
-
+	rsp = regs->rsp;
 	printk("CPU %d ", cpu);
 	__show_regs(regs);
 	printk("Process %s (pid: %d, threadinfo %p, task %p)\n",
@@ -438,7 +437,6 @@ void show_registers(struct pt_regs *regs)
 	 * time of the fault..
 	 */
 	if (in_kernel) {
-
 		printk("Stack: ");
 		_show_stack(NULL, regs, (unsigned long*)rsp);
 
@@ -581,10 +579,20 @@ static void __kprobes do_trap(int trapnr, int signr, char *str,
 {
 	struct task_struct *tsk = current;
 
-	tsk->thread.error_code = error_code;
-	tsk->thread.trap_no = trapnr;
-
 	if (user_mode(regs)) {
+		/*
+		 * We want error_code and trap_no set for userspace
+		 * faults and kernelspace faults which result in
+		 * die(), but not kernelspace faults which are fixed
+		 * up.  die() gives the process no chance to handle
+		 * the signal and notice the kernel fault information,
+		 * so that won't result in polluting the information
+		 * about previously queued, but not yet delivered,
+		 * faults.  See also do_general_protection below.
+		 */
+		tsk->thread.error_code = error_code;
+		tsk->thread.trap_no = trapnr;
+
 		if (exception_trace && unhandled_signal(tsk, signr))
 			printk(KERN_INFO
 			       "%s[%d] trap %s rip:%lx rsp:%lx error:%lx\n",
@@ -605,8 +613,11 @@ static void __kprobes do_trap(int trapnr, int signr, char *str,
 		fixup = search_exception_tables(regs->rip);
 		if (fixup)
 			regs->rip = fixup->fixup;
-		else	
+		else {
+			tsk->thread.error_code = error_code;
+			tsk->thread.trap_no = trapnr;
 			die(str, regs, error_code);
+		}
 		return;
 	}
 }
@@ -682,10 +693,10 @@ asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
 
 	conditional_sti(regs);
 
-	tsk->thread.error_code = error_code;
-	tsk->thread.trap_no = 13;
-
 	if (user_mode(regs)) {
+		tsk->thread.error_code = error_code;
+		tsk->thread.trap_no = 13;
+
 		if (exception_trace && unhandled_signal(tsk, SIGSEGV))
 			printk(KERN_INFO
 		       "%s[%d] general protection rip:%lx rsp:%lx error:%lx\n",
@@ -704,6 +715,9 @@ asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
 			regs->rip = fixup->fixup;
 			return;
 		}
+
+		tsk->thread.error_code = error_code;
+		tsk->thread.trap_no = 13;
 		if (notify_die(DIE_GPF, "general protection fault", regs,
 					error_code, 13, SIGSEGV) == NOTIFY_STOP)
 			return;

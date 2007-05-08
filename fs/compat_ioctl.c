@@ -2396,6 +2396,14 @@ lp_timeout_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 #define ULONG_IOCTL(cmd) \
 	{ (cmd), (ioctl_trans_handler_t)sys_ioctl },
 
+/* ioctl should not be warned about even if it's not implemented.
+   Valid reasons to use this:
+   - It is implemented with ->compat_ioctl on some device, but programs
+   call it on others too.
+   - The ioctl is not implemented in the native kernel, but programs
+   call it commonly anyways.
+   Most other reasons are not valid. */
+#define IGNORE_IOCTL(cmd) COMPATIBLE_IOCTL(cmd)
 
 struct ioctl_trans ioctl_start[] = {
 #include <linux/compat_ioctl.h>
@@ -2594,6 +2602,8 @@ HANDLE_IOCTL(SIOCGIWENCODEEXT, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCSIWPMKSA, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCSIFBR, old_bridge_ioctl)
 HANDLE_IOCTL(SIOCGIFBR, old_bridge_ioctl)
+/* Not implemented in the native kernel */
+IGNORE_IOCTL(SIOCGIFCOUNT)
 HANDLE_IOCTL(RTC_IRQP_READ32, rtc_ioctl)
 HANDLE_IOCTL(RTC_IRQP_SET32, rtc_ioctl)
 HANDLE_IOCTL(RTC_EPOCH_READ32, rtc_ioctl)
@@ -2617,6 +2627,15 @@ COMPATIBLE_IOCTL(LPRESET)
 /*LPGETSTATS not implemented, but no kernels seem to compile it in anyways*/
 COMPATIBLE_IOCTL(LPGETFLAGS)
 HANDLE_IOCTL(LPSETTIMEOUT, lp_timeout_trans)
+
+/* fat 'r' ioctls. These are handled by fat with ->compat_ioctl,
+   but we don't want warnings on other file systems. So declare
+   them as compatible here. */
+#define VFAT_IOCTL_READDIR_BOTH32       _IOR('r', 1, struct compat_dirent[2])
+#define VFAT_IOCTL_READDIR_SHORT32      _IOR('r', 2, struct compat_dirent[2])
+
+IGNORE_IOCTL(VFAT_IOCTL_READDIR_BOTH32)
+IGNORE_IOCTL(VFAT_IOCTL_READDIR_SHORT32)
 };
 
 int ioctl_table_size = ARRAY_SIZE(ioctl_start);

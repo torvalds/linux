@@ -14,8 +14,9 @@
 
 /* Platform Specific Values */
 #define SH7780_VENDOR_ID	0x1912
-#define SH7780_DEVICE_ID	0x0002
 #define SH7781_DEVICE_ID	0x0001
+#define SH7780_DEVICE_ID	0x0002
+#define SH7785_DEVICE_ID	0x0007
 
 /* SH7780 Control Registers */
 #define	SH7780_PCI_VCR0		0xFE000000
@@ -64,6 +65,22 @@
 #define SH7780_PCIPMCSR		0x044
 #define SH7780_PCIPMCSR_BSE	0x046
 #define SH7780_PCICDD		0x047
+
+#define SH7780_PCICR		0x100		/* PCI Control Register */
+#define SH7780_PCILSR		0x104		/* PCI Local Space Register0 */
+#define SH7780_PCILSR1		0x108		/* PCI Local Space Register1 */
+#define SH7780_PCILAR0		0x10C		/* PCI Local Address Register1 */
+#define SH7780_PCILAR1		0x110		/* PCI Local Address Register1 */
+#define SH7780_PCIIR		0x114		/* PCI Interrupt Register */
+#define SH7780_PCIIMR		0x118		/* PCI Interrupt Mask Register */
+#define SH7780_PCIAIR		0x11C		/* Error Address Register */
+#define SH7780_PCICIR		0x120		/* Error Command/Data Register */
+#define SH7780_PCIAINT		0x130		/* Arbiter Interrupt Register */
+#define SH7780_PCIAINTM		0x134		/* Arbiter Int. Mask Register */
+#define SH7780_PCIBMIR		0x138		/* Error Bus Master Register */
+#define SH7780_PCIPAR		0x1C0		/* PIO Address Register */
+#define SH7780_PCIPINT		0x1CC		/* Power Mgmnt Int. Register */
+#define SH7780_PCIPINTM		0x1D0		/* Power Mgmnt Mask Register */
 
 #define SH7780_PCIMBR0		0x1E0
 #define SH7780_PCIMBMR0		0x1E4

@@ -45,6 +45,8 @@
 #include <asm/cacheflush.h>
 #include <linux/license.h>
 
+extern int module_sysfs_initialized;
+
 #if 0
 #define DEBUGP printk
 #else
@@ -346,10 +348,10 @@ static void *percpu_modalloc(unsigned long size, unsigned long align,
 	unsigned int i;
 	void *ptr;
 
-	if (align > SMP_CACHE_BYTES) {
-		printk(KERN_WARNING "%s: per-cpu alignment %li > %i\n",
-		       name, align, SMP_CACHE_BYTES);
-		align = SMP_CACHE_BYTES;
+	if (align > PAGE_SIZE) {
+		printk(KERN_WARNING "%s: per-cpu alignment %li > %li\n",
+		       name, align, PAGE_SIZE);
+		align = PAGE_SIZE;
 	}
 
 	ptr = __per_cpu_start;
@@ -430,7 +432,7 @@ static int percpu_modinit(void)
 	pcpu_size = kmalloc(sizeof(pcpu_size[0]) * pcpu_num_allocated,
 			    GFP_KERNEL);
 	/* Static in-kernel percpu data (used). */
-	pcpu_size[0] = -ALIGN(__per_cpu_end-__per_cpu_start, SMP_CACHE_BYTES);
+	pcpu_size[0] = -(__per_cpu_end-__per_cpu_start);
 	/* Free room. */
 	pcpu_size[1] = PERCPU_ENOUGH_ROOM + pcpu_size[0];
 	if (pcpu_size[1] < 0) {
@@ -1117,8 +1119,8 @@ int mod_sysfs_init(struct module *mod)
 {
 	int err;
 
-	if (!module_subsys.kset.subsys) {
-		printk(KERN_ERR "%s: module_subsys not initialized\n",
+	if (!module_sysfs_initialized) {
+		printk(KERN_ERR "%s: module sysfs not initialized\n",
 		       mod->name);
 		err = -EINVAL;
 		goto out;
@@ -2385,7 +2387,7 @@ void module_add_driver(struct module *mod, struct device_driver *drv)
 		struct kobject *mkobj;
 
 		/* Lookup built-in module entry in /sys/modules */
-		mkobj = kset_find_obj(&module_subsys.kset, drv->mod_name);
+		mkobj = kset_find_obj(&module_subsys, drv->mod_name);
 		if (mkobj) {
 			mk = container_of(mkobj, struct module_kobject, kobj);
 			/* remember our module structure */

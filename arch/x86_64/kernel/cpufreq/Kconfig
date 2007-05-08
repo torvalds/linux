@@ -16,6 +16,9 @@ config X86_POWERNOW_K8
 	help
 	  This adds the CPUFreq driver for mobile AMD Opteron/Athlon64 processors.
 
+	  To compile this driver as a module, choose M here: the
+	  module will be called powernow-k8.
+
 	  For details, take a look at <file:Documentation/cpu-freq/>. 
 
 	  If in doubt, say N.
@@ -38,6 +41,9 @@ config X86_SPEEDSTEP_CENTRINO
 	  mobile CPUs.  This means Intel Pentium M (Centrino) CPUs
 	  or 64bit enabled Intel Xeons.
 
+	  To compile this driver as a module, choose M here: the
+	  module will be called speedstep-centrino.
+
 	  For details, take a look at <file:Documentation/cpu-freq/>.
 
 	  If in doubt, say N.
@@ -55,6 +61,9 @@ config X86_ACPI_CPUFREQ
 	  Processor Performance States.
 	  This driver also supports Intel Enhanced Speedstep.
 
+	  To compile this driver as a module, choose M here: the
+	  module will be called acpi-cpufreq.
+
 	  For details, take a look at <file:Documentation/cpu-freq/>.
 
 	  If in doubt, say N.
@@ -62,7 +71,7 @@ config X86_ACPI_CPUFREQ
 comment "shared options"
 
 config X86_ACPI_CPUFREQ_PROC_INTF
-        bool "/proc/acpi/processor/../performance interface (deprecated)"
+	bool "/proc/acpi/processor/../performance interface (deprecated)"
 	depends on PROC_FS
 	depends on X86_ACPI_CPUFREQ || X86_SPEEDSTEP_CENTRINO_ACPI || X86_POWERNOW_K8_ACPI
 	help
@@ -86,16 +95,18 @@ config X86_P4_CLOCKMOD
 	  slowdowns and noticeable latencies.  Normally Speedstep should be used
 	  instead.
 
+	  To compile this driver as a module, choose M here: the
+	  module will be called p4-clockmod.
+
 	  For details, take a look at <file:Documentation/cpu-freq/>.
 
 	  Unless you are absolutely sure say N.
 
 
 config X86_SPEEDSTEP_LIB
-        tristate
-        default X86_P4_CLOCKMOD
+	tristate
+	default X86_P4_CLOCKMOD
 
 endif
 
 endmenu
-

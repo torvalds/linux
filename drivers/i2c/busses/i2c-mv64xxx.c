@@ -508,7 +508,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	}
 
 	strlcpy(drv_data->adapter.name, MV64XXX_I2C_CTLR_NAME " adapter",
-		I2C_NAME_SIZE);
+		sizeof(drv_data->adapter.name));
 
 	init_waitqueue_head(&drv_data->waitq);
 	spin_lock_init(&drv_data->lock);

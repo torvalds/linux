@@ -81,6 +81,13 @@ config MACH_KB9200
 	  Select this if you are using KwikByte's KB920x board.
 	  <http://kwikbyte.com/KB9202_description_new.htm>
 
+config MACH_PICOTUX2XX
+	bool "picotux 200"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using a picotux 200.
+	  <http://www.picotux.com/>
+
 config MACH_KAFA
 	bool "Sperry-Sun KAFA board"
 	depends on ARCH_AT91RM9200

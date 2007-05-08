@@ -40,16 +40,9 @@ static void heartbeat_timer(unsigned long data)
 	static unsigned bit = 0, up = 1;
 
 	ctrl_outw(1 << hd->bit_pos[bit], (unsigned long)hd->base);
-	if (up)
-		if (bit == (ARRAY_SIZE(hd->bit_pos) - 1)) {
-			bit--;
-			up = 0;
-		} else
-			bit++;
-	else if (bit == 0)
-		up = 1;
-	else
-		bit--;
+	bit += up;
+	if ((bit == 0) || (bit == ARRAY_SIZE(hd->bit_pos)-1))
+		up = -up;
 
 	mod_timer(&hd->timer, jiffies + (110 - ((300 << FSHIFT) /
 			((avenrun[0] / 5) + (3 << FSHIFT)))));

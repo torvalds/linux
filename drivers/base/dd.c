@@ -226,12 +226,10 @@ static int device_probe_drivers(void *data)
  *
  *	Walk the list of drivers that the bus has and call
  *	driver_probe_device() for each pair. If a compatible
- *	pair is found, break out and return. If the bus specifies
- *	multithreaded probing, walking the list of drivers is done
- *	on a probing thread.
+ *	pair is found, break out and return.
  *
  *	Returns 1 if the device was bound to a driver;
- *	0 if no matching device was found or multithreaded probing is done;
+ *	0 if no matching device was found;
  *	-ENODEV if the device is not registered.
  *
  *	When called for a USB interface, @dev->parent->sem must be held.
@@ -239,7 +237,6 @@ static int device_probe_drivers(void *data)
 int device_attach(struct device * dev)
 {
 	int ret = 0;
-	struct task_struct *probe_task = ERR_PTR(-ENOMEM);
 
 	down(&dev->sem);
 	if (dev->driver) {
@@ -251,12 +248,7 @@ int device_attach(struct device * dev)
 			ret = 0;
 		}
 	} else {
-		if (dev->bus->multithread_probe)
-			probe_task = kthread_run(device_probe_drivers, dev,
-						 "probe-%s", dev->bus_id);
-		if(IS_ERR(probe_task))
-			ret = bus_for_each_drv(dev->bus, NULL, dev,
-					       __device_attach);
+		ret = bus_for_each_drv(dev->bus, NULL, dev, __device_attach);
 	}
 	up(&dev->sem);
 	return ret;
@@ -382,33 +374,6 @@ void driver_detach(struct device_driver * drv)
 		put_device(dev);
 	}
 }
-
-#ifdef CONFIG_PCI_MULTITHREAD_PROBE
-static int __init wait_for_probes(void)
-{
-	DEFINE_WAIT(wait);
-
-	printk(KERN_INFO "%s: waiting for %d threads\n", __FUNCTION__,
-			atomic_read(&probe_count));
-	if (!atomic_read(&probe_count))
-		return 0;
-	while (atomic_read(&probe_count)) {
-		prepare_to_wait(&probe_waitqueue, &wait, TASK_UNINTERRUPTIBLE);
-		if (atomic_read(&probe_count))
-			schedule();
-	}
-	finish_wait(&probe_waitqueue, &wait);
-	return 0;
-}
-
-core_initcall_sync(wait_for_probes);
-postcore_initcall_sync(wait_for_probes);
-arch_initcall_sync(wait_for_probes);
-subsys_initcall_sync(wait_for_probes);
-fs_initcall_sync(wait_for_probes);
-device_initcall_sync(wait_for_probes);
-late_initcall_sync(wait_for_probes);
-#endif
 
 EXPORT_SYMBOL_GPL(device_bind_driver);
 EXPORT_SYMBOL_GPL(device_release_driver);

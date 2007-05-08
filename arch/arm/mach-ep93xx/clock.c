@@ -27,6 +27,10 @@ struct clk {
 	u32		enable_mask;
 };
 
+static struct clk clk_uart = {
+	.name		= "UARTCLK",
+	.rate		= 14745600,
+};
 static struct clk clk_pll1 = {
 	.name		= "pll1",
 };
@@ -50,6 +54,7 @@ static struct clk clk_usb_host = {
 
 
 static struct clk *clocks[] = {
+	&clk_uart,
 	&clk_pll1,
 	&clk_f,
 	&clk_h,

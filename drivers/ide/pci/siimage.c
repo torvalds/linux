@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/siimage.c		Version 1.11	Jan 27, 2007
+ * linux/drivers/ide/pci/siimage.c		Version 1.12	Mar 10 2007
  *
  * Copyright (C) 2001-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2003		Red Hat <alan@redhat.com>
@@ -287,11 +287,6 @@ static void config_siimage_chipset_for_pio (ide_drive_t *drive, byte set_speed)
 		(void) ide_config_drive_speed(drive, speed);
 }
 
-static void config_chipset_for_pio (ide_drive_t *drive, byte set_speed)
-{
-	config_siimage_chipset_for_pio(drive, set_speed);
-}
-
 /**
  *	siimage_tune_chipset	-	set controller timings
  *	@drive: Drive to set up
@@ -396,8 +391,6 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 {
 	u8 speed	= ide_dma_speed(drive, siimage_ratemask(drive));
 
-	config_chipset_for_pio(drive, !speed);
-
 	if (!speed)
 		return 0;
 
@@ -423,7 +416,7 @@ static int siimage_config_drive_for_dma (ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		config_chipset_for_pio(drive, 1);
+		config_siimage_chipset_for_pio(drive, 1);
 
 	return -1;
 }
@@ -1015,7 +1008,6 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 
 	hwif->ultra_mask = 0x7f;
 	hwif->mwdma_mask = 0x07;
-	hwif->swdma_mask = 0x07;
 
 	if (!is_sata(hwif))
 		hwif->atapi_dma = 1;

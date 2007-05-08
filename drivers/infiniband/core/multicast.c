@@ -34,7 +34,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
-#include <linux/pci.h>
 #include <linux/bitops.h>
 #include <linux/random.h>
 

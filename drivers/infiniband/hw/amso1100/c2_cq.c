@@ -217,17 +217,19 @@ int c2_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 	return npolled;
 }
 
-int c2_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
+int c2_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags)
 {
 	struct c2_mq_shared __iomem *shared;
 	struct c2_cq *cq;
+	unsigned long flags;
+	int ret = 0;
 
 	cq = to_c2cq(ibcq);
 	shared = cq->mq.peer;
 
-	if (notify == IB_CQ_NEXT_COMP)
+	if ((notify_flags & IB_CQ_SOLICITED_MASK) == IB_CQ_NEXT_COMP)
 		writeb(C2_CQ_NOTIFICATION_TYPE_NEXT, &shared->notification_type);
-	else if (notify == IB_CQ_SOLICITED)
+	else if ((notify_flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED)
 		writeb(C2_CQ_NOTIFICATION_TYPE_NEXT_SE, &shared->notification_type);
 	else
 		return -EINVAL;
@@ -241,7 +243,13 @@ int c2_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
 	 */
 	readb(&shared->armed);
 
-	return 0;
+	if (notify_flags & IB_CQ_REPORT_MISSED_EVENTS) {
+		spin_lock_irqsave(&cq->lock, flags);
+		ret = !c2_mq_empty(&cq->mq);
+		spin_unlock_irqrestore(&cq->lock, flags);
+	}
+
+	return ret;
 }
 
 static void c2_free_cq_buf(struct c2_dev *c2dev, struct c2_mq *mq)

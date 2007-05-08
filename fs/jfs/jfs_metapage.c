@@ -184,8 +184,7 @@ static void init_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct metapage *mp = (struct metapage *)foo;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR) {
+	if (flags & SLAB_CTOR_CONSTRUCTOR) {
 		mp->lid = 0;
 		mp->lsn = 0;
 		mp->flag = 0;

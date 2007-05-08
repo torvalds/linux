@@ -119,6 +119,11 @@ static struct clk spi1_clk = {
 	.pmc_mask	= 1 << AT91SAM9260_ID_SPI1,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
+static struct clk ssc_clk = {
+	.name		= "ssc_clk",
+	.pmc_mask	= 1 << AT91SAM9260_ID_SSC,
+	.type		= CLK_TYPE_PERIPHERAL,
+};
 static struct clk tc0_clk = {
 	.name		= "tc0_clk",
 	.pmc_mask	= 1 << AT91SAM9260_ID_TC0,
@@ -193,7 +198,7 @@ static struct clk *periph_clocks[] __initdata = {
 	&twi_clk,
 	&spi0_clk,
 	&spi1_clk,
-	// ssc
+	&ssc_clk,
 	&tc0_clk,
 	&tc1_clk,
 	&tc2_clk,

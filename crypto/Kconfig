@@ -16,6 +16,10 @@ config CRYPTO_ALGAPI
 	help
 	  This option provides the API for cryptographic algorithms.
 
+config CRYPTO_ABLKCIPHER
+	tristate
+	select CRYPTO_BLKCIPHER
+
 config CRYPTO_BLKCIPHER
 	tristate
 	select CRYPTO_ALGAPI
@@ -170,6 +174,15 @@ config CRYPTO_LRW
 	  specification string aes-lrw-benbi, the key must be 256, 320 or 384.
 	  The first 128, 192 or 256 bits in the key are used for AES and the
 	  rest is used to tie each cipher block to its logical position.
+
+config CRYPTO_CRYPTD
+	tristate "Software async crypto daemon"
+	select CRYPTO_ABLKCIPHER
+	select CRYPTO_MANAGER
+	help
+	  This is a generic software asynchronous crypto daemon that
+	  converts an arbitrary synchronous software crypto algorithm
+	  into an asynchronous algorithm that executes in a kernel thread.
 
 config CRYPTO_DES
 	tristate "DES and Triple DES EDE cipher algorithms"

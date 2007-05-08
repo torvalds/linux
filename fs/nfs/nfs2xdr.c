@@ -687,16 +687,13 @@ nfs_stat_to_errno(int stat)
 	return nfs_errtbl[i].errno;
 }
 
-#ifndef MAX
-# define MAX(a, b)	(((a) > (b))? (a) : (b))
-#endif
-
 #define PROC(proc, argtype, restype, timer)				\
 [NFSPROC_##proc] = {							\
 	.p_proc	    =  NFSPROC_##proc,					\
 	.p_encode   =  (kxdrproc_t) nfs_xdr_##argtype,			\
 	.p_decode   =  (kxdrproc_t) nfs_xdr_##restype,			\
-	.p_bufsiz   =  MAX(NFS_##argtype##_sz,NFS_##restype##_sz) << 2,	\
+	.p_arglen   =  NFS_##argtype##_sz,				\
+	.p_replen   =  NFS_##restype##_sz,				\
 	.p_timer    =  timer,						\
 	.p_statidx  =  NFSPROC_##proc,					\
 	.p_name     =  #proc,						\

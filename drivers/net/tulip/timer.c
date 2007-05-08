@@ -14,7 +14,6 @@
 
 */
 
-#include <linux/pci.h>
 #include "tulip.h"
 
 

@@ -7,7 +7,6 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include <sys/signal.h>
-#include "user_util.h"
 #include "kern_util.h"
 #include "user.h"
 #include "net_user.h"
@@ -15,11 +14,12 @@
 #include "slip_common.h"
 #include "os.h"
 
-void slirp_user_init(void *data, void *dev)
+static int slirp_user_init(void *data, void *dev)
 {
 	struct slirp_data *pri = data;
 
 	pri->dev = dev;
+	return 0;
 }
 
 struct slirp_pre_exec_data {

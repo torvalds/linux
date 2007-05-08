@@ -32,7 +32,6 @@
  */
 
 #include <linux/ctype.h>
-#include <linux/pci.h>
 
 #include "ipath_kernel.h"
 #include "ipath_common.h"

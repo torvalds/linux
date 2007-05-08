@@ -26,7 +26,6 @@
 #include "lkc.h"
 #include "lxdialog/dialog.h"
 
-static char menu_backtitle[128];
 static const char mconf_readme[] = N_(
 "Overview\n"
 "--------\n"
@@ -271,7 +270,6 @@ search_help[] = N_(
 	"          USB$ => find all CONFIG_ symbols ending with USB\n"
 	"\n");
 
-static char filename[PATH_MAX+1] = ".config";
 static int indent;
 static struct termios ios_org;
 static int rows = 0, cols = 0;
@@ -394,6 +392,28 @@ static struct gstr get_relations_str(struct symbol **sym_arr)
 		str_append(&res, "No matches found.\n");
 	return res;
 }
+
+static char filename[PATH_MAX+1];
+static void set_config_filename(const char *config_filename)
+{
+	static char menu_backtitle[PATH_MAX+128];
+	int size;
+	struct symbol *sym;
+
+	sym = sym_lookup("KERNELVERSION", 0);
+	sym_calc_value(sym);
+	size = snprintf(menu_backtitle, sizeof(menu_backtitle),
+	                _("%s - Linux Kernel v%s Configuration"),
+		        config_filename, sym_get_string_value(sym));
+	if (size >= sizeof(menu_backtitle))
+		menu_backtitle[sizeof(menu_backtitle)-1] = '\0';
+	set_dialog_backtitle(menu_backtitle);
+
+	size = snprintf(filename, sizeof(filename), "%s", config_filename);
+	if (size >= sizeof(filename))
+		filename[sizeof(filename)-1] = '\0';
+}
+
 
 static void search_conf(void)
 {
@@ -816,8 +836,10 @@ static void conf_load(void)
 		case 0:
 			if (!dialog_input_result[0])
 				return;
-			if (!conf_read(dialog_input_result))
+			if (!conf_read(dialog_input_result)) {
+				set_config_filename(dialog_input_result);
 				return;
+			}
 			show_textbox(NULL, _("File does not exist!"), 5, 38);
 			break;
 		case 1:
@@ -840,8 +862,10 @@ static void conf_save(void)
 		case 0:
 			if (!dialog_input_result[0])
 				return;
-			if (!conf_write(dialog_input_result))
+			if (!conf_write(dialog_input_result)) {
+				set_config_filename(dialog_input_result);
 				return;
+			}
 			show_textbox(NULL, _("Can't create file!  Probably a nonexistent directory."), 5, 60);
 			break;
 		case 1:
@@ -860,7 +884,6 @@ static void conf_cleanup(void)
 
 int main(int ac, char **av)
 {
-	struct symbol *sym;
 	char *mode;
 	int res;
 
@@ -870,11 +893,6 @@ int main(int ac, char **av)
 
 	conf_parse(av[1]);
 	conf_read(NULL);
-
-	sym = sym_lookup("KERNELVERSION", 0);
-	sym_calc_value(sym);
-	sprintf(menu_backtitle, _("Linux Kernel v%s Configuration"),
-		sym_get_string_value(sym));
 
 	mode = getenv("MENUCONFIG_MODE");
 	if (mode) {
@@ -886,7 +904,8 @@ int main(int ac, char **av)
 	atexit(conf_cleanup);
 	init_wsize();
 	reset_dialog();
-	init_dialog(menu_backtitle);
+	init_dialog(NULL);
+	set_config_filename(conf_get_configname());
 	do {
 		conf(&rootmenu);
 		dialog_clear();
@@ -903,7 +922,7 @@ int main(int ac, char **av)
 
 	switch (res) {
 	case 0:
-		if (conf_write(NULL)) {
+		if (conf_write(filename)) {
 			fprintf(stderr, _("\n\n"
 				"Error during writing of the kernel configuration.\n"
 				"Your kernel configuration changes were NOT saved."

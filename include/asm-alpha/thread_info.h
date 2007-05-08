@@ -92,5 +92,27 @@ register struct thread_info *__current_thread_info __asm__("$8");
 #define _TIF_ALLWORK_MASK	(_TIF_WORK_MASK		\
 				 | _TIF_SYSCALL_TRACE)
 
+#define ALPHA_UAC_SHIFT		6
+#define ALPHA_UAC_MASK		(1 << TIF_UAC_NOPRINT | 1 << TIF_UAC_NOFIX | \
+				 1 << TIF_UAC_SIGBUS)
+
+#define SET_UNALIGN_CTL(task,value)	({				     \
+	(task)->thread_info->flags = (((task)->thread_info->flags &	     \
+		~ALPHA_UAC_MASK)					     \
+		| (((value) << ALPHA_UAC_SHIFT)       & (1<<TIF_UAC_NOPRINT))\
+		| (((value) << (ALPHA_UAC_SHIFT + 1)) & (1<<TIF_UAC_SIGBUS)) \
+		| (((value) << (ALPHA_UAC_SHIFT - 1)) & (1<<TIF_UAC_NOFIX)));\
+	0; })
+
+#define GET_UNALIGN_CTL(task,value)	({				\
+	put_user(((task)->thread_info->flags & (1 << TIF_UAC_NOPRINT))	\
+		  >> ALPHA_UAC_SHIFT					\
+		 | ((task)->thread_info->flags & (1 << TIF_UAC_SIGBUS))	\
+		 >> (ALPHA_UAC_SHIFT + 1)				\
+		 | ((task)->thread_info->flags & (1 << TIF_UAC_NOFIX))	\
+		 >> (ALPHA_UAC_SHIFT - 1),				\
+		 (int __user *)(value));				\
+	})
+
 #endif /* __KERNEL__ */
 #endif /* _ALPHA_THREAD_INFO_H */

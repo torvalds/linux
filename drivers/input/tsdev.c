@@ -442,7 +442,7 @@ static int tsdev_connect(struct input_handler *handler, struct input_dev *dev,
 	}
 
 	/* temporary symlink to keep userspace happy */
-	error = sysfs_create_link(&input_class.subsys.kset.kobj,
+	error = sysfs_create_link(&input_class.subsys.kobj,
 				  &cdev->kobj, tsdev->name);
 	if (error)
 		goto err_cdev_destroy;
@@ -454,7 +454,7 @@ static int tsdev_connect(struct input_handler *handler, struct input_dev *dev,
 	return 0;
 
  err_remove_link:
-	sysfs_remove_link(&input_class.subsys.kset.kobj, tsdev->name);
+	sysfs_remove_link(&input_class.subsys.kobj, tsdev->name);
  err_cdev_destroy:
 	class_device_destroy(&input_class, devt);
  err_free_tsdev:
@@ -470,7 +470,7 @@ static void tsdev_disconnect(struct input_handle *handle)
 
 	input_unregister_handle(handle);
 
-	sysfs_remove_link(&input_class.subsys.kset.kobj, tsdev->name);
+	sysfs_remove_link(&input_class.subsys.kobj, tsdev->name);
 	class_device_destroy(&input_class,
 			MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + tsdev->minor));
 	tsdev->exist = 0;

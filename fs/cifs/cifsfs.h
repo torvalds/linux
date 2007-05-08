@@ -100,5 +100,5 @@ extern ssize_t	cifs_getxattr(struct dentry *, const char *, void *, size_t);
 extern ssize_t	cifs_listxattr(struct dentry *, char *, size_t);
 extern int cifs_ioctl (struct inode * inode, struct file * filep,
 		       unsigned int command, unsigned long arg);
-#define CIFS_VERSION   "1.48"
+#define CIFS_VERSION   "1.49"
 #endif				/* _CIFSFS_H */

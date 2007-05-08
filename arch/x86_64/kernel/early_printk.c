@@ -11,11 +11,10 @@
 
 #ifdef __i386__
 #include <asm/setup.h>
-#define VGABASE		(__ISA_IO_base + 0xb8000)
 #else
 #include <asm/bootsetup.h>
-#define VGABASE		((void __iomem *)0xffffffff800b8000UL)
 #endif
+#define VGABASE		(__ISA_IO_base + 0xb8000)
 
 static int max_ypos = 25, max_xpos = 80;
 static int current_ypos = 25, current_xpos = 0;
@@ -176,7 +175,7 @@ static noinline long simnow(long cmd, long a, long b, long c)
 	return ret;
 }
 
-void __init simnow_init(char *str)
+static void __init simnow_init(char *str)
 {
 	char *fn = "klog";
 	if (*str == '=')

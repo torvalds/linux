@@ -433,7 +433,7 @@ static void shpchp_pushbutton_thread(struct work_struct *work)
 	kfree(info);
 }
 
-void queue_pushbutton_work(struct work_struct *work)
+void shpchp_queue_pushbutton_work(struct work_struct *work)
 {
 	struct slot *p_slot = container_of(work, struct slot, work.work);
 	struct pushbutton_work_info *info;

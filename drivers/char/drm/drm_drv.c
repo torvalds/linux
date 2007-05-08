@@ -496,11 +496,14 @@ int drm_ioctl(struct inode *inode, struct file *filp,
 		  (long)old_encode_dev(priv->head->device),
 		  priv->authenticated);
 
-	if (nr < DRIVER_IOCTL_COUNT)
-		ioctl = &drm_ioctls[nr];
-	else if ((nr >= DRM_COMMAND_BASE)
+	if ((nr >= DRIVER_IOCTL_COUNT) &&
+	    ((nr < DRM_COMMAND_BASE) || (nr >= DRM_COMMAND_END)))
+		goto err_i1;
+	if ((nr >= DRM_COMMAND_BASE) && (nr < DRM_COMMAND_END)
 		 && (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls))
 		ioctl = &dev->driver->ioctls[nr - DRM_COMMAND_BASE];
+	else if ((nr >= DRM_COMMAND_END) || (nr < DRM_COMMAND_BASE))
+		ioctl = &drm_ioctls[nr];
 	else
 		goto err_i1;
 

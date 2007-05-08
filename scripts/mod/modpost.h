@@ -145,3 +145,4 @@ void release_file(void *file, unsigned long size);
 
 void fatal(const char *fmt, ...);
 void warn(const char *fmt, ...);
+void merror(const char *fmt, ...);

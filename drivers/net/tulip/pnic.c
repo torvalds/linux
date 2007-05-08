@@ -15,7 +15,6 @@
 */
 
 #include <linux/kernel.h>
-#include <linux/pci.h>
 #include <linux/jiffies.h>
 #include "tulip.h"
 

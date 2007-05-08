@@ -654,11 +654,13 @@ typedef struct drm_set_version {
 
 /**
  * Device specific ioctls should only be in their respective headers
- * The device specific ioctl range is from 0x40 to 0x79.
+ * The device specific ioctl range is from 0x40 to 0x99.
+ * Generic IOCTLS restart at 0xA0.
  *
  * \sa drmCommandNone(), drmCommandRead(), drmCommandWrite(), and
  * drmCommandReadWrite().
  */
 #define DRM_COMMAND_BASE                0x40
+#define DRM_COMMAND_END			0xA0
 
 #endif

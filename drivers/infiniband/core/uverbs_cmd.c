@@ -802,6 +802,7 @@ ssize_t ib_uverbs_create_cq(struct ib_uverbs_file *file,
 	INIT_LIST_HEAD(&obj->async_list);
 
 	cq = file->device->ib_dev->create_cq(file->device->ib_dev, cmd.cqe,
+					     cmd.comp_vector,
 					     file->ucontext, &udata);
 	if (IS_ERR(cq)) {
 		ret = PTR_ERR(cq);

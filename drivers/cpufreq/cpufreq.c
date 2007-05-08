@@ -768,6 +768,9 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 		unlock_policy_rwsem_write(cpu);
 		goto err_out;
 	}
+	policy->user_policy.min = policy->cpuinfo.min_freq;
+	policy->user_policy.max = policy->cpuinfo.max_freq;
+	policy->user_policy.governor = policy->governor;
 
 #ifdef CONFIG_SMP
 	for_each_cpu_mask(j, policy->cpus) {
@@ -858,10 +861,13 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 
 	policy->governor = NULL; /* to assure that the starting sequence is
 				  * run in cpufreq_set_policy */
-	unlock_policy_rwsem_write(cpu);
 
 	/* set default policy */
-	ret = cpufreq_set_policy(&new_policy);
+	ret = __cpufreq_set_policy(policy, &new_policy);
+	policy->user_policy.policy = policy->policy;
+
+	unlock_policy_rwsem_write(cpu);
+
 	if (ret) {
 		dprintk("setting policy failed\n");
 		goto err_out_unregister;
@@ -1618,43 +1624,6 @@ error_out:
 	cpufreq_debug_enable_ratelimit();
 	return ret;
 }
-
-/**
- *	cpufreq_set_policy - set a new CPUFreq policy
- *	@policy: policy to be set.
- *
- *	Sets a new CPU frequency and voltage scaling policy.
- */
-int cpufreq_set_policy(struct cpufreq_policy *policy)
-{
-	int ret = 0;
-	struct cpufreq_policy *data;
-
-	if (!policy)
-		return -EINVAL;
-
-	data = cpufreq_cpu_get(policy->cpu);
-	if (!data)
-		return -EINVAL;
-
-	if (unlikely(lock_policy_rwsem_write(policy->cpu)))
-		return -EINVAL;
-
-
-	ret = __cpufreq_set_policy(data, policy);
-	data->user_policy.min = data->min;
-	data->user_policy.max = data->max;
-	data->user_policy.policy = data->policy;
-	data->user_policy.governor = data->governor;
-
-	unlock_policy_rwsem_write(policy->cpu);
-
-	cpufreq_cpu_put(data);
-
-	return ret;
-}
-EXPORT_SYMBOL(cpufreq_set_policy);
-
 
 /**
  *	cpufreq_update_policy - re-evaluate an existing cpufreq policy

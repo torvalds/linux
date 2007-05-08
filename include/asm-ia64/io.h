@@ -421,11 +421,7 @@ __writeq (unsigned long val, volatile void __iomem *addr)
 
 extern void __iomem * ioremap(unsigned long offset, unsigned long size);
 extern void __iomem * ioremap_nocache (unsigned long offset, unsigned long size);
-
-static inline void
-iounmap (volatile void __iomem *addr)
-{
-}
+extern void iounmap (volatile void __iomem *addr);
 
 /* Use normal IO mappings for DMI */
 #define dmi_ioremap ioremap

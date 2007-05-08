@@ -452,42 +452,34 @@ int smp_call_function (void (*func) (void *info), void *info, int nonatomic,
 }
 EXPORT_SYMBOL(smp_call_function);
 
-void smp_stop_cpu(void)
+static void stop_this_cpu(void *dummy)
 {
-	unsigned long flags;
+	local_irq_disable();
 	/*
 	 * Remove this CPU:
 	 */
 	cpu_clear(smp_processor_id(), cpu_online_map);
-	local_irq_save(flags);
 	disable_local_APIC();
-	local_irq_restore(flags);
-}
-
-static void smp_really_stop_cpu(void *dummy)
-{
-	smp_stop_cpu(); 
 	for (;;) 
 		halt();
 } 
 
 void smp_send_stop(void)
 {
-	int nolock = 0;
+	int nolock;
+	unsigned long flags;
+
 	if (reboot_force)
 		return;
+
 	/* Don't deadlock on the call lock in panic */
-	if (!spin_trylock(&call_lock)) {
-		/* ignore locking because we have panicked anyways */
-		nolock = 1;
-	}
-	__smp_call_function(smp_really_stop_cpu, NULL, 0, 0);
+	nolock = !spin_trylock(&call_lock);
+	local_irq_save(flags);
+	__smp_call_function(stop_this_cpu, NULL, 0, 0);
 	if (!nolock)
 		spin_unlock(&call_lock);
-
-	local_irq_disable();
 	disable_local_APIC();
-	local_irq_enable();
+	local_irq_restore(flags);
 }
 
 /*

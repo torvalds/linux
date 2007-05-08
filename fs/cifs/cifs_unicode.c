@@ -74,8 +74,8 @@ cifs_strtoUCS(__le16 * to, const char *from, int len,
 		charlen = codepage->char2uni(from, len, &wchar_to[i]);
 		if (charlen < 1) {
 			cERROR(1,
-			       ("cifs_strtoUCS: char2uni returned %d",
-				charlen));
+			       ("strtoUCS: char2uni of %d returned %d",
+				(int)*from, charlen));
 			/* A question mark */
 			to[i] = cpu_to_le16(0x003f);
 			charlen = 1;

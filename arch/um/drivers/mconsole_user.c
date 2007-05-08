@@ -17,7 +17,6 @@
 #include "sysdep/ptrace.h"
 #include "mconsole.h"
 #include "os.h"
-#include "user_util.h"
 
 static struct mconsole_command commands[] = {
 	/* With uts namespaces, uts information becomes process-specific, so

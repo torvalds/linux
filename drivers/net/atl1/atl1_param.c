@@ -22,7 +22,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/pci.h>
 #include <linux/moduleparam.h>
 #include "atl1.h"
 

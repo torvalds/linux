@@ -41,6 +41,10 @@
 #include <linux/platform_device.h>
 #include <linux/completion.h>
 
+/* Exported by i2c-core for i2c-isa only */
+extern void i2c_adapter_dev_release(struct device *dev);
+extern struct class i2c_adapter_class;
+
 static u32 isa_func(struct i2c_adapter *adapter);
 
 /* This is the actual algorithm we define */
@@ -62,16 +66,6 @@ static u32 isa_func(struct i2c_adapter *adapter)
 {
 	return 0;
 }
-
-
-/* Copied from i2c-core */
-static ssize_t show_adapter_name(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct i2c_adapter *adap = dev_to_i2c_adapter(dev);
-	return sprintf(buf, "%s\n", adap->name);
-}
-static DEVICE_ATTR(name, S_IRUGO, show_adapter_name, NULL);
 
 
 /* We implement an interface which resembles i2c_{add,del}_driver,
@@ -139,41 +133,18 @@ static int __init i2c_isa_init(void)
 	isa_adapter.nr = ANY_I2C_ISA_BUS;
 	isa_adapter.dev.parent = &platform_bus;
 	sprintf(isa_adapter.dev.bus_id, "i2c-%d", isa_adapter.nr);
-	isa_adapter.dev.driver = &i2c_adapter_driver;
 	isa_adapter.dev.release = &i2c_adapter_dev_release;
+	isa_adapter.dev.class = &i2c_adapter_class;
 	err = device_register(&isa_adapter.dev);
 	if (err) {
 		printk(KERN_ERR "i2c-isa: Failed to register device\n");
 		goto exit;
-	}
-	err = device_create_file(&isa_adapter.dev, &dev_attr_name);
-	if (err) {
-		printk(KERN_ERR "i2c-isa: Failed to create name file\n");
-		goto exit_unregister;
-	}
-
-	/* Add this adapter to the i2c_adapter class */
-	memset(&isa_adapter.class_dev, 0x00, sizeof(struct class_device));
-	isa_adapter.class_dev.dev = &isa_adapter.dev;
-	isa_adapter.class_dev.class = &i2c_adapter_class;
-	strlcpy(isa_adapter.class_dev.class_id, isa_adapter.dev.bus_id,
-		BUS_ID_SIZE);
-	err = class_device_register(&isa_adapter.class_dev);
-	if (err) {
-		printk(KERN_ERR "i2c-isa: Failed to register class device\n");
-		goto exit_remove_name;
 	}
 
 	dev_dbg(&isa_adapter.dev, "%s registered\n", isa_adapter.name);
 
 	return 0;
 
-exit_remove_name:
-	device_remove_file(&isa_adapter.dev, &dev_attr_name);
-exit_unregister:
-	init_completion(&isa_adapter.dev_released); /* Needed? */
-	device_unregister(&isa_adapter.dev);
-	wait_for_completion(&isa_adapter.dev_released);
 exit:
 	return err;
 }
@@ -201,15 +172,11 @@ static void __exit i2c_isa_exit(void)
 	/* Clean up the sysfs representation */
 	dev_dbg(&isa_adapter.dev, "Unregistering from sysfs\n");
 	init_completion(&isa_adapter.dev_released);
-	init_completion(&isa_adapter.class_dev_released);
-	class_device_unregister(&isa_adapter.class_dev);
-	device_remove_file(&isa_adapter.dev, &dev_attr_name);
 	device_unregister(&isa_adapter.dev);
 
 	/* Wait for sysfs to drop all references */
 	dev_dbg(&isa_adapter.dev, "Waiting for sysfs completion\n");
 	wait_for_completion(&isa_adapter.dev_released);
-	wait_for_completion(&isa_adapter.class_dev_released);
 
 	dev_dbg(&isa_adapter.dev, "%s unregistered\n", isa_adapter.name);
 }

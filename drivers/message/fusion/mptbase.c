@@ -1531,6 +1531,7 @@ mpt_resume(struct pci_dev *pdev)
 	MPT_ADAPTER *ioc = pci_get_drvdata(pdev);
 	u32 device_state = pdev->current_state;
 	int recovery_state;
+	int err;
 
 	printk(MYIOC_s_INFO_FMT
 	"pci-resume: pdev=0x%p, slot=%s, Previous operating state [D%d]\n",
@@ -1538,7 +1539,9 @@ mpt_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, 0);
 	pci_restore_state(pdev);
-	pci_enable_device(pdev);
+	err = pci_enable_device(pdev);
+	if (err)
+		return err;
 
 	/* enable interrupts */
 	CHIPREG_WRITE32(&ioc->chip->IntMask, MPI_HIM_DIM);
@@ -4739,12 +4742,8 @@ mpt_readScsiDevicePageHeaders(MPT_ADAPTER *ioc, int portnum)
 }
 
 /**
- * mpt_inactive_raid_list_free
- *
- * This clears this link list.
- *
- * @ioc - pointer to per adapter structure
- *
+ * mpt_inactive_raid_list_free - This clears this link list.
+ * @ioc : pointer to per adapter structure
  **/
 static void
 mpt_inactive_raid_list_free(MPT_ADAPTER *ioc)
@@ -4764,15 +4763,11 @@ mpt_inactive_raid_list_free(MPT_ADAPTER *ioc)
 }
 
 /**
- * mpt_inactive_raid_volumes
+ * mpt_inactive_raid_volumes - sets up link list of phy_disk_nums for devices belonging in an inactive volume
  *
- * This sets up link list of phy_disk_nums for devices belonging in an inactive volume
- *
- * @ioc - pointer to per adapter structure
- * @channel - volume channel
- * @id - volume target id
- *
- *
+ * @ioc : pointer to per adapter structure
+ * @channel : volume channel
+ * @id : volume target id
  **/
 static void
 mpt_inactive_raid_volumes(MPT_ADAPTER *ioc, u8 channel, u8 id)
@@ -6663,7 +6658,7 @@ union loginfo_type {
 /**
  *	mpt_iocstatus_info_config - IOCSTATUS information for config pages
  *	@ioc: Pointer to MPT_ADAPTER structure
- *	ioc_status: U32 IOCStatus word from IOC
+ *	@ioc_status: U32 IOCStatus word from IOC
  *	@mf: Pointer to MPT request frame
  *
  *	Refer to lsi/mpi.h.

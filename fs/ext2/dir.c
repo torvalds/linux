@@ -161,10 +161,7 @@ static struct page * ext2_get_page(struct inode *dir, unsigned long n)
 	struct address_space *mapping = dir->i_mapping;
 	struct page *page = read_mapping_page(mapping, n, NULL);
 	if (!IS_ERR(page)) {
-		wait_on_page_locked(page);
 		kmap(page);
-		if (!PageUptodate(page))
-			goto fail;
 		if (!PageChecked(page))
 			ext2_check_page(page);
 		if (PageError(page))

@@ -47,9 +47,8 @@ static void *sgi_tioca_alloc_page(struct agp_bridge_data *bridge)
 
 	nid = info->ca_closest_node;
 	page = alloc_pages_node(nid, GFP_KERNEL, 0);
-	if (page == NULL) {
-		return 0;
-	}
+	if (!page)
+		return NULL;
 
 	get_page(page);
 	SetPageLocked(page);

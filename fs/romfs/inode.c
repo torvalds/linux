@@ -570,8 +570,7 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 {
 	struct romfs_inode_info *ei = (struct romfs_inode_info *) foo;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR)
+	if (flags & SLAB_CTOR_CONSTRUCTOR)
 		inode_init_once(&ei->vfs_inode);
 }
  

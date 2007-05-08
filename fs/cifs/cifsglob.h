@@ -311,7 +311,7 @@ struct cifsFileInfo {
 	/* lock scope id (0 if none) */
 	struct file * pfile; /* needed for writepage */
 	struct inode * pInode; /* needed for oplock break */
-	struct semaphore lock_sem;
+	struct mutex lock_mutex;
 	struct list_head llist; /* list of byte range locks we have. */
 	unsigned closePend:1;	/* file is marked to close */
 	unsigned invalidHandle:1;  /* file closed via session abend */

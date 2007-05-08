@@ -135,7 +135,7 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 	}
 	/* Read Device Characteristics */
 	rdc_data = (void *) &(private->rdc_data);
-	rc = read_dev_chars(device->cdev, &rdc_data, 32);
+	rc = dasd_generic_read_dev_chars(device, "FBA ", &rdc_data, 32);
 	if (rc) {
 		DEV_MESSAGE(KERN_WARNING, device,
 			    "Read device characteristics returned error %d",

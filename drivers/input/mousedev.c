@@ -724,7 +724,7 @@ static int mousedev_connect(struct input_handler *handler, struct input_dev *dev
 	}
 
 	/* temporary symlink to keep userspace happy */
-	error = sysfs_create_link(&input_class.subsys.kset.kobj,
+	error = sysfs_create_link(&input_class.subsys.kobj,
 				  &cdev->kobj, mousedev->name);
 	if (error)
 		goto err_cdev_destroy;
@@ -742,7 +742,7 @@ static int mousedev_connect(struct input_handler *handler, struct input_dev *dev
  err_unregister_handle:
 	input_unregister_handle(&mousedev->handle);
  err_remove_link:
-	sysfs_remove_link(&input_class.subsys.kset.kobj, mousedev->name);
+	sysfs_remove_link(&input_class.subsys.kobj, mousedev->name);
  err_cdev_destroy:
 	class_device_destroy(&input_class, devt);
  err_free_mousedev:
@@ -758,7 +758,7 @@ static void mousedev_disconnect(struct input_handle *handle)
 
 	input_unregister_handle(handle);
 
-	sysfs_remove_link(&input_class.subsys.kset.kobj, mousedev->name);
+	sysfs_remove_link(&input_class.subsys.kobj, mousedev->name);
 	class_device_destroy(&input_class,
 			MKDEV(INPUT_MAJOR, MOUSEDEV_MINOR_BASE + mousedev->minor));
 	mousedev->exist = 0;

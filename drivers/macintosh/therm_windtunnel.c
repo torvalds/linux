@@ -459,7 +459,8 @@ therm_of_probe( struct of_device *dev, const struct of_device_id *match )
 static int
 therm_of_remove( struct of_device *dev )
 {
-	return i2c_del_driver( &g4fan_driver );
+	i2c_del_driver( &g4fan_driver );
+	return 0;
 }
 
 static struct of_device_id therm_of_match[] = {{

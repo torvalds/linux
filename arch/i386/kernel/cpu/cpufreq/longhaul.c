@@ -590,20 +590,23 @@ static acpi_status longhaul_walk_callback(acpi_handle obj_handle,
 static int enable_arbiter_disable(void)
 {
 	struct pci_dev *dev;
+	int status;
 	int reg;
 	u8 pci_cmd;
 
+	status = 1;
 	/* Find PLE133 host bridge */
 	reg = 0x78;
-	dev = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8601_0, NULL);
+	dev = pci_get_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8601_0,
+			     NULL);
 	/* Find CLE266 host bridge */
 	if (dev == NULL) {
 		reg = 0x76;
-		dev = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_862X_0, NULL);
+		dev = pci_get_device(PCI_VENDOR_ID_VIA,
+				     PCI_DEVICE_ID_VIA_862X_0, NULL);
 		/* Find CN400 V-Link host bridge */
 		if (dev == NULL)
-			dev = pci_find_device(PCI_VENDOR_ID_VIA, 0x7259, NULL);
-
+			dev = pci_get_device(PCI_VENDOR_ID_VIA, 0x7259, NULL);
 	}
 	if (dev != NULL) {
 		/* Enable access to port 0x22 */
@@ -615,10 +618,11 @@ static int enable_arbiter_disable(void)
 			if (!(pci_cmd & 1<<7)) {
 				printk(KERN_ERR PFX
 					"Can't enable access to port 0x22.\n");
-				return 0;
+				status = 0;
 			}
 		}
-		return 1;
+		pci_dev_put(dev);
+		return status;
 	}
 	return 0;
 }
@@ -629,7 +633,7 @@ static int longhaul_setup_vt8235(void)
 	u8 pci_cmd;
 
 	/* Find VT8235 southbridge */
-	dev = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8235, NULL);
+	dev = pci_get_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8235, NULL);
 	if (dev != NULL) {
 		/* Set transition time to max */
 		pci_read_config_byte(dev, 0xec, &pci_cmd);
@@ -641,6 +645,7 @@ static int longhaul_setup_vt8235(void)
 		pci_read_config_byte(dev, 0xe5, &pci_cmd);
 		pci_cmd |= 1 << 7;
 		pci_write_config_byte(dev, 0xe5, pci_cmd);
+		pci_dev_put(dev);
 		return 1;
 	}
 	return 0;
@@ -678,7 +683,7 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 				sizeof(samuel2_eblcr));
 			break;
 		case 1 ... 15:
-			longhaul_version = TYPE_LONGHAUL_V2;
+			longhaul_version = TYPE_LONGHAUL_V1;
 			if (c->x86_mask < 8) {
 				cpu_model = CPU_SAMUEL2;
 				cpuname = "C3 'Samuel 2' [C5B]";

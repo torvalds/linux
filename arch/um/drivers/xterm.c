@@ -14,7 +14,6 @@
 #include <sys/socket.h>
 #include "kern_util.h"
 #include "chan_user.h"
-#include "user_util.h"
 #include "user.h"
 #include "os.h"
 #include "xterm.h"

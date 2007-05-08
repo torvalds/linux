@@ -565,9 +565,9 @@ int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
         ib->btx_ring [entry].length = (-len) | 0xf000;
         ib->btx_ring [entry].misc = 0;
 
-    	if (skb->len < ETH_ZLEN)
-    		memset((char *)&ib->tx_buf[entry][0], 0, ETH_ZLEN);
-        skb_copy_from_linear_data(skb, &ib->tx_buf[entry][0], skblen);
+	if (skb->len < ETH_ZLEN)
+		memset((void *)&ib->tx_buf[entry][0], 0, ETH_ZLEN);
+        skb_copy_from_linear_data(skb, (void *)&ib->tx_buf[entry][0], skblen);
 
         /* Now, give the packet to the lance */
         ib->btx_ring [entry].tmd1_bits = (LE_T1_POK|LE_T1_OWN);

@@ -7,7 +7,7 @@
 
 SECTIONS
 {
-  . = VDSO_PRELINK + SIZEOF_HEADERS;
+  . = VDSO_PRELINK_asm + SIZEOF_HEADERS;
 
   .hash           : { *(.hash) }		:text
   .gnu.hash       : { *(.gnu.hash) }
@@ -21,7 +21,7 @@ SECTIONS
      For the layouts to match, we need to skip more than enough
      space for the dynamic symbol table et al.  If this amount
      is insufficient, ld -shared will barf.  Just increase it here.  */
-  . = VDSO_PRELINK + 0x400;
+  . = VDSO_PRELINK_asm + 0x400;
 
   .text           : { *(.text) }		:text =0x90909090
   .note		  : { *(.note.*) }		:text :note

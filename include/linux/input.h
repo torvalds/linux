@@ -677,6 +677,7 @@ struct input_absinfo {
 #define BUS_I2C			0x18
 #define BUS_HOST		0x19
 #define BUS_GSC			0x1A
+#define BUS_ATARI		0x1B
 
 /*
  * Values describing the status of a force-feedback effect
@@ -987,6 +988,10 @@ struct input_dev {
 
 #if EV_MAX != INPUT_DEVICE_ID_EV_MAX
 #error "EV_MAX and INPUT_DEVICE_ID_EV_MAX do not match"
+#endif
+
+#if KEY_MIN_INTERESTING != INPUT_DEVICE_ID_KEY_MIN_INTERESTING
+#error "KEY_MIN_INTERESTING and INPUT_DEVICE_ID_KEY_MIN_INTERESTING do not match"
 #endif
 
 #if KEY_MAX != INPUT_DEVICE_ID_KEY_MAX

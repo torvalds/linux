@@ -5,6 +5,7 @@
 # Each configuration option enables a list of files.
 
 obj-$(CONFIG_MOUSE_AMIGA)	+= amimouse.o
+obj-$(CONFIG_MOUSE_ATARI)	+= atarimouse.o
 obj-$(CONFIG_MOUSE_RISCPC)	+= rpcmouse.o
 obj-$(CONFIG_MOUSE_INPORT)	+= inport.o
 obj-$(CONFIG_MOUSE_LOGIBM)	+= logibm.o

@@ -266,7 +266,8 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call,
 		call->unmarshall++;
 
 		if (call->count < PAGE_SIZE) {
-			buffer = kmap_atomic(call->reply3, KM_USER0);
+			page = call->reply3;
+			buffer = kmap_atomic(page, KM_USER0);
 			memset(buffer + PAGE_SIZE - call->count, 0,
 			       call->count);
 			kunmap_atomic(buffer, KM_USER0);

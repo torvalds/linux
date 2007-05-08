@@ -3720,11 +3720,10 @@ int tty_register_driver(struct tty_driver *driver)
 	if (driver->flags & TTY_DRIVER_INSTALLED)
 		return 0;
 
-	if (!(driver->flags & TTY_DRIVER_DEVPTS_MEM)) {
-		p = kmalloc(driver->num * 3 * sizeof(void *), GFP_KERNEL);
+	if (!(driver->flags & TTY_DRIVER_DEVPTS_MEM) && driver->num) {
+		p = kzalloc(driver->num * 3 * sizeof(void *), GFP_KERNEL);
 		if (!p)
 			return -ENOMEM;
-		memset(p, 0, driver->num * 3 * sizeof(void *));
 	}
 
 	if (!driver->major) {

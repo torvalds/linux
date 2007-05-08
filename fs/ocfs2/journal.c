@@ -435,7 +435,8 @@ static int ocfs2_journal_toggle_dirty(struct ocfs2_super *osb,
 		 * handle the errors in a specific manner, so no need
 		 * to call ocfs2_error() here. */
 		mlog(ML_ERROR, "Journal dinode %llu  has invalid "
-		     "signature: %.*s", (unsigned long long)fe->i_blkno, 7,
+		     "signature: %.*s",
+		     (unsigned long long)le64_to_cpu(fe->i_blkno), 7,
 		     fe->i_signature);
 		status = -EIO;
 		goto out;
@@ -742,7 +743,7 @@ void ocfs2_complete_recovery(struct work_struct *work)
 		la_dinode = item->lri_la_dinode;
 		if (la_dinode) {
 			mlog(0, "Clean up local alloc %llu\n",
-			     (unsigned long long)la_dinode->i_blkno);
+			     (unsigned long long)le64_to_cpu(la_dinode->i_blkno));
 
 			ret = ocfs2_complete_local_alloc_recovery(osb,
 								  la_dinode);
@@ -755,7 +756,7 @@ void ocfs2_complete_recovery(struct work_struct *work)
 		tl_dinode = item->lri_tl_dinode;
 		if (tl_dinode) {
 			mlog(0, "Clean up truncate log %llu\n",
-			     (unsigned long long)tl_dinode->i_blkno);
+			     (unsigned long long)le64_to_cpu(tl_dinode->i_blkno));
 
 			ret = ocfs2_complete_truncate_log_recovery(osb,
 								   tl_dinode);

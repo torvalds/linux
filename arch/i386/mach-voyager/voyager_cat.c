@@ -1111,7 +1111,7 @@ voyager_cat_do_common_interrupt(void)
 				printk(KERN_ERR "Voyager front panel switch turned off\n");
 				voyager_status.switch_off = 1;
 				voyager_status.request_from_kernel = 1;
-				up(&kvoyagerd_sem);
+				wake_up_process(voyager_thread);
 			}
 			/* Tell the hardware we're taking care of the
 			 * shutdown, otherwise it will power the box off
@@ -1157,7 +1157,7 @@ voyager_cat_do_common_interrupt(void)
 			outb(VOYAGER_CAT_END, CAT_CMD);
 			voyager_status.power_fail = 1;
 			voyager_status.request_from_kernel = 1;
-			up(&kvoyagerd_sem);
+			wake_up_process(voyager_thread);
 		}
 		
 		

@@ -18,7 +18,6 @@
 #include "os.h"
 #include "user.h"
 #include "kern_util.h"
-#include "user_util.h"
 
 static void copy_stat(struct uml_stat *dst, struct stat64 *src)
 {
@@ -291,54 +290,22 @@ int os_seek_file(int fd, __u64 offset)
 	return 0;
 }
 
-static int fault_buffer(void *start, int len,
-			int (*copy_proc)(void *addr, void *buf, int len))
+int os_read_file(int fd, void *buf, int len)
 {
-	int page = getpagesize(), i;
-	char c;
-
-	for(i = 0; i < len; i += page){
-		if((*copy_proc)(start + i, &c, sizeof(c)))
-			return -EFAULT;
-	}
-	if((len % page) != 0){
-		if((*copy_proc)(start + len - 1, &c, sizeof(c)))
-			return -EFAULT;
-	}
-	return 0;
-}
-
-static int file_io(int fd, void *buf, int len,
-		   int (*io_proc)(int fd, void *buf, int len),
-		   int (*copy_user_proc)(void *addr, void *buf, int len))
-{
-	int n, err;
-
-	do {
-		n = (*io_proc)(fd, buf, len);
-		if((n < 0) && (errno == EFAULT)){
-			err = fault_buffer(buf, len, copy_user_proc);
-			if(err)
-				return err;
-			n = (*io_proc)(fd, buf, len);
-		}
-	} while((n < 0) && (errno == EINTR));
+	int n = read(fd, buf, len);
 
 	if(n < 0)
 		return -errno;
 	return n;
 }
 
-int os_read_file(int fd, void *buf, int len)
-{
-	return file_io(fd, buf, len, (int (*)(int, void *, int)) read,
-		       copy_from_user_proc);
-}
-
 int os_write_file(int fd, const void *buf, int len)
 {
-	return file_io(fd, (void *) buf, len,
-		       (int (*)(int, void *, int)) write, copy_to_user_proc);
+	int n = write(fd, (void *) buf, len);
+
+	if(n < 0)
+		return -errno;
+	return n;
 }
 
 int os_file_size(char *file, unsigned long long *size_out)

@@ -50,6 +50,7 @@
 #include <linux/nfsd/xdr4.h>
 #include <linux/namei.h>
 #include <linux/mutex.h>
+#include <linux/lockd/bind.h>
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
@@ -2657,6 +2658,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct file_lock conflock;
 	__be32 status = 0;
 	unsigned int strhashval;
+	unsigned int cmd;
 	int err;
 
 	dprintk("NFSD: nfsd4_lock: start=%Ld length=%Ld\n",
@@ -2739,10 +2741,12 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		case NFS4_READ_LT:
 		case NFS4_READW_LT:
 			file_lock.fl_type = F_RDLCK;
+			cmd = F_SETLK;
 		break;
 		case NFS4_WRITE_LT:
 		case NFS4_WRITEW_LT:
 			file_lock.fl_type = F_WRLCK;
+			cmd = F_SETLK;
 		break;
 		default:
 			status = nfserr_inval;
@@ -2769,9 +2773,8 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	/* XXX?: Just to divert the locks_release_private at the start of
 	 * locks_copy_lock: */
-	conflock.fl_ops = NULL;
-	conflock.fl_lmops = NULL;
-	err = posix_lock_file_conf(filp, &file_lock, &conflock);
+	locks_init_lock(&conflock);
+	err = vfs_lock_file(filp, cmd, &file_lock, &conflock);
 	switch (-err) {
 	case 0: /* success! */
 		update_stateid(&lock_stp->st_stateid);
@@ -2788,7 +2791,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		status = nfserr_deadlock;
 		break;
 	default:        
-		dprintk("NFSD: nfsd4_lock: posix_lock_file_conf() failed! status %d\n",err);
+		dprintk("NFSD: nfsd4_lock: vfs_lock_file() failed! status %d\n",err);
 		status = nfserr_resource;
 		break;
 	}
@@ -2813,7 +2816,7 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct inode *inode;
 	struct file file;
 	struct file_lock file_lock;
-	struct file_lock conflock;
+	int error;
 	__be32 status;
 
 	if (nfs4_in_grace())
@@ -2869,18 +2872,23 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	nfs4_transform_lock_offset(&file_lock);
 
-	/* posix_test_lock uses the struct file _only_ to resolve the inode.
+	/* vfs_test_lock uses the struct file _only_ to resolve the inode.
 	 * since LOCKT doesn't require an OPEN, and therefore a struct
-	 * file may not exist, pass posix_test_lock a struct file with
+	 * file may not exist, pass vfs_test_lock a struct file with
 	 * only the dentry:inode set.
 	 */
 	memset(&file, 0, sizeof (struct file));
 	file.f_path.dentry = cstate->current_fh.fh_dentry;
 
 	status = nfs_ok;
-	if (posix_test_lock(&file, &file_lock, &conflock)) {
+	error = vfs_test_lock(&file, &file_lock);
+	if (error) {
+		status = nfserrno(error);
+		goto out;
+	}
+	if (file_lock.fl_type != F_UNLCK) {
 		status = nfserr_denied;
-		nfs4_set_lock_denied(&conflock, &lockt->lt_denied);
+		nfs4_set_lock_denied(&file_lock, &lockt->lt_denied);
 	}
 out:
 	nfs4_unlock_state();
@@ -2933,9 +2941,9 @@ nfsd4_locku(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	/*
 	*  Try to unlock the file in the VFS.
 	*/
-	err = posix_lock_file(filp, &file_lock);
+	err = vfs_lock_file(filp, F_SETLK, &file_lock, NULL);
 	if (err) {
-		dprintk("NFSD: nfs4_locku: posix_lock_file failed!\n");
+		dprintk("NFSD: nfs4_locku: vfs_lock_file failed!\n");
 		goto out_nfserr;
 	}
 	/*

@@ -1,8 +1,6 @@
 #ifndef _I386_ALTERNATIVE_H
 #define _I386_ALTERNATIVE_H
 
-#ifdef __KERNEL__
-
 #include <asm/types.h>
 #include <linux/stddef.h>
 #include <linux/types.h>
@@ -16,6 +14,7 @@ struct alt_instr {
 	u8  pad;
 };
 
+extern void alternative_instructions(void);
 extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 
 struct module;
@@ -31,9 +30,7 @@ static inline void alternatives_smp_module_add(struct module *mod, char *name,
 					void *text, void *text_end) {}
 static inline void alternatives_smp_module_del(struct module *mod) {}
 static inline void alternatives_smp_switch(int smp) {}
-#endif
-
-#endif
+#endif	/* CONFIG_SMP */
 
 /*
  * Alternative instructions for different CPU types or capabilities.
@@ -85,6 +82,21 @@ static inline void alternatives_smp_switch(int smp) {}
 		      "663:\n\t" newinstr "\n664:\n"   /* replacement */\
 		      ".previous" :: "i" (feature), ##input)
 
+/* Like alternative_input, but with a single output argument */
+#define alternative_io(oldinstr, newinstr, feature, output, input...) \
+	asm volatile ("661:\n\t" oldinstr "\n662:\n"			\
+		      ".section .altinstructions,\"a\"\n"		\
+		      "  .align 4\n"					\
+		      "  .long 661b\n"            /* label */		\
+		      "  .long 663f\n"		  /* new instruction */	\
+		      "  .byte %c[feat]\n"        /* feature bit */	\
+		      "  .byte 662b-661b\n"       /* sourcelen */	\
+		      "  .byte 664f-663f\n"       /* replacementlen */	\
+		      ".previous\n"					\
+		      ".section .altinstr_replacement,\"ax\"\n"		\
+		      "663:\n\t" newinstr "\n664:\n"   /* replacement */ \
+		      ".previous" : output : [feat] "i" (feature), ##input)
+
 /*
  * Alternative inline assembly for SMP.
  *
@@ -118,15 +130,17 @@ static inline void alternatives_smp_switch(int smp) {}
 #define LOCK_PREFIX ""
 #endif
 
-struct paravirt_patch;
+struct paravirt_patch_site;
 #ifdef CONFIG_PARAVIRT
-void apply_paravirt(struct paravirt_patch *start, struct paravirt_patch *end);
+void apply_paravirt(struct paravirt_patch_site *start,
+		    struct paravirt_patch_site *end);
 #else
 static inline void
-apply_paravirt(struct paravirt_patch *start, struct paravirt_patch *end)
+apply_paravirt(struct paravirt_patch_site *start,
+	       struct paravirt_patch_site *end)
 {}
-#define __start_parainstructions NULL
-#define __stop_parainstructions NULL
+#define __parainstructions	NULL
+#define __parainstructions_end	NULL
 #endif
 
 #endif /* _I386_ALTERNATIVE_H */

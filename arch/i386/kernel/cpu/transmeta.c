@@ -112,13 +112,3 @@ int __init transmeta_init_cpu(void)
 	cpu_devs[X86_VENDOR_TRANSMETA] = &transmeta_cpu_dev;
 	return 0;
 }
-
-//early_arch_initcall(transmeta_init_cpu);
-
-static int __init transmeta_exit_cpu(void)
-{
-	cpu_devs[X86_VENDOR_TRANSMETA] = NULL;
-	return 0;
-}
-
-late_initcall(transmeta_exit_cpu);

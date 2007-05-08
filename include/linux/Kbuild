@@ -96,6 +96,7 @@ header-y += iso_fs.h
 header-y += ixjuser.h
 header-y += jffs2.h
 header-y += keyctl.h
+header-y += kvm.h
 header-y += limits.h
 header-y += lock_dlm_plock.h
 header-y += magic.h

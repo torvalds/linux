@@ -48,7 +48,8 @@ static int __devinit of_platform_serial_setup(struct of_device *ofdev,
 	port->iotype = UPIO_MEM;
 	port->type = type;
 	port->uartclk = *clk;
-	port->flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP;
+	port->flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP
+		| UPF_FIXED_PORT;
 	port->dev = &ofdev->dev;
 	port->custom_divisor = *clk / (16 * (*spd));
 

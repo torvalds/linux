@@ -62,7 +62,7 @@ struct at91_mmc_data {
 };
 extern void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data);
 
- /* Ethernet */
+ /* Ethernet (EMAC & MACB) */
 struct at91_eth_data {
 	u8		phy_irq_pin;	/* PHY IRQ */
 	u8		is_rmii;	/* using RMII interface? */
@@ -113,6 +113,16 @@ struct atmel_uart_data {
 	void __iomem	*regs;		/* virtual base address, if any */
 };
 extern void __init at91_add_device_serial(void);
+
+ /* LCD Controller */
+struct atmel_lcdfb_info;
+extern void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data);
+
+ /* AC97 */
+struct atmel_ac97_data {
+	u8		reset_pin;	/* reset */
+}
+extern void __init at91_add_device_ac97(struct atmel_ac97_data *data);
 
  /* LEDs */
 extern u8 at91_leds_cpu;

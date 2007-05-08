@@ -583,8 +583,7 @@ inode_info_init_once(void *vptr, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct ecryptfs_inode_info *ei = (struct ecryptfs_inode_info *)vptr;
 
-	if ((flags & (SLAB_CTOR_VERIFY | SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR)
+	if (flags & SLAB_CTOR_CONSTRUCTOR)
 		inode_init_once(&ei->vfs_inode);
 }
 
@@ -793,7 +792,7 @@ static int do_sysfs_registration(void)
 		       "Unable to register ecryptfs sysfs subsystem\n");
 		goto out;
 	}
-	rc = sysfs_create_file(&ecryptfs_subsys.kset.kobj,
+	rc = sysfs_create_file(&ecryptfs_subsys.kobj,
 			       &sysfs_attr_version.attr);
 	if (rc) {
 		printk(KERN_ERR
@@ -801,12 +800,12 @@ static int do_sysfs_registration(void)
 		subsystem_unregister(&ecryptfs_subsys);
 		goto out;
 	}
-	rc = sysfs_create_file(&ecryptfs_subsys.kset.kobj,
+	rc = sysfs_create_file(&ecryptfs_subsys.kobj,
 			       &sysfs_attr_version_str.attr);
 	if (rc) {
 		printk(KERN_ERR
 		       "Unable to create ecryptfs version_str attribute\n");
-		sysfs_remove_file(&ecryptfs_subsys.kset.kobj,
+		sysfs_remove_file(&ecryptfs_subsys.kobj,
 				  &sysfs_attr_version.attr);
 		subsystem_unregister(&ecryptfs_subsys);
 		goto out;
@@ -841,7 +840,7 @@ static int __init ecryptfs_init(void)
 		ecryptfs_free_kmem_caches();
 		goto out;
 	}
-	kset_set_kset_s(&ecryptfs_subsys, fs_subsys);
+	kobj_set_kset_s(&ecryptfs_subsys, fs_subsys);
 	sysfs_attr_version.attr.owner = THIS_MODULE;
 	sysfs_attr_version_str.attr.owner = THIS_MODULE;
 	rc = do_sysfs_registration();
@@ -862,9 +861,9 @@ out:
 
 static void __exit ecryptfs_exit(void)
 {
-	sysfs_remove_file(&ecryptfs_subsys.kset.kobj,
+	sysfs_remove_file(&ecryptfs_subsys.kobj,
 			  &sysfs_attr_version.attr);
-	sysfs_remove_file(&ecryptfs_subsys.kset.kobj,
+	sysfs_remove_file(&ecryptfs_subsys.kobj,
 			  &sysfs_attr_version_str.attr);
 	subsystem_unregister(&ecryptfs_subsys);
 	ecryptfs_release_messaging(ecryptfs_transport);

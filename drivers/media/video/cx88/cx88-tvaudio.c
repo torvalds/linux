@@ -43,7 +43,6 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/poll.h>
-#include <linux/pci.h>
 #include <linux/signal.h>
 #include <linux/ioport.h>
 #include <linux/types.h>

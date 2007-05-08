@@ -692,7 +692,7 @@ sys_call_table:
 	.long sys_tgkill	/* 265 */
 	.long sys_utimes
 	.long sys_fadvise64_64
-	.long sys_mbind	
+	.long sys_mbind
 	.long sys_get_mempolicy
 	.long sys_set_mempolicy	/* 270 */
 	.long sys_mq_open

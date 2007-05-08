@@ -103,6 +103,7 @@ enum tape_op {
 	TO_CRYPT_OFF,	/* Disable encrpytion */
 	TO_KEKL_SET,	/* Set KEK label */
 	TO_KEKL_QUERY,	/* Query KEK label */
+	TO_RDC,		/* Read device characteristics */
 	TO_SIZE,	/* #entries in tape_op_t */
 };
 

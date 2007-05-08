@@ -107,7 +107,7 @@ static void appldata_get_net_sum_data(void *data)
 	tx_dropped = 0;
 	collisions = 0;
 	read_lock(&dev_base_lock);
-	for (dev = dev_base; dev != NULL; dev = dev->next) {
+	for_each_netdev(dev) {
 		stats = dev->get_stats(dev);
 		rx_packets += stats->rx_packets;
 		tx_packets += stats->tx_packets;

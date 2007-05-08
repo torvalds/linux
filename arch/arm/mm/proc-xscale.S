@@ -584,6 +584,11 @@ cpu_ixp42x_name:
 	.asciz	"XScale-IXP42x Family"
 	.size	cpu_ixp42x_name, . - cpu_ixp42x_name
 
+	.type	cpu_ixp43x_name, #object
+cpu_ixp43x_name:
+	.asciz	"XScale-IXP43x Family"
+	.size	cpu_ixp43x_name, . - cpu_ixp43x_name
+
 	.type	cpu_ixp46x_name, #object
 cpu_ixp46x_name:
 	.asciz	"XScale-IXP46x Family"
@@ -842,6 +847,29 @@ __ixp42x_proc_info:
 	.long	xscale_mc_user_fns
 	.long	xscale_cache_fns
 	.size   __ixp42x_proc_info, . - __ixp42x_proc_info                
+
+	.type   __ixp43x_proc_info, #object
+__ixp43x_proc_info:
+	.long   0x69054040
+	.long   0xfffffff0
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_BUFFERABLE | \
+		PMD_SECT_CACHEABLE | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	b       __xscale_setup
+	.long   cpu_arch_name
+	.long   cpu_elf_name
+	.long   HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_EDSP
+	.long   cpu_ixp43x_name
+	.long   xscale_processor_functions
+	.long   v4wbi_tlb_fns
+	.long   xscale_mc_user_fns
+	.long   xscale_cache_fns
+	.size   __ixp43x_proc_info, . - __ixp43x_proc_info
 
 	.type	__ixp46x_proc_info, #object
 __ixp46x_proc_info:

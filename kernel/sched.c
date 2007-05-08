@@ -5244,6 +5244,11 @@ int __init migration_init(void)
 #endif
 
 #ifdef CONFIG_SMP
+
+/* Number of possible processor ids */
+int nr_cpu_ids __read_mostly = NR_CPUS;
+EXPORT_SYMBOL(nr_cpu_ids);
+
 #undef SCHED_DOMAIN_DEBUG
 #ifdef SCHED_DOMAIN_DEBUG
 static void sched_domain_debug(struct sched_domain *sd, int cpu)
@@ -6726,6 +6731,7 @@ int in_sched_functions(unsigned long addr)
 void __init sched_init(void)
 {
 	int i, j, k;
+	int highest_cpu = 0;
 
 	for_each_possible_cpu(i) {
 		struct prio_array *array;
@@ -6760,11 +6766,13 @@ void __init sched_init(void)
 			// delimiter for bitsearch
 			__set_bit(MAX_PRIO, array->bitmap);
 		}
+		highest_cpu = i;
 	}
 
 	set_load_weight(&init_task);
 
 #ifdef CONFIG_SMP
+	nr_cpu_ids = highest_cpu + 1;
 	open_softirq(SCHED_SOFTIRQ, run_rebalance_domains, NULL);
 #endif
 

@@ -64,6 +64,7 @@ parameter is applicable:
 	GENERIC_TIME The generic timeofday code is enabled.
 	NFS	Appropriate NFS support is enabled.
 	OSS	OSS sound support is enabled.
+	PV_OPS	A paravirtualized kernel
 	PARIDE	The ParIDE subsystem is enabled.
 	PARISC	The PA-RISC architecture is enabled.
 	PCI	PCI bus support is enabled.
@@ -695,8 +696,15 @@ and is between 256 and 4096 characters. It is defined in the file
 	idebus=		[HW] (E)IDE subsystem - VLB/PCI bus speed
 			See Documentation/ide.txt.
 
-	idle=		[HW]
-			Format: idle=poll or idle=halt
+	idle=		[X86]
+			Format: idle=poll or idle=mwait
+			Poll forces a polling idle loop that can slightly improves the performance
+			of waking up a idle CPU, but will use a lot of power and make the system
+			run hot. Not recommended.
+			idle=mwait. On systems which support MONITOR/MWAIT but the kernel chose
+			to not use it because it doesn't save as much power as a normal idle
+			loop use the MONITOR/MWAIT idle loop anyways. Performance should be the same
+			as idle=poll.
 
 	ignore_loglevel	[KNL]
 			Ignore loglevel setting - this will print /all/
@@ -1157,6 +1165,11 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nomce		[IA-32] Machine Check Exception
 
+	noreplace-paravirt	[IA-32,PV_OPS] Don't patch paravirt_ops
+
+	noreplace-smp	[IA-32,SMP] Don't replace SMP instructions
+			with UP alternatives
+
 	noresidual	[PPC] Don't use residual data on PReP machines.
 
 	noresume	[SWSUSP] Disables resume and restores original swap
@@ -1562,6 +1575,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	smart2=		[HW]
 			Format: <io1>[,<io2>[,...,<io8>]]
 
+	smp-alt-once	[IA-32,SMP] On a hotplug CPU system, only
+			attempt to substitute SMP alternatives once at boot.
+
 	snd-ad1816a=	[HW,ALSA]
 
 	snd-ad1848=	[HW,ALSA]
@@ -1820,6 +1836,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			[USBHID] The interval which mice are to be polled at.
 
 	vdso=		[IA-32,SH]
+			vdso=2: enable compat VDSO (default with COMPAT_VDSO)
 			vdso=1: enable VDSO (default)
 			vdso=0: disable VDSO mapping
 

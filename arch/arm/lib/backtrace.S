@@ -17,8 +17,8 @@
 @ fp is 0 or stack frame
 
 #define frame	r4
-#define next	r5
-#define save	r6
+#define sv_fp	r5
+#define sv_pc	r6
 #define mask	r7
 #define offset	r8
 
@@ -31,108 +31,106 @@ ENTRY(c_backtrace)
 #if !defined(CONFIG_FRAME_POINTER) || !defined(CONFIG_PRINTK)
 		mov	pc, lr
 #else
-
 		stmfd	sp!, {r4 - r8, lr}	@ Save an extra register so we have a location...
-		tst	r1, #0x10		@ 26 or 32-bit?
-		moveq	mask, #0xfc000003
-		movne	mask, #0
-		tst	mask, r0
-		movne	r0, #0
-		movs	frame, r0
-1:		moveq	r0, #-2
-		ldmeqfd	sp!, {r4 - r8, pc}
+		movs	frame, r0		@ if frame pointer is zero
+		beq	no_frame		@ we have no stack frames
 
-2:		stmfd	sp!, {pc}		@ calculate offset of PC in STMIA instruction
-		ldr	r0, [sp], #4
-		adr	r1, 2b - 4
+		tst	r1, #0x10		@ 26 or 32-bit mode?
+		moveq	mask, #0xfc000003	@ mask for 26-bit
+		movne	mask, #0		@ mask for 32-bit
+
+1:		stmfd	sp!, {pc}		@ calculate offset of PC stored
+		ldr	r0, [sp], #4		@ by stmfd for this CPU
+		adr	r1, 1b
 		sub	offset, r0, r1
 
-3:		tst	frame, mask		@ Check for address exceptions...
-		bne	1b
+/*
+ * Stack frame layout:
+ *             optionally saved caller registers (r4 - r10)
+ *             saved fp
+ *             saved sp
+ *             saved lr
+ *    frame => saved pc
+ *             optionally saved arguments (r0 - r3)
+ * saved sp => <next word>
+ *
+ * Functions start with the following code sequence:
+ *                  mov   ip, sp
+ *                  stmfd sp!, {r0 - r3} (optional)
+ * corrected pc =>  stmfd sp!, {..., fp, ip, lr, pc}
+ */
+for_each_frame:	tst	frame, mask		@ Check for address exceptions
+		bne	no_frame
 
-1001:		ldr	next, [frame, #-12]	@ get fp
-1002:		ldr	r2, [frame, #-4]	@ get lr
-1003:		ldr	r3, [frame, #0]		@ get pc
-		sub	save, r3, offset	@ Correct PC for prefetching
-		bic	save, save, mask
-1004:		ldr	r1, [save, #0]		@ get instruction at function
-		mov	r1, r1, lsr #10
-		ldr	r3, .Ldsi+4
-		teq	r1, r3
-		subeq	save, save, #4
-		mov	r0, save
-		bic	r1, r2, mask
+1001:		ldr	sv_pc, [frame, #0]	@ get saved pc
+1002:		ldr	sv_fp, [frame, #-12]	@ get saved fp
+
+		sub	sv_pc, sv_pc, offset	@ Correct PC for prefetching
+		bic	sv_pc, sv_pc, mask	@ mask PC/LR for the mode
+
+1003:		ldr	r2, [sv_pc, #-4]	@ if stmfd sp!, {args} exists,
+		ldr	r3, .Ldsi+4		@ adjust saved 'pc' back one
+		teq	r3, r2, lsr #10		@ instruction
+		subne	r0, sv_pc, #4		@ allow for mov
+		subeq	r0, sv_pc, #8		@ allow for mov + stmia
+
+		ldr	r1, [frame, #-4]	@ get saved lr
+		mov	r2, frame
+		bic	r1, r1, mask		@ mask PC/LR for the mode
 		bl	dump_backtrace_entry
 
-		ldr	r0, [frame, #-8]	@ get sp
-		sub	r0, r0, #4
-1005:		ldr	r1, [save, #4]		@ get instruction at function+4
-		mov	r3, r1, lsr #10
-		ldr	r2, .Ldsi+4
-		teq	r3, r2			@ Check for stmia sp!, {args}
-		addeq	save, save, #4		@ next instruction
-		bleq	.Ldumpstm
+		ldr	r1, [sv_pc, #-4]	@ if stmfd sp!, {args} exists,
+		ldr	r3, .Ldsi+4
+		teq	r3, r1, lsr #10
+		ldreq	r0, [frame, #-8]	@ get sp
+		subeq	r0, r0, #4		@ point at the last arg
+		bleq	.Ldumpstm		@ dump saved registers
 
-		sub	r0, frame, #16
-1006:		ldr	r1, [save, #4]		@ Get 'stmia sp!, {rlist, fp, ip, lr, pc}' instruction
-		mov	r3, r1, lsr #10
-		ldr	r2, .Ldsi
-		teq	r3, r2
-		bleq	.Ldumpstm
+1004:		ldr	r1, [sv_pc, #0]		@ if stmfd sp!, {..., fp, ip, lr, pc}
+		ldr	r3, .Ldsi		@ instruction exists,
+		teq	r3, r1, lsr #10
+		subeq	r0, frame, #16
+		bleq	.Ldumpstm		@ dump saved registers
 
-		/*
-		 * A zero next framepointer means we're done.
-		 */
-		teq	next, #0
-		ldmeqfd	sp!, {r4 - r8, pc}
+		teq	sv_fp, #0		@ zero saved fp means
+		beq	no_frame		@ no further frames
 
-		/*
-		 * The next framepointer must be above the
-		 * current framepointer.
-		 */
-		cmp	next, frame
-		mov	frame, next
-		bhi	3b
-		b	1007f
+		cmp	sv_fp, frame		@ next frame must be
+		mov	frame, sv_fp		@ above the current frame
+		bhi	for_each_frame
 
-/*
- * Fixup for LDMDB.  Note that this must not be in the fixup section.
- */
-1007:		ldr	r0, =.Lbad
+1006:		adr	r0, .Lbad
 		mov	r1, frame
 		bl	printk
-		ldmfd	sp!, {r4 - r8, pc}
-		.ltorg
+no_frame:	ldmfd	sp!, {r4 - r8, pc}
 		
 		.section __ex_table,"a"
 		.align	3
-		.long	1001b, 1007b
-		.long	1002b, 1007b
-		.long	1003b, 1007b
-		.long	1004b, 1007b
-		.long	1005b, 1007b
-		.long	1006b, 1007b
+		.long	1001b, 1006b
+		.long	1002b, 1006b
+		.long	1003b, 1006b
+		.long	1004b, 1006b
 		.previous
 
 #define instr r4
 #define reg   r5
 #define stack r6
 
-.Ldumpstm:	stmfd	sp!, {instr, reg, stack, r7, r8, lr}
+.Ldumpstm:	stmfd	sp!, {instr, reg, stack, r7, lr}
 		mov	stack, r0
 		mov	instr, r1
-		mov	reg, #9
+		mov	reg, #10
 		mov	r7, #0
 1:		mov	r3, #1
 		tst	instr, r3, lsl reg
 		beq	2f
 		add	r7, r7, #1
-		teq	r7, #4
-		moveq	r7, #0
-		moveq	r3, #'\n'
-		movne	r3, #' '
-		ldr	r2, [stack], #-4
-		mov	r1, reg
+		teq	r7, #6
+		moveq	r7, #1
+		moveq	r1, #'\n'
+		movne	r1, #' '
+		ldr	r3, [stack], #-4
+		mov	r2, reg
 		adr	r0, .Lfp
 		bl	printk
 2:		subs	reg, reg, #1
@@ -140,14 +138,13 @@ ENTRY(c_backtrace)
 		teq	r7, #0
 		adrne	r0, .Lcr
 		blne	printk
-		mov	r0, stack
-		ldmfd	sp!, {instr, reg, stack, r7, r8, pc}
+		ldmfd	sp!, {instr, reg, stack, r7, pc}
 
-.Lfp:		.asciz	" r%d = %08X%c"
+.Lfp:		.asciz	"%cr%d:%08x"
 .Lcr:		.asciz	"\n"
 .Lbad:		.asciz	"Backtrace aborted due to bad frame pointer <%p>\n"
 		.align
-.Ldsi:		.word	0x00e92dd8 >> 2
-		.word	0x00e92d00 >> 2
+.Ldsi:		.word	0xe92dd800 >> 10	@ stmfd sp!, {... fp, ip, lr, pc}
+		.word	0xe92d0000 >> 10	@ stmfd sp!, {}
 
 #endif

@@ -156,10 +156,8 @@ static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
 
 static int page_is_consistent(struct zone *zone, struct page *page)
 {
-#ifdef CONFIG_HOLES_IN_ZONE
-	if (!pfn_valid(page_to_pfn(page)))
+	if (!pfn_valid_within(page_to_pfn(page)))
 		return 0;
-#endif
 	if (zone != page_zone(page))
 		return 0;
 
@@ -227,7 +225,7 @@ static void bad_page(struct page *page)
 
 static void free_compound_page(struct page *page)
 {
-	__free_pages_ok(page, (unsigned long)page[1].lru.prev);
+	__free_pages_ok(page, compound_order(page));
 }
 
 static void prep_compound_page(struct page *page, unsigned long order)
@@ -236,12 +234,13 @@ static void prep_compound_page(struct page *page, unsigned long order)
 	int nr_pages = 1 << order;
 
 	set_compound_page_dtor(page, free_compound_page);
-	page[1].lru.prev = (void *)order;
-	for (i = 0; i < nr_pages; i++) {
+	set_compound_order(page, order);
+	__SetPageHead(page);
+	for (i = 1; i < nr_pages; i++) {
 		struct page *p = page + i;
 
-		__SetPageCompound(p);
-		set_page_private(p, (unsigned long)page);
+		__SetPageTail(p);
+		p->first_page = page;
 	}
 }
 
@@ -250,16 +249,19 @@ static void destroy_compound_page(struct page *page, unsigned long order)
 	int i;
 	int nr_pages = 1 << order;
 
-	if (unlikely((unsigned long)page[1].lru.prev != order))
+	if (unlikely(compound_order(page) != order))
 		bad_page(page);
 
-	for (i = 0; i < nr_pages; i++) {
+	if (unlikely(!PageHead(page)))
+			bad_page(page);
+	__ClearPageHead(page);
+	for (i = 1; i < nr_pages; i++) {
 		struct page *p = page + i;
 
-		if (unlikely(!PageCompound(p) |
-				(page_private(p) != (unsigned long)page)))
+		if (unlikely(!PageTail(p) |
+				(p->first_page != page)))
 			bad_page(page);
-		__ClearPageCompound(p);
+		__ClearPageTail(p);
 	}
 }
 
@@ -346,10 +348,8 @@ __find_combined_index(unsigned long page_idx, unsigned int order)
 static inline int page_is_buddy(struct page *page, struct page *buddy,
 								int order)
 {
-#ifdef CONFIG_HOLES_IN_ZONE
-	if (!pfn_valid(page_to_pfn(buddy)))
+	if (!pfn_valid_within(page_to_pfn(buddy)))
 		return 0;
-#endif
 
 	if (page_zone_id(page) != page_zone_id(buddy))
 		return 0;
@@ -433,12 +433,17 @@ static inline int free_pages_check(struct page *page)
 			1 << PG_private |
 			1 << PG_locked	|
 			1 << PG_active	|
-			1 << PG_reclaim	|
 			1 << PG_slab	|
 			1 << PG_swapcache |
 			1 << PG_writeback |
 			1 << PG_reserved |
 			1 << PG_buddy ))))
+		bad_page(page);
+	/*
+	 * PageReclaim == PageTail. It is only an error
+	 * for PageReclaim to be set if PageCompound is clear.
+	 */
+	if (unlikely(!PageCompound(page) && PageReclaim(page)))
 		bad_page(page);
 	if (PageDirty(page))
 		__ClearPageDirty(page);
@@ -665,7 +670,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 }
 
 #if MAX_NUMNODES > 1
-int nr_node_ids __read_mostly;
+int nr_node_ids __read_mostly = MAX_NUMNODES;
 EXPORT_SYMBOL(nr_node_ids);
 
 /*
@@ -770,8 +775,8 @@ void mark_free_pages(struct zone *zone)
 		if (pfn_valid(pfn)) {
 			struct page *page = pfn_to_page(pfn);
 
-			if (!PageNosave(page))
-				ClearPageNosaveFree(page);
+			if (!swsusp_page_is_forbidden(page))
+				swsusp_unset_page_free(page);
 		}
 
 	for (order = MAX_ORDER - 1; order >= 0; --order)
@@ -780,7 +785,7 @@ void mark_free_pages(struct zone *zone)
 
 			pfn = page_to_pfn(list_entry(curr, struct page, lru));
 			for (i = 0; i < (1UL << order); i++)
-				SetPageNosaveFree(pfn_to_page(pfn + i));
+				swsusp_set_page_free(pfn_to_page(pfn + i));
 		}
 
 	spin_unlock_irqrestore(&zone->lock, flags);
@@ -3203,7 +3208,8 @@ int min_free_kbytes_sysctl_handler(ctl_table *table, int write,
 	struct file *file, void __user *buffer, size_t *length, loff_t *ppos)
 {
 	proc_dointvec(table, write, file, buffer, length, ppos);
-	setup_per_zone_pages_min();
+	if (write)
+		setup_per_zone_pages_min();
 	return 0;
 }
 

@@ -1193,8 +1193,7 @@ static void __init biovec_init_slabs(void)
 
 static int __init init_bio(void)
 {
-	bio_slab = kmem_cache_create("bio", sizeof(struct bio), 0,
-				SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+	bio_slab = KMEM_CACHE(bio, SLAB_HWCACHE_ALIGN|SLAB_PANIC);
 
 	biovec_init_slabs();
 

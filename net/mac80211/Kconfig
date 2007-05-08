@@ -1,0 +1,78 @@
+config MAC80211
+	tristate "Generic IEEE 802.11 Networking Stack (mac80211)"
+	depends on EXPERIMENTAL
+	select CRYPTO
+	select CRYPTO_ECB
+	select CRYPTO_ARC4
+	select CRYPTO_AES
+	select CRC32
+	select WIRELESS_EXT
+	select CFG80211
+	select NET_SCH_FIFO
+	---help---
+	This option enables the hardware independent IEEE 802.11
+	networking stack.
+
+config MAC80211_LEDS
+	bool "Enable LED triggers"
+	depends on MAC80211 && LEDS_TRIGGERS
+	---help---
+	This option enables a few LED triggers for different
+	packet receive/transmit events.
+
+config MAC80211_DEBUGFS
+	bool "Export mac80211 internals in DebugFS"
+	depends on MAC80211 && DEBUG_FS
+	---help---
+	  Select this to see extensive information about
+	  the internal state of mac80211 in debugfs.
+
+	  Say N unless you know you need this.
+
+config MAC80211_DEBUG
+	bool "Enable debugging output"
+	depends on MAC80211
+	---help---
+	  This option will enable debug tracing output for the
+	  ieee80211 network stack.
+
+	  If you are not trying to debug or develop the ieee80211
+	  subsystem, you most likely want to say N here.
+
+config MAC80211_VERBOSE_DEBUG
+	bool "Verbose debugging output"
+	depends on MAC80211_DEBUG
+
+config MAC80211_LOWTX_FRAME_DUMP
+	bool "Debug frame dumping"
+	depends on MAC80211_DEBUG
+	---help---
+	  Selecting this option will cause the stack to
+	  print a message for each frame that is handed
+	  to the lowlevel driver for transmission. This
+	  message includes all MAC addresses and the
+	  frame control field.
+
+	  If unsure, say N and insert the debugging code
+	  you require into the driver you are debugging.
+
+config TKIP_DEBUG
+	bool "TKIP debugging"
+	depends on MAC80211_DEBUG
+
+config MAC80211_DEBUG_COUNTERS
+	bool "Extra statistics for TX/RX debugging"
+	depends on MAC80211_DEBUG
+
+config MAC80211_IBSS_DEBUG
+	bool "Support for IBSS testing"
+	depends on MAC80211_DEBUG
+	---help---
+	  Say Y here if you intend to debug the IBSS code.
+
+config MAC80211_VERBOSE_PS_DEBUG
+	bool "Verbose powersave mode debugging"
+	depends on MAC80211_DEBUG
+	---help---
+	  Say Y here to print out verbose powersave
+	  mode debug messages.

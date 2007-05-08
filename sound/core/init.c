@@ -26,7 +26,6 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/ctype.h>
-#include <linux/pci.h>
 #include <linux/pm.h>
 
 #include <sound/core.h>

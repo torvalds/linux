@@ -19,7 +19,6 @@
 #include "sigcontext.h"
 #include "sysdep/sigcontext.h"
 #include "os.h"
-#include "user_util.h"
 #include "mem_user.h"
 #include "process.h"
 #include "kern_util.h"

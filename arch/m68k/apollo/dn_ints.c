@@ -31,7 +31,7 @@ void apollo_irq_shutdown(unsigned int irq)
 
 static struct irq_controller apollo_irq_controller = {
 	.name           = "apollo",
-	.lock           = SPIN_LOCK_UNLOCKED,
+	.lock           = __SPIN_LOCK_UNLOCKED(apollo_irq_controller.lock),
 	.startup        = apollo_irq_startup,
 	.shutdown       = apollo_irq_shutdown,
 };

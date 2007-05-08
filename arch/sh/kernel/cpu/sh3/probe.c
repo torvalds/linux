@@ -78,6 +78,9 @@ int __init detect_cpu_and_cache_system(void)
 #if defined(CONFIG_CPU_SUBTYPE_SH7710)
 		current_cpu_data.type = CPU_SH7710;
 #endif
+#if defined(CONFIG_CPU_SUBTYPE_SH7712)
+		current_cpu_data.type = CPU_SH7712;
+#endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7705)
 		current_cpu_data.type = CPU_SH7705;
 

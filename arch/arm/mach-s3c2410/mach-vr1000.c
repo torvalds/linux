@@ -384,13 +384,6 @@ static struct clk *vr1000_clocks[] = {
 	&s3c24xx_uclk,
 };
 
-static struct s3c24xx_board vr1000_board __initdata = {
-	.devices       = vr1000_devices,
-	.devices_count = ARRAY_SIZE(vr1000_devices),
-	.clocks	       = vr1000_clocks,
-	.clocks_count  = ARRAY_SIZE(vr1000_clocks),
-};
-
 static void vr1000_power_off(void)
 {
 	s3c2410_gpio_cfgpin(S3C2410_GPB9, S3C2410_GPB9_OUTP);
@@ -412,15 +405,19 @@ static void __init vr1000_map_io(void)
 
 	s3c24xx_uclk.parent  = &s3c24xx_clkout1;
 
+	s3c24xx_register_clocks(vr1000_clocks, ARRAY_SIZE(vr1000_clocks));
+
 	pm_power_off = vr1000_power_off;
 
 	s3c24xx_init_io(vr1000_iodesc, ARRAY_SIZE(vr1000_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(vr1000_uartcfgs, ARRAY_SIZE(vr1000_uartcfgs));
-	s3c24xx_set_board(&vr1000_board);
-	usb_simtec_init();
 }
 
+static void __init vr1000_init(void)
+{
+	platform_add_devices(vr1000_devices, ARRAY_SIZE(vr1000_devices));
+}
 
 MACHINE_START(VR1000, "Thorcom-VR1000")
 	/* Maintainer: Ben Dooks <ben@simtec.co.uk> */
@@ -428,6 +425,7 @@ MACHINE_START(VR1000, "Thorcom-VR1000")
 	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= vr1000_map_io,
+	.init_machine	= vr1000_init,
 	.init_irq	= s3c24xx_init_irq,
 	.timer		= &s3c24xx_timer,
 MACHINE_END

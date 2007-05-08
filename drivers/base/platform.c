@@ -292,20 +292,22 @@ EXPORT_SYMBOL_GPL(platform_device_add);
  *	@pdev:	platform device we're removing
  *
  *	Note that this function will also release all memory- and port-based
- *	resources owned by the device (@dev->resource).
+ *	resources owned by the device (@dev->resource).  This function
+ *	must _only_ be externally called in error cases.  All other usage
+ *	is a bug.
  */
 void platform_device_del(struct platform_device *pdev)
 {
 	int i;
 
 	if (pdev) {
+		device_del(&pdev->dev);
+
 		for (i = 0; i < pdev->num_resources; i++) {
 			struct resource *r = &pdev->resource[i];
 			if (r->flags & (IORESOURCE_MEM|IORESOURCE_IO))
 				release_resource(r);
 		}
-
-		device_del(&pdev->dev);
 	}
 }
 EXPORT_SYMBOL_GPL(platform_device_del);

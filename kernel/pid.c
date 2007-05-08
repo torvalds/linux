@@ -412,7 +412,5 @@ void __init pidmap_init(void)
 	set_bit(0, init_pid_ns.pidmap[0].page);
 	atomic_dec(&init_pid_ns.pidmap[0].nr_free);
 
-	pid_cachep = kmem_cache_create("pid", sizeof(struct pid),
-					__alignof__(struct pid),
-					SLAB_PANIC, NULL, NULL);
+	pid_cachep = KMEM_CACHE(pid, SLAB_PANIC);
 }

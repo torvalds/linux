@@ -299,9 +299,10 @@ zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *fsf_req)
 	}
 
 	/* log additional information provided by FSF (if any) */
-	if (unlikely(qtcb->header.log_length)) {
+	if (likely(qtcb->header.log_length)) {
 		/* do not trust them ;-) */
-		if (qtcb->header.log_start > sizeof(struct fsf_qtcb)) {
+		if (unlikely(qtcb->header.log_start >
+			     sizeof(struct fsf_qtcb))) {
 			ZFCP_LOG_NORMAL
 			    ("bug: ULP (FSF logging) log data starts "
 			     "beyond end of packet header. Ignored. "
@@ -310,8 +311,9 @@ zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *fsf_req)
 			     sizeof(struct fsf_qtcb));
 			goto forget_log;
 		}
-		if ((size_t) (qtcb->header.log_start + qtcb->header.log_length)
-		    > sizeof(struct fsf_qtcb)) {
+		if (unlikely((size_t) (qtcb->header.log_start +
+				       qtcb->header.log_length) >
+			     sizeof(struct fsf_qtcb))) {
 			ZFCP_LOG_NORMAL("bug: ULP (FSF logging) log data ends "
 					"beyond end of packet header. Ignored. "
 					"(start=%i, length=%i, size=%li)\n",

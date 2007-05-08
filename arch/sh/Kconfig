@@ -22,6 +22,10 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
+config GENERIC_BUG
+	def_bool y
+	depends on BUG
+
 config GENERIC_FIND_NEXT_BIT
 	bool
 	default y
@@ -88,12 +92,28 @@ config SH_SOLUTION_ENGINE
 	  Select SolutionEngine if configuring for a Hitachi SH7709
 	  or SH7750 evaluation board.
 
+config SH_7722_SOLUTION_ENGINE
+	bool "SolutionEngine7722"
+	select SOLUTION_ENGINE
+	select CPU_SUBTYPE_SH7722
+	help
+	  Select 7722 SolutionEngine if configuring for a Hitachi SH772
+	  evaluation board.
+
 config SH_7751_SOLUTION_ENGINE
 	bool "SolutionEngine7751"
 	select SOLUTION_ENGINE
 	select CPU_SUBTYPE_SH7751
 	help
 	  Select 7751 SolutionEngine if configuring for a Hitachi SH7751
+	  evaluation board.
+	  
+config SH_7780_SOLUTION_ENGINE
+	bool "SolutionEngine7780"
+	select SOLUTION_ENGINE
+	select CPU_SUBTYPE_SH7780
+	help
+	  Select 7780 SolutionEngine if configuring for a Renesas SH7780
 	  evaluation board.
 
 config SH_7300_SOLUTION_ENGINE
@@ -193,12 +213,8 @@ config SH_RTS7751R2D
 	  Select RTS7751R2D if configuring for a Renesas Technology
 	  Sales SH-Graphics board.
 
-config SH_R7780RP
-	bool "R7780RP-1"
-	select CPU_SUBTYPE_SH7780
-	help
-	  Select R7780RP-1 if configuring for a Renesas Solutions
-	  HIGHLANDER board.
+config SH_HIGHLANDER
+	bool "Highlander"
 
 config SH_EDOSK7705
 	bool "EDOSK7705"
@@ -243,6 +259,12 @@ config SH_7619_SOLUTION_ENGINE
 	help
 	  Select 7619 SolutionEngine if configuring for a Hitachi SH7619
 	  evaluation board.
+	
+config SH_LBOX_RE2
+	bool "L-BOX RE2"
+	select CPU_SUBTYPE_SH7751R
+	help
+	  Select L-BOX RE2 if configuring for the NTT COMWARE L-BOX RE2.
 
 config SH_UNKNOWN
 	bool "BareCPU"
@@ -257,6 +279,10 @@ config SH_UNKNOWN
 	  This option is for the early stages of porting to a new machine.
 
 endchoice
+
+source "arch/sh/boards/renesas/hs7751rvoip/Kconfig"
+source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
+source "arch/sh/boards/renesas/r7780rp/Kconfig"
 
 source "arch/sh/mm/Kconfig"
 
@@ -366,6 +392,16 @@ config SH_STORE_QUEUES
 	  Selecting this option will enable an in-kernel API for manipulating
 	  the store queues integrated in the SH-4 processors.
 
+config SPECULATIVE_EXECUTION
+	bool "Speculative subroutine return"
+	depends on CPU_SUBTYPE_SH7780 && EXPERIMENTAL
+	help
+	  This enables support for a speculative instruction fetch for
+	  subroutine return. There are various pitfalls associated with
+	  this, as outlined in the SH7780 hardware manual.
+
+	  If unsure, say N.
+
 config CPU_HAS_INTEVT
 	bool
 
@@ -398,8 +434,9 @@ config CPU_HAS_PTEA
 
 endmenu
 
-menu "Timer support"
-depends on !GENERIC_TIME
+menu "Timer and clock configuration"
+
+if !GENERIC_TIME
 
 config SH_TMU
 	bool "TMU timer support"
@@ -422,17 +459,11 @@ config SH_MTU2
 	help
 	  This enables the use of the MTU2 as the system timer.
 
-endmenu
-
-source "arch/sh/boards/renesas/hs7751rvoip/Kconfig"
-
-source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
-
-source "arch/sh/boards/renesas/r7780rp/Kconfig"
+endif
 
 config SH_TIMER_IRQ
 	int
-	default "28" if CPU_SUBTYPE_SH7780
+	default "28" if CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785
 	default "86" if CPU_SUBTYPE_SH7619
 	default "140" if CPU_SUBTYPE_SH7206
 	default "16"
@@ -462,7 +493,8 @@ config SH_PCLK_FREQ
 	default "33333333" if CPU_SUBTYPE_SH7300 || CPU_SUBTYPE_SH7770 || \
 			      CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7705 || \
 			      CPU_SUBTYPE_SH7206
-	default "50000000" if CPU_SUBTYPE_SH7750 || CPU_SUBTYPE_SH7780
+	default "50000000" if CPU_SUBTYPE_SH7750 || CPU_SUBTYPE_SH7780 || \
+			      CPU_SUBTYPE_SH7785
 	default "60000000" if CPU_SUBTYPE_SH7751
 	default "66000000" if CPU_SUBTYPE_SH4_202
 	help
@@ -476,6 +508,8 @@ config SH_CLK_MD
 	depends on CPU_SUBTYPE_SH7619 || CPU_SUBTYPE_SH7206
 	help
 	  MD2 - MD0 pin setting.
+
+endmenu
 
 menu "CPU Frequency scaling"
 
@@ -494,21 +528,6 @@ config SH_CPU_FREQ
 	  If unsure, say N.
 
 endmenu
-
-source "arch/sh/drivers/dma/Kconfig"
-
-source "arch/sh/cchips/Kconfig"
-
-config HEARTBEAT
-	bool "Heartbeat LED"
-	depends on SH_MPC1211 || SH_SH03 || \
-		   SOLUTION_ENGINE || \
-		   SH_RTS7751R2D || SH_SH4202_MICRODEV || SH_LANDISK || \
-		   SH_R7780RP
-	help
-	  Use the power-on LED on your machine as a load meter.  The exact
-	  behavior is platform-dependent, but normally the flash frequency is
-	  a hyperbolic function of the 5-minute load average.
 
 source "arch/sh/drivers/Kconfig"
 
@@ -539,6 +558,20 @@ config KEXEC
 	  initially work for you.  It may help to enable device hotplugging
 	  support.  As of this writing the exact hardware interface is
 	  strongly in flux, so no good recommendation can be made.
+
+config CRASH_DUMP
+	bool "kernel crash dumps (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  Generate crash dump after being started by kexec.
+	  This should be normally only set in special crash dump kernels
+	  which are loaded in the main kernel with kexec-tools into
+	  a specially reserved region and then later executed after
+	  a crash by kdump/kexec. The crash dump kernel must be compiled
+	  to a memory address not used by the main kernel using
+	  MEMORY_START.
+
+	  For more details see Documentation/kdump/kdump.txt
 
 config SMP
 	bool "Symmetric multi-processing support"

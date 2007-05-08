@@ -17,7 +17,6 @@
 #include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/pci.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>

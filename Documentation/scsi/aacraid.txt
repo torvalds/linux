@@ -37,7 +37,11 @@ Supported Cards/Chipsets
 	9005:0286:9005:029d	Adaptec	2420SA (Intruder HP release)
 	9005:0286:9005:02ac	Adaptec	1800 (Typhoon44)
 	9005:0285:9005:02b5	Adaptec	5445 (Voodoo44)
+	9005:0285:15d9:02b5	SMC	AOC-USAS-S4i
+	9005:0285:15d9:02c9	SMC	AOC-USAS-S4iR
 	9005:0285:9005:02b6	Adaptec	5805 (Voodoo80)
+	9005:0285:15d9:02b6	SMC	AOC-USAS-S8i
+	9005:0285:15d9:02ca	SMC	AOC-USAS-S8iR
 	9005:0285:9005:02b7	Adaptec	5085 (Voodoo08)
 	9005:0285:9005:02bb	Adaptec	3405 (Marauder40LP)
 	9005:0285:9005:02bc	Adaptec	3805 (Marauder80LP)
@@ -93,6 +97,9 @@ Supported Cards/Chipsets
 	9005:0286:9005:02ae		(Aurora Lite ARK)
 	9005:0285:9005:02b0		(Sunrise Lake ARK)
 	9005:0285:9005:02b1	Adaptec	(Voodoo 8 internal 8 external)
+	9005:0285:108e:7aac	SUN	STK RAID REM (Voodoo44 Coyote)
+	9005:0285:108e:0286	SUN	SG-XPCIESAS-R-IN (Cougar)
+	9005:0285:108e:0287	SUN	SG-XPCIESAS-R-EX (Prometheus)
 
 People
 -------------------------

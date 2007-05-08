@@ -23,7 +23,6 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
-#include <linux/ptrace.h>
 #include <linux/sysdev.h>
 
 #include <asm/plat-s3c24xx/cpu.h>

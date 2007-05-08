@@ -664,7 +664,7 @@ static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 	}
 
 	/* temporary symlink to keep userspace happy */
-	error = sysfs_create_link(&input_class.subsys.kset.kobj,
+	error = sysfs_create_link(&input_class.subsys.kobj,
 				  &cdev->kobj, evdev->name);
 	if (error)
 		goto err_cdev_destroy;
@@ -676,7 +676,7 @@ static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 	return 0;
 
  err_remove_link:
-	sysfs_remove_link(&input_class.subsys.kset.kobj, evdev->name);
+	sysfs_remove_link(&input_class.subsys.kobj, evdev->name);
  err_cdev_destroy:
 	class_device_destroy(&input_class, devt);
  err_free_evdev:
@@ -692,7 +692,7 @@ static void evdev_disconnect(struct input_handle *handle)
 
 	input_unregister_handle(handle);
 
-	sysfs_remove_link(&input_class.subsys.kset.kobj, evdev->name);
+	sysfs_remove_link(&input_class.subsys.kobj, evdev->name);
 	class_device_destroy(&input_class,
 			MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + evdev->minor));
 	evdev->exist = 0;

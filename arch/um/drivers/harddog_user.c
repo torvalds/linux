@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
-#include "user_util.h"
 #include "user.h"
 #include "mconsole.h"
 #include "os.h"

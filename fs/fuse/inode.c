@@ -685,8 +685,7 @@ static void fuse_inode_init_once(void *foo, struct kmem_cache *cachep,
 {
 	struct inode * inode = foo;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR)
+	if (flags & SLAB_CTOR_CONSTRUCTOR)
 		inode_init_once(inode);
 }
 
@@ -731,12 +730,12 @@ static int fuse_sysfs_init(void)
 {
 	int err;
 
-	kset_set_kset_s(&fuse_subsys, fs_subsys);
+	kobj_set_kset_s(&fuse_subsys, fs_subsys);
 	err = subsystem_register(&fuse_subsys);
 	if (err)
 		goto out_err;
 
-	kset_set_kset_s(&connections_subsys, fuse_subsys);
+	kobj_set_kset_s(&connections_subsys, fuse_subsys);
 	err = subsystem_register(&connections_subsys);
 	if (err)
 		goto out_fuse_unregister;

@@ -60,14 +60,19 @@ static const char __init *pci_mmcfg_e7520(void)
 	u32 win;
 	pci_conf1_read(0, 0, PCI_DEVFN(0,0), 0xce, 2, &win);
 
-	pci_mmcfg_config_num = 1;
-	pci_mmcfg_config = kzalloc(sizeof(pci_mmcfg_config[0]), GFP_KERNEL);
-	if (!pci_mmcfg_config)
-		return NULL;
-	pci_mmcfg_config[0].address = (win & 0xf000) << 16;
-	pci_mmcfg_config[0].pci_segment = 0;
-	pci_mmcfg_config[0].start_bus_number = 0;
-	pci_mmcfg_config[0].end_bus_number = 255;
+	win = win & 0xf000;
+	if(win == 0x0000 || win == 0xf000)
+		pci_mmcfg_config_num = 0;
+	else {
+		pci_mmcfg_config_num = 1;
+		pci_mmcfg_config = kzalloc(sizeof(pci_mmcfg_config[0]), GFP_KERNEL);
+		if (!pci_mmcfg_config)
+			return NULL;
+		pci_mmcfg_config[0].address = win << 16;
+		pci_mmcfg_config[0].pci_segment = 0;
+		pci_mmcfg_config[0].start_bus_number = 0;
+		pci_mmcfg_config[0].end_bus_number = 255;
+	}
 
 	return "Intel Corporation E7520 Memory Controller Hub";
 }
@@ -106,6 +111,10 @@ static const char __init *pci_mmcfg_intel_945(void)
 	/* Can only happen in 64M/128M mode */
 
 	if ((pciexbar & mask) & 0x0fffffffU)
+		pci_mmcfg_config_num = 0;
+
+	/* Don't hit the APIC registers and their friends */
+	if ((pciexbar & mask) >= 0xf0000000U)
 		pci_mmcfg_config_num = 0;
 
 	if (pci_mmcfg_config_num) {

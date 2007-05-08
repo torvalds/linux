@@ -176,8 +176,7 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 {
 	struct hpfs_inode_info *ei = (struct hpfs_inode_info *) foo;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR) {
+	if (flags & SLAB_CTOR_CONSTRUCTOR) {
 		mutex_init(&ei->i_mutex);
 		mutex_init(&ei->i_parent_mutex);
 		inode_init_once(&ei->vfs_inode);

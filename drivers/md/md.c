@@ -3080,7 +3080,7 @@ static int do_md_run(mddev_t * mddev)
 		if (test_bit(Faulty, &rdev->flags))
 			continue;
 		sync_blockdev(rdev->bdev);
-		invalidate_bdev(rdev->bdev, 0);
+		invalidate_bdev(rdev->bdev);
 	}
 
 	md_probe(mddev->unit, NULL, NULL);

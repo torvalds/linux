@@ -360,7 +360,6 @@ static struct platform_driver at91_cf_driver = {
 		.name		= (char *) driver_name,
 		.owner		= THIS_MODULE,
 	},
-	.probe		= at91_cf_probe,
 	.remove		= __exit_p(at91_cf_remove),
 	.suspend	= at91_cf_suspend,
 	.resume		= at91_cf_resume,
@@ -370,7 +369,7 @@ static struct platform_driver at91_cf_driver = {
 
 static int __init at91_cf_init(void)
 {
-	return platform_driver_register(&at91_cf_driver);
+	return platform_driver_probe(&at91_cf_driver, at91_cf_probe);
 }
 module_init(at91_cf_init);
 

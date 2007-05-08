@@ -16,6 +16,9 @@
 /* Defined in arch/i386/power/swsusp.S */
 extern int restore_image(void);
 
+/* References to section boundaries */
+extern const void __nosave_begin, __nosave_end;
+
 /* Pointer to the temporary resume page tables */
 pgd_t *resume_pg_dir;
 
@@ -155,4 +158,15 @@ int swsusp_arch_resume(void)
 	/* We have got enough memory and from now on we cannot recover */
 	restore_image();
 	return 0;
+}
+
+/*
+ *	pfn_is_nosave - check if given pfn is in the 'nosave' section
+ */
+
+int pfn_is_nosave(unsigned long pfn)
+{
+	unsigned long nosave_begin_pfn = __pa_symbol(&__nosave_begin) >> PAGE_SHIFT;
+	unsigned long nosave_end_pfn = PAGE_ALIGN(__pa_symbol(&__nosave_end)) >> PAGE_SHIFT;
+	return (pfn >= nosave_begin_pfn) && (pfn < nosave_end_pfn);
 }

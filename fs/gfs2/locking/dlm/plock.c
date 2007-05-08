@@ -25,6 +25,15 @@ struct plock_op {
 	struct gdlm_plock_info info;
 };
 
+struct plock_xop {
+	struct plock_op xop;
+	void *callback;
+	void *fl;
+	void *file;
+	struct file_lock flc;
+};
+
+
 static inline void set_version(struct gdlm_plock_info *info)
 {
 	info->version[0] = GDLM_PLOCK_VERSION_MAJOR;
@@ -64,12 +73,14 @@ int gdlm_plock(void *lockspace, struct lm_lockname *name,
 {
 	struct gdlm_ls *ls = lockspace;
 	struct plock_op *op;
+	struct plock_xop *xop;
 	int rv;
 
-	op = kzalloc(sizeof(*op), GFP_KERNEL);
-	if (!op)
+	xop = kzalloc(sizeof(*xop), GFP_KERNEL);
+	if (!xop)
 		return -ENOMEM;
 
+	op = &xop->xop;
 	op->info.optype		= GDLM_PLOCK_OP_LOCK;
 	op->info.pid		= fl->fl_pid;
 	op->info.ex		= (fl->fl_type == F_WRLCK);
@@ -79,9 +90,21 @@ int gdlm_plock(void *lockspace, struct lm_lockname *name,
 	op->info.start		= fl->fl_start;
 	op->info.end		= fl->fl_end;
 	op->info.owner		= (__u64)(long) fl->fl_owner;
+	if (fl->fl_lmops && fl->fl_lmops->fl_grant) {
+		xop->callback	= fl->fl_lmops->fl_grant;
+		locks_init_lock(&xop->flc);
+		locks_copy_lock(&xop->flc, fl);
+		xop->fl		= fl;
+		xop->file	= file;
+	} else
+		xop->callback	= NULL;
 
 	send_op(op);
-	wait_event(recv_wq, (op->done != 0));
+
+	if (xop->callback == NULL)
+		wait_event(recv_wq, (op->done != 0));
+	else
+		return -EINPROGRESS;
 
 	spin_lock(&ops_lock);
 	if (!list_empty(&op->list)) {
@@ -99,7 +122,63 @@ int gdlm_plock(void *lockspace, struct lm_lockname *name,
 				  (unsigned long long)name->ln_number);
 	}
 
-	kfree(op);
+	kfree(xop);
+	return rv;
+}
+
+/* Returns failure iff a succesful lock operation should be canceled */
+static int gdlm_plock_callback(struct plock_op *op)
+{
+	struct file *file;
+	struct file_lock *fl;
+	struct file_lock *flc;
+	int (*notify)(void *, void *, int) = NULL;
+	struct plock_xop *xop = (struct plock_xop *)op;
+	int rv = 0;
+
+	spin_lock(&ops_lock);
+	if (!list_empty(&op->list)) {
+		printk(KERN_INFO "plock op on list\n");
+		list_del(&op->list);
+	}
+	spin_unlock(&ops_lock);
+
+	/* check if the following 2 are still valid or make a copy */
+	file = xop->file;
+	flc = &xop->flc;
+	fl = xop->fl;
+	notify = xop->callback;
+
+	if (op->info.rv) {
+		notify(flc, NULL, op->info.rv);
+		goto out;
+	}
+
+	/* got fs lock; bookkeep locally as well: */
+	flc->fl_flags &= ~FL_SLEEP;
+	if (posix_lock_file(file, flc, NULL)) {
+		/*
+		 * This can only happen in the case of kmalloc() failure.
+		 * The filesystem's own lock is the authoritative lock,
+		 * so a failure to get the lock locally is not a disaster.
+		 * As long as GFS cannot reliably cancel locks (especially
+		 * in a low-memory situation), we're better off ignoring
+		 * this failure than trying to recover.
+		 */
+		log_error("gdlm_plock: vfs lock error file %p fl %p",
+				file, fl);
+	}
+
+	rv = notify(flc, NULL, 0);
+	if (rv) {
+		/* XXX: We need to cancel the fs lock here: */
+		printk("gfs2 lock granted after lock request failed;"
+						" dangling lock!\n");
+		goto out;
+	}
+
+out:
+	kfree(xop);
 	return rv;
 }
 
@@ -138,6 +217,9 @@ int gdlm_punlock(void *lockspace, struct lm_lockname *name,
 
 	rv = op->info.rv;
 
+	if (rv == -ENOENT)
+		rv = 0;
+
 	kfree(op);
 	return rv;
 }
@@ -161,6 +243,7 @@ int gdlm_plock_get(void *lockspace, struct lm_lockname *name,
 	op->info.start		= fl->fl_start;
 	op->info.end		= fl->fl_end;
 
+
 	send_op(op);
 	wait_event(recv_wq, (op->done != 0));
 
@@ -173,9 +256,10 @@ int gdlm_plock_get(void *lockspace, struct lm_lockname *name,
 
 	rv = op->info.rv;
 
-	if (rv == 0)
-		fl->fl_type = F_UNLCK;
-	else if (rv > 0) {
+	fl->fl_type = F_UNLCK;
+	if (rv == -ENOENT)
+		rv = 0;
+	else if (rv == 0 && op->info.pid != fl->fl_pid) {
 		fl->fl_type = (op->info.ex) ? F_WRLCK : F_RDLCK;
 		fl->fl_pid = op->info.pid;
 		fl->fl_start = op->info.start;
@@ -243,9 +327,14 @@ static ssize_t dev_write(struct file *file, const char __user *u, size_t count,
 	}
 	spin_unlock(&ops_lock);
 
-	if (found)
-		wake_up(&recv_wq);
-	else
+	if (found) {
+		struct plock_xop *xop;
+		xop = (struct plock_xop *)op;
+		if (xop->callback)
+			count = gdlm_plock_callback(op);
+		else
+			wake_up(&recv_wq);
+	} else
 		printk(KERN_INFO "gdlm dev_write no op %x %llx\n", info.fsid,
 			(unsigned long long)info.number);
 	return count;

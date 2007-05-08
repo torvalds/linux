@@ -27,6 +27,8 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/dma-mapping.h>
+
 #include <asm/delay.h>
 #include <sound/driver.h>
 #include <sound/core.h>

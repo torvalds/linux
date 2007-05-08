@@ -249,6 +249,8 @@ void parse_config_file(char *map, size_t len)
 	found:
 		if (!memcmp(q - 7, "_MODULE", 7))
 			q -= 7;
+		if( (q-p-7) < 0 )
+			continue;
 		use_config(p+7, q-p-7);
 	}
 }

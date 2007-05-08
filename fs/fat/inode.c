@@ -499,8 +499,7 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 {
 	struct msdos_inode_info *ei = (struct msdos_inode_info *)foo;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR) {
+	if (flags & SLAB_CTOR_CONSTRUCTOR) {
 		spin_lock_init(&ei->cache_lru_lock);
 		ei->nr_caches = 0;
 		ei->cache_valid_id = FAT_CACHE_VALID + 1;

@@ -2,7 +2,7 @@
 		     ----------------------------
 
 		    H. Peter Anvin <hpa@zytor.com>
-			Last update 2007-01-26
+			Last update 2007-03-06
 
 On the i386 platform, the Linux kernel uses a rather complicated boot
 convention.  This has evolved partially due to historical aspects, as
@@ -35,8 +35,12 @@ Protocol 2.03:	(Kernel 2.4.18-pre1) Explicitly makes the highest possible
 		initrd address available to the bootloader.
 
 Protocol 2.04:	(Kernel 2.6.14) Extend the syssize field to four bytes.
+
 Protocol 2.05:	(Kernel 2.6.20) Make protected mode kernel relocatable.
 		Introduce relocatable_kernel and kernel_alignment fields.
+
+Protocol 2.06:	(Kernel 2.6.22) Added a field that contains the size of
+		the boot command line
 
 
 **** MEMORY LAYOUT
@@ -133,6 +137,8 @@ Offset	Proto	Name		Meaning
 022C/4	2.03+	initrd_addr_max	Highest legal initrd address
 0230/4	2.05+	kernel_alignment Physical addr alignment required for kernel
 0234/1	2.05+	relocatable_kernel Whether kernel is relocatable or not
+0235/3	N/A	pad2		Unused
+0238/4	2.06+	cmdline_size	Maximum size of the kernel command line
 
 (1) For backwards compatibility, if the setup_sects field contains 0, the
     real value is 4.
@@ -233,6 +239,12 @@ filled out, however:
 	if your ramdisk is exactly 131072 bytes long and this field is
 	0x37FFFFFF, you can start your ramdisk at 0x37FE0000.)
 
+  cmdline_size:
+	The maximum size of the command line without the terminating
+	zero. This means that the command line can contain at most
+	cmdline_size characters. With protocol version 2.05 and
+	earlier, the maximum size was 255.
+
 
 **** THE KERNEL COMMAND LINE
 
@@ -241,11 +253,10 @@ loader to communicate with the kernel.  Some of its options are also
 relevant to the boot loader itself, see "special command line options"
 below.
 
-The kernel command line is a null-terminated string currently up to
-255 characters long, plus the final null.  A string that is too long
-will be automatically truncated by the kernel, a boot loader may allow
-a longer command line to be passed to permit future kernels to extend
-this limit.
+The kernel command line is a null-terminated string. The maximum
+length can be retrieved from the field cmdline_size.  Before protocol
+version 2.06, the maximum was 255 characters.  A string that is too
+long will be automatically truncated by the kernel.
 
 If the boot protocol version is 2.02 or later, the address of the
 kernel command line is given by the header field cmd_line_ptr (see

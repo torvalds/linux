@@ -164,6 +164,17 @@ config KEYBOARD_AMIGA
 	  To compile this driver as a module, choose M here: the
 	  module will be called amikbd.
 
+config KEYBOARD_ATARI
+	tristate "Atari keyboard"
+	depends on ATARI
+	select ATARI_KBD_CORE
+	help
+	  Say Y here if you are running Linux on any Atari and have a keyboard
+	  attached.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called atakbd.
+
 config KEYBOARD_HIL_OLD
 	tristate "HP HIL keyboard support (simple driver)"
 	depends on GSC || HP300

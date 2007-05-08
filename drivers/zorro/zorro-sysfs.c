@@ -42,7 +42,8 @@ static ssize_t zorro_show_resource(struct device *dev, struct device_attribute *
 	struct zorro_dev *z = to_zorro_dev(dev);
 
 	return sprintf(buf, "0x%08lx 0x%08lx 0x%08lx\n",
-		       zorro_resource_start(z), zorro_resource_end(z),
+		       (unsigned long)zorro_resource_start(z),
+		       (unsigned long)zorro_resource_end(z),
 		       zorro_resource_flags(z));
 }
 

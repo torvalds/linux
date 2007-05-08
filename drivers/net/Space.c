@@ -83,7 +83,6 @@ extern struct net_device *bagetlance_probe(int unit);
 extern struct net_device *mvme147lance_probe(int unit);
 extern struct net_device *tc515_probe(int unit);
 extern struct net_device *lance_probe(int unit);
-extern struct net_device *mace_probe(int unit);
 extern struct net_device *mac8390_probe(int unit);
 extern struct net_device *mac89x0_probe(int unit);
 extern struct net_device *mc32_probe(int unit);
@@ -273,9 +272,6 @@ static struct devprobe2 m68k_probes[] __initdata = {
 #endif
 #ifdef CONFIG_MVME147_NET	/* MVME147 internal Ethernet */
 	{mvme147lance_probe, 0},
-#endif
-#ifdef CONFIG_MACMACE		/* Mac 68k Quadra AV builtin Ethernet */
-	{mace_probe, 0},
 #endif
 #ifdef CONFIG_MAC8390           /* NuBus NS8390-based cards */
 	{mac8390_probe, 0},

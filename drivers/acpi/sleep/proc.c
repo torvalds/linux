@@ -60,7 +60,7 @@ acpi_system_write_sleep(struct file *file,
 	state = simple_strtoul(str, NULL, 0);
 #ifdef CONFIG_SOFTWARE_SUSPEND
 	if (state == 4) {
-		error = software_suspend();
+		error = pm_suspend(PM_SUSPEND_DISK);
 		goto Done;
 	}
 #endif

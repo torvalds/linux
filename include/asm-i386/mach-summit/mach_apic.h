@@ -80,7 +80,7 @@ static inline int apic_id_registered(void)
 	return 1;
 }
 
-static inline void clustered_apic_check(void)
+static inline void setup_apic_routing(void)
 {
 	printk("Enabling APIC mode:  Summit.  Using %d I/O APICs\n",
 						nr_ioapics);

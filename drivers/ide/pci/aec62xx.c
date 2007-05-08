@@ -1,7 +1,8 @@
 /*
- * linux/drivers/ide/pci/aec62xx.c		Version 0.11	March 27, 2002
+ * linux/drivers/ide/pci/aec62xx.c		Version 0.21	Apr 21, 2007
  *
  * Copyright (C) 1999-2002	Andre Hedrick <andre@linux-ide.org>
+ * Copyright (C) 2007		MontaVista Software, Inc. <source@mvista.com>
  *
  */
 
@@ -193,18 +194,8 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 
 static void aec62xx_tune_drive (ide_drive_t *drive, u8 pio)
 {
-	u8 speed = 0;
-	u8 new_pio = XFER_PIO_0 + ide_get_best_pio_mode(drive, 255, 5, NULL);
-
-	switch(pio) {
-		case 5:		speed = new_pio; break;
-		case 4:		speed = XFER_PIO_4; break;
-		case 3:		speed = XFER_PIO_3; break;
-		case 2:		speed = XFER_PIO_2; break;
-		case 1:		speed = XFER_PIO_1; break;
-		default:	speed = XFER_PIO_0; break;
-	}
-	(void) aec62xx_tune_chipset(drive, speed);
+	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	(void) aec62xx_tune_chipset(drive, pio + XFER_PIO_0);
 }
 
 static int aec62xx_config_drive_xfer_rate (ide_drive_t *drive)
@@ -213,7 +204,7 @@ static int aec62xx_config_drive_xfer_rate (ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		aec62xx_tune_drive(drive, 5);
+		aec62xx_tune_drive(drive, 255);
 
 	return -1;
 }
@@ -288,11 +279,10 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 
 	hwif->ultra_mask = 0x7f;
 	hwif->mwdma_mask = 0x07;
-	hwif->swdma_mask = 0x07;
 
 	hwif->ide_dma_check	= &aec62xx_config_drive_xfer_rate;
 	hwif->ide_dma_lostirq	= &aec62xx_irq_timeout;
-	hwif->ide_dma_timeout	= &aec62xx_irq_timeout;
+
 	if (!noautodma)
 		hwif->autodma = 1;
 	hwif->drives[0].autodma = hwif->autodma;

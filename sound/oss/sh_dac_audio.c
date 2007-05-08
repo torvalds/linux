@@ -104,7 +104,7 @@ static void dac_audio_set_rate(void)
 	unsigned long interval;
  	struct clk *clk;
 
- 	clk = clk_get("module_clk");
+ 	clk = clk_get(NULL, "module_clk");
  	interval = (clk_get_rate(clk) / 4) / rate;
  	clk_put(clk);
 	ctrl_outl(interval, TMU1_TCOR);

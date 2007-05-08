@@ -862,6 +862,33 @@ static void sctp_cmd_set_sk_err(struct sctp_association *asoc, int error)
 		sk->sk_err = error;
 }
 
+/* Helper function to generate an association change event */
+static void sctp_cmd_assoc_change(sctp_cmd_seq_t *commands,
+				 struct sctp_association *asoc,
+				 u8 state)
+{
+	struct sctp_ulpevent *ev;
+
+	ev = sctp_ulpevent_make_assoc_change(asoc, 0, state, 0,
+					    asoc->c.sinit_num_ostreams,
+					    asoc->c.sinit_max_instreams,
+					    NULL, GFP_ATOMIC);
+	if (ev)
+		sctp_ulpq_tail_event(&asoc->ulpq, ev);
+}
+
+/* Helper function to generate an adaptation indication event */
+static void sctp_cmd_adaptation_ind(sctp_cmd_seq_t *commands,
+				    struct sctp_association *asoc)
+{
+	struct sctp_ulpevent *ev;
+
+	ev = sctp_ulpevent_make_adaptation_indication(asoc, GFP_ATOMIC);
+
+	if (ev)
+		sctp_ulpq_tail_event(&asoc->ulpq, ev);
+}
+
 /* These three macros allow us to pull the debugging code out of the
  * main flow of sctp_do_sm() to keep attention focused on the real
  * functionality there.
@@ -1485,6 +1512,14 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 		case SCTP_CMD_SET_SK_ERR:
 			sctp_cmd_set_sk_err(asoc, cmd->obj.error);
 			break;
+		case SCTP_CMD_ASSOC_CHANGE:
+			sctp_cmd_assoc_change(commands, asoc,
+					      cmd->obj.u8);
+			break;
+		case SCTP_CMD_ADAPTATION_IND:
+			sctp_cmd_adaptation_ind(commands, asoc);
+			break;
+
 		default:
 			printk(KERN_WARNING "Impossible command: %u, %p\n",
 			       cmd->verb, cmd->obj.ptr);

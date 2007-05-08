@@ -5,7 +5,7 @@
  * based on the old aacraid driver that is..
  * Adaptec aacraid device driver for Linux.
  *
- * Copyright (c) 2000 Adaptec, Inc. (aacraid@adaptec.com)
+ * Copyright (c) 2000-2007 Adaptec, Inc. (aacraid@adaptec.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -110,7 +110,7 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	/*
 	 *	Align the beginning of Headers to commalign
 	 */
-	align = (commalign - ((unsigned long)(base) & (commalign - 1)));
+	align = (commalign - ((ptrdiff_t)(base) & (commalign - 1)));
 	base = base + align;
 	phys = phys + align;
 	/*

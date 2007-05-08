@@ -12,7 +12,6 @@
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
-
 #ifdef CONFIG_X86_USE_3DNOW
 
 #include <asm/mmx.h>
@@ -42,26 +41,81 @@
  * These are used to make use of C type-checking..
  */
 extern int nx_enabled;
+
 #ifdef CONFIG_X86_PAE
 extern unsigned long long __supported_pte_mask;
 typedef struct { unsigned long pte_low, pte_high; } pte_t;
 typedef struct { unsigned long long pmd; } pmd_t;
 typedef struct { unsigned long long pgd; } pgd_t;
 typedef struct { unsigned long long pgprot; } pgprot_t;
-#define pmd_val(x)	((x).pmd)
-#define pte_val(x)	((x).pte_low | ((unsigned long long)(x).pte_high << 32))
-#define __pmd(x) ((pmd_t) { (x) } )
+
+static inline unsigned long long native_pgd_val(pgd_t pgd)
+{
+	return pgd.pgd;
+}
+
+static inline unsigned long long native_pmd_val(pmd_t pmd)
+{
+	return pmd.pmd;
+}
+
+static inline unsigned long long native_pte_val(pte_t pte)
+{
+	return pte.pte_low | ((unsigned long long)pte.pte_high << 32);
+}
+
+static inline pgd_t native_make_pgd(unsigned long long val)
+{
+	return (pgd_t) { val };
+}
+
+static inline pmd_t native_make_pmd(unsigned long long val)
+{
+	return (pmd_t) { val };
+}
+
+static inline pte_t native_make_pte(unsigned long long val)
+{
+	return (pte_t) { .pte_low = val, .pte_high = (val >> 32) } ;
+}
+
+#ifndef CONFIG_PARAVIRT
+#define pmd_val(x)	native_pmd_val(x)
+#define __pmd(x)	native_make_pmd(x)
+#endif
+
 #define HPAGE_SHIFT	21
 #include <asm-generic/pgtable-nopud.h>
-#else
+#else  /* !CONFIG_X86_PAE */
 typedef struct { unsigned long pte_low; } pte_t;
 typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
 #define boot_pte_t pte_t /* or would you rather have a typedef */
-#define pte_val(x)	((x).pte_low)
+
+static inline unsigned long native_pgd_val(pgd_t pgd)
+{
+	return pgd.pgd;
+}
+
+static inline unsigned long native_pte_val(pte_t pte)
+{
+	return pte.pte_low;
+}
+
+static inline pgd_t native_make_pgd(unsigned long val)
+{
+	return (pgd_t) { val };
+}
+
+static inline pte_t native_make_pte(unsigned long val)
+{
+	return (pte_t) { .pte_low = val };
+}
+
 #define HPAGE_SHIFT	22
 #include <asm-generic/pgtable-nopmd.h>
-#endif
+#endif	/* CONFIG_X86_PAE */
+
 #define PTE_MASK	PAGE_MASK
 
 #ifdef CONFIG_HUGETLB_PAGE
@@ -71,12 +125,15 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
 #endif
 
-#define pgd_val(x)	((x).pgd)
 #define pgprot_val(x)	((x).pgprot)
-
-#define __pte(x) ((pte_t) { (x) } )
-#define __pgd(x) ((pgd_t) { (x) } )
 #define __pgprot(x)	((pgprot_t) { (x) } )
+
+#ifndef CONFIG_PARAVIRT
+#define pgd_val(x)	native_pgd_val(x)
+#define __pgd(x)	native_make_pgd(x)
+#define pte_val(x)	native_pte_val(x)
+#define __pte(x)	native_make_pte(x)
+#endif
 
 #endif /* !__ASSEMBLY__ */
 
@@ -143,9 +200,7 @@ extern int page_is_ram(unsigned long pagenr);
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
 
-#ifndef CONFIG_COMPAT_VDSO
 #define __HAVE_ARCH_GATE_AREA 1
-#endif
 #endif /* __KERNEL__ */
 
 #endif /* _I386_PAGE_H */

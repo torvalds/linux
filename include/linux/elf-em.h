@@ -30,6 +30,7 @@
 #define EM_V850		87	/* NEC v850 */
 #define EM_M32R		88	/* Renesas M32R */
 #define EM_H8_300	46	/* Renesas H8/300,300H,H8S */
+#define EM_BLACKFIN     106     /* ADI Blackfin Processor */
 #define EM_FRV		0x5441	/* Fujitsu FR-V */
 #define EM_AVR32	0x18ad	/* Atmel AVR32 */
 

@@ -1109,6 +1109,15 @@ static int abort_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 
 	PDBG("%s ep %p\n", __FUNCTION__, ep);
 
+	/*
+	 * We get 2 abort replies from the HW.  The first one must
+	 * be ignored except for scribbling that we need one more.
+	 */
+	if (!(ep->flags & ABORT_REQ_IN_PROGRESS)) {
+		ep->flags |= ABORT_REQ_IN_PROGRESS;
+		return CPL_RET_BUF_DONE;
+	}
+
 	close_complete_upcall(ep);
 	state_set(&ep->com, DEAD);
 	release_ep_resources(ep);
@@ -1189,6 +1198,7 @@ static int listen_stop(struct iwch_listen_ep *ep)
 	}
 	req = (struct cpl_close_listserv_req *) skb_put(skb, sizeof(*req));
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
+	req->cpu_idx = 0;
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_CLOSE_LISTSRV_REQ, ep->stid));
 	skb->priority = 1;
 	ep->com.tdev->send(ep->com.tdev, skb);
@@ -1474,6 +1484,15 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	struct iwch_qp_attributes attrs;
 	int ret;
 	int state;
+
+	/*
+	 * We get 2 peer aborts from the HW.  The first one must
+	 * be ignored except for scribbling that we need one more.
+	 */
+	if (!(ep->flags & PEER_ABORT_IN_PROGRESS)) {
+		ep->flags |= PEER_ABORT_IN_PROGRESS;
+		return CPL_RET_BUF_DONE;
+	}
 
 	if (is_neg_adv_abort(req->status)) {
 		PDBG("%s neg_adv_abort ep %p tid %d\n", __FUNCTION__, ep,

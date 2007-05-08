@@ -55,10 +55,12 @@ static sector_t max_block(struct block_device *bdev)
 	return retval;
 }
 
-/* Kill _all_ buffers, dirty or not.. */
+/* Kill _all_ buffers and pagecache , dirty or not.. */
 static void kill_bdev(struct block_device *bdev)
 {
-	invalidate_bdev(bdev, 1);
+	if (bdev->bd_inode->i_mapping->nrpages == 0)
+		return;
+	invalidate_bh_lrus();
 	truncate_inode_pages(bdev->bd_inode->i_mapping, 0);
 }	
 
@@ -455,9 +457,7 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 	struct bdev_inode *ei = (struct bdev_inode *) foo;
 	struct block_device *bdev = &ei->bdev;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR)
-	{
+	if (flags & SLAB_CTOR_CONSTRUCTOR) {
 		memset(bdev, 0, sizeof(*bdev));
 		mutex_init(&bdev->bd_mutex);
 		sema_init(&bdev->bd_mount_sem, 1);
@@ -1478,7 +1478,7 @@ int __invalidate_device(struct block_device *bdev)
 		res = invalidate_inodes(sb);
 		drop_super(sb);
 	}
-	invalidate_bdev(bdev, 0);
+	invalidate_bdev(bdev);
 	return res;
 }
 EXPORT_SYMBOL(__invalidate_device);

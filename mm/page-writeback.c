@@ -119,6 +119,44 @@ static void background_writeout(unsigned long _min_pages);
  * We make sure that the background writeout level is below the adjusted
  * clamping level.
  */
+
+static unsigned long highmem_dirtyable_memory(unsigned long total)
+{
+#ifdef CONFIG_HIGHMEM
+	int node;
+	unsigned long x = 0;
+
+	for_each_online_node(node) {
+		struct zone *z =
+			&NODE_DATA(node)->node_zones[ZONE_HIGHMEM];
+
+		x += zone_page_state(z, NR_FREE_PAGES)
+			+ zone_page_state(z, NR_INACTIVE)
+			+ zone_page_state(z, NR_ACTIVE);
+	}
+	/*
+	 * Make sure that the number of highmem pages is never larger
+	 * than the number of the total dirtyable memory. This can only
+	 * occur in very strange VM situations but we want to make sure
+	 * that this does not occur.
+	 */
+	return min(x, total);
+#else
+	return 0;
+#endif
+}
+
+static unsigned long determine_dirtyable_memory(void)
+{
+	unsigned long x;
+
+	x = global_page_state(NR_FREE_PAGES)
+		+ global_page_state(NR_INACTIVE)
+		+ global_page_state(NR_ACTIVE);
+	x -= highmem_dirtyable_memory(x);
+	return x + 1;	/* Ensure that we never return 0 */
+}
+
 static void
 get_dirty_limits(long *pbackground, long *pdirty,
 					struct address_space *mapping)
@@ -128,20 +166,12 @@ get_dirty_limits(long *pbackground, long *pdirty,
 	int unmapped_ratio;
 	long background;
 	long dirty;
-	unsigned long available_memory = vm_total_pages;
+	unsigned long available_memory = determine_dirtyable_memory();
 	struct task_struct *tsk;
-
-#ifdef CONFIG_HIGHMEM
-	/*
-	 * We always exclude high memory from our count.
-	 */
-	available_memory -= totalhigh_pages;
-#endif
-
 
 	unmapped_ratio = 100 - ((global_page_state(NR_FILE_MAPPED) +
 				global_page_state(NR_ANON_PAGES)) * 100) /
-					vm_total_pages;
+					available_memory;
 
 	dirty_ratio = vm_dirty_ratio;
 	if (dirty_ratio > unmapped_ratio / 2)

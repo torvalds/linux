@@ -47,8 +47,10 @@ extern unsigned int pci_pm_d3_delay;
 
 #ifdef CONFIG_PCI_MSI
 void pci_no_msi(void);
+extern void pci_msi_init_pci_dev(struct pci_dev *dev);
 #else
 static inline void pci_no_msi(void) { }
+static inline void pci_msi_init_pci_dev(struct pci_dev *dev) { }
 #endif
 
 #if defined(CONFIG_PCI_MSI) && defined(CONFIG_PM)

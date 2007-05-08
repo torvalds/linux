@@ -6,6 +6,7 @@
 #define PAGE_FLAGS_H
 
 #include <linux/types.h>
+#include <linux/mm_types.h>
 
 /*
  * Various page->flags bits:
@@ -82,13 +83,11 @@
 #define PG_private		11	/* If pagecache, has fs-private data */
 
 #define PG_writeback		12	/* Page is under writeback */
-#define PG_nosave		13	/* Used for system suspend/resume */
 #define PG_compound		14	/* Part of a compound page */
 #define PG_swapcache		15	/* Swap page: swp_entry_t in private */
 
 #define PG_mappedtodisk		16	/* Has blocks allocated on-disk */
 #define PG_reclaim		17	/* To be reclaimed asap */
-#define PG_nosave_free		18	/* Used for system suspend/resume */
 #define PG_buddy		19	/* Page is free, on buddy lists */
 
 /* PG_owner_priv_1 users should have descriptive aliases */
@@ -214,16 +213,6 @@ static inline void SetPageUptodate(struct page *page)
 		ret;							\
 	})
 
-#define PageNosave(page)	test_bit(PG_nosave, &(page)->flags)
-#define SetPageNosave(page)	set_bit(PG_nosave, &(page)->flags)
-#define TestSetPageNosave(page)	test_and_set_bit(PG_nosave, &(page)->flags)
-#define ClearPageNosave(page)		clear_bit(PG_nosave, &(page)->flags)
-#define TestClearPageNosave(page)	test_and_clear_bit(PG_nosave, &(page)->flags)
-
-#define PageNosaveFree(page)	test_bit(PG_nosave_free, &(page)->flags)
-#define SetPageNosaveFree(page)	set_bit(PG_nosave_free, &(page)->flags)
-#define ClearPageNosaveFree(page)		clear_bit(PG_nosave_free, &(page)->flags)
-
 #define PageBuddy(page)		test_bit(PG_buddy, &(page)->flags)
 #define __SetPageBuddy(page)	__set_bit(PG_buddy, &(page)->flags)
 #define __ClearPageBuddy(page)	__clear_bit(PG_buddy, &(page)->flags)
@@ -240,6 +229,34 @@ static inline void SetPageUptodate(struct page *page)
 #define PageCompound(page)	test_bit(PG_compound, &(page)->flags)
 #define __SetPageCompound(page)	__set_bit(PG_compound, &(page)->flags)
 #define __ClearPageCompound(page) __clear_bit(PG_compound, &(page)->flags)
+
+/*
+ * PG_reclaim is used in combination with PG_compound to mark the
+ * head and tail of a compound page
+ *
+ * PG_compound & PG_reclaim	=> Tail page
+ * PG_compound & ~PG_reclaim	=> Head page
+ */
+
+#define PG_head_tail_mask ((1L << PG_compound) | (1L << PG_reclaim))
+
+#define PageTail(page)	((page->flags & PG_head_tail_mask) \
+				== PG_head_tail_mask)
+
+static inline void __SetPageTail(struct page *page)
+{
+	page->flags |= PG_head_tail_mask;
+}
+
+static inline void __ClearPageTail(struct page *page)
+{
+	page->flags &= ~PG_head_tail_mask;
+}
+
+#define PageHead(page)	((page->flags & PG_head_tail_mask) \
+				== (1L << PG_compound))
+#define __SetPageHead(page)	__SetPageCompound(page)
+#define __ClearPageHead(page)	__ClearPageCompound(page)
 
 #ifdef CONFIG_SWAP
 #define PageSwapCache(page)	test_bit(PG_swapcache, &(page)->flags)

@@ -701,6 +701,19 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_PRIMARY_ADDR_PATH);
 	}
 
+	if (ibqp->qp_type == IB_QPT_RC &&
+	    cur_state == IB_QPS_INIT && new_state == IB_QPS_RTR) {
+		u8 sched_queue = ibqp->uobject ? 0x2 : 0x1;
+
+		if (mthca_is_memfree(dev))
+			qp_context->rlkey_arbel_sched_queue |= sched_queue;
+		else
+			qp_context->tavor_sched_queue |= cpu_to_be32(sched_queue);
+
+		qp_param->opt_param_mask |=
+			cpu_to_be32(MTHCA_QP_OPTPAR_SCHED_QUEUE);
+	}
+
 	if (attr_mask & IB_QP_TIMEOUT) {
 		qp_context->pri_path.ackto = attr->timeout << 3;
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_ACK_TIMEOUT);

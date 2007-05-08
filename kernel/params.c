@@ -691,6 +691,7 @@ static struct kset_uevent_ops module_uevent_ops = {
 };
 
 decl_subsys(module, &module_ktype, &module_uevent_ops);
+int module_sysfs_initialized;
 
 static struct kobj_type module_ktype = {
 	.sysfs_ops =	&module_sysfs_ops,
@@ -709,6 +710,7 @@ static int __init param_sysfs_init(void)
 			__FILE__, __LINE__, ret);
 		return ret;
 	}
+	module_sysfs_initialized = 1;
 
 	param_sysfs_builtin();
 

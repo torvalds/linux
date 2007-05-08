@@ -1033,6 +1033,8 @@ asmlinkage void sys_exit_group(int error_code)
 
 static int eligible_child(pid_t pid, int options, struct task_struct *p)
 {
+	int err;
+
 	if (pid > 0) {
 		if (p->pid != pid)
 			return 0;
@@ -1066,8 +1068,9 @@ static int eligible_child(pid_t pid, int options, struct task_struct *p)
 	if (delay_group_leader(p))
 		return 2;
 
-	if (security_task_wait(p))
-		return 0;
+	err = security_task_wait(p);
+	if (err)
+		return err;
 
 	return 1;
 }
@@ -1449,6 +1452,7 @@ static long do_wait(pid_t pid, int options, struct siginfo __user *infop,
 	DECLARE_WAITQUEUE(wait, current);
 	struct task_struct *tsk;
 	int flag, retval;
+	int allowed, denied;
 
 	add_wait_queue(&current->signal->wait_chldexit,&wait);
 repeat:
@@ -1457,6 +1461,7 @@ repeat:
 	 * match our criteria, even if we are not able to reap it yet.
 	 */
 	flag = 0;
+	allowed = denied = 0;
 	current->state = TASK_INTERRUPTIBLE;
 	read_lock(&tasklist_lock);
 	tsk = current;
@@ -1471,6 +1476,12 @@ repeat:
 			ret = eligible_child(pid, options, p);
 			if (!ret)
 				continue;
+
+			if (unlikely(ret < 0)) {
+				denied = ret;
+				continue;
+			}
+			allowed = 1;
 
 			switch (p->state) {
 			case TASK_TRACED:
@@ -1570,6 +1581,8 @@ check_continued:
 		goto repeat;
 	}
 	retval = -ECHILD;
+	if (unlikely(denied) && !allowed)
+		retval = denied;
 end:
 	current->state = TASK_RUNNING;
 	remove_wait_queue(&current->signal->wait_chldexit,&wait);

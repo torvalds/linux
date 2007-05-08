@@ -484,11 +484,16 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios * termios,
 	unsigned long flags;
 	unsigned int mode, imr, quot, baud;
 
+	/* Get current mode register */
+	mode = UART_GET_MR(port) & ~(ATMEL_US_USCLKS | ATMEL_US_CHRL | ATMEL_US_NBSTOP | ATMEL_US_PAR);
+
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk/16);
 	quot = uart_get_divisor(port, baud);
 
-	/* Get current mode register */
-	mode = UART_GET_MR(port) & ~(ATMEL_US_CHRL | ATMEL_US_NBSTOP | ATMEL_US_PAR);
+	if (quot > 65535) {		/* BRGR is 16-bit, so switch to slower clock */
+		quot /= 8;
+		mode |= ATMEL_US_USCLKS_MCK_DIV8;
+	}
 
 	/* byte size */
 	switch (termios->c_cflag & CSIZE) {

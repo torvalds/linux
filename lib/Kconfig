@@ -111,4 +111,9 @@ config HAS_IOPORT
 	depends on HAS_IOMEM && !NO_IOPORT
 	default y
 
+config HAS_DMA
+	boolean
+	depends on !NO_DMA
+	default y
+
 endmenu
