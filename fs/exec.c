@@ -982,33 +982,51 @@ void compute_creds(struct linux_binprm *bprm)
 	task_unlock(current);
 	security_bprm_post_apply_creds(bprm);
 }
-
 EXPORT_SYMBOL(compute_creds);
 
+/*
+ * Arguments are '\0' separated strings found at the location bprm->p
+ * points to; chop off the first by relocating brpm->p to right after
+ * the first '\0' encountered.
+ */
 void remove_arg_zero(struct linux_binprm *bprm)
 {
 	if (bprm->argc) {
-		unsigned long offset;
-		char * kaddr;
-		struct page *page;
+		char ch;
 
-		offset = bprm->p % PAGE_SIZE;
-		goto inside;
+		do {
+			unsigned long offset;
+			unsigned long index;
+			char *kaddr;
+			struct page *page;
 
-		while (bprm->p++, *(kaddr+offset++)) {
-			if (offset != PAGE_SIZE)
-				continue;
-			offset = 0;
-			kunmap_atomic(kaddr, KM_USER0);
-inside:
-			page = bprm->page[bprm->p/PAGE_SIZE];
+			offset = bprm->p & ~PAGE_MASK;
+			index = bprm->p >> PAGE_SHIFT;
+
+			page = bprm->page[index];
 			kaddr = kmap_atomic(page, KM_USER0);
-		}
-		kunmap_atomic(kaddr, KM_USER0);
+
+			/* run through page until we reach end or find NUL */
+			do {
+				ch = *(kaddr + offset);
+
+				/* discard that character... */
+				bprm->p++;
+				offset++;
+			} while (offset < PAGE_SIZE && ch != '\0');
+
+			kunmap_atomic(kaddr, KM_USER0);
+
+			/* free the old page */
+			if (offset == PAGE_SIZE) {
+				__free_page(page);
+				bprm->page[index] = NULL;
+			}
+		} while (ch != '\0');
+
 		bprm->argc--;
 	}
 }
-
 EXPORT_SYMBOL(remove_arg_zero);
 
 /*
