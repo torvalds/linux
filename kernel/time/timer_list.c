@@ -38,15 +38,12 @@ DECLARE_PER_CPU(struct hrtimer_cpu_base, hrtimer_bases);
 
 static void print_name_offset(struct seq_file *m, void *sym)
 {
-	unsigned long addr = (unsigned long)sym;
-	char namebuf[KSYM_NAME_LEN+1];
-	const char *sym_name;
+	char symname[KSYM_NAME_LEN+1];
 
-	sym_name = kallsyms_lookup(addr, NULL, NULL, NULL, namebuf);
-	if (sym_name)
-		SEQ_printf(m, "%s", sym_name);
-	else
+	if (lookup_symbol_name((unsigned long)sym, symname) < 0)
 		SEQ_printf(m, "<%p>", sym);
+	else
+		SEQ_printf(m, "%s", symname);
 }
 
 static void

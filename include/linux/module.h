@@ -454,6 +454,7 @@ const char *module_address_lookup(unsigned long addr,
 				  unsigned long *symbolsize,
 				  unsigned long *offset,
 				  char **modname);
+int lookup_module_symbol_name(unsigned long addr, char *symname);
 
 /* For extable.c to search modules' exception tables. */
 const struct exception_table_entry *search_module_extables(unsigned long addr);
@@ -523,6 +524,11 @@ static inline const char *module_address_lookup(unsigned long addr,
 						char **modname)
 {
 	return NULL;
+}
+
+static inline int lookup_module_symbol_name(unsigned long addr, char *symname)
+{
+	return -ERANGE;
 }
 
 static inline int module_get_kallsym(unsigned int symnum, unsigned long *value,

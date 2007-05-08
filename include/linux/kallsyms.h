@@ -30,6 +30,8 @@ extern int sprint_symbol(char *buffer, unsigned long address);
 /* Look up a kernel symbol and print it to the kernel messages. */
 extern void __print_symbol(const char *fmt, unsigned long address);
 
+int lookup_symbol_name(unsigned long addr, char *symname);
+
 #else /* !CONFIG_KALLSYMS */
 
 static inline unsigned long kallsyms_lookup_name(const char *name)
@@ -56,6 +58,11 @@ static inline int sprint_symbol(char *buffer, unsigned long addr)
 {
 	*buffer = '\0';
 	return 0;
+}
+
+static inline int lookup_symbol_name(unsigned long addr, char *symname)
+{
+	return -ERANGE;
 }
 
 /* Stupid that this does nothing, but I didn't create this mess. */

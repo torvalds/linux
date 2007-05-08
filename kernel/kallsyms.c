@@ -269,6 +269,23 @@ const char *kallsyms_lookup(unsigned long addr,
 	return NULL;
 }
 
+int lookup_symbol_name(unsigned long addr, char *symname)
+{
+	symname[0] = '\0';
+	symname[KSYM_NAME_LEN] = '\0';
+
+	if (is_ksym_addr(addr)) {
+		unsigned long pos;
+
+		pos = get_symbol_pos(addr, NULL, NULL);
+		/* Grab name */
+		kallsyms_expand_symbol(get_symbol_offset(pos), symname);
+		return 0;
+	}
+	/* see if it's in a module */
+	return lookup_module_symbol_name(addr, symname);
+}
+
 /* Look up a kernel symbol and return it in a text buffer. */
 int sprint_symbol(char *buffer, unsigned long address)
 {
