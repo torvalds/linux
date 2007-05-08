@@ -449,6 +449,9 @@ static int s3fb_set_par(struct fb_info *info)
 		info->flags &= ~FBINFO_MISC_TILEBLITTING;
 		info->tileops = NULL;
 
+		/* supports blit rectangles of any dimension */
+		info->pixmap.blit_x = ~(u32)0;
+		info->pixmap.blit_y = ~(u32)0;
 		offset_value = (info->var.xres_virtual * bpp) / 64;
 		screen_size = info->var.yres_virtual * info->fix.line_length;
 	} else {
@@ -457,6 +460,9 @@ static int s3fb_set_par(struct fb_info *info)
 
 		info->flags |= FBINFO_MISC_TILEBLITTING;
 		info->tileops = fasttext ? &s3fb_fast_tile_ops : &s3fb_tile_ops;
+		/* supports 8x16 tiles only */
+		info->pixmap.blit_x = 1 << (8 - 1);
+		info->pixmap.blit_y = 1 << (16 - 1);
 
 		offset_value = info->var.xres_virtual / 16;
 		screen_size = (info->var.xres_virtual * info->var.yres_virtual) / 64;

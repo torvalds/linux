@@ -1194,6 +1194,7 @@ config FB_S3
 	select FB_TILEBLITTING
 	select FB_SVGALIB
 	select VGASTATE
+	select FONT_8x16 if FRAMEBUFFER_CONSOLE
 	---help---
 	  Driver for graphics boards with S3 Trio / S3 Virge chip.
 
