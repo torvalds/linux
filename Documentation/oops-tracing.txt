@@ -234,9 +234,6 @@ characters, each representing a particular tainted value.
   6: 'B' if a page-release function has found a bad page reference or
      some unexpected page flags.
 
-  7: 'U' if a user specifically requested that the Tainted flag be set,
-     ' ' otherwise.
-
   7: 'U' if a user or user application specifically requested that the
      Tainted flag be set, ' ' otherwise.
 
