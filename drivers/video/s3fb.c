@@ -183,18 +183,13 @@ static void s3fb_settile_fast(struct fb_info *info, struct fb_tilemap *map)
 	}
 }
 
-static int s3fb_get_tilemax(struct fb_info *info)
-{
-	return 256;
-}
-
 static struct fb_tile_ops s3fb_tile_ops = {
 	.fb_settile	= svga_settile,
 	.fb_tilecopy	= svga_tilecopy,
 	.fb_tilefill    = svga_tilefill,
 	.fb_tileblit    = svga_tileblit,
 	.fb_tilecursor  = svga_tilecursor,
-	.fb_get_tilemax = s3fb_get_tilemax,
+	.fb_get_tilemax = svga_get_tilemax,
 };
 
 static struct fb_tile_ops s3fb_fast_tile_ops = {
@@ -203,7 +198,7 @@ static struct fb_tile_ops s3fb_fast_tile_ops = {
 	.fb_tilefill    = svga_tilefill,
 	.fb_tileblit    = svga_tileblit,
 	.fb_tilecursor  = svga_tilecursor,
-	.fb_get_tilemax = s3fb_get_tilemax,
+	.fb_get_tilemax = svga_get_tilemax,
 };
 
 
@@ -459,9 +454,10 @@ static int s3fb_set_par(struct fb_info *info)
 		info->flags &= ~FBINFO_MISC_TILEBLITTING;
 		info->tileops = NULL;
 
-		/* supports blit rectangles of any dimension */
-		info->pixmap.blit_x = ~(u32)0;
+		/* in 4bpp supports 8p wide tiles only, any tiles otherwise */
+		info->pixmap.blit_x = (bpp == 4) ? (1 << (8 - 1)) : (~(u32)0);
 		info->pixmap.blit_y = ~(u32)0;
+
 		offset_value = (info->var.xres_virtual * bpp) / 64;
 		screen_size = info->var.yres_virtual * info->fix.line_length;
 	} else {
@@ -470,6 +466,7 @@ static int s3fb_set_par(struct fb_info *info)
 
 		info->flags |= FBINFO_MISC_TILEBLITTING;
 		info->tileops = fasttext ? &s3fb_fast_tile_ops : &s3fb_tile_ops;
+
 		/* supports 8x16 tiles only */
 		info->pixmap.blit_x = 1 << (8 - 1);
 		info->pixmap.blit_y = 1 << (16 - 1);

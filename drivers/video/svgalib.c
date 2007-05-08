@@ -342,6 +342,11 @@ void svga_tilecursor(struct fb_info *info, struct fb_tilecursor *cursor)
 	vga_wcrt(NULL, 0x0A, cs); /* set cursor start and enable it */
 }
 
+int svga_get_tilemax(struct fb_info *info)
+{
+	return 256;
+}
+
 
 /* ------------------------------------------------------------------------- */
 
@@ -623,6 +628,7 @@ EXPORT_SYMBOL(svga_tilecopy);
 EXPORT_SYMBOL(svga_tilefill);
 EXPORT_SYMBOL(svga_tileblit);
 EXPORT_SYMBOL(svga_tilecursor);
+EXPORT_SYMBOL(svga_get_tilemax);
 
 EXPORT_SYMBOL(svga_compute_pll);
 EXPORT_SYMBOL(svga_check_timings);
