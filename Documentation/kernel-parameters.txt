@@ -1578,6 +1578,17 @@ and is between 256 and 4096 characters. It is defined in the file
 	smp-alt-once	[IA-32,SMP] On a hotplug CPU system, only
 			attempt to substitute SMP alternatives once at boot.
 
+	smsc-ircc2.nopnp	[HW] Don't use PNP to discover SMC devices
+	smsc-ircc2.ircc_cfg=	[HW] Device configuration I/O port
+	smsc-ircc2.ircc_sir=	[HW] SIR base I/O port
+	smsc-ircc2.ircc_fir=	[HW] FIR base I/O port
+	smsc-ircc2.ircc_irq=	[HW] IRQ line
+	smsc-ircc2.ircc_dma=	[HW] DMA channel
+	smsc-ircc2.ircc_transceiver= [HW] Transceiver type:
+				0: Toshiba Satellite 1800 (GP data pin select)
+				1: Fast pin select (default)
+				2: ATC IRMode
+
 	snd-ad1816a=	[HW,ALSA]
 
 	snd-ad1848=	[HW,ALSA]

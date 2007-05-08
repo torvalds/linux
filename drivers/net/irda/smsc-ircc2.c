@@ -79,6 +79,10 @@ MODULE_AUTHOR("Daniele Peri <peri@csai.unipa.it>");
 MODULE_DESCRIPTION("SMC IrCC SIR/FIR controller driver");
 MODULE_LICENSE("GPL");
 
+static int smsc_nopnp;
+module_param_named(nopnp, smsc_nopnp, bool, 0);
+MODULE_PARM_DESC(nopnp, "Do not use PNP to detect controller settings");
+
 #define DMA_INVAL 255
 static int ircc_dma = DMA_INVAL;
 module_param(ircc_dma, int, 0);
@@ -362,7 +366,6 @@ static inline void register_bank(int iobase, int bank)
                iobase + IRCC_MASTER);
 }
 
-#ifdef	CONFIG_PNP
 /* PNP hotplug support */
 static const struct pnp_device_id smsc_ircc_pnp_table[] = {
 	{ .id = "SMCf010", .driver_data = 0 },
@@ -370,7 +373,35 @@ static const struct pnp_device_id smsc_ircc_pnp_table[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(pnp, smsc_ircc_pnp_table);
-#endif
+
+static int pnp_driver_registered;
+
+static int __init smsc_ircc_pnp_probe(struct pnp_dev *dev,
+				      const struct pnp_device_id *dev_id)
+{
+	unsigned int firbase, sirbase;
+	u8 dma, irq;
+
+	if (!(pnp_port_valid(dev, 0) && pnp_port_valid(dev, 1) &&
+	      pnp_dma_valid(dev, 0) && pnp_irq_valid(dev, 0)))
+		return -EINVAL;
+
+	sirbase = pnp_port_start(dev, 0);
+	firbase = pnp_port_start(dev, 1);
+	dma = pnp_dma(dev, 0);
+	irq = pnp_irq(dev, 0);
+
+	if (smsc_ircc_open(firbase, sirbase, dma, irq))
+		return -ENODEV;
+
+	return 0;
+}
+
+static struct pnp_driver smsc_ircc_pnp_driver = {
+	.name		= "smsc-ircc2",
+	.id_table	= smsc_ircc_pnp_table,
+	.probe		= smsc_ircc_pnp_probe,
+};
 
 
 /*******************************************************************************
@@ -380,6 +411,35 @@ MODULE_DEVICE_TABLE(pnp, smsc_ircc_pnp_table);
  *
  *
  *******************************************************************************/
+
+static int __init smsc_ircc_legacy_probe(void)
+{
+	int ret = 0;
+
+	if (ircc_fir > 0 && ircc_sir > 0) {
+		IRDA_MESSAGE(" Overriding FIR address 0x%04x\n", ircc_fir);
+		IRDA_MESSAGE(" Overriding SIR address 0x%04x\n", ircc_sir);
+
+		if (smsc_ircc_open(ircc_fir, ircc_sir, ircc_dma, ircc_irq))
+			ret = -ENODEV;
+	} else {
+		ret = -ENODEV;
+
+		/* try user provided configuration register base address */
+		if (ircc_cfg > 0) {
+			IRDA_MESSAGE(" Overriding configuration address "
+				     "0x%04x\n", ircc_cfg);
+			if (!smsc_superio_fdc(ircc_cfg))
+				ret = 0;
+			if (!smsc_superio_lpc(ircc_cfg))
+				ret = 0;
+		}
+
+		if (smsc_ircc_look_for_chips() > 0)
+			ret = 0;
+	}
+	return ret;
+}
 
 /*
  * Function smsc_ircc_init ()
@@ -408,31 +468,20 @@ static int __init smsc_ircc_init(void)
 
 	dev_count = 0;
 
-	if (ircc_fir > 0 && ircc_sir > 0) {
-		IRDA_MESSAGE(" Overriding FIR address 0x%04x\n", ircc_fir);
-		IRDA_MESSAGE(" Overriding SIR address 0x%04x\n", ircc_sir);
-
-		if (smsc_ircc_open(ircc_fir, ircc_sir, ircc_dma, ircc_irq))
-			ret = -ENODEV;
+	if (smsc_nopnp || !pnp_platform_devices ||
+	    ircc_cfg || ircc_fir || ircc_sir ||
+	    ircc_dma != DMA_INVAL || ircc_irq != IRQ_INVAL) {
+		ret = smsc_ircc_legacy_probe();
 	} else {
-		ret = -ENODEV;
-
-		/* try user provided configuration register base address */
-		if (ircc_cfg > 0) {
-			IRDA_MESSAGE(" Overriding configuration address "
-				     "0x%04x\n", ircc_cfg);
-			if (!smsc_superio_fdc(ircc_cfg))
-				ret = 0;
-			if (!smsc_superio_lpc(ircc_cfg))
-				ret = 0;
-		}
-
-		if (smsc_ircc_look_for_chips() > 0)
-			ret = 0;
+		if (pnp_register_driver(&smsc_ircc_pnp_driver) == 0)
+			pnp_driver_registered = 1;
 	}
 
-	if (ret)
+	if (ret) {
+		if (pnp_driver_registered)
+			pnp_unregister_driver(&smsc_ircc_pnp_driver);
 		platform_driver_unregister(&smsc_ircc_driver);
+	}
 
 	return ret;
 }
@@ -1841,6 +1890,9 @@ static void __exit smsc_ircc_cleanup(void)
 		if (dev_self[i])
 			smsc_ircc_close(dev_self[i]);
 	}
+
+	if (pnp_driver_registered)
+		pnp_unregister_driver(&smsc_ircc_pnp_driver);
 
 	platform_driver_unregister(&smsc_ircc_driver);
 }
