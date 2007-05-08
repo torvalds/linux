@@ -748,9 +748,16 @@ static ssize_t node_weight_write(struct node *nd, const char *buf, size_t len)
 
 static struct space *get_space(char *name)
 {
+	struct config_item *i;
+
 	if (!space_list)
 		return NULL;
-	return to_space(config_group_find_obj(space_list, name));
+
+	down(&space_list->cg_subsys->su_sem);
+	i = config_group_find_obj(space_list, name);
+	up(&space_list->cg_subsys->su_sem);
+
+	return to_space(i);
 }
 
 static void put_space(struct space *sp)
@@ -776,20 +783,20 @@ static struct comm *get_comm(int nodeid, struct sockaddr_storage *addr)
 			if (cm->nodeid != nodeid)
 				continue;
 			found = 1;
+			config_item_get(i);
 			break;
 		} else {
 			if (!cm->addr_count ||
 			    memcmp(cm->addr[0], addr, sizeof(*addr)))
 				continue;
 			found = 1;
+			config_item_get(i);
 			break;
 		}
 	}
 	up(&clusters_root.subsys.su_sem);
 
-	if (found)
-		config_item_get(i);
-	else
+	if (!found)
 		cm = NULL;
 	return cm;
 }
