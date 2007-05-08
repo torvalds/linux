@@ -1533,7 +1533,7 @@ cyz_issue_cmd(struct cyclades_card *cinfo,
 	struct FIRM_ID __iomem *firm_id;
 	struct ZFW_CTRL __iomem *zfw_ctrl;
 	struct BOARD_CTRL __iomem *board_ctrl;
-	unsigned long __iomem *pci_doorbell;
+	uclong __iomem *pci_doorbell;
 	int index;
 
 	firm_id = cinfo->base_addr + ID_ADDRESS;
