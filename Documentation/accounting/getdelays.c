@@ -61,8 +61,6 @@ __u64 stime, utime;
 #define MAX_MSG_SIZE	1024
 /* Maximum number of cpus expected to be specified in a cpumask */
 #define MAX_CPUS	32
-/* Maximum length of pathname to log file */
-#define MAX_FILENAME	256
 
 struct msgtemplate {
 	struct nlmsghdr n;
@@ -231,7 +229,7 @@ int main(int argc, char *argv[])
 	int count = 0;
 	int write_file = 0;
 	int maskset = 0;
-	char logfile[128];
+	char *logfile = NULL;
 	int loop = 0;
 
 	struct msgtemplate msg;
@@ -251,7 +249,7 @@ int main(int argc, char *argv[])
 			print_io_accounting = 1;
 			break;
 		case 'w':
-			strncpy(logfile, optarg, MAX_FILENAME);
+			logfile = strdup(optarg);
 			printf("write to file %s\n", logfile);
 			write_file = 1;
 			break;
