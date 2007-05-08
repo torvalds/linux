@@ -255,6 +255,7 @@ struct btrfs_block_group_item {
 struct btrfs_block_group_cache {
 	struct btrfs_key key;
 	struct btrfs_block_group_item item;
+	struct radix_tree_root *radix;
 	u64 first_free;
 	u64 last_alloc;
 	u64 pinned;

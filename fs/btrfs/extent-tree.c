@@ -23,7 +23,7 @@ static struct btrfs_block_group_cache *lookup_block_group(struct
 				     (void **)&block_group,
 				     blocknr, 1);
 	if (ret) {
-		if (block_group->key.objectid <= blocknr && blocknr <
+		if (block_group->key.objectid <= blocknr && blocknr <=
 		    block_group->key.objectid + block_group->key.offset)
 			return block_group;
 	}
@@ -31,11 +31,16 @@ static struct btrfs_block_group_cache *lookup_block_group(struct
 				     (void **)&block_group,
 				     blocknr, 1);
 	if (ret) {
-		if (block_group->key.objectid <= blocknr && blocknr <
+		if (block_group->key.objectid <= blocknr && blocknr <=
 		    block_group->key.objectid + block_group->key.offset)
 			return block_group;
 	}
-printk("lookup_block_group fails for blocknr %Lu\n", blocknr);
+	WARN_ON(1);
+	printk("lookup_block_group fails for blocknr %Lu\n", blocknr);
+	printk("last ret was %d\n", ret);
+	if (ret) {
+		printk("last block group was %Lu %Lu\n", block_group->key.objectid, block_group->key.offset);
+	}
 	return NULL;
 }
 
@@ -356,45 +361,20 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_block_group_cache *cache;
 	struct btrfs_fs_info *info = root->fs_info;
-	struct radix_tree_root *radix;
 	u64 total = num;
 	u64 old_val;
 	u64 block_in_group;
-	int ret;
-	if (num != 1)
-		radix = &info->block_group_data_radix;
-	else
-		radix = &info->block_group_radix;
+
 	while(total) {
-		ret = radix_tree_gang_lookup(radix, (void **)&cache,
-					     blocknr, 1);
-		if (!ret) {
+		cache = lookup_block_group(info, blocknr);
+		if (!cache) {
 			printk(KERN_CRIT "blocknr %Lu lookup failed\n",
 			       blocknr);
 			return -1;
 		}
 		block_in_group = blocknr - cache->key.objectid;
-		if (block_in_group > cache->key.offset || cache->key.objectid >
-		    blocknr) {
-			if (radix == &info->block_group_data_radix)
-				radix = &info->block_group_radix;
-			else
-				radix = &info->block_group_data_radix;
-			ret = radix_tree_gang_lookup(radix, (void **)&cache,
-						     blocknr, 1);
-			if (!ret) {
-				printk(KERN_CRIT "blocknr %Lu lookup failed\n",
-				       blocknr);
-				return -1;
-			}
-			block_in_group = blocknr - cache->key.objectid;
-			if (block_in_group > cache->key.offset ||
-			    cache->key.objectid > blocknr) {
-				BUG();
-			}
-		}
 		WARN_ON(block_in_group > cache->key.offset);
-		radix_tree_tag_set(radix, cache->key.objectid +
+		radix_tree_tag_set(cache->radix, cache->key.objectid +
 				   cache->key.offset - 1,
 				   BTRFS_BLOCK_GROUP_DIRTY);
 
@@ -693,6 +673,8 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		num_blocks = 1;
 		total_needed = (min(level + 1, BTRFS_MAX_LEVEL) + 2) * 3;
 	}
+	if (search_end == (u64)-1)
+		search_end = btrfs_super_total_blocks(info->disk_super);
 	if (search_start) {
 		block_group = lookup_block_group(info, search_start);
 		block_group = btrfs_find_block_group(root, block_group,
@@ -704,7 +686,7 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	}
 
 check_failed:
-	if (block_group->data != data)
+	if (!full_scan && block_group->data != data)
 		WARN_ON(1);
 	if (block_group->last_alloc > search_start)
 		search_start = block_group->last_alloc;
@@ -734,13 +716,13 @@ check_failed:
 				goto error;
 			if (!start_found) {
 				ins->objectid = search_start;
-				ins->offset = (u64)-1 - search_start;
+				ins->offset = search_end - search_start;
 				start_found = 1;
 				goto check_pending;
 			}
 			ins->objectid = last_block > search_start ?
 					last_block : search_start;
-			ins->offset = (u64)-1 - ins->objectid;
+			ins->offset = search_end - ins->objectid;
 			goto check_pending;
 		}
 		btrfs_disk_key_to_cpu(&key, &l->items[slot].key);
@@ -777,7 +759,7 @@ check_pending:
 	 */
 	btrfs_release_path(root, path);
 	BUG_ON(ins->objectid < search_start);
-	if (ins->objectid >= btrfs_super_total_blocks(info->disk_super)) {
+	if (ins->objectid + num_blocks >= search_end) {
 		if (full_scan)
 			return -ENOSPC;
 		search_start = orig_search_start;
@@ -840,7 +822,7 @@ check_pending:
 	return 0;
 
 new_group:
-	if (search_start >= btrfs_super_total_blocks(info->disk_super)) {
+	if (search_start + num_blocks >= search_end) {
 		search_start = orig_search_start;
 		full_scan = 1;
 	}
@@ -900,7 +882,12 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		return ret;
 
 	/* then do prealloc for the extent tree */
-	ret = find_free_extent(trans, root, 0, ins->objectid + ins->offset,
+	if (ins->objectid + ins->offset >= search_end)
+		search_end = ins->objectid - 1;
+	else
+		search_start = ins->objectid + ins->offset;
+
+	ret = find_free_extent(trans, root, 0, search_start,
 			       search_end, &prealloc_key, 0);
 	if (ret)
 		return ret;
@@ -1198,6 +1185,12 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 			err = -1;
 			break;
 		}
+
+		if (nr & 1)
+			radix = &info->block_group_data_radix;
+		else
+			radix = &info->block_group_radix;
+
 		bi = btrfs_item_ptr(leaf, path->slots[0],
 				    struct btrfs_block_group_item);
 		memcpy(&cache->item, bi, sizeof(*bi));
@@ -1206,12 +1199,10 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		cache->first_free = cache->key.objectid;
 		cache->pinned = 0;
 		cache->data = (nr & 1);
+		cache->radix = radix;
+
 		key.objectid = found_key.objectid + found_key.offset;
 		btrfs_release_path(root, path);
-		if (nr & 1)
-			radix = &info->block_group_data_radix;
-		else
-			radix = &info->block_group_radix;
 		ret = radix_tree_insert(radix, found_key.objectid +
 					found_key.offset - 1,
 					(void *)cache);
