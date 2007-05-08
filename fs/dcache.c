@@ -879,7 +879,7 @@ static int shrink_dcache_memory(int nr, gfp_t gfp_mask)
 	if (nr) {
 		if (!(gfp_mask & __GFP_FS))
 			return -1;
-		prune_dcache(nr, NULL, 0);
+		prune_dcache(nr, NULL, 1);
 	}
 	return (dentry_stat.nr_unused / 100) * sysctl_vfs_cache_pressure;
 }
