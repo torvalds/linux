@@ -87,7 +87,7 @@ static void vgacon_save_screen(struct vc_data *c);
 static int vgacon_scroll(struct vc_data *c, int t, int b, int dir,
 			 int lines);
 static u8 vgacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
-			    u8 blink, u8 underline, u8 reverse);
+			    u8 blink, u8 underline, u8 reverse, u8);
 static void vgacon_invert_region(struct vc_data *c, u16 * p, int count);
 static unsigned long vgacon_uni_pagedir[2];
 
@@ -578,12 +578,14 @@ static void vgacon_deinit(struct vc_data *c)
 }
 
 static u8 vgacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
-			    u8 blink, u8 underline, u8 reverse)
+			    u8 blink, u8 underline, u8 reverse, u8 italic)
 {
 	u8 attr = color;
 
 	if (vga_can_do_color) {
-		if (underline)
+		if (italic)
+			attr = (attr & 0xF0) | c->vc_itcolor;
+		else if (underline)
 			attr = (attr & 0xf0) | c->vc_ulcolor;
 		else if (intensity == 0)
 			attr = (attr & 0xf0) | c->vc_halfcolor;
@@ -597,7 +599,9 @@ static u8 vgacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
 	if (intensity == 2)
 		attr ^= 0x08;
 	if (!vga_can_do_color) {
-		if (underline)
+		if (italic)
+			attr = (attr & 0xF8) | 0x02;
+		else if (underline)
 			attr = (attr & 0xf8) | 0x01;
 		else if (intensity == 0)
 			attr = (attr & 0xf0) | 0x08;

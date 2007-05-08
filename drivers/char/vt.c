@@ -348,10 +348,12 @@ void update_region(struct vc_data *vc, unsigned long start, int count)
 
 /* Structure of attributes is hardware-dependent */
 
-static u8 build_attr(struct vc_data *vc, u8 _color, u8 _intensity, u8 _blink, u8 _underline, u8 _reverse)
+static u8 build_attr(struct vc_data *vc, u8 _color, u8 _intensity, u8 _blink,
+    u8 _underline, u8 _reverse, u8 _italic)
 {
 	if (vc->vc_sw->con_build_attr)
-		return vc->vc_sw->con_build_attr(vc, _color, _intensity, _blink, _underline, _reverse);
+		return vc->vc_sw->con_build_attr(vc, _color, _intensity,
+		       _blink, _underline, _reverse, _italic);
 
 #ifndef VT_BUF_VRAM_ONLY
 /*
@@ -368,10 +370,13 @@ static u8 build_attr(struct vc_data *vc, u8 _color, u8 _intensity, u8 _blink, u8
 	u8 a = vc->vc_color;
 	if (!vc->vc_can_do_color)
 		return _intensity |
+		       (_italic ? 2 : 0) |
 		       (_underline ? 4 : 0) |
 		       (_reverse ? 8 : 0) |
 		       (_blink ? 0x80 : 0);
-	if (_underline)
+	if (_italic)
+		a = (a & 0xF0) | vc->vc_itcolor;
+	else if (_underline)
 		a = (a & 0xf0) | vc->vc_ulcolor;
 	else if (_intensity == 0)
 		a = (a & 0xf0) | vc->vc_ulcolor;
@@ -392,8 +397,10 @@ static u8 build_attr(struct vc_data *vc, u8 _color, u8 _intensity, u8 _blink, u8
 
 static void update_attr(struct vc_data *vc)
 {
-	vc->vc_attr = build_attr(vc, vc->vc_color, vc->vc_intensity, vc->vc_blink, vc->vc_underline, vc->vc_reverse ^ vc->vc_decscnm);
-	vc->vc_video_erase_char = (build_attr(vc, vc->vc_color, 1, vc->vc_blink, 0, vc->vc_decscnm) << 8) | ' ';
+	vc->vc_attr = build_attr(vc, vc->vc_color, vc->vc_intensity,
+	              vc->vc_blink, vc->vc_underline,
+	              vc->vc_reverse ^ vc->vc_decscnm, vc->vc_italic);
+	vc->vc_video_erase_char = (build_attr(vc, vc->vc_color, 1, vc->vc_blink, 0, vc->vc_decscnm, 0) << 8) | ' ';
 }
 
 /* Note: inverting the screen twice should revert to the original state */
@@ -1136,6 +1143,7 @@ static void csi_X(struct vc_data *vc, int vpar) /* erase the following vpar posi
 static void default_attr(struct vc_data *vc)
 {
 	vc->vc_intensity = 1;
+	vc->vc_italic = 0;
 	vc->vc_underline = 0;
 	vc->vc_reverse = 0;
 	vc->vc_blink = 0;
@@ -1157,6 +1165,9 @@ static void csi_m(struct vc_data *vc)
 				break;
 			case 2:
 				vc->vc_intensity = 0;
+				break;
+			case 3:
+				vc->vc_italic = 1;
 				break;
 			case 4:
 				vc->vc_underline = 1;
@@ -1197,6 +1208,9 @@ static void csi_m(struct vc_data *vc)
 			case 21:
 			case 22:
 				vc->vc_intensity = 1;
+				break;
+			case 23:
+				vc->vc_italic = 0;
 				break;
 			case 24:
 				vc->vc_underline = 0;
@@ -1458,6 +1472,7 @@ static void save_cur(struct vc_data *vc)
 	vc->vc_saved_x		= vc->vc_x;
 	vc->vc_saved_y		= vc->vc_y;
 	vc->vc_s_intensity	= vc->vc_intensity;
+	vc->vc_s_italic         = vc->vc_italic;
 	vc->vc_s_underline	= vc->vc_underline;
 	vc->vc_s_blink		= vc->vc_blink;
 	vc->vc_s_reverse	= vc->vc_reverse;
@@ -1472,6 +1487,7 @@ static void restore_cur(struct vc_data *vc)
 {
 	gotoxy(vc, vc->vc_saved_x, vc->vc_saved_y);
 	vc->vc_intensity	= vc->vc_s_intensity;
+	vc->vc_italic		= vc->vc_s_italic;
 	vc->vc_underline	= vc->vc_s_underline;
 	vc->vc_blink		= vc->vc_s_blink;
 	vc->vc_reverse		= vc->vc_s_reverse;
@@ -2686,6 +2702,11 @@ static void con_close(struct tty_struct *tty, struct file *filp)
 	mutex_unlock(&tty_mutex);
 }
 
+static int default_italic_color    = 2; // green (ASCII)
+static int default_underline_color = 3; // cyan (ASCII)
+module_param_named(italic, default_italic_color, int, S_IRUGO | S_IWUSR);
+module_param_named(underline, default_underline_color, int, S_IRUGO | S_IWUSR);
+
 static void vc_init(struct vc_data *vc, unsigned int rows,
 		    unsigned int cols, int do_clear)
 {
@@ -2705,7 +2726,8 @@ static void vc_init(struct vc_data *vc, unsigned int rows,
 		vc->vc_palette[k++] = default_blu[j] ;
 	}
 	vc->vc_def_color       = 0x07;   /* white */
-	vc->vc_ulcolor		= 0x0f;   /* bold white */
+	vc->vc_ulcolor         = default_underline_color;
+	vc->vc_itcolor         = default_italic_color;
 	vc->vc_halfcolor       = 0x08;   /* grey */
 	init_waitqueue_head(&vc->paste_wait);
 	reset_terminal(vc, do_clear);
