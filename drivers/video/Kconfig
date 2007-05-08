@@ -5,6 +5,7 @@
 menu "Graphics support"
 
 source "drivers/video/backlight/Kconfig"
+source "drivers/video/display/Kconfig"
 
 config FB
 	tristate "Support for frame buffer devices"
