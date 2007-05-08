@@ -26,15 +26,15 @@ static int __init rtc_hctosys(void)
 {
 	int err;
 	struct rtc_time tm;
-	struct class_device *class_dev = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
+	struct rtc_device *rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
 
-	if (class_dev == NULL) {
+	if (rtc == NULL) {
 		printk("%s: unable to open rtc device (%s)\n",
 			__FILE__, CONFIG_RTC_HCTOSYS_DEVICE);
 		return -ENODEV;
 	}
 
-	err = rtc_read_time(class_dev, &tm);
+	err = rtc_read_time(rtc, &tm);
 	if (err == 0) {
 		err = rtc_valid_tm(&tm);
 		if (err == 0) {
@@ -46,7 +46,7 @@ static int __init rtc_hctosys(void)
 
 			do_settimeofday(&tv);
 
-			dev_info(class_dev->dev,
+			dev_info(rtc->class_dev.dev,
 				"setting the system clock to "
 				"%d-%02d-%02d %02d:%02d:%02d (%u)\n",
 				tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
@@ -54,14 +54,14 @@ static int __init rtc_hctosys(void)
 				(unsigned int) tv.tv_sec);
 		}
 		else
-			dev_err(class_dev->dev,
+			dev_err(rtc->class_dev.dev,
 				"hctosys: invalid date/time\n");
 	}
 	else
-		dev_err(class_dev->dev,
+		dev_err(rtc->class_dev.dev,
 			"hctosys: unable to read the hardware clock\n");
 
-	rtc_class_close(class_dev);
+	rtc_class_close(rtc);
 
 	return 0;
 }

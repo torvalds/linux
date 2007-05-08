@@ -1,3 +1,5 @@
+extern int rtc_interface_register(struct class_interface *intf);
+
 #ifdef CONFIG_RTC_INTF_DEV
 
 extern void __init rtc_dev_init(void);

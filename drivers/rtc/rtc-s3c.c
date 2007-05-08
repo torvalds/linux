@@ -50,7 +50,7 @@ static irqreturn_t s3c_rtc_alarmirq(int irq, void *id)
 {
 	struct rtc_device *rdev = id;
 
-	rtc_update_irq(&rdev->class_dev, 1, RTC_AF | RTC_IRQF);
+	rtc_update_irq(rdev, 1, RTC_AF | RTC_IRQF);
 	return IRQ_HANDLED;
 }
 
@@ -58,7 +58,7 @@ static irqreturn_t s3c_rtc_tickirq(int irq, void *id)
 {
 	struct rtc_device *rdev = id;
 
-	rtc_update_irq(&rdev->class_dev, tick_count++, RTC_PF | RTC_IRQF);
+	rtc_update_irq(rdev, tick_count++, RTC_PF | RTC_IRQF);
 	return IRQ_HANDLED;
 }
 

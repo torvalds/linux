@@ -16,18 +16,21 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+#include "rtc-core.h"
+
+
 static struct class_device *rtc_dev = NULL;
 static DEFINE_MUTEX(rtc_lock);
 
 static int rtc_proc_show(struct seq_file *seq, void *offset)
 {
 	int err;
-	struct class_device *class_dev = seq->private;
-	const struct rtc_class_ops *ops = to_rtc_device(class_dev)->ops;
+	struct rtc_device *rtc = seq->private;
+	const struct rtc_class_ops *ops = rtc->ops;
 	struct rtc_wkalrm alrm;
 	struct rtc_time tm;
 
-	err = rtc_read_time(class_dev, &tm);
+	err = rtc_read_time(rtc, &tm);
 	if (err == 0) {
 		seq_printf(seq,
 			"rtc_time\t: %02d:%02d:%02d\n"
@@ -36,7 +39,7 @@ static int rtc_proc_show(struct seq_file *seq, void *offset)
 			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
 	}
 
-	err = rtc_read_alarm(class_dev, &alrm);
+	err = rtc_read_alarm(rtc, &alrm);
 	if (err == 0) {
 		seq_printf(seq, "alrm_time\t: ");
 		if ((unsigned int)alrm.time.tm_hour <= 24)
@@ -74,19 +77,19 @@ static int rtc_proc_show(struct seq_file *seq, void *offset)
 	seq_printf(seq, "24hr\t\t: yes\n");
 
 	if (ops->proc)
-		ops->proc(class_dev->dev, seq);
+		ops->proc(rtc->class_dev.dev, seq);
 
 	return 0;
 }
 
 static int rtc_proc_open(struct inode *inode, struct file *file)
 {
-	struct class_device *class_dev = PDE(inode)->data;
+	struct rtc_device *rtc = PDE(inode)->data;
 
 	if (!try_module_get(THIS_MODULE))
 		return -ENODEV;
 
-	return single_open(file, rtc_proc_show, class_dev);
+	return single_open(file, rtc_proc_show, rtc);
 }
 
 static int rtc_proc_release(struct inode *inode, struct file *file)
@@ -118,7 +121,7 @@ static int rtc_proc_add_device(struct class_device *class_dev,
 
 			ent->proc_fops = &rtc_proc_fops;
 			ent->owner = rtc->owner;
-			ent->data = class_dev;
+			ent->data = rtc;
 
 			dev_dbg(class_dev->dev, "rtc intf: proc\n");
 		}

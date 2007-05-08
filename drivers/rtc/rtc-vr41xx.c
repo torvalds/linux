@@ -275,7 +275,7 @@ static irqreturn_t elapsedtime_interrupt(int irq, void *dev_id)
 
 	rtc2_write(RTCINTREG, ELAPSEDTIME_INT);
 
-	rtc_update_irq(&rtc->class_dev, 1, RTC_AF);
+	rtc_update_irq(rtc, 1, RTC_AF);
 
 	return IRQ_HANDLED;
 }
@@ -291,7 +291,7 @@ static irqreturn_t rtclong1_interrupt(int irq, void *dev_id)
 	rtc1_write(RTCL1LREG, count);
 	rtc1_write(RTCL1HREG, count >> 16);
 
-	rtc_update_irq(&rtc->class_dev, 1, RTC_PF);
+	rtc_update_irq(rtc, 1, RTC_PF);
 
 	return IRQ_HANDLED;
 }

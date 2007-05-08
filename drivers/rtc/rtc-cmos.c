@@ -203,7 +203,7 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	rtc_intr = CMOS_READ(RTC_INTR_FLAGS);
 	rtc_intr &= (rtc_control & RTC_IRQMASK) | RTC_IRQF;
 	if (is_intr(rtc_intr))
-		rtc_update_irq(&cmos->rtc->class_dev, 1, rtc_intr);
+		rtc_update_irq(cmos->rtc, 1, rtc_intr);
 
 	/* update alarm */
 	CMOS_WRITE(hrs, RTC_HOURS_ALARM);
@@ -223,7 +223,7 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 		rtc_intr = CMOS_READ(RTC_INTR_FLAGS);
 		rtc_intr &= (rtc_control & RTC_IRQMASK) | RTC_IRQF;
 		if (is_intr(rtc_intr))
-			rtc_update_irq(&cmos->rtc->class_dev, 1, rtc_intr);
+			rtc_update_irq(cmos->rtc, 1, rtc_intr);
 	}
 
 	spin_unlock_irq(&rtc_lock);
@@ -304,7 +304,7 @@ cmos_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 	rtc_intr = CMOS_READ(RTC_INTR_FLAGS);
 	rtc_intr &= (rtc_control & RTC_IRQMASK) | RTC_IRQF;
 	if (is_intr(rtc_intr))
-		rtc_update_irq(&cmos->rtc->class_dev, 1, rtc_intr);
+		rtc_update_irq(cmos->rtc, 1, rtc_intr);
 	spin_unlock_irqrestore(&rtc_lock, flags);
 	return 0;
 }
@@ -471,7 +471,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	if (is_valid_irq(rtc_irq))
 		retval = request_irq(rtc_irq, cmos_interrupt, IRQF_DISABLED,
 				cmos_rtc.rtc->class_dev.class_id,
-				&cmos_rtc.rtc->class_dev);
+				cmos_rtc.rtc);
 	if (retval < 0) {
 		dev_dbg(dev, "IRQ %d is already in use\n", rtc_irq);
 		goto cleanup1;
@@ -555,7 +555,7 @@ static int cmos_suspend(struct device *dev, pm_message_t mesg)
 		irqstat = CMOS_READ(RTC_INTR_FLAGS);
 		irqstat &= (tmp & RTC_IRQMASK) | RTC_IRQF;
 		if (is_intr(irqstat))
-			rtc_update_irq(&cmos->rtc->class_dev, 1, irqstat);
+			rtc_update_irq(cmos->rtc, 1, irqstat);
 	}
 	spin_unlock_irq(&rtc_lock);
 
@@ -590,7 +590,7 @@ static int cmos_resume(struct device *dev)
 		tmp = CMOS_READ(RTC_INTR_FLAGS);
 		tmp &= (cmos->suspend_ctrl & RTC_IRQMASK) | RTC_IRQF;
 		if (is_intr(tmp))
-			rtc_update_irq(&cmos->rtc->class_dev, 1, tmp);
+			rtc_update_irq(cmos->rtc, 1, tmp);
 		spin_unlock_irq(&rtc_lock);
 	}
 

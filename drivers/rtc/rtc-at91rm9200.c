@@ -263,7 +263,7 @@ static irqreturn_t at91_rtc_interrupt(int irq, void *dev_id)
 
 		at91_sys_write(AT91_RTC_SCCR, rtsr);	/* clear status reg */
 
-		rtc_update_irq(&rtc->class_dev, 1, events);
+		rtc_update_irq(rtc, 1, events);
 
 		pr_debug("%s(): num=%ld, events=0x%02lx\n", __FUNCTION__,
 			events >> 8, events & 0x000000FF);

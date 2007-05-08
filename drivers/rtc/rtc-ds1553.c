@@ -203,7 +203,7 @@ static irqreturn_t ds1553_rtc_interrupt(int irq, void *dev_id)
 		events |= RTC_UF;
 	else
 		events |= RTC_AF;
-	rtc_update_irq(&pdata->rtc->class_dev, 1, events);
+	rtc_update_irq(pdata->rtc, 1, events);
 	return IRQ_HANDLED;
 }
 

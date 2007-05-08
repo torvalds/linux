@@ -32,7 +32,7 @@ static int rtc_dev_open(struct inode *inode, struct file *file)
 	if (!(mutex_trylock(&rtc->char_lock)))
 		return -EBUSY;
 
-	file->private_data = &rtc->class_dev;
+	file->private_data = rtc;
 
 	err = ops->open ? ops->open(rtc->class_dev.dev) : 0;
 	if (err == 0) {
@@ -61,7 +61,7 @@ static void rtc_uie_task(struct work_struct *work)
 	int num = 0;
 	int err;
 
-	err = rtc_read_time(&rtc->class_dev, &tm);
+	err = rtc_read_time(rtc, &tm);
 
 	local_irq_disable();
 	spin_lock(&rtc->irq_lock);
@@ -79,7 +79,7 @@ static void rtc_uie_task(struct work_struct *work)
 	}
 	spin_unlock(&rtc->irq_lock);
 	if (num)
-		rtc_update_irq(&rtc->class_dev, num, RTC_UF | RTC_IRQF);
+		rtc_update_irq(rtc, num, RTC_UF | RTC_IRQF);
 	local_irq_enable();
 }
 static void rtc_uie_timer(unsigned long data)
@@ -121,7 +121,7 @@ static int set_uie(struct rtc_device *rtc)
 	struct rtc_time tm;
 	int err;
 
-	err = rtc_read_time(&rtc->class_dev, &tm);
+	err = rtc_read_time(rtc, &tm);
 	if (err)
 		return err;
 	spin_lock_irq(&rtc->irq_lock);
@@ -210,8 +210,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
 	int err = 0;
-	struct class_device *class_dev = file->private_data;
-	struct rtc_device *rtc = to_rtc_device(class_dev);
+	struct rtc_device *rtc = file->private_data;
 	const struct rtc_class_ops *ops = rtc->ops;
 	struct rtc_time tm;
 	struct rtc_wkalrm alarm;
@@ -252,7 +251,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 
 	/* try the driver's ioctl interface */
 	if (ops->ioctl) {
-		err = ops->ioctl(class_dev->dev, cmd, arg);
+		err = ops->ioctl(rtc->class_dev.dev, cmd, arg);
 		if (err != -ENOIOCTLCMD)
 			return err;
 	}
@@ -264,7 +263,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 	case RTC_ALM_READ:
-		err = rtc_read_alarm(class_dev, &alarm);
+		err = rtc_read_alarm(rtc, &alarm);
 		if (err < 0)
 			return err;
 
@@ -284,11 +283,11 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 		alarm.time.tm_wday = -1;
 		alarm.time.tm_yday = -1;
 		alarm.time.tm_isdst = -1;
-		err = rtc_set_alarm(class_dev, &alarm);
+		err = rtc_set_alarm(rtc, &alarm);
 		break;
 
 	case RTC_RD_TIME:
-		err = rtc_read_time(class_dev, &tm);
+		err = rtc_read_time(rtc, &tm);
 		if (err < 0)
 			return err;
 
@@ -300,7 +299,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 		if (copy_from_user(&tm, uarg, sizeof(tm)))
 			return -EFAULT;
 
-		err = rtc_set_time(class_dev, &tm);
+		err = rtc_set_time(rtc, &tm);
 		break;
 
 	case RTC_IRQP_READ:
@@ -310,7 +309,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 
 	case RTC_IRQP_SET:
 		if (ops->irq_set_freq)
-			err = rtc_irq_set_freq(class_dev, rtc->irq_task, arg);
+			err = rtc_irq_set_freq(rtc, rtc->irq_task, arg);
 		break;
 
 #if 0
@@ -336,11 +335,11 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 		if (copy_from_user(&alarm, uarg, sizeof(alarm)))
 			return -EFAULT;
 
-		err = rtc_set_alarm(class_dev, &alarm);
+		err = rtc_set_alarm(rtc, &alarm);
 		break;
 
 	case RTC_WKALM_RD:
-		err = rtc_read_alarm(class_dev, &alarm);
+		err = rtc_read_alarm(rtc, &alarm);
 		if (err < 0)
 			return err;
 

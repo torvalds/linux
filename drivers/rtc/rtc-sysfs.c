@@ -12,6 +12,9 @@
 #include <linux/module.h>
 #include <linux/rtc.h>
 
+#include "rtc-core.h"
+
+
 /* device attributes */
 
 static ssize_t rtc_sysfs_show_name(struct class_device *dev, char *buf)
@@ -25,7 +28,7 @@ static ssize_t rtc_sysfs_show_date(struct class_device *dev, char *buf)
 	ssize_t retval;
 	struct rtc_time tm;
 
-	retval = rtc_read_time(dev, &tm);
+	retval = rtc_read_time(to_rtc_device(dev), &tm);
 	if (retval == 0) {
 		retval = sprintf(buf, "%04d-%02d-%02d\n",
 			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
@@ -40,7 +43,7 @@ static ssize_t rtc_sysfs_show_time(struct class_device *dev, char *buf)
 	ssize_t retval;
 	struct rtc_time tm;
 
-	retval = rtc_read_time(dev, &tm);
+	retval = rtc_read_time(to_rtc_device(dev), &tm);
 	if (retval == 0) {
 		retval = sprintf(buf, "%02d:%02d:%02d\n",
 			tm.tm_hour, tm.tm_min, tm.tm_sec);
@@ -55,7 +58,7 @@ static ssize_t rtc_sysfs_show_since_epoch(struct class_device *dev, char *buf)
 	ssize_t retval;
 	struct rtc_time tm;
 
-	retval = rtc_read_time(dev, &tm);
+	retval = rtc_read_time(to_rtc_device(dev), &tm);
 	if (retval == 0) {
 		unsigned long time;
 		rtc_tm_to_time(&tm, &time);
@@ -94,7 +97,7 @@ rtc_sysfs_show_wakealarm(struct class_device *dev, char *buf)
 	 * REVISIT maybe we should require RTC implementations to
 	 * disable the RTC alarm after it triggers, for uniformity.
 	 */
-	retval = rtc_read_alarm(dev, &alm);
+	retval = rtc_read_alarm(to_rtc_device(dev), &alm);
 	if (retval == 0 && alm.enabled) {
 		rtc_tm_to_time(&alm.time, &alarm);
 		retval = sprintf(buf, "%lu\n", alarm);
@@ -109,11 +112,12 @@ rtc_sysfs_set_wakealarm(struct class_device *dev, const char *buf, size_t n)
 	ssize_t retval;
 	unsigned long now, alarm;
 	struct rtc_wkalrm alm;
+	struct rtc_device *rtc = to_rtc_device(dev);
 
 	/* Only request alarms that trigger in the future.  Disable them
 	 * by writing another time, e.g. 0 meaning Jan 1 1970 UTC.
 	 */
-	retval = rtc_read_time(dev, &alm.time);
+	retval = rtc_read_time(rtc, &alm.time);
 	if (retval < 0)
 		return retval;
 	rtc_tm_to_time(&alm.time, &now);
@@ -124,7 +128,7 @@ rtc_sysfs_set_wakealarm(struct class_device *dev, const char *buf, size_t n)
 		 * entirely prevent that here, without even the minimal
 		 * locking from the /dev/rtcN api.
 		 */
-		retval = rtc_read_alarm(dev, &alm);
+		retval = rtc_read_alarm(rtc, &alm);
 		if (retval < 0)
 			return retval;
 		if (alm.enabled)
@@ -141,7 +145,7 @@ rtc_sysfs_set_wakealarm(struct class_device *dev, const char *buf, size_t n)
 	}
 	rtc_time_to_tm(alarm, &alm.time);
 
-	retval = rtc_set_alarm(dev, &alm);
+	retval = rtc_set_alarm(rtc, &alm);
 	return (retval < 0) ? retval : n;
 }
 static const CLASS_DEVICE_ATTR(wakealarm, S_IRUGO | S_IWUSR,

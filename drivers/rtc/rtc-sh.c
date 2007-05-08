@@ -104,7 +104,7 @@ static irqreturn_t sh_rtc_interrupt(int irq, void *dev_id)
 
 	writeb(tmp, rtc->regbase + RCR1);
 
-	rtc_update_irq(&rtc->rtc_dev->class_dev, 1, events);
+	rtc_update_irq(&rtc->rtc_dev, 1, events);
 
 	spin_unlock(&rtc->lock);
 
@@ -139,7 +139,7 @@ static irqreturn_t sh_rtc_alarm(int irq, void *dev_id)
 
 		rtc->rearm_aie = 1;
 
-		rtc_update_irq(&rtc->rtc_dev->class_dev, 1, events);
+		rtc_update_irq(&rtc->rtc_dev, 1, events);
 	}
 
 	spin_unlock(&rtc->lock);
@@ -153,7 +153,7 @@ static irqreturn_t sh_rtc_periodic(int irq, void *dev_id)
 
 	spin_lock(&rtc->lock);
 
-	rtc_update_irq(&rtc->rtc_dev->class_dev, 1, RTC_PF | RTC_IRQF);
+	rtc_update_irq(&rtc->rtc_dev, 1, RTC_PF | RTC_IRQF);
 
 	spin_unlock(&rtc->lock);
 

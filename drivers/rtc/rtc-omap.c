@@ -124,7 +124,7 @@ static void rtc_wait_not_busy(void)
 	/* now we have ~15 usec to read/write various registers */
 }
 
-static irqreturn_t rtc_irq(int irq, void *class_dev)
+static irqreturn_t rtc_irq(int irq, void *rtc)
 {
 	unsigned long		events = 0;
 	u8			irq_data;
@@ -141,7 +141,7 @@ static irqreturn_t rtc_irq(int irq, void *class_dev)
 	if (irq_data & OMAP_RTC_STATUS_1S_EVENT)
 		events |= RTC_IRQF | RTC_UF;
 
-	rtc_update_irq(class_dev, 1, events);
+	rtc_update_irq(rtc, 1, events);
 
 	return IRQ_HANDLED;
 }
