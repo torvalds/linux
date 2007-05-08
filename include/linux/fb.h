@@ -561,6 +561,16 @@ struct fb_pixmap {
 	void (*readio) (struct fb_info *info, void *dst, void __iomem *src, unsigned int size);
 };
 
+#ifdef CONFIG_FB_DEFERRED_IO
+struct fb_deferred_io {
+	/* delay between mkwrite and deferred handler */
+	unsigned long delay;
+	struct mutex lock; /* mutex that protects the page list */
+	struct list_head pagelist; /* list of touched pages */
+	/* callback */
+	void (*deferred_io)(struct fb_info *info, struct list_head *pagelist);
+};
+#endif
 
 /*
  * Frame buffer operations
@@ -778,6 +788,10 @@ struct fb_info {
 	struct mutex bl_curve_mutex;	
 	u8 bl_curve[FB_BACKLIGHT_LEVELS];
 #endif
+#ifdef CONFIG_FB_DEFERRED_IO
+	struct delayed_work deferred_work;
+	struct fb_deferred_io *fbdefio;
+#endif
 
 	struct fb_ops *fbops;
 	struct device *device;		/* This is the parent */
@@ -912,6 +926,12 @@ static inline void __fb_pad_aligned_buffer(u8 *dst, u32 d_pitch,
 		dst += d_pitch;
 	}
 }
+
+#ifdef CONFIG_FB_DEFERRED_IO
+/* drivers/video/fb_defio.c */
+extern void fb_deferred_io_init(struct fb_info *info);
+extern void fb_deferred_io_cleanup(struct fb_info *info);
+#endif
 
 /* drivers/video/fbsysfs.c */
 extern struct fb_info *framebuffer_alloc(size_t size, struct device *dev);

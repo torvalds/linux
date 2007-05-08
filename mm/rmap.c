@@ -505,6 +505,7 @@ int page_mkclean(struct page *page)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(page_mkclean);
 
 /**
  * page_set_anon_rmap - setup new anonymous rmap

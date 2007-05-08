@@ -91,6 +91,11 @@ config FB_CFB_IMAGEBLIT
 	  blitting. This is used by drivers that don't provide their own
 	  (accelerated) version.
 
+config FB_DEFERRED_IO
+	bool
+	depends on FB
+	default y
+
 config FB_SVGALIB
 	tristate
 	depends on FB
