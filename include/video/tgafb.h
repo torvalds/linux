@@ -39,6 +39,7 @@
 #define	TGA_RASTEROP_REG		0x0034
 #define	TGA_PIXELSHIFT_REG		0x0038
 #define	TGA_DEEP_REG			0x0050
+#define	TGA_START_REG			0x0054
 #define	TGA_PIXELMASK_REG		0x005c
 #define	TGA_CURSOR_BASE_REG		0x0060
 #define	TGA_HORIZ_REG			0x0064
@@ -140,7 +141,7 @@
 
 
 /*
- * Useful defines for managing the BT463 on the 24-plane TGAs
+ * Useful defines for managing the BT463 on the 24-plane TGAs/SFB+s
  */
 
 #define	BT463_ADDR_LO		0x0
@@ -168,12 +169,35 @@
 #define	BT463_WINDOW_TYPE_BASE	0x0300
 
 /*
+ * Useful defines for managing the BT459 on the 8-plane SFB+s
+ */
+
+#define	BT459_ADDR_LO		0x0
+#define	BT459_ADDR_HI		0x1
+#define	BT459_REG_ACC		0x2
+#define	BT459_PALETTE		0x3
+
+#define	BT459_CUR_CLR_1		0x0181
+#define	BT459_CUR_CLR_2		0x0182
+#define	BT459_CUR_CLR_3		0x0183
+
+#define	BT459_CMD_REG_0		0x0201
+#define	BT459_CMD_REG_1		0x0202
+#define	BT459_CMD_REG_2		0x0203
+
+#define	BT459_READ_MASK		0x0204
+
+#define	BT459_BLINK_MASK	0x0206
+
+#define	BT459_CUR_CMD_REG	0x0300
+
+/*
  * The framebuffer driver private data.
  */
 
 struct tga_par {
-	/* PCI device.  */
-	struct pci_dev *pdev;
+	/* PCI/TC device.  */
+	struct device *dev;
 
 	/* Device dependent information.  */
 	void __iomem *tga_mem_base;
@@ -233,6 +257,23 @@ BT463_WRITE(struct tga_par *par, u32 m, u16 a, u8 v)
 	BT463_LOAD_ADDR(par, a);
 	TGA_WRITE_REG(par, m << 2, TGA_RAMDAC_SETUP_REG);
 	TGA_WRITE_REG(par, m << 10 | v, TGA_RAMDAC_REG);
+}
+
+static inline void
+BT459_LOAD_ADDR(struct tga_par *par, u16 a)
+{
+	TGA_WRITE_REG(par, BT459_ADDR_LO << 2, TGA_RAMDAC_SETUP_REG);
+	TGA_WRITE_REG(par, a & 0xff, TGA_RAMDAC_REG);
+	TGA_WRITE_REG(par, BT459_ADDR_HI << 2, TGA_RAMDAC_SETUP_REG);
+	TGA_WRITE_REG(par, a >> 8, TGA_RAMDAC_REG);
+}
+
+static inline void
+BT459_WRITE(struct tga_par *par, u32 m, u16 a, u8 v)
+{
+	BT459_LOAD_ADDR(par, a);
+	TGA_WRITE_REG(par, m << 2, TGA_RAMDAC_SETUP_REG);
+	TGA_WRITE_REG(par, v, TGA_RAMDAC_REG);
 }
 
 #endif /* TGAFB_H */

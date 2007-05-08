@@ -525,15 +525,25 @@ config FB_HP300
 	default y
 
 config FB_TGA
-	tristate "TGA framebuffer support"
-	depends on FB && ALPHA
+	tristate "TGA/SFB+ framebuffer support"
+	depends on FB && (ALPHA || TC)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select BITREVERSE
-	help
-	  This is the frame buffer device driver for generic TGA graphic
-	  cards. Say Y if you have one of those.
+	---help---
+	  This is the frame buffer device driver for generic TGA and SFB+
+	  graphic cards.  These include DEC ZLXp-E1, -E2 and -E3 PCI cards,
+	  also known as PBXGA-A, -B and -C, and DEC ZLX-E1, -E2 and -E3
+	  TURBOchannel cards, also known as PMAGD-A, -B and -C.
+
+	  Due to hardware limitations ZLX-E2 and E3 cards are not supported
+	  for DECstation 5000/200 systems.  Additionally due to firmware
+	  limitations these cards may cause troubles with booting DECstation
+	  5000/240 and /260 systems, but are fully supported under Linux if
+	  you manage to get it going. ;-)
+
+	  Say Y if you have one of those.
 
 config FB_VESA
 	bool "VESA VGA graphics support"
