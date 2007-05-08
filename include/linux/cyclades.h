@@ -588,7 +588,7 @@ struct cyclades_port {
 	struct work_struct	tqueue;
 	wait_queue_head_t       open_wait;
 	wait_queue_head_t       close_wait;
-	wait_queue_head_t       shutdown_wait;
+	struct completion       shutdown_wait;
 	wait_queue_head_t       delta_msr_wait;
 	int throttle;
 };

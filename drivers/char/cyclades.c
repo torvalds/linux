@@ -947,7 +947,7 @@ do_softint(struct work_struct *work)
 	tty_wakeup(tty);
 #ifdef Z_WAKE
 	if (test_and_clear_bit(Cy_EVENT_SHUTDOWN_WAKEUP, &info->event))
-		wake_up_interruptible(&info->shutdown_wait);
+		complete(&info->shutdown_wait);
 #endif
 } /* do_softint */
 
@@ -2324,9 +2324,8 @@ block_til_ready(struct tty_struct *tty, struct file *filp,
 	 * until it's done, and then try again.
 	 */
 	if (tty_hung_up_p(filp) || (info->flags & ASYNC_CLOSING)) {
-		if (info->flags & ASYNC_CLOSING) {
-			interruptible_sleep_on(&info->close_wait);
-		}
+		wait_event_interruptible(info->close_wait,
+				!(info->flags & ASYNC_CLOSING));
 		return (info->flags & ASYNC_HUP_NOTIFY) ? -EAGAIN: -ERESTARTSYS;
 	}
 
@@ -2597,8 +2596,8 @@ static int cy_open(struct tty_struct *tty, struct file *filp)
 	 * If the port is the middle of closing, bail out now
 	 */
 	if (tty_hung_up_p(filp) || (info->flags & ASYNC_CLOSING)) {
-		if (info->flags & ASYNC_CLOSING)
-			interruptible_sleep_on(&info->close_wait);
+		wait_event_interruptible(info->close_wait,
+				!(info->flags & ASYNC_CLOSING));
 		return (info->flags & ASYNC_HUP_NOTIFY) ? -EAGAIN: -ERESTARTSYS;
 	}
 
@@ -2805,7 +2804,7 @@ static void cy_close(struct tty_struct *tty, struct file *filp)
 					"ttyC%d was %x\n", info->line, retval);
 			}
 			CY_UNLOCK(info, flags);
-			interruptible_sleep_on(&info->shutdown_wait);
+			wait_for_completion_interruptible(&info->shutdown_wait);
 			CY_LOCK(info, flags);
 		}
 #endif
@@ -4091,32 +4090,20 @@ cy_ioctl(struct tty_struct *tty, struct file *file,
 	case TIOCMIWAIT:
 		CY_LOCK(info, flags);
 		/* note the counters on entry */
-		cprev = info->icount;
+		cnow = info->icount;
 		CY_UNLOCK(info, flags);
-		while (1) {
-			interruptible_sleep_on(&info->delta_msr_wait);
-			/* see if a signal did it */
-			if (signal_pending(current)) {
-				return -ERESTARTSYS;
-			}
-
+		ret_val = wait_event_interruptible(info->delta_msr_wait, ({
+			cprev = cnow;
 			CY_LOCK(info, flags);
 			cnow = info->icount;	/* atomic copy */
 			CY_UNLOCK(info, flags);
 
-			if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr &&
-			    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts) {
-				return -EIO;	/* no change => error */
-			}
-			if (((arg & TIOCM_RNG) && (cnow.rng != cprev.rng)) ||
-			    ((arg & TIOCM_DSR) && (cnow.dsr != cprev.dsr)) ||
-			    ((arg & TIOCM_CD) && (cnow.dcd != cprev.dcd)) ||
-			    ((arg & TIOCM_CTS) && (cnow.cts != cprev.cts))) {
-				return 0;
-			}
-			cprev = cnow;
-		}
-		/* NOTREACHED */
+			((arg & TIOCM_RNG) && (cnow.rng != cprev.rng)) ||
+			((arg & TIOCM_DSR) && (cnow.dsr != cprev.dsr)) ||
+			((arg & TIOCM_CD)  && (cnow.dcd != cprev.dcd)) ||
+			((arg & TIOCM_CTS) && (cnow.cts != cprev.cts));
+		}));
+		break;
 
 		/*
 		 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
@@ -4534,7 +4521,7 @@ static void __devinit cy_init_card(struct cyclades_card *cinfo)
 		INIT_WORK(&info->tqueue, do_softint);
 		init_waitqueue_head(&info->open_wait);
 		init_waitqueue_head(&info->close_wait);
-		init_waitqueue_head(&info->shutdown_wait);
+		init_completion(&info->shutdown_wait);
 		init_waitqueue_head(&info->delta_msr_wait);
 
 		if (IS_CYC_Z(*cinfo)) {
