@@ -53,6 +53,16 @@
 #define RX_RING_SIZE 512
 #define TX_RING_SIZE 512
 
+#define DEFAULT_MSG_ENABLE	  \
+	(NETIF_MSG_DRV		| \
+	 NETIF_MSG_PROBE	| \
+	 NETIF_MSG_LINK		| \
+	 NETIF_MSG_TIMER	| \
+	 NETIF_MSG_IFDOWN	| \
+	 NETIF_MSG_IFUP		| \
+	 NETIF_MSG_RX_ERR	| \
+	 NETIF_MSG_TX_ERR)
+
 #define TX_DESC(mac, num)	((mac)->tx->desc[(num) & (TX_RING_SIZE-1)])
 #define TX_DESC_INFO(mac, num)	((mac)->tx->desc_info[(num) & (TX_RING_SIZE-1)])
 #define RX_DESC(mac, num)	((mac)->rx->desc[(num) & (RX_RING_SIZE-1)])
@@ -60,6 +70,14 @@
 #define RX_BUFF(mac, num)	((mac)->rx->buffers[(num) & (RX_RING_SIZE-1)])
 
 #define BUF_SIZE 1646 /* 1500 MTU + ETH_HLEN + VLAN_HLEN + 2 64B cachelines */
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR ("Olof Johansson <olof@lixom.net>");
+MODULE_DESCRIPTION("PA Semi PWRficient Ethernet driver");
+
+static int debug = -1;	/* -1 == use DEFAULT_MSG_ENABLE as value */
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, "PA Semi MAC bitmapped debugging message enable value");
 
 static struct pasdma_status *dma_status;
 
@@ -873,6 +891,7 @@ static struct net_device_stats *pasemi_mac_get_stats(struct net_device *dev)
 	return &mac->stats;
 }
 
+
 static void pasemi_mac_set_rx_mode(struct net_device *dev)
 {
 	struct pasemi_mac *mac = netdev_priv(dev);
@@ -1007,6 +1026,8 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mac->rx_status = &dma_status->rx_sta[mac->dma_rxch];
 	mac->tx_status = &dma_status->tx_sta[mac->dma_txch];
 
+	mac->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
+
 	err = register_netdev(dev);
 
 	if (err) {
@@ -1080,10 +1101,6 @@ int pasemi_mac_init_module(void)
 {
 	return pci_register_driver(&pasemi_mac_driver);
 }
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR ("Olof Johansson <olof@lixom.net>");
-MODULE_DESCRIPTION("PA Semi PWRficient Ethernet driver");
 
 module_init(pasemi_mac_init_module);
 module_exit(pasemi_mac_cleanup_module);
