@@ -289,34 +289,6 @@ static int omap_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
 	u8 reg;
 
-	/* Much userspace code uses RTC_ALM_SET, thus "don't care" for
-	 * day/month/year specifies alarms up to 24 hours in the future.
-	 * So we need to handle that ... but let's ignore the "don't care"
-	 * values for hours/minutes/seconds.
-	 */
-	if (alm->time.tm_mday <= 0
-			&& alm->time.tm_mon < 0
-			&& alm->time.tm_year < 0) {
-		struct rtc_time tm;
-		unsigned long now, then;
-
-		omap_rtc_read_time(dev, &tm);
-		rtc_tm_to_time(&tm, &now);
-
-		alm->time.tm_mday = tm.tm_mday;
-		alm->time.tm_mon = tm.tm_mon;
-		alm->time.tm_year = tm.tm_year;
-		rtc_tm_to_time(&alm->time, &then);
-
-		/* sometimes the alarm wraps into tomorrow */
-		if (then < now) {
-			rtc_time_to_tm(now + 24 * 60 * 60, &tm);
-			alm->time.tm_mday = tm.tm_mday;
-			alm->time.tm_mon = tm.tm_mon;
-			alm->time.tm_year = tm.tm_year;
-		}
-	}
-
 	if (tm2bcd(&alm->time) < 0)
 		return -EINVAL;
 

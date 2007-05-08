@@ -277,12 +277,48 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 
 		alarm.enabled = 0;
 		alarm.pending = 0;
-		alarm.time.tm_mday = -1;
-		alarm.time.tm_mon = -1;
-		alarm.time.tm_year = -1;
 		alarm.time.tm_wday = -1;
 		alarm.time.tm_yday = -1;
 		alarm.time.tm_isdst = -1;
+
+		/* RTC_ALM_SET alarms may be up to 24 hours in the future.
+		 * Rather than expecting every RTC to implement "don't care"
+		 * for day/month/year fields, just force the alarm to have
+		 * the right values for those fields.
+		 *
+		 * RTC_WKALM_SET should be used instead.  Not only does it
+		 * eliminate the need for a separate RTC_AIE_ON call, it
+		 * doesn't have the "alarm 23:59:59 in the future" race.
+		 *
+		 * NOTE:  some legacy code may have used invalid fields as
+		 * wildcards, exposing hardware "periodic alarm" capabilities.
+		 * Not supported here.
+		 */
+		{
+			unsigned long now, then;
+
+			err = rtc_read_time(rtc, &tm);
+			if (err < 0)
+				return err;
+			rtc_tm_to_time(&tm, &now);
+
+			alarm.time.tm_mday = tm.tm_mday;
+			alarm.time.tm_mon = tm.tm_mon;
+			alarm.time.tm_year = tm.tm_year;
+			err  = rtc_valid_tm(&alarm.time);
+			if (err < 0)
+				return err;
+			rtc_tm_to_time(&alarm.time, &then);
+
+			/* alarm may need to wrap into tomorrow */
+			if (then < now) {
+				rtc_time_to_tm(now + 24 * 60 * 60, &tm);
+				alarm.time.tm_mday = tm.tm_mday;
+				alarm.time.tm_mon = tm.tm_mon;
+				alarm.time.tm_year = tm.tm_year;
+			}
+		}
+
 		err = rtc_set_alarm(rtc, &alarm);
 		break;
 
