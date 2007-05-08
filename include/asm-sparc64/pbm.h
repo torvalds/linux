@@ -36,12 +36,6 @@ extern void pci_iommu_table_init(struct iommu *iommu, int tsbsize, u32 dma_offse
 #define PCI_STC_FLUSHFLAG_SET(STC) \
 	(*((STC)->strbuf_flushflag) != 0UL)
 
-/* There can be quite a few ranges and interrupt maps on a PCI
- * segment.  Thus...
- */
-#define PROM_PCIRNG_MAX		64
-#define PROM_PCIIMAP_MAX	64
-
 struct pci_controller_info;
 
 struct pci_pbm_info {
