@@ -656,7 +656,7 @@ int NVCommonSetup(struct fb_info *info)
 	par->LVDS = 0;
 	if (par->FlatPanel && par->twoHeads) {
 		NV_WR32(par->PRAMDAC0, 0x08B0, 0x00010004);
-		if (par->PRAMDAC0[0x08b4] & 1)
+		if (NV_RD32(par->PRAMDAC0, 0x08b4) & 1)
 			par->LVDS = 1;
 		printk("nvidiafb: Panel is %s\n", par->LVDS ? "LVDS" : "TMDS");
 	}
