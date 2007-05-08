@@ -100,6 +100,7 @@ int unregister_binfmt(struct linux_binfmt * fmt)
 	while (*tmp) {
 		if (fmt == *tmp) {
 			*tmp = fmt->next;
+			fmt->next = NULL;
 			write_unlock(&binfmt_lock);
 			return 0;
 		}
