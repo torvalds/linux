@@ -125,10 +125,15 @@ DECLARE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 #ifdef ARCH_SUPPORTS_KRETPROBES
 extern void arch_prepare_kretprobe(struct kretprobe_instance *ri,
 				   struct pt_regs *regs);
+extern int arch_trampoline_kprobe(struct kprobe *p);
 #else /* ARCH_SUPPORTS_KRETPROBES */
 static inline void arch_prepare_kretprobe(struct kretprobe *rp,
 					struct pt_regs *regs)
 {
+}
+static inline int arch_trampoline_kprobe(struct kprobe *p)
+{
+	return 0;
 }
 #endif /* ARCH_SUPPORTS_KRETPROBES */
 /*
