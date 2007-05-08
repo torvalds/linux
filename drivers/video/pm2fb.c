@@ -1117,20 +1117,31 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 		default_par->mem_control, default_par->boot_address,
 		default_par->mem_config);
 
+	default_par->memclock = CVPPC_MEMCLOCK;
 	if(default_par->mem_control == 0 &&
 		default_par->boot_address == 0x31 &&
-		default_par->mem_config == 0x259fffff &&
-		pdev->subsystem_vendor == 0x1048 &&
-		pdev->subsystem_device == 0x0a31) {
-		DPRINTK("subsystem_vendor: %04x, subsystem_device: %04x\n",
-			pdev->subsystem_vendor, pdev->subsystem_device);
-		DPRINTK("We have not been initialized by VGA BIOS "
-			"and are running on an Elsa Winner 2000 Office\n");
-		DPRINTK("Initializing card timings manually...\n");
+		default_par->mem_config == 0x259fffff) {
 		default_par->mem_control=0;
 		default_par->boot_address=0x20;
 		default_par->mem_config=0xe6002021;
-		default_par->memclock=100000;
+		if (pdev->subsystem_vendor == 0x1048 &&
+			pdev->subsystem_device == 0x0a31) {
+			DPRINTK("subsystem_vendor: %04x, subsystem_device: %04x\n",
+				pdev->subsystem_vendor, pdev->subsystem_device);
+			DPRINTK("We have not been initialized by VGA BIOS "
+				"and are running on an Elsa Winner 2000 Office\n");
+			DPRINTK("Initializing card timings manually...\n");
+			default_par->memclock=70000;
+		}
+		if (pdev->subsystem_vendor == 0x3d3d &&
+			pdev->subsystem_device == 0x0100) {
+			DPRINTK("subsystem_vendor: %04x, subsystem_device: %04x\n",
+				pdev->subsystem_vendor, pdev->subsystem_device);
+			DPRINTK("We have not been initialized by VGA BIOS "
+				"and are running on an 3dlabs reference board\n");
+			DPRINTK("Initializing card timings manually...\n");
+			default_par->memclock=70000;
+		}
 	}
 
 	/* Now work out how big lfb is going to be. */
@@ -1148,7 +1159,6 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 		default_par->fb_size=0x800000;
 		break;
 	}
-	default_par->memclock = CVPPC_MEMCLOCK;
 	pm2fb_fix.smem_start = pci_resource_start(pdev, 1);
 	pm2fb_fix.smem_len = default_par->fb_size;
 
@@ -1242,6 +1252,9 @@ static struct pci_device_id pm2fb_id_table[] = {
 	{ PCI_VENDOR_ID_3DLABS, PCI_DEVICE_ID_3DLABS_PERMEDIA2V,
 	  PCI_ANY_ID, PCI_ANY_ID, PCI_BASE_CLASS_DISPLAY << 16,
 	  0xff0000, 0 },
+	{ PCI_VENDOR_ID_3DLABS, PCI_DEVICE_ID_3DLABS_PERMEDIA2V,
+	  PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_NOT_DEFINED_VGA << 8,
+	  0xff00, 0 },
 	{ 0, }
 };
 
