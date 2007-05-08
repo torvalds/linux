@@ -470,18 +470,11 @@ static int kallsyms_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static int kallsyms_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *m = (struct seq_file *)file->private_data;
-	kfree(m->private);
-	return seq_release(inode, file);
-}
-
 static const struct file_operations kallsyms_operations = {
 	.open = kallsyms_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = kallsyms_release,
+	.release = seq_release_private,
 };
 
 static int __init kallsyms_init(void)
