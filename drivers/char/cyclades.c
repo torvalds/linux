@@ -5285,8 +5285,6 @@ static void __exit cy_cleanup_module(void)
 		printk(KERN_ERR "failed to unregister Cyclades serial "
 				"driver(%d)\n", e1);
 
-	put_tty_driver(cy_serial_driver);
-
 #ifdef CONFIG_PCI
 	pci_unregister_driver(&cy_pci_driver);
 #endif
@@ -5310,6 +5308,8 @@ static void __exit cy_cleanup_module(void)
 				tty_unregister_device(cy_serial_driver, e1);
 		}
 	}
+
+	put_tty_driver(cy_serial_driver);
 } /* cy_cleanup_module */
 
 module_init(cy_init);
