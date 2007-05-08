@@ -279,8 +279,8 @@ static void pasemi_mac_free_rx_resources(struct net_device *dev)
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		info = &RX_DESC_INFO(mac, i);
 		dp = &RX_DESC(mac, i);
-		if (info->dma) {
-			if (info->skb) {
+		if (info->skb) {
+			if (info->dma) {
 				pci_unmap_single(mac->dma_pdev,
 						 info->dma,
 						 info->skb->len,
@@ -329,12 +329,14 @@ static void pasemi_mac_replenish_rx_ring(struct net_device *dev)
 		struct sk_buff *skb;
 		dma_addr_t dma;
 
-		skb = dev_alloc_skb(BUF_SIZE);
+		/* skb might still be in there for recycle on short receives */
+		if (info->skb)
+			skb = info->skb;
+		else
+			skb = dev_alloc_skb(BUF_SIZE);
 
-		if (!skb) {
-			count = i - start;
+		if (unlikely(!skb))
 			break;
-		}
 
 		dma = pci_map_single(mac->dma_pdev, skb->data, skb->len,
 				     PCI_DMA_FROMDEVICE);
@@ -442,13 +444,28 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 
 		BUG_ON(!info);
 		BUG_ON(info->dma != dma);
+		skb = info->skb;
 
 		pci_unmap_single(mac->dma_pdev, info->dma, info->skb->len,
 				 PCI_DMA_FROMDEVICE);
+		info->dma = 0;
 
-		skb = info->skb;
 
 		len = (dp->macrx & XCT_MACRX_LLEN_M) >> XCT_MACRX_LLEN_S;
+		if (len < 256) {
+			struct sk_buff *new_skb =
+			    netdev_alloc_skb(mac->netdev, len + NET_IP_ALIGN);
+			if (new_skb) {
+				skb_reserve(new_skb, NET_IP_ALIGN);
+				memcpy(new_skb->data - NET_IP_ALIGN,
+					skb->data - NET_IP_ALIGN,
+					len + NET_IP_ALIGN);
+				/* save the skb in buffer_info as good */
+				skb = new_skb;
+			}
+			/* else just continue with the old one */
+		} else
+			info->skb = NULL;
 
 		skb_put(skb, len);
 
