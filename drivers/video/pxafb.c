@@ -1203,7 +1203,7 @@ static int __init pxafb_parse_options(struct device *dev, char *options)
 					} else
 						goto done;
 					break;
-				case '0'...'9':
+				case '0' ... '9':
 					break;
 				default:
 					goto done;
