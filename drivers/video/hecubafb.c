@@ -267,12 +267,9 @@ static void hecubafb_imageblit(struct fb_info *info,
  * this is the slow path from userspace. they can seek and write to
  * the fb. it's inefficient to do anything less than a full screen draw
  */
-static ssize_t hecubafb_write(struct file *file, const char __user *buf,
+static ssize_t hecubafb_write(struct fb_info *info, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	struct inode *inode;
-	int fbidx;
-	struct fb_info *info;
 	unsigned long p;
 	int err=-EINVAL;
 	struct hecubafb_par *par;
@@ -280,13 +277,6 @@ static ssize_t hecubafb_write(struct file *file, const char __user *buf,
 	unsigned int fbmemlength;
 
 	p = *ppos;
-	inode = file->f_dentry->d_inode;
-	fbidx = iminor(inode);
-	info = registered_fb[fbidx];
-
-	if (!info || !info->screen_base)
-		return -ENODEV;
-
 	par = info->par;
 	xres = info->var.xres;
 	fbmemlength = (xres * info->var.yres)/8;

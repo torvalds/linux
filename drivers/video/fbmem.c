@@ -588,7 +588,7 @@ fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		return -EPERM;
 
 	if (info->fbops->fb_read)
-		return info->fbops->fb_read(file, buf, count, ppos);
+		return info->fbops->fb_read(info, buf, count, ppos);
 	
 	total_size = info->screen_size;
 
@@ -663,7 +663,7 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 		return -EPERM;
 
 	if (info->fbops->fb_write)
-		return info->fbops->fb_write(file, buf, count, ppos);
+		return info->fbops->fb_write(info, buf, count, ppos);
 	
 	total_size = info->screen_size;
 

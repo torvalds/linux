@@ -440,14 +440,11 @@ static int arcfb_ioctl(struct fb_info *info,
  * the fb. it's inefficient for them to do anything less than 64*8
  * writes since we update the lcd in each write() anyway.
  */
-static ssize_t arcfb_write(struct file *file, const char __user *buf, size_t count,
-				loff_t *ppos)
+static ssize_t arcfb_write(struct fb_info *info, const char __user *buf,
+			   size_t count, loff_t *ppos)
 {
 	/* modded from epson 1355 */
 
-	struct inode *inode;
-	int fbidx;
-	struct fb_info *info;
 	unsigned long p;
 	int err=-EINVAL;
 	unsigned int fbmemlength,x,y,w,h, bitppos, startpos, endpos, bitcount;
@@ -455,13 +452,6 @@ static ssize_t arcfb_write(struct file *file, const char __user *buf, size_t cou
 	unsigned int xres;
 
 	p = *ppos;
-	inode = file->f_path.dentry->d_inode;
-	fbidx = iminor(inode);
-	info = registered_fb[fbidx];
-
-	if (!info || !info->screen_base)
-		return -ENODEV;
-
 	par = info->par;
 	xres = info->var.xres;
 	fbmemlength = (xres * info->var.yres)/8;
