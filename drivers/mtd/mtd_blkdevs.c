@@ -216,7 +216,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	int last_devnum = -1;
 	struct gendisk *gd;
 
-	if (!!mutex_trylock(&mtd_table_mutex)) {
+	if (mutex_trylock(&mtd_table_mutex)) {
 		mutex_unlock(&mtd_table_mutex);
 		BUG();
 	}
@@ -294,7 +294,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 
 int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 {
-	if (!!mutex_trylock(&mtd_table_mutex)) {
+	if (mutex_trylock(&mtd_table_mutex)) {
 		mutex_unlock(&mtd_table_mutex);
 		BUG();
 	}
