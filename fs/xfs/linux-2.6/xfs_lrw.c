@@ -724,6 +724,34 @@ start:
 		goto out_unlock_mutex;
 	}
 
+	if ((DM_EVENT_ENABLED(vp->v_vfsp, xip, DM_EVENT_WRITE) &&
+	    !(ioflags & IO_INVIS) && !eventsent)) {
+		int		dmflags = FILP_DELAY_FLAG(file);
+
+		if (need_i_mutex)
+			dmflags |= DM_FLAGS_IMUX;
+
+		xfs_iunlock(xip, XFS_ILOCK_EXCL);
+		error = XFS_SEND_DATA(xip->i_mount, DM_EVENT_WRITE, vp,
+				      pos, count,
+				      dmflags, &locktype);
+		if (error) {
+			goto out_unlock_internal;
+		}
+		xfs_ilock(xip, XFS_ILOCK_EXCL);
+		eventsent = 1;
+
+		/*
+		 * The iolock was dropped and reacquired in XFS_SEND_DATA
+		 * so we have to recheck the size when appending.
+		 * We will only "goto start;" once, since having sent the
+		 * event prevents another call to XFS_SEND_DATA, which is
+		 * what allows the size to change in the first place.
+		 */
+		if ((file->f_flags & O_APPEND) && pos != xip->i_size)
+			goto start;
+	}
+
 	if (ioflags & IO_ISDIRECT) {
 		xfs_buftarg_t	*target =
 			(xip->i_d.di_flags & XFS_DIFLAG_REALTIME) ?
@@ -748,35 +776,6 @@ start:
 	new_size = pos + count;
 	if (new_size > xip->i_size)
 		io->io_new_size = new_size;
-
-	if ((DM_EVENT_ENABLED(vp->v_vfsp, xip, DM_EVENT_WRITE) &&
-	    !(ioflags & IO_INVIS) && !eventsent)) {
-		loff_t		savedsize = pos;
-		int		dmflags = FILP_DELAY_FLAG(file);
-
-		if (need_i_mutex)
-			dmflags |= DM_FLAGS_IMUX;
-
-		xfs_iunlock(xip, XFS_ILOCK_EXCL);
-		error = XFS_SEND_DATA(xip->i_mount, DM_EVENT_WRITE, vp,
-				      pos, count,
-				      dmflags, &locktype);
-		if (error) {
-			goto out_unlock_internal;
-		}
-		xfs_ilock(xip, XFS_ILOCK_EXCL);
-		eventsent = 1;
-
-		/*
-		 * The iolock was dropped and reacquired in XFS_SEND_DATA
-		 * so we have to recheck the size when appending.
-		 * We will only "goto start;" once, since having sent the
-		 * event prevents another call to XFS_SEND_DATA, which is
-		 * what allows the size to change in the first place.
-		 */
-		if ((file->f_flags & O_APPEND) && savedsize != xip->i_size)
-			goto start;
-	}
 
 	if (likely(!(ioflags & IO_INVIS))) {
 		file_update_time(file);
