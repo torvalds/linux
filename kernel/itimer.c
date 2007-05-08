@@ -138,58 +138,10 @@ enum hrtimer_restart it_real_fn(struct hrtimer *timer)
 }
 
 /*
- * We do not care about correctness. We just sanitize the values so
- * the ktime_t operations which expect normalized values do not
- * break. This converts negative values to long timeouts similar to
- * the code in kernel versions < 2.6.16
- *
- * Print a limited number of warning messages when an invalid timeval
- * is detected.
- */
-static void fixup_timeval(struct timeval *tv, int interval)
-{
-	static int warnlimit = 10;
-	unsigned long tmp;
-
-	if (warnlimit > 0) {
-		warnlimit--;
-		printk(KERN_WARNING
-		       "setitimer: %s (pid = %d) provided "
-		       "invalid timeval %s: tv_sec = %ld tv_usec = %ld\n",
-		       current->comm, current->pid,
-		       interval ? "it_interval" : "it_value",
-		       tv->tv_sec, (long) tv->tv_usec);
-	}
-
-	tmp = tv->tv_usec;
-	if (tmp >= USEC_PER_SEC) {
-		tv->tv_usec = tmp % USEC_PER_SEC;
-		tv->tv_sec += tmp / USEC_PER_SEC;
-	}
-
-	tmp = tv->tv_sec;
-	if (tmp > LONG_MAX)
-		tv->tv_sec = LONG_MAX;
-}
-
-/*
  * Returns true if the timeval is in canonical form
  */
 #define timeval_valid(t) \
 	(((t)->tv_sec >= 0) && (((unsigned long) (t)->tv_usec) < USEC_PER_SEC))
-
-/*
- * Check for invalid timevals, sanitize them and print a limited
- * number of warnings.
- */
-static void check_itimerval(struct itimerval *value) {
-
-	if (unlikely(!timeval_valid(&value->it_value)))
-		fixup_timeval(&value->it_value, 0);
-
-	if (unlikely(!timeval_valid(&value->it_interval)))
-		fixup_timeval(&value->it_interval, 1);
-}
 
 int do_setitimer(int which, struct itimerval *value, struct itimerval *ovalue)
 {
@@ -200,15 +152,10 @@ int do_setitimer(int which, struct itimerval *value, struct itimerval *ovalue)
 
 	/*
 	 * Validate the timevals in value.
-	 *
-	 * Note: Although the spec requires that invalid values shall
-	 * return -EINVAL, we just fixup the value and print a limited
-	 * number of warnings in order not to break users of this
-	 * historical misfeature.
-	 *
-	 * Scheduled for replacement in March 2007
 	 */
-	check_itimerval(value);
+	if (!timeval_valid(&value->it_value) ||
+	    !timeval_valid(&value->it_interval))
+		return -EINVAL;
 
 	switch (which) {
 	case ITIMER_REAL:
