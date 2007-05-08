@@ -932,15 +932,9 @@ do_softint(struct work_struct *work)
 	if (test_and_clear_bit(Cy_EVENT_OPEN_WAKEUP, &info->event))
 		wake_up_interruptible(&info->open_wait);
 #ifdef CONFIG_CYZ_INTR
-	if (test_and_clear_bit(Cy_EVENT_Z_RX_FULL, &info->event)) {
-		if (cyz_rx_full_timer[info->line].function == NULL) {
-			cyz_rx_full_timer[info->line].expires = jiffies + 1;
-			cyz_rx_full_timer[info->line].function = cyz_rx_restart;
-			cyz_rx_full_timer[info->line].data =
-						(unsigned long)info;
-			add_timer(&cyz_rx_full_timer[info->line]);
-		}
-	}
+	if (test_and_clear_bit(Cy_EVENT_Z_RX_FULL, &info->event) &&
+			!timer_pending(&cyz_rx_full_timer[info->line]))
+		mod_timer(&cyz_rx_full_timer[info->line], jiffies + 1);
 #endif
 	if (test_and_clear_bit(Cy_EVENT_DELTA_WAKEUP, &info->event))
 		wake_up_interruptible(&info->delta_msr_wait);
@@ -1887,7 +1881,6 @@ static void cyz_rx_restart(unsigned long arg)
 		printk(KERN_ERR "cyc:cyz_rx_restart retval on ttyC%d was %x\n",
 			info->line, retval);
 	}
-	cyz_rx_full_timer[info->line].function = NULL;
 	CY_UNLOCK(info, flags);
 }
 
@@ -4529,8 +4522,8 @@ static void __devinit cy_init_card(struct cyclades_card *cinfo)
 			else
 				info->xmit_fifo_size = 4 * CYZ_FIFO_SIZE;
 #ifdef CONFIG_CYZ_INTR
-			init_timer(&cyz_rx_full_timer[port]);
-			cyz_rx_full_timer[port].function = NULL;
+			setup_timer(&cyz_rx_full_timer[port],
+				cyz_rx_restart, (unsigned long)info);
 #endif
 		} else {
 			info->type = PORT_CIRRUS;
