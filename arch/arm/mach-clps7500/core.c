@@ -316,7 +316,7 @@ clps7500_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction clps7500_timer_irq = {
 	.name		= "CLPS7500 Timer Tick",
-	.flags		= IRQF_DISABLED | IRQF_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= clps7500_timer_interrupt,
 };
 

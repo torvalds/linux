@@ -740,7 +740,7 @@ static void h3800_IRQ_demux(unsigned int irq, struct irq_desc *desc)
 static struct irqaction h3800_irq = {
 	.name		= "h3800_asic",
 	.handler	= h3800_IRQ_demux,
-	.flags		= IRQF_DISABLED | IRQF_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 };
 
 u32 kpio_int_shadow = 0;

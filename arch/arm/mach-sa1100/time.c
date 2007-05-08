@@ -111,7 +111,7 @@ sa1100_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction sa1100_timer_irq = {
 	.name		= "SA11xx Timer Tick",
-	.flags		= IRQF_DISABLED | IRQF_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= sa1100_timer_interrupt,
 };
 

@@ -142,7 +142,7 @@ aaec2000_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction aaec2000_timer_irq = {
 	.name		= "AAEC-2000 Timer Tick",
-	.flags		= IRQF_DISABLED | IRQF_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= aaec2000_timer_interrupt,
 };
 
