@@ -221,62 +221,6 @@ static int dntv_live_dvbt_pro_demod_init(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int philips_fmd1216_pll_init(struct dvb_frontend *fe)
-{
-	struct cx8802_dev *dev= fe->dvb->priv;
-
-	/* this message is to set up ATC and ALC */
-	static u8 fmd1216_init[] = { 0x0b, 0xdc, 0x9c, 0xa0 };
-	struct i2c_msg msg =
-		{ .addr = dev->core->pll_addr, .flags = 0,
-		  .buf = fmd1216_init, .len = sizeof(fmd1216_init) };
-	int err;
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if ((err = i2c_transfer(&dev->core->i2c_adap, &msg, 1)) != 1) {
-		if (err < 0)
-			return err;
-		else
-			return -EREMOTEIO;
-	}
-
-	return 0;
-}
-
-static int dntv_live_dvbt_pro_tuner_set_params(struct dvb_frontend* fe,
-					       struct dvb_frontend_parameters* params)
-{
-	struct cx8802_dev *dev= fe->dvb->priv;
-	u8 buf[4];
-	struct i2c_msg msg =
-		{ .addr = dev->core->pll_addr, .flags = 0,
-		  .buf = buf, .len = 4 };
-	int err;
-
-	/* Switch PLL to DVB mode */
-	err = philips_fmd1216_pll_init(fe);
-	if (err)
-		return err;
-
-	/* Tune PLL */
-	dvb_pll_configure(dev->core->pll_desc, buf, params);
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if ((err = i2c_transfer(&dev->core->i2c_adap, &msg, 1)) != 1) {
-
-		printk(KERN_WARNING "cx88-dvb: %s error "
-		       "(addr %02x <- %02x, err = %i)\n",
-		       __FUNCTION__, dev->core->pll_addr, buf[0], err);
-		if (err < 0)
-			return err;
-		else
-			return -EREMOTEIO;
-	}
-
-	return 0;
-}
-
 static struct mt352_config dntv_live_dvbt_pro_config = {
 	.demod_address = 0x0f,
 	.no_tuner      = 1,
@@ -531,12 +475,11 @@ static int dvb_register(struct cx8802_dev *dev)
 		break;
 	case CX88_BOARD_DNTV_LIVE_DVB_T_PRO:
 #if defined(CONFIG_VIDEO_CX88_VP3054) || (defined(CONFIG_VIDEO_CX88_VP3054_MODULE) && defined(MODULE))
-		dev->core->pll_addr = 0x61;
-		dev->core->pll_desc = &dvb_pll_fmd1216me;
 		dev->dvb.frontend = dvb_attach(mt352_attach, &dntv_live_dvbt_pro_config,
 			&((struct vp3054_i2c_state *)dev->card_priv)->adap);
 		if (dev->dvb.frontend != NULL) {
-			dev->dvb.frontend->ops.tuner_ops.set_params = dntv_live_dvbt_pro_tuner_set_params;
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
+				   &dev->core->i2c_adap, &dvb_pll_fmd1216me);
 		}
 #else
 		printk("%s: built without vp3054 support\n", dev->core->name);

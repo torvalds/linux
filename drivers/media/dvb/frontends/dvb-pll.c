@@ -38,6 +38,12 @@
 	0x50 = AGC Take over point = 103 dBuV */
 static u8 tua603x_agc103[] = { 2, 0x80|0x40|0x18|0x06|0x01, 0x00|0x50 };
 
+/*	0x04 = 166.67 kHz divider
+
+	0x80 = AGC Time constant 50ms Iagc = 9 uA
+	0x20 = AGC Take over point = 112 dBuV */
+static u8 tua603x_agc112[] = { 2, 0x80|0x40|0x18|0x04|0x01, 0x80|0x20 };
+
 struct dvb_pll_desc dvb_pll_thomson_dtt7579 = {
 	.name  = "Thomson dtt7579",
 	.min   = 177000000,
@@ -285,6 +291,8 @@ struct dvb_pll_desc dvb_pll_fmd1216me = {
 	.max = 858000000,
 	.iffreq= 36125000,
 	.set   = fmd1216me_bw,
+	.initdata = tua603x_agc112,
+	.sleepdata = (u8[]){ 4, 0x9c, 0x60, 0x85, 0x54 },
 	.count = 7,
 	.entries = {
 		{ 143870000, 166667, 0xbc, 0x41 },
