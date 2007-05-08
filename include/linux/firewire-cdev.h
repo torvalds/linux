@@ -22,8 +22,8 @@
 #ifndef __fw_cdev_h
 #define __fw_cdev_h
 
-#include <asm/ioctl.h>
-#include <asm/types.h>
+#include <linux/ioctl.h>
+#include <linux/types.h>
 
 #define TCODE_WRITE_QUADLET_REQUEST	0
 #define TCODE_WRITE_BLOCK_REQUEST	1
