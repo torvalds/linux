@@ -1755,6 +1755,17 @@ config FB_PS3_DEFAULT_SIZE_M
 	  The default value can be overridden on the kernel command line
 	  using the "ps3fb" option (e.g. "ps3fb=9M");
 
+config FB_XILINX
+	tristate "Xilinx frame buffer support"
+	depends on FB && XILINX_VIRTEX
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  Include support for the Xilinx ML300/ML403 reference design
+	  framebuffer. ML300 carries a 640*480 LCD display on the board,
+	  ML403 uses a standard DB15 VGA connector.
+
 config FB_VIRTUAL
 	tristate "Virtual Frame Buffer support (ONLY FOR TESTING!)"
 	depends on FB

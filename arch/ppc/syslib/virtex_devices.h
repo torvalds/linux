@@ -13,6 +13,13 @@
 
 #include <linux/platform_device.h>
 
+/* ML300/403 reference design framebuffer driver platform data struct */
+struct xilinxfb_platform_data {
+	u32 rotate_screen;
+	u32 screen_height_mm;
+	u32 screen_width_mm;
+};
+
 void __init virtex_early_serial_map(void);
 
 /* Prototype for device fixup routine.  Implement this routine in the
