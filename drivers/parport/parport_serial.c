@@ -392,6 +392,7 @@ static int parport_serial_pci_suspend(struct pci_dev *dev, pm_message_t state)
 static int parport_serial_pci_resume(struct pci_dev *dev)
 {
 	struct parport_serial_private *priv = pci_get_drvdata(dev);
+	int err;
 
 	pci_set_power_state(dev, PCI_D0);
 	pci_restore_state(dev);
@@ -399,7 +400,12 @@ static int parport_serial_pci_resume(struct pci_dev *dev)
 	/*
 	 * The device may have been disabled.  Re-enable it.
 	 */
-	pci_enable_device(dev);
+	err = pci_enable_device(dev);
+	if (err) {
+		printk(KERN_ERR "parport_serial: %s: error enabling "
+			"device for resume (%d)\n", pci_name(dev), err);
+		return err;
+	}
 
 	if (priv->serial)
 		pciserial_resume_ports(priv->serial);
