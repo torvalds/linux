@@ -1560,7 +1560,7 @@ cyz_handle_rx(struct cyclades_port *info, struct CH_CTRL __iomem *ch_ctrl,
 	int char_count;
 	int len;
 #ifdef BLOCKMOVE
-	int small_count;
+	unsigned char *buf;
 #else
 	char data;
 #endif
@@ -1596,25 +1596,23 @@ cyz_handle_rx(struct cyclades_port *info, struct CH_CTRL __iomem *ch_ctrl,
 		/* we'd like to use memcpy(t, f, n) and memset(s, c, count)
 		   for performance, but because of buffer boundaries, there
 		   may be several steps to the operation */
-			while (0 < (small_count = min_t(unsigned int,
-					rx_bufsize - new_rx_get,
-					min_t(unsigned int, TTY_FLIPBUF_SIZE -
-						tty->flip.count, char_count)))){
-				memcpy_fromio(tty->flip.char_buf_ptr,
-					(char *)(cinfo->base_addr + rx_bufaddr +
-						new_rx_get),
-					small_count);
+			while (1) {
+				len = tty_prepare_flip_string(tty, &buf,
+						char_count);
+				if (!len)
+					break;
 
-				tty->flip.char_buf_ptr += small_count;
-				memset(tty->flip.flag_buf_ptr, TTY_NORMAL,
-					small_count);
-				tty->flip.flag_buf_ptr += small_count;
-				new_rx_get = (new_rx_get + small_count) &
+				len = min_t(unsigned int, min(len, char_count),
+						rx_bufsize - new_rx_get);
+
+				memcpy_fromio(buf, cinfo->base_addr +
+						rx_bufaddr + new_rx_get, len);
+
+				new_rx_get = (new_rx_get + len) &
 						(rx_bufsize - 1);
-				char_count -= small_count;
-				info->icount.rx += small_count;
-				info->idle_stats.recv_bytes += small_count;
-				tty->flip.count += small_count;
+				char_count -= len;
+				info->icount.rx += len;
+				info->idle_stats.recv_bytes += len;
 			}
 #else
 			len = tty_buffer_request_room(tty, char_count);
