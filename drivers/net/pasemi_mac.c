@@ -61,12 +61,6 @@
 
 #define BUF_SIZE 1646 /* 1500 MTU + ETH_HLEN + VLAN_HLEN + 2 64B cachelines */
 
-/* XXXOJN these should come out of the device tree some day */
-#define PAS_DMA_CAP_BASE   0xe00d0040
-#define PAS_DMA_CAP_SIZE   0x100
-#define PAS_DMA_COM_BASE   0xe00d0100
-#define PAS_DMA_COM_SIZE   0x100
-
 static struct pasdma_status *dma_status;
 
 static int pasemi_get_mac_addr(struct pasemi_mac *mac)
