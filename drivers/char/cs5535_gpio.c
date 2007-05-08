@@ -44,6 +44,7 @@ static struct pci_device_id divil_pci[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_CS5536_ISA) },
 	{ } /* NULL entry */
 };
+MODULE_DEVICE_TABLE(pci, divil_pci);
 
 static struct cdev cs5535_gpio_cdev;
 
