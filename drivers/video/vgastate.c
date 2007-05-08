@@ -50,23 +50,28 @@ static void save_vga_text(struct vgastate *state, void __iomem *fbbase)
 	struct regstate *saved = (struct regstate *) state->vidstate;
 	int i;
 	u8 misc, attr10, gr4, gr5, gr6, seq1, seq2, seq4;
+	unsigned short iobase;
 
 	/* if in graphics mode, no need to save */
+	misc = vga_r(state->vgabase, VGA_MIS_R);
+	iobase = (misc & 1) ? 0x3d0 : 0x3b0;
+
+	vga_r(state->vgabase, iobase + 0xa);
+	vga_w(state->vgabase, VGA_ATT_W, 0x00);
 	attr10 = vga_rattr(state->vgabase, 0x10);
+	vga_r(state->vgabase, iobase + 0xa);
+	vga_w(state->vgabase, VGA_ATT_W, 0x20);
+
 	if (attr10 & 1)
 		return;
-	
+
 	/* save regs */
-	misc = vga_r(state->vgabase, VGA_MIS_R);
 	gr4 = vga_rgfx(state->vgabase, VGA_GFX_PLANE_READ);
 	gr5 = vga_rgfx(state->vgabase, VGA_GFX_MODE);
 	gr6 = vga_rgfx(state->vgabase, VGA_GFX_MISC);
 	seq2 = vga_rseq(state->vgabase, VGA_SEQ_PLANE_WRITE);
 	seq4 = vga_rseq(state->vgabase, VGA_SEQ_MEMORY_MODE);
 	
-	/* force graphics mode */
-	vga_w(state->vgabase, VGA_MIS_W, misc | 1);
-
 	/* blank screen */
 	seq1 = vga_rseq(state->vgabase, VGA_SEQ_CLOCK_MODE);
 	vga_wseq(state->vgabase, VGA_SEQ_RESET, 0x1);
@@ -115,15 +120,12 @@ static void save_vga_text(struct vgastate *state, void __iomem *fbbase)
 	}
 
 	/* restore regs */
-	vga_wattr(state->vgabase, 0x10, attr10);
-
 	vga_wseq(state->vgabase, VGA_SEQ_PLANE_WRITE, seq2);
 	vga_wseq(state->vgabase, VGA_SEQ_MEMORY_MODE, seq4);
 
 	vga_wgfx(state->vgabase, VGA_GFX_PLANE_READ, gr4);
 	vga_wgfx(state->vgabase, VGA_GFX_MODE, gr5);
 	vga_wgfx(state->vgabase, VGA_GFX_MISC, gr6);
-	vga_w(state->vgabase, VGA_MIS_W, misc);
 
 	/* unblank screen */
 	vga_wseq(state->vgabase, VGA_SEQ_RESET, 0x1);
@@ -137,11 +139,10 @@ static void restore_vga_text(struct vgastate *state, void __iomem *fbbase)
 {
 	struct regstate *saved = (struct regstate *) state->vidstate;
 	int i;
-	u8 misc, gr1, gr3, gr4, gr5, gr6, gr8; 
+	u8 gr1, gr3, gr4, gr5, gr6, gr8;
 	u8 seq1, seq2, seq4;
 
 	/* save regs */
-	misc = vga_r(state->vgabase, VGA_MIS_R);
 	gr1 = vga_rgfx(state->vgabase, VGA_GFX_SR_ENABLE);
 	gr3 = vga_rgfx(state->vgabase, VGA_GFX_DATA_ROTATE);
 	gr4 = vga_rgfx(state->vgabase, VGA_GFX_PLANE_READ);
@@ -151,9 +152,6 @@ static void restore_vga_text(struct vgastate *state, void __iomem *fbbase)
 	seq2 = vga_rseq(state->vgabase, VGA_SEQ_PLANE_WRITE);
 	seq4 = vga_rseq(state->vgabase, VGA_SEQ_MEMORY_MODE);
 	
-	/* force graphics mode */
-	vga_w(state->vgabase, VGA_MIS_W, misc | 1);
-
 	/* blank screen */
 	seq1 = vga_rseq(state->vgabase, VGA_SEQ_CLOCK_MODE);
 	vga_wseq(state->vgabase, VGA_SEQ_RESET, 0x1);
@@ -213,8 +211,6 @@ static void restore_vga_text(struct vgastate *state, void __iomem *fbbase)
 	vga_wseq(state->vgabase, VGA_SEQ_RESET, 0x3);
 
 	/* restore regs */
-	vga_w(state->vgabase, VGA_MIS_W, misc);
-
 	vga_wgfx(state->vgabase, VGA_GFX_SR_ENABLE, gr1);
 	vga_wgfx(state->vgabase, VGA_GFX_DATA_ROTATE, gr3);
 	vga_wgfx(state->vgabase, VGA_GFX_PLANE_READ, gr4);
