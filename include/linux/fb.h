@@ -655,7 +655,6 @@ struct fb_ops {
 };
 
 #ifdef CONFIG_FB_TILEBLITTING
-
 #define FB_TILE_CURSOR_NONE        0
 #define FB_TILE_CURSOR_UNDERLINE   1
 #define FB_TILE_CURSOR_LOWER_THIRD 2
@@ -727,6 +726,8 @@ struct fb_tile_ops {
 	/* cursor */
 	void (*fb_tilecursor)(struct fb_info *info,
 			      struct fb_tilecursor *cursor);
+	/* get maximum length of the tile map */
+	int (*fb_get_tilemax)(struct fb_info *info);
 };
 #endif /* CONFIG_FB_TILEBLITTING */
 
