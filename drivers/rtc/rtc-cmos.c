@@ -383,12 +383,12 @@ static irqreturn_t cmos_interrupt(int irq, void *p)
 		return IRQ_NONE;
 }
 
-#ifdef	CONFIG_PNPACPI
-#define	is_pnpacpi()	1
+#ifdef	CONFIG_PNP
+#define	is_pnp()	1
 #define	INITSECTION
 
 #else
-#define	is_pnpacpi()	0
+#define	is_pnp()	0
 #define	INITSECTION	__init
 #endif
 
@@ -438,7 +438,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	 * REVISIT for non-x86 systems we may need to handle io memory
 	 * resources: ioremap them, and request_mem_region().
 	 */
-	if (is_pnpacpi()) {
+	if (is_pnp()) {
 		retval = request_resource(&ioport_resource, ports);
 		if (retval < 0) {
 			dev_dbg(dev, "i/o registers already in use\n");
@@ -531,7 +531,7 @@ static void __exit cmos_do_remove(struct device *dev)
 
 	cmos_do_shutdown();
 
-	if (is_pnpacpi())
+	if (is_pnp())
 		release_resource(cmos->iomem);
 	rename_region(cmos->iomem, NULL);
 
@@ -630,7 +630,7 @@ static int cmos_resume(struct device *dev)
  * the device node will always be created as a PNPACPI device.
  */
 
-#ifdef	CONFIG_PNPACPI
+#ifdef	CONFIG_PNP
 
 #include <linux/pnp.h>
 
@@ -701,11 +701,11 @@ static void __exit cmos_exit(void)
 }
 module_exit(cmos_exit);
 
-#else	/* no PNPACPI */
+#else	/* no PNP */
 
 /*----------------------------------------------------------------*/
 
-/* Platform setup should have set up an RTC device, when PNPACPI is
+/* Platform setup should have set up an RTC device, when PNP is
  * unavailable ... this could happen even on (older) PCs.
  */
 
@@ -751,7 +751,7 @@ static void __exit cmos_exit(void)
 module_exit(cmos_exit);
 
 
-#endif	/* !PNPACPI */
+#endif	/* !PNP */
 
 MODULE_AUTHOR("David Brownell");
 MODULE_DESCRIPTION("Driver for PC-style 'CMOS' RTCs");
