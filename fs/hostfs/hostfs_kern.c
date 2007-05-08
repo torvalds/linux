@@ -147,7 +147,7 @@ static int read_name(struct inode *ino, char *name)
 
 	err = stat_file(name, &i_ino, &i_mode, &i_nlink, &ino->i_uid,
 			&ino->i_gid, &i_size, &ino->i_atime, &ino->i_mtime,
-			&ino->i_ctime, &i_blksize, &i_blocks);
+			&ino->i_ctime, &i_blksize, &i_blocks, -1);
 	if(err)
 		return(err);
 
@@ -820,6 +820,8 @@ int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 	char *name;
 	int err;
 
+	int fd = HOSTFS_I(dentry->d_inode)->fd;
+
 	err = inode_change_ok(dentry->d_inode, attr);
 	if (err)
 		return err;
@@ -864,7 +866,7 @@ int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 	name = dentry_name(dentry, 0);
 	if(name == NULL) return(-ENOMEM);
-	err = set_attr(name, &attrs);
+	err = set_attr(name, &attrs, fd);
 	kfree(name);
 	if(err)
 		return(err);

@@ -21,12 +21,16 @@ int stat_file(const char *path, unsigned long long *inode_out, int *mode_out,
 	      int *nlink_out, int *uid_out, int *gid_out,
 	      unsigned long long *size_out, struct timespec *atime_out,
 	      struct timespec *mtime_out, struct timespec *ctime_out,
-	      int *blksize_out, unsigned long long *blocks_out)
+	      int *blksize_out, unsigned long long *blocks_out, int fd)
 {
 	struct stat64 buf;
 
-	if(lstat64(path, &buf) < 0)
+	if(fd >= 0) {
+		if (fstat64(fd, &buf) < 0)
+			return(-errno);
+	} else if(lstat64(path, &buf) < 0) {
 		return(-errno);
+	}
 
 	if(inode_out != NULL) *inode_out = buf.st_ino;
 	if(mode_out != NULL) *mode_out = buf.st_mode;
@@ -202,58 +206,82 @@ int file_create(char *name, int ur, int uw, int ux, int gr,
 	return(fd);
 }
 
-int set_attr(const char *file, struct hostfs_iattr *attrs)
+int set_attr(const char *file, struct hostfs_iattr *attrs, int fd)
 {
-	struct utimbuf buf;
+	struct timeval times[2];
+	struct timespec atime_ts, mtime_ts;
 	int err, ma;
 
-	if(attrs->ia_valid & HOSTFS_ATTR_MODE){
-		if(chmod(file, attrs->ia_mode) != 0) return(-errno);
+	if (attrs->ia_valid & HOSTFS_ATTR_MODE) {
+		if (fd >= 0) {
+			if (fchmod(fd, attrs->ia_mode) != 0)
+				return (-errno);
+		} else if (chmod(file, attrs->ia_mode) != 0) {
+			return (-errno);
+		}
 	}
-	if(attrs->ia_valid & HOSTFS_ATTR_UID){
-		if(chown(file, attrs->ia_uid, -1)) return(-errno);
+	if (attrs->ia_valid & HOSTFS_ATTR_UID) {
+		if (fd >= 0) {
+			if (fchown(fd, attrs->ia_uid, -1))
+				return (-errno);
+		} else if(chown(file, attrs->ia_uid, -1)) {
+			return (-errno);
+		}
 	}
-	if(attrs->ia_valid & HOSTFS_ATTR_GID){
-		if(chown(file, -1, attrs->ia_gid)) return(-errno);
+	if (attrs->ia_valid & HOSTFS_ATTR_GID) {
+		if (fd >= 0) {
+			if (fchown(fd, -1, attrs->ia_gid))
+				return (-errno);
+		} else if (chown(file, -1, attrs->ia_gid)) {
+			return (-errno);
+		}
 	}
-	if(attrs->ia_valid & HOSTFS_ATTR_SIZE){
-		if(truncate(file, attrs->ia_size)) return(-errno);
+	if (attrs->ia_valid & HOSTFS_ATTR_SIZE) {
+		if (fd >= 0) {
+			if (ftruncate(fd, attrs->ia_size))
+				return (-errno);
+		} else if (truncate(file, attrs->ia_size)) {
+			return (-errno);
+		}
 	}
-	ma = HOSTFS_ATTR_ATIME_SET | HOSTFS_ATTR_MTIME_SET;
-	if((attrs->ia_valid & ma) == ma){
-		buf.actime = attrs->ia_atime.tv_sec;
-		buf.modtime = attrs->ia_mtime.tv_sec;
-		if(utime(file, &buf) != 0) return(-errno);
-	}
-	else {
-		struct timespec ts;
 
-		if(attrs->ia_valid & HOSTFS_ATTR_ATIME_SET){
-			err = stat_file(file, NULL, NULL, NULL, NULL, NULL,
-					NULL, NULL, &ts, NULL, NULL, NULL);
-			if(err != 0)
-				return(err);
-			buf.actime = attrs->ia_atime.tv_sec;
-			buf.modtime = ts.tv_sec;
-			if(utime(file, &buf) != 0)
-				return(-errno);
+	/* Update accessed and/or modified time, in two parts: first set
+	 * times according to the changes to perform, and then call futimes()
+	 * or utimes() to apply them. */
+	ma = (HOSTFS_ATTR_ATIME_SET | HOSTFS_ATTR_MTIME_SET);
+	if (attrs->ia_valid & ma) {
+		err = stat_file(file, NULL, NULL, NULL, NULL, NULL, NULL,
+				&atime_ts, &mtime_ts, NULL, NULL, NULL, fd);
+		if (err != 0)
+			return err;
+
+		times[0].tv_sec = atime_ts.tv_sec;
+		times[0].tv_usec = atime_ts.tv_nsec * 1000;
+		times[1].tv_sec = mtime_ts.tv_sec;
+		times[1].tv_usec = mtime_ts.tv_nsec * 1000;
+
+		if (attrs->ia_valid & HOSTFS_ATTR_ATIME_SET) {
+			times[0].tv_sec = attrs->ia_atime.tv_sec;
+			times[0].tv_usec = attrs->ia_atime.tv_nsec * 1000;
 		}
-		if(attrs->ia_valid & HOSTFS_ATTR_MTIME_SET){
-			err = stat_file(file, NULL, NULL, NULL, NULL, NULL,
-					NULL, &ts, NULL, NULL, NULL, NULL);
-			if(err != 0)
-				return(err);
-			buf.actime = ts.tv_sec;
-			buf.modtime = attrs->ia_mtime.tv_sec;
-			if(utime(file, &buf) != 0)
-				return(-errno);
+		if (attrs->ia_valid & HOSTFS_ATTR_MTIME_SET) {
+			times[1].tv_sec = attrs->ia_mtime.tv_sec;
+			times[1].tv_usec = attrs->ia_mtime.tv_nsec * 1000;
+		}
+
+		if (fd >= 0) {
+			if (futimes(fd, times) != 0)
+				return (-errno);
+		} else if (utimes(file, times) != 0) {
+			return (-errno);
 		}
 	}
+
 	if(attrs->ia_valid & HOSTFS_ATTR_CTIME) ;
 	if(attrs->ia_valid & (HOSTFS_ATTR_ATIME | HOSTFS_ATTR_MTIME)){
 		err = stat_file(file, NULL, NULL, NULL, NULL, NULL, NULL,
 				&attrs->ia_atime, &attrs->ia_mtime, NULL,
-				NULL, NULL);
+				NULL, NULL, fd);
 		if(err != 0) return(err);
 	}
 	return(0);
