@@ -669,6 +669,7 @@ hrtimer_forward(struct hrtimer *timer, ktime_t now, ktime_t interval)
 
 	return orun;
 }
+EXPORT_SYMBOL_GPL(hrtimer_forward);
 
 /*
  * enqueue_hrtimer - internal function to (re)start a timer
