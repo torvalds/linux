@@ -921,10 +921,8 @@ static int __pci_mmap_make_offset_bus(struct pci_dev *pdev, struct vm_area_struc
 				      enum pci_mmap_state mmap_state)
 {
 	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	struct pci_controller_info *p;
 	unsigned long space_size, user_offset, user_size;
 
-	p = pbm->parent;
 	if (mmap_state == pci_mmap_io) {
 		space_size = (pbm->io_space.end -
 			      pbm->io_space.start) + 1;

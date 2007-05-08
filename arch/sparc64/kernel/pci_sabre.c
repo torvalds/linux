@@ -942,30 +942,30 @@ static void sabre_scan_bus(struct pci_pbm_info *pbm)
 	sabre_register_error_handlers(pbm);
 }
 
-static void sabre_iommu_init(struct pci_controller_info *p,
+static void sabre_iommu_init(struct pci_pbm_info *pbm,
 			     int tsbsize, unsigned long dvma_offset,
 			     u32 dma_mask)
 {
-	struct iommu *iommu = p->pbm_A.iommu;
+	struct iommu *iommu = pbm->iommu;
 	unsigned long i;
 	u64 control;
 
 	/* Register addresses. */
-	iommu->iommu_control  = p->pbm_A.controller_regs + SABRE_IOMMU_CONTROL;
-	iommu->iommu_tsbbase  = p->pbm_A.controller_regs + SABRE_IOMMU_TSBBASE;
-	iommu->iommu_flush    = p->pbm_A.controller_regs + SABRE_IOMMU_FLUSH;
-	iommu->write_complete_reg = p->pbm_A.controller_regs + SABRE_WRSYNC;
+	iommu->iommu_control  = pbm->controller_regs + SABRE_IOMMU_CONTROL;
+	iommu->iommu_tsbbase  = pbm->controller_regs + SABRE_IOMMU_TSBBASE;
+	iommu->iommu_flush    = pbm->controller_regs + SABRE_IOMMU_FLUSH;
+	iommu->write_complete_reg = pbm->controller_regs + SABRE_WRSYNC;
 	/* Sabre's IOMMU lacks ctx flushing. */
 	iommu->iommu_ctxflush = 0;
                                         
 	/* Invalidate TLB Entries. */
-	control = sabre_read(p->pbm_A.controller_regs + SABRE_IOMMU_CONTROL);
+	control = sabre_read(pbm->controller_regs + SABRE_IOMMU_CONTROL);
 	control |= SABRE_IOMMUCTRL_DENAB;
-	sabre_write(p->pbm_A.controller_regs + SABRE_IOMMU_CONTROL, control);
+	sabre_write(pbm->controller_regs + SABRE_IOMMU_CONTROL, control);
 
 	for(i = 0; i < 16; i++) {
-		sabre_write(p->pbm_A.controller_regs + SABRE_IOMMU_TAG + (i * 8UL), 0);
-		sabre_write(p->pbm_A.controller_regs + SABRE_IOMMU_DATA + (i * 8UL), 0);
+		sabre_write(pbm->controller_regs + SABRE_IOMMU_TAG + (i * 8UL), 0);
+		sabre_write(pbm->controller_regs + SABRE_IOMMU_DATA + (i * 8UL), 0);
 	}
 
 	/* Leave diag mode enabled for full-flushing done
@@ -973,10 +973,10 @@ static void sabre_iommu_init(struct pci_controller_info *p,
 	 */
 	pci_iommu_table_init(iommu, tsbsize * 1024 * 8, dvma_offset, dma_mask);
 
-	sabre_write(p->pbm_A.controller_regs + SABRE_IOMMU_TSBBASE,
+	sabre_write(pbm->controller_regs + SABRE_IOMMU_TSBBASE,
 		    __pa(iommu->page_table));
 
-	control = sabre_read(p->pbm_A.controller_regs + SABRE_IOMMU_CONTROL);
+	control = sabre_read(pbm->controller_regs + SABRE_IOMMU_CONTROL);
 	control &= ~(SABRE_IOMMUCTRL_TSBSZ | SABRE_IOMMUCTRL_TBWSZ);
 	control |= SABRE_IOMMUCTRL_ENAB;
 	switch(tsbsize) {
@@ -991,14 +991,11 @@ static void sabre_iommu_init(struct pci_controller_info *p,
 		prom_halt();
 		break;
 	}
-	sabre_write(p->pbm_A.controller_regs + SABRE_IOMMU_CONTROL, control);
+	sabre_write(pbm->controller_regs + SABRE_IOMMU_CONTROL, control);
 }
 
-static void sabre_pbm_init(struct pci_controller_info *p, struct device_node *dp)
+static void sabre_pbm_init(struct pci_controller_info *p, struct pci_pbm_info *pbm, struct device_node *dp)
 {
-	struct pci_pbm_info *pbm;
-
-	pbm = &p->pbm_A;
 	pbm->name = dp->full_name;
 	printk("%s: SABRE PCI Bus Module\n", pbm->name);
 
@@ -1019,6 +1016,7 @@ void sabre_init(struct device_node *dp, char *model_name)
 {
 	const struct linux_prom64_registers *pr_regs;
 	struct pci_controller_info *p;
+	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
 	int tsbsize;
 	const u32 *vdma;
@@ -1055,14 +1053,15 @@ void sabre_init(struct device_node *dp, char *model_name)
 		prom_printf("SABRE: Error, kmalloc(pci_iommu) failed.\n");
 		prom_halt();
 	}
-	p->pbm_A.iommu = iommu;
+	pbm = &p->pbm_A;
+	pbm->iommu = iommu;
 
 	upa_portid = of_getintprop_default(dp, "upa-portid", 0xff);
 
-	p->pbm_A.next = pci_pbm_root;
-	pci_pbm_root = &p->pbm_A;
+	pbm->next = pci_pbm_root;
+	pci_pbm_root = pbm;
 
-	p->pbm_A.portid = upa_portid;
+	pbm->portid = upa_portid;
 
 	/*
 	 * Map in SABRE register set and report the presence of this SABRE.
@@ -1073,26 +1072,26 @@ void sabre_init(struct device_node *dp, char *model_name)
 	/*
 	 * First REG in property is base of entire SABRE register space.
 	 */
-	p->pbm_A.controller_regs = pr_regs[0].phys_addr;
+	pbm->controller_regs = pr_regs[0].phys_addr;
 
 	/* Clear interrupts */
 
 	/* PCI first */
 	for (clear_irq = SABRE_ICLR_A_SLOT0; clear_irq < SABRE_ICLR_B_SLOT0 + 0x80; clear_irq += 8)
-		sabre_write(p->pbm_A.controller_regs + clear_irq, 0x0UL);
+		sabre_write(pbm->controller_regs + clear_irq, 0x0UL);
 
 	/* Then OBIO */
 	for (clear_irq = SABRE_ICLR_SCSI; clear_irq < SABRE_ICLR_SCSI + 0x80; clear_irq += 8)
-		sabre_write(p->pbm_A.controller_regs + clear_irq, 0x0UL);
+		sabre_write(pbm->controller_regs + clear_irq, 0x0UL);
 
 	/* Error interrupts are enabled later after the bus scan. */
-	sabre_write(p->pbm_A.controller_regs + SABRE_PCICTRL,
+	sabre_write(pbm->controller_regs + SABRE_PCICTRL,
 		    (SABRE_PCICTRL_MRLEN   | SABRE_PCICTRL_SERR |
 		     SABRE_PCICTRL_ARBPARK | SABRE_PCICTRL_AEN));
 
 	/* Now map in PCI config space for entire SABRE. */
-	p->pbm_A.config_space =
-		(p->pbm_A.controller_regs + SABRE_CONFIGSPACE);
+	pbm->config_space =
+		(pbm->controller_regs + SABRE_CONFIGSPACE);
 
 	vdma = of_get_property(dp, "virtual-dma", NULL);
 
@@ -1116,10 +1115,10 @@ void sabre_init(struct device_node *dp, char *model_name)
 			prom_halt();
 	}
 
-	sabre_iommu_init(p, tsbsize, vdma[0], dma_mask);
+	sabre_iommu_init(pbm, tsbsize, vdma[0], dma_mask);
 
 	/*
 	 * Look for APB underneath.
 	 */
-	sabre_pbm_init(p, dp);
+	sabre_pbm_init(p, pbm, dp);
 }
