@@ -66,6 +66,7 @@ extern int ia64_last_device_vector;
 #define IA64_PERFMON_VECTOR		0xee	/* performanc monitor interrupt vector */
 #define IA64_TIMER_VECTOR		0xef	/* use highest-prio group 15 interrupt for timer */
 #define	IA64_MCA_WAKEUP_VECTOR		0xf0	/* MCA wakeup (must be >MCA_RENDEZ_VECTOR) */
+#define IA64_IPI_LOCAL_TLB_FLUSH	0xfc	/* SMP flush local TLB */
 #define IA64_IPI_RESCHEDULE		0xfd	/* SMP reschedule */
 #define IA64_IPI_VECTOR			0xfe	/* inter-processor interrupt vector */
 
