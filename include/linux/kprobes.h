@@ -123,7 +123,8 @@ DECLARE_PER_CPU(struct kprobe *, current_kprobe);
 DECLARE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 #ifdef ARCH_SUPPORTS_KRETPROBES
-extern void arch_prepare_kretprobe(struct kretprobe *rp, struct pt_regs *regs);
+extern void arch_prepare_kretprobe(struct kretprobe_instance *ri,
+				   struct pt_regs *regs);
 #else /* ARCH_SUPPORTS_KRETPROBES */
 static inline void arch_prepare_kretprobe(struct kretprobe *rp,
 					struct pt_regs *regs)
@@ -209,8 +210,6 @@ void jprobe_return(void);
 int register_kretprobe(struct kretprobe *rp);
 void unregister_kretprobe(struct kretprobe *rp);
 
-struct kretprobe_instance *get_free_rp_inst(struct kretprobe *rp);
-void add_rp_inst(struct kretprobe_instance *ri);
 void kprobe_flush_task(struct task_struct *tk);
 void recycle_rp_inst(struct kretprobe_instance *ri, struct hlist_head *head);
 #else /* CONFIG_KPROBES */

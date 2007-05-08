@@ -266,23 +266,14 @@ static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 }
 
 /* Called with kretprobe_lock held */
-void __kprobes arch_prepare_kretprobe(struct kretprobe *rp,
+void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 				      struct pt_regs *regs)
 {
 	unsigned long *sara = (unsigned long *)regs->rsp;
-	struct kretprobe_instance *ri;
 
-	if ((ri = get_free_rp_inst(rp)) != NULL) {
-		ri->rp = rp;
-		ri->task = current;
-		ri->ret_addr = (kprobe_opcode_t *) *sara;
-
-		/* Replace the return addr with trampoline addr */
-		*sara = (unsigned long) &kretprobe_trampoline;
-		add_rp_inst(ri);
-	} else {
-		rp->nmissed++;
-	}
+	ri->ret_addr = (kprobe_opcode_t *) *sara;
+	/* Replace the return addr with trampoline addr */
+	*sara = (unsigned long) &kretprobe_trampoline;
 }
 
 int __kprobes kprobe_handler(struct pt_regs *regs)

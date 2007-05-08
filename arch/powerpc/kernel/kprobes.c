@@ -126,22 +126,13 @@ static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 }
 
 /* Called with kretprobe_lock held */
-void __kprobes arch_prepare_kretprobe(struct kretprobe *rp,
+void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 				      struct pt_regs *regs)
 {
-	struct kretprobe_instance *ri;
+	ri->ret_addr = (kprobe_opcode_t *)regs->link;
 
-	if ((ri = get_free_rp_inst(rp)) != NULL) {
-		ri->rp = rp;
-		ri->task = current;
-		ri->ret_addr = (kprobe_opcode_t *)regs->link;
-
-		/* Replace the return addr with trampoline addr */
-		regs->link = (unsigned long)kretprobe_trampoline;
-		add_rp_inst(ri);
-	} else {
-		rp->nmissed++;
-	}
+	/* Replace the return addr with trampoline addr */
+	regs->link = (unsigned long)kretprobe_trampoline;
 }
 
 static int __kprobes kprobe_handler(struct pt_regs *regs)

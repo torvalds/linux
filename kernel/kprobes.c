@@ -358,46 +358,6 @@ void __kprobes kprobes_inc_nmissed_count(struct kprobe *p)
 }
 
 /* Called with kretprobe_lock held */
-struct kretprobe_instance __kprobes *get_free_rp_inst(struct kretprobe *rp)
-{
-	struct hlist_node *node;
-	struct kretprobe_instance *ri;
-	hlist_for_each_entry(ri, node, &rp->free_instances, uflist)
-		return ri;
-	return NULL;
-}
-
-/* Called with kretprobe_lock held */
-static struct kretprobe_instance __kprobes *get_used_rp_inst(struct kretprobe
-							      *rp)
-{
-	struct hlist_node *node;
-	struct kretprobe_instance *ri;
-	hlist_for_each_entry(ri, node, &rp->used_instances, uflist)
-		return ri;
-	return NULL;
-}
-
-/* Called with kretprobe_lock held */
-void __kprobes add_rp_inst(struct kretprobe_instance *ri)
-{
-	/*
-	 * Remove rp inst off the free list -
-	 * Add it back when probed function returns
-	 */
-	hlist_del(&ri->uflist);
-
-	/* Add rp inst onto table */
-	INIT_HLIST_NODE(&ri->hlist);
-	hlist_add_head(&ri->hlist,
-			&kretprobe_inst_table[hash_ptr(ri->task, KPROBE_HASH_BITS)]);
-
-	/* Also add this rp inst to the used list. */
-	INIT_HLIST_NODE(&ri->uflist);
-	hlist_add_head(&ri->uflist, &ri->rp->used_instances);
-}
-
-/* Called with kretprobe_lock held */
 void __kprobes recycle_rp_inst(struct kretprobe_instance *ri,
 				struct hlist_head *head)
 {
@@ -450,7 +410,9 @@ void __kprobes kprobe_flush_task(struct task_struct *tk)
 static inline void free_rp_inst(struct kretprobe *rp)
 {
 	struct kretprobe_instance *ri;
-	while ((ri = get_free_rp_inst(rp)) != NULL) {
+	struct hlist_node *pos, *next;
+
+	hlist_for_each_entry_safe(ri, pos, next, &rp->free_instances, uflist) {
 		hlist_del(&ri->uflist);
 		kfree(ri);
 	}
@@ -732,7 +694,21 @@ static int __kprobes pre_handler_kretprobe(struct kprobe *p,
 
 	/*TODO: consider to only swap the RA after the last pre_handler fired */
 	spin_lock_irqsave(&kretprobe_lock, flags);
-	arch_prepare_kretprobe(rp, regs);
+	if (!hlist_empty(&rp->free_instances)) {
+		struct kretprobe_instance *ri;
+
+		ri = hlist_entry(rp->free_instances.first,
+				 struct kretprobe_instance, uflist);
+		ri->rp = rp;
+		ri->task = current;
+		arch_prepare_kretprobe(ri, regs);
+
+		/* XXX(hch): why is there no hlist_move_head? */
+		hlist_del(&ri->uflist);
+		hlist_add_head(&ri->uflist, &ri->rp->used_instances);
+		hlist_add_head(&ri->hlist, kretprobe_inst_table_head(ri->task));
+	} else
+		rp->nmissed++;
 	spin_unlock_irqrestore(&kretprobe_lock, flags);
 	return 0;
 }
@@ -795,11 +771,13 @@ void __kprobes unregister_kretprobe(struct kretprobe *rp)
 {
 	unsigned long flags;
 	struct kretprobe_instance *ri;
+	struct hlist_node *pos, *next;
 
 	unregister_kprobe(&rp->kp);
+
 	/* No race here */
 	spin_lock_irqsave(&kretprobe_lock, flags);
-	while ((ri = get_used_rp_inst(rp)) != NULL) {
+	hlist_for_each_entry_safe(ri, pos, next, &rp->used_instances, uflist) {
 		ri->rp = NULL;
 		hlist_del(&ri->uflist);
 	}
