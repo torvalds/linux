@@ -4,6 +4,7 @@ header-y += hdlc/
 header-y += isdn/
 header-y += nfsd/
 header-y += raid/
+header-y += spi/
 header-y += sunrpc/
 header-y += tc_act/
 header-y += netfilter/

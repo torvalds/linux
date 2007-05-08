@@ -159,6 +159,15 @@ config SPI_AT25
 	  This driver can also be built as a module.  If so, the module
 	  will be called at25.
 
+config SPI_SPIDEV
+	tristate "User mode SPI device driver support"
+	depends on SPI_MASTER && EXPERIMENTAL
+	help
+	  This supports user mode SPI protocol drivers.
+
+	  Note that this application programming interface is EXPERIMENTAL
+	  and hence SUBJECT TO CHANGE WITHOUT NOTICE while it stabilizes.
+
 #
 # Add new SPI protocol masters in alphabetical order above this line
 #
