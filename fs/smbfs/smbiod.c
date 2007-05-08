@@ -298,8 +298,6 @@ out:
  */
 static int smbiod(void *unused)
 {
-	allow_signal(SIGKILL);
-
 	VERBOSE("SMB Kernel thread starting (%d) ...\n", current->pid);
 
 	for (;;) {
