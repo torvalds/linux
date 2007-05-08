@@ -1661,7 +1661,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 		iput(inode);
 		goto error_out;
 	}
-	sb->s_maxbytes = 1<<30;
+	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	return 0;
 
 error_out:
