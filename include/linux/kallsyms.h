@@ -31,6 +31,7 @@ extern int sprint_symbol(char *buffer, unsigned long address);
 extern void __print_symbol(const char *fmt, unsigned long address);
 
 int lookup_symbol_name(unsigned long addr, char *symname);
+int lookup_symbol_attrs(unsigned long addr, unsigned long *size, unsigned long *offset, char *modname, char *name);
 
 #else /* !CONFIG_KALLSYMS */
 
@@ -61,6 +62,11 @@ static inline int sprint_symbol(char *buffer, unsigned long addr)
 }
 
 static inline int lookup_symbol_name(unsigned long addr, char *symname)
+{
+	return -ERANGE;
+}
+
+static inline int lookup_symbol_attrs(unsigned long addr, unsigned long *size, unsigned long *offset, char *modname, char *name)
 {
 	return -ERANGE;
 }
