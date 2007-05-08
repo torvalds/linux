@@ -159,7 +159,8 @@ my $warnings = 0;
 my $type_constant = '\%([-_\w]+)';
 my $type_func = '(\w+)\(\)';
 my $type_param = '\@(\w+)';
-my $type_struct = '\&((struct\s*)?[_\w]+)';
+my $type_struct = '\&((struct\s*)*[_\w]+)';
+my $type_struct_xml = '\\\amp;((struct\s*)*[_\w]+)';
 my $type_env = '(\$\w+)';
 
 # Output conversion substitutions.
@@ -168,7 +169,8 @@ my $type_env = '(\$\w+)';
 # these work fairly well
 my %highlights_html = ( $type_constant, "<i>\$1</i>",
 			$type_func, "<b>\$1</b>",
-			$type_struct, "<i>\$1</i>",
+			$type_struct_xml, "<i>\$1</i>",
+			$type_env, "<b><i>\$1</i></b>",
 			$type_param, "<tt><b>\$1</b></tt>" );
 my $blankline_html = "<p>";
 
@@ -331,7 +333,7 @@ while ($ARGV[0] =~ m/^-(.*)/) {
 # using the s// operator.
 my $dohighlight = "";
 foreach my $pattern (keys %highlights) {
-#    print "scanning pattern $pattern ($highlights{$pattern})\n";
+#   print STDERR "scanning pattern:$pattern, highlight:($highlights{$pattern})\n";
     $dohighlight .=  "\$contents =~ s:$pattern:$highlights{$pattern}:gs;\n";
 }
 
@@ -378,8 +380,14 @@ sub output_highlight {
 #	confess "output_highlight got called with no args?\n";
 #   }
 
+#   print STDERR "contents b4:$contents\n";
     eval $dohighlight;
     die $@ if $@;
+    if ($output_mode eq "html") {
+	$contents =~ s/\\\\//;
+    }
+#   print STDERR "contents af:$contents\n";
+
     foreach $line (split "\n", $contents) {
 	if ($line eq ""){
 	    print $lineprefix, $blankline;
@@ -466,11 +474,12 @@ sub output_struct_html(%) {
 	$type = $args{'parametertypes'}{$parameter};
 	if ($type =~ m/([^\(]*\(\*)\s*\)\s*\(([^\)]*)\)/) {
 	    # pointer-to-function
-	    print " <i>$1</i><b>$parameter</b>) <i>($2)</i>;<br>\n";
+	    print "&nbsp; &nbsp; <i>$1</i><b>$parameter</b>) <i>($2)</i>;<br>\n";
 	} elsif ($type =~ m/^(.*?)\s*(:.*)/) {
-	    print " <i>$1</i> <b>$parameter</b>$2;<br>\n";
+	    # bitfield
+	    print "&nbsp; &nbsp; <i>$1</i> <b>$parameter</b>$2;<br>\n";
 	} else {
-	    print " <i>$type</i> <b>$parameter</b>;<br>\n";
+	    print "&nbsp; &nbsp; <i>$type</i> <b>$parameter</b>;<br>\n";
 	}
     }
     print "};<br>\n";
