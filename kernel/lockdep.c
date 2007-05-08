@@ -1309,8 +1309,9 @@ out_unlock_set:
 
 /*
  * Look up a dependency chain. If the key is not present yet then
- * add it and return 0 - in this case the new dependency chain is
- * validated. If the key is already hashed, return 1.
+ * add it and return 1 - in this case the new dependency chain is
+ * validated. If the key is already hashed, return 0.
+ * (On return with 1 graph_lock is held.)
  */
 static inline int lookup_chain_cache(u64 chain_key, struct lock_class *class)
 {
