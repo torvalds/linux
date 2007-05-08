@@ -22,13 +22,20 @@ This driver is known to work with the following cards:
 	* SA E200i
 	* SA E500
 
+Detecting drive failures:
+-------------------------
+
+To get the status of logical volumes and to detect physical drive
+failures, you can use the cciss_vol_status program found here:
+http://cciss.sourceforge.net/#cciss_utils
+
+Device Naming:
+--------------
+
 If nodes are not already created in the /dev/cciss directory, run as root:
 
 # cd /dev
 # ./MAKEDEV cciss
-
-Device Naming:
---------------
 
 You need some entries in /dev for the cciss device.  The MAKEDEV script
 can make device nodes for you automatically.  Currently the device setup
