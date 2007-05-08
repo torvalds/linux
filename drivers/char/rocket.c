@@ -81,6 +81,7 @@
 #include <linux/string.h>
 #include <linux/fcntl.h>
 #include <linux/ptrace.h>
+#include <linux/mutex.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
@@ -89,7 +90,6 @@
 #include <asm/atomic.h>
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
-#include <asm/semaphore.h>
 #include <linux/init.h>
 
 /****** RocketPort includes ******/
@@ -698,7 +698,7 @@ static void init_r_port(int board, int aiop, int chan, struct pci_dev *pci_dev)
 		}
 	}
 	spin_lock_init(&info->slock);
-	sema_init(&info->write_sem, 1);
+	mutex_init(&info->write_mtx);
 	rp_table[line] = info;
 	if (pci_dev)
 		tty_register_device(rocket_driver, line, &pci_dev->dev);
@@ -1657,8 +1657,11 @@ static void rp_put_char(struct tty_struct *tty, unsigned char ch)
 	if (rocket_paranoia_check(info, "rp_put_char"))
 		return;
 
-	/*  Grab the port write semaphore, locking out other processes that try to write to this port */
-	down(&info->write_sem);
+	/*
+	 * Grab the port write mutex, locking out other processes that try to
+	 * write to this port
+	 */
+	mutex_lock(&info->write_mtx);
 
 #ifdef ROCKET_DEBUG_WRITE
 	printk(KERN_INFO "rp_put_char %c...", ch);
@@ -1680,12 +1683,12 @@ static void rp_put_char(struct tty_struct *tty, unsigned char ch)
 		info->xmit_fifo_room--;
 	}
 	spin_unlock_irqrestore(&info->slock, flags);
-	up(&info->write_sem);
+	mutex_unlock(&info->write_mtx);
 }
 
 /*
  *  Exception handler - write routine, called when user app writes to the device.
- *  A per port write semaphore is used to protect from another process writing to
+ *  A per port write mutex is used to protect from another process writing to
  *  this port at the same time.  This other process could be running on the other CPU
  *  or get control of the CPU if the copy_from_user() blocks due to a page fault (swapped out). 
  *  Spinlocks protect the info xmit members.
@@ -1702,7 +1705,7 @@ static int rp_write(struct tty_struct *tty,
 	if (count <= 0 || rocket_paranoia_check(info, "rp_write"))
 		return 0;
 
-	down_interruptible(&info->write_sem);
+	mutex_lock_interruptible(&info->write_mtx);
 
 #ifdef ROCKET_DEBUG_WRITE
 	printk(KERN_INFO "rp_write %d chars...", count);
@@ -1773,7 +1776,7 @@ end:
 		wake_up_interruptible(&tty->poll_wait);
 #endif
 	}
-	up(&info->write_sem);
+	mutex_unlock(&info->write_mtx);
 	return retval;
 }
 
