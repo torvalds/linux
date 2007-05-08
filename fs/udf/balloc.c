@@ -508,8 +508,8 @@ static void udf_table_free_blocks(struct super_block * sb,
 		{
 			i = -1;
 			oepos.block = epos.block;
-			udf_release_data(oepos.bh);
-			atomic_inc(&epos.bh->b_count);
+			brelse(oepos.bh);
+			get_bh(epos.bh);
 			oepos.bh = epos.bh;
 			oepos.offset = 0;
 		}
@@ -546,8 +546,8 @@ static void udf_table_free_blocks(struct super_block * sb,
 			adsize = sizeof(long_ad);
 		else
 		{
-			udf_release_data(oepos.bh);
-			udf_release_data(epos.bh);
+			brelse(oepos.bh);
+			brelse(epos.bh);
 			goto error_return;
 		}
 
@@ -556,7 +556,7 @@ static void udf_table_free_blocks(struct super_block * sb,
 			char *sptr, *dptr;
 			int loffset;
 	
-			udf_release_data(oepos.bh);
+			brelse(oepos.bh);
 			oepos = epos;
 
 			/* Steal a block from the extent being free'd */
@@ -567,7 +567,7 @@ static void udf_table_free_blocks(struct super_block * sb,
 			if (!(epos.bh = udf_tread(sb,
 				udf_get_lb_pblock(sb, epos.block, 0))))
 			{
-				udf_release_data(oepos.bh);
+				brelse(oepos.bh);
 				goto error_return;
 			}
 			aed = (struct allocExtDesc *)(epos.bh->b_data);
@@ -658,8 +658,8 @@ static void udf_table_free_blocks(struct super_block * sb,
 		}
 	}
 
-	udf_release_data(epos.bh);
-	udf_release_data(oepos.bh);
+	brelse(epos.bh);
+	brelse(oepos.bh);
 
 error_return:
 	sb->s_dirt = 1;
@@ -723,7 +723,7 @@ static int udf_table_prealloc_blocks(struct super_block * sb,
 	else
 		alloc_count = 0;
 
-	udf_release_data(epos.bh);
+	brelse(epos.bh);
 
 	if (alloc_count && UDF_SB_LVIDBH(sb))
 	{
@@ -789,9 +789,9 @@ static int udf_table_new_block(struct super_block * sb,
 			spread = nspread;
 			if (goal_epos.bh != epos.bh)
 			{
-				udf_release_data(goal_epos.bh);
+				brelse(goal_epos.bh);
 				goal_epos.bh = epos.bh;
-				atomic_inc(&goal_epos.bh->b_count);
+				get_bh(goal_epos.bh);
 			}
 			goal_epos.block = epos.block;
 			goal_epos.offset = epos.offset - adsize;
@@ -800,11 +800,11 @@ static int udf_table_new_block(struct super_block * sb,
 		}
 	}
 
-	udf_release_data(epos.bh);
+	brelse(epos.bh);
 
 	if (spread == 0xFFFFFFFF)
 	{
-		udf_release_data(goal_epos.bh);
+		brelse(goal_epos.bh);
 		mutex_unlock(&sbi->s_alloc_mutex);
 		return 0;
 	}
@@ -820,7 +820,7 @@ static int udf_table_new_block(struct super_block * sb,
 
 	if (inode && DQUOT_ALLOC_BLOCK(inode, 1))
 	{
-		udf_release_data(goal_epos.bh);
+		brelse(goal_epos.bh);
 		mutex_unlock(&sbi->s_alloc_mutex);
 		*err = -EDQUOT;
 		return 0;
@@ -830,7 +830,7 @@ static int udf_table_new_block(struct super_block * sb,
 		udf_write_aext(table, &goal_epos, goal_eloc, goal_elen, 1);
 	else
 		udf_delete_aext(table, goal_epos, goal_eloc, goal_elen);
-	udf_release_data(goal_epos.bh);
+	brelse(goal_epos.bh);
 
 	if (UDF_SB_LVIDBH(sb))
 	{
@@ -915,11 +915,14 @@ inline int udf_new_block(struct super_block * sb,
 	struct inode * inode,
 	uint16_t partition, uint32_t goal, int *err)
 {
+	int ret;
+
 	if (UDF_SB_PARTFLAGS(sb, partition) & UDF_PART_FLAG_UNALLOC_BITMAP)
 	{
-		return udf_bitmap_new_block(sb, inode,
+		ret = udf_bitmap_new_block(sb, inode,
 			UDF_SB_PARTMAPS(sb)[partition].s_uspace.s_bitmap,
 			partition, goal, err);
+		return ret;
 	}
 	else if (UDF_SB_PARTFLAGS(sb, partition) & UDF_PART_FLAG_UNALLOC_TABLE)
 	{

@@ -144,7 +144,7 @@ do_udf_readdir(struct inode * dir, struct file *filp, filldir_t filldir, void *d
 
 		if (!(fibh.sbh = fibh.ebh = udf_tread(dir->i_sb, block)))
 		{
-			udf_release_data(epos.bh);
+			brelse(epos.bh);
 			return -EIO;
 		}
 	
@@ -172,7 +172,7 @@ do_udf_readdir(struct inode * dir, struct file *filp, filldir_t filldir, void *d
 	}
 	else
 	{
-		udf_release_data(epos.bh);
+		brelse(epos.bh);
 		return -ENOENT;
 	}
 
@@ -185,9 +185,9 @@ do_udf_readdir(struct inode * dir, struct file *filp, filldir_t filldir, void *d
 		if (!fi)
 		{
 			if (fibh.sbh != fibh.ebh)
-				udf_release_data(fibh.ebh);
-			udf_release_data(fibh.sbh);
-			udf_release_data(epos.bh);
+				brelse(fibh.ebh);
+			brelse(fibh.sbh);
+			brelse(epos.bh);
 			return 0;
 		}
 
@@ -245,9 +245,9 @@ do_udf_readdir(struct inode * dir, struct file *filp, filldir_t filldir, void *d
 			if (filldir(dirent, fname, flen, filp->f_pos, iblock, dt_type) < 0)
 			{
 				if (fibh.sbh != fibh.ebh)
-					udf_release_data(fibh.ebh);
-				udf_release_data(fibh.sbh);
-				udf_release_data(epos.bh);
+					brelse(fibh.ebh);
+				brelse(fibh.sbh);
+				brelse(epos.bh);
 	 			return 0;
 			}
 		}
@@ -256,9 +256,9 @@ do_udf_readdir(struct inode * dir, struct file *filp, filldir_t filldir, void *d
 	filp->f_pos = nf_pos + 1;
 
 	if (fibh.sbh != fibh.ebh)
-		udf_release_data(fibh.ebh);
-	udf_release_data(fibh.sbh);
-	udf_release_data(epos.bh);
+		brelse(fibh.ebh);
+	brelse(fibh.sbh);
+	brelse(epos.bh);
 
 	return 0;
 }

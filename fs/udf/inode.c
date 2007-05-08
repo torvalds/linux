@@ -247,7 +247,7 @@ struct buffer_head * udf_expand_dir_adinicb(struct inode *inode, int *block, int
 		sfi = udf_fileident_read(inode, &f_pos, &sfibh, &cfi, NULL, NULL, NULL, NULL);
 		if (!sfi)
 		{
-			udf_release_data(dbh);
+			brelse(dbh);
 			return NULL;
 		}
 		UDF_I_ALLOCTYPE(inode) = alloctype;
@@ -259,7 +259,7 @@ struct buffer_head * udf_expand_dir_adinicb(struct inode *inode, int *block, int
 			sfi->fileIdent + le16_to_cpu(sfi->lengthOfImpUse)))
 		{
 			UDF_I_ALLOCTYPE(inode) = ICBTAG_FLAG_AD_IN_ICB;
-			udf_release_data(dbh);
+			brelse(dbh);
 			return NULL;
 		}
 	}
@@ -277,7 +277,7 @@ struct buffer_head * udf_expand_dir_adinicb(struct inode *inode, int *block, int
 	udf_add_aext(inode, &epos, eloc, elen, 0);
 	/* UniqueID stuff */
 
-	udf_release_data(epos.bh);
+	brelse(epos.bh);
 	mark_inode_dirty(inode);
 	return dbh;
 }
@@ -386,14 +386,14 @@ static struct buffer_head * inode_getblk(struct inode * inode, sector_t block,
 	{
 		if (prev_epos.bh != cur_epos.bh)
 		{
-			udf_release_data(prev_epos.bh);
-			atomic_inc(&cur_epos.bh->b_count);
+			brelse(prev_epos.bh);
+			get_bh(cur_epos.bh);
 			prev_epos.bh = cur_epos.bh;
 		}
 		if (cur_epos.bh != next_epos.bh)
 		{
-			udf_release_data(cur_epos.bh);
-			atomic_inc(&next_epos.bh->b_count);
+			brelse(cur_epos.bh);
+			get_bh(next_epos.bh);
 			cur_epos.bh = next_epos.bh;
 		}
 
@@ -436,9 +436,9 @@ static struct buffer_head * inode_getblk(struct inode * inode, sector_t block,
 				~(inode->i_sb->s_blocksize - 1));
 			etype = udf_write_aext(inode, &cur_epos, eloc, elen, 1);
 		}
-		udf_release_data(prev_epos.bh);
-		udf_release_data(cur_epos.bh);
-		udf_release_data(next_epos.bh);
+		brelse(prev_epos.bh);
+		brelse(cur_epos.bh);
+		brelse(next_epos.bh);
 		newblock = udf_get_lb_pblock(inode->i_sb, eloc, offset);
 		*phys = newblock;
 		return NULL;
@@ -492,8 +492,8 @@ static struct buffer_head * inode_getblk(struct inode * inode, sector_t block,
 		else
 			lastblock = 1;
 	}
-	udf_release_data(cur_epos.bh);
-	udf_release_data(next_epos.bh);
+	brelse(cur_epos.bh);
+	brelse(next_epos.bh);
 
 	/* if the current extent is not recorded but allocated, get the
 		block in the extent corresponding to the requested block */
@@ -513,7 +513,7 @@ static struct buffer_head * inode_getblk(struct inode * inode, sector_t block,
 		if (!(newblocknum = udf_new_block(inode->i_sb, inode,
 			UDF_I_LOCATION(inode).partitionReferenceNum, goal, err)))
 		{
-			udf_release_data(prev_epos.bh);
+			brelse(prev_epos.bh);
 			*err = -ENOSPC;
 			return NULL;
 		}
@@ -538,7 +538,7 @@ static struct buffer_head * inode_getblk(struct inode * inode, sector_t block,
        the new number of extents is less than the old number */
 	udf_update_extents(inode, laarr, startnum, endnum, &prev_epos);
 
-	udf_release_data(prev_epos.bh);
+	brelse(prev_epos.bh);
 
 	if (!(newblock = udf_get_pblock(inode->i_sb, newblocknum,
 		UDF_I_LOCATION(inode).partitionReferenceNum, 0)))
@@ -934,7 +934,7 @@ __udf_read_inode(struct inode *inode)
 	{
 		printk(KERN_ERR "udf: udf_read_inode(ino %ld) failed ident=%d\n",
 			inode->i_ino, ident);
-		udf_release_data(bh);
+		brelse(bh);
 		make_bad_inode(inode);
 		return;
 	}
@@ -963,35 +963,35 @@ __udf_read_inode(struct inode *inode)
 						ident == TAG_IDENT_EFE)
 					{
 						memcpy(&UDF_I_LOCATION(inode), &loc, sizeof(kernel_lb_addr));
-						udf_release_data(bh);
-						udf_release_data(ibh);
-						udf_release_data(nbh);
+						brelse(bh);
+						brelse(ibh);
+						brelse(nbh);
 						__udf_read_inode(inode);
 						return;
 					}
 					else
 					{
-						udf_release_data(nbh);
-						udf_release_data(ibh);
+						brelse(nbh);
+						brelse(ibh);
 					}
 				}
 				else
-					udf_release_data(ibh);
+					brelse(ibh);
 			}
 		}
 		else
-			udf_release_data(ibh);
+			brelse(ibh);
 	}
 	else if (le16_to_cpu(fe->icbTag.strategyType) != 4)
 	{
 		printk(KERN_ERR "udf: unsupported strategy type: %d\n",
 			le16_to_cpu(fe->icbTag.strategyType));
-		udf_release_data(bh);
+		brelse(bh);
 		make_bad_inode(inode);
 		return;
 	}
 	udf_fill_inode(inode, bh);
-	udf_release_data(bh);
+	brelse(bh);
 }
 
 static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
@@ -1334,7 +1334,7 @@ udf_update_inode(struct inode *inode, int do_sync)
 				use->descTag.tagChecksum += ((uint8_t *)&(use->descTag))[i];
 
 		mark_buffer_dirty(bh);
-		udf_release_data(bh);
+		brelse(bh);
 		return err;
 	}
 
@@ -1523,7 +1523,7 @@ udf_update_inode(struct inode *inode, int do_sync)
 			err = -EIO;
 		}
 	}
-	udf_release_data(bh);
+	brelse(bh);
 	return err;
 }
 
@@ -1670,7 +1670,7 @@ int8_t udf_add_aext(struct inode *inode, struct extent_position *epos,
 			else
 				udf_update_tag(epos->bh->b_data, sizeof(struct allocExtDesc));
 			mark_buffer_dirty_inode(epos->bh, inode);
-			udf_release_data(epos->bh);
+			brelse(epos->bh);
 		}
 		else
 			mark_inode_dirty(inode);
@@ -1761,7 +1761,7 @@ int8_t udf_next_aext(struct inode *inode, struct extent_position *epos,
 	{
 		epos->block = *eloc;
 		epos->offset = sizeof(struct allocExtDesc);
-		udf_release_data(epos->bh);
+		brelse(epos->bh);
 		if (!(epos->bh = udf_tread(inode->i_sb, udf_get_lb_pblock(inode->i_sb, epos->block, 0))))
 		{
 			udf_debug("reading block %d failed!\n",
@@ -1841,7 +1841,7 @@ udf_insert_aext(struct inode *inode, struct extent_position epos,
 	int8_t etype;
 
 	if (epos.bh)
-		atomic_inc(&epos.bh->b_count);
+		get_bh(epos.bh);
 
 	while ((etype = udf_next_aext(inode, &epos, &oeloc, &oelen, 0)) != -1)
 	{
@@ -1851,7 +1851,7 @@ udf_insert_aext(struct inode *inode, struct extent_position epos,
 		nelen = (etype << 30) | oelen;
 	}
 	udf_add_aext(inode, &epos, neloc, nelen, 1);
-	udf_release_data(epos.bh);
+	brelse(epos.bh);
 	return (nelen >> 30);
 }
 
@@ -1865,8 +1865,8 @@ int8_t udf_delete_aext(struct inode *inode, struct extent_position epos,
 
 	if (epos.bh)
 	{
-		atomic_inc(&epos.bh->b_count);
-		atomic_inc(&epos.bh->b_count);
+		get_bh(epos.bh);
+		get_bh(epos.bh);
 	}
 
 	if (UDF_I_ALLOCTYPE(inode) == ICBTAG_FLAG_AD_SHORT)
@@ -1886,8 +1886,8 @@ int8_t udf_delete_aext(struct inode *inode, struct extent_position epos,
 		if (oepos.bh != epos.bh)
 		{
 			oepos.block = epos.block;
-			udf_release_data(oepos.bh);
-			atomic_inc(&epos.bh->b_count);
+			brelse(oepos.bh);
+			get_bh(epos.bh);
 			oepos.bh = epos.bh;
 			oepos.offset = epos.offset - adsize;
 		}
@@ -1938,8 +1938,8 @@ int8_t udf_delete_aext(struct inode *inode, struct extent_position epos,
 		}
 	}
 	
-	udf_release_data(epos.bh);
-	udf_release_data(oepos.bh);
+	brelse(epos.bh);
+	brelse(oepos.bh);
 	return (elen >> 30);
 }
 
@@ -1992,7 +1992,7 @@ long udf_block_map(struct inode *inode, sector_t block)
 		ret = 0;
 
 	unlock_kernel();
-	udf_release_data(epos.bh);
+	brelse(epos.bh);
 
 	if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_VARCONV))
 		return udf_fixed_to_variable(ret);

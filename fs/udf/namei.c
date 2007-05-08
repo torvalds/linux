@@ -182,13 +182,13 @@ udf_find_entry(struct inode *dir, struct dentry *dentry,
 
 		if (!(fibh->sbh = fibh->ebh = udf_tread(dir->i_sb, block)))
 		{
-			udf_release_data(epos.bh);
+			brelse(epos.bh);
 			return NULL;
 		}
 	}
 	else
 	{
-		udf_release_data(epos.bh);
+		brelse(epos.bh);
 		return NULL;
 	}
 
@@ -199,9 +199,9 @@ udf_find_entry(struct inode *dir, struct dentry *dentry,
 		if (!fi)
 		{
 			if (fibh->sbh != fibh->ebh)
-				udf_release_data(fibh->ebh);
-			udf_release_data(fibh->sbh);
-			udf_release_data(epos.bh);
+				brelse(fibh->ebh);
+			brelse(fibh->sbh);
+			brelse(epos.bh);
 			return NULL;
 		}
 
@@ -247,15 +247,15 @@ udf_find_entry(struct inode *dir, struct dentry *dentry,
 		{
 			if (udf_match(flen, fname, dentry->d_name.len, dentry->d_name.name))
 			{
-				udf_release_data(epos.bh);
+				brelse(epos.bh);
 				return fi;
 			}
 		}
 	}
 	if (fibh->sbh != fibh->ebh)
-		udf_release_data(fibh->ebh);
-	udf_release_data(fibh->sbh);
-	udf_release_data(epos.bh);
+		brelse(fibh->ebh);
+	brelse(fibh->sbh);
+	brelse(epos.bh);
 	return NULL;
 }
 
@@ -321,8 +321,8 @@ udf_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	if (udf_find_entry(dir, dentry, &fibh, &cfi))
 	{
 		if (fibh.sbh != fibh.ebh)
-			udf_release_data(fibh.ebh);
-		udf_release_data(fibh.sbh);
+			brelse(fibh.ebh);
+		brelse(fibh.sbh);
 
 		inode = udf_iget(dir->i_sb, lelb_to_cpu(cfi.icb.extLocation));
 		if ( !inode )
@@ -400,7 +400,7 @@ udf_add_entry(struct inode *dir, struct dentry *dentry,
 
 		if (!(fibh->sbh = fibh->ebh = udf_tread(dir->i_sb, block)))
 		{
-			udf_release_data(epos.bh);
+			brelse(epos.bh);
 			*err = -EIO;
 			return NULL;
 		}
@@ -423,9 +423,9 @@ udf_add_entry(struct inode *dir, struct dentry *dentry,
 		if (!fi)
 		{
 			if (fibh->sbh != fibh->ebh)
-				udf_release_data(fibh->ebh);
-			udf_release_data(fibh->sbh);
-			udf_release_data(epos.bh);
+				brelse(fibh->ebh);
+			brelse(fibh->sbh);
+			brelse(epos.bh);
 			*err = -EIO;
 			return NULL;
 		}
@@ -455,7 +455,7 @@ udf_add_entry(struct inode *dir, struct dentry *dentry,
 		{
 			if (((sizeof(struct fileIdentDesc) + liu + lfi + 3) & ~3) == nfidlen)
 			{
-				udf_release_data(epos.bh);
+				brelse(epos.bh);
 				cfi->descTag.tagSerialNum = cpu_to_le16(1);
 				cfi->fileVersionNum = cpu_to_le16(1);
 				cfi->fileCharacteristics = 0;
@@ -478,9 +478,9 @@ udf_add_entry(struct inode *dir, struct dentry *dentry,
 			udf_match(flen, fname, dentry->d_name.len, dentry->d_name.name))
 		{
 			if (fibh->sbh != fibh->ebh)
-				udf_release_data(fibh->ebh);
-			udf_release_data(fibh->sbh);
-			udf_release_data(epos.bh);
+				brelse(fibh->ebh);
+			brelse(fibh->sbh);
+			brelse(epos.bh);
 			*err = -EEXIST;
 			return NULL;
 		}
@@ -492,14 +492,14 @@ add:
 	if (UDF_I_ALLOCTYPE(dir) == ICBTAG_FLAG_AD_IN_ICB &&
 		sb->s_blocksize - fibh->eoffset < nfidlen)
 	{
-		udf_release_data(epos.bh);
+		brelse(epos.bh);
 		epos.bh = NULL;
 		fibh->soffset -= udf_ext0_offset(dir);
 		fibh->eoffset -= udf_ext0_offset(dir);
 		f_pos -= (udf_ext0_offset(dir) >> 2);
 		if (fibh->sbh != fibh->ebh)
-			udf_release_data(fibh->ebh);
-		udf_release_data(fibh->sbh);
+			brelse(fibh->ebh);
+		brelse(fibh->sbh);
 		if (!(fibh->sbh = fibh->ebh = udf_expand_dir_adinicb(dir, &block, err)))
 			return NULL;
 		epos.block = UDF_I_LOCATION(dir);
@@ -519,7 +519,7 @@ add:
 		fibh->eoffset += nfidlen;
 		if (fibh->sbh != fibh->ebh)
 		{
-			udf_release_data(fibh->sbh);
+			brelse(fibh->sbh);
 			fibh->sbh = fibh->ebh;
 		}
 
@@ -541,7 +541,7 @@ add:
 		fibh->eoffset += nfidlen - sb->s_blocksize;
 		if (fibh->sbh != fibh->ebh)
 		{
-			udf_release_data(fibh->sbh);
+			brelse(fibh->sbh);
 			fibh->sbh = fibh->ebh;
 		}
 
@@ -550,8 +550,8 @@ add:
 
 		if (!(fibh->ebh = udf_bread(dir, f_pos >> (dir->i_sb->s_blocksize_bits - 2), 1, err)))
 		{
-			udf_release_data(epos.bh);
-			udf_release_data(fibh->sbh);
+			brelse(epos.bh);
+			brelse(fibh->sbh);
 			return NULL;
 		}
 
@@ -566,7 +566,7 @@ add:
 			else
 				block ++;
 
-			udf_release_data(fibh->sbh);
+			brelse(fibh->sbh);
 			fibh->sbh = fibh->ebh;
 			fi = (struct fileIdentDesc *)(fibh->sbh->b_data);
 		}
@@ -587,7 +587,7 @@ add:
 	cfi->lengthOfImpUse = cpu_to_le16(0);
 	if (!udf_write_fi(dir, cfi, fi, fibh, NULL, name))
 	{
-		udf_release_data(epos.bh);
+		brelse(epos.bh);
 		dir->i_size += nfidlen;
 		if (UDF_I_ALLOCTYPE(dir) == ICBTAG_FLAG_AD_IN_ICB)
 			UDF_I_LENALLOC(dir) += nfidlen;
@@ -596,10 +596,10 @@ add:
 	}
 	else
 	{
-		udf_release_data(epos.bh);
+		brelse(epos.bh);
 		if (fibh->sbh != fibh->ebh)
-			udf_release_data(fibh->ebh);
-		udf_release_data(fibh->sbh);
+			brelse(fibh->ebh);
+		brelse(fibh->sbh);
 		*err = -EIO;
 		return NULL;
 	}
@@ -656,8 +656,8 @@ static int udf_create(struct inode *dir, struct dentry *dentry, int mode, struct
 		mark_inode_dirty(dir);
 	}
 	if (fibh.sbh != fibh.ebh)
-		udf_release_data(fibh.ebh);
-	udf_release_data(fibh.sbh);
+		brelse(fibh.ebh);
+	brelse(fibh.sbh);
 	unlock_kernel();
 	d_instantiate(dentry, inode);
 	return 0;
@@ -701,8 +701,8 @@ static int udf_mknod(struct inode * dir, struct dentry * dentry, int mode, dev_t
 	mark_inode_dirty(inode);
 
 	if (fibh.sbh != fibh.ebh)
-		udf_release_data(fibh.ebh);
-	udf_release_data(fibh.sbh);
+		brelse(fibh.ebh);
+	brelse(fibh.sbh);
 	d_instantiate(dentry, inode);
 	err = 0;
 out:
@@ -743,7 +743,7 @@ static int udf_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 		cpu_to_le32(UDF_I_UNIQUE(dir) & 0x00000000FFFFFFFFUL);
 	cfi.fileCharacteristics = FID_FILE_CHAR_DIRECTORY | FID_FILE_CHAR_PARENT;
 	udf_write_fi(inode, &cfi, fi, &fibh, NULL, NULL);
-	udf_release_data(fibh.sbh);
+	brelse(fibh.sbh);
 	inode->i_mode = S_IFDIR | mode;
 	if (dir->i_mode & S_ISGID)
 		inode->i_mode |= S_ISGID;
@@ -766,8 +766,8 @@ static int udf_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 	mark_inode_dirty(dir);
 	d_instantiate(dentry, inode);
 	if (fibh.sbh != fibh.ebh)
-		udf_release_data(fibh.ebh);
-	udf_release_data(fibh.sbh);
+		brelse(fibh.ebh);
+	brelse(fibh.sbh);
 	err = 0;
 out:
 	unlock_kernel();
@@ -808,13 +808,13 @@ static int empty_dir(struct inode *dir)
 
 		if (!(fibh.sbh = fibh.ebh = udf_tread(dir->i_sb, block)))
 		{
-			udf_release_data(epos.bh);
+			brelse(epos.bh);
 			return 0;
 		}
 	}
 	else
 	{
-		udf_release_data(epos.bh);
+		brelse(epos.bh);
 		return 0;
 	}
 
@@ -826,25 +826,25 @@ static int empty_dir(struct inode *dir)
 		if (!fi)
 		{
 			if (fibh.sbh != fibh.ebh)
-				udf_release_data(fibh.ebh);
-			udf_release_data(fibh.sbh);
-			udf_release_data(epos.bh);
+				brelse(fibh.ebh);
+			brelse(fibh.sbh);
+			brelse(epos.bh);
 			return 0;
 		}
 
 		if (cfi.lengthFileIdent && (cfi.fileCharacteristics & FID_FILE_CHAR_DELETED) == 0)
 		{
 			if (fibh.sbh != fibh.ebh)
-				udf_release_data(fibh.ebh);
-			udf_release_data(fibh.sbh);
-			udf_release_data(epos.bh);
+				brelse(fibh.ebh);
+			brelse(fibh.sbh);
+			brelse(epos.bh);
 			return 0;
 		}
 	}
 	if (fibh.sbh != fibh.ebh)
-		udf_release_data(fibh.ebh);
-	udf_release_data(fibh.sbh);
-	udf_release_data(epos.bh);
+		brelse(fibh.ebh);
+	brelse(fibh.sbh);
+	brelse(epos.bh);
 	return 1;
 }
 
@@ -884,8 +884,8 @@ static int udf_rmdir(struct inode * dir, struct dentry * dentry)
 
 end_rmdir:
 	if (fibh.sbh != fibh.ebh)
-		udf_release_data(fibh.ebh);
-	udf_release_data(fibh.sbh);
+		brelse(fibh.ebh);
+	brelse(fibh.sbh);
 out:
 	unlock_kernel();
 	return retval;
@@ -928,8 +928,8 @@ static int udf_unlink(struct inode * dir, struct dentry * dentry)
 
 end_unlink:
 	if (fibh.sbh != fibh.ebh)
-		udf_release_data(fibh.ebh);
-	udf_release_data(fibh.sbh);
+		brelse(fibh.ebh);
+	brelse(fibh.sbh);
 out:
 	unlock_kernel();
 	return retval;
@@ -977,7 +977,7 @@ static int udf_symlink(struct inode * dir, struct dentry * dentry, const char * 
 		elen = inode->i_sb->s_blocksize;
 		UDF_I_LENEXTENTS(inode) = elen;
 		udf_add_aext(inode, &epos, eloc, elen, 0);
-		udf_release_data(epos.bh);
+		brelse(epos.bh);
 
 		block = udf_get_pblock(inode->i_sb, block,
 			UDF_I_LOCATION(inode).partitionReferenceNum, 0);
@@ -1060,7 +1060,7 @@ static int udf_symlink(struct inode * dir, struct dentry * dentry, const char * 
 		}
 	}
 
-	udf_release_data(epos.bh);
+	brelse(epos.bh);
 	inode->i_size = elen;
 	if (UDF_I_ALLOCTYPE(inode) == ICBTAG_FLAG_AD_IN_ICB)
 		UDF_I_LENALLOC(inode) = inode->i_size;
@@ -1089,8 +1089,8 @@ static int udf_symlink(struct inode * dir, struct dentry * dentry, const char * 
 		mark_inode_dirty(dir);
 	}
 	if (fibh.sbh != fibh.ebh)
-		udf_release_data(fibh.ebh);
-	udf_release_data(fibh.sbh);
+		brelse(fibh.ebh);
+	brelse(fibh.sbh);
 	d_instantiate(dentry, inode);
 	err = 0;
 
@@ -1145,8 +1145,8 @@ static int udf_link(struct dentry * old_dentry, struct inode * dir,
 		mark_inode_dirty(dir);
 	}
 	if (fibh.sbh != fibh.ebh)
-		udf_release_data(fibh.ebh);
-	udf_release_data(fibh.sbh);
+		brelse(fibh.ebh);
+	brelse(fibh.sbh);
 	inc_nlink(inode);
 	inode->i_ctime = current_fs_time(inode->i_sb);
 	mark_inode_dirty(inode);
@@ -1174,8 +1174,8 @@ static int udf_rename (struct inode * old_dir, struct dentry * old_dentry,
 	if ((ofi = udf_find_entry(old_dir, old_dentry, &ofibh, &ocfi)))
 	{
 		if (ofibh.sbh != ofibh.ebh)
-			udf_release_data(ofibh.ebh);
-		udf_release_data(ofibh.sbh);
+			brelse(ofibh.ebh);
+		brelse(ofibh.sbh);
 	}
 	tloc = lelb_to_cpu(ocfi.icb.extLocation);
 	if (!ofi || udf_get_lb_pblock(old_dir->i_sb, tloc, 0)
@@ -1188,8 +1188,8 @@ static int udf_rename (struct inode * old_dir, struct dentry * old_dentry,
 		if (!new_inode)
 		{
 			if (nfibh.sbh != nfibh.ebh)
-				udf_release_data(nfibh.ebh);
-			udf_release_data(nfibh.sbh);
+				brelse(nfibh.ebh);
+			brelse(nfibh.sbh);
 			nfi = NULL;
 		}
 	}
@@ -1290,19 +1290,19 @@ static int udf_rename (struct inode * old_dir, struct dentry * old_dentry,
 	if (ofi)
 	{
 		if (ofibh.sbh != ofibh.ebh)
-			udf_release_data(ofibh.ebh);
-		udf_release_data(ofibh.sbh);
+			brelse(ofibh.ebh);
+		brelse(ofibh.sbh);
 	}
 
 	retval = 0;
 
 end_rename:
-	udf_release_data(dir_bh);
+	brelse(dir_bh);
 	if (nfi)
 	{
 		if (nfibh.sbh != nfibh.ebh)
-			udf_release_data(nfibh.ebh);
-		udf_release_data(nfibh.sbh);
+			brelse(nfibh.ebh);
+		brelse(nfibh.sbh);
 	}
 	unlock_kernel();
 	return retval;

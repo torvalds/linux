@@ -81,7 +81,7 @@ uint32_t udf_get_pblock_virt15(struct super_block *sb, uint32_t block, uint16_t 
 
 	loc = le32_to_cpu(((__le32 *)bh->b_data)[index]);
 
-	udf_release_data(bh);
+	brelse(bh);
 
 	if (UDF_I_LOCATION(UDF_SB_VAT(sb)).partitionReferenceNum == partition)
 	{

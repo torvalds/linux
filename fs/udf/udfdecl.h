@@ -106,6 +106,7 @@ extern void udf_delete_inode(struct inode *);
 extern void udf_clear_inode(struct inode *);
 extern int udf_write_inode(struct inode *, int);
 extern long udf_block_map(struct inode *, sector_t);
+extern int udf_extend_file(struct inode *, struct extent_position *, kernel_long_ad *, sector_t);
 extern int8_t inode_bmap(struct inode *, sector_t, struct extent_position *, kernel_lb_addr *, uint32_t *, sector_t *);
 extern int8_t udf_add_aext(struct inode *, struct extent_position *, kernel_lb_addr, uint32_t, int);
 extern int8_t udf_write_aext(struct inode *, struct extent_position *, kernel_lb_addr, uint32_t, int);
@@ -120,7 +121,6 @@ extern struct genericFormat *udf_add_extendedattr(struct inode *, uint32_t, uint
 extern struct genericFormat *udf_get_extendedattr(struct inode *, uint32_t, uint8_t);
 extern struct buffer_head *udf_read_tagged(struct super_block *, uint32_t, uint32_t, uint16_t *);
 extern struct buffer_head *udf_read_ptagged(struct super_block *, kernel_lb_addr, uint32_t, uint16_t *);
-extern void udf_release_data(struct buffer_head *);
 extern void udf_update_tag(char *, int);
 extern void udf_new_tag(char *, uint16_t, uint16_t, uint16_t, uint32_t, int);
 
