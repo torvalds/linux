@@ -317,15 +317,15 @@ static int riva_bl_update_status(struct backlight_device *bd)
 	else
 		level = bd->props.brightness;
 
-	tmp_pmc = par->riva.PMC[0x10F0/4] & 0x0000FFFF;
-	tmp_pcrt = par->riva.PCRTC0[0x081C/4] & 0xFFFFFFFC;
+	tmp_pmc = NV_RD32(par->riva.PMC, 0x10F0) & 0x0000FFFF;
+	tmp_pcrt = NV_RD32(par->riva.PCRTC0, 0x081C) & 0xFFFFFFFC;
 	if(level > 0) {
 		tmp_pcrt |= 0x1;
 		tmp_pmc |= (1 << 31); /* backlight bit */
 		tmp_pmc |= riva_bl_get_level_brightness(par, level) << 16; /* level */
 	}
-	par->riva.PCRTC0[0x081C/4] = tmp_pcrt;
-	par->riva.PMC[0x10F0/4] = tmp_pmc;
+	NV_WR32(par->riva.PCRTC0, 0x081C, tmp_pcrt);
+	NV_WR32(par->riva.PMC, 0x10F0, tmp_pmc);
 
 	return 0;
 }
