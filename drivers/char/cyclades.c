@@ -5297,46 +5297,9 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 
 	return 0;
 }
-#endif
 
-/*
- * ---------------------------------------------------------------------
- * cy_detect_pci() - Test PCI bus presence and Cyclom-Ye/PCI.
- * sets global variables and return the number of PCI boards found.
- * ---------------------------------------------------------------------
- */
-static int __init cy_detect_pci(void)
+static void __devexit cy_pci_remove(struct pci_dev *pdev)
 {
-#ifdef CONFIG_PCI
-	struct pci_dev *pdev = NULL;
-	unsigned int i, device_id, dev_index = 0;
-
-	for (i = 0; i < NR_CARDS; i++) {
-		/* look for a Cyclades card by vendor and device id */
-		while ((device_id = cy_pci_dev_id[dev_index].device) != 0) {
-			if ((pdev = pci_get_device(PCI_VENDOR_ID_CYCLADES,
-						   device_id, pdev)) == NULL) {
-				dev_index++;	/* try next device id */
-			} else {
-				break;	/* found a board */
-			}
-		}
-
-		if (device_id == 0)
-			break;
-
-		i -= !!cy_pci_probe(pdev, &cy_pci_dev_id[dev_index]);
-	}
-
-	return i;
-#else
-	return 0;
-#endif				/* ifdef CONFIG_PCI */
-}				/* cy_detect_pci */
-
-static void __devexit cy_pci_release(struct pci_dev *pdev)
-{
-#ifdef CONFIG_PCI
 	struct cyclades_card *cinfo = pci_get_drvdata(pdev);
 	unsigned int i;
 
@@ -5370,8 +5333,15 @@ static void __devexit cy_pci_release(struct pci_dev *pdev)
 	for (i = cinfo->first_line; i < cinfo->first_line +
 			cinfo->nports; i++)
 		tty_unregister_device(cy_serial_driver, i);
-#endif
 }
+
+static struct pci_driver cy_pci_driver = {
+	.name = "cyclades",
+	.id_table = cy_pci_dev_id,
+	.probe = cy_pci_probe,
+	.remove = __devexit_p(cy_pci_remove)
+};
+#endif
 
 /*
  * This routine prints out the appropriate serial driver version number
@@ -5533,13 +5503,12 @@ static int __init cy_init(void)
 	/* look for isa boards */
 	nboards = cy_detect_isa();
 
+#ifdef CONFIG_PCI
 	/* look for pci boards */
-	nboards += cy_detect_pci();
-
-	if (nboards == 0) {
-		retval = -ENODEV;
+	retval = pci_register_driver(&cy_pci_driver);
+	if (retval && !nboards)
 		goto err_unr;
-	}
+#endif
 
 	return 0;
 err_unr:
@@ -5564,12 +5533,12 @@ static void __exit cy_cleanup_module(void)
 
 	put_tty_driver(cy_serial_driver);
 
+#ifdef CONFIG_PCI
+	pci_unregister_driver(&cy_pci_driver);
+#endif
+
 	for (i = 0; i < NR_CARDS; i++) {
 		if (cy_card[i].base_addr) {
-			if (cy_card[i].pdev) {
-				cy_pci_release(cy_card[i].pdev);
-				continue;
-			}
 			/* clear interrupt */
 			cy_writeb(cy_card[i].base_addr + Cy_ClrIntr, 0);
 			iounmap(cy_card[i].base_addr);
