@@ -22,6 +22,8 @@
 
 #define DM_MSG_PREFIX "raid1"
 
+#define DM_RAID1_HANDLE_ERRORS 0x01
+
 static DECLARE_WAIT_QUEUE_HEAD(_kmirrord_recovery_stopped);
 
 /*-----------------------------------------------------------------
@@ -118,6 +120,7 @@ struct mirror_set {
 	struct list_head list;
 	struct region_hash rh;
 	struct kcopyd_client *kcopyd_client;
+	uint64_t features;
 
 	spinlock_t lock;	/* protects the next two lists */
 	struct bio_list reads;
@@ -1010,14 +1013,54 @@ static struct dirty_log *create_dirty_log(struct dm_target *ti,
 	return dl;
 }
 
+static int parse_features(struct mirror_set *ms, unsigned argc, char **argv,
+			  unsigned *args_used)
+{
+	unsigned num_features;
+	struct dm_target *ti = ms->ti;
+
+	*args_used = 0;
+
+	if (!argc)
+		return 0;
+
+	if (sscanf(argv[0], "%u", &num_features) != 1) {
+		ti->error = "Invalid number of features";
+		return -EINVAL;
+	}
+
+	argc--;
+	argv++;
+	(*args_used)++;
+
+	if (num_features > argc) {
+		ti->error = "Not enough arguments to support feature count";
+		return -EINVAL;
+	}
+
+	if (!strcmp("handle_errors", argv[0]))
+		ms->features |= DM_RAID1_HANDLE_ERRORS;
+	else {
+		ti->error = "Unrecognised feature requested";
+		return -EINVAL;
+	}
+
+	(*args_used)++;
+
+	return 0;
+}
+
 /*
  * Construct a mirror mapping:
  *
  * log_type #log_params <log_params>
  * #mirrors [mirror_path offset]{2,}
+ * [#features <features>]
  *
  * log_type is "core" or "disk"
  * #log_params is between 1 and 3
+ *
+ * If present, features must be "handle_errors".
  */
 #define DM_IO_PAGES 64
 static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
@@ -1043,8 +1086,8 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	argv++, argc--;
 
-	if (argc != nr_mirrors * 2) {
-		ti->error = "Wrong number of mirror arguments";
+	if (argc < nr_mirrors * 2) {
+		ti->error = "Too few mirror arguments";
 		dm_destroy_dirty_log(dl);
 		return -EINVAL;
 	}
@@ -1076,6 +1119,21 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -ENOMEM;
 	}
 	INIT_WORK(&ms->kmirrord_work, do_mirror);
+
+	r = parse_features(ms, argc, argv, &args_used);
+	if (r) {
+		free_context(ms, ti, ms->nr_mirrors);
+		return r;
+	}
+
+	argv += args_used;
+	argc -= args_used;
+
+	if (argc) {
+		ti->error = "Too many mirror arguments";
+		free_context(ms, ti, ms->nr_mirrors);
+		return -EINVAL;
+	}
 
 	r = kcopyd_client_create(DM_IO_PAGES, &ms->kcopyd_client);
 	if (r) {
@@ -1230,6 +1288,9 @@ static int mirror_status(struct dm_target *ti, status_type_t type,
 		for (m = 0; m < ms->nr_mirrors; m++)
 			DMEMIT(" %s %llu", ms->mirror[m].dev->name,
 				(unsigned long long)ms->mirror[m].offset);
+
+		if (ms->features & DM_RAID1_HANDLE_ERRORS)
+			DMEMIT(" 1 handle_errors");
 	}
 
 	return 0;
