@@ -49,6 +49,7 @@ struct clocksource;
  * @shift:		cycle to nanosecond divisor (power of two)
  * @flags:		flags describing special properties
  * @vread:		vsyscall based read
+ * @resume:		resume function for the clocksource, if necessary
  * @cycle_interval:	Used internally by timekeeping core, please ignore.
  * @xtime_interval:	Used internally by timekeeping core, please ignore.
  */
@@ -65,6 +66,7 @@ struct clocksource {
 	u32 shift;
 	unsigned long flags;
 	cycle_t (*vread)(void);
+	void (*resume)(void);
 
 	/* timekeeping specific data, ignore */
 	cycle_t cycle_interval;
@@ -209,6 +211,7 @@ static inline void clocksource_calculate_interval(struct clocksource *c,
 extern int clocksource_register(struct clocksource*);
 extern struct clocksource* clocksource_get_next(void);
 extern void clocksource_change_rating(struct clocksource *cs, int rating);
+extern void clocksource_resume(void);
 
 #ifdef CONFIG_GENERIC_TIME_VSYSCALL
 extern void update_vsyscall(struct timespec *ts, struct clocksource *c);
