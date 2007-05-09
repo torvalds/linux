@@ -213,6 +213,59 @@ struct gendisk *get_gendisk(dev_t dev, int *part)
 	return  kobj ? to_disk(kobj) : NULL;
 }
 
+/*
+ * print a full list of all partitions - intended for places where the root
+ * filesystem can't be mounted and thus to give the victim some idea of what
+ * went wrong
+ */
+void __init printk_all_partitions(void)
+{
+	int n;
+	struct gendisk *sgp;
+
+	mutex_lock(&block_subsys_lock);
+	/* For each block device... */
+	list_for_each_entry(sgp, &block_subsys.list, kobj.entry) {
+		char buf[BDEVNAME_SIZE];
+		/*
+		 * Don't show empty devices or things that have been surpressed
+		 */
+		if (get_capacity(sgp) == 0 ||
+		    (sgp->flags & GENHD_FL_SUPPRESS_PARTITION_INFO))
+			continue;
+
+		/*
+		 * Note, unlike /proc/partitions, I am showing the numbers in
+		 * hex - the same format as the root= option takes.
+		 */
+		printk("%02x%02x %10llu %s",
+			sgp->major, sgp->first_minor,
+			(unsigned long long)get_capacity(sgp) >> 1,
+			disk_name(sgp, 0, buf));
+		if (sgp->driverfs_dev != NULL &&
+		    sgp->driverfs_dev->driver != NULL)
+			printk(" driver: %s\n",
+				sgp->driverfs_dev->driver->name);
+		else
+			printk(" (driver?)\n");
+
+		/* now show the partitions */
+		for (n = 0; n < sgp->minors - 1; ++n) {
+			if (sgp->part[n] == NULL)
+				continue;
+			if (sgp->part[n]->nr_sects == 0)
+				continue;
+			printk("  %02x%02x %10llu %s\n",
+				sgp->major, n + 1 + sgp->first_minor,
+				(unsigned long long)sgp->part[n]->nr_sects >> 1,
+				disk_name(sgp, n + 1, buf));
+		} /* partition subloop */
+	} /* Block device loop */
+
+	mutex_unlock(&block_subsys_lock);
+	return;
+}
+
 #ifdef CONFIG_PROC_FS
 /* iterator */
 static void *part_start(struct seq_file *part, loff_t *pos)
