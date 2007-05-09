@@ -308,13 +308,13 @@ static int worker_thread(void *__cwq)
 	do_sigaction(SIGCHLD, &sa, (struct k_sigaction *)0);
 
 	for (;;) {
-		if (cwq->wq->freezeable)
-			try_to_freeze();
-
 		prepare_to_wait(&cwq->more_work, &wait, TASK_INTERRUPTIBLE);
-		if (!cwq->should_stop && list_empty(&cwq->worklist))
+		if (!freezing(current) && !cwq->should_stop
+		    && list_empty(&cwq->worklist))
 			schedule();
 		finish_wait(&cwq->more_work, &wait);
+
+		try_to_freeze();
 
 		if (cwq_should_stop(cwq))
 			break;
