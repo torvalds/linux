@@ -828,7 +828,7 @@ zfcp_fsf_status_read_port_closed(struct zfcp_fsf_req *fsf_req)
 
 	if (!port || (port->d_id != (status_buffer->d_id & ZFCP_DID_MASK))) {
 		ZFCP_LOG_NORMAL("bug: Reopen port indication received for"
-				"nonexisting port with d_id 0x%08x on "
+				"nonexisting port with d_id 0x%06x on "
 				"adapter %s. Ignored.\n",
 				status_buffer->d_id & ZFCP_DID_MASK,
 				zfcp_get_busid_by_adapter(adapter));
@@ -853,7 +853,7 @@ zfcp_fsf_status_read_port_closed(struct zfcp_fsf_req *fsf_req)
 				&status_buffer->status_subtype, sizeof (u32));
 		ZFCP_LOG_NORMAL("bug: Undefined status subtype received "
 				"for a reopen indication on port with "
-				"d_id 0x%08x on the adapter %s. "
+				"d_id 0x%06x on the adapter %s. "
 				"Ignored. (debug info 0x%x)\n",
 				status_buffer->d_id,
 				zfcp_get_busid_by_adapter(adapter),
@@ -1156,7 +1156,7 @@ zfcp_fsf_abort_fcp_command(unsigned long old_req_id,
 	}
 
 	ZFCP_LOG_DEBUG("Abort FCP Command request initiated "
-		       "(adapter%s, port d_id=0x%08x, "
+		       "(adapter%s, port d_id=0x%06x, "
 		       "unit x%016Lx, old_req_id=0x%lx)\n",
 		       zfcp_get_busid_by_adapter(adapter),
 		       unit->port->d_id,
@@ -1554,7 +1554,7 @@ zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *fsf_req)
 
 	case FSF_ACCESS_DENIED:
 		ZFCP_LOG_NORMAL("access denied, cannot send generic service "
-				"command (adapter %s, port d_id=0x%08x)\n",
+				"command (adapter %s, port d_id=0x%06x)\n",
 				zfcp_get_busid_by_port(port), port->d_id);
 		for (counter = 0; counter < 2; counter++) {
 			subtable = header->fsf_status_qual.halfword[counter * 2];
@@ -1576,7 +1576,7 @@ zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *fsf_req)
 
         case FSF_GENERIC_COMMAND_REJECTED:
 		ZFCP_LOG_INFO("generic service command rejected "
-			      "(adapter %s, port d_id=0x%08x)\n",
+			      "(adapter %s, port d_id=0x%06x)\n",
 			      zfcp_get_busid_by_port(port), port->d_id);
 		ZFCP_LOG_INFO("status qualifier:\n");
 		ZFCP_HEX_DUMP(ZFCP_LOG_LEVEL_INFO,
@@ -1602,7 +1602,7 @@ zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *fsf_req)
 
         case FSF_PORT_BOXED:
 		ZFCP_LOG_INFO("port needs to be reopened "
-			      "(adapter %s, port d_id=0x%08x)\n",
+			      "(adapter %s, port d_id=0x%06x)\n",
 			      zfcp_get_busid_by_port(port), port->d_id);
 		debug_text_event(adapter->erp_dbf, 2, "fsf_s_pboxed");
 		zfcp_erp_port_boxed(port);
@@ -1683,7 +1683,7 @@ zfcp_fsf_send_els(struct zfcp_send_els *els)
 				  NULL, &lock_flags, &fsf_req);
 	if (ret < 0) {
                 ZFCP_LOG_INFO("error: creation of ELS request failed "
-			      "(adapter %s, port d_id: 0x%08x)\n",
+			      "(adapter %s, port d_id: 0x%06x)\n",
                               zfcp_get_busid_by_adapter(adapter), d_id);
                 goto failed_req;
 	}
@@ -1708,7 +1708,7 @@ zfcp_fsf_send_els(struct zfcp_send_els *els)
                                                 ZFCP_MAX_SBALS_PER_ELS_REQ);
                 if (bytes <= 0) {
                         ZFCP_LOG_INFO("error: creation of ELS request failed "
-				      "(adapter %s, port d_id: 0x%08x)\n",
+				      "(adapter %s, port d_id: 0x%06x)\n",
 				      zfcp_get_busid_by_adapter(adapter), d_id);
                         if (bytes == 0) {
                                 ret = -ENOMEM;
@@ -1725,7 +1725,7 @@ zfcp_fsf_send_els(struct zfcp_send_els *els)
                                                 ZFCP_MAX_SBALS_PER_ELS_REQ);
                 if (bytes <= 0) {
                         ZFCP_LOG_INFO("error: creation of ELS request failed "
-				      "(adapter %s, port d_id: 0x%08x)\n",
+				      "(adapter %s, port d_id: 0x%06x)\n",
 				      zfcp_get_busid_by_adapter(adapter), d_id);
                         if (bytes == 0) {
                                 ret = -ENOMEM;
@@ -1739,7 +1739,7 @@ zfcp_fsf_send_els(struct zfcp_send_els *els)
                 /* reject request */
 		ZFCP_LOG_INFO("error: microcode does not support chained SBALs"
                               ", ELS request too big (adapter %s, "
-			      "port d_id: 0x%08x)\n",
+			      "port d_id: 0x%06x)\n",
 			      zfcp_get_busid_by_adapter(adapter), d_id);
                 ret = -EOPNOTSUPP;
                 goto failed_send;
@@ -1760,13 +1760,13 @@ zfcp_fsf_send_els(struct zfcp_send_els *els)
 	ret = zfcp_fsf_req_send(fsf_req);
 	if (ret) {
 		ZFCP_LOG_DEBUG("error: initiation of ELS request failed "
-			       "(adapter %s, port d_id: 0x%08x)\n",
+			       "(adapter %s, port d_id: 0x%06x)\n",
 			       zfcp_get_busid_by_adapter(adapter), d_id);
 		goto failed_send;
 	}
 
 	ZFCP_LOG_DEBUG("ELS request initiated (adapter %s, port d_id: "
-		       "0x%08x)\n", zfcp_get_busid_by_adapter(adapter), d_id);
+		       "0x%06x)\n", zfcp_get_busid_by_adapter(adapter), d_id);
 	goto out;
 
  failed_send:
@@ -1859,7 +1859,7 @@ static int zfcp_fsf_send_els_handler(struct zfcp_fsf_req *fsf_req)
 	case FSF_ELS_COMMAND_REJECTED:
 		ZFCP_LOG_INFO("ELS has been rejected because command filter "
 			      "prohibited sending "
-			      "(adapter: %s, port d_id: 0x%08x)\n",
+			      "(adapter: %s, port d_id: 0x%06x)\n",
 			      zfcp_get_busid_by_adapter(adapter), d_id);
 
 		break;
@@ -1907,7 +1907,7 @@ static int zfcp_fsf_send_els_handler(struct zfcp_fsf_req *fsf_req)
 
 	case FSF_ACCESS_DENIED:
 		ZFCP_LOG_NORMAL("access denied, cannot send ELS command "
-				"(adapter %s, port d_id=0x%08x)\n",
+				"(adapter %s, port d_id=0x%06x)\n",
 				zfcp_get_busid_by_adapter(adapter), d_id);
 		for (counter = 0; counter < 2; counter++) {
 			subtable = header->fsf_status_qual.halfword[counter * 2];
@@ -2070,7 +2070,7 @@ zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *fsf_req, int xchg_ok)
 	ZFCP_LOG_NORMAL("The adapter %s reported the following characteristics:\n"
 			"WWNN 0x%016Lx, "
 			"WWPN 0x%016Lx, "
-			"S_ID 0x%08x,\n"
+			"S_ID 0x%06x,\n"
 			"adapter version 0x%x, "
 			"LIC version 0x%x, "
 			"FC link speed %d Gb/s\n",
@@ -3043,6 +3043,7 @@ zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *fsf_req)
 	queue_designator = &header->fsf_status_qual.fsf_queue_designator;
 
 	atomic_clear_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED |
+			  ZFCP_STATUS_COMMON_ACCESS_BOXED |
 			  ZFCP_STATUS_UNIT_SHARED |
 			  ZFCP_STATUS_UNIT_READONLY,
 			  &unit->status);
@@ -4645,23 +4646,22 @@ zfcp_fsf_req_create(struct zfcp_adapter *adapter, u32 fsf_cmd, int req_flags,
 	fsf_req->adapter = adapter;
 	fsf_req->fsf_command = fsf_cmd;
 	INIT_LIST_HEAD(&fsf_req->list);
-	
-	/* this is serialized (we are holding req_queue-lock of adapter */
-	if (adapter->req_no == 0)
-		adapter->req_no++;
-	fsf_req->req_id = adapter->req_no++;
-
 	init_timer(&fsf_req->timer);
-	zfcp_fsf_req_qtcb_init(fsf_req);
 
 	/* initialize waitqueue which may be used to wait on 
 	   this request completion */
 	init_waitqueue_head(&fsf_req->completion_wq);
 
         ret = zfcp_fsf_req_sbal_get(adapter, req_flags, lock_flags);
-        if(ret < 0) {
+        if (ret < 0)
                 goto failed_sbals;
-	}
+
+	/* this is serialized (we are holding req_queue-lock of adapter) */
+	if (adapter->req_no == 0)
+		adapter->req_no++;
+	fsf_req->req_id = adapter->req_no++;
+
+	zfcp_fsf_req_qtcb_init(fsf_req);
 
 	/*
 	 * We hold queue_lock here. Check if QDIOUP is set and let request fail
@@ -4788,7 +4788,7 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *fsf_req)
 		retval = -EIO;
 		del_timer(&fsf_req->timer);
 		spin_lock(&adapter->req_list_lock);
-		zfcp_reqlist_remove(adapter, fsf_req->req_id);
+		zfcp_reqlist_remove(adapter, fsf_req);
 		spin_unlock(&adapter->req_list_lock);
 		/* undo changes in request queue made for this request */
 		zfcp_qdio_zero_sbals(req_queue->buffer,

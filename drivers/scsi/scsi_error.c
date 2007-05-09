@@ -38,7 +38,6 @@
 #include "scsi_logging.h"
 
 #define SENSE_TIMEOUT		(10*HZ)
-#define START_UNIT_TIMEOUT	(30*HZ)
 
 /*
  * These should *probably* be handled by the host itself.
@@ -936,7 +935,7 @@ static int scsi_eh_try_stu(struct scsi_cmnd *scmd)
 
 		for (i = 0; rtn == NEEDS_RETRY && i < 2; i++)
 			rtn = scsi_send_eh_cmnd(scmd, stu_command, 6,
-						START_UNIT_TIMEOUT, 0);
+						scmd->device->timeout, 0);
 
 		if (rtn == SUCCESS)
 			return 0;

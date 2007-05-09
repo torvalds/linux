@@ -92,6 +92,7 @@ static unsigned int ipr_fastfail = 0;
 static unsigned int ipr_transop_timeout = 0;
 static unsigned int ipr_enable_cache = 1;
 static unsigned int ipr_debug = 0;
+static unsigned int ipr_dual_ioa_raid = 1;
 static DEFINE_SPINLOCK(ipr_driver_lock);
 
 /* This table describes the differences between DMA controller chips */
@@ -158,6 +159,8 @@ module_param_named(enable_cache, ipr_enable_cache, int, 0);
 MODULE_PARM_DESC(enable_cache, "Enable adapter's non-volatile write cache (default: 1)");
 module_param_named(debug, ipr_debug, int, 0);
 MODULE_PARM_DESC(debug, "Enable device driver debugging logging. Set to 1 to enable. (default: 0)");
+module_param_named(dual_ioa_raid, ipr_dual_ioa_raid, int, 0);
+MODULE_PARM_DESC(dual_ioa_raid, "Enable dual adapter RAID support. Set to 1 to enable. (default: 1)");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(IPR_DRIVER_VERSION);
 
@@ -206,6 +209,8 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"8009: Impending cache battery pack failure"},
 	{0x02040400, 0, 0,
 	"34FF: Disk device format in progress"},
+	{0x02048000, 0, IPR_DEFAULT_LOG_LEVEL,
+	"9070: IOA requested reset"},
 	{0x023F0000, 0, 0,
 	"Synchronization required"},
 	{0x024E0000, 0, 0,
@@ -951,6 +956,53 @@ static void ipr_process_ccn(struct ipr_cmnd *ipr_cmd)
 }
 
 /**
+ * strip_and_pad_whitespace - Strip and pad trailing whitespace.
+ * @i:		index into buffer
+ * @buf:		string to modify
+ *
+ * This function will strip all trailing whitespace, pad the end
+ * of the string with a single space, and NULL terminate the string.
+ *
+ * Return value:
+ * 	new length of string
+ **/
+static int strip_and_pad_whitespace(int i, char *buf)
+{
+	while (i && buf[i] == ' ')
+		i--;
+	buf[i+1] = ' ';
+	buf[i+2] = '\0';
+	return i + 2;
+}
+
+/**
+ * ipr_log_vpd_compact - Log the passed extended VPD compactly.
+ * @prefix:		string to print at start of printk
+ * @hostrcb:	hostrcb pointer
+ * @vpd:		vendor/product id/sn struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_vpd_compact(char *prefix, struct ipr_hostrcb *hostrcb,
+				struct ipr_vpd *vpd)
+{
+	char buffer[IPR_VENDOR_ID_LEN + IPR_PROD_ID_LEN + IPR_SERIAL_NUM_LEN + 3];
+	int i = 0;
+
+	memcpy(buffer, vpd->vpids.vendor_id, IPR_VENDOR_ID_LEN);
+	i = strip_and_pad_whitespace(IPR_VENDOR_ID_LEN - 1, buffer);
+
+	memcpy(&buffer[i], vpd->vpids.product_id, IPR_PROD_ID_LEN);
+	i = strip_and_pad_whitespace(i + IPR_PROD_ID_LEN - 1, buffer);
+
+	memcpy(&buffer[i], vpd->sn, IPR_SERIAL_NUM_LEN);
+	buffer[IPR_SERIAL_NUM_LEN + i] = '\0';
+
+	ipr_hcam_err(hostrcb, "%s VPID/SN: %s\n", prefix, buffer);
+}
+
+/**
  * ipr_log_vpd - Log the passed VPD to the error log.
  * @vpd:		vendor/product id/sn struct
  *
@@ -971,6 +1023,23 @@ static void ipr_log_vpd(struct ipr_vpd *vpd)
 	memcpy(buffer, vpd->sn, IPR_SERIAL_NUM_LEN);
 	buffer[IPR_SERIAL_NUM_LEN] = '\0';
 	ipr_err("    Serial Number: %s\n", buffer);
+}
+
+/**
+ * ipr_log_ext_vpd_compact - Log the passed extended VPD compactly.
+ * @prefix:		string to print at start of printk
+ * @hostrcb:	hostrcb pointer
+ * @vpd:		vendor/product id/sn/wwn struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_ext_vpd_compact(char *prefix, struct ipr_hostrcb *hostrcb,
+				    struct ipr_ext_vpd *vpd)
+{
+	ipr_log_vpd_compact(prefix, hostrcb, &vpd->vpd);
+	ipr_hcam_err(hostrcb, "%s WWN: %08X%08X\n", prefix,
+		     be32_to_cpu(vpd->wwid[0]), be32_to_cpu(vpd->wwid[1]));
 }
 
 /**
@@ -1287,10 +1356,11 @@ static void ipr_log_enhanced_dual_ioa_error(struct ipr_ioa_cfg *ioa_cfg,
 
 	error = &hostrcb->hcam.u.error.u.type_17_error;
 	error->failure_reason[sizeof(error->failure_reason) - 1] = '\0';
+	strstrip(error->failure_reason);
 
-	ipr_err("%s\n", error->failure_reason);
-	ipr_err("Remote Adapter VPD:\n");
-	ipr_log_ext_vpd(&error->vpd);
+	ipr_hcam_err(hostrcb, "%s [PRC: %08X]\n", error->failure_reason,
+		     be32_to_cpu(hostrcb->hcam.u.error.prc));
+	ipr_log_ext_vpd_compact("Remote IOA", hostrcb, &error->vpd);
 	ipr_log_hex_data(ioa_cfg, error->data,
 			 be32_to_cpu(hostrcb->hcam.length) -
 			 (offsetof(struct ipr_hostrcb_error, u) +
@@ -1312,10 +1382,11 @@ static void ipr_log_dual_ioa_error(struct ipr_ioa_cfg *ioa_cfg,
 
 	error = &hostrcb->hcam.u.error.u.type_07_error;
 	error->failure_reason[sizeof(error->failure_reason) - 1] = '\0';
+	strstrip(error->failure_reason);
 
-	ipr_err("%s\n", error->failure_reason);
-	ipr_err("Remote Adapter VPD:\n");
-	ipr_log_vpd(&error->vpd);
+	ipr_hcam_err(hostrcb, "%s [PRC: %08X]\n", error->failure_reason,
+		     be32_to_cpu(hostrcb->hcam.u.error.prc));
+	ipr_log_vpd_compact("Remote IOA", hostrcb, &error->vpd);
 	ipr_log_hex_data(ioa_cfg, error->data,
 			 be32_to_cpu(hostrcb->hcam.length) -
 			 (offsetof(struct ipr_hostrcb_error, u) +
@@ -1672,12 +1743,15 @@ static void ipr_process_error(struct ipr_cmnd *ipr_cmd)
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
 	struct ipr_hostrcb *hostrcb = ipr_cmd->u.hostrcb;
 	u32 ioasc = be32_to_cpu(ipr_cmd->ioasa.ioasc);
+	u32 fd_ioasc = be32_to_cpu(hostrcb->hcam.u.error.failing_dev_ioasc);
 
 	list_del(&hostrcb->queue);
 	list_add_tail(&ipr_cmd->queue, &ioa_cfg->free_q);
 
 	if (!ioasc) {
 		ipr_handle_log_data(ioa_cfg, hostrcb);
+		if (fd_ioasc == IPR_IOASC_NR_IOA_RESET_REQUIRED)
+			ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_ABBREV);
 	} else if (ioasc != IPR_IOASC_IOA_WAS_RESET) {
 		dev_err(&ioa_cfg->pdev->dev,
 			"Host RCB failed with IOASC: 0x%08X\n", ioasc);
@@ -2635,8 +2709,13 @@ static ssize_t ipr_store_diagnostics(struct class_device *class_dev,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	while(ioa_cfg->in_reset_reload) {
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+		wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
+		spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	}
+
 	ioa_cfg->errors_logged = 0;
 	ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_NORMAL);
 
@@ -2958,6 +3037,11 @@ static int ipr_update_ioa_ucode(struct ipr_ioa_cfg *ioa_cfg,
 	unsigned long lock_flags;
 
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	while(ioa_cfg->in_reset_reload) {
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+		wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
+		spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	}
 
 	if (ioa_cfg->ucode_sglist) {
 		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
@@ -4656,18 +4740,19 @@ static void ipr_erp_start(struct ipr_ioa_cfg *ioa_cfg,
 	struct scsi_cmnd *scsi_cmd = ipr_cmd->scsi_cmd;
 	struct ipr_resource_entry *res = scsi_cmd->device->hostdata;
 	u32 ioasc = be32_to_cpu(ipr_cmd->ioasa.ioasc);
+	u32 masked_ioasc = ioasc & IPR_IOASC_IOASC_MASK;
 
 	if (!res) {
 		ipr_scsi_eh_done(ipr_cmd);
 		return;
 	}
 
-	if (!ipr_is_gscsi(res))
+	if (!ipr_is_gscsi(res) && masked_ioasc != IPR_IOASC_HW_DEV_BUS_STATUS)
 		ipr_gen_sense(ipr_cmd);
 
 	ipr_dump_ioasa(ioa_cfg, ipr_cmd, res);
 
-	switch (ioasc & IPR_IOASC_IOASC_MASK) {
+	switch (masked_ioasc) {
 	case IPR_IOASC_ABORTED_CMD_TERM_BY_HOST:
 		if (ipr_is_naca_model(res))
 			scsi_cmd->result |= (DID_ABORT << 16);
@@ -5363,6 +5448,7 @@ static int ipr_ioa_reset_done(struct ipr_cmnd *ipr_cmd)
 			ipr_send_hcam(ioa_cfg, IPR_HCAM_CDB_OP_CODE_CONFIG_CHANGE, hostrcb);
 	}
 
+	scsi_report_bus_reset(ioa_cfg->host, IPR_VSET_BUS);
 	dev_info(&ioa_cfg->pdev->dev, "IOA initialized.\n");
 
 	ioa_cfg->reset_retries = 0;
@@ -5799,6 +5885,94 @@ static int ipr_ioafp_mode_sense_page28(struct ipr_cmnd *ipr_cmd)
 }
 
 /**
+ * ipr_ioafp_mode_select_page24 - Issue Mode Select to IOA
+ * @ipr_cmd:	ipr command struct
+ *
+ * This function enables dual IOA RAID support if possible.
+ *
+ * Return value:
+ * 	IPR_RC_JOB_RETURN
+ **/
+static int ipr_ioafp_mode_select_page24(struct ipr_cmnd *ipr_cmd)
+{
+	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+	struct ipr_mode_pages *mode_pages = &ioa_cfg->vpd_cbs->mode_pages;
+	struct ipr_mode_page24 *mode_page;
+	int length;
+
+	ENTER;
+	mode_page = ipr_get_mode_page(mode_pages, 0x24,
+				      sizeof(struct ipr_mode_page24));
+
+	if (mode_page)
+		mode_page->flags |= IPR_ENABLE_DUAL_IOA_AF;
+
+	length = mode_pages->hdr.length + 1;
+	mode_pages->hdr.length = 0;
+
+	ipr_build_mode_select(ipr_cmd, cpu_to_be32(IPR_IOA_RES_HANDLE), 0x11,
+			      ioa_cfg->vpd_cbs_dma + offsetof(struct ipr_misc_cbs, mode_pages),
+			      length);
+
+	ipr_cmd->job_step = ipr_ioafp_mode_sense_page28;
+	ipr_do_req(ipr_cmd, ipr_reset_ioa_job, ipr_timeout, IPR_INTERNAL_TIMEOUT);
+
+	LEAVE;
+	return IPR_RC_JOB_RETURN;
+}
+
+/**
+ * ipr_reset_mode_sense_page24_failed - Handle failure of IOAFP mode sense
+ * @ipr_cmd:	ipr command struct
+ *
+ * This function handles the failure of a Mode Sense to the IOAFP.
+ * Some adapters do not handle all mode pages.
+ *
+ * Return value:
+ * 	IPR_RC_JOB_CONTINUE / IPR_RC_JOB_RETURN
+ **/
+static int ipr_reset_mode_sense_page24_failed(struct ipr_cmnd *ipr_cmd)
+{
+	u32 ioasc = be32_to_cpu(ipr_cmd->ioasa.ioasc);
+
+	if (ioasc == IPR_IOASC_IR_INVALID_REQ_TYPE_OR_PKT) {
+		ipr_cmd->job_step = ipr_ioafp_mode_sense_page28;
+		return IPR_RC_JOB_CONTINUE;
+	}
+
+	return ipr_reset_cmd_failed(ipr_cmd);
+}
+
+/**
+ * ipr_ioafp_mode_sense_page24 - Issue Page 24 Mode Sense to IOA
+ * @ipr_cmd:	ipr command struct
+ *
+ * This function send a mode sense to the IOA to retrieve
+ * the IOA Advanced Function Control mode page.
+ *
+ * Return value:
+ * 	IPR_RC_JOB_RETURN
+ **/
+static int ipr_ioafp_mode_sense_page24(struct ipr_cmnd *ipr_cmd)
+{
+	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+
+	ENTER;
+	ipr_build_mode_sense(ipr_cmd, cpu_to_be32(IPR_IOA_RES_HANDLE),
+			     0x24, ioa_cfg->vpd_cbs_dma +
+			     offsetof(struct ipr_misc_cbs, mode_pages),
+			     sizeof(struct ipr_mode_pages));
+
+	ipr_cmd->job_step = ipr_ioafp_mode_select_page24;
+	ipr_cmd->job_step_failed = ipr_reset_mode_sense_page24_failed;
+
+	ipr_do_req(ipr_cmd, ipr_reset_ioa_job, ipr_timeout, IPR_INTERNAL_TIMEOUT);
+
+	LEAVE;
+	return IPR_RC_JOB_RETURN;
+}
+
+/**
  * ipr_init_res_table - Initialize the resource table
  * @ipr_cmd:	ipr command struct
  *
@@ -5866,7 +6040,10 @@ static int ipr_init_res_table(struct ipr_cmnd *ipr_cmd)
 		}
 	}
 
-	ipr_cmd->job_step = ipr_ioafp_mode_sense_page28;
+	if (ioa_cfg->dual_raid && ipr_dual_ioa_raid)
+		ipr_cmd->job_step = ipr_ioafp_mode_sense_page24;
+	else
+		ipr_cmd->job_step = ipr_ioafp_mode_sense_page28;
 
 	LEAVE;
 	return IPR_RC_JOB_CONTINUE;
@@ -5888,8 +6065,11 @@ static int ipr_ioafp_query_ioa_cfg(struct ipr_cmnd *ipr_cmd)
 	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
 	struct ipr_ioadl_desc *ioadl = ipr_cmd->ioadl;
 	struct ipr_inquiry_page3 *ucode_vpd = &ioa_cfg->vpd_cbs->page3_data;
+	struct ipr_inquiry_cap *cap = &ioa_cfg->vpd_cbs->cap;
 
 	ENTER;
+	if (cap->cap & IPR_CAP_DUAL_IOA_RAID)
+		ioa_cfg->dual_raid = 1;
 	dev_info(&ioa_cfg->pdev->dev, "Adapter firmware version: %02X%02X%02X%02X\n",
 		 ucode_vpd->major_release, ucode_vpd->card_type,
 		 ucode_vpd->minor_release[0], ucode_vpd->minor_release[1]);
@@ -5973,6 +6153,37 @@ static int ipr_inquiry_page_supported(struct ipr_inquiry_page0 *page0, u8 page)
 }
 
 /**
+ * ipr_ioafp_cap_inquiry - Send a Page 0xD0 Inquiry to the adapter.
+ * @ipr_cmd:	ipr command struct
+ *
+ * This function sends a Page 0xD0 inquiry to the adapter
+ * to retrieve adapter capabilities.
+ *
+ * Return value:
+ * 	IPR_RC_JOB_CONTINUE / IPR_RC_JOB_RETURN
+ **/
+static int ipr_ioafp_cap_inquiry(struct ipr_cmnd *ipr_cmd)
+{
+	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+	struct ipr_inquiry_page0 *page0 = &ioa_cfg->vpd_cbs->page0_data;
+	struct ipr_inquiry_cap *cap = &ioa_cfg->vpd_cbs->cap;
+
+	ENTER;
+	ipr_cmd->job_step = ipr_ioafp_query_ioa_cfg;
+	memset(cap, 0, sizeof(*cap));
+
+	if (ipr_inquiry_page_supported(page0, 0xD0)) {
+		ipr_ioafp_inquiry(ipr_cmd, 1, 0xD0,
+				  ioa_cfg->vpd_cbs_dma + offsetof(struct ipr_misc_cbs, cap),
+				  sizeof(struct ipr_inquiry_cap));
+		return IPR_RC_JOB_RETURN;
+	}
+
+	LEAVE;
+	return IPR_RC_JOB_CONTINUE;
+}
+
+/**
  * ipr_ioafp_page3_inquiry - Send a Page 3 Inquiry to the adapter.
  * @ipr_cmd:	ipr command struct
  *
@@ -5992,7 +6203,7 @@ static int ipr_ioafp_page3_inquiry(struct ipr_cmnd *ipr_cmd)
 	if (!ipr_inquiry_page_supported(page0, 1))
 		ioa_cfg->cache_state = CACHE_NONE;
 
-	ipr_cmd->job_step = ipr_ioafp_query_ioa_cfg;
+	ipr_cmd->job_step = ipr_ioafp_cap_inquiry;
 
 	ipr_ioafp_inquiry(ipr_cmd, 1, 3,
 			  ioa_cfg->vpd_cbs_dma + offsetof(struct ipr_misc_cbs, page3_data),
@@ -6278,6 +6489,7 @@ static void ipr_get_unit_check_buffer(struct ipr_ioa_cfg *ioa_cfg)
 	struct ipr_hostrcb *hostrcb;
 	struct ipr_uc_sdt sdt;
 	int rc, length;
+	u32 ioasc;
 
 	mailbox = readl(ioa_cfg->ioa_mailbox);
 
@@ -6310,9 +6522,13 @@ static void ipr_get_unit_check_buffer(struct ipr_ioa_cfg *ioa_cfg)
 					(__be32 *)&hostrcb->hcam,
 					min(length, (int)sizeof(hostrcb->hcam)) / sizeof(__be32));
 
-	if (!rc)
+	if (!rc) {
 		ipr_handle_log_data(ioa_cfg, hostrcb);
-	else
+		ioasc = be32_to_cpu(hostrcb->hcam.u.error.failing_dev_ioasc);
+		if (ioasc == IPR_IOASC_NR_IOA_RESET_REQUIRED &&
+		    ioa_cfg->sdt_state == GET_DUMP)
+			ioa_cfg->sdt_state = WAIT_FOR_DUMP;
+	} else
 		ipr_unit_check_no_data(ioa_cfg);
 
 	list_add_tail(&hostrcb->queue, &ioa_cfg->hostrcb_free_q);
@@ -6425,6 +6641,48 @@ static int ipr_reset_start_bist(struct ipr_cmnd *ipr_cmd)
 }
 
 /**
+ * ipr_reset_slot_reset_done - Clear PCI reset to the adapter
+ * @ipr_cmd:	ipr command struct
+ *
+ * Description: This clears PCI reset to the adapter and delays two seconds.
+ *
+ * Return value:
+ * 	IPR_RC_JOB_RETURN
+ **/
+static int ipr_reset_slot_reset_done(struct ipr_cmnd *ipr_cmd)
+{
+	ENTER;
+	pci_set_pcie_reset_state(ipr_cmd->ioa_cfg->pdev, pcie_deassert_reset);
+	ipr_cmd->job_step = ipr_reset_bist_done;
+	ipr_reset_start_timer(ipr_cmd, IPR_WAIT_FOR_BIST_TIMEOUT);
+	LEAVE;
+	return IPR_RC_JOB_RETURN;
+}
+
+/**
+ * ipr_reset_slot_reset - Reset the PCI slot of the adapter.
+ * @ipr_cmd:	ipr command struct
+ *
+ * Description: This asserts PCI reset to the adapter.
+ *
+ * Return value:
+ * 	IPR_RC_JOB_RETURN
+ **/
+static int ipr_reset_slot_reset(struct ipr_cmnd *ipr_cmd)
+{
+	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+	struct pci_dev *pdev = ioa_cfg->pdev;
+
+	ENTER;
+	pci_block_user_cfg_access(pdev);
+	pci_set_pcie_reset_state(pdev, pcie_warm_reset);
+	ipr_cmd->job_step = ipr_reset_slot_reset_done;
+	ipr_reset_start_timer(ipr_cmd, IPR_PCI_RESET_TIMEOUT);
+	LEAVE;
+	return IPR_RC_JOB_RETURN;
+}
+
+/**
  * ipr_reset_allowed - Query whether or not IOA can be reset
  * @ioa_cfg:	ioa config struct
  *
@@ -6463,7 +6721,7 @@ static int ipr_reset_wait_to_start_bist(struct ipr_cmnd *ipr_cmd)
 		ipr_cmd->u.time_left -= IPR_CHECK_FOR_RESET_TIMEOUT;
 		ipr_reset_start_timer(ipr_cmd, IPR_CHECK_FOR_RESET_TIMEOUT);
 	} else {
-		ipr_cmd->job_step = ipr_reset_start_bist;
+		ipr_cmd->job_step = ioa_cfg->reset;
 		rc = IPR_RC_JOB_CONTINUE;
 	}
 
@@ -6496,7 +6754,7 @@ static int ipr_reset_alert(struct ipr_cmnd *ipr_cmd)
 		writel(IPR_UPROCI_RESET_ALERT, ioa_cfg->regs.set_uproc_interrupt_reg);
 		ipr_cmd->job_step = ipr_reset_wait_to_start_bist;
 	} else {
-		ipr_cmd->job_step = ipr_reset_start_bist;
+		ipr_cmd->job_step = ioa_cfg->reset;
 	}
 
 	ipr_cmd->u.time_left = IPR_WAIT_FOR_RESET_TIMEOUT;
@@ -6591,12 +6849,14 @@ static int ipr_reset_shutdown_ioa(struct ipr_cmnd *ipr_cmd)
 		ipr_cmd->ioarcb.cmd_pkt.cdb[0] = IPR_IOA_SHUTDOWN;
 		ipr_cmd->ioarcb.cmd_pkt.cdb[1] = shutdown_type;
 
-		if (shutdown_type == IPR_SHUTDOWN_ABBREV)
-			timeout = IPR_ABBREV_SHUTDOWN_TIMEOUT;
+		if (shutdown_type == IPR_SHUTDOWN_NORMAL)
+			timeout = IPR_SHUTDOWN_TIMEOUT;
 		else if (shutdown_type == IPR_SHUTDOWN_PREPARE_FOR_NORMAL)
 			timeout = IPR_INTERNAL_TIMEOUT;
+		else if (ioa_cfg->dual_raid && ipr_dual_ioa_raid)
+			timeout = IPR_DUAL_IOA_ABBR_SHUTDOWN_TO;
 		else
-			timeout = IPR_SHUTDOWN_TIMEOUT;
+			timeout = IPR_ABBREV_SHUTDOWN_TIMEOUT;
 
 		ipr_do_req(ipr_cmd, ipr_reset_ioa_job, ipr_timeout, timeout);
 
@@ -6776,8 +7036,11 @@ static pci_ers_result_t ipr_pci_slot_reset(struct pci_dev *pdev)
 	struct ipr_ioa_cfg *ioa_cfg = pci_get_drvdata(pdev);
 
 	spin_lock_irqsave(ioa_cfg->host->host_lock, flags);
-	_ipr_initiate_ioa_reset(ioa_cfg, ipr_reset_restore_cfg_space,
-	                                 IPR_SHUTDOWN_NONE);
+	if (ioa_cfg->needs_warm_reset)
+		ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_NONE);
+	else
+		_ipr_initiate_ioa_reset(ioa_cfg, ipr_reset_restore_cfg_space,
+					IPR_SHUTDOWN_NONE);
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, flags);
 	return PCI_ERS_RESULT_RECOVERED;
 }
@@ -7226,7 +7489,7 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 	unsigned long ipr_regs_pci;
 	void __iomem *ipr_regs;
 	int rc = PCIBIOS_SUCCESSFUL;
-	volatile u32 mask, uproc;
+	volatile u32 mask, uproc, interrupts;
 
 	ENTER;
 
@@ -7264,6 +7527,14 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 		ioa_cfg->transop_timeout = IPR_LONG_OPERATIONAL_TIMEOUT;
 	else
 		ioa_cfg->transop_timeout = IPR_OPERATIONAL_TIMEOUT;
+
+	rc = pci_read_config_byte(pdev, PCI_REVISION_ID, &ioa_cfg->revid);
+
+	if (rc != PCIBIOS_SUCCESSFUL) {
+		dev_err(&pdev->dev, "Failed to read PCI revision ID\n");
+		rc = -EIO;
+		goto out_scsi_host_put;
+	}
 
 	ipr_regs_pci = pci_resource_start(pdev, 0);
 
@@ -7333,9 +7604,14 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 	 * the card is in an unknown state and needs a hard reset
 	 */
 	mask = readl(ioa_cfg->regs.sense_interrupt_mask_reg);
+	interrupts = readl(ioa_cfg->regs.sense_interrupt_reg);
 	uproc = readl(ioa_cfg->regs.sense_uproc_interrupt_reg);
 	if ((mask & IPR_PCII_HRRQ_UPDATED) == 0 || (uproc & IPR_UPROCI_RESET_ALERT))
 		ioa_cfg->needs_hard_reset = 1;
+	if (interrupts & IPR_PCII_ERROR_INTERRUPTS)
+		ioa_cfg->needs_hard_reset = 1;
+	if (interrupts & IPR_PCII_IOA_UNIT_CHECKED)
+		ioa_cfg->ioa_unit_checked = 1;
 
 	ipr_mask_and_clear_interrupts(ioa_cfg, ~IPR_PCII_IOA_TRANS_TO_OPER);
 	rc = request_irq(pdev->irq, ipr_isr, IRQF_SHARED, IPR_NAME, ioa_cfg);
@@ -7345,6 +7621,13 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 			pdev->irq, rc);
 		goto cleanup_nolog;
 	}
+
+	if ((dev_id->driver_data & IPR_USE_PCI_WARM_RESET) ||
+	    (dev_id->device == PCI_DEVICE_ID_IBM_OBSIDIAN_E && !ioa_cfg->revid)) {
+		ioa_cfg->needs_warm_reset = 1;
+		ioa_cfg->reset = ipr_reset_slot_reset;
+	} else
+		ioa_cfg->reset = ipr_reset_start_bist;
 
 	spin_lock(&ipr_driver_lock);
 	list_add_tail(&ioa_cfg->queue, &ipr_ioa_head);
@@ -7428,6 +7711,12 @@ static void __ipr_remove(struct pci_dev *pdev)
 	ENTER;
 
 	spin_lock_irqsave(ioa_cfg->host->host_lock, host_lock_flags);
+	while(ioa_cfg->in_reset_reload) {
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, host_lock_flags);
+		wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
+		spin_lock_irqsave(ioa_cfg->host->host_lock, host_lock_flags);
+	}
+
 	ipr_initiate_ioa_bringdown(ioa_cfg, IPR_SHUTDOWN_NORMAL);
 
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, host_lock_flags);
@@ -7551,6 +7840,12 @@ static void ipr_shutdown(struct pci_dev *pdev)
 	unsigned long lock_flags = 0;
 
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	while(ioa_cfg->in_reset_reload) {
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+		wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
+		spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	}
+
 	ipr_initiate_ioa_bringdown(ioa_cfg, IPR_SHUTDOWN_NORMAL);
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 	wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
@@ -7577,19 +7872,22 @@ static struct pci_device_id ipr_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN,
 	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572A, 0, 0, 0 },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN,
-	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572B, 0, 0, 0 },
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572B, 0, 0,
+	      IPR_USE_LONG_TRANSOP_TIMEOUT },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN,
 	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575C, 0, 0,
 	      IPR_USE_LONG_TRANSOP_TIMEOUT },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN,
 	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572A, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN,
-	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572B, 0, 0, 0 },
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_572B, 0, 0,
+	      IPR_USE_LONG_TRANSOP_TIMEOUT},
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN,
 	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575C, 0, 0,
 	      IPR_USE_LONG_TRANSOP_TIMEOUT },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN_E,
-	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_574E, 0, 0, 0 },
+	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_574E, 0, 0,
+	      IPR_USE_LONG_TRANSOP_TIMEOUT },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN_E,
 	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575D, 0, 0,
 	      IPR_USE_LONG_TRANSOP_TIMEOUT },
@@ -7597,7 +7895,7 @@ static struct pci_device_id ipr_pci_table[] __devinitdata = {
 	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57B3, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN_E,
 	      PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57B7, 0, 0,
-	      IPR_USE_LONG_TRANSOP_TIMEOUT },
+	      IPR_USE_LONG_TRANSOP_TIMEOUT | IPR_USE_PCI_WARM_RESET },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_SNIPE,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_2780, 0, 0, 0 },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP,
@@ -7627,6 +7925,7 @@ static struct pci_driver ipr_driver = {
 	.remove = ipr_remove,
 	.shutdown = ipr_shutdown,
 	.err_handler = &ipr_err_handler,
+	.dynids.use_driver_data = 1
 };
 
 /**

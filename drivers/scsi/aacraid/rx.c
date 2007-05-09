@@ -539,8 +539,10 @@ int _aac_rx_init(struct aac_dev *dev)
 	}
 
 	/* Failure to reset here is an option ... */
+	dev->a_ops.adapter_sync_cmd = rx_sync_cmd;
+	dev->a_ops.adapter_enable_int = aac_rx_disable_interrupt;
 	dev->OIMR = status = rx_readb (dev, MUnit.OIMR);
-	if ((((status & 0xff) != 0xff) || reset_devices) &&
+	if ((((status & 0x0c) != 0x0c) || reset_devices) &&
 	  !aac_rx_restart_adapter(dev, 0))
 		++restart;
 	/*

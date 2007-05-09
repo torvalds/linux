@@ -22,6 +22,7 @@
 #define ZFCP_LOG_AREA			ZFCP_LOG_AREA_SCSI
 
 #include "zfcp_ext.h"
+#include <asm/atomic.h>
 
 static void zfcp_scsi_slave_destroy(struct scsi_device *sdp);
 static int zfcp_scsi_slave_alloc(struct scsi_device *sdp);
@@ -179,6 +180,10 @@ static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 	struct zfcp_unit *unit = (struct zfcp_unit *) sdpnt->hostdata;
 
 	if (unit) {
+		zfcp_erp_wait(unit->port->adapter);
+		wait_event(unit->scsi_scan_wq,
+			   atomic_test_mask(ZFCP_STATUS_UNIT_SCSI_WORK_PENDING,
+					    &unit->status) == 0);
 		atomic_clear_mask(ZFCP_STATUS_UNIT_REGISTERED, &unit->status);
 		sdpnt->hostdata = NULL;
 		unit->device = NULL;
@@ -402,8 +407,8 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 
 	/* Check whether corresponding fsf_req is still pending */
 	spin_lock(&adapter->req_list_lock);
-	fsf_req = zfcp_reqlist_ismember(adapter, (unsigned long)
-					scpnt->host_scribble);
+	fsf_req = zfcp_reqlist_find(adapter,
+				    (unsigned long) scpnt->host_scribble);
 	spin_unlock(&adapter->req_list_lock);
 	if (!fsf_req) {
 		write_unlock_irqrestore(&adapter->abort_lock, flags);

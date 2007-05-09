@@ -179,7 +179,7 @@ static void zfcp_close_fsf(struct zfcp_adapter *adapter)
 static void zfcp_fsf_request_timeout_handler(unsigned long data)
 {
 	struct zfcp_adapter *adapter = (struct zfcp_adapter *) data;
-	zfcp_erp_adapter_reopen(adapter, 0);
+	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED);
 }
 
 void zfcp_fsf_start_timer(struct zfcp_fsf_req *fsf_req, unsigned long timeout)
@@ -342,9 +342,9 @@ zfcp_erp_adisc(struct zfcp_port *port)
 	adisc->wwpn = fc_host_port_name(adapter->scsi_host);
 	adisc->wwnn = fc_host_node_name(adapter->scsi_host);
 	adisc->nport_id = fc_host_port_id(adapter->scsi_host);
-	ZFCP_LOG_INFO("ADISC request from s_id 0x%08x to d_id 0x%08x "
+	ZFCP_LOG_INFO("ADISC request from s_id 0x%06x to d_id 0x%06x "
 		      "(wwpn=0x%016Lx, wwnn=0x%016Lx, "
-		      "hard_nport_id=0x%08x, nport_id=0x%08x)\n",
+		      "hard_nport_id=0x%06x, nport_id=0x%06x)\n",
 		      adisc->nport_id, send_els->d_id, (wwn_t) adisc->wwpn,
 		      (wwn_t) adisc->wwnn, adisc->hard_nport_id,
 		      adisc->nport_id);
@@ -352,7 +352,7 @@ zfcp_erp_adisc(struct zfcp_port *port)
 	retval = zfcp_fsf_send_els(send_els);
 	if (retval != 0) {
 		ZFCP_LOG_NORMAL("error: initiation of Send ELS failed for port "
-				"0x%08x on adapter %s\n", send_els->d_id,
+				"0x%06x on adapter %s\n", send_els->d_id,
 				zfcp_get_busid_by_adapter(adapter));
 		goto freemem;
 	}
@@ -398,7 +398,7 @@ zfcp_erp_adisc_handler(unsigned long data)
 	if (send_els->status != 0) {
 		ZFCP_LOG_NORMAL("ELS request rejected/timed out, "
 				"force physical port reopen "
-				"(adapter %s, port d_id=0x%08x)\n",
+				"(adapter %s, port d_id=0x%06x)\n",
 				zfcp_get_busid_by_adapter(adapter), d_id);
 		debug_text_event(adapter->erp_dbf, 3, "forcreop");
 		if (zfcp_erp_port_forced_reopen(port, 0))
@@ -411,9 +411,9 @@ zfcp_erp_adisc_handler(unsigned long data)
 
 	adisc = zfcp_sg_to_address(send_els->resp);
 
-	ZFCP_LOG_INFO("ADISC response from d_id 0x%08x to s_id "
-		      "0x%08x (wwpn=0x%016Lx, wwnn=0x%016Lx, "
-		      "hard_nport_id=0x%08x, nport_id=0x%08x)\n",
+	ZFCP_LOG_INFO("ADISC response from d_id 0x%06x to s_id "
+		      "0x%06x (wwpn=0x%016Lx, wwnn=0x%016Lx, "
+		      "hard_nport_id=0x%06x, nport_id=0x%06x)\n",
 		      d_id, fc_host_port_id(adapter->scsi_host),
 		      (wwn_t) adisc->wwpn, (wwn_t) adisc->wwnn,
 		      adisc->hard_nport_id, adisc->nport_id);
@@ -847,8 +847,7 @@ zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
 	if (erp_action->fsf_req) {
 		/* take lock to ensure that request is not deleted meanwhile */
 		spin_lock(&adapter->req_list_lock);
-		if (zfcp_reqlist_ismember(adapter,
-					    erp_action->fsf_req->req_id)) {
+		if (zfcp_reqlist_find(adapter, erp_action->fsf_req->req_id)) {
 			/* fsf_req still exists */
 			debug_text_event(adapter->erp_dbf, 3, "a_ca_req");
 			debug_event(adapter->erp_dbf, 3, &erp_action->fsf_req,
@@ -1377,7 +1376,7 @@ zfcp_erp_port_failed(struct zfcp_port *port)
 
 	if (atomic_test_mask(ZFCP_STATUS_PORT_WKA, &port->status))
 		ZFCP_LOG_NORMAL("port erp failed (adapter %s, "
-				"port d_id=0x%08x)\n",
+				"port d_id=0x%06x)\n",
 				zfcp_get_busid_by_port(port), port->d_id);
 	else
 		ZFCP_LOG_NORMAL("port erp failed (adapter %s, wwpn=0x%016Lx)\n",
@@ -1589,6 +1588,62 @@ zfcp_erp_strategy_check_adapter(struct zfcp_adapter *adapter, int result)
 	}
 
 	return result;
+}
+
+struct zfcp_erp_add_work {
+	struct zfcp_unit  *unit;
+	struct work_struct work;
+};
+
+/**
+ * zfcp_erp_scsi_scan
+ * @data: pointer to a struct zfcp_erp_add_work
+ *
+ * Registers a logical unit with the SCSI stack.
+ */
+static void zfcp_erp_scsi_scan(struct work_struct *work)
+{
+	struct zfcp_erp_add_work *p =
+		container_of(work, struct zfcp_erp_add_work, work);
+	struct zfcp_unit *unit = p->unit;
+	struct fc_rport *rport = unit->port->rport;
+	scsi_scan_target(&rport->dev, 0, rport->scsi_target_id,
+			 unit->scsi_lun, 0);
+	atomic_clear_mask(ZFCP_STATUS_UNIT_SCSI_WORK_PENDING, &unit->status);
+	wake_up(&unit->scsi_scan_wq);
+	zfcp_unit_put(unit);
+	kfree(p);
+}
+
+/**
+ * zfcp_erp_schedule_work
+ * @unit: pointer to unit which should be registered with SCSI stack
+ *
+ * Schedules work which registers a unit with the SCSI stack
+ */
+static void
+zfcp_erp_schedule_work(struct zfcp_unit *unit)
+{
+	struct zfcp_erp_add_work *p;
+
+	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	if (!p) {
+		ZFCP_LOG_NORMAL("error: Out of resources. Could not register "
+				"the FCP-LUN 0x%Lx connected to "
+				"the port with WWPN 0x%Lx connected to "
+				"the adapter %s with the SCSI stack.\n",
+				unit->fcp_lun,
+				unit->port->wwpn,
+				zfcp_get_busid_by_unit(unit));
+		return;
+	}
+
+	zfcp_unit_get(unit);
+	memset(p, 0, sizeof(*p));
+	atomic_set_mask(ZFCP_STATUS_UNIT_SCSI_WORK_PENDING, &unit->status);
+	INIT_WORK(&p->work, zfcp_erp_scsi_scan);
+	p->unit = unit;
+	schedule_work(&p->work);
 }
 
 /*
@@ -2401,7 +2456,7 @@ zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *erp_action)
 				retval = ZFCP_ERP_FAILED;
 			}
 		} else {
-			ZFCP_LOG_DEBUG("port 0x%016Lx has d_id=0x%08x -> "
+			ZFCP_LOG_DEBUG("port 0x%016Lx has d_id=0x%06x -> "
 				       "trying open\n", port->wwpn, port->d_id);
 			retval = zfcp_erp_port_strategy_open_port(erp_action);
 		}
@@ -2441,7 +2496,7 @@ zfcp_erp_port_strategy_open_nameserver(struct zfcp_erp_action *erp_action)
 	case ZFCP_ERP_STEP_UNINITIALIZED:
 	case ZFCP_ERP_STEP_PHYS_PORT_CLOSING:
 	case ZFCP_ERP_STEP_PORT_CLOSING:
-		ZFCP_LOG_DEBUG("port 0x%016Lx has d_id=0x%08x -> trying open\n",
+		ZFCP_LOG_DEBUG("port 0x%016Lx has d_id=0x%06x -> trying open\n",
 			       port->wwpn, port->d_id);
 		retval = zfcp_erp_port_strategy_open_port(erp_action);
 		break;
@@ -3092,9 +3147,9 @@ zfcp_erp_action_cleanup(int action, struct zfcp_adapter *adapter,
 		    && port->rport) {
 			atomic_set_mask(ZFCP_STATUS_UNIT_REGISTERED,
 					&unit->status);
- 			scsi_scan_target(&port->rport->dev, 0,
-					 port->rport->scsi_target_id,
-					 unit->scsi_lun, 0);
+			if (atomic_test_mask(ZFCP_STATUS_UNIT_SCSI_WORK_PENDING,
+					     &unit->status) == 0)
+				zfcp_erp_schedule_work(unit);
 		}
 		zfcp_unit_put(unit);
 		break;
@@ -3121,7 +3176,7 @@ zfcp_erp_action_cleanup(int action, struct zfcp_adapter *adapter,
 						zfcp_get_busid_by_port(port),
 						port->wwpn);
 			else {
-				scsi_flush_work(adapter->scsi_host);
+				scsi_target_unblock(&port->rport->dev);
 				port->rport->maxframe_size = port->maxframe_size;
 				port->rport->supported_classes =
 					port->supported_classes;

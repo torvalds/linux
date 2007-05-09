@@ -1223,13 +1223,11 @@ int aac_check_health(struct aac_dev * aac)
 		 * Warning: no sleep allowed while
 		 * holding spinlock
 		 */
-		hw_fib = kmalloc(sizeof(struct hw_fib), GFP_ATOMIC);
-		fib = kmalloc(sizeof(struct fib), GFP_ATOMIC);
+		hw_fib = kzalloc(sizeof(struct hw_fib), GFP_ATOMIC);
+		fib = kzalloc(sizeof(struct fib), GFP_ATOMIC);
 		if (fib && hw_fib) {
 			struct aac_aifcmd * aif;
 
-			memset(hw_fib, 0, sizeof(struct hw_fib));
-			memset(fib, 0, sizeof(struct fib));
 			fib->hw_fib_va = hw_fib;
 			fib->dev = aac;
 			aac_fib_init(fib);

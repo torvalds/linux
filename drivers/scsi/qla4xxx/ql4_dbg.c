@@ -8,6 +8,8 @@
 #include "ql4_def.h"
 #include <scsi/scsi_dbg.h>
 
+#if 0
+
 static void qla4xxx_print_srb_info(struct srb * srb)
 {
 	printk("%s: srb = 0x%p, flags=0x%02x\n", __func__, srb, srb->flags);
@@ -195,3 +197,5 @@ void qla4xxx_dump_buffer(void *b, uint32_t size)
 	if (cnt % 16)
 		printk(KERN_DEBUG "\n");
 }
+
+#endif  /*  0  */

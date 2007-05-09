@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -31,6 +31,7 @@
 /* worker thread events */
 enum lpfc_work_type {
 	LPFC_EVT_ONLINE,
+	LPFC_EVT_OFFLINE_PREP,
 	LPFC_EVT_OFFLINE,
 	LPFC_EVT_WARM_START,
 	LPFC_EVT_KILL,
@@ -68,7 +69,6 @@ struct lpfc_nodelist {
 	uint16_t	nlp_maxframe;		/* Max RCV frame size */
 	uint8_t		nlp_class_sup;		/* Supported Classes */
 	uint8_t         nlp_retry;		/* used for ELS retries */
-	uint8_t         nlp_disc_refcnt;	/* used for DSM */
 	uint8_t         nlp_fcp_info;	        /* class info, bits 0-3 */
 #define NLP_FCP_2_DEVICE   0x10			/* FCP-2 device */
 
@@ -79,20 +79,10 @@ struct lpfc_nodelist {
 	struct lpfc_work_evt els_retry_evt;
 	unsigned long last_ramp_up_time;        /* jiffy of last ramp up */
 	unsigned long last_q_full_time;		/* jiffy of last queue full */
+	struct kref     kref;
 };
 
 /* Defines for nlp_flag (uint32) */
-#define NLP_NO_LIST        0x0		/* Indicates immediately free node */
-#define NLP_UNUSED_LIST    0x1		/* Flg to indicate node will be freed */
-#define NLP_PLOGI_LIST     0x2		/* Flg to indicate sent PLOGI */
-#define NLP_ADISC_LIST     0x3		/* Flg to indicate sent ADISC */
-#define NLP_REGLOGIN_LIST  0x4		/* Flg to indicate sent REG_LOGIN */
-#define NLP_PRLI_LIST      0x5		/* Flg to indicate sent PRLI */
-#define NLP_UNMAPPED_LIST  0x6		/* Node is now unmapped */
-#define NLP_MAPPED_LIST    0x7		/* Node is now mapped */
-#define NLP_NPR_LIST       0x8		/* Node is in NPort Recovery state */
-#define NLP_JUST_DQ        0x9		/* just deque ndlp in lpfc_nlp_list */
-#define NLP_LIST_MASK      0xf		/* mask to see what list node is on */
 #define NLP_PLOGI_SND      0x20		/* sent PLOGI request for this entry */
 #define NLP_PRLI_SND       0x40		/* sent PRLI request for this entry */
 #define NLP_ADISC_SND      0x80		/* sent ADISC request for this entry */
@@ -108,19 +98,7 @@ struct lpfc_nodelist {
 					   ACC */
 #define NLP_NPR_ADISC      0x2000000	/* Issue ADISC when dq'ed from
 					   NPR list */
-#define NLP_DELAY_REMOVE   0x4000000	/* Defer removal till end of DSM */
 #define NLP_NODEV_REMOVE   0x8000000	/* Defer removal till discovery ends */
-
-/* Defines for list searchs */
-#define NLP_SEARCH_MAPPED    0x1	/* search mapped */
-#define NLP_SEARCH_UNMAPPED  0x2	/* search unmapped */
-#define NLP_SEARCH_PLOGI     0x4	/* search plogi */
-#define NLP_SEARCH_ADISC     0x8	/* search adisc */
-#define NLP_SEARCH_REGLOGIN  0x10	/* search reglogin */
-#define NLP_SEARCH_PRLI      0x20	/* search prli */
-#define NLP_SEARCH_NPR       0x40	/* search npr */
-#define NLP_SEARCH_UNUSED    0x80	/* search mapped */
-#define NLP_SEARCH_ALL       0xff	/* search all lists */
 
 /* There are 4 different double linked lists nodelist entries can reside on.
  * The Port Login (PLOGI) list and Address Discovery (ADISC) list are used

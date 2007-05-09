@@ -1308,13 +1308,12 @@ static s32 adpt_i2o_reset_hba(adpt_hba* pHba)
 		schedule_timeout_uninterruptible(1);
 	} while (m == EMPTY_QUEUE);
 
-	status = kmalloc(4, GFP_KERNEL|ADDR32);
+	status = kzalloc(4, GFP_KERNEL|ADDR32);
 	if(status == NULL) {
 		adpt_send_nop(pHba, m);
 		printk(KERN_ERR"IOP reset failed - no free memory.\n");
 		return -ENOMEM;
 	}
-	memset(status,0,4);
 
 	msg[0]=EIGHT_WORD_MSG_SIZE|SGL_OFFSET_0;
 	msg[1]=I2O_CMD_ADAPTER_RESET<<24|HOST_TID<<12|ADAPTER_TID;
@@ -1504,21 +1503,19 @@ static int adpt_i2o_parse_lct(adpt_hba* pHba)
 					continue;
 				}
 				if( pHba->channel[bus_no].device[scsi_id] == NULL){
-					pDev =  kmalloc(sizeof(struct adpt_device),GFP_KERNEL);
+					pDev =  kzalloc(sizeof(struct adpt_device),GFP_KERNEL);
 					if(pDev == NULL) {
 						return -ENOMEM;
 					}
 					pHba->channel[bus_no].device[scsi_id] = pDev;
-					memset(pDev,0,sizeof(struct adpt_device));
 				} else {
 					for( pDev = pHba->channel[bus_no].device[scsi_id];	
 							pDev->next_lun; pDev = pDev->next_lun){
 					}
-					pDev->next_lun = kmalloc(sizeof(struct adpt_device),GFP_KERNEL);
+					pDev->next_lun = kzalloc(sizeof(struct adpt_device),GFP_KERNEL);
 					if(pDev->next_lun == NULL) {
 						return -ENOMEM;
 					}
-					memset(pDev->next_lun,0,sizeof(struct adpt_device));
 					pDev = pDev->next_lun;
 				}
 				pDev->tid = tid;
@@ -1667,12 +1664,11 @@ static int adpt_i2o_passthru(adpt_hba* pHba, u32 __user *arg)
 		reply_size = REPLY_FRAME_SIZE;
 	}
 	reply_size *= 4;
-	reply = kmalloc(REPLY_FRAME_SIZE*4, GFP_KERNEL);
+	reply = kzalloc(REPLY_FRAME_SIZE*4, GFP_KERNEL);
 	if(reply == NULL) {
 		printk(KERN_WARNING"%s: Could not allocate reply buffer\n",pHba->name);
 		return -ENOMEM;
 	}
-	memset(reply,0,REPLY_FRAME_SIZE*4);
 	sg_offset = (msg[0]>>4)&0xf;
 	msg[2] = 0x40000000; // IOCTL context
 	msg[3] = (u32)reply;
@@ -2444,7 +2440,7 @@ static s32 adpt_i2o_reparse_lct(adpt_hba* pHba)
 				}
 				pDev = pHba->channel[bus_no].device[scsi_id];	
 				if( pDev == NULL){
-					pDev =  kmalloc(sizeof(struct adpt_device),GFP_KERNEL);
+					pDev =  kzalloc(sizeof(struct adpt_device),GFP_KERNEL);
 					if(pDev == NULL) {
 						return -ENOMEM;
 					}
@@ -2453,12 +2449,11 @@ static s32 adpt_i2o_reparse_lct(adpt_hba* pHba)
 					while (pDev->next_lun) {
 						pDev = pDev->next_lun;
 					}
-					pDev = pDev->next_lun = kmalloc(sizeof(struct adpt_device),GFP_KERNEL);
+					pDev = pDev->next_lun = kzalloc(sizeof(struct adpt_device),GFP_KERNEL);
 					if(pDev == NULL) {
 						return -ENOMEM;
 					}
 				}
-				memset(pDev,0,sizeof(struct adpt_device));
 				pDev->tid = d->lct_data.tid;
 				pDev->scsi_channel = bus_no;
 				pDev->scsi_id = scsi_id;

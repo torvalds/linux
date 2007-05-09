@@ -248,16 +248,14 @@ unsigned int aac_intr_normal(struct aac_dev * dev, u32 Index)
 		 * manage the linked lists.
 		 */
 		if ((!dev->aif_thread)
-		 || (!(fib = kmalloc(sizeof(struct fib),GFP_ATOMIC))))
+		 || (!(fib = kzalloc(sizeof(struct fib),GFP_ATOMIC))))
 			return 1;
-		if (!(hw_fib = kmalloc(sizeof(struct hw_fib),GFP_ATOMIC))) {
+		if (!(hw_fib = kzalloc(sizeof(struct hw_fib),GFP_ATOMIC))) {
 			kfree (fib);
 			return 1;
 		}
-		memset(hw_fib, 0, sizeof(struct hw_fib));
 		memcpy(hw_fib, (struct hw_fib *)(((ptrdiff_t)(dev->regs.sa)) +
 		  (index & ~0x00000002L)), sizeof(struct hw_fib));
-		memset(fib, 0, sizeof(struct fib));
 		INIT_LIST_HEAD(&fib->fiblink);
 		fib->type = FSAFS_NTC_FIB_CONTEXT;
 		fib->size = sizeof(struct fib);

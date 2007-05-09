@@ -37,8 +37,8 @@
 /*
  * Literals
  */
-#define IPR_DRIVER_VERSION "2.3.2"
-#define IPR_DRIVER_DATE "(March 23, 2007)"
+#define IPR_DRIVER_VERSION "2.4.1"
+#define IPR_DRIVER_DATE "(April 24, 2007)"
 
 /*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
@@ -91,6 +91,7 @@
  * IOASCs
  */
 #define IPR_IOASC_NR_INIT_CMD_REQUIRED		0x02040200
+#define IPR_IOASC_NR_IOA_RESET_REQUIRED		0x02048000
 #define IPR_IOASC_SYNC_REQUIRED			0x023f0000
 #define IPR_IOASC_MED_DO_NOT_REALLOC		0x03110C00
 #define IPR_IOASC_HW_SEL_TIMEOUT			0x04050000
@@ -111,6 +112,7 @@
 
 /* Driver data flags */
 #define IPR_USE_LONG_TRANSOP_TIMEOUT		0x00000001
+#define IPR_USE_PCI_WARM_RESET			0x00000002
 
 #define IPR_DEFAULT_MAX_ERROR_DUMP			984
 #define IPR_NUM_LOG_HCAMS				2
@@ -179,6 +181,7 @@
 #define IPR_SHUTDOWN_TIMEOUT			(ipr_fastfail ? 60 * HZ : 10 * 60 * HZ)
 #define IPR_VSET_RW_TIMEOUT			(ipr_fastfail ? 30 * HZ : 2 * 60 * HZ)
 #define IPR_ABBREV_SHUTDOWN_TIMEOUT		(10 * HZ)
+#define IPR_DUAL_IOA_ABBR_SHUTDOWN_TO	(2 * 60 * HZ)
 #define IPR_DEVICE_RESET_TIMEOUT		(ipr_fastfail ? 10 * HZ : 30 * HZ)
 #define IPR_CANCEL_ALL_TIMEOUT		(ipr_fastfail ? 10 * HZ : 30 * HZ)
 #define IPR_ABORT_TASK_TIMEOUT		(ipr_fastfail ? 10 * HZ : 30 * HZ)
@@ -191,6 +194,7 @@
 #define IPR_WAIT_FOR_RESET_TIMEOUT		(2 * HZ)
 #define IPR_CHECK_FOR_RESET_TIMEOUT		(HZ / 10)
 #define IPR_WAIT_FOR_BIST_TIMEOUT		(2 * HZ)
+#define IPR_PCI_RESET_TIMEOUT			(HZ / 2)
 #define IPR_DUMP_TIMEOUT			(15 * HZ)
 
 /*
@@ -602,6 +606,12 @@ struct ipr_mode_page28 {
 	struct ipr_dev_bus_entry bus[0];
 }__attribute__((packed));
 
+struct ipr_mode_page24 {
+	struct ipr_mode_page_hdr hdr;
+	u8 flags;
+#define IPR_ENABLE_DUAL_IOA_AF 0x80
+}__attribute__((packed));
+
 struct ipr_ioa_vpd {
 	struct ipr_std_inq_data std_inq_data;
 	u8 ascii_part_num[12];
@@ -622,6 +632,19 @@ struct ipr_inquiry_page3 {
 	u8 minor_release[2];
 	u8 ptf_number[4];
 	u8 patch_number[4];
+}__attribute__((packed));
+
+struct ipr_inquiry_cap {
+	u8 peri_qual_dev_type;
+	u8 page_code;
+	u8 reserved1;
+	u8 page_length;
+	u8 ascii_len;
+	u8 reserved2;
+	u8 sis_version[2];
+	u8 cap;
+#define IPR_CAP_DUAL_IOA_RAID		0x80
+	u8 reserved3[15];
 }__attribute__((packed));
 
 #define IPR_INQUIRY_PAGE0_ENTRIES 20
@@ -962,6 +985,7 @@ struct ipr_misc_cbs {
 	struct ipr_ioa_vpd ioa_vpd;
 	struct ipr_inquiry_page0 page0_data;
 	struct ipr_inquiry_page3 page3_data;
+	struct ipr_inquiry_cap cap;
 	struct ipr_mode_pages mode_pages;
 	struct ipr_supported_device supp_dev;
 };
@@ -1068,6 +1092,10 @@ struct ipr_ioa_cfg {
 	u8 allow_cmds:1;
 	u8 allow_ml_add_del:1;
 	u8 needs_hard_reset:1;
+	u8 dual_raid:1;
+	u8 needs_warm_reset:1;
+
+	u8 revid;
 
 	enum ipr_cache_state cache_state;
 	u16 type; /* CCIN of the card */
@@ -1161,6 +1189,7 @@ struct ipr_ioa_cfg {
 	struct pci_pool *ipr_cmd_pool;
 
 	struct ipr_cmnd *reset_cmd;
+	int (*reset) (struct ipr_cmnd *);
 
 	struct ata_host ata_host;
 	char ipr_cmd_label[8];

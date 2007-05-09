@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -334,21 +334,22 @@ lpfc_ns_rsp(struct lpfc_hba * phba, struct lpfc_dmabuf * mp, uint32_t Size)
 
 	lpfc_set_disctmo(phba);
 
-	Cnt = Size  > FCELSSIZE ? FCELSSIZE : Size;
 
 	list_add_tail(&head, &mp->list);
 	list_for_each_entry_safe(mp, next_mp, &head, list) {
 		mlast = mp;
 
+		Cnt = Size  > FCELSSIZE ? FCELSSIZE : Size;
+
 		Size -= Cnt;
 
-		if (!ctptr)
+		if (!ctptr) {
 			ctptr = (uint32_t *) mlast->virt;
-		else
+		} else
 			Cnt -= 16;	/* subtract length of CT header */
 
 		/* Loop through entire NameServer list of DIDs */
-		while (Cnt) {
+		while (Cnt >= sizeof (uint32_t)) {
 
 			/* Get next DID from NameServer List */
 			CTentry = *ctptr++;
@@ -442,10 +443,8 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		if (phba->fc_ns_retry < LPFC_MAX_NS_RETRY) {
 			phba->fc_ns_retry++;
 			/* CT command is being retried */
-			ndlp =
-			    lpfc_findnode_did(phba, NLP_SEARCH_UNMAPPED,
-					      NameServer_DID);
-			if (ndlp) {
+			ndlp = lpfc_findnode_did(phba, NameServer_DID);
+			if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
 				if (lpfc_ns_cmd(phba, ndlp, SLI_CTNS_GID_FT) ==
 				    0) {
 					goto out;
@@ -729,7 +728,7 @@ lpfc_cmpl_ct_cmd_fdmi(struct lpfc_hba * phba,
 	uint16_t fdmi_cmd = CTcmd->CommandResponse.bits.CmdRsp;
 	uint16_t fdmi_rsp = CTrsp->CommandResponse.bits.CmdRsp;
 
-	ndlp = lpfc_findnode_did(phba, NLP_SEARCH_ALL, FDMI_DID);
+	ndlp = lpfc_findnode_did(phba, FDMI_DID);
 	if (fdmi_rsp == be16_to_cpu(SLI_CT_RESPONSE_FS_RJT)) {
 		/* FDMI rsp failed */
 		lpfc_printf_log(phba,
@@ -1039,6 +1038,9 @@ lpfc_fdmi_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 				case LA_4GHZ_LINK:
 					ae->un.PortSpeed = HBA_PORTSPEED_4GBIT;
 				break;
+				case LA_8GHZ_LINK:
+					ae->un.PortSpeed = HBA_PORTSPEED_8GBIT;
+				break;
 				default:
 					ae->un.PortSpeed =
 						HBA_PORTSPEED_UNKNOWN;
@@ -1161,7 +1163,7 @@ lpfc_fdmi_tmo_handler(struct lpfc_hba *phba)
 {
 	struct lpfc_nodelist *ndlp;
 
-	ndlp = lpfc_findnode_did(phba, NLP_SEARCH_ALL, FDMI_DID);
+	ndlp = lpfc_findnode_did(phba, FDMI_DID);
 	if (ndlp) {
 		if (init_utsname()->nodename[0] != '\0') {
 			lpfc_fdmi_cmd(phba, ndlp, SLI_MGMT_DHBA);

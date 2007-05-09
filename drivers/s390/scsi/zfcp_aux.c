@@ -118,97 +118,32 @@ _zfcp_hex_dump(char *addr, int count)
 
 #define ZFCP_LOG_AREA			ZFCP_LOG_AREA_FSF
 
-static int zfcp_reqlist_init(struct zfcp_adapter *adapter)
+static int zfcp_reqlist_alloc(struct zfcp_adapter *adapter)
 {
-	int i;
+	int idx;
 
 	adapter->req_list = kcalloc(REQUEST_LIST_SIZE, sizeof(struct list_head),
 				    GFP_KERNEL);
-
 	if (!adapter->req_list)
 		return -ENOMEM;
 
-	for (i=0; i<REQUEST_LIST_SIZE; i++)
-		INIT_LIST_HEAD(&adapter->req_list[i]);
-
+	for (idx = 0; idx < REQUEST_LIST_SIZE; idx++)
+		INIT_LIST_HEAD(&adapter->req_list[idx]);
 	return 0;
 }
 
 static void zfcp_reqlist_free(struct zfcp_adapter *adapter)
 {
-	struct zfcp_fsf_req *request, *tmp;
-	unsigned int i;
-
-	for (i=0; i<REQUEST_LIST_SIZE; i++) {
-		if (list_empty(&adapter->req_list[i]))
-			continue;
-
-		list_for_each_entry_safe(request, tmp,
-					 &adapter->req_list[i], list)
-			list_del(&request->list);
-	}
-
 	kfree(adapter->req_list);
-}
-
-void zfcp_reqlist_add(struct zfcp_adapter *adapter,
-		      struct zfcp_fsf_req *fsf_req)
-{
-	unsigned int i;
-
-	i = fsf_req->req_id % REQUEST_LIST_SIZE;
-	list_add_tail(&fsf_req->list, &adapter->req_list[i]);
-}
-
-void zfcp_reqlist_remove(struct zfcp_adapter *adapter, unsigned long req_id)
-{
-	struct zfcp_fsf_req *request, *tmp;
-	unsigned int i, counter;
-	u64 dbg_tmp[2];
-
-	i = req_id % REQUEST_LIST_SIZE;
-	BUG_ON(list_empty(&adapter->req_list[i]));
-
-	counter = 0;
-	list_for_each_entry_safe(request, tmp, &adapter->req_list[i], list) {
-		if (request->req_id == req_id) {
-			dbg_tmp[0] = (u64) atomic_read(&adapter->reqs_active);
-			dbg_tmp[1] = (u64) counter;
-			debug_event(adapter->erp_dbf, 4, (void *) dbg_tmp, 16);
-			list_del(&request->list);
-			break;
-		}
-		counter++;
-	}
-}
-
-struct zfcp_fsf_req *zfcp_reqlist_ismember(struct zfcp_adapter *adapter,
-					   unsigned long req_id)
-{
-	struct zfcp_fsf_req *request, *tmp;
-	unsigned int i;
-
-	/* 0 is reserved as an invalid req_id */
-	if (req_id == 0)
-		return NULL;
-
-	i = req_id % REQUEST_LIST_SIZE;
-
-	list_for_each_entry_safe(request, tmp, &adapter->req_list[i], list)
-		if (request->req_id == req_id)
-			return request;
-
-	return NULL;
 }
 
 int zfcp_reqlist_isempty(struct zfcp_adapter *adapter)
 {
-	unsigned int i;
+	unsigned int idx;
 
-	for (i=0; i<REQUEST_LIST_SIZE; i++)
-		if (!list_empty(&adapter->req_list[i]))
+	for (idx = 0; idx < REQUEST_LIST_SIZE; idx++)
+		if (!list_empty(&adapter->req_list[idx]))
 			return 0;
-
 	return 1;
 }
 
@@ -913,6 +848,8 @@ zfcp_unit_enqueue(struct zfcp_port *port, fcp_lun_t fcp_lun)
 	unit->sysfs_device.release = zfcp_sysfs_unit_release;
 	dev_set_drvdata(&unit->sysfs_device, unit);
 
+	init_waitqueue_head(&unit->scsi_scan_wq);
+
 	/* mark unit unusable as long as sysfs registration is not complete */
 	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &unit->status);
 
@@ -1104,7 +1041,7 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	/* initialize list of fsf requests */
 	spin_lock_init(&adapter->req_list_lock);
-	retval = zfcp_reqlist_init(adapter);
+	retval = zfcp_reqlist_alloc(adapter);
 	if (retval) {
 		ZFCP_LOG_INFO("request list initialization failed\n");
 		goto failed_low_mem_buffers;
@@ -1165,6 +1102,7 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	zfcp_sysfs_adapter_remove_files(&adapter->ccw_device->dev);
  sysfs_failed:
 	dev_set_drvdata(&ccw_device->dev, NULL);
+	zfcp_reqlist_free(adapter);
  failed_low_mem_buffers:
 	zfcp_free_low_mem_buffers(adapter);
 	if (qdio_free(ccw_device) != 0)
@@ -1497,7 +1435,7 @@ zfcp_fsf_incoming_els_plogi(struct zfcp_adapter *adapter,
 
 	if (!port || (port->wwpn != (*(wwn_t *) &els_plogi->serv_param.wwpn))) {
 		ZFCP_LOG_DEBUG("ignored incoming PLOGI for nonexisting port "
-			       "with d_id 0x%08x on adapter %s\n",
+			       "with d_id 0x%06x on adapter %s\n",
 			       status_buffer->d_id,
 			       zfcp_get_busid_by_adapter(adapter));
 	} else {
@@ -1522,7 +1460,7 @@ zfcp_fsf_incoming_els_logo(struct zfcp_adapter *adapter,
 
 	if (!port || (port->wwpn != els_logo->nport_wwpn)) {
 		ZFCP_LOG_DEBUG("ignored incoming LOGO for nonexisting port "
-			       "with d_id 0x%08x on adapter %s\n",
+			       "with d_id 0x%06x on adapter %s\n",
 			       status_buffer->d_id,
 			       zfcp_get_busid_by_adapter(adapter));
 	} else {
@@ -1704,7 +1642,7 @@ static void zfcp_ns_gid_pn_handler(unsigned long data)
 	/* looks like a valid d_id */
         port->d_id = ct_iu_resp->d_id & ZFCP_DID_MASK;
 	atomic_set_mask(ZFCP_STATUS_PORT_DID_DID, &port->status);
-	ZFCP_LOG_DEBUG("adapter %s:  wwpn=0x%016Lx ---> d_id=0x%08x\n",
+	ZFCP_LOG_DEBUG("adapter %s:  wwpn=0x%016Lx ---> d_id=0x%06x\n",
 		       zfcp_get_busid_by_port(port), port->wwpn, port->d_id);
 	goto out;
 

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -1078,6 +1078,8 @@ typedef struct {
 /* Start FireFly Register definitions */
 #define PCI_VENDOR_ID_EMULEX        0x10df
 #define PCI_DEVICE_ID_FIREFLY       0x1ae5
+#define PCI_DEVICE_ID_SAT_SMB       0xf011
+#define PCI_DEVICE_ID_SAT_MID       0xf015
 #define PCI_DEVICE_ID_RFLY          0xf095
 #define PCI_DEVICE_ID_PFLY          0xf098
 #define PCI_DEVICE_ID_LP101         0xf0a1
@@ -1089,6 +1091,9 @@ typedef struct {
 #define PCI_DEVICE_ID_NEPTUNE       0xf0f5
 #define PCI_DEVICE_ID_NEPTUNE_SCSP  0xf0f6
 #define PCI_DEVICE_ID_NEPTUNE_DCSP  0xf0f7
+#define PCI_DEVICE_ID_SAT           0xf100
+#define PCI_DEVICE_ID_SAT_SCSP      0xf111
+#define PCI_DEVICE_ID_SAT_DCSP      0xf112
 #define PCI_DEVICE_ID_SUPERFLY      0xf700
 #define PCI_DEVICE_ID_DRAGONFLY     0xf800
 #define PCI_DEVICE_ID_CENTAUR       0xf900
@@ -1098,6 +1103,7 @@ typedef struct {
 #define PCI_DEVICE_ID_LP10000S      0xfc00
 #define PCI_DEVICE_ID_LP11000S      0xfc10
 #define PCI_DEVICE_ID_LPE11000S     0xfc20
+#define PCI_DEVICE_ID_SAT_S         0xfc40
 #define PCI_DEVICE_ID_HELIOS        0xfd00
 #define PCI_DEVICE_ID_HELIOS_SCSP   0xfd11
 #define PCI_DEVICE_ID_HELIOS_DCSP   0xfd12
@@ -1118,6 +1124,7 @@ typedef struct {
 #define HELIOS_JEDEC_ID             0x0364
 #define ZEPHYR_JEDEC_ID             0x0577
 #define VIPER_JEDEC_ID              0x4838
+#define SATURN_JEDEC_ID             0x1004
 
 #define JEDEC_ID_MASK               0x0FFFF000
 #define JEDEC_ID_SHIFT              12
@@ -1565,7 +1572,7 @@ typedef struct {
 #define LINK_SPEED_1G   1       /* 1 Gigabaud */
 #define LINK_SPEED_2G   2       /* 2 Gigabaud */
 #define LINK_SPEED_4G   4       /* 4 Gigabaud */
-#define LINK_SPEED_8G   8       /* 4 Gigabaud */
+#define LINK_SPEED_8G   8       /* 8 Gigabaud */
 #define LINK_SPEED_10G   16      /* 10 Gigabaud */
 
 } INIT_LINK_VAR;

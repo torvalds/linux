@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/kthread.h>
+
 #include "sas_internal.h"
 
 #include <scsi/scsi_host.h>
@@ -184,7 +186,7 @@ static int sas_queue_up(struct sas_task *task)
 	list_add_tail(&task->list, &core->task_queue);
 	core->task_queue_size += 1;
 	spin_unlock_irqrestore(&core->task_queue_lock, flags);
-	up(&core->queue_thread_sema);
+	wake_up_process(core->queue_thread);
 
 	return 0;
 }
@@ -819,7 +821,7 @@ static void sas_queue(struct sas_ha_struct *sas_ha)
 	struct sas_internal *i = to_sas_internal(core->shost->transportt);
 
 	spin_lock_irqsave(&core->task_queue_lock, flags);
-	while (!core->queue_thread_kill &&
+	while (!kthread_should_stop() &&
 	       !list_empty(&core->task_queue)) {
 
 		can_queue = sas_ha->lldd_queue_size - core->task_queue_size;
@@ -858,8 +860,6 @@ static void sas_queue(struct sas_ha_struct *sas_ha)
 	spin_unlock_irqrestore(&core->task_queue_lock, flags);
 }
 
-static DECLARE_COMPLETION(queue_th_comp);
-
 /**
  * sas_queue_thread -- The Task Collector thread
  * @_sas_ha: pointer to struct sas_ha
@@ -867,40 +867,33 @@ static DECLARE_COMPLETION(queue_th_comp);
 static int sas_queue_thread(void *_sas_ha)
 {
 	struct sas_ha_struct *sas_ha = _sas_ha;
-	struct scsi_core *core = &sas_ha->core;
 
-	daemonize("sas_queue_%d", core->shost->host_no);
 	current->flags |= PF_NOFREEZE;
 
-	complete(&queue_th_comp);
-
 	while (1) {
-		down_interruptible(&core->queue_thread_sema);
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
 		sas_queue(sas_ha);
-		if (core->queue_thread_kill)
+		if (kthread_should_stop())
 			break;
 	}
-
-	complete(&queue_th_comp);
 
 	return 0;
 }
 
 int sas_init_queue(struct sas_ha_struct *sas_ha)
 {
-	int res;
 	struct scsi_core *core = &sas_ha->core;
 
 	spin_lock_init(&core->task_queue_lock);
 	core->task_queue_size = 0;
 	INIT_LIST_HEAD(&core->task_queue);
-	init_MUTEX_LOCKED(&core->queue_thread_sema);
 
-	res = kernel_thread(sas_queue_thread, sas_ha, 0);
-	if (res >= 0)
-		wait_for_completion(&queue_th_comp);
-
-	return res < 0 ? res : 0;
+	core->queue_thread = kthread_run(sas_queue_thread, sas_ha,
+					 "sas_queue_%d", core->shost->host_no);
+	if (IS_ERR(core->queue_thread))
+		return PTR_ERR(core->queue_thread);
+	return 0;
 }
 
 void sas_shutdown_queue(struct sas_ha_struct *sas_ha)
@@ -909,10 +902,7 @@ void sas_shutdown_queue(struct sas_ha_struct *sas_ha)
 	struct scsi_core *core = &sas_ha->core;
 	struct sas_task *task, *n;
 
-	init_completion(&queue_th_comp);
-	core->queue_thread_kill = 1;
-	up(&core->queue_thread_sema);
-	wait_for_completion(&queue_th_comp);
+	kthread_stop(core->queue_thread);
 
 	if (!list_empty(&core->task_queue))
 		SAS_DPRINTK("HA: %llx: scsi core task queue is NOT empty!?\n",
