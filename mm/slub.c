@@ -209,6 +209,38 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
 }
 
 /*
+ * Slow version of get and set free pointer.
+ *
+ * This version requires touching the cache lines of kmem_cache which
+ * we avoid to do in the fast alloc free paths. There we obtain the offset
+ * from the page struct.
+ */
+static inline void *get_freepointer(struct kmem_cache *s, void *object)
+{
+	return *(void **)(object + s->offset);
+}
+
+static inline void set_freepointer(struct kmem_cache *s, void *object, void *fp)
+{
+	*(void **)(object + s->offset) = fp;
+}
+
+/* Loop over all objects in a slab */
+#define for_each_object(__p, __s, __addr) \
+	for (__p = (__addr); __p < (__addr) + (__s)->objects * (__s)->size;\
+			__p += (__s)->size)
+
+/* Scan freelist */
+#define for_each_free_object(__p, __s, __free) \
+	for (__p = (__free); __p; __p = get_freepointer((__s), __p))
+
+/* Determine object index from a given position */
+static inline int slab_index(void *p, struct kmem_cache *s, void *addr)
+{
+	return (p - addr) / s->size;
+}
+
+/*
  * Object debugging
  */
 static void print_section(char *text, u8 *addr, unsigned int length)
@@ -241,23 +273,6 @@ static void print_section(char *text, u8 *addr, unsigned int length)
 		}
 		printk(" %s\n", ascii);
 	}
-}
-
-/*
- * Slow version of get and set free pointer.
- *
- * This version requires touching the cache lines of kmem_cache which
- * we avoid to do in the fast alloc free paths. There we obtain the offset
- * from the page struct.
- */
-static void *get_freepointer(struct kmem_cache *s, void *object)
-{
-	return *(void **)(object + s->offset);
-}
-
-static void set_freepointer(struct kmem_cache *s, void *object, void *fp)
-{
-	*(void **)(object + s->offset) = fp;
 }
 
 /*
@@ -852,7 +867,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 		memset(start, POISON_INUSE, PAGE_SIZE << s->order);
 
 	last = start;
-	for (p = start + s->size; p < end; p += s->size) {
+	for_each_object(p, s, start) {
 		setup_object(s, page, last);
 		set_freepointer(s, last, p);
 		last = p;
@@ -873,12 +888,10 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 	int pages = 1 << s->order;
 
 	if (unlikely(PageError(page) || s->dtor)) {
-		void *start = page_address(page);
-		void *end = start + (pages << PAGE_SHIFT);
 		void *p;
 
 		slab_pad_check(s, page);
-		for (p = start; p <= end - s->size; p += s->size) {
+		for_each_object(p, s, page_address(page)) {
 			if (s->dtor)
 				s->dtor(p, s, 0);
 			check_object(s, page, p, 0);
@@ -2583,7 +2596,7 @@ static int validate_slab(struct kmem_cache *s, struct page *page)
 {
 	void *p;
 	void *addr = page_address(page);
-	unsigned long map[BITS_TO_LONGS(s->objects)];
+	DECLARE_BITMAP(map, s->objects);
 
 	if (!check_slab(s, page) ||
 			!on_freelist(s, page, NULL))
@@ -2592,14 +2605,14 @@ static int validate_slab(struct kmem_cache *s, struct page *page)
 	/* Now we know that a valid freelist exists */
 	bitmap_zero(map, s->objects);
 
-	for(p = page->freelist; p; p = get_freepointer(s, p)) {
-		set_bit((p - addr) / s->size, map);
+	for_each_free_object(p, s, page->freelist) {
+		set_bit(slab_index(p, s, addr), map);
 		if (!check_object(s, page, p, 0))
 			return 0;
 	}
 
-	for(p = addr; p < addr + s->objects * s->size; p += s->size)
-		if (!test_bit((p - addr) / s->size, map))
+	for_each_object(p, s, addr)
+		if (!test_bit(slab_index(p, s, addr), map))
 			if (!check_object(s, page, p, 1))
 				return 0;
 	return 1;
@@ -2771,15 +2784,15 @@ static void process_slab(struct loc_track *t, struct kmem_cache *s,
 		struct page *page, enum track_item alloc)
 {
 	void *addr = page_address(page);
-	unsigned long map[BITS_TO_LONGS(s->objects)];
+	DECLARE_BITMAP(map, s->objects);
 	void *p;
 
 	bitmap_zero(map, s->objects);
-	for (p = page->freelist; p; p = get_freepointer(s, p))
-		set_bit((p - addr) / s->size, map);
+	for_each_free_object(p, s, page->freelist)
+		set_bit(slab_index(p, s, addr), map);
 
-	for (p = addr; p < addr + s->objects * s->size; p += s->size)
-		if (!test_bit((p - addr) / s->size, map)) {
+	for_each_object(p, s, addr)
+		if (!test_bit(slab_index(p, s, addr), map)) {
 			void *addr = get_track(s, p, alloc)->addr;
 
 			add_location(t, s, addr);
