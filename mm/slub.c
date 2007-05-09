@@ -87,6 +87,21 @@
  * 			the fast path.
  */
 
+static inline int SlabDebug(struct page *page)
+{
+	return PageError(page);
+}
+
+static inline void SetSlabDebug(struct page *page)
+{
+	SetPageError(page);
+}
+
+static inline void ClearSlabDebug(struct page *page)
+{
+	ClearPageError(page);
+}
+
 /*
  * Issues still to be resolved:
  *
@@ -823,7 +838,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 static void setup_object(struct kmem_cache *s, struct page *page,
 				void *object)
 {
-	if (PageError(page)) {
+	if (SlabDebug(page)) {
 		init_object(s, object, 0);
 		init_tracking(s, object);
 	}
@@ -858,7 +873,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 	page->flags |= 1 << PG_slab;
 	if (s->flags & (SLAB_DEBUG_FREE | SLAB_RED_ZONE | SLAB_POISON |
 			SLAB_STORE_USER | SLAB_TRACE))
-		page->flags |= 1 << PG_error;
+		SetSlabDebug(page);
 
 	start = page_address(page);
 	end = start + s->objects * s->size;
@@ -887,7 +902,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 {
 	int pages = 1 << s->order;
 
-	if (unlikely(PageError(page) || s->dtor)) {
+	if (unlikely(SlabDebug(page) || s->dtor)) {
 		void *p;
 
 		slab_pad_check(s, page);
@@ -934,7 +949,8 @@ static void discard_slab(struct kmem_cache *s, struct page *page)
 
 	atomic_long_dec(&n->nr_slabs);
 	reset_page_mapcount(page);
-	page->flags &= ~(1 << PG_slab | 1 << PG_error);
+	ClearSlabDebug(page);
+	__ClearPageSlab(page);
 	free_slab(s, page);
 }
 
@@ -1109,7 +1125,7 @@ static void putback_slab(struct kmem_cache *s, struct page *page)
 
 		if (page->freelist)
 			add_partial(n, page);
-		else if (PageError(page) && (s->flags & SLAB_STORE_USER))
+		else if (SlabDebug(page) && (s->flags & SLAB_STORE_USER))
 			add_full(n, page);
 		slab_unlock(page);
 
@@ -1193,7 +1209,7 @@ static void flush_all(struct kmem_cache *s)
  * per cpu array in the kmem_cache struct.
  *
  * Fastpath is not possible if we need to get a new slab or have
- * debugging enabled (which means all slabs are marked with PageError)
+ * debugging enabled (which means all slabs are marked with SlabDebug)
  */
 static void *slab_alloc(struct kmem_cache *s,
 				gfp_t gfpflags, int node, void *addr)
@@ -1216,7 +1232,7 @@ redo:
 	object = page->freelist;
 	if (unlikely(!object))
 		goto another_slab;
-	if (unlikely(PageError(page)))
+	if (unlikely(SlabDebug(page)))
 		goto debug;
 
 have_object:
@@ -1314,7 +1330,7 @@ static void slab_free(struct kmem_cache *s, struct page *page,
 	local_irq_save(flags);
 	slab_lock(page);
 
-	if (unlikely(PageError(page)))
+	if (unlikely(SlabDebug(page)))
 		goto debug;
 checks_ok:
 	prior = object[page->offset] = page->freelist;
@@ -2571,12 +2587,12 @@ static void validate_slab_slab(struct kmem_cache *s, struct page *page)
 			s->name, page);
 
 	if (s->flags & DEBUG_DEFAULT_FLAGS) {
-		if (!PageError(page))
-			printk(KERN_ERR "SLUB %s: PageError not set "
+		if (!SlabDebug(page))
+			printk(KERN_ERR "SLUB %s: SlabDebug not set "
 				"on slab 0x%p\n", s->name, page);
 	} else {
-		if (PageError(page))
-			printk(KERN_ERR "SLUB %s: PageError set on "
+		if (SlabDebug(page))
+			printk(KERN_ERR "SLUB %s: SlabDebug set on "
 				"slab 0x%p\n", s->name, page);
 	}
 }
