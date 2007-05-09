@@ -1335,15 +1335,16 @@ ocfs2_set_next_iovec(const struct iovec **iovp, size_t *basep, size_t bytes)
 	*basep = base;
 }
 
-static struct page * ocfs2_get_write_source(struct ocfs2_buffered_write_priv *bp,
+static struct page * ocfs2_get_write_source(char **ret_src_buf,
 					    const struct iovec *cur_iov,
 					    size_t iov_offset)
 {
 	int ret;
-	char *buf;
+	char *buf = cur_iov->iov_base + iov_offset;
 	struct page *src_page = NULL;
+	unsigned long off;
 
-	buf = cur_iov->iov_base + iov_offset;
+	off = (unsigned long)(buf) & ~PAGE_CACHE_MASK;
 
 	if (!segment_eq(get_fs(), KERNEL_DS)) {
 		/*
@@ -1355,18 +1356,17 @@ static struct page * ocfs2_get_write_source(struct ocfs2_buffered_write_priv *bp
 				     (unsigned long)buf & PAGE_CACHE_MASK, 1,
 				     0, 0, &src_page, NULL);
 		if (ret == 1)
-			bp->b_src_buf = kmap(src_page);
+			*ret_src_buf = kmap(src_page) + off;
 		else
 			src_page = ERR_PTR(-EFAULT);
 	} else {
-		bp->b_src_buf = buf;
+		*ret_src_buf = buf;
 	}
 
 	return src_page;
 }
 
-static void ocfs2_put_write_source(struct ocfs2_buffered_write_priv *bp,
-				   struct page *page)
+static void ocfs2_put_write_source(struct page *page)
 {
 	if (page) {
 		kunmap(page);
@@ -1382,10 +1382,12 @@ static ssize_t ocfs2_file_buffered_write(struct file *file, loff_t *ppos,
 {
 	int ret = 0;
 	ssize_t copied, total = 0;
-	size_t iov_offset = 0;
+	size_t iov_offset = 0, bytes;
+	loff_t pos;
 	const struct iovec *cur_iov = iov;
-	struct ocfs2_buffered_write_priv bp;
-	struct page *page;
+	struct page *user_page, *page;
+	char *buf, *dst;
+	void *fsdata;
 
 	/*
 	 * handle partial DIO write.  Adjust cur_iov if needed.
@@ -1393,21 +1395,38 @@ static ssize_t ocfs2_file_buffered_write(struct file *file, loff_t *ppos,
 	ocfs2_set_next_iovec(&cur_iov, &iov_offset, o_direct_written);
 
 	do {
-		bp.b_cur_off = iov_offset;
-		bp.b_cur_iov = cur_iov;
+		pos = *ppos;
 
-		page = ocfs2_get_write_source(&bp, cur_iov, iov_offset);
-		if (IS_ERR(page)) {
-			ret = PTR_ERR(page);
+		user_page = ocfs2_get_write_source(&buf, cur_iov, iov_offset);
+		if (IS_ERR(user_page)) {
+			ret = PTR_ERR(user_page);
 			goto out;
 		}
 
-		copied = ocfs2_buffered_write_cluster(file, *ppos, count,
-						      ocfs2_map_and_write_user_data,
-						      &bp);
+		/* Stay within our page boundaries */
+		bytes = min((PAGE_CACHE_SIZE - ((unsigned long)pos & ~PAGE_CACHE_MASK)),
+			    (PAGE_CACHE_SIZE - ((unsigned long)buf & ~PAGE_CACHE_MASK)));
+		/* Stay within the vector boundary */
+		bytes = min_t(size_t, bytes, cur_iov->iov_len - iov_offset);
+		/* Stay within count */
+		bytes = min(bytes, count);
 
-		ocfs2_put_write_source(&bp, page);
+		page = NULL;
+		ret = ocfs2_write_begin(file, file->f_mapping, pos, bytes, 0,
+					&page, &fsdata);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
 
+		dst = kmap_atomic(page, KM_USER0);
+		memcpy(dst + (pos & (PAGE_CACHE_SIZE - 1)), buf, bytes);
+		kunmap_atomic(dst, KM_USER0);
+		flush_dcache_page(page);
+		ocfs2_put_write_source(user_page);
+
+		copied = ocfs2_write_end(file, file->f_mapping, pos, bytes,
+					 bytes, page, fsdata);
 		if (copied < 0) {
 			mlog_errno(copied);
 			ret = copied;
@@ -1415,7 +1434,7 @@ static ssize_t ocfs2_file_buffered_write(struct file *file, loff_t *ppos,
 		}
 
 		total += copied;
-		*ppos = *ppos + copied;
+		*ppos = pos + copied;
 		count -= copied;
 
 		ocfs2_set_next_iovec(&cur_iov, &iov_offset, copied);
@@ -1585,52 +1604,46 @@ static int ocfs2_splice_write_actor(struct pipe_inode_info *pipe,
 				    struct pipe_buffer *buf,
 				    struct splice_desc *sd)
 {
-	int ret, count, total = 0;
+	int ret, count;
 	ssize_t copied = 0;
-	struct ocfs2_splice_write_priv sp;
+	struct file *file = sd->u.file;
+	unsigned int offset;
+	struct page *page = NULL;
+	void *fsdata;
+	char *src, *dst;
 
 	ret = buf->ops->confirm(pipe, buf);
 	if (ret)
 		goto out;
 
-	sp.s_sd = sd;
-	sp.s_buf = buf;
-	sp.s_pipe = pipe;
-	sp.s_offset = sd->pos & ~PAGE_CACHE_MASK;
-	sp.s_buf_offset = buf->offset;
-
+	offset = sd->pos & ~PAGE_CACHE_MASK;
 	count = sd->len;
-	if (count + sp.s_offset > PAGE_CACHE_SIZE)
-		count = PAGE_CACHE_SIZE - sp.s_offset;
+	if (count + offset > PAGE_CACHE_SIZE)
+		count = PAGE_CACHE_SIZE - offset;
 
-	do {
-		/*
-		 * splice wants us to copy up to one page at a
-		 * time. For pagesize > cluster size, this means we
-		 * might enter ocfs2_buffered_write_cluster() more
-		 * than once, so keep track of our progress here.
-		 */
-		copied = ocfs2_buffered_write_cluster(sd->u.file,
-						      (loff_t)sd->pos + total,
-						      count,
-						      ocfs2_map_and_write_splice_data,
-						      &sp);
-		if (copied < 0) {
-			mlog_errno(copied);
-			ret = copied;
-			goto out;
-		}
+	ret = ocfs2_write_begin(file, file->f_mapping, sd->pos, count, 0,
+				&page, &fsdata);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
 
-		count -= copied;
-		sp.s_offset += copied;
-		sp.s_buf_offset += copied;
-		total += copied;
-	} while (count);
+	src = buf->ops->map(pipe, buf, 1);
+	dst = kmap_atomic(page, KM_USER1);
+	memcpy(dst + offset, src + buf->offset, count);
+	kunmap_atomic(page, KM_USER1);
+	buf->ops->unmap(pipe, buf, src);
 
-	ret = 0;
+	copied = ocfs2_write_end(file, file->f_mapping, sd->pos, count, count,
+				 page, fsdata);
+	if (copied < 0) {
+		mlog_errno(copied);
+		ret = copied;
+		goto out;
+	}
 out:
 
-	return total ? total : ret;
+	return copied ? copied : ret;
 }
 
 static ssize_t __ocfs2_file_splice_write(struct pipe_inode_info *pipe,
