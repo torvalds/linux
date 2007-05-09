@@ -229,22 +229,6 @@ static void it821x_clock_strategy(ide_drive_t *drive)
 }
 
 /**
- *	it821x_ratemask	-	Compute available modes
- *	@drive: IDE drive
- *
- *	Compute the available speeds for the devices on the interface. This
- *	is all modes to ATA133 clipped by drive cable setup.
- */
-
-static u8 it821x_ratemask (ide_drive_t *drive)
-{
-	u8 mode	= 4;
-	if (!eighty_ninty_three(drive))
-		mode = min(mode, (u8)1);
-	return mode;
-}
-
-/**
  *	it821x_tunepio	-	tune a drive
  *	@drive: drive to tune
  *	@pio: the desired PIO mode
@@ -438,7 +422,7 @@ static int it821x_tune_chipset (ide_drive_t *drive, byte xferspeed)
 
 	ide_hwif_t *hwif	= drive->hwif;
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
-	u8 speed		= ide_rate_filter(it821x_ratemask(drive), xferspeed);
+	u8 speed		= ide_rate_filter(drive, xferspeed);
 
 	switch (speed) {
 	case XFER_PIO_4:
@@ -488,7 +472,7 @@ static int it821x_tune_chipset (ide_drive_t *drive, byte xferspeed)
 
 static int config_chipset_for_dma (ide_drive_t *drive)
 {
-	u8 speed	= ide_dma_speed(drive, it821x_ratemask(drive));
+	u8 speed = ide_max_dma_mode(drive);
 
 	if (speed == 0)
 		return 0;

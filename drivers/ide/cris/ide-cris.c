@@ -796,7 +796,7 @@ init_e100_ide (void)
 		                ide_offsets,
 		                0, 0, cris_ide_ack_intr,
 		                ide_default_irq(0));
-		ide_register_hw(&hw, &hwif);
+		ide_register_hw(&hw, 1, &hwif);
 		hwif->mmio = 1;
 		hwif->chipset = ide_etrax100;
 		hwif->tuneproc = &tune_cris_ide;
@@ -1004,7 +1004,7 @@ static int cris_ide_build_dmatable (ide_drive_t *drive)
 
 static int cris_config_drive_for_dma (ide_drive_t *drive)
 {
-	u8 speed = ide_dma_speed(drive, 1);
+	u8 speed = ide_max_dma_mode(drive);
 
 	if (!speed)
 		return 0;

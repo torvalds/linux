@@ -223,8 +223,9 @@ typedef struct hw_regs_s {
 /*
  * Register new hardware with ide
  */
-int ide_register_hw(hw_regs_t *hw, struct hwif_s **hwifp);
-int ide_register_hw_with_fixup(hw_regs_t *, struct hwif_s **, void (*)(struct hwif_s *));
+int ide_register_hw(hw_regs_t *, int, struct hwif_s **);
+int ide_register_hw_with_fixup(hw_regs_t *, int, struct hwif_s **,
+			       void (*)(struct hwif_s *));
 
 /*
  * Set up hw_regs_t structure before calling ide_register_hw (optional)
@@ -559,9 +560,10 @@ typedef struct ide_drive_s {
 	struct ide_drive_s 	*next;	/* circular list of hwgroup drives */
 	void		*driver_data;	/* extra driver data */
 	struct hd_driveid	*id;	/* drive model identification info */
+#ifdef CONFIG_IDE_PROC_FS
 	struct proc_dir_entry *proc;	/* /proc/ide/ directory entry */
 	struct ide_settings_s *settings;/* /proc/ide/ drive settings */
-
+#endif
 	struct hwif_s		*hwif;	/* actually (ide_hwif_t *) */
 
 	unsigned long sleep;		/* sleep until this time */
@@ -601,16 +603,12 @@ typedef struct ide_drive_s {
 	unsigned remap_0_to_1	: 1;	/* 0=noremap, 1=remap 0->1 (for EZDrive) */
 	unsigned blocked        : 1;	/* 1=powermanagment told us not to do anything, so sleep nicely */
 	unsigned vdma		: 1;	/* 1=doing PIO over DMA 0=doing normal DMA */
-	unsigned addressing;		/*      : 3;
-					 *  0=28-bit
-					 *  1=48-bit
-					 *  2=48-bit doing 28-bit
-					 *  3=64-bit
-					 */
 	unsigned scsi		: 1;	/* 0=default, 1=ide-scsi emulation */
 	unsigned sleeping	: 1;	/* 1=sleeping & sleep field valid */
 	unsigned post_reset	: 1;
+	unsigned udma33_warned	: 1;
 
+	u8	addressing;	/* 0=28-bit, 1=48-bit, 2=48-bit doing 28-bit */
         u8	quirk_list;	/* considered quirky, set for a specific host */
         u8	init_speed;	/* transfer rate set at boot */
         u8	current_speed;	/* current transfer rate set */
@@ -717,11 +715,8 @@ typedef struct hwif_s {
 	int	(*quirkproc)(ide_drive_t *);
 	/* driver soft-power interface */
 	int	(*busproc)(ide_drive_t *, int);
-//	/* host rate limiter */
-//	u8	(*ratemask)(ide_drive_t *);
-//	/* device rate limiter */
-//	u8	(*ratefilter)(ide_drive_t *, u8);
 #endif
+	u8 (*udma_filter)(ide_drive_t *);
 
 	void (*ata_input_data)(ide_drive_t *, void *, u32);
 	void (*ata_output_data)(ide_drive_t *, void *, u32);
@@ -866,16 +861,22 @@ typedef struct hwgroup_s {
 	unsigned char cmd_buf[4];
 } ide_hwgroup_t;
 
-/* structure attached to the request for IDE_TASK_CMDS */
+typedef struct ide_driver_s ide_driver_t;
 
+extern struct semaphore ide_setting_sem;
+
+int set_io_32bit(ide_drive_t *, int);
+int set_pio_mode(ide_drive_t *, int);
+int set_using_dma(ide_drive_t *, int);
+
+#ifdef CONFIG_IDE_PROC_FS
 /*
  * configurable drive settings
  */
 
 #define TYPE_INT	0
-#define TYPE_INTA	1
-#define TYPE_BYTE	2
-#define TYPE_SHORT	3
+#define TYPE_BYTE	1
+#define TYPE_SHORT	2
 
 #define SETTING_READ	(1 << 0)
 #define SETTING_WRITE	(1 << 1)
@@ -885,8 +886,6 @@ typedef int (ide_procset_t)(ide_drive_t *, int);
 typedef struct ide_settings_s {
 	char			*name;
 	int			rw;
-	int			read_ioctl;
-	int			write_ioctl;
 	int			data_type;
 	int			min;
 	int			max;
@@ -898,12 +897,7 @@ typedef struct ide_settings_s {
 	struct ide_settings_s	*next;
 } ide_settings_t;
 
-extern struct semaphore ide_setting_sem;
-extern int ide_add_setting(ide_drive_t *drive, const char *name, int rw, int read_ioctl, int write_ioctl, int data_type, int min, int max, int mul_factor, int div_factor, void *data, ide_procset_t *set);
-extern ide_settings_t *ide_find_setting_by_name(ide_drive_t *drive, char *name);
-extern int ide_read_setting(ide_drive_t *t, ide_settings_t *setting);
-extern int ide_write_setting(ide_drive_t *drive, ide_settings_t *setting, int val);
-extern void ide_add_generic_settings(ide_drive_t *drive);
+int ide_add_setting(ide_drive_t *, const char *, int, int, int, int, int, int, void *, ide_procset_t *set);
 
 /*
  * /proc/ide interface
@@ -915,15 +909,15 @@ typedef struct {
 	write_proc_t	*write_proc;
 } ide_proc_entry_t;
 
-#ifdef CONFIG_PROC_FS
-extern struct proc_dir_entry *proc_ide_root;
+void proc_ide_create(void);
+void proc_ide_destroy(void);
+void ide_proc_register_port(ide_hwif_t *);
+void ide_proc_unregister_port(ide_hwif_t *);
+void ide_proc_register_driver(ide_drive_t *, ide_driver_t *);
+void ide_proc_unregister_driver(ide_drive_t *, ide_driver_t *);
 
-extern void proc_ide_create(void);
-extern void proc_ide_destroy(void);
-extern void create_proc_ide_interfaces(void);
-void destroy_proc_ide_interface(ide_hwif_t *);
-extern void ide_add_proc_entries(struct proc_dir_entry *, ide_proc_entry_t *, void *);
-extern void ide_remove_proc_entries(struct proc_dir_entry *, ide_proc_entry_t *);
+void ide_add_generic_settings(ide_drive_t *);
+
 read_proc_t proc_ide_read_capacity;
 read_proc_t proc_ide_read_geometry;
 
@@ -947,8 +941,13 @@ void ide_pci_create_host_proc(const char *, get_info_t *);
 	return len;			\
 }
 #else
-static inline void create_proc_ide_interfaces(void) { ; }
-static inline void destroy_proc_ide_interface(ide_hwif_t *hwif) { ; }
+static inline void proc_ide_create(void) { ; }
+static inline void proc_ide_destroy(void) { ; }
+static inline void ide_proc_register_port(ide_hwif_t *hwif) { ; }
+static inline void ide_proc_unregister_port(ide_hwif_t *hwif) { ; }
+static inline void ide_proc_register_driver(ide_drive_t *drive, ide_driver_t *driver) { ; }
+static inline void ide_proc_unregister_driver(ide_drive_t *drive, ide_driver_t *driver) { ; }
+static inline void ide_add_generic_settings(ide_drive_t *drive) { ; }
 #define PROC_IDE_READ_RETURN(page,start,off,count,eof,len) return 0;
 #endif
 
@@ -991,7 +990,7 @@ enum {
  * The gendriver.owner field should be set to the module owner of this driver.
  * The gendriver.name field should be set to the name of this driver
  */
-typedef struct ide_driver_s {
+struct ide_driver_s {
 	const char			*version;
 	u8				media;
 	unsigned supports_dsc_overlap	: 1;
@@ -999,12 +998,14 @@ typedef struct ide_driver_s {
 	int		(*end_request)(ide_drive_t *, int, int);
 	ide_startstop_t	(*error)(ide_drive_t *, struct request *rq, u8, u8);
 	ide_startstop_t	(*abort)(ide_drive_t *, struct request *rq);
-	ide_proc_entry_t	*proc;
 	struct device_driver	gen_driver;
 	int		(*probe)(ide_drive_t *);
 	void		(*remove)(ide_drive_t *);
 	void		(*shutdown)(ide_drive_t *);
-} ide_driver_t;
+#ifdef CONFIG_IDE_PROC_FS
+	ide_proc_entry_t	*proc;
+#endif
+};
 
 #define to_ide_driver(drv) container_of(drv, ide_driver_t, gen_driver)
 
@@ -1204,18 +1205,20 @@ void ide_init_disk(struct gendisk *, ide_drive_t *);
 
 extern int ideprobe_init(void);
 
+#ifdef CONFIG_IDEPCI_PCIBUS_ORDER
 extern void ide_scan_pcibus(int scan_direction) __init;
 extern int __ide_pci_register_driver(struct pci_driver *driver, struct module *owner, const char *mod_name);
 #define ide_pci_register_driver(d) __ide_pci_register_driver(d, THIS_MODULE, KBUILD_MODNAME)
+#else
+#define ide_pci_register_driver(d) pci_register_driver(d)
+#endif
+
 void ide_pci_setup_ports(struct pci_dev *, struct ide_pci_device_s *, int, ata_index_t *);
 extern void ide_setup_pci_noise (struct pci_dev *dev, struct ide_pci_device_s *d);
 
 extern void default_hwif_iops(ide_hwif_t *);
 extern void default_hwif_mmiops(ide_hwif_t *);
 extern void default_hwif_transport(ide_hwif_t *);
-
-void ide_register_subdriver(ide_drive_t *, ide_driver_t *);
-void ide_unregister_subdriver(ide_drive_t *, ide_driver_t *);
 
 #define ON_BOARD		1
 #define NEVER_BOARD		0
@@ -1257,6 +1260,7 @@ typedef struct ide_pci_device_s {
 	unsigned int		extra;
 	struct ide_pci_device_s	*next;
 	u8			flags;
+	u8			udma_mask;
 } ide_pci_device_t;
 
 extern int ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
@@ -1278,6 +1282,8 @@ int ide_in_drive_list(struct hd_driveid *, const struct drive_list_entry *);
 int __ide_dma_bad_drive(ide_drive_t *);
 int __ide_dma_good_drive(ide_drive_t *);
 int ide_use_dma(ide_drive_t *);
+u8 ide_max_dma_mode(ide_drive_t *);
+int ide_tune_dma(ide_drive_t *);
 void ide_dma_off(ide_drive_t *);
 void ide_dma_verbose(ide_drive_t *);
 int ide_set_dma(ide_drive_t *);
@@ -1304,6 +1310,8 @@ extern int __ide_dma_timeout(ide_drive_t *);
 
 #else
 static inline int ide_use_dma(ide_drive_t *drive) { return 0; }
+static inline u8 ide_max_dma_mode(ide_drive_t *drive) { return 0; }
+static inline int ide_tune_dma(ide_drive_t *drive) { return 0; }
 static inline void ide_dma_off(ide_drive_t *drive) { ; }
 static inline void ide_dma_verbose(ide_drive_t *drive) { ; }
 static inline int ide_set_dma(ide_drive_t *drive) { return 1; }
@@ -1348,8 +1356,7 @@ static inline void ide_set_hwifdata (ide_hwif_t * hwif, void *data)
 }
 
 /* ide-lib.c */
-extern u8 ide_dma_speed(ide_drive_t *drive, u8 mode);
-extern u8 ide_rate_filter(u8 mode, u8 speed); 
+u8 ide_rate_filter(ide_drive_t *, u8);
 extern int ide_dma_enable(ide_drive_t *drive);
 extern char *ide_xfer_verbose(u8 xfer_rate);
 extern void ide_toggle_bounce(ide_drive_t *drive, int on);

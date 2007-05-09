@@ -571,51 +571,54 @@ EXPORT_SYMBOL(ide_wait_stat);
  */
 u8 eighty_ninty_three (ide_drive_t *drive)
 {
-	if(HWIF(drive)->udma_four == 0)
-		return 0;
+	ide_hwif_t *hwif = drive->hwif;
+	struct hd_driveid *id = drive->id;
+
+	if (hwif->udma_four == 0)
+		goto no_80w;
 
 	/* Check for SATA but only if we are ATA5 or higher */
-	if (drive->id->hw_config == 0 && (drive->id->major_rev_num & 0x7FE0))
+	if (id->hw_config == 0 && (id->major_rev_num & 0x7FE0))
 		return 1;
-	if (!(drive->id->hw_config & 0x6000))
-		return 0;
-#ifndef CONFIG_IDEDMA_IVB
-	if(!(drive->id->hw_config & 0x4000))
-		return 0;
-#endif /* CONFIG_IDEDMA_IVB */
+
 	/*
 	 * FIXME:
 	 * - change master/slave IDENTIFY order
 	 * - force bit13 (80c cable present) check
 	 *   (unless the slave device is pre-ATA3)
 	 */
-	return 1;
-}
+#ifndef CONFIG_IDEDMA_IVB
+	if (id->hw_config & 0x4000)
+#else
+	if (id->hw_config & 0x6000)
+#endif
+		return 1;
 
-EXPORT_SYMBOL(eighty_ninty_three);
+no_80w:
+	if (drive->udma33_warned == 1)
+		return 0;
+
+	printk(KERN_WARNING "%s: %s side 80-wire cable detection failed, "
+			    "limiting max speed to UDMA33\n",
+			    drive->name, hwif->udma_four ? "drive" : "host");
+
+	drive->udma33_warned = 1;
+
+	return 0;
+}
 
 int ide_ata66_check (ide_drive_t *drive, ide_task_t *args)
 {
 	if ((args->tfRegister[IDE_COMMAND_OFFSET] == WIN_SETFEATURES) &&
 	    (args->tfRegister[IDE_SECTOR_OFFSET] > XFER_UDMA_2) &&
 	    (args->tfRegister[IDE_FEATURE_OFFSET] == SETFEATURES_XFER)) {
-#ifndef CONFIG_IDEDMA_IVB
-		if ((drive->id->hw_config & 0x6000) == 0) {
-#else /* !CONFIG_IDEDMA_IVB */
-		if (((drive->id->hw_config & 0x2000) == 0) ||
-		    ((drive->id->hw_config & 0x4000) == 0)) {
-#endif /* CONFIG_IDEDMA_IVB */
-			printk("%s: Speed warnings UDMA 3/4/5 is not "
-				"functional.\n", drive->name);
-			return 1;
-		}
-		if (!HWIF(drive)->udma_four) {
-			printk("%s: Speed warnings UDMA 3/4/5 is not "
-				"functional.\n",
-				HWIF(drive)->name);
+		if (eighty_ninty_three(drive) == 0) {
+			printk(KERN_WARNING "%s: UDMA speeds >UDMA33 cannot "
+					    "be set\n", drive->name);
 			return 1;
 		}
 	}
+
 	return 0;
 }
 

@@ -21,15 +21,6 @@
 
 #include <asm/io.h>
 
-static u8 slc90e66_ratemask (ide_drive_t *drive)
-{
-	u8 mode	= 2;
-
-	if (!eighty_ninty_three(drive))
-		mode = min_t(u8, mode, 1);
-	return mode;
-}
-
 static u8 slc90e66_dma_2_pio (u8 xfer_rate) {
 	switch(xfer_rate) {
 		case XFER_UDMA_4:
@@ -122,7 +113,7 @@ static int slc90e66_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
 	u8 maslave		= hwif->channel ? 0x42 : 0x40;
-	u8 speed	= ide_rate_filter(slc90e66_ratemask(drive), xferspeed);
+	u8 speed		= ide_rate_filter(drive, xferspeed);
 	int sitre = 0, a_speed	= 7 << (drive->dn * 4);
 	int u_speed = 0, u_flag = 1 << drive->dn;
 	u16			reg4042, reg44, reg48, reg4a;
@@ -169,22 +160,11 @@ static int slc90e66_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 	return ide_config_drive_speed(drive, speed);
 }
 
-static int slc90e66_config_drive_for_dma (ide_drive_t *drive)
-{
-	u8 speed = ide_dma_speed(drive, slc90e66_ratemask(drive));
-
-	if (!speed)
-		return 0;
-
-	(void) slc90e66_tune_chipset(drive, speed);
-	return ide_dma_enable(drive);
-}
-
 static int slc90e66_config_drive_xfer_rate (ide_drive_t *drive)
 {
 	drive->init_speed = 0;
 
-	if (ide_use_dma(drive) && slc90e66_config_drive_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	if (ide_use_fast_pio(drive))

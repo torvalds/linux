@@ -76,7 +76,7 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 		hwif->gendev.parent = &ec->dev;
 		hwif->noprobe = 0;
 		probe_hwif_init(hwif);
-		create_proc_ide_interfaces();
+		ide_proc_register_port(hwif);
 		ecard_set_drvdata(ec, hwif);
 		goto out;
 	}

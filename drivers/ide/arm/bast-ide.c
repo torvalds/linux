@@ -45,7 +45,7 @@ bastide_register(unsigned int base, unsigned int aux, int irq,
 	hw.io_ports[IDE_CONTROL_OFFSET] = aux + (6 * 0x20);
 	hw.irq = irq;
 
-	ide_register_hw(&hw, hwif);
+	ide_register_hw(&hw, 0, hwif);
 
 	return 0;
 }

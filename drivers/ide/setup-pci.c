@@ -702,6 +702,7 @@ out:
 
 int ide_setup_pci_device(struct pci_dev *dev, ide_pci_device_t *d)
 {
+	ide_hwif_t *hwif = NULL, *mate = NULL;
 	ata_index_t index_list;
 	int ret;
 
@@ -710,11 +711,19 @@ int ide_setup_pci_device(struct pci_dev *dev, ide_pci_device_t *d)
 		goto out;
 
 	if ((index_list.b.low & 0xf0) != 0xf0)
-		probe_hwif_init_with_fixup(&ide_hwifs[index_list.b.low], d->fixup);
+		hwif = &ide_hwifs[index_list.b.low];
 	if ((index_list.b.high & 0xf0) != 0xf0)
-		probe_hwif_init_with_fixup(&ide_hwifs[index_list.b.high], d->fixup);
+		mate = &ide_hwifs[index_list.b.high];
 
-	create_proc_ide_interfaces();
+	if (hwif)
+		probe_hwif_init_with_fixup(hwif, d->fixup);
+	if (mate)
+		probe_hwif_init_with_fixup(mate, d->fixup);
+
+	if (hwif)
+		ide_proc_register_port(hwif);
+	if (mate)
+		ide_proc_register_port(mate);
 out:
 	return ret;
 }
@@ -748,13 +757,22 @@ int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
 		}
 	}
 
-	create_proc_ide_interfaces();
+	for (i = 0; i < 2; i++) {
+		u8 idx[2] = { index_list[i].b.low, index_list[i].b.high };
+		int j;
+
+		for (j = 0; j < 2; j++) {
+			if ((idx[j] & 0xf0) != 0xf0)
+				ide_proc_register_port(ide_hwifs + idx[j]);
+		}
+	}
 out:
 	return ret;
 }
 
 EXPORT_SYMBOL_GPL(ide_setup_pci_devices);
 
+#ifdef CONFIG_IDEPCI_PCIBUS_ORDER
 /*
  *	Module interfaces
  */
@@ -861,3 +879,4 @@ void __init ide_scan_pcibus (int scan_direction)
 		__pci_register_driver(d, d->driver.owner, d->driver.mod_name);
 	}
 }
+#endif

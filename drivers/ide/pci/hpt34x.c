@@ -43,15 +43,10 @@
 
 #define HPT343_DEBUG_DRIVE_INFO		0
 
-static u8 hpt34x_ratemask (ide_drive_t *drive)
-{
-	return 1;
-}
-
 static int hpt34x_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 {
 	struct pci_dev *dev	= HWIF(drive)->pci_dev;
-	u8 speed	= ide_rate_filter(hpt34x_ratemask(drive), xferspeed);
+	u8 speed = ide_rate_filter(drive, xferspeed);
 	u32 reg1= 0, tmp1 = 0, reg2 = 0, tmp2 = 0;
 	u8			hi_speed, lo_speed;
 
@@ -89,29 +84,11 @@ static void hpt34x_tune_drive (ide_drive_t *drive, u8 pio)
 	(void) hpt34x_tune_chipset(drive, (XFER_PIO_0 + pio));
 }
 
-/*
- * This allows the configuration of ide_pci chipset registers
- * for cards that learn about the drive's UDMA, DMA, PIO capabilities
- * after the drive is reported by the OS.  Initially for designed for
- * HPT343 UDMA chipset by HighPoint|Triones Technologies, Inc.
- */
-
-static int config_chipset_for_dma (ide_drive_t *drive)
-{
-	u8 speed = ide_dma_speed(drive, hpt34x_ratemask(drive));
-
-	if (!(speed))
-		return 0;
-
-	(void) hpt34x_tune_chipset(drive, speed);
-	return ide_dma_enable(drive);
-}
-
 static int hpt34x_config_drive_xfer_rate (ide_drive_t *drive)
 {
 	drive->init_speed = 0;
 
-	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+	if (ide_tune_dma(drive))
 #ifndef CONFIG_HPT34X_AUTODMA
 		return -1;
 #else
