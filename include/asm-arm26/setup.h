@@ -70,7 +70,7 @@ struct tag_ramdisk {
 /* describes where the compressed ramdisk image lives */
 /*
  * this one accidentally used virtual addresses - as such,
- * its depreciated.
+ * it's deprecated.
  */
 #define ATAG_INITRD	0x54410005
 

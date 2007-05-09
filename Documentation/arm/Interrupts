@@ -149,7 +149,7 @@ So, what's changed?
 
 3. set_GPIO_IRQ_edge() is obsolete, and should be replaced by set_irq_type.
 
-4. Direct access to SA1111 INTPOL is depreciated.  Use set_irq_type instead.
+4. Direct access to SA1111 INTPOL is deprecated.  Use set_irq_type instead.
 
 5. A handler is expected to perform any necessary acknowledgement of the
    parent IRQ via the correct chip specific function.  For instance, if
