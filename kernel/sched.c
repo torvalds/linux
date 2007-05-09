@@ -305,6 +305,7 @@ struct rq {
 };
 
 static DEFINE_PER_CPU(struct rq, runqueues) ____cacheline_aligned_in_smp;
+static DEFINE_MUTEX(sched_hotcpu_mutex);
 
 static inline int cpu_of(struct rq *rq)
 {
@@ -4520,13 +4521,13 @@ long sched_setaffinity(pid_t pid, cpumask_t new_mask)
 	struct task_struct *p;
 	int retval;
 
-	lock_cpu_hotplug();
+	mutex_lock(&sched_hotcpu_mutex);
 	read_lock(&tasklist_lock);
 
 	p = find_process_by_pid(pid);
 	if (!p) {
 		read_unlock(&tasklist_lock);
-		unlock_cpu_hotplug();
+		mutex_unlock(&sched_hotcpu_mutex);
 		return -ESRCH;
 	}
 
@@ -4553,7 +4554,7 @@ long sched_setaffinity(pid_t pid, cpumask_t new_mask)
 
 out_unlock:
 	put_task_struct(p);
-	unlock_cpu_hotplug();
+	mutex_unlock(&sched_hotcpu_mutex);
 	return retval;
 }
 
@@ -4610,7 +4611,7 @@ long sched_getaffinity(pid_t pid, cpumask_t *mask)
 	struct task_struct *p;
 	int retval;
 
-	lock_cpu_hotplug();
+	mutex_lock(&sched_hotcpu_mutex);
 	read_lock(&tasklist_lock);
 
 	retval = -ESRCH;
@@ -4626,7 +4627,7 @@ long sched_getaffinity(pid_t pid, cpumask_t *mask)
 
 out_unlock:
 	read_unlock(&tasklist_lock);
-	unlock_cpu_hotplug();
+	mutex_unlock(&sched_hotcpu_mutex);
 	if (retval)
 		return retval;
 
@@ -5388,6 +5389,10 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	struct rq *rq;
 
 	switch (action) {
+	case CPU_LOCK_ACQUIRE:
+		mutex_lock(&sched_hotcpu_mutex);
+		break;
+
 	case CPU_UP_PREPARE:
 		p = kthread_create(migration_thread, hcpu, "migration/%d",cpu);
 		if (IS_ERR(p))
@@ -5433,7 +5438,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		BUG_ON(rq->nr_running != 0);
 
 		/* No need to migrate the tasks: it was best-effort if
-		 * they didn't do lock_cpu_hotplug().  Just wake up
+		 * they didn't take sched_hotcpu_mutex.  Just wake up
 		 * the requestors. */
 		spin_lock_irq(&rq->lock);
 		while (!list_empty(&rq->migration_queue)) {
@@ -5447,6 +5452,9 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		spin_unlock_irq(&rq->lock);
 		break;
 #endif
+	case CPU_LOCK_RELEASE:
+		mutex_unlock(&sched_hotcpu_mutex);
+		break;
 	}
 	return NOTIFY_OK;
 }
@@ -6822,10 +6830,10 @@ int arch_reinit_sched_domains(void)
 {
 	int err;
 
-	lock_cpu_hotplug();
+	mutex_lock(&sched_hotcpu_mutex);
 	detach_destroy_domains(&cpu_online_map);
 	err = arch_init_sched_domains(&cpu_online_map);
-	unlock_cpu_hotplug();
+	mutex_unlock(&sched_hotcpu_mutex);
 
 	return err;
 }
@@ -6930,12 +6938,12 @@ void __init sched_init_smp(void)
 {
 	cpumask_t non_isolated_cpus;
 
-	lock_cpu_hotplug();
+	mutex_lock(&sched_hotcpu_mutex);
 	arch_init_sched_domains(&cpu_online_map);
 	cpus_andnot(non_isolated_cpus, cpu_possible_map, cpu_isolated_map);
 	if (cpus_empty(non_isolated_cpus))
 		cpu_set(smp_processor_id(), non_isolated_cpus);
-	unlock_cpu_hotplug();
+	mutex_unlock(&sched_hotcpu_mutex);
 	/* XXX: Theoretical race here - CPU may be hotplugged now */
 	hotcpu_notifier(update_sched_domains, 0);
 
