@@ -216,9 +216,6 @@ static void init_hwif_data(ide_hwif_t *hwif, unsigned int index)
 	hwif->bus_state	= BUSSTATE_ON;
 
 	hwif->atapi_dma = 0;		/* disable all atapi dma */ 
-	hwif->ultra_mask = 0x80;	/* disable all ultra */
-	hwif->mwdma_mask = 0x80;	/* disable all mwdma */
-	hwif->swdma_mask = 0x80;	/* disable all swdma */
 
 	init_completion(&hwif->gendev_rel_comp);
 

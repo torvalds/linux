@@ -644,15 +644,12 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 
 	hwif->atapi_dma = 1;
 
-	hwif->ultra_mask = 0x3f;
-	hwif->mwdma_mask = 0x07;
+	hwif->ultra_mask = hwif->cds->udma_mask;
 
-	if (dev->device == PCI_DEVICE_ID_CMD_643)
-		hwif->ultra_mask = 0x80;
-	if (dev->device == PCI_DEVICE_ID_CMD_646)
-		hwif->ultra_mask = (class_rev > 0x04) ? 0x07 : 0x80;
-	if (dev->device == PCI_DEVICE_ID_CMD_648)
-		hwif->ultra_mask = 0x1f;
+	if (dev->device == PCI_DEVICE_ID_CMD_646 && class_rev < 5)
+		hwif->ultra_mask = 0x00;
+
+	hwif->mwdma_mask = 0x07;
 
 	hwif->ide_dma_check = &cmd64x_config_drive_for_dma;
 	if (!(hwif->udma_four))
@@ -716,6 +713,7 @@ static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x00,0x00,0x00}, {0x51,0x08,0x08}},
 		.bootable	= ON_BOARD,
+		.udma_mask	= 0x00, /* no udma */
 	},{	/* 1 */
 		.name		= "CMD646",
 		.init_setup	= init_setup_cmd646,
@@ -725,6 +723,7 @@ static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.bootable	= ON_BOARD,
+		.udma_mask	= 0x07, /* udma0-2 */
 	},{	/* 2 */
 		.name		= "CMD648",
 		.init_setup	= init_setup_cmd64x,
@@ -734,6 +733,7 @@ static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.bootable	= ON_BOARD,
+		.udma_mask	= 0x1f, /* udma0-4 */
 	},{	/* 3 */
 		.name		= "CMD649",
 		.init_setup	= init_setup_cmd64x,
@@ -743,6 +743,7 @@ static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.bootable	= ON_BOARD,
+		.udma_mask	= 0x3f, /* udma0-5 */
 	}
 };
 

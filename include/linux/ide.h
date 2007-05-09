@@ -1257,6 +1257,7 @@ typedef struct ide_pci_device_s {
 	unsigned int		extra;
 	struct ide_pci_device_s	*next;
 	u8			flags;
+	u8			udma_mask;
 } ide_pci_device_t;
 
 extern int ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
