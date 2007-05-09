@@ -43,15 +43,10 @@
 
 #define HPT343_DEBUG_DRIVE_INFO		0
 
-static u8 hpt34x_ratemask (ide_drive_t *drive)
-{
-	return 1;
-}
-
 static int hpt34x_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 {
 	struct pci_dev *dev	= HWIF(drive)->pci_dev;
-	u8 speed	= ide_rate_filter(hpt34x_ratemask(drive), xferspeed);
+	u8 speed = ide_rate_filter(drive, xferspeed);
 	u32 reg1= 0, tmp1 = 0, reg2 = 0, tmp2 = 0;
 	u8			hi_speed, lo_speed;
 
@@ -98,7 +93,7 @@ static void hpt34x_tune_drive (ide_drive_t *drive, u8 pio)
 
 static int config_chipset_for_dma (ide_drive_t *drive)
 {
-	u8 speed = ide_dma_speed(drive, hpt34x_ratemask(drive));
+	u8 speed = ide_max_dma_mode(drive);
 
 	if (!(speed))
 		return 0;

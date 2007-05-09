@@ -49,22 +49,6 @@ static int save_mdma_mode[4];
 static DEFINE_SPINLOCK(atiixp_lock);
 
 /**
- *	atiixp_ratemask		-	compute rate mask for ATIIXP IDE
- *	@drive: IDE drive to compute for
- *
- *	Returns the available modes for the ATIIXP IDE controller.
- */
-
-static u8 atiixp_ratemask(ide_drive_t *drive)
-{
-	u8 mode = 3;
-
-	if (!eighty_ninty_three(drive))
-		mode = min(mode, (u8)1);
-	return mode;
-}
-
-/**
  *	atiixp_dma_2_pio		-	return the PIO mode matching DMA
  *	@xfer_rate: transfer speed
  *
@@ -189,7 +173,7 @@ static int atiixp_speedproc(ide_drive_t *drive, u8 xferspeed)
 	u16 tmp16;
 	u8 speed, pio;
 
-	speed = ide_rate_filter(atiixp_ratemask(drive), xferspeed);
+	speed = ide_rate_filter(drive, xferspeed);
 
 	spin_lock_irqsave(&atiixp_lock, flags);
 
@@ -233,7 +217,7 @@ static int atiixp_speedproc(ide_drive_t *drive, u8 xferspeed)
 
 static int atiixp_config_drive_for_dma(ide_drive_t *drive)
 {
-	u8 speed = ide_dma_speed(drive, atiixp_ratemask(drive));
+	u8 speed = ide_max_dma_mode(drive);
 
 	if (!speed)
 		return 0;

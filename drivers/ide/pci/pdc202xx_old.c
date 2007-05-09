@@ -101,35 +101,12 @@ static const char *pdc_quirk_drives[] = {
 #define	MC1		0x02	/* DMA"C" timing */
 #define	MC0		0x01	/* DMA"C" timing */
 
-static u8 pdc202xx_ratemask (ide_drive_t *drive)
-{
-	u8 mode;
-
-	switch(HWIF(drive)->pci_dev->device) {
-		case PCI_DEVICE_ID_PROMISE_20267:
-		case PCI_DEVICE_ID_PROMISE_20265:
-			mode = 3;
-			break;
-		case PCI_DEVICE_ID_PROMISE_20263:
-		case PCI_DEVICE_ID_PROMISE_20262:
-			mode = 2;
-			break;
-		case PCI_DEVICE_ID_PROMISE_20246:
-			return 1;
-		default:
-			return 0;
-	}
-	if (!eighty_ninty_three(drive))
-		mode = min(mode, (u8)1);
-	return mode;
-}
-
 static int pdc202xx_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
 	u8 drive_pci		= 0x60 + (drive->dn << 2);
-	u8 speed	= ide_rate_filter(pdc202xx_ratemask(drive), xferspeed);
+	u8 speed		= ide_rate_filter(drive, xferspeed);
 
 	u32			drive_conf;
 	u8			AP, BP, CP, DP;
@@ -308,7 +285,7 @@ chipset_is_set:
 	if (drive->media == ide_disk)	/* PREFETCH_EN */
 		pci_write_config_byte(dev, (drive_pci), AP|PREFETCH_EN);
 
-	speed = ide_dma_speed(drive, pdc202xx_ratemask(drive));
+	speed = ide_max_dma_mode(drive);
 
 	if (!(speed)) {
 		/* restore original pci-config space */

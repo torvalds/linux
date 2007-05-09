@@ -48,7 +48,7 @@ static int triflex_tune_chipset(ide_drive_t *drive, u8 xferspeed)
 	u16 timing = 0;
 	u32 triflex_timings = 0;
 	u8 unit = (drive->select.b.unit & 0x01);
-	u8 speed = ide_rate_filter(0, xferspeed);
+	u8 speed = ide_rate_filter(drive, xferspeed);
 	
 	pci_read_config_dword(dev, channel_offset, &triflex_timings);
 	
@@ -102,7 +102,7 @@ static void triflex_tune_drive(ide_drive_t *drive, u8 pio)
 
 static int triflex_config_drive_for_dma(ide_drive_t *drive)
 {
-	int speed = ide_dma_speed(drive, 0); /* No ultra speeds */
+	u8 speed = ide_max_dma_mode(drive);
 
 	if (!speed)
 		return 0;

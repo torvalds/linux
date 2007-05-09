@@ -592,8 +592,6 @@ u8 eighty_ninty_three (ide_drive_t *drive)
 	return 1;
 }
 
-EXPORT_SYMBOL(eighty_ninty_three);
-
 int ide_ata66_check (ide_drive_t *drive, ide_task_t *args)
 {
 	if ((args->tfRegister[IDE_COMMAND_OFFSET] == WIN_SETFEATURES) &&

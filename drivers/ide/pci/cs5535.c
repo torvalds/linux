@@ -127,20 +127,6 @@ static void cs5535_set_speed(ide_drive_t *drive, u8 speed)
 	}
 }
 
-static u8 cs5535_ratemask(ide_drive_t *drive)
-{
-	/* eighty93 will return 1 if it's 80core and capable of
-	exceeding udma2, 0 otherwise. we need ratemask to set
-	the max speed and if we can > udma2 then we return 2
-	which selects speed_max as udma4 which is the 5535's max
-	speed, and 1 selects udma2 which is the max for 40c */
-	if (!eighty_ninty_three(drive))
-		return 1;
-
-	return 2;
-}
-
-
 /****
  *	cs5535_set_drive         -     Configure the drive to the new speed
  *	@drive: Drive to set up
@@ -151,7 +137,7 @@ static u8 cs5535_ratemask(ide_drive_t *drive)
  */
 static int cs5535_set_drive(ide_drive_t *drive, u8 speed)
 {
-	speed = ide_rate_filter(cs5535_ratemask(drive), speed);
+	speed = ide_rate_filter(drive, speed);
 	ide_config_drive_speed(drive, speed);
 	cs5535_set_speed(drive, speed);
 
@@ -180,9 +166,7 @@ static void cs5535_tuneproc(ide_drive_t *drive, u8 xferspeed)
 
 static int cs5535_config_drive_for_dma(ide_drive_t *drive)
 {
-	u8 speed;
-
-	speed = ide_dma_speed(drive, cs5535_ratemask(drive));
+	u8 speed = ide_max_dma_mode(drive);
 
 	/* If no DMA speed was available then let dma_check hit pio */
 	if (!speed) {

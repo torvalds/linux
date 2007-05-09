@@ -106,68 +106,6 @@
 static int no_piix_dma;
 
 /**
- *	piix_ratemask		-	compute rate mask for PIIX IDE
- *	@drive: IDE drive to compute for
- *
- *	Returns the available modes for the PIIX IDE controller.
- */
- 
-static u8 piix_ratemask (ide_drive_t *drive)
-{
-	struct pci_dev *dev	= HWIF(drive)->pci_dev;
-	u8 mode;
-
-	switch(dev->device) {
-		case PCI_DEVICE_ID_INTEL_82801EB_1:
-			mode = 3;
-			break;
-		/* UDMA 100 capable */
-		case PCI_DEVICE_ID_INTEL_82801BA_8:
-		case PCI_DEVICE_ID_INTEL_82801BA_9:
-		case PCI_DEVICE_ID_INTEL_82801CA_10:
-		case PCI_DEVICE_ID_INTEL_82801CA_11:
-		case PCI_DEVICE_ID_INTEL_82801E_11:
-		case PCI_DEVICE_ID_INTEL_82801DB_1:
-		case PCI_DEVICE_ID_INTEL_82801DB_10:
-		case PCI_DEVICE_ID_INTEL_82801DB_11:
-		case PCI_DEVICE_ID_INTEL_82801EB_11:
-		case PCI_DEVICE_ID_INTEL_ESB_2:
-		case PCI_DEVICE_ID_INTEL_ICH6_19:
-		case PCI_DEVICE_ID_INTEL_ICH7_21:
-		case PCI_DEVICE_ID_INTEL_ESB2_18:
-		case PCI_DEVICE_ID_INTEL_ICH8_6:
-			mode = 3;
-			break;
-		/* UDMA 66 capable */
-		case PCI_DEVICE_ID_INTEL_82801AA_1:
-		case PCI_DEVICE_ID_INTEL_82372FB_1:
-			mode = 2;
-			break;
-		/* UDMA 33 capable */
-		case PCI_DEVICE_ID_INTEL_82371AB:
-		case PCI_DEVICE_ID_INTEL_82443MX_1:
-		case PCI_DEVICE_ID_INTEL_82451NX:
-		case PCI_DEVICE_ID_INTEL_82801AB_1:
-			return 1;
-		/* Non UDMA capable (MWDMA2) */
-		case PCI_DEVICE_ID_INTEL_82371SB_1:
-		case PCI_DEVICE_ID_INTEL_82371FB_1:
-		case PCI_DEVICE_ID_INTEL_82371FB_0:
-		case PCI_DEVICE_ID_INTEL_82371MX:
-		default:
-			return 0;
-	}
-	
-	/*
-	 *	If we are UDMA66 capable fall back to UDMA33 
-	 *	if the drive cannot see an 80pin cable.
-	 */
-	if (!eighty_ninty_three(drive))
-		mode = min_t(u8, mode, 1);
-	return mode;
-}
-
-/**
  *	piix_dma_2_pio		-	return the PIO mode matching DMA
  *	@xfer_rate: transfer speed
  *
@@ -301,7 +239,7 @@ static int piix_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
 	u8 maslave		= hwif->channel ? 0x42 : 0x40;
-	u8 speed		= ide_rate_filter(piix_ratemask(drive), xferspeed);
+	u8 speed		= ide_rate_filter(drive, xferspeed);
 	int a_speed		= 3 << (drive->dn * 4);
 	int u_flag		= 1 << drive->dn;
 	int v_flag		= 0x01 << drive->dn;
@@ -376,7 +314,7 @@ static int piix_tune_chipset (ide_drive_t *drive, u8 xferspeed)
  
 static int piix_config_drive_for_dma (ide_drive_t *drive)
 {
-	u8 speed = ide_dma_speed(drive, piix_ratemask(drive));
+	u8 speed = ide_max_dma_mode(drive);
 
 	/*
 	 * If no DMA speed was available or the chipset has DMA bugs

@@ -342,7 +342,7 @@ static int icside_dma_check(ide_drive_t *drive)
 	 * Enable DMA on any drive that has multiword DMA
 	 */
 	if (id->field_valid & 2) {
-		xfer_mode = ide_dma_speed(drive, 0);
+		xfer_mode = ide_max_dma_mode(drive);
 		goto out;
 	}
 

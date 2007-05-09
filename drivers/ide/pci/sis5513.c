@@ -428,16 +428,6 @@ static int sis_get_info (char *buffer, char **addr, off_t offset, int count)
 }
 #endif /* defined(DISPLAY_SIS_TIMINGS) && defined(CONFIG_PROC_FS) */
 
-static u8 sis5513_ratemask (ide_drive_t *drive)
-{
-	u8 rates[] = { 0, 0, 1, 2, 3, 3, 4, 4 };
-	u8 mode = rates[chipset_family];
-
-	if (!eighty_ninty_three(drive))
-		mode = min(mode, (u8)1);
-	return mode;
-}
-
 /*
  * Configuration functions
  */
@@ -563,7 +553,7 @@ static int sis5513_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 	u8 drive_pci, reg, speed;
 	u32 regdw;
 
-	speed = ide_rate_filter(sis5513_ratemask(drive), xferspeed);
+	speed = ide_rate_filter(drive, xferspeed);
 
 	/* See config_art_rwp_pio for drive pci config registers */
 	drive_pci = 0x40;
@@ -653,7 +643,7 @@ static void sis5513_tune_drive (ide_drive_t *drive, u8 pio)
  */
 static int config_chipset_for_dma (ide_drive_t *drive)
 {
-	u8 speed	= ide_dma_speed(drive, sis5513_ratemask(drive));
+	u8 speed = ide_max_dma_mode(drive);
 
 #ifdef DEBUG
 	printk("SIS5513: config_chipset_for_dma, drive %d, ultra %x\n",

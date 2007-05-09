@@ -292,55 +292,6 @@ static void cmd64x_tune_drive (ide_drive_t *drive, u8 pio)
 	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
-static u8 cmd64x_ratemask (ide_drive_t *drive)
-{
-	struct pci_dev *dev	= HWIF(drive)->pci_dev;
-	u8 mode = 0;
-
-	switch(dev->device) {
-		case PCI_DEVICE_ID_CMD_649:
-			mode = 3;
-			break;
-		case PCI_DEVICE_ID_CMD_648:
-			mode = 2;
-			break;
-		case PCI_DEVICE_ID_CMD_643:
-			return 0;
-
-		case PCI_DEVICE_ID_CMD_646:
-		{
-			unsigned int class_rev	= 0;
-			pci_read_config_dword(dev,
-				PCI_CLASS_REVISION, &class_rev);
-			class_rev &= 0xff;
-		/*
-		 * UltraDMA only supported on PCI646U and PCI646U2, which
-		 * correspond to revisions 0x03, 0x05 and 0x07 respectively.
-		 * Actually, although the CMD tech support people won't
-		 * tell me the details, the 0x03 revision cannot support
-		 * UDMA correctly without hardware modifications, and even
-		 * then it only works with Quantum disks due to some
-		 * hold time assumptions in the 646U part which are fixed
-		 * in the 646U2.
-		 *
-		 * So we only do UltraDMA on revision 0x05 and 0x07 chipsets.
-		 */
-			switch(class_rev) {
-				case 0x07:
-				case 0x05:
-					return 1;
-				case 0x03:
-				case 0x01:
-				default:
-					return 0;
-			}
-		}
-	}
-	if (!eighty_ninty_three(drive))
-		mode = min(mode, (u8)1);
-	return mode;
-}
-
 static int cmd64x_tune_chipset (ide_drive_t *drive, u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
@@ -348,7 +299,7 @@ static int cmd64x_tune_chipset (ide_drive_t *drive, u8 speed)
 	u8 unit			= drive->dn & 0x01;
 	u8 regU = 0, pciU	= hwif->channel ? UDIDETCR1 : UDIDETCR0;
 
-	speed = ide_rate_filter(cmd64x_ratemask(drive), speed);
+	speed = ide_rate_filter(drive, speed);
 
 	if (speed >= XFER_SW_DMA_0) {
 		(void) pci_read_config_byte(dev, pciU, &regU);
@@ -403,7 +354,7 @@ static int cmd64x_tune_chipset (ide_drive_t *drive, u8 speed)
 
 static int config_chipset_for_dma (ide_drive_t *drive)
 {
-	u8 speed	= ide_dma_speed(drive, cmd64x_ratemask(drive));
+	u8 speed = ide_max_dma_mode(drive);
 
 	if (!speed)
 		return 0;
@@ -646,6 +597,18 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 
 	hwif->ultra_mask = hwif->cds->udma_mask;
 
+	/*
+	 * UltraDMA only supported on PCI646U and PCI646U2, which
+	 * correspond to revisions 0x03, 0x05 and 0x07 respectively.
+	 * Actually, although the CMD tech support people won't
+	 * tell me the details, the 0x03 revision cannot support
+	 * UDMA correctly without hardware modifications, and even
+	 * then it only works with Quantum disks due to some
+	 * hold time assumptions in the 646U part which are fixed
+	 * in the 646U2.
+	 *
+	 * So we only do UltraDMA on revision 0x05 and 0x07 chipsets.
+	 */
 	if (dev->device == PCI_DEVICE_ID_CMD_646 && class_rev < 5)
 		hwif->ultra_mask = 0x00;
 

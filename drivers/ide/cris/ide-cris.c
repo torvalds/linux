@@ -1004,7 +1004,7 @@ static int cris_ide_build_dmatable (ide_drive_t *drive)
 
 static int cris_config_drive_for_dma (ide_drive_t *drive)
 {
-	u8 speed = ide_dma_speed(drive, 1);
+	u8 speed = ide_max_dma_mode(drive);
 
 	if (!speed)
 		return 0;

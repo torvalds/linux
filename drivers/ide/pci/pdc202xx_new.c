@@ -82,16 +82,6 @@ static u8 max_dma_rate(struct pci_dev *pdev)
 	return mode;
 }
 
-static u8 pdcnew_ratemask(ide_drive_t *drive)
-{
-	u8 mode = max_dma_rate(HWIF(drive)->pci_dev);
-
-	if (!eighty_ninty_three(drive))
-		mode = min_t(u8, mode, 1);
-
-	return	mode;
-}
-
 /**
  * get_indexed_reg - Get indexed register
  * @hwif: for the port address
@@ -164,7 +154,7 @@ static int pdcnew_tune_chipset(ide_drive_t *drive, u8 speed)
 	u8 adj			= (drive->dn & 1) ? 0x08 : 0x00;
 	int			err;
 
-	speed = ide_rate_filter(pdcnew_ratemask(drive), speed);
+	speed = ide_rate_filter(drive, speed);
 
 	/*
 	 * Issue SETFEATURES_XFER to the drive first. PDC202xx hardware will
@@ -267,7 +257,7 @@ static int config_chipset_for_dma(ide_drive_t *drive)
 		set_indexed_reg(hwif, 0x13 + adj, tmp | 0x03);
 	}
 
-	speed = ide_dma_speed(drive, pdcnew_ratemask(drive));
+	speed = ide_max_dma_mode(drive);
 
 	if (!speed)
 		return 0;
