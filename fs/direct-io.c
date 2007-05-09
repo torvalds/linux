@@ -439,7 +439,7 @@ static int dio_bio_complete(struct dio *dio, struct bio *bio)
  * Wait on and process all in-flight BIOs.  This must only be called once
  * all bios have been issued so that the refcount can only decrease.
  * This just waits for all bios to make it through dio_bio_complete.  IO
- * errors are propogated through dio->io_error and should be propogated via
+ * errors are propagated through dio->io_error and should be propagated via
  * dio_complete().
  */
 static void dio_await_completion(struct dio *dio)

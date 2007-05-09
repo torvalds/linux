@@ -33,7 +33,7 @@ struct mnt_namespace;
 
 #define MNT_SHARED	0x1000	/* if the vfsmount is a shared mount */
 #define MNT_UNBINDABLE	0x2000	/* if the vfsmount is a unbindable mount */
-#define MNT_PNODE_MASK	0x3000	/* propogation flag mask */
+#define MNT_PNODE_MASK	0x3000	/* propagation flag mask */
 
 struct vfsmount {
 	struct list_head mnt_hash;

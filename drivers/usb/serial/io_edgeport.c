@@ -2465,7 +2465,7 @@ static int send_cmd_write_uart_register (struct edgeport_port *edge_port, __u8 r
 	    ((edge_serial->is_epic) &&
 	     (!edge_serial->epic_descriptor.Supports.IOSPWriteMCR) &&
 	     (regNum == MCR))) {
-		dbg("SendCmdWriteUartReg - Not writting to MCR Register");
+		dbg("SendCmdWriteUartReg - Not writing to MCR Register");
 		return 0;
 	}
 
@@ -2473,7 +2473,7 @@ static int send_cmd_write_uart_register (struct edgeport_port *edge_port, __u8 r
 	    ((edge_serial->is_epic) &&
 	     (!edge_serial->epic_descriptor.Supports.IOSPWriteLCR) &&
 	     (regNum == LCR))) {
-		dbg ("SendCmdWriteUartReg - Not writting to LCR Register");
+		dbg ("SendCmdWriteUartReg - Not writing to LCR Register");
 		return 0;
 	}
 

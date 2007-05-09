@@ -747,7 +747,7 @@ cell_handle_interrupt(struct pt_regs *regs, struct op_counter_config *ctr)
 		 * counter value etc.) are not copied to the actual registers
 		 * until the performance monitor is enabled.  In order to get
 		 * this to work as desired, the permormance monitor needs to
-		 * be disabled while writting to the latches.  This is a
+		 * be disabled while writing to the latches.  This is a
 		 * HW design issue.
 		 */
 		cbe_enable_pm(cpu);

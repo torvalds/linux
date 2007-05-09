@@ -63,7 +63,7 @@ extern const struct snd_ice1712_card_info snd_ice1712_delta_cards[];
 					/* look to CS8414 datasheet */
 #define ICE1712_DELTA_SPDIF_OUT_STAT_CLOCK 0x04
 					/* S/PDIF output status clock */
-					/* (writting on rising edge - 0->1) */
+					/* (writing on rising edge - 0->1) */
 					/* all except Delta44 */
 					/* look to CS8404A datasheet */
 #define ICE1712_DELTA_SPDIF_OUT_STAT_DATA 0x08
@@ -100,7 +100,7 @@ extern const struct snd_ice1712_card_info snd_ice1712_delta_cards[];
 					/* AKM4524 serial data */
 #define ICE1712_DELTA_CODEC_SERIAL_CLOCK 0x20
 					/* AKM4524 serial clock */
-					/* (writting on rising edge - 0->1 */
+					/* (writing on rising edge - 0->1 */
 #define ICE1712_DELTA_CODEC_CHIP_A	0x40
 #define ICE1712_DELTA_CODEC_CHIP_B	0x80
 					/* 1 - select chip A or B */

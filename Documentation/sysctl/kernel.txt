@@ -228,7 +228,7 @@ Controls the kernel's behaviour when an oops or BUG is encountered.
 
 pid_max:
 
-PID allocation wrap value.  When the kenrel's next PID value
+PID allocation wrap value.  When the kernel's next PID value
 reaches this value, it wraps back to a minimum PID value.
 PIDs of value pid_max or larger are not allocated.
 
