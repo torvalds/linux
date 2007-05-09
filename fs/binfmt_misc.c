@@ -675,19 +675,8 @@ static ssize_t
 bm_status_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
 	char *s = enabled ? "enabled" : "disabled";
-	int len = strlen(s);
-	loff_t pos = *ppos;
 
-	if (pos < 0)
-		return -EINVAL;
-	if (pos >= len)
-		return 0;
-	if (len < pos + nbytes)
-		nbytes = len - pos;
-	if (copy_to_user(buf, s + pos, nbytes))
-		return -EFAULT;
-	*ppos = pos + nbytes;
-	return nbytes;
+	return simple_read_from_buffer(buf, nbytes, ppos, s, strlen(s));
 }
 
 static ssize_t bm_status_write(struct file * file, const char __user * buffer,
