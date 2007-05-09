@@ -736,7 +736,6 @@ config TOSHIBA_JMR3927
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_BIG_ENDIAN
-	select TOSHIBA_BOARDS
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config TOSHIBA_RBTX4927
@@ -752,7 +751,6 @@ config TOSHIBA_RBTX4927
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_KGDB
-	select TOSHIBA_BOARDS
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  This Toshiba board is based on the TX4927 processor. Say Y here to
@@ -772,7 +770,6 @@ config TOSHIBA_RBTX4938
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_KGDB
-	select TOSHIBA_BOARDS
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  This Toshiba board is based on the TX4938 processor. Say Y here to
@@ -1084,9 +1081,6 @@ config ARC64
 	bool
 
 config BOOT_ELF64
-	bool
-
-config TOSHIBA_BOARDS
 	bool
 
 menu "CPU selection"
