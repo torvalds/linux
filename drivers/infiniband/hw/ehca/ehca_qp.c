@@ -523,6 +523,8 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 		goto create_qp_exit1;
 	}
 
+	my_qp->ib_qp.qp_num = my_qp->real_qp_num;
+
 	switch (init_attr->qp_type) {
 	case IB_QPT_RC:
 	        if (isdaqp == 0) {
@@ -568,7 +570,7 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 			parms.act_nr_recv_wqes = init_attr->cap.max_recv_wr;
 			parms.act_nr_send_sges = init_attr->cap.max_send_sge;
 			parms.act_nr_recv_sges = init_attr->cap.max_recv_sge;
-			my_qp->real_qp_num =
+			my_qp->ib_qp.qp_num =
 				(init_attr->qp_type == IB_QPT_SMI) ? 0 : 1;
 		}
 
@@ -595,7 +597,6 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 	my_qp->ib_qp.recv_cq = init_attr->recv_cq;
 	my_qp->ib_qp.send_cq = init_attr->send_cq;
 
-	my_qp->ib_qp.qp_num = my_qp->real_qp_num;
 	my_qp->ib_qp.qp_type = init_attr->qp_type;
 
 	my_qp->qp_type = init_attr->qp_type;
