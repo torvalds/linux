@@ -101,8 +101,10 @@ static void linkwatch_schedule_work(unsigned long delay)
 		return;
 
 	/* If we wrap around we'll delay it by at most HZ. */
-	if (delay > HZ)
+	if (delay > HZ) {
+		linkwatch_nextevent = jiffies;
 		delay = 0;
+	}
 
 	schedule_delayed_work(&linkwatch_work, delay);
 }
