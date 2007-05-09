@@ -43,7 +43,7 @@
  * plain scalar nanosecond based representation can be selected by the
  * config switch CONFIG_KTIME_SCALAR.
  */
-typedef union {
+union ktime {
 	s64	tv64;
 #if BITS_PER_LONG != 64 && !defined(CONFIG_KTIME_SCALAR)
 	struct {
@@ -54,7 +54,9 @@ typedef union {
 # endif
 	} tv;
 #endif
-} ktime_t;
+};
+
+typedef union ktime ktime_t;		/* Kill this */
 
 #define KTIME_MAX			((s64)~((u64)1 << 63))
 #if (BITS_PER_LONG == 64)
