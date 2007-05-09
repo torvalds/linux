@@ -567,7 +567,7 @@ static int cpu_request_microcode(int cpu)
 	return error;
 }
 
-static int apply_microcode_on_cpu(int cpu)
+static int apply_microcode_check_cpu(int cpu)
 {
 	struct cpuinfo_x86 *c = cpu_data + cpu;
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
@@ -575,8 +575,9 @@ static int apply_microcode_on_cpu(int cpu)
 	unsigned int val[2];
 	int err = 0;
 
+	/* Check if the microcode is available */
 	if (!uci->mc)
-		return -EINVAL;
+		return 0;
 
 	old = current->cpus_allowed;
 	set_cpus_allowed(current, cpumask_of_cpu(cpu));
@@ -614,7 +615,7 @@ static int apply_microcode_on_cpu(int cpu)
 	return err;
 }
 
-static void microcode_init_cpu(int cpu)
+static void microcode_init_cpu(int cpu, int resume)
 {
 	cpumask_t old;
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
@@ -624,8 +625,7 @@ static void microcode_init_cpu(int cpu)
 	set_cpus_allowed(current, cpumask_of_cpu(cpu));
 	mutex_lock(&microcode_mutex);
 	collect_cpu_info(cpu);
-	if (uci->valid && system_state == SYSTEM_RUNNING &&
-	    !suspend_cpu_hotplug)
+	if (uci->valid && system_state == SYSTEM_RUNNING && !resume)
 		cpu_request_microcode(cpu);
 	mutex_unlock(&microcode_mutex);
 	set_cpus_allowed(current, old);
@@ -702,7 +702,7 @@ static struct attribute_group mc_attr_group = {
 	.name = "microcode",
 };
 
-static int mc_sysdev_add(struct sys_device *sys_dev)
+static int __mc_sysdev_add(struct sys_device *sys_dev, int resume)
 {
 	int err, cpu = sys_dev->id;
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
@@ -711,25 +711,20 @@ static int mc_sysdev_add(struct sys_device *sys_dev)
 		return 0;
 
 	pr_debug("Microcode:CPU %d added\n", cpu);
-	/* If suspend_cpu_hotplug is set, the system is resuming and we should
-	 * use the data from before the suspend.
-	 */
-	if (suspend_cpu_hotplug) {
-		err = apply_microcode_on_cpu(cpu);
-		if (err)
-			microcode_fini_cpu(cpu);
-	}
-	if (!uci->valid)
-		memset(uci, 0, sizeof(*uci));
+	memset(uci, 0, sizeof(*uci));
 
 	err = sysfs_create_group(&sys_dev->kobj, &mc_attr_group);
 	if (err)
 		return err;
 
-	if (!uci->valid)
-		microcode_init_cpu(cpu);
+	microcode_init_cpu(cpu, resume);
 
 	return 0;
+}
+
+static int mc_sysdev_add(struct sys_device *sys_dev)
+{
+	return __mc_sysdev_add(sys_dev, 0);
 }
 
 static int mc_sysdev_remove(struct sys_device *sys_dev)
@@ -738,12 +733,9 @@ static int mc_sysdev_remove(struct sys_device *sys_dev)
 
 	if (!cpu_online(cpu))
 		return 0;
+
 	pr_debug("Microcode:CPU %d removed\n", cpu);
-	/* If suspend_cpu_hotplug is set, the system is suspending and we should
-	 * keep the microcode in memory for the resume.
-	 */
-	if (!suspend_cpu_hotplug)
-		microcode_fini_cpu(cpu);
+	microcode_fini_cpu(cpu);
 	sysfs_remove_group(&sys_dev->kobj, &mc_attr_group);
 	return 0;
 }
@@ -774,15 +766,33 @@ mc_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 
 	sys_dev = get_cpu_sysdev(cpu);
 	switch (action) {
+	case CPU_UP_CANCELED_FROZEN:
+		/* The CPU refused to come up during a system resume */
+		microcode_fini_cpu(cpu);
+		break;
 	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
 	case CPU_DOWN_FAILED:
-	case CPU_DOWN_FAILED_FROZEN:
 		mc_sysdev_add(sys_dev);
 		break;
+	case CPU_ONLINE_FROZEN:
+		/* System-wide resume is in progress, try to apply microcode */
+		if (apply_microcode_check_cpu(cpu)) {
+			/* The application of microcode failed */
+			microcode_fini_cpu(cpu);
+			__mc_sysdev_add(sys_dev, 1);
+			break;
+		}
+	case CPU_DOWN_FAILED_FROZEN:
+		if (sysfs_create_group(&sys_dev->kobj, &mc_attr_group))
+			printk(KERN_ERR "Microcode: Failed to create the sysfs "
+				"group for CPU%d\n", cpu);
+		break;
 	case CPU_DOWN_PREPARE:
-	case CPU_DOWN_PREPARE_FROZEN:
 		mc_sysdev_remove(sys_dev);
+		break;
+	case CPU_DOWN_PREPARE_FROZEN:
+		/* Suspend is in progress, only remove the interface */
+		sysfs_remove_group(&sys_dev->kobj, &mc_attr_group);
 		break;
 	}
 	return NOTIFY_OK;

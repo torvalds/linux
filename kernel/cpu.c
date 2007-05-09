@@ -262,12 +262,6 @@ int __cpuinit cpu_up(unsigned int cpu)
 }
 
 #ifdef CONFIG_SUSPEND_SMP
-/* Needed to prevent the microcode driver from requesting firmware in its CPU
- * hotplug notifier during the suspend/resume.
- */
-int suspend_cpu_hotplug;
-EXPORT_SYMBOL(suspend_cpu_hotplug);
-
 static cpumask_t frozen_cpus;
 
 int disable_nonboot_cpus(void)
@@ -275,7 +269,6 @@ int disable_nonboot_cpus(void)
 	int cpu, first_cpu, error = 0;
 
 	mutex_lock(&cpu_add_remove_lock);
-	suspend_cpu_hotplug = 1;
 	first_cpu = first_cpu(cpu_online_map);
 	/* We take down all of the non-boot CPUs in one shot to avoid races
 	 * with the userspace trying to use the CPU hotplug at the same time
@@ -302,7 +295,6 @@ int disable_nonboot_cpus(void)
 	} else {
 		printk(KERN_ERR "Non-boot CPUs are not disabled\n");
 	}
-	suspend_cpu_hotplug = 0;
 	mutex_unlock(&cpu_add_remove_lock);
 	return error;
 }
@@ -317,7 +309,6 @@ void enable_nonboot_cpus(void)
 	if (cpus_empty(frozen_cpus))
 		goto out;
 
-	suspend_cpu_hotplug = 1;
 	printk("Enabling non-boot CPUs ...\n");
 	for_each_cpu_mask(cpu, frozen_cpus) {
 		error = _cpu_up(cpu, 1);
@@ -328,7 +319,6 @@ void enable_nonboot_cpus(void)
 		printk(KERN_WARNING "Error taking CPU%d up: %d\n", cpu, error);
 	}
 	cpus_clear(frozen_cpus);
-	suspend_cpu_hotplug = 0;
 out:
 	mutex_unlock(&cpu_add_remove_lock);
 }
