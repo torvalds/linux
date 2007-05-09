@@ -13,7 +13,6 @@
 
 #ifdef CONFIG_SPARC
 #include <asm/prom.h>
-#include <asm/pbm.h>
 #endif
 
 /* XXX(hch): this is ugly, but we don't want to pull in exioctl.h */
@@ -1397,9 +1396,8 @@ static void qla2xxx_nvram_wwn_from_ofw(scsi_qla_host_t *ha, nvram_t *nv)
 {
 #ifdef CONFIG_SPARC
 	struct pci_dev *pdev = ha->pdev;
-	struct pcidev_cookie *pcp = pdev->sysdata;
-	struct device_node *dp = pcp->prom_node;
-	u8 *val;
+	struct device_node *dp = pci_device_to_OF_node(pdev);
+	const u8 *val;
 	int len;
 
 	val = of_get_property(dp, "port-wwn", &len);
@@ -3370,9 +3368,8 @@ static void qla24xx_nvram_wwn_from_ofw(scsi_qla_host_t *ha, struct nvram_24xx *n
 {
 #ifdef CONFIG_SPARC
 	struct pci_dev *pdev = ha->pdev;
-	struct pcidev_cookie *pcp = pdev->sysdata;
-	struct device_node *dp = pcp->prom_node;
-	u8 *val;
+	struct device_node *dp = pci_device_to_OF_node(pdev);
+	const u8 *val;
 	int len;
 
 	val = of_get_property(dp, "port-wwn", &len);

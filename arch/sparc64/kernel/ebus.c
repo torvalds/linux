@@ -13,16 +13,17 @@
 #include <linux/string.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/pci.h>
 
 #include <asm/system.h>
 #include <asm/page.h>
-#include <asm/pbm.h>
 #include <asm/ebus.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
 #include <asm/of_device.h>
 #include <asm/bpp.h>
 #include <asm/irq.h>
+#include <asm/io.h>
 
 /* EBUS dma library. */
 

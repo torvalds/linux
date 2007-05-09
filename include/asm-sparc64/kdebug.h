@@ -7,8 +7,19 @@
 
 struct pt_regs;
 
-extern int register_page_fault_notifier(struct notifier_block *);
-extern int unregister_page_fault_notifier(struct notifier_block *);
+/*
+ * These are only here because kprobes.c wants them to implement a
+ * blatant layering violation.  Will hopefully go away soon once all
+ * architectures are updated.
+ */
+static inline int register_page_fault_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+static inline int unregister_page_fault_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
 
 extern void bad_trap(struct pt_regs *, long);
 
@@ -20,7 +31,6 @@ enum die_val {
 	DIE_DIE,
 	DIE_TRAP,
 	DIE_TRAP_TL1,
-	DIE_GPF,
 	DIE_CALL,
 	DIE_PAGE_FAULT,
 };

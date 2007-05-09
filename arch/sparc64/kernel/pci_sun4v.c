@@ -13,7 +13,6 @@
 #include <linux/irq.h>
 #include <linux/msi.h>
 
-#include <asm/pbm.h>
 #include <asm/iommu.h>
 #include <asm/irq.h>
 #include <asm/upa.h>
@@ -677,29 +676,15 @@ static struct pci_ops pci_sun4v_ops = {
 };
 
 
-static void pbm_scan_bus(struct pci_controller_info *p,
-			 struct pci_pbm_info *pbm)
-{
-	pbm->pci_bus = pci_scan_one_pbm(pbm);
-}
-
-static void pci_sun4v_scan_bus(struct pci_controller_info *p)
+static void pci_sun4v_scan_bus(struct pci_pbm_info *pbm)
 {
 	struct property *prop;
 	struct device_node *dp;
 
-	if ((dp = p->pbm_A.prom_node) != NULL) {
-		prop = of_find_property(dp, "66mhz-capable", NULL);
-		p->pbm_A.is_66mhz_capable = (prop != NULL);
-
-		pbm_scan_bus(p, &p->pbm_A);
-	}
-	if ((dp = p->pbm_B.prom_node) != NULL) {
-		prop = of_find_property(dp, "66mhz-capable", NULL);
-		p->pbm_B.is_66mhz_capable = (prop != NULL);
-
-		pbm_scan_bus(p, &p->pbm_B);
-	}
+	dp = pbm->prom_node;
+	prop = of_find_property(dp, "66mhz-capable", NULL);
+	pbm->is_66mhz_capable = (prop != NULL);
+	pbm->pci_bus = pci_scan_one_pbm(pbm);
 
 	/* XXX register error interrupt handlers XXX */
 }
@@ -800,20 +785,6 @@ static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 	if (sz)
 		printk("%s: Imported %lu TSB entries from OBP\n",
 		       pbm->name, sz);
-}
-
-static void pci_sun4v_get_bus_range(struct pci_pbm_info *pbm)
-{
-	struct property *prop;
-	unsigned int *busrange;
-
-	prop = of_find_property(pbm->prom_node, "bus-range", NULL);
-
-	busrange = prop->value;
-
-	pbm->pci_first_busno = busrange[0];
-	pbm->pci_last_busno = busrange[1];
-
 }
 
 #ifdef CONFIG_PCI_MSI
@@ -1019,114 +990,6 @@ h_error:
 	return -EINVAL;
 }
 
-static void pci_sun4v_msi_init(struct pci_pbm_info *pbm)
-{
-	const u32 *val;
-	int len;
-
-	val = of_get_property(pbm->prom_node, "#msi-eqs", &len);
-	if (!val || len != 4)
-		goto no_msi;
-	pbm->msiq_num = *val;
-	if (pbm->msiq_num) {
-		const struct msiq_prop {
-			u32 first_msiq;
-			u32 num_msiq;
-			u32 first_devino;
-		} *mqp;
-		const struct msi_range_prop {
-			u32 first_msi;
-			u32 num_msi;
-		} *mrng;
-		const struct addr_range_prop {
-			u32 msi32_high;
-			u32 msi32_low;
-			u32 msi32_len;
-			u32 msi64_high;
-			u32 msi64_low;
-			u32 msi64_len;
-		} *arng;
-
-		val = of_get_property(pbm->prom_node, "msi-eq-size", &len);
-		if (!val || len != 4)
-			goto no_msi;
-
-		pbm->msiq_ent_count = *val;
-
-		mqp = of_get_property(pbm->prom_node,
-				      "msi-eq-to-devino", &len);
-		if (!mqp || len != sizeof(struct msiq_prop))
-			goto no_msi;
-
-		pbm->msiq_first = mqp->first_msiq;
-		pbm->msiq_first_devino = mqp->first_devino;
-
-		val = of_get_property(pbm->prom_node, "#msi", &len);
-		if (!val || len != 4)
-			goto no_msi;
-		pbm->msi_num = *val;
-
-		mrng = of_get_property(pbm->prom_node, "msi-ranges", &len);
-		if (!mrng || len != sizeof(struct msi_range_prop))
-			goto no_msi;
-		pbm->msi_first = mrng->first_msi;
-
-		val = of_get_property(pbm->prom_node, "msi-data-mask", &len);
-		if (!val || len != 4)
-			goto no_msi;
-		pbm->msi_data_mask = *val;
-
-		val = of_get_property(pbm->prom_node, "msix-data-width", &len);
-		if (!val || len != 4)
-			goto no_msi;
-		pbm->msix_data_width = *val;
-
-		arng = of_get_property(pbm->prom_node, "msi-address-ranges",
-				       &len);
-		if (!arng || len != sizeof(struct addr_range_prop))
-			goto no_msi;
-		pbm->msi32_start = ((u64)arng->msi32_high << 32) |
-			(u64) arng->msi32_low;
-		pbm->msi64_start = ((u64)arng->msi64_high << 32) |
-			(u64) arng->msi64_low;
-		pbm->msi32_len = arng->msi32_len;
-		pbm->msi64_len = arng->msi64_len;
-
-		if (msi_bitmap_alloc(pbm))
-			goto no_msi;
-
-		if (msi_queue_alloc(pbm)) {
-			msi_bitmap_free(pbm);
-			goto no_msi;
-		}
-
-		printk(KERN_INFO "%s: MSI Queue first[%u] num[%u] count[%u] "
-		       "devino[0x%x]\n",
-		       pbm->name,
-		       pbm->msiq_first, pbm->msiq_num,
-		       pbm->msiq_ent_count,
-		       pbm->msiq_first_devino);
-		printk(KERN_INFO "%s: MSI first[%u] num[%u] mask[0x%x] "
-		       "width[%u]\n",
-		       pbm->name,
-		       pbm->msi_first, pbm->msi_num, pbm->msi_data_mask,
-		       pbm->msix_data_width);
-		printk(KERN_INFO "%s: MSI addr32[0x%lx:0x%x] "
-		       "addr64[0x%lx:0x%x]\n",
-		       pbm->name,
-		       pbm->msi32_start, pbm->msi32_len,
-		       pbm->msi64_start, pbm->msi64_len);
-		printk(KERN_INFO "%s: MSI queues at RA [%p]\n",
-		       pbm->name,
-		       pbm->msi_queues);
-	}
-
-	return;
-
-no_msi:
-	pbm->msiq_num = 0;
-	printk(KERN_INFO "%s: No MSI support.\n", pbm->name);
-}
 
 static int alloc_msi(struct pci_pbm_info *pbm)
 {
@@ -1245,6 +1108,117 @@ static void pci_sun4v_teardown_msi_irq(unsigned int virt_irq,
 	 */
 	sun4v_destroy_msi(virt_irq);
 }
+
+static void pci_sun4v_msi_init(struct pci_pbm_info *pbm)
+{
+	const u32 *val;
+	int len;
+
+	val = of_get_property(pbm->prom_node, "#msi-eqs", &len);
+	if (!val || len != 4)
+		goto no_msi;
+	pbm->msiq_num = *val;
+	if (pbm->msiq_num) {
+		const struct msiq_prop {
+			u32 first_msiq;
+			u32 num_msiq;
+			u32 first_devino;
+		} *mqp;
+		const struct msi_range_prop {
+			u32 first_msi;
+			u32 num_msi;
+		} *mrng;
+		const struct addr_range_prop {
+			u32 msi32_high;
+			u32 msi32_low;
+			u32 msi32_len;
+			u32 msi64_high;
+			u32 msi64_low;
+			u32 msi64_len;
+		} *arng;
+
+		val = of_get_property(pbm->prom_node, "msi-eq-size", &len);
+		if (!val || len != 4)
+			goto no_msi;
+
+		pbm->msiq_ent_count = *val;
+
+		mqp = of_get_property(pbm->prom_node,
+				      "msi-eq-to-devino", &len);
+		if (!mqp || len != sizeof(struct msiq_prop))
+			goto no_msi;
+
+		pbm->msiq_first = mqp->first_msiq;
+		pbm->msiq_first_devino = mqp->first_devino;
+
+		val = of_get_property(pbm->prom_node, "#msi", &len);
+		if (!val || len != 4)
+			goto no_msi;
+		pbm->msi_num = *val;
+
+		mrng = of_get_property(pbm->prom_node, "msi-ranges", &len);
+		if (!mrng || len != sizeof(struct msi_range_prop))
+			goto no_msi;
+		pbm->msi_first = mrng->first_msi;
+
+		val = of_get_property(pbm->prom_node, "msi-data-mask", &len);
+		if (!val || len != 4)
+			goto no_msi;
+		pbm->msi_data_mask = *val;
+
+		val = of_get_property(pbm->prom_node, "msix-data-width", &len);
+		if (!val || len != 4)
+			goto no_msi;
+		pbm->msix_data_width = *val;
+
+		arng = of_get_property(pbm->prom_node, "msi-address-ranges",
+				       &len);
+		if (!arng || len != sizeof(struct addr_range_prop))
+			goto no_msi;
+		pbm->msi32_start = ((u64)arng->msi32_high << 32) |
+			(u64) arng->msi32_low;
+		pbm->msi64_start = ((u64)arng->msi64_high << 32) |
+			(u64) arng->msi64_low;
+		pbm->msi32_len = arng->msi32_len;
+		pbm->msi64_len = arng->msi64_len;
+
+		if (msi_bitmap_alloc(pbm))
+			goto no_msi;
+
+		if (msi_queue_alloc(pbm)) {
+			msi_bitmap_free(pbm);
+			goto no_msi;
+		}
+
+		printk(KERN_INFO "%s: MSI Queue first[%u] num[%u] count[%u] "
+		       "devino[0x%x]\n",
+		       pbm->name,
+		       pbm->msiq_first, pbm->msiq_num,
+		       pbm->msiq_ent_count,
+		       pbm->msiq_first_devino);
+		printk(KERN_INFO "%s: MSI first[%u] num[%u] mask[0x%x] "
+		       "width[%u]\n",
+		       pbm->name,
+		       pbm->msi_first, pbm->msi_num, pbm->msi_data_mask,
+		       pbm->msix_data_width);
+		printk(KERN_INFO "%s: MSI addr32[0x%lx:0x%x] "
+		       "addr64[0x%lx:0x%x]\n",
+		       pbm->name,
+		       pbm->msi32_start, pbm->msi32_len,
+		       pbm->msi64_start, pbm->msi64_len);
+		printk(KERN_INFO "%s: MSI queues at RA [%p]\n",
+		       pbm->name,
+		       pbm->msi_queues);
+	}
+	pbm->setup_msi_irq = pci_sun4v_setup_msi_irq;
+	pbm->teardown_msi_irq = pci_sun4v_teardown_msi_irq;
+
+	return;
+
+no_msi:
+	pbm->msiq_num = 0;
+	printk(KERN_INFO "%s: No MSI support.\n", pbm->name);
+}
 #else /* CONFIG_PCI_MSI */
 static void pci_sun4v_msi_init(struct pci_pbm_info *pbm)
 {
@@ -1260,6 +1234,14 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 	else
 		pbm = &p->pbm_A;
 
+	pbm->next = pci_pbm_root;
+	pci_pbm_root = pbm;
+
+	pbm->scan_bus = pci_sun4v_scan_bus;
+	pbm->pci_ops = &pci_sun4v_ops;
+
+	pbm->index = pci_num_pbms++;
+
 	pbm->parent = p;
 	pbm->prom_node = dp;
 
@@ -1271,7 +1253,7 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 
 	pci_determine_mem_io_space(pbm);
 
-	pci_sun4v_get_bus_range(pbm);
+	pci_get_pbm_props(pbm);
 	pci_sun4v_iommu_init(pbm);
 	pci_sun4v_msi_init(pbm);
 }
@@ -1279,6 +1261,7 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 void sun4v_pci_init(struct device_node *dp, char *model_name)
 {
 	struct pci_controller_info *p;
+	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
 	struct property *prop;
 	struct linux_prom64_registers *regs;
@@ -1290,18 +1273,9 @@ void sun4v_pci_init(struct device_node *dp, char *model_name)
 
 	devhandle = (regs->phys_addr >> 32UL) & 0x0fffffff;
 
-	for (p = pci_controller_root; p; p = p->next) {
-		struct pci_pbm_info *pbm;
-
-		if (p->pbm_A.prom_node && p->pbm_B.prom_node)
-			continue;
-
-		pbm = (p->pbm_A.prom_node ?
-		       &p->pbm_A :
-		       &p->pbm_B);
-
+	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
 		if (pbm->devhandle == (devhandle ^ 0x40)) {
-			pci_sun4v_pbm_init(p, dp, devhandle);
+			pci_sun4v_pbm_init(pbm->parent, dp, devhandle);
 			return;
 		}
 	}
@@ -1330,18 +1304,6 @@ void sun4v_pci_init(struct device_node *dp, char *model_name)
 		goto fatal_memory_error;
 
 	p->pbm_B.iommu = iommu;
-
-	p->next = pci_controller_root;
-	pci_controller_root = p;
-
-	p->index = pci_num_controllers++;
-
-	p->scan_bus = pci_sun4v_scan_bus;
-#ifdef CONFIG_PCI_MSI
-	p->setup_msi_irq = pci_sun4v_setup_msi_irq;
-	p->teardown_msi_irq = pci_sun4v_teardown_msi_irq;
-#endif
-	p->pci_ops = &pci_sun4v_ops;
 
 	/* Like PSYCHO and SCHIZO we have a 2GB aligned area
 	 * for memory space.

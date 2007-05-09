@@ -313,7 +313,7 @@ out:
 	return 1;
 }
 
-static int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
+int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
@@ -402,15 +402,6 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	case DIE_DEBUG_2:
 		if (post_kprobe_handler(args->regs))
 			ret = NOTIFY_STOP;
-		break;
-	case DIE_GPF:
-	case DIE_PAGE_FAULT:
-		/* kprobe_running() needs smp_processor_id() */
-		preempt_disable();
-		if (kprobe_running() &&
-		    kprobe_fault_handler(args->regs, args->trapnr))
-			ret = NOTIFY_STOP;
-		preempt_enable();
 		break;
 	default:
 		break;

@@ -8,10 +8,12 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
+#include <linux/pci.h>
 
-#include <asm/pbm.h>
+#include <asm/oplib.h>
 
 #include "iommu_common.h"
+#include "pci_impl.h"
 
 #define PCI_STC_CTXMATCH_ADDR(STC, CTX)	\
 	((STC)->strbuf_ctxmatch_base + ((CTX) << 3))

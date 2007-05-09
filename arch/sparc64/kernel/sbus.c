@@ -1002,24 +1002,24 @@ static void __init sysio_register_error_handlers(struct sbus_bus *sbus)
 	u64 control;
 
 	irq = sbus_build_irq(sbus, SYSIO_UE_INO);
-	if (request_irq(irq, sysio_ue_handler,
-			IRQF_SHARED, "SYSIO UE", sbus) < 0) {
+	if (request_irq(irq, sysio_ue_handler, 0,
+			"SYSIO_UE", sbus) < 0) {
 		prom_printf("SYSIO[%x]: Cannot register UE interrupt.\n",
 			    sbus->portid);
 		prom_halt();
 	}
 
 	irq = sbus_build_irq(sbus, SYSIO_CE_INO);
-	if (request_irq(irq, sysio_ce_handler,
-			IRQF_SHARED, "SYSIO CE", sbus) < 0) {
+	if (request_irq(irq, sysio_ce_handler, 0,
+			"SYSIO_CE", sbus) < 0) {
 		prom_printf("SYSIO[%x]: Cannot register CE interrupt.\n",
 			    sbus->portid);
 		prom_halt();
 	}
 
 	irq = sbus_build_irq(sbus, SYSIO_SBUSERR_INO);
-	if (request_irq(irq, sysio_sbus_error_handler,
-			IRQF_SHARED, "SYSIO SBUS Error", sbus) < 0) {
+	if (request_irq(irq, sysio_sbus_error_handler, 0,
+			"SYSIO_SBERR", sbus) < 0) {
 		prom_printf("SYSIO[%x]: Cannot register SBUS Error interrupt.\n",
 			    sbus->portid);
 		prom_halt();
