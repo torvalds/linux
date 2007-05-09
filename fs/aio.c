@@ -346,10 +346,9 @@ void fastcall exit_aio(struct mm_struct *mm)
 
 		wait_for_all_aios(ctx);
 		/*
-		 * this is an overkill, but ensures we don't leave
-		 * the ctx on the aio_wq
+		 * Ensure we don't leave the ctx on the aio_wq
 		 */
-		flush_workqueue(aio_wq);
+		flush_work(aio_wq, &ctx->wq.work);
 
 		if (1 != atomic_read(&ctx->users))
 			printk(KERN_DEBUG
@@ -372,7 +371,7 @@ void fastcall __put_ioctx(struct kioctx *ctx)
 	BUG_ON(ctx->reqs_active);
 
 	cancel_delayed_work(&ctx->wq);
-	flush_workqueue(aio_wq);
+	flush_work(aio_wq, &ctx->wq.work);
 	aio_free_ring(ctx);
 	mmdrop(ctx->mm);
 	ctx->mm = NULL;
