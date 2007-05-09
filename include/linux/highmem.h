@@ -94,17 +94,27 @@ static inline void clear_highpage(struct page *page)
 
 /*
  * Same but also flushes aliased cache contents to RAM.
+ *
+ * This must be a macro because KM_USER0 and friends aren't defined if
+ * !CONFIG_HIGHMEM
  */
-static inline void memclear_highpage_flush(struct page *page, unsigned int offset, unsigned int size)
+#define zero_user_page(page, offset, size, km_type)		\
+	do {							\
+		void *kaddr;					\
+								\
+		BUG_ON((offset) + (size) > PAGE_SIZE);		\
+								\
+		kaddr = kmap_atomic(page, km_type);		\
+		memset((char *)kaddr + (offset), 0, (size));	\
+		flush_dcache_page(page);			\
+		kunmap_atomic(kaddr, (km_type));		\
+	} while (0)
+
+
+static inline void memclear_highpage_flush(struct page *page,
+			unsigned int offset, unsigned int size)
 {
-	void *kaddr;
-
-	BUG_ON(offset + size > PAGE_SIZE);
-
-	kaddr = kmap_atomic(page, KM_USER0);
-	memset((char *)kaddr + offset, 0, size);
-	flush_dcache_page(page);
-	kunmap_atomic(kaddr, KM_USER0);
+	zero_user_page(page, offset, size, KM_USER0);
 }
 
 #ifndef __HAVE_ARCH_COPY_USER_HIGHPAGE

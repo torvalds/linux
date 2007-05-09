@@ -12,6 +12,7 @@
 #include <linux/swap.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
+#include <linux/highmem.h>
 #include <linux/pagevec.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/buffer_head.h>	/* grr. try_to_release_page,
@@ -46,7 +47,7 @@ void do_invalidatepage(struct page *page, unsigned long offset)
 
 static inline void truncate_partial_page(struct page *page, unsigned partial)
 {
-	memclear_highpage_flush(page, partial, PAGE_CACHE_SIZE-partial);
+	zero_user_page(page, partial, PAGE_CACHE_SIZE - partial, KM_USER0);
 	if (PagePrivate(page))
 		do_invalidatepage(page, partial);
 }
