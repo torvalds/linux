@@ -262,6 +262,15 @@ config DM_MULTIPATH_EMC
 	---help---
 	  Multipath support for EMC CX/AX series hardware.
 
+config DM_DELAY
+	tristate "I/O delaying target (EXPERIMENTAL)"
+	depends on BLK_DEV_DM && EXPERIMENTAL
+	---help---
+	A target that delays reads and/or writes and can send
+	them to different devices.  Useful for testing.
+
+	If unsure, say N.
+
 endmenu
 
 endif
