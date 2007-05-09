@@ -149,8 +149,7 @@ static void nvGetClocks(struct nvidia_par *par, unsigned int *MClk,
 		pll = NV_RD32(par->PMC, 0x4024);
 		M = pll & 0xFF;
 		N = (pll >> 8) & 0xFF;
-		if (((par->Chipset & 0xfff0) == 0x0290) ||
-				((par->Chipset & 0xfff0) == 0x0390)) {
+		if (((par->Chipset & 0xfff0) == 0x0290) || ((par->Chipset & 0xfff0) == 0x0390) || ((par->Chipset & 0xfff0) == 0x02E0)) {
 			MB = 1;
 			NB = 1;
 		} else {
@@ -963,6 +962,7 @@ void NVLoadStateExt(struct nvidia_par *par, RIVA_HW_STATE * state)
 
 		if (((par->Chipset & 0xfff0) == 0x0090) ||
 		    ((par->Chipset & 0xfff0) == 0x01D0) ||
+		    ((par->Chipset & 0xfff0) == 0x02E0) ||
 		    ((par->Chipset & 0xfff0) == 0x0290))
 			regions = 15;
 		for(i = 0; i < regions; i++) {
@@ -1275,6 +1275,7 @@ void NVLoadStateExt(struct nvidia_par *par, RIVA_HW_STATE * state)
 						0x00100000);
 					break;
 				case 0x0090:
+				case 0x02E0:
 				case 0x0290:
 					NV_WR32(par->PRAMDAC, 0x0608,
 						NV_RD32(par->PRAMDAC, 0x0608) |
@@ -1352,6 +1353,7 @@ void NVLoadStateExt(struct nvidia_par *par, RIVA_HW_STATE * state)
 			} else {
 				if (((par->Chipset & 0xfff0) == 0x0090) ||
 				    ((par->Chipset & 0xfff0) == 0x01D0) ||
+				    ((par->Chipset & 0xfff0) == 0x02E0) ||
 				    ((par->Chipset & 0xfff0) == 0x0290)) {
 					for (i = 0; i < 60; i++) {
 						NV_WR32(par->PGRAPH,
@@ -1403,6 +1405,7 @@ void NVLoadStateExt(struct nvidia_par *par, RIVA_HW_STATE * state)
 				} else {
 					if ((par->Chipset & 0xfff0) == 0x0090 ||
 					    (par->Chipset & 0xfff0) == 0x01D0 ||
+					    (par->Chipset & 0xfff0) == 0x02E0 ||
 					    (par->Chipset & 0xfff0) == 0x0290) {
 						NV_WR32(par->PGRAPH, 0x0DF0,
 							NV_RD32(par->PFB, 0x0200));
