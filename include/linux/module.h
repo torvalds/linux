@@ -356,6 +356,9 @@ struct module
 	   keeping pointers to this stuff */
 	char *args;
 };
+#ifndef MODULE_ARCH_INIT
+#define MODULE_ARCH_INIT {}
+#endif
 
 /* FIXME: It'd be nice to isolate modules during init, too, so they
    aren't used before they (may) fail.  But presently too much code
