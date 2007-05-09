@@ -8,6 +8,8 @@
  * (And avoiding all runtime comparisons in typical one-choice configs!)
  *
  * NOTE:  some of these controller drivers may not be available yet.
+ * Some are available on 2.4 kernels; several are available, but not
+ * yet pushed in the 2.6 mainline tree.
  */
 #ifdef CONFIG_USB_GADGET_NET2280
 #define	gadget_is_net2280(g)	!strcmp("net2280", (g)->name)
@@ -33,12 +35,14 @@
 #define	gadget_is_goku(g)	0
 #endif
 
+/* SH3 UDC -- not yet ported 2.4 --> 2.6 */
 #ifdef CONFIG_USB_GADGET_SUPERH
 #define	gadget_is_sh(g)		!strcmp("sh_udc", (g)->name)
 #else
 #define	gadget_is_sh(g)		0
 #endif
 
+/* not yet stable on 2.6 (would help "original Zaurus") */
 #ifdef CONFIG_USB_GADGET_SA1100
 #define	gadget_is_sa1100(g)	!strcmp("sa1100_udc", (g)->name)
 #else
@@ -51,6 +55,7 @@
 #define	gadget_is_lh7a40x(g)	0
 #endif
 
+/* handhelds.org tree (?) */
 #ifdef CONFIG_USB_GADGET_MQ11XX
 #define	gadget_is_mq11xx(g)	!strcmp("mq11xx_udc", (g)->name)
 #else
@@ -63,12 +68,14 @@
 #define	gadget_is_omap(g)	0
 #endif
 
+/* not yet ported 2.4 --> 2.6 */
 #ifdef CONFIG_USB_GADGET_N9604
 #define	gadget_is_n9604(g)	!strcmp("n9604_udc", (g)->name)
 #else
 #define	gadget_is_n9604(g)	0
 #endif
 
+/* various unstable versions available */
 #ifdef CONFIG_USB_GADGET_PXA27X
 #define	gadget_is_pxa27x(g)	!strcmp("pxa27x_udc", (g)->name)
 #else
@@ -93,6 +100,7 @@
 #define gadget_is_at91(g)	0
 #endif
 
+/* status unclear */
 #ifdef CONFIG_USB_GADGET_IMX
 #define gadget_is_imx(g)	!strcmp("imx_udc", (g)->name)
 #else
@@ -106,6 +114,7 @@
 #endif
 
 /* Mentor high speed function controller */
+/* from Montavista kernel (?) */
 #ifdef CONFIG_USB_GADGET_MUSBHSFC
 #define gadget_is_musbhsfc(g)	!strcmp("musbhsfc_udc", (g)->name)
 #else
@@ -119,6 +128,7 @@
 #define gadget_is_musbhdrc(g)	0
 #endif
 
+/* from Montavista kernel (?) */
 #ifdef CONFIG_USB_GADGET_MPC8272
 #define gadget_is_mpc8272(g)	!strcmp("mpc8272_udc", (g)->name)
 #else
