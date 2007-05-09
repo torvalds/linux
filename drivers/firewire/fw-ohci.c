@@ -1715,44 +1715,13 @@ static int software_reset(struct fw_ohci *ohci)
 	return -EBUSY;
 }
 
-enum {
-	CLEANUP_SELF_ID,
-	CLEANUP_REGISTERS,
-	CLEANUP_IOMEM,
-	CLEANUP_DISABLE,
-	CLEANUP_PUT_CARD,
-};
-
-static int cleanup(struct fw_ohci *ohci, int stage, int code)
-{
-	struct pci_dev *dev = to_pci_dev(ohci->card.device);
-
-	switch (stage) {
-	case CLEANUP_SELF_ID:
-		dma_free_coherent(ohci->card.device, SELF_ID_BUF_SIZE,
-				  ohci->self_id_cpu, ohci->self_id_bus);
-	case CLEANUP_REGISTERS:
-		kfree(ohci->it_context_list);
-		kfree(ohci->ir_context_list);
-		pci_iounmap(dev, ohci->registers);
-	case CLEANUP_IOMEM:
-		pci_release_region(dev, 0);
-	case CLEANUP_DISABLE:
-		pci_disable_device(dev);
-	case CLEANUP_PUT_CARD:
-		fw_card_put(&ohci->card);
-	}
-
-	return code;
-}
-
 static int __devinit
 pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 {
 	struct fw_ohci *ohci;
 	u32 bus_options, max_receive, link_speed;
 	u64 guid;
-	int error_code;
+	int err;
 	size_t size;
 
 	ohci = kzalloc(sizeof(*ohci), GFP_KERNEL);
@@ -1763,9 +1732,10 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 
 	fw_card_initialize(&ohci->card, &ohci_driver, &dev->dev);
 
-	if (pci_enable_device(dev)) {
+	err = pci_enable_device(dev);
+	if (err) {
 		fw_error("Failed to enable OHCI hardware.\n");
-		return cleanup(ohci, CLEANUP_PUT_CARD, -ENODEV);
+		goto fail_put_card;
 	}
 
 	pci_set_master(dev);
@@ -1777,20 +1747,23 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	tasklet_init(&ohci->bus_reset_tasklet,
 		     bus_reset_tasklet, (unsigned long)ohci);
 
-	if (pci_request_region(dev, 0, ohci_driver_name)) {
+	err = pci_request_region(dev, 0, ohci_driver_name);
+	if (err) {
 		fw_error("MMIO resource unavailable\n");
-		return cleanup(ohci, CLEANUP_DISABLE, -EBUSY);
+		goto fail_disable;
 	}
 
 	ohci->registers = pci_iomap(dev, 0, OHCI1394_REGISTER_SIZE);
 	if (ohci->registers == NULL) {
 		fw_error("Failed to remap registers\n");
-		return cleanup(ohci, CLEANUP_IOMEM, -ENXIO);
+		err = -ENXIO;
+		goto fail_iomem;
 	}
 
 	if (software_reset(ohci)) {
 		fw_error("Failed to reset ohci card.\n");
-		return cleanup(ohci, CLEANUP_REGISTERS, -EBUSY);
+		err = -EBUSY;
+		goto fail_registers;
 	}
 
 	/*
@@ -1845,7 +1818,8 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 
 	if (ohci->it_context_list == NULL || ohci->ir_context_list == NULL) {
 		fw_error("Out of memory for it/ir contexts.\n");
-		return cleanup(ohci, CLEANUP_REGISTERS, -ENOMEM);
+		err = -ENOMEM;
+		goto fail_registers;
 	}
 
 	/* self-id dma buffer allocation */
@@ -1855,7 +1829,8 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 					       GFP_KERNEL);
 	if (ohci->self_id_cpu == NULL) {
 		fw_error("Out of memory for self ID buffer.\n");
-		return cleanup(ohci, CLEANUP_REGISTERS, -ENOMEM);
+		err = -ENOMEM;
+		goto fail_registers;
 	}
 
 	reg_write(ohci, OHCI1394_SelfIDBuffer, ohci->self_id_bus);
@@ -1876,15 +1851,31 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	guid = ((u64) reg_read(ohci, OHCI1394_GUIDHi) << 32) |
 		reg_read(ohci, OHCI1394_GUIDLo);
 
-	error_code = fw_card_add(&ohci->card, max_receive, link_speed, guid);
-	if (error_code < 0)
-		return cleanup(ohci, CLEANUP_SELF_ID, error_code);
+	err = fw_card_add(&ohci->card, max_receive, link_speed, guid);
+	if (err < 0)
+		goto fail_self_id;
 
 	ohci->version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
 	fw_notify("Added fw-ohci device %s, OHCI version %x.%x\n",
 		  dev->dev.bus_id, ohci->version >> 16, ohci->version & 0xff);
 
 	return 0;
+
+ fail_self_id:
+	dma_free_coherent(ohci->card.device, SELF_ID_BUF_SIZE,
+			  ohci->self_id_cpu, ohci->self_id_bus);
+ fail_registers:
+	kfree(ohci->it_context_list);
+	kfree(ohci->ir_context_list);
+	pci_iounmap(dev, ohci->registers);
+ fail_iomem:
+	pci_release_region(dev, 0);
+ fail_disable:
+	pci_disable_device(dev);
+ fail_put_card:
+	fw_card_put(&ohci->card);
+
+	return err;
 }
 
 static void pci_remove(struct pci_dev *dev)
@@ -1903,7 +1894,14 @@ static void pci_remove(struct pci_dev *dev)
 
 	software_reset(ohci);
 	free_irq(dev->irq, ohci);
-	cleanup(ohci, CLEANUP_SELF_ID, 0);
+	dma_free_coherent(ohci->card.device, SELF_ID_BUF_SIZE,
+			  ohci->self_id_cpu, ohci->self_id_bus);
+	kfree(ohci->it_context_list);
+	kfree(ohci->ir_context_list);
+	pci_iounmap(dev, ohci->registers);
+	pci_release_region(dev, 0);
+	pci_disable_device(dev);
+	fw_card_put(&ohci->card);
 
 	fw_notify("Removed fw-ohci device.\n");
 }
