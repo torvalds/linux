@@ -655,9 +655,7 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
 	if (IS_ROOT(dentry))
 		return 1;
 	verf = (unsigned long)dentry->d_fsdata;
-	if ((NFS_I(dir)->cache_validity & NFS_INO_INVALID_ATTR) != 0
-			|| nfs_attribute_timeout(dir)
-			|| nfs_caches_unstable(dir)
+	if (nfs_caches_unstable(dir)
 			|| verf != NFS_I(dir)->cache_change_attribute)
 		return 0;
 	return 1;
@@ -769,6 +767,10 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 	nfs_inc_stats(dir, NFSIOS_DENTRYREVALIDATE);
 	inode = dentry->d_inode;
 
+	/* Revalidate parent directory attribute cache */
+	if (nfs_revalidate_inode(NFS_SERVER(dir), dir) < 0)
+		goto out_zap_parent;
+
 	if (!inode) {
 		if (nfs_neg_need_reval(dir, dentry, nd))
 			goto out_bad;
@@ -781,10 +783,6 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 				dentry->d_name.name);
 		goto out_bad;
 	}
-
-	/* Revalidate parent directory attribute cache */
-	if (nfs_revalidate_inode(NFS_SERVER(dir), dir) < 0)
-		goto out_zap_parent;
 
 	/* Force a full look up iff the parent directory has changed */
 	if (nfs_check_verifier(dir, dentry)) {
