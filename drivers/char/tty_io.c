@@ -934,13 +934,6 @@ restart:
 		return -EINVAL;
 
 	/*
-	 *	No more input please, we are switching. The new ldisc
-	 *	will update this value in the ldisc open function
-	 */
-
-	tty->receive_room = 0;
-
-	/*
 	 *	Problem: What do we do if this blocks ?
 	 */
 
@@ -950,6 +943,13 @@ restart:
 		tty_ldisc_put(ldisc);
 		return 0;
 	}
+
+	/*
+	 *	No more input please, we are switching. The new ldisc
+	 *	will update this value in the ldisc open function
+	 */
+
+	tty->receive_room = 0;
 
 	o_ldisc = tty->ldisc;
 	o_tty = tty->link;
