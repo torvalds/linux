@@ -2286,7 +2286,6 @@ EXPORT_SYMBOL(kmem_cache_shrink);
 
 /**
  * krealloc - reallocate memory. The contents will remain unchanged.
- *
  * @p: object to reallocate memory for.
  * @new_size: how many bytes of memory are required.
  * @flags: the type of memory to allocate.

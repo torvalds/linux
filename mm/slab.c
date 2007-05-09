@@ -3742,7 +3742,6 @@ EXPORT_SYMBOL(__kmalloc);
 
 /**
  * krealloc - reallocate memory. The contents will remain unchanged.
- *
  * @p: object to reallocate memory for.
  * @new_size: how many bytes of memory are required.
  * @flags: the type of memory to allocate.
