@@ -968,17 +968,21 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 			((ehca_mult - 1) / ah_mult) : 0;
 		else
 			mqpcb->max_static_rate = 0;
-
 		update_mask |= EHCA_BMASK_SET(MQPCB_MASK_MAX_STATIC_RATE, 1);
+
+		/*
+		 * Always supply the GRH flag, even if it's zero, to give the
+		 * hypervisor a clear "yes" or "no" instead of a "perhaps"
+		 */
+		update_mask |= EHCA_BMASK_SET(MQPCB_MASK_SEND_GRH_FLAG, 1);
 
 		/*
 		 * only if GRH is TRUE we might consider SOURCE_GID_IDX
 		 * and DEST_GID otherwise phype will return H_ATTR_PARM!!!
 		 */
 		if (attr->ah_attr.ah_flags == IB_AH_GRH) {
-			mqpcb->send_grh_flag = 1 << 31;
-			update_mask |=
-				EHCA_BMASK_SET(MQPCB_MASK_SEND_GRH_FLAG, 1);
+			mqpcb->send_grh_flag = 1;
+
 			mqpcb->source_gid_idx = attr->ah_attr.grh.sgid_index;
 			update_mask |=
 				EHCA_BMASK_SET(MQPCB_MASK_SOURCE_GID_IDX, 1);
