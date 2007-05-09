@@ -16,7 +16,7 @@ host bridges to peripheral buses, and most controllers integrated
 into system-on-chip platforms.  What they usually have in common
 is direct addressing from a CPU bus.  Rarely, a platform_device will
 be connected through a segment of some other kind of bus; but its
-registers will still be directly addressible.
+registers will still be directly addressable.
 
 Platform devices are given a name, used in driver binding, and a
 list of resources such as addresses and IRQs.
@@ -125,7 +125,7 @@ three different ways to find such a match:
       usually register later during booting, or by module loading.
 
     - Registering a driver using platform_driver_probe() works just like
-      using platform_driver_register(), except that the the driver won't
+      using platform_driver_register(), except that the driver won't
       be probed later if another device registers.  (Which is OK, since
       this interface is only for use with non-hotpluggable devices.)
 

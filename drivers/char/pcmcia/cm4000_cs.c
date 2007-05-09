@@ -1091,7 +1091,7 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 	/*
 	 * wait for atr to become valid.
 	 * note: it is important to lock this code. if we dont, the monitor
-	 * could be run between test_bit and the the call the sleep on the
+	 * could be run between test_bit and the call to sleep on the
 	 * atr-queue.  if *then* the monitor detects atr valid, it will wake up
 	 * any process on the atr-queue, *but* since we have been interrupted,
 	 * we do not yet sleep on this queue. this would result in a missed

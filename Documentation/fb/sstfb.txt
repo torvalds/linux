@@ -2,9 +2,9 @@
 Introduction
 
 	  This is a frame buffer device driver for 3dfx' Voodoo Graphics 
-	(aka voodoo 1, aka sst1) and Voodoo² (aka Voodoo 2, aka CVG) based 
+	(aka voodoo 1, aka sst1) and VoodooÂ² (aka Voodoo 2, aka CVG) based 
 	video boards. It's highly experimental code, but is guaranteed to work
-	on my computer, with my "Maxi Gamer 3D" and "Maxi Gamer 3d²" boards,
+	on my computer, with my "Maxi Gamer 3D" and "Maxi Gamer 3dÂ²" boards,
 	and with me "between chair and keyboard". Some people tested other
 	combinations and it seems that it works.
 	  The main page is located at <http://sstfb.sourceforge.net>, and if

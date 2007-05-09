@@ -587,7 +587,7 @@ devices, ... may cause a SCSI signal to be wrong when te driver reads it.
 15.1 Problem tracking
 
 Most SCSI problems are due to a non conformant SCSI bus or too buggy
-devices.  If infortunately you have SCSI problems, you can check the
+devices.  If unfortunately you have SCSI problems, you can check the
 following things:
 
 - SCSI bus cables

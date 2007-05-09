@@ -1,5 +1,5 @@
 This file contains brief information about the SCSI tape driver.
-The driver is currently maintained by Kai Mäkisara (email
+The driver is currently maintained by Kai MÃ¤kisara (email
 Kai.Makisara@kolumbus.fi)
 
 Last modified: Mon Mar  7 21:14:44 2005 by kai.makisara

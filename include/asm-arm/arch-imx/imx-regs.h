@@ -297,7 +297,7 @@
 #define SAR(x)  __REG2( IMX_DMAC_BASE + 0x80, (x) << 6)	/* Source Address Registers */
 #define DAR(x)  __REG2( IMX_DMAC_BASE + 0x84, (x) << 6)	/* Destination Address Registers */
 #define CNTR(x) __REG2( IMX_DMAC_BASE + 0x88, (x) << 6)	/* Count Registers */
-#define CCR(x)  __REG2( IMX_DMAC_BASE + 0x8c, (x) << 6)	/* Control Registers */
+#define CCR(x)  __REG2( IMX_DMAC_BASE + 0x8c, (x) << 6)	/* Control Registers */
 #define RSSR(x) __REG2( IMX_DMAC_BASE + 0x90, (x) << 6)	/* Request source select Registers */
 #define BLR(x)  __REG2( IMX_DMAC_BASE + 0x94, (x) << 6)	/* Burst length Registers */
 #define RTOR(x) __REG2( IMX_DMAC_BASE + 0x98, (x) << 6)	/* Request timeout Registers */

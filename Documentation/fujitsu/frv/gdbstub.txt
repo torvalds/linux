@@ -126,5 +126,5 @@ GDB stub and the debugger:
 
 Furthermore, the GDB stub will intercept a number of exceptions automatically
 if they are caused by kernel execution. It will also intercept BUG() macro
-invokation.
+invocation.
 

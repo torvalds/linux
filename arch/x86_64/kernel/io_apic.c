@@ -1413,7 +1413,7 @@ static void ack_apic_level(unsigned int irq)
 
 	/*
 	 * We must acknowledge the irq before we move it or the acknowledge will
-	 * not propogate properly.
+	 * not propagate properly.
 	 */
 	ack_APIC_irq();
 

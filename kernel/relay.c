@@ -310,7 +310,7 @@ static struct rchan_callbacks default_channel_callbacks = {
 
 /**
  *	wakeup_readers - wake up readers waiting on a channel
- *	@data: contains the the channel buffer
+ *	@data: contains the channel buffer
  *
  *	This is the timer function used to defer reader waking.
  */

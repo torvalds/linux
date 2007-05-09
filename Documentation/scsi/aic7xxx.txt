@@ -40,7 +40,7 @@ The following information is available in this file:
    2.   Multi-function Twin Channel Device - Two controllers on one chip.
    3.   Command Channel Secondary DMA Engine - Allows scatter gather list
         and SCB prefetch.
-   4.   64 Byte SCB Support - Allows disconnected, unttagged request table
+   4.   64 Byte SCB Support - Allows disconnected, untagged request table
         for all possible target/lun combinations.
    5.   Block Move Instruction Support - Doubles the speed of certain
         sequencer operations.

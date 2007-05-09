@@ -858,9 +858,9 @@ config RELOCATABLE
 	bool "Build a relocatable kernel(EXPERIMENTAL)"
 	depends on EXPERIMENTAL
 	help
-	  This build a kernel image that retains relocation information
+	  This builds a kernel image that retains relocation information
           so it can be loaded someplace besides the default 1MB.
-	  The relocations tend to the kernel binary about 10% larger,
+	  The relocations tend to make the kernel binary about 10% larger,
           but are discarded at runtime.
 
 	  One use is for the kexec on panic case where the recovery kernel

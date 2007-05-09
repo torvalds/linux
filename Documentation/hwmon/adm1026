@@ -80,7 +80,7 @@ temperature sensor inputs. Both the PWM output and the DAC output can be
 used to control fan speed. Usually only one of these two outputs will be
 used. Write the minimum PWM or DAC value to the appropriate control
 register. Then set the low temperature limit in the tmin values for each
-temperature sensor. The range of control is fixed at 20 °C, and the
+temperature sensor. The range of control is fixed at 20 Â°C, and the
 largest difference between current and tmin of the temperature sensors sets
 the control output. See the datasheet for several example circuits for
 controlling fan speed with the PWM and DAC outputs. The fan speed sensors

@@ -435,7 +435,7 @@ config PATA_OPTIDMA
 	help
 	  This option enables DMA/PIO support for the later OPTi
 	  controllers found on some old motherboards and in some
-	  latops
+	  laptops.
 
 	  If unsure, say N.
 

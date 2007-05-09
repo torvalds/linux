@@ -64,7 +64,7 @@ EXPORT_SYMBOL(poll_initwait);
 
 static void free_poll_entry(struct poll_table_entry *entry)
 {
-	remove_wait_queue(entry->wait_address,&entry->wait);
+	remove_wait_queue(entry->wait_address, &entry->wait);
 	fput(entry->filp);
 }
 
@@ -128,7 +128,7 @@ static void __pollwait(struct file *filp, wait_queue_head_t *wait_address,
 	entry->filp = filp;
 	entry->wait_address = wait_address;
 	init_waitqueue_entry(&entry->wait, current);
-	add_wait_queue(wait_address,&entry->wait);
+	add_wait_queue(wait_address, &entry->wait);
 }
 
 #define FDS_IN(fds, n)		(fds->in + n)

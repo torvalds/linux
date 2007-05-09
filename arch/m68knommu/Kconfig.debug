@@ -5,7 +5,7 @@ source "lib/Kconfig.debug"
 config FULLDEBUG
 	bool "Full Symbolic/Source Debugging support"
 	help
-	  Enable debuging symbols on kernel build.
+	  Enable debugging symbols on kernel build.
 
 config HIGHPROFILE
 	bool "Use fast second timer for profiling"

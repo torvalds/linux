@@ -64,7 +64,7 @@ struct pci_dev *pci_get_device_by_addr(unsigned long addr);
  * eeh_slot_error_detail -- record and EEH error condition to the log
  * @severity: 1 if temporary, 2 if permanent failure.
  *
- * Obtains the the EEH error details from the RTAS subsystem,
+ * Obtains the EEH error details from the RTAS subsystem,
  * and then logs these details with the RTAS error log system.
  */
 void eeh_slot_error_detail (struct pci_dn *pdn, int severity);

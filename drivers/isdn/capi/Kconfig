@@ -17,7 +17,7 @@ config CAPI_TRACE
 	help
 	  If you say Y here, the kernelcapi driver can make verbose traces
 	  of CAPI messages. This feature can be enabled/disabled via IOCTL for
-	  every controler (default disabled).
+	  every controller (default disabled).
 	  This will increase the size of the kernelcapi module by 20 KB.
 	  If unsure, say Y.
 

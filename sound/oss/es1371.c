@@ -100,7 +100,7 @@
  *                       Tjeerd Mulder <tjeerd.mulder@fujitsu-siemens.com>
  *    05.01.2001   0.29  Hopefully updates will not be required anymore when Creative bumps
  *                       the CT5880 revision.
- *                       suggested by Stephan Müller <smueller@chronox.de>
+ *                       suggested by Stephan MÃ¼ller <smueller@chronox.de>
  *    31.01.2001   0.30  Register/Unregister gameport
  *                       Fix SETTRIGGER non OSS API conformity
  *    14.07.2001   0.31  Add list of laptops needing amplifier control

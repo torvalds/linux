@@ -60,7 +60,7 @@ config MTD_PHYSMAP_BANKWIDTH
 	  (i.e., run-time calling physmap_configure()).
 
 config MTD_PHYSMAP_OF
-	tristate "Flash device in physical memory map based on OF descirption"
+	tristate "Flash device in physical memory map based on OF description"
 	depends on PPC_OF && (MTD_CFI || MTD_JEDECPROBE || MTD_ROM)
 	help
 	  This provides a 'mapping' driver which allows the NOR Flash and

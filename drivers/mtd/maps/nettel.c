@@ -358,7 +358,7 @@ int __init nettel_init(void)
 	/* Turn other PAR off so the first probe doesn't find it */
 	*intel1par = 0;
 
-	/* Probe for the the size of the first Intel flash */
+	/* Probe for the size of the first Intel flash */
 	nettel_intel_map.size = maxsize;
 	nettel_intel_map.phys = intel0addr;
 	nettel_intel_map.virt = ioremap_nocache(intel0addr, maxsize);

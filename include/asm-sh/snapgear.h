@@ -1,5 +1,5 @@
 /*
- * include/asm-sh/snapgear/io.h
+ * include/asm-sh/snapgear.h
  *
  * Modified version of io_se.h for the snapgear-specific functions.
  *

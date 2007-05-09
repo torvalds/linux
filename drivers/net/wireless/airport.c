@@ -149,7 +149,7 @@ static int airport_hard_reset(struct orinoco_private *priv)
 	/* Vitally important.  If we don't do this it seems we get an
 	 * interrupt somewhere during the power cycle, since
 	 * hw_unavailable is already set it doesn't get ACKed, we get
-	 * into an interrupt loop and the the PMU decides to turn us
+	 * into an interrupt loop and the PMU decides to turn us
 	 * off. */
 	disable_irq(dev->irq);
 

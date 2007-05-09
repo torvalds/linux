@@ -1,5 +1,5 @@
 /*
- * fs/generic_acl.c
+ * include/linux/generic_acl.h
  *
  * (C) 2005 Andreas Gruenbacher <agruen@suse.de>
  *

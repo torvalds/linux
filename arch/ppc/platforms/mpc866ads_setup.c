@@ -1,4 +1,4 @@
-/*arch/ppc/platforms/mpc866ads-setup.c
+/*arch/ppc/platforms/mpc866ads_setup.c
  *
  * Platform setup for the Freescale mpc866ads board
  *

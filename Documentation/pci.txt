@@ -373,7 +373,7 @@ E.g. clearing pending interrupts.
 
 3.6 Register IRQ handler
 ~~~~~~~~~~~~~~~~~~~~~~~~
-While calling request_irq() is the the last step described here,
+While calling request_irq() is the last step described here,
 this is often just another intermediate step to initialize a device.
 This step can often be deferred until the device is opened for use.
 

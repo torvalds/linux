@@ -1,7 +1,7 @@
 Sony Programmable I/O Control Device Driver Readme
 --------------------------------------------------
 	Copyright (C) 2001-2004 Stelian Pop <stelian@popies.net>
-	Copyright (C) 2001-2002 Alcôve <www.alcove.com>
+	Copyright (C) 2001-2002 AlcÃ´ve <www.alcove.com>
 	Copyright (C) 2001 Michael Ashley <m.ashley@unsw.edu.au>
 	Copyright (C) 2001 Junichi Morita <jun1m@mars.dti.ne.jp>
 	Copyright (C) 2000 Takaya Kinjo <t-kinjo@tc4.so-net.ne.jp>

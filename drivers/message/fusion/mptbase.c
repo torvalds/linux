@@ -3585,7 +3585,7 @@ initChainBuffers(MPT_ADAPTER *ioc)
 	 * index = chain_idx
 	 *
 	 * Calculate the number of chain buffers needed(plus 1) per I/O
-	 * then multiply the the maximum number of simultaneous cmds
+	 * then multiply the maximum number of simultaneous cmds
 	 *
 	 * num_sge = num sge in request frame + last chain buffer
 	 * scale = num sge per chain buffer if no chain element

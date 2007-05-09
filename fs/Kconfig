@@ -724,10 +724,6 @@ config FAT_FS
 	  file system and use GNU tar's M option. GNU tar is a program
 	  available for Unix and DOS ("man tar" or "info tar").
 
-	  It is now also becoming possible to read and write compressed FAT
-	  file systems; read <file:Documentation/filesystems/fat_cvf.txt> for
-	  details.
-
 	  The FAT support will enlarge your kernel by about 37 KB. If unsure,
 	  say Y.
 

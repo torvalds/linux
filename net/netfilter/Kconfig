@@ -197,7 +197,7 @@ config NF_CONNTRACK_PPTP
 
 	  Please note that not all PPTP modes of operation are supported yet.
 	  Specifically these limitations exist:
-	    - Blindy assumes that control connections are always established
+	    - Blindly assumes that control connections are always established
 	      in PNS->PAC direction. This is a violation of RFC2637.
 	    - Only supports a single call within each session
 

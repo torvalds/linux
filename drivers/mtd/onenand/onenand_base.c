@@ -2192,7 +2192,7 @@ static int onenand_check_maf(int manuf)
  * @param mtd		MTD device structure
  *
  * OneNAND detection method:
- *   Compare the the values from command with ones from register
+ *   Compare the values from command with ones from register
  */
 static int onenand_probe(struct mtd_info *mtd)
 {

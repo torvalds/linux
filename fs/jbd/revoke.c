@@ -1,5 +1,5 @@
 /*
- * linux/fs/revoke.c
+ * linux/fs/jbd/revoke.c
  *
  * Written by Stephen C. Tweedie <sct@redhat.com>, 2000
  *

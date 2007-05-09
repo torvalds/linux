@@ -1,7 +1,7 @@
 Vaio Picturebook Motion Eye Camera Driver Readme
 ------------------------------------------------
 	Copyright (C) 2001-2004 Stelian Pop <stelian@popies.net>
-	Copyright (C) 2001-2002 Alcôve <www.alcove.com>
+	Copyright (C) 2001-2002 AlcÃ´ve <www.alcove.com>
 	Copyright (C) 2000 Andrew Tridgell <tridge@samba.org>
 
 This driver enable the use of video4linux compatible applications with the

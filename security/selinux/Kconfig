@@ -137,7 +137,7 @@ config SECURITY_SELINUX_POLICYDB_VERSION_MAX
 
 	  Examples:
 	  For the Fedora Core 3 or 4 Linux distributions, enable this option
-	  and set the value via the next option. For Fedore Core 5 and later,
+	  and set the value via the next option. For Fedora Core 5 and later,
 	  do not enable this option.
 
 	  If you are unsure how to answer this question, answer N.

@@ -1,6 +1,6 @@
 This is the 6pack-mini-HOWTO, written by
 
-Andreas Könsgen DG3KQ
+Andreas KÃ¶nsgen DG3KQ
 Internet: ajk@iehk.rwth-aachen.de
 AMPR-net: dg3kq@db0pra.ampr.org
 AX.25:    dg3kq@db0ach.#nrw.deu.eu

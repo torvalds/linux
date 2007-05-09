@@ -9,7 +9,7 @@
  * The device works as an standard CDC device, it has 2 interfaces, the first
  * one is for firmware access and the second is the serial one.
  * The protocol is very simply, there are two posibilities reading or writing.
- * When writting the first urb must have a Header that starts with 0x20 0x29 the
+ * When writing the first urb must have a Header that starts with 0x20 0x29 the
  * next two bytes must say how much data will be sended.
  * When reading the process is almost equal except that the header starts with
  * 0x00 0x20.
@@ -18,7 +18,7 @@
  * buffer: The First and Second byte is used for a Header, the Third and Fourth
  * tells the  device the amount of information the package holds.
  * Packages are 60 bytes long Header Stuff.
- * When writting to the device the first two bytes of the header are 0x20 0x29
+ * When writing to the device the first two bytes of the header are 0x20 0x29
  * When reading the bytes are 0x00 0x20, or 0x00 0x10, there is an strange
  * situation, when too much data arrives to the device because it sends the data
  * but with out the header. I will use a simply hack to override this situation,

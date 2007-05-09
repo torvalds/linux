@@ -115,7 +115,7 @@ isl_upload_firmware(islpci_private *priv)
 			    ISL38XX_MEMORY_WINDOW_SIZE : fw_len;
 			u32 __iomem *dev_fw_ptr = device_base + ISL38XX_DIRECT_MEM_WIN;
 
-			/* set the cards base address for writting the data */
+			/* set the card's base address for writing the data */
 			isl38xx_w32_flush(device_base, reg,
 					  ISL38XX_DIR_MEM_BASE_REG);
 			wmb();	/* be paranoid */

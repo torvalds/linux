@@ -1,5 +1,5 @@
 /*
- * drivers/leds/h1940-leds.c
+ * drivers/leds/leds-h1940.c
  * Copyright (c) Arnaud Patard <arnaud.patard@rtp-net.org>
  *
  * This file is subject to the terms and conditions of the GNU General Public

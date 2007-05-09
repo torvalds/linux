@@ -8,7 +8,7 @@ Background:
 
   This driver is intended for the "Hauppauge WinTV PVR USB 2.0", which
   is a USB 2.0 hosted TV Tuner.  This driver is a work in progress.
-  Its history started with the reverse-engineering effort by Björn
+  Its history started with the reverse-engineering effort by BjÃ¶rn
   Danielsson <pvrusb2@dax.nu> whose web page can be found here:
 
     http://pvrusb2.dax.nu/

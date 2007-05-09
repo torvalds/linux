@@ -1217,11 +1217,11 @@ usb_init(hfcusb_data * hfc)
 	/* aux = output, reset off */
 	write_usb(hfc, HFCUSB_CIRM, 0x10);
 
-	/* set USB_SIZE to match the the wMaxPacketSize for INT or BULK transfers */
+	/* set USB_SIZE to match the wMaxPacketSize for INT or BULK transfers */
 	write_usb(hfc, HFCUSB_USB_SIZE,
 		  (hfc->packet_size / 8) | ((hfc->packet_size / 8) << 4));
 
-	/* set USB_SIZE_I to match the the wMaxPacketSize for ISO transfers */
+	/* set USB_SIZE_I to match the wMaxPacketSize for ISO transfers */
 	write_usb(hfc, HFCUSB_USB_SIZE_I, hfc->iso_packet_size);
 
 	/* enable PCM/GCI master mode */

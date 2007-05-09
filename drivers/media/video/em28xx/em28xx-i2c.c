@@ -70,7 +70,7 @@ static int em2800_i2c_send_max4(struct em28xx *dev, unsigned char addr,
 
 	ret = dev->em28xx_write_regs(dev, 4 - len, &b2[4 - len], 2 + len);
 	if (ret != 2 + len) {
-		em28xx_warn("writting to i2c device failed (error=%i)\n", ret);
+		em28xx_warn("writing to i2c device failed (error=%i)\n", ret);
 		return -EIO;
 	}
 	for (write_timeout = EM2800_I2C_WRITE_TIMEOUT; write_timeout > 0;

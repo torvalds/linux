@@ -2209,7 +2209,7 @@ Breakpoint 2 at 0x4d87a4: file top.c, line 2609.
 #3  0x5167e6 in readline_internal_char () at readline.c:454
 #4  0x5168ee in readline_internal_charloop () at readline.c:507
 #5  0x51692c in readline_internal () at readline.c:521
-#6  0x5164fe in readline (prompt=0x7ffff810 "\177ÿøx\177ÿ÷Ø\177ÿøxÀ")
+#6  0x5164fe in readline (prompt=0x7ffff810 "\177ÂÃ¿ÂÃ¸x\177ÂÃ¿ÂÃ·ÂÃ˜\177ÂÃ¿ÂÃ¸xÂÃ€")
     at readline.c:349
 #7  0x4d7a8a in command_line_input (prrompt=0x564420 "(gdb) ", repeat=1,
     annotation_suffix=0x4d6b44 "prompt") at top.c:2091

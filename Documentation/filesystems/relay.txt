@@ -351,7 +351,7 @@ If the current buffer is full, i.e. all sub-buffers remain unconsumed,
 the callback returns 0 to indicate that the buffer switch should not
 occur yet, i.e. until the consumer has had a chance to read the
 current set of ready sub-buffers.  For the relay_buf_full() function
-to make sense, the consumer is reponsible for notifying the relay
+to make sense, the consumer is responsible for notifying the relay
 interface when sub-buffers have been consumed via
 relay_subbufs_consumed().  Any subsequent attempts to write into the
 buffer will again invoke the subbuf_start() callback with the same

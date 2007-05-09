@@ -17,7 +17,7 @@ How to use it?
 ==============
 
 Imacfb does not have any kind of autodetection of your machine.
-You have to add the fillowing kernel parameters in your elilo.conf:
+You have to add the following kernel parameters in your elilo.conf:
 	Macbook :
 		video=imacfb:macbook
 	MacMini :

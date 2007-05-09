@@ -541,7 +541,7 @@ static struct ParameterData __devinitdata cfg_data[] = {
 
 
 /*
- * Safe settings. If set to zero the the BIOS/default values with
+ * Safe settings. If set to zero the BIOS/default values with
  * command line overrides will be used. If set to 1 then safe and
  * slow settings will be used.
  */
@@ -617,7 +617,7 @@ static void __devinit fix_settings(void)
 
 /*
  * Mapping from the eeprom delay index value (index into this array)
- * to the the number of actual seconds that the delay should be for.
+ * to the number of actual seconds that the delay should be for.
  */
 static char __devinitdata eeprom_index_to_delay_map[] = 
 	{ 1, 3, 5, 10, 16, 30, 60, 120 };
@@ -4136,7 +4136,7 @@ static void __devinit trms1040_write_all(struct NvRamType *eeprom, unsigned long
  * @io_port:	base I/O address
  * @addr:	offset into SEEPROM
  *
- * Returns the the byte read.
+ * Returns the byte read.
  **/
 static u8 __devinit trms1040_get_data(unsigned long io_port, u8 addr)
 {

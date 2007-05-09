@@ -222,7 +222,7 @@ zfcp_qdio_handler_error_check(struct zfcp_adapter *adapter, unsigned int status,
                 * Since we have been using this adapter, it is save to assume
                 * that it is not failed but recoverable. The card seems to
                 * report link-up events by self-initiated queue shutdown.
-                * That is why we need to clear the the link-down flag
+                * That is why we need to clear the link-down flag
                 * which is set again in case we have missed by a mile.
                 */
                zfcp_erp_adapter_reopen(

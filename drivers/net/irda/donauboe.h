@@ -113,7 +113,7 @@
 /* RxOver  overflow in Recv FIFO                                */
 /* SipRcv  received serial gap  (or other condition you set)    */
 /* Interrupts are enabled by writing a one to the IER register  */
-/* Interrupts are cleared by writting a one to the ISR register */
+/* Interrupts are cleared by writing a one to the ISR register */
 /*                                                              */
 /* 6. The remaining registers: 0x6 and 0x3 appear to be         */
 /*    reserved parts of 16 or 32 bit registersthe remainder     */

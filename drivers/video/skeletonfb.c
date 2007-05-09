@@ -14,7 +14,7 @@
  *  of it. 
  *
  *  First the roles of struct fb_info and struct display have changed. Struct
- *  display will go away. The way the the new framebuffer console code will
+ *  display will go away. The way the new framebuffer console code will
  *  work is that it will act to translate data about the tty/console in 
  *  struct vc_data to data in a device independent way in struct fb_info. Then
  *  various functions in struct fb_ops will be called to store the device 

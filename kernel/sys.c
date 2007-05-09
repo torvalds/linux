@@ -1352,7 +1352,7 @@ asmlinkage long sys_setfsuid(uid_t uid)
 }
 
 /*
- * Samma på svenska..
+ * Samma pÃ¥ svenska..
  */
 asmlinkage long sys_setfsgid(gid_t gid)
 {

@@ -290,7 +290,7 @@ History
 2.07 More fixes for Warp Server. Now it really works
 2.08 Creating new files is not so slow on large disks
      An attempt to sync deleted file does not generate filesystem error
-2.09 Fixed error on extremly fragmented files
+2.09 Fixed error on extremely fragmented files
 
 
  vim: set textwidth=80:

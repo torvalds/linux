@@ -93,8 +93,6 @@ static int rx_copybreak;
 static char version[] __devinitdata =
 DRV_NAME ".c:v1.11 1/7/2001 Written by Donald Becker <becker@scyld.com>\n";
 static char version2[] __devinitdata =
-"  http://www.scyld.com/network/epic100.html\n";
-static char version3[] __devinitdata =
 "  (unofficial 2.4.x kernel port, version " DRV_VERSION ", " DRV_RELDATE ")\n";
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
@@ -323,8 +321,8 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 #ifndef MODULE
 	static int printed_version;
 	if (!printed_version++)
-		printk (KERN_INFO "%s" KERN_INFO "%s" KERN_INFO "%s",
-			version, version2, version3);
+		printk (KERN_INFO "%s" KERN_INFO "%s",
+			version, version2);
 #endif
 
 	card_idx++;
@@ -1596,8 +1594,8 @@ static int __init epic_init (void)
 {
 /* when a module, this is printed whether or not devices are found in probe */
 #ifdef MODULE
-	printk (KERN_INFO "%s" KERN_INFO "%s" KERN_INFO "%s",
-		version, version2, version3);
+	printk (KERN_INFO "%s" KERN_INFO "%s",
+		version, version2);
 #endif
 
 	return pci_register_driver(&epic_driver);

@@ -21,12 +21,12 @@ config GDB_MAGICPRINT
 	bool "Message Output for GDB MagicPrint service"
 	depends on (H8300H_SIM || H8S_SIM)
 	help
-	  kernel messages output useing MagicPrint service from GDB
+	  kernel messages output using MagicPrint service from GDB
 
 config SYSCALL_PRINT
 	bool "SystemCall trace print"
 	help
-	  outout history of systemcall
+	  output history of systemcall
 
 config GDB_DEBUG
    	bool "Use gdb stub"
