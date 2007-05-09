@@ -15,8 +15,8 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 
-#include <asm/pgtable.h>
 #include <asm/page.h>
+#include <asm/pgtable.h>
 #include <asm/pci-bridge.h>
 #include <asm-powerpc/mpic.h>
 #include <asm/mpc86xx.h>
