@@ -39,6 +39,7 @@ obj-$(CONFIG_MACH_AT91SAM9263EK) += board-sam9263ek.o
 # LEDs support
 led-$(CONFIG_ARCH_AT91RM9200DK)	+= leds.o
 led-$(CONFIG_MACH_AT91RM9200EK)	+= leds.o
+led-$(CONFIG_MACH_AT91SAM9261EK)+= leds.o
 led-$(CONFIG_MACH_CSB337)	+= leds.o
 led-$(CONFIG_MACH_CSB637)	+= leds.o
 led-$(CONFIG_MACH_KB9200)	+= leds.o
