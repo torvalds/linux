@@ -307,7 +307,9 @@ static void hci_uart_tty_close(struct tty_struct *tty)
 
 	if (hu) {
 		struct hci_dev *hdev = hu->hdev;
-		hci_uart_close(hdev);
+
+		if (hdev)
+			hci_uart_close(hdev);
 
 		if (test_and_clear_bit(HCI_UART_PROTO_SET, &hu->flags)) {
 			hu->proto->close(hu);
