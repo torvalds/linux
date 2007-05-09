@@ -892,7 +892,7 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 	kfree(orb);
 }
 
-static void sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
+static int sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 {
 	struct sbp2_device *sd =
 		(struct sbp2_device *)orb->cmd->device->host->hostdata;
@@ -906,6 +906,8 @@ static void sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 	sg = (struct scatterlist *)orb->cmd->request_buffer;
 	count = dma_map_sg(device->card->device, sg, orb->cmd->use_sg,
 			   orb->cmd->sc_data_direction);
+	if (count == 0)
+		goto fail;
 
 	/*
 	 * Handle the special case where there is only one element in
@@ -919,7 +921,7 @@ static void sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 		orb->request.data_descriptor.low  = sg_dma_address(sg);
 		orb->request.misc |=
 			COMMAND_ORB_DATA_SIZE(sg_dma_len(sg));
-		return;
+		return 0;
 	}
 
 	/*
@@ -952,6 +954,8 @@ static void sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 	orb->page_table_bus =
 		dma_map_single(device->card->device, orb->page_table,
 			       size, DMA_TO_DEVICE);
+	if (dma_mapping_error(orb->page_table_bus))
+		goto fail_page_table;
 	orb->request.data_descriptor.high = sd->address_high;
 	orb->request.data_descriptor.low  = orb->page_table_bus;
 	orb->request.misc |=
@@ -959,9 +963,17 @@ static void sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 		COMMAND_ORB_DATA_SIZE(j);
 
 	fw_memcpy_to_be32(orb->page_table, orb->page_table, size);
+
+	return 0;
+
+ fail_page_table:
+	dma_unmap_sg(device->card->device, sg, orb->cmd->use_sg,
+		     orb->cmd->sc_data_direction);
+ fail:
+	return -ENOMEM;
 }
 
-static void sbp2_command_orb_map_buffer(struct sbp2_command_orb *orb)
+static int sbp2_command_orb_map_buffer(struct sbp2_command_orb *orb)
 {
 	struct sbp2_device *sd =
 		(struct sbp2_device *)orb->cmd->device->host->hostdata;
@@ -978,10 +990,15 @@ static void sbp2_command_orb_map_buffer(struct sbp2_command_orb *orb)
 			       orb->cmd->request_buffer,
 			       orb->cmd->request_bufflen,
 			       orb->cmd->sc_data_direction);
+	if (dma_mapping_error(orb->request_buffer_bus))
+		return -ENOMEM;
+
 	orb->request.data_descriptor.high = sd->address_high;
 	orb->request.data_descriptor.low  = orb->request_buffer_bus;
 	orb->request.misc |=
 		COMMAND_ORB_DATA_SIZE(orb->cmd->request_bufflen);
+
+	return 0;
 }
 
 /* SCSI stack integration */
@@ -1042,7 +1059,8 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 			COMMAND_ORB_DIRECTION(SBP2_DIRECTION_TO_MEDIA);
 
 	if (cmd->use_sg) {
-		sbp2_command_orb_map_scatterlist(orb);
+		if (sbp2_command_orb_map_scatterlist(orb) < 0)
+			goto fail_map_payload;
 	} else if (cmd->request_bufflen > SBP2_MAX_SG_ELEMENT_LENGTH) {
 		/*
 		 * FIXME: Need to split this into a sg list... but
@@ -1050,9 +1068,10 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 		 * reporting our max supported block size?
 		 */
 		fw_error("command > 64k\n");
-		goto fail_bufflen;
+		goto fail_map_payload;
 	} else if (cmd->request_bufflen > 0) {
-		sbp2_command_orb_map_buffer(orb);
+		if (sbp2_command_orb_map_buffer(orb) < 0)
+			goto fail_map_payload;
 	}
 
 	fw_memcpy_to_be32(&orb->request, &orb->request, sizeof orb->request);
@@ -1068,7 +1087,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 
 	return 0;
 
- fail_bufflen:
+ fail_map_payload:
 	dma_unmap_single(device->card->device, orb->base.request_bus,
 			 sizeof orb->request, DMA_TO_DEVICE);
  fail_mapping:
