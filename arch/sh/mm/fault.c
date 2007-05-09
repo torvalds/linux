@@ -15,7 +15,7 @@
 #include <linux/mm.h>
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
-#include <asm/kdebug.h>
+#include <linux/kdebug.h>
 #include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>

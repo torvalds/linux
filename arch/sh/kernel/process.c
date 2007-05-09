@@ -15,7 +15,7 @@
 #include <linux/pm.h>
 #include <linux/kallsyms.h>
 #include <linux/kexec.h>
-#include <asm/kdebug.h>
+#include <linux/kdebug.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
@@ -500,7 +500,7 @@ asmlinkage void debug_trap_handler(unsigned long r4, unsigned long r5,
 	/* Rewind */
 	regs->pc -= instruction_size(ctrl_inw(regs->pc - 4));
 
-	if (notify_die(DIE_TRAP, regs, regs->tra & 0xff,
+	if (notify_die(DIE_TRAP, "debug trap", regs, 0, regs->tra & 0xff,
 		       SIGTRAP) == NOTIFY_STOP)
 		return;
 
@@ -519,7 +519,7 @@ asmlinkage void bug_trap_handler(unsigned long r4, unsigned long r5,
 	/* Rewind */
 	regs->pc -= instruction_size(ctrl_inw(regs->pc - 4));
 
-	if (notify_die(DIE_TRAP, regs, TRAPA_BUG_OPCODE & 0xff,
+	if (notify_die(DIE_TRAP, "bug trap", regs, 0, TRAPA_BUG_OPCODE & 0xff,
 		       SIGTRAP) == NOTIFY_STOP)
 		return;
 
