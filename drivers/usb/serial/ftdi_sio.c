@@ -1149,7 +1149,9 @@ static int create_sysfs_attrs(struct usb_serial_port *port)
 		dbg("sysfs attributes for %s", ftdi_chip_name[priv->chip_type]);
 		retval = device_create_file(&port->dev, &dev_attr_event_char);
 		if ((!retval) &&
-		    (priv->chip_type == FT232BM || priv->chip_type == FT2232C)) {
+		    (priv->chip_type == FT232BM ||
+		     priv->chip_type == FT2232C ||
+		     priv->chip_type == FT232RL)) {
 			retval = device_create_file(&port->dev,
 						    &dev_attr_latency_timer);
 		}
