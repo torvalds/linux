@@ -1043,7 +1043,7 @@ static int enable_promisc(struct xircom_private *card)
 
 
 /*
-link_status() checks the the links status and will return 0 for no link, 10 for 10mbit link and 100 for.. guess what.
+link_status() checks the links status and will return 0 for no link, 10 for 10mbit link and 100 for.. guess what.
 
 Must be called in locked state with interrupts disabled
 */

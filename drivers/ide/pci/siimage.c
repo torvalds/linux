@@ -831,7 +831,7 @@ static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
 
 	/*
 	 *	Now set up the hw. We have to do this ourselves as
-	 *	the MMIO layout isnt the same as the the standard port
+	 *	the MMIO layout isnt the same as the standard port
 	 *	based I/O
 	 */
 

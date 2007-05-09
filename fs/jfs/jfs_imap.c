@@ -386,7 +386,7 @@ int diRead(struct inode *ip)
 		return -EIO;
 	}
 
-	/* locate the the disk inode requested */
+	/* locate the disk inode requested */
 	dp = (struct dinode *) mp->data;
 	dp += rel_inode;
 
@@ -1407,7 +1407,7 @@ int diAlloc(struct inode *pip, bool dir, struct inode *ip)
 	inum = pip->i_ino + 1;
 	ino = inum & (INOSPERIAG - 1);
 
-	/* back off the the hint if it is outside of the iag */
+	/* back off the hint if it is outside of the iag */
 	if (ino == 0)
 		inum = pip->i_ino;
 

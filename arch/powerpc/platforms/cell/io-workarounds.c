@@ -74,7 +74,7 @@ static void spider_io_flush(const volatile void __iomem *addr)
 	/* Fast path if we have a non-0 token, it indicates which bus we
 	 * are on.
 	 *
-	 * If the token is 0, that means either the the ioremap was done
+	 * If the token is 0, that means either that the ioremap was done
 	 * before we initialized this layer, or it's a PIO operation. We
 	 * fallback to a low path in this case. Hopefully, internal devices
 	 * which are ioremap'ed early should use in_XX/out_XX functions

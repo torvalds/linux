@@ -28,7 +28,7 @@
  *
  * Portions of this code were also copied from usbvideo.c
  *
- * Special thanks to the the whole team at Sourceforge for help making
+ * Special thanks to the whole team at Sourceforge for help making
  * this driver become a reality.  Notably:
  * Andy Armstrong who reverse engineered the color encoding and
  * Pavel Machek and Chris Cheney who worked on reverse engineering the

@@ -310,7 +310,7 @@ static struct rchan_callbacks default_channel_callbacks = {
 
 /**
  *	wakeup_readers - wake up readers waiting on a channel
- *	@work: work struct that contains the the channel buffer
+ *	@work: work struct that contains the channel buffer
  *
  *	This is the work function used to defer reader waking.  The
  *	reason waking is deferred is that calling directly from write

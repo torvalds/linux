@@ -3,7 +3,7 @@
  *
  * This file is part of the SCTP kernel reference Implementation
  *
- * This file contains the code relating the the chunk abstraction.
+ * This file contains the code relating the chunk abstraction.
  *
  * The SCTP reference implementation is free software;
  * you can redistribute it and/or modify it under the terms of

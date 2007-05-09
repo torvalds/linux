@@ -983,7 +983,7 @@ int udp_disconnect(struct sock *sk, int flags)
 }
 
 /* return:
- * 	1  if the the UDP system should process it
+ * 	1  if the UDP system should process it
  *	0  if we should drop this packet
  * 	-1 if it should get processed by xfrm4_rcv_encap
  */

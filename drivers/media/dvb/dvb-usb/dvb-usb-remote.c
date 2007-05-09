@@ -3,7 +3,7 @@
  * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@desy.de)
  * see dvb-usb-init.c for copyright information.
  *
- * This file contains functions for initializing the the input-device and for handling remote-control-queries.
+ * This file contains functions for initializing the input-device and for handling remote-control-queries.
  */
 #include "dvb-usb-common.h"
 #include <linux/usb/input.h>

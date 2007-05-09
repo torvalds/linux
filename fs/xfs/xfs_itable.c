@@ -809,7 +809,7 @@ xfs_inumbers(
 				xfs_buf_relse(agbp);
 				agbp = NULL;
 				/*
-				 * Move up the the last inode in the current
+				 * Move up the last inode in the current
 				 * chunk.  The lookup_ge will always get
 				 * us the first inode in the next chunk.
 				 */

@@ -157,7 +157,7 @@ static __inline__ struct page *drm_do_vm_nopage(struct vm_area_struct *vma,
  * \param address access address.
  * \return pointer to the page structure.
  *
- * Get the the mapping, find the real physical page to map, get the page, and
+ * Get the mapping, find the real physical page to map, get the page, and
  * return it.
  */
 static __inline__ struct page *drm_do_vm_shm_nopage(struct vm_area_struct *vma,

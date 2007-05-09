@@ -1960,7 +1960,7 @@ static void lbmfree(struct lbuf * bp)
 /*
  * NAME:	lbmRedrive
  *
- * FUNCTION:	add a log buffer to the the log redrive list
+ * FUNCTION:	add a log buffer to the log redrive list
  *
  * PARAMETER:
  *     bp	- log buffer

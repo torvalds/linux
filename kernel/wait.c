@@ -61,7 +61,7 @@ EXPORT_SYMBOL(remove_wait_queue);
  * The spin_unlock() itself is semi-permeable and only protects
  * one way (it only protects stuff inside the critical region and
  * stops them from bleeding out - it would still allow subsequent
- * loads to move into the the critical region).
+ * loads to move into the critical region).
  */
 void fastcall
 prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state)

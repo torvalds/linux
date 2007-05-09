@@ -30,7 +30,7 @@ The communication layer exists to allow NetLabel configuration and monitoring
 from user space.  The NetLabel communication layer uses a message based
 protocol built on top of the Generic NETLINK transport mechanism.  The exact
 formatting of these NetLabel messages as well as the Generic NETLINK family
-names can be found in the the 'net/netlabel/' directory as comments in the
+names can be found in the 'net/netlabel/' directory as comments in the
 header files as well as in 'include/net/netlabel.h'.
 
  * Security Module API

@@ -1704,7 +1704,7 @@ EXPORT_SYMBOL(blk_stop_queue);
  *     on a queue, such as calling the unplug function after a timeout.
  *     A block device may call blk_sync_queue to ensure that any
  *     such activity is cancelled, thus allowing it to release resources
- *     the the callbacks might use. The caller must already have made sure
+ *     that the callbacks might use. The caller must already have made sure
  *     that its ->make_request_fn will not re-add plugging prior to calling
  *     this function.
  *

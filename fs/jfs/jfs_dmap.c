@@ -1507,7 +1507,7 @@ dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
 		if (l2nb < budmin) {
 
 			/* search the lower level dmap control pages to get
-			 * the starting block number of the the dmap that
+			 * the starting block number of the dmap that
 			 * contains or starts off the free space.
 			 */
 			if ((rc =

@@ -126,7 +126,7 @@ enum usb_interface_condition {
  * Each interface may have alternate settings.  The initial configuration
  * of a device sets altsetting 0, but the device driver can change
  * that setting using usb_set_interface().  Alternate settings are often
- * used to control the the use of periodic endpoints, such as by having
+ * used to control the use of periodic endpoints, such as by having
  * different endpoints use different amounts of reserved USB bandwidth.
  * All standards-conformant USB devices that use isochronous endpoints
  * will use them in non-default settings.

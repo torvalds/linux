@@ -6,7 +6,7 @@
 #
 # This file is licensed under GPLv2.
 #
-# This file is part of the the aic94xx driver.
+# This file is part of the aic94xx driver.
 #
 # The aic94xx driver is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
