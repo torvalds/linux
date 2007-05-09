@@ -176,10 +176,6 @@ extern void FASTCALL(free_cold_page(struct page *page));
 #define free_page(addr) free_pages((addr),0)
 
 void page_alloc_init(void);
-#ifdef CONFIG_NUMA
-void drain_node_pages(int node);
-#else
-static inline void drain_node_pages(int node) { };
-#endif
+void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp);
 
 #endif /* __LINUX_GFP_H */

@@ -691,43 +691,26 @@ static void __init setup_nr_node_ids(void) {}
 
 #ifdef CONFIG_NUMA
 /*
- * Called from the slab reaper to drain pagesets on a particular node that
- * belongs to the currently executing processor.
+ * Called from the vmstat counter updater to drain pagesets of this
+ * currently executing processor on remote nodes after they have
+ * expired.
+ *
  * Note that this function must be called with the thread pinned to
  * a single processor.
  */
-void drain_node_pages(int nodeid)
+void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp)
 {
-	int i;
-	enum zone_type z;
 	unsigned long flags;
+	int to_drain;
 
-	for (z = 0; z < MAX_NR_ZONES; z++) {
-		struct zone *zone = NODE_DATA(nodeid)->node_zones + z;
-		struct per_cpu_pageset *pset;
-
-		if (!populated_zone(zone))
-			continue;
-
-		pset = zone_pcp(zone, smp_processor_id());
-		for (i = 0; i < ARRAY_SIZE(pset->pcp); i++) {
-			struct per_cpu_pages *pcp;
-
-			pcp = &pset->pcp[i];
-			if (pcp->count) {
-				int to_drain;
-
-				local_irq_save(flags);
-				if (pcp->count >= pcp->batch)
-					to_drain = pcp->batch;
-				else
-					to_drain = pcp->count;
-				free_pages_bulk(zone, to_drain, &pcp->list, 0);
-				pcp->count -= to_drain;
-				local_irq_restore(flags);
-			}
-		}
-	}
+	local_irq_save(flags);
+	if (pcp->count >= pcp->batch)
+		to_drain = pcp->batch;
+	else
+		to_drain = pcp->count;
+	free_pages_bulk(zone, to_drain, &pcp->list, 0);
+	pcp->count -= to_drain;
+	local_irq_restore(flags);
 }
 #endif
 

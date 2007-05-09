@@ -281,6 +281,17 @@ EXPORT_SYMBOL(dec_zone_page_state);
 
 /*
  * Update the zone counters for one cpu.
+ *
+ * Note that refresh_cpu_vm_stats strives to only access
+ * node local memory. The per cpu pagesets on remote zones are placed
+ * in the memory local to the processor using that pageset. So the
+ * loop over all zones will access a series of cachelines local to
+ * the processor.
+ *
+ * The call to zone_page_state_add updates the cachelines with the
+ * statistics in the remote zone struct as well as the global cachelines
+ * with the global counters. These could cause remote node cache line
+ * bouncing and will have to be only done when necessary.
  */
 void refresh_cpu_vm_stats(int cpu)
 {
@@ -289,21 +300,54 @@ void refresh_cpu_vm_stats(int cpu)
 	unsigned long flags;
 
 	for_each_zone(zone) {
-		struct per_cpu_pageset *pcp;
+		struct per_cpu_pageset *p;
 
 		if (!populated_zone(zone))
 			continue;
 
-		pcp = zone_pcp(zone, cpu);
+		p = zone_pcp(zone, cpu);
 
 		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-			if (pcp->vm_stat_diff[i]) {
+			if (p->vm_stat_diff[i]) {
 				local_irq_save(flags);
-				zone_page_state_add(pcp->vm_stat_diff[i],
+				zone_page_state_add(p->vm_stat_diff[i],
 					zone, i);
-				pcp->vm_stat_diff[i] = 0;
+				p->vm_stat_diff[i] = 0;
+#ifdef CONFIG_NUMA
+				/* 3 seconds idle till flush */
+				p->expire = 3;
+#endif
 				local_irq_restore(flags);
 			}
+#ifdef CONFIG_NUMA
+		/*
+		 * Deal with draining the remote pageset of this
+		 * processor
+		 *
+		 * Check if there are pages remaining in this pageset
+		 * if not then there is nothing to expire.
+		 */
+		if (!p->expire || (!p->pcp[0].count && !p->pcp[1].count))
+			continue;
+
+		/*
+		 * We never drain zones local to this processor.
+		 */
+		if (zone_to_nid(zone) == numa_node_id()) {
+			p->expire = 0;
+			continue;
+		}
+
+		p->expire--;
+		if (p->expire)
+			continue;
+
+		if (p->pcp[0].count)
+			drain_zone_pages(zone, p->pcp + 0);
+
+		if (p->pcp[1].count)
+			drain_zone_pages(zone, p->pcp + 1);
+#endif
 	}
 }
 
