@@ -831,6 +831,7 @@ static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 	struct of_device *op;
 	unsigned long base = pbm->controller_regs;
 	u64 tmp;
+	int err;
 
 	if (pbm->chip_type == PBM_CHIP_TYPE_SABRE)
 		dp = dp->parent;
@@ -857,15 +858,24 @@ static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 		     SABRE_UEAFSR_SDRD | SABRE_UEAFSR_SDWR |
 		     SABRE_UEAFSR_SDTE | SABRE_UEAFSR_PDTE));
 
-	request_irq(op->irqs[1], sabre_ue_intr, 0, "SABRE_UE", pbm);
+	err = request_irq(op->irqs[1], sabre_ue_intr, 0, "SABRE_UE", pbm);
+	if (err)
+		printk(KERN_WARNING "%s: Couldn't register UE, err=%d.\n",
+		       pbm->name, err);
 
 	sabre_write(base + SABRE_CE_AFSR,
 		    (SABRE_CEAFSR_PDRD | SABRE_CEAFSR_PDWR |
 		     SABRE_CEAFSR_SDRD | SABRE_CEAFSR_SDWR));
 
-	request_irq(op->irqs[2], sabre_ce_intr, 0, "SABRE_CE", pbm);
-	request_irq(op->irqs[0], sabre_pcierr_intr, 0,
-		    "SABRE_PCIERR", pbm);
+	err = request_irq(op->irqs[2], sabre_ce_intr, 0, "SABRE_CE", pbm);
+	if (err)
+		printk(KERN_WARNING "%s: Couldn't register CE, err=%d.\n",
+		       pbm->name, err);
+	err = request_irq(op->irqs[0], sabre_pcierr_intr, 0,
+			  "SABRE_PCIERR", pbm);
+	if (err)
+		printk(KERN_WARNING "%s: Couldn't register PCIERR, err=%d.\n",
+		       pbm->name, err);
 
 	tmp = sabre_read(base + SABRE_PCICTRL);
 	tmp |= SABRE_PCICTRL_ERREN;

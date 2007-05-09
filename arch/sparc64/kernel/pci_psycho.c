@@ -836,6 +836,7 @@ static void psycho_register_error_handlers(struct pci_pbm_info *pbm)
 	struct of_device *op = of_find_device_by_node(pbm->prom_node);
 	unsigned long base = pbm->controller_regs;
 	u64 tmp;
+	int err;
 
 	if (!op)
 		return;
@@ -852,12 +853,27 @@ static void psycho_register_error_handlers(struct pci_pbm_info *pbm)
 	if (op->num_irqs < 6)
 		return;
 
-	request_irq(op->irqs[1], psycho_ue_intr, 0,
-		    "PSYCHO_UE", pbm);
-	request_irq(op->irqs[2], psycho_ce_intr, 0,
-		    "PSYCHO_CE", pbm);
-	request_irq(op->irqs[0], psycho_pcierr_intr, 0,
-		    "PSYCHO_PCIERR", pbm);
+	/* We really mean to ignore the return result here.  Two
+	 * PCI controller share the same interrupt numbers and
+	 * drive the same front-end hardware.  Whichever of the
+	 * two get in here first will register the IRQ handler
+	 * the second will just error out since we do not pass in
+	 * IRQF_SHARED.
+	 */
+	err = request_irq(op->irqs[1], psycho_ue_intr, 0,
+			  "PSYCHO_UE", pbm);
+	err = request_irq(op->irqs[2], psycho_ce_intr, 0,
+			  "PSYCHO_CE", pbm);
+
+	/* This one, however, ought not to fail.  We can just warn
+	 * about it since the system can still operate properly even
+	 * if this fails.
+	 */
+	err = request_irq(op->irqs[0], psycho_pcierr_intr, 0,
+			  "PSYCHO_PCIERR", pbm);
+	if (err)
+		printk(KERN_WARNING "%s: Could not register PCIERR, "
+		       "err=%d\n", pbm->name, err);
 
 	/* Enable UE and CE interrupts for controller. */
 	psycho_write(base + PSYCHO_ECC_CTRL,
