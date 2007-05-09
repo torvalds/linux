@@ -292,8 +292,8 @@ machine_emergency_restart(void)
 void
 mca_nmi_hook(void)
 {
-	__u8 dumpval __attribute__((unused)) = inb(0xf823);
-	__u8 swnmi __attribute__((unused)) = inb(0xf813);
+	__u8 dumpval __maybe_unused = inb(0xf823);
+	__u8 swnmi __maybe_unused = inb(0xf813);
 
 	/* FIXME: assume dump switch pressed */
 	/* check to see if the dump switch was pressed */
