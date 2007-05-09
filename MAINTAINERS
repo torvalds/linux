@@ -1038,6 +1038,8 @@ S:	Maintained
 CONEXANT ACCESSRUNNER USB DRIVER
 P:	Simon Arlott
 M:	cxacru@fire.lp0.eu
+L:	accessrunner-general@lists.sourceforge.net
+W:	http://accessrunner.sourceforge.net/
 S:	Maintained
 
 CORETEMP HARDWARE MONITORING DRIVER
