@@ -291,4 +291,5 @@ sys_call_table:
 	.long	sys_shmget		/* 275 */
 	.long	sys_shmdt
 	.long	sys_shmctl
+	.long	sys_utimensat
 	.long	sys_ni_syscall		/* r8 is saturated at nr_syscalls */
