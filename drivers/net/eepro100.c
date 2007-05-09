@@ -28,7 +28,7 @@
 */
 
 static const char * const version =
-"eepro100.c:v1.09j-t 9/29/99 Donald Becker http://www.scyld.com/network/eepro100.html\n"
+"eepro100.c:v1.09j-t 9/29/99 Donald Becker\n"
 "eepro100.c: $Revision: 1.36 $ 2000/11/17 Modified by Andrey V. Savochkin <saw@saw.sw.com.sg> and others\n";
 
 /* A few user-configurable values that apply to all boards.
