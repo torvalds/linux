@@ -479,6 +479,11 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file * file,
 			return hu->proto->id;
 		return -EUNATCH;
 
+	case HCIUARTGETDEVICE:
+		if (test_bit(HCI_UART_PROTO_SET, &hu->flags))
+			return hu->hdev->id;
+		return -EUNATCH;
+
 	default:
 		err = n_tty_ioctl(tty, file, cmd, arg);
 		break;

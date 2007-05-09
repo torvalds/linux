@@ -28,8 +28,9 @@
 #endif
 
 /* Ioctls */
-#define HCIUARTSETPROTO	_IOW('U', 200, int)
-#define HCIUARTGETPROTO	_IOR('U', 201, int)
+#define HCIUARTSETPROTO		_IOW('U', 200, int)
+#define HCIUARTGETPROTO		_IOR('U', 201, int)
+#define HCIUARTGETDEVICE	_IOR('U', 202, int)
 
 /* UART protocols */
 #define HCI_UART_MAX_PROTO	4
