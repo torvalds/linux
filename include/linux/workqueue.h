@@ -191,9 +191,6 @@ extern int current_is_keventd(void);
 extern int keventd_up(void);
 
 extern void init_workqueues(void);
-void cancel_rearming_delayed_work(struct delayed_work *work);
-void cancel_rearming_delayed_workqueue(struct workqueue_struct *,
-				       struct delayed_work *);
 int execute_in_process_context(work_func_t fn, struct execute_work *);
 
 /*
@@ -210,6 +207,16 @@ static inline int cancel_delayed_work(struct delayed_work *work)
 	if (ret)
 		work_release(&work->work);
 	return ret;
+}
+
+extern void cancel_rearming_delayed_work(struct delayed_work *work);
+
+/* Obsolete. use cancel_rearming_delayed_work() */
+static inline
+void cancel_rearming_delayed_workqueue(struct workqueue_struct *wq,
+					struct delayed_work *work)
+{
+	cancel_rearming_delayed_work(work);
 }
 
 #endif

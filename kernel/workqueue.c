@@ -555,32 +555,23 @@ void flush_work_keventd(struct work_struct *work)
 EXPORT_SYMBOL(flush_work_keventd);
 
 /**
- * cancel_rearming_delayed_workqueue - kill off a delayed work whose handler rearms the delayed work.
- * @wq:   the controlling workqueue structure
+ * cancel_rearming_delayed_work - kill off a delayed work whose handler rearms the delayed work.
  * @dwork: the delayed work struct
  *
  * Note that the work callback function may still be running on return from
  * cancel_delayed_work(). Run flush_workqueue() or flush_work() to wait on it.
  */
-void cancel_rearming_delayed_workqueue(struct workqueue_struct *wq,
-				       struct delayed_work *dwork)
-{
-	/* Was it ever queued ? */
-	if (!get_wq_data(&dwork->work))
-		return;
-
-	while (!cancel_delayed_work(dwork))
-		flush_workqueue(wq);
-}
-EXPORT_SYMBOL(cancel_rearming_delayed_workqueue);
-
-/**
- * cancel_rearming_delayed_work - kill off a delayed keventd work whose handler rearms the delayed work.
- * @dwork: the delayed work struct
- */
 void cancel_rearming_delayed_work(struct delayed_work *dwork)
 {
-	cancel_rearming_delayed_workqueue(keventd_wq, dwork);
+	struct cpu_workqueue_struct *cwq = get_wq_data(&dwork->work);
+
+	/* Was it ever queued ? */
+	if (cwq != NULL) {
+		struct workqueue_struct *wq = cwq->wq;
+
+		while (!cancel_delayed_work(dwork))
+			flush_workqueue(wq);
+	}
 }
 EXPORT_SYMBOL(cancel_rearming_delayed_work);
 
