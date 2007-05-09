@@ -182,7 +182,6 @@ extern void flush_work(struct workqueue_struct *wq, struct work_struct *work);
 extern void flush_work_keventd(struct work_struct *work);
 
 extern int FASTCALL(schedule_work(struct work_struct *work));
-extern int FASTCALL(run_scheduled_work(struct work_struct *work));
 extern int FASTCALL(schedule_delayed_work(struct delayed_work *work, unsigned long delay));
 
 extern int schedule_delayed_work_on(int cpu, struct delayed_work *work, unsigned long delay);
