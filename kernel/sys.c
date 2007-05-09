@@ -881,7 +881,7 @@ asmlinkage long sys_reboot(int magic1, int magic2, unsigned int cmd, void __user
 #ifdef CONFIG_SOFTWARE_SUSPEND
 	case LINUX_REBOOT_CMD_SW_SUSPEND:
 		{
-			int ret = pm_suspend(PM_SUSPEND_DISK);
+			int ret = hibernate();
 			unlock_kernel();
 			return ret;
 		}

@@ -29,7 +29,6 @@ static u32 acpi_suspend_states[] = {
 	[PM_SUSPEND_ON] = ACPI_STATE_S0,
 	[PM_SUSPEND_STANDBY] = ACPI_STATE_S1,
 	[PM_SUSPEND_MEM] = ACPI_STATE_S3,
-	[PM_SUSPEND_DISK] = ACPI_STATE_S4,
 	[PM_SUSPEND_MAX] = ACPI_STATE_S5
 };
 
@@ -94,14 +93,6 @@ static int acpi_pm_enter(suspend_state_t pm_state)
 		do_suspend_lowlevel();
 		break;
 
-	case PM_SUSPEND_DISK:
-		if (acpi_pm_ops.pm_disk_mode == PM_DISK_PLATFORM)
-			status = acpi_enter_sleep_state(acpi_state);
-		break;
-	case PM_SUSPEND_MAX:
-		acpi_power_off();
-		break;
-
 	default:
 		return -EINVAL;
 	}
@@ -157,12 +148,13 @@ int acpi_suspend(u32 acpi_state)
 	suspend_state_t states[] = {
 		[1] = PM_SUSPEND_STANDBY,
 		[3] = PM_SUSPEND_MEM,
-		[4] = PM_SUSPEND_DISK,
 		[5] = PM_SUSPEND_MAX
 	};
 
 	if (acpi_state < 6 && states[acpi_state])
 		return pm_suspend(states[acpi_state]);
+	if (acpi_state == 4)
+		return hibernate();
 	return -EINVAL;
 }
 
@@ -188,6 +180,49 @@ static struct pm_ops acpi_pm_ops = {
 	.enter = acpi_pm_enter,
 	.finish = acpi_pm_finish,
 };
+
+#ifdef CONFIG_SOFTWARE_SUSPEND
+static int acpi_hibernation_prepare(void)
+{
+	return acpi_sleep_prepare(ACPI_STATE_S4);
+}
+
+static int acpi_hibernation_enter(void)
+{
+	acpi_status status = AE_OK;
+	unsigned long flags = 0;
+
+	ACPI_FLUSH_CPU_CACHE();
+
+	local_irq_save(flags);
+	acpi_enable_wakeup_device(ACPI_STATE_S4);
+	/* This shouldn't return.  If it returns, we have a problem */
+	status = acpi_enter_sleep_state(ACPI_STATE_S4);
+	local_irq_restore(flags);
+
+	return ACPI_SUCCESS(status) ? 0 : -EFAULT;
+}
+
+static void acpi_hibernation_finish(void)
+{
+	acpi_leave_sleep_state(ACPI_STATE_S4);
+	acpi_disable_wakeup_device(ACPI_STATE_S4);
+
+	/* reset firmware waking vector */
+	acpi_set_firmware_waking_vector((acpi_physical_address) 0);
+
+	if (init_8259A_after_S1) {
+		printk("Broken toshiba laptop -> kicking interrupts\n");
+		init_8259A(0);
+	}
+}
+
+static struct hibernation_ops acpi_hibernation_ops = {
+	.prepare = acpi_hibernation_prepare,
+	.enter = acpi_hibernation_enter,
+	.finish = acpi_hibernation_finish,
+};
+#endif /* CONFIG_SOFTWARE_SUSPEND */
 
 /*
  * Toshiba fails to preserve interrupts over S1, reinitialization
@@ -227,14 +262,18 @@ int __init acpi_sleep_init(void)
 			sleep_states[i] = 1;
 			printk(" S%d", i);
 		}
-		if (i == ACPI_STATE_S4) {
-			if (sleep_states[i])
-				acpi_pm_ops.pm_disk_mode = PM_DISK_PLATFORM;
-		}
 	}
 	printk(")\n");
 
 	pm_set_ops(&acpi_pm_ops);
+
+#ifdef CONFIG_SOFTWARE_SUSPEND
+	if (sleep_states[ACPI_STATE_S4])
+		hibernation_set_ops(&acpi_hibernation_ops);
+#else
+	sleep_states[ACPI_STATE_S4] = 0;
+#endif
+
 	return 0;
 }
 

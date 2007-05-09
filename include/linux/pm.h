@@ -107,26 +107,11 @@ typedef int __bitwise suspend_state_t;
 #define PM_SUSPEND_ON		((__force suspend_state_t) 0)
 #define PM_SUSPEND_STANDBY	((__force suspend_state_t) 1)
 #define PM_SUSPEND_MEM		((__force suspend_state_t) 3)
-#define PM_SUSPEND_DISK		((__force suspend_state_t) 4)
-#define PM_SUSPEND_MAX		((__force suspend_state_t) 5)
-
-typedef int __bitwise suspend_disk_method_t;
-
-/* invalid must be 0 so struct pm_ops initialisers can leave it out */
-#define PM_DISK_INVALID		((__force suspend_disk_method_t) 0)
-#define	PM_DISK_PLATFORM	((__force suspend_disk_method_t) 1)
-#define	PM_DISK_SHUTDOWN	((__force suspend_disk_method_t) 2)
-#define	PM_DISK_REBOOT		((__force suspend_disk_method_t) 3)
-#define	PM_DISK_TEST		((__force suspend_disk_method_t) 4)
-#define	PM_DISK_TESTPROC	((__force suspend_disk_method_t) 5)
-#define	PM_DISK_MAX		((__force suspend_disk_method_t) 6)
+#define PM_SUSPEND_MAX		((__force suspend_state_t) 4)
 
 /**
  * struct pm_ops - Callbacks for managing platform dependent suspend states.
  * @valid: Callback to determine whether the given state can be entered.
- * 	If %CONFIG_SOFTWARE_SUSPEND is set then %PM_SUSPEND_DISK is
- *	always valid and never passed to this call. If not assigned,
- *	no suspend states are valid.
  *	Valid states are advertised in /sys/power/state but can still
  *	be rejected by prepare or enter if the conditions aren't right.
  *	There is a %pm_valid_only_mem function available that can be assigned
@@ -140,24 +125,12 @@ typedef int __bitwise suspend_disk_method_t;
  *
  * @finish: Called when the system has left the given state and all devices
  *	are resumed. The return value is ignored.
- *
- * @pm_disk_mode: The generic code always allows one of the shutdown methods
- *	%PM_DISK_SHUTDOWN, %PM_DISK_REBOOT, %PM_DISK_TEST and
- *	%PM_DISK_TESTPROC. If this variable is set, the mode it is set
- *	to is allowed in addition to those modes and is also made default.
- *	When this mode is sent selected, the @prepare call will be called
- *	before suspending to disk (if present), the @enter call should be
- *	present and will be called after all state has been saved and the
- *	machine is ready to be powered off; the @finish callback is called
- *	after state has been restored. All these calls are called with
- *	%PM_SUSPEND_DISK as the state.
  */
 struct pm_ops {
 	int (*valid)(suspend_state_t state);
 	int (*prepare)(suspend_state_t state);
 	int (*enter)(suspend_state_t state);
 	int (*finish)(suspend_state_t state);
-	suspend_disk_method_t pm_disk_mode;
 };
 
 /**
@@ -276,8 +249,6 @@ extern void device_power_up(void);
 extern void device_resume(void);
 
 #ifdef CONFIG_PM
-extern suspend_disk_method_t pm_disk_mode;
-
 extern int device_suspend(pm_message_t state);
 extern int device_prepare_suspend(pm_message_t state);
 

@@ -130,16 +130,16 @@ static inline int platform_prepare(void)
 {
 	int error = 0;
 
-	if (pm_ops && pm_ops->prepare)
-		error = pm_ops->prepare(PM_SUSPEND_DISK);
+	if (hibernation_ops)
+		error = hibernation_ops->prepare();
 
 	return error;
 }
 
 static inline void platform_finish(void)
 {
-	if (pm_ops && pm_ops->finish)
-		pm_ops->finish(PM_SUSPEND_DISK);
+	if (hibernation_ops)
+		hibernation_ops->finish();
 }
 
 static inline int snapshot_suspend(int platform_suspend)
@@ -384,7 +384,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		switch (arg) {
 
 		case PMOPS_PREPARE:
-			if (pm_ops && pm_ops->enter) {
+			if (hibernation_ops) {
 				data->platform_suspend = 1;
 				error = 0;
 			} else {
@@ -395,8 +395,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		case PMOPS_ENTER:
 			if (data->platform_suspend) {
 				kernel_shutdown_prepare(SYSTEM_SUSPEND_DISK);
-				error = pm_ops->enter(PM_SUSPEND_DISK);
-				error = 0;
+				error = hibernation_ops->enter();
 			}
 			break;
 

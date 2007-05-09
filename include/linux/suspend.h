@@ -32,6 +32,24 @@ static inline int pm_prepare_console(void) { return 0; }
 static inline void pm_restore_console(void) {}
 #endif
 
+/**
+ * struct hibernation_ops - hibernation platform support
+ *
+ * The methods in this structure allow a platform to override the default
+ * mechanism of shutting down the machine during a hibernation transition.
+ *
+ * All three methods must be assigned.
+ *
+ * @prepare: prepare system for hibernation
+ * @enter: shut down system after state has been saved to disk
+ * @finish: finish/clean up after state has been reloaded
+ */
+struct hibernation_ops {
+	int (*prepare)(void);
+	int (*enter)(void);
+	void (*finish)(void);
+};
+
 #if defined(CONFIG_PM) && defined(CONFIG_SOFTWARE_SUSPEND)
 /* kernel/power/snapshot.c */
 extern void __init register_nosave_region(unsigned long, unsigned long);
@@ -39,11 +57,17 @@ extern int swsusp_page_is_forbidden(struct page *);
 extern void swsusp_set_page_free(struct page *);
 extern void swsusp_unset_page_free(struct page *);
 extern unsigned long get_safe_page(gfp_t gfp_mask);
+
+extern void hibernation_set_ops(struct hibernation_ops *ops);
+extern int hibernate(void);
 #else
 static inline void register_nosave_region(unsigned long b, unsigned long e) {}
 static inline int swsusp_page_is_forbidden(struct page *p) { return 0; }
 static inline void swsusp_set_page_free(struct page *p) {}
 static inline void swsusp_unset_page_free(struct page *p) {}
+
+static inline void hibernation_set_ops(struct hibernation_ops *ops) {}
+static inline int hibernate(void) { return -ENOSYS; }
 #endif /* defined(CONFIG_PM) && defined(CONFIG_SOFTWARE_SUSPEND) */
 
 void save_processor_state(void);
