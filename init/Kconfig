@@ -504,6 +504,15 @@ config VM_EVENT_COUNTERS
 	  on EMBEDDED systems.  /proc/vmstat will only show page counts
 	  if VM event counters are disabled.
 
+config SLUB_DEBUG
+	default y
+	bool "Enable SLUB debugging support" if EMBEDDED
+	help
+	  SLUB has extensive debug support features. Disabling these can
+	  result in significant savings in code size. This also disables
+	  SLUB sysfs support. /sys/slab will not exist and there will be
+	  no support for cache validation etc.
+
 choice
 	prompt "Choose SLAB allocator"
 	default SLAB
