@@ -21,7 +21,8 @@ static int dibusb_dib3000mb_frontend_attach(struct dvb_usb_adapter *adap)
 
 	demod_cfg.demod_address = 0x8;
 
-	if ((adap->fe = dib3000mb_attach(&demod_cfg,&adap->dev->i2c_adap,&st->ops)) == NULL)
+	if ((adap->fe = dvb_attach(dib3000mb_attach, &demod_cfg,
+				   &adap->dev->i2c_adap, &st->ops)) == NULL)
 		return -ENODEV;
 
 	adap->tuner_pass_ctrl = st->ops.tuner_pass_ctrl;
