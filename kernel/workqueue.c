@@ -90,18 +90,20 @@ static const cpumask_t *wq_cpu_map(struct workqueue_struct *wq)
  * Set the workqueue on which a work item is to be run
  * - Must *only* be called if the pending flag is set
  */
-static inline void set_wq_data(struct work_struct *work, void *wq)
+static inline void set_wq_data(struct work_struct *work,
+				struct cpu_workqueue_struct *cwq)
 {
 	unsigned long new;
 
 	BUG_ON(!work_pending(work));
 
-	new = (unsigned long) wq | (1UL << WORK_STRUCT_PENDING);
+	new = (unsigned long) cwq | (1UL << WORK_STRUCT_PENDING);
 	new |= WORK_STRUCT_FLAG_MASK & *work_data_bits(work);
 	atomic_long_set(&work->data, new);
 }
 
-static inline void *get_wq_data(struct work_struct *work)
+static inline
+struct cpu_workqueue_struct *get_wq_data(struct work_struct *work)
 {
 	return (void *) (atomic_long_read(&work->data) & WORK_STRUCT_WQ_DATA_MASK);
 }
@@ -157,7 +159,8 @@ EXPORT_SYMBOL_GPL(queue_work);
 void delayed_work_timer_fn(unsigned long __data)
 {
 	struct delayed_work *dwork = (struct delayed_work *)__data;
-	struct workqueue_struct *wq = get_wq_data(&dwork->work);
+	struct cpu_workqueue_struct *cwq = get_wq_data(&dwork->work);
+	struct workqueue_struct *wq = cwq->wq;
 	int cpu = smp_processor_id();
 
 	if (unlikely(is_single_threaded(wq)))
@@ -189,8 +192,9 @@ int fastcall queue_delayed_work(struct workqueue_struct *wq,
 		BUG_ON(timer_pending(timer));
 		BUG_ON(!list_empty(&work->entry));
 
-		/* This stores wq for the moment, for the timer_fn */
-		set_wq_data(work, wq);
+		/* This stores cwq for the moment, for the timer_fn */
+		set_wq_data(work,
+			per_cpu_ptr(wq->cpu_wq, raw_smp_processor_id()));
 		timer->expires = jiffies + delay;
 		timer->data = (unsigned long)dwork;
 		timer->function = delayed_work_timer_fn;
@@ -221,8 +225,9 @@ int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 		BUG_ON(timer_pending(timer));
 		BUG_ON(!list_empty(&work->entry));
 
-		/* This stores wq for the moment, for the timer_fn */
-		set_wq_data(work, wq);
+		/* This stores cwq for the moment, for the timer_fn */
+		set_wq_data(work,
+			per_cpu_ptr(wq->cpu_wq, raw_smp_processor_id()));
 		timer->expires = jiffies + delay;
 		timer->data = (unsigned long)dwork;
 		timer->function = delayed_work_timer_fn;
@@ -562,9 +567,12 @@ void flush_work_keventd(struct work_struct *work)
 EXPORT_SYMBOL(flush_work_keventd);
 
 /**
- * cancel_rearming_delayed_workqueue - reliably kill off a delayed work whose handler rearms the delayed work.
+ * cancel_rearming_delayed_workqueue - kill off a delayed work whose handler rearms the delayed work.
  * @wq:   the controlling workqueue structure
  * @dwork: the delayed work struct
+ *
+ * Note that the work callback function may still be running on return from
+ * cancel_delayed_work(). Run flush_workqueue() or flush_work() to wait on it.
  */
 void cancel_rearming_delayed_workqueue(struct workqueue_struct *wq,
 				       struct delayed_work *dwork)
@@ -579,7 +587,7 @@ void cancel_rearming_delayed_workqueue(struct workqueue_struct *wq,
 EXPORT_SYMBOL(cancel_rearming_delayed_workqueue);
 
 /**
- * cancel_rearming_delayed_work - reliably kill off a delayed keventd work whose handler rearms the delayed work.
+ * cancel_rearming_delayed_work - kill off a delayed keventd work whose handler rearms the delayed work.
  * @dwork: the delayed work struct
  */
 void cancel_rearming_delayed_work(struct delayed_work *dwork)
