@@ -103,6 +103,51 @@ void dm_io_put(unsigned int num_pages)
 	resize_pool(_num_ios - pages_to_ios(num_pages));
 }
 
+/*
+ * Create a client with mempool and bioset.
+ */
+struct dm_io_client *dm_io_client_create(unsigned num_pages)
+{
+	unsigned ios = pages_to_ios(num_pages);
+	struct dm_io_client *client;
+
+	client = kmalloc(sizeof(*client), GFP_KERNEL);
+	if (!client)
+		return ERR_PTR(-ENOMEM);
+
+	client->pool = mempool_create_kmalloc_pool(ios, sizeof(struct io));
+	if (!client->pool)
+		goto bad;
+
+	client->bios = bioset_create(16, 16);
+	if (!client->bios)
+		goto bad;
+
+	return client;
+
+   bad:
+	if (client->pool)
+		mempool_destroy(client->pool);
+	kfree(client);
+	return ERR_PTR(-ENOMEM);
+}
+EXPORT_SYMBOL(dm_io_client_create);
+
+int dm_io_client_resize(unsigned num_pages, struct dm_io_client *client)
+{
+	return mempool_resize(client->pool, pages_to_ios(num_pages),
+			      GFP_KERNEL);
+}
+EXPORT_SYMBOL(dm_io_client_resize);
+
+void dm_io_client_destroy(struct dm_io_client *client)
+{
+	mempool_destroy(client->pool);
+	bioset_free(client->bios);
+	kfree(client);
+}
+EXPORT_SYMBOL(dm_io_client_destroy);
+
 /*-----------------------------------------------------------------
  * We need to keep track of which region a bio is doing io for.
  * In order to save a memory allocation we store this the last
@@ -236,6 +281,9 @@ static void bvec_dp_init(struct dpages *dp, struct bio_vec *bvec)
 	dp->context_ptr = bvec;
 }
 
+/*
+ * Functions for getting the pages from a VMA.
+ */
 static void vm_get_page(struct dpages *dp,
 		 struct page **p, unsigned long *len, unsigned *offset)
 {
@@ -263,6 +311,31 @@ static void dm_bio_destructor(struct bio *bio)
 	struct io *io = bio->bi_private;
 
 	bio_free(bio, bios(io->client));
+}
+
+/*
+ * Functions for getting the pages from kernel memory.
+ */
+static void km_get_page(struct dpages *dp, struct page **p, unsigned long *len,
+			unsigned *offset)
+{
+	*p = virt_to_page(dp->context_ptr);
+	*offset = dp->context_u;
+	*len = PAGE_SIZE - dp->context_u;
+}
+
+static void km_next_page(struct dpages *dp)
+{
+	dp->context_ptr += PAGE_SIZE - dp->context_u;
+	dp->context_u = 0;
+}
+
+static void km_dp_init(struct dpages *dp, void *data)
+{
+	dp->get_page = km_get_page;
+	dp->next_page = km_next_page;
+	dp->context_u = ((unsigned long) data) & (PAGE_SIZE - 1);
+	dp->context_ptr = data;
 }
 
 /*-----------------------------------------------------------------
@@ -450,6 +523,55 @@ int dm_io_async_vm(unsigned int num_regions, struct io_region *where, int rw,
 	vm_dp_init(&dp, data);
 	return async_io(NULL, num_regions, where, rw, &dp, fn, context);
 }
+
+static int dp_init(struct dm_io_request *io_req, struct dpages *dp)
+{
+	/* Set up dpages based on memory type */
+	switch (io_req->mem.type) {
+	case DM_IO_PAGE_LIST:
+		list_dp_init(dp, io_req->mem.ptr.pl, io_req->mem.offset);
+		break;
+
+	case DM_IO_BVEC:
+		bvec_dp_init(dp, io_req->mem.ptr.bvec);
+		break;
+
+	case DM_IO_VMA:
+		vm_dp_init(dp, io_req->mem.ptr.vma);
+		break;
+
+	case DM_IO_KMEM:
+		km_dp_init(dp, io_req->mem.ptr.addr);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*
+ * New collapsed (a)synchronous interface
+ */
+int dm_io(struct dm_io_request *io_req, unsigned num_regions,
+	  struct io_region *where, unsigned long *sync_error_bits)
+{
+	int r;
+	struct dpages dp;
+
+	r = dp_init(io_req, &dp);
+	if (r)
+		return r;
+
+	if (!io_req->notify.fn)
+		return sync_io(io_req->client, num_regions, where,
+			       io_req->bi_rw, &dp, sync_error_bits);
+
+	return async_io(io_req->client, num_regions, where, io_req->bi_rw,
+			&dp, io_req->notify.fn, io_req->notify.context);
+}
+EXPORT_SYMBOL(dm_io);
 
 EXPORT_SYMBOL(dm_io_get);
 EXPORT_SYMBOL(dm_io_put);
