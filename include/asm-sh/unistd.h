@@ -85,7 +85,7 @@
 #define __NR_sigpending		 73
 #define __NR_sethostname	 74
 #define __NR_setrlimit		 75
-#define __NR_getrlimit	 	 76	/* Back compatible 2Gig limited rlimit */
+#define __NR_getrlimit		 76	/* Back compatible 2Gig limited rlimit */
 #define __NR_getrusage		 77
 #define __NR_gettimeofday	 78
 #define __NR_settimeofday	 79
@@ -328,8 +328,9 @@
 #define __NR_move_pages		317
 #define __NR_getcpu		318
 #define __NR_epoll_pwait	319
+#define __NR_utimensat		320
 
-#define NR_syscalls 320
+#define NR_syscalls 321
 
 #ifdef __KERNEL__
 
