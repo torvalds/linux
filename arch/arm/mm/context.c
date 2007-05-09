@@ -47,6 +47,13 @@ void __new_context(struct mm_struct *mm)
 		    : "r" (0));
 		isb();
 		flush_tlb_all();
+		if (icache_is_vivt_asid_tagged()) {
+			asm("mcr	p15, 0, %0, c7, c5, 0	@ invalidate I-cache\n"
+			    "mcr	p15, 0, %0, c7, c5, 6	@ flush BTAC/BTB\n"
+			    :
+			    : "r" (0));
+			dsb();
+		}
 	}
 
 	mm->context.id = asid;
