@@ -426,7 +426,7 @@ Thanks to Linus Torvalds, Alan Cox, the FSF people, the XFree86 team and
 all the others for the wonderful OS and software.
 Thanks to C.L. Huang and Philip Giang (Tekram) for the initial driver
 release and support.
-Thanks to Doug Ledford, Gérard Roudier for support with SCSI coding.
+Thanks to Doug Ledford, GÃ©rard Roudier for support with SCSI coding.
 Thanks to a lot of people (espec. Chiaki Ishikawa, Andreas Haumer, Hubert 
 Tonneau) for intensively testing the driver (and even risking data loss
 doing this during early revisions).

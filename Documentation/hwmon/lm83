@@ -45,7 +45,7 @@ Unconfirmed motherboards:
 The LM82 is confirmed to have been found on most AMD Geode reference
 designs and test platforms.
 
-The driver has been successfully tested by Magnus Forsström, who I'd
+The driver has been successfully tested by Magnus ForsstrÃ¶m, who I'd
 like to thank here. More testers will be of course welcome.
 
 The fact that the LM83 is only scarcely used can be easily explained.

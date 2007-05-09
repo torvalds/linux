@@ -113,4 +113,4 @@ cause unexpected behaviour and can be a security hazard.
 There is a web page about binfmt_misc at
 http://www.tat.physik.uni-tuebingen.de/~rguenth/linux/binfmt_misc.html
 
-Richard Günther <rguenth@tat.physik.uni-tuebingen.de>
+Richard GÃ¼nther <rguenth@tat.physik.uni-tuebingen.de>

@@ -195,11 +195,11 @@ MODULE PARAMETERS:
   NAME: bandingfilter
   TYPE: integer (Boolean)
   DEFAULT: 0 (off)
-  DESC: Enables the sensor´s banding filter exposure algorithm. This reduces
+  DESC: Enables the sensorÂ´s banding filter exposure algorithm. This reduces
 	or stabilizes the "banding" caused by some artificial light sources
 	(especially fluorescent). You might have to set lightfreq correctly for
 	this to work right. As an added bonus, this sometimes makes it
-	possible to capture your monitor´s output.
+	possible to capture your monitorÂ´s output.
 
   NAME: fastset
   TYPE: integer (Boolean)

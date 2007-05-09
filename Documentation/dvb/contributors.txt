@@ -66,7 +66,7 @@ Michael Dreher <michael@5dot1.de>
 Andreas 'randy' Weinberger
   for the support of the Fujitsu-Siemens Activy budget DVB-S
 
-Kenneth Aafløy <ke-aa@frisurf.no>
+Kenneth AaflÃ¸y <ke-aa@frisurf.no>
   for adding support for Typhoon DVB-S budget card
 
 Ernst Peinlich <e.peinlich@inode.at>

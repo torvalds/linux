@@ -45,9 +45,9 @@ ConnectTech WhiteHEAT 4 port converter
   Connect Tech's Support Department at support@connecttech.com
 
 
-HandSpring Visor, Palm USB, and Clié USB driver
+HandSpring Visor, Palm USB, and CliÃ© USB driver
 
-  This driver works with all HandSpring USB, Palm USB, and Sony Clié USB
+  This driver works with all HandSpring USB, Palm USB, and Sony CliÃ© USB
   devices.
 
   Only when the device tries to connect to the host, will the device show
@@ -69,7 +69,7 @@ HandSpring Visor, Palm USB, and Clié USB driver
   the port to use for the HotSync transfer. The "Generic" port can be used
   for other device communication, such as a PPP link.
 
-  For some Sony Clié devices, /dev/ttyUSB0 must be used to talk to the
+  For some Sony CliÃ© devices, /dev/ttyUSB0 must be used to talk to the
   device.  This is true for all OS version 3.5 devices, and most devices
   that have had a flash upgrade to a newer version of the OS.  See the
   kernel system log for information on which is the correct port to use.
