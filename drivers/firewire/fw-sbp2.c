@@ -976,34 +976,6 @@ static int sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 	return -ENOMEM;
 }
 
-static int sbp2_command_orb_map_buffer(struct sbp2_command_orb *orb)
-{
-	struct sbp2_device *sd =
-		(struct sbp2_device *)orb->cmd->device->host->hostdata;
-	struct fw_unit *unit = sd->unit;
-	struct fw_device *device = fw_device(unit->device.parent);
-
-	/*
-	 * As for map_scatterlist, we need to fill in the high bits of
-	 * the data_descriptor pointer.
-	 */
-
-	orb->request_buffer_bus =
-		dma_map_single(device->card->device,
-			       orb->cmd->request_buffer,
-			       orb->cmd->request_bufflen,
-			       orb->cmd->sc_data_direction);
-	if (dma_mapping_error(orb->request_buffer_bus))
-		return -ENOMEM;
-
-	orb->request.data_descriptor.high = sd->address_high;
-	orb->request.data_descriptor.low  = orb->request_buffer_bus;
-	orb->request.misc |=
-		COMMAND_ORB_DATA_SIZE(orb->cmd->request_bufflen);
-
-	return 0;
-}
-
 /* SCSI stack integration */
 
 static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
@@ -1063,21 +1035,8 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 		orb->request.misc |=
 			COMMAND_ORB_DIRECTION(SBP2_DIRECTION_TO_MEDIA);
 
-	if (cmd->use_sg) {
-		if (sbp2_command_orb_map_scatterlist(orb) < 0)
-			goto fail_map_payload;
-	} else if (cmd->request_bufflen > SBP2_MAX_SG_ELEMENT_LENGTH) {
-		/*
-		 * FIXME: Need to split this into a sg list... but
-		 * could we get the scsi or blk layer to do that by
-		 * reporting our max supported block size?
-		 */
-		fw_error("command > 64k\n");
+	if (cmd->use_sg && sbp2_command_orb_map_scatterlist(orb) < 0)
 		goto fail_map_payload;
-	} else if (cmd->request_bufflen > 0) {
-		if (sbp2_command_orb_map_buffer(orb) < 0)
-			goto fail_map_payload;
-	}
 
 	fw_memcpy_to_be32(&orb->request, &orb->request, sizeof orb->request);
 
