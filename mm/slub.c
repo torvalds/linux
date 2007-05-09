@@ -1661,7 +1661,7 @@ static int calculate_sizes(struct kmem_cache *s)
 		 */
 		size += 2 * sizeof(struct track);
 
-	if (flags & DEBUG_DEFAULT_FLAGS)
+	if (flags & SLAB_RED_ZONE)
 		/*
 		 * Add some empty padding so that we can catch
 		 * overwrites from earlier objects rather than let
