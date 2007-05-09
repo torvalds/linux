@@ -615,6 +615,7 @@ static int core_status(struct dirty_log *log, status_type_t status,
 
 	switch(status) {
 	case STATUSTYPE_INFO:
+		DMEMIT("1 %s", log->type->name);
 		break;
 
 	case STATUSTYPE_TABLE:
@@ -630,17 +631,17 @@ static int disk_status(struct dirty_log *log, status_type_t status,
 		       char *result, unsigned int maxlen)
 {
 	int sz = 0;
-	char buffer[16];
 	struct log_c *lc = log->context;
 
 	switch(status) {
 	case STATUSTYPE_INFO:
+		DMEMIT("3 %s %s %c", log->type->name, lc->log_dev->name,
+		       lc->log_dev_failed ? 'D' : 'A');
 		break;
 
 	case STATUSTYPE_TABLE:
-		format_dev_t(buffer, lc->log_dev->bdev->bd_dev);
 		DMEMIT("%s %u %s %u ", log->type->name,
-		       lc->sync == DEFAULTSYNC ? 2 : 3, buffer,
+		       lc->sync == DEFAULTSYNC ? 2 : 3, lc->log_dev->name,
 		       lc->region_size);
 		DMEMIT_SYNC;
 	}

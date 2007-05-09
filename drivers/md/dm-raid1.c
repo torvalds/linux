@@ -1205,10 +1205,8 @@ static void mirror_resume(struct dm_target *ti)
 static int mirror_status(struct dm_target *ti, status_type_t type,
 			 char *result, unsigned int maxlen)
 {
-	unsigned int m, sz;
+	unsigned int m, sz = 0;
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
-
-	sz = ms->rh.log->type->status(ms->rh.log, type, result, maxlen);
 
 	switch (type) {
 	case STATUSTYPE_INFO:
@@ -1220,9 +1218,14 @@ static int mirror_status(struct dm_target *ti, status_type_t type,
 			(unsigned long long)ms->rh.log->type->
 				get_sync_count(ms->rh.log),
 			(unsigned long long)ms->nr_regions);
+
+		sz = ms->rh.log->type->status(ms->rh.log, type, result, maxlen);
+
 		break;
 
 	case STATUSTYPE_TABLE:
+		sz = ms->rh.log->type->status(ms->rh.log, type, result, maxlen);
+
 		DMEMIT("%d", ms->nr_mirrors);
 		for (m = 0; m < ms->nr_mirrors; m++)
 			DMEMIT(" %s %llu", ms->mirror[m].dev->name,
@@ -1234,7 +1237,7 @@ static int mirror_status(struct dm_target *ti, status_type_t type,
 
 static struct target_type mirror_target = {
 	.name	 = "mirror",
-	.version = {1, 0, 2},
+	.version = {1, 0, 3},
 	.module	 = THIS_MODULE,
 	.ctr	 = mirror_ctr,
 	.dtr	 = mirror_dtr,
