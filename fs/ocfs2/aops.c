@@ -849,7 +849,7 @@ static void ocfs2_free_write_ctxt(struct ocfs2_write_ctxt *wc)
 
 static int ocfs2_alloc_write_ctxt(struct ocfs2_write_ctxt **wcp,
 				  struct ocfs2_super *osb, loff_t pos,
-				  unsigned len)
+				  unsigned len, struct buffer_head *di_bh)
 {
 	struct ocfs2_write_ctxt *wc;
 
@@ -859,6 +859,8 @@ static int ocfs2_alloc_write_ctxt(struct ocfs2_write_ctxt **wcp,
 
 	wc->w_cpos = pos >> osb->s_clustersize_bits;
 	wc->w_clen = ocfs2_clusters_for_bytes(osb->sb, len);
+	get_bh(di_bh);
+	wc->w_di_bh = di_bh;
 
 	if (unlikely(PAGE_CACHE_SHIFT > osb->s_clustersize_bits))
 		wc->w_large_pages = 1;
@@ -1211,9 +1213,10 @@ static void ocfs2_set_target_boundaries(struct ocfs2_super *osb,
 	}
 }
 
-int ocfs2_write_begin(struct file *file, struct address_space *mapping,
-		      loff_t pos, unsigned len, unsigned flags,
-		      struct page **pagep, void **fsdata)
+static int ocfs2_write_begin_nolock(struct address_space *mapping,
+				    loff_t pos, unsigned len, unsigned flags,
+				    struct page **pagep, void **fsdata,
+				    struct buffer_head *di_bh)
 {
 	int ret, i, credits = OCFS2_INODE_UPDATE_CREDITS;
 	unsigned int num_clusters = 0, clusters_to_alloc = 0;
@@ -1227,27 +1230,13 @@ int ocfs2_write_begin(struct file *file, struct address_space *mapping,
 	handle_t *handle;
 	struct ocfs2_write_cluster_desc *desc;
 
-	ret = ocfs2_alloc_write_ctxt(&wc, osb, pos, len);
+	ret = ocfs2_alloc_write_ctxt(&wc, osb, pos, len, di_bh);
 	if (ret) {
 		mlog_errno(ret);
 		return ret;
 	}
 
-	ret = ocfs2_meta_lock(inode, &wc->w_di_bh, 1);
-	if (ret) {
-		mlog_errno(ret);
-		goto out;
-	}
 	di = (struct ocfs2_dinode *)wc->w_di_bh->b_data;
-
-	/*
-	 * Take alloc sem here to prevent concurrent lookups. That way
-	 * the mapping, zeroing and tree manipulation within
-	 * ocfs2_write() will be safe against ->readpage(). This
-	 * should also serve to lock out allocation from a shared
-	 * writeable region.
-	 */
-	down_write(&OCFS2_I(inode)->ip_alloc_sem);
 
 	for (i = 0; i < wc->w_clen; i++) {
 		desc = &wc->w_desc[i];
@@ -1258,7 +1247,7 @@ int ocfs2_write_begin(struct file *file, struct address_space *mapping,
 						 &num_clusters, NULL);
 			if (ret) {
 				mlog_errno(ret);
-				goto out_meta;
+				goto out;
 			}
 		} else if (phys) {
 			/*
@@ -1293,7 +1282,7 @@ int ocfs2_write_begin(struct file *file, struct address_space *mapping,
 					    &data_ac, &meta_ac);
 		if (ret) {
 			mlog_errno(ret);
-			goto out_meta;
+			goto out;
 		}
 
 		credits = ocfs2_calc_extend_credits(inode->i_sb, di,
@@ -1303,17 +1292,11 @@ int ocfs2_write_begin(struct file *file, struct address_space *mapping,
 
 	ocfs2_set_target_boundaries(osb, wc, pos, len, clusters_to_alloc);
 
-	ret = ocfs2_data_lock(inode, 1);
-	if (ret) {
-		mlog_errno(ret);
-		goto out_meta;
-	}
-
 	handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(handle)) {
 		ret = PTR_ERR(handle);
 		mlog_errno(ret);
-		goto out_data;
+		goto out;
 	}
 
 	wc->w_handle = handle;
@@ -1363,13 +1346,6 @@ int ocfs2_write_begin(struct file *file, struct address_space *mapping,
 out_commit:
 	ocfs2_commit_trans(osb, handle);
 
-out_data:
-	ocfs2_data_unlock(inode, 1);
-
-out_meta:
-	up_write(&OCFS2_I(inode)->ip_alloc_sem);
-	ocfs2_meta_unlock(inode, 1);
-
 out:
 	ocfs2_free_write_ctxt(wc);
 
@@ -1380,9 +1356,60 @@ out:
 	return ret;
 }
 
-int ocfs2_write_end(struct file *file, struct address_space *mapping,
-		    loff_t pos, unsigned len, unsigned copied,
-		    struct page *page, void *fsdata)
+int ocfs2_write_begin(struct file *file, struct address_space *mapping,
+		      loff_t pos, unsigned len, unsigned flags,
+		      struct page **pagep, void **fsdata)
+{
+	int ret;
+	struct buffer_head *di_bh = NULL;
+	struct inode *inode = mapping->host;
+
+	ret = ocfs2_meta_lock(inode, &di_bh, 1);
+	if (ret) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	/*
+	 * Take alloc sem here to prevent concurrent lookups. That way
+	 * the mapping, zeroing and tree manipulation within
+	 * ocfs2_write() will be safe against ->readpage(). This
+	 * should also serve to lock out allocation from a shared
+	 * writeable region.
+	 */
+	down_write(&OCFS2_I(inode)->ip_alloc_sem);
+
+	ret = ocfs2_data_lock(inode, 1);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_fail;
+	}
+
+	ret = ocfs2_write_begin_nolock(mapping, pos, len, flags, pagep,
+				       fsdata, di_bh);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_fail_data;
+	}
+
+	brelse(di_bh);
+
+	return 0;
+
+out_fail_data:
+	ocfs2_data_unlock(inode, 1);
+out_fail:
+	up_write(&OCFS2_I(inode)->ip_alloc_sem);
+
+	brelse(di_bh);
+	ocfs2_meta_unlock(inode, 1);
+
+	return ret;
+}
+
+static int ocfs2_write_end_nolock(struct address_space *mapping,
+				  loff_t pos, unsigned len, unsigned copied,
+				  struct page *page, void *fsdata)
 {
 	int i;
 	unsigned from, to, start = pos & (PAGE_CACHE_SIZE - 1);
@@ -1444,12 +1471,25 @@ int ocfs2_write_end(struct file *file, struct address_space *mapping,
 	ocfs2_journal_dirty(handle, wc->w_di_bh);
 
 	ocfs2_commit_trans(osb, handle);
-	ocfs2_data_unlock(inode, 1);
-	up_write(&OCFS2_I(inode)->ip_alloc_sem);
-	ocfs2_meta_unlock(inode, 1);
 	ocfs2_free_write_ctxt(wc);
 
 	return copied;
+}
+
+int ocfs2_write_end(struct file *file, struct address_space *mapping,
+		    loff_t pos, unsigned len, unsigned copied,
+		    struct page *page, void *fsdata)
+{
+	int ret;
+	struct inode *inode = mapping->host;
+
+	ret = ocfs2_write_end_nolock(mapping, pos, len, copied, page, fsdata);
+
+	ocfs2_data_unlock(inode, 1);
+	up_write(&OCFS2_I(inode)->ip_alloc_sem);
+	ocfs2_meta_unlock(inode, 1);
+
+	return ret;
 }
 
 const struct address_space_operations ocfs2_aops = {
