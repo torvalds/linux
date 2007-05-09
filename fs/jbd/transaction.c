@@ -1,5 +1,5 @@
 /*
- * linux/fs/transaction.c
+ * linux/fs/jbd/transaction.c
  *
  * Written by Stephen C. Tweedie <sct@redhat.com>, 1998
  *

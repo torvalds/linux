@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-s3c2410/sleep.S
+/* linux/arch/arm/plat-s3c24xx/sleep.S
  *
  * Copyright (c) 2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>

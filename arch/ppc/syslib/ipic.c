@@ -1,5 +1,5 @@
 /*
- * include/asm-ppc/ipic.c
+ * arch/ppc/syslib/ipic.c
  *
  * IPIC routines implementations.
  *

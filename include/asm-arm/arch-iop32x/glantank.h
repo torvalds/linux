@@ -1,5 +1,5 @@
 /*
- * include/asm/arch-iop32x/glantank.h
+ * include/asm-arm/arch-iop32x/glantank.h
  *
  * IO-Data GLAN Tank board registers
  */

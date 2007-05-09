@@ -1,5 +1,5 @@
 /*
- * arch/sh/kernel/cpu/sh4/clock-sh7343.c
+ * arch/sh/kernel/cpu/sh4a/clock-sh7343.c
  *
  * SH7343/SH7722 support for the clock framework
  *

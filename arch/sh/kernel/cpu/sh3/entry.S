@@ -1,5 +1,5 @@
 /*
- * arch/sh/kernel/entry.S
+ * arch/sh/kernel/cpu/sh3/entry.S
  *
  *  Copyright (C) 1999, 2000, 2002  Niibe Yutaka
  *  Copyright (C) 2003 - 2006  Paul Mundt

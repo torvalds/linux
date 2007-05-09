@@ -1,4 +1,4 @@
-/*arch/ppc/platforms/mpc86xads-setup.c
+/*arch/powerpc/platforms/8xx/mpc86xads_setup.c
  *
  * Platform setup for the Freescale mpc86xads board
  *
