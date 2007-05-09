@@ -560,7 +560,6 @@ static sector_t idedisk_capacity (ide_drive_t *drive)
 }
 
 #ifdef CONFIG_IDE_PROC_FS
-
 static int smart_enable(ide_drive_t *drive)
 {
 	ide_task_t args;
@@ -678,11 +677,6 @@ static ide_proc_entry_t idedisk_proc[] = {
 	{ "smart_thresholds",	S_IFREG|S_IRUSR,	proc_idedisk_read_smart_thresholds,	NULL },
 	{ NULL, 0, NULL, NULL }
 };
-
-#else
-
-#define	idedisk_proc	NULL
-
 #endif	/* CONFIG_IDE_PROC_FS */
 
 static void idedisk_prepare_flush(request_queue_t *q, struct request *rq)
@@ -881,6 +875,7 @@ static int set_lba_addressing(ide_drive_t *drive, int arg)
 	return 0;
 }
 
+#ifdef CONFIG_IDE_PROC_FS
 static void idedisk_add_settings(ide_drive_t *drive)
 {
 	struct hd_driveid *id = drive->id;
@@ -898,6 +893,9 @@ static void idedisk_add_settings(ide_drive_t *drive)
  	ide_add_setting(drive,	"failures",	SETTING_RW,	TYPE_INT,	0,	65535,			1,	1,	&drive->failures,	NULL);
  	ide_add_setting(drive,	"max_failures",	SETTING_RW,	TYPE_INT,	0,	65535,			1,	1,	&drive->max_failures,	NULL);
 }
+#else
+static inline void idedisk_add_settings(ide_drive_t *drive) { ; }
+#endif
 
 static void idedisk_setup (ide_drive_t *drive)
 {
@@ -1016,7 +1014,7 @@ static void ide_disk_remove(ide_drive_t *drive)
 	struct ide_disk_obj *idkp = drive->driver_data;
 	struct gendisk *g = idkp->disk;
 
-	ide_unregister_subdriver(drive, idkp->driver);
+	ide_proc_unregister_driver(drive, idkp->driver);
 
 	del_gendisk(g);
 
@@ -1081,7 +1079,9 @@ static ide_driver_t idedisk_driver = {
 	.end_request		= ide_end_request,
 	.error			= __ide_error,
 	.abort			= __ide_abort,
+#ifdef CONFIG_IDE_PROC_FS
 	.proc			= idedisk_proc,
+#endif
 };
 
 static int idedisk_open(struct inode *inode, struct file *filp)
@@ -1257,7 +1257,7 @@ static int ide_disk_probe(ide_drive_t *drive)
 
 	ide_init_disk(g, drive);
 
-	ide_register_subdriver(drive, &idedisk_driver);
+	ide_proc_register_driver(drive, &idedisk_driver);
 
 	kref_init(&idkp->kref);
 

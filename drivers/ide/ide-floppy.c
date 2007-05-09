@@ -1811,6 +1811,7 @@ static int idefloppy_identify_device (ide_drive_t *drive,struct hd_driveid *id)
 	return 0;
 }
 
+#ifdef CONFIG_IDE_PROC_FS
 static void idefloppy_add_settings(ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
@@ -1823,6 +1824,9 @@ static void idefloppy_add_settings(ide_drive_t *drive)
 	ide_add_setting(drive,	"bios_sect",	SETTING_RW,	TYPE_BYTE,	0,	63,		1,		1,	&drive->bios_sect,	NULL);
 	ide_add_setting(drive,	"ticks",	SETTING_RW,	TYPE_BYTE,	0,	255,		1,		1,	&floppy->ticks,		NULL);
 }
+#else
+static inline void idefloppy_add_settings(ide_drive_t *drive) { ; }
+#endif
 
 /*
  *	Driver initialization.
@@ -1873,7 +1877,7 @@ static void ide_floppy_remove(ide_drive_t *drive)
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	struct gendisk *g = floppy->disk;
 
-	ide_unregister_subdriver(drive, floppy->driver);
+	ide_proc_unregister_driver(drive, floppy->driver);
 
 	del_gendisk(g);
 
@@ -1893,7 +1897,6 @@ static void ide_floppy_release(struct kref *kref)
 }
 
 #ifdef CONFIG_IDE_PROC_FS
-
 static int proc_idefloppy_read_capacity
 	(char *page, char **start, off_t off, int count, int *eof, void *data)
 {
@@ -1909,11 +1912,6 @@ static ide_proc_entry_t idefloppy_proc[] = {
 	{ "geometry",	S_IFREG|S_IRUGO,	proc_ide_read_geometry,	NULL },
 	{ NULL, 0, NULL, NULL }
 };
-
-#else
-
-#define	idefloppy_proc	NULL
-
 #endif	/* CONFIG_IDE_PROC_FS */
 
 static int ide_floppy_probe(ide_drive_t *);
@@ -1933,7 +1931,9 @@ static ide_driver_t idefloppy_driver = {
 	.end_request		= idefloppy_do_end_request,
 	.error			= __ide_error,
 	.abort			= __ide_abort,
+#ifdef CONFIG_IDE_PROC_FS
 	.proc			= idefloppy_proc,
+#endif
 };
 
 static int idefloppy_open(struct inode *inode, struct file *filp)
@@ -2159,7 +2159,7 @@ static int ide_floppy_probe(ide_drive_t *drive)
 
 	ide_init_disk(g, drive);
 
-	ide_register_subdriver(drive, &idefloppy_driver);
+	ide_proc_register_driver(drive, &idefloppy_driver);
 
 	kref_init(&floppy->kref);
 

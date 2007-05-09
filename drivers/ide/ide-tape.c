@@ -4561,6 +4561,8 @@ static void idetape_get_blocksize_from_block_descriptor(ide_drive_t *drive)
 	printk(KERN_INFO "ide-tape: Adjusted block size - %d\n", tape->tape_block_size);
 #endif /* IDETAPE_DEBUG_INFO */
 }
+
+#ifdef CONFIG_IDE_PROC_FS
 static void idetape_add_settings (ide_drive_t *drive)
 {
 	idetape_tape_t *tape = drive->driver_data;
@@ -4583,6 +4585,9 @@ static void idetape_add_settings (ide_drive_t *drive)
 	ide_add_setting(drive,	"avg_speed",		SETTING_READ,	TYPE_INT,	0,			0xffff,			1,				1,		&tape->avg_speed,			NULL);
 	ide_add_setting(drive,	"debug_level",		SETTING_RW,	TYPE_INT,	0,			0xffff,			1,				1,		&tape->debug_level,			NULL);
 }
+#else
+static inline void idetape_add_settings(ide_drive_t *drive) { ; }
+#endif
 
 /*
  *	ide_setup is called to:
@@ -4703,7 +4708,7 @@ static void ide_tape_remove(ide_drive_t *drive)
 {
 	idetape_tape_t *tape = drive->driver_data;
 
-	ide_unregister_subdriver(drive, tape->driver);
+	ide_proc_unregister_driver(drive, tape->driver);
 
 	ide_unregister_region(tape->disk);
 
@@ -4731,7 +4736,6 @@ static void ide_tape_release(struct kref *kref)
 }
 
 #ifdef CONFIG_IDE_PROC_FS
-
 static int proc_idetape_read_name
 	(char *page, char **start, off_t off, int count, int *eof, void *data)
 {
@@ -4749,11 +4753,6 @@ static ide_proc_entry_t idetape_proc[] = {
 	{ "name",	S_IFREG|S_IRUGO,	proc_idetape_read_name,	NULL },
 	{ NULL, 0, NULL, NULL }
 };
-
-#else
-
-#define	idetape_proc	NULL
-
 #endif
 
 static int ide_tape_probe(ide_drive_t *);
@@ -4773,7 +4772,9 @@ static ide_driver_t idetape_driver = {
 	.end_request		= idetape_end_request,
 	.error			= __ide_error,
 	.abort			= __ide_abort,
+#ifdef CONFIG_IDE_PROC_FS
 	.proc			= idetape_proc,
+#endif
 };
 
 /*
@@ -4864,7 +4865,7 @@ static int ide_tape_probe(ide_drive_t *drive)
 
 	ide_init_disk(g, drive);
 
-	ide_register_subdriver(drive, &idetape_driver);
+	ide_proc_register_driver(drive, &idetape_driver);
 
 	kref_init(&tape->kref);
 
