@@ -71,7 +71,9 @@ extern unsigned __cpuinitdata disabled_cpus;
 
 #define NO_PROC_ID		0xFF		/* No processor magic marker */
 
-#endif
+#else /* CONFIG_SMP */
+#define hard_smp_processor_id() 0
+#endif /* CONFIG_SMP */
 
 /*
  * Some lowlevel functions might want to know about

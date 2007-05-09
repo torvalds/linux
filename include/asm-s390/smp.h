@@ -110,6 +110,7 @@ static inline void smp_send_stop(void)
 	__load_psw_mask(psw_kernel_bits & ~PSW_MASK_MCHECK);
 }
 
+#define hard_smp_processor_id()		0
 #define smp_cpu_not_running(cpu)	1
 #define smp_setup_cpu_possible_map()	do { } while (0)
 #endif

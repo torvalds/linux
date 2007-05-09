@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/kdebug.h>
 
+#include <asm/smp.h>
 #include <asm/delay.h>
 #include <asm/system.h>
 #include <asm/ptrace.h>

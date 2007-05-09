@@ -48,6 +48,7 @@ extern unsigned char boot_cpu_id;
 
 #else
 
+#define hard_smp_processor_id()		0
 #define smp_setup_cpu_possible_map() do { } while (0)
 #define boot_cpu_id	(0)
 
