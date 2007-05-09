@@ -58,8 +58,9 @@ struct cpu_workqueue_struct {
  */
 struct workqueue_struct {
 	struct cpu_workqueue_struct *cpu_wq;
+	struct list_head list;
 	const char *name;
-	struct list_head list; 	/* Empty if single thread */
+	int singlethread;
 	int freezeable;		/* Freeze threads during suspend */
 };
 
@@ -76,7 +77,7 @@ static cpumask_t cpu_populated_map __read_mostly;
 /* If it's single threaded, it isn't in the list of workqueues. */
 static inline int is_single_threaded(struct workqueue_struct *wq)
 {
-	return list_empty(&wq->list);
+	return wq->singlethread;
 }
 
 static const cpumask_t *wq_cpu_map(struct workqueue_struct *wq)
@@ -401,7 +402,7 @@ static void flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
 void fastcall flush_workqueue(struct workqueue_struct *wq)
 {
 	const cpumask_t *cpu_map = wq_cpu_map(wq);
-	int cpu
+	int cpu;
 
 	might_sleep();
 	for_each_cpu_mask(cpu, *cpu_map)
@@ -694,10 +695,11 @@ struct workqueue_struct *__create_workqueue(const char *name,
 	}
 
 	wq->name = name;
+	wq->singlethread = singlethread;
 	wq->freezeable = freezeable;
+	INIT_LIST_HEAD(&wq->list);
 
 	if (singlethread) {
-		INIT_LIST_HEAD(&wq->list);
 		cwq = init_cpu_workqueue(wq, singlethread_cpu);
 		err = create_workqueue_thread(cwq, singlethread_cpu);
 	} else {
