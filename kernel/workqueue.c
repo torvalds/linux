@@ -638,7 +638,7 @@ int schedule_on_each_cpu(work_func_t func)
 	if (!works)
 		return -ENOMEM;
 
-	mutex_lock(&workqueue_mutex);
+	preempt_disable();		/* CPU hotplug */
 	for_each_online_cpu(cpu) {
 		struct work_struct *work = per_cpu_ptr(works, cpu);
 
@@ -646,7 +646,7 @@ int schedule_on_each_cpu(work_func_t func)
 		set_bit(WORK_STRUCT_PENDING, work_data_bits(work));
 		__queue_work(per_cpu_ptr(keventd_wq->cpu_wq, cpu), work);
 	}
-	mutex_unlock(&workqueue_mutex);
+	preempt_enable();
 	flush_workqueue(keventd_wq);
 	free_percpu(works);
 	return 0;
