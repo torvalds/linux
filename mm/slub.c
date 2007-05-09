@@ -1577,35 +1577,73 @@ static int slub_nomerge;
  * requested a higher mininum order then we start with that one instead of
  * the smallest order which will fit the object.
  */
-static int calculate_order(int size)
+static inline int slab_order(int size, int min_objects,
+				int max_order, int fract_leftover)
 {
 	int order;
 	int rem;
 
-	for (order = max(slub_min_order, fls(size - 1) - PAGE_SHIFT);
-			order < MAX_ORDER; order++) {
+	for (order = max(slub_min_order,
+				fls(min_objects * size - 1) - PAGE_SHIFT);
+			order <= max_order; order++) {
+
 		unsigned long slab_size = PAGE_SIZE << order;
 
-		if (order < slub_max_order &&
-				slab_size < slub_min_objects * size)
+		if (slab_size < min_objects * size)
 			continue;
-
-		if (slab_size < size)
-			continue;
-
-		if (order >= slub_max_order)
-			break;
 
 		rem = slab_size % size;
 
-		if (rem <= slab_size / 8)
+		if (rem <= slab_size / fract_leftover)
 			break;
 
 	}
-	if (order >= MAX_ORDER)
-		return -E2BIG;
 
 	return order;
+}
+
+static inline int calculate_order(int size)
+{
+	int order;
+	int min_objects;
+	int fraction;
+
+	/*
+	 * Attempt to find best configuration for a slab. This
+	 * works by first attempting to generate a layout with
+	 * the best configuration and backing off gradually.
+	 *
+	 * First we reduce the acceptable waste in a slab. Then
+	 * we reduce the minimum objects required in a slab.
+	 */
+	min_objects = slub_min_objects;
+	while (min_objects > 1) {
+		fraction = 8;
+		while (fraction >= 4) {
+			order = slab_order(size, min_objects,
+						slub_max_order, fraction);
+			if (order <= slub_max_order)
+				return order;
+			fraction /= 2;
+		}
+		min_objects /= 2;
+	}
+
+	/*
+	 * We were unable to place multiple objects in a slab. Now
+	 * lets see if we can place a single object there.
+	 */
+	order = slab_order(size, 1, slub_max_order, 1);
+	if (order <= slub_max_order)
+		return order;
+
+	/*
+	 * Doh this slab cannot be placed using slub_max_order.
+	 */
+	order = slab_order(size, 1, MAX_ORDER, 1);
+	if (order <= MAX_ORDER)
+		return order;
+	return -ENOSYS;
 }
 
 /*
