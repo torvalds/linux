@@ -1127,6 +1127,7 @@ zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	int retval = 0;
 	unsigned long flags;
 
+	zfcp_adapter_scsi_unregister(adapter);
 	device_unregister(&adapter->generic_services);
 	zfcp_sysfs_adapter_remove_files(&adapter->ccw_device->dev);
 	dev_set_drvdata(&adapter->ccw_device->dev, NULL);
