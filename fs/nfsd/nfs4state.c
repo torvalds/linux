@@ -1326,8 +1326,6 @@ do_recall(void *__dp)
 {
 	struct nfs4_delegation *dp = __dp;
 
-	daemonize("nfsv4-recall");
-
 	nfsd4_cb_recall(dp);
 	return 0;
 }
