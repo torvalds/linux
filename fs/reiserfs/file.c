@@ -1059,20 +1059,12 @@ static int reiserfs_prepare_file_region_for_write(struct inode *inode
 	   maping blocks, since there is none, so we just zero out remaining
 	   parts of first and last pages in write area (if needed) */
 	if ((pos & ~((loff_t) PAGE_CACHE_SIZE - 1)) > inode->i_size) {
-		if (from != 0) {	/* First page needs to be partially zeroed */
-			char *kaddr = kmap_atomic(prepared_pages[0], KM_USER0);
-			memset(kaddr, 0, from);
-			kunmap_atomic(kaddr, KM_USER0);
-			flush_dcache_page(prepared_pages[0]);
-		}
-		if (to != PAGE_CACHE_SIZE) {	/* Last page needs to be partially zeroed */
-			char *kaddr =
-			    kmap_atomic(prepared_pages[num_pages - 1],
-					KM_USER0);
-			memset(kaddr + to, 0, PAGE_CACHE_SIZE - to);
-			kunmap_atomic(kaddr, KM_USER0);
-			flush_dcache_page(prepared_pages[num_pages - 1]);
-		}
+		if (from != 0)		/* First page needs to be partially zeroed */
+			zero_user_page(prepared_pages[0], 0, from, KM_USER0);
+
+		if (to != PAGE_CACHE_SIZE)	/* Last page needs to be partially zeroed */
+			zero_user_page(prepared_pages[num_pages-1], to,
+					PAGE_CACHE_SIZE - to, KM_USER0);
 
 		/* Since all blocks are new - use already calculated value */
 		return blocks;
@@ -1199,13 +1191,9 @@ static int reiserfs_prepare_file_region_for_write(struct inode *inode
 					ll_rw_block(READ, 1, &bh);
 					*wait_bh++ = bh;
 				} else {	/* Not mapped, zero it */
-					char *kaddr =
-					    kmap_atomic(prepared_pages[0],
-							KM_USER0);
-					memset(kaddr + block_start, 0,
-					       from - block_start);
-					kunmap_atomic(kaddr, KM_USER0);
-					flush_dcache_page(prepared_pages[0]);
+					zero_user_page(prepared_pages[0],
+						       block_start,
+						       from - block_start, KM_USER0);
 					set_buffer_uptodate(bh);
 				}
 			}
@@ -1237,13 +1225,8 @@ static int reiserfs_prepare_file_region_for_write(struct inode *inode
 					ll_rw_block(READ, 1, &bh);
 					*wait_bh++ = bh;
 				} else {	/* Not mapped, zero it */
-					char *kaddr =
-					    kmap_atomic(prepared_pages
-							[num_pages - 1],
-							KM_USER0);
-					memset(kaddr + to, 0, block_end - to);
-					kunmap_atomic(kaddr, KM_USER0);
-					flush_dcache_page(prepared_pages[num_pages - 1]);
+					zero_user_page(prepared_pages[num_pages-1],
+							to, block_end - to, KM_USER0);
 					set_buffer_uptodate(bh);
 				}
 			}
