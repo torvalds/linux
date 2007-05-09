@@ -98,6 +98,7 @@ MODULE_PARM_DESC(scaling_code,
 
 spinlock_t ehca_qp_idr_lock;
 spinlock_t ehca_cq_idr_lock;
+spinlock_t hcall_lock;
 DEFINE_IDR(ehca_qp_idr);
 DEFINE_IDR(ehca_cq_idr);
 
@@ -817,6 +818,7 @@ int __init ehca_module_init(void)
 	idr_init(&ehca_cq_idr);
 	spin_lock_init(&ehca_qp_idr_lock);
 	spin_lock_init(&ehca_cq_idr_lock);
+	spin_lock_init(&hcall_lock);
 
 	INIT_LIST_HEAD(&shca_list);
 	spin_lock_init(&shca_list_lock);
