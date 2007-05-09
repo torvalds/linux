@@ -823,7 +823,7 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-void init_workqueues(void)
+void __init init_workqueues(void)
 {
 	cpu_populated_map = cpu_online_map;
 	singlethread_cpu = first_cpu(cpu_possible_map);
