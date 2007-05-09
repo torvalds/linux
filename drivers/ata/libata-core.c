@@ -1316,7 +1316,7 @@ void ata_port_flush_task(struct ata_port *ap)
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	DPRINTK("flush #1\n");
-	flush_workqueue(ata_wq);
+	flush_work(ata_wq, &ap->port_task.work); /* akpm: seems unneeded */
 
 	/*
 	 * At this point, if a task is running, it's guaranteed to see
@@ -1327,7 +1327,7 @@ void ata_port_flush_task(struct ata_port *ap)
 		if (ata_msg_ctl(ap))
 			ata_port_printk(ap, KERN_DEBUG, "%s: flush #2\n",
 					__FUNCTION__);
-		flush_workqueue(ata_wq);
+		flush_work(ata_wq, &ap->port_task.work);
 	}
 
 	spin_lock_irqsave(ap->lock, flags);
@@ -6475,9 +6475,9 @@ void ata_port_detach(struct ata_port *ap)
 	/* Flush hotplug task.  The sequence is similar to
 	 * ata_port_flush_task().
 	 */
-	flush_workqueue(ata_aux_wq);
+	flush_work(ata_aux_wq, &ap->hotplug_task.work); /* akpm: why? */
 	cancel_delayed_work(&ap->hotplug_task);
-	flush_workqueue(ata_aux_wq);
+	flush_work(ata_aux_wq, &ap->hotplug_task.work);
 
  skip_eh:
 	/* remove the associated SCSI host */
