@@ -74,7 +74,7 @@
 #define UDIDETCR1	0x7B
 #define DTPR1		0x7C
 
-#if defined(DISPLAY_CMD64X_TIMINGS) && defined(CONFIG_PROC_FS)
+#if defined(DISPLAY_CMD64X_TIMINGS) && defined(CONFIG_IDE_PROC_FS)
 #include <linux/stat.h>
 #include <linux/proc_fs.h>
 
@@ -165,7 +165,7 @@ static int cmd64x_get_info (char *buffer, char **addr, off_t offset, int count)
 	return p-buffer;	/* => must be less than 4k! */
 }
 
-#endif	/* defined(DISPLAY_CMD64X_TIMINGS) && defined(CONFIG_PROC_FS) */
+#endif	/* defined(DISPLAY_CMD64X_TIMINGS) && defined(CONFIG_IDE_PROC_FS) */
 
 static u8 quantize_timing(int timing, int quant)
 {
@@ -548,7 +548,7 @@ static unsigned int __devinit init_chipset_cmd64x(struct pci_dev *dev, const cha
 	(void) pci_write_config_byte(dev, UDIDETCR0, 0xf0);
 #endif /* CONFIG_PPC */
 
-#if defined(DISPLAY_CMD64X_TIMINGS) && defined(CONFIG_PROC_FS)
+#if defined(DISPLAY_CMD64X_TIMINGS) && defined(CONFIG_IDE_PROC_FS)
 
 	cmd_devs[n_cmd_devs++] = dev;
 
@@ -556,7 +556,7 @@ static unsigned int __devinit init_chipset_cmd64x(struct pci_dev *dev, const cha
 		cmd64x_proc = 1;
 		ide_pci_create_host_proc("cmd64x", cmd64x_get_info);
 	}
-#endif /* DISPLAY_CMD64X_TIMINGS && CONFIG_PROC_FS */
+#endif /* DISPLAY_CMD64X_TIMINGS && CONFIG_IDE_PROC_FS */
 
 	return 0;
 }

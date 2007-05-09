@@ -191,7 +191,7 @@ static char* chipset_capability[] = {
 	"ATA 133 (1st gen)", "ATA 133 (2nd gen)"
 };
 
-#if defined(DISPLAY_SIS_TIMINGS) && defined(CONFIG_PROC_FS)
+#if defined(DISPLAY_SIS_TIMINGS) && defined(CONFIG_IDE_PROC_FS)
 #include <linux/stat.h>
 #include <linux/proc_fs.h>
 
@@ -426,7 +426,7 @@ static int sis_get_info (char *buffer, char **addr, off_t offset, int count)
 
 	return len > count ? count : len;
 }
-#endif /* defined(DISPLAY_SIS_TIMINGS) && defined(CONFIG_PROC_FS) */
+#endif /* defined(DISPLAY_SIS_TIMINGS) && defined(CONFIG_IDE_PROC_FS) */
 
 /*
  * Configuration functions
@@ -797,7 +797,7 @@ static unsigned int __devinit init_chipset_sis5513 (struct pci_dev *dev, const c
 				break;
 		}
 
-#if defined(DISPLAY_SIS_TIMINGS) && defined(CONFIG_PROC_FS)
+#if defined(DISPLAY_SIS_TIMINGS) && defined(CONFIG_IDE_PROC_FS)
 		if (!sis_proc) {
 			sis_proc = 1;
 			bmide_dev = dev;

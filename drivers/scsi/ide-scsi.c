@@ -770,7 +770,7 @@ static void ide_scsi_remove(ide_drive_t *drive)
 
 static int ide_scsi_probe(ide_drive_t *);
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_IDE_PROC_FS
 static ide_proc_entry_t idescsi_proc[] = {
 	{ "capacity", S_IFREG|S_IRUGO, proc_ide_read_capacity, NULL },
 	{ NULL, 0, NULL, NULL }

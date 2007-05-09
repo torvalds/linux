@@ -350,7 +350,7 @@ static int ide_system_bus_speed(void)
 	return system_bus_speed;
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_IDE_PROC_FS
 struct proc_dir_entry *proc_ide_root;
 #endif
 
@@ -1892,7 +1892,7 @@ static void __init probe_for_hwifs (void)
 
 void ide_register_subdriver(ide_drive_t *drive, ide_driver_t *driver)
 {
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_IDE_PROC_FS
 	ide_add_proc_entries(drive->proc, driver->proc, drive);
 #endif
 }
@@ -1914,8 +1914,8 @@ EXPORT_SYMBOL(ide_register_subdriver);
 void ide_unregister_subdriver(ide_drive_t *drive, ide_driver_t *driver)
 {
 	unsigned long flags;
-	
-#ifdef CONFIG_PROC_FS
+
+#ifdef CONFIG_IDE_PROC_FS
 	ide_remove_proc_entries(drive->proc, driver->proc);
 #endif
 	down(&ide_setting_sem);
@@ -2069,7 +2069,7 @@ static int __init ide_init(void)
 
 	init_ide_data();
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_IDE_PROC_FS
 	proc_ide_root = proc_mkdir("ide", NULL);
 #endif
 
@@ -2099,9 +2099,8 @@ static int __init ide_init(void)
 	probe_for_hwifs();
 	initializing = 0;
 
-#ifdef CONFIG_PROC_FS
 	proc_ide_create();
-#endif
+
 	return 0;
 }
 
@@ -2141,9 +2140,7 @@ void __exit cleanup_module (void)
 	pnpide_exit();
 #endif
 
-#ifdef CONFIG_PROC_FS
 	proc_ide_destroy();
-#endif
 
 	bus_unregister(&ide_bus_type);
 }

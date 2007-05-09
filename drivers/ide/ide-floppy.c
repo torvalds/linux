@@ -1892,7 +1892,7 @@ static void ide_floppy_release(struct kref *kref)
 	kfree(floppy);
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_IDE_PROC_FS
 
 static int proc_idefloppy_read_capacity
 	(char *page, char **start, off_t off, int count, int *eof, void *data)
@@ -1914,7 +1914,7 @@ static ide_proc_entry_t idefloppy_proc[] = {
 
 #define	idefloppy_proc	NULL
 
-#endif	/* CONFIG_PROC_FS */
+#endif	/* CONFIG_IDE_PROC_FS */
 
 static int ide_floppy_probe(ide_drive_t *);
 

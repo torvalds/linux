@@ -559,7 +559,7 @@ static sector_t idedisk_capacity (ide_drive_t *drive)
 	return drive->capacity64 - drive->sect0;
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_IDE_PROC_FS
 
 static int smart_enable(ide_drive_t *drive)
 {
@@ -683,7 +683,7 @@ static ide_proc_entry_t idedisk_proc[] = {
 
 #define	idedisk_proc	NULL
 
-#endif	/* CONFIG_PROC_FS */
+#endif	/* CONFIG_IDE_PROC_FS */
 
 static void idedisk_prepare_flush(request_queue_t *q, struct request *rq)
 {

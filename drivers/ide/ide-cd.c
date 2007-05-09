@@ -3274,7 +3274,7 @@ int ide_cdrom_setup (ide_drive_t *drive)
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_IDE_PROC_FS
 static
 sector_t ide_cdrom_capacity (ide_drive_t *drive)
 {
@@ -3321,7 +3321,7 @@ static void ide_cd_release(struct kref *kref)
 
 static int ide_cd_probe(ide_drive_t *);
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_IDE_PROC_FS
 static int proc_idecd_read_capacity
 	(char *page, char **start, off_t off, int count, int *eof, void *data)
 {

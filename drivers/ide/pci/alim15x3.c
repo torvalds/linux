@@ -50,7 +50,7 @@ static u8 m5229_revision;
 static u8 chip_is_1543c_e;
 static struct pci_dev *isa_dev;
 
-#if defined(DISPLAY_ALI_TIMINGS) && defined(CONFIG_PROC_FS)
+#if defined(DISPLAY_ALI_TIMINGS) && defined(CONFIG_IDE_PROC_FS)
 #include <linux/stat.h>
 #include <linux/proc_fs.h>
 
@@ -278,7 +278,7 @@ static int ali_get_info (char *buffer, char **addr, off_t offset, int count)
 
 	return p-buffer; /* => must be less than 4k! */
 }
-#endif  /* defined(DISPLAY_ALI_TIMINGS) && defined(CONFIG_PROC_FS) */
+#endif  /* defined(DISPLAY_ALI_TIMINGS) && defined(CONFIG_IDE_PROC_FS) */
 
 /**
  *	ali15x3_tune_pio	-	set up chipset for PIO mode
@@ -566,13 +566,13 @@ static unsigned int __devinit init_chipset_ali15x3 (struct pci_dev *dev, const c
 
 	isa_dev = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
 
-#if defined(DISPLAY_ALI_TIMINGS) && defined(CONFIG_PROC_FS)
+#if defined(DISPLAY_ALI_TIMINGS) && defined(CONFIG_IDE_PROC_FS)
 	if (!ali_proc) {
 		ali_proc = 1;
 		bmide_dev = dev;
 		ide_pci_create_host_proc("ali", ali_get_info);
 	}
-#endif  /* defined(DISPLAY_ALI_TIMINGS) && defined(CONFIG_PROC_FS) */
+#endif  /* defined(DISPLAY_ALI_TIMINGS) && defined(CONFIG_IDE_PROC_FS) */
 
 	local_irq_save(flags);
 

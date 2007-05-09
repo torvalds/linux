@@ -4730,7 +4730,7 @@ static void ide_tape_release(struct kref *kref)
 	kfree(tape);
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_IDE_PROC_FS
 
 static int proc_idetape_read_name
 	(char *page, char **start, off_t off, int count, int *eof, void *data)
