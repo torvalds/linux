@@ -1190,7 +1190,8 @@ static int __init applesmc_init(void)
 	if (ret)
 		goto out_region;
 
-	pdev = platform_device_register_simple("applesmc", -1, NULL, 0);
+	pdev = platform_device_register_simple("applesmc", APPLESMC_DATA_PORT,
+					       NULL, 0);
 	if (IS_ERR(pdev)) {
 		ret = PTR_ERR(pdev);
 		goto out_driver;
