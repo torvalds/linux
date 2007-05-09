@@ -178,6 +178,8 @@ extern int FASTCALL(queue_delayed_work(struct workqueue_struct *wq, struct delay
 extern int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 	struct delayed_work *work, unsigned long delay);
 extern void FASTCALL(flush_workqueue(struct workqueue_struct *wq));
+extern void flush_work(struct workqueue_struct *wq, struct work_struct *work);
+extern void flush_work_keventd(struct work_struct *work);
 
 extern int FASTCALL(schedule_work(struct work_struct *work));
 extern int FASTCALL(run_scheduled_work(struct work_struct *work));
@@ -199,7 +201,7 @@ int execute_in_process_context(work_func_t fn, struct execute_work *);
  * Kill off a pending schedule_delayed_work().  Note that the work callback
  * function may still be running on return from cancel_delayed_work(), unless
  * it returns 1 and the work doesn't re-arm itself. Run flush_workqueue() or
- * cancel_work_sync() to wait on it.
+ * flush_work() or cancel_work_sync() to wait on it.
  */
 static inline int cancel_delayed_work(struct delayed_work *work)
 {
