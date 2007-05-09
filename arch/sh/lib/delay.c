@@ -24,9 +24,10 @@ inline void __const_udelay(unsigned long xloops)
 	__asm__("dmulu.l	%0, %2\n\t"
 		"sts	mach, %0"
 		: "=r" (xloops)
-		: "0" (xloops), "r" (cpu_data[raw_smp_processor_id()].loops_per_jiffy)
+		: "0" (xloops),
+		  "r" (HZ * cpu_data[raw_smp_processor_id()].loops_per_jiffy)
 		: "macl", "mach");
-	__delay(xloops * HZ);
+	__delay(xloops);
 }
 
 void __udelay(unsigned long usecs)

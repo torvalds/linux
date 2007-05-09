@@ -18,6 +18,7 @@ int __init detect_cpu_and_cache_system(void)
 {
 	/* Just SH7206 for now .. */
 	current_cpu_data.type			= CPU_SH7206;
+	current_cpu_data.flags			|= CPU_HAS_OP32;
 
 	current_cpu_data.dcache.ways		= 4;
 	current_cpu_data.dcache.way_incr	= (1 << 11);

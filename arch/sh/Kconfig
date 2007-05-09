@@ -52,6 +52,9 @@ config GENERIC_IOMAP
 config GENERIC_TIME
 	def_bool n
 
+config GENERIC_CLOCKEVENTS
+	def_bool n
+
 config SYS_SUPPORTS_APM_EMULATION
 	bool
 
@@ -436,11 +439,11 @@ endmenu
 
 menu "Timer and clock configuration"
 
-if !GENERIC_TIME
-
 config SH_TMU
 	bool "TMU timer support"
 	depends on CPU_SH3 || CPU_SH4
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	default y
 	help
 	  This enables the use of the TMU as the system timer.
@@ -459,32 +462,12 @@ config SH_MTU2
 	help
 	  This enables the use of the MTU2 as the system timer.
 
-endif
-
 config SH_TIMER_IRQ
 	int
 	default "28" if CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785
 	default "86" if CPU_SUBTYPE_SH7619
 	default "140" if CPU_SUBTYPE_SH7206
 	default "16"
-
-config NO_IDLE_HZ
-	bool "Dynamic tick timer"
-	help
-	  Select this option if you want to disable continuous timer ticks
-	  and have them programmed to occur as required. This option saves
-	  power as the system can remain in idle state for longer.
-
-	  By default dynamic tick is disabled during the boot, and can be
-	  manually enabled with:
-
-	    echo 1 > /sys/devices/system/timer/timer0/dyn_tick
-
-	  Alternatively, if you want dynamic tick automatically enabled
-	  during boot, pass "dyntick=enable" via the kernel command string.
-
-	  Please note that dynamic tick may affect the accuracy of
-	  timekeeping on some platforms depending on the implementation.
 
 config SH_PCLK_FREQ
 	int "Peripheral clock frequency (in Hz)"
@@ -508,6 +491,8 @@ config SH_CLK_MD
 	depends on CPU_SUBTYPE_SH7619 || CPU_SUBTYPE_SH7206
 	help
 	  MD2 - MD0 pin setting.
+
+source "kernel/time/Kconfig"
 
 endmenu
 

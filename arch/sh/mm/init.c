@@ -67,6 +67,8 @@ void show_mem(void)
 	printk("%d slab pages\n", slab);
 	printk("%d pages shared\n", shared);
 	printk("%d pages swap cached\n", cached);
+	printk(KERN_INFO "Total of %ld pages in page table cache\n",
+	       quicklist_total_size());
 }
 
 #ifdef CONFIG_MMU

@@ -218,6 +218,9 @@ endmenu
 
 menu "Memory management options"
 
+config QUICKLIST
+	def_bool y
+
 config MMU
         bool "Support for memory management hardware"
 	depends on !CPU_SH2
@@ -299,6 +302,10 @@ config NODES_SHIFT
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
+
+config MAX_ACTIVE_REGIONS
+	int
+	default "1"
 
 config ARCH_POPULATES_NODE_MAP
 	def_bool y

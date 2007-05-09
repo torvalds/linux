@@ -1,12 +1,12 @@
 menu "DMA support"
 
-config SH_DMA
-	bool "DMA controller (DMAC) support"
-	help
-	  Selecting this option will provide same API as PC's Direct Memory
-	  Access Controller(8237A) for SuperH DMAC.
+config SH_DMA_API
+	bool
 
-	  If unsure, say N.
+config SH_DMA
+	bool "SuperH on-chip DMA controller (DMAC) support"
+	select SH_DMA_API
+	default n
 
 config NR_ONCHIP_DMA_CHANNELS
 	depends on SH_DMA
@@ -52,5 +52,13 @@ config DMA_PAGE_OPS_CHANNEL
 	  This allows the specification of the dual address dma channel,
 	  in case channel 3 is unavailable. On the SH4, channels 1,2, and 3
 	  are dual-address capable.
+
+config SH_DMABRG
+	bool "SH7760 DMABRG support"
+	depends on CPU_SUBTYPE_SH7760
+	help
+	  The DMABRG does data transfers from main memory to Audio/USB units
+	  of the SH7760.
+	  Say Y if you want to use Audio/USB DMA on your SH7760 board.
 
 endmenu

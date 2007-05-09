@@ -1,7 +1,7 @@
 /*
  * arch/sh/kernel/timers/timer-tmu.c - TMU Timer Support
  *
- *  Copyright (C) 2005  Paul Mundt
+ *  Copyright (C) 2005 - 2007  Paul Mundt
  *
  * TMU handling code hacked out of arch/sh/kernel/time.c
  *
@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/seqlock.h>
+#include <linux/clockchips.h>
 #include <asm/timer.h>
 #include <asm/rtc.h>
 #include <asm/io.h>
@@ -25,56 +26,75 @@
 #include <asm/clock.h>
 
 #define TMU_TOCR_INIT	0x00
-#define TMU0_TCR_INIT	0x0020
-#define TMU_TSTR_INIT	1
+#define TMU_TCR_INIT	0x0020
 
-#define TMU0_TCR_CALIB	0x0000
-
-static unsigned long tmu_timer_get_offset(void)
+static int tmu_timer_start(void)
 {
-	int count;
-	static int count_p = 0x7fffffff;    /* for the first call after boot */
-	static unsigned long jiffies_p = 0;
-
-	/*
-	 * cache volatile jiffies temporarily; we have IRQs turned off.
-	 */
-	unsigned long jiffies_t;
-
-	/* timer count may underflow right here */
-	count = ctrl_inl(TMU0_TCNT);	/* read the latched count */
-
-	jiffies_t = jiffies;
-
-	/*
-	 * avoiding timer inconsistencies (they are rare, but they happen)...
-	 * there is one kind of problem that must be avoided here:
-	 *  1. the timer counter underflows
-	 */
-
-	if (jiffies_t == jiffies_p) {
-		if (count > count_p) {
-			/* the nutcase */
-			if (ctrl_inw(TMU0_TCR) & 0x100) { /* Check UNF bit */
-				count -= LATCH;
-			} else {
-				printk("%s (): hardware timer problem?\n",
-				       __FUNCTION__);
-			}
-		}
-	} else
-		jiffies_p = jiffies_t;
-
-	count_p = count;
-
-	count = ((LATCH-1) - count) * TICK_SIZE;
-	count = (count + LATCH/2) / LATCH;
-
-	return count;
+	ctrl_outb(ctrl_inb(TMU_TSTR) | 0x3, TMU_TSTR);
+	return 0;
 }
+
+static void tmu0_timer_set_interval(unsigned long interval, unsigned int reload)
+{
+	ctrl_outl(interval, TMU0_TCNT);
+
+	/*
+	 * TCNT reloads from TCOR on underflow, clear it if we don't
+	 * intend to auto-reload
+	 */
+	if (reload)
+		ctrl_outl(interval, TMU0_TCOR);
+	else
+		ctrl_outl(0, TMU0_TCOR);
+
+	tmu_timer_start();
+}
+
+static int tmu_timer_stop(void)
+{
+	ctrl_outb(ctrl_inb(TMU_TSTR) & ~0x3, TMU_TSTR);
+	return 0;
+}
+
+static cycle_t tmu_timer_read(void)
+{
+	return ~ctrl_inl(TMU1_TCNT);
+}
+
+static int tmu_set_next_event(unsigned long cycles,
+			      struct clock_event_device *evt)
+{
+	tmu0_timer_set_interval(cycles, 1);
+	return 0;
+}
+
+static void tmu_set_mode(enum clock_event_mode mode,
+			 struct clock_event_device *evt)
+{
+	switch (mode) {
+	case CLOCK_EVT_MODE_PERIODIC:
+		ctrl_outl(ctrl_inl(TMU0_TCNT), TMU0_TCOR);
+		break;
+	case CLOCK_EVT_MODE_ONESHOT:
+		ctrl_outl(0, TMU0_TCOR);
+		break;
+	case CLOCK_EVT_MODE_UNUSED:
+	case CLOCK_EVT_MODE_SHUTDOWN:
+		break;
+	}
+}
+
+static struct clock_event_device tmu0_clockevent = {
+	.name		= "tmu0",
+	.shift		= 32,
+	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
+	.set_mode	= tmu_set_mode,
+	.set_next_event	= tmu_set_next_event,
+};
 
 static irqreturn_t tmu_timer_interrupt(int irq, void *dummy)
 {
+	struct clock_event_device *evt = &tmu0_clockevent;
 	unsigned long timer_status;
 
 	/* Clear UNF bit */
@@ -82,72 +102,76 @@ static irqreturn_t tmu_timer_interrupt(int irq, void *dummy)
 	timer_status &= ~0x100;
 	ctrl_outw(timer_status, TMU0_TCR);
 
-	/*
-	 * Here we are in the timer irq handler. We just have irqs locally
-	 * disabled but we don't know if the timer_bh is running on the other
-	 * CPU. We need to avoid to SMP race with it. NOTE: we don' t need
-	 * the irq version of write_lock because as just said we have irq
-	 * locally disabled. -arca
-	 */
-	write_seqlock(&xtime_lock);
-	handle_timer_tick();
-	write_sequnlock(&xtime_lock);
+	evt->event_handler(evt);
 
 	return IRQ_HANDLED;
 }
 
-static struct irqaction tmu_irq = {
-	.name		= "timer",
+static struct irqaction tmu0_irq = {
+	.name		= "periodic timer",
 	.handler	= tmu_timer_interrupt,
 	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 	.mask		= CPU_MASK_NONE,
 };
 
-static void tmu_clk_init(struct clk *clk)
+static void tmu0_clk_init(struct clk *clk)
 {
-	u8 divisor = TMU0_TCR_INIT & 0x7;
-	ctrl_outw(TMU0_TCR_INIT, TMU0_TCR);
+	u8 divisor = TMU_TCR_INIT & 0x7;
+	ctrl_outw(TMU_TCR_INIT, TMU0_TCR);
 	clk->rate = clk->parent->rate / (4 << (divisor << 1));
 }
 
-static void tmu_clk_recalc(struct clk *clk)
+static void tmu0_clk_recalc(struct clk *clk)
 {
 	u8 divisor = ctrl_inw(TMU0_TCR) & 0x7;
 	clk->rate = clk->parent->rate / (4 << (divisor << 1));
 }
 
-static struct clk_ops tmu_clk_ops = {
-	.init		= tmu_clk_init,
-	.recalc		= tmu_clk_recalc,
+static struct clk_ops tmu0_clk_ops = {
+	.init		= tmu0_clk_init,
+	.recalc		= tmu0_clk_recalc,
 };
 
 static struct clk tmu0_clk = {
 	.name		= "tmu0_clk",
-	.ops		= &tmu_clk_ops,
+	.ops		= &tmu0_clk_ops,
 };
 
-static int tmu_timer_start(void)
+static void tmu1_clk_init(struct clk *clk)
 {
-	ctrl_outb(TMU_TSTR_INIT, TMU_TSTR);
-	return 0;
+	u8 divisor = TMU_TCR_INIT & 0x7;
+	ctrl_outw(divisor, TMU1_TCR);
+	clk->rate = clk->parent->rate / (4 << (divisor << 1));
 }
 
-static int tmu_timer_stop(void)
+static void tmu1_clk_recalc(struct clk *clk)
 {
-	ctrl_outb(0, TMU_TSTR);
-	return 0;
+	u8 divisor = ctrl_inw(TMU1_TCR) & 0x7;
+	clk->rate = clk->parent->rate / (4 << (divisor << 1));
 }
+
+static struct clk_ops tmu1_clk_ops = {
+	.init		= tmu1_clk_init,
+	.recalc		= tmu1_clk_recalc,
+};
+
+static struct clk tmu1_clk = {
+	.name		= "tmu1_clk",
+	.ops		= &tmu1_clk_ops,
+};
 
 static int tmu_timer_init(void)
 {
 	unsigned long interval;
+	unsigned long frequency;
 
-	setup_irq(CONFIG_SH_TIMER_IRQ, &tmu_irq);
+	setup_irq(CONFIG_SH_TIMER_IRQ, &tmu0_irq);
 
 	tmu0_clk.parent = clk_get(NULL, "module_clk");
+	tmu1_clk.parent = clk_get(NULL, "module_clk");
 
-	/* Start TMU0 */
 	tmu_timer_stop();
+
 #if !defined(CONFIG_CPU_SUBTYPE_SH7300) && \
     !defined(CONFIG_CPU_SUBTYPE_SH7760) && \
     !defined(CONFIG_CPU_SUBTYPE_SH7785)
@@ -155,15 +179,29 @@ static int tmu_timer_init(void)
 #endif
 
 	clk_register(&tmu0_clk);
+	clk_register(&tmu1_clk);
 	clk_enable(&tmu0_clk);
+	clk_enable(&tmu1_clk);
 
-	interval = (clk_get_rate(&tmu0_clk) + HZ / 2) / HZ;
-	printk(KERN_INFO "Interval = %ld\n", interval);
+	frequency = clk_get_rate(&tmu0_clk);
+	interval = (frequency + HZ / 2) / HZ;
 
-	ctrl_outl(interval, TMU0_TCOR);
-	ctrl_outl(interval, TMU0_TCNT);
+	sh_hpt_frequency = clk_get_rate(&tmu1_clk);
+	ctrl_outl(~0, TMU1_TCNT);
+	ctrl_outl(~0, TMU1_TCOR);
 
-	tmu_timer_start();
+	tmu0_timer_set_interval(interval, 1);
+
+	tmu0_clockevent.mult = div_sc(frequency, NSEC_PER_SEC,
+				      tmu0_clockevent.shift);
+	tmu0_clockevent.max_delta_ns =
+			clockevent_delta2ns(-1, &tmu0_clockevent);
+	tmu0_clockevent.min_delta_ns =
+			clockevent_delta2ns(1, &tmu0_clockevent);
+
+	tmu0_clockevent.cpumask = cpumask_of_cpu(0);
+
+	clockevents_register_device(&tmu0_clockevent);
 
 	return 0;
 }
@@ -172,9 +210,7 @@ struct sys_timer_ops tmu_timer_ops = {
 	.init		= tmu_timer_init,
 	.start		= tmu_timer_start,
 	.stop		= tmu_timer_stop,
-#ifndef CONFIG_GENERIC_TIME
-	.get_offset	= tmu_timer_get_offset,
-#endif
+	.read		= tmu_timer_read,
 };
 
 struct sys_timer tmu_timer = {
