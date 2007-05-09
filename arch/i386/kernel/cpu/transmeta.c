@@ -77,8 +77,10 @@ static void __cpuinit init_transmeta(struct cpuinfo_x86 *c)
 	set_bit(X86_FEATURE_CONSTANT_TSC, c->x86_capability);
 	
 	/* If we can run i686 user-space code, call us an i686 */
-#define USER686 (X86_FEATURE_TSC|X86_FEATURE_CX8|X86_FEATURE_CMOV)
-        if ( c->x86 == 5 && (c->x86_capability[0] & USER686) == USER686 )
+#define USER686 ((1 << X86_FEATURE_TSC)|\
+		 (1 << X86_FEATURE_CX8)|\
+		 (1 << X86_FEATURE_CMOV))
+        if (c->x86 == 5 && (c->x86_capability[0] & USER686) == USER686)
 		c->x86 = 6;
 
 #ifdef CONFIG_SYSCTL
