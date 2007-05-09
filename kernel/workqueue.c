@@ -569,6 +569,10 @@ EXPORT_SYMBOL(flush_work_keventd);
 void cancel_rearming_delayed_workqueue(struct workqueue_struct *wq,
 				       struct delayed_work *dwork)
 {
+	/* Was it ever queued ? */
+	if (!get_wq_data(&dwork->work))
+		return;
+
 	while (!cancel_delayed_work(dwork))
 		flush_workqueue(wq);
 }
