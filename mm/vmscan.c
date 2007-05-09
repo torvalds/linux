@@ -1528,7 +1528,7 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
 	pg_data_t *pgdat;
 	cpumask_t mask;
 
-	if (action == CPU_ONLINE) {
+	if (action == CPU_ONLINE || action == CPU_ONLINE_FROZEN) {
 		for_each_online_pgdat(pgdat) {
 			mask = node_to_cpumask(pgdat->node_id);
 			if (any_online_cpu(mask) != NR_CPUS)

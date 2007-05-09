@@ -650,8 +650,11 @@ static int __cpuinit vmstat_cpuup_callback(struct notifier_block *nfb,
 {
 	switch (action) {
 	case CPU_UP_PREPARE:
+	case CPU_UP_PREPARE_FROZEN:
 	case CPU_UP_CANCELED:
+	case CPU_UP_CANCELED_FROZEN:
 	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
 		refresh_zone_stat_thresholds();
 		break;
 	default:

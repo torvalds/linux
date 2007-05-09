@@ -1190,6 +1190,7 @@ static int __cpuinit cpuup_callback(struct notifier_block *nfb,
 		mutex_lock(&cache_chain_mutex);
 		break;
 	case CPU_UP_PREPARE:
+	case CPU_UP_PREPARE_FROZEN:
 		/*
 		 * We need to do this right in the beginning since
 		 * alloc_arraycache's are going to use this list.
@@ -1276,10 +1277,12 @@ static int __cpuinit cpuup_callback(struct notifier_block *nfb,
 		}
 		break;
 	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
 		start_cpu_timer(cpu);
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
   	case CPU_DOWN_PREPARE:
+  	case CPU_DOWN_PREPARE_FROZEN:
 		/*
 		 * Shutdown cache reaper. Note that the cache_chain_mutex is
 		 * held so that if cache_reap() is invoked it cannot do
@@ -1291,9 +1294,11 @@ static int __cpuinit cpuup_callback(struct notifier_block *nfb,
 		per_cpu(reap_work, cpu).work.func = NULL;
   		break;
   	case CPU_DOWN_FAILED:
+  	case CPU_DOWN_FAILED_FROZEN:
 		start_cpu_timer(cpu);
   		break;
 	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
 		/*
 		 * Even if all the cpus of a node are down, we don't free the
 		 * kmem_list3 of any cache. This to avoid a race between
@@ -1305,6 +1310,7 @@ static int __cpuinit cpuup_callback(struct notifier_block *nfb,
 		/* fall thru */
 #endif
 	case CPU_UP_CANCELED:
+	case CPU_UP_CANCELED_FROZEN:
 		list_for_each_entry(cachep, &cache_chain, next) {
 			struct array_cache *nc;
 			struct array_cache *shared;

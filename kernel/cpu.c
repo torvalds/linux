@@ -120,12 +120,13 @@ static int take_cpu_down(void *unused)
 }
 
 /* Requires cpu_add_remove_lock to be held */
-static int _cpu_down(unsigned int cpu)
+static int _cpu_down(unsigned int cpu, int tasks_frozen)
 {
 	int err, nr_calls = 0;
 	struct task_struct *p;
 	cpumask_t old_allowed, tmp;
 	void *hcpu = (void *)(long)cpu;
+	unsigned long mod = tasks_frozen ? CPU_TASKS_FROZEN : 0;
 
 	if (num_online_cpus() == 1)
 		return -EBUSY;
@@ -134,11 +135,11 @@ static int _cpu_down(unsigned int cpu)
 		return -EINVAL;
 
 	raw_notifier_call_chain(&cpu_chain, CPU_LOCK_ACQUIRE, hcpu);
-	err = __raw_notifier_call_chain(&cpu_chain, CPU_DOWN_PREPARE,
+	err = __raw_notifier_call_chain(&cpu_chain, CPU_DOWN_PREPARE | mod,
 					hcpu, -1, &nr_calls);
 	if (err == NOTIFY_BAD) {
-		__raw_notifier_call_chain(&cpu_chain, CPU_DOWN_FAILED, hcpu,
-					  nr_calls, NULL);
+		__raw_notifier_call_chain(&cpu_chain, CPU_DOWN_FAILED | mod,
+					  hcpu, nr_calls, NULL);
 		printk("%s: attempt to take down CPU %u failed\n",
 				__FUNCTION__, cpu);
 		err = -EINVAL;
@@ -157,7 +158,7 @@ static int _cpu_down(unsigned int cpu)
 
 	if (IS_ERR(p) || cpu_online(cpu)) {
 		/* CPU didn't die: tell everyone.  Can't complain. */
-		if (raw_notifier_call_chain(&cpu_chain, CPU_DOWN_FAILED,
+		if (raw_notifier_call_chain(&cpu_chain, CPU_DOWN_FAILED | mod,
 					    hcpu) == NOTIFY_BAD)
 			BUG();
 
@@ -176,7 +177,8 @@ static int _cpu_down(unsigned int cpu)
 	__cpu_die(cpu);
 
 	/* CPU is completely dead: tell everyone.  Too late to complain. */
-	if (raw_notifier_call_chain(&cpu_chain, CPU_DEAD, hcpu) == NOTIFY_BAD)
+	if (raw_notifier_call_chain(&cpu_chain, CPU_DEAD | mod,
+				    hcpu) == NOTIFY_BAD)
 		BUG();
 
 	check_for_tasks(cpu);
@@ -186,8 +188,7 @@ out_thread:
 out_allowed:
 	set_cpus_allowed(current, old_allowed);
 out_release:
-	raw_notifier_call_chain(&cpu_chain, CPU_LOCK_RELEASE,
-						(void *)(long)cpu);
+	raw_notifier_call_chain(&cpu_chain, CPU_LOCK_RELEASE, hcpu);
 	return err;
 }
 
@@ -199,7 +200,7 @@ int cpu_down(unsigned int cpu)
 	if (cpu_hotplug_disabled)
 		err = -EBUSY;
 	else
-		err = _cpu_down(cpu);
+		err = _cpu_down(cpu, 0);
 
 	mutex_unlock(&cpu_add_remove_lock);
 	return err;
@@ -207,16 +208,17 @@ int cpu_down(unsigned int cpu)
 #endif /*CONFIG_HOTPLUG_CPU*/
 
 /* Requires cpu_add_remove_lock to be held */
-static int __cpuinit _cpu_up(unsigned int cpu)
+static int __cpuinit _cpu_up(unsigned int cpu, int tasks_frozen)
 {
 	int ret, nr_calls = 0;
 	void *hcpu = (void *)(long)cpu;
+	unsigned long mod = tasks_frozen ? CPU_TASKS_FROZEN : 0;
 
 	if (cpu_online(cpu) || !cpu_present(cpu))
 		return -EINVAL;
 
 	raw_notifier_call_chain(&cpu_chain, CPU_LOCK_ACQUIRE, hcpu);
-	ret = __raw_notifier_call_chain(&cpu_chain, CPU_UP_PREPARE, hcpu,
+	ret = __raw_notifier_call_chain(&cpu_chain, CPU_UP_PREPARE | mod, hcpu,
 							-1, &nr_calls);
 	if (ret == NOTIFY_BAD) {
 		printk("%s: attempt to bring up CPU %u failed\n",
@@ -234,12 +236,12 @@ static int __cpuinit _cpu_up(unsigned int cpu)
 	BUG_ON(!cpu_online(cpu));
 
 	/* Now call notifier in preparation. */
-	raw_notifier_call_chain(&cpu_chain, CPU_ONLINE, hcpu);
+	raw_notifier_call_chain(&cpu_chain, CPU_ONLINE | mod, hcpu);
 
 out_notify:
 	if (ret != 0)
 		__raw_notifier_call_chain(&cpu_chain,
-				CPU_UP_CANCELED, hcpu, nr_calls, NULL);
+				CPU_UP_CANCELED | mod, hcpu, nr_calls, NULL);
 	raw_notifier_call_chain(&cpu_chain, CPU_LOCK_RELEASE, hcpu);
 
 	return ret;
@@ -253,7 +255,7 @@ int __cpuinit cpu_up(unsigned int cpu)
 	if (cpu_hotplug_disabled)
 		err = -EBUSY;
 	else
-		err = _cpu_up(cpu);
+		err = _cpu_up(cpu, 0);
 
 	mutex_unlock(&cpu_add_remove_lock);
 	return err;
@@ -283,7 +285,7 @@ int disable_nonboot_cpus(void)
 	for_each_online_cpu(cpu) {
 		if (cpu == first_cpu)
 			continue;
-		error = _cpu_down(cpu);
+		error = _cpu_down(cpu, 1);
 		if (!error) {
 			cpu_set(cpu, frozen_cpus);
 			printk("CPU%d is down\n", cpu);
@@ -318,7 +320,7 @@ void enable_nonboot_cpus(void)
 	suspend_cpu_hotplug = 1;
 	printk("Enabling non-boot CPUs ...\n");
 	for_each_cpu_mask(cpu, frozen_cpus) {
-		error = _cpu_up(cpu);
+		error = _cpu_up(cpu, 1);
 		if (!error) {
 			printk("CPU%d is up\n", cpu);
 			continue;

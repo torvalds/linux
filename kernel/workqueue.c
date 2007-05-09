@@ -799,6 +799,8 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 	struct cpu_workqueue_struct *cwq;
 	struct workqueue_struct *wq;
 
+	action &= ~CPU_TASKS_FROZEN;
+
 	switch (action) {
 	case CPU_LOCK_ACQUIRE:
 		mutex_lock(&workqueue_mutex);

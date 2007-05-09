@@ -484,6 +484,7 @@ static int __cpuinit relay_hotcpu_callback(struct notifier_block *nb,
 
 	switch(action) {
 	case CPU_UP_PREPARE:
+	case CPU_UP_PREPARE_FROZEN:
 		mutex_lock(&relay_channels_mutex);
 		list_for_each_entry(chan, &relay_channels, list) {
 			if (chan->buf[hotcpu])
@@ -500,6 +501,7 @@ static int __cpuinit relay_hotcpu_callback(struct notifier_block *nb,
 		mutex_unlock(&relay_channels_mutex);
 		break;
 	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
 		/* No need to flush the cpu : will be flushed upon
 		 * final relay_flush() call. */
 		break;

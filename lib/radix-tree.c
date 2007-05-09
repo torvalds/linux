@@ -1004,7 +1004,7 @@ static int radix_tree_callback(struct notifier_block *nfb,
        struct radix_tree_preload *rtp;
 
        /* Free per-cpu pool of perloaded nodes */
-       if (action == CPU_DEAD) {
+       if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
                rtp = &per_cpu(radix_tree_preloads, cpu);
                while (rtp->nr) {
                        kmem_cache_free(radix_tree_node_cachep,

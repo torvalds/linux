@@ -2514,7 +2514,9 @@ static int __cpuinit slab_cpuup_callback(struct notifier_block *nfb,
 
 	switch (action) {
 	case CPU_UP_CANCELED:
+	case CPU_UP_CANCELED_FROZEN:
 	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
 		for_all_slabs(__flush_cpu_slab, cpu);
 		break;
 	default:

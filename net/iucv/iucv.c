@@ -556,6 +556,7 @@ static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
 
 	switch (action) {
 	case CPU_UP_PREPARE:
+	case CPU_UP_PREPARE_FROZEN:
 		if (!percpu_populate(iucv_irq_data,
 				     sizeof(struct iucv_irq_data),
 				     GFP_KERNEL|GFP_DMA, cpu))
@@ -567,15 +568,20 @@ static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
 		}
 		break;
 	case CPU_UP_CANCELED:
+	case CPU_UP_CANCELED_FROZEN:
 	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
 		percpu_depopulate(iucv_param, cpu);
 		percpu_depopulate(iucv_irq_data, cpu);
 		break;
 	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
 	case CPU_DOWN_FAILED:
+	case CPU_DOWN_FAILED_FROZEN:
 		smp_call_function_on(iucv_declare_cpu, NULL, 0, 1, cpu);
 		break;
 	case CPU_DOWN_PREPARE:
+	case CPU_DOWN_PREPARE_FROZEN:
 		cpumask = iucv_buffer_cpumask;
 		cpu_clear(cpu, cpumask);
 		if (cpus_empty(cpumask))
