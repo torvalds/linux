@@ -74,7 +74,6 @@ struct sbp2_device {
 
 	int retries;
 	struct delayed_work work;
-	struct Scsi_Host *scsi_host;
 };
 
 #define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
@@ -519,30 +518,32 @@ static int sbp2_agent_reset(struct fw_unit *unit)
 	return 0;
 }
 
-static int add_scsi_devices(struct fw_unit *unit);
-static void remove_scsi_devices(struct fw_unit *unit);
 static void sbp2_reconnect(struct work_struct *work);
+static struct scsi_host_template scsi_driver_template;
 
 static void
 release_sbp2_device(struct kref *kref)
 {
 	struct sbp2_device *sd = container_of(kref, struct sbp2_device, kref);
+	struct Scsi_Host *host =
+		container_of((void *)sd, struct Scsi_Host, hostdata[0]);
 
 	sbp2_send_management_orb(sd->unit, sd->node_id, sd->generation,
 				 SBP2_LOGOUT_REQUEST, sd->login_id, NULL);
 
-	remove_scsi_devices(sd->unit);
-
+	scsi_remove_host(host);
 	fw_core_remove_address_handler(&sd->address_handler);
 	fw_notify("removed sbp2 unit %s\n", sd->unit->device.bus_id);
 	put_device(&sd->unit->device);
-	kfree(sd);
+	scsi_host_put(host);
 }
 
 static void sbp2_login(struct work_struct *work)
 {
 	struct sbp2_device *sd =
 		container_of(work, struct sbp2_device, work.work);
+	struct Scsi_Host *host =
+		container_of((void *)sd, struct Scsi_Host, hostdata[0]);
 	struct fw_unit *unit = sd->unit;
 	struct fw_device *device = fw_device(unit->device.parent);
 	struct sbp2_login_response response;
@@ -562,7 +563,6 @@ static void sbp2_login(struct work_struct *work)
 		} else {
 			fw_error("failed to login to %s\n",
 				 unit->device.bus_id);
-			remove_scsi_devices(unit);
 			kref_put(&sd->kref, release_sbp2_device);
 		}
 		return;
@@ -595,7 +595,9 @@ static void sbp2_login(struct work_struct *work)
 	PREPARE_DELAYED_WORK(&sd->work, sbp2_reconnect);
 	sbp2_agent_reset(unit);
 
-	retval = add_scsi_devices(unit);
+	/* FIXME: Loop over luns here. */
+	lun = 0;
+	retval = scsi_add_device(host, 0, 0, lun);
 	if (retval < 0) {
 		sbp2_send_management_orb(unit, sd->node_id, sd->generation,
 					 SBP2_LOGOUT_REQUEST, sd->login_id,
@@ -615,13 +617,16 @@ static int sbp2_probe(struct device *dev)
 	struct fw_device *device = fw_device(unit->device.parent);
 	struct sbp2_device *sd;
 	struct fw_csr_iterator ci;
-	int i, key, value;
+	struct Scsi_Host *host;
+	int i, key, value, err;
 	u32 model, firmware_revision;
 
-	sd = kzalloc(sizeof *sd, GFP_KERNEL);
-	if (sd == NULL)
-		return -ENOMEM;
+	err = -ENOMEM;
+	host = scsi_host_alloc(&scsi_driver_template, sizeof(*sd));
+	if (host == NULL)
+		goto fail;
 
+	sd = (struct sbp2_device *) host->hostdata;
 	unit->device.driver_data = sd;
 	sd->unit = unit;
 	INIT_LIST_HEAD(&sd->orb_list);
@@ -631,17 +636,18 @@ static int sbp2_probe(struct device *dev)
 	sd->address_handler.address_callback = sbp2_status_write;
 	sd->address_handler.callback_data = sd;
 
-	if (fw_core_add_address_handler(&sd->address_handler,
-					&fw_high_memory_region) < 0) {
-		kfree(sd);
-		return -EBUSY;
-	}
+	err = fw_core_add_address_handler(&sd->address_handler,
+					  &fw_high_memory_region);
+	if (err < 0)
+		goto fail_host;
 
-	if (fw_device_enable_phys_dma(device) < 0) {
-		fw_core_remove_address_handler(&sd->address_handler);
-		kfree(sd);
-		return -EBUSY;
-	}
+	err = fw_device_enable_phys_dma(device);
+	if (err < 0)
+		goto fail_address_handler;
+
+	err = scsi_add_host(host, &unit->device);
+	if (err < 0)
+		goto fail_address_handler;
 
 	/*
 	 * Scan unit directory to get management agent address,
@@ -695,6 +701,13 @@ static int sbp2_probe(struct device *dev)
 		kref_get(&sd->kref);
 
 	return 0;
+
+ fail_address_handler:
+	fw_core_remove_address_handler(&sd->address_handler);
+ fail_host:
+	scsi_host_put(host);
+ fail:
+	return err;
 }
 
 static int sbp2_remove(struct device *dev)
@@ -881,10 +894,10 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 
 static void sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 {
-	struct fw_unit *unit =
-		(struct fw_unit *)orb->cmd->device->host->hostdata[0];
+	struct sbp2_device *sd =
+		(struct sbp2_device *)orb->cmd->device->host->hostdata;
+	struct fw_unit *unit = sd->unit;
 	struct fw_device *device = fw_device(unit->device.parent);
-	struct sbp2_device *sd = unit->device.driver_data;
 	struct scatterlist *sg;
 	int sg_len, l, i, j, count;
 	size_t size;
@@ -950,10 +963,10 @@ static void sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 
 static void sbp2_command_orb_map_buffer(struct sbp2_command_orb *orb)
 {
-	struct fw_unit *unit =
-		(struct fw_unit *)orb->cmd->device->host->hostdata[0];
+	struct sbp2_device *sd =
+		(struct sbp2_device *)orb->cmd->device->host->hostdata;
+	struct fw_unit *unit = sd->unit;
 	struct fw_device *device = fw_device(unit->device.parent);
-	struct sbp2_device *sd = unit->device.driver_data;
 
 	/*
 	 * As for map_scatterlist, we need to fill in the high bits of
@@ -975,9 +988,10 @@ static void sbp2_command_orb_map_buffer(struct sbp2_command_orb *orb)
 
 static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 {
-	struct fw_unit *unit = (struct fw_unit *)cmd->device->host->hostdata[0];
+	struct sbp2_device *sd =
+		(struct sbp2_device *)cmd->device->host->hostdata;
+	struct fw_unit *unit = sd->unit;
 	struct fw_device *device = fw_device(unit->device.parent);
-	struct sbp2_device *sd = unit->device.driver_data;
 	struct sbp2_command_orb *orb;
 
 	/*
@@ -1067,8 +1081,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 
 static int sbp2_scsi_slave_alloc(struct scsi_device *sdev)
 {
-	struct fw_unit *unit = (struct fw_unit *)sdev->host->hostdata[0];
-	struct sbp2_device *sd = unit->device.driver_data;
+	struct sbp2_device *sd = (struct sbp2_device *)sdev->host->hostdata;
 
 	sdev->allow_restart = 1;
 
@@ -1079,8 +1092,8 @@ static int sbp2_scsi_slave_alloc(struct scsi_device *sdev)
 
 static int sbp2_scsi_slave_configure(struct scsi_device *sdev)
 {
-	struct fw_unit *unit = (struct fw_unit *)sdev->host->hostdata[0];
-	struct sbp2_device *sd = unit->device.driver_data;
+	struct sbp2_device *sd = (struct sbp2_device *)sdev->host->hostdata;
+	struct fw_unit *unit = sd->unit;
 
 	sdev->use_10_for_rw = 1;
 
@@ -1103,7 +1116,9 @@ static int sbp2_scsi_slave_configure(struct scsi_device *sdev)
  */
 static int sbp2_scsi_abort(struct scsi_cmnd *cmd)
 {
-	struct fw_unit *unit = (struct fw_unit *)cmd->device->host->hostdata[0];
+	struct sbp2_device *sd =
+		(struct sbp2_device *)cmd->device->host->hostdata;
+	struct fw_unit *unit = sd->unit;
 
 	fw_notify("sbp2_scsi_abort\n");
 	sbp2_agent_reset(unit);
@@ -1126,55 +1141,6 @@ static struct scsi_host_template scsi_driver_template = {
 	.cmd_per_lun		= 1,
 	.can_queue		= 1,
 };
-
-static int add_scsi_devices(struct fw_unit *unit)
-{
-	struct sbp2_device *sd = unit->device.driver_data;
-	int retval, lun;
-
-	if (sd->scsi_host != NULL)
-		return 0;
-
-	sd->scsi_host = scsi_host_alloc(&scsi_driver_template,
-					sizeof(unsigned long));
-	if (sd->scsi_host == NULL) {
-		fw_error("failed to register scsi host\n");
-		return -1;
-	}
-
-	sd->scsi_host->hostdata[0] = (unsigned long)unit;
-	retval = scsi_add_host(sd->scsi_host, &unit->device);
-	if (retval < 0) {
-		fw_error("failed to add scsi host\n");
-		scsi_host_put(sd->scsi_host);
-		sd->scsi_host = NULL;
-		return retval;
-	}
-
-	/* FIXME: Loop over luns here. */
-	lun = 0;
-	retval = scsi_add_device(sd->scsi_host, 0, 0, lun);
-	if (retval < 0) {
-		fw_error("failed to add scsi device\n");
-		scsi_remove_host(sd->scsi_host);
-		scsi_host_put(sd->scsi_host);
-		sd->scsi_host = NULL;
-		return retval;
-	}
-
-	return 0;
-}
-
-static void remove_scsi_devices(struct fw_unit *unit)
-{
-	struct sbp2_device *sd = unit->device.driver_data;
-
-	if (sd->scsi_host != NULL) {
-		scsi_remove_host(sd->scsi_host);
-		scsi_host_put(sd->scsi_host);
-	}
-	sd->scsi_host = NULL;
-}
 
 MODULE_AUTHOR("Kristian Hoegsberg <krh@bitplanet.net>");
 MODULE_DESCRIPTION("SCSI over IEEE1394");
