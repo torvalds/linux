@@ -1169,9 +1169,9 @@ static void time_out_leases(struct inode *inode)
  *	@inode: the inode of the file to return
  *	@mode: the open mode (read or write)
  *
- *	break_lease (inlined for speed) has checked there already
- *	is a lease on this file.  Leases are broken on a call to open()
- *	or truncate().  This function can sleep unless you
+ *	break_lease (inlined for speed) has checked there already is at least
+ *	some kind of lock (maybe a lease) on this file.  Leases are broken on
+ *	a call to open() or truncate().  This function can sleep unless you
  *	specified %O_NONBLOCK to your open().
  */
 int __break_lease(struct inode *inode, unsigned int mode)
