@@ -207,26 +207,6 @@ static int atiixp_speedproc(ide_drive_t *drive, u8 xferspeed)
 }
 
 /**
- *	atiixp_config_drive_for_dma	-	configure drive for DMA
- *	@drive: IDE drive to configure
- *
- *	Set up a ATIIXP interface channel for the best available speed.
- *	We prefer UDMA if it is available and then MWDMA. If DMA is
- *	not available we switch to PIO and return 0.
- */
-
-static int atiixp_config_drive_for_dma(ide_drive_t *drive)
-{
-	u8 speed = ide_max_dma_mode(drive);
-
-	if (!speed)
-		return 0;
-
-	(void) atiixp_speedproc(drive, speed);
-	return ide_dma_enable(drive);
-}
-
-/**
  *	atiixp_dma_check	-	set up an IDE device
  *	@drive: IDE drive to configure
  *
@@ -240,7 +220,7 @@ static int atiixp_dma_check(ide_drive_t *drive)
 
 	drive->init_speed = 0;
 
-	if (ide_use_dma(drive) && atiixp_config_drive_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	if (ide_use_fast_pio(drive)) {

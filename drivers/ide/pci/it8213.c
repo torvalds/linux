@@ -197,25 +197,6 @@ static int it8213_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 	return ide_config_drive_speed(drive, speed);
 }
 
-/*
- *	config_chipset_for_dma	-	configure for DMA
- *	@drive: drive to configure
- *
- *	Called by the IDE layer when it wants the timings set up.
- */
-
-static int config_chipset_for_dma (ide_drive_t *drive)
-{
-	u8 speed = ide_max_dma_mode(drive);
-
-	if (!speed)
-		return 0;
-
-	it8213_tune_chipset(drive, speed);
-
-	return ide_dma_enable(drive);
-}
-
 /**
  *	it8213_configure_drive_for_dma	-	set up for DMA transfers
  *	@drive: drive we are going to set up
@@ -230,7 +211,7 @@ static int it8213_config_drive_for_dma (ide_drive_t *drive)
 {
 	u8 pio;
 
-	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	pio = ide_get_best_pio_mode(drive, 255, 4, NULL);

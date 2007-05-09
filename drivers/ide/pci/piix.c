@@ -304,30 +304,6 @@ static int piix_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 }
 
 /**
- *	piix_config_drive_for_dma	-	configure drive for DMA
- *	@drive: IDE drive to configure
- *
- *	Set up a PIIX interface channel for the best available speed.
- *	We prefer UDMA if it is available and then MWDMA.  If DMA is
- *	not available we switch to PIO and return 0.
- */
- 
-static int piix_config_drive_for_dma (ide_drive_t *drive)
-{
-	u8 speed = ide_max_dma_mode(drive);
-
-	/*
-	 * If no DMA speed was available or the chipset has DMA bugs
-	 * then disable DMA and use PIO
-	 */
-	if (!speed)
-		return 0;
-
-	(void) piix_tune_chipset(drive, speed);
-	return ide_dma_enable(drive);
-}
-
-/**
  *	piix_config_drive_xfer_rate	-	set up an IDE device
  *	@drive: IDE drive to configure
  *
@@ -339,7 +315,7 @@ static int piix_config_drive_xfer_rate (ide_drive_t *drive)
 {
 	drive->init_speed = 0;
 
-	if (ide_use_dma(drive) && piix_config_drive_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	if (ide_use_fast_pio(drive))

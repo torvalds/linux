@@ -669,24 +669,6 @@ static void hpt3xx_tune_drive(ide_drive_t *drive, u8 pio)
 	(void) hpt3xx_tune_chipset (drive, XFER_PIO_0 + pio);
 }
 
-/*
- * This allows the configuration of ide_pci chipset registers
- * for cards that learn about the drive's UDMA, DMA, PIO capabilities
- * after the drive is reported by the OS.  Initially designed for
- * HPT366 UDMA chipset by HighPoint|Triones Technologies, Inc.
- *
- */
-static int config_chipset_for_dma(ide_drive_t *drive)
-{
-	u8 speed = ide_max_dma_mode(drive);
-
-	if (!speed)
-		return 0;
-
-	(void) hpt3xx_tune_chipset(drive, speed);
-	return ide_dma_enable(drive);
-}
-
 static int hpt3xx_quirkproc(ide_drive_t *drive)
 {
 	struct hd_driveid *id	= drive->id;
@@ -741,7 +723,7 @@ static int hpt366_config_drive_xfer_rate(ide_drive_t *drive)
 {
 	drive->init_speed = 0;
 
-	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	if (ide_use_fast_pio(drive))

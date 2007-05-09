@@ -638,32 +638,13 @@ static void sis5513_tune_drive (ide_drive_t *drive, u8 pio)
 	(void) config_chipset_for_pio(drive, pio);
 }
 
-/*
- * ((id->hw_config & 0x4000|0x2000) && (HWIF(drive)->udma_four))
- */
-static int config_chipset_for_dma (ide_drive_t *drive)
-{
-	u8 speed = ide_max_dma_mode(drive);
-
-#ifdef DEBUG
-	printk("SIS5513: config_chipset_for_dma, drive %d, ultra %x\n",
-	       drive->dn, drive->id->dma_ultra);
-#endif
-
-	if (!(speed))
-		return 0;
-
-	sis5513_tune_chipset(drive, speed);
-	return ide_dma_enable(drive);
-}
-
 static int sis5513_config_xfer_rate(ide_drive_t *drive)
 {
 	config_art_rwp_pio(drive, 5);
 
 	drive->init_speed = 0;
 
-	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	if (ide_use_fast_pio(drive))

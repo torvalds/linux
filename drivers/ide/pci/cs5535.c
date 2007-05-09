@@ -164,26 +164,13 @@ static void cs5535_tuneproc(ide_drive_t *drive, u8 xferspeed)
 	cs5535_set_speed(drive, xferspeed);
 }
 
-static int cs5535_config_drive_for_dma(ide_drive_t *drive)
-{
-	u8 speed = ide_max_dma_mode(drive);
-
-	/* If no DMA speed was available then let dma_check hit pio */
-	if (!speed) {
-		return 0;
-	}
-
-	cs5535_set_drive(drive, speed);
-	return ide_dma_enable(drive);
-}
-
 static int cs5535_dma_check(ide_drive_t *drive)
 {
 	u8 speed;
 
 	drive->init_speed = 0;
 
-	if (ide_use_dma(drive) && cs5535_config_drive_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	if (ide_use_fast_pio(drive)) {

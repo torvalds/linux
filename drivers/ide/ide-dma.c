@@ -779,6 +779,26 @@ u8 ide_max_dma_mode(ide_drive_t *drive)
 
 EXPORT_SYMBOL_GPL(ide_max_dma_mode);
 
+int ide_tune_dma(ide_drive_t *drive)
+{
+	u8 speed;
+
+	/* TODO: use only ide_max_dma_mode() */
+	if (!ide_use_dma(drive))
+		return 0;
+
+	speed = ide_max_dma_mode(drive);
+
+	if (!speed)
+		return 0;
+
+	drive->hwif->speedproc(drive, speed);
+
+	return ide_dma_enable(drive);
+}
+
+EXPORT_SYMBOL_GPL(ide_tune_dma);
+
 void ide_dma_verbose(ide_drive_t *drive)
 {
 	struct hd_driveid *id	= drive->id;

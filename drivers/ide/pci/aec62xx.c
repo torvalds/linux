@@ -155,17 +155,6 @@ static int aec62xx_tune_chipset (ide_drive_t *drive, u8 speed)
 	}
 }
 
-static int config_chipset_for_dma (ide_drive_t *drive)
-{
-	u8 speed = ide_max_dma_mode(drive);
-
-	if (!(speed))
-		return 0;
-
-	(void) aec62xx_tune_chipset(drive, speed);
-	return ide_dma_enable(drive);
-}
-
 static void aec62xx_tune_drive (ide_drive_t *drive, u8 pio)
 {
 	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
@@ -174,7 +163,7 @@ static void aec62xx_tune_drive (ide_drive_t *drive, u8 pio)
 
 static int aec62xx_config_drive_xfer_rate (ide_drive_t *drive)
 {
-	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	if (ide_use_fast_pio(drive))
