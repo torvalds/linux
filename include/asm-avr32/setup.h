@@ -110,7 +110,7 @@ struct tagtable {
 	int	(*parse)(struct tag *);
 };
 
-#define __tag __attribute_used__ __attribute__((__section__(".taglist")))
+#define __tag __attribute_used__ __attribute__((__section__(".taglist.init")))
 #define __tagtable(tag, fn)						\
 	static struct tagtable __tagtable_##fn __tag = { tag, fn }
 

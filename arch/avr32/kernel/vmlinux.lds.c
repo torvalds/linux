@@ -35,7 +35,7 @@ SECTIONS
 			_einittext = .;
 		. = ALIGN(4);
 		__tagtable_begin = .;
-			*(.taglist)
+			*(.taglist.init)
 		__tagtable_end = .;
 			*(.init.data)
 		. = ALIGN(16);
