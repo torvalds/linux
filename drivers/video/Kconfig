@@ -1348,6 +1348,20 @@ config FB_VOODOO1
 	  Please read the <file:Documentation/fb/README-sstfb.txt> for supported
 	  options and other important info  support.
 
+config FB_VT8623
+	tristate "VIA VT8623 support"
+	depends on FB && PCI
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select FB_TILEBLITTING
+	select FB_SVGALIB
+	select VGASTATE
+	select FONT_8x16 if FRAMEBUFFER_CONSOLE
+	---help---
+	  Driver for CastleRock integrated graphics core in the
+	  VIA VT8623 [Apollo CLE266] chipset.
+
 config FB_CYBLA
 	tristate "Cyberblade/i1 support"
 	depends on FB && PCI && X86_32 && !64BIT
