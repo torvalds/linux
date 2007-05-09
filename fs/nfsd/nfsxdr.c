@@ -284,8 +284,9 @@ int
 nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 					struct nfsd_writeargs *args)
 {
-	unsigned int len;
+	unsigned int len, hdr, dlen;
 	int v;
+
 	if (!(p = decode_fh(p, &args->fh)))
 		return 0;
 
@@ -293,11 +294,42 @@ nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 	args->offset = ntohl(*p++);	/* offset */
 	p++;				/* totalcount */
 	len = args->len = ntohl(*p++);
-	rqstp->rq_vec[0].iov_base = (void*)p;
-	rqstp->rq_vec[0].iov_len = rqstp->rq_arg.head[0].iov_len -
-				(((void*)p) - rqstp->rq_arg.head[0].iov_base);
+	/*
+	 * The protocol specifies a maximum of 8192 bytes.
+	 */
 	if (len > NFSSVC_MAXBLKSIZE_V2)
-		len = NFSSVC_MAXBLKSIZE_V2;
+		return 0;
+
+	/*
+	 * Check to make sure that we got the right number of
+	 * bytes.
+	 *
+	 * If more than one page was used, then compute the length
+	 * of the data in the request as the total size of the
+	 * request minus the transport protocol headers minus the
+	 * RPC protocol headers minus the NFS protocol fields
+	 * already consumed.  If the request fits into a single
+	 * page, then compete the length of the data as the size
+	 * of the NFS portion of the request minus the NFS
+	 * protocol fields already consumed.
+	 */
+	hdr = (void*)p - rqstp->rq_arg.head[0].iov_base;
+	if (rqstp->rq_respages != rqstp->rq_pages + 1) {
+		dlen = rqstp->rq_arg.len -
+			(PAGE_SIZE - rqstp->rq_arg.head[0].iov_len) - hdr;
+	} else {
+		dlen = rqstp->rq_arg.head[0].iov_len - hdr;
+	}
+	/*
+	 * Round the length of the data which was specified up to
+	 * the next multiple of XDR units and then compare that
+	 * against the length which was actually received.
+	 */
+	if (dlen != ((len + 3) & ~0x3))
+		return 0;
+
+	rqstp->rq_vec[0].iov_base = (void*)p;
+	rqstp->rq_vec[0].iov_len = rqstp->rq_arg.head[0].iov_len - hdr;
 	v = 0;
 	while (len > rqstp->rq_vec[v].iov_len) {
 		len -= rqstp->rq_vec[v].iov_len;
@@ -306,8 +338,8 @@ nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 		rqstp->rq_vec[v].iov_len = PAGE_SIZE;
 	}
 	rqstp->rq_vec[v].iov_len = len;
-	args->vlen = v+1;
-	return rqstp->rq_vec[0].iov_len > 0;
+	args->vlen = v + 1;
+	return 1;
 }
 
 int
