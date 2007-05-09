@@ -31,6 +31,7 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/delay.h>
+#include <linux/bitrev.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
@@ -194,41 +195,17 @@ static inline unsigned char xinb(unsigned short port)
 }
 #endif
 
-#define	b_0000	15
-#define	b_0001	14
-#define	b_0010	13
-#define	b_0011	12
-#define	b_0100	11
-#define	b_0101	10
-#define	b_0110	9
-#define	b_0111	8
-#define	b_1000	7
-#define	b_1001	6
-#define	b_1010	5
-#define	b_1011	4
-#define	b_1100	3
-#define	b_1101	2
-#define	b_1110	1
-#define	b_1111	0
-
-static unsigned char irtab[16] = {
-	b_0000, b_1000, b_0100, b_1100,
-	b_0010, b_1010, b_0110, b_1110,
-	b_0001, b_1001, b_0101, b_1101,
-	b_0011, b_1011, b_0111, b_1111
-};
+static inline unsigned char invert_revert(unsigned char ch)
+{
+	return bitrev8(~ch);
+}
 
 static void str_invert_revert(unsigned char *b, int len)
 {
 	int i;
 
 	for (i = 0; i < len; i++)
-		b[i] = (irtab[b[i] & 0x0f] << 4) | irtab[b[i] >> 4];
-}
-
-static unsigned char invert_revert(unsigned char ch)
-{
-	return (irtab[ch & 0x0f] << 4) | irtab[ch >> 4];
+		b[i] = invert_revert(b[i]);
 }
 
 #define	ATRLENCK(dev,pos) \
