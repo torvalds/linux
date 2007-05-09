@@ -14,18 +14,11 @@
 
 extern struct kmem_cache *pgtable_cache[];
 
-#ifdef CONFIG_PPC_64K_PAGES
-#define PTE_CACHE_NUM	0
-#define PMD_CACHE_NUM	1
-#define PGD_CACHE_NUM	2
-#define HUGEPTE_CACHE_NUM 3
-#else
-#define PTE_CACHE_NUM	0
-#define PMD_CACHE_NUM	1
-#define PUD_CACHE_NUM	1
-#define PGD_CACHE_NUM	0
-#define HUGEPTE_CACHE_NUM 2
-#endif
+#define PGD_CACHE_NUM		0
+#define PUD_CACHE_NUM		1
+#define PMD_CACHE_NUM		1
+#define HUGEPTE_CACHE_NUM	2
+#define PTE_NONCACHE_NUM	3  /* from GFP rather than kmem_cache */
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
@@ -91,8 +84,7 @@ static inline void pmd_free(pmd_t *pmd)
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 					  unsigned long address)
 {
-	return kmem_cache_alloc(pgtable_cache[PTE_CACHE_NUM],
-				GFP_KERNEL|__GFP_REPEAT);
+        return (pte_t *)__get_free_page(GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO);
 }
 
 static inline struct page *pte_alloc_one(struct mm_struct *mm,
@@ -103,12 +95,12 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
 
 static inline void pte_free_kernel(pte_t *pte)
 {
-	kmem_cache_free(pgtable_cache[PTE_CACHE_NUM], pte);
+	free_page((unsigned long)pte);
 }
 
 static inline void pte_free(struct page *ptepage)
 {
-	pte_free_kernel(page_address(ptepage));
+	__free_page(ptepage);
 }
 
 #define PGF_CACHENUM_MASK	0x3
@@ -130,14 +122,17 @@ static inline void pgtable_free(pgtable_free_t pgf)
 	void *p = (void *)(pgf.val & ~PGF_CACHENUM_MASK);
 	int cachenum = pgf.val & PGF_CACHENUM_MASK;
 
-	kmem_cache_free(pgtable_cache[cachenum], p);
+	if (cachenum == PTE_NONCACHE_NUM)
+		free_page((unsigned long)p);
+	else
+		kmem_cache_free(pgtable_cache[cachenum], p);
 }
 
 extern void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf);
 
 #define __pte_free_tlb(tlb, ptepage)	\
 	pgtable_free_tlb(tlb, pgtable_free_cache(page_address(ptepage), \
-		PTE_CACHE_NUM, PTE_TABLE_SIZE-1))
+		PTE_NONCACHE_NUM, PTE_TABLE_SIZE-1))
 #define __pmd_free_tlb(tlb, pmd) 	\
 	pgtable_free_tlb(tlb, pgtable_free_cache(pmd, \
 		PMD_CACHE_NUM, PMD_TABLE_SIZE-1))
