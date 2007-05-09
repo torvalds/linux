@@ -796,23 +796,6 @@ static int s3fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	return 0;
 }
 
-/* Get capabilities of accelerator based on the mode */
-
-static void s3fb_get_caps(struct fb_info *info, struct fb_blit_caps *caps,
-			  struct fb_var_screeninfo *var)
-{
-	if (var->bits_per_pixel == 0) {
-		/* can only support 256 8x16 bitmap */
-		caps->x = 1 << (8 - 1);
-		caps->y = 1 << (16 - 1);
-		caps->len = 256;
-	} else {
-		caps->x = ~(u32)0;
-		caps->y = ~(u32)0;
-		caps->len = ~(u32)0;
-	}
-}
-
 /* ------------------------------------------------------------------------- */
 
 /* Frame buffer operations */
@@ -829,7 +812,7 @@ static struct fb_ops s3fb_ops = {
 	.fb_fillrect	= s3fb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= s3fb_imageblit,
-	.fb_get_caps    = s3fb_get_caps,
+	.fb_get_caps    = svga_get_caps,
 };
 
 /* ------------------------------------------------------------------------- */

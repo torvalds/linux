@@ -635,6 +635,7 @@ static struct fb_ops vt8623fb_ops = {
 	.fb_fillrect	= vt8623fb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= vt8623fb_imageblit,
+	.fb_get_caps    = svga_get_caps,
 };
 
 

@@ -919,6 +919,7 @@ static struct fb_ops arkfb_ops = {
 	.fb_fillrect	= arkfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= arkfb_imageblit,
+	.fb_get_caps    = svga_get_caps,
 };
 
 
