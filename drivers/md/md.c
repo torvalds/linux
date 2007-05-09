@@ -274,6 +274,7 @@ static mddev_t * mddev_find(dev_t unit)
 	atomic_set(&new->active, 1);
 	spin_lock_init(&new->write_lock);
 	init_waitqueue_head(&new->sb_wait);
+	new->reshape_position = MaxSector;
 
 	new->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!new->queue) {
@@ -2242,6 +2243,10 @@ static ssize_t
 layout_show(mddev_t *mddev, char *page)
 {
 	/* just a number, not meaningful for all levels */
+	if (mddev->reshape_position != MaxSector &&
+	    mddev->layout != mddev->new_layout)
+		return sprintf(page, "%d (%d)\n",
+			       mddev->new_layout, mddev->layout);
 	return sprintf(page, "%d\n", mddev->layout);
 }
 
@@ -2250,13 +2255,16 @@ layout_store(mddev_t *mddev, const char *buf, size_t len)
 {
 	char *e;
 	unsigned long n = simple_strtoul(buf, &e, 10);
-	if (mddev->pers)
-		return -EBUSY;
 
 	if (!*buf || (*e && *e != '\n'))
 		return -EINVAL;
 
-	mddev->layout = n;
+	if (mddev->pers)
+		return -EBUSY;
+	if (mddev->reshape_position != MaxSector)
+		mddev->new_layout = n;
+	else
+		mddev->layout = n;
 	return len;
 }
 static struct md_sysfs_entry md_layout =
@@ -2268,6 +2276,10 @@ raid_disks_show(mddev_t *mddev, char *page)
 {
 	if (mddev->raid_disks == 0)
 		return 0;
+	if (mddev->reshape_position != MaxSector &&
+	    mddev->delta_disks != 0)
+		return sprintf(page, "%d (%d)\n", mddev->raid_disks,
+			       mddev->raid_disks - mddev->delta_disks);
 	return sprintf(page, "%d\n", mddev->raid_disks);
 }
 
@@ -2285,7 +2297,11 @@ raid_disks_store(mddev_t *mddev, const char *buf, size_t len)
 
 	if (mddev->pers)
 		rv = update_raid_disks(mddev, n);
-	else
+	else if (mddev->reshape_position != MaxSector) {
+		int olddisks = mddev->raid_disks - mddev->delta_disks;
+		mddev->delta_disks = n - olddisks;
+		mddev->raid_disks = n;
+	} else
 		mddev->raid_disks = n;
 	return rv ? rv : len;
 }
@@ -2295,6 +2311,10 @@ __ATTR(raid_disks, S_IRUGO|S_IWUSR, raid_disks_show, raid_disks_store);
 static ssize_t
 chunk_size_show(mddev_t *mddev, char *page)
 {
+	if (mddev->reshape_position != MaxSector &&
+	    mddev->chunk_size != mddev->new_chunk)
+		return sprintf(page, "%d (%d)\n", mddev->new_chunk,
+			       mddev->chunk_size);
 	return sprintf(page, "%d\n", mddev->chunk_size);
 }
 
@@ -2305,12 +2325,15 @@ chunk_size_store(mddev_t *mddev, const char *buf, size_t len)
 	char *e;
 	unsigned long n = simple_strtoul(buf, &e, 10);
 
-	if (mddev->pers)
-		return -EBUSY;
 	if (!*buf || (*e && *e != '\n'))
 		return -EINVAL;
 
-	mddev->chunk_size = n;
+	if (mddev->pers)
+		return -EBUSY;
+	else if (mddev->reshape_position != MaxSector)
+		mddev->new_chunk = n;
+	else
+		mddev->chunk_size = n;
 	return len;
 }
 static struct md_sysfs_entry md_chunk_size =
@@ -2896,6 +2919,37 @@ suspend_hi_store(mddev_t *mddev, const char *buf, size_t len)
 static struct md_sysfs_entry md_suspend_hi =
 __ATTR(suspend_hi, S_IRUGO|S_IWUSR, suspend_hi_show, suspend_hi_store);
 
+static ssize_t
+reshape_position_show(mddev_t *mddev, char *page)
+{
+	if (mddev->reshape_position != MaxSector)
+		return sprintf(page, "%llu\n",
+			       (unsigned long long)mddev->reshape_position);
+	strcpy(page, "none\n");
+	return 5;
+}
+
+static ssize_t
+reshape_position_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	char *e;
+	unsigned long long new = simple_strtoull(buf, &e, 10);
+	if (mddev->pers)
+		return -EBUSY;
+	if (buf == e || (*e && *e != '\n'))
+		return -EINVAL;
+	mddev->reshape_position = new;
+	mddev->delta_disks = 0;
+	mddev->new_level = mddev->level;
+	mddev->new_layout = mddev->layout;
+	mddev->new_chunk = mddev->chunk_size;
+	return len;
+}
+
+static struct md_sysfs_entry md_reshape_position =
+__ATTR(reshape_position, S_IRUGO|S_IWUSR, reshape_position_show,
+       reshape_position_store);
+
 
 static struct attribute *md_default_attrs[] = {
 	&md_level.attr,
@@ -2908,6 +2962,7 @@ static struct attribute *md_default_attrs[] = {
 	&md_new_device.attr,
 	&md_safe_delay.attr,
 	&md_array_state.attr,
+	&md_reshape_position.attr,
 	NULL,
 };
 
@@ -3446,6 +3501,7 @@ static int do_md_stop(mddev_t * mddev, int mode)
 		mddev->size = 0;
 		mddev->raid_disks = 0;
 		mddev->recovery_cp = 0;
+		mddev->reshape_position = MaxSector;
 
 	} else if (mddev->pers)
 		printk(KERN_INFO "md: %s switched to read-only mode.\n",

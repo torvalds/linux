@@ -178,6 +178,21 @@ All md devices contain:
      The size should be at least PAGE_SIZE (4k) and should be a power
      of 2.  This can only be set while assembling an array
 
+  layout
+     The "layout" for the array for the particular level.  This is
+     simply a number that is interpretted differently by different
+     levels.  It can be written while assembling an array.
+
+  reshape_position
+     This is either "none" or a sector number within the devices of
+     the array where "reshape" is up to.  If this is set, the three
+     attributes mentioned above (raid_disks, chunk_size, layout) can
+     potentially have 2 values, an old and a new value.  If these
+     values differ, reading the attribute returns
+        new (old)
+     and writing will effect the 'new' value, leaving the 'old'
+     unchanged.
+
   component_size
      For arrays with data redundancy (i.e. not raid0, linear, faulty,
      multipath), all components must be the same size - or at least
@@ -192,11 +207,6 @@ All md devices contain:
      about the array.  It can be 0.90 (traditional format), 1.0, 1.1,
      1.2 (newer format in varying locations) or "none" indicating that
      the kernel isn't managing metadata at all.
-
-  layout
-     The "layout" for the array for the particular level.  This is
-     simply a number that is interpretted differently by different
-     levels.  It can be written while assembling an array.
 
   resync_start
      The point at which resync should start.  If no resync is needed,
@@ -257,29 +267,6 @@ All md devices contain:
 
      active-idle
          like active, but no writes have been seen for a while (safe_mode_delay).
-
-
-   sync_speed_min
-   sync_speed_max
-     This are similar to /proc/sys/dev/raid/speed_limit_{min,max}
-     however they only apply to the particular array.
-     If no value has been written to these, of if the word 'system'
-     is written, then the system-wide value is used.  If a value,
-     in kibibytes-per-second is written, then it is used.
-     When the files are read, they show the currently active value
-     followed by "(local)" or "(system)" depending on whether it is
-     a locally set or system-wide value.
-
-   sync_completed
-     This shows the number of sectors that have been completed of
-     whatever the current sync_action is, followed by the number of
-     sectors in total that could need to be processed.  The two
-     numbers are separated by a '/'  thus effectively showing one
-     value, a fraction of the process that is complete.
-
-   sync_speed
-     This shows the current actual speed, in K/sec, of the current
-     sync_action.  It is averaged over the last 30 seconds.
 
 
 As component devices are added to an md array, they appear in the 'md'
@@ -411,6 +398,35 @@ also have
       can be separated by a space.
       Note that the numbers are 'bit' numbers, not 'block' numbers.
       They should be scaled by the bitmap_chunksize.
+
+   sync_speed_min
+   sync_speed_max
+     This are similar to /proc/sys/dev/raid/speed_limit_{min,max}
+     however they only apply to the particular array.
+     If no value has been written to these, of if the word 'system'
+     is written, then the system-wide value is used.  If a value,
+     in kibibytes-per-second is written, then it is used.
+     When the files are read, they show the currently active value
+     followed by "(local)" or "(system)" depending on whether it is
+     a locally set or system-wide value.
+
+   sync_completed
+     This shows the number of sectors that have been completed of
+     whatever the current sync_action is, followed by the number of
+     sectors in total that could need to be processed.  The two
+     numbers are separated by a '/'  thus effectively showing one
+     value, a fraction of the process that is complete.
+
+   sync_speed
+     This shows the current actual speed, in K/sec, of the current
+     sync_action.  It is averaged over the last 30 seconds.
+
+   suspend_lo
+   suspend_hi
+     The two values, given as numbers of sectors, indicate a range
+     within the array where IO will be blocked.  This is currently
+     only supported for raid4/5/6.
+
 
 Each active md device may also have attributes specific to the
 personality module that manages it.
