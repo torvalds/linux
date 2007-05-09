@@ -46,7 +46,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#define PDC202_DEBUG_CABLE		0
 #define PDC202XX_DEBUG_DRIVE_INFO	0
 
 static const char *pdc_quirk_drives[] = {
@@ -238,20 +237,7 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 	u32 drive_conf		= 0;
 	u8 drive_pci		= 0x60 + (drive->dn << 2);
 	u8 test1 = 0, test2 = 0, speed = -1;
-	u8 AP = 0, cable = 0;
-
-	u8 ultra_66		= ((id->dma_ultra & 0x0010) ||
-				   (id->dma_ultra & 0x0008)) ? 1 : 0;
-
-	if (dev->device != PCI_DEVICE_ID_PROMISE_20246)
-		cable = pdc202xx_old_cable_detect(hwif);
-	else
-		ultra_66 = 0;
-
-	if (ultra_66 && cable) {
-		printk(KERN_WARNING "Warning: %s channel requires an 80-pin cable for operation.\n", hwif->channel ? "Secondary":"Primary");
-		printk(KERN_WARNING "%s reduced to Ultra33 mode.\n", drive->name);
-	}
+	u8 AP = 0;
 
 	if (dev->device != PCI_DEVICE_ID_PROMISE_20246)
 		pdc_old_disable_66MHz_clock(drive->hwif);
@@ -477,10 +463,6 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 	if (!noautodma)
 		hwif->autodma = 1;
 	hwif->drives[0].autodma = hwif->drives[1].autodma = hwif->autodma;
-#if PDC202_DEBUG_CABLE
-	printk(KERN_DEBUG "%s: %s-pin cable\n",
-		hwif->name, hwif->udma_four ? "80" : "40");
-#endif /* PDC202_DEBUG_CABLE */	
 }
 
 static void __devinit init_dma_pdc202xx(ide_hwif_t *hwif, unsigned long dmabase)

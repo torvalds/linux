@@ -88,8 +88,15 @@ u8 ide_rate_filter(ide_drive_t *drive, u8 speed)
 	if (hwif->udma_filter)
 		mask = hwif->udma_filter(drive);
 
-	if ((mask & 0x78) && (eighty_ninty_three(drive) == 0))
-		mask &= 0x07;
+	/*
+	 * TODO: speed > XFER_UDMA_2 extra check is needed to avoid false
+	 * cable warning from eighty_ninty_three(), moving ide_rate_filter()
+	 * calls from ->speedproc to core code will make this hack go away
+	 */
+	if (speed > XFER_UDMA_2) {
+		if ((mask & 0x78) && (eighty_ninty_three(drive) == 0))
+			mask &= 0x07;
+	}
 
 	if (mask)
 		mode = fls(mask) - 1 + XFER_UDMA_0;

@@ -37,8 +37,6 @@
 #include <asm/pci-bridge.h>
 #endif
 
-#define PDC202_DEBUG_CABLE	0
-
 #undef DEBUG
 
 #ifdef DEBUG
@@ -234,16 +232,7 @@ static int config_chipset_for_dma(ide_drive_t *drive)
 {
 	struct hd_driveid *id	= drive->id;
 	ide_hwif_t *hwif	= HWIF(drive);
-	u8 ultra_66		= (id->dma_ultra & 0x0078) ? 1 : 0;
-	u8 cable		= pdcnew_cable_detect(hwif);
 	u8 speed;
-
-	if (ultra_66 && cable) {
-		printk(KERN_WARNING "Warning: %s channel "
-		       "requires an 80-pin cable for operation.\n",
-		       hwif->channel ? "Secondary" : "Primary");
-		printk(KERN_WARNING "%s reduced to Ultra33 mode.\n", drive->name);
-	}
 
 	if (id->capability & 4) {
 		/*
@@ -547,11 +536,6 @@ static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 	if (!noautodma)
 		hwif->autodma = 1;
 	hwif->drives[0].autodma = hwif->drives[1].autodma = hwif->autodma;
-
-#if PDC202_DEBUG_CABLE
-	printk(KERN_DEBUG "%s: %s-pin cable\n",
-		hwif->name, hwif->udma_four ? "80" : "40");
-#endif /* PDC202_DEBUG_CABLE */
 }
 
 static int __devinit init_setup_pdcnew(struct pci_dev *dev, ide_pci_device_t *d)
