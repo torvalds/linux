@@ -40,6 +40,13 @@ MODULE_AUTHOR("Kristen Carlson Accardi");
 MODULE_DESCRIPTION(ACPI_DOCK_DRIVER_DESCRIPTION);
 MODULE_LICENSE("GPL");
 
+static int immediate_undock = 1;
+module_param(immediate_undock, bool, 0644);
+MODULE_PARM_DESC(immediate_undock, "1 (default) will cause the driver to "
+	"undock immediately when the undock button is pressed, 0 will cause"
+	" the driver to wait for userspace to write the undock sysfs file "
+	" before undocking");
+
 static struct atomic_notifier_head dock_notifier_list;
 static struct platform_device *dock_device;
 static char dock_device_name[] = "dock";
@@ -63,6 +70,7 @@ struct dock_dependent_device {
 };
 
 #define DOCK_DOCKING	0x00000001
+#define DOCK_UNDOCKING  0x00000002
 #define DOCK_EVENT	3
 #define UNDOCK_EVENT	2
 
@@ -420,6 +428,16 @@ static inline void complete_dock(struct dock_station *ds)
 	ds->last_dock_time = jiffies;
 }
 
+static inline void begin_undock(struct dock_station *ds)
+{
+	ds->flags |= DOCK_UNDOCKING;
+}
+
+static inline void complete_undock(struct dock_station *ds)
+{
+	ds->flags &= ~(DOCK_UNDOCKING);
+}
+
 /**
  * dock_in_progress - see if we are in the middle of handling a dock event
  * @ds: the dock station
@@ -550,7 +568,7 @@ static int handle_eject_request(struct dock_station *ds, u32 event)
 		printk(KERN_ERR PREFIX "Unable to undock!\n");
 		return -EBUSY;
 	}
-
+	complete_undock(ds);
 	return 0;
 }
 
@@ -594,7 +612,11 @@ static void dock_notify(acpi_handle handle, u32 event, void *data)
 	 * to the driver who wish to hotplug.
          */
 	case ACPI_NOTIFY_EJECT_REQUEST:
-		handle_eject_request(ds, event);
+		begin_undock(ds);
+		if (immediate_undock)
+			handle_eject_request(ds, event);
+		else
+			dock_event(ds, event, UNDOCK_EVENT);
 		break;
 	default:
 		printk(KERN_ERR PREFIX "Unknown dock event %d\n", event);
@@ -651,6 +673,17 @@ static ssize_t show_docked(struct device *dev,
 
 }
 DEVICE_ATTR(docked, S_IRUGO, show_docked, NULL);
+
+/*
+ * show_flags - read method for flags file in sysfs
+ */
+static ssize_t show_flags(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", dock_station->flags);
+
+}
+DEVICE_ATTR(flags, S_IRUGO, show_flags, NULL);
 
 /*
  * write_undock - write method for "undock" file in sysfs
@@ -717,6 +750,7 @@ static int dock_add(acpi_handle handle)
 		dock_station = NULL;
 		return PTR_ERR(dock_device);
 	}
+
 	ret = device_create_file(&dock_device->dev, &dev_attr_docked);
 	if (ret) {
 		printk("Error %d adding sysfs file\n", ret);
@@ -739,6 +773,17 @@ static int dock_add(acpi_handle handle)
 		printk("Error %d adding sysfs file\n", ret);
 		device_remove_file(&dock_device->dev, &dev_attr_docked);
 		device_remove_file(&dock_device->dev, &dev_attr_undock);
+		platform_device_unregister(dock_device);
+		kfree(dock_station);
+		dock_station = NULL;
+		return ret;
+	}
+	ret = device_create_file(&dock_device->dev, &dev_attr_flags);
+	if (ret) {
+		printk("Error %d adding sysfs file\n", ret);
+		device_remove_file(&dock_device->dev, &dev_attr_docked);
+		device_remove_file(&dock_device->dev, &dev_attr_undock);
+		device_remove_file(&dock_device->dev, &dev_attr_uid);
 		platform_device_unregister(dock_device);
 		kfree(dock_station);
 		dock_station = NULL;
@@ -781,6 +826,7 @@ dock_add_err_unregister:
 	device_remove_file(&dock_device->dev, &dev_attr_docked);
 	device_remove_file(&dock_device->dev, &dev_attr_undock);
 	device_remove_file(&dock_device->dev, &dev_attr_uid);
+	device_remove_file(&dock_device->dev, &dev_attr_flags);
 	platform_device_unregister(dock_device);
 	kfree(dock_station);
 	dock_station = NULL;
@@ -814,6 +860,7 @@ static int dock_remove(void)
 	device_remove_file(&dock_device->dev, &dev_attr_docked);
 	device_remove_file(&dock_device->dev, &dev_attr_undock);
 	device_remove_file(&dock_device->dev, &dev_attr_uid);
+	device_remove_file(&dock_device->dev, &dev_attr_flags);
 	platform_device_unregister(dock_device);
 
 	/* free dock station memory */
