@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -431,6 +431,38 @@ static int compute_bitstructs(struct gfs2_rgrpd *rgd)
 }
 
 /**
+ * gfs2_ri_total - Total up the file system space, according to the rindex.
+ *
+ */
+u64 gfs2_ri_total(struct gfs2_sbd *sdp)
+{
+	u64 total_data = 0;	
+	struct inode *inode = sdp->sd_rindex;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_rindex_host ri;
+	char buf[sizeof(struct gfs2_rindex)];
+	struct file_ra_state ra_state;
+	int error, rgrps;
+
+	mutex_lock(&sdp->sd_rindex_mutex);
+	file_ra_state_init(&ra_state, inode->i_mapping);
+	for (rgrps = 0;; rgrps++) {
+		loff_t pos = rgrps * sizeof(struct gfs2_rindex);
+
+		if (pos + sizeof(struct gfs2_rindex) >= ip->i_di.di_size)
+			break;
+		error = gfs2_internal_read(ip, &ra_state, buf, &pos,
+					   sizeof(struct gfs2_rindex));
+		if (error != sizeof(struct gfs2_rindex))
+			break;
+		gfs2_rindex_in(&ri, buf);
+		total_data += ri.ri_data;
+	}
+	mutex_unlock(&sdp->sd_rindex_mutex);
+	return total_data;
+}
+
+/**
  * gfs2_ri_update - Pull in a new resource index from the disk
  * @gl: The glock covering the rindex inode
  *
@@ -447,7 +479,12 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 	u64 junk = ip->i_di.di_size;
 	int error;
 
-	if (do_div(junk, sizeof(struct gfs2_rindex))) {
+	/* If someone is holding the rindex file with a glock, they must
+	   be updating it, in which case we may have partial entries.
+	   In this case, we ignore the partials. */
+	if (!gfs2_glock_is_held_excl(ip->i_gl) &&
+	    !gfs2_glock_is_held_shrd(ip->i_gl) &&
+	    do_div(junk, sizeof(struct gfs2_rindex))) {
 		gfs2_consist_inode(ip);
 		return -EIO;
 	}
@@ -457,6 +494,9 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 	file_ra_state_init(&ra_state, inode->i_mapping);
 	for (sdp->sd_rgrps = 0;; sdp->sd_rgrps++) {
 		loff_t pos = sdp->sd_rgrps * sizeof(struct gfs2_rindex);
+
+		if (pos + sizeof(struct gfs2_rindex) >= ip->i_di.di_size)
+			break;
 		error = gfs2_internal_read(ip, &ra_state, buf, &pos,
 					    sizeof(struct gfs2_rindex));
 		if (!error)
@@ -978,18 +1018,25 @@ int gfs2_inplace_reserve_i(struct gfs2_inode *ip, char *file, unsigned int line)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_alloc *al = &ip->i_alloc;
-	int error;
+	int error = 0;
 
 	if (gfs2_assert_warn(sdp, al->al_requested))
 		return -EINVAL;
 
-	error = gfs2_rindex_hold(sdp, &al->al_ri_gh);
+	/* We need to hold the rindex unless the inode we're using is
+	   the rindex itself, in which case it's already held. */
+	if (ip != GFS2_I(sdp->sd_rindex))
+		error = gfs2_rindex_hold(sdp, &al->al_ri_gh);
+	else if (!sdp->sd_rgrps) /* We may not have the rindex read in, so: */
+		error = gfs2_ri_update(ip);
+
 	if (error)
 		return error;
 
 	error = get_local_rgrp(ip);
 	if (error) {
-		gfs2_glock_dq_uninit(&al->al_ri_gh);
+		if (ip != GFS2_I(sdp->sd_rindex))
+			gfs2_glock_dq_uninit(&al->al_ri_gh);
 		return error;
 	}
 
@@ -1019,7 +1066,8 @@ void gfs2_inplace_release(struct gfs2_inode *ip)
 
 	al->al_rgd = NULL;
 	gfs2_glock_dq_uninit(&al->al_rgd_gh);
-	gfs2_glock_dq_uninit(&al->al_ri_gh);
+	if (ip != GFS2_I(sdp->sd_rindex))
+		gfs2_glock_dq_uninit(&al->al_ri_gh);
 }
 
 /**

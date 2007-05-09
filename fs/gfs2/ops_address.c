@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -450,6 +450,30 @@ out_uninit:
 }
 
 /**
+ * adjust_fs_space - Adjusts the free space available due to gfs2_grow
+ * @inode: the rindex inode
+ */
+static void adjust_fs_space(struct inode *inode)
+{
+	struct gfs2_sbd *sdp = inode->i_sb->s_fs_info;
+	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
+	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
+	u64 fs_total, new_free;
+
+	/* Total up the file system space, according to the latest rindex. */
+	fs_total = gfs2_ri_total(sdp);
+
+	spin_lock(&sdp->sd_statfs_spin);
+	if (fs_total > (m_sc->sc_total + l_sc->sc_total))
+		new_free = fs_total - (m_sc->sc_total + l_sc->sc_total);
+	else
+		new_free = 0;
+	spin_unlock(&sdp->sd_statfs_spin);
+	fs_warn(sdp, "File system extended by %llu blocks.\n", new_free);
+	gfs2_statfs_change(sdp, new_free, new_free, 0);
+}
+
+/**
  * gfs2_commit_write - Commit write to a file
  * @file: The file to write to
  * @page: The page containing the data
@@ -510,6 +534,9 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 		ip->i_di.di_size = inode->i_size;
 		di->di_size = cpu_to_be64(inode->i_size);
 	}
+
+	if (inode == sdp->sd_rindex)
+		adjust_fs_space(inode);
 
 	brelse(dibh);
 	gfs2_trans_end(sdp);

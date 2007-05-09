@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -18,5 +18,8 @@ extern const struct address_space_operations gfs2_file_aops;
 extern int gfs2_get_block(struct inode *inode, sector_t lblock,
 			  struct buffer_head *bh_result, int create);
 extern int gfs2_releasepage(struct page *page, gfp_t gfp_mask);
+extern u64 gfs2_ri_total(struct gfs2_sbd *sdp);
+extern void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
+			       s64 dinodes);
 
 #endif /* __OPS_ADDRESS_DOT_H__ */
