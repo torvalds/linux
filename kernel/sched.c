@@ -169,7 +169,7 @@ unsigned long long __attribute__((weak)) sched_clock(void)
 		(MAX_BONUS / 2 + DELTA((p)) + 1) / MAX_BONUS - 1))
 
 #define TASK_PREEMPTS_CURR(p, rq) \
-	(((p)->prio < (rq)->curr->prio) && ((p)->array == (rq)->active))
+	((p)->prio < (rq)->curr->prio)
 
 #define SCALE_PRIO(x, prio) \
 	max(x * (MAX_PRIO - prio) / (MAX_USER_PRIO / 2), MIN_TIMESLICE)
@@ -4076,13 +4076,13 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 	struct prio_array *array;
 	unsigned long flags;
 	struct rq *rq;
-	int delta;
+	int oldprio;
 
 	BUG_ON(prio < 0 || prio > MAX_PRIO);
 
 	rq = task_rq_lock(p, &flags);
 
-	delta = prio - p->prio;
+	oldprio = p->prio;
 	array = p->array;
 	if (array)
 		dequeue_task(p, array);
@@ -4098,11 +4098,13 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 		enqueue_task(p, array);
 		/*
 		 * Reschedule if we are currently running on this runqueue and
-		 * our priority decreased, or if our priority became higher
-		 * than the current's.
+		 * our priority decreased, or if we are not currently running on
+		 * this runqueue and our priority is higher than the current's
 		 */
-		if (TASK_PREEMPTS_CURR(p, rq) ||
-				(delta > 0 && task_running(rq, p)))
+		if (task_running(rq, p)) {
+			if (p->prio > oldprio)
+				resched_task(rq->curr);
+		} else if (TASK_PREEMPTS_CURR(p, rq))
 			resched_task(rq->curr);
 	}
 	task_rq_unlock(rq, &flags);
@@ -4150,12 +4152,10 @@ void set_user_nice(struct task_struct *p, long nice)
 		enqueue_task(p, array);
 		inc_raw_weighted_load(rq, p);
 		/*
-		 * Reschedule if we are currently running on this runqueue and
-		 * our priority decreased, or if our priority became higher
-		 * than the current's.
+		 * If the task increased its priority or is running and
+		 * lowered its priority, then reschedule its CPU:
 		 */
-		if (TASK_PREEMPTS_CURR(p, rq) ||
-				(delta > 0 && task_running(rq, p)))
+		if (delta < 0 || (delta > 0 && task_running(rq, p)))
 			resched_task(rq->curr);
 	}
 out_unlock:
@@ -4382,11 +4382,13 @@ recheck:
 		__activate_task(p, rq);
 		/*
 		 * Reschedule if we are currently running on this runqueue and
-		 * our priority decreased, or our priority became higher
-		 * than the current's.
+		 * our priority decreased, or if we are not currently running on
+		 * this runqueue and our priority is higher than the current's
 		 */
-		if (TASK_PREEMPTS_CURR(p, rq) ||
-				(task_running(rq, p) && p->prio > oldprio))
+		if (task_running(rq, p)) {
+			if (p->prio > oldprio)
+				resched_task(rq->curr);
+		} else if (TASK_PREEMPTS_CURR(p, rq))
 			resched_task(rq->curr);
 	}
 	__task_rq_unlock(rq);
