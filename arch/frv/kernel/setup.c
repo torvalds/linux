@@ -191,7 +191,7 @@ static struct clock_cmode __pminitdata clock_cmodes_fr555[16] = {
 static const struct clock_cmode __pminitdata *clock_cmodes;
 static int __pminitdata clock_doubled;
 
-static struct uart_port __initdata __frv_uart0 = {
+static struct uart_port __pminitdata __frv_uart0 = {
 	.uartclk		= 0,
 	.membase		= (char *) UART0_BASE,
 	.irq			= IRQ_CPU_UART0,
@@ -200,7 +200,7 @@ static struct uart_port __initdata __frv_uart0 = {
 	.flags			= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 };
 
-static struct uart_port __initdata __frv_uart1 = {
+static struct uart_port __pminitdata __frv_uart1 = {
 	.uartclk		= 0,
 	.membase		= (char *) UART1_BASE,
 	.irq			= IRQ_CPU_UART1,
