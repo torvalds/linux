@@ -65,9 +65,7 @@ static int umt_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 
 static int umt_tuner_attach (struct dvb_usb_adapter *adap)
 {
-	adap->pll_addr = 0x61;
-	adap->pll_desc = &dvb_pll_tua6034;
-	adap->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
+	dvb_attach(dvb_pll_attach, adap->fe, 0x61, NULL, &dvb_pll_tua6034);
 	return 0;
 }
 
