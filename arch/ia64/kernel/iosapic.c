@@ -1012,7 +1012,7 @@ iosapic_register_platform_intr (u32 int_type, unsigned int gsi,
 /*
  * ACPI calls this when it finds an entry for a legacy ISA IRQ override.
  */
-void __init
+void __devinit
 iosapic_override_isa_irq (unsigned int isa_irq, unsigned int gsi,
 			  unsigned long polarity,
 			  unsigned long trigger)

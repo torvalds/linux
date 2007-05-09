@@ -38,6 +38,7 @@
 #include <asm/machvec.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
+#include <asm/tlbflush.h>
 
 #ifdef CONFIG_PERFMON
 # include <asm/perfmon.h>
@@ -126,8 +127,10 @@ void destroy_irq(unsigned int irq)
 
 #ifdef CONFIG_SMP
 #	define IS_RESCHEDULE(vec)	(vec == IA64_IPI_RESCHEDULE)
+#	define IS_LOCAL_TLB_FLUSH(vec)	(vec == IA64_IPI_LOCAL_TLB_FLUSH)
 #else
 #	define IS_RESCHEDULE(vec)	(0)
+#	define IS_LOCAL_TLB_FLUSH(vec)	(0)
 #endif
 /*
  * That's where the IVT branches when we get an external
@@ -179,8 +182,11 @@ ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 	saved_tpr = ia64_getreg(_IA64_REG_CR_TPR);
 	ia64_srlz_d();
 	while (vector != IA64_SPURIOUS_INT_VECTOR) {
-		if (unlikely(IS_RESCHEDULE(vector)))
-			 kstat_this_cpu.irqs[vector]++;
+		if (unlikely(IS_LOCAL_TLB_FLUSH(vector))) {
+			smp_local_flush_tlb();
+			kstat_this_cpu.irqs[vector]++;
+		} else if (unlikely(IS_RESCHEDULE(vector)))
+			kstat_this_cpu.irqs[vector]++;
 		else {
 			ia64_setreg(_IA64_REG_CR_TPR, vector);
 			ia64_srlz_d();
@@ -226,8 +232,11 @@ void ia64_process_pending_intr(void)
 	  * Perform normal interrupt style processing
 	  */
 	while (vector != IA64_SPURIOUS_INT_VECTOR) {
-		if (unlikely(IS_RESCHEDULE(vector)))
-			 kstat_this_cpu.irqs[vector]++;
+		if (unlikely(IS_LOCAL_TLB_FLUSH(vector))) {
+			smp_local_flush_tlb();
+			kstat_this_cpu.irqs[vector]++;
+		} else if (unlikely(IS_RESCHEDULE(vector)))
+			kstat_this_cpu.irqs[vector]++;
 		else {
 			struct pt_regs *old_regs = set_irq_regs(NULL);
 
@@ -259,12 +268,12 @@ void ia64_process_pending_intr(void)
 
 
 #ifdef CONFIG_SMP
-extern irqreturn_t handle_IPI (int irq, void *dev_id);
 
 static irqreturn_t dummy_handler (int irq, void *dev_id)
 {
 	BUG();
 }
+extern irqreturn_t handle_IPI (int irq, void *dev_id);
 
 static struct irqaction ipi_irqaction = {
 	.handler =	handle_IPI,
@@ -277,6 +286,13 @@ static struct irqaction resched_irqaction = {
 	.flags =	IRQF_DISABLED,
 	.name =		"resched"
 };
+
+static struct irqaction tlb_irqaction = {
+	.handler =	dummy_handler,
+	.flags =	SA_INTERRUPT,
+	.name =		"tlb_flush"
+};
+
 #endif
 
 void
@@ -302,6 +318,7 @@ init_IRQ (void)
 #ifdef CONFIG_SMP
 	register_percpu_irq(IA64_IPI_VECTOR, &ipi_irqaction);
 	register_percpu_irq(IA64_IPI_RESCHEDULE, &resched_irqaction);
+	register_percpu_irq(IA64_IPI_LOCAL_TLB_FLUSH, &tlb_irqaction);
 #endif
 #ifdef CONFIG_PERFMON
 	pfm_init_percpu();
