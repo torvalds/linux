@@ -87,5 +87,7 @@ extern int gpmc_cs_calc_divider(int cs, unsigned int sync_clk);
 extern int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t);
 extern int gpmc_cs_request(int cs, unsigned long size, unsigned long *base);
 extern void gpmc_cs_free(int cs);
+extern int gpmc_cs_set_reserved(int cs, int reserved);
+extern int gpmc_cs_reserved(int cs);
 
 #endif
