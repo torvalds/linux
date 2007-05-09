@@ -47,7 +47,7 @@ static int mca_bus_match (struct device *dev, struct device_driver *drv)
 {
 	struct mca_device *mca_dev = to_mca_device (dev);
 	struct mca_driver *mca_drv = to_mca_driver (drv);
-	const short *mca_ids = mca_drv->id_table;
+	const unsigned short *mca_ids = mca_drv->id_table;
 	int i;
 
 	if (!mca_ids)
