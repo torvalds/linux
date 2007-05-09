@@ -33,6 +33,7 @@
 #include <linux/seq_file.h>
 
 #include <linux/backlight.h>
+#include <linux/video_output.h>
 #include <asm/uaccess.h>
 
 #include <acpi/acpi_bus.h>
@@ -169,6 +170,7 @@ struct acpi_video_device {
 	struct acpi_device *dev;
 	struct acpi_video_device_brightness *brightness;
 	struct backlight_device *backlight;
+	struct output_device *output_dev;
 };
 
 /* bus */
@@ -272,6 +274,10 @@ static int acpi_video_get_next_level(struct acpi_video_device *device,
 				     u32 level_current, u32 event);
 static void acpi_video_switch_brightness(struct acpi_video_device *device,
 					 int event);
+static int acpi_video_device_get_state(struct acpi_video_device *device,
+			    unsigned long *state);
+static int acpi_video_output_get(struct output_device *od);
+static int acpi_video_device_set_state(struct acpi_video_device *device, int state);
 
 /*backlight device sysfs support*/
 static int acpi_video_get_brightness(struct backlight_device *bd)
@@ -297,6 +303,28 @@ static struct backlight_ops acpi_backlight_ops = {
 	.update_status  = acpi_video_set_brightness,
 };
 
+/*video output device sysfs support*/
+static int acpi_video_output_get(struct output_device *od)
+{
+	unsigned long state;
+	struct acpi_video_device *vd =
+		(struct acpi_video_device *)class_get_devdata(&od->class_dev);
+	acpi_video_device_get_state(vd, &state);
+	return (int)state;
+}
+
+static int acpi_video_output_set(struct output_device *od)
+{
+	unsigned long state = od->request_state;
+	struct acpi_video_device *vd=
+		(struct acpi_video_device *)class_get_devdata(&od->class_dev);
+	return acpi_video_device_set_state(vd, state);
+}
+
+static struct output_properties acpi_output_properties = {
+	.set_state = acpi_video_output_set,
+	.get_status = acpi_video_output_get,
+};
 /* --------------------------------------------------------------------------
                                Video Management
    -------------------------------------------------------------------------- */
@@ -624,6 +652,17 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		device->backlight->props.brightness = (int)tmp;
 		backlight_update_status(device->backlight);
 
+		kfree(name);
+	}
+	if (device->cap._DCS && device->cap._DSS){
+		static int count = 0;
+		char *name;
+		name = kzalloc(MAX_NAME_LEN, GFP_KERNEL);
+		if (!name)
+			return;
+		sprintf(name, "acpi_video%d", count++);
+		device->output_dev = video_output_register(name,
+				NULL, device, &acpi_output_properties);
 		kfree(name);
 	}
 	return;
@@ -1669,6 +1708,7 @@ static int acpi_video_bus_put_one_device(struct acpi_video_device *device)
 					    ACPI_DEVICE_NOTIFY,
 					    acpi_video_device_notify);
 	backlight_device_unregister(device->backlight);
+	video_output_unregister(device->output_dev);
 	return 0;
 }
 

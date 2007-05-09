@@ -119,3 +119,6 @@ obj-$(CONFIG_FB_OF)               += offb.o
 
 # the test framebuffer is last
 obj-$(CONFIG_FB_VIRTUAL)          += vfb.o
+
+#video output switch sysfs driver
+obj-$(CONFIG_VIDEO_OUTPUT_CONTROL) += output.o
