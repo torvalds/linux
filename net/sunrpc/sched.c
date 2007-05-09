@@ -736,6 +736,11 @@ static void rpc_async_schedule(struct work_struct *work)
 	__rpc_execute(container_of(work, struct rpc_task, u.tk_work));
 }
 
+struct rpc_buffer {
+	size_t	len;
+	char	data[];
+};
+
 /**
  * rpc_malloc - allocate an RPC buffer
  * @task: RPC task that will use this buffer
@@ -754,18 +759,22 @@ static void rpc_async_schedule(struct work_struct *work)
  */
 void *rpc_malloc(struct rpc_task *task, size_t size)
 {
-	size_t *buf;
+	struct rpc_buffer *buf;
 	gfp_t gfp = RPC_IS_SWAPPER(task) ? GFP_ATOMIC : GFP_NOWAIT;
 
-	size += sizeof(size_t);
+	size += sizeof(struct rpc_buffer);
 	if (size <= RPC_BUFFER_MAXSIZE)
 		buf = mempool_alloc(rpc_buffer_mempool, gfp);
 	else
 		buf = kmalloc(size, gfp);
-	*buf = size;
+
+	if (!buf)
+		return NULL;
+
+	buf->len = size;
 	dprintk("RPC: %5u allocated buffer of size %zu at %p\n",
 			task->tk_pid, size, buf);
-	return ++buf;
+	return &buf->data;
 }
 
 /**
@@ -775,15 +784,18 @@ void *rpc_malloc(struct rpc_task *task, size_t size)
  */
 void rpc_free(void *buffer)
 {
-	size_t size, *buf = buffer;
+	size_t size;
+	struct rpc_buffer *buf;
 
 	if (!buffer)
 		return;
-	size = *buf;
-	buf--;
+
+	buf = container_of(buffer, struct rpc_buffer, data);
+	size = buf->len;
 
 	dprintk("RPC:       freeing buffer of size %zu at %p\n",
 			size, buf);
+
 	if (size <= RPC_BUFFER_MAXSIZE)
 		mempool_free(buf, rpc_buffer_mempool);
 	else
