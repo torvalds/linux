@@ -289,7 +289,7 @@ static struct irqaction resched_irqaction = {
 
 static struct irqaction tlb_irqaction = {
 	.handler =	dummy_handler,
-	.flags =	SA_INTERRUPT,
+	.flags =	IRQF_DISABLED,
 	.name =		"tlb_flush"
 };
 
