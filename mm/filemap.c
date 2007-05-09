@@ -1784,7 +1784,7 @@ struct page *read_cache_page_async(struct address_space *mapping,
 retry:
 	page = __read_cache_page(mapping, index, filler, data);
 	if (IS_ERR(page))
-		goto out;
+		return page;
 	mark_page_accessed(page);
 	if (PageUptodate(page))
 		goto out;
@@ -1802,9 +1802,9 @@ retry:
 	err = filler(data, page);
 	if (err < 0) {
 		page_cache_release(page);
-		page = ERR_PTR(err);
+		return ERR_PTR(err);
 	}
- out:
+out:
 	mark_page_accessed(page);
 	return page;
 }
