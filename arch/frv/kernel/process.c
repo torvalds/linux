@@ -25,12 +25,14 @@
 #include <linux/elf.h>
 #include <linux/reboot.h>
 #include <linux/interrupt.h>
+#include <linux/pagemap.h>
 
 #include <asm/asm-offsets.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>
+#include <asm/tlb.h>
 #include <asm/gdb-stub.h>
 #include <asm/mb-regs.h>
 
@@ -87,6 +89,8 @@ void cpu_idle(void)
 	while (1) {
 		while (!need_resched()) {
 			irq_stat[cpu].idle_timestamp = jiffies;
+
+			check_pgt_cache();
 
 			if (!frv_dma_inprogress && idle)
 				idle();
