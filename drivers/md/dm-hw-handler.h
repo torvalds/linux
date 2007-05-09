@@ -16,6 +16,7 @@
 struct hw_handler_type;
 struct hw_handler {
 	struct hw_handler_type *type;
+	struct mapped_device *md;
 	void *context;
 };
 
