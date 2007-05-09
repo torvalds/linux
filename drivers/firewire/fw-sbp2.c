@@ -926,7 +926,10 @@ static int sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 
 	/*
 	 * Convert the scatterlist to an sbp2 page table.  If any
-	 * scatterlist entries are too big for sbp2 we split the as we go.
+	 * scatterlist entries are too big for sbp2, we split them as we
+	 * go.  Even if we ask the block I/O layer to not give us sg
+	 * elements larger than 65535 bytes, some IOMMUs may merge sg elements
+	 * during DMA mapping, and Linux currently doesn't prevent this.
 	 */
 	for (i = 0, j = 0; i < count; i++) {
 		sg_len = sg_dma_len(sg + i);
