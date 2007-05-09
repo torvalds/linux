@@ -26,7 +26,7 @@
 
 
 enum lw_bits {
-	LW_RUNNING = 0,
+	LW_URGENT = 0,
 };
 
 static unsigned long linkwatch_flags;
@@ -95,18 +95,41 @@ static void linkwatch_add_event(struct net_device *dev)
 }
 
 
-static void linkwatch_schedule_work(unsigned long delay)
+static void linkwatch_schedule_work(int urgent)
 {
-	if (test_and_set_bit(LW_RUNNING, &linkwatch_flags))
+	unsigned long delay = linkwatch_nextevent - jiffies;
+
+	if (test_bit(LW_URGENT, &linkwatch_flags))
 		return;
 
-	/* If we wrap around we'll delay it by at most HZ. */
-	if (delay > HZ) {
-		linkwatch_nextevent = jiffies;
+	/* Minimise down-time: drop delay for up event. */
+	if (urgent) {
+		if (test_and_set_bit(LW_URGENT, &linkwatch_flags))
+			return;
 		delay = 0;
 	}
 
-	schedule_delayed_work(&linkwatch_work, delay);
+	/* If we wrap around we'll delay it by at most HZ. */
+	if (delay > HZ)
+		delay = 0;
+
+	/*
+	 * This is true if we've scheduled it immeditately or if we don't
+	 * need an immediate execution and it's already pending.
+	 */
+	if (schedule_delayed_work(&linkwatch_work, delay) == !delay)
+		return;
+
+	/* Don't bother if there is nothing urgent. */
+	if (!test_bit(LW_URGENT, &linkwatch_flags))
+		return;
+
+	/* It's already running which is good enough. */
+	if (!cancel_delayed_work(&linkwatch_work))
+		return;
+
+	/* Otherwise we reschedule it again for immediate exection. */
+	schedule_delayed_work(&linkwatch_work, 0);
 }
 
 
@@ -123,7 +146,11 @@ static void __linkwatch_run_queue(int urgent_only)
 	 */
 	if (!urgent_only)
 		linkwatch_nextevent = jiffies + HZ;
-	clear_bit(LW_RUNNING, &linkwatch_flags);
+	/* Limit wrap-around effect on delay. */
+	else if (time_after(linkwatch_nextevent, jiffies + HZ))
+		linkwatch_nextevent = jiffies;
+
+	clear_bit(LW_URGENT, &linkwatch_flags);
 
 	spin_lock_irq(&lweventlist_lock);
 	next = lweventlist;
@@ -166,7 +193,7 @@ static void __linkwatch_run_queue(int urgent_only)
 	}
 
 	if (lweventlist)
-		linkwatch_schedule_work(linkwatch_nextevent - jiffies);
+		linkwatch_schedule_work(0);
 }
 
 
@@ -187,21 +214,16 @@ static void linkwatch_event(struct work_struct *dummy)
 
 void linkwatch_fire_event(struct net_device *dev)
 {
-	if (!test_and_set_bit(__LINK_STATE_LINKWATCH_PENDING, &dev->state)) {
-		unsigned long delay;
+	int urgent = linkwatch_urgent_event(dev);
 
+	if (!test_and_set_bit(__LINK_STATE_LINKWATCH_PENDING, &dev->state)) {
 		dev_hold(dev);
 
 		linkwatch_add_event(dev);
+	} else if (!urgent)
+		return;
 
-		delay = linkwatch_nextevent - jiffies;
-
-		/* Minimise down-time: drop delay for up event. */
-		if (linkwatch_urgent_event(dev))
-			delay = 0;
-
-		linkwatch_schedule_work(delay);
-	}
+	linkwatch_schedule_work(urgent);
 }
 
 EXPORT_SYMBOL(linkwatch_fire_event);
