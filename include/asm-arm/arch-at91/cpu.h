@@ -68,4 +68,10 @@ static inline unsigned long at91_arch_identify(void)
 #define cpu_is_at91sam9263()	(0)
 #endif
 
+/*
+ * Since this is ARM, we will never run on any AVR32 CPU. But these
+ * definitions may reduce clutter in common drivers.
+ */
+#define cpu_is_at32ap7000()	(0)
+
 #endif
