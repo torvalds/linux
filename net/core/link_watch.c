@@ -19,7 +19,6 @@
 #include <linux/rtnetlink.h>
 #include <linux/jiffies.h>
 #include <linux/spinlock.h>
-#include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
@@ -28,7 +27,6 @@
 
 enum lw_bits {
 	LW_RUNNING = 0,
-	LW_SE_USED
 };
 
 static unsigned long linkwatch_flags;
@@ -37,16 +35,8 @@ static unsigned long linkwatch_nextevent;
 static void linkwatch_event(struct work_struct *dummy);
 static DECLARE_DELAYED_WORK(linkwatch_work, linkwatch_event);
 
-static LIST_HEAD(lweventlist);
+static struct net_device *lweventlist;
 static DEFINE_SPINLOCK(lweventlist_lock);
-
-struct lw_event {
-	struct list_head list;
-	struct net_device *dev;
-};
-
-/* Avoid kmalloc() for most systems */
-static struct lw_event singleevent;
 
 static unsigned char default_operstate(const struct net_device *dev)
 {
@@ -90,21 +80,23 @@ static void rfc2863_policy(struct net_device *dev)
 /* Must be called with the rtnl semaphore held */
 void linkwatch_run_queue(void)
 {
-	struct list_head head, *n, *next;
+	struct net_device *next;
 
 	spin_lock_irq(&lweventlist_lock);
-	list_replace_init(&lweventlist, &head);
+	next = lweventlist;
+	lweventlist = NULL;
 	spin_unlock_irq(&lweventlist_lock);
 
-	list_for_each_safe(n, next, &head) {
-		struct lw_event *event = list_entry(n, struct lw_event, list);
-		struct net_device *dev = event->dev;
+	while (next) {
+		struct net_device *dev = next;
 
-		if (event == &singleevent) {
-			clear_bit(LW_SE_USED, &linkwatch_flags);
-		} else {
-			kfree(event);
-		}
+		next = dev->link_watch_next;
+
+		/*
+		 * Make sure the above read is complete since it can be
+		 * rewritten as soon as we clear the bit below.
+		 */
+		smp_mb__before_clear_bit();
 
 		/* We are about to handle this device,
 		 * so new events can be accepted
@@ -147,24 +139,12 @@ void linkwatch_fire_event(struct net_device *dev)
 {
 	if (!test_and_set_bit(__LINK_STATE_LINKWATCH_PENDING, &dev->state)) {
 		unsigned long flags;
-		struct lw_event *event;
-
-		if (test_and_set_bit(LW_SE_USED, &linkwatch_flags)) {
-			event = kmalloc(sizeof(struct lw_event), GFP_ATOMIC);
-
-			if (unlikely(event == NULL)) {
-				clear_bit(__LINK_STATE_LINKWATCH_PENDING, &dev->state);
-				return;
-			}
-		} else {
-			event = &singleevent;
-		}
 
 		dev_hold(dev);
-		event->dev = dev;
 
 		spin_lock_irqsave(&lweventlist_lock, flags);
-		list_add_tail(&event->list, &lweventlist);
+		dev->link_watch_next = lweventlist;
+		lweventlist = dev;
 		spin_unlock_irqrestore(&lweventlist_lock, flags);
 
 		if (!test_and_set_bit(LW_RUNNING, &linkwatch_flags)) {

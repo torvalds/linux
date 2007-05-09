@@ -467,6 +467,8 @@ struct net_device
 	/* device index hash chain */
 	struct hlist_node	index_hlist;
 
+	struct net_device	*link_watch_next;
+
 	/* register/unregister state machine */
 	enum { NETREG_UNINITIALIZED=0,
 	       NETREG_REGISTERED,	/* completed register_netdevice */
