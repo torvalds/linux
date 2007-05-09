@@ -40,3 +40,4 @@
 #define  noinline			__attribute__((noinline))
 #define __attribute_pure__		__attribute__((pure))
 #define __attribute_const__		__attribute__((__const__))
+#define __maybe_unused			__attribute__((unused))
