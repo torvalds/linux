@@ -1155,11 +1155,9 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 	current->total_link_count = 0;
 	retval = link_path_walk(name, nd);
 out:
-	if (likely(retval == 0)) {
-		if (unlikely(!audit_dummy_context() && nd && nd->dentry &&
+	if (unlikely(!retval && !audit_dummy_context() && nd->dentry &&
 				nd->dentry->d_inode))
 		audit_inode(name, nd->dentry->d_inode);
-	}
 out_fail:
 	return retval;
 
