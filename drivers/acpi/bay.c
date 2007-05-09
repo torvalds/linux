@@ -288,6 +288,11 @@ static int bay_add(acpi_handle handle, int id)
 	new_bay->pdev = pdev;
 	platform_set_drvdata(pdev, new_bay);
 
+	/*
+	 * we want the bay driver to be able to send uevents
+	 */
+	pdev->dev.uevent_suppress = 0;
+
 	if (acpi_bay_add_fs(new_bay)) {
 		platform_device_unregister(new_bay->pdev);
 		goto bay_add_err;
