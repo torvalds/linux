@@ -1034,7 +1034,8 @@ out:
  */
 static int ocfs2_grab_pages_for_write(struct address_space *mapping,
 				      struct ocfs2_write_ctxt *wc,
-				      u32 cpos, loff_t user_pos, int new)
+				      u32 cpos, loff_t user_pos, int new,
+				      struct page *mmap_page)
 {
 	int ret = 0, i;
 	unsigned long start, target_index, index;
@@ -1058,11 +1059,36 @@ static int ocfs2_grab_pages_for_write(struct address_space *mapping,
 	for(i = 0; i < wc->w_num_pages; i++) {
 		index = start + i;
 
-		wc->w_pages[i] = find_or_create_page(mapping, index, GFP_NOFS);
-		if (!wc->w_pages[i]) {
-			ret = -ENOMEM;
-			mlog_errno(ret);
-			goto out;
+		if (index == target_index && mmap_page) {
+			/*
+			 * ocfs2_pagemkwrite() is a little different
+			 * and wants us to directly use the page
+			 * passed in.
+			 */
+			lock_page(mmap_page);
+
+			if (mmap_page->mapping != mapping) {
+				unlock_page(mmap_page);
+				/*
+				 * Sanity check - the locking in
+				 * ocfs2_pagemkwrite() should ensure
+				 * that this code doesn't trigger.
+				 */
+				ret = -EINVAL;
+				mlog_errno(ret);
+				goto out;
+			}
+
+			page_cache_get(mmap_page);
+			wc->w_pages[i] = mmap_page;
+		} else {
+			wc->w_pages[i] = find_or_create_page(mapping, index,
+							     GFP_NOFS);
+			if (!wc->w_pages[i]) {
+				ret = -ENOMEM;
+				mlog_errno(ret);
+				goto out;
+			}
 		}
 
 		if (index == target_index)
@@ -1213,10 +1239,10 @@ static void ocfs2_set_target_boundaries(struct ocfs2_super *osb,
 	}
 }
 
-static int ocfs2_write_begin_nolock(struct address_space *mapping,
-				    loff_t pos, unsigned len, unsigned flags,
-				    struct page **pagep, void **fsdata,
-				    struct buffer_head *di_bh)
+int ocfs2_write_begin_nolock(struct address_space *mapping,
+			     loff_t pos, unsigned len, unsigned flags,
+			     struct page **pagep, void **fsdata,
+			     struct buffer_head *di_bh, struct page *mmap_page)
 {
 	int ret, i, credits = OCFS2_INODE_UPDATE_CREDITS;
 	unsigned int num_clusters = 0, clusters_to_alloc = 0;
@@ -1318,7 +1344,7 @@ static int ocfs2_write_begin_nolock(struct address_space *mapping,
 	 * extent.
 	 */
 	ret = ocfs2_grab_pages_for_write(mapping, wc, wc->w_cpos, pos,
-					 clusters_to_alloc);
+					 clusters_to_alloc, mmap_page);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_commit;
@@ -1386,7 +1412,7 @@ int ocfs2_write_begin(struct file *file, struct address_space *mapping,
 	}
 
 	ret = ocfs2_write_begin_nolock(mapping, pos, len, flags, pagep,
-				       fsdata, di_bh);
+				       fsdata, di_bh, NULL);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_fail_data;
@@ -1407,9 +1433,9 @@ out_fail:
 	return ret;
 }
 
-static int ocfs2_write_end_nolock(struct address_space *mapping,
-				  loff_t pos, unsigned len, unsigned copied,
-				  struct page *page, void *fsdata)
+int ocfs2_write_end_nolock(struct address_space *mapping,
+			   loff_t pos, unsigned len, unsigned copied,
+			   struct page *page, void *fsdata)
 {
 	int i;
 	unsigned from, to, start = pos & (PAGE_CACHE_SIZE - 1);

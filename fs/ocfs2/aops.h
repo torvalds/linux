@@ -50,6 +50,15 @@ int ocfs2_write_end(struct file *file, struct address_space *mapping,
 		    loff_t pos, unsigned len, unsigned copied,
 		    struct page *page, void *fsdata);
 
+int ocfs2_write_end_nolock(struct address_space *mapping,
+			   loff_t pos, unsigned len, unsigned copied,
+			   struct page *page, void *fsdata);
+
+int ocfs2_write_begin_nolock(struct address_space *mapping,
+			     loff_t pos, unsigned len, unsigned flags,
+			     struct page **pagep, void **fsdata,
+			     struct buffer_head *di_bh, struct page *mmap_page);
+
 /* all ocfs2_dio_end_io()'s fault */
 #define ocfs2_iocb_is_rw_locked(iocb) \
 	test_bit(0, (unsigned long *)&iocb->private)

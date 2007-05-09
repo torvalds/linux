@@ -1001,6 +1001,13 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		goto bail_unlock;
 	}
 
+	/*
+	 * This will intentionally not wind up calling vmtruncate(),
+	 * since all the work for a size change has been done above.
+	 * Otherwise, we could get into problems with truncate as
+	 * ip_alloc_sem is used there to protect against i_size
+	 * changes.
+	 */
 	status = inode_setattr(inode, attr);
 	if (status < 0) {
 		mlog_errno(status);
