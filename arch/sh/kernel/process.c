@@ -16,6 +16,7 @@
 #include <linux/kallsyms.h>
 #include <linux/kexec.h>
 #include <linux/kdebug.h>
+#include <linux/tick.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
@@ -60,8 +61,10 @@ void cpu_idle(void)
 		if (!idle)
 			idle = default_idle;
 
+		tick_nohz_stop_sched_tick();
 		while (!need_resched())
 			idle();
+		tick_nohz_restart_sched_tick();
 
 		preempt_enable_no_resched();
 		schedule();
