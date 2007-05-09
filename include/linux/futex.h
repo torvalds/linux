@@ -3,6 +3,8 @@
 
 #include <linux/sched.h>
 
+union ktime;
+
 /* Second argument to futex syscall */
 
 
@@ -94,7 +96,7 @@ struct robust_list_head {
 #define ROBUST_LIST_LIMIT	2048
 
 #ifdef __KERNEL__
-long do_futex(u32 __user *uaddr, int op, u32 val, unsigned long timeout,
+long do_futex(u32 __user *uaddr, int op, u32 val, union ktime *timeout,
 	      u32 __user *uaddr2, u32 val2, u32 val3);
 
 extern int
