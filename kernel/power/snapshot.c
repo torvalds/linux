@@ -1227,7 +1227,7 @@ asmlinkage int swsusp_save(void)
 	nr_copy_pages = nr_pages;
 	nr_meta_pages = DIV_ROUND_UP(nr_pages * sizeof(long), PAGE_SIZE);
 
-	printk("swsusp: critical section/: done (%d pages copied)\n", nr_pages);
+	printk("swsusp: critical section: done (%d pages copied)\n", nr_pages);
 
 	return 0;
 }
