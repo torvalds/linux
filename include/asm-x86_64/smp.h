@@ -57,12 +57,6 @@ static inline int num_booting_cpus(void)
 
 #define raw_smp_processor_id() read_pda(cpunumber)
 
-static inline int hard_smp_processor_id(void)
-{
-	/* we don't want to mark this access volatile - bad code generation */
-	return GET_APIC_ID(*(unsigned int *)(APIC_BASE+APIC_ID));
-}
-
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 extern void prefill_possible_map(void);
@@ -71,9 +65,13 @@ extern unsigned __cpuinitdata disabled_cpus;
 
 #define NO_PROC_ID		0xFF		/* No processor magic marker */
 
-#else /* CONFIG_SMP */
-#define hard_smp_processor_id() 0
 #endif /* CONFIG_SMP */
+
+static inline int hard_smp_processor_id(void)
+{
+	/* we don't want to mark this access volatile - bad code generation */
+	return GET_APIC_ID(*(unsigned int *)(APIC_BASE+APIC_ID));
+}
 
 /*
  * Some lowlevel functions might want to know about
