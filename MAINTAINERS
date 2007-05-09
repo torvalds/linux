@@ -2648,6 +2648,12 @@ M:	corbet@lwn.net
 L:	video4linux-list@redhat.com
 S:	Maintained
 
+ONENAND FLASH DRIVER
+P:	Kyungmin Park
+M:	kyungmin.park@samsung.com
+L:	linux-mtd@lists.infradead.org
+S:	Maintained
+
 ONSTREAM SCSI TAPE DRIVER
 P:	Willem Riede
 M:	osst@riede.org

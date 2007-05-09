@@ -358,22 +358,6 @@ config MTD_CFI_FLAGADM
 	  Mapping for the Flaga digital module. If you don't have one, ignore
 	  this setting.
 
-config MTD_BEECH
-	tristate "CFI Flash device mapped on IBM 405LP Beech"
-	depends on MTD_CFI && BEECH
-	help
-	  This enables access routines for the flash chips on the IBM
-	  405LP Beech board. If you have one of these boards and would like
-	  to use the flash chips on it, say 'Y'.
-
-config MTD_ARCTIC
-	tristate "CFI Flash device mapped on IBM 405LP Arctic"
-	depends on MTD_CFI && ARCTIC2
-	help
-	  This enables access routines for the flash chips on the IBM 405LP
-	  Arctic board. If you have one of these boards and would like to
-	  use the flash chips on it, say 'Y'.
-
 config MTD_WALNUT
 	tristate "Flash device mapped on IBM 405GP Walnut"
 	depends on MTD_JEDECPROBE && WALNUT

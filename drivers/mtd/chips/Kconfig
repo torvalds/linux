@@ -1,5 +1,4 @@
 # drivers/mtd/chips/Kconfig
-# $Id: Kconfig,v 1.18 2005/11/07 11:14:22 gleixner Exp $
 
 menu "RAM/ROM/Flash chip drivers"
 	depends on MTD!=n
@@ -230,45 +229,6 @@ config MTD_ABSENT
 	  preserves the expected registration order of MTD device nodes on
 	  the system regardless of media presence.  Device nodes created
 	  with this driver will return -ENODEV upon access.
-
-config MTD_OBSOLETE_CHIPS
-	bool "Older (theoretically obsoleted now) drivers for non-CFI chips"
-	help
-	  This option does not enable any code directly, but will allow you to
-	  select some other chip drivers which are now considered obsolete,
-	  because the generic CONFIG_JEDECPROBE code above should now detect
-	  the chips which are supported by these drivers, and allow the generic
-	  CFI-compatible drivers to drive the chips. Say 'N' here unless you have
-	  already tried the CONFIG_JEDECPROBE method and reported its failure
-	  to the MTD mailing list at <linux-mtd@lists.infradead.org>
-
-config MTD_AMDSTD
-	tristate "AMD compatible flash chip support (non-CFI)"
-	depends on MTD_OBSOLETE_CHIPS && BROKEN
-	help
-	  This option enables support for flash chips using AMD-compatible
-	  commands, including some which are not CFI-compatible and hence
-	  cannot be used with the CONFIG_MTD_CFI_AMDSTD option.
-
-	  It also works on AMD compatible chips that do conform to CFI.
-
-config MTD_SHARP
-	tristate "pre-CFI Sharp chip support"
-	depends on MTD_OBSOLETE_CHIPS
-	help
-	  This option enables support for flash chips using Sharp-compatible
-	  commands, including some which are not CFI-compatible and hence
-	  cannot be used with the CONFIG_MTD_CFI_INTELxxx options.
-
-config MTD_JEDEC
-	tristate "JEDEC device support"
-	depends on MTD_OBSOLETE_CHIPS && BROKEN
-	help
-	  Enable older JEDEC flash interface devices for self
-	  programming flash.  It is commonly used in older AMD chips.  It is
-	  only called JEDEC because the JEDEC association
-	  <http://www.jedec.org/> distributes the identification codes for the
-	  chips.
 
 config MTD_XIP
 	bool "XIP aware MTD support"

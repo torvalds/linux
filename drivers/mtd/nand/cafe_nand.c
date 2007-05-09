@@ -11,6 +11,7 @@
 #undef DEBUG
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
+#include <linux/rslib.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -46,13 +47,14 @@
 #define CAFE_GLOBAL_IRQ_MASK	0x300c
 #define CAFE_NAND_RESET		0x3034
 
-int cafe_correct_ecc(unsigned char *buf,
-		     unsigned short *chk_syndrome_list);
+/* Missing from the datasheet: bit 19 of CTRL1 sets CE0 vs. CE1 */
+#define CTRL1_CHIPSELECT	(1<<19)
 
 struct cafe_priv {
 	struct nand_chip nand;
 	struct pci_dev *pdev;
 	void __iomem *mmio;
+	struct rs_control *rs;
 	uint32_t ctl1;
 	uint32_t ctl2;
 	int datalen;
@@ -195,8 +197,8 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 
 	cafe->data_pos = cafe->datalen = 0;
 
-	/* Set command valid bit */
-	ctl1 = 0x80000000 | command;
+	/* Set command valid bit, mask in the chip select bit  */
+	ctl1 = 0x80000000 | command | (cafe->ctl1 & CTRL1_CHIPSELECT);
 
 	/* Set RD or WR bits as appropriate */
 	if (command == NAND_CMD_READID || command == NAND_CMD_STATUS) {
@@ -309,8 +311,16 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 
 static void cafe_select_chip(struct mtd_info *mtd, int chipnr)
 {
-	//struct cafe_priv *cafe = mtd->priv;
-	//	cafe_dev_dbg(&cafe->pdev->dev, "select_chip %d\n", chipnr);
+	struct cafe_priv *cafe = mtd->priv;
+
+	cafe_dev_dbg(&cafe->pdev->dev, "select_chip %d\n", chipnr);
+
+	/* Mask the appropriate bit into the stored value of ctl1
+	   which will be used by cafe_nand_cmdfunc() */
+	if (chipnr)
+		cafe->ctl1 |= CTRL1_CHIPSELECT;
+	else
+		cafe->ctl1 &= ~CTRL1_CHIPSELECT;
 }
 
 static int cafe_nand_interrupt(int irq, void *id)
@@ -374,27 +384,65 @@ static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
 
 	if (checkecc && cafe_readl(cafe, NAND_ECC_RESULT) & (1<<18)) {
-		unsigned short syn[8];
-		int i;
+		unsigned short syn[8], pat[4];
+		int pos[4];
+		u8 *oob = chip->oob_poi;
+		int i, n;
 
 		for (i=0; i<8; i+=2) {
 			uint32_t tmp = cafe_readl(cafe, NAND_ECC_SYN01 + (i*2));
-			syn[i] = tmp & 0xfff;
-			syn[i+1] = (tmp >> 16) & 0xfff;
+			syn[i] = cafe->rs->index_of[tmp & 0xfff];
+			syn[i+1] = cafe->rs->index_of[(tmp >> 16) & 0xfff];
 		}
 
-		if ((i = cafe_correct_ecc(buf, syn)) < 0) {
+		n = decode_rs16(cafe->rs, NULL, NULL, 1367, syn, 0, pos, 0,
+		                pat);
+
+		for (i = 0; i < n; i++) {
+			int p = pos[i];
+
+			/* The 12-bit symbols are mapped to bytes here */
+
+			if (p > 1374) {
+				/* out of range */
+				n = -1374;
+			} else if (p == 0) {
+				/* high four bits do not correspond to data */
+				if (pat[i] > 0xff)
+					n = -2048;
+				else
+					buf[0] ^= pat[i];
+			} else if (p == 1365) {
+				buf[2047] ^= pat[i] >> 4;
+				oob[0] ^= pat[i] << 4;
+			} else if (p > 1365) {
+				if ((p & 1) == 1) {
+					oob[3*p/2 - 2048] ^= pat[i] >> 4;
+					oob[3*p/2 - 2047] ^= pat[i] << 4;
+				} else {
+					oob[3*p/2 - 2049] ^= pat[i] >> 8;
+					oob[3*p/2 - 2048] ^= pat[i];
+				}
+			} else if ((p & 1) == 1) {
+				buf[3*p/2] ^= pat[i] >> 4;
+				buf[3*p/2 + 1] ^= pat[i] << 4;
+			} else {
+				buf[3*p/2 - 1] ^= pat[i] >> 8;
+				buf[3*p/2] ^= pat[i];
+			}
+		}
+
+		if (n < 0) {
 			dev_dbg(&cafe->pdev->dev, "Failed to correct ECC at %08x\n",
 				cafe_readl(cafe, NAND_ADDR2) * 2048);
-			for (i=0; i< 0x5c; i+=4)
+			for (i = 0; i < 0x5c; i += 4)
 				printk("Register %x: %08x\n", i, readl(cafe->mmio + i));
 			mtd->ecc_stats.failed++;
 		} else {
-			dev_dbg(&cafe->pdev->dev, "Corrected %d symbol errors\n", i);
-			mtd->ecc_stats.corrected += i;
+			dev_dbg(&cafe->pdev->dev, "Corrected %d symbol errors\n", n);
+			mtd->ecc_stats.corrected += n;
 		}
 	}
-
 
 	return 0;
 }
@@ -416,7 +464,7 @@ static uint8_t cafe_mirror_pattern_512[] = { 0xBC };
 
 static struct nand_bbt_descr cafe_bbt_main_descr_2048 = {
 	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
-		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP,
+		| NAND_BBT_2BIT | NAND_BBT_VERSION,
 	.offs =	14,
 	.len = 4,
 	.veroffs = 18,
@@ -426,7 +474,7 @@ static struct nand_bbt_descr cafe_bbt_main_descr_2048 = {
 
 static struct nand_bbt_descr cafe_bbt_mirror_descr_2048 = {
 	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
-		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP,
+		| NAND_BBT_2BIT | NAND_BBT_VERSION,
 	.offs =	14,
 	.len = 4,
 	.veroffs = 18,
@@ -442,7 +490,7 @@ static struct nand_ecclayout cafe_oobinfo_512 = {
 
 static struct nand_bbt_descr cafe_bbt_main_descr_512 = {
 	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
-		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP,
+		| NAND_BBT_2BIT | NAND_BBT_VERSION,
 	.offs =	14,
 	.len = 1,
 	.veroffs = 15,
@@ -452,7 +500,7 @@ static struct nand_bbt_descr cafe_bbt_main_descr_512 = {
 
 static struct nand_bbt_descr cafe_bbt_mirror_descr_512 = {
 	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
-		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP,
+		| NAND_BBT_2BIT | NAND_BBT_VERSION,
 	.offs =	14,
 	.len = 1,
 	.veroffs = 15,
@@ -525,6 +573,48 @@ static int cafe_nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
 	return 0;
 }
 
+/* F_2[X]/(X**6+X+1)  */
+static unsigned short __devinit gf64_mul(u8 a, u8 b)
+{
+	u8 c;
+	unsigned int i;
+
+	c = 0;
+	for (i = 0; i < 6; i++) {
+		if (a & 1)
+			c ^= b;
+		a >>= 1;
+		b <<= 1;
+		if ((b & 0x40) != 0)
+			b ^= 0x43;
+	}
+
+	return c;
+}
+
+/* F_64[X]/(X**2+X+A**-1) with A the generator of F_64[X]  */
+static u16 __devinit gf4096_mul(u16 a, u16 b)
+{
+	u8 ah, al, bh, bl, ch, cl;
+
+	ah = a >> 6;
+	al = a & 0x3f;
+	bh = b >> 6;
+	bl = b & 0x3f;
+
+	ch = gf64_mul(ah ^ al, bh ^ bl) ^ gf64_mul(al, bl);
+	cl = gf64_mul(gf64_mul(ah, bh), 0x21) ^ gf64_mul(al, bl);
+
+	return (ch << 6) ^ cl;
+}
+
+static int __devinit cafe_mul(int x)
+{
+	if (x == 0)
+		return 1;
+	return gf4096_mul(x, 0xe01);
+}
+
 static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
 {
@@ -563,6 +653,12 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 		goto out_ior;
 	}
 	cafe->nand.buffers = (void *)cafe->dmabuf + 2112;
+
+	cafe->rs = init_rs_non_canonical(12, &cafe_mul, 0, 1, 8);
+	if (!cafe->rs) {
+		err = -ENOMEM;
+		goto out_ior;
+	}
 
 	cafe->nand.cmdfunc = cafe_nand_cmdfunc;
 	cafe->nand.dev_ready = cafe_device_ready;
@@ -646,7 +742,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 		cafe_readl(cafe, GLOBAL_CTRL), cafe_readl(cafe, GLOBAL_IRQ_MASK));
 
 	/* Scan to find existence of the device */
-	if (nand_scan_ident(mtd, 1)) {
+	if (nand_scan_ident(mtd, 2)) {
 		err = -ENXIO;
 		goto out_irq;
 	}
@@ -713,6 +809,7 @@ static void __devexit cafe_nand_remove(struct pci_dev *pdev)
 	cafe_writel(cafe, ~1 & cafe_readl(cafe, GLOBAL_IRQ_MASK), GLOBAL_IRQ_MASK);
 	free_irq(pdev->irq, mtd);
 	nand_release(mtd);
+	free_rs(cafe->rs);
 	pci_iounmap(pdev, cafe->mmio);
 	dma_free_coherent(&cafe->pdev->dev, 2112, cafe->dmabuf, cafe->dmaaddr);
 	kfree(mtd);

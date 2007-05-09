@@ -232,11 +232,13 @@ config MTD_NAND_BASLER_EXCITE
           will be named "excite_nandflash.ko".
 
 config MTD_NAND_CAFE
-       tristate "NAND support for OLPC CAFÉ chip"
-       depends on PCI
-       help
-	 Use NAND flash attached to the CAFÉ chip designed for the $100
-	 laptop.
+	tristate "NAND support for OLPC CAFÉ chip"
+	depends on PCI
+	select REED_SOLOMON
+	select REED_SOLOMON_DEC16
+	help
+	  Use NAND flash attached to the CAFÉ chip designed for the $100
+	  laptop.
 
 config MTD_NAND_CS553X
 	tristate "NAND support for CS5535/CS5536 (AMD Geode companion chip)"
@@ -269,5 +271,14 @@ config MTD_NAND_NANDSIM
 	help
 	  The simulator may simulate various NAND flash chips for the
 	  MTD nand layer.
+
+config MTD_NAND_PLATFORM
+	tristate "Support for generic platform NAND driver"
+	depends on MTD_NAND
+	help
+	  This implements a generic NAND driver for on-SOC platform
+	  devices. You will need to provide platform-specific functions
+	  via platform_data.
+
 
 endif # MTD_NAND
