@@ -2199,9 +2199,8 @@ EXPORT_SYMBOL(kmem_cache_shrink);
  */
 void *krealloc(const void *p, size_t new_size, gfp_t flags)
 {
-	struct kmem_cache *new_cache;
 	void *ret;
-	struct page *page;
+	size_t ks;
 
 	if (unlikely(!p))
 		return kmalloc(new_size, flags);
@@ -2211,19 +2210,13 @@ void *krealloc(const void *p, size_t new_size, gfp_t flags)
 		return NULL;
 	}
 
-	page = virt_to_head_page(p);
-
-	new_cache = get_slab(new_size, flags);
-
-	/*
- 	 * If new size fits in the current cache, bail out.
- 	 */
-	if (likely(page->slab == new_cache))
+	ks = ksize(p);
+	if (ks >= new_size)
 		return (void *)p;
 
 	ret = kmalloc(new_size, flags);
 	if (ret) {
-		memcpy(ret, p, min(new_size, ksize(p)));
+		memcpy(ret, p, min(new_size, ks));
 		kfree(p);
 	}
 	return ret;
