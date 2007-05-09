@@ -206,7 +206,7 @@ int afs_fs_fetch_file_status(struct afs_server *server,
 	struct afs_call *call;
 	__be32 *bp;
 
-	_enter(",%x,{%x:%d},,",
+	_enter(",%x,{%x:%u},,",
 	       key_serial(key), vnode->fid.vid, vnode->fid.vnode);
 
 	call = afs_alloc_flat_call(&afs_RXFSFetchStatus, 16, (21 + 3 + 6) * 4);
@@ -265,25 +265,20 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call,
 		call->offset = 0;
 		call->unmarshall++;
 
-		if (call->count < PAGE_SIZE) {
-			page = call->reply3;
-			buffer = kmap_atomic(page, KM_USER0);
-			memset(buffer + PAGE_SIZE - call->count, 0,
-			       call->count);
-			kunmap_atomic(buffer, KM_USER0);
-		}
-
 		/* extract the returned data */
 	case 2:
 		_debug("extract data");
-		page = call->reply3;
-		buffer = kmap_atomic(page, KM_USER0);
-		ret = afs_extract_data(call, skb, last, buffer, call->count);
-		kunmap_atomic(buffer, KM_USER0);
-		switch (ret) {
-		case 0:		break;
-		case -EAGAIN:	return 0;
-		default:	return ret;
+		if (call->count > 0) {
+			page = call->reply3;
+			buffer = kmap_atomic(page, KM_USER0);
+			ret = afs_extract_data(call, skb, last, buffer,
+					       call->count);
+			kunmap_atomic(buffer, KM_USER0);
+			switch (ret) {
+			case 0:		break;
+			case -EAGAIN:	return 0;
+			default:	return ret;
+			}
 		}
 
 		call->offset = 0;
@@ -317,6 +312,14 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call,
 
 	if (!last)
 		return 0;
+
+	if (call->count < PAGE_SIZE) {
+		_debug("clear");
+		page = call->reply3;
+		buffer = kmap_atomic(page, KM_USER0);
+		memset(buffer + call->count, 0, PAGE_SIZE - call->count);
+		kunmap_atomic(buffer, KM_USER0);
+	}
 
 	_leave(" = 0 [done]");
 	return 0;

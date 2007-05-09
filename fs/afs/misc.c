@@ -22,6 +22,7 @@ int afs_abort_to_error(u32 abort_code)
 {
 	switch (abort_code) {
 	case 13:		return -EACCES;
+	case 27:		return -EFBIG;
 	case 30:		return -EROFS;
 	case VSALVAGE:		return -EIO;
 	case VNOVNODE:		return -ENOENT;

@@ -55,7 +55,7 @@ const struct inode_operations afs_dir_inode_operations = {
 	.rmdir		= afs_rmdir,
 	.rename		= afs_rename,
 	.permission	= afs_permission,
-	.getattr	= afs_inode_getattr,
+	.getattr	= afs_getattr,
 };
 
 static struct dentry_operations afs_fs_dentry_operations = {
@@ -491,7 +491,7 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 
 	vnode = AFS_FS_I(dir);
 
-	_enter("{%x:%d},%p{%s},",
+	_enter("{%x:%u},%p{%s},",
 	       vnode->fid.vid, vnode->fid.vnode, dentry, dentry->d_name.name);
 
 	ASSERTCMP(dentry->d_inode, ==, NULL);
@@ -731,7 +731,7 @@ static int afs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	dvnode = AFS_FS_I(dir);
 
-	_enter("{%x:%d},{%s},%o",
+	_enter("{%x:%u},{%s},%o",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry->d_name.name, mode);
 
 	ret = -ENAMETOOLONG;
@@ -796,7 +796,7 @@ static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	dvnode = AFS_FS_I(dir);
 
-	_enter("{%x:%d},{%s}",
+	_enter("{%x:%u},{%s}",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry->d_name.name);
 
 	ret = -ENAMETOOLONG;
@@ -842,7 +842,7 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 
 	dvnode = AFS_FS_I(dir);
 
-	_enter("{%x:%d},{%s}",
+	_enter("{%x:%u},{%s}",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry->d_name.name);
 
 	ret = -ENAMETOOLONG;
@@ -916,7 +916,7 @@ static int afs_create(struct inode *dir, struct dentry *dentry, int mode,
 
 	dvnode = AFS_FS_I(dir);
 
-	_enter("{%x:%d},{%s},%o,",
+	_enter("{%x:%u},{%s},%o,",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry->d_name.name, mode);
 
 	ret = -ENAMETOOLONG;
@@ -983,7 +983,7 @@ static int afs_link(struct dentry *from, struct inode *dir,
 	vnode = AFS_FS_I(from->d_inode);
 	dvnode = AFS_FS_I(dir);
 
-	_enter("{%x:%d},{%x:%d},{%s}",
+	_enter("{%x:%u},{%x:%u},{%s}",
 	       vnode->fid.vid, vnode->fid.vnode,
 	       dvnode->fid.vid, dvnode->fid.vnode,
 	       dentry->d_name.name);
@@ -1032,7 +1032,7 @@ static int afs_symlink(struct inode *dir, struct dentry *dentry,
 
 	dvnode = AFS_FS_I(dir);
 
-	_enter("{%x:%d},{%s},%s",
+	_enter("{%x:%u},{%s},%s",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry->d_name.name,
 	       content);
 
@@ -1104,7 +1104,7 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	orig_dvnode = AFS_FS_I(old_dir);
 	new_dvnode = AFS_FS_I(new_dir);
 
-	_enter("{%x:%d},{%x:%d},{%x:%d},{%s}",
+	_enter("{%x:%u},{%x:%u},{%x:%u},{%s}",
 	       orig_dvnode->fid.vid, orig_dvnode->fid.vnode,
 	       vnode->fid.vid, vnode->fid.vnode,
 	       new_dvnode->fid.vid, new_dvnode->fid.vnode,

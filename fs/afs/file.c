@@ -17,9 +17,9 @@
 #include <linux/pagemap.h>
 #include "internal.h"
 
-static int afs_file_readpage(struct file *file, struct page *page);
-static void afs_file_invalidatepage(struct page *page, unsigned long offset);
-static int afs_file_releasepage(struct page *page, gfp_t gfp_flags);
+static int afs_readpage(struct file *file, struct page *page);
+static void afs_invalidatepage(struct page *page, unsigned long offset);
+static int afs_releasepage(struct page *page, gfp_t gfp_flags);
 
 const struct file_operations afs_file_operations = {
 	.open		= afs_open,
@@ -32,15 +32,15 @@ const struct file_operations afs_file_operations = {
 };
 
 const struct inode_operations afs_file_inode_operations = {
-	.getattr	= afs_inode_getattr,
+	.getattr	= afs_getattr,
 	.permission	= afs_permission,
 };
 
 const struct address_space_operations afs_fs_aops = {
-	.readpage	= afs_file_readpage,
+	.readpage	= afs_readpage,
 	.set_page_dirty	= __set_page_dirty_nobuffers,
-	.releasepage	= afs_file_releasepage,
-	.invalidatepage	= afs_file_invalidatepage,
+	.releasepage	= afs_releasepage,
+	.invalidatepage	= afs_invalidatepage,
 };
 
 /*
@@ -52,7 +52,7 @@ int afs_open(struct inode *inode, struct file *file)
 	struct key *key;
 	int ret;
 
-	_enter("{%x:%x},", vnode->fid.vid, vnode->fid.vnode);
+	_enter("{%x:%u},", vnode->fid.vid, vnode->fid.vnode);
 
 	key = afs_request_key(vnode->volume->cell);
 	if (IS_ERR(key)) {
@@ -78,7 +78,7 @@ int afs_release(struct inode *inode, struct file *file)
 {
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 
-	_enter("{%x:%x},", vnode->fid.vid, vnode->fid.vnode);
+	_enter("{%x:%u},", vnode->fid.vid, vnode->fid.vnode);
 
 	key_put(file->private_data);
 	_leave(" = 0");
@@ -89,10 +89,10 @@ int afs_release(struct inode *inode, struct file *file)
  * deal with notification that a page was read from the cache
  */
 #ifdef AFS_CACHING_SUPPORT
-static void afs_file_readpage_read_complete(void *cookie_data,
-					    struct page *page,
-					    void *data,
-					    int error)
+static void afs_readpage_read_complete(void *cookie_data,
+				       struct page *page,
+				       void *data,
+				       int error)
 {
 	_enter("%p,%p,%p,%d", cookie_data, page, data, error);
 
@@ -109,10 +109,10 @@ static void afs_file_readpage_read_complete(void *cookie_data,
  * deal with notification that a page was written to the cache
  */
 #ifdef AFS_CACHING_SUPPORT
-static void afs_file_readpage_write_complete(void *cookie_data,
-					     struct page *page,
-					     void *data,
-					     int error)
+static void afs_readpage_write_complete(void *cookie_data,
+					struct page *page,
+					void *data,
+					int error)
 {
 	_enter("%p,%p,%p,%d", cookie_data, page, data, error);
 
@@ -121,9 +121,9 @@ static void afs_file_readpage_write_complete(void *cookie_data,
 #endif
 
 /*
- * AFS read page from file (or symlink)
+ * AFS read page from file, directory or symlink
  */
-static int afs_file_readpage(struct file *file, struct page *page)
+static int afs_readpage(struct file *file, struct page *page)
 {
 	struct afs_vnode *vnode;
 	struct inode *inode;
@@ -219,30 +219,13 @@ error:
 }
 
 /*
- * get a page cookie for the specified page
- */
-#ifdef AFS_CACHING_SUPPORT
-int afs_cache_get_page_cookie(struct page *page,
-			      struct cachefs_page **_page_cookie)
-{
-	int ret;
-
-	_enter("");
-	ret = cachefs_page_get_private(page,_page_cookie, GFP_NOIO);
-
-	_leave(" = %d", ret);
-	return ret;
-}
-#endif
-
-/*
  * invalidate part or all of a page
  */
-static void afs_file_invalidatepage(struct page *page, unsigned long offset)
+static void afs_invalidatepage(struct page *page, unsigned long offset)
 {
 	int ret = 1;
 
-	_enter("{%lu},%lu", page->index, offset);
+	kenter("{%lu},%lu", page->index, offset);
 
 	BUG_ON(!PageLocked(page));
 
@@ -274,23 +257,17 @@ static void afs_file_invalidatepage(struct page *page, unsigned long offset)
 /*
  * release a page and cleanup its private data
  */
-static int afs_file_releasepage(struct page *page, gfp_t gfp_flags)
+static int afs_releasepage(struct page *page, gfp_t gfp_flags)
 {
-	struct cachefs_page *pageio;
+	struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
 
-	_enter("{%lu},%x", page->index, gfp_flags);
+	_enter("{{%x:%u}[%lu],%lx},%x",
+	       vnode->fid.vid, vnode->fid.vnode, page->index, page->flags,
+	       gfp_flags);
 
 	if (PagePrivate(page)) {
-#ifdef AFS_CACHING_SUPPORT
-		struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
-		cachefs_uncache_page(vnode->cache, page);
-#endif
-
-		pageio = (struct cachefs_page *) page_private(page);
 		set_page_private(page, 0);
 		ClearPagePrivate(page);
-
-		kfree(pageio);
 	}
 
 	_leave(" = 0");

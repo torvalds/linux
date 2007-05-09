@@ -36,7 +36,7 @@ const struct inode_operations afs_mntpt_inode_operations = {
 	.lookup		= afs_mntpt_lookup,
 	.follow_link	= afs_mntpt_follow_link,
 	.readlink	= page_readlink,
-	.getattr	= afs_inode_getattr,
+	.getattr	= afs_getattr,
 };
 
 static LIST_HEAD(afs_vfsmounts);
@@ -58,7 +58,8 @@ int afs_mntpt_check_symlink(struct afs_vnode *vnode, struct key *key)
 	char *buf;
 	int ret;
 
-	_enter("{%u,%u}", vnode->fid.vnode, vnode->fid.unique);
+	_enter("{%x:%u,%u}",
+	       vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique);
 
 	/* read the contents of the symlink into the pagecache */
 	page = read_mapping_page(AFS_VNODE_TO_I(vnode)->i_mapping, 0, &file);

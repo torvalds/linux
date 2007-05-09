@@ -44,7 +44,7 @@ void afs_init_callback_state(struct afs_server *server)
 	while (!RB_EMPTY_ROOT(&server->cb_promises)) {
 		vnode = rb_entry(server->cb_promises.rb_node,
 				 struct afs_vnode, cb_promise);
-		_debug("UNPROMISE { vid=%x vn=%u uq=%u}",
+		_debug("UNPROMISE { vid=%x:%u uq=%u}",
 		       vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique);
 		rb_erase(&vnode->cb_promise, &server->cb_promises);
 		vnode->cb_promised = false;
@@ -84,11 +84,8 @@ void afs_broken_callback_work(struct work_struct *work)
 
 		/* if the vnode's data version number changed then its contents
 		 * are different */
-		if (test_and_clear_bit(AFS_VNODE_ZAP_DATA, &vnode->flags)) {
-			_debug("zap data {%x:%u}",
-			       vnode->fid.vid, vnode->fid.vnode);
-			invalidate_remote_inode(&vnode->vfs_inode);
-		}
+		if (test_and_clear_bit(AFS_VNODE_ZAP_DATA, &vnode->flags))
+			afs_zap_data(vnode);
 	}
 
 out:

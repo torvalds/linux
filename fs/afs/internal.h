@@ -433,10 +433,6 @@ extern const struct file_operations afs_file_operations;
 extern int afs_open(struct inode *, struct file *);
 extern int afs_release(struct inode *, struct file *);
 
-#ifdef AFS_CACHING_SUPPORT
-extern int afs_cache_get_page_cookie(struct page *, struct cachefs_page **);
-#endif
-
 /*
  * fsclient.c
  */
@@ -474,10 +470,9 @@ extern int afs_fs_rename(struct afs_server *, struct key *,
 extern struct inode *afs_iget(struct super_block *, struct key *,
 			      struct afs_fid *, struct afs_file_status *,
 			      struct afs_callback *);
+extern void afs_zap_data(struct afs_vnode *);
 extern int afs_validate(struct afs_vnode *, struct key *);
-extern int afs_inode_getattr(struct vfsmount *, struct dentry *,
-			     struct kstat *);
-extern void afs_zap_permits(struct rcu_head *);
+extern int afs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
 extern void afs_clear_inode(struct inode *);
 
 /*
@@ -533,6 +528,7 @@ extern int afs_extract_data(struct afs_call *, struct sk_buff *, bool, void *,
  */
 extern void afs_clear_permits(struct afs_vnode *);
 extern void afs_cache_permit(struct afs_vnode *, struct key *, long);
+extern void afs_zap_permits(struct rcu_head *);
 extern struct key *afs_request_key(struct afs_cell *);
 extern int afs_permission(struct inode *, int, struct nameidata *);
 
@@ -726,6 +722,21 @@ do {									\
 	}								\
 } while(0)
 
+#define ASSERTRANGE(L, OP1, N, OP2, H)					\
+do {									\
+	if (unlikely(!((L) OP1 (N)) || !((N) OP2 (H)))) {		\
+		printk(KERN_ERR "\n");					\
+		printk(KERN_ERR "AFS: Assertion failed\n");		\
+		printk(KERN_ERR "%lu "#OP1" %lu "#OP2" %lu is false\n",	\
+		       (unsigned long)(L), (unsigned long)(N),		\
+		       (unsigned long)(H));				\
+		printk(KERN_ERR "0x%lx "#OP1" 0x%lx "#OP2" 0x%lx is false\n", \
+		       (unsigned long)(L), (unsigned long)(N),		\
+		       (unsigned long)(H));				\
+		BUG();							\
+	}								\
+} while(0)
+
 #define ASSERTIF(C, X)						\
 do {								\
 	if (unlikely((C) && !(X))) {				\
@@ -755,6 +766,10 @@ do {						\
 } while(0)
 
 #define ASSERTCMP(X, OP, Y)			\
+do {						\
+} while(0)
+
+#define ASSERTRANGE(L, OP1, N, OP2, H)		\
 do {						\
 } while(0)
 

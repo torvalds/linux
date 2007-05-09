@@ -261,7 +261,7 @@ int afs_vnode_fetch_status(struct afs_vnode *vnode,
 
 	DECLARE_WAITQUEUE(myself, current);
 
-	_enter("%s,{%u,%u,%u}",
+	_enter("%s,{%x:%u.%u}",
 	       vnode->volume->vlocation->vldb.name,
 	       vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique);
 
@@ -389,7 +389,7 @@ int afs_vnode_fetch_data(struct afs_vnode *vnode, struct key *key,
 	struct afs_server *server;
 	int ret;
 
-	_enter("%s{%u,%u,%u},%x,,,",
+	_enter("%s{%x:%u.%u},%x,,,",
 	       vnode->volume->vlocation->vldb.name,
 	       vnode->fid.vid,
 	       vnode->fid.vnode,
@@ -446,7 +446,7 @@ int afs_vnode_create(struct afs_vnode *vnode, struct key *key,
 	struct afs_server *server;
 	int ret;
 
-	_enter("%s{%u,%u,%u},%x,%s,,",
+	_enter("%s{%x:%u.%u},%x,%s,,",
 	       vnode->volume->vlocation->vldb.name,
 	       vnode->fid.vid,
 	       vnode->fid.vnode,
@@ -502,7 +502,7 @@ int afs_vnode_remove(struct afs_vnode *vnode, struct key *key, const char *name,
 	struct afs_server *server;
 	int ret;
 
-	_enter("%s{%u,%u,%u},%x,%s",
+	_enter("%s{%x:%u.%u},%x,%s",
 	       vnode->volume->vlocation->vldb.name,
 	       vnode->fid.vid,
 	       vnode->fid.vnode,
@@ -557,7 +557,7 @@ extern int afs_vnode_link(struct afs_vnode *dvnode, struct afs_vnode *vnode,
 	struct afs_server *server;
 	int ret;
 
-	_enter("%s{%u,%u,%u},%s{%u,%u,%u},%x,%s",
+	_enter("%s{%x:%u.%u},%s{%x:%u.%u},%x,%s",
 	       dvnode->volume->vlocation->vldb.name,
 	       dvnode->fid.vid,
 	       dvnode->fid.vnode,
@@ -628,7 +628,7 @@ int afs_vnode_symlink(struct afs_vnode *vnode, struct key *key,
 	struct afs_server *server;
 	int ret;
 
-	_enter("%s{%u,%u,%u},%x,%s,%s,,,",
+	_enter("%s{%x:%u.%u},%x,%s,%s,,,",
 	       vnode->volume->vlocation->vldb.name,
 	       vnode->fid.vid,
 	       vnode->fid.vnode,
@@ -687,7 +687,7 @@ int afs_vnode_rename(struct afs_vnode *orig_dvnode,
 	struct afs_server *server;
 	int ret;
 
-	_enter("%s{%u,%u,%u},%s{%u,%u,%u},%x,%s,%s",
+	_enter("%s{%x:%u.%u},%s{%u,%u,%u},%x,%s,%s",
 	       orig_dvnode->volume->vlocation->vldb.name,
 	       orig_dvnode->fid.vid,
 	       orig_dvnode->fid.vnode,
