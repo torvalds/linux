@@ -121,13 +121,6 @@ static inline void wrmsrl (unsigned long msr, unsigned long long val)
 		__err;							\
 	})
 
-#define rdtsc(low,high)						\
-	do {							\
-		u64 _l = native_read_tsc();			\
-		(low) = (u32)_l;				\
-		(high) = _l >> 32;				\
-	} while(0)
-
 #define rdtscl(low)						\
 	do {							\
 		(low) = native_read_tsc();			\
