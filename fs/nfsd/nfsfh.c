@@ -323,7 +323,7 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 	 *
 	 */
 
-	u8 version = 1;
+	u8 version;
 	u8 fsid_type = 0;
 	struct inode * inode = dentry->d_inode;
 	struct dentry *parent = dentry->d_parent;
@@ -341,15 +341,59 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 	 * the reference filehandle (if it is in the same export)
 	 * or the export options.
 	 */
+ retry:
+	version = 1;
 	if (ref_fh && ref_fh->fh_export == exp) {
 		version = ref_fh->fh_handle.fh_version;
-		if (version == 0xca)
+		fsid_type = ref_fh->fh_handle.fh_fsid_type;
+
+		if (ref_fh == fhp)
+			fh_put(ref_fh);
+		ref_fh = NULL;
+
+		switch (version) {
+		case 0xca:
 			fsid_type = FSID_DEV;
-		else
-			fsid_type = ref_fh->fh_handle.fh_fsid_type;
-		/* We know this version/type works for this export
-		 * so there is no need for further checks.
+			break;
+		case 1:
+			break;
+		default:
+			goto retry;
+		}
+
+		/* Need to check that this type works for this
+		 * export point.  As the fsid -> filesystem mapping
+		 * was guided by user-space, there is no guarantee
+		 * that the filesystem actually supports that fsid
+		 * type. If it doesn't we loop around again without
+		 * ref_fh set.
 		 */
+		switch(fsid_type) {
+		case FSID_DEV:
+			if (!old_valid_dev(ex_dev))
+				goto retry;
+			/* FALL THROUGH */
+		case FSID_MAJOR_MINOR:
+		case FSID_ENCODE_DEV:
+			if (!(exp->ex_dentry->d_inode->i_sb->s_type->fs_flags
+			      & FS_REQUIRES_DEV))
+				goto retry;
+			break;
+		case FSID_NUM:
+			if (! (exp->ex_flags & NFSEXP_FSID))
+				goto retry;
+			break;
+		case FSID_UUID8:
+		case FSID_UUID16:
+			if (!root_export)
+				goto retry;
+			/* fall through */
+		case FSID_UUID4_INUM:
+		case FSID_UUID16_INUM:
+			if (exp->ex_uuid == NULL)
+				goto retry;
+			break;
+		}
 	} else if (exp->ex_uuid) {
 		if (fhp->fh_maxsize >= 64) {
 			if (root_export)
