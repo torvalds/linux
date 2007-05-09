@@ -98,7 +98,7 @@ config RTC_INTF_DEV_UIE_EMUL
 	bool "RTC UIE emulation on dev interface"
 	depends on RTC_INTF_DEV
 	help
-	  Provides an emulation for RTC_UIE if the underlaying rtc chip
+	  Provides an emulation for RTC_UIE if the underlying rtc chip
 	  driver does not expose RTC_UIE ioctls.  Those requests generate
 	  once-per-second update interrupts, used for synchronization.
 

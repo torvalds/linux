@@ -603,7 +603,7 @@ config ETRAX_CARDBUS
         select HOTPLUG
         select PCCARD_NONSTATIC
         help
-	 Enabled the ETRAX Carbus driver.
+	 Enabled the ETRAX Cardbus driver.
 
 config PCI
        bool

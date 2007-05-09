@@ -51,7 +51,7 @@ config CRYPTO_DEV_GEODE
 	default m
 	help
 	  Say 'Y' here to use the AMD Geode LX processor on-board AES
-	  engine for the CryptoAPI AES alogrithm.
+	  engine for the CryptoAPI AES algorithm.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called geode-aes.

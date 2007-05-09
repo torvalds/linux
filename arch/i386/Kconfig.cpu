@@ -108,7 +108,7 @@ config MCORE2
 	bool "Core 2/newer Xeon"
 	help
 	  Select this for Intel Core 2 and newer Core 2 Xeons (Xeon 51xx and 53xx)
-	  CPUs. You can distingush newer from older Xeons by the CPU family
+	  CPUs. You can distinguish newer from older Xeons by the CPU family
 	  in /proc/cpuinfo. Newer ones have 6.
 
 config MPENTIUM4
@@ -172,7 +172,7 @@ config MWINCHIP3D
 	help
 	  Select this for an IDT Winchip-2A or 3.  Linux and GCC
 	  treat this chip as a 586TSC with some extended instructions
-	  and alignment reqirements.  Also enable out of order memory
+	  and alignment requirements.  Also enable out of order memory
 	  stores for this CPU, which can increase performance of some
 	  operations.
 

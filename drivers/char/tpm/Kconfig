@@ -33,7 +33,7 @@ config TCG_NSC
 	tristate "National Semiconductor TPM Interface"
 	depends on TCG_TPM && PNPACPI
 	---help---
-	  If you have a TPM security chip from National Semicondutor 
+	  If you have a TPM security chip from National Semiconductor 
 	  say Yes and it will be accessible from within Linux.  To 
 	  compile this driver as a module, choose M here; the module 
 	  will be called tpm_nsc.
