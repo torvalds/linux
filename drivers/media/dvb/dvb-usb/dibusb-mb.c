@@ -24,9 +24,6 @@ static int dibusb_dib3000mb_frontend_attach(struct dvb_usb_adapter *adap)
 	if ((adap->fe = dib3000mb_attach(&demod_cfg,&adap->dev->i2c_adap,&st->ops)) == NULL)
 		return -ENODEV;
 
-	adap->fe->ops.tuner_ops.init       = dvb_usb_tuner_init_i2c;
-	adap->fe->ops.tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
-
 	adap->tuner_pass_ctrl = st->ops.tuner_pass_ctrl;
 
 	return 0;
@@ -34,8 +31,15 @@ static int dibusb_dib3000mb_frontend_attach(struct dvb_usb_adapter *adap)
 
 static int dibusb_thomson_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	adap->pll_addr = 0x61;
-	adap->pll_desc = &dvb_pll_tua6010xs;
+	dvb_attach(dvb_pll_attach, adap->fe, 0x61, &adap->dev->i2c_adap,
+		   &dvb_pll_tua6010xs);
+	return 0;
+}
+
+static int dibusb_panasonic_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	dvb_attach(dvb_pll_attach, adap->fe, 0x60, &adap->dev->i2c_adap,
+		   &dvb_pll_tda665x);
 	return 0;
 }
 
@@ -67,13 +71,10 @@ static int dibusb_tuner_probe_and_attach(struct dvb_usb_adapter *adap)
 
 	if (b2[0] == 0xfe) {
 		info("This device has the Thomson Cable onboard. Which is default.");
-		dibusb_thomson_tuner_attach(adap);
+		ret = dibusb_thomson_tuner_attach(adap);
 	} else {
-		u8 bpll[4] = { 0x0b, 0xf5, 0x85, 0xab };
 		info("This device has the Panasonic ENV77H11D5 onboard.");
-		adap->pll_addr = 0x60;
-		memcpy(adap->pll_init,bpll,4);
-		adap->pll_desc = &dvb_pll_tda665x;
+		ret = dibusb_panasonic_tuner_attach(adap);
 	}
 
 	return ret;

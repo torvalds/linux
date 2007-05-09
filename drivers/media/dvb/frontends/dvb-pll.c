@@ -208,6 +208,7 @@ struct dvb_pll_desc dvb_pll_tda665x = {
 	.max   = 858000000,
 	.set   = tda665x_bw,
 	.iffreq= 36166667,
+	.initdata = (u8[]){ 4, 0x0b, 0xf5, 0x85, 0xab },
 	.count = 12,
 	.entries = {
 		{   93834000, 166667, 0xca, 0x61 /* 011 0 0 0  01 */ },
