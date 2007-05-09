@@ -110,8 +110,7 @@ static inline void clear_highpage(struct page *page)
 		kunmap_atomic(kaddr, (km_type));		\
 	} while (0)
 
-
-static inline void memclear_highpage_flush(struct page *page,
+static inline void __deprecated memclear_highpage_flush(struct page *page,
 			unsigned int offset, unsigned int size)
 {
 	zero_user_page(page, offset, size, KM_USER0);
