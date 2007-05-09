@@ -668,13 +668,19 @@ static int create_workqueue_thread(struct cpu_workqueue_struct *cwq, int cpu)
 
 	cwq->thread = p;
 	cwq->should_stop = 0;
-	if (!is_single_threaded(wq))
-		kthread_bind(p, cpu);
-
-	if (is_single_threaded(wq) || cpu_online(cpu))
-		wake_up_process(p);
 
 	return 0;
+}
+
+static void start_workqueue_thread(struct cpu_workqueue_struct *cwq, int cpu)
+{
+	struct task_struct *p = cwq->thread;
+
+	if (p != NULL) {
+		if (cpu >= 0)
+			kthread_bind(p, cpu);
+		wake_up_process(p);
+	}
 }
 
 struct workqueue_struct *__create_workqueue(const char *name,
@@ -702,6 +708,7 @@ struct workqueue_struct *__create_workqueue(const char *name,
 	if (singlethread) {
 		cwq = init_cpu_workqueue(wq, singlethread_cpu);
 		err = create_workqueue_thread(cwq, singlethread_cpu);
+		start_workqueue_thread(cwq, -1);
 	} else {
 		mutex_lock(&workqueue_mutex);
 		list_add(&wq->list, &workqueues);
@@ -711,6 +718,7 @@ struct workqueue_struct *__create_workqueue(const char *name,
 			if (err || !cpu_online(cpu))
 				continue;
 			err = create_workqueue_thread(cwq, cpu);
+			start_workqueue_thread(cwq, cpu);
 		}
 		mutex_unlock(&workqueue_mutex);
 	}
@@ -808,12 +816,11 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 			return NOTIFY_BAD;
 
 		case CPU_ONLINE:
-			wake_up_process(cwq->thread);
+			start_workqueue_thread(cwq, cpu);
 			break;
 
 		case CPU_UP_CANCELED:
-			if (cwq->thread)
-				wake_up_process(cwq->thread);
+			start_workqueue_thread(cwq, -1);
 		case CPU_DEAD:
 			cleanup_workqueue_thread(cwq, cpu);
 			break;
