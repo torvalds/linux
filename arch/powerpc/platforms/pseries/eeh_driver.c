@@ -378,8 +378,9 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 
 	/* Since rtas may enable MMIO when posting the error log,
 	 * don't post the error log until after all dev drivers
-	 * have been informed. */
-	eeh_slot_error_detail(frozen_pdn, 1 /* Temporary Error */);
+	 * have been informed.
+	 */
+	eeh_slot_error_detail(frozen_pdn, EEH_LOG_TEMP_FAILURE);
 
 	/* If all device drivers were EEH-unaware, then shut
 	 * down all of the device drivers, and hope they
@@ -470,7 +471,7 @@ hard_fail:
 		location, drv_str, pci_str);
 
 perm_error:
-	eeh_slot_error_detail(frozen_pdn, 2 /* Permanent Error */);
+	eeh_slot_error_detail(frozen_pdn, EEH_LOG_PERM_FAILURE);
 
 	/* Notify all devices that they're about to go down. */
 	pci_walk_bus(frozen_bus, eeh_report_failure, NULL);

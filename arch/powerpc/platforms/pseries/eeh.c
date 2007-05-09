@@ -76,7 +76,7 @@
  */
 #define EEH_MAX_FAILS	2100000
 
-/* Time to wait for a PCI slot to retport status, in milliseconds */
+/* Time to wait for a PCI slot to report status, in milliseconds */
 #define PCI_BUS_RESET_WAIT_MSEC (60*1000)
 
 /* RTAS tokens */
@@ -95,11 +95,18 @@ EXPORT_SYMBOL(eeh_subsystem_enabled);
 /* Lock to avoid races due to multiple reports of an error */
 static DEFINE_SPINLOCK(confirm_error_lock);
 
-/* Buffer for reporting slot-error-detail rtas calls */
+/* Buffer for reporting slot-error-detail rtas calls. Its here
+ * in BSS, and not dynamically alloced, so that it ends up in
+ * RMO where RTAS can access it.
+ */
 static unsigned char slot_errbuf[RTAS_ERROR_LOG_MAX];
 static DEFINE_SPINLOCK(slot_errbuf_lock);
 static int eeh_error_buf_size;
 
+/* Buffer for reporting pci register dumps. Its here in BSS, and
+ * not dynamically alloced, so that it ends up in RMO where RTAS
+ * can access it.
+ */
 #define EEH_PCI_REGS_LOG_LEN 4096
 static unsigned char pci_regs_buf[EEH_PCI_REGS_LOG_LEN];
 
@@ -218,7 +225,7 @@ static size_t gather_pci_data(struct pci_dn *pdn, char * buf, size_t len)
 void eeh_slot_error_detail(struct pci_dn *pdn, int severity)
 {
 	size_t loglen = 0;
-	memset(pci_regs_buf, 0, EEH_PCI_REGS_LOG_LEN);
+	pci_regs_buf[0] = 0;
 
 	rtas_pci_enable(pdn, EEH_THAW_MMIO);
 	loglen = gather_pci_data(pdn, pci_regs_buf, EEH_PCI_REGS_LOG_LEN);
