@@ -194,6 +194,8 @@ extern int __srcu_notifier_call_chain(struct srcu_notifier_head *nh,
 #define CPU_DOWN_PREPARE	0x0005 /* CPU (unsigned)v going down */
 #define CPU_DOWN_FAILED		0x0006 /* CPU (unsigned)v NOT going down */
 #define CPU_DEAD		0x0007 /* CPU (unsigned)v dead */
+#define CPU_LOCK_ACQUIRE	0x0008 /* Acquire all hotcpu locks */
+#define CPU_LOCK_RELEASE	0x0009 /* Release all hotcpu locks */
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_NOTIFIER_H */

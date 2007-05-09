@@ -132,12 +132,15 @@ static int _cpu_down(unsigned int cpu)
 	if (!cpu_online(cpu))
 		return -EINVAL;
 
+	raw_notifier_call_chain(&cpu_chain, CPU_LOCK_ACQUIRE,
+						(void *)(long)cpu);
 	err = raw_notifier_call_chain(&cpu_chain, CPU_DOWN_PREPARE,
 						(void *)(long)cpu);
 	if (err == NOTIFY_BAD) {
 		printk("%s: attempt to take down CPU %u failed\n",
 				__FUNCTION__, cpu);
-		return -EINVAL;
+		err = -EINVAL;
+		goto out_release;
 	}
 
 	/* Ensure that we are not runnable on dying cpu */
@@ -185,6 +188,9 @@ out_thread:
 	err = kthread_stop(p);
 out_allowed:
 	set_cpus_allowed(current, old_allowed);
+out_release:
+	raw_notifier_call_chain(&cpu_chain, CPU_LOCK_RELEASE,
+						(void *)(long)cpu);
 	return err;
 }
 
@@ -206,13 +212,15 @@ int cpu_down(unsigned int cpu)
 /* Requires cpu_add_remove_lock to be held */
 static int __cpuinit _cpu_up(unsigned int cpu)
 {
-	int ret;
+	int ret, nr_calls = 0;
 	void *hcpu = (void *)(long)cpu;
 
 	if (cpu_online(cpu) || !cpu_present(cpu))
 		return -EINVAL;
 
-	ret = raw_notifier_call_chain(&cpu_chain, CPU_UP_PREPARE, hcpu);
+	raw_notifier_call_chain(&cpu_chain, CPU_LOCK_ACQUIRE, hcpu);
+	ret = __raw_notifier_call_chain(&cpu_chain, CPU_UP_PREPARE, hcpu,
+							-1, &nr_calls);
 	if (ret == NOTIFY_BAD) {
 		printk("%s: attempt to bring up CPU %u failed\n",
 				__FUNCTION__, cpu);
@@ -233,8 +241,9 @@ static int __cpuinit _cpu_up(unsigned int cpu)
 
 out_notify:
 	if (ret != 0)
-		raw_notifier_call_chain(&cpu_chain,
-				CPU_UP_CANCELED, hcpu);
+		__raw_notifier_call_chain(&cpu_chain,
+				CPU_UP_CANCELED, hcpu, nr_calls, NULL);
+	raw_notifier_call_chain(&cpu_chain, CPU_LOCK_RELEASE, hcpu);
 
 	return ret;
 }
