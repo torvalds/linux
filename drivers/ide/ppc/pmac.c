@@ -1276,6 +1276,8 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	/* We probe the hwif now */
 	probe_hwif_init(hwif);
 
+	ide_proc_register_port(hwif);
+
 	return 0;
 }
 

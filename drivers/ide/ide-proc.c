@@ -39,6 +39,8 @@
 
 #include <asm/io.h>
 
+static struct proc_dir_entry *proc_ide_root;
+
 static int proc_ide_read_imodel
 	(char *page, char **start, off_t off, int count, int *eof, void *data)
 {
@@ -783,26 +785,24 @@ static ide_proc_entry_t hwif_entries[] = {
 	{ NULL,	0, NULL, NULL }
 };
 
-void create_proc_ide_interfaces(void)
+void ide_proc_register_port(ide_hwif_t *hwif)
 {
-	int	h;
+	if (!hwif->present)
+		return;
 
-	for (h = 0; h < MAX_HWIFS; h++) {
-		ide_hwif_t *hwif = &ide_hwifs[h];
+	if (!hwif->proc) {
+		hwif->proc = proc_mkdir(hwif->name, proc_ide_root);
 
-		if (!hwif->present)
-			continue;
-		if (!hwif->proc) {
-			hwif->proc = proc_mkdir(hwif->name, proc_ide_root);
-			if (!hwif->proc)
-				return;
-			ide_add_proc_entries(hwif->proc, hwif_entries, hwif);
-		}
-		create_proc_ide_drives(hwif);
+		if (!hwif->proc)
+			return;
+
+		ide_add_proc_entries(hwif->proc, hwif_entries, hwif);
 	}
+
+	create_proc_ide_drives(hwif);
 }
 
-EXPORT_SYMBOL(create_proc_ide_interfaces);
+EXPORT_SYMBOL_GPL(ide_proc_register_port);
 
 #ifdef CONFIG_BLK_DEV_IDEPCI
 void ide_pci_create_host_proc(const char *name, get_info_t *get_info)
@@ -813,7 +813,7 @@ void ide_pci_create_host_proc(const char *name, get_info_t *get_info)
 EXPORT_SYMBOL_GPL(ide_pci_create_host_proc);
 #endif
 
-void destroy_proc_ide_interface(ide_hwif_t *hwif)
+void ide_proc_unregister_port(ide_hwif_t *hwif)
 {
 	if (hwif->proc) {
 		destroy_proc_ide_drives(hwif);
@@ -860,10 +860,10 @@ void proc_ide_create(void)
 {
 	struct proc_dir_entry *entry;
 
+	proc_ide_root = proc_mkdir("ide", NULL);
+
 	if (!proc_ide_root)
 		return;
-
-	create_proc_ide_interfaces();
 
 	entry = create_proc_entry("drivers", 0, proc_ide_root);
 	if (entry)

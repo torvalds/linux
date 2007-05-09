@@ -223,7 +223,8 @@ static int __init ali14xx_probe(void)
 	probe_hwif_init(hwif);
 	probe_hwif_init(mate);
 
-	create_proc_ide_interfaces();
+	ide_proc_register_port(hwif);
+	ide_proc_register_port(mate);
 
 	return 0;
 }

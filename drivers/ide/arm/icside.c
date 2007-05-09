@@ -591,7 +591,8 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 	state->hwif[0] = hwif;
 
 	probe_hwif_init(hwif);
-	create_proc_ide_interfaces();
+
+	ide_proc_register_port(hwif);
 
 	return 0;
 }
@@ -679,7 +680,9 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 
 	probe_hwif_init(hwif);
 	probe_hwif_init(mate);
-	create_proc_ide_interfaces();
+
+	ide_proc_register_port(hwif);
+	ide_proc_register_port(mate);
 
 	return 0;
 

@@ -129,6 +129,9 @@ static int __devinit swarm_ide_probe(struct device *dev)
 	hwif->irq = hwif->hw.irq;
 
 	probe_hwif_init(hwif);
+
+	ide_proc_register_port(hwif);
+
 	dev_set_drvdata(dev, hwif);
 
 	return 0;

@@ -909,12 +909,10 @@ typedef struct {
 	write_proc_t	*write_proc;
 } ide_proc_entry_t;
 
-extern struct proc_dir_entry *proc_ide_root;
-
 void proc_ide_create(void);
 void proc_ide_destroy(void);
-void create_proc_ide_interfaces(void);
-void destroy_proc_ide_interface(ide_hwif_t *);
+void ide_proc_register_port(ide_hwif_t *);
+void ide_proc_unregister_port(ide_hwif_t *);
 void ide_proc_register_driver(ide_drive_t *, ide_driver_t *);
 void ide_proc_unregister_driver(ide_drive_t *, ide_driver_t *);
 
@@ -945,8 +943,8 @@ void ide_pci_create_host_proc(const char *, get_info_t *);
 #else
 static inline void proc_ide_create(void) { ; }
 static inline void proc_ide_destroy(void) { ; }
-static inline void create_proc_ide_interfaces(void) { ; }
-static inline void destroy_proc_ide_interface(ide_hwif_t *hwif) { ; }
+static inline void ide_proc_register_port(ide_hwif_t *hwif) { ; }
+static inline void ide_proc_unregister_port(ide_hwif_t *hwif) { ; }
 static inline void ide_proc_register_driver(ide_drive_t *drive, ide_driver_t *driver) { ; }
 static inline void ide_proc_unregister_driver(ide_drive_t *drive, ide_driver_t *driver) { ; }
 static inline void ide_add_generic_settings(ide_drive_t *drive) { ; }

@@ -347,10 +347,6 @@ static int ide_system_bus_speed(void)
 	return system_bus_speed;
 }
 
-#ifdef CONFIG_IDE_PROC_FS
-struct proc_dir_entry *proc_ide_root;
-#endif
-
 static struct resource* hwif_request_region(ide_hwif_t *hwif,
 					    unsigned long addr, int num)
 {
@@ -594,7 +590,7 @@ void ide_unregister(unsigned int index)
 
 	spin_unlock_irq(&ide_lock);
 
-	destroy_proc_ide_interface(hwif);
+	ide_proc_unregister_port(hwif);
 
 	hwgroup = hwif->hwgroup;
 	/*
@@ -799,7 +795,7 @@ found:
 
 	if (!initializing) {
 		probe_hwif_init_with_fixup(hwif, fixup);
-		create_proc_ide_interfaces();
+		ide_proc_register_port(hwif);
 	}
 
 	if (hwifp)
@@ -1794,9 +1790,7 @@ static int __init ide_init(void)
 
 	init_ide_data();
 
-#ifdef CONFIG_IDE_PROC_FS
-	proc_ide_root = proc_mkdir("ide", NULL);
-#endif
+	proc_ide_create();
 
 #ifdef CONFIG_BLK_DEV_ALI14XX
 	if (probe_ali14xx)
@@ -1821,8 +1815,6 @@ static int __init ide_init(void)
 
 	/* Probe for special PCI and other "known" interface chipsets. */
 	probe_for_hwifs();
-
-	proc_ide_create();
 
 	return 0;
 }
