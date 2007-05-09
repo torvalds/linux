@@ -767,6 +767,10 @@ void *rpc_malloc(struct rpc_task *task, size_t size)
 		buf = mempool_alloc(rpc_buffer_mempool, gfp);
 	else
 		buf = kmalloc(size, gfp);
+
+	if (!buf)
+		return NULL;
+
 	buf->len = size;
 	dprintk("RPC: %5u allocated buffer of size %zu at %p\n",
 			task->tk_pid, size, buf);
