@@ -3631,8 +3631,6 @@ int ocfs2_commit_truncate(struct ocfs2_super *osb,
 
 	mlog_entry_void();
 
-	down_write(&OCFS2_I(inode)->ip_alloc_sem);
-
 	new_highest_cpos = ocfs2_clusters_for_bytes(osb->sb,
 						     i_size_read(inode));
 
@@ -3754,7 +3752,6 @@ start:
 	goto start;
 
 bail:
-	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 
 	ocfs2_schedule_truncate_log_flush(osb, 1);
 

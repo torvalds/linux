@@ -326,9 +326,6 @@ static int ocfs2_truncate_file(struct inode *inode,
 		   (unsigned long long)OCFS2_I(inode)->ip_blkno,
 		   (unsigned long long)new_i_size);
 
-	unmap_mapping_range(inode->i_mapping, new_i_size + PAGE_SIZE - 1, 0, 1);
-	truncate_inode_pages(inode->i_mapping, new_i_size);
-
 	fe = (struct ocfs2_dinode *) di_bh->b_data;
 	if (!OCFS2_IS_VALID_DINODE(fe)) {
 		OCFS2_RO_ON_INVALID_DINODE(inode->i_sb, fe);
@@ -363,15 +360,22 @@ static int ocfs2_truncate_file(struct inode *inode,
 	if (new_i_size == le64_to_cpu(fe->i_size))
 		goto bail;
 
+	down_write(&OCFS2_I(inode)->ip_alloc_sem);
+
 	/* This forces other nodes to sync and drop their pages. Do
 	 * this even if we have a truncate without allocation change -
 	 * ocfs2 cluster sizes can be much greater than page size, so
 	 * we have to truncate them anyway.  */
 	status = ocfs2_data_lock(inode, 1);
 	if (status < 0) {
+		up_write(&OCFS2_I(inode)->ip_alloc_sem);
+
 		mlog_errno(status);
 		goto bail;
 	}
+
+	unmap_mapping_range(inode->i_mapping, new_i_size + PAGE_SIZE - 1, 0, 1);
+	truncate_inode_pages(inode->i_mapping, new_i_size);
 
 	/* alright, we're going to need to do a full blown alloc size
 	 * change. Orphan the inode so that recovery can complete the
@@ -398,6 +402,8 @@ static int ocfs2_truncate_file(struct inode *inode,
 	/* TODO: orphan dir cleanup here. */
 bail_unlock_data:
 	ocfs2_data_unlock(inode, 1);
+
+	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 
 bail:
 
