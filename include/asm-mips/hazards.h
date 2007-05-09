@@ -188,7 +188,7 @@ ASMMACRO(enable_fpu_hazard,
 	 .set	noreorder;
 	 _ssnop;
 	 bnezl	$0,.+4;
-	 _ssnop
+	 _ssnop;
 	 .set	pop
 )
 ASMMACRO(disable_fpu_hazard,
