@@ -17,6 +17,7 @@ union ktime;
 #define FUTEX_LOCK_PI		6
 #define FUTEX_UNLOCK_PI		7
 #define FUTEX_TRYLOCK_PI	8
+#define FUTEX_CMP_REQUEUE_PI	9
 
 /*
  * Support for robust futexes: the kernel cleans up held futexes at
@@ -85,9 +86,14 @@ struct robust_list_head {
 #define FUTEX_OWNER_DIED	0x40000000
 
 /*
+ * Some processes have been requeued on this PI-futex
+ */
+#define FUTEX_WAITER_REQUEUED	0x20000000
+
+/*
  * The rest of the robust-futex field is for the TID:
  */
-#define FUTEX_TID_MASK		0x3fffffff
+#define FUTEX_TID_MASK		0x0fffffff
 
 /*
  * This limit protects against a deliberately circular list.
@@ -111,6 +117,7 @@ handle_futex_death(u32 __user *uaddr, struct task_struct *curr, int pi);
  * We set bit 0 to indicate if it's an inode-based key.
  */
 union futex_key {
+	u32 __user *uaddr;
 	struct {
 		unsigned long pgoff;
 		struct inode *inode;
