@@ -229,7 +229,7 @@ Table 1-3: Kernel info in /proc
  mounts      Mounted filesystems                               
  net         Networking info (see text)                        
  partitions  Table of partitions known to the system           
- pci	     Depreciated info of PCI bus (new way -> /proc/bus/pci/, 
+ pci	     Deprecated info of PCI bus (new way -> /proc/bus/pci/,
              decoupled by lspci					(2.4)
  rtc         Real time clock                                   
  scsi        SCSI info (see text)                              
