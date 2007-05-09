@@ -168,7 +168,6 @@ static const u8 ide_hwif_to_major[] = { IDE0_MAJOR, IDE1_MAJOR,
 
 static int idebus_parameter;	/* holds the "idebus=" parameter */
 static int system_bus_speed;	/* holds what we think is VESA/PCI bus speed */
-static int initializing;	/* set while initializing built-in drivers */
 
 DECLARE_MUTEX(ide_cfg_sem);
  __cacheline_aligned_in_smp DEFINE_SPINLOCK(ide_lock);
@@ -302,9 +301,7 @@ static void __init init_ide_data (void)
 #endif
 	}
 #ifdef CONFIG_IDE_ARM
-	initializing = 1;
 	ide_arm_init();
-	initializing = 0;
 #endif
 }
 
@@ -749,6 +746,7 @@ void ide_setup_ports (	hw_regs_t *hw,
 /**
  *	ide_register_hw_with_fixup	-	register IDE interface
  *	@hw: hardware registers
+ *	@initializing: set while initializing built-in drivers
  *	@hwifp: pointer to returned hwif
  *	@fixup: fixup function
  *
@@ -758,7 +756,9 @@ void ide_setup_ports (	hw_regs_t *hw,
  *	Returns -1 on error.
  */
 
-int ide_register_hw_with_fixup(hw_regs_t *hw, ide_hwif_t **hwifp, void(*fixup)(ide_hwif_t *hwif))
+int ide_register_hw_with_fixup(hw_regs_t *hw, int initializing,
+			       ide_hwif_t **hwifp,
+			       void(*fixup)(ide_hwif_t *hwif))
 {
 	int index, retry = 1;
 	ide_hwif_t *hwif;
@@ -810,9 +810,9 @@ found:
 
 EXPORT_SYMBOL(ide_register_hw_with_fixup);
 
-int ide_register_hw(hw_regs_t *hw, ide_hwif_t **hwifp)
+int ide_register_hw(hw_regs_t *hw, int initializing, ide_hwif_t **hwifp)
 {
-	return ide_register_hw_with_fixup(hw, hwifp, NULL);
+	return ide_register_hw_with_fixup(hw, initializing, hwifp, NULL);
 }
 
 EXPORT_SYMBOL(ide_register_hw);
@@ -1108,7 +1108,7 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 			ide_init_hwif_ports(&hw, (unsigned long) args[0],
 					    (unsigned long) args[1], NULL);
 			hw.irq = args[2];
-			if (ide_register_hw(&hw, NULL) == -1)
+			if (ide_register_hw(&hw, 0, NULL) == -1)
 				return -EIO;
 			return 0;
 		}
@@ -1819,10 +1819,8 @@ static int __init ide_init(void)
 		(void)qd65xx_init();
 #endif
 
-	initializing = 1;
 	/* Probe for special PCI and other "known" interface chipsets. */
 	probe_for_hwifs();
-	initializing = 0;
 
 	proc_ide_create();
 

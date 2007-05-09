@@ -223,8 +223,9 @@ typedef struct hw_regs_s {
 /*
  * Register new hardware with ide
  */
-int ide_register_hw(hw_regs_t *hw, struct hwif_s **hwifp);
-int ide_register_hw_with_fixup(hw_regs_t *, struct hwif_s **, void (*)(struct hwif_s *));
+int ide_register_hw(hw_regs_t *, int, struct hwif_s **);
+int ide_register_hw_with_fixup(hw_regs_t *, int, struct hwif_s **,
+			       void (*)(struct hwif_s *));
 
 /*
  * Set up hw_regs_t structure before calling ide_register_hw (optional)
