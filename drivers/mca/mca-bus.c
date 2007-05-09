@@ -48,18 +48,24 @@ static int mca_bus_match (struct device *dev, struct device_driver *drv)
 	struct mca_device *mca_dev = to_mca_device (dev);
 	struct mca_driver *mca_drv = to_mca_driver (drv);
 	const unsigned short *mca_ids = mca_drv->id_table;
-	int i;
+	int i = 0;
 
-	if (!mca_ids)
-		return 0;
-
-	for(i = 0; mca_ids[i]; i++) {
-		if (mca_ids[i] == mca_dev->pos_id) {
-			mca_dev->index = i;
-			return 1;
+	if (mca_ids) {
+		for(i = 0; mca_ids[i]; i++) {
+			if (mca_ids[i] == mca_dev->pos_id) {
+				mca_dev->index = i;
+				return 1;
+			}
 		}
 	}
-
+	/* If the integrated id is present, treat it as though it were an
+	 * additional id in the id_table (it can't be because by definition,
+	 * integrated id's overflow a short */
+	if (mca_drv->integrated_id && mca_dev->pos_id ==
+	    mca_drv->integrated_id) {
+		mca_dev->index = i;
+		return 1;
+	}
 	return 0;
 }
 
