@@ -405,9 +405,8 @@ static int check_bytes(u8 *start, unsigned int value, unsigned int bytes)
 	return 1;
 }
 
-
-static int check_valid_pointer(struct kmem_cache *s, struct page *page,
-					 void *object)
+static inline int check_valid_pointer(struct kmem_cache *s,
+				struct page *page, const void *object)
 {
 	void *base;
 
@@ -1796,13 +1795,7 @@ int kmem_ptr_validate(struct kmem_cache *s, const void *object)
 		/* No slab or wrong slab */
 		return 0;
 
-	addr = page_address(page);
-	if (object < addr || object >= addr + s->objects * s->size)
-		/* Out of bounds */
-		return 0;
-
-	if ((object - addr) % s->size)
-		/* Improperly aligned */
+	if (!check_valid_pointer(s, page, object))
 		return 0;
 
 	/*
