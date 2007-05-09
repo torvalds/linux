@@ -2800,7 +2800,7 @@ L:	linux-abi-devel@lists.sourceforge.net
 S:	Maintained
 
 PHRAM MTD DRIVER
-P:	Jörn Engel
+P:	JÃ¶rn Engel
 M:	joern@wh.fh-wedel.de
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
@@ -3074,7 +3074,7 @@ T:	git kernel.org:/pub/scm/linux/kernel/git/jejb/scsi-misc-2.6.git
 S:	Maintained
 
 SCSI TAPE DRIVER
-P:	Kai Mäkisara
+P:	Kai MÃ¤kisara
 M:	Kai.Makisara@kolumbus.fi
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
