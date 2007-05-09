@@ -228,7 +228,7 @@ int __init acpi_numa_init(void)
 	return 0;
 }
 
-int __meminit acpi_get_pxm(acpi_handle h)
+int acpi_get_pxm(acpi_handle h)
 {
 	unsigned long pxm;
 	acpi_status status;
@@ -246,7 +246,7 @@ int __meminit acpi_get_pxm(acpi_handle h)
 }
 EXPORT_SYMBOL(acpi_get_pxm);
 
-int __meminit acpi_get_node(acpi_handle *handle)
+int acpi_get_node(acpi_handle *handle)
 {
 	int pxm, node = -1;
 
