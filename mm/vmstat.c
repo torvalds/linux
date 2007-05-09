@@ -641,11 +641,13 @@ const struct seq_operations vmstat_op = {
 
 #ifdef CONFIG_SMP
 static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
+int sysctl_stat_interval __read_mostly = HZ;
 
 static void vmstat_update(struct work_struct *w)
 {
 	refresh_cpu_vm_stats(smp_processor_id());
-	schedule_delayed_work(&__get_cpu_var(vmstat_work), HZ);
+	schedule_delayed_work(&__get_cpu_var(vmstat_work),
+		sysctl_stat_interval);
 }
 
 static void __devinit start_cpu_timer(int cpu)
