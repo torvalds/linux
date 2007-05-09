@@ -1881,8 +1881,11 @@ static int cm4000_probe(struct pcmcia_device *link)
 	init_waitqueue_head(&dev->readq);
 
 	ret = cm4000_config(link, i);
-	if (ret)
+	if (ret) {
+		dev_table[i] = NULL;
+		kfree(dev);
 		return ret;
+	}
 
 	class_device_create(cmm_class, NULL, MKDEV(major, i), NULL,
 			    "cmm%d", i);
@@ -1907,7 +1910,7 @@ static void cm4000_detach(struct pcmcia_device *link)
 	cm4000_release(link);
 
 	dev_table[devno] = NULL;
- 	kfree(dev);
+	kfree(dev);
 
 	class_device_destroy(cmm_class, MKDEV(major, devno));
 
@@ -1956,12 +1959,14 @@ static int __init cmm_init(void)
 	if (major < 0) {
 		printk(KERN_WARNING MODULE_NAME
 			": could not get major number\n");
+		class_destroy(cmm_class);
 		return major;
 	}
 
 	rc = pcmcia_register_driver(&cm4000_driver);
 	if (rc < 0) {
 		unregister_chrdev(major, DEVICE_NAME);
+		class_destroy(cmm_class);
 		return rc;
 	}
 
