@@ -255,7 +255,7 @@ static int ar_context_add_page(struct ar_context *ctx)
 		return -ENOMEM;
 	}
 
-	memset(&ab->descriptor, 0, sizeof ab->descriptor);
+	memset(&ab->descriptor, 0, sizeof(ab->descriptor));
 	ab->descriptor.control        = cpu_to_le16(DESCRIPTOR_INPUT_MORE |
 						    DESCRIPTOR_STATUS |
 						    DESCRIPTOR_BRANCH_ALWAYS);
@@ -440,7 +440,7 @@ static void context_tasklet(unsigned long data)
 	while (last->branch_address != 0) {
 		address = le32_to_cpu(last->branch_address);
 		z = address & 0xf;
-		d = ctx->buffer + (address - ctx->buffer_bus) / sizeof *d;
+		d = ctx->buffer + (address - ctx->buffer_bus) / sizeof(*d);
 		last = (z == 2) ? d : d + z - 1;
 
 		if (!ctx->callback(ctx, d, last))
@@ -487,7 +487,7 @@ context_init(struct context *ctx, struct fw_ohci *ohci,
 	 * element so that head == tail means buffer full.
 	 */
 
-	memset(ctx->head_descriptor, 0, sizeof *ctx->head_descriptor);
+	memset(ctx->head_descriptor, 0, sizeof(*ctx->head_descriptor));
 	ctx->head_descriptor->control = cpu_to_le16(DESCRIPTOR_OUTPUT_LAST);
 	ctx->head_descriptor->transfer_status = cpu_to_le16(0x8011);
 	ctx->head_descriptor++;
@@ -512,7 +512,7 @@ context_get_descriptors(struct context *ctx, int z, dma_addr_t *d_bus)
 
 	d = ctx->head_descriptor;
 	tail = ctx->tail_descriptor;
-	end = ctx->buffer + ctx->buffer_size / sizeof(struct descriptor);
+	end = ctx->buffer + ctx->buffer_size / sizeof(*d);
 
 	if (d + z <= tail) {
 		goto has_space;
@@ -526,8 +526,8 @@ context_get_descriptors(struct context *ctx, int z, dma_addr_t *d_bus)
 	return NULL;
 
  has_space:
-	memset(d, 0, z * sizeof *d);
-	*d_bus = ctx->buffer_bus + (d - ctx->buffer) * sizeof *d;
+	memset(d, 0, z * sizeof(*d));
+	*d_bus = ctx->buffer_bus + (d - ctx->buffer) * sizeof(*d);
 
 	return d;
 }
@@ -548,7 +548,7 @@ static void context_append(struct context *ctx,
 {
 	dma_addr_t d_bus;
 
-	d_bus = ctx->buffer_bus + (d - ctx->buffer) * sizeof *d;
+	d_bus = ctx->buffer_bus + (d - ctx->buffer) * sizeof(*d);
 
 	ctx->head_descriptor = d + z + extra;
 	ctx->prev_descriptor->branch_address = cpu_to_le32(d_bus | z);
@@ -820,7 +820,7 @@ handle_local_lock(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr)
 		fw_notify("swap not done yet\n");
 
 	fw_fill_response(&response, packet->header,
-			 RCODE_COMPLETE, &lock_old, sizeof lock_old);
+			 RCODE_COMPLETE, &lock_old, sizeof(lock_old));
  out:
 	fw_core_handle_response(&ohci->card, &response);
 }
@@ -1376,7 +1376,7 @@ ohci_allocate_iso_context(struct fw_card *card, int type, size_t header_size)
 		regs = OHCI1394_IsoRcvContextBase(index);
 
 	ctx = &list[index];
-	memset(ctx, 0, sizeof *ctx);
+	memset(ctx, 0, sizeof(*ctx));
 	ctx->header_length = 0;
 	ctx->header = (void *) __get_free_page(GFP_KERNEL);
 	if (ctx->header == NULL)
@@ -1518,7 +1518,7 @@ ohci_queue_iso_transmit(struct fw_iso_context *base,
 	z += payload_z;
 
 	/* Get header size in number of descriptors. */
-	header_z = DIV_ROUND_UP(p->header_length, sizeof *d);
+	header_z = DIV_ROUND_UP(p->header_length, sizeof(*d));
 
 	d = context_get_descriptors(&ctx->context, z + header_z, &d_bus);
 	if (d == NULL)
@@ -1541,7 +1541,7 @@ ohci_queue_iso_transmit(struct fw_iso_context *base,
 
 	if (p->header_length > 0) {
 		d[2].req_count    = cpu_to_le16(p->header_length);
-		d[2].data_address = cpu_to_le32(d_bus + z * sizeof *d);
+		d[2].data_address = cpu_to_le32(d_bus + z * sizeof(*d));
 		memcpy(&d[z], p->header, p->header_length);
 	}
 
@@ -1620,7 +1620,7 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 	header_size = packet_count * (ctx->base.header_size + 4);
 
 	/* Get header size in number of descriptors. */
-	header_z = DIV_ROUND_UP(header_size, sizeof *d);
+	header_z = DIV_ROUND_UP(header_size, sizeof(*d));
 	page     = payload >> PAGE_SHIFT;
 	offset   = payload & ~PAGE_MASK;
 	rest     = p->payload_length;
@@ -1639,7 +1639,7 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 		db->first_size = cpu_to_le16(ctx->base.header_size + 4);
 		db->first_req_count = cpu_to_le16(header_size);
 		db->first_res_count = db->first_req_count;
-		db->first_buffer = cpu_to_le32(d_bus + sizeof *db);
+		db->first_buffer = cpu_to_le32(d_bus + sizeof(*db));
 
 		if (offset + rest < PAGE_SIZE)
 			length = rest;
@@ -1755,7 +1755,7 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	int error_code;
 	size_t size;
 
-	ohci = kzalloc(sizeof *ohci, GFP_KERNEL);
+	ohci = kzalloc(sizeof(*ohci), GFP_KERNEL);
 	if (ohci == NULL) {
 		fw_error("Could not malloc fw_ohci data.\n");
 		return -ENOMEM;

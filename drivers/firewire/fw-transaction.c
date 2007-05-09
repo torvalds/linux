@@ -305,7 +305,7 @@ static void send_phy_packet(struct fw_card *card, u32 data, int generation)
 {
 	struct fw_packet *packet;
 
-	packet = kzalloc(sizeof *packet, GFP_ATOMIC);
+	packet = kzalloc(sizeof(*packet), GFP_ATOMIC);
 	if (packet == NULL)
 		return;
 
@@ -572,7 +572,7 @@ allocate_request(struct fw_packet *p)
 		return NULL;
 	}
 
-	request = kmalloc(sizeof *request + length, GFP_ATOMIC);
+	request = kmalloc(sizeof(*request) + length, GFP_ATOMIC);
 	if (request == NULL)
 		return NULL;
 
@@ -592,7 +592,7 @@ allocate_request(struct fw_packet *p)
 	if (data)
 		memcpy(request->data, data, length);
 
-	memcpy(request->request_header, p->header, sizeof p->header);
+	memcpy(request->request_header, p->header, sizeof(p->header));
 
 	return request;
 }

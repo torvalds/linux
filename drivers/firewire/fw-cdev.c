@@ -110,7 +110,7 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	if (device == NULL)
 		return -ENODEV;
 
-	client = kzalloc(sizeof *client, GFP_KERNEL);
+	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (client == NULL)
 		return -ENOMEM;
 
@@ -233,7 +233,7 @@ queue_bus_reset_event(struct client *client)
 {
 	struct bus_reset *bus_reset;
 
-	bus_reset = kzalloc(sizeof *bus_reset, GFP_ATOMIC);
+	bus_reset = kzalloc(sizeof(*bus_reset), GFP_ATOMIC);
 	if (bus_reset == NULL) {
 		fw_notify("Out of memory when allocating bus reset event\n");
 		return;
@@ -242,7 +242,7 @@ queue_bus_reset_event(struct client *client)
 	fill_bus_reset_event(&bus_reset->reset, client);
 
 	queue_event(client, &bus_reset->event,
-		    &bus_reset->reset, sizeof bus_reset->reset, NULL, 0);
+		    &bus_reset->reset, sizeof(bus_reset->reset), NULL, 0);
 }
 
 void fw_device_cdev_update(struct fw_device *device)
@@ -284,7 +284,7 @@ static int ioctl_get_info(struct client *client, void *buffer)
 		void __user *uptr = u64_to_uptr(get_info->bus_reset);
 
 		fill_bus_reset_event(&bus_reset, client);
-		if (copy_to_user(uptr, &bus_reset, sizeof bus_reset))
+		if (copy_to_user(uptr, &bus_reset, sizeof(bus_reset)))
 			return -EFAULT;
 	}
 
@@ -361,7 +361,7 @@ complete_transaction(struct fw_card *card, int rcode,
 	response->response.type   = FW_CDEV_EVENT_RESPONSE;
 	response->response.rcode  = rcode;
 	queue_event(client, &response->event,
-		    &response->response, sizeof response->response,
+		    &response->response, sizeof(response->response),
 		    response->response.data, response->response.length);
 }
 
@@ -375,7 +375,7 @@ static ssize_t ioctl_send_request(struct client *client, void *buffer)
 	if (request->length > 4096)
 		return -EINVAL;
 
-	response = kmalloc(sizeof *response + request->length, GFP_KERNEL);
+	response = kmalloc(sizeof(*response) + request->length, GFP_KERNEL);
 	if (response == NULL)
 		return -ENOMEM;
 
@@ -403,9 +403,9 @@ static ssize_t ioctl_send_request(struct client *client, void *buffer)
 			complete_transaction, response);
 
 	if (request->data)
-		return sizeof request + request->length;
+		return sizeof(request) + request->length;
 	else
-		return sizeof request;
+		return sizeof(request);
 }
 
 struct address_handler {
@@ -450,8 +450,8 @@ handle_request(struct fw_card *card, struct fw_request *r,
 	struct request_event *e;
 	struct client *client = handler->client;
 
-	request = kmalloc(sizeof *request, GFP_ATOMIC);
-	e = kmalloc(sizeof *e, GFP_ATOMIC);
+	request = kmalloc(sizeof(*request), GFP_ATOMIC);
+	e = kmalloc(sizeof(*e), GFP_ATOMIC);
 	if (request == NULL || e == NULL) {
 		kfree(request);
 		kfree(e);
@@ -474,7 +474,7 @@ handle_request(struct fw_card *card, struct fw_request *r,
 	e->request.closure = handler->closure;
 
 	queue_event(client, &e->event,
-		    &e->request, sizeof e->request, payload, length);
+		    &e->request, sizeof(e->request), payload, length);
 }
 
 static void
@@ -494,7 +494,7 @@ static int ioctl_allocate(struct client *client, void *buffer)
 	struct address_handler *handler;
 	struct fw_address_region region;
 
-	handler = kmalloc(sizeof *handler, GFP_KERNEL);
+	handler = kmalloc(sizeof(*handler), GFP_KERNEL);
 	if (handler == NULL)
 		return -ENOMEM;
 
@@ -581,7 +581,7 @@ static int ioctl_add_descriptor(struct client *client, void *buffer)
 		return -EINVAL;
 
 	descriptor =
-		kmalloc(sizeof *descriptor + request->length * 4, GFP_KERNEL);
+		kmalloc(sizeof(*descriptor) + request->length * 4, GFP_KERNEL);
 	if (descriptor == NULL)
 		return -ENOMEM;
 
@@ -623,7 +623,7 @@ iso_callback(struct fw_iso_context *context, u32 cycle,
 	struct client *client = data;
 	struct iso_interrupt *interrupt;
 
-	interrupt = kzalloc(sizeof *interrupt + header_length, GFP_ATOMIC);
+	interrupt = kzalloc(sizeof(*interrupt) + header_length, GFP_ATOMIC);
 	if (interrupt == NULL)
 		return;
 
@@ -634,7 +634,7 @@ iso_callback(struct fw_iso_context *context, u32 cycle,
 	memcpy(interrupt->interrupt.header, header, header_length);
 	queue_event(client, &interrupt->event,
 		    &interrupt->interrupt,
-		    sizeof interrupt->interrupt + header_length, NULL, 0);
+		    sizeof(interrupt->interrupt) + header_length, NULL, 0);
 }
 
 static int ioctl_create_iso_context(struct client *client, void *buffer)
@@ -717,7 +717,7 @@ static int ioctl_queue_iso(struct client *client, void *buffer)
 	end = (void __user *)p + request->size;
 	count = 0;
 	while (p < end) {
-		if (__copy_from_user(&u.packet, p, sizeof *p))
+		if (__copy_from_user(&u.packet, p, sizeof(*p)))
 			return -EFAULT;
 
 		if (ctx->type == FW_ISO_CONTEXT_TRANSMIT) {
@@ -819,7 +819,7 @@ dispatch_ioctl(struct client *client, unsigned int cmd, void __user *arg)
 		return -EINVAL;
 
 	if (_IOC_DIR(cmd) & _IOC_WRITE) {
-		if (_IOC_SIZE(cmd) > sizeof buffer ||
+		if (_IOC_SIZE(cmd) > sizeof(buffer) ||
 		    copy_from_user(buffer, arg, _IOC_SIZE(cmd)))
 			return -EFAULT;
 	}
@@ -829,7 +829,7 @@ dispatch_ioctl(struct client *client, unsigned int cmd, void __user *arg)
 		return retval;
 
 	if (_IOC_DIR(cmd) & _IOC_READ) {
-		if (_IOC_SIZE(cmd) > sizeof buffer ||
+		if (_IOC_SIZE(cmd) > sizeof(buffer) ||
 		    copy_to_user(arg, buffer, _IOC_SIZE(cmd)))
 			return -EFAULT;
 	}

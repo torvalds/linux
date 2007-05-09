@@ -138,7 +138,7 @@ fw_unit_uevent(struct device *dev, char **envp, int num_envp,
 	int length = 0;
 	int i = 0;
 
-	get_modalias(unit, modalias, sizeof modalias);
+	get_modalias(unit, modalias, sizeof(modalias));
 
 	if (add_uevent_var(envp, num_envp, &i,
 			   buffer, buffer_size, &length,
@@ -533,7 +533,7 @@ static void create_units(struct fw_device *device)
 		 * Get the address of the unit directory and try to
 		 * match the drivers id_tables against it.
 		 */
-		unit = kzalloc(sizeof *unit, GFP_KERNEL);
+		unit = kzalloc(sizeof(*unit), GFP_KERNEL);
 		if (unit == NULL) {
 			fw_error("failed to allocate memory for unit\n");
 			continue;
@@ -543,7 +543,7 @@ static void create_units(struct fw_device *device)
 		unit->device.bus = &fw_bus_type;
 		unit->device.type = &fw_unit_type;
 		unit->device.parent = &device->device;
-		snprintf(unit->device.bus_id, sizeof unit->device.bus_id,
+		snprintf(unit->device.bus_id, sizeof(unit->device.bus_id),
 			 "%s.%d", device->device.bus_id, i++);
 
 		init_fw_attribute_group(&unit->device,
@@ -653,7 +653,7 @@ static void fw_device_init(struct work_struct *work)
 	device->device.type = &fw_device_type;
 	device->device.parent = device->card->device;
 	device->device.devt = MKDEV(fw_cdev_major, minor);
-	snprintf(device->device.bus_id, sizeof device->device.bus_id,
+	snprintf(device->device.bus_id, sizeof(device->device.bus_id),
 		 "fw%d", minor);
 
 	init_fw_attribute_group(&device->device,

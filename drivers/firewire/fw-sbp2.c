@@ -279,7 +279,7 @@ sbp2_status_write(struct fw_card *card, struct fw_request *request,
 	unsigned long flags;
 
 	if (tcode != TCODE_WRITE_BLOCK_REQUEST ||
-	    length == 0 || length > sizeof status) {
+	    length == 0 || length > sizeof(status)) {
 		fw_send_response(card, request, RCODE_TYPE_ERROR);
 		return;
 	}
@@ -340,7 +340,7 @@ sbp2_send_orb(struct sbp2_orb *orb, struct fw_unit *unit,
 
 	orb->pointer.high = 0;
 	orb->pointer.low = orb->request_bus;
-	fw_memcpy_to_be32(&orb->pointer, &orb->pointer, sizeof orb->pointer);
+	fw_memcpy_to_be32(&orb->pointer, &orb->pointer, sizeof(orb->pointer));
 
 	spin_lock_irqsave(&device->card->lock, flags);
 	list_add_tail(&orb->link, &sd->orb_list);
@@ -349,7 +349,7 @@ sbp2_send_orb(struct sbp2_orb *orb, struct fw_unit *unit,
 	fw_send_request(device->card, &orb->t, TCODE_WRITE_BLOCK_REQUEST,
 			node_id, generation,
 			device->node->max_speed, offset,
-			&orb->pointer, sizeof orb->pointer,
+			&orb->pointer, sizeof(orb->pointer),
 			complete_transaction, orb);
 }
 
@@ -386,7 +386,7 @@ complete_management_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 	    (struct sbp2_management_orb *)base_orb;
 
 	if (status)
-		memcpy(&orb->status, status, sizeof *status);
+		memcpy(&orb->status, status, sizeof(*status));
 	complete(&orb->done);
 }
 
@@ -399,7 +399,7 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 	struct sbp2_management_orb *orb;
 	int retval = -ENOMEM;
 
-	orb = kzalloc(sizeof *orb, GFP_ATOMIC);
+	orb = kzalloc(sizeof(*orb), GFP_ATOMIC);
 	if (orb == NULL)
 		return -ENOMEM;
 
@@ -409,13 +409,13 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 	 */
 	orb->base.request_bus =
 		dma_map_single(device->card->device, &orb->request,
-			       sizeof orb->request, DMA_TO_DEVICE);
+			       sizeof(orb->request), DMA_TO_DEVICE);
 	if (dma_mapping_error(orb->base.request_bus))
 		goto out;
 
 	orb->response_bus =
 		dma_map_single(device->card->device, &orb->response,
-			       sizeof orb->response, DMA_FROM_DEVICE);
+			       sizeof(orb->response), DMA_FROM_DEVICE);
 	if (dma_mapping_error(orb->response_bus))
 		goto out;
 
@@ -427,7 +427,7 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 		MANAGEMENT_ORB_FUNCTION(function) |
 		MANAGEMENT_ORB_LUN(lun);
 	orb->request.length =
-		MANAGEMENT_ORB_RESPONSE_LENGTH(sizeof orb->response);
+		MANAGEMENT_ORB_RESPONSE_LENGTH(sizeof(orb->response));
 
 	orb->request.status_fifo.high = sd->address_handler.offset >> 32;
 	orb->request.status_fifo.low  = sd->address_handler.offset;
@@ -443,7 +443,7 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 			MANAGEMENT_ORB_RECONNECT(0);
 	}
 
-	fw_memcpy_to_be32(&orb->request, &orb->request, sizeof orb->request);
+	fw_memcpy_to_be32(&orb->request, &orb->request, sizeof(orb->request));
 
 	init_completion(&orb->done);
 	orb->base.callback = complete_management_orb;
@@ -478,13 +478,13 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 	retval = 0;
  out:
 	dma_unmap_single(device->card->device, orb->base.request_bus,
-			 sizeof orb->request, DMA_TO_DEVICE);
+			 sizeof(orb->request), DMA_TO_DEVICE);
 	dma_unmap_single(device->card->device, orb->response_bus,
-			 sizeof orb->response, DMA_FROM_DEVICE);
+			 sizeof(orb->response), DMA_FROM_DEVICE);
 
 	if (response)
 		fw_memcpy_from_be32(response,
-				    orb->response, sizeof orb->response);
+				    orb->response, sizeof(orb->response));
 	kfree(orb);
 
 	return retval;
@@ -506,14 +506,14 @@ static int sbp2_agent_reset(struct fw_unit *unit)
 	struct fw_transaction *t;
 	static u32 zero;
 
-	t = kzalloc(sizeof *t, GFP_ATOMIC);
+	t = kzalloc(sizeof(*t), GFP_ATOMIC);
 	if (t == NULL)
 		return -ENOMEM;
 
 	fw_send_request(device->card, t, TCODE_WRITE_QUADLET_REQUEST,
 			sd->node_id, sd->generation, SCODE_400,
 			sd->command_block_agent_address + SBP2_AGENT_RESET,
-			&zero, sizeof zero, complete_agent_reset_write, t);
+			&zero, sizeof(zero), complete_agent_reset_write, t);
 
 	return 0;
 }
@@ -870,7 +870,7 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 	}
 
 	dma_unmap_single(device->card->device, orb->base.request_bus,
-			 sizeof orb->request, DMA_TO_DEVICE);
+			 sizeof(orb->request), DMA_TO_DEVICE);
 
 	if (orb->cmd->use_sg > 0) {
 		sg = (struct scatterlist *)orb->cmd->request_buffer;
@@ -880,11 +880,11 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 
 	if (orb->page_table_bus != 0)
 		dma_unmap_single(device->card->device, orb->page_table_bus,
-				 sizeof orb->page_table_bus, DMA_TO_DEVICE);
+				 sizeof(orb->page_table_bus), DMA_TO_DEVICE);
 
 	if (orb->request_buffer_bus != 0)
 		dma_unmap_single(device->card->device, orb->request_buffer_bus,
-				 sizeof orb->request_buffer_bus,
+				 sizeof(orb->request_buffer_bus),
 				 DMA_FROM_DEVICE);
 
 	orb->cmd->result = result;
@@ -944,7 +944,7 @@ static int sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 		}
 	}
 
-	size = sizeof orb->page_table[0] * j;
+	size = sizeof(orb->page_table[0]) * j;
 
 	/*
 	 * The data_descriptor pointer is the one case where we need
@@ -997,7 +997,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 		return 0;
 	}
 
-	orb = kzalloc(sizeof *orb, GFP_ATOMIC);
+	orb = kzalloc(sizeof(*orb), GFP_ATOMIC);
 	if (orb == NULL) {
 		fw_notify("failed to alloc orb\n");
 		goto fail_alloc;
@@ -1007,7 +1007,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	orb->base.rcode = -1;
 	orb->base.request_bus =
 		dma_map_single(device->card->device, &orb->request,
-			       sizeof orb->request, DMA_TO_DEVICE);
+			       sizeof(orb->request), DMA_TO_DEVICE);
 	if (dma_mapping_error(orb->base.request_bus))
 		goto fail_mapping;
 
@@ -1038,10 +1038,10 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	if (cmd->use_sg && sbp2_command_orb_map_scatterlist(orb) < 0)
 		goto fail_map_payload;
 
-	fw_memcpy_to_be32(&orb->request, &orb->request, sizeof orb->request);
+	fw_memcpy_to_be32(&orb->request, &orb->request, sizeof(orb->request));
 
 	memset(orb->request.command_block,
-	       0, sizeof orb->request.command_block);
+	       0, sizeof(orb->request.command_block));
 	memcpy(orb->request.command_block, cmd->cmnd, COMMAND_SIZE(*cmd->cmnd));
 
 	orb->base.callback = complete_command_orb;
@@ -1053,7 +1053,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 
  fail_map_payload:
 	dma_unmap_single(device->card->device, orb->base.request_bus,
-			 sizeof orb->request, DMA_TO_DEVICE);
+			 sizeof(orb->request), DMA_TO_DEVICE);
  fail_mapping:
 	kfree(orb);
  fail_alloc:

@@ -75,7 +75,7 @@ generate_config_rom(struct fw_card *card, size_t *config_rom_length)
 	 * the version stored in the OHCI registers.
 	 */
 
-	memset(config_rom, 0, sizeof config_rom);
+	memset(config_rom, 0, sizeof(config_rom));
 	config_rom[0] = BIB_CRC_LENGTH(4) | BIB_INFO_LENGTH(4) | BIB_CRC(0);
 	config_rom[1] = 0x31333934;
 
@@ -258,7 +258,7 @@ fw_card_bm_work(struct work_struct *work)
 		fw_send_request(card, &bmd.t, TCODE_LOCK_COMPARE_SWAP,
 				irm_id, generation,
 				SCODE_100, CSR_REGISTER_BASE + CSR_BUS_MANAGER_ID,
-				&bmd.lock, sizeof bmd.lock,
+				&bmd.lock, sizeof(bmd.lock),
 				complete_bm_lock, &bmd);
 		wait_for_completion(&bmd.done);
 
