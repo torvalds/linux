@@ -1214,7 +1214,7 @@ e1000_remove(struct pci_dev *pdev)
 	int i;
 #endif
 
-	flush_work_keventd(&adapter->reset_task);
+	cancel_work_sync(&adapter->reset_task);
 
 	e1000_release_manageability(adapter);
 

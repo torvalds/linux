@@ -128,30 +128,33 @@ extern struct workqueue_struct *__create_workqueue(const char *name,
 extern void destroy_workqueue(struct workqueue_struct *wq);
 
 extern int FASTCALL(queue_work(struct workqueue_struct *wq, struct work_struct *work));
-extern int FASTCALL(queue_delayed_work(struct workqueue_struct *wq, struct delayed_work *work, unsigned long delay));
+extern int FASTCALL(queue_delayed_work(struct workqueue_struct *wq,
+			struct delayed_work *work, unsigned long delay));
 extern int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
-	struct delayed_work *work, unsigned long delay);
+			struct delayed_work *work, unsigned long delay);
+
 extern void FASTCALL(flush_workqueue(struct workqueue_struct *wq));
-extern void flush_work(struct workqueue_struct *wq, struct work_struct *work);
-extern void flush_work_keventd(struct work_struct *work);
+extern void flush_scheduled_work(void);
 
 extern int FASTCALL(schedule_work(struct work_struct *work));
-extern int FASTCALL(schedule_delayed_work(struct delayed_work *work, unsigned long delay));
-
-extern int schedule_delayed_work_on(int cpu, struct delayed_work *work, unsigned long delay);
+extern int FASTCALL(schedule_delayed_work(struct delayed_work *work,
+					unsigned long delay));
+extern int schedule_delayed_work_on(int cpu, struct delayed_work *work,
+					unsigned long delay);
 extern int schedule_on_each_cpu(work_func_t func);
-extern void flush_scheduled_work(void);
 extern int current_is_keventd(void);
 extern int keventd_up(void);
 
 extern void init_workqueues(void);
 int execute_in_process_context(work_func_t fn, struct execute_work *);
 
+extern void cancel_work_sync(struct work_struct *work);
+
 /*
  * Kill off a pending schedule_delayed_work().  Note that the work callback
  * function may still be running on return from cancel_delayed_work(), unless
  * it returns 1 and the work doesn't re-arm itself. Run flush_workqueue() or
- * flush_work() or cancel_work_sync() to wait on it.
+ * cancel_work_sync() to wait on it.
  */
 static inline int cancel_delayed_work(struct delayed_work *work)
 {

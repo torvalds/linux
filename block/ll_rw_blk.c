@@ -3633,7 +3633,7 @@ EXPORT_SYMBOL(kblockd_schedule_work);
 
 void kblockd_flush_work(struct work_struct *work)
 {
-	flush_work(kblockd_workqueue, work);
+	cancel_work_sync(work);
 }
 EXPORT_SYMBOL(kblockd_flush_work);
 

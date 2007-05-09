@@ -7386,7 +7386,7 @@ static int tg3_close(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	flush_work_keventd(&tp->reset_task);
+	cancel_work_sync(&tp->reset_task);
 
 	netif_stop_queue(dev);
 

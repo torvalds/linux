@@ -663,9 +663,9 @@ int phy_stop_interrupts(struct phy_device *phydev)
 
 	/*
 	 * Finish any pending work; we might have been scheduled to be called
-	 * from keventd ourselves, but flush_work_keventd() handles that.
+	 * from keventd ourselves, but cancel_work_sync() handles that.
 	 */
-	flush_work_keventd(&phydev->phy_queue);
+	cancel_work_sync(&phydev->phy_queue);
 
 	free_irq(phydev->irq, phydev);
 

@@ -413,23 +413,23 @@ static void wait_on_work(struct cpu_workqueue_struct *cwq,
 }
 
 /**
- * flush_work - block until a work_struct's callback has terminated
- * @wq: the workqueue on which the work is queued
+ * cancel_work_sync - block until a work_struct's callback has terminated
  * @work: the work which is to be flushed
  *
- * flush_work() will attempt to cancel the work if it is queued.  If the work's
- * callback appears to be running, flush_work() will block until it has
- * completed.
+ * cancel_work_sync() will attempt to cancel the work if it is queued. If the
+ * work's callback appears to be running, cancel_work_sync() will block until
+ * it has completed.
  *
- * flush_work() is designed to be used when the caller is tearing down data
- * structures which the callback function operates upon.  It is expected that,
- * prior to calling flush_work(), the caller has arranged for the work to not
- * be requeued.
+ * cancel_work_sync() is designed to be used when the caller is tearing down
+ * data structures which the callback function operates upon. It is expected
+ * that, prior to calling cancel_work_sync(), the caller has arranged for the
+ * work to not be requeued.
  */
-void flush_work(struct workqueue_struct *wq, struct work_struct *work)
+void cancel_work_sync(struct work_struct *work)
 {
-	const cpumask_t *cpu_map = wq_cpu_map(wq);
 	struct cpu_workqueue_struct *cwq;
+	struct workqueue_struct *wq;
+	const cpumask_t *cpu_map;
 	int cpu;
 
 	might_sleep();
@@ -448,10 +448,13 @@ void flush_work(struct workqueue_struct *wq, struct work_struct *work)
 	work_clear_pending(work);
 	spin_unlock_irq(&cwq->lock);
 
+	wq = cwq->wq;
+	cpu_map = wq_cpu_map(wq);
+
 	for_each_cpu_mask(cpu, *cpu_map)
 		wait_on_work(per_cpu_ptr(wq->cpu_wq, cpu), work);
 }
-EXPORT_SYMBOL_GPL(flush_work);
+EXPORT_SYMBOL_GPL(cancel_work_sync);
 
 
 static struct workqueue_struct *keventd_wq;
@@ -540,18 +543,13 @@ void flush_scheduled_work(void)
 }
 EXPORT_SYMBOL(flush_scheduled_work);
 
-void flush_work_keventd(struct work_struct *work)
-{
-	flush_work(keventd_wq, work);
-}
-EXPORT_SYMBOL(flush_work_keventd);
-
 /**
  * cancel_rearming_delayed_work - kill off a delayed work whose handler rearms the delayed work.
  * @dwork: the delayed work struct
  *
  * Note that the work callback function may still be running on return from
- * cancel_delayed_work(). Run flush_workqueue() or flush_work() to wait on it.
+ * cancel_delayed_work(). Run flush_workqueue() or cancel_work_sync() to wait
+ * on it.
  */
 void cancel_rearming_delayed_work(struct delayed_work *dwork)
 {
