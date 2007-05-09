@@ -97,7 +97,7 @@ static inline void check_for_tasks(int cpu)
 		    (!cputime_eq(p->utime, cputime_zero) ||
 		     !cputime_eq(p->stime, cputime_zero)))
 			printk(KERN_WARNING "Task %s (pid = %d) is on cpu %d\
-				(state = %ld, flags = %lx) \n",
+				(state = %ld, flags = %x) \n",
 				 p->comm, p->pid, cpu, p->state, p->flags);
 	}
 	write_unlock_irq(&tasklist_lock);
@@ -122,9 +122,10 @@ static int take_cpu_down(void *unused)
 /* Requires cpu_add_remove_lock to be held */
 static int _cpu_down(unsigned int cpu)
 {
-	int err;
+	int err, nr_calls = 0;
 	struct task_struct *p;
 	cpumask_t old_allowed, tmp;
+	void *hcpu = (void *)(long)cpu;
 
 	if (num_online_cpus() == 1)
 		return -EBUSY;
@@ -132,11 +133,12 @@ static int _cpu_down(unsigned int cpu)
 	if (!cpu_online(cpu))
 		return -EINVAL;
 
-	raw_notifier_call_chain(&cpu_chain, CPU_LOCK_ACQUIRE,
-						(void *)(long)cpu);
-	err = raw_notifier_call_chain(&cpu_chain, CPU_DOWN_PREPARE,
-						(void *)(long)cpu);
+	raw_notifier_call_chain(&cpu_chain, CPU_LOCK_ACQUIRE, hcpu);
+	err = __raw_notifier_call_chain(&cpu_chain, CPU_DOWN_PREPARE,
+					hcpu, -1, &nr_calls);
 	if (err == NOTIFY_BAD) {
+		__raw_notifier_call_chain(&cpu_chain, CPU_DOWN_FAILED, hcpu,
+					  nr_calls, NULL);
 		printk("%s: attempt to take down CPU %u failed\n",
 				__FUNCTION__, cpu);
 		err = -EINVAL;
@@ -156,7 +158,7 @@ static int _cpu_down(unsigned int cpu)
 	if (IS_ERR(p) || cpu_online(cpu)) {
 		/* CPU didn't die: tell everyone.  Can't complain. */
 		if (raw_notifier_call_chain(&cpu_chain, CPU_DOWN_FAILED,
-				(void *)(long)cpu) == NOTIFY_BAD)
+					    hcpu) == NOTIFY_BAD)
 			BUG();
 
 		if (IS_ERR(p)) {
@@ -178,8 +180,7 @@ static int _cpu_down(unsigned int cpu)
 	put_cpu();
 
 	/* CPU is completely dead: tell everyone.  Too late to complain. */
-	if (raw_notifier_call_chain(&cpu_chain, CPU_DEAD,
-			(void *)(long)cpu) == NOTIFY_BAD)
+	if (raw_notifier_call_chain(&cpu_chain, CPU_DEAD, hcpu) == NOTIFY_BAD)
 		BUG();
 
 	check_for_tasks(cpu);
