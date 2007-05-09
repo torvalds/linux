@@ -82,31 +82,45 @@ _GLOBAL(slb_miss_kernel_load_io)
 	srdi.	r9,r10,USER_ESID_BITS
 	bne-	8f			/* invalid ea bits set */
 
-	/* Figure out if the segment contains huge pages */
-#ifdef CONFIG_HUGETLB_PAGE
-BEGIN_FTR_SECTION
-	b	1f
-END_FTR_SECTION_IFCLR(CPU_FTR_16M_PAGE)
+
+	/* when using slices, we extract the psize off the slice bitmaps
+	 * and then we need to get the sllp encoding off the mmu_psize_defs
+	 * array.
+	 *
+	 * XXX This is a bit inefficient especially for the normal case,
+	 * so we should try to implement a fast path for the standard page
+	 * size using the old sllp value so we avoid the array. We cannot
+	 * really do dynamic patching unfortunately as processes might flip
+	 * between 4k and 64k standard page size
+	 */
+#ifdef CONFIG_PPC_MM_SLICES
 	cmpldi	r10,16
 
-	lhz	r9,PACALOWHTLBAREAS(r13)
-	mr	r11,r10
+	/* Get the slice index * 4 in r11 and matching slice size mask in r9 */
+	ld	r9,PACALOWSLICESPSIZE(r13)
+	sldi	r11,r10,2
 	blt	5f
+	ld	r9,PACAHIGHSLICEPSIZE(r13)
+	srdi	r11,r10,(SLICE_HIGH_SHIFT - SLICE_LOW_SHIFT - 2)
+	andi.	r11,r11,0x3c
 
-	lhz	r9,PACAHIGHHTLBAREAS(r13)
-	srdi	r11,r10,(HTLB_AREA_SHIFT-SID_SHIFT)
+5:	/* Extract the psize and multiply to get an array offset */
+	srd	r9,r9,r11
+	andi.	r9,r9,0xf
+	mulli	r9,r9,MMUPSIZEDEFSIZE
 
-5:	srd	r9,r9,r11
-	andi.	r9,r9,1
-	beq	1f
-_GLOBAL(slb_miss_user_load_huge)
-	li	r11,0
-	b	2f
-1:
-#endif /* CONFIG_HUGETLB_PAGE */
-
+	/* Now get to the array and obtain the sllp
+	 */
+	ld	r11,PACATOC(r13)
+	ld	r11,mmu_psize_defs@got(r11)
+	add	r11,r11,r9
+	ld	r11,MMUPSIZESLLP(r11)
+	ori	r11,r11,SLB_VSID_USER
+#else
+	/* paca context sllp already contains the SLB_VSID_USER bits */
 	lhz	r11,PACACONTEXTSLLP(r13)
-2:
+#endif /* CONFIG_PPC_MM_SLICES */
+
 	ld	r9,PACACONTEXTID(r13)
 	rldimi	r10,r9,USER_ESID_BITS,0
 	b	slb_finish_load

@@ -51,6 +51,7 @@
 #include <asm/cputable.h>
 #include <asm/abs_addr.h>
 #include <asm/sections.h>
+#include <asm/spu.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -419,7 +420,7 @@ static void __init htab_finish_init(void)
 	extern unsigned int *htab_call_hpte_remove;
 	extern unsigned int *htab_call_hpte_updatepp;
 
-#ifdef CONFIG_PPC_64K_PAGES
+#ifdef CONFIG_PPC_HAS_HASH_64K
 	extern unsigned int *ht64_call_hpte_insert1;
 	extern unsigned int *ht64_call_hpte_insert2;
 	extern unsigned int *ht64_call_hpte_remove;
@@ -596,22 +597,23 @@ unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
  * Demote a segment to using 4k pages.
  * For now this makes the whole process use 4k pages.
  */
-void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
-{
 #ifdef CONFIG_PPC_64K_PAGES
+static void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
+{
 	if (mm->context.user_psize == MMU_PAGE_4K)
 		return;
+#ifdef CONFIG_PPC_MM_SLICES
+	slice_set_user_psize(mm, MMU_PAGE_4K);
+#else /* CONFIG_PPC_MM_SLICES */
 	mm->context.user_psize = MMU_PAGE_4K;
 	mm->context.sllp = SLB_VSID_USER | mmu_psize_defs[MMU_PAGE_4K].sllp;
-	get_paca()->context = mm->context;
-	slb_flush_and_rebolt();
+#endif /* CONFIG_PPC_MM_SLICES */
+
 #ifdef CONFIG_SPE_BASE
 	spu_flush_all_slbs(mm);
 #endif
-#endif
 }
-
-EXPORT_SYMBOL_GPL(demote_segment_4k);
+#endif /* CONFIG_PPC_64K_PAGES */
 
 /* Result code is:
  *  0 - handled
@@ -646,7 +648,11 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 			return 1;
 		}
 		vsid = get_vsid(mm->context.id, ea);
+#ifdef CONFIG_PPC_MM_SLICES
+		psize = get_slice_psize(mm, ea);
+#else
 		psize = mm->context.user_psize;
+#endif
 		break;
 	case VMALLOC_REGION_ID:
 		mm = &init_mm;
@@ -674,11 +680,22 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	if (user_region && cpus_equal(mm->cpu_vm_mask, tmp))
 		local = 1;
 
+#ifdef CONFIG_HUGETLB_PAGE
 	/* Handle hugepage regions */
-	if (unlikely(in_hugepage_area(mm->context, ea))) {
+	if (HPAGE_SHIFT && psize == mmu_huge_psize) {
 		DBG_LOW(" -> huge page !\n");
 		return hash_huge_page(mm, access, ea, vsid, local, trap);
 	}
+#endif /* CONFIG_HUGETLB_PAGE */
+
+#ifndef CONFIG_PPC_64K_PAGES
+	/* If we use 4K pages and our psize is not 4K, then we are hitting
+	 * a special driver mapping, we need to align the address before
+	 * we fetch the PTE
+	 */
+	if (psize != MMU_PAGE_4K)
+		ea &= ~((1ul << mmu_psize_defs[psize].shift) - 1);
+#endif /* CONFIG_PPC_64K_PAGES */
 
 	/* Get PTE and page size from page tables */
 	ptep = find_linux_pte(pgdir, ea);
@@ -702,54 +719,56 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	}
 
 	/* Do actual hashing */
-#ifndef CONFIG_PPC_64K_PAGES
-	rc = __hash_page_4K(ea, access, vsid, ptep, trap, local);
-#else
+#ifdef CONFIG_PPC_64K_PAGES
 	/* If _PAGE_4K_PFN is set, make sure this is a 4k segment */
 	if (pte_val(*ptep) & _PAGE_4K_PFN) {
 		demote_segment_4k(mm, ea);
 		psize = MMU_PAGE_4K;
 	}
 
-	if (mmu_ci_restrictions) {
-		/* If this PTE is non-cacheable, switch to 4k */
-		if (psize == MMU_PAGE_64K &&
-		    (pte_val(*ptep) & _PAGE_NO_CACHE)) {
-			if (user_region) {
-				demote_segment_4k(mm, ea);
-				psize = MMU_PAGE_4K;
-			} else if (ea < VMALLOC_END) {
-				/*
-				 * some driver did a non-cacheable mapping
-				 * in vmalloc space, so switch vmalloc
-				 * to 4k pages
-				 */
-				printk(KERN_ALERT "Reducing vmalloc segment "
-				       "to 4kB pages because of "
-				       "non-cacheable mapping\n");
-				psize = mmu_vmalloc_psize = MMU_PAGE_4K;
-			}
+	/* If this PTE is non-cacheable and we have restrictions on
+	 * using non cacheable large pages, then we switch to 4k
+	 */
+	if (mmu_ci_restrictions && psize == MMU_PAGE_64K &&
+	    (pte_val(*ptep) & _PAGE_NO_CACHE)) {
+		if (user_region) {
+			demote_segment_4k(mm, ea);
+			psize = MMU_PAGE_4K;
+		} else if (ea < VMALLOC_END) {
+			/*
+			 * some driver did a non-cacheable mapping
+			 * in vmalloc space, so switch vmalloc
+			 * to 4k pages
+			 */
+			printk(KERN_ALERT "Reducing vmalloc segment "
+			       "to 4kB pages because of "
+			       "non-cacheable mapping\n");
+			psize = mmu_vmalloc_psize = MMU_PAGE_4K;
 #ifdef CONFIG_SPE_BASE
 			spu_flush_all_slbs(mm);
 #endif
 		}
-		if (user_region) {
-			if (psize != get_paca()->context.user_psize) {
-				get_paca()->context = mm->context;
-				slb_flush_and_rebolt();
-			}
-		} else if (get_paca()->vmalloc_sllp !=
-			   mmu_psize_defs[mmu_vmalloc_psize].sllp) {
-			get_paca()->vmalloc_sllp =
-				mmu_psize_defs[mmu_vmalloc_psize].sllp;
+	}
+	if (user_region) {
+		if (psize != get_paca()->context.user_psize) {
+			get_paca()->context.user_psize =
+				mm->context.user_psize;
 			slb_flush_and_rebolt();
 		}
+	} else if (get_paca()->vmalloc_sllp !=
+		   mmu_psize_defs[mmu_vmalloc_psize].sllp) {
+		get_paca()->vmalloc_sllp =
+			mmu_psize_defs[mmu_vmalloc_psize].sllp;
+		slb_flush_and_rebolt();
 	}
+#endif /* CONFIG_PPC_64K_PAGES */
+
+#ifdef CONFIG_PPC_HAS_HASH_64K
 	if (psize == MMU_PAGE_64K)
 		rc = __hash_page_64K(ea, access, vsid, ptep, trap, local);
 	else
+#endif /* CONFIG_PPC_HAS_HASH_64K */
 		rc = __hash_page_4K(ea, access, vsid, ptep, trap, local);
-#endif /* CONFIG_PPC_64K_PAGES */
 
 #ifndef CONFIG_PPC_64K_PAGES
 	DBG_LOW(" o-pte: %016lx\n", pte_val(*ptep));
@@ -772,42 +791,55 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	unsigned long flags;
 	int local = 0;
 
-	/* We don't want huge pages prefaulted for now
-	 */
-	if (unlikely(in_hugepage_area(mm->context, ea)))
+	BUG_ON(REGION_ID(ea) != USER_REGION_ID);
+
+#ifdef CONFIG_PPC_MM_SLICES
+	/* We only prefault standard pages for now */
+	if (unlikely(get_slice_psize(mm, ea) != mm->context.user_psize));
 		return;
+#endif
 
 	DBG_LOW("hash_preload(mm=%p, mm->pgdir=%p, ea=%016lx, access=%lx,"
 		" trap=%lx\n", mm, mm->pgd, ea, access, trap);
 
-	/* Get PTE, VSID, access mask */
+	/* Get Linux PTE if available */
 	pgdir = mm->pgd;
 	if (pgdir == NULL)
 		return;
 	ptep = find_linux_pte(pgdir, ea);
 	if (!ptep)
 		return;
+
+#ifdef CONFIG_PPC_64K_PAGES
+	/* If either _PAGE_4K_PFN or _PAGE_NO_CACHE is set (and we are on
+	 * a 64K kernel), then we don't preload, hash_page() will take
+	 * care of it once we actually try to access the page.
+	 * That way we don't have to duplicate all of the logic for segment
+	 * page size demotion here
+	 */
+	if (pte_val(*ptep) & (_PAGE_4K_PFN | _PAGE_NO_CACHE))
+		return;
+#endif /* CONFIG_PPC_64K_PAGES */
+
+	/* Get VSID */
 	vsid = get_vsid(mm->context.id, ea);
 
-	/* Hash it in */
+	/* Hash doesn't like irqs */
 	local_irq_save(flags);
+
+	/* Is that local to this CPU ? */
 	mask = cpumask_of_cpu(smp_processor_id());
 	if (cpus_equal(mm->cpu_vm_mask, mask))
 		local = 1;
-#ifndef CONFIG_PPC_64K_PAGES
-	__hash_page_4K(ea, access, vsid, ptep, trap, local);
-#else
-	if (mmu_ci_restrictions) {
-		/* If this PTE is non-cacheable, switch to 4k */
-		if (mm->context.user_psize == MMU_PAGE_64K &&
-		    (pte_val(*ptep) & _PAGE_NO_CACHE))
-			demote_segment_4k(mm, ea);
-	}
+
+	/* Hash it in */
+#ifdef CONFIG_PPC_HAS_HASH_64K
 	if (mm->context.user_psize == MMU_PAGE_64K)
 		__hash_page_64K(ea, access, vsid, ptep, trap, local);
 	else
-		__hash_page_4K(ea, access, vsid, ptep, trap, local);
 #endif /* CONFIG_PPC_64K_PAGES */
+		__hash_page_4K(ea, access, vsid, ptep, trap, local);
+
 	local_irq_restore(flags);
 }
 

@@ -144,12 +144,11 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 
 	switch(REGION_ID(ea)) {
 	case USER_REGION_ID:
-#ifdef CONFIG_HUGETLB_PAGE
-		if (in_hugepage_area(mm->context, ea))
-			psize = mmu_huge_psize;
-		else
+#ifdef CONFIG_PPC_MM_SLICES
+		psize = get_slice_psize(mm, ea);
+#else
+		psize = mm->context.user_psize;
 #endif
-			psize = mm->context.user_psize;
 		vsid = (get_vsid(mm->context.id, ea) << SLB_VSID_SHIFT) |
 				SLB_VSID_USER;
 		break;

@@ -2188,40 +2188,30 @@ static void init_priv2(struct spu_state *csa)
  * as it is by far the largest of the context save regions,
  * and may need to be pinned or otherwise specially aligned.
  */
-void spu_init_csa(struct spu_state *csa)
+int spu_init_csa(struct spu_state *csa)
 {
-	struct spu_lscsa *lscsa;
-	unsigned char *p;
+	int rc;
 
 	if (!csa)
-		return;
+		return -EINVAL;
 	memset(csa, 0, sizeof(struct spu_state));
 
-	lscsa = vmalloc(sizeof(struct spu_lscsa));
-	if (!lscsa)
-		return;
+	rc = spu_alloc_lscsa(csa);
+	if (rc)
+		return rc;
 
-	memset(lscsa, 0, sizeof(struct spu_lscsa));
-	csa->lscsa = lscsa;
 	spin_lock_init(&csa->register_lock);
-
-	/* Set LS pages reserved to allow for user-space mapping. */
-	for (p = lscsa->ls; p < lscsa->ls + LS_SIZE; p += PAGE_SIZE)
-		SetPageReserved(vmalloc_to_page(p));
 
 	init_prob(csa);
 	init_priv1(csa);
 	init_priv2(csa);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(spu_init_csa);
 
 void spu_fini_csa(struct spu_state *csa)
 {
-	/* Clear reserved bit before vfree. */
-	unsigned char *p;
-	for (p = csa->lscsa->ls; p < csa->lscsa->ls + LS_SIZE; p += PAGE_SIZE)
-		ClearPageReserved(vmalloc_to_page(p));
-
-	vfree(csa->lscsa);
+	spu_free_lscsa(csa);
 }
 EXPORT_SYMBOL_GPL(spu_fini_csa);

@@ -361,11 +361,12 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 		goto hard_fail;
 	}
 
-	eeh_slot_error_detail(frozen_pdn, 1 /* Temporary Error */);
 	printk(KERN_WARNING
-	   "EEH: This PCI device has failed %d times since last reboot: "
-		"location=%s driver=%s pci addr=%s\n",
-		frozen_pdn->eeh_freeze_count, location, drv_str, pci_str);
+	   "EEH: This PCI device has failed %d times in the last hour:\n",
+		frozen_pdn->eeh_freeze_count);
+	printk(KERN_WARNING
+		"EEH: location=%s driver=%s pci addr=%s\n",
+		location, drv_str, pci_str);
 
 	/* Walk the various device drivers attached to this slot through
 	 * a reset sequence, giving each an opportunity to do what it needs
@@ -374,6 +375,11 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	 * slot is dlpar removed and added.
 	 */
 	pci_walk_bus(frozen_bus, eeh_report_error, &result);
+
+	/* Since rtas may enable MMIO when posting the error log,
+	 * don't post the error log until after all dev drivers
+	 * have been informed. */
+	eeh_slot_error_detail(frozen_pdn, 1 /* Temporary Error */);
 
 	/* If all device drivers were EEH-unaware, then shut
 	 * down all of the device drivers, and hope they

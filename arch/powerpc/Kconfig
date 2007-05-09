@@ -120,19 +120,6 @@ config GENERIC_BUG
 config SYS_SUPPORTS_APM_EMULATION
 	bool
 
-#
-# Powerpc uses the slab allocator to manage its ptes and the
-# page structs of ptes are used for splitting the page table
-# lock for configurations supporting more than SPLIT_PTLOCK_CPUS.
-#
-# In that special configuration the page structs of slabs are modified.
-# This setting disables the selection of SLUB as a slab allocator.
-#
-config ARCH_USES_SLAB_PAGE_STRUCT
-	bool
-	default y
-	depends on SPLIT_PTLOCK_CPUS <= NR_CPUS
-
 config DEFAULT_UIMAGE
 	bool
 	help
@@ -352,6 +339,11 @@ config PPC_STD_MMU_32
 	def_bool y
 	depends on PPC_STD_MMU && PPC32
 
+config PPC_MM_SLICES
+	bool
+	default y if HUGETLB_PAGE
+	default n
+
 config VIRT_CPU_ACCOUNTING
 	bool "Deterministic task and CPU time accounting"
 	depends on PPC64
@@ -541,9 +533,15 @@ config NODES_SPAN_OTHER_NODES
 	def_bool y
 	depends on NEED_MULTIPLE_NODES
 
+config PPC_HAS_HASH_64K
+	bool
+	depends on PPC64
+	default n
+
 config PPC_64K_PAGES
 	bool "64k page size"
 	depends on PPC64
+	select PPC_HAS_HASH_64K
 	help
 	  This option changes the kernel logical page size to 64k. On machines
 	  without processor support for 64k pages, the kernel will simulate

@@ -235,6 +235,12 @@ struct spu_priv2_collapsed {
  */
 struct spu_state {
 	struct spu_lscsa *lscsa;
+#ifdef CONFIG_SPU_FS_64K_LS
+	int		use_big_pages;
+	/* One struct page per 64k page */
+#define SPU_LSCSA_NUM_BIG_PAGES	(sizeof(struct spu_lscsa) / 0x10000)
+	struct page	*lscsa_pages[SPU_LSCSA_NUM_BIG_PAGES];
+#endif
 	struct spu_problem_collapsed prob;
 	struct spu_priv1_collapsed priv1;
 	struct spu_priv2_collapsed priv2;
@@ -247,12 +253,14 @@ struct spu_state {
 	spinlock_t register_lock;
 };
 
-extern void spu_init_csa(struct spu_state *csa);
+extern int spu_init_csa(struct spu_state *csa);
 extern void spu_fini_csa(struct spu_state *csa);
 extern int spu_save(struct spu_state *prev, struct spu *spu);
 extern int spu_restore(struct spu_state *new, struct spu *spu);
 extern int spu_switch(struct spu_state *prev, struct spu_state *new,
 		      struct spu *spu);
+extern int spu_alloc_lscsa(struct spu_state *csa);
+extern void spu_free_lscsa(struct spu_state *csa);
 
 #endif /* !__SPU__ */
 #endif /* __KERNEL__ */

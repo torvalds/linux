@@ -350,10 +350,13 @@ typedef unsigned long mm_context_id_t;
 
 typedef struct {
 	mm_context_id_t id;
-	u16 user_psize;			/* page size index */
-	u16 sllp;			/* SLB entry page size encoding */
-#ifdef CONFIG_HUGETLB_PAGE
-	u16 low_htlb_areas, high_htlb_areas;
+	u16 user_psize;		/* page size index */
+
+#ifdef CONFIG_PPC_MM_SLICES
+	u64 low_slices_psize;	/* SLB page size encodings */
+	u64 high_slices_psize;  /* 4 bits per slice for now */
+#else
+	u16 sllp;		/* SLB page size encoding */
 #endif
 	unsigned long vdso_base;
 } mm_context_t;
