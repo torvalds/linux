@@ -172,7 +172,7 @@ static int system_bus_speed;	/* holds what we think is VESA/PCI bus speed */
 DECLARE_MUTEX(ide_cfg_sem);
  __cacheline_aligned_in_smp DEFINE_SPINLOCK(ide_lock);
 
-#ifdef CONFIG_BLK_DEV_IDEPCI
+#ifdef CONFIG_IDEPCI_PCIBUS_ORDER
 static int ide_scan_direction; /* THIS was formerly 2.2.x pci=reverse */
 #endif
 
@@ -1333,13 +1333,13 @@ static int __init ide_setup(char *s)
 		return 1;
 	}
 
-#ifdef CONFIG_BLK_DEV_IDEPCI
+#ifdef CONFIG_IDEPCI_PCIBUS_ORDER
 	if (!strcmp(s, "ide=reverse")) {
 		ide_scan_direction = 1;
 		printk(" : Enabled support for IDE inverse scan order.\n");
 		return 1;
 	}
-#endif /* CONFIG_BLK_DEV_IDEPCI */
+#endif
 
 #ifdef CONFIG_BLK_DEV_IDEACPI
 	if (!strcmp(s, "ide=noacpi")) {
@@ -1599,9 +1599,9 @@ extern void __init h8300_ide_init(void);
  */
 static void __init probe_for_hwifs (void)
 {
-#ifdef CONFIG_BLK_DEV_IDEPCI
+#ifdef CONFIG_IDEPCI_PCIBUS_ORDER
 	ide_scan_pcibus(ide_scan_direction);
-#endif /* CONFIG_BLK_DEV_IDEPCI */
+#endif
 
 #ifdef CONFIG_ETRAX_IDE
 	{

@@ -772,6 +772,7 @@ out:
 
 EXPORT_SYMBOL_GPL(ide_setup_pci_devices);
 
+#ifdef CONFIG_IDEPCI_PCIBUS_ORDER
 /*
  *	Module interfaces
  */
@@ -878,3 +879,4 @@ void __init ide_scan_pcibus (int scan_direction)
 		__pci_register_driver(d, d->driver.owner, d->driver.mod_name);
 	}
 }
+#endif
