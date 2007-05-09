@@ -913,17 +913,6 @@ void zap_other_threads(struct task_struct *p)
 		if (t->exit_state)
 			continue;
 
-		/*
-		 * We don't want to notify the parent, since we are
-		 * killed as part of a thread group due to another
-		 * thread doing an execve() or similar. So set the
-		 * exit signal to -1 to allow immediate reaping of
-		 * the process.  But don't detach the thread group
-		 * leader.
-		 */
-		if (t != p->group_leader)
-			t->exit_signal = -1;
-
 		/* SIGKILL will be handled before any pending SIGSTOP */
 		sigaddset(&t->pending.signal, SIGKILL);
 		signal_wake_up(t, 1);
