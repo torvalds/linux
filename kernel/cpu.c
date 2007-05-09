@@ -175,10 +175,6 @@ static int _cpu_down(unsigned int cpu)
 	/* This actually kills the CPU. */
 	__cpu_die(cpu);
 
-	/* Move it here so it can run. */
-	kthread_bind(p, get_cpu());
-	put_cpu();
-
 	/* CPU is completely dead: tell everyone.  Too late to complain. */
 	if (raw_notifier_call_chain(&cpu_chain, CPU_DEAD, hcpu) == NOTIFY_BAD)
 		BUG();
