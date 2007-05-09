@@ -640,6 +640,22 @@ const struct seq_operations vmstat_op = {
 #endif /* CONFIG_PROC_FS */
 
 #ifdef CONFIG_SMP
+static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
+
+static void vmstat_update(struct work_struct *w)
+{
+	refresh_cpu_vm_stats(smp_processor_id());
+	schedule_delayed_work(&__get_cpu_var(vmstat_work), HZ);
+}
+
+static void __devinit start_cpu_timer(int cpu)
+{
+	struct delayed_work *vmstat_work = &per_cpu(vmstat_work, cpu);
+
+	INIT_DELAYED_WORK(vmstat_work, vmstat_update);
+	schedule_delayed_work_on(cpu, vmstat_work, HZ + cpu);
+}
+
 /*
  * Use the cpu notifier to insure that the thresholds are recalculated
  * when necessary.
@@ -648,11 +664,22 @@ static int __cpuinit vmstat_cpuup_callback(struct notifier_block *nfb,
 		unsigned long action,
 		void *hcpu)
 {
+	long cpu = (long)hcpu;
+
 	switch (action) {
-	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
-	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
+	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
+		start_cpu_timer(cpu);
+		break;
+	case CPU_DOWN_PREPARE:
+	case CPU_DOWN_PREPARE_FROZEN:
+		cancel_rearming_delayed_work(&per_cpu(vmstat_work, cpu));
+		per_cpu(vmstat_work, cpu).work.func = NULL;
+		break;
+	case CPU_DOWN_FAILED:
+	case CPU_DOWN_FAILED_FROZEN:
+		start_cpu_timer(cpu);
+		break;
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
 		refresh_zone_stat_thresholds();
@@ -668,8 +695,13 @@ static struct notifier_block __cpuinitdata vmstat_notifier =
 
 int __init setup_vmstat(void)
 {
+	int cpu;
+
 	refresh_zone_stat_thresholds();
 	register_cpu_notifier(&vmstat_notifier);
+
+	for_each_online_cpu(cpu)
+		start_cpu_timer(cpu);
 	return 0;
 }
 module_init(setup_vmstat)

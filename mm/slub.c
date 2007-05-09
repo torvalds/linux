@@ -2580,7 +2580,6 @@ static DEFINE_PER_CPU(struct delayed_work, reap_work);
 static void cache_reap(struct work_struct *unused)
 {
 	next_reap_node();
-	refresh_cpu_vm_stats(smp_processor_id());
 	schedule_delayed_work(&__get_cpu_var(reap_work),
 				      REAPTIMEOUT_CPUC);
 }
