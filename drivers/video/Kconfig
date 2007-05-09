@@ -1415,6 +1415,20 @@ config FB_TRIDENT_ACCEL
 	This will compile the Trident frame buffer device with
 	acceleration functions.
 
+config FB_ARK
+	tristate "ARK 2000PV support"
+	depends on FB && PCI
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select FB_TILEBLITTING
+	select FB_SVGALIB
+	select VGASTATE
+	select FONT_8x16 if FRAMEBUFFER_CONSOLE
+	---help---
+	  Driver for PCI graphics boards with ARK 2000PV chip
+	  and ICS 5342 RAMDAC.
+
 config FB_PM3
 	tristate "Permedia3 support"
 	depends on FB && PCI && BROKEN
