@@ -215,24 +215,13 @@ EXPORT_SYMBOL(kthread_stop);
 static __init void kthreadd_setup(void)
 {
 	struct task_struct *tsk = current;
-	struct k_sigaction sa;
-	sigset_t blocked;
 
 	set_task_comm(tsk, "kthreadd");
 
-	/* Block and flush all signals */
-	sigfillset(&blocked);
-	sigprocmask(SIG_BLOCK, &blocked, NULL);
-	flush_signals(tsk);
+	ignore_signals(tsk);
 
-	/* SIG_IGN makes children autoreap: see do_notify_parent(). */
-	sa.sa.sa_handler = SIG_IGN;
-	sa.sa.sa_flags = 0;
-	siginitset(&sa.sa.sa_mask, sigmask(SIGCHLD));
-	do_sigaction(SIGCHLD, &sa, (struct k_sigaction *)0);
-
-	set_user_nice(current, -5);
-	set_cpus_allowed(current, CPU_MASK_ALL);
+	set_user_nice(tsk, -5);
+	set_cpus_allowed(tsk, CPU_MASK_ALL);
 }
 
 int kthreadd(void *unused)

@@ -347,7 +347,7 @@ int disallow_signal(int sig)
 		return -EINVAL;
 
 	spin_lock_irq(&current->sighand->siglock);
-	sigaddset(&current->blocked, sig);
+	current->sighand->action[(sig)-1].sa.sa_handler = SIG_IGN;
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 	return 0;
