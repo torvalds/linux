@@ -1712,7 +1712,6 @@ EXPORT_SYMBOL(blk_stop_queue);
 void blk_sync_queue(struct request_queue *q)
 {
 	del_timer_sync(&q->unplug_timer);
-	kblockd_flush();
 }
 EXPORT_SYMBOL(blk_sync_queue);
 
@@ -3632,11 +3631,11 @@ int kblockd_schedule_work(struct work_struct *work)
 
 EXPORT_SYMBOL(kblockd_schedule_work);
 
-void kblockd_flush(void)
+void kblockd_flush_work(struct work_struct *work)
 {
-	flush_workqueue(kblockd_workqueue);
+	flush_work(kblockd_workqueue, work);
 }
-EXPORT_SYMBOL(kblockd_flush);
+EXPORT_SYMBOL(kblockd_flush_work);
 
 int __init blk_dev_init(void)
 {
