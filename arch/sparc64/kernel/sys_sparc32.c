@@ -793,7 +793,7 @@ asmlinkage long sys32_utimes(char __user *filename,
 		tv[1].tv_nsec = 1000 * ktvs[1].tv_usec;
 	}
 
-	return do_utimes(AT_FDCWD, filename, tvs ? tv : NULL);
+	return do_utimes(AT_FDCWD, filename, tvs ? tv : NULL, 0);
 }
 
 /* These are here just in case some old sparc32 binary calls it. */
