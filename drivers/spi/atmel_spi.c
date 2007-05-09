@@ -22,10 +22,7 @@
 #include <asm/io.h>
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
-
-#ifdef CONFIG_ARCH_AT91
 #include <asm/arch/cpu.h>
-#endif
 
 #include "atmel_spi.h"
 
@@ -552,10 +549,8 @@ static int __init atmel_spi_probe(struct platform_device *pdev)
 		goto out_free_buffer;
 	as->irq = irq;
 	as->clk = clk;
-#ifdef CONFIG_ARCH_AT91
 	if (!cpu_is_at91rm9200())
 		as->new_1 = 1;
-#endif
 
 	ret = request_irq(irq, atmel_spi_interrupt, 0,
 			pdev->dev.bus_id, master);
