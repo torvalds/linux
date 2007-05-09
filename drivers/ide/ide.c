@@ -823,13 +823,13 @@ EXPORT_SYMBOL(ide_register_hw);
 
 DECLARE_MUTEX(ide_setting_sem);
 
+EXPORT_SYMBOL_GPL(ide_setting_sem);
+
 /**
  *	__ide_add_setting	-	add an ide setting option
  *	@drive: drive to use
  *	@name: setting name
  *	@rw: true if the function is read write
- *	@read_ioctl: function to call on read
- *	@write_ioctl: function to call on write
  *	@data_type: type of data
  *	@min: range minimum
  *	@max: range maximum
@@ -850,7 +850,7 @@ DECLARE_MUTEX(ide_setting_sem);
  *	remove.
  */
 
-static int __ide_add_setting(ide_drive_t *drive, const char *name, int rw, int read_ioctl, int write_ioctl, int data_type, int min, int max, int mul_factor, int div_factor, void *data, ide_procset_t *set, int auto_remove)
+static int __ide_add_setting(ide_drive_t *drive, const char *name, int rw, int data_type, int min, int max, int mul_factor, int div_factor, void *data, ide_procset_t *set, int auto_remove)
 {
 	ide_settings_t **p = (ide_settings_t **) &drive->settings, *setting = NULL;
 
@@ -863,8 +863,6 @@ static int __ide_add_setting(ide_drive_t *drive, const char *name, int rw, int r
 		goto abort;
 	strcpy(setting->name, name);
 	setting->rw = rw;
-	setting->read_ioctl = read_ioctl;
-	setting->write_ioctl = write_ioctl;
 	setting->data_type = data_type;
 	setting->min = min;
 	setting->max = max;
@@ -885,9 +883,9 @@ abort:
 	return -1;
 }
 
-int ide_add_setting(ide_drive_t *drive, const char *name, int rw, int read_ioctl, int write_ioctl, int data_type, int min, int max, int mul_factor, int div_factor, void *data, ide_procset_t *set)
+int ide_add_setting(ide_drive_t *drive, const char *name, int rw, int data_type, int min, int max, int mul_factor, int div_factor, void *data, ide_procset_t *set)
 {
-	return __ide_add_setting(drive, name, rw, read_ioctl, write_ioctl, data_type, min, max, mul_factor, div_factor, data, set, 1);
+	return __ide_add_setting(drive, name, rw, data_type, min, max, mul_factor, div_factor, data, set, 1);
 }
 
 EXPORT_SYMBOL(ide_add_setting);
@@ -916,29 +914,6 @@ static void __ide_remove_setting (ide_drive_t *drive, char *name)
 	
 	kfree(setting->name);
 	kfree(setting);
-}
-
-/**
- *	ide_find_setting_by_ioctl	-	find a drive specific ioctl
- *	@drive: drive to scan
- *	@cmd: ioctl command to handle
- *
- *	Scan's the device setting table for a matching entry and returns
- *	this or NULL if no entry is found. The caller must hold the
- *	setting semaphore
- */
- 
-static ide_settings_t *ide_find_setting_by_ioctl (ide_drive_t *drive, int cmd)
-{
-	ide_settings_t *setting = drive->settings;
-
-	while (setting) {
-		if (setting->read_ioctl == cmd || setting->write_ioctl == cmd)
-			break;
-		setting = setting->next;
-	}
-	
-	return setting;
 }
 
 /**
@@ -1014,7 +989,6 @@ int ide_read_setting (ide_drive_t *drive, ide_settings_t *setting)
 				val = *((u16 *) setting->data);
 				break;
 			case TYPE_INT:
-			case TYPE_INTA:
 				val = *((u32 *) setting->data);
 				break;
 		}
@@ -1076,17 +1050,14 @@ EXPORT_SYMBOL(ide_spin_wait_hwgroup);
 
 int ide_write_setting (ide_drive_t *drive, ide_settings_t *setting, int val)
 {
-	int i;
-	u32 *p;
-
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
+	if (setting->set)
+		return setting->set(drive, val);
 	if (!(setting->rw & SETTING_WRITE))
 		return -EPERM;
 	if (val < setting->min || val > setting->max)
 		return -EINVAL;
-	if (setting->set)
-		return setting->set(drive, val);
 	if (ide_spin_wait_hwgroup(drive))
 		return -EBUSY;
 	switch (setting->data_type) {
@@ -1099,11 +1070,6 @@ int ide_write_setting (ide_drive_t *drive, ide_settings_t *setting, int val)
 		case TYPE_INT:
 			*((u32 *) setting->data) = val;
 			break;
-		case TYPE_INTA:
-			p = (u32 *) setting->data;
-			for (i = 0; i < 1 << PARTN_BITS; i++, p++)
-				*p = val;
-			break;
 	}
 	spin_unlock_irq(&ide_lock);
 	return 0;
@@ -1111,6 +1077,12 @@ int ide_write_setting (ide_drive_t *drive, ide_settings_t *setting, int val)
 
 static int set_io_32bit(ide_drive_t *drive, int arg)
 {
+	if (drive->no_io_32bit)
+		return -EPERM;
+
+	if (arg < 0 || arg > 1 + (SUPPORT_VLB_SYNC << 1))
+		return -EINVAL;
+
 	drive->io_32bit = arg;
 #ifdef CONFIG_BLK_DEV_DTC2278
 	if (HWIF(drive)->chipset == ide_dtc2278)
@@ -1119,11 +1091,27 @@ static int set_io_32bit(ide_drive_t *drive, int arg)
 	return 0;
 }
 
+static int set_ksettings(ide_drive_t *drive, int arg)
+{
+	if (arg < 0 || arg > 1)
+		return -EINVAL;
+
+	if (ide_spin_wait_hwgroup(drive))
+		return -EBUSY;
+	drive->keep_settings = arg;
+	spin_unlock_irq(&ide_lock);
+
+	return 0;
+}
+
 static int set_using_dma (ide_drive_t *drive, int arg)
 {
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	ide_hwif_t *hwif = drive->hwif;
 	int err = -EPERM;
+
+	if (arg < 0 || arg > 1)
+		return -EINVAL;
 
 	if (!drive->id || !(drive->id->capability & 1))
 		goto out;
@@ -1157,6 +1145,9 @@ static int set_using_dma (ide_drive_t *drive, int arg)
 out:
 	return err;
 #else
+	if (arg < 0 || arg > 1)
+		return -EINVAL;
+
 	return -EPERM;
 #endif
 }
@@ -1164,6 +1155,9 @@ out:
 static int set_pio_mode (ide_drive_t *drive, int arg)
 {
 	struct request rq;
+
+	if (arg < 0 || arg > 255)
+		return -EINVAL;
 
 	if (!HWIF(drive)->tuneproc)
 		return -ENOSYS;
@@ -1176,9 +1170,30 @@ static int set_pio_mode (ide_drive_t *drive, int arg)
 	return 0;
 }
 
+static int set_unmaskirq(ide_drive_t *drive, int arg)
+{
+	if (drive->no_unmask)
+		return -EPERM;
+
+	if (arg < 0 || arg > 1)
+		return -EINVAL;
+
+	if (ide_spin_wait_hwgroup(drive))
+		return -EBUSY;
+	drive->unmask = arg;
+	spin_unlock_irq(&ide_lock);
+
+	return 0;
+}
+
 static int set_xfer_rate (ide_drive_t *drive, int arg)
 {
-	int err = ide_wait_cmd(drive,
+	int err;
+
+	if (arg < 0 || arg > 70)
+		return -EINVAL;
+
+	err = ide_wait_cmd(drive,
 			WIN_SETFEATURES, (u8) arg,
 			SETFEATURES_XFER, 0, NULL);
 
@@ -1193,25 +1208,24 @@ static int set_xfer_rate (ide_drive_t *drive, int arg)
  *	ide_add_generic_settings	-	generic ide settings
  *	@drive: drive being configured
  *
- *	Add the generic parts of the system settings to the /proc files and
- *	ioctls for this IDE device. The caller must not be holding the
- *	ide_setting_sem.
+ *	Add the generic parts of the system settings to the /proc files.
+ *	The caller must not be holding the ide_setting_sem.
  */
 
 void ide_add_generic_settings (ide_drive_t *drive)
 {
 /*
- *			  drive		setting name		read/write access				read ioctl		write ioctl		data type	min	max				mul_factor	div_factor	data pointer			set function
+ *			  drive		setting name		read/write access				data type	min	max				mul_factor	div_factor	data pointer			set function
  */
-	__ide_add_setting(drive,	"io_32bit",		drive->no_io_32bit ? SETTING_READ : SETTING_RW,	HDIO_GET_32BIT,		HDIO_SET_32BIT,		TYPE_BYTE,	0,	1 + (SUPPORT_VLB_SYNC << 1),	1,		1,		&drive->io_32bit,		set_io_32bit,	0);
-	__ide_add_setting(drive,	"keepsettings",		SETTING_RW,					HDIO_GET_KEEPSETTINGS,	HDIO_SET_KEEPSETTINGS,	TYPE_BYTE,	0,	1,				1,		1,		&drive->keep_settings,		NULL,		0);
-	__ide_add_setting(drive,	"nice1",		SETTING_RW,					-1,			-1,			TYPE_BYTE,	0,	1,				1,		1,		&drive->nice1,			NULL,		0);
-	__ide_add_setting(drive,	"pio_mode",		SETTING_WRITE,					-1,			HDIO_SET_PIO_MODE,	TYPE_BYTE,	0,	255,				1,		1,		NULL,				set_pio_mode,	0);
-	__ide_add_setting(drive,	"unmaskirq",		drive->no_unmask ? SETTING_READ : SETTING_RW,	HDIO_GET_UNMASKINTR,	HDIO_SET_UNMASKINTR,	TYPE_BYTE,	0,	1,				1,		1,		&drive->unmask,			NULL,		0);
-	__ide_add_setting(drive,	"using_dma",		SETTING_RW,					HDIO_GET_DMA,		HDIO_SET_DMA,		TYPE_BYTE,	0,	1,				1,		1,		&drive->using_dma,		set_using_dma,	0);
-	__ide_add_setting(drive,	"init_speed",		SETTING_RW,					-1,			-1,			TYPE_BYTE,	0,	70,				1,		1,		&drive->init_speed,		NULL,		0);
-	__ide_add_setting(drive,	"current_speed",	SETTING_RW,					-1,			-1,			TYPE_BYTE,	0,	70,				1,		1,		&drive->current_speed,		set_xfer_rate,	0);
-	__ide_add_setting(drive,	"number",		SETTING_RW,					-1,			-1,			TYPE_BYTE,	0,	3,				1,		1,		&drive->dn,			NULL,		0);
+	__ide_add_setting(drive,	"io_32bit",		drive->no_io_32bit ? SETTING_READ : SETTING_RW,	TYPE_BYTE,	0,	1 + (SUPPORT_VLB_SYNC << 1),	1,		1,		&drive->io_32bit,		set_io_32bit,	0);
+	__ide_add_setting(drive,	"keepsettings",		SETTING_RW,					TYPE_BYTE,	0,	1,				1,		1,		&drive->keep_settings,		NULL,		0);
+	__ide_add_setting(drive,	"nice1",		SETTING_RW,					TYPE_BYTE,	0,	1,				1,		1,		&drive->nice1,			NULL,		0);
+	__ide_add_setting(drive,	"pio_mode",		SETTING_WRITE,					TYPE_BYTE,	0,	255,				1,		1,		NULL,				set_pio_mode,	0);
+	__ide_add_setting(drive,	"unmaskirq",		drive->no_unmask ? SETTING_READ : SETTING_RW,	TYPE_BYTE,	0,	1,				1,		1,		&drive->unmask,			NULL,		0);
+	__ide_add_setting(drive,	"using_dma",		SETTING_RW,					TYPE_BYTE,	0,	1,				1,		1,		&drive->using_dma,		set_using_dma,	0);
+	__ide_add_setting(drive,	"init_speed",		SETTING_RW,					TYPE_BYTE,	0,	70,				1,		1,		&drive->init_speed,		NULL,		0);
+	__ide_add_setting(drive,	"current_speed",	SETTING_RW,					TYPE_BYTE,	0,	70,				1,		1,		&drive->current_speed,		set_xfer_rate,	0);
+	__ide_add_setting(drive,	"number",		SETTING_RW,					TYPE_BYTE,	0,	3,				1,		1,		&drive->dn,			NULL,		0);
 }
 
 /**
@@ -1283,27 +1297,23 @@ static int generic_ide_resume(struct device *dev)
 int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device *bdev,
 			unsigned int cmd, unsigned long arg)
 {
-	ide_settings_t *setting;
+	unsigned long flags;
 	ide_driver_t *drv;
-	int err = 0;
 	void __user *p = (void __user *)arg;
+	int err = 0, (*setfunc)(ide_drive_t *, int);
+	u8 *val;
 
-	down(&ide_setting_sem);
-	if ((setting = ide_find_setting_by_ioctl(drive, cmd)) != NULL) {
-		if (cmd == setting->read_ioctl) {
-			err = ide_read_setting(drive, setting);
-			up(&ide_setting_sem);
-			return err >= 0 ? put_user(err, (long __user *)arg) : err;
-		} else {
-			if (bdev != bdev->bd_contains)
-				err = -EINVAL;
-			else
-				err = ide_write_setting(drive, setting, arg);
-			up(&ide_setting_sem);
-			return err;
-		}
+	switch (cmd) {
+	case HDIO_GET_32BIT:	    val = &drive->io_32bit;	 goto read_val;
+	case HDIO_GET_KEEPSETTINGS: val = &drive->keep_settings; goto read_val;
+	case HDIO_GET_UNMASKINTR:   val = &drive->unmask;	 goto read_val;
+	case HDIO_GET_DMA:	    val = &drive->using_dma;	 goto read_val;
+	case HDIO_SET_32BIT:	    setfunc = set_io_32bit;	 goto set_val;
+	case HDIO_SET_KEEPSETTINGS: setfunc = set_ksettings;	 goto set_val;
+	case HDIO_SET_PIO_MODE:	    setfunc = set_pio_mode;	 goto set_val;
+	case HDIO_SET_UNMASKINTR:   setfunc = set_unmaskirq;	 goto set_val;
+	case HDIO_SET_DMA:	    setfunc = set_using_dma;	 goto set_val;
 	}
-	up(&ide_setting_sem);
 
 	switch (cmd) {
 		case HDIO_OBSOLETE_IDENTITY:
@@ -1432,6 +1442,28 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 		default:
 			return -EINVAL;
 	}
+
+read_val:
+	down(&ide_setting_sem);
+	spin_lock_irqsave(&ide_lock, flags);
+	err = *val;
+	spin_unlock_irqrestore(&ide_lock, flags);
+	up(&ide_setting_sem);
+	return err >= 0 ? put_user(err, (long __user *)arg) : err;
+
+set_val:
+	if (bdev != bdev->bd_contains)
+		err = -EINVAL;
+	else {
+		if (!capable(CAP_SYS_ADMIN))
+			err = -EACCES;
+		else {
+			down(&ide_setting_sem);
+			err = setfunc(drive, arg);
+			up(&ide_setting_sem);
+		}
+	}
+	return err;
 }
 
 EXPORT_SYMBOL(generic_ide_ioctl);
