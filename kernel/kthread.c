@@ -1,7 +1,7 @@
 /* Kernel thread helper functions.
  *   Copyright (C) 2004 IBM Corporation, Rusty Russell.
  *
- * Creation is done via keventd, so that we get a clean environment
+ * Creation is done via kthreadd, so that we get a clean environment
  * even if we're invoked from userspace (think modprobe, hotplug cpu,
  * etc.).
  */
@@ -15,24 +15,22 @@
 #include <linux/mutex.h>
 #include <asm/semaphore.h>
 
-/*
- * We dont want to execute off keventd since it might
- * hold a semaphore our callers hold too:
- */
-static struct workqueue_struct *helper_wq;
+static DEFINE_SPINLOCK(kthread_create_lock);
+static LIST_HEAD(kthread_create_list);
+struct task_struct *kthreadd_task;
 
 struct kthread_create_info
 {
-	/* Information passed to kthread() from keventd. */
+	/* Information passed to kthread() from kthreadd. */
 	int (*threadfn)(void *data);
 	void *data;
 	struct completion started;
 
-	/* Result passed back to kthread_create() from keventd. */
+	/* Result passed back to kthread_create() from kthreadd. */
 	struct task_struct *result;
 	struct completion done;
 
-	struct work_struct work;
+	struct list_head list;
 };
 
 struct kthread_stop_info
@@ -60,41 +58,16 @@ int kthread_should_stop(void)
 }
 EXPORT_SYMBOL(kthread_should_stop);
 
-static void kthread_exit_files(void)
-{
-	struct fs_struct *fs;
-	struct task_struct *tsk = current;
-
-	exit_fs(tsk);		/* current->fs->count--; */
-	fs = init_task.fs;
-	tsk->fs = fs;
-	atomic_inc(&fs->count);
- 	exit_files(tsk);
-	current->files = init_task.files;
-	atomic_inc(&tsk->files->count);
-}
-
 static int kthread(void *_create)
 {
 	struct kthread_create_info *create = _create;
 	int (*threadfn)(void *data);
 	void *data;
-	sigset_t blocked;
 	int ret = -EINTR;
 
-	kthread_exit_files();
-
-	/* Copy data: it's on keventd's stack */
+	/* Copy data: it's on kthread's stack */
 	threadfn = create->threadfn;
 	data = create->data;
-
-	/* Block and flush all signals (in case we're not from keventd). */
-	sigfillset(&blocked);
-	sigprocmask(SIG_BLOCK, &blocked, NULL);
-	flush_signals(current);
-
-	/* By default we can run anywhere, unlike keventd. */
-	set_cpus_allowed(current, CPU_MASK_ALL);
 
 	/* OK, tell user we're spawned, wait for stop or wakeup */
 	__set_current_state(TASK_INTERRUPTIBLE);
@@ -112,11 +85,8 @@ static int kthread(void *_create)
 	return 0;
 }
 
-/* We are keventd: create a thread. */
-static void keventd_create_kthread(struct work_struct *work)
+static void create_kthread(struct kthread_create_info *create)
 {
-	struct kthread_create_info *create =
-		container_of(work, struct kthread_create_info, work);
 	int pid;
 
 	/* We want our own signal handler (we take no signals by default). */
@@ -162,17 +132,14 @@ struct task_struct *kthread_create(int (*threadfn)(void *data),
 	create.data = data;
 	init_completion(&create.started);
 	init_completion(&create.done);
-	INIT_WORK(&create.work, keventd_create_kthread);
 
-	/*
-	 * The workqueue needs to start up first:
-	 */
-	if (!helper_wq)
-		create.work.func(&create.work);
-	else {
-		queue_work(helper_wq, &create.work);
-		wait_for_completion(&create.done);
-	}
+	spin_lock(&kthread_create_lock);
+	list_add_tail(&create.list, &kthread_create_list);
+	wake_up_process(kthreadd_task);
+	spin_unlock(&kthread_create_lock);
+
+	wait_for_completion(&create.done);
+
 	if (!IS_ERR(create.result)) {
 		va_list args;
 		va_start(args, namefmt);
@@ -180,7 +147,6 @@ struct task_struct *kthread_create(int (*threadfn)(void *data),
 			  namefmt, args);
 		va_end(args);
 	}
-
 	return create.result;
 }
 EXPORT_SYMBOL(kthread_create);
@@ -245,12 +211,58 @@ int kthread_stop(struct task_struct *k)
 }
 EXPORT_SYMBOL(kthread_stop);
 
-static __init int helper_init(void)
+
+static __init void kthreadd_setup(void)
 {
-	helper_wq = create_singlethread_workqueue("kthread");
-	BUG_ON(!helper_wq);
+	struct task_struct *tsk = current;
+	struct k_sigaction sa;
+	sigset_t blocked;
+
+	set_task_comm(tsk, "kthreadd");
+
+	/* Block and flush all signals */
+	sigfillset(&blocked);
+	sigprocmask(SIG_BLOCK, &blocked, NULL);
+	flush_signals(tsk);
+
+	/* SIG_IGN makes children autoreap: see do_notify_parent(). */
+	sa.sa.sa_handler = SIG_IGN;
+	sa.sa.sa_flags = 0;
+	siginitset(&sa.sa.sa_mask, sigmask(SIGCHLD));
+	do_sigaction(SIGCHLD, &sa, (struct k_sigaction *)0);
+
+	set_user_nice(current, -5);
+	set_cpus_allowed(current, CPU_MASK_ALL);
+}
+
+int kthreadd(void *unused)
+{
+	/* Setup a clean context for our children to inherit. */
+	kthreadd_setup();
+
+	current->flags |= PF_NOFREEZE;
+
+	for (;;) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (list_empty(&kthread_create_list))
+			schedule();
+		__set_current_state(TASK_RUNNING);
+
+		spin_lock(&kthread_create_lock);
+		while (!list_empty(&kthread_create_list)) {
+			struct kthread_create_info *create;
+
+			create = list_entry(kthread_create_list.next,
+					    struct kthread_create_info, list);
+			list_del_init(&create->list);
+			spin_unlock(&kthread_create_lock);
+
+			create_kthread(create);
+
+			spin_lock(&kthread_create_lock);
+		}
+		spin_unlock(&kthread_create_lock);
+	}
 
 	return 0;
 }
-
-core_initcall(helper_init);
