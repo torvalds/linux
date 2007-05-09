@@ -368,6 +368,69 @@ void debugfs_remove(struct dentry *dentry)
 }
 EXPORT_SYMBOL_GPL(debugfs_remove);
 
+/**
+ * debugfs_rename - rename a file/directory in the debugfs filesystem
+ * @old_dir: a pointer to the parent dentry for the renamed object. This
+ *          should be a directory dentry.
+ * @old_dentry: dentry of an object to be renamed.
+ * @new_dir: a pointer to the parent dentry where the object should be
+ *          moved. This should be a directory dentry.
+ * @new_name: a pointer to a string containing the target name.
+ *
+ * This function renames a file/directory in debugfs.  The target must not
+ * exist for rename to succeed.
+ *
+ * This function will return a pointer to old_dentry (which is updated to
+ * reflect renaming) if it succeeds. If an error occurs, %NULL will be
+ * returned.
+ *
+ * If debugfs is not enabled in the kernel, the value -%ENODEV will be
+ * returned.
+ */
+struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,
+		struct dentry *new_dir, const char *new_name)
+{
+	int error;
+	struct dentry *dentry = NULL, *trap;
+	const char *old_name;
+
+	trap = lock_rename(new_dir, old_dir);
+	/* Source or destination directories don't exist? */
+	if (!old_dir->d_inode || !new_dir->d_inode)
+		goto exit;
+	/* Source does not exist, cyclic rename, or mountpoint? */
+	if (!old_dentry->d_inode || old_dentry == trap ||
+	    d_mountpoint(old_dentry))
+		goto exit;
+	dentry = lookup_one_len(new_name, new_dir, strlen(new_name));
+	/* Lookup failed, cyclic rename or target exists? */
+	if (IS_ERR(dentry) || dentry == trap || dentry->d_inode)
+		goto exit;
+
+	old_name = fsnotify_oldname_init(old_dentry->d_name.name);
+
+	error = simple_rename(old_dir->d_inode, old_dentry, new_dir->d_inode,
+		dentry);
+	if (error) {
+		fsnotify_oldname_free(old_name);
+		goto exit;
+	}
+	d_move(old_dentry, dentry);
+	fsnotify_move(old_dir->d_inode, new_dir->d_inode, old_name,
+		old_dentry->d_name.name, S_ISDIR(old_dentry->d_inode->i_mode),
+		NULL, old_dentry->d_inode);
+	fsnotify_oldname_free(old_name);
+	unlock_rename(new_dir, old_dir);
+	dput(dentry);
+	return old_dentry;
+exit:
+	if (dentry && !IS_ERR(dentry))
+		dput(dentry);
+	unlock_rename(new_dir, old_dir);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(debugfs_rename);
+
 static decl_subsys(debug, NULL, NULL);
 
 static int __init debugfs_init(void)
