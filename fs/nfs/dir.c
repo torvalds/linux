@@ -650,12 +650,17 @@ int nfs_fsync_dir(struct file *filp, struct dentry *dentry, int datasync)
  */
 static int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
 {
+	unsigned long verf;
+
 	if (IS_ROOT(dentry))
 		return 1;
+	verf = (unsigned long)dentry->d_fsdata;
 	if ((NFS_I(dir)->cache_validity & NFS_INO_INVALID_ATTR) != 0
-			|| nfs_attribute_timeout(dir))
+			|| nfs_attribute_timeout(dir)
+			|| nfs_caches_unstable(dir)
+			|| verf != NFS_I(dir)->cache_change_attribute)
 		return 0;
-	return nfs_verify_change_attribute(dir, (unsigned long)dentry->d_fsdata);
+	return 1;
 }
 
 static inline void nfs_set_verifier(struct dentry * dentry, unsigned long verf)
@@ -665,8 +670,7 @@ static inline void nfs_set_verifier(struct dentry * dentry, unsigned long verf)
 
 static void nfs_refresh_verifier(struct dentry * dentry, unsigned long verf)
 {
-	if (time_after(verf, (unsigned long)dentry->d_fsdata))
-		nfs_set_verifier(dentry, verf);
+	nfs_set_verifier(dentry, verf);
 }
 
 /*
