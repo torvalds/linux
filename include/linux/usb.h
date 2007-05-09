@@ -729,6 +729,22 @@ static inline int usb_endpoint_is_isoc_out(const struct usb_endpoint_descriptor 
 	.bcdDevice_lo = (lo), .bcdDevice_hi = (hi)
 
 /**
+ * USB_DEVICE_INTERFACE_PROTOCOL - macro used to describe a usb
+ *		device with a specific interface protocol
+ * @vend: the 16 bit USB Vendor ID
+ * @prod: the 16 bit USB Product ID
+ * @pr: bInterfaceProtocol value
+ *
+ * This macro is used to create a struct usb_device_id that matches a
+ * specific interface protocol of devices.
+ */
+#define USB_DEVICE_INTERFACE_PROTOCOL(vend,prod,pr) \
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE | USB_DEVICE_ID_MATCH_INT_PROTOCOL, \
+	.idVendor = (vend), \
+	.idProduct = (prod), \
+	.bInterfaceProtocol = (pr)
+
+/**
  * USB_DEVICE_INFO - macro used to describe a class of usb devices
  * @cl: bDeviceClass value
  * @sc: bDeviceSubClass value
