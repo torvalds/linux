@@ -227,13 +227,7 @@ EXPORT_SYMBOL_GPL(queue_delayed_work_on);
 
 static void run_workqueue(struct cpu_workqueue_struct *cwq)
 {
-	unsigned long flags;
-
-	/*
-	 * Keep taking off work from the queue until
-	 * done.
-	 */
-	spin_lock_irqsave(&cwq->lock, flags);
+	spin_lock_irq(&cwq->lock);
 	cwq->run_depth++;
 	if (cwq->run_depth > 3) {
 		/* morton gets to eat his hat */
@@ -248,7 +242,7 @@ static void run_workqueue(struct cpu_workqueue_struct *cwq)
 
 		cwq->current_work = work;
 		list_del_init(cwq->worklist.next);
-		spin_unlock_irqrestore(&cwq->lock, flags);
+		spin_unlock_irq(&cwq->lock);
 
 		BUG_ON(get_wq_data(work) != cwq);
 		if (!test_bit(WORK_STRUCT_NOAUTOREL, work_data_bits(work)))
@@ -266,11 +260,11 @@ static void run_workqueue(struct cpu_workqueue_struct *cwq)
 			dump_stack();
 		}
 
-		spin_lock_irqsave(&cwq->lock, flags);
+		spin_lock_irq(&cwq->lock);
 		cwq->current_work = NULL;
 	}
 	cwq->run_depth--;
-	spin_unlock_irqrestore(&cwq->lock, flags);
+	spin_unlock_irq(&cwq->lock);
 }
 
 /*
@@ -399,6 +393,8 @@ static void flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
  */
 void fastcall flush_workqueue(struct workqueue_struct *wq)
 {
+	might_sleep();
+
 	if (is_single_threaded(wq))
 		flush_cpu_workqueue(per_cpu_ptr(wq->cpu_wq, singlethread_cpu));
 	else {
@@ -444,6 +440,8 @@ static void wait_on_work(struct cpu_workqueue_struct *cwq,
 void flush_work(struct workqueue_struct *wq, struct work_struct *work)
 {
 	struct cpu_workqueue_struct *cwq;
+
+	might_sleep();
 
 	cwq = get_wq_data(work);
 	/* Was it ever queued ? */
