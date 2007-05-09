@@ -419,18 +419,22 @@ static void flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
 		 * Probably keventd trying to flush its own queue. So simply run
 		 * it by hand rather than deadlocking.
 		 */
-		mutex_unlock(&workqueue_mutex);
+		preempt_enable();
+		/*
+		 * We can still touch *cwq here because we are keventd, and
+		 * hot-unplug will be waiting us to exit.
+		 */
 		run_workqueue(cwq);
-		mutex_lock(&workqueue_mutex);
+		preempt_disable();
 	} else {
 		struct wq_barrier barr;
 
 		init_wq_barrier(&barr);
 		__queue_work(cwq, &barr.work);
 
-		mutex_unlock(&workqueue_mutex);
+		preempt_enable();	/* Can no longer touch *cwq */
 		wait_for_completion(&barr.done);
-		mutex_lock(&workqueue_mutex);
+		preempt_disable();
 	}
 }
 
@@ -449,7 +453,7 @@ static void flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
  */
 void fastcall flush_workqueue(struct workqueue_struct *wq)
 {
-	mutex_lock(&workqueue_mutex);
+	preempt_disable();		/* CPU hotplug */
 	if (is_single_threaded(wq)) {
 		/* Always use first cpu's area. */
 		flush_cpu_workqueue(per_cpu_ptr(wq->cpu_wq, singlethread_cpu));
@@ -459,7 +463,7 @@ void fastcall flush_workqueue(struct workqueue_struct *wq)
 		for_each_online_cpu(cpu)
 			flush_cpu_workqueue(per_cpu_ptr(wq->cpu_wq, cpu));
 	}
-	mutex_unlock(&workqueue_mutex);
+	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(flush_workqueue);
 
