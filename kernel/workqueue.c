@@ -120,6 +120,11 @@ static void insert_work(struct cpu_workqueue_struct *cwq,
 				struct work_struct *work, int tail)
 {
 	set_wq_data(work, cwq);
+	/*
+	 * Ensure that we get the right work->data if we see the
+	 * result of list_add() below, see try_to_grab_pending().
+	 */
+	smp_wmb();
 	if (tail)
 		list_add_tail(&work->entry, &cwq->worklist);
 	else
@@ -383,7 +388,46 @@ void fastcall flush_workqueue(struct workqueue_struct *wq)
 }
 EXPORT_SYMBOL_GPL(flush_workqueue);
 
-static void wait_on_work(struct cpu_workqueue_struct *cwq,
+/*
+ * Upon a successful return, the caller "owns" WORK_STRUCT_PENDING bit,
+ * so this work can't be re-armed in any way.
+ */
+static int try_to_grab_pending(struct work_struct *work)
+{
+	struct cpu_workqueue_struct *cwq;
+	int ret = 0;
+
+	if (!test_and_set_bit(WORK_STRUCT_PENDING, work_data_bits(work)))
+		return 1;
+
+	/*
+	 * The queueing is in progress, or it is already queued. Try to
+	 * steal it from ->worklist without clearing WORK_STRUCT_PENDING.
+	 */
+
+	cwq = get_wq_data(work);
+	if (!cwq)
+		return ret;
+
+	spin_lock_irq(&cwq->lock);
+	if (!list_empty(&work->entry)) {
+		/*
+		 * This work is queued, but perhaps we locked the wrong cwq.
+		 * In that case we must see the new value after rmb(), see
+		 * insert_work()->wmb().
+		 */
+		smp_rmb();
+		if (cwq == get_wq_data(work)) {
+			list_del_init(&work->entry);
+			ret = 1;
+		}
+	}
+	spin_unlock_irq(&cwq->lock);
+
+	return ret;
+}
+
+static void wait_on_cpu_work(struct cpu_workqueue_struct *cwq,
 				struct work_struct *work)
 {
 	struct wq_barrier barr;
@@ -400,20 +444,7 @@ static void wait_on_work(struct cpu_workqueue_struct *cwq,
 		wait_for_completion(&barr.done);
 }
 
-/**
- * cancel_work_sync - block until a work_struct's callback has terminated
- * @work: the work which is to be flushed
- *
- * cancel_work_sync() will attempt to cancel the work if it is queued. If the
- * work's callback appears to be running, cancel_work_sync() will block until
- * it has completed.
- *
- * cancel_work_sync() is designed to be used when the caller is tearing down
- * data structures which the callback function operates upon. It is expected
- * that, prior to calling cancel_work_sync(), the caller has arranged for the
- * work to not be requeued.
- */
-void cancel_work_sync(struct work_struct *work)
+static void wait_on_work(struct work_struct *work)
 {
 	struct cpu_workqueue_struct *cwq;
 	struct workqueue_struct *wq;
@@ -423,29 +454,62 @@ void cancel_work_sync(struct work_struct *work)
 	might_sleep();
 
 	cwq = get_wq_data(work);
-	/* Was it ever queued ? */
 	if (!cwq)
 		return;
-
-	/*
-	 * This work can't be re-queued, no need to re-check that
-	 * get_wq_data() is still the same when we take cwq->lock.
-	 */
-	spin_lock_irq(&cwq->lock);
-	list_del_init(&work->entry);
-	work_clear_pending(work);
-	spin_unlock_irq(&cwq->lock);
 
 	wq = cwq->wq;
 	cpu_map = wq_cpu_map(wq);
 
 	for_each_cpu_mask(cpu, *cpu_map)
-		wait_on_work(per_cpu_ptr(wq->cpu_wq, cpu), work);
+		wait_on_cpu_work(per_cpu_ptr(wq->cpu_wq, cpu), work);
+}
+
+/**
+ * cancel_work_sync - block until a work_struct's callback has terminated
+ * @work: the work which is to be flushed
+ *
+ * cancel_work_sync() will cancel the work if it is queued. If the work's
+ * callback appears to be running, cancel_work_sync() will block until it
+ * has completed.
+ *
+ * It is possible to use this function if the work re-queues itself. It can
+ * cancel the work even if it migrates to another workqueue, however in that
+ * case it only guarantees that work->func() has completed on the last queued
+ * workqueue.
+ *
+ * cancel_work_sync(&delayed_work->work) should be used only if ->timer is not
+ * pending, otherwise it goes into a busy-wait loop until the timer expires.
+ *
+ * The caller must ensure that workqueue_struct on which this work was last
+ * queued can't be destroyed before this function returns.
+ */
+void cancel_work_sync(struct work_struct *work)
+{
+	while (!try_to_grab_pending(work))
+		cpu_relax();
+	wait_on_work(work);
+	work_clear_pending(work);
 }
 EXPORT_SYMBOL_GPL(cancel_work_sync);
 
+/**
+ * cancel_rearming_delayed_work - reliably kill off a delayed work.
+ * @dwork: the delayed work struct
+ *
+ * It is possible to use this function if @dwork rearms itself via queue_work()
+ * or queue_delayed_work(). See also the comment for cancel_work_sync().
+ */
+void cancel_rearming_delayed_work(struct delayed_work *dwork)
+{
+	while (!del_timer(&dwork->timer) &&
+	       !try_to_grab_pending(&dwork->work))
+		cpu_relax();
+	wait_on_work(&dwork->work);
+	work_clear_pending(&dwork->work);
+}
+EXPORT_SYMBOL(cancel_rearming_delayed_work);
 
-static struct workqueue_struct *keventd_wq;
+static struct workqueue_struct *keventd_wq __read_mostly;
 
 /**
  * schedule_work - put work task in global workqueue
@@ -530,28 +594,6 @@ void flush_scheduled_work(void)
 	flush_workqueue(keventd_wq);
 }
 EXPORT_SYMBOL(flush_scheduled_work);
-
-/**
- * cancel_rearming_delayed_work - kill off a delayed work whose handler rearms the delayed work.
- * @dwork: the delayed work struct
- *
- * Note that the work callback function may still be running on return from
- * cancel_delayed_work(). Run flush_workqueue() or cancel_work_sync() to wait
- * on it.
- */
-void cancel_rearming_delayed_work(struct delayed_work *dwork)
-{
-	struct cpu_workqueue_struct *cwq = get_wq_data(&dwork->work);
-
-	/* Was it ever queued ? */
-	if (cwq != NULL) {
-		struct workqueue_struct *wq = cwq->wq;
-
-		while (!cancel_delayed_work(dwork))
-			flush_workqueue(wq);
-	}
-}
-EXPORT_SYMBOL(cancel_rearming_delayed_work);
 
 /**
  * execute_in_process_context - reliably execute the routine with user context
