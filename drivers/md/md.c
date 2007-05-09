@@ -33,6 +33,7 @@
 */
 
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/linkage.h>
 #include <linux/raid/md.h>
@@ -2637,8 +2638,7 @@ metadata_store(mddev_t *mddev, const char *buf, size_t len)
 	minor = simple_strtoul(buf, &e, 10);
 	if (e==buf || (*e && *e != '\n') )
 		return -EINVAL;
-	if (major >= sizeof(super_types)/sizeof(super_types[0]) ||
-	    super_types[major].name == NULL)
+	if (major >= ARRAY_SIZE(super_types) || super_types[major].name == NULL)
 		return -ENOENT;
 	mddev->major_version = major;
 	mddev->minor_version = minor;
@@ -4019,7 +4019,7 @@ static int set_array_info(mddev_t * mddev, mdu_array_info_t *info)
 	if (info->raid_disks == 0) {
 		/* just setting version number for superblock loading */
 		if (info->major_version < 0 ||
-		    info->major_version >= sizeof(super_types)/sizeof(super_types[0]) ||
+		    info->major_version >= ARRAY_SIZE(super_types) ||
 		    super_types[info->major_version].name == NULL) {
 			/* maybe try to auto-load a module? */
 			printk(KERN_INFO 
