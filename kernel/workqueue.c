@@ -404,12 +404,15 @@ static void wq_barrier_func(struct work_struct *work)
 	complete(&barr->done);
 }
 
-static inline void init_wq_barrier(struct wq_barrier *barr)
+static void insert_wq_barrier(struct cpu_workqueue_struct *cwq,
+					struct wq_barrier *barr, int tail)
 {
 	INIT_WORK(&barr->work, wq_barrier_func);
 	__set_bit(WORK_STRUCT_PENDING, work_data_bits(&barr->work));
 
 	init_completion(&barr->done);
+
+	insert_work(cwq, &barr->work, tail);
 }
 
 static void flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
@@ -428,13 +431,20 @@ static void flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
 		preempt_disable();
 	} else {
 		struct wq_barrier barr;
+		int active = 0;
 
-		init_wq_barrier(&barr);
-		__queue_work(cwq, &barr.work);
+		spin_lock_irq(&cwq->lock);
+		if (!list_empty(&cwq->worklist) || cwq->current_work != NULL) {
+			insert_wq_barrier(cwq, &barr, 1);
+			active = 1;
+		}
+		spin_unlock_irq(&cwq->lock);
 
-		preempt_enable();	/* Can no longer touch *cwq */
-		wait_for_completion(&barr.done);
-		preempt_disable();
+		if (active) {
+			preempt_enable();
+			wait_for_completion(&barr.done);
+			preempt_disable();
+		}
 	}
 }
 
@@ -475,8 +485,7 @@ static void wait_on_work(struct cpu_workqueue_struct *cwq,
 
 	spin_lock_irq(&cwq->lock);
 	if (unlikely(cwq->current_work == work)) {
-		init_wq_barrier(&barr);
-		insert_work(cwq, &barr.work, 0);
+		insert_wq_barrier(cwq, &barr, 0);
 		running = 1;
 	}
 	spin_unlock_irq(&cwq->lock);
