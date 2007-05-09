@@ -191,6 +191,12 @@ struct usb_xpad {
 	unsigned char *idata;		/* input data */
 	dma_addr_t idata_dma;
 
+#ifdef CONFIG_JOYSTICK_XPAD_FF
+	struct urb *irq_out;		/* urb for interrupt out report */
+	unsigned char *odata;		/* output data */
+	dma_addr_t odata_dma;
+#endif
+
 	char phys[65];			/* physical device path */
 
 	int dpad_mapping;		/* map d-pad to buttons or to axes */
@@ -343,7 +349,113 @@ exit:
 		     __FUNCTION__, retval);
 }
 
-static int xpad_open (struct input_dev *dev)
+#ifdef CONFIG_JOYSTICK_XPAD_FF
+static void xpad_irq_out(struct urb *urb)
+{
+	int retval;
+
+	switch (urb->status) {
+		case 0:
+		/* success */
+		break;
+		case -ECONNRESET:
+		case -ENOENT:
+		case -ESHUTDOWN:
+			/* this urb is terminated, clean up */
+			dbg("%s - urb shutting down with status: %d",  __FUNCTION__, urb->status);
+			return;
+		default:
+			dbg("%s - nonzero urb status received: %d",  __FUNCTION__, urb->status);
+			goto exit;
+	}
+
+exit:
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
+	if (retval)
+		err("%s - usb_submit_urb failed with result %d",
+		   __FUNCTION__, retval);
+}
+
+int xpad_play_effect(struct input_dev *dev, void *data, struct ff_effect *effect)
+{
+	struct usb_xpad *xpad = input_get_drvdata(dev);
+
+	if (effect->type == FF_RUMBLE) {
+		__u16 strong = effect->u.rumble.strong_magnitude;
+		__u16 weak = effect->u.rumble.weak_magnitude;
+		xpad->odata[0] = 0x00;
+		xpad->odata[1] = 0x08;
+		xpad->odata[2] = 0x00;
+		xpad->odata[3] = strong / 256;
+		xpad->odata[4] = weak / 256;
+		xpad->odata[5] = 0x00;
+		xpad->odata[6] = 0x00;
+		xpad->odata[7] = 0x00;
+		usb_submit_urb(xpad->irq_out, GFP_KERNEL);
+	}
+
+	return 0;
+}
+
+static int xpad_init_ff(struct usb_interface *intf, struct usb_xpad *xpad)
+{
+	struct usb_endpoint_descriptor *ep_irq_out;
+	int error = -ENOMEM;
+
+	if (xpad->xtype != XTYPE_XBOX360)
+		return 0;
+
+	xpad->odata = usb_buffer_alloc(xpad->udev, XPAD_PKT_LEN,
+				       GFP_ATOMIC, &xpad->odata_dma );
+	if (!xpad->idata)
+		goto fail1;
+
+	xpad->irq_out = usb_alloc_urb(0, GFP_KERNEL);
+	if (!xpad->irq_out)
+		goto fail2;
+
+	ep_irq_out = &intf->cur_altsetting->endpoint[1].desc;
+	usb_fill_int_urb(xpad->irq_out, xpad->udev,
+			 usb_sndintpipe(xpad->udev, ep_irq_out->bEndpointAddress),
+			 xpad->odata, XPAD_PKT_LEN,
+			 xpad_irq_out, xpad, ep_irq_out->bInterval);
+	xpad->irq_out->transfer_dma = xpad->odata_dma;
+	xpad->irq_out->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+
+	input_set_capability(xpad->dev, EV_FF, FF_RUMBLE);
+
+	error = input_ff_create_memless(xpad->dev, NULL, xpad_play_effect);
+	if (error)
+		goto fail2;
+
+	return 0;
+
+ fail2:	usb_buffer_free(xpad->udev, XPAD_PKT_LEN, xpad->odata, xpad->odata_dma);
+ fail1:	return error;
+}
+
+static void xpad_stop_ff(struct usb_xpad *xpad)
+{
+	if (xpad->xtype == XTYPE_XBOX360)
+		usb_kill_urb(xpad->irq_out);
+}
+
+static void xpad_deinit_ff(struct usb_xpad *xpad)
+{
+	if (xpad->xtype == XTYPE_XBOX360) {
+		usb_free_urb(xpad->irq_out);
+		usb_buffer_free(xpad->udev, XPAD_PKT_LEN,
+				xpad->odata, xpad->odata_dma);
+	}
+}
+
+#else
+static int xpad_init_ff(struct usb_interface *intf, struct usb_xpad *xpad) { return 0; }
+static void xpad_stop_ff(struct usb_xpad *xpad) { }
+static void xpad_deinit_ff(struct usb_xpad *xpad) { }
+#endif
+
+static int xpad_open(struct input_dev *dev)
 {
 	struct usb_xpad *xpad = input_get_drvdata(dev);
 
@@ -354,11 +466,12 @@ static int xpad_open (struct input_dev *dev)
 	return 0;
 }
 
-static void xpad_close (struct input_dev *dev)
+static void xpad_close(struct input_dev *dev)
 {
 	struct usb_xpad *xpad = input_get_drvdata(dev);
 
 	usb_kill_urb(xpad->irq_in);
+	xpad_stop_ff(xpad);
 }
 
 static void xpad_set_up_abs(struct input_dev *input_dev, signed short abs)
@@ -450,6 +563,10 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 		for (i = 0; xpad_abs_pad[i] >= 0; i++)
 		    xpad_set_up_abs(input_dev, xpad_abs_pad[i]);
 
+	error = xpad_init_ff(intf, xpad);
+	if (error)
+		goto fail2;
+
 	ep_irq_in = &intf->cur_altsetting->endpoint[0].desc;
 	usb_fill_int_urb(xpad->irq_in, udev,
 			 usb_rcvintpipe(udev, ep_irq_in->bEndpointAddress),
@@ -479,10 +596,10 @@ static void xpad_disconnect(struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 	if (xpad) {
-		usb_kill_urb(xpad->irq_in);
 		input_unregister_device(xpad->dev);
+		xpad_deinit_ff(xpad);
 		usb_free_urb(xpad->irq_in);
-		usb_buffer_free(interface_to_usbdev(intf), XPAD_PKT_LEN,
+		usb_buffer_free(xpad->udev, XPAD_PKT_LEN,
 				xpad->idata, xpad->idata_dma);
 		kfree(xpad);
 	}
