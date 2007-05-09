@@ -73,7 +73,7 @@
 static inline struct pt_regs *get_user_regs(struct task_struct *task)
 {
 	return (struct pt_regs *)
-	    ((unsigned long)task->thread_info +
+	    ((unsigned long)task_stack_page(task) +
 	     (THREAD_SIZE - sizeof(struct pt_regs)));
 }
 
@@ -99,7 +99,7 @@ static inline long get_reg(struct task_struct *task, int regno)
 	unsigned char *reg_ptr;
 
 	struct pt_regs *regs =
-	    (struct pt_regs *)((unsigned long)task->thread_info +
+	    (struct pt_regs *)((unsigned long)task_stack_page(task) +
 			       (THREAD_SIZE - sizeof(struct pt_regs)));
 	reg_ptr = (char *)regs;
 
@@ -125,7 +125,7 @@ put_reg(struct task_struct *task, int regno, unsigned long data)
 	char * reg_ptr;
 
 	struct pt_regs *regs =
-	    (struct pt_regs *)((unsigned long)task->thread_info +
+	    (struct pt_regs *)((unsigned long)task_stack_page(task) +
 			       (THREAD_SIZE - sizeof(struct pt_regs)));
 	reg_ptr = (char *)regs;
 

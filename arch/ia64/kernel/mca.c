@@ -1689,7 +1689,7 @@ format_mca_init_stack(void *mca_data, unsigned long offset,
 	ti->preempt_count = 1;
 	ti->task = p;
 	ti->cpu = cpu;
-	p->thread_info = ti;
+	p->stack = ti;
 	p->state = TASK_UNINTERRUPTIBLE;
 	cpu_set(cpu, p->cpus_allowed);
 	INIT_LIST_HEAD(&p->tasks);

@@ -105,7 +105,7 @@ static struct kmem_cache *mm_cachep;
 
 void free_task(struct task_struct *tsk)
 {
-	free_thread_info(tsk->thread_info);
+	free_thread_info(tsk->stack);
 	rt_mutex_debug_task_free(tsk);
 	free_task_struct(tsk);
 }
@@ -175,7 +175,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	}
 
 	*tsk = *orig;
-	tsk->thread_info = ti;
+	tsk->stack = ti;
 	setup_thread_stack(tsk, orig);
 
 #ifdef CONFIG_CC_STACKPROTECTOR

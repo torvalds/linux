@@ -28,7 +28,7 @@ int foo(void)
 	DEFINE(AOFF_task_gid, offsetof(struct task_struct, gid));
 	DEFINE(AOFF_task_euid, offsetof(struct task_struct, euid));
 	DEFINE(AOFF_task_egid, offsetof(struct task_struct, egid));
-	/* DEFINE(THREAD_INFO, offsetof(struct task_struct, thread_info)); */
+	/* DEFINE(THREAD_INFO, offsetof(struct task_struct, stack)); */
 	DEFINE(ASIZ_task_uid,	sizeof(current->uid));
 	DEFINE(ASIZ_task_gid,	sizeof(current->gid));
 	DEFINE(ASIZ_task_euid,	sizeof(current->euid));
