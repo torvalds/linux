@@ -124,6 +124,24 @@ static inline int num_booting_cpus(void)
 	return cpus_weight(cpu_callout_map);
 }
 
+extern int safe_smp_processor_id(void);
+extern int __cpu_disable(void);
+extern void __cpu_die(unsigned int cpu);
+extern unsigned int num_processors;
+
+#endif /* !__ASSEMBLY__ */
+
+#else /* CONFIG_SMP */
+
+#define safe_smp_processor_id()		0
+#define cpu_physical_id(cpu)		boot_cpu_physical_apicid
+
+#define NO_PROC_ID		0xFF		/* No processor magic marker */
+
+#endif /* CONFIG_SMP */
+
+#ifndef __ASSEMBLY__
+
 #ifdef CONFIG_X86_LOCAL_APIC
 
 #ifdef APIC_DEFINITION
@@ -135,27 +153,15 @@ static inline int hard_smp_processor_id(void)
 	/* we don't want to mark this access volatile - bad code generation */
 	return GET_APIC_ID(*(unsigned long *)(APIC_BASE+APIC_ID));
 }
-#endif
-#endif
+#endif /* APIC_DEFINITION */
 
-extern int safe_smp_processor_id(void);
-extern int __cpu_disable(void);
-extern void __cpu_die(unsigned int cpu);
-extern unsigned int num_processors;
+#else /* CONFIG_X86_LOCAL_APIC */
 
-#endif /* !__ASSEMBLY__ */
-
-#else /* CONFIG_SMP */
-
+#ifndef CONFIG_SMP
 #define hard_smp_processor_id()		0
-#define safe_smp_processor_id()		0
-#define cpu_physical_id(cpu)		boot_cpu_physical_apicid
+#endif
 
-#define NO_PROC_ID		0xFF		/* No processor magic marker */
-
-#endif /* CONFIG_SMP */
-
-#ifndef __ASSEMBLY__
+#endif /* CONFIG_X86_LOCAL_APIC */
 
 extern u8 apicid_2_node[];
 
