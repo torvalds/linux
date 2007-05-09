@@ -239,7 +239,7 @@ static __be32 *
 encode_post_op_attr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp)
 {
 	struct dentry *dentry = fhp->fh_dentry;
-	if (dentry && dentry->d_inode != NULL) {
+	if (dentry && dentry->d_inode) {
 	        int err;
 		struct kstat stat;
 
@@ -300,9 +300,9 @@ int
 nfs3svc_decode_sattrargs(struct svc_rqst *rqstp, __be32 *p,
 					struct nfsd3_sattrargs *args)
 {
-	if (!(p = decode_fh(p, &args->fh))
-	 || !(p = decode_sattr3(p, &args->attrs)))
+	if (!(p = decode_fh(p, &args->fh)))
 		return 0;
+	p = decode_sattr3(p, &args->attrs);
 
 	if ((args->check_guard = ntohl(*p++)) != 0) { 
 		struct timespec time; 
@@ -343,9 +343,9 @@ nfs3svc_decode_readargs(struct svc_rqst *rqstp, __be32 *p,
 	int v,pn;
 	u32 max_blocksize = svc_max_payload(rqstp);
 
-	if (!(p = decode_fh(p, &args->fh))
-	 || !(p = xdr_decode_hyper(p, &args->offset)))
+	if (!(p = decode_fh(p, &args->fh)))
 		return 0;
+	p = xdr_decode_hyper(p, &args->offset);
 
 	len = args->count = ntohl(*p++);
 
@@ -372,9 +372,9 @@ nfs3svc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 	unsigned int len, v, hdr, dlen;
 	u32 max_blocksize = svc_max_payload(rqstp);
 
-	if (!(p = decode_fh(p, &args->fh))
-	 || !(p = xdr_decode_hyper(p, &args->offset)))
+	if (!(p = decode_fh(p, &args->fh)))
 		return 0;
+	p = xdr_decode_hyper(p, &args->offset);
 
 	args->count = ntohl(*p++);
 	args->stable = ntohl(*p++);
@@ -388,29 +388,16 @@ nfs3svc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 	/*
 	 * Check to make sure that we got the right number of
 	 * bytes.
-	 *
-	 * If more than one page was used, then compute the length
-	 * of the data in the request as the total size of the
-	 * request minus the transport protocol headers minus the
-	 * RPC protocol headers minus the NFS protocol fields
-	 * already consumed.  If the request fits into a single
-	 * page, then compete the length of the data as the size
-	 * of the NFS portion of the request minus the NFS
-	 * protocol fields already consumed.
 	 */
 	hdr = (void*)p - rqstp->rq_arg.head[0].iov_base;
-	if (rqstp->rq_respages != rqstp->rq_pages + 1) {
-		dlen = rqstp->rq_arg.len -
-			(PAGE_SIZE - rqstp->rq_arg.head[0].iov_len) - hdr;
-	} else {
-		dlen = rqstp->rq_arg.head[0].iov_len - hdr;
-	}
+	dlen = rqstp->rq_arg.head[0].iov_len + rqstp->rq_arg.page_len
+		- hdr;
 	/*
 	 * Round the length of the data which was specified up to
 	 * the next multiple of XDR units and then compare that
 	 * against the length which was actually received.
 	 */
-	if (dlen != ((len + 3) & ~0x3))
+	if (dlen != XDR_QUADLEN(len)*4)
 		return 0;
 
 	if (args->count > max_blocksize) {
@@ -442,8 +429,7 @@ nfs3svc_decode_createargs(struct svc_rqst *rqstp, __be32 *p,
 	switch (args->createmode = ntohl(*p++)) {
 	case NFS3_CREATE_UNCHECKED:
 	case NFS3_CREATE_GUARDED:
-		if (!(p = decode_sattr3(p, &args->attrs)))
-			return 0;
+		p = decode_sattr3(p, &args->attrs);
 		break;
 	case NFS3_CREATE_EXCLUSIVE:
 		args->verf = p;
@@ -459,10 +445,10 @@ int
 nfs3svc_decode_mkdirargs(struct svc_rqst *rqstp, __be32 *p,
 					struct nfsd3_createargs *args)
 {
-	if (!(p = decode_fh(p, &args->fh))
-	 || !(p = decode_filename(p, &args->name, &args->len))
-	 || !(p = decode_sattr3(p, &args->attrs)))
+	if (!(p = decode_fh(p, &args->fh)) ||
+	    !(p = decode_filename(p, &args->name, &args->len)))
 		return 0;
+	p = decode_sattr3(p, &args->attrs);
 
 	return xdr_argsize_check(rqstp, p);
 }
@@ -476,11 +462,12 @@ nfs3svc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p,
 	char *old, *new;
 	struct kvec *vec;
 
-	if (!(p = decode_fh(p, &args->ffh))
-	 || !(p = decode_filename(p, &args->fname, &args->flen))
-	 || !(p = decode_sattr3(p, &args->attrs))
+	if (!(p = decode_fh(p, &args->ffh)) ||
+	    !(p = decode_filename(p, &args->fname, &args->flen))
 		)
 		return 0;
+	p = decode_sattr3(p, &args->attrs);
+
 	/* now decode the pathname, which might be larger than the first page.
 	 * As we have to check for nul's anyway, we copy it into a new page
 	 * This page appears in the rq_res.pages list, but as pages_len is always
@@ -530,10 +517,8 @@ nfs3svc_decode_mknodargs(struct svc_rqst *rqstp, __be32 *p,
 	args->ftype = ntohl(*p++);
 
 	if (args->ftype == NF3BLK  || args->ftype == NF3CHR
-	 || args->ftype == NF3SOCK || args->ftype == NF3FIFO) {
-		if (!(p = decode_sattr3(p, &args->attrs)))
-			return 0;
-	}
+	 || args->ftype == NF3SOCK || args->ftype == NF3FIFO)
+		p = decode_sattr3(p, &args->attrs);
 
 	if (args->ftype == NF3BLK || args->ftype == NF3CHR) {
 		args->major = ntohl(*p++);
