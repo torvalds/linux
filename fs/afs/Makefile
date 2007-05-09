@@ -22,6 +22,7 @@ kafs-objs := \
 	vlclient.o \
 	vlocation.o \
 	vnode.o \
-	volume.o
+	volume.o \
+	write.o
 
 obj-$(CONFIG_AFS_FS)  := kafs.o

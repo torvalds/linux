@@ -50,6 +50,7 @@ static const struct super_operations afs_super_ops = {
 	.statfs		= simple_statfs,
 	.alloc_inode	= afs_alloc_inode,
 	.drop_inode	= generic_delete_inode,
+	.write_inode	= afs_write_inode,
 	.destroy_inode	= afs_destroy_inode,
 	.clear_inode	= afs_clear_inode,
 	.umount_begin	= afs_umount_begin,
@@ -66,7 +67,7 @@ enum {
 	afs_opt_vol,
 };
 
-static const match_table_t afs_options_list = {
+static match_table_t afs_options_list = {
 	{ afs_opt_cell,		"cell=%s"	},
 	{ afs_opt_rwpath,	"rwpath"	},
 	{ afs_opt_vol,		"vol=%s"	},
@@ -459,7 +460,9 @@ static void afs_i_init_once(void *_vnode, struct kmem_cache *cachep,
 		init_waitqueue_head(&vnode->update_waitq);
 		mutex_init(&vnode->permits_lock);
 		mutex_init(&vnode->validate_lock);
+		spin_lock_init(&vnode->writeback_lock);
 		spin_lock_init(&vnode->lock);
+		INIT_LIST_HEAD(&vnode->writebacks);
 		INIT_WORK(&vnode->cb_broken_work, afs_broken_callback_work);
 	}
 }

@@ -15,32 +15,43 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
+#include <linux/writeback.h>
 #include "internal.h"
 
 static int afs_readpage(struct file *file, struct page *page);
 static void afs_invalidatepage(struct page *page, unsigned long offset);
 static int afs_releasepage(struct page *page, gfp_t gfp_flags);
+static int afs_launder_page(struct page *page);
 
 const struct file_operations afs_file_operations = {
 	.open		= afs_open,
 	.release	= afs_release,
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
+	.write		= do_sync_write,
 	.aio_read	= generic_file_aio_read,
+	.aio_write	= afs_file_write,
 	.mmap		= generic_file_readonly_mmap,
 	.sendfile	= generic_file_sendfile,
+	.fsync		= afs_fsync,
 };
 
 const struct inode_operations afs_file_inode_operations = {
 	.getattr	= afs_getattr,
+	.setattr	= afs_setattr,
 	.permission	= afs_permission,
 };
 
 const struct address_space_operations afs_fs_aops = {
 	.readpage	= afs_readpage,
-	.set_page_dirty	= __set_page_dirty_nobuffers,
+	.set_page_dirty	= afs_set_page_dirty,
+	.launder_page	= afs_launder_page,
 	.releasepage	= afs_releasepage,
 	.invalidatepage	= afs_invalidatepage,
+	.prepare_write	= afs_prepare_write,
+	.commit_write	= afs_commit_write,
+	.writepage	= afs_writepage,
+	.writepages	= afs_writepages,
 };
 
 /*
@@ -230,11 +241,6 @@ static void afs_invalidatepage(struct page *page, unsigned long offset)
 	BUG_ON(!PageLocked(page));
 
 	if (PagePrivate(page)) {
-#ifdef AFS_CACHING_SUPPORT
-		struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
-		cachefs_uncache_page(vnode->cache,page);
-#endif
-
 		/* We release buffers only if the entire page is being
 		 * invalidated.
 		 * The get_block cached value has been unconditionally
@@ -255,19 +261,33 @@ static void afs_invalidatepage(struct page *page, unsigned long offset)
 }
 
 /*
+ * write back a dirty page
+ */
+static int afs_launder_page(struct page *page)
+{
+	_enter("{%lu}", page->index);
+
+	return 0;
+}
+
+/*
  * release a page and cleanup its private data
  */
 static int afs_releasepage(struct page *page, gfp_t gfp_flags)
 {
 	struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
+	struct afs_writeback *wb;
 
 	_enter("{{%x:%u}[%lu],%lx},%x",
 	       vnode->fid.vid, vnode->fid.vnode, page->index, page->flags,
 	       gfp_flags);
 
 	if (PagePrivate(page)) {
+		wb = (struct afs_writeback *) page_private(page);
+		ASSERT(wb != NULL);
 		set_page_private(page, 0);
 		ClearPagePrivate(page);
+		afs_put_writeback(wb);
 	}
 
 	_leave(" = 0");

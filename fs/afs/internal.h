@@ -21,6 +21,7 @@
 
 #define AFS_CELL_MAX_ADDRS 15
 
+struct pagevec;
 struct afs_call;
 
 typedef enum {
@@ -75,12 +76,15 @@ struct afs_call {
 	struct key		*key;		/* security for this call */
 	struct afs_server	*server;	/* server affected by incoming CM call */
 	void			*request;	/* request data (first part) */
-	void			*request2;	/* request data (second part) */
+	struct address_space	*mapping;	/* page set */
+	struct afs_writeback	*wb;		/* writeback being performed */
 	void			*buffer;	/* reply receive buffer */
 	void			*reply;		/* reply buffer (first part) */
 	void			*reply2;	/* reply buffer (second part) */
 	void			*reply3;	/* reply buffer (third part) */
 	void			*reply4;	/* reply buffer (fourth part) */
+	pgoff_t			first;		/* first page in mapping to deal with */
+	pgoff_t			last;		/* last page in mapping to deal with */
 	enum {					/* call state */
 		AFS_CALL_REQUESTING,	/* request is being sent for outgoing call */
 		AFS_CALL_AWAIT_REPLY,	/* awaiting reply to outgoing call */
@@ -97,14 +101,18 @@ struct afs_call {
 	unsigned		request_size;	/* size of request data */
 	unsigned		reply_max;	/* maximum size of reply */
 	unsigned		reply_size;	/* current size of reply */
+	unsigned		first_offset;	/* offset into mapping[first] */
+	unsigned		last_to;	/* amount of mapping[last] */
 	unsigned short		offset;		/* offset into received data store */
 	unsigned char		unmarshall;	/* unmarshalling phase */
 	bool			incoming;	/* T if incoming call */
+	bool			send_pages;	/* T if data from mapping should be sent */
 	u16			service_id;	/* RxRPC service ID to call */
 	__be16			port;		/* target UDP port */
 	__be32			operation_ID;	/* operation ID for an incoming call */
 	u32			count;		/* count for use in unmarshalling */
 	__be32			tmp;		/* place to extract temporary data */
+	afs_dataversion_t	store_version;	/* updated version expected from store */
 };
 
 struct afs_call_type {
@@ -121,6 +129,32 @@ struct afs_call_type {
 
 	/* clean up a call */
 	void (*destructor)(struct afs_call *call);
+};
+
+/*
+ * record of an outstanding writeback on a vnode
+ */
+struct afs_writeback {
+	struct list_head	link;		/* link in vnode->writebacks */
+	struct work_struct	writer;		/* work item to perform the writeback */
+	struct afs_vnode	*vnode;		/* vnode to which this write applies */
+	struct key		*key;		/* owner of this write */
+	wait_queue_head_t	waitq;		/* completion and ready wait queue */
+	pgoff_t			first;		/* first page in batch */
+	pgoff_t			point;		/* last page in current store op */
+	pgoff_t			last;		/* last page in batch (inclusive) */
+	unsigned		offset_first;	/* offset into first page of start of write */
+	unsigned		to_last;	/* offset into last page of end of write */
+	int			num_conflicts;	/* count of conflicting writes in list */
+	int			usage;
+	bool			conflicts;	/* T if has dependent conflicts */
+	enum {
+		AFS_WBACK_SYNCING,		/* synchronisation being performed */
+		AFS_WBACK_PENDING,		/* write pending */
+		AFS_WBACK_CONFLICTING,		/* conflicting writes posted */
+		AFS_WBACK_WRITING,		/* writing back */
+		AFS_WBACK_COMPLETE		/* the writeback record has been unlinked */
+	} state __attribute__((packed));
 };
 
 /*
@@ -305,6 +339,7 @@ struct afs_vnode {
 	wait_queue_head_t	update_waitq;	/* status fetch waitqueue */
 	int			update_cnt;	/* number of outstanding ops that will update the
 						 * status */
+	spinlock_t		writeback_lock;	/* lock for writebacks */
 	spinlock_t		lock;		/* waitqueue/flags lock */
 	unsigned long		flags;
 #define AFS_VNODE_CB_BROKEN	0		/* set if vnode's callback was broken */
@@ -315,6 +350,8 @@ struct afs_vnode {
 #define AFS_VNODE_MOUNTPOINT	5		/* set if vnode is a mountpoint symlink */
 
 	long			acl_order;	/* ACL check count (callback break count) */
+
+	struct list_head	writebacks;	/* alterations in pagecache that need writing */
 
 	/* outstanding callback notification on this file */
 	struct rb_node		server_rb;	/* link in server->fs_vnodes */
@@ -463,6 +500,12 @@ extern int afs_fs_rename(struct afs_server *, struct key *,
 			 struct afs_vnode *, const char *,
 			 struct afs_vnode *, const char *,
 			 const struct afs_wait_mode *);
+extern int afs_fs_store_data(struct afs_server *, struct afs_writeback *,
+			     pgoff_t, pgoff_t, unsigned, unsigned,
+			     const struct afs_wait_mode *);
+extern int afs_fs_setattr(struct afs_server *, struct key *,
+			  struct afs_vnode *, struct iattr *,
+			  const struct afs_wait_mode *);
 
 /*
  * inode.c
@@ -473,6 +516,7 @@ extern struct inode *afs_iget(struct super_block *, struct key *,
 extern void afs_zap_data(struct afs_vnode *);
 extern int afs_validate(struct afs_vnode *, struct key *);
 extern int afs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
+extern int afs_setattr(struct dentry *, struct iattr *);
 extern void afs_clear_inode(struct inode *);
 
 /*
@@ -625,6 +669,9 @@ extern int afs_vnode_symlink(struct afs_vnode *, struct key *, const char *,
 			     struct afs_file_status *, struct afs_server **);
 extern int afs_vnode_rename(struct afs_vnode *, struct afs_vnode *,
 			    struct key *, const char *, const char *);
+extern int afs_vnode_store_data(struct afs_writeback *, pgoff_t, pgoff_t,
+				unsigned, unsigned);
+extern int afs_vnode_setattr(struct afs_vnode *, struct key *, struct iattr *);
 
 /*
  * volume.c
@@ -640,6 +687,23 @@ extern struct afs_volume *afs_volume_lookup(struct afs_mount_params *);
 extern struct afs_server *afs_volume_pick_fileserver(struct afs_vnode *);
 extern int afs_volume_release_fileserver(struct afs_vnode *,
 					 struct afs_server *, int);
+
+/*
+ * write.c
+ */
+extern int afs_set_page_dirty(struct page *);
+extern void afs_put_writeback(struct afs_writeback *);
+extern int afs_prepare_write(struct file *, struct page *, unsigned, unsigned);
+extern int afs_commit_write(struct file *, struct page *, unsigned, unsigned);
+extern int afs_writepage(struct page *, struct writeback_control *);
+extern int afs_writepages(struct address_space *, struct writeback_control *);
+extern int afs_write_inode(struct inode *, int);
+extern void afs_pages_written_back(struct afs_vnode *, struct afs_call *);
+extern ssize_t afs_file_write(struct kiocb *, const struct iovec *,
+			      unsigned long, loff_t);
+extern int afs_writeback_all(struct afs_vnode *);
+extern int afs_fsync(struct file *, struct dentry *, int);
+
 
 /*****************************************************************************/
 /*

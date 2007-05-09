@@ -56,6 +56,7 @@ const struct inode_operations afs_dir_inode_operations = {
 	.rename		= afs_rename,
 	.permission	= afs_permission,
 	.getattr	= afs_getattr,
+	.setattr	= afs_setattr,
 };
 
 static struct dentry_operations afs_fs_dentry_operations = {
