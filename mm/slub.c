@@ -157,6 +157,11 @@
 /* Internal SLUB flags */
 #define __OBJECT_POISON 0x80000000	/* Poison object */
 
+/* Not all arches define cache_line_size */
+#ifndef cache_line_size
+#define cache_line_size()	L1_CACHE_BYTES
+#endif
+
 static int kmem_size = sizeof(struct kmem_cache);
 
 #ifdef CONFIG_SMP
@@ -1480,8 +1485,8 @@ static unsigned long calculate_alignment(unsigned long flags,
 	 * then use it.
 	 */
 	if ((flags & SLAB_HWCACHE_ALIGN) &&
-			size > L1_CACHE_BYTES / 2)
-		return max_t(unsigned long, align, L1_CACHE_BYTES);
+			size > cache_line_size() / 2)
+		return max_t(unsigned long, align, cache_line_size());
 
 	if (align < ARCH_SLAB_MINALIGN)
 		return ARCH_SLAB_MINALIGN;
@@ -1667,8 +1672,8 @@ static int calculate_sizes(struct kmem_cache *s)
 		size += sizeof(void *);
 	/*
 	 * Determine the alignment based on various parameters that the
-	 * user specified (this is unecessarily complex due to the attempt
-	 * to be compatible with SLAB. Should be cleaned up some day).
+	 * user specified and the dynamic determination of cache line size
+	 * on bootup.
 	 */
 	align = calculate_alignment(flags, align, s->objsize);
 
@@ -2280,7 +2285,7 @@ void __init kmem_cache_init(void)
 
 	printk(KERN_INFO "SLUB: Genslabs=%d, HWalign=%d, Order=%d-%d, MinObjects=%d,"
 		" Processors=%d, Nodes=%d\n",
-		KMALLOC_SHIFT_HIGH, L1_CACHE_BYTES,
+		KMALLOC_SHIFT_HIGH, cache_line_size(),
 		slub_min_order, slub_max_order, slub_min_objects,
 		nr_cpu_ids, nr_node_ids);
 }
