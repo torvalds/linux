@@ -330,13 +330,13 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 {
 	struct pt_regs *childregs;
 
-	childregs = ((struct pt_regs *)(THREAD_SIZE + (unsigned long)p->thread_info)) - 1;
+	childregs = ((struct pt_regs *)(THREAD_SIZE + (unsigned long)task_stack_page(p))) - 1;
 	*childregs = *regs;
 
 	if (user_mode(regs))
 		childregs->sp = usp;
 	else
-		childregs->sp = (unsigned long)p->thread_info + THREAD_SIZE;
+		childregs->sp = (unsigned long)task_stack_page(p) + THREAD_SIZE;
 
 	childregs->r12 = 0; /* Set return value for child */
 
@@ -403,7 +403,7 @@ unsigned long get_wchan(struct task_struct *p)
 	if (!p || p == current || p->state == TASK_RUNNING)
 		return 0;
 
-	stack_page = (unsigned long)p->thread_info;
+	stack_page = (unsigned long)task_stack_page(p);
 	BUG_ON(!stack_page);
 
 	/*

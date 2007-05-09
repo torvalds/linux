@@ -24,7 +24,7 @@
 
 static struct pt_regs *get_user_regs(struct task_struct *tsk)
 {
-	return (struct pt_regs *)((unsigned long) tsk->thread_info +
+	return (struct pt_regs *)((unsigned long)task_stack_page(tsk) +
 				  THREAD_SIZE - sizeof(struct pt_regs));
 }
 

@@ -110,6 +110,6 @@ struct thread_info {
 
 #define TS_POLLING		1 	/* true if in idle loop and not sleeping */
 
-#define tsk_is_polling(t) ((t)->thread_info->status & TS_POLLING)
+#define tsk_is_polling(t) (task_thread_info(t)->status & TS_POLLING)
 
 #endif /* _ASM_IA64_THREAD_INFO_H */
