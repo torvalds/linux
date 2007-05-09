@@ -195,6 +195,18 @@ static enum {
 static DECLARE_RWSEM(slub_lock);
 LIST_HEAD(slab_caches);
 
+/*
+ * Tracking user of a slab.
+ */
+struct track {
+	void *addr;		/* Called from address */
+	int cpu;		/* Was running on cpu */
+	int pid;		/* Pid context */
+	unsigned long when;	/* When did the operation occur */
+};
+
+enum track_item { TRACK_ALLOC, TRACK_FREE };
+
 #ifdef CONFIG_SYSFS
 static int sysfs_slab_add(struct kmem_cache *);
 static int sysfs_slab_alias(struct kmem_cache *, const char *);
@@ -221,6 +233,23 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
 #else
 	return &s->local_node;
 #endif
+}
+
+static inline int check_valid_pointer(struct kmem_cache *s,
+				struct page *page, const void *object)
+{
+	void *base;
+
+	if (!object)
+		return 1;
+
+	base = page_address(page);
+	if (object < base || object >= base + s->objects * s->size ||
+		(object - base) % s->size) {
+		return 0;
+	}
+
+	return 1;
 }
 
 /*
@@ -289,18 +318,6 @@ static void print_section(char *text, u8 *addr, unsigned int length)
 		printk(" %s\n", ascii);
 	}
 }
-
-/*
- * Tracking user of a slab.
- */
-struct track {
-	void *addr;		/* Called from address */
-	int cpu;		/* Was running on cpu */
-	int pid;		/* Pid context */
-	unsigned long when;	/* When did the operation occur */
-};
-
-enum track_item { TRACK_ALLOC, TRACK_FREE };
 
 static struct track *get_track(struct kmem_cache *s, void *object,
 	enum track_item alloc)
@@ -433,23 +450,6 @@ static int check_bytes(u8 *start, unsigned int value, unsigned int bytes)
 		start++;
 		bytes--;
 	}
-	return 1;
-}
-
-static inline int check_valid_pointer(struct kmem_cache *s,
-				struct page *page, const void *object)
-{
-	void *base;
-
-	if (!object)
-		return 1;
-
-	base = page_address(page);
-	if (object < base || object >= base + s->objects * s->size ||
-		(object - base) % s->size) {
-		return 0;
-	}
-
 	return 1;
 }
 
