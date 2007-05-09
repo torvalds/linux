@@ -21,6 +21,7 @@
 #include <linux/workqueue.h>
 
 #define DM_MSG_PREFIX "raid1"
+#define DM_IO_PAGES 64
 
 #define DM_RAID1_HANDLE_ERRORS 0x01
 
@@ -125,6 +126,8 @@ struct mirror_set {
 	spinlock_t lock;	/* protects the next two lists */
 	struct bio_list reads;
 	struct bio_list writes;
+
+	struct dm_io_client *io_client;
 
 	/* recovery */
 	region_t nr_regions;
@@ -796,6 +799,14 @@ static void do_write(struct mirror_set *ms, struct bio *bio)
 	unsigned int i;
 	struct io_region io[KCOPYD_MAX_REGIONS+1];
 	struct mirror *m;
+	struct dm_io_request io_req = {
+		.bi_rw = WRITE,
+		.mem.type = DM_IO_BVEC,
+		.mem.ptr.bvec = bio->bi_io_vec + bio->bi_idx,
+		.notify.fn = write_callback,
+		.notify.context = bio,
+		.client = ms->io_client,
+	};
 
 	for (i = 0; i < ms->nr_mirrors; i++) {
 		m = ms->mirror + i;
@@ -806,9 +817,8 @@ static void do_write(struct mirror_set *ms, struct bio *bio)
 	}
 
 	bio_set_ms(bio, ms);
-	dm_io_async_bvec(ms->nr_mirrors, io, WRITE,
-			 bio->bi_io_vec + bio->bi_idx,
-			 write_callback, bio);
+
+	(void) dm_io(&io_req, ms->nr_mirrors, io, NULL);
 }
 
 static void do_writes(struct mirror_set *ms, struct bio_list *writes)
@@ -924,6 +934,13 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 	ms->in_sync = 0;
 	ms->default_mirror = &ms->mirror[DEFAULT_MIRROR];
 
+	ms->io_client = dm_io_client_create(DM_IO_PAGES);
+	if (IS_ERR(ms->io_client)) {
+		ti->error = "Error creating dm_io client";
+		kfree(ms);
+ 		return NULL;
+	}
+
 	if (rh_init(&ms->rh, ms, dl, region_size, ms->nr_regions)) {
 		ti->error = "Error creating dirty region hash";
 		kfree(ms);
@@ -939,6 +956,7 @@ static void free_context(struct mirror_set *ms, struct dm_target *ti,
 	while (m--)
 		dm_put_device(ti, ms->mirror[m].dev);
 
+	dm_io_client_destroy(ms->io_client);
 	rh_exit(&ms->rh);
 	kfree(ms);
 }
@@ -1062,7 +1080,6 @@ static int parse_features(struct mirror_set *ms, unsigned argc, char **argv,
  *
  * If present, features must be "handle_errors".
  */
-#define DM_IO_PAGES 64
 static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	int r;
