@@ -64,6 +64,7 @@ struct workqueue_struct {
 
 /* All the per-cpu workqueues on the system, for hotplug cpu to add/remove
    threads to each one as cpus come/go. */
+static long migrate_sequence __read_mostly;
 static DEFINE_MUTEX(workqueue_mutex);
 static LIST_HEAD(workqueues);
 
@@ -421,13 +422,7 @@ static void flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
 		 * Probably keventd trying to flush its own queue. So simply run
 		 * it by hand rather than deadlocking.
 		 */
-		preempt_enable();
-		/*
-		 * We can still touch *cwq here because we are keventd, and
-		 * hot-unplug will be waiting us to exit.
-		 */
 		run_workqueue(cwq);
-		preempt_disable();
 	} else {
 		struct wq_barrier barr;
 		int active = 0;
@@ -439,11 +434,8 @@ static void flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
 		}
 		spin_unlock_irq(&cwq->lock);
 
-		if (active) {
-			preempt_enable();
+		if (active)
 			wait_for_completion(&barr.done);
-			preempt_disable();
-		}
 	}
 }
 
@@ -462,17 +454,21 @@ static void flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
  */
 void fastcall flush_workqueue(struct workqueue_struct *wq)
 {
-	preempt_disable();		/* CPU hotplug */
 	if (is_single_threaded(wq)) {
 		/* Always use first cpu's area. */
 		flush_cpu_workqueue(per_cpu_ptr(wq->cpu_wq, singlethread_cpu));
 	} else {
+		long sequence;
 		int cpu;
+again:
+		sequence = migrate_sequence;
 
-		for_each_online_cpu(cpu)
+		for_each_possible_cpu(cpu)
 			flush_cpu_workqueue(per_cpu_ptr(wq->cpu_wq, cpu));
+
+		if (unlikely(sequence != migrate_sequence))
+			goto again;
 	}
-	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(flush_workqueue);
 
@@ -544,17 +540,21 @@ out:
 }
 EXPORT_SYMBOL_GPL(flush_work);
 
+static void init_cpu_workqueue(struct workqueue_struct *wq, int cpu)
+{
+	struct cpu_workqueue_struct *cwq = per_cpu_ptr(wq->cpu_wq, cpu);
+
+	cwq->wq = wq;
+	spin_lock_init(&cwq->lock);
+	INIT_LIST_HEAD(&cwq->worklist);
+	init_waitqueue_head(&cwq->more_work);
+}
+
 static struct task_struct *create_workqueue_thread(struct workqueue_struct *wq,
 							int cpu)
 {
 	struct cpu_workqueue_struct *cwq = per_cpu_ptr(wq->cpu_wq, cpu);
 	struct task_struct *p;
-
-	spin_lock_init(&cwq->lock);
-	cwq->wq = wq;
-	cwq->thread = NULL;
-	INIT_LIST_HEAD(&cwq->worklist);
-	init_waitqueue_head(&cwq->more_work);
 
 	if (is_single_threaded(wq))
 		p = kthread_create(worker_thread, cwq, "%s", wq->name);
@@ -589,6 +589,7 @@ struct workqueue_struct *__create_workqueue(const char *name,
 	mutex_lock(&workqueue_mutex);
 	if (singlethread) {
 		INIT_LIST_HEAD(&wq->list);
+		init_cpu_workqueue(wq, singlethread_cpu);
 		p = create_workqueue_thread(wq, singlethread_cpu);
 		if (!p)
 			destroy = 1;
@@ -596,7 +597,11 @@ struct workqueue_struct *__create_workqueue(const char *name,
 			wake_up_process(p);
 	} else {
 		list_add(&wq->list, &workqueues);
-		for_each_online_cpu(cpu) {
+		for_each_possible_cpu(cpu) {
+			init_cpu_workqueue(wq, cpu);
+			if (!cpu_online(cpu))
+				continue;
+
 			p = create_workqueue_thread(wq, cpu);
 			if (p) {
 				kthread_bind(p, cpu);
@@ -831,6 +836,7 @@ static void take_over_work(struct workqueue_struct *wq, unsigned int cpu)
 
 	spin_lock_irq(&cwq->lock);
 	list_replace_init(&cwq->worklist, &list);
+	migrate_sequence++;
 
 	while (!list_empty(&list)) {
 		printk("Taking work for %s\n", wq->name);
