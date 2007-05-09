@@ -244,7 +244,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				     struct hid_usage *usage)
 {
 	struct input_dev *input = hidinput->input;
-	struct hid_device *device = input->private;
+	struct hid_device *device = input_get_drvdata(input);
 	int max = 0, code;
 	unsigned long *bit = NULL;
 
@@ -859,13 +859,15 @@ EXPORT_SYMBOL_GPL(hidinput_find_field);
 
 static int hidinput_open(struct input_dev *dev)
 {
-	struct hid_device *hid = dev->private;
+	struct hid_device *hid = input_get_drvdata(dev);
+
 	return hid->hid_open(hid);
 }
 
 static void hidinput_close(struct input_dev *dev)
 {
-	struct hid_device *hid = dev->private;
+	struct hid_device *hid = input_get_drvdata(dev);
+
 	hid->hid_close(hid);
 }
 
@@ -913,7 +915,7 @@ int hidinput_connect(struct hid_device *hid)
 					return -1;
 				}
 
-				input_dev->private = hid;
+				input_set_drvdata(input_dev, hid);
 				input_dev->event = hid->hidinput_input_event;
 				input_dev->open = hidinput_open;
 				input_dev->close = hidinput_close;
@@ -925,7 +927,7 @@ int hidinput_connect(struct hid_device *hid)
 				input_dev->id.vendor  = hid->vendor;
 				input_dev->id.product = hid->product;
 				input_dev->id.version = hid->version;
-				input_dev->cdev.dev = hid->dev;
+				input_dev->dev.parent = hid->dev;
 				hidinput->input = input_dev;
 				list_add_tail(&hidinput->list, &hid->inputs);
 			}

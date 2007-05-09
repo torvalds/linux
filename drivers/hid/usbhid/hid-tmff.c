@@ -59,7 +59,7 @@ static inline int hid_tmff_scale(unsigned int in, int minimum, int maximum)
 
 static int hid_tmff_play(struct input_dev *dev, void *data, struct ff_effect *effect)
 {
-	struct hid_device *hid = dev->private;
+	struct hid_device *hid = input_get_drvdata(dev);
 	struct tmff_device *tmff = data;
 	int left, right;	/* Rumbling */
 
