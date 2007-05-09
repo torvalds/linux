@@ -24,15 +24,13 @@ typedef void (*work_func_t)(struct work_struct *work);
 struct work_struct {
 	atomic_long_t data;
 #define WORK_STRUCT_PENDING 0		/* T if work item pending execution */
-#define WORK_STRUCT_NOAUTOREL 1		/* F if work item automatically released on exec */
 #define WORK_STRUCT_FLAG_MASK (3UL)
 #define WORK_STRUCT_WQ_DATA_MASK (~WORK_STRUCT_FLAG_MASK)
 	struct list_head entry;
 	work_func_t func;
 };
 
-#define WORK_DATA_INIT(autorelease) \
-	ATOMIC_LONG_INIT((autorelease) << WORK_STRUCT_NOAUTOREL)
+#define WORK_DATA_INIT()	ATOMIC_LONG_INIT(0)
 
 struct delayed_work {
 	struct work_struct work;
@@ -44,14 +42,8 @@ struct execute_work {
 };
 
 #define __WORK_INITIALIZER(n, f) {				\
-	.data = WORK_DATA_INIT(0),				\
-        .entry	= { &(n).entry, &(n).entry },			\
-	.func = (f),						\
-	}
-
-#define __WORK_INITIALIZER_NAR(n, f) {				\
-	.data = WORK_DATA_INIT(1),				\
-        .entry	= { &(n).entry, &(n).entry },			\
+	.data = WORK_DATA_INIT(),				\
+	.entry	= { &(n).entry, &(n).entry },			\
 	.func = (f),						\
 	}
 
@@ -60,22 +52,11 @@ struct execute_work {
 	.timer = TIMER_INITIALIZER(NULL, 0, 0),			\
 	}
 
-#define __DELAYED_WORK_INITIALIZER_NAR(n, f) {			\
-	.work = __WORK_INITIALIZER_NAR((n).work, (f)),		\
-	.timer = TIMER_INITIALIZER(NULL, 0, 0),			\
-	}
-
 #define DECLARE_WORK(n, f)					\
 	struct work_struct n = __WORK_INITIALIZER(n, f)
 
-#define DECLARE_WORK_NAR(n, f)					\
-	struct work_struct n = __WORK_INITIALIZER_NAR(n, f)
-
 #define DECLARE_DELAYED_WORK(n, f)				\
 	struct delayed_work n = __DELAYED_WORK_INITIALIZER(n, f)
-
-#define DECLARE_DELAYED_WORK_NAR(n, f)			\
-	struct dwork_struct n = __DELAYED_WORK_INITIALIZER_NAR(n, f)
 
 /*
  * initialize a work item's function pointer
@@ -95,16 +76,9 @@ struct execute_work {
  * assignment of the work data initializer allows the compiler
  * to generate better code.
  */
-#define INIT_WORK(_work, _func)					\
-	do {							\
-		(_work)->data = (atomic_long_t) WORK_DATA_INIT(0);	\
-		INIT_LIST_HEAD(&(_work)->entry);		\
-		PREPARE_WORK((_work), (_func));			\
-	} while (0)
-
-#define INIT_WORK_NAR(_work, _func)					\
+#define INIT_WORK(_work, _func)						\
 	do {								\
-		(_work)->data = (atomic_long_t) WORK_DATA_INIT(1);	\
+		(_work)->data = (atomic_long_t) WORK_DATA_INIT();	\
 		INIT_LIST_HEAD(&(_work)->entry);			\
 		PREPARE_WORK((_work), (_func));				\
 	} while (0)
@@ -112,12 +86,6 @@ struct execute_work {
 #define INIT_DELAYED_WORK(_work, _func)				\
 	do {							\
 		INIT_WORK(&(_work)->work, (_func));		\
-		init_timer(&(_work)->timer);			\
-	} while (0)
-
-#define INIT_DELAYED_WORK_NAR(_work, _func)			\
-	do {							\
-		INIT_WORK_NAR(&(_work)->work, (_func));		\
 		init_timer(&(_work)->timer);			\
 	} while (0)
 
@@ -143,24 +111,10 @@ struct execute_work {
 	work_pending(&(w)->work)
 
 /**
- * work_release - Release a work item under execution
- * @work: The work item to release
- *
- * This is used to release a work item that has been initialised with automatic
- * release mode disabled (WORK_STRUCT_NOAUTOREL is set).  This gives the work
- * function the opportunity to grab auxiliary data from the container of the
- * work_struct before clearing the pending bit as the work_struct may be
- * subject to deallocation the moment the pending bit is cleared.
- *
- * In such a case, this should be called in the work function after it has
- * fetched any data it may require from the containter of the work_struct.
- * After this function has been called, the work_struct may be scheduled for
- * further execution or it may be deallocated unless other precautions are
- * taken.
- *
- * This should also be used to release a delayed work item.
+ * work_clear_pending - for internal use only, mark a work item as not pending
+ * @work: The work item in question
  */
-#define work_release(work) \
+#define work_clear_pending(work) \
 	clear_bit(WORK_STRUCT_PENDING, work_data_bits(work))
 
 
@@ -205,7 +159,7 @@ static inline int cancel_delayed_work(struct delayed_work *work)
 
 	ret = del_timer(&work->timer);
 	if (ret)
-		work_release(&work->work);
+		work_clear_pending(&work->work);
 	return ret;
 }
 

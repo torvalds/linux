@@ -246,8 +246,7 @@ static void run_workqueue(struct cpu_workqueue_struct *cwq)
 		spin_unlock_irq(&cwq->lock);
 
 		BUG_ON(get_wq_data(work) != cwq);
-		if (!test_bit(WORK_STRUCT_NOAUTOREL, work_data_bits(work)))
-			work_release(work);
+		work_clear_pending(work);
 		f(work);
 
 		if (unlikely(in_atomic() || lockdep_depth(current) > 0)) {
@@ -453,7 +452,7 @@ void flush_work(struct workqueue_struct *wq, struct work_struct *work)
 	 */
 	spin_lock_irq(&cwq->lock);
 	list_del_init(&work->entry);
-	work_release(work);
+	work_clear_pending(work);
 	spin_unlock_irq(&cwq->lock);
 
 	for_each_cpu_mask(cpu, *cpu_map)
