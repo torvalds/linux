@@ -246,7 +246,7 @@ static void __init fsample_init_smc91x(void)
 	mdelay(50);
 }
 
-void omap_fsample_init_irq(void)
+static void __init omap_fsample_init_irq(void)
 {
 	omap1_init_common_hw();
 	omap_init_irq();

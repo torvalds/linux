@@ -77,6 +77,17 @@
 #define io_p2v(pa)	((pa) + IO_OFFSET)	/* Works for L3 and L4 */
 #define io_v2p(va)	((va) - IO_OFFSET)	/* Works for L3 and L4 */
 
+/* DSP */
+#define DSP_MEM_24XX_PHYS	OMAP24XX_DSP_MEM_BASE	/* 0x58000000 */
+#define DSP_MEM_24XX_VIRT	0xe0000000
+#define DSP_MEM_24XX_SIZE	0x28000
+#define DSP_IPI_24XX_PHYS	OMAP24XX_DSP_IPI_BASE	/* 0x59000000 */
+#define DSP_IPI_24XX_VIRT	0xe1000000
+#define DSP_IPI_24XX_SIZE	SZ_4K
+#define DSP_MMU_24XX_PHYS	OMAP24XX_DSP_MMU_BASE	/* 0x5a000000 */
+#define DSP_MMU_24XX_VIRT	0xe2000000
+#define DSP_MMU_24XX_SIZE	SZ_4K
+
 #endif
 
 #ifndef __ASSEMBLER__

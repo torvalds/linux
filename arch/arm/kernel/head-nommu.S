@@ -33,7 +33,7 @@
  * numbers for r1.
  *
  */
-	__INIT
+	.section ".text.head", "ax"
 	.type	stext, %function
 ENTRY(stext)
 	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | SVC_MODE @ ensure svc mode

@@ -116,8 +116,8 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 
 			offset += sym->st_value - loc;
 			if (offset & 3 ||
-			    offset <= (s32)0xfc000000 ||
-			    offset >= (s32)0x04000000) {
+			    offset <= (s32)0xfe000000 ||
+			    offset >= (s32)0x02000000) {
 				printk(KERN_ERR
 				       "%s: relocation out of range, section "
 				       "%d reloc %d sym '%s'\n", module->name,

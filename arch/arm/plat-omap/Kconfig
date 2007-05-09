@@ -20,6 +20,11 @@ endchoice
 
 comment "OMAP Feature Selections"
 
+config OMAP_DEBUG_LEDS
+	bool
+	help
+	  For debug card leds on TI reference boards.
+
 config OMAP_RESET_CLOCKS
 	bool "Reset unused clocks during boot"
 	depends on ARCH_OMAP
@@ -57,6 +62,14 @@ config OMAP_MUX_WARNINGS
 	  Choose Y here to warn whenever driver initialization logic needs
 	  to change the pin multiplexing setup.  When there are no warnings
 	  printed, it's safe to deselect OMAP_MUX for your product.
+
+config OMAP_MCBSP
+	bool "McBSP support"
+	depends on ARCH_OMAP
+	default y
+	help
+	  Say Y here if you want support for the OMAP Multichannel
+	  Buffered Serial Port.
 
 choice
         prompt "System timer"

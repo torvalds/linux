@@ -925,10 +925,17 @@ static int omap2_dma_handle_ch(int ch)
 {
 	u32 status = OMAP_DMA_CSR_REG(ch);
 
-	if (!status)
+	if (!status) {
+		if (printk_ratelimit())
+			printk(KERN_WARNING "Spurious DMA IRQ for lch %d\n", ch);
 		return 0;
-	if (unlikely(dma_chan[ch].dev_id == -1))
+	}
+	if (unlikely(dma_chan[ch].dev_id == -1)) {
+		if (printk_ratelimit())
+			printk(KERN_WARNING "IRQ %04x for non-allocated DMA"
+					"channel %d\n", status, ch);
 		return 0;
+	}
 	if (unlikely(status & OMAP_DMA_DROP_IRQ))
 		printk(KERN_INFO
 		       "DMA synchronization event drop occurred with device "
@@ -959,11 +966,15 @@ static irqreturn_t omap2_dma_irq_handler(int irq, void *dev_id)
 	int i;
 
 	val = omap_readl(OMAP_DMA4_IRQSTATUS_L0);
-
-	for (i = 1; i <= OMAP_LOGICAL_DMA_CH_COUNT; i++) {
-		int active = val & (1 << (i - 1));
-		if (active)
-			omap2_dma_handle_ch(i - 1);
+	if (val == 0) {
+		if (printk_ratelimit())
+			printk(KERN_WARNING "Spurious DMA IRQ\n");
+		return IRQ_HANDLED;
+	}
+	for (i = 0; i < OMAP_LOGICAL_DMA_CH_COUNT && val != 0; i++) {
+		if (val & 1)
+			omap2_dma_handle_ch(i);
+		val >>= 1;
 	}
 
 	return IRQ_HANDLED;
