@@ -1,6 +1,8 @@
 #ifndef _M68K_SCATTERLIST_H
 #define _M68K_SCATTERLIST_H
 
+#include <linux/types.h>
+
 struct scatterlist {
 	struct page *page;
 	unsigned int offset;
