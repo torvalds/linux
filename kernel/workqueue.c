@@ -625,17 +625,12 @@ EXPORT_SYMBOL_GPL(__create_workqueue);
 
 static void cleanup_workqueue_thread(struct workqueue_struct *wq, int cpu)
 {
-	struct cpu_workqueue_struct *cwq;
-	unsigned long flags;
-	struct task_struct *p;
+	struct cpu_workqueue_struct *cwq = per_cpu_ptr(wq->cpu_wq, cpu);
 
-	cwq = per_cpu_ptr(wq->cpu_wq, cpu);
-	spin_lock_irqsave(&cwq->lock, flags);
-	p = cwq->thread;
-	cwq->thread = NULL;
-	spin_unlock_irqrestore(&cwq->lock, flags);
-	if (p)
-		kthread_stop(p);
+	if (cwq->thread) {
+		kthread_stop(cwq->thread);
+		cwq->thread = NULL;
+	}
 }
 
 /**
