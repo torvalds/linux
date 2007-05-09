@@ -1586,12 +1586,15 @@ static int calculate_order(int size)
 			order < MAX_ORDER; order++) {
 		unsigned long slab_size = PAGE_SIZE << order;
 
-		if (slub_max_order > order &&
+		if (order < slub_max_order &&
 				slab_size < slub_min_objects * size)
 			continue;
 
 		if (slab_size < size)
 			continue;
+
+		if (order >= slub_max_order)
+			break;
 
 		rem = slab_size % size;
 
@@ -2751,6 +2754,13 @@ static void resiliency_test(void) {};
 struct location {
 	unsigned long count;
 	void *addr;
+	long long sum_time;
+	long min_time;
+	long max_time;
+	long min_pid;
+	long max_pid;
+	cpumask_t cpus;
+	nodemask_t nodes;
 };
 
 struct loc_track {
@@ -2791,11 +2801,12 @@ static int alloc_loc_track(struct loc_track *t, unsigned long max)
 }
 
 static int add_location(struct loc_track *t, struct kmem_cache *s,
-						void *addr)
+				const struct track *track)
 {
 	long start, end, pos;
 	struct location *l;
 	void *caddr;
+	unsigned long age = jiffies - track->when;
 
 	start = -1;
 	end = t->count;
@@ -2811,12 +2822,29 @@ static int add_location(struct loc_track *t, struct kmem_cache *s,
 			break;
 
 		caddr = t->loc[pos].addr;
-		if (addr == caddr) {
-			t->loc[pos].count++;
+		if (track->addr == caddr) {
+
+			l = &t->loc[pos];
+			l->count++;
+			if (track->when) {
+				l->sum_time += age;
+				if (age < l->min_time)
+					l->min_time = age;
+				if (age > l->max_time)
+					l->max_time = age;
+
+				if (track->pid < l->min_pid)
+					l->min_pid = track->pid;
+				if (track->pid > l->max_pid)
+					l->max_pid = track->pid;
+
+				cpu_set(track->cpu, l->cpus);
+			}
+			node_set(page_to_nid(virt_to_page(track)), l->nodes);
 			return 1;
 		}
 
-		if (addr < caddr)
+		if (track->addr < caddr)
 			end = pos;
 		else
 			start = pos;
@@ -2834,7 +2862,16 @@ static int add_location(struct loc_track *t, struct kmem_cache *s,
 			(t->count - pos) * sizeof(struct location));
 	t->count++;
 	l->count = 1;
-	l->addr = addr;
+	l->addr = track->addr;
+	l->sum_time = age;
+	l->min_time = age;
+	l->max_time = age;
+	l->min_pid = track->pid;
+	l->max_pid = track->pid;
+	cpus_clear(l->cpus);
+	cpu_set(track->cpu, l->cpus);
+	nodes_clear(l->nodes);
+	node_set(page_to_nid(virt_to_page(track)), l->nodes);
 	return 1;
 }
 
@@ -2850,11 +2887,8 @@ static void process_slab(struct loc_track *t, struct kmem_cache *s,
 		set_bit(slab_index(p, s, addr), map);
 
 	for_each_object(p, s, addr)
-		if (!test_bit(slab_index(p, s, addr), map)) {
-			void *addr = get_track(s, p, alloc)->addr;
-
-			add_location(t, s, addr);
-		}
+		if (!test_bit(slab_index(p, s, addr), map))
+			add_location(t, s, get_track(s, p, alloc));
 }
 
 static int list_locations(struct kmem_cache *s, char *buf,
@@ -2888,15 +2922,47 @@ static int list_locations(struct kmem_cache *s, char *buf,
 	}
 
 	for (i = 0; i < t.count; i++) {
-		void *addr = t.loc[i].addr;
+		struct location *l = &t.loc[i];
 
 		if (n > PAGE_SIZE - 100)
 			break;
-		n += sprintf(buf + n, "%7ld ", t.loc[i].count);
-		if (addr)
-			n += sprint_symbol(buf + n, (unsigned long)t.loc[i].addr);
+		n += sprintf(buf + n, "%7ld ", l->count);
+
+		if (l->addr)
+			n += sprint_symbol(buf + n, (unsigned long)l->addr);
 		else
 			n += sprintf(buf + n, "<not-available>");
+
+		if (l->sum_time != l->min_time) {
+			unsigned long remainder;
+
+			n += sprintf(buf + n, " age=%ld/%ld/%ld",
+			l->min_time,
+			div_long_long_rem(l->sum_time, l->count, &remainder),
+			l->max_time);
+		} else
+			n += sprintf(buf + n, " age=%ld",
+				l->min_time);
+
+		if (l->min_pid != l->max_pid)
+			n += sprintf(buf + n, " pid=%ld-%ld",
+				l->min_pid, l->max_pid);
+		else
+			n += sprintf(buf + n, " pid=%ld",
+				l->min_pid);
+
+		if (num_online_cpus() > 1 && !cpus_empty(l->cpus)) {
+			n += sprintf(buf + n, " cpus=");
+			n += cpulist_scnprintf(buf + n, PAGE_SIZE - n - 50,
+					l->cpus);
+		}
+
+		if (num_online_nodes() > 1 && !nodes_empty(l->nodes)) {
+			n += sprintf(buf + n, " nodes=");
+			n += nodelist_scnprintf(buf + n, PAGE_SIZE - n - 50,
+					l->nodes);
+		}
+
 		n += sprintf(buf + n, "\n");
 	}
 
