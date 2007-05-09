@@ -1017,7 +1017,9 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	 */
 	if (cmd->sc_data_direction == DMA_BIDIRECTIONAL) {
 		fw_error("Cannot handle DMA_BIDIRECTIONAL - rejecting command");
-		goto fail_alloc;
+		cmd->result = DID_ERROR << 16;
+		done(cmd);
+		return 0;
 	}
 
 	orb = kzalloc(sizeof *orb, GFP_ATOMIC);
@@ -1093,9 +1095,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
  fail_mapping:
 	kfree(orb);
  fail_alloc:
-	cmd->result = DID_ERROR << 16;
-	done(cmd);
-	return 0;
+	return SCSI_MLQUEUE_HOST_BUSY;
 }
 
 static int sbp2_scsi_slave_alloc(struct scsi_device *sdev)
