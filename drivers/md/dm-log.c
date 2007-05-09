@@ -152,6 +152,7 @@ struct log_c {
 	/*
 	 * Disk log fields
 	 */
+	int log_dev_failed;
 	struct dm_dev *log_dev;
 	struct log_header header;
 
@@ -315,6 +316,7 @@ static int create_log_context(struct dirty_log *log, struct dm_target *ti,
 		lc->disk_header = NULL;
 	} else {
 		lc->log_dev = dev;
+		lc->log_dev_failed = 0;
 		lc->header_location.bdev = lc->log_dev->bdev;
 		lc->header_location.sector = 0;
 
@@ -437,6 +439,15 @@ static int count_bits32(uint32_t *addr, unsigned size)
 	return count;
 }
 
+static void fail_log_device(struct log_c *lc)
+{
+	if (lc->log_dev_failed)
+		return;
+
+	lc->log_dev_failed = 1;
+	dm_table_event(lc->ti->table);
+}
+
 static int disk_resume(struct dirty_log *log)
 {
 	int r;
@@ -446,8 +457,12 @@ static int disk_resume(struct dirty_log *log)
 
 	/* read the disk header */
 	r = read_header(lc);
-	if (r)
+	if (r) {
+		DMWARN("%s: Failed to read header on mirror log device",
+		       lc->log_dev->name);
+		fail_log_device(lc);
 		return r;
+	}
 
 	/* set or clear any new bits -- device has grown */
 	if (lc->sync == NOSYNC)
@@ -472,7 +487,14 @@ static int disk_resume(struct dirty_log *log)
 	lc->header.nr_regions = lc->region_count;
 
 	/* write the new header */
-	return write_header(lc);
+	r = write_header(lc);
+	if (r) {
+		DMWARN("%s: Failed to write header on mirror log device",
+		       lc->log_dev->name);
+		fail_log_device(lc);
+	}
+
+	return r;
 }
 
 static uint32_t core_get_region_size(struct dirty_log *log)
@@ -516,7 +538,9 @@ static int disk_flush(struct dirty_log *log)
 		return 0;
 
 	r = write_header(lc);
-	if (!r)
+	if (r)
+		fail_log_device(lc);
+	else
 		lc->touched = 0;
 
 	return r;
