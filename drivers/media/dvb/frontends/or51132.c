@@ -45,7 +45,6 @@
 
 #include "dvb_math.h"
 #include "dvb_frontend.h"
-#include "dvb-pll.h"
 #include "or51132.h"
 
 static int debug;

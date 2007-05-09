@@ -49,7 +49,6 @@
 #include <linux/string.h>
 
 #include "dvb_frontend.h"
-#include "dvb-pll.h"
 #include "nxt200x.h"
 
 struct nxt200x_state {
