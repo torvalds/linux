@@ -54,9 +54,9 @@ fps
    Specifies the desired framerate. Is an integer in the range of 4-30.
 
 fbufs
-   This paramter specifies the number of internal buffers to use for storing
+   This parameter specifies the number of internal buffers to use for storing
    frames from the cam. This will help if the process that reads images from
-   the cam is a bit slow or momentarely busy. However, on slow machines it
+   the cam is a bit slow or momentarily busy. However, on slow machines it
    only introduces lag, so choose carefully. The default is 3, which is
    reasonable. You can set it between 2 and 5.
 
@@ -209,7 +209,7 @@ trace
 
      128   0x80   PWCX debugging                                      Off
 
-   For example, to trace the open() & read() fuctions, sum 8 + 4 = 12,
+   For example, to trace the open() & read() functions, sum 8 + 4 = 12,
    so you would supply trace=12 during insmod or modprobe. If
    you want to turn the initialization and probing tracing off, set trace=0.
    The default value for trace is 35 (0x23).

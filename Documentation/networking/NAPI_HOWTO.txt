@@ -160,7 +160,7 @@ on current cpu. This primitive is called by dev->poll(), when
 it completes its work. The device cannot be out of poll list at this
 call, if it is then clearly it is a BUG(). You'll know ;->
 
-All these above nethods are used below. So keep reading for clarity.
+All of the above methods are used below, so keep reading for clarity.
 
 Device driver changes to be made when porting NAPI
 ==================================================

@@ -1260,7 +1260,7 @@ then the request of the IRQ obviously will not succeed for all the drivers.
 15.1 Problem tracking
 
 Most SCSI problems are due to a non conformant SCSI bus or to buggy
-devices.  If infortunately you have SCSI problems, you can check the
+devices.  If unfortunately you have SCSI problems, you can check the
 following things:
 
 - SCSI bus cables

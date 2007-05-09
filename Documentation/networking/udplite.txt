@@ -139,7 +139,7 @@
   3) Disabling the Checksum Computation
 
   On both sender and receiver, checksumming will always be performed
-  and can not be disabled using SO_NO_CHECK. Thus
+  and cannot be disabled using SO_NO_CHECK. Thus
 
         setsockopt(sockfd, SOL_SOCKET, SO_NO_CHECK,  ... );
 

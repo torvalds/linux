@@ -16,7 +16,7 @@ host bridges to peripheral buses, and most controllers integrated
 into system-on-chip platforms.  What they usually have in common
 is direct addressing from a CPU bus.  Rarely, a platform_device will
 be connected through a segment of some other kind of bus; but its
-registers will still be directly addressible.
+registers will still be directly addressable.
 
 Platform devices are given a name, used in driver binding, and a
 list of resources such as addresses and IRQs.

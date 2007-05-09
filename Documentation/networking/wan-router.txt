@@ -335,7 +335,7 @@ REVISION HISTORY
 				creating applications using BiSync
    				streaming.        
 
-2.0.5   Aug 04, 1999 		CHDLC initializatin bug fix.
+2.0.5   Aug 04, 1999 		CHDLC initialization bug fix.
 				PPP interrupt driven driver: 
   				Fix to the PPP line hangup problem.
 				New PPP firmware
@@ -372,7 +372,7 @@ REVISION HISTORY
 				o cfgft1 GUI csu/dsu configurator
 				o wancfg GUI configuration file 
 				  configurator.
-				o Architectual directory changes.
+				o Architectural directory changes.
 
 beta-2.1.4 Jul 2000		o Dynamic interface configuration:
 					Network interfaces reflect the state

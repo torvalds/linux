@@ -221,7 +221,7 @@ Controls the kernel's behaviour when an oops or BUG is encountered.
 
 0: try to continue operation
 
-1: panic immediatly.  If the `panic' sysctl is also non-zero then the
+1: panic immediately.  If the `panic' sysctl is also non-zero then the
    machine will be rebooted.
 
 ==============================================================

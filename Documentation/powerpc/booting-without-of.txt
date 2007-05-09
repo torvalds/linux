@@ -1633,7 +1633,7 @@ platforms are moved over to use the flattened-device-tree model.
      - assignment : function number of the pin according to the Pin Assignment
        tables in User Manual.  Each pin can have up to 4 possible functions in
        QE and two options for CPM.
-     - has_irq : indicates if the pin is used as source of exteral
+     - has_irq : indicates if the pin is used as source of external
        interrupts.
 
    Example:

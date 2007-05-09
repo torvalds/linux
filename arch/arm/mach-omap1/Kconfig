@@ -84,7 +84,7 @@ config MACH_OMAP_PALMTE
           Support for the Palm Tungsten E PDA. Currently only the LCD panel
           is supported. To boot the kernel, you'll need a PalmOS compatible
           bootloader; check out http://palmtelinux.sourceforge.net for more
-          informations.
+          information.
           Say Y here if you have such a PDA, say NO otherwise.
 
 config MACH_NOKIA770
