@@ -138,8 +138,6 @@ struct usb_cardstate {
 	char			bchars[6];		/* for request 0x19 */
 };
 
-struct usb_bc_state {};
-
 static inline unsigned tiocm_to_gigaset(unsigned state)
 {
 	return ((state & TIOCM_DTR) ? 1 : 0) | ((state & TIOCM_RTS) ? 2 : 0);
@@ -579,25 +577,21 @@ static int gigaset_brkchars(struct cardstate *cs, const unsigned char buf[6])
 
 static int gigaset_freebcshw(struct bc_state *bcs)
 {
-	if (!bcs->hw.usb)
-		return 0;
-	//FIXME
-	kfree(bcs->hw.usb);
+	/* unused */
 	return 1;
 }
 
 /* Initialize the b-channel structure */
 static int gigaset_initbcshw(struct bc_state *bcs)
 {
-	bcs->hw.usb = kmalloc(sizeof(struct usb_bc_state), GFP_KERNEL);
-	if (!bcs->hw.usb)
-		return 0;
-
+	/* unused */
+	bcs->hw.usb = NULL;
 	return 1;
 }
 
 static void gigaset_reinitbcshw(struct bc_state *bcs)
 {
+	/* nothing to do for M10x */
 }
 
 static void gigaset_freecshw(struct cardstate *cs)
