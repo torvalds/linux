@@ -24,8 +24,6 @@
 #include "internal.h"
 
 struct cryptomgr_param {
-	struct task_struct *thread;
-
 	struct rtattr *tb[CRYPTOA_MAX];
 
 	struct {
@@ -81,6 +79,7 @@ err:
 
 static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 {
+	struct task_struct *thread;
 	struct cryptomgr_param *param;
 	const char *name = larval->alg.cra_name;
 	const char *p;
@@ -130,8 +129,8 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 
 	memcpy(param->larval.name, larval->alg.cra_name, CRYPTO_MAX_ALG_NAME);
 
-	param->thread = kthread_run(cryptomgr_probe, param, "cryptomgr");
-	if (IS_ERR(param->thread))
+	thread = kthread_run(cryptomgr_probe, param, "cryptomgr");
+	if (IS_ERR(thread))
 		goto err_free_param;
 
 	return NOTIFY_STOP;
