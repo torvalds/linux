@@ -3716,10 +3716,8 @@ static void tg3_reset_task(struct work_struct *work)
 	unsigned int restart_timer;
 
 	tg3_full_lock(tp, 0);
-	tp->tg3_flags |= TG3_FLAG_IN_RESET_TASK;
 
 	if (!netif_running(tp->dev)) {
-		tp->tg3_flags &= ~TG3_FLAG_IN_RESET_TASK;
 		tg3_full_unlock(tp);
 		return;
 	}
@@ -3750,8 +3748,6 @@ static void tg3_reset_task(struct work_struct *work)
 		mod_timer(&tp->timer, jiffies + 1);
 
 out:
-	tp->tg3_flags &= ~TG3_FLAG_IN_RESET_TASK;
-
 	tg3_full_unlock(tp);
 }
 
@@ -7390,12 +7386,7 @@ static int tg3_close(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	/* Calling flush_scheduled_work() may deadlock because
-	 * linkwatch_event() may be on the workqueue and it will try to get
-	 * the rtnl_lock which we are holding.
-	 */
-	while (tp->tg3_flags & TG3_FLAG_IN_RESET_TASK)
-		msleep(1);
+	flush_work_keventd(&tp->reset_task);
 
 	netif_stop_queue(dev);
 
