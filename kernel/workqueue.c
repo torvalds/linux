@@ -69,6 +69,7 @@ static DEFINE_MUTEX(workqueue_mutex);
 static LIST_HEAD(workqueues);
 
 static int singlethread_cpu __read_mostly;
+static cpumask_t cpu_singlethread_map __read_mostly;
 /* optimization, we could use cpu_possible_map */
 static cpumask_t cpu_populated_map __read_mostly;
 
@@ -76,6 +77,12 @@ static cpumask_t cpu_populated_map __read_mostly;
 static inline int is_single_threaded(struct workqueue_struct *wq)
 {
 	return list_empty(&wq->list);
+}
+
+static const cpumask_t *wq_cpu_map(struct workqueue_struct *wq)
+{
+	return is_single_threaded(wq)
+		? &cpu_singlethread_map : &cpu_populated_map;
 }
 
 /*
@@ -393,16 +400,12 @@ static void flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
  */
 void fastcall flush_workqueue(struct workqueue_struct *wq)
 {
+	const cpumask_t *cpu_map = wq_cpu_map(wq);
+	int cpu
+
 	might_sleep();
-
-	if (is_single_threaded(wq))
-		flush_cpu_workqueue(per_cpu_ptr(wq->cpu_wq, singlethread_cpu));
-	else {
-		int cpu;
-
-		for_each_cpu_mask(cpu, cpu_populated_map)
-			flush_cpu_workqueue(per_cpu_ptr(wq->cpu_wq, cpu));
-	}
+	for_each_cpu_mask(cpu, *cpu_map)
+		flush_cpu_workqueue(per_cpu_ptr(wq->cpu_wq, cpu));
 }
 EXPORT_SYMBOL_GPL(flush_workqueue);
 
@@ -439,7 +442,9 @@ static void wait_on_work(struct cpu_workqueue_struct *cwq,
  */
 void flush_work(struct workqueue_struct *wq, struct work_struct *work)
 {
+	const cpumask_t *cpu_map = wq_cpu_map(wq);
 	struct cpu_workqueue_struct *cwq;
+	int cpu;
 
 	might_sleep();
 
@@ -457,14 +462,8 @@ void flush_work(struct workqueue_struct *wq, struct work_struct *work)
 	work_release(work);
 	spin_unlock_irq(&cwq->lock);
 
-	if (is_single_threaded(wq))
-		wait_on_work(per_cpu_ptr(wq->cpu_wq, singlethread_cpu), work);
-	else {
-		int cpu;
-
-		for_each_cpu_mask(cpu, cpu_populated_map)
-			wait_on_work(per_cpu_ptr(wq->cpu_wq, cpu), work);
-	}
+	for_each_cpu_mask(cpu, *cpu_map)
+		wait_on_work(per_cpu_ptr(wq->cpu_wq, cpu), work);
 }
 EXPORT_SYMBOL_GPL(flush_work);
 
@@ -757,22 +756,17 @@ static void cleanup_workqueue_thread(struct cpu_workqueue_struct *cwq, int cpu)
  */
 void destroy_workqueue(struct workqueue_struct *wq)
 {
+	const cpumask_t *cpu_map = wq_cpu_map(wq);
 	struct cpu_workqueue_struct *cwq;
+	int cpu;
 
-	if (is_single_threaded(wq)) {
-		cwq = per_cpu_ptr(wq->cpu_wq, singlethread_cpu);
-		cleanup_workqueue_thread(cwq, singlethread_cpu);
-	} else {
-		int cpu;
+	mutex_lock(&workqueue_mutex);
+	list_del(&wq->list);
+	mutex_unlock(&workqueue_mutex);
 
-		mutex_lock(&workqueue_mutex);
-		list_del(&wq->list);
-		mutex_unlock(&workqueue_mutex);
-
-		for_each_cpu_mask(cpu, cpu_populated_map) {
-			cwq = per_cpu_ptr(wq->cpu_wq, cpu);
-			cleanup_workqueue_thread(cwq, cpu);
-		}
+	for_each_cpu_mask(cpu, *cpu_map) {
+		cwq = per_cpu_ptr(wq->cpu_wq, cpu);
+		cleanup_workqueue_thread(cwq, cpu);
 	}
 
 	free_percpu(wq->cpu_wq);
@@ -831,6 +825,7 @@ void init_workqueues(void)
 {
 	cpu_populated_map = cpu_online_map;
 	singlethread_cpu = first_cpu(cpu_possible_map);
+	cpu_singlethread_map = cpumask_of_cpu(singlethread_cpu);
 	hotcpu_notifier(workqueue_cpu_callback, 0);
 	keventd_wq = create_workqueue("events");
 	BUG_ON(!keventd_wq);
