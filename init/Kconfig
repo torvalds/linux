@@ -523,9 +523,9 @@ config SLAB
 	bool "SLAB"
 	help
 	  The regular slab allocator that is established and known to work
-	  well in all environments. It organizes chache hot objects in
+	  well in all environments. It organizes cache hot objects in
 	  per cpu and per node queues. SLAB is the default choice for
-	  slab allocator.
+	  a slab allocator.
 
 config SLUB
 	depends on EXPERIMENTAL && !ARCH_USES_SLAB_PAGE_STRUCT
@@ -535,21 +535,20 @@ config SLUB
 	   instead of managing queues of cached objects (SLAB approach).
 	   Per cpu caching is realized using slabs of objects instead
 	   of queues of objects. SLUB can use memory efficiently
-	   way and has enhanced diagnostics.
+	   and has enhanced diagnostics.
 
 config SLOB
 #
-#	SLOB cannot support SMP because SLAB_DESTROY_BY_RCU does not work
-#	properly.
+#	SLOB does not support SMP because SLAB_DESTROY_BY_RCU is unsupported
 #
 	depends on EMBEDDED && !SMP && !SPARSEMEM
 	bool "SLOB (Simple Allocator)"
 	help
 	   SLOB replaces the SLAB allocator with a drastically simpler
 	   allocator.  SLOB is more space efficient that SLAB but does not
-	   scale well (single lock for all operations) and is more susceptible
-	   to fragmentation. SLOB it is a great choice to reduce
-	   memory usage and code size for embedded systems.
+	   scale well (single lock for all operations) and is also highly
+	   susceptible to fragmentation. SLUB can accomplish a higher object
+	   density. It is usually better to use SLUB instead of SLOB.
 
 endchoice
 
