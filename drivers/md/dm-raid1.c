@@ -22,14 +22,7 @@
 
 #define DM_MSG_PREFIX "raid1"
 
-static struct workqueue_struct *_kmirrord_wq;
-static struct work_struct _kmirrord_work;
 static DECLARE_WAIT_QUEUE_HEAD(_kmirrord_recovery_stopped);
-
-static inline void wake(void)
-{
-	queue_work(_kmirrord_wq, &_kmirrord_work);
-}
 
 /*-----------------------------------------------------------------
  * Region hash
@@ -136,6 +129,9 @@ struct mirror_set {
 
 	struct mirror *default_mirror;	/* Default mirror */
 
+	struct workqueue_struct *kmirrord_wq;
+	struct work_struct kmirrord_work;
+
 	unsigned int nr_mirrors;
 	struct mirror mirror[0];
 };
@@ -151,6 +147,11 @@ static inline region_t bio_to_region(struct region_hash *rh, struct bio *bio)
 static inline sector_t region_to_sector(struct region_hash *rh, region_t region)
 {
 	return region << rh->region_shift;
+}
+
+static void wake(struct mirror_set *ms)
+{
+	queue_work(ms->kmirrord_wq, &ms->kmirrord_work);
 }
 
 /* FIXME move this */
@@ -471,7 +472,7 @@ static void rh_dec(struct region_hash *rh, region_t region)
 	spin_unlock_irqrestore(&rh->region_lock, flags);
 
 	if (should_wake)
-		wake();
+		wake(rh->ms);
 }
 
 /*
@@ -558,7 +559,7 @@ static void rh_recovery_end(struct region *reg, int success)
 	list_add(&reg->list, &reg->rh->recovered_regions);
 	spin_unlock_irq(&rh->region_lock);
 
-	wake();
+	wake(rh->ms);
 }
 
 static void rh_flush(struct region_hash *rh)
@@ -592,7 +593,7 @@ static void rh_start_recovery(struct region_hash *rh)
 	for (i = 0; i < MAX_RECOVERY; i++)
 		up(&rh->recovery_count);
 
-	wake();
+	wake(rh->ms);
 }
 
 /*
@@ -870,11 +871,10 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 /*-----------------------------------------------------------------
  * kmirrord
  *---------------------------------------------------------------*/
-static LIST_HEAD(_mirror_sets);
-static DECLARE_RWSEM(_mirror_sets_lock);
-
-static void do_mirror(struct mirror_set *ms)
+static void do_mirror(struct work_struct *work)
 {
+	struct mirror_set *ms =container_of(work, struct mirror_set,
+					    kmirrord_work);
 	struct bio_list reads, writes;
 
 	spin_lock(&ms->lock);
@@ -888,16 +888,6 @@ static void do_mirror(struct mirror_set *ms)
 	do_recovery(ms);
 	do_reads(ms, &reads);
 	do_writes(ms, &writes);
-}
-
-static void do_work(struct work_struct *ignored)
-{
-	struct mirror_set *ms;
-
-	down_read(&_mirror_sets_lock);
-	list_for_each_entry (ms, &_mirror_sets, list)
-		do_mirror(ms);
-	up_read(&_mirror_sets_lock);
 }
 
 /*-----------------------------------------------------------------
@@ -976,23 +966,6 @@ static int get_mirror(struct mirror_set *ms, struct dm_target *ti,
 	ms->mirror[mirror].offset = offset;
 
 	return 0;
-}
-
-static int add_mirror_set(struct mirror_set *ms)
-{
-	down_write(&_mirror_sets_lock);
-	list_add_tail(&ms->list, &_mirror_sets);
-	up_write(&_mirror_sets_lock);
-	wake();
-
-	return 0;
-}
-
-static void del_mirror_set(struct mirror_set *ms)
-{
-	down_write(&_mirror_sets_lock);
-	list_del(&ms->list);
-	up_write(&_mirror_sets_lock);
 }
 
 /*
@@ -1096,13 +1069,22 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->private = ms;
  	ti->split_io = ms->rh.region_size;
 
+	ms->kmirrord_wq = create_singlethread_workqueue("kmirrord");
+	if (!ms->kmirrord_wq) {
+		DMERR("couldn't start kmirrord");
+		free_context(ms, ti, m);
+		return -ENOMEM;
+	}
+	INIT_WORK(&ms->kmirrord_work, do_mirror);
+
 	r = kcopyd_client_create(DM_IO_PAGES, &ms->kcopyd_client);
 	if (r) {
+		destroy_workqueue(ms->kmirrord_wq);
 		free_context(ms, ti, ms->nr_mirrors);
 		return r;
 	}
 
-	add_mirror_set(ms);
+	wake(ms);
 	return 0;
 }
 
@@ -1110,8 +1092,9 @@ static void mirror_dtr(struct dm_target *ti)
 {
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
 
-	del_mirror_set(ms);
+	flush_workqueue(ms->kmirrord_wq);
 	kcopyd_client_destroy(ms->kcopyd_client);
+	destroy_workqueue(ms->kmirrord_wq);
 	free_context(ms, ti, ms->nr_mirrors);
 }
 
@@ -1127,7 +1110,7 @@ static void queue_bio(struct mirror_set *ms, struct bio *bio, int rw)
 	spin_unlock(&ms->lock);
 
 	if (should_wake)
-		wake();
+		wake(ms);
 }
 
 /*
@@ -1270,20 +1253,11 @@ static int __init dm_mirror_init(void)
 	if (r)
 		return r;
 
-	_kmirrord_wq = create_singlethread_workqueue("kmirrord");
-	if (!_kmirrord_wq) {
-		DMERR("couldn't start kmirrord");
-		dm_dirty_log_exit();
-		return r;
-	}
-	INIT_WORK(&_kmirrord_work, do_work);
-
 	r = dm_register_target(&mirror_target);
 	if (r < 0) {
 		DMERR("%s: Failed to register mirror target",
 		      mirror_target.name);
 		dm_dirty_log_exit();
-		destroy_workqueue(_kmirrord_wq);
 	}
 
 	return r;
@@ -1297,7 +1271,6 @@ static void __exit dm_mirror_exit(void)
 	if (r < 0)
 		DMERR("%s: unregister failed %d", mirror_target.name, r);
 
-	destroy_workqueue(_kmirrord_wq);
 	dm_dirty_log_exit();
 }
 
