@@ -548,7 +548,7 @@ static inline void i2c_pxa_stop_message(struct pxa_i2c *i2c)
 	 */
 	icr = readl(_ICR(i2c));
 	icr &= ~(ICR_STOP | ICR_ACKNAK);
-	writel(icr, _IRC(i2c));
+	writel(icr, _ICR(i2c));
 }
 
 /*
