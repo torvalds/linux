@@ -100,7 +100,8 @@ ipt_local_hook(unsigned int hook,
 	if ((*pskb)->len < sizeof(struct iphdr)
 	    || ip_hdrlen(*pskb) < sizeof(struct iphdr)) {
 		if (net_ratelimit())
-			printk("ipt_hook: happy cracking.\n");
+			printk("iptable_mangle: ignoring short SOCK_RAW "
+			       "packet.\n");
 		return NF_ACCEPT;
 	}
 
