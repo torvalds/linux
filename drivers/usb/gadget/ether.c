@@ -301,6 +301,10 @@ MODULE_PARM_DESC(host_addr, "Host Ethernet Address");
 #define	DEV_CONFIG_SUBSET
 #endif
 
+#ifdef CONFIG_USB_GADGET_M66592
+#define DEV_CONFIG_CDC
+#endif
+
 
 /*-------------------------------------------------------------------------*/
 
