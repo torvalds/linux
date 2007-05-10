@@ -23,13 +23,6 @@ obj-$(CONFIG_USB_PRINTER)	+= class/
 obj-$(CONFIG_USB_STORAGE)	+= storage/
 obj-$(CONFIG_USB)		+= storage/
 
-obj-$(CONFIG_USB_CATC)		+= net/
-obj-$(CONFIG_USB_KAWETH)	+= net/
-obj-$(CONFIG_USB_PEGASUS)	+= net/
-obj-$(CONFIG_USB_RTL8150)	+= net/
-obj-$(CONFIG_USB_USBNET)	+= net/
-obj-$(CONFIG_USB_ZD1201)	+= net/
-
 obj-$(CONFIG_USB_MDC800)	+= image/
 obj-$(CONFIG_USB_MICROTEK)	+= image/
 

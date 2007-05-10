@@ -206,6 +206,14 @@ obj-$(CONFIG_TR) += tokenring/
 obj-$(CONFIG_WAN) += wan/
 obj-$(CONFIG_ARCNET) += arcnet/
 obj-$(CONFIG_NET_PCMCIA) += pcmcia/
+
+obj-$(CONFIG_USB_CATC)          += usb/
+obj-$(CONFIG_USB_KAWETH)        += usb/
+obj-$(CONFIG_USB_PEGASUS)       += usb/
+obj-$(CONFIG_USB_RTL8150)       += usb/
+obj-$(CONFIG_USB_USBNET)        += usb/
+obj-$(CONFIG_USB_ZD1201)        += usb/
+
 obj-y += wireless/
 obj-$(CONFIG_NET_TULIP) += tulip/
 obj-$(CONFIG_HAMRADIO) += hamradio/
