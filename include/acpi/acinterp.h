@@ -253,8 +253,7 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 
 void acpi_ex_release_all_mutexes(struct acpi_thread_state *thread);
 
-void acpi_ex_unlink_mutex(union acpi_operand_object *obj_desc,
-			  struct acpi_thread_state *thread);
+void acpi_ex_unlink_mutex(union acpi_operand_object *obj_desc);
 
 /*
  * exprep - ACPI AML execution - prep utilities

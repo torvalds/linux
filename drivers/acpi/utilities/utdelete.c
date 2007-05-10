@@ -170,6 +170,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 			acpi_os_delete_mutex(object->mutex.os_mutex);
 			acpi_gbl_global_lock_mutex = NULL;
 		} else {
+			acpi_ex_unlink_mutex(object);
 			acpi_os_delete_mutex(object->mutex.os_mutex);
 		}
 		break;
