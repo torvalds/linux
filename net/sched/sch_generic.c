@@ -132,6 +132,7 @@ static inline int qdisc_restart(struct net_device *dev)
 						netif_tx_unlock(dev);
 					}
 					spin_lock(&dev->queue_lock);
+					q = dev->qdisc;
 					goto out;
 				}
 				if (ret == NETDEV_TX_LOCKED && nolock) {
