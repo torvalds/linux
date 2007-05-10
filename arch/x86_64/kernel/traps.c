@@ -778,6 +778,7 @@ asmlinkage __kprobes void default_do_nmi(struct pt_regs *regs)
 			return;
 		if (notify_die(DIE_NMI_POST, "nmi_post", regs, reason, 2, 0)
 								== NOTIFY_STOP)
+			return;
 		if (!do_nmi_callback(regs,cpu))
 			unknown_nmi_error(reason, regs);
 
