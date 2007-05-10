@@ -226,13 +226,14 @@ static int __devinit at91_i2c_probe(struct platform_device *pdev)
 	adapter->algo = &at91_algorithm;
 	adapter->class = I2C_CLASS_HWMON;
 	adapter->dev.parent = &pdev->dev;
+	/* adapter->id == 0 ... only one TWI controller for now */
 
 	platform_set_drvdata(pdev, adapter);
 
 	clk_enable(twi_clk);		/* enable peripheral clock */
 	at91_twi_hwinit();		/* initialize TWI controller */
 
-	rc = i2c_add_adapter(adapter);
+	rc = i2c_add_numbered_adapter(adapter);
 	if (rc) {
 		dev_err(&pdev->dev, "Adapter %s registration failed\n",
 				adapter->name);
@@ -294,6 +295,9 @@ static int at91_i2c_resume(struct platform_device *pdev)
 #define at91_i2c_suspend	NULL
 #define at91_i2c_resume		NULL
 #endif
+
+/* work with "modprobe at91_i2c" from hotplugging or coldplugging */
+MODULE_ALIAS("at91_i2c");
 
 static struct platform_driver at91_i2c_driver = {
 	.probe		= at91_i2c_probe,
