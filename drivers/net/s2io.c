@@ -4775,6 +4775,40 @@ static int s2io_ethtool_idnic(struct net_device *dev, u32 data)
 	return 0;
 }
 
+static void s2io_ethtool_gringparam(struct net_device *dev,
+                                    struct ethtool_ringparam *ering)
+{
+	struct s2io_nic *sp = dev->priv;
+	int i,tx_desc_count=0,rx_desc_count=0;
+
+	if (sp->rxd_mode == RXD_MODE_1)
+		ering->rx_max_pending = MAX_RX_DESC_1;
+	else if (sp->rxd_mode == RXD_MODE_3B)
+		ering->rx_max_pending = MAX_RX_DESC_2;
+	else if (sp->rxd_mode == RXD_MODE_3A)
+		ering->rx_max_pending = MAX_RX_DESC_3;
+
+	ering->tx_max_pending = MAX_TX_DESC;
+	for (i = 0 ; i < sp->config.tx_fifo_num ; i++) {
+		tx_desc_count += sp->config.tx_cfg[i].fifo_len;
+	}
+	DBG_PRINT(INFO_DBG,"\nmax txds : %d\n",sp->config.max_txds);
+	ering->tx_pending = tx_desc_count;
+	rx_desc_count = 0;
+	for (i = 0 ; i < sp->config.rx_ring_num ; i++) {
+		rx_desc_count += sp->config.rx_cfg[i].num_rxd;
+	}
+	ering->rx_pending = rx_desc_count;
+
+	ering->rx_mini_max_pending = 0;
+	ering->rx_mini_pending = 0;
+	if(sp->rxd_mode == RXD_MODE_1)
+		ering->rx_jumbo_max_pending = MAX_RX_DESC_1;
+	else if (sp->rxd_mode == RXD_MODE_3B)
+		ering->rx_jumbo_max_pending = MAX_RX_DESC_2;
+	ering->rx_jumbo_pending = rx_desc_count;
+}
+
 /**
  * s2io_ethtool_getpause_data -Pause frame frame generation and reception.
  * @sp : private member of the device structure, which is a pointer to the
@@ -5854,6 +5888,7 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_eeprom_len = s2io_get_eeprom_len,
 	.get_eeprom = s2io_ethtool_geeprom,
 	.set_eeprom = s2io_ethtool_seeprom,
+	.get_ringparam = s2io_ethtool_gringparam,
 	.get_pauseparam = s2io_ethtool_getpause_data,
 	.set_pauseparam = s2io_ethtool_setpause_data,
 	.get_rx_csum = s2io_ethtool_get_rx_csum,
