@@ -155,7 +155,7 @@ struct acpi_object_event {
 struct acpi_object_mutex {
 	ACPI_OBJECT_COMMON_HEADER u8 sync_level;	/* 0-15, specified in Mutex() call */
 	u16 acquisition_depth;	/* Allow multiple Acquires, same thread */
-	acpi_thread_id owner_thread_id;	/* Current owner of the mutex */
+	struct acpi_thread_state *owner_thread;	/* Current owner of the mutex */
 	acpi_mutex os_mutex;	/* Actual OS synchronization object */
 	union acpi_operand_object *prev;	/* Link for list of acquired mutexes */
 	union acpi_operand_object *next;	/* Link for list of acquired mutexes */
@@ -216,7 +216,7 @@ struct acpi_object_processor {
 	    /* The next two fields take advantage of the 3-byte space before NOTIFY_INFO */
 	u8 proc_id;
 	u8 length;
-	 ACPI_COMMON_NOTIFY_INFO acpi_io_address address;
+	ACPI_COMMON_NOTIFY_INFO acpi_io_address address;
 };
 
 struct acpi_object_thermal_zone {

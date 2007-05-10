@@ -253,8 +253,7 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 
 void acpi_ex_release_all_mutexes(struct acpi_thread_state *thread);
 
-void acpi_ex_unlink_mutex(union acpi_operand_object *obj_desc,
-			  struct acpi_thread_state *thread);
+void acpi_ex_unlink_mutex(union acpi_operand_object *obj_desc);
 
 /*
  * exprep - ACPI AML execution - prep utilities
@@ -446,9 +445,13 @@ acpi_ex_copy_integer_to_buffer_field(union acpi_operand_object *source_desc,
 /*
  * exutils - interpreter/scanner utilities
  */
-acpi_status acpi_ex_enter_interpreter(void);
+void acpi_ex_enter_interpreter(void);
 
 void acpi_ex_exit_interpreter(void);
+
+void acpi_ex_reacquire_interpreter(void);
+
+void acpi_ex_relinquish_interpreter(void);
 
 void acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc);
 

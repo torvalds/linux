@@ -337,7 +337,6 @@ acpi_status acpi_terminate(void)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_terminate)
-
 #ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
@@ -470,7 +469,6 @@ acpi_install_initialization_handler(acpi_init_handler handler, u32 function)
 
 ACPI_EXPORT_SYMBOL(acpi_install_initialization_handler)
 #endif				/*  ACPI_FUTURE_USAGE  */
-
 /*****************************************************************************
  *
  * FUNCTION:    acpi_purge_cached_objects

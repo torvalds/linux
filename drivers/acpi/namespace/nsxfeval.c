@@ -48,7 +48,6 @@
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsxfeval")
-
 #ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
@@ -73,8 +72,8 @@ ACPI_MODULE_NAME("nsxfeval")
 acpi_status
 acpi_evaluate_object_typed(acpi_handle handle,
 			   acpi_string pathname,
-			   struct acpi_object_list * external_params,
-			   struct acpi_buffer * return_buffer,
+			   struct acpi_object_list *external_params,
+			   struct acpi_buffer *return_buffer,
 			   acpi_object_type return_type)
 {
 	acpi_status status;
@@ -143,7 +142,6 @@ acpi_evaluate_object_typed(acpi_handle handle,
 
 ACPI_EXPORT_SYMBOL(acpi_evaluate_object_typed)
 #endif				/*  ACPI_FUTURE_USAGE  */
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_evaluate_object
@@ -170,7 +168,6 @@ acpi_evaluate_object(acpi_handle handle,
 		     struct acpi_buffer *return_buffer)
 {
 	acpi_status status;
-	acpi_status status2;
 	struct acpi_evaluate_info *info;
 	acpi_size buffer_space_needed;
 	u32 i;
@@ -329,14 +326,12 @@ acpi_evaluate_object(acpi_handle handle,
 		 * Delete the internal return object. NOTE: Interpreter must be
 		 * locked to avoid race condition.
 		 */
-		status2 = acpi_ex_enter_interpreter();
-		if (ACPI_SUCCESS(status2)) {
+		acpi_ex_enter_interpreter();
 
-			/* Remove one reference on the return object (should delete it) */
+		/* Remove one reference on the return object (should delete it) */
 
-			acpi_ut_remove_reference(info->return_object);
-			acpi_ex_exit_interpreter();
-		}
+		acpi_ut_remove_reference(info->return_object);
+		acpi_ex_exit_interpreter();
 	}
 
       cleanup:

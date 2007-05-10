@@ -201,6 +201,7 @@ acpi_status acpi_reallocate_root_table(void)
 
 	return_ACPI_STATUS(AE_OK);
 }
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_load_table
@@ -262,7 +263,7 @@ ACPI_EXPORT_SYMBOL(acpi_load_table)
 acpi_status
 acpi_get_table_header(char *signature,
 		      acpi_native_uint instance,
-		      struct acpi_table_header *out_table_header)
+		      struct acpi_table_header * out_table_header)
 {
 	acpi_native_uint i;
 	acpi_native_uint j;
@@ -321,7 +322,6 @@ acpi_get_table_header(char *signature,
 
 ACPI_EXPORT_SYMBOL(acpi_get_table_header)
 
-
 /******************************************************************************
  *
  * FUNCTION:    acpi_unload_table_id
@@ -346,11 +346,11 @@ acpi_status acpi_unload_table_id(acpi_owner_id id)
 			continue;
 		}
 		/*
-		* Delete all namespace objects owned by this table. Note that these
-		* objects can appear anywhere in the namespace by virtue of the AML
-		* "Scope" operator. Thus, we need to track ownership by an ID, not
-		* simply a position within the hierarchy
-		*/
+		 * Delete all namespace objects owned by this table. Note that these
+		 * objects can appear anywhere in the namespace by virtue of the AML
+		 * "Scope" operator. Thus, we need to track ownership by an ID, not
+		 * simply a position within the hierarchy
+		 */
 		acpi_tb_delete_namespace_by_owner(i);
 		status = acpi_tb_release_owner_id(i);
 		acpi_tb_set_table_loaded_flag(i, FALSE);
@@ -376,7 +376,7 @@ ACPI_EXPORT_SYMBOL(acpi_unload_table_id)
  *****************************************************************************/
 acpi_status
 acpi_get_table(char *signature,
-	       acpi_native_uint instance, struct acpi_table_header ** out_table)
+	       acpi_native_uint instance, struct acpi_table_header **out_table)
 {
 	acpi_native_uint i;
 	acpi_native_uint j;

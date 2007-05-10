@@ -50,7 +50,6 @@
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("excreate")
-
 #ifndef ACPI_NO_METHOD_EXECUTION
 /*******************************************************************************
  *
@@ -583,10 +582,7 @@ acpi_ex_create_method(u8 * aml_start,
 	 * Get the sync_level. If method is serialized, a mutex will be
 	 * created for this method when it is parsed.
 	 */
-	if (acpi_gbl_all_methods_serialized) {
-		obj_desc->method.sync_level = 0;
-		obj_desc->method.method_flags |= AML_METHOD_SERIALIZED;
-	} else if (method_flags & AML_METHOD_SERIALIZED) {
+	if (method_flags & AML_METHOD_SERIALIZED) {
 		/*
 		 * ACPI 1.0: sync_level = 0
 		 * ACPI 2.0: sync_level = sync_level in method declaration

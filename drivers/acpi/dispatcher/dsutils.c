@@ -556,10 +556,9 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 					 * indicate this to the interpreter, set the
 					 * object to the root
 					 */
-					obj_desc =
-					    ACPI_CAST_PTR(union
-							  acpi_operand_object,
-							  acpi_gbl_root_node);
+					obj_desc = ACPI_CAST_PTR(union
+								 acpi_operand_object,
+								 acpi_gbl_root_node);
 					status = AE_OK;
 				} else {
 					/*

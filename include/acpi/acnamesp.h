@@ -100,10 +100,8 @@ acpi_ns_walk_namespace(acpi_object_type type,
 		       acpi_walk_callback user_function,
 		       void *context, void **return_value);
 
-struct acpi_namespace_node *acpi_ns_get_next_node(acpi_object_type type,
-						  struct acpi_namespace_node
-						  *parent,
-						  struct acpi_namespace_node
+struct acpi_namespace_node *acpi_ns_get_next_node(acpi_object_type type, struct acpi_namespace_node
+						  *parent, struct acpi_namespace_node
 						  *child);
 
 /*

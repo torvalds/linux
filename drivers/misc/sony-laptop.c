@@ -63,7 +63,7 @@
 #include <asm/uaccess.h>
 #include <linux/sonypi.h>
 #include <linux/sony-laptop.h>
-#ifdef CONFIG_SONY_LAPTOP_OLD
+#ifdef CONFIG_SONYPI_COMPAT
 #include <linux/poll.h>
 #include <linux/miscdevice.h>
 #endif
@@ -114,7 +114,7 @@ MODULE_PARM_DESC(camera,
 		 "set this to 1 to enable Motion Eye camera controls "
 		 "(only use it if you have a C1VE or C1VN model)");
 
-#ifdef CONFIG_SONY_LAPTOP_OLD
+#ifdef CONFIG_SONYPI_COMPAT
 static int minor = -1;
 module_param(minor, int, 0);
 MODULE_PARM_DESC(minor,
@@ -1504,7 +1504,7 @@ static struct attribute_group spic_attribute_group = {
 };
 
 /******** SONYPI compatibility **********/
-#ifdef CONFIG_SONY_LAPTOP_OLD
+#ifdef CONFIG_SONYPI_COMPAT
 
 /* battery / brightness / temperature  addresses */
 #define SONYPI_BAT_FLAGS	0x81
@@ -1798,7 +1798,7 @@ static void sonypi_compat_exit(void)
 static int sonypi_compat_init(void) { return 0; }
 static void sonypi_compat_exit(void) { }
 static void sonypi_compat_report_event(u8 event) { }
-#endif /* CONFIG_SONY_LAPTOP_OLD */
+#endif /* CONFIG_SONYPI_COMPAT */
 
 /*
  * ACPI callbacks

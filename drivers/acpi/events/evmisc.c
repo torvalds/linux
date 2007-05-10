@@ -196,15 +196,12 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node * node,
 		notify_info->notify.value = (u16) notify_value;
 		notify_info->notify.handler_obj = handler_obj;
 
-		acpi_ex_exit_interpreter();
-
-		acpi_ev_notify_dispatch(notify_info);
-
-		status = acpi_ex_enter_interpreter();
+		status =
+		    acpi_os_execute(OSL_NOTIFY_HANDLER, acpi_ev_notify_dispatch,
+				    notify_info);
 		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
+			acpi_ut_delete_generic_state(notify_info);
 		}
-
 	}
 
 	if (!handler_obj) {
@@ -323,8 +320,9 @@ static u32 acpi_ev_global_lock_handler(void *context)
 		acpi_gbl_global_lock_acquired = TRUE;
 		/* Send a unit to the semaphore */
 
-		if (ACPI_FAILURE(acpi_os_signal_semaphore(
-			acpi_gbl_global_lock_semaphore, 1))) {
+		if (ACPI_FAILURE
+		    (acpi_os_signal_semaphore
+		     (acpi_gbl_global_lock_semaphore, 1))) {
 			ACPI_ERROR((AE_INFO,
 				    "Could not signal Global Lock semaphore"));
 		}
@@ -450,7 +448,9 @@ acpi_status acpi_ev_acquire_global_lock(u16 timeout)
 	}
 
 	if (ACPI_FAILURE(status)) {
-		status = acpi_ex_system_wait_mutex(acpi_gbl_global_lock_mutex, timeout);
+		status =
+		    acpi_ex_system_wait_mutex(acpi_gbl_global_lock_mutex,
+					      timeout);
 	}
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);

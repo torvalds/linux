@@ -498,7 +498,8 @@ acpi_ut_display_init_pathname(u8 type,
 acpi_status
 acpi_ut_walk_aml_resources(u8 * aml,
 			   acpi_size aml_length,
-			   acpi_walk_aml_callback user_function, void **context);
+			   acpi_walk_aml_callback user_function,
+			   void **context);
 
 acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index);
 

@@ -341,9 +341,8 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
 
 	/* A Non-NULL gpe_device means this is a GPE Block Device */
 
-	obj_desc =
-	    acpi_ns_get_attached_object((struct acpi_namespace_node *)
-					gpe_device);
+	obj_desc = acpi_ns_get_attached_object((struct acpi_namespace_node *)
+					       gpe_device);
 	if (!obj_desc || !obj_desc->device.gpe_block) {
 		return (NULL);
 	}

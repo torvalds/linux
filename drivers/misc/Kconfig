@@ -130,7 +130,7 @@ config SONY_LAPTOP
 
 	  Read <file:Documentation/sony-laptop.txt> for more information.
 
-config SONY_LAPTOP_OLD
+config SONYPI_COMPAT
 	bool "Sonypi compatibility"
 	depends on SONY_LAPTOP
 	  ---help---

@@ -46,7 +46,6 @@
 
 #define _COMPONENT          ACPI_RESOURCES
 ACPI_MODULE_NAME("rsmisc")
-
 #define INIT_RESOURCE_TYPE(i)       i->resource_offset
 #define INIT_RESOURCE_LENGTH(i)     i->aml_offset
 #define INIT_TABLE_LENGTH(i)        i->value
@@ -429,8 +428,7 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 			 * Optional resource_source (Index and String)
 			 */
 			aml_length =
-			    acpi_rs_set_resource_source(aml,
-							(acpi_rs_length)
+			    acpi_rs_set_resource_source(aml, (acpi_rs_length)
 							aml_length, source);
 			acpi_rs_set_resource_length(aml_length, aml);
 			break;
