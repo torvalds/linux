@@ -59,14 +59,14 @@ static void rxrpc_assess_MTU_size(struct rxrpc_peer *peer)
 
 	ret = ip_route_output_key(&rt, &fl);
 	if (ret < 0) {
-		kleave(" [route err %d]", ret);
+		_leave(" [route err %d]", ret);
 		return;
 	}
 
 	peer->if_mtu = dst_mtu(&rt->u.dst);
 	dst_release(&rt->u.dst);
 
-	kleave(" [if_mtu %u]", peer->if_mtu);
+	_leave(" [if_mtu %u]", peer->if_mtu);
 }
 
 /*
