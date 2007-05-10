@@ -162,7 +162,9 @@ static inline int qdisc_restart(struct net_device *dev)
 		 */
 
 requeue:
-		if (skb->next)
+		if (unlikely(q == &noop_qdisc))
+			kfree_skb(skb);
+		else if (skb->next)
 			dev->gso_skb = skb;
 		else
 			q->ops->requeue(skb, q);
@@ -177,15 +179,11 @@ out:
 
 void __qdisc_run(struct net_device *dev)
 {
-	if (unlikely(dev->qdisc == &noop_qdisc))
-		goto out;
-
 	do {
 		if (!qdisc_restart(dev))
 			break;
 	} while (!netif_queue_stopped(dev));
 
-out:
 	clear_bit(__LINK_STATE_QDISC_RUNNING, &dev->state);
 }
 
@@ -547,6 +545,7 @@ void dev_activate(struct net_device *dev)
 void dev_deactivate(struct net_device *dev)
 {
 	struct Qdisc *qdisc;
+	struct sk_buff *skb;
 
 	spin_lock_bh(&dev->queue_lock);
 	qdisc = dev->qdisc;
@@ -554,7 +553,11 @@ void dev_deactivate(struct net_device *dev)
 
 	qdisc_reset(qdisc);
 
+	skb = dev->gso_skb;
+	dev->gso_skb = NULL;
 	spin_unlock_bh(&dev->queue_lock);
+
+	kfree_skb(skb);
 
 	dev_watchdog_down(dev);
 
@@ -564,11 +567,6 @@ void dev_deactivate(struct net_device *dev)
 	/* Wait for outstanding qdisc_run calls. */
 	while (test_bit(__LINK_STATE_QDISC_RUNNING, &dev->state))
 		yield();
-
-	if (dev->gso_skb) {
-		kfree_skb(dev->gso_skb);
-		dev->gso_skb = NULL;
-	}
 }
 
 void dev_init_scheduler(struct net_device *dev)
