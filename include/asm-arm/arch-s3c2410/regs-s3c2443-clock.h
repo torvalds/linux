@@ -1,4 +1,4 @@
-/* linux/include/asm-arm/arch-s3c2410/regs-clock.h
+/* linux/include/asm-arm/arch-s3c2410/regs-s3c2443-clock.h
  *
  * Copyright (c) 2007 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>

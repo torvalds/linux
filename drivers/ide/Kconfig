@@ -291,6 +291,17 @@ config IDE_TASK_IOCTL
 
 	  If you are unsure, say N here.
 
+config IDE_PROC_FS
+	bool "legacy /proc/ide/ support"
+	depends on IDE && PROC_FS
+	default y
+	help
+	  This option enables support for the various files in
+	  /proc/ide.  In Linux 2.6 this has been superseded by
+	  files in sysfs but many legacy applications rely on this.
+
+	  If unsure say Y.
+
 comment "IDE chipset support/bugfixes"
 
 config IDE_GENERIC
@@ -359,6 +370,9 @@ config IDEPCI_SHARE_IRQ
 
 	  It is safe to say Y to this question, in most cases.
 	  If unsure, say N.
+
+config IDEPCI_PCIBUS_ORDER
+	def_bool PCI && BLK_DEV_IDE=y && BLK_DEV_IDEPCI
 
 config BLK_DEV_OFFBOARD
 	bool "Boot off-board chipsets first support"

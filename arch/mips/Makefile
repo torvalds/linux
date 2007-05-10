@@ -92,7 +92,7 @@ cflags-y += -ffreestanding
 # when fed the toolchain default!
 #
 # Certain gcc versions upto gcc 4.1.1 (probably 4.2-subversion as of
-# 2006-10-10 don't properly change the the predefined symbols if -EB / -EL
+# 2006-10-10 don't properly change the predefined symbols if -EB / -EL
 # are used, so we kludge that here.  A bug has been filed at
 # http://gcc.gnu.org/bugzilla/show_bug.cgi?id=29413.
 #

@@ -1,5 +1,5 @@
 /*
- * include/asm/arch-iop32x/n2100.h
+ * include/asm-arm/arch-iop32x/n2100.h
  *
  * Thecus N2100 board registers
  */

@@ -22,22 +22,6 @@ typedef enum {
 } port_type;
 
 /**
- *	jmicron_ratemask	-	Compute available modes
- *	@drive: IDE drive
- *
- *	Compute the available speeds for the devices on the interface. This
- *	is all modes to ATA133 clipped by drive cable setup.
- */
-
-static u8 jmicron_ratemask(ide_drive_t *drive)
-{
-	u8 mode	= 4;
-	if (!eighty_ninty_three(drive))
-		mode = min(mode, (u8)1);
-	return mode;
-}
-
-/**
  *	ata66_jmicron		-	Cable check
  *	@hwif: IDE port
  *
@@ -129,29 +113,9 @@ static void config_jmicron_chipset_for_pio (ide_drive_t *drive, byte set_speed)
 
 static int jmicron_tune_chipset (ide_drive_t *drive, byte xferspeed)
 {
-
-	u8 speed		= ide_rate_filter(jmicron_ratemask(drive), xferspeed);
+	u8 speed = ide_rate_filter(drive, xferspeed);
 
 	return ide_config_drive_speed(drive, speed);
-}
-
-/**
- *	config_chipset_for_dma	-	configure for DMA
- *	@drive: drive to configure
- *
- *	As the JMicron snoops for timings all we actually need to do is
- *	make sure we don't set an invalid mode.
- */
-
-static int config_chipset_for_dma (ide_drive_t *drive)
-{
-	u8 speed	= ide_dma_speed(drive, jmicron_ratemask(drive));
-
-	if (!speed)
-		return 0;
-
-	jmicron_tune_chipset(drive, speed);
-	return ide_dma_enable(drive);
 }
 
 /**
@@ -164,7 +128,7 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 
 static int jmicron_config_drive_for_dma (ide_drive_t *drive)
 {
-	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	config_jmicron_chipset_for_pio(drive, 1);

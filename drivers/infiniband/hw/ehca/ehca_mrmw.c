@@ -39,6 +39,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <rdma/ib_umem.h>
+
 #include <asm/current.h>
 
 #include "ehca_iverbs.h"
@@ -238,10 +240,8 @@ reg_phys_mr_exit0:
 
 /*----------------------------------------------------------------------*/
 
-struct ib_mr *ehca_reg_user_mr(struct ib_pd *pd,
-			       struct ib_umem *region,
-			       int mr_access_flags,
-			       struct ib_udata *udata)
+struct ib_mr *ehca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length, u64 virt,
+			       int mr_access_flags, struct ib_udata *udata)
 {
 	struct ib_mr *ib_mr;
 	struct ehca_mr *e_mr;
@@ -257,11 +257,7 @@ struct ib_mr *ehca_reg_user_mr(struct ib_pd *pd,
 		ehca_gen_err("bad pd=%p", pd);
 		return ERR_PTR(-EFAULT);
 	}
-	if (!region) {
-		ehca_err(pd->device, "bad input values: region=%p", region);
-		ib_mr = ERR_PTR(-EINVAL);
-		goto reg_user_mr_exit0;
-	}
+
 	if (((mr_access_flags & IB_ACCESS_REMOTE_WRITE) &&
 	     !(mr_access_flags & IB_ACCESS_LOCAL_WRITE)) ||
 	    ((mr_access_flags & IB_ACCESS_REMOTE_ATOMIC) &&
@@ -275,17 +271,10 @@ struct ib_mr *ehca_reg_user_mr(struct ib_pd *pd,
 		ib_mr = ERR_PTR(-EINVAL);
 		goto reg_user_mr_exit0;
 	}
-	if (region->page_size != PAGE_SIZE) {
-		ehca_err(pd->device, "page size not supported, "
-			 "region->page_size=%x", region->page_size);
-		ib_mr = ERR_PTR(-EINVAL);
-		goto reg_user_mr_exit0;
-	}
 
-	if ((region->length == 0) ||
-	    ((region->virt_base + region->length) < region->virt_base)) {
+	if (length == 0 || virt + length < virt) {
 		ehca_err(pd->device, "bad input values: length=%lx "
-			 "virt_base=%lx", region->length, region->virt_base);
+			 "virt_base=%lx", length, virt);
 		ib_mr = ERR_PTR(-EINVAL);
 		goto reg_user_mr_exit0;
 	}
@@ -297,40 +286,55 @@ struct ib_mr *ehca_reg_user_mr(struct ib_pd *pd,
 		goto reg_user_mr_exit0;
 	}
 
+	e_mr->umem = ib_umem_get(pd->uobject->context, start, length,
+				 mr_access_flags);
+	if (IS_ERR(e_mr->umem)) {
+		ib_mr = (void *) e_mr->umem;
+		goto reg_user_mr_exit1;
+	}
+
+	if (e_mr->umem->page_size != PAGE_SIZE) {
+		ehca_err(pd->device, "page size not supported, "
+			 "e_mr->umem->page_size=%x", e_mr->umem->page_size);
+		ib_mr = ERR_PTR(-EINVAL);
+		goto reg_user_mr_exit2;
+	}
+
 	/* determine number of MR pages */
-	num_pages_mr = (((region->virt_base % PAGE_SIZE) + region->length +
-			 PAGE_SIZE - 1) / PAGE_SIZE);
-	num_pages_4k = (((region->virt_base % EHCA_PAGESIZE) + region->length +
-			 EHCA_PAGESIZE - 1) / EHCA_PAGESIZE);
+	num_pages_mr = (((virt % PAGE_SIZE) + length + PAGE_SIZE - 1) /
+			PAGE_SIZE);
+	num_pages_4k = (((virt % EHCA_PAGESIZE) + length + EHCA_PAGESIZE - 1) /
+			EHCA_PAGESIZE);
 
 	/* register MR on HCA */
 	pginfo.type       = EHCA_MR_PGI_USER;
 	pginfo.num_pages  = num_pages_mr;
 	pginfo.num_4k     = num_pages_4k;
-	pginfo.region     = region;
-	pginfo.next_4k	  = region->offset / EHCA_PAGESIZE;
+	pginfo.region     = e_mr->umem;
+	pginfo.next_4k	  = e_mr->umem->offset / EHCA_PAGESIZE;
 	pginfo.next_chunk = list_prepare_entry(pginfo.next_chunk,
-					       (&region->chunk_list),
+					       (&e_mr->umem->chunk_list),
 					       list);
 
-	ret = ehca_reg_mr(shca, e_mr, (u64*)region->virt_base,
-			  region->length, mr_access_flags, e_pd, &pginfo,
-			  &e_mr->ib.ib_mr.lkey, &e_mr->ib.ib_mr.rkey);
+	ret = ehca_reg_mr(shca, e_mr, (u64*) virt, length, mr_access_flags, e_pd,
+			  &pginfo, &e_mr->ib.ib_mr.lkey, &e_mr->ib.ib_mr.rkey);
 	if (ret) {
 		ib_mr = ERR_PTR(ret);
-		goto reg_user_mr_exit1;
+		goto reg_user_mr_exit2;
 	}
 
 	/* successful registration of all pages */
 	return &e_mr->ib.ib_mr;
 
+reg_user_mr_exit2:
+	ib_umem_release(e_mr->umem);
 reg_user_mr_exit1:
 	ehca_mr_delete(e_mr);
 reg_user_mr_exit0:
 	if (IS_ERR(ib_mr))
-		ehca_err(pd->device, "rc=%lx pd=%p region=%p mr_access_flags=%x"
+		ehca_err(pd->device, "rc=%lx pd=%p mr_access_flags=%x"
 			 " udata=%p",
-			 PTR_ERR(ib_mr), pd, region, mr_access_flags, udata);
+			 PTR_ERR(ib_mr), pd, mr_access_flags, udata);
 	return ib_mr;
 } /* end ehca_reg_user_mr() */
 
@@ -595,6 +599,9 @@ int ehca_dereg_mr(struct ib_mr *mr)
 		ret = ehca_mrmw_map_hrc_free_mr(h_ret);
 		goto dereg_mr_exit0;
 	}
+
+	if (e_mr->umem)
+		ib_umem_release(e_mr->umem);
 
 	/* successful deregistration */
 	ehca_mr_delete(e_mr);

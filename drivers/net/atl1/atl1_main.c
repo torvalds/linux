@@ -2038,6 +2038,15 @@ static int atl1_close(struct net_device *netdev)
 	return 0;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void atl1_poll_controller(struct net_device *netdev)
+{
+	disable_irq(netdev->irq);
+	atl1_intr(netdev->irq, netdev);
+	enable_irq(netdev->irq);
+}
+#endif
+
 /*
  * If TPD Buffer size equal to 0, PCIE DMAR_TO_INT
  * will assert. We do soft reset <0x1400=1> according
@@ -2190,6 +2199,9 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 	netdev->do_ioctl = &atl1_ioctl;
 	netdev->tx_timeout = &atl1_tx_timeout;
 	netdev->watchdog_timeo = 5 * HZ;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	netdev->poll_controller = atl1_poll_controller;
+#endif
 	netdev->vlan_rx_register = atl1_vlan_rx_register;
 	netdev->vlan_rx_add_vid = atl1_vlan_rx_add_vid;
 	netdev->vlan_rx_kill_vid = atl1_vlan_rx_kill_vid;

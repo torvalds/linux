@@ -363,7 +363,8 @@ area or subsystem of the kernel is being patched.
 The "summary phrase" in the email's Subject should concisely
 describe the patch which that email contains.  The "summary
 phrase" should not be a filename.  Do not use the same "summary
-phrase" for every patch in a whole patch series.
+phrase" for every patch in a whole patch series (where a "patch
+series" is an ordered sequence of multiple, related patches).
 
 Bear in mind that the "summary phrase" of your email becomes
 a globally-unique identifier for that patch.  It propagates

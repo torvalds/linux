@@ -18,6 +18,8 @@
 enum AFS_FS_Operations {
 	FSFETCHDATA		= 130,	/* AFS Fetch file data */
 	FSFETCHSTATUS		= 132,	/* AFS Fetch file status */
+	FSSTOREDATA		= 133,	/* AFS Store file data */
+	FSSTORESTATUS		= 135,	/* AFS Store file status */
 	FSREMOVEFILE		= 136,	/* AFS Remove a file */
 	FSCREATEFILE		= 137,	/* AFS Create a file */
 	FSRENAME		= 138,	/* AFS Rename or move a file or directory */

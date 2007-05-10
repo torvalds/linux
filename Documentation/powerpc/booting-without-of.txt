@@ -1444,7 +1444,7 @@ platforms are moved over to use the flattened-device-tree model.
    Basically, it is a bus of devices, that could act more or less
    as a complete entity (UCC, USB etc ). All of them should be siblings on
    the "root" qe node, using the common properties from there.
-   The description below applies to the the qe of MPC8360 and
+   The description below applies to the qe of MPC8360 and
    more nodes and properties would be extended in the future.
 
    i) Root QE device
@@ -1633,7 +1633,7 @@ platforms are moved over to use the flattened-device-tree model.
      - assignment : function number of the pin according to the Pin Assignment
        tables in User Manual.  Each pin can have up to 4 possible functions in
        QE and two options for CPM.
-     - has_irq : indicates if the pin is used as source of exteral
+     - has_irq : indicates if the pin is used as source of external
        interrupts.
 
    Example:

@@ -24,35 +24,6 @@
 #include <asm/arch/mux.h>
 #include <asm/arch/gpio.h>
 
-#if	defined(CONFIG_OMAP1610_IR) || defined(CONFIG_OMAP161O_IR_MODULE)
-
-static u64 irda_dmamask = 0xffffffff;
-
-static struct platform_device omap1610ir_device = {
-	.name = "omap1610-ir",
-	.id = -1,
-	.dev = {
-		.dma_mask	= &irda_dmamask,
-	},
-};
-
-static void omap_init_irda(void)
-{
-	/* FIXME define and use a boot tag, members something like:
-	 *  u8		uart;		// uart1, or uart3
-	 * ... but driver only handles uart3 for now
-	 *  s16		fir_sel;	// gpio for SIR vs FIR
-	 * ... may prefer a callback for SIR/MIR/FIR mode select;
-	 * while h2 uses a GPIO, H3 uses a gpio expander
-	 */
-	if (machine_is_omap_h2()
-			|| machine_is_omap_h3())
-		(void) platform_device_register(&omap1610ir_device);
-}
-#else
-static inline void omap_init_irda(void) {}
-#endif
-
 /*-------------------------------------------------------------------------*/
 
 #if defined(CONFIG_RTC_DRV_OMAP) || defined(CONFIG_RTC_DRV_OMAP_MODULE)
@@ -88,6 +59,45 @@ static void omap_init_rtc(void)
 }
 #else
 static inline void omap_init_rtc(void) {}
+#endif
+
+#if defined(CONFIG_OMAP_DSP) || defined(CONFIG_OMAP_DSP_MODULE)
+
+#if defined(CONFIG_ARCH_OMAP15XX)
+#  define OMAP1_MBOX_SIZE	0x23
+#  define INT_DSP_MAILBOX1	INT_1510_DSP_MAILBOX1
+#elif defined(CONFIG_ARCH_OMAP16XX)
+#  define OMAP1_MBOX_SIZE	0x2f
+#  define INT_DSP_MAILBOX1	INT_1610_DSP_MAILBOX1
+#endif
+
+#define OMAP1_MBOX_BASE		IO_ADDRESS(OMAP16XX_MAILBOX_BASE)
+
+static struct resource mbox_resources[] = {
+	{
+		.start		= OMAP1_MBOX_BASE,
+		.end		= OMAP1_MBOX_BASE + OMAP1_MBOX_SIZE,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= INT_DSP_MAILBOX1,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mbox_device = {
+	.name		= "mailbox",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(mbox_resources),
+	.resource	= mbox_resources,
+};
+
+static inline void omap_init_mbox(void)
+{
+	platform_device_register(&mbox_device);
+}
+#else
+static inline void omap_init_mbox(void) { }
 #endif
 
 #if defined(CONFIG_OMAP_STI)
@@ -154,7 +164,8 @@ static int __init omap1_init_devices(void)
 	/* please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.
 	 */
-	omap_init_irda();
+
+	omap_init_mbox();
 	omap_init_rtc();
 	omap_init_sti();
 

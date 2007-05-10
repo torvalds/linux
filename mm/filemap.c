@@ -750,6 +750,7 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
 	read_unlock_irq(&mapping->tree_lock);
 	return i;
 }
+EXPORT_SYMBOL(find_get_pages_contig);
 
 /**
  * find_get_pages_tag - find and return pages that match @tag
@@ -778,6 +779,7 @@ unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
 	read_unlock_irq(&mapping->tree_lock);
 	return ret;
 }
+EXPORT_SYMBOL(find_get_pages_tag);
 
 /**
  * grab_cache_page_nowait - returns locked page at given index in given cache
@@ -1782,7 +1784,7 @@ struct page *read_cache_page_async(struct address_space *mapping,
 retry:
 	page = __read_cache_page(mapping, index, filler, data);
 	if (IS_ERR(page))
-		goto out;
+		return page;
 	mark_page_accessed(page);
 	if (PageUptodate(page))
 		goto out;
@@ -1800,9 +1802,9 @@ retry:
 	err = filler(data, page);
 	if (err < 0) {
 		page_cache_release(page);
-		page = ERR_PTR(err);
+		return ERR_PTR(err);
 	}
- out:
+out:
 	mark_page_accessed(page);
 	return page;
 }

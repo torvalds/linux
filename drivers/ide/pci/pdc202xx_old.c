@@ -46,7 +46,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#define PDC202_DEBUG_CABLE		0
 #define PDC202XX_DEBUG_DRIVE_INFO	0
 
 static const char *pdc_quirk_drives[] = {
@@ -101,35 +100,12 @@ static const char *pdc_quirk_drives[] = {
 #define	MC1		0x02	/* DMA"C" timing */
 #define	MC0		0x01	/* DMA"C" timing */
 
-static u8 pdc202xx_ratemask (ide_drive_t *drive)
-{
-	u8 mode;
-
-	switch(HWIF(drive)->pci_dev->device) {
-		case PCI_DEVICE_ID_PROMISE_20267:
-		case PCI_DEVICE_ID_PROMISE_20265:
-			mode = 3;
-			break;
-		case PCI_DEVICE_ID_PROMISE_20263:
-		case PCI_DEVICE_ID_PROMISE_20262:
-			mode = 2;
-			break;
-		case PCI_DEVICE_ID_PROMISE_20246:
-			return 1;
-		default:
-			return 0;
-	}
-	if (!eighty_ninty_three(drive))
-		mode = min(mode, (u8)1);
-	return mode;
-}
-
 static int pdc202xx_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
 	u8 drive_pci		= 0x60 + (drive->dn << 2);
-	u8 speed	= ide_rate_filter(pdc202xx_ratemask(drive), xferspeed);
+	u8 speed		= ide_rate_filter(drive, xferspeed);
 
 	u32			drive_conf;
 	u8			AP, BP, CP, DP;
@@ -261,20 +237,7 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 	u32 drive_conf		= 0;
 	u8 drive_pci		= 0x60 + (drive->dn << 2);
 	u8 test1 = 0, test2 = 0, speed = -1;
-	u8 AP = 0, cable = 0;
-
-	u8 ultra_66		= ((id->dma_ultra & 0x0010) ||
-				   (id->dma_ultra & 0x0008)) ? 1 : 0;
-
-	if (dev->device != PCI_DEVICE_ID_PROMISE_20246)
-		cable = pdc202xx_old_cable_detect(hwif);
-	else
-		ultra_66 = 0;
-
-	if (ultra_66 && cable) {
-		printk(KERN_WARNING "Warning: %s channel requires an 80-pin cable for operation.\n", hwif->channel ? "Secondary":"Primary");
-		printk(KERN_WARNING "%s reduced to Ultra33 mode.\n", drive->name);
-	}
+	u8 AP = 0;
 
 	if (dev->device != PCI_DEVICE_ID_PROMISE_20246)
 		pdc_old_disable_66MHz_clock(drive->hwif);
@@ -308,7 +271,7 @@ chipset_is_set:
 	if (drive->media == ide_disk)	/* PREFETCH_EN */
 		pci_write_config_byte(dev, (drive_pci), AP|PREFETCH_EN);
 
-	speed = ide_dma_speed(drive, pdc202xx_ratemask(drive));
+	speed = ide_max_dma_mode(drive);
 
 	if (!(speed)) {
 		/* restore original pci-config space */
@@ -478,7 +441,7 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 
 	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
 
-	hwif->ultra_mask = 0x3f;
+	hwif->ultra_mask = hwif->cds->udma_mask;
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
 	hwif->atapi_dma = 1;
@@ -500,10 +463,6 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 	if (!noautodma)
 		hwif->autodma = 1;
 	hwif->drives[0].autodma = hwif->drives[1].autodma = hwif->autodma;
-#if PDC202_DEBUG_CABLE
-	printk(KERN_DEBUG "%s: %s-pin cable\n",
-		hwif->name, hwif->udma_four ? "80" : "40");
-#endif /* PDC202_DEBUG_CABLE */	
 }
 
 static void __devinit init_dma_pdc202xx(ide_hwif_t *hwif, unsigned long dmabase)
@@ -587,6 +546,7 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
 		.extra		= 16,
+		.udma_mask	= 0x07, /* udma0-2 */
 	},{	/* 1 */
 		.name		= "PDC20262",
 		.init_setup	= init_setup_pdc202ata4,
@@ -597,6 +557,7 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
 		.extra		= 48,
+		.udma_mask	= 0x1f, /* udma0-4 */
 	},{	/* 2 */
 		.name		= "PDC20263",
 		.init_setup	= init_setup_pdc202ata4,
@@ -607,6 +568,7 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
 		.extra		= 48,
+		.udma_mask	= 0x1f, /* udma0-4 */
 	},{	/* 3 */
 		.name		= "PDC20265",
 		.init_setup	= init_setup_pdc20265,
@@ -617,6 +579,7 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
 		.extra		= 48,
+		.udma_mask	= 0x3f, /* udma0-5 */
 	},{	/* 4 */
 		.name		= "PDC20267",
 		.init_setup	= init_setup_pdc202xx,
@@ -627,6 +590,7 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
 		.extra		= 48,
+		.udma_mask	= 0x3f, /* udma0-5 */
 	}
 };
 

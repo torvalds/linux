@@ -237,6 +237,70 @@ void afs_flat_call_destructor(struct afs_call *call)
 }
 
 /*
+ * attach the data from a bunch of pages on an inode to a call
+ */
+int afs_send_pages(struct afs_call *call, struct msghdr *msg, struct kvec *iov)
+{
+	struct page *pages[8];
+	unsigned count, n, loop, offset, to;
+	pgoff_t first = call->first, last = call->last;
+	int ret;
+
+	_enter("");
+
+	offset = call->first_offset;
+	call->first_offset = 0;
+
+	do {
+		_debug("attach %lx-%lx", first, last);
+
+		count = last - first + 1;
+		if (count > ARRAY_SIZE(pages))
+			count = ARRAY_SIZE(pages);
+		n = find_get_pages_contig(call->mapping, first, count, pages);
+		ASSERTCMP(n, ==, count);
+
+		loop = 0;
+		do {
+			msg->msg_flags = 0;
+			to = PAGE_SIZE;
+			if (first + loop >= last)
+				to = call->last_to;
+			else
+				msg->msg_flags = MSG_MORE;
+			iov->iov_base = kmap(pages[loop]) + offset;
+			iov->iov_len = to - offset;
+			offset = 0;
+
+			_debug("- range %u-%u%s",
+			       offset, to, msg->msg_flags ? " [more]" : "");
+			msg->msg_iov = (struct iovec *) iov;
+			msg->msg_iovlen = 1;
+
+			/* have to change the state *before* sending the last
+			 * packet as RxRPC might give us the reply before it
+			 * returns from sending the request */
+			if (first + loop >= last)
+				call->state = AFS_CALL_AWAIT_REPLY;
+			ret = rxrpc_kernel_send_data(call->rxcall, msg,
+						     to - offset);
+			kunmap(pages[loop]);
+			if (ret < 0)
+				break;
+		} while (++loop < count);
+		first += count;
+
+		for (loop = 0; loop < count; loop++)
+			put_page(pages[loop]);
+		if (ret < 0)
+			break;
+	} while (first < last);
+
+	_leave(" = %d", ret);
+	return ret;
+}
+
+/*
  * initiate a call
  */
 int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
@@ -253,8 +317,9 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 	ASSERT(call->type != NULL);
 	ASSERT(call->type->name != NULL);
 
-	_debug("MAKE %p{%s} [%d]",
-	       call, call->type->name, atomic_read(&afs_outstanding_calls));
+	_debug("____MAKE %p{%s,%x} [%d]____",
+	       call, call->type->name, key_serial(call->key),
+	       atomic_read(&afs_outstanding_calls));
 
 	call->wait_mode = wait_mode;
 	INIT_WORK(&call->async_work, afs_process_async_call);
@@ -289,15 +354,22 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 	msg.msg_iovlen		= 1;
 	msg.msg_control		= NULL;
 	msg.msg_controllen	= 0;
-	msg.msg_flags		= 0;
+	msg.msg_flags		= (call->send_pages ? MSG_MORE : 0);
 
 	/* have to change the state *before* sending the last packet as RxRPC
 	 * might give us the reply before it returns from sending the
 	 * request */
-	call->state = AFS_CALL_AWAIT_REPLY;
+	if (!call->send_pages)
+		call->state = AFS_CALL_AWAIT_REPLY;
 	ret = rxrpc_kernel_send_data(rxcall, &msg, call->request_size);
 	if (ret < 0)
 		goto error_do_abort;
+
+	if (call->send_pages) {
+		ret = afs_send_pages(call, &msg, iov);
+		if (ret < 0)
+			goto error_do_abort;
+	}
 
 	/* at this point, an async call may no longer exist as it may have
 	 * already completed */

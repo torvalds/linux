@@ -83,6 +83,7 @@ extern void __cpu_die(unsigned int cpu);
 
 #else
 /* for UP */
+#define hard_smp_processor_id()		0
 #define smp_setup_cpu_maps()
 
 #endif /* CONFIG_SMP */

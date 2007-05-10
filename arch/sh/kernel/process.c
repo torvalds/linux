@@ -15,9 +15,12 @@
 #include <linux/pm.h>
 #include <linux/kallsyms.h>
 #include <linux/kexec.h>
-#include <asm/kdebug.h>
+#include <linux/kdebug.h>
+#include <linux/tick.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
+#include <asm/pgalloc.h>
+#include <asm/system.h>
 #include <asm/ubc.h>
 
 static int hlt_counter;
@@ -58,12 +61,15 @@ void cpu_idle(void)
 		if (!idle)
 			idle = default_idle;
 
+		tick_nohz_stop_sched_tick();
 		while (!need_resched())
 			idle();
+		tick_nohz_restart_sched_tick();
 
 		preempt_enable_no_resched();
 		schedule();
 		preempt_disable();
+		check_pgt_cache();
 	}
 }
 
@@ -495,9 +501,9 @@ asmlinkage void debug_trap_handler(unsigned long r4, unsigned long r5,
 	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 
 	/* Rewind */
-	regs->pc -= 2;
+	regs->pc -= instruction_size(ctrl_inw(regs->pc - 4));
 
-	if (notify_die(DIE_TRAP, regs, regs->tra & 0xff,
+	if (notify_die(DIE_TRAP, "debug trap", regs, 0, regs->tra & 0xff,
 		       SIGTRAP) == NOTIFY_STOP)
 		return;
 
@@ -514,9 +520,9 @@ asmlinkage void bug_trap_handler(unsigned long r4, unsigned long r5,
 	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 
 	/* Rewind */
-	regs->pc -= 2;
+	regs->pc -= instruction_size(ctrl_inw(regs->pc - 4));
 
-	if (notify_die(DIE_TRAP, regs, TRAPA_BUG_OPCODE & 0xff,
+	if (notify_die(DIE_TRAP, "bug trap", regs, 0, TRAPA_BUG_OPCODE & 0xff,
 		       SIGTRAP) == NOTIFY_STOP)
 		return;
 

@@ -2860,7 +2860,7 @@ qeth_flush_buffers(struct qeth_qdio_out_q *queue, int under_int,
 			if (!atomic_read(&queue->set_pci_flags_count)){
 				/*
 				 * there's no outstanding PCI any more, so we
-				 * have to request a PCI to be sure the the PCI
+				 * have to request a PCI to be sure that the PCI
 				 * will wake at some time in the future then we
 				 * can flush packed buffers that might still be
 				 * hanging around, which can happen if no

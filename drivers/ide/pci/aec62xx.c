@@ -87,38 +87,12 @@ static u8 pci_bus_clock_list_ultra (u8 speed, struct chipset_bus_clock_list_entr
 	return chipset_table->ultra_settings;
 }
 
-static u8 aec62xx_ratemask (ide_drive_t *drive)
-{
-	ide_hwif_t *hwif	= HWIF(drive);
-	u8 mode;
-
-	switch(hwif->pci_dev->device) {
-		case PCI_DEVICE_ID_ARTOP_ATP865:
-		case PCI_DEVICE_ID_ARTOP_ATP865R:
-			mode = (inb(hwif->channel ?
-				    hwif->mate->dma_status :
-				    hwif->dma_status) & 0x10) ? 4 : 3;
-			break;
-		case PCI_DEVICE_ID_ARTOP_ATP860:
-		case PCI_DEVICE_ID_ARTOP_ATP860R:
-			mode = 2;
-			break;
-		case PCI_DEVICE_ID_ARTOP_ATP850UF:
-		default:
-			return 1;
-	}
-
-	if (!eighty_ninty_three(drive))
-		mode = min(mode, (u8)1);
-	return mode;
-}
-
 static int aec6210_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
 	u16 d_conf		= 0;
-	u8 speed	= ide_rate_filter(aec62xx_ratemask(drive), xferspeed);
+	u8 speed		= ide_rate_filter(drive, xferspeed);
 	u8 ultra = 0, ultra_conf = 0;
 	u8 tmp0 = 0, tmp1 = 0, tmp2 = 0;
 	unsigned long flags;
@@ -145,7 +119,7 @@ static int aec6260_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
-	u8 speed	= ide_rate_filter(aec62xx_ratemask(drive), xferspeed);
+	u8 speed	= ide_rate_filter(drive, xferspeed);
 	u8 unit		= (drive->select.b.unit & 0x01);
 	u8 tmp1 = 0, tmp2 = 0;
 	u8 ultra = 0, drive_conf = 0, ultra_conf = 0;
@@ -181,17 +155,6 @@ static int aec62xx_tune_chipset (ide_drive_t *drive, u8 speed)
 	}
 }
 
-static int config_chipset_for_dma (ide_drive_t *drive)
-{
-	u8 speed = ide_dma_speed(drive, aec62xx_ratemask(drive));	
-
-	if (!(speed))
-		return 0;
-
-	(void) aec62xx_tune_chipset(drive, speed);
-	return ide_dma_enable(drive);
-}
-
 static void aec62xx_tune_drive (ide_drive_t *drive, u8 pio)
 {
 	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
@@ -200,7 +163,7 @@ static void aec62xx_tune_drive (ide_drive_t *drive, u8 pio)
 
 static int aec62xx_config_drive_xfer_rate (ide_drive_t *drive)
 {
-	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	if (ide_use_fast_pio(drive))
@@ -261,11 +224,13 @@ static unsigned int __devinit init_chipset_aec62xx(struct pci_dev *dev, const ch
 
 static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = hwif->pci_dev;
+
 	hwif->autodma = 0;
 	hwif->tuneproc = &aec62xx_tune_drive;
 	hwif->speedproc = &aec62xx_tune_chipset;
 
-	if (hwif->pci_dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF)
+	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF)
 		hwif->serialized = hwif->channel;
 
 	if (hwif->mate)
@@ -277,7 +242,15 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 		return;
 	}
 
-	hwif->ultra_mask = 0x7f;
+	hwif->ultra_mask = hwif->cds->udma_mask;
+
+	/* atp865 and atp865r */
+	if (hwif->ultra_mask == 0x3f) {
+		/* check bit 0x10 of DMA status register */
+		if (inb(pci_resource_start(dev, 4) + 2) & 0x10)
+ 			hwif->ultra_mask = 0x7f; /* udma0-6 */
+	}
+
 	hwif->mwdma_mask = 0x07;
 
 	hwif->ide_dma_check	= &aec62xx_config_drive_xfer_rate;
@@ -344,6 +317,7 @@ static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
 		.bootable	= OFF_BOARD,
+		.udma_mask	= 0x07, /* udma0-2 */
 	},{	/* 1 */
 		.name		= "AEC6260",
 		.init_setup	= init_setup_aec62xx,
@@ -353,6 +327,7 @@ static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
 		.channels	= 2,
 		.autodma	= NOAUTODMA,
 		.bootable	= OFF_BOARD,
+		.udma_mask	= 0x1f, /* udma0-4 */
 	},{	/* 2 */
 		.name		= "AEC6260R",
 		.init_setup	= init_setup_aec62xx,
@@ -363,6 +338,7 @@ static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
 		.bootable	= NEVER_BOARD,
+		.udma_mask	= 0x1f, /* udma0-4 */
 	},{	/* 3 */
 		.name		= "AEC6X80",
 		.init_setup	= init_setup_aec6x80,
@@ -372,6 +348,7 @@ static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
 		.channels	= 2,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.udma_mask	= 0x3f, /* udma0-5 */
 	},{	/* 4 */
 		.name		= "AEC6X80R",
 		.init_setup	= init_setup_aec6x80,
@@ -382,6 +359,7 @@ static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
 		.bootable	= OFF_BOARD,
+		.udma_mask	= 0x3f, /* udma0-5 */
 	}
 };
 

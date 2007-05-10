@@ -224,7 +224,8 @@ static int nfs4_stat_to_errno(int);
                                 encode_getattr_maxsz)
 #define NFS4_dec_setattr_sz     (compound_decode_hdr_maxsz + \
                                 decode_putfh_maxsz + \
-                                op_decode_hdr_maxsz + 3)
+                                op_decode_hdr_maxsz + 3 + \
+                                nfs4_fattr_maxsz)
 #define NFS4_enc_fsinfo_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
 				encode_fsinfo_maxsz)
@@ -2079,9 +2080,11 @@ out:
 
 #define READ_BUF(nbytes)  do { \
 	p = xdr_inline_decode(xdr, nbytes); \
-	if (!p) { \
-		printk(KERN_WARNING "%s: reply buffer overflowed in line %d.", \
-			       	__FUNCTION__, __LINE__); \
+	if (unlikely(!p)) { \
+		printk(KERN_INFO "%s: prematurely hit end of receive" \
+				" buffer\n", __FUNCTION__); \
+		printk(KERN_INFO "%s: xdr->p=%p, bytes=%u, xdr->end=%p\n", \
+				__FUNCTION__, xdr->p, nbytes, xdr->end); \
 		return -EIO; \
 	} \
 } while (0)

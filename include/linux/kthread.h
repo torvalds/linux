@@ -30,4 +30,7 @@ void kthread_bind(struct task_struct *k, unsigned int cpu);
 int kthread_stop(struct task_struct *k);
 int kthread_should_stop(void);
 
+int kthreadd(void *unused);
+extern struct task_struct *kthreadd_task;
+
 #endif /* _LINUX_KTHREAD_H */

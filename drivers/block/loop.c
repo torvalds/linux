@@ -243,17 +243,13 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 		transfer_result = lo_do_transfer(lo, WRITE, page, offset,
 				bvec->bv_page, bv_offs, size, IV);
 		if (unlikely(transfer_result)) {
-			char *kaddr;
-
 			/*
 			 * The transfer failed, but we still write the data to
 			 * keep prepare/commit calls balanced.
 			 */
 			printk(KERN_ERR "loop: transfer error block %llu\n",
 			       (unsigned long long)index);
-			kaddr = kmap_atomic(page, KM_USER0);
-			memset(kaddr + offset, 0, size);
-			kunmap_atomic(kaddr, KM_USER0);
+			zero_user_page(page, offset, size, KM_USER0);
 		}
 		flush_dcache_page(page);
 		ret = aops->commit_write(file, page, offset,

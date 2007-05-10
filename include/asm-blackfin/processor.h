@@ -58,10 +58,10 @@ do {									\
 	(_regs)->pc = (_pc);						\
 	if (current->mm)						\
 		(_regs)->p5 = current->mm->start_data;			\
-	current->thread_info->l1_task_info.stack_start			\
+	task_thread_info(current)->l1_task_info.stack_start		\
 		= (void *)current->mm->context.stack_start;		\
-	current->thread_info->l1_task_info.lowest_sp = (void *)(_usp);	       	\
-	memcpy(L1_SCRATCH_TASK_INFO, &current->thread_info->l1_task_info,	\
+	task_thread_info(current)->l1_task_info.lowest_sp = (void *)(_usp); \
+	memcpy(L1_SCRATCH_TASK_INFO, &task_thread_info(current)->l1_task_info, \
 		sizeof(*L1_SCRATCH_TASK_INFO));				\
 	wrusp(_usp);							\
 } while(0)

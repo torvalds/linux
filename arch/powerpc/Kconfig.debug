@@ -32,7 +32,7 @@ config HCALL_STATS
 	depends on PPC_PSERIES && DEBUG_FS
 	help
 	  Adds code to keep track of the number of hypervisor calls made and
-	  the amount of time spent in hypervisor callsr.  Wall time spent in
+	  the amount of time spent in hypervisor calls.  Wall time spent in
 	  each call is always calculated, and if available CPU cycles spent
 	  are also calculated.  A directory named hcall_inst is added at the
 	  root of the debugfs filesystem.  Within the hcall_inst directory

@@ -217,14 +217,17 @@ Q: What happens when a CPU is being logically offlined?
 A: The following happen, listed in no particular order :-)
 
 - A notification is sent to in-kernel registered modules by sending an event
-  CPU_DOWN_PREPARE
+  CPU_DOWN_PREPARE or CPU_DOWN_PREPARE_FROZEN, depending on whether or not the
+  CPU is being offlined while tasks are frozen due to a suspend operation in
+  progress
 - All process is migrated away from this outgoing CPU to a new CPU
 - All interrupts targeted to this CPU is migrated to a new CPU
 - timers/bottom half/task lets are also migrated to a new CPU
 - Once all services are migrated, kernel calls an arch specific routine
   __cpu_disable() to perform arch specific cleanup.
 - Once this is successful, an event for successful cleanup is sent by an event
-  CPU_DEAD.
+  CPU_DEAD (or CPU_DEAD_FROZEN if tasks are frozen due to a suspend while the
+  CPU is being offlined).
 
   "It is expected that each service cleans up when the CPU_DOWN_PREPARE
   notifier is called, when CPU_DEAD is called its expected there is nothing
@@ -242,9 +245,11 @@ A: This is what you would need in your kernel code to receive notifications.
 
 		switch (action) {
 		case CPU_ONLINE:
+		case CPU_ONLINE_FROZEN:
 			foobar_online_action(cpu);
 			break;
 		case CPU_DEAD:
+		case CPU_DEAD_FROZEN:
 			foobar_dead_action(cpu);
 			break;
 		}

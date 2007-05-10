@@ -69,123 +69,41 @@ char *ide_xfer_verbose (u8 xfer_rate)
 EXPORT_SYMBOL(ide_xfer_verbose);
 
 /**
- *	ide_dma_speed	-	compute DMA speed
- *	@drive: drive
- *	@mode:	modes available
- *
- *	Checks the drive capabilities and returns the speed to use
- *	for the DMA transfer.  Returns 0 if the drive is incapable
- *	of DMA transfers.
- */
- 
-u8 ide_dma_speed(ide_drive_t *drive, u8 mode)
-{
-	struct hd_driveid *id   = drive->id;
-	ide_hwif_t *hwif	= HWIF(drive);
-	u8 ultra_mask, mwdma_mask, swdma_mask;
-	u8 speed = 0;
-
-	if (drive->media != ide_disk && hwif->atapi_dma == 0)
-		return 0;
-
-	/* Capable of UltraDMA modes? */
-	ultra_mask = id->dma_ultra & hwif->ultra_mask;
-
-	if (!(id->field_valid & 4))
-		mode = 0;	/* fallback to MW/SW DMA if no UltraDMA */
-
-	switch (mode) {
-	case 4:
-		if (ultra_mask & 0x40) {
-			speed = XFER_UDMA_6;
-			break;
-		}
-	case 3:
-		if (ultra_mask & 0x20) {
-			speed = XFER_UDMA_5;
-			break;
-		}
-	case 2:
-		if (ultra_mask & 0x10) {
-			speed = XFER_UDMA_4;
-			break;
-		}
-		if (ultra_mask & 0x08) {
-			speed = XFER_UDMA_3;
-			break;
-		}
-	case 1:
-		if (ultra_mask & 0x04) {
-			speed = XFER_UDMA_2;
-			break;
-		}
-		if (ultra_mask & 0x02) {
-			speed = XFER_UDMA_1;
-			break;
-		}
-		if (ultra_mask & 0x01) {
-			speed = XFER_UDMA_0;
-			break;
-		}
-	case 0:
-		mwdma_mask = id->dma_mword & hwif->mwdma_mask;
-
-		if (mwdma_mask & 0x04) {
-			speed = XFER_MW_DMA_2;
-			break;
-		}
-		if (mwdma_mask & 0x02) {
-			speed = XFER_MW_DMA_1;
-			break;
-		}
-		if (mwdma_mask & 0x01) {
-			speed = XFER_MW_DMA_0;
-			break;
-		}
-
-		swdma_mask = id->dma_1word & hwif->swdma_mask;
-
-		if (swdma_mask & 0x04) {
-			speed = XFER_SW_DMA_2;
-			break;
-		}
-		if (swdma_mask & 0x02) {
-			speed = XFER_SW_DMA_1;
-			break;
-		}
-		if (swdma_mask & 0x01) {
-			speed = XFER_SW_DMA_0;
-			break;
-		}
-	}
-
-	return speed;
-}
-EXPORT_SYMBOL(ide_dma_speed);
-
-
-/**
- *	ide_rate_filter		-	return best speed for mode
- *	@mode: modes available
+ *	ide_rate_filter		-	filter transfer mode
+ *	@drive: IDE device
  *	@speed: desired speed
  *
- *	Given the available DMA/UDMA mode this function returns
+ *	Given the available transfer modes this function returns
  *	the best available speed at or below the speed requested.
+ *
+ *	FIXME: filter also PIO/SWDMA/MWDMA modes
  */
 
-u8 ide_rate_filter (u8 mode, u8 speed) 
+u8 ide_rate_filter(ide_drive_t *drive, u8 speed)
 {
 #ifdef CONFIG_BLK_DEV_IDEDMA
-	static u8 speed_max[] = {
-		XFER_MW_DMA_2, XFER_UDMA_2, XFER_UDMA_4,
-		XFER_UDMA_5, XFER_UDMA_6
-	};
+	ide_hwif_t *hwif = drive->hwif;
+	u8 mask = hwif->ultra_mask, mode = XFER_MW_DMA_2;
+
+	if (hwif->udma_filter)
+		mask = hwif->udma_filter(drive);
+
+	/*
+	 * TODO: speed > XFER_UDMA_2 extra check is needed to avoid false
+	 * cable warning from eighty_ninty_three(), moving ide_rate_filter()
+	 * calls from ->speedproc to core code will make this hack go away
+	 */
+	if (speed > XFER_UDMA_2) {
+		if ((mask & 0x78) && (eighty_ninty_three(drive) == 0))
+			mask &= 0x07;
+	}
+
+	if (mask)
+		mode = fls(mask) - 1 + XFER_UDMA_0;
 
 //	printk("%s: mode 0x%02x, speed 0x%02x\n", __FUNCTION__, mode, speed);
 
-	/* So that we remember to update this if new modes appear */
-	BUG_ON(mode > 4);
-	return min(speed, speed_max[mode]);
+	return min(speed, mode);
 #else /* !CONFIG_BLK_DEV_IDEDMA */
 	return min(speed, (u8)XFER_PIO_4);
 #endif /* CONFIG_BLK_DEV_IDEDMA */

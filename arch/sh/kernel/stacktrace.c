@@ -17,7 +17,7 @@
 /*
  * Save stack-backtrace addresses into a stack_trace buffer.
  */
-void save_stack_trace(struct stack_trace *trace, struct task_struct *task)
+void save_stack_trace(struct stack_trace *trace)
 {
 	unsigned long *sp = (unsigned long *)current_stack_pointer;
 

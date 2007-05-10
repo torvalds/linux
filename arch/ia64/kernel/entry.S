@@ -1199,32 +1199,6 @@ ENTRY(notify_resume_user)
 	br.ret.sptk.many rp
 END(notify_resume_user)
 
-GLOBAL_ENTRY(sys_rt_sigsuspend)
-	.prologue ASM_UNW_PRLG_RP|ASM_UNW_PRLG_PFS, ASM_UNW_PRLG_GRSAVE(8)
-	alloc loc1=ar.pfs,8,2,3,0 // preserve all eight input regs in case of syscall restart!
-	mov r9=ar.unat
-	mov loc0=rp				// save return address
-	mov out0=in0				// mask
-	mov out1=in1				// sigsetsize
-	adds out2=8,sp				// out2=&sigscratch->ar_pfs
-	;;
-	.fframe 16
-	.spillsp ar.unat, 16
-	st8 [sp]=r9,-16				// allocate space for ar.unat and save it
-	st8 [out2]=loc1,-8			// save ar.pfs, out2=&sigscratch
-	.body
-	br.call.sptk.many rp=ia64_rt_sigsuspend
-.ret17:	.restore sp
-	adds sp=16,sp				// pop scratch stack space
-	;;
-	ld8 r9=[sp]				// load new unat from sw->caller_unat
-	mov rp=loc0
-	;;
-	mov ar.unat=r9
-	mov ar.pfs=loc1
-	br.ret.sptk.many rp
-END(sys_rt_sigsuspend)
-
 ENTRY(sys_rt_sigreturn)
 	PT_REGS_UNWIND_INFO(0)
 	/*
@@ -1598,8 +1572,8 @@ sys_call_table:
 	data8 sys_readlinkat
 	data8 sys_fchmodat
 	data8 sys_faccessat
-	data8 sys_ni_syscall			// reserved for pselect
-	data8 sys_ni_syscall			// 1295 reserved for ppoll
+	data8 sys_pselect6
+	data8 sys_ppoll
 	data8 sys_unshare
 	data8 sys_splice
 	data8 sys_set_robust_list

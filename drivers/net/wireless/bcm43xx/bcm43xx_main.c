@@ -61,10 +61,6 @@ MODULE_AUTHOR("Stefano Brivio");
 MODULE_AUTHOR("Michael Buesch");
 MODULE_LICENSE("GPL");
 
-#ifdef CONFIG_BCM947XX
-extern char *nvram_get(char *name);
-#endif
-
 #if defined(CONFIG_BCM43XX_DMA) && defined(CONFIG_BCM43XX_PIO)
 static int modparam_pio;
 module_param_named(pio, modparam_pio, int, 0444);
@@ -142,10 +138,6 @@ MODULE_PARM_DESC(fwpostfix, "Postfix for .fw files. Useful for using multiple fi
 	{ PCI_VENDOR_ID_BROADCOM, 0x4324, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	/* Broadcom 43XG 802.11b/g */
 	{ PCI_VENDOR_ID_BROADCOM, 0x4325, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-#ifdef CONFIG_BCM947XX
-	/* SB bus on BCM947xx */
-	{ PCI_VENDOR_ID_BROADCOM, 0x0800, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-#endif
 	{ 0 },
 };
 MODULE_DEVICE_TABLE(pci, bcm43xx_pci_tbl);
@@ -786,9 +778,6 @@ static int bcm43xx_sprom_extract(struct bcm43xx_private *bcm)
 {
 	u16 value;
 	u16 *sprom;
-#ifdef CONFIG_BCM947XX
-	char *c;
-#endif
 
 	sprom = kzalloc(BCM43xx_SPROM_SIZE * sizeof(u16),
 			GFP_KERNEL);
@@ -796,28 +785,7 @@ static int bcm43xx_sprom_extract(struct bcm43xx_private *bcm)
 		printk(KERN_ERR PFX "sprom_extract OOM\n");
 		return -ENOMEM;
 	}
-#ifdef CONFIG_BCM947XX
-	sprom[BCM43xx_SPROM_BOARDFLAGS2] = atoi(nvram_get("boardflags2"));
-	sprom[BCM43xx_SPROM_BOARDFLAGS] = atoi(nvram_get("boardflags"));
-
-	if ((c = nvram_get("il0macaddr")) != NULL)
-		e_aton(c, (char *) &(sprom[BCM43xx_SPROM_IL0MACADDR]));
-
-	if ((c = nvram_get("et1macaddr")) != NULL)
-		e_aton(c, (char *) &(sprom[BCM43xx_SPROM_ET1MACADDR]));
-
-	sprom[BCM43xx_SPROM_PA0B0] = atoi(nvram_get("pa0b0"));
-	sprom[BCM43xx_SPROM_PA0B1] = atoi(nvram_get("pa0b1"));
-	sprom[BCM43xx_SPROM_PA0B2] = atoi(nvram_get("pa0b2"));
-
-	sprom[BCM43xx_SPROM_PA1B0] = atoi(nvram_get("pa1b0"));
-	sprom[BCM43xx_SPROM_PA1B1] = atoi(nvram_get("pa1b1"));
-	sprom[BCM43xx_SPROM_PA1B2] = atoi(nvram_get("pa1b2"));
-
-	sprom[BCM43xx_SPROM_BOARDREV] = atoi(nvram_get("boardrev"));
-#else
 	bcm43xx_sprom_read(bcm, sprom);
-#endif
 
 	/* boardflags2 */
 	value = sprom[BCM43xx_SPROM_BOARDFLAGS2];
@@ -1225,12 +1193,6 @@ static int _switch_core(struct bcm43xx_private *bcm, int core)
 			goto error;
 		udelay(10);
 	}
-#ifdef CONFIG_BCM947XX
-	if (bcm->pci_dev->bus->number == 0)
-		bcm->current_core_offset = 0x1000 * core;
-	else
-		bcm->current_core_offset = 0;
-#endif
 
 	return 0;
 error:
@@ -1387,19 +1349,6 @@ void bcm43xx_wireless_core_reset(struct bcm43xx_private *bcm, int connect_phy)
 
 	if ((bcm43xx_core_enabled(bcm)) &&
 	    !bcm43xx_using_pio(bcm)) {
-//FIXME: Do we _really_ want #ifndef CONFIG_BCM947XX here?
-#if 0
-#ifndef CONFIG_BCM947XX
-		/* reset all used DMA controllers. */
-		bcm43xx_dmacontroller_tx_reset(bcm, BCM43xx_MMIO_DMA1_BASE);
-		bcm43xx_dmacontroller_tx_reset(bcm, BCM43xx_MMIO_DMA2_BASE);
-		bcm43xx_dmacontroller_tx_reset(bcm, BCM43xx_MMIO_DMA3_BASE);
-		bcm43xx_dmacontroller_tx_reset(bcm, BCM43xx_MMIO_DMA4_BASE);
-		bcm43xx_dmacontroller_rx_reset(bcm, BCM43xx_MMIO_DMA1_BASE);
-		if (bcm->current_core->rev < 5)
-			bcm43xx_dmacontroller_rx_reset(bcm, BCM43xx_MMIO_DMA4_BASE);
-#endif
-#endif
 	}
 	if (bcm43xx_status(bcm) == BCM43xx_STAT_SHUTTINGDOWN) {
 		bcm43xx_write32(bcm, BCM43xx_MMIO_STATUS_BITFIELD,
@@ -2140,32 +2089,11 @@ out:
 	return err;
 }
 
-#ifdef CONFIG_BCM947XX
-static struct pci_device_id bcm43xx_47xx_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4324) },
-	{ 0 }
-};
-#endif
-
 static int bcm43xx_initialize_irq(struct bcm43xx_private *bcm)
 {
 	int err;
 
 	bcm->irq = bcm->pci_dev->irq;
-#ifdef CONFIG_BCM947XX
-	if (bcm->pci_dev->bus->number == 0) {
-		struct pci_dev *d;
-		struct pci_device_id *id;
-		for (id = bcm43xx_47xx_ids; id->vendor; id++) {
-			d = pci_get_device(id->vendor, id->device, NULL);
-			if (d != NULL) {
-				bcm->irq = d->irq;
-				pci_dev_put(d);
-				break;
-			}
-		}
-	}
-#endif
 	err = request_irq(bcm->irq, bcm43xx_interrupt_handler,
 			  IRQF_SHARED, KBUILD_MODNAME, bcm);
 	if (err)
@@ -2645,10 +2573,6 @@ static int bcm43xx_probe_cores(struct bcm43xx_private *bcm)
 			chip_id_16 = 0x4610;
 		else if ((pci_device >= 0x4710) && (pci_device <= 0x4715))
 			chip_id_16 = 0x4710;
-#ifdef CONFIG_BCM947XX
-		else if ((pci_device >= 0x4320) && (pci_device <= 0x4325))
-			chip_id_16 = 0x4309;
-#endif
 		else {
 			printk(KERN_ERR PFX "Could not determine Chip ID\n");
 			return -ENODEV;
@@ -4143,11 +4067,6 @@ static int __devinit bcm43xx_init_one(struct pci_dev *pdev,
 	struct net_device *net_dev;
 	struct bcm43xx_private *bcm;
 	int err;
-
-#ifdef CONFIG_BCM947XX
-	if ((pdev->bus->number == 0) && (pdev->device != 0x0800))
-		return -ENODEV;
-#endif
 
 #ifdef DEBUG_SINGLE_DEVICE_ONLY
 	if (strcmp(pci_name(pdev), DEBUG_SINGLE_DEVICE_ONLY))

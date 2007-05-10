@@ -239,6 +239,7 @@ out:
 	return ok;
 }
 
+#ifdef UML_CONFIG_MODE_TT
 void init_new_thread_stack(void *sig_stack, void (*usr1_handler)(int))
 {
 	int flags = 0, pages;
@@ -260,6 +261,7 @@ void init_new_thread_stack(void *sig_stack, void (*usr1_handler)(int))
 			      "errno = %d\n", errno);
 	}
 }
+#endif
 
 void init_new_thread_signals(void)
 {

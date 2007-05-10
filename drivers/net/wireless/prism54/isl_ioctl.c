@@ -3054,7 +3054,7 @@ static const iw_handler prism54_handler[] = {
 	(iw_handler) prism54_set_wap,	/* SIOCSIWAP */
 	(iw_handler) prism54_get_wap,	/* SIOCGIWAP */
 	(iw_handler) NULL,	/* -- hole -- */
-	(iw_handler) NULL,	/* SIOCGIWAPLIST depreciated */
+	(iw_handler) NULL,	/* SIOCGIWAPLIST deprecated */
 	(iw_handler) prism54_set_scan,	/* SIOCSIWSCAN */
 	(iw_handler) prism54_get_scan,	/* SIOCGIWSCAN */
 	(iw_handler) prism54_set_essid,	/* SIOCSIWESSID */

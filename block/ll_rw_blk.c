@@ -1704,7 +1704,7 @@ EXPORT_SYMBOL(blk_stop_queue);
  *     on a queue, such as calling the unplug function after a timeout.
  *     A block device may call blk_sync_queue to ensure that any
  *     such activity is cancelled, thus allowing it to release resources
- *     the the callbacks might use. The caller must already have made sure
+ *     that the callbacks might use. The caller must already have made sure
  *     that its ->make_request_fn will not re-add plugging prior to calling
  *     this function.
  *
@@ -1712,7 +1712,6 @@ EXPORT_SYMBOL(blk_stop_queue);
 void blk_sync_queue(struct request_queue *q)
 {
 	del_timer_sync(&q->unplug_timer);
-	kblockd_flush();
 }
 EXPORT_SYMBOL(blk_sync_queue);
 
@@ -3508,7 +3507,7 @@ static int blk_cpu_notify(struct notifier_block *self, unsigned long action,
 	 * If a CPU goes away, splice its entries to the current CPU
 	 * and trigger a run of the softirq
 	 */
-	if (action == CPU_DEAD) {
+	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
 		int cpu = (unsigned long) hcpu;
 
 		local_irq_disable();
@@ -3632,11 +3631,11 @@ int kblockd_schedule_work(struct work_struct *work)
 
 EXPORT_SYMBOL(kblockd_schedule_work);
 
-void kblockd_flush(void)
+void kblockd_flush_work(struct work_struct *work)
 {
-	flush_workqueue(kblockd_workqueue);
+	cancel_work_sync(work);
 }
-EXPORT_SYMBOL(kblockd_flush);
+EXPORT_SYMBOL(kblockd_flush_work);
 
 int __init blk_dev_init(void)
 {

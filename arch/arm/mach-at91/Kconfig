@@ -107,7 +107,7 @@ config ARCH_AT91SAM9260_SAM9XE
 	depends on ARCH_AT91SAM9260
 	help
 	  Select this if you are using Atmel's AT91SAM9XE System-on-Chip.
-	  They are basicaly AT91SAM9260s with various sizes of embedded Flash.
+	  They are basically AT91SAM9260s with various sizes of embedded Flash.
 
 comment "AT91SAM9260 / AT91SAM9XE Board Type"
 

@@ -73,6 +73,7 @@ struct c2_pd {
 struct c2_mr {
 	struct ib_mr ibmr;
 	struct c2_pd *pd;
+	struct ib_umem *umem;
 };
 
 struct c2_av;

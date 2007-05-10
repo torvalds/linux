@@ -146,7 +146,7 @@ config SND_VERBOSE_PROCFS
 	default y
 	help
 	  Say Y here to include code for verbose procfs contents (provides
-          usefull information to developers when a problem occurs). On the
+          useful information to developers when a problem occurs).  On the
           other side, it makes the ALSA subsystem larger.
 
 config SND_VERBOSE_PRINTK

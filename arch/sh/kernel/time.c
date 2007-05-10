@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 1999  Tetsuya Okada & Niibe Yutaka
  *  Copyright (C) 2000  Philipp Rumpf <prumpf@tux.org>
- *  Copyright (C) 2002 - 2006  Paul Mundt
+ *  Copyright (C) 2002 - 2007  Paul Mundt
  *  Copyright (C) 2002  M. R. Brown  <mrbrown@linux-sh.org>
  *
  *  Some code taken from i386 version.
@@ -15,6 +15,7 @@
 #include <linux/profile.h>
 #include <linux/timex.h>
 #include <linux/sched.h>
+#include <linux/clockchips.h>
 #include <asm/clock.h>
 #include <asm/rtc.h>
 #include <asm/timer.h>
@@ -34,6 +35,14 @@ static void null_rtc_get_time(struct timespec *tv)
 }
 
 static int null_rtc_set_time(const time_t secs)
+{
+	return 0;
+}
+
+/*
+ * Null high precision timer functions for systems lacking one.
+ */
+static cycle_t null_hpt_read(void)
 {
 	return 0;
 }
@@ -101,6 +110,7 @@ int do_settimeofday(struct timespec *tv)
 EXPORT_SYMBOL(do_settimeofday);
 #endif /* !CONFIG_GENERIC_TIME */
 
+#ifndef CONFIG_GENERIC_CLOCKEVENTS
 /* last time the RTC clock got updated */
 static long last_rtc_update;
 
@@ -138,6 +148,7 @@ void handle_timer_tick(void)
 			last_rtc_update = xtime.tv_sec - 600;
 	}
 }
+#endif /* !CONFIG_GENERIC_CLOCKEVENTS */
 
 #ifdef CONFIG_PM
 int timer_suspend(struct sys_device *dev, pm_message_t state)
@@ -168,108 +179,6 @@ static struct sysdev_class timer_sysclass = {
 	.resume	 = timer_resume,
 };
 
-#ifdef CONFIG_NO_IDLE_HZ
-static int timer_dyn_tick_enable(void)
-{
-	struct dyn_tick_timer *dyn_tick = sys_timer->dyn_tick;
-	unsigned long flags;
-	int ret = -ENODEV;
-
-	if (dyn_tick) {
-		spin_lock_irqsave(&dyn_tick->lock, flags);
-		ret = 0;
-		if (!(dyn_tick->state & DYN_TICK_ENABLED)) {
-			ret = dyn_tick->enable();
-
-			if (ret == 0)
-				dyn_tick->state |= DYN_TICK_ENABLED;
-		}
-		spin_unlock_irqrestore(&dyn_tick->lock, flags);
-	}
-
-	return ret;
-}
-
-static int timer_dyn_tick_disable(void)
-{
-	struct dyn_tick_timer *dyn_tick = sys_timer->dyn_tick;
-	unsigned long flags;
-	int ret = -ENODEV;
-
-	if (dyn_tick) {
-		spin_lock_irqsave(&dyn_tick->lock, flags);
-		ret = 0;
-		if (dyn_tick->state & DYN_TICK_ENABLED) {
-			ret = dyn_tick->disable();
-
-			if (ret == 0)
-				dyn_tick->state &= ~DYN_TICK_ENABLED;
-		}
-		spin_unlock_irqrestore(&dyn_tick->lock, flags);
-	}
-
-	return ret;
-}
-
-/*
- * Reprogram the system timer for at least the calculated time interval.
- * This function should be called from the idle thread with IRQs disabled,
- * immediately before sleeping.
- */
-void timer_dyn_reprogram(void)
-{
-	struct dyn_tick_timer *dyn_tick = sys_timer->dyn_tick;
-	unsigned long next, seq, flags;
-
-	if (!dyn_tick)
-		return;
-
-	spin_lock_irqsave(&dyn_tick->lock, flags);
-	if (dyn_tick->state & DYN_TICK_ENABLED) {
-		next = next_timer_interrupt();
-		do {
-			seq = read_seqbegin(&xtime_lock);
-			dyn_tick->reprogram(next - jiffies);
-		} while (read_seqretry(&xtime_lock, seq));
-	}
-	spin_unlock_irqrestore(&dyn_tick->lock, flags);
-}
-
-static ssize_t timer_show_dyn_tick(struct sys_device *dev, char *buf)
-{
-	return sprintf(buf, "%i\n",
-		       (sys_timer->dyn_tick->state & DYN_TICK_ENABLED) >> 1);
-}
-
-static ssize_t timer_set_dyn_tick(struct sys_device *dev, const char *buf,
-				  size_t count)
-{
-	unsigned int enable = simple_strtoul(buf, NULL, 2);
-
-	if (enable)
-		timer_dyn_tick_enable();
-	else
-		timer_dyn_tick_disable();
-
-	return count;
-}
-static SYSDEV_ATTR(dyn_tick, 0644, timer_show_dyn_tick, timer_set_dyn_tick);
-
-/*
- * dyntick=enable|disable
- */
-static char dyntick_str[4] __initdata = "";
-
-static int __init dyntick_setup(char *str)
-{
-	if (str)
-		strlcpy(dyntick_str, str, sizeof(dyntick_str));
-	return 1;
-}
-
-__setup("dyntick=", dyntick_setup);
-#endif
-
 static int __init timer_init_sysfs(void)
 {
 	int ret = sysdev_class_register(&timer_sysclass);
@@ -277,26 +186,50 @@ static int __init timer_init_sysfs(void)
 		return ret;
 
 	sys_timer->dev.cls = &timer_sysclass;
-	ret = sysdev_register(&sys_timer->dev);
-
-#ifdef CONFIG_NO_IDLE_HZ
-	if (ret == 0 && sys_timer->dyn_tick) {
-		ret = sysdev_create_file(&sys_timer->dev, &attr_dyn_tick);
-
-		/*
-		 * Turn on dynamic tick after calibrate delay
-		 * for correct bogomips
-		 */
-		if (ret == 0 && dyntick_str[0] == 'e')
-			ret = timer_dyn_tick_enable();
-	}
-#endif
-
-	return ret;
+	return sysdev_register(&sys_timer->dev);
 }
 device_initcall(timer_init_sysfs);
 
 void (*board_time_init)(void);
+
+/*
+ * Shamelessly based on the MIPS and Sparc64 work.
+ */
+static unsigned long timer_ticks_per_nsec_quotient __read_mostly;
+unsigned long sh_hpt_frequency = 0;
+
+#define NSEC_PER_CYC_SHIFT	10
+
+struct clocksource clocksource_sh = {
+	.name		= "SuperH",
+	.rating		= 200,
+	.mask		= CLOCKSOURCE_MASK(32),
+	.read		= null_hpt_read,
+	.shift		= 16,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+static void __init init_sh_clocksource(void)
+{
+	if (!sh_hpt_frequency || clocksource_sh.read == null_hpt_read)
+		return;
+
+	clocksource_sh.mult = clocksource_hz2mult(sh_hpt_frequency,
+						  clocksource_sh.shift);
+
+	timer_ticks_per_nsec_quotient =
+		clocksource_hz2mult(sh_hpt_frequency, NSEC_PER_CYC_SHIFT);
+
+	clocksource_register(&clocksource_sh);
+}
+
+#ifdef CONFIG_GENERIC_TIME
+unsigned long long sched_clock(void)
+{
+	unsigned long long ticks = clocksource_sh.read();
+	return (ticks * timer_ticks_per_nsec_quotient) >> NSEC_PER_CYC_SHIFT;
+}
+#endif
 
 void __init time_init(void)
 {
@@ -316,10 +249,15 @@ void __init time_init(void)
 	sys_timer = get_sys_timer();
 	printk(KERN_INFO "Using %s for system timer\n", sys_timer->name);
 
-#ifdef CONFIG_NO_IDLE_HZ
-	if (sys_timer->dyn_tick)
-		spin_lock_init(&sys_timer->dyn_tick->lock);
-#endif
+	if (sys_timer->ops->read)
+		clocksource_sh.read = sys_timer->ops->read;
+
+	init_sh_clocksource();
+
+	if (sh_hpt_frequency)
+		printk("Using %lu.%03lu MHz high precision timer.\n",
+		       ((sh_hpt_frequency + 500) / 1000) / 1000,
+		       ((sh_hpt_frequency + 500) / 1000) % 1000);
 
 #if defined(CONFIG_SH_KGDB)
 	/*

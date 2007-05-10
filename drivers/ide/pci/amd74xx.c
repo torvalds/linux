@@ -92,7 +92,7 @@ static unsigned char amd_cyc2udma[] = { 6, 6, 5, 4, 0, 1, 1, 2, 2, 3, 3, 3, 3, 3
  * AMD /proc entry.
  */
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_IDE_PROC_FS
 
 #include <linux/stat.h>
 #include <linux/proc_fs.h>
@@ -402,14 +402,14 @@ static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev, const ch
  * Register /proc/ide/amd74xx entry
  */
 
-#if defined(DISPLAY_AMD_TIMINGS) && defined(CONFIG_PROC_FS)
+#if defined(DISPLAY_AMD_TIMINGS) && defined(CONFIG_IDE_PROC_FS)
         if (!amd74xx_proc) {
                 amd_base = pci_resource_start(dev, 4);
                 bmide_dev = dev;
 		ide_pci_create_host_proc("amd74xx", amd74xx_get_info);
                 amd74xx_proc = 1;
         }
-#endif /* DISPLAY_AMD_TIMINGS && CONFIG_PROC_FS */
+#endif /* DISPLAY_AMD_TIMINGS && CONFIG_IDE_PROC_FS */
 
 	return dev->irq;
 }

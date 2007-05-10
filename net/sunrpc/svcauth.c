@@ -64,7 +64,7 @@ int svc_set_client(struct svc_rqst *rqstp)
 }
 
 /* A request, which was authenticated, has now executed.
- * Time to finalise the the credentials and verifier
+ * Time to finalise the credentials and verifier
  * and release and resources
  */
 int svc_authorise(struct svc_rqst *rqstp)

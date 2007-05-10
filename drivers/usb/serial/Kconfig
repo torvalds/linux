@@ -558,7 +558,7 @@ config USB_SERIAL_DEBUG
 	tristate "USB Debugging Device"
 	depends on USB_SERIAL
 	help
-	  Say Y here if you have a USB debugging device used to recieve
+	  Say Y here if you have a USB debugging device used to receive
 	  debugging data from another machine.  The most common of these
 	  devices is the NetChip TurboCONNECT device.
 

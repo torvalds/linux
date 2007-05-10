@@ -26,7 +26,7 @@ enum {
 	XMIT_SZ_128BIT,
 };
 
-static unsigned int ts_shift[] __attribute__ ((used)) = {
+static unsigned int ts_shift[] __maybe_unused = {
 	[XMIT_SZ_8BIT]		= 0,
 	[XMIT_SZ_16BIT]		= 1,
 	[XMIT_SZ_32BIT]		= 2,

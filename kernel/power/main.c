@@ -30,7 +30,6 @@
 DEFINE_MUTEX(pm_mutex);
 
 struct pm_ops *pm_ops;
-suspend_disk_method_t pm_disk_mode = PM_DISK_SHUTDOWN;
 
 /**
  *	pm_set_ops - Set the global power method table. 
@@ -41,10 +40,6 @@ void pm_set_ops(struct pm_ops * ops)
 {
 	mutex_lock(&pm_mutex);
 	pm_ops = ops;
-	if (ops && ops->pm_disk_mode != PM_DISK_INVALID) {
-		pm_disk_mode = ops->pm_disk_mode;
-	} else
-		pm_disk_mode = PM_DISK_SHUTDOWN;
 	mutex_unlock(&pm_mutex);
 }
 
@@ -184,24 +179,12 @@ static void suspend_finish(suspend_state_t state)
 static const char * const pm_states[PM_SUSPEND_MAX] = {
 	[PM_SUSPEND_STANDBY]	= "standby",
 	[PM_SUSPEND_MEM]	= "mem",
-	[PM_SUSPEND_DISK]	= "disk",
 };
 
 static inline int valid_state(suspend_state_t state)
 {
-	/* Suspend-to-disk does not really need low-level support.
-	 * It can work with shutdown/reboot if needed. If it isn't
-	 * configured, then it cannot be supported.
-	 */
-	if (state == PM_SUSPEND_DISK)
-#ifdef CONFIG_SOFTWARE_SUSPEND
-		return 1;
-#else
-		return 0;
-#endif
-
-	/* all other states need lowlevel support and need to be
-	 * valid to the lowlevel implementation, no valid callback
+	/* All states need lowlevel support and need to be valid
+	 * to the lowlevel implementation, no valid callback
 	 * implies that none are valid. */
 	if (!pm_ops || !pm_ops->valid || !pm_ops->valid(state))
 		return 0;
@@ -229,11 +212,6 @@ static int enter_state(suspend_state_t state)
 	if (!mutex_trylock(&pm_mutex))
 		return -EBUSY;
 
-	if (state == PM_SUSPEND_DISK) {
-		error = pm_suspend_disk();
-		goto Unlock;
-	}
-
 	pr_debug("PM: Preparing system for %s sleep\n", pm_states[state]);
 	if ((error = suspend_prepare(state)))
 		goto Unlock;
@@ -251,7 +229,7 @@ static int enter_state(suspend_state_t state)
 
 /**
  *	pm_suspend - Externally visible function for suspending system.
- *	@state:		Enumarted value of state to enter.
+ *	@state:		Enumerated value of state to enter.
  *
  *	Determine whether or not value is within range, get state 
  *	structure, and enter (above).
@@ -289,7 +267,13 @@ static ssize_t state_show(struct kset *kset, char *buf)
 		if (pm_states[i] && valid_state(i))
 			s += sprintf(s,"%s ", pm_states[i]);
 	}
-	s += sprintf(s,"\n");
+#ifdef CONFIG_SOFTWARE_SUSPEND
+	s += sprintf(s, "%s\n", "disk");
+#else
+	if (s != buf)
+		/* convert the last space to a newline */
+		*(s-1) = '\n';
+#endif
 	return (s - buf);
 }
 
@@ -303,6 +287,12 @@ static ssize_t state_store(struct kset *kset, const char *buf, size_t n)
 
 	p = memchr(buf, '\n', n);
 	len = p ? p - buf : n;
+
+	/* First, check if we are requested to hibernate */
+	if (!strncmp(buf, "disk", len)) {
+		error = hibernate();
+		return error ? error : n;
+	}
 
 	for (s = &pm_states[state]; state < PM_SUSPEND_MAX; s++, state++) {
 		if (*s && !strncmp(buf, *s, len))

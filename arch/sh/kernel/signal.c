@@ -23,7 +23,7 @@
 #include <linux/personality.h>
 #include <linux/binfmts.h>
 #include <linux/freezer.h>
-
+#include <asm/system.h>
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -500,7 +500,9 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 				}
 			/* fallthrough */
 			case -ERESTARTNOINTR:
-				regs->pc -= 2;
+				regs->pc -= instruction_size(
+						ctrl_inw(regs->pc - 4));
+				break;
 		}
 	} else {
 		/* gUSA handling */
@@ -516,7 +518,8 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 			regs->regs[15] = regs->regs[1];
 			if (regs->pc < regs->regs[0])
 				/* Go to rewind point #1 */
-				regs->pc = regs->regs[0] + offset - 2;
+				regs->pc = regs->regs[0] + offset -
+					instruction_size(ctrl_inw(regs->pc-4));
 		}
 #ifdef CONFIG_PREEMPT
 		local_irq_restore(flags);
@@ -600,9 +603,9 @@ static void do_signal(struct pt_regs *regs, unsigned int save_r0)
 		    regs->regs[0] == -ERESTARTSYS ||
 		    regs->regs[0] == -ERESTARTNOINTR) {
 			regs->regs[0] = save_r0;
-			regs->pc -= 2;
+			regs->pc -= instruction_size(ctrl_inw(regs->pc - 4));
 		} else if (regs->regs[0] == -ERESTART_RESTARTBLOCK) {
-			regs->pc -= 2;
+			regs->pc -= instruction_size(ctrl_inw(regs->pc - 4));
 			regs->regs[3] = __NR_restart_syscall;
 		}
 	}

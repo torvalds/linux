@@ -51,6 +51,7 @@ int smp_call_function_on_cpu(void (*func) (void *info), void *info,int retry, in
 
 #else /* CONFIG_SMP */
 
+#define hard_smp_processor_id()		0
 #define smp_call_function_on_cpu(func,info,retry,wait,cpu)    ({ 0; })
 
 #endif /* CONFIG_SMP */

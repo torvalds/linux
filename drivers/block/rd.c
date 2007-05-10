@@ -151,7 +151,7 @@ static int ramdisk_commit_write(struct file *file, struct page *page,
 }
 
 /*
- * ->writepage to the the blockdev's mapping has to redirty the page so that the
+ * ->writepage to the blockdev's mapping has to redirty the page so that the
  * VM doesn't go and steal it.  We return AOP_WRITEPAGE_ACTIVATE so that the VM
  * won't try to (pointlessly) write the page again for a while.
  *

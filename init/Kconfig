@@ -143,9 +143,7 @@ config POSIX_MQUEUE
 	  queues every message has a priority which decides about succession
 	  of receiving it by a process. If you want to compile and run
 	  programs written e.g. for Solaris with use of its POSIX message
-	  queues (functions mq_*) say Y here. To use this feature you will
-	  also need mqueue library, available from
-	  <http://www.mat.uni.torun.pl/~wrona/posix_ipc/>
+	  queues (functions mq_*) say Y here.
 
 	  POSIX message queues are visible as a filesystem called 'mqueue'
 	  and can be mounted somewhere if you want to do filesystem
@@ -308,7 +306,7 @@ config SYSFS_DEPRECATED
 	  releases.
 
 	  If enabled, this option will also move any device structures
-	  that belong to a class, back into the /sys/class heirachy, in
+	  that belong to a class, back into the /sys/class hierarchy, in
 	  order to support older versions of udev.
 
 	  If you are using a distro that was released in 2006 or later,
@@ -504,6 +502,15 @@ config VM_EVENT_COUNTERS
 	  on EMBEDDED systems.  /proc/vmstat will only show page counts
 	  if VM event counters are disabled.
 
+config SLUB_DEBUG
+	default y
+	bool "Enable SLUB debugging support" if EMBEDDED
+	help
+	  SLUB has extensive debug support features. Disabling these can
+	  result in significant savings in code size. This also disables
+	  SLUB sysfs support. /sys/slab will not exist and there will be
+	  no support for cache validation etc.
+
 choice
 	prompt "Choose SLAB allocator"
 	default SLAB
@@ -514,9 +521,9 @@ config SLAB
 	bool "SLAB"
 	help
 	  The regular slab allocator that is established and known to work
-	  well in all environments. It organizes chache hot objects in
+	  well in all environments. It organizes cache hot objects in
 	  per cpu and per node queues. SLAB is the default choice for
-	  slab allocator.
+	  a slab allocator.
 
 config SLUB
 	depends on EXPERIMENTAL && !ARCH_USES_SLAB_PAGE_STRUCT
@@ -526,21 +533,20 @@ config SLUB
 	   instead of managing queues of cached objects (SLAB approach).
 	   Per cpu caching is realized using slabs of objects instead
 	   of queues of objects. SLUB can use memory efficiently
-	   way and has enhanced diagnostics.
+	   and has enhanced diagnostics.
 
 config SLOB
 #
-#	SLOB cannot support SMP because SLAB_DESTROY_BY_RCU does not work
-#	properly.
+#	SLOB does not support SMP because SLAB_DESTROY_BY_RCU is unsupported
 #
 	depends on EMBEDDED && !SMP && !SPARSEMEM
 	bool "SLOB (Simple Allocator)"
 	help
 	   SLOB replaces the SLAB allocator with a drastically simpler
 	   allocator.  SLOB is more space efficient that SLAB but does not
-	   scale well (single lock for all operations) and is more susceptible
-	   to fragmentation. SLOB it is a great choice to reduce
-	   memory usage and code size for embedded systems.
+	   scale well (single lock for all operations) and is also highly
+	   susceptible to fragmentation. SLUB can accomplish a higher object
+	   density. It is usually better to use SLUB instead of SLOB.
 
 endchoice
 

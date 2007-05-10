@@ -480,8 +480,8 @@ The PCI stack provides 3 possible levels of MSI disabling:
 
 6.1. Disabling MSI on a single device
 
-Under some circumstances, it might be required to disable MSI on a
-single device, It may be achived by either not calling pci_enable_msi()
+Under some circumstances it might be required to disable MSI on a
+single device.  This may be achieved by either not calling pci_enable_msi()
 or all, or setting the pci_dev->no_msi flag before (most of the time
 in a quirk).
 
@@ -492,7 +492,7 @@ being able to route MSI between busses. In this case, MSI have to be
 disabled on all devices behind this bridge. It is achieves by setting
 the PCI_BUS_FLAGS_NO_MSI flag in the pci_bus->bus_flags of the bridge
 subordinate bus. There is no need to set the same flag on bridges that
-are below the broken brigde. When pci_enable_msi() is called to enable
+are below the broken bridge. When pci_enable_msi() is called to enable
 MSI on a device, pci_msi_supported() takes care of checking the NO_MSI
 flag in all parent busses of the device.
 

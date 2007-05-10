@@ -39,7 +39,7 @@
 		       [threadrsp] "i" (offsetof(struct task_struct, thread.rsp)), \
 		       [ti_flags] "i" (offsetof(struct thread_info, flags)),\
 		       [tif_fork] "i" (TIF_FORK),			  \
-		       [thread_info] "i" (offsetof(struct task_struct, thread_info)), \
+		       [thread_info] "i" (offsetof(struct task_struct, stack)), \
 		       [pda_pcurrent] "i" (offsetof(struct x8664_pda, pcurrent))   \
 		     : "memory", "cc" __EXTRA_CLOBBER)
     

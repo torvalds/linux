@@ -102,6 +102,14 @@
 //# endif
 #endif
 
+#if defined(CONFIG_CPU_V7)
+//# ifdef _CACHE
+#  define MULTI_CACHE 1
+//# else
+//#  define _CACHE v7
+//# endif
+#endif
+
 #if !defined(_CACHE) && !defined(MULTI_CACHE)
 #error Unknown cache maintainence model
 #endif
@@ -418,11 +426,19 @@ static inline void flush_anon_page(struct vm_area_struct *vma,
  */
 #define flush_icache_page(vma,page)	do { } while (0)
 
-#define __cacheid_present(val)		(val != read_cpuid(CPUID_ID))
-#define __cacheid_vivt(val)		((val & (15 << 25)) != (14 << 25))
-#define __cacheid_vipt(val)		((val & (15 << 25)) == (14 << 25))
-#define __cacheid_vipt_nonaliasing(val)	((val & (15 << 25 | 1 << 23)) == (14 << 25))
-#define __cacheid_vipt_aliasing(val)	((val & (15 << 25 | 1 << 23)) == (14 << 25 | 1 << 23))
+#define __cacheid_present(val)			(val != read_cpuid(CPUID_ID))
+#define __cacheid_type_v7(val)			((val & (7 << 29)) == (4 << 29))
+
+#define __cacheid_vivt_prev7(val)		((val & (15 << 25)) != (14 << 25))
+#define __cacheid_vipt_prev7(val)		((val & (15 << 25)) == (14 << 25))
+#define __cacheid_vipt_nonaliasing_prev7(val)	((val & (15 << 25 | 1 << 23)) == (14 << 25))
+#define __cacheid_vipt_aliasing_prev7(val)	((val & (15 << 25 | 1 << 23)) == (14 << 25 | 1 << 23))
+
+#define __cacheid_vivt(val)			(__cacheid_type_v7(val) ? 0 : __cacheid_vivt_prev7(val))
+#define __cacheid_vipt(val)			(__cacheid_type_v7(val) ? 1 : __cacheid_vipt_prev7(val))
+#define __cacheid_vipt_nonaliasing(val)		(__cacheid_type_v7(val) ? 1 : __cacheid_vipt_nonaliasing_prev7(val))
+#define __cacheid_vipt_aliasing(val)		(__cacheid_type_v7(val) ? 0 : __cacheid_vipt_aliasing_prev7(val))
+#define __cacheid_vivt_asid_tagged_instr(val)	(__cacheid_type_v7(val) ? ((val & (3 << 14)) == (1 << 14)) : 0)
 
 #if defined(CONFIG_CPU_CACHE_VIVT) && !defined(CONFIG_CPU_CACHE_VIPT)
 
@@ -430,6 +446,7 @@ static inline void flush_anon_page(struct vm_area_struct *vma,
 #define cache_is_vipt()			0
 #define cache_is_vipt_nonaliasing()	0
 #define cache_is_vipt_aliasing()	0
+#define icache_is_vivt_asid_tagged()	0
 
 #elif defined(CONFIG_CPU_CACHE_VIPT)
 
@@ -445,6 +462,12 @@ static inline void flush_anon_page(struct vm_area_struct *vma,
 	({								\
 		unsigned int __val = read_cpuid(CPUID_CACHETYPE);	\
 		__cacheid_vipt_aliasing(__val);				\
+	})
+
+#define icache_is_vivt_asid_tagged()					\
+	({								\
+		unsigned int __val = read_cpuid(CPUID_CACHETYPE);	\
+		__cacheid_vivt_asid_tagged_instr(__val);		\
 	})
 
 #else
@@ -473,6 +496,13 @@ static inline void flush_anon_page(struct vm_area_struct *vma,
 		unsigned int __val = read_cpuid(CPUID_CACHETYPE);	\
 		__cacheid_present(__val) &&				\
 		 __cacheid_vipt_aliasing(__val);			\
+	})
+
+#define icache_is_vivt_asid_tagged()					\
+	({								\
+		unsigned int __val = read_cpuid(CPUID_CACHETYPE);	\
+		__cacheid_present(__val) &&				\
+		 __cacheid_vivt_asid_tagged_instr(__val);		\
 	})
 
 #endif

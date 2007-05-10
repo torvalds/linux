@@ -46,6 +46,9 @@ DECLARE_PER_CPU(struct ptc_stats, ptcstats);
 
 static  __cacheline_aligned DEFINE_SPINLOCK(sn2_global_ptc_lock);
 
+/* 0 = old algorithm (no IPI flushes), 1 = ipi deadlock flush, 2 = ipi instead of SHUB ptc, >2 = always ipi */
+static int sn2_flush_opt = 0;
+
 extern unsigned long
 sn2_ptc_deadlock_recovery_core(volatile unsigned long *, unsigned long,
 			       volatile unsigned long *, unsigned long,
@@ -76,6 +79,8 @@ struct ptc_stats {
 	unsigned long shub_itc_clocks;
 	unsigned long shub_itc_clocks_max;
 	unsigned long shub_ptc_flushes_not_my_mm;
+	unsigned long shub_ipi_flushes;
+	unsigned long shub_ipi_flushes_itc_clocks;
 };
 
 #define sn2_ptctest	0
@@ -121,6 +126,18 @@ void sn_tlb_migrate_finish(struct mm_struct *mm)
 		flush_tlb_mm(mm);
 }
 
+static void
+sn2_ipi_flush_all_tlb(struct mm_struct *mm)
+{
+	unsigned long itc;
+
+	itc = ia64_get_itc();
+	smp_flush_tlb_cpumask(mm->cpu_vm_mask);
+	itc = ia64_get_itc() - itc;
+	__get_cpu_var(ptcstats).shub_ipi_flushes_itc_clocks += itc;
+	__get_cpu_var(ptcstats).shub_ipi_flushes++;
+}
+
 /**
  * sn2_global_tlb_purge - globally purge translation cache of virtual address range
  * @mm: mm_struct containing virtual address range
@@ -154,7 +171,12 @@ sn2_global_tlb_purge(struct mm_struct *mm, unsigned long start,
 	unsigned long itc, itc2, flags, data0 = 0, data1 = 0, rr_value, old_rr = 0;
 	short nasids[MAX_NUMNODES], nix;
 	nodemask_t nodes_flushed;
-	int active, max_active, deadlock;
+	int active, max_active, deadlock, flush_opt = sn2_flush_opt;
+
+	if (flush_opt > 2) {
+		sn2_ipi_flush_all_tlb(mm);
+		return;
+	}
 
 	nodes_clear(nodes_flushed);
 	i = 0;
@@ -185,6 +207,12 @@ sn2_global_tlb_purge(struct mm_struct *mm, unsigned long start,
 	if (atomic_read(&mm->mm_users) == 1 && mymm) {
 		flush_tlb_mm(mm);
 		__get_cpu_var(ptcstats).change_rid++;
+		preempt_enable();
+		return;
+	}
+
+	if (flush_opt == 2) {
+		sn2_ipi_flush_all_tlb(mm);
 		preempt_enable();
 		return;
 	}
@@ -256,6 +284,8 @@ sn2_global_tlb_purge(struct mm_struct *mm, unsigned long start,
 			}
 			if (active >= max_active || i == (nix - 1)) {
 				if ((deadlock = wait_piowc())) {
+					if (flush_opt == 1)
+						goto done;
 					sn2_ptc_deadlock_recovery(nasids, ibegin, i, mynasid, ptc0, data0, ptc1, data1);
 					if (reset_max_active_on_deadlock())
 						max_active = 1;
@@ -267,6 +297,7 @@ sn2_global_tlb_purge(struct mm_struct *mm, unsigned long start,
 		start += (1UL << nbits);
 	} while (start < end);
 
+done:
 	itc2 = ia64_get_itc() - itc2;
 	__get_cpu_var(ptcstats).shub_itc_clocks += itc2;
 	if (itc2 > __get_cpu_var(ptcstats).shub_itc_clocks_max)
@@ -278,6 +309,11 @@ sn2_global_tlb_purge(struct mm_struct *mm, unsigned long start,
 	}
 
 	spin_unlock_irqrestore(PTC_LOCK(shub1), flags);
+
+	if (flush_opt == 1 && deadlock) {
+		__get_cpu_var(ptcstats).deadlocks++;
+		sn2_ipi_flush_all_tlb(mm);
+	}
 
 	preempt_enable();
 }
@@ -425,22 +461,40 @@ static int sn2_ptc_seq_show(struct seq_file *file, void *data)
 
 	if (!cpu) {
 		seq_printf(file,
-			   "# cpu ptc_l newrid ptc_flushes nodes_flushed deadlocks lock_nsec shub_nsec shub_nsec_max not_my_mm deadlock2\n");
-		seq_printf(file, "# ptctest %d\n", sn2_ptctest);
+			   "# cpu ptc_l newrid ptc_flushes nodes_flushed deadlocks lock_nsec shub_nsec shub_nsec_max not_my_mm deadlock2 ipi_fluches ipi_nsec\n");
+		seq_printf(file, "# ptctest %d, flushopt %d\n", sn2_ptctest, sn2_flush_opt);
 	}
 
 	if (cpu < NR_CPUS && cpu_online(cpu)) {
 		stat = &per_cpu(ptcstats, cpu);
-		seq_printf(file, "cpu %d %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld\n", cpu, stat->ptc_l,
+		seq_printf(file, "cpu %d %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld\n", cpu, stat->ptc_l,
 				stat->change_rid, stat->shub_ptc_flushes, stat->nodes_flushed,
 				stat->deadlocks,
 				1000 * stat->lock_itc_clocks / per_cpu(cpu_info, cpu).cyc_per_usec,
 				1000 * stat->shub_itc_clocks / per_cpu(cpu_info, cpu).cyc_per_usec,
 				1000 * stat->shub_itc_clocks_max / per_cpu(cpu_info, cpu).cyc_per_usec,
 				stat->shub_ptc_flushes_not_my_mm,
-				stat->deadlocks2);
+				stat->deadlocks2,
+				stat->shub_ipi_flushes,
+				1000 * stat->shub_ipi_flushes_itc_clocks / per_cpu(cpu_info, cpu).cyc_per_usec);
 	}
 	return 0;
+}
+
+static ssize_t sn2_ptc_proc_write(struct file *file, const char __user *user, size_t count, loff_t *data)
+{
+	int cpu;
+	char optstr[64];
+
+	if (copy_from_user(optstr, user, count))
+		return -EFAULT;
+	optstr[count - 1] = '\0';
+	sn2_flush_opt = simple_strtoul(optstr, NULL, 0);
+
+	for_each_online_cpu(cpu)
+		memset(&per_cpu(ptcstats, cpu), 0, sizeof(struct ptc_stats));
+
+	return count;
 }
 
 static struct seq_operations sn2_ptc_seq_ops = {
@@ -458,6 +512,7 @@ static int sn2_ptc_proc_open(struct inode *inode, struct file *file)
 static const struct file_operations proc_sn2_ptc_operations = {
 	.open = sn2_ptc_proc_open,
 	.read = seq_read,
+	.write = sn2_ptc_proc_write,
 	.llseek = seq_lseek,
 	.release = seq_release,
 };

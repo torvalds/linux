@@ -760,6 +760,9 @@ static int au_ide_probe(struct device *dev)
 #endif
 
 	probe_hwif_init(hwif);
+
+	ide_proc_register_port(hwif);
+
 	dev_set_drvdata(dev, hwif);
 
 	printk(KERN_INFO "Au1xxx IDE(builtin) configured for %s\n", mode );

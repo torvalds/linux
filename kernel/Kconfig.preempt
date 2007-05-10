@@ -23,7 +23,7 @@ config PREEMPT_VOLUNTARY
 	  "explicit preemption points" to the kernel code. These new
 	  preemption points have been selected to reduce the maximum
 	  latency of rescheduling, providing faster application reactions,
-	  at the cost of slighly lower throughput.
+	  at the cost of slightly lower throughput.
 
 	  This allows reaction to interactive events by allowing a
 	  low priority process to voluntarily preempt itself even if it
@@ -43,7 +43,7 @@ config PREEMPT
 	  even if it is in kernel mode executing a system call and would
 	  otherwise not be about to reach a natural preemption point.
 	  This allows applications to run more 'smoothly' even when the
-	  system is under load, at the cost of slighly lower throughput
+	  system is under load, at the cost of slightly lower throughput
 	  and a slight runtime overhead to kernel code.
 
 	  Select this if you are building a kernel for a desktop or

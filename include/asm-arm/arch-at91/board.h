@@ -121,7 +121,7 @@ extern void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data);
  /* AC97 */
 struct atmel_ac97_data {
 	u8		reset_pin;	/* reset */
-}
+};
 extern void __init at91_add_device_ac97(struct atmel_ac97_data *data);
 
  /* LEDs */

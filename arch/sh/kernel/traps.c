@@ -20,10 +20,10 @@
 #include <linux/io.h>
 #include <linux/bug.h>
 #include <linux/debug_locks.h>
+#include <linux/kdebug.h>
 #include <linux/limits.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
-#include <asm/kdebug.h>
 
 #ifdef CONFIG_SH_KGDB
 #include <asm/kgdb.h>
@@ -75,20 +75,6 @@ static void dump_mem(const char *str, unsigned long bottom, unsigned long top)
 		printk("\n");
 	}
 }
-
-ATOMIC_NOTIFIER_HEAD(shdie_chain);
-
-int register_die_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_register(&shdie_chain, nb);
-}
-EXPORT_SYMBOL(register_die_notifier);
-
-int unregister_die_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_unregister(&shdie_chain, nb);
-}
-EXPORT_SYMBOL(unregister_die_notifier);
 
 static DEFINE_SPINLOCK(die_lock);
 
@@ -505,7 +491,7 @@ static int handle_unaligned_access(u16 instruction, struct pt_regs *regs)
  simple:
 	ret = handle_unaligned_ins(instruction,regs);
 	if (ret==0)
-		regs->pc += 2;
+		regs->pc += instruction_size(instruction);
 	return ret;
 }
 #endif /* CONFIG_CPU_SH2A */
@@ -682,7 +668,7 @@ asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 
 	err = do_fpu_inst(inst, regs);
 	if (!err) {
-		regs->pc += 2;
+		regs->pc += instruction_size(inst);
 		return;
 	}
 	/* not a FPU inst. */

@@ -2586,7 +2586,7 @@ static int sctp_setsockopt_rtoinfo(struct sock *sk, char __user *optval, int opt
  *
  * 7.1.2 SCTP_ASSOCINFO
  *
- * This option is used to tune the the maximum retransmission attempts
+ * This option is used to tune the maximum retransmission attempts
  * of the association.
  * Returns an error if the new association retransmission value is
  * greater than the sum of the retransmission value  of the peer.
@@ -4547,7 +4547,7 @@ static int sctp_getsockopt_rtoinfo(struct sock *sk, int len,
  *
  * 7.1.2 SCTP_ASSOCINFO
  *
- * This option is used to tune the the maximum retransmission attempts
+ * This option is used to tune the maximum retransmission attempts
  * of the association.
  * Returns an error if the new association retransmission value is
  * greater than the sum of the retransmission value  of the peer.

@@ -13,7 +13,7 @@ You can find the latest version of this document at
 
 Please send me your comments to
 
-    Ulisses Alonso Camaró <uaca@i.hate.spam.alumni.uv.es>
+    Ulisses Alonso CamarÃ³ <uaca@i.hate.spam.alumni.uv.es>
 
 -------------------------------------------------------------------------------
 + Why use PACKET_MMAP

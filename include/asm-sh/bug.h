@@ -1,11 +1,11 @@
 #ifndef __ASM_SH_BUG_H
 #define __ASM_SH_BUG_H
 
+#define TRAPA_BUG_OPCODE	0xc33e	/* trapa #0x3e */
+
 #ifdef CONFIG_BUG
 #define HAVE_ARCH_BUG
 #define HAVE_ARCH_WARN_ON
-
-#define TRAPA_BUG_OPCODE	0xc33e	/* trapa #0x3e */
 
 /**
  * _EMIT_BUG_ENTRY

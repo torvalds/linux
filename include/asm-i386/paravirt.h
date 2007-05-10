@@ -560,11 +560,6 @@ static inline u64 paravirt_read_tsc(void)
 {
 	return PVOP_CALL0(u64, read_tsc);
 }
-#define rdtsc(low,high) do {			\
-	u64 _l = paravirt_read_tsc();		\
-	low = (u32)_l;				\
-	high = _l >> 32;			\
-} while(0)
 
 #define rdtscl(low) do {			\
 	u64 _l = paravirt_read_tsc();		\

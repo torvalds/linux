@@ -1,4 +1,4 @@
-/*arch/ppc/platforms/mpc885ads-setup.c
+/*arch/powerpc/platforms/8xx/mpc885ads_setup.c
  *
  * Platform setup for the Freescale mpc885ads board
  *

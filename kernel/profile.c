@@ -340,6 +340,7 @@ static int __devinit profile_cpu_callback(struct notifier_block *info,
 
 	switch (action) {
 	case CPU_UP_PREPARE:
+	case CPU_UP_PREPARE_FROZEN:
 		node = cpu_to_node(cpu);
 		per_cpu(cpu_profile_flip, cpu) = 0;
 		if (!per_cpu(cpu_profile_hits, cpu)[1]) {
@@ -365,10 +366,13 @@ static int __devinit profile_cpu_callback(struct notifier_block *info,
 		__free_page(page);
 		return NOTIFY_BAD;
 	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
 		cpu_set(cpu, prof_cpu_mask);
 		break;
 	case CPU_UP_CANCELED:
+	case CPU_UP_CANCELED_FROZEN:
 	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
 		cpu_clear(cpu, prof_cpu_mask);
 		if (per_cpu(cpu_profile_hits, cpu)[0]) {
 			page = virt_to_page(per_cpu(cpu_profile_hits, cpu)[0]);

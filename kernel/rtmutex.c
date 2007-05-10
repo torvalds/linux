@@ -56,7 +56,7 @@
  * state.
  */
 
-static void
+void
 rt_mutex_set_owner(struct rt_mutex *lock, struct task_struct *owner,
 		   unsigned long mask)
 {
@@ -81,29 +81,6 @@ static void fixup_rt_mutex_waiters(struct rt_mutex *lock)
 }
 
 /*
- * We can speed up the acquire/release, if the architecture
- * supports cmpxchg and if there's no debugging state to be set up
- */
-#if defined(__HAVE_ARCH_CMPXCHG) && !defined(CONFIG_DEBUG_RT_MUTEXES)
-# define rt_mutex_cmpxchg(l,c,n)	(cmpxchg(&l->owner, c, n) == c)
-static inline void mark_rt_mutex_waiters(struct rt_mutex *lock)
-{
-	unsigned long owner, *p = (unsigned long *) &lock->owner;
-
-	do {
-		owner = *p;
-	} while (cmpxchg(p, owner, owner | RT_MUTEX_HAS_WAITERS) != owner);
-}
-#else
-# define rt_mutex_cmpxchg(l,c,n)	(0)
-static inline void mark_rt_mutex_waiters(struct rt_mutex *lock)
-{
-	lock->owner = (struct task_struct *)
-			((unsigned long)lock->owner | RT_MUTEX_HAS_WAITERS);
-}
-#endif
-
-/*
  * Calculate task priority from the waiter list priority
  *
  * Return task->normal_prio when the waiter list is empty or when
@@ -123,7 +100,7 @@ int rt_mutex_getprio(struct task_struct *task)
  *
  * This can be both boosting and unboosting. task->pi_lock must be held.
  */
-static void __rt_mutex_adjust_prio(struct task_struct *task)
+void __rt_mutex_adjust_prio(struct task_struct *task)
 {
 	int prio = rt_mutex_getprio(task);
 
@@ -159,11 +136,11 @@ int max_lock_depth = 1024;
  * Decreases task's usage by one - may thus free the task.
  * Returns 0 or -EDEADLK.
  */
-static int rt_mutex_adjust_prio_chain(struct task_struct *task,
-				      int deadlock_detect,
-				      struct rt_mutex *orig_lock,
-				      struct rt_mutex_waiter *orig_waiter,
-				      struct task_struct *top_task)
+int rt_mutex_adjust_prio_chain(struct task_struct *task,
+			       int deadlock_detect,
+			       struct rt_mutex *orig_lock,
+			       struct rt_mutex_waiter *orig_waiter,
+			       struct task_struct *top_task)
 {
 	struct rt_mutex *lock;
 	struct rt_mutex_waiter *waiter, *top_waiter = orig_waiter;
@@ -524,8 +501,8 @@ static void wakeup_next_waiter(struct rt_mutex *lock)
  *
  * Must be called with lock->wait_lock held
  */
-static void remove_waiter(struct rt_mutex *lock,
-			  struct rt_mutex_waiter *waiter)
+void remove_waiter(struct rt_mutex *lock,
+		   struct rt_mutex_waiter *waiter)
 {
 	int first = (waiter == rt_mutex_top_waiter(lock));
 	struct task_struct *owner = rt_mutex_owner(lock);

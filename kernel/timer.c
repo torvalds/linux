@@ -92,24 +92,24 @@ static DEFINE_PER_CPU(tvec_base_t *, tvec_bases) = &boot_tvec_bases;
 /* Functions below help us manage 'deferrable' flag */
 static inline unsigned int tbase_get_deferrable(tvec_base_t *base)
 {
-	return ((unsigned int)(unsigned long)base & TBASE_DEFERRABLE_FLAG);
+	return (unsigned int)((unsigned long)base & TBASE_DEFERRABLE_FLAG);
 }
 
 static inline tvec_base_t *tbase_get_base(tvec_base_t *base)
 {
-	return ((tvec_base_t *)((unsigned long)base & ~TBASE_DEFERRABLE_FLAG));
+	return (tvec_base_t *)((unsigned long)base & ~TBASE_DEFERRABLE_FLAG);
 }
 
 static inline void timer_set_deferrable(struct timer_list *timer)
 {
-	timer->base = ((tvec_base_t *)((unsigned long)(timer->base) |
-	                               TBASE_DEFERRABLE_FLAG));
+	timer->base = (tvec_base_t *)((unsigned long)timer->base |
+	                               TBASE_DEFERRABLE_FLAG);
 }
 
 static inline void
 timer_set_base(struct timer_list *timer, tvec_base_t *new_base)
 {
-	timer->base = (tvec_base_t *)((unsigned long)(new_base) |
+	timer->base = (tvec_base_t *)((unsigned long)new_base |
 	                              tbase_get_deferrable(timer->base));
 }
 
@@ -1293,11 +1293,13 @@ static int __cpuinit timer_cpu_notify(struct notifier_block *self,
 	long cpu = (long)hcpu;
 	switch(action) {
 	case CPU_UP_PREPARE:
+	case CPU_UP_PREPARE_FROZEN:
 		if (init_timers_cpu(cpu) < 0)
 			return NOTIFY_BAD;
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
 		migrate_timers(cpu);
 		break;
 #endif
@@ -1496,6 +1498,8 @@ unregister_time_interpolator(struct time_interpolator *ti)
 		}
 		prev = &curr->next;
 	}
+
+	clocksource_resume();
 
 	write_seqlock_irqsave(&xtime_lock, flags);
 	if (ti == time_interpolator) {

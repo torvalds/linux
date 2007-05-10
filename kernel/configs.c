@@ -61,18 +61,9 @@ static ssize_t
 ikconfig_read_current(struct file *file, char __user *buf,
 		      size_t len, loff_t * offset)
 {
-	loff_t pos = *offset;
-	ssize_t count;
-
-	if (pos >= kernel_config_data_size)
-		return 0;
-
-	count = min(len, (size_t)(kernel_config_data_size - pos));
-	if (copy_to_user(buf, kernel_config_data + MAGIC_SIZE + pos, count))
-		return -EFAULT;
-
-	*offset += count;
-	return count;
+	return simple_read_from_buffer(buf, len, offset,
+				       kernel_config_data + MAGIC_SIZE,
+				       kernel_config_data_size);
 }
 
 static const struct file_operations ikconfig_file_ops = {

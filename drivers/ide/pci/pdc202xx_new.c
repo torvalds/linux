@@ -37,8 +37,6 @@
 #include <asm/pci-bridge.h>
 #endif
 
-#define PDC202_DEBUG_CABLE	0
-
 #undef DEBUG
 
 #ifdef DEBUG
@@ -80,16 +78,6 @@ static u8 max_dma_rate(struct pci_dev *pdev)
 	}
 
 	return mode;
-}
-
-static u8 pdcnew_ratemask(ide_drive_t *drive)
-{
-	u8 mode = max_dma_rate(HWIF(drive)->pci_dev);
-
-	if (!eighty_ninty_three(drive))
-		mode = min_t(u8, mode, 1);
-
-	return	mode;
 }
 
 /**
@@ -164,7 +152,7 @@ static int pdcnew_tune_chipset(ide_drive_t *drive, u8 speed)
 	u8 adj			= (drive->dn & 1) ? 0x08 : 0x00;
 	int			err;
 
-	speed = ide_rate_filter(pdcnew_ratemask(drive), speed);
+	speed = ide_rate_filter(drive, speed);
 
 	/*
 	 * Issue SETFEATURES_XFER to the drive first. PDC202xx hardware will
@@ -244,16 +232,7 @@ static int config_chipset_for_dma(ide_drive_t *drive)
 {
 	struct hd_driveid *id	= drive->id;
 	ide_hwif_t *hwif	= HWIF(drive);
-	u8 ultra_66		= (id->dma_ultra & 0x0078) ? 1 : 0;
-	u8 cable		= pdcnew_cable_detect(hwif);
 	u8 speed;
-
-	if (ultra_66 && cable) {
-		printk(KERN_WARNING "Warning: %s channel "
-		       "requires an 80-pin cable for operation.\n",
-		       hwif->channel ? "Secondary" : "Primary");
-		printk(KERN_WARNING "%s reduced to Ultra33 mode.\n", drive->name);
-	}
 
 	if (id->capability & 4) {
 		/*
@@ -267,7 +246,7 @@ static int config_chipset_for_dma(ide_drive_t *drive)
 		set_indexed_reg(hwif, 0x13 + adj, tmp | 0x03);
 	}
 
-	speed = ide_dma_speed(drive, pdcnew_ratemask(drive));
+	speed = ide_max_dma_mode(drive);
 
 	if (!speed)
 		return 0;
@@ -543,7 +522,8 @@ static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
 
 	hwif->atapi_dma  = 1;
-	hwif->ultra_mask = 0x7f;
+
+	hwif->ultra_mask = hwif->cds->udma_mask;
 	hwif->mwdma_mask = 0x07;
 
 	hwif->err_stops_fifo = 1;
@@ -556,11 +536,6 @@ static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 	if (!noautodma)
 		hwif->autodma = 1;
 	hwif->drives[0].autodma = hwif->drives[1].autodma = hwif->autodma;
-
-#if PDC202_DEBUG_CABLE
-	printk(KERN_DEBUG "%s: %s-pin cable\n",
-		hwif->name, hwif->udma_four ? "80" : "40");
-#endif /* PDC202_DEBUG_CABLE */
 }
 
 static int __devinit init_setup_pdcnew(struct pci_dev *dev, ide_pci_device_t *d)
@@ -619,6 +594,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.channels	= 2,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.udma_mask	= 0x3f, /* udma0-5 */
 	},{	/* 1 */
 		.name		= "PDC20269",
 		.init_setup	= init_setup_pdcnew,
@@ -627,6 +603,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.channels	= 2,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.udma_mask	= 0x7f, /* udma0-6*/
 	},{	/* 2 */
 		.name		= "PDC20270",
 		.init_setup	= init_setup_pdc20270,
@@ -635,6 +612,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.channels	= 2,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.udma_mask	= 0x3f, /* udma0-5 */
 	},{	/* 3 */
 		.name		= "PDC20271",
 		.init_setup	= init_setup_pdcnew,
@@ -643,6 +621,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.channels	= 2,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.udma_mask	= 0x7f, /* udma0-6*/
 	},{	/* 4 */
 		.name		= "PDC20275",
 		.init_setup	= init_setup_pdcnew,
@@ -651,6 +630,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.channels	= 2,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.udma_mask	= 0x7f, /* udma0-6*/
 	},{	/* 5 */
 		.name		= "PDC20276",
 		.init_setup	= init_setup_pdc20276,
@@ -659,6 +639,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.channels	= 2,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.udma_mask	= 0x7f, /* udma0-6*/
 	},{	/* 6 */
 		.name		= "PDC20277",
 		.init_setup	= init_setup_pdcnew,
@@ -667,6 +648,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.channels	= 2,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.udma_mask	= 0x7f, /* udma0-6*/
 	}
 };
 

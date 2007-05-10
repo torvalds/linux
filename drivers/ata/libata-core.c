@@ -895,6 +895,7 @@ static u64 ata_read_native_max_address(struct ata_device *dev)
 /**
  *	ata_set_native_max_address_ext	-	LBA48 native max set
  *	@dev: Device to query
+ *	@new_sectors: new max sectors value to set for the device
  *
  *	Perform an LBA48 size set max upon the device in question. Return the
  *	actual LBA48 size or zero if the command fails.
@@ -932,6 +933,7 @@ static u64 ata_set_native_max_address_ext(struct ata_device *dev, u64 new_sector
 /**
  *	ata_set_native_max_address	-	LBA28 native max set
  *	@dev: Device to query
+ *	@new_sectors: new max sectors value to set for the device
  *
  *	Perform an LBA28 size set max upon the device in question. Return the
  *	actual LBA28 size or zero if the command fails.
@@ -1316,7 +1318,7 @@ void ata_port_flush_task(struct ata_port *ap)
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	DPRINTK("flush #1\n");
-	flush_workqueue(ata_wq);
+	cancel_work_sync(&ap->port_task.work); /* akpm: seems unneeded */
 
 	/*
 	 * At this point, if a task is running, it's guaranteed to see
@@ -1327,7 +1329,7 @@ void ata_port_flush_task(struct ata_port *ap)
 		if (ata_msg_ctl(ap))
 			ata_port_printk(ap, KERN_DEBUG, "%s: flush #2\n",
 					__FUNCTION__);
-		flush_workqueue(ata_wq);
+		cancel_work_sync(&ap->port_task.work);
 	}
 
 	spin_lock_irqsave(ap->lock, flags);
@@ -6475,9 +6477,9 @@ void ata_port_detach(struct ata_port *ap)
 	/* Flush hotplug task.  The sequence is similar to
 	 * ata_port_flush_task().
 	 */
-	flush_workqueue(ata_aux_wq);
+	cancel_work_sync(&ap->hotplug_task.work); /* akpm: why? */
 	cancel_delayed_work(&ap->hotplug_task);
-	flush_workqueue(ata_aux_wq);
+	cancel_work_sync(&ap->hotplug_task.work);
 
  skip_eh:
 	/* remove the associated SCSI host */

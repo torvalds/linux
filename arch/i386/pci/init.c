@@ -6,7 +6,7 @@
    in the right sequence from here. */
 static __init int pci_access_init(void)
 {
-	int type __attribute__((unused)) = 0;
+	int type __maybe_unused = 0;
 
 #ifdef CONFIG_PCI_DIRECT
 	type = pci_direct_probe();

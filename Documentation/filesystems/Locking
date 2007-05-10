@@ -54,7 +54,7 @@ ata *);
 
 locking rules:
 	all may block, none have BKL
-		i_sem(inode)
+		i_mutex(inode)
 lookup:		yes
 create:		yes
 link:		yes (both)
@@ -74,7 +74,7 @@ setxattr:	yes
 getxattr:	no
 listxattr:	no
 removexattr:	yes
-	Additionally, ->rmdir(), ->unlink() and ->rename() have ->i_sem on
+	Additionally, ->rmdir(), ->unlink() and ->rename() have ->i_mutex on
 victim.
 	cross-directory ->rename() has (per-superblock) ->s_vfs_rename_sem.
 	->truncate() is never called directly - it's a callback, not a
@@ -461,7 +461,7 @@ doesn't take the BKL.
 ->read on directories probably must go away - we should just enforce -EISDIR
 in sys_read() and friends.
 
-->fsync() has i_sem on inode.
+->fsync() has i_mutex on inode.
 
 --------------------------- dquot_operations -------------------------------
 prototypes:

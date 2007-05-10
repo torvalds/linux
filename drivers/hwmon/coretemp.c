@@ -309,9 +309,11 @@ static int coretemp_cpu_callback(struct notifier_block *nfb,
 
 	switch (action) {
 	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
 		coretemp_device_add(cpu);
 		break;
 	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
 		coretemp_device_remove(cpu);
 		break;
 	}

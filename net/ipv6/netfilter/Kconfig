@@ -28,7 +28,7 @@ config IP6_NF_QUEUE
 	  packets which enables users to receive the filtered packets
 	  with QUEUE target using libipq.
 
-	  THis option enables the old IPv6-only "ip6_queue" implementation
+	  This option enables the old IPv6-only "ip6_queue" implementation
 	  which has been obsoleted by the new "nfnetlink_queue" code (see
 	  CONFIG_NETFILTER_NETLINK_QUEUE).
 

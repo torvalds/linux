@@ -107,7 +107,7 @@ Known problems:
 	  by CR[0x49h].
 	- The function of vid and vrm has not been finished, because I'm NOT
 	  very familiar with them. Adding support is welcome.
- 	- The function of chassis open detection needs more tests.
+Â 	- The function of chassis open detection needs more tests.
 	- If you have ASUS server board and chip was not found: Then you will
 	  need to upgrade to latest (or beta) BIOS. If it does not help please
 	  contact us.

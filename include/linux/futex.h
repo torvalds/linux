@@ -3,6 +3,8 @@
 
 #include <linux/sched.h>
 
+union ktime;
+
 /* Second argument to futex syscall */
 
 
@@ -15,6 +17,19 @@
 #define FUTEX_LOCK_PI		6
 #define FUTEX_UNLOCK_PI		7
 #define FUTEX_TRYLOCK_PI	8
+#define FUTEX_CMP_REQUEUE_PI	9
+
+#define FUTEX_PRIVATE_FLAG	128
+#define FUTEX_CMD_MASK		~FUTEX_PRIVATE_FLAG
+
+#define FUTEX_WAIT_PRIVATE	(FUTEX_WAIT | FUTEX_PRIVATE_FLAG)
+#define FUTEX_WAKE_PRIVATE	(FUTEX_WAKE | FUTEX_PRIVATE_FLAG)
+#define FUTEX_REQUEUE_PRIVATE	(FUTEX_REQUEUE | FUTEX_PRIVATE_FLAG)
+#define FUTEX_CMP_REQUEUE_PRIVATE (FUTEX_CMP_REQUEUE | FUTEX_PRIVATE_FLAG)
+#define FUTEX_WAKE_OP_PRIVATE	(FUTEX_WAKE_OP | FUTEX_PRIVATE_FLAG)
+#define FUTEX_LOCK_PI_PRIVATE	(FUTEX_LOCK_PI | FUTEX_PRIVATE_FLAG)
+#define FUTEX_UNLOCK_PI_PRIVATE	(FUTEX_UNLOCK_PI | FUTEX_PRIVATE_FLAG)
+#define FUTEX_TRYLOCK_PI_PRIVATE (FUTEX_TRYLOCK_PI | FUTEX_PRIVATE_FLAG)
 
 /*
  * Support for robust futexes: the kernel cleans up held futexes at
@@ -83,9 +98,14 @@ struct robust_list_head {
 #define FUTEX_OWNER_DIED	0x40000000
 
 /*
+ * Some processes have been requeued on this PI-futex
+ */
+#define FUTEX_WAITER_REQUEUED	0x20000000
+
+/*
  * The rest of the robust-futex field is for the TID:
  */
-#define FUTEX_TID_MASK		0x3fffffff
+#define FUTEX_TID_MASK		0x0fffffff
 
 /*
  * This limit protects against a deliberately circular list.
@@ -94,7 +114,7 @@ struct robust_list_head {
 #define ROBUST_LIST_LIMIT	2048
 
 #ifdef __KERNEL__
-long do_futex(u32 __user *uaddr, int op, u32 val, unsigned long timeout,
+long do_futex(u32 __user *uaddr, int op, u32 val, union ktime *timeout,
 	      u32 __user *uaddr2, u32 val2, u32 val3);
 
 extern int
@@ -106,9 +126,20 @@ handle_futex_death(u32 __user *uaddr, struct task_struct *curr, int pi);
  * Don't rearrange members without looking at hash_futex().
  *
  * offset is aligned to a multiple of sizeof(u32) (== 4) by definition.
- * We set bit 0 to indicate if it's an inode-based key.
- */
+ * We use the two low order bits of offset to tell what is the kind of key :
+ *  00 : Private process futex (PTHREAD_PROCESS_PRIVATE)
+ *       (no reference on an inode or mm)
+ *  01 : Shared futex (PTHREAD_PROCESS_SHARED)
+ *	mapped on a file (reference on the underlying inode)
+ *  10 : Shared futex (PTHREAD_PROCESS_SHARED)
+ *       (but private mapping on an mm, and reference taken on it)
+*/
+
+#define FUT_OFF_INODE    1 /* We set bit 0 if key has a reference on inode */
+#define FUT_OFF_MMSHARED 2 /* We set bit 1 if key has a reference on mm */
+
 union futex_key {
+	u32 __user *uaddr;
 	struct {
 		unsigned long pgoff;
 		struct inode *inode;
@@ -125,7 +156,8 @@ union futex_key {
 		int offset;
 	} both;
 };
-int get_futex_key(u32 __user *uaddr, union futex_key *key);
+int get_futex_key(u32 __user *uaddr, struct rw_semaphore *shared,
+		  union futex_key *key);
 void get_futex_key_refs(union futex_key *key);
 void drop_futex_key_refs(union futex_key *key);
 

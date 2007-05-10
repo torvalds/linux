@@ -514,43 +514,31 @@ static int check_in_drive_list(ide_drive_t *drive, const char **list)
 	return 0;
 }
 
-static u8 hpt3xx_ratemask(ide_drive_t *drive)
-{
-	struct hpt_info *info	= pci_get_drvdata(HWIF(drive)->pci_dev);
-	u8 mode			= info->max_mode;
-
-	if (!eighty_ninty_three(drive) && mode)
-		mode = min(mode, (u8)1);
-	return mode;
-}
-
 /*
  *	Note for the future; the SATA hpt37x we must set
  *	either PIO or UDMA modes 0,4,5
  */
- 
-static u8 hpt3xx_ratefilter(ide_drive_t *drive, u8 speed)
+
+static u8 hpt3xx_udma_filter(ide_drive_t *drive)
 {
 	struct hpt_info *info	= pci_get_drvdata(HWIF(drive)->pci_dev);
 	u8 chip_type		= info->chip_type;
-	u8 mode			= hpt3xx_ratemask(drive);
-
-	if (drive->media != ide_disk)
-		return min(speed, (u8)XFER_PIO_4);
+	u8 mode			= info->max_mode;
+	u8 mask;
 
 	switch (mode) {
 		case 0x04:
-			speed = min_t(u8, speed, XFER_UDMA_6);
+			mask = 0x7f;
 			break;
 		case 0x03:
-			speed = min_t(u8, speed, XFER_UDMA_5);
+			mask = 0x3f;
 			if (chip_type >= HPT374)
 				break;
 			if (!check_in_drive_list(drive, bad_ata100_5))
 				goto check_bad_ata33;
 			/* fall thru */
 		case 0x02:
-			speed = min_t(u8, speed, XFER_UDMA_4);
+			mask = 0x1f;
 
 			/*
 			 * CHECK ME, Does this need to be changed to HPT374 ??
@@ -561,13 +549,13 @@ static u8 hpt3xx_ratefilter(ide_drive_t *drive, u8 speed)
 			    !check_in_drive_list(drive, bad_ata66_4))
 				goto check_bad_ata33;
 
-			speed = min_t(u8, speed, XFER_UDMA_3);
+			mask = 0x0f;
 			if (HPT366_ALLOW_ATA66_3 &&
 			    !check_in_drive_list(drive, bad_ata66_3))
 				goto check_bad_ata33;
 			/* fall thru */
 		case 0x01:
-			speed = min_t(u8, speed, XFER_UDMA_2);
+			mask = 0x07;
 
 		check_bad_ata33:
 			if (chip_type >= HPT370A)
@@ -577,10 +565,10 @@ static u8 hpt3xx_ratefilter(ide_drive_t *drive, u8 speed)
 			/* fall thru */
 		case 0x00:
 		default:
-			speed = min_t(u8, speed, XFER_MW_DMA_2);
+			mask = 0x00;
 			break;
 	}
-	return speed;
+	return mask;
 }
 
 static u32 get_speed_setting(u8 speed, struct hpt_info *info)
@@ -608,12 +596,19 @@ static int hpt36x_tune_chipset(ide_drive_t *drive, u8 xferspeed)
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev  *dev	= hwif->pci_dev;
 	struct hpt_info	*info	= pci_get_drvdata(dev);
-	u8  speed		= hpt3xx_ratefilter(drive, xferspeed);
+	u8  speed		= ide_rate_filter(drive, xferspeed);
 	u8  itr_addr		= drive->dn ? 0x44 : 0x40;
-	u32 itr_mask		= speed < XFER_MW_DMA_0 ? 0x30070000 :
-				 (speed < XFER_UDMA_0   ? 0xc0070000 : 0xc03800ff);
-	u32 new_itr		= get_speed_setting(speed, info);
 	u32 old_itr		= 0;
+	u32 itr_mask, new_itr;
+
+	/* TODO: move this to ide_rate_filter() [ check ->atapi_dma ] */
+	if (drive->media != ide_disk)
+		speed = min_t(u8, speed, XFER_PIO_4);
+
+	itr_mask = speed < XFER_MW_DMA_0 ? 0x30070000 :
+		  (speed < XFER_UDMA_0   ? 0xc0070000 : 0xc03800ff);
+
+	new_itr = get_speed_setting(speed, info);
 
 	/*
 	 * Disable on-chip PIO FIFO/buffer (and PIO MST mode as well)
@@ -633,12 +628,19 @@ static int hpt37x_tune_chipset(ide_drive_t *drive, u8 xferspeed)
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev  *dev	= hwif->pci_dev;
 	struct hpt_info	*info	= pci_get_drvdata(dev);
-	u8  speed		= hpt3xx_ratefilter(drive, xferspeed);
+	u8  speed		= ide_rate_filter(drive, xferspeed);
 	u8  itr_addr		= 0x40 + (drive->dn * 4);
-	u32 itr_mask		= speed < XFER_MW_DMA_0 ? 0x303c0000 :
-				 (speed < XFER_UDMA_0   ? 0xc03c0000 : 0xc1c001ff);
-	u32 new_itr		= get_speed_setting(speed, info);
 	u32 old_itr		= 0;
+	u32 itr_mask, new_itr;
+
+	/* TODO: move this to ide_rate_filter() [ check ->atapi_dma ] */
+	if (drive->media != ide_disk)
+		speed = min_t(u8, speed, XFER_PIO_4);
+
+	itr_mask = speed < XFER_MW_DMA_0 ? 0x303c0000 :
+		  (speed < XFER_UDMA_0   ? 0xc03c0000 : 0xc1c001ff);
+
+	new_itr = get_speed_setting(speed, info);
 
 	pci_read_config_dword(dev, itr_addr, &old_itr);
 	new_itr = (new_itr & ~itr_mask) | (old_itr & itr_mask);
@@ -665,24 +667,6 @@ static void hpt3xx_tune_drive(ide_drive_t *drive, u8 pio)
 {
 	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
 	(void) hpt3xx_tune_chipset (drive, XFER_PIO_0 + pio);
-}
-
-/*
- * This allows the configuration of ide_pci chipset registers
- * for cards that learn about the drive's UDMA, DMA, PIO capabilities
- * after the drive is reported by the OS.  Initially designed for
- * HPT366 UDMA chipset by HighPoint|Triones Technologies, Inc.
- *
- */
-static int config_chipset_for_dma(ide_drive_t *drive)
-{
-	u8 speed = ide_dma_speed(drive, hpt3xx_ratemask(drive));
-
-	if (!speed)
-		return 0;
-
-	(void) hpt3xx_tune_chipset(drive, speed);
-	return ide_dma_enable(drive);
 }
 
 static int hpt3xx_quirkproc(ide_drive_t *drive)
@@ -739,7 +723,7 @@ static int hpt366_config_drive_xfer_rate(ide_drive_t *drive)
 {
 	drive->init_speed = 0;
 
-	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	if (ide_use_fast_pio(drive))
@@ -1271,6 +1255,7 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 	hwif->intrproc			= &hpt3xx_intrproc;
 	hwif->maskproc			= &hpt3xx_maskproc;
 	hwif->busproc			= &hpt3xx_busproc;
+	hwif->udma_filter		= &hpt3xx_udma_filter;
 
 	/*
 	 * HPT3xxN chips have some complications:

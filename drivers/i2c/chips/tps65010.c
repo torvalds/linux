@@ -354,7 +354,7 @@ static void tps65010_interrupt(struct tps65010 *tps)
 			 * also needs to get error handling and probably
 			 * an #ifdef CONFIG_SOFTWARE_SUSPEND
 			 */
-			pm_suspend(PM_SUSPEND_DISK);
+			hibernate();
 #endif
 			poll = 1;
 		}

@@ -2889,7 +2889,9 @@ static int kvm_cpu_hotplug(struct notifier_block *notifier, unsigned long val,
 
 	switch (val) {
 	case CPU_DOWN_PREPARE:
+	case CPU_DOWN_PREPARE_FROZEN:
 	case CPU_UP_CANCELED:
+	case CPU_UP_CANCELED_FROZEN:
 		printk(KERN_INFO "kvm: disabling virtualization on CPU%d\n",
 		       cpu);
 		decache_vcpus_on_cpu(cpu);
@@ -2897,6 +2899,7 @@ static int kvm_cpu_hotplug(struct notifier_block *notifier, unsigned long val,
 					 NULL, 0, 1);
 		break;
 	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
 		printk(KERN_INFO "kvm: enabling virtualization on CPU%d\n",
 		       cpu);
 		smp_call_function_single(cpu, kvm_arch_ops->hardware_enable,

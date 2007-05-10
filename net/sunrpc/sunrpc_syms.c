@@ -146,9 +146,11 @@ init_sunrpc(void)
 	int err = register_rpc_pipefs();
 	if (err)
 		goto out;
-	err = rpc_init_mempool() != 0;
-	if (err)
+	err = rpc_init_mempool();
+	if (err) {
+		unregister_rpc_pipefs();
 		goto out;
+	}
 #ifdef RPC_DEBUG
 	rpc_register_sysctl();
 #endif

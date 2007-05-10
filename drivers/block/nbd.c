@@ -366,20 +366,25 @@ static struct disk_attribute pid_attr = {
 	.show = pid_show,
 };
 
-static void nbd_do_it(struct nbd_device *lo)
+static int nbd_do_it(struct nbd_device *lo)
 {
 	struct request *req;
+	int ret;
 
 	BUG_ON(lo->magic != LO_MAGIC);
 
 	lo->pid = current->pid;
-	sysfs_create_file(&lo->disk->kobj, &pid_attr.attr);
+	ret = sysfs_create_file(&lo->disk->kobj, &pid_attr.attr);
+	if (ret) {
+		printk(KERN_ERR "nbd: sysfs_create_file failed!");
+		return ret;
+	}
 
 	while ((req = nbd_read_stat(lo)) != NULL)
 		nbd_end_request(req);
 
 	sysfs_remove_file(&lo->disk->kobj, &pid_attr.attr);
-	return;
+	return 0;
 }
 
 static void nbd_clear_que(struct nbd_device *lo)
@@ -569,7 +574,9 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 	case NBD_DO_IT:
 		if (!lo->file)
 			return -EINVAL;
-		nbd_do_it(lo);
+		error = nbd_do_it(lo);
+		if (error)
+			return error;
 		/* on return tidy up in case we have a signal */
 		/* Forcibly shutdown the socket causing all listeners
 		 * to error

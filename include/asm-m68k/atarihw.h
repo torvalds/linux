@@ -2,7 +2,7 @@
 ** linux/atarihw.h -- This header defines some macros and pointers for
 **                    the various Atari custom hardware registers.
 **
-** Copyright 1994 by Bj”rn Brauel
+** Copyright 1994 by BjÂ”rn Brauel
 **
 ** 5/1/94 Roman Hodek:
 **   Added definitions for TT specific chips.

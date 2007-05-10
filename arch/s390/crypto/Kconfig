@@ -54,7 +54,7 @@ config S390_PRNG
 	default "m"
 	help
 	  Select this option if you want to use the s390 pseudo random number
-	  generator. The PRNG is part of the cryptograhic processor functions
+	  generator. The PRNG is part of the cryptographic processor functions
 	  and uses triple-DES to generate secure random numbers like the
 	  ANSI X9.17 standard. The PRNG is usable via the char device
 	  /dev/prandom.

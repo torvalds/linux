@@ -1,5 +1,5 @@
 /*
- * include/asm-sh/edosk7705/io.h
+ * include/asm-sh/edosk7705.h
  *
  * Modified version of io_se.h for the EDOSK7705 specific functions.
  *

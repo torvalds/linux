@@ -1734,11 +1734,13 @@ xfs_icsb_cpu_notify(
 			per_cpu_ptr(mp->m_sb_cnts, (unsigned long)hcpu);
 	switch (action) {
 	case CPU_UP_PREPARE:
+	case CPU_UP_PREPARE_FROZEN:
 		/* Easy Case - initialize the area and locks, and
 		 * then rebalance when online does everything else for us. */
 		memset(cntp, 0, sizeof(xfs_icsb_cnts_t));
 		break;
 	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
 		xfs_icsb_lock(mp);
 		xfs_icsb_balance_counter(mp, XFS_SBS_ICOUNT, 0, 0);
 		xfs_icsb_balance_counter(mp, XFS_SBS_IFREE, 0, 0);
@@ -1746,6 +1748,7 @@ xfs_icsb_cpu_notify(
 		xfs_icsb_unlock(mp);
 		break;
 	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
 		/* Disable all the counters, then fold the dead cpu's
 		 * count into the total on the global superblock and
 		 * re-enable the counters. */

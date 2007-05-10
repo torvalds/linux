@@ -14,6 +14,7 @@
 #define CPU_ARCH_ARMv5TE	6
 #define CPU_ARCH_ARMv5TEJ	7
 #define CPU_ARCH_ARMv6		8
+#define CPU_ARCH_ARMv7		9
 
 /*
  * CR1 bits (CP#15 CR1)
@@ -155,7 +156,11 @@ extern unsigned int user_debug;
 #define vectors_high()	(0)
 #endif
 
-#if defined(CONFIG_CPU_XSC3) || __LINUX_ARM_ARCH__ >= 6
+#if __LINUX_ARM_ARCH__ >= 7
+#define isb() __asm__ __volatile__ ("isb" : : : "memory")
+#define dsb() __asm__ __volatile__ ("dsb" : : : "memory")
+#define dmb() __asm__ __volatile__ ("dmb" : : : "memory")
+#elif defined(CONFIG_CPU_XSC3) || __LINUX_ARM_ARCH__ == 6
 #define isb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c5, 4" \
 				    : : "r" (0) : "memory")
 #define dsb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" \

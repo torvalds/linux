@@ -1839,7 +1839,7 @@ static inline int dn_queue_too_long(struct dn_scp *scp, struct sk_buff_head *que
 }
 
 /*
- * The DECnet spec requires the the "routing layer" accepts packets which
+ * The DECnet spec requires that the "routing layer" accepts packets which
  * are at least 230 bytes in size. This excludes any headers which the NSP
  * layer might add, so we always assume that we'll be using the maximal
  * length header on data packets. The variation in length is due to the

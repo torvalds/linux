@@ -1,9 +1,9 @@
 
 SliceCOM adapter user's documentation - for the 0.51 driver version
 
-Written by Bartók István <bartoki@itc.hu>
+Written by BartÃ³k IstvÃ¡n <bartoki@itc.hu>
 
-English translation: Lakatos György <gyuri@itc.hu>
+English translation: Lakatos GyÃ¶rgy <gyuri@itc.hu>
 Mon Dec 11 15:28:42 CET 2000
 
 Last modified: Wed Aug 29 17:25:37 CEST 2001

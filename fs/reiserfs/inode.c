@@ -2148,13 +2148,8 @@ int reiserfs_truncate_file(struct inode *p_s_inode, int update_timestamps)
 		length = offset & (blocksize - 1);
 		/* if we are not on a block boundary */
 		if (length) {
-			char *kaddr;
-
 			length = blocksize - length;
-			kaddr = kmap_atomic(page, KM_USER0);
-			memset(kaddr + offset, 0, length);
-			flush_dcache_page(page);
-			kunmap_atomic(kaddr, KM_USER0);
+			zero_user_page(page, offset, length, KM_USER0);
 			if (buffer_mapped(bh) && bh->b_blocknr != 0) {
 				mark_buffer_dirty(bh);
 			}
@@ -2370,7 +2365,6 @@ static int reiserfs_write_full_page(struct page *page,
 	 ** last byte in the file
 	 */
 	if (page->index >= end_index) {
-		char *kaddr;
 		unsigned last_offset;
 
 		last_offset = inode->i_size & (PAGE_CACHE_SIZE - 1);
@@ -2379,10 +2373,7 @@ static int reiserfs_write_full_page(struct page *page,
 			unlock_page(page);
 			return 0;
 		}
-		kaddr = kmap_atomic(page, KM_USER0);
-		memset(kaddr + last_offset, 0, PAGE_CACHE_SIZE - last_offset);
-		flush_dcache_page(page);
-		kunmap_atomic(kaddr, KM_USER0);
+		zero_user_page(page, last_offset, PAGE_CACHE_SIZE - last_offset, KM_USER0);
 	}
 	bh = head;
 	block = page->index << (PAGE_CACHE_SHIFT - s->s_blocksize_bits);

@@ -501,9 +501,9 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 {
 #ifdef CONFIG_MMC_DEBUG
 	unsigned long flags;
-	spin_lock_irqsave(host->lock, flags);
+	spin_lock_irqsave(&host->lock, flags);
 	BUG_ON(host->removed);
-	spin_unlock_irqrestore(host->lock, flags);
+	spin_unlock_irqrestore(&host->lock, flags);
 #endif
 
 	mmc_schedule_delayed_work(&host->detect, delay);

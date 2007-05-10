@@ -1291,6 +1291,8 @@ extern u8 ieee80211_get_channel_flags(struct ieee80211_device *ieee,
 extern const struct ieee80211_channel *ieee80211_get_channel(struct
 							     ieee80211_device
 							     *ieee, u8 channel);
+extern u32 ieee80211_channel_to_freq(struct ieee80211_device * ieee,
+				      u8 channel);
 
 /* ieee80211_wx.c */
 extern int ieee80211_wx_get_scan(struct ieee80211_device *ieee,

@@ -360,7 +360,7 @@ EXPORT_SYMBOL_GPL(platform_device_unregister);
  *	This function creates a simple platform device that requires minimal
  *	resource and memory management. Canned release function freeing
  *	memory allocated for the device allows drivers using such devices
- *	to be unloaded iwithout waiting for the last reference to the device
+ *	to be unloaded without waiting for the last reference to the device
  *	to be dropped.
  *
  *	This interface is primarily intended for use with legacy drivers

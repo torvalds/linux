@@ -172,7 +172,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TS_USEDFPU		0x0001	/* FPU was used by this task this quantum (SMP) */
 #define TS_POLLING		0x0002	/* True if in idle loop and not sleeping */
 
-#define tsk_is_polling(t) ((t)->thread_info->status & TS_POLLING)
+#define tsk_is_polling(t) (task_thread_info(t)->status & TS_POLLING)
 
 #endif /* __KERNEL__ */
 

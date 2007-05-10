@@ -25,12 +25,7 @@ struct swsusp_info {
  */
 #define SPARE_PAGES	((1024 * 1024) >> PAGE_SHIFT)
 
-extern int pm_suspend_disk(void);
-#else
-static inline int pm_suspend_disk(void)
-{
-	return -EPERM;
-}
+extern struct hibernation_ops *hibernation_ops;
 #endif
 
 extern int pfn_is_nosave(unsigned long);

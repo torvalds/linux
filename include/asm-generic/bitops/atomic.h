@@ -58,7 +58,7 @@ extern raw_spinlock_t __atomic_hash[ATOMIC_HASH_SIZE] __lock_aligned;
  * if you do not require the atomic guarantees.
  *
  * Note: there are no guarantees that this function will not be reordered
- * on non x86 architectures, so if you are writting portable code,
+ * on non x86 architectures, so if you are writing portable code,
  * make sure not to rely on its reordering guarantees.
  *
  * Note that @nr may be almost arbitrarily large; this function is not

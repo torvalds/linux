@@ -32,7 +32,7 @@ atomic_t irq_err_count;
  */
 static inline void stack_overflow_check(struct pt_regs *regs)
 {
-	u64 curbase = (u64) current->thread_info;
+	u64 curbase = (u64)task_stack_page(current);
 	static unsigned long warned = -60*HZ;
 
 	if (regs->rsp >= curbase && regs->rsp <= curbase + THREAD_SIZE &&

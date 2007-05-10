@@ -7,9 +7,27 @@
 
 /*-------------------------------------------------------------------------*/
 
-#define OTG_BASE			0xfffb0400
-#define UDC_BASE			0xfffb4000
-#define OMAP_OHCI_BASE			0xfffba000
+#define OMAP1_OTG_BASE			0xfffb0400
+#define OMAP1_UDC_BASE			0xfffb4000
+#define OMAP1_OHCI_BASE			0xfffba000
+
+#define OMAP2_OHCI_BASE			0x4805e000
+#define OMAP2_UDC_BASE			0x4805e200
+#define OMAP2_OTG_BASE			0x4805e300
+
+#ifdef CONFIG_ARCH_OMAP1
+
+#define OTG_BASE			OMAP1_OTG_BASE
+#define UDC_BASE			OMAP1_UDC_BASE
+#define OMAP_OHCI_BASE			OMAP1_OHCI_BASE
+
+#else
+
+#define OTG_BASE			OMAP2_OTG_BASE
+#define UDC_BASE			OMAP2_UDC_BASE
+#define OMAP_OHCI_BASE			OMAP2_OHCI_BASE
+
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -28,6 +46,7 @@
 #	define	 HST_IDLE_EN		(1 << 14)
 #	define	 DEV_IDLE_EN		(1 << 13)
 #	define	 OTG_RESET_DONE		(1 << 2)
+#	define	 OTG_SOFT_RESET		(1 << 1)
 #define OTG_SYSCON_2_REG		OTG_REG32(0x08)
 #	define	 OTG_EN			(1 << 31)
 #	define	 USBX_SYNCHRO		(1 << 30)
@@ -103,6 +122,7 @@
 
 /*-------------------------------------------------------------------------*/
 
+/* OMAP1 */
 #define	USB_TRANSCEIVER_CTRL_REG	__REG32(0xfffe1000 + 0x0064)
 #	define	CONF_USB2_UNI_R		(1 << 8)
 #	define	CONF_USB1_UNI_R		(1 << 7)
@@ -111,7 +131,17 @@
 #	define	CONF_USB_PWRDN_DM_R	(1 << 2)
 #	define	CONF_USB_PWRDN_DP_R	(1 << 1)
 
-
-
+/* OMAP2 */
+#define	CONTROL_DEVCONF_REG		__REG32(L4_24XX_BASE + 0x0274)
+#	define	USB_UNIDIR			0x0
+#	define	USB_UNIDIR_TLL			0x1
+#	define	USB_BIDIR			0x2
+#	define	USB_BIDIR_TLL			0x3
+#	define	USBT0WRMODEI(x)		((x) << 22)
+#	define	USBT1WRMODEI(x)		((x) << 20)
+#	define	USBT2WRMODEI(x)		((x) << 18)
+#	define	USBT2TLL5PI		(1 << 17)
+#	define	USB0PUENACTLOI		(1 << 16)
+#	define	USBSTANDBYCTRL		(1 << 15)
 
 #endif	/* __ASM_ARCH_OMAP_USB_H */

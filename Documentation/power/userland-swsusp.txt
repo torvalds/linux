@@ -93,21 +93,23 @@ SNAPSHOT_S2RAM - suspend to RAM; using this call causes the kernel to
 	to resume the system from RAM if there's enough battery power or restore
 	its state on the basis of the saved suspend image otherwise)
 
-SNAPSHOT_PMOPS - enable the usage of the pmops->prepare, pmops->enter and
-	pmops->finish methods (the in-kernel swsusp knows these as the "platform
-	method") which are needed on many machines to (among others) speed up
-	the resume by letting the BIOS skip some steps or to let the system
-	recognise the correct state of the hardware after the resume (in
-	particular on many machines this ensures that unplugged AC
-	adapters get correctly detected and that kacpid does not run wild after
-	the resume).  The last ioctl() argument can take one of the three
-	values, defined in kernel/power/power.h:
+SNAPSHOT_PMOPS - enable the usage of the hibernation_ops->prepare,
+	hibernate_ops->enter and hibernation_ops->finish methods (the in-kernel
+	swsusp knows these as the "platform method") which are needed on many
+	machines to (among others) speed up the resume by letting the BIOS skip
+	some steps or to let the system recognise the correct state of the
+	hardware after the resume (in particular on many machines this ensures
+	that unplugged AC adapters get correctly detected and that kacpid does
+	not run wild after the resume).  The last ioctl() argument can take one
+	of the three values, defined in kernel/power/power.h:
 	PMOPS_PREPARE - make the kernel carry out the
-		pm_ops->prepare(PM_SUSPEND_DISK) operation
+		hibernation_ops->prepare() operation
 	PMOPS_ENTER - make the kernel power off the system by calling
-		pm_ops->enter(PM_SUSPEND_DISK)
+		hibernation_ops->enter()
 	PMOPS_FINISH - make the kernel carry out the
-		pm_ops->finish(PM_SUSPEND_DISK) operation
+		hibernation_ops->finish() operation
+	Note that the actual constants are misnamed because they surface
+	internal kernel implementation details that have changed.
 
 The device's read() operation can be used to transfer the snapshot image from
 the kernel.  It has the following limitations:

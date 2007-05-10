@@ -1,5 +1,5 @@
 /*
- * arch/xtensa/pci-dma.c
+ * arch/xtensa/kernel/pci-dma.c
  *
  * DMA coherent memory allocation.
  *

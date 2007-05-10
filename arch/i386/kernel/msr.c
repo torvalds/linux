@@ -153,9 +153,11 @@ static int msr_class_cpu_callback(struct notifier_block *nfb,
 
 	switch (action) {
 	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
 		msr_device_create(cpu);
 		break;
 	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
 		device_destroy(msr_class, MKDEV(MSR_MAJOR, cpu));
 		break;
 	}

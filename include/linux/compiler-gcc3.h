@@ -4,9 +4,11 @@
 #include <linux/compiler-gcc.h>
 
 #if __GNUC_MINOR__ >= 3
-# define __attribute_used__	__attribute__((__used__))
+# define __used			__attribute__((__used__))
+# define __attribute_used__	__used				/* deprecated */
 #else
-# define __attribute_used__	__attribute__((__unused__))
+# define __used			__attribute__((__unused__))
+# define __attribute_used__	__used				/* deprecated */
 #endif
 
 #if __GNUC_MINOR__ >= 4

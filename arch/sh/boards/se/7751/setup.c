@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/kernel/setup_7751se.c
+ * linux/arch/sh/boards/se/7751/setup.c
  *
  * Copyright (C) 2000  Kazumoto Kojima
  *

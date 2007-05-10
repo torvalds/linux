@@ -269,7 +269,7 @@ done:
             This would turn on IM for devices that is not contributing
             to backlog congestion with unnecessary latency.
 
-             We monitor the the device RX-ring and have:
+             We monitor the device RX-ring and have:
 
              HW Interrupt Mitigation either ON or OFF.
 

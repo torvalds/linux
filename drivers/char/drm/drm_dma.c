@@ -65,7 +65,7 @@ int drm_dma_setup(drm_device_t * dev)
  * \param dev DRM device.
  *
  * Free all pages associated with DMA buffers, the buffers and pages lists, and
- * finally the the drm_device::dma structure itself.
+ * finally the drm_device::dma structure itself.
  */
 void drm_dma_takedown(drm_device_t * dev)
 {

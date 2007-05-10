@@ -97,7 +97,7 @@ register struct thread_info *__current_thread_info __asm__("$8");
 				 1 << TIF_UAC_SIGBUS)
 
 #define SET_UNALIGN_CTL(task,value)	({				     \
-	(task)->thread_info->flags = (((task)->thread_info->flags &	     \
+	task_thread_info(task)->flags = ((task_thread_info(task)->flags &    \
 		~ALPHA_UAC_MASK)					     \
 		| (((value) << ALPHA_UAC_SHIFT)       & (1<<TIF_UAC_NOPRINT))\
 		| (((value) << (ALPHA_UAC_SHIFT + 1)) & (1<<TIF_UAC_SIGBUS)) \
@@ -105,11 +105,11 @@ register struct thread_info *__current_thread_info __asm__("$8");
 	0; })
 
 #define GET_UNALIGN_CTL(task,value)	({				\
-	put_user(((task)->thread_info->flags & (1 << TIF_UAC_NOPRINT))	\
+	put_user((task_thread_info(task)->flags & (1 << TIF_UAC_NOPRINT))\
 		  >> ALPHA_UAC_SHIFT					\
-		 | ((task)->thread_info->flags & (1 << TIF_UAC_SIGBUS))	\
+		 | (task_thread_info(task)->flags & (1 << TIF_UAC_SIGBUS))\
 		 >> (ALPHA_UAC_SHIFT + 1)				\
-		 | ((task)->thread_info->flags & (1 << TIF_UAC_NOFIX))	\
+		 | (task_thread_info(task)->flags & (1 << TIF_UAC_NOFIX))\
 		 >> (ALPHA_UAC_SHIFT - 1),				\
 		 (int __user *)(value));				\
 	})

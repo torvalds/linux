@@ -83,7 +83,7 @@ extern int gsi_to_irq (unsigned int gsi);
 extern int iosapic_register_intr (unsigned int gsi, unsigned long polarity,
 				  unsigned long trigger);
 extern void iosapic_unregister_intr (unsigned int irq);
-extern void __init iosapic_override_isa_irq (unsigned int isa_irq, unsigned int gsi,
+extern void __devinit iosapic_override_isa_irq (unsigned int isa_irq, unsigned int gsi,
 				      unsigned long polarity,
 				      unsigned long trigger);
 extern int __init iosapic_register_platform_intr (u32 int_type,

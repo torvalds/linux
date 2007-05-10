@@ -119,7 +119,7 @@ static inline int pci_create_newid_file(struct pci_driver *drv)
  * system is in its list of supported devices.  Returns the matching
  * pci_device_id structure or %NULL if there is no match.
  *
- * Depreciated, don't use this as it will not catch any dynamic ids
+ * Deprecated, don't use this as it will not catch any dynamic ids
  * that a driver might want to check for.
  */
 const struct pci_device_id *pci_match_id(const struct pci_device_id *ids,

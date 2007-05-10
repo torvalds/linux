@@ -165,6 +165,7 @@ void smp_setup_cpu_possible_map(void);
 
 #else /* SMP */
 
+#define hard_smp_processor_id()		0
 #define smp_setup_cpu_possible_map() do { } while (0)
 
 #endif /* !(SMP) */

@@ -26,7 +26,7 @@
  *     Foundation, Inc., 59 Temple Place, Suite 330, Boston, 
  *     MA 02111-1307 USA
  *
- *     Michel Dänzer <daenzer@debian.org>, 10/2001
+ *     Michel DÃ¤nzer <daenzer@debian.org>, 10/2001
  *     - simplify irda_pv_t to avoid endianness issues
  *     
  ********************************************************************/

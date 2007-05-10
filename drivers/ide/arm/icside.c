@@ -342,7 +342,7 @@ static int icside_dma_check(ide_drive_t *drive)
 	 * Enable DMA on any drive that has multiword DMA
 	 */
 	if (id->field_valid & 2) {
-		xfer_mode = ide_dma_speed(drive, 0);
+		xfer_mode = ide_max_dma_mode(drive);
 		goto out;
 	}
 
@@ -591,7 +591,8 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 	state->hwif[0] = hwif;
 
 	probe_hwif_init(hwif);
-	create_proc_ide_interfaces();
+
+	ide_proc_register_port(hwif);
 
 	return 0;
 }
@@ -679,7 +680,9 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 
 	probe_hwif_init(hwif);
 	probe_hwif_init(mate);
-	create_proc_ide_interfaces();
+
+	ide_proc_register_port(hwif);
+	ide_proc_register_port(mate);
 
 	return 0;
 

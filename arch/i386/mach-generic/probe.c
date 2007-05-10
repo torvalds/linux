@@ -119,9 +119,7 @@ int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 0;	
 }
 
-#ifdef CONFIG_SMP
 int hard_smp_processor_id(void)
 {
 	return genapic->get_apic_id(*(unsigned long *)(APIC_BASE+APIC_ID));
 }
-#endif

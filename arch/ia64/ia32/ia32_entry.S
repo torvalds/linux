@@ -52,43 +52,6 @@ ENTRY(ia32_clone)
 	br.ret.sptk.many rp
 END(ia32_clone)
 
-ENTRY(sys32_rt_sigsuspend)
-	.prologue ASM_UNW_PRLG_RP|ASM_UNW_PRLG_PFS, ASM_UNW_PRLG_GRSAVE(8)
-	alloc loc1=ar.pfs,8,2,3,0		// preserve all eight input regs
-	mov loc0=rp
-	mov out0=in0				// mask
-	mov out1=in1				// sigsetsize
-	mov out2=sp				// out2 = &sigscratch
-	.fframe 16
-	adds sp=-16,sp				// allocate dummy "sigscratch"
-	;;
-	.body
-	br.call.sptk.many rp=ia32_rt_sigsuspend
-1:	.restore sp
-	adds sp=16,sp
-	mov rp=loc0
-	mov ar.pfs=loc1
-	br.ret.sptk.many rp
-END(sys32_rt_sigsuspend)
-
-ENTRY(sys32_sigsuspend)
-	.prologue ASM_UNW_PRLG_RP|ASM_UNW_PRLG_PFS, ASM_UNW_PRLG_GRSAVE(8)
-	alloc loc1=ar.pfs,8,2,3,0		// preserve all eight input regs
-	mov loc0=rp
-	mov out0=in2				// mask (first two args are ignored)
-	;;
-	mov out1=sp				// out1 = &sigscratch
-	.fframe 16
-	adds sp=-16,sp				// allocate dummy "sigscratch"
-	.body
-	br.call.sptk.many rp=ia32_sigsuspend
-1:	.restore sp
-	adds sp=16,sp
-	mov rp=loc0
-	mov ar.pfs=loc1
-	br.ret.sptk.many rp
-END(sys32_sigsuspend)
-
 GLOBAL_ENTRY(ia32_ret_from_clone)
 	PT_REGS_UNWIND_INFO(0)
 {	/*
@@ -389,7 +352,7 @@ ia32_syscall_table:
 	data8 sys_rt_sigpending
 	data8 compat_sys_rt_sigtimedwait
 	data8 sys32_rt_sigqueueinfo
-	data8 sys32_rt_sigsuspend
+	data8 compat_sys_rt_sigsuspend
 	data8 sys32_pread	  /* 180 */
 	data8 sys32_pwrite
 	data8 sys_chown	/* 16-bit version */

@@ -236,9 +236,11 @@ static int __cpuinit err_inject_cpu_callback(struct notifier_block *nfb,
 	sys_dev = get_cpu_sysdev(cpu);
 	switch (action) {
 	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
 		err_inject_add_dev(sys_dev);
 		break;
 	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
 		err_inject_remove_dev(sys_dev);
 		break;
 	}

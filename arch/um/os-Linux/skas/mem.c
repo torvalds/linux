@@ -68,7 +68,7 @@ static inline long do_syscall_stub(struct mm_id * mm_idp, void **addr)
 	int err, pid = mm_idp->u.pid;
 
 	if(proc_mm)
-#warning Need to look up userspace_pid by cpu
+		/* FIXME: Need to look up userspace_pid by cpu */
 		pid = userspace_pid[0];
 
 	multi_count++;

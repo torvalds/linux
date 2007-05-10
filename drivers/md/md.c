@@ -33,6 +33,7 @@
 */
 
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/linkage.h>
 #include <linux/raid/md.h>
@@ -273,6 +274,7 @@ static mddev_t * mddev_find(dev_t unit)
 	atomic_set(&new->active, 1);
 	spin_lock_init(&new->write_lock);
 	init_waitqueue_head(&new->sb_wait);
+	new->reshape_position = MaxSector;
 
 	new->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!new->queue) {
@@ -589,14 +591,41 @@ abort:
 	return ret;
 }
 
+
+static u32 md_csum_fold(u32 csum)
+{
+	csum = (csum & 0xffff) + (csum >> 16);
+	return (csum & 0xffff) + (csum >> 16);
+}
+
 static unsigned int calc_sb_csum(mdp_super_t * sb)
 {
+	u64 newcsum = 0;
+	u32 *sb32 = (u32*)sb;
+	int i;
 	unsigned int disk_csum, csum;
 
 	disk_csum = sb->sb_csum;
 	sb->sb_csum = 0;
-	csum = csum_partial((void *)sb, MD_SB_BYTES, 0);
+
+	for (i = 0; i < MD_SB_BYTES/4 ; i++)
+		newcsum += sb32[i];
+	csum = (newcsum & 0xffffffff) + (newcsum>>32);
+
+
+#ifdef CONFIG_ALPHA
+	/* This used to use csum_partial, which was wrong for several
+	 * reasons including that different results are returned on
+	 * different architectures.  It isn't critical that we get exactly
+	 * the same return value as before (we always csum_fold before
+	 * testing, and that removes any differences).  However as we
+	 * know that csum_partial always returned a 16bit value on
+	 * alphas, do a fold to maximise conformity to previous behaviour.
+	 */
+	sb->sb_csum = md_csum_fold(disk_csum);
+#else
 	sb->sb_csum = disk_csum;
+#endif
 	return csum;
 }
 
@@ -684,7 +713,7 @@ static int super_90_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version
 	if (sb->raid_disks <= 0)
 		goto abort;
 
-	if (csum_fold(calc_sb_csum(sb)) != csum_fold(sb->sb_csum)) {
+	if (md_csum_fold(calc_sb_csum(sb)) != md_csum_fold(sb->sb_csum)) {
 		printk(KERN_WARNING "md: invalid superblock checksum on %s\n",
 			b);
 		goto abort;
@@ -693,6 +722,17 @@ static int super_90_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version
 	rdev->preferred_minor = sb->md_minor;
 	rdev->data_offset = 0;
 	rdev->sb_size = MD_SB_BYTES;
+
+	if (sb->state & (1<<MD_SB_BITMAP_PRESENT)) {
+		if (sb->level != 1 && sb->level != 4
+		    && sb->level != 5 && sb->level != 6
+		    && sb->level != 10) {
+			/* FIXME use a better test */
+			printk(KERN_WARNING
+			       "md: bitmaps not supported for this level.\n");
+			goto abort;
+		}
+	}
 
 	if (sb->level == LEVEL_MULTIPATH)
 		rdev->desc_nr = -1;
@@ -792,16 +832,8 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->max_disks = MD_SB_DISKS;
 
 		if (sb->state & (1<<MD_SB_BITMAP_PRESENT) &&
-		    mddev->bitmap_file == NULL) {
-			if (mddev->level != 1 && mddev->level != 4
-			    && mddev->level != 5 && mddev->level != 6
-			    && mddev->level != 10) {
-				/* FIXME use a better test */
-				printk(KERN_WARNING "md: bitmaps not supported for this level.\n");
-				return -EINVAL;
-			}
+		    mddev->bitmap_file == NULL)
 			mddev->bitmap_offset = mddev->default_bitmap_offset;
-		}
 
 	} else if (mddev->pers == NULL) {
 		/* Insist on good event counter while assembling */
@@ -1058,6 +1090,18 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 		       bdevname(rdev->bdev,b));
 		return -EINVAL;
 	}
+	if ((le32_to_cpu(sb->feature_map) & MD_FEATURE_BITMAP_OFFSET)) {
+		if (sb->level != cpu_to_le32(1) &&
+		    sb->level != cpu_to_le32(4) &&
+		    sb->level != cpu_to_le32(5) &&
+		    sb->level != cpu_to_le32(6) &&
+		    sb->level != cpu_to_le32(10)) {
+			printk(KERN_WARNING
+			       "md: bitmaps not supported for this level.\n");
+			return -EINVAL;
+		}
+	}
+
 	rdev->preferred_minor = 0xffff;
 	rdev->data_offset = le64_to_cpu(sb->data_offset);
 	atomic_set(&rdev->corrected_errors, le32_to_cpu(sb->cnt_corrected_read));
@@ -1141,14 +1185,9 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->max_disks =  (4096-256)/2;
 
 		if ((le32_to_cpu(sb->feature_map) & MD_FEATURE_BITMAP_OFFSET) &&
-		    mddev->bitmap_file == NULL ) {
-			if (mddev->level != 1 && mddev->level != 5 && mddev->level != 6
-			    && mddev->level != 10) {
-				printk(KERN_WARNING "md: bitmaps not supported for this level.\n");
-				return -EINVAL;
-			}
+		    mddev->bitmap_file == NULL )
 			mddev->bitmap_offset = (__s32)le32_to_cpu(sb->bitmap_offset);
-		}
+
 		if ((le32_to_cpu(sb->feature_map) & MD_FEATURE_RESHAPE_ACTIVE)) {
 			mddev->reshape_position = le64_to_cpu(sb->reshape_position);
 			mddev->delta_disks = le32_to_cpu(sb->delta_disks);
@@ -2204,6 +2243,10 @@ static ssize_t
 layout_show(mddev_t *mddev, char *page)
 {
 	/* just a number, not meaningful for all levels */
+	if (mddev->reshape_position != MaxSector &&
+	    mddev->layout != mddev->new_layout)
+		return sprintf(page, "%d (%d)\n",
+			       mddev->new_layout, mddev->layout);
 	return sprintf(page, "%d\n", mddev->layout);
 }
 
@@ -2212,13 +2255,16 @@ layout_store(mddev_t *mddev, const char *buf, size_t len)
 {
 	char *e;
 	unsigned long n = simple_strtoul(buf, &e, 10);
-	if (mddev->pers)
-		return -EBUSY;
 
 	if (!*buf || (*e && *e != '\n'))
 		return -EINVAL;
 
-	mddev->layout = n;
+	if (mddev->pers)
+		return -EBUSY;
+	if (mddev->reshape_position != MaxSector)
+		mddev->new_layout = n;
+	else
+		mddev->layout = n;
 	return len;
 }
 static struct md_sysfs_entry md_layout =
@@ -2230,6 +2276,10 @@ raid_disks_show(mddev_t *mddev, char *page)
 {
 	if (mddev->raid_disks == 0)
 		return 0;
+	if (mddev->reshape_position != MaxSector &&
+	    mddev->delta_disks != 0)
+		return sprintf(page, "%d (%d)\n", mddev->raid_disks,
+			       mddev->raid_disks - mddev->delta_disks);
 	return sprintf(page, "%d\n", mddev->raid_disks);
 }
 
@@ -2247,7 +2297,11 @@ raid_disks_store(mddev_t *mddev, const char *buf, size_t len)
 
 	if (mddev->pers)
 		rv = update_raid_disks(mddev, n);
-	else
+	else if (mddev->reshape_position != MaxSector) {
+		int olddisks = mddev->raid_disks - mddev->delta_disks;
+		mddev->delta_disks = n - olddisks;
+		mddev->raid_disks = n;
+	} else
 		mddev->raid_disks = n;
 	return rv ? rv : len;
 }
@@ -2257,6 +2311,10 @@ __ATTR(raid_disks, S_IRUGO|S_IWUSR, raid_disks_show, raid_disks_store);
 static ssize_t
 chunk_size_show(mddev_t *mddev, char *page)
 {
+	if (mddev->reshape_position != MaxSector &&
+	    mddev->chunk_size != mddev->new_chunk)
+		return sprintf(page, "%d (%d)\n", mddev->new_chunk,
+			       mddev->chunk_size);
 	return sprintf(page, "%d\n", mddev->chunk_size);
 }
 
@@ -2267,12 +2325,15 @@ chunk_size_store(mddev_t *mddev, const char *buf, size_t len)
 	char *e;
 	unsigned long n = simple_strtoul(buf, &e, 10);
 
-	if (mddev->pers)
-		return -EBUSY;
 	if (!*buf || (*e && *e != '\n'))
 		return -EINVAL;
 
-	mddev->chunk_size = n;
+	if (mddev->pers)
+		return -EBUSY;
+	else if (mddev->reshape_position != MaxSector)
+		mddev->new_chunk = n;
+	else
+		mddev->chunk_size = n;
 	return len;
 }
 static struct md_sysfs_entry md_chunk_size =
@@ -2637,8 +2698,7 @@ metadata_store(mddev_t *mddev, const char *buf, size_t len)
 	minor = simple_strtoul(buf, &e, 10);
 	if (e==buf || (*e && *e != '\n') )
 		return -EINVAL;
-	if (major >= sizeof(super_types)/sizeof(super_types[0]) ||
-	    super_types[major].name == NULL)
+	if (major >= ARRAY_SIZE(super_types) || super_types[major].name == NULL)
 		return -ENOENT;
 	mddev->major_version = major;
 	mddev->minor_version = minor;
@@ -2859,6 +2919,37 @@ suspend_hi_store(mddev_t *mddev, const char *buf, size_t len)
 static struct md_sysfs_entry md_suspend_hi =
 __ATTR(suspend_hi, S_IRUGO|S_IWUSR, suspend_hi_show, suspend_hi_store);
 
+static ssize_t
+reshape_position_show(mddev_t *mddev, char *page)
+{
+	if (mddev->reshape_position != MaxSector)
+		return sprintf(page, "%llu\n",
+			       (unsigned long long)mddev->reshape_position);
+	strcpy(page, "none\n");
+	return 5;
+}
+
+static ssize_t
+reshape_position_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	char *e;
+	unsigned long long new = simple_strtoull(buf, &e, 10);
+	if (mddev->pers)
+		return -EBUSY;
+	if (buf == e || (*e && *e != '\n'))
+		return -EINVAL;
+	mddev->reshape_position = new;
+	mddev->delta_disks = 0;
+	mddev->new_level = mddev->level;
+	mddev->new_layout = mddev->layout;
+	mddev->new_chunk = mddev->chunk_size;
+	return len;
+}
+
+static struct md_sysfs_entry md_reshape_position =
+__ATTR(reshape_position, S_IRUGO|S_IWUSR, reshape_position_show,
+       reshape_position_store);
+
 
 static struct attribute *md_default_attrs[] = {
 	&md_level.attr,
@@ -2871,6 +2962,7 @@ static struct attribute *md_default_attrs[] = {
 	&md_new_device.attr,
 	&md_safe_delay.attr,
 	&md_array_state.attr,
+	&md_reshape_position.attr,
 	NULL,
 };
 
@@ -3409,6 +3501,7 @@ static int do_md_stop(mddev_t * mddev, int mode)
 		mddev->size = 0;
 		mddev->raid_disks = 0;
 		mddev->recovery_cp = 0;
+		mddev->reshape_position = MaxSector;
 
 	} else if (mddev->pers)
 		printk(KERN_INFO "md: %s switched to read-only mode.\n",
@@ -4019,7 +4112,7 @@ static int set_array_info(mddev_t * mddev, mdu_array_info_t *info)
 	if (info->raid_disks == 0) {
 		/* just setting version number for superblock loading */
 		if (info->major_version < 0 ||
-		    info->major_version >= sizeof(super_types)/sizeof(super_types[0]) ||
+		    info->major_version >= ARRAY_SIZE(super_types) ||
 		    super_types[info->major_version].name == NULL) {
 			/* maybe try to auto-load a module? */
 			printk(KERN_INFO 
@@ -4941,15 +5034,6 @@ static int md_seq_open(struct inode *inode, struct file *file)
 	return error;
 }
 
-static int md_seq_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *m = file->private_data;
-	struct mdstat_info *mi = m->private;
-	m->private = NULL;
-	kfree(mi);
-	return seq_release(inode, file);
-}
-
 static unsigned int mdstat_poll(struct file *filp, poll_table *wait)
 {
 	struct seq_file *m = filp->private_data;
@@ -4971,7 +5055,7 @@ static const struct file_operations md_seq_fops = {
 	.open           = md_seq_open,
 	.read           = seq_read,
 	.llseek         = seq_lseek,
-	.release	= md_seq_release,
+	.release	= seq_release_private,
 	.poll		= mdstat_poll,
 };
 

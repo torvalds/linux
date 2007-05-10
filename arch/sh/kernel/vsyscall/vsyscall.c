@@ -1,5 +1,5 @@
 /*
- * arch/sh/kernel/vsyscall.c
+ * arch/sh/kernel/vsyscall/vsyscall.c
  *
  *  Copyright (C) 2006 Paul Mundt
  *

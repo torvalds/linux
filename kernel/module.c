@@ -96,9 +96,9 @@ static inline void add_taint_module(struct module *mod, unsigned flag)
 	mod->taints |= flag;
 }
 
-/* A thread that wants to hold a reference to a module only while it
- * is running can call ths to safely exit.
- * nfsd and lockd use this.
+/*
+ * A thread that wants to hold a reference to a module only while it
+ * is running can call this to safely exit.  nfsd and lockd use this.
  */
 void __module_put_and_exit(struct module *mod, long code)
 {
@@ -1199,7 +1199,7 @@ static int __unlink_module(void *_mod)
 	return 0;
 }
 
-/* Free a module, remove from lists, etc (must hold module mutex). */
+/* Free a module, remove from lists, etc (must hold module_mutex). */
 static void free_module(struct module *mod)
 {
 	/* Delete from various lists */
@@ -1246,7 +1246,7 @@ EXPORT_SYMBOL_GPL(__symbol_get);
 
 /*
  * Ensure that an exported symbol [global namespace] does not already exist
- * in the Kernel or in some other modules exported symbol table.
+ * in the kernel or in some other module's exported symbol table.
  */
 static int verify_export_symbols(struct module *mod)
 {

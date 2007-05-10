@@ -2,7 +2,6 @@
 #define _OMAP2_MCSPI_H
 
 struct omap2_mcspi_platform_config {
-	unsigned long	base;
 	unsigned short	num_cs;
 };
 

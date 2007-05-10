@@ -49,22 +49,6 @@ static int save_mdma_mode[4];
 static DEFINE_SPINLOCK(atiixp_lock);
 
 /**
- *	atiixp_ratemask		-	compute rate mask for ATIIXP IDE
- *	@drive: IDE drive to compute for
- *
- *	Returns the available modes for the ATIIXP IDE controller.
- */
-
-static u8 atiixp_ratemask(ide_drive_t *drive)
-{
-	u8 mode = 3;
-
-	if (!eighty_ninty_three(drive))
-		mode = min(mode, (u8)1);
-	return mode;
-}
-
-/**
  *	atiixp_dma_2_pio		-	return the PIO mode matching DMA
  *	@xfer_rate: transfer speed
  *
@@ -189,7 +173,7 @@ static int atiixp_speedproc(ide_drive_t *drive, u8 xferspeed)
 	u16 tmp16;
 	u8 speed, pio;
 
-	speed = ide_rate_filter(atiixp_ratemask(drive), xferspeed);
+	speed = ide_rate_filter(drive, xferspeed);
 
 	spin_lock_irqsave(&atiixp_lock, flags);
 
@@ -223,26 +207,6 @@ static int atiixp_speedproc(ide_drive_t *drive, u8 xferspeed)
 }
 
 /**
- *	atiixp_config_drive_for_dma	-	configure drive for DMA
- *	@drive: IDE drive to configure
- *
- *	Set up a ATIIXP interface channel for the best available speed.
- *	We prefer UDMA if it is available and then MWDMA. If DMA is
- *	not available we switch to PIO and return 0.
- */
-
-static int atiixp_config_drive_for_dma(ide_drive_t *drive)
-{
-	u8 speed = ide_dma_speed(drive, atiixp_ratemask(drive));
-
-	if (!speed)
-		return 0;
-
-	(void) atiixp_speedproc(drive, speed);
-	return ide_dma_enable(drive);
-}
-
-/**
  *	atiixp_dma_check	-	set up an IDE device
  *	@drive: IDE drive to configure
  *
@@ -256,7 +220,7 @@ static int atiixp_dma_check(ide_drive_t *drive)
 
 	drive->init_speed = 0;
 
-	if (ide_use_dma(drive) && atiixp_config_drive_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	if (ide_use_fast_pio(drive)) {

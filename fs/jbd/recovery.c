@@ -1,5 +1,5 @@
 /*
- * linux/fs/recovery.c
+ * linux/fs/jbd/recovery.c
  *
  * Written by Stephen C. Tweedie <sct@redhat.com>, 1999
  *

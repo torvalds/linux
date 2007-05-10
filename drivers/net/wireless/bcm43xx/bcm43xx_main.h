@@ -33,25 +33,6 @@
 
 #include "bcm43xx.h"
 
-#ifdef CONFIG_BCM947XX
-#define atoi(str) simple_strtoul(((str != NULL) ? str : ""), NULL, 0)
-
-static inline void e_aton(char *str, char *dest)
-{
-	int i = 0;
-	u16 *d = (u16 *) dest;
-
-	for (;;) {
-		dest[i++] = (char) simple_strtoul(str, NULL, 16);
-		str += 2;
-		if (!*str++ || i == 6)
-			break;
-	}
-	for (i = 0; i < 3; i++)
-		d[i] = cpu_to_be16(d[i]);
-}
-#endif
-
 #define P4D_BYT3S(magic, nr_bytes)	u8 __p4dding##magic[nr_bytes]
 #define P4D_BYTES(line, nr_bytes)	P4D_BYT3S(line, nr_bytes)
 /* Magic helper macro to pad structures. Ignore those above. It's magic. */

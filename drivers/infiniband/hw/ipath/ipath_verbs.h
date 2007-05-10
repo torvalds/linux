@@ -251,6 +251,7 @@ struct ipath_sge {
 /* Memory region */
 struct ipath_mr {
 	struct ib_mr ibmr;
+	struct ib_umem *umem;
 	struct ipath_mregion mr;	/* must be last */
 };
 
@@ -751,8 +752,8 @@ struct ib_mr *ipath_reg_phys_mr(struct ib_pd *pd,
 				struct ib_phys_buf *buffer_list,
 				int num_phys_buf, int acc, u64 *iova_start);
 
-struct ib_mr *ipath_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
-				int mr_access_flags,
+struct ib_mr *ipath_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
+				u64 virt_addr, int mr_access_flags,
 				struct ib_udata *udata);
 
 int ipath_dereg_mr(struct ib_mr *ibmr);

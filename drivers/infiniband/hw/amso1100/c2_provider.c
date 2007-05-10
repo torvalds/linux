@@ -56,6 +56,7 @@
 #include <asm/byteorder.h>
 
 #include <rdma/ib_smi.h>
+#include <rdma/ib_umem.h>
 #include <rdma/ib_user_verbs.h>
 #include "c2.h"
 #include "c2_provider.h"
@@ -396,6 +397,7 @@ static struct ib_mr *c2_reg_phys_mr(struct ib_pd *ib_pd,
 	}
 
 	mr->pd = to_c2pd(ib_pd);
+	mr->umem = NULL;
 	pr_debug("%s - page shift %d, pbl_depth %d, total_len %u, "
 		"*iova_start %llx, first pa %llx, last pa %llx\n",
 		__FUNCTION__, page_shift, pbl_depth, total_len,
@@ -428,8 +430,8 @@ static struct ib_mr *c2_get_dma_mr(struct ib_pd *pd, int acc)
 	return c2_reg_phys_mr(pd, &bl, 1, acc, &kva);
 }
 
-static struct ib_mr *c2_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
-				    int acc, struct ib_udata *udata)
+static struct ib_mr *c2_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
+				    u64 virt, int acc, struct ib_udata *udata)
 {
 	u64 *pages;
 	u64 kva = 0;
@@ -441,15 +443,23 @@ static struct ib_mr *c2_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 	struct c2_mr *c2mr;
 
 	pr_debug("%s:%u\n", __FUNCTION__, __LINE__);
-	shift = ffs(region->page_size) - 1;
 
 	c2mr = kmalloc(sizeof(*c2mr), GFP_KERNEL);
 	if (!c2mr)
 		return ERR_PTR(-ENOMEM);
 	c2mr->pd = c2pd;
 
+	c2mr->umem = ib_umem_get(pd->uobject->context, start, length, acc);
+	if (IS_ERR(c2mr->umem)) {
+		err = PTR_ERR(c2mr->umem);
+		kfree(c2mr);
+		return ERR_PTR(err);
+	}
+
+	shift = ffs(c2mr->umem->page_size) - 1;
+
 	n = 0;
-	list_for_each_entry(chunk, &region->chunk_list, list)
+	list_for_each_entry(chunk, &c2mr->umem->chunk_list, list)
 		n += chunk->nents;
 
 	pages = kmalloc(n * sizeof(u64), GFP_KERNEL);
@@ -459,35 +469,34 @@ static struct ib_mr *c2_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 	}
 
 	i = 0;
-	list_for_each_entry(chunk, &region->chunk_list, list) {
+	list_for_each_entry(chunk, &c2mr->umem->chunk_list, list) {
 		for (j = 0; j < chunk->nmap; ++j) {
 			len = sg_dma_len(&chunk->page_list[j]) >> shift;
 			for (k = 0; k < len; ++k) {
 				pages[i++] =
 					sg_dma_address(&chunk->page_list[j]) +
-					(region->page_size * k);
+					(c2mr->umem->page_size * k);
 			}
 		}
 	}
 
-	kva = (u64)region->virt_base;
+	kva = virt;
   	err = c2_nsmr_register_phys_kern(to_c2dev(pd->device),
 					 pages,
- 					 region->page_size,
+					 c2mr->umem->page_size,
 					 i,
-					 region->length,
-					 region->offset,
+					 length,
+					 c2mr->umem->offset,
 					 &kva,
 					 c2_convert_access(acc),
 					 c2mr);
 	kfree(pages);
-	if (err) {
-		kfree(c2mr);
-		return ERR_PTR(err);
-	}
+	if (err)
+		goto err;
 	return &c2mr->ibmr;
 
 err:
+	ib_umem_release(c2mr->umem);
 	kfree(c2mr);
 	return ERR_PTR(err);
 }
@@ -502,8 +511,11 @@ static int c2_dereg_mr(struct ib_mr *ib_mr)
 	err = c2_stag_dealloc(to_c2dev(ib_mr->device), ib_mr->lkey);
 	if (err)
 		pr_debug("c2_stag_dealloc failed: %d\n", err);
-	else
+	else {
+		if (mr->umem)
+			ib_umem_release(mr->umem);
 		kfree(mr);
+	}
 
 	return err;
 }

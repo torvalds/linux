@@ -94,6 +94,7 @@ struct mca_bus {
 struct mca_driver {
 	const short		*id_table;
 	void			*driver_data;
+	int			integrated_id;
 	struct device_driver	driver;
 };
 #define to_mca_driver(mdriver) container_of(mdriver, struct mca_driver, driver)
@@ -125,6 +126,7 @@ extern enum MCA_AdapterStatus mca_device_status(struct mca_device *mca_dev);
 extern struct bus_type mca_bus_type;
 
 extern int mca_register_driver(struct mca_driver *drv);
+extern int mca_register_driver_integrated(struct mca_driver *, int);
 extern void mca_unregister_driver(struct mca_driver *drv);
 
 /* WARNING: only called by the boot time device setup */

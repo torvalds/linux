@@ -177,7 +177,7 @@ Portions of this API were derived from the following projects:
 and;
   
   Nettle (http://www.lysator.liu.se/~nisse/nettle/)
-    Niels Möller
+    Niels MÃ¶ller
 
 Original developers of the crypto algorithms:
 
@@ -200,8 +200,8 @@ SHA1 algorithm contributors:
   
 DES algorithm contributors:
   Raimar Falke
-  Gisle Sælensminde
-  Niels Möller
+  Gisle SÃ¦lensminde
+  Niels MÃ¶ller
 
 Blowfish algorithm contributors:
   Herbert Valerio Riedel

@@ -186,7 +186,7 @@ static int __devinit of_physmap_probe(struct of_device *dev, const struct of_dev
 	else {
  		if (strcmp(of_probe, "ROM"))
 			dev_dbg(&dev->dev, "map_probe: don't know probe type "
-			"'%s', mapping as rom\n");
+			"'%s', mapping as rom\n", of_probe);
 		info->mtd = do_map_probe("mtd_rom", &info->map);
 	}
 	if (info->mtd == NULL) {

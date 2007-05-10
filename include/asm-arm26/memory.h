@@ -60,7 +60,7 @@ static inline void *phys_to_virt(unsigned long x)
 /*
  * Virtual <-> DMA view memory address translations
  * Again, these are *only* valid on the kernel direct mapped RAM
- * memory.  Use of these is *depreciated*.
+ * memory.  Use of these is *deprecated*.
  */
 #define virt_to_bus(x)		((unsigned long)(x))
 #define bus_to_virt(x)		((void *)((unsigned long)(x)))
@@ -93,7 +93,7 @@ static inline void *phys_to_virt(unsigned long x)
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 
 /*
- * We should really eliminate virt_to_bus() here - it's depreciated.
+ * We should really eliminate virt_to_bus() here - it's deprecated.
  */
 #define page_to_bus(page)	(page_address(page))
 

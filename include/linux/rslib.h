@@ -34,6 +34,7 @@
  * @prim:	Primitive element, index form
  * @iprim:	prim-th root of 1, index form
  * @gfpoly:	The primitive generator polynominal
+ * @gffunc:	Function to generate the field, if non-canonical representation
  * @users:	Users of this structure
  * @list:	List entry for the rs control list
 */
@@ -48,6 +49,7 @@ struct rs_control {
 	int 		prim;
 	int 		iprim;
 	int		gfpoly;
+	int		(*gffunc)(int);
 	int		users;
 	struct list_head list;
 };
@@ -77,6 +79,8 @@ int decode_rs16(struct rs_control *rs, uint16_t *data, uint16_t *par, int len,
 /* Create or get a matching rs control structure */
 struct rs_control *init_rs(int symsize, int gfpoly, int fcr, int prim,
 			   int nroots);
+struct rs_control *init_rs_non_canonical(int symsize, int (*func)(int),
+                                         int fcr, int prim, int nroots);
 
 /* Release a rs control structure */
 void free_rs(struct rs_control *rs);

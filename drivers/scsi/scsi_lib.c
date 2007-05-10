@@ -173,7 +173,7 @@ int scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
  * @retries:	number of times to retry request
  * @flags:	or into request flags;
  *
- * returns the req->errors value which is the the scsi_cmnd result
+ * returns the req->errors value which is the scsi_cmnd result
  * field.
  **/
 int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,

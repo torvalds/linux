@@ -28,7 +28,7 @@ enum {
 /*
  * The DMA count is defined as the number of bytes to transfer.
  */
-static unsigned int __attribute__ ((used)) ts_shift[] = {
+static unsigned int ts_shift[] __maybe_unused = {
 	[XMIT_SZ_8BIT]		= 0,
 	[XMIT_SZ_16BIT]		= 1,
 	[XMIT_SZ_32BIT]		= 2,
