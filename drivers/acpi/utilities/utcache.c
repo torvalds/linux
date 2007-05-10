@@ -45,7 +45,6 @@
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utcache")
-
 #ifdef ACPI_USE_LOCAL_CACHE
 /*******************************************************************************
  *
@@ -64,7 +63,7 @@ ACPI_MODULE_NAME("utcache")
 acpi_status
 acpi_os_create_cache(char *cache_name,
 		     u16 object_size,
-		     u16 max_depth, struct acpi_memory_list **return_cache)
+		     u16 max_depth, struct acpi_memory_list ** return_cache)
 {
 	struct acpi_memory_list *cache;
 

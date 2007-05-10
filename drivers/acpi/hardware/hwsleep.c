@@ -152,7 +152,6 @@ acpi_get_firmware_waking_vector(acpi_physical_address * physical_address)
 
 ACPI_EXPORT_SYMBOL(acpi_get_firmware_waking_vector)
 #endif
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_enter_sleep_state_prep

@@ -107,7 +107,6 @@ acpi_status acpi_ut_create_caches(void)
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
-
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 
 	/* Memory allocation lists */

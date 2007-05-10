@@ -216,7 +216,7 @@ struct acpi_object_processor {
 	    /* The next two fields take advantage of the 3-byte space before NOTIFY_INFO */
 	u8 proc_id;
 	u8 length;
-	 ACPI_COMMON_NOTIFY_INFO acpi_io_address address;
+	ACPI_COMMON_NOTIFY_INFO acpi_io_address address;
 };
 
 struct acpi_object_thermal_zone {

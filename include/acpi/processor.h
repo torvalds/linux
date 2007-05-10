@@ -18,7 +18,7 @@
 
 #define ACPI_PDC_REVISION_ID		0x1
 
-#define ACPI_PSD_REV0_REVISION		0 /* Support for _PSD as in ACPI 3.0 */
+#define ACPI_PSD_REV0_REVISION		0	/* Support for _PSD as in ACPI 3.0 */
 #define ACPI_PSD_REV0_ENTRIES		5
 
 /*
@@ -189,8 +189,9 @@ struct acpi_processor_errata {
 	} piix4;
 };
 
-extern int acpi_processor_preregister_performance(
-		struct acpi_processor_performance **performance);
+extern int acpi_processor_preregister_performance(struct
+						  acpi_processor_performance
+						  **performance);
 
 extern int acpi_processor_register_performance(struct acpi_processor_performance
 					       *performance, unsigned int cpu);
@@ -213,7 +214,8 @@ void arch_acpi_processor_init_pdc(struct acpi_processor *pr);
 void acpi_processor_power_init_bm_check(struct acpi_processor_flags *flags,
 					unsigned int cpu);
 int acpi_processor_ffh_cstate_probe(unsigned int cpu,
-		struct acpi_processor_cx *cx, struct acpi_power_register *reg);
+				    struct acpi_processor_cx *cx,
+				    struct acpi_power_register *reg);
 void acpi_processor_ffh_cstate_enter(struct acpi_processor_cx *cstate);
 #else
 static inline void acpi_processor_power_init_bm_check(struct
@@ -224,12 +226,14 @@ static inline void acpi_processor_power_init_bm_check(struct
 	return;
 }
 static inline int acpi_processor_ffh_cstate_probe(unsigned int cpu,
-		struct acpi_processor_cx *cx, struct acpi_power_register *reg)
+						  struct acpi_processor_cx *cx,
+						  struct acpi_power_register
+						  *reg)
 {
 	return -1;
 }
-static inline void acpi_processor_ffh_cstate_enter(
-		struct acpi_processor_cx *cstate)
+static inline void acpi_processor_ffh_cstate_enter(struct acpi_processor_cx
+						   *cstate)
 {
 	return;
 }

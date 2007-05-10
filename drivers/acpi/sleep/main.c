@@ -222,7 +222,7 @@ static struct hibernation_ops acpi_hibernation_ops = {
 	.enter = acpi_hibernation_enter,
 	.finish = acpi_hibernation_finish,
 };
-#endif /* CONFIG_SOFTWARE_SUSPEND */
+#endif				/* CONFIG_SOFTWARE_SUSPEND */
 
 /*
  * Toshiba fails to preserve interrupts over S1, reinitialization
@@ -276,4 +276,3 @@ int __init acpi_sleep_init(void)
 
 	return 0;
 }
-

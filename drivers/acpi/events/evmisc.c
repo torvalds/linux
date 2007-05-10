@@ -320,8 +320,9 @@ static u32 acpi_ev_global_lock_handler(void *context)
 		acpi_gbl_global_lock_acquired = TRUE;
 		/* Send a unit to the semaphore */
 
-		if (ACPI_FAILURE(acpi_os_signal_semaphore(
-			acpi_gbl_global_lock_semaphore, 1))) {
+		if (ACPI_FAILURE
+		    (acpi_os_signal_semaphore
+		     (acpi_gbl_global_lock_semaphore, 1))) {
 			ACPI_ERROR((AE_INFO,
 				    "Could not signal Global Lock semaphore"));
 		}
@@ -447,7 +448,9 @@ acpi_status acpi_ev_acquire_global_lock(u16 timeout)
 	}
 
 	if (ACPI_FAILURE(status)) {
-		status = acpi_ex_system_wait_mutex(acpi_gbl_global_lock_mutex, timeout);
+		status =
+		    acpi_ex_system_wait_mutex(acpi_gbl_global_lock_mutex,
+					      timeout);
 	}
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);

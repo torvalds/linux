@@ -814,7 +814,9 @@ acpi_ut_copy_ielement_to_ielement(u8 object_type,
 		/*
 		 * Create the object array
 		 */
-		target_object->package.elements = ACPI_ALLOCATE_ZEROED(((acpi_size) source_object->package.count + 1) * sizeof(void *));
+		target_object->package.elements =
+		    ACPI_ALLOCATE_ZEROED(((acpi_size) source_object->package.
+					  count + 1) * sizeof(void *));
 		if (!target_object->package.elements) {
 			status = AE_NO_MEMORY;
 			goto error_exit;

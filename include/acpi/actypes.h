@@ -344,7 +344,7 @@ typedef u32 acpi_integer;
 
 /* 64-bit integers */
 
-typedef unsigned long long              acpi_integer;
+typedef unsigned long long acpi_integer;
 #define ACPI_INTEGER_MAX                ACPI_UINT64_MAX
 #define ACPI_INTEGER_BIT_SIZE           64
 #define ACPI_MAX_DECIMAL_DIGITS         20	/* 2^64 = 18,446,744,073,709,551,616 */

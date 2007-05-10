@@ -349,8 +349,7 @@ acpi_system_write_alarm(struct file *file,
       end:
 	return_VALUE(result ? result : count);
 }
-#endif	/* HAVE_ACPI_LEGACY_ALARM */
-
+#endif				/* HAVE_ACPI_LEGACY_ALARM */
 
 extern struct list_head acpi_wakeup_device_list;
 extern spinlock_t acpi_device_lock;
@@ -380,8 +379,8 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 			   dev->wakeup.state.enabled ? "enabled" : "disabled");
 		if (ldev)
 			seq_printf(seq, "%s:%s",
-				ldev->bus ? ldev->bus->name : "no-bus",
-				ldev->bus_id);
+				   ldev->bus ? ldev->bus->name : "no-bus",
+				   ldev->bus_id);
 		seq_printf(seq, "\n");
 		put_device(ldev);
 
@@ -490,7 +489,7 @@ static u32 rtc_handler(void *context)
 
 	return ACPI_INTERRUPT_HANDLED;
 }
-#endif	/* HAVE_ACPI_LEGACY_ALARM */
+#endif				/* HAVE_ACPI_LEGACY_ALARM */
 
 static int __init acpi_sleep_proc_init(void)
 {
@@ -517,7 +516,7 @@ static int __init acpi_sleep_proc_init(void)
 		entry->proc_fops = &acpi_system_alarm_fops;
 
 	acpi_install_fixed_event_handler(ACPI_EVENT_RTC, rtc_handler, NULL);
-#endif	/* HAVE_ACPI_LEGACY_ALARM */
+#endif				/* HAVE_ACPI_LEGACY_ALARM */
 
 	/* 'wakeup device' [R/W] */
 	entry =

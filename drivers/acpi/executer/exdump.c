@@ -451,9 +451,8 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 	ACPI_FUNCTION_NAME(ex_dump_operand)
 
-	    if (!
-		((ACPI_LV_EXEC & acpi_dbg_level)
-		 && (_COMPONENT & acpi_dbg_layer))) {
+	    if (!((ACPI_LV_EXEC & acpi_dbg_level)
+		  && (_COMPONENT & acpi_dbg_layer))) {
 		return;
 	}
 
@@ -844,9 +843,8 @@ void acpi_ex_dump_namespace_node(struct acpi_namespace_node *node, u32 flags)
 	ACPI_FUNCTION_ENTRY();
 
 	if (!flags) {
-		if (!
-		    ((ACPI_LV_OBJECTS & acpi_dbg_level)
-		     && (_COMPONENT & acpi_dbg_layer))) {
+		if (!((ACPI_LV_OBJECTS & acpi_dbg_level)
+		      && (_COMPONENT & acpi_dbg_layer))) {
 			return;
 		}
 	}
@@ -1011,9 +1009,8 @@ acpi_ex_dump_object_descriptor(union acpi_operand_object *obj_desc, u32 flags)
 	}
 
 	if (!flags) {
-		if (!
-		    ((ACPI_LV_OBJECTS & acpi_dbg_level)
-		     && (_COMPONENT & acpi_dbg_layer))) {
+		if (!((ACPI_LV_OBJECTS & acpi_dbg_level)
+		      && (_COMPONENT & acpi_dbg_layer))) {
 			return_VOID;
 		}
 	}

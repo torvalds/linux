@@ -472,7 +472,6 @@ acpi_status acpi_clear_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_clear_gpe)
-
 #ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
@@ -568,7 +567,6 @@ acpi_get_gpe_status(acpi_handle gpe_device,
 
 ACPI_EXPORT_SYMBOL(acpi_get_gpe_status)
 #endif				/*  ACPI_FUTURE_USAGE  */
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_install_gpe_block

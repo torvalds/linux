@@ -91,7 +91,8 @@ typedef int (*acpi_op_remove) (struct acpi_device * device, int type);
 typedef int (*acpi_op_lock) (struct acpi_device * device, int type);
 typedef int (*acpi_op_start) (struct acpi_device * device);
 typedef int (*acpi_op_stop) (struct acpi_device * device, int type);
-typedef int (*acpi_op_suspend) (struct acpi_device * device, pm_message_t state);
+typedef int (*acpi_op_suspend) (struct acpi_device * device,
+				pm_message_t state);
 typedef int (*acpi_op_resume) (struct acpi_device * device);
 typedef int (*acpi_op_scan) (struct acpi_device * device);
 typedef int (*acpi_op_bind) (struct acpi_device * device);
@@ -296,7 +297,7 @@ struct acpi_device {
 	void *driver_data;
 	struct device dev;
 	struct acpi_bus_ops bus_ops;	/* workaround for different code path for hotplug */
-	enum acpi_bus_removal_type removal_type; /* indicate for different removal type */
+	enum acpi_bus_removal_type removal_type;	/* indicate for different removal type */
 };
 
 #define acpi_driver_data(d)	((d)->driver_data)
@@ -338,7 +339,7 @@ int acpi_bus_add(struct acpi_device **child, struct acpi_device *parent,
 		 acpi_handle handle, int type);
 int acpi_bus_trim(struct acpi_device *start, int rmdevice);
 int acpi_bus_start(struct acpi_device *device);
-acpi_status acpi_bus_get_ejd(acpi_handle handle, acpi_handle *ejd);
+acpi_status acpi_bus_get_ejd(acpi_handle handle, acpi_handle * ejd);
 int acpi_match_ids(struct acpi_device *device, char *ids);
 int acpi_create_dir(struct acpi_device *);
 void acpi_remove_dir(struct acpi_device *);
@@ -363,6 +364,6 @@ acpi_handle acpi_get_child(acpi_handle, acpi_integer);
 acpi_handle acpi_get_pci_rootbridge_handle(unsigned int, unsigned int);
 #define DEVICE_ACPI_HANDLE(dev) ((acpi_handle)((dev)->archdata.acpi_handle))
 
-#endif /* CONFIG_ACPI */
+#endif				/* CONFIG_ACPI */
 
 #endif /*__ACPI_BUS_H__*/
