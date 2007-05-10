@@ -122,7 +122,8 @@ int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 	}
 	dirty_pages = &trans->transaction->dirty_pages;
 	while(1) {
-		ret = find_first_radix_bit(dirty_pages, gang, ARRAY_SIZE(gang));
+		ret = find_first_radix_bit(dirty_pages, gang,
+					   0, ARRAY_SIZE(gang));
 		if (!ret)
 			break;
 		for (i = 0; i < ret; i++) {

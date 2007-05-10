@@ -1539,7 +1539,7 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 			kunmap(pages[i]);
 		}
 		SetPageChecked(pages[i]);
-		btrfs_update_inode_block_group(trans, inode);
+		// btrfs_update_inode_block_group(trans, inode);
 		ret = btrfs_end_transaction(trans, root);
 		BUG_ON(ret);
 		mutex_unlock(&root->fs_info->fs_mutex);
@@ -1914,7 +1914,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	}
 	BUG_ON(ret);
 	alloc_extent_start = ins.objectid;
-	btrfs_update_inode_block_group(trans, inode);
+	// btrfs_update_inode_block_group(trans, inode);
 	ret = btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
 

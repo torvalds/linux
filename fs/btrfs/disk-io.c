@@ -551,6 +551,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 
 	init_bit_radix(&fs_info->pinned_radix);
 	init_bit_radix(&fs_info->pending_del_radix);
+	init_bit_radix(&fs_info->extent_map_radix);
 	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_NOFS);
 	INIT_RADIX_TREE(&fs_info->dev_radix, GFP_NOFS);
 	INIT_RADIX_TREE(&fs_info->block_group_radix, GFP_KERNEL);

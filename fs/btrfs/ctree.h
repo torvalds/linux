@@ -259,7 +259,9 @@ struct btrfs_block_group_cache {
 	u64 first_free;
 	u64 last_alloc;
 	u64 pinned;
+	u64 last_prealloc;
 	int data;
+	int cached;
 };
 
 struct crypto_hash;
@@ -273,6 +275,7 @@ struct btrfs_fs_info {
 	struct radix_tree_root dev_radix;
 	struct radix_tree_root block_group_radix;
 	struct radix_tree_root block_group_data_radix;
+	struct radix_tree_root extent_map_radix;
 
 	u64 extent_tree_insert[BTRFS_MAX_LEVEL * 3];
 	int extent_tree_insert_nr;
