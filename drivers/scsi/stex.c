@@ -612,6 +612,13 @@ stex_queuecommand(struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
 			return 0;
 		}
 		break;
+	case TEST_UNIT_READY:
+		if (id == host->max_id - 1) {
+			cmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8;
+			done(cmd);
+			return 0;
+		}
+		break;
 	case INQUIRY:
 		if (id != host->max_id - 1)
 			break;
