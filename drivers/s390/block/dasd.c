@@ -2219,6 +2219,7 @@ int dasd_generic_read_dev_chars(struct dasd_device *device, char *magic,
 	dasd_sfree_request(cqr, cqr->device);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(dasd_generic_read_dev_chars);
 
 static int __init
 dasd_init(void)
