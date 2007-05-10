@@ -51,7 +51,7 @@ static void ixp4xx_spkr_control(unsigned int pin, unsigned int count)
 
 static int ixp4xx_spkr_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
-	unsigned int pin = (unsigned int) input_get_drvdata(input_dev);
+	unsigned int pin = (unsigned int) input_get_drvdata(dev);
 	unsigned int count = 0;
 
 	if (type != EV_SND)
