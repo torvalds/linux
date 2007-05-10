@@ -6,6 +6,7 @@
 #
 
 menu "Parallel port support"
+	depends on HAS_IOMEM
 
 config PARPORT
 	tristate "Parallel port support"

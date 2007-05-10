@@ -3,6 +3,7 @@
 #
 
 menu "Plug and Play support"
+	depends on HAS_IOMEM
 
 config PNP
 	bool "Plug and Play support"

@@ -7,6 +7,7 @@
 if BLOCK
 
 menu "ATA/ATAPI/MFM/RLL support"
+	depends on HAS_IOMEM
 
 config IDE
 	tristate "ATA/ATAPI/MFM/RLL support"

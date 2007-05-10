@@ -3,6 +3,7 @@
 #
 
 menu "TPM devices"
+	depends on HAS_IOMEM
 
 config TCG_TPM
 	tristate "TPM Hardware Support"

@@ -3,6 +3,7 @@
 #
 
 menu "Multifunction device drivers"
+	depends on HAS_IOMEM
 
 config MFD_SM501
 	tristate "Support for Silicon Motion SM501"

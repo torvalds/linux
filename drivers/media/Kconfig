@@ -3,6 +3,7 @@
 #
 
 menu "Multimedia devices"
+	depends on HAS_IOMEM
 
 config VIDEO_DEV
 	tristate "Video For Linux"

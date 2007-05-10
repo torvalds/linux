@@ -2,6 +2,7 @@
 
 menuconfig MTD
 	tristate "Memory Technology Device (MTD) support"
+	depends on HAS_IOMEM
 	help
 	  Memory Technology Devices are flash, RAM and similar chips, often
 	  used for solid state file systems on embedded devices. This option

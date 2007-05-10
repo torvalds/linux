@@ -3,6 +3,7 @@
 #
 
 menu "Graphics support"
+	depends on HAS_IOMEM
 
 source "drivers/video/backlight/Kconfig"
 source "drivers/video/display/Kconfig"
