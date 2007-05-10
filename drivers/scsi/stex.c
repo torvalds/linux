@@ -32,11 +32,12 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
+#include <scsi/scsi_dbg.h>
 
 #define DRV_NAME "stex"
-#define ST_DRIVER_VERSION "3.1.0.1"
+#define ST_DRIVER_VERSION "3.6.0000.1"
 #define ST_VER_MAJOR 		3
-#define ST_VER_MINOR 		1
+#define ST_VER_MINOR 		6
 #define ST_OEM 			0
 #define ST_BUILD_VER 		1
 
@@ -992,6 +993,11 @@ static int stex_abort(struct scsi_cmnd *cmd)
 	u32 data;
 	int result = SUCCESS;
 	unsigned long flags;
+
+	printk(KERN_INFO DRV_NAME
+		"(%s): aborting command\n", pci_name(hba->pdev));
+	scsi_print_command(cmd);
+
 	base = hba->mmio_base;
 	spin_lock_irqsave(host->host_lock, flags);
 	if (tag < host->can_queue && hba->ccb[tag].cmd == cmd)
@@ -1076,6 +1082,10 @@ static int stex_reset(struct scsi_cmnd *cmd)
 	unsigned long flags;
 	unsigned long before;
 	hba = (struct st_hba *) &cmd->device->host->hostdata[0];
+
+	printk(KERN_INFO DRV_NAME
+		"(%s): resetting host\n", pci_name(hba->pdev));
+	scsi_print_command(cmd);
 
 	hba->mu_status = MU_STATE_RESETTING;
 
@@ -1196,7 +1206,7 @@ stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_scsi_host_put;
 	}
 
-	hba->mmio_base = ioremap(pci_resource_start(pdev, 0),
+	hba->mmio_base = ioremap_nocache(pci_resource_start(pdev, 0),
 		pci_resource_len(pdev, 0));
 	if ( !hba->mmio_base) {
 		printk(KERN_ERR DRV_NAME "(%s): memory map failed\n",
