@@ -709,3 +709,25 @@ archclean:
 CLEAN_FILES += vmlinux.32 \
 	       vmlinux.64 \
 	       vmlinux.ecoff
+
+quiet_cmd_syscalls_n32 = CALL-N32 $<
+      cmd_syscalls_n32 = $(CONFIG_SHELL) $< $(CC) $(c_flags) -mabi=n32
+
+quiet_cmd_syscalls_o32 = CALL-O32 $<
+      cmd_syscalls_o32 = $(CONFIG_SHELL) $< $(CC) $(c_flags) -mabi=32
+
+PHONY += missing-syscalls-n32 missing-syscalls-o32
+
+missing-syscalls-n32: scripts/checksyscalls.sh FORCE
+	$(call cmd,syscalls_n32)
+
+missing-syscalls-o32: scripts/checksyscalls.sh FORCE
+	$(call cmd,syscalls_o32)
+
+archprepare:
+ifdef CONFIG_MIPS32_N32
+	$(Q)$(MAKE) $(build)=arch/mips missing-syscalls-n32
+endif
+ifdef CONFIG_MIPS32_O32
+	$(Q)$(MAKE) $(build)=arch/mips missing-syscalls-o32
+endif
