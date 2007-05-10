@@ -120,7 +120,9 @@ static int mpc834x_usb_cfg(void)
  */
 static void __init mpc834x_mds_setup_arch(void)
 {
+#ifdef CONFIG_PCI
 	struct device_node *np;
+#endif
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc834x_mds_setup_arch()", 0);
