@@ -15,128 +15,34 @@ MODULE_DESCRIPTION("arptables filter table");
 #define FILTER_VALID_HOOKS ((1 << NF_ARP_IN) | (1 << NF_ARP_OUT) | \
 			   (1 << NF_ARP_FORWARD))
 
-/* Standard entry. */
-struct arpt_standard
-{
-	struct arpt_entry entry;
-	struct arpt_standard_target target;
-};
-
-struct arpt_error_target
-{
-	struct arpt_entry_target target;
-	char errorname[ARPT_FUNCTION_MAXNAMELEN];
-};
-
-struct arpt_error
-{
-	struct arpt_entry entry;
-	struct arpt_error_target target;
-};
-
 static struct
 {
 	struct arpt_replace repl;
 	struct arpt_standard entries[3];
 	struct arpt_error term;
-} initial_table __initdata
-= { { "filter", FILTER_VALID_HOOKS, 4,
-      sizeof(struct arpt_standard) * 3 + sizeof(struct arpt_error),
-      { [NF_ARP_IN] = 0,
-	[NF_ARP_OUT] = sizeof(struct arpt_standard),
-	[NF_ARP_FORWARD] = 2 * sizeof(struct arpt_standard), },
-      { [NF_ARP_IN] = 0,
-	[NF_ARP_OUT] = sizeof(struct arpt_standard),
-	[NF_ARP_FORWARD] = 2 * sizeof(struct arpt_standard), },
-      0, NULL, { } },
-    {
-	    /* ARP_IN */
-	    {
-		    {
-			    {
-				    { 0 }, { 0 }, { 0 }, { 0 },
-				    0, 0,
-				    { { 0, }, { 0, } },
-				    { { 0, }, { 0, } },
-				    0, 0,
-				    0, 0,
-				    0, 0,
-				    "", "", { 0 }, { 0 },
-				    0, 0
-			    },
-			    sizeof(struct arpt_entry),
-			    sizeof(struct arpt_standard),
-			    0,
-			    { 0, 0 }, { } },
-		    { { { { ARPT_ALIGN(sizeof(struct arpt_standard_target)), "" } }, { } },
-		      -NF_ACCEPT - 1 }
-	    },
-	    /* ARP_OUT */
-	    {
-		    {
-			    {
-				    { 0 }, { 0 }, { 0 }, { 0 },
-				    0, 0,
-				    { { 0, }, { 0, } },
-				    { { 0, }, { 0, } },
-				    0, 0,
-				    0, 0,
-				    0, 0,
-				    "", "", { 0 }, { 0 },
-				    0, 0
-			    },
-			    sizeof(struct arpt_entry),
-			    sizeof(struct arpt_standard),
-			    0,
-			    { 0, 0 }, { } },
-		    { { { { ARPT_ALIGN(sizeof(struct arpt_standard_target)), "" } }, { } },
-		      -NF_ACCEPT - 1 }
-	    },
-	    /* ARP_FORWARD */
-	    {
-		    {
-			    {
-				    { 0 }, { 0 }, { 0 }, { 0 },
-				    0, 0,
-				    { { 0, }, { 0, } },
-				    { { 0, }, { 0, } },
-				    0, 0,
-				    0, 0,
-				    0, 0,
-				    "", "", { 0 }, { 0 },
-				    0, 0
-			    },
-			    sizeof(struct arpt_entry),
-			    sizeof(struct arpt_standard),
-			    0,
-			    { 0, 0 }, { } },
-		    { { { { ARPT_ALIGN(sizeof(struct arpt_standard_target)), "" } }, { } },
-		      -NF_ACCEPT - 1 }
-	    }
-    },
-    /* ERROR */
-    {
-	    {
-		    {
-			    { 0 }, { 0 }, { 0 }, { 0 },
-			    0, 0,
-			    { { 0, }, { 0, } },
-			    { { 0, }, { 0, } },
-			    0, 0,
-			    0, 0,
-			    0, 0,
-			    "", "", { 0 }, { 0 },
-			    0, 0
-		    },
-		    sizeof(struct arpt_entry),
-		    sizeof(struct arpt_error),
-		    0,
-		    { 0, 0 }, { } },
-	    { { { { ARPT_ALIGN(sizeof(struct arpt_error_target)), ARPT_ERROR_TARGET } },
-		{ } },
-	      "ERROR"
-	    }
-    }
+} initial_table __initdata = {
+	.repl = {
+		.name = "filter",
+		.valid_hooks = FILTER_VALID_HOOKS,
+		.num_entries = 4,
+		.size = sizeof(struct arpt_standard) * 3 + sizeof(struct arpt_error),
+		.hook_entry = {
+			[NF_ARP_IN] = 0,
+			[NF_ARP_OUT] = sizeof(struct arpt_standard),
+			[NF_ARP_FORWARD] = 2 * sizeof(struct arpt_standard),
+		},
+		.underflow = {
+			[NF_ARP_IN] = 0,
+			[NF_ARP_OUT] = sizeof(struct arpt_standard),
+			[NF_ARP_FORWARD] = 2 * sizeof(struct arpt_standard),
+		},
+	},
+	.entries = {
+		ARPT_STANDARD_INIT(NF_ACCEPT),	/* ARP_IN */
+		ARPT_STANDARD_INIT(NF_ACCEPT),	/* ARP_OUT */
+		ARPT_STANDARD_INIT(NF_ACCEPT),	/* ARP_FORWARD */
+	},
+	.term = ARPT_ERROR_INIT,
 };
 
 static struct arpt_table packet_filter = {

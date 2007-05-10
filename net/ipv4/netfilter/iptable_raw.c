@@ -21,62 +21,18 @@ static struct
 		.size = sizeof(struct ipt_standard) * 2 + sizeof(struct ipt_error),
 		.hook_entry = {
 			[NF_IP_PRE_ROUTING] = 0,
-			[NF_IP_LOCAL_OUT] = sizeof(struct ipt_standard) },
+			[NF_IP_LOCAL_OUT] = sizeof(struct ipt_standard)
+		},
 		.underflow = {
 			[NF_IP_PRE_ROUTING] = 0,
-			[NF_IP_LOCAL_OUT]  = sizeof(struct ipt_standard) },
+			[NF_IP_LOCAL_OUT]  = sizeof(struct ipt_standard)
+		},
 	},
 	.entries = {
-	     /* PRE_ROUTING */
-	     {
-		     .entry = {
-			     .target_offset = sizeof(struct ipt_entry),
-			     .next_offset = sizeof(struct ipt_standard),
-		     },
-		     .target = {
-			  .target = {
-				  .u = {
-					  .target_size = IPT_ALIGN(sizeof(struct ipt_standard_target)),
-				  },
-			  },
-			  .verdict = -NF_ACCEPT - 1,
-		     },
-	     },
-
-	     /* LOCAL_OUT */
-	     {
-		     .entry = {
-			     .target_offset = sizeof(struct ipt_entry),
-			     .next_offset = sizeof(struct ipt_standard),
-		     },
-		     .target = {
-			     .target = {
-				     .u = {
-					     .target_size = IPT_ALIGN(sizeof(struct ipt_standard_target)),
-				     },
-			     },
-			     .verdict = -NF_ACCEPT - 1,
-		     },
-	     },
+		IPT_STANDARD_INIT(NF_ACCEPT),	/* PRE_ROUTING */
+		IPT_STANDARD_INIT(NF_ACCEPT),	/* LOCAL_OUT */
 	},
-	/* ERROR */
-	.term = {
-		.entry = {
-			.target_offset = sizeof(struct ipt_entry),
-			.next_offset = sizeof(struct ipt_error),
-		},
-		.target = {
-			.target = {
-				.u = {
-					.user = {
-						.target_size = IPT_ALIGN(sizeof(struct ipt_error_target)),
-						.name = IPT_ERROR_TARGET,
-					},
-				},
-			},
-			.errorname = "ERROR",
-		},
-	}
+	.term = IPT_ERROR_INIT,			/* ERROR */
 };
 
 static struct xt_table packet_raw = {

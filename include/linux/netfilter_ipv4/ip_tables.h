@@ -295,6 +295,28 @@ struct ipt_error
 	struct ipt_error_target target;
 };
 
+#define IPT_ENTRY_INIT(__size)						       \
+{									       \
+	.target_offset	= sizeof(struct ipt_entry),			       \
+	.next_offset	= (__size),					       \
+}
+
+#define IPT_STANDARD_INIT(__verdict)					       \
+{									       \
+	.entry		= IPT_ENTRY_INIT(sizeof(struct ipt_standard)),	       \
+	.target		= XT_TARGET_INIT(IPT_STANDARD_TARGET,		       \
+					 sizeof(struct xt_standard_target)),   \
+	.target.verdict	= -(__verdict) - 1,				       \
+}
+
+#define IPT_ERROR_INIT							       \
+{									       \
+	.entry		= IPT_ENTRY_INIT(sizeof(struct ipt_error)),	       \
+	.target		= XT_TARGET_INIT(IPT_ERROR_TARGET,		       \
+					 sizeof(struct ipt_error_target)),     \
+	.target.errorname = "ERROR",					       \
+}
+
 extern unsigned int ipt_do_table(struct sk_buff **pskb,
 				 unsigned int hook,
 				 const struct net_device *in,
