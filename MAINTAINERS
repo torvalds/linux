@@ -1718,12 +1718,6 @@ P:	H. Peter Anvin
 M:	hpa@zytor.com
 S:	Maintained
 
-i810 TCO TIMER WATCHDOG
-P:	Nils Faerber
-M:	nils@kernelconcepts.de
-W:	http://www.kernelconcepts.de/
-S:	Maintained
-
 IA64 (Itanium) PLATFORM
 P:	Tony Luck
 M:	tony.luck@intel.com

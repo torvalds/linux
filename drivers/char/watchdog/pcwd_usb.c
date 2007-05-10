@@ -146,7 +146,7 @@ struct usb_pcwd_private {
 	atomic_t		cmd_received;		/* true if we received a report after a command */
 
 	int			exists;			/* Wether or not the device exists */
-	struct semaphore	sem;			/* locks this structure */
+	struct mutex		mtx;			/* locks this structure */
 };
 static struct usb_pcwd_private *usb_pcwd_device;
 
@@ -635,7 +635,7 @@ static int usb_pcwd_probe(struct usb_interface *interface, const struct usb_devi
 
 	usb_pcwd_device = usb_pcwd;
 
-	init_MUTEX (&usb_pcwd->sem);
+	mutex_init(&usb_pcwd->mtx);
 	usb_pcwd->udev = udev;
 	usb_pcwd->interface = interface;
 	usb_pcwd->interface_number = iface_desc->desc.bInterfaceNumber;
@@ -763,7 +763,7 @@ static void usb_pcwd_disconnect(struct usb_interface *interface)
 	usb_pcwd = usb_get_intfdata (interface);
 	usb_set_intfdata (interface, NULL);
 
-	down (&usb_pcwd->sem);
+	mutex_lock(&usb_pcwd->mtx);
 
 	/* Stop the timer before we leave */
 	if (!nowayout)
@@ -777,7 +777,7 @@ static void usb_pcwd_disconnect(struct usb_interface *interface)
 	misc_deregister(&usb_pcwd_temperature_miscdev);
 	unregister_reboot_notifier(&usb_pcwd_notifier);
 
-	up (&usb_pcwd->sem);
+	mutex_unlock(&usb_pcwd->mtx);
 
 	/* Delete the USB PCWD device */
 	usb_pcwd_delete(usb_pcwd);

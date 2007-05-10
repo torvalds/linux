@@ -367,15 +367,14 @@ static int __init ibmasr_init(void)
 	if (!asr_type)
 		return -ENODEV;
 
+	rc = asr_get_base_address();
+	if (rc)
+		return rc;
+
 	rc = misc_register(&asr_miscdev);
 	if (rc < 0) {
+		release_region(asr_base, asr_length);
 		printk(KERN_ERR PFX "failed to register misc device\n");
-		return rc;
-	}
-
-	rc = asr_get_base_address();
-	if (rc) {
-		misc_deregister(&asr_miscdev);
 		return rc;
 	}
 

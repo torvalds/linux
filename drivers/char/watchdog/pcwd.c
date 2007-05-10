@@ -59,10 +59,10 @@
 #include <linux/jiffies.h>	/* For jiffies stuff */
 #include <linux/miscdevice.h>	/* For MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR) */
 #include <linux/watchdog.h>	/* For the watchdog specific items */
-#include <linux/notifier.h>	/* For notifier support */
-#include <linux/reboot.h>	/* For reboot_notifier stuff */
+#include <linux/reboot.h>	/* For kernel_power_off() */
 #include <linux/init.h>		/* For __init/__exit/... */
 #include <linux/fs.h>		/* For file operations */
+#include <linux/isa.h>		/* For isa devices */
 #include <linux/ioport.h>	/* For io-port access */
 #include <linux/spinlock.h>	/* For spin_lock/spin_unlock/... */
 
@@ -70,8 +70,8 @@
 #include <asm/io.h>		/* For inb/outb/... */
 
 /* Module and version information */
-#define WATCHDOG_VERSION "1.18"
-#define WATCHDOG_DATE "21 Jan 2007"
+#define WATCHDOG_VERSION "1.20"
+#define WATCHDOG_DATE "18 Feb 2007"
 #define WATCHDOG_DRIVER_NAME "ISA-PC Watchdog"
 #define WATCHDOG_NAME "pcwd"
 #define PFX WATCHDOG_NAME ": "
@@ -87,6 +87,15 @@
  */
 #define	PCWD_REVISION_A		1
 #define	PCWD_REVISION_C		2
+
+/*
+ * These are the auto-probe addresses available.
+ *
+ * Revision A only uses ports 0x270 and 0x370.  Revision C introduced 0x350.
+ * Revision A has an address range of 2 addresses, while Revision C has 4.
+ */
+#define PCWD_ISA_NR_CARDS	3
+static int pcwd_ioports[] = { 0x270, 0x350, 0x370, 0x000 };
 
 /*
  * These are the defines that describe the control status bits for the
@@ -485,7 +494,7 @@ static int pcwd_get_status(int *status)
 		if (control_status & WD_T110) {
 			*status |= WDIOF_OVERHEAT;
 			if (temp_panic) {
-				printk (KERN_INFO PFX "Temperature overheat trip!\n");
+				printk(KERN_INFO PFX "Temperature overheat trip!\n");
 				kernel_power_off();
 				/* or should we just do a: panic(PFX "Temperature overheat trip!\n"); */
 			}
@@ -497,7 +506,7 @@ static int pcwd_get_status(int *status)
 		if (control_status & WD_REVC_TTRP) {
 			*status |= WDIOF_OVERHEAT;
 			if (temp_panic) {
-				printk (KERN_INFO PFX "Temperature overheat trip!\n");
+				printk(KERN_INFO PFX "Temperature overheat trip!\n");
 				kernel_power_off();
 				/* or should we just do a: panic(PFX "Temperature overheat trip!\n"); */
 			}
@@ -734,20 +743,6 @@ static int pcwd_temp_close(struct inode *inode, struct file *file)
 }
 
 /*
- *	Notify system
- */
-
-static int pcwd_notify_sys(struct notifier_block *this, unsigned long code, void *unused)
-{
-	if (code==SYS_DOWN || code==SYS_HALT) {
-		/* Turn the WDT off */
-		pcwd_stop();
-	}
-
-	return NOTIFY_DONE;
-}
-
-/*
  *	Kernel Interfaces
  */
 
@@ -780,10 +775,6 @@ static struct miscdevice temp_miscdev = {
 	.fops =		&pcwd_temp_fops,
 };
 
-static struct notifier_block pcwd_notifier = {
-	.notifier_call =	pcwd_notify_sys,
-};
-
 /*
  *	Init & exit routines
  */
@@ -803,9 +794,66 @@ static inline int get_revision(void)
 	return r;
 }
 
-static int __devinit pcwatchdog_init(int base_addr)
+/*
+ *  The ISA cards have a heartbeat bit in one of the registers, which
+ *  register is card dependent.  The heartbeat bit is monitored, and if
+ *  found, is considered proof that a Berkshire card has been found.
+ *  The initial rate is once per second at board start up, then twice
+ *  per second for normal operation.
+ */
+static int __devinit pcwd_isa_match(struct device *dev, unsigned int id)
+{
+	int base_addr=pcwd_ioports[id];
+	int port0, last_port0;	/* Reg 0, in case it's REV A */
+	int port1, last_port1;	/* Register 1 for REV C cards */
+	int i;
+	int retval;
+
+	if (debug >= DEBUG)
+		printk(KERN_DEBUG PFX "pcwd_isa_match id=%d\n",
+			id);
+
+	if (!request_region (base_addr, 4, "PCWD")) {
+		printk(KERN_INFO PFX "Port 0x%04x unavailable\n", base_addr);
+		return 0;
+	}
+
+	retval = 0;
+
+	port0 = inb_p(base_addr);	/* For REV A boards */
+	port1 = inb_p(base_addr + 1);	/* For REV C boards */
+	if (port0 != 0xff || port1 != 0xff) {
+		/* Not an 'ff' from a floating bus, so must be a card! */
+		for (i = 0; i < 4; ++i) {
+
+			msleep(500);
+
+			last_port0 = port0;
+			last_port1 = port1;
+
+			port0 = inb_p(base_addr);
+			port1 = inb_p(base_addr + 1);
+
+			/* Has either hearbeat bit changed?  */
+			if ((port0 ^ last_port0) & WD_HRTBT ||
+			    (port1 ^ last_port1) & WD_REVC_HRBT) {
+				retval = 1;
+				break;
+			}
+		}
+	}
+	release_region (base_addr, 4);
+
+	return retval;
+}
+
+static int __devinit pcwd_isa_probe(struct device *dev, unsigned int id)
 {
 	int ret;
+
+	if (debug >= DEBUG)
+		printk(KERN_DEBUG PFX "pcwd_isa_probe id=%d\n",
+			id);
 
 	cards_found++;
 	if (cards_found == 1)
@@ -816,11 +864,13 @@ static int __devinit pcwatchdog_init(int base_addr)
 		return -ENODEV;
 	}
 
-	if (base_addr == 0x0000) {
+	if (pcwd_ioports[id] == 0x0000) {
 		printk(KERN_ERR PFX "No I/O-Address for card detected\n");
 		return -ENODEV;
 	}
-	pcwd_private.io_addr = base_addr;
+	pcwd_private.io_addr = pcwd_ioports[id];
+
+	spin_lock_init(&pcwd_private.io_lock);
 
 	/* Check card's revision */
 	pcwd_private.revision = get_revision();
@@ -828,8 +878,8 @@ static int __devinit pcwatchdog_init(int base_addr)
 	if (!request_region(pcwd_private.io_addr, (pcwd_private.revision == PCWD_REVISION_A) ? 2 : 4, "PCWD")) {
 		printk(KERN_ERR PFX "I/O address 0x%04x already in use\n",
 			pcwd_private.io_addr);
-		pcwd_private.io_addr = 0x0000;
-		return -EIO;
+		ret=-EIO;
+		goto error_request_region;
 	}
 
 	/* Initial variables */
@@ -865,24 +915,12 @@ static int __devinit pcwatchdog_init(int base_addr)
 			WATCHDOG_HEARTBEAT);
 	}
 
-	ret = register_reboot_notifier(&pcwd_notifier);
-	if (ret) {
-		printk(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
-			ret);
-		release_region(pcwd_private.io_addr, (pcwd_private.revision == PCWD_REVISION_A) ? 2 : 4);
-		pcwd_private.io_addr = 0x0000;
-		return ret;
-	}
-
 	if (pcwd_private.supports_temp) {
 		ret = misc_register(&temp_miscdev);
 		if (ret) {
 			printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
 				TEMP_MINOR, ret);
-			unregister_reboot_notifier(&pcwd_notifier);
-			release_region(pcwd_private.io_addr, (pcwd_private.revision == PCWD_REVISION_A) ? 2 : 4);
-			pcwd_private.io_addr = 0x0000;
-			return ret;
+			goto error_misc_register_temp;
 		}
 	}
 
@@ -890,22 +928,34 @@ static int __devinit pcwatchdog_init(int base_addr)
 	if (ret) {
 		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
 			WATCHDOG_MINOR, ret);
-		if (pcwd_private.supports_temp)
-			misc_deregister(&temp_miscdev);
-		unregister_reboot_notifier(&pcwd_notifier);
-		release_region(pcwd_private.io_addr, (pcwd_private.revision == PCWD_REVISION_A) ? 2 : 4);
-		pcwd_private.io_addr = 0x0000;
-		return ret;
+		goto error_misc_register_watchdog;
 	}
 
 	printk(KERN_INFO PFX "initialized. heartbeat=%d sec (nowayout=%d)\n",
 		heartbeat, nowayout);
 
 	return 0;
+
+error_misc_register_watchdog:
+	if (pcwd_private.supports_temp)
+		misc_deregister(&temp_miscdev);
+error_misc_register_temp:
+	release_region(pcwd_private.io_addr, (pcwd_private.revision == PCWD_REVISION_A) ? 2 : 4);
+error_request_region:
+	pcwd_private.io_addr = 0x0000;
+	cards_found--;
+	return ret;
 }
 
-static void __devexit pcwatchdog_exit(void)
+static int __devexit pcwd_isa_remove(struct device *dev, unsigned int id)
 {
+	if (debug >= DEBUG)
+		printk(KERN_DEBUG PFX "pcwd_isa_remove id=%d\n",
+			id);
+
+	if (!pcwd_private.io_addr)
+		return 1;
+
 	/*  Disable the board  */
 	if (!nowayout)
 		pcwd_stop();
@@ -914,102 +964,50 @@ static void __devexit pcwatchdog_exit(void)
 	misc_deregister(&pcwd_miscdev);
 	if (pcwd_private.supports_temp)
 		misc_deregister(&temp_miscdev);
-	unregister_reboot_notifier(&pcwd_notifier);
 	release_region(pcwd_private.io_addr, (pcwd_private.revision == PCWD_REVISION_A) ? 2 : 4);
 	pcwd_private.io_addr = 0x0000;
 	cards_found--;
-}
-
-/*
- *  The ISA cards have a heartbeat bit in one of the registers, which
- *  register is card dependent.  The heartbeat bit is monitored, and if
- *  found, is considered proof that a Berkshire card has been found.
- *  The initial rate is once per second at board start up, then twice
- *  per second for normal operation.
- */
-static int __init pcwd_checkcard(int base_addr)
-{
-	int port0, last_port0;	/* Reg 0, in case it's REV A */
-	int port1, last_port1;	/* Register 1 for REV C cards */
-	int i;
-	int retval;
-
-	if (!request_region (base_addr, 4, "PCWD")) {
-		printk (KERN_INFO PFX "Port 0x%04x unavailable\n", base_addr);
-		return 0;
-	}
-
-	retval = 0;
-
-	port0 = inb_p(base_addr);	/* For REV A boards */
-	port1 = inb_p(base_addr + 1);	/* For REV C boards */
-	if (port0 != 0xff || port1 != 0xff) {
-		/* Not an 'ff' from a floating bus, so must be a card! */
-		for (i = 0; i < 4; ++i) {
-
-			msleep(500);
-
-			last_port0 = port0;
-			last_port1 = port1;
-
-			port0 = inb_p(base_addr);
-			port1 = inb_p(base_addr + 1);
-
-			/* Has either hearbeat bit changed?  */
-			if ((port0 ^ last_port0) & WD_HRTBT ||
-			    (port1 ^ last_port1) & WD_REVC_HRBT) {
-				retval = 1;
-				break;
-			}
-		}
-	}
-	release_region (base_addr, 4);
-
-	return retval;
-}
-
-/*
- * These are the auto-probe addresses available.
- *
- * Revision A only uses ports 0x270 and 0x370.  Revision C introduced 0x350.
- * Revision A has an address range of 2 addresses, while Revision C has 4.
- */
-static int pcwd_ioports[] = { 0x270, 0x350, 0x370, 0x000 };
-
-static int __init pcwd_init_module(void)
-{
-	int i, found = 0;
-
-	spin_lock_init(&pcwd_private.io_lock);
-
-	for (i = 0; pcwd_ioports[i] != 0; i++) {
-		if (pcwd_checkcard(pcwd_ioports[i])) {
-			if (!(pcwatchdog_init(pcwd_ioports[i])))
-				found++;
-		}
-	}
-
-	if (!found) {
-		printk (KERN_INFO PFX "No card detected, or port not available\n");
-		return -ENODEV;
-	}
 
 	return 0;
 }
 
+static void pcwd_isa_shutdown(struct device *dev, unsigned int id)
+{
+	if (debug >= DEBUG)
+		printk(KERN_DEBUG PFX "pcwd_isa_shutdown id=%d\n",
+			id);
+
+	pcwd_stop();
+}
+
+static struct isa_driver pcwd_isa_driver = {
+	.match		= pcwd_isa_match,
+	.probe		= pcwd_isa_probe,
+	.remove		= __devexit_p(pcwd_isa_remove),
+	.shutdown	= pcwd_isa_shutdown,
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= WATCHDOG_NAME,
+	},
+};
+
+static int __init pcwd_init_module(void)
+{
+	return isa_register_driver(&pcwd_isa_driver, PCWD_ISA_NR_CARDS);
+}
+
 static void __exit pcwd_cleanup_module(void)
 {
-	if (pcwd_private.io_addr)
-		pcwatchdog_exit();
-
+	isa_unregister_driver(&pcwd_isa_driver);
 	printk(KERN_INFO PFX "Watchdog Module Unloaded.\n");
 }
 
 module_init(pcwd_init_module);
 module_exit(pcwd_cleanup_module);
 
-MODULE_AUTHOR("Ken Hollis <kenji@bitgate.com>");
+MODULE_AUTHOR("Ken Hollis <kenji@bitgate.com>, Wim Van Sebroeck <wim@iguana.be>");
 MODULE_DESCRIPTION("Berkshire ISA-PC Watchdog driver");
+MODULE_VERSION(WATCHDOG_VERSION);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 MODULE_ALIAS_MISCDEV(TEMP_MINOR);

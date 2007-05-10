@@ -413,17 +413,10 @@ static int __init eurwdt_init(void)
 {
 	int ret;
 
-	ret = misc_register(&eurwdt_miscdev);
-	if (ret) {
-		printk(KERN_ERR "eurwdt: can't misc_register on minor=%d\n",
-		WATCHDOG_MINOR);
-		goto out;
-	}
-
 	ret = request_irq(irq, eurwdt_interrupt, IRQF_DISABLED, "eurwdt", NULL);
 	if(ret) {
 		printk(KERN_ERR "eurwdt: IRQ %d is not free.\n", irq);
-		goto outmisc;
+		goto out;
 	}
 
 	if (!request_region(io, 2, "eurwdt")) {
@@ -438,6 +431,13 @@ static int __init eurwdt_init(void)
 		goto outreg;
 	}
 
+	ret = misc_register(&eurwdt_miscdev);
+	if (ret) {
+		printk(KERN_ERR "eurwdt: can't misc_register on minor=%d\n",
+		WATCHDOG_MINOR);
+		goto outreboot;
+	}
+
 	eurwdt_unlock_chip();
 
 	ret = 0;
@@ -448,14 +448,14 @@ static int __init eurwdt_init(void)
 out:
 	return ret;
 
+outreboot:
+	unregister_reboot_notifier(&eurwdt_notifier);
+
 outreg:
 	release_region(io, 2);
 
 outirq:
 	free_irq(irq, NULL);
-
-outmisc:
-	misc_deregister(&eurwdt_miscdev);
 	goto out;
 }
 
