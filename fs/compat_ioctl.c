@@ -3566,10 +3566,13 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 			goto found_handler;
 	}
 
+#ifdef CONFIG_NET
 	if (S_ISSOCK(filp->f_path.dentry->d_inode->i_mode) &&
 	    cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15)) {
 		error = siocdevprivate_ioctl(fd, cmd, arg);
-	} else {
+	} else
+#endif
+	{
 		static int count;
 
 		if (++count <= 50)
