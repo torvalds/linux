@@ -10,16 +10,11 @@ extern int nf_nat_rule_find(struct sk_buff **pskb,
 			    unsigned int hooknum,
 			    const struct net_device *in,
 			    const struct net_device *out,
-			    struct nf_conn *ct,
-			    struct nf_nat_info *info);
+			    struct nf_conn *ct);
 
 extern unsigned int
-alloc_null_binding(struct nf_conn *ct,
-		   struct nf_nat_info *info,
-		   unsigned int hooknum);
+alloc_null_binding(struct nf_conn *ct, unsigned int hooknum);
 
 extern unsigned int
-alloc_null_binding_confirmed(struct nf_conn *ct,
-			     struct nf_nat_info *info,
-			     unsigned int hooknum);
+alloc_null_binding_confirmed(struct nf_conn *ct, unsigned int hooknum);
 #endif /* _NF_NAT_RULE_H */
