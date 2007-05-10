@@ -294,7 +294,7 @@ int afs_send_pages(struct afs_call *call, struct msghdr *msg, struct kvec *iov)
 			put_page(pages[loop]);
 		if (ret < 0)
 			break;
-	} while (first < last);
+	} while (first <= last);
 
 	_leave(" = %d", ret);
 	return ret;

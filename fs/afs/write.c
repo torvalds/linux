@@ -669,7 +669,7 @@ void afs_pages_written_back(struct afs_vnode *vnode, struct afs_call *call)
 	pagevec_init(&pv, 0);
 
 	do {
-		_debug("attach %lx-%lx", first, last);
+		_debug("done %lx-%lx", first, last);
 
 		count = last - first + 1;
 		if (count > PAGEVEC_SIZE)
@@ -701,7 +701,7 @@ void afs_pages_written_back(struct afs_vnode *vnode, struct afs_call *call)
 		}
 
 		__pagevec_release(&pv);
-	} while (first < last);
+	} while (first <= last);
 
 	_leave("");
 }
