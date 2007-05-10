@@ -450,8 +450,8 @@ cumanascsi2_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	ec->irqaddr	= info->base + CUMANASCSI2_STATUS;
 	ec->irqmask	= STATUS_INT;
-	ec->irq_data	= info;
-	ec->ops		= &cumanascsi_2_ops;
+
+	ecard_setirq(ec, &cumanascsi_2_ops, info);
 
 	ret = fas216_init(host);
 	if (ret)

@@ -569,8 +569,8 @@ eesoxscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	ec->irqaddr	= base + EESOX_DMASTAT;
 	ec->irqmask	= EESOX_STAT_INTR;
-	ec->irq_data	= info;
-	ec->ops		= &eesoxscsi_ops;
+
+	ecard_setirq(ec, &eesoxscsi_ops, info);
 
 	device_create_file(&ec->dev, &dev_attr_bus_term);
 

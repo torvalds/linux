@@ -710,8 +710,7 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	 * IRQ and control port handling - only for non-NIC slot cards.
 	 */
 	if (ec->slot_no != 8) {
-		ec->ops		= &etherh_ops;
-		ec->irq_data	= eh;
+		ecard_setirq(ec, &etherh_ops, eh);
 	} else {
 		/*
 		 * If we're in the NIC slot, make sure the IRQ is enabled
@@ -778,7 +777,6 @@ static void __devexit etherh_remove(struct expansion_card *ec)
 	ecard_set_drvdata(ec, NULL);
 
 	unregister_netdev(dev);
-	ec->ops = NULL;
 
 	if (eh->ioc_fast)
 		iounmap(eh->ioc_fast);

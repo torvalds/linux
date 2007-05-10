@@ -361,8 +361,8 @@ powertecscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	ec->irqaddr	= base + POWERTEC_INTR_STATUS;
 	ec->irqmask	= POWERTEC_INTR_BIT;
-	ec->irq_data	= info;
-	ec->ops		= &powertecscsi_ops;
+
+	ecard_setirq(ec, &powertecscsi_ops, info);
 
 	device_create_file(&ec->dev, &dev_attr_bus_term);
 

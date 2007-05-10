@@ -574,8 +574,8 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 
 	ec->irqaddr  = base + ICS_ARCIN_V5_INTRSTAT;
 	ec->irqmask  = 1;
-	ec->irq_data = state;
-	ec->ops      = &icside_ops_arcin_v5;
+
+	ecard_setirq(ec, &icside_ops_arcin_v5, state);
 
 	/*
 	 * Be on the safe side - disable interrupts
@@ -630,8 +630,7 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 
 	writeb(sel, ioc_base);
 
-	ec->irq_data      = state;
-	ec->ops           = &icside_ops_arcin_v6;
+	ecard_setirq(ec, &icside_ops_arcin_v6, state);
 
 	state->irq_port   = easi_base;
 	state->ioc_base   = ioc_base;
@@ -793,8 +792,6 @@ static void __devexit icside_remove(struct expansion_card *ec)
 	}
 
 	ecard_set_drvdata(ec, NULL);
-	ec->ops = NULL;
-	ec->irq_data = NULL;
 
 	if (state->ioc_base)
 		iounmap(state->ioc_base);

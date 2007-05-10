@@ -434,8 +434,8 @@ pata_icside_register_v5(struct ata_probe_ent *ae, struct expansion_card *ec)
 
 	ec->irqaddr = base + ICS_ARCIN_V5_INTRSTAT;
 	ec->irqmask = 1;
-	ec->irq_data = state;
-	ec->ops = &pata_icside_ops_arcin_v5;
+
+	ecard_setirq(ec, &pata_icside_ops_arcin_v5, state);
 
 	/*
 	 * Be on the safe side - disable interrupts
@@ -480,8 +480,7 @@ pata_icside_register_v6(struct ata_probe_ent *ae, struct expansion_card *ec)
 
 	writeb(sel, ioc_base);
 
-	ec->irq_data = state;
-	ec->ops = &pata_icside_ops_arcin_v6;
+	ecard_setirq(ec, &pata_icside_ops_arcin_v6, state);
 
 	state->irq_port = easi_base;
 	state->ioc_base = ioc_base;
@@ -609,8 +608,7 @@ static void pata_icside_shutdown(struct expansion_card *ec)
 	 * this register via that region.
 	 */
 	local_irq_save(flags);
-	if (ec->ops)
-		ec->ops->irqdisable(ec, ec->irq);
+	ec->ops->irqdisable(ec, ec->irq);
 	local_irq_restore(flags);
 
 	/*
@@ -638,9 +636,6 @@ static void __devexit pata_icside_remove(struct expansion_card *ec)
 	 * don't NULL out the drvdata - devres/libata wants it
 	 * to free the ata_host structure.
 	 */
-	ec->ops = NULL;
-	ec->irq_data = NULL;
-
 	if (state->dma != NO_DMA)
 		free_dma(state->dma);
 	if (state->ioc_base)

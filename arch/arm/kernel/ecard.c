@@ -958,6 +958,14 @@ void ecard_release_resources(struct expansion_card *ec)
 }
 EXPORT_SYMBOL(ecard_release_resources);
 
+void ecard_setirq(struct expansion_card *ec, const struct expansion_card_ops *ops, void *irq_data)
+{
+	ec->irq_data = irq_data;
+	barrier();
+	ec->ops = ops;
+}
+EXPORT_SYMBOL(ecard_setirq);
+
 /*
  * Probe for an expansion card.
  *
@@ -1132,6 +1140,14 @@ static int ecard_drv_remove(struct device *dev)
 
 	drv->remove(ec);
 	ecard_release(ec);
+
+	/*
+	 * Restore the default operations.  We ensure that the
+	 * ops are set before we change the data.
+	 */
+	ec->ops = &ecard_default_ops;
+	barrier();
+	ec->irq_data = NULL;
 
 	return 0;
 }
