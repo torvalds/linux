@@ -201,6 +201,7 @@ struct mddev_s
 	struct mutex			reconfig_mutex;
 	atomic_t			active;
 
+	int				changed;	/* true if we might need to reread partition info */
 	int				degraded;	/* whether md should consider
 							 * adding a spare
 							 */

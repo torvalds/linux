@@ -3104,7 +3104,6 @@ static int do_md_run(mddev_t * mddev)
 	struct gendisk *disk;
 	struct mdk_personality *pers;
 	char b[BDEVNAME_SIZE];
-	struct block_device *bdev;
 
 	if (list_empty(&mddev->disks))
 		/* cannot run an array with no devices.. */
@@ -3332,13 +3331,7 @@ static int do_md_run(mddev_t * mddev)
 	md_wakeup_thread(mddev->thread);
 	md_wakeup_thread(mddev->sync_thread); /* possibly kick off a reshape */
 
-	bdev = bdget_disk(mddev->gendisk, 0);
-	if (bdev) {
-		bd_set_size(bdev, mddev->array_size << 1);
-		blkdev_ioctl(bdev->bd_inode, NULL, BLKRRPART, 0);
-		bdput(bdev);
-	}
-
+	mddev->changed = 1;
 	md_new_event(mddev);
 	kobject_uevent(&mddev->gendisk->kobj, KOBJ_CHANGE);
 	return 0;
@@ -3460,6 +3453,7 @@ static int do_md_stop(mddev_t * mddev, int mode)
 			mddev->pers = NULL;
 
 			set_capacity(disk, 0);
+			mddev->changed = 1;
 
 			if (mddev->ro)
 				mddev->ro = 0;
@@ -4599,6 +4593,20 @@ static int md_release(struct inode *inode, struct file * file)
 	return 0;
 }
 
+static int md_media_changed(struct gendisk *disk)
+{
+	mddev_t *mddev = disk->private_data;
+
+	return mddev->changed;
+}
+
+static int md_revalidate(struct gendisk *disk)
+{
+	mddev_t *mddev = disk->private_data;
+
+	mddev->changed = 0;
+	return 0;
+}
 static struct block_device_operations md_fops =
 {
 	.owner		= THIS_MODULE,
@@ -4606,6 +4614,8 @@ static struct block_device_operations md_fops =
 	.release	= md_release,
 	.ioctl		= md_ioctl,
 	.getgeo		= md_getgeo,
+	.media_changed	= md_media_changed,
+	.revalidate_disk= md_revalidate,
 };
 
 static int md_thread(void * arg)
