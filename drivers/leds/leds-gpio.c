@@ -13,14 +13,26 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
+#include <linux/workqueue.h>
+
 #include <asm/gpio.h>
 
 struct gpio_led_data {
 	struct led_classdev cdev;
 	unsigned gpio;
+	struct work_struct work;
+	u8 new_level;
+	u8 can_sleep;
 	u8 active_low;
 };
 
+static void gpio_led_work(struct work_struct *work)
+{
+	struct gpio_led_data	*led_dat =
+		container_of(work, struct gpio_led_data, work);
+
+	gpio_set_value_cansleep(led_dat->gpio, led_dat->new_level);
+}
 
 static void gpio_led_set(struct led_classdev *led_cdev,
 	enum led_brightness value)
@@ -37,7 +49,15 @@ static void gpio_led_set(struct led_classdev *led_cdev,
 	if (led_dat->active_low)
 		level = !level;
 
-	gpio_set_value(led_dat->gpio, level);
+	/* setting GPIOs with I2C/etc requires a preemptible task context */
+	if (led_dat->can_sleep) {
+		if (preempt_count()) {
+			led_dat->new_level = level;
+			schedule_work(&led_dat->work);
+		} else
+			gpio_set_value_cansleep(led_dat->gpio, level);
+	} else
+		gpio_set_value(led_dat->gpio, level);
 }
 
 static int __init gpio_led_probe(struct platform_device *pdev)
@@ -62,6 +82,7 @@ static int __init gpio_led_probe(struct platform_device *pdev)
 		led_dat->cdev.name = cur_led->name;
 		led_dat->cdev.default_trigger = cur_led->default_trigger;
 		led_dat->gpio = cur_led->gpio;
+		led_dat->can_sleep = gpio_cansleep(cur_led->gpio);
 		led_dat->active_low = cur_led->active_low;
 		led_dat->cdev.brightness_set = gpio_led_set;
 		led_dat->cdev.brightness = cur_led->active_low ? LED_FULL : LED_OFF;
@@ -77,6 +98,8 @@ static int __init gpio_led_probe(struct platform_device *pdev)
 			gpio_free(led_dat->gpio);
 			goto err;
 		}
+
+		INIT_WORK(&led_dat->work, gpio_led_work);
 	}
 
 	platform_set_drvdata(pdev, leds_data);
@@ -90,6 +113,8 @@ err:
 			gpio_free(leds_data[i].gpio);
 		}
 	}
+
+	flush_scheduled_work();
 	kfree(leds_data);
 
 	return ret;
