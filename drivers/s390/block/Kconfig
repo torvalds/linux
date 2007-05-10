@@ -1,11 +1,9 @@
-if S390 && BLOCK
-
 comment "S/390 block device drivers"
-	depends on S390
+	depends on S390 && BLOCK
 
 config BLK_DEV_XPRAM
 	tristate "XPRAM disk support"
-	depends on S390
+	depends on S390 && BLOCK
 	help
 	  Select this option if you want to use your expanded storage on S/390
 	  or zSeries as a disk.  This is useful as a _fast_ swap device if you
@@ -15,12 +13,13 @@ config BLK_DEV_XPRAM
 
 config DCSSBLK
 	tristate "DCSSBLK support"
+	depends on S390 && BLOCK
 	help
 	  Support for dcss block device
 
 config DASD
 	tristate "Support for DASD devices"
-	depends on CCW
+	depends on CCW && BLOCK
 	help
 	  Enable this option if you want to access DASDs directly utilizing
 	  S/390s channel subsystem commands. This is necessary for running
@@ -62,5 +61,3 @@ config DASD_EER
 	  This driver provides a character device interface to the
 	  DASD extended error reporting. This is only needed if you want to
 	  use applications written for the EER facility.
-
-endif

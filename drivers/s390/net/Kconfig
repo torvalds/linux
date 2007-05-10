@@ -3,7 +3,7 @@ menu "S/390 network device drivers"
 
 config LCS
 	tristate "Lan Channel Station Interface"
-	depends on NETDEVICES && (NET_ETHERNET || TR || FDDI)
+	depends on CCW && NETDEVICES && (NET_ETHERNET || TR || FDDI)
 	help
 	   Select this option if you want to use LCS networking  on IBM S/390
   	   or zSeries. This device driver supports Token Ring (IEEE 802.5),
@@ -13,7 +13,7 @@ config LCS
 
 config CTC
 	tristate "CTC device support"
-	depends on NETDEVICES
+	depends on CCW && NETDEVICES
 	help
 	  Select this option if you want to use channel-to-channel networking
 	  on IBM S/390 or zSeries. This device driver supports real CTC
@@ -42,7 +42,7 @@ config SMSGIUCV
 
 config CLAW
 	tristate "CLAW device support"
-	depends on NETDEVICES
+	depends on CCW && NETDEVICES
 	help
 	  This driver supports channel attached CLAW devices.
 	  CLAW is Common Link Access for Workstation.  Common devices
@@ -52,7 +52,7 @@ config CLAW
 
 config QETH
 	tristate "Gigabit Ethernet device support"
-	depends on NETDEVICES && IP_MULTICAST && QDIO
+	depends on CCW && NETDEVICES && IP_MULTICAST && QDIO
 	help
 	  This driver supports the IBM S/390 and zSeries OSA Express adapters
 	  in QDIO mode (all media types), HiperSockets interfaces and VM GuestLAN

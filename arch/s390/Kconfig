@@ -4,27 +4,23 @@
 #
 
 config MMU
-	bool
-	default y
+	def_bool y
 
 config ZONE_DMA
 	def_bool y
 	depends on 64BIT
 
 config LOCKDEP_SUPPORT
-	bool
-	default y
+	def_bool y
 
 config STACKTRACE_SUPPORT
-	bool
-	default y
+	def_bool y
 
 config RWSEM_GENERIC_SPINLOCK
 	bool
 
 config RWSEM_XCHGADD_ALGORITHM
-	bool
-	default y
+	def_bool y
 
 config ARCH_HAS_ILOG2_U32
 	bool
@@ -35,8 +31,7 @@ config ARCH_HAS_ILOG2_U64
 	default n
 
 config GENERIC_HWEIGHT
-	bool
-	default y
+	def_bool y
 
 config GENERIC_TIME
 	def_bool y
@@ -55,8 +50,7 @@ config NO_DMA
 mainmenu "Linux Kernel Configuration"
 
 config S390
-	bool
-	default y
+	def_bool y
 
 source "init/Kconfig"
 
@@ -280,6 +274,10 @@ config WARN_STACK_SIZE
 config ARCH_POPULATES_NODE_MAP
 	def_bool y
 
+comment "Kernel preemption"
+
+source "kernel/Kconfig.preempt"
+
 source "mm/Kconfig"
 
 config HOLES_IN_ZONE
@@ -319,17 +317,6 @@ config QDIO_DEBUG
 	  If unsure, say N.
 
 comment "Misc"
-
-config PREEMPT
-	bool "Preemptible Kernel"
-	help
-	  This option reduces the latency of the kernel when reacting to
-	  real-time or interactive events by allowing a low priority process to
-	  be preempted even if it is in kernel mode executing a system call.
-	  This allows applications to run more reliably even when the system is
-	  under load.
-
-	  Say N if you are unsure.
 
 config IPL
 	bool "Builtin IPL record support"
@@ -488,6 +475,8 @@ config APPLDATA_NET_SUM
 	  This can also be compiled as a module, which will be called
 	  appldata_net_sum.o.
 
+source kernel/Kconfig.hz
+
 config NO_IDLE_HZ
 	bool "No HZ timer ticks in idle"
 	help
@@ -535,18 +524,12 @@ endmenu
 source "net/Kconfig"
 
 config PCMCIA
-	bool
-	default n
+	def_bool n
 
-source "drivers/base/Kconfig"
+config CCW
+	def_bool y
 
-source "drivers/connector/Kconfig"
-
-source "drivers/scsi/Kconfig"
-
-source "drivers/s390/Kconfig"
-
-source "drivers/net/Kconfig"
+source "drivers/Kconfig"
 
 source "fs/Kconfig"
 
