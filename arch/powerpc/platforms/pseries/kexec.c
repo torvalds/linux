@@ -12,6 +12,7 @@
 #include <asm/firmware.h>
 #include <asm/kexec.h>
 #include <asm/mpic.h>
+#include <asm/smp.h>
 
 #include "pseries.h"
 #include "xics.h"

@@ -457,6 +457,7 @@ int __devinit celleb_setup_phb(struct pci_controller *phb)
 
 	pr_debug("PCI: celleb_setup_phb() %s\n", name);
 	phb_set_bus_ranges(dev, phb);
+	phb->buid = 1;
 
 	if (strcmp(name, "epci") == 0) {
 		phb->ops = &celleb_epci_ops;

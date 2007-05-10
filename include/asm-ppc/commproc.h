@@ -63,20 +63,15 @@
 #define CPM_DATAONLY_SIZE	((uint)0x0700)
 #define CPM_DP_NOSPACE		((uint)0x7fffffff)
 
-static inline long IS_DPERR(const uint offset)
-{
-	return (uint)offset > (uint)-1000L;
-}
-
 /* Export the base address of the communication processor registers
  * and dual port ram.
  */
 extern	cpm8xx_t	*cpmp;		/* Pointer to comm processor */
-extern uint cpm_dpalloc(uint size, uint align);
-extern int cpm_dpfree(uint offset);
-extern uint cpm_dpalloc_fixed(uint offset, uint size, uint align);
+extern unsigned long cpm_dpalloc(uint size, uint align);
+extern int cpm_dpfree(unsigned long offset);
+extern unsigned long cpm_dpalloc_fixed(unsigned long offset, uint size, uint align);
 extern void cpm_dpdump(void);
-extern void *cpm_dpram_addr(uint offset);
+extern void *cpm_dpram_addr(unsigned long offset);
 extern uint cpm_dpram_phys(u8* addr);
 extern void cpm_setbrg(uint brg, uint rate);
 

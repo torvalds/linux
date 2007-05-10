@@ -44,7 +44,9 @@ unsigned long isa_mem_base = 0;
  */
 static void __init mpc832x_rdb_setup_arch(void)
 {
+#if defined(CONFIG_PCI) || defined(CONFIG_QUICC_ENGINE)
 	struct device_node *np;
+#endif
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc832x_rdb_setup_arch()", 0);

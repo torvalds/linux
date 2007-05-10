@@ -376,31 +376,28 @@ static void hpte_decode(hpte_t *hpte, unsigned long slot,
 		}
 	}
 
-	/*
-	 * FIXME, the code below works for 16M, 64K, and 4K pages as these
-	 * fall under the p<=23 rules for calculating the virtual address.
-	 * In the case of 16M pages, an extra bit is stolen from the AVPN
-	 * field to achieve the requisite 24 bits.
-	 *
-	 * Does not work for 16G pages or 1 TB segments.
-	 */
+	/* This works for all page sizes, and for 256M and 1T segments */
 	shift = mmu_psize_defs[size].shift;
-	if (mmu_psize_defs[size].avpnm)
-		avpnm_bits = __ilog2_u64(mmu_psize_defs[size].avpnm) + 1;
-	else
-		avpnm_bits = 0;
-	if (shift - avpnm_bits <= 23) {
-		avpn = HPTE_V_AVPN_VAL(hpte_v) << 23;
+	avpn = (HPTE_V_AVPN_VAL(hpte_v) & ~mmu_psize_defs[size].avpnm) << 23;
 
-		if (shift < 23) {
-			unsigned long vpi, pteg;
+	if (shift < 23) {
+		unsigned long vpi, vsid, pteg;
 
-			pteg = slot / HPTES_PER_GROUP;
-			if (hpte_v & HPTE_V_SECONDARY)
-				pteg = ~pteg;
+		pteg = slot / HPTES_PER_GROUP;
+		if (hpte_v & HPTE_V_SECONDARY)
+			pteg = ~pteg;
+		switch (hpte_v >> HPTE_V_SSIZE_SHIFT) {
+		case MMU_SEGSIZE_256M:
 			vpi = ((avpn >> 28) ^ pteg) & htab_hash_mask;
-			avpn |= (vpi << mmu_psize_defs[size].shift);
+			break;
+		case MMU_SEGSIZE_1T:
+			vsid = avpn >> 40;
+			vpi = (vsid ^ (vsid << 25) ^ pteg) & htab_hash_mask;
+			break;
+		default:
+			avpn = vpi = psize = 0;
 		}
+		avpn |= (vpi << mmu_psize_defs[size].shift);
 	}
 
 	*va = avpn;

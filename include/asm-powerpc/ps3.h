@@ -377,8 +377,13 @@ int ps3_vuart_port_device_register(struct ps3_vuart_port_device *dev);
 
 /* system manager */
 
+#ifdef CONFIG_PS3_SYS_MANAGER
 void ps3_sys_manager_restart(void);
 void ps3_sys_manager_power_off(void);
+#else
+static inline void ps3_sys_manager_restart(void) {}
+static inline void ps3_sys_manager_power_off(void) {}
+#endif
 
 struct ps3_prealloc {
     const char *name;

@@ -62,11 +62,14 @@ struct pci_dev *pci_get_device_by_addr(unsigned long addr);
 
 /**
  * eeh_slot_error_detail -- record and EEH error condition to the log
- * @severity: 1 if temporary, 2 if permanent failure.
+ * @pdn:      pci device node
+ * @severity: EEH_LOG_TEMP_FAILURE or EEH_LOG_PERM_FAILURE
  *
  * Obtains the EEH error details from the RTAS subsystem,
  * and then logs these details with the RTAS error log system.
  */
+#define EEH_LOG_TEMP_FAILURE 1
+#define EEH_LOG_PERM_FAILURE 2
 void eeh_slot_error_detail (struct pci_dn *pdn, int severity);
 
 /**
@@ -82,6 +85,7 @@ int rtas_pci_enable(struct pci_dn *pdn, int function);
 
 /**
  * rtas_set_slot_reset -- unfreeze a frozen slot
+ * @pdn:       pci device node
  *
  * Clear the EEH-frozen condition on a slot.  This routine
  * does this by asserting the PCI #RST line for 1/8th of
@@ -95,6 +99,7 @@ int eeh_wait_for_slot_status(struct pci_dn *pdn, int max_wait_msecs);
 
 /** 
  * eeh_restore_bars - Restore device configuration info.
+ * @pdn:       pci device node
  *
  * A reset of a PCI device will clear out its config space.
  * This routines will restore the config space for this
@@ -105,6 +110,7 @@ void eeh_restore_bars(struct pci_dn *);
 
 /**
  * rtas_configure_bridge -- firmware initialization of pci bridge
+ * @pdn:       pci device node
  *
  * Ask the firmware to configure all PCI bridges devices
  * located behind the indicated node. Required after a
@@ -118,16 +124,22 @@ int rtas_write_config(struct pci_dn *, int where, int size, u32 val);
 int rtas_read_config(struct pci_dn *, int where, int size, u32 *val);
 
 /**
+ * eeh_mark_slot -- set mode flags for pertition endpoint
+ * @pdn:       pci device node
+ *
  * mark and clear slots: find "partition endpoint" PE and set or 
  * clear the flags for each subnode of the PE.
  */
 void eeh_mark_slot (struct device_node *dn, int mode_flag);
 void eeh_clear_slot (struct device_node *dn, int mode_flag);
 
-/* Find the associated "Partiationable Endpoint" PE */
+/**
+ * find_device_pe -- Find the associated "Partiationable Endpoint" PE
+ * @pdn:       pci device node
+ */
 struct device_node * find_device_pe(struct device_node *dn);
 
-#endif
+#endif /* CONFIG_EEH */
 
 #else /* CONFIG_PCI */
 static inline void find_and_init_phbs(void) { }

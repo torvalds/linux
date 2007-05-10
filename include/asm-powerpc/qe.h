@@ -38,11 +38,11 @@ int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input);
 void qe_setbrg(u32 brg, u32 rate);
 int qe_get_snum(void);
 void qe_put_snum(u8 snum);
-u32 qe_muram_alloc(u32 size, u32 align);
-int qe_muram_free(u32 offset);
-u32 qe_muram_alloc_fixed(u32 offset, u32 size);
+unsigned long qe_muram_alloc(int size, int align);
+int qe_muram_free(unsigned long offset);
+unsigned long qe_muram_alloc_fixed(unsigned long offset, int size);
 void qe_muram_dump(void);
-void *qe_muram_addr(u32 offset);
+void *qe_muram_addr(unsigned long offset);
 
 /* Buffer descriptors */
 struct qe_bd {
@@ -447,11 +447,6 @@ struct ucc_slow_pram {
 #define UCC_FAST_FUNCTION_CODE_GBL	0x20
 #define UCC_FAST_FUNCTION_CODE_DTB_LCL	0x02
 #define UCC_FAST_FUNCTION_CODE_BDB_LCL	0x01
-
-static inline long IS_MURAM_ERR(const u32 offset)
-{
-	return offset > (u32) - 1000L;
-}
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_QE_H */

@@ -40,7 +40,9 @@ unsigned long isa_mem_base = 0;
  */
 static void __init mpc8313_rdb_setup_arch(void)
 {
+#ifdef CONFIG_PCI
 	struct device_node *np;
+#endif
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc8313_rdb_setup_arch()", 0);

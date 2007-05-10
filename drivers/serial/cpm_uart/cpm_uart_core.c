@@ -482,7 +482,8 @@ static void cpm_uart_shutdown(struct uart_port *port)
 }
 
 static void cpm_uart_set_termios(struct uart_port *port,
-				 struct termios *termios, struct termios *old)
+                                 struct ktermios *termios,
+                                 struct ktermios *old)
 {
 	int baud;
 	unsigned long flags;

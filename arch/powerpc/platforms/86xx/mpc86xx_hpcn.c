@@ -168,7 +168,7 @@ static void __devinit quirk_uli1575(struct pci_dev *dev)
 {
 	unsigned short temp;
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	unsigned char irq2pin[16];
+	unsigned char irq2pin[16], c;
 	unsigned long pirq_map_word = 0;
 	u32 irq;
 	int i;
@@ -288,6 +288,11 @@ static void __devinit quirk_uli1575(struct pci_dev *dev)
 	outb(0x1e, 0x4d1);
 
 #undef ULI1575_SET_DEV_IRQ
+
+	/* Disable the HD interface and enable the AC97 interface. */
+	pci_read_config_byte(dev, 0xb8, &c);
+	c &= 0x7f;
+	pci_write_config_byte(dev, 0xb8, c);
 }
 
 static void __devinit quirk_uli5288(struct pci_dev *dev)

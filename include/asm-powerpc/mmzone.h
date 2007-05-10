@@ -43,9 +43,5 @@ extern unsigned long max_pfn;
 
 #endif /* CONFIG_NEED_MULTIPLE_NODES */
 
-#ifdef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
-extern int __init early_pfn_to_nid(unsigned long pfn);
-#endif
-
 #endif /* __KERNEL__ */
 #endif /* _ASM_MMZONE_H_ */
