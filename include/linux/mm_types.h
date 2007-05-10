@@ -50,13 +50,16 @@ struct page {
 	    spinlock_t ptl;
 #endif
 	    struct {			/* SLUB uses */
-		struct page *first_page;	/* Compound pages */
+	    	void **lockless_freelist;
 		struct kmem_cache *slab;	/* Pointer to slab */
+	    };
+	    struct {
+		struct page *first_page;	/* Compound pages */
 	    };
 	};
 	union {
 		pgoff_t index;		/* Our offset within mapping. */
-		void *freelist;		/* SLUB: pointer to free object */
+		void *freelist;		/* SLUB: freelist req. slab lock */
 	};
 	struct list_head lru;		/* Pageout list, eg. active_list
 					 * protected by zone->lru_lock !
