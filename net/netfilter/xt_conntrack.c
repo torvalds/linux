@@ -134,12 +134,66 @@ static void destroy(const struct xt_match *match, void *matchinfo)
 	nf_ct_l3proto_module_put(match->family);
 }
 
+#ifdef CONFIG_COMPAT
+struct compat_xt_conntrack_info
+{
+	compat_uint_t			statemask;
+	compat_uint_t			statusmask;
+	struct ip_conntrack_old_tuple	tuple[IP_CT_DIR_MAX];
+	struct in_addr			sipmsk[IP_CT_DIR_MAX];
+	struct in_addr			dipmsk[IP_CT_DIR_MAX];
+	compat_ulong_t			expires_min;
+	compat_ulong_t			expires_max;
+	u_int8_t			flags;
+	u_int8_t			invflags;
+};
+
+static void compat_from_user(void *dst, void *src)
+{
+	struct compat_xt_conntrack_info *cm = src;
+	struct xt_conntrack_info m = {
+		.statemask	= cm->statemask,
+		.statusmask	= cm->statusmask,
+		.expires_min	= cm->expires_min,
+		.expires_max	= cm->expires_max,
+		.flags		= cm->flags,
+		.invflags	= cm->invflags,
+	};
+	memcpy(m.tuple, cm->tuple, sizeof(m.tuple));
+	memcpy(m.sipmsk, cm->sipmsk, sizeof(m.sipmsk));
+	memcpy(m.dipmsk, cm->dipmsk, sizeof(m.dipmsk));
+	memcpy(dst, &m, sizeof(m));
+}
+
+static int compat_to_user(void __user *dst, void *src)
+{
+	struct xt_conntrack_info *m = src;
+	struct compat_xt_conntrack_info cm = {
+		.statemask	= m->statemask,
+		.statusmask	= m->statusmask,
+		.expires_min	= m->expires_min,
+		.expires_max	= m->expires_max,
+		.flags		= m->flags,
+		.invflags	= m->invflags,
+	};
+	memcpy(cm.tuple, m->tuple, sizeof(cm.tuple));
+	memcpy(cm.sipmsk, m->sipmsk, sizeof(cm.sipmsk));
+	memcpy(cm.dipmsk, m->dipmsk, sizeof(cm.dipmsk));
+	return copy_to_user(dst, &cm, sizeof(cm)) ? -EFAULT : 0;
+}
+#endif
+
 static struct xt_match conntrack_match = {
 	.name		= "conntrack",
 	.match		= match,
 	.checkentry	= checkentry,
 	.destroy	= destroy,
 	.matchsize	= sizeof(struct xt_conntrack_info),
+#ifdef CONFIG_COMPAT
+	.compatsize	= sizeof(struct compat_xt_conntrack_info),
+	.compat_from_user = compat_from_user,
+	.compat_to_user	= compat_to_user,
+#endif
 	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
