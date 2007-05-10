@@ -45,6 +45,7 @@ static int ac97_prepare(struct snd_pcm_substream *substream)
 
 struct snd_soc_codec_dai ac97_dai = {
 	.name = "AC97 HiFi",
+	.type = SND_SOC_DAI_AC97,
 	.playback = {
 		.stream_name = "AC97 Playback",
 		.channels_min = 1,
