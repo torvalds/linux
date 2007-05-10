@@ -463,8 +463,61 @@ u64 gfs2_ri_total(struct gfs2_sbd *sdp)
 }
 
 /**
- * gfs2_ri_update - Pull in a new resource index from the disk
+ * read_rindex_entry - Pull in a new resource index entry from the disk
  * @gl: The glock covering the rindex inode
+ *
+ * Returns: 0 on success, error code otherwise
+ */
+
+static int read_rindex_entry(struct gfs2_inode *ip,
+			     struct file_ra_state *ra_state)
+{
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	loff_t pos = sdp->sd_rgrps * sizeof(struct gfs2_rindex);
+	char buf[sizeof(struct gfs2_rindex)];
+	int error;
+	struct gfs2_rgrpd *rgd;
+
+	error = gfs2_internal_read(ip, ra_state, buf, &pos,
+				   sizeof(struct gfs2_rindex));
+	if (!error)
+		return 0;
+	if (error != sizeof(struct gfs2_rindex)) {
+		if (error > 0)
+			error = -EIO;
+		return error;
+	}
+
+	rgd = kzalloc(sizeof(struct gfs2_rgrpd), GFP_NOFS);
+	error = -ENOMEM;
+	if (!rgd)
+		return error;
+
+	mutex_init(&rgd->rd_mutex);
+	lops_init_le(&rgd->rd_le, &gfs2_rg_lops);
+	rgd->rd_sbd = sdp;
+
+	list_add_tail(&rgd->rd_list, &sdp->sd_rindex_list);
+	list_add_tail(&rgd->rd_list_mru, &sdp->sd_rindex_mru_list);
+
+	gfs2_rindex_in(&rgd->rd_ri, buf);
+	error = compute_bitstructs(rgd);
+	if (error)
+		return error;
+
+	error = gfs2_glock_get(sdp, rgd->rd_ri.ri_addr,
+			       &gfs2_rgrp_glops, CREATE, &rgd->rd_gl);
+	if (error)
+		return error;
+
+	rgd->rd_gl->gl_object = rgd;
+	rgd->rd_rg_vn = rgd->rd_gl->gl_vn - 1;
+	return error;
+}
+
+/**
+ * gfs2_ri_update - Pull in a new resource index from the disk
+ * @ip: pointer to the rindex inode
  *
  * Returns: 0 on successful update, error code otherwise
  */
@@ -473,18 +526,11 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct inode *inode = &ip->i_inode;
-	struct gfs2_rgrpd *rgd;
-	char buf[sizeof(struct gfs2_rindex)];
 	struct file_ra_state ra_state;
 	u64 junk = ip->i_di.di_size;
 	int error;
 
-	/* If someone is holding the rindex file with a glock, they must
-	   be updating it, in which case we may have partial entries.
-	   In this case, we ignore the partials. */
-	if (!gfs2_glock_is_held_excl(ip->i_gl) &&
-	    !gfs2_glock_is_held_shrd(ip->i_gl) &&
-	    do_div(junk, sizeof(struct gfs2_rindex))) {
+	if (do_div(junk, sizeof(struct gfs2_rindex))) {
 		gfs2_consist_inode(ip);
 		return -EIO;
 	}
@@ -493,52 +539,49 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 
 	file_ra_state_init(&ra_state, inode->i_mapping);
 	for (sdp->sd_rgrps = 0;; sdp->sd_rgrps++) {
-		loff_t pos = sdp->sd_rgrps * sizeof(struct gfs2_rindex);
-
-		if (pos + sizeof(struct gfs2_rindex) >= ip->i_di.di_size)
-			break;
-		error = gfs2_internal_read(ip, &ra_state, buf, &pos,
-					    sizeof(struct gfs2_rindex));
-		if (!error)
-			break;
-		if (error != sizeof(struct gfs2_rindex)) {
-			if (error > 0)
-				error = -EIO;
-			goto fail;
+		error = read_rindex_entry(ip, &ra_state);
+		if (error) {
+			clear_rgrpdi(sdp);
+			return error;
 		}
-
-		rgd = kzalloc(sizeof(struct gfs2_rgrpd), GFP_NOFS);
-		error = -ENOMEM;
-		if (!rgd)
-			goto fail;
-
-		mutex_init(&rgd->rd_mutex);
-		lops_init_le(&rgd->rd_le, &gfs2_rg_lops);
-		rgd->rd_sbd = sdp;
-
-		list_add_tail(&rgd->rd_list, &sdp->sd_rindex_list);
-		list_add_tail(&rgd->rd_list_mru, &sdp->sd_rindex_mru_list);
-
-		gfs2_rindex_in(&rgd->rd_ri, buf);
-		error = compute_bitstructs(rgd);
-		if (error)
-			goto fail;
-
-		error = gfs2_glock_get(sdp, rgd->rd_ri.ri_addr,
-				       &gfs2_rgrp_glops, CREATE, &rgd->rd_gl);
-		if (error)
-			goto fail;
-
-		rgd->rd_gl->gl_object = rgd;
-		rgd->rd_rg_vn = rgd->rd_gl->gl_vn - 1;
 	}
 
 	sdp->sd_rindex_vn = ip->i_gl->gl_vn;
 	return 0;
+}
 
-fail:
-	clear_rgrpdi(sdp);
-	return error;
+/**
+ * gfs2_ri_update_special - Pull in a new resource index from the disk
+ *
+ * This is a special version that's safe to call from gfs2_inplace_reserve_i.
+ * In this case we know that we don't have any resource groups in memory yet.
+ *
+ * @ip: pointer to the rindex inode
+ *
+ * Returns: 0 on successful update, error code otherwise
+ */
+static int gfs2_ri_update_special(struct gfs2_inode *ip)
+{
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct inode *inode = &ip->i_inode;
+	struct file_ra_state ra_state;
+	int error;
+
+	file_ra_state_init(&ra_state, inode->i_mapping);
+	for (sdp->sd_rgrps = 0;; sdp->sd_rgrps++) {
+		/* Ignore partials */
+		if ((sdp->sd_rgrps + 1) * sizeof(struct gfs2_rindex) >
+		    ip->i_di.di_size)
+			break;
+		error = read_rindex_entry(ip, &ra_state);
+		if (error) {
+			clear_rgrpdi(sdp);
+			return error;
+		}
+	}
+
+	sdp->sd_rindex_vn = ip->i_gl->gl_vn;
+	return 0;
 }
 
 /**
@@ -1028,7 +1071,7 @@ int gfs2_inplace_reserve_i(struct gfs2_inode *ip, char *file, unsigned int line)
 	if (ip != GFS2_I(sdp->sd_rindex))
 		error = gfs2_rindex_hold(sdp, &al->al_ri_gh);
 	else if (!sdp->sd_rgrps) /* We may not have the rindex read in, so: */
-		error = gfs2_ri_update(ip);
+		error = gfs2_ri_update_special(ip);
 
 	if (error)
 		return error;

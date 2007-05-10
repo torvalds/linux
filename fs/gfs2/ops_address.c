@@ -469,7 +469,8 @@ static void adjust_fs_space(struct inode *inode)
 	else
 		new_free = 0;
 	spin_unlock(&sdp->sd_statfs_spin);
-	fs_warn(sdp, "File system extended by %llu blocks.\n", new_free);
+	fs_warn(sdp, "File system extended by %llu blocks.\n",
+		(unsigned long long)new_free);
 	gfs2_statfs_change(sdp, new_free, new_free, 0);
 }
 
