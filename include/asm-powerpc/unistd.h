@@ -1,5 +1,5 @@
-#ifndef _ASM_PPC_UNISTD_H_
-#define _ASM_PPC_UNISTD_H_
+#ifndef _ASM_POWERPC_UNISTD_H_
+#define _ASM_POWERPC_UNISTD_H_
 
 /*
  * This file contains the system call numbers.
@@ -381,4 +381,4 @@
 #endif		/* __ASSEMBLY__ */
 #endif		/* __KERNEL__ */
 
-#endif /* _ASM_PPC_UNISTD_H_ */
+#endif /* _ASM_POWERPC_UNISTD_H_ */

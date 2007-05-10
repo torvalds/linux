@@ -18,8 +18,8 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _ASM_PPC_TSI108_PCI_H
-#define _ASM_PPC_TSI108_PCI_H
+#ifndef _ASM_POWERPC_TSI108_PCI_H
+#define _ASM_POWERPC_TSI108_PCI_H
 
 #include <asm/tsi108.h>
 
@@ -42,4 +42,4 @@ extern void tsi108_pci_int_init(struct device_node *node);
 extern void tsi108_irq_cascade(unsigned int irq, struct irq_desc *desc);
 extern void tsi108_clear_pci_cfg_error(void);
 
-#endif				/*  _ASM_PPC_TSI108_PCI_H */
+#endif				/*  _ASM_POWERPC_TSI108_PCI_H */
