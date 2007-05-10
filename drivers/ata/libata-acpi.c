@@ -489,8 +489,7 @@ static void taskfile_load_raw(struct ata_port *ap,
 
 	/* convert gtf to tf */
 	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE; /* TBD */
-	tf.protocol = atadev->class == ATA_DEV_ATAPI ?
-		ATA_PROT_ATAPI_NODATA : ATA_PROT_NODATA;
+	tf.protocol = ATA_PROT_NODATA;
 	tf.feature = gtf->tfa[0];	/* 0x1f1 */
 	tf.nsect   = gtf->tfa[1];	/* 0x1f2 */
 	tf.lbal    = gtf->tfa[2];	/* 0x1f3 */
