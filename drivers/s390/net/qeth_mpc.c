@@ -162,7 +162,7 @@ struct ipa_rc_msg {
 	char *msg;
 };
 
-struct ipa_rc_msg qeth_ipa_rc_msg[] = {
+static struct ipa_rc_msg qeth_ipa_rc_msg[] = {
 	{IPA_RC_SUCCESS,		"success"},
 	{IPA_RC_NOTSUPP,		"Command not supported"},
 	{IPA_RC_IP_TABLE_FULL,		"Add Addr IP Table Full - ipv6"},
@@ -226,7 +226,7 @@ struct ipa_cmd_names {
 	char *name;
 };
 
-struct ipa_cmd_names qeth_ipa_cmd_names[] = {
+static struct ipa_cmd_names qeth_ipa_cmd_names[] = {
 	{IPA_CMD_STARTLAN,	"startlan"},
 	{IPA_CMD_STOPLAN,	"stoplan"},
 	{IPA_CMD_SETVMAC,	"setvmac"},

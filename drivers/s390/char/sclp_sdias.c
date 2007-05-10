@@ -66,9 +66,9 @@ static DEFINE_MUTEX(sdias_mutex);
 
 static void sdias_callback(struct sclp_req *request, void *data)
 {
-	struct sdias_sccb *sccb;
+	struct sdias_sccb *cbsccb;
 
-	sccb = (struct sdias_sccb *) request->sccb;
+	cbsccb = (struct sdias_sccb *) request->sccb;
 	sclp_req_done = 1;
 	wake_up(&sdias_wq); /* Inform caller, that request is complete */
 	TRACE("callback done\n");
@@ -229,7 +229,7 @@ out:
 	return rc;
 }
 
-int __init sdias_init(void)
+int __init sclp_sdias_init(void)
 {
 	int rc;
 
@@ -248,7 +248,7 @@ int __init sdias_init(void)
 	return 0;
 }
 
-void __exit sdias_exit(void)
+void __exit sclp_sdias_exit(void)
 {
 	debug_unregister(sdias_dbf);
 	sclp_unregister(&sclp_sdias_register);

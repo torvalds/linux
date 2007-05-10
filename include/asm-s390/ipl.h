@@ -79,8 +79,8 @@ struct ipl_parameter_block {
  * IPL validity flags
  */
 extern u32 ipl_flags;
-
 extern u32 dump_prefix_page;
+extern unsigned int zfcpdump_prefix_array[];
 
 extern void do_reipl(void);
 extern void ipl_save_parameters(void);
