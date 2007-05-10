@@ -229,3 +229,15 @@ config USB_SL811_CS
 	  To compile this driver as a module, choose M here: the
 	  module will be called "sl811_cs".
 
+config USB_R8A66597_HCD
+	tristate "R8A66597 HCD suppoort"
+	depends on USB
+	help
+	  The R8A66597 is a USB 2.0 host and peripheral controller.
+
+	  Enable this option if your board has this chip, and you want
+	  to use it as a host controller.  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called r8a66597-hcd.
+
