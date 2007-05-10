@@ -215,7 +215,8 @@ void led_trigger_unregister(struct led_trigger *trigger)
 
 void led_trigger_unregister_simple(struct led_trigger *trigger)
 {
-	led_trigger_unregister(trigger);
+	if (trigger)
+		led_trigger_unregister(trigger);
 	kfree(trigger);
 }
 
