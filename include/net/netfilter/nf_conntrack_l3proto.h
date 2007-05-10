@@ -56,9 +56,6 @@ struct nf_conntrack_l3proto
 	 */
 	int (*new)(struct nf_conn *conntrack, const struct sk_buff *skb);
 
-	/* Called when a conntrack entry is destroyed */
-	void (*destroy)(struct nf_conn *conntrack);
-
 	/*
 	 * Called before tracking. 
 	 *	*dataoff: offset of protocol header (TCP, UDP,...) in *pskb
