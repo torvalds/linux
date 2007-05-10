@@ -71,6 +71,7 @@ static unsigned int acpi_irq_irq;
 static acpi_osd_handler acpi_irq_handler;
 static void *acpi_irq_context;
 static struct workqueue_struct *kacpid_wq;
+static struct workqueue_struct *kacpi_notify_wq;
 
 static void __init acpi_request_region (struct acpi_generic_address *addr,
 	unsigned int length, char *desc)
@@ -137,8 +138,9 @@ acpi_status acpi_os_initialize1(void)
 		return AE_NULL_ENTRY;
 	}
 	kacpid_wq = create_singlethread_workqueue("kacpid");
+	kacpi_notify_wq = create_singlethread_workqueue("kacpi_notify");
 	BUG_ON(!kacpid_wq);
-
+	BUG_ON(!kacpi_notify_wq);
 	return AE_OK;
 }
 
@@ -150,6 +152,7 @@ acpi_status acpi_os_terminate(void)
 	}
 
 	destroy_workqueue(kacpid_wq);
+	destroy_workqueue(kacpi_notify_wq);
 
 	return AE_OK;
 }
@@ -603,6 +606,23 @@ void acpi_os_derive_pci_id(acpi_handle rhandle,	/* upper bound  */
 static void acpi_os_execute_deferred(struct work_struct *work)
 {
 	struct acpi_os_dpc *dpc = container_of(work, struct acpi_os_dpc, work);
+	if (!dpc) {
+		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
+		return;
+	}
+
+	dpc->function(dpc->context);
+	kfree(dpc);
+
+	/* Yield cpu to notify thread */
+	cond_resched();
+
+	return;
+}
+
+static void acpi_os_execute_notify(struct work_struct *work)
+{
+	struct acpi_os_dpc *dpc = container_of(work, struct acpi_os_dpc, work);
 
 	if (!dpc) {
 		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
@@ -637,14 +657,12 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	acpi_status status = AE_OK;
 	struct acpi_os_dpc *dpc;
 
-	ACPI_FUNCTION_TRACE("os_queue_for_execution");
-
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 			  "Scheduling function [%p(%p)] for deferred execution.\n",
 			  function, context));
 
 	if (!function)
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 
 	/*
 	 * Allocate/initialize DPC structure.  Note that this memory will be
@@ -662,14 +680,21 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	dpc->function = function;
 	dpc->context = context;
 
-	INIT_WORK(&dpc->work, acpi_os_execute_deferred);
-	if (!queue_work(kacpid_wq, &dpc->work)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+	if (type == OSL_NOTIFY_HANDLER) {
+		INIT_WORK(&dpc->work, acpi_os_execute_notify);
+		if (!queue_work(kacpi_notify_wq, &dpc->work)) {
+			status = AE_ERROR;
+			kfree(dpc);
+		}
+	} else {
+		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
+		if (!queue_work(kacpid_wq, &dpc->work)) {
+			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Call to queue_work() failed.\n"));
-		kfree(dpc);
-		status = AE_ERROR;
+			status = AE_ERROR;
+			kfree(dpc);
+		}
 	}
-
 	return_ACPI_STATUS(status);
 }
 
