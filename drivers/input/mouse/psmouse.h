@@ -88,6 +88,7 @@ enum psmouse_type {
 	PSMOUSE_LIFEBOOK,
 	PSMOUSE_TRACKPOINT,
 	PSMOUSE_TOUCHKIT_PS2,
+	PSMOUSE_CORTRON,
 	PSMOUSE_AUTO		/* This one should always be last */
 };
 
