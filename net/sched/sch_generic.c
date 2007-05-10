@@ -71,12 +71,9 @@ void qdisc_unlock_tree(struct net_device *dev)
 
 
 /* Kick device.
-   Note, that this procedure can be called by a watchdog timer, so that
-   we do not check dev->tbusy flag here.
 
-   Returns:  0  - queue is empty.
-	    >0  - queue is not empty, but throttled.
-	    <0  - queue is not empty. Device is throttled, if dev->tbusy != 0.
+   Returns:  0  - queue is empty or throttled.
+	    >0  - queue is not empty.
 
    NOTE: Called under dev->queue_lock with locally disabled BH.
 */
@@ -115,7 +112,7 @@ static inline int qdisc_restart(struct net_device *dev)
 					kfree_skb(skb);
 					if (net_ratelimit())
 						printk(KERN_DEBUG "Dead loop on netdevice %s, fix it urgently!\n", dev->name);
-					return -1;
+					goto out;
 				}
 				__get_cpu_var(netdev_rx_stat).cpu_collision++;
 				goto requeue;
@@ -135,7 +132,7 @@ static inline int qdisc_restart(struct net_device *dev)
 						netif_tx_unlock(dev);
 					}
 					spin_lock(&dev->queue_lock);
-					return -1;
+					goto out;
 				}
 				if (ret == NETDEV_TX_LOCKED && nolock) {
 					spin_lock(&dev->queue_lock);
@@ -169,8 +166,10 @@ requeue:
 		else
 			q->ops->requeue(skb, q);
 		netif_schedule(dev);
-		return 1;
+		return 0;
 	}
+
+out:
 	BUG_ON((int) q->q.qlen < 0);
 	return q->q.qlen;
 }
@@ -180,8 +179,10 @@ void __qdisc_run(struct net_device *dev)
 	if (unlikely(dev->qdisc == &noop_qdisc))
 		goto out;
 
-	while (qdisc_restart(dev) < 0 && !netif_queue_stopped(dev))
-		/* NOTHING */;
+	do {
+		if (!qdisc_restart(dev))
+			break;
+	} while (!netif_queue_stopped(dev));
 
 out:
 	clear_bit(__LINK_STATE_QDISC_RUNNING, &dev->state);
