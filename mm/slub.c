@@ -2445,9 +2445,8 @@ void __init kmem_cache_init(void)
 	register_cpu_notifier(&slab_notifier);
 #endif
 
-	if (nr_cpu_ids)	/* Remove when nr_cpu_ids is fixed upstream ! */
-		kmem_size = offsetof(struct kmem_cache, cpu_slab)
-			 + nr_cpu_ids * sizeof(struct page *);
+	kmem_size = offsetof(struct kmem_cache, cpu_slab) +
+				nr_cpu_ids * sizeof(struct page *);
 
 	printk(KERN_INFO "SLUB: Genslabs=%d, HWalign=%d, Order=%d-%d, MinObjects=%d,"
 		" Processors=%d, Nodes=%d\n",
