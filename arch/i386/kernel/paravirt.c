@@ -19,7 +19,6 @@
 #include <linux/module.h>
 #include <linux/efi.h>
 #include <linux/bcd.h>
-#include <linux/start_kernel.h>
 #include <linux/highmem.h>
 
 #include <asm/bug.h>

@@ -71,12 +71,6 @@ INIT_MAP_BEYOND_END = BOOTBITMAP_SIZE + (PAGE_TABLE_SIZE + ALLOCATOR_SLOP)*PAGE_
 .section .text.head,"ax",@progbits
 ENTRY(startup_32)
 
-#ifdef CONFIG_PARAVIRT
-        movl %cs, %eax
-        testl $0x3, %eax
-        jnz startup_paravirt
-#endif
-
 /*
  * Set segments to known values.
  */
@@ -501,38 +495,6 @@ ignore_int:
 	iret
 
 .section .text
-#ifdef CONFIG_PARAVIRT
-startup_paravirt:
-	cld
- 	movl $(init_thread_union+THREAD_SIZE),%esp
-
-	/* We take pains to preserve all the regs. */
-	pushl	%edx
-	pushl	%ecx
-	pushl	%eax
-
-	pushl	$__start_paravirtprobe
-1:
-	movl	0(%esp), %eax
-	cmpl	$__stop_paravirtprobe, %eax
-	je	unhandled_paravirt
-	pushl	(%eax)
-	movl	8(%esp), %eax
-	call	*(%esp)
-	popl	%eax
-
-	movl	4(%esp), %eax
-	movl	8(%esp), %ecx
-	movl	12(%esp), %edx
-
-	addl	$4, (%esp)
-	jmp	1b
-
-unhandled_paravirt:
-	/* Nothing wanted us: we're screwed. */
-	ud2
-#endif
-
 /*
  * Real beginning of normal "text" segment
  */

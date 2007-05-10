@@ -222,11 +222,6 @@ struct paravirt_ops
 	void (*iret)(void);
 };
 
-/* Mark a paravirt probe function. */
-#define paravirt_probe(fn)						\
- static asmlinkage void (*__paravirtprobe_##fn)(void) __attribute_used__ \
-		__attribute__((__section__(".paravirtprobe"))) = fn
-
 extern struct paravirt_ops paravirt_ops;
 
 #define PARAVIRT_PATCH(x)					\
