@@ -17,9 +17,7 @@
 #include <asm/io.h>
 #include <asm/gt64120.h>
 
-#include <asm/mach-cobalt/cobalt.h>
-
-extern int cobalt_board_id;
+#include <cobalt.h>
 
 static void qube_raq_galileo_early_fixup(struct pci_dev *dev)
 {
