@@ -285,7 +285,7 @@ asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
 	pte_t *pte;
 	pte_t entry;
 	struct mm_struct *mm = current->mm;
-	spinlock_t *ptl;
+	spinlock_t *ptl = NULL;
 	int ret = 1;
 
 #ifdef CONFIG_SH_KGDB
