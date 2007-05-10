@@ -747,7 +747,6 @@ static void ipath_pe_quiet_serdes(struct ipath_devdata *dd)
 
 static int ipath_pe_intconfig(struct ipath_devdata *dd)
 {
-	u64 val;
 	u32 chiprev;
 
 	/*
@@ -760,9 +759,9 @@ static int ipath_pe_intconfig(struct ipath_devdata *dd)
 	if ((chiprev & INFINIPATH_R_CHIPREVMINOR_MASK) > 1) {
 		/* Rev2+ reports extra errors via internal GPIO pins */
 		dd->ipath_flags |= IPATH_GPIO_ERRINTRS;
-		val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_gpio_mask);
-		val |= IPATH_GPIO_ERRINTR_MASK;
-		ipath_write_kreg( dd, dd->ipath_kregs->kr_gpio_mask, val);
+		dd->ipath_gpio_mask |= IPATH_GPIO_ERRINTR_MASK;
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_mask,
+				 dd->ipath_gpio_mask);
 	}
 	return 0;
 }

@@ -1387,13 +1387,12 @@ static int enable_timer(struct ipath_devdata *dd)
 	 * processing.
 	 */
 	if (dd->ipath_flags & IPATH_GPIO_INTR) {
-		u64 val;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_debugportselect,
 				 0x2074076542310ULL);
 		/* Enable GPIO bit 2 interrupt */
-		val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_gpio_mask);
-		val |= (u64) (1 << IPATH_GPIO_PORT0_BIT);
-		ipath_write_kreg( dd, dd->ipath_kregs->kr_gpio_mask, val);
+		dd->ipath_gpio_mask |= (u64) (1 << IPATH_GPIO_PORT0_BIT);
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_mask,
+				 dd->ipath_gpio_mask);
 	}
 
 	init_timer(&dd->verbs_timer);
@@ -1412,8 +1411,9 @@ static int disable_timer(struct ipath_devdata *dd)
                 u64 val;
                 /* Disable GPIO bit 2 interrupt */
                 val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_gpio_mask);
-                val &= ~((u64) (1 << IPATH_GPIO_PORT0_BIT));
-                ipath_write_kreg( dd, dd->ipath_kregs->kr_gpio_mask, val);
+		dd->ipath_gpio_mask &= ~((u64) (1 << IPATH_GPIO_PORT0_BIT));
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_mask,
+				 dd->ipath_gpio_mask);
 		/*
 		 * We might want to undo changes to debugportselect,
 		 * but how?

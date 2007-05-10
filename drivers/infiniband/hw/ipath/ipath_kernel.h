@@ -397,6 +397,8 @@ struct ipath_devdata {
 	unsigned long ipath_pioavailshadow[8];
 	/* shadow of kr_gpio_out, for rmw ops */
 	u64 ipath_gpio_out;
+	/* shadow the gpio mask register */
+	u64 ipath_gpio_mask;
 	/* kr_revision shadow */
 	u64 ipath_revision;
 	/*
