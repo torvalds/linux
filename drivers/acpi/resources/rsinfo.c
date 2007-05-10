@@ -142,7 +142,7 @@ struct acpi_rsdump_info *acpi_gbl_dump_resource_dispatch[] = {
 };
 #endif
 
-#endif	/* ACPI_FUTURE_USAGE */
+#endif				/* ACPI_FUTURE_USAGE */
 /*
  * Base sizes for external AML resource descriptors, indexed by internal type.
  * Includes size of the descriptor header (1 byte for small descriptors,

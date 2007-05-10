@@ -512,9 +512,8 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 		 * Create a new string object and string buffer
 		 * (-1 because of extra separator included in string_length from above)
 		 */
-		return_desc =
-		    acpi_ut_create_string_object((acpi_size)
-						 (string_length - 1));
+		return_desc = acpi_ut_create_string_object((acpi_size)
+							   (string_length - 1));
 		if (!return_desc) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}

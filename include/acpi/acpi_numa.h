@@ -8,7 +8,7 @@
 #if MAX_NUMNODES > 256
 #define MAX_PXM_DOMAINS MAX_NUMNODES
 #else
-#define MAX_PXM_DOMAINS (256) /* Old pxm spec is defined 8 bit */
+#define MAX_PXM_DOMAINS (256)	/* Old pxm spec is defined 8 bit */
 #endif
 
 extern int __cpuinitdata pxm_to_node_map[MAX_PXM_DOMAINS];

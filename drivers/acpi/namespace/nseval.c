@@ -75,7 +75,7 @@ ACPI_MODULE_NAME("nseval")
  * MUTEX:       Locks interpreter
  *
  ******************************************************************************/
-acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
+acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 {
 	acpi_status status;
 

@@ -55,12 +55,10 @@ ACPI_EXPORT_SYMBOL(acpi_gbl_FADT)
  * Static global variable initialization.
  *
  ******************************************************************************/
-
 /*
  * We want the debug switches statically initialized so they
  * are already set when the debugger is entered.
  */
-
 /* Debug switch - level and trace mask */
 u32 acpi_dbg_level = ACPI_DEBUG_DEFAULT;
 
@@ -735,5 +733,5 @@ void acpi_ut_init_globals(void)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_dbg_level)
-ACPI_EXPORT_SYMBOL(acpi_dbg_layer)
-ACPI_EXPORT_SYMBOL(acpi_gpe_count)
+    ACPI_EXPORT_SYMBOL(acpi_dbg_layer)
+    ACPI_EXPORT_SYMBOL(acpi_gpe_count)

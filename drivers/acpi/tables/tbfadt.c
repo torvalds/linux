@@ -334,7 +334,8 @@ static void acpi_tb_convert_fadt(void)
 				     (acpi_gbl_FADT.xpm1a_event_block.address +
 				      pm1_register_length));
 	/* Don't forget to copy space_id of the GAS */
-	acpi_gbl_xpm1a_enable.space_id = acpi_gbl_FADT.xpm1a_event_block.space_id;
+	acpi_gbl_xpm1a_enable.space_id =
+	    acpi_gbl_FADT.xpm1a_event_block.space_id;
 
 	/* The PM1B register block is optional, ignore if not present */
 
@@ -344,7 +345,8 @@ static void acpi_tb_convert_fadt(void)
 					     (acpi_gbl_FADT.xpm1b_event_block.
 					      address + pm1_register_length));
 		/* Don't forget to copy space_id of the GAS */
-		acpi_gbl_xpm1b_enable.space_id = acpi_gbl_FADT.xpm1a_event_block.space_id;
+		acpi_gbl_xpm1b_enable.space_id =
+		    acpi_gbl_FADT.xpm1a_event_block.space_id;
 
 	}
 

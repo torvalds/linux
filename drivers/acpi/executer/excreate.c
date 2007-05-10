@@ -50,7 +50,6 @@
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("excreate")
-
 #ifndef ACPI_NO_METHOD_EXECUTION
 /*******************************************************************************
  *

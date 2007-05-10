@@ -319,7 +319,7 @@ ACPI_EXTERN struct acpi_fixed_event_handler
     acpi_gbl_fixed_event_handlers[ACPI_NUM_FIXED_EVENTS];
 ACPI_EXTERN struct acpi_gpe_xrupt_info *acpi_gbl_gpe_xrupt_list_head;
 ACPI_EXTERN struct acpi_gpe_block_info
-    *acpi_gbl_gpe_fadt_blocks[ACPI_MAX_GPE_BLOCKS];
+*acpi_gbl_gpe_fadt_blocks[ACPI_MAX_GPE_BLOCKS];
 
 /*****************************************************************************
  *
