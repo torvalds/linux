@@ -31,6 +31,8 @@ enum AFS_FS_Operations {
 	FSGETVOLUMEINFO		= 148,	/* AFS Get root volume information */
 	FSGETROOTVOLUME		= 151,	/* AFS Get root volume name */
 	FSLOOKUP		= 161,	/* AFS lookup file in directory */
+	FSFETCHDATA64		= 65537, /* AFS Fetch file data */
+	FSSTOREDATA64		= 65538, /* AFS Store file data */
 };
 
 enum AFS_FS_Errors {
