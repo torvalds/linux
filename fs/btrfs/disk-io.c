@@ -196,14 +196,14 @@ int btrfs_csum_data(struct btrfs_root * root, char *data, size_t len,
 	ret = crypto_hash_digest(&desc, &sg, 1, result);
 	spin_unlock(&root->fs_info->hash_lock);
 	if (ret) {
-		printk("sha256 digest failed\n");
+		printk("digest failed\n");
 	}
 	return ret;
 }
 static int csum_tree_block(struct btrfs_root *root, struct buffer_head *bh,
 			   int verify)
 {
-	char result[BTRFS_CSUM_SIZE];
+	char result[BTRFS_CRC32_SIZE];
 	int ret;
 	struct btrfs_node *node;
 
@@ -212,14 +212,14 @@ static int csum_tree_block(struct btrfs_root *root, struct buffer_head *bh,
 	if (ret)
 		return ret;
 	if (verify) {
-		if (memcmp(bh->b_data, result, BTRFS_CSUM_SIZE)) {
+		if (memcmp(bh->b_data, result, BTRFS_CRC32_SIZE)) {
 			printk("checksum verify failed on %Lu\n",
 			       bh_blocknr(bh));
 			return 1;
 		}
 	} else {
 		node = btrfs_buffer_node(bh);
-		memcpy(node->header.csum, result, BTRFS_CSUM_SIZE);
+		memcpy(node->header.csum, result, BTRFS_CRC32_SIZE);
 	}
 	return 0;
 }
@@ -576,10 +576,10 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	       sizeof(struct btrfs_key));
 	insert_inode_hash(fs_info->btree_inode);
 	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
-	fs_info->hash_tfm = crypto_alloc_hash("sha256", 0, CRYPTO_ALG_ASYNC);
+	fs_info->hash_tfm = crypto_alloc_hash("crc32c", 0, CRYPTO_ALG_ASYNC);
 	spin_lock_init(&fs_info->hash_lock);
 	if (!fs_info->hash_tfm || IS_ERR(fs_info->hash_tfm)) {
-		printk("failed to allocate sha256 hash\n");
+		printk("failed to allocate digest hash\n");
 		return NULL;
 	}
 	mutex_init(&fs_info->trans_mutex);

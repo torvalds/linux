@@ -4,8 +4,8 @@
 #include "transaction.h"
 
 #define MAX_CSUM_ITEMS(r) ((((BTRFS_LEAF_DATA_SIZE(r) - \
-				 sizeof(struct btrfs_item) * 2) / \
-				sizeof(struct btrfs_csum_item)) - 1))
+			       sizeof(struct btrfs_item) * 2) / \
+			       BTRFS_CRC32_SIZE) - 1))
 int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
 			       u64 objectid, u64 pos,
@@ -78,7 +78,7 @@ struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 		csum_offset = (offset - found_key.offset) >>
 				root->fs_info->sb->s_blocksize_bits;
 		csums_in_item = btrfs_item_size(leaf->items + path->slots[0]);
-		csums_in_item /= sizeof(struct btrfs_csum_item);
+		csums_in_item /= BTRFS_CRC32_SIZE;
 
 		if (csum_offset >= csums_in_item) {
 			ret = -EFBIG;
@@ -86,7 +86,8 @@ struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 		}
 	}
 	item = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_csum_item);
-	item += csum_offset;
+	item = (struct btrfs_csum_item *)((unsigned char *)item +
+					  csum_offset * BTRFS_CRC32_SIZE);
 	return item;
 fail:
 	if (ret > 0)
@@ -143,8 +144,7 @@ int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
 		/* we found one, but it isn't big enough yet */
 		leaf = btrfs_buffer_leaf(path->nodes[0]);
 		item_size = btrfs_item_size(leaf->items + path->slots[0]);
-		if ((item_size / sizeof(struct btrfs_csum_item)) >=
-		    MAX_CSUM_ITEMS(root)) {
+		if ((item_size / BTRFS_CRC32_SIZE) >= MAX_CSUM_ITEMS(root)) {
 			/* already at max size, make a new one */
 			goto insert;
 		}
@@ -159,7 +159,7 @@ int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
 	 */
 	btrfs_release_path(root, path);
 	ret = btrfs_search_slot(trans, root, &file_key, path,
-				sizeof(struct btrfs_csum_item), 1);
+				BTRFS_CRC32_SIZE, 1);
 	if (ret < 0)
 		goto fail;
 	if (ret == 0) {
@@ -180,10 +180,10 @@ int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
 		goto insert;
 	}
 	if (csum_offset >= btrfs_item_size(leaf->items + path->slots[0]) /
-	    sizeof(struct btrfs_csum_item)) {
-		u32 diff = (csum_offset + 1) * sizeof(struct btrfs_csum_item);
+	    BTRFS_CRC32_SIZE) {
+		u32 diff = (csum_offset + 1) * BTRFS_CRC32_SIZE;
 		diff = diff - btrfs_item_size(leaf->items + path->slots[0]);
-		WARN_ON(diff != sizeof(struct btrfs_csum_item));
+		WARN_ON(diff != BTRFS_CRC32_SIZE);
 		ret = btrfs_extend_item(trans, root, path, diff);
 		BUG_ON(ret);
 		goto csum;
@@ -193,7 +193,7 @@ insert:
 	btrfs_release_path(root, path);
 	csum_offset = 0;
 	ret = btrfs_insert_empty_item(trans, root, path, &file_key,
-				      sizeof(struct btrfs_csum_item));
+				      BTRFS_CRC32_SIZE);
 	if (ret != 0) {
 		printk("at insert for %Lu %u %Lu ret is %d\n", file_key.objectid, file_key.flags, file_key.offset, ret);
 		WARN_ON(1);
@@ -203,10 +203,13 @@ csum:
 	item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]), path->slots[0],
 			      struct btrfs_csum_item);
 	ret = 0;
-	item += csum_offset;
+	item = (struct btrfs_csum_item *)((unsigned char *)item +
+					  csum_offset * BTRFS_CRC32_SIZE);
 found:
-	btrfs_check_bounds(item->csum, BTRFS_CSUM_SIZE, path->nodes[0]->b_data, root->fs_info->sb->s_blocksize);
-	ret = btrfs_csum_data(root, data, len, item->csum);
+	btrfs_check_bounds(&item->csum, BTRFS_CRC32_SIZE,
+			   path->nodes[0]->b_data,
+			   root->fs_info->sb->s_blocksize);
+	ret = btrfs_csum_data(root, data, len, &item->csum);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 fail:
 	btrfs_release_path(root, path);
@@ -222,7 +225,7 @@ int btrfs_csum_verify_file_block(struct btrfs_root *root,
 	struct btrfs_key file_key;
 	struct btrfs_path *path;
 	struct btrfs_csum_item *item;
-	char result[BTRFS_CSUM_SIZE];
+	char result[BTRFS_CRC32_SIZE];
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
@@ -244,7 +247,7 @@ int btrfs_csum_verify_file_block(struct btrfs_root *root,
 
 	ret = btrfs_csum_data(root, data, len, result);
 	WARN_ON(ret);
-	if (memcmp(result, item->csum, BTRFS_CSUM_SIZE))
+	if (memcmp(result, &item->csum, BTRFS_CRC32_SIZE))
 		ret = 1;
 fail:
 	btrfs_release_path(root, path);

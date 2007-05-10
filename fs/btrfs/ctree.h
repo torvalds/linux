@@ -30,6 +30,8 @@ extern struct kmem_cache *btrfs_path_cachep;
 
 /* 32 bytes in various csum fields */
 #define BTRFS_CSUM_SIZE 32
+/* four bytes for CRC32 */
+#define BTRFS_CRC32_SIZE 4
 
 /*
  * the key defines the order in the tree, and so it also defines (optimal)
@@ -235,7 +237,7 @@ struct btrfs_file_extent_item {
 } __attribute__ ((__packed__));
 
 struct btrfs_csum_item {
-	u8 csum[BTRFS_CSUM_SIZE];
+	u8 csum;
 } __attribute__ ((__packed__));
 
 struct btrfs_device_item {
