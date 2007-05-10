@@ -23,7 +23,5 @@ obj-$(CONFIG_SMP)	+= locks.o
 endif
 
 # Temporary hack until we have migrated to asm-powerpc
-ifeq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_8xx)	+= rheap.o
 obj-$(CONFIG_CPM2)	+= rheap.o
-endif
