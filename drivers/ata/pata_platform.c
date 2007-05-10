@@ -48,6 +48,8 @@ static int pata_platform_set_mode(struct ata_port *ap, struct ata_device **unuse
 	return 0;
 }
 
+static int ata_dummy_ret0(struct ata_port *ap)	{ return 0; }
+
 static struct scsi_host_template pata_platform_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
@@ -91,7 +93,7 @@ static struct ata_port_operations pata_platform_port_ops = {
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_dummy_ret0,
 };
 
 static void pata_platform_setup_port(struct ata_ioports *ioaddr,
