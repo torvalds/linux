@@ -139,6 +139,7 @@ static inline int qdisc_restart(struct net_device *dev)
 				}
 				if (ret == NETDEV_TX_LOCKED && nolock) {
 					spin_lock(&dev->queue_lock);
+					q = dev->qdisc;
 					goto collision;
 				}
 			}
