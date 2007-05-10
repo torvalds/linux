@@ -5,6 +5,7 @@
  */
 #include <linux/module.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
+#include <net/ip.h>
 
 #define RAW_VALID_HOOKS ((1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_LOCAL_OUT))
 
@@ -54,6 +55,24 @@ ipt_hook(unsigned int hook,
 	return ipt_do_table(pskb, hook, in, out, &packet_raw);
 }
 
+static unsigned int
+ipt_local_hook(unsigned int hook,
+	       struct sk_buff **pskb,
+	       const struct net_device *in,
+	       const struct net_device *out,
+	       int (*okfn)(struct sk_buff *))
+{
+	/* root is playing with raw sockets. */
+	if ((*pskb)->len < sizeof(struct iphdr) ||
+	    ip_hdrlen(*pskb) < sizeof(struct iphdr)) {
+		if (net_ratelimit())
+			printk("iptable_raw: ignoring short SOCK_RAW"
+			       "packet.\n");
+		return NF_ACCEPT;
+	}
+	return ipt_do_table(pskb, hook, in, out, &packet_raw);
+}
+
 /* 'raw' is the very first table. */
 static struct nf_hook_ops ipt_ops[] = {
 	{
@@ -64,7 +83,7 @@ static struct nf_hook_ops ipt_ops[] = {
 		.owner = THIS_MODULE,
 	},
 	{
-		.hook = ipt_hook,
+		.hook = ipt_local_hook,
 		.pf = PF_INET,
 		.hooknum = NF_IP_LOCAL_OUT,
 		.priority = NF_IP_PRI_RAW,
