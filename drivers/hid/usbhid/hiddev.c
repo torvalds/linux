@@ -51,6 +51,7 @@ struct hiddev {
 	wait_queue_head_t wait;
 	struct hid_device *hid;
 	struct list_head list;
+	spinlock_t list_lock;
 };
 
 struct hiddev_list {
@@ -161,7 +162,9 @@ static void hiddev_send_event(struct hid_device *hid,
 {
 	struct hiddev *hiddev = hid->hiddev;
 	struct hiddev_list *list;
+	unsigned long flags;
 
+	spin_lock_irqsave(&hiddev->list_lock, flags);
 	list_for_each_entry(list, &hiddev->list, node) {
 		if (uref->field_index != HID_FIELD_INDEX_NONE ||
 		    (list->flags & HIDDEV_FLAG_REPORT) != 0) {
@@ -171,6 +174,7 @@ static void hiddev_send_event(struct hid_device *hid,
 			kill_fasync(&list->fasync, SIGIO, POLL_IN);
 		}
 	}
+	spin_unlock_irqrestore(&hiddev->list_lock, flags);
 
 	wake_up_interruptible(&hiddev->wait);
 }
@@ -235,9 +239,13 @@ static int hiddev_fasync(int fd, struct file *file, int on)
 static int hiddev_release(struct inode * inode, struct file * file)
 {
 	struct hiddev_list *list = file->private_data;
+	unsigned long flags;
 
 	hiddev_fasync(-1, file, 0);
+
+	spin_lock_irqsave(&list->hiddev->list_lock, flags);
 	list_del(&list->node);
+	spin_unlock_irqrestore(&list->hiddev->list_lock, flags);
 
 	if (!--list->hiddev->open) {
 		if (list->hiddev->exist)
@@ -257,6 +265,7 @@ static int hiddev_release(struct inode * inode, struct file * file)
 static int hiddev_open(struct inode *inode, struct file *file)
 {
 	struct hiddev_list *list;
+	unsigned long flags;
 
 	int i = iminor(inode) - HIDDEV_MINOR_BASE;
 
@@ -267,7 +276,11 @@ static int hiddev_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 
 	list->hiddev = hiddev_table[i];
+
+	spin_lock_irqsave(&list->hiddev->list_lock, flags);
 	list_add_tail(&list->node, &hiddev_table[i]->list);
+	spin_unlock_irqrestore(&list->hiddev->list_lock, flags);
+
 	file->private_data = list;
 
 	if (!list->hiddev->open++)
@@ -773,6 +786,7 @@ int hiddev_connect(struct hid_device *hid)
 
 	init_waitqueue_head(&hiddev->wait);
 	INIT_LIST_HEAD(&hiddev->list);
+	spin_lock_init(&hiddev->list_lock);
 	hiddev->hid = hid;
 	hiddev->exist = 1;
 
