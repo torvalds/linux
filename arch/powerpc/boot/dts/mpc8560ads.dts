@@ -48,6 +48,22 @@
 		reg = <e0000000 00000200>;
 		bus-frequency = <13ab6680>;
 
+		memory-controller@2000 {
+			compatible = "fsl,8540-memory-controller";
+			reg = <2000 1000>;
+			interrupt-parent = <&mpic>;
+			interrupts = <2 2>;
+		};
+
+		l2-cache-controller@20000 {
+			compatible = "fsl,8540-l2-cache-controller";
+			reg = <20000 1000>;
+			cache-line-size = <20>;	// 32 bytes
+			cache-size = <40000>;	// L2, 256K
+			interrupt-parent = <&mpic>;
+			interrupts = <0 2>;
+		};
+
 		mdio@24520 {
 			device_type = "mdio";
 			compatible = "gianfar";
@@ -110,7 +126,7 @@
 			#address-cells = <3>;
 			compatible = "85xx";
 			device_type = "pci";
-			reg = <8000 400>;
+			reg = <8000 1000>;
 			clock-frequency = <3f940aa>;
 			interrupt-map-mask = <f800 0 0 7>;
 			interrupt-map = <
