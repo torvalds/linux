@@ -235,7 +235,7 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 					     hint->key.offset - 1,
 					     BTRFS_BLOCK_GROUP_AVAIL);
 		}
-		last = hint->key.offset * 2;
+		last = hint->key.offset * 3;
 		if (hint->key.objectid >= last)
 			last = max(search_start + hint->key.offset - 1,
 				   hint->key.objectid - last);
@@ -554,8 +554,8 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 						      blocknr + i);
 				}
 			}
-			if (old_val < (cache->key.offset * 8) / 10 &&
-			    old_val + num >= (cache->key.offset * 8) / 10) {
+			if (old_val < (cache->key.offset * 6) / 10 &&
+			    old_val + num >= (cache->key.offset * 6) / 10) {
 printk("group %Lu now available\n", cache->key.objectid);
 				radix_tree_tag_set(cache->radix,
 						   cache->key.objectid +

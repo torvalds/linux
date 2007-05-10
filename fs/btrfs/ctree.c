@@ -130,15 +130,17 @@ static int comp_keys(struct btrfs_disk_key *disk, struct btrfs_key *k2)
 static int check_node(struct btrfs_root *root, struct btrfs_path *path,
 		      int level)
 {
-	int i;
 	struct btrfs_node *parent = NULL;
 	struct btrfs_node *node = btrfs_buffer_node(path->nodes[level]);
 	int parent_slot;
+	int slot;
+	struct btrfs_key cpukey;
 	u32 nritems = btrfs_header_nritems(&node->header);
 
 	if (path->nodes[level + 1])
 		parent = btrfs_buffer_node(path->nodes[level + 1]);
 	parent_slot = path->slots[level + 1];
+	slot = path->slots[level];
 	BUG_ON(nritems == 0);
 	if (parent) {
 		struct btrfs_disk_key *parent_key;
@@ -149,10 +151,13 @@ static int check_node(struct btrfs_root *root, struct btrfs_path *path,
 		       btrfs_header_blocknr(&node->header));
 	}
 	BUG_ON(nritems > BTRFS_NODEPTRS_PER_BLOCK(root));
-	for (i = 0; nritems > 1 && i < nritems - 2; i++) {
-		struct btrfs_key cpukey;
-		btrfs_disk_key_to_cpu(&cpukey, &node->ptrs[i + 1].key);
-		BUG_ON(comp_keys(&node->ptrs[i].key, &cpukey) >= 0);
+	if (slot != 0) {
+		btrfs_disk_key_to_cpu(&cpukey, &node->ptrs[slot - 1].key);
+		BUG_ON(comp_keys(&node->ptrs[slot].key, &cpukey) <= 0);
+	}
+	if (slot < nritems - 1) {
+		btrfs_disk_key_to_cpu(&cpukey, &node->ptrs[slot + 1].key);
+		BUG_ON(comp_keys(&node->ptrs[slot].key, &cpukey) >= 0);
 	}
 	return 0;
 }
@@ -160,10 +165,12 @@ static int check_node(struct btrfs_root *root, struct btrfs_path *path,
 static int check_leaf(struct btrfs_root *root, struct btrfs_path *path,
 		      int level)
 {
-	int i;
 	struct btrfs_leaf *leaf = btrfs_buffer_leaf(path->nodes[level]);
 	struct btrfs_node *parent = NULL;
 	int parent_slot;
+	int slot = path->slots[0];
+	struct btrfs_key cpukey;
+
 	u32 nritems = btrfs_header_nritems(&leaf->header);
 
 	if (path->nodes[level + 1])
@@ -182,19 +189,20 @@ static int check_leaf(struct btrfs_root *root, struct btrfs_path *path,
 		BUG_ON(btrfs_node_blockptr(parent, parent_slot) !=
 		       btrfs_header_blocknr(&leaf->header));
 	}
-	for (i = 0; nritems > 1 && i < nritems - 2; i++) {
-		struct btrfs_key cpukey;
-		btrfs_disk_key_to_cpu(&cpukey, &leaf->items[i + 1].key);
-		BUG_ON(comp_keys(&leaf->items[i].key,
-		                 &cpukey) >= 0);
-		BUG_ON(btrfs_item_offset(leaf->items + i) !=
-			btrfs_item_end(leaf->items + i + 1));
-		if (i == 0) {
-			BUG_ON(btrfs_item_offset(leaf->items + i) +
-			       btrfs_item_size(leaf->items + i) !=
-			       BTRFS_LEAF_DATA_SIZE(root));
-		}
+	if (slot != 0) {
+		btrfs_disk_key_to_cpu(&cpukey, &leaf->items[slot - 1].key);
+		BUG_ON(comp_keys(&leaf->items[slot].key, &cpukey) <= 0);
+		BUG_ON(btrfs_item_offset(leaf->items + slot - 1) !=
+			btrfs_item_end(leaf->items + slot));
 	}
+	if (slot < nritems - 1) {
+		btrfs_disk_key_to_cpu(&cpukey, &leaf->items[slot + 1].key);
+		BUG_ON(comp_keys(&leaf->items[slot].key, &cpukey) >= 0);
+		BUG_ON(btrfs_item_offset(leaf->items + slot) !=
+			btrfs_item_end(leaf->items + slot + 1));
+	}
+	BUG_ON(btrfs_item_offset(leaf->items) +
+	       btrfs_item_size(leaf->items) != BTRFS_LEAF_DATA_SIZE(root));
 	return 0;
 }
 
