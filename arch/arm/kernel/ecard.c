@@ -41,11 +41,11 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/kthread.h>
+#include <linux/io.h>
 
 #include <asm/dma.h>
 #include <asm/ecard.h>
 #include <asm/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mmu_context.h>
 #include <asm/mach/irq.h>
@@ -965,6 +965,23 @@ void ecard_setirq(struct expansion_card *ec, const struct expansion_card_ops *op
 	ec->ops = ops;
 }
 EXPORT_SYMBOL(ecard_setirq);
+
+void __iomem *ecardm_iomap(struct expansion_card *ec, unsigned int res,
+			   unsigned long offset, unsigned long maxsize)
+{
+	unsigned long start = ecard_resource_start(ec, res);
+	unsigned long end = ecard_resource_end(ec, res);
+
+	if (offset > (end - start))
+		return NULL;
+
+	start += offset;
+	if (maxsize && end - start > maxsize)
+		end = start + maxsize;
+	
+	return devm_ioremap(&ec->dev, start, end - start);
+}
+EXPORT_SYMBOL(ecardm_iomap);
 
 /*
  * Probe for an expansion card.

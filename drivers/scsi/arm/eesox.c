@@ -519,7 +519,6 @@ eesoxscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 {
 	struct Scsi_Host *host;
 	struct eesoxscsi_info *info;
-	unsigned long resbase, reslen;
 	void __iomem *base;
 	int ret;
 
@@ -527,9 +526,7 @@ eesoxscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 	if (ret)
 		goto out;
 
-	resbase = ecard_resource_start(ec, ECARD_RES_IOCFAST);
-	reslen = ecard_resource_len(ec, ECARD_RES_IOCFAST);
-	base = ioremap(resbase, reslen);
+	base = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);
 	if (!base) {
 		ret = -ENOMEM;
 		goto out_region;
@@ -539,7 +536,7 @@ eesoxscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 			       sizeof(struct eesoxscsi_info));
 	if (!host) {
 		ret = -ENOMEM;
-		goto out_unmap;
+		goto out_region;
 	}
 
 	ecard_set_drvdata(ec, host);
@@ -612,9 +609,6 @@ eesoxscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 	device_remove_file(&ec->dev, &dev_attr_bus_term);
 	scsi_host_put(host);
 
- out_unmap:
-	iounmap(base);
-
  out_region:
 	ecard_release_resources(ec);
 
@@ -635,8 +629,6 @@ static void __devexit eesoxscsi_remove(struct expansion_card *ec)
 	free_irq(ec->irq, info);
 
 	device_remove_file(&ec->dev, &dev_attr_bus_term);
-
-	iounmap(info->base);
 
 	fas216_release(host);
 	scsi_host_put(host);

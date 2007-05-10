@@ -425,8 +425,7 @@ pata_icside_register_v5(struct ata_probe_ent *ae, struct expansion_card *ec)
 	struct pata_icside_state *state = ae->private_data;
 	void __iomem *base;
 
-	base = ioremap(ecard_resource_start(ec, ECARD_RES_MEMC),
-		       ecard_resource_len(ec, ECARD_RES_MEMC));
+	base = ecardm_iomap(info->ec, ECARD_RES_MEMC, 0, 0);
 	if (!base)
 		return -ENOMEM;
 
@@ -453,24 +452,17 @@ pata_icside_register_v6(struct ata_probe_ent *ae, struct expansion_card *ec)
 	struct pata_icside_state *state = ae->private_data;
 	void __iomem *ioc_base, *easi_base;
 	unsigned int sel = 0;
-	int ret;
 
-	ioc_base = ioremap(ecard_resource_start(ec, ECARD_RES_IOCFAST),
-			   ecard_resource_len(ec, ECARD_RES_IOCFAST));
-	if (!ioc_base) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	ioc_base = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);
+	if (!ioc_base)
+		return -ENOMEM;
 
 	easi_base = ioc_base;
 
 	if (ecard_resource_flags(ec, ECARD_RES_EASI)) {
-		easi_base = ioremap(ecard_resource_start(ec, ECARD_RES_EASI),
-				    ecard_resource_len(ec, ECARD_RES_EASI));
-		if (!easi_base) {
-			ret = -ENOMEM;
-			goto unmap_slot;
-		}
+		easi_base = ecardm_iomap(ec, ECARD_RES_EASI, 0, 0);
+		if (!easi_base)
+			return -ENOMEM;
 
 		/*
 		 * Enable access to the EASI region.
@@ -507,10 +499,6 @@ pata_icside_register_v6(struct ata_probe_ent *ae, struct expansion_card *ec)
 
 	return icside_dma_init(ae, ec);
 
- unmap_slot:
-	iounmap(ioc_base);
- out:
-	return ret;
 }
 
 static int __devinit
@@ -534,8 +522,7 @@ pata_icside_probe(struct expansion_card *ec, const struct ecard_id *id)
 	state->type = ICS_TYPE_NOTYPE;
 	state->dma = NO_DMA;
 
-	idmem = ioremap(ecard_resource_start(ec, ECARD_RES_IOCFAST),
-			ecard_resource_len(ec, ECARD_RES_IOCFAST));
+	idmem = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);
 	if (idmem) {
 		unsigned int type;
 
@@ -543,7 +530,7 @@ pata_icside_probe(struct expansion_card *ec, const struct ecard_id *id)
 		type |= (readb(idmem + ICS_IDENT_OFFSET + 4) & 1) << 1;
 		type |= (readb(idmem + ICS_IDENT_OFFSET + 8) & 1) << 2;
 		type |= (readb(idmem + ICS_IDENT_OFFSET + 12) & 1) << 3;
-		iounmap(idmem);
+		ecardm_iounmap(ec, idmem);
 
 		state->type = type;
 	}
@@ -638,10 +625,6 @@ static void __devexit pata_icside_remove(struct expansion_card *ec)
 	 */
 	if (state->dma != NO_DMA)
 		free_dma(state->dma);
-	if (state->ioc_base)
-		iounmap(state->ioc_base);
-	if (state->ioc_base != state->irq_port)
-		iounmap(state->irq_port);
 
 	kfree(state);
 	ecard_release_resources(ec);
