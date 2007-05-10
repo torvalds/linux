@@ -593,89 +593,6 @@ const struct pci_iommu_ops pci_sun4v_iommu_ops = {
 	.dma_sync_sg_for_cpu		= pci_4v_dma_sync_sg_for_cpu,
 };
 
-static inline int pci_sun4v_out_of_range(struct pci_pbm_info *pbm, unsigned int bus, unsigned int device, unsigned int func)
-{
-	if (bus < pbm->pci_first_busno ||
-	    bus > pbm->pci_last_busno)
-		return 1;
-	return 0;
-}
-
-static int pci_sun4v_read_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
-				  int where, int size, u32 *value)
-{
-	struct pci_pbm_info *pbm = bus_dev->sysdata;
-	u32 devhandle = pbm->devhandle;
-	unsigned int bus = bus_dev->number;
-	unsigned int device = PCI_SLOT(devfn);
-	unsigned int func = PCI_FUNC(devfn);
-	unsigned long ret;
-
-	if (bus_dev == pbm->pci_bus && devfn == 0x00)
-		return pci_host_bridge_read_pci_cfg(bus_dev, devfn, where,
-						    size, value);
-	if (pci_sun4v_out_of_range(pbm, bus, device, func)) {
-		ret = ~0UL;
-	} else {
-		ret = pci_sun4v_config_get(devhandle,
-				HV_PCI_DEVICE_BUILD(bus, device, func),
-				where, size);
-#if 0
-		printk("rcfg: [%x:%x:%x:%d]=[%lx]\n",
-		       devhandle, HV_PCI_DEVICE_BUILD(bus, device, func),
-		       where, size, ret);
-#endif
-	}
-	switch (size) {
-	case 1:
-		*value = ret & 0xff;
-		break;
-	case 2:
-		*value = ret & 0xffff;
-		break;
-	case 4:
-		*value = ret & 0xffffffff;
-		break;
-	};
-
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-static int pci_sun4v_write_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
-				   int where, int size, u32 value)
-{
-	struct pci_pbm_info *pbm = bus_dev->sysdata;
-	u32 devhandle = pbm->devhandle;
-	unsigned int bus = bus_dev->number;
-	unsigned int device = PCI_SLOT(devfn);
-	unsigned int func = PCI_FUNC(devfn);
-	unsigned long ret;
-
-	if (bus_dev == pbm->pci_bus && devfn == 0x00)
-		return pci_host_bridge_write_pci_cfg(bus_dev, devfn, where,
-						     size, value);
-	if (pci_sun4v_out_of_range(pbm, bus, device, func)) {
-		/* Do nothing. */
-	} else {
-		ret = pci_sun4v_config_put(devhandle,
-				HV_PCI_DEVICE_BUILD(bus, device, func),
-				where, size, value);
-#if 0
-		printk("wcfg: [%x:%x:%x:%d] v[%x] == [%lx]\n",
-		       devhandle, HV_PCI_DEVICE_BUILD(bus, device, func),
-		       where, size, value, ret);
-#endif
-	}
-	return PCIBIOS_SUCCESSFUL;
-}
-
-static struct pci_ops pci_sun4v_ops = {
-	.read =		pci_sun4v_read_pci_cfg,
-	.write =	pci_sun4v_write_pci_cfg,
-};
-
-
 static void pci_sun4v_scan_bus(struct pci_pbm_info *pbm)
 {
 	struct property *prop;
@@ -1238,7 +1155,8 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 	pci_pbm_root = pbm;
 
 	pbm->scan_bus = pci_sun4v_scan_bus;
-	pbm->pci_ops = &pci_sun4v_ops;
+	pbm->pci_ops = &sun4v_pci_ops;
+	pbm->config_space_reg_bits = 12;
 
 	pbm->index = pci_num_pbms++;
 

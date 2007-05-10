@@ -14,6 +14,200 @@
 #include <asm/oplib.h>
 
 #include "pci_impl.h"
+#include "pci_sun4v.h"
+
+static int config_out_of_range(struct pci_pbm_info *pbm,
+			       unsigned long bus,
+			       unsigned long devfn,
+			       unsigned long reg)
+{
+	if (bus < pbm->pci_first_busno ||
+	    bus > pbm->pci_last_busno)
+		return 1;
+	return 0;
+}
+
+static void *sun4u_config_mkaddr(struct pci_pbm_info *pbm,
+				 unsigned long bus,
+				 unsigned long devfn,
+				 unsigned long reg)
+{
+	unsigned long rbits = pbm->config_space_reg_bits;
+
+	if (config_out_of_range(pbm, bus, devfn, reg))
+		return NULL;
+
+	reg = (reg & ((1 << rbits) - 1));
+	devfn <<= rbits;
+	bus <<= rbits + 8;
+
+	return (void *)	(pbm->config_space | bus | devfn | reg);
+}
+
+static int sun4u_read_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
+			      int where, int size, u32 *value)
+{
+	struct pci_pbm_info *pbm = bus_dev->sysdata;
+	unsigned char bus = bus_dev->number;
+	u32 *addr;
+	u16 tmp16;
+	u8 tmp8;
+
+	if (bus_dev == pbm->pci_bus && devfn == 0x00)
+		return pci_host_bridge_read_pci_cfg(bus_dev, devfn, where,
+						    size, value);
+
+	switch (size) {
+	case 1:
+		*value = 0xff;
+		break;
+	case 2:
+		*value = 0xffff;
+		break;
+	case 4:
+		*value = 0xffffffff;
+		break;
+	}
+
+	addr = sun4u_config_mkaddr(pbm, bus, devfn, where);
+	if (!addr)
+		return PCIBIOS_SUCCESSFUL;
+
+	switch (size) {
+	case 1:
+		pci_config_read8((u8 *)addr, &tmp8);
+		*value = (u32) tmp8;
+		break;
+
+	case 2:
+		if (where & 0x01) {
+			printk("pci_read_config_word: misaligned reg [%x]\n",
+			       where);
+			return PCIBIOS_SUCCESSFUL;
+		}
+		pci_config_read16((u16 *)addr, &tmp16);
+		*value = (u32) tmp16;
+		break;
+
+	case 4:
+		if (where & 0x03) {
+			printk("pci_read_config_dword: misaligned reg [%x]\n",
+			       where);
+			return PCIBIOS_SUCCESSFUL;
+		}
+		pci_config_read32(addr, value);
+		break;
+	}
+	return PCIBIOS_SUCCESSFUL;
+}
+
+static int sun4u_write_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
+			       int where, int size, u32 value)
+{
+	struct pci_pbm_info *pbm = bus_dev->sysdata;
+	unsigned char bus = bus_dev->number;
+	u32 *addr;
+
+	if (bus_dev == pbm->pci_bus && devfn == 0x00)
+		return pci_host_bridge_write_pci_cfg(bus_dev, devfn, where,
+						     size, value);
+	addr = sun4u_config_mkaddr(pbm, bus, devfn, where);
+	if (!addr)
+		return PCIBIOS_SUCCESSFUL;
+
+	switch (size) {
+	case 1:
+		pci_config_write8((u8 *)addr, value);
+		break;
+
+	case 2:
+		if (where & 0x01) {
+			printk("pci_write_config_word: misaligned reg [%x]\n",
+			       where);
+			return PCIBIOS_SUCCESSFUL;
+		}
+		pci_config_write16((u16 *)addr, value);
+		break;
+
+	case 4:
+		if (where & 0x03) {
+			printk("pci_write_config_dword: misaligned reg [%x]\n",
+			       where);
+			return PCIBIOS_SUCCESSFUL;
+		}
+		pci_config_write32(addr, value);
+	}
+	return PCIBIOS_SUCCESSFUL;
+}
+
+struct pci_ops sun4u_pci_ops = {
+	.read =		sun4u_read_pci_cfg,
+	.write =	sun4u_write_pci_cfg,
+};
+
+static int sun4v_read_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
+			      int where, int size, u32 *value)
+{
+	struct pci_pbm_info *pbm = bus_dev->sysdata;
+	u32 devhandle = pbm->devhandle;
+	unsigned int bus = bus_dev->number;
+	unsigned int device = PCI_SLOT(devfn);
+	unsigned int func = PCI_FUNC(devfn);
+	unsigned long ret;
+
+	if (bus_dev == pbm->pci_bus && devfn == 0x00)
+		return pci_host_bridge_read_pci_cfg(bus_dev, devfn, where,
+						    size, value);
+	if (config_out_of_range(pbm, bus, devfn, where)) {
+		ret = ~0UL;
+	} else {
+		ret = pci_sun4v_config_get(devhandle,
+				HV_PCI_DEVICE_BUILD(bus, device, func),
+				where, size);
+	}
+	switch (size) {
+	case 1:
+		*value = ret & 0xff;
+		break;
+	case 2:
+		*value = ret & 0xffff;
+		break;
+	case 4:
+		*value = ret & 0xffffffff;
+		break;
+	};
+
+
+	return PCIBIOS_SUCCESSFUL;
+}
+
+static int sun4v_write_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
+			       int where, int size, u32 value)
+{
+	struct pci_pbm_info *pbm = bus_dev->sysdata;
+	u32 devhandle = pbm->devhandle;
+	unsigned int bus = bus_dev->number;
+	unsigned int device = PCI_SLOT(devfn);
+	unsigned int func = PCI_FUNC(devfn);
+	unsigned long ret;
+
+	if (bus_dev == pbm->pci_bus && devfn == 0x00)
+		return pci_host_bridge_write_pci_cfg(bus_dev, devfn, where,
+						     size, value);
+	if (config_out_of_range(pbm, bus, devfn, where)) {
+		/* Do nothing. */
+	} else {
+		ret = pci_sun4v_config_put(devhandle,
+				HV_PCI_DEVICE_BUILD(bus, device, func),
+				where, size, value);
+	}
+	return PCIBIOS_SUCCESSFUL;
+}
+
+struct pci_ops sun4v_pci_ops = {
+	.read =		sun4v_read_pci_cfg,
+	.write =	sun4v_write_pci_cfg,
+};
 
 void pci_get_pbm_props(struct pci_pbm_info *pbm)
 {

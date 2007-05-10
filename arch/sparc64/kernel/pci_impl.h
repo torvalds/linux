@@ -77,6 +77,9 @@ struct pci_pbm_info {
 	/* Base of PCI Config space, can be per-PBM or shared. */
 	unsigned long			config_space;
 
+	/* This will be 12 on PCI-E controllers, 8 elsewhere.  */
+	unsigned long			config_space_reg_bits;
+
 	/* State of 66MHz capabilities on this PBM. */
 	int				is_66mhz_capable;
 	int				all_devs_66mhz;
@@ -155,5 +158,8 @@ extern void pci_config_read32(u32 *addr, u32 *ret);
 extern void pci_config_write8(u8 *addr, u8 val);
 extern void pci_config_write16(u16 *addr, u16 val);
 extern void pci_config_write32(u32 *addr, u32 val);
+
+extern struct pci_ops sun4u_pci_ops;
+extern struct pci_ops sun4v_pci_ops;
 
 #endif /* !(PCI_IMPL_H) */

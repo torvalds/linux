@@ -1636,10 +1636,21 @@ static struct device_node * __init create_node(phandle node, struct device_node 
 
 static struct device_node * __init build_tree(struct device_node *parent, phandle node, struct device_node ***nextp)
 {
+	struct device_node *ret = NULL, *prev_sibling = NULL;
 	struct device_node *dp;
 
-	dp = create_node(node, parent);
-	if (dp) {
+	while (1) {
+		dp = create_node(node, parent);
+		if (!dp)
+			break;
+
+		if (prev_sibling)
+			prev_sibling->sibling = dp;
+
+		if (!ret)
+			ret = dp;
+		prev_sibling = dp;
+
 		*(*nextp) = dp;
 		*nextp = &dp->allnext;
 
@@ -1648,10 +1659,10 @@ static struct device_node * __init build_tree(struct device_node *parent, phandl
 
 		dp->child = build_tree(dp, prom_getchild(node), nextp);
 
-		dp->sibling = build_tree(parent, prom_getsibling(node), nextp);
+		node = prom_getsibling(node);
 	}
 
-	return dp;
+	return ret;
 }
 
 void __init prom_build_devicetree(void)
