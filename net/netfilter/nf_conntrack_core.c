@@ -888,8 +888,13 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 	NF_CT_DUMP_TUPLE(newreply);
 
 	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *newreply;
-	if (!ct->master && help && help->expecting == 0)
-		help->helper = __nf_ct_helper_find(newreply);
+	if (!ct->master && help && help->expecting == 0) {
+		struct nf_conntrack_helper *helper;
+		helper = __nf_ct_helper_find(newreply);
+		if (helper)
+			memset(&help->help, 0, sizeof(help->help));
+		help->helper = helper;
+	}
 	write_unlock_bh(&nf_conntrack_lock);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_alter_reply);
