@@ -574,7 +574,7 @@ xpc_update_partition_info(struct xpc_partition *part, u8 remote_rp_version,
 		u64 remote_vars_pa, struct xpc_vars *remote_vars)
 {
 	part->remote_rp_version = remote_rp_version;
-	dev_dbg(xpc_part, "  remote_rp_version = 0x%016lx\n",
+	dev_dbg(xpc_part, "  remote_rp_version = 0x%016x\n",
 		part->remote_rp_version);
 
 	part->remote_rp_stamp = *remote_rp_stamp;
