@@ -668,7 +668,7 @@ posix_test_lock(struct file *filp, struct file_lock *fl)
 	for (cfl = filp->f_path.dentry->d_inode->i_flock; cfl; cfl = cfl->fl_next) {
 		if (!IS_POSIX(cfl))
 			continue;
-		if (posix_locks_conflict(cfl, fl))
+		if (posix_locks_conflict(fl, cfl))
 			break;
 	}
 	if (cfl)
