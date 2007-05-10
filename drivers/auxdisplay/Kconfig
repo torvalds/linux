@@ -6,6 +6,7 @@
 #
 
 menu "Auxiliary Display support"
+	depends on PARPORT
 
 config KS0108
 	tristate "KS0108 LCD Controller"

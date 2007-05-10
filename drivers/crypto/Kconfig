@@ -56,4 +56,26 @@ config CRYPTO_DEV_GEODE
 	  To compile this driver as a module, choose M here: the module
 	  will be called geode-aes.
 
+config ZCRYPT
+	tristate "Support for PCI-attached cryptographic adapters"
+	depends on S390
+	select ZCRYPT_MONOLITHIC if ZCRYPT="y"
+	default "m"
+	help
+	  Select this option if you want to use a PCI-attached cryptographic
+	  adapter like:
+	  + PCI Cryptographic Accelerator (PCICA)
+	  + PCI Cryptographic Coprocessor (PCICC)
+	  + PCI-X Cryptographic Coprocessor (PCIXCC)
+	  + Crypto Express2 Coprocessor (CEX2C)
+	  + Crypto Express2 Accelerator (CEX2A)
+
+config ZCRYPT_MONOLITHIC
+	bool "Monolithic zcrypt module"
+	depends on ZCRYPT="m"
+	help
+	  Select this option if you want to have a single module z90crypt.ko
+	  that contains all parts of the crypto device driver (ap bus,
+	  request router and all the card drivers).
+
 endmenu

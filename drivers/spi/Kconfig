@@ -6,6 +6,7 @@
 # fully appropriate there, so it'd need some thought to do well.
 #
 menu "SPI support"
+	depends on HAS_IOMEM
 
 config SPI
 	bool "SPI support"

@@ -2,6 +2,7 @@
 #
 
 menu "Sound"
+	depends on HAS_IOMEM
 
 config SOUND
 	tristate "Sound card support"

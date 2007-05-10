@@ -5,6 +5,7 @@
 #
 
 menu "Serial drivers"
+	depends on HAS_IOMEM
 
 #
 # The new 8250/16550 serial drivers

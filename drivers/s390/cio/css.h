@@ -138,9 +138,7 @@ struct css_driver {
  * all css_drivers have the css_bus_type
  */
 extern struct bus_type css_bus_type;
-extern struct css_driver io_subchannel_driver;
 
-extern int css_probe_device(struct subchannel_id);
 extern int css_sch_device_register(struct subchannel *);
 extern void css_sch_device_unregister(struct subchannel *);
 extern struct subchannel * get_subchannel_by_schid(struct subchannel_id);

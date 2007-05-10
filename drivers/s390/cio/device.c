@@ -129,7 +129,7 @@ static void io_subchannel_verify(struct device *);
 static void io_subchannel_ioterm(struct device *);
 static void io_subchannel_shutdown(struct subchannel *);
 
-struct css_driver io_subchannel_driver = {
+static struct css_driver io_subchannel_driver = {
 	.subchannel_type = SUBCHANNEL_TYPE_IO,
 	.drv = {
 		.name = "io_subchannel",
@@ -546,7 +546,7 @@ static struct attribute_group ccwdev_attr_group = {
 	.attrs = ccwdev_attrs,
 };
 
-struct attribute_group *ccwdev_attr_groups[] = {
+static struct attribute_group *ccwdev_attr_groups[] = {
 	&ccwdev_attr_group,
 	NULL,
 };

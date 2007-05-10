@@ -255,6 +255,7 @@ dasd_ioctl_information(struct dasd_device *device,
 	unsigned long flags;
 	int rc;
 	struct ccw_device *cdev;
+	struct ccw_dev_id dev_id;
 
 	if (!device->discipline->fill_info)
 		return -EINVAL;
@@ -270,8 +271,9 @@ dasd_ioctl_information(struct dasd_device *device,
 	}
 
 	cdev = device->cdev;
+	ccw_device_get_id(cdev, &dev_id);
 
-	dasd_info->devno = _ccw_device_get_device_number(device->cdev);
+	dasd_info->devno = dev_id.devno;
 	dasd_info->schid = _ccw_device_get_subchannel_number(device->cdev);
 	dasd_info->cu_type = cdev->id.cu_type;
 	dasd_info->cu_model = cdev->id.cu_model;

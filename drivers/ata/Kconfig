@@ -3,6 +3,7 @@
 #
 
 menu "Serial ATA (prod) and Parallel ATA (experimental) drivers"
+	depends on HAS_IOMEM
 
 config ATA
 	tristate "ATA device support"

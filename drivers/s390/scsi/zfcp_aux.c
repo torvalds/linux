@@ -607,8 +607,7 @@ zfcp_sg_list_free(struct zfcp_sg_list *sg_list)
  * @sg_count: elements in array
  * Return: size of entire scatter-gather list
  */
-size_t
-zfcp_sg_size(struct scatterlist *sg, unsigned int sg_count)
+static size_t zfcp_sg_size(struct scatterlist *sg, unsigned int sg_count)
 {
 	unsigned int i;
 	struct scatterlist *p;
@@ -975,8 +974,7 @@ zfcp_free_low_mem_buffers(struct zfcp_adapter *adapter)
 		mempool_destroy(adapter->pool.data_gid_pn);
 }
 
-void
-zfcp_dummy_release(struct device *dev)
+static void zfcp_dummy_release(struct device *dev)
 {
 	return;
 }
@@ -1336,7 +1334,7 @@ zfcp_nameserver_enqueue(struct zfcp_adapter *adapter)
 
 #define ZFCP_LOG_AREA                   ZFCP_LOG_AREA_FC
 
-void
+static void
 zfcp_fsf_incoming_els_rscn(struct zfcp_adapter *adapter,
 			   struct fsf_status_read_buffer *status_buffer)
 {

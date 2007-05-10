@@ -4,6 +4,7 @@
 
 menuconfig MMC
 	tristate "MMC/SD card support"
+	depends on HAS_IOMEM
 	help
 	  MMC is the "multi-media card" bus protocol.
 

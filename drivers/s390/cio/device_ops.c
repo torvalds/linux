@@ -616,6 +616,17 @@ ccw_device_get_chp_desc(struct ccw_device *cdev, int chp_no)
 	return chp_get_chp_desc(chpid);
 }
 
+/**
+ * ccw_device_get_id - obtain a ccw device id
+ * @cdev: device to obtain the id for
+ * @dev_id: where to fill in the values
+ */
+void ccw_device_get_id(struct ccw_device *cdev, struct ccw_dev_id *dev_id)
+{
+	*dev_id = cdev->private->dev_id;
+}
+EXPORT_SYMBOL(ccw_device_get_id);
+
 // FIXME: these have to go:
 
 int

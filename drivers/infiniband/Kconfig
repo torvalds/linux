@@ -1,4 +1,5 @@
 menu "InfiniBand support"
+	depends on HAS_IOMEM
 
 config INFINIBAND
 	depends on PCI || BROKEN

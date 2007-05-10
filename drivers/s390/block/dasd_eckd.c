@@ -450,9 +450,9 @@ dasd_eckd_generate_uid(struct dasd_device *device, struct dasd_uid *uid)
 	return 0;
 }
 
-struct dasd_ccw_req * dasd_eckd_build_rcd_lpm(struct dasd_device *device,
-					      void *rcd_buffer,
-					      struct ciw *ciw, __u8 lpm)
+static struct dasd_ccw_req *dasd_eckd_build_rcd_lpm(struct dasd_device *device,
+						    void *rcd_buffer,
+						    struct ciw *ciw, __u8 lpm)
 {
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;

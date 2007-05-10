@@ -1,69 +1,9 @@
-config CCW
-	bool
-	default y
-
-source "drivers/block/Kconfig"
-
-source "drivers/md/Kconfig"
-
-
-menu "Character device drivers"
-
-config UNIX98_PTYS
-	bool "Unix98 PTY support"
-	---help---
-	  A pseudo terminal (PTY) is a software device consisting of two
-	  halves: a master and a slave. The slave device behaves identical to
-	  a physical terminal; the master device is used by a process to
-	  read data from and write data to the slave, thereby emulating a
-	  terminal. Typical programs for the master side are telnet servers
-	  and xterms.
-
-	  Linux has traditionally used the BSD-like names /dev/ptyxx for
-	  masters and /dev/ttyxx for slaves of pseudo terminals. This scheme
-	  has a number of problems. The GNU C library glibc 2.1 and later,
-	  however, supports the Unix98 naming standard: in order to acquire a
-	  pseudo terminal, a process opens /dev/ptmx; the number of the pseudo
-	  terminal is then made available to the process and the pseudo
-	  terminal slave can be accessed as /dev/pts/<number>. What was
-	  traditionally /dev/ttyp2 will then be /dev/pts/2, for example.
-
-	  The entries in /dev/pts/ are created on the fly by a virtual
-	  file system; therefore, if you say Y here you should say Y to
-	  "/dev/pts file system for Unix98 PTYs" as well.
-
-	  If you want to say Y here, you need to have the C library glibc 2.1
-	  or later (equal to libc-6.1, check with "ls -l /lib/libc.so.*").
-	  Read the instructions in <file:Documentation/Changes> pertaining to
-	  pseudo terminals. It's safe to say N.
-
-config UNIX98_PTY_COUNT
-	int "Maximum number of Unix98 PTYs in use (0-2048)"
-	depends on UNIX98_PTYS
-	default "256"
-	help
-	  The maximum number of Unix98 PTYs that can be used at any one time.
-	  The default is 256, and should be enough for desktop systems. Server
-	  machines which support incoming telnet/rlogin/ssh connections and/or
-	  serve several X terminals may want to increase this: every incoming
-	  connection and every xterm uses up one PTY.
-
-	  When not in use, each additional set of 256 PTYs occupy
-	  approximately 8 KB of kernel memory on 32-bit architectures.
-
-config HANGCHECK_TIMER
-	tristate "Hangcheck timer"
-	help
-	  The hangcheck-timer module detects when the system has gone
-	  out to lunch past a certain margin.  It can reboot the system
-	  or merely print a warning.
-
-source "drivers/char/watchdog/Kconfig"
-
 comment "S/390 character device drivers"
+	depends on S390
 
 config TN3270
 	tristate "Support for locally attached 3270 terminals"
+	depends on CCW
 	help
 	  Include support for IBM 3270 terminals.
 
@@ -88,6 +28,7 @@ config TN3270_CONSOLE
 
 config TN3215
 	bool "Support for 3215 line mode terminal"
+	depends on CCW
 	help
 	  Include support for IBM 3215 line-mode terminals.
 
@@ -99,12 +40,19 @@ config TN3215_CONSOLE
 	  Linux system console.
 
 config CCW_CONSOLE
- 	bool
- 	depends on TN3215_CONSOLE || TN3270_CONSOLE
- 	default y
- 
+	bool
+	depends on TN3215_CONSOLE || TN3270_CONSOLE
+	default y
+
+config SCLP
+	bool "Support for SCLP"
+	depends on S390
+	help
+	  Include support for the SCLP interface to the service element.
+
 config SCLP_TTY
 	bool "Support for SCLP line mode terminal"
+	depends on SCLP
 	help
 	  Include support for IBM SCLP line-mode terminals.
 
@@ -117,6 +65,7 @@ config SCLP_CONSOLE
 
 config SCLP_VT220_TTY
 	bool "Support for SCLP VT220-compatible terminal"
+	depends on SCLP
 	help
 	  Include support for an IBM SCLP VT220-compatible terminal.
 
@@ -129,6 +78,7 @@ config SCLP_VT220_CONSOLE
 
 config SCLP_CPI
 	tristate "Control-Program Identification"
+	depends on SCLP
 	help
 	  This option enables the hardware console interface for system
 	  identification. This is commonly used for workload management and
@@ -140,6 +90,7 @@ config SCLP_CPI
 
 config S390_TAPE
 	tristate "S/390 tape device support"
+	depends on CCW
 	help
 	  Select this option if you want to access channel-attached tape
 	  devices on IBM S/390 or zSeries.
@@ -194,6 +145,7 @@ config VMLOGRDR
 
 config VMCP
 	tristate "Support for the z/VM CP interface (VM only)"
+	depends on S390
 	help
 	  Select this option if you want to be able to interact with the control
 	  program on z/VM
@@ -207,33 +159,8 @@ config MONREADER
 
 config MONWRITER
 	tristate "API for writing z/VM monitor service records"
+	depends on S390
 	default "m"
 	help
 	  Character device driver for writing z/VM monitor service records
 
-endmenu
-
-menu "Cryptographic devices"
-
-config ZCRYPT
-	tristate "Support for PCI-attached cryptographic adapters"
-	select ZCRYPT_MONOLITHIC if ZCRYPT="y"
-	default "m"
-	help
-	  Select this option if you want to use a PCI-attached cryptographic
-	  adapter like:
-	  + PCI Cryptographic Accelerator (PCICA)
-	  + PCI Cryptographic Coprocessor (PCICC)
-	  + PCI-X Cryptographic Coprocessor (PCIXCC)
-	  + Crypto Express2 Coprocessor (CEX2C)
-	  + Crypto Express2 Accelerator (CEX2A)
-
-config ZCRYPT_MONOLITHIC
-	bool "Monolithic zcrypt module"
-	depends on ZCRYPT="m"
-	help
-	  Select this option if you want to have a single module z90crypt.ko
-	  that contains all parts of the crypto device driver (ap bus,
-	  request router and all the card drivers).
-
-endmenu

@@ -3,6 +3,7 @@
 #
 
 menu "USB support"
+	depends on HAS_IOMEM
 
 # Host-side USB depends on having a host controller
 # NOTE:  dummy_hcd is always an option, but it's ignored here ...

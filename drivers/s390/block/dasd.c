@@ -2174,9 +2174,10 @@ dasd_generic_notify(struct ccw_device *cdev, int event)
 	return ret;
 }
 
-struct dasd_ccw_req * dasd_generic_build_rdc(struct dasd_device *device,
-					     void *rdc_buffer,
-					     int rdc_buffer_size, char *magic)
+static struct dasd_ccw_req *dasd_generic_build_rdc(struct dasd_device *device,
+						   void *rdc_buffer,
+						   int rdc_buffer_size,
+						   char *magic)
 {
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
@@ -2219,6 +2220,7 @@ int dasd_generic_read_dev_chars(struct dasd_device *device, char *magic,
 	dasd_sfree_request(cqr, cqr->device);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(dasd_generic_read_dev_chars);
 
 static int __init
 dasd_init(void)
