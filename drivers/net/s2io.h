@@ -95,6 +95,9 @@ struct swStat {
 	unsigned long long flush_max_pkts;
 	unsigned long long sum_avg_pkts_aggregated;
 	unsigned long long num_aggregations;
+	/* Other statistics */
+	unsigned long long mem_alloc_fail_cnt;
+	unsigned long long watchdog_timer_cnt;
 };
 
 /* Xpak releated alarm and warnings */

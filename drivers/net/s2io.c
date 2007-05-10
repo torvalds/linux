@@ -281,6 +281,8 @@ static char ethtool_driver_stats_keys[][ETH_GSTRING_LEN] = {
 	("lro_out_of_sequence_pkts"),
 	("lro_flush_due_to_max_pkts"),
 	("lro_avg_aggr_pkts"),
+	("mem_alloc_fail_cnt"),
+	("watchdog_timer_cnt")
 };
 
 #define S2IO_XENA_STAT_LEN sizeof(ethtool_xena_stats_keys)/ ETH_GSTRING_LEN
@@ -2186,6 +2188,7 @@ static int fill_rxd_3buf(struct s2io_nic *nic, struct RxD_t *rxdp, struct \
 	/* skb_shinfo(skb)->frag_list will have L4 data payload */
 	skb_shinfo(skb)->frag_list = dev_alloc_skb(dev->mtu + ALIGN_SIZE);
 	if (skb_shinfo(skb)->frag_list == NULL) {
+		nic->mac_control.stats_info->sw_stat.mem_alloc_fail_cnt++;
 		DBG_PRINT(INFO_DBG, "%s: dev_alloc_skb failed\n ", dev->name);
 		return -ENOMEM ;
 	}
@@ -2319,6 +2322,8 @@ static int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 				wmb();
 				first_rxdp->Control_1 |= RXD_OWN_XENA;
 			}
+			nic->mac_control.stats_info->sw_stat. \
+				mem_alloc_fail_cnt++;
 			return -ENOMEM ;
 		}
 		if (nic->rxd_mode == RXD_MODE_1) {
@@ -3673,6 +3678,7 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 			       GFP_KERNEL);
 	if (nic->entries == NULL) {
 		DBG_PRINT(INFO_DBG, "%s: Memory allocation failed\n", __FUNCTION__);
+		nic->mac_control.stats_info->sw_stat.mem_alloc_fail_cnt++;
 		return -ENOMEM;
 	}
 	memset(nic->entries, 0, MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
@@ -3682,6 +3688,7 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 				   GFP_KERNEL);
 	if (nic->s2io_entries == NULL) {
 		DBG_PRINT(INFO_DBG, "%s: Memory allocation failed\n", __FUNCTION__);
+		nic->mac_control.stats_info->sw_stat.mem_alloc_fail_cnt++;
 		kfree(nic->entries);
 		return -ENOMEM;
 	}
@@ -5015,8 +5022,10 @@ static void s2io_vpd_read(struct s2io_nic *nic)
 	strcpy(nic->serial_num, "NOT AVAILABLE");
 
 	vpd_data = kmalloc(256, GFP_KERNEL);
-	if (!vpd_data)
+	if (!vpd_data) {
+		nic->mac_control.stats_info->sw_stat.mem_alloc_fail_cnt++;
 		return;
+	}
 
 	for (i = 0; i < 256; i +=4 ) {
 		pci_write_config_byte(nic->pdev, (vpd_addr + 2), i);
@@ -5776,6 +5785,8 @@ static void s2io_get_ethtool_stats(struct net_device *dev,
 	}
 	else
 		tmp_stats[i++] = 0;
+	tmp_stats[i++] = stat_info->sw_stat.mem_alloc_fail_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.watchdog_timer_cnt;
 }
 
 static int s2io_ethtool_get_regs_len(struct net_device *dev)
@@ -6112,7 +6123,10 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 			*skb = dev_alloc_skb(size);
 			if (!(*skb)) {
 				DBG_PRINT(INFO_DBG, "%s: Out of ", dev->name);
-				DBG_PRINT(INFO_DBG, "memory to allocate SKBs\n");
+				DBG_PRINT(INFO_DBG, "memory to allocate ");
+				DBG_PRINT(INFO_DBG, "1 buf mode SKBs\n");
+				sp->mac_control.stats_info->sw_stat. \
+					mem_alloc_fail_cnt++;
 				return -ENOMEM ;
 			}
 			/* storing the mapped addr in a temp variable
@@ -6134,8 +6148,11 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 		} else {
 			*skb = dev_alloc_skb(size);
 			if (!(*skb)) {
-				DBG_PRINT(INFO_DBG, "%s: dev_alloc_skb failed\n",
-					dev->name);
+				DBG_PRINT(INFO_DBG, "%s: Out of ", dev->name);
+				DBG_PRINT(INFO_DBG, "memory to allocate ");
+				DBG_PRINT(INFO_DBG, "2 buf mode SKBs\n");
+				sp->mac_control.stats_info->sw_stat. \
+					mem_alloc_fail_cnt++;
 				return -ENOMEM;
 			}
 			((struct RxD3*)rxdp)->Buffer2_ptr = *temp2 =
@@ -6161,8 +6178,11 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 		} else {
 			*skb = dev_alloc_skb(size);
 			if (!(*skb)) {
-				DBG_PRINT(INFO_DBG, "%s: dev_alloc_skb failed\n",
-					  dev->name);
+				DBG_PRINT(INFO_DBG, "%s: Out of ", dev->name);
+				DBG_PRINT(INFO_DBG, "memory to allocate ");
+				DBG_PRINT(INFO_DBG, "3 buf mode SKBs\n");
+				sp->mac_control.stats_info->sw_stat. \
+					mem_alloc_fail_cnt++;
 				return -ENOMEM;
 			}
 			((struct RxD3*)rxdp)->Buffer0_ptr = *temp0 =
@@ -6182,6 +6202,8 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 			if (skb_shinfo(*skb)->frag_list == NULL) {
 				DBG_PRINT(ERR_DBG, "%s: dev_alloc_skb \
 					  failed\n ", dev->name);
+				sp->mac_control.stats_info->sw_stat. \
+					mem_alloc_fail_cnt++;
 				return -ENOMEM ;
 			}
 			frag_list = skb_shinfo(*skb)->frag_list;
@@ -6601,6 +6623,7 @@ static void s2io_tx_watchdog(struct net_device *dev)
 	struct s2io_nic *sp = dev->priv;
 
 	if (netif_carrier_ok(dev)) {
+		sp->mac_control.stats_info->sw_stat.watchdog_timer_cnt++;
 		schedule_work(&sp->rst_timer_task);
 		sp->mac_control.stats_info->sw_stat.soft_reset_cnt++;
 	}
