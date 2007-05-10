@@ -29,6 +29,11 @@ config INFINIBAND_USER_ACCESS
 	  libibverbs, libibcm and a hardware driver library from
 	  <http://www.openib.org>.
 
+config INFINIBAND_USER_MEM
+	bool
+	depends on INFINIBAND_USER_ACCESS != n
+	default y
+
 config INFINIBAND_ADDR_TRANS
 	bool
 	depends on INFINIBAND && INET
@@ -39,6 +44,8 @@ source "drivers/infiniband/hw/ipath/Kconfig"
 source "drivers/infiniband/hw/ehca/Kconfig"
 source "drivers/infiniband/hw/amso1100/Kconfig"
 source "drivers/infiniband/hw/cxgb3/Kconfig"
+
+source "drivers/infiniband/hw/mlx4/Kconfig"
 
 source "drivers/infiniband/ulp/ipoib/Kconfig"
 

@@ -5,7 +5,7 @@
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
- * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005, 2006, 2007 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -710,6 +710,7 @@ struct ib_ucontext {
 	struct list_head	qp_list;
 	struct list_head	srq_list;
 	struct list_head	ah_list;
+	int			closing;
 };
 
 struct ib_uobject {
@@ -723,23 +724,6 @@ struct ib_uobject {
 	int			live;
 };
 
-struct ib_umem {
-	unsigned long		user_base;
-	unsigned long		virt_base;
-	size_t			length;
-	int			offset;
-	int			page_size;
-	int                     writable;
-	struct list_head	chunk_list;
-};
-
-struct ib_umem_chunk {
-	struct list_head	list;
-	int                     nents;
-	int                     nmap;
-	struct scatterlist      page_list[0];
-};
-
 struct ib_udata {
 	void __user *inbuf;
 	void __user *outbuf;
@@ -751,11 +735,6 @@ struct ib_udata {
 	((PAGE_SIZE - offsetof(struct ib_umem_chunk, page_list)) /	\
 	 ((void *) &((struct ib_umem_chunk *) 0)->page_list[1] -	\
 	  (void *) &((struct ib_umem_chunk *) 0)->page_list[0]))
-
-struct ib_umem_object {
-	struct ib_uobject	uobject;
-	struct ib_umem		umem;
-};
 
 struct ib_pd {
 	struct ib_device       *device;
@@ -1003,7 +982,8 @@ struct ib_device {
 						  int mr_access_flags,
 						  u64 *iova_start);
 	struct ib_mr *             (*reg_user_mr)(struct ib_pd *pd,
-						  struct ib_umem *region,
+						  u64 start, u64 length,
+						  u64 virt_addr,
 						  int mr_access_flags,
 						  struct ib_udata *udata);
 	int                        (*query_mr)(struct ib_mr *mr,

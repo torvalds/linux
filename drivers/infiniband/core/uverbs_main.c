@@ -183,6 +183,8 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 	if (!context)
 		return 0;
 
+	context->closing = 1;
+
 	list_for_each_entry_safe(uobj, tmp, &context->ah_list, list) {
 		struct ib_ah *ah = uobj->object;
 
@@ -230,16 +232,10 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 
 	list_for_each_entry_safe(uobj, tmp, &context->mr_list, list) {
 		struct ib_mr *mr = uobj->object;
-		struct ib_device *mrdev = mr->device;
-		struct ib_umem_object *memobj;
 
 		idr_remove_uobj(&ib_uverbs_mr_idr, uobj);
 		ib_dereg_mr(mr);
-
-		memobj = container_of(uobj, struct ib_umem_object, uobject);
-		ib_umem_release_on_close(mrdev, &memobj->umem);
-
-		kfree(memobj);
+		kfree(uobj);
 	}
 
 	list_for_each_entry_safe(uobj, tmp, &context->pd_list, list) {
@@ -906,7 +902,6 @@ static void __exit ib_uverbs_cleanup(void)
 	unregister_filesystem(&uverbs_event_fs);
 	class_destroy(uverbs_class);
 	unregister_chrdev_region(IB_UVERBS_BASE_DEV, IB_UVERBS_MAX_DEVICES);
-	flush_scheduled_work();
 	idr_destroy(&ib_uverbs_pd_idr);
 	idr_destroy(&ib_uverbs_mr_idr);
 	idr_destroy(&ib_uverbs_mw_idr);

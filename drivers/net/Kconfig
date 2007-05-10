@@ -2493,6 +2493,20 @@ config PASEMI_MAC
 	  This driver supports the on-chip 1/10Gbit Ethernet controller on
 	  PA Semi's PWRficient line of chips.
 
+config MLX4_CORE
+	tristate
+	depends on PCI
+	default n
+
+config MLX4_DEBUG
+	bool "Verbose debugging output" if (MLX4_CORE && EMBEDDED)
+	default y
+	---help---
+	  This option causes debugging code to be compiled into the
+	  mlx4_core driver.  The output can be turned on via the
+	  debug_level module parameter (which can also be set after
+	  the driver is loaded through sysfs).
+
 endmenu
 
 source "drivers/net/tokenring/Kconfig"

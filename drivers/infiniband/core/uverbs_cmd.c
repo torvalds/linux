@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005, 2006, 2007 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 PathScale, Inc.  All rights reserved.
  * Copyright (c) 2006 Mellanox Technologies.  All rights reserved.
  *
@@ -295,6 +295,7 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 	INIT_LIST_HEAD(&ucontext->qp_list);
 	INIT_LIST_HEAD(&ucontext->srq_list);
 	INIT_LIST_HEAD(&ucontext->ah_list);
+	ucontext->closing = 0;
 
 	resp.num_comp_vectors = file->device->num_comp_vectors;
 
@@ -573,7 +574,7 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	struct ib_uverbs_reg_mr      cmd;
 	struct ib_uverbs_reg_mr_resp resp;
 	struct ib_udata              udata;
-	struct ib_umem_object       *obj;
+	struct ib_uobject           *uobj;
 	struct ib_pd                *pd;
 	struct ib_mr                *mr;
 	int                          ret;
@@ -599,35 +600,21 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	    !(cmd.access_flags & IB_ACCESS_LOCAL_WRITE))
 		return -EINVAL;
 
-	obj = kmalloc(sizeof *obj, GFP_KERNEL);
-	if (!obj)
+	uobj = kmalloc(sizeof *uobj, GFP_KERNEL);
+	if (!uobj)
 		return -ENOMEM;
 
-	init_uobj(&obj->uobject, 0, file->ucontext, &mr_lock_key);
-	down_write(&obj->uobject.mutex);
-
-	/*
-	 * We ask for writable memory if any access flags other than
-	 * "remote read" are set.  "Local write" and "remote write"
-	 * obviously require write access.  "Remote atomic" can do
-	 * things like fetch and add, which will modify memory, and
-	 * "MW bind" can change permissions by binding a window.
-	 */
-	ret = ib_umem_get(file->device->ib_dev, &obj->umem,
-			  (void *) (unsigned long) cmd.start, cmd.length,
-			  !!(cmd.access_flags & ~IB_ACCESS_REMOTE_READ));
-	if (ret)
-		goto err_free;
-
-	obj->umem.virt_base = cmd.hca_va;
+	init_uobj(uobj, 0, file->ucontext, &mr_lock_key);
+	down_write(&uobj->mutex);
 
 	pd = idr_read_pd(cmd.pd_handle, file->ucontext);
 	if (!pd) {
 		ret = -EINVAL;
-		goto err_release;
+		goto err_free;
 	}
 
-	mr = pd->device->reg_user_mr(pd, &obj->umem, cmd.access_flags, &udata);
+	mr = pd->device->reg_user_mr(pd, cmd.start, cmd.length, cmd.hca_va,
+				     cmd.access_flags, &udata);
 	if (IS_ERR(mr)) {
 		ret = PTR_ERR(mr);
 		goto err_put;
@@ -635,19 +622,19 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 
 	mr->device  = pd->device;
 	mr->pd      = pd;
-	mr->uobject = &obj->uobject;
+	mr->uobject = uobj;
 	atomic_inc(&pd->usecnt);
 	atomic_set(&mr->usecnt, 0);
 
-	obj->uobject.object = mr;
-	ret = idr_add_uobj(&ib_uverbs_mr_idr, &obj->uobject);
+	uobj->object = mr;
+	ret = idr_add_uobj(&ib_uverbs_mr_idr, uobj);
 	if (ret)
 		goto err_unreg;
 
 	memset(&resp, 0, sizeof resp);
 	resp.lkey      = mr->lkey;
 	resp.rkey      = mr->rkey;
-	resp.mr_handle = obj->uobject.id;
+	resp.mr_handle = uobj->id;
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp)) {
@@ -658,17 +645,17 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	put_pd_read(pd);
 
 	mutex_lock(&file->mutex);
-	list_add_tail(&obj->uobject.list, &file->ucontext->mr_list);
+	list_add_tail(&uobj->list, &file->ucontext->mr_list);
 	mutex_unlock(&file->mutex);
 
-	obj->uobject.live = 1;
+	uobj->live = 1;
 
-	up_write(&obj->uobject.mutex);
+	up_write(&uobj->mutex);
 
 	return in_len;
 
 err_copy:
-	idr_remove_uobj(&ib_uverbs_mr_idr, &obj->uobject);
+	idr_remove_uobj(&ib_uverbs_mr_idr, uobj);
 
 err_unreg:
 	ib_dereg_mr(mr);
@@ -676,11 +663,8 @@ err_unreg:
 err_put:
 	put_pd_read(pd);
 
-err_release:
-	ib_umem_release(file->device->ib_dev, &obj->umem);
-
 err_free:
-	put_uobj_write(&obj->uobject);
+	put_uobj_write(uobj);
 	return ret;
 }
 
@@ -691,7 +675,6 @@ ssize_t ib_uverbs_dereg_mr(struct ib_uverbs_file *file,
 	struct ib_uverbs_dereg_mr cmd;
 	struct ib_mr             *mr;
 	struct ib_uobject	 *uobj;
-	struct ib_umem_object    *memobj;
 	int                       ret = -EINVAL;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
@@ -701,8 +684,7 @@ ssize_t ib_uverbs_dereg_mr(struct ib_uverbs_file *file,
 	if (!uobj)
 		return -EINVAL;
 
-	memobj = container_of(uobj, struct ib_umem_object, uobject);
-	mr     = uobj->object;
+	mr = uobj->object;
 
 	ret = ib_dereg_mr(mr);
 	if (!ret)
@@ -718,8 +700,6 @@ ssize_t ib_uverbs_dereg_mr(struct ib_uverbs_file *file,
 	mutex_lock(&file->mutex);
 	list_del(&uobj->list);
 	mutex_unlock(&file->mutex);
-
-	ib_umem_release(file->device->ib_dev, &memobj->umem);
 
 	put_uobj(uobj);
 

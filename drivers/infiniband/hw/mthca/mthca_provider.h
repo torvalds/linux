@@ -73,6 +73,7 @@ struct mthca_mtt;
 
 struct mthca_mr {
 	struct ib_mr      ibmr;
+	struct ib_umem   *umem;
 	struct mthca_mtt *mtt;
 };
 

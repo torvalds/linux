@@ -39,13 +39,6 @@
 
 #include "uverbs.h"
 
-struct ib_umem_account_work {
-	struct work_struct work;
-	struct mm_struct  *mm;
-	unsigned long      diff;
-};
-
-
 static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int dirty)
 {
 	struct ib_umem_chunk *chunk, *tmp;
@@ -64,35 +57,56 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
 	}
 }
 
-int ib_umem_get(struct ib_device *dev, struct ib_umem *mem,
-		void *addr, size_t size, int write)
+/**
+ * ib_umem_get - Pin and DMA map userspace memory.
+ * @context: userspace context to pin memory for
+ * @addr: userspace virtual address to start at
+ * @size: length of region to pin
+ * @access: IB_ACCESS_xxx flags for memory being pinned
+ */
+struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
+			    size_t size, int access)
 {
+	struct ib_umem *umem;
 	struct page **page_list;
 	struct ib_umem_chunk *chunk;
 	unsigned long locked;
 	unsigned long lock_limit;
 	unsigned long cur_base;
 	unsigned long npages;
-	int ret = 0;
+	int ret;
 	int off;
 	int i;
 
 	if (!can_do_mlock())
-		return -EPERM;
+		return ERR_PTR(-EPERM);
+
+	umem = kmalloc(sizeof *umem, GFP_KERNEL);
+	if (!umem)
+		return ERR_PTR(-ENOMEM);
+
+	umem->context   = context;
+	umem->length    = size;
+	umem->offset    = addr & ~PAGE_MASK;
+	umem->page_size = PAGE_SIZE;
+	/*
+	 * We ask for writable memory if any access flags other than
+	 * "remote read" are set.  "Local write" and "remote write"
+	 * obviously require write access.  "Remote atomic" can do
+	 * things like fetch and add, which will modify memory, and
+	 * "MW bind" can change permissions by binding a window.
+	 */
+	umem->writable  = !!(access & ~IB_ACCESS_REMOTE_READ);
+
+	INIT_LIST_HEAD(&umem->chunk_list);
 
 	page_list = (struct page **) __get_free_page(GFP_KERNEL);
-	if (!page_list)
-		return -ENOMEM;
+	if (!page_list) {
+		kfree(umem);
+		return ERR_PTR(-ENOMEM);
+	}
 
-	mem->user_base = (unsigned long) addr;
-	mem->length    = size;
-	mem->offset    = (unsigned long) addr & ~PAGE_MASK;
-	mem->page_size = PAGE_SIZE;
-	mem->writable  = write;
-
-	INIT_LIST_HEAD(&mem->chunk_list);
-
-	npages = PAGE_ALIGN(size + mem->offset) >> PAGE_SHIFT;
+	npages = PAGE_ALIGN(size + umem->offset) >> PAGE_SHIFT;
 
 	down_write(&current->mm->mmap_sem);
 
@@ -104,13 +118,13 @@ int ib_umem_get(struct ib_device *dev, struct ib_umem *mem,
 		goto out;
 	}
 
-	cur_base = (unsigned long) addr & PAGE_MASK;
+	cur_base = addr & PAGE_MASK;
 
 	while (npages) {
 		ret = get_user_pages(current, current->mm, cur_base,
 				     min_t(int, npages,
 					   PAGE_SIZE / sizeof (struct page *)),
-				     1, !write, page_list, NULL);
+				     1, !umem->writable, page_list, NULL);
 
 		if (ret < 0)
 			goto out;
@@ -136,7 +150,7 @@ int ib_umem_get(struct ib_device *dev, struct ib_umem *mem,
 				chunk->page_list[i].length = PAGE_SIZE;
 			}
 
-			chunk->nmap = ib_dma_map_sg(dev,
+			chunk->nmap = ib_dma_map_sg(context->device,
 						    &chunk->page_list[0],
 						    chunk->nents,
 						    DMA_BIDIRECTIONAL);
@@ -151,75 +165,94 @@ int ib_umem_get(struct ib_device *dev, struct ib_umem *mem,
 
 			ret -= chunk->nents;
 			off += chunk->nents;
-			list_add_tail(&chunk->list, &mem->chunk_list);
+			list_add_tail(&chunk->list, &umem->chunk_list);
 		}
 
 		ret = 0;
 	}
 
 out:
-	if (ret < 0)
-		__ib_umem_release(dev, mem, 0);
-	else
+	if (ret < 0) {
+		__ib_umem_release(context->device, umem, 0);
+		kfree(umem);
+	} else
 		current->mm->locked_vm = locked;
 
 	up_write(&current->mm->mmap_sem);
 	free_page((unsigned long) page_list);
 
-	return ret;
+	return ret < 0 ? ERR_PTR(ret) : umem;
+}
+EXPORT_SYMBOL(ib_umem_get);
+
+static void ib_umem_account(struct work_struct *work)
+{
+	struct ib_umem *umem = container_of(work, struct ib_umem, work);
+
+	down_write(&umem->mm->mmap_sem);
+	umem->mm->locked_vm -= umem->diff;
+	up_write(&umem->mm->mmap_sem);
+	mmput(umem->mm);
+	kfree(umem);
 }
 
-void ib_umem_release(struct ib_device *dev, struct ib_umem *umem)
+/**
+ * ib_umem_release - release memory pinned with ib_umem_get
+ * @umem: umem struct to release
+ */
+void ib_umem_release(struct ib_umem *umem)
 {
-	__ib_umem_release(dev, umem, 1);
-
-	down_write(&current->mm->mmap_sem);
-	current->mm->locked_vm -=
-		PAGE_ALIGN(umem->length + umem->offset) >> PAGE_SHIFT;
-	up_write(&current->mm->mmap_sem);
-}
-
-static void ib_umem_account(struct work_struct *_work)
-{
-	struct ib_umem_account_work *work =
-		container_of(_work, struct ib_umem_account_work, work);
-
-	down_write(&work->mm->mmap_sem);
-	work->mm->locked_vm -= work->diff;
-	up_write(&work->mm->mmap_sem);
-	mmput(work->mm);
-	kfree(work);
-}
-
-void ib_umem_release_on_close(struct ib_device *dev, struct ib_umem *umem)
-{
-	struct ib_umem_account_work *work;
+	struct ib_ucontext *context = umem->context;
 	struct mm_struct *mm;
+	unsigned long diff;
 
-	__ib_umem_release(dev, umem, 1);
+	__ib_umem_release(umem->context->device, umem, 1);
 
 	mm = get_task_mm(current);
 	if (!mm)
 		return;
+
+	diff = PAGE_ALIGN(umem->length + umem->offset) >> PAGE_SHIFT;
 
 	/*
 	 * We may be called with the mm's mmap_sem already held.  This
 	 * can happen when a userspace munmap() is the call that drops
 	 * the last reference to our file and calls our release
 	 * method.  If there are memory regions to destroy, we'll end
-	 * up here and not be able to take the mmap_sem.  Therefore we
-	 * defer the vm_locked accounting to the system workqueue.
+	 * up here and not be able to take the mmap_sem.  In that case
+	 * we defer the vm_locked accounting to the system workqueue.
 	 */
+	if (context->closing && !down_write_trylock(&mm->mmap_sem)) {
+		INIT_WORK(&umem->work, ib_umem_account);
+		umem->mm   = mm;
+		umem->diff = diff;
 
-	work = kmalloc(sizeof *work, GFP_KERNEL);
-	if (!work) {
-		mmput(mm);
+		schedule_work(&umem->work);
 		return;
-	}
+	} else
+		down_write(&mm->mmap_sem);
 
-	INIT_WORK(&work->work, ib_umem_account);
-	work->mm   = mm;
-	work->diff = PAGE_ALIGN(umem->length + umem->offset) >> PAGE_SHIFT;
-
-	schedule_work(&work->work);
+	current->mm->locked_vm -= diff;
+	up_write(&mm->mmap_sem);
+	mmput(mm);
+	kfree(umem);
 }
+EXPORT_SYMBOL(ib_umem_release);
+
+int ib_umem_page_count(struct ib_umem *umem)
+{
+	struct ib_umem_chunk *chunk;
+	int shift;
+	int i;
+	int n;
+
+	shift = ilog2(umem->page_size);
+
+	n = 0;
+	list_for_each_entry(chunk, &umem->chunk_list, list)
+		for (i = 0; i < chunk->nmap; ++i)
+			n += sg_dma_len(&chunk->page_list[i]) >> shift;
+
+	return n;
+}
+EXPORT_SYMBOL(ib_umem_page_count);
