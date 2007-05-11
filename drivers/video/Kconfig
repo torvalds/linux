@@ -1431,8 +1431,11 @@ config FB_ARK
 	  and ICS 5342 RAMDAC.
 
 config FB_PM3
-	tristate "Permedia3 support"
-	depends on FB && PCI && BROKEN
+	tristate "Permedia3 support (EXPERIMENTAL)"
+	depends on FB && PCI && EXPERIMENTAL
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
 	help
 	  This is the frame buffer device driver for the 3DLabs Permedia3
 	  chipset, used in Formac ProFormance III, 3DLabs Oxygen VX1 &
