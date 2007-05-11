@@ -502,6 +502,16 @@ config SIGNALFD
 
 	  If unsure, say Y.
 
+config TIMERFD
+	bool "Enable timerfd() system call" if EMBEDDED
+	depends on ANON_INODES
+	default y
+	help
+	  Enable the timerfd() system call that allows to receive timer
+	  events on a file descriptor.
+
+	  If unsure, say Y.
+
 config SHMEM
 	bool "Use full shmem filesystem" if EMBEDDED
 	default y
