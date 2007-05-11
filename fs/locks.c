@@ -1600,8 +1600,7 @@ asmlinkage long sys_flock(unsigned int fd, unsigned int cmd)
 /**
  * vfs_test_lock - test file byte range lock
  * @filp: The file to test lock for
- * @fl: The lock to test
- * @conf: Place to return a copy of the conflicting lock, if found
+ * @fl: The lock to test; also used to hold result
  *
  * Returns -ERRNO on failure.  Indicates presence of conflicting lock by
  * setting conf->fl_type to something other than F_UNLCK.
