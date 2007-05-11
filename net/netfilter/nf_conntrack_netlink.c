@@ -830,11 +830,6 @@ ctnetlink_change_helper(struct nf_conn *ct, struct nfattr *cda[])
 	char *helpname;
 	int err;
 
-	if (!help) {
-		/* FIXME: we need to reallocate and rehash */
-		return -EBUSY;
-	}
-
 	/* don't change helper of sibling connections */
 	if (ct->master)
 		return -EINVAL;
@@ -843,25 +838,34 @@ ctnetlink_change_helper(struct nf_conn *ct, struct nfattr *cda[])
 	if (err < 0)
 		return err;
 
-	helper = __nf_conntrack_helper_find_byname(helpname);
-	if (!helper) {
-		if (!strcmp(helpname, ""))
-			helper = NULL;
-		else
-			return -EINVAL;
-	}
-
-	if (help->helper) {
-		if (!helper) {
+	if (!strcmp(helpname, "")) {
+		if (help && help->helper) {
 			/* we had a helper before ... */
 			nf_ct_remove_expectations(ct);
 			help->helper = NULL;
-		} else {
-			/* need to zero data of old helper */
-			memset(&help->help, 0, sizeof(help->help));
 		}
+
+		return 0;
 	}
 
+	if (!help) {
+		/* FIXME: we need to reallocate and rehash */
+		return -EBUSY;
+	}
+
+	helper = __nf_conntrack_helper_find_byname(helpname);
+	if (helper == NULL)
+		return -EINVAL;
+
+	if (help->helper == helper)
+		return 0;
+
+	if (help->helper)
+		/* we had a helper before ... */
+		nf_ct_remove_expectations(ct);
+
+	/* need to zero data of old helper */
+	memset(&help->help, 0, sizeof(help->help));
 	help->helper = helper;
 
 	return 0;

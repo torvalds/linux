@@ -71,12 +71,9 @@ void qdisc_unlock_tree(struct net_device *dev)
 
 
 /* Kick device.
-   Note, that this procedure can be called by a watchdog timer, so that
-   we do not check dev->tbusy flag here.
 
-   Returns:  0  - queue is empty.
-	    >0  - queue is not empty, but throttled.
-	    <0  - queue is not empty. Device is throttled, if dev->tbusy != 0.
+   Returns:  0  - queue is empty or throttled.
+	    >0  - queue is not empty.
 
    NOTE: Called under dev->queue_lock with locally disabled BH.
 */
@@ -115,7 +112,7 @@ static inline int qdisc_restart(struct net_device *dev)
 					kfree_skb(skb);
 					if (net_ratelimit())
 						printk(KERN_DEBUG "Dead loop on netdevice %s, fix it urgently!\n", dev->name);
-					return -1;
+					goto out;
 				}
 				__get_cpu_var(netdev_rx_stat).cpu_collision++;
 				goto requeue;
@@ -135,10 +132,12 @@ static inline int qdisc_restart(struct net_device *dev)
 						netif_tx_unlock(dev);
 					}
 					spin_lock(&dev->queue_lock);
-					return -1;
+					q = dev->qdisc;
+					goto out;
 				}
 				if (ret == NETDEV_TX_LOCKED && nolock) {
 					spin_lock(&dev->queue_lock);
+					q = dev->qdisc;
 					goto collision;
 				}
 			}
@@ -163,26 +162,28 @@ static inline int qdisc_restart(struct net_device *dev)
 		 */
 
 requeue:
-		if (skb->next)
+		if (unlikely(q == &noop_qdisc))
+			kfree_skb(skb);
+		else if (skb->next)
 			dev->gso_skb = skb;
 		else
 			q->ops->requeue(skb, q);
 		netif_schedule(dev);
-		return 1;
+		return 0;
 	}
+
+out:
 	BUG_ON((int) q->q.qlen < 0);
 	return q->q.qlen;
 }
 
 void __qdisc_run(struct net_device *dev)
 {
-	if (unlikely(dev->qdisc == &noop_qdisc))
-		goto out;
+	do {
+		if (!qdisc_restart(dev))
+			break;
+	} while (!netif_queue_stopped(dev));
 
-	while (qdisc_restart(dev) < 0 && !netif_queue_stopped(dev))
-		/* NOTHING */;
-
-out:
 	clear_bit(__LINK_STATE_QDISC_RUNNING, &dev->state);
 }
 
@@ -544,6 +545,7 @@ void dev_activate(struct net_device *dev)
 void dev_deactivate(struct net_device *dev)
 {
 	struct Qdisc *qdisc;
+	struct sk_buff *skb;
 
 	spin_lock_bh(&dev->queue_lock);
 	qdisc = dev->qdisc;
@@ -551,7 +553,11 @@ void dev_deactivate(struct net_device *dev)
 
 	qdisc_reset(qdisc);
 
+	skb = dev->gso_skb;
+	dev->gso_skb = NULL;
 	spin_unlock_bh(&dev->queue_lock);
+
+	kfree_skb(skb);
 
 	dev_watchdog_down(dev);
 
@@ -561,11 +567,6 @@ void dev_deactivate(struct net_device *dev)
 	/* Wait for outstanding qdisc_run calls. */
 	while (test_bit(__LINK_STATE_QDISC_RUNNING, &dev->state))
 		yield();
-
-	if (dev->gso_skb) {
-		kfree_skb(dev->gso_skb);
-		dev->gso_skb = NULL;
-	}
 }
 
 void dev_init_scheduler(struct net_device *dev)

@@ -80,7 +80,6 @@ nf_nat_fn(unsigned int hooknum,
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn_nat *nat;
-	struct nf_nat_info *info;
 	/* maniptype == SRC for postrouting. */
 	enum nf_nat_manip_type maniptype = HOOK2MANIP(hooknum);
 
@@ -129,7 +128,6 @@ nf_nat_fn(unsigned int hooknum,
 		}
 		/* Fall thru... (Only ICMPs can be IP_CT_IS_REPLY) */
 	case IP_CT_NEW:
-		info = &nat->info;
 
 		/* Seen it before?  This can happen for loopback, retrans,
 		   or local packets.. */
@@ -138,14 +136,13 @@ nf_nat_fn(unsigned int hooknum,
 
 			if (unlikely(nf_ct_is_confirmed(ct)))
 				/* NAT module was loaded late */
-				ret = alloc_null_binding_confirmed(ct, info,
-								   hooknum);
+				ret = alloc_null_binding_confirmed(ct, hooknum);
 			else if (hooknum == NF_IP_LOCAL_IN)
 				/* LOCAL_IN hook doesn't have a chain!  */
-				ret = alloc_null_binding(ct, info, hooknum);
+				ret = alloc_null_binding(ct, hooknum);
 			else
 				ret = nf_nat_rule_find(pskb, hooknum, in, out,
-						       ct, info);
+						       ct);
 
 			if (ret != NF_ACCEPT) {
 				return ret;
@@ -160,10 +157,8 @@ nf_nat_fn(unsigned int hooknum,
 		/* ESTABLISHED */
 		NF_CT_ASSERT(ctinfo == IP_CT_ESTABLISHED ||
 			     ctinfo == (IP_CT_ESTABLISHED+IP_CT_IS_REPLY));
-		info = &nat->info;
 	}
 
-	NF_CT_ASSERT(info);
 	return nf_nat_packet(ct, ctinfo, hooknum, pskb);
 }
 

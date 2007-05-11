@@ -54,6 +54,14 @@ struct xt_entry_target
 	unsigned char data[0];
 };
 
+#define XT_TARGET_INIT(__name, __size)					       \
+{									       \
+	.target.u.user = {						       \
+		.target_size	= XT_ALIGN(__size),			       \
+		.name		= __name,				       \
+	},								       \
+}
+
 struct xt_standard_target
 {
 	struct xt_entry_target target;

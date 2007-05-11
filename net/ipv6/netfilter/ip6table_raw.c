@@ -35,56 +35,10 @@ static struct
 		},
 	},
 	.entries = {
-		/* PRE_ROUTING */
-		{
-			.entry = {
-				.target_offset = sizeof(struct ip6t_entry),
-				.next_offset = sizeof(struct ip6t_standard),
-			},
-			.target = {
-				.target = {
-					.u = {
-						.target_size = IP6T_ALIGN(sizeof(struct ip6t_standard_target)),
-					},
-				},
-				.verdict = -NF_ACCEPT - 1,
-			},
-		},
-
-		/* LOCAL_OUT */
-		{
-			.entry = {
-				.target_offset = sizeof(struct ip6t_entry),
-				.next_offset = sizeof(struct ip6t_standard),
-			},
-			.target = {
-				.target = {
-					.u = {
-						.target_size = IP6T_ALIGN(sizeof(struct ip6t_standard_target)),
-					},
-				},
-				.verdict = -NF_ACCEPT - 1,
-			},
-		},
+		IP6T_STANDARD_INIT(NF_ACCEPT),	/* PRE_ROUTING */
+		IP6T_STANDARD_INIT(NF_ACCEPT),	/* LOCAL_OUT */
 	},
-	/* ERROR */
-	.term = {
-		.entry = {
-			.target_offset = sizeof(struct ip6t_entry),
-			.next_offset = sizeof(struct ip6t_error),
-		},
-		.target = {
-			.target = {
-				.u = {
-					.user = {
-						.target_size = IP6T_ALIGN(sizeof(struct ip6t_error_target)),
-						.name = IP6T_ERROR_TARGET,
-					},
-				},
-			},
-			.errorname = "ERROR",
-		},
-	}
+	.term = IP6T_ERROR_INIT,		/* ERROR */
 };
 
 static struct xt_table packet_raw = {

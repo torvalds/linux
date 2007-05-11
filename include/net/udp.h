@@ -119,9 +119,16 @@ static inline void udp_lib_close(struct sock *sk, long timeout)
 }
 
 
+struct udp_get_port_ops {
+	int (*saddr_cmp)(const struct sock *sk1, const struct sock *sk2);
+	int (*saddr_any)(const struct sock *sk);
+	unsigned int (*hash_port_and_rcv_saddr)(__u16 port,
+						const struct sock *sk);
+};
+
 /* net/ipv4/udp.c */
 extern int	udp_get_port(struct sock *sk, unsigned short snum,
-			     int (*saddr_cmp)(const struct sock *, const struct sock *));
+			     const struct udp_get_port_ops *ops);
 extern void	udp_err(struct sk_buff *, u32);
 
 extern int	udp_sendmsg(struct kiocb *iocb, struct sock *sk,

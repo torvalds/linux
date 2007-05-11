@@ -46,77 +46,20 @@ static struct
 		.hook_entry = {
 			[NF_IP_PRE_ROUTING] = 0,
 			[NF_IP_POST_ROUTING] = sizeof(struct ipt_standard),
-			[NF_IP_LOCAL_OUT] = sizeof(struct ipt_standard) * 2 },
+			[NF_IP_LOCAL_OUT] = sizeof(struct ipt_standard) * 2
+		},
 		.underflow = {
 			[NF_IP_PRE_ROUTING] = 0,
 			[NF_IP_POST_ROUTING] = sizeof(struct ipt_standard),
-			[NF_IP_LOCAL_OUT] = sizeof(struct ipt_standard) * 2 },
+			[NF_IP_LOCAL_OUT] = sizeof(struct ipt_standard) * 2
+		},
 	},
 	.entries = {
-		/* PRE_ROUTING */
-		{
-			.entry = {
-				.target_offset = sizeof(struct ipt_entry),
-				.next_offset = sizeof(struct ipt_standard),
-			},
-			.target = {
-				.target = {
-					.u = {
-						.target_size = IPT_ALIGN(sizeof(struct ipt_standard_target)),
-					},
-				},
-				.verdict = -NF_ACCEPT - 1,
-			},
-		},
-		/* POST_ROUTING */
-		{
-			.entry = {
-				.target_offset = sizeof(struct ipt_entry),
-				.next_offset = sizeof(struct ipt_standard),
-			},
-			.target = {
-				.target = {
-					.u = {
-						.target_size = IPT_ALIGN(sizeof(struct ipt_standard_target)),
-					},
-				},
-				.verdict = -NF_ACCEPT - 1,
-			},
-		},
-		/* LOCAL_OUT */
-		{
-			.entry = {
-				.target_offset = sizeof(struct ipt_entry),
-				.next_offset = sizeof(struct ipt_standard),
-			},
-			.target = {
-				.target = {
-					.u = {
-						.target_size = IPT_ALIGN(sizeof(struct ipt_standard_target)),
-					},
-				},
-				.verdict = -NF_ACCEPT - 1,
-			},
-		},
+		IPT_STANDARD_INIT(NF_ACCEPT),	/* PRE_ROUTING */
+		IPT_STANDARD_INIT(NF_ACCEPT),	/* POST_ROUTING */
+		IPT_STANDARD_INIT(NF_ACCEPT),	/* LOCAL_OUT */
 	},
-	/* ERROR */
-	.term = {
-		.entry = {
-			.target_offset = sizeof(struct ipt_entry),
-			.next_offset = sizeof(struct ipt_error),
-		},
-		.target = {
-			.target = {
-				.u = {
-					.user = {
-						.target_size = IPT_ALIGN(sizeof(struct ipt_error_target)),
-						.name = IPT_ERROR_TARGET,
-					},
-				},
-			},
-			.errorname = "ERROR",
-		},
-	}
+	.term = IPT_ERROR_INIT,			/* ERROR */
 };
 
 static struct xt_table nat_table = {
@@ -230,9 +173,7 @@ static int ipt_dnat_checkentry(const char *tablename,
 }
 
 inline unsigned int
-alloc_null_binding(struct nf_conn *ct,
-		   struct nf_nat_info *info,
-		   unsigned int hooknum)
+alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 {
 	/* Force range to this IP; let proto decide mapping for
 	   per-proto parts (hence not IP_NAT_RANGE_PROTO_SPECIFIED).
@@ -251,9 +192,7 @@ alloc_null_binding(struct nf_conn *ct,
 }
 
 unsigned int
-alloc_null_binding_confirmed(struct nf_conn *ct,
-			     struct nf_nat_info *info,
-			     unsigned int hooknum)
+alloc_null_binding_confirmed(struct nf_conn *ct, unsigned int hooknum)
 {
 	__be32 ip
 		= (HOOK2MANIP(hooknum) == IP_NAT_MANIP_SRC
@@ -275,8 +214,7 @@ int nf_nat_rule_find(struct sk_buff **pskb,
 		     unsigned int hooknum,
 		     const struct net_device *in,
 		     const struct net_device *out,
-		     struct nf_conn *ct,
-		     struct nf_nat_info *info)
+		     struct nf_conn *ct)
 {
 	int ret;
 
@@ -285,7 +223,7 @@ int nf_nat_rule_find(struct sk_buff **pskb,
 	if (ret == NF_ACCEPT) {
 		if (!nf_nat_initialized(ct, HOOK2MANIP(hooknum)))
 			/* NUL mapping */
-			ret = alloc_null_binding(ct, info, hooknum);
+			ret = alloc_null_binding(ct, hooknum);
 	}
 	return ret;
 }

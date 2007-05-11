@@ -174,7 +174,7 @@ static inline int hidp_queue_event(struct hidp_session *session, struct input_de
 
 static int hidp_hidinput_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
-	struct hid_device *hid = dev->private;
+	struct hid_device *hid = input_get_drvdata(dev);
 	struct hidp_session *session = hid->driver_data;
 
 	return hidp_queue_event(session, dev, type, code, value);
@@ -182,7 +182,7 @@ static int hidp_hidinput_event(struct input_dev *dev, unsigned int type, unsigne
 
 static int hidp_input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
-	struct hidp_session *session = dev->private;
+	struct hidp_session *session = input_get_drvdata(dev);
 
 	return hidp_queue_event(session, dev, type, code, value);
 }
@@ -630,7 +630,7 @@ static inline void hidp_setup_input(struct hidp_session *session, struct hidp_co
 	struct input_dev *input = session->input;
 	int i;
 
-	input->private = session;
+	input_set_drvdata(input, session);
 
 	input->name = "Bluetooth HID Boot Protocol Device";
 
@@ -663,7 +663,7 @@ static inline void hidp_setup_input(struct hidp_session *session, struct hidp_co
 		input->relbit[0] |= BIT(REL_WHEEL);
 	}
 
-	input->cdev.dev = hidp_get_device(session);
+	input->dev.parent = hidp_get_device(session);
 
 	input->event = hidp_input_event;
 
@@ -864,7 +864,7 @@ failed:
 	if (session->hid)
 		hid_free_device(session->hid);
 
-	kfree(session->input);
+	input_free_device(session->input);
 	kfree(session);
 	return err;
 }

@@ -238,6 +238,47 @@ static __inline__ struct arpt_entry_target *arpt_get_target(struct arpt_entry *e
  */
 #ifdef __KERNEL__
 
+/* Standard entry. */
+struct arpt_standard
+{
+	struct arpt_entry entry;
+	struct arpt_standard_target target;
+};
+
+struct arpt_error_target
+{
+	struct arpt_entry_target target;
+	char errorname[ARPT_FUNCTION_MAXNAMELEN];
+};
+
+struct arpt_error
+{
+	struct arpt_entry entry;
+	struct arpt_error_target target;
+};
+
+#define ARPT_ENTRY_INIT(__size)						       \
+{									       \
+	.target_offset	= sizeof(struct arpt_entry),			       \
+	.next_offset	= (__size),					       \
+}
+
+#define ARPT_STANDARD_INIT(__verdict)					       \
+{									       \
+	.entry		= ARPT_ENTRY_INIT(sizeof(struct arpt_standard)),       \
+	.target		= XT_TARGET_INIT(ARPT_STANDARD_TARGET,		       \
+					 sizeof(struct arpt_standard_target)), \
+	.target.verdict	= -(__verdict) - 1,				       \
+}
+
+#define ARPT_ERROR_INIT							       \
+{									       \
+	.entry		= ARPT_ENTRY_INIT(sizeof(struct arpt_error)),	       \
+	.target		= XT_TARGET_INIT(ARPT_ERROR_TARGET,		       \
+					 sizeof(struct arpt_error_target)),    \
+	.target.errorname = "ERROR",					       \
+}
+
 #define arpt_register_target(tgt) 	\
 ({	(tgt)->family = NF_ARP;		\
  	xt_register_target(tgt); })
