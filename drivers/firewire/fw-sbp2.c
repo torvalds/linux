@@ -207,7 +207,6 @@ struct sbp2_command_orb {
 
 	struct sbp2_pointer page_table[SG_ALL];
 	dma_addr_t page_table_bus;
-	dma_addr_t request_buffer_bus;
 };
 
 /*
@@ -881,11 +880,6 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 	if (orb->page_table_bus != 0)
 		dma_unmap_single(device->card->device, orb->page_table_bus,
 				 sizeof(orb->page_table_bus), DMA_TO_DEVICE);
-
-	if (orb->request_buffer_bus != 0)
-		dma_unmap_single(device->card->device, orb->request_buffer_bus,
-				 sizeof(orb->request_buffer_bus),
-				 DMA_FROM_DEVICE);
 
 	orb->cmd->result = result;
 	orb->done(orb->cmd);
