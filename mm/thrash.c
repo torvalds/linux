@@ -48,9 +48,8 @@ void grab_swap_token(void)
 		if (current_interval < current->mm->last_interval)
 			current->mm->token_priority++;
 		else {
-			current->mm->token_priority--;
-			if (unlikely(current->mm->token_priority < 0))
-				current->mm->token_priority = 0;
+			if (likely(current->mm->token_priority > 0))
+				current->mm->token_priority--;
 		}
 		/* Check if we deserve the token */
 		if (current->mm->token_priority >
