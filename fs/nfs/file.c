@@ -402,7 +402,9 @@ static int do_getlk(struct file *filp, int cmd, struct file_lock *fl)
 
 	lock_kernel();
 	/* Try local locking first */
-	if (posix_test_lock(filp, fl)) {
+	posix_test_lock(filp, fl);
+	if (fl->fl_type != F_UNLCK) {
+		/* found a conflict */
 		goto out;
 	}
 

@@ -659,7 +659,7 @@ static int locks_block_on_timeout(struct file_lock *blocker, struct file_lock *w
 	return result;
 }
 
-int
+void
 posix_test_lock(struct file *filp, struct file_lock *fl)
 {
 	struct file_lock *cfl;
@@ -671,14 +671,12 @@ posix_test_lock(struct file *filp, struct file_lock *fl)
 		if (posix_locks_conflict(cfl, fl))
 			break;
 	}
-	if (cfl) {
+	if (cfl)
 		__locks_copy_lock(fl, cfl);
-		unlock_kernel();
-		return 1;
-	} else
+	else
 		fl->fl_type = F_UNLCK;
 	unlock_kernel();
-	return 0;
+	return;
 }
 
 EXPORT_SYMBOL(posix_test_lock);
