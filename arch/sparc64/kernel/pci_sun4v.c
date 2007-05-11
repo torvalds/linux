@@ -13,7 +13,6 @@
 #include <linux/irq.h>
 #include <linux/msi.h>
 
-#include <asm/pbm.h>
 #include <asm/iommu.h>
 #include <asm/irq.h>
 #include <asm/upa.h>
@@ -594,112 +593,15 @@ const struct pci_iommu_ops pci_sun4v_iommu_ops = {
 	.dma_sync_sg_for_cpu		= pci_4v_dma_sync_sg_for_cpu,
 };
 
-static inline int pci_sun4v_out_of_range(struct pci_pbm_info *pbm, unsigned int bus, unsigned int device, unsigned int func)
-{
-	if (bus < pbm->pci_first_busno ||
-	    bus > pbm->pci_last_busno)
-		return 1;
-	return 0;
-}
-
-static int pci_sun4v_read_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
-				  int where, int size, u32 *value)
-{
-	struct pci_pbm_info *pbm = bus_dev->sysdata;
-	u32 devhandle = pbm->devhandle;
-	unsigned int bus = bus_dev->number;
-	unsigned int device = PCI_SLOT(devfn);
-	unsigned int func = PCI_FUNC(devfn);
-	unsigned long ret;
-
-	if (bus_dev == pbm->pci_bus && devfn == 0x00)
-		return pci_host_bridge_read_pci_cfg(bus_dev, devfn, where,
-						    size, value);
-	if (pci_sun4v_out_of_range(pbm, bus, device, func)) {
-		ret = ~0UL;
-	} else {
-		ret = pci_sun4v_config_get(devhandle,
-				HV_PCI_DEVICE_BUILD(bus, device, func),
-				where, size);
-#if 0
-		printk("rcfg: [%x:%x:%x:%d]=[%lx]\n",
-		       devhandle, HV_PCI_DEVICE_BUILD(bus, device, func),
-		       where, size, ret);
-#endif
-	}
-	switch (size) {
-	case 1:
-		*value = ret & 0xff;
-		break;
-	case 2:
-		*value = ret & 0xffff;
-		break;
-	case 4:
-		*value = ret & 0xffffffff;
-		break;
-	};
-
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-static int pci_sun4v_write_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
-				   int where, int size, u32 value)
-{
-	struct pci_pbm_info *pbm = bus_dev->sysdata;
-	u32 devhandle = pbm->devhandle;
-	unsigned int bus = bus_dev->number;
-	unsigned int device = PCI_SLOT(devfn);
-	unsigned int func = PCI_FUNC(devfn);
-	unsigned long ret;
-
-	if (bus_dev == pbm->pci_bus && devfn == 0x00)
-		return pci_host_bridge_write_pci_cfg(bus_dev, devfn, where,
-						     size, value);
-	if (pci_sun4v_out_of_range(pbm, bus, device, func)) {
-		/* Do nothing. */
-	} else {
-		ret = pci_sun4v_config_put(devhandle,
-				HV_PCI_DEVICE_BUILD(bus, device, func),
-				where, size, value);
-#if 0
-		printk("wcfg: [%x:%x:%x:%d] v[%x] == [%lx]\n",
-		       devhandle, HV_PCI_DEVICE_BUILD(bus, device, func),
-		       where, size, value, ret);
-#endif
-	}
-	return PCIBIOS_SUCCESSFUL;
-}
-
-static struct pci_ops pci_sun4v_ops = {
-	.read =		pci_sun4v_read_pci_cfg,
-	.write =	pci_sun4v_write_pci_cfg,
-};
-
-
-static void pbm_scan_bus(struct pci_controller_info *p,
-			 struct pci_pbm_info *pbm)
-{
-	pbm->pci_bus = pci_scan_one_pbm(pbm);
-}
-
-static void pci_sun4v_scan_bus(struct pci_controller_info *p)
+static void pci_sun4v_scan_bus(struct pci_pbm_info *pbm)
 {
 	struct property *prop;
 	struct device_node *dp;
 
-	if ((dp = p->pbm_A.prom_node) != NULL) {
-		prop = of_find_property(dp, "66mhz-capable", NULL);
-		p->pbm_A.is_66mhz_capable = (prop != NULL);
-
-		pbm_scan_bus(p, &p->pbm_A);
-	}
-	if ((dp = p->pbm_B.prom_node) != NULL) {
-		prop = of_find_property(dp, "66mhz-capable", NULL);
-		p->pbm_B.is_66mhz_capable = (prop != NULL);
-
-		pbm_scan_bus(p, &p->pbm_B);
-	}
+	dp = pbm->prom_node;
+	prop = of_find_property(dp, "66mhz-capable", NULL);
+	pbm->is_66mhz_capable = (prop != NULL);
+	pbm->pci_bus = pci_scan_one_pbm(pbm);
 
 	/* XXX register error interrupt handlers XXX */
 }
@@ -800,20 +702,6 @@ static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 	if (sz)
 		printk("%s: Imported %lu TSB entries from OBP\n",
 		       pbm->name, sz);
-}
-
-static void pci_sun4v_get_bus_range(struct pci_pbm_info *pbm)
-{
-	struct property *prop;
-	unsigned int *busrange;
-
-	prop = of_find_property(pbm->prom_node, "bus-range", NULL);
-
-	busrange = prop->value;
-
-	pbm->pci_first_busno = busrange[0];
-	pbm->pci_last_busno = busrange[1];
-
 }
 
 #ifdef CONFIG_PCI_MSI
@@ -1019,6 +907,125 @@ h_error:
 	return -EINVAL;
 }
 
+
+static int alloc_msi(struct pci_pbm_info *pbm)
+{
+	int i;
+
+	for (i = 0; i < pbm->msi_num; i++) {
+		if (!test_and_set_bit(i, pbm->msi_bitmap))
+			return i + pbm->msi_first;
+	}
+
+	return -ENOENT;
+}
+
+static void free_msi(struct pci_pbm_info *pbm, int msi_num)
+{
+	msi_num -= pbm->msi_first;
+	clear_bit(msi_num, pbm->msi_bitmap);
+}
+
+static int pci_sun4v_setup_msi_irq(unsigned int *virt_irq_p,
+				   struct pci_dev *pdev,
+				   struct msi_desc *entry)
+{
+	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
+	unsigned long devino, msiqid;
+	struct msi_msg msg;
+	int msi_num, err;
+
+	*virt_irq_p = 0;
+
+	msi_num = alloc_msi(pbm);
+	if (msi_num < 0)
+		return msi_num;
+
+	devino = sun4v_build_msi(pbm->devhandle, virt_irq_p,
+				 pbm->msiq_first_devino,
+				 (pbm->msiq_first_devino +
+				  pbm->msiq_num));
+	err = -ENOMEM;
+	if (!devino)
+		goto out_err;
+
+	msiqid = ((devino - pbm->msiq_first_devino) +
+		  pbm->msiq_first);
+
+	err = -EINVAL;
+	if (pci_sun4v_msiq_setstate(pbm->devhandle, msiqid, HV_MSIQSTATE_IDLE))
+	if (err)
+		goto out_err;
+
+	if (pci_sun4v_msiq_setvalid(pbm->devhandle, msiqid, HV_MSIQ_VALID))
+		goto out_err;
+
+	if (pci_sun4v_msi_setmsiq(pbm->devhandle,
+				  msi_num, msiqid,
+				  (entry->msi_attrib.is_64 ?
+				   HV_MSITYPE_MSI64 : HV_MSITYPE_MSI32)))
+		goto out_err;
+
+	if (pci_sun4v_msi_setstate(pbm->devhandle, msi_num, HV_MSISTATE_IDLE))
+		goto out_err;
+
+	if (pci_sun4v_msi_setvalid(pbm->devhandle, msi_num, HV_MSIVALID_VALID))
+		goto out_err;
+
+	pdev->dev.archdata.msi_num = msi_num;
+
+	if (entry->msi_attrib.is_64) {
+		msg.address_hi = pbm->msi64_start >> 32;
+		msg.address_lo = pbm->msi64_start & 0xffffffff;
+	} else {
+		msg.address_hi = 0;
+		msg.address_lo = pbm->msi32_start;
+	}
+	msg.data = msi_num;
+
+	set_irq_msi(*virt_irq_p, entry);
+	write_msi_msg(*virt_irq_p, &msg);
+
+	irq_install_pre_handler(*virt_irq_p,
+				pci_sun4v_msi_prehandler,
+				pbm, (void *) msiqid);
+
+	return 0;
+
+out_err:
+	free_msi(pbm, msi_num);
+	sun4v_destroy_msi(*virt_irq_p);
+	*virt_irq_p = 0;
+	return err;
+
+}
+
+static void pci_sun4v_teardown_msi_irq(unsigned int virt_irq,
+				       struct pci_dev *pdev)
+{
+	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
+	unsigned long msiqid, err;
+	unsigned int msi_num;
+
+	msi_num = pdev->dev.archdata.msi_num;
+	err = pci_sun4v_msi_getmsiq(pbm->devhandle, msi_num, &msiqid);
+	if (err) {
+		printk(KERN_ERR "%s: getmsiq gives error %lu\n",
+		       pbm->name, err);
+		return;
+	}
+
+	pci_sun4v_msi_setvalid(pbm->devhandle, msi_num, HV_MSIVALID_INVALID);
+	pci_sun4v_msiq_setvalid(pbm->devhandle, msiqid, HV_MSIQ_INVALID);
+
+	free_msi(pbm, msi_num);
+
+	/* The sun4v_destroy_msi() will liberate the devino and thus the MSIQ
+	 * allocation.
+	 */
+	sun4v_destroy_msi(virt_irq);
+}
+
 static void pci_sun4v_msi_init(struct pci_pbm_info *pbm)
 {
 	const u32 *val;
@@ -1120,130 +1127,14 @@ static void pci_sun4v_msi_init(struct pci_pbm_info *pbm)
 		       pbm->name,
 		       pbm->msi_queues);
 	}
+	pbm->setup_msi_irq = pci_sun4v_setup_msi_irq;
+	pbm->teardown_msi_irq = pci_sun4v_teardown_msi_irq;
 
 	return;
 
 no_msi:
 	pbm->msiq_num = 0;
 	printk(KERN_INFO "%s: No MSI support.\n", pbm->name);
-}
-
-static int alloc_msi(struct pci_pbm_info *pbm)
-{
-	int i;
-
-	for (i = 0; i < pbm->msi_num; i++) {
-		if (!test_and_set_bit(i, pbm->msi_bitmap))
-			return i + pbm->msi_first;
-	}
-
-	return -ENOENT;
-}
-
-static void free_msi(struct pci_pbm_info *pbm, int msi_num)
-{
-	msi_num -= pbm->msi_first;
-	clear_bit(msi_num, pbm->msi_bitmap);
-}
-
-static int pci_sun4v_setup_msi_irq(unsigned int *virt_irq_p,
-				   struct pci_dev *pdev,
-				   struct msi_desc *entry)
-{
-	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	unsigned long devino, msiqid;
-	struct msi_msg msg;
-	int msi_num, err;
-
-	*virt_irq_p = 0;
-
-	msi_num = alloc_msi(pbm);
-	if (msi_num < 0)
-		return msi_num;
-
-	devino = sun4v_build_msi(pbm->devhandle, virt_irq_p,
-				 pbm->msiq_first_devino,
-				 (pbm->msiq_first_devino +
-				  pbm->msiq_num));
-	err = -ENOMEM;
-	if (!devino)
-		goto out_err;
-
-	set_irq_msi(*virt_irq_p, entry);
-
-	msiqid = ((devino - pbm->msiq_first_devino) +
-		  pbm->msiq_first);
-
-	err = -EINVAL;
-	if (pci_sun4v_msiq_setstate(pbm->devhandle, msiqid, HV_MSIQSTATE_IDLE))
-	if (err)
-		goto out_err;
-
-	if (pci_sun4v_msiq_setvalid(pbm->devhandle, msiqid, HV_MSIQ_VALID))
-		goto out_err;
-
-	if (pci_sun4v_msi_setmsiq(pbm->devhandle,
-				  msi_num, msiqid,
-				  (entry->msi_attrib.is_64 ?
-				   HV_MSITYPE_MSI64 : HV_MSITYPE_MSI32)))
-		goto out_err;
-
-	if (pci_sun4v_msi_setstate(pbm->devhandle, msi_num, HV_MSISTATE_IDLE))
-		goto out_err;
-
-	if (pci_sun4v_msi_setvalid(pbm->devhandle, msi_num, HV_MSIVALID_VALID))
-		goto out_err;
-
-	pdev->dev.archdata.msi_num = msi_num;
-
-	if (entry->msi_attrib.is_64) {
-		msg.address_hi = pbm->msi64_start >> 32;
-		msg.address_lo = pbm->msi64_start & 0xffffffff;
-	} else {
-		msg.address_hi = 0;
-		msg.address_lo = pbm->msi32_start;
-	}
-	msg.data = msi_num;
-	write_msi_msg(*virt_irq_p, &msg);
-
-	irq_install_pre_handler(*virt_irq_p,
-				pci_sun4v_msi_prehandler,
-				pbm, (void *) msiqid);
-
-	return 0;
-
-out_err:
-	free_msi(pbm, msi_num);
-	sun4v_destroy_msi(*virt_irq_p);
-	*virt_irq_p = 0;
-	return err;
-
-}
-
-static void pci_sun4v_teardown_msi_irq(unsigned int virt_irq,
-				       struct pci_dev *pdev)
-{
-	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	unsigned long msiqid, err;
-	unsigned int msi_num;
-
-	msi_num = pdev->dev.archdata.msi_num;
-	err = pci_sun4v_msi_getmsiq(pbm->devhandle, msi_num, &msiqid);
-	if (err) {
-		printk(KERN_ERR "%s: getmsiq gives error %lu\n",
-		       pbm->name, err);
-		return;
-	}
-
-	pci_sun4v_msi_setvalid(pbm->devhandle, msi_num, HV_MSIVALID_INVALID);
-	pci_sun4v_msiq_setvalid(pbm->devhandle, msiqid, HV_MSIQ_INVALID);
-
-	free_msi(pbm, msi_num);
-
-	/* The sun4v_destroy_msi() will liberate the devino and thus the MSIQ
-	 * allocation.
-	 */
-	sun4v_destroy_msi(virt_irq);
 }
 #else /* CONFIG_PCI_MSI */
 static void pci_sun4v_msi_init(struct pci_pbm_info *pbm)
@@ -1260,6 +1151,15 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 	else
 		pbm = &p->pbm_A;
 
+	pbm->next = pci_pbm_root;
+	pci_pbm_root = pbm;
+
+	pbm->scan_bus = pci_sun4v_scan_bus;
+	pbm->pci_ops = &sun4v_pci_ops;
+	pbm->config_space_reg_bits = 12;
+
+	pbm->index = pci_num_pbms++;
+
 	pbm->parent = p;
 	pbm->prom_node = dp;
 
@@ -1271,7 +1171,7 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 
 	pci_determine_mem_io_space(pbm);
 
-	pci_sun4v_get_bus_range(pbm);
+	pci_get_pbm_props(pbm);
 	pci_sun4v_iommu_init(pbm);
 	pci_sun4v_msi_init(pbm);
 }
@@ -1279,6 +1179,7 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 void sun4v_pci_init(struct device_node *dp, char *model_name)
 {
 	struct pci_controller_info *p;
+	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
 	struct property *prop;
 	struct linux_prom64_registers *regs;
@@ -1290,18 +1191,9 @@ void sun4v_pci_init(struct device_node *dp, char *model_name)
 
 	devhandle = (regs->phys_addr >> 32UL) & 0x0fffffff;
 
-	for (p = pci_controller_root; p; p = p->next) {
-		struct pci_pbm_info *pbm;
-
-		if (p->pbm_A.prom_node && p->pbm_B.prom_node)
-			continue;
-
-		pbm = (p->pbm_A.prom_node ?
-		       &p->pbm_A :
-		       &p->pbm_B);
-
+	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
 		if (pbm->devhandle == (devhandle ^ 0x40)) {
-			pci_sun4v_pbm_init(p, dp, devhandle);
+			pci_sun4v_pbm_init(pbm->parent, dp, devhandle);
 			return;
 		}
 	}
@@ -1330,18 +1222,6 @@ void sun4v_pci_init(struct device_node *dp, char *model_name)
 		goto fatal_memory_error;
 
 	p->pbm_B.iommu = iommu;
-
-	p->next = pci_controller_root;
-	pci_controller_root = p;
-
-	p->index = pci_num_controllers++;
-
-	p->scan_bus = pci_sun4v_scan_bus;
-#ifdef CONFIG_PCI_MSI
-	p->setup_msi_irq = pci_sun4v_setup_msi_irq;
-	p->teardown_msi_irq = pci_sun4v_teardown_msi_irq;
-#endif
-	p->pci_ops = &pci_sun4v_ops;
 
 	/* Like PSYCHO and SCHIZO we have a 2GB aligned area
 	 * for memory space.

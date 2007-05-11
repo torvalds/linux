@@ -109,7 +109,7 @@ void afs_clear_permits(struct afs_vnode *vnode)
 {
 	struct afs_permits *permits;
 
-	_enter("{%x}", vnode->fid.vnode);
+	_enter("{%x:%u}", vnode->fid.vid, vnode->fid.vnode);
 
 	mutex_lock(&vnode->permits_lock);
 	permits = vnode->permits;
@@ -132,7 +132,8 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key, long acl_order)
 	struct afs_vnode *auth_vnode;
 	int count, loop;
 
-	_enter("{%x},%x,%lx", vnode->fid.vnode, key_serial(key), acl_order);
+	_enter("{%x:%u},%x,%lx",
+	       vnode->fid.vid, vnode->fid.vnode, key_serial(key), acl_order);
 
 	auth_vnode = afs_get_auth_inode(vnode, key);
 	if (IS_ERR(auth_vnode)) {
@@ -220,7 +221,8 @@ static int afs_check_permit(struct afs_vnode *vnode, struct key *key,
 	bool valid;
 	int loop, ret;
 
-	_enter("");
+	_enter("{%x:%u},%x",
+	       vnode->fid.vid, vnode->fid.vnode, key_serial(key));
 
 	auth_vnode = afs_get_auth_inode(vnode, key);
 	if (IS_ERR(auth_vnode)) {
@@ -268,9 +270,9 @@ static int afs_check_permit(struct afs_vnode *vnode, struct key *key,
 			_leave(" = %d", ret);
 			return ret;
 		}
+		*_access = vnode->status.caller_access;
 	}
 
-	*_access = vnode->status.caller_access;
 	iput(&auth_vnode->vfs_inode);
 	_leave(" = 0 [access %x]", *_access);
 	return 0;
@@ -288,7 +290,7 @@ int afs_permission(struct inode *inode, int mask, struct nameidata *nd)
 	struct key *key;
 	int ret;
 
-	_enter("{{%x:%x},%lx},%x,",
+	_enter("{{%x:%u},%lx},%x,",
 	       vnode->fid.vid, vnode->fid.vnode, vnode->flags, mask);
 
 	key = afs_request_key(vnode->volume->cell);

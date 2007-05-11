@@ -446,7 +446,7 @@ void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, uns
 
 static int usb_hidinput_input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
-	struct hid_device *hid = dev->private;
+	struct hid_device *hid = input_get_drvdata(dev);
 	struct hid_field *field;
 	int offset;
 
@@ -626,14 +626,10 @@ static void hid_free_buffers(struct usb_device *dev, struct hid_device *hid)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
 
-	if (usbhid->inbuf)
-		usb_buffer_free(dev, usbhid->bufsize, usbhid->inbuf, usbhid->inbuf_dma);
-	if (usbhid->outbuf)
-		usb_buffer_free(dev, usbhid->bufsize, usbhid->outbuf, usbhid->outbuf_dma);
-	if (usbhid->cr)
-		usb_buffer_free(dev, sizeof(*(usbhid->cr)), usbhid->cr, usbhid->cr_dma);
-	if (usbhid->ctrlbuf)
-		usb_buffer_free(dev, usbhid->bufsize, usbhid->ctrlbuf, usbhid->ctrlbuf_dma);
+	usb_buffer_free(dev, usbhid->bufsize, usbhid->inbuf, usbhid->inbuf_dma);
+	usb_buffer_free(dev, usbhid->bufsize, usbhid->outbuf, usbhid->outbuf_dma);
+	usb_buffer_free(dev, sizeof(*(usbhid->cr)), usbhid->cr, usbhid->cr_dma);
+	usb_buffer_free(dev, usbhid->bufsize, usbhid->ctrlbuf, usbhid->ctrlbuf_dma);
 }
 
 /*
@@ -690,6 +686,30 @@ static void hid_fixup_logitech_descriptor(unsigned char *rdesc, int rsize)
 		rdesc[84] = rdesc[89] = 0x4d;
 		rdesc[85] = rdesc[90] = 0x10;
 	}
+}
+
+/*
+ * Some USB barcode readers from cypress have usage min and usage max in
+ * the wrong order
+ */
+static void hid_fixup_cypress_descriptor(unsigned char *rdesc, int rsize)
+{
+	short fixed = 0;
+	int i;
+
+	for (i = 0; i < rsize - 4; i++) {
+		if (rdesc[i] == 0x29 && rdesc [i+2] == 0x19) {
+			unsigned char tmp;
+
+			rdesc[i] = 0x19; rdesc[i+2] = 0x29;
+			tmp = rdesc[i+3];
+			rdesc[i+3] = rdesc[i+1];
+			rdesc[i+1] = tmp;
+		}
+	}
+
+	if (fixed)
+		info("Fixing up Cypress report descriptor");
 }
 
 static struct hid_device *usb_hid_configure(struct usb_interface *intf)
@@ -757,6 +777,9 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 
 	if (quirks & HID_QUIRK_LOGITECH_DESCRIPTOR)
 		hid_fixup_logitech_descriptor(rdesc, rsize);
+
+	if (quirks & HID_QUIRK_SWAPPED_MIN_MAX)
+		hid_fixup_cypress_descriptor(rdesc, rsize);
 
 #ifdef CONFIG_HID_DEBUG
 	printk(KERN_DEBUG __FILE__ ": report descriptor (size %u, read %d) = ", rsize, n);

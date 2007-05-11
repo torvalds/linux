@@ -261,10 +261,6 @@ static void i82875p_check(struct mem_ctl_info *mci)
 	i82875p_process_error_info(mci, &info, 1);
 }
 
-#ifdef CONFIG_PROC_FS
-extern int pci_proc_attach_device(struct pci_dev *);
-#endif
-
 /* Return 0 on success or 1 on failure. */
 static int i82875p_setup_overfl_dev(struct pci_dev *pdev,
 		struct pci_dev **ovrfl_pdev, void __iomem **ovrfl_window)
@@ -287,17 +283,12 @@ static int i82875p_setup_overfl_dev(struct pci_dev *pdev,
 
 		if (dev == NULL)
 			return 1;
+
+        	pci_bus_add_device(dev);
 	}
 
 	*ovrfl_pdev = dev;
 
-#ifdef CONFIG_PROC_FS
-	if ((dev->procent == NULL) && pci_proc_attach_device(dev)) {
-		i82875p_printk(KERN_ERR, "%s(): Failed to attach overflow "
-			       "device\n", __func__);
-		return 1;
-	}
-#endif  /* CONFIG_PROC_FS */
 	if (pci_enable_device(dev)) {
 		i82875p_printk(KERN_ERR, "%s(): Failed to enable overflow "
 			       "device\n", __func__);

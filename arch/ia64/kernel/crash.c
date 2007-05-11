@@ -16,8 +16,8 @@
 #include <linux/elfcore.h>
 #include <linux/sysctl.h>
 #include <linux/init.h>
+#include <linux/kdebug.h>
 
-#include <asm/kdebug.h>
 #include <asm/mca.h>
 
 int kdump_status[NR_CPUS];
@@ -74,7 +74,7 @@ crash_save_this_cpu(void)
 	buf = (u64 *) per_cpu_ptr(crash_notes, cpu);
 	if (!buf)
 		return;
-	buf = append_elf_note(buf, "CORE", NT_PRSTATUS, prstatus,
+	buf = append_elf_note(buf, KEXEC_CORE_NOTE_NAME, NT_PRSTATUS, prstatus,
 			sizeof(*prstatus));
 	final_note(buf);
 }

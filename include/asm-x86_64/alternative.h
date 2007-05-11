@@ -16,6 +16,7 @@ struct alt_instr {
 	u8  pad[5];
 };
 
+extern void alternative_instructions(void);
 extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 
 struct module;
@@ -102,6 +103,12 @@ static inline void alternatives_smp_switch(int smp) {}
 		      ".previous" : output : [feat] "i" (feature), ##input)
 
 /*
+ * use this macro(s) if you need more than one output parameter
+ * in alternative_io
+ */
+#define ASM_OUTPUT2(a, b) a, b
+
+/*
  * Alternative inline assembly for SMP.
  *
  * The LOCK_PREFIX macro defined here replaces the LOCK and
@@ -141,8 +148,8 @@ void apply_paravirt(struct paravirt_patch *start, struct paravirt_patch *end);
 static inline void
 apply_paravirt(struct paravirt_patch *start, struct paravirt_patch *end)
 {}
-#define __start_parainstructions NULL
-#define __stop_parainstructions NULL
+#define __parainstructions NULL
+#define __parainstructions_end NULL
 #endif
 
 #endif /* _X86_64_ALTERNATIVE_H */

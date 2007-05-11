@@ -992,21 +992,10 @@ static struct sctp_pf sctp_pf_inet6_specific = {
 	.af            = &sctp_ipv6_specific,
 };
 
-/* Initialize IPv6 support and register with inet6 stack.  */
+/* Initialize IPv6 support and register with socket layer.  */
 int sctp_v6_init(void)
 {
-	int rc = proto_register(&sctpv6_prot, 1);
-
-	if (rc)
-		goto out;
-	/* Register inet6 protocol. */
-	rc = -EAGAIN;
-	if (inet6_add_protocol(&sctpv6_protocol, IPPROTO_SCTP) < 0)
-		goto out_unregister_sctp_proto;
-
-	/* Add SCTPv6(UDP and TCP style) to inetsw6 linked list. */
-	inet6_register_protosw(&sctpv6_seqpacket_protosw);
-	inet6_register_protosw(&sctpv6_stream_protosw);
+	int rc;
 
 	/* Register the SCTP specific PF_INET6 functions. */
 	sctp_register_pf(&sctp_pf_inet6_specific, PF_INET6);
@@ -1014,23 +1003,41 @@ int sctp_v6_init(void)
 	/* Register the SCTP specific AF_INET6 functions. */
 	sctp_register_af(&sctp_ipv6_specific);
 
+	rc = proto_register(&sctpv6_prot, 1);
+	if (rc)
+		return rc;
+
+	/* Add SCTPv6(UDP and TCP style) to inetsw6 linked list. */
+	inet6_register_protosw(&sctpv6_seqpacket_protosw);
+	inet6_register_protosw(&sctpv6_stream_protosw);
+
+	return 0;
+}
+
+/* Register with inet6 layer. */
+int sctp_v6_add_protocol(void)
+{
 	/* Register notifier for inet6 address additions/deletions. */
 	register_inet6addr_notifier(&sctp_inet6addr_notifier);
-	rc = 0;
-out:
-	return rc;
-out_unregister_sctp_proto:
-	proto_unregister(&sctpv6_prot);
-	goto out;
+
+	if (inet6_add_protocol(&sctpv6_protocol, IPPROTO_SCTP) < 0)
+		return -EAGAIN;
+
+	return 0;
 }
 
 /* IPv6 specific exit support. */
 void sctp_v6_exit(void)
 {
-	list_del(&sctp_ipv6_specific.list);
-	inet6_del_protocol(&sctpv6_protocol, IPPROTO_SCTP);
 	inet6_unregister_protosw(&sctpv6_seqpacket_protosw);
 	inet6_unregister_protosw(&sctpv6_stream_protosw);
-	unregister_inet6addr_notifier(&sctp_inet6addr_notifier);
 	proto_unregister(&sctpv6_prot);
+	list_del(&sctp_ipv6_specific.list);
+}
+
+/* Unregister with inet6 layer. */
+void sctp_v6_del_protocol(void)
+{
+	inet6_del_protocol(&sctpv6_protocol, IPPROTO_SCTP);
+	unregister_inet6addr_notifier(&sctp_inet6addr_notifier);
 }

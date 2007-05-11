@@ -6,6 +6,14 @@ be removed from this file.
 
 ---------------------------
 
+What:	MXSER
+When:	December 2007
+Why:	Old mxser driver is obsoleted by the mxser_new. Give it some time yet
+	and remove it.
+Who:	Jiri Slaby <jirislaby@gmail.com>
+
+---------------------------
+
 What:	V4L2 VIDIOC_G_MPEGCOMP and VIDIOC_S_MPEGCOMP
 When:	October 2007
 Why:	Broken attempt to set MPEG compression parameters. These ioctls are
@@ -48,6 +56,15 @@ Why:	Deprecated in favour of the more efficient and robust rawiso interface.
 	(raw1394_iso_write, raw1394_start_iso_write, raw1394_start_iso_rcv,
 	raw1394_stop_iso_rcv) or bypass	libraw1394.
 Who:	Dan Dennedy <dan@dennedy.org>, Stefan Richter <stefanr@s5r6.in-berlin.de>
+
+---------------------------
+
+What:	old NCR53C9x driver
+When:	October 2007
+Why:	Replaced by the much better esp_scsi driver.  Actual low-level
+	driver can ported over almost trivially.
+Who:	David Miller <davem@davemloft.net>
+	Christoph Hellwig <hch@lst.de>
 
 ---------------------------
 
@@ -117,25 +134,6 @@ Who:   Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	pci_module_init(driver)
-When:	January 2007
-Why:	Is replaced by pci_register_driver(pci_driver).
-Who:	Richard Knutsson <ricknu-0@student.ltu.se> and Greg Kroah-Hartman <gregkh@suse.de>
-
----------------------------
-
-What:	Usage of invalid timevals in setitimer
-When:	March 2007
-Why:	POSIX requires to validate timevals in the setitimer call. This
-	was never done by Linux. The invalid (e.g. negative timevals) were
-	silently converted to more or less random timeouts and intervals.
-	Until the removal a per boot limited number of warnings is printed
-	and the timevals are sanitized.
-
-Who:	Thomas Gleixner <tglx@linutronix.de>
-
----------------------------
-
 What:	Unused EXPORT_SYMBOL/EXPORT_SYMBOL_GPL exports
 	(temporary transition config option provided until then)
 	The transition config option will also be removed at the same time.
@@ -163,7 +161,7 @@ Who:	Greg Kroah-Hartman <gregkh@suse.de>
 ---------------------------
 
 What:	Interrupt only SA_* flags
-When:	Januar 2007
+When:	September 2007
 Why:	The interrupt related SA_* flags are replaced by IRQF_* to move them
 	out of the signal namespace.
 
@@ -190,18 +188,10 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ---------------------------
 
-What:	i2c_adapter.dev
-	i2c_adapter.list
+What:	i2c_adapter.list
 When:	July 2007
-Why:	Superfluous, given i2c_adapter.class_dev:
-	  * The "dev" was a stand-in for the physical device node that legacy
-	    drivers would not have; but now it's almost always present.  Any
-	    remaining legacy drivers must upgrade (they now trigger warnings).
-	  * The "list" duplicates class device children.
-	The delay in removing this is so upgraded lm_sensors and libsensors
-	can get deployed.  (Removal causes minor changes in the sysfs layout,
-	notably the location of the adapter type name and parenting the i2c
-	client hardware directly from their controller.)
+Why:	Superfluous, this list duplicates the one maintained by the driver
+	core.
 Who:	Jean Delvare <khali@linux-fr.org>,
 	David Brownell <dbrownell@users.sourceforge.net>
 
@@ -306,3 +296,35 @@ Why:	Code was merged, then submitter immediately disappeared leaving
 Who:	David S. Miller <davem@davemloft.net>
 
 ---------------------------
+
+What:	read_dev_chars(), read_conf_data{,_lpm}() (s390 common I/O layer)
+When:	December 2007
+Why:	These functions are a leftover from 2.4 times. They have several
+	problems:
+	- Duplication of checks that are done in the device driver's
+	  interrupt handler
+	- common I/O layer can't do device specific error recovery
+	- device driver can't be notified for conditions happening during
+	  execution of the function
+	Device drivers should issue the read device characteristics and read
+	configuration data ccws and do the appropriate error handling
+	themselves.
+Who:	Cornelia Huck <cornelia.huck@de.ibm.com>
+
+---------------------------
+
+What:	i2c-ixp2000, i2c-ixp4xx and scx200_i2c drivers
+When:	September 2007
+Why:	Obsolete. The new i2c-gpio driver replaces all hardware-specific
+	I2C-over-GPIO drivers.
+Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------
+
+What:  drivers depending on OSS_OBSOLETE
+When:  options in 2.6.23, code in 2.6.25
+Why:   obsolete OSS drivers
+Who:   Adrian Bunk <bunk@stusta.de>
+
+---------------------------
+

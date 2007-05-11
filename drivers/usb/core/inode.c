@@ -36,7 +36,6 @@
 #include <linux/usb.h>
 #include <linux/namei.h>
 #include <linux/usbdevice_fs.h>
-#include <linux/smp_lock.h>
 #include <linux/parser.h>
 #include <linux/notifier.h>
 #include <asm/byteorder.h>

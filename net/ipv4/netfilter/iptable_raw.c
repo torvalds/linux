@@ -5,6 +5,7 @@
  */
 #include <linux/module.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
+#include <net/ip.h>
 
 #define RAW_VALID_HOOKS ((1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_LOCAL_OUT))
 
@@ -21,62 +22,18 @@ static struct
 		.size = sizeof(struct ipt_standard) * 2 + sizeof(struct ipt_error),
 		.hook_entry = {
 			[NF_IP_PRE_ROUTING] = 0,
-			[NF_IP_LOCAL_OUT] = sizeof(struct ipt_standard) },
+			[NF_IP_LOCAL_OUT] = sizeof(struct ipt_standard)
+		},
 		.underflow = {
 			[NF_IP_PRE_ROUTING] = 0,
-			[NF_IP_LOCAL_OUT]  = sizeof(struct ipt_standard) },
+			[NF_IP_LOCAL_OUT]  = sizeof(struct ipt_standard)
+		},
 	},
 	.entries = {
-	     /* PRE_ROUTING */
-	     {
-		     .entry = {
-			     .target_offset = sizeof(struct ipt_entry),
-			     .next_offset = sizeof(struct ipt_standard),
-		     },
-		     .target = {
-			  .target = {
-				  .u = {
-					  .target_size = IPT_ALIGN(sizeof(struct ipt_standard_target)),
-				  },
-			  },
-			  .verdict = -NF_ACCEPT - 1,
-		     },
-	     },
-
-	     /* LOCAL_OUT */
-	     {
-		     .entry = {
-			     .target_offset = sizeof(struct ipt_entry),
-			     .next_offset = sizeof(struct ipt_standard),
-		     },
-		     .target = {
-			     .target = {
-				     .u = {
-					     .target_size = IPT_ALIGN(sizeof(struct ipt_standard_target)),
-				     },
-			     },
-			     .verdict = -NF_ACCEPT - 1,
-		     },
-	     },
+		IPT_STANDARD_INIT(NF_ACCEPT),	/* PRE_ROUTING */
+		IPT_STANDARD_INIT(NF_ACCEPT),	/* LOCAL_OUT */
 	},
-	/* ERROR */
-	.term = {
-		.entry = {
-			.target_offset = sizeof(struct ipt_entry),
-			.next_offset = sizeof(struct ipt_error),
-		},
-		.target = {
-			.target = {
-				.u = {
-					.user = {
-						.target_size = IPT_ALIGN(sizeof(struct ipt_error_target)),
-						.name = IPT_ERROR_TARGET,
-					},
-				},
-			},
-			.errorname = "ERROR",
-		},
-	}
+	.term = IPT_ERROR_INIT,			/* ERROR */
 };
 
 static struct xt_table packet_raw = {
@@ -98,6 +55,24 @@ ipt_hook(unsigned int hook,
 	return ipt_do_table(pskb, hook, in, out, &packet_raw);
 }
 
+static unsigned int
+ipt_local_hook(unsigned int hook,
+	       struct sk_buff **pskb,
+	       const struct net_device *in,
+	       const struct net_device *out,
+	       int (*okfn)(struct sk_buff *))
+{
+	/* root is playing with raw sockets. */
+	if ((*pskb)->len < sizeof(struct iphdr) ||
+	    ip_hdrlen(*pskb) < sizeof(struct iphdr)) {
+		if (net_ratelimit())
+			printk("iptable_raw: ignoring short SOCK_RAW"
+			       "packet.\n");
+		return NF_ACCEPT;
+	}
+	return ipt_do_table(pskb, hook, in, out, &packet_raw);
+}
+
 /* 'raw' is the very first table. */
 static struct nf_hook_ops ipt_ops[] = {
 	{
@@ -108,7 +83,7 @@ static struct nf_hook_ops ipt_ops[] = {
 		.owner = THIS_MODULE,
 	},
 	{
-		.hook = ipt_hook,
+		.hook = ipt_local_hook,
 		.pf = PF_INET,
 		.hooknum = NF_IP_LOCAL_OUT,
 		.priority = NF_IP_PRI_RAW,

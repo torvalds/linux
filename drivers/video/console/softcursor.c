@@ -1,5 +1,5 @@
 /*
- * linux/drivers/video/softcursor.c
+ * linux/drivers/video/console/softcursor.c
  *
  * Generic software cursor for frame buffer devices
  *

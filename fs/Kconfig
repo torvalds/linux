@@ -314,7 +314,7 @@ config REISERFS_CHECK
 
 config REISERFS_PROC_INFO
 	bool "Stats in /proc/fs/reiserfs"
-	depends on REISERFS_FS
+	depends on REISERFS_FS && PROC_FS
 	help
 	  Create under /proc/fs/reiserfs a hierarchy of files, displaying
 	  various ReiserFS statistics and internal data at the expense of
@@ -723,10 +723,6 @@ config FAT_FS
 	  Linux box, say Y here, mount the floppy under Linux with an MSDOS
 	  file system and use GNU tar's M option. GNU tar is a program
 	  available for Unix and DOS ("man tar" or "info tar").
-
-	  It is now also becoming possible to read and write compressed FAT
-	  file systems; read <file:Documentation/filesystems/fat_cvf.txt> for
-	  details.
 
 	  The FAT support will enlarge your kernel by about 37 KB. If unsure,
 	  say Y.
@@ -1734,6 +1730,18 @@ config SUNRPC
 config SUNRPC_GSS
 	tristate
 
+config SUNRPC_BIND34
+	bool "Support for rpcbind versions 3 & 4 (EXPERIMENTAL)"
+	depends on SUNRPC && EXPERIMENTAL
+	help
+	  Provides kernel support for querying rpcbind servers via versions 3
+	  and 4 of the rpcbind protocol.  The kernel automatically falls back
+	  to version 2 if a remote rpcbind service does not support versions
+	  3 or 4.
+
+	  If unsure, say N to get traditional behavior (version 2 rpcbind
+	  requests only).
+
 config RPCSEC_GSS_KRB5
 	tristate "Secure RPC: Kerberos V mechanism (EXPERIMENTAL)"
 	depends on SUNRPC && EXPERIMENTAL
@@ -2020,7 +2028,6 @@ config AFS_FS
 	tristate "Andrew File System support (AFS) (EXPERIMENTAL)"
 	depends on INET && EXPERIMENTAL
 	select AF_RXRPC
-	select KEYS
 	help
 	  If you say Y here, you will get an experimental Andrew File System
 	  driver. It currently only supports unsecured read-only AFS access.

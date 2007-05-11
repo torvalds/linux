@@ -54,8 +54,8 @@ Accepted options:
 
 noaccel  - do not use acceleration engine. It is default.
 accel    - use acceleration engine. Not finished.
-vmode:x  - chooses PowerMacintosh video mode <x>. Depreciated.
-cmode:x  - chooses PowerMacintosh colour mode <x>. Depreciated.
+vmode:x  - chooses PowerMacintosh video mode <x>. Deprecated.
+cmode:x  - chooses PowerMacintosh colour mode <x>. Deprecated.
 <XxX@X>  - selects startup videomode. See modedb.txt for detailed
 	   explanation. Default is 640x480x8bpp.
 

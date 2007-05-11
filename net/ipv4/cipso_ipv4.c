@@ -629,7 +629,7 @@ doi_walk_return:
  * @domain: the domain to add
  *
  * Description:
- * Adds the @domain to the the DOI specified by @doi_def, this function
+ * Adds the @domain to the DOI specified by @doi_def, this function
  * should only be called by external functions (i.e. NetLabel).  This function
  * does allocate memory.  Returns zero on success, negative values on failure.
  *

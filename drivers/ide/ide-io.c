@@ -172,15 +172,6 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 
 	memset(args, 0, sizeof(*args));
 
-	if (drive->media != ide_disk) {
-		/*
-		 * skip idedisk_pm_restore_pio and idedisk_pm_idle for ATAPI
-		 * devices
-		 */
-		if (pm->pm_step == idedisk_pm_restore_pio)
-			pm->pm_step = ide_pm_restore_dma;
-	}
-
 	switch (pm->pm_step) {
 	case ide_pm_flush_cache:	/* Suspend step 1 (flush cache) */
 		if (drive->media != ide_disk)
@@ -207,7 +198,13 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 	case idedisk_pm_restore_pio:	/* Resume step 1 (restore PIO) */
 		if (drive->hwif->tuneproc != NULL)
 			drive->hwif->tuneproc(drive, 255);
-		ide_complete_power_step(drive, rq, 0, 0);
+		/*
+		 * skip idedisk_pm_idle for ATAPI devices
+		 */
+		if (drive->media != ide_disk)
+			pm->pm_step = ide_pm_restore_dma;
+		else
+			ide_complete_power_step(drive, rq, 0, 0);
 		return ide_stopped;
 
 	case idedisk_pm_idle:		/* Resume step 2 (idle) */

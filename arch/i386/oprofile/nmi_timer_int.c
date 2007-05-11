@@ -12,12 +12,11 @@
 #include <linux/errno.h>
 #include <linux/oprofile.h>
 #include <linux/rcupdate.h>
-
+#include <linux/kdebug.h>
 
 #include <asm/nmi.h>
 #include <asm/apic.h>
 #include <asm/ptrace.h>
-#include <asm/kdebug.h>
  
 static int profile_timer_exceptions_notify(struct notifier_block *self,
 					   unsigned long val, void *data)

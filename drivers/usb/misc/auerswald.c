@@ -1307,7 +1307,7 @@ static int auerswald_addservice (pauerswald_t cp, pauerscon_t scp)
 }
 
 
-/* remove a service from the the device
+/* remove a service from the device
    scp->id must be set! */
 static void auerswald_removeservice (pauerswald_t cp, pauerscon_t scp)
 {

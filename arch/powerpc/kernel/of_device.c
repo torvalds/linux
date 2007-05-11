@@ -27,7 +27,7 @@ const struct of_device_id *of_match_node(const struct of_device_id *matches,
 			match &= node->type
 				&& !strcmp(matches->type, node->type);
 		if (matches->compatible[0])
-			match &= device_is_compatible(node,
+			match &= of_device_is_compatible(node,
 						      matches->compatible);
 		if (match)
 			return matches;
@@ -120,8 +120,8 @@ void of_device_unregister(struct of_device *ofdev)
 }
 
 
-static ssize_t of_device_get_modalias(struct of_device *ofdev,
-					char *str, ssize_t len)
+ssize_t of_device_get_modalias(struct of_device *ofdev,
+				char *str, ssize_t len)
 {
 	const char *compat;
 	int cplen, i;
@@ -239,3 +239,4 @@ EXPORT_SYMBOL(of_dev_get);
 EXPORT_SYMBOL(of_dev_put);
 EXPORT_SYMBOL(of_release_dev);
 EXPORT_SYMBOL(of_device_uevent);
+EXPORT_SYMBOL(of_device_get_modalias);

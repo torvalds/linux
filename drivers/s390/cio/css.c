@@ -191,8 +191,7 @@ static int css_register_subchannel(struct subchannel *sch)
 	return ret;
 }
 
-int
-css_probe_device(struct subchannel_id schid)
+static int css_probe_device(struct subchannel_id schid)
 {
 	int ret;
 	struct subchannel *sch;

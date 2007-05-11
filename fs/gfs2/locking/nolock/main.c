@@ -13,7 +13,6 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/fs.h>
-#include <linux/smp_lock.h>
 #include <linux/lm_interface.h>
 
 struct nolock_lockspace {
@@ -164,13 +163,7 @@ static void nolock_unhold_lvb(void *lock, char *lvb)
 static int nolock_plock_get(void *lockspace, struct lm_lockname *name,
 			    struct file *file, struct file_lock *fl)
 {
-	struct file_lock tmp;
-	int ret;
-
-	ret = posix_test_lock(file, fl, &tmp);
-	fl->fl_type = F_UNLCK;
-	if (ret)
-		memcpy(fl, &tmp, sizeof(struct file_lock));
+	posix_test_lock(file, fl);
 
 	return 0;
 }

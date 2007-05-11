@@ -25,7 +25,6 @@
 #include "linux/console.h"
 #include "asm/irq.h"
 #include "asm/uaccess.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "kern.h"
 #include "mconsole.h"

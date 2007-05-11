@@ -1,7 +1,7 @@
 $Id: README.aha152x,v 1.2 1999/12/25 15:32:30 fischer Exp fischer $
 Adaptec AHA-1520/1522 SCSI driver for Linux (aha152x)
 
-Copyright 1993-1999 Jürgen Fischer <fischer@norbit.de>
+Copyright 1993-1999 JÃ¼rgen Fischer <fischer@norbit.de>
 TC1550 patches by Luuk van Dijk (ldz@xs4all.nl)
 
 

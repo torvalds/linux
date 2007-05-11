@@ -12,7 +12,6 @@
 #ifdef CONFIG_BLOCK
 
 struct writeback_control;
-typedef int (writepage_t)(struct page *page, struct writeback_control *wbc);
 
 int mpage_readpages(struct address_space *mapping, struct list_head *pages,
 				unsigned nr_pages, get_block_t get_block);

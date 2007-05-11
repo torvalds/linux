@@ -95,9 +95,11 @@
  * 1.24- Add general-purpose packet for manipulating scratch registers (r300)
  * 1.25- Add support for r200 vertex programs (R200_EMIT_VAP_PVS_CNTL,
  *       new packet type)
+ * 1.26- Add support for variable size PCI(E) gart aperture
+ * 1.27- Add support for IGP GART
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		25
+#define DRIVER_MINOR		27
 #define DRIVER_PATCHLEVEL	0
 
 /*
@@ -143,6 +145,7 @@ enum radeon_chip_flags {
 	RADEON_IS_PCIE = 0x00200000UL,
 	RADEON_NEW_MEMMAP = 0x00400000UL,
 	RADEON_IS_PCI = 0x00800000UL,
+	RADEON_IS_IGPGART = 0x01000000UL,
 };
 
 #define GET_RING_HEAD(dev_priv)	(dev_priv->writeback_works ? \
@@ -240,7 +243,6 @@ typedef struct drm_radeon_private {
 
 	int do_boxes;
 	int page_flipping;
-	int current_page;
 
 	u32 color_fmt;
 	unsigned int front_offset;
@@ -280,6 +282,7 @@ typedef struct drm_radeon_private {
 	struct radeon_virt_surface virt_surfaces[2 * RADEON_MAX_SURFACES];
 
 	unsigned long pcigart_offset;
+	unsigned int pcigart_offset_set;
 	drm_ati_pcigart_info gart_info;
 
 	u32 scratch_ages[5];
@@ -431,6 +434,15 @@ extern int r300_do_cp_cmdbuf(drm_device_t * dev, DRMFILE filp,
 #define RADEON_PCIE_TX_GART_START_HI	0x15
 #define RADEON_PCIE_TX_GART_END_LO	0x16
 #define RADEON_PCIE_TX_GART_END_HI	0x17
+
+#define RADEON_IGPGART_INDEX            0x168
+#define RADEON_IGPGART_DATA             0x16c
+#define RADEON_IGPGART_UNK_18           0x18
+#define RADEON_IGPGART_CTRL             0x2b
+#define RADEON_IGPGART_BASE_ADDR        0x2c
+#define RADEON_IGPGART_FLUSH            0x2e
+#define RADEON_IGPGART_ENABLE           0x38
+#define RADEON_IGPGART_UNK_39           0x39
 
 #define RADEON_MPP_TB_CONFIG		0x01c0
 #define RADEON_MEM_CNTL			0x0140
@@ -962,6 +974,14 @@ do {									\
 	RADEON_WRITE8( RADEON_CLOCK_CNTL_INDEX,				\
 		       ((addr) & 0x1f) | RADEON_PLL_WR_EN );		\
 	RADEON_WRITE( RADEON_CLOCK_CNTL_DATA, (val) );			\
+} while (0)
+
+#define RADEON_WRITE_IGPGART( addr, val )				\
+do {									\
+	RADEON_WRITE( RADEON_IGPGART_INDEX,				\
+			((addr) & 0x7f) | (1 << 8));			\
+	RADEON_WRITE( RADEON_IGPGART_DATA, (val) );			\
+	RADEON_WRITE( RADEON_IGPGART_INDEX, 0x7f );			\
 } while (0)
 
 #define RADEON_WRITE_PCIE( addr, val )					\

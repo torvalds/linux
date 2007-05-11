@@ -17,10 +17,10 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
-#include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <asm/ist.h>
+#include <asm/io.h>
 
 #include "speedstep-lib.h"
 

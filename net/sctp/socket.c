@@ -972,6 +972,7 @@ static int __sctp_connect(struct sock* sk,
 	int walk_size = 0;
 	union sctp_addr *sa_addr;
 	void *addr_buf;
+	unsigned short port;
 
 	sp = sctp_sk(sk);
 	ep = sp->ep;
@@ -992,6 +993,7 @@ static int __sctp_connect(struct sock* sk,
 	while (walk_size < addrs_size) {
 		sa_addr = (union sctp_addr *)addr_buf;
 		af = sctp_get_af_specific(sa_addr->sa.sa_family);
+		port = ntohs(sa_addr->v4.sin_port);
 
 		/* If the address family is not supported or if this address
 		 * causes the address buffer to overflow return EINVAL.
@@ -1003,6 +1005,12 @@ static int __sctp_connect(struct sock* sk,
 
 		err = sctp_verify_addr(sk, sa_addr, af->sockaddr_len);
 		if (err)
+			goto out_free;
+
+		/* Make sure the destination port is correctly set
+		 * in all addresses.
+		 */
+		if (asoc && asoc->peer.port && asoc->peer.port != port)
 			goto out_free;
 
 		memcpy(&to, sa_addr, af->sockaddr_len);
@@ -2578,7 +2586,7 @@ static int sctp_setsockopt_rtoinfo(struct sock *sk, char __user *optval, int opt
  *
  * 7.1.2 SCTP_ASSOCINFO
  *
- * This option is used to tune the the maximum retransmission attempts
+ * This option is used to tune the maximum retransmission attempts
  * of the association.
  * Returns an error if the new association retransmission value is
  * greater than the sum of the retransmission value  of the peer.
@@ -4156,6 +4164,7 @@ static int sctp_getsockopt_local_addrs_old(struct sock *sk, int len,
 	rwlock_t *addr_lock;
 	int err = 0;
 	void *addrs;
+	void *buf;
 	int bytes_copied = 0;
 
 	if (len != sizeof(struct sctp_getaddrs_old))
@@ -4209,13 +4218,14 @@ static int sctp_getsockopt_local_addrs_old(struct sock *sk, int len,
 		}
 	}
 
+	buf = addrs;
 	list_for_each(pos, &bp->address_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
 		memcpy(&temp, &addr->a, sizeof(temp));
 		sctp_get_pf_specific(sk->sk_family)->addr_v4map(sp, &temp);
 		addrlen = sctp_get_af_specific(temp.sa.sa_family)->sockaddr_len;
-		memcpy(addrs, &temp, addrlen);
-		to += addrlen;
+		memcpy(buf, &temp, addrlen);
+		buf += addrlen;
 		bytes_copied += addrlen;
 		cnt ++;
 		if (cnt >= getaddrs.addr_num) break;
@@ -4258,6 +4268,7 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
 	size_t space_left;
 	int bytes_copied = 0;
 	void *addrs;
+	void *buf;
 
 	if (len <= sizeof(struct sctp_getaddrs))
 		return -EINVAL;
@@ -4308,6 +4319,7 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
 		}
 	}
 
+	buf = addrs;
 	list_for_each(pos, &bp->address_list) {
 		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
 		memcpy(&temp, &addr->a, sizeof(temp));
@@ -4317,8 +4329,8 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
 			err =  -ENOMEM; /*fixme: right error?*/
 			goto error;
 		}
-		memcpy(addrs, &temp, addrlen);
-		to += addrlen;
+		memcpy(buf, &temp, addrlen);
+		buf += addrlen;
 		bytes_copied += addrlen;
 		cnt ++;
 		space_left -= addrlen;
@@ -4539,7 +4551,7 @@ static int sctp_getsockopt_rtoinfo(struct sock *sk, int len,
  *
  * 7.1.2 SCTP_ASSOCINFO
  *
- * This option is used to tune the the maximum retransmission attempts
+ * This option is used to tune the maximum retransmission attempts
  * of the association.
  * Returns an error if the new association retransmission value is
  * greater than the sum of the retransmission value  of the peer.
@@ -5012,7 +5024,8 @@ pp_found:
 		struct hlist_node *node;
 
 		SCTP_DEBUG_PRINTK("sctp_get_port() found a possible match\n");
-		if (pp->fastreuse && sk->sk_reuse)
+		if (pp->fastreuse && sk->sk_reuse &&
+			sk->sk_state != SCTP_SS_LISTENING)
 			goto success;
 
 		/* Run through the list of sockets bound to the port
@@ -5029,7 +5042,8 @@ pp_found:
 			struct sctp_endpoint *ep2;
 			ep2 = sctp_sk(sk2)->ep;
 
-			if (reuse && sk2->sk_reuse)
+			if (reuse && sk2->sk_reuse &&
+			    sk2->sk_state != SCTP_SS_LISTENING)
 				continue;
 
 			if (sctp_bind_addr_match(&ep2->base.bind_addr, addr,
@@ -5050,9 +5064,13 @@ pp_not_found:
 	 * if sk->sk_reuse is too (that is, if the caller requested
 	 * SO_REUSEADDR on this socket -sk-).
 	 */
-	if (hlist_empty(&pp->owner))
-		pp->fastreuse = sk->sk_reuse ? 1 : 0;
-	else if (pp->fastreuse && !sk->sk_reuse)
+	if (hlist_empty(&pp->owner)) {
+		if (sk->sk_reuse && sk->sk_state != SCTP_SS_LISTENING)
+			pp->fastreuse = 1;
+		else
+			pp->fastreuse = 0;
+	} else if (pp->fastreuse &&
+		(!sk->sk_reuse || sk->sk_state == SCTP_SS_LISTENING))
 		pp->fastreuse = 0;
 
 	/* We are set, so fill up all the data in the hash table
@@ -5060,8 +5078,8 @@ pp_not_found:
 	 * sockets FIXME: Blurry, NPI (ipg).
 	 */
 success:
-	inet_sk(sk)->num = snum;
 	if (!sctp_sk(sk)->bind_hash) {
+		inet_sk(sk)->num = snum;
 		sk_add_bind_node(sk, &pp->owner);
 		sctp_sk(sk)->bind_hash = pp;
 	}
@@ -5134,12 +5152,16 @@ SCTP_STATIC int sctp_seqpacket_listen(struct sock *sk, int backlog)
 	 * This is not currently spelled out in the SCTP sockets
 	 * extensions draft, but follows the practice as seen in TCP
 	 * sockets.
+	 *
+	 * Additionally, turn off fastreuse flag since we are not listening
 	 */
+	sk->sk_state = SCTP_SS_LISTENING;
 	if (!ep->base.bind_addr.port) {
 		if (sctp_autobind(sk))
 			return -EAGAIN;
-	}
-	sk->sk_state = SCTP_SS_LISTENING;
+	} else
+		sctp_sk(sk)->bind_hash->fastreuse = 0;
+
 	sctp_hash_endpoint(ep);
 	return 0;
 }
@@ -5177,11 +5199,13 @@ SCTP_STATIC int sctp_stream_listen(struct sock *sk, int backlog)
 	 * extensions draft, but follows the practice as seen in TCP
 	 * sockets.
 	 */
+	sk->sk_state = SCTP_SS_LISTENING;
 	if (!ep->base.bind_addr.port) {
 		if (sctp_autobind(sk))
 			return -EAGAIN;
-	}
-	sk->sk_state = SCTP_SS_LISTENING;
+	} else
+		sctp_sk(sk)->bind_hash->fastreuse = 0;
+
 	sk->sk_max_ack_backlog = backlog;
 	sctp_hash_endpoint(ep);
 	return 0;
@@ -5207,7 +5231,12 @@ int sctp_inet_listen(struct socket *sock, int backlog)
 	/* Allocate HMAC for generating cookie. */
 	if (sctp_hmac_alg) {
 		tfm = crypto_alloc_hash(sctp_hmac_alg, 0, CRYPTO_ALG_ASYNC);
-		if (!tfm) {
+		if (IS_ERR(tfm)) {
+			if (net_ratelimit()) {
+				printk(KERN_INFO
+				       "SCTP: failed to load transform for %s: %ld\n",
+					sctp_hmac_alg, PTR_ERR(tfm));
+			}
 			err = -ENOSYS;
 			goto out;
 		}

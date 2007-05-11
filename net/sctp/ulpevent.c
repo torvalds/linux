@@ -141,11 +141,6 @@ struct sctp_ulpevent  *sctp_ulpevent_make_assoc_change(
 	 * an ABORT, so we need to include it in the sac_info.
 	 */
 	if (chunk) {
-		/* sctp_inqu_pop() has allready pulled off the chunk
-		 * header.  We need to put it back temporarily
-		 */
-		skb_push(chunk->skb, sizeof(sctp_chunkhdr_t));
-
 		/* Copy the chunk data to a new skb and reserve enough
 		 * head room to use as notification.
 		 */
@@ -154,9 +149,6 @@ struct sctp_ulpevent  *sctp_ulpevent_make_assoc_change(
 
 		if (!skb)
 			goto fail;
-
-		/* put back the chunk header now that we have a copy */
-		skb_pull(chunk->skb, sizeof(sctp_chunkhdr_t));
 
 		/* Embed the event fields inside the cloned skb.  */
 		event = sctp_skb2event(skb);
@@ -168,7 +160,8 @@ struct sctp_ulpevent  *sctp_ulpevent_make_assoc_change(
 
 		/* Trim the buffer to the right length.  */
 		skb_trim(skb, sizeof(struct sctp_assoc_change) +
-			 ntohs(chunk->chunk_hdr->length));
+			 ntohs(chunk->chunk_hdr->length) -
+			 sizeof(sctp_chunkhdr_t));
 	} else {
 		event = sctp_ulpevent_new(sizeof(struct sctp_assoc_change),
 				  MSG_NOTIFICATION, gfp);

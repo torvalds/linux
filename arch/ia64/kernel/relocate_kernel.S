@@ -94,7 +94,7 @@ GLOBAL_ENTRY(relocate_new_kernel)
 4:
         srlz.i
         ;;
-	//purge TR entry for kernel text and data
+	// purge TR entry for kernel text and data
         movl r16=KERNEL_START
         mov r18=KERNEL_TR_PAGE_SHIFT<<2
         ;;
@@ -103,15 +103,6 @@ GLOBAL_ENTRY(relocate_new_kernel)
         ;;
         srlz.i
         ;;
-
-	// purge TR entry for percpu data
-        movl r16=PERCPU_ADDR
-        mov r18=PERCPU_PAGE_SHIFT<<2
-        ;;
-        ptr.d r16,r18
-        ;;
-        srlz.d
-	;;
 
         // purge TR entry for pal code
         mov r16=in3

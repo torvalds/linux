@@ -319,10 +319,9 @@ ch_readconfig(scsi_changer *ch)
 	int     result,id,lun,i;
 	u_int   elem;
 
-	buffer = kmalloc(512, GFP_KERNEL | GFP_DMA);
+	buffer = kzalloc(512, GFP_KERNEL | GFP_DMA);
 	if (!buffer)
 		return -ENOMEM;
-	memset(buffer,0,512);
 	
 	memset(cmd,0,sizeof(cmd));
 	cmd[0] = MODE_SENSE;
@@ -530,10 +529,9 @@ ch_set_voltag(scsi_changer *ch, u_int elem,
 	u_char  *buffer;
 	int result;
 
-	buffer = kmalloc(512, GFP_KERNEL);
+	buffer = kzalloc(512, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
-	memset(buffer,0,512);
 
 	dprintk("%s %s voltag: 0x%x => \"%s\"\n",
 		clear     ? "clear"     : "set",
@@ -922,11 +920,10 @@ static int ch_probe(struct device *dev)
 	if (sd->type != TYPE_MEDIUM_CHANGER)
 		return -ENODEV;
     
-	ch = kmalloc(sizeof(*ch), GFP_KERNEL);
+	ch = kzalloc(sizeof(*ch), GFP_KERNEL);
 	if (NULL == ch)
 		return -ENOMEM;
 
-	memset(ch,0,sizeof(*ch));
 	ch->minor = ch_devcount;
 	sprintf(ch->name,"ch%d",ch->minor);
 	mutex_init(&ch->lock);

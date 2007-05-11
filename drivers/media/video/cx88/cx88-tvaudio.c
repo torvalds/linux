@@ -43,14 +43,12 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/poll.h>
-#include <linux/pci.h>
 #include <linux/signal.h>
 #include <linux/ioport.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
 

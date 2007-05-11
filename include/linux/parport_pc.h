@@ -38,7 +38,6 @@ struct parport_pc_private {
 	/* buffer suitable for DMA, if DMA enabled */
 	char *dma_buf;
 	dma_addr_t dma_handle;
-	struct pci_dev *dev;
 	struct list_head list;
 	struct parport *port;
 };
@@ -232,7 +231,7 @@ extern int parport_pc_claim_resources(struct parport *p);
 extern struct parport *parport_pc_probe_port (unsigned long base,
 					      unsigned long base_hi,
 					      int irq, int dma,
-					      struct pci_dev *dev);
+					      struct device *dev);
 extern void parport_pc_unregister_port (struct parport *p);
 
 #endif

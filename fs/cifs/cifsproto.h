@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsproto.h
  *
- *   Copyright (c) International Business Machines  Corp., 2002,2006
+ *   Copyright (c) International Business Machines  Corp., 2002,2007
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -244,6 +244,11 @@ extern int SMBLegacyOpen(const int xid, struct cifsTconInfo *tcon,
 			const int access_flags, const int omode,
 			__u16 * netfid, int *pOplock, FILE_ALL_INFO *,
 			const struct nls_table *nls_codepage, int remap);
+extern int CIFSPOSIXCreate(const int xid, struct cifsTconInfo *tcon, 
+			u32 posix_flags, __u64 mode, __u16 * netfid,
+			FILE_UNIX_BASIC_INFO *pRetData,
+			__u32 *pOplock, const char *name,
+			const struct nls_table *nls_codepage, int remap);			
 extern int CIFSSMBClose(const int xid, struct cifsTconInfo *tcon,
 			const int smb_file_id);
 

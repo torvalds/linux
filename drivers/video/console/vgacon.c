@@ -86,8 +86,6 @@ static int vgacon_set_origin(struct vc_data *c);
 static void vgacon_save_screen(struct vc_data *c);
 static int vgacon_scroll(struct vc_data *c, int t, int b, int dir,
 			 int lines);
-static u8 vgacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
-			    u8 blink, u8 underline, u8 reverse);
 static void vgacon_invert_region(struct vc_data *c, u16 * p, int count);
 static unsigned long vgacon_uni_pagedir[2];
 
@@ -371,7 +369,8 @@ static const char *vgacon_startup(void)
 	}
 
 	/* VGA16 modes are not handled by VGACON */
-	if ((ORIG_VIDEO_MODE == 0x0D) ||	/* 320x200/4 */
+	if ((ORIG_VIDEO_MODE == 0x00) ||	/* SCREEN_INFO not initialized */
+	    (ORIG_VIDEO_MODE == 0x0D) ||	/* 320x200/4 */
 	    (ORIG_VIDEO_MODE == 0x0E) ||	/* 640x200/4 */
 	    (ORIG_VIDEO_MODE == 0x10) ||	/* 640x350/4 */
 	    (ORIG_VIDEO_MODE == 0x12) ||	/* 640x480/4 */
@@ -577,12 +576,14 @@ static void vgacon_deinit(struct vc_data *c)
 }
 
 static u8 vgacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
-			    u8 blink, u8 underline, u8 reverse)
+			    u8 blink, u8 underline, u8 reverse, u8 italic)
 {
 	u8 attr = color;
 
 	if (vga_can_do_color) {
-		if (underline)
+		if (italic)
+			attr = (attr & 0xF0) | c->vc_itcolor;
+		else if (underline)
 			attr = (attr & 0xf0) | c->vc_ulcolor;
 		else if (intensity == 0)
 			attr = (attr & 0xf0) | c->vc_halfcolor;
@@ -596,7 +597,9 @@ static u8 vgacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
 	if (intensity == 2)
 		attr ^= 0x08;
 	if (!vga_can_do_color) {
-		if (underline)
+		if (italic)
+			attr = (attr & 0xF8) | 0x02;
+		else if (underline)
 			attr = (attr & 0xf8) | 0x01;
 		else if (intensity == 0)
 			attr = (attr & 0xf0) | 0x08;
@@ -657,6 +660,9 @@ static void vgacon_set_cursor_size(int xpos, int from, int to)
 
 static void vgacon_cursor(struct vc_data *c, int mode)
 {
+	if (c->vc_mode != KD_TEXT)
+		return;
+
 	vgacon_restore_screen(c);
 
 	switch (mode) {
@@ -1315,7 +1321,7 @@ static int vgacon_scroll(struct vc_data *c, int t, int b, int dir,
 	unsigned long oldo;
 	unsigned int delta;
 
-	if (t || b != c->vc_rows || vga_is_gfx)
+	if (t || b != c->vc_rows || vga_is_gfx || c->vc_mode != KD_TEXT)
 		return 0;
 
 	if (!vga_hardscroll_enabled || lines >= c->vc_rows / 2)

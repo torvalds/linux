@@ -5,7 +5,7 @@
  *  SuperH version: Copyright (C) 1999 Niibe Yutaka
  *                  Copyright (C) 2000 Philipp Rumpf
  *                  Copyright (C) 2000 David Howells
- *                  Copyright (C) 2002 - 2006 Paul Mundt
+ *                  Copyright (C) 2002 - 2007 Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -18,7 +18,9 @@
 #include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/io.h>
+#include <linux/bug.h>
 #include <linux/debug_locks.h>
+#include <linux/kdebug.h>
 #include <linux/limits.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -74,7 +76,7 @@ static void dump_mem(const char *str, unsigned long bottom, unsigned long top)
 	}
 }
 
-DEFINE_SPINLOCK(die_lock);
+static DEFINE_SPINLOCK(die_lock);
 
 void die(const char * str, struct pt_regs * regs, long err)
 {
@@ -129,40 +131,6 @@ static int die_if_no_fixup(const char * str, struct pt_regs * regs, long err)
 	}
 	return -EFAULT;
 }
-
-#ifdef CONFIG_BUG
-#ifdef CONFIG_DEBUG_BUGVERBOSE
-static inline void do_bug_verbose(struct pt_regs *regs)
-{
-	struct bug_frame f;
-	long len;
-
-	if (__copy_from_user(&f, (const void __user *)regs->pc,
-			     sizeof(struct bug_frame)))
-		return;
-
-	len = __strnlen_user(f.file, PATH_MAX) - 1;
-	if (unlikely(len < 0 || len >= PATH_MAX))
-		f.file = "<bad filename>";
-	len = __strnlen_user(f.func, PATH_MAX) - 1;
-	if (unlikely(len < 0 || len >= PATH_MAX))
-		f.func = "<bad function>";
-
-	printk(KERN_ALERT "kernel BUG in %s() at %s:%d!\n",
-	       f.func, f.file, f.line);
-}
-#else
-static inline void do_bug_verbose(struct pt_regs *regs)
-{
-}
-#endif /* CONFIG_DEBUG_BUGVERBOSE */
-
-void handle_BUG(struct pt_regs *regs)
-{
-	do_bug_verbose(regs);
-	die("Kernel BUG", regs, TRAPA_BUG_OPCODE & 0xff);
-}
-#endif /* CONFIG_BUG */
 
 /*
  * handle an instruction that does an unaligned memory access by emulating the
@@ -523,7 +491,7 @@ static int handle_unaligned_access(u16 instruction, struct pt_regs *regs)
  simple:
 	ret = handle_unaligned_ins(instruction,regs);
 	if (ret==0)
-		regs->pc += 2;
+		regs->pc += instruction_size(instruction);
 	return ret;
 }
 #endif /* CONFIG_CPU_SH2A */
@@ -700,7 +668,7 @@ asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 
 	err = do_fpu_inst(inst, regs);
 	if (!err) {
-		regs->pc += 2;
+		regs->pc += instruction_size(inst);
 		return;
 	}
 	/* not a FPU inst. */
@@ -887,6 +855,25 @@ void __init trap_init(void)
 	/* Setup VBR for boot cpu */
 	per_cpu_trap_init();
 }
+
+#ifdef CONFIG_BUG
+void handle_BUG(struct pt_regs *regs)
+{
+	enum bug_trap_type tt;
+	tt = report_bug(regs->pc);
+	if (tt == BUG_TRAP_TYPE_WARN) {
+		regs->pc += 2;
+		return;
+	}
+
+	die("Kernel BUG", regs, TRAPA_BUG_OPCODE & 0xff);
+}
+
+int is_valid_bugaddr(unsigned long addr)
+{
+	return addr >= PAGE_OFFSET;
+}
+#endif
 
 void show_trace(struct task_struct *tsk, unsigned long *sp,
 		struct pt_regs *regs)

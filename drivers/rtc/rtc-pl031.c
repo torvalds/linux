@@ -51,7 +51,7 @@ static irqreturn_t pl031_interrupt(int irq, void *dev_id)
 {
 	struct rtc_device *rtc = dev_id;
 
-	rtc_update_irq(&rtc->class_dev, 1, RTC_AF);
+	rtc_update_irq(rtc, 1, RTC_AF);
 
 	return IRQ_HANDLED;
 }

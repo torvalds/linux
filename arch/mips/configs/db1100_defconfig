@@ -9,6 +9,7 @@ CONFIG_MIPS=y
 # Machine selection
 #
 CONFIG_ZONE_DMA=y
+CONFIG_MACH_ALCHEMY=y
 # CONFIG_MIPS_MTX1 is not set
 # CONFIG_MIPS_BOSPORUS is not set
 # CONFIG_MIPS_PB1000 is not set

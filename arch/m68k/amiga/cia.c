@@ -123,7 +123,7 @@ static void cia_disable_irq(unsigned int irq)
 
 static struct irq_controller cia_irq_controller = {
 	.name		= "cia",
-	.lock		= SPIN_LOCK_UNLOCKED,
+	.lock		= __SPIN_LOCK_UNLOCKED(cia_irq_controller.lock),
 	.enable		= cia_enable_irq,
 	.disable	= cia_disable_irq,
 };
@@ -160,7 +160,7 @@ static void auto_disable_irq(unsigned int irq)
 
 static struct irq_controller auto_irq_controller = {
 	.name		= "auto",
-	.lock		= SPIN_LOCK_UNLOCKED,
+	.lock		= __SPIN_LOCK_UNLOCKED(auto_irq_controller.lock),
 	.enable		= auto_enable_irq,
 	.disable	= auto_disable_irq,
 };

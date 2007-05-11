@@ -164,6 +164,17 @@ config KEYBOARD_AMIGA
 	  To compile this driver as a module, choose M here: the
 	  module will be called amikbd.
 
+config KEYBOARD_ATARI
+	tristate "Atari keyboard"
+	depends on ATARI
+	select ATARI_KBD_CORE
+	help
+	  Say Y here if you are running Linux on any Atari and have a keyboard
+	  attached.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called atakbd.
+
 config KEYBOARD_HIL_OLD
 	tristate "HP HIL keyboard support (simple driver)"
 	depends on GSC || HP300
@@ -203,9 +214,19 @@ config KEYBOARD_OMAP
 	  To compile this driver as a module, choose M here: the
 	  module will be called omap-keypad.
 
+config KEYBOARD_PXA27x
+	tristate "PXA27x keyboard support"
+	depends on PXA27x
+	help
+	  Enable support for PXA27x matrix keyboard controller
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pxa27x_keyboard.
+
 config KEYBOARD_AAED2000
 	tristate "AAED-2000 keyboard"
 	depends on MACH_AAED2000
+	select INPUT_POLLDEV
 	default y
 	help
 	  Say Y here to enable the keyboard on the Agilent AAED-2000

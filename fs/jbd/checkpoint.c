@@ -1,5 +1,5 @@
 /*
- * linux/fs/checkpoint.c
+ * linux/fs/jbd/checkpoint.c
  *
  * Written by Stephen C. Tweedie <sct@redhat.com>, 1999
  *

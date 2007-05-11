@@ -12,6 +12,7 @@
 
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/list.h>
 #include <linux/fs.h>
@@ -38,7 +39,7 @@ struct rchan_buf
 	size_t subbufs_consumed;	/* count of sub-buffers consumed */
 	struct rchan *chan;		/* associated channel */
 	wait_queue_head_t read_wait;	/* reader wait queue */
-	struct delayed_work wake_readers; /* reader wake-up work struct */
+	struct timer_list timer; 	/* reader wake-up timer */
 	struct dentry *dentry;		/* channel file dentry */
 	struct kref kref;		/* channel buffer refcount */
 	struct page **page_array;	/* array of current buffer pages */

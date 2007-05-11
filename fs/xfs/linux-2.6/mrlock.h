@@ -43,6 +43,18 @@ static inline void mrupdate(mrlock_t *mrp)
 	mrp->mr_writer = 1;
 }
 
+static inline void mraccess_nested(mrlock_t *mrp, int subclass)
+{
+	down_read_nested(&mrp->mr_lock, subclass);
+}
+
+static inline void mrupdate_nested(mrlock_t *mrp, int subclass)
+{
+	down_write_nested(&mrp->mr_lock, subclass);
+	mrp->mr_writer = 1;
+}
+
+
 static inline int mrtryaccess(mrlock_t *mrp)
 {
 	return down_read_trylock(&mrp->mr_lock);

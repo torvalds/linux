@@ -142,7 +142,7 @@ void q40ide_init(void)
 			0, NULL,
 //			m68kide_iops,
 			q40ide_default_irq(pcide_bases[i]));
-	index = ide_register_hw(&hw, &hwif);
+	index = ide_register_hw(&hw, 1, &hwif);
 	// **FIXME**
 	if (index != -1)
 		hwif->mmio = 1;

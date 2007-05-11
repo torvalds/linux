@@ -7,8 +7,8 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/pm.h>
+#include <linux/kdebug.h>
 #include <asm/io.h>
-#include <asm/kdebug.h>
 #include <asm/delay.h>
 #include <asm/hw_irq.h>
 #include <asm/system.h>

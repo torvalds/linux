@@ -372,7 +372,7 @@ void omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 
 	/* When the functional clock disappears, too quick writes seem to
 	 * cause an abort. */
-	__delay(15000);
+	__delay(150000);
 }
 
 #endif
@@ -506,6 +506,8 @@ int omap_dm_timer_init(void)
 		BUG_ON(dm_source_clocks[i] == NULL);
 	}
 #endif
+	if (cpu_is_omap243x())
+		dm_timers[0].phys_base = 0x49018000;
 
 	for (i = 0; i < dm_timer_count; i++) {
 #ifdef CONFIG_ARCH_OMAP2

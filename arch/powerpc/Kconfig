@@ -117,11 +117,19 @@ config GENERIC_BUG
 	default y
 	depends on BUG
 
+config SYS_SUPPORTS_APM_EMULATION
+	bool
+
 config DEFAULT_UIMAGE
 	bool
 	help
 	  Used to allow a board to specify it wants a uImage built by default
 	default n
+
+config PPC64_SWSUSP
+	bool
+	depends on PPC64 && (BROKEN || (PPC_PMAC64 && EXPERIMENTAL))
+	default y
 
 menu "Processor support"
 choice
@@ -193,6 +201,7 @@ config 40x
 config 44x
 	bool "AMCC 44x"
 	select PPC_DCR_NATIVE
+	select WANT_DEVICE_TREE
 
 config E200
 	bool "Freescale e200"
@@ -257,9 +266,14 @@ config PPC_OF_PLATFORM_PCI
 	depends on PPC64 # not supported on 32 bits yet
 	default n
 
+config 4xx
+	bool
+	depends on 40x || 44x
+	default y
+
 config BOOKE
 	bool
-	depends on E200 || E500
+	depends on E200 || E500 || 44x
 	default y
 
 config FSL_BOOKE
@@ -324,6 +338,11 @@ config PPC_STD_MMU
 config PPC_STD_MMU_32
 	def_bool y
 	depends on PPC_STD_MMU && PPC32
+
+config PPC_MM_SLICES
+	bool
+	default y if HUGETLB_PAGE
+	default n
 
 config VIRT_CPU_ACCOUNTING
 	bool "Deterministic task and CPU time accounting"
@@ -514,9 +533,15 @@ config NODES_SPAN_OTHER_NODES
 	def_bool y
 	depends on NEED_MULTIPLE_NODES
 
+config PPC_HAS_HASH_64K
+	bool
+	depends on PPC64
+	default n
+
 config PPC_64K_PAGES
 	bool "64k page size"
 	depends on PPC64
+	select PPC_HAS_HASH_64K
 	help
 	  This option changes the kernel logical page size to 64k. On machines
 	  without processor support for 64k pages, the kernel will simulate
@@ -656,11 +681,12 @@ config MCA
 config PCI
 	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_86xx \
 		|| PPC_MPC52xx || (EMBEDDED && (PPC_PSERIES || PPC_ISERIES)) \
-		|| MPC7448HPC2 || PPC_PS3
+		|| MPC7448HPC2 || PPC_PS3 || PPC_HOLLY
 	default y if !40x && !CPM2 && !8xx && !APUS && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx && APUS
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
+	select ARCH_SUPPORTS_MSI
 	help
 	  Find out whether your system includes a PCI bus. PCI is the name of
 	  a bus system, i.e. the way the CPU talks to the other stuff inside

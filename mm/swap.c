@@ -55,7 +55,7 @@ static void fastcall __page_cache_release(struct page *page)
 
 static void put_compound_page(struct page *page)
 {
-	page = (struct page *)page_private(page);
+	page = compound_head(page);
 	if (put_page_testzero(page)) {
 		compound_page_dtor *dtor;
 
@@ -488,7 +488,7 @@ static int cpu_swap_callback(struct notifier_block *nfb,
 	long *committed;
 
 	committed = &per_cpu(committed_space, (long)hcpu);
-	if (action == CPU_DEAD) {
+	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
 		atomic_add(*committed, &vm_committed_space);
 		*committed = 0;
 		__lru_add_drain((long)hcpu);

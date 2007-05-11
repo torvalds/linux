@@ -40,7 +40,6 @@
 #include <linux/pci_hotplug.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include "acpiphp.h"
 
 #define MY_NAME	"acpiphp"

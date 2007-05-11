@@ -198,12 +198,6 @@ void slb_initialize(void)
 	static int slb_encoding_inited;
 	extern unsigned int *slb_miss_kernel_load_linear;
 	extern unsigned int *slb_miss_kernel_load_io;
-#ifdef CONFIG_HUGETLB_PAGE
-	extern unsigned int *slb_miss_user_load_huge;
-	unsigned long huge_llp;
-
-	huge_llp = mmu_psize_defs[mmu_huge_psize].sllp;
-#endif
 
 	/* Prepare our SLB miss handler based on our page size */
 	linear_llp = mmu_psize_defs[mmu_linear_psize].sllp;
@@ -220,11 +214,6 @@ void slb_initialize(void)
 
 		DBG("SLB: linear  LLP = %04x\n", linear_llp);
 		DBG("SLB: io      LLP = %04x\n", io_llp);
-#ifdef CONFIG_HUGETLB_PAGE
-		patch_slb_encoding(slb_miss_user_load_huge,
-				   SLB_VSID_USER | huge_llp);
-		DBG("SLB: huge    LLP = %04x\n", huge_llp);
-#endif
 	}
 
 	get_paca()->stab_rr = SLB_NUM_BOLTED;

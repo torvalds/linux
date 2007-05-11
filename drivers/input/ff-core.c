@@ -281,7 +281,8 @@ int input_ff_event(struct input_dev *dev, unsigned int type,
 		break;
 
 	default:
-		ff->playback(dev, code, value);
+		if (check_effect_access(ff, code, NULL) == 0)
+			ff->playback(dev, code, value);
 		break;
 	}
 

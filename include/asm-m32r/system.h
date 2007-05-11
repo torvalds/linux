@@ -21,12 +21,22 @@
  * `next' and `prev' should be struct task_struct, but it isn't always defined
  */
 
+#if defined(CONFIG_FRAME_POINTER) || \
+	!defined(CONFIG_SCHED_NO_NO_OMIT_FRAME_POINTER)
+#define M32R_PUSH_FP "	push fp\n"
+#define M32R_POP_FP  "	pop  fp\n"
+#else
+#define M32R_PUSH_FP ""
+#define M32R_POP_FP  ""
+#endif
+
 #define switch_to(prev, next, last)  do { \
 	__asm__ __volatile__ ( \
 		"	seth	lr, #high(1f)				\n" \
 		"	or3	lr, lr, #low(1f)			\n" \
 		"	st	lr, @%4  ; store old LR			\n" \
 		"	ld	lr, @%5  ; load new LR			\n" \
+			M32R_PUSH_FP \
 		"	st	sp, @%2  ; store old SP			\n" \
 		"	ld	sp, @%3  ; load new SP			\n" \
 		"	push	%1  ; store `prev' on new stack		\n" \
@@ -34,6 +44,7 @@
 		"	.fillinsn					\n" \
 		"1:							\n" \
 		"	pop	%0  ; restore `__last' from new stack	\n" \
+			M32R_POP_FP \
 		: "=r" (last) \
 		: "0" (prev), \
 		  "r" (&(prev->thread.sp)), "r" (&(next->thread.sp)), \
@@ -122,8 +133,6 @@ static inline void local_irq_disable(void)
 #define xchg(ptr,x) \
 	((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
 
-#define tas(ptr)	(xchg((ptr),1))
-
 #ifdef CONFIG_SMP
 extern void  __xchg_called_with_bad_pointer(void);
 #endif
@@ -138,7 +147,7 @@ extern void  __xchg_called_with_bad_pointer(void);
 	"add3	"reg0", "addr", #0x2000;		\n\t"	\
 	"ld	"reg0", @"reg0";			\n\t"	\
 	"unlock	"reg0", @"reg1";			\n\t"
-	/* FIXME: This workaround code cannot handle kenrel modules
+	/* FIXME: This workaround code cannot handle kernel modules
 	 * correctly under SMP environment.
 	 */
 #else	/* CONFIG_CHIP_M32700_TS1 */

@@ -54,7 +54,7 @@ static int __init afs_get_client_UUID(void)
 
 	/* read the MAC address of one of the external interfaces and construct
 	 * a UUID from it */
-	ret = afs_get_MAC_address(afs_uuid.node);
+	ret = afs_get_MAC_address(afs_uuid.node, sizeof(afs_uuid.node));
 	if (ret < 0)
 		return ret;
 
@@ -149,6 +149,7 @@ error_cache:
 	afs_vlocation_purge();
 	afs_cell_purge();
 	afs_proc_cleanup();
+	rcu_barrier();
 	printk(KERN_ERR "kAFS: failed to register: %d\n", ret);
 	return ret;
 }
@@ -176,6 +177,7 @@ static void __exit afs_exit(void)
 	cachefs_unregister_netfs(&afs_cache_netfs);
 #endif
 	afs_proc_cleanup();
+	rcu_barrier();
 }
 
 module_exit(afs_exit);

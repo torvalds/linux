@@ -18,7 +18,6 @@
 #include <linux/capability.h>
 #include <linux/ctype.h>
 #include <linux/threads.h>
-#include <linux/smp_lock.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/bitops.h>

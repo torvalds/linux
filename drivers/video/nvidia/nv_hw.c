@@ -150,7 +150,8 @@ static void nvGetClocks(struct nvidia_par *par, unsigned int *MClk,
 		M = pll & 0xFF;
 		N = (pll >> 8) & 0xFF;
 		if (((par->Chipset & 0xfff0) == 0x0290) ||
-				((par->Chipset & 0xfff0) == 0x0390)) {
+			((par->Chipset & 0xfff0) == 0x0390) ||
+			((par->Chipset & 0xfff0) == 0x02E0)) {
 			MB = 1;
 			NB = 1;
 		} else {
@@ -686,7 +687,7 @@ static void nForceUpdateArbitrationSettings(unsigned VClk,
 
 	if ((par->Chipset & 0x0FF0) == 0x01A0) {
 		unsigned int uMClkPostDiv;
-		dev = pci_find_slot(0, 3);
+		dev = pci_get_bus_and_slot(0, 3);
 		pci_read_config_dword(dev, 0x6C, &uMClkPostDiv);
 		uMClkPostDiv = (uMClkPostDiv >> 8) & 0xf;
 
@@ -694,11 +695,11 @@ static void nForceUpdateArbitrationSettings(unsigned VClk,
 			uMClkPostDiv = 4;
 		MClk = 400000 / uMClkPostDiv;
 	} else {
-		dev = pci_find_slot(0, 5);
+		dev = pci_get_bus_and_slot(0, 5);
 		pci_read_config_dword(dev, 0x4c, &MClk);
 		MClk /= 1000;
 	}
-
+	pci_dev_put(dev);
 	pll = NV_RD32(par->PRAMDAC0, 0x0500);
 	M = (pll >> 0) & 0xFF;
 	N = (pll >> 8) & 0xFF;
@@ -707,19 +708,21 @@ static void nForceUpdateArbitrationSettings(unsigned VClk,
 	sim_data.pix_bpp = (char)pixelDepth;
 	sim_data.enable_video = 0;
 	sim_data.enable_mp = 0;
-	pci_find_slot(0, 1);
+	dev = pci_get_bus_and_slot(0, 1);
 	pci_read_config_dword(dev, 0x7C, &sim_data.memory_type);
+	pci_dev_put(dev);
 	sim_data.memory_type = (sim_data.memory_type >> 12) & 1;
 	sim_data.memory_width = 64;
 
-	dev = pci_find_slot(0, 3);
+	dev = pci_get_bus_and_slot(0, 3);
 	pci_read_config_dword(dev, 0, &memctrl);
+	pci_dev_put(dev);
 	memctrl >>= 16;
 
 	if ((memctrl == 0x1A9) || (memctrl == 0x1AB) || (memctrl == 0x1ED)) {
 		int dimm[3];
 
-		pci_find_slot(0, 2);
+		dev = pci_get_bus_and_slot(0, 2);
 		pci_read_config_dword(dev, 0x40, &dimm[0]);
 		dimm[0] = (dimm[0] >> 8) & 0x4f;
 		pci_read_config_dword(dev, 0x44, &dimm[1]);
@@ -731,6 +734,7 @@ static void nForceUpdateArbitrationSettings(unsigned VClk,
 			printk("nvidiafb: your nForce DIMMs are not arranged "
 			       "in optimal banks!\n");
 		}
+		pci_dev_put(dev);
 	}
 
 	sim_data.mem_latency = 3;
@@ -960,6 +964,7 @@ void NVLoadStateExt(struct nvidia_par *par, RIVA_HW_STATE * state)
 
 		if (((par->Chipset & 0xfff0) == 0x0090) ||
 		    ((par->Chipset & 0xfff0) == 0x01D0) ||
+		    ((par->Chipset & 0xfff0) == 0x02E0) ||
 		    ((par->Chipset & 0xfff0) == 0x0290))
 			regions = 15;
 		for(i = 0; i < regions; i++) {
@@ -1272,6 +1277,7 @@ void NVLoadStateExt(struct nvidia_par *par, RIVA_HW_STATE * state)
 						0x00100000);
 					break;
 				case 0x0090:
+				case 0x02E0:
 				case 0x0290:
 					NV_WR32(par->PRAMDAC, 0x0608,
 						NV_RD32(par->PRAMDAC, 0x0608) |
@@ -1349,6 +1355,7 @@ void NVLoadStateExt(struct nvidia_par *par, RIVA_HW_STATE * state)
 			} else {
 				if (((par->Chipset & 0xfff0) == 0x0090) ||
 				    ((par->Chipset & 0xfff0) == 0x01D0) ||
+				    ((par->Chipset & 0xfff0) == 0x02E0) ||
 				    ((par->Chipset & 0xfff0) == 0x0290)) {
 					for (i = 0; i < 60; i++) {
 						NV_WR32(par->PGRAPH,
@@ -1400,6 +1407,7 @@ void NVLoadStateExt(struct nvidia_par *par, RIVA_HW_STATE * state)
 				} else {
 					if ((par->Chipset & 0xfff0) == 0x0090 ||
 					    (par->Chipset & 0xfff0) == 0x01D0 ||
+					    (par->Chipset & 0xfff0) == 0x02E0 ||
 					    (par->Chipset & 0xfff0) == 0x0290) {
 						NV_WR32(par->PGRAPH, 0x0DF0,
 							NV_RD32(par->PFB, 0x0200));

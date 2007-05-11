@@ -15,7 +15,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/tty.h>
 
 #include <asm/intrinsics.h>

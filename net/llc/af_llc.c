@@ -324,7 +324,7 @@ static int llc_ui_bind(struct socket *sock, struct sockaddr *uaddr, int addrlen)
 		memset(&laddr, 0, sizeof(laddr));
 		memset(&daddr, 0, sizeof(daddr));
 		/*
-		 * FIXME: check if the the address is multicast,
+		 * FIXME: check if the address is multicast,
 		 * 	  only SOCK_DGRAM can do this.
 		 */
 		memcpy(laddr.mac, addr->sllc_mac, IFHWADDRLEN);

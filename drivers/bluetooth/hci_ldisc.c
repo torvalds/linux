@@ -307,7 +307,9 @@ static void hci_uart_tty_close(struct tty_struct *tty)
 
 	if (hu) {
 		struct hci_dev *hdev = hu->hdev;
-		hci_uart_close(hdev);
+
+		if (hdev)
+			hci_uart_close(hdev);
 
 		if (test_and_clear_bit(HCI_UART_PROTO_SET, &hu->flags)) {
 			hu->proto->close(hu);
@@ -473,10 +475,16 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file * file,
 			tty->low_latency = 1;
 		} else
 			return -EBUSY;
+		break;
 
 	case HCIUARTGETPROTO:
 		if (test_bit(HCI_UART_PROTO_SET, &hu->flags))
 			return hu->proto->id;
+		return -EUNATCH;
+
+	case HCIUARTGETDEVICE:
+		if (test_bit(HCI_UART_PROTO_SET, &hu->flags))
+			return hu->hdev->id;
 		return -EUNATCH;
 
 	default:

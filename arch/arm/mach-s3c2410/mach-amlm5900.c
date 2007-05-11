@@ -160,17 +160,11 @@ static struct platform_device *amlm5900_devices[] __initdata = {
 #endif
 };
 
-static struct s3c24xx_board amlm5900_board __initdata = {
-	.devices       = amlm5900_devices,
-	.devices_count = ARRAY_SIZE(amlm5900_devices)
-};
-
 void __init amlm5900_map_io(void)
 {
 	s3c24xx_init_io(amlm5900_iodesc, ARRAY_SIZE(amlm5900_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(amlm5900_uartcfgs, ARRAY_SIZE(amlm5900_uartcfgs));
-	s3c24xx_set_board(&amlm5900_board);
 }
 
 #ifdef CONFIG_FB_S3C2410
@@ -247,6 +241,7 @@ static void __init amlm5900_init(void)
 #ifdef CONFIG_FB_S3C2410
 	s3c24xx_fb_set_platdata(&amlm5900_lcd_info);
 #endif
+	platform_add_devices(amlm5900_devices, ARRAY_SIZE(amlm5900_devices));
 }
 
 MACHINE_START(AML_M5900, "AML_M5900")

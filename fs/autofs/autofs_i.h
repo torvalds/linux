@@ -101,7 +101,7 @@ struct autofs_symlink {
 struct autofs_sb_info {
 	u32 magic;
 	struct file *pipe;
-	pid_t oz_pgrp;
+	struct pid *oz_pgrp;
 	int catatonic;
 	struct super_block *sb;
 	unsigned long exp_timeout;
@@ -122,7 +122,7 @@ static inline struct autofs_sb_info *autofs_sbi(struct super_block *sb)
    filesystem without "magic".) */
 
 static inline int autofs_oz_mode(struct autofs_sb_info *sbi) {
-	return sbi->catatonic || process_group(current) == sbi->oz_pgrp;
+	return sbi->catatonic || task_pgrp(current) == sbi->oz_pgrp;
 }
 
 /* Hash operations */

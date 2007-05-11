@@ -3,22 +3,16 @@
 #include <linux/thread_info.h>
 #include <asm/ptrace.h>
 
-void save_stack_trace(struct stack_trace *trace, struct task_struct *task)
+void save_stack_trace(struct stack_trace *trace)
 {
 	unsigned long ksp, fp, thread_base;
-	struct thread_info *tp;
+	struct thread_info *tp = task_thread_info(current);
 
-	if (!task)
-		task = current;
-	tp = task_thread_info(task);
-	if (task == current) {
-		flushw_all();
-		__asm__ __volatile__(
-			"mov	%%fp, %0"
-			: "=r" (ksp)
-		);
-	} else
-		ksp = tp->ksp;
+	flushw_all();
+	__asm__ __volatile__(
+		"mov	%%fp, %0"
+		: "=r" (ksp)
+	);
 
 	fp = ksp + STACK_BIAS;
 	thread_base = (unsigned long) tp;

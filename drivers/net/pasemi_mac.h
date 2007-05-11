@@ -24,6 +24,7 @@
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/spinlock.h>
+#include <linux/phy.h>
 
 struct pasemi_mac_txring {
 	spinlock_t	 lock;
@@ -54,6 +55,7 @@ struct pasemi_mac {
 	struct pci_dev *pdev;
 	struct pci_dev *dma_pdev;
 	struct pci_dev *iob_pdev;
+	struct phy_device *phydev;
 	struct net_device_stats stats;
 
 	/* Pointer to the cacheable per-channel status registers */
@@ -73,6 +75,14 @@ struct pasemi_mac {
 
 	struct pasemi_mac_txring *tx;
 	struct pasemi_mac_rxring *rx;
+	unsigned long	tx_irq;
+	unsigned long	rx_irq;
+	int	link;
+	int	speed;
+	int	duplex;
+
+	unsigned int	msg_enable;
+	char	phy_id[BUS_ID_SIZE];
 };
 
 /* Software status descriptor (desc_info) */
@@ -193,11 +203,15 @@ enum {
 #define PAS_DMA_RXINT_RCMDSTA(i)	(0x200+(i)*_PAS_DMA_RXINT_STRIDE)
 #define    PAS_DMA_RXINT_RCMDSTA_EN	0x00000001
 #define    PAS_DMA_RXINT_RCMDSTA_ST	0x00000002
-#define    PAS_DMA_RXINT_RCMDSTA_OO	0x00000100
-#define    PAS_DMA_RXINT_RCMDSTA_BP	0x00000200
-#define    PAS_DMA_RXINT_RCMDSTA_DR	0x00000400
+#define    PAS_DMA_RXINT_RCMDSTA_MBT	0x00000008
+#define    PAS_DMA_RXINT_RCMDSTA_MDR	0x00000010
+#define    PAS_DMA_RXINT_RCMDSTA_MOO	0x00000020
+#define    PAS_DMA_RXINT_RCMDSTA_MBP	0x00000040
 #define    PAS_DMA_RXINT_RCMDSTA_BT	0x00000800
-#define    PAS_DMA_RXINT_RCMDSTA_TB	0x00001000
+#define    PAS_DMA_RXINT_RCMDSTA_DR	0x00001000
+#define    PAS_DMA_RXINT_RCMDSTA_OO	0x00002000
+#define    PAS_DMA_RXINT_RCMDSTA_BP	0x00004000
+#define    PAS_DMA_RXINT_RCMDSTA_TB	0x00008000
 #define    PAS_DMA_RXINT_RCMDSTA_ACT	0x00010000
 #define    PAS_DMA_RXINT_RCMDSTA_DROPS_M	0xfffe0000
 #define    PAS_DMA_RXINT_RCMDSTA_DROPS_S	17
@@ -297,6 +311,7 @@ enum {
 #define    PAS_STATUS_DCNT_S		16
 #define    PAS_STATUS_BPCNT_M		0x0000ffff00000000ull
 #define    PAS_STATUS_BPCNT_S		32
+#define    PAS_STATUS_CAUSE_M		0xf000000000000000ull
 #define    PAS_STATUS_TIMER		0x1000000000000000ull
 #define    PAS_STATUS_ERROR		0x2000000000000000ull
 #define    PAS_STATUS_SOFT		0x4000000000000000ull

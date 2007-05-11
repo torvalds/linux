@@ -989,7 +989,7 @@ static int sm501fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 			((info->cmap.green[fg_col] & 0xFC) << 3) |
 			((info->cmap.blue[fg_col] & 0xF8) >> 3);
 
-		dev_dbg(fbi->dev, "fgcol %08x, bgcol %08x\n", fg, bg);
+		dev_dbg(fbi->dev, "fgcol %08lx, bgcol %08lx\n", fg, bg);
 
 		writel(bg, base + SM501_OFF_HWC_COLOR_1_2);
 		writel(fg, base + SM501_OFF_HWC_COLOR_3);

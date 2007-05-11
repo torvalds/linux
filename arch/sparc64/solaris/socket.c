@@ -8,7 +8,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/smp_lock.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/socket.h>

@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.21-rc3
-# Wed Mar  7 15:29:47 2007
+# Linux kernel version: 2.6.21-git3
+# Tue May  1 07:30:51 2007
 #
 CONFIG_X86_32=y
 CONFIG_GENERIC_TIME=y
@@ -108,9 +108,9 @@ CONFIG_DEFAULT_IOSCHED="anticipatory"
 #
 # Processor type and features
 #
-# CONFIG_TICK_ONESHOT is not set
-# CONFIG_NO_HZ is not set
-# CONFIG_HIGH_RES_TIMERS is not set
+CONFIG_TICK_ONESHOT=y
+CONFIG_NO_HZ=y
+CONFIG_HIGH_RES_TIMERS=y
 CONFIG_SMP=y
 # CONFIG_X86_PC is not set
 # CONFIG_X86_ELAN is not set
@@ -146,9 +146,11 @@ CONFIG_MPENTIUMIII=y
 # CONFIG_MGEODE_LX is not set
 # CONFIG_MCYRIXIII is not set
 # CONFIG_MVIAC3_2 is not set
+# CONFIG_MVIAC7 is not set
 CONFIG_X86_GENERIC=y
 CONFIG_X86_CMPXCHG=y
 CONFIG_X86_L1_CACHE_SHIFT=7
+CONFIG_X86_XADD=y
 CONFIG_RWSEM_XCHGADD_ALGORITHM=y
 # CONFIG_ARCH_HAS_ILOG2_U32 is not set
 # CONFIG_ARCH_HAS_ILOG2_U64 is not set
@@ -162,6 +164,8 @@ CONFIG_X86_GOOD_APIC=y
 CONFIG_X86_INTEL_USERCOPY=y
 CONFIG_X86_USE_PPRO_CHECKSUM=y
 CONFIG_X86_TSC=y
+CONFIG_X86_CMOV=y
+CONFIG_X86_MINIMUM_CPU_MODEL=4
 CONFIG_HPET_TIMER=y
 CONFIG_HPET_EMULATE_RTC=y
 CONFIG_NR_CPUS=32
@@ -248,7 +252,6 @@ CONFIG_ACPI_FAN=y
 CONFIG_ACPI_PROCESSOR=y
 CONFIG_ACPI_THERMAL=y
 # CONFIG_ACPI_ASUS is not set
-# CONFIG_ACPI_IBM is not set
 # CONFIG_ACPI_TOSHIBA is not set
 CONFIG_ACPI_BLACKLIST_YEAR=2001
 CONFIG_ACPI_DEBUG=y
@@ -257,10 +260,7 @@ CONFIG_ACPI_POWER=y
 CONFIG_ACPI_SYSTEM=y
 CONFIG_X86_PM_TIMER=y
 # CONFIG_ACPI_CONTAINER is not set
-
-#
-# APM (Advanced Power Management) BIOS Support
-#
+# CONFIG_ACPI_SBS is not set
 # CONFIG_APM is not set
 
 #
@@ -277,7 +277,7 @@ CONFIG_CPU_FREQ_GOV_PERFORMANCE=y
 # CONFIG_CPU_FREQ_GOV_POWERSAVE is not set
 CONFIG_CPU_FREQ_GOV_USERSPACE=y
 CONFIG_CPU_FREQ_GOV_ONDEMAND=y
-# CONFIG_CPU_FREQ_GOV_CONSERVATIVE is not set
+CONFIG_CPU_FREQ_GOV_CONSERVATIVE=y
 
 #
 # CPUFreq processor drivers
@@ -349,7 +349,6 @@ CONFIG_NET=y
 #
 # Networking options
 #
-# CONFIG_NETDEBUG is not set
 CONFIG_PACKET=y
 # CONFIG_PACKET_MMAP is not set
 CONFIG_UNIX=y
@@ -388,6 +387,7 @@ CONFIG_DEFAULT_TCP_CONG="cubic"
 CONFIG_IPV6=y
 # CONFIG_IPV6_PRIVACY is not set
 # CONFIG_IPV6_ROUTER_PREF is not set
+# CONFIG_IPV6_OPTIMISTIC_DAD is not set
 # CONFIG_INET6_AH is not set
 # CONFIG_INET6_ESP is not set
 # CONFIG_INET6_IPCOMP is not set
@@ -443,6 +443,13 @@ CONFIG_IPV6_SIT=y
 # CONFIG_HAMRADIO is not set
 # CONFIG_IRDA is not set
 # CONFIG_BT is not set
+# CONFIG_AF_RXRPC is not set
+
+#
+# Wireless
+#
+# CONFIG_CFG80211 is not set
+# CONFIG_WIRELESS_EXT is not set
 # CONFIG_IEEE80211 is not set
 
 #
@@ -463,10 +470,6 @@ CONFIG_FW_LOADER=y
 # Connector - unified userspace <-> kernelspace linker
 #
 # CONFIG_CONNECTOR is not set
-
-#
-# Memory Technology Devices (MTD)
-#
 # CONFIG_MTD is not set
 
 #
@@ -513,6 +516,7 @@ CONFIG_BLK_DEV_RAM_BLOCKSIZE=1024
 # CONFIG_SGI_IOC4 is not set
 # CONFIG_TIFM_CORE is not set
 # CONFIG_SONY_LAPTOP is not set
+# CONFIG_THINKPAD_ACPI is not set
 
 #
 # ATA/ATAPI/MFM/RLL support
@@ -548,7 +552,6 @@ CONFIG_BLK_DEV_IDEPCI=y
 # CONFIG_BLK_DEV_RZ1000 is not set
 CONFIG_BLK_DEV_IDEDMA_PCI=y
 # CONFIG_BLK_DEV_IDEDMA_FORCED is not set
-CONFIG_IDEDMA_PCI_AUTO=y
 # CONFIG_IDEDMA_ONLYDISK is not set
 # CONFIG_BLK_DEV_AEC62XX is not set
 # CONFIG_BLK_DEV_ALI15X3 is not set
@@ -580,7 +583,6 @@ CONFIG_BLK_DEV_PIIX=y
 # CONFIG_IDE_ARM is not set
 CONFIG_BLK_DEV_IDEDMA=y
 # CONFIG_IDEDMA_IVB is not set
-CONFIG_IDEDMA_AUTO=y
 # CONFIG_BLK_DEV_HD is not set
 
 #
@@ -669,6 +671,7 @@ CONFIG_AIC79XX_DEBUG_MASK=0
 # CONFIG_SCSI_DC390T is not set
 # CONFIG_SCSI_NSP32 is not set
 # CONFIG_SCSI_DEBUG is not set
+# CONFIG_SCSI_ESP_CORE is not set
 # CONFIG_SCSI_SRP is not set
 
 #
@@ -697,6 +700,7 @@ CONFIG_SATA_ACPI=y
 # CONFIG_PATA_AMD is not set
 # CONFIG_PATA_ARTOP is not set
 # CONFIG_PATA_ATIIXP is not set
+# CONFIG_PATA_CMD640_PCI is not set
 # CONFIG_PATA_CMD64X is not set
 # CONFIG_PATA_CS5520 is not set
 # CONFIG_PATA_CS5530 is not set
@@ -762,10 +766,9 @@ CONFIG_IEEE1394=y
 # Subsystem Options
 #
 # CONFIG_IEEE1394_VERBOSEDEBUG is not set
-# CONFIG_IEEE1394_EXTRA_CONFIG_ROMS is not set
 
 #
-# Device Drivers
+# Controllers
 #
 
 #
@@ -774,10 +777,11 @@ CONFIG_IEEE1394=y
 CONFIG_IEEE1394_OHCI1394=y
 
 #
-# Protocol Drivers
+# Protocols
 #
 # CONFIG_IEEE1394_VIDEO1394 is not set
 # CONFIG_IEEE1394_SBP2 is not set
+# CONFIG_IEEE1394_ETH1394_ROM_ENTRY is not set
 # CONFIG_IEEE1394_ETH1394 is not set
 # CONFIG_IEEE1394_DV1394 is not set
 CONFIG_IEEE1394_RAWIO=y
@@ -820,7 +824,9 @@ CONFIG_MII=y
 # CONFIG_HAPPYMEAL is not set
 # CONFIG_SUNGEM is not set
 # CONFIG_CASSINI is not set
-# CONFIG_NET_VENDOR_3COM is not set
+CONFIG_NET_VENDOR_3COM=y
+CONFIG_VORTEX=y
+# CONFIG_TYPHOON is not set
 
 #
 # Tulip family network device support
@@ -901,9 +907,10 @@ CONFIG_BNX2=y
 # CONFIG_TR is not set
 
 #
-# Wireless LAN (non-hamradio)
+# Wireless LAN
 #
-# CONFIG_NET_RADIO is not set
+# CONFIG_WLAN_PRE80211 is not set
+# CONFIG_WLAN_80211 is not set
 
 #
 # Wan interfaces
@@ -917,7 +924,6 @@ CONFIG_BNX2=y
 # CONFIG_SHAPER is not set
 CONFIG_NETCONSOLE=y
 CONFIG_NETPOLL=y
-# CONFIG_NETPOLL_RX is not set
 # CONFIG_NETPOLL_TRAP is not set
 CONFIG_NET_POLL_CONTROLLER=y
 
@@ -1050,7 +1056,7 @@ CONFIG_MAX_RAW_DEVS=256
 CONFIG_HPET=y
 # CONFIG_HPET_RTC_IRQ is not set
 CONFIG_HPET_MMAP=y
-CONFIG_HANGCHECK_TIMER=y
+# CONFIG_HANGCHECK_TIMER is not set
 
 #
 # TPM devices
@@ -1142,6 +1148,14 @@ CONFIG_HID=y
 # CONFIG_HID_DEBUG is not set
 
 #
+# USB Input Devices
+#
+CONFIG_USB_HID=y
+# CONFIG_USB_HIDINPUT_POWERBOOK is not set
+# CONFIG_HID_FF is not set
+# CONFIG_USB_HIDDEV is not set
+
+#
 # USB support
 #
 CONFIG_USB_ARCH_HAS_HCD=y
@@ -1154,6 +1168,7 @@ CONFIG_USB=y
 # Miscellaneous USB options
 #
 CONFIG_USB_DEVICEFS=y
+# CONFIG_USB_DEVICE_CLASS is not set
 # CONFIG_USB_DYNAMIC_MINORS is not set
 # CONFIG_USB_SUSPEND is not set
 # CONFIG_USB_OTG is not set
@@ -1204,10 +1219,6 @@ CONFIG_USB_STORAGE=y
 #
 # USB Input Devices
 #
-CONFIG_USB_HID=y
-# CONFIG_USB_HIDINPUT_POWERBOOK is not set
-# CONFIG_HID_FF is not set
-# CONFIG_USB_HIDDEV is not set
 # CONFIG_USB_AIPTEK is not set
 # CONFIG_USB_WACOM is not set
 # CONFIG_USB_ACECAD is not set
@@ -1528,7 +1539,7 @@ CONFIG_DEBUG_KERNEL=y
 CONFIG_LOG_BUF_SHIFT=18
 CONFIG_DETECT_SOFTLOCKUP=y
 # CONFIG_SCHEDSTATS is not set
-# CONFIG_TIMER_STATS is not set
+CONFIG_TIMER_STATS=y
 # CONFIG_DEBUG_SLAB is not set
 # CONFIG_DEBUG_RT_MUTEXES is not set
 # CONFIG_RT_MUTEX_TESTER is not set

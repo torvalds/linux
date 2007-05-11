@@ -43,7 +43,6 @@
  * child task framework of the RPC layer?
  */
 
-#include <linux/smp_lock.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/sunrpc/sched.h>

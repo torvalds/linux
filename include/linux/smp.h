@@ -83,7 +83,6 @@ void smp_prepare_boot_cpu(void);
  *	These macros fold the SMP functionality into a single CPU system
  */
 #define raw_smp_processor_id()			0
-#define hard_smp_processor_id()			0
 static inline int up_smp_call_function(void)
 {
 	return 0;

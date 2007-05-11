@@ -380,7 +380,7 @@ S: FutureTV Labs Ltd
 S: Brunswick House, 61-69 Newmarket Rd, Cambridge CB5 8EG
 S: United Kingdom
 
-N: Thomas Bogendˆrfer
+N: Thomas Bogend√∂rfer
 E: tsbogend@alpha.franken.de
 D: PCnet32 driver, SONIC driver, JAZZ_ESP driver
 D: newport abscon driver, g364 framebuffer driver
@@ -400,7 +400,7 @@ W: http://math-www.uni-paderborn.de/~axel/
 D: Configuration help text support
 D: Linux CD and Support Giveaway List
 
-N: Erik Inge Bols¯
+N: Erik Inge Bols√∏
 E: knan@mo.himolde.no
 D: Misc kernel hacks
 
@@ -428,7 +428,7 @@ D: Various fixes (mostly networking)
 S: Montreal, Quebec
 S: Canada
 
-N: Zolt·n BˆszˆrmÈnyi
+N: Zolt√°n B√∂sz√∂rm√©nyi
 E: zboszor@mail.externet.hu
 D: MTRR emulation with Cyrix style ARR registers, Athlon MTRR support
 
@@ -661,7 +661,7 @@ N: Kees Cook
 E: kees@outflux.net
 W: http://outflux.net/
 P: 1024D/17063E6D 9FA3 C49C 23C9 D1BC 2E30  1975 1FFF 4BA9 1706 3E6D
-D: Minor updates to SCSI code for the Communications type
+D: Minor updates to SCSI types, added /proc/pid/maps protection
 S: (ask for current address)
 S: USA
 
@@ -1029,11 +1029,11 @@ D: Future Domain TMC-16x0 SCSI driver (author)
 D: APM driver (early port)
 D: DRM drivers (author of several)
 
-N: J·nos Farkas
+N: J√°nos Farkas
 E: chexum@shadow.banki.hu
 D: romfs, various (mostly networking) fixes
 P: 1024/F81FB2E1 41 B7 E4 E6 3E D4 A6 71  6D 9C F3 9F F2 BF DF 6E
-S: Madar·sz Viktor utca 25
+S: Madar√°sz Viktor utca 25
 S: 1131 Budapest
 S: Hungary
 
@@ -1044,10 +1044,10 @@ D: UDF filesystem
 S: (ask for current address)
 S: USA
 
-N: J¸rgen Fischer
-E: fischer@norbit.de (=?iso-8859-1?q?J=FCrgen?= Fischer)
+N: J√ºrgen Fischer
+E: fischer@norbit.de
 D: Author of Adaptec AHA-152x SCSI driver
-S: Schulstraﬂe 18
+S: Schulstra√üe 18
 S: 26506 Norden
 S: Germany
 
@@ -1113,7 +1113,7 @@ E: fuganti@netbank.com.br
 D: random kernel hacker, ZF MachZ Watchdog driver
 S: Conectiva S.A.
 S: R. Tocantins, 89 - Cristo Rei
-S: 80050-430 - Curitiba - Paran·
+S: 80050-430 - Curitiba - Paran√°
 S: Brazil
 
 N: Kumar Gala
@@ -1258,12 +1258,12 @@ S: 44 St. Joseph Street, Suite 506
 S: Toronto, Ontario, M4Y 2W4
 S: Canada
 
-N: Richard G¸nther
+N: Richard G√ºnther
 E: rguenth@tat.physik.uni-tuebingen.de
 W: http://www.tat.physik.uni-tuebingen.de/~rguenth
 P: 2048/2E829319 2F 83 FC 93 E9 E4 19 E2  93 7A 32 42 45 37 23 57
 D: binfmt_misc
-S: 72074 T¸bingen
+S: 72074 T√ºbingen
 S: Germany
 
 N: Justin Guyett
@@ -1287,7 +1287,7 @@ N: Bruno Haible
 E: haible@ma2s2.mathematik.uni-karlsruhe.de
 D: SysV FS, shm swapping, memory management fixes
 S: 17 rue Danton
-S: F - 94270 Le Kremlin-BicÍtre
+S: F - 94270 Le Kremlin-Bic√™tre
 S: France
 
 N: Greg Hankins
@@ -1701,7 +1701,7 @@ S: Czech Republic
 N: Jakob Kemi
 E: jakob.kemi@telia.com
 D: V4L W9966 Webcam driver
-S: Forsbyv‰gen 33
+S: Forsbyv√§gen 33
 S: 74143 Knivsta
 S: Sweden
 
@@ -1745,8 +1745,9 @@ S: D-64295
 S: Germany
 
 N: Andi Kleen
-E: ak@muc.de
-D: network hacker, syncookies
+E: andi@firstfloor.org
+U: http://www.halobates.de
+D: network, x86, NUMA, various hacks
 S: Schwalbenstr. 96
 S: 85551 Ottobrunn
 S: Germany
@@ -2064,7 +2065,7 @@ D: misc. kernel hacking and debugging
 S: Cambridge, MA 02139
 S: USA
 
-N: Martin von Lˆwis
+N: Martin von L√∂wis
 E: loewis@informatik.hu-berlin.de
 D: script binary format
 D: NTFS driver
@@ -2141,7 +2142,7 @@ S: PO BOX 220, HFX. CENTRAL
 S: Halifax, Nova Scotia
 S: Canada B3J 3C8
 
-N: Kai M‰kisara
+N: Kai M√§kisara
 E: Kai.Makisara@kolumbus.fi
 D: SCSI Tape Driver
 
@@ -2298,8 +2299,8 @@ E: acme@redhat.com
 W: http://oops.ghostprotocols.net:81/blog/
 P: 1024D/9224DF01 D5DF E3BB E3C8 BCBB F8AD  841A B6AB 4681 9224 DF01
 D: IPX, LLC, DCCP, cyc2x, wl3501_cs, net/ hacks
-S: R. BrasÌlio ItiberÍ, 4270/1010 - ¡gua Verde
-S: 80240-060 - Curitiba - Paran·
+S: R. Bras√≠lio Itiber√™, 4270/1010 - √Ågua Verde
+S: 80240-060 - Curitiba - Paran√°
 S: Brazil
 
 N: Karsten Merker
@@ -2579,10 +2580,9 @@ S: Australia
 
 N: Miguel Ojeda Sandonis
 E: maxextreme@gmail.com
-D: Author: Auxiliary LCD Controller driver (ks0108)
-D: Author: Auxiliary LCD driver (cfag12864b)
-D: Author: Auxiliary LCD framebuffer driver (cfag12864bfb)
-D: Maintainer: Auxiliary display drivers tree (drivers/auxdisplay/*)
+W: http://maxextreme.googlepages.com/
+D: Author of the ks0108, cfag12864b and cfag12864bfb auxiliary display drivers.
+D: Maintainer of the auxiliary display drivers tree (drivers/auxdisplay/*)
 S: C/ Mieses 20, 9-B
 S: Valladolid 47009
 S: Spain
@@ -2785,10 +2785,10 @@ N: Juan Quintela
 E: quintela@fi.udc.es
 D: Memory Management hacking
 S: LFCIA
-S: Departamento de ComputaciÛn
-S: Universidade da CoruÒa
+S: Departamento de Computaci√≥n
+S: Universidade da Coru√±a
 S: E-15071
-S: A CoruÒa
+S: A Coru√±a
 S: Spain
 
 N: Augusto Cesar Radtke
@@ -2939,7 +2939,7 @@ E: aris@cathedrallabs.org
 D: Support for EtherExpress 10 ISA (i82595) in eepro driver
 D: User level driver support for input
 S: R. Jose Serrato, 130 - Santa Candida
-S: 82640-320 - Curitiba - Paran·
+S: 82640-320 - Curitiba - Paran√°
 S: Brazil
 
 N: Alessandro Rubini
@@ -3345,15 +3345,15 @@ P: 1024D/D0FE7AFB B24A 65C9 1D71 2AC2 DE87  CA26 189B 9946 D0FE 7AFB
 D: rcutorture maintainer
 D: lock annotations, finding and fixing lock bugs
 
-N: Winfried Tr¸mper
+N: Winfried Tr√ºmper
 E: winni@xpilot.org
 W: http://www.shop.de/~winni/
 D: German HOWTO, Crash-Kurs Linux (German, 100 comprehensive pages)
 D: CD-Writing HOWTO, various mini-HOWTOs
 D: One-week tutorials on Linux twice a year (free of charge)
-D: Linux-Workshop Kˆln (aka LUG Cologne, Germany), Installfests
+D: Linux-Workshop K√∂ln (aka LUG Cologne, Germany), Installfests
 S: Tacitusstr. 6
-S: D-50968 Kˆln
+S: D-50968 K√∂ln
 
 N: Tsu-Sheng Tsao
 E: tsusheng@scf.usc.edu

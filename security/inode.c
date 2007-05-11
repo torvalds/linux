@@ -321,7 +321,7 @@ static int __init securityfs_init(void)
 {
 	int retval;
 
-	kset_set_kset_s(&security_subsys, kernel_subsys);
+	kobj_set_kset_s(&security_subsys, kernel_subsys);
 	retval = subsystem_register(&security_subsys);
 	if (retval)
 		return retval;

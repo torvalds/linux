@@ -14,11 +14,9 @@
 #ifdef CONFIG_PTE_64BIT
 typedef unsigned long long pte_basic_t;
 #define PTE_SHIFT	(PAGE_SHIFT - 3)	/* 512 ptes per page */
-#define PTE_FMT		"%16Lx"
 #else
 typedef unsigned long pte_basic_t;
 #define PTE_SHIFT	(PAGE_SHIFT - 2)	/* 1024 ptes per page */
-#define PTE_FMT		"%.8lx"
 #endif
 
 struct page;

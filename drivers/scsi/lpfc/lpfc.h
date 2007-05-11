@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -27,10 +27,6 @@ struct lpfc_sli2_slim;
 					   requests */
 #define LPFC_MAX_NS_RETRY	3	/* Number of retry attempts to contact
 					   the NameServer  before giving up. */
-#define LPFC_DFT_HBA_Q_DEPTH	2048	/* max cmds per hba */
-#define LPFC_LC_HBA_Q_DEPTH	1024	/* max cmds per low cost hba */
-#define LPFC_LP101_HBA_Q_DEPTH	128	/* max cmds per low cost hba */
-
 #define LPFC_CMD_PER_LUN	3	/* max outstanding cmds per lun */
 #define LPFC_SG_SEG_CNT		64	/* sg element count per scsi cmnd */
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */
@@ -244,28 +240,23 @@ struct lpfc_hba {
 #define FC_FABRIC               0x100	/* We are fabric attached */
 #define FC_ESTABLISH_LINK       0x200	/* Reestablish Link */
 #define FC_RSCN_DISCOVERY       0x400	/* Authenticate all devices after RSCN*/
+#define FC_BLOCK_MGMT_IO        0x800   /* Don't allow mgmt mbx or iocb cmds */
 #define FC_LOADING		0x1000	/* HBA in process of loading drvr */
 #define FC_UNLOADING		0x2000	/* HBA in process of unloading drvr */
 #define FC_SCSI_SCAN_TMO        0x4000	/* scsi scan timer running */
 #define FC_ABORT_DISCOVERY      0x8000	/* we want to abort discovery */
 #define FC_NDISC_ACTIVE         0x10000	/* NPort discovery active */
 #define FC_BYPASSED_MODE        0x20000	/* NPort is in bypassed mode */
+#define FC_LOOPBACK_MODE        0x40000	/* NPort is in Loopback mode */
+					/* This flag is set while issuing */
+					/* INIT_LINK mailbox command */
+#define FC_IGNORE_ERATT         0x80000	/* intr handler should ignore ERATT */
 
 	uint32_t fc_topology;	/* link topology, from LINK INIT */
 
 	struct lpfc_stats fc_stat;
 
-	/* These are the head/tail pointers for the bind, plogi, adisc, unmap,
-	 *  and map lists.  Their counters are immediately following.
-	 */
-	struct list_head fc_plogi_list;
-	struct list_head fc_adisc_list;
-	struct list_head fc_reglogin_list;
-	struct list_head fc_prli_list;
-	struct list_head fc_nlpunmap_list;
-	struct list_head fc_nlpmap_list;
-	struct list_head fc_npr_list;
-	struct list_head fc_unused_list;
+	struct list_head fc_nodes;
 
 	/* Keep counters for the number of entries in each list. */
 	uint16_t fc_plogi_cnt;
@@ -387,13 +378,17 @@ struct lpfc_hba {
 
 	mempool_t *mbox_mem_pool;
 	mempool_t *nlp_mem_pool;
-	struct list_head freebufList;
-	struct list_head ctrspbuflist;
-	struct list_head rnidrspbuflist;
 
 	struct fc_host_statistics link_stats;
 };
 
+static inline void
+lpfc_set_loopback_flag(struct lpfc_hba *phba) {
+	if (phba->cfg_topology == FLAGS_LOCAL_LB)
+		phba->fc_flag |= FC_LOOPBACK_MODE;
+	else
+		phba->fc_flag &= ~FC_LOOPBACK_MODE;
+}
 
 struct rnidrsp {
 	void *buf;

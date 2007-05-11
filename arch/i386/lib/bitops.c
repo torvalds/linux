@@ -43,7 +43,7 @@ EXPORT_SYMBOL(find_next_bit);
  */
 int find_next_zero_bit(const unsigned long *addr, int size, int offset)
 {
-	unsigned long * p = ((unsigned long *) addr) + (offset >> 5);
+	const unsigned long *p = addr + (offset >> 5);
 	int set = 0, bit = offset & 31, res;
 
 	if (bit) {
@@ -64,7 +64,7 @@ int find_next_zero_bit(const unsigned long *addr, int size, int offset)
 	/*
 	 * No zero yet, search remaining full bytes for a zero
 	 */
-	res = find_first_zero_bit (p, size - 32 * (p - (unsigned long *) addr));
+	res = find_first_zero_bit(p, size - 32 * (p - addr));
 	return (offset + set + res);
 }
 EXPORT_SYMBOL(find_next_zero_bit);

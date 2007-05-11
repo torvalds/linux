@@ -75,14 +75,6 @@ static const struct hc_driver ps3_ohci_hc_driver = {
 #endif
 };
 
-/* redefine dev_dbg to do a syntax check */
-
-#if !defined(DEBUG)
-#undef dev_dbg
-static inline int __attribute__ ((format (printf, 2, 3))) dev_dbg(
-	const struct device *_dev, const char *fmt, ...) {return 0;}
-#endif
-
 static int ps3_ohci_sb_probe(struct ps3_system_bus_device *dev)
 {
 	int result;
@@ -107,7 +99,7 @@ static int ps3_ohci_sb_probe(struct ps3_system_bus_device *dev)
 	dev_dbg(&dev->core, "%s:%d: mmio mapped_addr %lxh\n", __func__,
 		__LINE__, dev->m_region->lpar_addr);
 
-	result = ps3_alloc_io_irq(PS3_BINDING_CPU_ANY, dev->interrupt_id, &virq);
+	result = ps3_io_irq_setup(PS3_BINDING_CPU_ANY, dev->interrupt_id, &virq);
 
 	if (result) {
 		dev_dbg(&dev->core, "%s:%d: ps3_construct_io_irq(%d) failed.\n",
@@ -165,7 +157,7 @@ fail_add_hcd:
 fail_ioremap:
 	usb_put_hcd(hcd);
 fail_create_hcd:
-	ps3_free_io_irq(virq);
+	ps3_io_irq_destroy(virq);
 fail_irq:
 	ps3_free_mmio_region(dev->m_region);
 fail_mmio:

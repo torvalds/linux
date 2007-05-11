@@ -32,73 +32,35 @@ static struct
 	struct ip6t_replace repl;
 	struct ip6t_standard entries[5];
 	struct ip6t_error term;
-} initial_table __initdata
-= { { "mangle", MANGLE_VALID_HOOKS, 6,
-      sizeof(struct ip6t_standard) * 5 + sizeof(struct ip6t_error),
-      { [NF_IP6_PRE_ROUTING] 	= 0,
-	[NF_IP6_LOCAL_IN]	= sizeof(struct ip6t_standard),
-	[NF_IP6_FORWARD]	= sizeof(struct ip6t_standard) * 2,
-	[NF_IP6_LOCAL_OUT] 	= sizeof(struct ip6t_standard) * 3,
-	[NF_IP6_POST_ROUTING]	= sizeof(struct ip6t_standard) * 4},
-      { [NF_IP6_PRE_ROUTING] 	= 0,
-	[NF_IP6_LOCAL_IN]	= sizeof(struct ip6t_standard),
-	[NF_IP6_FORWARD]	= sizeof(struct ip6t_standard) * 2,
-	[NF_IP6_LOCAL_OUT] 	= sizeof(struct ip6t_standard) * 3,
-	[NF_IP6_POST_ROUTING]	= sizeof(struct ip6t_standard) * 4},
-      0, NULL, { } },
-    {
-	    /* PRE_ROUTING */
-	    { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
-		0,
-		sizeof(struct ip6t_entry),
-		sizeof(struct ip6t_standard),
-		0, { 0, 0 }, { } },
-	      { { { { IP6T_ALIGN(sizeof(struct ip6t_standard_target)), "" } }, { } },
-		-NF_ACCEPT - 1 } },
-	    /* LOCAL_IN */
-	    { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
-		0,
-		sizeof(struct ip6t_entry),
-		sizeof(struct ip6t_standard),
-		0, { 0, 0 }, { } },
-	      { { { { IP6T_ALIGN(sizeof(struct ip6t_standard_target)), "" } }, { } },
-		-NF_ACCEPT - 1 } },
-	    /* FORWARD */
-	    { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
-		0,
-		sizeof(struct ip6t_entry),
-		sizeof(struct ip6t_standard),
-		0, { 0, 0 }, { } },
-	      { { { { IP6T_ALIGN(sizeof(struct ip6t_standard_target)), "" } }, { } },
-		-NF_ACCEPT - 1 } },
-	    /* LOCAL_OUT */
-	    { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
-		0,
-		sizeof(struct ip6t_entry),
-		sizeof(struct ip6t_standard),
-		0, { 0, 0 }, { } },
-	      { { { { IP6T_ALIGN(sizeof(struct ip6t_standard_target)), "" } }, { } },
-		-NF_ACCEPT - 1 } },
-	    /* POST_ROUTING */
-	    { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
-		0,
-		sizeof(struct ip6t_entry),
-		sizeof(struct ip6t_standard),
-		0, { 0, 0 }, { } },
-	      { { { { IP6T_ALIGN(sizeof(struct ip6t_standard_target)), "" } }, { } },
-		-NF_ACCEPT - 1 } }
-    },
-    /* ERROR */
-    { { { { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, { { { 0 } } }, "", "", { 0 }, { 0 }, 0, 0, 0 },
-	0,
-	sizeof(struct ip6t_entry),
-	sizeof(struct ip6t_error),
-	0, { 0, 0 }, { } },
-      { { { { IP6T_ALIGN(sizeof(struct ip6t_error_target)), IP6T_ERROR_TARGET } },
-	  { } },
-	"ERROR"
-      }
-    }
+} initial_table __initdata = {
+	.repl = {
+		.name = "mangle",
+		.valid_hooks = MANGLE_VALID_HOOKS,
+		.num_entries = 6,
+		.size = sizeof(struct ip6t_standard) * 5 + sizeof(struct ip6t_error),
+		.hook_entry = {
+			[NF_IP6_PRE_ROUTING] 	= 0,
+			[NF_IP6_LOCAL_IN]	= sizeof(struct ip6t_standard),
+			[NF_IP6_FORWARD]	= sizeof(struct ip6t_standard) * 2,
+			[NF_IP6_LOCAL_OUT] 	= sizeof(struct ip6t_standard) * 3,
+			[NF_IP6_POST_ROUTING]	= sizeof(struct ip6t_standard) * 4,
+		},
+		.underflow = {
+			[NF_IP6_PRE_ROUTING] 	= 0,
+			[NF_IP6_LOCAL_IN]	= sizeof(struct ip6t_standard),
+			[NF_IP6_FORWARD]	= sizeof(struct ip6t_standard) * 2,
+			[NF_IP6_LOCAL_OUT] 	= sizeof(struct ip6t_standard) * 3,
+			[NF_IP6_POST_ROUTING]	= sizeof(struct ip6t_standard) * 4,
+		},
+	},
+	.entries = {
+		IP6T_STANDARD_INIT(NF_ACCEPT),	/* PRE_ROUTING */
+		IP6T_STANDARD_INIT(NF_ACCEPT),	/* LOCAL_IN */
+		IP6T_STANDARD_INIT(NF_ACCEPT),	/* FORWARD */
+		IP6T_STANDARD_INIT(NF_ACCEPT),	/* LOCAL_OUT */
+		IP6T_STANDARD_INIT(NF_ACCEPT),	/* POST_ROUTING */
+	},
+	.term = IP6T_ERROR_INIT,		/* ERROR */
 };
 
 static struct xt_table packet_mangler = {

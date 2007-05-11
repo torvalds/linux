@@ -22,7 +22,7 @@
 #include <asm/nmi.h>
 #include <asm/hw_irq.h>
 #include <asm/apic.h>
-#include <asm/kdebug.h>
+#include <linux/kdebug.h>
 #include <asm/smp.h>
 
 #include <mach_ipi.h>

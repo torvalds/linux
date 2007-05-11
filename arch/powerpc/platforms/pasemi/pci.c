@@ -173,19 +173,6 @@ static void __init pas_fixup_phb_resources(void)
 }
 
 
-void __devinit pas_pci_irq_fixup(struct pci_dev *dev)
-{
-	/* DMA is special, 84 interrupts (128 -> 211), all but 128
-	 * need to be mapped by hand here.
-	 */
-	if (dev->vendor == 0x1959 && dev->device == 0xa007) {
-		int i;
-		for (i = 129; i < 212; i++)
-			irq_create_mapping(NULL, i);
-	}
-}
-
-
 void __init pas_pci_init(void)
 {
 	struct device_node *np, *root;

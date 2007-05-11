@@ -16,6 +16,7 @@
 /* structs from asm/cio.h */
 struct irb;
 struct ccw1;
+struct ccw_dev_id;
 
 /* simplified initializers for struct ccw_device:
  * CCW_DEVICE and CCW_DEVICE_DEVTYPE initialize one
@@ -164,9 +165,9 @@ extern int ccw_device_resume(struct ccw_device *);
 extern int ccw_device_halt(struct ccw_device *, unsigned long);
 extern int ccw_device_clear(struct ccw_device *, unsigned long);
 
-extern int read_dev_chars(struct ccw_device *cdev, void **buffer, int length);
-extern int read_conf_data(struct ccw_device *cdev, void **buffer, int *length);
-extern int read_conf_data_lpm(struct ccw_device *cdev, void **buffer,
+extern int __deprecated read_dev_chars(struct ccw_device *cdev, void **buffer, int length);
+extern int __deprecated read_conf_data(struct ccw_device *cdev, void **buffer, int *length);
+extern int __deprecated read_conf_data_lpm(struct ccw_device *cdev, void **buffer,
 			      int *length, __u8 lpm);
 
 extern int ccw_device_set_online(struct ccw_device *cdev);
@@ -175,6 +176,7 @@ extern int ccw_device_set_offline(struct ccw_device *cdev);
 
 extern struct ciw *ccw_device_get_ciw(struct ccw_device *, __u32 cmd);
 extern __u8 ccw_device_get_path_mask(struct ccw_device *);
+extern void ccw_device_get_id(struct ccw_device *, struct ccw_dev_id *);
 
 #define get_ccwdev_lock(x) (x)->ccwlock
 
@@ -184,7 +186,6 @@ extern __u8 ccw_device_get_path_mask(struct ccw_device *);
 extern struct ccw_device *ccw_device_probe_console(void);
 
 // FIXME: these have to go
-extern int _ccw_device_get_device_number(struct ccw_device *);
 extern int _ccw_device_get_subchannel_number(struct ccw_device *);
 
 extern void *ccw_device_get_chp_desc(struct ccw_device *, int);

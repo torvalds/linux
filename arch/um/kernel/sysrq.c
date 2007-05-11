@@ -10,7 +10,6 @@
 #include "asm/page.h"
 #include "asm/processor.h"
 #include "sysrq.h"
-#include "user_util.h"
 
 /* Catch non-i386 SUBARCH's. */
 #if !defined(CONFIG_UML_X86) || defined(CONFIG_64BIT)

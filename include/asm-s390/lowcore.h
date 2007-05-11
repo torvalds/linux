@@ -229,17 +229,19 @@ struct _lowcore
 	__u16        subchannel_nr;            /* 0x0ba */
 	__u32        io_int_parm;              /* 0x0bc */
 	__u32        io_int_word;              /* 0x0c0 */
-        __u8         pad3[0xD4-0xC4];          /* 0x0c4 */
+	__u8	     pad3[0xc8-0xc4];	       /* 0x0c4 */
+	__u32	     stfl_fac_list;	       /* 0x0c8 */
+	__u8	     pad4[0xd4-0xcc];	       /* 0x0cc */
 	__u32        extended_save_area_addr;  /* 0x0d4 */
 	__u32        cpu_timer_save_area[2];   /* 0x0d8 */
 	__u32        clock_comp_save_area[2];  /* 0x0e0 */
 	__u32        mcck_interruption_code[2]; /* 0x0e8 */
-	__u8         pad4[0xf4-0xf0];          /* 0x0f0 */
+	__u8	     pad5[0xf4-0xf0];	       /* 0x0f0 */
 	__u32        external_damage_code;     /* 0x0f4 */
 	__u32        failing_storage_address;  /* 0x0f8 */
-	__u8         pad5[0x100-0xfc];         /* 0x0fc */
+	__u8	     pad6[0x100-0xfc];	       /* 0x0fc */
 	__u32        st_status_fixed_logout[4];/* 0x100 */
-	__u8         pad6[0x120-0x110];        /* 0x110 */
+	__u8	     pad7[0x120-0x110];        /* 0x110 */
 	__u32        access_regs_save_area[16];/* 0x120 */
 	__u32        floating_pt_save_area[8]; /* 0x160 */
 	__u32        gpregs_save_area[16];     /* 0x180 */

@@ -705,6 +705,100 @@ int ide_use_dma(ide_drive_t *drive)
 
 EXPORT_SYMBOL_GPL(ide_use_dma);
 
+static const u8 xfer_mode_bases[] = {
+	XFER_UDMA_0,
+	XFER_MW_DMA_0,
+	XFER_SW_DMA_0,
+};
+
+static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base)
+{
+	struct hd_driveid *id = drive->id;
+	ide_hwif_t *hwif = drive->hwif;
+	unsigned int mask = 0;
+
+	switch(base) {
+	case XFER_UDMA_0:
+		if ((id->field_valid & 4) == 0)
+			break;
+
+		mask = id->dma_ultra & hwif->ultra_mask;
+
+		if (hwif->udma_filter)
+			mask &= hwif->udma_filter(drive);
+
+		if ((mask & 0x78) && (eighty_ninty_three(drive) == 0))
+			mask &= 0x07;
+		break;
+	case XFER_MW_DMA_0:
+		mask = id->dma_mword & hwif->mwdma_mask;
+		break;
+	case XFER_SW_DMA_0:
+		mask = id->dma_1word & hwif->swdma_mask;
+		break;
+	default:
+		BUG();
+		break;
+	}
+
+	return mask;
+}
+
+/**
+ *	ide_max_dma_mode	-	compute DMA speed
+ *	@drive: IDE device
+ *
+ *	Checks the drive capabilities and returns the speed to use
+ *	for the DMA transfer.  Returns 0 if the drive is incapable
+ *	of DMA transfers.
+ */
+
+u8 ide_max_dma_mode(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	unsigned int mask;
+	int x, i;
+	u8 mode = 0;
+
+	if (drive->media != ide_disk && hwif->atapi_dma == 0)
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(xfer_mode_bases); i++) {
+		mask = ide_get_mode_mask(drive, xfer_mode_bases[i]);
+		x = fls(mask) - 1;
+		if (x >= 0) {
+			mode = xfer_mode_bases[i] + x;
+			break;
+		}
+	}
+
+	printk(KERN_DEBUG "%s: selected mode 0x%x\n", drive->name, mode);
+
+	return mode;
+}
+
+EXPORT_SYMBOL_GPL(ide_max_dma_mode);
+
+int ide_tune_dma(ide_drive_t *drive)
+{
+	u8 speed;
+
+	/* TODO: use only ide_max_dma_mode() */
+	if (!ide_use_dma(drive))
+		return 0;
+
+	speed = ide_max_dma_mode(drive);
+
+	if (!speed)
+		return 0;
+
+	drive->hwif->speedproc(drive, speed);
+
+	return ide_dma_enable(drive);
+}
+
+EXPORT_SYMBOL_GPL(ide_tune_dma);
+
 void ide_dma_verbose(ide_drive_t *drive)
 {
 	struct hd_driveid *id	= drive->id;

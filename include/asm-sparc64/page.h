@@ -5,7 +5,7 @@
 
 #ifdef __KERNEL__
 
-#include <asm/const.h>
+#include <linux/const.h>
 
 #if defined(CONFIG_SPARC64_PAGE_SIZE_8KB)
 #define PAGE_SHIFT   13

@@ -252,10 +252,8 @@ ia32_init (void)
 		extern struct kmem_cache *partial_page_cachep;
 
 		partial_page_cachep = kmem_cache_create("partial_page_cache",
-							sizeof(struct partial_page), 0, 0,
-							NULL, NULL);
-		if (!partial_page_cachep)
-			panic("Cannot create partial page SLAB cache");
+						sizeof(struct partial_page),
+						0, SLAB_PANIC, NULL, NULL);
 	}
 #endif
 	return 0;

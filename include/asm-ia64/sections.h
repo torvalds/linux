@@ -11,6 +11,7 @@
 extern char __per_cpu_start[], __per_cpu_end[], __phys_per_cpu_start[];
 extern char __start___vtop_patchlist[], __end___vtop_patchlist[];
 extern char __start___mckinley_e9_bundles[], __end___mckinley_e9_bundles[];
+extern char __start___phys_stack_reg_patchlist[], __end___phys_stack_reg_patchlist[];
 extern char __start_gate_section[];
 extern char __start_gate_mckinley_e9_patchlist[], __end_gate_mckinley_e9_patchlist[];
 extern char __start_gate_vtop_patchlist[], __end_gate_vtop_patchlist[];

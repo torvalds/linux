@@ -45,6 +45,24 @@ void jfs_set_inode_flags(struct inode *inode)
 		inode->i_flags |= S_SYNC;
 }
 
+void jfs_get_inode_flags(struct jfs_inode_info *jfs_ip)
+{
+	unsigned int flags = jfs_ip->vfs_inode.i_flags;
+
+	jfs_ip->mode2 &= ~(JFS_IMMUTABLE_FL | JFS_APPEND_FL | JFS_NOATIME_FL |
+			   JFS_DIRSYNC_FL | JFS_SYNC_FL);
+	if (flags & S_IMMUTABLE)
+		jfs_ip->mode2 |= JFS_IMMUTABLE_FL;
+	if (flags & S_APPEND)
+		jfs_ip->mode2 |= JFS_APPEND_FL;
+	if (flags & S_NOATIME)
+		jfs_ip->mode2 |= JFS_NOATIME_FL;
+	if (flags & S_DIRSYNC)
+		jfs_ip->mode2 |= JFS_DIRSYNC_FL;
+	if (flags & S_SYNC)
+		jfs_ip->mode2 |= JFS_SYNC_FL;
+}
+
 /*
  * NAME:	ialloc()
  *

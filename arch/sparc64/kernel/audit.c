@@ -23,6 +23,20 @@ static unsigned chattr_class[] = {
 ~0U
 };
 
+static unsigned signal_class[] = {
+#include <asm-generic/audit_signal.h>
+~0U
+};
+
+int audit_classify_arch(int arch)
+{
+#ifdef CONFIG_SPARC32_COMPAT
+	if (arch == AUDIT_ARCH_SPARC)
+		return 1;
+#endif
+	return 0;
+}
+
 int audit_classify_syscall(int abi, unsigned syscall)
 {
 #ifdef CONFIG_SPARC32_COMPAT
@@ -51,15 +65,18 @@ static int __init audit_classes_init(void)
 	extern __u32 sparc32_write_class[];
 	extern __u32 sparc32_read_class[];
 	extern __u32 sparc32_chattr_class[];
+	extern __u32 sparc32_signal_class[];
 	audit_register_class(AUDIT_CLASS_WRITE_32, sparc32_write_class);
 	audit_register_class(AUDIT_CLASS_READ_32, sparc32_read_class);
 	audit_register_class(AUDIT_CLASS_DIR_WRITE_32, sparc32_dir_class);
 	audit_register_class(AUDIT_CLASS_CHATTR_32, sparc32_chattr_class);
+	audit_register_class(AUDIT_CLASS_SIGNAL_32, sparc32_signal_class);
 #endif
 	audit_register_class(AUDIT_CLASS_WRITE, write_class);
 	audit_register_class(AUDIT_CLASS_READ, read_class);
 	audit_register_class(AUDIT_CLASS_DIR_WRITE, dir_class);
 	audit_register_class(AUDIT_CLASS_CHATTR, chattr_class);
+	audit_register_class(AUDIT_CLASS_SIGNAL, signal_class);
 	return 0;
 }
 

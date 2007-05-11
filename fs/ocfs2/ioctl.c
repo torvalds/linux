@@ -31,6 +31,7 @@ static int ocfs2_get_inode_attr(struct inode *inode, unsigned *flags)
 		mlog_errno(status);
 		return status;
 	}
+	ocfs2_get_inode_flags(OCFS2_I(inode));
 	*flags = OCFS2_I(inode)->ip_attr;
 	ocfs2_meta_unlock(inode, 0);
 
@@ -134,3 +135,26 @@ int ocfs2_ioctl(struct inode * inode, struct file * filp,
 	}
 }
 
+#ifdef CONFIG_COMPAT
+long ocfs2_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	int ret;
+
+	switch (cmd) {
+	case OCFS2_IOC32_GETFLAGS:
+		cmd = OCFS2_IOC_GETFLAGS;
+		break;
+	case OCFS2_IOC32_SETFLAGS:
+		cmd = OCFS2_IOC_SETFLAGS;
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+
+	lock_kernel();
+	ret = ocfs2_ioctl(inode, file, cmd, arg);
+	unlock_kernel();
+	return ret;
+}
+#endif

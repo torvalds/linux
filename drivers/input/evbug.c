@@ -38,31 +38,43 @@ MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Input driver event debug module");
 MODULE_LICENSE("GPL");
 
-static char evbug_name[] = "evbug";
-
 static void evbug_event(struct input_handle *handle, unsigned int type, unsigned int code, int value)
 {
 	printk(KERN_DEBUG "evbug.c: Event. Dev: %s, Type: %d, Code: %d, Value: %d\n",
 		handle->dev->phys, type, code, value);
 }
 
-static struct input_handle *evbug_connect(struct input_handler *handler, struct input_dev *dev,
-					  const struct input_device_id *id)
+static int evbug_connect(struct input_handler *handler, struct input_dev *dev,
+			 const struct input_device_id *id)
 {
 	struct input_handle *handle;
+	int error;
 
-	if (!(handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL)))
-		return NULL;
+	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
+	if (!handle)
+		return -ENOMEM;
 
 	handle->dev = dev;
 	handle->handler = handler;
-	handle->name = evbug_name;
+	handle->name = "evbug";
 
-	input_open_device(handle);
+	error = input_register_handle(handle);
+	if (error)
+		goto err_free_handle;
+
+	error = input_open_device(handle);
+	if (error)
+		goto err_unregister_handle;
 
 	printk(KERN_DEBUG "evbug.c: Connected device: \"%s\", %s\n", dev->name, dev->phys);
 
-	return handle;
+	return 0;
+
+ err_unregister_handle:
+	input_unregister_handle(handle);
+ err_free_handle:
+	kfree(handle);
+	return error;
 }
 
 static void evbug_disconnect(struct input_handle *handle)
@@ -70,7 +82,7 @@ static void evbug_disconnect(struct input_handle *handle)
 	printk(KERN_DEBUG "evbug.c: Disconnected device: %s\n", handle->dev->phys);
 
 	input_close_device(handle);
-
+	input_unregister_handle(handle);
 	kfree(handle);
 }
 

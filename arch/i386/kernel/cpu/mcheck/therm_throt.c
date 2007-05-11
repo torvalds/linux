@@ -1,5 +1,5 @@
 /*
- * linux/arch/i386/kerne/cpu/mcheck/therm_throt.c
+ * linux/arch/i386/kernel/cpu/mcheck/therm_throt.c
  *
  * Thermal throttle event support code (such as syslog messaging and rate
  * limiting) that was factored out from x86_64 (mce_intel.c) and i386 (p4.c).
@@ -137,10 +137,12 @@ static __cpuinit int thermal_throttle_cpu_callback(struct notifier_block *nfb,
 	mutex_lock(&therm_cpu_lock);
 	switch (action) {
 	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
 		err = thermal_throttle_add_dev(sys_dev);
 		WARN_ON(err);
 		break;
 	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
 		thermal_throttle_remove_dev(sys_dev);
 		break;
 	}

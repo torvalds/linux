@@ -39,8 +39,6 @@
 #if !defined( IB_MAD_H )
 #define IB_MAD_H
 
-#include <linux/pci.h>
-
 #include <rdma/ib_verbs.h>
 
 /* Management base version */

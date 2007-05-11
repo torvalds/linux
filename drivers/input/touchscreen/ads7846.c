@@ -39,7 +39,8 @@
 /*
  * This code has been heavily tested on a Nokia 770, and lightly
  * tested on other ads7846 devices (OSK/Mistral, Lubbock).
- * Support for ads7843 and ads7845 has only been stubbed in.
+ * Support for ads7843 tested on Atmel at91sam926x-EK.
+ * Support for ads7845 has only been stubbed in.
  *
  * IRQ handling needs a workaround because of a shortcoming in handling
  * edge triggered IRQs on some platforms like the OMAP1/2. These
@@ -246,18 +247,16 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 
 	/* REVISIT:  take a few more samples, and compare ... */
 
-	/* maybe off internal vREF */
-	if (use_internal) {
-		req->ref_off = REF_OFF;
-		req->xfer[4].tx_buf = &req->ref_off;
-		req->xfer[4].len = 1;
-		spi_message_add_tail(&req->xfer[4], &req->msg);
+	/* converter in low power mode & enable PENIRQ */
+	req->ref_off = PWRDOWN;
+	req->xfer[4].tx_buf = &req->ref_off;
+	req->xfer[4].len = 1;
+	spi_message_add_tail(&req->xfer[4], &req->msg);
 
-		req->xfer[5].rx_buf = &req->scratch;
-		req->xfer[5].len = 2;
-		CS_CHANGE(req->xfer[5]);
-		spi_message_add_tail(&req->xfer[5], &req->msg);
-	}
+	req->xfer[5].rx_buf = &req->scratch;
+	req->xfer[5].len = 2;
+	CS_CHANGE(req->xfer[5]);
+	spi_message_add_tail(&req->xfer[5], &req->msg);
 
 	ts->irq_disabled = 1;
 	disable_irq(spi->irq);
@@ -535,6 +534,9 @@ static void ads7846_rx(void *ads)
 		Rt = (Rt + 2047) >> 12;
 	} else
 		Rt = 0;
+
+	if (ts->model == 7843)
+		Rt = ts->pressure_max / 2;
 
 	/* Sample found inconsistent by debouncing or pressure is beyond
 	 * the maximum. Don't report it to user space, repeat at least
@@ -897,7 +899,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 
 	input_dev->name = "ADS784x Touchscreen";
 	input_dev->phys = ts->phys;
-	input_dev->cdev.dev = &spi->dev;
+	input_dev->dev.parent = &spi->dev;
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 	input_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);

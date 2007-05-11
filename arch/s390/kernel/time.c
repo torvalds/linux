@@ -21,6 +21,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/time.h>
+#include <linux/sysdev.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/smp.h>

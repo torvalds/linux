@@ -21,7 +21,6 @@
 #include "udfdecl.h"
 
 #include <linux/fs.h>
-#include <linux/smp_lock.h>
 
 static int udf_fsync_inode(struct inode *, int);
 

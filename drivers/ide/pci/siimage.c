@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/siimage.c		Version 1.11	Jan 27, 2007
+ * linux/drivers/ide/pci/siimage.c		Version 1.12	Mar 10 2007
  *
  * Copyright (C) 2001-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2003		Red Hat <alan@redhat.com>
@@ -122,45 +122,41 @@ static inline unsigned long siimage_seldev(ide_drive_t *drive, int r)
 }
 
 /**
- *	siimage_ratemask	-	Compute available modes
- *	@drive: IDE drive
+ *	sil_udma_filter		-	compute UDMA mask
+ *	@drive: IDE device
  *
- *	Compute the available speeds for the devices on the interface.
+ *	Compute the available UDMA speeds for the device on the interface.
+ *
  *	For the CMD680 this depends on the clocking mode (scsc), for the
- *	SI3312 SATA controller life is a bit simpler. Enforce UDMA33
- *	as a limit if there is no 80pin cable present.
+ *	SI3112 SATA controller life is a bit simpler.
  */
- 
-static byte siimage_ratemask (ide_drive_t *drive)
+
+static u8 sil_udma_filter(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	u8 mode	= 0, scsc = 0;
+	ide_hwif_t *hwif = drive->hwif;
 	unsigned long base = (unsigned long) hwif->hwif_data;
+	u8 mask = 0, scsc = 0;
 
 	if (hwif->mmio)
 		scsc = hwif->INB(base + 0x4A);
 	else
 		pci_read_config_byte(hwif->pci_dev, 0x8A, &scsc);
 
-	if(is_sata(hwif))
-	{
-		if(strstr(drive->id->model, "Maxtor"))
-			return 3;
-		return 4;
+	if (is_sata(hwif)) {
+		mask = strstr(drive->id->model, "Maxtor") ? 0x3f : 0x7f;
+		goto out;
 	}
-	
+
 	if ((scsc & 0x30) == 0x10)	/* 133 */
-		mode = 4;
+		mask = 0x7f;
 	else if ((scsc & 0x30) == 0x20)	/* 2xPCI */
-		mode = 4;
+		mask = 0x7f;
 	else if ((scsc & 0x30) == 0x00)	/* 100 */
-		mode = 3;
+		mask = 0x3f;
 	else 	/* Disabled ? */
 		BUG();
-
-	if (!eighty_ninty_three(drive))
-		mode = min(mode, (u8)1);
-	return mode;
+out:
+	return mask;
 }
 
 /**
@@ -287,11 +283,6 @@ static void config_siimage_chipset_for_pio (ide_drive_t *drive, byte set_speed)
 		(void) ide_config_drive_speed(drive, speed);
 }
 
-static void config_chipset_for_pio (ide_drive_t *drive, byte set_speed)
-{
-	config_siimage_chipset_for_pio(drive, set_speed);
-}
-
 /**
  *	siimage_tune_chipset	-	set controller timings
  *	@drive: Drive to set up
@@ -311,7 +302,7 @@ static int siimage_tune_chipset (ide_drive_t *drive, byte xferspeed)
 	ide_hwif_t *hwif	= HWIF(drive);
 	u16 ultra = 0, multi	= 0;
 	u8 mode = 0, unit	= drive->select.b.unit;
-	u8 speed		= ide_rate_filter(siimage_ratemask(drive), xferspeed);
+	u8 speed		= ide_rate_filter(drive, xferspeed);
 	unsigned long base	= (unsigned long)hwif->hwif_data;
 	u8 scsc = 0, addr_mask	= ((hwif->channel) ?
 				    ((hwif->mmio) ? 0xF4 : 0x84) :
@@ -394,9 +385,7 @@ static int siimage_tune_chipset (ide_drive_t *drive, byte xferspeed)
  
 static int config_chipset_for_dma (ide_drive_t *drive)
 {
-	u8 speed	= ide_dma_speed(drive, siimage_ratemask(drive));
-
-	config_chipset_for_pio(drive, !speed);
+	u8 speed = ide_max_dma_mode(drive);
 
 	if (!speed)
 		return 0;
@@ -423,7 +412,7 @@ static int siimage_config_drive_for_dma (ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		config_chipset_for_pio(drive, 1);
+		config_siimage_chipset_for_pio(drive, 1);
 
 	return -1;
 }
@@ -838,7 +827,7 @@ static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
 
 	/*
 	 *	Now set up the hw. We have to do this ourselves as
-	 *	the MMIO layout isnt the same as the the standard port
+	 *	the MMIO layout isnt the same as the standard port
 	 *	based I/O
 	 */
 
@@ -996,6 +985,7 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 	hwif->tuneproc	= &siimage_tuneproc;
 	hwif->reset_poll = &siimage_reset_poll;
 	hwif->pre_reset = &siimage_pre_reset;
+	hwif->udma_filter = &sil_udma_filter;
 
 	if(is_sata(hwif)) {
 		static int first = 1;
@@ -1015,7 +1005,6 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 
 	hwif->ultra_mask = 0x7f;
 	hwif->mwdma_mask = 0x07;
-	hwif->swdma_mask = 0x07;
 
 	if (!is_sata(hwif))
 		hwif->atapi_dma = 1;

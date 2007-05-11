@@ -175,24 +175,33 @@ static void afs_vnode_deleted_remotely(struct afs_vnode *vnode)
 {
 	struct afs_server *server;
 
+	_enter("{%p}", vnode->server);
+
 	set_bit(AFS_VNODE_DELETED, &vnode->flags);
 
 	server = vnode->server;
-	if (vnode->cb_promised) {
-		spin_lock(&server->cb_lock);
+	if (server) {
 		if (vnode->cb_promised) {
-			rb_erase(&vnode->cb_promise, &server->cb_promises);
-			vnode->cb_promised = false;
+			spin_lock(&server->cb_lock);
+			if (vnode->cb_promised) {
+				rb_erase(&vnode->cb_promise,
+					 &server->cb_promises);
+				vnode->cb_promised = false;
+			}
+			spin_unlock(&server->cb_lock);
 		}
-		spin_unlock(&server->cb_lock);
+
+		spin_lock(&server->fs_lock);
+		rb_erase(&vnode->server_rb, &server->fs_vnodes);
+		spin_unlock(&server->fs_lock);
+
+		vnode->server = NULL;
+		afs_put_server(server);
+	} else {
+		ASSERT(!vnode->cb_promised);
 	}
 
-	spin_lock(&vnode->server->fs_lock);
-	rb_erase(&vnode->server_rb, &vnode->server->fs_vnodes);
-	spin_unlock(&vnode->server->fs_lock);
-
-	vnode->server = NULL;
-	afs_put_server(server);
+	_leave("");
 }
 
 /*
@@ -225,7 +234,7 @@ void afs_vnode_finalise_status_update(struct afs_vnode *vnode,
  */
 static void afs_vnode_status_update_failed(struct afs_vnode *vnode, int ret)
 {
-	_enter("%p,%d", vnode, ret);
+	_enter("{%x:%u},%d", vnode->fid.vid, vnode->fid.vnode, ret);
 
 	spin_lock(&vnode->lock);
 
@@ -261,7 +270,7 @@ int afs_vnode_fetch_status(struct afs_vnode *vnode,
 
 	DECLARE_WAITQUEUE(myself, current);
 
-	_enter("%s,{%u,%u,%u}",
+	_enter("%s,{%x:%u.%u}",
 	       vnode->volume->vlocation->vldb.name,
 	       vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique);
 
@@ -389,7 +398,7 @@ int afs_vnode_fetch_data(struct afs_vnode *vnode, struct key *key,
 	struct afs_server *server;
 	int ret;
 
-	_enter("%s{%u,%u,%u},%x,,,",
+	_enter("%s{%x:%u.%u},%x,,,",
 	       vnode->volume->vlocation->vldb.name,
 	       vnode->fid.vid,
 	       vnode->fid.vnode,
@@ -446,7 +455,7 @@ int afs_vnode_create(struct afs_vnode *vnode, struct key *key,
 	struct afs_server *server;
 	int ret;
 
-	_enter("%s{%u,%u,%u},%x,%s,,",
+	_enter("%s{%x:%u.%u},%x,%s,,",
 	       vnode->volume->vlocation->vldb.name,
 	       vnode->fid.vid,
 	       vnode->fid.vnode,
@@ -502,7 +511,7 @@ int afs_vnode_remove(struct afs_vnode *vnode, struct key *key, const char *name,
 	struct afs_server *server;
 	int ret;
 
-	_enter("%s{%u,%u,%u},%x,%s",
+	_enter("%s{%x:%u.%u},%x,%s",
 	       vnode->volume->vlocation->vldb.name,
 	       vnode->fid.vid,
 	       vnode->fid.vnode,
@@ -557,7 +566,7 @@ extern int afs_vnode_link(struct afs_vnode *dvnode, struct afs_vnode *vnode,
 	struct afs_server *server;
 	int ret;
 
-	_enter("%s{%u,%u,%u},%s{%u,%u,%u},%x,%s",
+	_enter("%s{%x:%u.%u},%s{%x:%u.%u},%x,%s",
 	       dvnode->volume->vlocation->vldb.name,
 	       dvnode->fid.vid,
 	       dvnode->fid.vnode,
@@ -628,7 +637,7 @@ int afs_vnode_symlink(struct afs_vnode *vnode, struct key *key,
 	struct afs_server *server;
 	int ret;
 
-	_enter("%s{%u,%u,%u},%x,%s,%s,,,",
+	_enter("%s{%x:%u.%u},%x,%s,%s,,,",
 	       vnode->volume->vlocation->vldb.name,
 	       vnode->fid.vid,
 	       vnode->fid.vnode,
@@ -687,7 +696,7 @@ int afs_vnode_rename(struct afs_vnode *orig_dvnode,
 	struct afs_server *server;
 	int ret;
 
-	_enter("%s{%u,%u,%u},%s{%u,%u,%u},%x,%s,%s",
+	_enter("%s{%x:%u.%u},%s{%u,%u,%u},%x,%s,%s",
 	       orig_dvnode->volume->vlocation->vldb.name,
 	       orig_dvnode->fid.vid,
 	       orig_dvnode->fid.vnode,
@@ -751,5 +760,164 @@ no_server:
 		spin_unlock(&new_dvnode->lock);
 	}
 	_leave(" = %ld [cnt %d]", PTR_ERR(server), orig_dvnode->update_cnt);
+	return PTR_ERR(server);
+}
+
+/*
+ * write to a file
+ */
+int afs_vnode_store_data(struct afs_writeback *wb, pgoff_t first, pgoff_t last,
+			 unsigned offset, unsigned to)
+{
+	struct afs_server *server;
+	struct afs_vnode *vnode = wb->vnode;
+	int ret;
+
+	_enter("%s{%x:%u.%u},%x,%lx,%lx,%x,%x",
+	       vnode->volume->vlocation->vldb.name,
+	       vnode->fid.vid,
+	       vnode->fid.vnode,
+	       vnode->fid.unique,
+	       key_serial(wb->key),
+	       first, last, offset, to);
+
+	/* this op will fetch the status */
+	spin_lock(&vnode->lock);
+	vnode->update_cnt++;
+	spin_unlock(&vnode->lock);
+
+	do {
+		/* pick a server to query */
+		server = afs_volume_pick_fileserver(vnode);
+		if (IS_ERR(server))
+			goto no_server;
+
+		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
+
+		ret = afs_fs_store_data(server, wb, first, last, offset, to,
+					&afs_sync_call);
+
+	} while (!afs_volume_release_fileserver(vnode, server, ret));
+
+	/* adjust the flags */
+	if (ret == 0) {
+		afs_vnode_finalise_status_update(vnode, server);
+		afs_put_server(server);
+	} else {
+		afs_vnode_status_update_failed(vnode, ret);
+	}
+
+	_leave(" = %d", ret);
+	return ret;
+
+no_server:
+	spin_lock(&vnode->lock);
+	vnode->update_cnt--;
+	ASSERTCMP(vnode->update_cnt, >=, 0);
+	spin_unlock(&vnode->lock);
+	return PTR_ERR(server);
+}
+
+/*
+ * set the attributes on a file
+ */
+int afs_vnode_setattr(struct afs_vnode *vnode, struct key *key,
+		      struct iattr *attr)
+{
+	struct afs_server *server;
+	int ret;
+
+	_enter("%s{%x:%u.%u},%x",
+	       vnode->volume->vlocation->vldb.name,
+	       vnode->fid.vid,
+	       vnode->fid.vnode,
+	       vnode->fid.unique,
+	       key_serial(key));
+
+	/* this op will fetch the status */
+	spin_lock(&vnode->lock);
+	vnode->update_cnt++;
+	spin_unlock(&vnode->lock);
+
+	do {
+		/* pick a server to query */
+		server = afs_volume_pick_fileserver(vnode);
+		if (IS_ERR(server))
+			goto no_server;
+
+		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
+
+		ret = afs_fs_setattr(server, key, vnode, attr, &afs_sync_call);
+
+	} while (!afs_volume_release_fileserver(vnode, server, ret));
+
+	/* adjust the flags */
+	if (ret == 0) {
+		afs_vnode_finalise_status_update(vnode, server);
+		afs_put_server(server);
+	} else {
+		afs_vnode_status_update_failed(vnode, ret);
+	}
+
+	_leave(" = %d", ret);
+	return ret;
+
+no_server:
+	spin_lock(&vnode->lock);
+	vnode->update_cnt--;
+	ASSERTCMP(vnode->update_cnt, >=, 0);
+	spin_unlock(&vnode->lock);
+	return PTR_ERR(server);
+}
+
+/*
+ * get the status of a volume
+ */
+int afs_vnode_get_volume_status(struct afs_vnode *vnode, struct key *key,
+				struct afs_volume_status *vs)
+{
+	struct afs_server *server;
+	int ret;
+
+	_enter("%s{%x:%u.%u},%x,",
+	       vnode->volume->vlocation->vldb.name,
+	       vnode->fid.vid,
+	       vnode->fid.vnode,
+	       vnode->fid.unique,
+	       key_serial(key));
+
+	/* this op will fetch the status */
+	spin_lock(&vnode->lock);
+	vnode->update_cnt++;
+	spin_unlock(&vnode->lock);
+
+	do {
+		/* pick a server to query */
+		server = afs_volume_pick_fileserver(vnode);
+		if (IS_ERR(server))
+			goto no_server;
+
+		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
+
+		ret = afs_fs_get_volume_status(server, key, vnode, vs, &afs_sync_call);
+
+	} while (!afs_volume_release_fileserver(vnode, server, ret));
+
+	/* adjust the flags */
+	if (ret == 0) {
+		afs_vnode_finalise_status_update(vnode, server);
+		afs_put_server(server);
+	} else {
+		afs_vnode_status_update_failed(vnode, ret);
+	}
+
+	_leave(" = %d", ret);
+	return ret;
+
+no_server:
+	spin_lock(&vnode->lock);
+	vnode->update_cnt--;
+	ASSERTCMP(vnode->update_cnt, >=, 0);
+	spin_unlock(&vnode->lock);
 	return PTR_ERR(server);
 }

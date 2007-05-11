@@ -120,6 +120,7 @@ extern unsigned long qdio_get_status(int irq);
 #define QDIO_FLAG_NO_INPUT_INTERRUPT_CONTEXT 0x08 /* no effect on
 						     adapter interrupts */
 #define QDIO_FLAG_DONT_SIGA 0x10
+#define QDIO_FLAG_PCI_OUT   0x20
 
 extern int do_QDIO(struct ccw_device*, unsigned int flags, 
 		   unsigned int queue_number,

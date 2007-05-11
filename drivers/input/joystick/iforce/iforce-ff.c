@@ -2,7 +2,7 @@
  * $Id: iforce-ff.c,v 1.9 2002/02/02 19:28:35 jdeneux Exp $
  *
  *  Copyright (c) 2000-2002 Vojtech Pavlik <vojtech@ucw.cz>
- *  Copyright (c) 2001-2002 Johann Deneux <deneux@ifrance.com>
+ *  Copyright (c) 2001-2002, 2007 Johann Deneux <johann.deneux@gmail.com>
  *
  *  USB/RS232 I-Force joysticks and wheels.
  */
@@ -205,7 +205,7 @@ static int need_condition_modifier(struct ff_effect *old, struct ff_effect *new)
 	int i;
 
 	if (new->type != FF_SPRING && new->type != FF_FRICTION) {
-		printk(KERN_WARNING "iforce.c: bad effect type in need_condition_modifier\n");
+		warn("bad effect type in need_condition_modifier");
 		return 0;
 	}
 
@@ -227,7 +227,7 @@ static int need_condition_modifier(struct ff_effect *old, struct ff_effect *new)
 static int need_magnitude_modifier(struct ff_effect *old, struct ff_effect *effect)
 {
 	if (effect->type != FF_CONSTANT) {
-		printk(KERN_WARNING "iforce.c: bad effect type in need_envelope_modifier\n");
+		warn("bad effect type in need_envelope_modifier");
 		return 0;
 	}
 
@@ -258,7 +258,7 @@ static int need_envelope_modifier(struct ff_effect *old, struct ff_effect *effec
 		break;
 
 	default:
-		printk(KERN_WARNING "iforce.c: bad effect type in need_envelope_modifier\n");
+		warn("bad effect type in need_envelope_modifier");
 	}
 
 	return 0;
@@ -271,7 +271,7 @@ static int need_envelope_modifier(struct ff_effect *old, struct ff_effect *effec
 static int need_period_modifier(struct ff_effect *old, struct ff_effect *new)
 {
 	if (new->type != FF_PERIODIC) {
-		printk(KERN_WARNING "iforce.c: bad effect type in need_period_modifier\n");
+		warn("bad effect type in need_period_modifier");
 		return 0;
 	}
 	return (old->u.periodic.period != new->u.periodic.period

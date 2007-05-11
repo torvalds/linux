@@ -60,6 +60,7 @@
 #  define UNW_DEBUG_ON(n)	unw_debug_level >= n
    /* Do not code a printk level, not all debug lines end in newline */
 #  define UNW_DPRINT(n, ...)  if (UNW_DEBUG_ON(n)) printk(__VA_ARGS__)
+#  undef inline
 #  define inline
 #else /* !UNW_DEBUG */
 #  define UNW_DEBUG_ON(n)  0
@@ -145,7 +146,7 @@ static struct {
 # endif
 } unw = {
 	.tables = &unw.kernel_table,
-	.lock = SPIN_LOCK_UNLOCKED,
+	.lock = __SPIN_LOCK_UNLOCKED(unw.lock),
 	.save_order = {
 		UNW_REG_RP, UNW_REG_PFS, UNW_REG_PSP, UNW_REG_PR,
 		UNW_REG_UNAT, UNW_REG_LC, UNW_REG_FPSR, UNW_REG_PRI_UNAT_GR
@@ -1943,9 +1944,9 @@ EXPORT_SYMBOL(unw_unwind);
 int
 unw_unwind_to_user (struct unw_frame_info *info)
 {
-	unsigned long ip, sp, pr = 0;
+	unsigned long ip, sp, pr = info->pr;
 
-	while (unw_unwind(info) >= 0) {
+	do {
 		unw_get_sp(info, &sp);
 		if ((long)((unsigned long)info->task + IA64_STK_OFFSET - sp)
 		    < IA64_PT_REGS_SIZE) {
@@ -1963,7 +1964,7 @@ unw_unwind_to_user (struct unw_frame_info *info)
 				__FUNCTION__, ip);
 			return -1;
 		}
-	}
+	} while (unw_unwind(info) >= 0);
 	unw_get_ip(info, &ip);
 	UNW_DPRINT(0, "unwind.%s: failed to unwind to user-level (ip=0x%lx)\n",
 		   __FUNCTION__, ip);

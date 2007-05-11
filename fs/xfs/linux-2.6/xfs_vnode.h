@@ -194,7 +194,7 @@ typedef	int	(*vop_attr_list_t)(bhv_desc_t *, char *, int, int,
 typedef void	(*vop_link_removed_t)(bhv_desc_t *, bhv_vnode_t *, int);
 typedef void	(*vop_vnode_change_t)(bhv_desc_t *, bhv_vchange_t, __psint_t);
 typedef void	(*vop_ptossvp_t)(bhv_desc_t *, xfs_off_t, xfs_off_t, int);
-typedef void	(*vop_pflushinvalvp_t)(bhv_desc_t *, xfs_off_t, xfs_off_t, int);
+typedef int	(*vop_pflushinvalvp_t)(bhv_desc_t *, xfs_off_t, xfs_off_t, int);
 typedef int	(*vop_pflushvp_t)(bhv_desc_t *, xfs_off_t, xfs_off_t,
 				uint64_t, int);
 typedef int	(*vop_iflush_t)(bhv_desc_t *, int);

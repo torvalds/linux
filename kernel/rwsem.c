@@ -60,7 +60,7 @@ int down_write_trylock(struct rw_semaphore *sem)
 	int ret = __down_write_trylock(sem);
 
 	if (ret == 1)
-		rwsem_acquire(&sem->dep_map, 0, 0, _RET_IP_);
+		rwsem_acquire(&sem->dep_map, 0, 1, _RET_IP_);
 	return ret;
 }
 

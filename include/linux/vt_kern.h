@@ -9,6 +9,7 @@
 #include <linux/vt.h>
 #include <linux/kd.h>
 #include <linux/tty.h>
+#include <linux/mutex.h>
 #include <linux/console_struct.h>
 #include <linux/mm.h>
 
@@ -82,7 +83,7 @@ void reset_vc(struct vc_data *vc);
 
 #define CON_BUF_SIZE (CONFIG_BASE_SMALL ? 256 : PAGE_SIZE)
 extern char con_buf[CON_BUF_SIZE];
-extern struct semaphore con_buf_sem;
+extern struct mutex con_buf_mtx;
 extern char vt_dont_switch;
 
 struct vt_spawn_console {

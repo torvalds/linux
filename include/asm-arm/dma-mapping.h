@@ -445,7 +445,7 @@ extern void dmabounce_unregister_dev(struct device *);
  *
  * The dmabounce routines call this function whenever a dma-mapping
  * is requested to determine whether a given buffer needs to be bounced
- * or not. The function must return 0 if the the buffer is OK for
+ * or not. The function must return 0 if the buffer is OK for
  * DMA access and 1 if the buffer needs to be bounced.
  *
  */

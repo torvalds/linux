@@ -747,6 +747,7 @@ static int lm87_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	if (!(data->channel & CHAN_NO_VID)) {
+		data->vrm = vid_which_vrm();
 		if ((err = device_create_file(&new_client->dev,
 					&dev_attr_cpu0_vid))
 		 || (err = device_create_file(&new_client->dev,
@@ -779,7 +780,6 @@ static void lm87_init_client(struct i2c_client *client)
 	u8 config;
 
 	data->channel = lm87_read_value(client, LM87_REG_CHANNEL_MODE);
-	data->vrm = vid_which_vrm();
 
 	config = lm87_read_value(client, LM87_REG_CONFIG);
 	if (!(config & 0x01)) {

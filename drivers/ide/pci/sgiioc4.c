@@ -692,7 +692,7 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev, ide_pci_device_t * d)
 		return -EIO;
 
 	/* Create /proc/ide entries */
-	create_proc_ide_interfaces();
+	ide_proc_register_port(hwif);
 
 	return 0;
 }

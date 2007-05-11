@@ -160,7 +160,7 @@ int __init ams_pmu_init(struct device_node *np)
 	ams_info.bustype = BUS_HOST;
 
 	/* Get PMU command, should be 0x4e, but we can never know */
-	prop = get_property(ams_info.of_node, "reg", NULL);
+	prop = of_get_property(ams_info.of_node, "reg", NULL);
 	if (!prop) {
 		result = -ENODEV;
 		goto exit;

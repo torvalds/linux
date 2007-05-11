@@ -1,17 +1,11 @@
 #ifndef __ASM_SH_RENESAS_R7780RP_H
 #define __ASM_SH_RENESAS_R7780RP_H
 
-/*
- * linux/include/asm-sh/r7780rp.h
- *
- * Copyright (C) 2000  Atom Create Engineering Co., Ltd.
- *
- * Renesas Solutions Highlander R7780RP support
- */
-
 /* Box specific addresses.  */
 #if defined(CONFIG_SH_R7780MP)
 #define PA_BCR          0xa4000000      /* FPGA */
+#define PA_SDPOW	(-1)
+
 #define PA_IRLMSK       (PA_BCR+0x0000) /* Interrupt Mask control */
 #define PA_IRLMON       (PA_BCR+0x0002) /* Interrupt Status control */
 #define PA_IRLPRI1      (PA_BCR+0x0004) /* Interrupt Priorty 1 */
@@ -70,18 +64,12 @@
 #define PA_POFF         (PA_BCR+0x0800) /* System Power Off control */
 #define PA_PMR          (PA_BCR+0x0900) /*  */
 
-#define PA_AX88796L     0xa4100400      /* AX88796L Area */
-#define PA_SC1602BSLB   0xa6000000      /* SC1602BSLB Area */
-#define PA_IDE_OFFSET   0x1f0           /* CF IDE Offset */
-#define AX88796L_IO_BASE        0x1000  /* AX88796L IO Base Address */
-
 #define IRLCNTR1        (PA_BCR + 0)    /* Interrupt Control Register1 */
 
 #define IRQ_PCISLOT1    65              /* PCI Slot #1 IRQ */
 #define IRQ_PCISLOT2    66              /* PCI Slot #2 IRQ */
 #define IRQ_PCISLOT3    67              /* PCI Slot #3 IRQ */
 #define IRQ_PCISLOT4    68              /* PCI Slot #4 IRQ */
-// #define IRQ_CFINST   0               /* CF Card Insert IRQ */
 #define IRQ_TP          2               /* Touch Panel IRQ */
 #define IRQ_SCI1        3               /* SCI1 IRQ */
 #define IRQ_SCI0        4               /* SCI0 IRQ */
@@ -95,7 +83,10 @@
 #define IRQ_ONETH       13              /* On board Ethernet IRQ */
 #define IRQ_PSW         14              /* Push Switch IRQ */
 
-#else /* R7780RP */
+#define IVDR_CK_ON	8		/* iVDR Clock ON */
+
+#elif defined(CONFIG_SH_R7780RP)
+#define PA_POFF		(-1)
 
 #define PA_BCR		0xa5000000	/* FPGA */
 #define	PA_IRLMSK	(PA_BCR+0x0000)	/* Interrupt Mask control */
@@ -163,7 +154,60 @@
 #define IRQ_PSW		13		/* Push Switch IRQ */
 #define IRQ_ZIGBEE	14		/* Ziggbee IO IRQ */
 
-#endif  /* CONFIG_SH_R7780MP */
+#define IVDR_CK_ON	8		/* iVDR Clock ON */
+
+#elif defined(CONFIG_SH_R7785RP)
+#define PA_BCR		0xa4000000	/* FPGA */
+#define PA_SDPOW	(-1)
+
+#define	PA_PCISCR	(PA_BCR+0x0000)
+#define PA_IRLPRA	(PA_BCR+0x0002)
+#define	PA_IRLPRB	(PA_BCR+0x0004)
+#define	PA_IRLPRC	(PA_BCR+0x0006)
+#define	PA_IRLPRD	(PA_BCR+0x0008)
+#define IRLCNTR1	(PA_BCR+0x0010)
+#define	PA_IRLPRE	(PA_BCR+0x000a)
+#define	PA_IRLPRF	(PA_BCR+0x000c)
+#define	PA_EXIRLCR	(PA_BCR+0x000e)
+#define	PA_IRLMCR1	(PA_BCR+0x0010)
+#define	PA_IRLMCR2	(PA_BCR+0x0012)
+#define	PA_IRLSSR1	(PA_BCR+0x0014)
+#define	PA_IRLSSR2	(PA_BCR+0x0016)
+#define PA_CFTCR	(PA_BCR+0x0100)
+#define PA_CFPCR	(PA_BCR+0x0102)
+#define PA_PCICR	(PA_BCR+0x0110)
+#define PA_IVDRCTL	(PA_BCR+0x0112)
+#define PA_IVDRSR	(PA_BCR+0x0114)
+#define PA_PDRSTCR	(PA_BCR+0x0116)
+#define PA_POFF		(PA_BCR+0x0120)
+#define PA_LCDCR	(PA_BCR+0x0130)
+#define PA_TPCR		(PA_BCR+0x0140)
+#define PA_TPCKCR	(PA_BCR+0x0142)
+#define PA_TPRSTR	(PA_BCR+0x0144)
+#define PA_TPXPDR	(PA_BCR+0x0146)
+#define PA_TPYPDR	(PA_BCR+0x0148)
+#define PA_GPIOPFR	(PA_BCR+0x0150)
+#define PA_GPIODR	(PA_BCR+0x0152)
+#define PA_OBLED	(PA_BCR+0x0154)
+#define PA_SWSR		(PA_BCR+0x0156)
+#define PA_VERREG	(PA_BCR+0x0158)
+#define PA_SMCR		(PA_BCR+0x0200)
+#define PA_SMSMADR	(PA_BCR+0x0202)
+#define PA_SMMR		(PA_BCR+0x0204)
+#define PA_SMSADR1	(PA_BCR+0x0206)
+#define PA_SMSADR32	(PA_BCR+0x0244)
+#define PA_SMTRDR1	(PA_BCR+0x0246)
+#define PA_SMTRDR16	(PA_BCR+0x0264)
+#define PA_CU3MDR	(PA_BCR+0x0300)
+#define PA_CU5MDR	(PA_BCR+0x0302)
+#define PA_MMSR		(PA_BCR+0x0400)
+
+#define IVDR_CK_ON	4		/* iVDR Clock ON */
+
+#endif
+
+void make_r7780rp_irq(unsigned int irq);
+void highlander_init_irq(void);
 
 #define __IO_PREFIX	r7780rp
 #include <asm/io_generic.h>

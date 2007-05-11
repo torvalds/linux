@@ -88,10 +88,12 @@ static void hil_ptr_process_record(struct hil_ptr *ptr)
 	idx = ptr->idx4/4;
 	p = data[idx - 1];
 
-	if ((p & ~HIL_CMDCT_POL) == 
-	    (HIL_ERR_INT | HIL_PKT_CMD | HIL_CMD_POL)) goto report;
-	if ((p & ~HIL_CMDCT_RPL) == 
-	    (HIL_ERR_INT | HIL_PKT_CMD | HIL_CMD_RPL)) goto report;
+	if ((p & ~HIL_CMDCT_POL) ==
+	    (HIL_ERR_INT | HIL_PKT_CMD | HIL_CMD_POL))
+		goto report;
+	if ((p & ~HIL_CMDCT_RPL) ==
+	    (HIL_ERR_INT | HIL_PKT_CMD | HIL_CMD_RPL))
+		goto report;
 
 	/* Not a poll response.  See if we are loading config records. */
 	switch (p & HIL_PKT_DATA_MASK) {
@@ -101,27 +103,32 @@ static void hil_ptr_process_record(struct hil_ptr *ptr)
 		for (; i < HIL_PTR_MAX_LENGTH; i++)
 			ptr->idd[i] = 0;
 		break;
+
 	case HIL_CMD_RSC:
 		for (i = 0; i < idx; i++)
 			ptr->rsc[i] = ptr->data[i] & HIL_PKT_DATA_MASK;
 		for (; i < HIL_PTR_MAX_LENGTH; i++)
 			ptr->rsc[i] = 0;
 		break;
+
 	case HIL_CMD_EXD:
 		for (i = 0; i < idx; i++)
 			ptr->exd[i] = ptr->data[i] & HIL_PKT_DATA_MASK;
 		for (; i < HIL_PTR_MAX_LENGTH; i++)
 			ptr->exd[i] = 0;
 		break;
+
 	case HIL_CMD_RNM:
 		for (i = 0; i < idx; i++)
 			ptr->rnm[i] = ptr->data[i] & HIL_PKT_DATA_MASK;
 		for (; i < HIL_PTR_MAX_LENGTH + 1; i++)
-			ptr->rnm[i] = '\0';
+			ptr->rnm[i] = 0;
 		break;
+
 	default:
 		/* These occur when device isn't present */
-		if (p == (HIL_ERR_INT | HIL_PKT_CMD)) break; 
+		if (p == (HIL_ERR_INT | HIL_PKT_CMD))
+			break;
 		/* Anything else we'd like to know about. */
 		printk(KERN_WARNING PREFIX "Device sent unknown record %x\n", p);
 		break;
@@ -130,7 +137,8 @@ static void hil_ptr_process_record(struct hil_ptr *ptr)
 
  report:
 	if ((p & HIL_CMDCT_POL) != idx - 1) {
-		printk(KERN_WARNING PREFIX "Malformed poll packet %x (idx = %i)\n", p, idx);
+		printk(KERN_WARNING PREFIX
+			"Malformed poll packet %x (idx = %i)\n", p, idx);
 		goto out;
 	}
 
@@ -139,7 +147,7 @@ static void hil_ptr_process_record(struct hil_ptr *ptr)
 	laxis += i;
 
 	ax16 = ptr->idd[1] & HIL_IDD_HEADER_16BIT; /* 8 or 16bit resolution */
-	absdev = ptr->idd[1] & HIL_IDD_HEADER_ABS; 
+	absdev = ptr->idd[1] & HIL_IDD_HEADER_ABS;
 
 	for (cnt = 1; i < laxis; i++) {
 		unsigned int lo,hi,val;
@@ -157,7 +165,8 @@ static void hil_ptr_process_record(struct hil_ptr *ptr)
 			input_report_abs(dev, ABS_X + i, val);
 		} else {
 			val = (int) (((int8_t)lo) | ((int8_t)hi<<8));
-			if (i%3) val *= -1;
+			if (i%3)
+				val *= -1;
 			input_report_rel(dev, REL_X + i, val);
 		}
 	}
@@ -168,10 +177,11 @@ static void hil_ptr_process_record(struct hil_ptr *ptr)
 		btn = ptr->data[cnt++];
 		up = btn & 1;
 		btn &= 0xfe;
-		if (btn == 0x8e) {
+		if (btn == 0x8e)
 			continue; /* TODO: proximity == touch? */
-		}
-		else if ((btn > 0x8c) || (btn < 0x80)) continue;
+		else
+			if ((btn > 0x8c) || (btn < 0x80))
+				continue;
 		btn = (btn - 0x80) >> 1;
 		btn = ptr->btnmap[btn];
 		input_report_key(dev, btn, !up);
@@ -182,14 +192,14 @@ static void hil_ptr_process_record(struct hil_ptr *ptr)
 	up(&ptr->sem);
 }
 
-static void hil_ptr_process_err(struct hil_ptr *ptr) {
+static void hil_ptr_process_err(struct hil_ptr *ptr)
+{
 	printk(KERN_WARNING PREFIX "errored HIL packet\n");
 	ptr->idx4 = 0;
 	up(&ptr->sem);
-	return;
 }
 
-static irqreturn_t hil_ptr_interrupt(struct serio *serio, 
+static irqreturn_t hil_ptr_interrupt(struct serio *serio,
         unsigned char data, unsigned int flags)
 {
 	struct hil_ptr *ptr;
@@ -197,29 +207,29 @@ static irqreturn_t hil_ptr_interrupt(struct serio *serio,
 	int idx;
 
 	ptr = serio_get_drvdata(serio);
-	if (ptr == NULL) {
-		BUG();
-		return IRQ_HANDLED;
-	}
+	BUG_ON(ptr == NULL);
 
 	if (ptr->idx4 >= (HIL_PTR_MAX_LENGTH * sizeof(hil_packet))) {
 		hil_ptr_process_err(ptr);
 		return IRQ_HANDLED;
 	}
 	idx = ptr->idx4/4;
-	if (!(ptr->idx4 % 4)) ptr->data[idx] = 0;
+	if (!(ptr->idx4 % 4))
+		ptr->data[idx] = 0;
 	packet = ptr->data[idx];
 	packet |= ((hil_packet)data) << ((3 - (ptr->idx4 % 4)) * 8);
 	ptr->data[idx] = packet;
 
 	/* Records of N 4-byte hil_packets must terminate with a command. */
-	if ((++(ptr->idx4)) % 4) return IRQ_HANDLED;
+	if ((++(ptr->idx4)) % 4)
+		return IRQ_HANDLED;
 	if ((packet & 0xffff0000) != HIL_ERR_INT) {
 		hil_ptr_process_err(ptr);
 		return IRQ_HANDLED;
 	}
-	if (packet & HIL_PKT_CMD) 
+	if (packet & HIL_PKT_CMD)
 		hil_ptr_process_record(ptr);
+
 	return IRQ_HANDLED;
 }
 
@@ -228,10 +238,7 @@ static void hil_ptr_disconnect(struct serio *serio)
 	struct hil_ptr *ptr;
 
 	ptr = serio_get_drvdata(serio);
-	if (ptr == NULL) {
-		BUG();
-		return;
-	}
+	BUG_ON(ptr == NULL);
 
 	serio_close(serio);
 	input_unregister_device(ptr->dev);
@@ -241,7 +248,7 @@ static void hil_ptr_disconnect(struct serio *serio)
 static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 {
 	struct hil_ptr	 *ptr;
-	char		 *txt;
+	const char	 *txt;
 	unsigned int	 i, naxsets, btntype;
 	uint8_t		 did, *idd;
 
@@ -252,42 +259,40 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 	if (!ptr->dev)
 		goto bail0;
 
-	ptr->dev->private = ptr;
-
 	if (serio_open(serio, driver))
 		goto bail1;
 
 	serio_set_drvdata(serio, ptr);
 	ptr->serio = serio;
 
-	init_MUTEX_LOCKED(&(ptr->sem));
+	init_MUTEX_LOCKED(&ptr->sem);
 
 	/* Get device info.  MLC driver supplies devid/status/etc. */
 	serio->write(serio, 0);
 	serio->write(serio, 0);
 	serio->write(serio, HIL_PKT_CMD >> 8);
 	serio->write(serio, HIL_CMD_IDD);
-	down(&(ptr->sem));
+	down(&ptr->sem);
 
 	serio->write(serio, 0);
 	serio->write(serio, 0);
 	serio->write(serio, HIL_PKT_CMD >> 8);
 	serio->write(serio, HIL_CMD_RSC);
-	down(&(ptr->sem));
+	down(&ptr->sem);
 
 	serio->write(serio, 0);
 	serio->write(serio, 0);
 	serio->write(serio, HIL_PKT_CMD >> 8);
 	serio->write(serio, HIL_CMD_RNM);
-	down(&(ptr->sem));
+	down(&ptr->sem);
 
 	serio->write(serio, 0);
 	serio->write(serio, 0);
 	serio->write(serio, HIL_PKT_CMD >> 8);
 	serio->write(serio, HIL_CMD_EXD);
-	down(&(ptr->sem));
+	down(&ptr->sem);
 
-	up(&(ptr->sem));
+	up(&ptr->sem);
 
 	did = ptr->idd[0];
 	idd = ptr->idd + 1;
@@ -301,12 +306,12 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 		ptr->dev->evbit[0] = BIT(EV_ABS);
 		txt = "absolute";
 	}
-	if (!ptr->dev->evbit[0]) {
+	if (!ptr->dev->evbit[0])
 		goto bail2;
-	}
 
 	ptr->nbtn = HIL_IDD_NUM_BUTTONS(idd);
-	if (ptr->nbtn) ptr->dev->evbit[0] |= BIT(EV_KEY);
+	if (ptr->nbtn)
+		ptr->dev->evbit[0] |= BIT(EV_KEY);
 
 	naxsets = HIL_IDD_NUM_AXSETS(*idd);
 	ptr->naxes = HIL_IDD_NUM_AXES_PER_SET(*idd);
@@ -315,7 +320,7 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 			did, txt);
 	printk(KERN_INFO PREFIX "HIL pointer has %i buttons and %i sets of %i axes\n",
 			ptr->nbtn, naxsets, ptr->naxes);
-	
+
 	btntype = BTN_MISC;
 	if ((did & HIL_IDD_DID_ABS_TABLET_MASK) == HIL_IDD_DID_ABS_TABLET)
 #ifdef TABLET_SIMULATES_MOUSE
@@ -325,7 +330,7 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 #endif
 	if ((did & HIL_IDD_DID_ABS_TSCREEN_MASK) == HIL_IDD_DID_ABS_TSCREEN)
 		btntype = BTN_TOUCH;
-		
+
 	if ((did & HIL_IDD_DID_REL_MOUSE_MASK) == HIL_IDD_DID_REL_MOUSE)
 		btntype = BTN_MOUSE;
 
@@ -341,12 +346,10 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 	}
 
 	if ((did & HIL_IDD_DID_TYPE_MASK) == HIL_IDD_DID_TYPE_REL) {
-		for (i = 0; i < ptr->naxes; i++) {
+		for (i = 0; i < ptr->naxes; i++)
 			set_bit(REL_X + i, ptr->dev->relbit);
-		}
-		for (i = 3; (i < ptr->naxes + 3) && (naxsets > 1); i++) {
+		for (i = 3; (i < ptr->naxes + 3) && (naxsets > 1); i++)
 			set_bit(REL_X + i, ptr->dev->relbit);
-		}
 	} else {
 		for (i = 0; i < ptr->naxes; i++) {
 			set_bit(ABS_X + i, ptr->dev->absbit);
@@ -375,7 +378,7 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 	ptr->dev->id.vendor	= PCI_VENDOR_ID_HP;
 	ptr->dev->id.product	= 0x0001; /* TODO: get from ptr->rsc */
 	ptr->dev->id.version	= 0x0100; /* TODO: get from ptr->rsc */
-	ptr->dev->cdev.dev	= &serio->dev;
+	ptr->dev->dev.parent	= &serio->dev;
 
 	input_register_device(ptr->dev);
 	printk(KERN_INFO "input: %s (%s), ID: %d\n",
@@ -419,11 +422,11 @@ static int __init hil_ptr_init(void)
 {
 	return serio_register_driver(&hil_ptr_serio_driver);
 }
-                
+
 static void __exit hil_ptr_exit(void)
 {
 	serio_unregister_driver(&hil_ptr_serio_driver);
 }
-                        
+
 module_init(hil_ptr_init);
 module_exit(hil_ptr_exit);

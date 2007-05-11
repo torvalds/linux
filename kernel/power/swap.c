@@ -12,7 +12,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 #include <linux/file.h>
 #include <linux/utsname.h>
 #include <linux/version.h>
@@ -33,12 +32,14 @@ extern char resume_file[];
 
 #define SWSUSP_SIG	"S1SUSPEND"
 
-static struct swsusp_header {
+struct swsusp_header {
 	char reserved[PAGE_SIZE - 20 - sizeof(sector_t)];
 	sector_t image;
 	char	orig_sig[10];
 	char	sig[10];
-} __attribute__((packed, aligned(PAGE_SIZE))) swsusp_header;
+} __attribute__((packed));
+
+static struct swsusp_header *swsusp_header;
 
 /*
  * General things
@@ -141,14 +142,14 @@ static int mark_swapfiles(sector_t start)
 {
 	int error;
 
-	bio_read_page(swsusp_resume_block, &swsusp_header, NULL);
-	if (!memcmp("SWAP-SPACE",swsusp_header.sig, 10) ||
-	    !memcmp("SWAPSPACE2",swsusp_header.sig, 10)) {
-		memcpy(swsusp_header.orig_sig,swsusp_header.sig, 10);
-		memcpy(swsusp_header.sig,SWSUSP_SIG, 10);
-		swsusp_header.image = start;
+	bio_read_page(swsusp_resume_block, swsusp_header, NULL);
+	if (!memcmp("SWAP-SPACE",swsusp_header->sig, 10) ||
+	    !memcmp("SWAPSPACE2",swsusp_header->sig, 10)) {
+		memcpy(swsusp_header->orig_sig,swsusp_header->sig, 10);
+		memcpy(swsusp_header->sig,SWSUSP_SIG, 10);
+		swsusp_header->image = start;
 		error = bio_write_page(swsusp_resume_block,
-					&swsusp_header, NULL);
+					swsusp_header, NULL);
 	} else {
 		printk(KERN_ERR "swsusp: Swap header not found!\n");
 		error = -ENODEV;
@@ -241,7 +242,6 @@ struct swap_map_page {
 struct swap_map_handle {
 	struct swap_map_page *cur;
 	sector_t cur_swap;
-	struct bitmap_page *bitmap;
 	unsigned int k;
 };
 
@@ -250,9 +250,6 @@ static void release_swap_writer(struct swap_map_handle *handle)
 	if (handle->cur)
 		free_page((unsigned long)handle->cur);
 	handle->cur = NULL;
-	if (handle->bitmap)
-		free_bitmap(handle->bitmap);
-	handle->bitmap = NULL;
 }
 
 static int get_swap_writer(struct swap_map_handle *handle)
@@ -260,12 +257,7 @@ static int get_swap_writer(struct swap_map_handle *handle)
 	handle->cur = (struct swap_map_page *)get_zeroed_page(GFP_KERNEL);
 	if (!handle->cur)
 		return -ENOMEM;
-	handle->bitmap = alloc_bitmap(count_swap_pages(root_swap, 0));
-	if (!handle->bitmap) {
-		release_swap_writer(handle);
-		return -ENOMEM;
-	}
-	handle->cur_swap = alloc_swapdev_block(root_swap, handle->bitmap);
+	handle->cur_swap = alloc_swapdev_block(root_swap);
 	if (!handle->cur_swap) {
 		release_swap_writer(handle);
 		return -ENOSPC;
@@ -282,7 +274,7 @@ static int swap_write_page(struct swap_map_handle *handle, void *buf,
 
 	if (!handle->cur)
 		return -EINVAL;
-	offset = alloc_swapdev_block(root_swap, handle->bitmap);
+	offset = alloc_swapdev_block(root_swap);
 	error = write_page(buf, offset, bio_chain);
 	if (error)
 		return error;
@@ -291,7 +283,7 @@ static int swap_write_page(struct swap_map_handle *handle, void *buf,
 		error = wait_on_bio_chain(bio_chain);
 		if (error)
 			goto out;
-		offset = alloc_swapdev_block(root_swap, handle->bitmap);
+		offset = alloc_swapdev_block(root_swap);
 		if (!offset)
 			return -ENOSPC;
 		handle->cur->next_swap = offset;
@@ -428,7 +420,8 @@ int swsusp_write(void)
 		}
 	}
 	if (error)
-		free_all_swap_pages(root_swap, handle.bitmap);
+		free_all_swap_pages(root_swap);
+
 	release_swap_writer(&handle);
  out:
 	swsusp_close();
@@ -564,7 +557,7 @@ int swsusp_read(void)
 	if (error < PAGE_SIZE)
 		return error < 0 ? error : -EFAULT;
 	header = (struct swsusp_info *)data_of(snapshot);
-	error = get_swap_reader(&handle, swsusp_header.image);
+	error = get_swap_reader(&handle, swsusp_header->image);
 	if (!error)
 		error = swap_read_page(&handle, header, NULL);
 	if (!error)
@@ -591,17 +584,17 @@ int swsusp_check(void)
 	resume_bdev = open_by_devnum(swsusp_resume_device, FMODE_READ);
 	if (!IS_ERR(resume_bdev)) {
 		set_blocksize(resume_bdev, PAGE_SIZE);
-		memset(&swsusp_header, 0, sizeof(swsusp_header));
+		memset(swsusp_header, 0, sizeof(PAGE_SIZE));
 		error = bio_read_page(swsusp_resume_block,
-					&swsusp_header, NULL);
+					swsusp_header, NULL);
 		if (error)
 			return error;
 
-		if (!memcmp(SWSUSP_SIG, swsusp_header.sig, 10)) {
-			memcpy(swsusp_header.sig, swsusp_header.orig_sig, 10);
+		if (!memcmp(SWSUSP_SIG, swsusp_header->sig, 10)) {
+			memcpy(swsusp_header->sig, swsusp_header->orig_sig, 10);
 			/* Reset swap signature now */
 			error = bio_write_page(swsusp_resume_block,
-						&swsusp_header, NULL);
+						swsusp_header, NULL);
 		} else {
 			return -EINVAL;
 		}
@@ -632,3 +625,13 @@ void swsusp_close(void)
 
 	blkdev_put(resume_bdev);
 }
+
+static int swsusp_header_init(void)
+{
+	swsusp_header = (struct swsusp_header*) __get_free_page(GFP_KERNEL);
+	if (!swsusp_header)
+		panic("Could not allocate memory for swsusp_header\n");
+	return 0;
+}
+
+core_initcall(swsusp_header_init);

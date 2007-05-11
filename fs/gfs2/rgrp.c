@@ -27,6 +27,7 @@
 #include "trans.h"
 #include "ops_file.h"
 #include "util.h"
+#include "log.h"
 
 #define BFITNOENT ((u32)~0)
 
@@ -697,8 +698,6 @@ struct gfs2_alloc *gfs2_alloc_get(struct gfs2_inode *ip)
  * @al: the struct gfs2_alloc structure describing the reservation
  *
  * If there's room for the requested blocks to be allocated from the RG:
- *   Sets the $al_reserved_data field in @al.
- *   Sets the $al_reserved_meta field in @al.
  *   Sets the $al_rgd field in @al.
  *
  * Returns: 1 on success (it fits), 0 on failure (it doesn't fit)
@@ -708,6 +707,9 @@ static int try_rgrp_fit(struct gfs2_rgrpd *rgd, struct gfs2_alloc *al)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	int ret = 0;
+
+	if (rgd->rd_rg.rg_flags & GFS2_RGF_NOALLOC)
+		return 0;
 
 	spin_lock(&sdp->sd_rindex_spin);
 	if (rgd->rd_free_clone >= al->al_requested) {
@@ -941,9 +943,13 @@ static int get_local_rgrp(struct gfs2_inode *ip)
 			rgd = gfs2_rgrpd_get_first(sdp);
 
 		if (rgd == begin) {
-			if (++loops >= 2 || !skipped)
+			if (++loops >= 3)
 				return -ENOSPC;
+			if (!skipped)
+				loops++;
 			flags = 0;
+			if (loops == 2)
+				gfs2_log_flush(sdp, NULL);
 		}
 	}
 

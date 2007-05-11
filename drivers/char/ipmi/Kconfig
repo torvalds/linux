@@ -3,6 +3,8 @@
 #
 
 menu "IPMI"
+	depends on HAS_IOMEM
+
 config IPMI_HANDLER
        tristate 'IPMI top-level message handler'
        help

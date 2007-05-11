@@ -660,10 +660,6 @@ struct bcm43xx_dmaring * bcm43xx_setup_dmaring(struct bcm43xx_private *bcm,
 	ring->routing = BCM43xx_DMA32_CLIENTTRANS;
 	if (dma64)
 		ring->routing = BCM43xx_DMA64_CLIENTTRANS;
-#ifdef CONFIG_BCM947XX
-	if (bcm->pci_dev->bus->number == 0)
-		ring->routing = dma64 ? BCM43xx_DMA64_NOTRANS : BCM43xx_DMA32_NOTRANS;
-#endif
 
 	ring->bcm = bcm;
 	ring->nr_slots = nr_slots;

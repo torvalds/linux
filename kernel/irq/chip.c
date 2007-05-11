@@ -11,6 +11,7 @@
  */
 
 #include <linux/irq.h>
+#include <linux/msi.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
@@ -185,6 +186,8 @@ int set_irq_msi(unsigned int irq, struct msi_desc *entry)
 	desc = irq_desc + irq;
 	spin_lock_irqsave(&desc->lock, flags);
 	desc->msi_desc = entry;
+	if (entry)
+		entry->irq = irq;
 	spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }

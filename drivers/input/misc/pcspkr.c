@@ -78,7 +78,7 @@ static int __devinit pcspkr_probe(struct platform_device *dev)
 	pcspkr_dev->id.vendor = 0x001f;
 	pcspkr_dev->id.product = 0x0001;
 	pcspkr_dev->id.version = 0x0100;
-	pcspkr_dev->cdev.dev = &dev->dev;
+	pcspkr_dev->dev.parent = &dev->dev;
 
 	pcspkr_dev->evbit[0] = BIT(EV_SND);
 	pcspkr_dev->sndbit[0] = BIT(SND_BELL) | BIT(SND_TONE);

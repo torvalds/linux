@@ -17,7 +17,7 @@ Contents
 
 1. Introduction
 
-cpufreq-stats is a driver that provices CPU frequency statistics for each CPU.
+cpufreq-stats is a driver that provides CPU frequency statistics for each CPU.
 These statistics are provided in /sysfs as a bunch of read_only interfaces. This
 interface (when configured) will appear in a separate directory under cpufreq
 in /sysfs (<sysfs root>/devices/system/cpu/cpuX/cpufreq/stats/) for each CPU.

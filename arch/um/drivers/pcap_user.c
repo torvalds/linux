@@ -13,12 +13,13 @@
 #include "pcap_user.h"
 #include "user.h"
 #include "um_malloc.h"
+#include "kern_constants.h"
 
 #define MAX_PACKET (ETH_MAX_PACKET + ETH_HEADER_OTHER)
 
 #define PCAP_FD(p) (*(int *)(p))
 
-static void pcap_user_init(void *data, void *dev)
+static int pcap_user_init(void *data, void *dev)
 {
 	struct pcap_data *pri = data;
 	pcap_t *p;
@@ -26,13 +27,14 @@ static void pcap_user_init(void *data, void *dev)
 
 	p = pcap_open_live(pri->host_if, MAX_PACKET, pri->promisc, 0, errors);
 	if(p == NULL){
-		printk("pcap_user_init : pcap_open_live failed - '%s'\n", 
-		       errors);
-		return;
+		printk(UM_KERN_ERR "pcap_user_init : pcap_open_live failed - "
+		       "'%s'\n", errors);
+		return -EINVAL;
 	}
 
 	pri->dev = dev;
 	pri->pcap = p;
+	return 0;
 }
 
 static int pcap_open(void *data)
@@ -42,39 +44,39 @@ static int pcap_open(void *data)
 	int err;
 
 	if(pri->pcap == NULL)
-		return(-ENODEV);
+		return -ENODEV;
 
 	if(pri->filter != NULL){
 		err = dev_netmask(pri->dev, &netmask);
 		if(err < 0){
-			printk("pcap_open : dev_netmask failed\n");
-			return(-EIO);
+			printk(UM_KERN_ERR "pcap_open : dev_netmask failed\n");
+			return -EIO;
 		}
 
 		pri->compiled = um_kmalloc(sizeof(struct bpf_program));
 		if(pri->compiled == NULL){
-			printk("pcap_open : kmalloc failed\n");
-			return(-ENOMEM);
+			printk(UM_KERN_ERR "pcap_open : kmalloc failed\n");
+			return -ENOMEM;
 		}
-		
+
 		err = pcap_compile(pri->pcap, 
 				   (struct bpf_program *) pri->compiled, 
 				   pri->filter, pri->optimize, netmask);
 		if(err < 0){
-			printk("pcap_open : pcap_compile failed - '%s'\n", 
-			       pcap_geterr(pri->pcap));
-			return(-EIO);
+			printk(UM_KERN_ERR "pcap_open : pcap_compile failed - "
+			       "'%s'\n", pcap_geterr(pri->pcap));
+			return -EIO;
 		}
 
 		err = pcap_setfilter(pri->pcap, pri->compiled);
 		if(err < 0){
-			printk("pcap_open : pcap_setfilter failed - '%s'\n", 
-			       pcap_geterr(pri->pcap));
-			return(-EIO);
+			printk(UM_KERN_ERR "pcap_open : pcap_setfilter "
+			       "failed - '%s'\n", pcap_geterr(pri->pcap));
+			return -EIO;
 		}
 	}
-	
-	return(PCAP_FD(pri->pcap));
+
+	return PCAP_FD(pri->pcap);
 }
 
 static void pcap_remove(void *data)
@@ -84,7 +86,8 @@ static void pcap_remove(void *data)
 	if(pri->compiled != NULL)
 		pcap_freecode(pri->compiled);
 
-	pcap_close(pri->pcap);
+	if(pri->pcap != NULL)
+		pcap_close(pri->pcap);
 }
 
 struct pcap_handler_data {
@@ -113,12 +116,13 @@ int pcap_user_read(int fd, void *buffer, int len, struct pcap_data *pri)
 
 	n = pcap_dispatch(pri->pcap, 1, handler, (u_char *) &hdata);
 	if(n < 0){
-		printk("pcap_dispatch failed - %s\n", pcap_geterr(pri->pcap));
-		return(-EIO);
+		printk(UM_KERN_ERR "pcap_dispatch failed - %s\n",
+		       pcap_geterr(pri->pcap));
+		return -EIO;
 	}
 	else if(n == 0) 
-		return(0);
-	return(hdata.len);
+		return 0;
+	return hdata.len;
 }
 
 const struct net_user_info pcap_user_info = {
@@ -131,14 +135,3 @@ const struct net_user_info pcap_user_info = {
 	.delete_address = NULL,
 	.max_packet	= MAX_PACKET - ETH_HEADER_OTHER
 };
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

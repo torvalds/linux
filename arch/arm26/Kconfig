@@ -57,9 +57,6 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
-config GENERIC_BUST_SPINLOCK
-	bool
-
 config ZONE_DMA
 	bool
 	default y

@@ -70,9 +70,6 @@ static __inline__ int mtrr_del(int reg, unsigned long base, unsigned long size)
 
 #endif
 
-/** Task queue handler arguments */
-#define DRM_TASKQUEUE_ARGS	void *arg
-
 /** For data going into the kernel through the ioctl argument */
 #define DRM_COPY_FROM_USER_IOCTL(arg1, arg2, arg3)	\
 	if ( copy_from_user(&arg1, arg2, arg3) )	\

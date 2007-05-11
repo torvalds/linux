@@ -23,6 +23,7 @@
 #include <linux/kallsyms.h>
 #include <linux/reboot.h>
 #include <linux/kprobes.h>
+#include <linux/kdebug.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -33,7 +34,6 @@
 #include <asm/s390_ext.h>
 #include <asm/lowcore.h>
 #include <asm/debug.h>
-#include <asm/kdebug.h>
 
 #ifndef CONFIG_64BIT
 #define ONELONG "%08lx: "

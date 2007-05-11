@@ -22,7 +22,6 @@
  * handle_bad_irq - handle spurious and unhandled irqs
  * @irq:       the interrupt number
  * @desc:      description of the interrupt
- * @regs:      pointer to a register structure
  *
  * Handles spurious and unhandled IRQ's. It also prints a debugmessage.
  */
@@ -48,7 +47,7 @@ handle_bad_irq(unsigned int irq, struct irq_desc *desc)
  *
  * Controller mappings for all interrupt sources:
  */
-struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned = {
+struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS-1] = {
 		.status = IRQ_DISABLED,
 		.chip = &no_irq_chip,
@@ -180,6 +179,8 @@ fastcall unsigned int __do_IRQ(unsigned int irq)
 		if (desc->chip->ack)
 			desc->chip->ack(irq);
 		action_ret = handle_IRQ_event(irq, desc->action);
+		if (!noirqdebug)
+			note_interrupt(irq, desc, action_ret);
 		desc->chip->end(irq);
 		return 1;
 	}

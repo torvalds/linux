@@ -2,12 +2,13 @@ Kernel driver smsc47m192
 ========================
 
 Supported chips:
-  * SMSC LPC47M192 and LPC47M997
+  * SMSC LPC47M192, LPC47M15x, LPC47M292 and LPC47M997
     Prefix: 'smsc47m192'
     Addresses scanned: I2C 0x2c - 0x2d
     Datasheet: The datasheet for LPC47M192 is publicly available from
                http://www.smsc.com/
-               The LPC47M997 is compatible for hardware monitoring.
+               The LPC47M15x, LPC47M292 and LPC47M997 are compatible for
+               hardware monitoring.
 
 Author: Hartmut Rick <linux@rick.claranet.de>
         Special thanks to Jean Delvare for careful checking
@@ -18,7 +19,7 @@ Description
 -----------
 
 This driver implements support for the hardware sensor capabilities
-of the SMSC LPC47M192 and LPC47M997 Super-I/O chips.
+of the SMSC LPC47M192 and compatible Super-I/O chips.
 
 These chips support 3 temperature channels and 8 voltage inputs
 as well as CPU voltage VID input.

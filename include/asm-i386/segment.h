@@ -39,7 +39,7 @@
  *  25 - APM BIOS support 
  *
  *  26 - ESPFIX small SS
- *  27 - PDA				[ per-cpu private data area ]
+ *  27 - per-cpu			[ offset to per-cpu data area ]
  *  28 - unused
  *  29 - unused
  *  30 - unused
@@ -74,8 +74,12 @@
 #define GDT_ENTRY_ESPFIX_SS		(GDT_ENTRY_KERNEL_BASE + 14)
 #define __ESPFIX_SS (GDT_ENTRY_ESPFIX_SS * 8)
 
-#define GDT_ENTRY_PDA			(GDT_ENTRY_KERNEL_BASE + 15)
-#define __KERNEL_PDA (GDT_ENTRY_PDA * 8)
+#define GDT_ENTRY_PERCPU			(GDT_ENTRY_KERNEL_BASE + 15)
+#ifdef CONFIG_SMP
+#define __KERNEL_PERCPU (GDT_ENTRY_PERCPU * 8)
+#else
+#define __KERNEL_PERCPU 0
+#endif
 
 #define GDT_ENTRY_DOUBLEFAULT_TSS	31
 

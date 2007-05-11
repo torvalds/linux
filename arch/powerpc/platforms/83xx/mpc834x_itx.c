@@ -50,7 +50,9 @@ unsigned long isa_mem_base = 0;
  */
 static void __init mpc834x_itx_setup_arch(void)
 {
+#ifdef CONFIG_PCI
 	struct device_node *np;
+#endif
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc834x_itx_setup_arch()", 0);

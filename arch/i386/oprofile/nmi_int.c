@@ -14,10 +14,10 @@
 #include <linux/sysdev.h>
 #include <linux/slab.h>
 #include <linux/moduleparam.h>
+#include <linux/kdebug.h>
 #include <asm/nmi.h>
 #include <asm/msr.h>
 #include <asm/apic.h>
-#include <asm/kdebug.h>
  
 #include "op_counter.h"
 #include "op_x86_model.h"
@@ -413,6 +413,10 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 				/* Actually it could be i386/hammer too, but give
 				   user space an consistent name. */
 				cpu_type = "x86-64/hammer";
+				break;
+			case 0x10:
+				model = &op_athlon_spec;
+				cpu_type = "x86-64/family10";
 				break;
 			}
 			break;

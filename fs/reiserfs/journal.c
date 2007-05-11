@@ -1110,7 +1110,7 @@ static int flush_commit_list(struct super_block *s,
 	if (!barrier) {
 		/* If there was a write error in the journal - we can't commit
 		 * this transaction - it will be invalid and, if successful,
-		 * will just end up propogating the write error out to
+		 * will just end up propagating the write error out to
 		 * the file system. */
 		if (likely(!retval && !reiserfs_is_journal_aborted (journal))) {
 			if (buffer_dirty(jl->j_commit_bh))
@@ -1125,7 +1125,7 @@ static int flush_commit_list(struct super_block *s,
 
 	/* If there was a write error in the journal - we can't commit this
 	 * transaction - it will be invalid and, if successful, will just end
-	 * up propogating the write error out to the filesystem. */
+	 * up propagating the write error out to the filesystem. */
 	if (unlikely(!buffer_uptodate(jl->j_commit_bh))) {
 #ifdef CONFIG_REISERFS_CHECK
 		reiserfs_warning(s, "journal-615: buffer write failed");
@@ -2918,7 +2918,7 @@ static void queue_log_writer(struct super_block *s)
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	if (test_bit(J_WRITERS_QUEUED, &journal->j_state))
 		schedule();
-	current->state = TASK_RUNNING;
+	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&journal->j_join_wait, &wait);
 }
 

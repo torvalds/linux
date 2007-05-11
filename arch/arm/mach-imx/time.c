@@ -56,7 +56,7 @@ imx_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction imx_timer_irq = {
 	.name		= "i.MX Timer Tick",
-	.flags		= IRQF_DISABLED | IRQF_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= imx_timer_interrupt,
 };
 

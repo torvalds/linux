@@ -177,7 +177,7 @@ void nf_conntrack_unexpect_related(struct nf_conntrack_expect *exp)
 	struct nf_conntrack_expect *i;
 
 	write_lock_bh(&nf_conntrack_lock);
-	/* choose the the oldest expectation to evict */
+	/* choose the oldest expectation to evict */
 	list_for_each_entry_reverse(i, &nf_conntrack_expect_list, list) {
 		if (expect_matches(i, exp) && del_timer(&i->timeout)) {
 			nf_ct_unlink_expect(i);

@@ -10,7 +10,6 @@
 #include <linux/mm.h>
 #include <linux/errno.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/time.h>
 #include <linux/ptrace.h>
 #include <linux/resource.h>

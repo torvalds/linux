@@ -99,7 +99,7 @@ typedef struct {
 	uCHAR    eataVersion;      /* EATA Version                    */
 	uLONG    cpLength;         /* EATA Command Packet Length      */
 	uLONG    spLength;         /* EATA Status Packet Length       */
-	uCHAR    drqNum;           /* DRQ Index (0,5,6,7)             */ 
+	uCHAR    drqNum;           /* DRQ Index (0,5,6,7)             */
 	uCHAR    flag1;            /* EATA Flags 1 (Byte 9)           */
 	uCHAR    flag2;            /* EATA Flags 2 (Byte 30)          */
 } CtrlInfo;

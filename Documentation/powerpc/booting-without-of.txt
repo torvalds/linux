@@ -1444,7 +1444,7 @@ platforms are moved over to use the flattened-device-tree model.
    Basically, it is a bus of devices, that could act more or less
    as a complete entity (UCC, USB etc ). All of them should be siblings on
    the "root" qe node, using the common properties from there.
-   The description below applies to the the qe of MPC8360 and
+   The description below applies to the qe of MPC8360 and
    more nodes and properties would be extended in the future.
 
    i) Root QE device
@@ -1560,6 +1560,9 @@ platforms are moved over to use the flattened-device-tree model.
      network device.  This is used by the bootwrapper to interpret
      MAC addresses passed by the firmware when no information other
      than indices is available to associate an address with a device.
+   - phy-connection-type : a string naming the controller/PHY interface type,
+     i.e., "mii" (default), "rmii", "gmii", "rgmii", "rgmii-id", "tbi",
+     or "rtbi".
 
    Example:
 	ucc@2000 {
@@ -1574,6 +1577,7 @@ platforms are moved over to use the flattened-device-tree model.
 		rx-clock = "none";
 		tx-clock = "clk9";
 		phy-handle = <212000>;
+		phy-connection-type = "gmii";
 		pio-handle = <140001>;
 	};
 
@@ -1629,7 +1633,7 @@ platforms are moved over to use the flattened-device-tree model.
      - assignment : function number of the pin according to the Pin Assignment
        tables in User Manual.  Each pin can have up to 4 possible functions in
        QE and two options for CPM.
-     - has_irq : indicates if the pin is used as source of exteral
+     - has_irq : indicates if the pin is used as source of external
        interrupts.
 
    Example:

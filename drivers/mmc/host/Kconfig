@@ -1,0 +1,102 @@
+#
+# MMC/SD host controller drivers
+#
+
+comment "MMC/SD Host Controller Drivers"
+
+config MMC_ARMMMCI
+	tristate "ARM AMBA Multimedia Card Interface support"
+	depends on ARM_AMBA
+	help
+	  This selects the ARM(R) AMBA(R) PrimeCell Multimedia Card
+	  Interface (PL180 and PL181) support.  If you have an ARM(R)
+	  platform with a Multimedia Card slot, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_PXA
+	tristate "Intel PXA25x/26x/27x Multimedia Card Interface support"
+	depends on ARCH_PXA
+	help
+	  This selects the Intel(R) PXA(R) Multimedia card Interface.
+	  If you have a PXA(R) platform with a Multimedia Card slot,
+	  say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_SDHCI
+	tristate "Secure Digital Host Controller Interface support  (EXPERIMENTAL)"
+	depends on PCI && EXPERIMENTAL
+	help
+	  This select the generic Secure Digital Host Controller Interface.
+	  It is used by manufacturers such as Texas Instruments(R), Ricoh(R)
+	  and Toshiba(R). Most controllers found in laptops are of this type.
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_OMAP
+	tristate "TI OMAP Multimedia Card Interface support"
+	depends on ARCH_OMAP
+	select TPS65010 if MACH_OMAP_H2
+	help
+	  This selects the TI OMAP Multimedia card Interface.
+	  If you have an OMAP board with a Multimedia Card slot,
+	  say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_WBSD
+	tristate "Winbond W83L51xD SD/MMC Card Interface support"
+	depends on ISA_DMA_API
+	help
+	  This selects the Winbond(R) W83L51xD Secure digital and
+          Multimedia card Interface.
+	  If you have a machine with a integrated W83L518D or W83L519D
+	  SD/MMC card reader, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_AU1X
+	tristate "Alchemy AU1XX0 MMC Card Interface support"
+	depends on SOC_AU1200
+	help
+	  This selects the AMD Alchemy(R) Multimedia card interface.
+	  If you have a Alchemy platform with a MMC slot, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_AT91
+	tristate "AT91 SD/MMC Card Interface support"
+	depends on ARCH_AT91
+	help
+	  This selects the AT91 MCI controller.
+
+	  If unsure, say N.
+
+config MMC_IMX
+	tristate "Motorola i.MX Multimedia Card Interface support"
+	depends on ARCH_IMX
+	help
+	  This selects the Motorola i.MX Multimedia card Interface.
+	  If you have a i.MX platform with a Multimedia Card slot,
+	  say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_TIFM_SD
+	tristate "TI Flash Media MMC/SD Interface support  (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && PCI
+	select TIFM_CORE
+	help
+	  Say Y here if you want to be able to access MMC/SD cards with
+	  the Texas Instruments(R) Flash Media card reader, found in many
+	  laptops.
+	  This option 'selects' (turns on, enables) 'TIFM_CORE', but you
+	  probably also need appropriate card reader host adapter, such as
+	  'Misc devices: TI Flash Media PCI74xx/PCI76xx host adapter support
+	  (TIFM_7XX1)'.
+
+          To compile this driver as a module, choose M here: the
+	  module will be called tifm_sd.
+

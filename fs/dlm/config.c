@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -89,6 +89,7 @@ struct cluster {
 	unsigned int cl_toss_secs;
 	unsigned int cl_scan_secs;
 	unsigned int cl_log_debug;
+	unsigned int cl_protocol;
 };
 
 enum {
@@ -101,6 +102,7 @@ enum {
 	CLUSTER_ATTR_TOSS_SECS,
 	CLUSTER_ATTR_SCAN_SECS,
 	CLUSTER_ATTR_LOG_DEBUG,
+	CLUSTER_ATTR_PROTOCOL,
 };
 
 struct cluster_attribute {
@@ -159,6 +161,7 @@ CLUSTER_ATTR(recover_timer, 1);
 CLUSTER_ATTR(toss_secs, 1);
 CLUSTER_ATTR(scan_secs, 1);
 CLUSTER_ATTR(log_debug, 0);
+CLUSTER_ATTR(protocol, 0);
 
 static struct configfs_attribute *cluster_attrs[] = {
 	[CLUSTER_ATTR_TCP_PORT] = &cluster_attr_tcp_port.attr,
@@ -170,6 +173,7 @@ static struct configfs_attribute *cluster_attrs[] = {
 	[CLUSTER_ATTR_TOSS_SECS] = &cluster_attr_toss_secs.attr,
 	[CLUSTER_ATTR_SCAN_SECS] = &cluster_attr_scan_secs.attr,
 	[CLUSTER_ATTR_LOG_DEBUG] = &cluster_attr_log_debug.attr,
+	[CLUSTER_ATTR_PROTOCOL] = &cluster_attr_protocol.attr,
 	NULL,
 };
 
@@ -904,6 +908,7 @@ int dlm_our_addr(struct sockaddr_storage *addr, int num)
 #define DEFAULT_TOSS_SECS         10
 #define DEFAULT_SCAN_SECS          5
 #define DEFAULT_LOG_DEBUG          0
+#define DEFAULT_PROTOCOL           0
 
 struct dlm_config_info dlm_config = {
 	.ci_tcp_port = DEFAULT_TCP_PORT,
@@ -914,6 +919,7 @@ struct dlm_config_info dlm_config = {
 	.ci_recover_timer = DEFAULT_RECOVER_TIMER,
 	.ci_toss_secs = DEFAULT_TOSS_SECS,
 	.ci_scan_secs = DEFAULT_SCAN_SECS,
-	.ci_log_debug = DEFAULT_LOG_DEBUG
+	.ci_log_debug = DEFAULT_LOG_DEBUG,
+	.ci_protocol = DEFAULT_PROTOCOL
 };
 

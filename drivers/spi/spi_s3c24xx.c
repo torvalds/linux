@@ -342,8 +342,6 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 		goto err_register;
 	}
 
-	dev_dbg(hw->dev, "shutdown=%d\n", hw->bitbang.shutdown);
-
 	/* register all the devices associated */
 
 	bi = &hw->pdata->board_info[0];

@@ -16,7 +16,7 @@
 #include "asm/page.h"
 #include "asm/tlbflush.h"
 #include "kern_util.h"
-#include "user_util.h"
+#include "as-layout.h"
 #include "mem_user.h"
 #include "os.h"
 

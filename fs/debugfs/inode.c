@@ -374,7 +374,7 @@ static int __init debugfs_init(void)
 {
 	int retval;
 
-	kset_set_kset_s(&debug_subsys, kernel_subsys);
+	kobj_set_kset_s(&debug_subsys, kernel_subsys);
 	retval = subsystem_register(&debug_subsys);
 	if (retval)
 		return retval;

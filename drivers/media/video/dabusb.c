@@ -37,7 +37,6 @@
 #include <asm/atomic.h>
 #include <linux/delay.h>
 #include <linux/usb.h>
-#include <linux/smp_lock.h>
 #include <linux/mutex.h>
 
 #include "dabusb.h"

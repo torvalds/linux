@@ -57,6 +57,13 @@ nonumtail=<bool> -- When creating 8.3 aliases, normally the alias will
                  currently exist in the directory, 'longfile.txt' will
                  be the short alias instead of 'longfi~1.txt'. 
                   
+usefree       -- Use the "free clusters" value stored on FSINFO. It'll
+                 be used to determine number of free clusters without
+                 scanning disk. But it's not used by default, because
+                 recent Windows don't update it correctly in some
+                 case. If you are sure the "free clusters" on FSINFO is
+                 correct, by this option you can avoid scanning disk.
+
 quiet         -- Stops printing certain warning messages.
 
 check=s|r|n   -- Case sensitivity checking setting.

@@ -314,8 +314,7 @@ struct scsi_core {
 	struct list_head  task_queue;
 	int               task_queue_size;
 
-	struct semaphore  queue_thread_sema;
-	int               queue_thread_kill;
+	struct task_struct *queue_thread;
 };
 
 struct sas_ha_event {

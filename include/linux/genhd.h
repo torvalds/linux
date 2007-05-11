@@ -413,6 +413,7 @@ char *disk_name (struct gendisk *hd, int part, char *buf);
 extern int rescan_partitions(struct gendisk *disk, struct block_device *bdev);
 extern void add_partition(struct gendisk *, int, sector_t, sector_t, int);
 extern void delete_partition(struct gendisk *, int);
+extern void printk_all_partitions(void);
 
 extern struct gendisk *alloc_disk_node(int minors, int node_id);
 extern struct gendisk *alloc_disk(int minors);
@@ -433,6 +434,10 @@ static inline struct block_device *bdget_disk(struct gendisk *disk, int index)
 
 #endif
 
-#endif
+#else /* CONFIG_BLOCK */
+
+static inline void printk_all_partitions(void) { }
+
+#endif /* CONFIG_BLOCK */
 
 #endif

@@ -14,14 +14,21 @@ struct swsusp_info {
 
 
 #ifdef CONFIG_SOFTWARE_SUSPEND
-extern int pm_suspend_disk(void);
+/*
+ * Keep some memory free so that I/O operations can succeed without paging
+ * [Might this be more than 4 MB?]
+ */
+#define PAGES_FOR_IO	((4096 * 1024) >> PAGE_SHIFT)
+/*
+ * Keep 1 MB of memory free so that device drivers can allocate some pages in
+ * their .suspend() routines without breaking the suspend to disk.
+ */
+#define SPARE_PAGES	((1024 * 1024) >> PAGE_SHIFT)
 
-#else
-static inline int pm_suspend_disk(void)
-{
-	return -EPERM;
-}
+extern struct hibernation_ops *hibernation_ops;
 #endif
+
+extern int pfn_is_nosave(unsigned long);
 
 extern struct mutex pm_mutex;
 
@@ -35,10 +42,7 @@ static struct subsys_attribute _name##_attr = {	\
 	.store	= _name##_store,		\
 }
 
-extern struct subsystem power_subsys;
-
-/* References to section boundaries */
-extern const void __nosave_begin, __nosave_end;
+extern struct kset power_subsys;
 
 /* Preferred image size in bytes (default 500 MB) */
 extern unsigned long image_size;
@@ -49,6 +53,8 @@ extern sector_t swsusp_resume_block;
 extern asmlinkage int swsusp_arch_suspend(void);
 extern asmlinkage int swsusp_arch_resume(void);
 
+extern int create_basic_memory_bitmaps(void);
+extern void free_basic_memory_bitmaps(void);
 extern unsigned int count_data_pages(void);
 
 /**
@@ -139,30 +145,12 @@ struct resume_swap_area {
 #define PMOPS_ENTER	2
 #define PMOPS_FINISH	3
 
-/**
- *	The bitmap is used for tracing allocated swap pages
- *
- *	The entire bitmap consists of a number of bitmap_page
- *	structures linked with the help of the .next member.
- *	Thus each page can be allocated individually, so we only
- *	need to make 0-order memory allocations to create
- *	the bitmap.
- */
+/* If unset, the snapshot device cannot be open. */
+extern atomic_t snapshot_device_available;
 
-#define BITMAP_PAGE_SIZE	(PAGE_SIZE - sizeof(void *))
-#define BITMAP_PAGE_CHUNKS	(BITMAP_PAGE_SIZE / sizeof(long))
-#define BITS_PER_CHUNK		(sizeof(long) * 8)
-#define BITMAP_PAGE_BITS	(BITMAP_PAGE_CHUNKS * BITS_PER_CHUNK)
-
-struct bitmap_page {
-	unsigned long		chunks[BITMAP_PAGE_CHUNKS];
-	struct bitmap_page	*next;
-};
-
-extern void free_bitmap(struct bitmap_page *bitmap);
-extern struct bitmap_page *alloc_bitmap(unsigned int nr_bits);
-extern sector_t alloc_swapdev_block(int swap, struct bitmap_page *bitmap);
-extern void free_all_swap_pages(int swap, struct bitmap_page *bitmap);
+extern sector_t alloc_swapdev_block(int swap);
+extern void free_all_swap_pages(int swap);
+extern int swsusp_swap_in_use(void);
 
 extern int swsusp_check(void);
 extern int swsusp_shrink_memory(void);

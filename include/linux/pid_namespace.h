@@ -29,7 +29,7 @@ static inline void get_pid_ns(struct pid_namespace *ns)
 	kref_get(&ns->kref);
 }
 
-extern int copy_pid_ns(int flags, struct task_struct *tsk);
+extern struct pid_namespace *copy_pid_ns(int flags, struct pid_namespace *ns);
 extern void free_pid_ns(struct kref *kref);
 
 static inline void put_pid_ns(struct pid_namespace *ns)

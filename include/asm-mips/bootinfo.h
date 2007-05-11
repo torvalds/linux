@@ -119,9 +119,9 @@
  */
 #define MACH_GROUP_MOMENCO	12	/* Momentum Boards		*/
 #define  MACH_MOMENCO_OCELOT	0
-#define  MACH_MOMENCO_OCELOT_G	1
+#define  MACH_MOMENCO_OCELOT_G	1	/* no more supported (may 2007) */
 #define  MACH_MOMENCO_OCELOT_C	2
-#define  MACH_MOMENCO_JAGUAR_ATX 3
+#define  MACH_MOMENCO_JAGUAR_ATX 3	/* no more supported (may 2007) */
 #define  MACH_MOMENCO_OCELOT_3	4
 
 /*
@@ -254,7 +254,7 @@ extern void free_init_pages(const char *what,
 extern char arcs_cmdline[CL_SIZE];
 
 /*
- * Registers a0, a1, a3 and a4 as passed to the kenrel entry by firmware
+ * Registers a0, a1, a3 and a4 as passed to the kernel entry by firmware
  */
 extern unsigned long fw_arg0, fw_arg1, fw_arg2, fw_arg3;
 

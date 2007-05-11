@@ -14,6 +14,8 @@
 #ifndef __V850_SCATTERLIST_H__
 #define __V850_SCATTERLIST_H__
 
+#include <asm/types.h>
+
 struct scatterlist {
 	struct page	*page;
 	unsigned	offset;

@@ -1,0 +1,61 @@
+# -*- shell-script -*-
+
+comment "An alternative FireWire stack is available with EXPERIMENTAL=y"
+	depends on EXPERIMENTAL=n
+
+config FIREWIRE
+	tristate "IEEE 1394 (FireWire) support (JUJU alternative stack, experimental)"
+	depends on EXPERIMENTAL
+	select CRC_ITU_T
+	help
+	  IEEE 1394 describes a high performance serial bus, which is also
+	  known as FireWire(tm) or i.Link(tm) and is used for connecting all
+	  sorts of devices (most notably digital video cameras) to your
+	  computer.
+
+	  If you have FireWire hardware and want to use it, say Y here.  This
+	  is the core support only, you will also need to select a driver for
+	  your IEEE 1394 adapter.
+
+	  To compile this driver as a module, say M here: the module will be
+	  called fw-core.
+
+	  This is the "JUJU" FireWire stack, an alternative implementation
+	  designed for robustness and simplicity.  You can build either this
+	  stack, or the classic stack (the ieee1394 driver, ohci1394 etc.)
+	  or both.
+
+config FIREWIRE_OHCI
+	tristate "Support for OHCI FireWire host controllers"
+	depends on PCI && FIREWIRE
+	help
+	  Enable this driver if you have a FireWire controller based
+	  on the OHCI specification.  For all practical purposes, this
+	  is the only chipset in use, so say Y here.
+
+	  To compile this driver as a module, say M here:  The module will be
+	  called fw-ohci.
+
+	  If you also build ohci1394 of the classic IEEE 1394 driver stack,
+	  blacklist either ohci1394 or fw-ohci to let hotplug load the desired
+	  driver.
+
+config FIREWIRE_SBP2
+	tristate "Support for storage devices (SBP-2 protocol driver)"
+	depends on FIREWIRE && SCSI
+	help
+	  This option enables you to use SBP-2 devices connected to a
+	  FireWire bus.  SBP-2 devices include storage devices like
+	  harddisks and DVD drives, also some other FireWire devices
+	  like scanners.
+
+	  To compile this driver as a module, say M here:  The module will be
+	  called fw-sbp2.
+
+	  You should also enable support for disks, CD-ROMs, etc. in the SCSI
+	  configuration section.
+
+	  If you also build sbp2 of the classic IEEE 1394 driver stack,
+	  blacklist either sbp2 or fw-sbp2 to let hotplug load the desired
+	  driver.
+

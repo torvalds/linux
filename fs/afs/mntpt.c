@@ -36,7 +36,7 @@ const struct inode_operations afs_mntpt_inode_operations = {
 	.lookup		= afs_mntpt_lookup,
 	.follow_link	= afs_mntpt_follow_link,
 	.readlink	= page_readlink,
-	.getattr	= afs_inode_getattr,
+	.getattr	= afs_getattr,
 };
 
 static LIST_HEAD(afs_vfsmounts);
@@ -58,7 +58,8 @@ int afs_mntpt_check_symlink(struct afs_vnode *vnode, struct key *key)
 	char *buf;
 	int ret;
 
-	_enter("{%u,%u}", vnode->fid.vnode, vnode->fid.unique);
+	_enter("{%x:%u,%u}",
+	       vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique);
 
 	/* read the contents of the symlink into the pagecache */
 	page = read_mapping_page(AFS_VNODE_TO_I(vnode)->i_mapping, 0, &file);
@@ -68,12 +69,10 @@ int afs_mntpt_check_symlink(struct afs_vnode *vnode, struct key *key)
 	}
 
 	ret = -EIO;
-	wait_on_page_locked(page);
-	buf = kmap(page);
-	if (!PageUptodate(page))
-		goto out_free;
 	if (PageError(page))
 		goto out_free;
+
+	buf = kmap(page);
 
 	/* examine the symlink's contents */
 	size = vnode->status.size;
@@ -91,8 +90,8 @@ int afs_mntpt_check_symlink(struct afs_vnode *vnode, struct key *key)
 
 	ret = 0;
 
-out_free:
 	kunmap(page);
+out_free:
 	page_cache_release(page);
 out:
 	_leave(" = %d", ret);
@@ -171,8 +170,7 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 	}
 
 	ret = -EIO;
-	wait_on_page_locked(page);
-	if (!PageUptodate(page) || PageError(page))
+	if (PageError(page))
 		goto error;
 
 	buf = kmap(page);

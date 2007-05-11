@@ -42,7 +42,6 @@ struct o2cb_attribute {
 #define O2CB_ATTR(_name, _mode, _show, _store)	\
 struct o2cb_attribute o2cb_attr_##_name = __ATTR(_name, _mode, _show, _store)
 
-#define to_o2cb_subsys(k) container_of(to_kset(k), struct subsystem, kset)
 #define to_o2cb_attr(_attr) container_of(_attr, struct o2cb_attribute, attr)
 
 static ssize_t o2cb_interface_revision_show(char *buf)
@@ -79,7 +78,7 @@ static ssize_t
 o2cb_show(struct kobject * kobj, struct attribute * attr, char * buffer)
 {
 	struct o2cb_attribute *o2cb_attr = to_o2cb_attr(attr);
-	struct subsystem *sbs = to_o2cb_subsys(kobj);
+	struct kset *sbs = to_kset(kobj);
 
 	BUG_ON(sbs != &o2cb_subsys);
 
@@ -93,7 +92,7 @@ o2cb_store(struct kobject * kobj, struct attribute * attr,
 	     const char * buffer, size_t count)
 {
 	struct o2cb_attribute *o2cb_attr = to_o2cb_attr(attr);
-	struct subsystem *sbs = to_o2cb_subsys(kobj);
+	struct kset *sbs = to_kset(kobj);
 
 	BUG_ON(sbs != &o2cb_subsys);
 
@@ -112,7 +111,7 @@ int o2cb_sys_init(void)
 {
 	int ret;
 
-	o2cb_subsys.kset.kobj.ktype = &o2cb_subsys_type;
+	o2cb_subsys.kobj.ktype = &o2cb_subsys_type;
 	ret = subsystem_register(&o2cb_subsys);
 	if (ret)
 		return ret;

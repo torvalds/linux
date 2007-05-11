@@ -164,7 +164,7 @@ EXPORT_SYMBOL_GPL(diag308);
 /* SYSFS */
 
 #define DEFINE_IPL_ATTR_RO(_prefix, _name, _format, _value)		\
-static ssize_t sys_##_prefix##_##_name##_show(struct subsystem *subsys,	\
+static ssize_t sys_##_prefix##_##_name##_show(struct kset *kset,	\
 		char *page)						\
 {									\
 	return sprintf(page, _format, _value);				\
@@ -173,13 +173,13 @@ static struct subsys_attribute sys_##_prefix##_##_name##_attr =		\
 	__ATTR(_name, S_IRUGO, sys_##_prefix##_##_name##_show, NULL);
 
 #define DEFINE_IPL_ATTR_RW(_prefix, _name, _fmt_out, _fmt_in, _value)	\
-static ssize_t sys_##_prefix##_##_name##_show(struct subsystem *subsys,	\
+static ssize_t sys_##_prefix##_##_name##_show(struct kset *kset,	\
 		char *page)						\
 {									\
 	return sprintf(page, _fmt_out,					\
 			(unsigned long long) _value);			\
 }									\
-static ssize_t sys_##_prefix##_##_name##_store(struct subsystem *subsys,\
+static ssize_t sys_##_prefix##_##_name##_store(struct kset *kset,	\
 		const char *buf, size_t len)				\
 {									\
 	unsigned long long value;					\
@@ -194,12 +194,12 @@ static struct subsys_attribute sys_##_prefix##_##_name##_attr =		\
 			sys_##_prefix##_##_name##_store);
 
 #define DEFINE_IPL_ATTR_STR_RW(_prefix, _name, _fmt_out, _fmt_in, _value)\
-static ssize_t sys_##_prefix##_##_name##_show(struct subsystem *subsys,	\
+static ssize_t sys_##_prefix##_##_name##_show(struct kset *kset,	\
 		char *page)						\
 {									\
 	return sprintf(page, _fmt_out, _value);				\
 }									\
-static ssize_t sys_##_prefix##_##_name##_store(struct subsystem *subsys,\
+static ssize_t sys_##_prefix##_##_name##_store(struct kset *kset,	\
 		const char *buf, size_t len)				\
 {									\
 	if (sscanf(buf, _fmt_in, _value) != 1)				\
@@ -272,14 +272,14 @@ void __init setup_ipl_info(void)
 struct ipl_info ipl_info;
 EXPORT_SYMBOL_GPL(ipl_info);
 
-static ssize_t ipl_type_show(struct subsystem *subsys, char *page)
+static ssize_t ipl_type_show(struct kset *kset, char *page)
 {
 	return sprintf(page, "%s\n", ipl_type_str(ipl_info.type));
 }
 
 static struct subsys_attribute sys_ipl_type_attr = __ATTR_RO(ipl_type);
 
-static ssize_t sys_ipl_device_show(struct subsystem *subsys, char *page)
+static ssize_t sys_ipl_device_show(struct kset *kset, char *page)
 {
 	struct ipl_parameter_block *ipl = IPL_PARMBLOCK_START;
 
@@ -371,7 +371,7 @@ static struct attribute_group ipl_fcp_attr_group = {
 
 /* CCW ipl device attributes */
 
-static ssize_t ipl_ccw_loadparm_show(struct subsystem *subsys, char *page)
+static ssize_t ipl_ccw_loadparm_show(struct kset *kset, char *page)
 {
 	char loadparm[LOADPARM_LEN + 1] = {};
 
@@ -469,7 +469,7 @@ static void reipl_get_ascii_loadparm(char *loadparm)
 	strstrip(loadparm);
 }
 
-static ssize_t reipl_ccw_loadparm_show(struct subsystem *subsys, char *page)
+static ssize_t reipl_ccw_loadparm_show(struct kset *kset, char *page)
 {
 	char buf[LOADPARM_LEN + 1];
 
@@ -477,7 +477,7 @@ static ssize_t reipl_ccw_loadparm_show(struct subsystem *subsys, char *page)
 	return sprintf(page, "%s\n", buf);
 }
 
-static ssize_t reipl_ccw_loadparm_store(struct subsystem *subsys,
+static ssize_t reipl_ccw_loadparm_store(struct kset *kset,
 					const char *buf, size_t len)
 {
 	int i, lp_len;
@@ -572,12 +572,12 @@ static int reipl_set_type(enum ipl_type type)
 	return 0;
 }
 
-static ssize_t reipl_type_show(struct subsystem *subsys, char *page)
+static ssize_t reipl_type_show(struct kset *kset, char *page)
 {
 	return sprintf(page, "%s\n", ipl_type_str(reipl_type));
 }
 
-static ssize_t reipl_type_store(struct subsystem *subsys, const char *buf,
+static ssize_t reipl_type_store(struct kset *kset, const char *buf,
 				size_t len)
 {
 	int rc = -EINVAL;
@@ -665,12 +665,12 @@ static int dump_set_type(enum dump_type type)
 	return 0;
 }
 
-static ssize_t dump_type_show(struct subsystem *subsys, char *page)
+static ssize_t dump_type_show(struct kset *kset, char *page)
 {
 	return sprintf(page, "%s\n", dump_type_str(dump_type));
 }
 
-static ssize_t dump_type_store(struct subsystem *subsys, const char *buf,
+static ssize_t dump_type_store(struct kset *kset, const char *buf,
 			       size_t len)
 {
 	int rc = -EINVAL;
@@ -697,12 +697,12 @@ static decl_subsys(shutdown_actions, NULL, NULL);
 
 /* on panic */
 
-static ssize_t on_panic_show(struct subsystem *subsys, char *page)
+static ssize_t on_panic_show(struct kset *kset, char *page)
 {
 	return sprintf(page, "%s\n", shutdown_action_str(on_panic_action));
 }
 
-static ssize_t on_panic_store(struct subsystem *subsys, const char *buf,
+static ssize_t on_panic_store(struct kset *kset, const char *buf,
 			      size_t len)
 {
 	if (strncmp(buf, SHUTDOWN_REIPL_STR, strlen(SHUTDOWN_REIPL_STR)) == 0)
@@ -816,23 +816,23 @@ static int __init ipl_register_fcp_files(void)
 {
 	int rc;
 
-	rc = sysfs_create_group(&ipl_subsys.kset.kobj,
+	rc = sysfs_create_group(&ipl_subsys.kobj,
 				&ipl_fcp_attr_group);
 	if (rc)
 		goto out;
-	rc = sysfs_create_bin_file(&ipl_subsys.kset.kobj,
+	rc = sysfs_create_bin_file(&ipl_subsys.kobj,
 				   &ipl_parameter_attr);
 	if (rc)
 		goto out_ipl_parm;
-	rc = sysfs_create_bin_file(&ipl_subsys.kset.kobj,
+	rc = sysfs_create_bin_file(&ipl_subsys.kobj,
 				   &ipl_scp_data_attr);
 	if (!rc)
 		goto out;
 
-	sysfs_remove_bin_file(&ipl_subsys.kset.kobj, &ipl_parameter_attr);
+	sysfs_remove_bin_file(&ipl_subsys.kobj, &ipl_parameter_attr);
 
 out_ipl_parm:
-	sysfs_remove_group(&ipl_subsys.kset.kobj, &ipl_fcp_attr_group);
+	sysfs_remove_group(&ipl_subsys.kobj, &ipl_fcp_attr_group);
 out:
 	return rc;
 }
@@ -846,7 +846,7 @@ static int __init ipl_init(void)
 		return rc;
 	switch (ipl_info.type) {
 	case IPL_TYPE_CCW:
-		rc = sysfs_create_group(&ipl_subsys.kset.kobj,
+		rc = sysfs_create_group(&ipl_subsys.kobj,
 					&ipl_ccw_attr_group);
 		break;
 	case IPL_TYPE_FCP:
@@ -854,11 +854,11 @@ static int __init ipl_init(void)
 		rc = ipl_register_fcp_files();
 		break;
 	case IPL_TYPE_NSS:
-		rc = sysfs_create_group(&ipl_subsys.kset.kobj,
+		rc = sysfs_create_group(&ipl_subsys.kobj,
 					&ipl_nss_attr_group);
 		break;
 	default:
-		rc = sysfs_create_group(&ipl_subsys.kset.kobj,
+		rc = sysfs_create_group(&ipl_subsys.kobj,
 					&ipl_unknown_attr_group);
 		break;
 	}
@@ -885,7 +885,7 @@ static int __init reipl_nss_init(void)
 
 	if (!MACHINE_IS_VM)
 		return 0;
-	rc = sysfs_create_group(&reipl_subsys.kset.kobj, &reipl_nss_attr_group);
+	rc = sysfs_create_group(&reipl_subsys.kobj, &reipl_nss_attr_group);
 	if (rc)
 		return rc;
 	strncpy(reipl_nss_name, kernel_nss_name, NSS_NAME_SIZE + 1);
@@ -900,7 +900,7 @@ static int __init reipl_ccw_init(void)
 	reipl_block_ccw = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!reipl_block_ccw)
 		return -ENOMEM;
-	rc = sysfs_create_group(&reipl_subsys.kset.kobj, &reipl_ccw_attr_group);
+	rc = sysfs_create_group(&reipl_subsys.kobj, &reipl_ccw_attr_group);
 	if (rc) {
 		free_page((unsigned long)reipl_block_ccw);
 		return rc;
@@ -938,7 +938,7 @@ static int __init reipl_fcp_init(void)
 	reipl_block_fcp = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!reipl_block_fcp)
 		return -ENOMEM;
-	rc = sysfs_create_group(&reipl_subsys.kset.kobj, &reipl_fcp_attr_group);
+	rc = sysfs_create_group(&reipl_subsys.kobj, &reipl_fcp_attr_group);
 	if (rc) {
 		free_page((unsigned long)reipl_block_fcp);
 		return rc;
@@ -990,7 +990,7 @@ static int __init dump_ccw_init(void)
 	dump_block_ccw = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!dump_block_ccw)
 		return -ENOMEM;
-	rc = sysfs_create_group(&dump_subsys.kset.kobj, &dump_ccw_attr_group);
+	rc = sysfs_create_group(&dump_subsys.kobj, &dump_ccw_attr_group);
 	if (rc) {
 		free_page((unsigned long)dump_block_ccw);
 		return rc;
@@ -1014,7 +1014,7 @@ static int __init dump_fcp_init(void)
 	dump_block_fcp = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!dump_block_fcp)
 		return -ENOMEM;
-	rc = sysfs_create_group(&dump_subsys.kset.kobj, &dump_fcp_attr_group);
+	rc = sysfs_create_group(&dump_subsys.kobj, &dump_fcp_attr_group);
 	if (rc) {
 		free_page((unsigned long)dump_block_fcp);
 		return rc;

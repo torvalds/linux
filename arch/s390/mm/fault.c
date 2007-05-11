@@ -20,6 +20,7 @@
 #include <linux/mman.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
+#include <linux/kdebug.h>
 #include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/console.h>
@@ -30,7 +31,6 @@
 
 #include <asm/system.h>
 #include <asm/pgtable.h>
-#include <asm/kdebug.h>
 #include <asm/s390_ext.h>
 
 #ifndef CONFIG_64BIT
@@ -52,38 +52,24 @@ extern int sysctl_userprocess_debug;
 extern void die(const char *,struct pt_regs *,long);
 
 #ifdef CONFIG_KPROBES
-static ATOMIC_NOTIFIER_HEAD(notify_page_fault_chain);
-int register_page_fault_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_register(&notify_page_fault_chain, nb);
-}
-
-int unregister_page_fault_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_unregister(&notify_page_fault_chain, nb);
-}
-
-static int __kprobes __notify_page_fault(struct pt_regs *regs, long err)
-{
-	struct die_args args = { .str = "page fault",
-				 .trapnr = 14,
-				 .signr = SIGSEGV };
-	args.regs = regs;
-	args.err = err;
-	return atomic_notifier_call_chain(&notify_page_fault_chain,
-					  DIE_PAGE_FAULT, &args);
-}
-
 static inline int notify_page_fault(struct pt_regs *regs, long err)
 {
-	if (unlikely(kprobe_running()))
-		return __notify_page_fault(regs, err);
-	return NOTIFY_DONE;
+	int ret = 0;
+
+	/* kprobe_running() needs smp_processor_id() */
+	if (!user_mode(regs)) {
+		preempt_disable();
+		if (kprobe_running() && kprobe_fault_handler(regs, 14))
+			ret = 1;
+		preempt_enable();
+	}
+
+	return ret;
 }
 #else
 static inline int notify_page_fault(struct pt_regs *regs, long err)
 {
-	return NOTIFY_DONE;
+	return 0;
 }
 #endif
 
@@ -267,7 +253,10 @@ static int signal_return(struct mm_struct *mm, struct pt_regs *regs,
 			 unsigned long address, unsigned long error_code)
 {
 	u16 instruction;
-	int rc, compat;
+	int rc;
+#ifdef CONFIG_COMPAT
+	int compat;
+#endif
 
 	pagefault_disable();
 	rc = __get_user(instruction, (u16 __user *) regs->psw.addr);
@@ -319,7 +308,7 @@ do_exception(struct pt_regs *regs, unsigned long error_code, int write)
 	int space;
 	int si_code;
 
-	if (notify_page_fault(regs, error_code) == NOTIFY_STOP)
+	if (notify_page_fault(regs, error_code))
 		return;
 
 	tsk = current;

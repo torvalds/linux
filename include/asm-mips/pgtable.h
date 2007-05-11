@@ -387,10 +387,6 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 		remap_pfn_range(vma, vaddr, pfn, size, prot)
 #endif
 
-#define MK_IOSPACE_PFN(space, pfn)	(pfn)
-#define GET_IOSPACE(pfn)		0
-#define GET_PFN(pfn)			(pfn)
-
 #include <asm-generic/pgtable.h>
 
 /*

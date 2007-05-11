@@ -5,7 +5,7 @@
  * based on the old aacraid driver that is..
  * Adaptec aacraid device driver for Linux.
  *
- * Copyright (c) 2000 Adaptec, Inc. (aacraid@adaptec.com)
+ * Copyright (c) 2000-2007 Adaptec, Inc. (aacraid@adaptec.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -110,7 +110,7 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	/*
 	 *	Align the beginning of Headers to commalign
 	 */
-	align = (commalign - ((unsigned long)(base) & (commalign - 1)));
+	align = (commalign - ((ptrdiff_t)(base) & (commalign - 1)));
 	base = base + align;
 	phys = phys + align;
 	/*
@@ -387,12 +387,11 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 	 *	Ok now init the communication subsystem
 	 */
 
-	dev->queues = kmalloc(sizeof(struct aac_queue_block), GFP_KERNEL);
+	dev->queues = kzalloc(sizeof(struct aac_queue_block), GFP_KERNEL);
 	if (dev->queues == NULL) {
 		printk(KERN_ERR "Error could not allocate comm region.\n");
 		return NULL;
 	}
-	memset(dev->queues, 0, sizeof(struct aac_queue_block));
 
 	if (aac_comm_init(dev)<0){
 		kfree(dev->queues);

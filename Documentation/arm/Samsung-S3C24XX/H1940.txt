@@ -23,7 +23,7 @@ Support
 
     http://handhelds.org/moin/moin.cgi/HpIpaqH1940
 
-  Herbert Pötzl pages:
+  Herbert PÃ¶tzl pages:
 
     http://vserver.13thfloor.at/H1940/
 
@@ -32,7 +32,7 @@ Maintainers
 -----------
 
   This project is being maintained and developed by a variety
-  of people, including Ben Dooks, Arnaud Patard, and Herbert Pötzl.
+  of people, including Ben Dooks, Arnaud Patard, and Herbert PÃ¶tzl.
 
   Thanks to the many others who have also provided support.
 

@@ -37,7 +37,7 @@ struct plff_device {
 static int hid_plff_play(struct input_dev *dev, void *data,
 			 struct ff_effect *effect)
 {
-	struct hid_device *hid = dev->private;
+	struct hid_device *hid = input_get_drvdata(dev);
 	struct plff_device *plff = data;
 	int left, right;
 

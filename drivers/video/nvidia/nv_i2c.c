@@ -30,16 +30,14 @@ static void nvidia_gpio_setscl(void *data, int state)
 	struct nvidia_par *par = chan->par;
 	u32 val;
 
-	VGA_WR08(par->PCIO, 0x3d4, chan->ddc_base + 1);
-	val = VGA_RD08(par->PCIO, 0x3d5) & 0xf0;
+	val = NVReadCrtc(par, chan->ddc_base + 1) & 0xf0;
 
 	if (state)
 		val |= 0x20;
 	else
 		val &= ~0x20;
 
-	VGA_WR08(par->PCIO, 0x3d4, chan->ddc_base + 1);
-	VGA_WR08(par->PCIO, 0x3d5, val | 0x1);
+	NVWriteCrtc(par, chan->ddc_base + 1, val | 0x01);
 }
 
 static void nvidia_gpio_setsda(void *data, int state)
@@ -48,16 +46,14 @@ static void nvidia_gpio_setsda(void *data, int state)
 	struct nvidia_par *par = chan->par;
 	u32 val;
 
-	VGA_WR08(par->PCIO, 0x3d4, chan->ddc_base + 1);
-	val = VGA_RD08(par->PCIO, 0x3d5) & 0xf0;
+	val = NVReadCrtc(par, chan->ddc_base + 1) & 0xf0;
 
 	if (state)
 		val |= 0x10;
 	else
 		val &= ~0x10;
 
-	VGA_WR08(par->PCIO, 0x3d4, chan->ddc_base + 1);
-	VGA_WR08(par->PCIO, 0x3d5, val | 0x1);
+	NVWriteCrtc(par, chan->ddc_base + 1, val | 0x01);
 }
 
 static int nvidia_gpio_getscl(void *data)
@@ -66,11 +62,8 @@ static int nvidia_gpio_getscl(void *data)
 	struct nvidia_par *par = chan->par;
 	u32 val = 0;
 
-	VGA_WR08(par->PCIO, 0x3d4, chan->ddc_base);
-	if (VGA_RD08(par->PCIO, 0x3d5) & 0x04)
+	if (NVReadCrtc(par, chan->ddc_base) & 0x04)
 		val = 1;
-
-	val = VGA_RD08(par->PCIO, 0x3d5);
 
 	return val;
 }
@@ -81,20 +74,21 @@ static int nvidia_gpio_getsda(void *data)
 	struct nvidia_par *par = chan->par;
 	u32 val = 0;
 
-	VGA_WR08(par->PCIO, 0x3d4, chan->ddc_base);
-	if (VGA_RD08(par->PCIO, 0x3d5) & 0x08)
+	if (NVReadCrtc(par, chan->ddc_base) & 0x08)
 		val = 1;
 
 	return val;
 }
 
-static int nvidia_setup_i2c_bus(struct nvidia_i2c_chan *chan, const char *name)
+static int nvidia_setup_i2c_bus(struct nvidia_i2c_chan *chan, const char *name,
+				unsigned int i2c_class)
 {
 	int rc;
 
 	strcpy(chan->adapter.name, name);
 	chan->adapter.owner = THIS_MODULE;
 	chan->adapter.id = I2C_HW_B_NVIDIA;
+	chan->adapter.class = i2c_class;
 	chan->adapter.algo_data = &chan->algo;
 	chan->adapter.dev.parent = &chan->par->pci_dev->dev;
 	chan->algo.setsda = nvidia_gpio_setsda;
@@ -127,83 +121,39 @@ static int nvidia_setup_i2c_bus(struct nvidia_i2c_chan *chan, const char *name)
 
 void nvidia_create_i2c_busses(struct nvidia_par *par)
 {
-	par->bus = 3;
-
 	par->chan[0].par = par;
 	par->chan[1].par = par;
 	par->chan[2].par = par;
 
-	par->chan[0].ddc_base = 0x3e;
-	nvidia_setup_i2c_bus(&par->chan[0], "nvidia #0");
+	par->chan[0].ddc_base = 0x36;
+ 	nvidia_setup_i2c_bus(&par->chan[0], "nvidia #0", I2C_CLASS_HWMON);
 
-	par->chan[1].ddc_base = 0x36;
-	nvidia_setup_i2c_bus(&par->chan[1], "nvidia #1");
+	par->chan[1].ddc_base = 0x3e;
+ 	nvidia_setup_i2c_bus(&par->chan[1], "nvidia #1", 0);
 
 	par->chan[2].ddc_base = 0x50;
-	nvidia_setup_i2c_bus(&par->chan[2], "nvidia #2");
+ 	nvidia_setup_i2c_bus(&par->chan[2], "nvidia #2", 0);
 }
 
 void nvidia_delete_i2c_busses(struct nvidia_par *par)
 {
-	if (par->chan[0].par)
-		i2c_del_adapter(&par->chan[0].adapter);
-	par->chan[0].par = NULL;
+	int i;
 
-	if (par->chan[1].par)
-		i2c_del_adapter(&par->chan[1].adapter);
-	par->chan[1].par = NULL;
-
-	if (par->chan[2].par)
-		i2c_del_adapter(&par->chan[2].adapter);
-	par->chan[2].par = NULL;
-
-}
-
-static u8 *nvidia_do_probe_i2c_edid(struct nvidia_i2c_chan *chan)
-{
-	u8 start = 0x0;
-	struct i2c_msg msgs[] = {
-		{
-		 .addr = 0x50,
-		 .len = 1,
-		 .buf = &start,
-		 }, {
-		     .addr = 0x50,
-		     .flags = I2C_M_RD,
-		     .len = EDID_LENGTH,
-		     },
-	};
-	u8 *buf;
-
-	if (!chan->par)
-		return NULL;
-
-	buf = kmalloc(EDID_LENGTH, GFP_KERNEL);
-	if (!buf) {
-		dev_warn(&chan->par->pci_dev->dev, "Out of memory!\n");
-		return NULL;
+	for (i = 0; i < 3; i++) {
+		if (!par->chan[i].par)
+			continue;
+		i2c_del_adapter(&par->chan[i].adapter);
+		par->chan[i].par = NULL;
 	}
-	msgs[1].buf = buf;
-
-	if (i2c_transfer(&chan->adapter, msgs, 2) == 2)
-		return buf;
-	dev_dbg(&chan->par->pci_dev->dev, "Unable to read EDID block.\n");
-	kfree(buf);
-	return NULL;
 }
 
 int nvidia_probe_i2c_connector(struct fb_info *info, int conn, u8 **out_edid)
 {
 	struct nvidia_par *par = info->par;
 	u8 *edid = NULL;
-	int i;
 
-	for (i = 0; i < 3; i++) {
-		/* Do the real work */
-		edid = nvidia_do_probe_i2c_edid(&par->chan[conn - 1]);
-		if (edid)
-			break;
-	}
+	if (par->chan[conn - 1].par)
+		edid = fb_ddc_read(&par->chan[conn - 1].adapter);
 
 	if (!edid && conn == 1) {
 		/* try to get from firmware */

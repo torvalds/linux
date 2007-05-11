@@ -173,7 +173,7 @@ alpha_core_agp_setup(void)
 	/*
 	 * Build a fake pci_dev struct
 	 */
-	pdev = kmalloc(sizeof(struct pci_dev), GFP_KERNEL);
+	pdev = alloc_pci_dev();
 	if (!pdev)
 		return -ENOMEM;
 	pdev->vendor = 0xffff;

@@ -19,8 +19,8 @@
  *	- advances the request_in pointer
  *	- checks for queue full
  **/
-int qla4xxx_get_req_pkt(struct scsi_qla_host *ha,
-			struct queue_entry **queue_entry)
+static int qla4xxx_get_req_pkt(struct scsi_qla_host *ha,
+			       struct queue_entry **queue_entry)
 {
 	uint16_t request_in;
 	uint8_t status = QLA_SUCCESS;
@@ -62,8 +62,8 @@ int qla4xxx_get_req_pkt(struct scsi_qla_host *ha,
  *
  * This routine issues a marker IOCB.
  **/
-int qla4xxx_send_marker_iocb(struct scsi_qla_host *ha,
-			     struct ddb_entry *ddb_entry, int lun)
+static int qla4xxx_send_marker_iocb(struct scsi_qla_host *ha,
+				    struct ddb_entry *ddb_entry, int lun)
 {
 	struct marker_entry *marker_entry;
 	unsigned long flags = 0;
@@ -96,7 +96,7 @@ exit_send_marker:
 	return status;
 }
 
-struct continuation_t1_entry* qla4xxx_alloc_cont_entry(
+static struct continuation_t1_entry* qla4xxx_alloc_cont_entry(
 	struct scsi_qla_host *ha)
 {
 	struct continuation_t1_entry *cont_entry;
@@ -120,7 +120,7 @@ struct continuation_t1_entry* qla4xxx_alloc_cont_entry(
 	return cont_entry;
 }
 
-uint16_t qla4xxx_calc_request_entries(uint16_t dsds)
+static uint16_t qla4xxx_calc_request_entries(uint16_t dsds)
 {
 	uint16_t iocbs;
 
@@ -133,9 +133,9 @@ uint16_t qla4xxx_calc_request_entries(uint16_t dsds)
 	return iocbs;
 }
 
-void qla4xxx_build_scsi_iocbs(struct srb *srb,
-			      struct command_t3_entry *cmd_entry,
-			      uint16_t tot_dsds)
+static void qla4xxx_build_scsi_iocbs(struct srb *srb,
+				     struct command_t3_entry *cmd_entry,
+				     uint16_t tot_dsds)
 {
 	struct scsi_qla_host *ha;
 	uint16_t avail_dsds;

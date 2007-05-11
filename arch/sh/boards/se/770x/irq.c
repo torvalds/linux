@@ -55,23 +55,34 @@ void make_se770x_irq(struct ipr_data *table, unsigned int nr_irqs)
 }
 
 static struct ipr_data se770x_ipr_map[] = {
+	/*
+	* Super I/O (Just mimic PC):
+	*  1: keyboard
+	*  3: serial 0
+	*  4: serial 1
+	*  5: printer
+	*  6: floppy
+	*  8: rtc
+	* 12: mouse
+	* 14: ide0
+	*/
 #if defined(CONFIG_CPU_SUBTYPE_SH7705)
 	/* This is default value */
-	{ 0xf-0x2, 0, 8,  0x2 , BCR_ILCRA},
-	{ 0xf-0xa, 0, 4,  0xa , BCR_ILCRA},
-	{ 0xf-0x5, 0, 0,  0x5 , BCR_ILCRB},
-	{ 0xf-0x8, 0, 4,  0x8 , BCR_ILCRC},
-	{ 0xf-0xc, 0, 0,  0xc , BCR_ILCRC},
-	{ 0xf-0xe, 0, 12, 0xe , BCR_ILCRD},
-	{ 0xf-0x3, 0, 4,  0x3 , BCR_ILCRD}, /* LAN */
-	{ 0xf-0xd, 0, 8,  0xd , BCR_ILCRE},
-	{ 0xf-0x9, 0, 4,  0x9 , BCR_ILCRE},
-	{ 0xf-0x1, 0, 0,  0x1 , BCR_ILCRE},
-	{ 0xf-0xf, 0, 12, 0xf , BCR_ILCRF},
-	{ 0xf-0xb, 0, 4,  0xb , BCR_ILCRF},
-	{ 0xf-0x7, 0, 12, 0x7 , BCR_ILCRG},
-	{ 0xf-0x6, 0, 8,  0x6 , BCR_ILCRG},
-	{ 0xf-0x4, 0, 4,  0x4 , BCR_ILCRG},
+	{ 13, 0, 8,  0x0f-13 ,BCR_ILCRA},
+	{ 5 , 0, 4,  0x0f- 5 ,BCR_ILCRA},
+	{ 10, 0, 0,  0x0f-10, BCR_ILCRB},
+	{ 7 , 0, 4,  0x0f- 7, BCR_ILCRC},
+	{ 3 , 0, 0,  0x0f- 3, BCR_ILCRC},
+	{ 1 , 0, 12, 0x0f- 1, BCR_ILCRD},
+	{ 12, 0, 4,  0x0f-12, BCR_ILCRD}, /* LAN */
+	{ 2 , 0, 8,  0x0f- 2, BCR_ILCRE}, /* PCIRQ2 */
+	{ 6 , 0, 4,  0x0f- 6, BCR_ILCRE}, /* PCIRQ1 */
+	{ 14, 0, 0,  0x0f-14, BCR_ILCRE}, /* PCIRQ0 */
+	{ 0 , 0, 12, 0x0f   , BCR_ILCRF}, 
+	{ 4 , 0, 4,  0x0f- 4, BCR_ILCRF},
+	{ 8 , 0, 12, 0x0f- 8, BCR_ILCRG},
+	{ 9 , 0, 8,  0x0f- 9, BCR_ILCRG},
+	{ 11, 0, 4,  0x0f-11, BCR_ILCRG},
 #else
 	{ 14, 0,  8, 0x0f-14 ,BCR_ILCRA},
 	{ 12, 0,  4, 0x0f-12 ,BCR_ILCRA},
@@ -81,8 +92,10 @@ static struct ipr_data se770x_ipr_map[] = {
 	{  4, 0,  4, 0x0f- 4 ,BCR_ILCRC},
 	{  3, 0,  0, 0x0f- 3 ,BCR_ILCRC},
 	{  1, 0, 12, 0x0f- 1 ,BCR_ILCRD},
+#if defined(CONFIG_STNIC)
 	/* ST NIC */
 	{ 10, 0,  4, 0x0f-10 ,BCR_ILCRD}, 	/* LAN */
+#endif
 	/* MRSHPC IRQs setting */
 	{  0, 0, 12, 0x0f- 0 ,BCR_ILCRE},	/* PCIRQ3 */
 	{ 11, 0,  8, 0x0f-11 ,BCR_ILCRE}, 	/* PCIRQ2 */
@@ -100,18 +113,6 @@ static struct ipr_data se770x_ipr_map[] = {
  */
 void __init init_se_IRQ(void)
 {
-        /*
-         * Super I/O (Just mimic PC):
-         *  1: keyboard
-         *  3: serial 0
-         *  4: serial 1
-         *  5: printer
-         *  6: floppy
-         *  8: rtc
-         * 12: mouse
-         * 14: ide0
-         */
-#if defined(CONFIG_CPU_SUBTYPE_SH7705)
 	/* Disable all interrupts */
 	ctrl_outw(0, BCR_ILCRA);
 	ctrl_outw(0, BCR_ILCRB);
@@ -120,6 +121,6 @@ void __init init_se_IRQ(void)
 	ctrl_outw(0, BCR_ILCRE);
 	ctrl_outw(0, BCR_ILCRF);
 	ctrl_outw(0, BCR_ILCRG);
-#endif
+
 	make_se770x_irq(se770x_ipr_map, ARRAY_SIZE(se770x_ipr_map));
 }

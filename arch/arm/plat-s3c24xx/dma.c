@@ -44,7 +44,7 @@ static struct kmem_cache *dma_kmem;
 
 static int dma_channels;
 
-struct s3c24xx_dma_selection dma_sel;
+static struct s3c24xx_dma_selection dma_sel;
 
 /* dma channel state information */
 struct s3c2410_dma_chan s3c2410_chans[S3C2410_DMA_CHANNELS];
@@ -880,7 +880,7 @@ static int s3c2410_dma_dostop(struct s3c2410_dma_chan *chan)
 	return 0;
 }
 
-void s3c2410_dma_waitforstop(struct s3c2410_dma_chan *chan)
+static void s3c2410_dma_waitforstop(struct s3c2410_dma_chan *chan)
 {
 	unsigned long tmp;
 	unsigned int timeout = 0x10000;
@@ -957,8 +957,7 @@ static int s3c2410_dma_flush(struct s3c2410_dma_chan *chan)
 	return 0;
 }
 
-int
-s3c2410_dma_started(struct s3c2410_dma_chan *chan)
+static int s3c2410_dma_started(struct s3c2410_dma_chan *chan)
 {
 	unsigned long flags;
 
@@ -1280,7 +1279,7 @@ static void s3c2410_dma_cache_ctor(void *p, struct kmem_cache *c, unsigned long 
 
 /* initialisation code */
 
-int __init s3c24xx_dma_sysclass_init(void)
+static int __init s3c24xx_dma_sysclass_init(void)
 {
 	int ret = sysdev_class_register(&dma_sysclass);
 
@@ -1292,7 +1291,7 @@ int __init s3c24xx_dma_sysclass_init(void)
 
 core_initcall(s3c24xx_dma_sysclass_init);
 
-int __init s3c24xx_dma_sysdev_register(void)
+static int __init s3c24xx_dma_sysdev_register(void)
 {
 	struct s3c2410_dma_chan *cp = s3c2410_chans;
 	int channel, ret;
@@ -1396,7 +1395,7 @@ static struct s3c24xx_dma_order *dma_order;
  * channel
 */
 
-struct s3c2410_dma_chan *s3c2410_dma_map_channel(int channel)
+static struct s3c2410_dma_chan *s3c2410_dma_map_channel(int channel)
 {
 	struct s3c24xx_dma_order_ch *ord = NULL;
 	struct s3c24xx_dma_map *ch_map;

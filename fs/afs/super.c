@@ -20,35 +20,35 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
+#include <linux/parser.h>
+#include <linux/statfs.h>
 #include "internal.h"
 
 #define AFS_FS_MAGIC 0x6B414653 /* 'kAFS' */
 
 static void afs_i_init_once(void *foo, struct kmem_cache *cachep,
 			    unsigned long flags);
-
 static int afs_get_sb(struct file_system_type *fs_type,
 		      int flags, const char *dev_name,
 		      void *data, struct vfsmount *mnt);
-
 static struct inode *afs_alloc_inode(struct super_block *sb);
-
 static void afs_put_super(struct super_block *sb);
-
 static void afs_destroy_inode(struct inode *inode);
+static int afs_statfs(struct dentry *dentry, struct kstatfs *buf);
 
 struct file_system_type afs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "afs",
 	.get_sb		= afs_get_sb,
 	.kill_sb	= kill_anon_super,
-	.fs_flags	= FS_BINARY_MOUNTDATA,
+	.fs_flags	= 0,
 };
 
 static const struct super_operations afs_super_ops = {
-	.statfs		= simple_statfs,
+	.statfs		= afs_statfs,
 	.alloc_inode	= afs_alloc_inode,
 	.drop_inode	= generic_delete_inode,
+	.write_inode	= afs_write_inode,
 	.destroy_inode	= afs_destroy_inode,
 	.clear_inode	= afs_clear_inode,
 	.umount_begin	= afs_umount_begin,
@@ -57,6 +57,20 @@ static const struct super_operations afs_super_ops = {
 
 static struct kmem_cache *afs_inode_cachep;
 static atomic_t afs_count_active_inodes;
+
+enum {
+	afs_no_opt,
+	afs_opt_cell,
+	afs_opt_rwpath,
+	afs_opt_vol,
+};
+
+static match_table_t afs_options_list = {
+	{ afs_opt_cell,		"cell=%s"	},
+	{ afs_opt_rwpath,	"rwpath"	},
+	{ afs_opt_vol,		"vol=%s"	},
+	{ afs_no_opt,		NULL		},
+};
 
 /*
  * initialise the filesystem
@@ -115,31 +129,6 @@ void __exit afs_fs_exit(void)
 }
 
 /*
- * check that an argument has a value
- */
-static int want_arg(char **_value, const char *option)
-{
-	if (!_value || !*_value || !**_value) {
-		printk(KERN_NOTICE "kAFS: %s: argument missing\n", option);
-		return 0;
-	}
-	return 1;
-}
-
-/*
- * check that there's no subsequent value
- */
-static int want_no_value(char *const *_value, const char *option)
-{
-	if (*_value && **_value) {
-		printk(KERN_NOTICE "kAFS: %s: Invalid argument: %s\n",
-		       option, *_value);
-		return 0;
-	}
-	return 1;
-}
-
-/*
  * parse the mount options
  * - this function has been shamelessly adapted from the ext3 fs which
  *   shamelessly adapted it from the msdos fs
@@ -148,48 +137,46 @@ static int afs_parse_options(struct afs_mount_params *params,
 			     char *options, const char **devname)
 {
 	struct afs_cell *cell;
-	char *key, *value;
-	int ret;
+	substring_t args[MAX_OPT_ARGS];
+	char *p;
+	int token;
 
 	_enter("%s", options);
 
 	options[PAGE_SIZE - 1] = 0;
 
-	ret = 0;
-	while ((key = strsep(&options, ","))) {
-		value = strchr(key, '=');
-		if (value)
-			*value++ = 0;
+	while ((p = strsep(&options, ","))) {
+		if (!*p)
+			continue;
 
-		_debug("kAFS: KEY: %s, VAL:%s", key, value ?: "-");
-
-		if (strcmp(key, "rwpath") == 0) {
-			if (!want_no_value(&value, "rwpath"))
-				return -EINVAL;
-			params->rwpath = 1;
-		} else if (strcmp(key, "vol") == 0) {
-			if (!want_arg(&value, "vol"))
-				return -EINVAL;
-			*devname = value;
-		} else if (strcmp(key, "cell") == 0) {
-			if (!want_arg(&value, "cell"))
-				return -EINVAL;
-			cell = afs_cell_lookup(value, strlen(value));
+		token = match_token(p, afs_options_list, args);
+		switch (token) {
+		case afs_opt_cell:
+			cell = afs_cell_lookup(args[0].from,
+					       args[0].to - args[0].from);
 			if (IS_ERR(cell))
 				return PTR_ERR(cell);
 			afs_put_cell(params->cell);
 			params->cell = cell;
-		} else {
-			printk("kAFS: Unknown mount option: '%s'\n",  key);
-			ret = -EINVAL;
-			goto error;
+			break;
+
+		case afs_opt_rwpath:
+			params->rwpath = 1;
+			break;
+
+		case afs_opt_vol:
+			*devname = args[0].from;
+			break;
+
+		default:
+			printk(KERN_ERR "kAFS:"
+			       " Unknown or invalid mount option: '%s'\n", p);
+			return -EINVAL;
 		}
 	}
 
-	ret = 0;
-error:
-	_leave(" = %d", ret);
-	return ret;
+	_leave(" = 0");
+	return 0;
 }
 
 /*
@@ -361,7 +348,6 @@ error:
 
 /*
  * get an AFS superblock
- * - TODO: don't use get_sb_nodev(), but rather call sget() directly
  */
 static int afs_get_sb(struct file_system_type *fs_type,
 		      int flags,
@@ -385,7 +371,6 @@ static int afs_get_sb(struct file_system_type *fs_type,
 		if (ret < 0)
 			goto error;
 	}
-
 
 	ret = afs_parse_device_name(&params, dev_name);
 	if (ret < 0)
@@ -467,14 +452,15 @@ static void afs_i_init_once(void *_vnode, struct kmem_cache *cachep,
 {
 	struct afs_vnode *vnode = _vnode;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR) {
+	if (flags & SLAB_CTOR_CONSTRUCTOR) {
 		memset(vnode, 0, sizeof(*vnode));
 		inode_init_once(&vnode->vfs_inode);
 		init_waitqueue_head(&vnode->update_waitq);
 		mutex_init(&vnode->permits_lock);
 		mutex_init(&vnode->validate_lock);
+		spin_lock_init(&vnode->writeback_lock);
 		spin_lock_init(&vnode->lock);
+		INIT_LIST_HEAD(&vnode->writebacks);
 		INIT_WORK(&vnode->cb_broken_work, afs_broken_callback_work);
 	}
 }
@@ -500,6 +486,7 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 	vnode->flags		= 1 << AFS_VNODE_UNSET;
 	vnode->cb_promised	= false;
 
+	_leave(" = %p", &vnode->vfs_inode);
 	return &vnode->vfs_inode;
 }
 
@@ -510,7 +497,7 @@ static void afs_destroy_inode(struct inode *inode)
 {
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 
-	_enter("{%lu}", inode->i_ino);
+	_enter("%p{%x:%u}", inode, vnode->fid.vid, vnode->fid.vnode);
 
 	_debug("DESTROY INODE %p", inode);
 
@@ -518,4 +505,37 @@ static void afs_destroy_inode(struct inode *inode)
 
 	kmem_cache_free(afs_inode_cachep, vnode);
 	atomic_dec(&afs_count_active_inodes);
+}
+
+/*
+ * return information about an AFS volume
+ */
+static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
+{
+	struct afs_volume_status vs;
+	struct afs_vnode *vnode = AFS_FS_I(dentry->d_inode);
+	struct key *key;
+	int ret;
+
+	key = afs_request_key(vnode->volume->cell);
+	if (IS_ERR(key))
+		return PTR_ERR(key);
+
+	ret = afs_vnode_get_volume_status(vnode, key, &vs);
+	key_put(key);
+	if (ret < 0) {
+		_leave(" = %d", ret);
+		return ret;
+	}
+
+	buf->f_type	= dentry->d_sb->s_magic;
+	buf->f_bsize	= AFS_BLOCK_SIZE;
+	buf->f_namelen	= AFSNAMEMAX - 1;
+
+	if (vs.max_quota == 0)
+		buf->f_blocks = vs.part_max_blocks;
+	else
+		buf->f_blocks = vs.max_quota;
+	buf->f_bavail = buf->f_bfree = buf->f_blocks - vs.blocks_in_use;
+	return 0;
 }

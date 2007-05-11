@@ -1,5 +1,6 @@
 
 menu "LED devices"
+	depends on HAS_IOMEM
 
 config NEW_LEDS
 	bool "LED Support"

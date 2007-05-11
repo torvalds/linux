@@ -49,7 +49,8 @@ extern const struct font_desc *find_font(const char *name);
 
 /* Get the default font for a specific screen size */
 
-extern const struct font_desc *get_default_font(int xres, int yres);
+extern const struct font_desc *get_default_font(int xres, int yres,
+						u32 font_w, u32 font_h);
 
 /* Max. length for the name of a predefined font */
 #define MAX_FONT_NAME	32

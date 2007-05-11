@@ -4,13 +4,15 @@
  *  Information structures for board-specific data
  *
  *  Copyright (C) 2004	Nokia Corporation
- *  Written by Juha Yrjölä <juha.yrjola@nokia.com>
+ *  Written by Juha YrjÃ¶lÃ¤ <juha.yrjola@nokia.com>
  */
 
 #ifndef _OMAP_BOARD_H
 #define _OMAP_BOARD_H
 
 #include <linux/types.h>
+
+#include <asm/arch/gpio-switch.h>
 
 /* Different peripheral ids */
 #define OMAP_TAG_CLOCK		0x4f01
@@ -99,26 +101,31 @@ struct omap_usb_config {
 struct omap_lcd_config {
 	char panel_name[16];
 	char ctrl_name[16];
+	s16  nreset_gpio;
+	u8   data_lines;
+};
+
+struct device;
+struct fb_info;
+struct omap_backlight_config {
+	int default_intensity;
+	int (*set_power)(struct device *dev, int state);
+	int (*check_fb)(struct fb_info *fb);
 };
 
 struct omap_fbmem_config {
-	u32 fb_sram_start;
-	u32 fb_sram_size;
-	u32 fb_sdram_start;
-	u32 fb_sdram_size;
+	u32 start;
+	u32 size;
 };
 
-/* Cover:
- *      high -> closed
- *      low  -> open
- * Connection:
- *      high -> connected
- *      low  -> disconnected
- */
-#define OMAP_GPIO_SWITCH_TYPE_COVER		0x0000
-#define OMAP_GPIO_SWITCH_TYPE_CONNECTION	0x0001
-#define OMAP_GPIO_SWITCH_FLAG_INVERTED		0x0001
-#define OMAP_GPIO_SWITCH_FLAG_OUTPUT		0x0002
+struct omap_pwm_led_platform_data {
+	const char *name;
+	int intensity_timer;
+	int blink_timer;
+	void (*set_power)(struct omap_pwm_led_platform_data *self, int on_off);
+};
+
+/* See include/asm-arm/arch-omap/gpio-switch.h for definitions */
 struct omap_gpio_switch_config {
 	char name[12];
 	u16 gpio;

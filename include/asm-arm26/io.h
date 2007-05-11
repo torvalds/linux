@@ -321,7 +321,7 @@ DECLARE_IO(int,l,"")
 
 #define mmiowb()
 
-/* the following macro is depreciated */
+/* the following macro is deprecated */
 #define ioaddr(port)                    __ioaddr((port))
 
 /*

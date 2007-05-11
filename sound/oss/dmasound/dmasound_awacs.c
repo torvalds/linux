@@ -362,7 +362,7 @@ setup_audio_gpio(const char *name, const char* compatible, int *gpio_addr, int* 
 				of_get_property(np,"audio-gpio",NULL);
 			if (property != 0 && strcmp(property,name) == 0)
 				break;
-		} else if (compatible && device_is_compatible(np, compatible))
+		} else if (compatible && of_device_is_compatible(np, compatible))
 			break;
 		np = of_get_next_child(gpiop, np);
 	}
@@ -2620,17 +2620,17 @@ get_codec_type(struct device_node *info)
 
 	if (info) {
 		/* must do awacs first to allow screamer to overide it */
-		if (device_is_compatible(info, "awacs"))
+		if (of_device_is_compatible(info, "awacs"))
 			codec = AWACS_AWACS ;
-		if (device_is_compatible(info, "screamer"))
+		if (of_device_is_compatible(info, "screamer"))
 			codec = AWACS_SCREAMER;
-		if (device_is_compatible(info, "burgundy"))
+		if (of_device_is_compatible(info, "burgundy"))
 			codec = AWACS_BURGUNDY ;
-		if (device_is_compatible(info, "daca"))
+		if (of_device_is_compatible(info, "daca"))
 			codec = AWACS_DACA;
-		if (device_is_compatible(info, "tumbler"))
+		if (of_device_is_compatible(info, "tumbler"))
 			codec = AWACS_TUMBLER;
-		if (device_is_compatible(info, "snapper"))
+		if (of_device_is_compatible(info, "snapper"))
 			codec = AWACS_SNAPPER;
 	}
 	return codec ;
@@ -2772,7 +2772,7 @@ set_hw_byteswap(struct device_node *io)
 
 	for (mio = io->parent; mio ; mio = mio->parent) {
 		if (strcmp(mio->name, "mac-io") == 0) {
-			if (device_is_compatible(mio, "Keylargo"))
+			if (of_device_is_compatible(mio, "Keylargo"))
 				kl = 1;
 			break;
 		}

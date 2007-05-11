@@ -146,7 +146,7 @@
 			interrupt-parent = < &ipic >;
 			interrupts = <42 8>;
 			bus-range = <0 0>;
-			ranges = <02000000 0 a0000000 90000000 0 10000000
+			ranges = <02000000 0 90000000 90000000 0 10000000
 			          42000000 0 80000000 80000000 0 10000000
 			          01000000 0 00000000 d0000000 0 00100000>;
 			clock-frequency = <0>;
@@ -306,14 +306,12 @@
 				interrupts = <11 8>;
 				reg = <3>;
 				device_type = "ethernet-phy";
-				interface = <3>; //ENET_100_MII
 			};
 			phy4: ethernet-phy@04 {
 				interrupt-parent = < &ipic >;
 				interrupts = <12 8>;
 				reg = <4>;
 				device_type = "ethernet-phy";
-				interface = <3>;
 			};
 		};
 

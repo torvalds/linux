@@ -424,7 +424,7 @@ static int __init ibm_acpiphp_init(void)
 	int retval = 0;
 	acpi_status status;
 	struct acpi_device *device;
-	struct kobject *sysdir = &pci_hotplug_slots_subsys.kset.kobj;
+	struct kobject *sysdir = &pci_hotplug_slots_subsys.kobj;
 
 	dbg("%s\n", __FUNCTION__);
 
@@ -471,7 +471,7 @@ init_return:
 static void __exit ibm_acpiphp_exit(void)
 {
 	acpi_status status;
-	struct kobject *sysdir = &pci_hotplug_slots_subsys.kset.kobj;
+	struct kobject *sysdir = &pci_hotplug_slots_subsys.kobj;
 
 	dbg("%s\n", __FUNCTION__);
 

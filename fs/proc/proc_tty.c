@@ -108,6 +108,8 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 {
 	struct list_head *p;
 	loff_t l = *pos;
+
+	mutex_lock(&tty_mutex);
 	list_for_each(p, &tty_drivers)
 		if (!l--)
 			return list_entry(p, struct tty_driver, tty_drivers);
@@ -124,6 +126,7 @@ static void *t_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void t_stop(struct seq_file *m, void *v)
 {
+	mutex_unlock(&tty_mutex);
 }
 
 static struct seq_operations tty_drivers_op = {

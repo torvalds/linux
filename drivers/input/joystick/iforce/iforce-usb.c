@@ -2,7 +2,7 @@
  * $Id: iforce-usb.c,v 1.16 2002/06/09 11:08:04 jdeneux Exp $
  *
  *  Copyright (c) 2000-2002 Vojtech Pavlik <vojtech@ucw.cz>
- *  Copyright (c) 2001-2002 Johann Deneux <deneux@ifrance.com>
+ *  Copyright (c) 2001-2002, 2007 Johann Deneux <johann.deneux@gmail.com>
  *
  *  USB/RS232 I-Force joysticks and wheels.
  */
@@ -65,7 +65,7 @@ void iforce_usb_xmit(struct iforce *iforce)
 	XMIT_INC(iforce->xmit.tail, n);
 
 	if ( (n=usb_submit_urb(iforce->out, GFP_ATOMIC)) ) {
-		printk(KERN_WARNING "iforce-usb.c: iforce_usb_xmit: usb_submit_urb failed %d\n", n);
+		warn("usb_submit_urb failed %d\n", n);
 	}
 
 	/* The IFORCE_XMIT_RUNNING bit is not cleared here. That's intended.
@@ -110,7 +110,7 @@ static void iforce_usb_out(struct urb *urb)
 	struct iforce *iforce = urb->context;
 
 	if (urb->status) {
-		printk(KERN_DEBUG "iforce_usb_out: urb->status %d, exiting", urb->status);
+		dbg("urb->status %d, exiting", urb->status);
 		return;
 	}
 
@@ -190,10 +190,9 @@ fail:
 /* Called by iforce_delete() */
 void iforce_usb_delete(struct iforce* iforce)
 {
-	usb_unlink_urb(iforce->irq);
-/* Is it ok to unlink those ? */
-	usb_unlink_urb(iforce->out);
-	usb_unlink_urb(iforce->ctrl);
+	usb_kill_urb(iforce->irq);
+	usb_kill_urb(iforce->out);
+	usb_kill_urb(iforce->ctrl);
 
 	usb_free_urb(iforce->irq);
 	usb_free_urb(iforce->out);

@@ -220,7 +220,7 @@ static void gf2k_poll(struct gameport *gameport)
 
 static int gf2k_open(struct input_dev *dev)
 {
-	struct gf2k *gf2k = dev->private;
+	struct gf2k *gf2k = input_get_drvdata(dev);
 
 	gameport_start_polling(gf2k->gameport);
 	return 0;
@@ -228,7 +228,7 @@ static int gf2k_open(struct input_dev *dev)
 
 static void gf2k_close(struct input_dev *dev)
 {
-	struct gf2k *gf2k = dev->private;
+	struct gf2k *gf2k = input_get_drvdata(dev);
 
 	gameport_stop_polling(gf2k->gameport);
 }
@@ -308,11 +308,13 @@ static int gf2k_connect(struct gameport *gameport, struct gameport_driver *drv)
 	input_dev->id.vendor = GAMEPORT_ID_VENDOR_GENIUS;
 	input_dev->id.product = gf2k->id;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = &gameport->dev;
-	input_dev->private = gf2k;
+	input_dev->dev.parent = &gameport->dev;
+
+	input_set_drvdata(input_dev, gf2k);
 
 	input_dev->open = gf2k_open;
 	input_dev->close = gf2k_close;
+
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 
 	for (i = 0; i < gf2k_axes[gf2k->id]; i++)

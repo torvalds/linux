@@ -69,27 +69,38 @@ static const int NVCopyROP_PM[16] = {
 	0x5A,			/* invert */
 };
 
-static inline void NVFlush(struct nvidia_par *par)
+static inline void nvidiafb_safe_mode(struct fb_info *info)
 {
+	struct nvidia_par *par = info->par;
+
+	touch_softlockup_watchdog();
+	info->pixmap.scan_align = 1;
+	par->lockup = 1;
+}
+
+static inline void NVFlush(struct fb_info *info)
+{
+	struct nvidia_par *par = info->par;
 	int count = 1000000000;
 
 	while (--count && READ_GET(par) != par->dmaPut) ;
 
 	if (!count) {
 		printk("nvidiafb: DMA Flush lockup\n");
-		par->lockup = 1;
+		nvidiafb_safe_mode(info);
 	}
 }
 
-static inline void NVSync(struct nvidia_par *par)
+static inline void NVSync(struct fb_info *info)
 {
+	struct nvidia_par *par = info->par;
 	int count = 1000000000;
 
 	while (--count && NV_RD32(par->PGRAPH, 0x0700)) ;
 
 	if (!count) {
 		printk("nvidiafb: DMA Sync lockup\n");
-		par->lockup = 1;
+		nvidiafb_safe_mode(info);
 	}
 }
 
@@ -101,8 +112,9 @@ static void NVDmaKickoff(struct nvidia_par *par)
 	}
 }
 
-static void NVDmaWait(struct nvidia_par *par, int size)
+static void NVDmaWait(struct fb_info *info, int size)
 {
+	struct nvidia_par *par = info->par;
 	int dmaGet;
 	int count = 1000000000, cnt;
 	size++;
@@ -135,34 +147,38 @@ static void NVDmaWait(struct nvidia_par *par, int size)
 	}
 
 	if (!count) {
-		printk("DMA Wait Lockup\n");
-		par->lockup = 1;
+		printk("nvidiafb: DMA Wait Lockup\n");
+		nvidiafb_safe_mode(info);
 	}
 }
 
-static void NVSetPattern(struct nvidia_par *par, u32 clr0, u32 clr1,
+static void NVSetPattern(struct fb_info *info, u32 clr0, u32 clr1,
 			 u32 pat0, u32 pat1)
 {
-	NVDmaStart(par, PATTERN_COLOR_0, 4);
+	struct nvidia_par *par = info->par;
+
+	NVDmaStart(info, par, PATTERN_COLOR_0, 4);
 	NVDmaNext(par, clr0);
 	NVDmaNext(par, clr1);
 	NVDmaNext(par, pat0);
 	NVDmaNext(par, pat1);
 }
 
-static void NVSetRopSolid(struct nvidia_par *par, u32 rop, u32 planemask)
+static void NVSetRopSolid(struct fb_info *info, u32 rop, u32 planemask)
 {
+	struct nvidia_par *par = info->par;
+
 	if (planemask != ~0) {
-		NVSetPattern(par, 0, planemask, ~0, ~0);
+		NVSetPattern(info, 0, planemask, ~0, ~0);
 		if (par->currentRop != (rop + 32)) {
-			NVDmaStart(par, ROP_SET, 1);
+			NVDmaStart(info, par, ROP_SET, 1);
 			NVDmaNext(par, NVCopyROP_PM[rop]);
 			par->currentRop = rop + 32;
 		}
 	} else if (par->currentRop != rop) {
 		if (par->currentRop >= 16)
-			NVSetPattern(par, ~0, ~0, ~0, ~0);
-		NVDmaStart(par, ROP_SET, 1);
+			NVSetPattern(info, ~0, ~0, ~0, ~0);
+		NVDmaStart(info, par, ROP_SET, 1);
 		NVDmaNext(par, NVCopyROP[rop]);
 		par->currentRop = rop;
 	}
@@ -175,7 +191,7 @@ static void NVSetClippingRectangle(struct fb_info *info, int x1, int y1,
 	int h = y2 - y1 + 1;
 	int w = x2 - x1 + 1;
 
-	NVDmaStart(par, CLIP_POINT, 2);
+	NVDmaStart(info, par, CLIP_POINT, 2);
 	NVDmaNext(par, (y1 << 16) | x1);
 	NVDmaNext(par, (h << 16) | w);
 }
@@ -237,23 +253,23 @@ void NVResetGraphics(struct fb_info *info)
 		break;
 	}
 
-	NVDmaStart(par, SURFACE_FORMAT, 4);
+	NVDmaStart(info, par, SURFACE_FORMAT, 4);
 	NVDmaNext(par, surfaceFormat);
 	NVDmaNext(par, pitch | (pitch << 16));
 	NVDmaNext(par, 0);
 	NVDmaNext(par, 0);
 
-	NVDmaStart(par, PATTERN_FORMAT, 1);
+	NVDmaStart(info, par, PATTERN_FORMAT, 1);
 	NVDmaNext(par, patternFormat);
 
-	NVDmaStart(par, RECT_FORMAT, 1);
+	NVDmaStart(info, par, RECT_FORMAT, 1);
 	NVDmaNext(par, rectFormat);
 
-	NVDmaStart(par, LINE_FORMAT, 1);
+	NVDmaStart(info, par, LINE_FORMAT, 1);
 	NVDmaNext(par, lineFormat);
 
 	par->currentRop = ~0;	/* set to something invalid */
-	NVSetRopSolid(par, ROP_COPY, ~0);
+	NVSetRopSolid(info, ROP_COPY, ~0);
 
 	NVSetClippingRectangle(info, 0, 0, info->var.xres_virtual,
 			       info->var.yres_virtual);
@@ -269,10 +285,10 @@ int nvidiafb_sync(struct fb_info *info)
 		return 0;
 
 	if (!par->lockup)
-		NVFlush(par);
+		NVFlush(info);
 
 	if (!par->lockup)
-		NVSync(par);
+		NVSync(info);
 
 	return 0;
 }
@@ -287,7 +303,7 @@ void nvidiafb_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 	if (par->lockup)
 		return cfb_copyarea(info, region);
 
-	NVDmaStart(par, BLIT_POINT_SRC, 3);
+	NVDmaStart(info, par, BLIT_POINT_SRC, 3);
 	NVDmaNext(par, (region->sy << 16) | region->sx);
 	NVDmaNext(par, (region->dy << 16) | region->dx);
 	NVDmaNext(par, (region->height << 16) | region->width);
@@ -312,19 +328,19 @@ void nvidiafb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 		color = ((u32 *) info->pseudo_palette)[rect->color];
 
 	if (rect->rop != ROP_COPY)
-		NVSetRopSolid(par, rect->rop, ~0);
+		NVSetRopSolid(info, rect->rop, ~0);
 
-	NVDmaStart(par, RECT_SOLID_COLOR, 1);
+	NVDmaStart(info, par, RECT_SOLID_COLOR, 1);
 	NVDmaNext(par, color);
 
-	NVDmaStart(par, RECT_SOLID_RECTS(0), 2);
+	NVDmaStart(info, par, RECT_SOLID_RECTS(0), 2);
 	NVDmaNext(par, (rect->dx << 16) | rect->dy);
 	NVDmaNext(par, (rect->width << 16) | rect->height);
 
 	NVDmaKickoff(par);
 
 	if (rect->rop != ROP_COPY)
-		NVSetRopSolid(par, ROP_COPY, ~0);
+		NVSetRopSolid(info, ROP_COPY, ~0);
 }
 
 static void nvidiafb_mono_color_expand(struct fb_info *info,
@@ -346,7 +362,7 @@ static void nvidiafb_mono_color_expand(struct fb_info *info,
 		bg = ((u32 *) info->pseudo_palette)[image->bg_color] | mask;
 	}
 
-	NVDmaStart(par, RECT_EXPAND_TWO_COLOR_CLIP, 7);
+	NVDmaStart(info, par, RECT_EXPAND_TWO_COLOR_CLIP, 7);
 	NVDmaNext(par, (image->dy << 16) | (image->dx & 0xffff));
 	NVDmaNext(par, ((image->dy + image->height) << 16) |
 		  ((image->dx + image->width) & 0xffff));
@@ -357,7 +373,7 @@ static void nvidiafb_mono_color_expand(struct fb_info *info,
 	NVDmaNext(par, (image->dy << 16) | (image->dx & 0xffff));
 
 	while (dsize >= RECT_EXPAND_TWO_COLOR_DATA_MAX_DWORDS) {
-		NVDmaStart(par, RECT_EXPAND_TWO_COLOR_DATA(0),
+		NVDmaStart(info, par, RECT_EXPAND_TWO_COLOR_DATA(0),
 			   RECT_EXPAND_TWO_COLOR_DATA_MAX_DWORDS);
 
 		for (j = RECT_EXPAND_TWO_COLOR_DATA_MAX_DWORDS; j--;) {
@@ -370,7 +386,7 @@ static void nvidiafb_mono_color_expand(struct fb_info *info,
 	}
 
 	if (dsize) {
-		NVDmaStart(par, RECT_EXPAND_TWO_COLOR_DATA(0), dsize);
+		NVDmaStart(info, par, RECT_EXPAND_TWO_COLOR_DATA(0), dsize);
 
 		for (j = dsize; j--;) {
 			tmp = data[k++];

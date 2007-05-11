@@ -13,12 +13,59 @@
 #include <linux/buffer_head.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/lm_interface.h>
+#include <linux/parser.h>
 
 #include "gfs2.h"
 #include "incore.h"
 #include "mount.h"
 #include "sys.h"
 #include "util.h"
+
+enum {
+	Opt_lockproto,
+	Opt_locktable,
+	Opt_hostdata,
+	Opt_spectator,
+	Opt_ignore_local_fs,
+	Opt_localflocks,
+	Opt_localcaching,
+	Opt_debug,
+	Opt_nodebug,
+	Opt_upgrade,
+	Opt_num_glockd,
+	Opt_acl,
+	Opt_noacl,
+	Opt_quota_off,
+	Opt_quota_account,
+	Opt_quota_on,
+	Opt_suiddir,
+	Opt_nosuiddir,
+	Opt_data_writeback,
+	Opt_data_ordered,
+};
+
+static match_table_t tokens = {
+	{Opt_lockproto, "lockproto=%s"},
+	{Opt_locktable, "locktable=%s"},
+	{Opt_hostdata, "hostdata=%s"},
+	{Opt_spectator, "spectator"},
+	{Opt_ignore_local_fs, "ignore_local_fs"},
+	{Opt_localflocks, "localflocks"},
+	{Opt_localcaching, "localcaching"},
+	{Opt_debug, "debug"},
+	{Opt_nodebug, "nodebug"},
+	{Opt_upgrade, "upgrade"},
+	{Opt_num_glockd, "num_glockd=%d"},
+	{Opt_acl, "acl"},
+	{Opt_noacl, "noacl"},
+	{Opt_quota_off, "quota=off"},
+	{Opt_quota_account, "quota=account"},
+	{Opt_quota_on, "quota=on"},
+	{Opt_suiddir, "suiddir"},
+	{Opt_nosuiddir, "nosuiddir"},
+	{Opt_data_writeback, "data=writeback"},
+	{Opt_data_ordered, "data=ordered"}
+};
 
 /**
  * gfs2_mount_args - Parse mount options
@@ -54,146 +101,150 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, char *data_arg, int remount)
 	   process them */
 
 	for (options = data; (o = strsep(&options, ",")); ) {
+		int token, option;
+		substring_t tmp[MAX_OPT_ARGS];
+
 		if (!*o)
 			continue;
 
-		v = strchr(o, '=');
-		if (v)
-			*v++ = 0;
+		token = match_token(o, tokens, tmp);
+		switch (token) {
+		case Opt_lockproto:
+			v = match_strdup(&tmp[0]);
+			if (!v) {
+				fs_info(sdp, "no memory for lockproto\n");
+				error = -ENOMEM;
+				goto out_error;
+			}
 
-		if (!strcmp(o, "lockproto")) {
-			if (!v)
-				goto need_value;
-			if (remount && strcmp(v, args->ar_lockproto))
+			if (remount && strcmp(v, args->ar_lockproto)) {
+				kfree(v);
 				goto cant_remount;
+			}
+			
 			strncpy(args->ar_lockproto, v, GFS2_LOCKNAME_LEN);
 			args->ar_lockproto[GFS2_LOCKNAME_LEN - 1] = 0;
-		}
+			kfree(v);
+			break;
+		case Opt_locktable:
+			v = match_strdup(&tmp[0]);
+			if (!v) {
+				fs_info(sdp, "no memory for locktable\n");
+				error = -ENOMEM;
+				goto out_error;
+			}
 
-		else if (!strcmp(o, "locktable")) {
-			if (!v)
-				goto need_value;
-			if (remount && strcmp(v, args->ar_locktable))
+			if (remount && strcmp(v, args->ar_locktable)) {
+				kfree(v);
 				goto cant_remount;
+			}
+
 			strncpy(args->ar_locktable, v, GFS2_LOCKNAME_LEN);
-			args->ar_locktable[GFS2_LOCKNAME_LEN - 1] = 0;
-		}
+			args->ar_locktable[GFS2_LOCKNAME_LEN - 1]  = 0;
+			kfree(v);
+			break;
+		case Opt_hostdata:
+			v = match_strdup(&tmp[0]);
+			if (!v) {
+				fs_info(sdp, "no memory for hostdata\n");
+				error = -ENOMEM;
+				goto out_error;
+			}
 
-		else if (!strcmp(o, "hostdata")) {
-			if (!v)
-				goto need_value;
-			if (remount && strcmp(v, args->ar_hostdata))
+			if (remount && strcmp(v, args->ar_hostdata)) {
+				kfree(v);
 				goto cant_remount;
+			}
+
 			strncpy(args->ar_hostdata, v, GFS2_LOCKNAME_LEN);
 			args->ar_hostdata[GFS2_LOCKNAME_LEN - 1] = 0;
-		}
-
-		else if (!strcmp(o, "spectator")) {
+			kfree(v);
+			break;
+		case Opt_spectator:
 			if (remount && !args->ar_spectator)
 				goto cant_remount;
 			args->ar_spectator = 1;
 			sdp->sd_vfs->s_flags |= MS_RDONLY;
-		}
-
-		else if (!strcmp(o, "ignore_local_fs")) {
+			break;
+		case Opt_ignore_local_fs:
 			if (remount && !args->ar_ignore_local_fs)
 				goto cant_remount;
 			args->ar_ignore_local_fs = 1;
-		}
-
-		else if (!strcmp(o, "localflocks")) {
+			break;
+		case Opt_localflocks:
 			if (remount && !args->ar_localflocks)
 				goto cant_remount;
 			args->ar_localflocks = 1;
-		}
-
-		else if (!strcmp(o, "localcaching")) {
+			break;
+		case Opt_localcaching:
 			if (remount && !args->ar_localcaching)
 				goto cant_remount;
 			args->ar_localcaching = 1;
-		}
-
-		else if (!strcmp(o, "debug"))
+			break;
+		case Opt_debug:
 			args->ar_debug = 1;
-
-		else if (!strcmp(o, "nodebug"))
+			break;
+		case Opt_nodebug:
 			args->ar_debug = 0;
-
-		else if (!strcmp(o, "upgrade")) {
+			break;
+		case Opt_upgrade:
 			if (remount && !args->ar_upgrade)
 				goto cant_remount;
 			args->ar_upgrade = 1;
-		}
-
-		else if (!strcmp(o, "num_glockd")) {
-			unsigned int x;
-			if (!v)
-				goto need_value;
-			sscanf(v, "%u", &x);
-			if (remount && x != args->ar_num_glockd)
-				goto cant_remount;
-			if (!x || x > GFS2_GLOCKD_MAX) {
-				fs_info(sdp, "0 < num_glockd <= %u  (not %u)\n",
-				        GFS2_GLOCKD_MAX, x);
-				error = -EINVAL;
-				break;
+			break;
+		case Opt_num_glockd:
+			if ((error = match_int(&tmp[0], &option))) {
+				fs_info(sdp, "problem getting num_glockd\n");
+				goto out_error;
 			}
-			args->ar_num_glockd = x;
-		}
 
-		else if (!strcmp(o, "acl")) {
+			if (remount && option != args->ar_num_glockd)
+				goto cant_remount;
+			if (!option || option > GFS2_GLOCKD_MAX) {
+				fs_info(sdp, "0 < num_glockd <= %u  (not %u)\n",
+				        GFS2_GLOCKD_MAX, option);
+				error = -EINVAL;
+				goto out_error;
+			}
+			args->ar_num_glockd = option;
+			break;
+		case Opt_acl:
 			args->ar_posix_acl = 1;
 			sdp->sd_vfs->s_flags |= MS_POSIXACL;
-		}
-
-		else if (!strcmp(o, "noacl")) {
+			break;
+		case Opt_noacl:
 			args->ar_posix_acl = 0;
 			sdp->sd_vfs->s_flags &= ~MS_POSIXACL;
-		}
-
-		else if (!strcmp(o, "quota")) {
-			if (!v)
-				goto need_value;
-			if (!strcmp(v, "off"))
-				args->ar_quota = GFS2_QUOTA_OFF;
-			else if (!strcmp(v, "account"))
-				args->ar_quota = GFS2_QUOTA_ACCOUNT;
-			else if (!strcmp(v, "on"))
-				args->ar_quota = GFS2_QUOTA_ON;
-			else {
-				fs_info(sdp, "invalid value for quota\n");
-				error = -EINVAL;
-				break;
-			}
-		}
-
-		else if (!strcmp(o, "suiddir"))
+			break;
+		case Opt_quota_off:
+			args->ar_quota = GFS2_QUOTA_OFF;
+			break;
+		case Opt_quota_account:
+			args->ar_quota = GFS2_QUOTA_ACCOUNT;
+			break;
+		case Opt_quota_on:
+			args->ar_quota = GFS2_QUOTA_ON;
+			break;
+		case Opt_suiddir:
 			args->ar_suiddir = 1;
-
-		else if (!strcmp(o, "nosuiddir"))
+			break;
+		case Opt_nosuiddir:
 			args->ar_suiddir = 0;
-
-		else if (!strcmp(o, "data")) {
-			if (!v)
-				goto need_value;
-			if (!strcmp(v, "writeback"))
-				args->ar_data = GFS2_DATA_WRITEBACK;
-			else if (!strcmp(v, "ordered"))
-				args->ar_data = GFS2_DATA_ORDERED;
-			else {
-				fs_info(sdp, "invalid value for data\n");
-				error = -EINVAL;
-				break;
-			}
-		}
-
-		else {
+			break;
+		case Opt_data_writeback:
+			args->ar_data = GFS2_DATA_WRITEBACK;
+			break;
+		case Opt_data_ordered:
+			args->ar_data = GFS2_DATA_ORDERED;
+			break;
+		default:
 			fs_info(sdp, "unknown option: %s\n", o);
 			error = -EINVAL;
-			break;
+			goto out_error;
 		}
 	}
 
+out_error:
 	if (error)
 		fs_info(sdp, "invalid mount option(s)\n");
 
@@ -201,10 +252,6 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, char *data_arg, int remount)
 		kfree(data);
 
 	return error;
-
-need_value:
-	fs_info(sdp, "need value for option %s\n", o);
-	return -EINVAL;
 
 cant_remount:
 	fs_info(sdp, "can't remount with option %s\n", o);

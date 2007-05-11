@@ -53,7 +53,7 @@ MODULE_LICENSE("GPL");
 #define ANALOG_PORTS		16
 
 static char *js[ANALOG_PORTS];
-static int js_nargs;
+static unsigned int js_nargs;
 static int analog_options[ANALOG_PORTS];
 module_param_array_named(map, js, charp, &js_nargs, 0);
 MODULE_PARM_DESC(map, "Describes analog joysticks type/capabilities");
@@ -343,7 +343,7 @@ static void analog_poll(struct gameport *gameport)
 
 static int analog_open(struct input_dev *dev)
 {
-	struct analog_port *port = dev->private;
+	struct analog_port *port = input_get_drvdata(dev);
 
 	gameport_start_polling(port->gameport);
 	return 0;
@@ -355,7 +355,7 @@ static int analog_open(struct input_dev *dev)
 
 static void analog_close(struct input_dev *dev)
 {
-	struct analog_port *port = dev->private;
+	struct analog_port *port = input_get_drvdata(dev);
 
 	gameport_stop_polling(port->gameport);
 }
@@ -449,10 +449,13 @@ static int analog_init_device(struct analog_port *port, struct analog *analog, i
 	input_dev->id.vendor = GAMEPORT_ID_VENDOR_ANALOG;
 	input_dev->id.product = analog->mask >> 4;
 	input_dev->id.version = 0x0100;
+	input_dev->dev.parent = &port->gameport->dev;
+
+	input_set_drvdata(input_dev, port);
 
 	input_dev->open = analog_open;
 	input_dev->close = analog_close;
-	input_dev->private = port;
+
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 
 	for (i = j = 0; i < 4; i++)

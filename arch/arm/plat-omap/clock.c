@@ -33,6 +33,41 @@ static DEFINE_SPINLOCK(clockfw_lock);
 
 static struct clk_functions *arch_clock;
 
+#ifdef CONFIG_PM_DEBUG
+
+static void print_parents(struct clk *clk)
+{
+	struct clk *p;
+	int printed = 0;
+
+	list_for_each_entry(p, &clocks, node) {
+		if (p->parent == clk && p->usecount) {
+			if (!clk->usecount && !printed) {
+				printk("MISMATCH: %s\n", clk->name);
+				printed = 1;
+			}
+			printk("\t%-15s\n", p->name);
+		}
+	}
+}
+
+void clk_print_usecounts(void)
+{
+	unsigned long flags;
+	struct clk *p;
+
+	spin_lock_irqsave(&clockfw_lock, flags);
+	list_for_each_entry(p, &clocks, node) {
+		if (p->usecount)
+			printk("%-15s: %d\n", p->name, p->usecount);
+		print_parents(p);
+
+	}
+	spin_unlock_irqrestore(&clockfw_lock, flags);
+}
+
+#endif
+
 /*-------------------------------------------------------------------------
  * Standard clock functions defined in include/linux/clk.h
  *-------------------------------------------------------------------------*/
@@ -249,6 +284,8 @@ void followparent_recalc(struct clk *clk)
 		return;
 
 	clk->rate = clk->parent->rate;
+	if (unlikely(clk->flags & RATE_PROPAGATES))
+		propagate_rate(clk);
 }
 
 /* Propagate rate to children */

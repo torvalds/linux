@@ -736,55 +736,70 @@ static void rpc_async_schedule(struct work_struct *work)
 	__rpc_execute(container_of(work, struct rpc_task, u.tk_work));
 }
 
+struct rpc_buffer {
+	size_t	len;
+	char	data[];
+};
+
 /**
  * rpc_malloc - allocate an RPC buffer
  * @task: RPC task that will use this buffer
  * @size: requested byte size
  *
- * We try to ensure that some NFS reads and writes can always proceed
- * by using a mempool when allocating 'small' buffers.
+ * To prevent rpciod from hanging, this allocator never sleeps,
+ * returning NULL if the request cannot be serviced immediately.
+ * The caller can arrange to sleep in a way that is safe for rpciod.
+ *
+ * Most requests are 'small' (under 2KiB) and can be serviced from a
+ * mempool, ensuring that NFS reads and writes can always proceed,
+ * and that there is good locality of reference for these buffers.
+ *
  * In order to avoid memory starvation triggering more writebacks of
- * NFS requests, we use GFP_NOFS rather than GFP_KERNEL.
+ * NFS requests, we avoid using GFP_KERNEL.
  */
-void * rpc_malloc(struct rpc_task *task, size_t size)
+void *rpc_malloc(struct rpc_task *task, size_t size)
 {
-	struct rpc_rqst *req = task->tk_rqstp;
-	gfp_t	gfp;
+	struct rpc_buffer *buf;
+	gfp_t gfp = RPC_IS_SWAPPER(task) ? GFP_ATOMIC : GFP_NOWAIT;
 
-	if (task->tk_flags & RPC_TASK_SWAPPER)
-		gfp = GFP_ATOMIC;
+	size += sizeof(struct rpc_buffer);
+	if (size <= RPC_BUFFER_MAXSIZE)
+		buf = mempool_alloc(rpc_buffer_mempool, gfp);
 	else
-		gfp = GFP_NOFS;
+		buf = kmalloc(size, gfp);
 
-	if (size > RPC_BUFFER_MAXSIZE) {
-		req->rq_buffer = kmalloc(size, gfp);
-		if (req->rq_buffer)
-			req->rq_bufsize = size;
-	} else {
-		req->rq_buffer = mempool_alloc(rpc_buffer_mempool, gfp);
-		if (req->rq_buffer)
-			req->rq_bufsize = RPC_BUFFER_MAXSIZE;
-	}
-	return req->rq_buffer;
+	if (!buf)
+		return NULL;
+
+	buf->len = size;
+	dprintk("RPC: %5u allocated buffer of size %zu at %p\n",
+			task->tk_pid, size, buf);
+	return &buf->data;
 }
 
 /**
  * rpc_free - free buffer allocated via rpc_malloc
- * @task: RPC task with a buffer to be freed
+ * @buffer: buffer to free
  *
  */
-void rpc_free(struct rpc_task *task)
+void rpc_free(void *buffer)
 {
-	struct rpc_rqst *req = task->tk_rqstp;
+	size_t size;
+	struct rpc_buffer *buf;
 
-	if (req->rq_buffer) {
-		if (req->rq_bufsize == RPC_BUFFER_MAXSIZE)
-			mempool_free(req->rq_buffer, rpc_buffer_mempool);
-		else
-			kfree(req->rq_buffer);
-		req->rq_buffer = NULL;
-		req->rq_bufsize = 0;
-	}
+	if (!buffer)
+		return;
+
+	buf = container_of(buffer, struct rpc_buffer, data);
+	size = buf->len;
+
+	dprintk("RPC:       freeing buffer of size %zu at %p\n",
+			size, buf);
+
+	if (size <= RPC_BUFFER_MAXSIZE)
+		mempool_free(buf, rpc_buffer_mempool);
+	else
+		kfree(buf);
 }
 
 /*

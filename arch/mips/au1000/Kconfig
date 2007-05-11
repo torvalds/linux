@@ -1,0 +1,142 @@
+choice
+	prompt "Machine type"
+	depends on MACH_ALCHEMY
+	default MIPS_DB1000
+
+config MIPS_MTX1
+	bool "4G Systems MTX-1 board"
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select RESOURCES_64BIT if PCI
+	select SOC_AU1500
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+config MIPS_BOSPORUS
+	bool "Alchemy Bosporus board"
+	select SOC_AU1500
+	select DMA_NONCOHERENT
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+config MIPS_DB1000
+	bool "Alchemy DB1000 board"
+	select SOC_AU1000
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select RESOURCES_64BIT if PCI
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+config MIPS_DB1100
+	bool "Alchemy DB1100 board"
+	select SOC_AU1100
+	select DMA_NONCOHERENT
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+config MIPS_DB1200
+	bool "Alchemy DB1200 board"
+	select SOC_AU1200
+	select DMA_COHERENT
+	select MIPS_DISABLE_OBSOLETE_IDE
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+config MIPS_DB1500
+	bool "Alchemy DB1500 board"
+	select SOC_AU1500
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select MIPS_DISABLE_OBSOLETE_IDE
+	select RESOURCES_64BIT if PCI
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+config MIPS_DB1550
+	bool "Alchemy DB1550 board"
+	select SOC_AU1550
+	select HW_HAS_PCI
+	select DMA_NONCOHERENT
+	select MIPS_DISABLE_OBSOLETE_IDE
+	select RESOURCES_64BIT if PCI
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+config MIPS_MIRAGE
+	bool "Alchemy Mirage board"
+	select DMA_NONCOHERENT
+	select SOC_AU1500
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+config MIPS_PB1000
+	bool "Alchemy PB1000 board"
+	select SOC_AU1000
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select RESOURCES_64BIT if PCI
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+config MIPS_PB1100
+	bool "Alchemy PB1100 board"
+	select SOC_AU1100
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select RESOURCES_64BIT if PCI
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+config MIPS_PB1200
+	bool "Alchemy PB1200 board"
+	select SOC_AU1200
+	select DMA_NONCOHERENT
+	select MIPS_DISABLE_OBSOLETE_IDE
+	select RESOURCES_64BIT if PCI
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+config MIPS_PB1500
+	bool "Alchemy PB1500 board"
+	select SOC_AU1500
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select RESOURCES_64BIT if PCI
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+config MIPS_PB1550
+	bool "Alchemy PB1550 board"
+	select SOC_AU1550
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select MIPS_DISABLE_OBSOLETE_IDE
+	select RESOURCES_64BIT if PCI
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+config MIPS_XXS1500
+	bool "MyCable XXS1500 board"
+	select DMA_NONCOHERENT
+	select SOC_AU1500
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+endchoice
+
+config SOC_AU1000
+	bool
+	select SOC_AU1X00
+
+config SOC_AU1100
+	bool
+	select SOC_AU1X00
+
+config SOC_AU1500
+	bool
+	select SOC_AU1X00
+
+config SOC_AU1550
+	bool
+	select SOC_AU1X00
+
+config SOC_AU1200
+	bool
+	select SOC_AU1X00
+
+config SOC_AU1X00
+	bool
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_APM_EMULATION
+	select SYS_SUPPORTS_KGDB

@@ -30,16 +30,7 @@
 #define __ASM_ARCH_OMAP_APOLLON_H
 
 /* Placeholder for APOLLON specific defines */
-/* GPMC CS0 */
-#define APOLLON_CS0_BASE		0x00000000
-/* GPMC CS1 */
-#define APOLLON_CS1_BASE		0x08000000
-#define APOLLON_ETHR_START		(APOLLON_CS1_BASE + 0x300)
 #define APOLLON_ETHR_GPIO_IRQ		74
-/* GPMC CS2 - reserved for OneNAND */
-#define APOLLON_CS2_BASE		0x10000000
-/* GPMC CS3 - reserved for NOR or NAND */
-#define APOLLON_CS3_BASE		0x18000000
 
 #endif /*  __ASM_ARCH_OMAP_APOLLON_H */
 

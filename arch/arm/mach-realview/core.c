@@ -549,7 +549,7 @@ static irqreturn_t realview_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction realview_timer_irq = {
 	.name		= "RealView Timer Tick",
-	.flags		= IRQF_DISABLED | IRQF_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= realview_timer_interrupt,
 };
 

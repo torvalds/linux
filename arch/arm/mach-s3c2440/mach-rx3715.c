@@ -202,11 +202,6 @@ static struct platform_device *rx3715_devices[] __initdata = {
 	&s3c_device_nand,
 };
 
-static struct s3c24xx_board rx3715_board __initdata = {
-	.devices       = rx3715_devices,
-	.devices_count = ARRAY_SIZE(rx3715_devices)
-};
-
 static void __init rx3715_map_io(void)
 {
 	s3c_device_nand.dev.platform_data = &rx3715_nand_info;
@@ -214,7 +209,6 @@ static void __init rx3715_map_io(void)
 	s3c24xx_init_io(rx3715_iodesc, ARRAY_SIZE(rx3715_iodesc));
 	s3c24xx_init_clocks(16934000);
 	s3c24xx_init_uarts(rx3715_uartcfgs, ARRAY_SIZE(rx3715_uartcfgs));
-	s3c24xx_set_board(&rx3715_board);
 }
 
 static void __init rx3715_init_irq(void)
@@ -230,8 +224,8 @@ static void __init rx3715_init_machine(void)
 	s3c2410_pm_init();
 
 	s3c24xx_fb_set_platdata(&rx3715_lcdcfg);
+	platform_add_devices(rx3715_devices, ARRAY_SIZE(rx3715_devices));
 }
-
 
 MACHINE_START(RX3715, "IPAQ-RX3715")
 	/* Maintainer: Ben Dooks <ben@fluff.org> */

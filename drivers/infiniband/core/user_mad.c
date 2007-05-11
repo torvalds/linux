@@ -40,7 +40,6 @@
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
-#include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/poll.h>
 #include <linux/rwsem.h>

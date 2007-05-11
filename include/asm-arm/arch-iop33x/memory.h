@@ -19,8 +19,8 @@
  * bus_to_virt: Used to convert an address for DMA operations
  *		to an address that the kernel can use.
  */
-#define __virt_to_bus(x)	(((__virt_to_phys(x)) & ~(*IOP3XX_IATVR2)) | ((*IOP3XX_IABAR2) & 0xfffffff0))
-#define __bus_to_virt(x)	(__phys_to_virt(((x) & ~(*IOP3XX_IALR2)) | ( *IOP3XX_IATVR2)))
+#define __virt_to_bus(x)	(__virt_to_phys(x))
+#define __bus_to_virt(x)	(__phys_to_virt(x))
 
 
 #endif

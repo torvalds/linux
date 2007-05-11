@@ -19,6 +19,7 @@
 #include <linux/tty.h>
 #include <linux/devpts_fs.h>
 #include <linux/parser.h>
+#include <linux/fsnotify.h>
 
 #define DEVPTS_SUPER_MAGIC 0x1cd1
 
@@ -178,8 +179,10 @@ int devpts_pty_new(struct tty_struct *tty)
 	inode->i_private = tty;
 
 	dentry = get_node(number);
-	if (!IS_ERR(dentry) && !dentry->d_inode)
+	if (!IS_ERR(dentry) && !dentry->d_inode) {
 		d_instantiate(dentry, inode);
+		fsnotify_create(devpts_root->d_inode, dentry);
+	}
 
 	mutex_unlock(&devpts_root->d_inode->i_mutex);
 

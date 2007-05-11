@@ -886,7 +886,7 @@ static int dn_route_output_slow(struct dst_entry **pprt, const struct flowi *old
 			    .iif = loopback_dev.ifindex,
 			    .oif = oldflp->oif };
 	struct dn_route *rt = NULL;
-	struct net_device *dev_out = NULL;
+	struct net_device *dev_out = NULL, *dev;
 	struct neighbour *neigh = NULL;
 	unsigned hash;
 	unsigned flags = 0;
@@ -925,15 +925,17 @@ static int dn_route_output_slow(struct dst_entry **pprt, const struct flowi *old
 			goto out;
 		}
 		read_lock(&dev_base_lock);
-		for(dev_out = dev_base; dev_out; dev_out = dev_out->next) {
-			if (!dev_out->dn_ptr)
+		for_each_netdev(dev) {
+			if (!dev->dn_ptr)
 				continue;
-			if (!dn_dev_islocal(dev_out, oldflp->fld_src))
+			if (!dn_dev_islocal(dev, oldflp->fld_src))
 				continue;
-			if ((dev_out->flags & IFF_LOOPBACK) &&
+			if ((dev->flags & IFF_LOOPBACK) &&
 			    oldflp->fld_dst &&
-			    !dn_dev_islocal(dev_out, oldflp->fld_dst))
+			    !dn_dev_islocal(dev, oldflp->fld_dst))
 				continue;
+
+			dev_out = dev;
 			break;
 		}
 		read_unlock(&dev_base_lock);

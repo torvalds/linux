@@ -23,6 +23,16 @@ static unsigned chattr_class[] = {
 ~0U
 };
 
+static unsigned signal_class[] = {
+#include <asm-generic/audit_signal.h>
+~0U
+};
+
+int audit_classify_arch(int arch)
+{
+	return 0;
+}
+
 int audit_classify_syscall(int abi, unsigned syscall)
 {
 	switch(syscall) {
@@ -49,6 +59,7 @@ static int __init audit_classes_init(void)
 	audit_register_class(AUDIT_CLASS_READ, read_class);
 	audit_register_class(AUDIT_CLASS_DIR_WRITE, dir_class);
 	audit_register_class(AUDIT_CLASS_CHATTR, chattr_class);
+	audit_register_class(AUDIT_CLASS_SIGNAL, signal_class);
 	return 0;
 }
 

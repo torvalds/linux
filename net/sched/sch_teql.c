@@ -94,14 +94,13 @@ teql_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	struct net_device *dev = sch->dev;
 	struct teql_sched_data *q = qdisc_priv(sch);
 
-	__skb_queue_tail(&q->q, skb);
-	if (q->q.qlen <= dev->tx_queue_len) {
+	if (q->q.qlen < dev->tx_queue_len) {
+		__skb_queue_tail(&q->q, skb);
 		sch->bstats.bytes += skb->len;
 		sch->bstats.packets++;
 		return 0;
 	}
 
-	__skb_unlink(skb, &q->q);
 	kfree_skb(skb);
 	sch->qstats.drops++;
 	return NET_XMIT_DROP;

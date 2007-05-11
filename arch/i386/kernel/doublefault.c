@@ -33,7 +33,7 @@ static void doublefault_fn(void)
 		printk("double fault, tss at %08lx\n", tss);
 
 		if (ptr_ok(tss)) {
-			struct tss_struct *t = (struct tss_struct *)tss;
+			struct i386_hw_tss *t = (struct i386_hw_tss *)tss;
 
 			printk("eip = %08lx, esp = %08lx\n", t->eip, t->esp);
 
@@ -49,18 +49,21 @@ static void doublefault_fn(void)
 }
 
 struct tss_struct doublefault_tss __cacheline_aligned = {
-	.esp0		= STACK_START,
-	.ss0		= __KERNEL_DS,
-	.ldt		= 0,
-	.io_bitmap_base	= INVALID_IO_BITMAP_OFFSET,
+	.x86_tss = {
+		.esp0		= STACK_START,
+		.ss0		= __KERNEL_DS,
+		.ldt		= 0,
+		.io_bitmap_base	= INVALID_IO_BITMAP_OFFSET,
 
-	.eip		= (unsigned long) doublefault_fn,
-	.eflags		= X86_EFLAGS_SF | 0x2,	/* 0x2 bit is always set */
-	.esp		= STACK_START,
-	.es		= __USER_DS,
-	.cs		= __KERNEL_CS,
-	.ss		= __KERNEL_DS,
-	.ds		= __USER_DS,
+		.eip		= (unsigned long) doublefault_fn,
+		/* 0x2 bit is always set */
+		.eflags		= X86_EFLAGS_SF | 0x2,
+		.esp		= STACK_START,
+		.es		= __USER_DS,
+		.cs		= __KERNEL_CS,
+		.ss		= __KERNEL_DS,
+		.ds		= __USER_DS,
 
-	.__cr3		= __pa(swapper_pg_dir)
+		.__cr3		= __pa(swapper_pg_dir)
+	}
 };

@@ -12,7 +12,6 @@
 #define __ASM_ARCH_DMA_H
 
 #include <linux/device.h>
-#include <linux/pci.h>
 #include <asm/page.h>
 #include <asm/sizes.h>
 #include <asm/hardware.h>

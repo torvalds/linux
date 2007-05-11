@@ -35,7 +35,6 @@
 #include <asm/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 #include <linux/delay.h>
 #include <linux/version.h>
 
@@ -76,7 +75,7 @@ static int iser_create_device_ib_res(struct iser_device *device)
 				  iser_cq_callback,
 				  iser_cq_event_callback,
 				  (void *)device,
-				  ISER_MAX_CQ_LEN);
+				  ISER_MAX_CQ_LEN, 0);
 	if (IS_ERR(device->cq))
 		goto cq_err;
 

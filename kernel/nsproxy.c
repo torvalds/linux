@@ -38,10 +38,8 @@ void get_task_namespaces(struct task_struct *tsk)
 
 /*
  * creates a copy of "orig" with refcount 1.
- * This does not grab references to the contained namespaces,
- * so that needs to be done by dup_namespaces.
  */
-static inline struct nsproxy *clone_namespaces(struct nsproxy *orig)
+static inline struct nsproxy *clone_nsproxy(struct nsproxy *orig)
 {
 	struct nsproxy *ns;
 
@@ -52,26 +50,49 @@ static inline struct nsproxy *clone_namespaces(struct nsproxy *orig)
 }
 
 /*
- * copies the nsproxy, setting refcount to 1, and grabbing a
- * reference to all contained namespaces.  Called from
- * sys_unshare()
+ * Create new nsproxy and all of its the associated namespaces.
+ * Return the newly created nsproxy.  Do not attach this to the task,
+ * leave it to the caller to do proper locking and attach it to task.
  */
-struct nsproxy *dup_namespaces(struct nsproxy *orig)
+static struct nsproxy *create_new_namespaces(int flags, struct task_struct *tsk,
+			struct fs_struct *new_fs)
 {
-	struct nsproxy *ns = clone_namespaces(orig);
+	struct nsproxy *new_nsp;
 
-	if (ns) {
-		if (ns->mnt_ns)
-			get_mnt_ns(ns->mnt_ns);
-		if (ns->uts_ns)
-			get_uts_ns(ns->uts_ns);
-		if (ns->ipc_ns)
-			get_ipc_ns(ns->ipc_ns);
-		if (ns->pid_ns)
-			get_pid_ns(ns->pid_ns);
-	}
+	new_nsp = clone_nsproxy(tsk->nsproxy);
+	if (!new_nsp)
+		return ERR_PTR(-ENOMEM);
 
-	return ns;
+	new_nsp->mnt_ns = copy_mnt_ns(flags, tsk->nsproxy->mnt_ns, new_fs);
+	if (IS_ERR(new_nsp->mnt_ns))
+		goto out_ns;
+
+	new_nsp->uts_ns = copy_utsname(flags, tsk->nsproxy->uts_ns);
+	if (IS_ERR(new_nsp->uts_ns))
+		goto out_uts;
+
+	new_nsp->ipc_ns = copy_ipcs(flags, tsk->nsproxy->ipc_ns);
+	if (IS_ERR(new_nsp->ipc_ns))
+		goto out_ipc;
+
+	new_nsp->pid_ns = copy_pid_ns(flags, tsk->nsproxy->pid_ns);
+	if (IS_ERR(new_nsp->pid_ns))
+		goto out_pid;
+
+	return new_nsp;
+
+out_pid:
+	if (new_nsp->ipc_ns)
+		put_ipc_ns(new_nsp->ipc_ns);
+out_ipc:
+	if (new_nsp->uts_ns)
+		put_uts_ns(new_nsp->uts_ns);
+out_uts:
+	if (new_nsp->mnt_ns)
+		put_mnt_ns(new_nsp->mnt_ns);
+out_ns:
+	kfree(new_nsp);
+	return ERR_PTR(-ENOMEM);
 }
 
 /*
@@ -92,47 +113,21 @@ int copy_namespaces(int flags, struct task_struct *tsk)
 	if (!(flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC)))
 		return 0;
 
-	new_ns = clone_namespaces(old_ns);
-	if (!new_ns) {
-		err = -ENOMEM;
+	if (!capable(CAP_SYS_ADMIN)) {
+		err = -EPERM;
+		goto out;
+	}
+
+	new_ns = create_new_namespaces(flags, tsk, tsk->fs);
+	if (IS_ERR(new_ns)) {
+		err = PTR_ERR(new_ns);
 		goto out;
 	}
 
 	tsk->nsproxy = new_ns;
-
-	err = copy_mnt_ns(flags, tsk);
-	if (err)
-		goto out_ns;
-
-	err = copy_utsname(flags, tsk);
-	if (err)
-		goto out_uts;
-
-	err = copy_ipcs(flags, tsk);
-	if (err)
-		goto out_ipc;
-
-	err = copy_pid_ns(flags, tsk);
-	if (err)
-		goto out_pid;
-
 out:
 	put_nsproxy(old_ns);
 	return err;
-
-out_pid:
-	if (new_ns->ipc_ns)
-		put_ipc_ns(new_ns->ipc_ns);
-out_ipc:
-	if (new_ns->uts_ns)
-		put_uts_ns(new_ns->uts_ns);
-out_uts:
-	if (new_ns->mnt_ns)
-		put_mnt_ns(new_ns->mnt_ns);
-out_ns:
-	tsk->nsproxy = old_ns;
-	kfree(new_ns);
-	goto out;
 }
 
 void free_nsproxy(struct nsproxy *ns)
@@ -146,4 +141,42 @@ void free_nsproxy(struct nsproxy *ns)
 	if (ns->pid_ns)
 		put_pid_ns(ns->pid_ns);
 	kfree(ns);
+}
+
+/*
+ * Called from unshare. Unshare all the namespaces part of nsproxy.
+ * On sucess, returns the new nsproxy and a reference to old nsproxy
+ * to make sure it stays around.
+ */
+int unshare_nsproxy_namespaces(unsigned long unshare_flags,
+		struct nsproxy **new_nsp, struct fs_struct *new_fs)
+{
+	struct nsproxy *old_ns = current->nsproxy;
+	int err = 0;
+
+	if (!(unshare_flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC)))
+		return 0;
+
+#ifndef CONFIG_IPC_NS
+	if (unshare_flags & CLONE_NEWIPC)
+		return -EINVAL;
+#endif
+
+#ifndef CONFIG_UTS_NS
+	if (unshare_flags & CLONE_NEWUTS)
+		return -EINVAL;
+#endif
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	get_nsproxy(old_ns);
+
+	*new_nsp = create_new_namespaces(unshare_flags, current,
+				new_fs ? new_fs : current->fs);
+	if (IS_ERR(*new_nsp)) {
+		err = PTR_ERR(*new_nsp);
+		put_nsproxy(old_ns);
+	}
+	return err;
 }

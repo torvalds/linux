@@ -274,12 +274,6 @@ udf_read_ptagged(struct super_block *sb, kernel_lb_addr loc, uint32_t offset, ui
 		loc.logicalBlockNum + offset, ident);
 }
 
-void udf_release_data(struct buffer_head *bh)
-{
-	if (bh)
-		brelse(bh);
-}
-
 void udf_update_tag(char *data, int length)
 {
 	tag *tptr = (tag *)data;

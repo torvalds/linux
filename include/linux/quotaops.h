@@ -37,9 +37,6 @@ extern int dquot_release(struct dquot *dquot);
 extern int dquot_commit_info(struct super_block *sb, int type);
 extern int dquot_mark_dquot_dirty(struct dquot *dquot);
 
-int remove_inode_dquot_ref(struct inode *inode, int type,
-			   struct list_head *tofree_head);
-
 extern int vfs_quota_on(struct super_block *sb, int type, int format_id, char *path);
 extern int vfs_quota_on_mount(struct super_block *sb, char *qf_name,
 		int format_id, int type);

@@ -18,7 +18,6 @@
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/miscdevice.h>
-#include <linux/pci.h>
 #include <linux/proc_fs.h>
 #include <linux/platform_device.h>
 #include <asm/uaccess.h>

@@ -45,7 +45,7 @@ static struct dmi_system_id __initdata bigsmp_dmi_table[] = {
 };
 
 
-static int probe_bigsmp(void)
+static int __init probe_bigsmp(void)
 { 
 	if (def_to_bigsmp)
         	dmi_bigsmp = 1;

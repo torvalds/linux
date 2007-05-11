@@ -14,13 +14,12 @@
 #include <linux/sched.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
-#include <linux/smp_lock.h>
+#include <linux/pci.h>
 #include <linux/msi.h>
 #include <linux/irq.h>
 #include <linux/init.h>
 
 #include <asm/uaccess.h>
-#include <asm/pbm.h>
 #include <asm/pgtable.h>
 #include <asm/irq.h>
 #include <asm/ebus.h>
@@ -49,10 +48,10 @@ asmlinkage int sys_pciconfig_write(unsigned long bus, unsigned long dfn,
 #else
 
 /* List of all PCI controllers found in the system. */
-struct pci_controller_info *pci_controller_root = NULL;
+struct pci_pbm_info *pci_pbm_root = NULL;
 
-/* Each PCI controller found gets a unique index. */
-int pci_num_controllers = 0;
+/* Each PBM found gets a unique index. */
+int pci_num_pbms = 0;
 
 volatile int pci_poke_in_progress;
 volatile int pci_poke_cpu = -1;
@@ -190,6 +189,7 @@ extern void schizo_init(struct device_node *, const char *);
 extern void schizo_plus_init(struct device_node *, const char *);
 extern void tomatillo_init(struct device_node *, const char *);
 extern void sun4v_pci_init(struct device_node *, const char *);
+extern void fire_pci_init(struct device_node *, const char *);
 
 static struct {
 	char *model_name;
@@ -207,6 +207,7 @@ static struct {
 	{ "SUNW,tomatillo", tomatillo_init },
 	{ "pci108e,a801", tomatillo_init },
 	{ "SUNW,sun4v-pci", sun4v_pci_init },
+	{ "pciex108e,80f0", fire_pci_init },
 };
 #define PCI_NUM_CONTROLLER_TYPES (sizeof(pci_controller_table) / \
 				  sizeof(pci_controller_table[0]))
@@ -290,7 +291,7 @@ extern const struct pci_iommu_ops pci_sun4u_iommu_ops,
 
 /* Find each controller in the system, attach and initialize
  * software state structure for each and link into the
- * pci_controller_root.  Setup the controller enough such
+ * pci_pbm_root.  Setup the controller enough such
  * that bus scanning can be done.
  */
 static void __init pci_controller_probe(void)
@@ -376,7 +377,7 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	const char *type;
 	u32 class;
 
-	dev = kzalloc(sizeof(struct pci_dev), GFP_KERNEL);
+	dev = alloc_pci_dev();
 	if (!dev)
 		return NULL;
 
@@ -436,6 +437,13 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	printk("    class: 0x%x device name: %s\n",
 	       dev->class, pci_name(dev));
 
+	/* I have seen IDE devices which will not respond to
+	 * the bmdma simplex check reads if bus mastering is
+	 * disabled.
+	 */
+	if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE)
+		pci_set_master(dev);
+
 	dev->current_state = 4;		/* unknown power state */
 	dev->error_state = pci_channel_io_normal;
 
@@ -468,7 +476,7 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	return dev;
 }
 
-static void __init apb_calc_first_last(u8 map, u32 *first_p, u32 *last_p)
+static void __devinit apb_calc_first_last(u8 map, u32 *first_p, u32 *last_p)
 {
 	u32 idx, first, last;
 
@@ -497,9 +505,9 @@ static void __init pci_resource_adjust(struct resource *res,
 /* Cook up fake bus resources for SUNW,simba PCI bridges which lack
  * a proper 'ranges' property.
  */
-static void __init apb_fake_ranges(struct pci_dev *dev,
-				   struct pci_bus *bus,
-				   struct pci_pbm_info *pbm)
+static void __devinit apb_fake_ranges(struct pci_dev *dev,
+				      struct pci_bus *bus,
+				      struct pci_pbm_info *pbm)
 {
 	struct resource *res;
 	u32 first, last;
@@ -522,15 +530,15 @@ static void __init apb_fake_ranges(struct pci_dev *dev,
 	pci_resource_adjust(res, &pbm->mem_space);
 }
 
-static void __init pci_of_scan_bus(struct pci_pbm_info *pbm,
-				   struct device_node *node,
-				   struct pci_bus *bus);
+static void __devinit pci_of_scan_bus(struct pci_pbm_info *pbm,
+				      struct device_node *node,
+				      struct pci_bus *bus);
 
 #define GET_64BIT(prop, i)	((((u64) (prop)[(i)]) << 32) | (prop)[(i)+1])
 
-void __devinit of_scan_pci_bridge(struct pci_pbm_info *pbm,
-				  struct device_node *node,
-				  struct pci_dev *dev)
+static void __devinit of_scan_pci_bridge(struct pci_pbm_info *pbm,
+					 struct device_node *node,
+					 struct pci_dev *dev)
 {
 	struct pci_bus *bus;
 	const u32 *busrange, *ranges;
@@ -629,9 +637,9 @@ simba_cont:
 	pci_of_scan_bus(pbm, node, bus);
 }
 
-static void __init pci_of_scan_bus(struct pci_pbm_info *pbm,
-				   struct device_node *node,
-				   struct pci_bus *bus)
+static void __devinit pci_of_scan_bus(struct pci_pbm_info *pbm,
+				      struct device_node *node,
+				      struct pci_bus *bus)
 {
 	struct device_node *child;
 	const u32 *reg;
@@ -733,9 +741,8 @@ int pci_host_bridge_write_pci_cfg(struct pci_bus *bus_dev,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-struct pci_bus * __init pci_scan_one_pbm(struct pci_pbm_info *pbm)
+struct pci_bus * __devinit pci_scan_one_pbm(struct pci_pbm_info *pbm)
 {
-	struct pci_controller_info *p = pbm->parent;
 	struct device_node *node = pbm->prom_node;
 	struct pci_dev *host_pdev;
 	struct pci_bus *bus;
@@ -743,7 +750,7 @@ struct pci_bus * __init pci_scan_one_pbm(struct pci_pbm_info *pbm)
 	printk("PCI: Scanning PBM %s\n", node->full_name);
 
 	/* XXX parent device? XXX */
-	bus = pci_create_bus(NULL, pbm->pci_first_busno, p->pci_ops, pbm);
+	bus = pci_create_bus(NULL, pbm->pci_first_busno, pbm->pci_ops, pbm);
 	if (!bus) {
 		printk(KERN_ERR "Failed to create bus for %s\n",
 		       node->full_name);
@@ -768,10 +775,10 @@ struct pci_bus * __init pci_scan_one_pbm(struct pci_pbm_info *pbm)
 
 static void __init pci_scan_each_controller_bus(void)
 {
-	struct pci_controller_info *p;
+	struct pci_pbm_info *pbm;
 
-	for (p = pci_controller_root; p; p = p->next)
-		p->scan_bus(p);
+	for (pbm = pci_pbm_root; pbm; pbm = pbm->next)
+		pbm->scan_bus(pbm);
 }
 
 extern void power_init(void);
@@ -779,7 +786,7 @@ extern void power_init(void);
 static int __init pcibios_init(void)
 {
 	pci_controller_probe();
-	if (pci_controller_root == NULL)
+	if (pci_pbm_root == NULL)
 		return 0;
 
 	pci_scan_each_controller_bus();
@@ -914,10 +921,8 @@ static int __pci_mmap_make_offset_bus(struct pci_dev *pdev, struct vm_area_struc
 				      enum pci_mmap_state mmap_state)
 {
 	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	struct pci_controller_info *p;
 	unsigned long space_size, user_offset, user_size;
 
-	p = pbm->parent;
 	if (mmap_state == pci_mmap_io) {
 		space_size = (pbm->io_space.end -
 			      pbm->io_space.start) + 1;
@@ -1070,11 +1075,7 @@ int pci_domain_nr(struct pci_bus *pbus)
 	if (pbm == NULL || pbm->parent == NULL) {
 		ret = -ENXIO;
 	} else {
-		struct pci_controller_info *p = pbm->parent;
-
-		ret = p->index;
-		ret = ((ret << 1) +
-		       ((pbm == &pbm->parent->pbm_B) ? 1 : 0));
+		ret = pbm->index;
 	}
 
 	return ret;
@@ -1085,17 +1086,12 @@ EXPORT_SYMBOL(pci_domain_nr);
 int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 {
 	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	struct pci_controller_info *p = pbm->parent;
-	int virt_irq, err;
+	int virt_irq;
 
-	if (!pbm->msi_num || !p->setup_msi_irq)
+	if (!pbm->setup_msi_irq)
 		return -EINVAL;
 
-	err = p->setup_msi_irq(&virt_irq, pdev, desc);
-	if (err < 0)
-		return err;
-
-	return virt_irq;
+	return pbm->setup_msi_irq(&virt_irq, pdev, desc);
 }
 
 void arch_teardown_msi_irq(unsigned int virt_irq)
@@ -1103,12 +1099,11 @@ void arch_teardown_msi_irq(unsigned int virt_irq)
 	struct msi_desc *entry = get_irq_msi(virt_irq);
 	struct pci_dev *pdev = entry->dev;
 	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	struct pci_controller_info *p = pbm->parent;
 
-	if (!pbm->msi_num || !p->setup_msi_irq)
+	if (!pbm->teardown_msi_irq)
 		return;
 
-	return p->teardown_msi_irq(virt_irq, pdev);
+	return pbm->teardown_msi_irq(virt_irq, pdev);
 }
 #endif /* !(CONFIG_PCI_MSI) */
 

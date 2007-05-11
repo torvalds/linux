@@ -22,8 +22,6 @@ static int __init ide_generic_init(void)
 	if (ide_hwifs[0].io_ports[IDE_DATA_OFFSET])
 		ide_release_lock();	/* for atari only */
 
-	create_proc_ide_interfaces();
-
 	return 0;
 }
 

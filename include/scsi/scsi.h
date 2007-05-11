@@ -203,6 +203,7 @@ static inline int scsi_status_is_good(int status)
 
 /*
  *  DEVICE TYPES
+ *  Please keep them in 0x%02x format for $MODALIAS to work
  */
 
 #define TYPE_DISK           0x00

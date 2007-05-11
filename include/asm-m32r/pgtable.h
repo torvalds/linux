@@ -366,7 +366,7 @@ static inline void pmd_set(pmd_t * pmdp, pte_t * ptep)
 #define pte_unmap_nested(pte)	do { } while (0)
 
 /* Encode and de-code a swap entry */
-#define __swp_type(x)			(((x).val >> 2) & 0x3f)
+#define __swp_type(x)			(((x).val >> 2) & 0x1f)
 #define __swp_offset(x)			((x).val >> 10)
 #define __swp_entry(type, offset)	\
 	((swp_entry_t) { ((type) << 2) | ((offset) << 10) })
@@ -380,10 +380,6 @@ static inline void pmd_set(pmd_t * pmdp, pte_t * ptep)
 
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)	\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)
-
-#define MK_IOSPACE_PFN(space, pfn)	(pfn)
-#define GET_IOSPACE(pfn)		0
-#define GET_PFN(pfn)			(pfn)
 
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY

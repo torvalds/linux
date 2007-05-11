@@ -317,15 +317,15 @@ static int riva_bl_update_status(struct backlight_device *bd)
 	else
 		level = bd->props.brightness;
 
-	tmp_pmc = par->riva.PMC[0x10F0/4] & 0x0000FFFF;
-	tmp_pcrt = par->riva.PCRTC0[0x081C/4] & 0xFFFFFFFC;
+	tmp_pmc = NV_RD32(par->riva.PMC, 0x10F0) & 0x0000FFFF;
+	tmp_pcrt = NV_RD32(par->riva.PCRTC0, 0x081C) & 0xFFFFFFFC;
 	if(level > 0) {
 		tmp_pcrt |= 0x1;
 		tmp_pmc |= (1 << 31); /* backlight bit */
 		tmp_pmc |= riva_bl_get_level_brightness(par, level) << 16; /* level */
 	}
-	par->riva.PCRTC0[0x081C/4] = tmp_pcrt;
-	par->riva.PMC[0x10F0/4] = tmp_pmc;
+	NV_WR32(par->riva.PCRTC0, 0x081C, tmp_pcrt);
+	NV_WR32(par->riva.PMC, 0x10F0, tmp_pmc);
 
 	return 0;
 }
@@ -1760,13 +1760,13 @@ static int __devinit riva_get_EDID_OF(struct fb_info *info, struct pci_dev *pd)
 	NVTRACE_ENTER();
 	dp = pci_device_to_OF_node(pd);
 	for (; dp != NULL; dp = dp->child) {
-		disptype = get_property(dp, "display-type", NULL);
+		disptype = of_get_property(dp, "display-type", NULL);
 		if (disptype == NULL)
 			continue;
 		if (strncmp(disptype, "LCD", 3) != 0)
 			continue;
 		for (i = 0; propnames[i] != NULL; ++i) {
-			pedid = get_property(dp, propnames[i], NULL);
+			pedid = of_get_property(dp, propnames[i], NULL);
 			if (pedid != NULL) {
 				par->EDID = (unsigned char *)pedid;
 				NVTRACE("LCD found.\n");
@@ -1788,8 +1788,10 @@ static int __devinit riva_get_EDID_i2c(struct fb_info *info)
 
 	NVTRACE_ENTER();
 	riva_create_i2c_busses(par);
-	for (i = 0; i < par->bus; i++) {
-		riva_probe_i2c_connector(par, i+1, &par->EDID);
+	for (i = 0; i < 3; i++) {
+		if (!par->chan[i].par)
+			continue;
+		riva_probe_i2c_connector(par, i, &par->EDID);
 		if (par->EDID && !fb_parse_edid(par->EDID, &var)) {
 			printk(PFX "Found EDID Block from BUS %i\n", i);
 			break;
@@ -2104,7 +2106,7 @@ err_ret:
 	return ret;
 }
 
-static void __exit rivafb_remove(struct pci_dev *pd)
+static void __devexit rivafb_remove(struct pci_dev *pd)
 {
 	struct fb_info *info = pci_get_drvdata(pd);
 	struct riva_par *par = info->par;
@@ -2185,7 +2187,7 @@ static struct pci_driver rivafb_driver = {
 	.name		= "rivafb",
 	.id_table	= rivafb_pci_tbl,
 	.probe		= rivafb_probe,
-	.remove		= __exit_p(rivafb_remove),
+	.remove		= __devexit_p(rivafb_remove),
 };
 
 

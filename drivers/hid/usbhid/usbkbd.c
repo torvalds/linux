@@ -133,11 +133,10 @@ resubmit:
 static int usb_kbd_event(struct input_dev *dev, unsigned int type,
 			 unsigned int code, int value)
 {
-	struct usb_kbd *kbd = dev->private;
+	struct usb_kbd *kbd = input_get_drvdata(dev);
 
 	if (type != EV_LED)
 		return -1;
-
 
 	kbd->newleds = (!!test_bit(LED_KANA,    dev->led) << 3) | (!!test_bit(LED_COMPOSE, dev->led) << 3) |
 		       (!!test_bit(LED_SCROLLL, dev->led) << 2) | (!!test_bit(LED_CAPSL,   dev->led) << 1) |
@@ -175,7 +174,7 @@ static void usb_kbd_led(struct urb *urb)
 
 static int usb_kbd_open(struct input_dev *dev)
 {
-	struct usb_kbd *kbd = dev->private;
+	struct usb_kbd *kbd = input_get_drvdata(dev);
 
 	kbd->irq->dev = kbd->usbdev;
 	if (usb_submit_urb(kbd->irq, GFP_KERNEL))
@@ -186,7 +185,7 @@ static int usb_kbd_open(struct input_dev *dev)
 
 static void usb_kbd_close(struct input_dev *dev)
 {
-	struct usb_kbd *kbd = dev->private;
+	struct usb_kbd *kbd = input_get_drvdata(dev);
 
 	usb_kill_urb(kbd->irq);
 }
@@ -211,12 +210,9 @@ static void usb_kbd_free_mem(struct usb_device *dev, struct usb_kbd *kbd)
 {
 	usb_free_urb(kbd->irq);
 	usb_free_urb(kbd->led);
-	if (kbd->new)
-		usb_buffer_free(dev, 8, kbd->new, kbd->new_dma);
-	if (kbd->cr)
-		usb_buffer_free(dev, sizeof(struct usb_ctrlrequest), kbd->cr, kbd->cr_dma);
-	if (kbd->leds)
-		usb_buffer_free(dev, 1, kbd->leds, kbd->leds_dma);
+	usb_buffer_free(dev, 8, kbd->new, kbd->new_dma);
+	usb_buffer_free(dev, sizeof(struct usb_ctrlrequest), kbd->cr, kbd->cr_dma);
+	usb_buffer_free(dev, 1, kbd->leds, kbd->leds_dma);
 }
 
 static int usb_kbd_probe(struct usb_interface *iface,
@@ -274,8 +270,9 @@ static int usb_kbd_probe(struct usb_interface *iface,
 	input_dev->name = kbd->name;
 	input_dev->phys = kbd->phys;
 	usb_to_input_id(dev, &input_dev->id);
-	input_dev->cdev.dev = &iface->dev;
-	input_dev->private = kbd;
+	input_dev->dev.parent = &iface->dev;
+
+	input_set_drvdata(input_dev, kbd);
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_LED) | BIT(EV_REP);
 	input_dev->ledbit[0] = BIT(LED_NUML) | BIT(LED_CAPSL) | BIT(LED_SCROLLL) | BIT(LED_COMPOSE) | BIT(LED_KANA);

@@ -91,7 +91,7 @@ static void set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 	unsigned long flags;
 
 	set_pte_atomic(kpte, pte); 	/* change init_mm */
-	if (PTRS_PER_PMD > 1)
+	if (SHARED_KERNEL_PMD)
 		return;
 
 	spin_lock_irqsave(&pgd_lock, flags);
@@ -142,7 +142,7 @@ __change_page_attr(struct page *page, pgprot_t prot)
 		return -EINVAL;
 	kpte_page = virt_to_page(kpte);
 	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL)) { 
-		if ((pte_val(*kpte) & _PAGE_PSE) == 0) { 
+		if (!pte_huge(*kpte)) {
 			set_pte_atomic(kpte, mk_pte(page, prot)); 
 		} else {
 			pgprot_t ref_prot;
@@ -158,7 +158,7 @@ __change_page_attr(struct page *page, pgprot_t prot)
 			kpte_page = split;
 		}
 		page_private(kpte_page)++;
-	} else if ((pte_val(*kpte) & _PAGE_PSE) == 0) { 
+	} else if (!pte_huge(*kpte)) {
 		set_pte_atomic(kpte, mk_pte(page, PAGE_KERNEL));
 		BUG_ON(page_private(kpte_page) == 0);
 		page_private(kpte_page)--;

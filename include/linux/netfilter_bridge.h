@@ -55,18 +55,25 @@ static inline int nf_bridge_maybe_copy_header(struct sk_buff *skb)
   	return 0;
 }
 
+static inline unsigned int nf_bridge_encap_header_len(const struct sk_buff *skb)
+{
+	switch (skb->protocol) {
+	case __constant_htons(ETH_P_8021Q):
+		return VLAN_HLEN;
+	case __constant_htons(ETH_P_PPP_SES):
+		return PPPOE_SES_HLEN;
+	default:
+		return 0;
+	}
+}
+
 /* This is called by the IP fragmenting code and it ensures there is
  * enough room for the encapsulating header (if there is one). */
-static inline int nf_bridge_pad(const struct sk_buff *skb)
+static inline unsigned int nf_bridge_pad(const struct sk_buff *skb)
 {
-	int padding = 0;
-
-	if (skb->nf_bridge && skb->protocol == htons(ETH_P_8021Q))
-		padding = VLAN_HLEN;
-	else if (skb->nf_bridge && skb->protocol == htons(ETH_P_PPP_SES))
-		padding = PPPOE_SES_HLEN;
-
-	return padding;
+	if (skb->nf_bridge)
+		return nf_bridge_encap_header_len(skb);
+	return 0;
 }
 
 struct bridge_skb_cb {

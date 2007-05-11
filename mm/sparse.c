@@ -44,7 +44,7 @@ EXPORT_SYMBOL(page_to_nid);
 #endif
 
 #ifdef CONFIG_SPARSEMEM_EXTREME
-static struct mem_section *sparse_index_alloc(int nid)
+static struct mem_section noinline *sparse_index_alloc(int nid)
 {
 	struct mem_section *section = NULL;
 	unsigned long array_size = SECTIONS_PER_ROOT *
@@ -61,7 +61,7 @@ static struct mem_section *sparse_index_alloc(int nid)
 	return section;
 }
 
-static int sparse_index_init(unsigned long section_nr, int nid)
+static int __meminit sparse_index_init(unsigned long section_nr, int nid)
 {
 	static DEFINE_SPINLOCK(index_init_lock);
 	unsigned long root = SECTION_NR_TO_ROOT(section_nr);
@@ -138,7 +138,7 @@ static inline int sparse_early_nid(struct mem_section *section)
 }
 
 /* Record a memory area against a node. */
-void memory_present(int nid, unsigned long start, unsigned long end)
+void __init memory_present(int nid, unsigned long start, unsigned long end)
 {
 	unsigned long pfn;
 
@@ -197,7 +197,7 @@ struct page *sparse_decode_mem_map(unsigned long coded_mem_map, unsigned long pn
 	return ((struct page *)coded_mem_map) + section_nr_to_pfn(pnum);
 }
 
-static int sparse_init_one_section(struct mem_section *ms,
+static int __meminit sparse_init_one_section(struct mem_section *ms,
 		unsigned long pnum, struct page *mem_map)
 {
 	if (!valid_section(ms))
@@ -209,7 +209,7 @@ static int sparse_init_one_section(struct mem_section *ms,
 	return 1;
 }
 
-static struct page *sparse_early_mem_map_alloc(unsigned long pnum)
+static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
 {
 	struct page *map;
 	struct mem_section *ms = __nr_to_section(pnum);
@@ -272,7 +272,7 @@ static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
  * Allocate the accumulated non-linear sections, allocate a mem_map
  * for each and record the physical to section mapping.
  */
-void sparse_init(void)
+void __init sparse_init(void)
 {
 	unsigned long pnum;
 	struct page *map;
@@ -288,6 +288,7 @@ void sparse_init(void)
 	}
 }
 
+#ifdef CONFIG_MEMORY_HOTPLUG
 /*
  * returns the number of sections whose mem_maps were properly
  * set.  If this is <=0, then that means that the passed-in
@@ -327,3 +328,4 @@ out:
 		__kfree_section_memmap(memmap, nr_pages);
 	return ret;
 }
+#endif

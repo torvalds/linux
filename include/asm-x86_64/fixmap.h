@@ -15,7 +15,6 @@
 #include <asm/apicdef.h>
 #include <asm/page.h>
 #include <asm/vsyscall.h>
-#include <asm/vsyscall32.h>
 
 /*
  * Here we define all the compile-time 'special' virtual

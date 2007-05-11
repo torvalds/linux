@@ -37,7 +37,6 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/errno.h>
-#include <linux/smp_lock.h>
 #include <linux/net.h>
 #include <net/sock.h>
 

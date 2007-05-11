@@ -252,6 +252,9 @@ static void afs_destroy_server(struct afs_server *server)
 {
 	_enter("%p", server);
 
+	ASSERTIF(server->cb_break_head != server->cb_break_tail,
+		 delayed_work_pending(&server->cb_break_work));
+
 	ASSERTCMP(server->fs_vnodes.rb_node, ==, NULL);
 	ASSERTCMP(server->cb_promises.rb_node, ==, NULL);
 	ASSERTCMP(server->cb_break_head, ==, server->cb_break_tail);

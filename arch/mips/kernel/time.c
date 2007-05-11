@@ -306,7 +306,7 @@ static unsigned int __init calibrate_hpt(void)
 
 struct clocksource clocksource_mips = {
 	.name		= "MIPS",
-	.mask		= 0xffffffff,
+	.mask		= CLOCKSOURCE_MASK(32),
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 

@@ -25,7 +25,7 @@
 #include <linux/notifier.h>
 #include <linux/reboot.h>
 #include <linux/fs.h>
-#include <linux/pci.h>
+#include <linux/ioport.h>
 #include <linux/scx200.h>
 
 #include <asm/uaccess.h>

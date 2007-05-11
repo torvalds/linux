@@ -519,7 +519,7 @@ extern void c2_free_cq(struct c2_dev *c2dev, struct c2_cq *cq);
 extern void c2_cq_event(struct c2_dev *c2dev, u32 mq_index);
 extern void c2_cq_clean(struct c2_dev *c2dev, struct c2_qp *qp, u32 mq_index);
 extern int c2_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry);
-extern int c2_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify);
+extern int c2_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 
 /* CM */
 extern int c2_llp_connect(struct iw_cm_id *cm_id,

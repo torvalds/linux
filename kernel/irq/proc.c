@@ -66,12 +66,19 @@ static int name_unique(unsigned int irq, struct irqaction *new_action)
 {
 	struct irq_desc *desc = irq_desc + irq;
 	struct irqaction *action;
+	unsigned long flags;
+	int ret = 1;
 
-	for (action = desc->action ; action; action = action->next)
+	spin_lock_irqsave(&desc->lock, flags);
+	for (action = desc->action ; action; action = action->next) {
 		if ((action != new_action) && action->name &&
-				!strcmp(new_action->name, action->name))
-			return 0;
-	return 1;
+				!strcmp(new_action->name, action->name)) {
+			ret = 0;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&desc->lock, flags);
+	return ret;
 }
 
 void register_handler_proc(unsigned int irq, struct irqaction *action)

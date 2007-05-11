@@ -395,7 +395,7 @@ static int my_atoi(const char *name)
 
     for (;; name++) {
 	switch (*name) {
-	    case '0'...'9':
+	    case '0' ... '9':
 		val = 10*val+(*name-'0');
 		break;
 	    default:
@@ -548,7 +548,7 @@ int fb_find_mode(struct fb_var_screeninfo *var,
 		    } else
 			goto done;
 		    break;
-		case '0'...'9':
+		case '0' ... '9':
 		    break;
 		case 'M':
 		    if (!yres_specified)

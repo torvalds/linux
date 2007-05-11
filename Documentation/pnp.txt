@@ -140,7 +140,7 @@ Plug and Play but it is planned to be in the near future.
 Requirements for a Linux PnP protocol:
 1.) the protocol must use EISA IDs
 2.) the protocol must inform the PnP Layer of a devices current configuration
-- the ability to set resources is optional but prefered.
+- the ability to set resources is optional but preferred.
 
 The following are PnP protocol related functions:
 

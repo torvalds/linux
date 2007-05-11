@@ -2165,18 +2165,29 @@ static void __devexit aty128_remove(struct pci_dev *pdev)
 static int aty128fb_blank(int blank, struct fb_info *fb)
 {
 	struct aty128fb_par *par = fb->par;
-	u8 state = 0;
+	u8 state;
 
 	if (par->lock_blank || par->asleep)
 		return 0;
 
-	if (blank & FB_BLANK_VSYNC_SUSPEND)
-		state |= 2;
-	if (blank & FB_BLANK_HSYNC_SUSPEND)
-		state |= 1;
-	if (blank & FB_BLANK_POWERDOWN)
-		state |= 4;
-
+	switch (blank) {
+	case FB_BLANK_NORMAL:
+		state = 4;
+		break;
+	case FB_BLANK_VSYNC_SUSPEND:
+		state = 6;
+		break;
+	case FB_BLANK_HSYNC_SUSPEND:
+		state = 5;
+		break;
+	case FB_BLANK_POWERDOWN:
+		state = 7;
+		break;
+	case FB_BLANK_UNBLANK:
+	default:
+		state = 0;
+		break;
+	}
 	aty_st_8(CRTC_EXT_CNTL+1, state);
 
 	if (par->chip_gen == rage_M3) {
@@ -2430,7 +2441,7 @@ static int aty128_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	wait_for_idle(par);
 
 	/* Blank display and LCD */
-	aty128fb_blank(VESA_POWERDOWN, info);
+	aty128fb_blank(FB_BLANK_POWERDOWN, info);
 
 	/* Sleep */
 	par->asleep = 1;

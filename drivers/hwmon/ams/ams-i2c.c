@@ -85,17 +85,17 @@ static int ams_i2c_write(u8 reg, u8 value)
 static int ams_i2c_cmd(enum ams_i2c_cmd cmd)
 {
 	s32 result;
-	int remaining = HZ / 20;
+	int count = 3;
 
 	ams_i2c_write(AMS_COMMAND, cmd);
-	mdelay(5);
+	msleep(5);
 
-	while (remaining) {
+	while (count--) {
 		result = ams_i2c_read(AMS_COMMAND);
 		if (result == 0 || result & 0x80)
 			return 0;
 
-		remaining = schedule_timeout(remaining);
+		schedule_timeout_uninterruptible(HZ / 20);
 	}
 
 	return -1;
@@ -276,7 +276,7 @@ int __init ams_i2c_init(struct device_node *np)
 	ams_info.bustype = BUS_I2C;
 
 	/* look for bus either using "reg" or by path */
-	prop = get_property(ams_info.of_node, "reg", NULL);
+	prop = of_get_property(ams_info.of_node, "reg", NULL);
 	if (!prop) {
 		result = -ENODEV;
 

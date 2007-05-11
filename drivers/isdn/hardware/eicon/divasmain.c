@@ -17,7 +17,6 @@
 #include <linux/ioport.h>
 #include <linux/workqueue.h>
 #include <linux/pci.h>
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/poll.h>

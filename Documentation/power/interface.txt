@@ -34,8 +34,12 @@ for 5 seconds, resume devices, unfreeze tasks and enable nonboot CPUs.  Then,
 we are able to look in the log messages and work out, for example, which code
 is being slow and which device drivers are misbehaving.
 
-Reading from this file will display what the mode is currently set
-to. Writing to this file will accept one of
+Reading from this file will display all supported modes and the currently
+selected one in brackets, for example
+
+	[shutdown] reboot test testproc
+
+Writing to this file will accept one of
 
        'platform' (only if the platform supports it)
        'shutdown'

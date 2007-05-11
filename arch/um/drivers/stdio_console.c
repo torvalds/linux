@@ -22,7 +22,6 @@
 #include "stdio_console.h"
 #include "line.h"
 #include "chan_kern.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "irq_user.h"
 #include "mconsole_kern.h"
@@ -167,11 +166,11 @@ int stdio_init(void)
 		return -1;
 	printk(KERN_INFO "Initialized stdio console driver\n");
 
-	lines_init(vts, ARRAY_SIZE(vts), &opts);
-
 	new_title = add_xterm_umid(opts.xterm_title);
 	if(new_title != NULL)
 		opts.xterm_title = new_title;
+
+	lines_init(vts, ARRAY_SIZE(vts), &opts);
 
 	con_init_done = 1;
 	register_console(&stdiocons);

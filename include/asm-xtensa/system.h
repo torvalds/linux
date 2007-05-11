@@ -183,8 +183,6 @@ static inline unsigned long xchg_u32(volatile int * m, unsigned long val)
   return tmp;
 }
 
-#define tas(ptr) (xchg((ptr),1))
-
 #define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
 
 /*

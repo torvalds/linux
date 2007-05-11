@@ -53,7 +53,7 @@ static unsigned long ns9xxx_timer_gettimeoffset(void)
 
 static struct irqaction ns9xxx_timer_irq = {
 	.name = "NS9xxx Timer Tick",
-	.flags = IRQF_DISABLED | IRQF_TIMER,
+	.flags = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 	.handler = ns9xxx_timer_interrupt,
 };
 

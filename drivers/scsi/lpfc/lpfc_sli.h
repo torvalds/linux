@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -39,9 +39,10 @@ struct lpfc_iocbq {
 	IOCB_t iocb;		/* IOCB cmd */
 	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
 	uint8_t iocb_flag;
-#define LPFC_IO_LIBDFC	1	/* libdfc iocb */
-#define LPFC_IO_WAKE	2	/* High Priority Queue signal flag */
-#define LPFC_IO_FCP	4	/* FCP command -- iocbq in scsi_buf */
+#define LPFC_IO_LIBDFC		1	/* libdfc iocb */
+#define LPFC_IO_WAKE		2	/* High Priority Queue signal flag */
+#define LPFC_IO_FCP		4	/* FCP command -- iocbq in scsi_buf */
+#define LPFC_DRIVER_ABORTED	8	/* driver aborted this request */
 
 	uint8_t abort_count;
 	uint8_t rsvd2;
@@ -67,6 +68,8 @@ struct lpfc_iocbq {
 #define IOCB_ERROR          2
 #define IOCB_TIMEDOUT       3
 
+#define LPFC_MBX_WAKE	1
+
 typedef struct lpfcMboxq {
 	/* MBOXQs are used in single linked lists */
 	struct list_head list;	/* ptr to next mailbox command */
@@ -75,6 +78,7 @@ typedef struct lpfcMboxq {
 	void *context2;		/* caller context information */
 
 	void (*mbox_cmpl) (struct lpfc_hba *, struct lpfcMboxq *);
+	uint8_t mbox_flag;
 
 } LPFC_MBOXQ_t;
 

@@ -115,11 +115,8 @@ enum {
 	/* Actions */
 	HIF_MUTEX		= 0,
 	HIF_PROMOTE		= 1,
-	HIF_DEMOTE		= 2,
 
 	/* States */
-	HIF_ALLOCED		= 4,
-	HIF_DEALLOC		= 5,
 	HIF_HOLDER		= 6,
 	HIF_FIRST		= 7,
 	HIF_ABORTED		= 9,
@@ -130,7 +127,7 @@ struct gfs2_holder {
 	struct list_head gh_list;
 
 	struct gfs2_glock *gh_gl;
-	struct task_struct *gh_owner;
+	pid_t gh_owner_pid;
 	unsigned int gh_state;
 	unsigned gh_flags;
 
@@ -142,8 +139,8 @@ struct gfs2_holder {
 enum {
 	GLF_LOCK		= 1,
 	GLF_STICKY		= 2,
+	GLF_DEMOTE		= 3,
 	GLF_DIRTY		= 5,
-	GLF_SKIP_WAITERS2	= 6,
 };
 
 struct gfs2_glock {
@@ -156,11 +153,12 @@ struct gfs2_glock {
 
 	unsigned int gl_state;
 	unsigned int gl_hash;
-	struct task_struct *gl_owner;
+	unsigned int gl_demote_state; /* state requested by remote node */
+	unsigned long gl_demote_time; /* time of first demote request */
+	pid_t gl_owner_pid;
 	unsigned long gl_ip;
 	struct list_head gl_holders;
 	struct list_head gl_waiters1;	/* HIF_MUTEX */
-	struct list_head gl_waiters2;	/* HIF_DEMOTE */
 	struct list_head gl_waiters3;	/* HIF_PROMOTE */
 
 	const struct gfs2_glock_operations *gl_ops;
@@ -611,6 +609,8 @@ struct gfs2_sbd {
 
 	unsigned long sd_last_warning;
 	struct vfsmount *sd_gfs2mnt;
+	struct dentry *debugfs_dir;    /* debugfs directory */
+	struct dentry *debugfs_dentry_glocks; /* for debugfs */
 };
 
 #endif /* __INCORE_DOT_H__ */

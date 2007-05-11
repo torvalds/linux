@@ -17,6 +17,7 @@
 #include <linux/sched.h>
 #include <linux/device.h>
 #include <linux/serial_8250.h>
+#include <linux/pata_platform.h>
 
 #include <asm/elf.h>
 #include <asm/io.h>
@@ -159,11 +160,45 @@ static struct platform_device serial_device = {
 	},
 };
 
+static struct pata_platform_info pata_platform_data = {
+	.ioport_shift		= 2,
+};
+
+static struct resource pata_resources[] = {
+	[0] = {
+		.start		= 0x030107c0,
+		.end		= 0x030107df,
+		.flags		= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start		= 0x03010fd8,
+		.end		= 0x03010fdb,
+		.flags		= IORESOURCE_MEM,
+	},
+	[2] = {
+		.start		= IRQ_HARDDISK,
+		.end		= IRQ_HARDDISK,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device pata_device = {
+	.name			= "pata_platform",
+	.id			= -1,
+	.num_resources		= ARRAY_SIZE(pata_resources),
+	.resource		= pata_resources,
+	.dev			= {
+		.platform_data	= &pata_platform_data,
+		.coherent_dma_mask = ~0,	/* grumble */
+	},
+};
+
 static struct platform_device *devs[] __initdata = {
 	&iomd_device,
 	&kbd_device,
 	&serial_device,
 	&acornfb_device,
+	&pata_device,
 };
 
 static int __init rpc_init(void)

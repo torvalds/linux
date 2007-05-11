@@ -223,7 +223,7 @@ static int dib7000p_set_bandwidth(struct dvb_frontend *demod, u8 BW_Idx)
 static int dib7000p_sad_calib(struct dib7000p_state *state)
 {
 /* internal */
-//	dib7000p_write_word(state, 72, (3 << 14) | (1 << 12) | (524 << 0)); // sampling clock of the SAD is writting in set_bandwidth
+//	dib7000p_write_word(state, 72, (3 << 14) | (1 << 12) | (524 << 0)); // sampling clock of the SAD is written in set_bandwidth
 	dib7000p_write_word(state, 73, (0 << 1) | (0 << 0));
 	dib7000p_write_word(state, 74, 776); // 0.625*3.3 / 4096
 

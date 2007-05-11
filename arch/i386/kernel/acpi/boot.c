@@ -874,7 +874,7 @@ static void __init acpi_process_madt(void)
 				acpi_ioapic = 1;
 
 				smp_found_config = 1;
-				clustered_apic_check();
+				setup_apic_routing();
 			}
 		}
 		if (error == -EINVAL) {

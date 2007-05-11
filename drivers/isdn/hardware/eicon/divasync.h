@@ -216,7 +216,7 @@ typedef struct
 #define SERIAL_HOOK_RING 0x85
 #define SERIAL_HOOK_DETACH 0x8f
  unsigned char Flags;           /* function refinements   */
- /* parameters passed by the the ATTACH request      */
+ /* parameters passed by the ATTACH request      */
  SERIAL_INT_CB InterruptHandler; /* called on each interrupt  */
  SERIAL_DPC_CB DeferredHandler; /* called on hook state changes */
  void   *HandlerContext; /* context for both handlers */

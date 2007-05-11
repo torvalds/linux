@@ -934,15 +934,15 @@ static int __init add_bridge(struct device_node *dev)
 
 	/* 64 bits only bridges */
 #ifdef CONFIG_PPC64
-	if (device_is_compatible(dev, "u3-agp")) {
+	if (of_device_is_compatible(dev, "u3-agp")) {
 		setup_u3_agp(hose);
 		disp_name = "U3-AGP";
 		primary = 0;
-	} else if (device_is_compatible(dev, "u3-ht")) {
+	} else if (of_device_is_compatible(dev, "u3-ht")) {
 		setup_u3_ht(hose);
 		disp_name = "U3-HT";
 		primary = 1;
-	} else if (device_is_compatible(dev, "u4-pcie")) {
+	} else if (of_device_is_compatible(dev, "u4-pcie")) {
 		setup_u4_pcie(hose);
 		disp_name = "U4-PCIE";
 		primary = 0;
@@ -953,7 +953,7 @@ static int __init add_bridge(struct device_node *dev)
 
 	/* 32 bits only bridges */
 #ifdef CONFIG_PPC32
-	if (device_is_compatible(dev, "uni-north")) {
+	if (of_device_is_compatible(dev, "uni-north")) {
 		primary = setup_uninorth(hose, &rsrc);
 		disp_name = "UniNorth";
 	} else if (strcmp(dev->name, "pci") == 0) {
@@ -1129,21 +1129,21 @@ pmac_pci_enable_device_hook(struct pci_dev *dev, int initial)
 		return 0;
 
 	uninorth_child = node->parent &&
-		device_is_compatible(node->parent, "uni-north");
+		of_device_is_compatible(node->parent, "uni-north");
 
 	/* Firewire & GMAC were disabled after PCI probe, the driver is
 	 * claiming them, we must re-enable them now.
 	 */
 	if (uninorth_child && !strcmp(node->name, "firewire") &&
-	    (device_is_compatible(node, "pci106b,18") ||
-	     device_is_compatible(node, "pci106b,30") ||
-	     device_is_compatible(node, "pci11c1,5811"))) {
+	    (of_device_is_compatible(node, "pci106b,18") ||
+	     of_device_is_compatible(node, "pci106b,30") ||
+	     of_device_is_compatible(node, "pci11c1,5811"))) {
 		pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, node, 0, 1);
 		pmac_call_feature(PMAC_FTR_1394_ENABLE, node, 0, 1);
 		updatecfg = 1;
 	}
 	if (uninorth_child && !strcmp(node->name, "ethernet") &&
-	    device_is_compatible(node, "gmac")) {
+	    of_device_is_compatible(node, "gmac")) {
 		pmac_call_feature(PMAC_FTR_GMAC_ENABLE, node, 0, 1);
 		updatecfg = 1;
 	}
@@ -1203,18 +1203,18 @@ void __init pmac_pcibios_after_init(void)
 #endif /* CONFIG_BLK_DEV_IDE */
 
 	for_each_node_by_name(nd, "firewire") {
-		if (nd->parent && (device_is_compatible(nd, "pci106b,18") ||
-				   device_is_compatible(nd, "pci106b,30") ||
-				   device_is_compatible(nd, "pci11c1,5811"))
-		    && device_is_compatible(nd->parent, "uni-north")) {
+		if (nd->parent && (of_device_is_compatible(nd, "pci106b,18") ||
+				   of_device_is_compatible(nd, "pci106b,30") ||
+				   of_device_is_compatible(nd, "pci11c1,5811"))
+		    && of_device_is_compatible(nd->parent, "uni-north")) {
 			pmac_call_feature(PMAC_FTR_1394_ENABLE, nd, 0, 0);
 			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, nd, 0, 0);
 		}
 	}
 	of_node_put(nd);
 	for_each_node_by_name(nd, "ethernet") {
-		if (nd->parent && device_is_compatible(nd, "gmac")
-		    && device_is_compatible(nd->parent, "uni-north"))
+		if (nd->parent && of_device_is_compatible(nd, "gmac")
+		    && of_device_is_compatible(nd->parent, "uni-north"))
 			pmac_call_feature(PMAC_FTR_GMAC_ENABLE, nd, 0, 0);
 	}
 	of_node_put(nd);

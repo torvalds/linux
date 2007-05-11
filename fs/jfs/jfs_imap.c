@@ -386,7 +386,7 @@ int diRead(struct inode *ip)
 		return -EIO;
 	}
 
-	/* locate the the disk inode requested */
+	/* locate the disk inode requested */
 	dp = (struct dinode *) mp->data;
 	dp += rel_inode;
 
@@ -1407,7 +1407,7 @@ int diAlloc(struct inode *pip, bool dir, struct inode *ip)
 	inum = pip->i_ino + 1;
 	ino = inum & (INOSPERIAG - 1);
 
-	/* back off the the hint if it is outside of the iag */
+	/* back off the hint if it is outside of the iag */
 	if (ino == 0)
 		inum = pip->i_ino;
 
@@ -3078,6 +3078,7 @@ static int copy_from_dinode(struct dinode * dip, struct inode *ip)
 
 	jfs_ip->fileset = le32_to_cpu(dip->di_fileset);
 	jfs_ip->mode2 = le32_to_cpu(dip->di_mode);
+	jfs_set_inode_flags(ip);
 
 	ip->i_mode = le32_to_cpu(dip->di_mode) & 0xffff;
 	if (sbi->umask != -1) {
@@ -3174,6 +3175,7 @@ static void copy_to_dinode(struct dinode * dip, struct inode *ip)
 		dip->di_gid = cpu_to_le32(ip->i_gid);
 	else
 		dip->di_gid = cpu_to_le32(jfs_ip->saved_gid);
+	jfs_get_inode_flags(jfs_ip);
 	/*
 	 * mode2 is only needed for storing the higher order bits.
 	 * Trust i_mode for the lower order ones

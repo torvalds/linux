@@ -1,10 +1,13 @@
 /*
  * arch/sh/boards/renesas/r7780rp/setup.c
  *
+ * Renesas Solutions Highlander Support.
+ *
  * Copyright (C) 2002 Atom Create Engineering Co., Ltd.
  * Copyright (C) 2005 - 2007 Paul Mundt
  *
- * Renesas Solutions Highlander R7780RP-1 Support.
+ * This contains support for the R7780RP-1, R7780MP, and R7785RP
+ * Highlander modules.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -18,32 +21,6 @@
 #include <asm/clock.h>
 #include <asm/io.h>
 
-extern void init_r7780rp_IRQ(void);
-
-static struct resource m66596_usb_host_resources[] = {
-	[0] = {
-		.start	= 0xa4800000,
-		.end	= 0xa4ffffff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 6,		/* irq number */
-		.end	= 6,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device m66596_usb_host_device = {
-	.name		= "m66596-hcd",
-	.id		= 0,
-	.dev = {
-		.dma_mask		= NULL,		/* don't use dma */
-		.coherent_dma_mask	= 0xffffffff,
-	},
-	.num_resources	= ARRAY_SIZE(m66596_usb_host_resources),
-	.resource	= m66596_usb_host_resources,
-};
-
 static struct resource cf_ide_resources[] = {
 	[0] = {
 		.start	= PA_AREA5_IO + 0x1000,
@@ -56,10 +33,10 @@ static struct resource cf_ide_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[2] = {
-#ifdef CONFIG_SH_R7780MP
-		.start	= 1,
-#else
+#ifdef CONFIG_SH_R7780RP
 		.start	= 4,
+#else
+		.start	= 1,
 #endif
 		.flags	= IORESOURCE_IRQ,
 	},
@@ -92,15 +69,18 @@ static struct resource heartbeat_resources[] = {
 static struct platform_device heartbeat_device = {
 	.name		= "heartbeat",
 	.id		= -1,
+
+	/* R7785RP has a slightly more sensible FPGA.. */
+#ifndef CONFIG_SH_R7785RP
 	.dev	= {
 		.platform_data	= heartbeat_bit_pos,
 	},
+#endif
 	.num_resources	= ARRAY_SIZE(heartbeat_resources),
 	.resource	= heartbeat_resources,
 };
 
 static struct platform_device *r7780rp_devices[] __initdata = {
-	&m66596_usb_host_device,
 	&cf_ide_device,
 	&heartbeat_device,
 };
@@ -110,18 +90,19 @@ static int __init r7780rp_devices_setup(void)
 	return platform_add_devices(r7780rp_devices,
 				    ARRAY_SIZE(r7780rp_devices));
 }
+device_initcall(r7780rp_devices_setup);
 
 /*
  * Platform specific clocks
  */
 static void ivdr_clk_enable(struct clk *clk)
 {
-	ctrl_outw(ctrl_inw(PA_IVDRCTL) | (1 << 8), PA_IVDRCTL);
+	ctrl_outw(ctrl_inw(PA_IVDRCTL) | (1 << IVDR_CK_ON), PA_IVDRCTL);
 }
 
 static void ivdr_clk_disable(struct clk *clk)
 {
-	ctrl_outw(ctrl_inw(PA_IVDRCTL) & ~(1 << 8), PA_IVDRCTL);
+	ctrl_outw(ctrl_inw(PA_IVDRCTL) & ~(1 << IVDR_CK_ON), PA_IVDRCTL);
 }
 
 static struct clk_ops ivdr_clk_ops = {
@@ -140,22 +121,22 @@ static struct clk *r7780rp_clocks[] = {
 
 static void r7780rp_power_off(void)
 {
-#ifdef CONFIG_SH_R7780MP
-	ctrl_outw(0x0001, PA_POFF);
-#endif
+	if (mach_is_r7780mp() || mach_is_r7785rp())
+		ctrl_outw(0x0001, PA_POFF);
 }
 
 /*
  * Initialize the board
  */
-static void __init r7780rp_setup(char **cmdline_p)
+static void __init highlander_setup(char **cmdline_p)
 {
 	u16 ver = ctrl_inw(PA_VERREG);
 	int i;
 
-	device_initcall(r7780rp_devices_setup);
-
-	printk(KERN_INFO "Renesas Solutions Highlander R7780RP-1 support.\n");
+	printk(KERN_INFO "Renesas Solutions Highlander %s support.\n",
+			 mach_is_r7780rp() ? "R7780RP-1" :
+			 mach_is_r7780mp() ? "R7780MP"	 :
+					     "R7785RP");
 
 	printk(KERN_INFO "Board version: %d (revision %d), "
 			 "FPGA version: %d (revision %d)\n",
@@ -173,9 +154,10 @@ static void __init r7780rp_setup(char **cmdline_p)
 	}
 
 	ctrl_outw(0x0000, PA_OBLED);	/* Clear LED. */
-#ifndef CONFIG_SH_R7780MP
-	ctrl_outw(0x0001, PA_SDPOW);	/* SD Power ON */
-#endif
+
+	if (mach_is_r7780rp())
+		ctrl_outw(0x0001, PA_SDPOW);	/* SD Power ON */
+
 	ctrl_outw(ctrl_inw(PA_IVDRCTL) | 0x01, PA_IVDRCTL);	/* Si13112 */
 
 	pm_power_off = r7780rp_power_off;
@@ -184,10 +166,10 @@ static void __init r7780rp_setup(char **cmdline_p)
 /*
  * The Machine Vector
  */
-struct sh_machine_vector mv_r7780rp __initmv = {
-	.mv_name		= "Highlander R7780RP-1",
-	.mv_setup		= r7780rp_setup,
+struct sh_machine_vector mv_highlander __initmv = {
+	.mv_name		= "Highlander",
 	.mv_nr_irqs		= 109,
-	.mv_init_irq		= init_r7780rp_IRQ,
+	.mv_setup		= highlander_setup,
+	.mv_init_irq		= highlander_init_irq,
 };
-ALIAS_MV(r7780rp)
+ALIAS_MV(highlander)

@@ -384,7 +384,7 @@ static inline u16 mda_convert_attr(u16 ch)
 }
 
 static u8 mdacon_build_attr(struct vc_data *c, u8 color, u8 intensity, 
-			    u8 blink, u8 underline, u8 reverse)
+			    u8 blink, u8 underline, u8 reverse, u8 italic)
 {
 	/* The attribute is just a bit vector:
 	 *
@@ -397,6 +397,7 @@ static u8 mdacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
 	return (intensity & 3) |
 		((underline & 1) << 2) |
 		((reverse   & 1) << 3) |
+		(!!italic << 4) |
 		((blink     & 1) << 7);
 }
 

@@ -8,7 +8,6 @@
 
 #include <linux/types.h>
 #include <linux/interrupt.h>
-#include <linux/pci.h>
 #include <asm/delay.h>
 #include <asm/sn/sn_sal.h>
 #include "ioerror.h"

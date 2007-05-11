@@ -44,7 +44,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/smp_lock.h>
 #include <linux/timer.h>
 #include <linux/pci.h>
 #include <linux/slab.h>

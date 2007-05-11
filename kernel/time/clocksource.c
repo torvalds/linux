@@ -74,15 +74,17 @@ static struct clocksource *watchdog;
 static struct timer_list watchdog_timer;
 static DEFINE_SPINLOCK(watchdog_lock);
 static cycle_t watchdog_last;
+static int watchdog_resumed;
+
 /*
- * Interval: 0.5sec Treshold: 0.0625s
+ * Interval: 0.5sec Threshold: 0.0625s
  */
 #define WATCHDOG_INTERVAL (HZ >> 1)
-#define WATCHDOG_TRESHOLD (NSEC_PER_SEC >> 4)
+#define WATCHDOG_THRESHOLD (NSEC_PER_SEC >> 4)
 
 static void clocksource_ratewd(struct clocksource *cs, int64_t delta)
 {
-	if (delta > -WATCHDOG_TRESHOLD && delta < WATCHDOG_TRESHOLD)
+	if (delta > -WATCHDOG_THRESHOLD && delta < WATCHDOG_THRESHOLD)
 		return;
 
 	printk(KERN_WARNING "Clocksource %s unstable (delta = %Ld ns)\n",
@@ -98,8 +100,13 @@ static void clocksource_watchdog(unsigned long data)
 	struct clocksource *cs, *tmp;
 	cycle_t csnow, wdnow;
 	int64_t wd_nsec, cs_nsec;
+	int resumed;
 
 	spin_lock(&watchdog_lock);
+
+	resumed = watchdog_resumed;
+	if (unlikely(resumed))
+		watchdog_resumed = 0;
 
 	wdnow = watchdog->read();
 	wd_nsec = cyc2ns(watchdog, (wdnow - watchdog_last) & watchdog->mask);
@@ -107,6 +114,12 @@ static void clocksource_watchdog(unsigned long data)
 
 	list_for_each_entry_safe(cs, tmp, &watchdog_list, wd_list) {
 		csnow = cs->read();
+
+		if (unlikely(resumed)) {
+			cs->wd_last = csnow;
+			continue;
+		}
+
 		/* Initialized ? */
 		if (!(cs->flags & CLOCK_SOURCE_WATCHDOG)) {
 			if ((cs->flags & CLOCK_SOURCE_IS_CONTINUOUS) &&
@@ -136,6 +149,13 @@ static void clocksource_watchdog(unsigned long data)
 	}
 	spin_unlock(&watchdog_lock);
 }
+static void clocksource_resume_watchdog(void)
+{
+	spin_lock(&watchdog_lock);
+	watchdog_resumed = 1;
+	spin_unlock(&watchdog_lock);
+}
+
 static void clocksource_check_watchdog(struct clocksource *cs)
 {
 	struct clocksource *cse;
@@ -182,7 +202,32 @@ static void clocksource_check_watchdog(struct clocksource *cs)
 	if (cs->flags & CLOCK_SOURCE_IS_CONTINUOUS)
 		cs->flags |= CLOCK_SOURCE_VALID_FOR_HRES;
 }
+
+static inline void clocksource_resume_watchdog(void) { }
 #endif
+
+/**
+ * clocksource_resume - resume the clocksource(s)
+ */
+void clocksource_resume(void)
+{
+	struct list_head *tmp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&clocksource_lock, flags);
+
+	list_for_each(tmp, &clocksource_list) {
+		struct clocksource *cs;
+
+		cs = list_entry(tmp, struct clocksource, list);
+		if (cs->resume)
+			cs->resume();
+	}
+
+	clocksource_resume_watchdog();
+
+	spin_unlock_irqrestore(&clocksource_lock, flags);
+}
 
 /**
  * clocksource_get_next - Returns the selected clocksource

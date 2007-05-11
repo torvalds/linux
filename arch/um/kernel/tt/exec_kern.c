@@ -10,7 +10,6 @@
 #include "asm/uaccess.h"
 #include "asm/pgalloc.h"
 #include "asm/tlbflush.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "irq_user.h"
 #include "mem_user.h"
@@ -58,7 +57,7 @@ void flush_thread_tt(void)
 	enable_timer();
 	free_page(stack);
 	protect_memory(uml_reserved, high_physmem - uml_reserved, 1, 1, 0, 1);
-	task_protections((unsigned long) current_thread);
+	stack_protections((unsigned long) current_thread);
 	force_flush_all();
 	unblock_signals();
 }

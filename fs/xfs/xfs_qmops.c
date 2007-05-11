@@ -78,7 +78,7 @@ xfs_mount_reset_sbqflags(xfs_mount_t *mp)
 		return error;
 	}
 	xfs_mod_sb(tp, XFS_SB_QFLAGS);
-	error = xfs_trans_commit(tp, 0, NULL);
+	error = xfs_trans_commit(tp, 0);
 	return error;
 }
 

@@ -1102,16 +1102,13 @@ nfs3_xdr_setaclres(struct rpc_rqst *req, __be32 *p, struct nfs_fattr *fattr)
 }
 #endif  /* CONFIG_NFS_V3_ACL */
 
-#ifndef MAX
-# define MAX(a, b)	(((a) > (b))? (a) : (b))
-#endif
-
 #define PROC(proc, argtype, restype, timer)				\
 [NFS3PROC_##proc] = {							\
 	.p_proc      = NFS3PROC_##proc,					\
 	.p_encode    = (kxdrproc_t) nfs3_xdr_##argtype,			\
 	.p_decode    = (kxdrproc_t) nfs3_xdr_##restype,			\
-	.p_bufsiz    = MAX(NFS3_##argtype##_sz,NFS3_##restype##_sz) << 2,	\
+	.p_arglen    = NFS3_##argtype##_sz,				\
+	.p_replen    = NFS3_##restype##_sz,				\
 	.p_timer     = timer,						\
 	.p_statidx   = NFS3PROC_##proc,					\
 	.p_name      = #proc,						\
@@ -1153,7 +1150,8 @@ static struct rpc_procinfo	nfs3_acl_procedures[] = {
 		.p_proc = ACLPROC3_GETACL,
 		.p_encode = (kxdrproc_t) nfs3_xdr_getaclargs,
 		.p_decode = (kxdrproc_t) nfs3_xdr_getaclres,
-		.p_bufsiz = MAX(ACL3_getaclargs_sz, ACL3_getaclres_sz) << 2,
+		.p_arglen = ACL3_getaclargs_sz,
+		.p_replen = ACL3_getaclres_sz,
 		.p_timer = 1,
 		.p_name = "GETACL",
 	},
@@ -1161,7 +1159,8 @@ static struct rpc_procinfo	nfs3_acl_procedures[] = {
 		.p_proc = ACLPROC3_SETACL,
 		.p_encode = (kxdrproc_t) nfs3_xdr_setaclargs,
 		.p_decode = (kxdrproc_t) nfs3_xdr_setaclres,
-		.p_bufsiz = MAX(ACL3_setaclargs_sz, ACL3_setaclres_sz) << 2,
+		.p_arglen = ACL3_setaclargs_sz,
+		.p_replen = ACL3_setaclres_sz,
 		.p_timer = 0,
 		.p_name = "SETACL",
 	},

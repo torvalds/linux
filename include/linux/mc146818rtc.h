@@ -22,8 +22,15 @@ extern spinlock_t rtc_lock;		/* serialize CMOS RAM access */
 /* Some RTCs extend the mc146818 register set to support alarms of more
  * than 24 hours in the future; or dates that include a century code.
  * This platform_data structure can pass this information to the driver.
+ *
+ * Also, some platforms need suspend()/resume() hooks to kick in special
+ * handling of wake alarms, e.g. activating ACPI BIOS hooks or setting up
+ * a separate wakeup alarm used by some almost-clone chips.
  */
 struct cmos_rtc_board_info {
+	void	(*wake_on)(struct device *dev);
+	void	(*wake_off)(struct device *dev);
+
 	u8	rtc_day_alarm;		/* zero, or register index */
 	u8	rtc_mon_alarm;		/* zero, or register index */
 	u8	rtc_century;		/* zero, or register index */

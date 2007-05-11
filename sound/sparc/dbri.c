@@ -673,7 +673,7 @@ static s32 *dbri_cmdlock(struct snd_dbri * dbri, int len)
 }
 
 /*
- * Send prepared cmd string. It works by writting a JUMP cmd into
+ * Send prepared cmd string. It works by writing a JUMP cmd into
  * the last WAIT cmd and force DBRI to reread the cmd.
  * The JUMP cmd points to the new cmd string.
  * It also releases the cmdlock spinlock.

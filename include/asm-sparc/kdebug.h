@@ -66,4 +66,8 @@ static inline void sp_enter_debugger(void)
 #define KDEBUG_DUNNO2_OFF   0x8
 #define KDEBUG_TEACH_OFF    0xc
 
+enum die_val {
+	DIE_UNUSED,
+};
+
 #endif /* !(_SPARC_KDEBUG_H) */

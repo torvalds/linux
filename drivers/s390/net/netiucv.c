@@ -1862,12 +1862,14 @@ static void netiucv_remove_connection(struct iucv_connection *conn)
 	write_lock_bh(&iucv_connection_rwlock);
 	list_del_init(&conn->list);
 	write_unlock_bh(&iucv_connection_rwlock);
+	fsm_deltimer(&conn->timer);
+	netiucv_purge_skb_queue(&conn->collect_queue);
 	if (conn->path) {
 		iucv_path_sever(conn->path, iucvMagic);
 		kfree(conn->path);
 		conn->path = NULL;
 	}
-	fsm_deltimer(&conn->timer);
+	netiucv_purge_skb_queue(&conn->commit_queue);
 	kfree_fsm(conn->fsm);
 	kfree_skb(conn->rx_buff);
 	kfree_skb(conn->tx_buff);
@@ -2115,7 +2117,6 @@ static void __exit netiucv_exit(void)
 	while (!list_empty(&iucv_connection_list)) {
 		cp = list_entry(iucv_connection_list.next,
 				struct iucv_connection, list);
-		list_del(&cp->list);
 		ndev = cp->netdev;
 		priv = netdev_priv(ndev);
 		dev = priv->dev;

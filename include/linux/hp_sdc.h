@@ -71,6 +71,7 @@ typedef struct {
 	  struct semaphore *semaphore;	/* Semaphore to sleep on. */
 	} act;
 } hp_sdc_transaction;
+int __hp_sdc_enqueue_transaction(hp_sdc_transaction *this);
 int hp_sdc_enqueue_transaction(hp_sdc_transaction *this);
 int hp_sdc_dequeue_transaction(hp_sdc_transaction *this);
 

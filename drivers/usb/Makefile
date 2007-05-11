@@ -23,22 +23,6 @@ obj-$(CONFIG_USB_PRINTER)	+= class/
 obj-$(CONFIG_USB_STORAGE)	+= storage/
 obj-$(CONFIG_USB)		+= storage/
 
-obj-$(CONFIG_USB_ACECAD)	+= input/
-obj-$(CONFIG_USB_AIPTEK)	+= input/
-obj-$(CONFIG_USB_ATI_REMOTE)	+= input/
-obj-$(CONFIG_USB_KBTAB)		+= input/
-obj-$(CONFIG_USB_MTOUCH)	+= input/
-obj-$(CONFIG_USB_POWERMATE)	+= input/
-obj-$(CONFIG_USB_WACOM)		+= input/
-obj-$(CONFIG_USB_XPAD)		+= input/
-
-obj-$(CONFIG_USB_CATC)		+= net/
-obj-$(CONFIG_USB_KAWETH)	+= net/
-obj-$(CONFIG_USB_PEGASUS)	+= net/
-obj-$(CONFIG_USB_RTL8150)	+= net/
-obj-$(CONFIG_USB_USBNET)	+= net/
-obj-$(CONFIG_USB_ZD1201)	+= net/
-
 obj-$(CONFIG_USB_MDC800)	+= image/
 obj-$(CONFIG_USB_MICROTEK)	+= image/
 

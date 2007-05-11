@@ -12,6 +12,7 @@ obj-$(CONFIG_CPU_SUBTYPE_SH7708)	+= setup-sh7708.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7709)	+= setup-sh7709.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7300)	+= setup-sh7300.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7710)	+= setup-sh7710.o
+obj-$(CONFIG_CPU_SUBTYPE_SH7712)	+= setup-sh7710.o
 
 # Primary on-chip clocks (common)
 clock-$(CONFIG_CPU_SH3)			:= clock-sh3.o

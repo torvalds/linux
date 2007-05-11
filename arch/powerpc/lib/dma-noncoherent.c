@@ -306,13 +306,15 @@ EXPORT_SYMBOL(__dma_free_coherent);
 static int __init dma_alloc_init(void)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	int ret = 0;
 
 	do {
 		pgd = pgd_offset(&init_mm, CONSISTENT_BASE);
-		pmd = pmd_alloc(&init_mm, pgd, CONSISTENT_BASE);
+		pud = pud_alloc(&init_mm, pgd, CONSISTENT_BASE);
+		pmd = pmd_alloc(&init_mm, pud, CONSISTENT_BASE);
 		if (!pmd) {
 			printk(KERN_ERR "%s: no pmd tables\n", __func__);
 			ret = -ENOMEM;

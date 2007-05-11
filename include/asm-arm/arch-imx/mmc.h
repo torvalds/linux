@@ -1,7 +1,7 @@
 #ifndef ASMARM_ARCH_MMC_H
 #define ASMARM_ARCH_MMC_H
 
-#include <linux/mmc/protocol.h>
+#include <linux/mmc/host.h>
 
 struct imxmmc_platform_data {
 	int (*card_present)(void);

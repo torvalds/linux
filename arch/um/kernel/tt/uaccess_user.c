@@ -5,7 +5,6 @@
  */
 
 #include <string.h>
-#include "user_util.h"
 #include "uml_uaccess.h"
 #include "task.h"
 #include "kern_util.h"

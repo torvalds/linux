@@ -142,6 +142,13 @@ struct trackpoint_data
 	unsigned char ext_dev;
 };
 
-extern int trackpoint_detect(struct psmouse *psmouse, int set_properties);
+#ifdef CONFIG_MOUSE_PS2_TRACKPOINT
+int trackpoint_detect(struct psmouse *psmouse, int set_properties);
+#else
+inline int trackpoint_detect(struct psmouse *psmouse, int set_properties)
+{
+	return -ENOSYS;
+}
+#endif /* CONFIG_MOUSE_PS2_TRACKPOINT */
 
 #endif /* _TRACKPOINT_H */

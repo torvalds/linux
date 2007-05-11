@@ -7,9 +7,6 @@
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License. See the file COPYING in the main directory of this archive for
  *  more details.
- *
- *  $Header: /cvsroot/linux/drivers/video/pm3fb.h,v 1.1 2002/02/25 19:11:06 marcelo Exp $
- *
  */
 
 #ifndef PM3FB_H
@@ -1119,117 +1116,10 @@
 /* ***** pm3fb useful define and macro ***** */
 /* ***************************************** */
 
-/* permedia3 -specific definitions */
-#define PM3_SCALE_TO_CLOCK(pr, fe, po) ((2 * PM3_REF_CLOCK * fe) / (pr * (1 << (po))))
-
-/* in case it's not in linux/pci.h */
-#ifndef PCI_DEVICE_ID_3DLABS_PERMEDIA3
-#define PCI_DEVICE_ID_3DLABS_PERMEDIA3 0x000a
-#endif
-
-/* max number of simultaneous board */
-#define PM3_MAX_BOARD 4
-
 /* max size of options */
 #define PM3_OPTIONS_SIZE 256
 
 /* max size of font name */
 #define PM3_FONTNAME_SIZE 40
-
-/* do we want accelerated console  */
-#define PM3FB_USE_ACCEL 1
-
-/* for driver debugging ONLY */
-/* 0 = assert only, 1 = error, 2 = info, 3+ = verbose */
-/* define PM3FB_MASTER_DEBUG 1 */
-#if defined(PM3FB_MASTER_DEBUG) && (PM3FB_MASTER_DEBUG >= 3)
-#define PM3FB_TRACE
-#endif /* defined(PM3FB_MASTER_DEBUG) && (PM3FB_MASTER_DEBUG >= 3) */
-
-#ifdef PM3FB_MASTER_DEBUG
-#define DPRINTK(l,a,b...) do { if ((l) <= PM3FB_MASTER_DEBUG) printk("pm3fb: %s: " a, __FUNCTION__ , ## b); } while (0)
-#define DASSERT(t,a,b...) do { if (!(t)) printk("pm3fb: _assert failed: %s: " a, __FUNCTION__ , ## b); } while (0)
-#ifdef PM3FB_TRACE
-#define DTRACE printk("pm3fb: _enter %s\n", __FUNCTION__)
-#else /* PM3FB_TRACE */
-#define DTRACE
-#endif /* PM3FB_TRACE */
-#else /* PM3FB_MASTER_DEBUG */
-#define DPRINTK(l,a,b...)
-#define DASSERT(t,a,b...)
-#define DTRACE
-#endif /* PM3FB_MASTER_DEBUG */
-
-#if defined(PM3FB_MASTER_DEBUG) && (PM3FB_MASTER_DEBUG >= 2)
-#define PM3_SHOW_CUR_MODE pm3fb_show_cur_mode(l_fb_info)
-#else
-#define PM3_SHOW_CUR_MODE /* pm3fb_show_cur_mode() */
-#endif
-
-/* ******************************************** */
-/* ***** A bunch of register-access macro ***** */
-/* ******************************************** */
-
-#define PM3_WRITE_REG(r, v) fb_writel(v, (l_fb_info->vIOBase + r))
-#define PM3_READ_REG(r) fb_readl((l_fb_info->vIOBase + r))
-
-
-#define depth2bpp(d) ((d + 7L) & ~7L)
-#define depth2ByPP(d) (depth2bpp(d) / 8)
-
-#define depth_supported(d) ((d == 8) || (d == 12) || (d == 15) || (d == 16) || (d==32))
-
-
-#define PM3_WAIT(n) \
-do{ \
-	while(PM3_READ_REG(PM3InFIFOSpace)<(n)); \
-} while(0)
-
-#define PM3_DELAY(x) do { \
-        int delay = x; \
-        unsigned char tmp; \
-        while(delay--){tmp = PM3_READ_REG(PM3InFIFOSpace);}; \
-} while(0)
-
-#define PM3_SLOW_WRITE_REG(r,v)	\
-do{                             \
-    DASSERT((l_fb_info->vIOBase != (unsigned char*)(-1)), "l_fb_info->vIOBase mapped in slow write\n"); \
-	mb();                   \
-	PM3_WAIT(1);            \
-	mb();                   \
-    PM3_WRITE_REG(r,v);     \
-} while(0)
-
-#define PM3_SET_INDEX(index) \
-do{ \
-	PM3_SLOW_WRITE_REG(PM3RD_IndexHigh,(((index)>>8)&0xff)); \
-	PM3_SLOW_WRITE_REG(PM3RD_IndexLow,((index)&0xff)); \
-} while(0)
-
-#define PM3_WRITE_DAC_REG(r, v) \
-do { \
-     DASSERT((l_fb_info->vIOBase != (unsigned char*)(-1)), "l_fb_info->vIOBase mapped in write dac reg\n"); \
-     PM3_SET_INDEX(r); \
-     mb(); \
-     PM3_WRITE_REG(PM3RD_IndexedData, v); \
-} while (0)
-
-/* next one is really a function, added as a macro to be consistent */
-#define PM3_READ_DAC_REG(r) pm3fb_read_dac_reg(l_fb_info, r)
-
-
-#define PM3_COLOR(c) \
-do { \
-  if (l_fb_info->current_par->depth == 8) \
-    { \
-      c = (c & 0xFF); \
-      c = c | (c << 8); \
-    } \
-  if ((l_fb_info->current_par->depth == 8) || (depth2bpp(l_fb_info->current_par->depth) == 16)) \
-    { \
-      c = (c & 0xFFFF); \
-      c = c | (c << 16); \
-    } \
-} while (0)
 
 #endif /* PM3FB_H */

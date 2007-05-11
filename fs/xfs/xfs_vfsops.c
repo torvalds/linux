@@ -696,7 +696,7 @@ xfs_unmount_flush(
 	bhv_vnode_t	*rvp = XFS_ITOV(rip);
 	int		error;
 
-	xfs_ilock(rip, XFS_ILOCK_EXCL);
+	xfs_ilock(rip, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
 	xfs_iflock(rip);
 
 	/*
@@ -1147,7 +1147,7 @@ xfs_sync_inodes(
 			if (XFS_FORCED_SHUTDOWN(mp)) {
 				bhv_vop_toss_pages(vp, 0, -1, FI_REMAPF);
 			} else {
-				bhv_vop_flushinval_pages(vp, 0, -1, FI_REMAPF);
+				error = bhv_vop_flushinval_pages(vp, 0, -1, FI_REMAPF);
 			}
 
 			xfs_ilock(ip, XFS_ILOCK_SHARED);
@@ -1539,7 +1539,7 @@ xfs_syncsub(
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 		xfs_trans_ihold(tp, ip);
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-		error = xfs_trans_commit(tp, 0, NULL);
+		error = xfs_trans_commit(tp, 0);
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		xfs_log_force(mp, (xfs_lsn_t)0, log_flags);
 	}

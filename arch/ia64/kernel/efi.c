@@ -445,11 +445,11 @@ efi_init (void)
 		panic("Woah! Can't find EFI system table.\n");
 	if (efi.systab->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
 		panic("Woah! EFI system table signature incorrect\n");
-	if ((efi.systab->hdr.revision ^ EFI_SYSTEM_TABLE_REVISION) >> 16 != 0)
-		printk(KERN_WARNING "Warning: EFI system table major version mismatch: "
-		       "got %d.%02d, expected %d.%02d\n",
-		       efi.systab->hdr.revision >> 16, efi.systab->hdr.revision & 0xffff,
-		       EFI_SYSTEM_TABLE_REVISION >> 16, EFI_SYSTEM_TABLE_REVISION & 0xffff);
+	if ((efi.systab->hdr.revision >> 16) == 0)
+		printk(KERN_WARNING "Warning: EFI system table version "
+		       "%d.%02d, expected 1.00 or greater\n",
+		       efi.systab->hdr.revision >> 16,
+		       efi.systab->hdr.revision & 0xffff);
 
 	config_tables = __va(efi.systab->tables);
 
@@ -660,6 +660,29 @@ efi_memory_descriptor (unsigned long phys_addr)
 	return NULL;
 }
 
+static int
+efi_memmap_intersects (unsigned long phys_addr, unsigned long size)
+{
+	void *efi_map_start, *efi_map_end, *p;
+	efi_memory_desc_t *md;
+	u64 efi_desc_size;
+	unsigned long end;
+
+	efi_map_start = __va(ia64_boot_param->efi_memmap);
+	efi_map_end   = efi_map_start + ia64_boot_param->efi_memmap_size;
+	efi_desc_size = ia64_boot_param->efi_memdesc_size;
+
+	end = phys_addr + size;
+
+	for (p = efi_map_start; p < efi_map_end; p += efi_desc_size) {
+		md = p;
+
+		if (md->phys_addr < end && efi_md_end(md) > phys_addr)
+			return 1;
+	}
+	return 0;
+}
+
 u32
 efi_mem_type (unsigned long phys_addr)
 {
@@ -766,11 +789,28 @@ valid_phys_addr_range (unsigned long phys_addr, unsigned long size)
 int
 valid_mmap_phys_addr_range (unsigned long pfn, unsigned long size)
 {
+	unsigned long phys_addr = pfn << PAGE_SHIFT;
+	u64 attr;
+
+	attr = efi_mem_attribute(phys_addr, size);
+
 	/*
-	 * MMIO regions are often missing from the EFI memory map.
-	 * We must allow mmap of them for programs like X, so we
-	 * currently can't do any useful validation.
+	 * /dev/mem mmap uses normal user pages, so we don't need the entire
+	 * granule, but the entire region we're mapping must support the same
+	 * attribute.
 	 */
+	if (attr & EFI_MEMORY_WB || attr & EFI_MEMORY_UC)
+		return 1;
+
+	/*
+	 * Intel firmware doesn't tell us about all the MMIO regions, so
+	 * in general we have to allow mmap requests.  But if EFI *does*
+	 * tell us about anything inside this region, we should deny it.
+	 * The user can always map a smaller region to avoid the overlap.
+	 */
+	if (efi_memmap_intersects(phys_addr, size))
+		return 0;
+
 	return 1;
 }
 

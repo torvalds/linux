@@ -26,7 +26,6 @@
 #include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
 #include <linux/bitops.h>

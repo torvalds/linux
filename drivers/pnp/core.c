@@ -14,6 +14,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
+#include <linux/dma-mapping.h>
 
 #include "base.h"
 
@@ -21,6 +22,14 @@
 static LIST_HEAD(pnp_protocols);
 LIST_HEAD(pnp_global);
 DEFINE_SPINLOCK(pnp_lock);
+
+/*
+ * ACPI or PNPBIOS should tell us about all platform devices, so we can
+ * skip some blind probes.  ISAPNP typically enumerates only plug-in ISA
+ * devices, not built-in things like COM ports.
+ */
+int pnp_platform_devices;
+EXPORT_SYMBOL(pnp_platform_devices);
 
 void *pnp_alloc(long size)
 {
@@ -114,6 +123,8 @@ int __pnp_add_device(struct pnp_dev *dev)
 	int ret;
 	pnp_fixup_device(dev);
 	dev->dev.bus = &pnp_bus_type;
+	dev->dev.dma_mask = &dev->dma_mask;
+	dev->dma_mask = dev->dev.coherent_dma_mask = DMA_24BIT_MASK;
 	dev->dev.release = &pnp_release_device;
 	dev->status = PNP_READY;
 	spin_lock(&pnp_lock);

@@ -28,7 +28,7 @@
 
 static unsigned long irq_map[NR_IRQS / BITS_PER_LONG];
 
-int __devinit allocate_irqno(void)
+int allocate_irqno(void)
 {
 	int irq;
 
@@ -59,7 +59,7 @@ void __init alloc_legacy_irqno(void)
 		BUG_ON(test_and_set_bit(i, irq_map));
 }
 
-void __devinit free_irqno(unsigned int irq)
+void free_irqno(unsigned int irq)
 {
 	smp_mb__before_clear_bit();
 	clear_bit(irq, irq_map);

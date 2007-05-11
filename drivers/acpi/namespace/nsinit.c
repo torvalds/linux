@@ -214,7 +214,7 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 			u32 level, void *context, void **return_value)
 {
 	acpi_object_type type;
-	acpi_status status;
+	acpi_status status = AE_OK;
 	struct acpi_init_walk_info *info =
 	    (struct acpi_init_walk_info *)context;
 	struct acpi_namespace_node *node =
@@ -268,10 +268,7 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 	/*
 	 * Must lock the interpreter before executing AML code
 	 */
-	status = acpi_ex_enter_interpreter();
-	if (ACPI_FAILURE(status)) {
-		return (status);
-	}
+	acpi_ex_enter_interpreter();
 
 	/*
 	 * Each of these types can contain executable AML code within the

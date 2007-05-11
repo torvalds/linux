@@ -17,6 +17,7 @@
 #define __KGDB_H
 
 #include <asm/ptrace.h>
+#include <asm/cacheflush.h>
 
 struct console;
 
@@ -45,35 +46,21 @@ extern int kgdb_portnum;
 extern int kgdb_baud;
 extern char kgdb_parity;
 extern char kgdb_bits;
-extern int kgdb_console_setup(struct console *, char *);
 
 /* Init and interface stuff */
 extern int kgdb_init(void);
-extern int (*kgdb_serial_setup)(void);
 extern int (*kgdb_getchar)(void);
 extern void (*kgdb_putchar)(int);
 
-struct kgdb_sermap {
-	char *name;
-	int namelen;
-	int (*setup_fn)(struct console *, char *);
-	struct kgdb_sermap *next;
-};
-extern void kgdb_register_sermap(struct kgdb_sermap *map);
-extern struct kgdb_sermap *kgdb_porttype;
-
 /* Trap functions */
-typedef void (kgdb_debug_hook_t)(struct pt_regs *regs); 
+typedef void (kgdb_debug_hook_t)(struct pt_regs *regs);
 typedef void (kgdb_bus_error_hook_t)(void);
 extern kgdb_debug_hook_t  *kgdb_debug_hook;
 extern kgdb_bus_error_hook_t *kgdb_bus_err_hook;
 
-extern void breakpoint(void);
-
 /* Console */
-struct console;
 void kgdb_console_write(struct console *co, const char *s, unsigned count);
-void kgdb_console_init(void);
+extern int kgdb_console_setup(struct console *, char *);
 
 /* Prototypes for jmp fns */
 #define _JBLEN 9
@@ -81,11 +68,8 @@ typedef        int jmp_buf[_JBLEN];
 extern void    longjmp(jmp_buf __jmpb, int __retval);
 extern int     setjmp(jmp_buf __jmpb);
 
-/* Variadic macro to print our own message to the console */
-#define KGDB_PRINTK(...) printk("KGDB: " __VA_ARGS__)
-
 /* Forced breakpoint */
-#define BREAKPOINT()					\
+#define breakpoint()					\
 do {							\
 	if (kgdb_enabled)				\
 		__asm__ __volatile__("trapa   #0x3c");	\
@@ -95,37 +79,11 @@ do {							\
 #if defined(CONFIG_CPU_SH4)
 #define kgdb_flush_icache_range(start, end) \
 {									\
-	extern void __flush_purge_region(void *, int);			\
 	__flush_purge_region((void*)(start), (int)(end) - (int)(start));\
 	flush_icache_range((start), (end));				\
 }
 #else
 #define kgdb_flush_icache_range(start, end)	do { } while (0)
-#endif
-
-/* Kernel assert macros */
-#ifdef CONFIG_KGDB_KERNEL_ASSERTS
-
-/* Predefined conditions */
-#define KA_VALID_ERRNO(errno) ((errno) > 0 && (errno) <= EMEDIUMTYPE)
-#define KA_VALID_PTR_ERR(ptr) KA_VALID_ERRNO(-PTR_ERR(ptr))
-#define KA_VALID_KPTR(ptr)  (!(ptr) || \
-              ((void *)(ptr) >= (void *)PAGE_OFFSET &&  \
-               (void *)(ptr) < ERR_PTR(-EMEDIUMTYPE)))
-#define KA_VALID_PTRORERR(errptr) \
-               (KA_VALID_KPTR(errptr) || KA_VALID_PTR_ERR(errptr))
-#define KA_HELD_GKL()  (current->lock_depth >= 0)
-
-/* The actual assert */
-#define KGDB_ASSERT(condition, message) do {                   \
-       if (!(condition) && (kgdb_enabled)) {                   \
-               KGDB_PRINTK("Assertion failed at %s:%d: %s\n",  \
-                                  __FILE__, __LINE__, message);\
-               BREAKPOINT();                                   \
-       }                                                       \
-} while (0)
-#else
-#define KGDB_ASSERT(condition, message)
 #endif
 
 /* Taken from sh-stub.c of GDB 4.18 */
@@ -142,5 +100,4 @@ static inline char lowhex(const int x)
 {
 	return hexchars[x & 0xf];
 }
-
 #endif

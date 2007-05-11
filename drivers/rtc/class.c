@@ -16,18 +16,93 @@
 #include <linux/kdev_t.h>
 #include <linux/idr.h>
 
+#include "rtc-core.h"
+
+
 static DEFINE_IDR(rtc_idr);
 static DEFINE_MUTEX(idr_lock);
 struct class *rtc_class;
 
-static void rtc_device_release(struct class_device *class_dev)
+static void rtc_device_release(struct device *dev)
 {
-	struct rtc_device *rtc = to_rtc_device(class_dev);
+	struct rtc_device *rtc = to_rtc_device(dev);
 	mutex_lock(&idr_lock);
 	idr_remove(&rtc_idr, rtc->id);
 	mutex_unlock(&idr_lock);
 	kfree(rtc);
 }
+
+#if defined(CONFIG_PM) && defined(CONFIG_RTC_HCTOSYS_DEVICE)
+
+/*
+ * On suspend(), measure the delta between one RTC and the
+ * system's wall clock; restore it on resume().
+ */
+
+static struct timespec	delta;
+static time_t		oldtime;
+
+static int rtc_suspend(struct device *dev, pm_message_t mesg)
+{
+	struct rtc_device	*rtc = to_rtc_device(dev);
+	struct rtc_time		tm;
+
+	if (strncmp(rtc->dev.bus_id,
+				CONFIG_RTC_HCTOSYS_DEVICE,
+				BUS_ID_SIZE) != 0)
+		return 0;
+
+	rtc_read_time(rtc, &tm);
+	rtc_tm_to_time(&tm, &oldtime);
+
+	/* RTC precision is 1 second; adjust delta for avg 1/2 sec err */
+	set_normalized_timespec(&delta,
+				xtime.tv_sec - oldtime,
+				xtime.tv_nsec - (NSEC_PER_SEC >> 1));
+
+	return 0;
+}
+
+static int rtc_resume(struct device *dev)
+{
+	struct rtc_device	*rtc = to_rtc_device(dev);
+	struct rtc_time		tm;
+	time_t			newtime;
+	struct timespec		time;
+
+	if (strncmp(rtc->dev.bus_id,
+				CONFIG_RTC_HCTOSYS_DEVICE,
+				BUS_ID_SIZE) != 0)
+		return 0;
+
+	rtc_read_time(rtc, &tm);
+	if (rtc_valid_tm(&tm) != 0) {
+		pr_debug("%s:  bogus resume time\n", rtc->dev.bus_id);
+		return 0;
+	}
+	rtc_tm_to_time(&tm, &newtime);
+	if (newtime <= oldtime) {
+		if (newtime < oldtime)
+			pr_debug("%s:  time travel!\n", rtc->dev.bus_id);
+		return 0;
+	}
+
+	/* restore wall clock using delta against this RTC;
+	 * adjust again for avg 1/2 second RTC sampling error
+	 */
+	set_normalized_timespec(&time,
+				newtime + delta.tv_sec,
+				(NSEC_PER_SEC >> 1) + delta.tv_nsec);
+	do_settimeofday(&time);
+
+	return 0;
+}
+
+#else
+#define rtc_suspend	NULL
+#define rtc_resume	NULL
+#endif
+
 
 /**
  * rtc_device_register - register w/ RTC class
@@ -70,23 +145,29 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	rtc->ops = ops;
 	rtc->owner = owner;
 	rtc->max_user_freq = 64;
-	rtc->class_dev.dev = dev;
-	rtc->class_dev.class = rtc_class;
-	rtc->class_dev.release = rtc_device_release;
+	rtc->dev.parent = dev;
+	rtc->dev.class = rtc_class;
+	rtc->dev.release = rtc_device_release;
 
 	mutex_init(&rtc->ops_lock);
 	spin_lock_init(&rtc->irq_lock);
 	spin_lock_init(&rtc->irq_task_lock);
 
 	strlcpy(rtc->name, name, RTC_DEVICE_NAME_SIZE);
-	snprintf(rtc->class_dev.class_id, BUS_ID_SIZE, "rtc%d", id);
+	snprintf(rtc->dev.bus_id, BUS_ID_SIZE, "rtc%d", id);
 
-	err = class_device_register(&rtc->class_dev);
+	rtc_dev_prepare(rtc);
+
+	err = device_register(&rtc->dev);
 	if (err)
 		goto exit_kfree;
 
+	rtc_dev_add_device(rtc);
+	rtc_sysfs_add_device(rtc);
+	rtc_proc_add_device(rtc);
+
 	dev_info(dev, "rtc core: registered %s as %s\n",
-			rtc->name, rtc->class_dev.class_id);
+			rtc->name, rtc->dev.bus_id);
 
 	return rtc;
 
@@ -113,25 +194,21 @@ EXPORT_SYMBOL_GPL(rtc_device_register);
  */
 void rtc_device_unregister(struct rtc_device *rtc)
 {
-	if (class_device_get(&rtc->class_dev) != NULL) {
+	if (get_device(&rtc->dev) != NULL) {
 		mutex_lock(&rtc->ops_lock);
 		/* remove innards of this RTC, then disable it, before
 		 * letting any rtc_class_open() users access it again
 		 */
-		class_device_unregister(&rtc->class_dev);
+		rtc_sysfs_del_device(rtc);
+		rtc_dev_del_device(rtc);
+		rtc_proc_del_device(rtc);
+		device_unregister(&rtc->dev);
 		rtc->ops = NULL;
 		mutex_unlock(&rtc->ops_lock);
-		class_device_put(&rtc->class_dev);
+		put_device(&rtc->dev);
 	}
 }
 EXPORT_SYMBOL_GPL(rtc_device_unregister);
-
-int rtc_interface_register(struct class_interface *intf)
-{
-	intf->class = rtc_class;
-	return class_interface_register(intf);
-}
-EXPORT_SYMBOL_GPL(rtc_interface_register);
 
 static int __init rtc_init(void)
 {
@@ -140,11 +217,16 @@ static int __init rtc_init(void)
 		printk(KERN_ERR "%s: couldn't create class\n", __FILE__);
 		return PTR_ERR(rtc_class);
 	}
+	rtc_class->suspend = rtc_suspend;
+	rtc_class->resume = rtc_resume;
+	rtc_dev_init();
+	rtc_sysfs_init(rtc_class);
 	return 0;
 }
 
 static void __exit rtc_exit(void)
 {
+	rtc_dev_exit();
 	class_destroy(rtc_class);
 }
 

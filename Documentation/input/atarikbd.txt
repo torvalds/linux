@@ -179,9 +179,9 @@ reporting mode for joystick 1, with both buttons being logically assigned to
 the mouse. After any joystick command, the ikbd assumes that joysticks are
 connected to both Joystick0 and Joystick1. Any mouse command (except MOUSE
 DISABLE) then causes port 0 to again be scanned as if it were a mouse, and
-both buttons are logically connected to it. If a mouse diable command is
+both buttons are logically connected to it. If a mouse disable command is
 received while port 0 is presumed to be a mouse, the button is logically
-assigned to Joystick1 ( until the mouse is reenabled by another mouse command).
+assigned to Joystick1 (until the mouse is reenabled by another mouse command).
 
 9. ikbd Command Set
 

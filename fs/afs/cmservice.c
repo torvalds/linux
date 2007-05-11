@@ -443,6 +443,7 @@ static void SRXAFSCB_GetCapabilities(struct work_struct *work)
 			reply.ia.netmask[loop] = ifs[loop].netmask.s_addr;
 			reply.ia.mtu[loop] = htonl(ifs[loop].mtu);
 		}
+		kfree(ifs);
 	}
 
 	reply.cap.capcount = htonl(1);

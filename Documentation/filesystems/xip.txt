@@ -19,7 +19,7 @@ completely. With execute-in-place, read&write type operations are performed
 directly from/to the memory backed storage device. For file mappings, the
 storage device itself is mapped directly into userspace.
 
-This implementation was initialy written for shared memory segments between
+This implementation was initially written for shared memory segments between
 different virtual machines on s390 hardware to allow multiple machines to
 share the same binaries and libraries.
 

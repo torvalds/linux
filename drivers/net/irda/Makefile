@@ -45,6 +45,7 @@ obj-$(CONFIG_MCP2120_DONGLE)	+= mcp2120-sir.o
 obj-$(CONFIG_ACT200L_DONGLE)	+= act200l-sir.o
 obj-$(CONFIG_MA600_DONGLE)	+= ma600-sir.o
 obj-$(CONFIG_TOIM3232_DONGLE)	+= toim3232-sir.o
+obj-$(CONFIG_KINGSUN_DONGLE)	+= kingsun-sir.o
 
 # The SIR helper module
 sir-dev-objs := sir_dev.o sir_dongle.o

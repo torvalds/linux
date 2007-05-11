@@ -364,7 +364,7 @@ static void __init pmac_pic_probe_oldstyle(void)
 		slave = of_find_node_by_name(master, "mac-io");
 
 		/* Check ordering of master & slave */
-		if (device_is_compatible(master, "gatwick")) {
+		if (of_device_is_compatible(master, "gatwick")) {
 			struct device_node *tmp;
 			BUG_ON(slave == NULL);
 			tmp = master;

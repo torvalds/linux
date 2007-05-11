@@ -55,8 +55,8 @@ aic7*seq.h*
 aicasm
 aicdb.h*
 asm
-asm-offsets.*
-asm_offsets.*
+asm-offsets.h
+asm_offsets.h
 autoconf.h*
 bbootsect
 bin2c

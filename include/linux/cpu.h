@@ -41,6 +41,9 @@ extern void cpu_remove_sysdev_attr(struct sysdev_attribute *attr);
 extern int cpu_add_sysdev_attr_group(struct attribute_group *attrs);
 extern void cpu_remove_sysdev_attr_group(struct attribute_group *attrs);
 
+extern struct sysdev_attribute attr_sched_mc_power_savings;
+extern struct sysdev_attribute attr_sched_smt_power_savings;
+extern int sched_create_sysfs_power_savings_entries(struct sysdev_class *cls);
 
 #ifdef CONFIG_HOTPLUG_CPU
 extern void unregister_cpu(struct cpu *cpu);

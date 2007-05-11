@@ -35,6 +35,21 @@ config SPU_FS
 	  Units on machines implementing the Broadband Processor
 	  Architecture.
 
+config SPU_FS_64K_LS
+	bool "Use 64K pages to map SPE local  store"
+	# we depend on PPC_MM_SLICES for now rather than selecting
+	# it because we depend on hugetlbfs hooks being present. We
+	# will fix that when the generic code has been improved to
+	# not require hijacking hugetlbfs hooks.
+	depends on SPU_FS && PPC_MM_SLICES && !PPC_64K_PAGES
+	default y
+	select PPC_HAS_HASH_64K
+	help
+	  This option causes SPE local stores to be mapped in process
+	  address spaces using 64K pages while the rest of the kernel
+	  uses 4K pages. This can improve performances of applications
+	  using multiple SPEs by lowering the TLB pressure on them.
+
 config SPU_BASE
 	bool
 	default n

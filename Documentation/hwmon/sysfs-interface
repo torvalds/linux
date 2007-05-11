@@ -152,6 +152,13 @@ fan[1-*]_div	Fan divisor.
 		Note that this is actually an internal clock divisor, which
 		affects the measurable speed range, not the read value.
 
+fan[1-*]_target
+		Desired fan speed
+		Unit: revolution/min (RPM)
+		RW
+		Only makes sense if the chip supports closed-loop fan speed
+		control based on the measured fan speed.
+
 Also see the Alarms section for status flags associated with fans.
 
 

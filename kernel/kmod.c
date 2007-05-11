@@ -23,7 +23,6 @@
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
 #include <linux/kmod.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <linux/mnt_namespace.h>
 #include <linux/completion.h>
@@ -136,7 +135,6 @@ static int ____call_usermodehelper(void *data)
 
 	/* Unblock all signals and set the session keyring. */
 	new_session = key_get(sub_info->ring);
-	flush_signals(current);
 	spin_lock_irq(&current->sighand->siglock);
 	old_session = __install_session_keyring(current, new_session);
 	flush_signal_handlers(current, 1);
@@ -166,6 +164,12 @@ static int ____call_usermodehelper(void *data)
 	/* We can run anywhere, unlike our parent keventd(). */
 	set_cpus_allowed(current, CPU_MASK_ALL);
 
+	/*
+	 * Our parent is keventd, which runs with elevated scheduling priority.
+	 * Avoid propagating that into the userspace child.
+	 */
+	set_user_nice(current, 0);
+
 	retval = -EPERM;
 	if (current->fs->root)
 		retval = kernel_execve(sub_info->path,
@@ -181,14 +185,9 @@ static int wait_for_helper(void *data)
 {
 	struct subprocess_info *sub_info = data;
 	pid_t pid;
-	struct k_sigaction sa;
 
 	/* Install a handler: if SIGCLD isn't handled sys_wait4 won't
 	 * populate the status, but will return -ECHILD. */
-	sa.sa.sa_handler = SIG_IGN;
-	sa.sa.sa_flags = 0;
-	siginitset(&sa.sa.sa_mask, sigmask(SIGCHLD));
-	do_sigaction(SIGCHLD, &sa, NULL);
 	allow_signal(SIGCHLD);
 
 	pid = kernel_thread(____call_usermodehelper, sub_info, SIGCHLD);

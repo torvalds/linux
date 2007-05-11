@@ -11,7 +11,7 @@
 /* associates an integer enumerator with a pattern string. */
 struct match_token {
 	int token;
-	char *pattern;
+	const char *pattern;
 };
 
 typedef struct match_token match_table_t[];
@@ -29,5 +29,5 @@ int match_token(char *, match_table_t table, substring_t args[]);
 int match_int(substring_t *, int *result);
 int match_octal(substring_t *, int *result);
 int match_hex(substring_t *, int *result);
-void match_strcpy(char *, substring_t *);
-char *match_strdup(substring_t *);
+void match_strcpy(char *, const substring_t *);
+char *match_strdup(const substring_t *);

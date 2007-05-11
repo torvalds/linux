@@ -41,7 +41,7 @@ h7201_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction h7201_timer_irq = {
 	.name		= "h7201 Timer Tick",
-	.flags		= IRQF_DISABLED | IRQF_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= h7201_timer_interrupt,
 };
 

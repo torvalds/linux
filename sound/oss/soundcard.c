@@ -44,6 +44,7 @@
 #include <linux/smp_lock.h>
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <linux/device.h>
 
 /*
  * This ought to be moved into include/asm/dma.h

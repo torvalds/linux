@@ -16,6 +16,9 @@
 
 #define AFS_MAXCELLNAME	64		/* maximum length of a cell name */
 #define AFS_MAXVOLNAME	64		/* maximum length of a volume name */
+#define AFSNAMEMAX	256		/* maximum length of a filename plus NUL */
+#define AFSPATHMAX	1024		/* maximum length of a pathname plus NUL */
+#define AFSOPAQUEMAX	1024		/* maximum length of an opaque field */
 
 typedef unsigned			afs_volid_t;
 typedef unsigned			afs_vnodeid_t;
@@ -142,5 +145,25 @@ struct afs_store_status {
 struct afs_volsync {
 	time_t			creation;	/* volume creation time */
 };
+
+/*
+ * AFS volume status record
+ */
+struct afs_volume_status {
+	u32			vid;		/* volume ID */
+	u32			parent_id;	/* parent volume ID */
+	u8			online;		/* true if volume currently online and available */
+	u8			in_service;	/* true if volume currently in service */
+	u8			blessed;	/* same as in_service */
+	u8			needs_salvage;	/* true if consistency checking required */
+	u32			type;		/* volume type (afs_voltype_t) */
+	u32			min_quota;	/* minimum space set aside (blocks) */
+	u32			max_quota;	/* maximum space this volume may occupy (blocks) */
+	u32			blocks_in_use;	/* space this volume currently occupies (blocks) */
+	u32			part_blocks_avail; /* space available in volume's partition */
+	u32			part_max_blocks; /* size of volume's partition */
+};
+
+#define AFS_BLOCK_SIZE	1024
 
 #endif /* AFS_H */

@@ -11,7 +11,6 @@
 #include <stdarg.h>
 #include <string.h>
 #include <sys/mman.h>
-#include "user_util.h"
 #include "user.h"
 #include "signal_kern.h"
 #include "sysdep/sigcontext.h"
@@ -62,15 +61,19 @@ void sig_handler(int sig, struct sigcontext *sc)
 
 static void real_alarm_handler(int sig, struct sigcontext *sc)
 {
+	union uml_pt_regs regs;
+
 	if(sig == SIGALRM)
 		switch_timers(0);
 
-	CHOOSE_MODE_PROC(sig_handler_common_tt, sig_handler_common_skas,
-			 sig, sc);
+	if(sc != NULL)
+		copy_sc(&regs, sc);
+	regs.skas.is_user = 0;
+	unblock_signals();
+	timer_handler(sig, &regs);
 
 	if(sig == SIGALRM)
 		switch_timers(1);
-
 }
 
 void alarm_handler(int sig, struct sigcontext *sc)
@@ -113,6 +116,46 @@ void remove_sigstack(void)
 }
 
 void (*handlers[_NSIG])(int sig, struct sigcontext *sc);
+
+void handle_signal(int sig, struct sigcontext *sc)
+{
+	unsigned long pending = 0;
+
+	do {
+		int nested, bail;
+
+		/*
+		 * pending comes back with one bit set for each
+		 * interrupt that arrived while setting up the stack,
+		 * plus a bit for this interrupt, plus the zero bit is
+		 * set if this is a nested interrupt.
+		 * If bail is true, then we interrupted another
+		 * handler setting up the stack.  In this case, we
+		 * have to return, and the upper handler will deal
+		 * with this interrupt.
+		 */
+		bail = to_irq_stack(sig, &pending);
+		if(bail)
+			return;
+
+		nested = pending & 1;
+		pending &= ~1;
+
+		while((sig = ffs(pending)) != 0){
+			sig--;
+			pending &= ~(1 << sig);
+			(*handlers[sig])(sig, sc);
+		}
+
+		/* Again, pending comes back with a mask of signals
+		 * that arrived while tearing down the stack.  If this
+		 * is non-zero, we just go back, set up the stack
+		 * again, and handle the new interrupts.
+		 */
+		if(!nested)
+			pending = from_irq_stack(nested);
+	} while(pending);
+}
 
 extern void hard_handler(int sig);
 

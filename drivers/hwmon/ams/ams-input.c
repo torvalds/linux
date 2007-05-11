@@ -87,7 +87,7 @@ static void ams_input_enable(void)
 	ams_info.idev->id.vendor = 0;
 	ams_info.idev->open = ams_input_open;
 	ams_info.idev->close = ams_input_close;
-	ams_info.idev->cdev.dev = &ams_info.of_dev->dev;
+	ams_info.idev->dev.parent = &ams_info.of_dev->dev;
 
 	input_set_abs_params(ams_info.idev, ABS_X, -50, 50, 3, 0);
 	input_set_abs_params(ams_info.idev, ABS_Y, -50, 50, 3, 0);

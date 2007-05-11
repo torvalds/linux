@@ -28,6 +28,7 @@
 extern void gpio_line_config(int line, int direction);
 extern int  gpio_line_get(int line);
 extern void gpio_line_set(int line, int value);
+extern int init_atu;
 #endif
 
 
@@ -41,7 +42,7 @@ extern void gpio_line_set(int line, int value);
 					IOP3XX_PERIPHERAL_SIZE - 1)
 #define IOP3XX_PERIPHERAL_UPPER_VA (IOP3XX_PERIPHERAL_VIRT_BASE +\
 					IOP3XX_PERIPHERAL_SIZE - 1)
-#define IOP3XX_PMMR_PHYS_TO_VIRT(addr) (u32) ((u32) addr -\
+#define IOP3XX_PMMR_PHYS_TO_VIRT(addr) (u32) ((u32) (addr) -\
 					(IOP3XX_PERIPHERAL_PHYS_BASE\
 					- IOP3XX_PERIPHERAL_VIRT_BASE))
 #define IOP3XX_REG_ADDR(reg)		(IOP3XX_PERIPHERAL_VIRT_BASE + (reg))
@@ -103,6 +104,21 @@ extern void gpio_line_set(int line, int value);
 #define IOP3XX_PCIXCMD		(volatile u16 *)IOP3XX_REG_ADDR(0x01e2)
 #define IOP3XX_PCIXSR		(volatile u32 *)IOP3XX_REG_ADDR(0x01e4)
 #define IOP3XX_PCIIRSR		(volatile u32 *)IOP3XX_REG_ADDR(0x01ec)
+#define IOP3XX_PCSR_OUT_Q_BUSY (1 << 15)
+#define IOP3XX_PCSR_IN_Q_BUSY	(1 << 14)
+#define IOP3XX_ATUCR_OUT_EN	(1 << 1)
+
+#define IOP3XX_INIT_ATU_DEFAULT 0
+#define IOP3XX_INIT_ATU_DISABLE -1
+#define IOP3XX_INIT_ATU_ENABLE	 1
+
+#ifdef CONFIG_IOP3XX_ATU
+#define iop3xx_get_init_atu(x) (init_atu == IOP3XX_INIT_ATU_DEFAULT ?\
+				IOP3XX_INIT_ATU_ENABLE : init_atu)
+#else
+#define iop3xx_get_init_atu(x) (init_atu == IOP3XX_INIT_ATU_DEFAULT ?\
+				IOP3XX_INIT_ATU_DISABLE : init_atu)
+#endif
 
 /* Messaging Unit  */
 #define IOP3XX_IMR0		(volatile u32 *)IOP3XX_REG_ADDR(0x0310)
@@ -253,14 +269,12 @@ extern void gpio_line_set(int line, int value);
 /*
  * IOP3XX I/O and Mem space regions for PCI autoconfiguration
  */
-#define IOP3XX_PCI_MEM_WINDOW_SIZE	0x04000000
-#define IOP3XX_PCI_LOWER_MEM_PA		0x80000000
-#define IOP3XX_PCI_LOWER_MEM_BA		(*IOP3XX_OMWTVR0)
+#define IOP3XX_PCI_LOWER_MEM_PA	0x80000000
 
 #define IOP3XX_PCI_IO_WINDOW_SIZE	0x00010000
 #define IOP3XX_PCI_LOWER_IO_PA		0x90000000
 #define IOP3XX_PCI_LOWER_IO_VA		0xfe000000
-#define IOP3XX_PCI_LOWER_IO_BA		(*IOP3XX_OIOWTVR)
+#define IOP3XX_PCI_LOWER_IO_BA		0x90000000
 #define IOP3XX_PCI_UPPER_IO_PA		(IOP3XX_PCI_LOWER_IO_PA +\
 					IOP3XX_PCI_IO_WINDOW_SIZE - 1)
 #define IOP3XX_PCI_UPPER_IO_VA		(IOP3XX_PCI_LOWER_IO_VA +\

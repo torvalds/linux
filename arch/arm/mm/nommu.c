@@ -62,21 +62,21 @@ void flush_dcache_page(struct page *page)
 }
 EXPORT_SYMBOL(flush_dcache_page);
 
-void __iomem *__ioremap_pfn(unsigned long pfn, unsigned long offset,
-			    size_t size, unsigned long flags)
+void __iomem *__arm_ioremap_pfn(unsigned long pfn, unsigned long offset,
+				size_t size, unsigned int mtype)
 {
 	if (pfn >= (0x100000000ULL >> PAGE_SHIFT))
 		return NULL;
 	return (void __iomem *) (offset + (pfn << PAGE_SHIFT));
 }
-EXPORT_SYMBOL(__ioremap_pfn);
+EXPORT_SYMBOL(__arm_ioremap_pfn);
 
-void __iomem *__ioremap(unsigned long phys_addr, size_t size,
-			unsigned long flags)
+void __iomem *__arm_ioremap(unsigned long phys_addr, size_t size,
+			    unsigned int mtype)
 {
 	return (void __iomem *)phys_addr;
 }
-EXPORT_SYMBOL(__ioremap);
+EXPORT_SYMBOL(__arm_ioremap);
 
 void __iounmap(volatile void __iomem *addr)
 {

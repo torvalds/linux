@@ -1,5 +1,5 @@
 /*
- * arch/x86_64/include/klibc/archsetjmp.h
+ * arch/um/include/sysdep-x86_64/archsetjmp.h
  */
 
 #ifndef _KLIBC_ARCHSETJMP_H

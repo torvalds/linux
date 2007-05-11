@@ -187,7 +187,6 @@ typedef struct {
 #define	CDEBUG_SIZE	1024
 #define	CDEBUG_GSIZE	4096
 
-_cdebbuf *cdebbuf_alloc(void);
 void cdebbuf_free(_cdebbuf *cdb);
 int cdebug_init(void);
 void cdebug_exit(void);

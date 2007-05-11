@@ -21,7 +21,7 @@
 
 #include "internal.h"
 
-static inline struct proc_dir_entry * de_get(struct proc_dir_entry *de)
+struct proc_dir_entry *de_get(struct proc_dir_entry *de)
 {
 	if (de)
 		atomic_inc(&de->count);
@@ -31,7 +31,7 @@ static inline struct proc_dir_entry * de_get(struct proc_dir_entry *de)
 /*
  * Decrements the use count and checks for deferred deletion.
  */
-static void de_put(struct proc_dir_entry *de)
+void de_put(struct proc_dir_entry *de)
 {
 	if (de) {	
 		lock_kernel();		
@@ -109,8 +109,7 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 {
 	struct proc_inode *ei = (struct proc_inode *) foo;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR)
+	if (flags & SLAB_CTOR_CONSTRUCTOR)
 		inode_init_once(&ei->vfs_inode);
 }
  
@@ -147,13 +146,6 @@ struct inode *proc_get_inode(struct super_block *sb, unsigned int ino,
 {
 	struct inode * inode;
 
-	/*
-	 * Increment the use count so the dir entry can't disappear.
-	 */
-	de_get(de);
-
-	WARN_ON(de && de->deleted);
-
 	if (de != NULL && !try_module_get(de->owner))
 		goto out_mod;
 
@@ -185,7 +177,6 @@ out_ino:
 	if (de != NULL)
 		module_put(de->owner);
 out_mod:
-	de_put(de);
 	return NULL;
 }			
 
@@ -200,6 +191,7 @@ int proc_fill_super(struct super_block *s, void *data, int silent)
 	s->s_op = &proc_sops;
 	s->s_time_gran = 1;
 	
+	de_get(&proc_root);
 	root_inode = proc_get_inode(s, PROC_ROOT_INO, &proc_root);
 	if (!root_inode)
 		goto out_no_root;
@@ -213,6 +205,7 @@ int proc_fill_super(struct super_block *s, void *data, int silent)
 out_no_root:
 	printk("proc_read_super: get root inode failed\n");
 	iput(root_inode);
+	de_put(&proc_root);
 	return -ENOMEM;
 }
 MODULE_LICENSE("GPL");

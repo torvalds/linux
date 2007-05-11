@@ -12,7 +12,7 @@
  *
  *	This driver allows use of the real time clock (built into
  *	nearly all computers) from user space. It exports the /dev/rtc
- *	interface supporting various ioctl() and also the /proc/dev/rtc
+ *	interface supporting various ioctl() and also the /proc/driver/rtc
  *	pseudo-file for status information.
  *
  *	The ioctls can be used to set the interrupt behaviour where
@@ -207,7 +207,7 @@ static ssize_t gen_rtc_read(struct file *file, char __user *buf,
 			sizeof(unsigned long);
 	}
  out:
-	current->state = TASK_RUNNING;
+	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&gen_rtc_wait, &wait);
 
 	return retval;
@@ -377,7 +377,7 @@ static int gen_rtc_release(struct inode *inode, struct file *file)
 #ifdef CONFIG_PROC_FS
 
 /*
- *	Info exported via "/proc/rtc".
+ *	Info exported via "/proc/driver/rtc".
  */
 
 static int gen_rtc_proc_output(char *buf)

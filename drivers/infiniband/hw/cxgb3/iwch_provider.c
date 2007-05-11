@@ -47,6 +47,7 @@
 #include <rdma/iw_cm.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_smi.h>
+#include <rdma/ib_umem.h>
 #include <rdma/ib_user_verbs.h>
 
 #include "cxio_hal.h"
@@ -139,7 +140,7 @@ static int iwch_destroy_cq(struct ib_cq *ib_cq)
 	return 0;
 }
 
-static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries,
+static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int vector,
 			     struct ib_ucontext *ib_context,
 			     struct ib_udata *udata)
 {
@@ -292,7 +293,7 @@ static int iwch_resize_cq(struct ib_cq *cq, int cqe, struct ib_udata *udata)
 #endif
 }
 
-static int iwch_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
+static int iwch_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 {
 	struct iwch_dev *rhp;
 	struct iwch_cq *chp;
@@ -303,7 +304,7 @@ static int iwch_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
 
 	chp = to_iwch_cq(ibcq);
 	rhp = chp->rhp;
-	if (notify == IB_CQ_SOLICITED)
+	if ((flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED)
 		cq_op = CQ_ARM_SE;
 	else
 		cq_op = CQ_ARM_AN;
@@ -317,9 +318,11 @@ static int iwch_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
 	PDBG("%s rptr 0x%x\n", __FUNCTION__, chp->cq.rptr);
 	err = cxio_hal_cq_op(&rhp->rdev, &chp->cq, cq_op, 0);
 	spin_unlock_irqrestore(&chp->lock, flag);
-	if (err)
+	if (err < 0)
 		printk(KERN_ERR MOD "Error %d rearming CQID 0x%x\n", err,
 		       chp->cq.cqid);
+	if (err > 0 && !(flags & IB_CQ_REPORT_MISSED_EVENTS))
+		err = 0;
 	return err;
 }
 
@@ -441,6 +444,8 @@ static int iwch_dereg_mr(struct ib_mr *ib_mr)
 	remove_handle(rhp, &rhp->mmidr, mmid);
 	if (mhp->kva)
 		kfree((void *) (unsigned long) mhp->kva);
+	if (mhp->umem)
+		ib_umem_release(mhp->umem);
 	PDBG("%s mmid 0x%x ptr %p\n", __FUNCTION__, mmid, mhp);
 	kfree(mhp);
 	return 0;
@@ -575,8 +580,8 @@ static int iwch_reregister_phys_mem(struct ib_mr *mr,
 }
 
 
-static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
-				      int acc, struct ib_udata *udata)
+static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
+				      u64 virt, int acc, struct ib_udata *udata)
 {
 	__be64 *pages;
 	int shift, n, len;
@@ -589,7 +594,6 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 	struct iwch_reg_user_mr_resp uresp;
 
 	PDBG("%s ib_pd %p\n", __FUNCTION__, pd);
-	shift = ffs(region->page_size) - 1;
 
 	php = to_iwch_pd(pd);
 	rhp = php->rhp;
@@ -597,8 +601,17 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 	if (!mhp)
 		return ERR_PTR(-ENOMEM);
 
+	mhp->umem = ib_umem_get(pd->uobject->context, start, length, acc);
+	if (IS_ERR(mhp->umem)) {
+		err = PTR_ERR(mhp->umem);
+		kfree(mhp);
+		return ERR_PTR(err);
+	}
+
+	shift = ffs(mhp->umem->page_size) - 1;
+
 	n = 0;
-	list_for_each_entry(chunk, &region->chunk_list, list)
+	list_for_each_entry(chunk, &mhp->umem->chunk_list, list)
 		n += chunk->nents;
 
 	pages = kmalloc(n * sizeof(u64), GFP_KERNEL);
@@ -609,13 +622,13 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 
 	i = n = 0;
 
-	list_for_each_entry(chunk, &region->chunk_list, list)
+	list_for_each_entry(chunk, &mhp->umem->chunk_list, list)
 		for (j = 0; j < chunk->nmap; ++j) {
 			len = sg_dma_len(&chunk->page_list[j]) >> shift;
 			for (k = 0; k < len; ++k) {
 				pages[i++] = cpu_to_be64(sg_dma_address(
 					&chunk->page_list[j]) +
-					region->page_size * k);
+					mhp->umem->page_size * k);
 			}
 		}
 
@@ -623,9 +636,9 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 	mhp->attr.pdid = php->pdid;
 	mhp->attr.zbva = 0;
 	mhp->attr.perms = iwch_ib_to_tpt_access(acc);
-	mhp->attr.va_fbo = region->virt_base;
+	mhp->attr.va_fbo = virt;
 	mhp->attr.page_size = shift - 12;
-	mhp->attr.len = (u32) region->length;
+	mhp->attr.len = (u32) length;
 	mhp->attr.pbl_size = i;
 	err = iwch_register_mem(rhp, php, mhp, shift, pages);
 	kfree(pages);
@@ -648,6 +661,7 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 	return &mhp->ibmr;
 
 err:
+	ib_umem_release(mhp->umem);
 	kfree(mhp);
 	return ERR_PTR(err);
 }
@@ -778,6 +792,9 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 		rqsize = 16;
 
 	if (rqsize > T3_MAX_RQ_SIZE)
+		return ERR_PTR(-EINVAL);
+
+	if (attrs->cap.max_inline_data > T3_MAX_INLINE)
 		return ERR_PTR(-EINVAL);
 
 	/*
@@ -1107,6 +1124,7 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.node_type = RDMA_NODE_RNIC;
 	memcpy(dev->ibdev.node_desc, IWCH_NODE_DESC, sizeof(IWCH_NODE_DESC));
 	dev->ibdev.phys_port_cnt = dev->rdev.port_info.nports;
+	dev->ibdev.num_comp_vectors = 1;
 	dev->ibdev.dma_device = &(dev->rdev.rnic_info.pdev->dev);
 	dev->ibdev.query_device = iwch_query_device;
 	dev->ibdev.query_port = iwch_query_port;

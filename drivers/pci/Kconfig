@@ -1,10 +1,14 @@
 #
 # PCI configuration
 #
+config ARCH_SUPPORTS_MSI
+	bool
+	default n
+
 config PCI_MSI
 	bool "Message Signaled Interrupts (MSI and MSI-X)"
 	depends on PCI
-	depends on (X86_LOCAL_APIC && X86_IO_APIC) || IA64 || SPARC64
+	depends on ARCH_SUPPORTS_MSI
 	help
 	   This allows device drivers to enable MSI (Message Signaled
 	   Interrupts).  Message Signaled Interrupts enable a device to
@@ -16,31 +20,6 @@ config PCI_MSI
 	   entire system.
 
 	   If you don't know what to do here, say N.
-
-config PCI_MULTITHREAD_PROBE
-	bool "PCI Multi-threaded probe (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL && BROKEN
-	help
-	  Say Y here if you want the PCI core to spawn a new thread for
-	  every PCI device that is probed.  This can cause a huge
-	  speedup in boot times on multiprocessor machines, and even a
-	  smaller speedup on single processor machines.
-
-	  But it can also cause lots of bad things to happen.  A number
-	  of PCI drivers cannot properly handle running in this way,
-	  some will just not work properly at all, while others might
-	  decide to blow up power supplies with a huge load all at once,
-	  so use this option at your own risk.
-
-	  It is very unwise to use this option if you are not using a
-	  boot process that can handle devices being created in any
-	  order.  A program that can create persistent block and network
-	  device names (like udev) is a good idea if you wish to use
-	  this option.
-
-	  Again, use this option at your own risk, you have been warned!
-
-	  When in doubt, say N.
 
 config PCI_DEBUG
 	bool "PCI Debugging"

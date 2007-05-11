@@ -26,7 +26,7 @@ config BINFMT_ELF
 config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"
 	default y
-	depends on FRV
+	depends on (FRV || BLACKFIN)
 	help
 	  ELF FDPIC binaries are based on ELF, but allow the individual load
 	  segments of a binary to be located in memory independently of each

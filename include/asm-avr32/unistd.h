@@ -295,8 +295,10 @@
 #define __NR_shmdt		276
 #define __NR_shmctl		277
 
+#define __NR_utimensat		278
+
 #ifdef __KERNEL__
-#define NR_syscalls		278
+#define NR_syscalls		279
 
 
 #define __ARCH_WANT_IPC_PARSE_VERSION

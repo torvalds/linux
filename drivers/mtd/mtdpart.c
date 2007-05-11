@@ -347,7 +347,6 @@ int add_mtd_partitions(struct mtd_info *master,
 		slave->mtd.subpage_sft = master->subpage_sft;
 
 		slave->mtd.name = parts[i].name;
-		slave->mtd.bank_size = master->bank_size;
 		slave->mtd.owner = master->owner;
 
 		slave->mtd.read = part_read;

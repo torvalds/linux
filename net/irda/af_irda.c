@@ -2538,7 +2538,6 @@ static const struct proto_ops SOCKOPS_WRAPPED(irda_ultra_ops) = {
 };
 #endif /* CONFIG_IRDA_ULTRA */
 
-#include <linux/smp_lock.h>
 SOCKOPS_WRAP(irda_stream, PF_IRDA);
 SOCKOPS_WRAP(irda_seqpacket, PF_IRDA);
 SOCKOPS_WRAP(irda_dgram, PF_IRDA);

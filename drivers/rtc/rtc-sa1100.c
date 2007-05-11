@@ -93,7 +93,7 @@ static irqreturn_t sa1100_rtc_interrupt(int irq, void *dev_id)
 	if (rtsr & RTSR_HZ)
 		events |= RTC_UF | RTC_IRQF;
 
-	rtc_update_irq(&rtc->class_dev, 1, events);
+	rtc_update_irq(rtc, 1, events);
 
 	if (rtsr & RTSR_AL && rtc_periodic_alarm(&rtc_alarm))
 		rtc_update_alarm(&rtc_alarm);
@@ -119,7 +119,7 @@ static irqreturn_t timer1_interrupt(int irq, void *dev_id)
 	 */
 	OSSR = OSSR_M1;	/* clear match on timer1 */
 
-	rtc_update_irq(&rtc->class_dev, rtc_timer1_count, RTC_PF | RTC_IRQF);
+	rtc_update_irq(rtc, rtc_timer1_count, RTC_PF | RTC_IRQF);
 
 	if (rtc_timer1_count == 1)
 		rtc_timer1_count = (rtc_freq * ((1<<30)/(TIMER_FREQ>>2)));

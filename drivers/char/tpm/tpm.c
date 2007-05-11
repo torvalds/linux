@@ -24,7 +24,9 @@
  */
 
 #include <linux/poll.h>
+#include <linux/mutex.h>
 #include <linux/spinlock.h>
+
 #include "tpm.h"
 
 enum tpm_const {
@@ -328,10 +330,10 @@ static void timeout_work(struct work_struct *work)
 {
 	struct tpm_chip *chip = container_of(work, struct tpm_chip, work);
 
-	down(&chip->buffer_mutex);
+	mutex_lock(&chip->buffer_mutex);
 	atomic_set(&chip->data_pending, 0);
 	memset(chip->data_buffer, 0, TPM_BUFSIZE);
-	up(&chip->buffer_mutex);
+	mutex_unlock(&chip->buffer_mutex);
 }
 
 /*
@@ -380,7 +382,7 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 		return -E2BIG;
 	}
 
-	down(&chip->tpm_mutex);
+	mutex_lock(&chip->tpm_mutex);
 
 	if ((rc = chip->vendor.send(chip, (u8 *) buf, count)) < 0) {
 		dev_err(chip->dev,
@@ -419,7 +421,7 @@ out_recv:
 		dev_err(chip->dev,
 			"tpm_transmit: tpm_recv: error %zd\n", rc);
 out:
-	up(&chip->tpm_mutex);
+	mutex_unlock(&chip->tpm_mutex);
 	return rc;
 }
 
@@ -942,12 +944,12 @@ int tpm_release(struct inode *inode, struct file *file)
 {
 	struct tpm_chip *chip = file->private_data;
 
+	flush_scheduled_work();
 	spin_lock(&driver_lock);
 	file->private_data = NULL;
-	chip->num_opens--;
 	del_singleshot_timer_sync(&chip->user_read_timer);
-	flush_scheduled_work();
 	atomic_set(&chip->data_pending, 0);
+	chip->num_opens--;
 	put_device(chip->dev);
 	kfree(chip->data_buffer);
 	spin_unlock(&driver_lock);
@@ -966,14 +968,14 @@ ssize_t tpm_write(struct file *file, const char __user *buf,
 	while (atomic_read(&chip->data_pending) != 0)
 		msleep(TPM_TIMEOUT);
 
-	down(&chip->buffer_mutex);
+	mutex_lock(&chip->buffer_mutex);
 
 	if (in_size > TPM_BUFSIZE)
 		in_size = TPM_BUFSIZE;
 
 	if (copy_from_user
 	    (chip->data_buffer, (void __user *) buf, in_size)) {
-		up(&chip->buffer_mutex);
+		mutex_unlock(&chip->buffer_mutex);
 		return -EFAULT;
 	}
 
@@ -981,7 +983,7 @@ ssize_t tpm_write(struct file *file, const char __user *buf,
 	out_size = tpm_transmit(chip, chip->data_buffer, TPM_BUFSIZE);
 
 	atomic_set(&chip->data_pending, out_size);
-	up(&chip->buffer_mutex);
+	mutex_unlock(&chip->buffer_mutex);
 
 	/* Set a timeout by which the reader must come claim the result */
 	mod_timer(&chip->user_read_timer, jiffies + (60 * HZ));
@@ -1004,10 +1006,10 @@ ssize_t tpm_read(struct file *file, char __user *buf,
 		if (size < ret_size)
 			ret_size = size;
 
-		down(&chip->buffer_mutex);
+		mutex_lock(&chip->buffer_mutex);
 		if (copy_to_user(buf, chip->data_buffer, ret_size))
 			ret_size = -EFAULT;
-		up(&chip->buffer_mutex);
+		mutex_unlock(&chip->buffer_mutex);
 	}
 
 	return ret_size;
@@ -1097,11 +1099,16 @@ struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vend
 
 	/* Driver specific per-device data */
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	if (chip == NULL)
-		return NULL;
+	devname = kmalloc(DEVNAME_SIZE, GFP_KERNEL);
 
-	init_MUTEX(&chip->buffer_mutex);
-	init_MUTEX(&chip->tpm_mutex);
+	if (chip == NULL || devname == NULL) {
+		kfree(chip);
+		kfree(devname);
+		return NULL;
+	}
+
+	mutex_init(&chip->buffer_mutex);
+	mutex_init(&chip->tpm_mutex);
 	INIT_LIST_HEAD(&chip->list);
 
 	INIT_WORK(&chip->work, timeout_work);
@@ -1124,7 +1131,6 @@ struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vend
 
 	set_bit(chip->dev_num, dev_mask);
 
-	devname = kmalloc(DEVNAME_SIZE, GFP_KERNEL);
 	scnprintf(devname, DEVNAME_SIZE, "%s%d", "tpm", chip->dev_num);
 	chip->vendor.miscdev.name = devname;
 

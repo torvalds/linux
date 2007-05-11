@@ -23,7 +23,6 @@
 #include <sound/core.h>
 #include <linux/major.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/time.h>

@@ -184,10 +184,6 @@ extern void zfcp_scsi_dbf_event_abort(const char *, struct zfcp_adapter *,
 				      unsigned long);
 extern void zfcp_scsi_dbf_event_devreset(const char *, u8, struct zfcp_unit *,
 					 struct scsi_cmnd *);
-extern void zfcp_reqlist_add(struct zfcp_adapter *, struct zfcp_fsf_req *);
-extern void zfcp_reqlist_remove(struct zfcp_adapter *, unsigned long);
-extern struct zfcp_fsf_req *zfcp_reqlist_ismember(struct zfcp_adapter *,
-						  unsigned long);
 extern int zfcp_reqlist_isempty(struct zfcp_adapter *);
 
 #endif	/* ZFCP_EXT_H */

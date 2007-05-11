@@ -214,7 +214,7 @@ static int pvr2_init_cable(void);
 static int pvr2_get_param(const struct pvr2_params *p, const char *s,
                             int val, int size);
 #ifdef CONFIG_SH_DMA
-static ssize_t pvr2fb_write(struct file *file, const char *buf,
+static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
 			    size_t count, loff_t *ppos);
 #endif
 
@@ -674,7 +674,7 @@ static int pvr2_init_cable(void)
 }
 
 #ifdef CONFIG_SH_DMA
-static ssize_t pvr2fb_write(struct file *file, const char *buf,
+static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
 			    size_t count, loff_t *ppos)
 {
 	unsigned long dst, start, end, len;

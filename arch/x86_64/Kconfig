@@ -415,13 +415,13 @@ config OUT_OF_LINE_PFN_TO_PAGE
 	depends on DISCONTIGMEM
 
 config NR_CPUS
-	int "Maximum number of CPUs (2-256)"
+	int "Maximum number of CPUs (2-255)"
 	range 2 255
 	depends on SMP
 	default "8"
 	help
 	  This allows you to specify the maximum number of CPUs which this
-	  kernel will support. Current maximum is 256 CPUs due to
+	  kernel will support. Current maximum is 255 CPUs due to
 	  APIC addressing limits. Less depending on the hardware.
 
 	  This is purely to save memory - each supported CPU requires
@@ -565,22 +565,55 @@ config CRASH_DUMP
 	  PHYSICAL_START.
           For more details see Documentation/kdump/kdump.txt
 
+config RELOCATABLE
+	bool "Build a relocatable kernel(EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  Builds a relocatable kernel. This enables loading and running
+	  a kernel binary from a different physical address than it has
+	  been compiled for.
+
+	  One use is for the kexec on panic case where the recovery kernel
+	  must live at a different physical address than the primary
+	  kernel.
+
+	  Note: If CONFIG_RELOCATABLE=y, then kernel run from the address
+	  it has been loaded at and compile time physical address
+	  (CONFIG_PHYSICAL_START) is ignored.
+
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
-	default "0x1000000" if CRASH_DUMP
 	default "0x200000"
 	help
-	  This gives the physical address where the kernel is loaded. Normally
-	  for regular kernels this value is 0x200000 (2MB). But in the case
-	  of kexec on panic the fail safe kernel needs to run at a different
-	  address than the panic-ed kernel. This option is used to set the load
-	  address for kernels used to capture crash dump on being kexec'ed
-	  after panic. The default value for crash dump kernels is
-	  0x1000000 (16MB). This can also be set based on the "X" value as
+	  This gives the physical address where the kernel is loaded. It
+	  should be aligned to 2MB boundary.
+
+	  If kernel is a not relocatable (CONFIG_RELOCATABLE=n) then
+	  bzImage will decompress itself to above physical address and
+	  run from there. Otherwise, bzImage will run from the address where
+	  it has been loaded by the boot loader and will ignore above physical
+	  address.
+
+	  In normal kdump cases one does not have to set/change this option
+	  as now bzImage can be compiled as a completely relocatable image
+	  (CONFIG_RELOCATABLE=y) and be used to load and run from a different
+	  address. This option is mainly useful for the folks who don't want
+	  to use a bzImage for capturing the crash dump and want to use a
+	  vmlinux instead.
+
+	  So if you are using bzImage for capturing the crash dump, leave
+	  the value here unchanged to 0x200000 and set CONFIG_RELOCATABLE=y.
+	  Otherwise if you plan to use vmlinux for capturing the crash dump
+	  change this value to start of the reserved region (Typically 16MB
+	  0x1000000). In other words, it can be set based on the "X" value as
 	  specified in the "crashkernel=YM@XM" command line boot parameter
 	  passed to the panic-ed kernel. Typically this parameter is set as
 	  crashkernel=64M@16M. Please take a look at
 	  Documentation/kdump/kdump.txt for more details about crash dumps.
+
+	  Usage of bzImage for capturing the crash dump is advantageous as
+	  one does not have to build two kernels. Same kernel can be used
+	  as production kernel and capture kernel.
 
 	  Don't change this unless you know what you are doing.
 
@@ -627,14 +660,6 @@ config CC_STACKPROTECTOR_ALL
 
 source kernel/Kconfig.hz
 
-config REORDER
-	bool "Function reordering"
-	default n
-	help
-         This option enables the toolchain to reorder functions for a more 
-         optimal TLB usage. If you have pretty much any version of binutils, 
-	 this can increase your kernel build time by roughly one minute.
-
 config K8_NB
 	def_bool y
 	depends on AGP_AMD64 || IOMMU || (PCI && NUMA)
@@ -676,6 +701,7 @@ menu "Bus options (PCI etc.)"
 
 config PCI
 	bool "PCI support"
+	select ARCH_SUPPORTS_MSI if (X86_LOCAL_APIC && X86_IO_APIC)
 
 # x86-64 doesn't support PCI BIOS access from long mode so always go direct.
 config PCI_DIRECT

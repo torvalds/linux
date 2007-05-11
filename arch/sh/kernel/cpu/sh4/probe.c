@@ -124,6 +124,14 @@ int __init detect_cpu_and_cache_system(void)
 		current_cpu_data.dcache.ways = 4;
 		current_cpu_data.flags |= CPU_HAS_LLSC;
 		break;
+	case 0x3004:
+	case 0x3007:
+		current_cpu_data.type = CPU_SH7785;
+		current_cpu_data.icache.ways = 4;
+		current_cpu_data.dcache.ways = 4;
+		current_cpu_data.flags |= CPU_HAS_FPU | CPU_HAS_PERF_COUNTER |
+					  CPU_HAS_LLSC;
+		break;
 	case 0x3008:
 		if (prr == 0xa0) {
 			current_cpu_data.type = CPU_SH7722;

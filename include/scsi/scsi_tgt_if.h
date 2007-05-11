@@ -45,11 +45,13 @@ struct tgt_event {
 		/* user-> kernel */
 		struct {
 			int host_no;
-			uint32_t len;
 			int result;
-			aligned_u64 uaddr;
-			uint8_t rw;
 			aligned_u64 tag;
+			aligned_u64 uaddr;
+			aligned_u64 sense_uaddr;
+			uint32_t len;
+			uint32_t sense_len;
+			uint8_t rw;
 		} cmd_rsp;
 		struct {
 			int host_no;

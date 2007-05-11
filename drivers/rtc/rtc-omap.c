@@ -124,7 +124,7 @@ static void rtc_wait_not_busy(void)
 	/* now we have ~15 usec to read/write various registers */
 }
 
-static irqreturn_t rtc_irq(int irq, void *class_dev)
+static irqreturn_t rtc_irq(int irq, void *rtc)
 {
 	unsigned long		events = 0;
 	u8			irq_data;
@@ -141,7 +141,7 @@ static irqreturn_t rtc_irq(int irq, void *class_dev)
 	if (irq_data & OMAP_RTC_STATUS_1S_EVENT)
 		events |= RTC_IRQF | RTC_UF;
 
-	rtc_update_irq(class_dev, 1, events);
+	rtc_update_irq(rtc, 1, events);
 
 	return IRQ_HANDLED;
 }
@@ -289,34 +289,6 @@ static int omap_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
 	u8 reg;
 
-	/* Much userspace code uses RTC_ALM_SET, thus "don't care" for
-	 * day/month/year specifies alarms up to 24 hours in the future.
-	 * So we need to handle that ... but let's ignore the "don't care"
-	 * values for hours/minutes/seconds.
-	 */
-	if (alm->time.tm_mday <= 0
-			&& alm->time.tm_mon < 0
-			&& alm->time.tm_year < 0) {
-		struct rtc_time tm;
-		unsigned long now, then;
-
-		omap_rtc_read_time(dev, &tm);
-		rtc_tm_to_time(&tm, &now);
-
-		alm->time.tm_mday = tm.tm_mday;
-		alm->time.tm_mon = tm.tm_mon;
-		alm->time.tm_year = tm.tm_year;
-		rtc_tm_to_time(&alm->time, &then);
-
-		/* sometimes the alarm wraps into tomorrow */
-		if (then < now) {
-			rtc_time_to_tm(now + 24 * 60 * 60, &tm);
-			alm->time.tm_mday = tm.tm_mday;
-			alm->time.tm_mon = tm.tm_mon;
-			alm->time.tm_year = tm.tm_year;
-		}
-	}
-
 	if (tm2bcd(&alm->time) < 0)
 		return -EINVAL;
 
@@ -399,7 +371,7 @@ static int __devinit omap_rtc_probe(struct platform_device *pdev)
 		goto fail;
 	}
 	platform_set_drvdata(pdev, rtc);
-	class_set_devdata(&rtc->class_dev, mem);
+	dev_set_devdata(&rtc->dev, mem);
 
 	/* clear pending irqs, and set 1/second periodic,
 	 * which we'll use instead of update irqs
@@ -418,13 +390,13 @@ static int __devinit omap_rtc_probe(struct platform_device *pdev)
 
 	/* handle periodic and alarm irqs */
 	if (request_irq(omap_rtc_timer, rtc_irq, IRQF_DISABLED,
-			rtc->class_dev.class_id, &rtc->class_dev)) {
+			rtc->dev.bus_id, rtc)) {
 		pr_debug("%s: RTC timer interrupt IRQ%d already claimed\n",
 			pdev->name, omap_rtc_timer);
 		goto fail0;
 	}
 	if (request_irq(omap_rtc_alarm, rtc_irq, IRQF_DISABLED,
-			rtc->class_dev.class_id, &rtc->class_dev)) {
+			rtc->dev.bus_id, rtc)) {
 		pr_debug("%s: RTC alarm interrupt IRQ%d already claimed\n",
 			pdev->name, omap_rtc_alarm);
 		goto fail1;
@@ -481,26 +453,17 @@ static int __devexit omap_rtc_remove(struct platform_device *pdev)
 	free_irq(omap_rtc_timer, rtc);
 	free_irq(omap_rtc_alarm, rtc);
 
-	release_resource(class_get_devdata(&rtc->class_dev));
+	release_resource(dev_get_devdata(&rtc->dev));
 	rtc_device_unregister(rtc);
 	return 0;
 }
 
 #ifdef CONFIG_PM
 
-static struct timespec rtc_delta;
 static u8 irqstat;
 
 static int omap_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct rtc_time rtc_tm;
-	struct timespec time;
-
-	time.tv_nsec = 0;
-	omap_rtc_read_time(NULL, &rtc_tm);
-	rtc_tm_to_time(&rtc_tm, &time.tv_sec);
-
-	save_time_delta(&rtc_delta, &time);
 	irqstat = rtc_read(OMAP_RTC_INTERRUPTS_REG);
 
 	/* FIXME the RTC alarm is not currently acting as a wakeup event
@@ -517,14 +480,6 @@ static int omap_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 
 static int omap_rtc_resume(struct platform_device *pdev)
 {
-	struct rtc_time rtc_tm;
-	struct timespec time;
-
-	time.tv_nsec = 0;
-	omap_rtc_read_time(NULL, &rtc_tm);
-	rtc_tm_to_time(&rtc_tm, &time.tv_sec);
-
-	restore_time_delta(&rtc_delta, &time);
 	if (device_may_wakeup(&pdev->dev))
 		disable_irq_wake(omap_rtc_alarm);
 	else

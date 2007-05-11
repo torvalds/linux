@@ -65,10 +65,8 @@ ACPI_MODULE_NAME("nswalk")
  *              within Scope is returned.
  *
  ******************************************************************************/
-struct acpi_namespace_node *acpi_ns_get_next_node(acpi_object_type type,
-						  struct acpi_namespace_node
-						  *parent_node,
-						  struct acpi_namespace_node
+struct acpi_namespace_node *acpi_ns_get_next_node(acpi_object_type type, struct acpi_namespace_node
+						  *parent_node, struct acpi_namespace_node
 						  *child_node)
 {
 	struct acpi_namespace_node *next_node = NULL;

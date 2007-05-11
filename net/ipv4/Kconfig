@@ -130,7 +130,7 @@ config IP_ROUTE_MULTIPATH_RR
 	tristate "MULTIPATH: round robin algorithm"
 	depends on IP_ROUTE_MULTIPATH_CACHED
 	help
-	  Mulitpath routes are chosen according to Round Robin
+	  Multipath routes are chosen according to Round Robin
 
 config IP_ROUTE_MULTIPATH_RANDOM
 	tristate "MULTIPATH: random algorithm"
@@ -651,7 +651,7 @@ config TCP_MD5SIG
 	select CRYPTO
 	select CRYPTO_MD5
 	---help---
-	  RFC2385 specifices a method of giving MD5 protection to TCP sessions.
+	  RFC2385 specifies a method of giving MD5 protection to TCP sessions.
 	  Its main (only?) use is to protect BGP sessions between core routers
 	  on the Internet.
 

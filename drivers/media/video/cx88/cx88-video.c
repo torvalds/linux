@@ -1,4 +1,3 @@
-
 /*
  *
  * device driver for Conexant 2388x based TV cards
@@ -34,6 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <asm/div64.h>

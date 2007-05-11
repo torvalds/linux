@@ -137,6 +137,12 @@ early_param("ps3fb", early_parse_ps3fb);
 #define prealloc_ps3fb_videomemory()	do { } while (0)
 #endif
 
+static int ps3_set_dabr(u64 dabr)
+{
+	enum {DABR_USER = 1, DABR_KERNEL = 2,};
+
+	return lv1_set_dabr(dabr, DABR_KERNEL | DABR_USER) ? -1 : 0;
+}
 
 static void __init ps3_setup_arch(void)
 {
@@ -234,6 +240,7 @@ define_machine(ps3) {
 	.get_boot_time			= ps3_get_boot_time,
 	.set_rtc_time			= ps3_set_rtc_time,
 	.get_rtc_time			= ps3_get_rtc_time,
+	.set_dabr			= ps3_set_dabr,
 	.calibrate_decr			= ps3_calibrate_decr,
 	.progress			= ps3_progress,
 	.restart			= ps3_restart,

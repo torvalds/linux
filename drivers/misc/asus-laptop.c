@@ -30,7 +30,7 @@
  *  Eric Burghard  - LED display support for W1N
  *  Josh Green     - Light Sens support
  *  Thomas Tuttle  - His first patch for led support was very helpfull
- *
+ *  Sam Lin        - GPS support
  */
 
 #include <linux/autoconf.h>
@@ -48,7 +48,7 @@
 #include <acpi/acpi_bus.h>
 #include <asm/uaccess.h>
 
-#define ASUS_LAPTOP_VERSION "0.41"
+#define ASUS_LAPTOP_VERSION "0.42"
 
 #define ASUS_HOTK_NAME          "Asus Laptop Support"
 #define ASUS_HOTK_CLASS         "hotkey"
@@ -83,6 +83,7 @@
 #define PLED_ON     0x20	//Phone LED
 #define GLED_ON     0x40	//Gaming LED
 #define LCD_ON      0x80	//LCD backlight
+#define GPS_ON      0x100	//GPS
 
 #define ASUS_LOG    ASUS_HOTK_FILE ": "
 #define ASUS_ERR    KERN_ERR    ASUS_LOG
@@ -148,7 +149,7 @@ ASUS_HANDLE(display_set, ASUS_HOTK_PREFIX "SDSP");
 ASUS_HANDLE(display_get, "\\_SB.PCI0.P0P1.VGA.GETD",	/*  A6B, A6K A6R A7D F3JM L4R M6R A3G
 							   M6A M6V VX-1 V6J V6V W3Z */
 	    "\\_SB.PCI0.P0P2.VGA.GETD",	/* A3E A4K, A4D A4L A6J A7J A8J Z71V M9V
-					   S5A M5A z33A W1Jc W2V */
+					   S5A M5A z33A W1Jc W2V G1 */
 	    "\\_SB.PCI0.P0P3.VGA.GETD",	/* A6V A6Q */
 	    "\\_SB.PCI0.P0PA.VGA.GETD",	/* A6T, A6M */
 	    "\\_SB.PCI0.PCI1.VGAC.NMAP",	/* L3C */
@@ -161,6 +162,12 @@ ASUS_HANDLE(display_get, "\\_SB.PCI0.P0P1.VGA.GETD",	/*  A6B, A6K A6R A7D F3JM L
 
 ASUS_HANDLE(ls_switch, ASUS_HOTK_PREFIX "ALSC");	/* Z71A Z71V */
 ASUS_HANDLE(ls_level, ASUS_HOTK_PREFIX "ALSL");	/* Z71A Z71V */
+
+/* GPS */
+/* R2H use different handle for GPS on/off */
+ASUS_HANDLE(gps_on, ASUS_HOTK_PREFIX "SDON");	/* R2H */
+ASUS_HANDLE(gps_off, ASUS_HOTK_PREFIX "SDOF");	/* R2H */
+ASUS_HANDLE(gps_status, ASUS_HOTK_PREFIX "GPST");
 
 /*
  * This is the main structure, we can use it to store anything interesting
@@ -278,12 +285,28 @@ static int read_wireless_status(int mask)
 	return (hotk->status & mask) ? 1 : 0;
 }
 
+static int read_gps_status(void)
+{
+	ulong status;
+	acpi_status rv = AE_OK;
+
+	rv = acpi_evaluate_integer(gps_status_handle, NULL, NULL, &status);
+	if (ACPI_FAILURE(rv))
+		printk(ASUS_WARNING "Error reading GPS status\n");
+	else
+		return status ? 1 : 0;
+
+	return (hotk->status & GPS_ON) ? 1 : 0;
+}
+
 /* Generic LED functions */
 static int read_status(int mask)
 {
 	/* There is a special method for both wireless devices */
 	if (mask == BT_ON || mask == WL_ON)
 		return read_wireless_status(mask);
+	else if (mask == GPS_ON)
+		return read_gps_status();
 
 	return (hotk->status & mask) ? 1 : 0;
 }
@@ -298,6 +321,10 @@ static void write_status(acpi_handle handle, int out, int mask)
 		break;
 	case GLED_ON:
 		out = (out & 0x1) + 1;
+		break;
+	case GPS_ON:
+		handle = (out) ? gps_on_handle : gps_off_handle;
+		out = 0x02;
 		break;
 	default:
 		out &= 0x1;
@@ -667,6 +694,21 @@ static ssize_t store_lslvl(struct device *dev, struct device_attribute *attr,
 	return rv;
 }
 
+/*
+ * GPS
+ */
+static ssize_t show_gps(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", read_status(GPS_ON));
+}
+
+static ssize_t store_gps(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	return store_status(buf, count, NULL, GPS_ON);
+}
+
 static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
 {
 	/* TODO Find a better way to handle events count. */
@@ -715,6 +757,7 @@ static ASUS_CREATE_DEVICE_ATTR(display);
 static ASUS_CREATE_DEVICE_ATTR(ledd);
 static ASUS_CREATE_DEVICE_ATTR(ls_switch);
 static ASUS_CREATE_DEVICE_ATTR(ls_level);
+static ASUS_CREATE_DEVICE_ATTR(gps);
 
 static struct attribute *asuspf_attributes[] = {
 	&dev_attr_infos.attr,
@@ -724,6 +767,7 @@ static struct attribute *asuspf_attributes[] = {
 	&dev_attr_ledd.attr,
 	&dev_attr_ls_switch.attr,
 	&dev_attr_ls_level.attr,
+	&dev_attr_gps.attr,
 	NULL
 };
 
@@ -763,6 +807,9 @@ static void asus_hotk_add_fs(void)
 		ASUS_SET_DEVICE_ATTR(ls_level, 0644, show_lslvl, store_lslvl);
 		ASUS_SET_DEVICE_ATTR(ls_switch, 0644, show_lssw, store_lssw);
 	}
+
+	if (gps_status_handle && gps_on_handle && gps_off_handle)
+		ASUS_SET_DEVICE_ATTR(gps, 0644, show_gps, store_gps);
 }
 
 static int asus_handle_init(char *name, acpi_handle * handle,
@@ -890,8 +937,12 @@ static int asus_hotk_get_info(void)
 
 	/* There is a lot of models with "ALSL", but a few get
 	   a real light sens, so we need to check it. */
-	if (ASUS_HANDLE_INIT(ls_switch))
+	if (!ASUS_HANDLE_INIT(ls_switch))
 		ASUS_HANDLE_INIT(ls_level);
+
+	ASUS_HANDLE_INIT(gps_on);
+	ASUS_HANDLE_INIT(gps_off);
+	ASUS_HANDLE_INIT(gps_status);
 
 	kfree(model);
 
@@ -950,7 +1001,7 @@ static int asus_hotk_add(struct acpi_device *device)
 	 * We install the handler, it will receive the hotk in parameter, so, we
 	 * could add other data to the hotk struct
 	 */
-	status = acpi_install_notify_handler(hotk->handle, ACPI_SYSTEM_NOTIFY,
+	status = acpi_install_notify_handler(hotk->handle, ACPI_ALL_NOTIFY,
 					     asus_hotk_notify, hotk);
 	if (ACPI_FAILURE(status))
 		printk(ASUS_ERR "Error installing notify handler\n");
@@ -981,6 +1032,9 @@ static int asus_hotk_add(struct acpi_device *device)
 	if (ls_level_handle)
 		set_light_sens_level(hotk->light_level);
 
+	/* GPS is on by default */
+	write_status(NULL, 1, GPS_ON);
+
       end:
 	if (result) {
 		kfree(hotk->name);
@@ -997,7 +1051,7 @@ static int asus_hotk_remove(struct acpi_device *device, int type)
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
-	status = acpi_remove_notify_handler(hotk->handle, ACPI_SYSTEM_NOTIFY,
+	status = acpi_remove_notify_handler(hotk->handle, ACPI_ALL_NOTIFY,
 					    asus_hotk_notify);
 	if (ACPI_FAILURE(status))
 		printk(ASUS_ERR "Error removing notify handler\n");

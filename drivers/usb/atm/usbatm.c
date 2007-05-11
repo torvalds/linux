@@ -77,7 +77,6 @@
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/stat.h>
 #include <linux/timer.h>
 #include <linux/wait.h>
@@ -1034,7 +1033,7 @@ static int usbatm_do_heavy_init(void *arg)
 
 static int usbatm_heavy_init(struct usbatm_data *instance)
 {
-	int ret = kernel_thread(usbatm_do_heavy_init, instance, CLONE_KERNEL);
+	int ret = kernel_thread(usbatm_do_heavy_init, instance, CLONE_FS | CLONE_FILES);
 
 	if (ret < 0) {
 		usb_err(instance, "%s: failed to create kernel_thread (%d)!\n", __func__, ret);

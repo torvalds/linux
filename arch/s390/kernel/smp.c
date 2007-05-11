@@ -25,7 +25,6 @@
 #include <linux/mm.h>
 #include <linux/spinlock.h>
 #include <linux/kernel_stat.h>
-#include <linux/smp_lock.h>
 #include <linux/delay.h>
 #include <linux/cache.h>
 #include <linux/interrupt.h>
@@ -790,10 +789,12 @@ static int __cpuinit smp_cpu_notify(struct notifier_block *self,
 
 	switch (action) {
 	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
 		if (sysdev_create_file(s, &attr_capability))
 			return NOTIFY_BAD;
 		break;
 	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
 		sysdev_remove_file(s, &attr_capability);
 		break;
 	}

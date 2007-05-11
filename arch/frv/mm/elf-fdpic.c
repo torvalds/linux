@@ -13,6 +13,7 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/elf-fdpic.h>
+#include <asm/mman.h>
 
 /*****************************************************************************/
 /*
@@ -63,6 +64,10 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 
 	if (len > TASK_SIZE)
 		return -ENOMEM;
+
+	/* handle MAP_FIXED */
+	if (flags & MAP_FIXED)
+		return addr;
 
 	/* only honour a hint if we're not going to clobber something doing so */
 	if (addr) {

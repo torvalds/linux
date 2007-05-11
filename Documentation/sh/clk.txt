@@ -1,0 +1,32 @@
+Clock framework on SuperH architecture
+
+The framework on SH extends existing API by the function clk_set_rate_ex,
+which prototype is as follows:
+
+    clk_set_rate_ex (struct clk *clk, unsigned long rate, int algo_id)
+
+The algo_id parameter is used to specify algorithm used to recalculate clocks,
+adjanced to clock, specified as first argument. It is assumed that algo_id==0
+means no changes to adjanced clock
+
+Internally, the clk_set_rate_ex forwards request to clk->ops->set_rate method,
+if it is present in ops structure. The method should set the clock rate and adjust
+all needed clocks according to the passed algo_id.
+Exact values for algo_id are machine-dependend. For the sh7722, the following
+values are defined:
+
+	NO_CHANGE	= 0,
+	IUS_N1_N1,	/* I:U = N:1, U:Sh = N:1 */
+	IUS_322,	/* I:U:Sh = 3:2:2	 */
+	IUS_522,	/* I:U:Sh = 5:2:2 	 */
+	IUS_N11,	/* I:U:Sh = N:1:1	 */
+	SB_N1,		/* Sh:B = N:1		 */
+	SB3_N1,		/* Sh:B3 = N:1		 */
+	SB3_32,		/* Sh:B3 = 3:2		 */
+	SB3_43,		/* Sh:B3 = 4:3		 */
+	SB3_54,		/* Sh:B3 = 5:4		 */
+	BP_N1,		/* B:P	 = N:1		 */
+	IP_N1		/* I:P	 = N:1		 */
+
+Each of these constants means relation between clocks that can be set via the FRQCR
+register

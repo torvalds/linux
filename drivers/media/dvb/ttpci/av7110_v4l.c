@@ -31,7 +31,6 @@
 #include <linux/fs.h>
 #include <linux/timer.h>
 #include <linux/poll.h>
-#include <linux/smp_lock.h>
 
 #include "av7110.h"
 #include "av7110_hw.h"

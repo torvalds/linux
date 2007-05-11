@@ -103,7 +103,7 @@ static int vortex_debug = 1;
 
 
 static char version[] __devinitdata =
-DRV_NAME ": Donald Becker and others. www.scyld.com/network/vortex.html\n";
+DRV_NAME ": Donald Becker and others.\n";
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("3Com 3c59x/3c9xx ethernet driver ");

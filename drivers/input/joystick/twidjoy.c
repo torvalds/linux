@@ -205,11 +205,9 @@ static int twidjoy_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->id.vendor = SERIO_TWIDJOY;
 	input_dev->id.product = 0x0001;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = &serio->dev;
-	input_dev->private = twidjoy;
+	input_dev->dev.parent = &serio->dev;
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-	input_dev->absbit[0] = BIT(ABS_X) | BIT(ABS_Y);
 	input_set_abs_params(input_dev, ABS_X, -50, 50, 4, 4);
 	input_set_abs_params(input_dev, ABS_Y, -50, 50, 4, 4);
 

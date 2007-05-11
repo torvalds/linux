@@ -135,6 +135,18 @@ struct mtrr_gentry32
 
 #endif /* CONFIG_COMPAT */
 
+#ifdef CONFIG_MTRR
+extern void mtrr_ap_init(void);
+extern void mtrr_bp_init(void);
+extern void mtrr_save_fixed_ranges(void *);
+extern void mtrr_save_state(void);
+#else
+#define mtrr_ap_init() do {} while (0)
+#define mtrr_bp_init() do {} while (0)
+#define mtrr_save_fixed_ranges(arg) do {} while (0)
+#define mtrr_save_state() do {} while (0)
+#endif
+
 #endif /* __KERNEL__ */
 
 #endif  /*  _LINUX_MTRR_H  */

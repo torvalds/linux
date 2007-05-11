@@ -16,7 +16,6 @@
 #include <linux/init.h>
 #include <linux/file.h>
 #include <linux/dcache.h>
-#include <linux/smp_lock.h>
 #include <linux/module.h>
 #include <linux/net.h>
 #include <linux/kthread.h>
@@ -299,8 +298,6 @@ out:
  */
 static int smbiod(void *unused)
 {
-	allow_signal(SIGKILL);
-
 	VERBOSE("SMB Kernel thread starting (%d) ...\n", current->pid);
 
 	for (;;) {

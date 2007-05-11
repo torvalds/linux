@@ -1280,14 +1280,14 @@ qla2x00_get_port_name(scsi_qla_host_t *ha, uint16_t loop_id, uint8_t *name,
 	} else {
 		if (name != NULL) {
 			/* This function returns name in big endian. */
-			name[0] = LSB(mcp->mb[2]);
-			name[1] = MSB(mcp->mb[2]);
-			name[2] = LSB(mcp->mb[3]);
-			name[3] = MSB(mcp->mb[3]);
-			name[4] = LSB(mcp->mb[6]);
-			name[5] = MSB(mcp->mb[6]);
-			name[6] = LSB(mcp->mb[7]);
-			name[7] = MSB(mcp->mb[7]);
+			name[0] = MSB(mcp->mb[2]);
+			name[1] = LSB(mcp->mb[2]);
+			name[2] = MSB(mcp->mb[3]);
+			name[3] = LSB(mcp->mb[3]);
+			name[4] = MSB(mcp->mb[6]);
+			name[5] = LSB(mcp->mb[6]);
+			name[6] = MSB(mcp->mb[7]);
+			name[7] = LSB(mcp->mb[7]);
 		}
 
 		DEBUG11(printk("qla2x00_get_port_name(%ld): done.\n",

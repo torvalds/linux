@@ -1717,7 +1717,7 @@ static int __devinit i810_alloc_agp_mem(struct fb_info *info)
  * @info: pointer to device specific info structure
  *
  * DESCRIPTION:
- * Sets the the user monitor's horizontal and vertical
+ * Sets the user monitor's horizontal and vertical
  * frequency limits
  */
 static void __devinit i810_init_monspecs(struct fb_info *info)

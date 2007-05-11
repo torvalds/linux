@@ -1,7 +1,7 @@
 /*
 ** atariints.h -- Atari Linux interrupt handling structs and prototypes
 **
-** Copyright 1994 by Bjîrn Brauel
+** Copyright 1994 by Bj√∂rn Brauel
 **
 ** 5/2/94 Roman Hodek:
 **   TT interrupt definitions added.

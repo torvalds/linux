@@ -8,7 +8,6 @@ header-y += apb.h
 header-y += asi.h
 header-y += bbc.h
 header-y += bpp.h
-header-y += const.h
 header-y += display7seg.h
 header-y += envctrl.h
 header-y += ipc.h

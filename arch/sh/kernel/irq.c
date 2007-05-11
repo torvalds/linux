@@ -13,6 +13,7 @@
 #include <linux/seq_file.h>
 #include <linux/irq.h>
 #include <asm/processor.h>
+#include <asm/machvec.h>
 #include <asm/uaccess.h>
 #include <asm/thread_info.h>
 #include <asm/cpu/mmu_context.h>
@@ -44,7 +45,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 	}
 
-	if (i < NR_IRQS) {
+	if (i < sh_mv.mv_nr_irqs) {
 		spin_lock_irqsave(&irq_desc[i].lock, flags);
 		action = irq_desc[i].action;
 		if (!action)
@@ -61,7 +62,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 unlock:
 		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	} else if (i == NR_IRQS)
+	} else if (i == sh_mv.mv_nr_irqs)
 		seq_printf(p, "Err: %10u\n", atomic_read(&irq_err_count));
 
 	return 0;

@@ -16,6 +16,16 @@ static inline pmd_t *pmd_off_k(unsigned long virt)
 	return pmd_off(pgd_offset_k(virt), virt);
 }
 
+struct mem_type {
+	unsigned int prot_pte;
+	unsigned int prot_pte_ext;
+	unsigned int prot_l1;
+	unsigned int prot_sect;
+	unsigned int domain;
+};
+
+const struct mem_type *get_mem_type(unsigned int type);
+
 #endif
 
 struct map_desc;

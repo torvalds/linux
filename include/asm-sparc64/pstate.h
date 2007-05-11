@@ -2,7 +2,7 @@
 #ifndef _SPARC64_PSTATE_H
 #define _SPARC64_PSTATE_H
 
-#include <asm/const.h>
+#include <linux/const.h>
 
 /* The V9 PSTATE Register (with SpitFire extensions).
  *

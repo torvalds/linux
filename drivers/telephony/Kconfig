@@ -3,6 +3,7 @@
 #
 
 menu "Telephony Support"
+	depends on HAS_IOMEM
 
 config PHONE
 	tristate "Linux telephony support"

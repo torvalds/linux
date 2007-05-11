@@ -825,6 +825,17 @@ int vsscanf(const char * buf, const char * fmt, va_list args)
 			break;
 		str = next;
 	}
+
+	/*
+	 * Now we've come all the way through so either the input string or the
+	 * format ended. In the former case, there can be a %n at the current
+	 * position in the format that needs to be filled.
+	 */
+	if (*fmt == '%' && *(fmt + 1) == 'n') {
+		int *p = (int *)va_arg(args, int *);
+		*p = str - buf;
+	}
+
 	return num;
 }
 

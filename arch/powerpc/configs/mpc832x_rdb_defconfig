@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.21-rc3
-# Mon Mar 12 17:32:19 2007
+# Linux kernel version: 2.6.21-rc5
+# Mon Apr  9 16:12:43 2007
 #
 # CONFIG_PPC64 is not set
 CONFIG_PPC32=y
@@ -125,7 +125,6 @@ CONFIG_DEFAULT_AS=y
 # CONFIG_DEFAULT_NOOP is not set
 CONFIG_DEFAULT_IOSCHED="anticipatory"
 CONFIG_QUICC_ENGINE=y
-CONFIG_PPC_GEN550=y
 # CONFIG_WANT_EARLY_SERIAL is not set
 
 #
@@ -490,7 +489,21 @@ CONFIG_NETDEVICES=y
 #
 # PHY device support
 #
-# CONFIG_PHYLIB is not set
+CONFIG_PHYLIB=y
+
+#
+# MII PHY device drivers
+#
+# CONFIG_MARVELL_PHY is not set
+# CONFIG_DAVICOM_PHY is not set
+# CONFIG_QSEMI_PHY is not set
+# CONFIG_LXT_PHY is not set
+# CONFIG_CICADA_PHY is not set
+# CONFIG_VITESSE_PHY is not set
+# CONFIG_SMSC_PHY is not set
+# CONFIG_BROADCOM_PHY is not set
+CONFIG_ICPLUS_PHY=y
+# CONFIG_FIXED_PHY is not set
 
 #
 # Ethernet (10 or 100Mbit)
@@ -1200,11 +1213,7 @@ CONFIG_NLS_ISO8859_1=y
 # Distributed Lock Manager
 #
 # CONFIG_DLM is not set
-
-#
-# QE Options
-#
-CONFIG_UCC_SLOW=y
+# CONFIG_UCC_SLOW is not set
 CONFIG_UCC_FAST=y
 CONFIG_UCC=y
 
@@ -1238,7 +1247,6 @@ CONFIG_ENABLE_MUST_CHECK=y
 CONFIG_LOG_BUF_SHIFT=14
 # CONFIG_DEBUG_BUGVERBOSE is not set
 # CONFIG_BOOTX_TEXT is not set
-# CONFIG_SERIAL_TEXT_DEBUG is not set
 # CONFIG_PPC_EARLY_DEBUG is not set
 
 #

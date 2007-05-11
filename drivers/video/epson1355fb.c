@@ -403,16 +403,9 @@ static inline unsigned long copy_to_user16(void *to, const void *from,
 
 
 static ssize_t
-epson1355fb_read(struct file *file, char *buf, size_t count, loff_t * ppos)
+epson1355fb_read(struct fb_info *info, char *buf, size_t count, loff_t * ppos)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int fbidx = iminor(inode);
-	struct fb_info *info = registered_fb[fbidx];
 	unsigned long p = *ppos;
-
-	/* from fbmem.c except for our own copy_*_user */
-	if (!info || !info->screen_base)
-		return -ENODEV;
 
 	if (p >= info->fix.smem_len)
 		return 0;
@@ -434,18 +427,11 @@ epson1355fb_read(struct file *file, char *buf, size_t count, loff_t * ppos)
 }
 
 static ssize_t
-epson1355fb_write(struct file *file, const char *buf,
+epson1355fb_write(struct fb_info *info, const char *buf,
 		  size_t count, loff_t * ppos)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int fbidx = iminor(inode);
-	struct fb_info *info = registered_fb[fbidx];
 	unsigned long p = *ppos;
 	int err;
-
-	/* from fbmem.c except for our own copy_*_user */
-	if (!info || !info->screen_base)
-		return -ENODEV;
 
 	/* from fbmem.c except for our own copy_*_user */
 	if (p > info->fix.smem_len)
@@ -650,9 +636,10 @@ int __init epson1355fb_probe(struct platform_device *dev)
 	}
 
 	info = framebuffer_alloc(sizeof(struct epson1355_par) + sizeof(u32) * 256, &dev->dev);
-	if (!info)
+	if (!info) {
 		rc = -ENOMEM;
 		goto bail;
+	}
 
 	default_par = info->par;
 	default_par->reg_addr = (unsigned long) ioremap(EPSON1355FB_REGS_PHYS, EPSON1355FB_REGS_LEN);

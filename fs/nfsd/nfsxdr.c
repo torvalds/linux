@@ -231,9 +231,10 @@ int
 nfssvc_decode_sattrargs(struct svc_rqst *rqstp, __be32 *p,
 					struct nfsd_sattrargs *args)
 {
-	if (!(p = decode_fh(p, &args->fh))
-	 || !(p = decode_sattr(p, &args->attrs)))
+	p = decode_fh(p, &args->fh);
+	if (!p)
 		return 0;
+	p = decode_sattr(p, &args->attrs);
 
 	return xdr_argsize_check(rqstp, p);
 }
@@ -284,8 +285,9 @@ int
 nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 					struct nfsd_writeargs *args)
 {
-	unsigned int len;
+	unsigned int len, hdr, dlen;
 	int v;
+
 	if (!(p = decode_fh(p, &args->fh)))
 		return 0;
 
@@ -293,11 +295,30 @@ nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 	args->offset = ntohl(*p++);	/* offset */
 	p++;				/* totalcount */
 	len = args->len = ntohl(*p++);
-	rqstp->rq_vec[0].iov_base = (void*)p;
-	rqstp->rq_vec[0].iov_len = rqstp->rq_arg.head[0].iov_len -
-				(((void*)p) - rqstp->rq_arg.head[0].iov_base);
+	/*
+	 * The protocol specifies a maximum of 8192 bytes.
+	 */
 	if (len > NFSSVC_MAXBLKSIZE_V2)
-		len = NFSSVC_MAXBLKSIZE_V2;
+		return 0;
+
+	/*
+	 * Check to make sure that we got the right number of
+	 * bytes.
+	 */
+	hdr = (void*)p - rqstp->rq_arg.head[0].iov_base;
+	dlen = rqstp->rq_arg.head[0].iov_len + rqstp->rq_arg.page_len
+		- hdr;
+
+	/*
+	 * Round the length of the data which was specified up to
+	 * the next multiple of XDR units and then compare that
+	 * against the length which was actually received.
+	 */
+	if (dlen != XDR_QUADLEN(len)*4)
+		return 0;
+
+	rqstp->rq_vec[0].iov_base = (void*)p;
+	rqstp->rq_vec[0].iov_len = rqstp->rq_arg.head[0].iov_len - hdr;
 	v = 0;
 	while (len > rqstp->rq_vec[v].iov_len) {
 		len -= rqstp->rq_vec[v].iov_len;
@@ -306,18 +327,18 @@ nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 		rqstp->rq_vec[v].iov_len = PAGE_SIZE;
 	}
 	rqstp->rq_vec[v].iov_len = len;
-	args->vlen = v+1;
-	return rqstp->rq_vec[0].iov_len > 0;
+	args->vlen = v + 1;
+	return 1;
 }
 
 int
 nfssvc_decode_createargs(struct svc_rqst *rqstp, __be32 *p,
 					struct nfsd_createargs *args)
 {
-	if (!(p = decode_fh(p, &args->fh))
-	 || !(p = decode_filename(p, &args->name, &args->len))
-	 || !(p = decode_sattr(p, &args->attrs)))
+	if (   !(p = decode_fh(p, &args->fh))
+	    || !(p = decode_filename(p, &args->name, &args->len)))
 		return 0;
+	p = decode_sattr(p, &args->attrs);
 
 	return xdr_argsize_check(rqstp, p);
 }
@@ -361,11 +382,11 @@ int
 nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p,
 					struct nfsd_symlinkargs *args)
 {
-	if (!(p = decode_fh(p, &args->ffh))
-	 || !(p = decode_filename(p, &args->fname, &args->flen))
-	 || !(p = decode_pathname(p, &args->tname, &args->tlen))
-	 || !(p = decode_sattr(p, &args->attrs)))
+	if (   !(p = decode_fh(p, &args->ffh))
+	    || !(p = decode_filename(p, &args->fname, &args->flen))
+	    || !(p = decode_pathname(p, &args->tname, &args->tlen)))
 		return 0;
+	p = decode_sattr(p, &args->attrs);
 
 	return xdr_argsize_check(rqstp, p);
 }

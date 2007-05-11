@@ -43,6 +43,7 @@ extern int pciehp_poll_mode;
 extern int pciehp_poll_time;
 extern int pciehp_debug;
 extern int pciehp_force;
+extern struct workqueue_struct *pciehp_wq;
 
 #define dbg(format, arg...)						\
 	do {								\
@@ -70,14 +71,16 @@ struct slot {
 	struct list_head	slot_list;
 	char name[SLOT_NAME_SIZE];
 	unsigned long last_emi_toggle;
+	struct delayed_work work;	/* work for button event */
+	struct mutex lock;
 };
 
 struct event_info {
 	u32 event_type;
-	u8 hp_slot;
+	struct slot *p_slot;
+	struct work_struct work;
 };
 
-#define MAX_EVENTS		10
 struct controller {
 	struct controller *next;
 	struct mutex crit_sect;		/* critical section mutex */
@@ -86,11 +89,9 @@ struct controller {
 	int slot_num_inc;		/* 1 or -1 */
 	struct pci_dev *pci_dev;
 	struct list_head slot_list;
-	struct event_info event_queue[MAX_EVENTS];
 	struct slot *slot;
 	struct hpc_ops *hpc_ops;
 	wait_queue_head_t queue;	/* sleep & wake process */
-	u8 next_event;
 	u8 bus;
 	u8 device;
 	u8 function;
@@ -149,20 +150,16 @@ struct controller {
 #define HP_SUPR_RM(cap)		(cap & HP_SUPR_RM_SUP)
 #define EMI(cap)		(cap & EMI_PRSN)
 
-extern int pciehp_event_start_thread(void);
-extern void pciehp_event_stop_thread(void);
-extern int pciehp_enable_slot(struct slot *slot);
-extern int pciehp_disable_slot(struct slot *slot);
+extern int pciehp_sysfs_enable_slot(struct slot *slot);
+extern int pciehp_sysfs_disable_slot(struct slot *slot);
 extern u8 pciehp_handle_attention_button(u8 hp_slot, struct controller *ctrl);
 extern u8 pciehp_handle_switch_change(u8 hp_slot, struct controller *ctrl);
 extern u8 pciehp_handle_presence_change(u8 hp_slot, struct controller *ctrl);
 extern u8 pciehp_handle_power_fault(u8 hp_slot, struct controller *ctrl);
 extern int pciehp_configure_device(struct slot *p_slot);
 extern int pciehp_unconfigure_device(struct slot *p_slot);
+extern void pciehp_queue_pushbutton_work(struct work_struct *work);
 int pcie_init(struct controller *ctrl, struct pcie_device *dev);
-
-/* Global variables */
-extern struct controller *pciehp_ctrl_list;
 
 static inline struct slot *pciehp_find_slot(struct controller *ctrl, u8 device)
 {

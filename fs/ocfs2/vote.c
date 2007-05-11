@@ -26,7 +26,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/highmem.h>
-#include <linux/smp_lock.h>
 #include <linux/kthread.h>
 
 #include <cluster/heartbeat.h>

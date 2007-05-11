@@ -1,7 +1,6 @@
 #include "asm/ptrace.h"
 #include "asm/sigcontext.h"
 #include "sysdep/ptrace.h"
-#include "user_util.h"
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

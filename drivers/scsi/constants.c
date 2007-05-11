@@ -202,31 +202,29 @@ static const char * get_sa_name(const struct value_name_pair * arr,
 }
 
 /* attempt to guess cdb length if cdb_len==0 . No trailing linefeed. */
-static void print_opcode_name(unsigned char * cdbp, int cdb_len,
-			      int start_of_line)
+static void print_opcode_name(unsigned char * cdbp, int cdb_len)
 {
 	int sa, len, cdb0;
 	const char * name;
-	const char * leadin = start_of_line ? KERN_INFO : "";
 
 	cdb0 = cdbp[0];
 	switch(cdb0) {
 	case VARIABLE_LENGTH_CMD:
 		len = cdbp[7] + 8;
 		if (len < 10) {
-			printk("%sshort variable length command, "
-			       "len=%d ext_len=%d", leadin, len, cdb_len);
+			printk("short variable length command, "
+			       "len=%d ext_len=%d", len, cdb_len);
 			break;
 		}
 		sa = (cdbp[8] << 8) + cdbp[9];
 		name = get_sa_name(maint_in_arr, MAINT_IN_SZ, sa);
 		if (name) {
-			printk("%s%s", leadin, name);
+			printk("%s", name);
 			if ((cdb_len > 0) && (len != cdb_len))
 				printk(", in_cdb_len=%d, ext_len=%d",
 				       len, cdb_len);
 		} else {
-			printk("%scdb[0]=0x%x, sa=0x%x", leadin, cdb0, sa);
+			printk("cdb[0]=0x%x, sa=0x%x", cdb0, sa);
 			if ((cdb_len > 0) && (len != cdb_len))
 				printk(", in_cdb_len=%d, ext_len=%d",
 				       len, cdb_len);
@@ -236,83 +234,80 @@ static void print_opcode_name(unsigned char * cdbp, int cdb_len,
 		sa = cdbp[1] & 0x1f;
 		name = get_sa_name(maint_in_arr, MAINT_IN_SZ, sa);
 		if (name)
-			printk("%s%s", leadin, name);
+			printk("%s", name);
 		else
-			printk("%scdb[0]=0x%x, sa=0x%x", leadin, cdb0, sa);
+			printk("cdb[0]=0x%x, sa=0x%x", cdb0, sa);
 		break;
 	case MAINTENANCE_OUT:
 		sa = cdbp[1] & 0x1f;
 		name = get_sa_name(maint_out_arr, MAINT_OUT_SZ, sa);
 		if (name)
-			printk("%s%s", leadin, name);
+			printk("%s", name);
 		else
-			printk("%scdb[0]=0x%x, sa=0x%x", leadin, cdb0, sa);
+			printk("cdb[0]=0x%x, sa=0x%x", cdb0, sa);
 		break;
 	case SERVICE_ACTION_IN_12:
 		sa = cdbp[1] & 0x1f;
 		name = get_sa_name(serv_in12_arr, SERV_IN12_SZ, sa);
 		if (name)
-			printk("%s%s", leadin, name);
+			printk("%s", name);
 		else
-			printk("%scdb[0]=0x%x, sa=0x%x", leadin, cdb0, sa);
+			printk("cdb[0]=0x%x, sa=0x%x", cdb0, sa);
 		break;
 	case SERVICE_ACTION_OUT_12:
 		sa = cdbp[1] & 0x1f;
 		name = get_sa_name(serv_out12_arr, SERV_OUT12_SZ, sa);
 		if (name)
-			printk("%s%s", leadin, name);
+			printk("%s", name);
 		else
-			printk("%scdb[0]=0x%x, sa=0x%x", leadin, cdb0, sa);
+			printk("cdb[0]=0x%x, sa=0x%x", cdb0, sa);
 		break;
 	case SERVICE_ACTION_IN_16:
 		sa = cdbp[1] & 0x1f;
 		name = get_sa_name(serv_in16_arr, SERV_IN16_SZ, sa);
 		if (name)
-			printk("%s%s", leadin, name);
+			printk("%s", name);
 		else
-			printk("%scdb[0]=0x%x, sa=0x%x", leadin, cdb0, sa);
+			printk("cdb[0]=0x%x, sa=0x%x", cdb0, sa);
 		break;
 	case SERVICE_ACTION_OUT_16:
 		sa = cdbp[1] & 0x1f;
 		name = get_sa_name(serv_out16_arr, SERV_OUT16_SZ, sa);
 		if (name)
-			printk("%s%s", leadin, name);
+			printk("%s", name);
 		else
-			printk("%scdb[0]=0x%x, sa=0x%x", leadin, cdb0, sa);
+			printk("cdb[0]=0x%x, sa=0x%x", cdb0, sa);
 		break;
 	default:
 		if (cdb0 < 0xc0) {
 			name = cdb_byte0_names[cdb0];
 			if (name)
-				printk("%s%s", leadin, name);
+				printk("%s", name);
 			else
-				printk("%scdb[0]=0x%x (reserved)",
-				       leadin, cdb0);
+				printk("cdb[0]=0x%x (reserved)", cdb0);
 		} else
-			printk("%scdb[0]=0x%x (vendor)", leadin, cdb0);
+			printk("cdb[0]=0x%x (vendor)", cdb0);
 		break;
 	}
 }
 
 #else /* ifndef CONFIG_SCSI_CONSTANTS */
 
-static void print_opcode_name(unsigned char * cdbp, int cdb_len,
-			      int start_of_line)
+static void print_opcode_name(unsigned char * cdbp, int cdb_len)
 {
 	int sa, len, cdb0;
-	const char * leadin = start_of_line ? KERN_INFO : "";
 
 	cdb0 = cdbp[0];
 	switch(cdb0) {
 	case VARIABLE_LENGTH_CMD:
 		len = cdbp[7] + 8;
 		if (len < 10) {
-			printk("%sshort opcode=0x%x command, len=%d "
-			       "ext_len=%d", leadin, cdb0, len, cdb_len);
+			printk("short opcode=0x%x command, len=%d "
+			       "ext_len=%d", cdb0, len, cdb_len);
 			break;
 		}
 		sa = (cdbp[8] << 8) + cdbp[9];
-		printk("%scdb[0]=0x%x, sa=0x%x", leadin, cdb0, sa);
+		printk("cdb[0]=0x%x, sa=0x%x", cdb0, sa);
 		if (len != cdb_len)
 			printk(", in_cdb_len=%d, ext_len=%d", len, cdb_len);
 		break;
@@ -323,49 +318,48 @@ static void print_opcode_name(unsigned char * cdbp, int cdb_len,
 	case SERVICE_ACTION_IN_16:
 	case SERVICE_ACTION_OUT_16:
 		sa = cdbp[1] & 0x1f;
-		printk("%scdb[0]=0x%x, sa=0x%x", leadin, cdb0, sa);
+		printk("cdb[0]=0x%x, sa=0x%x", cdb0, sa);
 		break;
 	default:
 		if (cdb0 < 0xc0)
-			printk("%scdb[0]=0x%x", leadin, cdb0);
+			printk("cdb[0]=0x%x", cdb0);
 		else
-			printk("%scdb[0]=0x%x (vendor)", leadin, cdb0);
+			printk("cdb[0]=0x%x (vendor)", cdb0);
 		break;
 	}
 }
 #endif  
 
-void __scsi_print_command(unsigned char *command)
+void __scsi_print_command(unsigned char *cdb)
 {
 	int k, len;
 
-	print_opcode_name(command, 0, 1);
-	if (VARIABLE_LENGTH_CMD == command[0])
-		len = command[7] + 8;
+	print_opcode_name(cdb, 0);
+	if (VARIABLE_LENGTH_CMD == cdb[0])
+		len = cdb[7] + 8;
 	else
-		len = COMMAND_SIZE(command[0]);
+		len = COMMAND_SIZE(cdb[0]);
 	/* print out all bytes in cdb */
 	for (k = 0; k < len; ++k) 
-		printk(" %02x", command[k]);
+		printk(" %02x", cdb[k]);
 	printk("\n");
 }
 EXPORT_SYMBOL(__scsi_print_command);
 
-/* This function (perhaps with the addition of peripheral device type)
- * is more approriate than __scsi_print_command(). Perhaps that static
- * can be dropped later if it replaces the __scsi_print_command version.
- */
-static void scsi_print_cdb(unsigned char *cdb, int cdb_len, int start_of_line)
+void scsi_print_command(struct scsi_cmnd *cmd)
 {
 	int k;
 
-	print_opcode_name(cdb, cdb_len, start_of_line);
+	scmd_printk(KERN_INFO, cmd, "CDB: ");
+	print_opcode_name(cmd->cmnd, cmd->cmd_len);
+
 	/* print out all bytes in cdb */
 	printk(":");
-	for (k = 0; k < cdb_len; ++k) 
-		printk(" %02x", cdb[k]);
+	for (k = 0; k < cmd->cmd_len; ++k)
+		printk(" %02x", cmd->cmnd[k]);
 	printk("\n");
 }
+EXPORT_SYMBOL(scsi_print_command);
 
 /**
  *
@@ -410,7 +404,11 @@ struct error_info {
 	const char * text;
 };
 
-static struct error_info additional[] =
+/*
+ * The canonical list of T10 Additional Sense Codes is available at:
+ * http://www.t10.org/lists/asc-num.txt
+ */
+static const struct error_info additional[] =
 {
 	{0x0000, "No additional sense information"},
 	{0x0001, "Filemark detected"},
@@ -714,6 +712,7 @@ static struct error_info additional[] =
 
 	{0x2F00, "Commands cleared by another initiator"},
 	{0x2F01, "Commands cleared by power loss notification"},
+	{0x2F02, "Commands cleared by device server"},
 
 	{0x3000, "Incompatible medium installed"},
 	{0x3001, "Cannot read medium - unknown format"},
@@ -1176,67 +1175,77 @@ scsi_extd_sense_format(unsigned char asc, unsigned char ascq) {
 }
 EXPORT_SYMBOL(scsi_extd_sense_format);
 
-/* Print extended sense information; no leadin, no linefeed */
-static void
+void
 scsi_show_extd_sense(unsigned char asc, unsigned char ascq)
 {
-	const char *extd_sense_fmt = scsi_extd_sense_format(asc, ascq);
+        const char *extd_sense_fmt = scsi_extd_sense_format(asc, ascq);
 
 	if (extd_sense_fmt) {
 		if (strstr(extd_sense_fmt, "%x")) {
-			printk("Additional sense: ");
+			printk("Add. Sense: ");
 			printk(extd_sense_fmt, ascq);
 		} else
-			printk("Additional sense: %s", extd_sense_fmt);
+			printk("Add. Sense: %s", extd_sense_fmt);
 	} else {
 		if (asc >= 0x80)
-			printk("<<vendor>> ASC=0x%x ASCQ=0x%x", asc, ascq);
+			printk("<<vendor>> ASC=0x%x ASCQ=0x%x", asc,
+			       ascq);
 		if (ascq >= 0x80)
-			printk("ASC=0x%x <<vendor>> ASCQ=0x%x", asc, ascq);
+			printk("ASC=0x%x <<vendor>> ASCQ=0x%x", asc,
+			       ascq);
 		else
 			printk("ASC=0x%x ASCQ=0x%x", asc, ascq);
 	}
+
+	printk("\n");
 }
+EXPORT_SYMBOL(scsi_show_extd_sense);
 
 void
-scsi_print_sense_hdr(const char *name, struct scsi_sense_hdr *sshdr)
+scsi_show_sense_hdr(struct scsi_sense_hdr *sshdr)
 {
 	const char *sense_txt;
-	/* An example of deferred is when an earlier write to disk cache
-	 * succeeded, but now the disk discovers that it cannot write the
-	 * data to the magnetic media.
-	 */
-	const char *error = scsi_sense_is_deferred(sshdr) ? 
-		"<<DEFERRED>>" : "Current";
-	printk(KERN_INFO "%s: %s", name, error);
-	if (sshdr->response_code >= 0x72)
-		printk(" [descriptor]");
 
 	sense_txt = scsi_sense_key_string(sshdr->sense_key);
 	if (sense_txt)
-		printk(": sense key: %s\n", sense_txt);
+		printk("Sense Key : %s ", sense_txt);
 	else
-		printk(": sense key=0x%x\n", sshdr->sense_key);
-	printk(KERN_INFO "    ");
-	scsi_show_extd_sense(sshdr->asc, sshdr->ascq);
+		printk("Sense Key : 0x%x ", sshdr->sense_key);
+
+	printk("%s", scsi_sense_is_deferred(sshdr) ? "[deferred] " :
+	       "[current] ");
+
+	if (sshdr->response_code >= 0x72)
+		printk("[descriptor]");
+
 	printk("\n");
+}
+EXPORT_SYMBOL(scsi_show_sense_hdr);
+
+/*
+ * Print normalized SCSI sense header with a prefix.
+ */
+void
+scsi_print_sense_hdr(const char *name, struct scsi_sense_hdr *sshdr)
+{
+	printk(KERN_INFO "%s: ", name);
+	scsi_show_sense_hdr(sshdr);
+	printk(KERN_INFO "%s: ", name);
+	scsi_show_extd_sense(sshdr->asc, sshdr->ascq);
 }
 EXPORT_SYMBOL(scsi_print_sense_hdr);
 
-/* Print sense information */
 void
-__scsi_print_sense(const char *name, const unsigned char *sense_buffer,
-		   int sense_len)
+scsi_decode_sense_buffer(const unsigned char *sense_buffer, int sense_len,
+		       struct scsi_sense_hdr *sshdr)
 {
 	int k, num, res;
-	unsigned int info;
-	struct scsi_sense_hdr ssh;
     
-	res = scsi_normalize_sense(sense_buffer, sense_len, &ssh);
+	res = scsi_normalize_sense(sense_buffer, sense_len, sshdr);
 	if (0 == res) {
 		/* this may be SCSI-1 sense data */
 		num = (sense_len < 32) ? sense_len : 32;
-		printk(KERN_INFO "Unrecognized sense data (in hex):");
+		printk("Unrecognized sense data (in hex):");
 		for (k = 0; k < num; ++k) {
 			if (0 == (k % 16)) {
 				printk("\n");
@@ -1247,11 +1256,20 @@ __scsi_print_sense(const char *name, const unsigned char *sense_buffer,
 		printk("\n");
 		return;
 	}
-	scsi_print_sense_hdr(name, &ssh);
-	if (ssh.response_code < 0x72) {
+}
+
+void
+scsi_decode_sense_extras(const unsigned char *sense_buffer, int sense_len,
+			 struct scsi_sense_hdr *sshdr)
+{
+	int k, num, res;
+
+	if (sshdr->response_code < 0x72)
+	{
 		/* only decode extras for "fixed" format now */
 		char buff[80];
 		int blen, fixed_valid;
+		unsigned int info;
 
 		fixed_valid = sense_buffer[0] & 0x80;
 		info = ((sense_buffer[3] << 24) | (sense_buffer[4] << 16) |
@@ -1281,13 +1299,13 @@ __scsi_print_sense(const char *name, const unsigned char *sense_buffer,
 			res += snprintf(buff + res, blen - res, "ILI");
 		}
 		if (res > 0)
-			printk(KERN_INFO "%s\n", buff);
-	} else if (ssh.additional_length > 0) {
+			printk("%s\n", buff);
+	} else if (sshdr->additional_length > 0) {
 		/* descriptor format with sense descriptors */
-		num = 8 + ssh.additional_length;
+		num = 8 + sshdr->additional_length;
 		num = (sense_len < num) ? sense_len : num;
-		printk(KERN_INFO "Descriptor sense data with sense "
-		       "descriptors (in hex):");
+		printk("Descriptor sense data with sense descriptors "
+		       "(in hex):");
 		for (k = 0; k < num; ++k) {
 			if (0 == (k % 16)) {
 				printk("\n");
@@ -1295,29 +1313,42 @@ __scsi_print_sense(const char *name, const unsigned char *sense_buffer,
 			}
 			printk("%02x ", sense_buffer[k]);
 		}
+
 		printk("\n");
 	}
+
+}
+
+/* Normalize and print sense buffer with name prefix */
+void __scsi_print_sense(const char *name, const unsigned char *sense_buffer,
+			int sense_len)
+{
+	struct scsi_sense_hdr sshdr;
+
+	printk(KERN_INFO "%s: ", name);
+	scsi_decode_sense_buffer(sense_buffer, sense_len, &sshdr);
+	scsi_show_sense_hdr(&sshdr);
+	scsi_decode_sense_extras(sense_buffer, sense_len, &sshdr);
+	printk(KERN_INFO "%s: ", name);
+	scsi_show_extd_sense(sshdr.asc, sshdr.ascq);
 }
 EXPORT_SYMBOL(__scsi_print_sense);
 
-void scsi_print_sense(const char *devclass, struct scsi_cmnd *cmd)
+/* Normalize and print sense buffer in SCSI command */
+void scsi_print_sense(char *name, struct scsi_cmnd *cmd)
 {
-	const char *name = devclass;
+	struct scsi_sense_hdr sshdr;
 
-	if (cmd->request->rq_disk)
-		name = cmd->request->rq_disk->disk_name;
-	__scsi_print_sense(name, cmd->sense_buffer, SCSI_SENSE_BUFFERSIZE);
+	scmd_printk(KERN_INFO, cmd, "");
+	scsi_decode_sense_buffer(cmd->sense_buffer, SCSI_SENSE_BUFFERSIZE,
+				 &sshdr);
+	scsi_show_sense_hdr(&sshdr);
+	scsi_decode_sense_extras(cmd->sense_buffer, SCSI_SENSE_BUFFERSIZE,
+				 &sshdr);
+	scmd_printk(KERN_INFO, cmd, "");
+	scsi_show_extd_sense(sshdr.asc, sshdr.ascq);
 }
 EXPORT_SYMBOL(scsi_print_sense);
-
-void scsi_print_command(struct scsi_cmnd *cmd)
-{
-	/* Assume appended output (i.e. not at start of line) */
-	sdev_printk("", cmd->device, "\n");
-	printk(KERN_INFO "        command: ");
-	scsi_print_cdb(cmd->cmnd, cmd->cmd_len, 0);
-}
-EXPORT_SYMBOL(scsi_print_command);
 
 #ifdef CONFIG_SCSI_CONSTANTS
 
@@ -1326,25 +1357,6 @@ static const char * const hostbyte_table[]={
 "DID_ABORT", "DID_PARITY", "DID_ERROR", "DID_RESET", "DID_BAD_INTR",
 "DID_PASSTHROUGH", "DID_SOFT_ERROR", "DID_IMM_RETRY"};
 #define NUM_HOSTBYTE_STRS ARRAY_SIZE(hostbyte_table)
-
-void scsi_print_hostbyte(int scsiresult)
-{
-	int hb = host_byte(scsiresult);
-
-	printk("Hostbyte=0x%02x", hb);
-	if (hb < NUM_HOSTBYTE_STRS)
-		printk("(%s) ", hostbyte_table[hb]);
-	else
-		printk("is invalid ");
-}
-#else
-void scsi_print_hostbyte(int scsiresult)
-{
-	printk("Hostbyte=0x%02x ", host_byte(scsiresult));
-}
-#endif
-
-#ifdef CONFIG_SCSI_CONSTANTS
 
 static const char * const driverbyte_table[]={
 "DRIVER_OK", "DRIVER_BUSY", "DRIVER_SOFT",  "DRIVER_MEDIA", "DRIVER_ERROR",
@@ -1356,19 +1368,35 @@ static const char * const driversuggest_table[]={"SUGGEST_OK",
 "SUGGEST_5", "SUGGEST_6", "SUGGEST_7", "SUGGEST_SENSE"};
 #define NUM_SUGGEST_STRS ARRAY_SIZE(driversuggest_table)
 
-void scsi_print_driverbyte(int scsiresult)
+void scsi_show_result(int result)
 {
-	int dr = (driver_byte(scsiresult) & DRIVER_MASK);
-	int su = ((driver_byte(scsiresult) & SUGGEST_MASK) >> 4);
+	int hb = host_byte(result);
+	int db = (driver_byte(result) & DRIVER_MASK);
+	int su = ((driver_byte(result) & SUGGEST_MASK) >> 4);
 
-	printk("Driverbyte=0x%02x ", driver_byte(scsiresult));
-	printk("(%s,%s) ",
-	       (dr < NUM_DRIVERBYTE_STRS ? driverbyte_table[dr] : "invalid"),
+	printk("Result: hostbyte=%s driverbyte=%s,%s\n",
+	       (hb < NUM_HOSTBYTE_STRS ? hostbyte_table[hb]     : "invalid"),
+	       (db < NUM_DRIVERBYTE_STRS ? driverbyte_table[db] : "invalid"),
 	       (su < NUM_SUGGEST_STRS ? driversuggest_table[su] : "invalid"));
 }
+
 #else
-void scsi_print_driverbyte(int scsiresult)
+
+void scsi_show_result(int result)
 {
-	printk("Driverbyte=0x%02x ", driver_byte(scsiresult));
+	printk("Result: hostbyte=0x%02x driverbyte=0x%02x\n",
+	       host_byte(result), driver_byte(result));
 }
+
 #endif
+EXPORT_SYMBOL(scsi_show_result);
+
+
+void scsi_print_result(struct scsi_cmnd *cmd)
+{
+	scmd_printk(KERN_INFO, cmd, "");
+	scsi_show_result(cmd->result);
+}
+EXPORT_SYMBOL(scsi_print_result);
+
+

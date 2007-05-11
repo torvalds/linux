@@ -37,10 +37,10 @@
 #include <linux/slab.h>
 #include <linux/preempt.h>
 #include <linux/module.h>
+#include <linux/kdebug.h>
 
 #include <asm/cacheflush.h>
 #include <asm/pgtable.h>
-#include <asm/kdebug.h>
 #include <asm/uaccess.h>
 
 void jprobe_return_end(void);
@@ -266,23 +266,14 @@ static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 }
 
 /* Called with kretprobe_lock held */
-void __kprobes arch_prepare_kretprobe(struct kretprobe *rp,
+void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 				      struct pt_regs *regs)
 {
 	unsigned long *sara = (unsigned long *)regs->rsp;
-	struct kretprobe_instance *ri;
 
-	if ((ri = get_free_rp_inst(rp)) != NULL) {
-		ri->rp = rp;
-		ri->task = current;
-		ri->ret_addr = (kprobe_opcode_t *) *sara;
-
-		/* Replace the return addr with trampoline addr */
-		*sara = (unsigned long) &kretprobe_trampoline;
-		add_rp_inst(ri);
-	} else {
-		rp->nmissed++;
-	}
+	ri->ret_addr = (kprobe_opcode_t *) *sara;
+	/* Replace the return addr with trampoline addr */
+	*sara = (unsigned long) &kretprobe_trampoline;
 }
 
 int __kprobes kprobe_handler(struct pt_regs *regs)
@@ -447,7 +438,7 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 			break;
 	}
 
-	BUG_ON(!orig_ret_address || (orig_ret_address == trampoline_address));
+	kretprobe_assert(ri, orig_ret_address, trampoline_address);
 	regs->rip = orig_ret_address;
 
 	reset_current_kprobe();
@@ -751,4 +742,12 @@ static struct kprobe trampoline_p = {
 int __init arch_init_kprobes(void)
 {
 	return register_kprobe(&trampoline_p);
+}
+
+int __kprobes arch_trampoline_kprobe(struct kprobe *p)
+{
+	if (p->addr == (kprobe_opcode_t *)&kretprobe_trampoline)
+		return 1;
+
+	return 0;
 }

@@ -8,10 +8,12 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
+#include <linux/pci.h>
 
-#include <asm/pbm.h>
+#include <asm/oplib.h>
 
 #include "iommu_common.h"
+#include "pci_impl.h"
 
 #define PCI_STC_CTXMATCH_ADDR(STC, CTX)	\
 	((STC)->strbuf_ctxmatch_base + ((CTX) << 3))
@@ -37,17 +39,21 @@
 /* Must be invoked under the IOMMU lock. */
 static void __iommu_flushall(struct iommu *iommu)
 {
-	unsigned long tag;
-	int entry;
+	if (iommu->iommu_flushinv) {
+		pci_iommu_write(iommu->iommu_flushinv, ~(u64)0);
+	} else {
+		unsigned long tag;
+		int entry;
 
-	tag = iommu->iommu_flush + (0xa580UL - 0x0210UL);
-	for (entry = 0; entry < 16; entry++) {
-		pci_iommu_write(tag, 0);
-		tag += 8;
+		tag = iommu->iommu_flush + (0xa580UL - 0x0210UL);
+		for (entry = 0; entry < 16; entry++) {
+			pci_iommu_write(tag, 0);
+			tag += 8;
+		}
+
+		/* Ensure completion of previous PIO writes. */
+		(void) pci_iommu_read(iommu->write_complete_reg);
 	}
-
-	/* Ensure completion of previous PIO writes. */
-	(void) pci_iommu_read(iommu->write_complete_reg);
 }
 
 #define IOPTE_CONSISTENT(CTX) \

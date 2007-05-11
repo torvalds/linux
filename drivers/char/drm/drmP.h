@@ -414,6 +414,10 @@ typedef struct drm_lock_data {
 	struct file *filp;		/**< File descr of lock holder (0=kernel) */
 	wait_queue_head_t lock_queue;	/**< Queue of blocked processes */
 	unsigned long lock_time;	/**< Time of last lock in jiffies */
+	spinlock_t spinlock;
+	uint32_t kernel_waiters;
+	uint32_t user_waiters;
+	int idle_has_lock;
 } drm_lock_data_t;
 
 /**
@@ -515,12 +519,17 @@ typedef struct drm_vbl_sig {
 #define DRM_ATI_GART_MAIN 1
 #define DRM_ATI_GART_FB   2
 
+#define DRM_ATI_GART_PCI 1
+#define DRM_ATI_GART_PCIE 2
+#define DRM_ATI_GART_IGP 3
+
 typedef struct ati_pcigart_info {
 	int gart_table_location;
-	int is_pcie;
+	int gart_reg_if;
 	void *addr;
 	dma_addr_t bus_addr;
 	drm_local_map_t mapping;
+	int table_size;
 } drm_ati_pcigart_info;
 
 /*
@@ -590,6 +599,8 @@ struct drm_driver {
 	void (*reclaim_buffers) (struct drm_device * dev, struct file * filp);
 	void (*reclaim_buffers_locked) (struct drm_device *dev,
 					struct file *filp);
+	void (*reclaim_buffers_idlelocked) (struct drm_device *dev,
+					struct file * filp);
 	unsigned long (*get_map_ofs) (drm_map_t * map);
 	unsigned long (*get_reg_ofs) (struct drm_device * dev);
 	void (*set_version) (struct drm_device * dev, drm_set_version_t * sv);
@@ -764,7 +775,7 @@ static __inline__ int drm_core_check_feature(struct drm_device *dev,
 }
 
 #ifdef __alpha__
-#define drm_get_pci_domain(dev) dev->hose->bus->number
+#define drm_get_pci_domain(dev) dev->hose->index
 #else
 #define drm_get_pci_domain(dev) 0
 #endif
@@ -915,9 +926,18 @@ extern int drm_lock(struct inode *inode, struct file *filp,
 		    unsigned int cmd, unsigned long arg);
 extern int drm_unlock(struct inode *inode, struct file *filp,
 		      unsigned int cmd, unsigned long arg);
-extern int drm_lock_take(__volatile__ unsigned int *lock, unsigned int context);
-extern int drm_lock_free(drm_device_t * dev,
-			 __volatile__ unsigned int *lock, unsigned int context);
+extern int drm_lock_take(drm_lock_data_t *lock_data, unsigned int context);
+extern int drm_lock_free(drm_lock_data_t *lock_data, unsigned int context);
+extern void drm_idlelock_take(drm_lock_data_t *lock_data);
+extern void drm_idlelock_release(drm_lock_data_t *lock_data);
+
+/*
+ * These are exported to drivers so that they can implement fencing using
+ * DMA quiscent + idle. DMA quiescent usually requires the hardware lock.
+ */
+
+extern int drm_i_have_hw_lock(struct file *filp);
+extern int drm_kernel_take_hw_lock(struct file *filp);
 
 				/* Buffer management support (drm_bufs.h) */
 extern int drm_addbufs_agp(drm_device_t * dev, drm_buf_desc_t * request);

@@ -50,6 +50,7 @@ struct dasd_diag_private {
 	struct dasd_diag_rw_io iob;
 	struct dasd_diag_init_io iib;
 	blocknum_t pt_block;
+	struct ccw_dev_id dev_id;
 };
 
 struct dasd_diag_req {
@@ -102,7 +103,7 @@ mdsk_init_io(struct dasd_device *device, unsigned int blocksize,
 	iib = &private->iib;
 	memset(iib, 0, sizeof (struct dasd_diag_init_io));
 
-	iib->dev_nr = _ccw_device_get_device_number(device->cdev);
+	iib->dev_nr = private->dev_id.devno;
 	iib->block_size = blocksize;
 	iib->offset = offset;
 	iib->flaga = DASD_DIAG_FLAGA_DEFAULT;
@@ -127,7 +128,7 @@ mdsk_term_io(struct dasd_device * device)
 	private = (struct dasd_diag_private *) device->private;
 	iib = &private->iib;
 	memset(iib, 0, sizeof (struct dasd_diag_init_io));
-	iib->dev_nr = _ccw_device_get_device_number(device->cdev);
+	iib->dev_nr = private->dev_id.devno;
 	rc = dia250(iib, TERM_BIO);
 	return rc;
 }
@@ -166,7 +167,7 @@ dasd_start_diag(struct dasd_ccw_req * cqr)
 	private = (struct dasd_diag_private *) device->private;
 	dreq = (struct dasd_diag_req *) cqr->data;
 
-	private->iob.dev_nr = _ccw_device_get_device_number(device->cdev);
+	private->iob.dev_nr = private->dev_id.devno;
 	private->iob.key = 0;
 	private->iob.flags = DASD_DIAG_RWFLAG_ASYNC;
 	private->iob.block_count = dreq->block_count;
@@ -323,11 +324,12 @@ dasd_diag_check_device(struct dasd_device *device)
 				"memory allocation failed for private data");
 			return -ENOMEM;
 		}
+		ccw_device_get_id(device->cdev, &private->dev_id);
 		device->private = (void *) private;
 	}
 	/* Read Device Characteristics */
 	rdc_data = (void *) &(private->rdc_data);
-	rdc_data->dev_nr = _ccw_device_get_device_number(device->cdev);
+	rdc_data->dev_nr = private->dev_id.devno;
 	rdc_data->rdc_len = sizeof (struct dasd_diag_characteristics);
 
 	rc = diag210((struct diag210 *) rdc_data);

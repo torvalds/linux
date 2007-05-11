@@ -47,7 +47,7 @@ static void virtual_eisa_release (struct device *dev)
 	/* nothing really to do here */
 }
 
-static int virtual_eisa_root_init (void)
+static int __init virtual_eisa_root_init (void)
 {
 	int r;
 	

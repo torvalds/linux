@@ -14,7 +14,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/smp_lock.h>
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
 

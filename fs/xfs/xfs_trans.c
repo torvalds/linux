@@ -753,7 +753,6 @@ int
 _xfs_trans_commit(
 	xfs_trans_t	*tp,
 	uint		flags,
-	xfs_lsn_t	*commit_lsn_p,
 	int		*log_flushed)
 {
 	xfs_log_iovec_t		*log_vector;
@@ -812,8 +811,6 @@ shut_us_down:
 		xfs_trans_free_busy(tp);
 		xfs_trans_free(tp);
 		XFS_STATS_INC(xs_trans_empty);
-		if (commit_lsn_p)
-			*commit_lsn_p = commit_lsn;
 		return (shutdown);
 	}
 	ASSERT(tp->t_ticket != NULL);
@@ -863,9 +860,6 @@ shut_us_down:
 	if (nvec > XFS_TRANS_LOGVEC_COUNT) {
 		kmem_free(log_vector, nvec * sizeof(xfs_log_iovec_t));
 	}
-
-	if (commit_lsn_p)
-		*commit_lsn_p = commit_lsn;
 
 	/*
 	 * If we got a log write error. Unpin the logitems that we

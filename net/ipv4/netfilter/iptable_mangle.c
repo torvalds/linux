@@ -33,73 +33,35 @@ static struct
 	struct ipt_replace repl;
 	struct ipt_standard entries[5];
 	struct ipt_error term;
-} initial_table __initdata
-= { { "mangle", MANGLE_VALID_HOOKS, 6,
-      sizeof(struct ipt_standard) * 5 + sizeof(struct ipt_error),
-      { [NF_IP_PRE_ROUTING] 	= 0,
-	[NF_IP_LOCAL_IN] 	= sizeof(struct ipt_standard),
-	[NF_IP_FORWARD] 	= sizeof(struct ipt_standard) * 2,
-	[NF_IP_LOCAL_OUT] 	= sizeof(struct ipt_standard) * 3,
-	[NF_IP_POST_ROUTING] 	= sizeof(struct ipt_standard) * 4 },
-      { [NF_IP_PRE_ROUTING] 	= 0,
-	[NF_IP_LOCAL_IN] 	= sizeof(struct ipt_standard),
-	[NF_IP_FORWARD] 	= sizeof(struct ipt_standard) * 2,
-	[NF_IP_LOCAL_OUT] 	= sizeof(struct ipt_standard) * 3,
-	[NF_IP_POST_ROUTING]	= sizeof(struct ipt_standard) * 4 },
-      0, NULL, { } },
-    {
-	    /* PRE_ROUTING */
-	    { { { { 0 }, { 0 }, { 0 }, { 0 }, "", "", { 0 }, { 0 }, 0, 0, 0 },
-		0,
-		sizeof(struct ipt_entry),
-		sizeof(struct ipt_standard),
-		0, { 0, 0 }, { } },
-	      { { { { IPT_ALIGN(sizeof(struct ipt_standard_target)), "" } }, { } },
-		-NF_ACCEPT - 1 } },
-	    /* LOCAL_IN */
-	    { { { { 0 }, { 0 }, { 0 }, { 0 }, "", "", { 0 }, { 0 }, 0, 0, 0 },
-		0,
-		sizeof(struct ipt_entry),
-		sizeof(struct ipt_standard),
-		0, { 0, 0 }, { } },
-	      { { { { IPT_ALIGN(sizeof(struct ipt_standard_target)), "" } }, { } },
-		-NF_ACCEPT - 1 } },
-	    /* FORWARD */
-	    { { { { 0 }, { 0 }, { 0 }, { 0 }, "", "", { 0 }, { 0 }, 0, 0, 0 },
-		0,
-		sizeof(struct ipt_entry),
-		sizeof(struct ipt_standard),
-		0, { 0, 0 }, { } },
-	      { { { { IPT_ALIGN(sizeof(struct ipt_standard_target)), "" } }, { } },
-		-NF_ACCEPT - 1 } },
-	    /* LOCAL_OUT */
-	    { { { { 0 }, { 0 }, { 0 }, { 0 }, "", "", { 0 }, { 0 }, 0, 0, 0 },
-		0,
-		sizeof(struct ipt_entry),
-		sizeof(struct ipt_standard),
-		0, { 0, 0 }, { } },
-	      { { { { IPT_ALIGN(sizeof(struct ipt_standard_target)), "" } }, { } },
-		-NF_ACCEPT - 1 } },
-	    /* POST_ROUTING */
-	    { { { { 0 }, { 0 }, { 0 }, { 0 }, "", "", { 0 }, { 0 }, 0, 0, 0 },
-		0,
-		sizeof(struct ipt_entry),
-		sizeof(struct ipt_standard),
-		0, { 0, 0 }, { } },
-	      { { { { IPT_ALIGN(sizeof(struct ipt_standard_target)), "" } }, { } },
-		-NF_ACCEPT - 1 } },
-    },
-    /* ERROR */
-    { { { { 0 }, { 0 }, { 0 }, { 0 }, "", "", { 0 }, { 0 }, 0, 0, 0 },
-	0,
-	sizeof(struct ipt_entry),
-	sizeof(struct ipt_error),
-	0, { 0, 0 }, { } },
-      { { { { IPT_ALIGN(sizeof(struct ipt_error_target)), IPT_ERROR_TARGET } },
-	  { } },
-	"ERROR"
-      }
-    }
+} initial_table __initdata = {
+	.repl = {
+		.name = "mangle",
+		.valid_hooks = MANGLE_VALID_HOOKS,
+		.num_entries = 6,
+		.size = sizeof(struct ipt_standard) * 5 + sizeof(struct ipt_error),
+		.hook_entry = {
+			[NF_IP_PRE_ROUTING] 	= 0,
+			[NF_IP_LOCAL_IN] 	= sizeof(struct ipt_standard),
+			[NF_IP_FORWARD] 	= sizeof(struct ipt_standard) * 2,
+			[NF_IP_LOCAL_OUT] 	= sizeof(struct ipt_standard) * 3,
+			[NF_IP_POST_ROUTING] 	= sizeof(struct ipt_standard) * 4,
+		},
+		.underflow = {
+			[NF_IP_PRE_ROUTING] 	= 0,
+			[NF_IP_LOCAL_IN] 	= sizeof(struct ipt_standard),
+			[NF_IP_FORWARD] 	= sizeof(struct ipt_standard) * 2,
+			[NF_IP_LOCAL_OUT] 	= sizeof(struct ipt_standard) * 3,
+			[NF_IP_POST_ROUTING]	= sizeof(struct ipt_standard) * 4,
+		},
+	},
+	.entries = {
+		IPT_STANDARD_INIT(NF_ACCEPT),	/* PRE_ROUTING */
+		IPT_STANDARD_INIT(NF_ACCEPT),	/* LOCAL_IN */
+		IPT_STANDARD_INIT(NF_ACCEPT),	/* FORWARD */
+		IPT_STANDARD_INIT(NF_ACCEPT),	/* LOCAL_OUT */
+		IPT_STANDARD_INIT(NF_ACCEPT),	/* POST_ROUTING */
+	},
+	.term = IPT_ERROR_INIT,			/* ERROR */
 };
 
 static struct xt_table packet_mangler = {
@@ -138,7 +100,8 @@ ipt_local_hook(unsigned int hook,
 	if ((*pskb)->len < sizeof(struct iphdr)
 	    || ip_hdrlen(*pskb) < sizeof(struct iphdr)) {
 		if (net_ratelimit())
-			printk("ipt_hook: happy cracking.\n");
+			printk("iptable_mangle: ignoring short SOCK_RAW "
+			       "packet.\n");
 		return NF_ACCEPT;
 	}
 

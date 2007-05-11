@@ -8,7 +8,6 @@
 #include <signal.h>
 #include "sysdep/ptrace.h"
 #include "sysdep/sigcontext.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "task.h"
 #include "tt.h"

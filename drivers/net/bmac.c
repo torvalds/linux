@@ -1260,9 +1260,10 @@ static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_i
 		printk(KERN_ERR "BMAC: can't use, need 3 addrs and 3 intrs\n");
 		return -ENODEV;
 	}
-	prop_addr = get_property(macio_get_of_node(mdev), "mac-address", NULL);
+	prop_addr = of_get_property(macio_get_of_node(mdev),
+			"mac-address", NULL);
 	if (prop_addr == NULL) {
-		prop_addr = get_property(macio_get_of_node(mdev),
+		prop_addr = of_get_property(macio_get_of_node(mdev),
 				"local-mac-address", NULL);
 		if (prop_addr == NULL) {
 			printk(KERN_ERR "BMAC: Can't get mac-address\n");

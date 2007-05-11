@@ -33,7 +33,7 @@ or anything. Simply install all the files included in this document, and
 laptop mode will automatically be started when you're on battery. For
 your convenience, a tarball containing an installer can be downloaded at:
 
-http://www.xs4all.nl/~bsamwel/laptop_mode/tools/
+http://www.samwel.tk/laptop_mode/laptop_mode/
 
 To configure laptop mode, you need to edit the configuration file, which is
 located in /etc/default/laptop-mode on Debian-based systems, or in

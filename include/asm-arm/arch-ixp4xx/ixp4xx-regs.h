@@ -607,19 +607,4 @@
 
 #define DCMD_LENGTH	0x01fff		/* length mask (max = 8K - 1) */
 
-#ifndef __ASSEMBLY__
-static inline int cpu_is_ixp46x(void)
-{
-#ifdef CONFIG_CPU_IXP46X
-	unsigned int processor_id;
-
-	asm("mrc p15, 0, %0, cr0, cr0, 0;" : "=r"(processor_id) :);
-
-	if ((processor_id & 0xffffff00) == 0x69054200)
-		return 1;
-#endif
-	return 0;
-}
-#endif
-
 #endif

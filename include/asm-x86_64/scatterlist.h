@@ -1,6 +1,8 @@
 #ifndef _X8664_SCATTERLIST_H
 #define _X8664_SCATTERLIST_H
 
+#include <asm/types.h>
+
 struct scatterlist {
     struct page		*page;
     unsigned int	offset;

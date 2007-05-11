@@ -55,7 +55,8 @@ const struct inode_operations afs_dir_inode_operations = {
 	.rmdir		= afs_rmdir,
 	.rename		= afs_rename,
 	.permission	= afs_permission,
-	.getattr	= afs_inode_getattr,
+	.getattr	= afs_getattr,
+	.setattr	= afs_setattr,
 };
 
 static struct dentry_operations afs_fs_dentry_operations = {
@@ -194,10 +195,7 @@ static struct page *afs_dir_get_page(struct inode *dir, unsigned long index,
 
 	page = read_mapping_page(dir->i_mapping, index, &file);
 	if (!IS_ERR(page)) {
-		wait_on_page_locked(page);
 		kmap(page);
-		if (!PageUptodate(page))
-			goto fail;
 		if (!PageChecked(page))
 			afs_dir_check_page(dir, page);
 		if (PageError(page))
@@ -494,12 +492,12 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 
 	vnode = AFS_FS_I(dir);
 
-	_enter("{%x:%d},%p{%s},",
+	_enter("{%x:%u},%p{%s},",
 	       vnode->fid.vid, vnode->fid.vnode, dentry, dentry->d_name.name);
 
 	ASSERTCMP(dentry->d_inode, ==, NULL);
 
-	if (dentry->d_name.len > 255) {
+	if (dentry->d_name.len >= AFSNAMEMAX) {
 		_leave(" = -ENAMETOOLONG");
 		return ERR_PTR(-ENAMETOOLONG);
 	}
@@ -734,11 +732,11 @@ static int afs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	dvnode = AFS_FS_I(dir);
 
-	_enter("{%x:%d},{%s},%o",
+	_enter("{%x:%u},{%s},%o",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry->d_name.name, mode);
 
 	ret = -ENAMETOOLONG;
-	if (dentry->d_name.len > 255)
+	if (dentry->d_name.len >= AFSNAMEMAX)
 		goto error;
 
 	key = afs_request_key(dvnode->volume->cell);
@@ -799,11 +797,11 @@ static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	dvnode = AFS_FS_I(dir);
 
-	_enter("{%x:%d},{%s}",
+	_enter("{%x:%u},{%s}",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry->d_name.name);
 
 	ret = -ENAMETOOLONG;
-	if (dentry->d_name.len > 255)
+	if (dentry->d_name.len >= AFSNAMEMAX)
 		goto error;
 
 	key = afs_request_key(dvnode->volume->cell);
@@ -845,11 +843,11 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 
 	dvnode = AFS_FS_I(dir);
 
-	_enter("{%x:%d},{%s}",
+	_enter("{%x:%u},{%s}",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry->d_name.name);
 
 	ret = -ENAMETOOLONG;
-	if (dentry->d_name.len > 255)
+	if (dentry->d_name.len >= AFSNAMEMAX)
 		goto error;
 
 	key = afs_request_key(dvnode->volume->cell);
@@ -919,11 +917,11 @@ static int afs_create(struct inode *dir, struct dentry *dentry, int mode,
 
 	dvnode = AFS_FS_I(dir);
 
-	_enter("{%x:%d},{%s},%o,",
+	_enter("{%x:%u},{%s},%o,",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry->d_name.name, mode);
 
 	ret = -ENAMETOOLONG;
-	if (dentry->d_name.len > 255)
+	if (dentry->d_name.len >= AFSNAMEMAX)
 		goto error;
 
 	key = afs_request_key(dvnode->volume->cell);
@@ -986,13 +984,13 @@ static int afs_link(struct dentry *from, struct inode *dir,
 	vnode = AFS_FS_I(from->d_inode);
 	dvnode = AFS_FS_I(dir);
 
-	_enter("{%x:%d},{%x:%d},{%s}",
+	_enter("{%x:%u},{%x:%u},{%s}",
 	       vnode->fid.vid, vnode->fid.vnode,
 	       dvnode->fid.vid, dvnode->fid.vnode,
 	       dentry->d_name.name);
 
 	ret = -ENAMETOOLONG;
-	if (dentry->d_name.len > 255)
+	if (dentry->d_name.len >= AFSNAMEMAX)
 		goto error;
 
 	key = afs_request_key(dvnode->volume->cell);
@@ -1035,16 +1033,16 @@ static int afs_symlink(struct inode *dir, struct dentry *dentry,
 
 	dvnode = AFS_FS_I(dir);
 
-	_enter("{%x:%d},{%s},%s",
+	_enter("{%x:%u},{%s},%s",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry->d_name.name,
 	       content);
 
 	ret = -ENAMETOOLONG;
-	if (dentry->d_name.len > 255)
+	if (dentry->d_name.len >= AFSNAMEMAX)
 		goto error;
 
 	ret = -EINVAL;
-	if (strlen(content) > 1023)
+	if (strlen(content) >= AFSPATHMAX)
 		goto error;
 
 	key = afs_request_key(dvnode->volume->cell);
@@ -1107,14 +1105,14 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	orig_dvnode = AFS_FS_I(old_dir);
 	new_dvnode = AFS_FS_I(new_dir);
 
-	_enter("{%x:%d},{%x:%d},{%x:%d},{%s}",
+	_enter("{%x:%u},{%x:%u},{%x:%u},{%s}",
 	       orig_dvnode->fid.vid, orig_dvnode->fid.vnode,
 	       vnode->fid.vid, vnode->fid.vnode,
 	       new_dvnode->fid.vid, new_dvnode->fid.vnode,
 	       new_dentry->d_name.name);
 
 	ret = -ENAMETOOLONG;
-	if (new_dentry->d_name.len > 255)
+	if (new_dentry->d_name.len >= AFSNAMEMAX)
 		goto error;
 
 	key = afs_request_key(orig_dvnode->volume->cell);

@@ -31,6 +31,7 @@
 #include <linux/spinlock.h>
 #include <linux/root_dev.h>
 #include <linux/cpu.h>
+#include <linux/kdebug.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -40,7 +41,6 @@
 #include <asm/pgtable.h>
 #include <asm/traps.h>
 #include <asm/vaddrs.h>
-#include <asm/kdebug.h>
 #include <asm/mbus.h>
 #include <asm/idprom.h>
 #include <asm/machines.h>

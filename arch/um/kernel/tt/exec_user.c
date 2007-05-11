@@ -10,7 +10,6 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include <signal.h>
-#include "user_util.h"
 #include "kern_util.h"
 #include "user.h"
 #include "ptrace_user.h"

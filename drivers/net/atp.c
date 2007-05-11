@@ -31,10 +31,8 @@
 
 */
 
-static const char versionA[] =
+static const char version[] =
 "atp.c:v1.09=ac 2002/10/01 Donald Becker <becker@scyld.com>\n";
-static const char versionB[] =
-"  http://www.scyld.com/network/atp.html\n";
 
 /* The user-configurable values.
    These may be modified when a driver module is loaded.*/
@@ -324,7 +322,7 @@ static int __init atp_probe1(long ioaddr)
 
 #ifndef MODULE
 	if (net_debug)
-		printk(KERN_INFO "%s" KERN_INFO "%s", versionA, versionB);
+		printk(KERN_INFO "%s", version);
 #endif
 
 	printk(KERN_NOTICE "%s: Pocket adapter found at %#3lx, IRQ %d, SAPROM "
@@ -926,7 +924,7 @@ static void set_rx_mode_8012(struct net_device *dev)
 
 static int __init atp_init_module(void) {
 	if (debug)					/* Emit version even if no cards detected. */
-		printk(KERN_INFO "%s" KERN_INFO "%s", versionA, versionB);
+		printk(KERN_INFO "%s", version);
 	return atp_init();
 }
 

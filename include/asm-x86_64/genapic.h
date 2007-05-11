@@ -29,7 +29,9 @@ struct genapic {
 	unsigned int (*phys_pkg_id)(int index_msb);
 };
 
+extern struct genapic *genapic;
 
-extern struct genapic *genapic, *genapic_force, apic_flat;
+extern struct genapic apic_flat;
+extern struct genapic apic_physflat;
 
 #endif

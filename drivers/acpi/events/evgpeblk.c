@@ -1033,8 +1033,7 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 
 			if (((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
 			     ACPI_GPE_DISPATCH_METHOD)
-			    && (gpe_event_info->
-				flags & ACPI_GPE_TYPE_RUNTIME)) {
+			    && (gpe_event_info->flags & ACPI_GPE_TYPE_RUNTIME)) {
 				gpe_enabled_count++;
 			}
 

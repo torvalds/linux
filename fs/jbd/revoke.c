@@ -1,5 +1,5 @@
 /*
- * linux/fs/revoke.c
+ * linux/fs/jbd/revoke.c
  *
  * Written by Stephen C. Tweedie <sct@redhat.com>, 2000
  *
@@ -66,7 +66,6 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/list.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #endif
 

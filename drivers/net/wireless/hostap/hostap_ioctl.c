@@ -1,7 +1,6 @@
 /* ioctl() (mostly Linux Wireless Extensions) routines for Host AP driver */
 
 #include <linux/types.h>
-#include <linux/smp_lock.h>
 #include <linux/ethtool.h>
 #include <net/ieee80211_crypt.h>
 

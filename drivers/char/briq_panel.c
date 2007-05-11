@@ -206,7 +206,7 @@ static int __init briq_panel_init(void)
 	const char *machine;
 	int i;
 
-	machine = get_property(root, "model", NULL);
+	machine = of_get_property(root, "model", NULL);
 	if (!machine || strncmp(machine, "TotalImpact,BRIQ-1", 18) != 0) {
 		of_node_put(root);
 		return -ENODEV;

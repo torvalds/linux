@@ -2,6 +2,7 @@
 #define _M68KNOMMU_SCATTERLIST_H
 
 #include <linux/mm.h>
+#include <asm/types.h>
 
 struct scatterlist {
 	struct page	*page;

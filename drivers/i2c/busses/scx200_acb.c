@@ -28,7 +28,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
-#include <linux/smp_lock.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
@@ -441,7 +440,7 @@ static __init struct scx200_acb_iface *scx200_create_iface(const char *text,
 
 	adapter = &iface->adapter;
 	i2c_set_adapdata(adapter, iface);
-	snprintf(adapter->name, I2C_NAME_SIZE, "%s ACB%d", text, index);
+	snprintf(adapter->name, sizeof(adapter->name), "%s ACB%d", text, index);
 	adapter->owner = THIS_MODULE;
 	adapter->id = I2C_HW_SMBUS_SCX200;
 	adapter->algo = &scx200_acb_algorithm;
@@ -599,6 +598,7 @@ static __init int scx200_scan_pci(void)
 		else {
 			int i;
 
+			pci_dev_put(pdev);
 			for (i = 0; i < MAX_DEVICES; ++i) {
 				if (base[i] == 0)
 					continue;

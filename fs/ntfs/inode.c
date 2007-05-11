@@ -27,7 +27,6 @@
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 
 #include "aops.h"
 #include "attrib.h"

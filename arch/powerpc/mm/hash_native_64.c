@@ -26,6 +26,7 @@
 #include <asm/tlb.h>
 #include <asm/cputable.h>
 #include <asm/udbg.h>
+#include <asm/kexec.h>
 
 #ifdef DEBUG_LOW
 #define DBG_LOW(fmt...) udbg_printf(fmt)
@@ -340,31 +341,67 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long va,
 	local_irq_restore(flags);
 }
 
-/*
- * XXX This need fixing based on page size. It's only used by
- * native_hpte_clear() for now which needs fixing too so they
- * make a good pair...
- */
-static unsigned long slot2va(unsigned long hpte_v, unsigned long slot)
+#define LP_SHIFT	12
+#define LP_BITS		8
+#define LP_MASK(i)	((0xFF >> (i)) << LP_SHIFT)
+
+static void hpte_decode(hpte_t *hpte, unsigned long slot,
+			int *psize, unsigned long *va)
 {
-	unsigned long avpn = HPTE_V_AVPN_VAL(hpte_v);
-	unsigned long va;
+	unsigned long hpte_r = hpte->r;
+	unsigned long hpte_v = hpte->v;
+	unsigned long avpn;
+	int i, size, shift, penc, avpnm_bits;
 
-	va = avpn << 23;
+	if (!(hpte_v & HPTE_V_LARGE))
+		size = MMU_PAGE_4K;
+	else {
+		for (i = 0; i < LP_BITS; i++) {
+			if ((hpte_r & LP_MASK(i+1)) == LP_MASK(i+1))
+				break;
+		}
+		penc = LP_MASK(i+1) >> LP_SHIFT;
+		for (size = 0; size < MMU_PAGE_COUNT; size++) {
 
-	if (! (hpte_v & HPTE_V_LARGE)) {
-		unsigned long vpi, pteg;
+			/* 4K pages are not represented by LP */
+			if (size == MMU_PAGE_4K)
+				continue;
+
+			/* valid entries have a shift value */
+			if (!mmu_psize_defs[size].shift)
+				continue;
+
+			if (penc == mmu_psize_defs[size].penc)
+				break;
+		}
+	}
+
+	/* This works for all page sizes, and for 256M and 1T segments */
+	shift = mmu_psize_defs[size].shift;
+	avpn = (HPTE_V_AVPN_VAL(hpte_v) & ~mmu_psize_defs[size].avpnm) << 23;
+
+	if (shift < 23) {
+		unsigned long vpi, vsid, pteg;
 
 		pteg = slot / HPTES_PER_GROUP;
 		if (hpte_v & HPTE_V_SECONDARY)
 			pteg = ~pteg;
-
-		vpi = ((va >> 28) ^ pteg) & htab_hash_mask;
-
-		va |= vpi << PAGE_SHIFT;
+		switch (hpte_v >> HPTE_V_SSIZE_SHIFT) {
+		case MMU_SEGSIZE_256M:
+			vpi = ((avpn >> 28) ^ pteg) & htab_hash_mask;
+			break;
+		case MMU_SEGSIZE_1T:
+			vsid = avpn >> 40;
+			vpi = (vsid ^ (vsid << 25) ^ pteg) & htab_hash_mask;
+			break;
+		default:
+			avpn = vpi = psize = 0;
+		}
+		avpn |= (vpi << mmu_psize_defs[size].shift);
 	}
 
-	return va;
+	*va = avpn;
+	*psize = size;
 }
 
 /*
@@ -374,15 +411,14 @@ static unsigned long slot2va(unsigned long hpte_v, unsigned long slot)
  *
  * TODO: add batching support when enabled.  remember, no dynamic memory here,
  * athough there is the control page available...
- *
- * XXX FIXME: 4k only for now !
  */
 static void native_hpte_clear(void)
 {
 	unsigned long slot, slots, flags;
 	hpte_t *hptep = htab_address;
-	unsigned long hpte_v;
+	unsigned long hpte_v, va;
 	unsigned long pteg_count;
+	int psize;
 
 	pteg_count = htab_hash_mask + 1;
 
@@ -408,8 +444,9 @@ static void native_hpte_clear(void)
 		 * already hold the native_tlbie_lock.
 		 */
 		if (hpte_v & HPTE_V_VALID) {
+			hpte_decode(hptep, slot, &psize, &va);
 			hptep->v = 0;
-			__tlbie(slot2va(hpte_v, slot), MMU_PAGE_4K);
+			__tlbie(va, psize);
 		}
 	}
 

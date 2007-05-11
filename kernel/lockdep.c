@@ -257,9 +257,8 @@ static int save_trace(struct stack_trace *trace)
 	trace->entries = stack_trace + nr_stack_trace_entries;
 
 	trace->skip = 3;
-	trace->all_contexts = 0;
 
-	save_stack_trace(trace, NULL);
+	save_stack_trace(trace);
 
 	trace->max_entries = trace->nr_entries;
 
@@ -341,10 +340,7 @@ static const char *usage_str[] =
 
 const char * __get_key_name(struct lockdep_subclass_key *key, char *str)
 {
-	unsigned long offs, size;
-	char *modname;
-
-	return kallsyms_lookup((unsigned long)key, &size, &offs, &modname, str);
+	return kallsyms_lookup((unsigned long)key, NULL, NULL, NULL, str);
 }
 
 void
@@ -1313,8 +1309,9 @@ out_unlock_set:
 
 /*
  * Look up a dependency chain. If the key is not present yet then
- * add it and return 0 - in this case the new dependency chain is
- * validated. If the key is already hashed, return 1.
+ * add it and return 1 - in this case the new dependency chain is
+ * validated. If the key is already hashed, return 0.
+ * (On return with 1 graph_lock is held.)
  */
 static inline int lookup_chain_cache(u64 chain_key, struct lock_class *class)
 {
@@ -1577,7 +1574,7 @@ valid_state(struct task_struct *curr, struct held_lock *this,
  * Mark a lock with a usage bit, and validate the state transition:
  */
 static int mark_lock(struct task_struct *curr, struct held_lock *this,
-		     enum lock_usage_bit new_bit, unsigned long ip)
+		     enum lock_usage_bit new_bit)
 {
 	unsigned int new_mask = 1 << new_bit, ret = 1;
 
@@ -1600,14 +1597,6 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 
 	this->class->usage_mask |= new_mask;
 
-#ifdef CONFIG_TRACE_IRQFLAGS
-	if (new_bit == LOCK_ENABLED_HARDIRQS ||
-			new_bit == LOCK_ENABLED_HARDIRQS_READ)
-		ip = curr->hardirq_enable_ip;
-	else if (new_bit == LOCK_ENABLED_SOFTIRQS ||
-			new_bit == LOCK_ENABLED_SOFTIRQS_READ)
-		ip = curr->softirq_enable_ip;
-#endif
 	if (!save_trace(this->class->usage_traces + new_bit))
 		return 0;
 
@@ -1806,7 +1795,7 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
  * Mark all held locks with a usage bit:
  */
 static int
-mark_held_locks(struct task_struct *curr, int hardirq, unsigned long ip)
+mark_held_locks(struct task_struct *curr, int hardirq)
 {
 	enum lock_usage_bit usage_bit;
 	struct held_lock *hlock;
@@ -1826,7 +1815,7 @@ mark_held_locks(struct task_struct *curr, int hardirq, unsigned long ip)
 			else
 				usage_bit = LOCK_ENABLED_SOFTIRQS;
 		}
-		if (!mark_lock(curr, hlock, usage_bit, ip))
+		if (!mark_lock(curr, hlock, usage_bit))
 			return 0;
 	}
 
@@ -1879,7 +1868,7 @@ void trace_hardirqs_on(void)
 	 * We are going to turn hardirqs on, so set the
 	 * usage bit for all held locks:
 	 */
-	if (!mark_held_locks(curr, 1, ip))
+	if (!mark_held_locks(curr, 1))
 		return;
 	/*
 	 * If we have softirqs enabled, then set the usage
@@ -1887,7 +1876,7 @@ void trace_hardirqs_on(void)
 	 * this bit from being set before)
 	 */
 	if (curr->softirqs_enabled)
-		if (!mark_held_locks(curr, 0, ip))
+		if (!mark_held_locks(curr, 0))
 			return;
 
 	curr->hardirq_enable_ip = ip;
@@ -1955,7 +1944,7 @@ void trace_softirqs_on(unsigned long ip)
 	 * enabled too:
 	 */
 	if (curr->hardirqs_enabled)
-		mark_held_locks(curr, 0, ip);
+		mark_held_locks(curr, 0);
 }
 
 /*
@@ -2093,43 +2082,43 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 		if (read) {
 			if (curr->hardirq_context)
 				if (!mark_lock(curr, hlock,
-						LOCK_USED_IN_HARDIRQ_READ, ip))
+						LOCK_USED_IN_HARDIRQ_READ))
 					return 0;
 			if (curr->softirq_context)
 				if (!mark_lock(curr, hlock,
-						LOCK_USED_IN_SOFTIRQ_READ, ip))
+						LOCK_USED_IN_SOFTIRQ_READ))
 					return 0;
 		} else {
 			if (curr->hardirq_context)
-				if (!mark_lock(curr, hlock, LOCK_USED_IN_HARDIRQ, ip))
+				if (!mark_lock(curr, hlock, LOCK_USED_IN_HARDIRQ))
 					return 0;
 			if (curr->softirq_context)
-				if (!mark_lock(curr, hlock, LOCK_USED_IN_SOFTIRQ, ip))
+				if (!mark_lock(curr, hlock, LOCK_USED_IN_SOFTIRQ))
 					return 0;
 		}
 	}
 	if (!hardirqs_off) {
 		if (read) {
 			if (!mark_lock(curr, hlock,
-					LOCK_ENABLED_HARDIRQS_READ, ip))
+					LOCK_ENABLED_HARDIRQS_READ))
 				return 0;
 			if (curr->softirqs_enabled)
 				if (!mark_lock(curr, hlock,
-						LOCK_ENABLED_SOFTIRQS_READ, ip))
+						LOCK_ENABLED_SOFTIRQS_READ))
 					return 0;
 		} else {
 			if (!mark_lock(curr, hlock,
-					LOCK_ENABLED_HARDIRQS, ip))
+					LOCK_ENABLED_HARDIRQS))
 				return 0;
 			if (curr->softirqs_enabled)
 				if (!mark_lock(curr, hlock,
-						LOCK_ENABLED_SOFTIRQS, ip))
+						LOCK_ENABLED_SOFTIRQS))
 					return 0;
 		}
 	}
 #endif
 	/* mark it as used: */
-	if (!mark_lock(curr, hlock, LOCK_USED, ip))
+	if (!mark_lock(curr, hlock, LOCK_USED))
 		return 0;
 out_calc_hash:
 	/*

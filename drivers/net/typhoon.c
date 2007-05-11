@@ -639,7 +639,7 @@ typhoon_issue_command(struct typhoon *tp, int num_cmd, struct cmd_desc *cmd,
 
 	typhoon_inc_cmd_index(&ring->lastWrite, num_cmd);
 
-	/* "I feel a presence... another warrior is on the the mesa."
+	/* "I feel a presence... another warrior is on the mesa."
 	 */
 	wmb();
 	iowrite32(ring->lastWrite, tp->ioaddr + TYPHOON_REG_CMD_READY);

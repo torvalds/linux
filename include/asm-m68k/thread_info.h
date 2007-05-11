@@ -37,17 +37,17 @@ struct thread_info {
 #define init_stack		(init_thread_union.stack)
 
 #define task_thread_info(tsk)	(&(tsk)->thread.info)
-#define task_stack_page(tsk)	((void *)(tsk)->thread_info)
+#define task_stack_page(tsk)	((tsk)->stack)
 #define current_thread_info()	task_thread_info(current)
 
 #define __HAVE_THREAD_FUNCTIONS
 
 #define setup_thread_stack(p, org) ({			\
-	*(struct task_struct **)(p)->thread_info = (p);	\
+	*(struct task_struct **)(p)->stack = (p);	\
 	task_thread_info(p)->task = (p);		\
 })
 
-#define end_of_stack(p) ((unsigned long *)(p)->thread_info + 1)
+#define end_of_stack(p) ((unsigned long *)(p)->stack + 1)
 
 /* entry.S relies on these definitions!
  * bits 0-7 are tested at every exception exit

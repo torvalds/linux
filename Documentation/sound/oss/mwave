@@ -163,7 +163,7 @@ OR the Default= line COULD be
 Default=SBPRO
 
 Reboot to Windows 95 and choose Linux. When booted, use sndconfig to configure
-the sound modules and voil‡ - ThinkPad sound with Linux.
+the sound modules and voil√† - ThinkPad sound with Linux.
 
 Now the gotchas - you can either have CD sound OR Mixers but not both. That's a
 problem with the SB1.5 (CD sound) or SBPRO (Mixers) settings. No one knows why

@@ -455,7 +455,7 @@ nfs_have_writebacks(struct inode *inode)
 /*
  * Allocate nfs_write_data structures
  */
-extern struct nfs_write_data *nfs_writedata_alloc(size_t len);
+extern struct nfs_write_data *nfs_writedata_alloc(unsigned int npages);
 
 /*
  * linux/fs/nfs/read.c
@@ -469,7 +469,7 @@ extern void nfs_readdata_release(void *data);
 /*
  * Allocate nfs_read_data structures
  */
-extern struct nfs_read_data *nfs_readdata_alloc(size_t len);
+extern struct nfs_read_data *nfs_readdata_alloc(unsigned int npages);
 
 /*
  * linux/fs/nfs3proc.c

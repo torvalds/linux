@@ -637,7 +637,10 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 
 	memset(c->wbuf,0xff,c->wbuf_pagesize);
 	/* adjust write buffer offset, else we get a non contiguous write bug */
-	c->wbuf_ofs += c->wbuf_pagesize;
+	if (SECTOR_ADDR(c->wbuf_ofs) == SECTOR_ADDR(c->wbuf_ofs+c->wbuf_pagesize))
+		c->wbuf_ofs += c->wbuf_pagesize;
+	else
+		c->wbuf_ofs = 0xffffffff;
 	c->wbuf_len = 0;
 	return 0;
 }

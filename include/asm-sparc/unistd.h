@@ -326,8 +326,9 @@
 #define __NR_move_pages		307
 #define __NR_getcpu		308
 #define __NR_epoll_pwait	309
+#define __NR_utimensat		310
 
-#define NR_SYSCALLS		310
+#define NR_SYSCALLS		311
 
 #ifdef __KERNEL__
 #define __ARCH_WANT_IPC_PARSE_VERSION

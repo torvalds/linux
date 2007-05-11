@@ -13,6 +13,8 @@ static int notsc __initdata = 0;
 
 unsigned int cpu_khz;		/* TSC clocks / usec, not used here */
 EXPORT_SYMBOL(cpu_khz);
+unsigned int tsc_khz;
+EXPORT_SYMBOL(tsc_khz);
 
 static unsigned int cyc2ns_scale __read_mostly;
 
@@ -77,7 +79,7 @@ static void handle_cpufreq_delayed_get(struct work_struct *v)
 static unsigned int  ref_freq = 0;
 static unsigned long loops_per_jiffy_ref = 0;
 
-static unsigned long cpu_khz_ref = 0;
+static unsigned long tsc_khz_ref = 0;
 
 static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 				 void *data)
@@ -99,7 +101,7 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 	if (!ref_freq) {
 		ref_freq = freq->old;
 		loops_per_jiffy_ref = *lpj;
-		cpu_khz_ref = cpu_khz;
+		tsc_khz_ref = tsc_khz;
 	}
 	if ((val == CPUFREQ_PRECHANGE  && freq->old < freq->new) ||
 		(val == CPUFREQ_POSTCHANGE && freq->old > freq->new) ||
@@ -107,12 +109,12 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 		*lpj =
 		cpufreq_scale(loops_per_jiffy_ref, ref_freq, freq->new);
 
-		cpu_khz = cpufreq_scale(cpu_khz_ref, ref_freq, freq->new);
+		tsc_khz = cpufreq_scale(tsc_khz_ref, ref_freq, freq->new);
 		if (!(freq->flags & CPUFREQ_CONST_LOOPS))
-			mark_tsc_unstable();
+			mark_tsc_unstable("cpufreq changes");
 	}
 
-	set_cyc2ns_scale(cpu_khz_ref);
+	set_cyc2ns_scale(tsc_khz_ref);
 
 	return 0;
 }
@@ -197,10 +199,11 @@ static struct clocksource clocksource_tsc = {
 	.vread			= vread_tsc,
 };
 
-void mark_tsc_unstable(void)
+void mark_tsc_unstable(char *reason)
 {
 	if (!tsc_unstable) {
 		tsc_unstable = 1;
+		printk("Marking TSC unstable due to %s\n", reason);
 		/* Change only the rating, when not registered */
 		if (clocksource_tsc.mult)
 			clocksource_change_rating(&clocksource_tsc, 0);
@@ -213,7 +216,7 @@ EXPORT_SYMBOL_GPL(mark_tsc_unstable);
 void __init init_tsc_clocksource(void)
 {
 	if (!notsc) {
-		clocksource_tsc.mult = clocksource_khz2mult(cpu_khz,
+		clocksource_tsc.mult = clocksource_khz2mult(tsc_khz,
 							clocksource_tsc.shift);
 		if (check_tsc_unstable())
 			clocksource_tsc.rating = 0;

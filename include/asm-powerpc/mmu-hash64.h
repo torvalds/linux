@@ -73,8 +73,9 @@ extern char initial_stab[];
 
 #define HPTES_PER_GROUP 8
 
+#define HPTE_V_SSIZE_SHIFT	62
 #define HPTE_V_AVPN_SHIFT	7
-#define HPTE_V_AVPN		ASM_CONST(0xffffffffffffff80)
+#define HPTE_V_AVPN		ASM_CONST(0x3fffffffffffff80)
 #define HPTE_V_AVPN_VAL(x)	(((x) & HPTE_V_AVPN) >> HPTE_V_AVPN_SHIFT)
 #define HPTE_V_COMPARE(x,y)	(!(((x) ^ (y)) & HPTE_V_AVPN))
 #define HPTE_V_BOLTED		ASM_CONST(0x0000000000000010)
@@ -150,6 +151,15 @@ struct mmu_psize_def
 #define MMU_PAGE_16M		4	/* 16M */
 #define MMU_PAGE_16G		5	/* 16G */
 #define MMU_PAGE_COUNT		6
+
+/*
+ * Segment sizes.
+ * These are the values used by hardware in the B field of
+ * SLB entries and the first dword of MMU hashtable entries.
+ * The B field is 2 bits; the values 2 and 3 are unused and reserved.
+ */
+#define MMU_SEGSIZE_256M	0
+#define MMU_SEGSIZE_1T		1
 
 #ifndef __ASSEMBLY__
 
@@ -350,10 +360,13 @@ typedef unsigned long mm_context_id_t;
 
 typedef struct {
 	mm_context_id_t id;
-	u16 user_psize;			/* page size index */
-	u16 sllp;			/* SLB entry page size encoding */
-#ifdef CONFIG_HUGETLB_PAGE
-	u16 low_htlb_areas, high_htlb_areas;
+	u16 user_psize;		/* page size index */
+
+#ifdef CONFIG_PPC_MM_SLICES
+	u64 low_slices_psize;	/* SLB page size encodings */
+	u64 high_slices_psize;  /* 4 bits per slice for now */
+#else
+	u16 sllp;		/* SLB page size encoding */
 #endif
 	unsigned long vdso_base;
 } mm_context_t;

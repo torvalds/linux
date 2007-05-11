@@ -126,7 +126,7 @@ typedef struct rx_packet {
 				       /*   Note: when loopback is set this bit becomes collision control.  Setting this bit will */
 				       /*         cause a collision to be reported. */
 
-				       /* Bits 5 and 6 are used to determine the the Destination address filter mode */
+				       /* Bits 5 and 6 are used to determine the Destination address filter mode */
 #define METH_ACCEPT_MY 0			/* 00: Accept PHY address only */
 #define METH_ACCEPT_MCAST 0x20	/* 01: Accept physical, broadcast, and multicast filter matches only */
 #define METH_ACCEPT_AMCAST 0x40	/* 10: Accept physical, broadcast, and all multicast packets */

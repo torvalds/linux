@@ -567,9 +567,11 @@ appldata_cpu_notify(struct notifier_block *self,
 {
 	switch (action) {
 	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
 		appldata_online_cpu((long) hcpu);
 		break;
 	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
 		appldata_offline_cpu((long) hcpu);
 		break;
 	default:

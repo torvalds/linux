@@ -47,6 +47,7 @@ typedef struct drm_open_hash{
 	unsigned int order;
 	unsigned int fill;
 	struct hlist_head *table;
+	int use_vmalloc;
 } drm_open_hash_t;
 
 

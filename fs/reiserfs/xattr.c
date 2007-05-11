@@ -410,11 +410,7 @@ static struct page *reiserfs_get_page(struct inode *dir, unsigned long n)
 	mapping_set_gfp_mask(mapping, GFP_NOFS);
 	page = read_mapping_page(mapping, n, NULL);
 	if (!IS_ERR(page)) {
-		wait_on_page_locked(page);
 		kmap(page);
-		if (!PageUptodate(page))
-			goto fail;
-
 		if (PageError(page))
 			goto fail;
 	}

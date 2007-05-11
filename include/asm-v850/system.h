@@ -76,7 +76,6 @@ static inline int irqs_disabled (void)
 
 #define xchg(ptr, with) \
   ((__typeof__ (*(ptr)))__xchg ((unsigned long)(with), (ptr), sizeof (*(ptr))))
-#define tas(ptr) (xchg ((ptr), 1))
 
 static inline unsigned long __xchg (unsigned long with,
 				    __volatile__ void *ptr, int size)

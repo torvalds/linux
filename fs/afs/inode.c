@@ -125,7 +125,7 @@ struct inode *afs_iget(struct super_block *sb, struct key *key,
 	struct inode *inode;
 	int ret;
 
-	_enter(",{%u,%u,%u},,", fid->vid, fid->vnode, fid->unique);
+	_enter(",{%x:%u.%u},,", fid->vid, fid->vnode, fid->unique);
 
 	as = sb->s_fs_info;
 	data.volume = as->volume;
@@ -204,6 +204,23 @@ bad_inode:
 }
 
 /*
+ * mark the data attached to an inode as obsolete due to a write on the server
+ * - might also want to ditch all the outstanding writes and dirty pages
+ */
+void afs_zap_data(struct afs_vnode *vnode)
+{
+	_enter("{%x:%u}", vnode->fid.vid, vnode->fid.vnode);
+
+	/* nuke all the non-dirty pages that aren't locked, mapped or being
+	 * written back in a regular file and completely discard the pages in a
+	 * directory or symlink */
+	if (S_ISREG(vnode->vfs_inode.i_mode))
+		invalidate_remote_inode(&vnode->vfs_inode);
+	else
+		invalidate_inode_pages2(vnode->vfs_inode.i_mapping);
+}
+
+/*
  * validate a vnode/inode
  * - there are several things we need to check
  *   - parent dir data changes (rm, rmdir, rename, mkdir, create, link,
@@ -258,10 +275,8 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 
 	/* if the vnode's data version number changed then its contents are
 	 * different */
-	if (test_and_clear_bit(AFS_VNODE_ZAP_DATA, &vnode->flags)) {
-		_debug("zap data {%x:%d}", vnode->fid.vid, vnode->fid.vnode);
-		invalidate_remote_inode(&vnode->vfs_inode);
-	}
+	if (test_and_clear_bit(AFS_VNODE_ZAP_DATA, &vnode->flags))
+		afs_zap_data(vnode);
 
 	clear_bit(AFS_VNODE_MODIFIED, &vnode->flags);
 	mutex_unlock(&vnode->validate_lock);
@@ -278,7 +293,7 @@ error_unlock:
 /*
  * read the attributes of an inode
  */
-int afs_inode_getattr(struct vfsmount *mnt, struct dentry *dentry,
+int afs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		      struct kstat *stat)
 {
 	struct inode *inode;
@@ -301,7 +316,7 @@ void afs_clear_inode(struct inode *inode)
 
 	vnode = AFS_FS_I(inode);
 
-	_enter("{%x:%d.%d} v=%u x=%u t=%u }",
+	_enter("{%x:%u.%d} v=%u x=%u t=%u }",
 	       vnode->fid.vid,
 	       vnode->fid.vnode,
 	       vnode->fid.unique,
@@ -323,6 +338,7 @@ void afs_clear_inode(struct inode *inode)
 		vnode->server = NULL;
 	}
 
+	ASSERT(list_empty(&vnode->writebacks));
 	ASSERT(!vnode->cb_promised);
 
 #ifdef AFS_CACHING_SUPPORT
@@ -338,4 +354,48 @@ void afs_clear_inode(struct inode *inode)
 		call_rcu(&permits->rcu, afs_zap_permits);
 
 	_leave("");
+}
+
+/*
+ * set the attributes of an inode
+ */
+int afs_setattr(struct dentry *dentry, struct iattr *attr)
+{
+	struct afs_vnode *vnode = AFS_FS_I(dentry->d_inode);
+	struct key *key;
+	int ret;
+
+	_enter("{%x:%u},{n=%s},%x",
+	       vnode->fid.vid, vnode->fid.vnode, dentry->d_name.name,
+	       attr->ia_valid);
+
+	if (!(attr->ia_valid & (ATTR_SIZE | ATTR_MODE | ATTR_UID | ATTR_GID |
+				ATTR_MTIME))) {
+		_leave(" = 0 [unsupported]");
+		return 0;
+	}
+
+	/* flush any dirty data outstanding on a regular file */
+	if (S_ISREG(vnode->vfs_inode.i_mode)) {
+		filemap_write_and_wait(vnode->vfs_inode.i_mapping);
+		afs_writeback_all(vnode);
+	}
+
+	if (attr->ia_valid & ATTR_FILE) {
+		key = attr->ia_file->private_data;
+	} else {
+		key = afs_request_key(vnode->volume->cell);
+		if (IS_ERR(key)) {
+			ret = PTR_ERR(key);
+			goto error;
+		}
+	}
+
+	ret = afs_vnode_setattr(vnode, key, attr);
+	if (!(attr->ia_valid & ATTR_FILE))
+		key_put(key);
+
+error:
+	_leave(" = %d", ret);
+	return ret;
 }

@@ -71,9 +71,10 @@ loop:
 	jmp	loop
 done:
 	/* go back to the original page tables */
-	leaq	init_level4_pgt(%rip), %rax
-	subq	$__START_KERNEL_map, %rax
-	movq	%rax, %cr3
+	movq    $(init_level4_pgt - __START_KERNEL_map), %rax
+	addq    phys_base(%rip), %rax
+	movq    %rax, %cr3
+
 	/* Flush TLB, including "global" things (vmalloc) */
 	movq	mmu_cr4_features(%rip), %rax
 	movq	%rax, %rdx

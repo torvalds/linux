@@ -124,19 +124,8 @@
 #define be32_to_cpus __be32_to_cpus
 #define cpu_to_be16s __cpu_to_be16s
 #define be16_to_cpus __be16_to_cpus
-#endif
 
-
-#if defined(__KERNEL__)
 /*
- * Handle ntohl and suches. These have various compatibility
- * issues - like we want to give the prototype even though we
- * also have a macro for them in case some strange program
- * wants to take the address of the thing or something..
- *
- * Note that these used to return a "long" in libc5, even though
- * long is often 64-bit these days.. Thus the casts.
- *
  * They have to be macros in order to do the constant folding
  * correctly - if the argument passed into a inline function
  * it is no longer constant according to gcc..
@@ -146,17 +135,6 @@
 #undef ntohs
 #undef htonl
 #undef htons
-
-/*
- * Do the prototypes. Somebody might want to take the
- * address or some such sick thing..
- */
-extern __u32			ntohl(__be32);
-extern __be32			htonl(__u32);
-extern __u16			ntohs(__be16);
-extern __be16			htons(__u16);
-
-#if defined(__GNUC__) && defined(__OPTIMIZE__)
 
 #define ___htonl(x) __cpu_to_be32(x)
 #define ___htons(x) __cpu_to_be16(x)
@@ -168,9 +146,6 @@ extern __be16			htons(__u16);
 #define htons(x) ___htons(x)
 #define ntohs(x) ___ntohs(x)
 
-#endif /* OPTIMIZE */
-
 #endif /* KERNEL */
-
 
 #endif /* _LINUX_BYTEORDER_GENERIC_H */

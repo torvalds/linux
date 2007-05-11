@@ -182,7 +182,7 @@ extern int end;
 static ulg free_mem_ptr;
 static ulg free_mem_ptr_end;
 
-#define HEAP_SIZE 0x2000
+#define HEAP_SIZE 0x3000
 
 #include "../../../../lib/inflate.c"
 

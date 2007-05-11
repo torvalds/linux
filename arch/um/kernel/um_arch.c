@@ -17,6 +17,7 @@
 #include "linux/seq_file.h"
 #include "linux/delay.h"
 #include "linux/module.h"
+#include "linux/utsname.h"
 #include "asm/page.h"
 #include "asm/pgtable.h"
 #include "asm/ptrace.h"
@@ -25,8 +26,9 @@
 #include "asm/setup.h"
 #include "ubd_user.h"
 #include "asm/current.h"
-#include "user_util.h"
 #include "kern_util.h"
+#include "as-layout.h"
+#include "arch.h"
 #include "kern.h"
 #include "mem_user.h"
 #include "mem.h"
@@ -42,7 +44,7 @@
 
 #define DEFAULT_COMMAND_LINE "root=98:0"
 
-/* Changed in linux_main and setup_arch, which run before SMP is started */
+/* Changed in add_arg and setup_arch, which run before SMP is started */
 static char __initdata command_line[COMMAND_LINE_SIZE] = { 0 };
 
 static void __init add_arg(char *arg)
@@ -56,16 +58,24 @@ static void __init add_arg(char *arg)
 	strcat(command_line, arg);
 }
 
-struct cpuinfo_um boot_cpu_data = { 
+/*
+ * These fields are initialized at boot time and not changed.
+ * XXX This structure is used only in the non-SMP case.  Maybe this
+ * should be moved to smp.c.
+ */
+struct cpuinfo_um boot_cpu_data = {
 	.loops_per_jiffy	= 0,
 	.ipi_pipe		= { -1, -1 }
 };
 
 unsigned long thread_saved_pc(struct task_struct *task)
 {
-	return(os_process_pc(CHOOSE_MODE_PROC(thread_pid_tt, thread_pid_skas,
-					      task)));
+	return os_process_pc(CHOOSE_MODE_PROC(thread_pid_tt, thread_pid_skas,
+					      task));
 }
+
+/* Changed in setup_arch, which is called in early boot */
+static char host_info[(__NEW_UTS_LEN + 1) * 5];
 
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
@@ -86,7 +96,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   loops_per_jiffy/(500000/HZ),
 		   (loops_per_jiffy/(5000/HZ)) % 100);
 
-	return(0);
+	return 0;
 }
 
 static void *c_start(struct seq_file *m, loff_t *pos)
@@ -114,14 +124,12 @@ const struct seq_operations cpuinfo_op = {
 /* Set in linux_main */
 unsigned long host_task_size;
 unsigned long task_size;
-
-unsigned long uml_start;
-
-/* Set in early boot */
 unsigned long uml_physmem;
-unsigned long uml_reserved;
+unsigned long uml_reserved; /* Also modified in mem_init */
 unsigned long start_vm;
 unsigned long end_vm;
+
+/* Set in uml_ncpus_setup */
 int ncpus = 1;
 
 #ifdef CONFIG_CMDLINE_ON_HOST
@@ -135,6 +143,8 @@ static char *argv1_end = NULL;
 
 /* Set in early boot */
 static int have_root __initdata = 0;
+
+/* Set in uml_mem_setup and modified in linux_main */
 long long physmem_size = 32 * 1024 * 1024;
 
 void set_cmdline(char *cmd)
@@ -212,12 +222,12 @@ __uml_setup("debug", no_skas_debug_setup,
 #ifdef CONFIG_SMP
 static int __init uml_ncpus_setup(char *line, int *add)
 {
-       if (!sscanf(line, "%d", &ncpus)) {
-               printf("Couldn't parse [%s]\n", line);
-               return -1;
-       }
+	if (!sscanf(line, "%d", &ncpus)) {
+		printf("Couldn't parse [%s]\n", line);
+		return -1;
+	}
 
-       return 0;
+	return 0;
 }
 
 __uml_setup("ncpus=", uml_ncpus_setup,
@@ -234,7 +244,7 @@ static int force_tt = 0;
 static int __init mode_tt_setup(char *line, int *add)
 {
 	force_tt = 1;
-	return(0);
+	return 0;
 }
 
 #else
@@ -245,7 +255,7 @@ static int __init mode_tt_setup(char *line, int *add)
 static int __init mode_tt_setup(char *line, int *add)
 {
 	printf("CONFIG_MODE_TT disabled - 'mode=tt' ignored\n");
-	return(0);
+	return 0;
 }
 
 #else
@@ -256,7 +266,7 @@ static int __init mode_tt_setup(char *line, int *add)
 static int __init mode_tt_setup(char *line, int *add)
 {
 	printf("CONFIG_MODE_SKAS disabled - 'mode=tt' redundant\n");
-	return(0);
+	return 0;
 }
 
 #endif
@@ -274,16 +284,15 @@ int mode_tt = DEFAULT_TT;
 
 static int __init Usage(char *line, int *add)
 {
- 	const char **p;
+	const char **p;
 
 	printf(usage_string, init_utsname()->release);
- 	p = &__uml_help_start;
- 	while (p < &__uml_help_end) {
- 		printf("%s", *p);
- 		p++;
- 	}
+	p = &__uml_help_start;
+	while (p < &__uml_help_end) {
+		printf("%s", *p);
+		p++;
+	}
 	exit(0);
-
 	return 0;
 }
 
@@ -374,13 +383,12 @@ int __init linux_main(int argc, char **argv)
 
 	printf("UML running in %s mode\n", mode);
 
-	uml_start = (unsigned long) &__binary_start;
 	host_task_size = CHOOSE_MODE_PROC(set_task_sizes_tt,
 					  set_task_sizes_skas, &task_size);
 
 	/*
- 	 * Setting up handlers to 'sig_info' struct
- 	 */
+	 * Setting up handlers to 'sig_info' struct
+	 */
 	os_fill_handlinfo(handlinfo_kern);
 
 	brk_start = (unsigned long) sbrk(0);
@@ -396,7 +404,7 @@ int __init linux_main(int argc, char **argv)
 		physmem_size += UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);
 	}
 
-	uml_physmem = uml_start & PAGE_MASK;
+	uml_physmem = (unsigned long) &__binary_start & PAGE_MASK;
 
 	/* Reserve up to 4M after the current brk */
 	uml_reserved = ROUND_4M(brk_start) + (1 << 22);
@@ -407,7 +415,7 @@ int __init linux_main(int argc, char **argv)
 	argv1_begin = argv[1];
 	argv1_end = &argv[1][strlen(argv[1])];
 #endif
-  
+
 	highmem = 0;
 	iomem_size = (iomem_size + PAGE_SIZE - 1) & PAGE_MASK;
 	max_physmem = get_kmem_end() - uml_physmem - iomem_size - MIN_VMALLOC;
@@ -449,12 +457,12 @@ int __init linux_main(int argc, char **argv)
 		printf("Kernel virtual memory size shrunk to %lu bytes\n",
 		       virtmem_size);
 
-  	uml_postsetup();
+	uml_postsetup();
 
-	task_protections((unsigned long) &init_thread_info);
+	stack_protections((unsigned long) &init_thread_info);
 	os_flush_stdout();
 
-	return(CHOOSE_MODE(start_uml_tt(), start_uml_skas()));
+	return CHOOSE_MODE(start_uml_tt(), start_uml_skas());
 }
 
 extern int uml_exitcode;
@@ -466,8 +474,8 @@ static int panic_exit(struct notifier_block *self, unsigned long unused1,
 	show_regs(&(current->thread.regs));
 	bust_spinlocks(0);
 	uml_exitcode = 1;
-	machine_halt();
-	return(0);
+	os_dump_core();
+	return 0;
 }
 
 static struct notifier_block panic_exit_notifier = {
@@ -482,14 +490,14 @@ void __init setup_arch(char **cmdline_p)
 			&panic_exit_notifier);
 	paging_init();
 	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
- 	*cmdline_p = command_line;
-	setup_hostinfo();
+	*cmdline_p = command_line;
+	setup_hostinfo(host_info, sizeof host_info);
 }
 
 void __init check_bugs(void)
 {
 	arch_check_bugs();
- 	os_check_bugs();
+	os_check_bugs();
 }
 
 void apply_alternatives(struct alt_instr *start, struct alt_instr *end)

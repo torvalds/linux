@@ -339,7 +339,7 @@ static void atari_shutdown_irq(unsigned int irq)
 
 static struct irq_controller atari_irq_controller = {
 	.name		= "atari",
-	.lock		= SPIN_LOCK_UNLOCKED,
+	.lock		= __SPIN_LOCK_UNLOCKED(atari_irq_controller.lock),
 	.startup	= atari_startup_irq,
 	.shutdown	= atari_shutdown_irq,
 	.enable		= atari_enable_irq,

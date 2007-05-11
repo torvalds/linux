@@ -302,7 +302,7 @@ static void acpi_device_shutdown(struct device *dev)
 	return ;
 }
 
-static struct bus_type acpi_bus_type = {
+struct bus_type acpi_bus_type = {
 	.name		= "acpi",
 	.suspend	= acpi_device_suspend,
 	.resume		= acpi_device_resume,

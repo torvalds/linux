@@ -78,9 +78,9 @@ Select (17)------------------------------(16) Data / Instruction
 Ground (18)---[GND]              [+5v]---(19) LED +
 Ground (19)---[GND]
 Ground (20)---[GND]              E    A             Values:
-Ground (21)---[GND]       [GND]---[P1]---(18) Vee    · R = Resistor = 22 ohm
-Ground (22)---[GND]                |                 · P1 = Preset = 10 Kohm
-Ground (23)---[GND]       ----   S ------( 3) V0     · P2 = Preset = 1 Kohm
+Ground (21)---[GND]       [GND]---[P1]---(18) Vee    - R = Resistor = 22 ohm
+Ground (22)---[GND]                |                 - P1 = Preset = 10 Kohm
+Ground (23)---[GND]       ----   S ------( 3) V0     - P2 = Preset = 1 Kohm
 Ground (24)---[GND]       |  |
 Ground (25)---[GND] [GND]---[P2]---[R]---(20) LED -
 

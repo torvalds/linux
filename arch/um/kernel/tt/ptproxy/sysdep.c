@@ -13,7 +13,6 @@ terms and conditions.
 #include <sys/types.h>
 #include <linux/unistd.h>
 #include "ptrace_user.h"
-#include "user_util.h"
 #include "user.h"
 #include "os.h"
 

@@ -119,6 +119,12 @@ struct kiocb {
 
 	struct list_head	ki_list;	/* the aio core uses this
 						 * for cancellation */
+
+	/*
+	 * If the aio_resfd field of the userspace iocb is not zero,
+	 * this is the underlying file* to deliver event to.
+	 */
+	struct file		*ki_eventfd;
 };
 
 #define is_sync_kiocb(iocb)	((iocb)->ki_key == KIOCB_SYNC_KEY)
@@ -226,7 +232,8 @@ int FASTCALL(io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 		__put_ioctx(kioctx);					\
 } while (0)
 
-#define in_aio() !is_sync_wait(current->io_wait)
+#define in_aio() (unlikely(!is_sync_wait(current->io_wait)))
+
 /* may be used for debugging */
 #define warn_if_async()							\
 do {									\

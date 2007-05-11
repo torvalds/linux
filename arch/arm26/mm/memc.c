@@ -176,13 +176,9 @@ void __init pgtable_cache_init(void)
 {
 	pte_cache = kmem_cache_create("pte-cache",
 				sizeof(pte_t) * PTRS_PER_PTE,
-				0, 0, pte_cache_ctor, NULL);
-	if (!pte_cache)
-		BUG();
+				0, SLAB_PANIC, pte_cache_ctor, NULL);
 
 	pgd_cache = kmem_cache_create("pgd-cache", MEMC_TABLE_SIZE +
 				sizeof(pgd_t) * PTRS_PER_PGD,
-				0, 0, pgd_cache_ctor, NULL);
-	if (!pgd_cache)
-		BUG();
+				0, SLAB_PANIC, pgd_cache_ctor, NULL);
 }

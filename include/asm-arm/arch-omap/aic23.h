@@ -110,7 +110,7 @@
 #define TLV320AIC23ID1                  (0x1a)	// cs low
 #define TLV320AIC23ID2                  (0x1b)	// cs high
 
-void tlv320aic23_power_up(void);
-void tlv320aic23_power_down(void);
+void aic23_power_up(void);
+void aic23_power_down(void);
 
 #endif /* __ASM_ARCH_AIC23_H */

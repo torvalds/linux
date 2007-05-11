@@ -18,6 +18,58 @@
 #include <asm/io.h>
 #include <asm/machvec.h>
 
+#if defined(CONFIG_CPU_SUBTYPE_SH7705)
+#define INTC_INTER      0xA4000014UL
+#define INTC_IPRD       0xA4000018UL
+#define INTC_ICR2       0xA4000012UL
+
+/* PFC */
+#define PORT_PACR       0xA4000100UL
+#define PORT_PBCR       0xA4000102UL
+#define PORT_PCCR       0xA4000104UL
+#define PORT_PDCR       0xA4000106UL
+#define PORT_PECR       0xA4000108UL
+#define PORT_PFCR       0xA400010AUL
+#define PORT_PGCR       0xA400010CUL
+#define PORT_PHCR       0xA400010EUL
+#define PORT_PJCR       0xA4000110UL
+#define PORT_PKCR       0xA4000112UL
+#define PORT_PLCR       0xA4000114UL
+#define PORT_PMCR       0xA4000118UL
+#define PORT_PNCR       0xA400011AUL
+#define PORT_PECR2      0xA4050148UL
+#define PORT_PFCR2      0xA405014AUL
+#define PORT_PNCR2      0xA405015AUL
+
+/* I/O port */
+#define PORT_PADR       0xA4000120UL
+#define PORT_PBDR       0xA4000122UL
+#define PORT_PCDR       0xA4000124UL
+#define PORT_PDDR       0xA4000126UL
+#define PORT_PEDR       0xA4000128UL
+#define PORT_PFDR       0xA400012AUL
+#define PORT_PGDR       0xA400012CUL
+#define PORT_PHDR       0xA400012EUL
+#define PORT_PJDR       0xA4000130UL
+#define PORT_PKDR       0xA4000132UL
+#define PORT_PLDR       0xA4000134UL
+#define PORT_PMDR       0xA4000138UL
+#define PORT_PNDR       0xA400013AUL
+
+#define PINT0_IRQ       40
+#define PINT8_IRQ       41
+#define PINT_IRQ_BASE   86
+
+#define PINT0_IPR_ADDR          INTC_IPRD
+#define PINT0_IPR_POS           3
+#define PINT0_PRIORITY      2
+
+#define PINT8_IPR_ADDR          INTC_IPRD
+#define PINT8_IPR_POS           2
+#define PINT8_PRIORITY      2
+
+#endif /* CONFIG_CPU_SUBTYPE_SH7705 */
+
 static unsigned char pint_map[256];
 static unsigned long portcr_mask;
 
@@ -126,7 +178,7 @@ int ipr_irq_demux(int irq)
 	unsigned long creg, dreg, d, sav;
 
 	if (irq == PINT0_IRQ) {
-#if defined(CONFIG_CPU_SUBTYPE_SH7707)
+#if defined(CONFIG_CPU_SUBTYPE_SH7705) || defined(CONFIG_CPU_SUBTYPE_SH7707)
 		creg = PORT_PACR;
 		dreg = PORT_PADR;
 #else
@@ -144,7 +196,7 @@ int ipr_irq_demux(int irq)
 
 		return PINT_IRQ_BASE + pint_map[d];
 	} else if (irq == PINT8_IRQ) {
-#if defined(CONFIG_CPU_SUBTYPE_SH7707)
+#if defined(CONFIG_CPU_SUBTYPE_SH7705) || defined(CONFIG_CPU_SUBTYPE_SH7707)
 		creg = PORT_PBCR;
 		dreg = PORT_PBDR;
 #else

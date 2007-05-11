@@ -133,13 +133,13 @@ static int celleb_epci_check_abort(struct pci_controller *hose,
 }
 
 static volatile void __iomem *celleb_epci_make_config_addr(
+					struct pci_bus *bus,
 					struct pci_controller *hose,
 					unsigned int devfn, int where)
 {
 	volatile void __iomem *addr;
-	struct pci_bus *bus = hose->bus;
 
-	if (bus->self)
+	if (bus != hose->bus)
 		addr = celleb_epci_get_epci_cfg(hose) +
 		       (((bus->number & 0xff) << 16)
 		        | ((devfn & 0xff) << 8)
@@ -193,7 +193,7 @@ static int celleb_epci_read_config(struct pci_bus *bus,
 	} else {
 
 		clear_and_disable_master_abort_interrupt(hose);
-		addr = celleb_epci_make_config_addr(hose, devfn, where);
+		addr = celleb_epci_make_config_addr(bus, hose, devfn, where);
 
 		switch (size) {
 		case 1:
@@ -257,7 +257,7 @@ static int celleb_epci_write_config(struct pci_bus *bus,
 	} else {
 
 		clear_and_disable_master_abort_interrupt(hose);
-		addr = celleb_epci_make_config_addr(hose, devfn, where);
+		addr = celleb_epci_make_config_addr(bus, hose, devfn, where);
 
 		switch (size) {
 		case 1:

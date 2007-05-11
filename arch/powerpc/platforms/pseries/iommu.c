@@ -504,6 +504,12 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 			break;
 	}
 
+	if (!pdn || !PCI_DN(pdn)) {
+		printk(KERN_WARNING "pci_dma_dev_setup_pSeriesLP: "
+		       "no DMA window found for pci dev=%s dn=%s\n",
+				 pci_name(dev), dn? dn->full_name : "<null>");
+		return;
+	}
 	DBG("  parent is %s\n", pdn->full_name);
 
 	/* Check for parent == NULL so we don't try to setup the empty EADS
@@ -514,7 +520,6 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 		dev->dev.archdata.dma_data = PCI_DN(pdn)->iommu_table;
 		return;
 	}
-	DBG("  found DMA window, table: %p\n", pci->iommu_table);
 
 	pci = PCI_DN(pdn);
 	if (!pci->iommu_table) {
@@ -528,6 +533,8 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 
 		pci->iommu_table = iommu_init_table(tbl, pci->phb->node);
 		DBG("  created table: %p\n", pci->iommu_table);
+	} else {
+		DBG("  found DMA window, table: %p\n", pci->iommu_table);
 	}
 
 	dev->dev.archdata.dma_data = pci->iommu_table;

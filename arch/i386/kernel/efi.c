@@ -69,12 +69,10 @@ static void efi_call_phys_prelog(void) __acquires(efi_rt_lock)
 {
 	unsigned long cr4;
 	unsigned long temp;
-	struct Xgt_desc_struct *cpu_gdt_descr;
+	struct Xgt_desc_struct gdt_descr;
 
 	spin_lock(&efi_rt_lock);
 	local_irq_save(efi_rt_eflags);
-
-	cpu_gdt_descr = &per_cpu(cpu_gdt_descr, 0);
 
 	/*
 	 * If I don't have PSE, I should just duplicate two entries in page
@@ -105,17 +103,19 @@ static void efi_call_phys_prelog(void) __acquires(efi_rt_lock)
 	 */
 	local_flush_tlb();
 
-	cpu_gdt_descr->address = __pa(cpu_gdt_descr->address);
-	load_gdt(cpu_gdt_descr);
+	gdt_descr.address = __pa(get_cpu_gdt_table(0));
+	gdt_descr.size = GDT_SIZE - 1;
+	load_gdt(&gdt_descr);
 }
 
 static void efi_call_phys_epilog(void) __releases(efi_rt_lock)
 {
 	unsigned long cr4;
-	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, 0);
+	struct Xgt_desc_struct gdt_descr;
 
-	cpu_gdt_descr->address = (unsigned long)__va(cpu_gdt_descr->address);
-	load_gdt(cpu_gdt_descr);
+	gdt_descr.address = (unsigned long)get_cpu_gdt_table(0);
+	gdt_descr.size = GDT_SIZE - 1;
+	load_gdt(&gdt_descr);
 
 	cr4 = read_cr4();
 
@@ -347,14 +347,12 @@ void __init efi_init(void)
 		printk(KERN_ERR PFX "Woah! Couldn't map the EFI system table.\n");
 	if (efi.systab->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
 		printk(KERN_ERR PFX "Woah! EFI system table signature incorrect\n");
-	if ((efi.systab->hdr.revision ^ EFI_SYSTEM_TABLE_REVISION) >> 16 != 0)
-		printk(KERN_ERR PFX
-		       "Warning: EFI system table major version mismatch: "
-		       "got %d.%02d, expected %d.%02d\n",
+	if ((efi.systab->hdr.revision >> 16) == 0)
+		printk(KERN_ERR PFX "Warning: EFI system table version "
+		       "%d.%02d, expected 1.00 or greater\n",
 		       efi.systab->hdr.revision >> 16,
-		       efi.systab->hdr.revision & 0xffff,
-		       EFI_SYSTEM_TABLE_REVISION >> 16,
-		       EFI_SYSTEM_TABLE_REVISION & 0xffff);
+		       efi.systab->hdr.revision & 0xffff);
+
 	/*
 	 * Grab some details from the system table
 	 */

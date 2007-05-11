@@ -58,9 +58,6 @@
 #define SIS_LINUX_KERNEL		/* Linux kernel framebuffer */
 #undef  SIS_XORG_XF86			/* XFree86/X.org */
 
-#undef SIS_LINUX_KERNEL_24
-#undef SIS_LINUX_KERNEL_26
-
 #ifdef OutPortByte
 #undef OutPortByte
 #endif
@@ -99,8 +96,6 @@
 #ifdef CONFIG_FB_SIS_315
 #define SIS315H
 #endif
-
-#define SIS_LINUX_KERNEL_26
 
 #if !defined(SIS300) && !defined(SIS315H)
 #warning Neither CONFIG_FB_SIS_300 nor CONFIG_FB_SIS_315 is set

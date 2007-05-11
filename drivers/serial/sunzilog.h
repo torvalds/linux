@@ -13,7 +13,8 @@ struct zilog_layout {
 	struct zilog_channel channelA;
 };
 
-#define NUM_ZSREGS    16
+#define	NUM_ZSREGS	17
+#define	R7p		16 /* Written as R7 with P15 bit 0 set */
 
 /* Conversion routines to/from brg time constants from/to bits
  * per second.
@@ -127,6 +128,15 @@ struct zilog_layout {
 
 /* Write Register 7 (Sync bits 8-15/SDLC 01111110) */
 
+/* Write Register 7' (ESCC Only) */
+#define	AUTO_TxFLAG	1	/* Automatic Tx SDLC Flag */
+#define	AUTO_EOM_RST	2	/* Automatic EOM Reset */
+#define	AUTOnRTS	4	/* Automatic /RTS pin deactivation */
+#define	RxFIFO_LVL	8	/* Receive FIFO interrupt level */
+#define	nDTRnREQ	0x10	/* /DTR/REQ timing */
+#define	TxFIFO_LVL	0x20	/* Transmit FIFO interrupt level */
+#define	EXT_RD_EN	0x40	/* Extended read register enable */
+
 /* Write Register 8 (transmit buffer) */
 
 /* Write Register 9 (Master interrupt control) */
@@ -135,6 +145,7 @@ struct zilog_layout {
 #define	DLC	4	/* Disable Lower Chain */
 #define	MIE	8	/* Master Interrupt Enable */
 #define	STATHI	0x10	/* Status high */
+#define	SWIACK  0x20    /* Software Interrupt Ack (not on NMOS) */
 #define	NORESET	0	/* No reset on write to R9 */
 #define	CHRB	0x40	/* Reset channel B */
 #define	CHRA	0x80	/* Reset channel A */
@@ -187,7 +198,9 @@ struct zilog_layout {
 #define	SNRZI	0xe0	/* Set NRZI mode */
 
 /* Write Register 15 (external/status interrupt control) */
+#define	WR7pEN	1	/* WR7' Enable (ESCC only) */
 #define	ZCIE	2	/* Zero count IE */
+#define	FIFOEN	4	/* FIFO Enable (ESCC only) */
 #define	DCDIE	8	/* DCD IE */
 #define	SYNCIE	0x10	/* Sync/hunt IE */
 #define	CTSIE	0x20	/* CTS IE */
@@ -240,6 +253,10 @@ struct zilog_layout {
 #define	CHAEXT	0x8		/* Channel A Ext/Stat IP */
 #define	CHATxIP	0x10		/* Channel A Tx IP */
 #define	CHARxIP	0x20		/* Channel A Rx IP */
+
+/* Read Register 6 (LSB frame byte count [Not on NMOS]) */
+
+/* Read Register 7 (MSB frame byte count and FIFO status [Not on NMOS]) */
 
 /* Read Register 8 (receive data register) */
 

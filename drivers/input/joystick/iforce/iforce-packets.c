@@ -2,7 +2,7 @@
  * $Id: iforce-packets.c,v 1.16 2002/07/07 10:22:50 jdeneux Exp $
  *
  *  Copyright (c) 2000-2002 Vojtech Pavlik <vojtech@ucw.cz>
- *  Copyright (c) 2001-2002 Johann Deneux <deneux@ifrance.com>
+ *  Copyright (c) 2001-2002, 2007 Johann Deneux <johann.deneux@gmail.com>
  *
  *  USB/RS232 I-Force joysticks and wheels.
  */
@@ -39,10 +39,10 @@ void iforce_dump_packet(char *msg, u16 cmd, unsigned char *data)
 {
 	int i;
 
-	printk(KERN_DEBUG "iforce.c: %s ( cmd = %04x, data = ", msg, cmd);
+	printk(KERN_DEBUG __FILE__ ": %s cmd = %04x, data = ", msg, cmd);
 	for (i = 0; i < LO(cmd); i++)
 		printk("%02x ", data[i]);
-	printk(")\n");
+	printk("\n");
 }
 
 /*
@@ -65,8 +65,9 @@ int iforce_send_packet(struct iforce *iforce, u16 cmd, unsigned char* data)
 	head = iforce->xmit.head;
 	tail = iforce->xmit.tail;
 
+
 	if (CIRC_SPACE(head, tail, XMIT_SIZE) < n+2) {
-		printk(KERN_WARNING "iforce.c: not enough space in xmit buffer to send new packet\n");
+		warn("not enough space in xmit buffer to send new packet");
 		spin_unlock_irqrestore(&iforce->xmit_lock, flags);
 		return -1;
 	}
@@ -126,8 +127,6 @@ int iforce_control_playback(struct iforce* iforce, u16 id, unsigned int value)
 {
 	unsigned char data[3];
 
-printk(KERN_DEBUG "iforce-packets.c: control_playback %d %d\n", id, value);
-
 	data[0] = LO(id);
 	data[1] = (value > 0) ? ((value > 1) ? 0x41 : 0x01) : 0;
 	data[2] = LO(value);
@@ -151,7 +150,7 @@ static int mark_core_as_ready(struct iforce *iforce, unsigned short addr)
 			return 0;
 		}
 	}
-	printk(KERN_WARNING "iforce-packets.c: unused effect %04x updated !!!\n", addr);
+	warn("unused effect %04x updated !!!", addr);
 	return -1;
 }
 
@@ -162,7 +161,7 @@ void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data)
 	static int being_used = 0;
 
 	if (being_used)
-		printk(KERN_WARNING "iforce-packets.c: re-entrant call to iforce_process %d\n", being_used);
+		warn("re-entrant call to iforce_process %d", being_used);
 	being_used++;
 
 #ifdef CONFIG_JOYSTICK_IFORCE_232
@@ -266,7 +265,7 @@ int iforce_get_id_packet(struct iforce *iforce, char *packet)
 			return -1;
 		}
 #else
-		printk(KERN_ERR "iforce_get_id_packet: iforce->bus = USB!\n");
+		err("iforce_get_id_packet: iforce->bus = USB!");
 #endif
 		break;
 
@@ -284,13 +283,12 @@ int iforce_get_id_packet(struct iforce *iforce, char *packet)
 			return -1;
 		}
 #else
-		printk(KERN_ERR "iforce_get_id_packet: iforce->bus = SERIO!\n");
+		err("iforce_get_id_packet: iforce->bus = SERIO!");
 #endif
 		break;
 
 	default:
-		printk(KERN_ERR "iforce_get_id_packet: iforce->bus = %d\n",
-		       iforce->bus);
+		err("iforce_get_id_packet: iforce->bus = %d", iforce->bus);
 		break;
 	}
 

@@ -13,8 +13,8 @@
 
 #include <linux/module.h>
 #include <linux/rtc.h>
+#include "rtc-core.h"
 
-static struct class *rtc_dev_class;
 static dev_t rtc_devt;
 
 #define RTC_DEV_MAX 16 /* 16 RTCs should be enough for everyone... */
@@ -32,9 +32,9 @@ static int rtc_dev_open(struct inode *inode, struct file *file)
 	if (!(mutex_trylock(&rtc->char_lock)))
 		return -EBUSY;
 
-	file->private_data = &rtc->class_dev;
+	file->private_data = rtc;
 
-	err = ops->open ? ops->open(rtc->class_dev.dev) : 0;
+	err = ops->open ? ops->open(rtc->dev.parent) : 0;
 	if (err == 0) {
 		spin_lock_irq(&rtc->irq_lock);
 		rtc->irq_data = 0;
@@ -61,7 +61,7 @@ static void rtc_uie_task(struct work_struct *work)
 	int num = 0;
 	int err;
 
-	err = rtc_read_time(&rtc->class_dev, &tm);
+	err = rtc_read_time(rtc, &tm);
 
 	local_irq_disable();
 	spin_lock(&rtc->irq_lock);
@@ -79,7 +79,7 @@ static void rtc_uie_task(struct work_struct *work)
 	}
 	spin_unlock(&rtc->irq_lock);
 	if (num)
-		rtc_update_irq(&rtc->class_dev, num, RTC_UF | RTC_IRQF);
+		rtc_update_irq(rtc, num, RTC_UF | RTC_IRQF);
 	local_irq_enable();
 }
 static void rtc_uie_timer(unsigned long data)
@@ -121,7 +121,7 @@ static int set_uie(struct rtc_device *rtc)
 	struct rtc_time tm;
 	int err;
 
-	err = rtc_read_time(&rtc->class_dev, &tm);
+	err = rtc_read_time(rtc, &tm);
 	if (err)
 		return err;
 	spin_lock_irq(&rtc->irq_lock);
@@ -180,7 +180,7 @@ rtc_dev_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	if (ret == 0) {
 		/* Check for any data updates */
 		if (rtc->ops->read_callback)
-			data = rtc->ops->read_callback(rtc->class_dev.dev,
+			data = rtc->ops->read_callback(rtc->dev.parent,
 						       data);
 
 		if (sizeof(int) != sizeof(long) &&
@@ -210,8 +210,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
 	int err = 0;
-	struct class_device *class_dev = file->private_data;
-	struct rtc_device *rtc = to_rtc_device(class_dev);
+	struct rtc_device *rtc = file->private_data;
 	const struct rtc_class_ops *ops = rtc->ops;
 	struct rtc_time tm;
 	struct rtc_wkalrm alarm;
@@ -252,7 +251,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 
 	/* try the driver's ioctl interface */
 	if (ops->ioctl) {
-		err = ops->ioctl(class_dev->dev, cmd, arg);
+		err = ops->ioctl(rtc->dev.parent, cmd, arg);
 		if (err != -ENOIOCTLCMD)
 			return err;
 	}
@@ -264,7 +263,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 	case RTC_ALM_READ:
-		err = rtc_read_alarm(class_dev, &alarm);
+		err = rtc_read_alarm(rtc, &alarm);
 		if (err < 0)
 			return err;
 
@@ -278,17 +277,53 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 
 		alarm.enabled = 0;
 		alarm.pending = 0;
-		alarm.time.tm_mday = -1;
-		alarm.time.tm_mon = -1;
-		alarm.time.tm_year = -1;
 		alarm.time.tm_wday = -1;
 		alarm.time.tm_yday = -1;
 		alarm.time.tm_isdst = -1;
-		err = rtc_set_alarm(class_dev, &alarm);
+
+		/* RTC_ALM_SET alarms may be up to 24 hours in the future.
+		 * Rather than expecting every RTC to implement "don't care"
+		 * for day/month/year fields, just force the alarm to have
+		 * the right values for those fields.
+		 *
+		 * RTC_WKALM_SET should be used instead.  Not only does it
+		 * eliminate the need for a separate RTC_AIE_ON call, it
+		 * doesn't have the "alarm 23:59:59 in the future" race.
+		 *
+		 * NOTE:  some legacy code may have used invalid fields as
+		 * wildcards, exposing hardware "periodic alarm" capabilities.
+		 * Not supported here.
+		 */
+		{
+			unsigned long now, then;
+
+			err = rtc_read_time(rtc, &tm);
+			if (err < 0)
+				return err;
+			rtc_tm_to_time(&tm, &now);
+
+			alarm.time.tm_mday = tm.tm_mday;
+			alarm.time.tm_mon = tm.tm_mon;
+			alarm.time.tm_year = tm.tm_year;
+			err  = rtc_valid_tm(&alarm.time);
+			if (err < 0)
+				return err;
+			rtc_tm_to_time(&alarm.time, &then);
+
+			/* alarm may need to wrap into tomorrow */
+			if (then < now) {
+				rtc_time_to_tm(now + 24 * 60 * 60, &tm);
+				alarm.time.tm_mday = tm.tm_mday;
+				alarm.time.tm_mon = tm.tm_mon;
+				alarm.time.tm_year = tm.tm_year;
+			}
+		}
+
+		err = rtc_set_alarm(rtc, &alarm);
 		break;
 
 	case RTC_RD_TIME:
-		err = rtc_read_time(class_dev, &tm);
+		err = rtc_read_time(rtc, &tm);
 		if (err < 0)
 			return err;
 
@@ -300,7 +335,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 		if (copy_from_user(&tm, uarg, sizeof(tm)))
 			return -EFAULT;
 
-		err = rtc_set_time(class_dev, &tm);
+		err = rtc_set_time(rtc, &tm);
 		break;
 
 	case RTC_IRQP_READ:
@@ -310,7 +345,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 
 	case RTC_IRQP_SET:
 		if (ops->irq_set_freq)
-			err = rtc_irq_set_freq(class_dev, rtc->irq_task, arg);
+			err = rtc_irq_set_freq(rtc, rtc->irq_task, arg);
 		break;
 
 #if 0
@@ -336,11 +371,11 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 		if (copy_from_user(&alarm, uarg, sizeof(alarm)))
 			return -EFAULT;
 
-		err = rtc_set_alarm(class_dev, &alarm);
+		err = rtc_set_alarm(rtc, &alarm);
 		break;
 
 	case RTC_WKALM_RD:
-		err = rtc_read_alarm(class_dev, &alarm);
+		err = rtc_read_alarm(rtc, &alarm);
 		if (err < 0)
 			return err;
 
@@ -372,7 +407,7 @@ static int rtc_dev_release(struct inode *inode, struct file *file)
 	clear_uie(rtc);
 #endif
 	if (rtc->ops->release)
-		rtc->ops->release(rtc->class_dev.dev);
+		rtc->ops->release(rtc->dev.parent);
 
 	mutex_unlock(&rtc->char_lock);
 	return 0;
@@ -397,16 +432,17 @@ static const struct file_operations rtc_dev_fops = {
 
 /* insertion/removal hooks */
 
-static int rtc_dev_add_device(struct class_device *class_dev,
-				struct class_interface *class_intf)
+void rtc_dev_prepare(struct rtc_device *rtc)
 {
-	int err = 0;
-	struct rtc_device *rtc = to_rtc_device(class_dev);
+	if (!rtc_devt)
+		return;
 
 	if (rtc->id >= RTC_DEV_MAX) {
-		dev_err(class_dev->dev, "too many RTCs\n");
-		return -EINVAL;
+		pr_debug("%s: too many RTC devices\n", rtc->name);
+		return;
 	}
+
+	rtc->dev.devt = MKDEV(MAJOR(rtc_devt), rtc->id);
 
 	mutex_init(&rtc->char_lock);
 	spin_lock_init(&rtc->irq_lock);
@@ -418,100 +454,36 @@ static int rtc_dev_add_device(struct class_device *class_dev,
 
 	cdev_init(&rtc->char_dev, &rtc_dev_fops);
 	rtc->char_dev.owner = rtc->owner;
-
-	if (cdev_add(&rtc->char_dev, MKDEV(MAJOR(rtc_devt), rtc->id), 1)) {
-		dev_err(class_dev->dev,
-			"failed to add char device %d:%d\n",
-			MAJOR(rtc_devt), rtc->id);
-		return -ENODEV;
-	}
-
-	rtc->rtc_dev = class_device_create(rtc_dev_class, NULL,
-						MKDEV(MAJOR(rtc_devt), rtc->id),
-						class_dev->dev, "rtc%d", rtc->id);
-	if (IS_ERR(rtc->rtc_dev)) {
-		dev_err(class_dev->dev, "cannot create rtc_dev device\n");
-		err = PTR_ERR(rtc->rtc_dev);
-		goto err_cdev_del;
-	}
-
-	dev_dbg(class_dev->dev, "rtc intf: dev (%d:%d)\n",
-		MAJOR(rtc->rtc_dev->devt),
-		MINOR(rtc->rtc_dev->devt));
-
-	return 0;
-
-err_cdev_del:
-
-	cdev_del(&rtc->char_dev);
-	return err;
 }
 
-static void rtc_dev_remove_device(struct class_device *class_dev,
-					struct class_interface *class_intf)
+void rtc_dev_add_device(struct rtc_device *rtc)
 {
-	struct rtc_device *rtc = to_rtc_device(class_dev);
-
-	if (rtc->rtc_dev) {
-		dev_dbg(class_dev->dev, "removing char %d:%d\n",
-			MAJOR(rtc->rtc_dev->devt),
-			MINOR(rtc->rtc_dev->devt));
-
-		class_device_unregister(rtc->rtc_dev);
-		cdev_del(&rtc->char_dev);
-	}
+	if (cdev_add(&rtc->char_dev, rtc->dev.devt, 1))
+		printk(KERN_WARNING "%s: failed to add char device %d:%d\n",
+			rtc->name, MAJOR(rtc_devt), rtc->id);
+	else
+		pr_debug("%s: dev (%d:%d)\n", rtc->name,
+			MAJOR(rtc_devt), rtc->id);
 }
 
-/* interface registration */
+void rtc_dev_del_device(struct rtc_device *rtc)
+{
+	if (rtc->dev.devt)
+		cdev_del(&rtc->char_dev);
+}
 
-static struct class_interface rtc_dev_interface = {
-	.add = &rtc_dev_add_device,
-	.remove = &rtc_dev_remove_device,
-};
-
-static int __init rtc_dev_init(void)
+void __init rtc_dev_init(void)
 {
 	int err;
 
-	rtc_dev_class = class_create(THIS_MODULE, "rtc-dev");
-	if (IS_ERR(rtc_dev_class))
-		return PTR_ERR(rtc_dev_class);
-
 	err = alloc_chrdev_region(&rtc_devt, 0, RTC_DEV_MAX, "rtc");
-	if (err < 0) {
+	if (err < 0)
 		printk(KERN_ERR "%s: failed to allocate char dev region\n",
 			__FILE__);
-		goto err_destroy_class;
-	}
-
-	err = rtc_interface_register(&rtc_dev_interface);
-	if (err < 0) {
-		printk(KERN_ERR "%s: failed to register the interface\n",
-			__FILE__);
-		goto err_unregister_chrdev;
-	}
-
-	return 0;
-
-err_unregister_chrdev:
-	unregister_chrdev_region(rtc_devt, RTC_DEV_MAX);
-
-err_destroy_class:
-	class_destroy(rtc_dev_class);
-
-	return err;
 }
 
-static void __exit rtc_dev_exit(void)
+void __exit rtc_dev_exit(void)
 {
-	class_interface_unregister(&rtc_dev_interface);
-	class_destroy(rtc_dev_class);
-	unregister_chrdev_region(rtc_devt, RTC_DEV_MAX);
+	if (rtc_devt)
+		unregister_chrdev_region(rtc_devt, RTC_DEV_MAX);
 }
-
-subsys_initcall(rtc_dev_init);
-module_exit(rtc_dev_exit);
-
-MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
-MODULE_DESCRIPTION("RTC class dev interface");
-MODULE_LICENSE("GPL");

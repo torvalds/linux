@@ -95,7 +95,7 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 	}
 
 	udf_pc_to_char(inode->i_sb, symlink, inode->i_size, p);
-	udf_release_data(bh);
+	brelse(bh);
 
 	unlock_kernel();
 	SetPageUptodate(page);

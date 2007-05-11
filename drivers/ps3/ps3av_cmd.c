@@ -395,7 +395,7 @@ u32 ps3av_cmd_set_video_mode(void *p, u32 head, int video_vid, int video_fmt,
 	video_mode->video_order = ps3av_video_fmt_table[video_fmt].order;
 
 	pr_debug("%s: video_mode:vid:%x width:%d height:%d pitch:%d out_format:%d format:%x order:%x\n",
-		__FUNCTION__, video_vid, video_mode->width, video_mode->height,
+		__func__, video_vid, video_mode->width, video_mode->height,
 		video_mode->pitch, video_mode->video_out_format,
 		video_mode->video_format, video_mode->video_order);
 	return sizeof(*video_mode);
@@ -477,7 +477,7 @@ static u8 ps3av_cnv_mclk(u32 fs)
 		if (ps3av_cnv_mclk_table[i].fs == fs)
 			return ps3av_cnv_mclk_table[i].mclk;
 
-	printk(KERN_ERR "%s failed, fs:%x\n", __FUNCTION__, fs);
+	printk(KERN_ERR "%s failed, fs:%x\n", __func__, fs);
 	return 0;
 }
 
@@ -526,13 +526,12 @@ static void ps3av_cnv_ns(u8 *ns, u32 fs, u32 video_vid)
 		d = 4;
 		break;
 	default:
-		printk(KERN_ERR "%s failed, vid:%x\n", __FUNCTION__,
-		       video_vid);
+		printk(KERN_ERR "%s failed, vid:%x\n", __func__, video_vid);
 		break;
 	}
 
 	if (fs < PS3AV_CMD_AUDIO_FS_44K || fs > PS3AV_CMD_AUDIO_FS_192K)
-		printk(KERN_ERR "%s failed, fs:%x\n", __FUNCTION__, fs);
+		printk(KERN_ERR "%s failed, fs:%x\n", __func__, fs);
 	else
 		ns_val = ps3av_ns_table[PS3AV_CMD_AUDIO_FS_44K-BASE][d];
 
@@ -555,8 +554,7 @@ static u8 ps3av_cnv_enable(u32 source, const u8 *enable)
 		ret = ((p[0] << 4) + (p[1] << 5) + (p[2] << 6) + (p[3] << 7)) |
 		      0x01;
 	} else
-		printk(KERN_ERR "%s failed, source:%x\n", __FUNCTION__,
-		       source);
+		printk(KERN_ERR "%s failed, source:%x\n", __func__, source);
 	return ret;
 }
 
@@ -585,7 +583,7 @@ static u8 ps3av_cnv_inputlen(u32 word_bits)
 		ret = PS3AV_CMD_AV_INPUTLEN_24;
 		break;
 	default:
-		printk(KERN_ERR "%s failed, word_bits:%x\n", __FUNCTION__,
+		printk(KERN_ERR "%s failed, word_bits:%x\n", __func__,
 		       word_bits);
 		break;
 	}
@@ -595,7 +593,7 @@ static u8 ps3av_cnv_inputlen(u32 word_bits)
 static u8 ps3av_cnv_layout(u32 num_of_ch)
 {
 	if (num_of_ch > PS3AV_CMD_AUDIO_NUM_OF_CH_8) {
-		printk(KERN_ERR "%s failed, num_of_ch:%x\n", __FUNCTION__,
+		printk(KERN_ERR "%s failed, num_of_ch:%x\n", __func__,
 		       num_of_ch);
 		return 0;
 	}
@@ -864,7 +862,7 @@ int ps3av_cmd_avb_param(struct ps3av_pkt_avb_param *avb, u32 send_len)
 
 	res = get_status(avb);
 	if (res)
-		pr_debug("%s: PS3AV_CID_AVB_PARAM: failed %x\n", __FUNCTION__,
+		pr_debug("%s: PS3AV_CID_AVB_PARAM: failed %x\n", __func__,
 			 res);
 
       out:
@@ -1013,7 +1011,7 @@ int ps3av_vuart_read(struct ps3_vuart_port_device *dev, void *buf,
 			return size;
 		if (error != -EAGAIN) {
 			printk(KERN_ERR "%s: ps3_vuart_read failed %d\n",
-			       __FUNCTION__, error);
+			       __func__, error);
 			return error;
 		}
 		msleep(POLLING_INTERVAL);

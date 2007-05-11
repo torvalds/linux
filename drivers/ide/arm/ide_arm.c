@@ -38,6 +38,6 @@ void __init ide_arm_init(void)
 		memset(&hw, 0, sizeof(hw));
 		ide_std_init_ports(&hw, IDE_ARM_IO, IDE_ARM_IO + 0x206);
 		hw.irq = IDE_ARM_IRQ;
-		ide_register_hw(&hw, NULL);
+		ide_register_hw(&hw, 1, NULL);
 	}
 }

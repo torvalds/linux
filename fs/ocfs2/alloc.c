@@ -2869,7 +2869,7 @@ int ocfs2_complete_truncate_log_recovery(struct ocfs2_super *osb,
 	tl = &tl_copy->id2.i_dealloc;
 	num_recs = le16_to_cpu(tl->tl_used);
 	mlog(0, "cleanup %u records from %llu\n", num_recs,
-	     (unsigned long long)tl_copy->i_blkno);
+	     (unsigned long long)le64_to_cpu(tl_copy->i_blkno));
 
 	mutex_lock(&tl_inode->i_mutex);
 	for(i = 0; i < num_recs; i++) {
@@ -3801,8 +3801,8 @@ int ocfs2_prepare_truncate(struct ocfs2_super *osb,
 	fe = (struct ocfs2_dinode *) fe_bh->b_data;
 
 	mlog(0, "fe->i_clusters = %u, new_i_clusters = %u, fe->i_size ="
-	     "%llu\n", fe->i_clusters, new_i_clusters,
-	     (unsigned long long)fe->i_size);
+	     "%llu\n", le32_to_cpu(fe->i_clusters), new_i_clusters,
+	     (unsigned long long)le64_to_cpu(fe->i_size));
 
 	*tc = kzalloc(sizeof(struct ocfs2_truncate_context), GFP_KERNEL);
 	if (!(*tc)) {

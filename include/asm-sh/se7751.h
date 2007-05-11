@@ -65,6 +65,8 @@
 
 #define IRQ_79C973	13
 
+void init_7751se_IRQ(void);
+
 #define __IO_PREFIX	sh7751se
 #include <asm/io_generic.h>
 

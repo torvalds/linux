@@ -376,7 +376,7 @@ static ssize_t show_pan(struct device *device,
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
 	return snprintf(buf, PAGE_SIZE, "%d,%d\n", fb_info->var.xoffset,
-			fb_info->var.xoffset);
+			fb_info->var.yoffset);
 }
 
 static ssize_t show_name(struct device *device,

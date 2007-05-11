@@ -7,7 +7,9 @@ menu "iSeries device drivers"
 	depends on PPC_ISERIES
 
 config VIOCONS
-	tristate "iSeries Virtual Console Support (Obsolete)"
+	bool "iSeries Virtual Console Support (Obsolete)"
+	depends on !HVC_ISERIES
+	default n
 	help
 	  This is the old virtual console driver for legacy iSeries.
 	  You should use the iSeries Hypervisor Virtual Console

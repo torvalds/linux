@@ -265,7 +265,7 @@ static void tmdc_poll(struct gameport *gameport)
 
 static int tmdc_open(struct input_dev *dev)
 {
-	struct tmdc *tmdc = dev->private;
+	struct tmdc *tmdc = input_get_drvdata(dev);
 
 	gameport_start_polling(tmdc->gameport);
 	return 0;
@@ -273,7 +273,7 @@ static int tmdc_open(struct input_dev *dev)
 
 static void tmdc_close(struct input_dev *dev)
 {
-	struct tmdc *tmdc = dev->private;
+	struct tmdc *tmdc = input_get_drvdata(dev);
 
 	gameport_stop_polling(tmdc->gameport);
 }
@@ -326,8 +326,9 @@ static int tmdc_setup_port(struct tmdc *tmdc, int idx, unsigned char *data)
 	input_dev->id.vendor = GAMEPORT_ID_VENDOR_THRUSTMASTER;
 	input_dev->id.product = model->id;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = &tmdc->gameport->dev;
-	input_dev->private = tmdc;
+	input_dev->dev.parent = &tmdc->gameport->dev;
+
+	input_set_drvdata(input_dev, tmdc);
 
 	input_dev->open = tmdc_open;
 	input_dev->close = tmdc_close;

@@ -122,21 +122,21 @@ static inline int pfn_valid(int pfn)
 	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, 0)
 #define alloc_bootmem_node(pgdat, x)					\
 ({									\
-	struct pglist_data  __attribute__ ((unused))			\
+	struct pglist_data  __maybe_unused			\
 				*__alloc_bootmem_node__pgdat = (pgdat);	\
 	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES,	\
 						__pa(MAX_DMA_ADDRESS));	\
 })
 #define alloc_bootmem_pages_node(pgdat, x)				\
 ({									\
-	struct pglist_data  __attribute__ ((unused))			\
+	struct pglist_data  __maybe_unused			\
 				*__alloc_bootmem_node__pgdat = (pgdat);	\
 	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE,		\
 						__pa(MAX_DMA_ADDRESS))	\
 })
 #define alloc_bootmem_low_pages_node(pgdat, x)				\
 ({									\
-	struct pglist_data  __attribute__ ((unused))			\
+	struct pglist_data  __maybe_unused			\
 				*__alloc_bootmem_node__pgdat = (pgdat);	\
 	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, 0);		\
 })

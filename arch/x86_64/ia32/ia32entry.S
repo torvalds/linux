@@ -481,11 +481,7 @@ ia32_sys_call_table:
 	.quad sys_symlink
 	.quad sys_lstat
 	.quad sys_readlink		/* 85 */
-#ifdef CONFIG_IA32_AOUT
 	.quad sys_uselib
-#else
-	.quad quiet_ni_syscall
-#endif
 	.quad sys_swapon
 	.quad sys_reboot
 	.quad compat_sys_old_readdir
@@ -714,9 +710,13 @@ ia32_sys_call_table:
 	.quad compat_sys_get_robust_list
 	.quad sys_splice
 	.quad sys_sync_file_range
-	.quad sys_tee
+	.quad sys_tee			/* 315 */
 	.quad compat_sys_vmsplice
 	.quad compat_sys_move_pages
 	.quad sys_getcpu
 	.quad sys_epoll_pwait
+	.quad compat_sys_utimensat	/* 320 */
+	.quad sys_signalfd
+	.quad sys_timerfd
+	.quad sys_eventfd
 ia32_syscall_end:		

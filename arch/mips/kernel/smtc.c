@@ -560,7 +560,7 @@ void smtc_boot_secondary(int cpu, struct task_struct *idle)
 	write_tc_gpr_sp(__KSTK_TOS(idle));
 
 	/* global pointer */
-	write_tc_gpr_gp((unsigned long)idle->thread_info);
+	write_tc_gpr_gp((unsigned long)task_thread_info(idle));
 
 	smtc_status |= SMTC_MTC_ACTIVE;
 	write_tc_c0_tchalt(0);

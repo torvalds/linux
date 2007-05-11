@@ -2532,14 +2532,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 		page = read_mapping_page(mapping, idx, NULL);
 		if (IS_ERR(page)) {
 			ntfs_error(vol->sb, "Failed to read first partial "
-					"page (sync error, index 0x%lx).", idx);
-			return PTR_ERR(page);
-		}
-		wait_on_page_locked(page);
-		if (unlikely(!PageUptodate(page))) {
-			ntfs_error(vol->sb, "Failed to read first partial page "
-					"(async error, index 0x%lx).", idx);
-			page_cache_release(page);
+					"page (error, index 0x%lx).", idx);
 			return PTR_ERR(page);
 		}
 		/*
@@ -2602,14 +2595,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 		page = read_mapping_page(mapping, idx, NULL);
 		if (IS_ERR(page)) {
 			ntfs_error(vol->sb, "Failed to read last partial page "
-					"(sync error, index 0x%lx).", idx);
-			return PTR_ERR(page);
-		}
-		wait_on_page_locked(page);
-		if (unlikely(!PageUptodate(page))) {
-			ntfs_error(vol->sb, "Failed to read last partial page "
-					"(async error, index 0x%lx).", idx);
-			page_cache_release(page);
+					"(error, index 0x%lx).", idx);
 			return PTR_ERR(page);
 		}
 		kaddr = kmap_atomic(page, KM_USER0);

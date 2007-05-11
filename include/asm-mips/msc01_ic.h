@@ -94,10 +94,7 @@
 /*
  * MIPS System controller interrupt register base.
  *
- * FIXME - are these macros specific to Malta and co or to the MSC?  If the
- * latter, they should be moved elsewhere.
  */
-#define MIPS_MSC01_IC_REG_BASE	0x1bc40000
 
 /*****************************************************************************
  * Absolute register addresses
@@ -144,7 +141,7 @@ typedef struct msc_irqmap {
 #define MSC01_IRQ_LEVEL		0
 #define MSC01_IRQ_EDGE		1
 
-extern void __init init_msc_irqs(unsigned int base, msc_irqmap_t *imp, int nirq);
+extern void __init init_msc_irqs(unsigned long icubase, unsigned int base, msc_irqmap_t *imp, int nirq);
 extern void ll_msc_irq(void);
 
 #endif /* __ASM_MIPS_BOARDS_MSC01_IC_H */

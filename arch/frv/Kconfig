@@ -45,6 +45,10 @@ config TIME_LOW_RES
 	bool
 	default y
 
+config QUICKLIST
+	bool
+	default y
+
 config ARCH_HAS_ILOG2_U32
 	bool
 	default y

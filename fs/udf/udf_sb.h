@@ -93,7 +93,7 @@ static inline struct udf_sb_info *UDF_SB(struct super_block *sb)
 	for (i=0; i<nr_groups; i++)\
 	{\
 		if (UDF_SB_BITMAP(X,Y,Z,i))\
-			udf_release_data(UDF_SB_BITMAP(X,Y,Z,i));\
+			brelse(UDF_SB_BITMAP(X,Y,Z,i));\
 	}\
 	if (size <= PAGE_SIZE)\
 		kfree(UDF_SB_PARTMAPS(X)[Y].Z.s_bitmap);\

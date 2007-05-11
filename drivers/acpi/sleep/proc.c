@@ -60,7 +60,7 @@ acpi_system_write_sleep(struct file *file,
 	state = simple_strtoul(str, NULL, 0);
 #ifdef CONFIG_SOFTWARE_SUSPEND
 	if (state == 4) {
-		error = software_suspend();
+		error = hibernate();
 		goto Done;
 	}
 #endif
@@ -69,6 +69,14 @@ acpi_system_write_sleep(struct file *file,
 	return error ? error : count;
 }
 #endif				/* CONFIG_ACPI_SLEEP_PROC_SLEEP */
+
+#if defined(CONFIG_RTC_DRV_CMOS) || defined(CONFIG_RTC_DRV_CMOS_MODULE)
+/* use /sys/class/rtc/rtcX/wakealarm instead; it's not ACPI-specific */
+#else
+#define	HAVE_ACPI_LEGACY_ALARM
+#endif
+
+#ifdef	HAVE_ACPI_LEGACY_ALARM
 
 static int acpi_system_alarm_seq_show(struct seq_file *seq, void *offset)
 {
@@ -341,6 +349,7 @@ acpi_system_write_alarm(struct file *file,
       end:
 	return_VALUE(result ? result : count);
 }
+#endif				/* HAVE_ACPI_LEGACY_ALARM */
 
 extern struct list_head acpi_wakeup_device_list;
 extern spinlock_t acpi_device_lock;
@@ -370,8 +379,8 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 			   dev->wakeup.state.enabled ? "enabled" : "disabled");
 		if (ldev)
 			seq_printf(seq, "%s:%s",
-				ldev->bus ? ldev->bus->name : "no-bus",
-				ldev->bus_id);
+				   ldev->bus ? ldev->bus->name : "no-bus",
+				   ldev->bus_id);
 		seq_printf(seq, "\n");
 		put_device(ldev);
 
@@ -464,6 +473,7 @@ static const struct file_operations acpi_system_sleep_fops = {
 };
 #endif				/* CONFIG_ACPI_SLEEP_PROC_SLEEP */
 
+#ifdef	HAVE_ACPI_LEGACY_ALARM
 static const struct file_operations acpi_system_alarm_fops = {
 	.open = acpi_system_alarm_open_fs,
 	.read = seq_read,
@@ -479,8 +489,9 @@ static u32 rtc_handler(void *context)
 
 	return ACPI_INTERRUPT_HANDLED;
 }
+#endif				/* HAVE_ACPI_LEGACY_ALARM */
 
-static int acpi_sleep_proc_init(void)
+static int __init acpi_sleep_proc_init(void)
 {
 	struct proc_dir_entry *entry = NULL;
 
@@ -496,12 +507,16 @@ static int acpi_sleep_proc_init(void)
 		entry->proc_fops = &acpi_system_sleep_fops;
 #endif
 
+#ifdef	HAVE_ACPI_LEGACY_ALARM
 	/* 'alarm' [R/W] */
 	entry =
 	    create_proc_entry("alarm", S_IFREG | S_IRUGO | S_IWUSR,
 			      acpi_root_dir);
 	if (entry)
 		entry->proc_fops = &acpi_system_alarm_fops;
+
+	acpi_install_fixed_event_handler(ACPI_EVENT_RTC, rtc_handler, NULL);
+#endif				/* HAVE_ACPI_LEGACY_ALARM */
 
 	/* 'wakeup device' [R/W] */
 	entry =
@@ -510,7 +525,6 @@ static int acpi_sleep_proc_init(void)
 	if (entry)
 		entry->proc_fops = &acpi_system_wakeup_device_fops;
 
-	acpi_install_fixed_event_handler(ACPI_EVENT_RTC, rtc_handler, NULL);
 	return 0;
 }
 

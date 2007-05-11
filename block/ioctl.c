@@ -80,7 +80,7 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 			}
 			/* all seems OK */
 			fsync_bdev(bdevp);
-			invalidate_bdev(bdevp, 0);
+			invalidate_bdev(bdevp);
 
 			mutex_lock_nested(&bdev->bd_mutex, 1);
 			delete_partition(disk, part);
@@ -236,7 +236,7 @@ int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 
 		lock_kernel();
 		fsync_bdev(bdev);
-		invalidate_bdev(bdev, 0);
+		invalidate_bdev(bdev);
 		unlock_kernel();
 		return 0;
 

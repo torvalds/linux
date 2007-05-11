@@ -885,6 +885,7 @@
 #define SDRAM			4
 #define SGRAM			5
 #define WRAM			6
+#define SDRAM32			6
 
 #define DAC_INTERNAL		0x00
 #define DAC_IBMRGB514		0x01

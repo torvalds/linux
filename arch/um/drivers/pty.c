@@ -4,13 +4,13 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
 #include <termios.h>
 #include "chan_user.h"
 #include "user.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "os.h"
 #include "um_malloc.h"

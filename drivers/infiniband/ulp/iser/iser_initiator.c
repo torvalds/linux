@@ -201,7 +201,7 @@ static int iser_post_receive_control(struct iscsi_conn *conn)
 	 * what's common for both schemes is that the connection is not started
 	 */
 	if (conn->c_stage != ISCSI_CONN_STARTED)
-		rx_data_size = DEFAULT_MAX_RECV_DATA_SEGMENT_LENGTH;
+		rx_data_size = ISCSI_DEF_MAX_RECV_SEG_LEN;
 	else /* FIXME till user space sets conn->max_recv_dlength correctly */
 		rx_data_size = 128;
 

@@ -24,6 +24,10 @@
 #define DIVERT_REL_ERR  0x04  /* module not registered */
 #define DIVERT_REG_NAME isdn_register_divert
 
+#ifdef __KERNEL__
+#include <linux/isdnif.h>
+#include <linux/types.h>
+
 /***************************************************************/
 /* structure exchanging data between isdn hl and divert module */
 /***************************************************************/ 
@@ -40,3 +44,4 @@ typedef struct
 /* function register */
 /*********************/
 extern int DIVERT_REG_NAME(isdn_divert_if *);
+#endif

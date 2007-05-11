@@ -163,7 +163,8 @@ ENTRY(tme_handler)
 
 	; pte_data = (unsigned long)pte_val(*pte);
 	ld	r2, @r3			; r2: pte data
-	or3	r2, r2, #2		; _PAGE_PRESENT(=2)
+	and3	r3, r2, #2		; _PAGE_PRESENT(=2) check
+	beqz	r3, 3f
 
 	.fillinsn
 5:
@@ -264,11 +265,8 @@ ENTRY(tme_handler)
 ;
 	and3	r1, r1, #0xeff
 	ldi	r4, #611		; _KERNPG_TABLE(=611)
-	beq	r1, r4, 4f		; !pmd_bad(*pmd) ?
-	.fillinsn
-3:
-	ldi	r1, #0			; r1: pte_data = 0
-	bra	5f
+	bne	r1, r4, 3f		; !pmd_bad(*pmd) ?
+
 	.fillinsn
 4:
 	; pte = pte_offset(pmd, address);
@@ -282,8 +280,10 @@ ENTRY(tme_handler)
 	add	r4, r3			; r4: pte
 	; pte_data = (unsigned long)pte_val(*pte);
 	ld	r1, @r4			; r1: pte_data
-	.fillinsn
+	and3	r3, r1, #2		; _PAGE_PRESENT(=2) check
+	beqz	r3, 3f
 
+	.fillinsn
 ;; set tlb
 ; r0: address, r1: pte_data, r2: entry
 ; r3,r4: (free)
@@ -295,8 +295,7 @@ ENTRY(tme_handler)
 	and3	r4, r4, #(MMU_CONTEXT_ASID_MASK)
 	or	r3, r4
 	st	r3, @r2
-	or3	r4, r1, #2		; _PAGE_PRESENT(=2)
-	st	r4, @(4,r2)		; set_tlb_data(entry, pte_data);
+	st	r1, @(4,r2)		; set_tlb_data(entry, pte_data);
 
 	ld	r4, @sp+
 	ld	r3, @sp+
@@ -305,6 +304,11 @@ ENTRY(tme_handler)
 	ld	r0, @sp+
 	ld	sp, @sp+
 	rte
+
+	.fillinsn
+3:
+	ldi	r1, #2			; r1: pte_data = 0 | _PAGE_PRESENT(=2)
+	bra	5b
 
 #else
 #error unknown isa configuration

@@ -9,8 +9,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/ioctl32.h>
-
 struct super_block;
 
 /*
@@ -40,14 +38,6 @@ static inline int sb_is_blkdev_sb(struct super_block *sb)
  * char_dev.c
  */
 extern void __init chrdev_init(void);
-
-/*
- * compat_ioctl.c
- */
-#ifdef CONFIG_COMPAT
-extern struct ioctl_trans ioctl_start[];
-extern int ioctl_table_size;
-#endif
 
 /*
  * namespace.c

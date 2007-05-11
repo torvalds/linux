@@ -306,7 +306,7 @@ static int ves1x93_read_status(struct dvb_frontend* fe, fe_status_t* status)
 	 * The ves1893 sometimes returns sync values that make no sense,
 	 * because, e.g., the SIGNAL bit is 0, while some of the higher
 	 * bits are 1 (and how can there be a CARRIER w/o a SIGNAL?).
-	 * Tests showed that the the VITERBI and SYNC bits are returned
+	 * Tests showed that the VITERBI and SYNC bits are returned
 	 * reliably, while the SIGNAL and CARRIER bits ar sometimes wrong.
 	 * If such a case occurs, we read the value again, until we get a
 	 * valid value.

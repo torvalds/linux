@@ -139,33 +139,24 @@ struct ib_srq *ipath_create_srq(struct ib_pd *ibpd,
 	 * See ipath_mmap() for details.
 	 */
 	if (udata && udata->outlen >= sizeof(__u64)) {
-		struct ipath_mmap_info *ip;
-		__u64 offset = (__u64) srq->rq.wq;
 		int err;
+		u32 s = sizeof(struct ipath_rwq) + srq->rq.size * sz;
 
-		err = ib_copy_to_udata(udata, &offset, sizeof(offset));
-		if (err) {
-			ret = ERR_PTR(err);
-			goto bail_wq;
-		}
-
-		/* Allocate info for ipath_mmap(). */
-		ip = kmalloc(sizeof(*ip), GFP_KERNEL);
-		if (!ip) {
+		srq->ip =
+		    ipath_create_mmap_info(dev, s,
+					   ibpd->uobject->context,
+					   srq->rq.wq);
+		if (!srq->ip) {
 			ret = ERR_PTR(-ENOMEM);
 			goto bail_wq;
 		}
-		srq->ip = ip;
-		ip->context = ibpd->uobject->context;
-		ip->obj = srq->rq.wq;
-		kref_init(&ip->ref);
-		ip->mmap_cnt = 0;
-		ip->size = PAGE_ALIGN(sizeof(struct ipath_rwq) +
-				      srq->rq.size * sz);
-		spin_lock_irq(&dev->pending_lock);
-		ip->next = dev->pending_mmaps;
-		dev->pending_mmaps = ip;
-		spin_unlock_irq(&dev->pending_lock);
+
+		err = ib_copy_to_udata(udata, &srq->ip->offset,
+				       sizeof(srq->ip->offset));
+		if (err) {
+			ret = ERR_PTR(err);
+			goto bail_ip;
+		}
 	} else
 		srq->ip = NULL;
 
@@ -181,21 +172,27 @@ struct ib_srq *ipath_create_srq(struct ib_pd *ibpd,
 	if (dev->n_srqs_allocated == ib_ipath_max_srqs) {
 		spin_unlock(&dev->n_srqs_lock);
 		ret = ERR_PTR(-ENOMEM);
-		goto bail_wq;
+		goto bail_ip;
 	}
 
  	dev->n_srqs_allocated++;
 	spin_unlock(&dev->n_srqs_lock);
 
+	if (srq->ip) {
+		spin_lock_irq(&dev->pending_lock);
+		list_add(&srq->ip->pending_mmaps, &dev->pending_mmaps);
+		spin_unlock_irq(&dev->pending_lock);
+	}
+
 	ret = &srq->ibsrq;
 	goto done;
 
+bail_ip:
+	kfree(srq->ip);
 bail_wq:
 	vfree(srq->rq.wq);
-
 bail_srq:
 	kfree(srq);
-
 done:
 	return ret;
 }
@@ -312,13 +309,13 @@ int ipath_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		if (srq->ip) {
 			struct ipath_mmap_info *ip = srq->ip;
 			struct ipath_ibdev *dev = to_idev(srq->ibsrq.device);
+			u32 s = sizeof(struct ipath_rwq) + size * sz;
 
-			ip->obj = wq;
-			ip->size = PAGE_ALIGN(sizeof(struct ipath_rwq) +
-					      size * sz);
+			ipath_update_mmap_info(dev, ip, s, wq);
 			spin_lock_irq(&dev->pending_lock);
-			ip->next = dev->pending_mmaps;
-			dev->pending_mmaps = ip;
+			if (list_empty(&ip->pending_mmaps))
+				list_add(&ip->pending_mmaps,
+					 &dev->pending_mmaps);
 			spin_unlock_irq(&dev->pending_lock);
 		}
 	} else if (attr_mask & IB_SRQ_LIMIT) {

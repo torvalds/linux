@@ -24,12 +24,14 @@
 
 #undef DEBUG
 
+#define VIRT_OFFSET (0x01000000)
+
 /*
  * Map some physical address range into the kernel address space.
  */
 void *__ioremap(unsigned long physaddr, unsigned long size, int cacheflag)
 {
-	return (void *)physaddr;
+	return (void *)(physaddr + VIRT_OFFSET);
 }
 
 /*

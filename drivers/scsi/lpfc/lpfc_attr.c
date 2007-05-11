@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -20,6 +20,7 @@
  *******************************************************************/
 
 #include <linux/ctype.h>
+#include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 
@@ -213,6 +214,7 @@ lpfc_issue_lip(struct Scsi_Host *host)
 	int mbxstatus = MBXERR_ERROR;
 
 	if ((phba->fc_flag & FC_OFFLINE_MODE) ||
+	    (phba->fc_flag & FC_BLOCK_MGMT_IO) ||
 	    (phba->hba_state != LPFC_HBA_READY))
 		return -EPERM;
 
@@ -235,6 +237,7 @@ lpfc_issue_lip(struct Scsi_Host *host)
 						     phba->fc_ratov * 2);
 	}
 
+	lpfc_set_loopback_flag(phba);
 	if (mbxstatus == MBX_TIMEOUT)
 		pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	else
@@ -247,18 +250,61 @@ lpfc_issue_lip(struct Scsi_Host *host)
 }
 
 static int
+lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
+{
+	struct completion online_compl;
+	struct lpfc_sli_ring *pring;
+	struct lpfc_sli *psli;
+	int status = 0;
+	int cnt = 0;
+	int i;
+
+	init_completion(&online_compl);
+	lpfc_workq_post_event(phba, &status, &online_compl,
+			      LPFC_EVT_OFFLINE_PREP);
+	wait_for_completion(&online_compl);
+
+	if (status != 0)
+		return -EIO;
+
+	psli = &phba->sli;
+
+	for (i = 0; i < psli->num_rings; i++) {
+		pring = &psli->ring[i];
+		/* The linkdown event takes 30 seconds to timeout. */
+		while (pring->txcmplq_cnt) {
+			msleep(10);
+			if (cnt++ > 3000) {
+				lpfc_printf_log(phba,
+					KERN_WARNING, LOG_INIT,
+					"%d:0466 Outstanding IO when "
+					"bringing Adapter offline\n",
+					phba->brd_no);
+				break;
+			}
+		}
+	}
+
+	init_completion(&online_compl);
+	lpfc_workq_post_event(phba, &status, &online_compl, type);
+	wait_for_completion(&online_compl);
+
+	if (status != 0)
+		return -EIO;
+
+	return 0;
+}
+
+static int
 lpfc_selective_reset(struct lpfc_hba *phba)
 {
 	struct completion online_compl;
 	int status = 0;
 
-	init_completion(&online_compl);
-	lpfc_workq_post_event(phba, &status, &online_compl,
-			      LPFC_EVT_OFFLINE);
-	wait_for_completion(&online_compl);
+	status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 
 	if (status != 0)
-		return -EIO;
+		return status;
 
 	init_completion(&online_compl);
 	lpfc_workq_post_event(phba, &status, &online_compl,
@@ -324,22 +370,18 @@ lpfc_board_mode_store(struct class_device *cdev, const char *buf, size_t count)
 
 	init_completion(&online_compl);
 
-	if(strncmp(buf, "online", sizeof("online") - 1) == 0)
+	if(strncmp(buf, "online", sizeof("online") - 1) == 0) {
 		lpfc_workq_post_event(phba, &status, &online_compl,
 				      LPFC_EVT_ONLINE);
-	else if (strncmp(buf, "offline", sizeof("offline") - 1) == 0)
-		lpfc_workq_post_event(phba, &status, &online_compl,
-				      LPFC_EVT_OFFLINE);
+		wait_for_completion(&online_compl);
+	} else if (strncmp(buf, "offline", sizeof("offline") - 1) == 0)
+		status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 	else if (strncmp(buf, "warm", sizeof("warm") - 1) == 0)
-		lpfc_workq_post_event(phba, &status, &online_compl,
-				      LPFC_EVT_WARM_START);
- 	else if (strncmp(buf, "error", sizeof("error") - 1) == 0)
-		lpfc_workq_post_event(phba, &status, &online_compl,
-				      LPFC_EVT_KILL);
+		status = lpfc_do_offline(phba, LPFC_EVT_WARM_START);
+	else if (strncmp(buf, "error", sizeof("error") - 1) == 0)
+		status = lpfc_do_offline(phba, LPFC_EVT_KILL);
 	else
 		return -EINVAL;
-
-	wait_for_completion(&online_compl);
 
 	if (!status)
 		return strlen(buf);
@@ -645,9 +687,7 @@ lpfc_soft_wwpn_store(struct class_device *cdev, const char *buf, size_t count)
 	dev_printk(KERN_NOTICE, &phba->pcidev->dev,
 		   "lpfc%d: Reinitializing to use soft_wwpn\n", phba->brd_no);
 
-	init_completion(&online_compl);
-	lpfc_workq_post_event(phba, &stat1, &online_compl, LPFC_EVT_OFFLINE);
-	wait_for_completion(&online_compl);
+	stat1 = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 	if (stat1)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"%d:0463 lpfc_soft_wwpn attribute set failed to reinit "
@@ -789,6 +829,18 @@ lpfc_nodev_tmo_init(struct lpfc_hba *phba, int val)
 	return -EINVAL;
 }
 
+static void
+lpfc_update_rport_devloss_tmo(struct lpfc_hba *phba)
+{
+	struct lpfc_nodelist  *ndlp;
+
+	spin_lock_irq(phba->host->host_lock);
+	list_for_each_entry(ndlp, &phba->fc_nodes, nlp_listp)
+		if (ndlp->rport)
+			ndlp->rport->dev_loss_tmo = phba->cfg_devloss_tmo;
+	spin_unlock_irq(phba->host->host_lock);
+}
+
 static int
 lpfc_nodev_tmo_set(struct lpfc_hba *phba, int val)
 {
@@ -804,6 +856,7 @@ lpfc_nodev_tmo_set(struct lpfc_hba *phba, int val)
 	if (val >= LPFC_MIN_DEVLOSS_TMO && val <= LPFC_MAX_DEVLOSS_TMO) {
 		phba->cfg_nodev_tmo = val;
 		phba->cfg_devloss_tmo = val;
+		lpfc_update_rport_devloss_tmo(phba);
 		return 0;
 	}
 
@@ -839,6 +892,7 @@ lpfc_devloss_tmo_set(struct lpfc_hba *phba, int val)
 		phba->cfg_nodev_tmo = val;
 		phba->cfg_devloss_tmo = val;
 		phba->dev_loss_tmo_changed = 1;
+		lpfc_update_rport_devloss_tmo(phba);
 		return 0;
 	}
 
@@ -931,9 +985,10 @@ LPFC_ATTR_RW(topology, 0, 0, 6, "Select Fibre Channel topology");
 #       1  = 1 Gigabaud
 #       2  = 2 Gigabaud
 #       4  = 4 Gigabaud
-# Value range is [0,4]. Default value is 0.
+#       8  = 8 Gigabaud
+# Value range is [0,8]. Default value is 0.
 */
-LPFC_ATTR_R(link_speed, 0, 0, 4, "Select link speed");
+LPFC_ATTR_R(link_speed, 0, 0, 8, "Select link speed");
 
 /*
 # lpfc_fcp_class:  Determines FC class to use for the FCP protocol.
@@ -958,7 +1013,7 @@ LPFC_ATTR_R(ack0, 0, 0, 1, "Enable ACK0 support");
 /*
 # lpfc_cr_delay & lpfc_cr_count: Default values for I/O colaesing
 # cr_delay (msec) or cr_count outstanding commands. cr_delay can take
-# value [0,63]. cr_count can take value [0,255]. Default value of cr_delay
+# value [0,63]. cr_count can take value [1,255]. Default value of cr_delay
 # is 0. Default value of cr_count is 1. The cr_count feature is disabled if
 # cr_delay is set to 0.
 */
@@ -1227,11 +1282,11 @@ sysfs_mbox_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
 	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
 	int rc;
 
-	if (off > sizeof(MAILBOX_t))
+	if (off > MAILBOX_CMD_SIZE)
 		return -ERANGE;
 
-	if ((count + off) > sizeof(MAILBOX_t))
-		count = sizeof(MAILBOX_t) - off;
+	if ((count + off) > MAILBOX_CMD_SIZE)
+		count = MAILBOX_CMD_SIZE - off;
 
 	if (off % 4 ||  count % 4 || (unsigned long)buf % 4)
 		return -EINVAL;
@@ -1307,6 +1362,12 @@ sysfs_mbox_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
 			return -EPERM;
 		}
 
+		if (phba->fc_flag & FC_BLOCK_MGMT_IO) {
+			sysfs_mbox_idle(phba);
+			spin_unlock_irq(host->host_lock);
+			return  -EAGAIN;
+		}
+
 		if ((phba->fc_flag & FC_OFFLINE_MODE) ||
 		    (!(phba->sli.sli_flag & LPFC_SLI2_ACTIVE))){
 
@@ -1326,6 +1387,11 @@ sysfs_mbox_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
 		}
 
 		if (rc != MBX_SUCCESS) {
+			if (rc == MBX_TIMEOUT) {
+				phba->sysfs_mbox.mbox->mbox_cmpl =
+					lpfc_sli_def_mbox_cmpl;
+				phba->sysfs_mbox.mbox = NULL;
+			}
 			sysfs_mbox_idle(phba);
 			spin_unlock_irq(host->host_lock);
 			return  (rc == MBX_TIMEOUT) ? -ETIME : -ENODEV;
@@ -1344,7 +1410,7 @@ sysfs_mbox_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
 
 	phba->sysfs_mbox.offset = off + count;
 
-	if (phba->sysfs_mbox.offset == sizeof(MAILBOX_t))
+	if (phba->sysfs_mbox.offset == MAILBOX_CMD_SIZE)
 		sysfs_mbox_idle(phba);
 
 	spin_unlock_irq(phba->host->host_lock);
@@ -1358,7 +1424,7 @@ static struct bin_attribute sysfs_mbox_attr = {
 		.mode = S_IRUSR | S_IWUSR,
 		.owner = THIS_MODULE,
 	},
-	.size = sizeof(MAILBOX_t),
+	.size = MAILBOX_CMD_SIZE,
 	.read = sysfs_mbox_read,
 	.write = sysfs_mbox_write,
 };
@@ -1494,6 +1560,9 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 			case LA_4GHZ_LINK:
 				fc_host_speed(shost) = FC_PORTSPEED_4GBIT;
 			break;
+			case LA_8GHZ_LINK:
+				fc_host_speed(shost) = FC_PORTSPEED_8GBIT;
+			break;
 			default:
 				fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 			break;
@@ -1545,6 +1614,9 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	MAILBOX_t *pmb;
 	unsigned long seconds;
 	int rc = 0;
+
+	if (phba->fc_flag & FC_BLOCK_MGMT_IO)
+		return NULL;
 
 	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmboxq)
@@ -1631,6 +1703,8 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	else
 		hs->seconds_since_last_reset = seconds - psli->stats_start;
 
+	mempool_free(pmboxq, phba->mbox_mem_pool);
+
 	return hs;
 }
 
@@ -1643,6 +1717,9 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 	LPFC_MBOXQ_t *pmboxq;
 	MAILBOX_t *pmb;
 	int rc = 0;
+
+	if (phba->fc_flag & FC_BLOCK_MGMT_IO)
+		return;
 
 	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmboxq)
@@ -1699,6 +1776,8 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 
 	psli->stats_start = get_seconds();
 
+	mempool_free(pmboxq, phba->mbox_mem_pool);
+
 	return;
 }
 
@@ -1706,67 +1785,51 @@ lpfc_reset_stats(struct Scsi_Host *shost)
  * The LPFC driver treats linkdown handling as target loss events so there
  * are no sysfs handlers for link_down_tmo.
  */
-static void
-lpfc_get_starget_port_id(struct scsi_target *starget)
+
+static struct lpfc_nodelist *
+lpfc_get_node_by_target(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct lpfc_hba *phba = (struct lpfc_hba *) shost->hostdata;
-	uint32_t did = -1;
-	struct lpfc_nodelist *ndlp = NULL;
+	struct lpfc_nodelist *ndlp;
 
 	spin_lock_irq(shost->host_lock);
-	/* Search the mapped list for this target ID */
-	list_for_each_entry(ndlp, &phba->fc_nlpmap_list, nlp_listp) {
-		if (starget->id == ndlp->nlp_sid) {
-			did = ndlp->nlp_DID;
-			break;
+	/* Search for this, mapped, target ID */
+	list_for_each_entry(ndlp, &phba->fc_nodes, nlp_listp) {
+		if (ndlp->nlp_state == NLP_STE_MAPPED_NODE &&
+		    starget->id == ndlp->nlp_sid) {
+			spin_unlock_irq(shost->host_lock);
+			return ndlp;
 		}
 	}
 	spin_unlock_irq(shost->host_lock);
+	return NULL;
+}
 
-	fc_starget_port_id(starget) = did;
+static void
+lpfc_get_starget_port_id(struct scsi_target *starget)
+{
+	struct lpfc_nodelist *ndlp = lpfc_get_node_by_target(starget);
+
+	fc_starget_port_id(starget) = ndlp ? ndlp->nlp_DID : -1;
 }
 
 static void
 lpfc_get_starget_node_name(struct scsi_target *starget)
 {
-	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-	struct lpfc_hba *phba = (struct lpfc_hba *) shost->hostdata;
-	u64 node_name = 0;
-	struct lpfc_nodelist *ndlp = NULL;
+	struct lpfc_nodelist *ndlp = lpfc_get_node_by_target(starget);
 
-	spin_lock_irq(shost->host_lock);
-	/* Search the mapped list for this target ID */
-	list_for_each_entry(ndlp, &phba->fc_nlpmap_list, nlp_listp) {
-		if (starget->id == ndlp->nlp_sid) {
-			node_name = wwn_to_u64(ndlp->nlp_nodename.u.wwn);
-			break;
-		}
-	}
-	spin_unlock_irq(shost->host_lock);
-
-	fc_starget_node_name(starget) = node_name;
+	fc_starget_node_name(starget) =
+		ndlp ? wwn_to_u64(ndlp->nlp_nodename.u.wwn) : 0;
 }
 
 static void
 lpfc_get_starget_port_name(struct scsi_target *starget)
 {
-	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-	struct lpfc_hba *phba = (struct lpfc_hba *) shost->hostdata;
-	u64 port_name = 0;
-	struct lpfc_nodelist *ndlp = NULL;
+	struct lpfc_nodelist *ndlp = lpfc_get_node_by_target(starget);
 
-	spin_lock_irq(shost->host_lock);
-	/* Search the mapped list for this target ID */
-	list_for_each_entry(ndlp, &phba->fc_nlpmap_list, nlp_listp) {
-		if (starget->id == ndlp->nlp_sid) {
-			port_name = wwn_to_u64(ndlp->nlp_portname.u.wwn);
-			break;
-		}
-	}
-	spin_unlock_irq(shost->host_lock);
-
-	fc_starget_port_name(starget) = port_name;
+	fc_starget_port_name(starget) =
+		ndlp ? wwn_to_u64(ndlp->nlp_portname.u.wwn) : 0;
 }
 
 static void
@@ -1895,25 +1958,8 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 			sizeof(struct fcp_rsp) +
 			(phba->cfg_sg_seg_cnt * sizeof(struct ulp_bde64));
 
-	switch (phba->pcidev->device) {
-	case PCI_DEVICE_ID_LP101:
-	case PCI_DEVICE_ID_BSMB:
-	case PCI_DEVICE_ID_ZSMB:
-		phba->cfg_hba_queue_depth = LPFC_LP101_HBA_Q_DEPTH;
-		break;
-	case PCI_DEVICE_ID_RFLY:
-	case PCI_DEVICE_ID_PFLY:
-	case PCI_DEVICE_ID_BMID:
-	case PCI_DEVICE_ID_ZMID:
-	case PCI_DEVICE_ID_TFLY:
-		phba->cfg_hba_queue_depth = LPFC_LC_HBA_Q_DEPTH;
-		break;
-	default:
-		phba->cfg_hba_queue_depth = LPFC_DFT_HBA_Q_DEPTH;
-	}
 
-	if (phba->cfg_hba_queue_depth > lpfc_hba_queue_depth)
-		lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
+	lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
 
 	return;
 }

@@ -22,7 +22,6 @@
 #ifndef DST_COMMON_H
 #define DST_COMMON_H
 
-#include <linux/smp_lock.h>
 #include <linux/dvb/frontend.h>
 #include <linux/device.h>
 #include <linux/mutex.h>

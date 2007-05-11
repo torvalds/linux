@@ -11,7 +11,6 @@
  *
  */
 
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -22,7 +21,6 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
-#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/list.h>
 #include <linux/hash.h>
@@ -35,13 +33,13 @@
 #include <linux/mount.h>
 #include <linux/bitops.h>
 #include <linux/mutex.h>
+#include <linux/anon_inodes.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/mman.h>
 #include <asm/atomic.h>
 #include <asm/semaphore.h>
-
 
 /*
  * LOCKING:
@@ -75,9 +73,6 @@
  * a greater scalability.
  */
 
-
-#define EVENTPOLLFS_MAGIC 0x03111965 /* My birthday should work for this :) */
-
 #define DEBUG_EPOLL 0
 
 #if DEBUG_EPOLL > 0
@@ -106,7 +101,6 @@
 #define EP_MAX_MSTIMEO min(1000ULL * MAX_SCHEDULE_TIMEOUT / HZ, (LONG_MAX - 999ULL) / HZ)
 
 #define EP_MAX_EVENTS (INT_MAX / sizeof(struct epoll_event))
-
 
 struct epoll_filefd {
 	struct file *file;
@@ -185,7 +179,7 @@ struct eppoll_entry {
 
 /*
  * Each file descriptor added to the eventpoll interface will
- * have an entry of this type linked to the hash.
+ * have an entry of this type linked to the "rbr" RB tree.
  */
 struct epitem {
 	/* RB-Tree node used to link this structure to the eventpoll rb-tree */
@@ -217,15 +211,6 @@ struct epitem {
 
 	/* List header used to link this item to the "struct file" items list */
 	struct list_head fllink;
-
-	/* List header used to link the item to the transfer list */
-	struct list_head txlink;
-
-	/*
-	 * This is used during the collection/transfer of events to userspace
-	 * to pin items empty events set.
-	 */
-	unsigned int revents;
 };
 
 /* Wrapper struct used by poll queueing */
@@ -233,46 +218,6 @@ struct ep_pqueue {
 	poll_table pt;
 	struct epitem *epi;
 };
-
-
-
-static void ep_poll_safewake_init(struct poll_safewake *psw);
-static void ep_poll_safewake(struct poll_safewake *psw, wait_queue_head_t *wq);
-static int ep_getfd(int *efd, struct inode **einode, struct file **efile,
-		    struct eventpoll *ep);
-static int ep_alloc(struct eventpoll **pep);
-static void ep_free(struct eventpoll *ep);
-static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd);
-static void ep_use_epitem(struct epitem *epi);
-static void ep_release_epitem(struct epitem *epi);
-static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
-				 poll_table *pt);
-static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi);
-static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
-		     struct file *tfile, int fd);
-static int ep_modify(struct eventpoll *ep, struct epitem *epi,
-		     struct epoll_event *event);
-static void ep_unregister_pollwait(struct eventpoll *ep, struct epitem *epi);
-static int ep_unlink(struct eventpoll *ep, struct epitem *epi);
-static int ep_remove(struct eventpoll *ep, struct epitem *epi);
-static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *key);
-static int ep_eventpoll_close(struct inode *inode, struct file *file);
-static unsigned int ep_eventpoll_poll(struct file *file, poll_table *wait);
-static int ep_collect_ready_items(struct eventpoll *ep,
-				  struct list_head *txlist, int maxevents);
-static int ep_send_events(struct eventpoll *ep, struct list_head *txlist,
-			  struct epoll_event __user *events);
-static void ep_reinject_items(struct eventpoll *ep, struct list_head *txlist);
-static int ep_events_transfer(struct eventpoll *ep,
-			      struct epoll_event __user *events,
-			      int maxevents);
-static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
-		   int maxevents, long timeout);
-static int eventpollfs_delete_dentry(struct dentry *dentry);
-static struct inode *ep_eventpoll_inode(void);
-static int eventpollfs_get_sb(struct file_system_type *fs_type,
-			      int flags, const char *dev_name,
-			      void *data, struct vfsmount *mnt);
 
 /*
  * This semaphore is used to serialize ep_free() and eventpoll_release_file().
@@ -288,37 +233,6 @@ static struct kmem_cache *epi_cache __read_mostly;
 /* Slab cache used to allocate "struct eppoll_entry" */
 static struct kmem_cache *pwq_cache __read_mostly;
 
-/* Virtual fs used to allocate inodes for eventpoll files */
-static struct vfsmount *eventpoll_mnt __read_mostly;
-
-/* File callbacks that implement the eventpoll file behaviour */
-static const struct file_operations eventpoll_fops = {
-	.release	= ep_eventpoll_close,
-	.poll		= ep_eventpoll_poll
-};
-
-/*
- * This is used to register the virtual file system from where
- * eventpoll inodes are allocated.
- */
-static struct file_system_type eventpoll_fs_type = {
-	.name		= "eventpollfs",
-	.get_sb		= eventpollfs_get_sb,
-	.kill_sb	= kill_anon_super,
-};
-
-/* Very basic directory entry operations for the eventpoll virtual file system */
-static struct dentry_operations eventpollfs_dentry_operations = {
-	.d_delete	= eventpollfs_delete_dentry,
-};
-
-
-
-/* Fast test to see if the file is an evenpoll file */
-static inline int is_file_epoll(struct file *f)
-{
-	return f->f_op == &eventpoll_fops;
-}
 
 /* Setup the structure that is used as key for the rb-tree */
 static inline void ep_set_ffd(struct epoll_filefd *ffd,
@@ -355,17 +269,6 @@ static inline int ep_rb_linked(struct rb_node *n)
 	return rb_parent(n) != n;
 }
 
-/*
- * Remove the item from the list and perform its initialization.
- * This is useful for us because we can test if the item is linked
- * using "ep_is_linked(p)".
- */
-static inline void ep_list_del(struct list_head *p)
-{
-	list_del(p);
-	INIT_LIST_HEAD(p);
-}
-
 /* Tells us if the item is currently linked */
 static inline int ep_is_linked(struct list_head *p)
 {
@@ -385,7 +288,7 @@ static inline struct epitem * ep_item_from_epqueue(poll_table *p)
 }
 
 /* Tells if the epoll_ctl(2) operation needs an event copy from userspace */
-static inline int ep_op_hash_event(int op)
+static inline int ep_op_has_event(int op)
 {
 	return op != EPOLL_CTL_DEL;
 }
@@ -397,7 +300,6 @@ static void ep_poll_safewake_init(struct poll_safewake *psw)
 	INIT_LIST_HEAD(&psw->wake_task_list);
 	spin_lock_init(&psw->lock);
 }
-
 
 /*
  * Perform a safe wake up of the poll wait list. The problem is that
@@ -453,399 +355,144 @@ static void ep_poll_safewake(struct poll_safewake *psw, wait_queue_head_t *wq)
 	spin_unlock_irqrestore(&psw->lock, flags);
 }
 
-
 /*
- * This is called from eventpoll_release() to unlink files from the eventpoll
- * interface. We need to have this facility to cleanup correctly files that are
- * closed without being removed from the eventpoll interface.
+ * This function unregister poll callbacks from the associated file descriptor.
+ * Since this must be called without holding "ep->lock" the atomic exchange trick
+ * will protect us from multiple unregister.
  */
-void eventpoll_release_file(struct file *file)
+static void ep_unregister_pollwait(struct eventpoll *ep, struct epitem *epi)
 {
-	struct list_head *lsthead = &file->f_ep_links;
-	struct eventpoll *ep;
-	struct epitem *epi;
+	int nwait;
+	struct list_head *lsthead = &epi->pwqlist;
+	struct eppoll_entry *pwq;
 
-	/*
-	 * We don't want to get "file->f_ep_lock" because it is not
-	 * necessary. It is not necessary because we're in the "struct file"
-	 * cleanup path, and this means that noone is using this file anymore.
-	 * The only hit might come from ep_free() but by holding the semaphore
-	 * will correctly serialize the operation. We do need to acquire
-	 * "ep->sem" after "epmutex" because ep_remove() requires it when called
-	 * from anywhere but ep_free().
-	 */
-	mutex_lock(&epmutex);
+	/* This is called without locks, so we need the atomic exchange */
+	nwait = xchg(&epi->nwait, 0);
 
-	while (!list_empty(lsthead)) {
-		epi = list_entry(lsthead->next, struct epitem, fllink);
+	if (nwait) {
+		while (!list_empty(lsthead)) {
+			pwq = list_first_entry(lsthead, struct eppoll_entry, llink);
 
-		ep = epi->ep;
-		ep_list_del(&epi->fllink);
-		down_write(&ep->sem);
-		ep_remove(ep, epi);
-		up_write(&ep->sem);
+			list_del_init(&pwq->llink);
+			remove_wait_queue(pwq->whead, &pwq->wait);
+			kmem_cache_free(pwq_cache, pwq);
+		}
 	}
-
-	mutex_unlock(&epmutex);
 }
 
+/*
+ * Unlink the "struct epitem" from all places it might have been hooked up.
+ * This function must be called with write IRQ lock on "ep->lock".
+ */
+static int ep_unlink(struct eventpoll *ep, struct epitem *epi)
+{
+	int error;
+
+	/*
+	 * It can happen that this one is called for an item already unlinked.
+	 * The check protect us from doing a double unlink ( crash ).
+	 */
+	error = -ENOENT;
+	if (!ep_rb_linked(&epi->rbn))
+		goto error_return;
+
+	/*
+	 * Clear the event mask for the unlinked item. This will avoid item
+	 * notifications to be sent after the unlink operation from inside
+	 * the kernel->userspace event transfer loop.
+	 */
+	epi->event.events = 0;
+
+	/*
+	 * At this point is safe to do the job, unlink the item from our rb-tree.
+	 * This operation togheter with the above check closes the door to
+	 * double unlinks.
+	 */
+	ep_rb_erase(&epi->rbn, &ep->rbr);
+
+	/*
+	 * If the item we are going to remove is inside the ready file descriptors
+	 * we want to remove it from this list to avoid stale events.
+	 */
+	if (ep_is_linked(&epi->rdllink))
+		list_del_init(&epi->rdllink);
+
+	error = 0;
+error_return:
+
+	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: ep_unlink(%p, %p) = %d\n",
+		     current, ep, epi->ffd.file, error));
+
+	return error;
+}
 
 /*
- * It opens an eventpoll file descriptor by suggesting a storage of "size"
- * file descriptors. The size parameter is just an hint about how to size
- * data structures. It won't prevent the user to store more than "size"
- * file descriptors inside the epoll interface. It is the kernel part of
- * the userspace epoll_create(2).
+ * Increment the usage count of the "struct epitem" making it sure
+ * that the user will have a valid pointer to reference.
  */
-asmlinkage long sys_epoll_create(int size)
+static void ep_use_epitem(struct epitem *epi)
 {
-	int error, fd = -1;
-	struct eventpoll *ep;
-	struct inode *inode;
-	struct file *file;
+	atomic_inc(&epi->usecnt);
+}
 
-	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_create(%d)\n",
-		     current, size));
+/*
+ * Decrement ( release ) the usage count by signaling that the user
+ * has finished using the structure. It might lead to freeing the
+ * structure itself if the count goes to zero.
+ */
+static void ep_release_epitem(struct epitem *epi)
+{
+	if (atomic_dec_and_test(&epi->usecnt))
+		kmem_cache_free(epi_cache, epi);
+}
+
+/*
+ * Removes a "struct epitem" from the eventpoll RB tree and deallocates
+ * all the associated resources.
+ */
+static int ep_remove(struct eventpoll *ep, struct epitem *epi)
+{
+	int error;
+	unsigned long flags;
+	struct file *file = epi->ffd.file;
 
 	/*
-	 * Sanity check on the size parameter, and create the internal data
-	 * structure ( "struct eventpoll" ).
+	 * Removes poll wait queue hooks. We _have_ to do this without holding
+	 * the "ep->lock" otherwise a deadlock might occur. This because of the
+	 * sequence of the lock acquisition. Here we do "ep->lock" then the wait
+	 * queue head lock when unregistering the wait queue. The wakeup callback
+	 * will run by holding the wait queue head lock and will call our callback
+	 * that will try to get "ep->lock".
 	 */
-	error = -EINVAL;
-	if (size <= 0 || (error = ep_alloc(&ep)) != 0)
-		goto eexit_1;
+	ep_unregister_pollwait(ep, epi);
 
-	/*
-	 * Creates all the items needed to setup an eventpoll file. That is,
-	 * a file structure, and inode and a free file descriptor.
-	 */
-	error = ep_getfd(&fd, &inode, &file, ep);
+	/* Remove the current item from the list of epoll hooks */
+	spin_lock(&file->f_ep_lock);
+	if (ep_is_linked(&epi->fllink))
+		list_del_init(&epi->fllink);
+	spin_unlock(&file->f_ep_lock);
+
+	/* We need to acquire the write IRQ lock before calling ep_unlink() */
+	write_lock_irqsave(&ep->lock, flags);
+
+	/* Really unlink the item from the RB tree */
+	error = ep_unlink(ep, epi);
+
+	write_unlock_irqrestore(&ep->lock, flags);
+
 	if (error)
-		goto eexit_2;
+		goto error_return;
 
-	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_create(%d) = %d\n",
-		     current, size, fd));
+	/* At this point it is safe to free the eventpoll item */
+	ep_release_epitem(epi);
 
-	return fd;
-
-eexit_2:
-	ep_free(ep);
-	kfree(ep);
-eexit_1:
-	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_create(%d) = %d\n",
-		     current, size, error));
-	return error;
-}
-
-
-/*
- * The following function implements the controller interface for
- * the eventpoll file that enables the insertion/removal/change of
- * file descriptors inside the interest set.  It represents
- * the kernel part of the user space epoll_ctl(2).
- */
-asmlinkage long
-sys_epoll_ctl(int epfd, int op, int fd, struct epoll_event __user *event)
-{
-	int error;
-	struct file *file, *tfile;
-	struct eventpoll *ep;
-	struct epitem *epi;
-	struct epoll_event epds;
-
-	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_ctl(%d, %d, %d, %p)\n",
-		     current, epfd, op, fd, event));
-
-	error = -EFAULT;
-	if (ep_op_hash_event(op) &&
-	    copy_from_user(&epds, event, sizeof(struct epoll_event)))
-		goto eexit_1;
-
-	/* Get the "struct file *" for the eventpoll file */
-	error = -EBADF;
-	file = fget(epfd);
-	if (!file)
-		goto eexit_1;
-
-	/* Get the "struct file *" for the target file */
-	tfile = fget(fd);
-	if (!tfile)
-		goto eexit_2;
-
-	/* The target file descriptor must support poll */
-	error = -EPERM;
-	if (!tfile->f_op || !tfile->f_op->poll)
-		goto eexit_3;
-
-	/*
-	 * We have to check that the file structure underneath the file descriptor
-	 * the user passed to us _is_ an eventpoll file. And also we do not permit
-	 * adding an epoll file descriptor inside itself.
-	 */
-	error = -EINVAL;
-	if (file == tfile || !is_file_epoll(file))
-		goto eexit_3;
-
-	/*
-	 * At this point it is safe to assume that the "private_data" contains
-	 * our own data structure.
-	 */
-	ep = file->private_data;
-
-	down_write(&ep->sem);
-
-	/* Try to lookup the file inside our hash table */
-	epi = ep_find(ep, tfile, fd);
-
-	error = -EINVAL;
-	switch (op) {
-	case EPOLL_CTL_ADD:
-		if (!epi) {
-			epds.events |= POLLERR | POLLHUP;
-
-			error = ep_insert(ep, &epds, tfile, fd);
-		} else
-			error = -EEXIST;
-		break;
-	case EPOLL_CTL_DEL:
-		if (epi)
-			error = ep_remove(ep, epi);
-		else
-			error = -ENOENT;
-		break;
-	case EPOLL_CTL_MOD:
-		if (epi) {
-			epds.events |= POLLERR | POLLHUP;
-			error = ep_modify(ep, epi, &epds);
-		} else
-			error = -ENOENT;
-		break;
-	}
-
-	/*
-	 * The function ep_find() increments the usage count of the structure
-	 * so, if this is not NULL, we need to release it.
-	 */
-	if (epi)
-		ep_release_epitem(epi);
-
-	up_write(&ep->sem);
-
-eexit_3:
-	fput(tfile);
-eexit_2:
-	fput(file);
-eexit_1:
-	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_ctl(%d, %d, %d, %p) = %d\n",
-		     current, epfd, op, fd, event, error));
+	error = 0;
+error_return:
+	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: ep_remove(%p, %p) = %d\n",
+		     current, ep, file, error));
 
 	return error;
 }
-
-
-/*
- * Implement the event wait interface for the eventpoll file. It is the kernel
- * part of the user space epoll_wait(2).
- */
-asmlinkage long sys_epoll_wait(int epfd, struct epoll_event __user *events,
-			       int maxevents, int timeout)
-{
-	int error;
-	struct file *file;
-	struct eventpoll *ep;
-
-	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_wait(%d, %p, %d, %d)\n",
-		     current, epfd, events, maxevents, timeout));
-
-	/* The maximum number of event must be greater than zero */
-	if (maxevents <= 0 || maxevents > EP_MAX_EVENTS)
-		return -EINVAL;
-
-	/* Verify that the area passed by the user is writeable */
-	if (!access_ok(VERIFY_WRITE, events, maxevents * sizeof(struct epoll_event))) {
-		error = -EFAULT;
-		goto eexit_1;
-	}
-
-	/* Get the "struct file *" for the eventpoll file */
-	error = -EBADF;
-	file = fget(epfd);
-	if (!file)
-		goto eexit_1;
-
-	/*
-	 * We have to check that the file structure underneath the fd
-	 * the user passed to us _is_ an eventpoll file.
-	 */
-	error = -EINVAL;
-	if (!is_file_epoll(file))
-		goto eexit_2;
-
-	/*
-	 * At this point it is safe to assume that the "private_data" contains
-	 * our own data structure.
-	 */
-	ep = file->private_data;
-
-	/* Time to fish for events ... */
-	error = ep_poll(ep, events, maxevents, timeout);
-
-eexit_2:
-	fput(file);
-eexit_1:
-	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_wait(%d, %p, %d, %d) = %d\n",
-		     current, epfd, events, maxevents, timeout, error));
-
-	return error;
-}
-
-
-#ifdef TIF_RESTORE_SIGMASK
-
-/*
- * Implement the event wait interface for the eventpoll file. It is the kernel
- * part of the user space epoll_pwait(2).
- */
-asmlinkage long sys_epoll_pwait(int epfd, struct epoll_event __user *events,
-		int maxevents, int timeout, const sigset_t __user *sigmask,
-		size_t sigsetsize)
-{
-	int error;
-	sigset_t ksigmask, sigsaved;
-
-	/*
-	 * If the caller wants a certain signal mask to be set during the wait,
-	 * we apply it here.
-	 */
-	if (sigmask) {
-		if (sigsetsize != sizeof(sigset_t))
-			return -EINVAL;
-		if (copy_from_user(&ksigmask, sigmask, sizeof(ksigmask)))
-			return -EFAULT;
-		sigdelsetmask(&ksigmask, sigmask(SIGKILL) | sigmask(SIGSTOP));
-		sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);
-	}
-
-	error = sys_epoll_wait(epfd, events, maxevents, timeout);
-
-	/*
-	 * If we changed the signal mask, we need to restore the original one.
-	 * In case we've got a signal while waiting, we do not restore the
-	 * signal mask yet, and we allow do_signal() to deliver the signal on
-	 * the way back to userspace, before the signal mask is restored.
-	 */
-	if (sigmask) {
-		if (error == -EINTR) {
-			memcpy(&current->saved_sigmask, &sigsaved,
-				sizeof(sigsaved));
-			set_thread_flag(TIF_RESTORE_SIGMASK);
-		} else
-			sigprocmask(SIG_SETMASK, &sigsaved, NULL);
-	}
-
-	return error;
-}
-
-#endif /* #ifdef TIF_RESTORE_SIGMASK */
-
-
-/*
- * Creates the file descriptor to be used by the epoll interface.
- */
-static int ep_getfd(int *efd, struct inode **einode, struct file **efile,
-		    struct eventpoll *ep)
-{
-	struct qstr this;
-	char name[32];
-	struct dentry *dentry;
-	struct inode *inode;
-	struct file *file;
-	int error, fd;
-
-	/* Get an ready to use file */
-	error = -ENFILE;
-	file = get_empty_filp();
-	if (!file)
-		goto eexit_1;
-
-	/* Allocates an inode from the eventpoll file system */
-	inode = ep_eventpoll_inode();
-	if (IS_ERR(inode)) {
-		error = PTR_ERR(inode);
-		goto eexit_2;
-	}
-
-	/* Allocates a free descriptor to plug the file onto */
-	error = get_unused_fd();
-	if (error < 0)
-		goto eexit_3;
-	fd = error;
-
-	/*
-	 * Link the inode to a directory entry by creating a unique name
-	 * using the inode number.
-	 */
-	error = -ENOMEM;
-	sprintf(name, "[%lu]", inode->i_ino);
-	this.name = name;
-	this.len = strlen(name);
-	this.hash = inode->i_ino;
-	dentry = d_alloc(eventpoll_mnt->mnt_sb->s_root, &this);
-	if (!dentry)
-		goto eexit_4;
-	dentry->d_op = &eventpollfs_dentry_operations;
-	d_add(dentry, inode);
-	file->f_path.mnt = mntget(eventpoll_mnt);
-	file->f_path.dentry = dentry;
-	file->f_mapping = inode->i_mapping;
-
-	file->f_pos = 0;
-	file->f_flags = O_RDONLY;
-	file->f_op = &eventpoll_fops;
-	file->f_mode = FMODE_READ;
-	file->f_version = 0;
-	file->private_data = ep;
-
-	/* Install the new setup file into the allocated fd. */
-	fd_install(fd, file);
-
-	*efd = fd;
-	*einode = inode;
-	*efile = file;
-	return 0;
-
-eexit_4:
-	put_unused_fd(fd);
-eexit_3:
-	iput(inode);
-eexit_2:
-	put_filp(file);
-eexit_1:
-	return error;
-}
-
-
-static int ep_alloc(struct eventpoll **pep)
-{
-	struct eventpoll *ep = kzalloc(sizeof(*ep), GFP_KERNEL);
-
-	if (!ep)
-		return -ENOMEM;
-
-	rwlock_init(&ep->lock);
-	init_rwsem(&ep->sem);
-	init_waitqueue_head(&ep->wq);
-	init_waitqueue_head(&ep->poll_wait);
-	INIT_LIST_HEAD(&ep->rdllist);
-	ep->rbr = RB_ROOT;
-
-	*pep = ep;
-
-	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: ep_alloc() ep=%p\n",
-		     current, ep));
-	return 0;
-}
-
 
 static void ep_free(struct eventpoll *ep)
 {
@@ -876,7 +523,7 @@ static void ep_free(struct eventpoll *ep)
 	}
 
 	/*
-	 * Walks through the whole hash by freeing each "struct epitem". At this
+	 * Walks through the whole tree by freeing each "struct epitem". At this
 	 * point we are sure no poll callbacks will be lingering around, and also by
 	 * write-holding "sem" we can be sure that no file cleanup code will hit
 	 * us during this operation. So we can avoid the lock on "ep->lock".
@@ -889,9 +536,107 @@ static void ep_free(struct eventpoll *ep)
 	mutex_unlock(&epmutex);
 }
 
+static int ep_eventpoll_release(struct inode *inode, struct file *file)
+{
+	struct eventpoll *ep = file->private_data;
+
+	if (ep) {
+		ep_free(ep);
+		kfree(ep);
+	}
+
+	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: close() ep=%p\n", current, ep));
+	return 0;
+}
+
+static unsigned int ep_eventpoll_poll(struct file *file, poll_table *wait)
+{
+	unsigned int pollflags = 0;
+	unsigned long flags;
+	struct eventpoll *ep = file->private_data;
+
+	/* Insert inside our poll wait queue */
+	poll_wait(file, &ep->poll_wait, wait);
+
+	/* Check our condition */
+	read_lock_irqsave(&ep->lock, flags);
+	if (!list_empty(&ep->rdllist))
+		pollflags = POLLIN | POLLRDNORM;
+	read_unlock_irqrestore(&ep->lock, flags);
+
+	return pollflags;
+}
+
+/* File callbacks that implement the eventpoll file behaviour */
+static const struct file_operations eventpoll_fops = {
+	.release	= ep_eventpoll_release,
+	.poll		= ep_eventpoll_poll
+};
+
+/* Fast test to see if the file is an evenpoll file */
+static inline int is_file_epoll(struct file *f)
+{
+	return f->f_op == &eventpoll_fops;
+}
 
 /*
- * Search the file inside the eventpoll hash. It add usage count to
+ * This is called from eventpoll_release() to unlink files from the eventpoll
+ * interface. We need to have this facility to cleanup correctly files that are
+ * closed without being removed from the eventpoll interface.
+ */
+void eventpoll_release_file(struct file *file)
+{
+	struct list_head *lsthead = &file->f_ep_links;
+	struct eventpoll *ep;
+	struct epitem *epi;
+
+	/*
+	 * We don't want to get "file->f_ep_lock" because it is not
+	 * necessary. It is not necessary because we're in the "struct file"
+	 * cleanup path, and this means that noone is using this file anymore.
+	 * The only hit might come from ep_free() but by holding the semaphore
+	 * will correctly serialize the operation. We do need to acquire
+	 * "ep->sem" after "epmutex" because ep_remove() requires it when called
+	 * from anywhere but ep_free().
+	 */
+	mutex_lock(&epmutex);
+
+	while (!list_empty(lsthead)) {
+		epi = list_first_entry(lsthead, struct epitem, fllink);
+
+		ep = epi->ep;
+		list_del_init(&epi->fllink);
+		down_write(&ep->sem);
+		ep_remove(ep, epi);
+		up_write(&ep->sem);
+	}
+
+	mutex_unlock(&epmutex);
+}
+
+static int ep_alloc(struct eventpoll **pep)
+{
+	struct eventpoll *ep = kzalloc(sizeof(*ep), GFP_KERNEL);
+
+	if (!ep)
+		return -ENOMEM;
+
+	rwlock_init(&ep->lock);
+	init_rwsem(&ep->sem);
+	init_waitqueue_head(&ep->wq);
+	init_waitqueue_head(&ep->poll_wait);
+	INIT_LIST_HEAD(&ep->rdllist);
+	ep->rbr = RB_ROOT;
+
+	*pep = ep;
+
+	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: ep_alloc() ep=%p\n",
+		     current, ep));
+	return 0;
+}
+
+/*
+ * Search the file inside the eventpoll tree. It add usage count to
  * the returned item, so the caller must call ep_release_epitem()
  * after finished using the "struct epitem".
  */
@@ -925,354 +670,6 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 
 	return epir;
 }
-
-
-/*
- * Increment the usage count of the "struct epitem" making it sure
- * that the user will have a valid pointer to reference.
- */
-static void ep_use_epitem(struct epitem *epi)
-{
-
-	atomic_inc(&epi->usecnt);
-}
-
-
-/*
- * Decrement ( release ) the usage count by signaling that the user
- * has finished using the structure. It might lead to freeing the
- * structure itself if the count goes to zero.
- */
-static void ep_release_epitem(struct epitem *epi)
-{
-
-	if (atomic_dec_and_test(&epi->usecnt))
-		kmem_cache_free(epi_cache, epi);
-}
-
-
-/*
- * This is the callback that is used to add our wait queue to the
- * target file wakeup lists.
- */
-static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
-				 poll_table *pt)
-{
-	struct epitem *epi = ep_item_from_epqueue(pt);
-	struct eppoll_entry *pwq;
-
-	if (epi->nwait >= 0 && (pwq = kmem_cache_alloc(pwq_cache, GFP_KERNEL))) {
-		init_waitqueue_func_entry(&pwq->wait, ep_poll_callback);
-		pwq->whead = whead;
-		pwq->base = epi;
-		add_wait_queue(whead, &pwq->wait);
-		list_add_tail(&pwq->llink, &epi->pwqlist);
-		epi->nwait++;
-	} else {
-		/* We have to signal that an error occurred */
-		epi->nwait = -1;
-	}
-}
-
-
-static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
-{
-	int kcmp;
-	struct rb_node **p = &ep->rbr.rb_node, *parent = NULL;
-	struct epitem *epic;
-
-	while (*p) {
-		parent = *p;
-		epic = rb_entry(parent, struct epitem, rbn);
-		kcmp = ep_cmp_ffd(&epi->ffd, &epic->ffd);
-		if (kcmp > 0)
-			p = &parent->rb_right;
-		else
-			p = &parent->rb_left;
-	}
-	rb_link_node(&epi->rbn, parent, p);
-	rb_insert_color(&epi->rbn, &ep->rbr);
-}
-
-
-static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
-		     struct file *tfile, int fd)
-{
-	int error, revents, pwake = 0;
-	unsigned long flags;
-	struct epitem *epi;
-	struct ep_pqueue epq;
-
-	error = -ENOMEM;
-	if (!(epi = kmem_cache_alloc(epi_cache, GFP_KERNEL)))
-		goto eexit_1;
-
-	/* Item initialization follow here ... */
-	ep_rb_initnode(&epi->rbn);
-	INIT_LIST_HEAD(&epi->rdllink);
-	INIT_LIST_HEAD(&epi->fllink);
-	INIT_LIST_HEAD(&epi->txlink);
-	INIT_LIST_HEAD(&epi->pwqlist);
-	epi->ep = ep;
-	ep_set_ffd(&epi->ffd, tfile, fd);
-	epi->event = *event;
-	atomic_set(&epi->usecnt, 1);
-	epi->nwait = 0;
-
-	/* Initialize the poll table using the queue callback */
-	epq.epi = epi;
-	init_poll_funcptr(&epq.pt, ep_ptable_queue_proc);
-
-	/*
-	 * Attach the item to the poll hooks and get current event bits.
-	 * We can safely use the file* here because its usage count has
-	 * been increased by the caller of this function.
-	 */
-	revents = tfile->f_op->poll(tfile, &epq.pt);
-
-	/*
-	 * We have to check if something went wrong during the poll wait queue
-	 * install process. Namely an allocation for a wait queue failed due
-	 * high memory pressure.
-	 */
-	if (epi->nwait < 0)
-		goto eexit_2;
-
-	/* Add the current item to the list of active epoll hook for this file */
-	spin_lock(&tfile->f_ep_lock);
-	list_add_tail(&epi->fllink, &tfile->f_ep_links);
-	spin_unlock(&tfile->f_ep_lock);
-
-	/* We have to drop the new item inside our item list to keep track of it */
-	write_lock_irqsave(&ep->lock, flags);
-
-	/* Add the current item to the rb-tree */
-	ep_rbtree_insert(ep, epi);
-
-	/* If the file is already "ready" we drop it inside the ready list */
-	if ((revents & event->events) && !ep_is_linked(&epi->rdllink)) {
-		list_add_tail(&epi->rdllink, &ep->rdllist);
-
-		/* Notify waiting tasks that events are available */
-		if (waitqueue_active(&ep->wq))
-			__wake_up_locked(&ep->wq, TASK_UNINTERRUPTIBLE | TASK_INTERRUPTIBLE);
-		if (waitqueue_active(&ep->poll_wait))
-			pwake++;
-	}
-
-	write_unlock_irqrestore(&ep->lock, flags);
-
-	/* We have to call this outside the lock */
-	if (pwake)
-		ep_poll_safewake(&psw, &ep->poll_wait);
-
-	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: ep_insert(%p, %p, %d)\n",
-		     current, ep, tfile, fd));
-
-	return 0;
-
-eexit_2:
-	ep_unregister_pollwait(ep, epi);
-
-	/*
-	 * We need to do this because an event could have been arrived on some
-	 * allocated wait queue.
-	 */
-	write_lock_irqsave(&ep->lock, flags);
-	if (ep_is_linked(&epi->rdllink))
-		ep_list_del(&epi->rdllink);
-	write_unlock_irqrestore(&ep->lock, flags);
-
-	kmem_cache_free(epi_cache, epi);
-eexit_1:
-	return error;
-}
-
-
-/*
- * Modify the interest event mask by dropping an event if the new mask
- * has a match in the current file status.
- */
-static int ep_modify(struct eventpoll *ep, struct epitem *epi, struct epoll_event *event)
-{
-	int pwake = 0;
-	unsigned int revents;
-	unsigned long flags;
-
-	/*
-	 * Set the new event interest mask before calling f_op->poll(), otherwise
-	 * a potential race might occur. In fact if we do this operation inside
-	 * the lock, an event might happen between the f_op->poll() call and the
-	 * new event set registering.
-	 */
-	epi->event.events = event->events;
-
-	/*
-	 * Get current event bits. We can safely use the file* here because
-	 * its usage count has been increased by the caller of this function.
-	 */
-	revents = epi->ffd.file->f_op->poll(epi->ffd.file, NULL);
-
-	write_lock_irqsave(&ep->lock, flags);
-
-	/* Copy the data member from inside the lock */
-	epi->event.data = event->data;
-
-	/*
-	 * If the item is not linked to the hash it means that it's on its
-	 * way toward the removal. Do nothing in this case.
-	 */
-	if (ep_rb_linked(&epi->rbn)) {
-		/*
-		 * If the item is "hot" and it is not registered inside the ready
-		 * list, push it inside. If the item is not "hot" and it is currently
-		 * registered inside the ready list, unlink it.
-		 */
-		if (revents & event->events) {
-			if (!ep_is_linked(&epi->rdllink)) {
-				list_add_tail(&epi->rdllink, &ep->rdllist);
-
-				/* Notify waiting tasks that events are available */
-				if (waitqueue_active(&ep->wq))
-					__wake_up_locked(&ep->wq, TASK_UNINTERRUPTIBLE |
-							 TASK_INTERRUPTIBLE);
-				if (waitqueue_active(&ep->poll_wait))
-					pwake++;
-			}
-		}
-	}
-
-	write_unlock_irqrestore(&ep->lock, flags);
-
-	/* We have to call this outside the lock */
-	if (pwake)
-		ep_poll_safewake(&psw, &ep->poll_wait);
-
-	return 0;
-}
-
-
-/*
- * This function unregister poll callbacks from the associated file descriptor.
- * Since this must be called without holding "ep->lock" the atomic exchange trick
- * will protect us from multiple unregister.
- */
-static void ep_unregister_pollwait(struct eventpoll *ep, struct epitem *epi)
-{
-	int nwait;
-	struct list_head *lsthead = &epi->pwqlist;
-	struct eppoll_entry *pwq;
-
-	/* This is called without locks, so we need the atomic exchange */
-	nwait = xchg(&epi->nwait, 0);
-
-	if (nwait) {
-		while (!list_empty(lsthead)) {
-			pwq = list_entry(lsthead->next, struct eppoll_entry, llink);
-
-			ep_list_del(&pwq->llink);
-			remove_wait_queue(pwq->whead, &pwq->wait);
-			kmem_cache_free(pwq_cache, pwq);
-		}
-	}
-}
-
-
-/*
- * Unlink the "struct epitem" from all places it might have been hooked up.
- * This function must be called with write IRQ lock on "ep->lock".
- */
-static int ep_unlink(struct eventpoll *ep, struct epitem *epi)
-{
-	int error;
-
-	/*
-	 * It can happen that this one is called for an item already unlinked.
-	 * The check protect us from doing a double unlink ( crash ).
-	 */
-	error = -ENOENT;
-	if (!ep_rb_linked(&epi->rbn))
-		goto eexit_1;
-
-	/*
-	 * Clear the event mask for the unlinked item. This will avoid item
-	 * notifications to be sent after the unlink operation from inside
-	 * the kernel->userspace event transfer loop.
-	 */
-	epi->event.events = 0;
-
-	/*
-	 * At this point is safe to do the job, unlink the item from our rb-tree.
-	 * This operation togheter with the above check closes the door to
-	 * double unlinks.
-	 */
-	ep_rb_erase(&epi->rbn, &ep->rbr);
-
-	/*
-	 * If the item we are going to remove is inside the ready file descriptors
-	 * we want to remove it from this list to avoid stale events.
-	 */
-	if (ep_is_linked(&epi->rdllink))
-		ep_list_del(&epi->rdllink);
-
-	error = 0;
-eexit_1:
-
-	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: ep_unlink(%p, %p) = %d\n",
-		     current, ep, epi->ffd.file, error));
-
-	return error;
-}
-
-
-/*
- * Removes a "struct epitem" from the eventpoll hash and deallocates
- * all the associated resources.
- */
-static int ep_remove(struct eventpoll *ep, struct epitem *epi)
-{
-	int error;
-	unsigned long flags;
-	struct file *file = epi->ffd.file;
-
-	/*
-	 * Removes poll wait queue hooks. We _have_ to do this without holding
-	 * the "ep->lock" otherwise a deadlock might occur. This because of the
-	 * sequence of the lock acquisition. Here we do "ep->lock" then the wait
-	 * queue head lock when unregistering the wait queue. The wakeup callback
-	 * will run by holding the wait queue head lock and will call our callback
-	 * that will try to get "ep->lock".
-	 */
-	ep_unregister_pollwait(ep, epi);
-
-	/* Remove the current item from the list of epoll hooks */
-	spin_lock(&file->f_ep_lock);
-	if (ep_is_linked(&epi->fllink))
-		ep_list_del(&epi->fllink);
-	spin_unlock(&file->f_ep_lock);
-
-	/* We need to acquire the write IRQ lock before calling ep_unlink() */
-	write_lock_irqsave(&ep->lock, flags);
-
-	/* Really unlink the item from the hash */
-	error = ep_unlink(ep, epi);
-
-	write_unlock_irqrestore(&ep->lock, flags);
-
-	if (error)
-		goto eexit_1;
-
-	/* At this point it is safe to free the eventpoll item */
-	ep_release_epitem(epi);
-
-	error = 0;
-eexit_1:
-	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: ep_remove(%p, %p) = %d\n",
-		     current, ep, file, error));
-
-	return error;
-}
-
 
 /*
  * This is the callback that is passed to the wait queue wakeup
@@ -1327,178 +724,108 @@ is_disabled:
 	return 1;
 }
 
-
-static int ep_eventpoll_close(struct inode *inode, struct file *file)
-{
-	struct eventpoll *ep = file->private_data;
-
-	if (ep) {
-		ep_free(ep);
-		kfree(ep);
-	}
-
-	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: close() ep=%p\n", current, ep));
-	return 0;
-}
-
-
-static unsigned int ep_eventpoll_poll(struct file *file, poll_table *wait)
-{
-	unsigned int pollflags = 0;
-	unsigned long flags;
-	struct eventpoll *ep = file->private_data;
-
-	/* Insert inside our poll wait queue */
-	poll_wait(file, &ep->poll_wait, wait);
-
-	/* Check our condition */
-	read_lock_irqsave(&ep->lock, flags);
-	if (!list_empty(&ep->rdllist))
-		pollflags = POLLIN | POLLRDNORM;
-	read_unlock_irqrestore(&ep->lock, flags);
-
-	return pollflags;
-}
-
-
 /*
- * Since we have to release the lock during the __copy_to_user() operation and
- * during the f_op->poll() call, we try to collect the maximum number of items
- * by reducing the irqlock/irqunlock switching rate.
+ * This is the callback that is used to add our wait queue to the
+ * target file wakeup lists.
  */
-static int ep_collect_ready_items(struct eventpoll *ep, struct list_head *txlist, int maxevents)
+static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
+				 poll_table *pt)
 {
-	int nepi;
-	unsigned long flags;
-	struct list_head *lsthead = &ep->rdllist, *lnk;
-	struct epitem *epi;
+	struct epitem *epi = ep_item_from_epqueue(pt);
+	struct eppoll_entry *pwq;
 
-	write_lock_irqsave(&ep->lock, flags);
-
-	for (nepi = 0, lnk = lsthead->next; lnk != lsthead && nepi < maxevents;) {
-		epi = list_entry(lnk, struct epitem, rdllink);
-
-		lnk = lnk->next;
-
-		/* If this file is already in the ready list we exit soon */
-		if (!ep_is_linked(&epi->txlink)) {
-			/*
-			 * This is initialized in this way so that the default
-			 * behaviour of the reinjecting code will be to push back
-			 * the item inside the ready list.
-			 */
-			epi->revents = epi->event.events;
-
-			/* Link the ready item into the transfer list */
-			list_add(&epi->txlink, txlist);
-			nepi++;
-
-			/*
-			 * Unlink the item from the ready list.
-			 */
-			ep_list_del(&epi->rdllink);
-		}
+	if (epi->nwait >= 0 && (pwq = kmem_cache_alloc(pwq_cache, GFP_KERNEL))) {
+		init_waitqueue_func_entry(&pwq->wait, ep_poll_callback);
+		pwq->whead = whead;
+		pwq->base = epi;
+		add_wait_queue(whead, &pwq->wait);
+		list_add_tail(&pwq->llink, &epi->pwqlist);
+		epi->nwait++;
+	} else {
+		/* We have to signal that an error occurred */
+		epi->nwait = -1;
 	}
-
-	write_unlock_irqrestore(&ep->lock, flags);
-
-	return nepi;
 }
 
-
-/*
- * This function is called without holding the "ep->lock" since the call to
- * __copy_to_user() might sleep, and also f_op->poll() might reenable the IRQ
- * because of the way poll() is traditionally implemented in Linux.
- */
-static int ep_send_events(struct eventpoll *ep, struct list_head *txlist,
-			  struct epoll_event __user *events)
+static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
 {
-	int eventcnt = 0;
-	unsigned int revents;
-	struct list_head *lnk;
+	int kcmp;
+	struct rb_node **p = &ep->rbr.rb_node, *parent = NULL;
+	struct epitem *epic;
+
+	while (*p) {
+		parent = *p;
+		epic = rb_entry(parent, struct epitem, rbn);
+		kcmp = ep_cmp_ffd(&epi->ffd, &epic->ffd);
+		if (kcmp > 0)
+			p = &parent->rb_right;
+		else
+			p = &parent->rb_left;
+	}
+	rb_link_node(&epi->rbn, parent, p);
+	rb_insert_color(&epi->rbn, &ep->rbr);
+}
+
+static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
+		     struct file *tfile, int fd)
+{
+	int error, revents, pwake = 0;
+	unsigned long flags;
 	struct epitem *epi;
+	struct ep_pqueue epq;
+
+	error = -ENOMEM;
+	if (!(epi = kmem_cache_alloc(epi_cache, GFP_KERNEL)))
+		goto error_return;
+
+	/* Item initialization follow here ... */
+	ep_rb_initnode(&epi->rbn);
+	INIT_LIST_HEAD(&epi->rdllink);
+	INIT_LIST_HEAD(&epi->fllink);
+	INIT_LIST_HEAD(&epi->pwqlist);
+	epi->ep = ep;
+	ep_set_ffd(&epi->ffd, tfile, fd);
+	epi->event = *event;
+	atomic_set(&epi->usecnt, 1);
+	epi->nwait = 0;
+
+	/* Initialize the poll table using the queue callback */
+	epq.epi = epi;
+	init_poll_funcptr(&epq.pt, ep_ptable_queue_proc);
 
 	/*
-	 * We can loop without lock because this is a task private list.
-	 * The test done during the collection loop will guarantee us that
-	 * another task will not try to collect this file. Also, items
-	 * cannot vanish during the loop because we are holding "sem".
+	 * Attach the item to the poll hooks and get current event bits.
+	 * We can safely use the file* here because its usage count has
+	 * been increased by the caller of this function.
 	 */
-	list_for_each(lnk, txlist) {
-		epi = list_entry(lnk, struct epitem, txlink);
+	revents = tfile->f_op->poll(tfile, &epq.pt);
 
-		/*
-		 * Get the ready file event set. We can safely use the file
-		 * because we are holding the "sem" in read and this will
-		 * guarantee that both the file and the item will not vanish.
-		 */
-		revents = epi->ffd.file->f_op->poll(epi->ffd.file, NULL);
+	/*
+	 * We have to check if something went wrong during the poll wait queue
+	 * install process. Namely an allocation for a wait queue failed due
+	 * high memory pressure.
+	 */
+	if (epi->nwait < 0)
+		goto error_unregister;
 
-		/*
-		 * Set the return event set for the current file descriptor.
-		 * Note that only the task task was successfully able to link
-		 * the item to its "txlist" will write this field.
-		 */
-		epi->revents = revents & epi->event.events;
+	/* Add the current item to the list of active epoll hook for this file */
+	spin_lock(&tfile->f_ep_lock);
+	list_add_tail(&epi->fllink, &tfile->f_ep_links);
+	spin_unlock(&tfile->f_ep_lock);
 
-		if (epi->revents) {
-			if (__put_user(epi->revents,
-				       &events[eventcnt].events) ||
-			    __put_user(epi->event.data,
-				       &events[eventcnt].data))
-				return -EFAULT;
-			if (epi->event.events & EPOLLONESHOT)
-				epi->event.events &= EP_PRIVATE_BITS;
-			eventcnt++;
-		}
-	}
-	return eventcnt;
-}
-
-
-/*
- * Walk through the transfer list we collected with ep_collect_ready_items()
- * and, if 1) the item is still "alive" 2) its event set is not empty 3) it's
- * not already linked, links it to the ready list. Same as above, we are holding
- * "sem" so items cannot vanish underneath our nose.
- */
-static void ep_reinject_items(struct eventpoll *ep, struct list_head *txlist)
-{
-	int ricnt = 0, pwake = 0;
-	unsigned long flags;
-	struct epitem *epi;
-
+	/* We have to drop the new item inside our item list to keep track of it */
 	write_lock_irqsave(&ep->lock, flags);
 
-	while (!list_empty(txlist)) {
-		epi = list_entry(txlist->next, struct epitem, txlink);
+	/* Add the current item to the rb-tree */
+	ep_rbtree_insert(ep, epi);
 
-		/* Unlink the current item from the transfer list */
-		ep_list_del(&epi->txlink);
+	/* If the file is already "ready" we drop it inside the ready list */
+	if ((revents & event->events) && !ep_is_linked(&epi->rdllink)) {
+		list_add_tail(&epi->rdllink, &ep->rdllist);
 
-		/*
-		 * If the item is no more linked to the interest set, we don't
-		 * have to push it inside the ready list because the following
-		 * ep_release_epitem() is going to drop it. Also, if the current
-		 * item is set to have an Edge Triggered behaviour, we don't have
-		 * to push it back either.
-		 */
-		if (ep_rb_linked(&epi->rbn) && !(epi->event.events & EPOLLET) &&
-		    (epi->revents & epi->event.events) && !ep_is_linked(&epi->rdllink)) {
-			list_add_tail(&epi->rdllink, &ep->rdllist);
-			ricnt++;
-		}
-	}
-
-	if (ricnt) {
-		/*
-		 * Wake up ( if active ) both the eventpoll wait list and the ->poll()
-		 * wait list.
-		 */
+		/* Notify waiting tasks that events are available */
 		if (waitqueue_active(&ep->wq))
-			__wake_up_locked(&ep->wq, TASK_UNINTERRUPTIBLE |
-					 TASK_INTERRUPTIBLE);
+			__wake_up_locked(&ep->wq, TASK_UNINTERRUPTIBLE | TASK_INTERRUPTIBLE);
 		if (waitqueue_active(&ep->poll_wait))
 			pwake++;
 	}
@@ -1508,8 +835,201 @@ static void ep_reinject_items(struct eventpoll *ep, struct list_head *txlist)
 	/* We have to call this outside the lock */
 	if (pwake)
 		ep_poll_safewake(&psw, &ep->poll_wait);
+
+	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: ep_insert(%p, %p, %d)\n",
+		     current, ep, tfile, fd));
+
+	return 0;
+
+error_unregister:
+	ep_unregister_pollwait(ep, epi);
+
+	/*
+	 * We need to do this because an event could have been arrived on some
+	 * allocated wait queue.
+	 */
+	write_lock_irqsave(&ep->lock, flags);
+	if (ep_is_linked(&epi->rdllink))
+		list_del_init(&epi->rdllink);
+	write_unlock_irqrestore(&ep->lock, flags);
+
+	kmem_cache_free(epi_cache, epi);
+error_return:
+	return error;
 }
 
+/*
+ * Modify the interest event mask by dropping an event if the new mask
+ * has a match in the current file status.
+ */
+static int ep_modify(struct eventpoll *ep, struct epitem *epi, struct epoll_event *event)
+{
+	int pwake = 0;
+	unsigned int revents;
+	unsigned long flags;
+
+	/*
+	 * Set the new event interest mask before calling f_op->poll(), otherwise
+	 * a potential race might occur. In fact if we do this operation inside
+	 * the lock, an event might happen between the f_op->poll() call and the
+	 * new event set registering.
+	 */
+	epi->event.events = event->events;
+
+	/*
+	 * Get current event bits. We can safely use the file* here because
+	 * its usage count has been increased by the caller of this function.
+	 */
+	revents = epi->ffd.file->f_op->poll(epi->ffd.file, NULL);
+
+	write_lock_irqsave(&ep->lock, flags);
+
+	/* Copy the data member from inside the lock */
+	epi->event.data = event->data;
+
+	/*
+	 * If the item is not linked to the RB tree it means that it's on its
+	 * way toward the removal. Do nothing in this case.
+	 */
+	if (ep_rb_linked(&epi->rbn)) {
+		/*
+		 * If the item is "hot" and it is not registered inside the ready
+		 * list, push it inside. If the item is not "hot" and it is currently
+		 * registered inside the ready list, unlink it.
+		 */
+		if (revents & event->events) {
+			if (!ep_is_linked(&epi->rdllink)) {
+				list_add_tail(&epi->rdllink, &ep->rdllist);
+
+				/* Notify waiting tasks that events are available */
+				if (waitqueue_active(&ep->wq))
+					__wake_up_locked(&ep->wq, TASK_UNINTERRUPTIBLE |
+							 TASK_INTERRUPTIBLE);
+				if (waitqueue_active(&ep->poll_wait))
+					pwake++;
+			}
+		}
+	}
+
+	write_unlock_irqrestore(&ep->lock, flags);
+
+	/* We have to call this outside the lock */
+	if (pwake)
+		ep_poll_safewake(&psw, &ep->poll_wait);
+
+	return 0;
+}
+
+/*
+ * This function is called without holding the "ep->lock" since the call to
+ * __copy_to_user() might sleep, and also f_op->poll() might reenable the IRQ
+ * because of the way poll() is traditionally implemented in Linux.
+ */
+static int ep_send_events(struct eventpoll *ep, struct list_head *txlist,
+			  struct epoll_event __user *events, int maxevents)
+{
+	int eventcnt, error = -EFAULT, pwake = 0;
+	unsigned int revents;
+	unsigned long flags;
+	struct epitem *epi;
+	struct list_head injlist;
+
+	INIT_LIST_HEAD(&injlist);
+
+	/*
+	 * We can loop without lock because this is a task private list.
+	 * We just splice'd out the ep->rdllist in ep_collect_ready_items().
+	 * Items cannot vanish during the loop because we are holding "sem" in
+	 * read.
+	 */
+	for (eventcnt = 0; !list_empty(txlist) && eventcnt < maxevents;) {
+		epi = list_first_entry(txlist, struct epitem, rdllink);
+		prefetch(epi->rdllink.next);
+
+		/*
+		 * Get the ready file event set. We can safely use the file
+		 * because we are holding the "sem" in read and this will
+		 * guarantee that both the file and the item will not vanish.
+		 */
+		revents = epi->ffd.file->f_op->poll(epi->ffd.file, NULL);
+		revents &= epi->event.events;
+
+		/*
+		 * Is the event mask intersect the caller-requested one,
+		 * deliver the event to userspace. Again, we are holding
+		 * "sem" in read, so no operations coming from userspace
+		 * can change the item.
+		 */
+		if (revents) {
+			if (__put_user(revents,
+				       &events[eventcnt].events) ||
+			    __put_user(epi->event.data,
+				       &events[eventcnt].data))
+				goto errxit;
+			if (epi->event.events & EPOLLONESHOT)
+				epi->event.events &= EP_PRIVATE_BITS;
+			eventcnt++;
+		}
+
+		/*
+		 * This is tricky. We are holding the "sem" in read, and this
+		 * means that the operations that can change the "linked" status
+		 * of the epoll item (epi->rbn and epi->rdllink), cannot touch
+		 * them.  Also, since we are "linked" from a epi->rdllink POV
+		 * (the item is linked to our transmission list we just
+		 * spliced), the ep_poll_callback() cannot touch us either,
+		 * because of the check present in there. Another parallel
+		 * epoll_wait() will not get the same result set, since we
+		 * spliced the ready list before.  Note that list_del() still
+		 * shows the item as linked to the test in ep_poll_callback().
+		 */
+		list_del(&epi->rdllink);
+		if (!(epi->event.events & EPOLLET) &&
+				(revents & epi->event.events))
+			list_add_tail(&epi->rdllink, &injlist);
+		else {
+			/*
+			 * Be sure the item is totally detached before re-init
+			 * the list_head. After INIT_LIST_HEAD() is committed,
+			 * the ep_poll_callback() can requeue the item again,
+			 * but we don't care since we are already past it.
+			 */
+			smp_mb();
+			INIT_LIST_HEAD(&epi->rdllink);
+		}
+	}
+	error = 0;
+
+	errxit:
+
+	/*
+	 * If the re-injection list or the txlist are not empty, re-splice
+	 * them to the ready list and do proper wakeups.
+	 */
+	if (!list_empty(&injlist) || !list_empty(txlist)) {
+		write_lock_irqsave(&ep->lock, flags);
+
+		list_splice(txlist, &ep->rdllist);
+		list_splice(&injlist, &ep->rdllist);
+		/*
+		 * Wake up ( if active ) both the eventpoll wait list and the ->poll()
+		 * wait list.
+		 */
+		if (waitqueue_active(&ep->wq))
+			__wake_up_locked(&ep->wq, TASK_UNINTERRUPTIBLE |
+					 TASK_INTERRUPTIBLE);
+		if (waitqueue_active(&ep->poll_wait))
+			pwake++;
+
+		write_unlock_irqrestore(&ep->lock, flags);
+	}
+
+	/* We have to call this outside the lock */
+	if (pwake)
+		ep_poll_safewake(&psw, &ep->poll_wait);
+
+	return eventcnt == 0 ? error: eventcnt;
+}
 
 /*
  * Perform the transfer of events to user space.
@@ -1517,7 +1037,8 @@ static void ep_reinject_items(struct eventpoll *ep, struct list_head *txlist)
 static int ep_events_transfer(struct eventpoll *ep,
 			      struct epoll_event __user *events, int maxevents)
 {
-	int eventcnt = 0;
+	int eventcnt;
+	unsigned long flags;
 	struct list_head txlist;
 
 	INIT_LIST_HEAD(&txlist);
@@ -1528,20 +1049,22 @@ static int ep_events_transfer(struct eventpoll *ep,
 	 */
 	down_read(&ep->sem);
 
-	/* Collect/extract ready items */
-	if (ep_collect_ready_items(ep, &txlist, maxevents) > 0) {
-		/* Build result set in userspace */
-		eventcnt = ep_send_events(ep, &txlist, events);
+	/*
+	 * Steal the ready list, and re-init the original one to the
+	 * empty list.
+	 */
+	write_lock_irqsave(&ep->lock, flags);
+	list_splice(&ep->rdllist, &txlist);
+	INIT_LIST_HEAD(&ep->rdllist);
+	write_unlock_irqrestore(&ep->lock, flags);
 
-		/* Reinject ready items into the ready list */
-		ep_reinject_items(ep, &txlist);
-	}
+	/* Build result set in userspace */
+	eventcnt = ep_send_events(ep, &txlist, events, maxevents);
 
 	up_read(&ep->sem);
 
 	return eventcnt;
 }
-
 
 static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		   int maxevents, long timeout)
@@ -1612,55 +1135,262 @@ retry:
 	return res;
 }
 
-
-static int eventpollfs_delete_dentry(struct dentry *dentry)
+/*
+ * It opens an eventpoll file descriptor by suggesting a storage of "size"
+ * file descriptors. The size parameter is just an hint about how to size
+ * data structures. It won't prevent the user to store more than "size"
+ * file descriptors inside the epoll interface. It is the kernel part of
+ * the userspace epoll_create(2).
+ */
+asmlinkage long sys_epoll_create(int size)
 {
+	int error, fd = -1;
+	struct eventpoll *ep;
+	struct inode *inode;
+	struct file *file;
 
-	return 1;
-}
-
-
-static struct inode *ep_eventpoll_inode(void)
-{
-	int error = -ENOMEM;
-	struct inode *inode = new_inode(eventpoll_mnt->mnt_sb);
-
-	if (!inode)
-		goto eexit_1;
-
-	inode->i_fop = &eventpoll_fops;
+	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_create(%d)\n",
+		     current, size));
 
 	/*
-	 * Mark the inode dirty from the very beginning,
-	 * that way it will never be moved to the dirty
-	 * list because mark_inode_dirty() will think
-	 * that it already _is_ on the dirty list.
+	 * Sanity check on the size parameter, and create the internal data
+	 * structure ( "struct eventpoll" ).
 	 */
-	inode->i_state = I_DIRTY;
-	inode->i_mode = S_IRUSR | S_IWUSR;
-	inode->i_uid = current->fsuid;
-	inode->i_gid = current->fsgid;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-	return inode;
+	error = -EINVAL;
+	if (size <= 0 || (error = ep_alloc(&ep)) != 0)
+		goto error_return;
 
-eexit_1:
-	return ERR_PTR(error);
+	/*
+	 * Creates all the items needed to setup an eventpoll file. That is,
+	 * a file structure, and inode and a free file descriptor.
+	 */
+	error = anon_inode_getfd(&fd, &inode, &file, "[eventpoll]",
+				 &eventpoll_fops, ep);
+	if (error)
+		goto error_free;
+
+	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_create(%d) = %d\n",
+		     current, size, fd));
+
+	return fd;
+
+error_free:
+	ep_free(ep);
+	kfree(ep);
+error_return:
+	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_create(%d) = %d\n",
+		     current, size, error));
+	return error;
 }
 
-
-static int
-eventpollfs_get_sb(struct file_system_type *fs_type, int flags,
-		   const char *dev_name, void *data, struct vfsmount *mnt)
+/*
+ * The following function implements the controller interface for
+ * the eventpoll file that enables the insertion/removal/change of
+ * file descriptors inside the interest set.  It represents
+ * the kernel part of the user space epoll_ctl(2).
+ */
+asmlinkage long sys_epoll_ctl(int epfd, int op, int fd,
+			      struct epoll_event __user *event)
 {
-	return get_sb_pseudo(fs_type, "eventpoll:", NULL, EVENTPOLLFS_MAGIC,
-			     mnt);
+	int error;
+	struct file *file, *tfile;
+	struct eventpoll *ep;
+	struct epitem *epi;
+	struct epoll_event epds;
+
+	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_ctl(%d, %d, %d, %p)\n",
+		     current, epfd, op, fd, event));
+
+	error = -EFAULT;
+	if (ep_op_has_event(op) &&
+	    copy_from_user(&epds, event, sizeof(struct epoll_event)))
+		goto error_return;
+
+	/* Get the "struct file *" for the eventpoll file */
+	error = -EBADF;
+	file = fget(epfd);
+	if (!file)
+		goto error_return;
+
+	/* Get the "struct file *" for the target file */
+	tfile = fget(fd);
+	if (!tfile)
+		goto error_fput;
+
+	/* The target file descriptor must support poll */
+	error = -EPERM;
+	if (!tfile->f_op || !tfile->f_op->poll)
+		goto error_tgt_fput;
+
+	/*
+	 * We have to check that the file structure underneath the file descriptor
+	 * the user passed to us _is_ an eventpoll file. And also we do not permit
+	 * adding an epoll file descriptor inside itself.
+	 */
+	error = -EINVAL;
+	if (file == tfile || !is_file_epoll(file))
+		goto error_tgt_fput;
+
+	/*
+	 * At this point it is safe to assume that the "private_data" contains
+	 * our own data structure.
+	 */
+	ep = file->private_data;
+
+	down_write(&ep->sem);
+
+	/* Try to lookup the file inside our RB tree */
+	epi = ep_find(ep, tfile, fd);
+
+	error = -EINVAL;
+	switch (op) {
+	case EPOLL_CTL_ADD:
+		if (!epi) {
+			epds.events |= POLLERR | POLLHUP;
+
+			error = ep_insert(ep, &epds, tfile, fd);
+		} else
+			error = -EEXIST;
+		break;
+	case EPOLL_CTL_DEL:
+		if (epi)
+			error = ep_remove(ep, epi);
+		else
+			error = -ENOENT;
+		break;
+	case EPOLL_CTL_MOD:
+		if (epi) {
+			epds.events |= POLLERR | POLLHUP;
+			error = ep_modify(ep, epi, &epds);
+		} else
+			error = -ENOENT;
+		break;
+	}
+	/*
+	 * The function ep_find() increments the usage count of the structure
+	 * so, if this is not NULL, we need to release it.
+	 */
+	if (epi)
+		ep_release_epitem(epi);
+	up_write(&ep->sem);
+
+error_tgt_fput:
+	fput(tfile);
+error_fput:
+	fput(file);
+error_return:
+	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_ctl(%d, %d, %d, %p) = %d\n",
+		     current, epfd, op, fd, event, error));
+
+	return error;
 }
 
+/*
+ * Implement the event wait interface for the eventpoll file. It is the kernel
+ * part of the user space epoll_wait(2).
+ */
+asmlinkage long sys_epoll_wait(int epfd, struct epoll_event __user *events,
+			       int maxevents, int timeout)
+{
+	int error;
+	struct file *file;
+	struct eventpoll *ep;
+
+	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_wait(%d, %p, %d, %d)\n",
+		     current, epfd, events, maxevents, timeout));
+
+	/* The maximum number of event must be greater than zero */
+	if (maxevents <= 0 || maxevents > EP_MAX_EVENTS)
+		return -EINVAL;
+
+	/* Verify that the area passed by the user is writeable */
+	if (!access_ok(VERIFY_WRITE, events, maxevents * sizeof(struct epoll_event))) {
+		error = -EFAULT;
+		goto error_return;
+	}
+
+	/* Get the "struct file *" for the eventpoll file */
+	error = -EBADF;
+	file = fget(epfd);
+	if (!file)
+		goto error_return;
+
+	/*
+	 * We have to check that the file structure underneath the fd
+	 * the user passed to us _is_ an eventpoll file.
+	 */
+	error = -EINVAL;
+	if (!is_file_epoll(file))
+		goto error_fput;
+
+	/*
+	 * At this point it is safe to assume that the "private_data" contains
+	 * our own data structure.
+	 */
+	ep = file->private_data;
+
+	/* Time to fish for events ... */
+	error = ep_poll(ep, events, maxevents, timeout);
+
+error_fput:
+	fput(file);
+error_return:
+	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_wait(%d, %p, %d, %d) = %d\n",
+		     current, epfd, events, maxevents, timeout, error));
+
+	return error;
+}
+
+#ifdef TIF_RESTORE_SIGMASK
+
+/*
+ * Implement the event wait interface for the eventpoll file. It is the kernel
+ * part of the user space epoll_pwait(2).
+ */
+asmlinkage long sys_epoll_pwait(int epfd, struct epoll_event __user *events,
+		int maxevents, int timeout, const sigset_t __user *sigmask,
+		size_t sigsetsize)
+{
+	int error;
+	sigset_t ksigmask, sigsaved;
+
+	/*
+	 * If the caller wants a certain signal mask to be set during the wait,
+	 * we apply it here.
+	 */
+	if (sigmask) {
+		if (sigsetsize != sizeof(sigset_t))
+			return -EINVAL;
+		if (copy_from_user(&ksigmask, sigmask, sizeof(ksigmask)))
+			return -EFAULT;
+		sigdelsetmask(&ksigmask, sigmask(SIGKILL) | sigmask(SIGSTOP));
+		sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);
+	}
+
+	error = sys_epoll_wait(epfd, events, maxevents, timeout);
+
+	/*
+	 * If we changed the signal mask, we need to restore the original one.
+	 * In case we've got a signal while waiting, we do not restore the
+	 * signal mask yet, and we allow do_signal() to deliver the signal on
+	 * the way back to userspace, before the signal mask is restored.
+	 */
+	if (sigmask) {
+		if (error == -EINTR) {
+			memcpy(&current->saved_sigmask, &sigsaved,
+				sizeof(sigsaved));
+			set_thread_flag(TIF_RESTORE_SIGMASK);
+		} else
+			sigprocmask(SIG_SETMASK, &sigsaved, NULL);
+	}
+
+	return error;
+}
+
+#endif /* #ifdef TIF_RESTORE_SIGMASK */
 
 static int __init eventpoll_init(void)
 {
-	int error;
-
 	mutex_init(&epmutex);
 
 	/* Initialize the structure used to perform safe poll wait head wake ups */
@@ -1676,39 +1406,7 @@ static int __init eventpoll_init(void)
 			sizeof(struct eppoll_entry), 0,
 			EPI_SLAB_DEBUG|SLAB_PANIC, NULL, NULL);
 
-	/*
-	 * Register the virtual file system that will be the source of inodes
-	 * for the eventpoll files
-	 */
-	error = register_filesystem(&eventpoll_fs_type);
-	if (error)
-		goto epanic;
-
-	/* Mount the above commented virtual file system */
-	eventpoll_mnt = kern_mount(&eventpoll_fs_type);
-	error = PTR_ERR(eventpoll_mnt);
-	if (IS_ERR(eventpoll_mnt))
-		goto epanic;
-
-	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: successfully initialized.\n",
-			current));
 	return 0;
-
-epanic:
-	panic("eventpoll_init() failed\n");
 }
+fs_initcall(eventpoll_init);
 
-
-static void __exit eventpoll_exit(void)
-{
-	/* Undo all operations done inside eventpoll_init() */
-	unregister_filesystem(&eventpoll_fs_type);
-	mntput(eventpoll_mnt);
-	kmem_cache_destroy(pwq_cache);
-	kmem_cache_destroy(epi_cache);
-}
-
-module_init(eventpoll_init);
-module_exit(eventpoll_exit);
-
-MODULE_LICENSE("GPL");

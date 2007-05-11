@@ -231,7 +231,7 @@ static int locomokbd_probe(struct locomo_dev *dev)
 	input_dev->id.vendor = 0x0001;
 	input_dev->id.product = 0x0001;
 	input_dev->id.version = 0x0100;
-	input_dev->private = locomokbd;
+	input_dev->dev.parent = &dev->dev;
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
 	input_dev->keycode = locomokbd->keycode;

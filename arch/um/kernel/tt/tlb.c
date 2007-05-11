@@ -12,7 +12,6 @@
 #include "asm/pgtable.h"
 #include "asm/uaccess.h"
 #include "asm/tlbflush.h"
-#include "user_util.h"
 #include "mem_user.h"
 #include "os.h"
 #include "tlb.h"

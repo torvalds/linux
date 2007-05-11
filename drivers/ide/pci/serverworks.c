@@ -65,16 +65,16 @@ static int check_in_drive_lists (ide_drive_t *drive, const char **list)
 	return 0;
 }
 
-static u8 svwks_ratemask (ide_drive_t *drive)
+static u8 svwks_udma_filter(ide_drive_t *drive)
 {
 	struct pci_dev *dev     = HWIF(drive)->pci_dev;
-	u8 mode = 0;
+	u8 mask = 0;
 
 	if (!svwks_revision)
 		pci_read_config_byte(dev, PCI_REVISION_ID, &svwks_revision);
 
 	if (dev->device == PCI_DEVICE_ID_SERVERWORKS_HT1000IDE)
-		return 2;
+		return 0x1f;
 	if (dev->device == PCI_DEVICE_ID_SERVERWORKS_OSB4IDE) {
 		u32 reg = 0;
 		if (isa_dev)
@@ -86,25 +86,31 @@ static u8 svwks_ratemask (ide_drive_t *drive)
 		if(drive->media == ide_disk)
 			return 0;
 		/* Check the OSB4 DMA33 enable bit */
-		return ((reg & 0x00004000) == 0x00004000) ? 1 : 0;
+		return ((reg & 0x00004000) == 0x00004000) ? 0x07 : 0;
 	} else if (svwks_revision < SVWKS_CSB5_REVISION_NEW) {
-		return 1;
+		return 0x07;
 	} else if (svwks_revision >= SVWKS_CSB5_REVISION_NEW) {
-		u8 btr = 0;
+		u8 btr = 0, mode;
 		pci_read_config_byte(dev, 0x5A, &btr);
 		mode = btr & 0x3;
-		if (!eighty_ninty_three(drive))
-			mode = min(mode, (u8)1);
+
 		/* If someone decides to do UDMA133 on CSB5 the same
 		   issue will bite so be inclusive */
 		if (mode > 2 && check_in_drive_lists(drive, svwks_bad_ata100))
 			mode = 2;
+
+		switch(mode) {
+		case 2:	 mask = 0x1f; break;
+		case 1:	 mask = 0x07; break;
+		default: mask = 0x00; break;
+		}
 	}
 	if (((dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE) ||
 	     (dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2)) &&
 	    (!(PCI_FUNC(dev->devfn) & 1)))
-		mode = 2;
-	return mode;
+		mask = 0x1f;
+
+	return mask;
 }
 
 static u8 svwks_csb_check (struct pci_dev *dev)
@@ -141,7 +147,7 @@ static int svwks_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 	if (xferspeed == 255)	/* PIO auto-tuning */
 		speed = XFER_PIO_0 + pio;
 	else
-		speed = ide_rate_filter(svwks_ratemask(drive), xferspeed);
+		speed = ide_rate_filter(drive, xferspeed);
 
 	/* If we are about to put a disk into UDMA mode we screwed up.
 	   Our code assumes we never _ever_ do this on an OSB4 */
@@ -304,7 +310,7 @@ static void svwks_tune_drive (ide_drive_t *drive, u8 pio)
 
 static int config_chipset_for_dma (ide_drive_t *drive)
 {
-	u8 speed = ide_dma_speed(drive, svwks_ratemask(drive));
+	u8 speed = ide_max_dma_mode(drive);
 
 	if (!(speed))
 		speed = XFER_PIO_0 + ide_get_best_pio_mode(drive, 255, 5, NULL);
@@ -500,6 +506,7 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 
 	hwif->tuneproc = &svwks_tune_drive;
 	hwif->speedproc = &svwks_tune_chipset;
+	hwif->udma_filter = &svwks_udma_filter;
 
 	hwif->atapi_dma = 1;
 

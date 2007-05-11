@@ -397,10 +397,9 @@ void get_src_version(const char *modname, char sum[], unsigned sumlen)
 		(int) strlen(basename) - 2, basename);
 
 	file = grab_file(filelist, &len);
-	if (!file) {
-		warn("could not find versions for %s\n", filelist);
+	if (!file)
+		/* not a module or .mod file missing - ignore */
 		return;
-	}
 
 	sources = strchr(file, '\n');
 	if (!sources) {

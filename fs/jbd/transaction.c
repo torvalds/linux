@@ -1,5 +1,5 @@
 /*
- * linux/fs/transaction.c
+ * linux/fs/jbd/transaction.c
  *
  * Written by Stephen C. Tweedie <sct@redhat.com>, 1998
  *
@@ -23,7 +23,6 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
-#include <linux/smp_lock.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 

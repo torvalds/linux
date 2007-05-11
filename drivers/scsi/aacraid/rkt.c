@@ -45,7 +45,6 @@
 static int aac_rkt_select_comm(struct aac_dev *dev, int comm)
 {
 	int retval;
-	extern int aac_rx_select_comm(struct aac_dev *dev, int comm);
 	retval = aac_rx_select_comm(dev, comm);
 	if (comm == AAC_COMM_MESSAGE) {
 		/*
@@ -97,8 +96,6 @@ static int aac_rkt_ioremap(struct aac_dev * dev, u32 size)
 
 int aac_rkt_init(struct aac_dev *dev)
 {
-	extern int _aac_rx_init(struct aac_dev *dev);
-
 	/*
 	 *	Fill in the function dispatch table.
 	 */

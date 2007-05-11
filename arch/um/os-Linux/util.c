@@ -21,7 +21,6 @@
 #include <sched.h>
 #include <termios.h>
 #include <string.h>
-#include "user_util.h"
 #include "kern_util.h"
 #include "user.h"
 #include "mem_user.h"
@@ -30,28 +29,12 @@
 #include "uml-config.h"
 #include "os.h"
 #include "longjmp.h"
+#include "kern_constants.h"
 
 void stack_protections(unsigned long address)
 {
-	int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
-
-	if(mprotect((void *) address, page_size(), prot) < 0)
-		panic("protecting stack failed, errno = %d", errno);
-}
-
-void task_protections(unsigned long address)
-{
-	unsigned long guard = address + page_size();
-	unsigned long stack = guard + page_size();
-	int prot = 0, pages;
-
-#ifdef notdef
-	if(mprotect((void *) stack, page_size(), prot) < 0)
-		panic("protecting guard page failed, errno = %d", errno);
-#endif
-	pages = (1 << UML_CONFIG_KERNEL_STACK_ORDER) - 2;
-	prot = PROT_READ | PROT_WRITE | PROT_EXEC;
-	if(mprotect((void *) stack, pages * page_size(), prot) < 0)
+	if(mprotect((void *) address, UM_THREAD_SIZE,
+		    PROT_READ | PROT_WRITE | PROT_EXEC) < 0)
 		panic("protecting stack failed, errno = %d", errno);
 }
 
@@ -72,7 +55,7 @@ int raw(int fd)
 
 	/* XXX tcsetattr could have applied only some changes
 	 * (and cfmakeraw() is a set of changes) */
-	return(0);
+	return 0;
 }
 
 void setup_machinename(char *machine_out)
@@ -96,15 +79,13 @@ void setup_machinename(char *machine_out)
 	strcpy(machine_out, host.machine);
 }
 
-char host_info[(_UTSNAME_LENGTH + 1) * 4 + _UTSNAME_NODENAME_LENGTH + 1];
-
-void setup_hostinfo(void)
+void setup_hostinfo(char *buf, int len)
 {
 	struct utsname host;
 
 	uname(&host);
-	sprintf(host_info, "%s %s %s %s %s", host.sysname, host.nodename,
-		host.release, host.version, host.machine);
+	snprintf(buf, len, "%s %s %s %s %s", host.sysname, host.nodename,
+		 host.release, host.version, host.machine);
 }
 
 int setjmp_wrapper(void (*proc)(void *, void *), ...)
@@ -120,4 +101,10 @@ int setjmp_wrapper(void (*proc)(void *, void *), ...)
 	}
 	va_end(args);
 	return n;
+}
+
+void os_dump_core(void)
+{
+	signal(SIGSEGV, SIG_DFL);
+	abort();
 }

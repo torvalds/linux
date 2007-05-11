@@ -35,10 +35,12 @@ Supported Features
 	* suspend/resume support
 	* DPMS support
 
-Text mode is supported even in higher resolutions, but there is limitation
-to lower pixclocks (maximum between 50-60 MHz, depending on specific hardware).
-This limitation is not enforced by driver. Text mode supports 8bit wide fonts
-only (hardware limitation) and 16bit tall fonts (driver limitation).
+Text mode is supported even in higher resolutions, but there is limitation to
+lower pixclocks (maximum usually between 50-60 MHz, depending on specific
+hardware, i get best results from plain S3 Trio32 card - about 75 MHz). This
+limitation is not enforced by driver. Text mode supports 8bit wide fonts only
+(hardware limitation) and 16bit tall fonts (driver limitation). Text mode
+support is broken on S3 Trio64 V2/DX.
 
 There are two 4 bpp modes. First mode (selected if nonstd == 0) is mode with
 packed pixels, high nibble first. Second mode (selected if nonstd == 1) is mode
@@ -73,6 +75,8 @@ Known bugs
 ==========
 
 	* cursor disable in text mode doesn't work
+	* text mode broken on S3 Trio64 V2/DX
+
 
 --
 Ondrej Zajicek <santiago@crfreenet.org>

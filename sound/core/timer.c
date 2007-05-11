@@ -22,7 +22,6 @@
 #include <sound/driver.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/mutex.h>

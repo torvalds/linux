@@ -7,15 +7,14 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/kprobes.h>
+#include <linux/kdebug.h>
 
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
-#include <asm/kdebug.h>
 
 extern void die (char *, struct pt_regs *, long);
 

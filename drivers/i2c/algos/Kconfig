@@ -3,11 +3,9 @@
 #
 
 menu "I2C Algorithms"
-	depends on I2C
 
 config I2C_ALGOBIT
 	tristate "I2C bit-banging interfaces"
-	depends on I2C
 	help
 	  This allows you to use a range of I2C adapters called bit-banging
 	  adapters.  Say Y if you own an I2C adapter belonging to this class
@@ -18,7 +16,6 @@ config I2C_ALGOBIT
 
 config I2C_ALGOPCF
 	tristate "I2C PCF 8584 interfaces"
-	depends on I2C
 	help
 	  This allows you to use a range of I2C adapters called PCF adapters.
 	  Say Y if you own an I2C adapter belonging to this class and then say
@@ -29,7 +26,6 @@ config I2C_ALGOPCF
 
 config I2C_ALGOPCA
 	tristate "I2C PCA 9564 interfaces"
-	depends on I2C
 	help
 	  This allows you to use a range of I2C adapters called PCA adapters.
 	  Say Y if you own an I2C adapter belonging to this class and then say
@@ -40,11 +36,11 @@ config I2C_ALGOPCA
 
 config I2C_ALGO8XX
 	tristate "MPC8xx CPM I2C interface"
-	depends on 8xx && I2C
+	depends on 8xx
 
 config I2C_ALGO_SGI
 	tristate "I2C SGI interfaces"
-	depends on I2C && (SGI_IP22 || SGI_IP32 || X86_VISWS)
+	depends on SGI_IP22 || SGI_IP32 || X86_VISWS
 	help
 	  Supports the SGI interfaces like the ones found on SGI Indy VINO
 	  or SGI O2 MACE.

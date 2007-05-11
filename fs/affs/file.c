@@ -628,11 +628,7 @@ static int affs_prepare_write_ofs(struct file *file, struct page *page, unsigned
 			return err;
 	}
 	if (to < PAGE_CACHE_SIZE) {
-		char *kaddr = kmap_atomic(page, KM_USER0);
-
-		memset(kaddr + to, 0, PAGE_CACHE_SIZE - to);
-		flush_dcache_page(page);
-		kunmap_atomic(kaddr, KM_USER0);
+		zero_user_page(page, to, PAGE_CACHE_SIZE - to, KM_USER0);
 		if (size > offset + to) {
 			if (size < offset + PAGE_CACHE_SIZE)
 				tmp = size & ~PAGE_CACHE_MASK;

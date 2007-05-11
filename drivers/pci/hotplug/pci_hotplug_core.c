@@ -34,7 +34,6 @@
 #include <linux/sysfs.h>
 #include <linux/pagemap.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
@@ -62,7 +61,7 @@ static int debug;
 
 static LIST_HEAD(pci_hotplug_slot_list);
 
-struct subsystem pci_hotplug_slots_subsys;
+struct kset pci_hotplug_slots_subsys;
 
 static ssize_t hotplug_slot_attr_show(struct kobject *kobj,
 		struct attribute *attr, char *buf)
@@ -764,7 +763,7 @@ static int __init pci_hotplug_init (void)
 {
 	int result;
 
-	kset_set_kset_s(&pci_hotplug_slots_subsys, pci_bus_type.subsys);
+	kobj_set_kset_s(&pci_hotplug_slots_subsys, pci_bus_type.subsys);
 	result = subsystem_register(&pci_hotplug_slots_subsys);
 	if (result) {
 		err("Register subsys with error %d\n", result);

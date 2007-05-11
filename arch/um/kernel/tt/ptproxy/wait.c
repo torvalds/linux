@@ -13,7 +13,6 @@ terms and conditions.
 #include "ptproxy.h"
 #include "sysdep.h"
 #include "wait.h"
-#include "user_util.h"
 #include "ptrace_user.h"
 #include "sysdep/ptrace.h"
 #include "sysdep/sigcontext.h"

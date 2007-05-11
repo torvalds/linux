@@ -5,6 +5,7 @@
 config AF_RXRPC
 	tristate "RxRPC session sockets"
 	depends on EXPERIMENTAL
+	select KEYS
 	help
 	  Say Y or M here to include support for RxRPC session sockets (just
 	  the transport part, not the presentation part: (un)marshalling is
@@ -29,7 +30,7 @@ config AF_RXRPC_DEBUG
 
 config RXKAD
 	tristate "RxRPC Kerberos security"
-	depends on AF_RXRPC && KEYS
+	depends on AF_RXRPC
 	select CRYPTO
 	select CRYPTO_MANAGER
 	select CRYPTO_BLKCIPHER

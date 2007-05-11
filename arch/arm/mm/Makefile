@@ -24,12 +24,14 @@ obj-$(CONFIG_CPU_ABRT_LV4T)	+= abort-lv4t.o
 obj-$(CONFIG_CPU_ABRT_EV5T)	+= abort-ev5t.o
 obj-$(CONFIG_CPU_ABRT_EV5TJ)	+= abort-ev5tj.o
 obj-$(CONFIG_CPU_ABRT_EV6)	+= abort-ev6.o
+obj-$(CONFIG_CPU_ABRT_EV7)	+= abort-ev7.o
 
 obj-$(CONFIG_CPU_CACHE_V3)	+= cache-v3.o
 obj-$(CONFIG_CPU_CACHE_V4)	+= cache-v4.o
 obj-$(CONFIG_CPU_CACHE_V4WT)	+= cache-v4wt.o
 obj-$(CONFIG_CPU_CACHE_V4WB)	+= cache-v4wb.o
 obj-$(CONFIG_CPU_CACHE_V6)	+= cache-v6.o
+obj-$(CONFIG_CPU_CACHE_V7)	+= cache-v7.o
 
 obj-$(CONFIG_CPU_COPY_V3)	+= copypage-v3.o
 obj-$(CONFIG_CPU_COPY_V4WT)	+= copypage-v4wt.o
@@ -66,5 +68,6 @@ obj-$(CONFIG_CPU_SA1100)	+= proc-sa1100.o
 obj-$(CONFIG_CPU_XSCALE)	+= proc-xscale.o
 obj-$(CONFIG_CPU_XSC3)		+= proc-xsc3.o
 obj-$(CONFIG_CPU_V6)		+= proc-v6.o
+obj-$(CONFIG_CPU_V7)		+= proc-v7.o
 
 obj-$(CONFIG_CACHE_L2X0)	+= cache-l2x0.o

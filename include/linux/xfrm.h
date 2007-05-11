@@ -243,17 +243,6 @@ enum xfrm_ae_ftype_t {
 #define XFRM_AE_MAX (__XFRM_AE_MAX - 1)
 };
 
-/* SAD Table filter flags  */
-enum xfrm_sad_ftype_t {
-	XFRM_SAD_UNSPEC,
-	XFRM_SAD_HMASK=1,
-	XFRM_SAD_HMAX=2,
-	XFRM_SAD_CNT=4,
-	__XFRM_SAD_MAX
-
-#define XFRM_SAD_MAX (__XFRM_SAD_MAX - 1)
-};
-
 struct xfrm_userpolicy_type {
 	__u8		type;
 	__u16		reserved1;
@@ -287,42 +276,39 @@ enum xfrm_attr_type_t {
 
 enum xfrm_sadattr_type_t {
 	XFRMA_SAD_UNSPEC,
-	XFRMA_SADHMASK,
-	XFRMA_SADHMAX,
-	XFRMA_SADCNT,
+	XFRMA_SAD_CNT,
+	XFRMA_SAD_HINFO,
 	__XFRMA_SAD_MAX
 
 #define XFRMA_SAD_MAX (__XFRMA_SAD_MAX - 1)
 };
 
-/* SPD Table filter flags  */
-enum xfrm_spd_ftype_t {
-	XFRM_SPD_UNSPEC,
-	XFRM_SPD_HMASK=1,
-	XFRM_SPD_HMAX=2,
-	XFRM_SPD_ICNT=4,
-	XFRM_SPD_OCNT=8,
-	XFRM_SPD_FCNT=16,
-	XFRM_SPD_ISCNT=32,
-	XFRM_SPD_OSCNT=64,
-	XFRM_SPD_FSCNT=128,
-	__XFRM_SPD_MAX
-
-#define XFRM_SPD_MAX (__XFRM_SPD_MAX - 1)
+struct xfrmu_sadhinfo {
+	__u32 sadhcnt; /* current hash bkts */
+	__u32 sadhmcnt; /* max allowed hash bkts */
 };
+
 enum xfrm_spdattr_type_t {
 	XFRMA_SPD_UNSPEC,
-	XFRMA_SPDHMASK,
-	XFRMA_SPDHMAX,
-	XFRMA_SPDICNT,
-	XFRMA_SPDOCNT,
-	XFRMA_SPDFCNT,
-	XFRMA_SPDISCNT,
-	XFRMA_SPDOSCNT,
-	XFRMA_SPDFSCNT,
+	XFRMA_SPD_INFO,
+	XFRMA_SPD_HINFO,
 	__XFRMA_SPD_MAX
 
 #define XFRMA_SPD_MAX (__XFRMA_SPD_MAX - 1)
+};
+
+struct xfrmu_spdinfo {
+	__u32 incnt;
+	__u32 outcnt;
+	__u32 fwdcnt;
+	__u32 inscnt;
+	__u32 outscnt;
+	__u32 fwdscnt;
+};
+
+struct xfrmu_spdhinfo {
+	__u32 spdhcnt;
+	__u32 spdhmcnt;
 };
 
 struct xfrm_usersa_info {

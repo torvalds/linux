@@ -14,6 +14,7 @@ CONTENTS
 8. Kprobes Example
 9. Jprobes Example
 10. Kretprobes Example
+Appendix A: The kprobes debugfs interface
 
 1. Concepts: Kprobes, Jprobes, Return Probes
 
@@ -349,9 +350,12 @@ for instrumentation and error reporting.)
 
 If the number of times a function is called does not match the number
 of times it returns, registering a return probe on that function may
-produce undesirable results.  We have the do_exit() case covered.
-do_execve() and do_fork() are not an issue.  We're unaware of other
-specific cases where this could be a problem.
+produce undesirable results. In such a case, a line:
+kretprobe BUG!: Processing kretprobe d000000000041aa8 @ c00000000004f48c
+gets printed. With this information, one will be able to correlate the
+exact instance of the kretprobe that caused the problem. We have the
+do_exit() case covered. do_execve() and do_fork() are not an issue.
+We're unaware of other specific cases where this could be a problem.
 
 If, upon entry to or exit from a function, the CPU is running on
 a stack other than that of the current task, registering a return
@@ -614,3 +618,27 @@ http://www-106.ibm.com/developerworks/library/l-kprobes.html?ca=dgr-lnxw42Kprobe
 http://www.redhat.com/magazine/005mar05/features/kprobes/
 http://www-users.cs.umn.edu/~boutcher/kprobes/
 http://www.linuxsymposium.org/2006/linuxsymposium_procv2.pdf (pages 101-115)
+
+
+Appendix A: The kprobes debugfs interface
+
+With recent kernels (> 2.6.20) the list of registered kprobes is visible
+under the /debug/kprobes/ directory (assuming debugfs is mounted at /debug).
+
+/debug/kprobes/list: Lists all registered probes on the system
+
+c015d71a  k  vfs_read+0x0
+c011a316  j  do_fork+0x0
+c03dedc5  r  tcp_v4_rcv+0x0
+
+The first column provides the kernel address where the probe is inserted.
+The second column identifies the type of probe (k - kprobe, r - kretprobe
+and j - jprobe), while the third column specifies the symbol+offset of
+the probe. If the probed function belongs to a module, the module name
+is also specified.
+
+/debug/kprobes/enabled: Turn kprobes ON/OFF
+
+Provides a knob to globally turn registered kprobes ON or OFF. By default,
+all kprobes are enabled. By echoing "0" to this file, all registered probes
+will be disarmed, till such time a "1" is echoed to this file.

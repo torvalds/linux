@@ -78,8 +78,7 @@ struct ib_mr *ehca_reg_phys_mr(struct ib_pd *pd,
 			       int num_phys_buf,
 			       int mr_access_flags, u64 *iova_start);
 
-struct ib_mr *ehca_reg_user_mr(struct ib_pd *pd,
-			       struct ib_umem *region,
+struct ib_mr *ehca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length, u64 virt,
 			       int mr_access_flags, struct ib_udata *udata);
 
 int ehca_rereg_phys_mr(struct ib_mr *mr,
@@ -123,7 +122,7 @@ int ehca_destroy_eq(struct ehca_shca *shca, struct ehca_eq *eq);
 void *ehca_poll_eq(struct ehca_shca *shca, struct ehca_eq *eq);
 
 
-struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe,
+struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 			     struct ib_ucontext *context,
 			     struct ib_udata *udata);
 
@@ -135,7 +134,7 @@ int ehca_poll_cq(struct ib_cq *cq, int num_entries, struct ib_wc *wc);
 
 int ehca_peek_cq(struct ib_cq *cq, int wc_cnt);
 
-int ehca_req_notify_cq(struct ib_cq *cq, enum ib_cq_notify cq_notify);
+int ehca_req_notify_cq(struct ib_cq *cq, enum ib_cq_notify_flags notify_flags);
 
 struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 			     struct ib_qp_init_attr *init_attr,

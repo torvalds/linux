@@ -1,4 +1,5 @@
 menu "Dallas's 1-wire bus"
+	depends on HAS_IOMEM
 
 config W1
 	tristate "Dallas's 1-wire support"

@@ -31,8 +31,6 @@
  * SOFTWARE.
  */
 
-#include <linux/pci.h>
-
 #include "ipath_kernel.h"
 
 struct infinipath_stats ipath_stats;

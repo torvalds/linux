@@ -23,6 +23,7 @@
 #define _TUNER_H
 
 #include <linux/videodev2.h>
+#include <linux/i2c.h>
 #include <media/tuner-types.h>
 
 extern int tuner_debug;

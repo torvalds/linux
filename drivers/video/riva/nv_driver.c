@@ -231,12 +231,14 @@ unsigned long riva_get_memlen(struct riva_par *par)
 	case NV_ARCH_30:
 		if(chipset == NV_CHIP_IGEFORCE2) {
 
-			dev = pci_find_slot(0, 1);
+			dev = pci_get_bus_and_slot(0, 1);
 			pci_read_config_dword(dev, 0x7C, &amt);
+			pci_dev_put(dev);
 			memlen = (((amt >> 6) & 31) + 1) * 1024;
 		} else if (chipset == NV_CHIP_0x01F0) {
-			dev = pci_find_slot(0, 1);
+			dev = pci_get_bus_and_slot(0, 1);
 			pci_read_config_dword(dev, 0x84, &amt);
+			pci_dev_put(dev);
 			memlen = (((amt >> 4) & 127) + 1) * 1024;
 		} else {
 			switch ((NV_RD32(chip->PFB, 0x0000020C) >> 20) &

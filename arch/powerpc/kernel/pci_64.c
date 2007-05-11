@@ -340,7 +340,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	struct pci_dev *dev;
 	const char *type;
 
-	dev = kzalloc(sizeof(struct pci_dev), GFP_KERNEL);
+	dev = alloc_pci_dev();
 	if (!dev)
 		return NULL;
 	type = of_get_property(node, "device_type", NULL);
@@ -1006,8 +1006,9 @@ void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
 
 		switch ((pci_space >> 24) & 0x3) {
 		case 1:		/* I/O space */
-			hose->io_base_phys = cpu_phys_addr;
-			hose->pci_io_size = size;
+			hose->io_base_phys = cpu_phys_addr - pci_addr;
+			/* handle from 0 to top of I/O window */
+			hose->pci_io_size = pci_addr + size;
 
 			res = &hose->io_resource;
 			res->flags = IORESOURCE_IO;
@@ -1097,35 +1098,24 @@ static int get_bus_io_range(struct pci_bus *bus, unsigned long *start_phys,
 				unsigned long *start_virt, unsigned long *size)
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
-	struct pci_bus_region region;
 	struct resource *res;
 
-	if (bus->self) {
+	if (bus->self)
 		res = bus->resource[0];
-		pcibios_resource_to_bus(bus->self, &region, res);
-		*start_phys = hose->io_base_phys + region.start;
-		*start_virt = (unsigned long) hose->io_base_virt + 
-				region.start;
-		if (region.end > region.start) 
-			*size = region.end - region.start + 1;
-		else {
-			printk("%s(): unexpected region 0x%lx->0x%lx\n", 
-					__FUNCTION__, region.start, region.end);
-			return 1;
-		}
-		
-	} else {
+	else
 		/* Root Bus */
 		res = &hose->io_resource;
-		*start_phys = hose->io_base_phys;
-		*start_virt = (unsigned long) hose->io_base_virt;
-		if (res->end > res->start)
-			*size = res->end - res->start + 1;
-		else {
-			printk("%s(): unexpected region 0x%lx->0x%lx\n", 
-					__FUNCTION__, res->start, res->end);
-			return 1;
-		}
+
+	*start_virt = pci_io_base + res->start;
+	*start_phys = *start_virt + hose->io_base_phys
+		- (unsigned long) hose->io_base_virt;
+
+	if (res->end > res->start)
+		*size = res->end - res->start + 1;
+	else {
+		printk("%s(): unexpected region 0x%lx->0x%lx\n",
+		       __FUNCTION__, res->start, res->end);
+		return 1;
 	}
 
 	return 0;

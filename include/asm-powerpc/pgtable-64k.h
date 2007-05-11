@@ -1,6 +1,5 @@
 #ifndef _ASM_POWERPC_PGTABLE_64K_H
 #define _ASM_POWERPC_PGTABLE_64K_H
-#ifdef __KERNEL__
 
 #include <asm-generic/pgtable-nopud.h>
 
@@ -36,6 +35,11 @@
 #define _PAGE_HPTE_SUB0	0x08000000 /* combo only: first sub page */
 #define _PAGE_COMBO	0x10000000 /* this is a combo 4k page */
 #define _PAGE_4K_PFN	0x20000000 /* PFN is for a single 4k page */
+
+/* Note the full page bits must be in the same location as for normal
+ * 4k pages as the same asssembly will be used to insert 64K pages
+ * wether the kernel has CONFIG_PPC_64K_PAGES or not
+ */
 #define _PAGE_F_SECOND  0x00008000 /* full page: hidx bits */
 #define _PAGE_F_GIX     0x00007000 /* full page: hidx bits */
 
@@ -65,8 +69,6 @@
 /* Bits to mask out from a PGD/PUD to get to the PMD page */
 #define PUD_MASKED_BITS		0x1ff
 
-#ifndef __ASSEMBLY__
-
 /* Manipulate "rpte" values */
 #define __real_pte(e,p) 	((real_pte_t) { \
 	(e), pte_val(*((p) + PTRS_PER_PTE)) })
@@ -91,13 +93,11 @@
 
 #define pte_iterate_hashed_end() } while(0); } } while(0)
 
-#define pte_pagesize_index(pte)	\
+#define pte_pagesize_index(mm, addr, pte)	\
 	(((pte) & _PAGE_COMBO)? MMU_PAGE_4K: MMU_PAGE_64K)
 
 #define remap_4k_pfn(vma, addr, pfn, prot)				\
 	remap_pfn_range((vma), (addr), (pfn), PAGE_SIZE,		\
 			__pgprot(pgprot_val((prot)) | _PAGE_4K_PFN))
 
-#endif /*  __ASSEMBLY__ */
-#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PGTABLE_64K_H */

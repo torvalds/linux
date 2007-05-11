@@ -434,7 +434,6 @@ xip_truncate_page(struct address_space *mapping, loff_t from)
 	unsigned blocksize;
 	unsigned length;
 	struct page *page;
-	void *kaddr;
 
 	BUG_ON(!mapping->a_ops->get_xip_page);
 
@@ -458,11 +457,7 @@ xip_truncate_page(struct address_space *mapping, loff_t from)
 		else
 			return PTR_ERR(page);
 	}
-	kaddr = kmap_atomic(page, KM_USER0);
-	memset(kaddr + offset, 0, length);
-	kunmap_atomic(kaddr, KM_USER0);
-
-	flush_dcache_page(page);
+	zero_user_page(page, offset, length, KM_USER0);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xip_truncate_page);

@@ -59,12 +59,12 @@ static void kexec_info(struct kimage *image)
 	        printk("  segment[%d]: 0x%08x - 0x%08x (0x%08x)\n",
 		       i,
 		       (unsigned int)image->segment[i].mem,
-		       (unsigned int)image->segment[i].mem + image->segment[i].memsz,
+		       (unsigned int)image->segment[i].mem +
+				     image->segment[i].memsz,
 		       (unsigned int)image->segment[i].memsz);
- 	}
+	}
 	printk("  start     : 0x%08x\n\n", (unsigned int)image->start);
 }
-
 
 /*
  * Do not allocate memory (or fail in any way) in machine_kexec().
@@ -101,6 +101,27 @@ NORET_TYPE void machine_kexec(struct kimage *image)
 
 	/* now call it */
 	rnk = (relocate_new_kernel_t) reboot_code_buffer;
-       	(*rnk)(page_list, reboot_code_buffer, image->start, vbr_reg);
+	(*rnk)(page_list, reboot_code_buffer, image->start, vbr_reg);
 }
 
+/* crashkernel=size@addr specifies the location to reserve for
+ * a crash kernel.  By reserving this memory we guarantee
+ * that linux never sets it up as a DMA target.
+ * Useful for holding code to do something appropriate
+ * after a kernel panic.
+ */
+static int __init parse_crashkernel(char *arg)
+{
+	unsigned long size, base;
+	size = memparse(arg, &arg);
+	if (*arg == '@') {
+		base = memparse(arg+1, &arg);
+		/* FIXME: Do I want a sanity check
+		 * to validate the memory range?
+		 */
+		crashk_res.start = base;
+		crashk_res.end   = base + size - 1;
+	}
+	return 0;
+}
+early_param("crashkernel", parse_crashkernel);

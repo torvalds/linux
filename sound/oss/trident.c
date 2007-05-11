@@ -18,7 +18,7 @@
  *	Ollie Lho <ollie@sis.com.tw> SiS 7018 Audio Core Support
  *	Ching-Ling Lee <cling-li@ali.com.tw> ALi 5451 Audio Core Support 
  *	Matt Wu <mattwu@acersoftech.com.cn> ALi 5451 Audio Core Support
- *	Peter Wächtler <pwaechtler@loewe-komp.de> CyberPro5050 support
+ *	Peter WÃ¤chtler <pwaechtler@loewe-komp.de> CyberPro5050 support
  *      Muli Ben-Yehuda <mulix@mulix.org>
  *
  *
@@ -89,7 +89,7 @@
  *	use set_current_state, properly release resources on failure in
  *	trident_probe, get rid of check_region
  *  v0.14.9c
- *	August 10 2001 Peter Wächtler <pwaechtler@loewe-komp.de>
+ *	August 10 2001 Peter WÃ¤chtler <pwaechtler@loewe-komp.de>
  *	added support for Tvia (formerly Integraphics/IGST) CyberPro5050
  *	this chip is often found in settop boxes (combined video+audio)
  *  v0.14.9b
@@ -207,7 +207,6 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <linux/ac97_codec.h>
 #include <linux/bitops.h>
 #include <linux/proc_fs.h>

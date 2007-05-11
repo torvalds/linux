@@ -32,92 +32,61 @@
 #include <linux/types.h>
 #include <linux/smp_lock.h>
 #include <linux/pci.h>
+#include <linux/workqueue.h>
 #include "../pci.h"
 #include "pciehp.h"
 
-static void interrupt_event_handler(struct controller *ctrl);
+static void interrupt_event_handler(struct work_struct *work);
+static int pciehp_enable_slot(struct slot *p_slot);
+static int pciehp_disable_slot(struct slot *p_slot);
 
-static struct semaphore event_semaphore;	/* mutex for process loop (up if something to process) */
-static struct semaphore event_exit;		/* guard ensure thread has exited before calling it quits */
-static int event_finished;
-static unsigned long pushbutton_pending;	/* = 0 */
-static unsigned long surprise_rm_pending;	/* = 0 */
-
-static inline char *slot_name(struct slot *p_slot)
+static int queue_interrupt_event(struct slot *p_slot, u32 event_type)
 {
-	return p_slot->hotplug_slot->name;
+	struct event_info *info;
+
+	info = kmalloc(sizeof(*info), GFP_ATOMIC);
+	if (!info)
+		return -ENOMEM;
+
+	info->event_type = event_type;
+	info->p_slot = p_slot;
+	INIT_WORK(&info->work, interrupt_event_handler);
+
+	schedule_work(&info->work);
+
+	return 0;
 }
 
 u8 pciehp_handle_attention_button(u8 hp_slot, struct controller *ctrl)
 {
 	struct slot *p_slot;
-	u8 rc = 0;
-	u8 getstatus;
-	struct event_info *taskInfo;
+	u32 event_type;
 
 	/* Attention Button Change */
 	dbg("pciehp:  Attention button interrupt received.\n");
-	
-	/* This is the structure that tells the worker thread what to do */
-	taskInfo = &(ctrl->event_queue[ctrl->next_event]);
+
 	p_slot = pciehp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
-
-	p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
-	
-	ctrl->next_event = (ctrl->next_event + 1) % MAX_EVENTS;
-	taskInfo->hp_slot = hp_slot;
-
-	rc++;
 
 	/*
 	 *  Button pressed - See if need to TAKE ACTION!!!
 	 */
-	info("Button pressed on Slot(%s)\n", slot_name(p_slot));
-	taskInfo->event_type = INT_BUTTON_PRESS;
+	info("Button pressed on Slot(%s)\n", p_slot->name);
+	event_type = INT_BUTTON_PRESS;
 
-	if ((p_slot->state == BLINKINGON_STATE)
-	    || (p_slot->state == BLINKINGOFF_STATE)) {
-		/* Cancel if we are still blinking; this means that we press the
-		 * attention again before the 5 sec. limit expires to cancel hot-add
-		 * or hot-remove
-		 */
-		taskInfo->event_type = INT_BUTTON_CANCEL;
-		info("Button cancel on Slot(%s)\n", slot_name(p_slot));
-	} else if ((p_slot->state == POWERON_STATE)
-		   || (p_slot->state == POWEROFF_STATE)) {
-		/* Ignore if the slot is on power-on or power-off state; this 
-		 * means that the previous attention button action to hot-add or
-		 * hot-remove is undergoing
-		 */
-		taskInfo->event_type = INT_BUTTON_IGNORE;
-		info("Button ignore on Slot(%s)\n", slot_name(p_slot));
-	}
-
-	if (rc)
-		up(&event_semaphore);	/* signal event thread that new event is posted */
+	queue_interrupt_event(p_slot, event_type);
 
 	return 0;
-
 }
 
 u8 pciehp_handle_switch_change(u8 hp_slot, struct controller *ctrl)
 {
 	struct slot *p_slot;
-	u8 rc = 0;
 	u8 getstatus;
-	struct event_info *taskInfo;
+	u32 event_type;
 
 	/* Switch Change */
 	dbg("pciehp:  Switch interrupt received.\n");
 
-	/* This is the structure that tells the worker thread
-	 * what to do
-	 */
-	taskInfo = &(ctrl->event_queue[ctrl->next_event]);
-	ctrl->next_event = (ctrl->next_event + 1) % MAX_EVENTS;
-	taskInfo->hp_slot = hp_slot;
-
-	rc++;
 	p_slot = pciehp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 	p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 
@@ -125,39 +94,30 @@ u8 pciehp_handle_switch_change(u8 hp_slot, struct controller *ctrl)
 		/*
 		 * Switch opened
 		 */
-		info("Latch open on Slot(%s)\n", slot_name(p_slot));
-		taskInfo->event_type = INT_SWITCH_OPEN;
+		info("Latch open on Slot(%s)\n", p_slot->name);
+		event_type = INT_SWITCH_OPEN;
 	} else {
 		/*
 		 *  Switch closed
 		 */
-		info("Latch close on Slot(%s)\n", slot_name(p_slot));
-		taskInfo->event_type = INT_SWITCH_CLOSE;
+		info("Latch close on Slot(%s)\n", p_slot->name);
+		event_type = INT_SWITCH_CLOSE;
 	}
 
-	if (rc)
-		up(&event_semaphore);	/* signal event thread that new event is posted */
+	queue_interrupt_event(p_slot, event_type);
 
-	return rc;
+	return 1;
 }
 
 u8 pciehp_handle_presence_change(u8 hp_slot, struct controller *ctrl)
 {
 	struct slot *p_slot;
-	u8 presence_save, rc = 0;
-	struct event_info *taskInfo;
+	u32 event_type;
+	u8 presence_save;
 
 	/* Presence Change */
 	dbg("pciehp:  Presence/Notify input change.\n");
 
-	/* This is the structure that tells the worker thread
-	 * what to do
-	 */
-	taskInfo = &(ctrl->event_queue[ctrl->next_event]);
-	ctrl->next_event = (ctrl->next_event + 1) % MAX_EVENTS;
-	taskInfo->hp_slot = hp_slot;
-
-	rc++;
 	p_slot = pciehp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
 	/* Switch is open, assume a presence change
@@ -168,59 +128,49 @@ u8 pciehp_handle_presence_change(u8 hp_slot, struct controller *ctrl)
 		/*
 		 * Card Present
 		 */
-		info("Card present on Slot(%s)\n", slot_name(p_slot));
-		taskInfo->event_type = INT_PRESENCE_ON;
+		info("Card present on Slot(%s)\n", p_slot->name);
+		event_type = INT_PRESENCE_ON;
 	} else {
 		/*
 		 * Not Present
 		 */
-		info("Card not present on Slot(%s)\n", slot_name(p_slot));
-		taskInfo->event_type = INT_PRESENCE_OFF;
+		info("Card not present on Slot(%s)\n", p_slot->name);
+		event_type = INT_PRESENCE_OFF;
 	}
 
-	if (rc)
-		up(&event_semaphore);	/* signal event thread that new event is posted */
+	queue_interrupt_event(p_slot, event_type);
 
-	return rc;
+	return 1;
 }
 
 u8 pciehp_handle_power_fault(u8 hp_slot, struct controller *ctrl)
 {
 	struct slot *p_slot;
-	u8 rc = 0;
-	struct event_info *taskInfo;
+	u32 event_type;
 
 	/* power fault */
 	dbg("pciehp:  Power fault interrupt received.\n");
 
-	/* this is the structure that tells the worker thread
-	 * what to do
-	 */
-	taskInfo = &(ctrl->event_queue[ctrl->next_event]);
-	ctrl->next_event = (ctrl->next_event + 1) % MAX_EVENTS;
-	taskInfo->hp_slot = hp_slot;
-
-	rc++;
 	p_slot = pciehp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
 	if ( !(p_slot->hpc_ops->query_power_fault(p_slot))) {
 		/*
 		 * power fault Cleared
 		 */
-		info("Power fault cleared on Slot(%s)\n", slot_name(p_slot));
-		taskInfo->event_type = INT_POWER_FAULT_CLEAR;
+		info("Power fault cleared on Slot(%s)\n", p_slot->name);
+		event_type = INT_POWER_FAULT_CLEAR;
 	} else {
 		/*
 		 *   power fault
 		 */
-		info("Power fault on Slot(%s)\n", slot_name(p_slot));
-		taskInfo->event_type = INT_POWER_FAULT;
+		info("Power fault on Slot(%s)\n", p_slot->name);
+		event_type = INT_POWER_FAULT;
 		info("power fault bit %x set\n", hp_slot);
 	}
-	if (rc)
-		up(&event_semaphore);	/* signal event thread that new event is posted */
 
-	return rc;
+	queue_interrupt_event(p_slot, event_type);
+
+	return 1;
 }
 
 /* The following routines constitute the bulk of the 
@@ -357,13 +307,10 @@ static int remove_board(struct slot *p_slot)
 	return 0;
 }
 
-
-static void pushbutton_helper_thread(unsigned long data)
-{
-	pushbutton_pending = data;
-
-	up(&event_semaphore);
-}
+struct power_work_info {
+	struct slot *p_slot;
+	struct work_struct work;
+};
 
 /**
  * pciehp_pushbutton_thread
@@ -372,274 +319,212 @@ static void pushbutton_helper_thread(unsigned long data)
  * Handles all pending events and exits.
  *
  */
-static void pciehp_pushbutton_thread(unsigned long slot)
+static void pciehp_power_thread(struct work_struct *work)
 {
-	struct slot *p_slot = (struct slot *) slot;
-	u8 getstatus;
-	
-	pushbutton_pending = 0;
+	struct power_work_info *info =
+		container_of(work, struct power_work_info, work);
+	struct slot *p_slot = info->p_slot;
 
-	if (!p_slot) {
-		dbg("%s: Error! slot NULL\n", __FUNCTION__);
-		return;
-	}
-
-	p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
-	if (getstatus) {
-		p_slot->state = POWEROFF_STATE;
-		dbg("%s: disabling bus:device(%x:%x)\n", __FUNCTION__,
-				p_slot->bus, p_slot->device);
-
+	mutex_lock(&p_slot->lock);
+	switch (p_slot->state) {
+	case POWEROFF_STATE:
+		mutex_unlock(&p_slot->lock);
+		dbg("%s: disabling bus:device(%x:%x)\n",
+		    __FUNCTION__, p_slot->bus, p_slot->device);
 		pciehp_disable_slot(p_slot);
+		mutex_lock(&p_slot->lock);
 		p_slot->state = STATIC_STATE;
-	} else {
-		p_slot->state = POWERON_STATE;
-		dbg("%s: adding bus:device(%x:%x)\n", __FUNCTION__,
-				p_slot->bus, p_slot->device);
-
+		break;
+	case POWERON_STATE:
+		mutex_unlock(&p_slot->lock);
 		if (pciehp_enable_slot(p_slot) &&
 		    PWR_LED(p_slot->ctrl->ctrlcap))
 			p_slot->hpc_ops->green_led_off(p_slot);
-
+		mutex_lock(&p_slot->lock);
 		p_slot->state = STATIC_STATE;
+		break;
+	default:
+		break;
 	}
+	mutex_unlock(&p_slot->lock);
 
-	return;
+	kfree(info);
 }
 
-/**
- * pciehp_surprise_rm_thread
- *
- * Scheduled procedure to handle blocking stuff for the surprise removal
- * Handles all pending events and exits.
- *
- */
-static void pciehp_surprise_rm_thread(unsigned long slot)
+void pciehp_queue_pushbutton_work(struct work_struct *work)
 {
-	struct slot *p_slot = (struct slot *) slot;
-	u8 getstatus;
-	
-	surprise_rm_pending = 0;
+	struct slot *p_slot = container_of(work, struct slot, work.work);
+	struct power_work_info *info;
 
-	if (!p_slot) {
-		dbg("%s: Error! slot NULL\n", __FUNCTION__);
+	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	if (!info) {
+		err("%s: Cannot allocate memory\n", __FUNCTION__);
 		return;
 	}
+	info->p_slot = p_slot;
+	INIT_WORK(&info->work, pciehp_power_thread);
 
-	p_slot->hpc_ops->get_adapter_status(p_slot, &getstatus);
-	if (!getstatus) {
+	mutex_lock(&p_slot->lock);
+	switch (p_slot->state) {
+	case BLINKINGOFF_STATE:
 		p_slot->state = POWEROFF_STATE;
-		dbg("%s: removing bus:device(%x:%x)\n",
-				__FUNCTION__, p_slot->bus, p_slot->device);
-
-		pciehp_disable_slot(p_slot);
-		p_slot->state = STATIC_STATE;
-	} else {
+		break;
+	case BLINKINGON_STATE:
 		p_slot->state = POWERON_STATE;
-		dbg("%s: adding bus:device(%x:%x)\n",
-				__FUNCTION__, p_slot->bus, p_slot->device);
-
-		if (pciehp_enable_slot(p_slot) &&
-		    PWR_LED(p_slot->ctrl->ctrlcap))
-			p_slot->hpc_ops->green_led_off(p_slot);
-
-		p_slot->state = STATIC_STATE;
+		break;
+	default:
+		goto out;
 	}
-
-	return;
+	queue_work(pciehp_wq, &info->work);
+ out:
+	mutex_unlock(&p_slot->lock);
 }
-
-
-
-/* this is the main worker thread */
-static int event_thread(void* data)
-{
-	struct controller *ctrl;
-	lock_kernel();
-	daemonize("pciehpd_event");
-
-	unlock_kernel();
-
-	while (1) {
-		dbg("!!!!event_thread sleeping\n");
-		down_interruptible (&event_semaphore);
-		dbg("event_thread woken finished = %d\n", event_finished);
-		if (event_finished || signal_pending(current))
-			break;
-		/* Do stuff here */
-		if (pushbutton_pending)
-			pciehp_pushbutton_thread(pushbutton_pending);
-		else if (surprise_rm_pending)
-			pciehp_surprise_rm_thread(surprise_rm_pending);
-		else
-			for (ctrl = pciehp_ctrl_list; ctrl; ctrl=ctrl->next)
-				interrupt_event_handler(ctrl);
-	}
-	dbg("event_thread signals exit\n");
-	up(&event_exit);
-	return 0;
-}
-
-int pciehp_event_start_thread(void)
-{
-	int pid;
-
-	/* initialize our semaphores */
-	init_MUTEX_LOCKED(&event_exit);
-	event_finished=0;
-
-	init_MUTEX_LOCKED(&event_semaphore);
-	pid = kernel_thread(event_thread, NULL, 0);
-
-	if (pid < 0) {
-		err ("Can't start up our event thread\n");
-		return -1;
-	}
-	return 0;
-}
-
-
-void pciehp_event_stop_thread(void)
-{
-	event_finished = 1;
-	up(&event_semaphore);
-	down(&event_exit);
-}
-
 
 static int update_slot_info(struct slot *slot)
 {
 	struct hotplug_slot_info *info;
-	/* char buffer[SLOT_NAME_SIZE]; */
 	int result;
 
-	info = kmalloc(sizeof(struct hotplug_slot_info), GFP_KERNEL);
+	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
-
-	/* make_slot_name (&buffer[0], SLOT_NAME_SIZE, slot); */
 
 	slot->hpc_ops->get_power_status(slot, &(info->power_status));
 	slot->hpc_ops->get_attention_status(slot, &(info->attention_status));
 	slot->hpc_ops->get_latch_status(slot, &(info->latch_status));
 	slot->hpc_ops->get_adapter_status(slot, &(info->adapter_status));
 
-	/* result = pci_hp_change_slot_info(buffer, info); */
 	result = pci_hp_change_slot_info(slot->hotplug_slot, info);
 	kfree (info);
 	return result;
 }
 
-static void interrupt_event_handler(struct controller *ctrl)
+/*
+ * Note: This function must be called with slot->lock held
+ */
+static void handle_button_press_event(struct slot *p_slot)
 {
-	int loop = 0;
-	int change = 1;
-	u8 hp_slot;
+	struct controller *ctrl = p_slot->ctrl;
 	u8 getstatus;
-	struct slot *p_slot;
 
-	while (change) {
-		change = 0;
+	switch (p_slot->state) {
+	case STATIC_STATE:
+		p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
+		if (getstatus) {
+			p_slot->state = BLINKINGOFF_STATE;
+			info("PCI slot #%s - powering off due to button "
+			     "press.\n", p_slot->name);
+		} else {
+			p_slot->state = BLINKINGON_STATE;
+			info("PCI slot #%s - powering on due to button "
+			     "press.\n", p_slot->name);
+		}
+		/* blink green LED and turn off amber */
+		if (PWR_LED(ctrl->ctrlcap))
+			p_slot->hpc_ops->green_led_blink(p_slot);
+		if (ATTN_LED(ctrl->ctrlcap))
+			p_slot->hpc_ops->set_attention_status(p_slot, 0);
 
-		for (loop = 0; loop < MAX_EVENTS; loop++) {
-			if (ctrl->event_queue[loop].event_type != 0) {
-				hp_slot = ctrl->event_queue[loop].hp_slot;
-
-				p_slot = pciehp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
-
-				if (ctrl->event_queue[loop].event_type == INT_BUTTON_CANCEL) {
-					dbg("button cancel\n");
-					del_timer(&p_slot->task_event);
-
-					switch (p_slot->state) {
-					case BLINKINGOFF_STATE:
-						if (PWR_LED(ctrl->ctrlcap))
-							p_slot->hpc_ops->green_led_on(p_slot);
-
-						if (ATTN_LED(ctrl->ctrlcap))
-							p_slot->hpc_ops->set_attention_status(p_slot, 0);
-						break;
-					case BLINKINGON_STATE:
-						if (PWR_LED(ctrl->ctrlcap))
-							p_slot->hpc_ops->green_led_off(p_slot);
-
-						if (ATTN_LED(ctrl->ctrlcap))
-							p_slot->hpc_ops->set_attention_status(p_slot, 0);
-						break;
-					default:
-						warn("Not a valid state\n");
-						return;
-					}
-					info("PCI slot #%s - action canceled due to button press.\n", slot_name(p_slot));
-					p_slot->state = STATIC_STATE;
-				}
-				/* ***********Button Pressed (No action on 1st press...) */
-				else if (ctrl->event_queue[loop].event_type == INT_BUTTON_PRESS) {
-					
-					if (ATTN_BUTTN(ctrl->ctrlcap)) {
-						dbg("Button pressed\n");
-						p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
-						if (getstatus) {
-							/* slot is on */
-							dbg("slot is on\n");
-							p_slot->state = BLINKINGOFF_STATE;
-							info("PCI slot #%s - powering off due to button press.\n", slot_name(p_slot));
-						} else {
-							/* slot is off */
-							dbg("slot is off\n");
-							p_slot->state = BLINKINGON_STATE;
-							info("PCI slot #%s - powering on due to button press.\n", slot_name(p_slot));
-						}
-
-						/* blink green LED and turn off amber */
-						if (PWR_LED(ctrl->ctrlcap))
-							p_slot->hpc_ops->green_led_blink(p_slot);
-
-						if (ATTN_LED(ctrl->ctrlcap))
-							p_slot->hpc_ops->set_attention_status(p_slot, 0);
-
-						init_timer(&p_slot->task_event);
-						p_slot->task_event.expires = jiffies + 5 * HZ;   /* 5 second delay */
-						p_slot->task_event.function = (void (*)(unsigned long)) pushbutton_helper_thread;
-						p_slot->task_event.data = (unsigned long) p_slot;
-
-						add_timer(&p_slot->task_event);
-					}
-				}
-				/***********POWER FAULT********************/
-				else if (ctrl->event_queue[loop].event_type == INT_POWER_FAULT) {
-					if (POWER_CTRL(ctrl->ctrlcap)) {
-						dbg("power fault\n");
-						if (ATTN_LED(ctrl->ctrlcap))
-							p_slot->hpc_ops->set_attention_status(p_slot, 1);
-
-						if (PWR_LED(ctrl->ctrlcap))
-							p_slot->hpc_ops->green_led_off(p_slot);
-					}
-				}
-				/***********SURPRISE REMOVAL********************/
-				else if ((ctrl->event_queue[loop].event_type == INT_PRESENCE_ON) || 
-					(ctrl->event_queue[loop].event_type == INT_PRESENCE_OFF)) {
-					if (HP_SUPR_RM(ctrl->ctrlcap)) {
-						dbg("Surprise Removal\n");
-						if (p_slot) {
-							surprise_rm_pending = (unsigned long) p_slot;
-							up(&event_semaphore);
-							update_slot_info(p_slot);
-						}
-					}
-				} else {
-					/* refresh notification */
-					if (p_slot)
-						update_slot_info(p_slot);
-				}
-
-				ctrl->event_queue[loop].event_type = 0;
-
-				change = 1;
-			}
-		}		/* End of FOR loop */
+		schedule_delayed_work(&p_slot->work, 5*HZ);
+		break;
+	case BLINKINGOFF_STATE:
+	case BLINKINGON_STATE:
+		/*
+		 * Cancel if we are still blinking; this means that we
+		 * press the attention again before the 5 sec. limit
+		 * expires to cancel hot-add or hot-remove
+		 */
+		info("Button cancel on Slot(%s)\n", p_slot->name);
+		dbg("%s: button cancel\n", __FUNCTION__);
+		cancel_delayed_work(&p_slot->work);
+		if (p_slot->state == BLINKINGOFF_STATE) {
+			if (PWR_LED(ctrl->ctrlcap))
+				p_slot->hpc_ops->green_led_on(p_slot);
+		} else {
+			if (PWR_LED(ctrl->ctrlcap))
+				p_slot->hpc_ops->green_led_off(p_slot);
+		}
+		if (ATTN_LED(ctrl->ctrlcap))
+			p_slot->hpc_ops->set_attention_status(p_slot, 0);
+		info("PCI slot #%s - action canceled due to button press\n",
+		     p_slot->name);
+		p_slot->state = STATIC_STATE;
+		break;
+	case POWEROFF_STATE:
+	case POWERON_STATE:
+		/*
+		 * Ignore if the slot is on power-on or power-off state;
+		 * this means that the previous attention button action
+		 * to hot-add or hot-remove is undergoing
+		 */
+		info("Button ignore on Slot(%s)\n", p_slot->name);
+		update_slot_info(p_slot);
+		break;
+	default:
+		warn("Not a valid state\n");
+		break;
 	}
+}
+
+/*
+ * Note: This function must be called with slot->lock held
+ */
+static void handle_surprise_event(struct slot *p_slot)
+{
+	u8 getstatus;
+	struct power_work_info *info;
+
+	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	if (!info) {
+		err("%s: Cannot allocate memory\n", __FUNCTION__);
+		return;
+	}
+	info->p_slot = p_slot;
+	INIT_WORK(&info->work, pciehp_power_thread);
+
+	p_slot->hpc_ops->get_adapter_status(p_slot, &getstatus);
+	if (!getstatus)
+		p_slot->state = POWEROFF_STATE;
+	else
+		p_slot->state = POWERON_STATE;
+
+	queue_work(pciehp_wq, &info->work);
+}
+
+static void interrupt_event_handler(struct work_struct *work)
+{
+	struct event_info *info = container_of(work, struct event_info, work);
+	struct slot *p_slot = info->p_slot;
+	struct controller *ctrl = p_slot->ctrl;
+
+	mutex_lock(&p_slot->lock);
+	switch (info->event_type) {
+	case INT_BUTTON_PRESS:
+		handle_button_press_event(p_slot);
+		break;
+	case INT_POWER_FAULT:
+		if (!POWER_CTRL(ctrl->ctrlcap))
+			break;
+		if (ATTN_LED(ctrl->ctrlcap))
+			p_slot->hpc_ops->set_attention_status(p_slot, 1);
+		if (PWR_LED(ctrl->ctrlcap))
+			p_slot->hpc_ops->green_led_off(p_slot);
+		break;
+	case INT_PRESENCE_ON:
+	case INT_PRESENCE_OFF:
+		if (!HP_SUPR_RM(ctrl->ctrlcap))
+			break;
+		dbg("Surprise Removal\n");
+		update_slot_info(p_slot);
+		handle_surprise_event(p_slot);
+		break;
+	default:
+		update_slot_info(p_slot);
+		break;
+	}
+	mutex_unlock(&p_slot->lock);
+
+	kfree(info);
 }
 
 int pciehp_enable_slot(struct slot *p_slot)
@@ -653,7 +538,7 @@ int pciehp_enable_slot(struct slot *p_slot)
 	rc = p_slot->hpc_ops->get_adapter_status(p_slot, &getstatus);
 	if (rc || !getstatus) {
 		info("%s: no adapter on slot(%s)\n", __FUNCTION__,
-		     slot_name(p_slot));
+		     p_slot->name);
 		mutex_unlock(&p_slot->ctrl->crit_sect);
 		return -ENODEV;
 	}
@@ -661,7 +546,7 @@ int pciehp_enable_slot(struct slot *p_slot)
 		rc = p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 		if (rc || getstatus) {
 			info("%s: latch open on slot(%s)\n", __FUNCTION__,
-			     slot_name(p_slot));
+			     p_slot->name);
 			mutex_unlock(&p_slot->ctrl->crit_sect);
 			return -ENODEV;
 		}
@@ -671,7 +556,7 @@ int pciehp_enable_slot(struct slot *p_slot)
 		rc = p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
 		if (rc || getstatus) {
 			info("%s: already enabled on slot(%s)\n", __FUNCTION__,
-			     slot_name(p_slot));
+			     p_slot->name);
 			mutex_unlock(&p_slot->ctrl->crit_sect);
 			return -EINVAL;
 		}
@@ -706,7 +591,7 @@ int pciehp_disable_slot(struct slot *p_slot)
 		ret = p_slot->hpc_ops->get_adapter_status(p_slot, &getstatus);
 		if (ret || !getstatus) {
 			info("%s: no adapter on slot(%s)\n", __FUNCTION__,
-			     slot_name(p_slot));
+			     p_slot->name);
 			mutex_unlock(&p_slot->ctrl->crit_sect);
 			return -ENODEV;
 		}
@@ -716,7 +601,7 @@ int pciehp_disable_slot(struct slot *p_slot)
 		ret = p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 		if (ret || getstatus) {
 			info("%s: latch open on slot(%s)\n", __FUNCTION__,
-			     slot_name(p_slot));
+			     p_slot->name);
 			mutex_unlock(&p_slot->ctrl->crit_sect);
 			return -ENODEV;
 		}
@@ -726,7 +611,7 @@ int pciehp_disable_slot(struct slot *p_slot)
 		ret = p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
 		if (ret || !getstatus) {
 			info("%s: already disabled slot(%s)\n", __FUNCTION__,
-			     slot_name(p_slot));
+			     p_slot->name);
 			mutex_unlock(&p_slot->ctrl->crit_sect);
 			return -EINVAL;
 		}
@@ -739,3 +624,66 @@ int pciehp_disable_slot(struct slot *p_slot)
 	return ret;
 }
 
+int pciehp_sysfs_enable_slot(struct slot *p_slot)
+{
+	int retval = -ENODEV;
+
+	mutex_lock(&p_slot->lock);
+	switch (p_slot->state) {
+	case BLINKINGON_STATE:
+		cancel_delayed_work(&p_slot->work);
+	case STATIC_STATE:
+		p_slot->state = POWERON_STATE;
+		mutex_unlock(&p_slot->lock);
+		retval = pciehp_enable_slot(p_slot);
+		mutex_lock(&p_slot->lock);
+		p_slot->state = STATIC_STATE;
+		break;
+	case POWERON_STATE:
+		info("Slot %s is already in powering on state\n",
+		     p_slot->name);
+		break;
+	case BLINKINGOFF_STATE:
+	case POWEROFF_STATE:
+		info("Already enabled on slot %s\n", p_slot->name);
+		break;
+	default:
+		err("Not a valid state on slot %s\n", p_slot->name);
+		break;
+	}
+	mutex_unlock(&p_slot->lock);
+
+	return retval;
+}
+
+int pciehp_sysfs_disable_slot(struct slot *p_slot)
+{
+	int retval = -ENODEV;
+
+	mutex_lock(&p_slot->lock);
+	switch (p_slot->state) {
+	case BLINKINGOFF_STATE:
+		cancel_delayed_work(&p_slot->work);
+	case STATIC_STATE:
+		p_slot->state = POWEROFF_STATE;
+		mutex_unlock(&p_slot->lock);
+		retval = pciehp_disable_slot(p_slot);
+		mutex_lock(&p_slot->lock);
+		p_slot->state = STATIC_STATE;
+		break;
+	case POWEROFF_STATE:
+		info("Slot %s is already in powering off state\n",
+		     p_slot->name);
+		break;
+	case BLINKINGON_STATE:
+	case POWERON_STATE:
+		info("Already disabled on slot %s\n", p_slot->name);
+		break;
+	default:
+		err("Not a valid state on slot %s\n", p_slot->name);
+		break;
+	}
+	mutex_unlock(&p_slot->lock);
+
+	return retval;
+}

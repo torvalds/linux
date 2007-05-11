@@ -48,6 +48,7 @@
 
 	soc5200@f0000000 {
 		model = "fsl,mpc5200";
+		compatible = "mpc5200";
 		revision = ""			// from bootloader
 		#interrupt-cells = <3>;
 		device_type = "soc";
@@ -166,7 +167,7 @@
 			device_type = "mscan";
 			compatible = "mpc5200-mscan";
 			cell-index = <1>;
-			interrupts = <1 12 0>;
+			interrupts = <2 12 0>;
 			interrupt-parent = <500>;
 			reg = <980 80>;
 		};
@@ -178,7 +179,7 @@
 			interrupt-parent = <500>;
 		};
 
-		gpio-wkup@b00 {
+		gpio-wkup@c00 {
 			compatible = "mpc5200-gpio-wkup";
 			reg = <c00 40>;
 			interrupts = <1 8 0 0 3 0>;
@@ -317,20 +318,22 @@
 
 		i2c@3d00 {
 			device_type = "i2c";
-			compatible = "mpc5200-i2c";
+			compatible = "mpc5200-i2c\0fsl-i2c";
 			cell-index = <0>;
 			reg = <3d00 40>;
 			interrupts = <2 f 0>;
 			interrupt-parent = <500>;
+			fsl5200-clocking;
 		};
 
 		i2c@3d40 {
 			device_type = "i2c";
-			compatible = "mpc5200-i2c";
+			compatible = "mpc5200-i2c\0fsl-i2c";
 			cell-index = <1>;
 			reg = <3d40 40>;
 			interrupts = <2 10 0>;
 			interrupt-parent = <500>;
+			fsl5200-clocking;
 		};
 		sram@8000 {
 			device_type = "sram";

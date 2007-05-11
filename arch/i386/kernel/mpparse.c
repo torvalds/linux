@@ -18,7 +18,6 @@
 #include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/bootmem.h>
-#include <linux/smp_lock.h>
 #include <linux/kernel_stat.h>
 #include <linux/mc146818rtc.h>
 #include <linux/bitops.h>
@@ -477,7 +476,7 @@ static int __init smp_read_mpc(struct mp_config_table *mpc)
 		}
 		++mpc_record;
 	}
-	clustered_apic_check();
+	setup_apic_routing();
 	if (!num_processors)
 		printk(KERN_ERR "SMP mptable: no processors registered!\n");
 	return num_processors;

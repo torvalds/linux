@@ -54,17 +54,17 @@ enum clock_event_nofitiers {
 /**
  * struct clock_event_device - clock event device descriptor
  * @name:		ptr to clock event name
- * @hints:		usage hints
+ * @features:		features
  * @max_delta_ns:	maximum delta value in ns
  * @min_delta_ns:	minimum delta value in ns
  * @mult:		nanosecond to cycles multiplier
  * @shift:		nanoseconds to cycles divisor (power of two)
  * @rating:		variable to rate clock event devices
- * @irq:		irq number (only for non cpu local devices)
- * @cpumask:		cpumask to indicate for which cpus this device works
- * @set_next_event:	set next event
+ * @irq:		IRQ number (only for non CPU local devices)
+ * @cpumask:		cpumask to indicate for which CPUs this device works
+ * @set_next_event:	set next event function
  * @set_mode:		set mode function
- * @evthandler:		Assigned by the framework to be called by the low
+ * @event_handler:	Assigned by the framework to be called by the low
  *			level handler of the event source
  * @broadcast:		function to broadcast events
  * @list:		list head for the management code

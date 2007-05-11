@@ -281,6 +281,17 @@ EXPORT_SYMBOL(dec_zone_page_state);
 
 /*
  * Update the zone counters for one cpu.
+ *
+ * Note that refresh_cpu_vm_stats strives to only access
+ * node local memory. The per cpu pagesets on remote zones are placed
+ * in the memory local to the processor using that pageset. So the
+ * loop over all zones will access a series of cachelines local to
+ * the processor.
+ *
+ * The call to zone_page_state_add updates the cachelines with the
+ * statistics in the remote zone struct as well as the global cachelines
+ * with the global counters. These could cause remote node cache line
+ * bouncing and will have to be only done when necessary.
  */
 void refresh_cpu_vm_stats(int cpu)
 {
@@ -289,21 +300,54 @@ void refresh_cpu_vm_stats(int cpu)
 	unsigned long flags;
 
 	for_each_zone(zone) {
-		struct per_cpu_pageset *pcp;
+		struct per_cpu_pageset *p;
 
 		if (!populated_zone(zone))
 			continue;
 
-		pcp = zone_pcp(zone, cpu);
+		p = zone_pcp(zone, cpu);
 
 		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-			if (pcp->vm_stat_diff[i]) {
+			if (p->vm_stat_diff[i]) {
 				local_irq_save(flags);
-				zone_page_state_add(pcp->vm_stat_diff[i],
+				zone_page_state_add(p->vm_stat_diff[i],
 					zone, i);
-				pcp->vm_stat_diff[i] = 0;
+				p->vm_stat_diff[i] = 0;
+#ifdef CONFIG_NUMA
+				/* 3 seconds idle till flush */
+				p->expire = 3;
+#endif
 				local_irq_restore(flags);
 			}
+#ifdef CONFIG_NUMA
+		/*
+		 * Deal with draining the remote pageset of this
+		 * processor
+		 *
+		 * Check if there are pages remaining in this pageset
+		 * if not then there is nothing to expire.
+		 */
+		if (!p->expire || (!p->pcp[0].count && !p->pcp[1].count))
+			continue;
+
+		/*
+		 * We never drain zones local to this processor.
+		 */
+		if (zone_to_nid(zone) == numa_node_id()) {
+			p->expire = 0;
+			continue;
+		}
+
+		p->expire--;
+		if (p->expire)
+			continue;
+
+		if (p->pcp[0].count)
+			drain_zone_pages(zone, p->pcp + 0);
+
+		if (p->pcp[1].count)
+			drain_zone_pages(zone, p->pcp + 1);
+#endif
 	}
 }
 
@@ -640,6 +684,24 @@ const struct seq_operations vmstat_op = {
 #endif /* CONFIG_PROC_FS */
 
 #ifdef CONFIG_SMP
+static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
+int sysctl_stat_interval __read_mostly = HZ;
+
+static void vmstat_update(struct work_struct *w)
+{
+	refresh_cpu_vm_stats(smp_processor_id());
+	schedule_delayed_work(&__get_cpu_var(vmstat_work),
+		sysctl_stat_interval);
+}
+
+static void __devinit start_cpu_timer(int cpu)
+{
+	struct delayed_work *vmstat_work = &per_cpu(vmstat_work, cpu);
+
+	INIT_DELAYED_WORK_DEFERRABLE(vmstat_work, vmstat_update);
+	schedule_delayed_work_on(cpu, vmstat_work, HZ + cpu);
+}
+
 /*
  * Use the cpu notifier to insure that the thresholds are recalculated
  * when necessary.
@@ -648,10 +710,24 @@ static int __cpuinit vmstat_cpuup_callback(struct notifier_block *nfb,
 		unsigned long action,
 		void *hcpu)
 {
+	long cpu = (long)hcpu;
+
 	switch (action) {
-	case CPU_UP_PREPARE:
-	case CPU_UP_CANCELED:
+	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
+		start_cpu_timer(cpu);
+		break;
+	case CPU_DOWN_PREPARE:
+	case CPU_DOWN_PREPARE_FROZEN:
+		cancel_rearming_delayed_work(&per_cpu(vmstat_work, cpu));
+		per_cpu(vmstat_work, cpu).work.func = NULL;
+		break;
+	case CPU_DOWN_FAILED:
+	case CPU_DOWN_FAILED_FROZEN:
+		start_cpu_timer(cpu);
+		break;
 	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
 		refresh_zone_stat_thresholds();
 		break;
 	default:
@@ -665,8 +741,13 @@ static struct notifier_block __cpuinitdata vmstat_notifier =
 
 int __init setup_vmstat(void)
 {
+	int cpu;
+
 	refresh_zone_stat_thresholds();
 	register_cpu_notifier(&vmstat_notifier);
+
+	for_each_online_cpu(cpu)
+		start_cpu_timer(cpu);
 	return 0;
 }
 module_init(setup_vmstat)

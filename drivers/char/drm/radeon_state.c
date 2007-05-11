@@ -773,7 +773,7 @@ static void radeon_clear_box(drm_radeon_private_t * dev_priv,
 		 RADEON_GMC_SRC_DATATYPE_COLOR |
 		 RADEON_ROP3_P | RADEON_GMC_CLR_CMP_CNTL_DIS);
 
-	if (dev_priv->page_flipping && dev_priv->current_page == 1) {
+	if (dev_priv->sarea_priv->pfCurrentPage == 1) {
 		OUT_RING(dev_priv->front_pitch_offset);
 	} else {
 		OUT_RING(dev_priv->back_pitch_offset);
@@ -861,7 +861,7 @@ static void radeon_cp_dispatch_clear(drm_device_t * dev,
 
 	dev_priv->stats.clears++;
 
-	if (dev_priv->page_flipping && dev_priv->current_page == 1) {
+	if (dev_priv->sarea_priv->pfCurrentPage == 1) {
 		unsigned int tmp = flags;
 
 		flags &= ~(RADEON_FRONT | RADEON_BACK);
@@ -1382,7 +1382,7 @@ static void radeon_cp_dispatch_swap(drm_device_t * dev)
 		/* Make this work even if front & back are flipped:
 		 */
 		OUT_RING(CP_PACKET0(RADEON_SRC_PITCH_OFFSET, 1));
-		if (dev_priv->current_page == 0) {
+		if (dev_priv->sarea_priv->pfCurrentPage == 0) {
 			OUT_RING(dev_priv->back_pitch_offset);
 			OUT_RING(dev_priv->front_pitch_offset);
 		} else {
@@ -1416,12 +1416,12 @@ static void radeon_cp_dispatch_flip(drm_device_t * dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_sarea_t *sarea = (drm_sarea_t *) dev_priv->sarea->handle;
-	int offset = (dev_priv->current_page == 1)
+	int offset = (dev_priv->sarea_priv->pfCurrentPage == 1)
 	    ? dev_priv->front_offset : dev_priv->back_offset;
 	RING_LOCALS;
-	DRM_DEBUG("%s: page=%d pfCurrentPage=%d\n",
+	DRM_DEBUG("%s: pfCurrentPage=%d\n",
 		  __FUNCTION__,
-		  dev_priv->current_page, dev_priv->sarea_priv->pfCurrentPage);
+		  dev_priv->sarea_priv->pfCurrentPage);
 
 	/* Do some trivial performance monitoring...
 	 */
@@ -1449,8 +1449,8 @@ static void radeon_cp_dispatch_flip(drm_device_t * dev)
 	 * performing the swapbuffer ioctl.
 	 */
 	dev_priv->sarea_priv->last_frame++;
-	dev_priv->sarea_priv->pfCurrentPage = dev_priv->current_page =
-	    1 - dev_priv->current_page;
+	dev_priv->sarea_priv->pfCurrentPage =
+		1 - dev_priv->sarea_priv->pfCurrentPage;
 
 	BEGIN_RING(2);
 
@@ -2152,24 +2152,10 @@ static int radeon_do_init_pageflip(drm_device_t * dev)
 	ADVANCE_RING();
 
 	dev_priv->page_flipping = 1;
-	dev_priv->current_page = 0;
-	dev_priv->sarea_priv->pfCurrentPage = dev_priv->current_page;
 
-	return 0;
-}
+	if (dev_priv->sarea_priv->pfCurrentPage != 1)
+		dev_priv->sarea_priv->pfCurrentPage = 0;
 
-/* Called whenever a client dies, from drm_release.
- * NOTE:  Lock isn't necessarily held when this is called!
- */
-static int radeon_do_cleanup_pageflip(drm_device_t * dev)
-{
-	drm_radeon_private_t *dev_priv = dev->dev_private;
-	DRM_DEBUG("\n");
-
-	if (dev_priv->current_page != 0)
-		radeon_cp_dispatch_flip(dev);
-
-	dev_priv->page_flipping = 0;
 	return 0;
 }
 
@@ -3145,9 +3131,15 @@ static int radeon_cp_setparam(DRM_IOCTL_ARGS)
 		break;
 	case RADEON_SETPARAM_PCIGART_LOCATION:
 		dev_priv->pcigart_offset = sp.value;
+		dev_priv->pcigart_offset_set = 1;
 		break;
 	case RADEON_SETPARAM_NEW_MEMMAP:
 		dev_priv->new_memmap = sp.value;
+		break;
+	case RADEON_SETPARAM_PCIGART_TABLE_SIZE:
+		dev_priv->gart_info.table_size = sp.value;
+		if (dev_priv->gart_info.table_size < RADEON_PCIGART_TABLE_SIZE)
+			dev_priv->gart_info.table_size = RADEON_PCIGART_TABLE_SIZE;
 		break;
 	default:
 		DRM_DEBUG("Invalid parameter %d\n", sp.param);
@@ -3168,9 +3160,7 @@ void radeon_driver_preclose(drm_device_t * dev, DRMFILE filp)
 {
 	if (dev->dev_private) {
 		drm_radeon_private_t *dev_priv = dev->dev_private;
-		if (dev_priv->page_flipping) {
-			radeon_do_cleanup_pageflip(dev);
-		}
+		dev_priv->page_flipping = 0;
 		radeon_mem_release(filp, dev_priv->gart_heap);
 		radeon_mem_release(filp, dev_priv->fb_heap);
 		radeon_surfaces_release(filp, dev_priv);
@@ -3179,6 +3169,14 @@ void radeon_driver_preclose(drm_device_t * dev, DRMFILE filp)
 
 void radeon_driver_lastclose(drm_device_t * dev)
 {
+	if (dev->dev_private) {
+		drm_radeon_private_t *dev_priv = dev->dev_private;
+
+		if (dev_priv->sarea_priv &&
+		    dev_priv->sarea_priv->pfCurrentPage != 0)
+			radeon_cp_dispatch_flip(dev);
+	}
+
 	radeon_do_release(dev);
 }
 

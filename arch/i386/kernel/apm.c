@@ -223,7 +223,6 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/dmi.h>
 #include <linux/suspend.h>
 #include <linux/kthread.h>
@@ -233,10 +232,9 @@
 #include <asm/desc.h>
 #include <asm/i8253.h>
 #include <asm/paravirt.h>
+#include <asm/reboot.h>
 
 #include "io_ports.h"
-
-extern void machine_real_restart(unsigned char *, int);
 
 #if defined(CONFIG_APM_DISPLAY_BLANK) && defined(CONFIG_VT)
 extern int (*console_blank_hook)(int);
@@ -384,13 +382,6 @@ static int			ignore_sys_suspend;
 static int			ignore_normal_resume;
 static int			bounce_interval __read_mostly = DEFAULT_BOUNCE_INTERVAL;
 
-#ifdef CONFIG_APM_RTC_IS_GMT
-#	define	clock_cmos_diff	0
-#	define	got_clock_diff	1
-#else
-static long			clock_cmos_diff;
-static int			got_clock_diff;
-#endif
 static int			debug __read_mostly;
 static int			smp __read_mostly;
 static int			apm_disabled = -1;
@@ -1181,7 +1172,7 @@ static void reinit_timer(void)
 	unsigned long flags;
 
 	spin_lock_irqsave(&i8253_lock, flags);
-	/* set the clock to 100 Hz */
+	/* set the clock to HZ */
 	outb_p(0x34, PIT_MODE);		/* binary, mode 2, LSB/MSB, ch 0 */
 	udelay(10);
 	outb_p(LATCH & 0xff, PIT_CH0);	/* LSB */

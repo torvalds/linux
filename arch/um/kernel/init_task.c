@@ -1,5 +1,5 @@
-/* 
- * Copyright (C) 2000 Jeff Dike (jdike@karaya.com)
+/*
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,intel.linux}.com)
  * Licensed under the GPL
  */
 
@@ -10,7 +10,6 @@
 #include "linux/mqueue.h"
 #include "asm/uaccess.h"
 #include "asm/pgtable.h"
-#include "user_util.h"
 #include "mem_user.h"
 #include "os.h"
 
@@ -34,28 +33,20 @@ EXPORT_SYMBOL(init_task);
 /*
  * Initial thread structure.
  *
- * We need to make sure that this is 16384-byte aligned due to the
+ * We need to make sure that this is aligned due to the
  * way process stacks are handled. This is done by having a special
  * "init_task" linker map entry..
  */
 
-union thread_union init_thread_union 
-__attribute__((__section__(".data.init_task"))) = 
-{ INIT_THREAD_INFO(init_task) };
+union thread_union init_thread_union
+	__attribute__((__section__(".data.init_task"))) =
+		{ INIT_THREAD_INFO(init_task) };
+
+union thread_union cpu0_irqstack
+	__attribute__((__section__(".data.init_irqstack"))) =
+		{ INIT_THREAD_INFO(init_task) };
 
 void unprotect_stack(unsigned long stack)
 {
-	os_protect_memory((void *) stack, (1 << CONFIG_KERNEL_STACK_ORDER) * PAGE_SIZE,
-		       1, 1, 0);
+	os_protect_memory((void *) stack, THREAD_SIZE, 1, 1, 0);
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

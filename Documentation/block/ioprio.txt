@@ -6,10 +6,10 @@ Intro
 -----
 
 With the introduction of cfq v3 (aka cfq-ts or time sliced cfq), basic io
-priorities is supported for reads on files. This enables users to io nice
-processes or process groups, similar to what has been possible to cpu
-scheduling for ages. This document mainly details the current possibilites
-with cfq, other io schedulers do not support io priorities so far.
+priorities are supported for reads on files.  This enables users to io nice
+processes or process groups, similar to what has been possible with cpu
+scheduling for ages.  This document mainly details the current possibilities
+with cfq; other io schedulers do not support io priorities thus far.
 
 Scheduling classes
 ------------------

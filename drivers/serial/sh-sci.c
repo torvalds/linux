@@ -46,6 +46,7 @@
 #endif
 
 #if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
+#include <linux/ctype.h>
 #include <asm/clock.h>
 #include <asm/sh_bios.h>
 #include <asm/kgdb.h>
@@ -61,7 +62,7 @@ struct sci_port {
 	unsigned int		type;
 
 	/* Port IRQs: ERI, RXI, TXI, BRI (optional) */
-	unsigned int		irqs[SCIx_NR_IRQS]; 
+	unsigned int		irqs[SCIx_NR_IRQS];
 
 	/* Port pin configuration */
 	void			(*init_pins)(struct uart_port *port,
@@ -76,6 +77,11 @@ struct sci_port {
 	/* Break timer */
 	struct timer_list	break_timer;
 	int			break_flag;
+
+#if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
+	/* Port clock */
+	struct clk		*clk;
+#endif
 };
 
 #ifdef CONFIG_SH_KGDB
@@ -163,7 +169,7 @@ static void put_string(struct sci_port *sci_port, const char *buffer, int count)
 	usegdb |= sh_bios_in_gdb_mode();
 #endif
 #ifdef CONFIG_SH_KGDB
-	usegdb |= (kgdb_in_gdb_mode && (port == kgdb_sci_port));
+	usegdb |= (kgdb_in_gdb_mode && (sci_port == kgdb_sci_port));
 #endif
 
 	if (usegdb) {
@@ -204,7 +210,7 @@ static int kgdb_sci_getchar(void)
         int c;
 
         /* Keep trying to read a character, this could be neater */
-        while ((c = get_char(kgdb_sci_port)) < 0)
+        while ((c = get_char(&kgdb_sci_port->port)) < 0)
 		cpu_relax();
 
         return c;
@@ -212,7 +218,7 @@ static int kgdb_sci_getchar(void)
 
 static inline void kgdb_sci_putchar(int c)
 {
-        put_char(kgdb_sci_port, c);
+        put_char(&kgdb_sci_port->port, c);
 }
 #endif /* CONFIG_SH_KGDB */
 
@@ -283,11 +289,22 @@ static void sci_init_pins_irda(struct uart_port *port, unsigned int cflag)
 #endif
 
 #if defined(SCIF_ONLY) || defined(SCI_AND_SCIF)
-#if defined(CONFIG_CPU_SUBTYPE_SH7300) || defined(CONFIG_CPU_SUBTYPE_SH7710)
+#if defined(CONFIG_CPU_SUBTYPE_SH7300) 
 /* SH7300 doesn't use RTS/CTS */
 static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 {
 	sci_out(port, SCFCR, 0);
+}
+#elif defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
+static void sci_init_pins_scif(struct uart_port* port, unsigned int cflag)
+{
+	unsigned int fcr_val = 0;
+
+	set_sh771x_scif_pfc(port);
+	if (cflag & CRTSCTS) {
+		fcr_val |= SCFCR_MCE;
+	}
+	sci_out(port, SCFCR, fcr_val);
 }
 #elif defined(CONFIG_CPU_SH3)
 /* For SH7705, SH7706, SH7707, SH7709, SH7709A, SH7729 */
@@ -350,7 +367,7 @@ static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 	} else {
 #ifdef CONFIG_CPU_SUBTYPE_SH7343
 		/* Nothing */
-#elif defined(CONFIG_CPU_SUBTYPE_SH7780)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7780) || defined(CONFIG_CPU_SUBTYPE_SH7785)
 		ctrl_outw(0x0080, SCSPTR0); /* Set RTS = 1 */
 #else
 		ctrl_outw(0x0080, SCSPTR2); /* Set RTS = 1 */
@@ -360,7 +377,9 @@ static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 }
 #endif
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7760) || defined(CONFIG_CPU_SUBTYPE_SH7780)
+#if defined(CONFIG_CPU_SUBTYPE_SH7760) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7780) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7785)
 static inline int scif_txroom(struct uart_port *port)
 {
 	return SCIF_TXROOM_MAX - (sci_in(port, SCTFDR) & 0x7f);
@@ -735,12 +754,6 @@ static irqreturn_t sci_br_interrupt(int irq, void *ptr)
 
 	/* Handle BREAKs */
 	sci_handle_breaks(port);
-
-#ifdef CONFIG_SH_KGDB
-	/* Break into the debugger if a break is detected */
-	BREAKPOINT();
-#endif
-
 	sci_out(port, SCxSR, SCxSR_BREAK_CLEAR(port));
 
 	return IRQ_HANDLED;
@@ -947,6 +960,10 @@ static int sci_startup(struct uart_port *port)
 	if (s->enable)
 		s->enable(port);
 
+#if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
+	s->clk = clk_get(NULL, "module_clk");
+#endif
+
 	sci_request_irq(s);
 	sci_start_tx(port);
 	sci_start_rx(port, 1);
@@ -964,6 +981,11 @@ static void sci_shutdown(struct uart_port *port)
 
 	if (s->disable)
 		s->disable(port);
+
+#if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
+	clk_put(s->clk);
+	s->clk = NULL;
+#endif
 }
 
 static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
@@ -971,7 +993,6 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	struct sci_port *s = &sci_ports[port->line];
 	unsigned int status, baud, smr_val;
-	unsigned long flags;
 	int t;
 
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk/16);
@@ -983,17 +1004,13 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 		default:
 		{
 #if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
-			struct clk *clk = clk_get(NULL, "module_clk");
-			t = SCBRR_VALUE(baud, clk_get_rate(clk));
-			clk_put(clk);
+			t = SCBRR_VALUE(baud, clk_get_rate(s->clk));
 #else
 			t = SCBRR_VALUE(baud);
 #endif
-		}
 			break;
+		}
 	}
-
-	spin_lock_irqsave(&port->lock, flags);
 
 	do {
 		status = sci_in(port, SCxSR);
@@ -1038,8 +1055,6 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	if ((termios->c_cflag & CREAD) != 0)
               sci_start_rx(port,0);
-
-	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static const char *sci_type(struct uart_port *port)
@@ -1220,9 +1235,12 @@ static int __init serial_console_setup(struct console *co, char *options)
 	if (!port->membase || !port->mapbase)
 		return -ENODEV;
 
-	spin_lock_init(&port->lock);
-
 	port->type = serial_console_port->type;
+
+#if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
+	if (!serial_console_port->clk)
+		serial_console_port->clk = clk_get(NULL, "module_clk");
+#endif
 
 	if (port->flags & UPF_IOREMAP)
 		sci_config_port(port, 0);
@@ -1247,7 +1265,7 @@ static struct console serial_console = {
 	.device		= uart_console_device,
 	.write		= serial_console_write,
 	.setup		= serial_console_setup,
-	.flags		= CON_PRINTBUFFER, 
+	.flags		= CON_PRINTBUFFER,
 	.index		= -1,
 	.data		= &sci_uart_driver,
 };
@@ -1292,10 +1310,22 @@ int __init kgdb_console_setup(struct console *co, char *options)
 	int parity = 'n';
 	int flow = 'n';
 
-	spin_lock_init(&port->lock);
-
 	if (co->index != kgdb_portnum)
 		co->index = kgdb_portnum;
+
+	kgdb_sci_port = &sci_ports[co->index];
+	port = &kgdb_sci_port->port;
+
+	/*
+	 * Also need to check port->type, we don't actually have any
+	 * UPIO_PORT ports, but uart_report_port() handily misreports
+	 * it anyways if we don't have a port available by the time this is
+	 * called.
+	 */
+	if (!port->type)
+		return -ENODEV;
+	if (!port->membase || !port->mapbase)
+		return -ENODEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -1311,11 +1341,12 @@ int __init kgdb_console_setup(struct console *co, char *options)
 
 #ifdef CONFIG_SH_KGDB_CONSOLE
 static struct console kgdb_console = {
-        .name		= "ttySC",
-        .write		= kgdb_console_write,
-        .setup		= kgdb_console_setup,
-        .flags		= CON_PRINTBUFFER | CON_ENABLED,
-        .index		= -1,
+	.name		= "ttySC",
+	.device		= uart_console_device,
+	.write		= kgdb_console_write,
+	.setup		= kgdb_console_setup,
+	.flags		= CON_PRINTBUFFER,
+	.index		= -1,
 	.data		= &sci_uart_driver,
 };
 
@@ -1361,8 +1392,18 @@ static int __devinit sci_probe(struct platform_device *dev)
 	struct plat_sci_port *p = dev->dev.platform_data;
 	int i;
 
-	for (i = 0; p && p->flags != 0 && i < SCI_NPORTS; p++, i++) {
+	for (i = 0; p && p->flags != 0; p++, i++) {
 		struct sci_port *sciport = &sci_ports[i];
+
+		/* Sanity check */
+		if (unlikely(i == SCI_NPORTS)) {
+			dev_notice(&dev->dev, "Attempting to register port "
+				   "%d when only %d are available.\n",
+				   i+1, SCI_NPORTS);
+			dev_notice(&dev->dev, "Consider bumping "
+				   "CONFIG_SERIAL_SH_SCI_NR_UARTS!\n");
+			break;
+		}
 
 		sciport->port.mapbase	= p->mapbase;
 
@@ -1385,6 +1426,12 @@ static int __devinit sci_probe(struct platform_device *dev)
 
 		uart_add_one_port(&sci_uart_driver, &sciport->port);
 	}
+
+#if defined(CONFIG_SH_KGDB) && !defined(CONFIG_SH_KGDB_CONSOLE)
+	kgdb_sci_port	= &sci_ports[kgdb_portnum];
+	kgdb_getchar	= kgdb_sci_getchar;
+	kgdb_putchar	= kgdb_sci_putchar;
+#endif
 
 #ifdef CONFIG_CPU_FREQ
 	cpufreq_register_notifier(&sci_nb, CPUFREQ_TRANSITION_NOTIFIER);

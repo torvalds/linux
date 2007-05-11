@@ -1,7 +1,7 @@
 /*
  *  linux/kernel/timer.c
  *
- *  Kernel internal timers, kernel timekeeping, basic process system calls
+ *  Kernel internal timers, basic process system calls
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
@@ -74,13 +74,44 @@ struct tvec_t_base_s {
 	tvec_t tv3;
 	tvec_t tv4;
 	tvec_t tv5;
-} ____cacheline_aligned_in_smp;
+} ____cacheline_aligned;
 
 typedef struct tvec_t_base_s tvec_base_t;
 
 tvec_base_t boot_tvec_bases;
 EXPORT_SYMBOL(boot_tvec_bases);
 static DEFINE_PER_CPU(tvec_base_t *, tvec_bases) = &boot_tvec_bases;
+
+/*
+ * Note that all tvec_bases is 2 byte aligned and lower bit of
+ * base in timer_list is guaranteed to be zero. Use the LSB for
+ * the new flag to indicate whether the timer is deferrable
+ */
+#define TBASE_DEFERRABLE_FLAG		(0x1)
+
+/* Functions below help us manage 'deferrable' flag */
+static inline unsigned int tbase_get_deferrable(tvec_base_t *base)
+{
+	return ((unsigned int)(unsigned long)base & TBASE_DEFERRABLE_FLAG);
+}
+
+static inline tvec_base_t *tbase_get_base(tvec_base_t *base)
+{
+	return ((tvec_base_t *)((unsigned long)base & ~TBASE_DEFERRABLE_FLAG));
+}
+
+static inline void timer_set_deferrable(struct timer_list *timer)
+{
+	timer->base = ((tvec_base_t *)((unsigned long)(timer->base) |
+	                               TBASE_DEFERRABLE_FLAG));
+}
+
+static inline void
+timer_set_base(struct timer_list *timer, tvec_base_t *new_base)
+{
+	timer->base = (tvec_base_t *)((unsigned long)(new_base) |
+	                              tbase_get_deferrable(timer->base));
+}
 
 /**
  * __round_jiffies - function to round jiffies to a full second
@@ -295,6 +326,13 @@ void fastcall init_timer(struct timer_list *timer)
 }
 EXPORT_SYMBOL(init_timer);
 
+void fastcall init_timer_deferrable(struct timer_list *timer)
+{
+	init_timer(timer);
+	timer_set_deferrable(timer);
+}
+EXPORT_SYMBOL(init_timer_deferrable);
+
 static inline void detach_timer(struct timer_list *timer,
 				int clear_pending)
 {
@@ -325,10 +363,11 @@ static tvec_base_t *lock_timer_base(struct timer_list *timer,
 	tvec_base_t *base;
 
 	for (;;) {
-		base = timer->base;
+		tvec_base_t *prelock_base = timer->base;
+		base = tbase_get_base(prelock_base);
 		if (likely(base != NULL)) {
 			spin_lock_irqsave(&base->lock, *flags);
-			if (likely(base == timer->base))
+			if (likely(prelock_base == timer->base))
 				return base;
 			/* The timer has migrated to another CPU */
 			spin_unlock_irqrestore(&base->lock, *flags);
@@ -365,11 +404,11 @@ int __mod_timer(struct timer_list *timer, unsigned long expires)
 		 */
 		if (likely(base->running_timer != timer)) {
 			/* See the comment in lock_timer_base() */
-			timer->base = NULL;
+			timer_set_base(timer, NULL);
 			spin_unlock(&base->lock);
 			base = new_base;
 			spin_lock(&base->lock);
-			timer->base = base;
+			timer_set_base(timer, base);
 		}
 	}
 
@@ -397,7 +436,7 @@ void add_timer_on(struct timer_list *timer, int cpu)
 	timer_stats_timer_set_start_info(timer);
   	BUG_ON(timer_pending(timer) || !timer->function);
 	spin_lock_irqsave(&base->lock, flags);
-	timer->base = base;
+	timer_set_base(timer, base);
 	internal_add_timer(base, timer);
 	spin_unlock_irqrestore(&base->lock, flags);
 }
@@ -550,7 +589,7 @@ static int cascade(tvec_base_t *base, tvec_t *tv, int index)
 	 * don't have to detach them individually.
 	 */
 	list_for_each_entry_safe(timer, tmp, &tv_list, entry) {
-		BUG_ON(timer->base != base);
+		BUG_ON(tbase_get_base(timer->base) != base);
 		internal_add_timer(base, timer);
 	}
 
@@ -590,7 +629,7 @@ static inline void __run_timers(tvec_base_t *base)
 			void (*fn)(unsigned long);
 			unsigned long data;
 
-			timer = list_entry(head->next,struct timer_list,entry);
+			timer = list_first_entry(head, struct timer_list,entry);
  			fn = timer->function;
  			data = timer->data;
 
@@ -636,6 +675,9 @@ static unsigned long __next_timer_interrupt(tvec_base_t *base)
 	index = slot = timer_jiffies & TVR_MASK;
 	do {
 		list_for_each_entry(nte, base->tv1.vec + slot, entry) {
+ 			if (tbase_get_deferrable(nte->base))
+ 				continue;
+
 			found = 1;
 			expires = nte->expires;
 			/* Look at the cascade bucket(s)? */
@@ -752,455 +794,6 @@ unsigned long next_timer_interrupt(void)
 
 #endif
 
-/******************************************************************/
-
-/* 
- * The current time 
- * wall_to_monotonic is what we need to add to xtime (or xtime corrected 
- * for sub jiffie times) to get to monotonic time.  Monotonic is pegged
- * at zero at system boot time, so wall_to_monotonic will be negative,
- * however, we will ALWAYS keep the tv_nsec part positive so we can use
- * the usual normalization.
- */
-struct timespec xtime __attribute__ ((aligned (16)));
-struct timespec wall_to_monotonic __attribute__ ((aligned (16)));
-
-EXPORT_SYMBOL(xtime);
-
-
-/* XXX - all of this timekeeping code should be later moved to time.c */
-#include <linux/clocksource.h>
-static struct clocksource *clock; /* pointer to current clocksource */
-
-#ifdef CONFIG_GENERIC_TIME
-/**
- * __get_nsec_offset - Returns nanoseconds since last call to periodic_hook
- *
- * private function, must hold xtime_lock lock when being
- * called. Returns the number of nanoseconds since the
- * last call to update_wall_time() (adjusted by NTP scaling)
- */
-static inline s64 __get_nsec_offset(void)
-{
-	cycle_t cycle_now, cycle_delta;
-	s64 ns_offset;
-
-	/* read clocksource: */
-	cycle_now = clocksource_read(clock);
-
-	/* calculate the delta since the last update_wall_time: */
-	cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
-
-	/* convert to nanoseconds: */
-	ns_offset = cyc2ns(clock, cycle_delta);
-
-	return ns_offset;
-}
-
-/**
- * __get_realtime_clock_ts - Returns the time of day in a timespec
- * @ts:		pointer to the timespec to be set
- *
- * Returns the time of day in a timespec. Used by
- * do_gettimeofday() and get_realtime_clock_ts().
- */
-static inline void __get_realtime_clock_ts(struct timespec *ts)
-{
-	unsigned long seq;
-	s64 nsecs;
-
-	do {
-		seq = read_seqbegin(&xtime_lock);
-
-		*ts = xtime;
-		nsecs = __get_nsec_offset();
-
-	} while (read_seqretry(&xtime_lock, seq));
-
-	timespec_add_ns(ts, nsecs);
-}
-
-/**
- * getnstimeofday - Returns the time of day in a timespec
- * @ts:		pointer to the timespec to be set
- *
- * Returns the time of day in a timespec.
- */
-void getnstimeofday(struct timespec *ts)
-{
-	__get_realtime_clock_ts(ts);
-}
-
-EXPORT_SYMBOL(getnstimeofday);
-
-/**
- * do_gettimeofday - Returns the time of day in a timeval
- * @tv:		pointer to the timeval to be set
- *
- * NOTE: Users should be converted to using get_realtime_clock_ts()
- */
-void do_gettimeofday(struct timeval *tv)
-{
-	struct timespec now;
-
-	__get_realtime_clock_ts(&now);
-	tv->tv_sec = now.tv_sec;
-	tv->tv_usec = now.tv_nsec/1000;
-}
-
-EXPORT_SYMBOL(do_gettimeofday);
-/**
- * do_settimeofday - Sets the time of day
- * @tv:		pointer to the timespec variable containing the new time
- *
- * Sets the time of day to the new time and update NTP and notify hrtimers
- */
-int do_settimeofday(struct timespec *tv)
-{
-	unsigned long flags;
-	time_t wtm_sec, sec = tv->tv_sec;
-	long wtm_nsec, nsec = tv->tv_nsec;
-
-	if ((unsigned long)tv->tv_nsec >= NSEC_PER_SEC)
-		return -EINVAL;
-
-	write_seqlock_irqsave(&xtime_lock, flags);
-
-	nsec -= __get_nsec_offset();
-
-	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
-	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
-
-	set_normalized_timespec(&xtime, sec, nsec);
-	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
-
-	clock->error = 0;
-	ntp_clear();
-
-	update_vsyscall(&xtime, clock);
-
-	write_sequnlock_irqrestore(&xtime_lock, flags);
-
-	/* signal hrtimers about time change */
-	clock_was_set();
-
-	return 0;
-}
-
-EXPORT_SYMBOL(do_settimeofday);
-
-/**
- * change_clocksource - Swaps clocksources if a new one is available
- *
- * Accumulates current time interval and initializes new clocksource
- */
-static void change_clocksource(void)
-{
-	struct clocksource *new;
-	cycle_t now;
-	u64 nsec;
-
-	new = clocksource_get_next();
-
-	if (clock == new)
-		return;
-
-	now = clocksource_read(new);
-	nsec =  __get_nsec_offset();
-	timespec_add_ns(&xtime, nsec);
-
-	clock = new;
-	clock->cycle_last = now;
-
-	clock->error = 0;
-	clock->xtime_nsec = 0;
-	clocksource_calculate_interval(clock, NTP_INTERVAL_LENGTH);
-
-	tick_clock_notify();
-
-	printk(KERN_INFO "Time: %s clocksource has been installed.\n",
-	       clock->name);
-}
-#else
-static inline void change_clocksource(void) { }
-#endif
-
-/**
- * timekeeping_is_continuous - check to see if timekeeping is free running
- */
-int timekeeping_is_continuous(void)
-{
-	unsigned long seq;
-	int ret;
-
-	do {
-		seq = read_seqbegin(&xtime_lock);
-
-		ret = clock->flags & CLOCK_SOURCE_VALID_FOR_HRES;
-
-	} while (read_seqretry(&xtime_lock, seq));
-
-	return ret;
-}
-
-/**
- * read_persistent_clock -  Return time in seconds from the persistent clock.
- *
- * Weak dummy function for arches that do not yet support it.
- * Returns seconds from epoch using the battery backed persistent clock.
- * Returns zero if unsupported.
- *
- *  XXX - Do be sure to remove it once all arches implement it.
- */
-unsigned long __attribute__((weak)) read_persistent_clock(void)
-{
-	return 0;
-}
-
-/*
- * timekeeping_init - Initializes the clocksource and common timekeeping values
- */
-void __init timekeeping_init(void)
-{
-	unsigned long flags;
-	unsigned long sec = read_persistent_clock();
-
-	write_seqlock_irqsave(&xtime_lock, flags);
-
-	ntp_clear();
-
-	clock = clocksource_get_next();
-	clocksource_calculate_interval(clock, NTP_INTERVAL_LENGTH);
-	clock->cycle_last = clocksource_read(clock);
-
-	xtime.tv_sec = sec;
-	xtime.tv_nsec = 0;
-	set_normalized_timespec(&wall_to_monotonic,
-		-xtime.tv_sec, -xtime.tv_nsec);
-
-	write_sequnlock_irqrestore(&xtime_lock, flags);
-}
-
-/* flag for if timekeeping is suspended */
-static int timekeeping_suspended;
-/* time in seconds when suspend began */
-static unsigned long timekeeping_suspend_time;
-
-/**
- * timekeeping_resume - Resumes the generic timekeeping subsystem.
- * @dev:	unused
- *
- * This is for the generic clocksource timekeeping.
- * xtime/wall_to_monotonic/jiffies/etc are
- * still managed by arch specific suspend/resume code.
- */
-static int timekeeping_resume(struct sys_device *dev)
-{
-	unsigned long flags;
-	unsigned long now = read_persistent_clock();
-
-	write_seqlock_irqsave(&xtime_lock, flags);
-
-	if (now && (now > timekeeping_suspend_time)) {
-		unsigned long sleep_length = now - timekeeping_suspend_time;
-
-		xtime.tv_sec += sleep_length;
-		wall_to_monotonic.tv_sec -= sleep_length;
-	}
-	/* re-base the last cycle value */
-	clock->cycle_last = clocksource_read(clock);
-	clock->error = 0;
-	timekeeping_suspended = 0;
-	write_sequnlock_irqrestore(&xtime_lock, flags);
-
-	touch_softlockup_watchdog();
-
-	clockevents_notify(CLOCK_EVT_NOTIFY_RESUME, NULL);
-
-	/* Resume hrtimers */
-	hres_timers_resume();
-
-	return 0;
-}
-
-static int timekeeping_suspend(struct sys_device *dev, pm_message_t state)
-{
-	unsigned long flags;
-
-	write_seqlock_irqsave(&xtime_lock, flags);
-	timekeeping_suspended = 1;
-	timekeeping_suspend_time = read_persistent_clock();
-	write_sequnlock_irqrestore(&xtime_lock, flags);
-
-	clockevents_notify(CLOCK_EVT_NOTIFY_SUSPEND, NULL);
-
-	return 0;
-}
-
-/* sysfs resume/suspend bits for timekeeping */
-static struct sysdev_class timekeeping_sysclass = {
-	.resume		= timekeeping_resume,
-	.suspend	= timekeeping_suspend,
-	set_kset_name("timekeeping"),
-};
-
-static struct sys_device device_timer = {
-	.id		= 0,
-	.cls		= &timekeeping_sysclass,
-};
-
-static int __init timekeeping_init_device(void)
-{
-	int error = sysdev_class_register(&timekeeping_sysclass);
-	if (!error)
-		error = sysdev_register(&device_timer);
-	return error;
-}
-
-device_initcall(timekeeping_init_device);
-
-/*
- * If the error is already larger, we look ahead even further
- * to compensate for late or lost adjustments.
- */
-static __always_inline int clocksource_bigadjust(s64 error, s64 *interval,
-						 s64 *offset)
-{
-	s64 tick_error, i;
-	u32 look_ahead, adj;
-	s32 error2, mult;
-
-	/*
-	 * Use the current error value to determine how much to look ahead.
-	 * The larger the error the slower we adjust for it to avoid problems
-	 * with losing too many ticks, otherwise we would overadjust and
-	 * produce an even larger error.  The smaller the adjustment the
-	 * faster we try to adjust for it, as lost ticks can do less harm
-	 * here.  This is tuned so that an error of about 1 msec is adusted
-	 * within about 1 sec (or 2^20 nsec in 2^SHIFT_HZ ticks).
-	 */
-	error2 = clock->error >> (TICK_LENGTH_SHIFT + 22 - 2 * SHIFT_HZ);
-	error2 = abs(error2);
-	for (look_ahead = 0; error2 > 0; look_ahead++)
-		error2 >>= 2;
-
-	/*
-	 * Now calculate the error in (1 << look_ahead) ticks, but first
-	 * remove the single look ahead already included in the error.
-	 */
-	tick_error = current_tick_length() >>
-		(TICK_LENGTH_SHIFT - clock->shift + 1);
-	tick_error -= clock->xtime_interval >> 1;
-	error = ((error - tick_error) >> look_ahead) + tick_error;
-
-	/* Finally calculate the adjustment shift value.  */
-	i = *interval;
-	mult = 1;
-	if (error < 0) {
-		error = -error;
-		*interval = -*interval;
-		*offset = -*offset;
-		mult = -1;
-	}
-	for (adj = 0; error > i; adj++)
-		error >>= 1;
-
-	*interval <<= adj;
-	*offset <<= adj;
-	return mult << adj;
-}
-
-/*
- * Adjust the multiplier to reduce the error value,
- * this is optimized for the most common adjustments of -1,0,1,
- * for other values we can do a bit more work.
- */
-static void clocksource_adjust(struct clocksource *clock, s64 offset)
-{
-	s64 error, interval = clock->cycle_interval;
-	int adj;
-
-	error = clock->error >> (TICK_LENGTH_SHIFT - clock->shift - 1);
-	if (error > interval) {
-		error >>= 2;
-		if (likely(error <= interval))
-			adj = 1;
-		else
-			adj = clocksource_bigadjust(error, &interval, &offset);
-	} else if (error < -interval) {
-		error >>= 2;
-		if (likely(error >= -interval)) {
-			adj = -1;
-			interval = -interval;
-			offset = -offset;
-		} else
-			adj = clocksource_bigadjust(error, &interval, &offset);
-	} else
-		return;
-
-	clock->mult += adj;
-	clock->xtime_interval += interval;
-	clock->xtime_nsec -= offset;
-	clock->error -= (interval - offset) <<
-			(TICK_LENGTH_SHIFT - clock->shift);
-}
-
-/**
- * update_wall_time - Uses the current clocksource to increment the wall time
- *
- * Called from the timer interrupt, must hold a write on xtime_lock.
- */
-static void update_wall_time(void)
-{
-	cycle_t offset;
-
-	/* Make sure we're fully resumed: */
-	if (unlikely(timekeeping_suspended))
-		return;
-
-#ifdef CONFIG_GENERIC_TIME
-	offset = (clocksource_read(clock) - clock->cycle_last) & clock->mask;
-#else
-	offset = clock->cycle_interval;
-#endif
-	clock->xtime_nsec += (s64)xtime.tv_nsec << clock->shift;
-
-	/* normally this loop will run just once, however in the
-	 * case of lost or late ticks, it will accumulate correctly.
-	 */
-	while (offset >= clock->cycle_interval) {
-		/* accumulate one interval */
-		clock->xtime_nsec += clock->xtime_interval;
-		clock->cycle_last += clock->cycle_interval;
-		offset -= clock->cycle_interval;
-
-		if (clock->xtime_nsec >= (u64)NSEC_PER_SEC << clock->shift) {
-			clock->xtime_nsec -= (u64)NSEC_PER_SEC << clock->shift;
-			xtime.tv_sec++;
-			second_overflow();
-		}
-
-		/* interpolator bits */
-		time_interpolator_update(clock->xtime_interval
-						>> clock->shift);
-
-		/* accumulate error between NTP and clock interval */
-		clock->error += current_tick_length();
-		clock->error -= clock->xtime_interval << (TICK_LENGTH_SHIFT - clock->shift);
-	}
-
-	/* correct the clock when NTP error is too big */
-	clocksource_adjust(clock, offset);
-
-	/* store full nanoseconds into xtime */
-	xtime.tv_nsec = (s64)clock->xtime_nsec >> clock->shift;
-	clock->xtime_nsec -= (s64)xtime.tv_nsec << clock->shift;
-
-	/* check to see if there is a new clocksource to use */
-	change_clocksource();
-	update_vsyscall(&xtime, clock);
-}
-
 /*
  * Called from the timer interrupt handler to charge one tick to the current 
  * process.  user_tick is 1 if the tick is user time, 0 for system.
@@ -1262,14 +855,6 @@ static inline void calc_load(unsigned long ticks)
 		} while (count < 0);
 	}
 }
-
-/*
- * This read-write spinlock protects us from races in SMP while
- * playing with xtime and avenrun.
- */
-__attribute__((weak)) __cacheline_aligned_in_smp DEFINE_SEQLOCK(xtime_lock);
-
-EXPORT_SYMBOL(xtime_lock);
 
 /*
  * This function runs timers and the timer-tq in bottom half context.
@@ -1617,6 +1202,13 @@ static int __devinit init_timers_cpu(int cpu)
 						cpu_to_node(cpu));
 			if (!base)
 				return -ENOMEM;
+
+			/* Make sure that tvec_base is 2 byte aligned */
+			if (tbase_get_deferrable(base)) {
+				WARN_ON(1);
+				kfree(base);
+				return -ENOMEM;
+			}
 			memset(base, 0, sizeof(*base));
 			per_cpu(tvec_bases, cpu) = base;
 		} else {
@@ -1656,9 +1248,9 @@ static void migrate_timer_list(tvec_base_t *new_base, struct list_head *head)
 	struct timer_list *timer;
 
 	while (!list_empty(head)) {
-		timer = list_entry(head->next, struct timer_list, entry);
+		timer = list_first_entry(head, struct timer_list, entry);
 		detach_timer(timer, 0);
-		timer->base = new_base;
+		timer_set_base(timer, new_base);
 		internal_add_timer(new_base, timer);
 	}
 }
@@ -1701,11 +1293,13 @@ static int __cpuinit timer_cpu_notify(struct notifier_block *self,
 	long cpu = (long)hcpu;
 	switch(action) {
 	case CPU_UP_PREPARE:
+	case CPU_UP_PREPARE_FROZEN:
 		if (init_timers_cpu(cpu) < 0)
 			return NOTIFY_BAD;
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
 		migrate_timers(cpu);
 		break;
 #endif
@@ -1904,6 +1498,8 @@ unregister_time_interpolator(struct time_interpolator *ti)
 		}
 		prev = &curr->next;
 	}
+
+	clocksource_resume();
 
 	write_seqlock_irqsave(&xtime_lock, flags);
 	if (ti == time_interpolator) {

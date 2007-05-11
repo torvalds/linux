@@ -18,7 +18,7 @@
 
 #include "clock.h"
 
-static spinlock_t clk_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(clk_lock);
 
 struct clk *clk_get(struct device *dev, const char *id)
 {

@@ -802,9 +802,8 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 
 		valid_digits++;
 
-		if (sign_of0x
-		    && ((valid_digits > 16)
-			|| ((valid_digits > 8) && mode32))) {
+		if (sign_of0x && ((valid_digits > 16)
+				  || ((valid_digits > 8) && mode32))) {
 			/*
 			 * This is to_integer operation case.
 			 * No any restrictions for string-to-integer conversion,
@@ -1049,6 +1048,7 @@ acpi_ut_exception(char *module_name,
 	acpi_os_vprintf(format, args);
 	acpi_os_printf(" [%X]\n", ACPI_CA_VERSION);
 }
+
 EXPORT_SYMBOL(acpi_ut_exception);
 
 void ACPI_INTERNAL_VAR_XFACE

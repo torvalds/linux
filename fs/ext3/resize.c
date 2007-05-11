@@ -11,7 +11,6 @@
 
 #define EXT3FS_DEBUG
 
-#include <linux/smp_lock.h>
 #include <linux/ext3_jbd.h>
 
 #include <linux/errno.h>

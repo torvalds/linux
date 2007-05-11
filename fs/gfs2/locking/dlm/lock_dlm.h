@@ -36,7 +36,7 @@
 
 #define GDLM_STRNAME_BYTES	24
 #define GDLM_LVB_SIZE		32
-#define GDLM_DROP_COUNT		200000
+#define GDLM_DROP_COUNT		0
 #define GDLM_DROP_PERIOD	60
 #define GDLM_NAME_LEN		128
 
@@ -106,6 +106,7 @@ enum {
 struct gdlm_lock {
 	struct gdlm_ls		*ls;
 	struct lm_lockname	lockname;
+	struct gdlm_strname	strname;
 	char			*lvb;
 	struct dlm_lksb		lksb;
 

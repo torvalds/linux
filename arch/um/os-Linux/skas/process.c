@@ -18,7 +18,6 @@
 #include <asm/types.h>
 #include "user.h"
 #include "sysdep/ptrace.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "skas.h"
 #include "stub-data.h"
@@ -34,6 +33,8 @@
 #include "uml-config.h"
 #include "process.h"
 #include "longjmp.h"
+#include "kern_constants.h"
+#include "as-layout.h"
 
 int is_skas_winch(int pid, int fd, void *data)
 {
@@ -44,45 +45,58 @@ int is_skas_winch(int pid, int fd, void *data)
 	return(1);
 }
 
-void wait_stub_done(int pid, int sig, char * fname)
+static int ptrace_dump_regs(int pid)
+{
+        unsigned long regs[MAX_REG_NR];
+        int i;
+
+        if(ptrace(PTRACE_GETREGS, pid, 0, regs) < 0)
+                return -errno;
+        else {
+                printk("Stub registers -\n");
+                for(i = 0; i < ARRAY_SIZE(regs); i++)
+                        printk("\t%d - %lx\n", i, regs[i]);
+        }
+
+        return 0;
+}
+
+/*
+ * Signals that are OK to receive in the stub - we'll just continue it.
+ * SIGWINCH will happen when UML is inside a detached screen.
+ */
+#define STUB_SIG_MASK ((1 << SIGVTALRM) | (1 << SIGWINCH))
+
+/* Signals that the stub will finish with - anything else is an error */
+#define STUB_DONE_MASK ((1 << SIGUSR1) | (1 << SIGTRAP))
+
+void wait_stub_done(int pid)
 {
 	int n, status, err;
 
-	do {
-		if ( sig != -1 ) {
-			err = ptrace(PTRACE_CONT, pid, 0, sig);
-			if(err)
-				panic("%s : continue failed, errno = %d\n",
-				      fname, errno);
-		}
-		sig = 0;
-
+	while(1){
 		CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED));
-	} while((n >= 0) && WIFSTOPPED(status) &&
-	        ((WSTOPSIG(status) == SIGVTALRM) ||
-		 /* running UML inside a detached screen can cause
-		  * SIGWINCHes
-		  */
-		 (WSTOPSIG(status) == SIGWINCH)));
+		if((n < 0) || !WIFSTOPPED(status))
+			goto bad_wait;
 
-	if((n < 0) || !WIFSTOPPED(status) ||
-	   (WSTOPSIG(status) != SIGUSR1 && WSTOPSIG(status) != SIGTRAP)){
-		unsigned long regs[MAX_REG_NR];
+		if(((1 << WSTOPSIG(status)) & STUB_SIG_MASK) == 0)
+			break;
 
-		if(ptrace(PTRACE_GETREGS, pid, 0, regs) < 0)
-			printk("Failed to get registers from stub, "
-			       "errno = %d\n", errno);
-		else {
-			int i;
-
-			printk("Stub registers -\n");
-			for(i = 0; i < ARRAY_SIZE(regs); i++)
-				printk("\t%d - %lx\n", i, regs[i]);
-		}
-		panic("%s : failed to wait for SIGUSR1/SIGTRAP, "
-		      "pid = %d, n = %d, errno = %d, status = 0x%x\n",
-		      fname, pid, n, errno, status);
+		err = ptrace(PTRACE_CONT, pid, 0, 0);
+		if(err)
+			panic("wait_stub_done : continue failed, errno = %d\n",
+			      errno);
 	}
+
+	if(((1 << WSTOPSIG(status)) & STUB_DONE_MASK) != 0)
+		return;
+
+bad_wait:
+	err = ptrace_dump_regs(pid);
+	if(err)
+		printk("Failed to get registers from stub, errno = %d\n", -err);
+	panic("wait_stub_done : failed to wait for SIGUSR1/SIGTRAP, pid = %d, "
+	      "n = %d, errno = %d, status = 0x%x\n", pid, n, errno, status);
 }
 
 extern unsigned long current_stub_stack(void);
@@ -104,7 +118,11 @@ void get_skas_faultinfo(int pid, struct faultinfo * fi)
 			       sizeof(struct ptrace_faultinfo));
 	}
 	else {
-		wait_stub_done(pid, SIGSEGV, "get_skas_faultinfo");
+		err = ptrace(PTRACE_CONT, pid, 0, SIGSEGV);
+		if(err)
+			panic("Failed to continue stub, pid = %d, errno = %d\n",
+			      pid, errno);
+		wait_stub_done(pid);
 
 		/* faultinfo is prepared by the stub-segv-handler at start of
 		 * the stub stack page. We just have to copy it.
@@ -142,9 +160,14 @@ static void handle_trap(int pid, union uml_pt_regs *regs, int local_using_sysemu
 
 		CATCH_EINTR(err = waitpid(pid, &status, WUNTRACED));
 		if((err < 0) || !WIFSTOPPED(status) ||
-		   (WSTOPSIG(status) != SIGTRAP + 0x80))
+		   (WSTOPSIG(status) != SIGTRAP + 0x80)){
+                        err = ptrace_dump_regs(pid);
+                        if(err)
+                                printk("Failed to get registers from process, "
+                                       "errno = %d\n", -err);
 			panic("handle_trap - failed to wait at end of syscall, "
 			      "errno = %d, status = %d\n", errno, status);
+                }
 	}
 
 	handle_syscall(regs);
@@ -172,7 +195,7 @@ static int userspace_tramp(void *stack)
 		int fd;
 		__u64 offset;
 		fd = phys_mapping(to_phys(&__syscall_stub_start), &offset);
-		addr = mmap64((void *) UML_CONFIG_STUB_CODE, page_size(),
+		addr = mmap64((void *) UML_CONFIG_STUB_CODE, UM_KERN_PAGE_SIZE,
 			      PROT_EXEC, MAP_FIXED | MAP_PRIVATE, fd, offset);
 		if(addr == MAP_FAILED){
 			printk("mapping mmap stub failed, errno = %d\n",
@@ -182,8 +205,8 @@ static int userspace_tramp(void *stack)
 
 		if(stack != NULL){
 			fd = phys_mapping(to_phys(stack), &offset);
-			addr = mmap((void *) UML_CONFIG_STUB_DATA, page_size(),
-				    PROT_READ | PROT_WRITE,
+			addr = mmap((void *) UML_CONFIG_STUB_DATA,
+				    UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
 				    MAP_FIXED | MAP_SHARED, fd, offset);
 			if(addr == MAP_FAILED){
 				printk("mapping segfault stack failed, "
@@ -199,7 +222,7 @@ static int userspace_tramp(void *stack)
 				  (unsigned long) stub_segv_handler -
 				  (unsigned long) &__syscall_stub_start;
 
-		set_sigstack((void *) UML_CONFIG_STUB_DATA, page_size());
+		set_sigstack((void *) UML_CONFIG_STUB_DATA, UM_KERN_PAGE_SIZE);
 		sigemptyset(&sa.sa_mask);
 		sigaddset(&sa.sa_mask, SIGIO);
 		sigaddset(&sa.sa_mask, SIGWINCH);
@@ -265,7 +288,8 @@ int start_userspace(unsigned long stub_stack)
 void userspace(union uml_pt_regs *regs)
 {
 	int err, status, op, pid = userspace_pid[0];
-	int local_using_sysemu; /*To prevent races if using_sysemu changes under us.*/
+	/* To prevent races if using_sysemu changes under us.*/
+	int local_using_sysemu;
 
 	while(1){
 		restore_registers(pid, regs);
@@ -273,7 +297,8 @@ void userspace(union uml_pt_regs *regs)
 		/* Now we set local_using_sysemu to be used for one loop */
 		local_using_sysemu = get_using_sysemu();
 
-		op = SELECT_PTRACE_OPERATION(local_using_sysemu, singlestepping(NULL));
+		op = SELECT_PTRACE_OPERATION(local_using_sysemu,
+					     singlestepping(NULL));
 
 		err = ptrace(op, pid, 0, 0);
 		if(err)
@@ -291,10 +316,13 @@ void userspace(union uml_pt_regs *regs)
 		UPT_SYSCALL_NR(regs) = -1; /* Assume: It's not a syscall */
 
 		if(WIFSTOPPED(status)){
-		  	switch(WSTOPSIG(status)){
+			int sig = WSTOPSIG(status);
+		  	switch(sig){
 			case SIGSEGV:
-				if(PTRACE_FULL_FAULTINFO || !ptrace_faultinfo)
-					user_signal(SIGSEGV, regs, pid);
+				if(PTRACE_FULL_FAULTINFO || !ptrace_faultinfo){
+					get_skas_faultinfo(pid, &regs->skas.faultinfo);
+					(*sig_info[SIGSEGV])(SIGSEGV, regs);
+				}
 				else handle_segv(pid, regs);
 				break;
 			case SIGTRAP + 0x80:
@@ -309,11 +337,13 @@ void userspace(union uml_pt_regs *regs)
 			case SIGBUS:
 			case SIGFPE:
 			case SIGWINCH:
-				user_signal(WSTOPSIG(status), regs, pid);
+				block_signals();
+				(*sig_info[sig])(sig, regs);
+				unblock_signals();
 				break;
 			default:
 			        printk("userspace - child stopped with signal "
-				       "%d\n", WSTOPSIG(status));
+				       "%d\n", sig);
 			}
 			pid = userspace_pid[0];
 			interrupt_end();
@@ -325,11 +355,29 @@ void userspace(union uml_pt_regs *regs)
 	}
 }
 
+static unsigned long thread_regs[MAX_REG_NR];
+static unsigned long thread_fp_regs[HOST_FP_SIZE];
+
+static int __init init_thread_regs(void)
+{
+	get_safe_registers(thread_regs, thread_fp_regs);
+	/* Set parent's instruction pointer to start of clone-stub */
+	thread_regs[REGS_IP_INDEX] = UML_CONFIG_STUB_CODE +
+				(unsigned long) stub_clone_handler -
+				(unsigned long) &__syscall_stub_start;
+	thread_regs[REGS_SP_INDEX] = UML_CONFIG_STUB_DATA + PAGE_SIZE -
+		sizeof(void *);
+#ifdef __SIGNAL_FRAMESIZE
+	thread_regs[REGS_SP_INDEX] -= __SIGNAL_FRAMESIZE;
+#endif
+	return 0;
+}
+
+__initcall(init_thread_regs);
+
 int copy_context_skas0(unsigned long new_stack, int pid)
 {
 	int err;
-	unsigned long regs[MAX_REG_NR];
-	unsigned long fp_regs[HOST_FP_SIZE];
 	unsigned long current_stack = current_stub_stack();
 	struct stub_data *data = (struct stub_data *) current_stack;
 	struct stub_data *child_data = (struct stub_data *) new_stack;
@@ -344,23 +392,12 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 				      .timer    = ((struct itimerval)
 					            { { 0, 1000000 / hz() },
 						      { 0, 1000000 / hz() }})});
-	get_safe_registers(regs, fp_regs);
-
-	/* Set parent's instruction pointer to start of clone-stub */
-	regs[REGS_IP_INDEX] = UML_CONFIG_STUB_CODE +
-				(unsigned long) stub_clone_handler -
-				(unsigned long) &__syscall_stub_start;
-	regs[REGS_SP_INDEX] = UML_CONFIG_STUB_DATA + PAGE_SIZE -
-		sizeof(void *);
-#ifdef __SIGNAL_FRAMESIZE
-	regs[REGS_SP_INDEX] -= __SIGNAL_FRAMESIZE;
-#endif
-	err = ptrace_setregs(pid, regs);
+	err = ptrace_setregs(pid, thread_regs);
 	if(err < 0)
 		panic("copy_context_skas0 : PTRACE_SETREGS failed, "
 		      "pid = %d, errno = %d\n", pid, -err);
 
-	err = ptrace_setfpregs(pid, fp_regs);
+	err = ptrace_setfpregs(pid, thread_fp_regs);
 	if(err < 0)
 		panic("copy_context_skas0 : PTRACE_SETFPREGS failed, "
 		      "pid = %d, errno = %d\n", pid, -err);
@@ -371,7 +408,11 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	/* Wait, until parent has finished its work: read child's pid from
 	 * parent's stack, and check, if bad result.
 	 */
-	wait_stub_done(pid, 0, "copy_context_skas0");
+	err = ptrace(PTRACE_CONT, pid, 0, 0);
+	if(err)
+		panic("Failed to continue new process, pid = %d, "
+		      "errno = %d\n", pid, errno);
+	wait_stub_done(pid);
 
 	pid = data->err;
 	if(pid < 0)
@@ -381,7 +422,7 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	/* Wait, until child has finished too: read child's result from
 	 * child's stack and check it.
 	 */
-	wait_stub_done(pid, -1, "copy_context_skas0");
+	wait_stub_done(pid);
 	if (child_data->err != UML_CONFIG_STUB_DATA)
 		panic("copy_context_skas0 - stub-child reports error %ld\n",
 		      child_data->err);
@@ -396,7 +437,7 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 
 /*
  * This is used only, if stub pages are needed, while proc_mm is
- * availabl. Opening /proc/mm creates a new mm_context, which lacks
+ * available. Opening /proc/mm creates a new mm_context, which lacks
  * the stub-pages. Thus, we map them using /proc/mm-fd
  */
 void map_stub_pages(int fd, unsigned long code,
@@ -418,12 +459,13 @@ void map_stub_pages(int fd, unsigned long code,
 					  .fd      = code_fd,
 					  .offset  = code_offset
 	} } });
-	n = os_write_file(fd, &mmop, sizeof(mmop));
+	CATCH_EINTR(n = write(fd, &mmop, sizeof(mmop)));
 	if(n != sizeof(mmop)){
+		n = errno;
 		printk("mmap args - addr = 0x%lx, fd = %d, offset = %llx\n",
 		       code, code_fd, (unsigned long long) code_offset);
 		panic("map_stub_pages : /proc/mm map for code failed, "
-		      "err = %d\n", -n);
+		      "err = %d\n", n);
 	}
 
 	if ( stack ) {
@@ -440,18 +482,18 @@ void map_stub_pages(int fd, unsigned long code,
 				      .fd      = map_fd,
 				      .offset  = map_offset
 		} } });
-		n = os_write_file(fd, &mmop, sizeof(mmop));
+		CATCH_EINTR(n = write(fd, &mmop, sizeof(mmop)));
 		if(n != sizeof(mmop))
 			panic("map_stub_pages : /proc/mm map for data failed, "
-			      "err = %d\n", -n);
+			      "err = %d\n", errno);
 	}
 }
 
 void new_thread(void *stack, jmp_buf *buf, void (*handler)(void))
 {
 	(*buf)[0].JB_IP = (unsigned long) handler;
-	(*buf)[0].JB_SP = (unsigned long) stack +
-		(PAGE_SIZE << UML_CONFIG_KERNEL_STACK_ORDER) - sizeof(void *);
+	(*buf)[0].JB_SP = (unsigned long) stack + UM_THREAD_SIZE -
+		sizeof(void *);
 }
 
 #define INIT_JMP_NEW_THREAD 0
@@ -480,17 +522,24 @@ int start_idle_thread(void *stack, jmp_buf *switch_buf)
 		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGALRM,
 		    SIGVTALRM, -1);
 
-	n = UML_SETJMP(&initial_jmpbuf);
+	/*
+	 * Can't use UML_SETJMP or UML_LONGJMP here because they save
+	 * and restore signals, with the possible side-effect of
+	 * trying to handle any signals which came when they were
+	 * blocked, which can't be done on this stack.
+	 * Signals must be blocked when jumping back here and restored
+	 * after returning to the jumper.
+	 */
+	n = setjmp(initial_jmpbuf);
 	switch(n){
 	case INIT_JMP_NEW_THREAD:
 		(*switch_buf)[0].JB_IP = (unsigned long) new_thread_handler;
 		(*switch_buf)[0].JB_SP = (unsigned long) stack +
-			(PAGE_SIZE << UML_CONFIG_KERNEL_STACK_ORDER) -
-			sizeof(void *);
+			UM_THREAD_SIZE - sizeof(void *);
 		break;
 	case INIT_JMP_CALLBACK:
 		(*cb_proc)(cb_arg);
-		UML_LONGJMP(cb_back, 1);
+		longjmp(*cb_back, 1);
 		break;
 	case INIT_JMP_HALT:
 		kmalloc_ok = 0;
@@ -501,7 +550,7 @@ int start_idle_thread(void *stack, jmp_buf *switch_buf)
 	default:
 		panic("Bad sigsetjmp return in start_idle_thread - %d\n", n);
 	}
-	UML_LONGJMP(switch_buf, 1);
+	longjmp(*switch_buf, 1);
 }
 
 void initial_thread_cb_skas(void (*proc)(void *), void *arg)
@@ -538,7 +587,7 @@ void switch_mm_skas(struct mm_id *mm_idp)
 {
 	int err;
 
-#warning need cpu pid in switch_mm_skas
+	/* FIXME: need cpu pid in switch_mm_skas */
 	if(proc_mm){
 		err = ptrace(PTRACE_SWITCH_MM, userspace_pid[0], 0,
 			     mm_idp->u.mm_fd);

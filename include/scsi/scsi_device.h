@@ -5,6 +5,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/blkdev.h>
 #include <asm/atomic.h>
 
 struct request_queue;
@@ -119,6 +120,7 @@ struct scsi_device {
 	unsigned use_192_bytes_for_3f:1; /* ask for 192 bytes from page 0x3f */
 	unsigned no_start_on_add:1;	/* do not issue start on add */
 	unsigned allow_restart:1; /* issue START_UNIT in error handler */
+	unsigned manage_start_stop:1;	/* Let HLD (sd) manage start/stop */
 	unsigned no_uld_attach:1; /* disable connecting to upper level drivers */
 	unsigned select_no_atn:1;
 	unsigned fix_capacity:1;	/* READ_CAPACITY is too high by 1 */
@@ -154,8 +156,11 @@ struct scsi_device {
 #define sdev_printk(prefix, sdev, fmt, a...)	\
 	dev_printk(prefix, &(sdev)->sdev_gendev, fmt, ##a)
 
-#define scmd_printk(prefix, scmd, fmt, a...)	\
-	dev_printk(prefix, &(scmd)->device->sdev_gendev, fmt, ##a)
+#define scmd_printk(prefix, scmd, fmt, a...)				\
+        (scmd)->request->rq_disk ?					\
+	sdev_printk(prefix, (scmd)->device, "[%s] " fmt,		\
+		    (scmd)->request->rq_disk->disk_name, ##a) :		\
+	sdev_printk(prefix, (scmd)->device, fmt, ##a)
 
 enum scsi_target_state {
 	STARGET_RUNNING = 1,
@@ -353,4 +358,9 @@ static inline int scsi_device_qas(struct scsi_device *sdev)
 		return 0;
 	return sdev->inquiry[56] & 0x02;
 }
+
+#define MODULE_ALIAS_SCSI_DEVICE(type) \
+	MODULE_ALIAS("scsi:t-" __stringify(type) "*")
+#define SCSI_DEVICE_MODALIAS_FMT "scsi:t-0x%02x"
+
 #endif /* _SCSI_SCSI_DEVICE_H */

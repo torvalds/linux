@@ -101,19 +101,6 @@ static void add_dr(struct device *dev, struct devres_node *node)
 	list_add_tail(&node->entry, &dev->devres_head);
 }
 
-/**
- * devres_alloc - Allocate device resource data
- * @release: Release function devres will be associated with
- * @size: Allocation size
- * @gfp: Allocation flags
- *
- * allocate devres of @size bytes.  The allocated area is zeroed, then
- * associated with @release.  The returned pointer can be passed to
- * other devres_*() functions.
- *
- * RETURNS:
- * Pointer to allocated devres on success, NULL on failure.
- */
 #ifdef CONFIG_DEBUG_DEVRES
 void * __devres_alloc(dr_release_t release, size_t size, gfp_t gfp,
 		      const char *name)
@@ -128,6 +115,19 @@ void * __devres_alloc(dr_release_t release, size_t size, gfp_t gfp,
 }
 EXPORT_SYMBOL_GPL(__devres_alloc);
 #else
+/**
+ * devres_alloc - Allocate device resource data
+ * @release: Release function devres will be associated with
+ * @size: Allocation size
+ * @gfp: Allocation flags
+ *
+ * Allocate devres of @size bytes.  The allocated area is zeroed, then
+ * associated with @release.  The returned pointer can be passed to
+ * other devres_*() functions.
+ *
+ * RETURNS:
+ * Pointer to allocated devres on success, NULL on failure.
+ */
 void * devres_alloc(dr_release_t release, size_t size, gfp_t gfp)
 {
 	struct devres *dr;
@@ -416,7 +416,7 @@ static int release_nodes(struct device *dev, struct list_head *first,
 }
 
 /**
- * devres_release_all - Release all resources
+ * devres_release_all - Release all managed resources
  * @dev: Device to release resources for
  *
  * Release all resources associated with @dev.  This function is
@@ -600,7 +600,7 @@ static int devm_kzalloc_match(struct device *dev, void *res, void *data)
 }
 
 /**
- * devm_kzalloc - Managed kzalloc
+ * devm_kzalloc - Resource-managed kzalloc
  * @dev: Device to allocate memory for
  * @size: Allocation size
  * @gfp: Allocation gfp flags
@@ -628,7 +628,7 @@ void * devm_kzalloc(struct device *dev, size_t size, gfp_t gfp)
 EXPORT_SYMBOL_GPL(devm_kzalloc);
 
 /**
- * devm_kfree - Managed kfree
+ * devm_kfree - Resource-managed kfree
  * @dev: Device this memory belongs to
  * @p: Memory to free
  *

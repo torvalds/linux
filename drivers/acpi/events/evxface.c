@@ -91,7 +91,6 @@ acpi_status acpi_install_exception_handler(acpi_exception_handler handler)
 
 ACPI_EXPORT_SYMBOL(acpi_install_exception_handler)
 #endif				/*  ACPI_FUTURE_USAGE  */
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_install_fixed_event_handler
@@ -768,11 +767,9 @@ acpi_status acpi_acquire_global_lock(u16 timeout, u32 * handle)
 		return (AE_BAD_PARAMETER);
 	}
 
-	status = acpi_ex_enter_interpreter();
-	if (ACPI_FAILURE(status)) {
-		return (status);
-	}
+	/* Must lock interpreter to prevent race conditions */
 
+	acpi_ex_enter_interpreter();
 	status = acpi_ev_acquire_global_lock(timeout);
 	acpi_ex_exit_interpreter();
 

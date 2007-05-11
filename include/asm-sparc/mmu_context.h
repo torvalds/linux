@@ -5,6 +5,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm-generic/mm_hooks.h>
+
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
 }

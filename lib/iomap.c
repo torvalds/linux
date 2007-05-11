@@ -35,20 +35,28 @@
 #define PIO_RESERVED	0x40000UL
 #endif
 
+static void bad_io_access(unsigned long port, const char *access)
+{
+	static int count = 10;
+	if (count) {
+		count--;
+		printk(KERN_ERR "Bad IO access at port %lx (%s)\n", port, access);
+		WARN_ON(1);
+	}
+}
+
 /*
  * Ugly macros are a way of life.
  */
-#define VERIFY_PIO(port) BUG_ON((port & ~PIO_MASK) != PIO_OFFSET)
-
 #define IO_COND(addr, is_pio, is_mmio) do {			\
 	unsigned long port = (unsigned long __force)addr;	\
-	if (port < PIO_RESERVED) {				\
-		VERIFY_PIO(port);				\
+	if (port >= PIO_RESERVED) {				\
+		is_mmio;					\
+	} else if (port > PIO_OFFSET) {				\
 		port &= PIO_MASK;				\
 		is_pio;						\
-	} else {						\
-		is_mmio;					\
-	}							\
+	} else							\
+		bad_io_access(port, #is_pio );			\
 } while (0)
 
 #ifndef pio_read16be
@@ -64,22 +72,27 @@
 unsigned int fastcall ioread8(void __iomem *addr)
 {
 	IO_COND(addr, return inb(port), return readb(addr));
+	return 0xff;
 }
 unsigned int fastcall ioread16(void __iomem *addr)
 {
 	IO_COND(addr, return inw(port), return readw(addr));
+	return 0xffff;
 }
 unsigned int fastcall ioread16be(void __iomem *addr)
 {
 	IO_COND(addr, return pio_read16be(port), return mmio_read16be(addr));
+	return 0xffff;
 }
 unsigned int fastcall ioread32(void __iomem *addr)
 {
 	IO_COND(addr, return inl(port), return readl(addr));
+	return 0xffffffff;
 }
 unsigned int fastcall ioread32be(void __iomem *addr)
 {
 	IO_COND(addr, return pio_read32be(port), return mmio_read32be(addr));
+	return 0xffffffff;
 }
 EXPORT_SYMBOL(ioread8);
 EXPORT_SYMBOL(ioread16);

@@ -16,11 +16,10 @@
 #include <asm/uaccess.h>
 #include <linux/reiserfs_fs.h>
 #include <linux/reiserfs_fs_sb.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 
-#if defined( REISERFS_PROC_INFO )
+#ifdef CONFIG_REISERFS_PROC_INFO
 
 /*
  * LOCKING:

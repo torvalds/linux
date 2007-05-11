@@ -1,4 +1,4 @@
-Revision 6, 2005-11-20
+Revision 7, 2007-04-19
 Jean Delvare <khali@linux-fr.org>
 Greg KH <greg@kroah.com>
 
@@ -20,6 +20,10 @@ yours for best results.
 
 Technical changes:
 
+* [Driver type] Any driver that was relying on i2c-isa has to be
+  converted to a proper isa, platform or pci driver. This is not
+  covered by this guide.
+
 * [Includes] Get rid of "version.h" and <linux/i2c-proc.h>.
   Includes typically look like that:
   #include <linux/module.h>
@@ -27,12 +31,10 @@ Technical changes:
   #include <linux/slab.h>
   #include <linux/jiffies.h>
   #include <linux/i2c.h>
-  #include <linux/i2c-isa.h>	/* for ISA drivers */
   #include <linux/hwmon.h>	/* for hardware monitoring drivers */
   #include <linux/hwmon-sysfs.h>
   #include <linux/hwmon-vid.h>	/* if you need VRM support */
   #include <linux/err.h>	/* for class registration */
-  #include <asm/io.h>		/* if you have I/O operations */
   Please respect this inclusion order. Some extra headers may be
   required for a given driver (e.g. "lm75.h").
 
@@ -69,20 +71,16 @@ Technical changes:
   sensors mailing list <lm-sensors@lm-sensors.org> by providing a
   patch to the Documentation/hwmon/sysfs-interface file.
 
-* [Attach] For I2C drivers, the attach function should make sure
-  that the adapter's class has I2C_CLASS_HWMON (or whatever class is
-  suitable for your driver), using the following construct:
+* [Attach] The attach function should make sure that the adapter's
+  class has I2C_CLASS_HWMON (or whatever class is suitable for your
+  driver), using the following construct:
   if (!(adapter->class & I2C_CLASS_HWMON))
           return 0;
-  ISA-only drivers of course don't need this.
   Call i2c_probe() instead of i2c_detect().
 
 * [Detect] As mentioned earlier, the flags parameter is gone.
   The type_name and client_name strings are replaced by a single
   name string, which will be filled with a lowercase, short string.
-  In i2c-only drivers, drop the i2c_is_isa_adapter check, it's
-  useless. Same for isa-only drivers, as the test would always be
-  true. Only hybrid drivers (which are quite rare) still need it.
   The labels used for error paths are reduced to the number needed.
   It is advised that the labels are given descriptive names such as
   exit and exit_free. Don't forget to properly set err before

@@ -279,6 +279,10 @@ struct parport {
 	int dma;
 	int muxport;		/* which muxport (if any) this is */
 	int portnum;		/* which physical parallel port (not mux) */
+	struct device *dev;	/* Physical device associated with IO/DMA.
+				 * This may unfortulately be null if the
+				 * port has a legacy driver.
+				 */
 
 	struct parport *physport;
 				/* If this is a non-default mux
@@ -289,7 +293,7 @@ struct parport {
 				   following structure members are
 				   meaningless: devices, cad, muxsel,
 				   waithead, waittail, flags, pdir,
-				   ieee1284, *_lock.
+				   dev, ieee1284, *_lock.
 
 				   It this is a default mux parport, or
 				   there is no mux involved, this points to
@@ -302,7 +306,7 @@ struct parport {
 
 	struct pardevice *waithead;
 	struct pardevice *waittail;
-	
+
 	struct list_head list;
 	unsigned int flags;
 

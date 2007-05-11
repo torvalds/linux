@@ -6,7 +6,6 @@
 
 #include <linux/module.h> 
 #include <linux/types.h>
-#include <linux/smp_lock.h>
 #include <linux/utsname.h>
 #include <linux/limits.h>
 #include <linux/mm.h>

@@ -253,7 +253,6 @@ static inline unsigned long xchg64(__volatile__ unsigned long *m, unsigned long 
 }
 
 #define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
-#define tas(ptr) (xchg((ptr),1))
 
 extern void __xchg_called_with_bad_pointer(void);
 

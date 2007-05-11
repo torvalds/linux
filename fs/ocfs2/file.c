@@ -207,10 +207,10 @@ out:
 	return ret;
 }
 
-int ocfs2_set_inode_size(handle_t *handle,
-			 struct inode *inode,
-			 struct buffer_head *fe_bh,
-			 u64 new_i_size)
+static int ocfs2_set_inode_size(handle_t *handle,
+				struct inode *inode,
+				struct buffer_head *fe_bh,
+				u64 new_i_size)
 {
 	int status;
 
@@ -713,7 +713,8 @@ restarted_transaction:
 	}
 
 	mlog(0, "fe: i_clusters = %u, i_size=%llu\n",
-	     fe->i_clusters, (unsigned long long)fe->i_size);
+	     le32_to_cpu(fe->i_clusters),
+	     (unsigned long long)le64_to_cpu(fe->i_size));
 	mlog(0, "inode: ip_clusters=%u, i_size=%lld\n",
 	     OCFS2_I(inode)->ip_clusters, i_size_read(inode));
 
@@ -1853,6 +1854,9 @@ const struct file_operations ocfs2_fops = {
 	.aio_read	= ocfs2_file_aio_read,
 	.aio_write	= ocfs2_file_aio_write,
 	.ioctl		= ocfs2_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = ocfs2_compat_ioctl,
+#endif
 	.splice_read	= ocfs2_file_splice_read,
 	.splice_write	= ocfs2_file_splice_write,
 };
@@ -1862,4 +1866,7 @@ const struct file_operations ocfs2_dops = {
 	.readdir	= ocfs2_readdir,
 	.fsync		= ocfs2_sync_file,
 	.ioctl		= ocfs2_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = ocfs2_compat_ioctl,
+#endif
 };

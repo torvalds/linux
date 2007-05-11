@@ -65,7 +65,7 @@ static const struct svga_fb_format s3fb_formats[] = {
 
 
 static const struct svga_pll s3_pll = {3, 129, 3, 33, 0, 3,
-	60000, 240000, 14318};
+	35000, 240000, 14318};
 
 static const int s3_memsizes[] = {4096, 0, 3072, 8192, 2048, 6144, 1024, 512};
 
@@ -164,7 +164,7 @@ MODULE_PARM_DESC(fasttext, "Enable S3 fast text mode (1=enable, 0=disable, defau
 static void s3fb_settile_fast(struct fb_info *info, struct fb_tilemap *map)
 {
 	const u8 *font = map->data;
-	u8* fb = (u8 *) info->screen_base;
+	u8 __iomem *fb = (u8 __iomem *) info->screen_base;
 	int i, c;
 
 	if ((map->width != 8) || (map->height != 16) ||
@@ -177,13 +177,11 @@ static void s3fb_settile_fast(struct fb_info *info, struct fb_tilemap *map)
 	fb += 2;
 	for (i = 0; i < map->height; i++) {
 		for (c = 0; c < map->length; c++) {
-			fb[c * 4] = font[c * map->height + i];
+			fb_writeb(font[c * map->height + i], fb + c * 4);
 		}
 		fb += 1024;
 	}
 }
-
-
 
 static struct fb_tile_ops s3fb_tile_ops = {
 	.fb_settile	= svga_settile,
@@ -191,6 +189,7 @@ static struct fb_tile_ops s3fb_tile_ops = {
 	.fb_tilefill    = svga_tilefill,
 	.fb_tileblit    = svga_tileblit,
 	.fb_tilecursor  = svga_tilecursor,
+	.fb_get_tilemax = svga_get_tilemax,
 };
 
 static struct fb_tile_ops s3fb_fast_tile_ops = {
@@ -199,6 +198,7 @@ static struct fb_tile_ops s3fb_fast_tile_ops = {
 	.fb_tilefill    = svga_tilefill,
 	.fb_tileblit    = svga_tileblit,
 	.fb_tilecursor  = svga_tilecursor,
+	.fb_get_tilemax = svga_get_tilemax,
 };
 
 
@@ -326,8 +326,13 @@ static void s3_set_pixclock(struct fb_info *info, u32 pixclock)
 {
 	u16 m, n, r;
 	u8 regval;
+	int rv;
 
-	svga_compute_pll(&s3_pll, 1000000000 / pixclock, &m, &n, &r, info->node);
+	rv = svga_compute_pll(&s3_pll, 1000000000 / pixclock, &m, &n, &r, info->node);
+	if (rv < 0) {
+		printk(KERN_ERR "fb%d: cannot set requested pixclock, keeping old value\n", info->node);
+		return;
+	}
 
 	/* Set VGA misc register  */
 	regval = vga_r(NULL, VGA_MIS_R);
@@ -449,6 +454,10 @@ static int s3fb_set_par(struct fb_info *info)
 		info->flags &= ~FBINFO_MISC_TILEBLITTING;
 		info->tileops = NULL;
 
+		/* in 4bpp supports 8p wide tiles only, any tiles otherwise */
+		info->pixmap.blit_x = (bpp == 4) ? (1 << (8 - 1)) : (~(u32)0);
+		info->pixmap.blit_y = ~(u32)0;
+
 		offset_value = (info->var.xres_virtual * bpp) / 64;
 		screen_size = info->var.yres_virtual * info->fix.line_length;
 	} else {
@@ -457,6 +466,10 @@ static int s3fb_set_par(struct fb_info *info)
 
 		info->flags |= FBINFO_MISC_TILEBLITTING;
 		info->tileops = fasttext ? &s3fb_fast_tile_ops : &s3fb_tile_ops;
+
+		/* supports 8x16 tiles only */
+		info->pixmap.blit_x = 1 << (8 - 1);
+		info->pixmap.blit_y = 1 << (16 - 1);
 
 		offset_value = info->var.xres_virtual / 16;
 		screen_size = (info->var.xres_virtual * info->var.yres_virtual) / 64;
@@ -656,7 +669,7 @@ static int s3fb_set_par(struct fb_info *info)
 	value = ((value * hmul) / 8) - 5;
 	vga_wcrt(NULL, 0x3C, (value + 1) / 2);
 
-	memset((u8*)info->screen_base, 0x00, screen_size);
+	memset_io(info->screen_base, 0x00, screen_size);
 	/* Device and screen back on */
 	svga_wcrt_mask(0x17, 0x80, 0x80);
 	svga_wseq_mask(0x01, 0x00, 0x20);
@@ -699,7 +712,7 @@ static int s3fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		break;
 	case 16:
 		if (regno >= 16)
-			return -EINVAL;
+			return 0;
 
 		if (fb->var.green.length == 5)
 			((u32*)fb->pseudo_palette)[regno] = ((red & 0xF800) >> 1) |
@@ -712,9 +725,9 @@ static int s3fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	case 24:
 	case 32:
 		if (regno >= 16)
-			return -EINVAL;
+			return 0;
 
-		((u32*)fb->pseudo_palette)[regno] = ((transp & 0xFF00) << 16) | ((red & 0xFF00) << 8) |
+		((u32*)fb->pseudo_palette)[regno] = ((red & 0xFF00) << 8) |
 			(green & 0xFF00) | ((blue & 0xFF00) >> 8);
 		break;
 	default:
@@ -767,12 +780,6 @@ static int s3fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	unsigned int offset;
 
-	/* Validate the offsets */
-	if ((var->xoffset + var->xres) > var->xres_virtual)
-		return -EINVAL;
-	if ((var->yoffset + var->yres) > var->yres_virtual)
-		return -EINVAL;
-
 	/* Calculate the offset */
 	if (var->bits_per_pixel == 0) {
 		offset = (var->yoffset / 16) * (var->xres_virtual / 2) + (var->xoffset / 2);
@@ -805,6 +812,7 @@ static struct fb_ops s3fb_ops = {
 	.fb_fillrect	= s3fb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= s3fb_imageblit,
+	.fb_get_caps    = svga_get_caps,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -1061,6 +1069,7 @@ static int s3_pci_resume(struct pci_dev* dev)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
 	struct s3fb_info *par = info->par;
+	int err;
 
 	dev_info(&(dev->dev), "resume\n");
 
@@ -1075,7 +1084,13 @@ static int s3_pci_resume(struct pci_dev* dev)
 
 	pci_set_power_state(dev, PCI_D0);
 	pci_restore_state(dev);
-	pci_enable_device(dev);
+	err = pci_enable_device(dev);
+	if (err) {
+		mutex_unlock(&(par->open_lock));
+		release_console_sem();
+		dev_err(&(dev->dev), "error %d enabling device for resume\n", err);
+		return err;
+	}
 	pci_set_master(dev);
 
 	s3fb_set_par(info);

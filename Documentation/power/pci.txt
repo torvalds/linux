@@ -203,7 +203,7 @@ resume
 
 Usage:
 
-if (dev->driver && dev->driver->suspend)
+if (dev->driver && dev->driver->resume)
 	dev->driver->resume(dev)
 
 The resume callback may be called from any power state, and is always meant to

@@ -18,7 +18,7 @@
  * The SED algorithm attempts to minimize each job's expected delay until
  * completion. The expected delay that the job will experience is
  * (Ci + 1) / Ui if sent to the ith server, in which Ci is the number of
- * jobs on the the ith server and Ui is the fixed service rate (weight) of
+ * jobs on the ith server and Ui is the fixed service rate (weight) of
  * the ith server. The SED algorithm adopts a greedy policy that each does
  * what is in its own best interest, i.e. to join the queue which would
  * minimize its expected delay of completion.

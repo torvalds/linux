@@ -59,7 +59,7 @@ static int do_make_slave(struct vfsmount *mnt)
 	} else {
 		struct list_head *p = &mnt->mnt_slave_list;
 		while (!list_empty(p)) {
-                        slave_mnt = list_entry(p->next,
+                        slave_mnt = list_first_entry(p,
 					struct vfsmount, mnt_slave);
 			list_del_init(&slave_mnt->mnt_slave);
 			slave_mnt->mnt_master = NULL;

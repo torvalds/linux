@@ -97,7 +97,7 @@ pxa_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction pxa_timer_irq = {
 	.name		= "PXA Timer Tick",
-	.flags		= IRQF_DISABLED | IRQF_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= pxa_timer_interrupt,
 };
 

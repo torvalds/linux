@@ -29,8 +29,8 @@ static int __devinit of_platform_serial_setup(struct of_device *ofdev,
 	int ret;
 
 	memset(port, 0, sizeof *port);
-	spd = get_property(np, "current-speed", NULL);
-	clk = get_property(np, "clock-frequency", NULL);
+	spd = of_get_property(np, "current-speed", NULL);
+	clk = of_get_property(np, "clock-frequency", NULL);
 	if (!clk) {
 		dev_warn(&ofdev->dev, "no clock-frequency property set\n");
 		return -ENODEV;
@@ -48,7 +48,8 @@ static int __devinit of_platform_serial_setup(struct of_device *ofdev,
 	port->iotype = UPIO_MEM;
 	port->type = type;
 	port->uartclk = *clk;
-	port->flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP;
+	port->flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP
+		| UPF_FIXED_PORT;
 	port->dev = &ofdev->dev;
 	port->custom_divisor = *clk / (16 * (*spd));
 

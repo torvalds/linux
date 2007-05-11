@@ -276,8 +276,22 @@ static int scsi_bus_match(struct device *dev, struct device_driver *gendrv)
 	return (sdp->inq_periph_qual == SCSI_INQ_PQ_CON)? 1: 0;
 }
 
+static int scsi_bus_uevent(struct device *dev, char **envp, int num_envp,
+		           char *buffer, int buffer_size)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	int i = 0;
+	int length = 0;
+
+	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
+		       "MODALIAS=" SCSI_DEVICE_MODALIAS_FMT, sdev->type);
+	envp[i] = NULL;
+	return 0;
+}
+
 static int scsi_bus_suspend(struct device * dev, pm_message_t state)
 {
+	struct device_driver *drv = dev->driver;
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct scsi_host_template *sht = sdev->host->hostt;
 	int err;
@@ -286,28 +300,51 @@ static int scsi_bus_suspend(struct device * dev, pm_message_t state)
 	if (err)
 		return err;
 
-	if (sht->suspend)
-		err = sht->suspend(sdev, state);
+	/* call HLD suspend first */
+	if (drv && drv->suspend) {
+		err = drv->suspend(dev, state);
+		if (err)
+			return err;
+	}
 
-	return err;
+	/* then, call host suspend */
+	if (sht->suspend) {
+		err = sht->suspend(sdev, state);
+		if (err) {
+			if (drv && drv->resume)
+				drv->resume(dev);
+			return err;
+		}
+	}
+
+	return 0;
 }
 
 static int scsi_bus_resume(struct device * dev)
 {
+	struct device_driver *drv = dev->driver;
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct scsi_host_template *sht = sdev->host->hostt;
-	int err = 0;
+	int err = 0, err2 = 0;
 
+	/* call host resume first */
 	if (sht->resume)
 		err = sht->resume(sdev);
 
+	/* then, call HLD resume */
+	if (drv && drv->resume)
+		err2 = drv->resume(dev);
+
 	scsi_device_resume(sdev);
-	return err;
+
+	/* favor LLD failure */
+	return err ? err : err2;;
 }
 
 struct bus_type scsi_bus_type = {
         .name		= "scsi",
         .match		= scsi_bus_match,
+	.uevent		= scsi_bus_uevent,
 	.suspend	= scsi_bus_suspend,
 	.resume		= scsi_bus_resume,
 };
@@ -547,6 +584,14 @@ show_sdev_iostat(iorequest_cnt);
 show_sdev_iostat(iodone_cnt);
 show_sdev_iostat(ioerr_cnt);
 
+static ssize_t
+sdev_show_modalias(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct scsi_device *sdev;
+	sdev = to_scsi_device(dev);
+	return snprintf (buf, 20, SCSI_DEVICE_MODALIAS_FMT "\n", sdev->type);
+}
+static DEVICE_ATTR(modalias, S_IRUGO, sdev_show_modalias, NULL);
 
 /* Default template for device attributes.  May NOT be modified */
 static struct device_attribute *scsi_sysfs_sdev_attrs[] = {
@@ -566,6 +611,7 @@ static struct device_attribute *scsi_sysfs_sdev_attrs[] = {
 	&dev_attr_iorequest_cnt,
 	&dev_attr_iodone_cnt,
 	&dev_attr_ioerr_cnt,
+	&dev_attr_modalias,
 	NULL
 };
 

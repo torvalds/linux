@@ -46,6 +46,9 @@
 #define			ATMEL_US_USMODE_ISO7816_T1	6
 #define			ATMEL_US_USMODE_IRDA		8
 #define		ATMEL_US_USCLKS		(3   <<  4)		/* Clock Selection */
+#define			ATMEL_US_USCLKS_MCK		(0 <<  4)
+#define			ATMEL_US_USCLKS_MCK_DIV8	(1 <<  4)
+#define			ATMEL_US_USCLKS_SCK		(3 <<  4)
 #define		ATMEL_US_CHRL		(3   <<  6)		/* Character Length */
 #define			ATMEL_US_CHRL_5			(0 <<  6)
 #define			ATMEL_US_CHRL_6			(1 <<  6)

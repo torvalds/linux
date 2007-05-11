@@ -424,14 +424,15 @@ int alps_init(struct psmouse *psmouse)
 	struct input_dev *dev1 = psmouse->dev, *dev2;
 	int version;
 
-	psmouse->private = priv = kzalloc(sizeof(struct alps_data), GFP_KERNEL);
+	priv = kzalloc(sizeof(struct alps_data), GFP_KERNEL);
 	dev2 = input_allocate_device();
 	if (!priv || !dev2)
 		goto init_fail;
 
 	priv->dev2 = dev2;
 
-	if (!(priv->i = alps_get_model(psmouse, &version)))
+	priv->i = alps_get_model(psmouse, &version);
+	if (!priv->i)
 		goto init_fail;
 
 	if ((priv->i->flags & ALPS_PASS) && alps_passthrough_mode(psmouse, 1))
@@ -480,7 +481,8 @@ int alps_init(struct psmouse *psmouse)
 	dev2->relbit[LONG(REL_X)] |= BIT(REL_X) | BIT(REL_Y);
 	dev2->keybit[LONG(BTN_LEFT)] |= BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
 
-	input_register_device(priv->dev2);
+	if (input_register_device(priv->dev2))
+		goto init_fail;
 
 	psmouse->protocol_handler = alps_process_byte;
 	psmouse->poll = alps_poll;
@@ -491,9 +493,11 @@ int alps_init(struct psmouse *psmouse)
 	/* We are having trouble resyncing ALPS touchpads so disable it for now */
 	psmouse->resync_time = 0;
 
+	psmouse->private = priv;
 	return 0;
 
 init_fail:
+	psmouse_reset(psmouse);
 	input_free_device(dev2);
 	kfree(priv);
 	return -1;
@@ -504,7 +508,8 @@ int alps_detect(struct psmouse *psmouse, int set_properties)
 	int version;
 	const struct alps_model_info *model;
 
-	if (!(model = alps_get_model(psmouse, &version)))
+	model = alps_get_model(psmouse, &version);
+	if (!model)
 		return -1;
 
 	if (set_properties) {

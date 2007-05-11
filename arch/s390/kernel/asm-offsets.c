@@ -15,7 +15,7 @@
 
 int main(void)
 {
-	DEFINE(__THREAD_info, offsetof(struct task_struct, thread_info),);
+	DEFINE(__THREAD_info, offsetof(struct task_struct, stack),);
 	DEFINE(__THREAD_ksp, offsetof(struct task_struct, thread.ksp),);
 	DEFINE(__THREAD_per, offsetof(struct task_struct, thread.per_info),);
 	DEFINE(__THREAD_mm_segment,

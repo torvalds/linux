@@ -189,16 +189,20 @@ static void ibmtr_detach(struct pcmcia_device *link)
 {
     struct ibmtr_dev_t *info = link->priv;
     struct net_device *dev = info->dev;
+     struct tok_info *ti = netdev_priv(dev);
 
     DEBUG(0, "ibmtr_detach(0x%p)\n", link);
+    
+    /* 
+     * When the card removal interrupt hits tok_interrupt(), 
+     * bail out early, so we don't crash the machine 
+     */
+    ti->sram_phys |= 1;
 
     if (link->dev_node)
 	unregister_netdev(dev);
-
-    {
-	struct tok_info *ti = netdev_priv(dev);
-	del_timer_sync(&(ti->tr_timer));
-    }
+    
+    del_timer_sync(&(ti->tr_timer));
 
     ibmtr_release(link);
 

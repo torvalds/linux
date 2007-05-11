@@ -478,7 +478,7 @@ static struct debug_view zfcp_hba_dbf_view = {
 	NULL
 };
 
-void
+static void
 _zfcp_san_dbf_event_common_ct(const char *tag, struct zfcp_fsf_req *fsf_req,
 			      u32 s_id, u32 d_id, void *buffer, int buflen)
 {

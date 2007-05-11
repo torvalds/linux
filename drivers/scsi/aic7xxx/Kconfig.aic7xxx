@@ -50,16 +50,6 @@ config AIC7XXX_RESET_DELAY_MS
 
 	Default: 5000 (5 seconds)
 
-config AIC7XXX_PROBE_EISA_VL
-	bool "Probe for EISA and VL AIC7XXX Adapters"
-	depends on SCSI_AIC7XXX && EISA
-	help
-	Probe for EISA and VLB Aic7xxx controllers.  In many newer systems,
-	the invasive probes necessary to detect these controllers can cause
-	other devices to fail.  For this reason, the non-PCI probe code is
-	disabled by default.  The current value of this option can be "toggled"
-	via the no_probe kernel command line option.
-
 config AIC7XXX_BUILD_FIRMWARE
 	bool "Build Adapter Firmware with Kernel Build"
 	depends on SCSI_AIC7XXX && !PREVENT_FIRMWARE_BUILD

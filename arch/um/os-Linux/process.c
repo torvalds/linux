@@ -14,7 +14,6 @@
 #include "ptrace_user.h"
 #include "os.h"
 #include "user.h"
-#include "user_util.h"
 #include "process.h"
 #include "irq_user.h"
 #include "kern_util.h"
@@ -22,6 +21,7 @@
 #include "skas_ptrace.h"
 #include "kern_constants.h"
 #include "uml-config.h"
+#include "init.h"
 
 #define ARBITRARY_ADDR -1
 #define FAILURE_PID    -1
@@ -40,14 +40,14 @@ unsigned long os_process_pc(int pid)
 	if(fd < 0){
 		printk("os_process_pc - couldn't open '%s', err = %d\n",
 		       proc_stat, -fd);
-		return(ARBITRARY_ADDR);
+		return ARBITRARY_ADDR;
 	}
-	err = os_read_file(fd, buf, sizeof(buf));
+	CATCH_EINTR(err = read(fd, buf, sizeof(buf)));
 	if(err < 0){
 		printk("os_process_pc - couldn't read '%s', err = %d\n",
-		       proc_stat, -err);
+		       proc_stat, errno);
 		os_close_file(fd);
-		return(ARBITRARY_ADDR);
+		return ARBITRARY_ADDR;
 	}
 	os_close_file(fd);
 	pc = ARBITRARY_ADDR;
@@ -56,7 +56,7 @@ unsigned long os_process_pc(int pid)
 		  "%*d %*d %*d %*d %*d %lu", &pc) != 1){
 		printk("os_process_pc - couldn't find pc in '%s'\n", buf);
 	}
-	return(pc);
+	return pc;
 }
 
 int os_process_parent(int pid)
@@ -65,21 +65,22 @@ int os_process_parent(int pid)
 	char data[256];
 	int parent, n, fd;
 
-	if(pid == -1) return(-1);
+	if(pid == -1)
+		return -1;
 
 	snprintf(stat, sizeof(stat), "/proc/%d/stat", pid);
 	fd = os_open_file(stat, of_read(OPENFLAGS()), 0);
 	if(fd < 0){
 		printk("Couldn't open '%s', err = %d\n", stat, -fd);
-		return(FAILURE_PID);
+		return FAILURE_PID;
 	}
 
-	n = os_read_file(fd, data, sizeof(data));
+	CATCH_EINTR(n = read(fd, data, sizeof(data)));
 	os_close_file(fd);
 
 	if(n < 0){
-		printk("Couldn't read '%s', err = %d\n", stat, -n);
-		return(FAILURE_PID);
+		printk("Couldn't read '%s', err = %d\n", stat, errno);
+		return FAILURE_PID;
 	}
 
 	parent = FAILURE_PID;
@@ -87,7 +88,7 @@ int os_process_parent(int pid)
 	if(n != 1)
 		printk("Failed to scan '%s'\n", data);
 
-	return(parent);
+	return parent;
 }
 
 void os_stop_process(int pid)
@@ -145,7 +146,7 @@ void os_usr1_process(int pid)
 
 int os_getpid(void)
 {
-	return(syscall(__NR_getpid));
+	return syscall(__NR_getpid);
 }
 
 int os_getpgrp(void)
@@ -165,8 +166,8 @@ int os_map_memory(void *virt, int fd, unsigned long long off, unsigned long len,
 	loc = mmap64((void *) virt, len, prot, MAP_SHARED | MAP_FIXED,
 		     fd, off);
 	if(loc == MAP_FAILED)
-		return(-errno);
-	return(0);
+		return -errno;
+	return 0;
 }
 
 int os_protect_memory(void *addr, unsigned long len, int r, int w, int x)
@@ -175,8 +176,8 @@ int os_protect_memory(void *addr, unsigned long len, int r, int w, int x)
 		    (x ? PROT_EXEC : 0));
 
         if(mprotect(addr, len, prot) < 0)
-		return(-errno);
-        return(0);
+		return -errno;
+        return 0;
 }
 
 int os_unmap_memory(void *addr, int len)
@@ -185,15 +186,15 @@ int os_unmap_memory(void *addr, int len)
 
         err = munmap(addr, len);
 	if(err < 0)
-		return(-errno);
-        return(0);
+		return -errno;
+        return 0;
 }
 
 #ifndef MADV_REMOVE
 #define MADV_REMOVE KERNEL_MADV_REMOVE
 #endif
 
-int os_drop_memory(void *addr, int length)
+int __init os_drop_memory(void *addr, int length)
 {
 	int err;
 
@@ -203,7 +204,7 @@ int os_drop_memory(void *addr, int length)
 	return err;
 }
 
-int can_drop_memory(void)
+int __init can_drop_memory(void)
 {
 	void *addr;
 	int fd, ok = 0;
@@ -238,13 +239,14 @@ out:
 	return ok;
 }
 
+#ifdef UML_CONFIG_MODE_TT
 void init_new_thread_stack(void *sig_stack, void (*usr1_handler)(int))
 {
 	int flags = 0, pages;
 
 	if(sig_stack != NULL){
 		pages = (1 << UML_CONFIG_KERNEL_STACK_ORDER);
-		set_sigstack(sig_stack, pages * page_size());
+		set_sigstack(sig_stack, pages * UM_KERN_PAGE_SIZE);
 		flags = SA_ONSTACK;
 	}
 	if(usr1_handler){
@@ -259,6 +261,7 @@ void init_new_thread_stack(void *sig_stack, void (*usr1_handler)(int))
 			      "errno = %d\n", errno);
 	}
 }
+#endif
 
 void init_new_thread_signals(void)
 {

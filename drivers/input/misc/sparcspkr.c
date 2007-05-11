@@ -28,7 +28,7 @@ struct sparcspkr_state {
 
 static int ebus_spkr_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
-	struct sparcspkr_state *state = dev_get_drvdata(dev->cdev.dev);
+	struct sparcspkr_state *state = dev_get_drvdata(dev->dev.parent);
 	unsigned int count = 0;
 	unsigned long flags;
 
@@ -61,7 +61,7 @@ static int ebus_spkr_event(struct input_dev *dev, unsigned int type, unsigned in
 
 static int isa_spkr_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
-	struct sparcspkr_state *state = dev_get_drvdata(dev->cdev.dev);
+	struct sparcspkr_state *state = dev_get_drvdata(dev->dev.parent);
 	unsigned int count = 0;
 	unsigned long flags;
 
@@ -113,7 +113,7 @@ static int __devinit sparcspkr_probe(struct device *dev)
 	input_dev->id.vendor = 0x001f;
 	input_dev->id.product = 0x0001;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = dev;
+	input_dev->dev.parent = dev;
 
 	input_dev->evbit[0] = BIT(EV_SND);
 	input_dev->sndbit[0] = BIT(SND_BELL) | BIT(SND_TONE);

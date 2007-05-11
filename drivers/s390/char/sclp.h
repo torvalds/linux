@@ -132,6 +132,9 @@ int sclp_deactivate(void);
 int sclp_reactivate(void);
 int sclp_service_call(sclp_cmdw_t command, void *sccb);
 
+int sclp_sdias_init(void);
+void sclp_sdias_exit(void);
+
 /* useful inlines */
 
 /* VM uses EBCDIC 037, LPAR+native(SE+HMC) use EBCDIC 500 */

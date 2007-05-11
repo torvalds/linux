@@ -147,8 +147,6 @@ struct irq_chip {
  * @dir:		/proc/irq/ procfs entry
  * @affinity_entry:	/proc/irq/smp_affinity procfs entry on SMP
  * @name:		flow handler name for /proc/interrupts output
- *
- * Pad this out to 32 bytes for cache and indexing reasons.
  */
 struct irq_desc {
 	irq_flow_handler_t	handle_irq;
@@ -175,7 +173,7 @@ struct irq_desc {
 	struct proc_dir_entry	*dir;
 #endif
 	const char		*name;
-} ____cacheline_aligned;
+} ____cacheline_internodealigned_in_smp;
 
 extern struct irq_desc irq_desc[NR_IRQS];
 

@@ -284,12 +284,8 @@ static void handle_write_error(struct address_space *mapping,
 				struct page *page, int error)
 {
 	lock_page(page);
-	if (page_mapping(page) == mapping) {
-		if (error == -ENOSPC)
-			set_bit(AS_ENOSPC, &mapping->flags);
-		else
-			set_bit(AS_EIO, &mapping->flags);
-	}
+	if (page_mapping(page) == mapping)
+		mapping_set_error(mapping, error);
 	unlock_page(page);
 }
 
@@ -1323,8 +1319,6 @@ static int kswapd(void *p)
 	for ( ; ; ) {
 		unsigned long new_order;
 
-		try_to_freeze();
-
 		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
 		new_order = pgdat->kswapd_max_order;
 		pgdat->kswapd_max_order = 0;
@@ -1335,12 +1329,19 @@ static int kswapd(void *p)
 			 */
 			order = new_order;
 		} else {
-			schedule();
+			if (!freezing(current))
+				schedule();
+
 			order = pgdat->kswapd_max_order;
 		}
 		finish_wait(&pgdat->kswapd_wait, &wait);
 
-		balance_pgdat(pgdat, order);
+		if (!try_to_freeze()) {
+			/* We can speed up thawing tasks if we don't call
+			 * balance_pgdat after returning from the refrigerator
+			 */
+			balance_pgdat(pgdat, order);
+		}
 	}
 	return 0;
 }
@@ -1527,7 +1528,7 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
 	pg_data_t *pgdat;
 	cpumask_t mask;
 
-	if (action == CPU_ONLINE) {
+	if (action == CPU_ONLINE || action == CPU_ONLINE_FROZEN) {
 		for_each_online_pgdat(pgdat) {
 			mask = node_to_cpumask(pgdat->node_id);
 			if (any_online_cpu(mask) != NR_CPUS)

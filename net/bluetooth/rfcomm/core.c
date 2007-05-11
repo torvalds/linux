@@ -622,7 +622,7 @@ static struct rfcomm_session *rfcomm_session_create(bdaddr_t *src, bdaddr_t *dst
 	bacpy(&addr.l2_bdaddr, src);
 	addr.l2_family = AF_BLUETOOTH;
 	addr.l2_psm    = 0;
-	*err = sock->ops->bind(sock, (struct sockaddr *) &addr, sizeof(addr));
+	*err = kernel_bind(sock, (struct sockaddr *) &addr, sizeof(addr));
 	if (*err < 0)
 		goto failed;
 
@@ -643,7 +643,7 @@ static struct rfcomm_session *rfcomm_session_create(bdaddr_t *src, bdaddr_t *dst
 	bacpy(&addr.l2_bdaddr, dst);
 	addr.l2_family = AF_BLUETOOTH;
 	addr.l2_psm    = htobs(RFCOMM_PSM);
-	*err = sock->ops->connect(sock, (struct sockaddr *) &addr, sizeof(addr), O_NONBLOCK);
+	*err = kernel_connect(sock, (struct sockaddr *) &addr, sizeof(addr), O_NONBLOCK);
 	if (*err == 0 || *err == -EINPROGRESS)
 		return s;
 
@@ -1058,6 +1058,12 @@ static int rfcomm_recv_ua(struct rfcomm_session *s, u8 dlci)
 		case BT_DISCONN:
 			d->state = BT_CLOSED;
 			__rfcomm_dlc_close(d, 0);
+
+			if (list_empty(&s->dlcs)) {
+				s->state = BT_DISCONN;
+				rfcomm_send_disc(s, 0);
+			}
+
 			break;
 		}
 	} else {
@@ -1066,6 +1072,10 @@ static int rfcomm_recv_ua(struct rfcomm_session *s, u8 dlci)
 		case BT_CONNECT:
 			s->state = BT_CONNECTED;
 			rfcomm_process_connect(s);
+			break;
+
+		case BT_DISCONN:
+			rfcomm_session_put(s);
 			break;
 		}
 	}
@@ -1757,18 +1767,11 @@ static inline void rfcomm_accept_connection(struct rfcomm_session *s)
 
 	BT_DBG("session %p", s);
 
-	if (sock_create_lite(PF_BLUETOOTH, sock->type, BTPROTO_L2CAP, &nsock))
+	err = kernel_accept(sock, &nsock, O_NONBLOCK);
+	if (err < 0)
 		return;
-
-	nsock->ops  = sock->ops;
 
 	__module_get(nsock->ops->owner);
-
-	err = sock->ops->accept(sock, nsock, O_NONBLOCK);
-	if (err < 0) {
-		sock_release(nsock);
-		return;
-	}
 
 	/* Set our callbacks */
 	nsock->sk->sk_data_ready   = rfcomm_l2data_ready;
@@ -1885,7 +1888,7 @@ static int rfcomm_add_listener(bdaddr_t *ba)
 	bacpy(&addr.l2_bdaddr, ba);
 	addr.l2_family = AF_BLUETOOTH;
 	addr.l2_psm    = htobs(RFCOMM_PSM);
-	err = sock->ops->bind(sock, (struct sockaddr *) &addr, sizeof(addr));
+	err = kernel_bind(sock, (struct sockaddr *) &addr, sizeof(addr));
 	if (err < 0) {
 		BT_ERR("Bind failed %d", err);
 		goto failed;
@@ -1898,7 +1901,7 @@ static int rfcomm_add_listener(bdaddr_t *ba)
 	release_sock(sk);
 
 	/* Start listening on the socket */
-	err = sock->ops->listen(sock, 10);
+	err = kernel_listen(sock, 10);
 	if (err) {
 		BT_ERR("Listen failed %d", err);
 		goto failed;

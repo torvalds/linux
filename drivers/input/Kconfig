@@ -3,6 +3,7 @@
 #
 
 menu "Input device support"
+	depends on !S390
 
 config INPUT
 	tristate "Generic input layer (needed for keyboard, mouse, ...)" if EMBEDDED
@@ -152,6 +153,8 @@ source "drivers/input/keyboard/Kconfig"
 source "drivers/input/mouse/Kconfig"
 
 source "drivers/input/joystick/Kconfig"
+
+source "drivers/input/tablet/Kconfig"
 
 source "drivers/input/touchscreen/Kconfig"
 

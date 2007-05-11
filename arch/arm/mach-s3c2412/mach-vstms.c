@@ -129,11 +129,6 @@ static struct platform_device *vstms_devices[] __initdata = {
 	&s3c_device_nand,
 };
 
-static struct s3c24xx_board vstms_board __initdata = {
-	.devices       = vstms_devices,
-	.devices_count = ARRAY_SIZE(vstms_devices)
-};
-
 static void __init vstms_fixup(struct machine_desc *desc,
 				  struct tag *tags, char **cmdline,
 				  struct meminfo *mi)
@@ -153,7 +148,11 @@ static void __init vstms_map_io(void)
 	s3c24xx_init_io(vstms_iodesc, ARRAY_SIZE(vstms_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(vstms_uartcfgs, ARRAY_SIZE(vstms_uartcfgs));
-	s3c24xx_set_board(&vstms_board);
+}
+
+static void __init vstms_init(void)
+{
+	platform_add_devices(vstms_devices, ARRAY_SIZE(vstms_devices));
 }
 
 MACHINE_START(VSTMS, "VSTMS")
@@ -163,6 +162,7 @@ MACHINE_START(VSTMS, "VSTMS")
 
 	.fixup		= vstms_fixup,
 	.init_irq	= s3c24xx_init_irq,
+	.init_machine	= vstms_init,
 	.map_io		= vstms_map_io,
 	.timer		= &s3c24xx_timer,
 MACHINE_END

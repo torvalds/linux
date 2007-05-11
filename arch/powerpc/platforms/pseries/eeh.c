@@ -76,7 +76,7 @@
  */
 #define EEH_MAX_FAILS	2100000
 
-/* Time to wait for a PCI slot to retport status, in milliseconds */
+/* Time to wait for a PCI slot to report status, in milliseconds */
 #define PCI_BUS_RESET_WAIT_MSEC (60*1000)
 
 /* RTAS tokens */
@@ -95,10 +95,20 @@ EXPORT_SYMBOL(eeh_subsystem_enabled);
 /* Lock to avoid races due to multiple reports of an error */
 static DEFINE_SPINLOCK(confirm_error_lock);
 
-/* Buffer for reporting slot-error-detail rtas calls */
+/* Buffer for reporting slot-error-detail rtas calls. Its here
+ * in BSS, and not dynamically alloced, so that it ends up in
+ * RMO where RTAS can access it.
+ */
 static unsigned char slot_errbuf[RTAS_ERROR_LOG_MAX];
 static DEFINE_SPINLOCK(slot_errbuf_lock);
 static int eeh_error_buf_size;
+
+/* Buffer for reporting pci register dumps. Its here in BSS, and
+ * not dynamically alloced, so that it ends up in RMO where RTAS
+ * can access it.
+ */
+#define EEH_PCI_REGS_LOG_LEN 4096
+static unsigned char pci_regs_buf[EEH_PCI_REGS_LOG_LEN];
 
 /* System monitoring statistics */
 static unsigned long no_device;
@@ -115,7 +125,8 @@ static unsigned long slot_resets;
 /* --------------------------------------------------------------- */
 /* Below lies the EEH event infrastructure */
 
-void eeh_slot_error_detail (struct pci_dn *pdn, int severity)
+static void rtas_slot_error_detail(struct pci_dn *pdn, int severity,
+                                   char *driver_log, size_t loglen)
 {
 	int config_addr;
 	unsigned long flags;
@@ -133,7 +144,8 @@ void eeh_slot_error_detail (struct pci_dn *pdn, int severity)
 	rc = rtas_call(ibm_slot_error_detail,
 	               8, 1, NULL, config_addr,
 	               BUID_HI(pdn->phb->buid),
-	               BUID_LO(pdn->phb->buid), NULL, 0,
+	               BUID_LO(pdn->phb->buid),
+	               virt_to_phys(driver_log), loglen,
 	               virt_to_phys(slot_errbuf),
 	               eeh_error_buf_size,
 	               severity);
@@ -141,6 +153,84 @@ void eeh_slot_error_detail (struct pci_dn *pdn, int severity)
 	if (rc == 0)
 		log_error(slot_errbuf, ERR_TYPE_RTAS_LOG, 0);
 	spin_unlock_irqrestore(&slot_errbuf_lock, flags);
+}
+
+/**
+ * gather_pci_data - copy assorted PCI config space registers to buff
+ * @pdn: device to report data for
+ * @buf: point to buffer in which to log
+ * @len: amount of room in buffer
+ *
+ * This routine captures assorted PCI configuration space data,
+ * and puts them into a buffer for RTAS error logging.
+ */
+static size_t gather_pci_data(struct pci_dn *pdn, char * buf, size_t len)
+{
+	u32 cfg;
+	int cap, i;
+	int n = 0;
+
+	n += scnprintf(buf+n, len-n, "%s\n", pdn->node->full_name);
+	printk(KERN_WARNING "EEH: of node=%s\n", pdn->node->full_name);
+
+	rtas_read_config(pdn, PCI_VENDOR_ID, 4, &cfg);
+	n += scnprintf(buf+n, len-n, "dev/vend:%08x\n", cfg);
+	printk(KERN_WARNING "EEH: PCI device/vendor: %08x\n", cfg);
+
+	rtas_read_config(pdn, PCI_COMMAND, 4, &cfg);
+	n += scnprintf(buf+n, len-n, "cmd/stat:%x\n", cfg);
+	printk(KERN_WARNING "EEH: PCI cmd/status register: %08x\n", cfg);
+
+	/* Dump out the PCI-X command and status regs */
+	cap = pci_find_capability(pdn->pcidev, PCI_CAP_ID_PCIX);
+	if (cap) {
+		rtas_read_config(pdn, cap, 4, &cfg);
+		n += scnprintf(buf+n, len-n, "pcix-cmd:%x\n", cfg);
+		printk(KERN_WARNING "EEH: PCI-X cmd: %08x\n", cfg);
+
+		rtas_read_config(pdn, cap+4, 4, &cfg);
+		n += scnprintf(buf+n, len-n, "pcix-stat:%x\n", cfg);
+		printk(KERN_WARNING "EEH: PCI-X status: %08x\n", cfg);
+	}
+
+	/* If PCI-E capable, dump PCI-E cap 10, and the AER */
+	cap = pci_find_capability(pdn->pcidev, PCI_CAP_ID_EXP);
+	if (cap) {
+		n += scnprintf(buf+n, len-n, "pci-e cap10:\n");
+		printk(KERN_WARNING
+		       "EEH: PCI-E capabilities and status follow:\n");
+
+		for (i=0; i<=8; i++) {
+			rtas_read_config(pdn, cap+4*i, 4, &cfg);
+			n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
+			printk(KERN_WARNING "EEH: PCI-E %02x: %08x\n", i, cfg);
+		}
+
+		cap = pci_find_ext_capability(pdn->pcidev,PCI_EXT_CAP_ID_ERR);
+		if (cap) {
+			n += scnprintf(buf+n, len-n, "pci-e AER:\n");
+			printk(KERN_WARNING
+			       "EEH: PCI-E AER capability register set follows:\n");
+
+			for (i=0; i<14; i++) {
+				rtas_read_config(pdn, cap+4*i, 4, &cfg);
+				n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
+				printk(KERN_WARNING "EEH: PCI-E AER %02x: %08x\n", i, cfg);
+			}
+		}
+	}
+	return n;
+}
+
+void eeh_slot_error_detail(struct pci_dn *pdn, int severity)
+{
+	size_t loglen = 0;
+	pci_regs_buf[0] = 0;
+
+	rtas_pci_enable(pdn, EEH_THAW_MMIO);
+	loglen = gather_pci_data(pdn, pci_regs_buf, EEH_PCI_REGS_LOG_LEN);
+
+	rtas_slot_error_detail(pdn, severity, pci_regs_buf, loglen);
 }
 
 /**
@@ -577,6 +667,36 @@ rtas_pci_slot_reset(struct pci_dn *pdn, int state)
 		printk (KERN_WARNING "EEH: Unable to reset the failed slot,"
 		        " (%d) #RST=%d dn=%s\n",
 		        rc, state, pdn->node->full_name);
+}
+
+/**
+ * pcibios_set_pcie_slot_reset - Set PCI-E reset state
+ * @dev:	pci device struct
+ * @state:	reset state to enter
+ *
+ * Return value:
+ * 	0 if success
+ **/
+int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state state)
+{
+	struct device_node *dn = pci_device_to_OF_node(dev);
+	struct pci_dn *pdn = PCI_DN(dn);
+
+	switch (state) {
+	case pcie_deassert_reset:
+		rtas_pci_slot_reset(pdn, 0);
+		break;
+	case pcie_hot_reset:
+		rtas_pci_slot_reset(pdn, 1);
+		break;
+	case pcie_warm_reset:
+		rtas_pci_slot_reset(pdn, 3);
+		break;
+	default:
+		return -EINVAL;
+	};
+
+	return 0;
 }
 
 /**

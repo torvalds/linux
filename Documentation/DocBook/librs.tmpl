@@ -79,12 +79,12 @@
   <chapter id="usage">
      	<title>Usage</title>
 	<para>
-		This chapter provides examples how to use the library.
+		This chapter provides examples of how to use the library.
 	</para>
 	<sect1>
 		<title>Initializing</title>
 		<para>
-			The init function init_rs returns a pointer to a
+			The init function init_rs returns a pointer to an
 			rs decoder structure, which holds the necessary
 			information for encoding, decoding and error correction
 			with the given polynomial. It either uses an existing
@@ -98,10 +98,10 @@
 static struct rs_control *rs_decoder;
 
 /* Symbolsize is 10 (bits)
- * Primitve polynomial is x^10+x^3+1
+ * Primitive polynomial is x^10+x^3+1
  * first consecutive root is 0
- * primitve element to generate roots = 1
- * generator polinomial degree (number of roots) = 6
+ * primitive element to generate roots = 1
+ * generator polynomial degree (number of roots) = 6
  */
 rs_decoder = init_rs (10, 0x409, 0, 1, 6);
 		</programlisting>
@@ -116,12 +116,12 @@ rs_decoder = init_rs (10, 0x409, 0, 1, 6);
 		</para>
 		<para>
 			The expanded data can be inverted on the fly by
-			providing a non zero inversion mask. The expanded data is
+			providing a non-zero inversion mask. The expanded data is
 			XOR'ed with the mask. This is used e.g. for FLASH
 			ECC, where the all 0xFF is inverted to an all 0x00.
 			The Reed-Solomon code for all 0x00 is all 0x00. The
 			code is inverted before storing to FLASH so it is 0xFF
-			too. This prevent's that reading from an erased FLASH
+			too. This prevents that reading from an erased FLASH
 			results in ECC errors.
 		</para>
 		<para>
@@ -273,7 +273,7 @@ free_rs(rs_decoder);
  		May be used under the terms of the GNU General Public License (GPL)
 	</programlisting>
 	<para>
-		The wrapper functions and interfaces are written by Thomas Gleixner
+		The wrapper functions and interfaces are written by Thomas Gleixner.
 	</para>
 	<para>
 		Many users have provided bugfixes, improvements and helping hands for testing.

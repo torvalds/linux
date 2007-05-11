@@ -200,6 +200,13 @@ enum myri10ge_mcp_cmd_type {
 	/* data0, data1 = bus addr,
 	 * data2 = sizeof(struct mcp_irq_data) from driver point of view, allows
 	 * adding new stuff to mcp_irq_data without changing the ABI */
+
+	MXGEFW_CMD_UNALIGNED_TEST,
+	/* same than DMA_TEST (same args) but abort with UNALIGNED on unaligned
+	 * chipset */
+
+	MXGEFW_CMD_UNALIGNED_STATUS
+	    /* return data = boolean, true if the chipset is known to be unaligned */
 };
 
 enum myri10ge_mcp_cmd_status {
@@ -212,18 +219,27 @@ enum myri10ge_mcp_cmd_status {
 	MXGEFW_CMD_ERROR_HASH_ERROR,
 	MXGEFW_CMD_ERROR_BAD_PORT,
 	MXGEFW_CMD_ERROR_RESOURCES,
-	MXGEFW_CMD_ERROR_MULTICAST
+	MXGEFW_CMD_ERROR_MULTICAST,
+	MXGEFW_CMD_ERROR_UNALIGNED
 };
 
 #define MXGEFW_OLD_IRQ_DATA_LEN 40
 
 struct mcp_irq_data {
 	/* add new counters at the beginning */
-	__be32 future_use[5];
+	__be32 future_use[1];
+	__be32 dropped_pause;
+	__be32 dropped_unicast_filtered;
+	__be32 dropped_bad_crc32;
+	__be32 dropped_bad_phy;
 	__be32 dropped_multicast_filtered;
 	/* 40 Bytes */
 	__be32 send_done_count;
 
+#define MXGEFW_LINK_DOWN 0
+#define MXGEFW_LINK_UP 1
+#define MXGEFW_LINK_MYRINET 2
+#define MXGEFW_LINK_UNKNOWN 3
 	__be32 link_up;
 	__be32 dropped_link_overflow;
 	__be32 dropped_link_error_or_filtered;

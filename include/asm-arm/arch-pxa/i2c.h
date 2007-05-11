@@ -64,6 +64,7 @@ struct i2c_slave_client;
 struct i2c_pxa_platform_data {
 	unsigned int		slave_addr;
 	struct i2c_slave_client	*slave;
+	unsigned int		class;
 };
 
 extern void pxa_set_i2c_info(struct i2c_pxa_platform_data *info);

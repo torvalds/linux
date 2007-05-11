@@ -372,10 +372,9 @@ static int __init spitzkbd_probe(struct platform_device *dev)
 
 	spitzkbd->input = input_dev;
 
-	input_dev->private = spitzkbd;
 	input_dev->name = "Spitz Keyboard";
 	input_dev->phys = spitzkbd->phys;
-	input_dev->cdev.dev = &dev->dev;
+	input_dev->dev.parent = &dev->dev;
 
 	input_dev->id.bustype = BUS_HOST;
 	input_dev->id.vendor = 0x0001;

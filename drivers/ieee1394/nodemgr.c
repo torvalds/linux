@@ -1702,7 +1702,7 @@ static int nodemgr_host_thread(void *__hi)
 			generation = get_hpsb_generation(host);
 
 			/* If we get a reset before we are done waiting, then
-			 * start the the waiting over again */
+			 * start the waiting over again */
 			if (generation != g)
 				g = generation, i = 0;
 		}

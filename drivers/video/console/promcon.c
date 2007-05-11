@@ -548,7 +548,8 @@ promcon_scroll(struct vc_data *conp, int t, int b, int dir, int count)
 }
 
 #if !(PROMCON_COLOR)
-static u8 promcon_build_attr(struct vc_data *conp, u8 _color, u8 _intensity, u8 _blink, u8 _underline, u8 _reverse)
+static u8 promcon_build_attr(struct vc_data *conp, u8 _color, u8 _intensity,
+    u8 _blink, u8 _underline, u8 _reverse, u8 _italic)
 {
 	return (_reverse) ? 0xf : 0x7;
 }

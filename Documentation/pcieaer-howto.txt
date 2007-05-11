@@ -13,7 +13,7 @@ Reporting (AER) driver and provides information on how to use it, as
 well as how to enable the drivers of endpoint devices to conform with
 PCI Express AER driver.
 
-1.2 Copyright © Intel Corporation 2006.
+1.2 Copyright Â© Intel Corporation 2006.
 
 1.3 What is the PCI Express AER Driver?
 

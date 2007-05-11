@@ -2,73 +2,69 @@
 # Logo configuration
 #
 
-menu "Logo configuration"
-
-config LOGO
+menuconfig LOGO
 	bool "Bootup logo"
 	depends on FB || SGI_NEWPORT_CONSOLE
 	help
 	  Enable and select frame buffer bootup logos.
 
+if LOGO
+
 config LOGO_LINUX_MONO
 	bool "Standard black and white Linux logo"
-	depends on LOGO
 	default y
 
 config LOGO_LINUX_VGA16
 	bool "Standard 16-color Linux logo"
-	depends on LOGO
 	default y
 
 config LOGO_LINUX_CLUT224
 	bool "Standard 224-color Linux logo"
-	depends on LOGO
 	default y
 
 config LOGO_DEC_CLUT224
 	bool "224-color Digital Equipment Corporation Linux logo"
-	depends on LOGO && (MACH_DECSTATION || ALPHA)
+	depends on MACH_DECSTATION || ALPHA
 	default y
 
 config LOGO_MAC_CLUT224
 	bool "224-color Macintosh Linux logo"
-	depends on LOGO && MAC
+	depends on MAC
 	default y
 
 config LOGO_PARISC_CLUT224
 	bool "224-color PA-RISC Linux logo"
-	depends on LOGO && PARISC
+	depends on PARISC
 	default y
 
 config LOGO_SGI_CLUT224
 	bool "224-color SGI Linux logo"
-	depends on LOGO && (SGI_IP22 || SGI_IP27 || SGI_IP32 || X86_VISWS)
+	depends on SGI_IP22 || SGI_IP27 || SGI_IP32 || X86_VISWS
 	default y
 
 config LOGO_SUN_CLUT224
 	bool "224-color Sun Linux logo"
-	depends on LOGO && SPARC
+	depends on SPARC
 	default y
 
 config LOGO_SUPERH_MONO
 	bool "Black and white SuperH Linux logo"
-	depends on LOGO && SUPERH
+	depends on SUPERH
 	default y
 
 config LOGO_SUPERH_VGA16
 	bool "16-color SuperH Linux logo"
-	depends on LOGO && SUPERH
+	depends on SUPERH
 	default y
 
 config LOGO_SUPERH_CLUT224
 	bool "224-color SuperH Linux logo"
-	depends on LOGO && SUPERH
+	depends on SUPERH
 	default y
 
 config LOGO_M32R_CLUT224
 	bool "224-color M32R Linux logo"
-	depends on LOGO && M32R
+	depends on M32R
 	default y
 
-endmenu
-
+endif # LOGO

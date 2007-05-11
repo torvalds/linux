@@ -573,6 +573,130 @@ void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices) 
 
 
 /* --------------------------------------------------------------------
+ *  AC97
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_SND_AT91_AC97) || defined(CONFIG_SND_AT91_AC97_MODULE)
+static u64 ac97_dmamask = 0xffffffffUL;
+static struct atmel_ac97_data ac97_data;
+
+static struct resource ac97_resources[] = {
+	[0] = {
+		.start	= AT91SAM9263_BASE_AC97C,
+		.end	= AT91SAM9263_BASE_AC97C + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9263_ID_AC97C,
+		.end	= AT91SAM9263_ID_AC97C,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91sam9263_ac97_device = {
+	.name		= "ac97c",
+	.id		= 1,
+	.dev		= {
+				.dma_mask		= &ac97_dmamask,
+				.coherent_dma_mask	= 0xffffffff,
+				.platform_data		= &ac97_data,
+	},
+	.resource	= ac97_resources,
+	.num_resources	= ARRAY_SIZE(ac97_resources),
+};
+
+void __init at91_add_device_ac97(struct atmel_ac97_data *data)
+{
+	if (!data)
+		return;
+
+	at91_set_A_periph(AT91_PIN_PB0, 0);	/* AC97FS */
+	at91_set_A_periph(AT91_PIN_PB1, 0);	/* AC97CK */
+	at91_set_A_periph(AT91_PIN_PB2, 0);	/* AC97TX */
+	at91_set_A_periph(AT91_PIN_PB3, 0);	/* AC97RX */
+
+	/* reset */
+	if (data->reset_pin)
+		at91_set_gpio_output(data->reset_pin, 0);
+
+	ac97_data = *ek_data;
+	platform_device_register(&at91sam9263_ac97_device);
+}
+#else
+void __init at91_add_device_ac97(struct atmel_ac97_data *data) {}
+#endif
+
+
+/* --------------------------------------------------------------------
+ *  LCD Controller
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_FB_ATMEL) || defined(CONFIG_FB_ATMEL_MODULE)
+static u64 lcdc_dmamask = 0xffffffffUL;
+static struct atmel_lcdfb_info lcdc_data;
+
+static struct resource lcdc_resources[] = {
+	[0] = {
+		.start	= AT91SAM9263_LCDC_BASE,
+		.end	= AT91SAM9263_LCDC_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9263_ID_LCDC,
+		.end	= AT91SAM9263_ID_LCDC,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91_lcdc_device = {
+	.name		= "atmel_lcdfb",
+	.id		= 0,
+	.dev		= {
+				.dma_mask		= &lcdc_dmamask,
+				.coherent_dma_mask	= 0xffffffff,
+				.platform_data		= &lcdc_data,
+	},
+	.resource	= lcdc_resources,
+	.num_resources	= ARRAY_SIZE(lcdc_resources),
+};
+
+void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data)
+{
+	if (!data)
+		return;
+
+	at91_set_A_periph(AT91_PIN_PC1, 0);	/* LCDHSYNC */
+	at91_set_A_periph(AT91_PIN_PC2, 0);	/* LCDDOTCK */
+	at91_set_A_periph(AT91_PIN_PC3, 0);	/* LCDDEN */
+	at91_set_B_periph(AT91_PIN_PB9, 0);	/* LCDCC */
+	at91_set_A_periph(AT91_PIN_PC6, 0);	/* LCDD2 */
+	at91_set_A_periph(AT91_PIN_PC7, 0);	/* LCDD3 */
+	at91_set_A_periph(AT91_PIN_PC8, 0);	/* LCDD4 */
+	at91_set_A_periph(AT91_PIN_PC9, 0);	/* LCDD5 */
+	at91_set_A_periph(AT91_PIN_PC10, 0);	/* LCDD6 */
+	at91_set_A_periph(AT91_PIN_PC11, 0);	/* LCDD7 */
+	at91_set_A_periph(AT91_PIN_PC14, 0);	/* LCDD10 */
+	at91_set_A_periph(AT91_PIN_PC15, 0);	/* LCDD11 */
+	at91_set_A_periph(AT91_PIN_PC16, 0);	/* LCDD12 */
+	at91_set_B_periph(AT91_PIN_PC12, 0);	/* LCDD13 */
+	at91_set_A_periph(AT91_PIN_PC18, 0);	/* LCDD14 */
+	at91_set_A_periph(AT91_PIN_PC19, 0);	/* LCDD15 */
+	at91_set_A_periph(AT91_PIN_PC22, 0);	/* LCDD18 */
+	at91_set_A_periph(AT91_PIN_PC23, 0);	/* LCDD19 */
+	at91_set_A_periph(AT91_PIN_PC24, 0);	/* LCDD20 */
+	at91_set_B_periph(AT91_PIN_PC17, 0);	/* LCDD21 */
+	at91_set_A_periph(AT91_PIN_PC26, 0);	/* LCDD22 */
+	at91_set_A_periph(AT91_PIN_PC27, 0);	/* LCDD23 */
+
+	lcdc_data = *data;
+	platform_device_register(&at91_lcdc_device);
+}
+#else
+void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data) {}
+#endif
+
+
+/* --------------------------------------------------------------------
  *  LEDs
  * -------------------------------------------------------------------- */
 

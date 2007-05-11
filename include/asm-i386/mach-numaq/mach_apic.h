@@ -34,7 +34,7 @@ static inline void init_apic_ldr(void)
 	/* Already done in NUMA-Q firmware */
 }
 
-static inline void clustered_apic_check(void)
+static inline void setup_apic_routing(void)
 {
 	printk("Enabling APIC mode:  %s.  Using %d I/O APICs\n",
 		"NUMA-Q", nr_ioapics);

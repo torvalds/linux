@@ -123,9 +123,6 @@ spkm3_make_token(struct spkm3_ctx *ctx,
 
 	return  GSS_S_COMPLETE;
 out_err:
-	if (md5cksum.data)
-		kfree(md5cksum.data);
-
 	token->data = NULL;
 	token->len = 0;
 	return GSS_S_FAILURE;
@@ -152,7 +149,7 @@ make_spkm3_checksum(s32 cksumtype, struct xdr_netobj *key, char *header,
 
 	switch (cksumtype) {
 		case CKSUMTYPE_HMAC_MD5:
-			cksumname = "md5";
+			cksumname = "hmac(md5)";
 			break;
 		default:
 			dprintk("RPC:       spkm3_make_checksum:"
@@ -172,8 +169,12 @@ make_spkm3_checksum(s32 cksumtype, struct xdr_netobj *key, char *header,
 	if (err)
 		goto out;
 
+	err = crypto_hash_init(&desc);
+	if (err)
+		goto out;
+
 	sg_set_buf(sg, header, hdrlen);
-	crypto_hash_update(&desc, sg, 1);
+	crypto_hash_update(&desc, sg, sg->length);
 
 	xdr_process_buf(body, body_offset, body->len - body_offset,
 			spkm3_checksummer, &desc);
@@ -184,5 +185,3 @@ out:
 
 	return err ? GSS_S_FAILURE : 0;
 }
-
-EXPORT_SYMBOL(make_spkm3_checksum);

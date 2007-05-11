@@ -50,12 +50,3 @@ int __init rise_init_cpu(void)
 	return 0;
 }
 
-//early_arch_initcall(rise_init_cpu);
-
-static int __init rise_exit_cpu(void)
-{
-	cpu_devs[X86_VENDOR_RISE] = NULL;
-	return 0;
-}
-
-late_initcall(rise_exit_cpu);

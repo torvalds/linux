@@ -12,11 +12,6 @@
 
 #include <asm/prom.h>
 
-extern struct parport *parport_pc_probe_port (unsigned long int base,
-                                              unsigned long int base_hi,
-                                              int irq, int dma,
-                                              struct pci_dev *dev);
-
 static int __devinit parport_pc_find_nonpci_ports (int autoirq, int autodma)
 {
 	struct device_node *np;

@@ -225,16 +225,13 @@ xdr_decode_stat(struct rpc_rqst *rqstp, __be32 *p, struct nsm_res *resp)
 #define SM_monres_sz	2
 #define SM_unmonres_sz	1
 
-#ifndef MAX
-# define MAX(a, b)	(((a) > (b))? (a) : (b))
-#endif
-
 static struct rpc_procinfo	nsm_procedures[] = {
 [SM_MON] = {
 		.p_proc		= SM_MON,
 		.p_encode	= (kxdrproc_t) xdr_encode_mon,
 		.p_decode	= (kxdrproc_t) xdr_decode_stat_res,
-		.p_bufsiz	= MAX(SM_mon_sz, SM_monres_sz) << 2,
+		.p_arglen	= SM_mon_sz,
+		.p_replen	= SM_monres_sz,
 		.p_statidx	= SM_MON,
 		.p_name		= "MONITOR",
 	},
@@ -242,7 +239,8 @@ static struct rpc_procinfo	nsm_procedures[] = {
 		.p_proc		= SM_UNMON,
 		.p_encode	= (kxdrproc_t) xdr_encode_unmon,
 		.p_decode	= (kxdrproc_t) xdr_decode_stat,
-		.p_bufsiz	= MAX(SM_mon_id_sz, SM_unmonres_sz) << 2,
+		.p_arglen	= SM_mon_id_sz,
+		.p_replen	= SM_unmonres_sz,
 		.p_statidx	= SM_UNMON,
 		.p_name		= "UNMONITOR",
 	},

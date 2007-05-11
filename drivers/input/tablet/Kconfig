@@ -1,0 +1,74 @@
+#
+# Tablet driver configuration
+#
+menuconfig INPUT_TABLET
+	bool "Tablets"
+	help
+	  Say Y here, and a list of supported tablets will be displayed.
+	  This option doesn't affect the kernel.
+
+	  If unsure, say Y.
+
+if INPUT_TABLET
+
+config TABLET_USB_ACECAD
+	tristate "Acecad Flair tablet support (USB)"
+	select USB
+	help
+	  Say Y here if you want to use the USB version of the Acecad Flair
+	  tablet.  Make sure to say Y to "Mouse support"
+	  (CONFIG_INPUT_MOUSEDEV) and/or "Event interface support"
+	  (CONFIG_INPUT_EVDEV) as well.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called acecad.
+
+config TABLET_USB_AIPTEK
+	tristate "Aiptek 6000U/8000U tablet support (USB)"
+	select USB
+	help
+	  Say Y here if you want to use the USB version of the Aiptek 6000U
+	  or Aiptek 8000U tablet.  Make sure to say Y to "Mouse support"
+	  (CONFIG_INPUT_MOUSEDEV) and/or "Event interface support"
+	  (CONFIG_INPUT_EVDEV) as well.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called aiptek.
+
+config TABLET_USB_GTCO
+        tristate "GTCO CalComp/InterWrite USB Support"
+        depends on USB && INPUT
+        help
+          Say Y here if you want to use the USB version of the GTCO
+          CalComp/InterWrite Tablet.  Make sure to say Y to "Mouse support"
+          (CONFIG_INPUT_MOUSEDEV) and/or "Event interface support"
+          (CONFIG_INPUT_EVDEV) as well.
+
+          To compile this driver as a module, choose M here: the
+          module will be called gtco.
+
+config TABLET_USB_KBTAB
+	tristate "KB Gear JamStudio tablet support (USB)"
+	select USB
+	help
+	  Say Y here if you want to use the USB version of the KB Gear
+	  JamStudio tablet.  Make sure to say Y to "Mouse support"
+	  (CONFIG_INPUT_MOUSEDEV) and/or "Event interface support"
+	  (CONFIG_INPUT_EVDEV) as well.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called kbtab.
+
+config TABLET_USB_WACOM
+	tristate "Wacom Intuos/Graphire tablet support (USB)"
+	select USB
+	help
+	  Say Y here if you want to use the USB version of the Wacom Intuos
+	  or Graphire tablet.  Make sure to say Y to "Mouse support"
+	  (CONFIG_INPUT_MOUSEDEV) and/or "Event interface support"
+	  (CONFIG_INPUT_EVDEV) as well.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wacom.
+
+endif

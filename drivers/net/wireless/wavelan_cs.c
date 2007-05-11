@@ -176,7 +176,7 @@ psa_write(struct net_device *	dev,
   volatile u_char __iomem *verify = lp->mem + PSA_ADDR +
     (psaoff(0, psa_comp_number) << 1);
 
-  /* Authorize writting to PSA */
+  /* Authorize writing to PSA */
   hacr_write(base, HACR_PWR_STAT | HACR_ROM_WEN);
 
   while(n-- > 0)
@@ -1676,7 +1676,7 @@ wv_set_frequency(u_long		base,	/* i/o port of the card */
       fee_write(base, 0x60,
 		dac, 2);
 
-      /* We now should verify here that the EEprom writting was ok */
+      /* We now should verify here that the EEprom writing was ok */
 
       /* ReRead the first area */
       fee_read(base, 0x00,

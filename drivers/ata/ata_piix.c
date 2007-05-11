@@ -625,17 +625,18 @@ static int ich_pata_cable_detect(struct ata_port *ap)
 /**
  *	piix_pata_prereset - prereset for PATA host controller
  *	@ap: Target port
+ *	@deadline: deadline jiffies for the operation
  *
  *	LOCKING:
  *	None (inherited from caller).
  */
-static int piix_pata_prereset(struct ata_port *ap)
+static int piix_pata_prereset(struct ata_port *ap, unsigned long deadline)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
 	if (!pci_test_config_bits(pdev, &piix_enable_bits[ap->port_no]))
 		return -ENOENT;
-	return ata_std_prereset(ap);
+	return ata_std_prereset(ap, deadline);
 }
 
 static void piix_pata_error_handler(struct ata_port *ap)
@@ -643,7 +644,6 @@ static void piix_pata_error_handler(struct ata_port *ap)
 	ata_bmdma_drive_eh(ap, piix_pata_prereset, ata_std_softreset, NULL,
 			   ata_std_postreset);
 }
-
 
 static void piix_sata_error_handler(struct ata_port *ap)
 {

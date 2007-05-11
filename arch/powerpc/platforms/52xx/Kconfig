@@ -1,5 +1,6 @@
 config PPC_MPC52xx
 	bool
+	select FSL_SOC
 	default n
 
 config PPC_MPC5200

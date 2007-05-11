@@ -582,22 +582,10 @@ void kset_init(struct kset * k)
 /**
  *	kset_add - add a kset object to the hierarchy.
  *	@k:	kset.
- *
- *	Simply, this adds the kset's embedded kobject to the 
- *	hierarchy. 
- *	We also try to make sure that the kset's embedded kobject
- *	has a parent before it is added. We only care if the embedded
- *	kobject is not part of a kset itself, since kobject_add()
- *	assigns a parent in that case. 
- *	If that is the case, and the kset has a controlling subsystem,
- *	then we set the kset's parent to be said subsystem. 
  */
 
 int kset_add(struct kset * k)
 {
-	if (!k->kobj.parent && !k->kobj.kset && k->subsys)
-		k->kobj.parent = &k->subsys->kset.kobj;
-
 	return kobject_add(&k->kobj);
 }
 
@@ -656,45 +644,20 @@ struct kobject * kset_find_obj(struct kset * kset, const char * name)
 	return ret;
 }
 
-
-void subsystem_init(struct subsystem * s)
+void subsystem_init(struct kset *s)
 {
-	kset_init(&s->kset);
+	kset_init(s);
 }
 
-/**
- *	subsystem_register - register a subsystem.
- *	@s:	the subsystem we're registering.
- *
- *	Once we register the subsystem, we want to make sure that 
- *	the kset points back to this subsystem.
- */
-
-int subsystem_register(struct subsystem * s)
+int subsystem_register(struct kset *s)
 {
-	int error;
-
-	if (!s)
-		return -EINVAL;
-
-	subsystem_init(s);
-	pr_debug("subsystem %s: registering\n",s->kset.kobj.name);
-
-	if (!(error = kset_add(&s->kset))) {
-		if (!s->kset.subsys)
-			s->kset.subsys = s;
-	}
-	return error;
+	return kset_register(s);
 }
 
-void subsystem_unregister(struct subsystem * s)
+void subsystem_unregister(struct kset *s)
 {
-	if (!s)
-		return;
-	pr_debug("subsystem %s: unregistering\n",s->kset.kobj.name);
-	kset_unregister(&s->kset);
+	kset_unregister(s);
 }
-
 
 /**
  *	subsystem_create_file - export sysfs attribute file.
@@ -702,7 +665,7 @@ void subsystem_unregister(struct subsystem * s)
  *	@a:	subsystem attribute descriptor.
  */
 
-int subsys_create_file(struct subsystem * s, struct subsys_attribute * a)
+int subsys_create_file(struct kset *s, struct subsys_attribute *a)
 {
 	int error = 0;
 
@@ -710,27 +673,11 @@ int subsys_create_file(struct subsystem * s, struct subsys_attribute * a)
 		return -EINVAL;
 
 	if (subsys_get(s)) {
-		error = sysfs_create_file(&s->kset.kobj,&a->attr);
+		error = sysfs_create_file(&s->kobj, &a->attr);
 		subsys_put(s);
 	}
 	return error;
 }
-
-
-/**
- *	subsystem_remove_file - remove sysfs attribute file.
- *	@s:	subsystem.
- *	@a:	attribute desciptor.
- */
-#if 0
-void subsys_remove_file(struct subsystem * s, struct subsys_attribute * a)
-{
-	if (subsys_get(s)) {
-		sysfs_remove_file(&s->kset.kobj,&a->attr);
-		subsys_put(s);
-	}
-}
-#endif  /*  0  */
 
 EXPORT_SYMBOL(kobject_init);
 EXPORT_SYMBOL(kobject_register);

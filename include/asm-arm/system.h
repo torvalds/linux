@@ -14,6 +14,7 @@
 #define CPU_ARCH_ARMv5TE	6
 #define CPU_ARCH_ARMv5TEJ	7
 #define CPU_ARCH_ARMv6		8
+#define CPU_ARCH_ARMv7		9
 
 /*
  * CR1 bits (CP#15 CR1)
@@ -76,6 +77,8 @@
 #include <linux/linkage.h>
 #include <linux/irqflags.h>
 
+#define __exception	__attribute__((section(".exception.text")))
+
 struct thread_info;
 struct task_struct;
 
@@ -91,7 +94,7 @@ void die(const char *msg, struct pt_regs *regs, int err)
 		__attribute__((noreturn));
 
 struct siginfo;
-void notify_die(const char *str, struct pt_regs *regs, struct siginfo *info,
+void arm_notify_die(const char *str, struct pt_regs *regs, struct siginfo *info,
 		unsigned long err, unsigned long trap);
 
 void hook_fault_code(int nr, int (*fn)(unsigned long, unsigned int,
@@ -100,8 +103,6 @@ void hook_fault_code(int nr, int (*fn)(unsigned long, unsigned int,
 
 #define xchg(ptr,x) \
 	((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
-
-#define tas(ptr) (xchg((ptr),1))
 
 extern asmlinkage void __backtrace(void);
 extern asmlinkage void c_backtrace(unsigned long fp, int pmode);
@@ -155,7 +156,11 @@ extern unsigned int user_debug;
 #define vectors_high()	(0)
 #endif
 
-#if defined(CONFIG_CPU_XSC3) || __LINUX_ARM_ARCH__ >= 6
+#if __LINUX_ARM_ARCH__ >= 7
+#define isb() __asm__ __volatile__ ("isb" : : : "memory")
+#define dsb() __asm__ __volatile__ ("dsb" : : : "memory")
+#define dmb() __asm__ __volatile__ ("dmb" : : : "memory")
+#elif defined(CONFIG_CPU_XSC3) || __LINUX_ARM_ARCH__ == 6
 #define isb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c5, 4" \
 				    : : "r" (0) : "memory")
 #define dsb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" \

@@ -14,7 +14,6 @@
 #include "asm/tlbflush.h"
 #include "irq_user.h"
 #include "kern_util.h"
-#include "user_util.h"
 #include "os.h"
 #include "kern.h"
 #include "sigcontext.h"
@@ -65,7 +64,8 @@ void switch_to_tt(void *prev, void *next)
 	if(from->thread.mode.tt.switch_pipe[0] == -1)
 		os_kill_process(os_getpid(), 0);
 
-	err = os_read_file(from->thread.mode.tt.switch_pipe[0], &c, sizeof(c));
+	err = os_read_file(from->thread.mode.tt.switch_pipe[0], &c,
+			     sizeof(c));
 	if(err != sizeof(c))
 		panic("read of switch_pipe failed, errno = %d", -err);
 
@@ -209,7 +209,7 @@ void finish_fork_handler(int sig)
 	if(current->mm != current->parent->mm)
 		protect_memory(uml_reserved, high_physmem - uml_reserved, 1, 
 			       1, 0, 1);
-	task_protections((unsigned long) current_thread);
+	stack_protections((unsigned long) current_thread);
 
 	free_page(current->thread.temp_stack);
 	local_irq_disable();
