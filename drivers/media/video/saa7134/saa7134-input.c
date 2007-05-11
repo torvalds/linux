@@ -333,6 +333,12 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keyup   = 0x040000;
 		polling      = 50; // ms
 		break;
+	case SAA7134_BOARD_10MOONSTVMASTER3:
+		ir_codes     = ir_codes_encore_enltv;
+		mask_keycode = 0x5f80000;
+		mask_keyup   = 0x8000000;
+		polling      = 50; //ms
+		break;
 	}
 	if (NULL == ir_codes) {
 		printk("%s: Oops: IR config error [card=%d]\n",
