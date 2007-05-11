@@ -149,7 +149,9 @@ static void nvGetClocks(struct nvidia_par *par, unsigned int *MClk,
 		pll = NV_RD32(par->PMC, 0x4024);
 		M = pll & 0xFF;
 		N = (pll >> 8) & 0xFF;
-		if (((par->Chipset & 0xfff0) == 0x0290) || ((par->Chipset & 0xfff0) == 0x0390) || ((par->Chipset & 0xfff0) == 0x02E0)) {
+		if (((par->Chipset & 0xfff0) == 0x0290) ||
+			((par->Chipset & 0xfff0) == 0x0390) ||
+			((par->Chipset & 0xfff0) == 0x02E0)) {
 			MB = 1;
 			NB = 1;
 		} else {
