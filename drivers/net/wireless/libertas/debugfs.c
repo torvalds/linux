@@ -7,6 +7,7 @@
 #include "dev.h"
 #include "decl.h"
 #include "host.h"
+#include "debugfs.h"
 
 static struct dentry *libertas_dir = NULL;
 static char *szStates[] = {
@@ -1648,7 +1649,7 @@ struct libertas_debugfs_files {
 	struct file_operations fops;
 };
 
-struct libertas_debugfs_files debugfs_files[] = {
+static struct libertas_debugfs_files debugfs_files[] = {
 	{ "info", 0444, FOPS(libertas_dev_info, write_file_dummy), },
 	{ "getscantable", 0444, FOPS(libertas_getscantable,
 					write_file_dummy), },
@@ -1658,7 +1659,7 @@ struct libertas_debugfs_files debugfs_files[] = {
 	{ "setuserscan", 0600, FOPS(NULL, libertas_setuserscan), },
 };
 
-struct libertas_debugfs_files debugfs_events_files[] = {
+static struct libertas_debugfs_files debugfs_events_files[] = {
 	{"low_rssi", 0644, FOPS(libertas_lowrssi_read,
 				libertas_lowrssi_write), },
 	{"low_snr", 0644, FOPS(libertas_lowsnr_read,
@@ -1673,7 +1674,7 @@ struct libertas_debugfs_files debugfs_events_files[] = {
 				libertas_highsnr_write), },
 };
 
-struct libertas_debugfs_files debugfs_regs_files[] = {
+static struct libertas_debugfs_files debugfs_regs_files[] = {
 	{"rdmac", 0644, FOPS(libertas_rdmac_read, libertas_rdmac_write), },
 	{"wrmac", 0600, FOPS(NULL, libertas_wrmac_write), },
 	{"rdbbp", 0644, FOPS(libertas_rdbbp_read, libertas_rdbbp_write), },
@@ -1923,13 +1924,3 @@ void libertas_debug_init(wlan_private * priv, struct net_device *dev)
 						  &libertas_debug_fops);
 }
 
-/**
- *  @brief remove proc file
- *
- *  @param priv	   pointer wlan_private
- *  @return 	   N/A
- */
-void libertas_debug_remove(wlan_private * priv)
-{
-	debugfs_remove(priv->debugfs_debug);
-}
