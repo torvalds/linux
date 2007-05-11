@@ -549,8 +549,10 @@ static int msi_free_irqs(struct pci_dev* dev)
 {
 	struct msi_desc *entry, *tmp;
 
-	list_for_each_entry(entry, &dev->msi_list, list)
-		BUG_ON(irq_has_action(entry->irq));
+	list_for_each_entry(entry, &dev->msi_list, list) {
+		if (entry->irq)
+			BUG_ON(irq_has_action(entry->irq));
+	}
 
 	arch_teardown_msi_irqs(dev);
 
