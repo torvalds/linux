@@ -9,6 +9,11 @@
 
 extern unsigned int libertas_debug;
 
+#ifdef CONFIG_LIBERTAS_DEBUG
+#define DEBUG
+#define PROC_DEBUG
+#endif
+
 #define DRV_NAME		"usb8xxx"
 
 #define lbs_pr_info(format, args...) \
@@ -223,31 +228,6 @@ enum SNRNF_DATA {
 	MAX_TYPE_AVG
 };
 
-/** WLAN_802_11_AUTH_ALG*/
-enum WLAN_802_11_AUTH_ALG {
-	AUTH_ALG_OPEN_SYSTEM = 1,
-	AUTH_ALG_SHARED_KEY = 2,
-	AUTH_ALG_NETWORK_EAP = 8,
-};
-
-/** WLAN_802_1X_AUTH_ALG */
-enum WLAN_802_1X_AUTH_ALG {
-	WLAN_1X_AUTH_ALG_NONE = 1,
-	WLAN_1X_AUTH_ALG_LEAP = 2,
-	WLAN_1X_AUTH_ALG_TLS = 4,
-	WLAN_1X_AUTH_ALG_TTLS = 8,
-	WLAN_1X_AUTH_ALG_MD5 = 16,
-};
-
-/** WLAN_802_11_ENCRYPTION_MODE */
-enum WLAN_802_11_ENCRYPTION_MODE {
-	CIPHER_NONE,
-	CIPHER_WEP40,
-	CIPHER_TKIP,
-	CIPHER_CCMP,
-	CIPHER_WEP104,
-};
-
 /** WLAN_802_11_POWER_MODE */
 enum WLAN_802_11_POWER_MODE {
 	wlan802_11powermodecam,
@@ -290,28 +270,6 @@ enum mv_ms_type {
 	MVMS_CMD = 1,
 	MVMS_TXDONE = 2,
 	MVMS_EVENT
-};
-
-/** WLAN_802_11_NETWORK_INFRASTRUCTURE */
-enum WLAN_802_11_NETWORK_INFRASTRUCTURE {
-	wlan802_11ibss,
-	wlan802_11infrastructure,
-	wlan802_11autounknown,
-	/*defined as upper bound */
-	wlan802_11infrastructuremax
-};
-
-/** WLAN_802_11_AUTHENTICATION_MODE */
-enum WLAN_802_11_AUTHENTICATION_MODE {
-	wlan802_11authmodeopen = 0x00,
-	wlan802_11authmodeshared = 0x01,
-	wlan802_11authmodenetworkEAP = 0x80,
-};
-
-/** WLAN_802_11_WEP_STATUS */
-enum WLAN_802_11_WEP_STATUS {
-	wlan802_11WEPenabled,
-	wlan802_11WEPdisabled,
 };
 
 /** SNMP_MIB_INDEX_e */

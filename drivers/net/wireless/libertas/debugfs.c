@@ -7,6 +7,7 @@
 #include "dev.h"
 #include "decl.h"
 #include "host.h"
+#include "debugfs.h"
 
 static struct dentry *libertas_dir = NULL;
 static char *szStates[] = {
@@ -276,7 +277,7 @@ static void libertas_parse_ssid(char *buf, size_t count,
 	if (!end)
 		end = buf + count - 1;
 
-	size = min(IW_ESSID_MAX_SIZE, end - hold);
+	size = min((size_t)IW_ESSID_MAX_SIZE, (size_t) (end - hold));
 	strncpy(scan_cfg->specificSSID, hold, size);
 
 	return;
@@ -1648,7 +1649,7 @@ struct libertas_debugfs_files {
 	struct file_operations fops;
 };
 
-struct libertas_debugfs_files debugfs_files[] = {
+static struct libertas_debugfs_files debugfs_files[] = {
 	{ "info", 0444, FOPS(libertas_dev_info, write_file_dummy), },
 	{ "getscantable", 0444, FOPS(libertas_getscantable,
 					write_file_dummy), },
@@ -1658,7 +1659,7 @@ struct libertas_debugfs_files debugfs_files[] = {
 	{ "setuserscan", 0600, FOPS(NULL, libertas_setuserscan), },
 };
 
-struct libertas_debugfs_files debugfs_events_files[] = {
+static struct libertas_debugfs_files debugfs_events_files[] = {
 	{"low_rssi", 0644, FOPS(libertas_lowrssi_read,
 				libertas_lowrssi_write), },
 	{"low_snr", 0644, FOPS(libertas_lowsnr_read,
@@ -1673,7 +1674,7 @@ struct libertas_debugfs_files debugfs_events_files[] = {
 				libertas_highsnr_write), },
 };
 
-struct libertas_debugfs_files debugfs_regs_files[] = {
+static struct libertas_debugfs_files debugfs_regs_files[] = {
 	{"rdmac", 0644, FOPS(libertas_rdmac_read, libertas_rdmac_write), },
 	{"wrmac", 0600, FOPS(NULL, libertas_wrmac_write), },
 	{"rdbbp", 0644, FOPS(libertas_rdbbp_read, libertas_rdbbp_write), },
@@ -1778,7 +1779,7 @@ void libertas_debugfs_remove_one(wlan_private *priv)
 struct debug_data {
 	char name[32];
 	u32 size;
-	u32 addr;
+	size_t addr;
 };
 
 /* To debug any member of wlan_adapter, simply add one line here.
@@ -1825,6 +1826,8 @@ static ssize_t wlan_debugfs_read(struct file *file, char __user *userbuf,
 			val = *((u16 *) d[i].addr);
 		else if (d[i].size == 4)
 			val = *((u32 *) d[i].addr);
+		else if (d[i].size == 8)
+			val = *((u64 *) d[i].addr);
 
 		pos += sprintf(p + pos, "%s=%d\n", d[i].name, val);
 	}
@@ -1844,7 +1847,7 @@ static ssize_t wlan_debugfs_read(struct file *file, char __user *userbuf,
  *  @param data    data to write
  *  @return 	   number of data
  */
-static int wlan_debugfs_write(struct file *f, const char __user *buf,
+static ssize_t wlan_debugfs_write(struct file *f, const char __user *buf,
 			    size_t cnt, loff_t *ppos)
 {
 	int r, i;
@@ -1886,12 +1889,14 @@ static int wlan_debugfs_write(struct file *f, const char __user *buf,
 				*((u16 *) d[i].addr) = (u16) r;
 			else if (d[i].size == 4)
 				*((u32 *) d[i].addr) = (u32) r;
+			else if (d[i].size == 8)
+				*((u64 *) d[i].addr) = (u64) r;
 			break;
 		} while (1);
 	}
 	kfree(pdata);
 
-	return cnt;
+	return (ssize_t)cnt;
 }
 
 static struct file_operations libertas_debug_fops = {
@@ -1916,20 +1921,10 @@ void libertas_debug_init(wlan_private * priv, struct net_device *dev)
 		return;
 
 	for (i = 0; i < num_of_items; i++)
-		items[i].addr += (u32) priv->adapter;
+		items[i].addr += (size_t) priv->adapter;
 
 	priv->debugfs_debug = debugfs_create_file("debug", 0644,
 						  priv->debugfs_dir, &items[0],
 						  &libertas_debug_fops);
 }
 
-/**
- *  @brief remove proc file
- *
- *  @param priv	   pointer wlan_private
- *  @return 	   N/A
- */
-void libertas_debug_remove(wlan_private * priv)
-{
-	debugfs_remove(priv->debugfs_debug);
-}

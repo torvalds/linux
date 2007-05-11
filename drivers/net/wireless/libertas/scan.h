@@ -1,6 +1,3 @@
-/* -*- mode: C; tab-width: 4; indent-tabs-mode: nil -*- */
-/* vi: set expandtab shiftwidth=4 tabstop=4 textwidth=78: */
-
 /**
   * Interface for the wlan network scan routines
   *
@@ -10,6 +7,7 @@
 #ifndef _WLAN_SCAN_H
 #define _WLAN_SCAN_H
 
+#include <net/ieee80211.h>
 #include "hostcmd.h"
 
 /**
@@ -155,7 +153,7 @@ struct bss_descriptor {
 
 	u32 atimwindow;
 
-	enum WLAN_802_11_NETWORK_INFRASTRUCTURE inframode;
+	u8 mode;
 	u8 libertas_supported_rates[WLAN_SUPPORTED_RATES];
 
 	int extra_ie;
@@ -170,22 +168,22 @@ struct bss_descriptor {
 
 	struct ieeetypes_countryinfofullset countryinfo;
 
-	struct WPA_SUPPLICANT wpa_supplicant;
-	struct WPA_SUPPLICANT wpa2_supplicant;
-
+	u8 wpa_ie[MAX_WPA_IE_LEN];
+	size_t wpa_ie_len;
+	u8 rsn_ie[MAX_WPA_IE_LEN];
+	size_t rsn_ie_len;
 };
 
 extern int libertas_SSID_cmp(struct WLAN_802_11_SSID *ssid1,
 		   struct WLAN_802_11_SSID *ssid2);
 extern int libertas_find_SSID_in_list(wlan_adapter * adapter, struct WLAN_802_11_SSID *ssid,
-			  u8 * bssid, int mode);
-int libertas_find_best_SSID_in_list(wlan_adapter * adapter, enum WLAN_802_11_NETWORK_INFRASTRUCTURE mode);
-extern int libertas_find_BSSID_in_list(wlan_adapter * adapter, u8 * bssid, int mode);
+			  u8 * bssid, u8 mode);
+int libertas_find_best_SSID_in_list(wlan_adapter * adapter, u8 mode);
+extern int libertas_find_BSSID_in_list(wlan_adapter * adapter, u8 * bssid, u8 mode);
 
 int libertas_find_best_network_SSID(wlan_private * priv,
 			struct WLAN_802_11_SSID *pSSID,
-			enum WLAN_802_11_NETWORK_INFRASTRUCTURE preferred_mode,
-			enum WLAN_802_11_NETWORK_INFRASTRUCTURE *out_mode);
+			u8 preferred_mode, u8 *out_mode);
 
 extern int libertas_send_specific_SSID_scan(wlan_private * priv,
 				struct WLAN_802_11_SSID *prequestedssid,

@@ -12,7 +12,6 @@
 #define USB8388_VID_2	0x05a3
 #define USB8388_PID_2	0x8388
 
-#ifdef SUPPORT_BOOT_COMMAND
 #define BOOT_CMD_FW_BY_USB     0x01
 #define BOOT_CMD_FW_IN_EEPROM  0x02
 #define BOOT_CMD_UPDATE_BOOT2  0x03
@@ -36,7 +35,6 @@ struct bootcmdrespStr
 	u8  u8result;
 	u8  au8dumy[2];
 };
-#endif /* SUPPORT_BOOT_COMMAND */
 
 /* read callback private data */
 struct read_cb_info {

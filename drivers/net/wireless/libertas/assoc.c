@@ -23,13 +23,13 @@ static int assoc_helper_essid(wlan_private *priv,
 	ENTER();
 
 	lbs_pr_debug(1, "New SSID requested: %s\n", assoc_req->ssid.ssid);
-	if (assoc_req->mode == wlan802_11infrastructure) {
+	if (assoc_req->mode == IW_MODE_INFRA) {
 		if (adapter->prescan) {
 			libertas_send_specific_SSID_scan(priv, &assoc_req->ssid, 1);
 		}
 
 		i = libertas_find_SSID_in_list(adapter, &assoc_req->ssid,
-				NULL, wlan802_11infrastructure);
+				NULL, IW_MODE_INFRA);
 		if (i >= 0) {
 			lbs_pr_debug(1,
 			       "SSID found in scan list ... associating...\n");
@@ -44,7 +44,7 @@ static int assoc_helper_essid(wlan_private *priv,
 			lbs_pr_debug(1, "SSID '%s' not found; cannot associate\n",
 				assoc_req->ssid.ssid);
 		}
-	} else if (assoc_req->mode == wlan802_11ibss) {
+	} else if (assoc_req->mode == IW_MODE_ADHOC) {
 		/* Scan for the network, do not save previous results.  Stale
 		 *   scan data will cause us to join a non-existant adhoc network
 		 */
@@ -52,7 +52,7 @@ static int assoc_helper_essid(wlan_private *priv,
 
 		/* Search for the requested SSID in the scan table */
 		i = libertas_find_SSID_in_list(adapter, &assoc_req->ssid, NULL,
-				wlan802_11ibss);
+				IW_MODE_ADHOC);
 		if (i >= 0) {
 			lbs_pr_debug(1, "SSID found at %d in List, so join\n", ret);
 			libertas_join_adhoc_network(priv, &adapter->scantable[i]);
@@ -90,10 +90,10 @@ static int assoc_helper_bssid(wlan_private *priv,
 		goto out;
 	}
 
-	if (assoc_req->mode == wlan802_11infrastructure) {
+	if (assoc_req->mode == IW_MODE_INFRA) {
 		ret = wlan_associate(priv, &adapter->scantable[i]);
 		lbs_pr_debug(1, "ASSOC: return from wlan_associate(bssd) was %d\n", ret);
-	} else if (assoc_req->mode == wlan802_11ibss) {
+	} else if (assoc_req->mode == IW_MODE_ADHOC) {
 		libertas_join_adhoc_network(priv, &adapter->scantable[i]);
 	}
 	memcpy(&assoc_req->ssid, &adapter->scantable[i].ssid,
@@ -142,23 +142,23 @@ static int assoc_helper_mode(wlan_private *priv,
 
 	ENTER();
 
-	if (assoc_req->mode == adapter->inframode) {
+	if (assoc_req->mode == adapter->mode) {
 		LEAVE();
 		return 0;
 	}
 
-	if (assoc_req->mode == wlan802_11infrastructure) {
+	if (assoc_req->mode == IW_MODE_INFRA) {
 		if (adapter->psstate != PS_STATE_FULL_POWER)
 			libertas_ps_wakeup(priv, cmd_option_waitforrsp);
 		adapter->psmode = wlan802_11powermodecam;
 	}
 
-	adapter->inframode = assoc_req->mode;
+	adapter->mode = assoc_req->mode;
 	ret = libertas_prepare_and_send_command(priv,
 				    cmd_802_11_snmp_mib,
 				    0, cmd_option_waitforrsp,
 				    OID_802_11_INFRASTRUCTURE_MODE,
-				    (void *) assoc_req->mode);
+				    (void *) (size_t) assoc_req->mode);
 
 	LEAVE();
 	return ret;
@@ -196,7 +196,7 @@ static int assoc_helper_wep_keys(wlan_private *priv,
 		goto out;
 
 	/* enable/disable the MAC's WEP packet filter */
-	if (assoc_req->secinfo.WEPstatus == wlan802_11WEPenabled)
+	if (assoc_req->secinfo.wep_enabled)
 		adapter->currentpacketfilter |= cmd_act_mac_wep_enable;
 	else
 		adapter->currentpacketfilter &= ~cmd_act_mac_wep_enable;
@@ -300,8 +300,7 @@ static int should_deauth_infrastructure(wlan_adapter *adapter,
 	}
 
 	if (test_bit(ASSOC_FLAG_SECINFO, &assoc_req->flags)) {
-		if (adapter->secinfo.authmode !=
-		    assoc_req->secinfo.authmode) {
+		if (adapter->secinfo.auth_mode != assoc_req->secinfo.auth_mode) {
 			lbs_pr_debug(1, "Deauthenticating due to updated security "
 				"info in configuration request.\n");
 			return 1;
@@ -316,7 +315,7 @@ static int should_deauth_infrastructure(wlan_adapter *adapter,
 
 	/* FIXME: deal with 'auto' mode somehow */
 	if (test_bit(ASSOC_FLAG_MODE, &assoc_req->flags)) {
-		if (assoc_req->mode != wlan802_11infrastructure)
+		if (assoc_req->mode != IW_MODE_INFRA)
 			return 1;
 	}
 
@@ -333,12 +332,12 @@ static int should_stop_adhoc(wlan_adapter *adapter,
 	if (adapter->curbssparams.ssid.ssidlength != assoc_req->ssid.ssidlength)
 		return 1;
 	if (memcmp(adapter->curbssparams.ssid.ssid, assoc_req->ssid.ssid,
-			sizeof(struct WLAN_802_11_SSID)))
+			adapter->curbssparams.ssid.ssidlength))
 		return 1;
 
 	/* FIXME: deal with 'auto' mode somehow */
 	if (test_bit(ASSOC_FLAG_MODE, &assoc_req->flags)) {
-		if (assoc_req->mode != wlan802_11ibss)
+		if (assoc_req->mode != IW_MODE_ADHOC)
 			return 1;
 	}
 
@@ -382,7 +381,7 @@ void wlan_association_worker(struct work_struct *work)
 	}
 
 	if (find_any_ssid) {
-		enum WLAN_802_11_NETWORK_INFRASTRUCTURE new_mode;
+		u8 new_mode;
 
 		ret = libertas_find_best_network_SSID(priv, &assoc_req->ssid,
 				assoc_req->mode, &new_mode);
@@ -393,7 +392,7 @@ void wlan_association_worker(struct work_struct *work)
 		}
 
 		/* Ensure we switch to the mode of the AP */
-		if (assoc_req->mode == wlan802_11autounknown) {
+		if (assoc_req->mode == IW_MODE_AUTO) {
 			set_bit(ASSOC_FLAG_MODE, &assoc_req->flags);
 			assoc_req->mode = new_mode;
 		}
@@ -403,7 +402,7 @@ void wlan_association_worker(struct work_struct *work)
 	 * Check if the attributes being changing require deauthentication
 	 * from the currently associated infrastructure access point.
 	 */
-	if (adapter->inframode == wlan802_11infrastructure) {
+	if (adapter->mode == IW_MODE_INFRA) {
 		if (should_deauth_infrastructure(adapter, assoc_req)) {
 			ret = libertas_send_deauthentication(priv);
 			if (ret) {
@@ -412,7 +411,7 @@ void wlan_association_worker(struct work_struct *work)
 					ret);
 			}
 		}
-	} else if (adapter->inframode == wlan802_11ibss) {
+	} else if (adapter->mode == IW_MODE_ADHOC) {
 		if (should_stop_adhoc(adapter, assoc_req)) {
 			ret = libertas_stop_adhoc_network(priv);
 			if (ret) {
@@ -543,7 +542,7 @@ struct assoc_request * wlan_get_association_request(wlan_adapter *adapter)
 		assoc_req->channel = adapter->curbssparams.channel;
 
 	if (!test_bit(ASSOC_FLAG_MODE, &assoc_req->flags))
-		assoc_req->mode = adapter->inframode;
+		assoc_req->mode = adapter->mode;
 
 	if (!test_bit(ASSOC_FLAG_BSSID, &assoc_req->flags)) {
 		memcpy(&assoc_req->bssid, adapter->curbssparams.bssid,

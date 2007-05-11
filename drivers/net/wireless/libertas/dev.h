@@ -10,6 +10,7 @@
 #include <linux/wireless.h>
 #include <linux/ethtool.h>
 #include <linux/debugfs.h>
+#include <net/ieee80211.h>
 
 #include "defs.h"
 #include "scan.h"
@@ -56,10 +57,8 @@ struct region_channel {
 struct wlan_802_11_security {
 	u8 WPAenabled;
 	u8 WPA2enabled;
-	enum WLAN_802_11_WEP_STATUS WEPstatus;
-	enum WLAN_802_11_AUTHENTICATION_MODE authmode;
-	enum WLAN_802_1X_AUTH_ALG auth1xalg;
-	enum WLAN_802_11_ENCRYPTION_MODE Encryptionmode;
+	u8 wep_enabled;
+	u8 auth_mode;
 };
 
 /** Current Basic Service Set State Structure */
@@ -184,7 +183,7 @@ struct assoc_request {
 
 	struct WLAN_802_11_SSID ssid;
 	u8 channel;
-	enum WLAN_802_11_NETWORK_INFRASTRUCTURE mode;
+	u8 mode;
 	u8 bssid[ETH_ALEN];
 
 	/** WEP keys */
@@ -198,7 +197,6 @@ struct assoc_request {
 	struct wlan_802_11_security secinfo;
 
 	/** WPA Information Elements*/
-#define MAX_WPA_IE_LEN 64
 	u8 wpa_ie[MAX_WPA_IE_LEN];
 	u8 wpa_ie_len;
 };
@@ -254,7 +252,8 @@ struct _wlan_adapter {
 	/** current ssid/bssid related parameters*/
 	struct current_bss_params curbssparams;
 
-	enum WLAN_802_11_NETWORK_INFRASTRUCTURE inframode;
+	/* IW_MODE_* */
+	u8 mode;
 
 	struct bss_descriptor *pattemptedbssdesc;
 
@@ -339,7 +338,6 @@ struct _wlan_adapter {
 	struct WLAN_802_11_KEY wpa_unicast_key;
 
 	/** WPA Information Elements*/
-#define MAX_WPA_IE_LEN 64
 	u8 wpa_ie[MAX_WPA_IE_LEN];
 	u8 wpa_ie_len;
 

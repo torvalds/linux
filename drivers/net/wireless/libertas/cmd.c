@@ -381,15 +381,16 @@ static int wlan_cmd_802_11_snmp_mib(wlan_private * priv,
 	switch (cmd_oid) {
 	case OID_802_11_INFRASTRUCTURE_MODE:
 	{
-		enum WLAN_802_11_NETWORK_INFRASTRUCTURE mode =
-			(enum WLAN_802_11_NETWORK_INFRASTRUCTURE) pdata_buf;
+		u8 mode = (u8) (size_t) pdata_buf;
 		pSNMPMIB->querytype = cpu_to_le16(cmd_act_set);
 		pSNMPMIB->oid = cpu_to_le16((u16) desired_bsstype_i);
 		pSNMPMIB->bufsize = sizeof(u8);
-		if (mode == wlan802_11infrastructure)
-			ucTemp = SNMP_MIB_VALUE_INFRA;
-		else
+		if (mode == IW_MODE_ADHOC) {
 			ucTemp = SNMP_MIB_VALUE_ADHOC;
+		} else {
+			/* Infra and Auto modes */
+			ucTemp = SNMP_MIB_VALUE_INFRA;
+		}
 
 		memmove(pSNMPMIB->value, &ucTemp, sizeof(u8));
 
@@ -947,8 +948,8 @@ void libertas_queue_cmd(wlan_adapter * adapter, struct cmd_ctrl_node *cmdnode, u
 
 	spin_unlock_irqrestore(&adapter->driver_lock, flags);
 
-	lbs_pr_debug(1, "QUEUE_CMD: Inserted node=0x%x, cmd=0x%x in cmdpendingq\n",
-	       (u32) cmdnode,
+	lbs_pr_debug(1, "QUEUE_CMD: Inserted node=%p, cmd=0x%x in cmdpendingq\n",
+	       cmdnode,
 	       ((struct cmd_ds_gen*)cmdnode->bufvirtualaddr)->command);
 
 done:
@@ -976,8 +977,8 @@ static int DownloadcommandToStation(wlan_private * priv,
 	ENTER();
 
 	if (!adapter || !cmdnode) {
-		lbs_pr_debug(1, "DNLD_CMD: adapter = %#x, cmdnode = %#x\n",
-		       (int)adapter, (int)cmdnode);
+		lbs_pr_debug(1, "DNLD_CMD: adapter = %p, cmdnode = %p\n",
+		       adapter, cmdnode);
 		if (cmdnode) {
 			spin_lock_irqsave(&adapter->driver_lock, flags);
 			__libertas_cleanup_and_insert_cmd(priv, cmdnode);
@@ -1174,8 +1175,8 @@ int libertas_prepare_and_send_command(wlan_private * priv,
 
 	cmdptr = (struct cmd_ds_command *)cmdnode->bufvirtualaddr;
 
-	lbs_pr_debug(1, "PREP_CMD: Val of cmd ptr =0x%x, command=0x%X\n",
-	       (u32) cmdptr, cmd_no);
+	lbs_pr_debug(1, "PREP_CMD: Val of cmd ptr=%p, command=0x%X\n",
+	       cmdptr, cmd_no);
 
 	if (!cmdptr) {
 		lbs_pr_debug(1, "PREP_CMD: bufvirtualaddr of cmdnode is NULL\n");

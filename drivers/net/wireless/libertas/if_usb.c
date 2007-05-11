@@ -388,7 +388,7 @@ static int __if_usb_submit_rx_urb(wlan_private * priv,
 	usb_fill_bulk_urb(cardp->rx_urb, cardp->udev,
 			  usb_rcvbulkpipe(cardp->udev,
 					  cardp->bulk_in_endpointAddr),
-			  skb->tail + IPFIELD_ALIGN_OFFSET,
+			  (void *) (skb->tail + (size_t) IPFIELD_ALIGN_OFFSET),
 			  MRVDRV_ETH_RX_PACKET_BUFFER_SIZE, callbackfn,
 			  rinfo);
 
@@ -626,6 +626,7 @@ static void if_usb_receive(struct urb *urb)
 			    cardp->usb_event_cause);
 		if (cardp->usb_event_cause & 0xffff0000) {
 			libertas_send_tx_feedback(priv);
+			spin_unlock(&priv->adapter->driver_lock);
 			break;
 		}
 		cardp->usb_event_cause = le32_to_cpu(cardp->usb_event_cause) << 3;
@@ -775,7 +776,6 @@ restart:
 		return -1;
 	}
 
-#ifdef SUPPORT_BOOT_COMMAND
 	cardp->bootcmdresp = 0;
 	do {
 		int j = 0;
@@ -796,7 +796,6 @@ restart:
 		}
 		return -1;
 	}
-#endif
 
 	i = 0;
 	priv->adapter->fw_ready = 0;

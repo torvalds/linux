@@ -15,6 +15,8 @@
 #include "join.h"
 #include "dev.h"
 
+#define AD_HOC_CAP_PRIVACY_ON 1
+
 /**
  *  @brief This function finds out the common rates between rate1 and rate2.
  *
@@ -85,23 +87,9 @@ int libertas_send_deauth(wlan_private * priv)
 	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
 
-	if (adapter->inframode == wlan802_11infrastructure &&
+	if (adapter->mode == IW_MODE_INFRA &&
 	    adapter->connect_status == libertas_connected)
 		ret = libertas_send_deauthentication(priv);
-	else
-		ret = -ENOTSUPP;
-
-	return ret;
-}
-
-int libertas_do_adhocstop_ioctl(wlan_private * priv)
-{
-	wlan_adapter *adapter = priv->adapter;
-	int ret = 0;
-
-	if (adapter->inframode == wlan802_11ibss &&
-	    adapter->connect_status == libertas_connected)
-		ret = libertas_stop_adhoc_network(priv);
 	else
 		ret = -ENOTSUPP;
 
@@ -207,8 +195,7 @@ int libertas_join_adhoc_network(wlan_private * priv, struct bss_descriptor * pbs
 	/* check if the requested SSID is already joined */
 	if (adapter->curbssparams.ssid.ssidlength
 	    && !libertas_SSID_cmp(&pbssdesc->ssid, &adapter->curbssparams.ssid)
-	    && (adapter->curbssparams.bssdescriptor.inframode ==
-		wlan802_11ibss)) {
+	    && (adapter->mode == IW_MODE_ADHOC)) {
 
         lbs_pr_debug(1,
 		       "ADHOC_J_CMD: New ad-hoc SSID is the same as current, "
@@ -261,130 +248,6 @@ int libertas_send_deauthentication(wlan_private * priv)
 }
 
 /**
- *  @brief Set Idle Off
- *
- *  @param priv         A pointer to wlan_private structure
- *  @return             0 --success, otherwise fail
- */
-int libertas_idle_off(wlan_private * priv)
-{
-	wlan_adapter *adapter = priv->adapter;
-	int ret = 0;
-	const u8 zeromac[] = { 0, 0, 0, 0, 0, 0 };
-	int i;
-
-	ENTER();
-
-	if (adapter->connect_status == libertas_disconnected) {
-		if (adapter->inframode == wlan802_11infrastructure) {
-			if (memcmp(adapter->previousbssid, zeromac,
-				   sizeof(zeromac)) != 0) {
-
-				lbs_pr_debug(1, "Previous SSID = %s\n",
-				       adapter->previousssid.ssid);
-				lbs_pr_debug(1, "Previous BSSID = "
-				       "%02x:%02x:%02x:%02x:%02x:%02x:\n",
-				       adapter->previousbssid[0],
-				       adapter->previousbssid[1],
-				       adapter->previousbssid[2],
-				       adapter->previousbssid[3],
-				       adapter->previousbssid[4],
-				       adapter->previousbssid[5]);
-
-				i = libertas_find_SSID_in_list(adapter,
-						   &adapter->previousssid,
-						   adapter->previousbssid,
-						   adapter->inframode);
-
-				if (i < 0) {
-					libertas_send_specific_BSSID_scan(priv,
-							      adapter->
-							      previousbssid,
-							      1);
-					i = libertas_find_SSID_in_list(adapter,
-							   &adapter->
-							   previousssid,
-							   adapter->
-							   previousbssid,
-							   adapter->
-							   inframode);
-				}
-
-				if (i < 0) {
-					/* If the BSSID could not be found, try just the SSID */
-					i = libertas_find_SSID_in_list(adapter,
-							   &adapter->
-							   previousssid, NULL,
-							   adapter->
-							   inframode);
-				}
-
-				if (i < 0) {
-					libertas_send_specific_SSID_scan(priv,
-							     &adapter->
-							     previousssid,
-							     1);
-					i = libertas_find_SSID_in_list(adapter,
-							   &adapter->
-							   previousssid, NULL,
-							   adapter->
-							   inframode);
-				}
-
-				if (i >= 0) {
-					ret =
-					    wlan_associate(priv,
-							   &adapter->
-							   scantable[i]);
-				}
-			}
-		} else if (adapter->inframode == wlan802_11ibss) {
-			ret = libertas_prepare_and_send_command(priv,
-						    cmd_802_11_ad_hoc_start,
-						    0,
-						    cmd_option_waitforrsp,
-						    0, &adapter->previousssid);
-		}
-	}
-	/* else it is connected */
-
-	lbs_pr_debug(1, "\nwlanidle is off");
-	LEAVE();
-	return ret;
-}
-
-/**
- *  @brief Set Idle On
- *
- *  @param priv         A pointer to wlan_private structure
- *  @return             0 --success, otherwise fail
- */
-int libertas_idle_on(wlan_private * priv)
-{
-	wlan_adapter *adapter = priv->adapter;
-	int ret = 0;
-
-	if (adapter->connect_status == libertas_connected) {
-		if (adapter->inframode == wlan802_11infrastructure) {
-			lbs_pr_debug(1, "Previous SSID = %s\n",
-			       adapter->previousssid.ssid);
-			memmove(&adapter->previousssid,
-				&adapter->curbssparams.ssid,
-				sizeof(struct WLAN_802_11_SSID));
-			libertas_send_deauth(priv);
-
-		} else if (adapter->inframode == wlan802_11ibss) {
-			ret = libertas_stop_adhoc_network(priv);
-		}
-
-	}
-
-	lbs_pr_debug(1, "\nwlanidle is on");
-
-	return ret;
-}
-
-/**
  *  @brief This function prepares command of authenticate.
  *
  *  @param priv      A pointer to wlan_private structure
@@ -398,22 +261,39 @@ int libertas_cmd_80211_authenticate(wlan_private * priv,
 				 void *pdata_buf)
 {
 	wlan_adapter *adapter = priv->adapter;
-	struct cmd_ds_802_11_authenticate *pauthenticate =
-	    &cmd->params.auth;
+	struct cmd_ds_802_11_authenticate *pauthenticate = &cmd->params.auth;
+	int ret = -1;
 	u8 *bssid = pdata_buf;
 
 	cmd->command = cpu_to_le16(cmd_802_11_authenticate);
-	cmd->size =
-	    cpu_to_le16(sizeof(struct cmd_ds_802_11_authenticate)
-			     + S_DS_GEN);
+	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_authenticate)
+	                        + S_DS_GEN);
 
-	pauthenticate->authtype = adapter->secinfo.authmode;
+	/* translate auth mode to 802.11 defined wire value */
+	switch (adapter->secinfo.auth_mode) {
+	case IW_AUTH_ALG_OPEN_SYSTEM:
+		pauthenticate->authtype = 0x00;
+		break;
+	case IW_AUTH_ALG_SHARED_KEY:
+		pauthenticate->authtype = 0x01;
+		break;
+	case IW_AUTH_ALG_LEAP:
+		pauthenticate->authtype = 0x80;
+		break;
+	default:
+		lbs_pr_debug(1, "AUTH_CMD: invalid auth alg 0x%X\n",
+		             adapter->secinfo.auth_mode);
+		goto out;
+	}
+
 	memcpy(pauthenticate->macaddr, bssid, ETH_ALEN);
 
 	lbs_pr_debug(1, "AUTH_CMD: Bssid is : %x:%x:%x:%x:%x:%x\n",
 	       bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
+	ret = 0;
 
-	return 0;
+out:
+	return ret;
 }
 
 int libertas_cmd_80211_deauthenticate(wlan_private * priv,
@@ -550,7 +430,7 @@ int libertas_cmd_80211_associate(wlan_private * priv,
 	lbs_pr_debug(1, "ASSOC_CMD: rates->header.len = %d\n", rates->header.len);
 
 	/* set IBSS field */
-	if (pbssdesc->inframode == wlan802_11infrastructure) {
+	if (pbssdesc->mode == IW_MODE_INFRA) {
 #define CAPINFO_ESS_MODE 1
 		passo->capinfo.ess = CAPINFO_ESS_MODE;
 	}
@@ -624,7 +504,7 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 
 	/* set the BSS type */
 	adhs->bsstype = cmd_bss_type_ibss;
-	pbssdesc->inframode = wlan802_11ibss;
+	pbssdesc->mode = IW_MODE_ADHOC;
 	adhs->beaconperiod = adapter->beaconperiod;
 
 	/* set Physical param set */
@@ -666,15 +546,12 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 	adhs->probedelay = cpu_to_le16(cmd_scan_probe_delay_time);
 
 	/* set up privacy in adapter->scantable[i] */
-	if (adapter->secinfo.WEPstatus == wlan802_11WEPenabled) {
-
-#define AD_HOC_CAP_PRIVACY_ON 1
-		lbs_pr_debug(1, "ADHOC_S_CMD: WEPstatus set, privacy to WEP\n");
+	if (adapter->secinfo.wep_enabled) {
+		lbs_pr_debug(1, "ADHOC_S_CMD: WEP enabled, setting privacy on\n");
 		pbssdesc->privacy = wlan802_11privfilter8021xWEP;
 		adhs->cap.privacy = AD_HOC_CAP_PRIVACY_ON;
 	} else {
-		lbs_pr_debug(1, "ADHOC_S_CMD: WEPstatus NOT set, Setting "
-		       "privacy to ACCEPT ALL\n");
+		lbs_pr_debug(1, "ADHOC_S_CMD: WEP disabled, setting privacy off\n");
 		pbssdesc->privacy = wlan802_11privfilteracceptall;
 	}
 
@@ -786,9 +663,6 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 	       padhocjoin->bssdescriptor.BSSID[5],
 	       padhocjoin->bssdescriptor.SSID);
 
-	lbs_pr_debug(1, "ADHOC_J_CMD: Data Rate = %x\n",
-	       (u32) padhocjoin->bssdescriptor.datarates);
-
 	/* failtimeout */
 	padhocjoin->failtimeout = cpu_to_le16(MRVDRV_ASSOCIATION_TIME_OUT);
 
@@ -832,7 +706,7 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 	padhocjoin->bssdescriptor.ssparamset.ibssparamset.atimwindow =
 	    cpu_to_le16(pbssdesc->atimwindow);
 
-	if (adapter->secinfo.WEPstatus == wlan802_11WEPenabled) {
+	if (adapter->secinfo.wep_enabled) {
 		padhocjoin->bssdescriptor.cap.privacy = AD_HOC_CAP_PRIVACY_ON;
 	}
 

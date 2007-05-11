@@ -210,7 +210,7 @@ int libertas_process_rxed_packet(wlan_private * priv, struct sk_buff *skb)
 		goto done;
 	}
 
-	lbs_pr_debug(1, "RX Data: skb->len - sizeof(RxPd) = %d - %d = %d\n",
+	lbs_pr_debug(1, "RX Data: skb->len - sizeof(RxPd) = %d - %zd = %zd\n",
 	       skb->len, sizeof(struct rxpd), skb->len - sizeof(struct rxpd));
 
 	lbs_dbg_hex("RX Data: Dest", p_rx_pkt->eth803_hdr.dest_addr,
@@ -364,7 +364,7 @@ static int process_rxed_802_11_packet(wlan_private * priv, struct sk_buff *skb)
 		priv->stats.rx_errors++;
 	}
 
-	lbs_pr_debug(1, "RX Data: skb->len - sizeof(RxPd) = %d - %d = %d\n",
+	lbs_pr_debug(1, "RX Data: skb->len - sizeof(RxPd) = %d - %zd = %zd\n",
 	       skb->len, sizeof(struct rxpd), skb->len - sizeof(struct rxpd));
 
 	/* create the exported radio header */
