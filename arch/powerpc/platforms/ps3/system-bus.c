@@ -274,13 +274,13 @@ static void ps3_unmap_single(struct device *_dev, dma_addr_t dma_addr,
 static int ps3_map_sg(struct device *_dev, struct scatterlist *sg, int nents,
 	enum dma_data_direction direction)
 {
-	struct ps3_system_bus_device *dev = to_ps3_system_bus_device(_dev);
-	int i;
-
 #if defined(CONFIG_PS3_DYNAMIC_DMA)
 	BUG_ON("do");
 	return -EPERM;
 #else
+	struct ps3_system_bus_device *dev = to_ps3_system_bus_device(_dev);
+	int i;
+
 	for (i = 0; i < nents; i++, sg++) {
 		int result = ps3_dma_map(dev->d_region,
 			page_to_phys(sg->page) + sg->offset, sg->length,

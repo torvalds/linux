@@ -99,6 +99,7 @@ static void ps3_panic(char *str)
 	while(1);
 }
 
+#ifdef CONFIG_FB_PS3
 static void prealloc(struct ps3_prealloc *p)
 {
 	if (!p->size)
@@ -115,7 +116,6 @@ static void prealloc(struct ps3_prealloc *p)
 	       p->address);
 }
 
-#ifdef CONFIG_FB_PS3
 struct ps3_prealloc ps3fb_videomemory = {
     .name = "ps3fb videomemory",
     .size = CONFIG_FB_PS3_DEFAULT_SIZE_M*1024*1024,
