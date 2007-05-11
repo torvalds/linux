@@ -10,7 +10,6 @@
  *
  */
 #include <linux/interrupt.h>
-#include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/pm.h>
 
@@ -25,8 +24,6 @@
 extern void cobalt_machine_restart(char *command);
 extern void cobalt_machine_halt(void);
 extern void cobalt_machine_power_off(void);
-
-int cobalt_board_id;
 
 const char *get_system_type(void)
 {
@@ -92,7 +89,6 @@ static struct resource cobalt_reserved_resources[] = {
 
 void __init plat_mem_setup(void)
 {
-	unsigned int devfn = PCI_DEVFN(COBALT_PCICONF_VIA, 0);
 	int i;
 
 	_machine_restart = cobalt_machine_restart;
@@ -107,14 +103,6 @@ void __init plat_mem_setup(void)
 	/* These resources have been reserved by VIA SuperI/O chip. */
 	for (i = 0; i < ARRAY_SIZE(cobalt_reserved_resources); i++)
 		request_resource(&ioport_resource, cobalt_reserved_resources + i);
-
-        /* Read the cobalt id register out of the PCI config space */
-        PCI_CFG_SET(devfn, (VIA_COBALT_BRD_ID_REG & ~0x3));
-        cobalt_board_id = GT_READ(GT_PCI0_CFGDATA_OFS);
-        cobalt_board_id >>= ((VIA_COBALT_BRD_ID_REG & 3) * 8);
-        cobalt_board_id = VIA_COBALT_BRD_REG_to_ID(cobalt_board_id);
-
-	printk("Cobalt board ID: %d\n", cobalt_board_id);
 }
 
 /*
