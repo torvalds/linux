@@ -144,7 +144,7 @@ static void __init hdpu_setup_peripherals(void)
 
 	/* Enable pipelining */
 	mv64x60_set_bits(&bh, MV64x60_CPU_CONFIG, (1 << 13));
-	/* Enable Snoop Pipelineing */
+	/* Enable Snoop Pipelining */
 	mv64x60_set_bits(&bh, MV64360_D_UNIT_CONTROL_HIGH, (1 << 24));
 
 	/*

@@ -241,7 +241,7 @@ ppc4xx_set_dma_count(unsigned int dmanr, unsigned int count)
 }
 
 /*
- *   Returns the number of bytes left to be transfered.
+ *   Returns the number of bytes left to be transferred.
  *   After a DMA transfer, this should return zero.
  *   Reading this while a DMA transfer is still in progress will return
  *   unpredictable results.

@@ -165,7 +165,7 @@ hawk_init(struct pci_controller *hose,
 				 processor_pci_mem_start + 
 				 hose->mem_space.start) | 0x0);
 
-	/* Map MPIC into vitual memory */
+	/* Map MPIC into virtual memory */
 	OpenPIC_Addr = ioremap(processor_mpic_base, HAWK_MPIC_SIZE);
 
 	return 0;
@@ -176,7 +176,7 @@ hawk_init(struct pci_controller *hose,
  * This assumes that PPCBug has initialized the memory controller (SMC)
  * on the Falcon/HAWK correctly (i.e., it does no sanity checking).
  * It also assumes that the memory base registers are set to configure the
- * memory as contigous starting with "RAM A BASE", "RAM B BASE", etc.
+ * memory as contiguous starting with "RAM A BASE", "RAM B BASE", etc.
  * however, RAM base registers can be skipped (e.g. A, B, C are set,
  * D is skipped but E is set is okay).
  */

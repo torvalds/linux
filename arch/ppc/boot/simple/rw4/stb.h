@@ -88,7 +88,7 @@
 /*----------------------------------------------------------------------------+
 | STB tasks, task stack sizes, and task priorities.  The actual task priority
 | is 1 more than the specified number since priority 0 is reserved (system
-| internaly adds 1 to supplied priority number).
+| internally adds 1 to supplied priority number).
 +----------------------------------------------------------------------------*/
 #define STB_IDLE_TASK_SS        (5* 1024)
 #define STB_IDLE_TASK_PRIO      0

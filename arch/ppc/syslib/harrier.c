@@ -210,7 +210,7 @@ harrier_init(struct pci_controller *hose,
  * This assumes that PPCBug has initialized the memory controller (SMC)
  * on the Harrier correctly (i.e., it does no sanity checking).
  * It also assumes that the memory base registers are set to configure the
- * memory as contigous starting with "RAM A BASE", "RAM B BASE", etc.
+ * memory as contiguous starting with "RAM A BASE", "RAM B BASE", etc.
  * however, RAM base registers can be skipped (e.g. A, B, C are set,
  * D is skipped but E is set is okay).
  */

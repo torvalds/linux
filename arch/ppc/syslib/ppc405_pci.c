@@ -137,7 +137,7 @@ ppc4xx_find_bridges(void)
 	hose_a->pci_mem_offset = 0;
 
 	/* Setup bridge memory/IO ranges & resources
-	 * TODO: Handle firmwares setting up a legacy ISA mem base
+	 * TODO: Handle firmware setting up a legacy ISA mem base
 	 */
 	hose_a->io_space.start = PPC405_PCI_LOWER_IO;
 	hose_a->io_space.end = PPC405_PCI_UPPER_IO;

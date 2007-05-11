@@ -21,7 +21,7 @@
 #include <asm/irq.h>
 #include <asm/ppc_sys.h>
 
-/* We use offsets for IORESOURCE_MEM to do not set dependences at compile time.
+/* We use offsets for IORESOURCE_MEM to do not set dependencies at compile time.
  * They will get fixed up by mach_mpc8xx_fixup
  */
 

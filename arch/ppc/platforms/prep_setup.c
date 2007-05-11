@@ -593,7 +593,7 @@ static void __init prep_init_sound(void)
 	PPC_DEVICE *audiodevice = NULL;
 
 	/*
-	 * Get the needed resource informations from residual data.
+	 * Get the needed resource information from residual data.
 	 *
 	 */
 	if (have_residual_data)
@@ -632,9 +632,9 @@ static void __init prep_init_sound(void)
 	}
 
 	/*
-	 * Find a way to push these informations to the cs4232 driver
+	 * Find a way to push this information to the cs4232 driver
 	 * Give it out with printk, when not in cmd_line?
-	 * Append it to  cmd_line and boot_command_line?
+	 * Append it to cmd_line and boot_command_line?
 	 * Format is cs4232=io,irq,dma,dma2
 	 */
 }

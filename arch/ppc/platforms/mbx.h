@@ -37,7 +37,7 @@ typedef struct bd_info {
 
 /* Memory map for the MBX as configured by EPPC-Bug.  We could reprogram
  * The SIU and PCI bridge, and try to use larger MMU pages, but the
- * performance gain is not measureable and it certainly complicates the
+ * performance gain is not measurable and it certainly complicates the
  * generic MMU model.
  *
  * In a effort to minimize memory usage for embedded applications, any

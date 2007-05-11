@@ -80,7 +80,7 @@
 #define DCRN_CPMFR_BASE	0x0B9
 #define DCRN_CPMER_BASE	0x0B8
 
-/* CPM Clocking & Power Mangement defines */
+/* CPM Clocking & Power Management defines */
 #define IBM_CPM_PCI		0x40000000	/* PCI */
 #define IBM_CPM_EMAC2	0x20000000	/* EMAC 2 MII */
 #define IBM_CPM_EMAC3	0x04000000	/* EMAC 3 MII */
