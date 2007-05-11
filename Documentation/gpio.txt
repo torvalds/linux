@@ -66,7 +66,9 @@ registers; another might implement it by delegating through abstractions
 used for several very different kinds of GPIO controller.
 
 That said, if the convention is supported on their platform, drivers should
-use it when possible:
+use it when possible.  Platforms should declare GENERIC_GPIO support in
+Kconfig (boolean true), which multi-platform drivers can depend on when
+using the include file:
 
 	#include <asm/gpio.h>
 
