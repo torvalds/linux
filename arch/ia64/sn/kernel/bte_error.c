@@ -105,7 +105,7 @@ int shub1_bte_error_handler(unsigned long _nodepda)
 	}
 
 	BTE_PRINTK(("eh:%p:%d Cleaning up\n", err_nodepda, smp_processor_id()));
-	/* Reenable both bte interfaces */
+	/* Re-enable both bte interfaces */
 	imem.ii_imem_regval = REMOTE_HUB_L(nasid, IIO_IMEM);
 	imem.ii_imem_fld_s.i_b0_esd = imem.ii_imem_fld_s.i_b1_esd = 1;
 	REMOTE_HUB_S(nasid, IIO_IMEM, imem.ii_imem_regval);
@@ -243,7 +243,7 @@ bte_crb_error_handler(cnodeid_t cnode, int btenum,
 
 	/*
 	 * The caller has already figured out the error type, we save that
-	 * in the bte handle structure for the thread excercising the
+	 * in the bte handle structure for the thread exercising the
 	 * interface to consume.
 	 */
 	bte->bh_error = ioe->ie_errortype + BTEFAIL_OFFSET;

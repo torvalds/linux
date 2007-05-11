@@ -223,7 +223,7 @@ tioca_fastwrite_enable(struct tioca_kernel *tioca_kern)
 
 	/*
 	 * Scan all vga controllers on this bus making sure they all
-	 * suport FW.  If not, return.
+	 * support FW.  If not, return.
 	 */
 
 	list_for_each_entry(pdev, tioca_kern->ca_devices, bus_list) {
@@ -364,7 +364,7 @@ tioca_dma_d48(struct pci_dev *pdev, u64 paddr)
  * @req_size: len (bytes) to map
  *
  * Map @paddr into CA address space using the GART mechanism.  The mapped
- * dma_addr_t is guarenteed to be contiguous in CA bus space.
+ * dma_addr_t is guaranteed to be contiguous in CA bus space.
  */
 static dma_addr_t
 tioca_dma_mapped(struct pci_dev *pdev, u64 paddr, size_t req_size)
@@ -526,7 +526,7 @@ tioca_dma_map(struct pci_dev *pdev, u64 paddr, size_t byte_count, int dma_flags)
 		return 0;
 
 	/*
-	 * If card is 64 or 48 bit addresable, use a direct mapping.  32
+	 * If card is 64 or 48 bit addressable, use a direct mapping.  32
 	 * bit direct is so restrictive w.r.t. where the memory resides that
 	 * we don't use it even though CA has some support.
 	 */

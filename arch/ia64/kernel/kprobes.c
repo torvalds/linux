@@ -151,12 +151,12 @@ static uint __kprobes is_cmp_ctype_unc_inst(uint template, uint slot,
 
 	cmp_inst.l = kprobe_inst;
 	if ((cmp_inst.f.x2 == 0) || (cmp_inst.f.x2 == 1)) {
-		/* Integere compare - Register Register (A6 type)*/
+		/* Integer compare - Register Register (A6 type)*/
 		if ((cmp_inst.f.tb == 0) && (cmp_inst.f.ta == 0)
 				&&(cmp_inst.f.c == 1))
 			ctype_unc = 1;
 	} else if ((cmp_inst.f.x2 == 2)||(cmp_inst.f.x2 == 3)) {
-		/* Integere compare - Immediate Register (A8 type)*/
+		/* Integer compare - Immediate Register (A8 type)*/
 		if ((cmp_inst.f.ta == 0) &&(cmp_inst.f.c == 1))
 			ctype_unc = 1;
 	}
@@ -954,7 +954,7 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	/*
 	 * Callee owns the argument space and could overwrite it, eg
 	 * tail call optimization. So to be absolutely safe
-	 * we save the argument space before transfering the control
+	 * we save the argument space before transferring the control
 	 * to instrumented jprobe function which runs in
 	 * the process context
 	 */

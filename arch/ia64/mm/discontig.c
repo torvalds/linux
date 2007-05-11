@@ -317,7 +317,7 @@ static void __meminit scatter_node_data(void)
 	 * node_online_map is not set for hot-added nodes at this time,
 	 * because we are halfway through initialization of the new node's
 	 * structures.  If for_each_online_node() is used, a new node's
-	 * pg_data_ptrs will be not initialized. Insted of using it,
+	 * pg_data_ptrs will be not initialized. Instead of using it,
 	 * pgdat_list[] is checked.
 	 */
 	for_each_node(node) {

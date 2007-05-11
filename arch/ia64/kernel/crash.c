@@ -163,7 +163,7 @@ kdump_init_notifier(struct notifier_block *self, unsigned long val, void *data)
 		return NOTIFY_DONE;
 
 	nd = (struct ia64_mca_notify_die *)args->err;
-	/* Reason code 1 means machine check rendezous*/
+	/* Reason code 1 means machine check rendezvous*/
 	if ((val == DIE_INIT_MONARCH_ENTER || val == DIE_INIT_SLAVE_ENTER) &&
 		 nd->sos->rv_rc == 1)
 		return NOTIFY_DONE;

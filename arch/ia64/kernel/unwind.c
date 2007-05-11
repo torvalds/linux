@@ -2,7 +2,7 @@
  * Copyright (C) 1999-2004 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  * Copyright (C) 2003 Fenghua Yu <fenghua.yu@intel.com>
- * 	- Change pt_regs_off() to make it less dependant on pt_regs structure.
+ * 	- Change pt_regs_off() to make it less dependent on pt_regs structure.
  */
 /*
  * This file implements call frame unwind support for the Linux

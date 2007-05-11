@@ -216,7 +216,7 @@ ia64_init_itm (void)
 #ifdef CONFIG_SMP
 		/* On IA64 in an SMP configuration ITCs are never accurately synchronized.
 		 * Jitter compensation requires a cmpxchg which may limit
-		 * the scalability of the syscalls for retrieving time.
+		 * the scalibility of the syscalls for retrieving time.
 		 * The ITC synchronization is usually successful to within a few
 		 * ITC ticks but this is not a sure thing. If you need to improve
 		 * timer performance in SMP situations then boot the kernel with the

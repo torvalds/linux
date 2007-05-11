@@ -23,7 +23,7 @@ lsapic_noop_startup (unsigned int irq)
 static void
 lsapic_noop (unsigned int irq)
 {
-	/* nuthing to do... */
+	/* nothing to do... */
 }
 
 static int lsapic_retrigger(unsigned int irq)
