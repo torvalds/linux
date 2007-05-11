@@ -52,6 +52,11 @@
  * 	This routine allows the tty driver to implement
  *	device-specific ioctl's.  If the ioctl number passed in cmd
  * 	is not recognized by the driver, it should return ENOIOCTLCMD.
+ *
+ * long (*compat_ioctl)(struct tty_struct *tty, struct file * file,
+ * 	                unsigned int cmd, unsigned long arg);
+ *
+ * 	implement ioctl processing for 32 bit process on 64 bit system
  * 
  * void (*set_termios)(struct tty_struct *tty, struct ktermios * old);
  *
@@ -132,6 +137,8 @@ struct tty_operations {
 	int  (*chars_in_buffer)(struct tty_struct *tty);
 	int  (*ioctl)(struct tty_struct *tty, struct file * file,
 		    unsigned int cmd, unsigned long arg);
+	long (*compat_ioctl)(struct tty_struct *tty, struct file * file,
+			     unsigned int cmd, unsigned long arg);
 	void (*set_termios)(struct tty_struct *tty, struct ktermios * old);
 	void (*throttle)(struct tty_struct * tty);
 	void (*unthrottle)(struct tty_struct * tty);
@@ -193,6 +200,8 @@ struct tty_driver {
 	int  (*chars_in_buffer)(struct tty_struct *tty);
 	int  (*ioctl)(struct tty_struct *tty, struct file * file,
 		    unsigned int cmd, unsigned long arg);
+	long (*compat_ioctl)(struct tty_struct *tty, struct file * file,
+			     unsigned int cmd, unsigned long arg);
 	void (*set_termios)(struct tty_struct *tty, struct ktermios * old);
 	void (*throttle)(struct tty_struct * tty);
 	void (*unthrottle)(struct tty_struct * tty);
