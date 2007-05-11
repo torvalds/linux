@@ -155,6 +155,20 @@ endif
 
 # ----------------------------------------------------------
 
+if ARCH_AT91SAM9RL
+
+comment "AT91SAM9RL Board Type"
+
+config MACH_AT91SAM9RLEK
+	bool "Atmel AT91SAM9RL-EK Evaluation Kit"
+	depends on ARCH_AT91SAM9RL
+	help
+	  Select this if you are using Atmel's AT91SAM9RL-EK Evaluation Kit.
+
+endif
+
+# ----------------------------------------------------------
+
 comment "AT91 Board Options"
 
 config MTD_AT91_DATAFLASH_CARD
