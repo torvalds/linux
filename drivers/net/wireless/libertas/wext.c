@@ -986,136 +986,17 @@ static const struct iw_priv_args wlan_private_args[] = {
 	/*
 	 * { cmd, set_args, get_args, name }
 	 */
-	{
-	 WLANSCAN_TYPE,
-	 IW_PRIV_TYPE_CHAR | 8,
-	 IW_PRIV_TYPE_CHAR | 8,
-	 "scantype"},
-
-	{
-	 WLAN_SETINT_GETINT,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 ""},
-	{
-	 WLANNF,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "getNF"},
-	{
-	 WLANRSSI,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "getRSSI"},
-	{
-	 WLANENABLE11D,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "enable11d"},
-	{
-	 WLANADHOCGRATE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "adhocgrate"},
-
-	{
-	 WLAN_SUBCMD_SET_PRESCAN,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "prescan"},
-	{
-	 WLAN_SETONEINT_GETONEINT,
-	 IW_PRIV_TYPE_INT | 1,
-	 IW_PRIV_TYPE_INT | 1,
-	 ""},
-	{
-	 WLAN_BEACON_INTERVAL,
-	 IW_PRIV_TYPE_INT | 1,
-	 IW_PRIV_TYPE_INT | 1,
-	 "bcninterval"},
-	{
-	 WLAN_LISTENINTRVL,
-	 IW_PRIV_TYPE_INT | 1,
-	 IW_PRIV_TYPE_INT | 1,
-	 "lolisteninter"},
-	{
-	 WLAN_TXCONTROL,
-	 IW_PRIV_TYPE_INT | 1,
-	 IW_PRIV_TYPE_INT | 1,
-	 "txcontrol"},
-	{
-	 WLAN_NULLPKTINTERVAL,
-	 IW_PRIV_TYPE_INT | 1,
-	 IW_PRIV_TYPE_INT | 1,
-	 "psnullinterval"},
 	/* Using iwpriv sub-command feature */
 	{
 	 WLAN_SETONEINT_GETNONE,	/* IOCTL: 24 */
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 IW_PRIV_TYPE_NONE,
 	 ""},
-
-	{
-	 WLAN_SUBCMD_SETRXANTENNA,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "setrxant"},
-	{
-	 WLAN_SUBCMD_SETTXANTENNA,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "settxant"},
-	{
-	 WLANSETENCRYPTIONMODE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "encryptionmode",
-	 },
 	{
 	 WLANSETREGION,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 IW_PRIV_TYPE_NONE,
 	 "setregioncode"},
-	{
-	 WLAN_SET_LISTEN_INTERVAL,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "setlisteninter"},
-	{
-	 WLAN_SET_MULTIPLE_DTIM,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "setmultipledtim"},
-	{
-	 WLAN_SET_ATIM_WINDOW,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "atimwindow"},
-	{
-	 WLANSETBCNAVG,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "setbcnavg"},
-	{
-	 WLANSETDATAAVG,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "setdataavg"},
-	{
-	 WLAN_SET_LINKMODE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "linkmode"},
-	{
-	 WLAN_SET_RADIOMODE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "radiomode"},
-	{
-	 WLAN_SET_DEBUGMODE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "debugmode"},
 	{
 	 WLAN_SUBCMD_MESH_SET_TTL,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
@@ -1132,41 +1013,6 @@ static const struct iw_priv_args wlan_private_args[] = {
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 "getregioncode"},
 	{
-	 WLAN_GET_LISTEN_INTERVAL,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "getlisteninter"},
-	{
-	 WLAN_GET_MULTIPLE_DTIM,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "getmultipledtim"},
-	{
-	 WLAN_GET_TX_RATE,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "gettxrate"},
-	{
-	 WLANGETBCNAVG,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "getbcnavg"},
-	{
-	 WLAN_GET_LINKMODE,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "get_linkmode"},
-	{
-	 WLAN_GET_RADIOMODE,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "get_radiomode"},
-	{
-	 WLAN_GET_DEBUGMODE,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "get_debugmode"},
-	{
 	 WLAN_SUBCMD_FWT_CLEANUP,
 	 IW_PRIV_TYPE_NONE,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
@@ -1182,60 +1028,10 @@ static const struct iw_priv_args wlan_private_args[] = {
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 "mesh_get_ttl"},
 	{
-	 WLAN_SETNONE_GETTWELVE_CHAR,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_CHAR | 12,
-	 ""},
-	{
-	 WLAN_SUBCMD_GETRXANTENNA,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_CHAR | 12,
-	 "getrxant"},
-	{
-	 WLAN_SUBCMD_GETTXANTENNA,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_CHAR | 12,
-	 "gettxant"},
-	{
-	 WLAN_GET_TSF,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_CHAR | 12,
-	 "gettsf"},
-	{
 	 WLAN_SETNONE_GETNONE,
 	 IW_PRIV_TYPE_NONE,
 	 IW_PRIV_TYPE_NONE,
 	 ""},
-	{
-	 WLANDEAUTH,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_NONE,
-	 "deauth"},
-	{
-	 WLANADHOCSTOP,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_NONE,
-	 "adhocstop"},
-	{
-	 WLANRADIOON,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_NONE,
-	 "radioon"},
-	{
-	 WLANRADIOOFF,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_NONE,
-	 "radiooff"},
-	{
-	 WLANWLANIDLEON,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_NONE,
-	 "wlanidle-on"},
-	{
-	 WLANWLANIDLEOFF,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_NONE,
-	 "wlanidle-off"},
 	{
 	 WLAN_SUBCMD_FWT_RESET,
 	 IW_PRIV_TYPE_NONE,
@@ -1299,85 +1095,15 @@ static const struct iw_priv_args wlan_private_args[] = {
 	 IW_PRIV_TYPE_CHAR | 128,
 	 "fwt_list_route"},
 	{
-	 WLANSCAN_MODE,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 "scanmode"},
-	{
-	 WLAN_GET_ADHOC_STATUS,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 "getadhocstatus"},
-	{
-	 WLAN_SETNONE_GETWORDCHAR,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 ""},
-	{
-	 WLANGETLOG,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_CHAR | GETLOG_BUFSIZE,
-	 "getlog"},
-	{
 	 WLAN_SET_GET_SIXTEEN_INT,
 	 IW_PRIV_TYPE_INT | 16,
 	 IW_PRIV_TYPE_INT | 16,
 	 ""},
 	{
-	 WLAN_TPCCFG,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "tpccfg"},
-	{
-	 WLAN_POWERCFG,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "powercfg"},
-	{
-	 WLAN_AUTO_FREQ_SET,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "setafc"},
-	{
-	 WLAN_AUTO_FREQ_GET,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "getafc"},
-	{
-	 WLAN_SCANPROBES,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "scanprobes"},
-	{
 	 WLAN_LED_GPIO_CTRL,
 	 IW_PRIV_TYPE_INT | 16,
 	 IW_PRIV_TYPE_INT | 16,
 	 "ledgpio"},
-	{
-	 WLAN_ADAPT_RATESET,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "rateadapt"},
-	{
-	 WLAN_INACTIVITY_TIMEOUT,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "inactivityto"},
-	{
-	 WLANSNR,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "getSNR"},
-	{
-	 WLAN_GET_RATE,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "getrate"},
-	{
-	 WLAN_GET_RXINFO,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "getrxinfo"},
 };
 
 static struct iw_statistics *wlan_get_wireless_stats(struct net_device *dev)

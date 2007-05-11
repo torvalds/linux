@@ -37,10 +37,6 @@ extern int libertas_ret_80211_disassociate(wlan_private * priv,
 extern int libertas_ret_80211_associate(wlan_private * priv,
 				     struct cmd_ds_command *resp);
 
-extern int libertas_idle_on(wlan_private * priv);
-extern int libertas_idle_off(wlan_private * priv);
-
-extern int libertas_do_adhocstop_ioctl(wlan_private * priv);
 extern int libertas_reassociation_thread(void *data);
 
 struct WLAN_802_11_SSID;
