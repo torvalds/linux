@@ -268,7 +268,7 @@ static int __devinit aperture_valid(u64 aper, u32 size)
 		printk(KERN_ERR PFX "Aperture too small (%d MB)\n", size>>20);
 		return 0;
 	}
-	if (aper + size > 0xffffffff) {
+       if ((u64)aper + size > 0x100000000ULL) {
 		printk(KERN_ERR PFX "Aperture out of bounds\n");
 		return 0;
 	}

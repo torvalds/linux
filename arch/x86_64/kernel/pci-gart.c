@@ -476,7 +476,7 @@ static __init unsigned read_aperture(struct pci_dev *dev, u32 *size)
 	aper_base <<= 25;
 
 	aper_size = (32 * 1024 * 1024) << aper_order; 
-	if (aper_base + aper_size >= 0xffffffff || !aper_size)
+       if (aper_base + aper_size > 0x100000000UL || !aper_size)
 		aper_base = 0;
 
 	*size = aper_size;

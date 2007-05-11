@@ -86,7 +86,7 @@ static int __init aperture_valid(u64 aper_base, u32 aper_size)
 		printk("Aperture too small (%d MB)\n", aper_size>>20);
 		return 0;
 	}
-	if (aper_base + aper_size >= 0xffffffff) { 
+	if (aper_base + aper_size > 0x100000000UL) {
 		printk("Aperture beyond 4GB. Ignoring.\n");
 		return 0; 
 	}
