@@ -70,8 +70,6 @@ static int riva_gpio_getscl(void* data)
 	if (VGA_RD08(par->riva.PCIO, 0x3d5) & 0x04)
 		val = 1;
 
-	val = VGA_RD08(par->riva.PCIO, 0x3d5);
-
 	return val;
 }
 
