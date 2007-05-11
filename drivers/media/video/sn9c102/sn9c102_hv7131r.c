@@ -44,7 +44,6 @@ static int hv7131r_init(struct sn9c102_device* cam)
 					       {0xb0, 0x2b}, {0xc0, 0x2c},
 					       {0xd0, 0x2d}, {0xe0, 0x2e},
 					       {0xf0, 0x2f}, {0xff, 0x30});
-
 		break;
 	case BRIDGE_SN9C105:
 	case BRIDGE_SN9C120:
@@ -254,7 +253,7 @@ static int hv7131r_set_pix_format(struct sn9c102_device* cam,
 }
 
 
-static struct sn9c102_sensor hv7131r = {
+static const struct sn9c102_sensor hv7131r = {
 	.name = "HV7131R",
 	.maintainer = "Luca Risolia <luca.risolia@studio.unibo.it>",
 	.supported_bridge = BRIDGE_SN9C103 | BRIDGE_SN9C105 | BRIDGE_SN9C120,
@@ -350,11 +349,8 @@ int sn9c102_probe_hv7131r(struct sn9c102_device* cam)
 				       {0x34, 0x01}, {0x20, 0x17},
 				       {0x34, 0x01}, {0x46, 0x01});
 
-	if (err)
-		return -EIO;
-
 	devid = sn9c102_i2c_try_read(cam, &hv7131r, 0x00);
-	if (devid < 0)
+	if (err || devid < 0)
 		return -EIO;
 
 	if (devid != 0x02)

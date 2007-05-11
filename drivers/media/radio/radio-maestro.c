@@ -24,7 +24,6 @@
 #include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
@@ -110,7 +109,6 @@ struct radio_device {
 		muted,	/* VIDEO_AUDIO_MUTE */
 		stereo,	/* VIDEO_TUNER_STEREO_ON */
 		tuned;	/* signal strength (0 or 0xffff) */
-	struct mutex lock;
 };
 
 static u32 radio_bits_get(struct radio_device *dev)
@@ -394,7 +392,6 @@ static int __devinit maestro_probe(struct pci_dev *pdev,
 	}
 
 	radio_unit->io = pci_resource_start(pdev, 0) + GPIO_DATA;
-	mutex_init(&radio_unit->lock);
 
 	maestro_radio_inst = video_device_alloc();
 	if (maestro_radio_inst == NULL) {

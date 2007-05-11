@@ -555,7 +555,7 @@ static int set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt)
 {
 	struct v4l2_pix_format *pix;
 	int HSC, VSC, Vsrc, Hsrc, filter, Vlines;
-	int is_pal = !(cx25840_get_v4lstd(client) & V4L2_STD_NTSC);
+	int is_50Hz = !(cx25840_get_v4lstd(client) & V4L2_STD_525_60);
 
 	switch (fmt->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
@@ -567,7 +567,7 @@ static int set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt)
 		Hsrc = (cx25840_read(client, 0x472) & 0x3f) << 4;
 		Hsrc |= (cx25840_read(client, 0x471) & 0xf0) >> 4;
 
-		Vlines = pix->height + (is_pal ? 4 : 7);
+		Vlines = pix->height + (is_50Hz ? 4 : 7);
 
 		if ((pix->width * 16 < Hsrc) || (Hsrc < pix->width) ||
 		    (Vlines * 8 < Vsrc) || (Vsrc < Vlines)) {

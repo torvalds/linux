@@ -1246,6 +1246,9 @@ static void vpeirq(unsigned long data)
 	if (!budget->feeding1 || (newdma == olddma))
 		return;
 
+	/* Ensure streamed PCI data is synced to CPU */
+	pci_dma_sync_sg_for_cpu(budget->dev->pci, budget->pt.slist, budget->pt.nents, PCI_DMA_FROMDEVICE);
+
 #if 0
 	/* track rps1 activity */
 	printk("vpeirq: %02x Event Counter 1 0x%04x\n",
@@ -2679,8 +2682,8 @@ err_iobuf_vfree_6:
 err_pci_free_5:
 	pci_free_consistent(pdev, 8192, av7110->debi_virt, av7110->debi_bus);
 err_saa71466_vfree_4:
-	if (!av7110->grabbing)
-		saa7146_pgtable_free(pdev, &av7110->pt);
+	if (av7110->grabbing)
+		saa7146_vfree_destroy_pgtable(pdev, av7110->grabbing, &av7110->pt);
 err_i2c_del_3:
 	i2c_del_adapter(&av7110->i2c_adap);
 err_dvb_unregister_adapter_2:
@@ -2710,7 +2713,7 @@ static int __devexit av7110_detach(struct saa7146_dev* saa)
 		SAA7146_ISR_CLEAR(saa, MASK_10);
 		msleep(50);
 		tasklet_kill(&av7110->vpe_tasklet);
-		saa7146_pgtable_free(saa->pci, &av7110->pt);
+		saa7146_vfree_destroy_pgtable(saa->pci, av7110->grabbing, &av7110->pt);
 	}
 	av7110_exit_v4l(av7110);
 

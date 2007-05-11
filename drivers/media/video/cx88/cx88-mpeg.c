@@ -28,6 +28,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
+#include <linux/dma-mapping.h>
 #include <asm/delay.h>
 
 #include "cx88.h"
@@ -612,7 +613,7 @@ struct cx8802_driver * cx8802_get_driver(struct cx8802_dev *dev, enum cx88_board
 }
 
 /* Driver asked for hardware access. */
-int cx8802_request_acquire(struct cx8802_driver *drv)
+static int cx8802_request_acquire(struct cx8802_driver *drv)
 {
 	struct cx88_core *core = drv->core;
 
@@ -632,7 +633,7 @@ int cx8802_request_acquire(struct cx8802_driver *drv)
 }
 
 /* Driver asked to release hardware. */
-int cx8802_request_release(struct cx8802_driver *drv)
+static int cx8802_request_release(struct cx8802_driver *drv)
 {
 	struct cx88_core *core = drv->core;
 

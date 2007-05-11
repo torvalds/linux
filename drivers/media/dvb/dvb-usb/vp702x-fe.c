@@ -204,8 +204,8 @@ static int vp702x_fe_get_frontend(struct dvb_frontend* fe,
 static int vp702x_fe_send_diseqc_msg (struct dvb_frontend* fe,
 				    struct dvb_diseqc_master_cmd *m)
 {
-	//struct vp702x_fe_state *st = fe->demodulator_priv;
-	u8 cmd[8];//,ibuf[10];
+	struct vp702x_fe_state *st = fe->demodulator_priv;
+	u8 cmd[8],ibuf[10];
 	memset(cmd,0,8);
 
 	deb_fe("%s\n",__FUNCTION__);
@@ -218,12 +218,12 @@ static int vp702x_fe_send_diseqc_msg (struct dvb_frontend* fe,
 	memcpy(&cmd[3], m->msg, m->msg_len);
 	cmd[7] = vp702x_chksum(cmd,0,7);
 
-//	vp702x_usb_inout_op(st->d,cmd,8,ibuf,10,100);
+	vp702x_usb_inout_op(st->d,cmd,8,ibuf,10,100);
 
-//	if (ibuf[2] == 0 && ibuf[3] == 0)
-//		deb_fe("diseqc cmd failed.\n");
-//	else
-//		deb_fe("diseqc cmd succeeded.\n");
+	if (ibuf[2] == 0 && ibuf[3] == 0)
+		deb_fe("diseqc cmd failed.\n");
+	else
+		deb_fe("diseqc cmd succeeded.\n");
 
 	return 0;
 }

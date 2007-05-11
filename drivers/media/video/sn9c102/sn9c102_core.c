@@ -48,8 +48,8 @@
 #define SN9C102_MODULE_AUTHOR   "(C) 2004-2007 Luca Risolia"
 #define SN9C102_AUTHOR_EMAIL    "<luca.risolia@studio.unibo.it>"
 #define SN9C102_MODULE_LICENSE  "GPL"
-#define SN9C102_MODULE_VERSION  "1:1.39"
-#define SN9C102_MODULE_VERSION_CODE  KERNEL_VERSION(1, 1, 39)
+#define SN9C102_MODULE_VERSION  "1:1.44"
+#define SN9C102_MODULE_VERSION_CODE  KERNEL_VERSION(1, 1, 44)
 
 /*****************************************************************************/
 
@@ -209,38 +209,41 @@ static void sn9c102_queue_unusedframes(struct sn9c102_device* cam)
 }
 
 /*****************************************************************************/
+
 /*
- * Write a sequence of count value/register pairs.  Returns -1 after the
- * first failed write, or 0 for no errors.
- */
+   Write a sequence of count value/register pairs. Returns -1 after the first
+   failed write, or 0 for no errors.
+*/
 int sn9c102_write_regs(struct sn9c102_device* cam, const u8 valreg[][2],
 		       int count)
 {
 	struct usb_device* udev = cam->usbdev;
-	u8* value = cam->control_buffer;  /* Needed for DMA'able memory */
+	u8* buff = cam->control_buffer;
 	int i, res;
 
 	for (i = 0; i < count; i++) {
 		u8 index = valreg[i][1];
 
 		/*
-		 * index is a u8, so it must be <256 and can't be out of range.
-		 * If we put in a check anyway, gcc annoys us with a warning
-		 * that our check is useless.  People get all uppity when they
-		 * see warnings in the kernel compile.
-		 */
+		   index is a u8, so it must be <256 and can't be out of range.
+		   If we put in a check anyway, gcc annoys us with a warning
+		   hat our check is useless. People get all uppity when they
+		   see warnings in the kernel compile.
+		*/
 
-		*value = valreg[i][0];
-		res = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				      0x08, 0x41, index, 0,
-				      value, 1, SN9C102_CTRL_TIMEOUT);
+		*buff = valreg[i][0];
+
+		res = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x08,
+				      0x41, index, 0, buff, 1,
+				      SN9C102_CTRL_TIMEOUT);
+
 		if (res < 0) {
 			DBG(3, "Failed to write a register (value 0x%02X, "
-			       "index 0x%02X, error %d)", *value, index, res);
+			       "index 0x%02X, error %d)", *buff, index, res);
 			return -1;
 		}
 
-		cam->reg[index] = *value;
+		cam->reg[index] = *buff;
 	}
 
 	return 0;
@@ -272,8 +275,8 @@ int sn9c102_write_reg(struct sn9c102_device* cam, u8 value, u16 index)
 }
 
 
-/* NOTE: reading some registers always returns 0 */
-static int sn9c102_read_reg(struct sn9c102_device* cam, u16 index)
+/* NOTE: with the SN9C10[123] reading some registers always returns 0 */
+int sn9c102_read_reg(struct sn9c102_device* cam, u16 index)
 {
 	struct usb_device* udev = cam->usbdev;
 	u8* buff = cam->control_buffer;
@@ -299,7 +302,8 @@ int sn9c102_pread_reg(struct sn9c102_device* cam, u16 index)
 
 
 static int
-sn9c102_i2c_wait(struct sn9c102_device* cam, struct sn9c102_sensor* sensor)
+sn9c102_i2c_wait(struct sn9c102_device* cam,
+		 const struct sn9c102_sensor* sensor)
 {
 	int i, r;
 
@@ -320,7 +324,7 @@ sn9c102_i2c_wait(struct sn9c102_device* cam, struct sn9c102_sensor* sensor)
 
 static int
 sn9c102_i2c_detect_read_error(struct sn9c102_device* cam,
-			      struct sn9c102_sensor* sensor)
+			      const struct sn9c102_sensor* sensor)
 {
 	int r , err = 0;
 
@@ -342,7 +346,7 @@ sn9c102_i2c_detect_read_error(struct sn9c102_device* cam,
 
 static int
 sn9c102_i2c_detect_write_error(struct sn9c102_device* cam,
-			       struct sn9c102_sensor* sensor)
+			       const struct sn9c102_sensor* sensor)
 {
 	int r;
 	r = sn9c102_read_reg(cam, 0x08);
@@ -352,12 +356,12 @@ sn9c102_i2c_detect_write_error(struct sn9c102_device* cam,
 
 int
 sn9c102_i2c_try_raw_read(struct sn9c102_device* cam,
-			 struct sn9c102_sensor* sensor, u8 data0, u8 data1,
-			 u8 n, u8 buffer[])
+			 const struct sn9c102_sensor* sensor, u8 data0,
+			 u8 data1, u8 n, u8 buffer[])
 {
 	struct usb_device* udev = cam->usbdev;
 	u8* data = cam->control_buffer;
-	int err = 0, res;
+	int i = 0, err = 0, res;
 
 	/* Write cycle */
 	data[0] = ((sensor->interface == SN9C102_I2C_2WIRES) ? 0x80 : 0) |
@@ -402,7 +406,8 @@ sn9c102_i2c_try_raw_read(struct sn9c102_device* cam,
 	}
 
 	if (buffer)
-		memcpy(buffer, data, sizeof(buffer));
+		for (i = 0; i < n && i < 5; i++)
+			buffer[n-i-1] = data[4-i];
 
 	return (int)data[4];
 }
@@ -410,7 +415,7 @@ sn9c102_i2c_try_raw_read(struct sn9c102_device* cam,
 
 int
 sn9c102_i2c_try_raw_write(struct sn9c102_device* cam,
-			  struct sn9c102_sensor* sensor, u8 n, u8 data0,
+			  const struct sn9c102_sensor* sensor, u8 n, u8 data0,
 			  u8 data1, u8 data2, u8 data3, u8 data4, u8 data5)
 {
 	struct usb_device* udev = cam->usbdev;
@@ -449,7 +454,7 @@ sn9c102_i2c_try_raw_write(struct sn9c102_device* cam,
 
 int
 sn9c102_i2c_try_read(struct sn9c102_device* cam,
-		     struct sn9c102_sensor* sensor, u8 address)
+		     const struct sn9c102_sensor* sensor, u8 address)
 {
 	return sn9c102_i2c_try_raw_read(cam, sensor, sensor->i2c_slave_id,
 					address, 1, NULL);
@@ -458,7 +463,7 @@ sn9c102_i2c_try_read(struct sn9c102_device* cam,
 
 int
 sn9c102_i2c_try_write(struct sn9c102_device* cam,
-		      struct sn9c102_sensor* sensor, u8 address, u8 value)
+		      const struct sn9c102_sensor* sensor, u8 address, u8 value)
 {
 	return sn9c102_i2c_try_raw_write(cam, sensor, 3,
 					 sensor->i2c_slave_id, address,
@@ -654,16 +659,6 @@ sn9c102_write_jpegheader(struct sn9c102_device* cam, struct sn9c102_frame_t* f)
 	*(pos + 567) = 0x21;
 
 	f->buf.bytesused += sizeof(jpeg_header);
-}
-
-
-static void
-sn9c102_write_eoimarker(struct sn9c102_device* cam, struct sn9c102_frame_t* f)
-{
-	static const u8 eoi_marker[2] = {0xff, 0xd9};
-
-	memcpy(f->bufmem + f->buf.bytesused, eoi_marker, sizeof(eoi_marker));
-	f->buf.bytesused += sizeof(eoi_marker);
 }
 
 
@@ -3181,14 +3176,14 @@ static int sn9c102_ioctl(struct inode* inode, struct file* filp,
 
 static const struct file_operations sn9c102_fops = {
 	.owner = THIS_MODULE,
-	.open =    sn9c102_open,
+	.open = sn9c102_open,
 	.release = sn9c102_release,
-	.ioctl =   sn9c102_ioctl,
+	.ioctl = sn9c102_ioctl,
 	.compat_ioctl = v4l_compat_ioctl32,
-	.read =    sn9c102_read,
-	.poll =    sn9c102_poll,
-	.mmap =    sn9c102_mmap,
-	.llseek =  no_llseek,
+	.read = sn9c102_read,
+	.poll = sn9c102_poll,
+	.mmap = sn9c102_mmap,
+	.llseek = no_llseek,
 };
 
 /*****************************************************************************/
@@ -3251,7 +3246,7 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 		break;
 	}
 
-	for  (i = 0; sn9c102_sensor_table[i]; i++) {
+	for  (i = 0; i < ARRAY_SIZE(sn9c102_sensor_table); i++) {
 		err = sn9c102_sensor_table[i](cam);
 		if (!err)
 			break;
@@ -3262,7 +3257,7 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 		DBG(3, "Support for %s maintained by %s",
 		    cam->sensor.name, cam->sensor.maintainer);
 	} else {
-		DBG(1, "No supported image sensor detected");
+		DBG(1, "No supported image sensor detected for this bridge");
 		err = -ENODEV;
 		goto fail;
 	}

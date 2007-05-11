@@ -119,7 +119,7 @@ struct usb_data_stream_properties {
  * @caps: capabilities of the DVB USB device.
  * @pid_filter_count: number of PID filter position in the optional hardware
  *  PID-filter.
- * @streaming_crtl: called to start and stop the MPEG2-TS streaming of the
+ * @streaming_ctrl: called to start and stop the MPEG2-TS streaming of the
  *  device (not URB submitting/killing).
  * @pid_filter_ctrl: called to en/disable the PID filter, if any.
  * @pid_filter: called to set/unset a PID for filtering.

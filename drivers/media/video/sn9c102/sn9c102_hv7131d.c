@@ -144,7 +144,7 @@ static int hv7131d_set_pix_format(struct sn9c102_device* cam,
 }
 
 
-static struct sn9c102_sensor hv7131d = {
+static const struct sn9c102_sensor hv7131d = {
 	.name = "HV7131D",
 	.maintainer = "Luca Risolia <luca.risolia@studio.unibo.it>",
 	.supported_bridge = BRIDGE_SN9C101 | BRIDGE_SN9C102,
@@ -248,12 +248,10 @@ int sn9c102_probe_hv7131d(struct sn9c102_device* cam)
 
 	err = sn9c102_write_const_regs(cam, {0x01, 0x01}, {0x00, 0x01},
 				       {0x28, 0x17});
-	if (err)
-		return -EIO;
 
 	r0 = sn9c102_i2c_try_read(cam, &hv7131d, 0x00);
 	r1 = sn9c102_i2c_try_read(cam, &hv7131d, 0x01);
-	if (r0 < 0 || r1 < 0)
+	if (err || r0 < 0 || r1 < 0)
 		return -EIO;
 
 	if (r0 != 0x00 || r1 != 0x04)

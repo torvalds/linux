@@ -410,7 +410,6 @@ static struct video_device zoltrix_radio =
 	.owner		= THIS_MODULE,
 	.name		= "Zoltrix Radio Plus",
 	.type		= VID_TYPE_TUNER,
-	.hardware	= 0,
 	.fops           = &zoltrix_fops,
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,

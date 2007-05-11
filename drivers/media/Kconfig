@@ -87,6 +87,14 @@ config VIDEO_TVEEPROM
 	tristate
 	depends on I2C
 
+config DAB
+	boolean "DAB adapters"
+	default y
+	---help---
+	  Allow selecting support for for Digital Audio Broadcasting (DAB)
+	  Receiver adapters.
+
+if DAB
 config USB_DABUSB
 	tristate "DABUSB driver"
 	depends on USB
@@ -100,5 +108,6 @@ config USB_DABUSB
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dabusb.
+endif # DAB
 
 endmenu

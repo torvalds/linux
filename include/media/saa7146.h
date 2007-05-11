@@ -58,6 +58,7 @@ struct saa7146_pgtable {
 	unsigned long	offset;
 	/* used for custom pagetables (used for example by budget dvb cards) */
 	struct scatterlist *slist;
+	int		nents;
 };
 
 struct saa7146_pci_extension_data {
@@ -157,6 +158,7 @@ int saa7146_pgtable_alloc(struct pci_dev *pci, struct saa7146_pgtable *pt);
 void saa7146_pgtable_free(struct pci_dev *pci, struct saa7146_pgtable *pt);
 int saa7146_pgtable_build_single(struct pci_dev *pci, struct saa7146_pgtable *pt, struct scatterlist *list, int length );
 char *saa7146_vmalloc_build_pgtable(struct pci_dev *pci, long length, struct saa7146_pgtable *pt);
+void saa7146_vfree_destroy_pgtable(struct pci_dev *pci, char *mem, struct saa7146_pgtable *pt);
 void saa7146_setgpio(struct saa7146_dev *dev, int port, u32 data);
 int saa7146_wait_for_debi_done(struct saa7146_dev *dev, int nobusyloop);
 

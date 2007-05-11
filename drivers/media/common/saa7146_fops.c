@@ -307,7 +307,6 @@ static int fops_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *arg);
 static int fops_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
 /*

@@ -83,7 +83,7 @@ static struct pvr2_string_table pvr2_client_lists[] = {
 };
 
 static struct pvr2_hdw *unit_pointers[PVR_NUM] = {[ 0 ... PVR_NUM-1 ] = NULL};
-static DECLARE_MUTEX(pvr2_unit_sem);
+static DEFINE_MUTEX(pvr2_unit_mtx);
 
 static int ctlchg = 0;
 static int initusbreset = 1;
@@ -2076,14 +2076,14 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	hdw->ctl_read_urb = usb_alloc_urb(0,GFP_KERNEL);
 	if (!hdw->ctl_read_urb) goto fail;
 
-	down(&pvr2_unit_sem); do {
+	mutex_lock(&pvr2_unit_mtx); do {
 		for (idx = 0; idx < PVR_NUM; idx++) {
 			if (unit_pointers[idx]) continue;
 			hdw->unit_number = idx;
 			unit_pointers[idx] = hdw;
 			break;
 		}
-	} while (0); up(&pvr2_unit_sem);
+	} while (0); mutex_unlock(&pvr2_unit_mtx);
 
 	cnt1 = 0;
 	cnt2 = scnprintf(hdw->name+cnt1,sizeof(hdw->name)-cnt1,"pvrusb2");
@@ -2186,13 +2186,13 @@ void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 	}
 	pvr2_i2c_core_done(hdw);
 	pvr2_hdw_remove_usb_stuff(hdw);
-	down(&pvr2_unit_sem); do {
+	mutex_lock(&pvr2_unit_mtx); do {
 		if ((hdw->unit_number >= 0) &&
 		    (hdw->unit_number < PVR_NUM) &&
 		    (unit_pointers[hdw->unit_number] == hdw)) {
 			unit_pointers[hdw->unit_number] = NULL;
 		}
-	} while (0); up(&pvr2_unit_sem);
+	} while (0); mutex_unlock(&pvr2_unit_mtx);
 	kfree(hdw->controls);
 	kfree(hdw->mpeg_ctrl_info);
 	kfree(hdw->std_defs);

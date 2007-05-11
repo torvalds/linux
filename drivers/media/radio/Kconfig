@@ -2,8 +2,14 @@
 # Multimedia Video device configuration
 #
 
-menu "Radio Adapters"
+menuconfig RADIO_ADAPTERS
+	bool "Radio Adapters"
 	depends on VIDEO_DEV
+	default y
+	---help---
+	  Say Y here to enable selecting AM/FM radio adapters.
+
+if RADIO_ADAPTERS
 
 config RADIO_CADET
 	tristate "ADS Cadet AM/FM Tuner"
@@ -328,4 +334,5 @@ config USB_DSBR
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dsbr100.
-endmenu
+
+endif # RADIO_ADAPTERS

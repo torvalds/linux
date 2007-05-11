@@ -391,22 +391,29 @@ static int pvr2_encoder_prep_config(struct pvr2_hdw *hdw)
 int pvr2_encoder_configure(struct pvr2_hdw *hdw)
 {
 	int ret;
+	int val;
 	pvr2_trace(PVR2_TRACE_ENCODER,"pvr2_encoder_configure"
 		   " (cx2341x module)");
 	hdw->enc_ctl_state.port = CX2341X_PORT_STREAMING;
 	hdw->enc_ctl_state.width = hdw->res_hor_val;
 	hdw->enc_ctl_state.height = hdw->res_ver_val;
-	hdw->enc_ctl_state.is_50hz = ((hdw->std_mask_cur &
-				       (V4L2_STD_NTSC|V4L2_STD_PAL_M)) ?
+	hdw->enc_ctl_state.is_50hz = ((hdw->std_mask_cur & V4L2_STD_525_60) ?
 				      0 : 1);
 
 	ret = 0;
 
 	ret |= pvr2_encoder_prep_config(hdw);
 
+	/* saa7115: 0xf0 */
+	val = 0xf0;
+	if (hdw->hdw_type == PVR2_HDW_TYPE_24XXX) {
+		/* ivtv cx25840: 0x140 */
+		val = 0x140;
+	}
+
 	if (!ret) ret = pvr2_encoder_vcmd(
 		hdw,CX2341X_ENC_SET_NUM_VSYNC_LINES, 2,
-		0xf0, 0xf0);
+		val, val);
 
 	/* setup firmware to notify us about some events (don't know why...) */
 	if (!ret) ret = pvr2_encoder_vcmd(

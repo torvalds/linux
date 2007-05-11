@@ -887,6 +887,20 @@ static struct tda1004x_config asus_p7131_hybrid_lna_config = {
 	.antenna_switch= 2,
 	.request_firmware = philips_tda1004x_request_firmware
 };
+static struct tda1004x_config kworld_dvb_t_210_config = {
+	.demod_address = 0x08,
+	.invert        = 1,
+	.invert_oclk   = 0,
+	.xtal_freq     = TDA10046_XTAL_16M,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.gpio_config   = TDA10046_GP11_I,
+	.if_freq       = TDA10046_FREQ_045,
+	.i2c_gate      = 0x4b,
+	.tuner_address = 0x61,
+	.tuner_config  = 2,
+	.antenna_switch= 1,
+	.request_firmware = philips_tda1004x_request_firmware
+};
 /* ------------------------------------------------------------------
  * special case: this card uses saa713x GPIO22 for the mode switch
  */
@@ -1038,6 +1052,9 @@ static int dvb_init(struct saa7134_dev *dev)
 			dev->dvb.frontend->ops.tuner_ops.init = philips_tu1216_init;
 			dev->dvb.frontend->ops.tuner_ops.set_params = philips_tda6651_pll_set;
 		}
+		break;
+	case SAA7134_BOARD_KWORLD_DVBT_210:
+		configure_tda827x_fe(dev, &kworld_dvb_t_210_config);
 		break;
 	case SAA7134_BOARD_PHILIPS_TIGER:
 		configure_tda827x_fe(dev, &philips_tiger_config);

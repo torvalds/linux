@@ -22,7 +22,7 @@
 #define _SN9C102_SENSOR_H_
 
 #include <linux/usb.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <linux/device.h>
 #include <linux/stddef.h>
 #include <linux/errno.h>
@@ -74,7 +74,7 @@ sn9c102_match_id(struct sn9c102_device* cam, const struct usb_device_id *id);
 /* Attach a probed sensor to the camera. */
 extern void
 sn9c102_attach_sensor(struct sn9c102_device* cam,
-		      struct sn9c102_sensor* sensor);
+		      const struct sn9c102_sensor* sensor);
 
 /*
    Read/write routines: they always return -1 on error, 0 or the read value
@@ -85,10 +85,11 @@ sn9c102_attach_sensor(struct sn9c102_device* cam,
 */
 
 /* The "try" I2C I/O versions are used when probing the sensor */
-extern int sn9c102_i2c_try_write(struct sn9c102_device*,struct sn9c102_sensor*,
-				 u8 address, u8 value);
-extern int sn9c102_i2c_try_read(struct sn9c102_device*,struct sn9c102_sensor*,
-				u8 address);
+extern int sn9c102_i2c_try_write(struct sn9c102_device*,
+				 const struct sn9c102_sensor*, u8 address,
+				 u8 value);
+extern int sn9c102_i2c_try_read(struct sn9c102_device*,
+				const struct sn9c102_sensor*, u8 address);
 
 /*
    These must be used if and only if the sensor doesn't implement the standard
@@ -102,29 +103,31 @@ extern int sn9c102_i2c_try_read(struct sn9c102_device*,struct sn9c102_sensor*,
    byte.
 */
 extern int sn9c102_i2c_try_raw_write(struct sn9c102_device* cam,
-				     struct sn9c102_sensor* sensor, u8 n,
+				     const struct sn9c102_sensor* sensor, u8 n,
 				     u8 data0, u8 data1, u8 data2, u8 data3,
 				     u8 data4, u8 data5);
 extern int sn9c102_i2c_try_raw_read(struct sn9c102_device* cam,
-				    struct sn9c102_sensor* sensor, u8 data0,
-				    u8 data1, u8 n, u8 buffer[]);
+				    const struct sn9c102_sensor* sensor,
+				    u8 data0, u8 data1, u8 n, u8 buffer[]);
 
 /* To be used after the sensor struct has been attached to the camera struct */
 extern int sn9c102_i2c_write(struct sn9c102_device*, u8 address, u8 value);
 extern int sn9c102_i2c_read(struct sn9c102_device*, u8 address);
 
 /* I/O on registers in the bridge. Could be used by the sensor methods too */
+extern int sn9c102_read_reg(struct sn9c102_device*, u16 index);
 extern int sn9c102_pread_reg(struct sn9c102_device*, u16 index);
 extern int sn9c102_write_reg(struct sn9c102_device*, u8 value, u16 index);
 extern int sn9c102_write_regs(struct sn9c102_device*, const u8 valreg[][2],
 			      int count);
 /*
- * Write multiple registers with constant values.  For example:
- * sn9c102_write_const_regs(cam, {0x00, 0x14}, {0x60, 0x17}, {0x0f, 0x18});
- */
-#define sn9c102_write_const_regs(device, data...) \
-	({ const static u8 _data[][2] = {data}; \
-	sn9c102_write_regs(device, _data, ARRAY_SIZE(_data)); })
+   Write multiple registers with constant values. For example:
+   sn9c102_write_const_regs(cam, {0x00, 0x14}, {0x60, 0x17}, {0x0f, 0x18});
+   Register adresses must be < 256.
+*/
+#define sn9c102_write_const_regs(sn9c102_device, data...)                     \
+	({ const static u8 _valreg[][2] = {data};                             \
+	sn9c102_write_regs(sn9c102_device, _valreg, ARRAY_SIZE(_valreg)); })
 
 /*****************************************************************************/
 

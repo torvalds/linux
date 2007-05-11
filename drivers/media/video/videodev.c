@@ -433,13 +433,43 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	int                  ret = -EINVAL;
 
 	if ( (vfd->debug & V4L2_DEBUG_IOCTL) &&
-				!(vfd->debug | V4L2_DEBUG_IOCTL_ARG)) {
+				!(vfd->debug & V4L2_DEBUG_IOCTL_ARG)) {
 		v4l_print_ioctl(vfd->name, cmd);
 	}
 
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
+	/***********************************************************
+	 Handles calls to the obsoleted V4L1 API
+	 Due to the nature of VIDIOCGMBUF, each driver that supports
+	 V4L1 should implement its own handler for this ioctl.
+	 ***********************************************************/
+
+	/* --- streaming capture ------------------------------------- */
+	if (cmd == VIDIOCGMBUF) {
+		struct video_mbuf *p=arg;
+
+		memset(p,0,sizeof(p));
+
+		if (!vfd->vidiocgmbuf)
+			return ret;
+		ret=vfd->vidiocgmbuf(file, fh, p);
+		if (!ret)
+			dbgarg (cmd, "size=%d, frames=%d, offsets=0x%08lx\n",
+						p->size, p->frames,
+						(unsigned long)p->offsets);
+		return ret;
+	}
+
+	/********************************************************
+	 All other V4L1 calls are handled by v4l1_compat module.
+	 Those calls will be translated into V4L2 calls, and
+	 __video_do_ioctl will be called again, with one or more
+	 V4L2 ioctls.
+	 ********************************************************/
 	if (_IOC_TYPE(cmd)=='v')
 		return v4l_compat_translate_ioctl(inode,file,cmd,arg,
 						__video_do_ioctl);
+#endif
 
 	switch(cmd) {
 	/* --- capabilities ------------------------------------------ */
@@ -791,24 +821,6 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		ret=vfd->vidioc_overlay(file, fh, *i);
 		break;
 	}
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	/* --- streaming capture ------------------------------------- */
-	case VIDIOCGMBUF:
-	{
-		struct video_mbuf *p=arg;
-
-		memset(p,0,sizeof(p));
-
-		if (!vfd->vidiocgmbuf)
-			break;
-		ret=vfd->vidiocgmbuf(file, fh, p);
-		if (!ret)
-			dbgarg (cmd, "size=%d, frames=%d, offsets=0x%08lx\n",
-						p->size, p->frames,
-						(unsigned long)p->offsets);
-		break;
-	}
-#endif
 	case VIDIOC_G_FBUF:
 	{
 		struct v4l2_framebuffer *p=arg;

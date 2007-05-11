@@ -4,7 +4,7 @@
 #define DVB_USB_LOG_PREFIX "m920x"
 #include "dvb-usb.h"
 
-#define deb_rc(args...)   dprintk(dvb_usb_m920x_debug,0x01,args)
+#define deb(args...)   dprintk(dvb_usb_m920x_debug,0x01,args)
 
 #define M9206_CORE	0x22
 #define M9206_RC_STATE	0xff51
@@ -59,9 +59,18 @@ What any other bits might mean, or how to get the slave's ACK/NACK
 response to a write, is unknown.
 */
 
-struct m9206_state {
+struct m920x_state {
 	u16 filters[M9206_MAX_FILTERS];
 	int filtering_enabled;
 	int rep_count;
 };
+
+/* Initialisation data for the m920x
+ */
+
+struct m920x_inits {
+	u16 address;
+	u8  data;
+};
+
 #endif

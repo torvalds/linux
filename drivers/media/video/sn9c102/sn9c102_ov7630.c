@@ -29,9 +29,8 @@ static int ov7630_init(struct sn9c102_device* cam)
 	switch (sn9c102_get_bridge(cam)) {
 	case BRIDGE_SN9C101:
 	case BRIDGE_SN9C102:
-		err = sn9c102_write_const_regs(cam, {0x00, 0x14},
-					       {0x60, 0x17}, {0x0f, 0x18},
-					       {0x50, 0x19});
+		err = sn9c102_write_const_regs(cam, {0x00, 0x14}, {0x60, 0x17},
+					       {0x0f, 0x18}, {0x50, 0x19});
 
 		err += sn9c102_i2c_write(cam, 0x12, 0x8d);
 		err += sn9c102_i2c_write(cam, 0x12, 0x0d);
@@ -61,7 +60,6 @@ static int ov7630_init(struct sn9c102_device* cam)
 		err += sn9c102_i2c_write(cam, 0x71, 0x00);
 		err += sn9c102_i2c_write(cam, 0x74, 0x21);
 		err += sn9c102_i2c_write(cam, 0x7d, 0xf7);
-
 		break;
 	case BRIDGE_SN9C103:
 		err = sn9c102_write_const_regs(cam, {0x00, 0x02}, {0x00, 0x03},
@@ -253,7 +251,7 @@ static int ov7630_set_pix_format(struct sn9c102_device* cam,
 }
 
 
-static struct sn9c102_sensor ov7630 = {
+static const struct sn9c102_sensor ov7630 = {
 	.name = "OV7630",
 	.maintainer = "Luca Risolia <luca.risolia@studio.unibo.it>",
 	.supported_bridge = BRIDGE_SN9C101 | BRIDGE_SN9C102 | BRIDGE_SN9C103,
@@ -408,19 +406,16 @@ int sn9c102_probe_ov7630(struct sn9c102_device* cam)
 	switch (sn9c102_get_bridge(cam)) {
 	case BRIDGE_SN9C101:
 	case BRIDGE_SN9C102:
-		err = sn9c102_write_const_regs(cam, {0x01, 0x01},
-					       {0x00, 0x01}, {0x28, 0x17});
-
+		err = sn9c102_write_const_regs(cam, {0x01, 0x01}, {0x00, 0x01},
+					       {0x28, 0x17});
 		break;
 	case BRIDGE_SN9C103: /* do _not_ change anything! */
-		err = sn9c102_write_const_regs(cam, {0x09, 0x01},
-					       {0x42, 0x01}, {0x28, 0x17},
-					       {0x44, 0x02});
+		err = sn9c102_write_const_regs(cam, {0x09, 0x01}, {0x42, 0x01},
+					       {0x28, 0x17}, {0x44, 0x02});
 		pid = sn9c102_i2c_try_read(cam, &ov7630, 0x0a);
-		if (err || pid < 0) { /* try a different initialization */
-			err = sn9c102_write_reg(cam, 0x01, 0x01);
-			err += sn9c102_write_reg(cam, 0x00, 0x01);
-		}
+		if (err || pid < 0) /* try a different initialization */
+			err += sn9c102_write_const_regs(cam, {0x01, 0x01},
+							{0x00, 0x01});
 		break;
 	default:
 		break;

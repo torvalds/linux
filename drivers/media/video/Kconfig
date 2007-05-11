@@ -2,14 +2,19 @@
 # Multimedia Video device configuration
 #
 
-menu "Video Capture Adapters"
+menuconfig VIDEO_CAPTURE_DRIVERS
+	bool "Video capture adapters"
 	depends on VIDEO_DEV
+	default y
+	---help---
+	  Say Y here to enable selecting the video adapters for
+	  webcams, analog TV, and hybrid analog/digital TV.
+	  Some of those devices also supports FM radio.
 
-comment "Video Capture Adapters"
+if VIDEO_CAPTURE_DRIVERS
 
 config VIDEO_ADV_DEBUG
 	bool "Enable advanced debug functionality"
-	depends on VIDEO_DEV
 	default n
 	---help---
 	  Say Y here to enable advanced debugging functionality on some
@@ -34,7 +39,7 @@ config VIDEO_HELPER_CHIPS_AUTO
 #
 
 menu "Encoders/decoders and other helper chips"
-	depends on VIDEO_DEV && !VIDEO_HELPER_CHIPS_AUTO
+	depends on !VIDEO_HELPER_CHIPS_AUTO
 
 comment "Audio decoders"
 
@@ -61,7 +66,7 @@ config VIDEO_TDA7432
 
 config VIDEO_TDA9840
 	tristate "Philips TDA9840 audio processor"
-	depends on VIDEO_DEV && I2C
+	depends on I2C
 	---help---
 	  Support for tda9840 audio decoder chip found on some Zoran boards.
 
@@ -79,7 +84,7 @@ config VIDEO_TDA9875
 
 config VIDEO_TEA6415C
 	tristate "Philips TEA6415C audio processor"
-	depends on VIDEO_DEV && I2C
+	depends on I2C
 	---help---
 	  Support for tea6415c audio decoder chip found on some bt8xx boards.
 
@@ -88,7 +93,7 @@ config VIDEO_TEA6415C
 
 config VIDEO_TEA6420
 	tristate "Philips TEA6420 audio processor"
-	depends on VIDEO_DEV && I2C
+	depends on I2C
 	---help---
 	  Support for tea6420 audio decoder chip found on some bt8xx boards.
 
@@ -469,7 +474,7 @@ config VIDEO_SAA5246A
 
 config VIDEO_SAA5249
 	tristate "SAA5249 Teletext processor"
-	depends on VIDEO_DEV && I2C && VIDEO_V4L2
+	depends on I2C && VIDEO_V4L2
 	help
 	  Support for I2C bus based teletext using the SAA5249 chip. At the
 	  moment this is only useful on some European WinTV cards.
@@ -479,7 +484,7 @@ config VIDEO_SAA5249
 
 config TUNER_3036
 	tristate "SAB3036 tuner"
-	depends on VIDEO_DEV && I2C && VIDEO_V4L1
+	depends on I2C && VIDEO_V4L1
 	help
 	  Say Y here to include support for Philips SAB3036 compatible tuners.
 	  If in doubt, say N.
@@ -681,8 +686,12 @@ config VIDEO_CAFE_CCIC
 # USB Multimedia device configuration
 #
 
-menu "V4L USB devices"
-	depends on USB && VIDEO_DEV
+menuconfig V4L_USB_DRIVERS
+	bool "V4L USB devices"
+	depends on USB
+	default y
+
+if V4L_USB_DRIVERS
 
 source "drivers/media/video/pvrusb2/Kconfig"
 
@@ -707,7 +716,7 @@ config VIDEO_OVCAMCHIP
 
 config USB_W9968CF
 	tristate "USB W996[87]CF JPEG Dual Mode Camera support"
-	depends on USB && VIDEO_V4L1 && I2C
+	depends on VIDEO_V4L1 && I2C
 	select VIDEO_OVCAMCHIP
 	---help---
 	  Say Y here if you want support for cameras based on OV681 or
@@ -725,7 +734,7 @@ config USB_W9968CF
 
 config USB_OV511
 	tristate "USB OV511 Camera support"
-	depends on USB && VIDEO_V4L1
+	depends on VIDEO_V4L1
 	---help---
 	  Say Y here if you want to connect this type of camera to your
 	  computer's USB port. See <file:Documentation/video4linux/ov511.txt>
@@ -736,7 +745,7 @@ config USB_OV511
 
 config USB_SE401
 	tristate "USB SE401 Camera support"
-	depends on USB && VIDEO_V4L1
+	depends on VIDEO_V4L1
 	---help---
 	  Say Y here if you want to connect this type of camera to your
 	  computer's USB port. See <file:Documentation/video4linux/se401.txt>
@@ -749,7 +758,7 @@ source "drivers/media/video/sn9c102/Kconfig"
 
 config USB_STV680
 	tristate "USB STV680 (Pencam) Camera support"
-	depends on USB && VIDEO_V4L1
+	depends on VIDEO_V4L1
 	---help---
 	  Say Y here if you want to connect this type of camera to your
 	  computer's USB port. This includes the Pencam line of cameras.
@@ -765,7 +774,7 @@ source "drivers/media/video/pwc/Kconfig"
 
 config USB_ZR364XX
 	tristate "USB ZR364XX Camera support"
-	depends on USB && VIDEO_V4L2
+	depends on VIDEO_V4L2
 	---help---
 	  Say Y here if you want to connect this type of camera to your
 	  computer's USB port.
@@ -775,6 +784,6 @@ config USB_ZR364XX
 	  To compile this driver as a module, choose M here: the
 	  module will be called zr364xx.
 
-endmenu # V4L USB devices
+endif # V4L_USB_DRIVERS
 
-endmenu
+endif # VIDEO_CAPTURE_DRIVERS
