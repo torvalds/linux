@@ -60,6 +60,7 @@
 #define MII_M1111_PHY_EXT_SR		0x1b
 #define MII_M1111_HWCFG_MODE_MASK	0xf
 #define MII_M1111_HWCFG_MODE_RGMII	0xb
+#define MII_M1111_HWCFG_MODE_SGMII_NO_CLK	0x4
 
 MODULE_DESCRIPTION("Marvell PHY driver");
 MODULE_AUTHOR("Andy Fleming");
@@ -163,6 +164,21 @@ static int m88e1111_config_init(struct phy_device *phydev)
 
 		temp &= ~(MII_M1111_HWCFG_MODE_MASK);
 		temp |= MII_M1111_HWCFG_MODE_RGMII;
+
+		err = phy_write(phydev, MII_M1111_PHY_EXT_SR, temp);
+		if (err < 0)
+			return err;
+	}
+
+	if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
+		int temp;
+
+		temp = phy_read(phydev, MII_M1111_PHY_EXT_SR);
+		if (temp < 0)
+			return temp;
+
+		temp &= ~(MII_M1111_HWCFG_MODE_MASK);
+		temp |= MII_M1111_HWCFG_MODE_SGMII_NO_CLK;
 
 		err = phy_write(phydev, MII_M1111_PHY_EXT_SR, temp);
 		if (err < 0)
