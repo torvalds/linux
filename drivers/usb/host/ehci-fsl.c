@@ -67,7 +67,8 @@ int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	 * in host mode.
 	 */
 	if (!((pdata->operating_mode == FSL_USB2_DR_HOST) ||
-	      (pdata->operating_mode == FSL_USB2_MPH_HOST))) {
+	      (pdata->operating_mode == FSL_USB2_MPH_HOST) ||
+	      (pdata->operating_mode == FSL_USB2_DR_OTG))) {
 		dev_err(&pdev->dev,
 			"Non Host Mode configured for %s. Wrong driver linked.\n",
 			pdev->dev.bus_id);
@@ -185,12 +186,14 @@ static void mpc83xx_usb_setup(struct usb_hcd *hcd)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	struct fsl_usb2_platform_data *pdata;
 	void __iomem *non_ehci = hcd->regs;
+	u32 temp;
 
 	pdata =
 	    (struct fsl_usb2_platform_data *)hcd->self.controller->
 	    platform_data;
 	/* Enable PHY interface in the control reg. */
-	out_be32(non_ehci + FSL_SOC_USB_CTRL, 0x00000004);
+	temp = in_be32(non_ehci + FSL_SOC_USB_CTRL);
+	out_be32(non_ehci + FSL_SOC_USB_CTRL, temp | 0x00000004);
 	out_be32(non_ehci + FSL_SOC_USB_SNOOP1, 0x0000001b);
 
 #if defined(CONFIG_PPC32) && !defined(CONFIG_NOT_COHERENT_CACHE)
@@ -206,7 +209,8 @@ static void mpc83xx_usb_setup(struct usb_hcd *hcd)
 	out_be32(non_ehci + FSL_SOC_USB_SNOOP2, 0x80000000 | SNOOP_SIZE_2GB);
 #endif
 
-	if (pdata->operating_mode == FSL_USB2_DR_HOST)
+	if ((pdata->operating_mode == FSL_USB2_DR_HOST) ||
+			(pdata->operating_mode == FSL_USB2_DR_OTG))
 		mpc83xx_setup_phy(ehci, pdata->phy_mode, 0);
 
 	if (pdata->operating_mode == FSL_USB2_MPH_HOST) {
