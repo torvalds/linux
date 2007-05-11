@@ -241,6 +241,16 @@ static inline void __deprecated save_and_cli(unsigned long *x)
 #define save_and_cli(x)	save_and_cli(&x)
 #endif /* CONFIG_SMP */
 
+/* Some architectures might implement lazy enabling/disabling of
+ * interrupts. In some cases, such as stop_machine, we might want
+ * to ensure that after a local_irq_disable(), interrupts have
+ * really been disabled in hardware. Such architectures need to
+ * implement the following hook.
+ */
+#ifndef hard_irq_disable
+#define hard_irq_disable()	do { } while(0)
+#endif
+
 /* PLEASE, avoid to allocate new softirqs, if you need not _really_ high
    frequency threaded job scheduling. For almost all the purposes
    tasklets are more than enough. F.e. all serial device BHs et
