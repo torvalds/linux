@@ -366,7 +366,7 @@ static inline void pmd_set(pmd_t * pmdp, pte_t * ptep)
 #define pte_unmap_nested(pte)	do { } while (0)
 
 /* Encode and de-code a swap entry */
-#define __swp_type(x)			(((x).val >> 2) & 0x3f)
+#define __swp_type(x)			(((x).val >> 2) & 0x1f)
 #define __swp_offset(x)			((x).val >> 10)
 #define __swp_entry(type, offset)	\
 	((swp_entry_t) { ((type) << 2) | ((offset) << 10) })
