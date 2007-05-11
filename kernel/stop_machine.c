@@ -8,6 +8,8 @@
 #include <linux/sched.h>
 #include <linux/stop_machine.h>
 #include <linux/syscalls.h>
+#include <linux/interrupt.h>
+
 #include <asm/atomic.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
@@ -45,6 +47,7 @@ static int stopmachine(void *cpu)
 		if (stopmachine_state == STOPMACHINE_DISABLE_IRQ 
 		    && !irqs_disabled) {
 			local_irq_disable();
+			hard_irq_disable();
 			irqs_disabled = 1;
 			/* Ack: irqs disabled. */
 			smp_mb(); /* Must read state first. */
@@ -124,6 +127,7 @@ static int stop_machine(void)
 
 	/* Make them disable irqs. */
 	local_irq_disable();
+	hard_irq_disable();
 	stopmachine_set_state(STOPMACHINE_DISABLE_IRQ);
 
 	return 0;
