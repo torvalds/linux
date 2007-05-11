@@ -44,8 +44,7 @@ __attribute__((__section__(".data.init_task"))) =
 
 void unprotect_stack(unsigned long stack)
 {
-	os_protect_memory((void *) stack, (1 << CONFIG_KERNEL_STACK_ORDER) * PAGE_SIZE,
-		       1, 1, 0);
+	os_protect_memory((void *) stack, THREAD_SIZE, 1, 1, 0);
 }
 
 /*
