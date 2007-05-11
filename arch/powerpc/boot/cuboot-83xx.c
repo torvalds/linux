@@ -57,7 +57,7 @@ void platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 
 	memcpy(&bd, (bd_t *)r3, sizeof(bd));
 	loader_info.initrd_addr = r4;
-	loader_info.initrd_size = r4 ? r5 : 0;
+	loader_info.initrd_size = r4 ? r5 - r4 : 0;
 	loader_info.cmdline = (char *)r6;
 	loader_info.cmdline_len = r7 - r6;
 
