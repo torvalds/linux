@@ -19,13 +19,6 @@ config VGA_CONSOLE
 
 	  Say Y.
 
-#	if [ "$CONFIG_PCI" = "y" -a "$CONFIG_VGA_CONSOLE" = "y" ]; then
-#	   bool '   Allow VGA on any bus?' CONFIG_VGA_HOSE
-#	   if [ "$CONFIG_VGA_HOSE" = "y" ]; then
-#	      define_bool CONFIG_DUMMY_CONSOLE y
-#	   fi
-#	fi
-
 config VGACON_SOFT_SCROLLBACK
        bool "Enable Scrollback Buffer in System RAM"
        depends on VGA_CONSOLE
