@@ -26,6 +26,7 @@
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/arch/irqs.h>
+#include <asm/arch/msi.h>
 
 /* INTCTL0 CP6 R0 Page 4
  */
@@ -258,7 +259,7 @@ void __init iop13xx_init_irq(void)
 	write_intbase(INTBASE);
 	write_intsize(INTSIZE_4);
 
-	for(i = 0; i < NR_IOP13XX_IRQS; i++) {
+	for(i = 0; i <= IRQ_IOP13XX_HPI; i++) {
 		if (i < 32)
 			set_irq_chip(i, &iop13xx_irqchip1);
 		else if (i < 64)
@@ -271,4 +272,6 @@ void __init iop13xx_init_irq(void)
 		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}
+
+	iop13xx_msi_init();
 }
