@@ -336,7 +336,7 @@ static int bits_to_user(unsigned long *bits, unsigned int maxbit,
 
 	if (compat) {
 		len = NBITS_COMPAT(maxbit) * sizeof(compat_long_t);
-		if (len < maxlen)
+		if (len > maxlen)
 			len = maxlen;
 
 		for (i = 0; i < len / sizeof(compat_long_t); i++)
