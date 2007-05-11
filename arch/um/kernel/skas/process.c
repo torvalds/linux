@@ -163,8 +163,12 @@ static int start_kernel_proc(void *unused)
 
 extern int userspace_pid[];
 
+extern char cpu0_irqstack[];
+
 int start_uml_skas(void)
 {
+	stack_protections((unsigned long) &cpu0_irqstack);
+	set_sigstack(cpu0_irqstack, THREAD_SIZE);
 	if(proc_mm)
 		userspace_pid[0] = start_userspace(0);
 

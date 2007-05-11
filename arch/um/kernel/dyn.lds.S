@@ -97,6 +97,8 @@ SECTIONS
   .data           : {
     . = ALIGN(KERNEL_STACK_SIZE);		/* init_task */
     *(.data.init_task)
+    . = ALIGN(KERNEL_STACK_SIZE);
+    *(.data.init_irqstack)
     *(.data .data.* .gnu.linkonce.d.*)
     SORT(CONSTRUCTORS)
   }

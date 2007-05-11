@@ -117,6 +117,46 @@ void remove_sigstack(void)
 
 void (*handlers[_NSIG])(int sig, struct sigcontext *sc);
 
+void handle_signal(int sig, struct sigcontext *sc)
+{
+	unsigned long pending = 0;
+
+	do {
+		int nested, bail;
+
+		/*
+		 * pending comes back with one bit set for each
+		 * interrupt that arrived while setting up the stack,
+		 * plus a bit for this interrupt, plus the zero bit is
+		 * set if this is a nested interrupt.
+		 * If bail is true, then we interrupted another
+		 * handler setting up the stack.  In this case, we
+		 * have to return, and the upper handler will deal
+		 * with this interrupt.
+		 */
+		bail = to_irq_stack(sig, &pending);
+		if(bail)
+			return;
+
+		nested = pending & 1;
+		pending &= ~1;
+
+		while((sig = ffs(pending)) != 0){
+			sig--;
+			pending &= ~(1 << sig);
+			(*handlers[sig])(sig, sc);
+		}
+
+		/* Again, pending comes back with a mask of signals
+		 * that arrived while tearing down the stack.  If this
+		 * is non-zero, we just go back, set up the stack
+		 * again, and handle the new interrupts.
+		 */
+		if(!nested)
+			pending = from_irq_stack(nested);
+	} while(pending);
+}
+
 extern void hard_handler(int sig);
 
 void set_handler(int sig, void (*handler)(int), int flags, ...)

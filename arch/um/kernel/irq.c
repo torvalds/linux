@@ -32,6 +32,7 @@
 #include "sigio.h"
 #include "um_malloc.h"
 #include "misc_constants.h"
+#include "as-layout.h"
 
 /*
  * Generic, controller-independent functions:
@@ -468,3 +469,113 @@ int init_aio_irq(int irq, char *name, irq_handler_t handler)
  out:
 	return err;
 }
+
+/*
+ * IRQ stack entry and exit:
+ *
+ * Unlike i386, UML doesn't receive IRQs on the normal kernel stack
+ * and switch over to the IRQ stack after some preparation.  We use
+ * sigaltstack to receive signals on a separate stack from the start.
+ * These two functions make sure the rest of the kernel won't be too
+ * upset by being on a different stack.  The IRQ stack has a
+ * thread_info structure at the bottom so that current et al continue
+ * to work.
+ *
+ * to_irq_stack copies the current task's thread_info to the IRQ stack
+ * thread_info and sets the tasks's stack to point to the IRQ stack.
+ *
+ * from_irq_stack copies the thread_info struct back (flags may have
+ * been modified) and resets the task's stack pointer.
+ *
+ * Tricky bits -
+ *
+ * What happens when two signals race each other?  UML doesn't block
+ * signals with sigprocmask, SA_DEFER, or sa_mask, so a second signal
+ * could arrive while a previous one is still setting up the
+ * thread_info.
+ *
+ * There are three cases -
+ *     The first interrupt on the stack - sets up the thread_info and
+ * handles the interrupt
+ *     A nested interrupt interrupting the copying of the thread_info -
+ * can't handle the interrupt, as the stack is in an unknown state
+ *     A nested interrupt not interrupting the copying of the
+ * thread_info - doesn't do any setup, just handles the interrupt
+ *
+ * The first job is to figure out whether we interrupted stack setup.
+ * This is done by xchging the signal mask with thread_info->pending.
+ * If the value that comes back is zero, then there is no setup in
+ * progress, and the interrupt can be handled.  If the value is
+ * non-zero, then there is stack setup in progress.  In order to have
+ * the interrupt handled, we leave our signal in the mask, and it will
+ * be handled by the upper handler after it has set up the stack.
+ *
+ * Next is to figure out whether we are the outer handler or a nested
+ * one.  As part of setting up the stack, thread_info->real_thread is
+ * set to non-NULL (and is reset to NULL on exit).  This is the
+ * nesting indicator.  If it is non-NULL, then the stack is already
+ * set up and the handler can run.
+ */
+
+static unsigned long pending_mask;
+
+unsigned long to_irq_stack(int sig, unsigned long *mask_out)
+{
+	struct thread_info *ti;
+	unsigned long mask, old;
+	int nested;
+
+	mask = xchg(&pending_mask, 1 << sig);
+	if(mask != 0){
+		/* If any interrupts come in at this point, we want to
+		 * make sure that their bits aren't lost by our
+		 * putting our bit in.  So, this loop accumulates bits
+		 * until xchg returns the same value that we put in.
+		 * When that happens, there were no new interrupts,
+		 * and pending_mask contains a bit for each interrupt
+		 * that came in.
+		 */
+		old = 1 << sig;
+		do {
+			old |= mask;
+			mask = xchg(&pending_mask, old);
+		} while(mask != old);
+		return 1;
+	}
+
+	ti = current_thread_info();
+	nested = (ti->real_thread != NULL);
+	if(!nested){
+		struct task_struct *task;
+		struct thread_info *tti;
+
+		task = cpu_tasks[ti->cpu].task;
+		tti = task_thread_info(task);
+		*ti = *tti;
+		ti->real_thread = tti;
+		task->stack = ti;
+	}
+
+	mask = xchg(&pending_mask, 0);
+	*mask_out |= mask | nested;
+	return 0;
+}
+
+unsigned long from_irq_stack(int nested)
+{
+	struct thread_info *ti, *to;
+	unsigned long mask;
+
+	ti = current_thread_info();
+
+	pending_mask = 1;
+
+	to = ti->real_thread;
+	current->stack = to;
+	ti->real_thread = NULL;
+	*to = *ti;
+
+	mask = xchg(&pending_mask, 0);
+	return mask & ~1;
+}
+

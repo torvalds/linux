@@ -22,6 +22,7 @@ struct thread_info {
 					 	   0-0xBFFFFFFF for user
 						   0-0xFFFFFFFF for kernel */
 	struct restart_block    restart_block;
+	struct thread_info	*real_thread;    /* Points to non-IRQ stack */
 };
 
 #define INIT_THREAD_INFO(tsk)			\
@@ -35,6 +36,7 @@ struct thread_info {
 	.restart_block =  {			\
 		.fn =  do_no_restart_syscall,	\
 	},					\
+	.real_thread = NULL,			\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)

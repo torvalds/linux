@@ -1,5 +1,5 @@
-/* 
- * Copyright (C) 2000 Jeff Dike (jdike@karaya.com)
+/*
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,intel.linux}.com)
  * Licensed under the GPL
  */
 
@@ -33,14 +33,18 @@ EXPORT_SYMBOL(init_task);
 /*
  * Initial thread structure.
  *
- * We need to make sure that this is 16384-byte aligned due to the
+ * We need to make sure that this is aligned due to the
  * way process stacks are handled. This is done by having a special
  * "init_task" linker map entry..
  */
 
-union thread_union init_thread_union 
-__attribute__((__section__(".data.init_task"))) = 
-{ INIT_THREAD_INFO(init_task) };
+union thread_union init_thread_union
+	__attribute__((__section__(".data.init_task"))) =
+		{ INIT_THREAD_INFO(init_task) };
+
+union thread_union cpu0_irqstack
+	__attribute__((__section__(".data.init_irqstack"))) =
+		{ INIT_THREAD_INFO(init_task) };
 
 void unprotect_stack(unsigned long stack)
 {
