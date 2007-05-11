@@ -331,7 +331,8 @@ static void rs5c313_check_xstp_bit(void)
 
 		memset(&tm, 0, sizeof(struct rtc_time));
 		tm.tm_mday 	= 1;
-		tm.tm_mon 	= 1;
+		tm.tm_mon 	= 1 - 1;
+		tm.tm_year 	= 2000 - 1900;
 
 		rs5c313_rtc_set_time(NULL, &tm);
 		printk(KERN_ERR "RICHO RS5C313: invalid value, resetting to "
