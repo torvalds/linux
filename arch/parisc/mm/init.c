@@ -890,7 +890,7 @@ void __init paging_init(void)
 #ifdef CONFIG_PA20
 
 /*
- * Currently, all PA20 chips have 18 bit protection id's, which is the
+ * Currently, all PA20 chips have 18 bit protection IDs, which is the
  * limiting factor (space ids are 32 bits).
  */
 
@@ -899,10 +899,10 @@ void __init paging_init(void)
 #else
 
 /*
- * Currently we have a one-to-one relationship between space id's and
- * protection id's. Older parisc chips (PCXS, PCXT, PCXL, PCXL2) only
- * support 15 bit protection id's, so that is the limiting factor.
- * PCXT' has 18 bit protection id's, but only 16 bit spaceids, so it's
+ * Currently we have a one-to-one relationship between space IDs and
+ * protection IDs. Older parisc chips (PCXS, PCXT, PCXL, PCXL2) only
+ * support 15 bit protection IDs, so that is the limiting factor.
+ * PCXT' has 18 bit protection IDs, but only 16 bit spaceids, so it's
  * probably not worth the effort for a special case here.
  */
 

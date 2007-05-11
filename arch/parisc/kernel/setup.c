@@ -162,7 +162,7 @@ void __init setup_arch(char **cmdline_p)
 }
 
 /*
- * Display cpu info for all cpu's.
+ * Display CPU info for all CPUs.
  * for parisc this is in processor.c
  */
 extern int show_cpuinfo (struct seq_file *m, void *v);

@@ -63,7 +63,7 @@ extern int update_cr16_clocksource(void);	/* from time.c */
 ** will call register_parisc_driver(&cpu_driver) before calling do_inventory().
 **
 ** The goal of consolidating CPU initialization into one place is
-** to make sure all CPU's get initialized the same way.
+** to make sure all CPUs get initialized the same way.
 ** The code path not shared is how PDC hands control of the CPU to the OS.
 ** The initialization of OS data structures is the same (done below).
 */
@@ -166,7 +166,7 @@ static int __init processor_probe(struct parisc_device *dev)
 #endif
 
 	/*
-	** CONFIG_SMP: init_smp_config() will attempt to get CPU's into
+	** CONFIG_SMP: init_smp_config() will attempt to get CPUs into
 	** OS control. RENDEZVOUS is the default state - see mem_set above.
 	**	p->state = STATE_RENDEZVOUS;
 	*/
@@ -334,7 +334,7 @@ int __init init_per_cpu(int cpunum)
 }
 
 /*
- * Display cpu info for all cpu's.
+ * Display CPU info for all CPUs.
  */
 int
 show_cpuinfo (struct seq_file *m, void *v)
@@ -393,7 +393,7 @@ static struct parisc_driver cpu_driver __read_mostly = {
 };
 
 /**
- * processor_init - Processor initalization procedure.
+ * processor_init - Processor initialization procedure.
  *
  * Register this driver.
  */

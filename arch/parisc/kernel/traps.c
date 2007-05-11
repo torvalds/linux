@@ -615,7 +615,7 @@ void handle_interruption(int code, struct pt_regs *regs)
 		
 	case 13:
 		/* Conditional Trap
-		   The condition succees in an instruction which traps 
+		   The condition succeeds in an instruction which traps
 		   on condition  */
 		if(user_mode(regs)){
 			si.si_signo = SIGFPE;

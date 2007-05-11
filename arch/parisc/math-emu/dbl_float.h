@@ -22,7 +22,7 @@
     PA header file -- do not include this header file for non-PA builds.
 #endif
 
-/* 32-bit word grabing functions */
+/* 32-bit word grabbing functions */
 #define Dbl_firstword(value) Dallp1(value)
 #define Dbl_secondword(value) Dallp2(value)
 #define Dbl_thirdword(value) dummy_location
@@ -37,7 +37,7 @@
 #define Dbl_allp1(object) Dallp1(object)
 #define Dbl_allp2(object) Dallp2(object)
 
-/* dbl_and_signs ands the sign bits of each argument and puts the result
+/* dbl_and_signs ANDs the sign bits of each argument and puts the result
  * into the first argument. dbl_or_signs ors those same sign bits */
 #define Dbl_and_signs( src1dst, src2)		\
     Dallp1(src1dst) = (Dallp1(src2)|~((unsigned int)1<<31)) & Dallp1(src1dst)

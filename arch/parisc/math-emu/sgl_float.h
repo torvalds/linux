@@ -23,7 +23,7 @@
     PA header file -- do not include this header file for non-PA builds.
 #endif
 
-/* 32-bit word grabing functions */
+/* 32-bit word grabbing functions */
 #define Sgl_firstword(value) Sall(value)
 #define Sgl_secondword(value) dummy_location
 #define Sgl_thirdword(value) dummy_location
@@ -36,7 +36,7 @@
 #define Sgl_exponentmantissa(object) Sexponentmantissa(object)
 #define Sgl_all(object) Sall(object)
 
-/* sgl_and_signs ands the sign bits of each argument and puts the result
+/* sgl_and_signs ANDs the sign bits of each argument and puts the result
  * into the first argument. sgl_or_signs ors those same sign bits */
 #define Sgl_and_signs( src1dst, src2)		\
     Sall(src1dst) = (Sall(src2)|~((unsigned int)1<<31)) & Sall(src1dst)
