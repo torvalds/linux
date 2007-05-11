@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Freescale Semicondutor, Inc. 2006. All rights reserved.
+ * Copyright (C) 2006-2007 Freescale Semicondutor, Inc. All rights reserved.
  *
  * Author: Shlomi Gridish <gridish@freescale.com>
  *	   Li Yang <leoli@freescale.com>
@@ -3737,21 +3737,21 @@ static int ucc_geth_close(struct net_device *dev)
 
 const struct ethtool_ops ucc_geth_ethtool_ops = { };
 
-static phy_interface_t to_phy_interface(const char *interface_type)
+static phy_interface_t to_phy_interface(const char *phy_connection_type)
 {
-	if (strcasecmp(interface_type, "mii") == 0)
+	if (strcasecmp(phy_connection_type, "mii") == 0)
 		return PHY_INTERFACE_MODE_MII;
-	if (strcasecmp(interface_type, "gmii") == 0)
+	if (strcasecmp(phy_connection_type, "gmii") == 0)
 		return PHY_INTERFACE_MODE_GMII;
-	if (strcasecmp(interface_type, "tbi") == 0)
+	if (strcasecmp(phy_connection_type, "tbi") == 0)
 		return PHY_INTERFACE_MODE_TBI;
-	if (strcasecmp(interface_type, "rmii") == 0)
+	if (strcasecmp(phy_connection_type, "rmii") == 0)
 		return PHY_INTERFACE_MODE_RMII;
-	if (strcasecmp(interface_type, "rgmii") == 0)
+	if (strcasecmp(phy_connection_type, "rgmii") == 0)
 		return PHY_INTERFACE_MODE_RGMII;
-	if (strcasecmp(interface_type, "rgmii-id") == 0)
+	if (strcasecmp(phy_connection_type, "rgmii-id") == 0)
 		return PHY_INTERFACE_MODE_RGMII_ID;
-	if (strcasecmp(interface_type, "rtbi") == 0)
+	if (strcasecmp(phy_connection_type, "rtbi") == 0)
 		return PHY_INTERFACE_MODE_RTBI;
 
 	return PHY_INTERFACE_MODE_MII;
@@ -3819,29 +3819,21 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	ug_info->phy_address = *prop;
 
 	/* get the phy interface type, or default to MII */
-	prop = of_get_property(np, "interface-type", NULL);
+	prop = of_get_property(np, "phy-connection-type", NULL);
 	if (!prop) {
 		/* handle interface property present in old trees */
 		prop = of_get_property(phy, "interface", NULL);
-		if (prop != NULL)
+		if (prop != NULL) {
 			phy_interface = enet_to_phy_interface[*prop];
-		else
+			max_speed = enet_to_speed[*prop];
+		} else
 			phy_interface = PHY_INTERFACE_MODE_MII;
 	} else {
 		phy_interface = to_phy_interface((const char *)prop);
 	}
 
-	/* get speed, or derive from interface */
-	prop = of_get_property(np, "max-speed", NULL);
-	if (!prop) {
-		/* handle interface property present in old trees */
-		prop = of_get_property(phy, "interface", NULL);
-		if (prop != NULL)
-			max_speed = enet_to_speed[*prop];
-	} else {
-		max_speed = *prop;
-	}
-	if (!max_speed) {
+	/* get speed, or derive from PHY interface */
+	if (max_speed == 0)
 		switch (phy_interface) {
 		case PHY_INTERFACE_MODE_GMII:
 		case PHY_INTERFACE_MODE_RGMII:
@@ -3854,9 +3846,9 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 			max_speed = SPEED_100;
 			break;
 		}
-	}
 
 	if (max_speed == SPEED_1000) {
+		/* configure muram FIFOs for gigabit operation */
 		ug_info->uf_info.urfs = UCC_GETH_URFS_GIGA_INIT;
 		ug_info->uf_info.urfet = UCC_GETH_URFET_GIGA_INIT;
 		ug_info->uf_info.urfset = UCC_GETH_URFSET_GIGA_INIT;
