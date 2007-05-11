@@ -1822,16 +1822,10 @@ static int auerchar_release (struct inode *inode, struct file *file)
 	pauerswald_t cp;
 	dbg("release");
 
-	/* get the mutexes */
-	if (down_interruptible (&ccp->mutex)) {
-		return -ERESTARTSYS;
-	}
+	down(&ccp->mutex);
 	cp = ccp->auerdev;
 	if (cp) {
-		if (down_interruptible (&cp->mutex)) {
-			up (&ccp->mutex);
-			return -ERESTARTSYS;
-		}
+		down(&cp->mutex);
 		/* remove an open service */
 		auerswald_removeservice (cp, &ccp->scontext);
 		/* detach from device */
