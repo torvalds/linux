@@ -34,12 +34,12 @@ void autofs_kill_sb(struct super_block *sb)
 	if (!sbi)
 		goto out_kill_sb;
 
-	if ( !sbi->catatonic )
+	if (!sbi->catatonic)
 		autofs_catatonic_mode(sbi); /* Free wait queues, close pipe */
 
 	autofs_hash_nuke(sbi);
-	for ( n = 0 ; n < AUTOFS_MAX_SYMLINKS ; n++ ) {
-		if ( test_bit(n, sbi->symlink_bitmap) )
+	for (n = 0; n < AUTOFS_MAX_SYMLINKS; n++) {
+		if (test_bit(n, sbi->symlink_bitmap))
 			kfree(sbi->symlink[n].data);
 	}
 
@@ -69,7 +69,8 @@ static match_table_t autofs_tokens = {
 	{Opt_err, NULL}
 };
 
-static int parse_options(char *options, int *pipefd, uid_t *uid, gid_t *gid, pid_t *pgrp, int *minproto, int *maxproto)
+static int parse_options(char *options, int *pipefd, uid_t *uid, gid_t *gid,
+		pid_t *pgrp, int *minproto, int *maxproto)
 {
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
@@ -140,7 +141,7 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 	int minproto, maxproto;
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
-	if ( !sbi )
+	if (!sbi)
 		goto fail_unlock;
 	DPRINTK(("autofs: starting up, sbi = %p\n",sbi));
 
@@ -169,14 +170,16 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 		goto fail_iput;
 
 	/* Can this call block?  - WTF cares? s is locked. */
-	if ( parse_options(data,&pipefd,&root_inode->i_uid,&root_inode->i_gid,&sbi->oz_pgrp,&minproto,&maxproto) ) {
+	if (parse_options(data, &pipefd, &root_inode->i_uid,
+				&root_inode->i_gid, &sbi->oz_pgrp, &minproto,
+				&maxproto)) {
 		printk("autofs: called with bogus options\n");
 		goto fail_dput;
 	}
 
 	/* Couldn't this be tested earlier? */
-	if ( minproto > AUTOFS_PROTO_VERSION || 
-	     maxproto < AUTOFS_PROTO_VERSION ) {
+	if (minproto > AUTOFS_PROTO_VERSION ||
+	     maxproto < AUTOFS_PROTO_VERSION) {
 		printk("autofs: kernel does not match daemon version\n");
 		goto fail_dput;
 	}
@@ -184,11 +187,11 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 	DPRINTK(("autofs: pipe fd = %d, pgrp = %u\n", pipefd, sbi->oz_pgrp));
 	pipe = fget(pipefd);
 	
-	if ( !pipe ) {
+	if (!pipe) {
 		printk("autofs: could not open pipe file descriptor\n");
 		goto fail_dput;
 	}
-	if ( !pipe->f_op || !pipe->f_op->write )
+	if (!pipe->f_op || !pipe->f_op->write)
 		goto fail_fput;
 	sbi->pipe = pipe;
 	sbi->catatonic = 0;
@@ -230,7 +233,7 @@ static void autofs_read_inode(struct inode *inode)
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	inode->i_blocks = 0;
 
-	if ( ino == AUTOFS_ROOT_INO ) {
+	if (ino == AUTOFS_ROOT_INO) {
 		inode->i_mode = S_IFDIR | S_IRUGO | S_IXUGO | S_IWUSR;
 		inode->i_op = &autofs_root_inode_operations;
 		inode->i_fop = &autofs_root_operations;
@@ -241,12 +244,12 @@ static void autofs_read_inode(struct inode *inode)
 	inode->i_uid = inode->i_sb->s_root->d_inode->i_uid;
 	inode->i_gid = inode->i_sb->s_root->d_inode->i_gid;
 	
-	if ( ino >= AUTOFS_FIRST_SYMLINK && ino < AUTOFS_FIRST_DIR_INO ) {
+	if (ino >= AUTOFS_FIRST_SYMLINK && ino < AUTOFS_FIRST_DIR_INO) {
 		/* Symlink inode - should be in symlink list */
 		struct autofs_symlink *sl;
 
 		n = ino - AUTOFS_FIRST_SYMLINK;
-		if ( n >= AUTOFS_MAX_SYMLINKS || !test_bit(n,sbi->symlink_bitmap)) {
+		if (n >= AUTOFS_MAX_SYMLINKS || !test_bit(n,sbi->symlink_bitmap)) {
 			printk("autofs: Looking for bad symlink inode %u\n", (unsigned int) ino);
 			return;
 		}

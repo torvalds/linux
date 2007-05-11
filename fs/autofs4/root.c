@@ -759,7 +759,7 @@ static int autofs4_dir_unlink(struct inode *dir, struct dentry *dentry)
 	struct autofs_info *p_ino;
 	
 	/* This allows root to remove symlinks */
-	if ( !autofs4_oz_mode(sbi) && !capable(CAP_SYS_ADMIN) )
+	if (!autofs4_oz_mode(sbi) && !capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
 	if (atomic_dec_and_test(&ino->count)) {
@@ -833,7 +833,7 @@ static int autofs4_dir_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	struct autofs_info *p_ino;
 	struct inode *inode;
 
-	if ( !autofs4_oz_mode(sbi) )
+	if (!autofs4_oz_mode(sbi))
 		return -EACCES;
 
 	DPRINTK("dentry %p, creating %.*s",
@@ -871,11 +871,11 @@ static inline int autofs4_get_set_timeout(struct autofs_sb_info *sbi,
 	int rv;
 	unsigned long ntimeout;
 
-	if ( (rv = get_user(ntimeout, p)) ||
-	     (rv = put_user(sbi->exp_timeout/HZ, p)) )
+	if ((rv = get_user(ntimeout, p)) ||
+	     (rv = put_user(sbi->exp_timeout/HZ, p)))
 		return rv;
 
-	if ( ntimeout > ULONG_MAX/HZ )
+	if (ntimeout > ULONG_MAX/HZ)
 		sbi->exp_timeout = 0;
 	else
 		sbi->exp_timeout = ntimeout * HZ;
@@ -906,7 +906,7 @@ static inline int autofs4_ask_reghost(struct autofs_sb_info *sbi, int __user *p)
 	DPRINTK("returning %d", sbi->needs_reghost);
 
 	status = put_user(sbi->needs_reghost, p);
-	if ( status )
+	if (status)
 		return status;
 
 	sbi->needs_reghost = 0;
@@ -975,11 +975,11 @@ static int autofs4_root_ioctl(struct inode *inode, struct file *filp,
 	DPRINTK("cmd = 0x%08x, arg = 0x%08lx, sbi = %p, pgrp = %u",
 		cmd,arg,sbi,process_group(current));
 
-	if ( _IOC_TYPE(cmd) != _IOC_TYPE(AUTOFS_IOC_FIRST) ||
-	     _IOC_NR(cmd) - _IOC_NR(AUTOFS_IOC_FIRST) >= AUTOFS_IOC_COUNT )
+	if (_IOC_TYPE(cmd) != _IOC_TYPE(AUTOFS_IOC_FIRST) ||
+	     _IOC_NR(cmd) - _IOC_NR(AUTOFS_IOC_FIRST) >= AUTOFS_IOC_COUNT)
 		return -ENOTTY;
 	
-	if ( !autofs4_oz_mode(sbi) && !capable(CAP_SYS_ADMIN) )
+	if (!autofs4_oz_mode(sbi) && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 	
 	switch(cmd) {

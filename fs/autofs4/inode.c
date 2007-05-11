@@ -218,8 +218,7 @@ static match_table_t tokens = {
 };
 
 static int parse_options(char *options, int *pipefd, uid_t *uid, gid_t *gid,
-			 pid_t *pgrp, unsigned int *type,
-			 int *minproto, int *maxproto)
+		pid_t *pgrp, unsigned int *type, int *minproto, int *maxproto)
 {
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
@@ -314,7 +313,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	struct autofs_info *ino;
 
 	sbi = kmalloc(sizeof(*sbi), GFP_KERNEL);
-	if ( !sbi )
+	if (!sbi)
 		goto fail_unlock;
 	DPRINTK("starting up, sbi = %p",sbi);
 
@@ -363,10 +362,9 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	root->d_fsdata = ino;
 
 	/* Can this call block? */
-	if (parse_options(data, &pipefd,
-			  &root_inode->i_uid, &root_inode->i_gid,
-			  &sbi->oz_pgrp, &sbi->type,
-			  &sbi->min_proto, &sbi->max_proto)) {
+	if (parse_options(data, &pipefd, &root_inode->i_uid, &root_inode->i_gid,
+				&sbi->oz_pgrp, &sbi->type, &sbi->min_proto,
+				&sbi->max_proto)) {
 		printk("autofs: called with bogus options\n");
 		goto fail_dput;
 	}
@@ -396,11 +394,11 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	DPRINTK("pipe fd = %d, pgrp = %u", pipefd, sbi->oz_pgrp);
 	pipe = fget(pipefd);
 	
-	if ( !pipe ) {
+	if (!pipe) {
 		printk("autofs: could not open pipe file descriptor\n");
 		goto fail_dput;
 	}
-	if ( !pipe->f_op || !pipe->f_op->write )
+	if (!pipe->f_op || !pipe->f_op->write)
 		goto fail_fput;
 	sbi->pipe = pipe;
 	sbi->pipefd = pipefd;
