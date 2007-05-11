@@ -1,6 +1,3 @@
-/* -*- mode: C; tab-width: 4; indent-tabs-mode: nil -*- */
-/* vi: set expandtab shiftwidth=4 tabstop=4 textwidth=78: */
-
 /**
   * Interface for the wlan network scan routines
   *
