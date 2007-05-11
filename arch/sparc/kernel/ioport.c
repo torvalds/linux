@@ -617,7 +617,7 @@ void *pci_alloc_consistent(struct pci_dev *pdev, size_t len, dma_addr_t *pba)
  * size must be the same as what as passed into pci_alloc_consistent,
  * and likewise dma_addr must be the same as what *dma_addrp was set to.
  *
- * References to the memory and mappings assosciated with cpu_addr/dma_addr
+ * References to the memory and mappings associated with cpu_addr/dma_addr
  * past this call are illegal.
  */
 void pci_free_consistent(struct pci_dev *pdev, size_t n, void *p, dma_addr_t ba)

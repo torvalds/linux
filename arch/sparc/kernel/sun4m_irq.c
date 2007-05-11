@@ -299,7 +299,7 @@ static void __init sun4m_init_timers(irq_handler_t counter_fn)
 		struct tt_entry *trap_table = &sparc_ttable[SP_TRAP_IRQ1 + (14 - 1)];
 
 		/* For SMP we use the level 14 ticker, however the bootup code
-		 * has copied the firmwares level 14 vector into boot cpu's
+		 * has copied the firmware's level 14 vector into the boot cpu's
 		 * trap table, we must fix this now or we get squashed.
 		 */
 		local_irq_save(flags);
