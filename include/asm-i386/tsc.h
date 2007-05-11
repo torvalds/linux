@@ -35,14 +35,16 @@ static inline cycles_t get_cycles(void)
 static __always_inline cycles_t get_cycles_sync(void)
 {
 	unsigned long long ret;
-	unsigned eax;
+	unsigned eax, edx;
 
 	/*
   	 * Use RDTSCP if possible; it is guaranteed to be synchronous
  	 * and doesn't cause a VMEXIT on Hypervisors
 	 */
 	alternative_io(ASM_NOP3, ".byte 0x0f,0x01,0xf9", X86_FEATURE_RDTSCP,
-			 	 "=A" (ret), "0" (0ULL) : "ecx", "memory");
+		       ASM_OUTPUT2("=a" (eax), "=d" (edx)),
+		       "a" (0U), "d" (0U) : "ecx", "memory");
+	ret = (((unsigned long long)edx) << 32) | ((unsigned long long)eax);
 	if (ret)
 		return ret;
 
