@@ -626,6 +626,7 @@ static void if_usb_receive(struct urb *urb)
 			    cardp->usb_event_cause);
 		if (cardp->usb_event_cause & 0xffff0000) {
 			libertas_send_tx_feedback(priv);
+			spin_unlock(&priv->adapter->driver_lock);
 			break;
 		}
 		cardp->usb_event_cause = le32_to_cpu(cardp->usb_event_cause) << 3;
