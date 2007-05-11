@@ -1085,7 +1085,7 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 			    sizeof(pcountryinfo->countrycode)
 			    || pcountryinfo->len > 254) {
 				lbs_pr_debug(1, "InterpretIE: 11D- Err "
-				       "CountryInfo len =%d min=%d max=254\n",
+				       "CountryInfo len =%d min=%zd max=254\n",
 				       pcountryinfo->len,
 				       sizeof(pcountryinfo->countrycode));
 				LEAVE();
@@ -1551,7 +1551,7 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 	for (i = 0; i < adapter->numinscantable; i++) {
 		if ((current_ev + MAX_SCAN_CELL_SIZE) >= end_buf) {
 			lbs_pr_debug(1, "i=%d break out: current_ev=%p end_buf=%p "
-			       "MAX_SCAN_CELL_SIZE=%d\n",
+			       "MAX_SCAN_CELL_SIZE=%zd\n",
 			       i, current_ev, end_buf, MAX_SCAN_CELL_SIZE);
 			break;
 		}

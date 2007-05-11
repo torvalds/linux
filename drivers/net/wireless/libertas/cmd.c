@@ -948,8 +948,8 @@ void libertas_queue_cmd(wlan_adapter * adapter, struct cmd_ctrl_node *cmdnode, u
 
 	spin_unlock_irqrestore(&adapter->driver_lock, flags);
 
-	lbs_pr_debug(1, "QUEUE_CMD: Inserted node=0x%x, cmd=0x%x in cmdpendingq\n",
-	       (u32) cmdnode,
+	lbs_pr_debug(1, "QUEUE_CMD: Inserted node=%p, cmd=0x%x in cmdpendingq\n",
+	       cmdnode,
 	       ((struct cmd_ds_gen*)cmdnode->bufvirtualaddr)->command);
 
 done:
@@ -977,8 +977,8 @@ static int DownloadcommandToStation(wlan_private * priv,
 	ENTER();
 
 	if (!adapter || !cmdnode) {
-		lbs_pr_debug(1, "DNLD_CMD: adapter = %#x, cmdnode = %#x\n",
-		       (int)adapter, (int)cmdnode);
+		lbs_pr_debug(1, "DNLD_CMD: adapter = %p, cmdnode = %p\n",
+		       adapter, cmdnode);
 		if (cmdnode) {
 			spin_lock_irqsave(&adapter->driver_lock, flags);
 			__libertas_cleanup_and_insert_cmd(priv, cmdnode);
@@ -1175,8 +1175,8 @@ int libertas_prepare_and_send_command(wlan_private * priv,
 
 	cmdptr = (struct cmd_ds_command *)cmdnode->bufvirtualaddr;
 
-	lbs_pr_debug(1, "PREP_CMD: Val of cmd ptr =0x%x, command=0x%X\n",
-	       (u32) cmdptr, cmd_no);
+	lbs_pr_debug(1, "PREP_CMD: Val of cmd ptr=%p, command=0x%X\n",
+	       cmdptr, cmd_no);
 
 	if (!cmdptr) {
 		lbs_pr_debug(1, "PREP_CMD: bufvirtualaddr of cmdnode is NULL\n");

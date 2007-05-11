@@ -388,7 +388,7 @@ static int __if_usb_submit_rx_urb(wlan_private * priv,
 	usb_fill_bulk_urb(cardp->rx_urb, cardp->udev,
 			  usb_rcvbulkpipe(cardp->udev,
 					  cardp->bulk_in_endpointAddr),
-			  skb->tail + IPFIELD_ALIGN_OFFSET,
+			  (void *) (skb->tail + (size_t) IPFIELD_ALIGN_OFFSET),
 			  MRVDRV_ETH_RX_PACKET_BUFFER_SIZE, callbackfn,
 			  rinfo);
 

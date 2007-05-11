@@ -663,9 +663,6 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 	       padhocjoin->bssdescriptor.BSSID[5],
 	       padhocjoin->bssdescriptor.SSID);
 
-	lbs_pr_debug(1, "ADHOC_J_CMD: Data Rate = %x\n",
-	       (u32) padhocjoin->bssdescriptor.datarates);
-
 	/* failtimeout */
 	padhocjoin->failtimeout = cpu_to_le16(MRVDRV_ASSOCIATION_TIME_OUT);
 
