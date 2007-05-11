@@ -118,9 +118,11 @@ static void __init ps3_smp_setup_cpu(int cpu)
 		DBG("%s:%d: (%d, %d) => virq %u\n",
 			__func__, __LINE__, cpu, i, virqs[i]);
 
+		result = request_irq(virqs[i], ipi_function_handler,
+			IRQF_DISABLED, names[i], (void*)(long)i);
 
-		request_irq(virqs[i], ipi_function_handler, IRQF_DISABLED,
-			names[i], (void*)(long)i);
+		if (result)
+			virqs[i] = NO_IRQ;
 	}
 
 	ps3_register_ipi_debug_brk(cpu, virqs[PPC_MSG_DEBUGGER_BREAK]);
