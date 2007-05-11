@@ -107,6 +107,13 @@ config SPI_IMX
 	  This enables using the Freescale iMX SPI controller in master
 	  mode.
 
+config SPI_MPC52xx_PSC
+	tristate "Freescale MPC52xx PSC SPI controller"
+	depends on SPI_MASTER && PPC_MPC52xx && EXPERIMENTAL
+	help
+	  This enables using the Freescale MPC52xx Programmable Serial
+	  Controller in master SPI mode.
+
 config SPI_MPC83xx
 	tristate "Freescale MPC83xx SPI controller"
 	depends on SPI_MASTER && PPC_83xx && EXPERIMENTAL
