@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.21
-# Thu May 10 15:42:17 2007
+# Fri May 11 14:31:45 2007
 #
 CONFIG_SPARC=y
 CONFIG_SPARC64=y
@@ -68,7 +68,11 @@ CONFIG_BUG=y
 CONFIG_ELF_CORE=y
 CONFIG_BASE_FULL=y
 CONFIG_FUTEX=y
+CONFIG_ANON_INODES=y
 CONFIG_EPOLL=y
+CONFIG_SIGNALFD=y
+CONFIG_TIMERFD=y
+CONFIG_EVENTFD=y
 CONFIG_SHMEM=y
 CONFIG_VM_EVENT_COUNTERS=y
 CONFIG_SLUB_DEBUG=y
@@ -925,12 +929,8 @@ CONFIG_HWMON=y
 # Multimedia devices
 #
 # CONFIG_VIDEO_DEV is not set
-
-#
-# Digital Video Broadcasting Devices
-#
-# CONFIG_DVB is not set
-# CONFIG_USB_DABUSB is not set
+# CONFIG_DVB_CORE is not set
+# CONFIG_DAB is not set
 
 #
 # Graphics support
@@ -987,6 +987,7 @@ CONFIG_FB_RADEON_I2C=y
 # CONFIG_FB_VT8623 is not set
 # CONFIG_FB_TRIDENT is not set
 # CONFIG_FB_ARK is not set
+# CONFIG_FB_PM3 is not set
 # CONFIG_FB_XVR500 is not set
 # CONFIG_FB_XVR2500 is not set
 # CONFIG_FB_PCI is not set
@@ -1116,6 +1117,7 @@ CONFIG_SND_ALI5451=m
 # USB devices
 #
 # CONFIG_SND_USB_AUDIO is not set
+# CONFIG_SND_USB_CAIAQ is not set
 
 #
 # ALSA Sparc devices
@@ -1125,7 +1127,7 @@ CONFIG_SND_SUN_CS4231=m
 # CONFIG_SND_SUN_DBRI is not set
 
 #
-# SoC audio support
+# System on Chip audio support
 #
 # CONFIG_SND_SOC is not set
 
