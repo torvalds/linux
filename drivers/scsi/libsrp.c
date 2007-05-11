@@ -254,6 +254,7 @@ static int srp_indirect_data(struct scsi_cmnd *sc, struct srp_cmd *cmd,
 
 		sg_init_one(&dummy, md, id->table_desc.len);
 		sg_dma_address(&dummy) = token;
+		sg_dma_len(&dummy) = id->table_desc.len;
 		err = rdma_io(sc, &dummy, 1, &id->table_desc, 1, DMA_TO_DEVICE,
 			      id->table_desc.len);
 		if (err) {
