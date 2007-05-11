@@ -33,25 +33,8 @@
 
 void stack_protections(unsigned long address)
 {
-	int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
-
-	if(mprotect((void *) address, UM_KERN_PAGE_SIZE, prot) < 0)
-		panic("protecting stack failed, errno = %d", errno);
-}
-
-void task_protections(unsigned long address)
-{
-	unsigned long guard = address + UM_KERN_PAGE_SIZE;
-	unsigned long stack = guard + UM_KERN_PAGE_SIZE;
-	int prot = 0, pages;
-
-#ifdef notdef
-	if(mprotect((void *) stack, UM_KERN_PAGE_SIZE, prot) < 0)
-		panic("protecting guard page failed, errno = %d", errno);
-#endif
-	pages = (1 << UML_CONFIG_KERNEL_STACK_ORDER) - 2;
-	prot = PROT_READ | PROT_WRITE | PROT_EXEC;
-	if(mprotect((void *) stack, pages * UM_KERN_PAGE_SIZE, prot) < 0)
+	if(mprotect((void *) address, UM_THREAD_SIZE,
+		    PROT_READ | PROT_WRITE | PROT_EXEC) < 0)
 		panic("protecting stack failed, errno = %d", errno);
 }
 
@@ -72,7 +55,7 @@ int raw(int fd)
 
 	/* XXX tcsetattr could have applied only some changes
 	 * (and cfmakeraw() is a set of changes) */
-	return(0);
+	return 0;
 }
 
 void setup_machinename(char *machine_out)

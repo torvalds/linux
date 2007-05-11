@@ -209,7 +209,7 @@ void finish_fork_handler(int sig)
 	if(current->mm != current->parent->mm)
 		protect_memory(uml_reserved, high_physmem - uml_reserved, 1, 
 			       1, 0, 1);
-	task_protections((unsigned long) current_thread);
+	stack_protections((unsigned long) current_thread);
 
 	free_page(current->thread.temp_stack);
 	local_irq_disable();

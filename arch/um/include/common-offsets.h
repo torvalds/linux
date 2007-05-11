@@ -28,3 +28,5 @@ DEFINE(UM_NR_CPUS, NR_CPUS);
 
 /* For crypto assembler code. */
 DEFINE(crypto_tfm_ctx_offset, offsetof(struct crypto_tfm, __crt_ctx));
+
+DEFINE(UM_THREAD_SIZE, THREAD_SIZE);

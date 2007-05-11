@@ -459,7 +459,7 @@ int __init linux_main(int argc, char **argv)
 
 	uml_postsetup();
 
-	task_protections((unsigned long) &init_thread_info);
+	stack_protections((unsigned long) &init_thread_info);
 	os_flush_stdout();
 
 	return CHOOSE_MODE(start_uml_tt(), start_uml_skas());
