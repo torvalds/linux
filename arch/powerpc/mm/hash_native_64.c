@@ -395,7 +395,7 @@ static void hpte_decode(hpte_t *hpte, unsigned long slot,
 			vpi = (vsid ^ (vsid << 25) ^ pteg) & htab_hash_mask;
 			break;
 		default:
-			avpn = vpi = psize = 0;
+			avpn = vpi = size = 0;
 		}
 		avpn |= (vpi << mmu_psize_defs[size].shift);
 	}
