@@ -29,5 +29,6 @@
 #define cpu_is_at91sam9260()	(0)
 #define cpu_is_at91sam9261()	(0)
 #define cpu_is_at91sam9263()	(0)
+#define cpu_is_at91sam9rl()	(0)
 
 #endif /* __ASM_ARCH_CPU_H */

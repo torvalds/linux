@@ -13,12 +13,14 @@ extern void __init at91rm9200_initialize(unsigned long main_clock, unsigned shor
 extern void __init at91sam9260_initialize(unsigned long main_clock);
 extern void __init at91sam9261_initialize(unsigned long main_clock);
 extern void __init at91sam9263_initialize(unsigned long main_clock);
+extern void __init at91sam9rl_initialize(unsigned long main_clock);
 
  /* Interrupts */
 extern void __init at91rm9200_init_interrupts(unsigned int priority[]);
 extern void __init at91sam9260_init_interrupts(unsigned int priority[]);
 extern void __init at91sam9261_init_interrupts(unsigned int priority[]);
 extern void __init at91sam9263_init_interrupts(unsigned int priority[]);
+extern void __init at91sam9rl_init_interrupts(unsigned int priority[]);
 extern void __init at91_aic_init(unsigned int priority[]);
 
  /* Timer */
