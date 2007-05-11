@@ -36,8 +36,4 @@ void restore_processor_state(void)
 #ifdef CONFIG_PPC32
 	set_context(current->active_mm->context.id, current->active_mm->pgd);
 #endif
-
-#ifdef CONFIG_PPC64
-	hard_irq_enable();
-#endif
 }

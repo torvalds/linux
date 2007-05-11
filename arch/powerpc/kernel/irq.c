@@ -173,7 +173,7 @@ void local_irq_restore(unsigned long en)
 		lv1_get_version_info(&tmp);
 	}
 
-	hard_irq_enable();
+	__hard_irq_enable();
 }
 #endif /* CONFIG_PPC64 */
 

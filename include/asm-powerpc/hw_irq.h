@@ -48,8 +48,15 @@ extern void iseries_handle_interrupts(void);
 
 #define irqs_disabled()		(local_get_flags() == 0)
 
-#define hard_irq_enable()	__mtmsrd(mfmsr() | MSR_EE, 1)
-#define hard_irq_disable()	__mtmsrd(mfmsr() & ~MSR_EE, 1)
+#define __hard_irq_enable()	__mtmsrd(mfmsr() | MSR_EE, 1)
+#define __hard_irq_disable()	__mtmsrd(mfmsr() & ~MSR_EE, 1)
+
+#define  hard_irq_disable()			\
+	do {					\
+		__hard_irq_disable();		\
+		get_paca()->soft_enabled = 0;	\
+		get_paca()->hard_enabled = 0;	\
+	} while(0)
 
 #else
 
