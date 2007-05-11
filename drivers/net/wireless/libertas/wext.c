@@ -1330,11 +1330,6 @@ static const struct iw_priv_args wlan_private_args[] = {
 	 IW_PRIV_TYPE_CHAR | 128,
 	 ""},
 	{
-	 WLANSETWPAIE,
-	 IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_FIXED | 24,
-	 IW_PRIV_TYPE_NONE,
-	 "setwpaie"},
-	{
 	 WLANGETLOG,
 	 IW_PRIV_TYPE_NONE,
 	 IW_PRIV_TYPE_CHAR | GETLOG_BUFSIZE,

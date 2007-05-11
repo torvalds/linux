@@ -478,61 +478,6 @@ static int wlan_get_adhoc_status_ioctl(wlan_private * priv, struct iwreq *wrq)
 }
 
 /**
- *  @brief Set/Get WPA IE
- *  @param priv                 A pointer to wlan_private structure
- *  @param req			A pointer to ifreq structure
- *  @return 	   		0 --success, otherwise fail
- */
-static int wlan_setwpaie_ioctl(wlan_private * priv, struct ifreq *req)
-{
-	struct iwreq *wrq = (struct iwreq *)req;
-	wlan_adapter *adapter = priv->adapter;
-	int ret = 0;
-
-	ENTER();
-
-	if (wrq->u.data.length) {
-		if (wrq->u.data.length > sizeof(adapter->wpa_ie)) {
-			lbs_pr_debug(1, "failed to copy WPA IE, too big \n");
-			return -EFAULT;
-		}
-		if (copy_from_user(adapter->wpa_ie, wrq->u.data.pointer,
-				   wrq->u.data.length)) {
-			lbs_pr_debug(1, "failed to copy WPA IE \n");
-			return -EFAULT;
-		}
-		adapter->wpa_ie_len = wrq->u.data.length;
-		lbs_pr_debug(1, "Set wpa_ie_len=%d IE=%#x\n", adapter->wpa_ie_len,
-		       adapter->wpa_ie[0]);
-		lbs_dbg_hex("wpa_ie", adapter->wpa_ie, adapter->wpa_ie_len);
-		if (adapter->wpa_ie[0] == WPA_IE)
-			adapter->secinfo.WPAenabled = 1;
-		else if (adapter->wpa_ie[0] == WPA2_IE)
-			adapter->secinfo.WPA2enabled = 1;
-		else {
-			adapter->secinfo.WPAenabled = 0;
-			adapter->secinfo.WPA2enabled = 0;
-		}
-	} else {
-		memset(adapter->wpa_ie, 0, sizeof(adapter->wpa_ie));
-		adapter->wpa_ie_len = wrq->u.data.length;
-		lbs_pr_debug(1, "Reset wpa_ie_len=%d IE=%#x\n",
-		       adapter->wpa_ie_len, adapter->wpa_ie[0]);
-		adapter->secinfo.WPAenabled = 0;
-		adapter->secinfo.WPA2enabled = 0;
-	}
-
-	// enable/disable RSN in firmware if WPA is enabled/disabled
-	// depending on variable adapter->secinfo.WPAenabled is set or not
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11_enable_rsn,
-				    cmd_act_set, cmd_option_waitforrsp,
-				    0, NULL);
-
-	LEAVE();
-	return ret;
-}
-
-/**
  *  @brief Set Auto prescan
  *  @param priv                 A pointer to wlan_private structure
  *  @param wrq			A pointer to iwreq structure
@@ -1846,9 +1791,6 @@ int libertas_do_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 		}		/* End of switch */
 		break;
 
-	case WLANSETWPAIE:
-		ret = wlan_setwpaie_ioctl(priv, req);
-		break;
 	case WLAN_SETINT_GETINT:
 		/* The first 4 bytes of req->ifr_data is sub-ioctl number
 		 * after 4 bytes sits the payload.
