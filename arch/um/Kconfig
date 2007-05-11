@@ -277,7 +277,8 @@ config HIGHMEM
 
 config KERNEL_STACK_ORDER
 	int "Kernel stack size order"
-	default 2
+	default 1 if 64BIT
+	default 0 if !64BIT
 	help
 	This option determines the size of UML kernel stacks.  They will
 	be 1 << order pages.  The default is OK unless you're running Valgrind
