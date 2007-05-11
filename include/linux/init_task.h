@@ -65,9 +65,9 @@
 	.posix_timers	 = LIST_HEAD_INIT(sig.posix_timers),		\
 	.cpu_timers	= INIT_CPU_TIMERS(sig.cpu_timers),		\
 	.rlim		= INIT_RLIMITS,					\
-	.pgrp		= 1,						\
+	.pgrp		= 0,						\
 	.tty_old_pgrp   = NULL,						\
-	{ .__session      = 1},						\
+	{ .__session      = 0},						\
 }
 
 extern struct nsproxy init_nsproxy;
