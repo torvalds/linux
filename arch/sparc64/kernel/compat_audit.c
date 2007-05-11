@@ -20,6 +20,11 @@ unsigned sparc32_read_class[] = {
 ~0U
 };
 
+unsigned sparc32_signal_class[] = {
+#include <asm-generic/audit_signal.h>
+~0U
+};
+
 int sparc32_classify_syscall(unsigned syscall)
 {
 	switch(syscall) {

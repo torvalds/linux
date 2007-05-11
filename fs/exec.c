@@ -1495,6 +1495,8 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	int flag = 0;
 	int ispipe = 0;
 
+	audit_core_dumps(signr);
+
 	binfmt = current->binfmt;
 	if (!binfmt || !binfmt->core_dump)
 		goto fail;

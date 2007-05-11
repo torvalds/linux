@@ -83,6 +83,7 @@ struct audit_krule {
 	u32			field_count;
 	char			*filterkey; /* ties events to rules */
 	struct audit_field	*fields;
+	struct audit_field	*arch_f; /* quick access to arch field */
 	struct audit_field	*inode_f; /* quick access to an inode field */
 	struct audit_watch	*watch;	/* associated watch */
 	struct list_head	rlist;	/* entry in audit_watch.rules list */
@@ -131,17 +132,19 @@ extern void audit_handle_ievent(struct inotify_watch *, u32, u32, u32,
 extern int selinux_audit_rule_update(void);
 
 #ifdef CONFIG_AUDITSYSCALL
-extern void __audit_signal_info(int sig, struct task_struct *t);
-static inline void audit_signal_info(int sig, struct task_struct *t)
+extern int __audit_signal_info(int sig, struct task_struct *t);
+static inline int audit_signal_info(int sig, struct task_struct *t)
 {
-	if (unlikely(audit_pid && t->tgid == audit_pid))
-		__audit_signal_info(sig, t);
+	if (unlikely((audit_pid && t->tgid == audit_pid) ||
+		     (audit_signals && !audit_dummy_context())))
+		return __audit_signal_info(sig, t);
+	return 0;
 }
 extern enum audit_state audit_filter_inodes(struct task_struct *,
 					    struct audit_context *);
 extern void audit_set_auditable(struct audit_context *);
 #else
-#define audit_signal_info(s,t)
+#define audit_signal_info(s,t) AUDIT_DISABLED
 #define audit_filter_inodes(t,c) AUDIT_DISABLED
 #define audit_set_auditable(c)
 #endif
