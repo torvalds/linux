@@ -571,7 +571,7 @@ static int iTCO_wdt_init(struct pci_dev *pdev, const struct pci_device_id *ent, 
 	 *      ACPIBASE is bits [15:7] from 0x40-0x43
 	 */
 	pci_read_config_dword(pdev, 0x40, &base_address);
-	base_address &= 0x00007f80;
+	base_address &= 0x0000ff80;
 	if (base_address == 0x00000000) {
 		/* Something's wrong here, ACPIBASE has to be set */
 		printk(KERN_ERR PFX "failed to get TCOBASE address\n");
