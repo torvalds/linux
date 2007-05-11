@@ -16,7 +16,6 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/major.h>
-#include <linux/root_dev.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
@@ -88,10 +87,6 @@ int __init uclinux_mtd_init(void)
 
 	uclinux_ram_mtdinfo = mtd;
 	add_mtd_partitions(mtd, uclinux_romfs, NUM_PARTITIONS);
-
-	printk("uclinux[mtd]: set %s to be root filesystem\n",
-	     	uclinux_romfs[0].name);
-	ROOT_DEV = MKDEV(MTD_BLOCK_MAJOR, 0);
 
 	return(0);
 }
