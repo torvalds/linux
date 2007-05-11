@@ -72,8 +72,6 @@ void libertas_mac_event_disconnected(wlan_private * priv)
 	adapter->secinfo.WPAenabled = 0;
 	adapter->secinfo.WPA2enabled = 0;
 	adapter->wpa_ie_len = 0;
-	adapter->secinfo.auth1xalg = WLAN_1X_AUTH_ALG_NONE;
-	adapter->secinfo.Encryptionmode = CIPHER_NONE;
 
 	adapter->connect_status = libertas_disconnected;
 

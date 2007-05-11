@@ -577,30 +577,6 @@ static int wlan_set_multiple_dtim_ioctl(wlan_private * priv, struct ifreq *req)
 	return ret;
 }
 
-static int wlan_setencryptionmode_ioctl(wlan_private * priv, struct ifreq *req)
-{
-	int mode;
-	struct iwreq *wrq = (struct iwreq *)req;
-
-	ENTER();
-
-	if (wrq->u.data.flags == 0) {
-		//from iwpriv subcmd
-		mode = SUBCMD_DATA(wrq);
-	} else {
-		//from wpa_supplicant subcmd
-		if (copy_from_user(&mode, wrq->u.data.pointer, sizeof(int))) {
-			lbs_pr_debug(1, "Copy from user failed\n");
-			return -EFAULT;
-		}
-	}
-	lbs_pr_debug(1, "encryption mode is %#x\n", mode);
-	priv->adapter->secinfo.Encryptionmode = mode;
-
-	LEAVE();
-	return 0;
-}
-
 static void adjust_mtu(wlan_private * priv)
 {
 	int mtu_increment = 0;
@@ -2000,10 +1976,6 @@ int libertas_do_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 
 		case WLAN_SET_MULTIPLE_DTIM:
 			ret = wlan_set_multiple_dtim_ioctl(priv, req);
-			break;
-
-		case WLANSETENCRYPTIONMODE:
-			ret = wlan_setencryptionmode_ioctl(priv, req);
 			break;
 
 		case WLAN_SET_LINKMODE:

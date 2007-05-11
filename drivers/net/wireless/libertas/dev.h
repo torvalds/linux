@@ -59,7 +59,6 @@ struct wlan_802_11_security {
 	u8 WPA2enabled;
 	enum WLAN_802_11_WEP_STATUS WEPstatus;
 	enum WLAN_802_11_AUTHENTICATION_MODE authmode;
-	enum WLAN_802_11_ENCRYPTION_MODE Encryptionmode;
 };
 
 /** Current Basic Service Set State Structure */

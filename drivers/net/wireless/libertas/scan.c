@@ -94,7 +94,6 @@ static int is_network_compatible(wlan_adapter * adapter, int index, int mode)
 		    && !adapter->secinfo.WPA2enabled
 		    && adapter->scantable[index].wpa_ie[0] != WPA_IE
 		    && adapter->scantable[index].rsn_ie[0] != WPA2_IE
-		    && adapter->secinfo.Encryptionmode == CIPHER_NONE
 		    && !adapter->scantable[index].privacy) {
 			/* no security */
 			LEAVE();
@@ -116,7 +115,7 @@ static int is_network_compatible(wlan_adapter * adapter, int index, int mode)
 			/* WPA enabled */
 			lbs_pr_debug(1,
 			       "is_network_compatible() WPA: index=%d wpa_ie=%#x "
-			       "wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s Encmode=%#x "
+			       "wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s "
 			       "privacy=%#x\n", index,
 			       adapter->scantable[index].wpa_ie[0],
 			       adapter->scantable[index].rsn_ie[0],
@@ -124,7 +123,6 @@ static int is_network_compatible(wlan_adapter * adapter, int index, int mode)
 				wlan802_11WEPenabled) ? "e" : "d",
 			       (adapter->secinfo.WPAenabled) ? "e" : "d",
 			       (adapter->secinfo.WPA2enabled) ? "e" : "d",
-			       adapter->secinfo.Encryptionmode,
 			       adapter->scantable[index].privacy);
 			LEAVE();
 			return index;
@@ -138,7 +136,7 @@ static int is_network_compatible(wlan_adapter * adapter, int index, int mode)
 			/* WPA2 enabled */
 			lbs_pr_debug(1,
 			       "is_network_compatible() WPA2: index=%d wpa_ie=%#x "
-			       "wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s Encmode=%#x "
+			       "wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s "
 			       "privacy=%#x\n", index,
 			       adapter->scantable[index].wpa_ie[0],
 			       adapter->scantable[index].rsn_ie[0],
@@ -146,7 +144,6 @@ static int is_network_compatible(wlan_adapter * adapter, int index, int mode)
 				wlan802_11WEPenabled) ? "e" : "d",
 			       (adapter->secinfo.WPAenabled) ? "e" : "d",
 			       (adapter->secinfo.WPA2enabled) ? "e" : "d",
-			       adapter->secinfo.Encryptionmode,
 			       adapter->scantable[index].privacy);
 			LEAVE();
 			return index;
@@ -155,16 +152,14 @@ static int is_network_compatible(wlan_adapter * adapter, int index, int mode)
 			   && !adapter->secinfo.WPA2enabled
 			   && (adapter->scantable[index].wpa_ie[0] != WPA_IE)
 			   && (adapter->scantable[index].rsn_ie[0] != WPA2_IE)
-			   && adapter->secinfo.Encryptionmode != CIPHER_NONE
 			   && adapter->scantable[index].privacy) {
 			/* dynamic WEP enabled */
 			lbs_pr_debug(1,
 			       "is_network_compatible() dynamic WEP: index=%d "
-			       "wpa_ie=%#x wpa2_ie=%#x Encmode=%#x privacy=%#x\n",
+			       "wpa_ie=%#x wpa2_ie=%#x privacy=%#x\n",
 			       index,
 			       adapter->scantable[index].wpa_ie[0],
 			       adapter->scantable[index].rsn_ie[0],
-			       adapter->secinfo.Encryptionmode,
 			       adapter->scantable[index].privacy);
 			LEAVE();
 			return index;
@@ -173,15 +168,13 @@ static int is_network_compatible(wlan_adapter * adapter, int index, int mode)
 		/* security doesn't match */
 		lbs_pr_debug(1,
 		       "is_network_compatible() FAILED: index=%d wpa_ie=%#x "
-		       "wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s Encmode=%#x privacy=%#x\n",
+		       "wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s privacy=%#x\n",
 		       index,
 		       adapter->scantable[index].wpa_ie[0],
 		       adapter->scantable[index].rsn_ie[0],
-		       (adapter->secinfo.WEPstatus ==
-			wlan802_11WEPenabled) ? "e" : "d",
+		       (adapter->secinfo.WEPstatus == wlan802_11WEPenabled) ? "e" : "d",
 		       (adapter->secinfo.WPAenabled) ? "e" : "d",
 		       (adapter->secinfo.WPA2enabled) ? "e" : "d",
-		       adapter->secinfo.Encryptionmode,
 		       adapter->scantable[index].privacy);
 		LEAVE();
 		return -ECONNREFUSED;

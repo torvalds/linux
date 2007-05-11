@@ -201,7 +201,6 @@ static void wlan_init_adapter(wlan_private * priv)
 	adapter->wep_tx_keyidx = 0;
 	adapter->secinfo.WEPstatus = wlan802_11WEPdisabled;
 	adapter->secinfo.authmode = wlan802_11authmodeopen;
-	adapter->secinfo.Encryptionmode = CIPHER_NONE;
 	adapter->inframode = wlan802_11infrastructure;
 
 	adapter->assoc_req = NULL;
