@@ -10,7 +10,9 @@ verify_cpu:
 
 #if CONFIG_X86_MINIMUM_CPU_MODEL >= 4
 	pushfl
-	orl	$(1<<18),(%esp)		# try setting AC
+	pop	%eax
+	orl	$(1<<18),%eax		# try setting AC
+	push	%eax
 	popfl
 	pushfl
 	popl    %eax
