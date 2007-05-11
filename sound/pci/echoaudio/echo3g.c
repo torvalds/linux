@@ -68,6 +68,10 @@
 #include <asm/atomic.h>
 #include "echoaudio.h"
 
+MODULE_FIRMWARE("ea/loader_dsp.fw");
+MODULE_FIRMWARE("ea/echo3g_dsp.fw");
+MODULE_FIRMWARE("ea/3g_asic.fw");
+
 #define FW_361_LOADER	0
 #define FW_ECHO3G_DSP	1
 #define FW_3G_ASIC	2

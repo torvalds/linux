@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/pnp.h>
 #include <linux/err.h>
-#include <linux/platform_device.h>
+#include <linux/isa.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/sb.h>
@@ -128,7 +128,6 @@ module_param_array(seq_ports, int, NULL, 0444);
 MODULE_PARM_DESC(seq_ports, "Number of sequencer ports for WaveTable synth.");
 #endif
 
-static struct platform_device *platform_devices[SNDRV_CARDS];
 #ifdef CONFIG_PNP
 static int pnp_registered;
 #endif
@@ -519,7 +518,7 @@ static int snd_sb16_resume(struct snd_card *card)
 }
 #endif
 
-static int __devinit snd_sb16_nonpnp_probe1(int dev, struct platform_device *devptr)
+static int __devinit snd_sb16_isa_probe1(int dev, struct device *pdev)
 {
 	struct snd_card_sb16 *acard;
 	struct snd_card *card;
@@ -539,19 +538,23 @@ static int __devinit snd_sb16_nonpnp_probe1(int dev, struct platform_device *dev
 	awe_port[dev] = port[dev] + 0x400;
 #endif
 
-	snd_card_set_dev(card, &devptr->dev);
+	snd_card_set_dev(card, pdev);
 	if ((err = snd_sb16_probe(card, dev)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	platform_set_drvdata(devptr, card);
+	dev_set_drvdata(pdev, card);
 	return 0;
 }
 
 
-static int __devinit snd_sb16_nonpnp_probe(struct platform_device *pdev)
+static int __devinit snd_sb16_isa_match(struct device *pdev, unsigned int dev)
 {
-	int dev = pdev->id;
+	return enable[dev] && !is_isapnp_selected(dev);
+}
+
+static int __devinit snd_sb16_isa_probe(struct device *pdev, unsigned int dev)
+{
 	int err;
 	static int possible_irqs[] = {5, 9, 10, 7, -1};
 	static int possible_dmas8[] = {1, 3, 0, -1};
@@ -577,13 +580,13 @@ static int __devinit snd_sb16_nonpnp_probe(struct platform_device *pdev)
 	}
 
 	if (port[dev] != SNDRV_AUTO_PORT)
-		return snd_sb16_nonpnp_probe1(dev, pdev);
+		return snd_sb16_isa_probe1(dev, pdev);
 	else {
 		static int possible_ports[] = {0x220, 0x240, 0x260, 0x280};
 		int i;
 		for (i = 0; i < ARRAY_SIZE(possible_ports); i++) {
 			port[dev] = possible_ports[i];
-			err = snd_sb16_nonpnp_probe1(dev, pdev);
+			err = snd_sb16_isa_probe1(dev, pdev);
 			if (! err)
 				return 0;
 		}
@@ -591,47 +594,47 @@ static int __devinit snd_sb16_nonpnp_probe(struct platform_device *pdev)
 	}
 }
 
-static int __devexit snd_sb16_nonpnp_remove(struct platform_device *devptr)
+static int __devexit snd_sb16_isa_remove(struct device *pdev, unsigned int dev)
 {
-	snd_card_free(platform_get_drvdata(devptr));
-	platform_set_drvdata(devptr, NULL);
+	snd_card_free(dev_get_drvdata(pdev));
+	dev_set_drvdata(pdev, NULL);
 	return 0;
 }
 
 #ifdef CONFIG_PM
-static int snd_sb16_nonpnp_suspend(struct platform_device *dev, pm_message_t state)
+static int snd_sb16_isa_suspend(struct device *dev, unsigned int n,
+				pm_message_t state)
 {
-	return snd_sb16_suspend(platform_get_drvdata(dev), state);
+	return snd_sb16_suspend(dev_get_drvdata(dev), state);
 }
 
-static int snd_sb16_nonpnp_resume(struct platform_device *dev)
+static int snd_sb16_isa_resume(struct device *dev, unsigned int n)
 {
-	return snd_sb16_resume(platform_get_drvdata(dev));
+	return snd_sb16_resume(dev_get_drvdata(dev));
 }
 #endif
 
 #ifdef SNDRV_SBAWE
-#define SND_SB16_DRIVER	"snd_sbawe"
+#define DEV_NAME "sbawe"
 #else
-#define SND_SB16_DRIVER	"snd_sb16"
+#define DEV_NAME "sb16"
 #endif
 
-static struct platform_driver snd_sb16_nonpnp_driver = {
-	.probe		= snd_sb16_nonpnp_probe,
-	.remove		= __devexit_p(snd_sb16_nonpnp_remove),
+static struct isa_driver snd_sb16_isa_driver = {
+	.match		= snd_sb16_isa_match,
+	.probe		= snd_sb16_isa_probe,
+	.remove		= __devexit_p(snd_sb16_isa_remove),
 #ifdef CONFIG_PM
-	.suspend	= snd_sb16_nonpnp_suspend,
-	.resume		= snd_sb16_nonpnp_resume,
+	.suspend	= snd_sb16_isa_suspend,
+	.resume		= snd_sb16_isa_resume,
 #endif
 	.driver		= {
-		.name	= SND_SB16_DRIVER
+		.name	= DEV_NAME
 	},
 };
 
 
 #ifdef CONFIG_PNP
-static unsigned int __devinitdata sb16_pnp_devices;
-
 static int __devinit snd_sb16_pnp_detect(struct pnp_card_link *pcard,
 					 const struct pnp_card_device_id *pid)
 {
@@ -653,7 +656,6 @@ static int __devinit snd_sb16_pnp_detect(struct pnp_card_link *pcard,
 		}
 		pnp_set_card_drvdata(pcard, card);
 		dev++;
-		sb16_pnp_devices++;
 		return 0;
 	}
 
@@ -695,68 +697,29 @@ static struct pnp_card_driver sb16_pnpc_driver = {
 
 #endif /* CONFIG_PNP */
 
-static void __init_or_module snd_sb16_unregister_all(void)
-{
-	int i;
-
-#ifdef CONFIG_PNP
-	if (pnp_registered)
-		pnp_unregister_card_driver(&sb16_pnpc_driver);
-#endif
-	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
-		platform_device_unregister(platform_devices[i]);
-	platform_driver_unregister(&snd_sb16_nonpnp_driver);
-}
-
 static int __init alsa_card_sb16_init(void)
 {
-	int i, err, cards = 0;
+	int err;
 
-	if ((err = platform_driver_register(&snd_sb16_nonpnp_driver)) < 0)
+	err = isa_register_driver(&snd_sb16_isa_driver, SNDRV_CARDS);
+	if (err < 0)
 		return err;
-
-	for (i = 0; i < SNDRV_CARDS; i++) {
-		struct platform_device *device;
-		if (! enable[i] || is_isapnp_selected(i))
-			continue;
-		device = platform_device_register_simple(SND_SB16_DRIVER,
-							 i, NULL, 0);
-		if (IS_ERR(device))
-			continue;
-		if (!platform_get_drvdata(device)) {
-			platform_device_unregister(device);
-			continue;
-		}
-		platform_devices[i] = device;
-		cards++;
-	}
 #ifdef CONFIG_PNP
 	/* PnP cards at last */
 	err = pnp_register_card_driver(&sb16_pnpc_driver);
-	if (!err) {
+	if (!err)
 		pnp_registered = 1;
-		cards += sb16_pnp_devices;
-	}
 #endif
-
-	if (!cards) {
-#ifdef MODULE
-		snd_printk(KERN_ERR "Sound Blaster 16 soundcard not found or device busy\n");
-#ifdef SNDRV_SBAWE_EMU8000
-		snd_printk(KERN_ERR "In case, if you have non-AWE card, try snd-sb16 module\n");
-#else
-		snd_printk(KERN_ERR "In case, if you have AWE card, try snd-sbawe module\n");
-#endif
-#endif
-		snd_sb16_unregister_all();
-		return -ENODEV;
-	}
 	return 0;
 }
 
 static void __exit alsa_card_sb16_exit(void)
 {
-	snd_sb16_unregister_all();
+#ifdef CONFIG_PNP
+	if (pnp_registered)
+		pnp_unregister_card_driver(&sb16_pnpc_driver);
+#endif
+	isa_unregister_driver(&snd_sb16_isa_driver);
 }
 
 module_init(alsa_card_sb16_init)

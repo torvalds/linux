@@ -638,22 +638,22 @@ static void pcxhr_trigger_tasklet(unsigned long arg)
 static int pcxhr_trigger(struct snd_pcm_substream *subs, int cmd)
 {
 	struct pcxhr_stream *stream;
-	struct list_head *pos;
 	struct snd_pcm_substream *s;
-	int i;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		snd_printdd("SNDRV_PCM_TRIGGER_START\n");
-		i = 0;
-		snd_pcm_group_for_each(pos, subs) {
-			s = snd_pcm_group_substream_entry(pos);
-			stream = s->runtime->private_data;
-			stream->status = PCXHR_STREAM_STATUS_SCHEDULE_RUN;
-			snd_pcm_trigger_done(s, subs);
-			i++;
-		}
-		if (i==1) {
+		if (snd_pcm_stream_linked(subs)) {
+			struct snd_pcxhr *chip = snd_pcm_substream_chip(subs);
+			snd_pcm_group_for_each_entry(s, subs) {
+				stream = s->runtime->private_data;
+				stream->status =
+					PCXHR_STREAM_STATUS_SCHEDULE_RUN;
+				snd_pcm_trigger_done(s, subs);
+			}
+			tasklet_hi_schedule(&chip->mgr->trigger_taskq);
+		} else {
+			stream = subs->runtime->private_data;
 			snd_printdd("Only one Substream %c %d\n",
 				    stream->pipe->is_capture ? 'C' : 'P',
 				    stream->pipe->first_audio);
@@ -665,15 +665,11 @@ static int pcxhr_trigger(struct snd_pcm_substream *subs, int cmd)
 			if (pcxhr_set_stream_state(stream))
 				return -EINVAL;
 			stream->status = PCXHR_STREAM_STATUS_RUNNING;
-		} else {
-			struct snd_pcxhr *chip = snd_pcm_substream_chip(subs);
-			tasklet_hi_schedule(&chip->mgr->trigger_taskq);
 		}
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		snd_printdd("SNDRV_PCM_TRIGGER_STOP\n");
-		snd_pcm_group_for_each(pos, subs) {
-			s = snd_pcm_group_substream_entry(pos);
+		snd_pcm_group_for_each_entry(s, subs) {
 			stream = s->runtime->private_data;
 			stream->status = PCXHR_STREAM_STATUS_SCHEDULE_STOP;
 			if (pcxhr_set_stream_state(stream))

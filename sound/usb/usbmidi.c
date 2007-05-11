@@ -1,7 +1,7 @@
 /*
  * usbmidi.c - ALSA USB MIDI driver
  *
- * Copyright (c) 2002-2005 Clemens Ladisch
+ * Copyright (c) 2002-2007 Clemens Ladisch
  * All rights reserved.
  *
  * Based on the OSS usb-midi driver by NAGANO Daisuke,
@@ -145,6 +145,7 @@ struct snd_usb_midi_in_endpoint {
 	struct urb* urb;
 	struct usbmidi_in_port {
 		struct snd_rawmidi_substream *substream;
+		u8 running_status_length;
 	} ports[0x10];
 	u8 seen_f5;
 	u8 error_resubmit;
@@ -366,6 +367,46 @@ static void snd_usbmidi_midiman_input(struct snd_usb_midi_in_endpoint* ep,
 }
 
 /*
+ * Buggy M-Audio device: running status on input results in a packet that has
+ * the data bytes but not the status byte and that is marked with CIN 4.
+ */
+static void snd_usbmidi_maudio_broken_running_status_input(
+					struct snd_usb_midi_in_endpoint* ep,
+					uint8_t* buffer, int buffer_length)
+{
+	int i;
+
+	for (i = 0; i + 3 < buffer_length; i += 4)
+		if (buffer[i] != 0) {
+			int cable = buffer[i] >> 4;
+			u8 cin = buffer[i] & 0x0f;
+			struct usbmidi_in_port *port = &ep->ports[cable];
+			int length;
+			
+			length = snd_usbmidi_cin_length[cin];
+			if (cin == 0xf && buffer[i + 1] >= 0xf8)
+				; /* realtime msg: no running status change */
+			else if (cin >= 0x8 && cin <= 0xe)
+				/* channel msg */
+				port->running_status_length = length - 1;
+			else if (cin == 0x4 &&
+				 port->running_status_length != 0 &&
+				 buffer[i + 1] < 0x80)
+				/* CIN 4 that is not a SysEx */
+				length = port->running_status_length;
+			else
+				/*
+				 * All other msgs cannot begin running status.
+				 * (A channel msg sent as two or three CIN 0xF
+				 * packets could in theory, but this device
+				 * doesn't use this format.)
+				 */
+				port->running_status_length = 0;
+			snd_usbmidi_input_data(ep, cable, &buffer[i + 1], length);
+		}
+}
+
+/*
  * Adds one USB MIDI packet to the output buffer.
  */
 static void snd_usbmidi_output_standard_packet(struct urb* urb, uint8_t p0,
@@ -523,6 +564,12 @@ static struct usb_protocol_ops snd_usbmidi_midiman_ops = {
 	.input = snd_usbmidi_midiman_input,
 	.output = snd_usbmidi_standard_output, 
 	.output_packet = snd_usbmidi_output_midiman_packet,
+};
+
+static struct usb_protocol_ops snd_usbmidi_maudio_broken_running_status_ops = {
+	.input = snd_usbmidi_maudio_broken_running_status_input,
+	.output = snd_usbmidi_standard_output, 
+	.output_packet = snd_usbmidi_output_standard_packet,
 };
 
 /*
@@ -918,7 +965,11 @@ static int snd_usbmidi_out_endpoint_create(struct snd_usb_midi* umidi,
 	}
 	/* we never use interrupt output pipes */
 	pipe = usb_sndbulkpipe(umidi->chip->dev, ep_info->out_ep);
-	ep->max_transfer = usb_maxpacket(umidi->chip->dev, pipe, 1);
+	if (umidi->chip->usb_id == USB_ID(0x0a92, 0x1020)) /* ESI M4U */
+		/* FIXME: we need more URBs to get reasonable bandwidth here: */
+		ep->max_transfer = 4;
+	else
+		ep->max_transfer = usb_maxpacket(umidi->chip->dev, pipe, 1);
 	buffer = usb_buffer_alloc(umidi->chip->dev, ep->max_transfer,
 				  GFP_KERNEL, &ep->urb->transfer_dma);
 	if (!buffer) {
@@ -1606,6 +1657,9 @@ int snd_usb_create_midi_interface(struct snd_usb_audio* chip,
 	switch (quirk ? quirk->type : QUIRK_MIDI_STANDARD_INTERFACE) {
 	case QUIRK_MIDI_STANDARD_INTERFACE:
 		err = snd_usbmidi_get_ms_info(umidi, endpoints);
+		if (chip->usb_id == USB_ID(0x0763, 0x0150)) /* M-Audio Uno */
+			umidi->usb_protocol_ops =
+				&snd_usbmidi_maudio_broken_running_status_ops;
 		break;
 	case QUIRK_MIDI_FIXED_ENDPOINT:
 		memcpy(&endpoints[0], quirk->data,

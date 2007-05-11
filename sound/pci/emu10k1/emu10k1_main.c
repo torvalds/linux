@@ -49,6 +49,13 @@
 #include "p17v.h"
 
 
+#define HANA_FILENAME "emu/hana.fw"
+#define DOCK_FILENAME "emu/audio_dock.fw"
+
+MODULE_FIRMWARE(HANA_FILENAME);
+MODULE_FIRMWARE(DOCK_FILENAME);
+
+
 /*************************************************************************
  * EMU10K1 init / done
  *************************************************************************/
@@ -693,8 +700,6 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 	int tmp,tmp2;
 	int reg;
 	int err;
-	const char *hana_filename = "emu/hana.fw";
-	const char *dock_filename = "emu/audio_dock.fw";
 
 	snd_printk(KERN_INFO "emu1010: Special config.\n");
 	/* AC97 2.1, Any 16Meg of 4Gig address, Auto-Mute, EMU32 Slave,
@@ -735,8 +740,8 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 		return -ENODEV;
 	}
 	snd_printk(KERN_INFO "emu1010: EMU_HANA_ID=0x%x\n",reg);
-	if ((err = snd_emu1010_load_firmware(emu, hana_filename)) != 0) {
-		snd_printk(KERN_INFO "emu1010: Loading Hana Firmware file %s failed\n", hana_filename);
+	if ((err = snd_emu1010_load_firmware(emu, HANA_FILENAME)) != 0) {
+		snd_printk(KERN_INFO "emu1010: Loading Hana Firmware file %s failed\n", HANA_FILENAME);
 		return err;
 	}
 
@@ -938,7 +943,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 		/* Return to Audio Dock programming mode */
 		snd_printk(KERN_INFO "emu1010: Loading Audio Dock Firmware\n");
 		snd_emu1010_fpga_write(emu,  EMU_HANA_FPGA_CONFIG, EMU_HANA_FPGA_CONFIG_AUDIODOCK );
-		if ((err = snd_emu1010_load_firmware(emu, dock_filename)) != 0) {
+		if ((err = snd_emu1010_load_firmware(emu, DOCK_FILENAME)) != 0) {
 			return err;
 		}
 		snd_emu1010_fpga_write(emu,  EMU_HANA_FPGA_CONFIG, 0 );
@@ -1210,6 +1215,15 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x20011102,
 	 .driver = "Audigy2", .name = "Audigy 2 ZS Notebook [SB0530]", 
 	 .id = "Audigy2",
+	 .emu10k2_chip = 1,
+	 .ca0108_chip = 1,
+	 .ca_cardbus_chip = 1,
+	 .spi_dac = 1,
+	 .i2c_adc = 1,
+	 .spk71 = 1} ,
+	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x42011102,
+	 .driver = "Audigy2", .name = "E-mu 1010 Notebook [MAEM8950]", 
+	 .id = "EMU1010",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
 	 .ca_cardbus_chip = 1,

@@ -571,7 +571,7 @@ static const DECLARE_TLV_DB_SCALE(db_scale_volume, -6400, 50, 1);
  * mixers
  */
 
-static const struct snd_kcontrol_new pontis_controls[] __devinitdata = {
+static struct snd_kcontrol_new pontis_controls[] __devinitdata = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
@@ -826,7 +826,7 @@ static int __devinit pontis_init(struct snd_ice1712 *ice)
  * hence the driver needs to sets up it properly.
  */
 
-static const unsigned char pontis_eeprom[] __devinitdata = {
+static unsigned char pontis_eeprom[] __devinitdata = {
 	[ICE_EEP2_SYSCONF]     = 0x08,	/* clock 256, mpu401, spdif-in/ADC, 1DAC */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
 	[ICE_EEP2_I2S]         = 0xf8,	/* vol, 96k, 24bit, 192k */
@@ -843,7 +843,7 @@ static const unsigned char pontis_eeprom[] __devinitdata = {
 };
 
 /* entry point */
-const struct snd_ice1712_card_info snd_vt1720_pontis_cards[] __devinitdata = {
+struct snd_ice1712_card_info snd_vt1720_pontis_cards[] __devinitdata = {
 	{
 		.subvendor = VT1720_SUBDEVICE_PONTIS_MS300,
 		.name = "Pontis MS300",

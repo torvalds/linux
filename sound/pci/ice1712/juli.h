@@ -5,6 +5,6 @@
 
 #define VT1724_SUBDEVICE_JULI		0x31305345	/* Juli@ */
 
-extern const struct snd_ice1712_card_info  snd_vt1724_juli_cards[];
+extern struct snd_ice1712_card_info  snd_vt1724_juli_cards[];
 
 #endif	/* __SOUND_JULI_H */

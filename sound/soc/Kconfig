@@ -2,31 +2,31 @@
 # SoC audio configuration
 #
 
-menu "SoC audio support"
+menu "System on Chip audio support"
 	depends on SND!=n
 
 config SND_SOC_AC97_BUS
 	bool
 
 config SND_SOC
-	tristate "SoC audio support"
+	tristate "ALSA for SoC audio support"
 	depends on SND
 	select SND_PCM
 	---help---
 
-	  If you want SoC support, you should say Y here and also to the
-	  specific driver for your SoC below. You will also need to select the
-	  specific codec(s) attached to the SoC
+	  If you want ASoC support, you should say Y here and also to the
+	  specific driver for your SoC platform below.
+	  
+	  ASoC provides power efficient ALSA support for embedded battery powered
+	  SoC based systems like PDA's, Phones and Personal Media Players.
 
-	  This SoC audio support can also be built as a module.  If so, the module
+	  This ASoC audio support can also be built as a module.  If so, the module
 	  will be called snd-soc-core.
 
 # All the supported Soc's
-menu "SoC Platforms"
-depends on SND_SOC
 source "sound/soc/at91/Kconfig"
 source "sound/soc/pxa/Kconfig"
-endmenu
+source "sound/soc/s3c24xx/Kconfig"
 
 # Supported codecs
 source "sound/soc/codecs/Kconfig"

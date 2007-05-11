@@ -1878,6 +1878,9 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 	}
 
 	/* set the period time minimum 1ms */
+	/* FIXME: high-speed mode allows 125us minimum period, but many parts
+	 * in the current code assume the 1ms period.
+	 */
 	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_TIME,
 				     1000 * MIN_PACKS_URB,
 				     /*(nrpacks * MAX_URBS) * 1000*/ UINT_MAX);

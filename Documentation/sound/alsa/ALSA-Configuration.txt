@@ -821,6 +821,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  6stack-dig	6-jack digital with SPDIF I/O
 	  arima		Arima W820Di1
 	  macpro	MacPro support
+	  w2jc		ASUS W2JC
 	  auto		auto-config reading BIOS (default)
 
 	ALC883/888
@@ -852,6 +853,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack-dig	3-jack with SPDIF OUT
 	  6stack-dig	6-jack with SPDIF OUT
 	  3stack-660	3-jack (for ALC660VD)
+	  lenovo	Lenovo 3000 C200
 	  auto		auto-config reading BIOS (default)
 
 	CMI9880
@@ -909,6 +911,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  macbook	Intel Mac Book
 	  macbook-pro-v1 Intel Mac Book Pro 1st generation
 	  macbook-pro	Intel Mac Book Pro 2nd generation
+	  imac-intel	Intel iMac
 
 	STAC9202/9250/9251
 	  ref		Reference board, base config
@@ -923,6 +926,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	STAC9872
 	  vaio		Setup for VAIO FE550G/SZ110
 	  vaio-ar Setup for VAIO AR
+
+    The model name "genric" is treated as a special case.  When this
+    model is given, the driver uses the generic codec parser without
+    "codec-patch".  It's sometimes good for testing and debugging.
 
     If the default configuration doesn't work and one of the above
     matches with your device, report it together with the PCI
@@ -1278,6 +1285,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     port	- port number or -1 (disable)
     irq		- IRQ number or -1 (disable)
     pnp		- PnP detection - 0 = disable, 1 = enable (default)
+    uart_enter	- Issue UART_ENTER command at open - bool, default = on
 
     This module supports multiple devices and PnP.
     
@@ -1692,6 +1700,17 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     This module supports multiple devices, autoprobe and hotplugging.
 
+  Module snd-usb-caiaq
+  --------------------
+
+    Module for caiaq UB audio interfaces,
+	    * Native Instruments RigKontrol2
+	    * Native Instruments Kore Controller
+	    * Native Instruments Audio Kontrol 1
+	    * Native Instruments Audio 8 DJ
+
+    This module supports multiple devices, autoprobe and hotplugging.
+
   Module snd-usb-usx2y
   --------------------
 
@@ -2046,4 +2065,4 @@ Links and Addresses
        https://bugtrack.alsa-project.org/bugs/
 
   ALSA Developers ML
-       mailto:alsa-devel@lists.sourceforge.net
+       mailto:alsa-devel@alsa-project.org

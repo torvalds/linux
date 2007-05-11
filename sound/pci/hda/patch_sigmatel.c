@@ -62,6 +62,7 @@ enum {
 	STAC_MACBOOK,
 	STAC_MACBOOK_PRO_V1,
 	STAC_MACBOOK_PRO_V2,
+	STAC_IMAC_INTEL,
 	STAC_922X_MODELS
 };
 
@@ -175,8 +176,8 @@ static hda_nid_t stac9205_mux_nids[2] = {
         0x19, 0x1a
 };
 
-static hda_nid_t stac9205_dmic_nids[3] = {
-        0x17, 0x18, 0
+static hda_nid_t stac9205_dmic_nids[2] = {
+        0x17, 0x18,
 };
 
 static hda_nid_t stac9200_pin_nids[8] = {
@@ -524,12 +525,6 @@ static unsigned int d945gtp5_pin_configs[10] = {
 	0x02a19320, 0x40000100,
 };
 
-static unsigned int macbook_pin_configs[10] = {
-	0x0321e230, 0x03a1e020, 0x400000fd, 0x9017e110,
-	0x400000fe, 0x0381e021, 0x1345e240, 0x13c5e22e,
-	0x400000fc, 0x400000fb,
-};
-
 static unsigned int macbook_pro_v1_pin_configs[10] = {
 	0x0321e230, 0x03a1e020, 0x9017e110, 0x01014010,
 	0x01a19021, 0x0381e021, 0x1345e240, 0x13c5e22e,
@@ -542,14 +537,21 @@ static unsigned int macbook_pro_v2_pin_configs[10] = {
 	0x400000fc, 0x400000fb,
 };
 
+static unsigned int imac_intel_pin_configs[10] = {
+	0x0121e230, 0x90a70120, 0x9017e110, 0x400000fe,
+	0x400000fd, 0x0181e021, 0x1145e040, 0x400000fa,
+	0x400000fc, 0x400000fb,
+};
+
 static unsigned int *stac922x_brd_tbl[STAC_922X_MODELS] = {
 	[STAC_D945_REF] = ref922x_pin_configs,
 	[STAC_D945GTP3] = d945gtp3_pin_configs,
 	[STAC_D945GTP5] = d945gtp5_pin_configs,
-	[STAC_MACMINI] = d945gtp5_pin_configs,
-	[STAC_MACBOOK] = macbook_pin_configs,
+	[STAC_MACMINI] = macbook_pro_v1_pin_configs,
+	[STAC_MACBOOK] = macbook_pro_v1_pin_configs,
 	[STAC_MACBOOK_PRO_V1] = macbook_pro_v1_pin_configs,
 	[STAC_MACBOOK_PRO_V2] = macbook_pro_v2_pin_configs,
+	[STAC_IMAC_INTEL] = imac_intel_pin_configs,
 };
 
 static const char *stac922x_models[STAC_922X_MODELS] = {
@@ -560,6 +562,7 @@ static const char *stac922x_models[STAC_922X_MODELS] = {
 	[STAC_MACBOOK]	= "macbook",
 	[STAC_MACBOOK_PRO_V1]	= "macbook-pro-v1",
 	[STAC_MACBOOK_PRO_V2]	= "macbook-pro",
+	[STAC_IMAC_INTEL] = "imac-intel",
 };
 
 static struct snd_pci_quirk stac922x_cfg_tbl[] = {
@@ -820,6 +823,17 @@ static int stac92xx_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
 }
 
+static int stac92xx_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
+					 struct hda_codec *codec,
+					 unsigned int stream_tag,
+					 unsigned int format,
+					 struct snd_pcm_substream *substream)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	return snd_hda_multi_out_dig_prepare(codec, &spec->multiout,
+					     stream_tag, format, substream);
+}
+
 
 /*
  * Analog capture callbacks
@@ -854,7 +868,8 @@ static struct hda_pcm_stream stac92xx_pcm_digital_playback = {
 	/* NID is set in stac92xx_build_pcms */
 	.ops = {
 		.open = stac92xx_dig_playback_pcm_open,
-		.close = stac92xx_dig_playback_pcm_close
+		.close = stac92xx_dig_playback_pcm_close,
+		.prepare = stac92xx_dig_playback_pcm_prepare
 	},
 };
 
@@ -1055,11 +1070,23 @@ static int stac92xx_add_control(struct sigmatel_spec *spec, int type, const char
 static int stac92xx_add_dyn_out_pins(struct hda_codec *codec, struct auto_pin_cfg *cfg)
 {
 	struct sigmatel_spec *spec = codec->spec;
+	unsigned int wcaps, wtype;
+	int i, num_dacs = 0;
+	
+	/* use the wcaps cache to count all DACs available for line-outs */
+	for (i = 0; i < codec->num_nodes; i++) {
+		wcaps = codec->wcaps[i];
+		wtype = (wcaps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+		if (wtype == AC_WID_AUD_OUT && !(wcaps & AC_WCAP_DIGITAL))
+			num_dacs++;
+	}
 
+	snd_printdd("%s: total dac count=%d\n", __func__, num_dacs);
+	
 	switch (cfg->line_outs) {
 	case 3:
 		/* add line-in as side */
-		if (cfg->input_pins[AUTO_PIN_LINE]) {
+		if (cfg->input_pins[AUTO_PIN_LINE] && num_dacs > 3) {
 			cfg->line_out_pins[3] = cfg->input_pins[AUTO_PIN_LINE];
 			spec->line_switch = 1;
 			cfg->line_outs++;
@@ -1067,12 +1094,12 @@ static int stac92xx_add_dyn_out_pins(struct hda_codec *codec, struct auto_pin_cf
 		break;
 	case 2:
 		/* add line-in as clfe and mic as side */
-		if (cfg->input_pins[AUTO_PIN_LINE]) {
+		if (cfg->input_pins[AUTO_PIN_LINE] && num_dacs > 2) {
 			cfg->line_out_pins[2] = cfg->input_pins[AUTO_PIN_LINE];
 			spec->line_switch = 1;
 			cfg->line_outs++;
 		}
-		if (cfg->input_pins[AUTO_PIN_MIC]) {
+		if (cfg->input_pins[AUTO_PIN_MIC] && num_dacs > 3) {
 			cfg->line_out_pins[3] = cfg->input_pins[AUTO_PIN_MIC];
 			spec->mic_switch = 1;
 			cfg->line_outs++;
@@ -1080,12 +1107,12 @@ static int stac92xx_add_dyn_out_pins(struct hda_codec *codec, struct auto_pin_cf
 		break;
 	case 1:
 		/* add line-in as surr and mic as clfe */
-		if (cfg->input_pins[AUTO_PIN_LINE]) {
+		if (cfg->input_pins[AUTO_PIN_LINE] && num_dacs > 1) {
 			cfg->line_out_pins[1] = cfg->input_pins[AUTO_PIN_LINE];
 			spec->line_switch = 1;
 			cfg->line_outs++;
 		}
-		if (cfg->input_pins[AUTO_PIN_MIC]) {
+		if (cfg->input_pins[AUTO_PIN_MIC] && num_dacs > 2) {
 			cfg->line_out_pins[2] = cfg->input_pins[AUTO_PIN_MIC];
 			spec->mic_switch = 1;
 			cfg->line_outs++;
@@ -1096,33 +1123,76 @@ static int stac92xx_add_dyn_out_pins(struct hda_codec *codec, struct auto_pin_cf
 	return 0;
 }
 
+
+static int is_in_dac_nids(struct sigmatel_spec *spec, hda_nid_t nid)
+{
+	int i;
+	
+	for (i = 0; i < spec->multiout.num_dacs; i++) {
+		if (spec->multiout.dac_nids[i] == nid)
+			return 1;
+	}
+
+	return 0;
+}
+
 /*
- * XXX The line_out pin widget connection list may not be set to the
- * desired DAC nid. This is the case on 927x where ports A and B can
- * be routed to several DACs.
- *
- * This requires an analysis of the line-out/hp pin configuration
- * to provide a best fit for pin/DAC configurations that are routable.
- * For now, 927x DAC4 is not supported and 927x DAC1 output to ports
- * A and B is not supported.
+ * Fill in the dac_nids table from the parsed pin configuration
+ * This function only works when every pin in line_out_pins[]
+ * contains atleast one DAC in its connection list. Some 92xx
+ * codecs are not connected directly to a DAC, such as the 9200
+ * and 9202/925x. For those, dac_nids[] must be hard-coded.
  */
-/* fill in the dac_nids table from the parsed pin configuration */
 static int stac92xx_auto_fill_dac_nids(struct hda_codec *codec,
 				       const struct auto_pin_cfg *cfg)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	hda_nid_t nid;
-	int i;
-
-	/* check the pins hardwired to audio widget */
+	int i, j, conn_len = 0; 
+	hda_nid_t nid, conn[HDA_MAX_CONNECTIONS];
+	unsigned int wcaps, wtype;
+	
 	for (i = 0; i < cfg->line_outs; i++) {
 		nid = cfg->line_out_pins[i];
-		spec->multiout.dac_nids[i] = snd_hda_codec_read(codec, nid, 0,
-					AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
+		conn_len = snd_hda_get_connections(codec, nid, conn,
+						   HDA_MAX_CONNECTIONS);
+		for (j = 0; j < conn_len; j++) {
+			wcaps = snd_hda_param_read(codec, conn[j],
+						   AC_PAR_AUDIO_WIDGET_CAP);
+			wtype = (wcaps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+
+			if (wtype != AC_WID_AUD_OUT ||
+			    (wcaps & AC_WCAP_DIGITAL))
+				continue;
+			/* conn[j] is a DAC routed to this line-out */
+			if (!is_in_dac_nids(spec, conn[j]))
+				break;
+		}
+
+		if (j == conn_len) {
+			/* error out, no available DAC found */
+			snd_printk(KERN_ERR
+				   "%s: No available DAC for pin 0x%x\n",
+				   __func__, nid);
+			return -ENODEV;
+		}
+
+		spec->multiout.dac_nids[i] = conn[j];
+		spec->multiout.num_dacs++;
+		if (conn_len > 1) {
+			/* select this DAC in the pin's input mux */
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_CONNECT_SEL, j);
+
+		}
 	}
 
-	spec->multiout.num_dacs = cfg->line_outs;
-
+	snd_printd("dac_nids=%d (0x%x/0x%x/0x%x/0x%x/0x%x)\n",
+		   spec->multiout.num_dacs,
+		   spec->multiout.dac_nids[0],
+		   spec->multiout.dac_nids[1],
+		   spec->multiout.dac_nids[2],
+		   spec->multiout.dac_nids[3],
+		   spec->multiout.dac_nids[4]);
 	return 0;
 }
 
@@ -1189,12 +1259,8 @@ static int stac92xx_auto_create_multi_out_ctls(struct sigmatel_spec *spec,
 
 static int check_in_dac_nids(struct sigmatel_spec *spec, hda_nid_t nid)
 {
-	int i;
-
-	for (i = 0; i < spec->multiout.num_dacs; i++) {
-		if (spec->multiout.dac_nids[i] == nid)
-			return 1;
-	}
+	if (is_in_dac_nids(spec, nid))
+		return 1;
 	if (spec->multiout.hp_nid == nid)
 		return 1;
 	return 0;
@@ -1236,10 +1302,8 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec,
 		add_spec_dacs(spec, nid);
 	}
 	for (i = 0; i < cfg->speaker_outs; i++) {
-		nid = snd_hda_codec_read(codec, cfg->speaker_pins[0], 0,
+		nid = snd_hda_codec_read(codec, cfg->speaker_pins[i], 0,
 					 AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
-		if (check_in_dac_nids(spec, nid))
-			nid = 0;
 		if (check_in_dac_nids(spec, nid))
 			nid = 0;
 		if (! nid)
@@ -1355,7 +1419,7 @@ static int stac92xx_auto_create_analog_input_ctls(struct hda_codec *codec, const
 		imux->num_items++;
 	}
 
-	if (imux->num_items == 1) {
+	if (imux->num_items) {
 		/*
 		 * Set the current input for the muxes.
 		 * The STAC9221 has two input muxes with identical source
@@ -1675,8 +1739,12 @@ static void stac92xx_set_pinctl(struct hda_codec *codec, hda_nid_t nid,
 {
 	unsigned int pin_ctl = snd_hda_codec_read(codec, nid,
 			0, AC_VERB_GET_PIN_WIDGET_CONTROL, 0x00);
-	if (flag == AC_PINCTL_OUT_EN && (pin_ctl & AC_PINCTL_IN_EN))
-		return;
+
+	/* if setting pin direction bits, clear the current
+	   direction bits first */
+	if (flag & (AC_PINCTL_IN_EN | AC_PINCTL_OUT_EN))
+		pin_ctl &= ~(AC_PINCTL_IN_EN | AC_PINCTL_OUT_EN);
+	
 	snd_hda_codec_write(codec, nid, 0,
 			AC_VERB_SET_PIN_WIDGET_CONTROL,
 			pin_ctl | flag);
@@ -1751,6 +1819,7 @@ static int stac92xx_resume(struct hda_codec *codec)
 
 	stac92xx_init(codec);
 	stac92xx_set_config_regs(codec);
+	snd_hda_resume_ctls(codec, spec->mixer);
 	for (i = 0; i < spec->num_mixers; i++)
 		snd_hda_resume_ctls(codec, spec->mixers[i]);
 	if (spec->multiout.dig_out_nid)
@@ -1905,11 +1974,17 @@ static int patch_stac922x(struct hda_codec *codec)
 		 */
 		printk(KERN_INFO "hda_codec: STAC922x, Apple subsys_id=%x\n", codec->subsystem_id);
 		switch (codec->subsystem_id) {
+		case 0x106b0a00: /* MacBook First generatoin */
+			spec->board_config = STAC_MACBOOK;
+			break;
 		case 0x106b0200: /* MacBook Pro first generation */
 			spec->board_config = STAC_MACBOOK_PRO_V1;
 			break;
 		case 0x106b1e00: /* MacBook Pro second generation */
 			spec->board_config = STAC_MACBOOK_PRO_V2;
+			break;
+		case 0x106b0700: /* Intel-based iMac */
+			spec->board_config = STAC_IMAC_INTEL;
 			break;
 		}
 	}
@@ -1931,7 +2006,7 @@ static int patch_stac922x(struct hda_codec *codec)
 
 	spec->adc_nids = stac922x_adc_nids;
 	spec->mux_nids = stac922x_mux_nids;
-	spec->num_muxes = 2;
+	spec->num_muxes = ARRAY_SIZE(stac922x_mux_nids);
 	spec->num_dmics = 0;
 
 	spec->init = stac922x_core_init;
@@ -1992,7 +2067,7 @@ static int patch_stac927x(struct hda_codec *codec)
 	case STAC_D965_3ST:
 		spec->adc_nids = stac927x_adc_nids;
 		spec->mux_nids = stac927x_mux_nids;
-		spec->num_muxes = 3;
+		spec->num_muxes = ARRAY_SIZE(stac927x_mux_nids);
 		spec->num_dmics = 0;
 		spec->init = d965_core_init;
 		spec->mixer = stac9227_mixer;
@@ -2000,7 +2075,7 @@ static int patch_stac927x(struct hda_codec *codec)
 	case STAC_D965_5ST:
 		spec->adc_nids = stac927x_adc_nids;
 		spec->mux_nids = stac927x_mux_nids;
-		spec->num_muxes = 3;
+		spec->num_muxes = ARRAY_SIZE(stac927x_mux_nids);
 		spec->num_dmics = 0;
 		spec->init = d965_core_init;
 		spec->mixer = stac9227_mixer;
@@ -2008,7 +2083,7 @@ static int patch_stac927x(struct hda_codec *codec)
 	default:
 		spec->adc_nids = stac927x_adc_nids;
 		spec->mux_nids = stac927x_mux_nids;
-		spec->num_muxes = 3;
+		spec->num_muxes = ARRAY_SIZE(stac927x_mux_nids);
 		spec->num_dmics = 0;
 		spec->init = stac927x_core_init;
 		spec->mixer = stac927x_mixer;
@@ -2067,9 +2142,9 @@ static int patch_stac9205(struct hda_codec *codec)
 
 	spec->adc_nids = stac9205_adc_nids;
 	spec->mux_nids = stac9205_mux_nids;
-	spec->num_muxes = 2;
+	spec->num_muxes = ARRAY_SIZE(stac9205_mux_nids);
 	spec->dmic_nids = stac9205_dmic_nids;
-	spec->num_dmics = 2;
+	spec->num_dmics = ARRAY_SIZE(stac9205_dmic_nids);
 	spec->dmux_nid = 0x1d;
 
 	spec->init = stac9205_core_init;
@@ -2294,6 +2369,7 @@ static struct snd_pci_quirk stac9872_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x104d, 0x81e6, "Sony VAIO F/S", CXD9872RD_VAIO),
 	SND_PCI_QUIRK(0x104d, 0x81ef, "Sony VAIO F/S", CXD9872RD_VAIO),
 	SND_PCI_QUIRK(0x104d, 0x81fd, "Sony VAIO AR", CXD9872AKD_VAIO),
+	SND_PCI_QUIRK(0x104d, 0x8205, "Sony VAIO AR", CXD9872AKD_VAIO),
 	{}
 };
 

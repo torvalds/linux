@@ -1,6 +1,6 @@
 /*
  *  azt3328.c - driver for Aztech AZF3328 based soundcards (e.g. PCI168).
- *  Copyright (C) 2002, 2005 by Andreas Mohr <andi AT lisas.de>
+ *  Copyright (C) 2002, 2005, 2006, 2007 by Andreas Mohr <andi AT lisas.de>
  *
  *  Framework borrowed from Bart Hartgers's als4000.c.
  *  Driver developed on PCI168 AP(W) version (PCI rev. 10, subsystem ID 1801),
@@ -52,6 +52,9 @@
  *  - full duplex 16bit playback/record at independent sampling rate
  *  - MPU401 (+ legacy address support) FIXME: how to enable legacy addr??
  *  - game port (legacy address support)
+ *  - builtin 3D enhancement (said to be YAMAHA Ymersion)
+ *  - builtin DirectInput support, helps reduce CPU overhead (interrupt-driven
+ *    features supported)
  *  - built-in General DirectX timer having a 20 bits counter
  *    with 1us resolution (see below!)
  *  - I2S serial port for external DAC
@@ -94,6 +97,10 @@
  * 
  * BUGS
  *  - full-duplex might *still* be problematic, not fully tested recently
+ *  - (non-bug) "Bass/Treble or 3D settings don't work" - they do get evaluated
+ *    if you set PCM output switch to "pre 3D" instead of "post 3D".
+ *    If this can't be set, then get a mixer application that Isn't Stupid (tm)
+ *    (e.g. kmix, gamix) - unfortunately several are!!
  * 
  * TODO
  *  - test MPU401 MIDI playback etc.
@@ -622,7 +629,7 @@ snd_azf3328_put_mixer_enum(struct snd_kcontrol *kcontrol,
 	return (nreg != oreg);
 }
 
-static const struct snd_kcontrol_new snd_azf3328_mixer_controls[] __devinitdata = {
+static struct snd_kcontrol_new snd_azf3328_mixer_controls[] __devinitdata = {
 	AZF3328_MIXER_SWITCH("Master Playback Switch", IDX_MIXER_PLAY_MASTER, 15, 1),
 	AZF3328_MIXER_VOL_STEREO("Master Playback Volume", IDX_MIXER_PLAY_MASTER, 0x1f, 1),
 	AZF3328_MIXER_SWITCH("Wave Playback Switch", IDX_MIXER_WAVEOUT, 15, 1),
@@ -652,7 +659,7 @@ static const struct snd_kcontrol_new snd_azf3328_mixer_controls[] __devinitdata 
 	AZF3328_MIXER_VOL_MONO("Modem Capture Volume", IDX_MIXER_MODEMIN, 0x1f, 1),
 	AZF3328_MIXER_ENUM("Mic Select", IDX_MIXER_ADVCTL2, 2, 8),
 	AZF3328_MIXER_ENUM("Mono Output Select", IDX_MIXER_ADVCTL2, 2, 9),
-	AZF3328_MIXER_ENUM("PCM", IDX_MIXER_ADVCTL2, 2, 15), /* PCM Out Path, place in front since it controls *both* 3D and Bass/Treble! */
+	AZF3328_MIXER_ENUM("PCM Output Route", IDX_MIXER_ADVCTL2, 2, 15), /* PCM Out Path, place in front since it controls *both* 3D and Bass/Treble! */
 	AZF3328_MIXER_VOL_SPECIAL("Tone Control - Treble", IDX_MIXER_BASSTREBLE, 0x07, 1, 0),
 	AZF3328_MIXER_VOL_SPECIAL("Tone Control - Bass", IDX_MIXER_BASSTREBLE, 0x07, 9, 0),
 	AZF3328_MIXER_SWITCH("3D Control - Switch", IDX_MIXER_ADVCTL2, 13, 0),
@@ -678,7 +685,7 @@ static const struct snd_kcontrol_new snd_azf3328_mixer_controls[] __devinitdata 
 #endif
 };
 
-static const u16 __devinitdata snd_azf3328_init_values[][2] = {
+static u16 __devinitdata snd_azf3328_init_values[][2] = {
         { IDX_MIXER_PLAY_MASTER,	MIXER_MUTE_MASK|0x1f1f },
         { IDX_MIXER_MODEMOUT,		MIXER_MUTE_MASK|0x1f1f },
 	{ IDX_MIXER_BASSTREBLE,		0x0000 },
@@ -1369,7 +1376,6 @@ snd_azf3328_playback_close(struct snd_pcm_substream *substream)
 	struct snd_azf3328 *chip = snd_pcm_substream_chip(substream);
 
 	snd_azf3328_dbgcallenter();
-
 	chip->playback_substream = NULL;
 	snd_azf3328_dbgcallleave();
 	return 0;
@@ -1660,10 +1666,10 @@ snd_azf3328_test_bit(unsigned int reg, int bit)
 }
 #endif
 
+#if DEBUG_MISC
 static void
 snd_azf3328_debug_show_ports(const struct snd_azf3328 *chip)
 {
-#if DEBUG_MISC
 	u16 tmp;
 
 	snd_azf3328_dbgmisc("codec_port 0x%lx, io2_port 0x%lx, mpu_port 0x%lx, synth_port 0x%lx, mixer_port 0x%lx, irq %d\n", chip->codec_port, chip->io2_port, chip->mpu_port, chip->synth_port, chip->mixer_port, chip->irq);
@@ -1673,10 +1679,16 @@ snd_azf3328_debug_show_ports(const struct snd_azf3328 *chip)
 	for (tmp=0; tmp <= 0x01; tmp += 1)
 		snd_azf3328_dbgmisc("0x%02x: opl 0x%04x, mpu300 0x%04x, mpu310 0x%04x, mpu320 0x%04x, mpu330 0x%04x\n", tmp, inb(0x388 + tmp), inb(0x300 + tmp), inb(0x310 + tmp), inb(0x320 + tmp), inb(0x330 + tmp));
 
-	for (tmp = 0; tmp <= 0x6E; tmp += 2)
-		snd_azf3328_dbgmisc("0x%02x: 0x%04x\n", tmp, snd_azf3328_codec_inb(chip, tmp));
-#endif
+	for (tmp = 0; tmp < AZF_IO_SIZE_CODEC; tmp += 2)
+		snd_azf3328_dbgmisc("codec 0x%02x: 0x%04x\n", tmp, snd_azf3328_codec_inw(chip, tmp));
+
+	for (tmp = 0; tmp < AZF_IO_SIZE_MIXER; tmp += 2)
+		snd_azf3328_dbgmisc("mixer 0x%02x: 0x%04x\n", tmp, snd_azf3328_mixer_inw(chip, tmp));
 }
+#else
+static inline void
+snd_azf3328_debug_show_ports(const struct snd_azf3328 *chip) {}
+#endif
 
 static int __devinit
 snd_azf3328_create(struct snd_card *card,
@@ -1842,8 +1854,8 @@ snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 
 #ifdef MODULE
 	printk(
-"azt3328: Sound driver for Aztech AZF3328-based soundcards such as PCI168\n"
-"azt3328: (hardware was completely undocumented - ZERO support from Aztech).\n"
+"azt3328: Sound driver for Aztech AZF3328-based soundcards such as PCI168.\n"
+"azt3328: Hardware was completely undocumented, unfortunately.\n"
 "azt3328: Feel free to contact andi AT lisas.de for bug reports etc.!\n"
 "azt3328: User-scalable sequencer timer set to %dHz (1024000Hz / %d).\n",
 	1024000 / seqtimer_scaling, seqtimer_scaling);

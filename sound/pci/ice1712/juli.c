@@ -125,7 +125,7 @@ static void juli_akm_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 	snd_akm4xxx_reset(ak, 0);
 }
 
-static const struct snd_akm4xxx akm_juli_dac __devinitdata = {
+static struct snd_akm4xxx akm_juli_dac __devinitdata = {
 	.type = SND_AK4358,
 	.num_dacs = 2,
 	.ops = {
@@ -138,7 +138,16 @@ static const struct snd_akm4xxx akm_juli_dac __devinitdata = {
 
 static int __devinit juli_add_controls(struct snd_ice1712 *ice)
 {
-	return snd_ice1712_akm4xxx_build_controls(ice);
+	int err;
+	err = snd_ice1712_akm4xxx_build_controls(ice);
+	if (err < 0)
+		return err;
+	/* only capture SPDIF over AK4114 */
+	err = snd_ak4114_build(ice->spec.juli.ak4114, NULL,
+			       ice->pcm_pro->streams[SNDRV_PCM_STREAM_CAPTURE].substream);
+	if (err < 0)
+		return err;
+	return 0;
 }
 
 /*
@@ -160,13 +169,6 @@ static int __devinit juli_init(struct snd_ice1712 *ice)
 	int err;
 	struct snd_akm4xxx *ak;
 
-#if 0
-	for (err = 0; err < 0x20; err++)
-		juli_ak4114_read(ice, err);
-	juli_ak4114_write(ice, 0, 0x0f);
-	juli_ak4114_read(ice, 0);
-	juli_ak4114_read(ice, 1);
-#endif
 	err = snd_ak4114_create(ice->card,
 				juli_ak4114_read,
 				juli_ak4114_write,
@@ -206,7 +208,7 @@ static int __devinit juli_init(struct snd_ice1712 *ice)
  * hence the driver needs to sets up it properly.
  */
 
-static const unsigned char juli_eeprom[] __devinitdata = {
+static unsigned char juli_eeprom[] __devinitdata = {
 	[ICE_EEP2_SYSCONF]     = 0x20,	/* clock 512, mpu401, 1xADC, 1xDACs */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
 	[ICE_EEP2_I2S]         = 0xf8,	/* vol, 96k, 24bit, 192k */
@@ -223,7 +225,7 @@ static const unsigned char juli_eeprom[] __devinitdata = {
 };
 
 /* entry point */
-const struct snd_ice1712_card_info snd_vt1724_juli_cards[] __devinitdata = {
+struct snd_ice1712_card_info snd_vt1724_juli_cards[] __devinitdata = {
 	{
 		.subvendor = VT1724_SUBDEVICE_JULI,
 		.name = "ESI Juli@",

@@ -433,7 +433,6 @@ static int snd_p16v_pcm_trigger_playback(struct snd_pcm_substream *substream,
 	struct snd_emu10k1_pcm *epcm;
 	int channel;
 	int result = 0;
-	struct list_head *pos;
         struct snd_pcm_substream *s;
 	u32 basic = 0;
 	u32 inte = 0;
@@ -448,8 +447,7 @@ static int snd_p16v_pcm_trigger_playback(struct snd_pcm_substream *substream,
 		running = 0;
 		break;
 	}
-        snd_pcm_group_for_each(pos, substream) {
-                s = snd_pcm_group_substream_entry(pos);
+        snd_pcm_group_for_each_entry(s, substream) {
 		runtime = s->runtime;
 		epcm = runtime->private_data;
 		channel = substream->pcm->device-emu->p16v_device_offset;

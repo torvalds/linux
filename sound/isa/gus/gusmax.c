@@ -22,7 +22,7 @@
 #include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/err.h>
-#include <linux/platform_device.h>
+#include <linux/isa.h>
 #include <linux/delay.h>
 #include <linux/time.h>
 #include <linux/moduleparam.h>
@@ -71,8 +71,6 @@ module_param_array(channels, int, NULL, 0444);
 MODULE_PARM_DESC(channels, "Used GF1 channels for GUS MAX driver.");
 module_param_array(pcm_channels, int, NULL, 0444);
 MODULE_PARM_DESC(pcm_channels, "Reserved PCM channels for GUS MAX driver.");
-
-static struct platform_device *devices[SNDRV_CARDS];
 
 struct snd_gusmax {
 	int irq;
@@ -205,9 +203,13 @@ static void snd_gusmax_free(struct snd_card *card)
 		free_irq(maxcard->irq, (void *)maxcard);
 }
 
-static int __devinit snd_gusmax_probe(struct platform_device *pdev)
+static int __devinit snd_gusmax_match(struct device *pdev, unsigned int dev)
 {
-	int dev = pdev->id;
+	return enable[dev];
+}
+
+static int __devinit snd_gusmax_probe(struct device *pdev, unsigned int dev)
+{
 	static int possible_irqs[] = {5, 11, 12, 9, 7, 15, 3, -1};
 	static int possible_dmas[] = {5, 6, 7, 1, 3, -1};
 	int xirq, xdma1, xdma2, err;
@@ -333,7 +335,7 @@ static int __devinit snd_gusmax_probe(struct platform_device *pdev)
 	if (xdma2 >= 0)
 		sprintf(card->longname + strlen(card->longname), "&%i", xdma2);
 
-	snd_card_set_dev(card, &pdev->dev);
+	snd_card_set_dev(card, pdev);
 
 	if ((err = snd_card_register(card)) < 0)
 		goto _err;
@@ -341,7 +343,7 @@ static int __devinit snd_gusmax_probe(struct platform_device *pdev)
 	maxcard->gus = gus;
 	maxcard->cs4231 = cs4231;
 
-	platform_set_drvdata(pdev, card);
+	dev_set_drvdata(pdev, card);
 	return 0;
 
  _err:
@@ -349,70 +351,33 @@ static int __devinit snd_gusmax_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __devexit snd_gusmax_remove(struct platform_device *devptr)
+static int __devexit snd_gusmax_remove(struct device *devptr, unsigned int dev)
 {
-	snd_card_free(platform_get_drvdata(devptr));
-	platform_set_drvdata(devptr, NULL);
+	snd_card_free(dev_get_drvdata(devptr));
+	dev_set_drvdata(devptr, NULL);
 	return 0;
 }
 
-#define GUSMAX_DRIVER	"snd_gusmax"
+#define DEV_NAME "gusmax"
 
-static struct platform_driver snd_gusmax_driver = {
+static struct isa_driver snd_gusmax_driver = {
+	.match		= snd_gusmax_match,
 	.probe		= snd_gusmax_probe,
 	.remove		= __devexit_p(snd_gusmax_remove),
 	/* FIXME: suspend/resume */
 	.driver		= {
-		.name	= GUSMAX_DRIVER
+		.name	= DEV_NAME
 	},
 };
 
-static void __init_or_module snd_gusmax_unregister_all(void)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(devices); ++i)
-		platform_device_unregister(devices[i]);
-	platform_driver_unregister(&snd_gusmax_driver);
-}
-
 static int __init alsa_card_gusmax_init(void)
 {
-	int i, cards, err;
-
-	err = platform_driver_register(&snd_gusmax_driver);
-	if (err < 0)
-		return err;
-
-	cards = 0;
-	for (i = 0; i < SNDRV_CARDS; i++) {
-		struct platform_device *device;
-		if (! enable[i])
-			continue;
-		device = platform_device_register_simple(GUSMAX_DRIVER,
-							 i, NULL, 0);
-		if (IS_ERR(device))
-			continue;
-		if (!platform_get_drvdata(device)) {
-			platform_device_unregister(device);
-			continue;
-		}
-		devices[i] = device;
-		cards++;
-	}
-	if (!cards) {
-#ifdef MODULE
-		printk(KERN_ERR "GUS MAX soundcard not found or device busy\n");
-#endif
-		snd_gusmax_unregister_all();
-		return -ENODEV;
-	}
-	return 0;
+	return isa_register_driver(&snd_gusmax_driver, SNDRV_CARDS);
 }
 
 static void __exit alsa_card_gusmax_exit(void)
 {
-	snd_gusmax_unregister_all();
+	isa_unregister_driver(&snd_gusmax_driver);
 }
 
 module_init(alsa_card_gusmax_init)

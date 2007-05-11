@@ -22,7 +22,7 @@
 #include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/err.h>
-#include <linux/platform_device.h>
+#include <linux/isa.h>
 #include <linux/interrupt.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
@@ -91,12 +91,10 @@ MODULE_PARM_DESC(dma2, "DMA2 # for OPL3-SA driver.");
 module_param_array(opl3sa3_ymode, int, NULL, 0444);
 MODULE_PARM_DESC(opl3sa3_ymode, "Speaker size selection for 3D Enhancement mode: Desktop/Large Notebook/Small Notebook/HiFi.");
 
-static struct platform_device *platform_devices[SNDRV_CARDS];
 #ifdef CONFIG_PNP
 static int pnp_registered;
 static int pnpc_registered;
 #endif
-static unsigned int snd_opl3sa2_devices;
 
 /* control ports */
 #define OPL3SA2_PM_CTRL		0x01
@@ -783,7 +781,6 @@ static int __devinit snd_opl3sa2_pnp_detect(struct pnp_dev *pdev,
 	}
 	pnp_set_drvdata(pdev, card);
 	dev++;
-	snd_opl3sa2_devices++;
 	return 0;
 }
 
@@ -850,7 +847,6 @@ static int __devinit snd_opl3sa2_pnp_cdetect(struct pnp_card_link *pcard,
 	}
 	pnp_set_card_drvdata(pcard, card);
 	dev++;
-	snd_opl3sa2_devices++;
 	return 0;
 }
 
@@ -884,116 +880,95 @@ static struct pnp_card_driver opl3sa2_pnpc_driver = {
 };
 #endif /* CONFIG_PNP */
 
-static int __devinit snd_opl3sa2_nonpnp_probe(struct platform_device *pdev)
+static int __devinit snd_opl3sa2_isa_match(struct device *pdev,
+					   unsigned int dev)
 {
-	struct snd_card *card;
-	int err;
-	int dev = pdev->id;
-
+	if (!enable[dev])
+		return 0;
+#ifdef CONFIG_PNP
+	if (isapnp[dev])
+		return 0;
+#endif
 	if (port[dev] == SNDRV_AUTO_PORT) {
 		snd_printk(KERN_ERR PFX "specify port\n");
-		return -EINVAL;
+		return 0;
 	}
 	if (wss_port[dev] == SNDRV_AUTO_PORT) {
 		snd_printk(KERN_ERR PFX "specify wss_port\n");
-		return -EINVAL;
+		return 0;
 	}
 	if (fm_port[dev] == SNDRV_AUTO_PORT) {
 		snd_printk(KERN_ERR PFX "specify fm_port\n");
-		return -EINVAL;
+		return 0;
 	}
 	if (midi_port[dev] == SNDRV_AUTO_PORT) {
 		snd_printk(KERN_ERR PFX "specify midi_port\n");
-		return -EINVAL;
+		return 0;
 	}
+	return 1;
+}
+
+static int __devinit snd_opl3sa2_isa_probe(struct device *pdev,
+					   unsigned int dev)
+{
+	struct snd_card *card;
+	int err;
 
 	card = snd_opl3sa2_card_new(dev);
 	if (! card)
 		return -ENOMEM;
-	snd_card_set_dev(card, &pdev->dev);
+	snd_card_set_dev(card, pdev);
 	if ((err = snd_opl3sa2_probe(card, dev)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	platform_set_drvdata(pdev, card);
+	dev_set_drvdata(pdev, card);
 	return 0;
 }
 
-static int __devexit snd_opl3sa2_nonpnp_remove(struct platform_device *devptr)
+static int __devexit snd_opl3sa2_isa_remove(struct device *devptr,
+					    unsigned int dev)
 {
-	snd_card_free(platform_get_drvdata(devptr));
-	platform_set_drvdata(devptr, NULL);
+	snd_card_free(dev_get_drvdata(devptr));
+	dev_set_drvdata(devptr, NULL);
 	return 0;
 }
 
 #ifdef CONFIG_PM
-static int snd_opl3sa2_nonpnp_suspend(struct platform_device *dev, pm_message_t state)
+static int snd_opl3sa2_isa_suspend(struct device *dev, unsigned int n,
+				   pm_message_t state)
 {
-	return snd_opl3sa2_suspend(platform_get_drvdata(dev), state);
+	return snd_opl3sa2_suspend(dev_get_drvdata(dev), state);
 }
 
-static int snd_opl3sa2_nonpnp_resume(struct platform_device *dev)
+static int snd_opl3sa2_isa_resume(struct device *dev, unsigned int n)
 {
-	return snd_opl3sa2_resume(platform_get_drvdata(dev));
+	return snd_opl3sa2_resume(dev_get_drvdata(dev));
 }
 #endif
 
-#define OPL3SA2_DRIVER	"snd_opl3sa2"
+#define DEV_NAME "opl3sa2"
 
-static struct platform_driver snd_opl3sa2_nonpnp_driver = {
-	.probe		= snd_opl3sa2_nonpnp_probe,
-	.remove		= __devexit( snd_opl3sa2_nonpnp_remove),
+static struct isa_driver snd_opl3sa2_isa_driver = {
+	.match		= snd_opl3sa2_isa_match,
+	.probe		= snd_opl3sa2_isa_probe,
+	.remove		= __devexit( snd_opl3sa2_isa_remove),
 #ifdef CONFIG_PM
-	.suspend	= snd_opl3sa2_nonpnp_suspend,
-	.resume		= snd_opl3sa2_nonpnp_resume,
+	.suspend	= snd_opl3sa2_isa_suspend,
+	.resume		= snd_opl3sa2_isa_resume,
 #endif
 	.driver		= {
-		.name	= OPL3SA2_DRIVER
+		.name	= DEV_NAME
 	},
 };
 
-static void __init_or_module snd_opl3sa2_unregister_all(void)
-{
-	int i;
-
-#ifdef CONFIG_PNP
-	if (pnpc_registered)
-		pnp_unregister_card_driver(&opl3sa2_pnpc_driver);
-	if (pnp_registered)
-		pnp_unregister_driver(&opl3sa2_pnp_driver);
-#endif
-	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
-		platform_device_unregister(platform_devices[i]);
-	platform_driver_unregister(&snd_opl3sa2_nonpnp_driver);
-}
-
 static int __init alsa_card_opl3sa2_init(void)
 {
-	int i, err;
+	int err;
 
-	if ((err = platform_driver_register(&snd_opl3sa2_nonpnp_driver)) < 0)
+	err = isa_register_driver(&snd_opl3sa2_isa_driver, SNDRV_CARDS);
+	if (err < 0)
 		return err;
-
-	for (i = 0; i < SNDRV_CARDS; i++) {
-		struct platform_device *device;
-		if (! enable[i])
-			continue;
-#ifdef CONFIG_PNP
-		if (isapnp[i])
-			continue;
-#endif
-		device = platform_device_register_simple(OPL3SA2_DRIVER,
-							 i, NULL, 0);
-		if (IS_ERR(device))
-			continue;
-		if (!platform_get_drvdata(device)) {
-			platform_device_unregister(device);
-			continue;
-		}
-		platform_devices[i] = device;
-		snd_opl3sa2_devices++;
-	}
-
 #ifdef CONFIG_PNP
 	err = pnp_register_driver(&opl3sa2_pnp_driver);
 	if (!err)
@@ -1002,20 +977,18 @@ static int __init alsa_card_opl3sa2_init(void)
 	if (!err)
 		pnpc_registered = 1;
 #endif
-
-	if (!snd_opl3sa2_devices) {
-#ifdef MODULE
-		snd_printk(KERN_ERR "Yamaha OPL3-SA soundcard not found or device busy\n");
-#endif
-		snd_opl3sa2_unregister_all();
-		return -ENODEV;
-	}
 	return 0;
 }
 
 static void __exit alsa_card_opl3sa2_exit(void)
 {
-	snd_opl3sa2_unregister_all();
+#ifdef CONFIG_PNP
+	if (pnpc_registered)
+		pnp_unregister_card_driver(&opl3sa2_pnpc_driver);
+	if (pnp_registered)
+		pnp_unregister_driver(&opl3sa2_pnp_driver);
+#endif
+	isa_unregister_driver(&snd_opl3sa2_isa_driver);
 }
 
 module_init(alsa_card_opl3sa2_init)

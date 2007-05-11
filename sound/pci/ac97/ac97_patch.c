@@ -23,20 +23,8 @@
  *
  */
 
-#include <sound/driver.h>
-#include <linux/delay.h>
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/mutex.h>
-
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/control.h>
-#include <sound/tlv.h>
-#include <sound/ac97_codec.h>
-#include "ac97_patch.h"
-#include "ac97_id.h"
 #include "ac97_local.h"
+#include "ac97_patch.h"
 
 /*
  *  Chip specific initialization
@@ -390,7 +378,7 @@ static struct snd_ac97_build_ops patch_yamaha_ymf753_ops = {
 	.build_post_spdif = patch_yamaha_ymf753_post_spdif
 };
 
-int patch_yamaha_ymf753(struct snd_ac97 * ac97)
+static int patch_yamaha_ymf753(struct snd_ac97 * ac97)
 {
 	/* Patch for Yamaha YMF753, Copyright (c) by David Shust, dshust@shustring.com.
 	   This chip has nonstandard and extended behaviour with regard to its S/PDIF output.
@@ -436,7 +424,7 @@ static struct snd_ac97_build_ops patch_wolfson_wm9703_ops = {
 	.build_specific = patch_wolfson_wm9703_specific,
 };
 
-int patch_wolfson03(struct snd_ac97 * ac97)
+static int patch_wolfson03(struct snd_ac97 * ac97)
 {
 	ac97->build_ops = &patch_wolfson_wm9703_ops;
 	return 0;
@@ -467,7 +455,7 @@ static struct snd_ac97_build_ops patch_wolfson_wm9704_ops = {
 	.build_specific = patch_wolfson_wm9704_specific,
 };
 
-int patch_wolfson04(struct snd_ac97 * ac97)
+static int patch_wolfson04(struct snd_ac97 * ac97)
 {
 	/* WM9704M/9704Q */
 	ac97->build_ops = &patch_wolfson_wm9704_ops;
@@ -489,7 +477,7 @@ static struct snd_ac97_build_ops patch_wolfson_wm9705_ops = {
 	.build_specific = patch_wolfson_wm9705_specific,
 };
 
-int patch_wolfson05(struct snd_ac97 * ac97)
+static int patch_wolfson05(struct snd_ac97 * ac97)
 {
 	/* WM9705, WM9710 */
 	ac97->build_ops = &patch_wolfson_wm9705_ops;
@@ -625,7 +613,7 @@ static struct snd_ac97_build_ops patch_wolfson_wm9711_ops = {
 	.build_specific = patch_wolfson_wm9711_specific,
 };
 
-int patch_wolfson11(struct snd_ac97 * ac97)
+static int patch_wolfson11(struct snd_ac97 * ac97)
 {
 	/* WM9711, WM9712 */
 	ac97->build_ops = &patch_wolfson_wm9711_ops;
@@ -824,7 +812,7 @@ static struct snd_ac97_build_ops patch_wolfson_wm9713_ops = {
 #endif
 };
 
-int patch_wolfson13(struct snd_ac97 * ac97)
+static int patch_wolfson13(struct snd_ac97 * ac97)
 {
 	/* WM9713, WM9714 */
 	ac97->build_ops = &patch_wolfson_wm9713_ops;
@@ -844,7 +832,7 @@ int patch_wolfson13(struct snd_ac97 * ac97)
 /*
  * Tritech codec
  */
-int patch_tritech_tr28028(struct snd_ac97 * ac97)
+static int patch_tritech_tr28028(struct snd_ac97 * ac97)
 {
 	snd_ac97_write_cache(ac97, 0x26, 0x0300);
 	snd_ac97_write_cache(ac97, 0x26, 0x0000);
@@ -922,7 +910,7 @@ static struct snd_ac97_build_ops patch_sigmatel_stac9700_ops = {
 	.build_specific	= patch_sigmatel_stac97xx_specific
 };
 
-int patch_sigmatel_stac9700(struct snd_ac97 * ac97)
+static int patch_sigmatel_stac9700(struct snd_ac97 * ac97)
 {
 	ac97->build_ops = &patch_sigmatel_stac9700_ops;
 	return 0;
@@ -969,7 +957,7 @@ static struct snd_ac97_build_ops patch_sigmatel_stac9708_ops = {
 	.build_specific	= patch_sigmatel_stac9708_specific
 };
 
-int patch_sigmatel_stac9708(struct snd_ac97 * ac97)
+static int patch_sigmatel_stac9708(struct snd_ac97 * ac97)
 {
 	unsigned int codec72, codec6c;
 
@@ -995,7 +983,7 @@ int patch_sigmatel_stac9708(struct snd_ac97 * ac97)
 	return 0;
 }
 
-int patch_sigmatel_stac9721(struct snd_ac97 * ac97)
+static int patch_sigmatel_stac9721(struct snd_ac97 * ac97)
 {
 	ac97->build_ops = &patch_sigmatel_stac9700_ops;
 	if (snd_ac97_read(ac97, AC97_SIGMATEL_ANALOG) == 0) {
@@ -1009,7 +997,7 @@ int patch_sigmatel_stac9721(struct snd_ac97 * ac97)
 	return 0;
 }
 
-int patch_sigmatel_stac9744(struct snd_ac97 * ac97)
+static int patch_sigmatel_stac9744(struct snd_ac97 * ac97)
 {
 	// patch for SigmaTel
 	ac97->build_ops = &patch_sigmatel_stac9700_ops;
@@ -1021,7 +1009,7 @@ int patch_sigmatel_stac9744(struct snd_ac97 * ac97)
 	return 0;
 }
 
-int patch_sigmatel_stac9756(struct snd_ac97 * ac97)
+static int patch_sigmatel_stac9756(struct snd_ac97 * ac97)
 {
 	// patch for SigmaTel
 	ac97->build_ops = &patch_sigmatel_stac9700_ops;
@@ -1198,7 +1186,7 @@ static struct snd_ac97_build_ops patch_sigmatel_stac9758_ops = {
 	.build_specific	= patch_sigmatel_stac9758_specific
 };
 
-int patch_sigmatel_stac9758(struct snd_ac97 * ac97)
+static int patch_sigmatel_stac9758(struct snd_ac97 * ac97)
 {
 	static unsigned short regs[4] = {
 		AC97_SIGMATEL_OUTSEL,
@@ -1272,7 +1260,7 @@ static struct snd_ac97_build_ops patch_cirrus_ops = {
 	.build_spdif = patch_cirrus_build_spdif
 };
 
-int patch_cirrus_spdif(struct snd_ac97 * ac97)
+static int patch_cirrus_spdif(struct snd_ac97 * ac97)
 {
 	/* Basically, the cs4201/cs4205/cs4297a has non-standard sp/dif registers.
 	   WHY CAN'T ANYONE FOLLOW THE BLOODY SPEC?  *sigh*
@@ -1293,7 +1281,7 @@ int patch_cirrus_spdif(struct snd_ac97 * ac97)
 	return 0;
 }
 
-int patch_cirrus_cs4299(struct snd_ac97 * ac97)
+static int patch_cirrus_cs4299(struct snd_ac97 * ac97)
 {
 	/* force the detection of PC Beep */
 	ac97->flags |= AC97_HAS_PC_BEEP;
@@ -1329,7 +1317,7 @@ static struct snd_ac97_build_ops patch_conexant_ops = {
 	.build_spdif = patch_conexant_build_spdif
 };
 
-int patch_conexant(struct snd_ac97 * ac97)
+static int patch_conexant(struct snd_ac97 * ac97)
 {
 	ac97->build_ops = &patch_conexant_ops;
 	ac97->flags |= AC97_CX_SPDIF;
@@ -1338,7 +1326,7 @@ int patch_conexant(struct snd_ac97 * ac97)
 	return 0;
 }
 
-int patch_cx20551(struct snd_ac97 *ac97)
+static int patch_cx20551(struct snd_ac97 *ac97)
 {
 	snd_ac97_update_bits(ac97, 0x5c, 0x01, 0x01);
 	return 0;
@@ -1430,7 +1418,7 @@ static const struct snd_ac97_res_table ad1819_restbl[] = {
 	{ } /* terminator */
 };
 
-int patch_ad1819(struct snd_ac97 * ac97)
+static int patch_ad1819(struct snd_ac97 * ac97)
 {
 	unsigned short scfg;
 
@@ -1507,7 +1495,7 @@ static struct snd_ac97_build_ops patch_ad1881_build_ops = {
 #endif
 };
 
-int patch_ad1881(struct snd_ac97 * ac97)
+static int patch_ad1881(struct snd_ac97 * ac97)
 {
 	static const char cfg_idxs[3][2] = {
 		{2, 1},
@@ -1595,7 +1583,7 @@ static struct snd_ac97_build_ops patch_ad1885_build_ops = {
 #endif
 };
 
-int patch_ad1885(struct snd_ac97 * ac97)
+static int patch_ad1885(struct snd_ac97 * ac97)
 {
 	patch_ad1881(ac97);
 	/* This is required to deal with the Intel D815EEAL2 */
@@ -1622,7 +1610,7 @@ static struct snd_ac97_build_ops patch_ad1886_build_ops = {
 #endif
 };
 
-int patch_ad1886(struct snd_ac97 * ac97)
+static int patch_ad1886(struct snd_ac97 * ac97)
 {
 	patch_ad1881(ac97);
 	/* Presario700 workaround */
@@ -1844,7 +1832,7 @@ static void check_ad1981_hp_jack_sense(struct snd_ac97 *ac97)
 		snd_ac97_update_bits(ac97, AC97_AD_JACK_SPDIF, 1<<11, 1<<11);
 }
 
-int patch_ad1981a(struct snd_ac97 *ac97)
+static int patch_ad1981a(struct snd_ac97 *ac97)
 {
 	patch_ad1881(ac97);
 	ac97->build_ops = &patch_ad1981a_build_ops;
@@ -1877,7 +1865,7 @@ static struct snd_ac97_build_ops patch_ad1981b_build_ops = {
 #endif
 };
 
-int patch_ad1981b(struct snd_ac97 *ac97)
+static int patch_ad1981b(struct snd_ac97 *ac97)
 {
 	patch_ad1881(ac97);
 	ac97->build_ops = &patch_ad1981b_build_ops;
@@ -2014,7 +2002,7 @@ static struct snd_ac97_build_ops patch_ad1888_build_ops = {
 	.update_jacks = ad1888_update_jacks,
 };
 
-int patch_ad1888(struct snd_ac97 * ac97)
+static int patch_ad1888(struct snd_ac97 * ac97)
 {
 	unsigned short misc;
 	
@@ -2052,7 +2040,7 @@ static struct snd_ac97_build_ops patch_ad1980_build_ops = {
 	.update_jacks = ad1888_update_jacks,
 };
 
-int patch_ad1980(struct snd_ac97 * ac97)
+static int patch_ad1980(struct snd_ac97 * ac97)
 {
 	patch_ad1888(ac97);
 	ac97->build_ops = &patch_ad1980_build_ops;
@@ -2168,7 +2156,7 @@ static struct snd_ac97_build_ops patch_ad1985_build_ops = {
 	.update_jacks = ad1985_update_jacks,
 };
 
-int patch_ad1985(struct snd_ac97 * ac97)
+static int patch_ad1985(struct snd_ac97 * ac97)
 {
 	unsigned short misc;
 	
@@ -2468,7 +2456,7 @@ static struct snd_ac97_build_ops patch_ad1986_build_ops = {
 	.update_jacks = ad1986_update_jacks,
 };
 
-int patch_ad1986(struct snd_ac97 * ac97)
+static int patch_ad1986(struct snd_ac97 * ac97)
 {
 	patch_ad1881(ac97);
 	ac97->build_ops = &patch_ad1986_build_ops;
@@ -2561,7 +2549,7 @@ static struct snd_ac97_build_ops patch_alc650_ops = {
 	.update_jacks = alc650_update_jacks
 };
 
-int patch_alc650(struct snd_ac97 * ac97)
+static int patch_alc650(struct snd_ac97 * ac97)
 {
 	unsigned short val;
 
@@ -2713,7 +2701,7 @@ static struct snd_ac97_build_ops patch_alc655_ops = {
 	.update_jacks = alc655_update_jacks
 };
 
-int patch_alc655(struct snd_ac97 * ac97)
+static int patch_alc655(struct snd_ac97 * ac97)
 {
 	unsigned int val;
 
@@ -2739,6 +2727,7 @@ int patch_alc655(struct snd_ac97 * ac97)
 		    (ac97->subsystem_device == 0x0131 || /* MSI S270 laptop */
 		     ac97->subsystem_device == 0x0161 || /* LG K1 Express */
 		     ac97->subsystem_device == 0x0351 || /* MSI L725 laptop */
+		     ac97->subsystem_device == 0x0471 || /* MSI L720 laptop */
 		     ac97->subsystem_device == 0x0061))  /* MSI S250 laptop */
 			val &= ~(1 << 1); /* Pin 47 is EAPD (for internal speaker) */
 		else
@@ -2815,7 +2804,7 @@ static struct snd_ac97_build_ops patch_alc850_ops = {
 	.update_jacks = alc850_update_jacks
 };
 
-int patch_alc850(struct snd_ac97 *ac97)
+static int patch_alc850(struct snd_ac97 *ac97)
 {
 	ac97->build_ops = &patch_alc850_ops;
 
@@ -2875,7 +2864,7 @@ static struct snd_ac97_build_ops patch_cm9738_ops = {
 	.update_jacks = cm9738_update_jacks
 };
 
-int patch_cm9738(struct snd_ac97 * ac97)
+static int patch_cm9738(struct snd_ac97 * ac97)
 {
 	ac97->build_ops = &patch_cm9738_ops;
 	/* FIXME: can anyone confirm below? */
@@ -2967,7 +2956,7 @@ static struct snd_ac97_build_ops patch_cm9739_ops = {
 	.update_jacks = cm9739_update_jacks
 };
 
-int patch_cm9739(struct snd_ac97 * ac97)
+static int patch_cm9739(struct snd_ac97 * ac97)
 {
 	unsigned short val;
 
@@ -3141,7 +3130,7 @@ static struct snd_ac97_build_ops patch_cm9761_ops = {
 	.update_jacks = cm9761_update_jacks
 };
 
-int patch_cm9761(struct snd_ac97 *ac97)
+static int patch_cm9761(struct snd_ac97 *ac97)
 {
 	unsigned short val;
 
@@ -3236,7 +3225,7 @@ static struct snd_ac97_build_ops patch_cm9780_ops = {
 	.build_post_spdif = patch_cm9761_post_spdif	/* identical with CM9761 */
 };
 
-int patch_cm9780(struct snd_ac97 *ac97)
+static int patch_cm9780(struct snd_ac97 *ac97)
 {
 	unsigned short val;
 
@@ -3279,7 +3268,7 @@ static struct snd_ac97_build_ops patch_vt1616_ops = {
 	.build_specific	= patch_vt1616_specific
 };
 
-int patch_vt1616(struct snd_ac97 * ac97)
+static int patch_vt1616(struct snd_ac97 * ac97)
 {
 	ac97->build_ops = &patch_vt1616_ops;
 	return 0;
@@ -3288,16 +3277,111 @@ int patch_vt1616(struct snd_ac97 * ac97)
 /*
  * VT1617A codec
  */
+
+/*
+ * unfortunately, the vt1617a stashes the twiddlers required for
+ * nooding the i/o jacks on 2 different regs. * thameans that we cant
+ * use the easy way provided by AC97_ENUM_DOUBLE() we have to write
+ * are own funcs.
+ *
+ * NB: this is absolutely and utterly different from the vt1618. dunno
+ * about the 1616.
+ */
+
+/* copied from ac97_surround_jack_mode_info() */
+static int snd_ac97_vt1617a_smart51_info(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_info *uinfo)
+{
+	/* ordering in this list reflects vt1617a docs for Reg 20 and
+	 * 7a and Table 6 that lays out the matrix NB WRT Table6: SM51
+	 * is SM51EN *AND* it's Bit14, not Bit15 so the table is very
+	 * counter-intuitive */ 
+
+	static const char* texts[] = { "LineIn Mic1", "LineIn Mic1 Mic3",
+				       "Surr LFE/C Mic3", "LineIn LFE/C Mic3",
+				       "LineIn Mic2", "LineIn Mic2 Mic1",
+				       "Surr LFE Mic1", "Surr LFE Mic1 Mic2"};
+	return ac97_enum_text_info(kcontrol, uinfo, texts, 8);
+}
+
+static int snd_ac97_vt1617a_smart51_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	ushort usSM51, usMS;  
+
+	struct snd_ac97 *pac97;
+	
+	pac97 = snd_kcontrol_chip(kcontrol); /* grab codec handle */
+
+	/* grab our desirec bits, then mash them together in a manner
+	 * consistent with Table 6 on page 17 in the 1617a docs */
+ 
+	usSM51 = snd_ac97_read(pac97, 0x7a) >> 14;
+	usMS   = snd_ac97_read(pac97, 0x20) >> 8;
+  
+	ucontrol->value.enumerated.item[0] = (usSM51 << 1) + usMS;
+
+	return 0;
+}
+
+static int snd_ac97_vt1617a_smart51_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	ushort usSM51, usMS, usReg;  
+
+	struct snd_ac97 *pac97;
+
+	pac97 = snd_kcontrol_chip(kcontrol); /* grab codec handle */
+
+	usSM51 = ucontrol->value.enumerated.item[0] >> 1;
+	usMS   = ucontrol->value.enumerated.item[0] &  1;
+
+	/* push our values into the register - consider that things will be left
+	 * in a funky state if the write fails */
+
+	usReg = snd_ac97_read(pac97, 0x7a);
+	snd_ac97_write_cache(pac97, 0x7a, (usReg & 0x3FFF) + (usSM51 << 14));
+	usReg = snd_ac97_read(pac97, 0x20);
+	snd_ac97_write_cache(pac97, 0x20, (usReg & 0xFEFF) + (usMS   <<  8));
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new snd_ac97_controls_vt1617a[] = {
+
+	AC97_SINGLE("Center/LFE Exchange", 0x5a, 8, 1, 0),
+	/*
+	 * These are used to enable/disable surround sound on motherboards
+	 * that have 3 bidirectional analog jacks
+	 */
+	{
+		.iface         = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name          = "Smart 5.1 Select",
+		.info          = snd_ac97_vt1617a_smart51_info,
+		.get           = snd_ac97_vt1617a_smart51_get,
+		.put           = snd_ac97_vt1617a_smart51_put,
+	},
+};
+
 int patch_vt1617a(struct snd_ac97 * ac97)
 {
-	/* bring analog power consumption to normal, like WinXP driver
-	 * for EPIA SP
+	int err = 0;
+
+	/* we choose to not fail out at this point, but we tell the
+	   caller when we return */
+
+	err = patch_build_controls(ac97, &snd_ac97_controls_vt1617a[0],
+				   ARRAY_SIZE(snd_ac97_controls_vt1617a));
+
+	/* bring analog power consumption to normal by turning off the
+	 * headphone amplifier, like WinXP driver for EPIA SP
 	 */
 	snd_ac97_write_cache(ac97, 0x5c, 0x20);
 	ac97->ext_id |= AC97_EI_SPDIF;	/* force the detection of spdif */
 	ac97->rates[AC97_RATES_SPDIF] = SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000;
 	ac97->build_ops = &patch_vt1616_ops;
-	return 0;
+
+	return err;
 }
 
 /*
@@ -3338,7 +3422,7 @@ static struct snd_ac97_build_ops patch_it2646_ops = {
 	.update_jacks = it2646_update_jacks
 };
 
-int patch_it2646(struct snd_ac97 * ac97)
+static int patch_it2646(struct snd_ac97 * ac97)
 {
 	ac97->build_ops = &patch_it2646_ops;
 	/* full DAC volume */
@@ -3371,7 +3455,7 @@ static struct snd_ac97_build_ops patch_si3036_ops = {
 	.build_specific	= patch_si3036_specific,
 };
 
-int mpatch_si3036(struct snd_ac97 * ac97)
+static int mpatch_si3036(struct snd_ac97 * ac97)
 {
 	ac97->build_ops = &patch_si3036_ops;
 	snd_ac97_write_cache(ac97, 0x5c, 0xf210 );
@@ -3403,7 +3487,7 @@ static struct snd_ac97_res_table lm4550_restbl[] = {
 	{ } /* terminator */
 };
 
-int patch_lm4550(struct snd_ac97 *ac97)
+static int patch_lm4550(struct snd_ac97 *ac97)
 {
 	ac97->res_table = lm4550_restbl;
 	return 0;
@@ -3438,7 +3522,7 @@ static struct snd_ac97_build_ops patch_ucb1400_ops = {
 	.build_specific	= patch_ucb1400_specific,
 };
 
-int patch_ucb1400(struct snd_ac97 * ac97)
+static int patch_ucb1400(struct snd_ac97 * ac97)
 {
 	ac97->build_ops = &patch_ucb1400_ops;
 	/* enable headphone driver and smart low power mode by default */

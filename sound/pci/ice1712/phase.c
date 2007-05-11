@@ -89,13 +89,13 @@ static const unsigned char wm_vol[256] = {
 #define WM_VOL_MAX	(sizeof(wm_vol) - 1)
 #define WM_VOL_MUTE	0x8000
 
-static const struct snd_akm4xxx akm_phase22 __devinitdata = {
+static struct snd_akm4xxx akm_phase22 __devinitdata = {
 	.type = SND_AK4524,
 	.num_dacs = 2,
 	.num_adcs = 2,
 };
 
-static const struct snd_ak4xxx_private akm_phase22_priv __devinitdata = {
+static struct snd_ak4xxx_private akm_phase22_priv __devinitdata = {
 	.caddr =	2,
 	.cif =		1,
 	.data_mask =	1 << 4,
@@ -152,7 +152,7 @@ static int __devinit phase22_add_controls(struct snd_ice1712 *ice)
 	return 0;
 }
 
-static const unsigned char phase22_eeprom[] __devinitdata = {
+static unsigned char phase22_eeprom[] __devinitdata = {
 	[ICE_EEP2_SYSCONF]     = 0x00,	/* 1xADC, 1xDACs */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
 	[ICE_EEP2_I2S]         = 0xf8,	/* vol, 96k, 24bit */
@@ -168,7 +168,7 @@ static const unsigned char phase22_eeprom[] __devinitdata = {
 	[ICE_EEP2_GPIO_STATE2] = 0x00,
 };
 
-static const unsigned char phase28_eeprom[] __devinitdata = {
+static unsigned char phase28_eeprom[] __devinitdata = {
 	[ICE_EEP2_SYSCONF]     = 0x0b,	/* clock 512, spdif-in/ADC, 4DACs */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
 	[ICE_EEP2_I2S]         = 0xfc,	/* vol, 96k, 24bit, 192k */
@@ -700,7 +700,7 @@ static int phase28_oversampling_put(struct snd_kcontrol *kcontrol, struct snd_ct
 static const DECLARE_TLV_DB_SCALE(db_scale_wm_dac, -12700, 100, 1);
 static const DECLARE_TLV_DB_SCALE(db_scale_wm_pcm, -6400, 50, 1);
 
-static const struct snd_kcontrol_new phase28_dac_controls[] __devinitdata = {
+static struct snd_kcontrol_new phase28_dac_controls[] __devinitdata = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
@@ -815,7 +815,7 @@ static const struct snd_kcontrol_new phase28_dac_controls[] __devinitdata = {
 	}
 };
 
-static const struct snd_kcontrol_new wm_controls[] __devinitdata = {
+static struct snd_kcontrol_new wm_controls[] __devinitdata = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "PCM Playback Switch",
@@ -870,7 +870,7 @@ static int __devinit phase28_add_controls(struct snd_ice1712 *ice)
 	return 0;
 }
 
-const struct snd_ice1712_card_info snd_vt1724_phase_cards[] __devinitdata = {
+struct snd_ice1712_card_info snd_vt1724_phase_cards[] __devinitdata = {
 	{
 		.subvendor = VT1724_SUBDEVICE_PHASE22,
 		.name = "Terratec PHASE 22",

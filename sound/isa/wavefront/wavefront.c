@@ -24,7 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/err.h>
-#include <linux/platform_device.h>
+#include <linux/isa.h>
 #include <linux/pnp.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
@@ -40,7 +40,9 @@ MODULE_SUPPORTED_DEVICE("{{Turtle Beach,Maui/Tropez/Tropez+}}");
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	    /* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	    /* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE;	    /* Enable this card */
+#ifdef CONFIG_PNP
 static int isapnp[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 1};
+#endif
 static long cs4232_pcm_port[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;	/* PnP setup */
 static int cs4232_pcm_irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ; /* 5,7,9,11,12,15 */
 static long cs4232_mpu_port[SNDRV_CARDS] = SNDRV_DEFAULT_PORT; /* PnP setup */
@@ -82,8 +84,6 @@ module_param_array(fm_port, long, NULL, 0444);
 MODULE_PARM_DESC(fm_port, "FM port #.");
 module_param_array(use_cs4232_midi, bool, NULL, 0444);
 MODULE_PARM_DESC(use_cs4232_midi, "Use CS4232 MPU-401 interface (inaccessibly located inside your computer)");
-
-static struct platform_device *platform_devices[SNDRV_CARDS];
 
 #ifdef CONFIG_PNP
 static int pnp_registered;
@@ -588,56 +588,67 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 	return snd_card_register(card);
 }	
 
-static int __devinit snd_wavefront_nonpnp_probe(struct platform_device *pdev)
+static int __devinit snd_wavefront_isa_match(struct device *pdev,
+					     unsigned int dev)
 {
-	int dev = pdev->id;
-	struct snd_card *card;
-	int err;
-
+	if (!enable[dev])
+		return 0;
+#ifdef CONFIG_PNP
+	if (isapnp[dev])
+		return 0;
+#endif
 	if (cs4232_pcm_port[dev] == SNDRV_AUTO_PORT) {
 		snd_printk("specify CS4232 port\n");
-		return -EINVAL;
+		return 0;
 	}
 	if (ics2115_port[dev] == SNDRV_AUTO_PORT) {
 		snd_printk("specify ICS2115 port\n");
-		return -ENODEV;
+		return 0;
 	}
+	return 1;
+}
+
+static int __devinit snd_wavefront_isa_probe(struct device *pdev,
+					     unsigned int dev)
+{
+	struct snd_card *card;
+	int err;
 
 	card = snd_wavefront_card_new(dev);
 	if (! card)
 		return -ENOMEM;
-	snd_card_set_dev(card, &pdev->dev);
+	snd_card_set_dev(card, pdev);
 	if ((err = snd_wavefront_probe(card, dev)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
 	
-	platform_set_drvdata(pdev, card);
+	dev_set_drvdata(pdev, card);
 	return 0;
 }
 
-static int __devexit snd_wavefront_nonpnp_remove(struct platform_device *devptr)
+static int __devexit snd_wavefront_isa_remove(struct device *devptr,
+					      unsigned int dev)
 {
-	snd_card_free(platform_get_drvdata(devptr));
-	platform_set_drvdata(devptr, NULL);
+	snd_card_free(dev_get_drvdata(devptr));
+	dev_set_drvdata(devptr, NULL);
 	return 0;
 }
 
-#define WAVEFRONT_DRIVER	"snd_wavefront"
+#define DEV_NAME "wavefront"
 
-static struct platform_driver snd_wavefront_driver = {
-	.probe		= snd_wavefront_nonpnp_probe,
-	.remove		= __devexit_p(snd_wavefront_nonpnp_remove),
+static struct isa_driver snd_wavefront_driver = {
+	.match		= snd_wavefront_isa_match,
+	.probe		= snd_wavefront_isa_probe,
+	.remove		= __devexit_p(snd_wavefront_isa_remove),
 	/* FIXME: suspend, resume */
 	.driver		= {
-		.name	= WAVEFRONT_DRIVER
+		.name	= DEV_NAME
 	},
 };
 
 
 #ifdef CONFIG_PNP
-static unsigned int __devinitdata wavefront_pnp_devices;
-
 static int __devinit snd_wavefront_pnp_detect(struct pnp_card_link *pcard,
                                               const struct pnp_card_device_id *pid)
 {
@@ -670,7 +681,6 @@ static int __devinit snd_wavefront_pnp_detect(struct pnp_card_link *pcard,
 
 	pnp_set_card_drvdata(pcard, card);
 	dev++;
-	wavefront_pnp_devices++;
 	return 0;
 }
 
@@ -691,67 +701,28 @@ static struct pnp_card_driver wavefront_pnpc_driver = {
 
 #endif /* CONFIG_PNP */
 
-static void __init_or_module snd_wavefront_unregister_all(void)
-{
-	int i;
-
-#ifdef CONFIG_PNP
-	if (pnp_registered)
-		pnp_unregister_card_driver(&wavefront_pnpc_driver);
-#endif
-	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
-		platform_device_unregister(platform_devices[i]);
-	platform_driver_unregister(&snd_wavefront_driver);
-}
-
 static int __init alsa_card_wavefront_init(void)
 {
-	int i, err, cards = 0;
+	int err;
 
-	if ((err = platform_driver_register(&snd_wavefront_driver)) < 0)
+	err = isa_register_driver(&snd_wavefront_driver, SNDRV_CARDS);
+	if (err < 0)
 		return err;
-
-	for (i = 0; i < SNDRV_CARDS; i++) {
-		struct platform_device *device;
-		if (! enable[i])
-			continue;
-#ifdef CONFIG_PNP
-		if (isapnp[i])
-			continue;
-#endif
-		device = platform_device_register_simple(WAVEFRONT_DRIVER,
-							 i, NULL, 0);
-		if (IS_ERR(device))
-			continue;
-		if (!platform_get_drvdata(device)) {
-			platform_device_unregister(device);
-			continue;
-		}
-		platform_devices[i] = device;
-		cards++;
-	}
-
 #ifdef CONFIG_PNP
 	err = pnp_register_card_driver(&wavefront_pnpc_driver);
-	if (!err) {
+	if (!err)
 		pnp_registered = 1;
-		cards += wavefront_pnp_devices;
-	}
 #endif
-
-	if (!cards) {
-#ifdef MODULE
-		printk (KERN_ERR "No WaveFront cards found or devices busy\n");
-#endif
-		snd_wavefront_unregister_all();
-		return -ENODEV;
-	}
 	return 0;
 }
 
 static void __exit alsa_card_wavefront_exit(void)
 {
-	snd_wavefront_unregister_all();
+#ifdef CONFIG_PNP
+	if (pnp_registered)
+		pnp_unregister_card_driver(&wavefront_pnpc_driver);
+#endif
+	isa_unregister_driver(&snd_wavefront_driver);
 }
 
 module_init(alsa_card_wavefront_init)

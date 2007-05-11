@@ -219,7 +219,7 @@ static const struct snd_akm4xxx_adc_channel revo51_adc[] = {
 	},
 };
 
-static const struct snd_akm4xxx akm_revo_front __devinitdata = {
+static struct snd_akm4xxx akm_revo_front __devinitdata = {
 	.type = SND_AK4381,
 	.num_dacs = 2,
 	.ops = {
@@ -228,7 +228,7 @@ static const struct snd_akm4xxx akm_revo_front __devinitdata = {
 	.dac_info = revo71_front,
 };
 
-static const struct snd_ak4xxx_private akm_revo_front_priv __devinitdata = {
+static struct snd_ak4xxx_private akm_revo_front_priv __devinitdata = {
 	.caddr = 1,
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
@@ -240,7 +240,7 @@ static const struct snd_ak4xxx_private akm_revo_front_priv __devinitdata = {
 	.mask_flags = 0,
 };
 
-static const struct snd_akm4xxx akm_revo_surround __devinitdata = {
+static struct snd_akm4xxx akm_revo_surround __devinitdata = {
 	.type = SND_AK4355,
 	.idx_offset = 1,
 	.num_dacs = 6,
@@ -250,7 +250,7 @@ static const struct snd_akm4xxx akm_revo_surround __devinitdata = {
 	.dac_info = revo71_surround,
 };
 
-static const struct snd_ak4xxx_private akm_revo_surround_priv __devinitdata = {
+static struct snd_ak4xxx_private akm_revo_surround_priv __devinitdata = {
 	.caddr = 3,
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
@@ -262,7 +262,7 @@ static const struct snd_ak4xxx_private akm_revo_surround_priv __devinitdata = {
 	.mask_flags = 0,
 };
 
-static const struct snd_akm4xxx akm_revo51 __devinitdata = {
+static struct snd_akm4xxx akm_revo51 __devinitdata = {
 	.type = SND_AK4358,
 	.num_dacs = 6,
 	.ops = {
@@ -271,7 +271,7 @@ static const struct snd_akm4xxx akm_revo51 __devinitdata = {
 	.dac_info = revo51_dac,
 };
 
-static const struct snd_ak4xxx_private akm_revo51_priv __devinitdata = {
+static struct snd_ak4xxx_private akm_revo51_priv __devinitdata = {
 	.caddr = 2,
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
@@ -283,13 +283,13 @@ static const struct snd_ak4xxx_private akm_revo51_priv __devinitdata = {
 	.mask_flags = 0,
 };
 
-static const struct snd_akm4xxx akm_revo51_adc __devinitdata = {
+static struct snd_akm4xxx akm_revo51_adc __devinitdata = {
 	.type = SND_AK5365,
 	.num_adcs = 2,
 	.adc_info = revo51_adc,
 };
 
-static const struct snd_ak4xxx_private akm_revo51_adc_priv __devinitdata = {
+static struct snd_ak4xxx_private akm_revo51_adc_priv __devinitdata = {
 	.caddr = 2,
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
@@ -324,7 +324,7 @@ static const struct snd_akm4xxx_dac_channel ap192_dac[] = {
 	AK_DAC("PCM Playback Volume", 2)
 };
 
-static const struct snd_akm4xxx akm_ap192 __devinitdata = {
+static struct snd_akm4xxx akm_ap192 __devinitdata = {
 	.type = SND_AK4358,
 	.num_dacs = 2,
 	.ops = {
@@ -333,7 +333,7 @@ static const struct snd_akm4xxx akm_ap192 __devinitdata = {
 	.dac_info = ap192_dac,
 };
 
-static const struct snd_ak4xxx_private akm_ap192_priv __devinitdata = {
+static struct snd_ak4xxx_private akm_ap192_priv __devinitdata = {
 	.caddr = 2,
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
@@ -405,7 +405,7 @@ static unsigned char read_data(struct snd_ice1712 *ice, unsigned int gpio,
 	return data;
 }
 
-static unsigned char ap192_4wire_start(struct snd_ice1712 *ice)
+static unsigned int ap192_4wire_start(struct snd_ice1712 *ice)
 {
 	unsigned int tmp;
 
@@ -454,7 +454,7 @@ static unsigned char ap192_ak4114_read(void *private_data, unsigned char addr)
 	return data;
 }
 
-static int ap192_ak4114_init(struct snd_ice1712 *ice)
+static int __devinit ap192_ak4114_init(struct snd_ice1712 *ice)
 {
 	static const unsigned char ak4114_init_vals[] = {
 		AK4114_RST | AK4114_PWN | AK4114_OCKS0 | AK4114_OCKS1,
@@ -582,7 +582,7 @@ static int __devinit revo_add_controls(struct snd_ice1712 *ice)
 }
 
 /* entry point */
-const struct snd_ice1712_card_info snd_vt1724_revo_cards[] __devinitdata = {
+struct snd_ice1712_card_info snd_vt1724_revo_cards[] __devinitdata = {
 	{
 		.subvendor = VT1724_SUBDEVICE_REVOLUTION71,
 		.name = "M Audio Revolution-7.1",

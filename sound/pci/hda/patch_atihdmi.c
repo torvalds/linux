@@ -94,6 +94,17 @@ static int atihdmi_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
 }
 
+static int atihdmi_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
+					    struct hda_codec *codec,
+					    unsigned int stream_tag,
+					    unsigned int format,
+					    struct snd_pcm_substream *substream)
+{
+	struct atihdmi_spec *spec = codec->spec;
+	return snd_hda_multi_out_dig_prepare(codec, &spec->multiout, stream_tag,
+					     format, substream);
+}
+
 static struct hda_pcm_stream atihdmi_pcm_digital_playback = {
 	.substreams = 1,
 	.channels_min = 2,
@@ -101,7 +112,8 @@ static struct hda_pcm_stream atihdmi_pcm_digital_playback = {
 	.nid = 0x2, /* NID to query formats and rates and setup streams */
 	.ops = {
 		.open = atihdmi_dig_playback_pcm_open,
-		.close = atihdmi_dig_playback_pcm_close
+		.close = atihdmi_dig_playback_pcm_close,
+		.prepare = atihdmi_dig_playback_pcm_prepare
 	},
 };
 
@@ -160,6 +172,7 @@ static int patch_atihdmi(struct hda_codec *codec)
  */
 struct hda_codec_preset snd_hda_preset_atihdmi[] = {
 	{ .id = 0x1002793c, .name = "ATI RS600 HDMI", .patch = patch_atihdmi },
-	{ .id = 0x1002791a, .name = "ATI RS690 HDMI", .patch = patch_atihdmi },
+	{ .id = 0x1002791a, .name = "ATI RS690/780 HDMI", .patch = patch_atihdmi },
+	{ .id = 0x1002aa01, .name = "ATI R600 HDMI", .patch = patch_atihdmi },
 	{} /* terminator */
 };

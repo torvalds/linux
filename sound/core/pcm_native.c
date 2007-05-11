@@ -712,26 +712,23 @@ static int snd_pcm_action_group(struct action_ops *ops,
 				struct snd_pcm_substream *substream,
 				int state, int do_lock)
 {
-	struct list_head *pos;
 	struct snd_pcm_substream *s = NULL;
 	struct snd_pcm_substream *s1;
 	int res = 0;
 
-	snd_pcm_group_for_each(pos, substream) {
-		s = snd_pcm_group_substream_entry(pos);
+	snd_pcm_group_for_each_entry(s, substream) {
 		if (do_lock && s != substream)
-			spin_lock(&s->self_group.lock);
+			spin_lock_nested(&s->self_group.lock,
+					 SINGLE_DEPTH_NESTING);
 		res = ops->pre_action(s, state);
 		if (res < 0)
 			goto _unlock;
 	}
-	snd_pcm_group_for_each(pos, substream) {
-		s = snd_pcm_group_substream_entry(pos);
+	snd_pcm_group_for_each_entry(s, substream) {
 		res = ops->do_action(s, state);
 		if (res < 0) {
 			if (ops->undo_action) {
-				snd_pcm_group_for_each(pos, substream) {
-					s1 = snd_pcm_group_substream_entry(pos);
+				snd_pcm_group_for_each_entry(s1, substream) {
 					if (s1 == s) /* failed stream */
 						break;
 					ops->undo_action(s1, state);
@@ -741,15 +738,13 @@ static int snd_pcm_action_group(struct action_ops *ops,
 			goto _unlock;
 		}
 	}
-	snd_pcm_group_for_each(pos, substream) {
-		s = snd_pcm_group_substream_entry(pos);
+	snd_pcm_group_for_each_entry(s, substream) {
 		ops->post_action(s, state);
 	}
  _unlock:
 	if (do_lock) {
 		/* unlock streams */
-		snd_pcm_group_for_each(pos, substream) {
-			s1 = snd_pcm_group_substream_entry(pos);
+		snd_pcm_group_for_each_entry(s1, substream) {
 			if (s1 != substream)
 				spin_unlock(&s1->self_group.lock);
 			if (s1 == s)	/* end */
@@ -1438,7 +1433,7 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream)
 {
 	struct snd_card *card;
 	struct snd_pcm_runtime *runtime;
-	struct list_head *pos;
+	struct snd_pcm_substream *s;
 	int result = 0;
 	int i, num_drecs;
 	struct drain_rec *drec, drec_tmp, *d;
@@ -1473,8 +1468,7 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream)
 
 	/* count only playback streams */
 	num_drecs = 0;
-	snd_pcm_group_for_each(pos, substream) {
-		struct snd_pcm_substream *s = snd_pcm_group_substream_entry(pos);
+	snd_pcm_group_for_each_entry(s, substream) {
 		runtime = s->runtime;
 		if (s->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			d = &drec[num_drecs++];
@@ -1674,7 +1668,7 @@ static void relink_to_local(struct snd_pcm_substream *substream)
 
 static int snd_pcm_unlink(struct snd_pcm_substream *substream)
 {
-	struct list_head *pos;
+	struct snd_pcm_substream *s;
 	int res = 0;
 
 	down_write(&snd_pcm_link_rwsem);
@@ -1686,8 +1680,8 @@ static int snd_pcm_unlink(struct snd_pcm_substream *substream)
 	list_del(&substream->link_list);
 	substream->group->count--;
 	if (substream->group->count == 1) {	/* detach the last stream, too */
-		snd_pcm_group_for_each(pos, substream) {
-			relink_to_local(snd_pcm_group_substream_entry(pos));
+		snd_pcm_group_for_each_entry(s, substream) {
+			relink_to_local(s);
 			break;
 		}
 		kfree(substream->group);

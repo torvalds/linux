@@ -42,6 +42,7 @@ static int pnp[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 1};
 #endif
 static long port[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;	/* MPU-401 port number */
 static int irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;	/* MPU-401 IRQ */
+static int uart_enter[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 1};
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for MPU-401 device.");
@@ -57,6 +58,8 @@ module_param_array(port, long, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for MPU-401 device.");
 module_param_array(irq, int, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for MPU-401 device.");
+module_param_array(uart_enter, bool, NULL, 0444);
+MODULE_PARM_DESC(uart_enter, "Issue UART_ENTER command at open.");
 
 static struct platform_device *platform_devices[SNDRV_CARDS];
 static int pnp_registered;
@@ -80,10 +83,11 @@ static int snd_mpu401_create(int dev, struct snd_card **rcard)
 		strcat(card->longname, "polled");
 	}
 
-	if ((err = snd_mpu401_uart_new(card, 0,
-				       MPU401_HW_MPU401,
-				       port[dev], 0,
-				       irq[dev], irq[dev] >= 0 ? IRQF_DISABLED : 0, NULL)) < 0) {
+	err = snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401, port[dev],
+				  uart_enter[dev] ? 0 : MPU401_INFO_UART_ONLY,
+				  irq[dev], irq[dev] >= 0 ? IRQF_DISABLED : 0,
+				  NULL);
+	if (err < 0) {
 		printk(KERN_ERR "MPU401 not detected at 0x%lx\n", port[dev]);
 		goto _err;
 	}

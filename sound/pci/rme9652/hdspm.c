@@ -91,8 +91,10 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 #define HDSPM_controlRegister	     64
 #define HDSPM_interruptConfirmation  96
 #define HDSPM_control2Reg	     256  /* not in specs ???????? */
+#define HDSPM_freqReg                256  /* for AES32 */
 #define HDSPM_midiDataOut0  	     352  /* just believe in old code */
 #define HDSPM_midiDataOut1  	     356
+#define HDSPM_eeprom_wr		     384  /* for AES32 */
 
 /* DMA enable for 64 channels, only Bit 0 is relevant */
 #define HDSPM_outputEnableBase       512  /* 512-767  input  DMA */ 
@@ -389,9 +391,8 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
    size is the same regardless of the number of channels, and
    also the latency to use. 
    for one direction !!!
-   => need to mupltiply by 2!!
 */
-#define HDSPM_DMA_AREA_BYTES (2 * HDSPM_MAX_CHANNELS * HDSPM_CHANNEL_BUFFER_BYTES)
+#define HDSPM_DMA_AREA_BYTES (HDSPM_MAX_CHANNELS * HDSPM_CHANNEL_BUFFER_BYTES)
 #define HDSPM_DMA_AREA_KILOBYTES (HDSPM_DMA_AREA_BYTES/1024)
 
 /* revisions >= 230 indicate AES32 card */
@@ -482,28 +483,6 @@ static char channel_map_madi_ss[HDSPM_MAX_CHANNELS] = {
    40, 41, 42, 43, 44, 45, 46, 47,
    48, 49, 50, 51, 52, 53, 54, 55,
    56, 57, 58, 59, 60, 61, 62, 63
-};
-
-static char channel_map_madi_ds[HDSPM_MAX_CHANNELS] = {
-  0, 2, 4, 6, 8, 10, 12, 14,
-  16, 18, 20, 22, 24, 26, 28, 30,
-  32, 34, 36, 38, 40, 42, 44, 46,
-  48, 50, 52, 54, 56, 58, 60, 62,
-  -1, -1, -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1, -1, -1
-};
-
-static char channel_map_madi_qs[HDSPM_MAX_CHANNELS] = {
-  0,   4,  8, 12, 16, 20, 24,  28,  
-  32, 36, 40, 44, 48, 52, 56,  60
-  -1, -1, -1, -1, -1, -1, -1, -1,  
-  -1, -1, -1, -1, -1, -1, -1, -1,  
-  -1, -1, -1, -1, -1, -1, -1, -1, 
-  -1, -1, -1, -1, -1, -1, -1, -1, 
-  -1, -1, -1, -1, -1, -1, -1, -1, 
-  -1, -1, -1, -1, -1, -1, -1, -1
 };
 
 
@@ -818,6 +797,27 @@ static int hdspm_set_interrupt_interval(struct hdspm * s, unsigned int frames)
 	return 0;
 }
 
+static void hdspm_set_dds_value(struct hdspm *hdspm, int rate)
+{
+	u64 n;
+	u32 r;
+	
+	if (rate >= 112000)
+		rate /= 4;
+	else if (rate >= 56000)
+		rate /= 2;
+
+	/* RME says n = 104857600000000, but in the windows MADI driver, I see:
+//	return 104857600000000 / rate; // 100 MHz
+	return 110100480000000 / rate; // 105 MHz
+        */	   
+	//n = 104857600000000ULL;  /*  =  2^20 * 10^8 */
+	n = 110100480000000ULL;    /* Value checked for AES32 and MADI */
+	div64_32(&n, rate, &r);
+	/* n should be less than 2^32 for being written to FREQ register */
+	snd_assert((n >> 32) == 0);
+	hdspm_write(hdspm, HDSPM_freqReg, (u32)n);
+}
 
 /* dummy set rate lets see what happens */
 static int hdspm_set_rate(struct hdspm * hdspm, int rate, int called_internally)
@@ -943,12 +943,16 @@ static int hdspm_set_rate(struct hdspm * hdspm, int rate, int called_internally)
 	hdspm->control_register |= rate_bits;
 	hdspm_write(hdspm, HDSPM_controlRegister, hdspm->control_register);
 
-	if (rate > 96000 /* 64000*/)
-		hdspm->channel_map = channel_map_madi_qs;
-	else if (rate > 48000)
-		hdspm->channel_map = channel_map_madi_ds;
-	else 
-		hdspm->channel_map = channel_map_madi_ss;
+	/* For AES32, need to set DDS value in FREQ register
+	   For MADI, also apparently */
+	hdspm_set_dds_value(hdspm, rate);
+	
+	if (hdspm->is_aes32 && rate != current_rate)
+		hdspm_write(hdspm, HDSPM_eeprom_wr, 0);
+	
+	/* For AES32 and for MADI (at least rev 204), channel_map needs to
+	 * always be channel_map_madi_ss, whatever the sample rate */
+	hdspm->channel_map = channel_map_madi_ss;
 
 	hdspm->system_sample_rate = rate;
 
@@ -3184,8 +3188,8 @@ snd_hdspm_proc_read_aes32(struct snd_info_entry * entry,
 		    hdspm_read(hdspm, HDSPM_midiStatusIn0) & 0xFF,
 		    hdspm_read(hdspm, HDSPM_midiStatusIn1) & 0xFF);
 	snd_iprintf(buffer,
-		    "Register: ctrl1=0x%x, ctrl2=0x%x, status1=0x%x, status2=0x%x, timecode=0x%x\n",
-		    hdspm->control_register, hdspm->control2_register,
+		    "Register: ctrl1=0x%x, status1=0x%x, status2=0x%x, timecode=0x%x\n",
+		    hdspm->control_register,
 		    status, status2, timecode);
 
 	snd_iprintf(buffer, "--- Settings ---\n");
@@ -3377,13 +3381,16 @@ static int snd_hdspm_set_defaults(struct hdspm * hdspm)
 
 	hdspm_write(hdspm, HDSPM_controlRegister, hdspm->control_register);
 
+        if (!hdspm->is_aes32) {
+		/* No control2 register for AES32 */
 #ifdef SNDRV_BIG_ENDIAN
-	hdspm->control2_register = HDSPM_BIGENDIAN_MODE;
+		hdspm->control2_register = HDSPM_BIGENDIAN_MODE;
 #else
-	hdspm->control2_register = 0;
+		hdspm->control2_register = 0;
 #endif
 
-	hdspm_write(hdspm, HDSPM_control2Reg, hdspm->control2_register);
+		hdspm_write(hdspm, HDSPM_control2Reg, hdspm->control2_register);
+	}
 	hdspm_compute_period_size(hdspm);
 
 	/* silence everything */
@@ -3575,11 +3582,9 @@ static int snd_hdspm_reset(struct snd_pcm_substream *substream)
 	else
 		runtime->status->hw_ptr = 0;
 	if (other) {
-		struct list_head *pos;
 		struct snd_pcm_substream *s;
 		struct snd_pcm_runtime *oruntime = other->runtime;
-		snd_pcm_group_for_each(pos, substream) {
-			s = snd_pcm_group_substream_entry(pos);
+		snd_pcm_group_for_each_entry(s, substream) {
 			if (s == other) {
 				oruntime->status->hw_ptr =
 				    runtime->status->hw_ptr;
@@ -3658,11 +3663,10 @@ static int snd_hdspm_hw_params(struct snd_pcm_substream *substream,
 
 	/* Memory allocation, takashi's method, dont know if we should spinlock  */
 	/* malloc all buffer even if not enabled to get sure */
-	/* malloc only needed bytes */
+	/* Update for MADI rev 204: we need to allocate for all channels,
+	 * otherwise it doesn't work at 96kHz */
 	err =
-	    snd_pcm_lib_malloc_pages(substream,
-				     HDSPM_CHANNEL_BUFFER_BYTES *
-				     params_channels(params));
+	    snd_pcm_lib_malloc_pages(substream, HDSPM_DMA_AREA_BYTES);
 	if (err < 0)
 		return err;
 
@@ -3698,6 +3702,13 @@ static int snd_hdspm_hw_params(struct snd_pcm_substream *substream,
 	   "playback" : "capture",
 	   snd_pcm_sgbuf_get_addr(sgbuf, 0));
 	 */
+	/*
+	snd_printdd("set_hwparams: %s %d Hz, %d channels, bs = %d\n",
+			substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
+			  "playback" : "capture",
+			params_rate(params), params_channels(params),
+			params_buffer_size(params));
+	*/
 	return 0;
 }
 
@@ -3791,10 +3802,8 @@ static int snd_hdspm_trigger(struct snd_pcm_substream *substream, int cmd)
 		other = hdspm->playback_substream;
 
 	if (other) {
-		struct list_head *pos;
 		struct snd_pcm_substream *s;
-		snd_pcm_group_for_each(pos, substream) {
-			s = snd_pcm_group_substream_entry(pos);
+		snd_pcm_group_for_each_entry(s, substream) {
 			if (s == other) {
 				snd_pcm_trigger_done(s, substream);
 				if (cmd == SNDRV_PCM_TRIGGER_START)
@@ -3904,16 +3913,16 @@ static int snd_hdspm_hw_rule_channels_rate(struct snd_pcm_hw_params *params,
 	struct snd_interval *r =
 	    hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
 
-	if (r->min > 48000) {
+	if (r->min > 48000 && r->max <= 96000) {
 		struct snd_interval t = {
-			.min = 1,
+			.min = hdspm->ds_channels,
 			.max = hdspm->ds_channels,
 			.integer = 1,
 		};
 		return snd_interval_refine(c, &t);
 	} else if (r->max < 64000) {
 		struct snd_interval t = {
-			.min = 1,
+			.min = hdspm->ss_channels,
 			.max = hdspm->ss_channels,
 			.integer = 1,
 		};
@@ -3931,14 +3940,14 @@ static int snd_hdspm_hw_rule_rate_channels(struct snd_pcm_hw_params *params,
 	struct snd_interval *r =
 	    hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
 
-	if (c->min <= hdspm->ss_channels) {
+	if (c->min >= hdspm->ss_channels) {
 		struct snd_interval t = {
 			.min = 32000,
 			.max = 48000,
 			.integer = 1,
 		};
 		return snd_interval_refine(r, &t);
-	} else if (c->max > hdspm->ss_channels) {
+	} else if (c->max <= hdspm->ds_channels) {
 		struct snd_interval t = {
 			.min = 64000,
 			.max = 96000,
@@ -3950,12 +3959,38 @@ static int snd_hdspm_hw_rule_rate_channels(struct snd_pcm_hw_params *params,
 	return 0;
 }
 
+static int snd_hdspm_hw_rule_channels(struct snd_pcm_hw_params *params,
+				      struct snd_pcm_hw_rule *rule)
+{
+	unsigned int list[3];
+	struct hdspm *hdspm = rule->private;
+	struct snd_interval *c = hw_param_interval(params,
+			SNDRV_PCM_HW_PARAM_CHANNELS);
+	if (hdspm->is_aes32) {
+		list[0] = hdspm->qs_channels;
+		list[1] = hdspm->ds_channels;
+		list[2] = hdspm->ss_channels;
+		return snd_interval_list(c, 3, list, 0);
+	} else {
+		list[0] = hdspm->ds_channels;
+		list[1] = hdspm->ss_channels;
+		return snd_interval_list(c, 2, list, 0);
+	}
+}
+
+
+static unsigned int hdspm_aes32_sample_rates[] = { 32000, 44100, 48000, 64000, 88200, 96000, 128000, 176400, 192000 };
+
+static struct snd_pcm_hw_constraint_list hdspm_hw_constraints_aes32_sample_rates = {
+	.count = ARRAY_SIZE(hdspm_aes32_sample_rates),
+	.list = hdspm_aes32_sample_rates,
+	.mask = 0
+};
+
 static int snd_hdspm_playback_open(struct snd_pcm_substream *substream)
 {
 	struct hdspm *hdspm = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-
-	snd_printdd("Open device substream %d\n", substream->stream);
 
 	spin_lock_irq(&hdspm->lock);
 
@@ -3977,14 +4012,21 @@ static int snd_hdspm_playback_open(struct snd_pcm_substream *substream)
 				   SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
 				   &hw_constraints_period_sizes);
 
-	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-			    snd_hdspm_hw_rule_channels_rate, hdspm,
-			    SNDRV_PCM_HW_PARAM_RATE, -1);
+	if (hdspm->is_aes32) {
+		snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				&hdspm_hw_constraints_aes32_sample_rates);
+	} else {
+		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+				     snd_hdspm_hw_rule_channels, hdspm,
+				     SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+				    snd_hdspm_hw_rule_channels_rate, hdspm,
+				    SNDRV_PCM_HW_PARAM_RATE, -1);
 
-	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-			    snd_hdspm_hw_rule_rate_channels, hdspm,
-			    SNDRV_PCM_HW_PARAM_CHANNELS, -1);
-
+		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				    snd_hdspm_hw_rule_rate_channels, hdspm,
+				    SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+	}
 	return 0;
 }
 
@@ -4024,14 +4066,21 @@ static int snd_hdspm_capture_open(struct snd_pcm_substream *substream)
 	snd_pcm_hw_constraint_list(runtime, 0,
 				   SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
 				   &hw_constraints_period_sizes);
+	if (hdspm->is_aes32) {
+		snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				&hdspm_hw_constraints_aes32_sample_rates);
+	} else {
+		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+				     snd_hdspm_hw_rule_channels, hdspm,
+				     SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+				    snd_hdspm_hw_rule_channels_rate, hdspm,
+				    SNDRV_PCM_HW_PARAM_RATE, -1);
 
-	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-			    snd_hdspm_hw_rule_channels_rate, hdspm,
-			    SNDRV_PCM_HW_PARAM_RATE, -1);
-
-	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-			    snd_hdspm_hw_rule_rate_channels, hdspm,
-			    SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				    snd_hdspm_hw_rule_rate_channels, hdspm,
+				    SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+	}
 	return 0;
 }
 

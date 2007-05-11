@@ -192,6 +192,17 @@ static int ad198x_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
 }
 
+static int ad198x_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
+					   struct hda_codec *codec,
+					   unsigned int stream_tag,
+					   unsigned int format,
+					   struct snd_pcm_substream *substream)
+{
+	struct ad198x_spec *spec = codec->spec;
+	return snd_hda_multi_out_dig_prepare(codec, &spec->multiout, stream_tag,
+					     format, substream);
+}
+
 /*
  * Analog capture
  */
@@ -250,7 +261,8 @@ static struct hda_pcm_stream ad198x_pcm_digital_playback = {
 	.nid = 0, /* fill later */
 	.ops = {
 		.open = ad198x_dig_playback_pcm_open,
-		.close = ad198x_dig_playback_pcm_close
+		.close = ad198x_dig_playback_pcm_close,
+		.prepare = ad198x_dig_playback_pcm_prepare
 	},
 };
 
@@ -739,41 +751,35 @@ static struct hda_verb ad1986a_init_verbs[] = {
 	{ } /* end */
 };
 
-/* additional verbs for 3-stack model */
-static struct hda_verb ad1986a_3st_init_verbs[] = {
- 	/* Mic and line-in selectors */
-	{0x0f, AC_VERB_SET_CONNECT_SEL, 0x2},
-	{0x10, AC_VERB_SET_CONNECT_SEL, 0x1},
- 	{ } /* end */
-};
-
 static struct hda_verb ad1986a_ch2_init[] = {
 	/* Surround out -> Line In */
-	{ 0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
-	{ 0x1c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{ 0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
+ 	/* Line-in selectors */
+	{ 0x10, AC_VERB_SET_CONNECT_SEL, 0x1 },
 	/* CLFE -> Mic in */
-	{ 0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
-	{ 0x1d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{ 0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
+	/* Mic selector, mix C/LFE (backmic) and Mic (frontmic) */
+	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x4 },
 	{ } /* end */
 };
 
 static struct hda_verb ad1986a_ch4_init[] = {
 	/* Surround out -> Surround */
-	{ 0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40 },
-	{ 0x1c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	{ 0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x10, AC_VERB_SET_CONNECT_SEL, 0x0 },
 	/* CLFE -> Mic in */
-	{ 0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
-	{ 0x1d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{ 0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
+	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x4 },
 	{ } /* end */
 };
 
 static struct hda_verb ad1986a_ch6_init[] = {
 	/* Surround out -> Surround out */
-	{ 0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40 },
-	{ 0x1c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	{ 0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x10, AC_VERB_SET_CONNECT_SEL, 0x0 },
 	/* CLFE -> CLFE */
-	{ 0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40 },
-	{ 0x1d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	{ 0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x0 },
 	{ } /* end */
 };
 
@@ -828,6 +834,7 @@ static struct snd_pci_quirk ad1986a_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x1297, "ASUS Z62F", AD1986A_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x1043, 0x12b3, "ASUS V1j", AD1986A_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x1043, 0x1302, "ASUS W3j", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x1043, 0x1447, "ASUS A8J", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x1043, 0x817f, "ASUS P5", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x1043, 0x818f, "ASUS P5", AD1986A_LAPTOP),
 	SND_PCI_QUIRK(0x1043, 0x81b3, "ASUS P5", AD1986A_3STACK),
@@ -882,9 +889,8 @@ static int patch_ad1986a(struct hda_codec *codec)
 	case AD1986A_3STACK:
 		spec->num_mixers = 2;
 		spec->mixers[1] = ad1986a_3st_mixers;
-		spec->num_init_verbs = 3;
-		spec->init_verbs[1] = ad1986a_3st_init_verbs;
-		spec->init_verbs[2] = ad1986a_ch2_init;
+		spec->num_init_verbs = 2;
+		spec->init_verbs[1] = ad1986a_ch2_init;
 		spec->channel_mode = ad1986a_modes;
 		spec->num_channel_mode = ARRAY_SIZE(ad1986a_modes);
 		spec->need_dac_fix = 1;
@@ -1892,8 +1898,9 @@ static int ad1988_spdif_playback_source_get(struct snd_kcontrol *kcontrol,
 
 	sel = snd_hda_codec_read(codec, 0x02, 0, AC_VERB_GET_CONNECT_SEL, 0);
 	if (sel > 0) {
-		sel = snd_hda_codec_read(codec, 0x0b, 0, AC_VERB_GET_CONNECT_SEL, 0);
-		if (sel <= 3)
+		sel = snd_hda_codec_read(codec, 0x0b, 0,
+					 AC_VERB_GET_CONNECT_SEL, 0);
+		if (sel < 3)
 			sel++;
 		else
 			sel = 0;
@@ -1906,23 +1913,27 @@ static int ad1988_spdif_playback_source_put(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	unsigned int sel;
+	unsigned int val, sel;
 	int change;
 
+	val = ucontrol->value.enumerated.item[0];
 	sel = snd_hda_codec_read(codec, 0x02, 0, AC_VERB_GET_CONNECT_SEL, 0);
-	if (! ucontrol->value.enumerated.item[0]) {
+	if (!val) {
 		change = sel != 0;
-		if (change)
-			snd_hda_codec_write(codec, 0x02, 0, AC_VERB_SET_CONNECT_SEL, 0);
+		if (change || codec->in_resume)
+			snd_hda_codec_write(codec, 0x02, 0,
+					    AC_VERB_SET_CONNECT_SEL, 0);
 	} else {
 		change = sel == 0;
-		if (change)
-			snd_hda_codec_write(codec, 0x02, 0, AC_VERB_SET_CONNECT_SEL, 1);
-		sel = snd_hda_codec_read(codec, 0x0b, 0, AC_VERB_GET_CONNECT_SEL, 0) + 1;
-		change |= sel == ucontrol->value.enumerated.item[0];
-		if (change)
-			snd_hda_codec_write(codec, 0x02, 0, AC_VERB_SET_CONNECT_SEL,
-					    ucontrol->value.enumerated.item[0] - 1);
+		if (change || codec->in_resume)
+			snd_hda_codec_write(codec, 0x02, 0,
+					    AC_VERB_SET_CONNECT_SEL, 1);
+		sel = snd_hda_codec_read(codec, 0x0b, 0,
+					 AC_VERB_GET_CONNECT_SEL, 0) + 1;
+		change |= sel != val;
+		if (change || codec->in_resume)
+			snd_hda_codec_write(codec, 0x0b, 0,
+					    AC_VERB_SET_CONNECT_SEL, val - 1);
 	}
 	return change;
 }

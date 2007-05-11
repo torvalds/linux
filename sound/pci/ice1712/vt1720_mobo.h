@@ -36,6 +36,6 @@
 #define VT1720_SUBDEVICE_9CJS		0x0f272327
 #define VT1720_SUBDEVICE_SN25P		0x97123650
 
-extern const struct snd_ice1712_card_info  snd_vt1720_mobo_cards[];
+extern struct snd_ice1712_card_info  snd_vt1720_mobo_cards[];
 
 #endif /* __SOUND_VT1720_MOBO_H */

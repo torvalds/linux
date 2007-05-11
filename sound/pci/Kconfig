@@ -576,7 +576,7 @@ config SND_INTEL8X0M
 config SND_KORG1212
 	tristate "Korg 1212 IO"
 	depends on SND
-	select FW_LOADER
+	select FW_LOADER if !SND_KORG1212_FIRMWARE_IN_KERNEL
 	select SND_PCM
 	help
 	  Say Y here to include support for Korg 1212IO soundcards.
@@ -584,10 +584,19 @@ config SND_KORG1212
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-korg1212.
 
+config SND_KORG1212_FIRMWARE_IN_KERNEL
+	bool "In-kernel firmware for Korg1212 driver"
+	depends on SND_KORG1212
+	default y
+	help
+	  Say Y here to include the static firmware built in the kernel
+	  for the Korg1212 driver.  If you choose N here, you need to
+	  install the firmware files from the alsa-firmware package.
+
 config SND_MAESTRO3
 	tristate "ESS Allegro/Maestro3"
 	depends on SND
-	select FW_LOADER
+	select FW_LOADER if !SND_MAESTRO3_FIRMWARE_IN_KERNEL
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for soundcards based on ESS Maestro 3
@@ -595,6 +604,15 @@ config SND_MAESTRO3
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-maestro3.
+
+config SND_MAESTRO3_FIRMWARE_IN_KERNEL
+	bool "In-kernel firmware for Maestro3 driver"
+	depends on SND_MAESTRO3
+	default y
+	help
+	  Say Y here to include the static firmware built in the kernel
+	  for the Maestro3 driver.  If you choose N here, you need to
+	  install the firmware files from the alsa-firmware package.
 
 config SND_MIXART
 	tristate "Digigram miXart"
@@ -737,7 +755,7 @@ config SND_VX222
 config SND_YMFPCI
 	tristate "Yamaha YMF724/740/744/754"
 	depends on SND
-	select FW_LOADER
+	select FW_LOADER if !SND_YMFPCI_FIRMWARE_IN_KERNEL
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
@@ -747,6 +765,15 @@ config SND_YMFPCI
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-ymfpci.
+
+config SND_YMFPCI_FIRMWARE_IN_KERNEL
+	bool "In-kernel firmware for YMFPCI driver"
+	depends on SND_YMFPCI
+	default y
+	help
+	  Say Y here to include the static firmware built in the kernel
+	  for the YMFPCI driver.  If you choose N here, you need to
+	  install the firmware files from the alsa-firmware package.
 
 config SND_AC97_POWER_SAVE
 	bool "AC97 Power-Saving Mode"

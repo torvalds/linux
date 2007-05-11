@@ -117,6 +117,7 @@
 #define I2C_DRIVERID_ISL1208	88	/* Intersil ISL1208 RTC		*/
 #define I2C_DRIVERID_WM8731		89	/* Wolfson WM8731 audio codec */
 #define I2C_DRIVERID_WM8750		90	/* Wolfson WM8750 audio codec */
+#define I2C_DRIVERID_WM8753		91	/* Wolfson WM8753 audio codec */
 
 #define I2C_DRIVERID_I2CDEV	900
 #define I2C_DRIVERID_ARP        902    /* SMBus ARP Client              */

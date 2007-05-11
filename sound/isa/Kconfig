@@ -358,11 +358,20 @@ config SND_SBAWE
 config SND_SB16_CSP
 	bool "Sound Blaster 16/AWE CSP support"
 	depends on (SND_SB16 || SND_SBAWE) && (BROKEN || !PPC)
-	select FW_LOADER
+	select FW_LOADER if !SND_SB16_CSP_FIRMWARE_IN_KERNEL
 	help
 	  Say Y here to include support for the CSP core.  This special
 	  coprocessor can do variable tasks like various compression and
 	  decompression algorithms.
+
+config SND_SB16_CSP_FIRMWARE_IN_KERNEL
+	bool "In-kernel firmware for SB16 CSP"
+	depends on SND_SB16_CSP
+	default y
+	help
+	  Say Y here to include the static firmware built in the kernel
+	  for the SB16 CSP controller.  If you choose N here, you need
+	  to install the firmware files from the alsa-firmware package.
 
 config SND_SGALAXY
 	tristate "Aztech Sound Galaxy"
@@ -391,7 +400,7 @@ config SND_SSCAPE
 config SND_WAVEFRONT
 	tristate "Turtle Beach Maui,Tropez,Tropez+ (Wavefront)"
 	depends on SND
-	select FW_LOADER
+	select FW_LOADER if !SND_WAVEFRONT_FIRMWARE_IN_KERNEL
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_CS4231_LIB
@@ -401,5 +410,14 @@ config SND_WAVEFRONT
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-wavefront.
+
+config SND_WAVEFRONT_FIRMWARE_IN_KERNEL
+	bool "In-kernel firmware for Wavefront"
+	depends on SND_WAVEFRONT
+	default y
+	help
+	  Say Y here to include the static firmware built in the kernel
+	  for the Wavefront driver.  If you choose N here, you need to
+	  install the firmware files from the alsa-firmware package.
 
 endmenu

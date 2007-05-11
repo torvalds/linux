@@ -372,7 +372,7 @@ AOA (Apple Onboard Audio) ALSA DRIVER
 P:	Johannes Berg
 M:	johannes@sipsolutions.net
 L:	linuxppc-dev@ozlabs.org
-L:	alsa-devel@alsa-project.org
+L:	alsa-devel@alsa-project.org (subscribers-only)
 S:	Maintained
 
 APM DRIVER
@@ -3239,13 +3239,13 @@ S:	Maintained
 SOUND
 P:	Jaroslav Kysela
 M:	perex@suse.cz
-L:	alsa-devel@alsa-project.org
+L:	alsa-devel@alsa-project.org (subscribers-only)
 S:	Maintained
 
 SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT
 P:	Liam Girdwood
 M:	liam.girdwood@wolfsonmicro.com
-L:	alsa-devel@alsa-project.org
+L:	alsa-devel@alsa-project.org (subscribers-only)
 S:	Supported
 
 SPI SUBSYSTEM

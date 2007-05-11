@@ -40,7 +40,7 @@
 #define ICE1712_SUBDEVICE_PHASE88	0x3b155111
 
 /* entry point */
-extern const struct snd_ice1712_card_info snd_ice1712_ews_cards[];
+extern struct snd_ice1712_card_info snd_ice1712_ews_cards[];
 
 
 /* TerraTec EWX 24/96 configuration definitions */

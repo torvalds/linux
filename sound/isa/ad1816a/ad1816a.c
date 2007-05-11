@@ -129,8 +129,8 @@ static int __devinit snd_card_ad1816a_pnp(int dev, struct snd_card_ad1816a *acar
 	}
 	acard->devmpu = pnp_request_card_device(card, id->devs[1].id, NULL);
 	if (acard->devmpu == NULL) {
-		kfree(cfg);
-		return -EBUSY;
+		mpu_port[dev] = -1;
+		snd_printk(KERN_WARNING PFX "MPU401 device busy, skipping.\n");
 	}
 
 	pdev = acard->dev;
@@ -162,6 +162,10 @@ static int __devinit snd_card_ad1816a_pnp(int dev, struct snd_card_ad1816a *acar
 	dma2[dev] = pnp_dma(pdev, 1);
 	irq[dev] = pnp_irq(pdev, 0);
 
+	if (acard->devmpu == NULL) {
+		kfree(cfg);
+		return 0;
+	}
 	pdev = acard->devmpu;
 	pnp_init_resource_table(cfg);
 

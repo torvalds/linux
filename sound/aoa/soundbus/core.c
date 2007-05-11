@@ -163,8 +163,6 @@ static int soundbus_device_resume(struct device * dev)
 
 #endif /* CONFIG_PM */
 
-extern struct device_attribute soundbus_dev_attrs[];
-
 static struct bus_type soundbus_bus_type = {
 	.name		= "aoa-soundbus",
 	.probe		= soundbus_probe,

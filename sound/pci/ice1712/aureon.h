@@ -38,7 +38,7 @@
 #define VT1724_SUBDEVICE_PRODIGY71LT	0x32315441	/* PRODIGY 7.1 LT */
 #define VT1724_SUBDEVICE_PRODIGY71XT	0x36315441	/* PRODIGY 7.1 XT*/
 
-extern const struct snd_ice1712_card_info  snd_vt1724_aureon_cards[];
+extern struct snd_ice1712_card_info  snd_vt1724_aureon_cards[];
 
 /* GPIO bits */
 #define AUREON_CS8415_CS	(1 << 22)

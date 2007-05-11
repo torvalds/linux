@@ -42,7 +42,7 @@
 #define WM_DAC_CTRL	0x02
 #define WM_INT_CTRL	0x03
 
-extern const struct snd_ice1712_card_info  snd_vt1724_amp_cards[];
+extern struct snd_ice1712_card_info  snd_vt1724_amp_cards[];
 
 
 #endif /* __SOUND_AMP_H */

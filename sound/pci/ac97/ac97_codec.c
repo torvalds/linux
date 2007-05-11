@@ -35,9 +35,9 @@
 #include <sound/ac97_codec.h>
 #include <sound/asoundef.h>
 #include <sound/initval.h>
-#include "ac97_local.h"
 #include "ac97_id.h"
-#include "ac97_patch.h"
+
+#include "ac97_patch.c"
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
 MODULE_DESCRIPTION("Universal interface for Audio Codec '97");
@@ -432,7 +432,8 @@ static int snd_ac97_ad18xx_update_pcm_bits(struct snd_ac97 *ac97, int codec, uns
  * Controls
  */
 
-int snd_ac97_info_enum_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
+static int snd_ac97_info_enum_double(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_info *uinfo)
 {
 	struct ac97_enum *e = (struct ac97_enum *)kcontrol->private_value;
 	
@@ -446,7 +447,8 @@ int snd_ac97_info_enum_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	return 0;
 }
 
-int snd_ac97_get_enum_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+static int snd_ac97_get_enum_double(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ac97 *ac97 = snd_kcontrol_chip(kcontrol);
 	struct ac97_enum *e = (struct ac97_enum *)kcontrol->private_value;
@@ -462,7 +464,8 @@ int snd_ac97_get_enum_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 	return 0;
 }
 
-int snd_ac97_put_enum_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+static int snd_ac97_put_enum_double(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ac97 *ac97 = snd_kcontrol_chip(kcontrol);
 	struct ac97_enum *e = (struct ac97_enum *)kcontrol->private_value;
@@ -508,7 +511,8 @@ static void snd_ac97_page_restore(struct snd_ac97 *ac97, int page_save)
 }
 
 /* volume and switch controls */
-int snd_ac97_info_volsw(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
+static int snd_ac97_info_volsw(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_info *uinfo)
 {
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0x0f;
@@ -521,7 +525,8 @@ int snd_ac97_info_volsw(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info 
 	return 0;
 }
 
-int snd_ac97_get_volsw(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+static int snd_ac97_get_volsw(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ac97 *ac97 = snd_kcontrol_chip(kcontrol);
 	int reg = kcontrol->private_value & 0xff;
@@ -544,7 +549,8 @@ int snd_ac97_get_volsw(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value 
 	return 0;
 }
 
-int snd_ac97_put_volsw(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+static int snd_ac97_put_volsw(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ac97 *ac97 = snd_kcontrol_chip(kcontrol);
 	int reg = kcontrol->private_value & 0xff;
@@ -646,7 +652,7 @@ AC97_ENUM("Mic Select", std_enum[3]),
 AC97_SINGLE("ADC/DAC Loopback", AC97_GENERAL_PURPOSE, 7, 1, 0)
 };
 
-const struct snd_kcontrol_new snd_ac97_controls_3d[2] = {
+static const struct snd_kcontrol_new snd_ac97_controls_3d[2] = {
 AC97_SINGLE("3D Control - Center", AC97_3D_CONTROL, 8, 15, 0),
 AC97_SINGLE("3D Control - Depth", AC97_3D_CONTROL, 0, 15, 0)
 };
@@ -817,7 +823,7 @@ static int snd_ac97_put_spsa(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 	return change;
 }
 
-const struct snd_kcontrol_new snd_ac97_controls_spdif[5] = {
+static const struct snd_kcontrol_new snd_ac97_controls_spdif[5] = {
 	{
 		.access = SNDRV_CTL_ELEM_ACCESS_READ,
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -1097,7 +1103,7 @@ static void check_volume_resolution(struct snd_ac97 *ac97, int reg, unsigned cha
 	}
 }
 
-int snd_ac97_try_bit(struct snd_ac97 * ac97, int reg, int bit)
+static int snd_ac97_try_bit(struct snd_ac97 * ac97, int reg, int bit)
 {
 	unsigned short mask, val, orig, res;
 
@@ -1137,7 +1143,8 @@ static inline int printable(unsigned int x)
 	return x;
 }
 
-struct snd_kcontrol *snd_ac97_cnew(const struct snd_kcontrol_new *_template, struct snd_ac97 * ac97)
+static struct snd_kcontrol *snd_ac97_cnew(const struct snd_kcontrol_new *_template,
+					  struct snd_ac97 * ac97)
 {
 	struct snd_kcontrol_new template;
 	memcpy(&template, _template, sizeof(template));
@@ -2544,7 +2551,8 @@ static void set_ctl_name(char *dst, const char *src, const char *suffix)
 }	
 
 /* remove the control with the given name and optional suffix */
-int snd_ac97_remove_ctl(struct snd_ac97 *ac97, const char *name, const char *suffix)
+static int snd_ac97_remove_ctl(struct snd_ac97 *ac97, const char *name,
+			       const char *suffix)
 {
 	struct snd_ctl_elem_id id;
 	memset(&id, 0, sizeof(id));
@@ -2563,7 +2571,8 @@ static struct snd_kcontrol *ctl_find(struct snd_ac97 *ac97, const char *name, co
 }
 
 /* rename the control with the given name and optional suffix */
-int snd_ac97_rename_ctl(struct snd_ac97 *ac97, const char *src, const char *dst, const char *suffix)
+static int snd_ac97_rename_ctl(struct snd_ac97 *ac97, const char *src,
+			       const char *dst, const char *suffix)
 {
 	struct snd_kcontrol *kctl = ctl_find(ac97, src, suffix);
 	if (kctl) {
@@ -2574,14 +2583,16 @@ int snd_ac97_rename_ctl(struct snd_ac97 *ac97, const char *src, const char *dst,
 }
 
 /* rename both Volume and Switch controls - don't check the return value */
-void snd_ac97_rename_vol_ctl(struct snd_ac97 *ac97, const char *src, const char *dst)
+static void snd_ac97_rename_vol_ctl(struct snd_ac97 *ac97, const char *src,
+				    const char *dst)
 {
 	snd_ac97_rename_ctl(ac97, src, dst, "Switch");
 	snd_ac97_rename_ctl(ac97, src, dst, "Volume");
 }
 
 /* swap controls */
-int snd_ac97_swap_ctl(struct snd_ac97 *ac97, const char *s1, const char *s2, const char *suffix)
+static int snd_ac97_swap_ctl(struct snd_ac97 *ac97, const char *s1,
+			     const char *s2, const char *suffix)
 {
 	struct snd_kcontrol *kctl1, *kctl2;
 	kctl1 = ctl_find(ac97, s1, suffix);

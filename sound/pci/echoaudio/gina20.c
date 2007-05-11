@@ -60,6 +60,8 @@
 #include <asm/atomic.h>
 #include "echoaudio.h"
 
+MODULE_FIRMWARE("ea/gina20_dsp.fw");
+
 #define FW_GINA20_DSP	0
 
 static const struct firmware card_fw[] = {

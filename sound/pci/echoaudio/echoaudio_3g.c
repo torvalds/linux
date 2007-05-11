@@ -233,8 +233,8 @@ static int load_asic(struct echoaudio *chip)
 
 	chip->asic_code = &card_fw[FW_3G_ASIC];
 
-	/* Now give the new ASIC a little time to set up */
-	mdelay(2);
+	/* Now give the new ASIC some time to set up */
+	msleep(1000);
 	/* See if it worked */
 	box_type = check_asic_status(chip);
 

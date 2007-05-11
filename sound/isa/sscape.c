@@ -24,7 +24,7 @@
 #include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/err.h>
-#include <linux/platform_device.h>
+#include <linux/isa.h>
 #include <linux/delay.h>
 #include <linux/pnp.h>
 #include <linux/spinlock.h>
@@ -68,8 +68,6 @@ MODULE_PARM_DESC(mpu_irq, "MPU401 IRQ # for SoundScape driver.");
 module_param_array(dma, int, NULL, 0444);
 MODULE_PARM_DESC(dma, "DMA # for SoundScape driver.");
 
-static struct platform_device *platform_devices[SNDRV_CARDS];
-  
 #ifdef CONFIG_PNP
 static int pnp_registered;
 static struct pnp_card_device_id sscape_pnpids[] = {
@@ -1254,9 +1252,27 @@ static int __devinit create_sscape(int dev, struct snd_card **rcardp)
 }
 
 
-static int __devinit snd_sscape_probe(struct platform_device *pdev)
+static int __devinit snd_sscape_match(struct device *pdev, unsigned int i)
 {
-	int dev = pdev->id;
+	/*
+	 * Make sure we were given ALL of the other parameters.
+	 */
+	if (port[i] == SNDRV_AUTO_PORT)
+		return 0;
+
+	if (irq[i] == SNDRV_AUTO_IRQ ||
+	    mpu_irq[i] == SNDRV_AUTO_IRQ ||
+	    dma[i] == SNDRV_AUTO_DMA) {
+		printk(KERN_INFO
+		       "sscape: insufficient parameters, need IO, IRQ, MPU-IRQ and DMA\n");
+		return 0;
+	}
+
+	return 1;
+}
+
+static int __devinit snd_sscape_probe(struct device *pdev, unsigned int dev)
+{
 	struct snd_card *card;
 	int ret;
 
@@ -1264,30 +1280,31 @@ static int __devinit snd_sscape_probe(struct platform_device *pdev)
 	ret = create_sscape(dev, &card);
 	if (ret < 0)
 		return ret;
-	snd_card_set_dev(card, &pdev->dev);
+	snd_card_set_dev(card, pdev);
 	if ((ret = snd_card_register(card)) < 0) {
 		printk(KERN_ERR "sscape: Failed to register sound card\n");
 		return ret;
 	}
-	platform_set_drvdata(pdev, card);
+	dev_set_drvdata(pdev, card);
 	return 0;
 }
 
-static int __devexit snd_sscape_remove(struct platform_device *devptr)
+static int __devexit snd_sscape_remove(struct device *devptr, unsigned int dev)
 {
-	snd_card_free(platform_get_drvdata(devptr));
-	platform_set_drvdata(devptr, NULL);
+	snd_card_free(dev_get_drvdata(devptr));
+	dev_set_drvdata(devptr, NULL);
 	return 0;
 }
 
-#define SSCAPE_DRIVER	"snd_sscape"
+#define DEV_NAME "sscape"
 
-static struct platform_driver snd_sscape_driver = {
+static struct isa_driver snd_sscape_driver = {
+	.match		= snd_sscape_match,
 	.probe		= snd_sscape_probe,
 	.remove		= __devexit_p(snd_sscape_remove),
 	/* FIXME: suspend/resume */
 	.driver		= {
-		.name	= SSCAPE_DRIVER
+		.name	= DEV_NAME
 	},
 };
 
@@ -1386,72 +1403,6 @@ static struct pnp_card_driver sscape_pnpc_driver = {
 
 #endif /* CONFIG_PNP */
 
-static void __init_or_module sscape_unregister_all(void)
-{
-	int i;
-
-#ifdef CONFIG_PNP
-	if (pnp_registered)
-		pnp_unregister_card_driver(&sscape_pnpc_driver);
-#endif
-	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
-		platform_device_unregister(platform_devices[i]);
-	platform_driver_unregister(&snd_sscape_driver);
-}
-
-static int __init sscape_manual_probe(void)
-{
-	struct platform_device *device;
-	int i, ret;
-
-	ret = platform_driver_register(&snd_sscape_driver);
-	if (ret < 0)
-		return ret;
-
-	for (i = 0; i < SNDRV_CARDS; ++i) {
-		/*
-		 * We do NOT probe for ports.
-		 * If we're not given a port number for this
-		 * card then we completely ignore this line
-		 * of parameters.
-		 */
-		if (port[i] == SNDRV_AUTO_PORT)
-			continue;
-
-		/*
-		 * Make sure we were given ALL of the other parameters.
-		 */
-		if (irq[i] == SNDRV_AUTO_IRQ ||
-		    mpu_irq[i] == SNDRV_AUTO_IRQ ||
-		    dma[i] == SNDRV_AUTO_DMA) {
-			printk(KERN_INFO
-			       "sscape: insufficient parameters, need IO, IRQ, MPU-IRQ and DMA\n");
-			sscape_unregister_all();
-			return -ENXIO;
-		}
-
-		/*
-		 * This cards looks OK ...
-		 */
-		device = platform_device_register_simple(SSCAPE_DRIVER,
-							 i, NULL, 0);
-		if (IS_ERR(device))
-			continue;
-		if (!platform_get_drvdata(device)) {
-			platform_device_unregister(device);
-			continue;
-		}
-		platform_devices[i] = device;
-	}
-	return 0;
-}
-
-static void sscape_exit(void)
-{
-	sscape_unregister_all();
-}
-
-
 static int __init sscape_init(void)
 {
 	int ret;
@@ -1462,7 +1413,7 @@ static int __init sscape_init(void)
 	 * of allocating cards, because the operator is
 	 * S-P-E-L-L-I-N-G it out for us...
 	 */
-	ret = sscape_manual_probe();
+	ret = isa_register_driver(&snd_sscape_driver, SNDRV_CARDS);
 	if (ret < 0)
 		return ret;
 #ifdef CONFIG_PNP
@@ -1470,6 +1421,15 @@ static int __init sscape_init(void)
 		pnp_registered = 1;
 #endif
 	return 0;
+}
+
+static void __exit sscape_exit(void)
+{
+#ifdef CONFIG_PNP
+	if (pnp_registered)
+		pnp_unregister_card_driver(&sscape_pnpc_driver);
+#endif
+	isa_unregister_driver(&snd_sscape_driver);
 }
 
 module_init(sscape_init);

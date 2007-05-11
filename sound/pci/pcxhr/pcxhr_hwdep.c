@@ -356,6 +356,12 @@ int pcxhr_setup_firmware(struct pcxhr_mgr *mgr)
 	return 0;
 }
 
+MODULE_FIRMWARE("pcxhr/xi_1_882.dat");
+MODULE_FIRMWARE("pcxhr/xc_1_882.dat");
+MODULE_FIRMWARE("pcxhr/e321_512.e56");
+MODULE_FIRMWARE("pcxhr/b321_512.b56");
+MODULE_FIRMWARE("pcxhr/d321_512.d56");
+
 #else /* old style firmware loading */
 
 /* pcxhr hwdep interface id string */

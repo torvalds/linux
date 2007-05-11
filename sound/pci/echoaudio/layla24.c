@@ -68,6 +68,12 @@
 #include <asm/atomic.h>
 #include "echoaudio.h"
 
+MODULE_FIRMWARE("ea/loader_dsp.fw");
+MODULE_FIRMWARE("ea/layla24_dsp.fw");
+MODULE_FIRMWARE("ea/layla24_1_asic.fw");
+MODULE_FIRMWARE("ea/layla24_2A_asic.fw");
+MODULE_FIRMWARE("ea/layla24_2S_asic.fw");
+
 #define FW_361_LOADER		0
 #define FW_LAYLA24_DSP		1
 #define FW_LAYLA24_1_ASIC	2

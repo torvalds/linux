@@ -88,6 +88,8 @@ MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
 			 "{ATI, SB600},"
 			 "{ATI, RS600},"
 			 "{ATI, RS690},"
+			 "{ATI, RS780},"
+			 "{ATI, R600},"
 			 "{VIA, VT8251},"
 			 "{VIA, VT8237A},"
 			 "{SiS, SIS966},"
@@ -198,6 +200,7 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define RIRB_INT_MASK		0x05
 
 /* STATESTS int mask: SD2,SD1,SD0 */
+#define AZX_MAX_CODECS		3
 #define STATESTS_INT_MASK	0x07
 
 /* SD_CTL bits */
@@ -978,7 +981,7 @@ static unsigned int azx_max_codecs[] __devinitdata = {
 static int __devinit azx_codec_create(struct azx *chip, const char *model)
 {
 	struct hda_bus_template bus_temp;
-	int c, codecs, err;
+	int c, codecs, audio_codecs, err;
 
 	memset(&bus_temp, 0, sizeof(bus_temp));
 	bus_temp.private_data = chip;
@@ -990,16 +993,30 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 	if ((err = snd_hda_bus_new(chip->card, &bus_temp, &chip->bus)) < 0)
 		return err;
 
-	codecs = 0;
-	for (c = 0; c < azx_max_codecs[chip->driver_type]; c++) {
+	codecs = audio_codecs = 0;
+	for (c = 0; c < AZX_MAX_CODECS; c++) {
 		if ((chip->codec_mask & (1 << c)) & probe_mask) {
-			err = snd_hda_codec_new(chip->bus, c, NULL);
+			struct hda_codec *codec;
+			err = snd_hda_codec_new(chip->bus, c, &codec);
 			if (err < 0)
 				continue;
 			codecs++;
+			if (codec->afg)
+				audio_codecs++;
 		}
 	}
-	if (! codecs) {
+	if (!audio_codecs) {
+		/* probe additional slots if no codec is found */
+		for (; c < azx_max_codecs[chip->driver_type]; c++) {
+			if ((chip->codec_mask & (1 << c)) & probe_mask) {
+				err = snd_hda_codec_new(chip->bus, c, NULL);
+				if (err < 0)
+					continue;
+				codecs++;
+			}
+		}
+	}
+	if (!codecs) {
 		snd_printk(KERN_ERR SFX "no codecs initialized\n");
 		return -ENXIO;
 	}
@@ -1518,7 +1535,7 @@ static int azx_dev_free(struct snd_device *device)
 /*
  * white/black-listing for position_fix
  */
-static const struct snd_pci_quirk position_fix_list[] __devinitdata = {
+static struct snd_pci_quirk position_fix_list[] __devinitdata = {
 	SND_PCI_QUIRK(0x1028, 0x01cc, "Dell D820", POS_FIX_NONE),
 	{}
 };
@@ -1758,6 +1775,8 @@ static struct pci_device_id azx_ids[] = {
 	{ 0x1002, 0x4383, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ATI }, /* ATI SB600 */
 	{ 0x1002, 0x793b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ATIHDMI }, /* ATI RS600 HDMI */
 	{ 0x1002, 0x7919, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ATIHDMI }, /* ATI RS690 HDMI */
+	{ 0x1002, 0x960c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ATIHDMI }, /* ATI RS780 HDMI */
+	{ 0x1002, 0xaa00, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ATIHDMI }, /* ATI R600 HDMI */
 	{ 0x1106, 0x3288, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_VIA }, /* VIA VT8251/VT8237A */
 	{ 0x1039, 0x7502, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_SIS }, /* SIS966 */
 	{ 0x10b9, 0x5461, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ULI }, /* ULI M5461 */

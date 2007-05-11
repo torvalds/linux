@@ -60,6 +60,8 @@
 #include <asm/atomic.h>
 #include "echoaudio.h"
 
+MODULE_FIRMWARE("ea/darla24_dsp.fw");
+
 #define FW_DARLA24_DSP	0
 
 static const struct firmware card_fw[] = {

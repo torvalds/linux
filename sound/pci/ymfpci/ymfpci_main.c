@@ -1998,9 +1998,7 @@ static void snd_ymfpci_disable_dsp(struct snd_ymfpci *chip)
 	}
 }
 
-#define FIRMWARE_IN_THE_KERNEL
-
-#ifdef FIRMWARE_IN_THE_KERNEL
+#ifdef CONFIG_SND_YMFPCI_FIRMWARE_IN_KERNEL
 
 #include "ymfpci_image.h"
 
@@ -2017,6 +2015,24 @@ static struct firmware snd_ymfpci_controller_1e_microcode = {
 	.data = (u8 *)CntrlInst1E,
 };
 #endif
+
+#ifdef CONFIG_SND_YMFPCI_FIRMWARE_IN_KERNEL
+static int snd_ymfpci_request_firmware(struct snd_ymfpci *chip)
+{
+	chip->dsp_microcode = &snd_ymfpci_dsp_microcode;
+	if (chip->device_id == PCI_DEVICE_ID_YAMAHA_724F ||
+	    chip->device_id == PCI_DEVICE_ID_YAMAHA_740C ||
+	    chip->device_id == PCI_DEVICE_ID_YAMAHA_744 ||
+	    chip->device_id == PCI_DEVICE_ID_YAMAHA_754)
+		chip->controller_microcode =
+			&snd_ymfpci_controller_1e_microcode;
+	else
+		chip->controller_microcode =
+			&snd_ymfpci_controller_microcode;
+	return 0;
+}
+
+#else /* use fw_loader */
 
 #ifdef __LITTLE_ENDIAN
 static inline void snd_ymfpci_convert_from_le(const struct firmware *fw) { }
@@ -2046,13 +2062,8 @@ static int snd_ymfpci_request_firmware(struct snd_ymfpci *chip)
 			err = -EINVAL;
 		}
 	}
-	if (err < 0) {
-#ifdef FIRMWARE_IN_THE_KERNEL
-		chip->dsp_microcode = &snd_ymfpci_dsp_microcode;
-#else
+	if (err < 0)
 		return err;
-#endif
-	}
 	is_1e = chip->device_id == PCI_DEVICE_ID_YAMAHA_724F ||
 		chip->device_id == PCI_DEVICE_ID_YAMAHA_740C ||
 		chip->device_id == PCI_DEVICE_ID_YAMAHA_744 ||
@@ -2069,17 +2080,16 @@ static int snd_ymfpci_request_firmware(struct snd_ymfpci *chip)
 			err = -EINVAL;
 		}
 	}
-	if (err < 0) {
-#ifdef FIRMWARE_IN_THE_KERNEL
-		chip->controller_microcode =
-			is_1e ? &snd_ymfpci_controller_1e_microcode
-			      : &snd_ymfpci_controller_microcode;
-#else
+	if (err < 0)
 		return err;
-#endif
-	}
 	return 0;
 }
+
+MODULE_FIRMWARE("yamaha/ds1_dsp.fw");
+MODULE_FIRMWARE("yamaha/ds1_ctrl.fw");
+MODULE_FIRMWARE("yamaha/ds1e_ctrl.fw");
+
+#endif
 
 static void snd_ymfpci_download_image(struct snd_ymfpci *chip)
 {
@@ -2259,15 +2269,10 @@ static int snd_ymfpci_free(struct snd_ymfpci *chip)
 	pci_write_config_word(chip->pci, 0x40, chip->old_legacy_ctrl);
 	
 	pci_disable_device(chip->pci);
-#ifdef FIRMWARE_IN_THE_KERNEL
-	if (chip->dsp_microcode != &snd_ymfpci_dsp_microcode)
+#ifndef CONFIG_SND_YMFPCI_FIRMWARE_IN_KERNEL
+	release_firmware(chip->dsp_microcode);
+	release_firmware(chip->controller_microcode);
 #endif
-		release_firmware(chip->dsp_microcode);
-#ifdef FIRMWARE_IN_THE_KERNEL
-	if (chip->controller_microcode != &snd_ymfpci_controller_microcode &&
-	    chip->controller_microcode != &snd_ymfpci_controller_1e_microcode)
-#endif
-		release_firmware(chip->controller_microcode);
 	kfree(chip);
 	return 0;
 }

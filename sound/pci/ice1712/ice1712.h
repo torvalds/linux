@@ -397,6 +397,9 @@ struct snd_ice1712 {
 			struct ak4114 *ak4114;
 			unsigned int analog: 1;
 		} juli;
+		struct {
+			struct ak4114 *ak4114;
+		} prodigy192;
 	} spec;
 
 };

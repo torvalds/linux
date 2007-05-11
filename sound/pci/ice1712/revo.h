@@ -34,7 +34,7 @@
 #define VT1724_SUBDEVICE_AUDIOPHILE192	0x12143236
 
 /* entry point */
-extern const struct snd_ice1712_card_info snd_vt1724_revo_cards[];
+extern struct snd_ice1712_card_info snd_vt1724_revo_cards[];
 
 
 /*

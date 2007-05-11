@@ -565,6 +565,9 @@ int snd_mixart_setup_firmware(struct mixart_mgr *mgr)
 	return 0;
 }
 
+MODULE_FIRMWARE("mixart/miXart8.xlx");
+MODULE_FIRMWARE("mixart/miXart8.elf");
+MODULE_FIRMWARE("mixart/miXart8AES.xlx");
 
 #else /* old style firmware loading */
 

@@ -74,6 +74,8 @@ enum {
 	ALC260_HP_3013,
 	ALC260_FUJITSU_S702X,
 	ALC260_ACER,
+	ALC260_WILL,
+	ALC260_REPLACER_672V,
 #ifdef CONFIG_SND_DEBUG
 	ALC260_TEST,
 #endif
@@ -115,8 +117,20 @@ enum {
 	ALC861VD_3ST,
 	ALC861VD_3ST_DIG,
 	ALC861VD_6ST_DIG,
+	ALC861VD_LENOVO,
 	ALC861VD_AUTO,
 	ALC861VD_MODEL_LAST,
+};
+
+/* ALC662 models */
+enum {
+	ALC662_3ST_2ch_DIG,
+	ALC662_3ST_6ch_DIG,
+	ALC662_3ST_6ch,
+	ALC662_5ST_DIG,
+	ALC662_LENOVO_101E,
+	ALC662_AUTO,
+	ALC662_MODEL_LAST,
 };
 
 /* ALC882 models */
@@ -124,6 +138,7 @@ enum {
 	ALC882_3ST_DIG,
 	ALC882_6ST_DIG,
 	ALC882_ARIMA,
+	ALC882_W2JC,
 	ALC882_AUTO,
 	ALC885_MACPRO,
 	ALC882_MODEL_LAST,
@@ -141,6 +156,7 @@ enum {
 	ALC883_ACER,
 	ALC883_MEDION,
 	ALC883_LAPTOP_EAPD,
+	ALC883_LENOVO_101E_2ch,
 	ALC883_AUTO,
 	ALC883_MODEL_LAST,
 };
@@ -163,7 +179,7 @@ struct alc_spec {
 	struct hda_pcm_stream *stream_analog_playback;
 	struct hda_pcm_stream *stream_analog_capture;
 
-	char *stream_name_digital;	/* digital PCM stream */ 
+	char *stream_name_digital;	/* digital PCM stream */
 	struct hda_pcm_stream *stream_digital_playback;
 	struct hda_pcm_stream *stream_digital_capture;
 
@@ -401,7 +417,7 @@ static int alc_pin_mode_put(struct snd_kcontrol *kcontrol,
 						 AC_VERB_GET_PIN_WIDGET_CONTROL,
 						 0x00);
 
-	if (val < alc_pin_mode_min(dir) || val > alc_pin_mode_max(dir)) 
+	if (val < alc_pin_mode_min(dir) || val > alc_pin_mode_max(dir))
 		val = alc_pin_mode_min(dir);
 
 	change = pinctl != alc_pin_mode_values[val];
@@ -460,7 +476,8 @@ static int alc_gpio_data_info(struct snd_kcontrol *kcontrol,
 	uinfo->value.integer.min = 0;
 	uinfo->value.integer.max = 1;
 	return 0;
-}                                
+}
+
 static int alc_gpio_data_get(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
@@ -520,7 +537,8 @@ static int alc_spdif_ctrl_info(struct snd_kcontrol *kcontrol,
 	uinfo->value.integer.min = 0;
 	uinfo->value.integer.max = 1;
 	return 0;
-}                                
+}
+
 static int alc_spdif_ctrl_get(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
@@ -592,7 +610,7 @@ static void setup_preset(struct alc_spec *spec,
 	spec->multiout.hp_nid = preset->hp_nid;
 	
 	spec->num_mux_defs = preset->num_mux_defs;
-	if (! spec->num_mux_defs)
+	if (!spec->num_mux_defs)
 		spec->num_mux_defs = 1;
 	spec->input_mux = preset->input_mux;
 
@@ -602,6 +620,90 @@ static void setup_preset(struct alc_spec *spec,
 
 	spec->unsol_event = preset->unsol_event;
 	spec->init_hook = preset->init_hook;
+}
+
+/* Enable GPIO mask and set output */
+static struct hda_verb alc_gpio1_init_verbs[] = {
+	{0x01, AC_VERB_SET_GPIO_MASK, 0x01},
+	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x01},
+	{0x01, AC_VERB_SET_GPIO_DATA, 0x01},
+	{ }
+};
+
+static struct hda_verb alc_gpio2_init_verbs[] = {
+	{0x01, AC_VERB_SET_GPIO_MASK, 0x02},
+	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x02},
+	{0x01, AC_VERB_SET_GPIO_DATA, 0x02},
+	{ }
+};
+
+static struct hda_verb alc_gpio3_init_verbs[] = {
+	{0x01, AC_VERB_SET_GPIO_MASK, 0x03},
+	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x03},
+	{0x01, AC_VERB_SET_GPIO_DATA, 0x03},
+	{ }
+};
+
+/* 32-bit subsystem ID for BIOS loading in HD Audio codec.
+ *	31 ~ 16 :	Manufacture ID
+ *	15 ~ 8	:	SKU ID
+ *	7  ~ 0	:	Assembly ID
+ *	port-A --> pin 39/41, port-E --> pin 14/15, port-D --> pin 35/36
+ */
+static void alc_subsystem_id(struct hda_codec *codec,
+			     unsigned int porta, unsigned int porte,
+			     unsigned int portd)
+{
+	unsigned int ass, tmp;
+
+	ass = codec->subsystem_id;
+	if (!(ass & 1))
+		return;
+
+	/* Override */
+	tmp = (ass & 0x38) >> 3;	/* external Amp control */
+	switch (tmp) {
+	case 1:
+		snd_hda_sequence_write(codec, alc_gpio1_init_verbs);
+		break;
+	case 3:
+		snd_hda_sequence_write(codec, alc_gpio2_init_verbs);
+		break;
+	case 7:
+		snd_hda_sequence_write(codec, alc_gpio3_init_verbs);
+		break;
+	case 5:
+		switch (codec->vendor_id) {
+		case 0x10ec0862:
+		case 0x10ec0660:
+		case 0x10ec0662:	
+		case 0x10ec0267:
+		case 0x10ec0268:
+			snd_hda_codec_write(codec, 0x14, 0,
+					    AC_VERB_SET_EAPD_BTLENABLE, 2);
+			snd_hda_codec_write(codec, 0x15, 0,
+					    AC_VERB_SET_EAPD_BTLENABLE, 2);
+			return;
+		}
+	case 6:
+		if (ass & 4) {	/* bit 2 : 0 = Desktop, 1 = Laptop */
+			hda_nid_t port = 0;
+			tmp = (ass & 0x1800) >> 11;
+			switch (tmp) {
+			case 0: port = porta; break;
+			case 1: port = porte; break;
+			case 2: port = portd; break;
+			}
+			if (port)
+				snd_hda_codec_write(codec, port, 0,
+						    AC_VERB_SET_EAPD_BTLENABLE,
+						    2);
+		}
+		snd_hda_codec_write(codec, 0x1a, 0, AC_VERB_SET_COEF_INDEX, 7);
+		snd_hda_codec_write(codec, 0x1a, 0, AC_VERB_SET_PROC_COEF,
+				    (tmp == 5 ? 0x3040 : 0x3050));
+		break;
+	}
 }
 
 /*
@@ -801,7 +903,7 @@ static struct hda_channel_mode alc880_fivestack_modes[2] = {
 static hda_nid_t alc880_6st_dac_nids[4] = {
 	/* front, rear, clfe, rear_surr */
 	0x02, 0x03, 0x04, 0x05
-};	
+};
 
 static struct hda_input_mux alc880_6stack_capture_source = {
 	.num_items = 4,
@@ -1409,25 +1511,43 @@ static struct hda_verb alc880_beep_init_verbs[] = {
 };
 
 /* toggle speaker-output according to the hp-jack state */
-static void alc880_uniwill_automute(struct hda_codec *codec)
+static void alc880_uniwill_hp_automute(struct hda_codec *codec)
 {
  	unsigned int present;
+	unsigned char bits;
 
  	present = snd_hda_codec_read(codec, 0x14, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	bits = present ? 0x80 : 0;
 	snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
+				 0x80, bits);
 	snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
+				 0x80, bits);
 	snd_hda_codec_amp_update(codec, 0x16, 0, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
+				 0x80, bits);
 	snd_hda_codec_amp_update(codec, 0x16, 1, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
+				 0x80, bits);
+}
+
+/* auto-toggle front mic */
+static void alc880_uniwill_mic_automute(struct hda_codec *codec)
+{
+ 	unsigned int present;
+	unsigned char bits;
 
 	present = snd_hda_codec_read(codec, 0x18, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	snd_hda_codec_write(codec, 0x0b, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-			    0x7000 | (0x01 << 8) | (present ? 0x80 : 0));
+	bits = present ? 0x80 : 0;
+	snd_hda_codec_amp_update(codec, 0x0b, 0, HDA_INPUT, 1,
+				 0x80, bits);
+	snd_hda_codec_amp_update(codec, 0x0b, 1, HDA_INPUT, 1,
+				 0x80, bits);
+}
+
+static void alc880_uniwill_automute(struct hda_codec *codec)
+{
+	alc880_uniwill_hp_automute(codec);
+	alc880_uniwill_mic_automute(codec);
 }
 
 static void alc880_uniwill_unsol_event(struct hda_codec *codec,
@@ -1436,22 +1556,28 @@ static void alc880_uniwill_unsol_event(struct hda_codec *codec,
 	/* Looks like the unsol event is incompatible with the standard
 	 * definition.  4bit tag is placed at 28 bit!
 	 */
-	if ((res >> 28) == ALC880_HP_EVENT ||
-	    (res >> 28) == ALC880_MIC_EVENT)
-		alc880_uniwill_automute(codec);
+	switch (res >> 28) {
+	case ALC880_HP_EVENT:
+		alc880_uniwill_hp_automute(codec);
+		break;
+	case ALC880_MIC_EVENT:
+		alc880_uniwill_mic_automute(codec);
+		break;
+	}
 }
 
 static void alc880_uniwill_p53_hp_automute(struct hda_codec *codec)
 {
  	unsigned int present;
+	unsigned char bits;
 
  	present = snd_hda_codec_read(codec, 0x14, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-
+	bits = present ? 0x80 : 0;
 	snd_hda_codec_amp_update(codec, 0x15, 0, HDA_INPUT, 0,
-				 0x80, present ? 0x80 : 0);
+				 0x80, bits);
 	snd_hda_codec_amp_update(codec, 0x15, 1, HDA_INPUT, 0,
-				 0x80, present ? 0x80 : 0);
+				 0x80, bits);
 }
 
 static void alc880_uniwill_p53_dcvol_automute(struct hda_codec *codec)
@@ -1480,7 +1606,7 @@ static void alc880_uniwill_p53_unsol_event(struct hda_codec *codec,
 	 */
 	if ((res >> 28) == ALC880_HP_EVENT)
 		alc880_uniwill_p53_hp_automute(codec);
-	if ((res >> 28) == ALC880_DCVOL_EVENT) 
+	if ((res >> 28) == ALC880_DCVOL_EVENT)
 		alc880_uniwill_p53_dcvol_automute(codec);
 }
 
@@ -1547,22 +1673,8 @@ static struct hda_verb alc880_pin_asus_init_verbs[] = {
 };
 
 /* Enable GPIO mask and set output */
-static struct hda_verb alc880_gpio1_init_verbs[] = {
-	{0x01, AC_VERB_SET_GPIO_MASK, 0x01},
-	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x01},
-	{0x01, AC_VERB_SET_GPIO_DATA, 0x01},
-
-	{ }
-};
-
-/* Enable GPIO mask and set output */
-static struct hda_verb alc880_gpio2_init_verbs[] = {
-	{0x01, AC_VERB_SET_GPIO_MASK, 0x02},
-	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x02},
-	{0x01, AC_VERB_SET_GPIO_DATA, 0x02},
-
-	{ }
-};
+#define alc880_gpio1_init_verbs	alc_gpio1_init_verbs
+#define alc880_gpio2_init_verbs	alc_gpio2_init_verbs
 
 /* Clevo m520g init */
 static struct hda_verb alc880_pin_clevo_init_verbs[] = {
@@ -1734,13 +1846,15 @@ static struct hda_verb alc880_lg_init_verbs[] = {
 static void alc880_lg_automute(struct hda_codec *codec)
 {
 	unsigned int present;
+	unsigned char bits;
 
 	present = snd_hda_codec_read(codec, 0x1b, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	bits = present ? 0x80 : 0;
 	snd_hda_codec_amp_update(codec, 0x17, 0, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
+				 0x80, bits);
 	snd_hda_codec_amp_update(codec, 0x17, 1, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
+				 0x80, bits);
 }
 
 static void alc880_lg_unsol_event(struct hda_codec *codec, unsigned int res)
@@ -1810,13 +1924,15 @@ static struct hda_verb alc880_lg_lw_init_verbs[] = {
 static void alc880_lg_lw_automute(struct hda_codec *codec)
 {
 	unsigned int present;
+	unsigned char bits;
 
 	present = snd_hda_codec_read(codec, 0x1b, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	bits = present ? 0x80 : 0;
 	snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
+				 0x80, bits);
 	snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
+				 0x80, bits);
 }
 
 static void alc880_lg_lw_unsol_event(struct hda_codec *codec, unsigned int res)
@@ -1916,6 +2032,17 @@ static int alc880_dig_playback_pcm_open(struct hda_pcm_stream *hinfo,
 	return snd_hda_multi_out_dig_open(codec, &spec->multiout);
 }
 
+static int alc880_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
+					   struct hda_codec *codec,
+					   unsigned int stream_tag,
+					   unsigned int format,
+					   struct snd_pcm_substream *substream)
+{
+	struct alc_spec *spec = codec->spec;
+	return snd_hda_multi_out_dig_prepare(codec, &spec->multiout,
+					     stream_tag, format, substream);
+}
+
 static int alc880_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 					 struct hda_codec *codec,
 					 struct snd_pcm_substream *substream)
@@ -1984,7 +2111,8 @@ static struct hda_pcm_stream alc880_pcm_digital_playback = {
 	/* NID is set in alc_build_pcms */
 	.ops = {
 		.open = alc880_dig_playback_pcm_open,
-		.close = alc880_dig_playback_pcm_close
+		.close = alc880_dig_playback_pcm_close,
+		.prepare = alc880_dig_playback_pcm_prepare
 	},
 };
 
@@ -2075,7 +2203,7 @@ static void alc_free(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	unsigned int i;
 
-	if (! spec)
+	if (!spec)
 		return;
 
 	if (spec->kctl_alloc) {
@@ -2477,7 +2605,8 @@ static struct snd_pci_quirk alc880_cfg_tbl[] = {
 static struct alc_config_preset alc880_presets[] = {
 	[ALC880_3ST] = {
 		.mixers = { alc880_three_stack_mixer },
-		.init_verbs = { alc880_volume_init_verbs, alc880_pin_3stack_init_verbs },
+		.init_verbs = { alc880_volume_init_verbs,
+				alc880_pin_3stack_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_dac_nids),
 		.dac_nids = alc880_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc880_threestack_modes),
@@ -2487,7 +2616,8 @@ static struct alc_config_preset alc880_presets[] = {
 	},
 	[ALC880_3ST_DIG] = {
 		.mixers = { alc880_three_stack_mixer },
-		.init_verbs = { alc880_volume_init_verbs, alc880_pin_3stack_init_verbs },
+		.init_verbs = { alc880_volume_init_verbs,
+				alc880_pin_3stack_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_dac_nids),
 		.dac_nids = alc880_dac_nids,
 		.dig_out_nid = ALC880_DIGOUT_NID,
@@ -2509,8 +2639,10 @@ static struct alc_config_preset alc880_presets[] = {
 		.input_mux = &alc880_capture_source,
 	},
 	[ALC880_5ST] = {
-		.mixers = { alc880_three_stack_mixer, alc880_five_stack_mixer},
-		.init_verbs = { alc880_volume_init_verbs, alc880_pin_5stack_init_verbs },
+		.mixers = { alc880_three_stack_mixer,
+			    alc880_five_stack_mixer},
+		.init_verbs = { alc880_volume_init_verbs,
+				alc880_pin_5stack_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_dac_nids),
 		.dac_nids = alc880_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc880_fivestack_modes),
@@ -2518,8 +2650,10 @@ static struct alc_config_preset alc880_presets[] = {
 		.input_mux = &alc880_capture_source,
 	},
 	[ALC880_5ST_DIG] = {
-		.mixers = { alc880_three_stack_mixer, alc880_five_stack_mixer },
-		.init_verbs = { alc880_volume_init_verbs, alc880_pin_5stack_init_verbs },
+		.mixers = { alc880_three_stack_mixer,
+			    alc880_five_stack_mixer },
+		.init_verbs = { alc880_volume_init_verbs,
+				alc880_pin_5stack_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_dac_nids),
 		.dac_nids = alc880_dac_nids,
 		.dig_out_nid = ALC880_DIGOUT_NID,
@@ -2529,7 +2663,8 @@ static struct alc_config_preset alc880_presets[] = {
 	},
 	[ALC880_6ST] = {
 		.mixers = { alc880_six_stack_mixer },
-		.init_verbs = { alc880_volume_init_verbs, alc880_pin_6stack_init_verbs },
+		.init_verbs = { alc880_volume_init_verbs,
+				alc880_pin_6stack_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_6st_dac_nids),
 		.dac_nids = alc880_6st_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc880_sixstack_modes),
@@ -2538,7 +2673,8 @@ static struct alc_config_preset alc880_presets[] = {
 	},
 	[ALC880_6ST_DIG] = {
 		.mixers = { alc880_six_stack_mixer },
-		.init_verbs = { alc880_volume_init_verbs, alc880_pin_6stack_init_verbs },
+		.init_verbs = { alc880_volume_init_verbs,
+				alc880_pin_6stack_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_6st_dac_nids),
 		.dac_nids = alc880_6st_dac_nids,
 		.dig_out_nid = ALC880_DIGOUT_NID,
@@ -2548,7 +2684,8 @@ static struct alc_config_preset alc880_presets[] = {
 	},
 	[ALC880_W810] = {
 		.mixers = { alc880_w810_base_mixer },
-		.init_verbs = { alc880_volume_init_verbs, alc880_pin_w810_init_verbs,
+		.init_verbs = { alc880_volume_init_verbs,
+				alc880_pin_w810_init_verbs,
 				alc880_gpio2_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_w810_dac_nids),
 		.dac_nids = alc880_w810_dac_nids,
@@ -2559,7 +2696,8 @@ static struct alc_config_preset alc880_presets[] = {
 	},
 	[ALC880_Z71V] = {
 		.mixers = { alc880_z71v_mixer },
-		.init_verbs = { alc880_volume_init_verbs, alc880_pin_z71v_init_verbs },
+		.init_verbs = { alc880_volume_init_verbs,
+				alc880_pin_z71v_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_z71v_dac_nids),
 		.dac_nids = alc880_z71v_dac_nids,
 		.dig_out_nid = ALC880_DIGOUT_NID,
@@ -2570,7 +2708,8 @@ static struct alc_config_preset alc880_presets[] = {
 	},
 	[ALC880_F1734] = {
 		.mixers = { alc880_f1734_mixer },
-		.init_verbs = { alc880_volume_init_verbs, alc880_pin_f1734_init_verbs },
+		.init_verbs = { alc880_volume_init_verbs,
+				alc880_pin_f1734_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_f1734_dac_nids),
 		.dac_nids = alc880_f1734_dac_nids,
 		.hp_nid = 0x02,
@@ -2580,7 +2719,8 @@ static struct alc_config_preset alc880_presets[] = {
 	},
 	[ALC880_ASUS] = {
 		.mixers = { alc880_asus_mixer },
-		.init_verbs = { alc880_volume_init_verbs, alc880_pin_asus_init_verbs,
+		.init_verbs = { alc880_volume_init_verbs,
+				alc880_pin_asus_init_verbs,
 				alc880_gpio1_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_asus_dac_nids),
 		.dac_nids = alc880_asus_dac_nids,
@@ -2591,7 +2731,8 @@ static struct alc_config_preset alc880_presets[] = {
 	},
 	[ALC880_ASUS_DIG] = {
 		.mixers = { alc880_asus_mixer },
-		.init_verbs = { alc880_volume_init_verbs, alc880_pin_asus_init_verbs,
+		.init_verbs = { alc880_volume_init_verbs,
+				alc880_pin_asus_init_verbs,
 				alc880_gpio1_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_asus_dac_nids),
 		.dac_nids = alc880_asus_dac_nids,
@@ -2603,7 +2744,8 @@ static struct alc_config_preset alc880_presets[] = {
 	},
 	[ALC880_ASUS_DIG2] = {
 		.mixers = { alc880_asus_mixer },
-		.init_verbs = { alc880_volume_init_verbs, alc880_pin_asus_init_verbs,
+		.init_verbs = { alc880_volume_init_verbs,
+				alc880_pin_asus_init_verbs,
 				alc880_gpio2_init_verbs }, /* use GPIO2 */
 		.num_dacs = ARRAY_SIZE(alc880_asus_dac_nids),
 		.dac_nids = alc880_asus_dac_nids,
@@ -2615,7 +2757,8 @@ static struct alc_config_preset alc880_presets[] = {
 	},
 	[ALC880_ASUS_W1V] = {
 		.mixers = { alc880_asus_mixer, alc880_asus_w1v_mixer },
-		.init_verbs = { alc880_volume_init_verbs, alc880_pin_asus_init_verbs,
+		.init_verbs = { alc880_volume_init_verbs,
+				alc880_pin_asus_init_verbs,
 				alc880_gpio1_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_asus_dac_nids),
 		.dac_nids = alc880_asus_dac_nids,
@@ -2664,7 +2807,7 @@ static struct alc_config_preset alc880_presets[] = {
 		.init_hook = alc880_uniwill_p53_hp_automute,
 	},
 	[ALC880_FUJITSU] = {
-		.mixers = { alc880_fujitsu_mixer, 
+		.mixers = { alc880_fujitsu_mixer,
 			    alc880_pcbeep_mixer, },
 		.init_verbs = { alc880_volume_init_verbs,
 				alc880_uniwill_p53_init_verbs,
@@ -2707,7 +2850,7 @@ static struct alc_config_preset alc880_presets[] = {
 		.mixers = { alc880_lg_lw_mixer },
 		.init_verbs = { alc880_volume_init_verbs,
 				alc880_lg_lw_init_verbs },
-		.num_dacs = 1, 
+		.num_dacs = 1,
 		.dac_nids = alc880_dac_nids,
 		.dig_out_nid = ALC880_DIGOUT_NID,
 		.num_channel_mode = ARRAY_SIZE(alc880_2_jack_modes),
@@ -2749,18 +2892,21 @@ static struct snd_kcontrol_new alc880_control_templates[] = {
 };
 
 /* add dynamic controls */
-static int add_control(struct alc_spec *spec, int type, const char *name, unsigned long val)
+static int add_control(struct alc_spec *spec, int type, const char *name,
+		       unsigned long val)
 {
 	struct snd_kcontrol_new *knew;
 
 	if (spec->num_kctl_used >= spec->num_kctl_alloc) {
 		int num = spec->num_kctl_alloc + NUM_CONTROL_ALLOC;
 
-		knew = kcalloc(num + 1, sizeof(*knew), GFP_KERNEL); /* array + terminator */
-		if (! knew)
+		/* array + terminator */
+		knew = kcalloc(num + 1, sizeof(*knew), GFP_KERNEL);
+		if (!knew)
 			return -ENOMEM;
 		if (spec->kctl_alloc) {
-			memcpy(knew, spec->kctl_alloc, sizeof(*knew) * spec->num_kctl_alloc);
+			memcpy(knew, spec->kctl_alloc,
+			       sizeof(*knew) * spec->num_kctl_alloc);
 			kfree(spec->kctl_alloc);
 		}
 		spec->kctl_alloc = knew;
@@ -2770,7 +2916,7 @@ static int add_control(struct alc_spec *spec, int type, const char *name, unsign
 	knew = &spec->kctl_alloc[spec->num_kctl_used];
 	*knew = alc880_control_templates[type];
 	knew->name = kstrdup(name, GFP_KERNEL);
-	if (! knew->name)
+	if (!knew->name)
 		return -ENOMEM;
 	knew->private_value = val;
 	spec->num_kctl_used++;
@@ -2790,7 +2936,8 @@ static int add_control(struct alc_spec *spec, int type, const char *name, unsign
 #define ALC880_PIN_CD_NID		0x1c
 
 /* fill in the dac_nids table from the parsed pin configuration */
-static int alc880_auto_fill_dac_nids(struct alc_spec *spec, const struct auto_pin_cfg *cfg)
+static int alc880_auto_fill_dac_nids(struct alc_spec *spec,
+				     const struct auto_pin_cfg *cfg)
 {
 	hda_nid_t nid;
 	int assigned[4];
@@ -2815,8 +2962,9 @@ static int alc880_auto_fill_dac_nids(struct alc_spec *spec, const struct auto_pi
 			continue;
 		/* search for an empty channel */
 		for (j = 0; j < cfg->line_outs; j++) {
-			if (! assigned[j]) {
-				spec->multiout.dac_nids[i] = alc880_idx_to_dac(j);
+			if (!assigned[j]) {
+				spec->multiout.dac_nids[i] =
+					alc880_idx_to_dac(j);
 				assigned[j] = 1;
 				break;
 			}
@@ -2831,36 +2979,54 @@ static int alc880_auto_create_multi_out_ctls(struct alc_spec *spec,
 					     const struct auto_pin_cfg *cfg)
 {
 	char name[32];
-	static const char *chname[4] = { "Front", "Surround", NULL /*CLFE*/, "Side" };
+	static const char *chname[4] = {
+		"Front", "Surround", NULL /*CLFE*/, "Side"
+	};
 	hda_nid_t nid;
 	int i, err;
 
 	for (i = 0; i < cfg->line_outs; i++) {
-		if (! spec->multiout.dac_nids[i])
+		if (!spec->multiout.dac_nids[i])
 			continue;
 		nid = alc880_idx_to_mixer(alc880_dac_to_idx(spec->multiout.dac_nids[i]));
 		if (i == 2) {
 			/* Center/LFE */
-			if ((err = add_control(spec, ALC_CTL_WIDGET_VOL, "Center Playback Volume",
-					       HDA_COMPOSE_AMP_VAL(nid, 1, 0, HDA_OUTPUT))) < 0)
+			err = add_control(spec, ALC_CTL_WIDGET_VOL,
+					  "Center Playback Volume",
+					  HDA_COMPOSE_AMP_VAL(nid, 1, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
 				return err;
-			if ((err = add_control(spec, ALC_CTL_WIDGET_VOL, "LFE Playback Volume",
-					       HDA_COMPOSE_AMP_VAL(nid, 2, 0, HDA_OUTPUT))) < 0)
+			err = add_control(spec, ALC_CTL_WIDGET_VOL,
+					  "LFE Playback Volume",
+					  HDA_COMPOSE_AMP_VAL(nid, 2, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
 				return err;
-			if ((err = add_control(spec, ALC_CTL_BIND_MUTE, "Center Playback Switch",
-					       HDA_COMPOSE_AMP_VAL(nid, 1, 2, HDA_INPUT))) < 0)
+			err = add_control(spec, ALC_CTL_BIND_MUTE,
+					  "Center Playback Switch",
+					  HDA_COMPOSE_AMP_VAL(nid, 1, 2,
+							      HDA_INPUT));
+			if (err < 0)
 				return err;
-			if ((err = add_control(spec, ALC_CTL_BIND_MUTE, "LFE Playback Switch",
-					       HDA_COMPOSE_AMP_VAL(nid, 2, 2, HDA_INPUT))) < 0)
+			err = add_control(spec, ALC_CTL_BIND_MUTE,
+					  "LFE Playback Switch",
+					  HDA_COMPOSE_AMP_VAL(nid, 2, 2,
+							      HDA_INPUT));
+			if (err < 0)
 				return err;
 		} else {
 			sprintf(name, "%s Playback Volume", chname[i]);
-			if ((err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
-					       HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT))) < 0)
+			err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
+					  HDA_COMPOSE_AMP_VAL(nid, 3, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
 				return err;
 			sprintf(name, "%s Playback Switch", chname[i]);
-			if ((err = add_control(spec, ALC_CTL_BIND_MUTE, name,
-					       HDA_COMPOSE_AMP_VAL(nid, 3, 2, HDA_INPUT))) < 0)
+			err = add_control(spec, ALC_CTL_BIND_MUTE, name,
+					  HDA_COMPOSE_AMP_VAL(nid, 3, 2,
+							      HDA_INPUT));
+			if (err < 0)
 				return err;
 		}
 	}
@@ -2875,51 +3041,57 @@ static int alc880_auto_create_extra_out(struct alc_spec *spec, hda_nid_t pin,
 	int err;
 	char name[32];
 
-	if (! pin)
+	if (!pin)
 		return 0;
 
 	if (alc880_is_fixed_pin(pin)) {
 		nid = alc880_idx_to_dac(alc880_fixed_pin_idx(pin));
 		/* specify the DAC as the extra output */
-		if (! spec->multiout.hp_nid)
+		if (!spec->multiout.hp_nid)
 			spec->multiout.hp_nid = nid;
 		else
 			spec->multiout.extra_out_nid[0] = nid;
 		/* control HP volume/switch on the output mixer amp */
 		nid = alc880_idx_to_mixer(alc880_fixed_pin_idx(pin));
 		sprintf(name, "%s Playback Volume", pfx);
-		if ((err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
-				       HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT))) < 0)
+		err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
+				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT));
+		if (err < 0)
 			return err;
 		sprintf(name, "%s Playback Switch", pfx);
-		if ((err = add_control(spec, ALC_CTL_BIND_MUTE, name,
-				       HDA_COMPOSE_AMP_VAL(nid, 3, 2, HDA_INPUT))) < 0)
+		err = add_control(spec, ALC_CTL_BIND_MUTE, name,
+				  HDA_COMPOSE_AMP_VAL(nid, 3, 2, HDA_INPUT));
+		if (err < 0)
 			return err;
 	} else if (alc880_is_multi_pin(pin)) {
 		/* set manual connection */
 		/* we have only a switch on HP-out PIN */
 		sprintf(name, "%s Playback Switch", pfx);
-		if ((err = add_control(spec, ALC_CTL_WIDGET_MUTE, name,
-				       HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT))) < 0)
+		err = add_control(spec, ALC_CTL_WIDGET_MUTE, name,
+				  HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
+		if (err < 0)
 			return err;
 	}
 	return 0;
 }
 
 /* create input playback/capture controls for the given pin */
-static int new_analog_input(struct alc_spec *spec, hda_nid_t pin, const char *ctlname,
+static int new_analog_input(struct alc_spec *spec, hda_nid_t pin,
+			    const char *ctlname,
 			    int idx, hda_nid_t mix_nid)
 {
 	char name[32];
 	int err;
 
 	sprintf(name, "%s Playback Volume", ctlname);
-	if ((err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
-			       HDA_COMPOSE_AMP_VAL(mix_nid, 3, idx, HDA_INPUT))) < 0)
+	err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
+			  HDA_COMPOSE_AMP_VAL(mix_nid, 3, idx, HDA_INPUT));
+	if (err < 0)
 		return err;
 	sprintf(name, "%s Playback Switch", ctlname);
-	if ((err = add_control(spec, ALC_CTL_WIDGET_MUTE, name,
-			       HDA_COMPOSE_AMP_VAL(mix_nid, 3, idx, HDA_INPUT))) < 0)
+	err = add_control(spec, ALC_CTL_WIDGET_MUTE, name,
+			  HDA_COMPOSE_AMP_VAL(mix_nid, 3, idx, HDA_INPUT));
+	if (err < 0)
 		return err;
 	return 0;
 }
@@ -2939,8 +3111,10 @@ static int alc880_auto_create_analog_input_ctls(struct alc_spec *spec,
 					       idx, 0x0b);
 			if (err < 0)
 				return err;
-			imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
-			imux->items[imux->num_items].index = alc880_input_pin_idx(cfg->input_pins[i]);
+			imux->items[imux->num_items].label =
+				auto_pin_cfg_labels[i];
+			imux->items[imux->num_items].index =
+				alc880_input_pin_idx(cfg->input_pins[i]);
 			imux->num_items++;
 		}
 	}
@@ -2952,8 +3126,10 @@ static void alc880_auto_set_output_and_unmute(struct hda_codec *codec,
 					      int dac_idx)
 {
 	/* set as output */
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL, pin_type);
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    pin_type);
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+			    AMP_OUT_UNMUTE);
 	/* need the manual connection? */
 	if (alc880_is_multi_pin(nid)) {
 		struct alc_spec *spec = codec->spec;
@@ -2964,14 +3140,24 @@ static void alc880_auto_set_output_and_unmute(struct hda_codec *codec,
 	}
 }
 
+static int get_pin_type(int line_out_type)
+{
+	if (line_out_type == AUTO_PIN_HP_OUT)
+		return PIN_HP;
+	else
+		return PIN_OUT;
+}
+
 static void alc880_auto_init_multi_out(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	int i;
-
+	
+	alc_subsystem_id(codec, 0x15, 0x1b, 0x14);
 	for (i = 0; i < spec->autocfg.line_outs; i++) {
 		hda_nid_t nid = spec->autocfg.line_out_pins[i];
-		alc880_auto_set_output_and_unmute(codec, nid, PIN_OUT, i);
+		int pin_type = get_pin_type(spec->autocfg.line_out_type);
+		alc880_auto_set_output_and_unmute(codec, nid, pin_type, i);
 	}
 }
 
@@ -2996,37 +3182,52 @@ static void alc880_auto_init_analog_input(struct hda_codec *codec)
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t nid = spec->autocfg.input_pins[i];
 		if (alc880_is_input_pin(nid)) {
-			snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-					    i <= AUTO_PIN_FRONT_MIC ? PIN_VREF80 : PIN_IN);
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_PIN_WIDGET_CONTROL,
+					    i <= AUTO_PIN_FRONT_MIC ?
+					    PIN_VREF80 : PIN_IN);
 			if (nid != ALC880_PIN_CD_NID)
-				snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+				snd_hda_codec_write(codec, nid, 0,
+						    AC_VERB_SET_AMP_GAIN_MUTE,
 						    AMP_OUT_MUTE);
 		}
 	}
 }
 
 /* parse the BIOS configuration and set up the alc_spec */
-/* return 1 if successful, 0 if the proper config is not found, or a negative error code */
+/* return 1 if successful, 0 if the proper config is not found,
+ * or a negative error code
+ */
 static int alc880_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	int err;
 	static hda_nid_t alc880_ignore[] = { 0x1d, 0 };
 
-	if ((err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
-						alc880_ignore)) < 0)
+	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
+					   alc880_ignore);
+	if (err < 0)
 		return err;
-	if (! spec->autocfg.line_outs)
+	if (!spec->autocfg.line_outs)
 		return 0; /* can't find valid BIOS pin config */
 
-	if ((err = alc880_auto_fill_dac_nids(spec, &spec->autocfg)) < 0 ||
-	    (err = alc880_auto_create_multi_out_ctls(spec, &spec->autocfg)) < 0 ||
-	    (err = alc880_auto_create_extra_out(spec,
-						spec->autocfg.speaker_pins[0],
-						"Speaker")) < 0 ||
-	    (err = alc880_auto_create_extra_out(spec, spec->autocfg.hp_pins[0],
-						"Headphone")) < 0 ||
-	    (err = alc880_auto_create_analog_input_ctls(spec, &spec->autocfg)) < 0)
+	err = alc880_auto_fill_dac_nids(spec, &spec->autocfg);
+	if (err < 0)
+		return err;
+	err = alc880_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	if (err < 0)
+		return err;
+	err = alc880_auto_create_extra_out(spec,
+					   spec->autocfg.speaker_pins[0],
+					   "Speaker");
+	if (err < 0)
+		return err;
+	err = alc880_auto_create_extra_out(spec, spec->autocfg.hp_pins[0],
+					   "Headphone");
+	if (err < 0)
+		return err;
+	err = alc880_auto_create_analog_input_ctls(spec, &spec->autocfg);
+	if (err < 0)
 		return err;
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
@@ -3086,7 +3287,7 @@ static int patch_alc880(struct hda_codec *codec)
 		if (err < 0) {
 			alc_free(codec);
 			return err;
-		} else if (! err) {
+		} else if (!err) {
 			printk(KERN_INFO
 			       "hda_codec: Cannot set up configuration "
 			       "from BIOS.  Using 3-stack mode...\n");
@@ -3105,14 +3306,16 @@ static int patch_alc880(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc880_pcm_digital_playback;
 	spec->stream_digital_capture = &alc880_pcm_digital_capture;
 
-	if (! spec->adc_nids && spec->input_mux) {
+	if (!spec->adc_nids && spec->input_mux) {
 		/* check whether NID 0x07 is valid */
 		unsigned int wcap = get_wcaps(codec, alc880_adc_nids[0]);
-		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT; /* get type */
+		/* get type */
+		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
 		if (wcap != AC_WID_AUD_IN) {
 			spec->adc_nids = alc880_adc_nids_alt;
 			spec->num_adc_nids = ARRAY_SIZE(alc880_adc_nids_alt);
-			spec->mixers[spec->num_mixers] = alc880_capture_alt_mixer;
+			spec->mixers[spec->num_mixers] =
+				alc880_capture_alt_mixer;
 			spec->num_mixers++;
 		} else {
 			spec->adc_nids = alc880_adc_nids;
@@ -3254,7 +3457,7 @@ static struct snd_kcontrol_new alc260_base_output_mixer[] = {
 	HDA_CODEC_VOLUME_MONO("Mono Playback Volume", 0x0a, 1, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE_MONO("Mono Playback Switch", 0x0a, 1, 2, HDA_INPUT),
 	{ } /* end */
-};	
+};
 
 static struct snd_kcontrol_new alc260_input_mixer[] = {
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x07, 0x04, HDA_INPUT),
@@ -3349,6 +3552,42 @@ static struct snd_kcontrol_new alc260_acer_mixer[] = {
 	{ } /* end */
 };
 
+/* Packard bell V7900  ALC260 pin usage: HP = 0x0f, Mic jack = 0x12,
+ * Line In jack = 0x14, CD audio =  0x16, pc beep = 0x17.
+ */
+static struct snd_kcontrol_new alc260_will_mixer[] = {
+	HDA_CODEC_VOLUME("Master Playback Volume", 0x08, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Master Playback Switch", 0x08, 0x2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x07, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x07, 0x0, HDA_INPUT),
+	ALC_PIN_MODE("Mic Jack Mode", 0x12, ALC_PIN_DIR_IN),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x07, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x07, 0x02, HDA_INPUT),
+	ALC_PIN_MODE("Line Jack Mode", 0x14, ALC_PIN_DIR_INOUT),
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x07, 0x04, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x07, 0x04, HDA_INPUT),
+	HDA_CODEC_VOLUME("Beep Playback Volume", 0x07, 0x05, HDA_INPUT),
+	HDA_CODEC_MUTE("Beep Playback Switch", 0x07, 0x05, HDA_INPUT),
+	{ } /* end */
+};
+
+/* Replacer 672V ALC260 pin usage: Mic jack = 0x12,
+ * Line In jack = 0x14, ATAPI Mic = 0x13, speaker = 0x0f.
+ */
+static struct snd_kcontrol_new alc260_replacer_672v_mixer[] = {
+	HDA_CODEC_VOLUME("Master Playback Volume", 0x08, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Master Playback Switch", 0x08, 0x2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x07, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x07, 0x0, HDA_INPUT),
+	ALC_PIN_MODE("Mic Jack Mode", 0x12, ALC_PIN_DIR_IN),
+	HDA_CODEC_VOLUME("ATAPI Mic Playback Volume", 0x07, 0x1, HDA_INPUT),
+	HDA_CODEC_MUTE("ATATI Mic Playback Switch", 0x07, 0x1, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x07, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x07, 0x02, HDA_INPUT),
+	ALC_PIN_MODE("Line Jack Mode", 0x14, ALC_PIN_DIR_INOUT),
+	{ } /* end */
+};
+
 /* capture mixer elements */
 static struct snd_kcontrol_new alc260_capture_mixer[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x04, 0x0, HDA_INPUT),
@@ -3434,7 +3673,9 @@ static struct hda_verb alc260_init_verbs[] = {
 	{0x11, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	/* unmute LINE-2 out pin */
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* Amp Indexes: CD = 0x04, Line In 1 = 0x02, Mic 1 = 0x00 & Line In 2 = 0x03 */
+	/* Amp Indexes: CD = 0x04, Line In 1 = 0x02, Mic 1 = 0x00 &
+	 * Line In 2 = 0x03
+	 */
 	/* mute CD */
 	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
 	/* mute Line In */
@@ -3482,7 +3723,9 @@ static struct hda_verb alc260_hp_init_verbs[] = {
 	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
 	/* mute pin widget amp left and right (no gain on this amp) */
 	{0x10, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
-	/* Amp Indexes: CD = 0x04, Line In 1 = 0x02, Mic 1 = 0x00 & Line In 2 = 0x03 */
+	/* Amp Indexes: CD = 0x04, Line In 1 = 0x02, Mic 1 = 0x00 &
+	 * Line In 2 = 0x03
+	 */
 	/* unmute CD */
 	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x04 << 8))},
 	/* unmute Line In */
@@ -3530,7 +3773,9 @@ static struct hda_verb alc260_hp_3013_init_verbs[] = {
 	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
 	/* mute pin widget amp left and right (no gain on this amp) */
 	{0x10, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
-	/* Amp Indexes: CD = 0x04, Line In 1 = 0x02, Mic 1 = 0x00 & Line In 2 = 0x03 */
+	/* Amp Indexes: CD = 0x04, Line In 1 = 0x02, Mic 1 = 0x00 &
+	 * Line In 2 = 0x03
+	 */
 	/* unmute CD */
 	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x04 << 8))},
 	/* unmute Line In */
@@ -3680,7 +3925,9 @@ static struct hda_verb alc260_acer_init_verbs[] = {
 	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 
-	/* Unmute Line-out pin widget amp left and right (no equiv mixer ctrl) */
+	/* Unmute Line-out pin widget amp left and right
+	 * (no equiv mixer ctrl)
+	 */
 	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	/* Unmute mono pin widget amp output (no equiv mixer ctrl) */
 	{0x11, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
@@ -3718,6 +3965,55 @@ static struct hda_verb alc260_acer_init_verbs[] = {
 
 	{ }
 };
+
+static struct hda_verb alc260_will_verbs[] = {
+	{0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x0b, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x0d, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x0f, AC_VERB_SET_EAPD_BTLENABLE, 0x02},
+	{0x1a, AC_VERB_SET_COEF_INDEX, 0x07},
+	{0x1a, AC_VERB_SET_PROC_COEF, 0x3040},
+	{}
+};
+
+static struct hda_verb alc260_replacer_672v_verbs[] = {
+	{0x0f, AC_VERB_SET_EAPD_BTLENABLE, 0x02},
+	{0x1a, AC_VERB_SET_COEF_INDEX, 0x07},
+	{0x1a, AC_VERB_SET_PROC_COEF, 0x3050},
+
+	{0x01, AC_VERB_SET_GPIO_MASK, 0x01},
+	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x01},
+	{0x01, AC_VERB_SET_GPIO_DATA, 0x00},
+
+	{0x0f, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
+	{}
+};
+
+/* toggle speaker-output according to the hp-jack state */
+static void alc260_replacer_672v_automute(struct hda_codec *codec)
+{
+        unsigned int present;
+
+	/* speaker --> GPIO Data 0, hp or spdif --> GPIO data 1 */
+        present = snd_hda_codec_read(codec, 0x0f, 0,
+                                     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	if (present) {
+		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA, 1);
+		snd_hda_codec_write(codec, 0x0f, 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
+	} else {
+		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA, 0);
+		snd_hda_codec_write(codec, 0x0f, 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
+	}
+}
+
+static void alc260_replacer_672v_unsol_event(struct hda_codec *codec,
+                                       unsigned int res)
+{
+        if ((res >> 26) == ALC880_HP_EVENT)
+                alc260_replacer_672v_automute(codec);
+}
 
 /* Test configuration for debugging, modelled after the ALC880 test
  * configuration.
@@ -3946,10 +4242,12 @@ static int alc260_add_playback_controls(struct alc_spec *spec, hda_nid_t nid,
 		return 0; /* N/A */
 	
 	snprintf(name, sizeof(name), "%s Playback Volume", pfx);
-	if ((err = add_control(spec, ALC_CTL_WIDGET_VOL, name, vol_val)) < 0)
+	err = add_control(spec, ALC_CTL_WIDGET_VOL, name, vol_val);
+	if (err < 0)
 		return err;
 	snprintf(name, sizeof(name), "%s Playback Switch", pfx);
-	if ((err = add_control(spec, ALC_CTL_WIDGET_MUTE, name, sw_val)) < 0)
+	err = add_control(spec, ALC_CTL_WIDGET_MUTE, name, sw_val);
+	if (err < 0)
 		return err;
 	return 1;
 }
@@ -3985,7 +4283,7 @@ static int alc260_auto_create_multi_out_ctls(struct alc_spec *spec,
 		if (err < 0)
 			return err;
 	}
-	return 0;	
+	return 0;
 }
 
 /* create playback/capture controls for input pins */
@@ -3999,20 +4297,24 @@ static int alc260_auto_create_analog_input_ctls(struct alc_spec *spec,
 		if (cfg->input_pins[i] >= 0x12) {
 			idx = cfg->input_pins[i] - 0x12;
 			err = new_analog_input(spec, cfg->input_pins[i],
-					       auto_pin_cfg_labels[i], idx, 0x07);
+					       auto_pin_cfg_labels[i], idx,
+					       0x07);
 			if (err < 0)
 				return err;
-			imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
+			imux->items[imux->num_items].label =
+				auto_pin_cfg_labels[i];
 			imux->items[imux->num_items].index = idx;
 			imux->num_items++;
 		}
-		if ((cfg->input_pins[i] >= 0x0f) && (cfg->input_pins[i] <= 0x10)){
+		if (cfg->input_pins[i] >= 0x0f && cfg->input_pins[i] <= 0x10){
 			idx = cfg->input_pins[i] - 0x09;
 			err = new_analog_input(spec, cfg->input_pins[i],
-					       auto_pin_cfg_labels[i], idx, 0x07);
+					       auto_pin_cfg_labels[i], idx,
+					       0x07);
 			if (err < 0)
 				return err;
-			imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
+			imux->items[imux->num_items].label =
+				auto_pin_cfg_labels[i];
 			imux->items[imux->num_items].index = idx;
 			imux->num_items++;
 		}
@@ -4025,14 +4327,15 @@ static void alc260_auto_set_output_and_unmute(struct hda_codec *codec,
 					      int sel_idx)
 {
 	/* set as output */
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL, pin_type);
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    pin_type);
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+			    AMP_OUT_UNMUTE);
 	/* need the manual connection? */
 	if (nid >= 0x12) {
 		int idx = nid - 0x12;
 		snd_hda_codec_write(codec, idx + 0x0b, 0,
 				    AC_VERB_SET_CONNECT_SEL, sel_idx);
-				    
 	}
 }
 
@@ -4041,9 +4344,12 @@ static void alc260_auto_init_multi_out(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	hda_nid_t nid;
 
-	nid = spec->autocfg.line_out_pins[0];	
-	if (nid)
-		alc260_auto_set_output_and_unmute(codec, nid, PIN_OUT, 0);
+	alc_subsystem_id(codec, 0x10, 0x15, 0x0f);
+	nid = spec->autocfg.line_out_pins[0];
+	if (nid) {
+		int pin_type = get_pin_type(spec->autocfg.line_out_type);
+		alc260_auto_set_output_and_unmute(codec, nid, pin_type, 0);
+	}
 	
 	nid = spec->autocfg.speaker_pins[0];
 	if (nid)
@@ -4051,8 +4357,8 @@ static void alc260_auto_init_multi_out(struct hda_codec *codec)
 
 	nid = spec->autocfg.hp_pins[0];
 	if (nid)
-		alc260_auto_set_output_and_unmute(codec, nid, PIN_OUT, 0);
-}	
+		alc260_auto_set_output_and_unmute(codec, nid, PIN_HP, 0);
+}
 
 #define ALC260_PIN_CD_NID		0x16
 static void alc260_auto_init_analog_input(struct hda_codec *codec)
@@ -4063,10 +4369,13 @@ static void alc260_auto_init_analog_input(struct hda_codec *codec)
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t nid = spec->autocfg.input_pins[i];
 		if (nid >= 0x12) {
-			snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-					    i <= AUTO_PIN_FRONT_MIC ? PIN_VREF80 : PIN_IN);
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_PIN_WIDGET_CONTROL,
+					    i <= AUTO_PIN_FRONT_MIC ?
+					    PIN_VREF80 : PIN_IN);
 			if (nid != ALC260_PIN_CD_NID)
-				snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+				snd_hda_codec_write(codec, nid, 0,
+						    AC_VERB_SET_AMP_GAIN_MUTE,
 						    AMP_OUT_MUTE);
 		}
 	}
@@ -4086,8 +4395,8 @@ static struct hda_verb alc260_volume_init_verbs[] = {
 	
 	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
 	 * mixer widget
-	 * Note: PASD motherboards uses the Line In 2 as the input for front panel
-	 * mic (mic 2)
+	 * Note: PASD motherboards uses the Line In 2 as the input for
+	 * front panel mic (mic 2)
 	 */
 	/* Amp Indices: Mic1 = 0, Mic2 = 1, Line1 = 2, Line2 = 3, CD = 4 */
 	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
@@ -4122,14 +4431,17 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 	int err;
 	static hda_nid_t alc260_ignore[] = { 0x17, 0 };
 
-	if ((err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
-						alc260_ignore)) < 0)
+	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
+					   alc260_ignore);
+	if (err < 0)
 		return err;
-	if ((err = alc260_auto_create_multi_out_ctls(spec, &spec->autocfg)) < 0)
+	err = alc260_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	if (err < 0)
 		return err;
-	if (! spec->kctl_alloc)
+	if (!spec->kctl_alloc)
 		return 0; /* can't find valid BIOS pin config */
-	if ((err = alc260_auto_create_analog_input_ctls(spec, &spec->autocfg)) < 0)
+	err = alc260_auto_create_analog_input_ctls(spec, &spec->autocfg);
+	if (err < 0)
 		return err;
 
 	spec->multiout.max_channels = 2;
@@ -4177,6 +4489,8 @@ static const char *alc260_models[ALC260_MODEL_LAST] = {
 	[ALC260_HP_3013]	= "hp-3013",
 	[ALC260_FUJITSU_S702X]	= "fujitsu",
 	[ALC260_ACER]		= "acer",
+	[ALC260_WILL]		= "will",
+	[ALC260_REPLACER_672V]	= "replacer",
 #ifdef CONFIG_SND_DEBUG
 	[ALC260_TEST]		= "test",
 #endif
@@ -4200,6 +4514,8 @@ static struct snd_pci_quirk alc260_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x104d, 0x81cd, "Sony VAIO", ALC260_BASIC),
 	SND_PCI_QUIRK(0x10cf, 0x1326, "Fujitsu S702X", ALC260_FUJITSU_S702X),
 	SND_PCI_QUIRK(0x152d, 0x0729, "CTL U553W", ALC260_BASIC),
+	SND_PCI_QUIRK(0x1631, 0xc017, "PB V7900", ALC260_WILL),
+	SND_PCI_QUIRK(0x161f, 0x2057, "Replacer 672V", ALC260_REPLACER_672V),
 	{}
 };
 
@@ -4270,6 +4586,34 @@ static struct alc_config_preset alc260_presets[] = {
 		.num_mux_defs = ARRAY_SIZE(alc260_acer_capture_sources),
 		.input_mux = alc260_acer_capture_sources,
 	},
+	[ALC260_WILL] = {
+		.mixers = { alc260_will_mixer,
+			    alc260_capture_mixer },
+		.init_verbs = { alc260_init_verbs, alc260_will_verbs },
+		.num_dacs = ARRAY_SIZE(alc260_dac_nids),
+		.dac_nids = alc260_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc260_adc_nids),
+		.adc_nids = alc260_adc_nids,
+		.dig_out_nid = ALC260_DIGOUT_NID,
+		.num_channel_mode = ARRAY_SIZE(alc260_modes),
+		.channel_mode = alc260_modes,
+		.input_mux = &alc260_capture_source,
+	},
+	[ALC260_REPLACER_672V] = {
+		.mixers = { alc260_replacer_672v_mixer,
+			    alc260_capture_mixer },
+		.init_verbs = { alc260_init_verbs, alc260_replacer_672v_verbs },
+		.num_dacs = ARRAY_SIZE(alc260_dac_nids),
+		.dac_nids = alc260_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc260_adc_nids),
+		.adc_nids = alc260_adc_nids,
+		.dig_out_nid = ALC260_DIGOUT_NID,
+		.num_channel_mode = ARRAY_SIZE(alc260_modes),
+		.channel_mode = alc260_modes,
+		.input_mux = &alc260_capture_source,
+		.unsol_event = alc260_replacer_672v_unsol_event,
+		.init_hook = alc260_replacer_672v_automute,
+	},
 #ifdef CONFIG_SND_DEBUG
 	[ALC260_TEST] = {
 		.mixers = { alc260_test_mixer,
@@ -4313,7 +4657,7 @@ static int patch_alc260(struct hda_codec *codec)
 		if (err < 0) {
 			alc_free(codec);
 			return err;
-		} else if (! err) {
+		} else if (!err) {
 			printk(KERN_INFO
 			       "hda_codec: Cannot set up configuration "
 			       "from BIOS.  Using base mode...\n");
@@ -4382,7 +4726,8 @@ static struct hda_input_mux alc882_capture_source = {
 #define alc882_mux_enum_info alc_mux_enum_info
 #define alc882_mux_enum_get alc_mux_enum_get
 
-static int alc882_mux_enum_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+static int alc882_mux_enum_put(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
@@ -4396,7 +4741,7 @@ static int alc882_mux_enum_put(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 	idx = ucontrol->value.enumerated.item[0];
 	if (idx >= imux->num_items)
 		idx = imux->num_items - 1;
-	if (*cur_val == idx && ! codec->in_resume)
+	if (*cur_val == idx && !codec->in_resume)
 		return 0;
 	for (i = 0; i < imux->num_items; i++) {
 		unsigned int v = (i == idx) ? 0x7000 : 0x7080;
@@ -4459,6 +4804,21 @@ static struct snd_kcontrol_new alc882_base_mixer[] = {
 	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
 	HDA_CODEC_VOLUME("Front Mic Boost", 0x19, 0, HDA_INPUT),
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x0b, 0x05, HDA_INPUT),
+	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x0b, 0x05, HDA_INPUT),
+	{ } /* end */
+};
+
+static struct snd_kcontrol_new alc882_w2jc_mixer[] = {
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x0b, 0x05, HDA_INPUT),
 	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x0b, 0x05, HDA_INPUT),
 	{ } /* end */
@@ -4559,7 +4919,7 @@ static struct hda_verb alc882_eapd_verbs[] = {
 	/* change to EAPD mode */
 	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
 	{0x20, AC_VERB_SET_PROC_COEF, 0x3060},
-	{ } 
+	{ }
 };
 
 /* Mac Pro test */
@@ -4624,6 +4984,7 @@ static struct hda_verb alc882_macpro_init_verbs[] = {
 
 	{ }
 };
+
 static void alc882_gpio_mute(struct hda_codec *codec, int pin, int muted)
 {
 	unsigned int gpiostate, gpiomask, gpiodir;
@@ -4672,8 +5033,8 @@ static struct hda_verb alc882_auto_init_verbs[] = {
 
 	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
 	 * mixer widget
-	 * Note: PASD motherboards uses the Line In 2 as the input for front panel
-	 * mic (mic 2)
+	 * Note: PASD motherboards uses the Line In 2 as the input for
+	 * front panel mic (mic 2)
 	 */
 	/* Amp Indices: Mic1 = 0, Mic2 = 1, Line1 = 2, Line2 = 3, CD = 4 */
 	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
@@ -4782,6 +5143,7 @@ static const char *alc882_models[ALC882_MODEL_LAST] = {
 	[ALC882_3ST_DIG]	= "3stack-dig",
 	[ALC882_6ST_DIG]	= "6stack-dig",
 	[ALC882_ARIMA]		= "arima",
+	[ALC882_W2JC]		= "w2jc",
 	[ALC885_MACPRO]		= "macpro",
 	[ALC882_AUTO]		= "auto",
 };
@@ -4792,6 +5154,7 @@ static struct snd_pci_quirk alc882_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1462, 0x6668, "MSI", ALC882_6ST_DIG),
 	SND_PCI_QUIRK(0x161f, 0x2054, "Arima W820", ALC882_ARIMA),
 	SND_PCI_QUIRK(0x1043, 0x81d8, "Asus P5WD", ALC882_6ST_DIG),
+	SND_PCI_QUIRK(0x1043, 0x1971, "Asus W2JC", ALC882_W2JC),
 	{}
 };
 
@@ -4828,6 +5191,18 @@ static struct alc_config_preset alc882_presets[] = {
 		.channel_mode = alc882_sixstack_modes,
 		.input_mux = &alc882_capture_source,
 	},
+	[ALC882_W2JC] = {
+		.mixers = { alc882_w2jc_mixer, alc882_chmode_mixer },
+		.init_verbs = { alc882_init_verbs, alc882_eapd_verbs,
+				alc880_gpio1_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
+		.dac_nids = alc882_dac_nids,
+		.num_channel_mode = ARRAY_SIZE(alc880_threestack_modes),
+		.channel_mode = alc880_threestack_modes,
+		.need_dac_fix = 1,
+		.input_mux = &alc882_capture_source,
+		.dig_out_nid = ALC882_DIGOUT_NID,
+	},
 	[ALC885_MACPRO] = {
 		.mixers = { alc882_macpro_mixer },
 		.init_verbs = { alc882_macpro_init_verbs },
@@ -4851,15 +5226,17 @@ static void alc882_auto_set_output_and_unmute(struct hda_codec *codec,
 {
 	/* set as output */
 	struct alc_spec *spec = codec->spec;
-	int idx; 
-	
+	int idx;
+
 	if (spec->multiout.dac_nids[dac_idx] == 0x25)
 		idx = 4;
 	else
 		idx = spec->multiout.dac_nids[dac_idx] - 2;
 
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL, pin_type);
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    pin_type);
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+			    AMP_OUT_UNMUTE);
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, idx);
 
 }
@@ -4869,10 +5246,13 @@ static void alc882_auto_init_multi_out(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	int i;
 
+	alc_subsystem_id(codec, 0x15, 0x1b, 0x14);
 	for (i = 0; i <= HDA_SIDE; i++) {
-		hda_nid_t nid = spec->autocfg.line_out_pins[i];	
+		hda_nid_t nid = spec->autocfg.line_out_pins[i];
+		int pin_type = get_pin_type(spec->autocfg.line_out_type);
 		if (nid)
-			alc882_auto_set_output_and_unmute(codec, nid, PIN_OUT, i);
+			alc882_auto_set_output_and_unmute(codec, nid, pin_type,
+							  i);
 	}
 }
 
@@ -4883,7 +5263,8 @@ static void alc882_auto_init_hp_out(struct hda_codec *codec)
 
 	pin = spec->autocfg.hp_pins[0];
 	if (pin) /* connect to front */
-		alc882_auto_set_output_and_unmute(codec, pin, PIN_HP, 0); /* use dac 0 */
+		/* use dac 0 */
+		alc882_auto_set_output_and_unmute(codec, pin, PIN_HP, 0);
 }
 
 #define alc882_is_input_pin(nid)	alc880_is_input_pin(nid)
@@ -4897,10 +5278,13 @@ static void alc882_auto_init_analog_input(struct hda_codec *codec)
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t nid = spec->autocfg.input_pins[i];
 		if (alc882_is_input_pin(nid)) {
-			snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-					    i <= AUTO_PIN_FRONT_MIC ? PIN_VREF80 : PIN_IN);
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_PIN_WIDGET_CONTROL,
+					    i <= AUTO_PIN_FRONT_MIC ?
+					    PIN_VREF80 : PIN_IN);
 			if (nid != ALC882_PIN_CD_NID)
-				snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+				snd_hda_codec_write(codec, nid, 0,
+						    AC_VERB_SET_AMP_GAIN_MUTE,
 						    AMP_OUT_MUTE);
 		}
 	}
@@ -4962,7 +5346,7 @@ static int patch_alc882(struct hda_codec *codec)
 		if (err < 0) {
 			alc_free(codec);
 			return err;
-		} else if (! err) {
+		} else if (!err) {
 			printk(KERN_INFO
 			       "hda_codec: Cannot set up configuration "
 			       "from BIOS.  Using base mode...\n");
@@ -4986,14 +5370,16 @@ static int patch_alc882(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc882_pcm_digital_playback;
 	spec->stream_digital_capture = &alc882_pcm_digital_capture;
 
-	if (! spec->adc_nids && spec->input_mux) {
+	if (!spec->adc_nids && spec->input_mux) {
 		/* check whether NID 0x07 is valid */
 		unsigned int wcap = get_wcaps(codec, 0x07);
-		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT; /* get type */
+		/* get type */
+		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
 		if (wcap != AC_WID_AUD_IN) {
 			spec->adc_nids = alc882_adc_nids_alt;
 			spec->num_adc_nids = ARRAY_SIZE(alc882_adc_nids_alt);
-			spec->mixers[spec->num_mixers] = alc882_capture_alt_mixer;
+			spec->mixers[spec->num_mixers] =
+				alc882_capture_alt_mixer;
 			spec->num_mixers++;
 		} else {
 			spec->adc_nids = alc882_adc_nids;
@@ -5033,6 +5419,7 @@ static hda_nid_t alc883_adc_nids[2] = {
 	/* ADC1-2 */
 	0x08, 0x09,
 };
+
 /* input MUX */
 /* FIXME: should be a matrix-type input source selection */
 
@@ -5045,6 +5432,15 @@ static struct hda_input_mux alc883_capture_source = {
 		{ "CD", 0x4 },
 	},
 };
+
+static struct hda_input_mux alc883_lenovo_101e_capture_source = {
+	.num_items = 2,
+	.items = {
+		{ "Mic", 0x1 },
+		{ "Line", 0x2 },
+	},
+};
+
 #define alc883_mux_enum_info alc_mux_enum_info
 #define alc883_mux_enum_get alc_mux_enum_get
 
@@ -5063,7 +5459,7 @@ static int alc883_mux_enum_put(struct snd_kcontrol *kcontrol,
 	idx = ucontrol->value.enumerated.item[0];
 	if (idx >= imux->num_items)
 		idx = imux->num_items - 1;
-	if (*cur_val == idx && ! codec->in_resume)
+	if (*cur_val == idx && !codec->in_resume)
 		return 0;
 	for (i = 0; i < imux->num_items; i++) {
 		unsigned int v = (i == idx) ? 0x7000 : 0x7080;
@@ -5073,6 +5469,7 @@ static int alc883_mux_enum_put(struct snd_kcontrol *kcontrol,
 	*cur_val = idx;
 	return 1;
 }
+
 /*
  * 2ch mode
  */
@@ -5325,7 +5722,7 @@ static struct snd_kcontrol_new alc883_tagra_mixer[] = {
 		.put = alc883_mux_enum_put,
 	},
 	{ } /* end */
-};	
+};
 
 static struct snd_kcontrol_new alc883_tagra_2ch_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
@@ -5350,7 +5747,30 @@ static struct snd_kcontrol_new alc883_tagra_2ch_mixer[] = {
 		.put = alc883_mux_enum_put,
 	},
 	{ } /* end */
-};	
+};
+
+static struct snd_kcontrol_new alc883_lenovo_101e_2ch_mixer[] = {
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("iSpeaker Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("iSpeaker Playback Switch", 0x0d, 2, HDA_INPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		/* .name = "Capture Source", */
+		.name = "Input Source",
+		.count = 1,
+		.info = alc883_mux_enum_info,
+		.get = alc883_mux_enum_get,
+		.put = alc883_mux_enum_put,
+	},
+	{ } /* end */
+};
 
 static struct snd_kcontrol_new alc883_chmode_mixer[] = {
 	{
@@ -5452,10 +5872,17 @@ static struct hda_verb alc883_tagra_verbs[] = {
 	{0x1b, AC_VERB_SET_CONNECT_SEL, 0x00}, /* HP */
 
 	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
-	{0x01, AC_VERB_SET_GPIO_MASK, 0x03}, 
-	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x03}, 
-	{0x01, AC_VERB_SET_GPIO_DATA, 0x03}, 
+	{0x01, AC_VERB_SET_GPIO_MASK, 0x03},
+	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x03},
+	{0x01, AC_VERB_SET_GPIO_DATA, 0x03},
 
+	{ } /* end */
+};
+
+static struct hda_verb alc883_lenovo_101e_verbs[] = {
+	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_FRONT_EVENT|AC_USRSP_EN},
+        {0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT|AC_USRSP_EN},
 	{ } /* end */
 };
 
@@ -5463,20 +5890,64 @@ static struct hda_verb alc883_tagra_verbs[] = {
 static void alc883_tagra_automute(struct hda_codec *codec)
 {
  	unsigned int present;
+	unsigned char bits;
 
  	present = snd_hda_codec_read(codec, 0x14, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	bits = present ? 0x80 : 0;
 	snd_hda_codec_amp_update(codec, 0x1b, 0, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
+				 0x80, bits);
 	snd_hda_codec_amp_update(codec, 0x1b, 1, HDA_OUTPUT, 0,
-				 0x80, present ? 0x80 : 0);
-	snd_hda_codec_write(codec, 1, 0, AC_VERB_SET_GPIO_DATA, present ? 1 : 3);
+				 0x80, bits);
+	snd_hda_codec_write(codec, 1, 0, AC_VERB_SET_GPIO_DATA,
+			    present ? 1 : 3);
 }
 
 static void alc883_tagra_unsol_event(struct hda_codec *codec, unsigned int res)
 {
 	if ((res >> 26) == ALC880_HP_EVENT)
 		alc883_tagra_automute(codec);
+}
+
+static void alc883_lenovo_101e_ispeaker_automute(struct hda_codec *codec)
+{
+ 	unsigned int present;
+	unsigned char bits;
+
+ 	present = snd_hda_codec_read(codec, 0x14, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	bits = present ? 0x80 : 0;
+	snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
+				 0x80, bits);
+	snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
+				 0x80, bits);
+}
+
+static void alc883_lenovo_101e_all_automute(struct hda_codec *codec)
+{
+ 	unsigned int present;
+	unsigned char bits;
+
+ 	present = snd_hda_codec_read(codec, 0x1b, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	bits = present ? 0x80 : 0;
+	snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
+				 0x80, bits);
+	snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
+				 0x80, bits);
+	snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
+				 0x80, bits);
+	snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
+				 0x80, bits);
+}
+
+static void alc883_lenovo_101e_unsol_event(struct hda_codec *codec,
+					   unsigned int res)
+{
+	if ((res >> 26) == ALC880_HP_EVENT)
+		alc883_lenovo_101e_all_automute(codec);
+	if ((res >> 26) == ALC880_FRONT_EVENT)
+		alc883_lenovo_101e_ispeaker_automute(codec);
 }
 
 /*
@@ -5493,8 +5964,8 @@ static struct hda_verb alc883_auto_init_verbs[] = {
 
 	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
 	 * mixer widget
-	 * Note: PASD motherboards uses the Line In 2 as the input for front panel
-	 * mic (mic 2)
+	 * Note: PASD motherboards uses the Line In 2 as the input for
+	 * front panel mic (mic 2)
 	 */
 	/* Amp Indices: Mic1 = 0, Mic2 = 1, Line1 = 2, Line2 = 3, CD = 4 */
 	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
@@ -5530,13 +6001,13 @@ static struct hda_verb alc883_auto_init_verbs[] = {
 	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
 	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
-	//{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
+	/* {0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)}, */
 	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
 	/* Input mixer2 */
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
-	//{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
+	/* {0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)}, */
 	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
 
 	{ }
@@ -5584,6 +6055,7 @@ static const char *alc883_models[ALC883_MODEL_LAST] = {
 	[ALC883_ACER]		= "acer",
 	[ALC883_MEDION]		= "medion",
 	[ALC883_LAPTOP_EAPD]	= "laptop-eapd",
+	[ALC883_LENOVO_101E_2ch] = "lenovo-101e",
 	[ALC883_AUTO]		= "auto",
 };
 
@@ -5592,6 +6064,7 @@ static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x108e, 0x534d, NULL, ALC883_3ST_6ch),
 	SND_PCI_QUIRK(0x1558, 0, "Clevo laptop", ALC883_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x105b, 0x6668, "Foxconn", ALC883_6ST_DIG),
+	SND_PCI_QUIRK(0x1458, 0xa002, "MSI", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x1462, 0x6668, "MSI", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x1462, 0x7187, "MSI", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x1462, 0x7280, "MSI", ALC883_6ST_DIG),
@@ -5609,6 +6082,7 @@ static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x161f, 0x2054, "Medion laptop", ALC883_MEDION),
 	SND_PCI_QUIRK(0x1071, 0x8258, "Evesham Voyaeger", ALC883_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x8086, 0xd601, "D102GGC", ALC883_3ST_6ch),
+	SND_PCI_QUIRK(0x17aa, 0x101e, "lenovo 101e", ALC883_LENOVO_101E_2ch),
 	{}
 };
 
@@ -5639,7 +6113,7 @@ static struct alc_config_preset alc883_presets[] = {
 		.channel_mode = alc883_3ST_6ch_modes,
 		.need_dac_fix = 1,
 		.input_mux = &alc883_capture_source,
-	},	
+	},
 	[ALC883_3ST_6ch] = {
 		.mixers = { alc883_3ST_6ch_mixer, alc883_chmode_mixer },
 		.init_verbs = { alc883_init_verbs },
@@ -5651,7 +6125,7 @@ static struct alc_config_preset alc883_presets[] = {
 		.channel_mode = alc883_3ST_6ch_modes,
 		.need_dac_fix = 1,
 		.input_mux = &alc883_capture_source,
-	},	
+	},
 	[ALC883_6ST_DIG] = {
 		.mixers = { alc883_base_mixer, alc883_chmode_mixer },
 		.init_verbs = { alc883_init_verbs },
@@ -5749,6 +6223,19 @@ static struct alc_config_preset alc883_presets[] = {
 		.channel_mode = alc883_3ST_2ch_modes,
 		.input_mux = &alc883_capture_source,
 	},
+	[ALC883_LENOVO_101E_2ch] = {
+		.mixers = { alc883_lenovo_101e_2ch_mixer},
+		.init_verbs = { alc883_init_verbs, alc883_lenovo_101e_verbs},
+		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
+		.dac_nids = alc883_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc883_adc_nids),
+		.adc_nids = alc883_adc_nids,
+		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
+		.channel_mode = alc883_3ST_2ch_modes,
+		.input_mux = &alc883_lenovo_101e_capture_source,
+		.unsol_event = alc883_lenovo_101e_unsol_event,
+		.init_hook = alc883_lenovo_101e_all_automute,
+	},
 };
 
 
@@ -5761,8 +6248,8 @@ static void alc883_auto_set_output_and_unmute(struct hda_codec *codec,
 {
 	/* set as output */
 	struct alc_spec *spec = codec->spec;
-	int idx; 
-	
+	int idx;
+
 	if (spec->multiout.dac_nids[dac_idx] == 0x25)
 		idx = 4;
 	else
@@ -5781,10 +6268,13 @@ static void alc883_auto_init_multi_out(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	int i;
 
+	alc_subsystem_id(codec, 0x15, 0x1b, 0x14);
 	for (i = 0; i <= HDA_SIDE; i++) {
-		hda_nid_t nid = spec->autocfg.line_out_pins[i];	
+		hda_nid_t nid = spec->autocfg.line_out_pins[i];
+		int pin_type = get_pin_type(spec->autocfg.line_out_type);
 		if (nid)
-			alc883_auto_set_output_and_unmute(codec, nid, PIN_OUT, i);
+			alc883_auto_set_output_and_unmute(codec, nid, pin_type,
+							  i);
 	}
 }
 
@@ -5833,8 +6323,8 @@ static int alc883_parse_auto_config(struct hda_codec *codec)
 	else if (err > 0)
 		/* hack - override the init verbs */
 		spec->init_verbs[0] = alc883_auto_init_verbs;
-                spec->mixers[spec->num_mixers] = alc883_capture_mixer;
-		spec->num_mixers++;
+	spec->mixers[spec->num_mixers] = alc883_capture_mixer;
+	spec->num_mixers++;
 	return err;
 }
 
@@ -5872,7 +6362,7 @@ static int patch_alc883(struct hda_codec *codec)
 		if (err < 0) {
 			alc_free(codec);
 			return err;
-		} else if (! err) {
+		} else if (!err) {
 			printk(KERN_INFO
 			       "hda_codec: Cannot set up configuration "
 			       "from BIOS.  Using base mode...\n");
@@ -5891,7 +6381,7 @@ static int patch_alc883(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc883_pcm_digital_playback;
 	spec->stream_digital_capture = &alc883_pcm_digital_capture;
 
-	if (! spec->adc_nids && spec->input_mux) {
+	if (!spec->adc_nids && spec->input_mux) {
 		spec->adc_nids = alc883_adc_nids;
 		spec->num_adc_nids = ARRAY_SIZE(alc883_adc_nids);
 	}
@@ -6028,8 +6518,8 @@ static struct hda_verb alc262_init_verbs[] = {
 
 	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
 	 * mixer widget
-	 * Note: PASD motherboards uses the Line In 2 as the input for front panel
-	 * mic (mic 2)
+	 * Note: PASD motherboards uses the Line In 2 as the input for
+	 * front panel mic (mic 2)
 	 */
 	/* Amp Indices: Mic1 = 0, Mic2 = 1, Line1 = 2, Line2 = 3, CD = 4 */
 	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
@@ -6086,7 +6576,7 @@ static struct hda_verb alc262_init_verbs[] = {
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x03 << 8))},
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x02 << 8))},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x04 << 8))},	
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x04 << 8))},
 
 	{ }
 };
@@ -6113,7 +6603,7 @@ static void alc262_hippo_automute(struct hda_codec *codec, int force)
 	struct alc_spec *spec = codec->spec;
 	unsigned int mute;
 
-	if (force || ! spec->sense_updated) {
+	if (force || !spec->sense_updated) {
 		unsigned int present;
 		/* need to execute and sync at first */
 		snd_hda_codec_read(codec, 0x15, 0, AC_VERB_SET_PIN_SENSE, 0);
@@ -6153,7 +6643,7 @@ static void alc262_hippo1_automute(struct hda_codec *codec, int force)
 	struct alc_spec *spec = codec->spec;
 	unsigned int mute;
 
-	if (force || ! spec->sense_updated) {
+	if (force || !spec->sense_updated) {
 		unsigned int present;
 		/* need to execute and sync at first */
 		snd_hda_codec_read(codec, 0x1b, 0, AC_VERB_SET_PIN_SENSE, 0);
@@ -6226,7 +6716,7 @@ static void alc262_fujitsu_automute(struct hda_codec *codec, int force)
 	struct alc_spec *spec = codec->spec;
 	unsigned int mute;
 
-	if (force || ! spec->sense_updated) {
+	if (force || !spec->sense_updated) {
 		unsigned int present;
 		/* need to execute and sync at first */
 		snd_hda_codec_read(codec, 0x14, 0, AC_VERB_SET_PIN_SENSE, 0);
@@ -6331,7 +6821,8 @@ static struct hda_verb alc262_EAPD_verbs[] = {
 };
 
 /* add playback controls from the parsed DAC table */
-static int alc262_auto_create_multi_out_ctls(struct alc_spec *spec, const struct auto_pin_cfg *cfg)
+static int alc262_auto_create_multi_out_ctls(struct alc_spec *spec,
+					     const struct auto_pin_cfg *cfg)
 {
 	hda_nid_t nid;
 	int err;
@@ -6342,26 +6833,39 @@ static int alc262_auto_create_multi_out_ctls(struct alc_spec *spec, const struct
 
 	nid = cfg->line_out_pins[0];
 	if (nid) {
-		if ((err = add_control(spec, ALC_CTL_WIDGET_VOL, "Front Playback Volume",
-				       HDA_COMPOSE_AMP_VAL(0x0c, 3, 0, HDA_OUTPUT))) < 0)
+		err = add_control(spec, ALC_CTL_WIDGET_VOL,
+				  "Front Playback Volume",
+				  HDA_COMPOSE_AMP_VAL(0x0c, 3, 0, HDA_OUTPUT));
+		if (err < 0)
 			return err;
-		if ((err = add_control(spec, ALC_CTL_WIDGET_MUTE, "Front Playback Switch",
-				       HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT))) < 0)
+		err = add_control(spec, ALC_CTL_WIDGET_MUTE,
+				  "Front Playback Switch",
+				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT));
+		if (err < 0)
 			return err;
 	}
 
 	nid = cfg->speaker_pins[0];
 	if (nid) {
 		if (nid == 0x16) {
-			if ((err = add_control(spec, ALC_CTL_WIDGET_VOL, "Speaker Playback Volume",
-					       HDA_COMPOSE_AMP_VAL(0x0e, 2, 0, HDA_OUTPUT))) < 0)
+			err = add_control(spec, ALC_CTL_WIDGET_VOL,
+					  "Speaker Playback Volume",
+					  HDA_COMPOSE_AMP_VAL(0x0e, 2, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
 				return err;
-			if ((err = add_control(spec, ALC_CTL_WIDGET_MUTE, "Speaker Playback Switch",
-					       HDA_COMPOSE_AMP_VAL(nid, 2, 0, HDA_OUTPUT))) < 0)
+			err = add_control(spec, ALC_CTL_WIDGET_MUTE,
+					  "Speaker Playback Switch",
+					  HDA_COMPOSE_AMP_VAL(nid, 2, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
 				return err;
 		} else {
-			if ((err = add_control(spec, ALC_CTL_WIDGET_MUTE, "Speaker Playback Switch",
-					       HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT))) < 0)
+			err = add_control(spec, ALC_CTL_WIDGET_MUTE,
+					  "Speaker Playback Switch",
+					  HDA_COMPOSE_AMP_VAL(nid, 3, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
 				return err;
 		}
 	}
@@ -6369,23 +6873,33 @@ static int alc262_auto_create_multi_out_ctls(struct alc_spec *spec, const struct
 	if (nid) {
 		/* spec->multiout.hp_nid = 2; */
 		if (nid == 0x16) {
-			if ((err = add_control(spec, ALC_CTL_WIDGET_VOL, "Headphone Playback Volume",
-					       HDA_COMPOSE_AMP_VAL(0x0e, 2, 0, HDA_OUTPUT))) < 0)
+			err = add_control(spec, ALC_CTL_WIDGET_VOL,
+					  "Headphone Playback Volume",
+					  HDA_COMPOSE_AMP_VAL(0x0e, 2, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
 				return err;
-			if ((err = add_control(spec, ALC_CTL_WIDGET_MUTE, "Headphone Playback Switch",
-					       HDA_COMPOSE_AMP_VAL(nid, 2, 0, HDA_OUTPUT))) < 0)
+			err = add_control(spec, ALC_CTL_WIDGET_MUTE,
+					  "Headphone Playback Switch",
+					  HDA_COMPOSE_AMP_VAL(nid, 2, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
 				return err;
 		} else {
-			if ((err = add_control(spec, ALC_CTL_WIDGET_MUTE, "Headphone Playback Switch",
-					       HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT))) < 0)
+			err = add_control(spec, ALC_CTL_WIDGET_MUTE,
+					  "Headphone Playback Switch",
+					  HDA_COMPOSE_AMP_VAL(nid, 3, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
 				return err;
 		}
 	}
-	return 0;	
+	return 0;
 }
 
 /* identical with ALC880 */
-#define alc262_auto_create_analog_input_ctls alc880_auto_create_analog_input_ctls
+#define alc262_auto_create_analog_input_ctls \
+	alc880_auto_create_analog_input_ctls
 
 /*
  * generic initialization of ADC, input mixers and output mixers
@@ -6403,8 +6917,8 @@ static struct hda_verb alc262_volume_init_verbs[] = {
 
 	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
 	 * mixer widget
-	 * Note: PASD motherboards uses the Line In 2 as the input for front panel
-	 * mic (mic 2)
+	 * Note: PASD motherboards uses the Line In 2 as the input for
+	 * front panel mic (mic 2)
 	 */
 	/* Amp Indices: Mic1 = 0, Mic2 = 1, Line1 = 2, Line2 = 3, CD = 4 */
 	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
@@ -6464,8 +6978,8 @@ static struct hda_verb alc262_HP_BPC_init_verbs[] = {
 
 	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
 	 * mixer widget
-	 * Note: PASD motherboards uses the Line In 2 as the input for front panel
-	 * mic (mic 2)
+	 * Note: PASD motherboards uses the Line In 2 as the input for
+	 * front panel mic (mic 2)
 	 */
 	/* Amp Indices: Mic1 = 0, Mic2 = 1, Line1 = 2, Line2 = 3, CD = 4 */
 	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
@@ -6647,13 +7161,17 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 	int err;
 	static hda_nid_t alc262_ignore[] = { 0x1d, 0 };
 
-	if ((err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
-						alc262_ignore)) < 0)
+	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
+					   alc262_ignore);
+	if (err < 0)
 		return err;
-	if (! spec->autocfg.line_outs)
+	if (!spec->autocfg.line_outs)
 		return 0; /* can't find valid BIOS pin config */
-	if ((err = alc262_auto_create_multi_out_ctls(spec, &spec->autocfg)) < 0 ||
-	    (err = alc262_auto_create_analog_input_ctls(spec, &spec->autocfg)) < 0)
+	err = alc262_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	if (err < 0)
+		return err;
+	err = alc262_auto_create_analog_input_ctls(spec, &spec->autocfg);
+	if (err < 0)
 		return err;
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
@@ -6777,7 +7295,7 @@ static struct alc_config_preset alc262_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc262_modes),
 		.channel_mode = alc262_modes,
 		.input_mux = &alc262_HP_capture_source,
-	},	
+	},
 	[ALC262_HP_BPC_D7000_WF] = {
 		.mixers = { alc262_HP_BPC_WildWest_mixer },
 		.init_verbs = { alc262_HP_BPC_WildWest_init_verbs },
@@ -6787,7 +7305,7 @@ static struct alc_config_preset alc262_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc262_modes),
 		.channel_mode = alc262_modes,
 		.input_mux = &alc262_HP_capture_source,
-	},	
+	},
 	[ALC262_HP_BPC_D7000_WL] = {
 		.mixers = { alc262_HP_BPC_WildWest_mixer,
 			    alc262_HP_BPC_WildWest_option_mixer },
@@ -6798,7 +7316,7 @@ static struct alc_config_preset alc262_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc262_modes),
 		.channel_mode = alc262_modes,
 		.input_mux = &alc262_HP_capture_source,
-	},	
+	},
 	[ALC262_BENQ_ED8] = {
 		.mixers = { alc262_base_mixer },
 		.init_verbs = { alc262_init_verbs, alc262_EAPD_verbs },
@@ -6808,7 +7326,7 @@ static struct alc_config_preset alc262_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc262_modes),
 		.channel_mode = alc262_modes,
 		.input_mux = &alc262_capture_source,
-	},		
+	},
 };
 
 static int patch_alc262(struct hda_codec *codec)
@@ -6823,7 +7341,9 @@ static int patch_alc262(struct hda_codec *codec)
 
 	codec->spec = spec;
 #if 0
-	/* pshou 07/11/05  set a zero PCM sample to DAC when FIFO is under-run */
+	/* pshou 07/11/05  set a zero PCM sample to DAC when FIFO is
+	 * under-run
+	 */
 	{
 	int tmp;
 	snd_hda_codec_write(codec, 0x1a, 0, AC_VERB_SET_COEF_INDEX, 7);
@@ -6849,7 +7369,7 @@ static int patch_alc262(struct hda_codec *codec)
 		if (err < 0) {
 			alc_free(codec);
 			return err;
-		} else if (! err) {
+		} else if (!err) {
 			printk(KERN_INFO
 			       "hda_codec: Cannot set up configuration "
 			       "from BIOS.  Using base mode...\n");
@@ -6868,15 +7388,17 @@ static int patch_alc262(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc262_pcm_digital_playback;
 	spec->stream_digital_capture = &alc262_pcm_digital_capture;
 
-	if (! spec->adc_nids && spec->input_mux) {
+	if (!spec->adc_nids && spec->input_mux) {
 		/* check whether NID 0x07 is valid */
 		unsigned int wcap = get_wcaps(codec, 0x07);
 
-		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT; /* get type */
+		/* get type */
+		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
 		if (wcap != AC_WID_AUD_IN) {
 			spec->adc_nids = alc262_adc_nids_alt;
 			spec->num_adc_nids = ARRAY_SIZE(alc262_adc_nids_alt);
-			spec->mixers[spec->num_mixers] = alc262_capture_alt_mixer;
+			spec->mixers[spec->num_mixers] =
+				alc262_capture_alt_mixer;
 			spec->num_mixers++;
 		} else {
 			spec->adc_nids = alc262_adc_nids;
@@ -6904,7 +7426,9 @@ static int patch_alc262(struct hda_codec *codec)
 static struct hda_verb alc861_threestack_ch2_init[] = {
 	/* set pin widget 1Ah (line in) for input */
 	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20 },
-	/* set pin widget 18h (mic1/2) for input, for mic also enable the vref */
+	/* set pin widget 18h (mic1/2) for input, for mic also enable
+	 * the vref
+	 */
 	{ 0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
 
 	{ 0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb00c },
@@ -6961,7 +7485,9 @@ static struct hda_channel_mode alc861_uniwill_m31_modes[2] = {
 static struct hda_verb alc861_asus_ch2_init[] = {
 	/* set pin widget 1Ah (line in) for input */
 	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20 },
-	/* set pin widget 18h (mic1/2) for input, for mic also enable the vref */
+	/* set pin widget 18h (mic1/2) for input, for mic also enable
+	 * the vref
+	 */
 	{ 0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
 
 	{ 0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb00c },
@@ -7016,7 +7542,7 @@ static struct snd_kcontrol_new alc861_base_mixer[] = {
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x15, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x10, 0x01, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1a, 0x03, HDA_INPUT),
- 
+
         /* Capture mixer control */
 	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
@@ -7050,7 +7576,7 @@ static struct snd_kcontrol_new alc861_3ST_mixer[] = {
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x15, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x10, 0x01, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1a, 0x03, HDA_INPUT),
- 
+
 	/* Capture mixer control */
 	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
@@ -7092,7 +7618,7 @@ static struct snd_kcontrol_new alc861_toshiba_mixer[] = {
 	},
 
 	{ } /* end */
-};	
+};
 
 static struct snd_kcontrol_new alc861_uniwill_m31_mixer[] = {
         /* output mixer control */
@@ -7113,7 +7639,7 @@ static struct snd_kcontrol_new alc861_uniwill_m31_mixer[] = {
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x15, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x10, 0x01, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1a, 0x03, HDA_INPUT),
- 
+
 	/* Capture mixer control */
 	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
@@ -7134,7 +7660,7 @@ static struct snd_kcontrol_new alc861_uniwill_m31_mixer[] = {
                 .private_value = ARRAY_SIZE(alc861_uniwill_m31_modes),
 	},
 	{ } /* end */
-};			
+};
 
 static struct snd_kcontrol_new alc861_asus_mixer[] = {
         /* output mixer control */
@@ -7154,8 +7680,8 @@ static struct snd_kcontrol_new alc861_asus_mixer[] = {
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x15, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x15, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x10, 0x01, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1a, 0x03, HDA_OUTPUT), /* was HDA_INPUT (why?) */
- 
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1a, 0x03, HDA_OUTPUT),
+
 	/* Capture mixer control */
 	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
@@ -7239,7 +7765,7 @@ static struct hda_verb alc861_base_init_verbs[] = {
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb00c          }, //Output 0~12 step
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb00c}, /* Output 0~12 step */
 
 	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
@@ -7249,7 +7775,8 @@ static struct hda_verb alc861_base_init_verbs[] = {
 	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
 	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)}, // hp used DAC 3 (Front)
+	/* hp used DAC 3 (Front) */
+	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
         {0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
 
 	{ }
@@ -7300,7 +7827,7 @@ static struct hda_verb alc861_threestack_init_verbs[] = {
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb00c          }, //Output 0~12 step
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb00c}, /* Output 0~12 step */
 
 	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
@@ -7310,7 +7837,8 @@ static struct hda_verb alc861_threestack_init_verbs[] = {
 	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
 	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)}, // hp used DAC 3 (Front)
+	/* hp used DAC 3 (Front) */
+	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
         {0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
 	{ }
 };
@@ -7329,7 +7857,8 @@ static struct hda_verb alc861_uniwill_m31_init_verbs[] = {
 	{ 0x0b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40 },
 	{ 0x0b, AC_VERB_SET_CONNECT_SEL, 0x00 },
 	/* port-E for HP out (front panel) */
-	{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 }, // this has to be set to VREF80
+	/* this has to be set to VREF80 */
+	{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
 	/* route front PCM to HP */
 	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x00 },
 	/* port-F for mic-in (front panel) with vref */
@@ -7360,7 +7889,7 @@ static struct hda_verb alc861_uniwill_m31_init_verbs[] = {
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb00c          }, //Output 0~12 step
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb00c}, /* Output 0~12 step */
 
 	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
@@ -7370,7 +7899,8 @@ static struct hda_verb alc861_uniwill_m31_init_verbs[] = {
 	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
 	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)}, // hp used DAC 3 (Front)
+	/* hp used DAC 3 (Front) */
+	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
         {0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
 	{ }
 };
@@ -7379,7 +7909,9 @@ static struct hda_verb alc861_asus_init_verbs[] = {
 	/*
 	 * Unmute ADC0 and set the default input to mic-in
 	 */
-	/* port-A for surround (rear panel) | according to codec#0 this is the HP jack*/
+	/* port-A for surround (rear panel)
+	 * according to codec#0 this is the HP jack
+	 */
 	{ 0x0e, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 }, /* was 0x00 */
 	/* route front PCM to HP */
 	{ 0x0e, AC_VERB_SET_CONNECT_SEL, 0x01 },
@@ -7391,7 +7923,8 @@ static struct hda_verb alc861_asus_init_verbs[] = {
 	{ 0x0b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40 },
 	{ 0x0b, AC_VERB_SET_CONNECT_SEL, 0x00 },
 	/* port-E for HP out (front panel) */
-	{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 }, /* this has to be set to VREF80 */
+	/* this has to be set to VREF80 */
+	{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
 	/* route front PCM to HP */
 	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x00 },
 	/* port-F for mic-in (front panel) with vref */
@@ -7421,7 +7954,7 @@ static struct hda_verb alc861_asus_init_verbs[] = {
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb00c          }, /* Output 0~12 step */
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb00c}, /* Output 0~12 step */
 
 	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
@@ -7431,7 +7964,8 @@ static struct hda_verb alc861_asus_init_verbs[] = {
 	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
 	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)}, /* hp used DAC 3 (Front) */
+	/* hp used DAC 3 (Front) */
+	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
 	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
 	{ }
 };
@@ -7450,7 +7984,7 @@ static struct hda_verb alc861_auto_init_verbs[] = {
 	/*
 	 * Unmute ADC0 and set the default input to mic-in
 	 */
-//	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* {0x08, AC_VERB_SET_CONNECT_SEL, 0x00}, */
 	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	
 	/* Unmute DAC0~3 & spdif out*/
@@ -7483,21 +8017,21 @@ static struct hda_verb alc861_auto_init_verbs[] = {
 
 	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},	
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},		
+	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
+	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
 	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},	
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},	
+	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
+	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
 
-	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},	// set Mic 1
+	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},	/* set Mic 1 */
 
 	{ }
 };
 
 static struct hda_verb alc861_toshiba_init_verbs[] = {
 	{0x0f, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
-        
+
 	{ }
 };
 
@@ -7521,9 +8055,6 @@ static void alc861_toshiba_automute(struct hda_codec *codec)
 static void alc861_toshiba_unsol_event(struct hda_codec *codec,
 				       unsigned int res)
 {
-	/* Looks like the unsol event is incompatible with the standard
-	 * definition.  6bit tag is placed at 26 bit!
-	 */
 	if ((res >> 26) == ALC880_HP_EVENT)
 		alc861_toshiba_automute(codec);
 }
@@ -7568,7 +8099,8 @@ static struct hda_input_mux alc861_capture_source = {
 };
 
 /* fill in the dac_nids table from the parsed pin configuration */
-static int alc861_auto_fill_dac_nids(struct alc_spec *spec, const struct auto_pin_cfg *cfg)
+static int alc861_auto_fill_dac_nids(struct alc_spec *spec,
+				     const struct auto_pin_cfg *cfg)
 {
 	int i;
 	hda_nid_t nid;
@@ -7591,29 +8123,40 @@ static int alc861_auto_create_multi_out_ctls(struct alc_spec *spec,
 					     const struct auto_pin_cfg *cfg)
 {
 	char name[32];
-	static const char *chname[4] = { "Front", "Surround", NULL /*CLFE*/, "Side" };
+	static const char *chname[4] = {
+		"Front", "Surround", NULL /*CLFE*/, "Side"
+	};
 	hda_nid_t nid;
 	int i, idx, err;
 
 	for (i = 0; i < cfg->line_outs; i++) {
 		nid = spec->multiout.dac_nids[i];
-		if (! nid)
+		if (!nid)
 			continue;
 		if (nid == 0x05) {
 			/* Center/LFE */
-			if ((err = add_control(spec, ALC_CTL_BIND_MUTE, "Center Playback Switch",
-					       HDA_COMPOSE_AMP_VAL(nid, 1, 0, HDA_OUTPUT))) < 0)
+			err = add_control(spec, ALC_CTL_BIND_MUTE,
+					  "Center Playback Switch",
+					  HDA_COMPOSE_AMP_VAL(nid, 1, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
 				return err;
-			if ((err = add_control(spec, ALC_CTL_BIND_MUTE, "LFE Playback Switch",
-					       HDA_COMPOSE_AMP_VAL(nid, 2, 0, HDA_OUTPUT))) < 0)
+			err = add_control(spec, ALC_CTL_BIND_MUTE,
+					  "LFE Playback Switch",
+					  HDA_COMPOSE_AMP_VAL(nid, 2, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
 				return err;
 		} else {
-			for (idx = 0; idx < ARRAY_SIZE(alc861_dac_nids) - 1; idx++)
+			for (idx = 0; idx < ARRAY_SIZE(alc861_dac_nids) - 1;
+			     idx++)
 				if (nid == alc861_dac_nids[idx])
 					break;
 			sprintf(name, "%s Playback Switch", chname[idx]);
-			if ((err = add_control(spec, ALC_CTL_BIND_MUTE, name,
-					       HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT))) < 0)
+			err = add_control(spec, ALC_CTL_BIND_MUTE, name,
+					  HDA_COMPOSE_AMP_VAL(nid, 3, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
 				return err;
 		}
 	}
@@ -7625,13 +8168,15 @@ static int alc861_auto_create_hp_ctls(struct alc_spec *spec, hda_nid_t pin)
 	int err;
 	hda_nid_t nid;
 
-	if (! pin)
+	if (!pin)
 		return 0;
 
 	if ((pin >= 0x0b && pin <= 0x10) || pin == 0x1f || pin == 0x20) {
 		nid = 0x03;
-		if ((err = add_control(spec, ALC_CTL_WIDGET_MUTE, "Headphone Playback Switch",
-				       HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT))) < 0)
+		err = add_control(spec, ALC_CTL_WIDGET_MUTE,
+				  "Headphone Playback Switch",
+				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT));
+		if (err < 0)
 			return err;
 		spec->multiout.hp_nid = nid;
 	}
@@ -7639,32 +8184,33 @@ static int alc861_auto_create_hp_ctls(struct alc_spec *spec, hda_nid_t pin)
 }
 
 /* create playback/capture controls for input pins */
-static int alc861_auto_create_analog_input_ctls(struct alc_spec *spec, const struct auto_pin_cfg *cfg)
+static int alc861_auto_create_analog_input_ctls(struct alc_spec *spec,
+						const struct auto_pin_cfg *cfg)
 {
 	struct hda_input_mux *imux = &spec->private_imux;
 	int i, err, idx, idx1;
 
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		switch(cfg->input_pins[i]) {
+		switch (cfg->input_pins[i]) {
 		case 0x0c:
 			idx1 = 1;
-			idx = 2;	// Line In
+			idx = 2;	/* Line In */
 			break;
 		case 0x0f:
 			idx1 = 2;
-			idx = 2;	// Line In
+			idx = 2;	/* Line In */
 			break;
 		case 0x0d:
 			idx1 = 0;
-			idx = 1;	// Mic In 
+			idx = 1;	/* Mic In */
 			break;
-		case 0x10:	
+		case 0x10:
 			idx1 = 3;
-			idx = 1;	// Mic In 
+			idx = 1;	/* Mic In */
 			break;
 		case 0x11:
 			idx1 = 4;
-			idx = 0;	// CD
+			idx = 0;	/* CD */
 			break;
 		default:
 			continue;
@@ -7677,7 +8223,7 @@ static int alc861_auto_create_analog_input_ctls(struct alc_spec *spec, const str
 
 		imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
 		imux->items[imux->num_items].index = idx1;
-		imux->num_items++;	
+		imux->num_items++;
 	}
 	return 0;
 }
@@ -7702,13 +8248,16 @@ static struct snd_kcontrol_new alc861_capture_mixer[] = {
 	{ } /* end */
 };
 
-static void alc861_auto_set_output_and_unmute(struct hda_codec *codec, hda_nid_t nid,
+static void alc861_auto_set_output_and_unmute(struct hda_codec *codec,
+					      hda_nid_t nid,
 					      int pin_type, int dac_idx)
 {
 	/* set as output */
 
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL, pin_type);
-	snd_hda_codec_write(codec, dac_idx, 0, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    pin_type);
+	snd_hda_codec_write(codec, dac_idx, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+			    AMP_OUT_UNMUTE);
 
 }
 
@@ -7717,10 +8266,13 @@ static void alc861_auto_init_multi_out(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	int i;
 
+	alc_subsystem_id(codec, 0x0e, 0x0f, 0x0b);
 	for (i = 0; i < spec->autocfg.line_outs; i++) {
 		hda_nid_t nid = spec->autocfg.line_out_pins[i];
+		int pin_type = get_pin_type(spec->autocfg.line_out_type);
 		if (nid)
-			alc861_auto_set_output_and_unmute(codec, nid, PIN_OUT, spec->multiout.dac_nids[i]);
+			alc861_auto_set_output_and_unmute(codec, nid, pin_type,
+							  spec->multiout.dac_nids[i]);
 	}
 }
 
@@ -7731,7 +8283,8 @@ static void alc861_auto_init_hp_out(struct hda_codec *codec)
 
 	pin = spec->autocfg.hp_pins[0];
 	if (pin) /* connect to front */
-		alc861_auto_set_output_and_unmute(codec, pin, PIN_HP, spec->multiout.dac_nids[0]);
+		alc861_auto_set_output_and_unmute(codec, pin, PIN_HP,
+						  spec->multiout.dac_nids[0]);
 }
 
 static void alc861_auto_init_analog_input(struct hda_codec *codec)
@@ -7741,31 +8294,43 @@ static void alc861_auto_init_analog_input(struct hda_codec *codec)
 
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t nid = spec->autocfg.input_pins[i];
-		if ((nid>=0x0c) && (nid <=0x11)) {
-			snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-					    i <= AUTO_PIN_FRONT_MIC ? PIN_VREF80 : PIN_IN);
+		if (nid >= 0x0c && nid <= 0x11) {
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_PIN_WIDGET_CONTROL,
+					    i <= AUTO_PIN_FRONT_MIC ?
+					    PIN_VREF80 : PIN_IN);
 		}
 	}
 }
 
 /* parse the BIOS configuration and set up the alc_spec */
-/* return 1 if successful, 0 if the proper config is not found, or a negative error code */
+/* return 1 if successful, 0 if the proper config is not found,
+ * or a negative error code
+ */
 static int alc861_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	int err;
 	static hda_nid_t alc861_ignore[] = { 0x1d, 0 };
 
-	if ((err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
-						alc861_ignore)) < 0)
+	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
+					   alc861_ignore);
+	if (err < 0)
 		return err;
-	if (! spec->autocfg.line_outs)
+	if (!spec->autocfg.line_outs)
 		return 0; /* can't find valid BIOS pin config */
 
-	if ((err = alc861_auto_fill_dac_nids(spec, &spec->autocfg)) < 0 ||
-	    (err = alc861_auto_create_multi_out_ctls(spec, &spec->autocfg)) < 0 ||
-	    (err = alc861_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0])) < 0 ||
-	    (err = alc861_auto_create_analog_input_ctls(spec, &spec->autocfg)) < 0)
+	err = alc861_auto_fill_dac_nids(spec, &spec->autocfg);
+	if (err < 0)
+		return err;
+	err = alc861_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	if (err < 0)
+		return err;
+	err = alc861_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
+	if (err < 0)
+		return err;
+	err = alc861_auto_create_analog_input_ctls(spec, &spec->autocfg);
+	if (err < 0)
 		return err;
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
@@ -7817,12 +8382,14 @@ static struct snd_pci_quirk alc861_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x1205, "ASUS W7J", ALC861_3ST),
 	SND_PCI_QUIRK(0x1043, 0x1335, "ASUS F2/3", ALC861_ASUS_LAPTOP),
 	SND_PCI_QUIRK(0x1043, 0x1338, "ASUS F2/3", ALC861_ASUS_LAPTOP),
+	SND_PCI_QUIRK(0x1043, 0x13d7, "ASUS A9rp", ALC861_ASUS_LAPTOP),
 	SND_PCI_QUIRK(0x1043, 0x1393, "ASUS", ALC861_ASUS),
 	SND_PCI_QUIRK(0x1043, 0x81e7, "ASUS", ALC660_3ST),
 	SND_PCI_QUIRK(0x1179, 0xff00, "Toshiba", ALC861_TOSHIBA),
 	SND_PCI_QUIRK(0x1179, 0xff10, "Toshiba", ALC861_TOSHIBA),
 	SND_PCI_QUIRK(0x1584, 0x9072, "Uniwill m31", ALC861_UNIWILL_M31),
 	SND_PCI_QUIRK(0x1584, 0x2b01, "Uniwill X40AIx", ALC861_UNIWILL_M31),
+	SND_PCI_QUIRK(0x1849, 0x0660, "Asrock 939SLI32", ALC660_3ST),
 	SND_PCI_QUIRK(0x8086, 0xd600, "Intel", ALC861_3ST),
 	{}
 };
@@ -7892,7 +8459,8 @@ static struct alc_config_preset alc861_presets[] = {
 	},
 	[ALC861_TOSHIBA] = {
 		.mixers = { alc861_toshiba_mixer },
-		.init_verbs = { alc861_base_init_verbs, alc861_toshiba_init_verbs },
+		.init_verbs = { alc861_base_init_verbs,
+				alc861_toshiba_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc861_dac_nids),
 		.dac_nids = alc861_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
@@ -7944,7 +8512,7 @@ static int patch_alc861(struct hda_codec *codec)
 	if (spec == NULL)
 		return -ENOMEM;
 
-	codec->spec = spec;	
+	codec->spec = spec;
 
         board_config = snd_hda_check_board_config(codec, ALC861_MODEL_LAST,
 						  alc861_models,
@@ -7962,7 +8530,7 @@ static int patch_alc861(struct hda_codec *codec)
 		if (err < 0) {
 			alc_free(codec);
 			return err;
-		} else if (! err) {
+		} else if (!err) {
 			printk(KERN_INFO
 			       "hda_codec: Cannot set up configuration "
 			       "from BIOS.  Using base mode...\n");
@@ -8049,7 +8617,7 @@ static int alc861vd_mux_enum_put(struct snd_kcontrol *kcontrol,
 	idx = ucontrol->value.enumerated.item[0];
 	if (idx >= imux->num_items)
 		idx = imux->num_items - 1;
-	if (*cur_val == idx && ! codec->in_resume)
+	if (*cur_val == idx && !codec->in_resume)
 		return 0;
 	for (i = 0; i < imux->num_items; i++) {
 		unsigned int v = (i == idx) ? 0x7000 : 0x7080;
@@ -8193,6 +8761,27 @@ static struct snd_kcontrol_new alc861vd_3st_mixer[] = {
 	{ } /* end */
 };
 
+static struct snd_kcontrol_new alc861vd_lenovo_mixer[] = {
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x02, 0x0, HDA_OUTPUT),
+	/*HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),*/
+	HDA_CODEC_MUTE("Front Playback Switch", 0x14, 0x0, HDA_OUTPUT),
+
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
+
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+
+	HDA_CODEC_VOLUME("Front Mic Boost", 0x19, 0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
+
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
+
+	{ } /* end */
+};
+
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
@@ -8214,10 +8803,10 @@ static struct hda_verb alc861vd_volume_init_verbs[] = {
 	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
 
 	/* Capture mixer: unmute Mic, F-Mic, Line, CD inputs */
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(5)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(6)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(8)},
 
 	/*
 	 * Set up output mixers (0x02 - 0x05)
@@ -8318,6 +8907,68 @@ static struct hda_verb alc861vd_6stack_init_verbs[] = {
 	{ }
 };
 
+static struct hda_verb alc861vd_eapd_verbs[] = {
+	{0x14, AC_VERB_SET_EAPD_BTLENABLE, 2},
+	{ }
+};
+
+static struct hda_verb alc861vd_lenovo_unsol_verbs[] = {
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(5)},
+	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
+	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_MIC_EVENT},	
+	{}
+};
+
+/* toggle speaker-output according to the hp-jack state */
+static void alc861vd_lenovo_hp_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+	unsigned char bits;
+
+	present = snd_hda_codec_read(codec, 0x1b, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	bits = present ? 0x80 : 0;
+	snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
+				 0x80, bits);
+	snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
+				 0x80, bits);
+}
+
+static void alc861vd_lenovo_mic_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+	unsigned char bits;
+
+	present = snd_hda_codec_read(codec, 0x18, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	bits = present ? 0x80 : 0;
+	snd_hda_codec_amp_update(codec, 0x0b, 0, HDA_INPUT, 1,
+				 0x80, bits);
+	snd_hda_codec_amp_update(codec, 0x0b, 1, HDA_INPUT, 1,
+				 0x80, bits);
+}
+
+static void alc861vd_lenovo_automute(struct hda_codec *codec)
+{
+	alc861vd_lenovo_hp_automute(codec);
+	alc861vd_lenovo_mic_automute(codec);
+}
+
+static void alc861vd_lenovo_unsol_event(struct hda_codec *codec,
+					unsigned int res)
+{
+	switch (res >> 26) {
+	case ALC880_HP_EVENT:
+		alc861vd_lenovo_hp_automute(codec);
+		break;
+	case ALC880_MIC_EVENT:
+		alc861vd_lenovo_mic_automute(codec);
+		break;
+	}
+}
+
 /* pcm configuration: identiacal with ALC880 */
 #define alc861vd_pcm_analog_playback	alc880_pcm_analog_playback
 #define alc861vd_pcm_analog_capture	alc880_pcm_analog_capture
@@ -8332,15 +8983,18 @@ static const char *alc861vd_models[ALC861VD_MODEL_LAST] = {
 	[ALC861VD_3ST]		= "3stack",
 	[ALC861VD_3ST_DIG]	= "3stack-digout",
 	[ALC861VD_6ST_DIG]	= "6stack-digout",
+	[ALC861VD_LENOVO]	= "lenovo",
 	[ALC861VD_AUTO]		= "auto",
 };
 
 static struct snd_pci_quirk alc861vd_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x1043, 0x12e2, "Asus z35m", ALC660VD_3ST),
 	SND_PCI_QUIRK(0x1043, 0x1339, "Asus G1", ALC660VD_3ST),
 	SND_PCI_QUIRK(0x10de, 0x03f0, "Realtek ALC660 demo", ALC660VD_3ST),
 	SND_PCI_QUIRK(0x1019, 0xa88d, "Realtek ALC660 demo", ALC660VD_3ST),
 
-	SND_PCI_QUIRK(0x17aa, 0x3802, "Lenovo 3000 C200", ALC861VD_3ST),
+	SND_PCI_QUIRK(0x17aa, 0x3802, "Lenovo 3000 C200", ALC861VD_LENOVO),
+	SND_PCI_QUIRK(0x17aa, 0x2066, "Lenovo", ALC861VD_LENOVO),
 	{}
 };
 
@@ -8389,6 +9043,22 @@ static struct alc_config_preset alc861vd_presets[] = {
 		.channel_mode = alc861vd_6stack_modes,
 		.input_mux = &alc861vd_capture_source,
 	},
+	[ALC861VD_LENOVO] = {
+		.mixers = { alc861vd_lenovo_mixer },
+		.init_verbs = { alc861vd_volume_init_verbs,
+				alc861vd_3stack_init_verbs,
+				alc861vd_eapd_verbs,
+				alc861vd_lenovo_unsol_verbs },
+		.num_dacs = ARRAY_SIZE(alc660vd_dac_nids),
+		.dac_nids = alc660vd_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc861vd_adc_nids),
+		.adc_nids = alc861vd_adc_nids,
+		.num_channel_mode = ARRAY_SIZE(alc861vd_3stack_2ch_modes),
+		.channel_mode = alc861vd_3stack_2ch_modes,
+		.input_mux = &alc861vd_capture_source,
+		.unsol_event = alc861vd_lenovo_unsol_event,
+		.init_hook = alc861vd_lenovo_automute,
+	},
 };
 
 /*
@@ -8409,11 +9079,13 @@ static void alc861vd_auto_init_multi_out(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	int i;
 
+	alc_subsystem_id(codec, 0x15, 0x1b, 0x14);
 	for (i = 0; i <= HDA_SIDE; i++) {
 		hda_nid_t nid = spec->autocfg.line_out_pins[i];
+		int pin_type = get_pin_type(spec->autocfg.line_out_type);
 		if (nid)
 			alc861vd_auto_set_output_and_unmute(codec, nid,
-								PIN_OUT, i);
+							    pin_type, i);
 	}
 }
 
@@ -8466,7 +9138,7 @@ static int alc861vd_auto_create_multi_out_ctls(struct alc_spec *spec,
 	int i, err;
 
 	for (i = 0; i < cfg->line_outs; i++) {
-		if (! spec->multiout.dac_nids[i])
+		if (!spec->multiout.dac_nids[i])
 			continue;
 		nid_v = alc861vd_idx_to_mixer_vol(
 				alc880_dac_to_idx(
@@ -8477,36 +9149,42 @@ static int alc861vd_auto_create_multi_out_ctls(struct alc_spec *spec,
 
 		if (i == 2) {
 			/* Center/LFE */
-			if ((err = add_control(spec, ALC_CTL_WIDGET_VOL,
-						"Center Playback Volume",
-						HDA_COMPOSE_AMP_VAL(nid_v, 1,
-							0, HDA_OUTPUT))) < 0)
+			err = add_control(spec, ALC_CTL_WIDGET_VOL,
+					  "Center Playback Volume",
+					  HDA_COMPOSE_AMP_VAL(nid_v, 1, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
 				return err;
-			if ((err = add_control(spec, ALC_CTL_WIDGET_VOL,
-						"LFE Playback Volume",
-						HDA_COMPOSE_AMP_VAL(nid_v, 2,
-							0, HDA_OUTPUT))) < 0)
+			err = add_control(spec, ALC_CTL_WIDGET_VOL,
+					  "LFE Playback Volume",
+					  HDA_COMPOSE_AMP_VAL(nid_v, 2, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
 				return err;
-			if ((err = add_control(spec, ALC_CTL_BIND_MUTE,
-						"Center Playback Switch",
-						HDA_COMPOSE_AMP_VAL(nid_s, 1,
-						2, HDA_INPUT))) < 0)
+			err = add_control(spec, ALC_CTL_BIND_MUTE,
+					  "Center Playback Switch",
+					  HDA_COMPOSE_AMP_VAL(nid_s, 1, 2,
+							      HDA_INPUT));
+			if (err < 0)
 				return err;
-			if ((err = add_control(spec, ALC_CTL_BIND_MUTE,
-						"LFE Playback Switch",
-						HDA_COMPOSE_AMP_VAL(nid_s, 2,
-						2, HDA_INPUT))) < 0)
+			err = add_control(spec, ALC_CTL_BIND_MUTE,
+					  "LFE Playback Switch",
+					  HDA_COMPOSE_AMP_VAL(nid_s, 2, 2,
+							      HDA_INPUT));
+			if (err < 0)
 				return err;
 		} else {
 			sprintf(name, "%s Playback Volume", chname[i]);
-			if ((err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
-						HDA_COMPOSE_AMP_VAL(nid_v, 3,
-							0, HDA_OUTPUT))) < 0)
+			err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
+					  HDA_COMPOSE_AMP_VAL(nid_v, 3, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
 				return err;
 			sprintf(name, "%s Playback Switch", chname[i]);
-			if ((err = add_control(spec, ALC_CTL_BIND_MUTE, name,
-						HDA_COMPOSE_AMP_VAL(nid_v, 3,
-							2, HDA_INPUT))) < 0)
+			err = add_control(spec, ALC_CTL_BIND_MUTE, name,
+					  HDA_COMPOSE_AMP_VAL(nid_s, 3, 2,
+							      HDA_INPUT));
+			if (err < 0)
 				return err;
 		}
 	}
@@ -8523,13 +9201,13 @@ static int alc861vd_auto_create_extra_out(struct alc_spec *spec,
 	int err;
 	char name[32];
 
-	if (! pin)
+	if (!pin)
 		return 0;
 
 	if (alc880_is_fixed_pin(pin)) {
 		nid_v = alc880_idx_to_dac(alc880_fixed_pin_idx(pin));
 		/* specify the DAC as the extra output */
-		if (! spec->multiout.hp_nid)
+		if (!spec->multiout.hp_nid)
 			spec->multiout.hp_nid = nid_v;
 		else
 			spec->multiout.extra_out_nid[0] = nid_v;
@@ -8540,22 +9218,22 @@ static int alc861vd_auto_create_extra_out(struct alc_spec *spec,
 				alc880_fixed_pin_idx(pin));
 
 		sprintf(name, "%s Playback Volume", pfx);
-		if ((err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
-				HDA_COMPOSE_AMP_VAL(nid_v, 3, 0,
-							HDA_OUTPUT))) < 0)
+		err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
+				  HDA_COMPOSE_AMP_VAL(nid_v, 3, 0, HDA_OUTPUT));
+		if (err < 0)
 			return err;
 		sprintf(name, "%s Playback Switch", pfx);
-		if ((err = add_control(spec, ALC_CTL_BIND_MUTE, name,
-				HDA_COMPOSE_AMP_VAL(nid_s, 3, 2,
-							HDA_INPUT))) < 0)
+		err = add_control(spec, ALC_CTL_BIND_MUTE, name,
+				  HDA_COMPOSE_AMP_VAL(nid_s, 3, 2, HDA_INPUT));
+		if (err < 0)
 			return err;
 	} else if (alc880_is_multi_pin(pin)) {
 		/* set manual connection */
 		/* we have only a switch on HP-out PIN */
 		sprintf(name, "%s Playback Switch", pfx);
-		if ((err = add_control(spec, ALC_CTL_WIDGET_MUTE, name,
-				HDA_COMPOSE_AMP_VAL(pin, 3, 0,
-							HDA_OUTPUT))) < 0)
+		err = add_control(spec, ALC_CTL_WIDGET_MUTE, name,
+				  HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
+		if (err < 0)
 			return err;
 	}
 	return 0;
@@ -8572,21 +9250,31 @@ static int alc861vd_parse_auto_config(struct hda_codec *codec)
 	int err;
 	static hda_nid_t alc861vd_ignore[] = { 0x1d, 0 };
 
-	if ((err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
-						alc861vd_ignore)) < 0)
+	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
+					   alc861vd_ignore);
+	if (err < 0)
 		return err;
-	if (! spec->autocfg.line_outs)
+	if (!spec->autocfg.line_outs)
 		return 0; /* can't find valid BIOS pin config */
 
-	if ((err = alc880_auto_fill_dac_nids(spec, &spec->autocfg)) < 0 ||
-		(err = alc861vd_auto_create_multi_out_ctls(spec,
-			&spec->autocfg)) < 0 ||
-		(err = alc861vd_auto_create_extra_out(spec,
-			spec->autocfg.speaker_pins[0], "Speaker")) < 0 ||
-		(err = alc861vd_auto_create_extra_out(spec,
-			spec->autocfg.hp_pins[0], "Headphone")) < 0 ||
-		(err = alc880_auto_create_analog_input_ctls(spec,
-			&spec->autocfg)) < 0)
+	err = alc880_auto_fill_dac_nids(spec, &spec->autocfg);
+	if (err < 0)
+		return err;
+	err = alc861vd_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	if (err < 0)
+		return err;
+	err = alc861vd_auto_create_extra_out(spec,
+					     spec->autocfg.speaker_pins[0],
+					     "Speaker");
+	if (err < 0)
+		return err;
+	err = alc861vd_auto_create_extra_out(spec,
+					     spec->autocfg.hp_pins[0],
+					     "Headphone");
+	if (err < 0)
+		return err;
+	err = alc880_auto_create_analog_input_ctls(spec, &spec->autocfg);
+	if (err < 0)
 		return err;
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
@@ -8641,7 +9329,7 @@ static int patch_alc861vd(struct hda_codec *codec)
 		if (err < 0) {
 			alc_free(codec);
 			return err;
-		} else if (! err) {
+		} else if (!err) {
 			printk(KERN_INFO
 			       "hda_codec: Cannot set up configuration "
 			       "from BIOS.  Using base mode...\n");
@@ -8675,16 +9363,875 @@ static int patch_alc861vd(struct hda_codec *codec)
 }
 
 /*
+ * ALC662 support
+ *
+ * ALC662 is almost identical with ALC880 but has cleaner and more flexible
+ * configuration.  Each pin widget can choose any input DACs and a mixer.
+ * Each ADC is connected from a mixer of all inputs.  This makes possible
+ * 6-channel independent captures.
+ *
+ * In addition, an independent DAC for the multi-playback (not used in this
+ * driver yet).
+ */
+#define ALC662_DIGOUT_NID	0x06
+#define ALC662_DIGIN_NID	0x0a
+
+static hda_nid_t alc662_dac_nids[4] = {
+	/* front, rear, clfe, rear_surr */
+	0x02, 0x03, 0x04
+};
+
+static hda_nid_t alc662_adc_nids[1] = {
+	/* ADC1-2 */
+	0x09,
+};
+/* input MUX */
+/* FIXME: should be a matrix-type input source selection */
+
+static struct hda_input_mux alc662_capture_source = {
+	.num_items = 4,
+	.items = {
+		{ "Mic", 0x0 },
+		{ "Front Mic", 0x1 },
+		{ "Line", 0x2 },
+		{ "CD", 0x4 },
+	},
+};
+
+static struct hda_input_mux alc662_lenovo_101e_capture_source = {
+	.num_items = 2,
+	.items = {
+		{ "Mic", 0x1 },
+		{ "Line", 0x2 },
+	},
+};
+#define alc662_mux_enum_info alc_mux_enum_info
+#define alc662_mux_enum_get alc_mux_enum_get
+
+static int alc662_mux_enum_put(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct alc_spec *spec = codec->spec;
+	const struct hda_input_mux *imux = spec->input_mux;
+	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+	static hda_nid_t capture_mixers[3] = { 0x24, 0x23, 0x22 };
+	hda_nid_t nid = capture_mixers[adc_idx];
+	unsigned int *cur_val = &spec->cur_mux[adc_idx];
+	unsigned int i, idx;
+
+	idx = ucontrol->value.enumerated.item[0];
+	if (idx >= imux->num_items)
+		idx = imux->num_items - 1;
+	if (*cur_val == idx && !codec->in_resume)
+		return 0;
+	for (i = 0; i < imux->num_items; i++) {
+		unsigned int v = (i == idx) ? 0x7000 : 0x7080;
+		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+				    v | (imux->items[i].index << 8));
+	}
+	*cur_val = idx;
+	return 1;
+}
+/*
+ * 2ch mode
+ */
+static struct hda_channel_mode alc662_3ST_2ch_modes[1] = {
+	{ 2, NULL }
+};
+
+/*
+ * 2ch mode
+ */
+static struct hda_verb alc662_3ST_ch2_init[] = {
+	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
+	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
+	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
+	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
+	{ } /* end */
+};
+
+/*
+ * 6ch mode
+ */
+static struct hda_verb alc662_3ST_ch6_init[] = {
+	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
+	{ 0x18, AC_VERB_SET_CONNECT_SEL, 0x02 },
+	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
+	{ 0x1a, AC_VERB_SET_CONNECT_SEL, 0x01 },
+	{ } /* end */
+};
+
+static struct hda_channel_mode alc662_3ST_6ch_modes[2] = {
+	{ 2, alc662_3ST_ch2_init },
+	{ 6, alc662_3ST_ch6_init },
+};
+
+/*
+ * 2ch mode
+ */
+static struct hda_verb alc662_sixstack_ch6_init[] = {
+	{ 0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x00 },
+	{ 0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x00 },
+	{ 0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ } /* end */
+};
+
+/*
+ * 6ch mode
+ */
+static struct hda_verb alc662_sixstack_ch8_init[] = {
+	{ 0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ } /* end */
+};
+
+static struct hda_channel_mode alc662_5stack_modes[2] = {
+	{ 2, alc662_sixstack_ch6_init },
+	{ 6, alc662_sixstack_ch8_init },
+};
+
+/* Pin assignment: Front=0x14, Rear=0x15, CLFE=0x16, Side=0x17
+ *                 Mic=0x18, Front Mic=0x19, Line-In=0x1a, HP=0x1b
+ */
+
+static struct snd_kcontrol_new alc662_base_mixer[] = {
+	/* output mixer control */
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x2, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Front Playback Switch", 0x02, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Surround Playback Volume", 0x3, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Surround Playback Switch", 0x03, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MONO("Center Playback Volume", 0x04, 1, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MONO("LFE Playback Volume", 0x04, 2, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE_MONO("Center Playback Switch", 0x04, 1, 2, HDA_INPUT),
+	HDA_BIND_MUTE_MONO("LFE Playback Switch", 0x04, 2, 2, HDA_INPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
+
+	/*Input mixer control */
+	HDA_CODEC_VOLUME("CD Playback Volume", 0xb, 0x4, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0xb, 0x4, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0xb, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0xb, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0xb, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0xb, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0xb, 0x01, HDA_INPUT),
+	HDA_CODEC_MUTE("Front Mic Playback Switch", 0xb, 0x01, HDA_INPUT),
+
+	/* Capture mixer control */
+	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x09, 0x0, HDA_INPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Capture Source",
+		.count = 1,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
+	},
+	{ } /* end */
+};
+
+static struct snd_kcontrol_new alc662_3ST_2ch_mixer[] = {
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x02, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Front Playback Switch", 0x02, 2, HDA_INPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x0b, 0x05, HDA_INPUT),
+	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x0b, 0x05, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x09, 0x0, HDA_INPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		/* .name = "Capture Source", */
+		.name = "Input Source",
+		.count = 1,
+		.info = alc662_mux_enum_info,
+		.get = alc662_mux_enum_get,
+		.put = alc662_mux_enum_put,
+	},
+	{ } /* end */
+};
+
+static struct snd_kcontrol_new alc662_3ST_6ch_mixer[] = {
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x02, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Front Playback Switch", 0x02, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Surround Playback Volume", 0x03, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Surround Playback Switch", 0x03, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME_MONO("Center Playback Volume", 0x04, 1, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MONO("LFE Playback Volume", 0x04, 2, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE_MONO("Center Playback Switch", 0x04, 1, 2, HDA_INPUT),
+	HDA_BIND_MUTE_MONO("LFE Playback Switch", 0x04, 2, 2, HDA_INPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x0b, 0x05, HDA_INPUT),
+	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x0b, 0x05, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x09, 0x0, HDA_INPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		/* .name = "Capture Source", */
+		.name = "Input Source",
+		.count = 1,
+		.info = alc662_mux_enum_info,
+		.get = alc662_mux_enum_get,
+		.put = alc662_mux_enum_put,
+	},
+	{ } /* end */
+};
+
+static struct snd_kcontrol_new alc662_lenovo_101e_mixer[] = {
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x02, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Front Playback Switch", 0x02, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("iSpeaker Playback Volume", 0x03, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("iSpeaker Playback Switch", 0x03, 2, HDA_INPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x09, 0x0, HDA_INPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		/* .name = "Capture Source", */
+		.name = "Input Source",
+		.count = 1,
+		.info = alc662_mux_enum_info,
+		.get = alc662_mux_enum_get,
+		.put = alc662_mux_enum_put,
+	},
+	{ } /* end */
+};
+
+static struct snd_kcontrol_new alc662_chmode_mixer[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Channel Mode",
+		.info = alc_ch_mode_info,
+		.get = alc_ch_mode_get,
+		.put = alc_ch_mode_put,
+	},
+	{ } /* end */
+};
+
+static struct hda_verb alc662_init_verbs[] = {
+	/* ADC: mute amp left and right */
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x09, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* Front mixer: unmute input/output amp left and right (volume = 0) */
+
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
+
+	{0x02, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x02, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x03, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x03, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+
+	/* Front Pin: output 0 (0x0c) */
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+
+	/* Rear Pin: output 1 (0x0d) */
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+
+	/* CLFE Pin: output 2 (0x0e) */
+	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+
+	/* Mic (rear) pin: input vref at 80% */
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	/* Front Mic pin: input vref at 80% */
+	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	/* Line In pin: input */
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	/* Line-2 In: Headphone output (output 0 - 0x0c) */
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x1b, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* CD pin widget for input */
+	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+
+	/* FIXME: use matrix-type input source selection */
+	/* Mixer elements: 0x18, 19, 1a, 1b, 1c, 1d, 14, 15, 16, 17, 0b */
+	/* Input mixer */
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
+	{ }
+};
+
+static struct hda_verb alc662_sue_init_verbs[] = {
+	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|ALC880_FRONT_EVENT},
+	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|ALC880_HP_EVENT},
+        {}
+};
+
+/*
+ * generic initialization of ADC, input mixers and output mixers
+ */
+static struct hda_verb alc662_auto_init_verbs[] = {
+	/*
+	 * Unmute ADC and set the default input to mic-in
+	 */
+	{0x09, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+
+	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
+	 * mixer widget
+	 * Note: PASD motherboards uses the Line In 2 as the input for front
+	 * panel mic (mic 2)
+	 */
+	/* Amp Indices: Mic1 = 0, Mic2 = 1, Line1 = 2, Line2 = 3, CD = 4 */
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
+
+	/*
+	 * Set up output mixers (0x0c - 0x0f)
+	 */
+	/* set vol=0 to output mixers */
+	{0x02, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	{0x03, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+
+	/* set up input amps for analog loopback */
+	/* Amp Indices: DAC = 0, mixer = 1 */
+	{0x02, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x02, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x03, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x03, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+
+
+	/* FIXME: use matrix-type input source selection */
+	/* Mixer elements: 0x18, 19, 1a, 1b, 1c, 1d, 14, 15, 16, 17, 0b */
+	/* Input mixer */
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
+	/*{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},*/
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
+
+	{ }
+};
+
+/* capture mixer elements */
+static struct snd_kcontrol_new alc662_capture_mixer[] = {
+	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x09, 0x0, HDA_INPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		/* The multiple "Capture Source" controls confuse alsamixer
+		 * So call somewhat different..
+		 * FIXME: the controls appear in the "playback" view!
+		 */
+		/* .name = "Capture Source", */
+		.name = "Input Source",
+		.count = 1,
+		.info = alc882_mux_enum_info,
+		.get = alc882_mux_enum_get,
+		.put = alc882_mux_enum_put,
+	},
+	{ } /* end */
+};
+
+static void alc662_lenovo_101e_ispeaker_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+	unsigned char bits;
+
+	present = snd_hda_codec_read(codec, 0x14, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	bits = present ? 0x80 : 0;
+	snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
+				 0x80, bits);
+	snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
+				 0x80, bits);
+}
+
+static void alc662_lenovo_101e_all_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+	unsigned char bits;
+
+ 	present = snd_hda_codec_read(codec, 0x1b, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	bits = present ? 0x80 : 0;
+	snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
+				 0x80, bits);
+	snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
+				 0x80, bits);
+	snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
+				 0x80, bits);
+	snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
+				 0x80, bits);
+}
+
+static void alc662_lenovo_101e_unsol_event(struct hda_codec *codec,
+					   unsigned int res)
+{
+	if ((res >> 26) == ALC880_HP_EVENT)
+		alc662_lenovo_101e_all_automute(codec);
+	if ((res >> 26) == ALC880_FRONT_EVENT)
+		alc662_lenovo_101e_ispeaker_automute(codec);
+}
+
+
+/* pcm configuration: identiacal with ALC880 */
+#define alc662_pcm_analog_playback	alc880_pcm_analog_playback
+#define alc662_pcm_analog_capture	alc880_pcm_analog_capture
+#define alc662_pcm_digital_playback	alc880_pcm_digital_playback
+#define alc662_pcm_digital_capture	alc880_pcm_digital_capture
+
+/*
+ * configuration and preset
+ */
+static const char *alc662_models[ALC662_MODEL_LAST] = {
+	[ALC662_3ST_2ch_DIG]	= "3stack-dig",
+	[ALC662_3ST_6ch_DIG]	= "3stack-6ch-dig",
+	[ALC662_3ST_6ch]	= "3stack-6ch",
+	[ALC662_5ST_DIG]	= "6stack-dig",
+	[ALC662_LENOVO_101E]	= "lenovo-101e",
+	[ALC662_AUTO]		= "auto",
+};
+
+static struct snd_pci_quirk alc662_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x17aa, 0x101e, "Lenovo", ALC662_LENOVO_101E),
+	{}
+};
+
+static struct alc_config_preset alc662_presets[] = {
+	[ALC662_3ST_2ch_DIG] = {
+		.mixers = { alc662_3ST_2ch_mixer },
+		.init_verbs = { alc662_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
+		.dac_nids = alc662_dac_nids,
+		.dig_out_nid = ALC662_DIGOUT_NID,
+		.num_adc_nids = ARRAY_SIZE(alc662_adc_nids),
+		.adc_nids = alc662_adc_nids,
+		.dig_in_nid = ALC662_DIGIN_NID,
+		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
+		.channel_mode = alc662_3ST_2ch_modes,
+		.input_mux = &alc662_capture_source,
+	},
+	[ALC662_3ST_6ch_DIG] = {
+		.mixers = { alc662_3ST_6ch_mixer, alc662_chmode_mixer },
+		.init_verbs = { alc662_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
+		.dac_nids = alc662_dac_nids,
+		.dig_out_nid = ALC662_DIGOUT_NID,
+		.num_adc_nids = ARRAY_SIZE(alc662_adc_nids),
+		.adc_nids = alc662_adc_nids,
+		.dig_in_nid = ALC662_DIGIN_NID,
+		.num_channel_mode = ARRAY_SIZE(alc662_3ST_6ch_modes),
+		.channel_mode = alc662_3ST_6ch_modes,
+		.need_dac_fix = 1,
+		.input_mux = &alc662_capture_source,
+	},
+	[ALC662_3ST_6ch] = {
+		.mixers = { alc662_3ST_6ch_mixer, alc662_chmode_mixer },
+		.init_verbs = { alc662_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
+		.dac_nids = alc662_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc662_adc_nids),
+		.adc_nids = alc662_adc_nids,
+		.num_channel_mode = ARRAY_SIZE(alc662_3ST_6ch_modes),
+		.channel_mode = alc662_3ST_6ch_modes,
+		.need_dac_fix = 1,
+		.input_mux = &alc662_capture_source,
+	},
+	[ALC662_5ST_DIG] = {
+		.mixers = { alc662_base_mixer, alc662_chmode_mixer },
+		.init_verbs = { alc662_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
+		.dac_nids = alc662_dac_nids,
+		.dig_out_nid = ALC662_DIGOUT_NID,
+		.num_adc_nids = ARRAY_SIZE(alc662_adc_nids),
+		.adc_nids = alc662_adc_nids,
+		.dig_in_nid = ALC662_DIGIN_NID,
+		.num_channel_mode = ARRAY_SIZE(alc662_5stack_modes),
+		.channel_mode = alc662_5stack_modes,
+		.input_mux = &alc662_capture_source,
+	},
+	[ALC662_LENOVO_101E] = {
+		.mixers = { alc662_lenovo_101e_mixer },
+		.init_verbs = { alc662_init_verbs, alc662_sue_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
+		.dac_nids = alc662_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc662_adc_nids),
+		.adc_nids = alc662_adc_nids,
+		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
+		.channel_mode = alc662_3ST_2ch_modes,
+		.input_mux = &alc662_lenovo_101e_capture_source,
+		.unsol_event = alc662_lenovo_101e_unsol_event,
+		.init_hook = alc662_lenovo_101e_all_automute,
+	},
+
+};
+
+
+/*
+ * BIOS auto configuration
+ */
+
+/* add playback controls from the parsed DAC table */
+static int alc662_auto_create_multi_out_ctls(struct alc_spec *spec,
+					     const struct auto_pin_cfg *cfg)
+{
+	char name[32];
+	static const char *chname[4] = {
+		"Front", "Surround", NULL /*CLFE*/, "Side"
+	};
+	hda_nid_t nid;
+	int i, err;
+
+	for (i = 0; i < cfg->line_outs; i++) {
+		if (!spec->multiout.dac_nids[i])
+			continue;
+		nid = alc880_idx_to_dac(i);
+		if (i == 2) {
+			/* Center/LFE */
+			err = add_control(spec, ALC_CTL_WIDGET_VOL,
+					  "Center Playback Volume",
+					  HDA_COMPOSE_AMP_VAL(nid, 1, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
+				return err;
+			err = add_control(spec, ALC_CTL_WIDGET_VOL,
+					  "LFE Playback Volume",
+					  HDA_COMPOSE_AMP_VAL(nid, 2, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
+				return err;
+			err = add_control(spec, ALC_CTL_BIND_MUTE,
+					  "Center Playback Switch",
+					  HDA_COMPOSE_AMP_VAL(nid, 1, 2,
+							      HDA_INPUT));
+			if (err < 0)
+				return err;
+			err = add_control(spec, ALC_CTL_BIND_MUTE,
+					  "LFE Playback Switch",
+					  HDA_COMPOSE_AMP_VAL(nid, 2, 2,
+							      HDA_INPUT));
+			if (err < 0)
+				return err;
+		} else {
+			sprintf(name, "%s Playback Volume", chname[i]);
+			err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
+					  HDA_COMPOSE_AMP_VAL(nid, 3, 0,
+							      HDA_OUTPUT));
+			if (err < 0)
+				return err;
+			sprintf(name, "%s Playback Switch", chname[i]);
+			err = add_control(spec, ALC_CTL_BIND_MUTE, name,
+					  HDA_COMPOSE_AMP_VAL(nid, 3, 2,
+							      HDA_INPUT));
+			if (err < 0)
+				return err;
+		}
+	}
+	return 0;
+}
+
+/* add playback controls for speaker and HP outputs */
+static int alc662_auto_create_extra_out(struct alc_spec *spec, hda_nid_t pin,
+					const char *pfx)
+{
+	hda_nid_t nid;
+	int err;
+	char name[32];
+
+	if (!pin)
+		return 0;
+
+	if (alc880_is_fixed_pin(pin)) {
+		nid = alc880_idx_to_dac(alc880_fixed_pin_idx(pin));
+                /* printk("DAC nid=%x\n",nid); */
+		/* specify the DAC as the extra output */
+		if (!spec->multiout.hp_nid)
+			spec->multiout.hp_nid = nid;
+		else
+			spec->multiout.extra_out_nid[0] = nid;
+		/* control HP volume/switch on the output mixer amp */
+		nid = alc880_idx_to_dac(alc880_fixed_pin_idx(pin));
+		sprintf(name, "%s Playback Volume", pfx);
+		err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
+				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT));
+		if (err < 0)
+			return err;
+		sprintf(name, "%s Playback Switch", pfx);
+		err = add_control(spec, ALC_CTL_BIND_MUTE, name,
+				  HDA_COMPOSE_AMP_VAL(nid, 3, 2, HDA_INPUT));
+		if (err < 0)
+			return err;
+	} else if (alc880_is_multi_pin(pin)) {
+		/* set manual connection */
+		/* we have only a switch on HP-out PIN */
+		sprintf(name, "%s Playback Switch", pfx);
+		err = add_control(spec, ALC_CTL_WIDGET_MUTE, name,
+				  HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
+		if (err < 0)
+			return err;
+	}
+	return 0;
+}
+
+/* create playback/capture controls for input pins */
+static int alc662_auto_create_analog_input_ctls(struct alc_spec *spec,
+						const struct auto_pin_cfg *cfg)
+{
+	struct hda_input_mux *imux = &spec->private_imux;
+	int i, err, idx;
+
+	for (i = 0; i < AUTO_PIN_LAST; i++) {
+		if (alc880_is_input_pin(cfg->input_pins[i])) {
+			idx = alc880_input_pin_idx(cfg->input_pins[i]);
+			err = new_analog_input(spec, cfg->input_pins[i],
+					       auto_pin_cfg_labels[i],
+					       idx, 0x0b);
+			if (err < 0)
+				return err;
+			imux->items[imux->num_items].label =
+				auto_pin_cfg_labels[i];
+			imux->items[imux->num_items].index =
+				alc880_input_pin_idx(cfg->input_pins[i]);
+			imux->num_items++;
+		}
+	}
+	return 0;
+}
+
+static void alc662_auto_set_output_and_unmute(struct hda_codec *codec,
+					      hda_nid_t nid, int pin_type,
+					      int dac_idx)
+{
+	/* set as output */
+	snd_hda_codec_write(codec, nid, 0,
+			    AC_VERB_SET_PIN_WIDGET_CONTROL, pin_type);
+	snd_hda_codec_write(codec, nid, 0,
+			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
+	/* need the manual connection? */
+	if (alc880_is_multi_pin(nid)) {
+		struct alc_spec *spec = codec->spec;
+		int idx = alc880_multi_pin_idx(nid);
+		snd_hda_codec_write(codec, alc880_idx_to_selector(idx), 0,
+				    AC_VERB_SET_CONNECT_SEL,
+				    alc880_dac_to_idx(spec->multiout.dac_nids[dac_idx]));
+	}
+}
+
+static void alc662_auto_init_multi_out(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	int i;
+
+	for (i = 0; i <= HDA_SIDE; i++) {
+		hda_nid_t nid = spec->autocfg.line_out_pins[i];
+		int pin_type = get_pin_type(spec->autocfg.line_out_type);
+		if (nid)
+			alc662_auto_set_output_and_unmute(codec, nid, pin_type,
+							  i);
+	}
+}
+
+static void alc662_auto_init_hp_out(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	hda_nid_t pin;
+
+	pin = spec->autocfg.hp_pins[0];
+	if (pin) /* connect to front */
+		/* use dac 0 */
+		alc662_auto_set_output_and_unmute(codec, pin, PIN_HP, 0);
+}
+
+#define alc662_is_input_pin(nid)	alc880_is_input_pin(nid)
+#define ALC662_PIN_CD_NID		ALC880_PIN_CD_NID
+
+static void alc662_auto_init_analog_input(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	int i;
+
+	for (i = 0; i < AUTO_PIN_LAST; i++) {
+		hda_nid_t nid = spec->autocfg.input_pins[i];
+		if (alc662_is_input_pin(nid)) {
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_PIN_WIDGET_CONTROL,
+					    (i <= AUTO_PIN_FRONT_MIC ?
+					     PIN_VREF80 : PIN_IN));
+			if (nid != ALC662_PIN_CD_NID)
+				snd_hda_codec_write(codec, nid, 0,
+						    AC_VERB_SET_AMP_GAIN_MUTE,
+						    AMP_OUT_MUTE);
+		}
+	}
+}
+
+static int alc662_parse_auto_config(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	int err;
+	static hda_nid_t alc662_ignore[] = { 0x1d, 0 };
+
+	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
+					   alc662_ignore);
+	if (err < 0)
+		return err;
+	if (!spec->autocfg.line_outs)
+		return 0; /* can't find valid BIOS pin config */
+
+	err = alc880_auto_fill_dac_nids(spec, &spec->autocfg);
+	if (err < 0)
+		return err;
+	err = alc662_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	if (err < 0)
+		return err;
+	err = alc662_auto_create_extra_out(spec,
+					   spec->autocfg.speaker_pins[0],
+					   "Speaker");
+	if (err < 0)
+		return err;
+	err = alc662_auto_create_extra_out(spec, spec->autocfg.hp_pins[0],
+					   "Headphone");
+	if (err < 0)
+		return err;
+	err = alc662_auto_create_analog_input_ctls(spec, &spec->autocfg);
+	if (err < 0)
+		return err;
+
+	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
+
+	if (spec->autocfg.dig_out_pin)
+		spec->multiout.dig_out_nid = ALC880_DIGOUT_NID;
+
+	if (spec->kctl_alloc)
+		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
+
+	spec->num_mux_defs = 1;
+	spec->input_mux = &spec->private_imux;
+	
+	if (err < 0)
+		return err;
+	else if (err > 0)
+		/* hack - override the init verbs */
+		spec->init_verbs[0] = alc662_auto_init_verbs;
+	spec->mixers[spec->num_mixers] = alc662_capture_mixer;
+	spec->num_mixers++;
+	return err;
+}
+
+/* additional initialization for auto-configuration model */
+static void alc662_auto_init(struct hda_codec *codec)
+{
+	alc662_auto_init_multi_out(codec);
+	alc662_auto_init_hp_out(codec);
+	alc662_auto_init_analog_input(codec);
+}
+
+static int patch_alc662(struct hda_codec *codec)
+{
+	struct alc_spec *spec;
+	int err, board_config;
+
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+
+	codec->spec = spec;
+
+	board_config = snd_hda_check_board_config(codec, ALC662_MODEL_LAST,
+						  alc662_models,
+			  	                  alc662_cfg_tbl);
+	if (board_config < 0) {
+		printk(KERN_INFO "hda_codec: Unknown model for ALC662, "
+		       "trying auto-probe from BIOS...\n");
+		board_config = ALC662_AUTO;
+	}
+
+	if (board_config == ALC662_AUTO) {
+		/* automatic parse from the BIOS config */
+		err = alc662_parse_auto_config(codec);
+		if (err < 0) {
+			alc_free(codec);
+			return err;
+		} else if (err) {
+			printk(KERN_INFO
+			       "hda_codec: Cannot set up configuration "
+			       "from BIOS.  Using base mode...\n");
+			board_config = ALC662_3ST_2ch_DIG;
+		}
+	}
+
+	if (board_config != ALC662_AUTO)
+		setup_preset(spec, &alc662_presets[board_config]);
+
+	spec->stream_name_analog = "ALC662 Analog";
+	spec->stream_analog_playback = &alc662_pcm_analog_playback;
+	spec->stream_analog_capture = &alc662_pcm_analog_capture;
+
+	spec->stream_name_digital = "ALC662 Digital";
+	spec->stream_digital_playback = &alc662_pcm_digital_playback;
+	spec->stream_digital_capture = &alc662_pcm_digital_capture;
+
+	if (!spec->adc_nids && spec->input_mux) {
+		spec->adc_nids = alc662_adc_nids;
+		spec->num_adc_nids = ARRAY_SIZE(alc662_adc_nids);
+	}
+
+	codec->patch_ops = alc_patch_ops;
+	if (board_config == ALC662_AUTO)
+		spec->init_hook = alc662_auto_init;
+
+	return 0;
+}
+
+/*
  * patch entries
  */
 struct hda_codec_preset snd_hda_preset_realtek[] = {
 	{ .id = 0x10ec0260, .name = "ALC260", .patch = patch_alc260 },
 	{ .id = 0x10ec0262, .name = "ALC262", .patch = patch_alc262 },
 	{ .id = 0x10ec0861, .rev = 0x100340, .name = "ALC660",
-		.patch = patch_alc861 },
+	  .patch = patch_alc861 },
 	{ .id = 0x10ec0660, .name = "ALC660-VD", .patch = patch_alc861vd },
 	{ .id = 0x10ec0861, .name = "ALC861", .patch = patch_alc861 },
 	{ .id = 0x10ec0862, .name = "ALC861-VD", .patch = patch_alc861vd },
+	{ .id = 0x10ec0662, .rev = 0x100002, .name = "ALC662 rev2",
+	  .patch = patch_alc883 },
+	{ .id = 0x10ec0662, .rev = 0x100101, .name = "ALC662 rev1",
+	  .patch = patch_alc662 },
 	{ .id = 0x10ec0880, .name = "ALC880", .patch = patch_alc880 },
 	{ .id = 0x10ec0882, .name = "ALC882", .patch = patch_alc882 },
 	{ .id = 0x10ec0883, .name = "ALC883", .patch = patch_alc883 },
