@@ -359,6 +359,23 @@ config SERIAL_ATMEL_TTYAT
 
 	  Say Y if you have an external 8250/16C550 UART.  If unsure, say N.
 
+config SERIAL_KS8695
+	bool "Micrel KS8695 (Centaur) serial port support"
+	depends on ARCH_KS8695
+	select SERIAL_CORE
+	help
+	  This selects the Micrel Centaur KS8695 UART.  Say Y here.
+
+config SERIAL_KS8695_CONSOLE
+	bool "Support for console on KS8695 (Centaur) serial port"
+	depends on SERIAL_KS8695=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say Y here if you wish to use a KS8695 (Centaur) UART as the
+	  system console (the system console is the device which
+	  receives all kernel messages and warnings and which allows
+	  logins in single user mode).
+
 config SERIAL_CLPS711X
 	tristate "CLPS711X serial port support"
 	depends on ARM && ARCH_CLPS711X
