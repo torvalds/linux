@@ -153,7 +153,7 @@ nlmclnt_recovery(struct nlm_host *host)
 	if (!host->h_reclaiming++) {
 		nlm_get_host(host);
 		__module_get(THIS_MODULE);
-		if (kernel_thread(reclaimer, host, CLONE_KERNEL) < 0)
+		if (kernel_thread(reclaimer, host, CLONE_FS | CLONE_FILES) < 0)
 			module_put(THIS_MODULE);
 	}
 }
