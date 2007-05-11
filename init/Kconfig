@@ -512,6 +512,16 @@ config TIMERFD
 
 	  If unsure, say Y.
 
+config EVENTFD
+	bool "Enable eventfd() system call" if EMBEDDED
+	depends on ANON_INODES
+	default y
+	help
+	  Enable the eventfd() system call that allows to receive both
+	  kernel notification (ie. KAIO) or userspace notifications.
+
+	  If unsure, say Y.
+
 config SHMEM
 	bool "Use full shmem filesystem" if EMBEDDED
 	default y

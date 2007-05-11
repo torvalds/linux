@@ -145,3 +145,4 @@ cond_syscall(sys_ioprio_get);
 /* New file descriptors */
 cond_syscall(sys_signalfd);
 cond_syscall(sys_timerfd);
+cond_syscall(sys_eventfd);
