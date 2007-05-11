@@ -126,7 +126,7 @@ static void rs5c313_write_data(unsigned char data)
 static unsigned char rs5c313_read_data(void)
 {
 	int i;
-	unsigned char data;
+	unsigned char data = 0;
 
 	for (i = 0; i < 8; i++) {
 		ndelay(700);
@@ -194,7 +194,7 @@ static void rs5c313_write_reg(unsigned char addr, unsigned char data)
 	return;
 }
 
-static inline unsigned char rs5c313_read_cntreg(unsigned char addr)
+static inline unsigned char rs5c313_read_cntreg(void)
 {
 	return rs5c313_read_reg(RS5C313_ADDR_CNTREG);
 }
@@ -356,7 +356,7 @@ static int rs5c313_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtc);
 
-	return err;
+	return 0;
 }
 
 static int __devexit rs5c313_rtc_remove(struct platform_device *pdev)
