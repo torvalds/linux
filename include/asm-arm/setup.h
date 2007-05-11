@@ -185,7 +185,7 @@ struct tagtable {
 
 #ifdef __KERNEL__
 
-#define __tag __attribute_used__ __attribute__((__section__(".taglist.init")))
+#define __tag __used __attribute__((__section__(".taglist.init")))
 #define __tagtable(tag, fn) \
 static struct tagtable __tagtable_##fn __tag = { tag, fn }
 
@@ -218,7 +218,7 @@ struct early_params {
 };
 
 #define __early_param(name,fn)					\
-static struct early_params __early_##fn __attribute_used__	\
+static struct early_params __early_##fn __used			\
 __attribute__((__section__(".early_param.init"))) = { name, fn }
 
 #endif  /*  __KERNEL__  */
