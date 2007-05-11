@@ -238,10 +238,7 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 	 * XXX sys_readahead() seems to get that wrong?
 	 */
 	if (start >= i_size_read(inode)) {
-		char *addr = kmap(page);
-		memset(addr, 0, PAGE_SIZE);
-		flush_dcache_page(page);
-		kunmap(page);
+		zero_user_page(page, 0, PAGE_SIZE, KM_USER0);
 		SetPageUptodate(page);
 		ret = 0;
 		goto out_alloc;
