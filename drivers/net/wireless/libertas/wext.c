@@ -1088,12 +1088,6 @@ static const struct iw_priv_args wlan_private_args[] = {
 	 "authalgs",
 	 },
 	{
-	 WLANSET8021XAUTHALG,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "8021xauthalgs",
-	 },
-	{
 	 WLANSETENCRYPTIONMODE,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 IW_PRIV_TYPE_NONE,

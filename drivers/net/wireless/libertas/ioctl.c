@@ -618,32 +618,6 @@ static int wlan_setauthalg_ioctl(wlan_private * priv, struct ifreq *req)
 	return 0;
 }
 
-/**
- *  @brief Set 802.1x authentication mode
- *  @param priv                 A pointer to wlan_private structure
- *  @param req			A pointer to ifreq structure
- *  @return 	   		0 --success, otherwise fail
- */
-static int wlan_set8021xauthalg_ioctl(wlan_private * priv, struct ifreq *req)
-{
-	int alg;
-	struct iwreq *wrq = (struct iwreq *)req;
-
-	if (wrq->u.data.flags == 0) {
-		//from iwpriv subcmd
-		alg = SUBCMD_DATA(wrq);
-	} else {
-		//from wpa_supplicant subcmd
-		if (copy_from_user(&alg, wrq->u.data.pointer, sizeof(int))) {
-			lbs_pr_debug(1, "Copy from user failed\n");
-			return -EFAULT;
-		}
-	}
-	lbs_pr_debug(1, "802.1x auth alg is %#x\n", alg);
-	priv->adapter->secinfo.auth1xalg = alg;
-	return 0;
-}
-
 static int wlan_setencryptionmode_ioctl(wlan_private * priv, struct ifreq *req)
 {
 	int mode;
@@ -2071,10 +2045,6 @@ int libertas_do_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 
 		case WLANSETAUTHALG:
 			ret = wlan_setauthalg_ioctl(priv, req);
-			break;
-
-		case WLANSET8021XAUTHALG:
-			ret = wlan_set8021xauthalg_ioctl(priv, req);
 			break;
 
 		case WLANSETENCRYPTIONMODE:
