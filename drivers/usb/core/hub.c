@@ -2201,14 +2201,9 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 				continue;
 			}
 
-			/* Use a short timeout the first time through,
-			 * so that recalcitrant full-speed devices with
-			 * 8- or 16-byte ep0-maxpackets won't slow things
-			 * down tremendously by NAKing the unexpectedly
-			 * early status stage.  Also, retry on all errors;
-			 * some devices are flakey.
-			 * 255 is for WUSB devices, we actually need to use 512.
-			 * WUSB1.0[4.8.1].
+			/* Retry on all errors; some devices are flakey.
+			 * 255 is for WUSB devices, we actually need to use
+			 * 512 (WUSB1.0[4.8.1]).
 			 */
 			for (j = 0; j < 3; ++j) {
 				buf->bMaxPacketSize0 = 0;
@@ -2216,7 +2211,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 					USB_REQ_GET_DESCRIPTOR, USB_DIR_IN,
 					USB_DT_DEVICE << 8, 0,
 					buf, GET_DESCRIPTOR_BUFSIZE,
-					(i ? USB_CTRL_GET_TIMEOUT : 1000));
+					USB_CTRL_GET_TIMEOUT);
 				switch (buf->bMaxPacketSize0) {
 				case 8: case 16: case 32: case 64: case 255:
 					if (buf->bDescriptorType ==
