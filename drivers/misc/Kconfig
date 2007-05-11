@@ -34,6 +34,11 @@ config PHANTOM
 	  If you choose to build module, its name will be phantom. If unsure,
 	  say N here.
 
+config EEPROM_93CX6
+	tristate "EEPROM 93CX6 support"
+	---help---
+	  This is a driver for the EEPROM chipsets 93c46 and 93c66.
+	  The driver supports both read as well as write commands.
 
 	  If unsure, say N.
 
@@ -186,6 +191,5 @@ config THINKPAD_ACPI_BAY
 	  notifications when the bay lever is ejected or inserted.
 
 	  If you are not sure, say Y here.
-
 
 endmenu
