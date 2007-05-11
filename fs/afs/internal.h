@@ -506,6 +506,10 @@ extern int afs_fs_store_data(struct afs_server *, struct afs_writeback *,
 extern int afs_fs_setattr(struct afs_server *, struct key *,
 			  struct afs_vnode *, struct iattr *,
 			  const struct afs_wait_mode *);
+extern int afs_fs_get_volume_status(struct afs_server *, struct key *,
+				    struct afs_vnode *,
+				    struct afs_volume_status *,
+				    const struct afs_wait_mode *);
 
 /*
  * inode.c
@@ -672,6 +676,8 @@ extern int afs_vnode_rename(struct afs_vnode *, struct afs_vnode *,
 extern int afs_vnode_store_data(struct afs_writeback *, pgoff_t, pgoff_t,
 				unsigned, unsigned);
 extern int afs_vnode_setattr(struct afs_vnode *, struct key *, struct iattr *);
+extern int afs_vnode_get_volume_status(struct afs_vnode *, struct key *,
+				       struct afs_volume_status *);
 
 /*
  * volume.c

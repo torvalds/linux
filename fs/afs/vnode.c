@@ -869,3 +869,55 @@ no_server:
 	spin_unlock(&vnode->lock);
 	return PTR_ERR(server);
 }
+
+/*
+ * get the status of a volume
+ */
+int afs_vnode_get_volume_status(struct afs_vnode *vnode, struct key *key,
+				struct afs_volume_status *vs)
+{
+	struct afs_server *server;
+	int ret;
+
+	_enter("%s{%x:%u.%u},%x,",
+	       vnode->volume->vlocation->vldb.name,
+	       vnode->fid.vid,
+	       vnode->fid.vnode,
+	       vnode->fid.unique,
+	       key_serial(key));
+
+	/* this op will fetch the status */
+	spin_lock(&vnode->lock);
+	vnode->update_cnt++;
+	spin_unlock(&vnode->lock);
+
+	do {
+		/* pick a server to query */
+		server = afs_volume_pick_fileserver(vnode);
+		if (IS_ERR(server))
+			goto no_server;
+
+		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
+
+		ret = afs_fs_get_volume_status(server, key, vnode, vs, &afs_sync_call);
+
+	} while (!afs_volume_release_fileserver(vnode, server, ret));
+
+	/* adjust the flags */
+	if (ret == 0) {
+		afs_vnode_finalise_status_update(vnode, server);
+		afs_put_server(server);
+	} else {
+		afs_vnode_status_update_failed(vnode, ret);
+	}
+
+	_leave(" = %d", ret);
+	return ret;
+
+no_server:
+	spin_lock(&vnode->lock);
+	vnode->update_cnt--;
+	ASSERTCMP(vnode->update_cnt, >=, 0);
+	spin_unlock(&vnode->lock);
+	return PTR_ERR(server);
+}

@@ -21,22 +21,20 @@
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/parser.h>
+#include <linux/statfs.h>
 #include "internal.h"
 
 #define AFS_FS_MAGIC 0x6B414653 /* 'kAFS' */
 
 static void afs_i_init_once(void *foo, struct kmem_cache *cachep,
 			    unsigned long flags);
-
 static int afs_get_sb(struct file_system_type *fs_type,
 		      int flags, const char *dev_name,
 		      void *data, struct vfsmount *mnt);
-
 static struct inode *afs_alloc_inode(struct super_block *sb);
-
 static void afs_put_super(struct super_block *sb);
-
 static void afs_destroy_inode(struct inode *inode);
+static int afs_statfs(struct dentry *dentry, struct kstatfs *buf);
 
 struct file_system_type afs_fs_type = {
 	.owner		= THIS_MODULE,
@@ -47,7 +45,7 @@ struct file_system_type afs_fs_type = {
 };
 
 static const struct super_operations afs_super_ops = {
-	.statfs		= simple_statfs,
+	.statfs		= afs_statfs,
 	.alloc_inode	= afs_alloc_inode,
 	.drop_inode	= generic_delete_inode,
 	.write_inode	= afs_write_inode,
@@ -507,4 +505,37 @@ static void afs_destroy_inode(struct inode *inode)
 
 	kmem_cache_free(afs_inode_cachep, vnode);
 	atomic_dec(&afs_count_active_inodes);
+}
+
+/*
+ * return information about an AFS volume
+ */
+static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
+{
+	struct afs_volume_status vs;
+	struct afs_vnode *vnode = AFS_FS_I(dentry->d_inode);
+	struct key *key;
+	int ret;
+
+	key = afs_request_key(vnode->volume->cell);
+	if (IS_ERR(key))
+		return PTR_ERR(key);
+
+	ret = afs_vnode_get_volume_status(vnode, key, &vs);
+	key_put(key);
+	if (ret < 0) {
+		_leave(" = %d", ret);
+		return ret;
+	}
+
+	buf->f_type	= dentry->d_sb->s_magic;
+	buf->f_bsize	= AFS_BLOCK_SIZE;
+	buf->f_namelen	= AFSNAMEMAX - 1;
+
+	if (vs.max_quota == 0)
+		buf->f_blocks = vs.part_max_blocks;
+	else
+		buf->f_blocks = vs.max_quota;
+	buf->f_bavail = buf->f_bfree = buf->f_blocks - vs.blocks_in_use;
+	return 0;
 }

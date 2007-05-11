@@ -202,6 +202,29 @@ static void xdr_encode_AFS_StoreStatus(__be32 **_bp, struct iattr *attr)
 }
 
 /*
+ * decode an AFSFetchVolumeStatus block
+ */
+static void xdr_decode_AFSFetchVolumeStatus(const __be32 **_bp,
+					    struct afs_volume_status *vs)
+{
+	const __be32 *bp = *_bp;
+
+	vs->vid			= ntohl(*bp++);
+	vs->parent_id		= ntohl(*bp++);
+	vs->online		= ntohl(*bp++);
+	vs->in_service		= ntohl(*bp++);
+	vs->blessed		= ntohl(*bp++);
+	vs->needs_salvage	= ntohl(*bp++);
+	vs->type		= ntohl(*bp++);
+	vs->min_quota		= ntohl(*bp++);
+	vs->max_quota		= ntohl(*bp++);
+	vs->blocks_in_use	= ntohl(*bp++);
+	vs->part_blocks_avail	= ntohl(*bp++);
+	vs->part_max_blocks	= ntohl(*bp++);
+	*_bp = bp;
+}
+
+/*
  * deliver reply data to an FS.FetchStatus
  */
 static int afs_deliver_fs_fetch_status(struct afs_call *call,
@@ -1447,6 +1470,281 @@ int afs_fs_setattr(struct afs_server *server, struct key *key,
 	*bp++ = htonl(vnode->fid.unique);
 
 	xdr_encode_AFS_StoreStatus(&bp, attr);
+
+	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+}
+
+/*
+ * deliver reply data to an FS.GetVolumeStatus
+ */
+static int afs_deliver_fs_get_volume_status(struct afs_call *call,
+					    struct sk_buff *skb, bool last)
+{
+	const __be32 *bp;
+	char *p;
+	int ret;
+
+	_enter("{%u},{%u},%d", call->unmarshall, skb->len, last);
+
+	switch (call->unmarshall) {
+	case 0:
+		call->offset = 0;
+		call->unmarshall++;
+
+		/* extract the returned status record */
+	case 1:
+		_debug("extract status");
+		ret = afs_extract_data(call, skb, last, call->buffer,
+				       12 * 4);
+		switch (ret) {
+		case 0:		break;
+		case -EAGAIN:	return 0;
+		default:	return ret;
+		}
+
+		bp = call->buffer;
+		xdr_decode_AFSFetchVolumeStatus(&bp, call->reply2);
+		call->offset = 0;
+		call->unmarshall++;
+
+		/* extract the volume name length */
+	case 2:
+		ret = afs_extract_data(call, skb, last, &call->tmp, 4);
+		switch (ret) {
+		case 0:		break;
+		case -EAGAIN:	return 0;
+		default:	return ret;
+		}
+
+		call->count = ntohl(call->tmp);
+		_debug("volname length: %u", call->count);
+		if (call->count >= AFSNAMEMAX)
+			return -EBADMSG;
+		call->offset = 0;
+		call->unmarshall++;
+
+		/* extract the volume name */
+	case 3:
+		_debug("extract volname");
+		if (call->count > 0) {
+			ret = afs_extract_data(call, skb, last, call->reply3,
+					       call->count);
+			switch (ret) {
+			case 0:		break;
+			case -EAGAIN:	return 0;
+			default:	return ret;
+			}
+		}
+
+		p = call->reply3;
+		p[call->count] = 0;
+		_debug("volname '%s'", p);
+
+		call->offset = 0;
+		call->unmarshall++;
+
+		/* extract the volume name padding */
+		if ((call->count & 3) == 0) {
+			call->unmarshall++;
+			goto no_volname_padding;
+		}
+		call->count = 4 - (call->count & 3);
+
+	case 4:
+		ret = afs_extract_data(call, skb, last, call->buffer,
+				       call->count);
+		switch (ret) {
+		case 0:		break;
+		case -EAGAIN:	return 0;
+		default:	return ret;
+		}
+
+		call->offset = 0;
+		call->unmarshall++;
+	no_volname_padding:
+
+		/* extract the offline message length */
+	case 5:
+		ret = afs_extract_data(call, skb, last, &call->tmp, 4);
+		switch (ret) {
+		case 0:		break;
+		case -EAGAIN:	return 0;
+		default:	return ret;
+		}
+
+		call->count = ntohl(call->tmp);
+		_debug("offline msg length: %u", call->count);
+		if (call->count >= AFSNAMEMAX)
+			return -EBADMSG;
+		call->offset = 0;
+		call->unmarshall++;
+
+		/* extract the offline message */
+	case 6:
+		_debug("extract offline");
+		if (call->count > 0) {
+			ret = afs_extract_data(call, skb, last, call->reply3,
+					       call->count);
+			switch (ret) {
+			case 0:		break;
+			case -EAGAIN:	return 0;
+			default:	return ret;
+			}
+		}
+
+		p = call->reply3;
+		p[call->count] = 0;
+		_debug("offline '%s'", p);
+
+		call->offset = 0;
+		call->unmarshall++;
+
+		/* extract the offline message padding */
+		if ((call->count & 3) == 0) {
+			call->unmarshall++;
+			goto no_offline_padding;
+		}
+		call->count = 4 - (call->count & 3);
+
+	case 7:
+		ret = afs_extract_data(call, skb, last, call->buffer,
+				       call->count);
+		switch (ret) {
+		case 0:		break;
+		case -EAGAIN:	return 0;
+		default:	return ret;
+		}
+
+		call->offset = 0;
+		call->unmarshall++;
+	no_offline_padding:
+
+		/* extract the message of the day length */
+	case 8:
+		ret = afs_extract_data(call, skb, last, &call->tmp, 4);
+		switch (ret) {
+		case 0:		break;
+		case -EAGAIN:	return 0;
+		default:	return ret;
+		}
+
+		call->count = ntohl(call->tmp);
+		_debug("motd length: %u", call->count);
+		if (call->count >= AFSNAMEMAX)
+			return -EBADMSG;
+		call->offset = 0;
+		call->unmarshall++;
+
+		/* extract the message of the day */
+	case 9:
+		_debug("extract motd");
+		if (call->count > 0) {
+			ret = afs_extract_data(call, skb, last, call->reply3,
+					       call->count);
+			switch (ret) {
+			case 0:		break;
+			case -EAGAIN:	return 0;
+			default:	return ret;
+			}
+		}
+
+		p = call->reply3;
+		p[call->count] = 0;
+		_debug("motd '%s'", p);
+
+		call->offset = 0;
+		call->unmarshall++;
+
+		/* extract the message of the day padding */
+		if ((call->count & 3) == 0) {
+			call->unmarshall++;
+			goto no_motd_padding;
+		}
+		call->count = 4 - (call->count & 3);
+
+	case 10:
+		ret = afs_extract_data(call, skb, last, call->buffer,
+				       call->count);
+		switch (ret) {
+		case 0:		break;
+		case -EAGAIN:	return 0;
+		default:	return ret;
+		}
+
+		call->offset = 0;
+		call->unmarshall++;
+	no_motd_padding:
+
+	case 11:
+		_debug("trailer %d", skb->len);
+		if (skb->len != 0)
+			return -EBADMSG;
+		break;
+	}
+
+	if (!last)
+		return 0;
+
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+/*
+ * destroy an FS.GetVolumeStatus call
+ */
+static void afs_get_volume_status_call_destructor(struct afs_call *call)
+{
+	kfree(call->reply3);
+	call->reply3 = NULL;
+	afs_flat_call_destructor(call);
+}
+
+/*
+ * FS.GetVolumeStatus operation type
+ */
+static const struct afs_call_type afs_RXFSGetVolumeStatus = {
+	.name		= "FS.GetVolumeStatus",
+	.deliver	= afs_deliver_fs_get_volume_status,
+	.abort_to_error	= afs_abort_to_error,
+	.destructor	= afs_get_volume_status_call_destructor,
+};
+
+/*
+ * fetch the status of a volume
+ */
+int afs_fs_get_volume_status(struct afs_server *server,
+			     struct key *key,
+			     struct afs_vnode *vnode,
+			     struct afs_volume_status *vs,
+			     const struct afs_wait_mode *wait_mode)
+{
+	struct afs_call *call;
+	__be32 *bp;
+	void *tmpbuf;
+
+	_enter("");
+
+	tmpbuf = kmalloc(AFSOPAQUEMAX, GFP_KERNEL);
+	if (!tmpbuf)
+		return -ENOMEM;
+
+	call = afs_alloc_flat_call(&afs_RXFSGetVolumeStatus, 2 * 4, 12 * 4);
+	if (!call) {
+		kfree(tmpbuf);
+		return -ENOMEM;
+	}
+
+	call->key = key;
+	call->reply = vnode;
+	call->reply2 = vs;
+	call->reply3 = tmpbuf;
+	call->service_id = FS_SERVICE;
+	call->port = htons(AFS_FS_PORT);
+
+	/* marshall the parameters */
+	bp = call->request;
+	bp[0] = htonl(FSGETVOLUMESTATUS);
+	bp[1] = htonl(vnode->fid.vid);
 
 	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
 }

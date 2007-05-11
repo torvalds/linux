@@ -28,7 +28,8 @@ enum AFS_FS_Operations {
 	FSMAKEDIR		= 141,	/* AFS Create a directory */
 	FSREMOVEDIR		= 142,	/* AFS Remove a directory */
 	FSGIVEUPCALLBACKS	= 147,	/* AFS Discard callback promises */
-	FSGETVOLUMEINFO		= 148,	/* AFS Get root volume information */
+	FSGETVOLUMEINFO		= 148,	/* AFS Get information about a volume */
+	FSGETVOLUMESTATUS	= 149,	/* AFS Get volume status information */
 	FSGETROOTVOLUME		= 151,	/* AFS Get root volume name */
 	FSLOOKUP		= 161,	/* AFS lookup file in directory */
 	FSFETCHDATA64		= 65537, /* AFS Fetch file data */
