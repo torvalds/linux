@@ -9,6 +9,11 @@
 
 extern unsigned int libertas_debug;
 
+#ifdef CONFIG_LIBERTAS_DEBUG
+#define DEBUG
+#define PROC_DEBUG
+#endif
+
 #define DRV_NAME		"usb8xxx"
 
 #define lbs_pr_info(format, args...) \
