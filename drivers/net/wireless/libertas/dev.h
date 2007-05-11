@@ -10,6 +10,7 @@
 #include <linux/wireless.h>
 #include <linux/ethtool.h>
 #include <linux/debugfs.h>
+#include <net/ieee80211.h>
 
 #include "defs.h"
 #include "scan.h"
@@ -198,7 +199,6 @@ struct assoc_request {
 	struct wlan_802_11_security secinfo;
 
 	/** WPA Information Elements*/
-#define MAX_WPA_IE_LEN 64
 	u8 wpa_ie[MAX_WPA_IE_LEN];
 	u8 wpa_ie_len;
 };
@@ -339,7 +339,6 @@ struct _wlan_adapter {
 	struct WLAN_802_11_KEY wpa_unicast_key;
 
 	/** WPA Information Elements*/
-#define MAX_WPA_IE_LEN 64
 	u8 wpa_ie[MAX_WPA_IE_LEN];
 	u8 wpa_ie_len;
 
