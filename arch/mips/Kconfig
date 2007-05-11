@@ -15,121 +15,8 @@ choice
 	prompt "System type"
 	default SGI_IP22
 
-config MIPS_MTX1
-	bool "4G Systems MTX-1 board"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select RESOURCES_64BIT if PCI
-	select SOC_AU1500
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_BOSPORUS
-	bool "AMD Alchemy Bosporus board"
-	select SOC_AU1500
-	select DMA_NONCOHERENT
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_PB1000
-	bool "AMD Alchemy PB1000 board"
-	select SOC_AU1000
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select RESOURCES_64BIT if PCI
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_PB1100
-	bool "AMD Alchemy PB1100 board"
-	select SOC_AU1100
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select RESOURCES_64BIT if PCI
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_PB1500
-	bool "AMD Alchemy PB1500 board"
-	select SOC_AU1500
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select RESOURCES_64BIT if PCI
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_PB1550
-	bool "AMD Alchemy PB1550 board"
-	select SOC_AU1550
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select MIPS_DISABLE_OBSOLETE_IDE
-	select RESOURCES_64BIT if PCI
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_PB1200
-	bool "AMD Alchemy PB1200 board"
-	select SOC_AU1200
-	select DMA_NONCOHERENT
-	select MIPS_DISABLE_OBSOLETE_IDE
-	select RESOURCES_64BIT if PCI
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_DB1000
-	bool "AMD Alchemy DB1000 board"
-	select SOC_AU1000
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select RESOURCES_64BIT if PCI
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_DB1100
-	bool "AMD Alchemy DB1100 board"
-	select SOC_AU1100
-	select DMA_NONCOHERENT
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_DB1500
-	bool "AMD Alchemy DB1500 board"
-	select SOC_AU1500
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select MIPS_DISABLE_OBSOLETE_IDE
-	select RESOURCES_64BIT if PCI
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_DB1550
-	bool "AMD Alchemy DB1550 board"
-	select SOC_AU1550
-	select HW_HAS_PCI
-	select DMA_NONCOHERENT
-	select MIPS_DISABLE_OBSOLETE_IDE
-	select RESOURCES_64BIT if PCI
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_DB1200
-	bool "AMD Alchemy DB1200 board"
-	select SOC_AU1200
-	select DMA_COHERENT
-	select MIPS_DISABLE_OBSOLETE_IDE
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_MIRAGE
-	bool "AMD Alchemy Mirage board"
-	select DMA_NONCOHERENT
-	select SOC_AU1500
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
+config MACH_ALCHEMY
+	bool "Alchemy processor based machines"
 
 config BASLER_EXCITE
 	bool "Basler eXcite smart camera"
@@ -423,12 +310,6 @@ config MOMENCO_OCELOT_C
 	help
 	  The Ocelot is a MIPS-based Single Board Computer (SBC) made by
 	  Momentum Computer <http://www.momenco.com/>.
-
-config MIPS_XXS1500
-	bool "MyCable XXS1500 board"
-	select DMA_NONCOHERENT
-	select SOC_AU1500
-	select SYS_SUPPORTS_LITTLE_ENDIAN
 
 config PNX8550_JBS
 	bool "Philips PNX8550 based JBS board"
@@ -777,6 +658,7 @@ config TOSHIBA_RBTX4938
 
 endchoice
 
+source "arch/mips/au1000/Kconfig"
 source "arch/mips/ddb5xxx/Kconfig"
 source "arch/mips/gt64120/ev64120/Kconfig"
 source "arch/mips/jazz/Kconfig"
@@ -964,33 +846,6 @@ config MIPS_RM9122
 
 config PCI_MARVELL
 	bool
-
-config SOC_AU1000
-	bool
-	select SOC_AU1X00
-
-config SOC_AU1100
-	bool
-	select SOC_AU1X00
-
-config SOC_AU1500
-	bool
-	select SOC_AU1X00
-
-config SOC_AU1550
-	bool
-	select SOC_AU1X00
-
-config SOC_AU1200
-	bool
-	select SOC_AU1X00
-
-config SOC_AU1X00
-	bool
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_APM_EMULATION
-	select SYS_SUPPORTS_KGDB
 
 config SERIAL_RM9000
 	bool
