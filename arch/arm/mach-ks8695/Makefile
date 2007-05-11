@@ -12,3 +12,4 @@ obj-				:=
 #obj-$(CONFIG_PCI)		+= pci.o
 
 # Board-specific support
+obj-$(CONFIG_MACH_KS8695)	+= board-micrel.o
