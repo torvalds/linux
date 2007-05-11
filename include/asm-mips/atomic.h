@@ -689,7 +689,7 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 }
 
 #define atomic64_cmpxchg(v, o, n) \
-	(((__typeof__((v)->counter)))cmpxchg(&((v)->counter), (o), (n)))
+	((__typeof__((v)->counter))cmpxchg(&((v)->counter), (o), (n)))
 #define atomic64_xchg(v, new) (xchg(&((v)->counter), (new)))
 
 /**

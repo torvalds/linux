@@ -10,11 +10,8 @@
  *
  */
 #include <linux/interrupt.h>
-#include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/pm.h>
-#include <linux/serial.h>
-#include <linux/serial_core.h>
 
 #include <asm/bootinfo.h>
 #include <asm/time.h>
@@ -27,9 +24,6 @@
 extern void cobalt_machine_restart(char *command);
 extern void cobalt_machine_halt(void);
 extern void cobalt_machine_power_off(void);
-extern void cobalt_early_console(void);
-
-int cobalt_board_id;
 
 const char *get_system_type(void)
 {
@@ -95,8 +89,6 @@ static struct resource cobalt_reserved_resources[] = {
 
 void __init plat_mem_setup(void)
 {
-	static struct uart_port uart;
-	unsigned int devfn = PCI_DEVFN(COBALT_PCICONF_VIA, 0);
 	int i;
 
 	_machine_restart = cobalt_machine_restart;
@@ -111,29 +103,6 @@ void __init plat_mem_setup(void)
 	/* These resources have been reserved by VIA SuperI/O chip. */
 	for (i = 0; i < ARRAY_SIZE(cobalt_reserved_resources); i++)
 		request_resource(&ioport_resource, cobalt_reserved_resources + i);
-
-        /* Read the cobalt id register out of the PCI config space */
-        PCI_CFG_SET(devfn, (VIA_COBALT_BRD_ID_REG & ~0x3));
-        cobalt_board_id = GT_READ(GT_PCI0_CFGDATA_OFS);
-        cobalt_board_id >>= ((VIA_COBALT_BRD_ID_REG & 3) * 8);
-        cobalt_board_id = VIA_COBALT_BRD_REG_to_ID(cobalt_board_id);
-
-	printk("Cobalt board ID: %d\n", cobalt_board_id);
-
-	if (cobalt_board_id > COBALT_BRD_ID_RAQ1) {
-#ifdef CONFIG_SERIAL_8250
-		uart.line	= 0;
-		uart.type	= PORT_UNKNOWN;
-		uart.uartclk	= 18432000;
-		uart.irq	= COBALT_SERIAL_IRQ;
-		uart.flags	= UPF_IOREMAP | UPF_BOOT_AUTOCONF |
-				  UPF_SKIP_TEST;
-		uart.iotype	= UPIO_MEM;
-		uart.mapbase	= 0x1c800000;
-
-		early_serial_setup(&uart);
-#endif
-	}
 }
 
 /*

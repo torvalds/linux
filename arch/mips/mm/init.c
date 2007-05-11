@@ -424,9 +424,6 @@ void __init mem_init(void)
 			continue;
 		}
 		ClearPageReserved(page);
-#ifdef CONFIG_LIMITED_DMA
-		set_page_address(page, lowmem_page_address(page));
-#endif
 		init_page_count(page);
 		__free_page(page);
 		totalhigh_pages++;

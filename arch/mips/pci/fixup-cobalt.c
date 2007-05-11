@@ -17,9 +17,7 @@
 #include <asm/io.h>
 #include <asm/gt64120.h>
 
-#include <asm/mach-cobalt/cobalt.h>
-
-extern int cobalt_board_id;
+#include <cobalt.h>
 
 static void qube_raq_galileo_early_fixup(struct pci_dev *dev)
 {
@@ -114,6 +112,27 @@ static void qube_raq_galileo_fixup(struct pci_dev *dev)
 
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL, PCI_DEVICE_ID_MARVELL_GT64111,
 	 qube_raq_galileo_fixup);
+
+int cobalt_board_id;
+
+static void qube_raq_via_board_id_fixup(struct pci_dev *dev)
+{
+	u8 id;
+	int retval;
+
+	retval = pci_read_config_byte(dev, VIA_COBALT_BRD_ID_REG, &id);
+	if (retval) {
+		panic("Cannot read board ID");
+		return;
+	}
+
+	cobalt_board_id = VIA_COBALT_BRD_REG_to_ID(id);
+
+	printk(KERN_INFO "Cobalt board ID: %d\n", cobalt_board_id);
+}
+
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_0,
+	 qube_raq_via_board_id_fixup);
 
 static char irq_tab_qube1[] __initdata = {
   [COBALT_PCICONF_CPU]     = 0,

@@ -15,121 +15,8 @@ choice
 	prompt "System type"
 	default SGI_IP22
 
-config MIPS_MTX1
-	bool "4G Systems MTX-1 board"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select RESOURCES_64BIT if PCI
-	select SOC_AU1500
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_BOSPORUS
-	bool "AMD Alchemy Bosporus board"
-	select SOC_AU1500
-	select DMA_NONCOHERENT
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_PB1000
-	bool "AMD Alchemy PB1000 board"
-	select SOC_AU1000
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select RESOURCES_64BIT if PCI
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_PB1100
-	bool "AMD Alchemy PB1100 board"
-	select SOC_AU1100
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select RESOURCES_64BIT if PCI
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_PB1500
-	bool "AMD Alchemy PB1500 board"
-	select SOC_AU1500
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select RESOURCES_64BIT if PCI
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_PB1550
-	bool "AMD Alchemy PB1550 board"
-	select SOC_AU1550
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select MIPS_DISABLE_OBSOLETE_IDE
-	select RESOURCES_64BIT if PCI
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_PB1200
-	bool "AMD Alchemy PB1200 board"
-	select SOC_AU1200
-	select DMA_NONCOHERENT
-	select MIPS_DISABLE_OBSOLETE_IDE
-	select RESOURCES_64BIT if PCI
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_DB1000
-	bool "AMD Alchemy DB1000 board"
-	select SOC_AU1000
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select RESOURCES_64BIT if PCI
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_DB1100
-	bool "AMD Alchemy DB1100 board"
-	select SOC_AU1100
-	select DMA_NONCOHERENT
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_DB1500
-	bool "AMD Alchemy DB1500 board"
-	select SOC_AU1500
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select MIPS_DISABLE_OBSOLETE_IDE
-	select RESOURCES_64BIT if PCI
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_DB1550
-	bool "AMD Alchemy DB1550 board"
-	select SOC_AU1550
-	select HW_HAS_PCI
-	select DMA_NONCOHERENT
-	select MIPS_DISABLE_OBSOLETE_IDE
-	select RESOURCES_64BIT if PCI
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_DB1200
-	bool "AMD Alchemy DB1200 board"
-	select SOC_AU1200
-	select DMA_COHERENT
-	select MIPS_DISABLE_OBSOLETE_IDE
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config MIPS_MIRAGE
-	bool "AMD Alchemy Mirage board"
-	select DMA_NONCOHERENT
-	select SOC_AU1500
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_LITTLE_ENDIAN
+config MACH_ALCHEMY
+	bool "Alchemy processor based machines"
 
 config BASLER_EXCITE
 	bool "Basler eXcite smart camera"
@@ -369,28 +256,6 @@ config MIPS_SIM
 	  This option enables support for MIPS Technologies MIPSsim software
 	  emulator.
 
-config MOMENCO_JAGUAR_ATX
-	bool "Momentum Jaguar board"
-	select BOOT_ELF32
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select IRQ_CPU_RM7K
-	select IRQ_MV64340
-	select LIMITED_DMA
-	select PCI_MARVELL
-	select RM7000_CPU_SCACHE
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_RM9000
-	select SYS_HAS_EARLY_PRINTK
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_KGDB
-	help
-	  The Jaguar ATX is a MIPS-based Single Board Computer (SBC) made by
-	  Momentum Computer <http://www.momenco.com/>.
-
 config MOMENCO_OCELOT
 	bool "Momentum Ocelot board"
 	select DMA_NONCOHERENT
@@ -445,29 +310,6 @@ config MOMENCO_OCELOT_C
 	help
 	  The Ocelot is a MIPS-based Single Board Computer (SBC) made by
 	  Momentum Computer <http://www.momenco.com/>.
-
-config MOMENCO_OCELOT_G
-	bool "Momentum Ocelot-G board"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select IRQ_CPU_RM7K
-	select PCI_MARVELL
-	select RM7000_CPU_SCACHE
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_RM7000
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL if BROKEN
-	select SYS_SUPPORTS_BIG_ENDIAN
-	help
-	  The Ocelot is a MIPS-based Single Board Computer (SBC) made by
-	  Momentum Computer <http://www.momenco.com/>.
-
-config MIPS_XXS1500
-	bool "MyCable XXS1500 board"
-	select DMA_NONCOHERENT
-	select SOC_AU1500
-	select SYS_SUPPORTS_LITTLE_ENDIAN
 
 config PNX8550_JBS
 	bool "Philips PNX8550 based JBS board"
@@ -775,7 +617,6 @@ config TOSHIBA_JMR3927
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_BIG_ENDIAN
-	select TOSHIBA_BOARDS
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config TOSHIBA_RBTX4927
@@ -791,7 +632,6 @@ config TOSHIBA_RBTX4927
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_KGDB
-	select TOSHIBA_BOARDS
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  This Toshiba board is based on the TX4927 processor. Say Y here to
@@ -811,7 +651,6 @@ config TOSHIBA_RBTX4938
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_KGDB
-	select TOSHIBA_BOARDS
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  This Toshiba board is based on the TX4938 processor. Say Y here to
@@ -819,11 +658,11 @@ config TOSHIBA_RBTX4938
 
 endchoice
 
+source "arch/mips/au1000/Kconfig"
 source "arch/mips/ddb5xxx/Kconfig"
 source "arch/mips/gt64120/ev64120/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/lasat/Kconfig"
-source "arch/mips/momentum/Kconfig"
 source "arch/mips/pmc-sierra/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"
@@ -923,11 +762,6 @@ config GENERIC_ISA_DMA
 config I8259
 	bool
 
-config LIMITED_DMA
-	bool
-	select HIGHMEM
-	select SYS_SUPPORTS_HIGHMEM
-
 config MIPS_BONITO64
 	bool
 
@@ -1013,33 +847,6 @@ config MIPS_RM9122
 config PCI_MARVELL
 	bool
 
-config SOC_AU1000
-	bool
-	select SOC_AU1X00
-
-config SOC_AU1100
-	bool
-	select SOC_AU1X00
-
-config SOC_AU1500
-	bool
-	select SOC_AU1X00
-
-config SOC_AU1550
-	bool
-	select SOC_AU1X00
-
-config SOC_AU1200
-	bool
-	select SOC_AU1X00
-
-config SOC_AU1X00
-	bool
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_APM_EMULATION
-	select SYS_SUPPORTS_KGDB
-
 config SERIAL_RM9000
 	bool
 
@@ -1081,9 +888,9 @@ config WDT_RM9000
 choice
 	prompt "Galileo Chip Clock"
 	#default SYSCLK_83 if MIPS_EV64120
-	depends on MIPS_EV64120 || MOMENCO_OCELOT || MOMENCO_OCELOT_G
+	depends on MIPS_EV64120 || MOMENCO_OCELOT
 	default SYSCLK_83 if MIPS_EV64120
-	default SYSCLK_100 if MOMENCO_OCELOT || MOMENCO_OCELOT_G
+	default SYSCLK_100 if MOMENCO_OCELOT
 
 config SYSCLK_75
 	bool "75" if MIPS_EV64120
@@ -1092,7 +899,7 @@ config SYSCLK_83
 	bool "83.3" if MIPS_EV64120
 
 config SYSCLK_100
-	bool "100" if MIPS_EV64120 || MOMENCO_OCELOT || MOMENCO_OCELOT_G
+	bool "100" if MIPS_EV64120 || MOMENCO_OCELOT
 
 endchoice
 
@@ -1129,9 +936,6 @@ config ARC64
 	bool
 
 config BOOT_ELF64
-	bool
-
-config TOSHIBA_BOARDS
 	bool
 
 menu "CPU selection"
@@ -1557,6 +1361,7 @@ config MIPS_MT_SMP
 	bool "Use 1 TC on each available VPE for SMP"
 	depends on SYS_SUPPORTS_MULTITHREADING
 	select CPU_MIPSR2_IRQ_VI
+	select CPU_MIPSR2_IRQ_EI
 	select CPU_MIPSR2_SRS
 	select MIPS_MT
 	select NR_CPUS_DEFAULT_2
@@ -1572,6 +1377,7 @@ config MIPS_MT_SMTC
 	#depends on CPU_MIPS64_R2		# once there is hardware ...
 	depends on SYS_SUPPORTS_MULTITHREADING
 	select CPU_MIPSR2_IRQ_VI
+	select CPU_MIPSR2_IRQ_EI
 	select CPU_MIPSR2_SRS
 	select MIPS_MT
 	select NR_CPUS_DEFAULT_8
@@ -1584,6 +1390,8 @@ config MIPS_MT_SMTC
 config MIPS_VPE_LOADER
 	bool "VPE loader support."
 	depends on SYS_SUPPORTS_MULTITHREADING
+	select CPU_MIPSR2_IRQ_VI
+	select CPU_MIPSR2_IRQ_EI
 	select MIPS_MT
 	help
 	  Includes a loader for loading an elf relocatable object
