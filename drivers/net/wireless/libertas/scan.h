@@ -10,6 +10,7 @@
 #ifndef _WLAN_SCAN_H
 #define _WLAN_SCAN_H
 
+#include <net/ieee80211.h>
 #include "hostcmd.h"
 
 /**
@@ -170,9 +171,10 @@ struct bss_descriptor {
 
 	struct ieeetypes_countryinfofullset countryinfo;
 
-	struct WPA_SUPPLICANT wpa_supplicant;
-	struct WPA_SUPPLICANT wpa2_supplicant;
-
+	u8 wpa_ie[MAX_WPA_IE_LEN];
+	size_t wpa_ie_len;
+	u8 rsn_ie[MAX_WPA_IE_LEN];
+	size_t rsn_ie_len;
 };
 
 extern int libertas_SSID_cmp(struct WLAN_802_11_SSID *ssid1,
