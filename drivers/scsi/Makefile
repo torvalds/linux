@@ -37,7 +37,6 @@ obj-$(CONFIG_SCSI_SAS_LIBSAS)	+= libsas/
 
 obj-$(CONFIG_ISCSI_TCP) 	+= libiscsi.o	iscsi_tcp.o
 obj-$(CONFIG_INFINIBAND_ISER) 	+= libiscsi.o
-obj-$(CONFIG_SCSI_AMIGA7XX)	+= amiga7xx.o	53c7xx.o
 obj-$(CONFIG_A3000_SCSI)	+= a3000.o	wd33c93.o
 obj-$(CONFIG_A2091_SCSI)	+= a2091.o	wd33c93.o
 obj-$(CONFIG_GVP11_SCSI)	+= gvp11.o	wd33c93.o
@@ -53,8 +52,6 @@ obj-$(CONFIG_ATARI_SCSI)	+= atari_scsi.o
 obj-$(CONFIG_MAC_SCSI)		+= mac_scsi.o
 obj-$(CONFIG_SCSI_MAC_ESP)	+= mac_esp.o	NCR53C9x.o
 obj-$(CONFIG_SUN3_SCSI)		+= sun3_scsi.o  sun3_scsi_vme.o
-obj-$(CONFIG_MVME16x_SCSI)	+= mvme16x.o	53c7xx.o
-obj-$(CONFIG_BVME6000_SCSI)	+= bvme6000.o	53c7xx.o
 obj-$(CONFIG_SCSI_SIM710)	+= 53c700.o	sim710.o
 obj-$(CONFIG_SCSI_ADVANSYS)	+= advansys.o
 obj-$(CONFIG_SCSI_PSI240I)	+= psi240i.o
@@ -169,21 +166,14 @@ NCR_Q720_mod-objs	:= NCR_Q720.o ncr53c8xx.o
 oktagon_esp_mod-objs	:= oktagon_esp.o oktagon_io.o
 
 # Files generated that shall be removed upon make clean
-clean-files :=	53c7xx_d.h 53c700_d.h	\
-		53c7xx_u.h 53c700_u.h
+clean-files :=	53c700_d.h 53c700_u.h
 
-$(obj)/53c7xx.o:   $(obj)/53c7xx_d.h $(obj)/53c7xx_u.h
 $(obj)/53c700.o $(MODVERDIR)/$(obj)/53c700.ver: $(obj)/53c700_d.h
 
 # If you want to play with the firmware, uncomment
 # GENERATE_FIRMWARE := 1
 
 ifdef GENERATE_FIRMWARE
-
-$(obj)/53c7xx_d.h: $(src)/53c7xx.scr $(src)/script_asm.pl
-	$(CPP) -traditional -DCHIP=710 - < $< | grep -v '^#' | $(PERL) -s $(src)/script_asm.pl -ncr7x0_family $@ $(@:_d.h=_u.h)
-
-$(obj)/53c7xx_u.h: $(obj)/53c7xx_d.h
 
 $(obj)/53c700_d.h: $(src)/53c700.scr $(src)/script_asm.pl
 	$(PERL) -s $(src)/script_asm.pl -ncr7x0_family $@ $(@:_d.h=_u.h) < $<
