@@ -11,7 +11,6 @@
  *
  */
 
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -1471,16 +1470,5 @@ static int __init eventpoll_init(void)
 
 	return 0;
 }
+fs_initcall(eventpoll_init);
 
-
-static void __exit eventpoll_exit(void)
-{
-	/* Undo all operations done inside eventpoll_init() */
-	kmem_cache_destroy(pwq_cache);
-	kmem_cache_destroy(epi_cache);
-}
-
-module_init(eventpoll_init);
-module_exit(eventpoll_exit);
-
-MODULE_LICENSE("GPL");
