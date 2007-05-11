@@ -73,9 +73,9 @@ kernel patches.
     If the new code is substantial, addition of subsystem-specific fault
     injection might be appropriate.
 
-22: Newly-added code has been compiled with `gcc -W'.  This will generate
-    lots of noise, but is good for finding bugs like "warning: comparison
-    between signed and unsigned".
+22: Newly-added code has been compiled with `gcc -W' (use "make
+    EXTRA_CFLAGS=-W").  This will generate lots of noise, but is good for
+    finding bugs like "warning: comparison between signed and unsigned".
 
 23: Tested after it has been merged into the -mm patchset to make sure
     that it still works with all of the other queued patches and various
