@@ -398,22 +398,39 @@ int libertas_cmd_80211_authenticate(wlan_private * priv,
 				 void *pdata_buf)
 {
 	wlan_adapter *adapter = priv->adapter;
-	struct cmd_ds_802_11_authenticate *pauthenticate =
-	    &cmd->params.auth;
+	struct cmd_ds_802_11_authenticate *pauthenticate = &cmd->params.auth;
+	int ret = -1;
 	u8 *bssid = pdata_buf;
 
 	cmd->command = cpu_to_le16(cmd_802_11_authenticate);
-	cmd->size =
-	    cpu_to_le16(sizeof(struct cmd_ds_802_11_authenticate)
-			     + S_DS_GEN);
+	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_authenticate)
+	                        + S_DS_GEN);
 
-	pauthenticate->authtype = adapter->secinfo.authmode;
+	/* translate auth mode to 802.11 defined wire value */
+	switch (adapter->secinfo.auth_mode) {
+	case IW_AUTH_ALG_OPEN_SYSTEM:
+		pauthenticate->authtype = 0x00;
+		break;
+	case IW_AUTH_ALG_SHARED_KEY:
+		pauthenticate->authtype = 0x01;
+		break;
+	case IW_AUTH_ALG_LEAP:
+		pauthenticate->authtype = 0x80;
+		break;
+	default:
+		lbs_pr_debug(1, "AUTH_CMD: invalid auth alg 0x%X\n",
+		             adapter->secinfo.auth_mode);
+		goto out;
+	}
+
 	memcpy(pauthenticate->macaddr, bssid, ETH_ALEN);
 
 	lbs_pr_debug(1, "AUTH_CMD: Bssid is : %x:%x:%x:%x:%x:%x\n",
 	       bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
+	ret = 0;
 
-	return 0;
+out:
+	return ret;
 }
 
 int libertas_cmd_80211_deauthenticate(wlan_private * priv,

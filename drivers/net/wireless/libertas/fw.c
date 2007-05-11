@@ -200,7 +200,7 @@ static void wlan_init_adapter(wlan_private * priv)
 		memset(&adapter->wep_keys[i], 0, sizeof(struct WLAN_802_11_KEY));
 	adapter->wep_tx_keyidx = 0;
 	adapter->secinfo.WEPstatus = wlan802_11WEPdisabled;
-	adapter->secinfo.authmode = wlan802_11authmodeopen;
+	adapter->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 	adapter->inframode = wlan802_11infrastructure;
 
 	adapter->assoc_req = NULL;

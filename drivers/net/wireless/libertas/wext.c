@@ -1772,13 +1772,13 @@ static int wlan_get_encode(struct net_device *dev,
 	dwrq->flags = 0;
 
 	/* Authentication method */
-	switch (adapter->secinfo.authmode) {
-	case wlan802_11authmodeopen:
+	switch (adapter->secinfo.auth_mode) {
+	case IW_AUTH_ALG_OPEN_SYSTEM:
 		dwrq->flags = IW_ENCODE_OPEN;
 		break;
 
-	case wlan802_11authmodeshared:
-	case wlan802_11authmodenetworkEAP:
+	case IW_AUTH_ALG_SHARED_KEY:
+	case IW_AUTH_ALG_LEAP:
 		dwrq->flags = IW_ENCODE_RESTRICTED;
 		break;
 	default:
@@ -1915,7 +1915,7 @@ static void disable_wep(struct assoc_request *assoc_req)
 	int i;
 
 	/* Set Open System auth mode */
-	assoc_req->secinfo.authmode = wlan802_11authmodeopen;
+	assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 
 	/* Clear WEP keys and mark WEP as disabled */
 	assoc_req->secinfo.WEPstatus = wlan802_11WEPdisabled;
@@ -1984,9 +1984,9 @@ static int wlan_set_encode(struct net_device *dev,
 		set_bit(ASSOC_FLAG_WEP_TX_KEYIDX, &assoc_req->flags);
 
 	if (dwrq->flags & IW_ENCODE_RESTRICTED) {
-		assoc_req->secinfo.authmode = wlan802_11authmodeshared;
+		assoc_req->secinfo.auth_mode = IW_AUTH_ALG_SHARED_KEY;
 	} else if (dwrq->flags & IW_ENCODE_OPEN) {
-		assoc_req->secinfo.authmode = wlan802_11authmodeopen;
+		assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 	}
 
 out:
@@ -2144,11 +2144,9 @@ static int wlan_set_encodeext(struct net_device *dev,
 			goto out;
 
 		if (dwrq->flags & IW_ENCODE_RESTRICTED) {
-			assoc_req->secinfo.authmode =
-			    wlan802_11authmodeshared;
+			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_SHARED_KEY;
 		} else if (dwrq->flags & IW_ENCODE_OPEN) {
-			assoc_req->secinfo.authmode =
-			    wlan802_11authmodeopen;
+			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 		}
 
 		/* Mark the various WEP bits as modified */
@@ -2334,14 +2332,12 @@ static int wlan_set_auth(struct net_device *dev,
 		if (dwrq->value & IW_AUTH_WPA_VERSION_WPA) {
 			assoc_req->secinfo.WPAenabled = 1;
 			assoc_req->secinfo.WEPstatus = wlan802_11WEPdisabled;
-			assoc_req->secinfo.authmode =
-			    wlan802_11authmodeopen;
+			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 		}
 		if (dwrq->value & IW_AUTH_WPA_VERSION_WPA2) {
 			assoc_req->secinfo.WPA2enabled = 1;
 			assoc_req->secinfo.WEPstatus = wlan802_11WEPdisabled;
-			assoc_req->secinfo.authmode =
-			    wlan802_11authmodeopen;
+			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 		}
 		updated = 1;
 		break;
@@ -2359,14 +2355,11 @@ static int wlan_set_auth(struct net_device *dev,
 
 	case IW_AUTH_80211_AUTH_ALG:
 		if (dwrq->value & IW_AUTH_ALG_SHARED_KEY) {
-			assoc_req->secinfo.authmode =
-			    wlan802_11authmodeshared;
+			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_SHARED_KEY;
 		} else if (dwrq->value & IW_AUTH_ALG_OPEN_SYSTEM) {
-			assoc_req->secinfo.authmode =
-			    wlan802_11authmodeopen;
+			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 		} else if (dwrq->value & IW_AUTH_ALG_LEAP) {
-			assoc_req->secinfo.authmode =
-			    wlan802_11authmodenetworkEAP;
+			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_LEAP;
 		} else {
 			ret = -EINVAL;
 		}
@@ -2380,8 +2373,7 @@ static int wlan_set_auth(struct net_device *dev,
 				assoc_req->secinfo.WPAenabled = 1;
 				assoc_req->secinfo.WPA2enabled = 1;
 				assoc_req->secinfo.WEPstatus = wlan802_11WEPdisabled;
-				assoc_req->secinfo.authmode =
-				    wlan802_11authmodeopen;
+				assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 			}
 		} else {
 			assoc_req->secinfo.WPAenabled = 0;
@@ -2438,19 +2430,7 @@ static int wlan_get_auth(struct net_device *dev,
 		break;
 
 	case IW_AUTH_80211_AUTH_ALG:
-		switch (adapter->secinfo.authmode) {
-		case wlan802_11authmodeshared:
-			dwrq->value = IW_AUTH_ALG_SHARED_KEY;
-			break;
-		case wlan802_11authmodeopen:
-			dwrq->value = IW_AUTH_ALG_OPEN_SYSTEM;
-			break;
-		case wlan802_11authmodenetworkEAP:
-			dwrq->value = IW_AUTH_ALG_LEAP;
-			break;
-		default:
-			break;
-		}
+		dwrq->value = adapter->secinfo.auth_mode;
 		break;
 
 	case IW_AUTH_WPA_ENABLED:

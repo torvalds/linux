@@ -300,8 +300,7 @@ static int should_deauth_infrastructure(wlan_adapter *adapter,
 	}
 
 	if (test_bit(ASSOC_FLAG_SECINFO, &assoc_req->flags)) {
-		if (adapter->secinfo.authmode !=
-		    assoc_req->secinfo.authmode) {
+		if (adapter->secinfo.auth_mode != assoc_req->secinfo.auth_mode) {
 			lbs_pr_debug(1, "Deauthenticating due to updated security "
 				"info in configuration request.\n");
 			return 1;

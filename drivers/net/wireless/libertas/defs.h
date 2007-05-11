@@ -276,13 +276,6 @@ enum WLAN_802_11_NETWORK_INFRASTRUCTURE {
 	wlan802_11infrastructuremax
 };
 
-/** WLAN_802_11_AUTHENTICATION_MODE */
-enum WLAN_802_11_AUTHENTICATION_MODE {
-	wlan802_11authmodeopen = 0x00,
-	wlan802_11authmodeshared = 0x01,
-	wlan802_11authmodenetworkEAP = 0x80,
-};
-
 /** WLAN_802_11_WEP_STATUS */
 enum WLAN_802_11_WEP_STATUS {
 	wlan802_11WEPenabled,
