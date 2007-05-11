@@ -204,7 +204,7 @@ static const char *state_name[] = {
 #    define UDC_DEBUG DBG_NORMAL
 #endif
 
-static void __attribute__ ((__unused__))
+static void __maybe_unused
 dump_udccr(const char *label)
 {
 	u32	udccr = UDCCR;
@@ -220,7 +220,7 @@ dump_udccr(const char *label)
 		(udccr & UDCCR_UDE) ? " ude" : "");
 }
 
-static void __attribute__ ((__unused__))
+static void __maybe_unused
 dump_udccs0(const char *label)
 {
 	u32		udccs0 = UDCCS0;
@@ -237,7 +237,7 @@ dump_udccs0(const char *label)
 		(udccs0 & UDCCS0_OPR) ? " opr" : "");
 }
 
-static void __attribute__ ((__unused__))
+static void __maybe_unused
 dump_state(struct pxa2xx_udc *dev)
 {
 	u32		tmp;

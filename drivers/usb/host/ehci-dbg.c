@@ -115,7 +115,7 @@ static inline void dbg_hcc_params (struct ehci_hcd *ehci, char *label) {}
 
 #ifdef	DEBUG
 
-static void __attribute__((__unused__))
+static void __maybe_unused
 dbg_qtd (const char *label, struct ehci_hcd *ehci, struct ehci_qtd *qtd)
 {
 	ehci_dbg(ehci, "%s td %p n%08x %08x t%08x p0=%08x\n", label, qtd,
@@ -131,7 +131,7 @@ dbg_qtd (const char *label, struct ehci_hcd *ehci, struct ehci_qtd *qtd)
 			hc32_to_cpup(ehci, &qtd->hw_buf[4]));
 }
 
-static void __attribute__((__unused__))
+static void __maybe_unused
 dbg_qh (const char *label, struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
 	ehci_dbg (ehci, "%s qh %p n%08x info %x %x qtd %x\n", label,
@@ -140,7 +140,7 @@ dbg_qh (const char *label, struct ehci_hcd *ehci, struct ehci_qh *qh)
 	dbg_qtd ("overlay", ehci, (struct ehci_qtd *) &qh->hw_qtd_next);
 }
 
-static void __attribute__((__unused__))
+static void __maybe_unused
 dbg_itd (const char *label, struct ehci_hcd *ehci, struct ehci_itd *itd)
 {
 	ehci_dbg (ehci, "%s [%d] itd %p, next %08x, urb %p\n",
@@ -171,7 +171,7 @@ dbg_itd (const char *label, struct ehci_hcd *ehci, struct ehci_itd *itd)
 		itd->index[6], itd->index[7]);
 }
 
-static void __attribute__((__unused__))
+static void __maybe_unused
 dbg_sitd (const char *label, struct ehci_hcd *ehci, struct ehci_sitd *sitd)
 {
 	ehci_dbg (ehci, "%s [%d] sitd %p, next %08x, urb %p\n",
@@ -186,7 +186,7 @@ dbg_sitd (const char *label, struct ehci_hcd *ehci, struct ehci_sitd *sitd)
 		hc32_to_cpu(ehci, sitd->hw_buf[1]));
 }
 
-static int __attribute__((__unused__))
+static int __maybe_unused
 dbg_status_buf (char *buf, unsigned len, const char *label, u32 status)
 {
 	return scnprintf (buf, len,
@@ -205,7 +205,7 @@ dbg_status_buf (char *buf, unsigned len, const char *label, u32 status)
 		);
 }
 
-static int __attribute__((__unused__))
+static int __maybe_unused
 dbg_intr_buf (char *buf, unsigned len, const char *label, u32 enable)
 {
 	return scnprintf (buf, len,
@@ -273,23 +273,23 @@ dbg_port_buf (char *buf, unsigned len, const char *label, int port, u32 status)
 }
 
 #else
-static inline void __attribute__((__unused__))
+static inline void __maybe_unused
 dbg_qh (char *label, struct ehci_hcd *ehci, struct ehci_qh *qh)
 {}
 
-static inline int __attribute__((__unused__))
+static inline int __maybe_unused
 dbg_status_buf (char *buf, unsigned len, const char *label, u32 status)
 { return 0; }
 
-static inline int __attribute__((__unused__))
+static inline int __maybe_unused
 dbg_command_buf (char *buf, unsigned len, const char *label, u32 command)
 { return 0; }
 
-static inline int __attribute__((__unused__))
+static inline int __maybe_unused
 dbg_intr_buf (char *buf, unsigned len, const char *label, u32 enable)
 { return 0; }
 
-static inline int __attribute__((__unused__))
+static inline int __maybe_unused
 dbg_port_buf (char *buf, unsigned len, const char *label, int port, u32 status)
 { return 0; }
 
