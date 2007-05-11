@@ -212,7 +212,9 @@ static inline void rs5c313_write_intintvreg(unsigned char data)
 static int rs5c313_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	int data;
+	int cnt;
 
+	cnt = 0;
 	while (1) {
 		RS5C313_CEENABLE;	/* CE:H */
 
@@ -225,6 +227,10 @@ static int rs5c313_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		RS5C313_CEDISABLE;
 		ndelay(700);	/* CE:L */
 
+		if (cnt++ > 100) {
+			dev_err(dev, "%s: timeout error\n", __FUNCTION__);
+			return -EIO;
+		}
 	}
 
 	data = rs5c313_read_reg(RS5C313_ADDR_SEC);
@@ -266,7 +272,9 @@ static int rs5c313_rtc_read_time(struct device *dev, struct rtc_time *tm)
 static int rs5c313_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	int data;
+	int cnt;
 
+	cnt = 0;
 	/* busy check. */
 	while (1) {
 		RS5C313_CEENABLE;	/* CE:H */
@@ -279,6 +287,11 @@ static int rs5c313_rtc_set_time(struct device *dev, struct rtc_time *tm)
 		RS5C313_MISCOP;
 		RS5C313_CEDISABLE;
 		ndelay(700);	/* CE:L */
+
+		if (cnt++ > 100) {
+			dev_err(dev, "%s: timeout error\n", __FUNCTION__);
+			return -EIO;
+		}
 	}
 
 	data = BIN2BCD(tm->tm_sec);
@@ -317,6 +330,7 @@ static int rs5c313_rtc_set_time(struct device *dev, struct rtc_time *tm)
 static void rs5c313_check_xstp_bit(void)
 {
 	struct rtc_time tm;
+	int cnt;
 
 	RS5C313_CEENABLE;	/* CE:H */
 	if (rs5c313_read_cntreg() & RS5C313_CNTREG_WTEN_XSTP) {
@@ -326,8 +340,11 @@ static void rs5c313_check_xstp_bit(void)
 		rs5c313_write_cntreg(0x07);
 
 		/* busy check. */
-		while (rs5c313_read_cntreg() & RS5C313_CNTREG_ADJ_BSY)
+		for (cnt = 0; cnt < 100; cnt++) {
+			if (!(rs5c313_read_cntreg() & RS5C313_CNTREG_ADJ_BSY))
+				break;
 			RS5C313_MISCOP;
+		}
 
 		memset(&tm, 0, sizeof(struct rtc_time));
 		tm.tm_mday 	= 1;
