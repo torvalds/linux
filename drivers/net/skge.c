@@ -3802,6 +3802,9 @@ static int skge_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct skge_hw *hw  = pci_get_drvdata(pdev);
 	int i, err, wol = 0;
 
+	if (!hw)
+		return 0;
+
 	err = pci_save_state(pdev);
 	if (err)
 		return err;
@@ -3829,6 +3832,9 @@ static int skge_resume(struct pci_dev *pdev)
 {
 	struct skge_hw *hw  = pci_get_drvdata(pdev);
 	int i, err;
+
+	if (!hw)
+		return 0;
 
 	err = pci_set_power_state(pdev, PCI_D0);
 	if (err)
@@ -3867,6 +3873,9 @@ static void skge_shutdown(struct pci_dev *pdev)
 {
 	struct skge_hw *hw  = pci_get_drvdata(pdev);
 	int i, wol = 0;
+
+	if (!hw)
+		return;
 
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
