@@ -171,7 +171,7 @@ struct cxacru_data {
 	struct delayed_work poll_work;
 	u32 card_info[CXINF_MAX];
 	struct mutex poll_state_serialize;
-	int poll_state;
+	enum cxacru_poll_state poll_state;
 
 	/* contol handles */
 	struct mutex cm_serialize;
@@ -226,58 +226,48 @@ static ssize_t cxacru_sysfs_showattr_s8(s8 value, char *buf)
 
 static ssize_t cxacru_sysfs_showattr_dB(s16 value, char *buf)
 {
-	if (unlikely(value < 0)) {
-		return snprintf(buf, PAGE_SIZE, "%d.%02u\n",
-						value / 100, -value % 100);
-	} else {
-		return snprintf(buf, PAGE_SIZE, "%d.%02u\n",
-						value / 100, value % 100);
-	}
+	return snprintf(buf, PAGE_SIZE, "%d.%02u\n",
+					value / 100, abs(value) % 100);
 }
 
 static ssize_t cxacru_sysfs_showattr_bool(u32 value, char *buf)
 {
-	switch (value) {
-	case 0: return snprintf(buf, PAGE_SIZE, "no\n");
-	case 1: return snprintf(buf, PAGE_SIZE, "yes\n");
-	default: return 0;
-	}
+	static char *str[] = { "no", "yes" };
+	if (unlikely(value >= ARRAY_SIZE(str)))
+		return snprintf(buf, PAGE_SIZE, "%u\n", value);
+	return snprintf(buf, PAGE_SIZE, "%s\n", str[value]);
 }
 
 static ssize_t cxacru_sysfs_showattr_LINK(u32 value, char *buf)
 {
-	switch (value) {
-	case 1: return snprintf(buf, PAGE_SIZE, "not connected\n");
-	case 2: return snprintf(buf, PAGE_SIZE, "connected\n");
-	case 3: return snprintf(buf, PAGE_SIZE, "lost\n");
-	default: return snprintf(buf, PAGE_SIZE, "unknown (%u)\n", value);
-	}
+	static char *str[] = { NULL, "not connected", "connected", "lost" };
+	if (unlikely(value >= ARRAY_SIZE(str) || str[value] == NULL))
+		return snprintf(buf, PAGE_SIZE, "%u\n", value);
+	return snprintf(buf, PAGE_SIZE, "%s\n", str[value]);
 }
 
 static ssize_t cxacru_sysfs_showattr_LINE(u32 value, char *buf)
 {
-	switch (value) {
-	case 0: return snprintf(buf, PAGE_SIZE, "down\n");
-	case 1: return snprintf(buf, PAGE_SIZE, "attempting to activate\n");
-	case 2: return snprintf(buf, PAGE_SIZE, "training\n");
-	case 3: return snprintf(buf, PAGE_SIZE, "channel analysis\n");
-	case 4: return snprintf(buf, PAGE_SIZE, "exchange\n");
-	case 5: return snprintf(buf, PAGE_SIZE, "up\n");
-	case 6: return snprintf(buf, PAGE_SIZE, "waiting\n");
-	case 7: return snprintf(buf, PAGE_SIZE, "initialising\n");
-	default: return snprintf(buf, PAGE_SIZE, "unknown (%u)\n", value);
-	}
+	static char *str[] = { "down", "attempting to activate",
+		"training", "channel analysis", "exchange", "up",
+		"waiting", "initialising"
+	};
+	if (unlikely(value >= ARRAY_SIZE(str)))
+		return snprintf(buf, PAGE_SIZE, "%u\n", value);
+	return snprintf(buf, PAGE_SIZE, "%s\n", str[value]);
 }
 
 static ssize_t cxacru_sysfs_showattr_MODU(u32 value, char *buf)
 {
-	switch (value) {
-	case 0: return 0;
-	case 1: return snprintf(buf, PAGE_SIZE, "ANSI T1.413\n");
-	case 2: return snprintf(buf, PAGE_SIZE, "ITU-T G.992.1 (G.DMT)\n");
-	case 3: return snprintf(buf, PAGE_SIZE, "ITU-T G.992.2 (G.LITE)\n");
-	default: return snprintf(buf, PAGE_SIZE, "unknown (%u)\n", value);
-	}
+	static char *str[] = {
+			NULL,
+			"ANSI T1.413",
+			"ITU-T G.992.1 (G.DMT)",
+			"ITU-T G.992.2 (G.LITE)"
+	};
+	if (unlikely(value >= ARRAY_SIZE(str) || str[value] == NULL))
+		return snprintf(buf, PAGE_SIZE, "%u\n", value);
+	return snprintf(buf, PAGE_SIZE, "%s\n", str[value]);
 }
 
 /*
@@ -308,11 +298,10 @@ static ssize_t cxacru_sysfs_show_adsl_state(struct device *dev,
 	struct cxacru_data *instance = usbatm_instance->driver_data;
 	u32 value = instance->card_info[CXINF_LINE_STARTABLE];
 
-	switch (value) {
-	case 0: return snprintf(buf, PAGE_SIZE, "running\n");
-	case 1: return snprintf(buf, PAGE_SIZE, "stopped\n");
-	default: return snprintf(buf, PAGE_SIZE, "unknown (%u)\n", value);
-	}
+	static char *str[] = { "running", "stopped" };
+	if (unlikely(value >= ARRAY_SIZE(str)))
+		return snprintf(buf, PAGE_SIZE, "%u\n", value);
+	return snprintf(buf, PAGE_SIZE, "%s\n", str[value]);
 }
 
 static ssize_t cxacru_sysfs_store_adsl_state(struct device *dev,
