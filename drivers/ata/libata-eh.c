@@ -2003,14 +2003,10 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	ehc->tries[dev->devno]--;
 
 	switch (rc) {
-	case -EINVAL:
-		/* eeek, something went very wrong, give up */
-		ehc->tries[dev->devno] = 0;
-		break;
-
 	case -ENODEV:
 		/* device missing or wrong IDENTIFY data, schedule probing */
 		ehc->i.probe_mask |= (1 << dev->devno);
+	case -EINVAL:
 		/* give it just one more chance */
 		ehc->tries[dev->devno] = min(ehc->tries[dev->devno], 1);
 	case -EIO:
