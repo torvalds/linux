@@ -84,11 +84,11 @@
  *
  *  @return        Index in scantable, or error code if negative
  */
-static int is_network_compatible(wlan_adapter * adapter, int index, int mode)
+static int is_network_compatible(wlan_adapter * adapter, int index, u8 mode)
 {
 	ENTER();
 
-	if (adapter->scantable[index].inframode == mode) {
+	if (adapter->scantable[index].mode == mode) {
 		if (   !adapter->secinfo.wep_enabled
 		    && !adapter->secinfo.WPAenabled
 		    && !adapter->secinfo.WPA2enabled
@@ -996,9 +996,9 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 	}
 
 	if (pcap->ibss == 1) {
-		pBSSEntry->inframode = wlan802_11ibss;
+		pBSSEntry->mode = IW_MODE_ADHOC;
 	} else {
-		pBSSEntry->inframode = wlan802_11infrastructure;
+		pBSSEntry->mode = IW_MODE_INFRA;
 	}
 
 	/* process variable IE */
@@ -1196,7 +1196,7 @@ int libertas_SSID_cmp(struct WLAN_802_11_SSID *ssid1, struct WLAN_802_11_SSID *s
  *
  *  @return         index in BSSID list, or error return code (< 0)
  */
-int libertas_find_BSSID_in_list(wlan_adapter * adapter, u8 * bssid, int mode)
+int libertas_find_BSSID_in_list(wlan_adapter * adapter, u8 * bssid, u8 mode)
 {
 	int ret = -ENETUNREACH;
 	int i;
@@ -1216,8 +1216,8 @@ int libertas_find_BSSID_in_list(wlan_adapter * adapter, u8 * bssid, int mode)
 	for (i = 0; ret < 0 && i < adapter->numinscantable; i++) {
 		if (!memcmp(adapter->scantable[i].macaddress, bssid, ETH_ALEN)) {
 			switch (mode) {
-			case wlan802_11infrastructure:
-			case wlan802_11ibss:
+			case IW_MODE_INFRA:
+			case IW_MODE_ADHOC:
 				ret = is_network_compatible(adapter, i, mode);
 				break;
 			default:
@@ -1241,7 +1241,7 @@ int libertas_find_BSSID_in_list(wlan_adapter * adapter, u8 * bssid, int mode)
  *  @return         index in BSSID list
  */
 int libertas_find_SSID_in_list(wlan_adapter * adapter,
-		   struct WLAN_802_11_SSID *ssid, u8 * bssid, int mode)
+		   struct WLAN_802_11_SSID *ssid, u8 * bssid, u8 mode)
 {
 	int net = -ENETUNREACH;
 	u8 bestrssi = 0;
@@ -1256,8 +1256,8 @@ int libertas_find_SSID_in_list(wlan_adapter * adapter,
 		     !memcmp(adapter->scantable[i].
 			     macaddress, bssid, ETH_ALEN))) {
 			switch (mode) {
-			case wlan802_11infrastructure:
-			case wlan802_11ibss:
+			case IW_MODE_INFRA:
+			case IW_MODE_ADHOC:
 				j = is_network_compatible(adapter, i, mode);
 
 				if (j >= 0) {
@@ -1280,7 +1280,7 @@ int libertas_find_SSID_in_list(wlan_adapter * adapter,
 					}
 				}
 				break;
-			case wlan802_11autounknown:
+			case IW_MODE_AUTO:
 			default:
 				if (SCAN_RSSI(adapter->scantable[i].rssi)
 				    > bestrssi) {
@@ -1307,8 +1307,7 @@ int libertas_find_SSID_in_list(wlan_adapter * adapter,
  *
  *  @return         index in BSSID list
  */
-int libertas_find_best_SSID_in_list(wlan_adapter * adapter,
-                                    enum WLAN_802_11_NETWORK_INFRASTRUCTURE mode)
+int libertas_find_best_SSID_in_list(wlan_adapter * adapter, u8 mode)
 {
 	int bestnet = -ENETUNREACH;
 	u8 bestrssi = 0;
@@ -1320,8 +1319,8 @@ int libertas_find_best_SSID_in_list(wlan_adapter * adapter,
 
 	for (i = 0; i < adapter->numinscantable; i++) {
 		switch (mode) {
-		case wlan802_11infrastructure:
-		case wlan802_11ibss:
+		case IW_MODE_INFRA:
+		case IW_MODE_ADHOC:
 			if (is_network_compatible(adapter, i, mode) >= 0) {
 				if (SCAN_RSSI(adapter->scantable[i].rssi) >
 				    bestrssi) {
@@ -1332,7 +1331,7 @@ int libertas_find_best_SSID_in_list(wlan_adapter * adapter,
 				}
 			}
 			break;
-		case wlan802_11autounknown:
+		case IW_MODE_AUTO:
 		default:
 			if (SCAN_RSSI(adapter->scantable[i].rssi) > bestrssi) {
 				bestrssi =
@@ -1357,8 +1356,7 @@ int libertas_find_best_SSID_in_list(wlan_adapter * adapter,
  */
 int libertas_find_best_network_SSID(wlan_private * priv,
                                     struct WLAN_802_11_SSID *pSSID,
-                                    enum WLAN_802_11_NETWORK_INFRASTRUCTURE preferred_mode,
-                                    enum WLAN_802_11_NETWORK_INFRASTRUCTURE *out_mode)
+                                    u8 preferred_mode, u8 *out_mode)
 {
 	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
@@ -1383,7 +1381,7 @@ int libertas_find_best_network_SSID(wlan_private * priv,
 	preqbssid = &adapter->scantable[i];
 	memcpy(pSSID, &preqbssid->ssid,
 	       sizeof(struct WLAN_802_11_SSID));
-	*out_mode = preqbssid->inframode;
+	*out_mode = preqbssid->mode;
 
 	if (!pSSID->ssidlength) {
 		ret = -1;
@@ -1601,7 +1599,7 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 
 		//Add mode
 		iwe.cmd = SIOCGIWMODE;
-		iwe.u.mode = adapter->scantable[i].inframode + 1;
+		iwe.u.mode = adapter->scantable[i].mode;
 		iwe.len = IW_EV_UINT_LEN;
 		current_ev =
 		    iwe_stream_add_event(current_ev, end_buf, &iwe, iwe.len);
@@ -1635,7 +1633,7 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 			iwe.u.qual.noise =
 			    CAL_NF(adapter->NF[TYPE_BEACON][TYPE_NOAVG]);
 		}
-		if ((adapter->inframode == wlan802_11ibss) &&
+		if ((adapter->mode == IW_MODE_ADHOC) &&
 		    !libertas_SSID_cmp(&adapter->curbssparams.ssid,
 			     &adapter->scantable[i].ssid)
 		    && adapter->adhoccreate) {
@@ -1700,7 +1698,7 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 						 end_buf, &iwe, iwe.len);
 
 		}
-		if ((adapter->scantable[i].inframode == wlan802_11ibss)
+		if ((adapter->scantable[i].mode == IW_MODE_ADHOC)
 		    && !libertas_SSID_cmp(&adapter->curbssparams.ssid,
 				&adapter->scantable[i].ssid)
 		    && adapter->adhoccreate) {

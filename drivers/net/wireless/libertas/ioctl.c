@@ -445,8 +445,8 @@ static int wlan_get_adhoc_status_ioctl(wlan_private * priv, struct iwreq *wrq)
 
 	memset(status, 0, sizeof(status));
 
-	switch (adapter->inframode) {
-	case wlan802_11ibss:
+	switch (adapter->mode) {
+	case IW_MODE_ADHOC:
 		if (adapter->connect_status == libertas_connected) {
 			if (adapter->adhoccreate)
 				memcpy(&status, "AdhocStarted", sizeof(status));
@@ -456,7 +456,7 @@ static int wlan_get_adhoc_status_ioctl(wlan_private * priv, struct iwreq *wrq)
 			memcpy(&status, "AdhocIdle", sizeof(status));
 		}
 		break;
-	case wlan802_11infrastructure:
+	case IW_MODE_INFRA:
 		memcpy(&status, "Inframode", sizeof(status));
 		break;
 	default:

@@ -381,15 +381,16 @@ static int wlan_cmd_802_11_snmp_mib(wlan_private * priv,
 	switch (cmd_oid) {
 	case OID_802_11_INFRASTRUCTURE_MODE:
 	{
-		enum WLAN_802_11_NETWORK_INFRASTRUCTURE mode =
-			(enum WLAN_802_11_NETWORK_INFRASTRUCTURE) pdata_buf;
+		u8 mode = (u8) (size_t) pdata_buf;
 		pSNMPMIB->querytype = cpu_to_le16(cmd_act_set);
 		pSNMPMIB->oid = cpu_to_le16((u16) desired_bsstype_i);
 		pSNMPMIB->bufsize = sizeof(u8);
-		if (mode == wlan802_11infrastructure)
-			ucTemp = SNMP_MIB_VALUE_INFRA;
-		else
+		if (mode == IW_MODE_ADHOC) {
 			ucTemp = SNMP_MIB_VALUE_ADHOC;
+		} else {
+			/* Infra and Auto modes */
+			ucTemp = SNMP_MIB_VALUE_INFRA;
+		}
 
 		memmove(pSNMPMIB->value, &ucTemp, sizeof(u8));
 

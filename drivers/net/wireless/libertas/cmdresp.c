@@ -809,7 +809,7 @@ int libertas_process_rx_command(wlan_private * priv)
 		if (result) {
 			lbs_pr_debug(1, "CMD_RESP: PS command failed- %#x \n",
 			       resp->result);
-			if (adapter->inframode == wlan802_11ibss) {
+			if (adapter->mode == IW_MODE_ADHOC) {
 				/*
 				 * We should not re-try enter-ps command in
 				 * ad-hoc mode. It takes place in

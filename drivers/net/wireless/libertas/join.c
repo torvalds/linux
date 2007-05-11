@@ -87,7 +87,7 @@ int libertas_send_deauth(wlan_private * priv)
 	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
 
-	if (adapter->inframode == wlan802_11infrastructure &&
+	if (adapter->mode == IW_MODE_INFRA &&
 	    adapter->connect_status == libertas_connected)
 		ret = libertas_send_deauthentication(priv);
 	else
@@ -101,7 +101,7 @@ int libertas_do_adhocstop_ioctl(wlan_private * priv)
 	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
 
-	if (adapter->inframode == wlan802_11ibss &&
+	if (adapter->mode == IW_MODE_ADHOC &&
 	    adapter->connect_status == libertas_connected)
 		ret = libertas_stop_adhoc_network(priv);
 	else
@@ -209,8 +209,7 @@ int libertas_join_adhoc_network(wlan_private * priv, struct bss_descriptor * pbs
 	/* check if the requested SSID is already joined */
 	if (adapter->curbssparams.ssid.ssidlength
 	    && !libertas_SSID_cmp(&pbssdesc->ssid, &adapter->curbssparams.ssid)
-	    && (adapter->curbssparams.bssdescriptor.inframode ==
-		wlan802_11ibss)) {
+	    && (adapter->mode == IW_MODE_ADHOC)) {
 
         lbs_pr_debug(1,
 		       "ADHOC_J_CMD: New ad-hoc SSID is the same as current, "
@@ -278,7 +277,7 @@ int libertas_idle_off(wlan_private * priv)
 	ENTER();
 
 	if (adapter->connect_status == libertas_disconnected) {
-		if (adapter->inframode == wlan802_11infrastructure) {
+		if (adapter->mode == IW_MODE_INFRA) {
 			if (memcmp(adapter->previousbssid, zeromac,
 				   sizeof(zeromac)) != 0) {
 
@@ -296,7 +295,7 @@ int libertas_idle_off(wlan_private * priv)
 				i = libertas_find_SSID_in_list(adapter,
 						   &adapter->previousssid,
 						   adapter->previousbssid,
-						   adapter->inframode);
+						   adapter->mode);
 
 				if (i < 0) {
 					libertas_send_specific_BSSID_scan(priv,
@@ -308,8 +307,7 @@ int libertas_idle_off(wlan_private * priv)
 							   previousssid,
 							   adapter->
 							   previousbssid,
-							   adapter->
-							   inframode);
+							   adapter->mode);
 				}
 
 				if (i < 0) {
@@ -317,8 +315,7 @@ int libertas_idle_off(wlan_private * priv)
 					i = libertas_find_SSID_in_list(adapter,
 							   &adapter->
 							   previousssid, NULL,
-							   adapter->
-							   inframode);
+							   adapter->mode);
 				}
 
 				if (i < 0) {
@@ -329,8 +326,7 @@ int libertas_idle_off(wlan_private * priv)
 					i = libertas_find_SSID_in_list(adapter,
 							   &adapter->
 							   previousssid, NULL,
-							   adapter->
-							   inframode);
+							   adapter->mode);
 				}
 
 				if (i >= 0) {
@@ -340,7 +336,7 @@ int libertas_idle_off(wlan_private * priv)
 							   scantable[i]);
 				}
 			}
-		} else if (adapter->inframode == wlan802_11ibss) {
+		} else if (adapter->mode == IW_MODE_ADHOC) {
 			ret = libertas_prepare_and_send_command(priv,
 						    cmd_802_11_ad_hoc_start,
 						    0,
@@ -367,7 +363,7 @@ int libertas_idle_on(wlan_private * priv)
 	int ret = 0;
 
 	if (adapter->connect_status == libertas_connected) {
-		if (adapter->inframode == wlan802_11infrastructure) {
+		if (adapter->mode == IW_MODE_INFRA) {
 			lbs_pr_debug(1, "Previous SSID = %s\n",
 			       adapter->previousssid.ssid);
 			memmove(&adapter->previousssid,
@@ -375,7 +371,7 @@ int libertas_idle_on(wlan_private * priv)
 				sizeof(struct WLAN_802_11_SSID));
 			libertas_send_deauth(priv);
 
-		} else if (adapter->inframode == wlan802_11ibss) {
+		} else if (adapter->mode == IW_MODE_ADHOC) {
 			ret = libertas_stop_adhoc_network(priv);
 		}
 
@@ -569,7 +565,7 @@ int libertas_cmd_80211_associate(wlan_private * priv,
 	lbs_pr_debug(1, "ASSOC_CMD: rates->header.len = %d\n", rates->header.len);
 
 	/* set IBSS field */
-	if (pbssdesc->inframode == wlan802_11infrastructure) {
+	if (pbssdesc->mode == IW_MODE_INFRA) {
 #define CAPINFO_ESS_MODE 1
 		passo->capinfo.ess = CAPINFO_ESS_MODE;
 	}
@@ -643,7 +639,7 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 
 	/* set the BSS type */
 	adhs->bsstype = cmd_bss_type_ibss;
-	pbssdesc->inframode = wlan802_11ibss;
+	pbssdesc->mode = IW_MODE_ADHOC;
 	adhs->beaconperiod = adapter->beaconperiod;
 
 	/* set Physical param set */

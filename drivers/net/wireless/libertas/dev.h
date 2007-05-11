@@ -183,7 +183,7 @@ struct assoc_request {
 
 	struct WLAN_802_11_SSID ssid;
 	u8 channel;
-	enum WLAN_802_11_NETWORK_INFRASTRUCTURE mode;
+	u8 mode;
 	u8 bssid[ETH_ALEN];
 
 	/** WEP keys */
@@ -252,7 +252,8 @@ struct _wlan_adapter {
 	/** current ssid/bssid related parameters*/
 	struct current_bss_params curbssparams;
 
-	enum WLAN_802_11_NETWORK_INFRASTRUCTURE inframode;
+	/* IW_MODE_* */
+	u8 mode;
 
 	struct bss_descriptor *pattemptedbssdesc;
 

@@ -267,15 +267,6 @@ enum mv_ms_type {
 	MVMS_EVENT
 };
 
-/** WLAN_802_11_NETWORK_INFRASTRUCTURE */
-enum WLAN_802_11_NETWORK_INFRASTRUCTURE {
-	wlan802_11ibss,
-	wlan802_11infrastructure,
-	wlan802_11autounknown,
-	/*defined as upper bound */
-	wlan802_11infrastructuremax
-};
-
 /** SNMP_MIB_INDEX_e */
 enum SNMP_MIB_INDEX_e {
 	desired_bsstype_i = 0,

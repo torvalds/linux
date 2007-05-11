@@ -233,7 +233,7 @@ static int changeadhocchannel(wlan_private * priv, int channel)
 
 		// find out the BSSID that matches the current SSID
 		i = libertas_find_SSID_in_list(adapter, &curadhocssid, NULL,
-				   wlan802_11ibss);
+				   IW_MODE_ADHOC);
 
 		if (i >= 0) {
 			lbs_pr_debug(1, "SSID found at %d in List,"
@@ -316,13 +316,11 @@ static int get_active_data_rates(wlan_adapter * adapter,
 	ENTER();
 
 	if (adapter->connect_status != libertas_connected) {
-		if (adapter->inframode == wlan802_11infrastructure) {
-			//Infra. mode
+		if (adapter->mode == IW_MODE_INFRA) {
 			lbs_pr_debug(1, "Infra\n");
 			k = copyrates(rates, k, libertas_supported_rates,
 				      sizeof(libertas_supported_rates));
 		} else {
-			//ad-hoc mode
 			lbs_pr_debug(1, "Adhoc G\n");
 			k = copyrates(rates, k, libertas_adhoc_rates_g,
 				      sizeof(libertas_adhoc_rates_g));
@@ -586,20 +584,7 @@ static int wlan_get_mode(struct net_device *dev,
 
 	ENTER();
 
-	switch (adapter->inframode) {
-	case wlan802_11ibss:
-		*uwrq = IW_MODE_ADHOC;
-		break;
-
-	case wlan802_11infrastructure:
-		*uwrq = IW_MODE_INFRA;
-		break;
-
-	default:
-	case wlan802_11autounknown:
-		*uwrq = IW_MODE_AUTO;
-		break;
-	}
+	*uwrq = adapter->mode;
 
 	LEAVE();
 	return 0;
@@ -1417,7 +1402,7 @@ static struct iw_statistics *wlan_get_wireless_stats(struct net_device *dev)
 
 	ENTER();
 
-	priv->wstats.status = adapter->inframode;
+	priv->wstats.status = adapter->mode;
 
 	/* If we're not associated, all quality values are meaningless */
 	if (adapter->connect_status != libertas_connected)
@@ -1551,7 +1536,7 @@ static int wlan_set_freq(struct net_device *dev, struct iw_request_info *info,
 		if (!cfp) {
 			rc = -EINVAL;
 		} else {
-			if (adapter->inframode == wlan802_11ibss) {
+			if (adapter->mode == IW_MODE_ADHOC) {
 				rc = changeadhocchannel(priv, channel);
 				/*  If station is WEP enabled, send the
 				 *  command to set WEP in firmware
@@ -1698,49 +1683,31 @@ static int wlan_set_mode(struct net_device *dev,
 	wlan_private *priv = dev->priv;
 	wlan_adapter *adapter = priv->adapter;
 	struct assoc_request * assoc_req;
-	enum WLAN_802_11_NETWORK_INFRASTRUCTURE new_mode;
 
 	ENTER();
 
-	switch (*uwrq) {
-	case IW_MODE_ADHOC:
-		lbs_pr_debug(1, "Wanted mode is ad-hoc: current datarate=%#x\n",
-		       adapter->datarate);
-		new_mode = wlan802_11ibss;
-		adapter->adhocchannel = DEFAULT_AD_HOC_CHANNEL;
-		break;
-
-	case IW_MODE_INFRA:
-		lbs_pr_debug(1, "Wanted mode is Infrastructure\n");
-		new_mode = wlan802_11infrastructure;
-		break;
-
-	case IW_MODE_AUTO:
-		lbs_pr_debug(1, "Wanted mode is Auto\n");
-		new_mode = wlan802_11autounknown;
-		break;
-
-	default:
-		lbs_pr_debug(1, "Wanted mode is Unknown: 0x%x\n", *uwrq);
-		return -EINVAL;
+	if (   (*uwrq != IW_MODE_ADHOC)
+	    && (*uwrq != IW_MODE_INFRA)
+	    && (*uwrq != IW_MODE_AUTO)) {
+		lbs_pr_debug(1, "Invalid mode: 0x%x\n", *uwrq);
+		ret = -EINVAL;
+		goto out;
 	}
 
 	mutex_lock(&adapter->lock);
 	assoc_req = wlan_get_association_request(adapter);
 	if (!assoc_req) {
 		ret = -ENOMEM;
+		wlan_cancel_association_work(priv);
 	} else {
-		assoc_req->mode = new_mode;
-	}
-
-	if (ret == 0) {
+		assoc_req->mode = *uwrq;
 		set_bit(ASSOC_FLAG_MODE, &assoc_req->flags);
 		wlan_postpone_association_work(priv);
-	} else {
-		wlan_cancel_association_work(priv);
+		lbs_pr_debug(1, "Switching to mode: 0x%x\n", *uwrq);
 	}
 	mutex_unlock(&adapter->lock);
 
+out:
 	LEAVE();
 	return ret;
 }
@@ -2037,7 +2004,7 @@ static int wlan_get_encodeext(struct net_device *dev,
 
 	if (!ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY &&
 	    ext->alg != IW_ENCODE_ALG_WEP) {
-		if (index != 0 || adapter->inframode != wlan802_11infrastructure)
+		if (index != 0 || adapter->mode != IW_MODE_INFRA)
 			goto out;
 	}
 
