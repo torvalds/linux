@@ -775,7 +775,6 @@ restart:
 		return -1;
 	}
 
-#ifdef SUPPORT_BOOT_COMMAND
 	cardp->bootcmdresp = 0;
 	do {
 		int j = 0;
@@ -796,7 +795,6 @@ restart:
 		}
 		return -1;
 	}
-#endif
 
 	i = 0;
 	priv->adapter->fw_ready = 0;

@@ -12,8 +12,7 @@ EXTRA_CFLAGS += -DDEBUG -DPROC_DEBUG
 endif
 
 
-# This is needed to support the newer boot2 bootloader (v >= 3104)
-EXTRA_CFLAGS += -DSUPPORT_BOOT_COMMAND
+#EXTRA_CFLAGS +=
 usb8xxx-objs += if_bootcmd.o
 usb8xxx-objs += if_usb.o
 
