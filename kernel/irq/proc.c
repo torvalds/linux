@@ -27,6 +27,10 @@ static int irq_affinity_read_proc(char *page, char **start, off_t off,
 	return len;
 }
 
+#ifndef is_affinity_mask_valid
+#define is_affinity_mask_valid(val) 1
+#endif
+
 int no_irq_affinity;
 static int irq_affinity_write_proc(struct file *file, const char __user *buffer,
 				   unsigned long count, void *data)
@@ -41,6 +45,9 @@ static int irq_affinity_write_proc(struct file *file, const char __user *buffer,
 	err = cpumask_parse_user(buffer, count, new_value);
 	if (err)
 		return err;
+
+	if (!is_affinity_mask_valid(new_value))
+		return -EINVAL;
 
 	/*
 	 * Do not allow disabling IRQs completely - it's a too easy

@@ -118,7 +118,9 @@ static ia64_mc_info_t		ia64_mc_info;
 #define CPE_HISTORY_LENGTH    5
 #define CMC_HISTORY_LENGTH    5
 
+#ifdef CONFIG_ACPI
 static struct timer_list cpe_poll_timer;
+#endif
 static struct timer_list cmc_poll_timer;
 /*
  * This variable tells whether we are currently in polling mode.

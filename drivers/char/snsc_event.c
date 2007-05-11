@@ -203,8 +203,6 @@ scdrv_dispatch_event(char *event, int len)
 	class = (code & EV_CLASS_MASK);
 
 	if (class == EV_CLASS_PWRD_NOTIFY || code == ENV_PWRDN_PEND) {
-		struct task_struct *p;
-
 		if (snsc_shutting_down)
 			return;
 

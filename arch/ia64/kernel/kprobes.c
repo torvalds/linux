@@ -370,14 +370,18 @@ static int __kprobes valid_kprobe_addr(int template, int slot,
 
 static void __kprobes save_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
-	kcb->prev_kprobe.kp = kprobe_running();
-	kcb->prev_kprobe.status = kcb->kprobe_status;
+	unsigned int i;
+	i = atomic_add_return(1, &kcb->prev_kprobe_index);
+	kcb->prev_kprobe[i-1].kp = kprobe_running();
+	kcb->prev_kprobe[i-1].status = kcb->kprobe_status;
 }
 
 static void __kprobes restore_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
-	__get_cpu_var(current_kprobe) = kcb->prev_kprobe.kp;
-	kcb->kprobe_status = kcb->prev_kprobe.status;
+	unsigned int i;
+	i = atomic_sub_return(1, &kcb->prev_kprobe_index);
+	__get_cpu_var(current_kprobe) = kcb->prev_kprobe[i].kp;
+	kcb->kprobe_status = kcb->prev_kprobe[i].status;
 }
 
 static void __kprobes set_current_kprobe(struct kprobe *p,

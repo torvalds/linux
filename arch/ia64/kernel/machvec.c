@@ -35,7 +35,7 @@ lookup_machvec (const char *name)
 	return 0;
 }
 
-void
+void __init
 machvec_init (const char *name)
 {
 	struct ia64_machine_vector *mv;

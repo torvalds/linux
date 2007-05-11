@@ -1583,5 +1583,7 @@ sys_call_table:
 	data8 sys_vmsplice
 	data8 sys_ni_syscall			// reserved for move_pages
 	data8 sys_getcpu
+	data8 sys_epoll_pwait			// 1305
+	data8 sys_utimensat
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls

@@ -18,71 +18,18 @@
 #include <linux/mm.h>
 #include <linux/page-flags.h>
 #include <linux/threads.h>
+#include <linux/quicklist.h>
 
 #include <asm/mmu_context.h>
 
-DECLARE_PER_CPU(unsigned long *, __pgtable_quicklist);
-#define pgtable_quicklist __ia64_per_cpu_var(__pgtable_quicklist)
-DECLARE_PER_CPU(long, __pgtable_quicklist_size);
-#define pgtable_quicklist_size __ia64_per_cpu_var(__pgtable_quicklist_size)
-
-static inline long pgtable_quicklist_total_size(void)
-{
-	long ql_size = 0;
-	int cpuid;
-
-	for_each_online_cpu(cpuid) {
-		ql_size += per_cpu(__pgtable_quicklist_size, cpuid);
-	}
-	return ql_size;
-}
-
-static inline void *pgtable_quicklist_alloc(void)
-{
-	unsigned long *ret = NULL;
-
-	preempt_disable();
-
-	ret = pgtable_quicklist;
-	if (likely(ret != NULL)) {
-		pgtable_quicklist = (unsigned long *)(*ret);
-		ret[0] = 0;
-		--pgtable_quicklist_size;
-		preempt_enable();
-	} else {
-		preempt_enable();
-		ret = (unsigned long *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
-	}
-
-	return ret;
-}
-
-static inline void pgtable_quicklist_free(void *pgtable_entry)
-{
-#ifdef CONFIG_NUMA
-	int nid = page_to_nid(virt_to_page(pgtable_entry));
-
-	if (unlikely(nid != numa_node_id())) {
-		free_page((unsigned long)pgtable_entry);
-		return;
-	}
-#endif
-
-	preempt_disable();
-	*(unsigned long *)pgtable_entry = (unsigned long)pgtable_quicklist;
-	pgtable_quicklist = (unsigned long *)pgtable_entry;
-	++pgtable_quicklist_size;
-	preempt_enable();
-}
-
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	return pgtable_quicklist_alloc();
+	return quicklist_alloc(0, GFP_KERNEL, NULL);
 }
 
 static inline void pgd_free(pgd_t * pgd)
 {
-	pgtable_quicklist_free(pgd);
+	quicklist_free(0, NULL, pgd);
 }
 
 #ifdef CONFIG_PGTABLE_4
@@ -94,12 +41,12 @@ pgd_populate(struct mm_struct *mm, pgd_t * pgd_entry, pud_t * pud)
 
 static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
-	return pgtable_quicklist_alloc();
+	return quicklist_alloc(0, GFP_KERNEL, NULL);
 }
 
 static inline void pud_free(pud_t * pud)
 {
-	pgtable_quicklist_free(pud);
+	quicklist_free(0, NULL, pud);
 }
 #define __pud_free_tlb(tlb, pud)	pud_free(pud)
 #endif /* CONFIG_PGTABLE_4 */
@@ -112,12 +59,12 @@ pud_populate(struct mm_struct *mm, pud_t * pud_entry, pmd_t * pmd)
 
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
-	return pgtable_quicklist_alloc();
+	return quicklist_alloc(0, GFP_KERNEL, NULL);
 }
 
 static inline void pmd_free(pmd_t * pmd)
 {
-	pgtable_quicklist_free(pmd);
+	quicklist_free(0, NULL, pmd);
 }
 
 #define __pmd_free_tlb(tlb, pmd)	pmd_free(pmd)
@@ -137,28 +84,31 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t * pmd_entry, pte_t * pte)
 static inline struct page *pte_alloc_one(struct mm_struct *mm,
 					 unsigned long addr)
 {
-	void *pg = pgtable_quicklist_alloc();
+	void *pg = quicklist_alloc(0, GFP_KERNEL, NULL);
 	return pg ? virt_to_page(pg) : NULL;
 }
 
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 					  unsigned long addr)
 {
-	return pgtable_quicklist_alloc();
+	return quicklist_alloc(0, GFP_KERNEL, NULL);
 }
 
 static inline void pte_free(struct page *pte)
 {
-	pgtable_quicklist_free(page_address(pte));
+	quicklist_free_page(0, NULL, pte);
 }
 
 static inline void pte_free_kernel(pte_t * pte)
 {
-	pgtable_quicklist_free(pte);
+	quicklist_free(0, NULL, pte);
+}
+
+static inline void check_pgt_cache(void)
+{
+	quicklist_trim(0, NULL, 25, 16);
 }
 
 #define __pte_free_tlb(tlb, pte)	pte_free(pte)
-
-extern void check_pgt_cache(void);
 
 #endif				/* _ASM_IA64_PGALLOC_H */
