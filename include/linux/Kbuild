@@ -190,6 +190,7 @@ unifdef-y += errno.h
 unifdef-y += errqueue.h
 unifdef-y += ethtool.h
 unifdef-y += eventpoll.h
+unifdef-y += signalfd.h
 unifdef-y += ext2_fs.h
 unifdef-y += ext3_fs.h
 unifdef-y += fb.h
