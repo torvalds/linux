@@ -475,9 +475,19 @@ config FUTEX
 	  support for "fast userspace mutexes".  The resulting kernel may not
 	  run glibc-based applications correctly.
 
+config ANON_INODES
+	bool "Enable anonymous inode source" if EMBEDDED
+	default y
+	help
+	  Anonymous inode source for pseudo-files like epoll, signalfd,
+	  timerfd and eventfd.
+
+	  If unsure, say Y.
+
 config EPOLL
 	bool "Enable eventpoll support" if EMBEDDED
 	default y
+	depends on ANON_INODES
 	help
 	  Disabling this option will cause the kernel to be built without
 	  support for epoll family of system calls.
