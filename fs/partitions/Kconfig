@@ -239,7 +239,7 @@ config EFI_PARTITION
 
 config SYSV68_PARTITION
 	bool "SYSV68 partition table support" if PARTITION_ADVANCED
-	default y if M68K
+	default y if VME
 	help
 	  Say Y here if you would like to be able to read the hard disk
 	  partition table format used by Motorola Delta machines (using
