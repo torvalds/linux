@@ -37,6 +37,8 @@ void autofs_kill_sb(struct super_block *sb)
 	if (!sbi->catatonic)
 		autofs_catatonic_mode(sbi); /* Free wait queues, close pipe */
 
+	put_pid(sbi->oz_pgrp);
+
 	autofs_hash_nuke(sbi);
 	for (n = 0; n < AUTOFS_MAX_SYMLINKS; n++) {
 		if (test_bit(n, sbi->symlink_bitmap))
@@ -139,6 +141,7 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 	int pipefd;
 	struct autofs_sb_info *sbi;
 	int minproto, maxproto;
+	pid_t pgid;
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
@@ -150,7 +153,6 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 	sbi->pipe = NULL;
 	sbi->catatonic = 1;
 	sbi->exp_timeout = 0;
-	sbi->oz_pgrp = process_group(current);
 	autofs_initialize_hash(&sbi->dirhash);
 	sbi->queues = NULL;
 	memset(sbi->symlink_bitmap, 0, sizeof(long)*AUTOFS_SYMLINK_BITMAP_LEN);
@@ -171,7 +173,7 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 
 	/* Can this call block?  - WTF cares? s is locked. */
 	if (parse_options(data, &pipefd, &root_inode->i_uid,
-				&root_inode->i_gid, &sbi->oz_pgrp, &minproto,
+				&root_inode->i_gid, &pgid, &minproto,
 				&maxproto)) {
 		printk("autofs: called with bogus options\n");
 		goto fail_dput;
@@ -184,13 +186,21 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 		goto fail_dput;
 	}
 
-	DPRINTK(("autofs: pipe fd = %d, pgrp = %u\n", pipefd, sbi->oz_pgrp));
+	DPRINTK(("autofs: pipe fd = %d, pgrp = %u\n", pipefd, pgid));
+	sbi->oz_pgrp = find_get_pid(pgid);
+
+	if (!sbi->oz_pgrp) {
+		printk("autofs: could not find process group %d\n", pgid);
+		goto fail_dput;
+	}
+
 	pipe = fget(pipefd);
 	
 	if (!pipe) {
 		printk("autofs: could not open pipe file descriptor\n");
-		goto fail_dput;
+		goto fail_put_pid;
 	}
+
 	if (!pipe->f_op || !pipe->f_op->write)
 		goto fail_fput;
 	sbi->pipe = pipe;
@@ -205,6 +215,8 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 fail_fput:
 	printk("autofs: pipe file descriptor does not contain proper ops\n");
 	fput(pipe);
+fail_put_pid:
+	put_pid(sbi->oz_pgrp);
 fail_dput:
 	dput(root);
 	goto fail_free;

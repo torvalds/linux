@@ -213,8 +213,10 @@ static struct dentry *autofs_root_lookup(struct inode *dir, struct dentry *dentr
 	sbi = autofs_sbi(dir->i_sb);
 
 	oz_mode = autofs_oz_mode(sbi);
-	DPRINTK(("autofs_lookup: pid = %u, pgrp = %u, catatonic = %d, oz_mode = %d\n",
-		 current->pid, process_group(current), sbi->catatonic, oz_mode));
+	DPRINTK(("autofs_lookup: pid = %u, pgrp = %u, catatonic = %d, "
+				"oz_mode = %d\n", pid_nr(task_pid(current)),
+				process_group(current), sbi->catatonic,
+				oz_mode));
 
 	/*
 	 * Mark the dentry incomplete, but add it. This is needed so
