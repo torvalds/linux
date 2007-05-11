@@ -626,6 +626,8 @@ __SYSCALL(__NR_utimensat, sys_utimensat)
 __SYSCALL(__NR_epoll_pwait, sys_epoll_pwait)
 #define __NR_signalfd		282
 __SYSCALL(__NR_signalfd, sys_signalfd)
+#define __NR_timerfd		282
+__SYSCALL(__NR_timerfd, sys_timerfd)
 
 #ifndef __NO_STUBS
 #define __ARCH_WANT_OLD_READDIR
