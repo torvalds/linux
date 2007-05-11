@@ -152,7 +152,7 @@ last_lba(struct block_device *bdev)
 }
 
 static inline int
-pmbr_part_valid(struct partition *part, u64 lastlba)
+pmbr_part_valid(struct partition *part)
 {
         if (part->sys_ind == EFI_PMBR_OSTYPE_EFI_GPT &&
             le32_to_cpu(part->start_sect) == 1UL)
@@ -163,7 +163,6 @@ pmbr_part_valid(struct partition *part, u64 lastlba)
 /**
  * is_pmbr_valid(): test Protective MBR for validity
  * @mbr: pointer to a legacy mbr structure
- * @lastlba: last_lba for the whole device
  *
  * Description: Returns 1 if PMBR is valid, 0 otherwise.
  * Validity depends on two things:
@@ -171,13 +170,13 @@ pmbr_part_valid(struct partition *part, u64 lastlba)
  *  2) One partition of type 0xEE is found
  */
 static int
-is_pmbr_valid(legacy_mbr *mbr, u64 lastlba)
+is_pmbr_valid(legacy_mbr *mbr)
 {
 	int i;
 	if (!mbr || le16_to_cpu(mbr->signature) != MSDOS_MBR_SIGNATURE)
                 return 0;
 	for (i = 0; i < 4; i++)
-		if (pmbr_part_valid(&mbr->partition_record[i], lastlba))
+		if (pmbr_part_valid(&mbr->partition_record[i]))
                         return 1;
 	return 0;
 }
@@ -516,7 +515,7 @@ find_valid_gpt(struct block_device *bdev, gpt_header **gpt, gpt_entry **ptes)
 	int good_pgpt = 0, good_agpt = 0, good_pmbr = 0;
 	gpt_header *pgpt = NULL, *agpt = NULL;
 	gpt_entry *pptes = NULL, *aptes = NULL;
-	legacy_mbr *legacymbr = NULL;
+	legacy_mbr *legacymbr;
 	u64 lastlba;
 	if (!bdev || !gpt || !ptes)
 		return 0;
@@ -528,9 +527,8 @@ find_valid_gpt(struct block_device *bdev, gpt_header **gpt, gpt_entry **ptes)
                 if (legacymbr) {
                         read_lba(bdev, 0, (u8 *) legacymbr,
                                  sizeof (*legacymbr));
-                        good_pmbr = is_pmbr_valid(legacymbr, lastlba);
+                        good_pmbr = is_pmbr_valid(legacymbr);
                         kfree(legacymbr);
-                        legacymbr=NULL;
                 }
                 if (!good_pmbr)
                         goto fail;
