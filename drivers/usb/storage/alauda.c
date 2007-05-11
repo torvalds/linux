@@ -798,12 +798,13 @@ static int alauda_read_data(struct us_data *us, unsigned long address,
 {
 	unsigned char *buffer;
 	u16 lba, max_lba;
-	unsigned int page, len, index, offset;
+	unsigned int page, len, offset;
 	unsigned int blockshift = MEDIA_INFO(us).blockshift;
 	unsigned int pageshift = MEDIA_INFO(us).pageshift;
 	unsigned int blocksize = MEDIA_INFO(us).blocksize;
 	unsigned int pagesize = MEDIA_INFO(us).pagesize;
 	unsigned int uzonesize = MEDIA_INFO(us).uzonesize;
+	struct scatterlist *sg;
 	int result;
 
 	/*
@@ -827,7 +828,8 @@ static int alauda_read_data(struct us_data *us, unsigned long address,
 	max_lba = MEDIA_INFO(us).capacity >> (blockshift + pageshift);
 
 	result = USB_STOR_TRANSPORT_GOOD;
-	index = offset = 0;
+	offset = 0;
+	sg = NULL;
 
 	while (sectors > 0) {
 		unsigned int zone = lba / uzonesize; /* integer division */
@@ -873,7 +875,7 @@ static int alauda_read_data(struct us_data *us, unsigned long address,
 
 		/* Store the data in the transfer buffer */
 		usb_stor_access_xfer_buf(buffer, len, us->srb,
-				&index, &offset, TO_XFER_BUF);
+				&sg, &offset, TO_XFER_BUF);
 
 		page = 0;
 		lba++;
@@ -891,11 +893,12 @@ static int alauda_write_data(struct us_data *us, unsigned long address,
 		unsigned int sectors)
 {
 	unsigned char *buffer, *blockbuffer;
-	unsigned int page, len, index, offset;
+	unsigned int page, len, offset;
 	unsigned int blockshift = MEDIA_INFO(us).blockshift;
 	unsigned int pageshift = MEDIA_INFO(us).pageshift;
 	unsigned int blocksize = MEDIA_INFO(us).blocksize;
 	unsigned int pagesize = MEDIA_INFO(us).pagesize;
+	struct scatterlist *sg;
 	u16 lba, max_lba;
 	int result;
 
@@ -929,7 +932,8 @@ static int alauda_write_data(struct us_data *us, unsigned long address,
 	max_lba = MEDIA_INFO(us).capacity >> (pageshift + blockshift);
 
 	result = USB_STOR_TRANSPORT_GOOD;
-	index = offset = 0;
+	offset = 0;
+	sg = NULL;
 
 	while (sectors > 0) {
 		/* Write as many sectors as possible in this block */
@@ -946,7 +950,7 @@ static int alauda_write_data(struct us_data *us, unsigned long address,
 
 		/* Get the data from the transfer buffer */
 		usb_stor_access_xfer_buf(buffer, len, us->srb,
-				&index, &offset, FROM_XFER_BUF);
+				&sg, &offset, FROM_XFER_BUF);
 
 		result = alauda_write_lba(us, lba, page, pages, buffer,
 			blockbuffer);
