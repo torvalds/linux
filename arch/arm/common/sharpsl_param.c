@@ -20,7 +20,7 @@
  * typically including LCD parameters are loaded by the bootloader at the
  * address PARAM_BASE. As the kernel will overwrite them, we need to store
  * them early in the boot process, then pass them to the appropriate drivers.
- * Not all devices use all paramaters but the format is common to all.
+ * Not all devices use all parameters but the format is common to all.
  */
 #ifdef CONFIG_ARCH_SA1100
 #define PARAM_BASE	0xe8ffc000

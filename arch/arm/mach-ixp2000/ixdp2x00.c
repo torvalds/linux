@@ -195,7 +195,7 @@ void __init ixdp2x00_map_io(void)
  * instances  of the kernel. So far so good. Peers on the PCI bus running 
  * Linux is a common design in telecom systems. The problem is that instead 
  * of all the devices being controlled by a single host, different
- * devices are controlles by different NPUs on the same bus, leading to
+ * devices are controlled by different NPUs on the same bus, leading to
  * multiple hosts on the bus. The exact bus layout looks like:
  *
  *                   Bus 0
@@ -211,7 +211,7 @@ void __init ixdp2x00_map_io(void)
  *                  |      |         |         |      |
  *             ... Dev    PMC       Media     Eth0   Eth1 ...
  *
- * The master controlls all but Eth1, which is controlled by the
+ * The master controls all but Eth1, which is controlled by the
  * slave. What this means is that the both the master and the slave
  * have to scan the bus, but only one of them can enumerate the bus.
  * In addition, after the bus is scanned, each kernel must remove

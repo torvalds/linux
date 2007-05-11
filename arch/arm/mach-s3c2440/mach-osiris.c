@@ -45,7 +45,7 @@
 #include <asm/plat-s3c24xx/devs.h>
 #include <asm/plat-s3c24xx/cpu.h>
 
-/* onboard perihpheral map */
+/* onboard perihperal map */
 
 static struct map_desc osiris_iodesc[] __initdata = {
   /* ISA IO areas (may be over-written later) */

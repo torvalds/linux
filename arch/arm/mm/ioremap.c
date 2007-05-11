@@ -346,7 +346,7 @@ void __iounmap(volatile void __iomem *addr)
 #ifndef CONFIG_SMP
 	/*
 	 * If this is a section based mapping we need to handle it
-	 * specially as the VM subysystem does not know how to handle
+	 * specially as the VM subsystem does not know how to handle
 	 * such a beast. We need the lock here b/c we need to clear
 	 * all the mappings before the area can be reclaimed
 	 * by someone else.

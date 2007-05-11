@@ -85,7 +85,7 @@ static int iop3xx_pci_status(void)
 
 /*
  * Simply write the address register and read the configuration
- * data.  Note that the 4 nop's ensure that we are able to handle
+ * data.  Note that the 4 nops ensure that we are able to handle
  * a delayed abort (in theory.)
  */
 static u32 iop3xx_read(unsigned long addr)

@@ -143,7 +143,7 @@ h7202_timer_interrupt(int irq, void *dev_id)
 }
 
 /*
- * mask multiplexed timer irq's
+ * mask multiplexed timer IRQs
  */
 static void inline mask_timerx_irq (u32 irq)
 {
@@ -153,7 +153,7 @@ static void inline mask_timerx_irq (u32 irq)
 }
 
 /*
- * unmask multiplexed timer irq's
+ * unmask multiplexed timer IRQs
  */
 static void inline unmask_timerx_irq (u32 irq)
 {

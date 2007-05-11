@@ -126,7 +126,7 @@ static struct clcd_panel_extra lcd_panel_extra = {
 
  */
 
-/* The full horozontal cycle (Th) is clock/360/400/450. */
+/* The full horizontal cycle (Th) is clock/360/400/450. */
 /* The full vertical   cycle (Tv) is line/251/262/280. */
 
 #define PIX_CLOCK_TARGET	(6300000) /* -/6.3/7 MHz */
@@ -162,7 +162,7 @@ static struct clcd_panel lcd_panel = {
 	/* Logic Product Development LCD 6.4" VGA -10 */
 	/* Sharp PN LQ64D343 */
 
-/* The full horozontal cycle (Th) is clock/750/800/900. */
+/* The full horizontal cycle (Th) is clock/750/800/900. */
 /* The full vertical   cycle (Tv) is line/515/525/560. */
 
 #define PIX_CLOCK_TARGET	(28330000)
@@ -243,7 +243,7 @@ static struct clcd_panel lcd_panel = {
  * (fdisk, e2fsck).  And, at that speed the display may have a visible
  * flicker. */
 
-/* The full horozontal cycle (Th) is clock/832/1056/1395. */
+/* The full horizontal cycle (Th) is clock/832/1056/1395. */
 
 #define PIX_CLOCK_TARGET	(20000000)
 #define PIX_CLOCK_DIVIDER	CLOCK_TO_DIV (PIX_CLOCK_TARGET, HCLK)

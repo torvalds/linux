@@ -338,7 +338,7 @@ struct prcm_config {
 /*
  * These represent optimal values for common parts, it won't work for all.
  * As long as you scale down, most parameters are still work, they just
- * become sub-optimal. The RFR value goes in the oppisite direction. If you
+ * become sub-optimal. The RFR value goes in the opposite direction. If you
  * don't adjust it down as your clock period increases the refresh interval
  * will not be met. Setting all parameters for complete worst case may work,
  * but may cut memory performance by 2x. Due to errata the DLLs need to be
@@ -384,7 +384,7 @@ struct prcm_config {
  * Filling in table based on H4 boards and 2430-SDPs variants available.
  * There are quite a few more rates combinations which could be defined.
  *
- * When multiple values are defiend the start up will try and choose the
+ * When multiple values are defined the start up will try and choose the
  * fastest one. If a 'fast' value is defined, then automatically, the /2
  * one should be included as it can be used.	Generally having more that
  * one fast set does not make sense, as static timings need to be changed

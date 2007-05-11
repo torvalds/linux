@@ -72,7 +72,7 @@ static inline unsigned int gic_irq(unsigned int irq)
  * unmask it, in the same way we need to unmask an interrupt when
  * we first enable it.
  *
- * The GIC has a seperate notion of "end of interrupt" to re-enable
+ * The GIC has a separate notion of "end of interrupt" to re-enable
  * an interrupt after handling, in order to support hardware
  * prioritisation.
  *

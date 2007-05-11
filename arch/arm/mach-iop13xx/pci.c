@@ -989,7 +989,7 @@ void __init iop13xx_pci_init(void)
 			"imprecise external abort");
 }
 
-/* intialize the pci memory space.  handle any combination of
+/* initialize the pci memory space.  handle any combination of
  * atue and atux enabled/disabled
  */
 int iop13xx_pci_setup(int nr, struct pci_sys_data *sys)

@@ -291,7 +291,7 @@ static void sharpsl_chrg_full_timer(unsigned long data)
 }
 
 /* Charging Finished Interrupt (Not present on Corgi) */
-/* Can trigger at the same time as an AC staus change so
+/* Can trigger at the same time as an AC status change so
    delay until after that has been processed */
 irqreturn_t sharpsl_chrg_full_isr(int irq, void *dev_id)
 {
@@ -635,7 +635,7 @@ static int sharpsl_fatal_check(void)
 
 static int sharpsl_off_charge_error(void)
 {
-	dev_err(sharpsl_pm.dev, "Offline Charger: Error occured.\n");
+	dev_err(sharpsl_pm.dev, "Offline Charger: Error occurred.\n");
 	sharpsl_pm.machinfo->charge(0);
 	sharpsl_pm_led(SHARPSL_LED_ERROR);
 	sharpsl_pm.charge_mode = CHRG_ERROR;
@@ -691,14 +691,14 @@ static int sharpsl_off_charge_battery(void)
 
 		time = RCNR;
 		while(1) {
-			/* Check if any wakeup event had occured */
+			/* Check if any wakeup event had occurred */
 			if (sharpsl_pm.machinfo->charger_wakeup() != 0)
 				return 0;
 			/* Check for timeout */
 			if ((RCNR - time) > SHARPSL_WAIT_CO_TIME)
 				return 1;
 			if (sharpsl_pm.machinfo->read_devdata(SHARPSL_STATUS_CHRGFULL)) {
-				dev_dbg(sharpsl_pm.dev, "Offline Charger: Charge full occured. Retrying to check\n");
+				dev_dbg(sharpsl_pm.dev, "Offline Charger: Charge full occurred. Retrying to check\n");
 	   			sharpsl_pm.full_count++;
 				sharpsl_pm.machinfo->charge(0);
 				mdelay(SHARPSL_CHARGE_WAIT_TIME);
@@ -714,7 +714,7 @@ static int sharpsl_off_charge_battery(void)
 
 	time = RCNR;
 	while(1) {
-		/* Check if any wakeup event had occured */
+		/* Check if any wakeup event had occurred */
 		if (sharpsl_pm.machinfo->charger_wakeup() != 0)
 			return 0;
 		/* Check for timeout */
