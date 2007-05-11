@@ -748,6 +748,22 @@ config FB_S1D13XXX
 	  working with S1D13806). Product specs at
 	  <http://www.erd.epson.com/vdc/html/legacy_13xxx.htm>
 
+config FB_ATMEL
+	tristate "AT91/AT32 LCD Controller support"
+	depends on FB && (ARCH_AT91SAM9261 || ARCH_AT91SAM9263 || AVR32)
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This enables support for the AT91/AT32 LCD Controller.
+
+config FB_INTSRAM
+	bool "Frame Buffer in internal SRAM"
+	depends on FB_ATMEL && ARCH_AT91SAM9261
+	help
+	  Say Y if you want to map Frame Buffer in internal SRAM. Say N if you want
+	  to let frame buffer in external SDRAM.
+
 config FB_NVIDIA
 	tristate "nVidia Framebuffer Support"
 	depends on FB && PCI
