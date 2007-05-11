@@ -333,7 +333,7 @@ static int should_stop_adhoc(wlan_adapter *adapter,
 	if (adapter->curbssparams.ssid.ssidlength != assoc_req->ssid.ssidlength)
 		return 1;
 	if (memcmp(adapter->curbssparams.ssid.ssid, assoc_req->ssid.ssid,
-			sizeof(struct WLAN_802_11_SSID)))
+			adapter->curbssparams.ssid.ssidlength))
 		return 1;
 
 	/* FIXME: deal with 'auto' mode somehow */
