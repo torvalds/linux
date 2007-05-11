@@ -21,7 +21,7 @@
 #define __NR_time		 13
 #define __NR_mknod		 14
 #define __NR_chmod		 15
-#define __NR_chown		 16
+#define __NR_lchown		 16
 #define __NR_break		 17
 #define __NR_oldstat		 18
 #define __NR_lseek		 19
@@ -115,10 +115,10 @@
 #define __NR_lstat		107
 #define __NR_fstat		108
 #define __NR_olduname		109
-#define __NR_iopl		/* 110 */ not supported
+#define __NR_iopl		110
 #define __NR_vhangup		111
-#define __NR_idle		/* 112 */ Obsolete
-#define __NR_vm86		/* 113 */ not supported
+#define __NR_idle		112
+#define __NR_vm86old		113
 #define __NR_wait4		114
 #define __NR_swapoff		115
 #define __NR_sysinfo		116
@@ -128,7 +128,7 @@
 #define __NR_clone		120
 #define __NR_setdomainname	121
 #define __NR_uname		122
-#define __NR_cacheflush		123
+#define __NR_modify_ldt		123
 #define __NR_adjtimex		124
 #define __NR_mprotect		125
 #define __NR_sigprocmask	126
@@ -171,7 +171,7 @@
 #define __NR_mremap		163
 #define __NR_setresuid		164
 #define __NR_getresuid		165
-#define __NR_getpagesize	166
+#define __NR_vm86		166
 #define __NR_query_module	167
 #define __NR_poll		168
 #define __NR_nfsservctl		169
@@ -187,7 +187,7 @@
 #define __NR_rt_sigsuspend	179
 #define __NR_pread64		180
 #define __NR_pwrite64		181
-#define __NR_lchown		182
+#define __NR_chown		182
 #define __NR_getcwd		183
 #define __NR_capget		184
 #define __NR_capset		185
@@ -203,7 +203,7 @@
 #define __NR_stat64		195
 #define __NR_lstat64		196
 #define __NR_fstat64		197
-#define __NR_chown32		198
+#define __NR_lchown32		198
 #define __NR_getuid32		199
 #define __NR_getgid32		200
 #define __NR_geteuid32		201
@@ -217,15 +217,18 @@
 #define __NR_getresuid32	209
 #define __NR_setresgid32	210
 #define __NR_getresgid32	211
-#define __NR_lchown32		212
+#define __NR_chown32		212
 #define __NR_setuid32		213
 #define __NR_setgid32		214
 #define __NR_setfsuid32		215
 #define __NR_setfsgid32		216
 #define __NR_pivot_root		217
+#define __NR_mincore		218
+#define __NR_madvise		219
+#define __NR_madvise1		219
 #define __NR_getdents64		220
 #define __NR_fcntl64		221
-#define __NR_security		223
+/* 223 is unused */
 #define __NR_gettid		224
 #define __NR_readahead		225
 #define __NR_setxattr		226
@@ -252,13 +255,13 @@
 #define __NR_io_getevents	247
 #define __NR_io_submit		248
 #define __NR_io_cancel		249
-#define __NR_alloc_hugepages	250
-#define __NR_free_hugepages	251
+#define __NR_fadvise64		250
+/* 251 is available for reuse (was briefly sys_set_zone_reclaim) */
 #define __NR_exit_group		252
 #define __NR_lookup_dcookie	253
-#define __NR_sys_epoll_create	254
-#define __NR_sys_epoll_ctl	255
-#define __NR_sys_epoll_wait	256
+#define __NR_epoll_create	254
+#define __NR_epoll_ctl		255
+#define __NR_epoll_wait		256
 #define __NR_remap_file_pages	257
 #define __NR_set_tid_address	258
 #define __NR_timer_create	259
@@ -291,10 +294,41 @@
 #define __NR_add_key		286
 #define __NR_request_key	287
 #define __NR_keyctl		288
+#define __NR_ioprio_set		289
+#define __NR_ioprio_get		290
+#define __NR_inotify_init	291
+#define __NR_inotify_add_watch	292
+#define __NR_inotify_rm_watch	293
+#define __NR_migrate_pages	294
+#define __NR_openat		295
+#define __NR_mkdirat		296
+#define __NR_mknodat		297
+#define __NR_fchownat		298
+#define __NR_futimesat		299
+#define __NR_fstatat64		300
+#define __NR_unlinkat		301
+#define __NR_renameat		302
+#define __NR_linkat		303
+#define __NR_symlinkat		304
+#define __NR_readlinkat		305
+#define __NR_fchmodat		306
+#define __NR_faccessat		307
+#define __NR_pselect6		308
+#define __NR_ppoll		309
+#define __NR_unshare		310
+#define __NR_set_robust_list	311
+#define __NR_get_robust_list	312
+#define __NR_splice		313
+#define __NR_sync_file_range	314
+#define __NR_tee		315
+#define __NR_vmsplice		316
+#define __NR_move_pages		317
+#define __NR_getcpu		318
+#define __NR_epoll_pwait	319
 
 #ifdef __KERNEL__
 
-#define NR_syscalls 289
+#define NR_syscalls 320
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
