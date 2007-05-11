@@ -16,11 +16,13 @@
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
+#include <linux/platform_device.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 
 #include <asm/sgi/hpc3.h>
 #include <asm/sgi/ip22.h>
+#include <asm/sgi/seeq.h>
 
 #include "sgiseeq.h"
 
@@ -92,12 +94,8 @@ struct sgiseeq_private {
 
 	struct net_device_stats stats;
 
-	struct net_device *next_module;
 	spinlock_t tx_lock;
 };
-
-/* A list of all installed seeq devices, for removing the driver module. */
-static struct net_device *root_sgiseeq_dev;
 
 static inline void hpc3_eth_reset(struct hpc3_ethregs *hregs)
 {
@@ -624,9 +622,12 @@ static inline void setup_rx_ring(struct sgiseeq_rx_desc *buf, int nbufs)
 
 #define ALIGNED(x)  ((((unsigned long)(x)) + 0xf) & ~(0xf))
 
-static int sgiseeq_init(struct hpc3_regs* hpcregs, int irq, int has_eeprom)
+static int __init sgiseeq_probe(struct platform_device *pdev)
 {
+	struct sgiseeq_platform_data *pd = pdev->dev.platform_data;
+	struct hpc3_regs *hpcregs = pd->hpc;
 	struct sgiseeq_init_block *sr;
+	unsigned int irq = pd->irq;
 	struct sgiseeq_private *sp;
 	struct net_device *dev;
 	int err, i;
@@ -637,6 +638,8 @@ static int sgiseeq_init(struct hpc3_regs* hpcregs, int irq, int has_eeprom)
 		err = -ENOMEM;
 		goto err_out;
 	}
+
+	platform_set_drvdata(pdev, dev);
 	sp = netdev_priv(dev);
 
 	/* Make private data page aligned */
@@ -648,15 +651,7 @@ static int sgiseeq_init(struct hpc3_regs* hpcregs, int irq, int has_eeprom)
 	}
 	sp->srings = sr;
 
-#define EADDR_NVOFS     250
-	for (i = 0; i < 3; i++) {
-		unsigned short tmp = has_eeprom ?
-			ip22_eeprom_read(&hpcregs->eeprom, EADDR_NVOFS / 2+i) :
-			ip22_nvram_read(EADDR_NVOFS / 2+i);
-
-		dev->dev_addr[2 * i]     = tmp >> 8;
-		dev->dev_addr[2 * i + 1] = tmp & 0xff;
-	}
+	memcpy(dev->dev_addr, pd->mac, ETH_ALEN);
 
 #ifdef DEBUG
 	gpriv = sp;
@@ -720,9 +715,6 @@ static int sgiseeq_init(struct hpc3_regs* hpcregs, int irq, int has_eeprom)
 	for (i = 0; i < 6; i++)
 		printk("%2.2x%c", dev->dev_addr[i], i == 5 ? '\n' : ':');
 
-	sp->next_module = root_sgiseeq_dev;
-	root_sgiseeq_dev = dev;
-
 	return 0;
 
 err_out_free_page:
@@ -734,43 +726,42 @@ err_out:
 	return err;
 }
 
-static int __init sgiseeq_probe(void)
+static void __exit sgiseeq_remove(struct platform_device *pdev)
 {
-	unsigned int tmp, ret1, ret2 = 0;
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct sgiseeq_private *sp = netdev_priv(dev);
 
-	/* On board adapter on 1st HPC is always present */
-	ret1 = sgiseeq_init(hpc3c0, SGI_ENET_IRQ, 0);
-	/* Let's see if second HPC is there */
-	if (!(ip22_is_fullhouse()) &&
-	    get_dbe(tmp, (unsigned int *)&hpc3c1->pbdma[1]) == 0) {
-		sgimc->giopar |= SGIMC_GIOPAR_MASTEREXP1 |
-				 SGIMC_GIOPAR_EXP164 |
-				 SGIMC_GIOPAR_HPC264;
-		hpc3c1->pbus_piocfg[0][0] = 0x3ffff;
-		/* interrupt/config register on Challenge S Mezz board */
-		hpc3c1->pbus_extregs[0][0] = 0x30;
-		ret2 = sgiseeq_init(hpc3c1, SGI_GIO_0_IRQ, 1);
-	}
-
-	return (ret1 & ret2) ? ret1 : 0;
+	unregister_netdev(dev);
+	free_page((unsigned long) sp->srings);
+	free_netdev(dev);
+	platform_set_drvdata(pdev, NULL);
 }
 
-static void __exit sgiseeq_exit(void)
-{
-	struct net_device *next, *dev;
-	struct sgiseeq_private *sp;
-
-	for (dev = root_sgiseeq_dev; dev; dev = next) {
-		sp = (struct sgiseeq_private *) netdev_priv(dev);
-		next = sp->next_module;
-		unregister_netdev(dev);
-		free_page((unsigned long) sp->srings);
-		free_netdev(dev);
+static struct platform_driver sgiseeq_driver = {
+	.probe	= sgiseeq_probe,
+	.remove	= __devexit_p(sgiseeq_remove),
+	.driver = {
+		.name	= "sgiseeq"
 	}
+};
+
+static int __init sgiseeq_module_init(void)
+{
+	if (platform_driver_register(&sgiseeq_driver)) {
+		printk(KERN_ERR "Driver registration failed\n");
+		return -ENODEV;
+	}
+
+	return 0;
 }
 
-module_init(sgiseeq_probe);
-module_exit(sgiseeq_exit);
+static void __exit sgiseeq_module_exit(void)
+{
+	platform_driver_unregister(&sgiseeq_driver);
+}
+
+module_init(sgiseeq_module_init);
+module_exit(sgiseeq_module_exit);
 
 MODULE_DESCRIPTION("SGI Seeq 8003 driver");
 MODULE_AUTHOR("Linux/MIPS Mailing List <linux-mips@linux-mips.org>");
