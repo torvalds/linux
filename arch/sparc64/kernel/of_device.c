@@ -596,7 +596,7 @@ static void __init build_device_resources(struct of_device *op,
 	/* Convert to num-entries.  */
 	num_reg /= na + ns;
 
-	/* Prevent overruning the op->resources[] array.  */
+	/* Prevent overrunning the op->resources[] array.  */
 	if (num_reg > PROMREG_MAX) {
 		printk(KERN_WARNING "%s: Too many regs (%d), "
 		       "limiting to %d.\n",
@@ -904,7 +904,7 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 		op->num_irqs = 0;
 	}
 
-	/* Prevent overruning the op->irqs[] array.  */
+	/* Prevent overrunning the op->irqs[] array.  */
 	if (op->num_irqs > PROMINTR_MAX) {
 		printk(KERN_WARNING "%s: Too many irqs (%d), "
 		       "limiting to %d.\n",
