@@ -29,6 +29,7 @@
 #include <linux/signal.h>
 #include <linux/cn_proc.h>
 #include <linux/getcpu.h>
+#include <linux/task_io_accounting_ops.h>
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>
@@ -2082,6 +2083,8 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 			r->ru_nivcsw = p->signal->cnivcsw;
 			r->ru_minflt = p->signal->cmin_flt;
 			r->ru_majflt = p->signal->cmaj_flt;
+			r->ru_inblock = p->signal->cinblock;
+			r->ru_oublock = p->signal->coublock;
 
 			if (who == RUSAGE_CHILDREN)
 				break;
@@ -2093,6 +2096,8 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 			r->ru_nivcsw += p->signal->nivcsw;
 			r->ru_minflt += p->signal->min_flt;
 			r->ru_majflt += p->signal->maj_flt;
+			r->ru_inblock += p->signal->inblock;
+			r->ru_oublock += p->signal->oublock;
 			t = p;
 			do {
 				utime = cputime_add(utime, t->utime);
@@ -2101,6 +2106,8 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 				r->ru_nivcsw += t->nivcsw;
 				r->ru_minflt += t->min_flt;
 				r->ru_majflt += t->maj_flt;
+				r->ru_inblock += task_io_get_inblock(t);
+				r->ru_oublock += task_io_get_oublock(t);
 				t = next_thread(t);
 			} while (t != p);
 			break;

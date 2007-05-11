@@ -42,6 +42,7 @@
 #include <linux/audit.h> /* for audit_free() */
 #include <linux/resource.h>
 #include <linux/blkdev.h>
+#include <linux/task_io_accounting_ops.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -113,6 +114,8 @@ static void __exit_signal(struct task_struct *tsk)
 		sig->nvcsw += tsk->nvcsw;
 		sig->nivcsw += tsk->nivcsw;
 		sig->sched_time += tsk->sched_time;
+		sig->inblock += task_io_get_inblock(tsk);
+		sig->oublock += task_io_get_oublock(tsk);
 		sig = NULL; /* Marker for below. */
 	}
 
@@ -1193,6 +1196,12 @@ static int wait_task_zombie(struct task_struct *p, int noreap,
 			p->nvcsw + sig->nvcsw + sig->cnvcsw;
 		psig->cnivcsw +=
 			p->nivcsw + sig->nivcsw + sig->cnivcsw;
+		psig->cinblock +=
+			task_io_get_inblock(p) +
+			sig->inblock + sig->cinblock;
+		psig->coublock +=
+			task_io_get_oublock(p) +
+			sig->oublock + sig->coublock;
 		spin_unlock_irq(&p->parent->sighand->siglock);
 	}
 

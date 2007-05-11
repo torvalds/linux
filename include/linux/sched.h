@@ -469,6 +469,7 @@ struct signal_struct {
 	cputime_t utime, stime, cutime, cstime;
 	unsigned long nvcsw, nivcsw, cnvcsw, cnivcsw;
 	unsigned long min_flt, maj_flt, cmin_flt, cmaj_flt;
+	unsigned long inblock, oublock, cinblock, coublock;
 
 	/*
 	 * Cumulative ns of scheduled CPU time for dead threads in the
