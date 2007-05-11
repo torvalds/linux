@@ -51,6 +51,8 @@ struct pid
 	struct rcu_head rcu;
 };
 
+extern struct pid init_struct_pid;
+
 struct pid_link
 {
 	struct hlist_node node;
