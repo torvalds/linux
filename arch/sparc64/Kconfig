@@ -226,9 +226,6 @@ config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
 	select SPARSEMEM_STATIC
 
-config LARGE_ALLOCS
-	def_bool y
-
 source "mm/Kconfig"
 
 config ISA
