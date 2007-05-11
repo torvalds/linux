@@ -1,0 +1,8 @@
+if ARCH_KS8695
+
+menu "Kendin/Micrel KS8695 Implementations"
+
+
+endmenu
+
+endif

@@ -305,6 +305,12 @@ config ARCH_L7200
 	  If you have any questions or comments about the Linux kernel port
 	  to this board, send e-mail to <sjhill@cotw.com>.
 
+config ARCH_KS8695
+	bool "Micrel/Kendin KS8695"
+	help
+	  Support for Micrel/Kendin KS8695 "Centaur" (ARM922T) based
+	  System-on-Chip devices.
+
 config ARCH_NS9XXX
 	bool "NetSilicon NS9xxx"
 	help
@@ -451,6 +457,8 @@ source "arch/arm/mach-ns9xxx/Kconfig"
 
 source "arch/arm/mach-davinci/Kconfig"
 
+source "arch/arm/mach-ks8695/Kconfig"
+
 # Definitions to make life easier
 config ARCH_ACORN
 	bool
@@ -511,7 +519,7 @@ config ISA_DMA_API
 	bool
 
 config PCI
-	bool "PCI support" if ARCH_INTEGRATOR_AP || ARCH_VERSATILE_PB || ARCH_IXP4XX
+	bool "PCI support" if ARCH_INTEGRATOR_AP || ARCH_VERSATILE_PB || ARCH_IXP4XX || ARCH_KS8695
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
@@ -680,7 +688,8 @@ config LEDS
 		   ARCH_LUBBOCK || MACH_MAINSTONE || ARCH_NETWINDER || \
 		   ARCH_OMAP || ARCH_P720T || ARCH_PXA_IDP || \
 		   ARCH_SA1100 || ARCH_SHARK || ARCH_VERSATILE || \
-		   ARCH_AT91 || MACH_TRIZEPS4 || ARCH_DAVINCI
+		   ARCH_AT91 || MACH_TRIZEPS4 || ARCH_DAVINCI || \
+		   ARCH_KS8695
 	help
 	  If you say Y here, the LEDs on your machine will be used
 	  to provide useful information about your current system status.
