@@ -2,8 +2,12 @@
 # USB device configuration
 #
 
-menu "USB support"
+menuconfig USB_SUPPORT
+	bool "USB support"
 	depends on HAS_IOMEM
+	default y
+
+if USB_SUPPORT
 
 # Host-side USB depends on having a host controller
 # NOTE:  dummy_hcd is always an option, but it's ignored here ...
@@ -130,5 +134,4 @@ source "drivers/usb/atm/Kconfig"
 
 source "drivers/usb/gadget/Kconfig"
 
-endmenu
-
+endif # USB_SUPPORT
