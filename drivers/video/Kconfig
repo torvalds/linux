@@ -796,6 +796,15 @@ config FB_NVIDIA_I2C
 	  independently validate video mode parameters, you should say Y
 	  here.
 
+config FB_NVIDIA_DEBUG
+	bool "Lots of debug output"
+	depends on FB_NVIDIA
+	default n
+	help
+	  Say Y here if you want the nVidia driver to output all sorts
+	  of debugging information to provide to the maintainer when
+	  something goes wrong.
+
 config FB_NVIDIA_BACKLIGHT
 	bool "Support for backlight control"
 	depends on FB_NVIDIA
@@ -835,7 +844,7 @@ config FB_RIVA_I2C
 	  here.
 
 config FB_RIVA_DEBUG
-	bool "Lots of debug output from Riva(nVidia) driver"
+	bool "Lots of debug output"
 	depends on FB_RIVA
 	default n
 	help
