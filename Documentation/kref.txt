@@ -67,7 +67,7 @@ void more_data_handling(void *cb_data)
 	.
 	. do stuff with data here
 	.
-	kref_put(data, data_release);
+	kref_put(&data->refcount, data_release);
 }
 
 int my_data_handler(void)
