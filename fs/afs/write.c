@@ -395,8 +395,9 @@ static int afs_write_back_from_locked_page(struct afs_writeback *wb,
 		if (n == 0)
 			goto no_more;
 		if (pages[0]->index != start) {
-			for (n--; n >= 0; n--)
-				put_page(pages[n]);
+			do {
+				put_page(pages[--n]);
+			} while (n > 0);
 			goto no_more;
 		}
 
