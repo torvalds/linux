@@ -1529,7 +1529,8 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 			btrfs_set_file_extent_type(ei,
 						   BTRFS_FILE_EXTENT_INLINE);
 			ptr = btrfs_file_extent_inline_start(ei);
-			memcpy(ptr, bh->b_data, offset + write_bytes);
+			btrfs_memcpy(root, path->nodes[0]->b_data,
+				     ptr, bh->b_data, offset + write_bytes);
 			mark_buffer_dirty(path->nodes[0]);
 			btrfs_free_path(path);
 		} else {
@@ -1686,9 +1687,9 @@ static int drop_extents(struct btrfs_trans_handle *trans,
 			ret = btrfs_del_item(trans, root, path);
 			BUG_ON(ret);
 			btrfs_release_path(root, path);
+			extent = NULL;
 			if (found_extent) {
-				inode->i_blocks -=
-				btrfs_file_extent_num_blocks(extent) << 3;
+				inode->i_blocks -= extent_num_blocks << 3;
 				ret = btrfs_free_extent(trans, root,
 							disk_blocknr,
 							disk_num_blocks, 0);
@@ -1832,7 +1833,6 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	u64 alloc_extent_start;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_key ins;
-
 	pinned[0] = NULL;
 	pinned[1] = NULL;
 	if (file->f_flags & O_DIRECT)
