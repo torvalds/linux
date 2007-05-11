@@ -61,15 +61,19 @@ void sig_handler(int sig, struct sigcontext *sc)
 
 static void real_alarm_handler(int sig, struct sigcontext *sc)
 {
+	union uml_pt_regs regs;
+
 	if(sig == SIGALRM)
 		switch_timers(0);
 
-	CHOOSE_MODE_PROC(sig_handler_common_tt, sig_handler_common_skas,
-			 sig, sc);
+	if(sc != NULL)
+		copy_sc(&regs, sc);
+	regs.skas.is_user = 0;
+	unblock_signals();
+	timer_handler(sig, &regs);
 
 	if(sig == SIGALRM)
 		switch_timers(1);
-
 }
 
 void alarm_handler(int sig, struct sigcontext *sc)
