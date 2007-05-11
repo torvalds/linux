@@ -328,10 +328,11 @@
 #define __NR_utimensat		320
 #define __NR_signalfd		321
 #define __NR_timerfd		322
+#define __NR_eventfd		323
 
 #ifdef __KERNEL__
 
-#define NR_syscalls 323
+#define NR_syscalls 324
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
