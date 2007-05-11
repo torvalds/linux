@@ -266,10 +266,6 @@ static struct scsi_host_template cmd64x_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
-#ifdef CONFIG_PM
-	.resume			= ata_scsi_device_resume,
-	.suspend		= ata_scsi_device_suspend,
-#endif
 };
 
 static struct ata_port_operations cmd64x_port_ops = {
@@ -381,7 +377,7 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	u32 class_rev;
 
-	static struct ata_port_info cmd_info[6] = {
+	static const struct ata_port_info cmd_info[6] = {
 		{	/* CMD 643 - no UDMA */
 			.sht = &cmd64x_sht,
 			.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
@@ -428,10 +424,8 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			.port_ops = &cmd648_port_ops
 		}
 	};
-	static struct ata_port_info *port_info[2], *info;
+	const struct ata_port_info *ppi[] = { &cmd_info[id->driver_data], NULL };
 	u8 mrdmode;
-
-	info = &cmd_info[id->driver_data];
 
 	pci_read_config_dword(pdev, PCI_CLASS_REVISION, &class_rev);
 	class_rev &= 0xFF;
@@ -442,10 +436,10 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (pdev->device == PCI_DEVICE_ID_CMD_646) {
 		/* Does UDMA work ? */
 		if (class_rev > 4)
-			info = &cmd_info[2];
+			ppi[0] = &cmd_info[2];
 		/* Early rev with other problems ? */
 		else if (class_rev == 1)
-			info = &cmd_info[3];
+			ppi[0] = &cmd_info[3];
 	}
 
 	pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 64);
@@ -461,8 +455,7 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_write_config_byte(pdev, UDIDETCR0, 0xF0);
 #endif
 
-	port_info[0] = port_info[1] = info;
-	return ata_pci_init_one(pdev, port_info, 2);
+	return ata_pci_init_one(pdev, ppi);
 }
 
 #ifdef CONFIG_PM

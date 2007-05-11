@@ -101,6 +101,12 @@ int libata_noacpi = 1;
 module_param_named(noacpi, libata_noacpi, int, 0444);
 MODULE_PARM_DESC(noacpi, "Disables the use of ACPI in suspend/resume when set");
 
+int ata_spindown_compat = 1;
+module_param_named(spindown_compat, ata_spindown_compat, int, 0644);
+MODULE_PARM_DESC(spindown_compat, "Enable backward compatible spindown "
+		 "behavior.  Will be removed.  More info can be found in "
+		 "Documentation/feature-removal-schedule.txt\n");
+
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("Library module for ATA devices");
 MODULE_LICENSE("GPL");
@@ -1654,7 +1660,7 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	struct ata_taskfile tf;
 	unsigned int err_mask = 0;
 	const char *reason;
-	int tried_spinup = 0;
+	int may_fallback = 1, tried_spinup = 0;
 	int rc;
 
 	if (ata_msg_ctl(ap))
@@ -1698,10 +1704,30 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 			return -ENOENT;
 		}
 
+		/* Device or controller might have reported the wrong
+		 * device class.  Give a shot at the other IDENTIFY if
+		 * the current one is aborted by the device.
+		 */
+		if (may_fallback &&
+		    (err_mask == AC_ERR_DEV) && (tf.feature & ATA_ABORTED)) {
+			may_fallback = 0;
+
+			if (class == ATA_DEV_ATA)
+				class = ATA_DEV_ATAPI;
+			else
+				class = ATA_DEV_ATA;
+			goto retry;
+		}
+
 		rc = -EIO;
 		reason = "I/O error";
 		goto err_out;
 	}
+
+	/* Falling back doesn't make sense if ID data was read
+	 * successfully at least once.
+	 */
+	may_fallback = 0;
 
 	swap_buf_le16(id, ATA_ID_WORDS);
 
@@ -1843,7 +1869,7 @@ int ata_dev_configure(struct ata_device *dev)
 		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER\n", __FUNCTION__);
 
 	/* set _SDD */
-	rc = ata_acpi_push_id(ap, dev->devno);
+	rc = ata_acpi_push_id(dev);
 	if (rc) {
 		ata_dev_printk(dev, KERN_WARNING, "failed to set _SDD(%d)\n",
 			rc);
@@ -2860,7 +2886,7 @@ int ata_do_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 		dev = &ap->device[i];
 
 		/* don't update suspended devices' xfer mode */
-		if (!ata_dev_ready(dev))
+		if (!ata_dev_enabled(dev))
 			continue;
 
 		rc = ata_dev_set_mode(dev);
@@ -5845,37 +5871,11 @@ static int ata_host_request_pm(struct ata_host *host, pm_message_t mesg,
  */
 int ata_host_suspend(struct ata_host *host, pm_message_t mesg)
 {
-	int i, j, rc;
+	int rc;
 
 	rc = ata_host_request_pm(host, mesg, 0, ATA_EHI_QUIET, 1);
-	if (rc)
-		goto fail;
-
-	/* EH is quiescent now.  Fail if we have any ready device.
-	 * This happens if hotplug occurs between completion of device
-	 * suspension and here.
-	 */
-	for (i = 0; i < host->n_ports; i++) {
-		struct ata_port *ap = host->ports[i];
-
-		for (j = 0; j < ATA_MAX_DEVICES; j++) {
-			struct ata_device *dev = &ap->device[j];
-
-			if (ata_dev_ready(dev)) {
-				ata_port_printk(ap, KERN_WARNING,
-						"suspend failed, device %d "
-						"still active\n", dev->devno);
-				rc = -EBUSY;
-				goto fail;
-			}
-		}
-	}
-
-	host->dev->power.power_state = mesg;
-	return 0;
-
- fail:
-	ata_host_resume(host);
+	if (rc == 0)
+		host->dev->power.power_state = mesg;
 	return rc;
 }
 
@@ -5984,6 +5984,7 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	if (!ap)
 		return NULL;
 
+	ap->pflags |= ATA_PFLAG_INITIALIZING;
 	ap->lock = &host->lock;
 	ap->flags = ATA_FLAG_DISABLED;
 	ap->print_id = -1;
@@ -6352,6 +6353,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 			ehi->action |= ATA_EH_SOFTRESET;
 			ehi->flags |= ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET;
 
+			ap->pflags &= ~ATA_PFLAG_INITIALIZING;
 			ap->pflags |= ATA_PFLAG_LOADING;
 			ata_port_schedule_eh(ap);
 
@@ -6876,6 +6878,7 @@ EXPORT_SYMBOL_GPL(ata_timing_merge);
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL_GPL(pci_test_config_bits);
 EXPORT_SYMBOL_GPL(ata_pci_init_native_host);
+EXPORT_SYMBOL_GPL(ata_pci_init_bmdma);
 EXPORT_SYMBOL_GPL(ata_pci_prepare_native_host);
 EXPORT_SYMBOL_GPL(ata_pci_init_one);
 EXPORT_SYMBOL_GPL(ata_pci_remove_one);
@@ -6888,11 +6891,6 @@ EXPORT_SYMBOL_GPL(ata_pci_device_resume);
 EXPORT_SYMBOL_GPL(ata_pci_default_filter);
 EXPORT_SYMBOL_GPL(ata_pci_clear_simplex);
 #endif /* CONFIG_PCI */
-
-#ifdef CONFIG_PM
-EXPORT_SYMBOL_GPL(ata_scsi_device_suspend);
-EXPORT_SYMBOL_GPL(ata_scsi_device_resume);
-#endif /* CONFIG_PM */
 
 EXPORT_SYMBOL_GPL(ata_eng_timeout);
 EXPORT_SYMBOL_GPL(ata_port_schedule_eh);

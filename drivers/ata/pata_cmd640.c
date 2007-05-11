@@ -181,10 +181,6 @@ static struct scsi_host_template cmd640_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
-#ifdef CONFIG_PM
-	.resume			= ata_scsi_device_resume,
-	.suspend		= ata_scsi_device_suspend,
-#endif
 };
 
 static struct ata_port_operations cmd640_port_ops = {
@@ -253,17 +249,16 @@ static void cmd640_hardware_init(struct pci_dev *pdev)
 
 static int cmd640_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	static struct ata_port_info info = {
+	static const struct ata_port_info info = {
 		.sht = &cmd640_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
 		.port_ops = &cmd640_port_ops
 	};
-
-	static struct ata_port_info *port_info[2] = { &info, &info };
+	const struct ata_port_info *ppi[] = { &info, NULL };
 
 	cmd640_hardware_init(pdev);
-	return ata_pci_init_one(pdev, port_info, 2);
+	return ata_pci_init_one(pdev, ppi);
 }
 
 static int cmd640_reinit_one(struct pci_dev *pdev)

@@ -247,10 +247,6 @@ static struct scsi_host_template efar_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
-#ifdef CONFIG_PM
-	.resume			= ata_scsi_device_resume,
-	.suspend		= ata_scsi_device_suspend,
-#endif
 };
 
 static const struct ata_port_operations efar_ops = {
@@ -305,7 +301,7 @@ static const struct ata_port_operations efar_ops = {
 static int efar_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
-	static struct ata_port_info info = {
+	static const struct ata_port_info info = {
 		.sht		= &efar_sht,
 		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 		.pio_mask	= 0x1f,	/* pio0-4 */
@@ -313,13 +309,13 @@ static int efar_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		.udma_mask 	= 0x0f, /* UDMA 66 */
 		.port_ops	= &efar_ops,
 	};
-	static struct ata_port_info *port_info[2] = { &info, &info };
+	const struct ata_port_info *ppi[] = { &info, NULL };
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "version " DRV_VERSION "\n");
 
-	return ata_pci_init_one(pdev, port_info, 2);
+	return ata_pci_init_one(pdev, ppi);
 }
 
 static const struct pci_device_id efar_pci_tbl[] = {

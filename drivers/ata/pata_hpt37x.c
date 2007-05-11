@@ -887,7 +887,7 @@ static int hpt37x_calibrate_dpll(struct pci_dev *dev)
 static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	/* HPT370 - UDMA100 */
-	static struct ata_port_info info_hpt370 = {
+	static const struct ata_port_info info_hpt370 = {
 		.sht = &hpt37x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
@@ -896,7 +896,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.port_ops = &hpt370_port_ops
 	};
 	/* HPT370A - UDMA100 */
-	static struct ata_port_info info_hpt370a = {
+	static const struct ata_port_info info_hpt370a = {
 		.sht = &hpt37x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
@@ -905,7 +905,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.port_ops = &hpt370a_port_ops
 	};
 	/* HPT370 - UDMA100 */
-	static struct ata_port_info info_hpt370_33 = {
+	static const struct ata_port_info info_hpt370_33 = {
 		.sht = &hpt37x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
@@ -914,7 +914,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.port_ops = &hpt370_port_ops
 	};
 	/* HPT370A - UDMA100 */
-	static struct ata_port_info info_hpt370a_33 = {
+	static const struct ata_port_info info_hpt370a_33 = {
 		.sht = &hpt37x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
@@ -923,7 +923,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.port_ops = &hpt370a_port_ops
 	};
 	/* HPT371, 372 and friends - UDMA133 */
-	static struct ata_port_info info_hpt372 = {
+	static const struct ata_port_info info_hpt372 = {
 		.sht = &hpt37x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
@@ -932,7 +932,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.port_ops = &hpt372_port_ops
 	};
 	/* HPT371, 372 and friends - UDMA100 at 50MHz clock */
-	static struct ata_port_info info_hpt372_50 = {
+	static const struct ata_port_info info_hpt372_50 = {
 		.sht = &hpt37x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
@@ -941,7 +941,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.port_ops = &hpt372_port_ops
 	};
 	/* HPT374 - UDMA133 */
-	static struct ata_port_info info_hpt374 = {
+	static const struct ata_port_info info_hpt374 = {
 		.sht = &hpt37x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
@@ -951,9 +951,10 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	};
 
 	static const int MHz[4] = { 33, 40, 50, 66 };
-
-	struct ata_port_info *port_info[2];
-	struct ata_port_info *port;
+	const struct ata_port_info *port;
+	void *private_data = NULL;
+	struct ata_port_info port_info;
+	const struct ata_port_info *ppi[] = { &port_info, NULL };
 
 	u8 irqmask;
 	u32 class_rev;
@@ -1124,13 +1125,13 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 			return -ENODEV;
 		}
 		if (clock_slot == 3)
-			port->private_data = (void *)hpt37x_timings_66;
+			private_data = (void *)hpt37x_timings_66;
 		else
-			port->private_data = (void *)hpt37x_timings_50;
+			private_data = (void *)hpt37x_timings_50;
 
 		printk(KERN_INFO "hpt37x: Bus clock %dMHz, using DPLL.\n", MHz[clock_slot]);
 	} else {
-		port->private_data = (void *)chip_table->clocks[clock_slot];
+		private_data = (void *)chip_table->clocks[clock_slot];
 		/*
 		 *	Perform a final fixup. Note that we will have used the
 		 *	DPLL on the HPT372 which means we don't have to worry
@@ -1144,9 +1145,11 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		printk(KERN_INFO "hpt37x: %s: Bus clock %dMHz.\n", chip_table->name, MHz[clock_slot]);
 	}
 
-	port_info[0] = port_info[1] = port;
 	/* Now kick off ATA set up */
-	return ata_pci_init_one(dev, port_info, 2);
+	port_info = *port;
+	port_info.private_data = private_data;
+
+	return ata_pci_init_one(dev, ppi);
 }
 
 static const struct pci_device_id hpt37x[] = {

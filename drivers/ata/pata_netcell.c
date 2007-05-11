@@ -37,10 +37,6 @@ static struct scsi_host_template netcell_sht = {
 	.slave_destroy		= ata_scsi_slave_destroy,
 	/* Use standard CHS mapping rules */
 	.bios_param		= ata_std_bios_param,
-#ifdef CONFIG_PM
-	.resume			= ata_scsi_device_resume,
-	.suspend		= ata_scsi_device_suspend,
-#endif
 };
 
 static const struct ata_port_operations netcell_ops = {
@@ -96,7 +92,7 @@ static const struct ata_port_operations netcell_ops = {
 static int netcell_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
-	static struct ata_port_info info = {
+	static const struct ata_port_info info = {
 		.sht		= &netcell_sht,
 		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 		/* Actually we don't really care about these as the
@@ -106,7 +102,7 @@ static int netcell_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		.udma_mask 	= 0x3f, /* UDMA 133 */
 		.port_ops	= &netcell_ops,
 	};
-	static struct ata_port_info *port_info[2] = { &info, &info };
+	const struct ata_port_info *port_info[] = { &info, NULL };
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev,
@@ -116,7 +112,7 @@ static int netcell_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	ata_pci_clear_simplex(pdev);
 
 	/* And let the library code do the work */
-	return ata_pci_init_one(pdev, port_info, 2);
+	return ata_pci_init_one(pdev, port_info);
 }
 
 static const struct pci_device_id netcell_pci_tbl[] = {

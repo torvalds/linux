@@ -69,4 +69,4 @@ obj-$(CONFIG_ATA_GENERIC)	+= ata_generic.o
 obj-$(CONFIG_PATA_LEGACY)	+= pata_legacy.o
 
 libata-objs	:= libata-core.o libata-scsi.o libata-sff.o libata-eh.o
-libata-$(CONFIG_SATA_ACPI) += libata-acpi.o
+libata-$(CONFIG_ATA_ACPI)	+= libata-acpi.o

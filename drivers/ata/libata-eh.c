@@ -77,29 +77,12 @@ static void ata_eh_finish(struct ata_port *ap);
 #ifdef CONFIG_PM
 static void ata_eh_handle_port_suspend(struct ata_port *ap);
 static void ata_eh_handle_port_resume(struct ata_port *ap);
-static int ata_eh_suspend(struct ata_port *ap,
-			  struct ata_device **r_failed_dev);
-static void ata_eh_prep_resume(struct ata_port *ap);
-static int ata_eh_resume(struct ata_port *ap, struct ata_device **r_failed_dev);
 #else /* CONFIG_PM */
 static void ata_eh_handle_port_suspend(struct ata_port *ap)
 { }
 
 static void ata_eh_handle_port_resume(struct ata_port *ap)
 { }
-
-static int ata_eh_suspend(struct ata_port *ap, struct ata_device **r_failed_dev)
-{
-	return 0;
-}
-
-static void ata_eh_prep_resume(struct ata_port *ap)
-{ }
-
-static int ata_eh_resume(struct ata_port *ap, struct ata_device **r_failed_dev)
-{
-	return 0;
-}
 #endif /* CONFIG_PM */
 
 static void ata_ering_record(struct ata_ering *ering, int is_io,
@@ -567,6 +550,9 @@ void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
 void ata_port_schedule_eh(struct ata_port *ap)
 {
 	WARN_ON(!ap->ops->error_handler);
+
+	if (ap->pflags & ATA_PFLAG_INITIALIZING)
+		return;
 
 	ap->pflags |= ATA_PFLAG_EH_PENDING;
 	scsi_schedule_eh(ap->scsi_host);
@@ -1791,7 +1777,7 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 		if (ehc->i.flags & ATA_EHI_DID_RESET)
 			readid_flags |= ATA_READID_POSTRESET;
 
-		if (action & ATA_EH_REVALIDATE && ata_dev_ready(dev)) {
+		if ((action & ATA_EH_REVALIDATE) && ata_dev_enabled(dev)) {
 			if (ata_port_offline(ap)) {
 				rc = -EIO;
 				goto err;
@@ -1872,166 +1858,6 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 	return rc;
 }
 
-#ifdef CONFIG_PM
-/**
- *	ata_eh_suspend - handle suspend EH action
- *	@ap: target host port
- *	@r_failed_dev: result parameter to indicate failing device
- *
- *	Handle suspend EH action.  Disk devices are spinned down and
- *	other types of devices are just marked suspended.  Once
- *	suspended, no EH action to the device is allowed until it is
- *	resumed.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep).
- *
- *	RETURNS:
- *	0 on success, -errno otherwise
- */
-static int ata_eh_suspend(struct ata_port *ap, struct ata_device **r_failed_dev)
-{
-	struct ata_device *dev;
-	int i, rc = 0;
-
-	DPRINTK("ENTER\n");
-
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		unsigned long flags;
-		unsigned int action, err_mask;
-
-		dev = &ap->device[i];
-		action = ata_eh_dev_action(dev);
-
-		if (!ata_dev_enabled(dev) || !(action & ATA_EH_SUSPEND))
-			continue;
-
-		WARN_ON(dev->flags & ATA_DFLAG_SUSPENDED);
-
-		ata_eh_about_to_do(ap, dev, ATA_EH_SUSPEND);
-
-		if (dev->class == ATA_DEV_ATA && !(action & ATA_EH_PM_FREEZE)) {
-			/* flush cache */
-			rc = ata_flush_cache(dev);
-			if (rc)
-				break;
-
-			/* spin down */
-			err_mask = ata_do_simple_cmd(dev, ATA_CMD_STANDBYNOW1);
-			if (err_mask) {
-				ata_dev_printk(dev, KERN_ERR, "failed to "
-					       "spin down (err_mask=0x%x)\n",
-					       err_mask);
-				rc = -EIO;
-				break;
-			}
-		}
-
-		spin_lock_irqsave(ap->lock, flags);
-		dev->flags |= ATA_DFLAG_SUSPENDED;
-		spin_unlock_irqrestore(ap->lock, flags);
-
-		ata_eh_done(ap, dev, ATA_EH_SUSPEND);
-	}
-
-	if (rc)
-		*r_failed_dev = dev;
-
-	DPRINTK("EXIT\n");
-	return rc;
-}
-
-/**
- *	ata_eh_prep_resume - prep for resume EH action
- *	@ap: target host port
- *
- *	Clear SUSPENDED in preparation for scheduled resume actions.
- *	This allows other parts of EH to access the devices being
- *	resumed.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep).
- */
-static void ata_eh_prep_resume(struct ata_port *ap)
-{
-	struct ata_device *dev;
-	unsigned long flags;
-	int i;
-
-	DPRINTK("ENTER\n");
-
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		unsigned int action;
-
-		dev = &ap->device[i];
-		action = ata_eh_dev_action(dev);
-
-		if (!ata_dev_enabled(dev) || !(action & ATA_EH_RESUME))
-			continue;
-
-		spin_lock_irqsave(ap->lock, flags);
-		dev->flags &= ~ATA_DFLAG_SUSPENDED;
-		spin_unlock_irqrestore(ap->lock, flags);
-	}
-
-	DPRINTK("EXIT\n");
-}
-
-/**
- *	ata_eh_resume - handle resume EH action
- *	@ap: target host port
- *	@r_failed_dev: result parameter to indicate failing device
- *
- *	Handle resume EH action.  Target devices are already reset and
- *	revalidated.  Spinning up is the only operation left.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep).
- *
- *	RETURNS:
- *	0 on success, -errno otherwise
- */
-static int ata_eh_resume(struct ata_port *ap, struct ata_device **r_failed_dev)
-{
-	struct ata_device *dev;
-	int i, rc = 0;
-
-	DPRINTK("ENTER\n");
-
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		unsigned int action, err_mask;
-
-		dev = &ap->device[i];
-		action = ata_eh_dev_action(dev);
-
-		if (!ata_dev_enabled(dev) || !(action & ATA_EH_RESUME))
-			continue;
-
-		ata_eh_about_to_do(ap, dev, ATA_EH_RESUME);
-
-		if (dev->class == ATA_DEV_ATA && !(action & ATA_EH_PM_FREEZE)) {
-			err_mask = ata_do_simple_cmd(dev,
-						     ATA_CMD_IDLEIMMEDIATE);
-			if (err_mask) {
-				ata_dev_printk(dev, KERN_ERR, "failed to "
-					       "spin up (err_mask=0x%x)\n",
-					       err_mask);
-				rc = -EIO;
-				break;
-			}
-		}
-
-		ata_eh_done(ap, dev, ATA_EH_RESUME);
-	}
-
-	if (rc)
-		*r_failed_dev = dev;
-
-	DPRINTK("EXIT\n");
-	return 0;
-}
-#endif /* CONFIG_PM */
-
 static int ata_port_nr_enabled(struct ata_port *ap)
 {
 	int i, cnt = 0;
@@ -2056,17 +1882,6 @@ static int ata_eh_skip_recovery(struct ata_port *ap)
 {
 	struct ata_eh_context *ehc = &ap->eh_context;
 	int i;
-
-	/* skip if all possible devices are suspended */
-	for (i = 0; i < ata_port_max_devices(ap); i++) {
-		struct ata_device *dev = &ap->device[i];
-
-		if (!(dev->flags & ATA_DFLAG_SUSPENDED))
-			break;
-	}
-
-	if (i == ata_port_max_devices(ap))
-		return 1;
 
 	/* thaw frozen port, resume link and recover failed devices */
 	if ((ap->pflags & ATA_PFLAG_FROZEN) ||
@@ -2147,9 +1962,6 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	if (ap->pflags & ATA_PFLAG_UNLOADING)
 		goto out;
 
-	/* prep for resume */
-	ata_eh_prep_resume(ap);
-
 	/* skip EH if possible. */
 	if (ata_eh_skip_recovery(ap))
 		ehc->i.action = 0;
@@ -2177,11 +1989,6 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	if (rc)
 		goto dev_fail;
 
-	/* resume devices */
-	rc = ata_eh_resume(ap, &dev);
-	if (rc)
-		goto dev_fail;
-
 	/* configure transfer mode if necessary */
 	if (ehc->i.flags & ATA_EHI_SETMODE) {
 		rc = ata_set_mode(ap, &dev);
@@ -2190,25 +1997,16 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		ehc->i.flags &= ~ATA_EHI_SETMODE;
 	}
 
-	/* suspend devices */
-	rc = ata_eh_suspend(ap, &dev);
-	if (rc)
-		goto dev_fail;
-
 	goto out;
 
  dev_fail:
 	ehc->tries[dev->devno]--;
 
 	switch (rc) {
-	case -EINVAL:
-		/* eeek, something went very wrong, give up */
-		ehc->tries[dev->devno] = 0;
-		break;
-
 	case -ENODEV:
 		/* device missing or wrong IDENTIFY data, schedule probing */
 		ehc->i.probe_mask |= (1 << dev->devno);
+	case -EINVAL:
 		/* give it just one more chance */
 		ehc->tries[dev->devno] = min(ehc->tries[dev->devno], 1);
 	case -EIO:
@@ -2390,22 +2188,13 @@ static void ata_eh_handle_port_suspend(struct ata_port *ap)
  *
  *	Resume @ap.
  *
- *	This function also waits upto one second until all devices
- *	hanging off this port requests resume EH action.  This is to
- *	prevent invoking EH and thus reset multiple times on resume.
- *
- *	On DPM resume, where some of devices might not be resumed
- *	together, this may delay port resume upto one second, but such
- *	DPM resumes are rare and 1 sec delay isn't too bad.
- *
  *	LOCKING:
  *	Kernel thread context (may sleep).
  */
 static void ata_eh_handle_port_resume(struct ata_port *ap)
 {
-	unsigned long timeout;
 	unsigned long flags;
-	int i, rc = 0;
+	int rc = 0;
 
 	/* are we resuming? */
 	spin_lock_irqsave(ap->lock, flags);
@@ -2416,31 +2205,12 @@ static void ata_eh_handle_port_resume(struct ata_port *ap)
 	}
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	/* spurious? */
-	if (!(ap->pflags & ATA_PFLAG_SUSPENDED))
-		goto done;
+	WARN_ON(!(ap->pflags & ATA_PFLAG_SUSPENDED));
 
 	if (ap->ops->port_resume)
 		rc = ap->ops->port_resume(ap);
 
-	/* give devices time to request EH */
-	timeout = jiffies + HZ; /* 1s max */
-	while (1) {
-		for (i = 0; i < ATA_MAX_DEVICES; i++) {
-			struct ata_device *dev = &ap->device[i];
-			unsigned int action = ata_eh_dev_action(dev);
-
-			if ((dev->flags & ATA_DFLAG_SUSPENDED) &&
-			    !(action & ATA_EH_RESUME))
-				break;
-		}
-
-		if (i == ATA_MAX_DEVICES || time_after(jiffies, timeout))
-			break;
-		msleep(10);
-	}
-
- done:
+	/* report result */
 	spin_lock_irqsave(ap->lock, flags);
 	ap->pflags &= ~(ATA_PFLAG_PM_PENDING | ATA_PFLAG_SUSPENDED);
 	if (ap->pm_result) {

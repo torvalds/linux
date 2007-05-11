@@ -510,133 +510,6 @@ static void ata_dump_status(unsigned id, struct ata_taskfile *tf)
 	}
 }
 
-#ifdef CONFIG_PM
-/**
- *	ata_scsi_device_suspend - suspend ATA device associated with sdev
- *	@sdev: the SCSI device to suspend
- *	@mesg: target power management message
- *
- *	Request suspend EH action on the ATA device associated with
- *	@sdev and wait for the operation to complete.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep).
- *
- *	RETURNS:
- *	0 on success, -errno otherwise.
- */
-int ata_scsi_device_suspend(struct scsi_device *sdev, pm_message_t mesg)
-{
-	struct ata_port *ap = ata_shost_to_port(sdev->host);
-	struct ata_device *dev = ata_scsi_find_dev(ap, sdev);
-	unsigned long flags;
-	unsigned int action;
-	int rc = 0;
-
-	if (!dev)
-		goto out;
-
-	spin_lock_irqsave(ap->lock, flags);
-
-	/* wait for the previous resume to complete */
-	while (dev->flags & ATA_DFLAG_SUSPENDED) {
-		spin_unlock_irqrestore(ap->lock, flags);
-		ata_port_wait_eh(ap);
-		spin_lock_irqsave(ap->lock, flags);
-	}
-
-	/* if @sdev is already detached, nothing to do */
-	if (sdev->sdev_state == SDEV_OFFLINE ||
-	    sdev->sdev_state == SDEV_CANCEL || sdev->sdev_state == SDEV_DEL)
-		goto out_unlock;
-
-	/* request suspend */
-	action = ATA_EH_SUSPEND;
-	if (mesg.event != PM_EVENT_SUSPEND)
-		action |= ATA_EH_PM_FREEZE;
-	ap->eh_info.dev_action[dev->devno] |= action;
-	ap->eh_info.flags |= ATA_EHI_QUIET;
-	ata_port_schedule_eh(ap);
-
-	spin_unlock_irqrestore(ap->lock, flags);
-
-	/* wait for EH to do the job */
-	ata_port_wait_eh(ap);
-
-	spin_lock_irqsave(ap->lock, flags);
-
-	/* If @sdev is still attached but the associated ATA device
-	 * isn't suspended, the operation failed.
-	 */
-	if (sdev->sdev_state != SDEV_OFFLINE &&
-	    sdev->sdev_state != SDEV_CANCEL && sdev->sdev_state != SDEV_DEL &&
-	    !(dev->flags & ATA_DFLAG_SUSPENDED))
-		rc = -EIO;
-
- out_unlock:
-	spin_unlock_irqrestore(ap->lock, flags);
- out:
-	if (rc == 0)
-		sdev->sdev_gendev.power.power_state = mesg;
-	return rc;
-}
-
-/**
- *	ata_scsi_device_resume - resume ATA device associated with sdev
- *	@sdev: the SCSI device to resume
- *
- *	Request resume EH action on the ATA device associated with
- *	@sdev and return immediately.  This enables parallel
- *	wakeup/spinup of devices.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep).
- *
- *	RETURNS:
- *	0.
- */
-int ata_scsi_device_resume(struct scsi_device *sdev)
-{
-	struct ata_port *ap = ata_shost_to_port(sdev->host);
-	struct ata_device *dev = ata_scsi_find_dev(ap, sdev);
-	struct ata_eh_info *ehi = &ap->eh_info;
-	unsigned long flags;
-	unsigned int action;
-
-	if (!dev)
-		goto out;
-
-	spin_lock_irqsave(ap->lock, flags);
-
-	/* if @sdev is already detached, nothing to do */
-	if (sdev->sdev_state == SDEV_OFFLINE ||
-	    sdev->sdev_state == SDEV_CANCEL || sdev->sdev_state == SDEV_DEL)
-		goto out_unlock;
-
-	/* request resume */
-	action = ATA_EH_RESUME;
-	if (sdev->sdev_gendev.power.power_state.event == PM_EVENT_SUSPEND)
-		__ata_ehi_hotplugged(ehi);
-	else
-		action |= ATA_EH_PM_FREEZE | ATA_EH_SOFTRESET;
-	ehi->dev_action[dev->devno] |= action;
-
-	/* We don't want autopsy and verbose EH messages.  Disable
-	 * those if we're the only device on this link.
-	 */
-	if (ata_port_max_devices(ap) == 1)
-		ehi->flags |= ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET;
-
-	ata_port_schedule_eh(ap);
-
- out_unlock:
-	spin_unlock_irqrestore(ap->lock, flags);
- out:
-	sdev->sdev_gendev.power.power_state = PMSG_ON;
-	return 0;
-}
-#endif /* CONFIG_PM */
-
 /**
  *	ata_to_sense_error - convert ATA error to SCSI error
  *	@id: ATA device number
@@ -929,6 +802,8 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 
 	blk_queue_max_phys_segments(sdev->request_queue, LIBATA_MAX_PRD);
 
+	sdev->manage_start_stop = 1;
+
 	if (dev)
 		ata_scsi_dev_config(sdev, dev);
 
@@ -1069,9 +944,35 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc)
 		}
 
 		tf->command = ATA_CMD_VERIFY;	/* READ VERIFY */
-	} else
+	} else {
+		/* XXX: This is for backward compatibility, will be
+		 * removed.  Read Documentation/feature-removal-schedule.txt
+		 * for more info.
+		 */
+		if (ata_spindown_compat &&
+		    (system_state == SYSTEM_HALT ||
+		     system_state == SYSTEM_POWER_OFF)) {
+			static int warned = 0;
+
+			if (!warned) {
+				spin_unlock_irq(qc->ap->lock);
+				ata_dev_printk(qc->dev, KERN_WARNING,
+					"DISK MIGHT NOT BE SPUN DOWN PROPERLY. "
+					"UPDATE SHUTDOWN UTILITY\n");
+				ata_dev_printk(qc->dev, KERN_WARNING,
+					"For more info, visit "
+					"http://linux-ata.org/shutdown.html\n");
+				warned = 1;
+				ssleep(5);
+				spin_lock_irq(qc->ap->lock);
+			}
+			scmd->result = SAM_STAT_GOOD;
+			return 1;
+		}
+
 		/* Issue ATA STANDBY IMMEDIATE command */
 		tf->command = ATA_CMD_STANDBYNOW1;
+	}
 
 	/*
 	 * Standby and Idle condition timers could be implemented but that

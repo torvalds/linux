@@ -363,10 +363,6 @@ static struct scsi_host_template optidma_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
-#ifdef CONFIG_PM
-	.resume			= ata_scsi_device_resume,
-	.suspend		= ata_scsi_device_suspend,
-#endif
 };
 
 static struct ata_port_operations optidma_port_ops = {
@@ -486,14 +482,14 @@ done_nomsg:		/* Wrong chip revision */
 
 static int optidma_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	static struct ata_port_info info_82c700 = {
+	static const struct ata_port_info info_82c700 = {
 		.sht = &optidma_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
 		.port_ops = &optidma_port_ops
 	};
-	static struct ata_port_info info_82c700_udma = {
+	static const struct ata_port_info info_82c700_udma = {
 		.sht = &optidma_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
@@ -501,8 +497,7 @@ static int optidma_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.udma_mask = 0x07,
 		.port_ops = &optiplus_port_ops
 	};
-	static struct ata_port_info *port_info[2];
-	struct ata_port_info *info = &info_82c700;
+	const struct ata_port_info *ppi[] = { &info_82c700, NULL };
 	static int printed_version;
 
 	if (!printed_version++)
@@ -514,10 +509,9 @@ static int optidma_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	pci_clock = inb(0x1F5) & 1;		/* 0 = 33Mhz, 1 = 25Mhz */
 
 	if (optiplus_with_udma(dev))
-		info = &info_82c700_udma;
+		ppi[0] = &info_82c700_udma;
 
-	port_info[0] = port_info[1] = info;
-	return ata_pci_init_one(dev, port_info, 2);
+	return ata_pci_init_one(dev, ppi);
 }
 
 static const struct pci_device_id optidma[] = {

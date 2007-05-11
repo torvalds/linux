@@ -244,10 +244,6 @@ static struct scsi_host_template pdc202xx_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
-#ifdef CONFIG_PM
-	.resume			= ata_scsi_device_resume,
-	.suspend		= ata_scsi_device_suspend,
-#endif
 };
 
 static struct ata_port_operations pdc2024x_port_ops = {
@@ -321,7 +317,7 @@ static struct ata_port_operations pdc2026x_port_ops = {
 
 static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	static struct ata_port_info info[3] = {
+	static const struct ata_port_info info[3] = {
 		{
 			.sht = &pdc202xx_sht,
 			.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
@@ -348,9 +344,7 @@ static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id
 		}
 
 	};
-	static struct ata_port_info *port_info[2];
-
-	port_info[0] = port_info[1] = &info[id->driver_data];
+	const struct ata_port_info *ppi[] = { &info[id->driver_data], NULL };
 
 	if (dev->device == PCI_DEVICE_ID_PROMISE_20265) {
 		struct pci_dev *bridge = dev->bus->self;
@@ -362,7 +356,7 @@ static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id
 				return -ENODEV;
 		}
 	}
-	return ata_pci_init_one(dev, port_info, 2);
+	return ata_pci_init_one(dev, ppi);
 }
 
 static const struct pci_device_id pdc202xx[] = {

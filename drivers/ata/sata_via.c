@@ -116,10 +116,6 @@ static struct scsi_host_template svia_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
-#ifdef CONFIG_PM
-	.suspend		= ata_scsi_device_suspend,
-	.resume			= ata_scsi_device_resume,
-#endif
 };
 
 static const struct ata_port_operations vt6420_sata_ops = {
@@ -415,7 +411,7 @@ static int vt6420_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 	struct ata_host *host;
 	int rc;
 
-	rc = ata_pci_prepare_native_host(pdev, ppi, 2, &host);
+	rc = ata_pci_prepare_native_host(pdev, ppi, &host);
 	if (rc)
 		return rc;
 	*r_host = host;

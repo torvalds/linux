@@ -620,10 +620,6 @@ static struct scsi_host_template it821x_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
-#ifdef CONFIG_PM
-	.resume			= ata_scsi_device_resume,
-	.suspend		= ata_scsi_device_suspend,
-#endif
 };
 
 static struct ata_port_operations it821x_smart_port_ops = {
@@ -722,14 +718,14 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	u8 conf;
 
-	static struct ata_port_info info_smart = {
+	static const struct ata_port_info info_smart = {
 		.sht = &it821x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
 		.port_ops = &it821x_smart_port_ops
 	};
-	static struct ata_port_info info_passthru = {
+	static const struct ata_port_info info_passthru = {
 		.sht = &it821x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
@@ -737,8 +733,8 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.udma_mask = 0x7f,
 		.port_ops = &it821x_passthru_port_ops
 	};
-	static struct ata_port_info *port_info[2];
 
+	const struct ata_port_info *ppi[] = { NULL, NULL };
 	static char *mode[2] = { "pass through", "smart" };
 
 	/* Force the card into bypass mode if so requested */
@@ -751,11 +747,11 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	printk(KERN_INFO DRV_NAME ": controller in %s mode.\n", mode[conf]);
 	if (conf == 0)
-		port_info[0] = port_info[1] = &info_passthru;
+		ppi[0] = &info_passthru;
 	else
-		port_info[0] = port_info[1] = &info_smart;
+		ppi[0] = &info_smart;
 
-	return ata_pci_init_one(pdev, port_info, 2);
+	return ata_pci_init_one(pdev, ppi);
 }
 
 #ifdef CONFIG_PM

@@ -544,7 +544,7 @@ static int ata_resources_present(struct pci_dev *pdev, int port)
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-static int ata_pci_init_bmdma(struct ata_host *host)
+int ata_pci_init_bmdma(struct ata_host *host)
 {
 	struct device *gdev = host->dev;
 	struct pci_dev *pdev = to_pci_dev(gdev);
@@ -566,7 +566,7 @@ static int ata_pci_init_bmdma(struct ata_host *host)
 	}
 	host->iomap = pcim_iomap_table(pdev);
 
-	for (i = 0; i < host->n_ports; i++) {
+	for (i = 0; i < 2; i++) {
 		struct ata_port *ap = host->ports[i];
 		void __iomem *bmdma = host->iomap[4] + 8 * i;
 
@@ -585,37 +585,24 @@ static int ata_pci_init_bmdma(struct ata_host *host)
 /**
  *	ata_pci_init_native_host - acquire native ATA resources and init host
  *	@host: target ATA host
- *	@port_mask: ports to consider
  *
- *	Acquire native PCI ATA resources for @host and initialize
- *	@host accordoingly.
+ *	Acquire native PCI ATA resources for @host and initialize the
+ *	first two ports of @host accordingly.  Ports marked dummy are
+ *	skipped and allocation failure makes the port dummy.
  *
  *	LOCKING:
  *	Inherited from calling layer (may sleep).
  *
  *	RETURNS:
- *	0 on success, -errno otherwise.
+ *	0 if at least one port is initialized, -ENODEV if no port is
+ *	available.
  */
-int ata_pci_init_native_host(struct ata_host *host, unsigned int port_mask)
+int ata_pci_init_native_host(struct ata_host *host)
 {
 	struct device *gdev = host->dev;
 	struct pci_dev *pdev = to_pci_dev(gdev);
+	unsigned int mask = 0;
 	int i, rc;
-
-	/* Discard disabled ports.  Some controllers show their unused
-	 * channels this way.  Disabled ports are made dummy.
-	 */
-	for (i = 0; i < 2; i++) {
-		if ((port_mask & (1 << i)) && !ata_resources_present(pdev, i)) {
-			host->ports[i]->ops = &ata_dummy_port_ops;
-			port_mask &= ~(1 << i);
-		}
-	}
-
-	if (!port_mask) {
-		dev_printk(KERN_ERR, gdev, "no available port\n");
-		return -ENODEV;
-	}
 
 	/* request, iomap BARs and init port addresses accordingly */
 	for (i = 0; i < 2; i++) {
@@ -623,16 +610,27 @@ int ata_pci_init_native_host(struct ata_host *host, unsigned int port_mask)
 		int base = i * 2;
 		void __iomem * const *iomap;
 
-		if (!(port_mask & (1 << i)))
+		if (ata_port_is_dummy(ap))
 			continue;
+
+		/* Discard disabled ports.  Some controllers show
+		 * their unused channels this way.  Disabled ports are
+		 * made dummy.
+		 */
+		if (!ata_resources_present(pdev, i)) {
+			ap->ops = &ata_dummy_port_ops;
+			continue;
+		}
 
 		rc = pcim_iomap_regions(pdev, 0x3 << base, DRV_NAME);
 		if (rc) {
-			dev_printk(KERN_ERR, gdev, "failed to request/iomap "
-				   "BARs for port %d (errno=%d)\n", i, rc);
+			dev_printk(KERN_WARNING, gdev,
+				   "failed to request/iomap BARs for port %d "
+				   "(errno=%d)\n", i, rc);
 			if (rc == -EBUSY)
 				pcim_pin_device(pdev);
-			return rc;
+			ap->ops = &ata_dummy_port_ops;
+			continue;
 		}
 		host->iomap = iomap = pcim_iomap_table(pdev);
 
@@ -641,6 +639,13 @@ int ata_pci_init_native_host(struct ata_host *host, unsigned int port_mask)
 		ap->ioaddr.ctl_addr = (void __iomem *)
 			((unsigned long)iomap[base + 1] | ATA_PCI_CTL_OFS);
 		ata_std_ports(&ap->ioaddr);
+
+		mask |= 1 << i;
+	}
+
+	if (!mask) {
+		dev_printk(KERN_ERR, gdev, "no available native port\n");
+		return -ENODEV;
 	}
 
 	return 0;
@@ -649,8 +654,7 @@ int ata_pci_init_native_host(struct ata_host *host, unsigned int port_mask)
 /**
  *	ata_pci_prepare_native_host - helper to prepare native PCI ATA host
  *	@pdev: target PCI device
- *	@ppi: array of port_info
- *	@n_ports: number of ports to allocate
+ *	@ppi: array of port_info, must be enough for two ports
  *	@r_host: out argument for the initialized ATA host
  *
  *	Helper to allocate ATA host for @pdev, acquire all native PCI
@@ -664,10 +668,9 @@ int ata_pci_init_native_host(struct ata_host *host, unsigned int port_mask)
  */
 int ata_pci_prepare_native_host(struct pci_dev *pdev,
 				const struct ata_port_info * const * ppi,
-				int n_ports, struct ata_host **r_host)
+				struct ata_host **r_host)
 {
 	struct ata_host *host;
-	unsigned int port_mask;
 	int rc;
 
 	if (!devres_open_group(&pdev->dev, NULL, GFP_KERNEL))
@@ -681,11 +684,7 @@ int ata_pci_prepare_native_host(struct pci_dev *pdev,
 		goto err_out;
 	}
 
-	port_mask = ATA_PORT_PRIMARY;
-	if (n_ports > 1)
-		port_mask |= ATA_PORT_SECONDARY;
-
-	rc = ata_pci_init_native_host(host, port_mask);
+	rc = ata_pci_init_native_host(host);
 	if (rc)
 		goto err_out;
 
@@ -777,8 +776,11 @@ static int ata_init_legacy_port(struct ata_port *ap,
 	/* iomap cmd and ctl ports */
 	legacy_dr->cmd_addr[port_no] = ioport_map(cmd_port, 8);
 	legacy_dr->ctl_addr[port_no] = ioport_map(ctl_port, 1);
-	if (!legacy_dr->cmd_addr[port_no] || !legacy_dr->ctl_addr[port_no])
+	if (!legacy_dr->cmd_addr[port_no] || !legacy_dr->ctl_addr[port_no]) {
+		dev_printk(KERN_WARNING, host->dev,
+			   "failed to map cmd/ctl ports\n");
 		return -ENOMEM;
+	}
 
 	/* init IO addresses */
 	ap->ioaddr.cmd_addr = legacy_dr->cmd_addr[port_no];
@@ -792,19 +794,20 @@ static int ata_init_legacy_port(struct ata_port *ap,
 /**
  *	ata_init_legacy_host - acquire legacy ATA resources and init ATA host
  *	@host: target ATA host
- *	@legacy_mask: out parameter, mask indicating ports is in legacy mode
  *	@was_busy: out parameter, indicates whether any port was busy
  *
- *	Acquire legacy ATA resources for ports.
+ *	Acquire legacy ATA resources for the first two ports of @host
+ *	and initialize it accordingly.  Ports marked dummy are skipped
+ *	and resource acquistion failure makes the port dummy.
  *
  *	LOCKING:
  *	Inherited from calling layer (may sleep).
  *
  *	RETURNS:
- *	0 on success, -errno otherwise.
+ *	0 if at least one port is initialized, -ENODEV if no port is
+ *	available.
  */
-static int ata_init_legacy_host(struct ata_host *host,
-				unsigned int *legacy_mask, int *was_busy)
+static int ata_init_legacy_host(struct ata_host *host, int *was_busy)
 {
 	struct device *gdev = host->dev;
 	struct ata_legacy_devres *legacy_dr;
@@ -821,22 +824,23 @@ static int ata_init_legacy_host(struct ata_host *host,
 	devres_add(gdev, legacy_dr);
 
 	for (i = 0; i < 2; i++) {
-		*legacy_mask &= ~(1 << i);
+		if (ata_port_is_dummy(host->ports[i]))
+			continue;
+
 		rc = ata_init_legacy_port(host->ports[i], legacy_dr);
 		if (rc == 0)
 			legacy_dr->mask |= 1 << i;
-		else if (rc == -EBUSY)
-			(*was_busy)++;
+		else {
+			if (rc == -EBUSY)
+				(*was_busy)++;
+			host->ports[i]->ops = &ata_dummy_port_ops;
+		}
 	}
 
-	if (!legacy_dr->mask)
-		return -EBUSY;
-
-	for (i = 0; i < 2; i++)
-		if (!(legacy_dr->mask & (1 << i)))
-			host->ports[i]->ops = &ata_dummy_port_ops;
-
-	*legacy_mask |= legacy_dr->mask;
+	if (!legacy_dr->mask) {
+		dev_printk(KERN_ERR, gdev, "no available legacy port\n");
+		return -ENODEV;
+	}
 
 	devres_remove_group(gdev, NULL);
 	return 0;
@@ -875,7 +879,7 @@ static int ata_request_legacy_irqs(struct ata_host *host,
 	legacy_dr = devres_find(host->dev, ata_legacy_release, NULL, NULL);
 	BUG_ON(!legacy_dr);
 
-	for (i = 0; i < host->n_ports; i++) {
+	for (i = 0; i < 2; i++) {
 		unsigned int irq;
 
 		/* FIXME: ATA_*_IRQ() should take generic device not pci_dev */
@@ -923,8 +927,7 @@ static int ata_request_legacy_irqs(struct ata_host *host,
 /**
  *	ata_pci_init_one - Initialize/register PCI IDE host controller
  *	@pdev: Controller to be initialized
- *	@port_info: Information from low-level host driver
- *	@n_ports: Number of ports attached to host controller
+ *	@ppi: array of port_info, must be enough for two ports
  *
  *	This is a helper function which can be called from a driver's
  *	xxx_init_one() probe function if the hardware uses traditional
@@ -944,26 +947,34 @@ static int ata_request_legacy_irqs(struct ata_host *host,
  *	RETURNS:
  *	Zero on success, negative on errno-based value on error.
  */
-
-int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
-		      unsigned int n_ports)
+int ata_pci_init_one(struct pci_dev *pdev,
+		     const struct ata_port_info * const * ppi)
 {
 	struct device *dev = &pdev->dev;
+	const struct ata_port_info *pi = NULL;
 	struct ata_host *host = NULL;
-	const struct ata_port_info *port[2];
 	u8 mask;
-	unsigned int legacy_mode = 0;
-	int rc;
+	int legacy_mode = 0;
+	int i, rc;
 
 	DPRINTK("ENTER\n");
 
+	/* look up the first valid port_info */
+	for (i = 0; i < 2 && ppi[i]; i++) {
+		if (ppi[i]->port_ops != &ata_dummy_port_ops) {
+			pi = ppi[i];
+			break;
+		}
+	}
+
+	if (!pi) {
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "no valid port_info specified\n");
+		return -EINVAL;
+	}
+
 	if (!devres_open_group(dev, NULL, GFP_KERNEL))
 		return -ENOMEM;
-
-	BUG_ON(n_ports < 1 || n_ports > 2);
-
-	port[0] = port_info[0];
-	port[1] = (n_ports > 1) ? port_info[1] : NULL;
 
 	/* FIXME: Really for ATA it isn't safe because the device may be
 	   multi-purpose and we want to leave it alone if it was already
@@ -984,7 +995,7 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 		pci_read_config_byte(pdev, PCI_CLASS_PROG, &tmp8);
 		mask = (1 << 2) | (1 << 0);
 		if ((tmp8 & mask) != mask)
-			legacy_mode = (1 << 3);
+			legacy_mode = 1;
 #if defined(CONFIG_NO_ATA_LEGACY)
 		/* Some platforms with PCI limits cannot address compat
 		   port space. In that case we punt if their firmware has
@@ -998,7 +1009,7 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 	}
 
 	/* alloc and init host */
-	host = ata_host_alloc_pinfo(dev, port, n_ports);
+	host = ata_host_alloc_pinfo(dev, ppi, 2);
 	if (!host) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			   "failed to allocate ATA host\n");
@@ -1007,19 +1018,13 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 	}
 
 	if (!legacy_mode) {
-		unsigned int port_mask;
-
-		port_mask = ATA_PORT_PRIMARY;
-		if (n_ports > 1)
-			port_mask |= ATA_PORT_SECONDARY;
-
-		rc = ata_pci_init_native_host(host, port_mask);
+		rc = ata_pci_init_native_host(host);
 		if (rc)
 			goto err_out;
 	} else {
 		int was_busy = 0;
 
-		rc = ata_init_legacy_host(host, &legacy_mode, &was_busy);
+		rc = ata_init_legacy_host(host, &was_busy);
 		if (was_busy)
 			pcim_pin_device(pdev);
 		if (rc)
@@ -1040,8 +1045,7 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 		goto err_out;
 
 	if (!legacy_mode)
-		rc = devm_request_irq(dev, pdev->irq,
-				      port_info[0]->port_ops->irq_handler,
+		rc = devm_request_irq(dev, pdev->irq, pi->port_ops->irq_handler,
 				      IRQF_SHARED, DRV_NAME, host);
 	else {
 		irq_handler_t handler[2] = { host->ops->irq_handler,
@@ -1055,7 +1059,7 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 		goto err_out;
 
 	/* register */
-	rc = ata_host_register(host, port_info[0]->sht);
+	rc = ata_host_register(host, pi->sht);
 	if (rc)
 		goto err_out;
 

@@ -2,11 +2,9 @@
 # SATA/PATA driver configuration
 #
 
-menu "Serial ATA (prod) and Parallel ATA (experimental) drivers"
+menuconfig ATA
+	tristate "Serial ATA (prod) and Parallel ATA (experimental) drivers"
 	depends on HAS_IOMEM
-
-config ATA
-	tristate "ATA device support"
 	depends on BLOCK
 	depends on !(M32R || M68K) || BROKEN
 	depends on !SUN4 || BROKEN
@@ -23,6 +21,19 @@ if ATA
 config ATA_NONSTANDARD
        bool
        default n
+
+config ATA_ACPI
+	bool
+	depends on ACPI && PCI
+	default y
+	help
+	  This option adds support for ATA-related ACPI objects.
+	  These ACPI objects add the ability to retrieve taskfiles
+	  from the ACPI BIOS and write them to the disk controller.
+	  These objects may be related to performance, security,
+	  power management, or other areas.
+	  You can disable this at kernel boot time by using the
+	  option libata.noacpi=1
 
 config SATA_AHCI
 	tristate "AHCI SATA support"
@@ -156,19 +167,6 @@ config SATA_INIC162X
 	depends on PCI && EXPERIMENTAL
 	help
 	  This option enables support for Initio 162x Serial ATA.
-
-config SATA_ACPI
-	bool
-	depends on ACPI && PCI
-	default y
-	help
-	  This option adds support for SATA-related ACPI objects.
-	  These ACPI objects add the ability to retrieve taskfiles
-	  from the ACPI BIOS and write them to the disk controller.
-	  These objects may be related to performance, security,
-	  power management, or other areas.
-	  You can disable this at kernel boot time by using the
-	  option libata.noacpi=1
 
 config PATA_ALI
 	tristate "ALi PATA support (Experimental)"
@@ -585,6 +583,4 @@ config PATA_SCC
 
 	  If unsure, say N.
 
-endif
-endmenu
-
+endif # ATA

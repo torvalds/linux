@@ -176,10 +176,6 @@ static struct scsi_host_template cs5530_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
-#ifdef CONFIG_PM
-	.resume			= ata_scsi_device_resume,
-	.suspend		= ata_scsi_device_suspend,
-#endif
 };
 
 static struct ata_port_operations cs5530_port_ops = {
@@ -339,7 +335,7 @@ fail_put:
 
 static int cs5530_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	static struct ata_port_info info = {
+	static const struct ata_port_info info = {
 		.sht = &cs5530_sht,
 		.flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
@@ -348,23 +344,23 @@ static int cs5530_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &cs5530_port_ops
 	};
 	/* The docking connector doesn't do UDMA, and it seems not MWDMA */
-	static struct ata_port_info info_palmax_secondary = {
+	static const struct ata_port_info info_palmax_secondary = {
 		.sht = &cs5530_sht,
 		.flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
 		.port_ops = &cs5530_port_ops
 	};
-	static struct ata_port_info *port_info[2] = { &info, &info };
+	const struct ata_port_info *ppi[] = { &info, NULL };
 
 	/* Chip initialisation */
 	if (cs5530_init_chip())
 		return -ENODEV;
 
 	if (cs5530_is_palmax())
-		port_info[1] = &info_palmax_secondary;
+		ppi[1] = &info_palmax_secondary;
 
 	/* Now kick off ATA set up */
-	return ata_pci_init_one(pdev, port_info, 2);
+	return ata_pci_init_one(pdev, ppi);
 }
 
 #ifdef CONFIG_PM

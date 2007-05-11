@@ -291,10 +291,6 @@ static struct scsi_host_template ali_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
-#ifdef CONFIG_PM
-	.resume			= ata_scsi_device_resume,
-	.suspend		= ata_scsi_device_suspend,
-#endif
 };
 
 /*
@@ -522,14 +518,14 @@ static void ali_init_chipset(struct pci_dev *pdev)
 
 static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	static struct ata_port_info info_early = {
+	static const struct ata_port_info info_early = {
 		.sht = &ali_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
 		.port_ops = &ali_early_port_ops
 	};
 	/* Revision 0x20 added DMA */
-	static struct ata_port_info info_20 = {
+	static const struct ata_port_info info_20 = {
 		.sht = &ali_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST | ATA_FLAG_PIO_LBA48,
 		.pio_mask = 0x1f,
@@ -537,7 +533,7 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &ali_20_port_ops
 	};
 	/* Revision 0x20 with support logic added UDMA */
-	static struct ata_port_info info_20_udma = {
+	static const struct ata_port_info info_20_udma = {
 		.sht = &ali_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST | ATA_FLAG_PIO_LBA48,
 		.pio_mask = 0x1f,
@@ -546,7 +542,7 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &ali_20_port_ops
 	};
 	/* Revision 0xC2 adds UDMA66 */
-	static struct ata_port_info info_c2 = {
+	static const struct ata_port_info info_c2 = {
 		.sht = &ali_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST | ATA_FLAG_PIO_LBA48,
 		.pio_mask = 0x1f,
@@ -555,7 +551,7 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &ali_c2_port_ops
 	};
 	/* Revision 0xC3 is UDMA100 */
-	static struct ata_port_info info_c3 = {
+	static const struct ata_port_info info_c3 = {
 		.sht = &ali_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST | ATA_FLAG_PIO_LBA48,
 		.pio_mask = 0x1f,
@@ -564,7 +560,7 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &ali_c2_port_ops
 	};
 	/* Revision 0xC4 is UDMA133 */
-	static struct ata_port_info info_c4 = {
+	static const struct ata_port_info info_c4 = {
 		.sht = &ali_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST | ATA_FLAG_PIO_LBA48,
 		.pio_mask = 0x1f,
@@ -573,7 +569,7 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &ali_c2_port_ops
 	};
 	/* Revision 0xC5 is UDMA133 with LBA48 DMA */
-	static struct ata_port_info info_c5 = {
+	static const struct ata_port_info info_c5 = {
 		.sht = &ali_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
@@ -582,7 +578,7 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &ali_c5_port_ops
 	};
 
-	static struct ata_port_info *port_info[2];
+	const struct ata_port_info *ppi[] = { NULL, NULL };
 	u8 rev, tmp;
 	struct pci_dev *isa_bridge;
 
@@ -594,17 +590,17 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 
 	if (rev < 0x20) {
-		port_info[0] = port_info[1] = &info_early;
+		ppi[0] = &info_early;
 	} else if (rev < 0xC2) {
-        	port_info[0] = port_info[1] = &info_20;
+        	ppi[0] = &info_20;
 	} else if (rev == 0xC2) {
-        	port_info[0] = port_info[1] = &info_c2;
+        	ppi[0] = &info_c2;
 	} else if (rev == 0xC3) {
-        	port_info[0] = port_info[1] = &info_c3;
+        	ppi[0] = &info_c3;
 	} else if (rev == 0xC4) {
-        	port_info[0] = port_info[1] = &info_c4;
+        	ppi[0] = &info_c4;
 	} else
-        	port_info[0] = port_info[1] = &info_c5;
+        	ppi[0] = &info_c5;
 
 	ali_init_chipset(pdev);
 
@@ -613,10 +609,10 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		/* Are we paired with a UDMA capable chip */
 		pci_read_config_byte(isa_bridge, 0x5E, &tmp);
 		if ((tmp & 0x1E) == 0x12)
-	        	port_info[0] = port_info[1] = &info_20_udma;
+	        	ppi[0] = &info_20_udma;
 		pci_dev_put(isa_bridge);
 	}
-	return ata_pci_init_one(pdev, port_info, 2);
+	return ata_pci_init_one(pdev, ppi);
 }
 
 #ifdef CONFIG_PM

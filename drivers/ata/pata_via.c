@@ -301,10 +301,6 @@ static struct scsi_host_template via_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
-#ifdef CONFIG_PM
-	.resume			= ata_scsi_device_resume,
-	.suspend		= ata_scsi_device_suspend,
-#endif
 };
 
 static struct ata_port_operations via_port_ops = {
@@ -425,7 +421,7 @@ static void via_config_fifo(struct pci_dev *pdev, unsigned int flags)
 static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	/* Early VIA without UDMA support */
-	static struct ata_port_info via_mwdma_info = {
+	static const struct ata_port_info via_mwdma_info = {
 		.sht = &via_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SETXFER_POLLING,
 		.pio_mask = 0x1f,
@@ -433,7 +429,7 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &via_port_ops
 	};
 	/* Ditto with IRQ masking required */
-	static struct ata_port_info via_mwdma_info_borked = {
+	static const struct ata_port_info via_mwdma_info_borked = {
 		.sht = &via_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SETXFER_POLLING,
 		.pio_mask = 0x1f,
@@ -441,7 +437,7 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &via_port_ops_noirq,
 	};
 	/* VIA UDMA 33 devices (and borked 66) */
-	static struct ata_port_info via_udma33_info = {
+	static const struct ata_port_info via_udma33_info = {
 		.sht = &via_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SETXFER_POLLING,
 		.pio_mask = 0x1f,
@@ -450,7 +446,7 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &via_port_ops
 	};
 	/* VIA UDMA 66 devices */
-	static struct ata_port_info via_udma66_info = {
+	static const struct ata_port_info via_udma66_info = {
 		.sht = &via_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SETXFER_POLLING,
 		.pio_mask = 0x1f,
@@ -459,7 +455,7 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &via_port_ops
 	};
 	/* VIA UDMA 100 devices */
-	static struct ata_port_info via_udma100_info = {
+	static const struct ata_port_info via_udma100_info = {
 		.sht = &via_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SETXFER_POLLING,
 		.pio_mask = 0x1f,
@@ -468,7 +464,7 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &via_port_ops
 	};
 	/* UDMA133 with bad AST (All current 133) */
-	static struct ata_port_info via_udma133_info = {
+	static const struct ata_port_info via_udma133_info = {
 		.sht = &via_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SETXFER_POLLING,
 		.pio_mask = 0x1f,
@@ -476,7 +472,8 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.udma_mask = 0x7f,	/* FIXME: should check north bridge */
 		.port_ops = &via_port_ops
 	};
-	struct ata_port_info *port_info[2], *type;
+	struct ata_port_info type;
+	const struct ata_port_info *ppi[] = { &type, NULL };
 	struct pci_dev *isa = NULL;
 	const struct via_isa_bridge *config;
 	static int printed_version;
@@ -521,25 +518,25 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	switch(config->flags & VIA_UDMA) {
 		case VIA_UDMA_NONE:
 			if (config->flags & VIA_NO_UNMASK)
-				type = &via_mwdma_info_borked;
+				type = via_mwdma_info_borked;
 			else
-				type = &via_mwdma_info;
+				type = via_mwdma_info;
 			break;
 		case VIA_UDMA_33:
-			type = &via_udma33_info;
+			type = via_udma33_info;
 			break;
 		case VIA_UDMA_66:
-			type = &via_udma66_info;
+			type = via_udma66_info;
 			/* The 66 MHz devices require we enable the clock */
 			pci_read_config_dword(pdev, 0x50, &timing);
 			timing |= 0x80008;
 			pci_write_config_dword(pdev, 0x50, timing);
 			break;
 		case VIA_UDMA_100:
-			type = &via_udma100_info;
+			type = via_udma100_info;
 			break;
 		case VIA_UDMA_133:
-			type = &via_udma133_info;
+			type = via_udma133_info;
 			break;
 		default:
 			WARN_ON(1);
@@ -554,10 +551,9 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* We have established the device type, now fire it up */
-	type->private_data = (void *)config;
+	type.private_data = (void *)config;
 
-	port_info[0] = port_info[1] = type;
-	return ata_pci_init_one(pdev, port_info, 2);
+	return ata_pci_init_one(pdev, ppi);
 }
 
 #ifdef CONFIG_PM

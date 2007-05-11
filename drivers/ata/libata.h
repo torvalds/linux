@@ -58,6 +58,7 @@ extern int atapi_enabled;
 extern int atapi_dmadir;
 extern int libata_fua;
 extern int libata_noacpi;
+extern int ata_spindown_compat;
 extern struct ata_queued_cmd *ata_qc_new_init(struct ata_device *dev);
 extern int ata_build_rw_tf(struct ata_taskfile *tf, struct ata_device *dev,
 			   u64 block, u32 n_block, unsigned int tf_flags,
@@ -96,15 +97,15 @@ extern int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg);
 extern struct ata_port *ata_port_alloc(struct ata_host *host);
 
 /* libata-acpi.c */
-#ifdef CONFIG_SATA_ACPI
+#ifdef CONFIG_ATA_ACPI
 extern int ata_acpi_exec_tfs(struct ata_port *ap);
-extern int ata_acpi_push_id(struct ata_port *ap, unsigned int ix);
+extern int ata_acpi_push_id(struct ata_device *dev);
 #else
 static inline int ata_acpi_exec_tfs(struct ata_port *ap)
 {
 	return 0;
 }
-static inline int ata_acpi_push_id(struct ata_port *ap, unsigned int ix)
+static inline int ata_acpi_push_id(struct ata_device *dev)
 {
 	return 0;
 }

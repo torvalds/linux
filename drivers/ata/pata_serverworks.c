@@ -315,10 +315,6 @@ static struct scsi_host_template serverworks_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
-#ifdef CONFIG_PM
-	.resume			= ata_scsi_device_resume,
-	.suspend		= ata_scsi_device_suspend,
-#endif
 };
 
 static struct ata_port_operations serverworks_osb4_port_ops = {
@@ -479,8 +475,7 @@ static void serverworks_fixup_ht1000(struct pci_dev *pdev)
 
 static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	int ports = 2;
-	static struct ata_port_info info[4] = {
+	static const struct ata_port_info info[4] = {
 		{ /* OSB4 */
 			.sht = &serverworks_sht,
 			.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
@@ -511,8 +506,7 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 			.port_ops = &serverworks_csb_port_ops
 		}
 	};
-	static struct ata_port_info *port_info[2];
-	struct ata_port_info *devinfo = &info[id->driver_data];
+	const struct ata_port_info *ppi[] = { &info[id->driver_data], NULL };
 
 	/* Force master latency timer to 64 PCI clocks */
 	pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0x40);
@@ -521,7 +515,7 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 	if (pdev->device == PCI_DEVICE_ID_SERVERWORKS_OSB4IDE) {
 		/* Select non UDMA capable OSB4 if we can't do fixups */
 		if ( serverworks_fixup_osb4(pdev) < 0)
-			devinfo = &info[1];
+			ppi[0] = &info[1];
 	}
 	/* setup CSB5/CSB6 : South Bridge and IDE option RAID */
 	else if ((pdev->device == PCI_DEVICE_ID_SERVERWORKS_CSB5IDE) ||
@@ -531,11 +525,11 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 		 /* If the returned btr is the newer revision then
 		    select the right info block */
 		 if (serverworks_fixup_csb(pdev) == 3)
-		 	devinfo = &info[3];
+		 	ppi[0] = &info[3];
 
 		/* Is this the 3rd channel CSB6 IDE ? */
 		if (pdev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2)
-			ports = 1;
+			ppi[1] = &ata_dummy_port_info;
 	}
 	/* setup HT1000E */
 	else if (pdev->device == PCI_DEVICE_ID_SERVERWORKS_HT1000IDE)
@@ -544,8 +538,7 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 	if (pdev->device == PCI_DEVICE_ID_SERVERWORKS_CSB5IDE)
 		ata_pci_clear_simplex(pdev);
 
-	port_info[0] = port_info[1] = devinfo;
-	return ata_pci_init_one(pdev, port_info, ports);
+	return ata_pci_init_one(pdev, ppi);
 }
 
 #ifdef CONFIG_PM
