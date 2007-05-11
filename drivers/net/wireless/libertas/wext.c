@@ -17,7 +17,6 @@
 #include "defs.h"
 #include "dev.h"
 #include "join.h"
-#include "version.h"
 #include "wext.h"
 #include "assoc.h"
 
@@ -233,7 +232,7 @@ static int changeadhocchannel(wlan_private * priv, int channel)
 
 		// find out the BSSID that matches the current SSID
 		i = libertas_find_SSID_in_list(adapter, &curadhocssid, NULL,
-				   wlan802_11ibss);
+				   IW_MODE_ADHOC);
 
 		if (i >= 0) {
 			lbs_pr_debug(1, "SSID found at %d in List,"
@@ -316,13 +315,11 @@ static int get_active_data_rates(wlan_adapter * adapter,
 	ENTER();
 
 	if (adapter->connect_status != libertas_connected) {
-		if (adapter->inframode == wlan802_11infrastructure) {
-			//Infra. mode
+		if (adapter->mode == IW_MODE_INFRA) {
 			lbs_pr_debug(1, "Infra\n");
 			k = copyrates(rates, k, libertas_supported_rates,
 				      sizeof(libertas_supported_rates));
 		} else {
-			//ad-hoc mode
 			lbs_pr_debug(1, "Adhoc G\n");
 			k = copyrates(rates, k, libertas_adhoc_rates_g,
 				      sizeof(libertas_adhoc_rates_g));
@@ -586,20 +583,7 @@ static int wlan_get_mode(struct net_device *dev,
 
 	ENTER();
 
-	switch (adapter->inframode) {
-	case wlan802_11ibss:
-		*uwrq = IW_MODE_ADHOC;
-		break;
-
-	case wlan802_11infrastructure:
-		*uwrq = IW_MODE_INFRA;
-		break;
-
-	default:
-	case wlan802_11autounknown:
-		*uwrq = IW_MODE_AUTO;
-		break;
-	}
+	*uwrq = adapter->mode;
 
 	LEAVE();
 	return 0;
@@ -1002,148 +986,17 @@ static const struct iw_priv_args wlan_private_args[] = {
 	/*
 	 * { cmd, set_args, get_args, name }
 	 */
-	{
-	 WLANSCAN_TYPE,
-	 IW_PRIV_TYPE_CHAR | 8,
-	 IW_PRIV_TYPE_CHAR | 8,
-	 "scantype"},
-
-	{
-	 WLAN_SETINT_GETINT,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 ""},
-	{
-	 WLANNF,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "getNF"},
-	{
-	 WLANRSSI,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "getRSSI"},
-	{
-	 WLANENABLE11D,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "enable11d"},
-	{
-	 WLANADHOCGRATE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "adhocgrate"},
-
-	{
-	 WLAN_SUBCMD_SET_PRESCAN,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "prescan"},
-	{
-	 WLAN_SETONEINT_GETONEINT,
-	 IW_PRIV_TYPE_INT | 1,
-	 IW_PRIV_TYPE_INT | 1,
-	 ""},
-	{
-	 WLAN_BEACON_INTERVAL,
-	 IW_PRIV_TYPE_INT | 1,
-	 IW_PRIV_TYPE_INT | 1,
-	 "bcninterval"},
-	{
-	 WLAN_LISTENINTRVL,
-	 IW_PRIV_TYPE_INT | 1,
-	 IW_PRIV_TYPE_INT | 1,
-	 "lolisteninter"},
-	{
-	 WLAN_TXCONTROL,
-	 IW_PRIV_TYPE_INT | 1,
-	 IW_PRIV_TYPE_INT | 1,
-	 "txcontrol"},
-	{
-	 WLAN_NULLPKTINTERVAL,
-	 IW_PRIV_TYPE_INT | 1,
-	 IW_PRIV_TYPE_INT | 1,
-	 "psnullinterval"},
 	/* Using iwpriv sub-command feature */
 	{
 	 WLAN_SETONEINT_GETNONE,	/* IOCTL: 24 */
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 IW_PRIV_TYPE_NONE,
 	 ""},
-
-	{
-	 WLAN_SUBCMD_SETRXANTENNA,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "setrxant"},
-	{
-	 WLAN_SUBCMD_SETTXANTENNA,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "settxant"},
-	{
-	 WLANSETAUTHALG,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "authalgs",
-	 },
-	{
-	 WLANSET8021XAUTHALG,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "8021xauthalgs",
-	 },
-	{
-	 WLANSETENCRYPTIONMODE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "encryptionmode",
-	 },
 	{
 	 WLANSETREGION,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 IW_PRIV_TYPE_NONE,
 	 "setregioncode"},
-	{
-	 WLAN_SET_LISTEN_INTERVAL,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "setlisteninter"},
-	{
-	 WLAN_SET_MULTIPLE_DTIM,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "setmultipledtim"},
-	{
-	 WLAN_SET_ATIM_WINDOW,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "atimwindow"},
-	{
-	 WLANSETBCNAVG,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "setbcnavg"},
-	{
-	 WLANSETDATAAVG,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "setdataavg"},
-	{
-	 WLAN_SET_LINKMODE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "linkmode"},
-	{
-	 WLAN_SET_RADIOMODE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "radiomode"},
-	{
-	 WLAN_SET_DEBUGMODE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "debugmode"},
 	{
 	 WLAN_SUBCMD_MESH_SET_TTL,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
@@ -1160,41 +1013,6 @@ static const struct iw_priv_args wlan_private_args[] = {
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 "getregioncode"},
 	{
-	 WLAN_GET_LISTEN_INTERVAL,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "getlisteninter"},
-	{
-	 WLAN_GET_MULTIPLE_DTIM,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "getmultipledtim"},
-	{
-	 WLAN_GET_TX_RATE,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "gettxrate"},
-	{
-	 WLANGETBCNAVG,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "getbcnavg"},
-	{
-	 WLAN_GET_LINKMODE,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "get_linkmode"},
-	{
-	 WLAN_GET_RADIOMODE,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "get_radiomode"},
-	{
-	 WLAN_GET_DEBUGMODE,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "get_debugmode"},
-	{
 	 WLAN_SUBCMD_FWT_CLEANUP,
 	 IW_PRIV_TYPE_NONE,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
@@ -1210,60 +1028,10 @@ static const struct iw_priv_args wlan_private_args[] = {
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 "mesh_get_ttl"},
 	{
-	 WLAN_SETNONE_GETTWELVE_CHAR,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_CHAR | 12,
-	 ""},
-	{
-	 WLAN_SUBCMD_GETRXANTENNA,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_CHAR | 12,
-	 "getrxant"},
-	{
-	 WLAN_SUBCMD_GETTXANTENNA,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_CHAR | 12,
-	 "gettxant"},
-	{
-	 WLAN_GET_TSF,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_CHAR | 12,
-	 "gettsf"},
-	{
 	 WLAN_SETNONE_GETNONE,
 	 IW_PRIV_TYPE_NONE,
 	 IW_PRIV_TYPE_NONE,
 	 ""},
-	{
-	 WLANDEAUTH,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_NONE,
-	 "deauth"},
-	{
-	 WLANADHOCSTOP,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_NONE,
-	 "adhocstop"},
-	{
-	 WLANRADIOON,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_NONE,
-	 "radioon"},
-	{
-	 WLANRADIOOFF,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_NONE,
-	 "radiooff"},
-	{
-	 WLANWLANIDLEON,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_NONE,
-	 "wlanidle-on"},
-	{
-	 WLANWLANIDLEOFF,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_NONE,
-	 "wlanidle-off"},
 	{
 	 WLAN_SUBCMD_FWT_RESET,
 	 IW_PRIV_TYPE_NONE,
@@ -1327,90 +1095,15 @@ static const struct iw_priv_args wlan_private_args[] = {
 	 IW_PRIV_TYPE_CHAR | 128,
 	 "fwt_list_route"},
 	{
-	 WLANSCAN_MODE,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 "scanmode"},
-	{
-	 WLAN_GET_ADHOC_STATUS,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 "getadhocstatus"},
-	{
-	 WLAN_SETNONE_GETWORDCHAR,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 ""},
-	{
-	 WLANSETWPAIE,
-	 IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_FIXED | 24,
-	 IW_PRIV_TYPE_NONE,
-	 "setwpaie"},
-	{
-	 WLANGETLOG,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_CHAR | GETLOG_BUFSIZE,
-	 "getlog"},
-	{
 	 WLAN_SET_GET_SIXTEEN_INT,
 	 IW_PRIV_TYPE_INT | 16,
 	 IW_PRIV_TYPE_INT | 16,
 	 ""},
 	{
-	 WLAN_TPCCFG,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "tpccfg"},
-	{
-	 WLAN_POWERCFG,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "powercfg"},
-	{
-	 WLAN_AUTO_FREQ_SET,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "setafc"},
-	{
-	 WLAN_AUTO_FREQ_GET,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "getafc"},
-	{
-	 WLAN_SCANPROBES,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "scanprobes"},
-	{
 	 WLAN_LED_GPIO_CTRL,
 	 IW_PRIV_TYPE_INT | 16,
 	 IW_PRIV_TYPE_INT | 16,
 	 "ledgpio"},
-	{
-	 WLAN_ADAPT_RATESET,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "rateadapt"},
-	{
-	 WLAN_INACTIVITY_TIMEOUT,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "inactivityto"},
-	{
-	 WLANSNR,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "getSNR"},
-	{
-	 WLAN_GET_RATE,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "getrate"},
-	{
-	 WLAN_GET_RXINFO,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "getrxinfo"},
 };
 
 static struct iw_statistics *wlan_get_wireless_stats(struct net_device *dev)
@@ -1434,7 +1127,7 @@ static struct iw_statistics *wlan_get_wireless_stats(struct net_device *dev)
 
 	ENTER();
 
-	priv->wstats.status = adapter->inframode;
+	priv->wstats.status = adapter->mode;
 
 	/* If we're not associated, all quality values are meaningless */
 	if (adapter->connect_status != libertas_connected)
@@ -1568,13 +1261,12 @@ static int wlan_set_freq(struct net_device *dev, struct iw_request_info *info,
 		if (!cfp) {
 			rc = -EINVAL;
 		} else {
-			if (adapter->inframode == wlan802_11ibss) {
+			if (adapter->mode == IW_MODE_ADHOC) {
 				rc = changeadhocchannel(priv, channel);
 				/*  If station is WEP enabled, send the
 				 *  command to set WEP in firmware
 				 */
-				if (adapter->secinfo.WEPstatus ==
-				    wlan802_11WEPenabled) {
+				if (adapter->secinfo.wep_enabled) {
 					lbs_pr_debug(1, "set_freq: WEP enabled\n");
 					ret = libertas_prepare_and_send_command(priv,
 								    cmd_802_11_set_wep,
@@ -1716,49 +1408,31 @@ static int wlan_set_mode(struct net_device *dev,
 	wlan_private *priv = dev->priv;
 	wlan_adapter *adapter = priv->adapter;
 	struct assoc_request * assoc_req;
-	enum WLAN_802_11_NETWORK_INFRASTRUCTURE new_mode;
 
 	ENTER();
 
-	switch (*uwrq) {
-	case IW_MODE_ADHOC:
-		lbs_pr_debug(1, "Wanted mode is ad-hoc: current datarate=%#x\n",
-		       adapter->datarate);
-		new_mode = wlan802_11ibss;
-		adapter->adhocchannel = DEFAULT_AD_HOC_CHANNEL;
-		break;
-
-	case IW_MODE_INFRA:
-		lbs_pr_debug(1, "Wanted mode is Infrastructure\n");
-		new_mode = wlan802_11infrastructure;
-		break;
-
-	case IW_MODE_AUTO:
-		lbs_pr_debug(1, "Wanted mode is Auto\n");
-		new_mode = wlan802_11autounknown;
-		break;
-
-	default:
-		lbs_pr_debug(1, "Wanted mode is Unknown: 0x%x\n", *uwrq);
-		return -EINVAL;
+	if (   (*uwrq != IW_MODE_ADHOC)
+	    && (*uwrq != IW_MODE_INFRA)
+	    && (*uwrq != IW_MODE_AUTO)) {
+		lbs_pr_debug(1, "Invalid mode: 0x%x\n", *uwrq);
+		ret = -EINVAL;
+		goto out;
 	}
 
 	mutex_lock(&adapter->lock);
 	assoc_req = wlan_get_association_request(adapter);
 	if (!assoc_req) {
 		ret = -ENOMEM;
+		wlan_cancel_association_work(priv);
 	} else {
-		assoc_req->mode = new_mode;
-	}
-
-	if (ret == 0) {
+		assoc_req->mode = *uwrq;
 		set_bit(ASSOC_FLAG_MODE, &assoc_req->flags);
 		wlan_postpone_association_work(priv);
-	} else {
-		wlan_cancel_association_work(priv);
+		lbs_pr_debug(1, "Switching to mode: 0x%x\n", *uwrq);
 	}
 	mutex_unlock(&adapter->lock);
 
+out:
 	LEAVE();
 	return ret;
 }
@@ -1789,13 +1463,13 @@ static int wlan_get_encode(struct net_device *dev,
 	dwrq->flags = 0;
 
 	/* Authentication method */
-	switch (adapter->secinfo.authmode) {
-	case wlan802_11authmodeopen:
+	switch (adapter->secinfo.auth_mode) {
+	case IW_AUTH_ALG_OPEN_SYSTEM:
 		dwrq->flags = IW_ENCODE_OPEN;
 		break;
 
-	case wlan802_11authmodeshared:
-	case wlan802_11authmodenetworkEAP:
+	case IW_AUTH_ALG_SHARED_KEY:
+	case IW_AUTH_ALG_LEAP:
 		dwrq->flags = IW_ENCODE_RESTRICTED;
 		break;
 	default:
@@ -1803,8 +1477,9 @@ static int wlan_get_encode(struct net_device *dev,
 		break;
 	}
 
-	if ((adapter->secinfo.WEPstatus == wlan802_11WEPenabled)
-	    || adapter->secinfo.WPAenabled || adapter->secinfo.WPA2enabled) {
+	if (   adapter->secinfo.wep_enabled
+	    || adapter->secinfo.WPAenabled
+	    || adapter->secinfo.WPA2enabled) {
 		dwrq->flags &= ~IW_ENCODE_DISABLED;
 	} else {
 		dwrq->flags |= IW_ENCODE_DISABLED;
@@ -1818,8 +1493,7 @@ static int wlan_get_encode(struct net_device *dev,
 	if (index < 0)
 		index = adapter->wep_tx_keyidx;
 
-	if ((adapter->wep_keys[index].len) &&
-	    (adapter->secinfo.WEPstatus == wlan802_11WEPenabled)) {
+	if ((adapter->wep_keys[index].len) && adapter->secinfo.wep_enabled) {
 		memcpy(extra, adapter->wep_keys[index].key,
 		       adapter->wep_keys[index].len);
 		dwrq->length = adapter->wep_keys[index].len;
@@ -1903,7 +1577,7 @@ static int wlan_set_wep_key(struct assoc_request *assoc_req,
 		assoc_req->wep_tx_keyidx = index;
 	}
 
-	assoc_req->secinfo.WEPstatus = wlan802_11WEPenabled;
+	assoc_req->secinfo.wep_enabled = 1;
 
 	LEAVE();
 	return 0;
@@ -1932,10 +1606,10 @@ static void disable_wep(struct assoc_request *assoc_req)
 	int i;
 
 	/* Set Open System auth mode */
-	assoc_req->secinfo.authmode = wlan802_11authmodeopen;
+	assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 
 	/* Clear WEP keys and mark WEP as disabled */
-	assoc_req->secinfo.WEPstatus = wlan802_11WEPdisabled;
+	assoc_req->secinfo.wep_enabled = 0;
 	for (i = 0; i < 4; i++)
 		assoc_req->wep_keys[i].len = 0;
 
@@ -1987,8 +1661,7 @@ static int wlan_set_encode(struct net_device *dev,
 	/* If WEP isn't enabled, or if there is no key data but a valid
 	 * index, set the TX key.
 	 */
-	if ((assoc_req->secinfo.WEPstatus != wlan802_11WEPenabled)
-	    || (dwrq->length == 0 && !is_default))
+	if (!assoc_req->secinfo.wep_enabled || (dwrq->length == 0 && !is_default))
 		set_tx_key = 1;
 
 	ret = wlan_set_wep_key(assoc_req, extra, dwrq->length, index, set_tx_key);
@@ -2001,9 +1674,9 @@ static int wlan_set_encode(struct net_device *dev,
 		set_bit(ASSOC_FLAG_WEP_TX_KEYIDX, &assoc_req->flags);
 
 	if (dwrq->flags & IW_ENCODE_RESTRICTED) {
-		assoc_req->secinfo.authmode = wlan802_11authmodeshared;
+		assoc_req->secinfo.auth_mode = IW_AUTH_ALG_SHARED_KEY;
 	} else if (dwrq->flags & IW_ENCODE_OPEN) {
-		assoc_req->secinfo.authmode = wlan802_11authmodeopen;
+		assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 	}
 
 out:
@@ -2056,30 +1729,31 @@ static int wlan_get_encodeext(struct net_device *dev,
 
 	if (!ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY &&
 	    ext->alg != IW_ENCODE_ALG_WEP) {
-		if (index != 0 || adapter->inframode != wlan802_11infrastructure)
+		if (index != 0 || adapter->mode != IW_MODE_INFRA)
 			goto out;
 	}
 
 	dwrq->flags = index + 1;
 	memset(ext, 0, sizeof(*ext));
 
-	if ((adapter->secinfo.WEPstatus == wlan802_11WEPdisabled)
-	    && !adapter->secinfo.WPAenabled && !adapter->secinfo.WPA2enabled) {
+	if (   !adapter->secinfo.wep_enabled
+	    && !adapter->secinfo.WPAenabled
+	    && !adapter->secinfo.WPA2enabled) {
 		ext->alg = IW_ENCODE_ALG_NONE;
 		ext->key_len = 0;
 		dwrq->flags |= IW_ENCODE_DISABLED;
 	} else {
 		u8 *key = NULL;
 
-		if ((adapter->secinfo.WEPstatus == wlan802_11WEPenabled)
+		if (   adapter->secinfo.wep_enabled
 		    && !adapter->secinfo.WPAenabled
 		    && !adapter->secinfo.WPA2enabled) {
 			ext->alg = IW_ENCODE_ALG_WEP;
 			ext->key_len = adapter->wep_keys[index].len;
 			key = &adapter->wep_keys[index].key[0];
-		} else if ((adapter->secinfo.WEPstatus == wlan802_11WEPdisabled) &&
-		           (adapter->secinfo.WPAenabled ||
-		            adapter->secinfo.WPA2enabled)) {
+		} else if (   !adapter->secinfo.wep_enabled
+		           && (adapter->secinfo.WPAenabled ||
+		               adapter->secinfo.WPA2enabled)) {
 			/* WPA */
 			ext->alg = IW_ENCODE_ALG_TKIP;
 			ext->key_len = 0;
@@ -2149,7 +1823,7 @@ static int wlan_set_encodeext(struct net_device *dev,
 		/* If WEP isn't enabled, or if there is no key data but a valid
 		 * index, or if the set-TX-key flag was passed, set the TX key.
 		 */
-		if ((assoc_req->secinfo.WEPstatus != wlan802_11WEPenabled)
+		if (   !assoc_req->secinfo.wep_enabled
 		    || (dwrq->length == 0 && !is_default)
 		    || (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY))
 			set_tx_key = 1;
@@ -2161,11 +1835,9 @@ static int wlan_set_encodeext(struct net_device *dev,
 			goto out;
 
 		if (dwrq->flags & IW_ENCODE_RESTRICTED) {
-			assoc_req->secinfo.authmode =
-			    wlan802_11authmodeshared;
+			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_SHARED_KEY;
 		} else if (dwrq->flags & IW_ENCODE_OPEN) {
-			assoc_req->secinfo.authmode =
-			    wlan802_11authmodeopen;
+			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 		}
 
 		/* Mark the various WEP bits as modified */
@@ -2350,15 +2022,13 @@ static int wlan_set_auth(struct net_device *dev,
 		}
 		if (dwrq->value & IW_AUTH_WPA_VERSION_WPA) {
 			assoc_req->secinfo.WPAenabled = 1;
-			assoc_req->secinfo.WEPstatus = wlan802_11WEPdisabled;
-			assoc_req->secinfo.authmode =
-			    wlan802_11authmodeopen;
+			assoc_req->secinfo.wep_enabled = 0;
+			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 		}
 		if (dwrq->value & IW_AUTH_WPA_VERSION_WPA2) {
 			assoc_req->secinfo.WPA2enabled = 1;
-			assoc_req->secinfo.WEPstatus = wlan802_11WEPdisabled;
-			assoc_req->secinfo.authmode =
-			    wlan802_11authmodeopen;
+			assoc_req->secinfo.wep_enabled = 0;
+			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 		}
 		updated = 1;
 		break;
@@ -2376,14 +2046,11 @@ static int wlan_set_auth(struct net_device *dev,
 
 	case IW_AUTH_80211_AUTH_ALG:
 		if (dwrq->value & IW_AUTH_ALG_SHARED_KEY) {
-			assoc_req->secinfo.authmode =
-			    wlan802_11authmodeshared;
+			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_SHARED_KEY;
 		} else if (dwrq->value & IW_AUTH_ALG_OPEN_SYSTEM) {
-			assoc_req->secinfo.authmode =
-			    wlan802_11authmodeopen;
+			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 		} else if (dwrq->value & IW_AUTH_ALG_LEAP) {
-			assoc_req->secinfo.authmode =
-			    wlan802_11authmodenetworkEAP;
+			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_LEAP;
 		} else {
 			ret = -EINVAL;
 		}
@@ -2396,9 +2063,8 @@ static int wlan_set_auth(struct net_device *dev,
 			    !assoc_req->secinfo.WPA2enabled) {
 				assoc_req->secinfo.WPAenabled = 1;
 				assoc_req->secinfo.WPA2enabled = 1;
-				assoc_req->secinfo.WEPstatus = wlan802_11WEPdisabled;
-				assoc_req->secinfo.authmode =
-				    wlan802_11authmodeopen;
+				assoc_req->secinfo.wep_enabled = 0;
+				assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 			}
 		} else {
 			assoc_req->secinfo.WPAenabled = 0;
@@ -2455,19 +2121,7 @@ static int wlan_get_auth(struct net_device *dev,
 		break;
 
 	case IW_AUTH_80211_AUTH_ALG:
-		switch (adapter->secinfo.authmode) {
-		case wlan802_11authmodeshared:
-			dwrq->value = IW_AUTH_ALG_SHARED_KEY;
-			break;
-		case wlan802_11authmodeopen:
-			dwrq->value = IW_AUTH_ALG_OPEN_SYSTEM;
-			break;
-		case wlan802_11authmodenetworkEAP:
-			dwrq->value = IW_AUTH_ALG_LEAP;
-			break;
-		default:
-			break;
-		}
+		dwrq->value = adapter->secinfo.auth_mode;
 		break;
 
 	case IW_AUTH_WPA_ENABLED:

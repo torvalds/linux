@@ -95,6 +95,32 @@ struct swStat {
 	unsigned long long flush_max_pkts;
 	unsigned long long sum_avg_pkts_aggregated;
 	unsigned long long num_aggregations;
+	/* Other statistics */
+	unsigned long long mem_alloc_fail_cnt;
+	unsigned long long watchdog_timer_cnt;
+	unsigned long long mem_allocated;
+	unsigned long long mem_freed;
+	unsigned long long link_up_cnt;
+	unsigned long long link_down_cnt;
+	unsigned long long link_up_time;
+	unsigned long long link_down_time;
+
+	/* Transfer Code statistics */
+	unsigned long long tx_buf_abort_cnt;
+	unsigned long long tx_desc_abort_cnt;
+	unsigned long long tx_parity_err_cnt;
+	unsigned long long tx_link_loss_cnt;
+	unsigned long long tx_list_proc_err_cnt;
+
+	unsigned long long rx_parity_err_cnt;
+	unsigned long long rx_abort_cnt;
+	unsigned long long rx_parity_abort_cnt;
+	unsigned long long rx_rda_fail_cnt;
+	unsigned long long rx_unkn_prot_cnt;
+	unsigned long long rx_fcs_err_cnt;
+	unsigned long long rx_buf_size_err_cnt;
+	unsigned long long rx_rxd_corrupt_cnt;
+	unsigned long long rx_unkn_err_cnt;
 };
 
 /* Xpak releated alarm and warnings */
@@ -307,6 +333,11 @@ struct stat_block {
 
 #define MAX_TX_FIFOS 8
 #define MAX_RX_RINGS 8
+
+#define MAX_RX_DESC_1  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 127 )
+#define MAX_RX_DESC_2  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 85 )
+#define MAX_RX_DESC_3  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 85 )
+#define MAX_TX_DESC    (MAX_AVAILABLE_TXDS)
 
 /* FIFO mappings for all possible number of fifos configured */
 static int fifo_map[][MAX_TX_FIFOS] = {
@@ -819,6 +850,7 @@ struct s2io_nic {
 #define	LINK_UP		2
 
 	int task_flag;
+	unsigned long long start_time;
 #define CARD_DOWN 1
 #define CARD_UP 2
 	atomic_t card_state;

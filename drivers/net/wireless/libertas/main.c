@@ -21,6 +21,13 @@
 #include "debugfs.h"
 #include "assoc.h"
 
+#define DRIVER_RELEASE_VERSION "320.p0"
+const char libertas_driver_version[] = "COMM-USB8388-" DRIVER_RELEASE_VERSION
+#ifdef  DEBUG
+    "-dbg"
+#endif
+    "";
+
 #ifdef ENABLE_PM
 static struct pm_dev *wlan_pm_dev = NULL;
 #endif

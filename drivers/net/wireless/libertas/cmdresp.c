@@ -72,8 +72,6 @@ void libertas_mac_event_disconnected(wlan_private * priv)
 	adapter->secinfo.WPAenabled = 0;
 	adapter->secinfo.WPA2enabled = 0;
 	adapter->wpa_ie_len = 0;
-	adapter->secinfo.auth1xalg = WLAN_1X_AUTH_ALG_NONE;
-	adapter->secinfo.Encryptionmode = CIPHER_NONE;
 
 	adapter->connect_status = libertas_disconnected;
 
@@ -811,7 +809,7 @@ int libertas_process_rx_command(wlan_private * priv)
 		if (result) {
 			lbs_pr_debug(1, "CMD_RESP: PS command failed- %#x \n",
 			       resp->result);
-			if (adapter->inframode == wlan802_11ibss) {
+			if (adapter->mode == IW_MODE_ADHOC) {
 				/*
 				 * We should not re-try enter-ps command in
 				 * ad-hoc mode. It takes place in

@@ -623,7 +623,7 @@ int __devinit mlx4_init_eq_table(struct mlx4_dev *dev)
 		priv->eq_table.eq[MLX4_EQ_CATAS].have_irq = 1;
 	} else {
 		err = request_irq(dev->pdev->irq, mlx4_interrupt,
-				  SA_SHIRQ, DRV_NAME, dev);
+				  IRQF_SHARED, DRV_NAME, dev);
 		if (err)
 			goto err_out_async;
 

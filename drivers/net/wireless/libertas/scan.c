@@ -1,6 +1,3 @@
-/* -*- mode: C; tab-width: 4; indent-tabs-mode: nil -*- */
-/* vi: set expandtab shiftwidth=4 tabstop=4 textwidth=78: */
-
 /**
   * Functions implementing wlan scan IOCTL and firmware command APIs
   *
@@ -87,118 +84,95 @@
  *
  *  @return        Index in scantable, or error code if negative
  */
-static int is_network_compatible(wlan_adapter * adapter, int index, int mode)
+static int is_network_compatible(wlan_adapter * adapter, int index, u8 mode)
 {
 	ENTER();
 
-	if (adapter->scantable[index].inframode == mode) {
-		if (adapter->secinfo.WEPstatus == wlan802_11WEPdisabled
+	if (adapter->scantable[index].mode == mode) {
+		if (   !adapter->secinfo.wep_enabled
 		    && !adapter->secinfo.WPAenabled
 		    && !adapter->secinfo.WPA2enabled
-		    && adapter->scantable[index].wpa_supplicant.wpa_ie[0] !=
-		    WPA_IE
-		    && adapter->scantable[index].wpa2_supplicant.wpa_ie[0] !=
-		    WPA2_IE && adapter->secinfo.Encryptionmode == CIPHER_NONE
+		    && adapter->scantable[index].wpa_ie[0] != WPA_IE
+		    && adapter->scantable[index].rsn_ie[0] != WPA2_IE
 		    && !adapter->scantable[index].privacy) {
 			/* no security */
 			LEAVE();
 			return index;
-		} else if (adapter->secinfo.WEPstatus == wlan802_11WEPenabled
+		} else if (   adapter->secinfo.wep_enabled
 			   && !adapter->secinfo.WPAenabled
 			   && !adapter->secinfo.WPA2enabled
 			   && adapter->scantable[index].privacy) {
 			/* static WEP enabled */
 			LEAVE();
 			return index;
-		} else if (adapter->secinfo.WEPstatus == wlan802_11WEPdisabled
+		} else if (   !adapter->secinfo.wep_enabled
 			   && adapter->secinfo.WPAenabled
 			   && !adapter->secinfo.WPA2enabled
-			   && (adapter->scantable[index].wpa_supplicant.
-			       wpa_ie[0]
-			       == WPA_IE)
+			   && (adapter->scantable[index].wpa_ie[0] == WPA_IE)
 			   /* privacy bit may NOT be set in some APs like LinkSys WRT54G
 			      && adapter->scantable[index].privacy */
 		    ) {
 			/* WPA enabled */
-            lbs_pr_debug(1,
+			lbs_pr_debug(1,
 			       "is_network_compatible() WPA: index=%d wpa_ie=%#x "
-			       "wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s Encmode=%#x "
+			       "wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s "
 			       "privacy=%#x\n", index,
-			       adapter->scantable[index].wpa_supplicant.
-			       wpa_ie[0],
-			       adapter->scantable[index].wpa2_supplicant.
-			       wpa_ie[0],
-			       (adapter->secinfo.WEPstatus ==
-				wlan802_11WEPenabled) ? "e" : "d",
-			       (adapter->secinfo.WPAenabled) ? "e" : "d",
-			       (adapter->secinfo.WPA2enabled) ? "e" : "d",
-			       adapter->secinfo.Encryptionmode,
+			       adapter->scantable[index].wpa_ie[0],
+			       adapter->scantable[index].rsn_ie[0],
+			       adapter->secinfo.wep_enabled ? "e" : "d",
+			       adapter->secinfo.WPAenabled ? "e" : "d",
+			       adapter->secinfo.WPA2enabled ? "e" : "d",
 			       adapter->scantable[index].privacy);
 			LEAVE();
 			return index;
-		} else if (adapter->secinfo.WEPstatus == wlan802_11WEPdisabled
+		} else if (   !adapter->secinfo.wep_enabled
 			   && !adapter->secinfo.WPAenabled
 			   && adapter->secinfo.WPA2enabled
-			   && (adapter->scantable[index].wpa2_supplicant.
-			       wpa_ie[0]
-			       == WPA2_IE)
+			   && (adapter->scantable[index].rsn_ie[0] == WPA2_IE)
 			   /* privacy bit may NOT be set in some APs like LinkSys WRT54G
 			      && adapter->scantable[index].privacy */
 		    ) {
 			/* WPA2 enabled */
-            lbs_pr_debug(1,
+			lbs_pr_debug(1,
 			       "is_network_compatible() WPA2: index=%d wpa_ie=%#x "
-			       "wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s Encmode=%#x "
+			       "wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s "
 			       "privacy=%#x\n", index,
-			       adapter->scantable[index].wpa_supplicant.
-			       wpa_ie[0],
-			       adapter->scantable[index].wpa2_supplicant.
-			       wpa_ie[0],
-			       (adapter->secinfo.WEPstatus ==
-				wlan802_11WEPenabled) ? "e" : "d",
-			       (adapter->secinfo.WPAenabled) ? "e" : "d",
-			       (adapter->secinfo.WPA2enabled) ? "e" : "d",
-			       adapter->secinfo.Encryptionmode,
+			       adapter->scantable[index].wpa_ie[0],
+			       adapter->scantable[index].rsn_ie[0],
+			       adapter->secinfo.wep_enabled ? "e" : "d",
+			       adapter->secinfo.WPAenabled ? "e" : "d",
+			       adapter->secinfo.WPA2enabled ? "e" : "d",
 			       adapter->scantable[index].privacy);
 			LEAVE();
 			return index;
-		} else if (adapter->secinfo.WEPstatus == wlan802_11WEPdisabled
+		} else if (   !adapter->secinfo.wep_enabled
 			   && !adapter->secinfo.WPAenabled
 			   && !adapter->secinfo.WPA2enabled
-			   && (adapter->scantable[index].wpa_supplicant.
-			       wpa_ie[0]
-			       != WPA_IE)
-			   && (adapter->scantable[index].wpa2_supplicant.
-			       wpa_ie[0]
-			       != WPA2_IE)
-			   && adapter->secinfo.Encryptionmode != CIPHER_NONE
+			   && (adapter->scantable[index].wpa_ie[0] != WPA_IE)
+			   && (adapter->scantable[index].rsn_ie[0] != WPA2_IE)
 			   && adapter->scantable[index].privacy) {
 			/* dynamic WEP enabled */
-            lbs_pr_debug(1,
+			lbs_pr_debug(1,
 			       "is_network_compatible() dynamic WEP: index=%d "
-			       "wpa_ie=%#x wpa2_ie=%#x Encmode=%#x privacy=%#x\n",
+			       "wpa_ie=%#x wpa2_ie=%#x privacy=%#x\n",
 			       index,
-			       adapter->scantable[index].wpa_supplicant.
-			       wpa_ie[0],
-			       adapter->scantable[index].wpa2_supplicant.
-			       wpa_ie[0], adapter->secinfo.Encryptionmode,
+			       adapter->scantable[index].wpa_ie[0],
+			       adapter->scantable[index].rsn_ie[0],
 			       adapter->scantable[index].privacy);
 			LEAVE();
 			return index;
 		}
 
 		/* security doesn't match */
-        lbs_pr_debug(1,
+		lbs_pr_debug(1,
 		       "is_network_compatible() FAILED: index=%d wpa_ie=%#x "
-		       "wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s Encmode=%#x privacy=%#x\n",
+		       "wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s privacy=%#x\n",
 		       index,
-		       adapter->scantable[index].wpa_supplicant.wpa_ie[0],
-		       adapter->scantable[index].wpa2_supplicant.wpa_ie[0],
-		       (adapter->secinfo.WEPstatus ==
-			wlan802_11WEPenabled) ? "e" : "d",
-		       (adapter->secinfo.WPAenabled) ? "e" : "d",
-		       (adapter->secinfo.WPA2enabled) ? "e" : "d",
-		       adapter->secinfo.Encryptionmode,
+		       adapter->scantable[index].wpa_ie[0],
+		       adapter->scantable[index].rsn_ie[0],
+		       adapter->secinfo.wep_enabled ? "e" : "d",
+		       adapter->secinfo.WPAenabled ? "e" : "d",
+		       adapter->secinfo.WPA2enabled ? "e" : "d",
 		       adapter->scantable[index].privacy);
 		LEAVE();
 		return -ECONNREFUSED;
@@ -924,8 +898,6 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 	u8 founddatarateie;
 	int bytesleftforcurrentbeacon;
 
-	struct WPA_SUPPLICANT *pwpa_supplicant;
-	struct WPA_SUPPLICANT *pwpa2_supplicant;
 	struct IE_WPA *pIe;
 	const u8 oui01[4] = { 0x00, 0x50, 0xf2, 0x01 };
 
@@ -961,9 +933,6 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 	*bytesleft -= beaconsize;
 
 	bytesleftforcurrentbeacon = beaconsize;
-
-	pwpa_supplicant = &pBSSEntry->wpa_supplicant;
-	pwpa2_supplicant = &pBSSEntry->wpa2_supplicant;
 
 	memcpy(pBSSEntry->macaddress, pcurrentptr, ETH_ALEN);
 	lbs_pr_debug(1, "InterpretIE: AP MAC Addr-%x:%x:%x:%x:%x:%x\n",
@@ -1027,9 +996,9 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 	}
 
 	if (pcap->ibss == 1) {
-		pBSSEntry->inframode = wlan802_11ibss;
+		pBSSEntry->mode = IW_MODE_ADHOC;
 	} else {
-		pBSSEntry->inframode = wlan802_11infrastructure;
+		pBSSEntry->mode = IW_MODE_INFRA;
 	}
 
 	/* process variable IE */
@@ -1116,7 +1085,7 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 			    sizeof(pcountryinfo->countrycode)
 			    || pcountryinfo->len > 254) {
 				lbs_pr_debug(1, "InterpretIE: 11D- Err "
-				       "CountryInfo len =%d min=%d max=254\n",
+				       "CountryInfo len =%d min=%zd max=254\n",
 				       pcountryinfo->len,
 				       sizeof(pcountryinfo->countrycode));
 				LEAVE();
@@ -1160,27 +1129,27 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 #define IE_ID_LEN_FIELDS_BYTES 2
 			pIe = (struct IE_WPA *)pcurrentptr;
 
-			if (!memcmp(pIe->oui, oui01, sizeof(oui01))) {
-				pwpa_supplicant->wpa_ie_len
-				    = min_t(size_t, elemlen + IE_ID_LEN_FIELDS_BYTES,
-					  sizeof(pwpa_supplicant->wpa_ie));
-				memcpy(pwpa_supplicant->wpa_ie,
-				       pcurrentptr,
-				       pwpa_supplicant->wpa_ie_len);
-				lbs_dbg_hex("InterpretIE: Resp WPA_IE",
-					pwpa_supplicant->wpa_ie, elemlen);
-			}
+			if (memcmp(pIe->oui, oui01, sizeof(oui01)))
+				break;
+
+			pBSSEntry->wpa_ie_len = min_t(size_t,
+				elemlen + IE_ID_LEN_FIELDS_BYTES,
+				sizeof(pBSSEntry->wpa_ie));
+			memcpy(pBSSEntry->wpa_ie, pcurrentptr,
+				pBSSEntry->wpa_ie_len);
+			lbs_dbg_hex("InterpretIE: Resp WPA_IE",
+				pBSSEntry->wpa_ie, elemlen);
 			break;
 		case WPA2_IE:
 			pIe = (struct IE_WPA *)pcurrentptr;
-			pwpa2_supplicant->wpa_ie_len
-			    = min_t(size_t, elemlen + IE_ID_LEN_FIELDS_BYTES,
-				  sizeof(pwpa2_supplicant->wpa_ie));
-			memcpy(pwpa2_supplicant->wpa_ie,
-			       pcurrentptr, pwpa2_supplicant->wpa_ie_len);
 
+			pBSSEntry->rsn_ie_len = min_t(size_t,
+				elemlen + IE_ID_LEN_FIELDS_BYTES,
+				sizeof(pBSSEntry->rsn_ie));
+			memcpy(pBSSEntry->rsn_ie, pcurrentptr,
+				pBSSEntry->rsn_ie_len);
 			lbs_dbg_hex("InterpretIE: Resp WPA2_IE",
-				pwpa2_supplicant->wpa_ie, elemlen);
+				pBSSEntry->rsn_ie, elemlen);
 			break;
 		case TIM:
 			break;
@@ -1227,7 +1196,7 @@ int libertas_SSID_cmp(struct WLAN_802_11_SSID *ssid1, struct WLAN_802_11_SSID *s
  *
  *  @return         index in BSSID list, or error return code (< 0)
  */
-int libertas_find_BSSID_in_list(wlan_adapter * adapter, u8 * bssid, int mode)
+int libertas_find_BSSID_in_list(wlan_adapter * adapter, u8 * bssid, u8 mode)
 {
 	int ret = -ENETUNREACH;
 	int i;
@@ -1247,8 +1216,8 @@ int libertas_find_BSSID_in_list(wlan_adapter * adapter, u8 * bssid, int mode)
 	for (i = 0; ret < 0 && i < adapter->numinscantable; i++) {
 		if (!memcmp(adapter->scantable[i].macaddress, bssid, ETH_ALEN)) {
 			switch (mode) {
-			case wlan802_11infrastructure:
-			case wlan802_11ibss:
+			case IW_MODE_INFRA:
+			case IW_MODE_ADHOC:
 				ret = is_network_compatible(adapter, i, mode);
 				break;
 			default:
@@ -1272,7 +1241,7 @@ int libertas_find_BSSID_in_list(wlan_adapter * adapter, u8 * bssid, int mode)
  *  @return         index in BSSID list
  */
 int libertas_find_SSID_in_list(wlan_adapter * adapter,
-		   struct WLAN_802_11_SSID *ssid, u8 * bssid, int mode)
+		   struct WLAN_802_11_SSID *ssid, u8 * bssid, u8 mode)
 {
 	int net = -ENETUNREACH;
 	u8 bestrssi = 0;
@@ -1287,8 +1256,8 @@ int libertas_find_SSID_in_list(wlan_adapter * adapter,
 		     !memcmp(adapter->scantable[i].
 			     macaddress, bssid, ETH_ALEN))) {
 			switch (mode) {
-			case wlan802_11infrastructure:
-			case wlan802_11ibss:
+			case IW_MODE_INFRA:
+			case IW_MODE_ADHOC:
 				j = is_network_compatible(adapter, i, mode);
 
 				if (j >= 0) {
@@ -1311,7 +1280,7 @@ int libertas_find_SSID_in_list(wlan_adapter * adapter,
 					}
 				}
 				break;
-			case wlan802_11autounknown:
+			case IW_MODE_AUTO:
 			default:
 				if (SCAN_RSSI(adapter->scantable[i].rssi)
 				    > bestrssi) {
@@ -1338,8 +1307,7 @@ int libertas_find_SSID_in_list(wlan_adapter * adapter,
  *
  *  @return         index in BSSID list
  */
-int libertas_find_best_SSID_in_list(wlan_adapter * adapter,
-                                    enum WLAN_802_11_NETWORK_INFRASTRUCTURE mode)
+int libertas_find_best_SSID_in_list(wlan_adapter * adapter, u8 mode)
 {
 	int bestnet = -ENETUNREACH;
 	u8 bestrssi = 0;
@@ -1351,8 +1319,8 @@ int libertas_find_best_SSID_in_list(wlan_adapter * adapter,
 
 	for (i = 0; i < adapter->numinscantable; i++) {
 		switch (mode) {
-		case wlan802_11infrastructure:
-		case wlan802_11ibss:
+		case IW_MODE_INFRA:
+		case IW_MODE_ADHOC:
 			if (is_network_compatible(adapter, i, mode) >= 0) {
 				if (SCAN_RSSI(adapter->scantable[i].rssi) >
 				    bestrssi) {
@@ -1363,7 +1331,7 @@ int libertas_find_best_SSID_in_list(wlan_adapter * adapter,
 				}
 			}
 			break;
-		case wlan802_11autounknown:
+		case IW_MODE_AUTO:
 		default:
 			if (SCAN_RSSI(adapter->scantable[i].rssi) > bestrssi) {
 				bestrssi =
@@ -1388,8 +1356,7 @@ int libertas_find_best_SSID_in_list(wlan_adapter * adapter,
  */
 int libertas_find_best_network_SSID(wlan_private * priv,
                                     struct WLAN_802_11_SSID *pSSID,
-                                    enum WLAN_802_11_NETWORK_INFRASTRUCTURE preferred_mode,
-                                    enum WLAN_802_11_NETWORK_INFRASTRUCTURE *out_mode)
+                                    u8 preferred_mode, u8 *out_mode)
 {
 	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
@@ -1414,7 +1381,7 @@ int libertas_find_best_network_SSID(wlan_private * priv,
 	preqbssid = &adapter->scantable[i];
 	memcpy(pSSID, &preqbssid->ssid,
 	       sizeof(struct WLAN_802_11_SSID));
-	*out_mode = preqbssid->inframode;
+	*out_mode = preqbssid->mode;
 
 	if (!pSSID->ssidlength) {
 		ret = -1;
@@ -1584,7 +1551,7 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 	for (i = 0; i < adapter->numinscantable; i++) {
 		if ((current_ev + MAX_SCAN_CELL_SIZE) >= end_buf) {
 			lbs_pr_debug(1, "i=%d break out: current_ev=%p end_buf=%p "
-			       "MAX_SCAN_CELL_SIZE=%d\n",
+			       "MAX_SCAN_CELL_SIZE=%zd\n",
 			       i, current_ev, end_buf, MAX_SCAN_CELL_SIZE);
 			break;
 		}
@@ -1632,7 +1599,7 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 
 		//Add mode
 		iwe.cmd = SIOCGIWMODE;
-		iwe.u.mode = adapter->scantable[i].inframode + 1;
+		iwe.u.mode = adapter->scantable[i].mode;
 		iwe.len = IW_EV_UINT_LEN;
 		current_ev =
 		    iwe_stream_add_event(current_ev, end_buf, &iwe, iwe.len);
@@ -1666,7 +1633,7 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 			iwe.u.qual.noise =
 			    CAL_NF(adapter->NF[TYPE_BEACON][TYPE_NOAVG]);
 		}
-		if ((adapter->inframode == wlan802_11ibss) &&
+		if ((adapter->mode == IW_MODE_ADHOC) &&
 		    !libertas_SSID_cmp(&adapter->curbssparams.ssid,
 			     &adapter->scantable[i].ssid)
 		    && adapter->adhoccreate) {
@@ -1731,7 +1698,7 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 						 end_buf, &iwe, iwe.len);
 
 		}
-		if ((adapter->scantable[i].inframode == wlan802_11ibss)
+		if ((adapter->scantable[i].mode == IW_MODE_ADHOC)
 		    && !libertas_SSID_cmp(&adapter->curbssparams.ssid,
 				&adapter->scantable[i].ssid)
 		    && adapter->adhoccreate) {
@@ -1745,30 +1712,24 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 		/* Add new value to event */
 		current_val = current_ev + IW_EV_LCP_LEN;
 
-		if (adapter->scantable[i].wpa2_supplicant.wpa_ie[0] == WPA2_IE) {
+		if (adapter->scantable[i].rsn_ie[0] == WPA2_IE) {
 			memset(&iwe, 0, sizeof(iwe));
 			memset(buf, 0, sizeof(buf));
-			memcpy(buf, adapter->scantable[i].
-						wpa2_supplicant.wpa_ie,
-					adapter->scantable[i].wpa2_supplicant.
-						wpa_ie_len);
+			memcpy(buf, adapter->scantable[i].rsn_ie,
+					adapter->scantable[i].rsn_ie_len);
 			iwe.cmd = IWEVGENIE;
-			iwe.u.data.length = adapter->scantable[i].
-					wpa2_supplicant.wpa_ie_len;
+			iwe.u.data.length = adapter->scantable[i].rsn_ie_len;
 			iwe.len = IW_EV_POINT_LEN + iwe.u.data.length;
 			current_ev = iwe_stream_add_point(current_ev, end_buf,
 					&iwe, buf);
 		}
-		if (adapter->scantable[i].wpa_supplicant.wpa_ie[0] == WPA_IE) {
+		if (adapter->scantable[i].wpa_ie[0] == WPA_IE) {
 			memset(&iwe, 0, sizeof(iwe));
 			memset(buf, 0, sizeof(buf));
-			memcpy(buf, adapter->scantable[i].
-						wpa_supplicant.wpa_ie,
-					adapter->scantable[i].wpa_supplicant.
-						wpa_ie_len);
+			memcpy(buf, adapter->scantable[i].wpa_ie,
+					adapter->scantable[i].wpa_ie_len);
 			iwe.cmd = IWEVGENIE;
-			iwe.u.data.length = adapter->scantable[i].
-					wpa_supplicant.wpa_ie_len;
+			iwe.u.data.length = adapter->scantable[i].wpa_ie_len;
 			iwe.len = IW_EV_POINT_LEN + iwe.u.data.length;
 			current_ev = iwe_stream_add_point(current_ev, end_buf,
 					&iwe, buf);

@@ -78,7 +78,7 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 			 min_t(unsigned int, skb->len, 100));
 
 	if (!skb->len || (skb->len > MRVDRV_ETH_TX_PACKET_BUFFER_SIZE)) {
-		lbs_pr_debug(1, "Tx error: Bad skb length %d : %d\n",
+		lbs_pr_debug(1, "Tx error: Bad skb length %d : %zd\n",
 		       skb->len, MRVDRV_ETH_TX_PACKET_BUFFER_SIZE);
 		ret = -1;
 		goto done;
