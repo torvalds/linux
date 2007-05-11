@@ -236,7 +236,7 @@ static void afs_invalidatepage(struct page *page, unsigned long offset)
 {
 	int ret = 1;
 
-	kenter("{%lu},%lu", page->index, offset);
+	_enter("{%lu},%lu", page->index, offset);
 
 	BUG_ON(!PageLocked(page));
 

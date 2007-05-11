@@ -209,11 +209,15 @@ bad_inode:
  */
 void afs_zap_data(struct afs_vnode *vnode)
 {
-	_enter("zap data {%x:%u}", vnode->fid.vid, vnode->fid.vnode);
+	_enter("{%x:%u}", vnode->fid.vid, vnode->fid.vnode);
 
 	/* nuke all the non-dirty pages that aren't locked, mapped or being
-	 * written back */
-	invalidate_remote_inode(&vnode->vfs_inode);
+	 * written back in a regular file and completely discard the pages in a
+	 * directory or symlink */
+	if (S_ISREG(vnode->vfs_inode.i_mode))
+		invalidate_remote_inode(&vnode->vfs_inode);
+	else
+		invalidate_inode_pages2(vnode->vfs_inode.i_mapping);
 }
 
 /*

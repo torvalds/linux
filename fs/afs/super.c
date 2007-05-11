@@ -488,6 +488,7 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 	vnode->flags		= 1 << AFS_VNODE_UNSET;
 	vnode->cb_promised	= false;
 
+	_leave(" = %p", &vnode->vfs_inode);
 	return &vnode->vfs_inode;
 }
 
@@ -498,7 +499,7 @@ static void afs_destroy_inode(struct inode *inode)
 {
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 
-	_enter("{%lu}", inode->i_ino);
+	_enter("%p{%x:%u}", inode, vnode->fid.vid, vnode->fid.vnode);
 
 	_debug("DESTROY INODE %p", inode);
 

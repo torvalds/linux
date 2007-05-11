@@ -175,24 +175,33 @@ static void afs_vnode_deleted_remotely(struct afs_vnode *vnode)
 {
 	struct afs_server *server;
 
+	_enter("{%p}", vnode->server);
+
 	set_bit(AFS_VNODE_DELETED, &vnode->flags);
 
 	server = vnode->server;
-	if (vnode->cb_promised) {
-		spin_lock(&server->cb_lock);
+	if (server) {
 		if (vnode->cb_promised) {
-			rb_erase(&vnode->cb_promise, &server->cb_promises);
-			vnode->cb_promised = false;
+			spin_lock(&server->cb_lock);
+			if (vnode->cb_promised) {
+				rb_erase(&vnode->cb_promise,
+					 &server->cb_promises);
+				vnode->cb_promised = false;
+			}
+			spin_unlock(&server->cb_lock);
 		}
-		spin_unlock(&server->cb_lock);
+
+		spin_lock(&server->fs_lock);
+		rb_erase(&vnode->server_rb, &server->fs_vnodes);
+		spin_unlock(&server->fs_lock);
+
+		vnode->server = NULL;
+		afs_put_server(server);
+	} else {
+		ASSERT(!vnode->cb_promised);
 	}
 
-	spin_lock(&vnode->server->fs_lock);
-	rb_erase(&vnode->server_rb, &vnode->server->fs_vnodes);
-	spin_unlock(&vnode->server->fs_lock);
-
-	vnode->server = NULL;
-	afs_put_server(server);
+	_leave("");
 }
 
 /*
@@ -225,7 +234,7 @@ void afs_vnode_finalise_status_update(struct afs_vnode *vnode,
  */
 static void afs_vnode_status_update_failed(struct afs_vnode *vnode, int ret)
 {
-	_enter("%p,%d", vnode, ret);
+	_enter("{%x:%u},%d", vnode->fid.vid, vnode->fid.vnode, ret);
 
 	spin_lock(&vnode->lock);
 
