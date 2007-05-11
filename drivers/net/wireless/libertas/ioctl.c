@@ -577,47 +577,6 @@ static int wlan_set_multiple_dtim_ioctl(wlan_private * priv, struct ifreq *req)
 	return ret;
 }
 
-/**
- *  @brief Set authentication mode
- *  @param priv                 A pointer to wlan_private structure
- *  @param req			A pointer to ifreq structure
- *  @return 	   		0 --success, otherwise fail
- */
-static int wlan_setauthalg_ioctl(wlan_private * priv, struct ifreq *req)
-{
-	int alg;
-	struct iwreq *wrq = (struct iwreq *)req;
-	wlan_adapter *adapter = priv->adapter;
-
-	if (wrq->u.data.flags == 0) {
-		//from iwpriv subcmd
-		alg = SUBCMD_DATA(wrq);
-	} else {
-		//from wpa_supplicant subcmd
-		if (copy_from_user(&alg, wrq->u.data.pointer, sizeof(alg))) {
-			lbs_pr_debug(1, "Copy from user failed\n");
-			return -EFAULT;
-		}
-	}
-
-	lbs_pr_debug(1, "auth alg is %#x\n", alg);
-
-	switch (alg) {
-	case AUTH_ALG_SHARED_KEY:
-		adapter->secinfo.authmode = wlan802_11authmodeshared;
-		break;
-	case AUTH_ALG_NETWORK_EAP:
-		adapter->secinfo.authmode =
-		    wlan802_11authmodenetworkEAP;
-		break;
-	case AUTH_ALG_OPEN_SYSTEM:
-	default:
-		adapter->secinfo.authmode = wlan802_11authmodeopen;
-		break;
-	}
-	return 0;
-}
-
 static int wlan_setencryptionmode_ioctl(wlan_private * priv, struct ifreq *req)
 {
 	int mode;
@@ -2041,10 +2000,6 @@ int libertas_do_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 
 		case WLAN_SET_MULTIPLE_DTIM:
 			ret = wlan_set_multiple_dtim_ioctl(priv, req);
-			break;
-
-		case WLANSETAUTHALG:
-			ret = wlan_setauthalg_ioctl(priv, req);
 			break;
 
 		case WLANSETENCRYPTIONMODE:

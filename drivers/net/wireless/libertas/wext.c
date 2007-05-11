@@ -1082,12 +1082,6 @@ static const struct iw_priv_args wlan_private_args[] = {
 	 IW_PRIV_TYPE_NONE,
 	 "settxant"},
 	{
-	 WLANSETAUTHALG,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "authalgs",
-	 },
-	{
 	 WLANSETENCRYPTIONMODE,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 IW_PRIV_TYPE_NONE,
