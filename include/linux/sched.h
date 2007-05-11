@@ -88,6 +88,7 @@ struct sched_param {
 
 struct exec_domain;
 struct futex_pi_state;
+struct bio;
 
 /*
  * List of flags we want to share for kernel threads,
@@ -1015,6 +1016,9 @@ struct task_struct {
 
 /* journalling filesystem info */
 	void *journal_info;
+
+/* stacked block device info */
+	struct bio *bio_list, **bio_tail;
 
 /* VM state */
 	struct reclaim_state *reclaim_state;

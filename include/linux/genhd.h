@@ -434,6 +434,10 @@ static inline struct block_device *bdget_disk(struct gendisk *disk, int index)
 
 #endif
 
-#endif
+#else /* CONFIG_BLOCK */
+
+static inline void printk_all_partitions(void) { }
+
+#endif /* CONFIG_BLOCK */
 
 #endif
