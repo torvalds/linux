@@ -89,7 +89,7 @@ static int is_network_compatible(wlan_adapter * adapter, int index, int mode)
 	ENTER();
 
 	if (adapter->scantable[index].inframode == mode) {
-		if (adapter->secinfo.WEPstatus == wlan802_11WEPdisabled
+		if (   !adapter->secinfo.wep_enabled
 		    && !adapter->secinfo.WPAenabled
 		    && !adapter->secinfo.WPA2enabled
 		    && adapter->scantable[index].wpa_ie[0] != WPA_IE
@@ -98,14 +98,14 @@ static int is_network_compatible(wlan_adapter * adapter, int index, int mode)
 			/* no security */
 			LEAVE();
 			return index;
-		} else if (adapter->secinfo.WEPstatus == wlan802_11WEPenabled
+		} else if (   adapter->secinfo.wep_enabled
 			   && !adapter->secinfo.WPAenabled
 			   && !adapter->secinfo.WPA2enabled
 			   && adapter->scantable[index].privacy) {
 			/* static WEP enabled */
 			LEAVE();
 			return index;
-		} else if (adapter->secinfo.WEPstatus == wlan802_11WEPdisabled
+		} else if (   !adapter->secinfo.wep_enabled
 			   && adapter->secinfo.WPAenabled
 			   && !adapter->secinfo.WPA2enabled
 			   && (adapter->scantable[index].wpa_ie[0] == WPA_IE)
@@ -119,14 +119,13 @@ static int is_network_compatible(wlan_adapter * adapter, int index, int mode)
 			       "privacy=%#x\n", index,
 			       adapter->scantable[index].wpa_ie[0],
 			       adapter->scantable[index].rsn_ie[0],
-			       (adapter->secinfo.WEPstatus ==
-				wlan802_11WEPenabled) ? "e" : "d",
-			       (adapter->secinfo.WPAenabled) ? "e" : "d",
-			       (adapter->secinfo.WPA2enabled) ? "e" : "d",
+			       adapter->secinfo.wep_enabled ? "e" : "d",
+			       adapter->secinfo.WPAenabled ? "e" : "d",
+			       adapter->secinfo.WPA2enabled ? "e" : "d",
 			       adapter->scantable[index].privacy);
 			LEAVE();
 			return index;
-		} else if (adapter->secinfo.WEPstatus == wlan802_11WEPdisabled
+		} else if (   !adapter->secinfo.wep_enabled
 			   && !adapter->secinfo.WPAenabled
 			   && adapter->secinfo.WPA2enabled
 			   && (adapter->scantable[index].rsn_ie[0] == WPA2_IE)
@@ -140,14 +139,13 @@ static int is_network_compatible(wlan_adapter * adapter, int index, int mode)
 			       "privacy=%#x\n", index,
 			       adapter->scantable[index].wpa_ie[0],
 			       adapter->scantable[index].rsn_ie[0],
-			       (adapter->secinfo.WEPstatus ==
-				wlan802_11WEPenabled) ? "e" : "d",
-			       (adapter->secinfo.WPAenabled) ? "e" : "d",
-			       (adapter->secinfo.WPA2enabled) ? "e" : "d",
+			       adapter->secinfo.wep_enabled ? "e" : "d",
+			       adapter->secinfo.WPAenabled ? "e" : "d",
+			       adapter->secinfo.WPA2enabled ? "e" : "d",
 			       adapter->scantable[index].privacy);
 			LEAVE();
 			return index;
-		} else if (adapter->secinfo.WEPstatus == wlan802_11WEPdisabled
+		} else if (   !adapter->secinfo.wep_enabled
 			   && !adapter->secinfo.WPAenabled
 			   && !adapter->secinfo.WPA2enabled
 			   && (adapter->scantable[index].wpa_ie[0] != WPA_IE)
@@ -172,9 +170,9 @@ static int is_network_compatible(wlan_adapter * adapter, int index, int mode)
 		       index,
 		       adapter->scantable[index].wpa_ie[0],
 		       adapter->scantable[index].rsn_ie[0],
-		       (adapter->secinfo.WEPstatus == wlan802_11WEPenabled) ? "e" : "d",
-		       (adapter->secinfo.WPAenabled) ? "e" : "d",
-		       (adapter->secinfo.WPA2enabled) ? "e" : "d",
+		       adapter->secinfo.wep_enabled ? "e" : "d",
+		       adapter->secinfo.WPAenabled ? "e" : "d",
+		       adapter->secinfo.WPA2enabled ? "e" : "d",
 		       adapter->scantable[index].privacy);
 		LEAVE();
 		return -ECONNREFUSED;

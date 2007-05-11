@@ -196,7 +196,7 @@ static int assoc_helper_wep_keys(wlan_private *priv,
 		goto out;
 
 	/* enable/disable the MAC's WEP packet filter */
-	if (assoc_req->secinfo.WEPstatus == wlan802_11WEPenabled)
+	if (assoc_req->secinfo.wep_enabled)
 		adapter->currentpacketfilter |= cmd_act_mac_wep_enable;
 	else
 		adapter->currentpacketfilter &= ~cmd_act_mac_wep_enable;

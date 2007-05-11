@@ -1556,8 +1556,7 @@ static int wlan_set_freq(struct net_device *dev, struct iw_request_info *info,
 				/*  If station is WEP enabled, send the
 				 *  command to set WEP in firmware
 				 */
-				if (adapter->secinfo.WEPstatus ==
-				    wlan802_11WEPenabled) {
+				if (adapter->secinfo.wep_enabled) {
 					lbs_pr_debug(1, "set_freq: WEP enabled\n");
 					ret = libertas_prepare_and_send_command(priv,
 								    cmd_802_11_set_wep,
@@ -1786,8 +1785,9 @@ static int wlan_get_encode(struct net_device *dev,
 		break;
 	}
 
-	if ((adapter->secinfo.WEPstatus == wlan802_11WEPenabled)
-	    || adapter->secinfo.WPAenabled || adapter->secinfo.WPA2enabled) {
+	if (   adapter->secinfo.wep_enabled
+	    || adapter->secinfo.WPAenabled
+	    || adapter->secinfo.WPA2enabled) {
 		dwrq->flags &= ~IW_ENCODE_DISABLED;
 	} else {
 		dwrq->flags |= IW_ENCODE_DISABLED;
@@ -1801,8 +1801,7 @@ static int wlan_get_encode(struct net_device *dev,
 	if (index < 0)
 		index = adapter->wep_tx_keyidx;
 
-	if ((adapter->wep_keys[index].len) &&
-	    (adapter->secinfo.WEPstatus == wlan802_11WEPenabled)) {
+	if ((adapter->wep_keys[index].len) && adapter->secinfo.wep_enabled) {
 		memcpy(extra, adapter->wep_keys[index].key,
 		       adapter->wep_keys[index].len);
 		dwrq->length = adapter->wep_keys[index].len;
@@ -1886,7 +1885,7 @@ static int wlan_set_wep_key(struct assoc_request *assoc_req,
 		assoc_req->wep_tx_keyidx = index;
 	}
 
-	assoc_req->secinfo.WEPstatus = wlan802_11WEPenabled;
+	assoc_req->secinfo.wep_enabled = 1;
 
 	LEAVE();
 	return 0;
@@ -1918,7 +1917,7 @@ static void disable_wep(struct assoc_request *assoc_req)
 	assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 
 	/* Clear WEP keys and mark WEP as disabled */
-	assoc_req->secinfo.WEPstatus = wlan802_11WEPdisabled;
+	assoc_req->secinfo.wep_enabled = 0;
 	for (i = 0; i < 4; i++)
 		assoc_req->wep_keys[i].len = 0;
 
@@ -1970,8 +1969,7 @@ static int wlan_set_encode(struct net_device *dev,
 	/* If WEP isn't enabled, or if there is no key data but a valid
 	 * index, set the TX key.
 	 */
-	if ((assoc_req->secinfo.WEPstatus != wlan802_11WEPenabled)
-	    || (dwrq->length == 0 && !is_default))
+	if (!assoc_req->secinfo.wep_enabled || (dwrq->length == 0 && !is_default))
 		set_tx_key = 1;
 
 	ret = wlan_set_wep_key(assoc_req, extra, dwrq->length, index, set_tx_key);
@@ -2046,23 +2044,24 @@ static int wlan_get_encodeext(struct net_device *dev,
 	dwrq->flags = index + 1;
 	memset(ext, 0, sizeof(*ext));
 
-	if ((adapter->secinfo.WEPstatus == wlan802_11WEPdisabled)
-	    && !adapter->secinfo.WPAenabled && !adapter->secinfo.WPA2enabled) {
+	if (   !adapter->secinfo.wep_enabled
+	    && !adapter->secinfo.WPAenabled
+	    && !adapter->secinfo.WPA2enabled) {
 		ext->alg = IW_ENCODE_ALG_NONE;
 		ext->key_len = 0;
 		dwrq->flags |= IW_ENCODE_DISABLED;
 	} else {
 		u8 *key = NULL;
 
-		if ((adapter->secinfo.WEPstatus == wlan802_11WEPenabled)
+		if (   adapter->secinfo.wep_enabled
 		    && !adapter->secinfo.WPAenabled
 		    && !adapter->secinfo.WPA2enabled) {
 			ext->alg = IW_ENCODE_ALG_WEP;
 			ext->key_len = adapter->wep_keys[index].len;
 			key = &adapter->wep_keys[index].key[0];
-		} else if ((adapter->secinfo.WEPstatus == wlan802_11WEPdisabled) &&
-		           (adapter->secinfo.WPAenabled ||
-		            adapter->secinfo.WPA2enabled)) {
+		} else if (   !adapter->secinfo.wep_enabled
+		           && (adapter->secinfo.WPAenabled ||
+		               adapter->secinfo.WPA2enabled)) {
 			/* WPA */
 			ext->alg = IW_ENCODE_ALG_TKIP;
 			ext->key_len = 0;
@@ -2132,7 +2131,7 @@ static int wlan_set_encodeext(struct net_device *dev,
 		/* If WEP isn't enabled, or if there is no key data but a valid
 		 * index, or if the set-TX-key flag was passed, set the TX key.
 		 */
-		if ((assoc_req->secinfo.WEPstatus != wlan802_11WEPenabled)
+		if (   !assoc_req->secinfo.wep_enabled
 		    || (dwrq->length == 0 && !is_default)
 		    || (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY))
 			set_tx_key = 1;
@@ -2331,12 +2330,12 @@ static int wlan_set_auth(struct net_device *dev,
 		}
 		if (dwrq->value & IW_AUTH_WPA_VERSION_WPA) {
 			assoc_req->secinfo.WPAenabled = 1;
-			assoc_req->secinfo.WEPstatus = wlan802_11WEPdisabled;
+			assoc_req->secinfo.wep_enabled = 0;
 			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 		}
 		if (dwrq->value & IW_AUTH_WPA_VERSION_WPA2) {
 			assoc_req->secinfo.WPA2enabled = 1;
-			assoc_req->secinfo.WEPstatus = wlan802_11WEPdisabled;
+			assoc_req->secinfo.wep_enabled = 0;
 			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 		}
 		updated = 1;
@@ -2372,7 +2371,7 @@ static int wlan_set_auth(struct net_device *dev,
 			    !assoc_req->secinfo.WPA2enabled) {
 				assoc_req->secinfo.WPAenabled = 1;
 				assoc_req->secinfo.WPA2enabled = 1;
-				assoc_req->secinfo.WEPstatus = wlan802_11WEPdisabled;
+				assoc_req->secinfo.wep_enabled = 0;
 				assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 			}
 		} else {

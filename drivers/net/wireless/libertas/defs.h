@@ -276,12 +276,6 @@ enum WLAN_802_11_NETWORK_INFRASTRUCTURE {
 	wlan802_11infrastructuremax
 };
 
-/** WLAN_802_11_WEP_STATUS */
-enum WLAN_802_11_WEP_STATUS {
-	wlan802_11WEPenabled,
-	wlan802_11WEPdisabled,
-};
-
 /** SNMP_MIB_INDEX_e */
 enum SNMP_MIB_INDEX_e {
 	desired_bsstype_i = 0,

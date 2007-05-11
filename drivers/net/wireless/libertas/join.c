@@ -15,6 +15,8 @@
 #include "join.h"
 #include "dev.h"
 
+#define AD_HOC_CAP_PRIVACY_ON 1
+
 /**
  *  @brief This function finds out the common rates between rate1 and rate2.
  *
@@ -683,15 +685,12 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 	adhs->probedelay = cpu_to_le16(cmd_scan_probe_delay_time);
 
 	/* set up privacy in adapter->scantable[i] */
-	if (adapter->secinfo.WEPstatus == wlan802_11WEPenabled) {
-
-#define AD_HOC_CAP_PRIVACY_ON 1
-		lbs_pr_debug(1, "ADHOC_S_CMD: WEPstatus set, privacy to WEP\n");
+	if (adapter->secinfo.wep_enabled) {
+		lbs_pr_debug(1, "ADHOC_S_CMD: WEP enabled, setting privacy on\n");
 		pbssdesc->privacy = wlan802_11privfilter8021xWEP;
 		adhs->cap.privacy = AD_HOC_CAP_PRIVACY_ON;
 	} else {
-		lbs_pr_debug(1, "ADHOC_S_CMD: WEPstatus NOT set, Setting "
-		       "privacy to ACCEPT ALL\n");
+		lbs_pr_debug(1, "ADHOC_S_CMD: WEP disabled, setting privacy off\n");
 		pbssdesc->privacy = wlan802_11privfilteracceptall;
 	}
 
@@ -849,7 +848,7 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 	padhocjoin->bssdescriptor.ssparamset.ibssparamset.atimwindow =
 	    cpu_to_le16(pbssdesc->atimwindow);
 
-	if (adapter->secinfo.WEPstatus == wlan802_11WEPenabled) {
+	if (adapter->secinfo.wep_enabled) {
 		padhocjoin->bssdescriptor.cap.privacy = AD_HOC_CAP_PRIVACY_ON;
 	}
 

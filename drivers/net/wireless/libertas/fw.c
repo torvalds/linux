@@ -194,12 +194,11 @@ static void wlan_init_adapter(wlan_private * priv)
 	adapter->scanmode = cmd_bss_type_any;
 
 	/* 802.11 specific */
-	adapter->secinfo.WEPstatus = wlan802_11WEPdisabled;
+	adapter->secinfo.wep_enabled = 0;
 	for (i = 0; i < sizeof(adapter->wep_keys) / sizeof(adapter->wep_keys[0]);
 	     i++)
 		memset(&adapter->wep_keys[i], 0, sizeof(struct WLAN_802_11_KEY));
 	adapter->wep_tx_keyidx = 0;
-	adapter->secinfo.WEPstatus = wlan802_11WEPdisabled;
 	adapter->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 	adapter->inframode = wlan802_11infrastructure;
 

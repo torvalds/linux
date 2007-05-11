@@ -57,7 +57,7 @@ struct region_channel {
 struct wlan_802_11_security {
 	u8 WPAenabled;
 	u8 WPA2enabled;
-	enum WLAN_802_11_WEP_STATUS WEPstatus;
+	u8 wep_enabled;
 	u8 auth_mode;
 };
 
