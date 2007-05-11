@@ -588,31 +588,27 @@ void __init page_writeback_init(void)
 }
 
 /**
- * generic_writepages - walk the list of dirty pages of the given address space and writepage() all of them.
+ * write_cache_pages - walk the list of dirty pages of the given address space and write all of them.
  * @mapping: address space structure to write
  * @wbc: subtract the number of written pages from *@wbc->nr_to_write
+ * @writepage: function called for each page
+ * @data: data passed to writepage function
  *
- * This is a library function, which implements the writepages()
- * address_space_operation.
- *
- * If a page is already under I/O, generic_writepages() skips it, even
+ * If a page is already under I/O, write_cache_pages() skips it, even
  * if it's dirty.  This is desirable behaviour for memory-cleaning writeback,
  * but it is INCORRECT for data-integrity system calls such as fsync().  fsync()
  * and msync() need to guarantee that all the data which was dirty at the time
  * the call was made get new I/O started against them.  If wbc->sync_mode is
  * WB_SYNC_ALL then we were called for data integrity and we must wait for
  * existing IO to complete.
- *
- * Derived from mpage_writepages() - if you fix this you should check that
- * also!
  */
-int generic_writepages(struct address_space *mapping,
-		       struct writeback_control *wbc)
+int write_cache_pages(struct address_space *mapping,
+		      struct writeback_control *wbc, writepage_t writepage,
+		      void *data)
 {
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	int ret = 0;
 	int done = 0;
-	int (*writepage)(struct page *page, struct writeback_control *wbc);
 	struct pagevec pvec;
 	int nr_pages;
 	pgoff_t index;
@@ -624,12 +620,6 @@ int generic_writepages(struct address_space *mapping,
 		wbc->encountered_congestion = 1;
 		return 0;
 	}
-
-	writepage = mapping->a_ops->writepage;
-
-	/* deal with chardevs and other special file */
-	if (!writepage)
-		return 0;
 
 	pagevec_init(&pvec, 0);
 	if (wbc->range_cyclic) {
@@ -682,8 +672,7 @@ retry:
 				continue;
 			}
 
-			ret = (*writepage)(page, wbc);
-			mapping_set_error(mapping, ret);
+			ret = (*writepage)(page, wbc, data);
 
 			if (unlikely(ret == AOP_WRITEPAGE_ACTIVATE))
 				unlock_page(page);
@@ -709,6 +698,38 @@ retry:
 	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0))
 		mapping->writeback_index = index;
 	return ret;
+}
+EXPORT_SYMBOL(write_cache_pages);
+
+/*
+ * Function used by generic_writepages to call the real writepage
+ * function and set the mapping flags on error
+ */
+static int __writepage(struct page *page, struct writeback_control *wbc,
+		       void *data)
+{
+	struct address_space *mapping = data;
+	int ret = mapping->a_ops->writepage(page, wbc);
+	mapping_set_error(mapping, ret);
+	return ret;
+}
+
+/**
+ * generic_writepages - walk the list of dirty pages of the given address space and writepage() all of them.
+ * @mapping: address space structure to write
+ * @wbc: subtract the number of written pages from *@wbc->nr_to_write
+ *
+ * This is a library function, which implements the writepages()
+ * address_space_operation.
+ */
+int generic_writepages(struct address_space *mapping,
+		       struct writeback_control *wbc)
+{
+	/* deal with chardevs and other special file */
+	if (!mapping->a_ops->writepage)
+		return 0;
+
+	return write_cache_pages(mapping, wbc, __writepage, mapping);
 }
 
 EXPORT_SYMBOL(generic_writepages);
