@@ -204,17 +204,6 @@ static inline void WAIT_FIFO(struct pm2fb_par* p, u32 a)
 }
 #endif
 
-static void wait_pm2(struct pm2fb_par* par) {
-
-	WAIT_FIFO(par, 1);
-	pm2_WR(par, PM2R_SYNC, 0);
-	mb();
-	do {
-		while (pm2_RD(par, PM2R_OUT_FIFO_WORDS) == 0);
-		rmb();
-	} while (pm2_RD(par, PM2R_OUT_FIFO) != PM2TAG(PM2R_SYNC));
-}
-
 /*
  * partial products for the supported horizontal resolutions.
  */
@@ -1050,13 +1039,30 @@ static int pm2fb_blank(int blank_mode, struct fb_info *info)
 	return 0;
 }
 
+static int pm2fb_sync(struct fb_info *info)
+{
+	struct pm2fb_par *par = info->par;
+
+	WAIT_FIFO(par, 1);
+	pm2_WR(par, PM2R_SYNC, 0);
+	mb();
+	do {
+		while (pm2_RD(par, PM2R_OUT_FIFO_WORDS) == 0)
+			udelay(10);
+		rmb();
+	} while (pm2_RD(par, PM2R_OUT_FIFO) != PM2TAG(PM2R_SYNC));
+
+	return 0;
+}
+
 /*
  * block operation. copy=0: rectangle fill, copy=1: rectangle copy.
  */
-static void pm2fb_block_op(struct pm2fb_par* par, int copy,
+static void pm2fb_block_op(struct fb_info* info, int copy,
 				s32 xsrc, s32 ysrc,
 				s32 x, s32 y, s32 w, s32 h,
 				u32 color) {
+	struct pm2fb_par *par = info->par;
 
 	if (!w || !h)
 		return;
@@ -1076,13 +1082,11 @@ static void pm2fb_block_op(struct pm2fb_par* par, int copy,
 				(x<xsrc ? PM2F_INCREASE_X : 0) |
 				(y<ysrc ? PM2F_INCREASE_Y : 0) |
 				(copy ? 0 : PM2F_RENDER_FASTFILL));
-	wait_pm2(par);
 }
 
 static void pm2fb_fillrect (struct fb_info *info,
 				const struct fb_fillrect *region)
 {
-	struct pm2fb_par *par = info->par;
 	struct fb_fillrect modded;
 	int vxres, vyres;
 	u32 color = (info->fix.visual == FB_VISUAL_TRUECOLOR) ?
@@ -1116,7 +1120,7 @@ static void pm2fb_fillrect (struct fb_info *info,
 		color |= color << 16;
 
 	if(info->var.bits_per_pixel != 24)
-		pm2fb_block_op(par, 0, 0, 0,
+		pm2fb_block_op(info, 0, 0, 0,
 				modded.dx, modded.dy,
 				modded.width, modded.height, color);
 	else
@@ -1126,7 +1130,6 @@ static void pm2fb_fillrect (struct fb_info *info,
 static void pm2fb_copyarea(struct fb_info *info,
 				const struct fb_copyarea *area)
 {
-	struct pm2fb_par *par = info->par;
 	struct fb_copyarea modded;
 	u32 vxres, vyres;
 
@@ -1156,7 +1159,7 @@ static void pm2fb_copyarea(struct fb_info *info,
 	if(modded.dy + modded.height > vyres)
 		modded.height = vyres - modded.dy;
 
-	pm2fb_block_op(par, 1, modded.sx, modded.sy,
+	pm2fb_block_op(info, 1, modded.sx, modded.sy,
 			modded.dx, modded.dy,
 			modded.width, modded.height, 0);
 }
@@ -1177,6 +1180,7 @@ static struct fb_ops pm2fb_ops = {
 	.fb_fillrect	= pm2fb_fillrect,
 	.fb_copyarea	= pm2fb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
+	.fb_sync	= pm2fb_sync,
 };
 
 /*
