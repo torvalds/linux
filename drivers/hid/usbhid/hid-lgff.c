@@ -60,7 +60,7 @@ static const struct dev_type devices[] = {
 
 static int hid_lgff_play(struct input_dev *dev, void *data, struct ff_effect *effect)
 {
-	struct hid_device *hid = dev->private;
+	struct hid_device *hid = input_get_drvdata(dev);
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
 	int x, y;

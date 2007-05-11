@@ -96,7 +96,7 @@ resubmit:
 
 static int usb_mouse_open(struct input_dev *dev)
 {
-	struct usb_mouse *mouse = dev->private;
+	struct usb_mouse *mouse = input_get_drvdata(dev);
 
 	mouse->irq->dev = mouse->usbdev;
 	if (usb_submit_urb(mouse->irq, GFP_KERNEL))
@@ -107,7 +107,7 @@ static int usb_mouse_open(struct input_dev *dev)
 
 static void usb_mouse_close(struct input_dev *dev)
 {
-	struct usb_mouse *mouse = dev->private;
+	struct usb_mouse *mouse = input_get_drvdata(dev);
 
 	usb_kill_urb(mouse->irq);
 }
@@ -171,7 +171,7 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 	input_dev->name = mouse->name;
 	input_dev->phys = mouse->phys;
 	usb_to_input_id(dev, &input_dev->id);
-	input_dev->cdev.dev = &intf->dev;
+	input_dev->dev.parent = &intf->dev;
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
 	input_dev->keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_MIDDLE);
@@ -179,7 +179,8 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 	input_dev->keybit[LONG(BTN_MOUSE)] |= BIT(BTN_SIDE) | BIT(BTN_EXTRA);
 	input_dev->relbit[0] |= BIT(REL_WHEEL);
 
-	input_dev->private = mouse;
+	input_set_drvdata(input_dev, mouse);
+
 	input_dev->open = usb_mouse_open;
 	input_dev->close = usb_mouse_close;
 

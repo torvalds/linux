@@ -737,10 +737,8 @@ static inline void hidp_setup_hid(struct hidp_session *session, struct hidp_conn
 	list_for_each_entry(report, &hid->report_enum[HID_FEATURE_REPORT].report_list, list)
 		hidp_send_report(session, report);
 
-	if (hidinput_connect(hid) == 0) {
+	if (hidinput_connect(hid) == 0)
 		hid->claimed |= HID_CLAIMED_INPUT;
-		hid_ff_init(hid);
-	}
 }
 
 int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, struct socket *intr_sock)

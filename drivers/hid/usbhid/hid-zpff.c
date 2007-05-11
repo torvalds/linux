@@ -37,7 +37,7 @@ struct zpff_device {
 static int hid_zpff_play(struct input_dev *dev, void *data,
 			 struct ff_effect *effect)
 {
-	struct hid_device *hid = dev->private;
+	struct hid_device *hid = input_get_drvdata(dev);
 	struct zpff_device *zpff = data;
 	int left, right;
 
