@@ -76,8 +76,7 @@ extern struct pid *get_task_pid(struct task_struct *task, enum pid_type type);
  * write-held.
  */
 extern int FASTCALL(attach_pid(struct task_struct *task,
-				enum pid_type type, int nr));
-
+				enum pid_type type, struct pid *pid));
 extern void FASTCALL(detach_pid(struct task_struct *task, enum pid_type));
 extern void FASTCALL(transfer_pid(struct task_struct *old,
 				  struct task_struct *new, enum pid_type));

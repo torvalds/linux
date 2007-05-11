@@ -1488,7 +1488,7 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 	if (process_group(p) != pgid) {
 		detach_pid(p, PIDTYPE_PGID);
 		p->signal->pgrp = pgid;
-		attach_pid(p, PIDTYPE_PGID, pgid);
+		attach_pid(p, PIDTYPE_PGID, find_pid(pgid));
 	}
 
 	err = 0;

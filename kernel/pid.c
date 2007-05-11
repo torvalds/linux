@@ -247,13 +247,16 @@ struct pid * fastcall find_pid(int nr)
 }
 EXPORT_SYMBOL_GPL(find_pid);
 
-int fastcall attach_pid(struct task_struct *task, enum pid_type type, int nr)
+/*
+ * attach_pid() must be called with the tasklist_lock write-held.
+ */
+int fastcall attach_pid(struct task_struct *task, enum pid_type type,
+		struct pid *pid)
 {
 	struct pid_link *link;
-	struct pid *pid;
 
 	link = &task->pids[type];
-	link->pid = pid = find_pid(nr);
+	link->pid = pid;
 	hlist_add_head_rcu(&link->node, &pid->tasks[type]);
 
 	return 0;
