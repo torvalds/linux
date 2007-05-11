@@ -1,10 +1,9 @@
 #
 # Makefile for the memory technology device drivers.
 #
-# $Id: Makefile.common,v 1.7 2005/07/11 10:39:27 gleixner Exp $
 
 # Core functionality.
-mtd-y				:= mtdcore.o
+mtd-y				:= mtdcore.o mtdsuper.o
 mtd-$(CONFIG_MTD_PARTITIONS)	+= mtdpart.o
 obj-$(CONFIG_MTD)		+= $(mtd-y)
 

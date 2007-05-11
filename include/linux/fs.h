@@ -937,6 +937,7 @@ struct super_block {
 	struct list_head	s_files;
 
 	struct block_device	*s_bdev;
+	struct mtd_info		*s_mtd;
 	struct list_head	s_instances;
 	struct quota_info	s_dquot;	/* Diskquota specific options */
 
