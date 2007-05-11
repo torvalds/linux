@@ -1158,8 +1158,6 @@ struct r_port {
 	int xmit_head;
 	int xmit_tail;
 	int xmit_cnt;
-	int session;
-	int pgrp;
 	int cd_status;
 	int ignore_status_mask;
 	int read_status_mask;
