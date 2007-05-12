@@ -384,17 +384,14 @@ static void pasemi_mac_replenish_rx_ring(struct net_device *dev)
 
 static void pasemi_mac_restart_rx_intr(struct pasemi_mac *mac)
 {
-	unsigned int reg, stat;
+	unsigned int reg, pcnt;
 	/* Re-enable packet count interrupts: finally
 	 * ack the packet count interrupt we got in rx_intr.
 	 */
 
-	pci_read_config_dword(mac->iob_pdev,
-			      PAS_IOB_DMA_RXCH_STAT(mac->dma_rxch),
-			      &stat);
+	pcnt = *mac->rx_status & PAS_STATUS_PCNT_M;
 
-	reg = PAS_IOB_DMA_RXCH_RESET_PCNT(stat & PAS_IOB_DMA_RXCH_STAT_CNTDEL_M)
-		| PAS_IOB_DMA_RXCH_RESET_PINTC;
+	reg = PAS_IOB_DMA_RXCH_RESET_PCNT(pcnt) | PAS_IOB_DMA_RXCH_RESET_PINTC;
 
 	pci_write_config_dword(mac->iob_pdev,
 			       PAS_IOB_DMA_RXCH_RESET(mac->dma_rxch),
@@ -403,14 +400,12 @@ static void pasemi_mac_restart_rx_intr(struct pasemi_mac *mac)
 
 static void pasemi_mac_restart_tx_intr(struct pasemi_mac *mac)
 {
-	unsigned int reg, stat;
+	unsigned int reg, pcnt;
 
 	/* Re-enable packet count interrupts */
-	pci_read_config_dword(mac->iob_pdev,
-			      PAS_IOB_DMA_TXCH_STAT(mac->dma_txch), &stat);
+	pcnt = *mac->tx_status & PAS_STATUS_PCNT_M;
 
-	reg = PAS_IOB_DMA_TXCH_RESET_PCNT(stat & PAS_IOB_DMA_TXCH_STAT_CNTDEL_M)
-		| PAS_IOB_DMA_TXCH_RESET_PINTC;
+	reg = PAS_IOB_DMA_TXCH_RESET_PCNT(pcnt) | PAS_IOB_DMA_TXCH_RESET_PINTC;
 
 	pci_write_config_dword(mac->iob_pdev,
 			       PAS_IOB_DMA_TXCH_RESET(mac->dma_txch), reg);
@@ -591,21 +586,24 @@ static irqreturn_t pasemi_mac_tx_intr(int irq, void *data)
 {
 	struct net_device *dev = data;
 	struct pasemi_mac *mac = netdev_priv(dev);
-	unsigned int reg;
+	unsigned int reg, pcnt;
 
 	if (!(*mac->tx_status & PAS_STATUS_CAUSE_M))
 		return IRQ_NONE;
 
 	pasemi_mac_clean_tx(mac);
 
-	reg = PAS_IOB_DMA_TXCH_RESET_PINTC;
+	pcnt = *mac->tx_status & PAS_STATUS_PCNT_M;
+
+	reg = PAS_IOB_DMA_TXCH_RESET_PCNT(pcnt) | PAS_IOB_DMA_TXCH_RESET_PINTC;
 
 	if (*mac->tx_status & PAS_STATUS_SOFT)
 		reg |= PAS_IOB_DMA_TXCH_RESET_SINTC;
 	if (*mac->tx_status & PAS_STATUS_ERROR)
 		reg |= PAS_IOB_DMA_TXCH_RESET_DINTC;
 
-	pci_write_config_dword(mac->iob_pdev, PAS_IOB_DMA_TXCH_RESET(mac->dma_txch),
+	pci_write_config_dword(mac->iob_pdev,
+			       PAS_IOB_DMA_TXCH_RESET(mac->dma_txch),
 			       reg);
 
 	return IRQ_HANDLED;
@@ -974,6 +972,7 @@ static int pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *dev)
 	if (txring->next_to_clean - txring->next_to_use == TX_RING_SIZE) {
 		spin_unlock_irqrestore(&txring->lock, flags);
 		pasemi_mac_clean_tx(mac);
+		pasemi_mac_restart_tx_intr(mac);
 		spin_lock_irqsave(&txring->lock, flags);
 
 		if (txring->next_to_clean - txring->next_to_use ==
