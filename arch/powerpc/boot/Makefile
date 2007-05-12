@@ -45,7 +45,7 @@ src-wlib := string.S crt0.S stdio.c main.c flatdevtree.c flatdevtree_misc.c \
 		gunzip_util.c elf_util.c $(zlib) devtree.c \
 		44x.c ebony.c mv64x60.c mpsc.c mv64x60_i2c.c
 src-plat := of.c cuboot-83xx.c cuboot-85xx.c holly.c \
-		cuboot-ebony.c treeboot-ebony.c
+		cuboot-ebony.c treeboot-ebony.c prpmc2800.c
 src-boot := $(src-wlib) $(src-plat) empty.c
 
 src-boot := $(addprefix $(obj)/, $(src-boot))
@@ -132,6 +132,7 @@ image-$(CONFIG_PPC_CHRP)		+= zImage.chrp
 image-$(CONFIG_PPC_EFIKA)		+= zImage.chrp
 image-$(CONFIG_PPC_PMAC)		+= zImage.pmac
 image-$(CONFIG_PPC_HOLLY)		+= zImage.holly-elf
+image-$(CONFIG_PPC_PRPMC2800)		+= zImage.prpmc2800
 image-$(CONFIG_DEFAULT_UIMAGE)		+= uImage
 
 ifneq ($(CONFIG_DEVICE_TREE),"")
