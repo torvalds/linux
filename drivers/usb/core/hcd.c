@@ -1018,8 +1018,8 @@ done:
 		atomic_dec (&urb->use_count);
 		if (urb->reject)
 			wake_up (&usb_kill_urb_queue);
-		usb_put_urb (urb);
 		usbmon_urb_submit_error(&hcd->self, urb, status);
+		usb_put_urb (urb);
 	}
 	return status;
 }
