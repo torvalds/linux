@@ -43,7 +43,7 @@ $(addprefix $(obj)/,$(zlib) gunzip_util.o main.o): \
 src-wlib := string.S crt0.S stdio.c main.c flatdevtree.c flatdevtree_misc.c \
 		ns16550.c serial.c simple_alloc.c div64.S util.S \
 		gunzip_util.c elf_util.c $(zlib) devtree.c \
-		44x.c ebony.c mv64x60.c
+		44x.c ebony.c mv64x60.c mpsc.c
 src-plat := of.c cuboot-83xx.c cuboot-85xx.c holly.c \
 		cuboot-ebony.c treeboot-ebony.c
 src-boot := $(src-wlib) $(src-plat) empty.c
