@@ -1,7 +1,6 @@
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/init.h>
-
 #include <linux/interrupt.h>
 #include <asm/io.h>
 #include <asm/delay.h>
@@ -18,12 +17,12 @@
 #define	PHDR	0xa400012e
 #define SCPDR	0xa4000136
 
-static void do_softint(void *data);
+static void do_softint(struct work_struct *work);
 
 static struct input_dev *hp680_ts_dev;
-static DECLARE_WORK(work, do_softint);
+static DECLARE_DELAYED_WORK(work, do_softint);
 
-static void do_softint(void *data)
+static void do_softint(struct work_struct *work)
 {
 	int absx = 0, absy = 0;
 	u8 scpdr;
