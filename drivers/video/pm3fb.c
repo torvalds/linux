@@ -985,7 +985,7 @@ static void __exit pm3fb_exit(void)
 	pci_unregister_driver(&pm3fb_driver);
 }
 
-#ifdef MODULE
+#ifndef MODULE
 	/*
 	 *  Setup
 	 */
