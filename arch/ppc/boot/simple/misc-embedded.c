@@ -136,7 +136,7 @@ load_kernel(unsigned long load_addr, int num_words, unsigned long cksum, bd_t *b
 
 	/*
 	 * We link ourself to an arbitrary low address.  When we run, we
-	 * relocate outself to that address.  __image_being points to
+	 * relocate ourself to that address.  __image_being points to
 	 * the part of the image where the zImage is. -- Tom
 	 */
 	zimage_start = (char *)(unsigned long)(&__image_begin);

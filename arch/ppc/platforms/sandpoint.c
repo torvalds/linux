@@ -54,7 +54,7 @@
  *
  *
  * Motorola has finally released a version of DINK32 that correctly
- * (seemingly) initalizes the memory controller correctly, regardless
+ * (seemingly) initializes the memory controller correctly, regardless
  * of the amount of memory in the system.  Once a method of determining
  * what version of DINK initializes the system for us, if applicable, is
  * found, we can hopefully stop hardcoding 32MB of RAM.
@@ -473,7 +473,7 @@ sandpoint_request_io(void)
 arch_initcall(sandpoint_request_io);
 
 /*
- * Interrupt setup and service.  Interrrupts on the Sandpoint come
+ * Interrupt setup and service.  Interrupts on the Sandpoint come
  * from the four PCI slots plus the 8259 in the Winbond Super I/O (SIO).
  * The 8259 is cascaded from EPIC IRQ0, IRQ1-4 map to PCI slots 1-4,
  * IDE is on EPIC 7 and 8.
@@ -505,7 +505,7 @@ sandpoint_find_end_of_memory(void)
 	if (bp->bi_memsize)
 		return bp->bi_memsize;
 
-	/* DINK32 13.0 correctly initalizes things, so iff you use
+	/* DINK32 13.0 correctly initializes things, so iff you use
 	 * this you _should_ be able to change this instead of a
 	 * hardcoded value. */
 #if 0
@@ -677,7 +677,7 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	 * are non-zero, then we should use the board info from the bd_t
 	 * structure and the cmdline pointed to by r6 instead of the
 	 * information from birecs, if any.  Otherwise, use the information
-	 * from birecs as discovered by the preceeding call to
+	 * from birecs as discovered by the preceding call to
 	 * parse_bootinfo().  This rule should work with both PPCBoot, which
 	 * uses a bd_t board info structure, and the kernel boot wrapper,
 	 * which uses birecs.

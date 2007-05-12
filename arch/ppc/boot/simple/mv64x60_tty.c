@@ -338,7 +338,7 @@ serial_tstc(unsigned long com_port)
 
 	rdp = &rd[com_port][cur_rd[com_port]];
 
-	/* Go thru rcv desc's until empty looking for one with data (no error)*/
+	/* Go through rcv descs until empty looking for one with data (no error)*/
 	while (((rdp->cmd_stat & SDMA_DESC_CMDSTAT_O) == 0) &&
 		(loop_count++ < RX_NUM_DESC)) {
 

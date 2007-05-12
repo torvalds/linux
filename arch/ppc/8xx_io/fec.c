@@ -1878,7 +1878,7 @@ fec_restart(struct net_device *dev, int duplex)
 	bdp--;
 	bdp->cbd_sc |= BD_SC_WRAP;
 
-	/* ...and the same for transmmit.
+	/* ...and the same for transmit.
 	*/
 	bdp = fep->tx_bd_base;
 	for (i=0; i<TX_RING_SIZE; i++) {

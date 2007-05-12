@@ -112,7 +112,7 @@ ppc4xx_pic_init(void)
 
 	/*
 	 * Disable all external interrupts until they are
-	 * explicity requested.
+	 * explicitly requested.
 	 */
 	ppc_cached_irq_mask[0] = 0;
 

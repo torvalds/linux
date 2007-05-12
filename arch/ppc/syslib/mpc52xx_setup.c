@@ -252,7 +252,7 @@ mpc52xx_setup_cpu(void)
 	out_be32(&xlb->snoop_window, MPC52xx_PCI_TARGET_MEM | 0x1d);
 
 	/* Disable XLB pipelining */
-	/* (cfr errate 292. We could do this only just before ATA PIO
+	/* (cfr errata 292. We could do this only just before ATA PIO
 	    transaction and re-enable it after ...) */
 	out_be32(&xlb->config, in_be32(&xlb->config) | MPC52xx_XLB_CFG_PLDIS);
 

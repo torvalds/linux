@@ -349,7 +349,7 @@ EXPORT_SYMBOL_GPL(rio_hw_add_outb_message);
  * @dev_instance: Pointer to interrupt-specific data
  *
  * Handles outbound message interrupts. Executes a register outbound
- * mailbox event handler and acks the interrupt occurence.
+ * mailbox event handler and acks the interrupt occurrence.
  */
 static irqreturn_t
 mpc85xx_rio_tx_handler(int irq, void *dev_instance)
@@ -516,7 +516,7 @@ void rio_close_outb_mbox(struct rio_mport *mport, int mbox)
  * @dev_instance: Pointer to interrupt-specific data
  *
  * Handles inbound message interrupts. Executes a registered inbound
- * mailbox event handler and acks the interrupt occurence.
+ * mailbox event handler and acks the interrupt occurrence.
  */
 static irqreturn_t
 mpc85xx_rio_rx_handler(int irq, void *dev_instance)

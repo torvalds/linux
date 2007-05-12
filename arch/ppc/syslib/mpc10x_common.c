@@ -432,7 +432,7 @@ mpc10x_bridge_init(struct pci_controller *hose,
 			phys_eumb_base);
 	}
 
-	/* IRQ's are determined at runtime */
+	/* IRQs are determined at runtime */
 	ppc_sys_platform_devices[MPC10X_IIC1].resource[1].start = MPC10X_I2C_IRQ;
 	ppc_sys_platform_devices[MPC10X_IIC1].resource[1].end = MPC10X_I2C_IRQ;
 	ppc_sys_platform_devices[MPC10X_DMA0].resource[1].start = MPC10X_DMA0_IRQ;
@@ -646,7 +646,7 @@ void __init mpc10x_set_openpic(void)
 	openpic_set_sources(EPIC_IRQ_BASE, 3, OpenPIC_Addr + 0x11020);
 	/* Skip reserved space and map Message Unit Interrupt (I2O) */
 	openpic_set_sources(EPIC_IRQ_BASE + 3, 1, OpenPIC_Addr + 0x110C0);
-	/* Skip reserved space and map Serial Interupts */
+	/* Skip reserved space and map Serial Interrupts */
 	openpic_set_sources(EPIC_IRQ_BASE + 4, 2, OpenPIC_Addr + 0x11120);
 
 	openpic_init(NUM_8259_INTERRUPTS);

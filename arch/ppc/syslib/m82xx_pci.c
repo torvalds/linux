@@ -197,7 +197,7 @@ pq2ads_setup_pci(struct pci_controller *hose)
 	   CPM high      	0b0000
 	   CPM middle           0b0001
 	   CPM low       	0b0010
-	   PCI reguest          0b0011
+	   PCI request          0b0011
 	   Reserved      	0b0100
 	   Reserved      	0b0101
 	   Internal Core     	0b0110

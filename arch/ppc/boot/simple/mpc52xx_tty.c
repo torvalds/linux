@@ -33,7 +33,7 @@ static struct mpc52xx_psc __iomem *psc =
  * rtc.  We read the decrementer change during one rtc tick
  * and multiply by 4 to get the system bus clock frequency. Since a
  * rtc tick is one seconds, and that's pretty long, we change the rtc
- * dividers temporarly to set them 64x faster ;)
+ * dividers temporarily to set them 64x faster ;)
  */
 static int
 mpc52xx_ipbfreq(void)

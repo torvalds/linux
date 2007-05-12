@@ -351,7 +351,7 @@ static void hpte_decode(hpte_t *hpte, unsigned long slot,
 	unsigned long hpte_r = hpte->r;
 	unsigned long hpte_v = hpte->v;
 	unsigned long avpn;
-	int i, size, shift, penc, avpnm_bits;
+	int i, size, shift, penc;
 
 	if (!(hpte_v & HPTE_V_LARGE))
 		size = MMU_PAGE_4K;
@@ -395,7 +395,7 @@ static void hpte_decode(hpte_t *hpte, unsigned long slot,
 			vpi = (vsid ^ (vsid << 25) ^ pteg) & htab_hash_mask;
 			break;
 		default:
-			avpn = vpi = psize = 0;
+			avpn = vpi = size = 0;
 		}
 		avpn |= (vpi << mmu_psize_defs[size].shift);
 	}

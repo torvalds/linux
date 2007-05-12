@@ -577,7 +577,7 @@ void program_check_exception(struct pt_regs *regs)
 	 * ESR_DST (!?) or 0.  In the process of chasing this with the
 	 * hardware people - not sure if it can happen on any illegal
 	 * instruction or only on FP instructions, whether there is a
-	 * pattern to occurences etc. -dgibson 31/Mar/2003 */
+	 * pattern to occurrences etc. -dgibson 31/Mar/2003 */
 	if (!(reason & REASON_TRAP) && do_mathemu(regs) == 0) {
 		emulate_single_step(regs);
 		return;
@@ -860,7 +860,7 @@ void SPEFloatingPointException(struct pt_regs *regs)
 	spefscr = current->thread.spefscr;
 	fpexc_mode = current->thread.fpexc_mode;
 
-	/* Hardware does not neccessarily set sticky
+	/* Hardware does not necessarily set sticky
 	 * underflow/overflow/invalid flags */
 	if ((spefscr & SPEFSCR_FOVF) && (fpexc_mode & PR_FP_EXC_OVF)) {
 		code = FPE_FLTOVF;

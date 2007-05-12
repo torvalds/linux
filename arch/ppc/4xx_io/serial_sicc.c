@@ -3,7 +3,7 @@
  *
  *  Based on drivers/char/serial_amba.c, by ARM Ltd.
  *
- *  Copyright 2001 IBM Crop.
+ *  Copyright 2001 IBM Corp.
  *  Author: IBM China Research Lab
  *            Yudong Yang <yangyud@cn.ibm.com>
  *            Yi Ge       <geyi@cn.ibm.com>
@@ -155,16 +155,16 @@
 
 /* serial port transmit command register */
 
-#define _TxCR_ET_MASK   0x80           /* transmiter enable mask */
+#define _TxCR_ET_MASK   0x80           /* transmitter enable mask */
 #define _TxCR_DME_MASK  0x60           /* dma mode mask */
 #define _TxCR_TIE_MASK  0x10           /* empty interrupt enable mask */
 #define _TxCR_EIE_MASK  0x08           /* error interrupt enable mask */
 #define _TxCR_SPE_MASK  0x04           /* stop/pause mask */
 #define _TxCR_TB_MASK   0x02           /* transmit break mask */
 
-#define _TxCR_ET_ENABLE _TxCR_ET_MASK  /* transmiter enabled */
-#define _TxCR_DME_DISABLE 0x00         /* transmiter disabled, TBR intr disabled */
-#define _TxCR_DME_TBR   0x20           /* transmiter disabled, TBR intr enabled */
+#define _TxCR_ET_ENABLE _TxCR_ET_MASK  /* transmitter enabled */
+#define _TxCR_DME_DISABLE 0x00         /* transmitter disabled, TBR intr disabled */
+#define _TxCR_DME_TBR   0x20           /* transmitter disabled, TBR intr enabled */
 #define _TxCR_DME_CHAN_2 0x40          /* dma enabled, destination chann 2 */
 #define _TxCR_DME_CHAN_3 0x60          /* dma enabled, destination chann 3 */
 

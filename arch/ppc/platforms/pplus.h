@@ -18,7 +18,7 @@
 #include <asm/io.h>
 
 /*
- * Due to limiations imposed by legacy hardware (primaryily IDE controllers),
+ * Due to limitations imposed by legacy hardware (primarily IDE controllers),
  * the PPLUS boards operate using a PReP address map.
  *
  * From Processor (physical) -> PCI:

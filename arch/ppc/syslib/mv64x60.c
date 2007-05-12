@@ -490,7 +490,7 @@ static struct platform_device *mv64x60_pd_devs[] __initdata = {
 /*
  * mv64x60_init()
  *
- * Initialze the bridge based on setting passed in via 'si'.  The bridge
+ * Initialize the bridge based on setting passed in via 'si'.  The bridge
  * handle, 'bh', will be set so that it can be used to make subsequent
  * calls to routines in this file.
  */
@@ -1704,7 +1704,7 @@ gt64260_disable_all_windows(struct mv64x60_handle *bh,
 /*
  * gt64260a_chip_specific_init()
  *
- * Implement errata work arounds for the GT64260A.
+ * Implement errata workarounds for the GT64260A.
  */
 static void __init
 gt64260a_chip_specific_init(struct mv64x60_handle *bh,
@@ -1776,7 +1776,7 @@ gt64260a_chip_specific_init(struct mv64x60_handle *bh,
 /*
  * gt64260b_chip_specific_init()
  *
- * Implement errata work arounds for the GT64260B.
+ * Implement errata workarounds for the GT64260B.
  */
 static void __init
 gt64260b_chip_specific_init(struct mv64x60_handle *bh,
@@ -2316,7 +2316,7 @@ mv64360_set_mpsc2regs_window(struct mv64x60_handle *bh, u32 base)
 /*
  * mv64360_chip_specific_init()
  *
- * Implement errata work arounds for the MV64360.
+ * Implement errata workarounds for the MV64360.
  */
 static void __init
 mv64360_chip_specific_init(struct mv64x60_handle *bh,
@@ -2336,7 +2336,7 @@ mv64360_chip_specific_init(struct mv64x60_handle *bh,
 /*
  * mv64460_chip_specific_init()
  *
- * Implement errata work arounds for the MV64460.
+ * Implement errata workarounds for the MV64460.
  */
 static void __init
 mv64460_chip_specific_init(struct mv64x60_handle *bh,

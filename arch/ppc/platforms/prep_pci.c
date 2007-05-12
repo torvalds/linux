@@ -589,9 +589,9 @@ static unsigned char prep_pci_intpins[4][4] =
 	{ 4, 1, 2, 3},  /* Buses 3, 7, 11 ... */
 };
 
-/* We have to turn on LEVEL mode for changed IRQ's */
-/* All PCI IRQ's need to be level mode, so this should be something
- * other than hard-coded as well... IRQ's are individually mappable
+/* We have to turn on LEVEL mode for changed IRQs */
+/* All PCI IRQs need to be level mode, so this should be something
+ * other than hard-coded as well... IRQs are individually mappable
  * to either edge or level.
  */
 
@@ -923,8 +923,8 @@ prep_sandalfoot_setup_pci(char *irq_edge_mask_lo, char *irq_edge_mask_hi)
 	Motherboard_map_name = "IBM 6015/7020 (Sandalfoot/Sandalbow)";
 	Motherboard_map = ibm6015_pci_IRQ_map;
 	Motherboard_routes = ibm6015_pci_IRQ_routes;
-	*irq_edge_mask_lo = 0x00; /* irq's 0-7 all edge-triggered */
-	*irq_edge_mask_hi = 0xA0; /* irq's 13, 15 level-triggered */
+	*irq_edge_mask_lo = 0x00; /* IRQs 0-7 all edge-triggered */
+	*irq_edge_mask_hi = 0xA0; /* IRQs 13, 15 level-triggered */
 }
 
 void __init
@@ -933,8 +933,8 @@ prep_thinkpad_setup_pci(char *irq_edge_mask_lo, char *irq_edge_mask_hi)
 	Motherboard_map_name = "IBM Thinkpad 850/860";
 	Motherboard_map = Nobis_pci_IRQ_map;
 	Motherboard_routes = Nobis_pci_IRQ_routes;
-	*irq_edge_mask_lo = 0x00; /* irq's 0-7 all edge-triggered */
-	*irq_edge_mask_hi = 0xA0; /* irq's 13, 15 level-triggered */
+	*irq_edge_mask_lo = 0x00; /* IRQs 0-7 all edge-triggered */
+	*irq_edge_mask_hi = 0xA0; /* IRQs 13, 15 level-triggered */
 }
 
 void __init
@@ -943,8 +943,8 @@ prep_carolina_setup_pci(char *irq_edge_mask_lo, char *irq_edge_mask_hi)
 	Motherboard_map_name = "IBM 7248, PowerSeries 830/850 (Carolina)";
 	Motherboard_map = ibm8xx_pci_IRQ_map;
 	Motherboard_routes = ibm8xx_pci_IRQ_routes;
-	*irq_edge_mask_lo = 0x00; /* irq's 0-7 all edge-triggered */
-	*irq_edge_mask_hi = 0xA4; /* irq's 10, 13, 15 level-triggered */
+	*irq_edge_mask_lo = 0x00; /* IRQs 0-7 all edge-triggered */
+	*irq_edge_mask_hi = 0xA4; /* IRQs 10, 13, 15 level-triggered */
 }
 
 void __init
@@ -954,8 +954,8 @@ prep_tiger1_setup_pci(char *irq_edge_mask_lo, char *irq_edge_mask_hi)
 	Motherboard_map = ibm43p_pci_IRQ_map;
 	Motherboard_routes = ibm43p_pci_IRQ_routes;
 	Motherboard_non0 = ibm43p_pci_map_non0;
-	*irq_edge_mask_lo = 0x00; /* irq's 0-7 all edge-triggered */
-	*irq_edge_mask_hi = 0xA0; /* irq's 13, 15 level-triggered */
+	*irq_edge_mask_lo = 0x00; /* IRQs 0-7 all edge-triggered */
+	*irq_edge_mask_hi = 0xA0; /* IRQs 13, 15 level-triggered */
 }
 
 void __init

@@ -711,30 +711,15 @@ void wakeup_decrementer(void)
 void __init smp_space_timers(unsigned int max_cpus)
 {
 	int i;
-	unsigned long half = tb_ticks_per_jiffy / 2;
-	unsigned long offset = tb_ticks_per_jiffy / max_cpus;
 	u64 previous_tb = per_cpu(last_jiffy, boot_cpuid);
 
 	/* make sure tb > per_cpu(last_jiffy, cpu) for all cpus always */
 	previous_tb -= tb_ticks_per_jiffy;
-	/*
-	 * The stolen time calculation for POWER5 shared-processor LPAR
-	 * systems works better if the two threads' timebase interrupts
-	 * are staggered by half a jiffy with respect to each other.
-	 */
+
 	for_each_possible_cpu(i) {
 		if (i == boot_cpuid)
 			continue;
-		if (i == (boot_cpuid ^ 1))
-			per_cpu(last_jiffy, i) =
-				per_cpu(last_jiffy, boot_cpuid) - half;
-		else if (i & 1)
-			per_cpu(last_jiffy, i) =
-				per_cpu(last_jiffy, i ^ 1) + half;
-		else {
-			previous_tb += offset;
-			per_cpu(last_jiffy, i) = previous_tb;
-		}
+		per_cpu(last_jiffy, i) = previous_tb;
 	}
 }
 #endif

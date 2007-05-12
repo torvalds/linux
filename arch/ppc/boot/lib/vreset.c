@@ -518,7 +518,7 @@ setTextRegs(struct VgaRegs *svp)
 	outb(0x3c6, 0xff);  /* MASK */
 
 	for ( i = 0; i < 0x10; i++)
-		writeAttr(i, AC[i], 0);  /* pallete */
+		writeAttr(i, AC[i], 0);  /* palette */
 	writeAttr(0x10, 0x0c, 0);    /* text mode */
 	writeAttr(0x11, 0x00, 0);    /* overscan color (border) */
 	writeAttr(0x12, 0x0f, 0);    /* plane enable */

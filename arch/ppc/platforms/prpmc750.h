@@ -16,7 +16,7 @@
 #define __ASM_PRPMC750_H__
 
 /*
- * Due to limiations imposed by legacy hardware (primaryily IDE controllers),
+ * Due to limitations imposed by legacy hardware (primarily IDE controllers),
  * the PrPMC750 carrier board operates using a PReP address map.
  *
  * From Processor (physical) -> PCI:

@@ -389,6 +389,9 @@ config NOT_COHERENT_CACHE
 	bool
 	depends on 4xx || 8xx || E200
 	default y
+
+config CONFIG_CHECK_CACHE_COHERENCY
+	bool
 endmenu
 
 source "init/Kconfig"
@@ -451,7 +454,7 @@ config ARCH_ENABLE_MEMORY_HOTPLUG
 
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
-	depends on PPC_MULTIPLATFORM && EXPERIMENTAL
+	depends on (PPC_PRPMC2800 || PPC_MULTIPLATFORM) && EXPERIMENTAL
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot

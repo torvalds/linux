@@ -69,7 +69,7 @@
 
 #define STD_COM_FLAGS ASYNC_BOOT_AUTOCONF
 
-/* All UART IRQ's are wire-OR'd to one MPIC IRQ */
+/* All UART IRQs are wire-OR'd to one MPIC IRQ */
 #define STD_SERIAL_PORT_DFNS \
         { 0, BASE_BAUD, MVME5100_SERIAL_1, \
 		MVME5100_SERIAL_IRQ, \
