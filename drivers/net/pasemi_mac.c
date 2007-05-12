@@ -85,6 +85,7 @@ static int pasemi_get_mac_addr(struct pasemi_mac *mac)
 {
 	struct pci_dev *pdev = mac->pdev;
 	struct device_node *dn = pci_device_to_OF_node(pdev);
+	int len;
 	const u8 *maddr;
 	u8 addr[6];
 
@@ -94,9 +95,17 @@ static int pasemi_get_mac_addr(struct pasemi_mac *mac)
 		return -ENOENT;
 	}
 
-	maddr = of_get_property(dn, "local-mac-address", NULL);
+	maddr = of_get_property(dn, "local-mac-address", &len);
 
-	/* Fall back to mac-address for older firmware */
+	if (maddr && len == 6) {
+		memcpy(mac->mac_addr, maddr, 6);
+		return 0;
+	}
+
+	/* Some old versions of firmware mistakenly uses mac-address
+	 * (and as a string) instead of a byte array in local-mac-address.
+	 */
+
 	if (maddr == NULL)
 		maddr = of_get_property(dn, "mac-address", NULL);
 
@@ -106,6 +115,7 @@ static int pasemi_get_mac_addr(struct pasemi_mac *mac)
 		return -ENOENT;
 	}
 
+
 	if (sscanf(maddr, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &addr[0],
 		   &addr[1], &addr[2], &addr[3], &addr[4], &addr[5]) != 6) {
 		dev_warn(&pdev->dev,
@@ -113,7 +123,8 @@ static int pasemi_get_mac_addr(struct pasemi_mac *mac)
 		return -EINVAL;
 	}
 
-	memcpy(mac->mac_addr, addr, sizeof(addr));
+	memcpy(mac->mac_addr, addr, 6);
+
 	return 0;
 }
 
