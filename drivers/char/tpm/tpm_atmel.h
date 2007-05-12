@@ -23,6 +23,9 @@
  */
 
 #ifdef CONFIG_PPC64
+
+#include <asm/prom.h>
+
 #define atmel_getb(chip, offset) readb(chip->vendor->iobase + offset);
 #define atmel_putb(val, chip, offset) writeb(val, chip->vendor->iobase + offset)
 #define atmel_request_region request_mem_region
