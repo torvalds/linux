@@ -48,6 +48,7 @@ config MPC10X_BRIDGE
 
 config MV64X60
 	bool
+	select PPC_INDIRECT_PCI
 
 config MPC10X_OPENPIC
 	bool
