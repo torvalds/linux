@@ -731,7 +731,7 @@ struct pci_sun4v_msiq_entry {
 
 	u64		msi_address;
 
-	/* The format of this value is message type dependant.
+	/* The format of this value is message type dependent.
 	 * For MSI bits 15:0 are the data from the MSI packet.
 	 * For MSI-X bits 31:0 are the data from the MSI packet.
 	 * For MSG, the message code and message routing code where:

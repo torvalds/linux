@@ -37,7 +37,7 @@ static void pci_fire_scan_bus(struct pci_pbm_info *pbm)
 #define FIRE_IOMMU_CONTROL	0x40000UL
 #define FIRE_IOMMU_TSBBASE	0x40008UL
 #define FIRE_IOMMU_FLUSH	0x40100UL
-#define FIRE_IOMMU_FLUSHINV	0x40100UL
+#define FIRE_IOMMU_FLUSHINV	0x40108UL
 
 static void pci_fire_pbm_iommu_init(struct pci_pbm_info *pbm)
 {

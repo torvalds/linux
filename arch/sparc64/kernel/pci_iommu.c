@@ -542,7 +542,7 @@ static inline void fill_sg(iopte_t *iopte, struct scatterlist *sg,
 /* Map a set of buffers described by SGLIST with NELEMS array
  * elements in streaming mode for PCI DMA.
  * When making changes here, inspect the assembly output. I was having
- * hard time to kepp this routine out of using stack slots for holding variables.
+ * hard time to keep this routine out of using stack slots for holding variables.
  */
 static int pci_4u_map_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
 {

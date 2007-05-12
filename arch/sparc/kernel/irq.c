@@ -1,6 +1,6 @@
 /*  $Id: irq.c,v 1.114 2001/12/11 04:55:51 davem Exp $
  *  arch/sparc/kernel/irq.c:  Interrupt request handling routines. On the
- *                            Sparc the IRQ's are basically 'cast in stone'
+ *                            Sparc the IRQs are basically 'cast in stone'
  *                            and you are supposed to probe the prom's device
  *                            node trees to find out who's got which IRQ.
  *
@@ -330,7 +330,7 @@ void handler_irq(int irq, struct pt_regs * regs)
 	irq_enter();
 	disable_pil_irq(irq);
 #ifdef CONFIG_SMP
-	/* Only rotate on lower priority IRQ's (scsi, ethernet, etc.). */
+	/* Only rotate on lower priority IRQs (scsi, ethernet, etc.). */
 	if((sparc_cpu_model==sun4m) && (irq < 10))
 		smp4m_irq_rotate(cpu);
 #endif
@@ -371,7 +371,7 @@ void sparc_floppy_irq(int irq, void *dev_id, struct pt_regs *regs)
 }
 #endif
 
-/* Fast IRQ's on the Sparc can only have one routine attached to them,
+/* Fast IRQs on the Sparc can only have one routine attached to them,
  * thus no sharing possible.
  */
 int request_fast_irq(unsigned int irq,
@@ -608,7 +608,7 @@ void __init init_IRQ(void)
 		break;
 
 	default:
-		prom_printf("Cannot initialize IRQ's on this Sun machine...");
+		prom_printf("Cannot initialize IRQs on this Sun machine...");
 		break;
 	}
 	btfixup();

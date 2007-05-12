@@ -21,7 +21,7 @@
 #include <asm/timer.h>
 #include <asm/cpudata.h>
 
-/* Used to synchronize acceses to NatSemi SUPER I/O chip configure
+/* Used to synchronize accesses to NatSemi SUPER I/O chip configure
  * operations in asm/ns87303.h
  */
 DEFINE_SPINLOCK(ns87303_lock);

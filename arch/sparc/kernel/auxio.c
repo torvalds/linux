@@ -88,7 +88,7 @@ void set_auxio(unsigned char bits_on, unsigned char bits_off)
 		break;
 	case sun4m:
 		if(!auxio_register)
-			break;     /* VME chassic sun4m, no auxio. */
+			break;     /* VME chassis sun4m, no auxio. */
 		regval = sbus_readb(auxio_register);
 		sbus_writeb(((regval | bits_on) & ~bits_off) | AUXIO_ORMEIN4M,
 			auxio_register);

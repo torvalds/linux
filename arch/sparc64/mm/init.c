@@ -1008,7 +1008,7 @@ static unsigned long __init bootmem_init(unsigned long *pages_avail,
 	if (initrd_start) {
 		size = initrd_end - initrd_start;
 
-		/* Resert the initrd image area. */
+		/* Reserve the initrd image area. */
 #ifdef CONFIG_DEBUG_BOOTMEM
 		prom_printf("reserve_bootmem(initrd): base[%llx] size[%lx]\n",
 			initrd_start, initrd_end);

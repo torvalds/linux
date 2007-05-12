@@ -899,7 +899,7 @@ static unsigned int fire_irq_build(struct device_node *dp,
 	/* The interrupt map registers do not have an INO field
 	 * like other chips do.  They return zero in the INO
 	 * field, and the interrupt controller number is controlled
-	 * in bits 6 thru 9.  So in order for build_irq() to get
+	 * in bits 6 to 9.  So in order for build_irq() to get
 	 * the INO right we pass it in as part of the fixup
 	 * which will get added to the map register zero value
 	 * read by build_irq().

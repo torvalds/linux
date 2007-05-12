@@ -755,7 +755,7 @@ void __init pci_time_init(void)
 static __inline__ unsigned long do_gettimeoffset(void)
 {
 	/*
-	 * We devide all to 100
+	 * We divide all by 100
 	 * to have microsecond resolution and to avoid overflow
 	 */
 	unsigned long count =
@@ -956,7 +956,7 @@ EXPORT_SYMBOL(pci_device_to_OF_node);
  * Also, think for a moment about likes of floppy.c that
  * include architecture specific parts. They may want to redefine ins/outs.
  *
- * We do not use horroble macroses here because we want to
+ * We do not use horrible macros here because we want to
  * advance pointer by sizeof(size).
  */
 void outsb(unsigned long addr, const void *src, unsigned long count)
