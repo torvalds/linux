@@ -31,6 +31,14 @@ config PPC_HOLLY
 	help
 	  Select PPC_HOLLY if configuring for an IBM 750GX/CL Eval
 	  Board with TSI108/9 bridge (Hickory/Holly)
+
+config PPC_PRPMC2800
+	bool "Motorola-PrPMC2800"
+	select MV64X60
+	select NOT_COHERENT_CACHE
+	select WANT_DEVICE_TREE
+	help
+	  This option enables support for the Motorola PrPMC2800 board
 endchoice
 
 config TSI108_BRIDGE
