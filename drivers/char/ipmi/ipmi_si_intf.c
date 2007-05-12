@@ -1915,10 +1915,10 @@ static __devinit int try_init_acpi(struct SPMITable *spmi)
 
 	if (spmi->addr.space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
 		info->io_setup = mem_setup;
-		info->io.addr_type = IPMI_IO_ADDR_SPACE;
+		info->io.addr_type = IPMI_MEM_ADDR_SPACE;
 	} else if (spmi->addr.space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
 		info->io_setup = port_setup;
-		info->io.addr_type = IPMI_MEM_ADDR_SPACE;
+		info->io.addr_type = IPMI_IO_ADDR_SPACE;
 	} else {
 		kfree(info);
 		printk("ipmi_si: Unknown ACPI I/O Address type\n");
