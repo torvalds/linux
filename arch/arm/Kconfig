@@ -241,6 +241,7 @@ config ARCH_H720X
 
 config ARCH_IMX
 	bool "IMX"
+	select GENERIC_GPIO
 	help
 	  Support for Motorola's i.MX family of processors (MX1, MXL).
 
