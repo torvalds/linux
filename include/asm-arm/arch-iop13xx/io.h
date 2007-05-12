@@ -27,7 +27,7 @@
 
 extern void __iomem * __iop13xx_io(unsigned long io_addr);
 extern void __iomem *__iop13xx_ioremap(unsigned long cookie, size_t size,
-	unsigned long flags);
+	unsigned int mtype);
 extern void __iop13xx_iounmap(void __iomem *addr);
 
 extern u32 iop13xx_atue_mem_base;

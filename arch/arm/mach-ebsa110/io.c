@@ -102,7 +102,7 @@ EXPORT_SYMBOL(__readb);
 EXPORT_SYMBOL(__readw);
 EXPORT_SYMBOL(__readl);
 
-void readsw(void __iomem *addr, void *data, int len)
+void readsw(const void __iomem *addr, void *data, int len)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 
@@ -112,7 +112,7 @@ void readsw(void __iomem *addr, void *data, int len)
 }
 EXPORT_SYMBOL(readsw);
 
-void readsl(void __iomem *addr, void *data, int len)
+void readsl(const void __iomem *addr, void *data, int len)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 
@@ -157,7 +157,7 @@ EXPORT_SYMBOL(__writeb);
 EXPORT_SYMBOL(__writew);
 EXPORT_SYMBOL(__writel);
 
-void writesw(void __iomem *addr, void *data, int len)
+void writesw(void __iomem *addr, const void *data, int len)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 
@@ -167,7 +167,7 @@ void writesw(void __iomem *addr, void *data, int len)
 }
 EXPORT_SYMBOL(writesw);
 
-void writesl(void __iomem *addr, void *data, int len)
+void writesl(void __iomem *addr, const void *data, int len)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 
