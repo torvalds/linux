@@ -16,13 +16,13 @@
 	.endm
 
 	.macro  get_irqnr_preamble, base, tmp
+	mov	\base, #IRQ_STAT
 	.endm
 
 	.macro  arch_ret_to_user, tmp1, tmp2
 	.endm
 
 	.macro	get_irqnr_and_base, irqnr, stat, base, tmp
-	mov	\base, #IRQ_STAT
 	ldrb	\stat, [\base]			@ get interrupts
 	mov	\irqnr, #0
 	tst	\stat, #15

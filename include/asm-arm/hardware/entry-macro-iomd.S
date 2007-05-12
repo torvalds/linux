@@ -11,8 +11,6 @@
 /* IOC / IOMD based hardware */
 #include <asm/hardware/iomd.h>
 
-		.equ	ioc_base_high, IOC_BASE & 0xff000000
-		.equ	ioc_base_low, IOC_BASE & 0x00ff0000
 		.macro	disable_fiq
 		mov	r12, #ioc_base_high
 		.if	ioc_base_low
@@ -22,33 +20,29 @@
 		.endm
 
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
-		mov	r4, #ioc_base_high		@ point at IOC
-		.if	ioc_base_low
-		orr	r4, r4, #ioc_base_low
-		.endif
-		ldrb	\irqstat, [r4, #IOMD_IRQREQB]	@ get high priority first
-		ldr	\base, =irq_prio_h
+		ldrb	\irqstat, [\base, #IOMD_IRQREQB]	@ get high priority first
+		ldr	\tmp, =irq_prio_h
 		teq	\irqstat, #0
 #ifdef IOMD_BASE
-		ldreqb	\irqstat, [r4, #IOMD_DMAREQ]	@ get dma
-		addeq	\base, \base, #256		@ irq_prio_h table size
+		ldreqb	\irqstat, [\base, #IOMD_DMAREQ]	@ get dma
+		addeq	\tmp, \tmp, #256		@ irq_prio_h table size
 		teqeq	\irqstat, #0
 		bne	2406f
 #endif
-		ldreqb	\irqstat, [r4, #IOMD_IRQREQA]	@ get low priority
-		addeq	\base, \base, #256		@ irq_prio_d table size
+		ldreqb	\irqstat, [\base, #IOMD_IRQREQA]	@ get low priority
+		addeq	\tmp, \tmp, #256		@ irq_prio_d table size
 		teqeq	\irqstat, #0
 #ifdef IOMD_IRQREQC
-		ldreqb	\irqstat, [r4, #IOMD_IRQREQC]
-		addeq	\base, \base, #256		@ irq_prio_l table size
+		ldreqb	\irqstat, [\base, #IOMD_IRQREQC]
+		addeq	\tmp, \tmp, #256		@ irq_prio_l table size
 		teqeq	\irqstat, #0
 #endif
 #ifdef IOMD_IRQREQD
-		ldreqb	\irqstat, [r4, #IOMD_IRQREQD]
-		addeq	\base, \base, #256		@ irq_prio_lc table size
+		ldreqb	\irqstat, [\base, #IOMD_IRQREQD]
+		addeq	\tmp, \tmp, #256		@ irq_prio_lc table size
 		teqeq	\irqstat, #0
 #endif
-2406:		ldrneb	\irqnr, [\base, \irqstat]	@ get IRQ number
+2406:		ldrneb	\irqnr, [\tmp, \irqstat]	@ get IRQ number
 		.endm
 
 /*
