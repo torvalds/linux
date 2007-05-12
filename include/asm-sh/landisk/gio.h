@@ -29,16 +29,8 @@
 #define GIODRV_IOCGGIODATA4   _IOR(GIODRV_IOC_MAGIC,  6, unsigned long *)
 #define GIODRV_IOCSGIOSETADDR _IOW(GIODRV_IOC_MAGIC,  7, unsigned long *)
 #define GIODRV_IOCHARDRESET   _IO(GIODRV_IOC_MAGIC, 8) /* debugging tool */
-
-#define GIODRV_IOCSGIO_LED    _IOW(GIODRV_IOC_MAGIC,  9, unsigned long *)
-#define GIODRV_IOCGGIO_LED    _IOR(GIODRV_IOC_MAGIC,  10, unsigned long *)
-#define GIODRV_IOCSGIO_BUZZER _IOW(GIODRV_IOC_MAGIC,  11, unsigned long *)
-#define GIODRV_IOCGGIO_LANDISK _IOR(GIODRV_IOC_MAGIC,  14, unsigned long *)
-#define GIODRV_IOCGGIO_BTN _IOR(GIODRV_IOC_MAGIC,  22, unsigned long *)
-#define GIODRV_IOCSGIO_BTNPID _IOW(GIODRV_IOC_MAGIC,  23, unsigned long *)
-#define GIODRV_IOCGGIO_BTNPID _IOR(GIODRV_IOC_MAGIC,  24, unsigned long *)
-
 #define GIODRV_IOC_MAXNR 8
+
 #define GIO_READ 0x00000000
 #define GIO_WRITE 0x00000001
 
