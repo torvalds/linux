@@ -244,6 +244,15 @@ config ARCH_IMX
 	help
 	  Support for Motorola's i.MX family of processors (MX1, MXL).
 
+config ARCH_IOP13XX
+	bool "IOP13xx-based"
+	depends on MMU
+	select PLAT_IOP
+	select PCI
+	select ARCH_SUPPORTS_MSI
+	help
+	  Support for Intel's IOP13XX (XScale) family of processors.
+
 config ARCH_IOP32X
 	bool "IOP32x-based"
 	depends on MMU
@@ -261,22 +270,12 @@ config ARCH_IOP33X
 	help
 	  Support for Intel's IOP33X (XScale) family of processors.
 
-config ARCH_IOP13XX
-	bool "IOP13xx-based"
+config ARCH_IXP23XX
+ 	bool "IXP23XX-based"
 	depends on MMU
-	select PLAT_IOP
-	select PCI
-	select ARCH_SUPPORTS_MSI
+ 	select PCI
 	help
-	  Support for Intel's IOP13XX (XScale) family of processors.
-
-config ARCH_IXP4XX
-	bool "IXP4xx-based"
-	depends on MMU
-	select GENERIC_TIME
-	select GENERIC_CLOCKEVENTS
-	help
-	  Support for Intel's IXP4XX (XScale) family of processors.
+	  Support for Intel's IXP23xx (XScale) family of processors.
 
 config ARCH_IXP2000
 	bool "IXP2400/2800-based"
@@ -285,12 +284,13 @@ config ARCH_IXP2000
 	help
 	  Support for Intel's IXP2400/2800 (XScale) family of processors.
 
-config ARCH_IXP23XX
- 	bool "IXP23XX-based"
+config ARCH_IXP4XX
+	bool "IXP4xx-based"
 	depends on MMU
- 	select PCI
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	help
-	  Support for Intel's IXP23xx (XScale) family of processors.
+	  Support for Intel's IXP4XX (XScale) family of processors.
 
 config ARCH_L7200
 	bool "LinkUp-L7200"
@@ -380,19 +380,19 @@ config ARCH_LH7A40X
 	  core with a wide array of integrated devices for
 	  hand-held and low-power applications.
 
-config ARCH_OMAP
-	bool "TI OMAP"
-	select GENERIC_GPIO
-	select GENERIC_TIME
-	help
-	  Support for TI's OMAP platform (OMAP1 and OMAP2).
-
 config ARCH_DAVINCI
 	bool "TI DaVinci"
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
 	  Support for TI's DaVinci platform.
+
+config ARCH_OMAP
+	bool "TI OMAP"
+	select GENERIC_GPIO
+	select GENERIC_TIME
+	help
+	  Support for TI's OMAP platform (OMAP1 and OMAP2).
 
 endchoice
 
