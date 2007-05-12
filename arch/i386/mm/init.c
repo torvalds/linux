@@ -740,7 +740,6 @@ int remove_memory(u64 start, u64 size)
 EXPORT_SYMBOL_GPL(remove_memory);
 #endif
 
-struct kmem_cache *pgd_cache;
 struct kmem_cache *pmd_cache;
 
 void __init pgtable_cache_init(void)
@@ -764,12 +763,6 @@ void __init pgtable_cache_init(void)
 			pgd_size = PAGE_SIZE;
 		}
 	}
-	pgd_cache = kmem_cache_create("pgd",
-				pgd_size,
-				pgd_size,
-				SLAB_PANIC,
-				pgd_ctor,
-				(!SHARED_KERNEL_PMD) ? pgd_dtor : NULL);
 }
 
 /*
