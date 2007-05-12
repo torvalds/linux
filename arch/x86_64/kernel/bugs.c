@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <asm/alternative.h>
 #include <asm/processor.h>
+#include <asm/mtrr.h>
 
 void __init check_bugs(void)
 {
