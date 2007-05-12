@@ -51,7 +51,7 @@ SECTIONS
 
   _text = .;			/* Text and read-only data */
   .text ALIGN(16) : {
-	*(.text)
+	TEXT_TEXT
 	SCHED_TEXT
 	LOCK_TEXT
 	*(.text.do_softirq)

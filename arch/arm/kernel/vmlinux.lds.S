@@ -90,7 +90,7 @@ SECTIONS
 			__exception_text_start = .;
 			*(.exception.text)
 			__exception_text_end = .;
-			*(.text)
+			TEXT_TEXT
 			SCHED_TEXT
 			LOCK_TEXT
 #ifdef CONFIG_MMU

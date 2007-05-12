@@ -65,7 +65,7 @@ SECTIONS
 
 	.text : {			/* Real text segment		*/
 		_text = .;		/* Text and read-only data	*/
-			*(.text)
+			TEXT_TEXT
 			SCHED_TEXT
 			LOCK_TEXT
 			*(.fixup)

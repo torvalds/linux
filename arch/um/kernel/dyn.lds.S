@@ -62,7 +62,7 @@ SECTIONS
   } =0x90909090
   .plt            : { *(.plt) }
   .text           : {
-    *(.text)
+    TEXT_TEXT
     SCHED_TEXT
     LOCK_TEXT
     *(.fixup)

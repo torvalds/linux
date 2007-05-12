@@ -34,7 +34,8 @@ SECTIONS
 	/* Text and gots */
 	.text : {
 		_text = .;
-		*(.text .text.*)
+		*(.text.*)
+		TEXT_TEXT
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT

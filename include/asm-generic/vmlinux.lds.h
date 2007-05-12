@@ -139,6 +139,12 @@
 		VMLINUX_SYMBOL(__security_initcall_end) = .;		\
 	}
 
+/* .text section. Map to function alignment to avoid address changes
+ * during second ld run in second ld pass when generating System.map */
+#define TEXT_TEXT							\
+		ALIGN_FUNCTION();					\
+		*(.text)
+
 /* sched.text is aling to function alignment to secure we have same
  * address even at second ld pass when generating System.map */
 #define SCHED_TEXT							\

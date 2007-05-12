@@ -92,7 +92,7 @@
 #define TEXT_CONTENTS							      \
 		_text = .;						      \
 		__stext = . ;						      \
-        	*(.text)						      \
+		TEXT_TEXT						      \
 		SCHED_TEXT						      \
 			*(.exit.text)	/* 2.5 convention */		      \
 			*(.text.exit)	/* 2.4 convention */		      \

@@ -22,7 +22,7 @@ SECTIONS
 	*(.empty_zero_page)
 	} = 0
   .text : {
-	*(.text)
+	TEXT_TEXT
 	SCHED_TEXT
 	LOCK_TEXT
 	*(.fixup)

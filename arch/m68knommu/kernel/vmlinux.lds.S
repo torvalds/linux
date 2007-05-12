@@ -62,7 +62,7 @@ SECTIONS {
 	.text : {
 		_text = .;
 		_stext = . ;
-        	*(.text)
+		TEXT_TEXT
 		SCHED_TEXT
         	*(.text.lock)
 

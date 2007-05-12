@@ -31,7 +31,7 @@ SECTIONS
 	*(.bootstrap.text)
 	_stext = .;
 	/* Then the rest */
-	*(.text)
+	TEXT_TEXT
 	SCHED_TEXT
 	LOCK_TEXT
 	KPROBES_TEXT

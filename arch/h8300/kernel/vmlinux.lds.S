@@ -75,7 +75,7 @@ SECTIONS
 	*(.int_redirect)
 #endif
 	__stext = . ;
-        	*(.text)
+	TEXT_TEXT
 	SCHED_TEXT
 	LOCK_TEXT
 	__etext = . ;

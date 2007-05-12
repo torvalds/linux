@@ -54,7 +54,7 @@ SECTIONS
 	} = 0
 
   .text : C_PHYS(.text) {
-	*(.text)
+	TEXT_TEXT
 	*(.text64)
         *(.text..SHmedia32)
 	SCHED_TEXT

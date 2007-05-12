@@ -37,7 +37,7 @@ SECTIONS
 
   .text      :
   {
-    *(.text)
+    TEXT_TEXT
     SCHED_TEXT
     LOCK_TEXT
     *(.fixup)

@@ -54,7 +54,7 @@ SECTIONS
 	{
 		 _text = .;
 		 __stext = .;
-		*(.text)
+		TEXT_TEXT
 		SCHED_TEXT
 		*(.text.lock)
 		. = ALIGN(16);

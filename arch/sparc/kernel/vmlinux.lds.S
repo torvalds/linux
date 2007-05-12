@@ -12,7 +12,7 @@ SECTIONS
   .text 0xf0004000 :
   {
     _text = .;
-    *(.text)
+    TEXT_TEXT
     SCHED_TEXT
     LOCK_TEXT
     *(.gnu.warning)
