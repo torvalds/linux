@@ -16,7 +16,7 @@ obj-$(CONFIG_FSL_SOC)		+= fsl_soc.o
 obj-$(CONFIG_FSL_PCIE)		+= fsl_pcie.o
 obj-$(CONFIG_TSI108_BRIDGE)	+= tsi108_pci.o tsi108_dev.o
 obj-$(CONFIG_QUICC_ENGINE)	+= qe_lib/
-obj-$(CONFIG_MV64X60)		+= mv64x60_pic.o
+obj-$(CONFIG_MV64X60)		+= mv64x60_pic.o mv64x60_dev.o
 
 # contains only the suspend handler for time
 obj-$(CONFIG_PM)		+= timer.o

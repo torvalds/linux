@@ -46,6 +46,9 @@ config MPC10X_BRIDGE
 	select PPC_INDIRECT_PCI
 	default y
 
+config MV64X60
+	bool
+
 config MPC10X_OPENPIC
 	bool
 	depends on LINKSTATION
