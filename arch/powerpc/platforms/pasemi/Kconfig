@@ -5,6 +5,7 @@ config PPC_PASEMI
 	select MPIC
 	select PPC_UDBG_16550
 	select PPC_NATIVE
+	select EMBEDDED
 	help
 	  This option enables support for PA Semi's PWRficient line
 	  of SoC processors, including PA6T-1682M
@@ -24,5 +25,14 @@ config PPC_PASEMI_MDIO
 	default y
 	help
 	  Driver for MDIO via GPIO on PWRficient platforms
+
+config ELECTRA_IDE
+      tristate "Electra IDE driver"
+      default y
+      depends on PPC_PASEMI && ATA
+      select PATA_PLATFORM
+      help
+	This includes driver support for the Electra on-board IDE
+	interface.
 
 endmenu
