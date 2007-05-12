@@ -201,6 +201,128 @@ error:
 	return err;
 }
 
+/*
+ * Create mv64x60_eth platform devices
+ */
+static int __init eth_register_shared_pdev(struct device_node *np)
+{
+	struct platform_device *pdev;
+	struct resource r[1];
+	int err;
+
+	np = of_get_parent(np);
+	if (!np)
+		return -ENODEV;
+
+	err = of_address_to_resource(np, 0, &r[0]);
+	of_node_put(np);
+	if (err)
+		return err;
+
+	pdev = platform_device_register_simple(MV643XX_ETH_SHARED_NAME, 0,
+					       r, 1);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	return 0;
+}
+
+static int __init mv64x60_eth_device_setup(struct device_node *np, int id)
+{
+	struct resource r[1];
+	struct mv643xx_eth_platform_data pdata;
+	struct platform_device *pdev;
+	struct device_node *phy;
+	const u8 *mac_addr;
+	const int *prop;
+	const phandle *ph;
+	int err;
+
+	/* only register the shared platform device the first time through */
+	if (id == 0 && (err = eth_register_shared_pdev(np)))
+		return err;;
+
+	memset(r, 0, sizeof(r));
+	of_irq_to_resource(np, 0, &r[0]);
+
+	memset(&pdata, 0, sizeof(pdata));
+
+	prop = of_get_property(np, "block-index", NULL);
+	if (!prop)
+		return -ENODEV;
+	pdata.port_number = *prop;
+
+	mac_addr = of_get_mac_address(np);
+	if (mac_addr)
+		memcpy(pdata.mac_addr, mac_addr, 6);
+
+	prop = of_get_property(np, "speed", NULL);
+	if (prop)
+		pdata.speed = *prop;
+
+	prop = of_get_property(np, "tx_queue_size", NULL);
+	if (prop)
+		pdata.tx_queue_size = *prop;
+
+	prop = of_get_property(np, "rx_queue_size", NULL);
+	if (prop)
+		pdata.rx_queue_size = *prop;
+
+	prop = of_get_property(np, "tx_sram_addr", NULL);
+	if (prop)
+		pdata.tx_sram_addr = *prop;
+
+	prop = of_get_property(np, "tx_sram_size", NULL);
+	if (prop)
+		pdata.tx_sram_size = *prop;
+
+	prop = of_get_property(np, "rx_sram_addr", NULL);
+	if (prop)
+		pdata.rx_sram_addr = *prop;
+
+	prop = of_get_property(np, "rx_sram_size", NULL);
+	if (prop)
+		pdata.rx_sram_size = *prop;
+
+	ph = of_get_property(np, "phy", NULL);
+	if (!ph)
+		return -ENODEV;
+
+	phy = of_find_node_by_phandle(*ph);
+	if (phy == NULL)
+		return -ENODEV;
+
+	prop = of_get_property(phy, "reg", NULL);
+	if (prop) {
+		pdata.force_phy_addr = 1;
+		pdata.phy_addr = *prop;
+	}
+
+	of_node_put(phy);
+
+	pdev = platform_device_alloc(MV643XX_ETH_NAME, pdata.port_number);
+	if (!pdev)
+		return -ENOMEM;
+
+	err = platform_device_add_resources(pdev, r, 1);
+	if (err)
+		goto error;
+
+	err = platform_device_add_data(pdev, &pdata, sizeof(pdata));
+	if (err)
+		goto error;
+
+	err = platform_device_add(pdev);
+	if (err)
+		goto error;
+
+	return 0;
+
+error:
+	platform_device_put(pdev);
+	return err;
+}
+
 static int __init mv64x60_device_setup(void)
 {
 	struct device_node *np = NULL;
@@ -210,6 +332,13 @@ static int __init mv64x60_device_setup(void)
 	for (id = 0;
 	     (np = of_find_compatible_node(np, "serial", "marvell,mpsc")); id++)
 		if ((err = mv64x60_mpsc_device_setup(np, id)))
+			goto error;
+
+	for (id = 0;
+	     (np = of_find_compatible_node(np, "network",
+					   "marvell,mv64x60-eth"));
+	     id++)
+		if ((err = mv64x60_eth_device_setup(np, id)))
 			goto error;
 
 	return 0;
