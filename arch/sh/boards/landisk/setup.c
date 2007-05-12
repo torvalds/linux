@@ -44,8 +44,14 @@ static struct platform_device cf_ide_device = {
 	},
 };
 
+static struct platform_device rtc_device = {
+	.name		= "rs5c313",
+	.id		= -1,
+};
+
 static struct platform_device *landisk_devices[] __initdata = {
 	&cf_ide_device,
+	&rtc_device,
 };
 
 static int __init landisk_devices_setup(void)
