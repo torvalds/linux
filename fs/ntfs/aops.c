@@ -86,19 +86,15 @@ static void ntfs_end_buffer_async_read(struct buffer_head *bh, int uptodate)
 		}
 		/* Check for the current buffer head overflowing. */
 		if (unlikely(file_ofs + bh->b_size > init_size)) {
-			u8 *kaddr;
 			int ofs;
 
 			ofs = 0;
 			if (file_ofs < init_size)
 				ofs = init_size - file_ofs;
 			local_irq_save(flags);
-			kaddr = kmap_atomic(page, KM_BIO_SRC_IRQ);
-			memset(kaddr + bh_offset(bh) + ofs, 0,
-					bh->b_size - ofs);
-			kunmap_atomic(kaddr, KM_BIO_SRC_IRQ);
+			zero_user_page(page, bh_offset(bh) + ofs,
+					 bh->b_size - ofs, KM_BIO_SRC_IRQ);
 			local_irq_restore(flags);
-			flush_dcache_page(page);
 		}
 	} else {
 		clear_buffer_uptodate(bh);
@@ -245,8 +241,7 @@ static int ntfs_read_block(struct page *page)
 	rl = NULL;
 	nr = i = 0;
 	do {
-		u8 *kaddr;
-		int err;
+		int err = 0;
 
 		if (unlikely(buffer_uptodate(bh)))
 			continue;
@@ -254,7 +249,6 @@ static int ntfs_read_block(struct page *page)
 			arr[nr++] = bh;
 			continue;
 		}
-		err = 0;
 		bh->b_bdev = vol->sb->s_bdev;
 		/* Is the block within the allowed limits? */
 		if (iblock < lblock) {
@@ -340,10 +334,7 @@ handle_hole:
 		bh->b_blocknr = -1UL;
 		clear_buffer_mapped(bh);
 handle_zblock:
-		kaddr = kmap_atomic(page, KM_USER0);
-		memset(kaddr + i * blocksize, 0, blocksize);
-		kunmap_atomic(kaddr, KM_USER0);
-		flush_dcache_page(page);
+		zero_user_page(page, i * blocksize, blocksize, KM_USER0);
 		if (likely(!err))
 			set_buffer_uptodate(bh);
 	} while (i++, iblock++, (bh = bh->b_this_page) != head);
@@ -460,10 +451,7 @@ retry_readpage:
 	 * ok to ignore the compressed flag here.
 	 */
 	if (unlikely(page->index > 0)) {
-		kaddr = kmap_atomic(page, KM_USER0);
-		memset(kaddr, 0, PAGE_CACHE_SIZE);
-		flush_dcache_page(page);
-		kunmap_atomic(kaddr, KM_USER0);
+		zero_user_page(page, 0, PAGE_CACHE_SIZE, KM_USER0);
 		goto done;
 	}
 	if (!NInoAttr(ni))
@@ -790,14 +778,10 @@ lock_retry_remap:
 		 * uptodate so it can get discarded by the VM.
 		 */
 		if (err == -ENOENT || lcn == LCN_ENOENT) {
-			u8 *kaddr;
-
 			bh->b_blocknr = -1;
 			clear_buffer_dirty(bh);
-			kaddr = kmap_atomic(page, KM_USER0);
-			memset(kaddr + bh_offset(bh), 0, blocksize);
-			kunmap_atomic(kaddr, KM_USER0);
-			flush_dcache_page(page);
+			zero_user_page(page, bh_offset(bh), blocksize,
+					KM_USER0);
 			set_buffer_uptodate(bh);
 			err = 0;
 			continue;
@@ -1422,10 +1406,8 @@ retry_writepage:
 		if (page->index >= (i_size >> PAGE_CACHE_SHIFT)) {
 			/* The page straddles i_size. */
 			unsigned int ofs = i_size & ~PAGE_CACHE_MASK;
-			kaddr = kmap_atomic(page, KM_USER0);
-			memset(kaddr + ofs, 0, PAGE_CACHE_SIZE - ofs);
-			kunmap_atomic(kaddr, KM_USER0);
-			flush_dcache_page(page);
+			zero_user_page(page, ofs, PAGE_CACHE_SIZE - ofs,
+					KM_USER0);
 		}
 		/* Handle mst protected attributes. */
 		if (NInoMstProtected(ni))
