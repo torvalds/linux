@@ -179,7 +179,7 @@ static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 	return 1;
 }
 
-static int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
+int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {
 	struct kprobe *cur = kprobe_running();
 
@@ -214,11 +214,6 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 		break;
 	case DIE_SSTEP:
 		if (post_kprobe_handler(args->regs))
-			ret = NOTIFY_STOP;
-		break;
-	case DIE_FAULT:
-		if (kprobe_running()
-		    && kprobe_fault_handler(args->regs, args->trapnr))
 			ret = NOTIFY_STOP;
 		break;
 	default:
