@@ -323,6 +323,72 @@ error:
 	return err;
 }
 
+/*
+ * Create mv64x60_i2c platform devices
+ */
+static int __init mv64x60_i2c_device_setup(struct device_node *np, int id)
+{
+	struct resource r[2];
+	struct platform_device *pdev;
+	struct mv64xxx_i2c_pdata pdata;
+	const unsigned int *prop;
+	int err;
+
+	memset(r, 0, sizeof(r));
+
+	err = of_address_to_resource(np, 0, &r[0]);
+	if (err)
+		return err;
+
+	of_irq_to_resource(np, 0, &r[1]);
+
+	memset(&pdata, 0, sizeof(pdata));
+
+	prop = of_get_property(np, "freq_m", NULL);
+	if (!prop)
+		return -ENODEV;
+	pdata.freq_m = *prop;
+
+	prop = of_get_property(np, "freq_n", NULL);
+	if (!prop)
+		return -ENODEV;
+	pdata.freq_n = *prop;
+
+	prop = of_get_property(np, "timeout", NULL);
+	if (prop)
+		pdata.timeout = *prop;
+	else
+		pdata.timeout = 1000;	/* 1 second */
+
+	prop = of_get_property(np, "retries", NULL);
+	if (prop)
+		pdata.retries = *prop;
+	else
+		pdata.retries = 1;
+
+	pdev = platform_device_alloc(MV64XXX_I2C_CTLR_NAME, id);
+	if (!pdev)
+		return -ENOMEM;
+
+	err = platform_device_add_resources(pdev, r, 2);
+	if (err)
+		goto error;
+
+	err = platform_device_add_data(pdev, &pdata, sizeof(pdata));
+	if (err)
+		goto error;
+
+	err = platform_device_add(pdev);
+	if (err)
+		goto error;
+
+	return 0;
+
+error:
+	platform_device_put(pdev);
+	return err;
+}
+
 static int __init mv64x60_device_setup(void)
 {
 	struct device_node *np = NULL;
@@ -339,6 +405,12 @@ static int __init mv64x60_device_setup(void)
 					   "marvell,mv64x60-eth"));
 	     id++)
 		if ((err = mv64x60_eth_device_setup(np, id)))
+			goto error;
+
+	for (id = 0;
+	     (np = of_find_compatible_node(np, "i2c", "marvell,mv64x60-i2c"));
+	     id++)
+		if ((err = mv64x60_i2c_device_setup(np, id)))
 			goto error;
 
 	return 0;
