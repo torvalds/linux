@@ -123,7 +123,7 @@ static unsigned long long usecs_per_jiffy = 1000000/HZ; /* Approximation */
 static unsigned long long scaled_recip_ctc_ticks_per_jiffy;
 
 /* Estimate number of microseconds that have elapsed since the last timer tick,
-   by scaling the delta that has occured in the CTC register.
+   by scaling the delta that has occurred in the CTC register.
 
    WARNING WARNING WARNING : This algorithm relies on the CTC decrementing at
    the CPU clock rate.  If the CPU sleeps, the CTC stops counting.  Bear this
