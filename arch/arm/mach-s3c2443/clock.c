@@ -791,6 +791,10 @@ static struct clk init_clocks[] = {
 		.name		= "usb-bus-host",
 		.id		= -1,
 		.parent		= &clk_usb_bus_host,
+	}, {	.name		= "ac97",
+		.id		= -1,
+		.parent		= &clk_p,
+		.ctrlbit	= S3C2443_PCLKCON_AC97,
 	}
 };
 

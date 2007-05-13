@@ -1,4 +1,3 @@
-//kernel/linux-omap-fsample/arch/arm/mach-omap1/pm.c#3 - integrate change 4545 (text)
 /*
  * linux/arch/arm/mach-omap1/pm.c
  *
@@ -377,7 +376,7 @@ void omap_pm_suspend(void)
 	 * Jump to assembly code. The processor will stay there
 	 * until wake up.
 	 */
-        omap_sram_suspend(arg0, arg1);
+	omap_sram_suspend(arg0, arg1);
 
 	/*
 	 * If we are here, processor is woken up!
@@ -631,10 +630,6 @@ static int omap_pm_prepare(suspend_state_t state)
 	case PM_SUSPEND_STANDBY:
 	case PM_SUSPEND_MEM:
 		break;
-
-	case PM_SUSPEND_DISK:
-		return -ENOTSUPP;
-
 	default:
 		return -EINVAL;
 	}
@@ -657,10 +652,6 @@ static int omap_pm_enter(suspend_state_t state)
 	case PM_SUSPEND_MEM:
 		omap_pm_suspend();
 		break;
-
-	case PM_SUSPEND_DISK:
-		return -ENOTSUPP;
-
 	default:
 		return -EINVAL;
 	}

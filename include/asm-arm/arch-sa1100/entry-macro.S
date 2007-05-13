@@ -12,16 +12,16 @@
 		.endm
 
 		.macro  get_irqnr_preamble, base, tmp
+		mov	\base, #0xfa000000		@ ICIP = 0xfa050000
+		add	\base, \base, #0x00050000
 		.endm
 
 		.macro  arch_ret_to_user, tmp1, tmp2
 		.endm
 
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
-		mov	r4, #0xfa000000			@ ICIP = 0xfa050000
-		add	r4, r4, #0x00050000
-		ldr	\irqstat, [r4]			@ get irqs
-		ldr	\irqnr, [r4, #4]		@ ICMR = 0xfa050004
+		ldr	\irqstat, [\base]		@ get irqs
+		ldr	\irqnr, [\base, #4]		@ ICMR = 0xfa050004
 		ands	\irqstat, \irqstat, \irqnr
 		mov	\irqnr, #0
 		beq	1001f

@@ -52,21 +52,15 @@ static int save_trace(struct stackframe *frame, void *d)
 	return trace->nr_entries >= trace->max_entries;
 }
 
-void save_stack_trace(struct stack_trace *trace, struct task_struct *task)
+void save_stack_trace(struct stack_trace *trace)
 {
 	struct stack_trace_data data;
 	unsigned long fp, base;
 
 	data.trace = trace;
 	data.skip = trace->skip;
-
-	if (task) {
-		base = (unsigned long)task_stack_page(task);
-		fp = 0; /* FIXME */
-	} else {
-		base = (unsigned long)task_stack_page(current);
-		asm("mov %0, fp" : "=r" (fp));
-	}
+	base = (unsigned long)task_stack_page(current);
+	asm("mov %0, fp" : "=r" (fp));
 
 	walk_stackframe(fp, base, base + THREAD_SIZE, save_trace, &data);
 }

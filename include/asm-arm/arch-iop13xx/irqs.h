@@ -168,7 +168,7 @@ static inline u32 read_intpnd_3(void)
 #define IRQ_IOP13XX_ATUE_IMD	(110) /* 14 */
 #define IRQ_IOP13XX_MU_MSI_TB	(111) /* 15 */
 #define IRQ_IOP13XX_RSVD_112	(112) /* 16 */
-#define IRQ_IOP13XX_RSVD_113	(113) /* 17 */
+#define IRQ_IOP13XX_INBD_MSI	(113) /* 17 */
 #define IRQ_IOP13XX_RSVD_114	(114) /* 18 */
 #define IRQ_IOP13XX_RSVD_115	(115) /* 19 */
 #define IRQ_IOP13XX_RSVD_116	(116) /* 20 */
@@ -184,7 +184,13 @@ static inline u32 read_intpnd_3(void)
 #define IRQ_IOP13XX_RSVD_126	(126) /* 30 */
 #define IRQ_IOP13XX_HPI	(127) /* 31 */
 
+#ifdef CONFIG_PCI_MSI
+#define IRQ_IOP13XX_MSI_0	(IRQ_IOP13XX_HPI + 1)
+#define NR_IOP13XX_IRQS 	(IRQ_IOP13XX_MSI_0 + 128)
+#else
 #define NR_IOP13XX_IRQS	(IRQ_IOP13XX_HPI + 1)
+#endif
+
 #define NR_IRQS		NR_IOP13XX_IRQS
 
 #endif /* _IOP13XX_IRQ_H_ */

@@ -177,6 +177,11 @@ static struct platform_device s3c_device_leds = {
 	.id               = -1,
 };
 
+static struct platform_device s3c_device_bluetooth = {
+	.name             = "h1940-bt",
+	.id               = -1,
+};
+
 static struct platform_device *h1940_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_lcd,
@@ -185,6 +190,7 @@ static struct platform_device *h1940_devices[] __initdata = {
 	&s3c_device_iis,
 	&s3c_device_usbgadget,
 	&s3c_device_leds,
+	&s3c_device_bluetooth,
 };
 
 static void __init h1940_map_io(void)

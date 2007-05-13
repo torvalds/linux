@@ -135,6 +135,8 @@ endif
  machine-$(CONFIG_ARCH_NETX)	   := netx
  machine-$(CONFIG_ARCH_NS9XXX)	   := ns9xxx
  textofs-$(CONFIG_ARCH_NS9XXX)	   := 0x00108000
+ machine-$(CONFIG_ARCH_DAVINCI)	   := davinci
+ machine-$(CONFIG_ARCH_KS8695)     := ks8695
 
 ifeq ($(CONFIG_ARCH_EBSA110),y)
 # This is what happens if you forget the IOCS16 line.

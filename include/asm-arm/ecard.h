@@ -121,7 +121,7 @@ struct in_ecid {			/* Packed card ID information	*/
 typedef struct expansion_card ecard_t;
 typedef unsigned long *loader_t;
 
-typedef struct {			/* Card handler routines	*/
+typedef struct expansion_card_ops {	/* Card handler routines	*/
 	void (*irqenable)(ecard_t *ec, int irqnr);
 	void (*irqdisable)(ecard_t *ec, int irqnr);
 	int  (*irqpending)(ecard_t *ec);
@@ -179,6 +179,8 @@ struct expansion_card {
 	u64			dma_mask;
 };
 
+void ecard_setirq(struct expansion_card *ec, const struct expansion_card_ops *ops, void *irq_data);
+
 struct in_chunk_dir {
 	unsigned int start_offset;
 	union {
@@ -223,6 +225,10 @@ ecard_address(struct expansion_card *ec, card_type_t type, card_speed_t speed)
  */
 extern int ecard_request_resources(struct expansion_card *ec);
 extern void ecard_release_resources(struct expansion_card *ec);
+
+void __iomem *ecardm_iomap(struct expansion_card *ec, unsigned int res,
+			   unsigned long offset, unsigned long maxsize);
+#define ecardm_iounmap(__ec, __addr)	devm_iounmap(&(__ec)->dev, __addr)
 
 extern struct bus_type ecard_bus_type;
 

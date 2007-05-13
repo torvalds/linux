@@ -21,7 +21,7 @@
 #ifndef __ASM_ARCH_UNCOMPRESS_H
 #define __ASM_ARCH_UNCOMPRESS_H
 
-#include <asm/hardware.h>
+#include <asm/io.h>
 #include <asm/arch/at91_dbgu.h>
 
 /*

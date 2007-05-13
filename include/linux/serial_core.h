@@ -139,6 +139,10 @@
 /* Blackfin bf5xx */
 #define PORT_BFIN	75
 
+/* Micrel KS8695 */
+#define PORT_KS8695	76
+
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>

@@ -14,13 +14,13 @@
 		.endm
 
 		.macro  get_irqnr_preamble, base, tmp
+		ldr	\base, =IO_ADDRESS(VERSATILE_VIC_BASE)
 		.endm
 
 		.macro  arch_ret_to_user, tmp1, tmp2
 		.endm
 
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
-		ldr	\base, =IO_ADDRESS(VERSATILE_VIC_BASE)
 		ldr	\irqstat, [\base, #VIC_IRQ_STATUS]	@ get masked status
 		mov	\irqnr, #0
 		teq	\irqstat, #0

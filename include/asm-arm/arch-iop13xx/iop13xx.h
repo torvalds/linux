@@ -181,6 +181,7 @@ static inline int iop13xx_cpu_id(void)
 #define IOP13XX_ADMA1_PMMR_OFFSET  	0x00000200
 #define IOP13XX_ADMA2_PMMR_OFFSET  	0x00000400
 #define IOP13XX_PBI_PMMR_OFFSET    	0x00001580
+#define IOP13XX_MU_PMMR_OFFSET		0x00004000
 #define IOP13XX_ESSR0_PMMR_OFFSET  	0x00002188
 #define IOP13XX_ESSR0			IOP13XX_REG_ADDR32(0x00002188)
 
@@ -410,6 +411,34 @@ static inline int iop13xx_cpu_id(void)
 #define IOP13XX_ATUE_OUMBAR_ENABLE  		(0x80000000)
 #define IOP13XX_ATU_OUMBAR_FUNC_NUM  		(28)
 #define IOP13XX_ATU_OUMBAR_FUNC_NUM_MASK  	(0x7)
+/*=======================================================================*/
+
+/*============================MESSAGING UNIT=============================*/
+#define IOP13XX_MU_OFFSET(ofs)	IOP13XX_REG_ADDR32(IOP13XX_MU_PMMR_OFFSET +\
+							(ofs))
+
+#define IOP13XX_MU_IMR0	IOP13XX_MU_OFFSET(0x10)
+#define IOP13XX_MU_IMR1	IOP13XX_MU_OFFSET(0x14)
+#define IOP13XX_MU_OMR0	IOP13XX_MU_OFFSET(0x18)
+#define IOP13XX_MU_OMR1	IOP13XX_MU_OFFSET(0x1C)
+#define IOP13XX_MU_IDR	       	IOP13XX_MU_OFFSET(0x20)
+#define IOP13XX_MU_IISR	IOP13XX_MU_OFFSET(0x24)
+#define IOP13XX_MU_IIMR	IOP13XX_MU_OFFSET(0x28)
+#define IOP13XX_MU_ODR	       	IOP13XX_MU_OFFSET(0x2C)
+#define IOP13XX_MU_OISR	IOP13XX_MU_OFFSET(0x30)
+#define IOP13XX_MU_OIMR	IOP13XX_MU_OFFSET(0x34)
+#define IOP13XX_MU_IRCSR      	IOP13XX_MU_OFFSET(0x38)
+#define IOP13XX_MU_ORCSR      	IOP13XX_MU_OFFSET(0x3C)
+#define IOP13XX_MU_MIMR	IOP13XX_MU_OFFSET(0x48)
+#define IOP13XX_MU_MUCR	IOP13XX_MU_OFFSET(0x50)
+#define IOP13XX_MU_QBAR	IOP13XX_MU_OFFSET(0x54)
+#define IOP13XX_MU_MUBAR      	IOP13XX_MU_OFFSET(0x84)
+
+#define IOP13XX_MU_WINDOW_SIZE	(8 * 1024)
+#define IOP13XX_MU_BASE_PHYS	(0xff000000)
+#define IOP13XX_MU_BASE_PCI	(0xff000000)
+#define IOP13XX_MU_MIMR_PCI	(IOP13XX_MU_BASE_PCI + 0x48)
+#define IOP13XX_MU_MIMR_CORE_SELECT (15)
 /*=======================================================================*/
 
 /*==============================ADMA UNITS===============================*/

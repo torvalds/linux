@@ -24,6 +24,8 @@
 #include <asm/arch/at91sam9261.h>
 #elif defined(CONFIG_ARCH_AT91SAM9263)
 #include <asm/arch/at91sam9263.h>
+#elif defined(CONFIG_ARCH_AT91SAM9RL)
+#include <asm/arch/at91sam9rl.h>
 #else
 #error "Unsupported AT91 processor"
 #endif
@@ -69,22 +71,5 @@
 /* Clocks */
 #define AT91_SLOW_CLOCK		32768		/* slow clock */
 
-#ifndef __ASSEMBLY__
-#include <asm/io.h>
-
-static inline unsigned int at91_sys_read(unsigned int reg_offset)
-{
-	void __iomem *addr = (void __iomem *)AT91_VA_BASE_SYS;
-
-	return __raw_readl(addr + reg_offset);
-}
-
-static inline void at91_sys_write(unsigned int reg_offset, unsigned long value)
-{
-	void __iomem *addr = (void __iomem *)AT91_VA_BASE_SYS;
-
-	__raw_writel(value, addr + reg_offset);
-}
-#endif
 
 #endif

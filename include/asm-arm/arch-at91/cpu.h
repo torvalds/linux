@@ -26,6 +26,8 @@
 #define ARCH_ID_AT91SAM9XE256	0x329a93a0
 #define ARCH_ID_AT91SAM9XE512	0x329aa3a0
 
+#define ARCH_ID_AT91SAM9RL64	0x019b03a0
+
 static inline unsigned long at91_cpu_identify(void)
 {
 	return (at91_sys_read(AT91_DBGU_CIDR) & ~AT91_CIDR_VERSION);
@@ -67,6 +69,13 @@ static inline unsigned long at91_arch_identify(void)
 #else
 #define cpu_is_at91sam9263()	(0)
 #endif
+
+#ifdef CONFIG_ARCH_AT91SAM9RL
+#define cpu_is_at91sam9rl()	(at91_cpu_identify() == ARCH_ID_AT91SAM9RL64)
+#else
+#define cpu_is_at91sam9rl()	(0)
+#endif
+
 
 /*
  * Since this is ARM, we will never run on any AVR32 CPU. But these

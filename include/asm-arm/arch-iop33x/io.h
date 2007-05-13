@@ -14,7 +14,7 @@
 #include <asm/hardware.h>
 
 extern void __iomem *__iop3xx_ioremap(unsigned long cookie, size_t size,
-	unsigned long flags);
+	unsigned int mtype);
 extern void __iop3xx_iounmap(void __iomem *addr);
 
 #define IO_SPACE_LIMIT		0xffffffff

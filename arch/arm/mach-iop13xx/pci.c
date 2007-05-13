@@ -559,6 +559,14 @@ void __init iop13xx_atue_setup(void)
 	int func = iop13xx_atu_function(IOP13XX_INIT_ATU_ATUE);
 	u32 reg_val;
 
+#ifdef CONFIG_PCI_MSI
+	/* BAR 0 (inbound msi window) */
+	__raw_writel(IOP13XX_MU_BASE_PHYS, IOP13XX_MU_MUBAR);
+	__raw_writel(~(IOP13XX_MU_WINDOW_SIZE - 1), IOP13XX_ATUE_IALR0);
+	__raw_writel(IOP13XX_MU_BASE_PHYS, IOP13XX_ATUE_IATVR0);
+	__raw_writel(IOP13XX_MU_BASE_PCI, IOP13XX_ATUE_IABAR0);
+#endif
+
 	/* BAR 1 (1:1 mapping with Physical RAM) */
 	/* Set limit and enable */
 	__raw_writel(~(IOP13XX_MAX_RAM_SIZE - PHYS_OFFSET - 1) & ~0x1,
@@ -719,6 +727,14 @@ void __init iop13xx_atux_setup(void)
 	}
 	else
 		atux_trhfa_timeout = jiffies;
+
+#ifdef CONFIG_PCI_MSI
+	/* BAR 0 (inbound msi window) */
+	__raw_writel(IOP13XX_MU_BASE_PHYS, IOP13XX_MU_MUBAR);
+	__raw_writel(~(IOP13XX_MU_WINDOW_SIZE - 1), IOP13XX_ATUX_IALR0);
+	__raw_writel(IOP13XX_MU_BASE_PHYS, IOP13XX_ATUX_IATVR0);
+	__raw_writel(IOP13XX_MU_BASE_PCI, IOP13XX_ATUX_IABAR0);
+#endif
 
 	/* BAR 1 (1:1 mapping with Physical RAM) */
 	/* Set limit and enable */

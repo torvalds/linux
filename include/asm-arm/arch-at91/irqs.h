@@ -21,6 +21,7 @@
 #ifndef __ASM_ARCH_IRQS_H
 #define __ASM_ARCH_IRQS_H
 
+#include <asm/io.h>
 #include <asm/arch/at91_aic.h>
 
 #define NR_AIC_IRQS 32

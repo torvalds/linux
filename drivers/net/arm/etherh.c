@@ -686,7 +686,7 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	eh->supported		= data->supported;
 	eh->ctrl		= 0;
 	eh->id			= ec->cid.product;
-	eh->memc		= ioremap(ecard_resource_start(ec, ECARD_RES_MEMC), PAGE_SIZE);
+	eh->memc		= ecardm_iomap(ec, ECARD_RES_MEMC, 0, PAGE_SIZE);
 	if (!eh->memc) {
 		ret = -ENOMEM;
 		goto free;
@@ -694,7 +694,7 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	eh->ctrl_port = eh->memc;
 	if (data->ctrl_ioc) {
-		eh->ioc_fast = ioremap(ecard_resource_start(ec, ECARD_RES_IOCFAST), PAGE_SIZE);
+		eh->ioc_fast = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, PAGE_SIZE);
 		if (!eh->ioc_fast) {
 			ret = -ENOMEM;
 			goto free;
@@ -710,8 +710,7 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	 * IRQ and control port handling - only for non-NIC slot cards.
 	 */
 	if (ec->slot_no != 8) {
-		ec->ops		= &etherh_ops;
-		ec->irq_data	= eh;
+		ecard_setirq(ec, &etherh_ops, eh);
 	} else {
 		/*
 		 * If we're in the NIC slot, make sure the IRQ is enabled
@@ -759,10 +758,6 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	return 0;
 
  free:
-	if (eh->ioc_fast)
-		iounmap(eh->ioc_fast);
-	if (eh->memc)
-		iounmap(eh->memc);
 	free_netdev(dev);
  release:
 	ecard_release_resources(ec);
@@ -773,16 +768,10 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 static void __devexit etherh_remove(struct expansion_card *ec)
 {
 	struct net_device *dev = ecard_get_drvdata(ec);
-	struct etherh_priv *eh = etherh_priv(dev);
 
 	ecard_set_drvdata(ec, NULL);
 
 	unregister_netdev(dev);
-	ec->ops = NULL;
-
-	if (eh->ioc_fast)
-		iounmap(eh->ioc_fast);
-	iounmap(eh->memc);
 
 	free_netdev(dev);
 

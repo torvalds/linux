@@ -14,6 +14,7 @@
 		.endm
 
 		.macro  get_irqnr_preamble, base, tmp
+		ldr     \base, =IO_ADDRESS(REALVIEW_GIC_CPU_BASE)
 		.endm
 
 		.macro  arch_ret_to_user, tmp1, tmp2
@@ -40,7 +41,6 @@
 
 		.macro  get_irqnr_and_base, irqnr, irqstat, base, tmp
 
-		ldr     \base, =IO_ADDRESS(REALVIEW_GIC_CPU_BASE)
 		ldr     \irqstat, [\base, #GIC_CPU_INTACK] /* bits 12-10 = src CPU, 9-0 = int # */
 
 		ldr	\tmp, =1021

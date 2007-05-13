@@ -60,6 +60,18 @@ struct pata_icside_state {
 	struct scatterlist sg[PATA_ICSIDE_MAX_SG];
 };
 
+struct pata_icside_info {
+	struct pata_icside_state *state;
+	struct expansion_card	*ec;
+	void __iomem		*base;
+	void __iomem		*irqaddr;
+	unsigned int		irqmask;
+	const expansioncard_ops_t *irqops;
+	unsigned int		mwdma_mask;
+	unsigned int		nr_ports;
+	const struct portinfo	*port[2];
+};
+
 #define ICS_TYPE_A3IN	0
 #define ICS_TYPE_A3USER	1
 #define ICS_TYPE_V6	3
@@ -269,9 +281,10 @@ static u8 pata_icside_bmdma_status(struct ata_port *ap)
 	return readb(irq_port) & 1 ? ATA_DMA_INTR : 0;
 }
 
-static int icside_dma_init(struct ata_probe_ent *ae, struct expansion_card *ec)
+static int icside_dma_init(struct pata_icside_info *info)
 {
-	struct pata_icside_state *state = ae->private_data;
+	struct pata_icside_state *state = info->state;
+	struct expansion_card *ec = info->ec;
 	int i;
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
@@ -281,7 +294,7 @@ static int icside_dma_init(struct ata_probe_ent *ae, struct expansion_card *ec)
 
 	if (ec->dma != NO_DMA && !request_dma(ec->dma, DRV_NAME)) {
 		state->dma = ec->dma;
-		ae->mwdma_mask = 0x07;	/* MW0..2 */
+		info->mwdma_mask = 0x07;	/* MW0..2 */
 	}
 
 	return 0;
@@ -371,6 +384,8 @@ static struct ata_port_operations pata_icside_port_ops = {
 	.check_status		= ata_check_status,
 	.dev_select		= ata_std_dev_select,
 
+	.cable_detect		= ata_cable_40wire,
+
 	.bmdma_setup		= pata_icside_bmdma_setup,
 	.bmdma_start		= pata_icside_bmdma_start,
 
@@ -385,7 +400,6 @@ static struct ata_port_operations pata_icside_port_ops = {
 	.error_handler		= ata_bmdma_error_handler,
 	.post_internal_cmd	= pata_icside_bmdma_stop,
 
-	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_dummy_noret,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= pata_icside_irq_ack,
@@ -396,11 +410,10 @@ static struct ata_port_operations pata_icside_port_ops = {
 	.bmdma_status		= pata_icside_bmdma_status,
 };
 
-static void
-pata_icside_add_port(struct ata_probe_ent *ae, void __iomem *base,
-		     const struct portinfo *info)
+static void __devinit
+pata_icside_setup_ioaddr(struct ata_ioports *ioaddr, void __iomem *base,
+			 const struct portinfo *info)
 {
-	struct ata_ioports *ioaddr = &ae->port[ae->n_ports++];
 	void __iomem *cmd = base + info->dataoffset;
 
 	ioaddr->cmd_addr	= cmd;
@@ -419,58 +432,44 @@ pata_icside_add_port(struct ata_probe_ent *ae, void __iomem *base,
 	ioaddr->altstatus_addr	= ioaddr->ctl_addr;
 }
 
-static int __init
-pata_icside_register_v5(struct ata_probe_ent *ae, struct expansion_card *ec)
+static int __devinit pata_icside_register_v5(struct pata_icside_info *info)
 {
-	struct pata_icside_state *state = ae->private_data;
+	struct pata_icside_state *state = info->state;
 	void __iomem *base;
 
-	base = ioremap(ecard_resource_start(ec, ECARD_RES_MEMC),
-		       ecard_resource_len(ec, ECARD_RES_MEMC));
+	base = ecardm_iomap(info->ec, ECARD_RES_MEMC, 0, 0);
 	if (!base)
 		return -ENOMEM;
 
 	state->irq_port = base;
 
-	ec->irqaddr = base + ICS_ARCIN_V5_INTRSTAT;
-	ec->irqmask = 1;
-	ec->irq_data = state;
-	ec->ops = &pata_icside_ops_arcin_v5;
-
-	/*
-	 * Be on the safe side - disable interrupts
-	 */
-	ec->ops->irqdisable(ec, ec->irq);
-
-	pata_icside_add_port(ae, base, &pata_icside_portinfo_v5);
+	info->base = base;
+	info->irqaddr = base + ICS_ARCIN_V5_INTRSTAT;
+	info->irqmask = 1;
+	info->irqops = &pata_icside_ops_arcin_v5;
+	info->nr_ports = 1;
+	info->port[0] = &pata_icside_portinfo_v5;
 
 	return 0;
 }
 
-static int __init
-pata_icside_register_v6(struct ata_probe_ent *ae, struct expansion_card *ec)
+static int __devinit pata_icside_register_v6(struct pata_icside_info *info)
 {
-	struct pata_icside_state *state = ae->private_data;
+	struct pata_icside_state *state = info->state;
+	struct expansion_card *ec = info->ec;
 	void __iomem *ioc_base, *easi_base;
 	unsigned int sel = 0;
-	int ret;
 
-	ioc_base = ioremap(ecard_resource_start(ec, ECARD_RES_IOCFAST),
-			   ecard_resource_len(ec, ECARD_RES_IOCFAST));
-	if (!ioc_base) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	ioc_base = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);
+	if (!ioc_base)
+		return -ENOMEM;
 
 	easi_base = ioc_base;
 
 	if (ecard_resource_flags(ec, ECARD_RES_EASI)) {
-		easi_base = ioremap(ecard_resource_start(ec, ECARD_RES_EASI),
-				    ecard_resource_len(ec, ECARD_RES_EASI));
-		if (!easi_base) {
-			ret = -ENOMEM;
-			goto unmap_slot;
-		}
+		easi_base = ecardm_iomap(ec, ECARD_RES_EASI, 0, 0);
+		if (!easi_base)
+			return -ENOMEM;
 
 		/*
 		 * Enable access to the EASI region.
@@ -480,24 +479,10 @@ pata_icside_register_v6(struct ata_probe_ent *ae, struct expansion_card *ec)
 
 	writeb(sel, ioc_base);
 
-	ec->irq_data = state;
-	ec->ops = &pata_icside_ops_arcin_v6;
-
 	state->irq_port = easi_base;
 	state->ioc_base = ioc_base;
 	state->port[0].port_sel = sel;
 	state->port[1].port_sel = sel | 1;
-
-	/*
-	 * Be on the safe side - disable interrupts
-	 */
-	ec->ops->irqdisable(ec, ec->irq);
-
-	/*
-	 * Find and register the interfaces.
-	 */
-	pata_icside_add_port(ae, easi_base, &pata_icside_portinfo_v6_1);
-	pata_icside_add_port(ae, easi_base, &pata_icside_portinfo_v6_2);
 
 	/*
 	 * FIXME: work around libata's aversion to calling port_disable.
@@ -506,19 +491,60 @@ pata_icside_register_v6(struct ata_probe_ent *ae, struct expansion_card *ec)
 	 */
 	state->port[0].disabled = 1;
 
-	return icside_dma_init(ae, ec);
+	info->base = easi_base;
+	info->irqops = &pata_icside_ops_arcin_v6;
+	info->nr_ports = 2;
+	info->port[0] = &pata_icside_portinfo_v6_1;
+	info->port[1] = &pata_icside_portinfo_v6_2;
 
- unmap_slot:
-	iounmap(ioc_base);
- out:
-	return ret;
+	return icside_dma_init(info);
+}
+
+static int __devinit pata_icside_add_ports(struct pata_icside_info *info)
+{
+	struct expansion_card *ec = info->ec;
+	struct ata_host *host;
+	int i;
+
+	if (info->irqaddr) {
+		ec->irqaddr = info->irqaddr;
+		ec->irqmask = info->irqmask;
+	}
+	if (info->irqops)
+		ecard_setirq(ec, info->irqops, info->state);
+
+	/*
+	 * Be on the safe side - disable interrupts
+	 */
+	ec->ops->irqdisable(ec, ec->irq);
+
+	host = ata_host_alloc(&ec->dev, info->nr_ports);
+	if (!host)
+		return -ENOMEM;
+
+	host->private_data = info->state;
+	host->flags = ATA_HOST_SIMPLEX;
+
+	for (i = 0; i < info->nr_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+
+		ap->pio_mask = 0x1f;
+		ap->mwdma_mask = info->mwdma_mask;
+		ap->flags |= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
+		ap->ops = &pata_icside_port_ops;
+
+		pata_icside_setup_ioaddr(&ap->ioaddr, info->base, info->port[i]);
+	}
+
+	return ata_host_activate(host, ec->irq, ata_interrupt, 0,
+				 &pata_icside_sht);
 }
 
 static int __devinit
 pata_icside_probe(struct expansion_card *ec, const struct ecard_id *id)
 {
 	struct pata_icside_state *state;
-	struct ata_probe_ent ae;
+	struct pata_icside_info info;
 	void __iomem *idmem;
 	int ret;
 
@@ -526,7 +552,7 @@ pata_icside_probe(struct expansion_card *ec, const struct ecard_id *id)
 	if (ret)
 		goto out;
 
-	state = kzalloc(sizeof(struct pata_icside_state), GFP_KERNEL);
+	state = devm_kzalloc(&ec->dev, sizeof(*state), GFP_KERNEL);
 	if (!state) {
 		ret = -ENOMEM;
 		goto release;
@@ -535,8 +561,7 @@ pata_icside_probe(struct expansion_card *ec, const struct ecard_id *id)
 	state->type = ICS_TYPE_NOTYPE;
 	state->dma = NO_DMA;
 
-	idmem = ioremap(ecard_resource_start(ec, ECARD_RES_IOCFAST),
-			ecard_resource_len(ec, ECARD_RES_IOCFAST));
+	idmem = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);
 	if (idmem) {
 		unsigned int type;
 
@@ -544,21 +569,14 @@ pata_icside_probe(struct expansion_card *ec, const struct ecard_id *id)
 		type |= (readb(idmem + ICS_IDENT_OFFSET + 4) & 1) << 1;
 		type |= (readb(idmem + ICS_IDENT_OFFSET + 8) & 1) << 2;
 		type |= (readb(idmem + ICS_IDENT_OFFSET + 12) & 1) << 3;
-		iounmap(idmem);
+		ecardm_iounmap(ec, idmem);
 
 		state->type = type;
 	}
 
-	memset(&ae, 0, sizeof(ae));
-	INIT_LIST_HEAD(&ae.node);
-	ae.dev          = &ec->dev;
-	ae.port_ops     = &pata_icside_port_ops;
-	ae.sht          = &pata_icside_sht;
-	ae.pio_mask     = 0x1f;
-	ae.irq          = ec->irq;
-	ae.port_flags   = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
-	ae._host_flags  = ATA_HOST_SIMPLEX;
-	ae.private_data = state;
+	memset(&info, 0, sizeof(info));
+	info.state = state;
+	info.ec = ec;
 
 	switch (state->type) {
 	case ICS_TYPE_A3IN:
@@ -572,11 +590,11 @@ pata_icside_probe(struct expansion_card *ec, const struct ecard_id *id)
 		break;
 
 	case ICS_TYPE_V5:
-		ret = pata_icside_register_v5(&ae, ec);
+		ret = pata_icside_register_v5(&info);
 		break;
 
 	case ICS_TYPE_V6:
-		ret = pata_icside_register_v6(&ae, ec);
+		ret = pata_icside_register_v6(&info);
 		break;
 
 	default:
@@ -586,12 +604,11 @@ pata_icside_probe(struct expansion_card *ec, const struct ecard_id *id)
 	}
 
 	if (ret == 0)
-		ret = ata_device_add(&ae) == 0 ? -ENODEV : 0;
+		ret = pata_icside_add_ports(&info);
 
 	if (ret == 0)
 		goto out;
 
-	kfree(state);
  release:
 	ecard_release_resources(ec);
  out:
@@ -609,8 +626,7 @@ static void pata_icside_shutdown(struct expansion_card *ec)
 	 * this register via that region.
 	 */
 	local_irq_save(flags);
-	if (ec->ops)
-		ec->ops->irqdisable(ec, ec->irq);
+	ec->ops->irqdisable(ec, ec->irq);
 	local_irq_restore(flags);
 
 	/*
@@ -638,17 +654,9 @@ static void __devexit pata_icside_remove(struct expansion_card *ec)
 	 * don't NULL out the drvdata - devres/libata wants it
 	 * to free the ata_host structure.
 	 */
-	ec->ops = NULL;
-	ec->irq_data = NULL;
-
 	if (state->dma != NO_DMA)
 		free_dma(state->dma);
-	if (state->ioc_base)
-		iounmap(state->ioc_base);
-	if (state->ioc_base != state->irq_port)
-		iounmap(state->irq_port);
 
-	kfree(state);
 	ecard_release_resources(ec);
 }
 

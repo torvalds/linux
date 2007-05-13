@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/serial_8250.h>
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/physmap.h>
 #include <linux/mtd/partitions.h>
 
 #include <asm/types.h>
@@ -55,23 +56,31 @@
 static struct mtd_partition trizeps4_partitions[] = {
 	{
 		.name =		"Bootloader",
+		.offset =	0x00000000,
 		.size =		0x00040000,
-		.offset =	0,
 		.mask_flags =	MTD_WRITEABLE  /* force read-only */
 	},{
-		.name =		"Kernel",
-		.size =		0x00400000,
-		.offset =	0x00040000
+		.name =		"Backup",
+		.offset =	0x00040000,
+		.size =		0x00040000,
 	},{
-		.name =		"Filesystem",
+		.name =		"Image",
+		.offset =	0x00080000,
+		.size =		0x01080000,
+	},{
+		.name =		"IPSM",
+		.offset =	0x01100000,
+		.size =		0x00e00000,
+	},{
+		.name =		"Registry",
+		.offset =	0x01f00000,
 		.size =		MTDPART_SIZ_FULL,
-		.offset =	0x00440000
 	}
 };
 
-static struct flash_platform_data trizeps4_flash_data[] = {
+static struct physmap_flash_data trizeps4_flash_data[] = {
 	{
-		.map_name	= "cfi_probe",
+		.width		= 4,			/* bankwidth in bytes */
 		.parts		= trizeps4_partitions,
 		.nr_parts	= ARRAY_SIZE(trizeps4_partitions)
 	}
@@ -79,15 +88,15 @@ static struct flash_platform_data trizeps4_flash_data[] = {
 
 static struct resource flash_resource = {
 	.start	= PXA_CS0_PHYS,
-	.end	= PXA_CS0_PHYS + SZ_64M - 1,
+	.end	= PXA_CS0_PHYS + SZ_32M - 1,
 	.flags	= IORESOURCE_MEM,
 };
 
 static struct platform_device flash_device = {
-	.name		= "pxa2xx-flash",
+	.name		= "physmap-flash",
 	.id		= 0,
 	.dev = {
-		.platform_data = &trizeps4_flash_data,
+		.platform_data = trizeps4_flash_data,
 	},
 	.resource = &flash_resource,
 	.num_resources = 1,
@@ -393,11 +402,37 @@ static struct pxafb_mach_info sharp_lcd = {
     .pxafb_backlight_power = board_backlight_power,
 };
 
+static struct pxafb_mode_info toshiba_lcd_mode = {
+    .pixclock		= 39720,
+    .xres		= 640,
+    .yres		= 480,
+    .bpp		= 8,
+    .hsync_len		= 63,
+    .left_margin	= 12,
+    .right_margin	= 12,
+    .vsync_len		= 4,
+    .upper_margin	= 32,
+    .lower_margin	= 10,
+    .sync		= 0,
+    .cmap_greyscale	= 0,
+};
+
+static struct pxafb_mach_info toshiba_lcd = {
+    .modes		= &toshiba_lcd_mode,
+    .num_modes	= 1,
+    .cmap_inverse	= 0,
+    .cmap_static	= 0,
+    .lccr0		= LCCR0_Color | LCCR0_Act,
+    .lccr3		= 0x03400002,
+    .pxafb_backlight_power = board_backlight_power,
+};
+
 static void __init trizeps4_init(void)
 {
 	platform_add_devices(trizeps4_devices, ARRAY_SIZE(trizeps4_devices));
 
-	set_pxa_fb_info(&sharp_lcd);
+/*	set_pxa_fb_info(&sharp_lcd); */
+	set_pxa_fb_info(&toshiba_lcd);
 
 	pxa_set_mci_info(&trizeps4_mci_platform_data);
 	pxa_set_ficp_info(&trizeps4_ficp_platform_data);
@@ -436,9 +471,10 @@ static void __init trizeps4_map_io(void)
 	/* whats that for ??? */
 	pxa_gpio_mode(GPIO79_nCS_3_MD);
 
+#ifdef CONFIG_LEDS
 	pxa_gpio_mode( GPIO_SYS_BUSY_LED  | GPIO_OUT);		/* LED1 */
 	pxa_gpio_mode( GPIO_HEARTBEAT_LED | GPIO_OUT);		/* LED2 */
-
+#endif
 #ifdef CONFIG_MACH_TRIZEPS4_CONXS
 #ifdef CONFIG_IDE_PXA_CF
 	/* if boot direct from compact flash dont disable power */

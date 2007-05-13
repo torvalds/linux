@@ -17,6 +17,9 @@ config ARCH_AT91SAM9261
 config ARCH_AT91SAM9263
 	bool "AT91SAM9263"
 
+config ARCH_AT91SAM9RL
+	bool "AT91SAM9RL"
+
 endchoice
 
 # ----------------------------------------------------------
@@ -147,6 +150,20 @@ config MACH_AT91SAM9263EK
 	help
 	  Select this if you are using Atmel's AT91SAM9263-EK Evaluation Kit.
 	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4057>
+
+endif
+
+# ----------------------------------------------------------
+
+if ARCH_AT91SAM9RL
+
+comment "AT91SAM9RL Board Type"
+
+config MACH_AT91SAM9RLEK
+	bool "Atmel AT91SAM9RL-EK Evaluation Kit"
+	depends on ARCH_AT91SAM9RL
+	help
+	  Select this if you are using Atmel's AT91SAM9RL-EK Evaluation Kit.
 
 endif
 

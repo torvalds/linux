@@ -47,7 +47,7 @@ static struct ll_pool {
 	int count;
 } ll_pool;
 
-static spinlock_t ll_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(ll_lock);
 
 struct pnx4008_dma_ll *pnx4008_alloc_ll_entry(dma_addr_t * ll_dma)
 {
@@ -135,7 +135,7 @@ static inline void dma_decrement_usage(void)
 	}
 }
 
-static spinlock_t dma_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(dma_lock);
 
 static inline void pnx4008_dma_lock(void)
 {

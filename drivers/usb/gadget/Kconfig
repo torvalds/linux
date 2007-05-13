@@ -210,7 +210,7 @@ config USB_OTG
 
 config USB_GADGET_AT91
 	boolean "AT91 USB Device Port"
-	depends on ARCH_AT91
+	depends on ARCH_AT91 && !ARCH_AT91SAM9RL
 	select USB_GADGET_SELECTED
 	help
 	   Many Atmel AT91 processors (such as the AT91RM2000) have a
