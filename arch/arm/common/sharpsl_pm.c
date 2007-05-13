@@ -153,7 +153,7 @@ static void sharpsl_battery_thread(struct work_struct *private_)
 		sharpsl_pm.battstat.mainbat_percent = percent;
 	}
 
-	dev_dbg(sharpsl_pm.dev, "Battery: voltage: %d, status: %d, percentage: %d, time: %d\n", voltage,
+	dev_dbg(sharpsl_pm.dev, "Battery: voltage: %d, status: %d, percentage: %d, time: %ld\n", voltage,
 			sharpsl_pm.battstat.mainbat_status, sharpsl_pm.battstat.mainbat_percent, jiffies);
 
 	/* If battery is low. limit backlight intensity to save power. */
@@ -625,7 +625,7 @@ static int sharpsl_fatal_check(void)
 	}
 
 	temp = get_select_val(buff);
-	dev_dbg(sharpsl_pm.dev, "sharpsl_fatal_check: acin: %d, discharge voltage: %d, no discharge: %d\n", acin, temp, sharpsl_pm.machinfo->read_devdata(SHARPSL_BATT_VOLT));
+	dev_dbg(sharpsl_pm.dev, "sharpsl_fatal_check: acin: %d, discharge voltage: %d, no discharge: %ld\n", acin, temp, sharpsl_pm.machinfo->read_devdata(SHARPSL_BATT_VOLT));
 
 	if ((acin && (temp < sharpsl_pm.machinfo->fatal_acin_volt)) ||
 			(!acin && (temp < sharpsl_pm.machinfo->fatal_noacin_volt)))
@@ -774,6 +774,8 @@ static struct pm_ops sharpsl_pm_ops = {
 
 static int __init sharpsl_pm_probe(struct platform_device *pdev)
 {
+	int ret;
+
 	if (!pdev->dev.platform_data)
 		return -EINVAL;
 
@@ -792,8 +794,10 @@ static int __init sharpsl_pm_probe(struct platform_device *pdev)
 
 	sharpsl_pm.machinfo->init();
 
-	device_create_file(&pdev->dev, &dev_attr_battery_percentage);
-	device_create_file(&pdev->dev, &dev_attr_battery_voltage);
+	ret = device_create_file(&pdev->dev, &dev_attr_battery_percentage);
+	ret |= device_create_file(&pdev->dev, &dev_attr_battery_voltage);
+	if (ret != 0)
+		dev_warn(&pdev->dev, "Failed to register attributes (%d)\n", ret);
 
 	apm_get_power_status = sharpsl_apm_get_power_status;
 
