@@ -375,8 +375,6 @@ irqreturn_t pcish5_serr_irq(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_NONE;
 }
 
-#define ROUND_UP(x, a)		(((x) + (a) - 1) & ~((a) - 1))
-
 static void __init
 pcibios_size_bridge(struct pci_bus *bus, struct resource *ior,
 		    struct resource *memr)
@@ -433,8 +431,8 @@ pcibios_size_bridge(struct pci_bus *bus, struct resource *ior,
 	mem_res.end -= mem_res.start;
 
 	/* Align the sizes up by bridge rules */
-	io_res.end = ROUND_UP(io_res.end, 4*1024) - 1;
-	mem_res.end = ROUND_UP(mem_res.end, 1*1024*1024) - 1;
+	io_res.end = ALIGN(io_res.end, 4*1024) - 1;
+	mem_res.end = ALIGN(mem_res.end, 1*1024*1024) - 1;
 
 	/* Adjust the bridge's allocation requirements */
 	bridge->resource[0].end = bridge->resource[0].start + io_res.end;
@@ -447,17 +445,15 @@ pcibios_size_bridge(struct pci_bus *bus, struct resource *ior,
 
 	/* adjust parent's resource requirements */
 	if (ior) {
-		ior->end = ROUND_UP(ior->end, 4*1024);
+		ior->end = ALIGN(ior->end, 4*1024);
 		ior->end += io_res.end;
 	}
 
 	if (memr) {
-		memr->end = ROUND_UP(memr->end, 1*1024*1024);
+		memr->end = ALIGN(memr->end, 1*1024*1024);
 		memr->end += mem_res.end;
 	}
 }
-
-#undef ROUND_UP
 
 static void __init pcibios_size_bridges(void)
 {
