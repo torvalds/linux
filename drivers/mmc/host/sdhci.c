@@ -963,6 +963,15 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 		if (intmask & (SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL))
 			sdhci_transfer_pio(host);
 
+		/*
+		 * We currently don't do anything fancy with DMA
+		 * boundaries, but as we can't disable the feature
+		 * we need to at least restart the transfer.
+		 */
+		if (intmask & SDHCI_INT_DMA_END)
+			writel(readl(host->ioaddr + SDHCI_DMA_ADDRESS),
+				host->ioaddr + SDHCI_DMA_ADDRESS);
+
 		if (intmask & SDHCI_INT_DATA_END)
 			sdhci_finish_data(host);
 	}
