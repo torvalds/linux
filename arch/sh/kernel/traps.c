@@ -513,7 +513,7 @@ static int handle_unaligned_access(u16 instruction, struct pt_regs *regs)
  *       misaligned data access
  *       access to >= 0x80000000 is user mode
  * Unfortuntaly we can't distinguish between instruction address error
- * and data address errors caused by read acceses.
+ * and data address errors caused by read accesses.
  */
 asmlinkage void do_address_error(struct pt_regs *regs,
 				 unsigned long writeaccess,

@@ -2,7 +2,7 @@
  * May be copied or modified under the terms of the GNU General Public
  * License.  See linux/COPYING for more information.
  *
- * Containes extracts from code by Glenn Engel, Jim Kingdon,
+ * Contains extracts from code by Glenn Engel, Jim Kingdon,
  * David Grothe <dave@gcom.com>, Tigran Aivazian <tigran@sco.com>,
  * Amit S. Kale <akale@veritas.com>,  William Gatliff <bgat@open-widgets.com>,
  * Ben Lee, Steve Chamberlain and Benoit Miller <fulg@iname.com>.
@@ -85,7 +85,7 @@
  *
  * Responses can be run-length encoded to save space.  A '*' means that
  * the next character is an ASCII encoding giving a repeat count which
- * stands for that many repititions of the character preceding the '*'.
+ * stands for that many repetitions of the character preceding the '*'.
  * The encoding is n+29, yielding a printable character where n >=3
  * (which is where RLE starts to win).  Don't use an n > 126.
  *

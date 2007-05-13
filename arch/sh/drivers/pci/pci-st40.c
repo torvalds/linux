@@ -292,7 +292,7 @@ int __init st40pci_init(unsigned memStart, unsigned memSize)
 			    PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
 			    PCI_COMMAND_IO);
 
-	/* Accesse to the 0xb0000000 -> 0xb6000000 area will go through to 0x10000000 -> 0x16000000
+	/* Access to the 0xb0000000 -> 0xb6000000 area will go through to 0x10000000 -> 0x16000000
 	 * on the PCI bus. This allows a nice 1-1 bus to phys mapping.
 	 */
 
@@ -315,7 +315,7 @@ int __init st40pci_init(unsigned memStart, unsigned memSize)
 	ST40PCI_WRITE(CSR_MBAR0, 0);
 	ST40PCI_WRITE(LSR0, 0x0fff0001);
 
-	/* ... and set up the initial incomming window to expose all of RAM */
+	/* ... and set up the initial incoming window to expose all of RAM */
 	pci_set_rbar_region(7, memStart, memStart, memSize);
 
 	/* Maximise timeout values */
@@ -473,7 +473,7 @@ static void pci_set_rbar_region(unsigned int region,     unsigned long localAddr
 
 	mask = r2p2(regionSize) - 0x10000;
 
-	/* Diable the region (in case currently in use, should never happen) */
+	/* Disable the region (in case currently in use, should never happen) */
 	ST40PCI_WRITE_INDEXED(RSR, region, 0);
 
 	/* Start of local address space to publish */

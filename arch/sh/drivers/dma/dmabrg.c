@@ -33,7 +33,7 @@
  *     9      | HAC1/SSI1 | rec | half done    | DMABRGI2
  *
  * all can be enabled/disabled in the DMABRGCR register,
- * as well as checked if they occured.
+ * as well as checked if they occurred.
  *
  * DMABRGI0 services  USB  DMA  Address  errors,  but it still must be
  * enabled/acked in the DMABRGCR register.  USB-DMA complete indicator
