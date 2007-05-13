@@ -1399,6 +1399,11 @@ static struct loop_device *loop_init_one(int i)
 	struct loop_device *lo;
 	struct gendisk *disk;
 
+	list_for_each_entry(lo, &loop_devices, lo_list) {
+		if (lo->lo_number == i)
+			return lo;
+	}
+
 	lo = kzalloc(sizeof(*lo), GFP_KERNEL);
 	if (!lo)
 		goto out;
@@ -1443,17 +1448,13 @@ static void loop_del_one(struct loop_device *lo)
 	kfree(lo);
 }
 
-static int loop_lock(dev_t dev, void *data)
-{
-	mutex_lock(&loop_devices_mutex);
-	return 0;
-}
-
 static struct kobject *loop_probe(dev_t dev, int *part, void *data)
 {
-	struct loop_device *lo = loop_init_one(dev & MINORMASK);
+	struct loop_device *lo;
 	struct kobject *kobj;
 
+	mutex_lock(&loop_devices_mutex);
+	lo = loop_init_one(dev & MINORMASK);
 	kobj = lo ? get_disk(lo->lo_disk) : ERR_PTR(-ENOMEM);
 	mutex_unlock(&loop_devices_mutex);
 
@@ -1466,7 +1467,7 @@ static int __init loop_init(void)
 	if (register_blkdev(LOOP_MAJOR, "loop"))
 		return -EIO;
 	blk_register_region(MKDEV(LOOP_MAJOR, 0), 1UL << MINORBITS,
-				  THIS_MODULE, loop_probe, loop_lock, NULL);
+				  THIS_MODULE, loop_probe, NULL, NULL);
 
 	if (max_loop) {
 		printk(KERN_INFO "loop: the max_loop option is obsolete "
