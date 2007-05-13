@@ -37,6 +37,7 @@
 #include <linux/wait.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
+#include <linux/completion.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -115,7 +116,7 @@ static int proc_viopath_show(struct seq_file *m, void *v)
 	u16 vlanMap;
 	dma_addr_t handle;
 	HvLpEvent_Rc hvrc;
-	DECLARE_MUTEX_LOCKED(Semaphore);
+	DECLARE_COMPLETION(done);
 	struct device_node *node;
 	const char *sysid;
 
@@ -132,13 +133,13 @@ static int proc_viopath_show(struct seq_file *m, void *v)
 			HvLpEvent_AckInd_DoAck, HvLpEvent_AckType_ImmediateAck,
 			viopath_sourceinst(viopath_hostLp),
 			viopath_targetinst(viopath_hostLp),
-			(u64)(unsigned long)&Semaphore, VIOVERSION << 16,
+			(u64)(unsigned long)&done, VIOVERSION << 16,
 			((u64)handle) << 32, HW_PAGE_SIZE, 0, 0);
 
 	if (hvrc != HvLpEvent_Rc_Good)
 		printk(VIOPATH_KERN_WARN "hv error on op %d\n", (int)hvrc);
 
-	down(&Semaphore);
+	wait_for_completion(&done);
 
 	vlanMap = HvLpConfig_getVirtualLanIndexMap();
 
@@ -353,7 +354,7 @@ static void handleConfig(struct HvLpEvent *event)
 		return;
 	}
 
-	up((struct semaphore *)event->xCorrelationToken);
+	complete((struct completion *)event->xCorrelationToken);
 }
 
 /*
