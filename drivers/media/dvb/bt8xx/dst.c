@@ -1721,9 +1721,6 @@ static void dst_release(struct dvb_frontend *fe)
 		symbol_put(dst_ca_attach);
 #endif
 	}
-#ifdef CONFIG_DVB_CORE_ATTACH
-	symbol_put(dst_attach);
-#endif
 	kfree(state);
 }
 
