@@ -1712,8 +1712,6 @@ L:	Linux-Kernel@vger.kernel.org
 S:	Maintained
 
 i386 SETUP CODE / CPU ERRATA WORKAROUNDS
-P:	Dave Jones
-M:	davej@codemonkey.org.uk
 P:	H. Peter Anvin
 M:	hpa@zytor.com
 S:	Maintained
