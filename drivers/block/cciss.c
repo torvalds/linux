@@ -3469,12 +3469,38 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	return -1;
 }
 
-static void cciss_remove_one(struct pci_dev *pdev)
+static void cciss_shutdown(struct pci_dev *pdev)
+{
+	ctlr_info_t *tmp_ptr;
+	int i;
+	char flush_buf[4];
+	int return_code;
+
+	tmp_ptr = pci_get_drvdata(pdev);
+	if (tmp_ptr == NULL)
+		return;
+	i = tmp_ptr->ctlr;
+	if (hba[i] == NULL)
+		return;
+
+	/* Turn board interrupts off  and send the flush cache command */
+	/* sendcmd will turn off interrupt, and send the flush...
+	 * To write all data in the battery backed cache to disks */
+	memset(flush_buf, 0, 4);
+	return_code = sendcmd(CCISS_CACHE_FLUSH, i, flush_buf, 4, 0, 0, 0, NULL,
+			      TYPE_CMD);
+	if (return_code == IO_OK) {
+		printk(KERN_INFO "Completed flushing cache on controller %d\n", i);
+	} else {
+		printk(KERN_WARNING "Error flushing cache on controller %d\n", i);
+	}
+	free_irq(hba[i]->intr[2], hba[i]);
+}
+
+static void __devexit cciss_remove_one(struct pci_dev *pdev)
 {
 	ctlr_info_t *tmp_ptr;
 	int i, j;
-	char flush_buf[4];
-	int return_code;
 
 	if (pci_get_drvdata(pdev) == NULL) {
 		printk(KERN_ERR "cciss: Unable to remove device \n");
@@ -3506,18 +3532,7 @@ static void cciss_remove_one(struct pci_dev *pdev)
 
 	cciss_unregister_scsi(i);	/* unhook from SCSI subsystem */
 
-	/* Turn board interrupts off  and send the flush cache command */
-	/* sendcmd will turn off interrupt, and send the flush...
-	 * To write all data in the battery backed cache to disks */
-	memset(flush_buf, 0, 4);
-	return_code = sendcmd(CCISS_CACHE_FLUSH, i, flush_buf, 4, 0, 0, 0, NULL,
-			      TYPE_CMD);
-	if (return_code == IO_OK) {
-		printk(KERN_INFO "Completed flushing cache on controller %d\n", i);
-	} else {
-		printk(KERN_WARNING "Error flushing cache on controller %d\n", i);
-	}
-	free_irq(hba[i]->intr[2], hba[i]);
+	cciss_shutdown(pdev);
 
 #ifdef CONFIG_PCI_MSI
 	if (hba[i]->msix_vector)
@@ -3550,7 +3565,7 @@ static struct pci_driver cciss_pci_driver = {
 	.probe = cciss_init_one,
 	.remove = __devexit_p(cciss_remove_one),
 	.id_table = cciss_pci_device_id,	/* id_table */
-	.shutdown = cciss_remove_one,
+	.shutdown = cciss_shutdown,
 };
 
 /*
