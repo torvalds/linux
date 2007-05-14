@@ -23,6 +23,7 @@
 #include <linux/kexec.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
+#include <asm/page.h>
 #include <asm/sections.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
@@ -388,20 +389,6 @@ struct sh_machine_vector* __init get_mv_byname(const char* name)
 	}
 	return NULL;
 }
-
-static struct cpu cpu[NR_CPUS];
-
-static int __init topology_init(void)
-{
-	int cpu_id;
-
-	for_each_possible_cpu(cpu_id)
-		register_cpu(&cpu[cpu_id], cpu_id);
-
-	return 0;
-}
-
-subsys_initcall(topology_init);
 
 static const char *cpu_name[] = {
 	[CPU_SH7206]	= "SH7206",	[CPU_SH7619]	= "SH7619",
