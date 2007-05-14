@@ -21,6 +21,7 @@
 #include <linux/bug.h>
 #include <linux/debug_locks.h>
 #include <linux/kdebug.h>
+#include <linux/kexec.h>
 #include <linux/limits.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -101,6 +102,16 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	bust_spinlocks(0);
 	spin_unlock_irq(&die_lock);
+
+	if (kexec_should_crash(current))
+		crash_kexec(regs);
+
+	if (in_interrupt())
+		panic("Fatal exception in interrupt");
+
+	if (panic_on_oops)
+		panic("Fatal exception");
+
 	do_exit(SIGSEGV);
 }
 
