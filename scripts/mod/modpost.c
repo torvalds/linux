@@ -650,9 +650,10 @@ static int strrcmp(const char *s, const char *sub)
  *  tosec    = .init.text
  *
  * Pattern 10:
- *  ia64 has machvec table for each platform. It is mixture of function
- *  pointer of .init.text and .text.
- *  fromsec  = .machvec
+ *  ia64 has machvec table for each platform and
+ *  powerpc has a machine desc table for each platform.
+ *  It is mixture of function pointers of .init.text and .text.
+ *  fromsec  = .machvec | .machine.desc
  **/
 static int secref_whitelist(const char *modname, const char *tosec,
 			    const char *fromsec, const char *atsym,
@@ -751,7 +752,8 @@ static int secref_whitelist(const char *modname, const char *tosec,
 				return 1;
 
 	/* Check for pattern 10 */
-	if (strcmp(fromsec, ".machvec") == 0)
+	if ((strcmp(fromsec, ".machvec") == 0) ||
+	    (strcmp(fromsec, ".machine.desc") == 0))
 		return 1;
 
 	return 0;
@@ -885,6 +887,11 @@ static void warn_sec_mismatch(const char *modname, const char *fromsec,
 	if (before &&
 	    secref_whitelist(modname, secname, fromsec,
 			     elf->strtab + before->st_name, refsymname))
+		return;
+
+	/* fromsec whitelist - without a valid 'before'
+	 * powerpc has a GOT table in .got2 section */
+	if (strcmp(fromsec, ".got2") == 0)
 		return;
 
 	if (before && after) {
