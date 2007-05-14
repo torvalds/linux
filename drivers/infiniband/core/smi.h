@@ -48,10 +48,12 @@ enum smi_action {
 enum smi_forward_action {
 	IB_SMI_LOCAL,	/* SMP should be completed up the stack */
 	IB_SMI_SEND,	/* received DR SMP should be forwarded to the send queue */
+	IB_SMI_FORWARD	/* SMP should be forwarded (for switches only) */
 };
 
 enum smi_action smi_handle_dr_smp_recv(struct ib_smp *smp, u8 node_type,
 				       int port_num, int phys_port_cnt);
+int smi_get_fwd_port(struct ib_smp *smp);
 extern enum smi_forward_action smi_check_forward_dr_smp(struct ib_smp *smp);
 extern enum smi_action smi_handle_dr_smp_send(struct ib_smp *smp,
 					      u8 node_type, int port_num);

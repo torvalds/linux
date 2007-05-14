@@ -3,7 +3,7 @@
  * Copyright (c) 2004, 2005 Infinicon Corporation.  All rights reserved.
  * Copyright (c) 2004, 2005 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004, 2005 Topspin Corporation.  All rights reserved.
- * Copyright (c) 2004, 2005 Voltaire Corporation.  All rights reserved.
+ * Copyright (c) 2004-2007 Voltaire Corporation.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -34,7 +34,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: agent.c 1389 2004-12-27 22:56:47Z roland $
  */
 
 #include <linux/slab.h>
@@ -42,6 +41,7 @@
 
 #include "agent.h"
 #include "smi.h"
+#include "mad_priv.h"
 
 #define SPFX "ib_agent: "
 
@@ -87,8 +87,13 @@ int agent_send_response(struct ib_mad *mad, struct ib_grh *grh,
 	struct ib_mad_send_buf *send_buf;
 	struct ib_ah *ah;
 	int ret;
+	struct ib_mad_send_wr_private *mad_send_wr;
 
-	port_priv = ib_get_agent_port(device, port_num);
+	if (device->node_type == RDMA_NODE_IB_SWITCH)
+		port_priv = ib_get_agent_port(device, 0);
+	else
+		port_priv = ib_get_agent_port(device, port_num);
+
 	if (!port_priv) {
 		printk(KERN_ERR SPFX "Unable to find port agent\n");
 		return -ENODEV;
@@ -113,6 +118,14 @@ int agent_send_response(struct ib_mad *mad, struct ib_grh *grh,
 
 	memcpy(send_buf->mad, mad, sizeof *mad);
 	send_buf->ah = ah;
+
+	if (device->node_type == RDMA_NODE_IB_SWITCH) {
+		mad_send_wr = container_of(send_buf,
+					   struct ib_mad_send_wr_private,
+					   send_buf);
+		mad_send_wr->send_wr.wr.ud.port_num = port_num;
+	}
+
 	if ((ret = ib_post_send_mad(send_buf, NULL))) {
 		printk(KERN_ERR SPFX "ib_post_send_mad error:%d\n", ret);
 		goto err2;
