@@ -833,7 +833,7 @@ int cxio_rdma_init(struct cxio_rdev *rdev_p, struct t3_rdma_init_attr *attr)
 	wqe->ird = cpu_to_be32(attr->ird);
 	wqe->qp_dma_addr = cpu_to_be64(attr->qp_dma_addr);
 	wqe->qp_dma_size = cpu_to_be32(attr->qp_dma_size);
-	wqe->rsvd = 0;
+	wqe->irs = cpu_to_be32(attr->irs);
 	skb->priority = 0;	/* 0=>ToeQ; 1=>CtrlQ */
 	return (cxgb3_ofld_send(rdev_p->t3cdev_p, skb));
 }

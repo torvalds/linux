@@ -294,6 +294,7 @@ struct t3_rdma_init_attr {
 	u64 qp_dma_addr;
 	u32 qp_dma_size;
 	u32 flags;
+	u32 irs;
 };
 
 struct t3_rdma_init_wr {
@@ -314,7 +315,7 @@ struct t3_rdma_init_wr {
 	__be32 ird;
 	__be64 qp_dma_addr;	/* 7 */
 	__be32 qp_dma_size;	/* 8 */
-	u32 rsvd;
+	u32 irs;
 };
 
 struct t3_genbit {
