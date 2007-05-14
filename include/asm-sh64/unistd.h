@@ -9,14 +9,14 @@
  * include/asm-sh64/unistd.h
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
- * Copyright (C) 2003  Paul Mundt
+ * Copyright (C) 2003 - 2007 Paul Mundt
  * Copyright (C) 2004  Sean McGoogan
  *
  * This file contains the system call numbers.
  *
  */
 
-#define __NR_setup		  0	/* used only by init, to get system going */
+#define __NR_restart_syscall	  0
 #define __NR_exit		  1
 #define __NR_fork		  2
 #define __NR_read		  3
@@ -196,8 +196,8 @@
 #define __NR_rt_sigtimedwait	177
 #define __NR_rt_sigqueueinfo	178
 #define __NR_rt_sigsuspend	179
-#define __NR_pread		180
-#define __NR_pwrite		181
+#define __NR_pread64		180
+#define __NR_pwrite64		181
 #define __NR_chown		182
 #define __NR_getcwd		183
 #define __NR_capget		184
@@ -343,10 +343,41 @@
 #define __NR_inotify_init	318
 #define __NR_inotify_add_watch	319
 #define __NR_inotify_rm_watch	320
+/* 321 is unused */
+#define __NR_migrate_pages	322
+#define __NR_openat		323
+#define __NR_mkdirat		324
+#define __NR_mknodat		325
+#define __NR_fchownat		326
+#define __NR_futimesat		327
+#define __NR_fstatat64		328
+#define __NR_unlinkat		329
+#define __NR_renameat		330
+#define __NR_linkat		331
+#define __NR_symlinkat		332
+#define __NR_readlinkat		333
+#define __NR_fchmodat		334
+#define __NR_faccessat		335
+#define __NR_pselect6		336
+#define __NR_ppoll		337
+#define __NR_unshare		338
+#define __NR_set_robust_list	339
+#define __NR_get_robust_list	340
+#define __NR_splice		341
+#define __NR_sync_file_range	342
+#define __NR_tee		343
+#define __NR_vmsplice		344
+#define __NR_move_pages		345
+#define __NR_getcpu		346
+#define __NR_epoll_pwait	347
+#define __NR_utimensat		348
+#define __NR_signalfd		349
+#define __NR_timerfd		350
+#define __NR_eventfd		351
 
-#ifdef __KERNEL__ 
+#ifdef __KERNEL__
 
-#define NR_syscalls 321
+#define NR_syscalls 352
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
