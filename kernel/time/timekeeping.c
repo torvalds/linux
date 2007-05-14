@@ -273,6 +273,8 @@ static int timekeeping_resume(struct sys_device *dev)
 	unsigned long flags;
 	unsigned long now = read_persistent_clock();
 
+	clocksource_resume();
+
 	write_seqlock_irqsave(&xtime_lock, flags);
 
 	if (now && (now > timekeeping_suspend_time)) {
