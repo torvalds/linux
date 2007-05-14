@@ -628,6 +628,28 @@ static int hid_alloc_buffers(struct usb_device *dev, struct hid_device *hid)
 	return 0;
 }
 
+static int usbhid_output_raw_report(struct hid_device *hid, __u8 *buf, size_t count)
+{
+	struct usbhid_device *usbhid = hid->driver_data;
+	struct usb_device *dev = hid_to_usb_dev(hid);
+	struct usb_interface *intf = usbhid->intf;
+	struct usb_host_interface *interface = intf->cur_altsetting;
+	int ret;
+
+	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
+		HID_REQ_SET_REPORT,
+		USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
+		cpu_to_le16(((HID_OUTPUT_REPORT + 1) << 8) | *buf),
+		interface->desc.bInterfaceNumber, buf + 1, count - 1,
+		USB_CTRL_SET_TIMEOUT);
+
+	/* count also the report id */
+	if (ret > 0)
+		ret++;
+
+	return ret;
+}
+
 static void hid_free_buffers(struct usb_device *dev, struct hid_device *hid)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
@@ -871,6 +893,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	hid->hiddev_hid_event = hiddev_hid_event;
 	hid->hiddev_report_event = hiddev_report_event;
 #endif
+	hid->hid_output_raw_report = usbhid_output_raw_report;
 	return hid;
 
 fail:
