@@ -340,8 +340,9 @@ static int __init map_cayman_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	return result;
 }
 
-irqreturn_t pcish5_err_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pcish5_err_irq(int irq, void *dev_id)
 {
+	struct pt_regs *regs = get_irq_regs();
 	unsigned pci_int, pci_air, pci_cir, pci_aint;
 
 	pci_int = SH5PCI_READ(INT);
@@ -368,7 +369,7 @@ irqreturn_t pcish5_err_irq(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-irqreturn_t pcish5_serr_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pcish5_serr_irq(int irq, void *dev_id)
 {
 	printk("SERR IRQ\n");
 
