@@ -537,6 +537,13 @@ static int __init build_one_resource(struct device_node *parent,
 			return 0;
 	}
 
+	/* When we miss an I/O space match on PCI, just pass it up
+	 * to the next PCI bridge and/or controller.
+	 */
+	if (!strcmp(bus->name, "pci") &&
+	    (addr[0] & 0x03000000) == 0x01000000)
+		return 0;
+
 	return 1;
 }
 
