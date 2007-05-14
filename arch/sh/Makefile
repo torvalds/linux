@@ -87,39 +87,39 @@ core-y				+= arch/sh/kernel/ arch/sh/mm/
 core-$(CONFIG_SH_FPU_EMU)	+= arch/sh/math-emu/
 
 # Boards
-machdir-$(CONFIG_SH_SOLUTION_ENGINE)		:= se/770x
-machdir-$(CONFIG_SH_7722_SOLUTION_ENGINE)	:= se/7722
-machdir-$(CONFIG_SH_7751_SOLUTION_ENGINE)	:= se/7751
-machdir-$(CONFIG_SH_7780_SOLUTION_ENGINE)	:= se/7780
-machdir-$(CONFIG_SH_7300_SOLUTION_ENGINE)	:= se/7300
-machdir-$(CONFIG_SH_7343_SOLUTION_ENGINE)	:= se/7343
-machdir-$(CONFIG_SH_73180_SOLUTION_ENGINE)	:= se/73180
-machdir-$(CONFIG_SH_HP6XX)			:= hp6xx
-machdir-$(CONFIG_SH_SATURN)			:= saturn
-machdir-$(CONFIG_SH_DREAMCAST)			:= dreamcast
-machdir-$(CONFIG_SH_MPC1211)			:= mpc1211
-machdir-$(CONFIG_SH_SH03)			:= sh03
-machdir-$(CONFIG_SH_SECUREEDGE5410)		:= snapgear
-machdir-$(CONFIG_SH_HS7751RVOIP)		:= renesas/hs7751rvoip
-machdir-$(CONFIG_SH_RTS7751R2D)			:= renesas/rts7751r2d
-machdir-$(CONFIG_SH_7751_SYSTEMH)		:= renesas/systemh
-machdir-$(CONFIG_SH_EDOSK7705)			:= renesas/edosk7705
-machdir-$(CONFIG_SH_HIGHLANDER)			:= renesas/r7780rp
-machdir-$(CONFIG_SH_7710VOIPGW)			:= renesas/sh7710voipgw
-machdir-$(CONFIG_SH_SH4202_MICRODEV)		:= superh/microdev
-machdir-$(CONFIG_SH_LANDISK)			:= landisk
-machdir-$(CONFIG_SH_TITAN)			:= titan
-machdir-$(CONFIG_SH_SHMIN)			:= shmin
-machdir-$(CONFIG_SH_7206_SOLUTION_ENGINE)	:= se/7206
-machdir-$(CONFIG_SH_7619_SOLUTION_ENGINE)	:= se/7619
-machdir-$(CONFIG_SH_LBOX_RE2)			:= lboxre2
-machdir-$(CONFIG_SH_UNKNOWN)			:= unknown
+machdir-$(CONFIG_SH_SOLUTION_ENGINE)		+= se/770x
+machdir-$(CONFIG_SH_7722_SOLUTION_ENGINE)	+= se/7722
+machdir-$(CONFIG_SH_7751_SOLUTION_ENGINE)	+= se/7751
+machdir-$(CONFIG_SH_7780_SOLUTION_ENGINE)	+= se/7780
+machdir-$(CONFIG_SH_7300_SOLUTION_ENGINE)	+= se/7300
+machdir-$(CONFIG_SH_7343_SOLUTION_ENGINE)	+= se/7343
+machdir-$(CONFIG_SH_73180_SOLUTION_ENGINE)	+= se/73180
+machdir-$(CONFIG_SH_HP6XX)			+= hp6xx
+machdir-$(CONFIG_SH_SATURN)			+= saturn
+machdir-$(CONFIG_SH_DREAMCAST)			+= dreamcast
+machdir-$(CONFIG_SH_MPC1211)			+= mpc1211
+machdir-$(CONFIG_SH_SH03)			+= sh03
+machdir-$(CONFIG_SH_SECUREEDGE5410)		+= snapgear
+machdir-$(CONFIG_SH_HS7751RVOIP)		+= renesas/hs7751rvoip
+machdir-$(CONFIG_SH_RTS7751R2D)			+= renesas/rts7751r2d
+machdir-$(CONFIG_SH_7751_SYSTEMH)		+= renesas/systemh
+machdir-$(CONFIG_SH_EDOSK7705)			+= renesas/edosk7705
+machdir-$(CONFIG_SH_HIGHLANDER)			+= renesas/r7780rp
+machdir-$(CONFIG_SH_7710VOIPGW)			+= renesas/sh7710voipgw
+machdir-$(CONFIG_SH_SH4202_MICRODEV)		+= superh/microdev
+machdir-$(CONFIG_SH_LANDISK)			+= landisk
+machdir-$(CONFIG_SH_TITAN)			+= titan
+machdir-$(CONFIG_SH_SHMIN)			+= shmin
+machdir-$(CONFIG_SH_7206_SOLUTION_ENGINE)	+= se/7206
+machdir-$(CONFIG_SH_7619_SOLUTION_ENGINE)	+= se/7619
+machdir-$(CONFIG_SH_LBOX_RE2)			+= lboxre2
+machdir-$(CONFIG_SH_UNKNOWN)			+= unknown
 
-incdir-y			:= $(notdir $(machdir-y))
-incdir-$(CONFIG_SH_HP6XX)			:= hp6xx
+incdir-y	:= $(notdir $(machdir-y))
 
 ifneq ($(machdir-y),)
-core-y				+= arch/sh/boards/$(machdir-y)/
+core-y	+= $(addprefix arch/sh/boards/, \
+	     $(filter-out ., $(patsubst %,%/,$(machdir-y))))
 endif
 
 # Companion chips
@@ -157,19 +157,31 @@ include/asm-sh/.cpu: $(wildcard include/config/cpu/*.h) \
 #	Most boards have their own mach directories.  For the ones that
 #	don't, just reference the parent directory so the semantics are
 #	kept roughly the same.
+#
+#	When multiple boards are compiled in at the same time, preference
+#	for the mach link is given to whichever has a directory for its
+#	headers. However, this is only a workaround until platforms that
+#	can live in the same kernel image back away from relying on the
+#	mach link.
 
 include/asm-sh/.mach: $(wildcard include/config/sh/*.h) \
 		      include/config/auto.conf FORCE
-	@echo -n '  SYMLINK include/asm-sh/mach -> '
 	$(Q)if [ ! -d include/asm-sh ]; then mkdir -p include/asm-sh; fi
-	$(Q)if [ -d $(incdir-prefix)$(incdir-y) ]; then \
-		echo -e 'include/asm-sh/$(incdir-y)'; \
-		ln -fsn $(incdir-prefix)$(incdir-y) \
+	$(Q)rm -f include/asm-sh/mach
+	$(Q)for i in $(incdir-y); do \
+	if [ -d $(incdir-prefix)$$i ]; then \
+		echo -n '  SYMLINK include/asm-sh/mach -> '; \
+		echo -e "include/asm-sh/$$i"; \
+		ln -fsn $(incdir-prefix)$$i \
 			include/asm-sh/mach; \
 	else \
-		echo -e 'include/asm-sh'; \
-		ln -fsn $(incdir-prefix) include/asm-sh/mach; \
-	fi
+		if [ ! -d include/asm-sh/mach ]; then \
+			echo -n '  SYMLINK include/asm-sh/mach -> '; \
+			echo -e 'include/asm-sh'; \
+			ln -fsn $(incdir-prefix) include/asm-sh/mach; \
+		fi; \
+	fi; \
+	done
 	@touch $@
 
 archprepare: include/asm-sh/.cpu include/asm-sh/.mach maketools

@@ -14,6 +14,6 @@
 
 #define __initmv __attribute__((unused,__section__ (".machvec.init")))
 #define ALIAS_MV(system) \
-  asm(".global sh_mv\nsh_mv = mv_"#system );
+  asm(".weak sh_mv\nsh_mv = mv_"#system );
 
 #endif /* __SH_MACHVEC_INIT_H */
