@@ -1188,7 +1188,7 @@ static int vmx_vcpu_setup(struct kvm_vcpu *vcpu)
 	struct descriptor_table dt;
 	int i;
 	int ret = 0;
-	extern asmlinkage void kvm_vmx_return(void);
+	unsigned long kvm_vmx_return;
 
 	if (!init_rmode_tss(vcpu->kvm)) {
 		ret = -ENOMEM;
@@ -1306,8 +1306,8 @@ static int vmx_vcpu_setup(struct kvm_vcpu *vcpu)
 	get_idt(&dt);
 	vmcs_writel(HOST_IDTR_BASE, dt.base);   /* 22.2.4 */
 
-
-	vmcs_writel(HOST_RIP, (unsigned long)kvm_vmx_return); /* 22.2.5 */
+	asm ("mov $.Lkvm_vmx_return, %0" : "=r"(kvm_vmx_return));
+	vmcs_writel(HOST_RIP, kvm_vmx_return); /* 22.2.5 */
 
 	rdmsr(MSR_IA32_SYSENTER_CS, host_sysenter_cs, junk);
 	vmcs_write32(HOST_IA32_SYSENTER_CS, host_sysenter_cs);
@@ -1997,12 +1997,11 @@ again:
 		"mov %c[rcx](%3), %%ecx \n\t" /* kills %3 (ecx) */
 #endif
 		/* Enter guest mode */
-		"jne launched \n\t"
+		"jne .Llaunched \n\t"
 		ASM_VMX_VMLAUNCH "\n\t"
-		"jmp kvm_vmx_return \n\t"
-		"launched: " ASM_VMX_VMRESUME "\n\t"
-		".globl kvm_vmx_return \n\t"
-		"kvm_vmx_return: "
+		"jmp .Lkvm_vmx_return \n\t"
+		".Llaunched: " ASM_VMX_VMRESUME "\n\t"
+		".Lkvm_vmx_return: "
 		/* Save guest registers, load host registers, keep flags */
 #ifdef CONFIG_X86_64
 		"xchg %3,     (%%rsp) \n\t"
