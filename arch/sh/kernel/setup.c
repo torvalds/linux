@@ -194,10 +194,6 @@ void __init setup_arch(char **cmdline_p)
 {
 	enable_mmu();
 
-#ifdef CONFIG_CMDLINE_BOOL
-	strcpy(COMMAND_LINE, CONFIG_CMDLINE);
-#endif
-
 	ROOT_DEV = old_decode_dev(ORIG_ROOT_DEV);
 
 #ifdef CONFIG_BLK_DEV_RAM
@@ -221,9 +217,14 @@ void __init setup_arch(char **cmdline_p)
 	memory_start = (unsigned long)PAGE_OFFSET+__MEMORY_START;
 	memory_end = memory_start + __MEMORY_SIZE;
 
-	/* Save unparsed command line copy for /proc/cmdline */
-	strlcpy(boot_command_line, COMMAND_LINE, COMMAND_LINE_SIZE);
+#ifdef CONFIG_CMDLINE_BOOL
+	strlcpy(command_line, CONFIG_CMDLINE, sizeof(command_line));
+#else
+	strlcpy(command_line, COMMAND_LINE, sizeof(command_line));
+#endif
 
+	/* Save unparsed command line copy for /proc/cmdline */
+	memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 
 	parse_early_param();
