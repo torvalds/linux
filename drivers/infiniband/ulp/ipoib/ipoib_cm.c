@@ -257,10 +257,11 @@ static int ipoib_cm_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *even
 	cm_id->context = p;
 	p->jiffies = jiffies;
 	spin_lock_irq(&priv->lock);
+	if (list_empty(&priv->cm.passive_ids))
+		queue_delayed_work(ipoib_workqueue,
+				   &priv->cm.stale_task, IPOIB_CM_RX_DELAY);
 	list_add(&p->list, &priv->cm.passive_ids);
 	spin_unlock_irq(&priv->lock);
-	queue_delayed_work(ipoib_workqueue,
-			   &priv->cm.stale_task, IPOIB_CM_RX_DELAY);
 	return 0;
 
 err_rep:
@@ -378,8 +379,6 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 			if (!list_empty(&p->list))
 				list_move(&p->list, &priv->cm.passive_ids);
 			spin_unlock_irqrestore(&priv->lock, flags);
-			queue_delayed_work(ipoib_workqueue,
-					   &priv->cm.stale_task, IPOIB_CM_RX_DELAY);
 		}
 	}
 
@@ -1100,6 +1099,10 @@ static void ipoib_cm_stale_task(struct work_struct *work)
 		kfree(p);
 		spin_lock_irq(&priv->lock);
 	}
+
+	if (!list_empty(&priv->cm.passive_ids))
+		queue_delayed_work(ipoib_workqueue,
+				   &priv->cm.stale_task, IPOIB_CM_RX_DELAY);
 	spin_unlock_irq(&priv->lock);
 }
 
