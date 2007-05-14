@@ -202,6 +202,27 @@ xfs_mount_free(
 	kmem_free(mp, sizeof(xfs_mount_t));
 }
 
+/*
+ * Check size of device based on the (data/realtime) block count.
+ * Note: this check is used by the growfs code as well as mount.
+ */
+int
+xfs_sb_validate_fsb_count(
+	xfs_sb_t	*sbp,
+	__uint64_t	nblocks)
+{
+	ASSERT(PAGE_SHIFT >= sbp->sb_blocklog);
+	ASSERT(sbp->sb_blocklog >= BBSHIFT);
+
+#if XFS_BIG_BLKNOS     /* Limited by ULONG_MAX of page cache index */
+	if (nblocks >> (PAGE_CACHE_SHIFT - sbp->sb_blocklog) > ULONG_MAX)
+		return E2BIG;
+#else                  /* Limited by UINT_MAX of sectors */
+	if (nblocks << (sbp->sb_blocklog - BBSHIFT) > UINT_MAX)
+		return E2BIG;
+#endif
+	return 0;
+}
 
 /*
  * Check the validity of the SB found.
@@ -284,18 +305,8 @@ xfs_mount_validate_sb(
 		return XFS_ERROR(EFSCORRUPTED);
 	}
 
-	ASSERT(PAGE_SHIFT >= sbp->sb_blocklog);
-	ASSERT(sbp->sb_blocklog >= BBSHIFT);
-
-#if XFS_BIG_BLKNOS     /* Limited by ULONG_MAX of page cache index */
-	if (unlikely(
-	    (sbp->sb_dblocks >> (PAGE_SHIFT - sbp->sb_blocklog)) > ULONG_MAX ||
-	    (sbp->sb_rblocks >> (PAGE_SHIFT - sbp->sb_blocklog)) > ULONG_MAX)) {
-#else                  /* Limited by UINT_MAX of sectors */
-	if (unlikely(
-	    (sbp->sb_dblocks << (sbp->sb_blocklog - BBSHIFT)) > UINT_MAX ||
-	    (sbp->sb_rblocks << (sbp->sb_blocklog - BBSHIFT)) > UINT_MAX)) {
-#endif
+	if (xfs_sb_validate_fsb_count(sbp, sbp->sb_dblocks) ||
+	    xfs_sb_validate_fsb_count(sbp, sbp->sb_rblocks)) {
 		xfs_fs_mount_cmn_err(flags,
 			"file system too large to be mounted on this system.");
 		return XFS_ERROR(E2BIG);
