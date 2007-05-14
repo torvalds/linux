@@ -55,8 +55,6 @@
 
 typedef unsigned long long phys_addr_t;
 
-extern phys_addr_t fixup_bigphys_addr(phys_addr_t, phys_addr_t);
-
 typedef struct {
 	unsigned long id;
 	unsigned long vdso_base;
