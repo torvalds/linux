@@ -936,6 +936,7 @@ static int handle_async_send(struct file_info *fi, struct pending_request *req)
 	struct hpsb_packet *packet;
 	int header_length = req->req.misc & 0xffff;
 	int expect_response = req->req.misc >> 16;
+	size_t data_size;
 
 	if (header_length > req->req.length || header_length < 12 ||
 	    header_length > FIELD_SIZEOF(struct hpsb_packet, header)) {
@@ -945,7 +946,8 @@ static int handle_async_send(struct file_info *fi, struct pending_request *req)
 		return sizeof(struct raw1394_request);
 	}
 
-	packet = hpsb_alloc_packet(req->req.length - header_length);
+	data_size = req->req.length - header_length;
+	packet = hpsb_alloc_packet(data_size);
 	req->packet = packet;
 	if (!packet)
 		return -ENOMEM;
@@ -960,7 +962,7 @@ static int handle_async_send(struct file_info *fi, struct pending_request *req)
 
 	if (copy_from_user
 	    (packet->data, int2ptr(req->req.sendb) + header_length,
-	     packet->data_size)) {
+	     data_size)) {
 		req->req.error = RAW1394_ERROR_MEMFAULT;
 		req->req.length = 0;
 		queue_complete_req(req);
@@ -974,7 +976,7 @@ static int handle_async_send(struct file_info *fi, struct pending_request *req)
 	packet->host = fi->host;
 	packet->expect_response = expect_response;
 	packet->header_size = header_length;
-	packet->data_size = req->req.length - header_length;
+	packet->data_size = data_size;
 
 	req->req.length = 0;
 	hpsb_set_packet_complete_task(packet,
