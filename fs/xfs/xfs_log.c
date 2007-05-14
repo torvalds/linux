@@ -949,6 +949,19 @@ xlog_iodone(xfs_buf_t *bp)
 	l = iclog->ic_log;
 
 	/*
+	 * If the ordered flag has been removed by a lower
+	 * layer, it means the underlyin device no longer supports
+	 * barrier I/O. Warn loudly and turn off barriers.
+	 */
+	if ((l->l_mp->m_flags & XFS_MOUNT_BARRIER) && !XFS_BUF_ORDERED(bp)) {
+		l->l_mp->m_flags &= ~XFS_MOUNT_BARRIER;
+		xfs_fs_cmn_err(CE_WARN, l->l_mp,
+				"xlog_iodone: Barriers are no longer supported"
+				" by device. Disabling barriers\n");
+		xfs_buftrace("XLOG_IODONE BARRIERS OFF", bp);
+	}
+
+	/*
 	 * Race to shutdown the filesystem if we see an error.
 	 */
 	if (XFS_TEST_ERROR((XFS_BUF_GETERROR(bp)), l->l_mp,
