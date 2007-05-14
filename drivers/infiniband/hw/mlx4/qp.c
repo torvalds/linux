@@ -573,7 +573,7 @@ static int to_mlx4_st(enum ib_qp_type type)
 	}
 }
 
-static __be32 to_mlx4_access_flags(struct mlx4_ib_qp *qp, struct ib_qp_attr *attr,
+static __be32 to_mlx4_access_flags(struct mlx4_ib_qp *qp, const struct ib_qp_attr *attr,
 				   int attr_mask)
 {
 	u8 dest_rd_atomic;
@@ -603,7 +603,7 @@ static __be32 to_mlx4_access_flags(struct mlx4_ib_qp *qp, struct ib_qp_attr *att
 	return cpu_to_be32(hw_access_flags);
 }
 
-static void store_sqp_attrs(struct mlx4_ib_sqp *sqp, struct ib_qp_attr *attr,
+static void store_sqp_attrs(struct mlx4_ib_sqp *sqp, const struct ib_qp_attr *attr,
 			    int attr_mask)
 {
 	if (attr_mask & IB_QP_PKEY_INDEX)
@@ -619,7 +619,7 @@ static void mlx4_set_sched(struct mlx4_qp_path *path, u8 port)
 	path->sched_queue = (path->sched_queue & 0xbf) | ((port - 1) << 6);
 }
 
-static int mlx4_set_path(struct mlx4_ib_dev *dev, struct ib_ah_attr *ah,
+static int mlx4_set_path(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah,
 			 struct mlx4_qp_path *path, u8 port)
 {
 	path->grh_mylmc     = ah->src_path_bits & 0x7f;
@@ -655,48 +655,20 @@ static int mlx4_set_path(struct mlx4_ib_dev *dev, struct ib_ah_attr *ah,
 	return 0;
 }
 
-int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
-		      int attr_mask, struct ib_udata *udata)
+static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
+			       const struct ib_qp_attr *attr, int attr_mask,
+			       enum ib_qp_state cur_state, enum ib_qp_state new_state)
 {
 	struct mlx4_ib_dev *dev = to_mdev(ibqp->device);
 	struct mlx4_ib_qp *qp = to_mqp(ibqp);
 	struct mlx4_qp_context *context;
 	enum mlx4_qp_optpar optpar = 0;
-	enum ib_qp_state cur_state, new_state;
 	int sqd_event;
 	int err = -EINVAL;
 
 	context = kzalloc(sizeof *context, GFP_KERNEL);
 	if (!context)
 		return -ENOMEM;
-
-	mutex_lock(&qp->mutex);
-
-	cur_state = attr_mask & IB_QP_CUR_STATE ? attr->cur_qp_state : qp->state;
-	new_state = attr_mask & IB_QP_STATE ? attr->qp_state : cur_state;
-
-	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type, attr_mask))
-		goto out;
-
-	if ((attr_mask & IB_QP_PKEY_INDEX) &&
-	     attr->pkey_index >= dev->dev->caps.pkey_table_len) {
-		goto out;
-	}
-
-	if ((attr_mask & IB_QP_PORT) &&
-	    (attr->port_num == 0 || attr->port_num > dev->dev->caps.num_ports)) {
-		goto out;
-	}
-
-	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC &&
-	    attr->max_rd_atomic > dev->dev->caps.max_qp_init_rdma) {
-		goto out;
-	}
-
-	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC &&
-	    attr->max_dest_rd_atomic > dev->dev->caps.max_qp_dest_rdma) {
-		goto out;
-	}
 
 	context->flags = cpu_to_be32((to_mlx4_state(new_state) << 28) |
 				     (to_mlx4_st(ibqp->qp_type) << 16));
@@ -920,8 +892,81 @@ int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	}
 
 out:
-	mutex_unlock(&qp->mutex);
 	kfree(context);
+	return err;
+}
+
+static const struct ib_qp_attr mlx4_ib_qp_attr = { .port_num = 1 };
+static const int mlx4_ib_qp_attr_mask_table[IB_QPT_UD + 1] = {
+		[IB_QPT_UD]  = (IB_QP_PKEY_INDEX		|
+				IB_QP_PORT			|
+				IB_QP_QKEY),
+		[IB_QPT_UC]  = (IB_QP_PKEY_INDEX		|
+				IB_QP_PORT			|
+				IB_QP_ACCESS_FLAGS),
+		[IB_QPT_RC]  = (IB_QP_PKEY_INDEX		|
+				IB_QP_PORT			|
+				IB_QP_ACCESS_FLAGS),
+		[IB_QPT_SMI] = (IB_QP_PKEY_INDEX		|
+				IB_QP_QKEY),
+		[IB_QPT_GSI] = (IB_QP_PKEY_INDEX		|
+				IB_QP_QKEY),
+};
+
+int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
+		      int attr_mask, struct ib_udata *udata)
+{
+	struct mlx4_ib_dev *dev = to_mdev(ibqp->device);
+	struct mlx4_ib_qp *qp = to_mqp(ibqp);
+	enum ib_qp_state cur_state, new_state;
+	int err = -EINVAL;
+
+	mutex_lock(&qp->mutex);
+
+	cur_state = attr_mask & IB_QP_CUR_STATE ? attr->cur_qp_state : qp->state;
+	new_state = attr_mask & IB_QP_STATE ? attr->qp_state : cur_state;
+
+	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type, attr_mask))
+		goto out;
+
+	if ((attr_mask & IB_QP_PKEY_INDEX) &&
+	     attr->pkey_index >= dev->dev->caps.pkey_table_len) {
+		goto out;
+	}
+
+	if ((attr_mask & IB_QP_PORT) &&
+	    (attr->port_num == 0 || attr->port_num > dev->dev->caps.num_ports)) {
+		goto out;
+	}
+
+	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC &&
+	    attr->max_rd_atomic > dev->dev->caps.max_qp_init_rdma) {
+		goto out;
+	}
+
+	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC &&
+	    attr->max_dest_rd_atomic > dev->dev->caps.max_qp_dest_rdma) {
+		goto out;
+	}
+
+	if (cur_state == new_state && cur_state == IB_QPS_RESET) {
+		err = 0;
+		goto out;
+	}
+
+	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_ERR) {
+		err = __mlx4_ib_modify_qp(ibqp, &mlx4_ib_qp_attr,
+					  mlx4_ib_qp_attr_mask_table[ibqp->qp_type],
+					  IB_QPS_RESET, IB_QPS_INIT);
+		if (err)
+			goto out;
+		cur_state = IB_QPS_INIT;
+	}
+
+	err = __mlx4_ib_modify_qp(ibqp, attr, attr_mask, cur_state, new_state);
+
+out:
+	mutex_unlock(&qp->mutex);
 	return err;
 }
 
