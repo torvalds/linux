@@ -614,7 +614,7 @@ uspace_segv:
  */
 int is_dsp_inst(struct pt_regs *regs)
 {
-	unsigned short inst;
+	unsigned short inst = 0;
 
 	/*
 	 * Safe guard if DSP mode is already enabled or we're lacking

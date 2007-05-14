@@ -406,8 +406,8 @@ asmlinkage int sys_fork(unsigned long r4, unsigned long r5,
 			unsigned long r6, unsigned long r7,
 			struct pt_regs __regs)
 {
-	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 #ifdef CONFIG_MMU
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	return do_fork(SIGCHLD, regs->regs[15], regs, 0, NULL, NULL);
 #else
 	/* fork almost works, enough to trick you into looking elsewhere :-( */
