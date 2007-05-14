@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/pci.h>		/* struct pci_dev */
 #include <linux/proc_fs.h>
+#include <linux/scatterlist.h>
 
 #include <asm/io.h>
 #include <asm/vaddrs.h>
@@ -717,19 +718,19 @@ void pci_unmap_page(struct pci_dev *hwdev,
  * Device ownership issues as mentioned above for pci_map_single are
  * the same here.
  */
-int pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sg, int nents,
+int pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sgl, int nents,
     int direction)
 {
+	struct scatterlist *sg;
 	int n;
 
 	BUG_ON(direction == PCI_DMA_NONE);
 	/* IIep is write-through, not flushing. */
-	for (n = 0; n < nents; n++) {
+	for_each_sg(sgl, sg, nents, n) {
 		BUG_ON(page_address(sg->page) == NULL);
 		sg->dvma_address =
 			virt_to_phys(page_address(sg->page)) + sg->offset;
 		sg->dvma_length = sg->length;
-		sg++;
 	}
 	return nents;
 }
@@ -738,19 +739,19 @@ int pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sg, int nents,
  * Again, cpu read rules concerning calls here are the same as for
  * pci_unmap_single() above.
  */
-void pci_unmap_sg(struct pci_dev *hwdev, struct scatterlist *sg, int nents,
+void pci_unmap_sg(struct pci_dev *hwdev, struct scatterlist *sgl, int nents,
     int direction)
 {
+	struct scatterlist *sg;
 	int n;
 
 	BUG_ON(direction == PCI_DMA_NONE);
 	if (direction != PCI_DMA_TODEVICE) {
-		for (n = 0; n < nents; n++) {
+		for_each_sg(sgl, sg, nents, n) {
 			BUG_ON(page_address(sg->page) == NULL);
 			mmu_inval_dma_area(
 			    (unsigned long) page_address(sg->page),
 			    (sg->length + PAGE_SIZE-1) & PAGE_MASK);
-			sg++;
 		}
 	}
 }
@@ -789,34 +790,34 @@ void pci_dma_sync_single_for_device(struct pci_dev *hwdev, dma_addr_t ba, size_t
  * The same as pci_dma_sync_single_* but for a scatter-gather list,
  * same rules and usage.
  */
-void pci_dma_sync_sg_for_cpu(struct pci_dev *hwdev, struct scatterlist *sg, int nents, int direction)
+void pci_dma_sync_sg_for_cpu(struct pci_dev *hwdev, struct scatterlist *sgl, int nents, int direction)
 {
+	struct scatterlist *sg;
 	int n;
 
 	BUG_ON(direction == PCI_DMA_NONE);
 	if (direction != PCI_DMA_TODEVICE) {
-		for (n = 0; n < nents; n++) {
+		for_each_sg(sgl, sg, nents, n) {
 			BUG_ON(page_address(sg->page) == NULL);
 			mmu_inval_dma_area(
 			    (unsigned long) page_address(sg->page),
 			    (sg->length + PAGE_SIZE-1) & PAGE_MASK);
-			sg++;
 		}
 	}
 }
 
-void pci_dma_sync_sg_for_device(struct pci_dev *hwdev, struct scatterlist *sg, int nents, int direction)
+void pci_dma_sync_sg_for_device(struct pci_dev *hwdev, struct scatterlist *sgl, int nents, int direction)
 {
+	struct scatterlist *sg;
 	int n;
 
 	BUG_ON(direction == PCI_DMA_NONE);
 	if (direction != PCI_DMA_TODEVICE) {
-		for (n = 0; n < nents; n++) {
+		for_each_sg(sgl, sg, nents, n) {
 			BUG_ON(page_address(sg->page) == NULL);
 			mmu_inval_dma_area(
 			    (unsigned long) page_address(sg->page),
 			    (sg->length + PAGE_SIZE-1) & PAGE_MASK);
-			sg++;
 		}
 	}
 }
