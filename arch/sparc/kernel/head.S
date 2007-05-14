@@ -19,7 +19,7 @@
 #include <asm/ptrace.h>
 #include <asm/psr.h>
 #include <asm/page.h>
-#include <linux/kdebug.h>
+#include <asm/kdebug.h>
 #include <asm/winmacro.h>
 #include <asm/thread_info.h>	/* TI_UWINMASK */
 #include <asm/errno.h>

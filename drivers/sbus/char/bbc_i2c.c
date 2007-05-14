@@ -18,6 +18,7 @@
 #include <asm/ebus.h>
 #include <asm/spitfire.h>
 #include <asm/bbc.h>
+#include <asm/io.h>
 
 #include "bbc_i2c.h"
 

@@ -561,6 +561,9 @@ static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t 
 	unsigned long flags, status;
 	int cnt, retries, this_cpu, prev_sent, i;
 
+	if (cpus_empty(mask))
+		return;
+
 	/* We have to do this whole thing with interrupts fully disabled.
 	 * Otherwise if we send an xcall from interrupt context it will
 	 * corrupt both our mondo block and cpu list state.

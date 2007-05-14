@@ -493,6 +493,10 @@ static struct of_device_id hv_match[] = {
 		.name = "console",
 		.compatible = "qcn",
 	},
+	{
+		.name = "console",
+		.compatible = "SUNW,sun4v-console",
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, hv_match);

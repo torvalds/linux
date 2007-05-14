@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.21
-# Fri May 11 14:31:45 2007
+# Linux kernel version: 2.6.22-rc1
+# Mon May 14 04:17:48 2007
 #
 CONFIG_SPARC=y
 CONFIG_SPARC64=y
@@ -508,10 +508,6 @@ CONFIG_ISCSI_TCP=m
 # CONFIG_SCSI_ESP_CORE is not set
 # CONFIG_SCSI_SUNESP is not set
 # CONFIG_SCSI_SRP is not set
-
-#
-# Serial ATA (prod) and Parallel ATA (experimental) drivers
-#
 # CONFIG_ATA is not set
 
 #
@@ -568,10 +564,6 @@ CONFIG_DUMMY=m
 # ARCnet devices
 #
 # CONFIG_ARCNET is not set
-
-#
-# PHY device support
-#
 # CONFIG_PHYLIB is not set
 
 #
@@ -611,10 +603,7 @@ CONFIG_NET_PCI=y
 # CONFIG_SUNDANCE is not set
 # CONFIG_VIA_RHINE is not set
 # CONFIG_SC92031 is not set
-
-#
-# Ethernet (1000 Mbit)
-#
+CONFIG_NETDEV_1000=y
 # CONFIG_ACENIC is not set
 # CONFIG_DL2K is not set
 CONFIG_E1000=m
@@ -634,10 +623,7 @@ CONFIG_TIGON3=m
 CONFIG_BNX2=m
 # CONFIG_QLA3XXX is not set
 # CONFIG_ATL1 is not set
-
-#
-# Ethernet (10000 Mbit)
-#
+CONFIG_NETDEV_10000=y
 # CONFIG_CHELSIO_T1 is not set
 # CONFIG_CHELSIO_T3 is not set
 # CONFIG_IXGB is not set
@@ -667,10 +653,6 @@ CONFIG_MLX4_DEBUG=y
 # CONFIG_USB_RTL8150 is not set
 # CONFIG_USB_USBNET_MII is not set
 # CONFIG_USB_USBNET is not set
-
-#
-# Wan interfaces
-#
 # CONFIG_WAN is not set
 # CONFIG_FDDI is not set
 # CONFIG_HIPPI is not set
