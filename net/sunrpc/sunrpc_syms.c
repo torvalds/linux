@@ -134,11 +134,7 @@ EXPORT_SYMBOL(nfsd_debug);
 EXPORT_SYMBOL(nlm_debug);
 #endif
 
-extern int register_rpc_pipefs(void);
-extern void unregister_rpc_pipefs(void);
 extern struct cache_detail ip_map_cache, unix_gid_cache;
-extern int init_socket_xprt(void);
-extern void cleanup_socket_xprt(void);
 
 static int __init
 init_sunrpc(void)
