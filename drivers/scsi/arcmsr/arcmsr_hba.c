@@ -369,19 +369,9 @@ static void arcmsr_abort_allcmd(struct AdapterControlBlock *acb)
 
 static void arcmsr_pci_unmap_dma(struct CommandControlBlock *ccb)
 {
-	struct AdapterControlBlock *acb = ccb->acb;
 	struct scsi_cmnd *pcmd = ccb->pcmd;
 
-	if (pcmd->use_sg != 0) {
-		struct scatterlist *sl;
-
-		sl = (struct scatterlist *)pcmd->request_buffer;
-		pci_unmap_sg(acb->pdev, sl, pcmd->use_sg, pcmd->sc_data_direction);
-	}
-	else if (pcmd->request_bufflen != 0)
-		pci_unmap_single(acb->pdev,
-			pcmd->SCp.dma_handle,
-			pcmd->request_bufflen, pcmd->sc_data_direction);
+	scsi_dma_unmap(pcmd);
 }
 
 static void arcmsr_ccb_complete(struct CommandControlBlock *ccb, int stand_flag)
@@ -551,6 +541,7 @@ static void arcmsr_build_ccb(struct AdapterControlBlock *acb,
 	int8_t *psge = (int8_t *)&arcmsr_cdb->u;
 	uint32_t address_lo, address_hi;
 	int arccdbsize = 0x30;
+	int nseg;
 
 	ccb->pcmd = pcmd;
 	memset(arcmsr_cdb, 0, sizeof (struct ARCMSR_CDB));
@@ -561,20 +552,20 @@ static void arcmsr_build_ccb(struct AdapterControlBlock *acb,
 	arcmsr_cdb->CdbLength = (uint8_t)pcmd->cmd_len;
 	arcmsr_cdb->Context = (unsigned long)arcmsr_cdb;
 	memcpy(arcmsr_cdb->Cdb, pcmd->cmnd, pcmd->cmd_len);
-	if (pcmd->use_sg) {
-		int length, sgcount, i, cdb_sgcount = 0;
-		struct scatterlist *sl;
 
-		/* Get Scatter Gather List from scsiport. */
-		sl = (struct scatterlist *) pcmd->request_buffer;
-		sgcount = pci_map_sg(acb->pdev, sl, pcmd->use_sg,
-				pcmd->sc_data_direction);
+	nseg = scsi_dma_map(pcmd);
+	BUG_ON(nseg < 0);
+
+	if (nseg) {
+		int length, i, cdb_sgcount = 0;
+		struct scatterlist *sg;
+
 		/* map stor port SG list to our iop SG List. */
-		for (i = 0; i < sgcount; i++) {
+		scsi_for_each_sg(pcmd, sg, nseg, i) {
 			/* Get the physical address of the current data pointer */
-			length = cpu_to_le32(sg_dma_len(sl));
-			address_lo = cpu_to_le32(dma_addr_lo32(sg_dma_address(sl)));
-			address_hi = cpu_to_le32(dma_addr_hi32(sg_dma_address(sl)));
+			length = cpu_to_le32(sg_dma_len(sg));
+			address_lo = cpu_to_le32(dma_addr_lo32(sg_dma_address(sg)));
+			address_hi = cpu_to_le32(dma_addr_hi32(sg_dma_address(sg)));
 			if (address_hi == 0) {
 				struct SG32ENTRY *pdma_sg = (struct SG32ENTRY *)psge;
 
@@ -591,32 +582,12 @@ static void arcmsr_build_ccb(struct AdapterControlBlock *acb,
 				psge += sizeof (struct SG64ENTRY);
 				arccdbsize += sizeof (struct SG64ENTRY);
 			}
-			sl++;
 			cdb_sgcount++;
 		}
 		arcmsr_cdb->sgcount = (uint8_t)cdb_sgcount;
-		arcmsr_cdb->DataLength = pcmd->request_bufflen;
+		arcmsr_cdb->DataLength = scsi_bufflen(pcmd);
 		if ( arccdbsize > 256)
 			arcmsr_cdb->Flags |= ARCMSR_CDB_FLAG_SGL_BSIZE;
-	} else if (pcmd->request_bufflen) {
-		dma_addr_t dma_addr;
-		dma_addr = pci_map_single(acb->pdev, pcmd->request_buffer,
-				pcmd->request_bufflen, pcmd->sc_data_direction);
-		pcmd->SCp.dma_handle = dma_addr;
-		address_lo = cpu_to_le32(dma_addr_lo32(dma_addr));
-		address_hi = cpu_to_le32(dma_addr_hi32(dma_addr));
-		if (address_hi == 0) {
-			struct  SG32ENTRY *pdma_sg = (struct SG32ENTRY *)psge;
-			pdma_sg->address = address_lo;
-			pdma_sg->length = pcmd->request_bufflen;
-		} else {
-			struct SG64ENTRY *pdma_sg = (struct SG64ENTRY *)psge;
-			pdma_sg->addresshigh = address_hi;
-			pdma_sg->address = address_lo;
-			pdma_sg->length = pcmd->request_bufflen|IS_SG64_ADDR;
-		}
-		arcmsr_cdb->sgcount = 1;
-		arcmsr_cdb->DataLength = pcmd->request_bufflen;
 	}
 	if (pcmd->sc_data_direction == DMA_TO_DEVICE ) {
 		arcmsr_cdb->Flags |= ARCMSR_CDB_FLAG_WRITE;
@@ -848,24 +819,21 @@ static int arcmsr_iop_message_xfer(struct AdapterControlBlock *acb, struct scsi_
 	struct CMD_MESSAGE_FIELD *pcmdmessagefld;
 	int retvalue = 0, transfer_len = 0;
 	char *buffer;
+	struct scatterlist *sg;
 	uint32_t controlcode = (uint32_t ) cmd->cmnd[5] << 24 |
 						(uint32_t ) cmd->cmnd[6] << 16 |
 						(uint32_t ) cmd->cmnd[7] << 8  |
 						(uint32_t ) cmd->cmnd[8];
 					/* 4 bytes: Areca io control code */
-	if (cmd->use_sg) {
-		struct scatterlist *sg = (struct scatterlist *)cmd->request_buffer;
 
-		buffer = kmap_atomic(sg->page, KM_IRQ0) + sg->offset;
-		if (cmd->use_sg > 1) {
-			retvalue = ARCMSR_MESSAGE_FAIL;
-			goto message_out;
-		}
-		transfer_len += sg->length;
-	} else {
-		buffer = cmd->request_buffer;
-		transfer_len = cmd->request_bufflen;
+	sg = scsi_sglist(cmd);
+	buffer = kmap_atomic(sg->page, KM_IRQ0) + sg->offset;
+	if (scsi_sg_count(cmd) > 1) {
+		retvalue = ARCMSR_MESSAGE_FAIL;
+		goto message_out;
 	}
+	transfer_len += sg->length;
+
 	if (transfer_len > sizeof(struct CMD_MESSAGE_FIELD)) {
 		retvalue = ARCMSR_MESSAGE_FAIL;
 		goto message_out;
@@ -1057,12 +1025,9 @@ static int arcmsr_iop_message_xfer(struct AdapterControlBlock *acb, struct scsi_
 		retvalue = ARCMSR_MESSAGE_FAIL;
 	}
  message_out:
-	if (cmd->use_sg) {
-		struct scatterlist *sg;
+	sg = scsi_sglist(cmd);
+	kunmap_atomic(buffer - sg->offset, KM_IRQ0);
 
-		sg = (struct scatterlist *) cmd->request_buffer;
-		kunmap_atomic(buffer - sg->offset, KM_IRQ0);
-	}
 	return retvalue;
 }
 
@@ -1085,6 +1050,7 @@ static void arcmsr_handle_virtual_command(struct AdapterControlBlock *acb,
 	case INQUIRY: {
 		unsigned char inqdata[36];
 		char *buffer;
+		struct scatterlist *sg;
 
 		if (cmd->device->lun) {
 			cmd->result = (DID_TIME_OUT << 16);
@@ -1104,21 +1070,14 @@ static void arcmsr_handle_virtual_command(struct AdapterControlBlock *acb,
 		strncpy(&inqdata[16], "RAID controller ", 16);
 		/* Product Identification */
 		strncpy(&inqdata[32], "R001", 4); /* Product Revision */
-		if (cmd->use_sg) {
-			struct scatterlist *sg;
 
-			sg = (struct scatterlist *) cmd->request_buffer;
-			buffer = kmap_atomic(sg->page, KM_IRQ0) + sg->offset;
-		} else {
-			buffer = cmd->request_buffer;
-		}
+		sg = scsi_sglist(cmd);
+		buffer = kmap_atomic(sg->page, KM_IRQ0) + sg->offset;
+
 		memcpy(buffer, inqdata, sizeof(inqdata));
-		if (cmd->use_sg) {
-			struct scatterlist *sg;
+		sg = scsi_sglist(cmd);
+		kunmap_atomic(buffer - sg->offset, KM_IRQ0);
 
-			sg = (struct scatterlist *) cmd->request_buffer;
-			kunmap_atomic(buffer - sg->offset, KM_IRQ0);
-		}
 		cmd->scsi_done(cmd);
 	}
 	break;
