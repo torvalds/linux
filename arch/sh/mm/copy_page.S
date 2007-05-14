@@ -129,6 +129,7 @@ ENTRY(__copy_user_page)
 	rts
 	 nop
 #endif
+	.align 2
 .Lpsz:	.long	PAGE_SIZE
 /*
  * __kernel_size_t __copy_user(void *to, const void *from, __kernel_size_t n);
