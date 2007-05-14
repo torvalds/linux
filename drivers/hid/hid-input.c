@@ -688,7 +688,28 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			break;
 
 		case HID_UP_MSVENDOR:
-			goto ignore;
+
+			/* special case - Chicony Chicony KU-0418 tactical pad */
+			if (device->vendor == 0x04f2 && device->product == 0x0418) {
+				set_bit(EV_REP, input->evbit);
+				switch(usage->hid & HID_USAGE) {
+					case 0xff01: map_key_clear(BTN_1);		break;
+					case 0xff02: map_key_clear(BTN_2);		break;
+					case 0xff03: map_key_clear(BTN_3);		break;
+					case 0xff04: map_key_clear(BTN_4);		break;
+					case 0xff05: map_key_clear(BTN_5);		break;
+					case 0xff06: map_key_clear(BTN_6);		break;
+					case 0xff07: map_key_clear(BTN_7);		break;
+					case 0xff08: map_key_clear(BTN_8);		break;
+					case 0xff09: map_key_clear(BTN_9);		break;
+					case 0xff0a: map_key_clear(BTN_A);		break;
+					case 0xff0b: map_key_clear(BTN_B);		break;
+					default:    goto ignore;
+				}
+			} else {
+				goto ignore;
+			}
+			break;
 
 		case HID_UP_CUSTOM: /* Reported on Logitech and Powerbook USB keyboards */
 
