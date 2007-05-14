@@ -733,11 +733,6 @@ static __kprobes void default_do_nmi(struct pt_regs * regs)
 		 */
 		if (nmi_watchdog_tick(regs, reason))
 			return;
-#endif
-		if (notify_die(DIE_NMI_POST, "nmi_post", regs, reason, 2, 0)
-							== NOTIFY_STOP)
-			return;
-#ifdef CONFIG_X86_LOCAL_APIC
 		if (!do_nmi_callback(regs, smp_processor_id()))
 #endif
 			unknown_nmi_error(reason, regs);
