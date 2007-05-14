@@ -11,6 +11,7 @@
 #include <asm/psr.h>
 #include <asm/ptrace.h>
 #include <asm/btfixup.h>
+#include <asm/smp.h>
 
 #ifndef __ASSEMBLY__
 
