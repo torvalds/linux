@@ -151,6 +151,7 @@ define_machine(prpmc2800){
 	.name			= prpmc2800_platform_name,
 	.probe			= prpmc2800_probe,
 	.setup_arch		= prpmc2800_setup_arch,
+	.init_early		= mv64x60_init_early,
 	.show_cpuinfo		= prpmc2800_show_cpuinfo,
 	.init_IRQ		= mv64x60_init_irq,
 	.get_irq		= mv64x60_get_irq,
