@@ -527,10 +527,10 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct inode *inode = &ip->i_inode;
 	struct file_ra_state ra_state;
-	u64 junk = ip->i_di.di_size;
+	u64 rgrp_count = ip->i_di.di_size;
 	int error;
 
-	if (do_div(junk, sizeof(struct gfs2_rindex))) {
+	if (do_div(rgrp_count, sizeof(struct gfs2_rindex))) {
 		gfs2_consist_inode(ip);
 		return -EIO;
 	}
@@ -538,7 +538,7 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 	clear_rgrpdi(sdp);
 
 	file_ra_state_init(&ra_state, inode->i_mapping);
-	for (sdp->sd_rgrps = 0;; sdp->sd_rgrps++) {
+	for (sdp->sd_rgrps = 0; sdp->sd_rgrps < rgrp_count; sdp->sd_rgrps++) {
 		error = read_rindex_entry(ip, &ra_state);
 		if (error) {
 			clear_rgrpdi(sdp);

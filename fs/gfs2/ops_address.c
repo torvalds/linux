@@ -32,6 +32,7 @@
 #include "trans.h"
 #include "rgrp.h"
 #include "ops_file.h"
+#include "super.h"
 #include "util.h"
 #include "glops.h"
 

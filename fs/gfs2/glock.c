@@ -1823,7 +1823,8 @@ static int dump_inode(struct glock_iter *gi, struct gfs2_inode *ip)
 
 	print_dbg(gi, "  Inode:\n");
 	print_dbg(gi, "    num = %llu/%llu\n",
-		    ip->i_num.no_formal_ino, ip->i_num.no_addr);
+		  (unsigned long long)ip->i_num.no_formal_ino,
+		  (unsigned long long)ip->i_num.no_addr);
 	print_dbg(gi, "    type = %u\n", IF2DT(ip->i_inode.i_mode));
 	print_dbg(gi, "    i_flags =");
 	for (x = 0; x < 32; x++)
@@ -1909,8 +1910,8 @@ static int dump_glock(struct glock_iter *gi, struct gfs2_glock *gl)
 	}
 	if (test_bit(GLF_DEMOTE, &gl->gl_flags)) {
 		print_dbg(gi, "  Demotion req to state %u (%llu uS ago)\n",
-			  gl->gl_demote_state,
-			  (u64)(jiffies - gl->gl_demote_time)*(1000000/HZ));
+			  gl->gl_demote_state, (unsigned long long)
+			  (jiffies - gl->gl_demote_time)*(1000000/HZ));
 	}
 	if (gl->gl_ops == &gfs2_inode_glops && gl->gl_object) {
 		if (!test_bit(GLF_LOCK, &gl->gl_flags) &&
