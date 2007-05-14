@@ -1579,13 +1579,6 @@ static int sky2_down(struct net_device *dev)
 	imask &= ~portirq_msk[port];
 	sky2_write32(hw, B0_IMSK, imask);
 
-	/*
-	 * Both ports share the NAPI poll on port 0, so if necessary undo the
-	 * the disable that is done in dev_close.
-	 */
-	if (sky2->port == 0 && hw->ports > 1)
-		netif_poll_enable(dev);
-
 	sky2_gmac_reset(hw, port);
 
 	/* Stop transmitter */
