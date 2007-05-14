@@ -332,6 +332,9 @@ L:	linux-usb-devel@lists.sourceforge.net
 W:	http://www.linux-usb.org/SpeedTouch/
 S:	Maintained
 
+ALCHEMY AU1XX0 MMC DRIVER
+S:	Orphan
+
 ALI1563 I2C DRIVER
 P:	Rudolf Marek
 M:	r.marek@assembler.cz
@@ -648,6 +651,9 @@ M:	chas@cmf.nrl.navy.mil
 L:	linux-atm-general@lists.sourceforge.net (subscribers-only)
 W:	http://linux-atm.sourceforge.net
 S:	Maintained
+
+ATMEL AT91 MCI DRIVER
+S:	Orphan
 
 ATMEL MACB ETHERNET DRIVER
 P:	Haavard Skinnemoen
@@ -2899,6 +2905,9 @@ P:	Nicolas Pitre
 M:	nico@cam.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 S:	Maintained
+
+PXA MMCI DRIVER
+S:	Orphan
 
 QLOGIC QLA2XXX FC-SCSI DRIVER
 P:	Andrew Vasquez
