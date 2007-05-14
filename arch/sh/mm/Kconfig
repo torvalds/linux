@@ -1,5 +1,3 @@
-menu "Processor selection"
-
 #
 # Processor families
 #
@@ -38,11 +36,14 @@ config CPU_SUBTYPE_ST40
 config CPU_SHX2
 	bool
 
+choice
+	prompt "Processor sub-type selection"
+
 #
 # Processor subtypes
 #
 
-comment "SH-2 Processor Support"
+# SH-2 Processor Support
 
 config CPU_SUBTYPE_SH7604
 	bool "Support SH7604 processor"
@@ -52,13 +53,13 @@ config CPU_SUBTYPE_SH7619
 	bool "Support SH7619 processor"
 	select CPU_SH2
 
-comment "SH-2A Processor Support"
+# SH-2A Processor Support
 
 config CPU_SUBTYPE_SH7206
 	bool "Support SH7206 processor"
 	select CPU_SH2A
 
-comment "SH-3 Processor Support"
+# SH-3 Processor Support
 
 config CPU_SUBTYPE_SH7300
 	bool "Support SH7300 processor"
@@ -113,7 +114,7 @@ config CPU_SUBTYPE_SH7712
 	help
 	  Select SH7712 if you have a SH3-DSP SH7712 CPU.
 
-comment "SH-4 Processor Support"
+# SH-4 Processor Support
 
 config CPU_SUBTYPE_SH7750
 	bool "Support SH7750 processor"
@@ -166,7 +167,7 @@ config CPU_SUBTYPE_SH4_202
 	bool "Support SH4-202 processor"
 	select CPU_SH4
 
-comment "ST40 Processor Support"
+# ST40 Processor Support
 
 config CPU_SUBTYPE_ST40STB1
 	bool "Support ST40STB1/ST40RA processors"
@@ -181,7 +182,7 @@ config CPU_SUBTYPE_ST40GX1
 	help
 	  Select ST40GX1 if you have a ST40GX1 CPU.
 
-comment "SH-4A Processor Support"
+# SH-4A Processor Support
 
 config CPU_SUBTYPE_SH7770
 	bool "Support SH7770 processor"
@@ -198,7 +199,7 @@ config CPU_SUBTYPE_SH7785
 	select CPU_SHX2
 	select CPU_HAS_INTC2_IRQ
 
-comment "SH4AL-DSP Processor Support"
+# SH4AL-DSP Processor Support
 
 config CPU_SUBTYPE_SH73180
 	bool "Support SH73180 processor"
@@ -214,7 +215,7 @@ config CPU_SUBTYPE_SH7722
 	select CPU_SHX2
 	select CPU_HAS_IPR_IRQ
 
-endmenu
+endchoice
 
 menu "Memory management options"
 
