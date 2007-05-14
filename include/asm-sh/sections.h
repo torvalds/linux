@@ -3,7 +3,5 @@
 
 #include <asm-generic/sections.h>
 
-extern char _end[];
-
 #endif /* __ASM_SH_SECTIONS_H */
 

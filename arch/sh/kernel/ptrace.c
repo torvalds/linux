@@ -99,7 +99,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = -EIO;
 		if (copied != sizeof(tmp))
 			break;
-		ret = put_user(tmp,(unsigned long *) data);
+		ret = put_user(tmp,(unsigned long __user *) data);
 		break;
 	}
 
@@ -128,7 +128,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			tmp = !!tsk_used_math(child);
 		else
 			tmp = 0;
-		ret = put_user(tmp, (unsigned long *)data);
+		ret = put_user(tmp, (unsigned long __user *)data);
 		break;
 	}
 
@@ -196,7 +196,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_SINGLESTEP: {  /* set the trap flag. */
 		long pc;
-		struct pt_regs *dummy = NULL;
+		struct pt_regs *regs = NULL;
 
 		ret = -EIO;
 		if (!valid_signal(data))
@@ -207,7 +207,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			child->ptrace |= PT_DTRACE;
 		}
 
-		pc = get_stack_long(child, (long)&dummy->pc);
+		pc = get_stack_long(child, (long)&regs->pc);
 
 		/* Next scheduling will set up UBC */
 		if (child->thread.ubc_pc == 0)

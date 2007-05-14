@@ -61,8 +61,6 @@ static inline void set_fs(mm_segment_t s)
  */
 static inline int __access_ok(unsigned long addr, unsigned long size)
 {
-	extern unsigned long memory_start, memory_end;
-
 	return ((addr >= memory_start) && ((addr + size) < memory_end));
 }
 #else /* CONFIG_MMU */
@@ -76,7 +74,7 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
  * __access_ok: Check if address with size is OK or not.
  *
  * We do three checks:
- * (1) is it user space? 
+ * (1) is it user space?
  * (2) addr + size --> carry?
  * (3) addr + size >= 0x80000000  (PAGE_OFFSET)
  *
@@ -142,11 +140,12 @@ static inline int access_ok(int type, const void __user *p, unsigned long size)
   __get_user_nocheck((x),(ptr),sizeof(*(ptr)))
 
 struct __large_struct { unsigned long buf[100]; };
-#define __m(x) (*(struct __large_struct *)(x))
+#define __m(x) (*(struct __large_struct __user *)(x))
 
 #define __get_user_size(x,ptr,size,retval)			\
 do {								\
 	retval = 0;						\
+	__chk_user_ptr(ptr);					\
 	switch (size) {						\
 	case 1:							\
 		__get_user_asm(x, ptr, retval, "b");		\
@@ -175,6 +174,7 @@ do {								\
 #define __get_user_check(x,ptr,size)				\
 ({								\
 	long __gu_err, __gu_val;				\
+	__chk_user_ptr(ptr);					\
 	switch (size) {						\
 	case 1:							\
 		__get_user_1(__gu_val, (ptr), __gu_err);	\
@@ -300,6 +300,7 @@ extern void __get_user_unknown(void);
 #define __put_user_size(x,ptr,size,retval)		\
 do {							\
 	retval = 0;					\
+	__chk_user_ptr(ptr);				\
 	switch (size) {					\
 	case 1:						\
 		__put_user_asm(x, ptr, retval, "b");	\
@@ -328,7 +329,7 @@ do {							\
 #define __put_user_check(x,ptr,size)				\
 ({								\
 	long __pu_err = -EFAULT;				\
-	__typeof__(*(ptr)) *__pu_addr = (ptr);			\
+	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\
 								\
 	if (__access_ok((unsigned long)__pu_addr,size))		\
 		__put_user_size((x),__pu_addr,(size),__pu_err);	\
@@ -406,10 +407,10 @@ __asm__ __volatile__( \
 #endif
 
 extern void __put_user_unknown(void);
-
+
 /* Generic arbitrary sized copy.  */
 /* Return the number of bytes NOT copied */
-extern __kernel_size_t __copy_user(void *to, const void *from, __kernel_size_t n);
+__kernel_size_t __copy_user(void *to, const void *from, __kernel_size_t n);
 
 #define copy_to_user(to,from,n) ({ \
 void *__copy_to = (void *) (to); \
@@ -419,14 +420,6 @@ if(__copy_size && __access_ok((unsigned long)__copy_to, __copy_size)) { \
 __copy_res = __copy_user(__copy_to, (void *) (from), __copy_size); \
 } else __copy_res = __copy_size; \
 __copy_res; })
-
-#define __copy_to_user(to,from,n)		\
-	__copy_user((void *)(to),		\
-		    (void *)(from), n)
-
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
-
 
 #define copy_from_user(to,from,n) ({ \
 void *__copy_to = (void *) (to); \
@@ -438,9 +431,20 @@ __copy_res = __copy_user(__copy_to, __copy_from, __copy_size); \
 } else __copy_res = __copy_size; \
 __copy_res; })
 
-#define __copy_from_user(to,from,n)		\
-	__copy_user((void *)(to),		\
-		    (void *)(from), n)
+static __always_inline unsigned long
+__copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	return __copy_user(to, (__force void *)from, n);
+}
+
+static __always_inline unsigned long __must_check
+__copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	return __copy_user((__force void *)to, from, n);
+}
+
+#define __copy_to_user_inatomic __copy_to_user
+#define __copy_from_user_inatomic __copy_from_user
 
 /*
  * Clear the area and return remaining number of bytes

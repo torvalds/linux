@@ -581,7 +581,7 @@ uspace_segv:
 		info.si_signo = SIGBUS;
 		info.si_errno = 0;
 		info.si_code = si_code;
-		info.si_addr = (void *) address;
+		info.si_addr = (void __user *)address;
 		force_sig_info(SIGBUS, &info, current);
 	} else {
 		if (regs->pc & 1)

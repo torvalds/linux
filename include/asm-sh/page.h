@@ -60,6 +60,7 @@ extern void (*copy_page)(void *to, void *from);
 
 extern unsigned long shm_align_mask;
 extern unsigned long max_low_pfn, min_low_pfn;
+extern unsigned long memory_start, memory_end;
 
 #ifdef CONFIG_MMU
 extern void clear_page_slow(void *to);

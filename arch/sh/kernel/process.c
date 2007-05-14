@@ -17,6 +17,7 @@
 #include <linux/kexec.h>
 #include <linux/kdebug.h>
 #include <linux/tick.h>
+#include <linux/reboot.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
@@ -449,23 +450,20 @@ asmlinkage int sys_vfork(unsigned long r4, unsigned long r5,
 /*
  * sys_execve() executes a new program.
  */
-asmlinkage int sys_execve(char *ufilename, char **uargv,
-			  char **uenvp, unsigned long r7,
+asmlinkage int sys_execve(char __user *ufilename, char __user * __user *uargv,
+			  char __user * __user *uenvp, unsigned long r7,
 			  struct pt_regs __regs)
 {
 	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	int error;
 	char *filename;
 
-	filename = getname((char __user *)ufilename);
+	filename = getname(ufilename);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
 
-	error = do_execve(filename,
-			  (char __user * __user *)uargv,
-			  (char __user * __user *)uenvp,
-			  regs);
+	error = do_execve(filename, uargv, uenvp, regs);
 	if (error == 0) {
 		task_lock(current);
 		current->ptrace &= ~PT_DTRACE;
