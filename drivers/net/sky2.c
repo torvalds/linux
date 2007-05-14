@@ -2141,8 +2141,10 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 		switch (le->opcode & ~HW_OWNER) {
 		case OP_RXSTAT:
 			skb = sky2_receive(dev, length, status);
-			if (!skb)
+			if (unlikely(!skb)) {
+				sky2->net_stats.rx_dropped++;
 				goto force_update;
+			}
 
 			skb->protocol = eth_type_trans(skb, dev);
 			sky2->net_stats.rx_packets++;
