@@ -20,6 +20,7 @@
 #include <asm/ebus.h>			/* EBus device					*/
 #include <asm/oplib.h>			/* OpenProm Library 			*/
 #include <asm/uaccess.h>		/* put_/get_user			*/
+#include <asm/io.h>
 
 #include <asm/display7seg.h>
 
