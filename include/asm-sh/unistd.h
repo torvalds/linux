@@ -329,8 +329,11 @@
 #define __NR_getcpu		318
 #define __NR_epoll_pwait	319
 #define __NR_utimensat		320
+#define __NR_signalfd		321
+#define __NR_timerfd		322
+#define __NR_eventfd		323
 
-#define NR_syscalls 321
+#define NR_syscalls 324
 
 #ifdef __KERNEL__
 
