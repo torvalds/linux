@@ -261,5 +261,11 @@ asmlinkage long compat_sys_epoll_pwait(int epfd,
 asmlinkage long compat_sys_utimensat(unsigned int dfd, char __user *filename,
 				struct compat_timespec __user *t, int flags);
 
+asmlinkage long compat_sys_signalfd(int ufd,
+				const compat_sigset_t __user *sigmask,
+                                compat_size_t sigsetsize);
+asmlinkage long compat_sys_timerfd(int ufd, int clockid, int flags,
+				const struct compat_itimerspec __user *utmr);
+
 #endif /* CONFIG_COMPAT */
 #endif /* _LINUX_COMPAT_H */
