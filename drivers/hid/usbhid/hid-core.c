@@ -32,6 +32,7 @@
 #include <linux/hid.h>
 #include <linux/hiddev.h>
 #include <linux/hid-debug.h>
+#include <linux/hidraw.h>
 #include "usbhid.h"
 
 /*
@@ -932,6 +933,8 @@ static void hid_disconnect(struct usb_interface *intf)
 		hidinput_disconnect(hid);
 	if (hid->claimed & HID_CLAIMED_HIDDEV)
 		hiddev_disconnect(hid);
+	if (hid->claimed & HID_CLAIMED_HIDRAW)
+		hidraw_disconnect(hid);
 
 	usb_free_urb(usbhid->urbin);
 	usb_free_urb(usbhid->urbctrl);
@@ -964,11 +967,13 @@ static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		hid->claimed |= HID_CLAIMED_INPUT;
 	if (!hiddev_connect(hid))
 		hid->claimed |= HID_CLAIMED_HIDDEV;
+	if (!hidraw_connect(hid))
+		hid->claimed |= HID_CLAIMED_HIDRAW;
 
 	usb_set_intfdata(intf, hid);
 
 	if (!hid->claimed) {
-		printk ("HID device not claimed by input or hiddev\n");
+		printk ("HID device claimed by neither input, hiddev nor hidraw\n");
 		hid_disconnect(intf);
 		return -ENODEV;
 	}
@@ -984,10 +989,16 @@ static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	if (hid->claimed & HID_CLAIMED_INPUT)
 		printk("input");
-	if (hid->claimed == (HID_CLAIMED_INPUT | HID_CLAIMED_HIDDEV))
+	if ((hid->claimed & HID_CLAIMED_INPUT) && ((hid->claimed & HID_CLAIMED_HIDDEV) ||
+				hid->claimed & HID_CLAIMED_HIDRAW))
 		printk(",");
 	if (hid->claimed & HID_CLAIMED_HIDDEV)
 		printk("hiddev%d", hid->minor);
+	if ((hid->claimed & HID_CLAIMED_INPUT) && (hid->claimed & HID_CLAIMED_HIDDEV) &&
+			(hid->claimed & HID_CLAIMED_HIDRAW))
+		printk(",");
+	if (hid->claimed & HID_CLAIMED_HIDRAW)
+		printk("hidraw%d", ((struct hidraw*)hid->hidraw)->minor);
 
 	c = "Device";
 	for (i = 0; i < hid->maxcollection; i++) {
