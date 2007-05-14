@@ -98,8 +98,9 @@ SECTIONS
 #endif
 
   __machvec_start = .;
-  .init.machvec : { *(.init.machvec) }
+  .machvec.init : { *(.machvec.init) }
   __machvec_end = .;
+
   . = ALIGN(PAGE_SIZE);
   __init_end = .;
 

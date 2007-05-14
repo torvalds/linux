@@ -6,6 +6,7 @@
 #ifdef __KERNEL__
 
 int setup_early_printk(char *);
+void sh_mv_setup(void);
 
 #endif /* __KERNEL__ */
 
