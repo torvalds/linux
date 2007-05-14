@@ -173,7 +173,8 @@ enum {
 
 	AHCI_FLAG_COMMON		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 					  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
-					  ATA_FLAG_SKIP_D2H_BSY,
+					  ATA_FLAG_SKIP_D2H_BSY |
+					  ATA_FLAG_ACPI_SATA,
 };
 
 struct ahci_cmd_hdr {
