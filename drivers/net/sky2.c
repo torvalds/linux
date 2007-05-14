@@ -304,10 +304,13 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 			   PHY_M_EC_MAC_S_MSK);
 		ectrl |= PHY_M_EC_MAC_S(MAC_TX_CLK_25_MHZ);
 
+		/* on PHY 88E1040 Rev.D0 (and newer) downshift control changed */
 		if (hw->chip_id == CHIP_ID_YUKON_EC)
+			/* set downshift counter to 3x and enable downshift */
 			ectrl |= PHY_M_EC_DSC_2(2) | PHY_M_EC_DOWN_S_ENA;
 		else
-			ectrl |= PHY_M_EC_M_DSC(2) | PHY_M_EC_S_DSC(3);
+			/* set master & slave downshift counter to 1x */
+			ectrl |= PHY_M_EC_M_DSC(0) | PHY_M_EC_S_DSC(1);
 
 		gm_phy_write(hw, port, PHY_MARV_EXT_CTRL, ectrl);
 	}
@@ -324,10 +327,12 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 			/* enable automatic crossover */
 			ctrl |= PHY_M_PC_MDI_XMODE(PHY_M_PC_ENA_AUTO);
 
+			/* downshift on PHY 88E1112 and 88E1149 is changed */
 			if (sky2->autoneg == AUTONEG_ENABLE
 			    && (hw->chip_id == CHIP_ID_YUKON_XL
 				|| hw->chip_id == CHIP_ID_YUKON_EC_U
 				|| hw->chip_id == CHIP_ID_YUKON_EX)) {
+				/* set downshift counter to 3x and enable downshift */
 				ctrl &= ~PHY_M_PC_DSC_MSK;
 				ctrl |= PHY_M_PC_DSC(2) | PHY_M_PC_DOWN_S_ENA;
 			}
