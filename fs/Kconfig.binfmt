@@ -38,7 +38,7 @@ config BINFMT_ELF_FDPIC
 
 config BINFMT_FLAT
 	tristate "Kernel support for flat binaries"
-	depends on !MMU || SUPERH
+	depends on !MMU
 	help
 	  Support uClinux FLAT format binaries.
 
