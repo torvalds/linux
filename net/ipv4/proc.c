@@ -109,6 +109,17 @@ static const struct snmp_mib snmp4_ipstats_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
+/* Following RFC4293 items are displayed in /proc/net/netstat */
+static const struct snmp_mib snmp4_ipextstats_list[] = {
+	SNMP_MIB_ITEM("InNoRoutes", IPSTATS_MIB_INNOROUTES),
+	SNMP_MIB_ITEM("InTruncatedPkts", IPSTATS_MIB_INTRUNCATEDPKTS),
+	SNMP_MIB_ITEM("InMcastPkts", IPSTATS_MIB_INMCASTPKTS),
+	SNMP_MIB_ITEM("OutMcastPkts", IPSTATS_MIB_OUTMCASTPKTS),
+	SNMP_MIB_ITEM("InBcastPkts", IPSTATS_MIB_INBCASTPKTS),
+	SNMP_MIB_ITEM("OutBcastPkts", IPSTATS_MIB_OUTBCASTPKTS),
+	SNMP_MIB_SENTINEL
+};
+
 static const struct snmp_mib snmp4_icmp_list[] = {
 	SNMP_MIB_ITEM("InMsgs", ICMP_MIB_INMSGS),
 	SNMP_MIB_ITEM("InErrors", ICMP_MIB_INERRORS),
@@ -337,6 +348,16 @@ static int netstat_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, " %lu",
 			   snmp_fold_field((void **)net_statistics,
 					   snmp4_net_list[i].entry));
+
+	seq_puts(seq, "\nIpExt:");
+	for (i = 0; snmp4_ipextstats_list[i].name != NULL; i++)
+		seq_printf(seq, " %s", snmp4_ipextstats_list[i].name);
+
+	seq_puts(seq, "\nIpExt:");
+	for (i = 0; snmp4_ipextstats_list[i].name != NULL; i++)
+		seq_printf(seq, " %lu",
+			   snmp_fold_field((void **)ip_statistics,
+					   snmp4_ipextstats_list[i].entry));
 
 	seq_putc(seq, '\n');
 	return 0;

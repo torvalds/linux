@@ -22,7 +22,8 @@ struct hlist_head *xfrm_hash_alloc(unsigned int sz)
 		n = __vmalloc(sz, GFP_KERNEL, PAGE_KERNEL);
 	else
 		n = (struct hlist_head *)
-			__get_free_pages(GFP_KERNEL, get_order(sz));
+			__get_free_pages(GFP_KERNEL | __GFP_NOWARN,
+					 get_order(sz));
 
 	if (n)
 		memset(n, 0, sz);
