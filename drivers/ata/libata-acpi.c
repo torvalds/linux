@@ -273,91 +273,47 @@ static int taskfile_load_raw(struct ata_device *dev,
 }
 
 /**
- * ata_dev_set_taskfiles - write the drive taskfile settings from _GTF
- * @dev: target ATA device
- * @gtf: pointer to array of _GTF taskfiles to execute
- * @gtf_count: number of taskfiles
- *
- * This applies to both PATA and SATA drives.
- *
- * Execute taskfiles in @gtf.
- *
- * LOCKING:
- * EH context.
- *
- * RETURNS:
- * 0 on success, -errno on failure.
- */
-static int ata_dev_set_taskfiles(struct ata_device *dev,
-				 struct ata_acpi_gtf *gtf, int gtf_count)
-{
-	struct ata_port *ap = dev->ap;
-	int ix;
-
-	if (ata_msg_probe(ap))
-		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER: port#: %d\n",
-			       __FUNCTION__, ap->port_no);
-
-	if (!(ap->flags & ATA_FLAG_ACPI_SATA))
-		return 0;
-
-	if (!ata_dev_enabled(dev) || (ap->flags & ATA_FLAG_DISABLED))
-		return -ENODEV;
-
-	/* send all TaskFile registers (0x1f1-0x1f7) *in*that*order* */
-	for (ix = 0; ix < gtf_count; ix++)
-		 taskfile_load_raw(dev, gtf++);
-
-	return 0;
-}
-
-/**
  * ata_acpi_exec_tfs - get then write drive taskfile settings
- * @ap: the ata_port for the drive
+ * @dev: target ATA device
  *
- * This applies to both PATA and SATA drives.
+ * Evaluate _GTF and excute returned taskfiles.
  *
  * LOCKING:
  * EH context.
  *
  * RETURNS:
- * 0 on success, -errno on failure.
+ * Number of executed taskfiles on success, 0 if _GTF doesn't exist or
+ * doesn't contain valid data.  -errno on other errors.
  */
-int ata_acpi_exec_tfs(struct ata_port *ap)
+static int ata_acpi_exec_tfs(struct ata_device *dev)
 {
-	int ix, ret = 0;
+	struct ata_acpi_gtf *gtf = NULL;
+	void *ptr_to_free = NULL;
+	int gtf_count, i, rc;
 
-	/*
-	 * TBD - implement PATA support.  For now,
-	 * we should not run GTF on PATA devices since some
-	 * PATA require execution of GTM/STM before GTF.
-	 */
-	if (!(ap->flags & ATA_FLAG_ACPI_SATA))
-		return 0;
+	/* get taskfiles */
+	rc = ata_dev_get_GTF(dev, &gtf, &ptr_to_free);
+	if (rc < 0)
+		return rc;
+	gtf_count = rc;
 
-	for (ix = 0; ix < ATA_MAX_DEVICES; ix++) {
-		struct ata_device *dev = &ap->device[ix];
-		struct ata_acpi_gtf *gtf = NULL;
-		int gtf_count;
-		void *ptr_to_free = NULL;
+	/* execute them */
+	for (i = 0, rc = 0; i < gtf_count; i++) {
+		int tmp;
 
-		if (!ata_dev_enabled(dev))
-			continue;
-
-		ret = ata_dev_get_GTF(dev, &gtf, &ptr_to_free);
-		if (ret == 0)
-			continue;
-		if (ret < 0)
-			break;
-		gtf_count = ret;
-
-		ret = ata_dev_set_taskfiles(dev, gtf, gtf_count);
-		kfree(ptr_to_free);
-		if (ret < 0)
-			break;
+		/* ACPI errors are eventually ignored.  Run till the
+		 * end even after errors.
+		 */
+		tmp = taskfile_load_raw(dev, gtf++);
+		if (!rc)
+			rc = tmp;
 	}
 
-	return ret;
+	kfree(ptr_to_free);
+
+	if (rc == 0)
+		return gtf_count;
+	return rc;
 }
 
 /**
@@ -376,7 +332,7 @@ int ata_acpi_exec_tfs(struct ata_port *ap)
  * RETURNS:
  * 0 on success, -errno on failure.
  */
-int ata_acpi_push_id(struct ata_device *dev)
+static int ata_acpi_push_id(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->ap;
 	int err;
@@ -396,7 +352,7 @@ int ata_acpi_push_id(struct ata_device *dev)
 		if (ata_msg_probe(ap))
 			ata_dev_printk(dev, KERN_DEBUG,
 				"%s: Not a SATA device\n", __FUNCTION__);
-		goto out;
+		return 0;
 	}
 
 	/* Give the drive Identify data to the drive via the _SDD method */
@@ -418,9 +374,99 @@ int ata_acpi_push_id(struct ata_device *dev)
 		ata_dev_printk(dev, KERN_WARNING,
 			       "ACPI _SDD failed (AE 0x%x)\n", status);
 
-	/* always return success */
-out:
-	return 0;
+	return err;
 }
 
+/**
+ * ata_acpi_on_resume - ATA ACPI hook called on resume
+ * @ap: target ATA port
+ *
+ * This function is called when @ap is resumed - right after port
+ * itself is resumed but before any EH action is taken.
+ *
+ * LOCKING:
+ * EH context.
+ */
+void ata_acpi_on_resume(struct ata_port *ap)
+{
+	int i;
 
+	/* schedule _GTF */
+	for (i = 0; i < ATA_MAX_DEVICES; i++)
+		ap->device[i].flags |= ATA_DFLAG_ACPI_PENDING;
+}
+
+/**
+ * ata_acpi_on_devcfg - ATA ACPI hook called on device donfiguration
+ * @dev: target ATA device
+ *
+ * This function is called when @dev is about to be configured.
+ * IDENTIFY data might have been modified after this hook is run.
+ *
+ * LOCKING:
+ * EH context.
+ *
+ * RETURNS:
+ * Positive number if IDENTIFY data needs to be refreshed, 0 if not,
+ * -errno on failure.
+ */
+int ata_acpi_on_devcfg(struct ata_device *dev)
+{
+	struct ata_port *ap = dev->ap;
+	struct ata_eh_context *ehc = &ap->eh_context;
+	int acpi_sata = ap->flags & ATA_FLAG_ACPI_SATA;
+	int rc;
+
+	/* XXX: _STM isn't implemented yet, skip if IDE for now */
+	if (!acpi_sata)
+		return 0;
+
+	if (!dev->acpi_handle)
+		return 0;
+
+	/* do we need to do _GTF? */
+	if (!(dev->flags & ATA_DFLAG_ACPI_PENDING) &&
+	    !(acpi_sata && (ehc->i.flags & ATA_EHI_DID_HARDRESET)))
+		return 0;
+
+	/* do _SDD if SATA */
+	if (acpi_sata) {
+		rc = ata_acpi_push_id(dev);
+		if (rc)
+			goto acpi_err;
+	}
+
+	/* do _GTF */
+	rc = ata_acpi_exec_tfs(dev);
+	if (rc < 0)
+		goto acpi_err;
+
+	dev->flags &= ~ATA_DFLAG_ACPI_PENDING;
+
+	/* refresh IDENTIFY page if any _GTF command has been executed */
+	if (rc > 0) {
+		rc = ata_dev_reread_id(dev, 0);
+		if (rc < 0) {
+			ata_dev_printk(dev, KERN_ERR, "failed to IDENTIFY "
+				       "after ACPI commands\n");
+			return rc;
+		}
+	}
+
+	return 0;
+
+ acpi_err:
+	/* let EH retry on the first failure, disable ACPI on the second */
+	if (dev->flags & ATA_DFLAG_ACPI_FAILED) {
+		ata_dev_printk(dev, KERN_WARNING, "ACPI on devcfg failed the "
+			       "second time, disabling (errno=%d)\n", rc);
+
+		dev->acpi_handle = NULL;
+
+		/* if port is working, request IDENTIFY reload and continue */
+		if (!(ap->pflags & ATA_PFLAG_FROZEN))
+			rc = 1;
+	}
+	dev->flags |= ATA_DFLAG_ACPI_FAILED;
+	return rc;
+}
