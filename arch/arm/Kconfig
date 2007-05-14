@@ -308,6 +308,7 @@ config ARCH_L7200
 
 config ARCH_KS8695
 	bool "Micrel/Kendin KS8695"
+	select GENERIC_GPIO
 	help
 	  Support for Micrel/Kendin KS8695 "Centaur" (ARM922T) based
 	  System-on-Chip devices.
