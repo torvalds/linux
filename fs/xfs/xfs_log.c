@@ -967,14 +967,16 @@ xlog_iodone(xfs_buf_t *bp)
 	} else if (iclog->ic_state & XLOG_STATE_IOERROR) {
 		aborted = XFS_LI_ABORTED;
 	}
+
+	/* log I/O is always issued ASYNC */
+	ASSERT(XFS_BUF_ISASYNC(bp));
 	xlog_state_done_syncing(iclog, aborted);
-	if (!(XFS_BUF_ISASYNC(bp))) {
-		/*
-		 * Corresponding psema() will be done in bwrite().  If we don't
-		 * vsema() here, panic.
-		 */
-		XFS_BUF_V_IODONESEMA(bp);
-	}
+	/*
+	 * do not reference the buffer (bp) here as we could race
+	 * with it being freed after writing the unmount record to the
+	 * log.
+	 */
+
 }	/* xlog_iodone */
 
 /*
