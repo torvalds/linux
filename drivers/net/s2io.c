@@ -3970,7 +3970,6 @@ static int s2io_close(struct net_device *dev)
 	/* Reset card, kill tasklet and free Tx and Rx buffers. */
 	s2io_card_down(sp);
 
-	sp->device_close_flag = TRUE;	/* Device is shut down. */
 	return 0;
 }
 
@@ -8053,7 +8052,6 @@ static pci_ers_result_t s2io_io_error_detected(struct pci_dev *pdev,
 	if (netif_running(netdev)) {
 		/* Bring down the card, while avoiding PCI I/O */
 		do_s2io_card_down(sp, 0);
-		sp->device_close_flag = TRUE;	/* Device is shut down. */
 	}
 	pci_disable_device(pdev);
 
