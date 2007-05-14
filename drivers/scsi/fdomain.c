@@ -1345,16 +1345,15 @@ static irqreturn_t do_fdomain_16x0_intr(int irq, void *dev_id)
 
 #if ERRORS_ONLY
       if (current_SC->cmnd[0] == REQUEST_SENSE && !current_SC->SCp.Status) {
-	 if ((unsigned char)(*((char *)current_SC->request_buffer+2)) & 0x0f) {
+	      char *buf = scsi_sglist(current_SC);
+	 if ((unsigned char)(*(buf + 2)) & 0x0f) {
 	    unsigned char key;
 	    unsigned char code;
 	    unsigned char qualifier;
 
-	    key = (unsigned char)(*((char *)current_SC->request_buffer + 2))
-		  & 0x0f;
-	    code = (unsigned char)(*((char *)current_SC->request_buffer + 12));
-	    qualifier = (unsigned char)(*((char *)current_SC->request_buffer
-					  + 13));
+	    key = (unsigned char)(*(buf + 2)) & 0x0f;
+	    code = (unsigned char)(*(buf + 12));
+	    qualifier = (unsigned char)(*(buf + 13));
 
 	    if (key != UNIT_ATTENTION
 		&& !(key == NOT_READY
@@ -1405,8 +1404,8 @@ static int fdomain_16x0_queue(struct scsi_cmnd *SCpnt,
    printk( "queue: target = %d cmnd = 0x%02x pieces = %d size = %u\n",
 	   SCpnt->target,
 	   *(unsigned char *)SCpnt->cmnd,
-	   SCpnt->use_sg,
-	   SCpnt->request_bufflen );
+	   scsi_sg_count(SCpnt),
+	   scsi_bufflen(SCpnt));
 #endif
 
    fdomain_make_bus_idle();
@@ -1416,20 +1415,19 @@ static int fdomain_16x0_queue(struct scsi_cmnd *SCpnt,
 
    /* Initialize static data */
 
-   if (current_SC->use_sg) {
-      current_SC->SCp.buffer =
-	    (struct scatterlist *)current_SC->request_buffer;
-      current_SC->SCp.ptr              = page_address(current_SC->SCp.buffer->page) + current_SC->SCp.buffer->offset;
-      current_SC->SCp.this_residual    = current_SC->SCp.buffer->length;
-      current_SC->SCp.buffers_residual = current_SC->use_sg - 1;
+   if (scsi_sg_count(current_SC)) {
+	   current_SC->SCp.buffer = scsi_sglist(current_SC);
+	   current_SC->SCp.ptr = page_address(current_SC->SCp.buffer->page)
+		   + current_SC->SCp.buffer->offset;
+	   current_SC->SCp.this_residual    = current_SC->SCp.buffer->length;
+	   current_SC->SCp.buffers_residual = scsi_sg_count(current_SC) - 1;
    } else {
-      current_SC->SCp.ptr              = (char *)current_SC->request_buffer;
-      current_SC->SCp.this_residual    = current_SC->request_bufflen;
-      current_SC->SCp.buffer           = NULL;
-      current_SC->SCp.buffers_residual = 0;
+	   current_SC->SCp.ptr              = 0;
+	   current_SC->SCp.this_residual    = 0;
+	   current_SC->SCp.buffer           = NULL;
+	   current_SC->SCp.buffers_residual = 0;
    }
-	 
-   
+
    current_SC->SCp.Status              = 0;
    current_SC->SCp.Message             = 0;
    current_SC->SCp.have_data_in        = 0;
@@ -1472,8 +1470,8 @@ static void print_info(struct scsi_cmnd *SCpnt)
 	   SCpnt->SCp.phase,
 	   SCpnt->device->id,
 	   *(unsigned char *)SCpnt->cmnd,
-	   SCpnt->use_sg,
-	   SCpnt->request_bufflen );
+	   scsi_sg_count(SCpnt),
+	   scsi_bufflen(SCpnt));
    printk( "sent_command = %d, have_data_in = %d, timeout = %d\n",
 	   SCpnt->SCp.sent_command,
 	   SCpnt->SCp.have_data_in,
