@@ -134,21 +134,9 @@ static int ata_dev_get_GTF(struct ata_device *dev, struct ata_acpi_gtf **gtf,
 	output.length = ACPI_ALLOCATE_BUFFER;
 	output.pointer = NULL;	/* ACPI-CA sets this; save/free it later */
 
-	if (!dev->acpi_handle)
-		goto out_free;
-
 	if (ata_msg_probe(ap))
 		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER: port#: %d\n",
 			       __FUNCTION__, ap->port_no);
-
-	if (!ata_dev_enabled(dev) || (ap->flags & ATA_FLAG_DISABLED)) {
-		if (ata_msg_probe(ap))
-			ata_dev_printk(dev, KERN_DEBUG, "%s: ERR: "
-				"ata_dev_present: %d, PORT_DISABLED: %lu\n",
-				__FUNCTION__, ata_dev_enabled(dev),
-				ap->flags & ATA_FLAG_DISABLED);
-		goto out_free;
-	}
 
 	/* _GTF has no input parameters */
 	status = acpi_evaluate_object(dev->acpi_handle, "_GTF", NULL, &output);
@@ -340,20 +328,9 @@ static int ata_acpi_push_id(struct ata_device *dev)
 	struct acpi_object_list input;
 	union acpi_object in_params[1];
 
-	if (!dev->acpi_handle)
-		return 0;
-
 	if (ata_msg_probe(ap))
 		ata_dev_printk(dev, KERN_DEBUG, "%s: ix = %d, port#: %d\n",
 			       __FUNCTION__, dev->devno, ap->port_no);
-
-	/* Don't continue if not a SATA device. */
-	if (!(ap->flags & ATA_FLAG_ACPI_SATA)) {
-		if (ata_msg_probe(ap))
-			ata_dev_printk(dev, KERN_DEBUG,
-				"%s: Not a SATA device\n", __FUNCTION__);
-		return 0;
-	}
 
 	/* Give the drive Identify data to the drive via the _SDD method */
 	/* _SDD: set up input parameters */
