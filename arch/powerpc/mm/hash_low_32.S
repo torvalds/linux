@@ -30,7 +30,11 @@
 #include <asm/asm-offsets.h>
 
 #ifdef CONFIG_SMP
-	.comm	mmu_hash_lock,4
+	.section .bss
+	.align	2
+	.globl mmu_hash_lock
+mmu_hash_lock:
+	.space	4
 #endif /* CONFIG_SMP */
 
 /*
@@ -455,9 +459,15 @@ found_slot:
 	sync		/* make sure pte updates get to memory */
 	blr
 
-	.comm	next_slot,4
-	.comm	primary_pteg_full,4
-	.comm	htab_hash_searches,4
+	.section .bss
+	.align	2
+next_slot:
+	.space	4
+primary_pteg_full:
+	.space	4
+htab_hash_searches:
+	.space	4
+	.previous
 
 /*
  * Flush the entry for a particular page from the hash table.
