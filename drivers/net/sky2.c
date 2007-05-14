@@ -844,10 +844,12 @@ static inline struct tx_ring_info *tx_le_re(struct sky2_port *sky2,
 /* Update chip's next pointer */
 static inline void sky2_put_idx(struct sky2_hw *hw, unsigned q, u16 idx)
 {
-	q = Y2_QADDR(q, PREF_UNIT_PUT_IDX);
+	/* Make sure write' to descriptors are complete before we tell hardware */
 	wmb();
-	sky2_write16(hw, q, idx);
-	sky2_read16(hw, q);
+	sky2_write16(hw, Y2_QADDR(q, PREF_UNIT_PUT_IDX), idx);
+
+	/* Synchronize I/O on since next processor may write to tail */
+	mmiowb();
 }
 
 
@@ -979,6 +981,7 @@ stopped:
 
 	/* reset the Rx prefetch unit */
 	sky2_write32(hw, Y2_QADDR(rxq, PREF_UNIT_CTRL), PREF_UNIT_RST_SET);
+	mmiowb();
 }
 
 /* Clean out receive buffer area, assumes receiver hardware stopped */
@@ -1198,7 +1201,7 @@ static int sky2_rx_start(struct sky2_port *sky2)
 	}
 
 	/* Tell chip about available buffers */
-	sky2_write16(hw, Y2_QADDR(rxq, PREF_UNIT_PUT_IDX), sky2->rx_put);
+	sky2_put_idx(hw, rxq, sky2->rx_put);
 	return 0;
 nomem:
 	sky2_rx_clean(sky2);
@@ -1540,6 +1543,8 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 	}
 
 	sky2->tx_cons = idx;
+	smp_mb();
+
 	if (tx_avail(sky2) > MAX_SKB_TX_LE + 4)
 		netif_wake_queue(dev);
 }
@@ -2218,6 +2223,7 @@ force_update:
 
 	/* Fully processed status ring so clear irq */
 	sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
+	mmiowb();
 
 exit_loop:
 	if (buf_write[0]) {
@@ -2442,6 +2448,7 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	if (work_done < work_limit) {
 		netif_rx_complete(dev0);
 
+		/* end of interrupt, re-enables also acts as I/O synchronization */
 		sky2_read32(hw, B0_Y2_SP_LISR);
 		return 0;
 	} else {
