@@ -39,6 +39,12 @@ static inline void eeprom_93cx6_pulse_high(struct eeprom_93cx6 *eeprom)
 {
 	eeprom->reg_data_clock = 1;
 	eeprom->register_write(eeprom);
+
+	/*
+	 * Add a short delay for the pulse to work.
+	 * According to the specifications the minimal time
+	 * should be 450ns so a 1us delay is sufficient.
+	 */
 	udelay(1);
 }
 
@@ -46,6 +52,12 @@ static inline void eeprom_93cx6_pulse_low(struct eeprom_93cx6 *eeprom)
 {
 	eeprom->reg_data_clock = 0;
 	eeprom->register_write(eeprom);
+
+	/*
+	 * Add a short delay for the pulse to work.
+	 * According to the specifications the minimal time
+	 * should be 450ns so a 1us delay is sufficient.
+	 */
 	udelay(1);
 }
 
