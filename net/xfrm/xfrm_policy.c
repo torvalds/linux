@@ -796,6 +796,10 @@ struct xfrm_policy *xfrm_policy_byid(u8 type, int dir, u32 id, int delete,
 	struct hlist_head *chain;
 	struct hlist_node *entry;
 
+	*err = -ENOENT;
+	if (xfrm_policy_id2dir(id) != dir)
+		return NULL;
+
 	*err = 0;
 	write_lock_bh(&xfrm_policy_lock);
 	chain = xfrm_policy_byidx + idx_hash(id);
