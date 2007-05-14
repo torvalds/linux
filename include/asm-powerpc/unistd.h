@@ -327,10 +327,13 @@
 #define __NR_getcpu		302
 #define __NR_epoll_pwait	303
 #define __NR_utimensat		304
+#define __NR_signalfd		305
+#define __NR_timerfd		306
+#define __NR_eventfd		307
 
 #ifdef __KERNEL__
 
-#define __NR_syscalls		305
+#define __NR_syscalls		308
 
 #define __NR__exit __NR_exit
 #define NR_syscalls	__NR_syscalls
