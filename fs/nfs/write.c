@@ -58,7 +58,7 @@ struct nfs_write_data *nfs_commit_alloc(void)
 	return p;
 }
 
-void nfs_commit_rcu_free(struct rcu_head *head)
+static void nfs_commit_rcu_free(struct rcu_head *head)
 {
 	struct nfs_write_data *p = container_of(head, struct nfs_write_data, task.u.tk_rcu);
 	if (p && (p->pagevec != &p->page_array[0]))
@@ -922,7 +922,7 @@ static int nfs_flush_one(struct inode *inode, struct list_head *head, unsigned i
 	return 0;
  out_bad:
 	while (!list_empty(head)) {
-		struct nfs_page *req = nfs_list_entry(head->next);
+		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
 		nfs_redirty_request(req);
 		nfs_end_page_writeback(req->wb_page);

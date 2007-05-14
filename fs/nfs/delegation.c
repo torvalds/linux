@@ -226,7 +226,7 @@ restart:
 	spin_unlock(&clp->cl_lock);
 }
 
-int nfs_do_expire_all_delegations(void *ptr)
+static int nfs_do_expire_all_delegations(void *ptr)
 {
 	struct nfs_client *clp = ptr;
 	struct nfs_delegation *delegation;
