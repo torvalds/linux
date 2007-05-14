@@ -796,7 +796,7 @@ static void orc_interrupt(
 *****************************************************************************/
 static void inia100BuildSCB(ORC_HCS * pHCB, ORC_SCB * pSCB, struct scsi_cmnd * SCpnt)
 {				/* Create corresponding SCB     */
-	struct scatterlist *pSrbSG;
+	struct scatterlist *sg;
 	ORC_SG *pSG;		/* Pointer to SG list           */
 	int i, count_sg;
 	ESCB *pEScb;
@@ -813,30 +813,22 @@ static void inia100BuildSCB(ORC_HCS * pHCB, ORC_SCB * pSCB, struct scsi_cmnd * S
 	pSCB->SCB_Reserved1 = 0;
 	pSCB->SCB_SGLen = 0;
 
-	if ((pSCB->SCB_XferLen = (U32) SCpnt->request_bufflen)) {
-		pSG = (ORC_SG *) & pEScb->ESCB_SGList[0];
-		if (SCpnt->use_sg) {
-			pSrbSG = (struct scatterlist *) SCpnt->request_buffer;
-			count_sg = pci_map_sg(pHCB->pdev, pSrbSG, SCpnt->use_sg,
-					SCpnt->sc_data_direction);
-			pSCB->SCB_SGLen = (U32) (count_sg * 8);
-			for (i = 0; i < count_sg; i++, pSG++, pSrbSG++) {
-				pSG->SG_Ptr = (U32) sg_dma_address(pSrbSG);
-				pSG->SG_Len = (U32) sg_dma_len(pSrbSG);
-			}
-		} else if (SCpnt->request_bufflen != 0) {/* Non SG */
-			pSCB->SCB_SGLen = 0x8;
-			SCpnt->SCp.dma_handle = pci_map_single(pHCB->pdev,
-					SCpnt->request_buffer,
-					SCpnt->request_bufflen,
-					SCpnt->sc_data_direction);
-			pSG->SG_Ptr = (U32) SCpnt->SCp.dma_handle;
-			pSG->SG_Len = (U32) SCpnt->request_bufflen;
-		} else {
-			pSCB->SCB_SGLen = 0;
-			pSG->SG_Ptr = 0;
-			pSG->SG_Len = 0;
+	pSCB->SCB_XferLen = (U32) scsi_bufflen(SCpnt);
+	pSG = (ORC_SG *) & pEScb->ESCB_SGList[0];
+
+	count_sg = scsi_dma_map(SCpnt);
+	BUG_ON(count_sg < 0);
+	if (count_sg) {
+		pSCB->SCB_SGLen = (U32) (count_sg * 8);
+		scsi_for_each_sg(SCpnt, sg, count_sg, i) {
+			pSG->SG_Ptr = (U32) sg_dma_address(sg);
+			pSG->SG_Len = (U32) sg_dma_len(sg);
+			pSG++;
 		}
+	} else {
+		pSCB->SCB_SGLen = 0;
+		pSG->SG_Ptr = 0;
+		pSG->SG_Len = 0;
 	}
 	pSCB->SCB_SGPAddr = (U32) pSCB->SCB_SensePAddr;
 	pSCB->SCB_HaStat = 0;
@@ -995,15 +987,7 @@ static void inia100SCBPost(BYTE * pHcb, BYTE * pScb)
 	}
 	pSRB->result = pSCB->SCB_TaStat | (pSCB->SCB_HaStat << 16);
 
-	if (pSRB->use_sg) {
-		pci_unmap_sg(pHCB->pdev,
-			     (struct scatterlist *)pSRB->request_buffer,
-			     pSRB->use_sg, pSRB->sc_data_direction);
-	} else if (pSRB->request_bufflen != 0) {
-		pci_unmap_single(pHCB->pdev, pSRB->SCp.dma_handle,
-				 pSRB->request_bufflen,
-				 pSRB->sc_data_direction);
-	}
+	scsi_dma_unmap(pSRB);
 
 	pSRB->scsi_done(pSRB);	/* Notify system DONE           */
 
