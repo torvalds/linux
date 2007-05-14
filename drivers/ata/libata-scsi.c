@@ -893,6 +893,23 @@ int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth)
 	return queue_depth;
 }
 
+/* XXX: for ata_spindown_compat */
+static void ata_delayed_done_timerfn(unsigned long arg)
+{
+	struct scsi_cmnd *scmd = (void *)arg;
+
+	scmd->scsi_done(scmd);
+}
+
+/* XXX: for ata_spindown_compat */
+static void ata_delayed_done(struct scsi_cmnd *scmd)
+{
+	static struct timer_list timer;
+
+	setup_timer(&timer, ata_delayed_done_timerfn, (unsigned long)scmd);
+	mod_timer(&timer, jiffies + 5 * HZ);
+}
+
 /**
  *	ata_scsi_start_stop_xlat - Translate SCSI START STOP UNIT command
  *	@qc: Storage for translated ATA taskfile
@@ -952,19 +969,21 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc)
 		if (ata_spindown_compat &&
 		    (system_state == SYSTEM_HALT ||
 		     system_state == SYSTEM_POWER_OFF)) {
-			static int warned = 0;
+			static unsigned long warned = 0;
 
-			if (!warned) {
-				spin_unlock_irq(qc->ap->lock);
+			if (!test_and_set_bit(0, &warned)) {
 				ata_dev_printk(qc->dev, KERN_WARNING,
 					"DISK MIGHT NOT BE SPUN DOWN PROPERLY. "
 					"UPDATE SHUTDOWN UTILITY\n");
 				ata_dev_printk(qc->dev, KERN_WARNING,
 					"For more info, visit "
 					"http://linux-ata.org/shutdown.html\n");
-				warned = 1;
-				ssleep(5);
-				spin_lock_irq(qc->ap->lock);
+
+				/* ->scsi_done is not used, use it for
+				 * delayed completion.
+				 */
+				scmd->scsi_done = qc->scsidone;
+				qc->scsidone = ata_delayed_done;
 			}
 			scmd->result = SAM_STAT_GOOD;
 			return 1;
@@ -1488,14 +1507,14 @@ static int ata_scsi_translate(struct ata_device *dev, struct scsi_cmnd *cmd,
 
 early_finish:
         ata_qc_free(qc);
-	done(cmd);
+	qc->scsidone(cmd);
 	DPRINTK("EXIT - early finish (good or error)\n");
 	return 0;
 
 err_did:
 	ata_qc_free(qc);
 	cmd->result = (DID_ERROR << 16);
-	done(cmd);
+	qc->scsidone(cmd);
 err_mem:
 	DPRINTK("EXIT - internal\n");
 	return 0;
