@@ -27,6 +27,7 @@ config SND_SOC
 source "sound/soc/at91/Kconfig"
 source "sound/soc/pxa/Kconfig"
 source "sound/soc/s3c24xx/Kconfig"
+source "sound/soc/sh/Kconfig"
 
 # Supported codecs
 source "sound/soc/codecs/Kconfig"
