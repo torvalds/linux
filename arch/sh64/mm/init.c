@@ -84,7 +84,7 @@ void show_mem(void)
 	printk("%d reserved pages\n",reserved);
 	printk("%d pages shared\n",shared);
 	printk("%d pages swap cached\n",cached);
-	printk("%ld pages in page table cache\n",pgtable_cache_size);
+	printk("%ld pages in page table cache\n", quicklist_total_size());
 }
 
 /*
