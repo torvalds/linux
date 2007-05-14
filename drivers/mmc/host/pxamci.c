@@ -232,20 +232,14 @@ static int pxamci_cmd_done(struct pxamci_host *host, unsigned int stat)
 		/*
 		 * workaround for erratum #42:
 		 * Intel PXA27x Family Processor Specification Update Rev 001
+		 * A bogus CRC error can appear if the msb of a 136 bit
+		 * response is a one.
 		 */
-		if (cmd->opcode == MMC_ALL_SEND_CID ||
-		    cmd->opcode == MMC_SEND_CSD ||
-		    cmd->opcode == MMC_SEND_CID) {
-			/* a bogus CRC error can appear if the msb of
-			   the 15 byte response is a one */
-			if ((cmd->resp[0] & 0x80000000) == 0)
-				cmd->error = MMC_ERR_BADCRC;
-		} else {
-			pr_debug("ignoring CRC from command %d - *risky*\n",cmd->opcode);
-		}
-#else
-		cmd->error = MMC_ERR_BADCRC;
+		if (cmd->flags & MMC_RSP_136 && cmd->resp[0] & 0x80000000) {
+			pr_debug("ignoring CRC from command %d - *risky*\n", cmd->opcode);
+		} else
 #endif
+		cmd->error = MMC_ERR_BADCRC;
 	}
 
 	pxamci_disable_irq(host, END_CMD_RES);

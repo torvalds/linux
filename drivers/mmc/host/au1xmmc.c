@@ -187,9 +187,8 @@ static void au1xmmc_tasklet_finish(unsigned long param)
 }
 
 static int au1xmmc_send_command(struct au1xmmc_host *host, int wait,
-				struct mmc_command *cmd)
+				struct mmc_command *cmd, unsigned int flags)
 {
-
 	u32 mmccmd = (cmd->opcode << SD_CMD_CI_SHIFT);
 
 	switch (mmc_resp_type(cmd)) {
@@ -213,24 +212,16 @@ static int au1xmmc_send_command(struct au1xmmc_host *host, int wait,
 		return MMC_ERR_INVALID;
 	}
 
-	switch(cmd->opcode) {
-	case MMC_READ_SINGLE_BLOCK:
-	case SD_APP_SEND_SCR:
-		mmccmd |= SD_CMD_CT_2;
-		break;
-	case MMC_READ_MULTIPLE_BLOCK:
-		mmccmd |= SD_CMD_CT_4;
-		break;
-	case MMC_WRITE_BLOCK:
-		mmccmd |= SD_CMD_CT_1;
-		break;
-
-	case MMC_WRITE_MULTIPLE_BLOCK:
-		mmccmd |= SD_CMD_CT_3;
-		break;
-	case MMC_STOP_TRANSMISSION:
-		mmccmd |= SD_CMD_CT_7;
-		break;
+	if (flags & MMC_DATA_READ) {
+		if (flags & MMC_DATA_MULTI)
+			mmccmd |= SD_CMD_CT_4;
+		else
+			mmccmd |= SD_CMD_CT_2;
+	} else if (flags & MMC_DATA_WRITE) {
+		if (flags & MMC_DATA_MULTI)
+			mmccmd |= SD_CMD_CT_3;
+		else
+			mmccmd |= SD_CMD_CT_1;
 	}
 
 	au_writel(cmd->arg, HOST_CMDARG(host));
@@ -665,6 +656,7 @@ static void au1xmmc_request(struct mmc_host* mmc, struct mmc_request* mrq)
 {
 
 	struct au1xmmc_host *host = mmc_priv(mmc);
+	unsigned int flags = 0;
 	int ret = MMC_ERR_NONE;
 
 	WARN_ON(irqs_disabled());
@@ -677,11 +669,12 @@ static void au1xmmc_request(struct mmc_host* mmc, struct mmc_request* mrq)
 
 	if (mrq->data) {
 		FLUSH_FIFO(host);
+		flags = mrq->data->flags;
 		ret = au1xmmc_prepare_data(host, mrq->data);
 	}
 
 	if (ret == MMC_ERR_NONE)
-		ret = au1xmmc_send_command(host, 0, mrq->cmd);
+		ret = au1xmmc_send_command(host, 0, mrq->cmd, flags);
 
 	if (ret != MMC_ERR_NONE) {
 		mrq->cmd->error = ret;
