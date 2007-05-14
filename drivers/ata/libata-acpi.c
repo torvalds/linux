@@ -175,21 +175,17 @@ static int ata_dev_get_GTF(struct ata_device *dev, struct ata_acpi_gtf **gtf,
 
 	out_obj = output.pointer;
 	if (out_obj->type != ACPI_TYPE_BUFFER) {
-		if (ata_msg_probe(ap))
-			ata_dev_printk(dev, KERN_DEBUG, "%s: Run _GTF: "
-				"error: expected object type of "
-				" ACPI_TYPE_BUFFER, got 0x%x\n",
-				__FUNCTION__, out_obj->type);
+		ata_dev_printk(dev, KERN_WARNING,
+			       "_GTF unexpected object type 0x%x\n",
+			       out_obj->type);
 		rc = -EINVAL;
 		goto out_free;
 	}
 
 	if (out_obj->buffer.length % REGS_PER_GTF) {
-		if (ata_msg_drv(ap))
-			ata_dev_printk(dev, KERN_ERR,
-				"%s: unexpected GTF length (%d) or addr (0x%p)\n",
-				__FUNCTION__, out_obj->buffer.length,
-				out_obj->buffer.pointer);
+		ata_dev_printk(dev, KERN_WARNING,
+			       "unexpected _GTF length (%d)\n",
+			       out_obj->buffer.length);
 		rc = -EINVAL;
 		goto out_free;
 	}
@@ -320,6 +316,12 @@ static int ata_dev_set_taskfiles(struct ata_device *dev,
  * @ap: the ata_port for the drive
  *
  * This applies to both PATA and SATA drives.
+ *
+ * LOCKING:
+ * EH context.
+ *
+ * RETURNS:
+ * 0 on success, -errno on failure.
  */
 int ata_acpi_exec_tfs(struct ata_port *ap)
 {
@@ -345,24 +347,14 @@ int ata_acpi_exec_tfs(struct ata_port *ap)
 		ret = ata_dev_get_GTF(dev, &gtf, &ptr_to_free);
 		if (ret == 0)
 			continue;
-		if (ret < 0) {
-			if (ata_msg_probe(ap))
-				ata_port_printk(ap, KERN_DEBUG,
-					"%s: get_GTF error (%d)\n",
-					__FUNCTION__, ret);
+		if (ret < 0)
 			break;
-		}
 		gtf_count = ret;
 
 		ret = ata_dev_set_taskfiles(dev, gtf, gtf_count);
 		kfree(ptr_to_free);
-		if (ret < 0) {
-			if (ata_msg_probe(ap))
-				ata_port_printk(ap, KERN_DEBUG,
-					"%s: set_taskfiles error (%d)\n",
-					__FUNCTION__, ret);
+		if (ret < 0)
 			break;
-		}
 	}
 
 	return ret;
@@ -377,6 +369,12 @@ int ata_acpi_exec_tfs(struct ata_port *ap)
  * ATM this function never returns a failure.  It is an optional
  * method and if it fails for whatever reason, we should still
  * just keep going.
+ *
+ * LOCKING:
+ * EH context.
+ *
+ * RETURNS:
+ * 0 on success, -errno on failure.
  */
 int ata_acpi_push_id(struct ata_device *dev)
 {
@@ -416,12 +414,9 @@ int ata_acpi_push_id(struct ata_device *dev)
 	swap_buf_le16(dev->id, ATA_ID_WORDS);
 
 	err = ACPI_FAILURE(status) ? -EIO : 0;
-	if (err < 0) {
-		if (ata_msg_probe(ap))
-			ata_dev_printk(dev, KERN_DEBUG,
-				       "%s _SDD error: status = 0x%x\n",
-				       __FUNCTION__, status);
-	}
+	if (err < 0)
+		ata_dev_printk(dev, KERN_WARNING,
+			       "ACPI _SDD failed (AE 0x%x)\n", status);
 
 	/* always return success */
 out:
