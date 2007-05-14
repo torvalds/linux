@@ -235,7 +235,7 @@ int ip6_mc_input(struct sk_buff *skb)
 	IP6_INC_STATS_BH(ip6_dst_idev(skb->dst), IPSTATS_MIB_INMCASTPKTS);
 
 	hdr = ipv6_hdr(skb);
-	deliver = likely(!(skb->dev->flags & (IFF_PROMISC|IFF_ALLMULTI))) ||
+	deliver = unlikely(skb->dev->flags & (IFF_PROMISC|IFF_ALLMULTI)) ||
 	    ipv6_chk_mcast_addr(skb->dev, &hdr->daddr, NULL);
 
 	/*
