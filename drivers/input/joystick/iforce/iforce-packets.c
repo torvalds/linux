@@ -246,6 +246,8 @@ void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data)
 
 int iforce_get_id_packet(struct iforce *iforce, char *packet)
 {
+	int status;
+
 	switch (iforce->bus) {
 
 	case IFORCE_USB:
@@ -254,18 +256,22 @@ int iforce_get_id_packet(struct iforce *iforce, char *packet)
 		iforce->cr.bRequest = packet[0];
 		iforce->ctrl->dev = iforce->usbdev;
 
-		if (usb_submit_urb(iforce->ctrl, GFP_ATOMIC))
+		status = usb_submit_urb(iforce->ctrl, GFP_ATOMIC);
+		if (status) {
+			err("usb_submit_urb failed %d", status);
 			return -1;
+		}
 
 		wait_event_interruptible_timeout(iforce->wait,
 			iforce->ctrl->status != -EINPROGRESS, HZ);
 
 		if (iforce->ctrl->status) {
+			dbg("iforce->ctrl->status = %d", iforce->ctrl->status);
 			usb_unlink_urb(iforce->ctrl);
 			return -1;
 		}
 #else
-		err("iforce_get_id_packet: iforce->bus = USB!");
+		dbg("iforce_get_id_packet: iforce->bus = USB!");
 #endif
 		break;
 
