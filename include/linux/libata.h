@@ -198,6 +198,7 @@ enum {
 	ATA_PFLAG_FLUSH_PORT_TASK = (1 << 16), /* flush port task */
 	ATA_PFLAG_SUSPENDED	= (1 << 17), /* port is suspended (power) */
 	ATA_PFLAG_PM_PENDING	= (1 << 18), /* PM operation pending */
+	ATA_PFLAG_GTM_VALID	= (1 << 19), /* acpi_gtm data valid */
 
 	/* struct ata_queued_cmd flags */
 	ATA_QCFLAG_ACTIVE	= (1 << 0), /* cmd not yet ack'd to scsi lyer */
@@ -493,6 +494,17 @@ struct ata_eh_context {
 	unsigned int		did_probe_mask;
 };
 
+struct ata_acpi_drive
+{
+	u32 pio;
+	u32 dma;
+} __packed;
+
+struct ata_acpi_gtm {
+	struct ata_acpi_drive drive[2];
+	u32 flags;
+} __packed;
+
 struct ata_port {
 	struct Scsi_Host	*scsi_host; /* our co-allocated scsi host */
 	const struct ata_port_operations *ops;
@@ -555,6 +567,7 @@ struct ata_port {
 
 #ifdef CONFIG_ATA_ACPI
 	acpi_handle		acpi_handle;
+	struct ata_acpi_gtm	acpi_gtm;
 #endif
 	u8			sector_buf[ATA_SECT_SIZE]; /* owned by EH */
 };
