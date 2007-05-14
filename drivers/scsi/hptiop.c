@@ -339,20 +339,8 @@ static void hptiop_host_request_callback(struct hptiop_hba *hba, u32 tag)
 
 	scp = hba->reqs[tag].scp;
 
-	if (HPT_SCP(scp)->mapped) {
-		if (scp->use_sg)
-			pci_unmap_sg(hba->pcidev,
-				(struct scatterlist *)scp->request_buffer,
-				scp->use_sg,
-				scp->sc_data_direction
-			);
-		else
-			pci_unmap_single(hba->pcidev,
-				HPT_SCP(scp)->dma_handle,
-				scp->request_bufflen,
-				scp->sc_data_direction
-			);
-	}
+	if (HPT_SCP(scp)->mapped)
+		scsi_dma_unmap(scp);
 
 	switch (le32_to_cpu(req->header.result)) {
 	case IOP_RESULT_SUCCESS:
@@ -448,43 +436,26 @@ static int hptiop_buildsgl(struct scsi_cmnd *scp, struct hpt_iopsg *psg)
 {
 	struct Scsi_Host *host = scp->device->host;
 	struct hptiop_hba *hba = (struct hptiop_hba *)host->hostdata;
-	struct scatterlist *sglist = (struct scatterlist *)scp->request_buffer;
+	struct scatterlist *sg;
+	int idx, nseg;
 
-	/*
-	 * though we'll not get non-use_sg fields anymore,
-	 * keep use_sg checking anyway
-	 */
-	if (scp->use_sg) {
-		int idx;
+	nseg = scsi_dma_map(scp);
+	BUG_ON(nseg < 0);
+	if (!nseg)
+		return 0;
 
-		HPT_SCP(scp)->sgcnt = pci_map_sg(hba->pcidev,
-				sglist, scp->use_sg,
-				scp->sc_data_direction);
-		HPT_SCP(scp)->mapped = 1;
-		BUG_ON(HPT_SCP(scp)->sgcnt > hba->max_sg_descriptors);
+	HPT_SCP(scp)->sgcnt = nseg;
+	HPT_SCP(scp)->mapped = 1;
 
-		for (idx = 0; idx < HPT_SCP(scp)->sgcnt; idx++) {
-			psg[idx].pci_address =
-				cpu_to_le64(sg_dma_address(&sglist[idx]));
-			psg[idx].size = cpu_to_le32(sg_dma_len(&sglist[idx]));
-			psg[idx].eot = (idx == HPT_SCP(scp)->sgcnt - 1) ?
-				cpu_to_le32(1) : 0;
-		}
+	BUG_ON(HPT_SCP(scp)->sgcnt > hba->max_sg_descriptors);
 
-		return HPT_SCP(scp)->sgcnt;
-	} else {
-		HPT_SCP(scp)->dma_handle = pci_map_single(
-				hba->pcidev,
-				scp->request_buffer,
-				scp->request_bufflen,
-				scp->sc_data_direction
-			);
-		HPT_SCP(scp)->mapped = 1;
-		psg->pci_address = cpu_to_le64(HPT_SCP(scp)->dma_handle);
-		psg->size = cpu_to_le32(scp->request_bufflen);
-		psg->eot = cpu_to_le32(1);
-		return 1;
+	scsi_for_each_sg(scp, sg, HPT_SCP(scp)->sgcnt, idx) {
+		psg[idx].pci_address = cpu_to_le64(sg_dma_address(sg));
+		psg[idx].size = cpu_to_le32(sg_dma_len(sg));
+		psg[idx].eot = (idx == HPT_SCP(scp)->sgcnt - 1) ?
+			cpu_to_le32(1) : 0;
 	}
+	return HPT_SCP(scp)->sgcnt;
 }
 
 static int hptiop_queuecommand(struct scsi_cmnd *scp,
@@ -529,9 +500,8 @@ static int hptiop_queuecommand(struct scsi_cmnd *scp,
 	req = (struct hpt_iop_request_scsi_command *)_req->req_virt;
 
 	/* build S/G table */
-	if (scp->request_bufflen)
-		sg_count = hptiop_buildsgl(scp, req->sg_list);
-	else
+	sg_count = hptiop_buildsgl(scp, req->sg_list);
+	if (!sg_count)
 		HPT_SCP(scp)->mapped = 0;
 
 	req->header.flags = cpu_to_le32(IOP_REQUEST_FLAG_OUTPUT_CONTEXT);
@@ -540,7 +510,7 @@ static int hptiop_queuecommand(struct scsi_cmnd *scp,
 	req->header.context = cpu_to_le32(IOPMU_QUEUE_ADDR_HOST_BIT |
 							(u32)_req->index);
 	req->header.context_hi32 = 0;
-	req->dataxfer_length = cpu_to_le32(scp->request_bufflen);
+	req->dataxfer_length = cpu_to_le32(scsi_bufflen(scp));
 	req->channel = scp->device->channel;
 	req->target = scp->device->id;
 	req->lun = scp->device->lun;
