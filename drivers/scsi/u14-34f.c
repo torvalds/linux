@@ -1111,7 +1111,7 @@ static int u14_34f_detect(struct scsi_host_template *tpnt) {
 static void map_dma(unsigned int i, unsigned int j) {
    unsigned int data_len = 0;
    unsigned int k, count, pci_dir;
-   struct scatterlist *sgpnt;
+   struct scatterlist *sg;
    struct mscp *cpp;
    struct scsi_cmnd *SCpnt;
 
@@ -1124,33 +1124,28 @@ static void map_dma(unsigned int i, unsigned int j) {
 
    cpp->sense_len = sizeof SCpnt->sense_buffer;
 
-   if (!SCpnt->use_sg) {
+   if (scsi_bufflen(SCpnt)) {
+	   count = scsi_dma_map(SCpnt);
+	   BUG_ON(count < 0);
 
-      /* If we get here with PCI_DMA_NONE, pci_map_single triggers a BUG() */
-      if (!SCpnt->request_bufflen) pci_dir = PCI_DMA_BIDIRECTIONAL;
+	   scsi_for_each_sg(SCpnt, sg, count, k) {
+		   cpp->sglist[k].address = H2DEV(sg_dma_address(sg));
+		   cpp->sglist[k].num_bytes = H2DEV(sg_dma_len(sg));
+		   data_len += sg->length;
+	   }
 
-      if (SCpnt->request_buffer)
-         cpp->data_address = H2DEV(pci_map_single(HD(j)->pdev,
-                  SCpnt->request_buffer, SCpnt->request_bufflen, pci_dir));
+	   cpp->sg = TRUE;
+	   cpp->use_sg = scsi_sg_count(SCpnt);
+	   cpp->data_address =
+		   H2DEV(pci_map_single(HD(j)->pdev, cpp->sglist,
+					cpp->use_sg * sizeof(struct sg_list),
+					pci_dir));
+	   cpp->data_len = H2DEV(data_len);
 
-      cpp->data_len = H2DEV(SCpnt->request_bufflen);
-      return;
-      }
-
-   sgpnt = (struct scatterlist *) SCpnt->request_buffer;
-   count = pci_map_sg(HD(j)->pdev, sgpnt, SCpnt->use_sg, pci_dir);
-
-   for (k = 0; k < count; k++) {
-      cpp->sglist[k].address = H2DEV(sg_dma_address(&sgpnt[k]));
-      cpp->sglist[k].num_bytes = H2DEV(sg_dma_len(&sgpnt[k]));
-      data_len += sgpnt[k].length;
-      }
-
-   cpp->sg = TRUE;
-   cpp->use_sg = SCpnt->use_sg;
-   cpp->data_address = H2DEV(pci_map_single(HD(j)->pdev, cpp->sglist,
-                             SCpnt->use_sg * sizeof(struct sg_list), pci_dir));
-   cpp->data_len = H2DEV(data_len);
+   } else {
+	   pci_dir = PCI_DMA_BIDIRECTIONAL;
+	   cpp->data_len = H2DEV(scsi_bufflen(SCpnt));
+   }
 }
 
 static void unmap_dma(unsigned int i, unsigned int j) {
@@ -1165,8 +1160,7 @@ static void unmap_dma(unsigned int i, unsigned int j) {
       pci_unmap_single(HD(j)->pdev, DEV2H(cpp->sense_addr),
                        DEV2H(cpp->sense_len), PCI_DMA_FROMDEVICE);
 
-   if (SCpnt->use_sg)
-      pci_unmap_sg(HD(j)->pdev, SCpnt->request_buffer, SCpnt->use_sg, pci_dir);
+   scsi_dma_unmap(SCpnt);
 
    if (!DEV2H(cpp->data_len)) pci_dir = PCI_DMA_BIDIRECTIONAL;
 
@@ -1187,9 +1181,9 @@ static void sync_dma(unsigned int i, unsigned int j) {
       pci_dma_sync_single_for_cpu(HD(j)->pdev, DEV2H(cpp->sense_addr),
                           DEV2H(cpp->sense_len), PCI_DMA_FROMDEVICE);
 
-   if (SCpnt->use_sg)
-      pci_dma_sync_sg_for_cpu(HD(j)->pdev, SCpnt->request_buffer,
-                         SCpnt->use_sg, pci_dir);
+   if (scsi_sg_count(SCpnt))
+	   pci_dma_sync_sg_for_cpu(HD(j)->pdev, scsi_sglist(SCpnt),
+				   scsi_sg_count(SCpnt), pci_dir);
 
    if (!DEV2H(cpp->data_len)) pci_dir = PCI_DMA_BIDIRECTIONAL;
 
