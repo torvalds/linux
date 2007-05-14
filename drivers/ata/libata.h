@@ -98,9 +98,11 @@ extern struct ata_port *ata_port_alloc(struct ata_host *host);
 
 /* libata-acpi.c */
 #ifdef CONFIG_ATA_ACPI
+extern void ata_acpi_associate(struct ata_host *host);
 extern int ata_acpi_exec_tfs(struct ata_port *ap);
 extern int ata_acpi_push_id(struct ata_device *dev);
 #else
+static inline void ata_acpi_associate(struct ata_host *host) { }
 static inline int ata_acpi_exec_tfs(struct ata_port *ap)
 {
 	return 0;

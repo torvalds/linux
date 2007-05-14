@@ -363,6 +363,9 @@ struct ata_host {
 	void			*private_data;
 	const struct ata_port_operations *ops;
 	unsigned long		flags;
+#ifdef CONFIG_ATA_ACPI
+	acpi_handle		acpi_handle;
+#endif
 	struct ata_port		*simplex_claimed;	/* channel owning the DMA */
 	struct ata_port		*ports[0];
 };
@@ -429,6 +432,9 @@ struct ata_device {
 	unsigned int		devno;		/* 0 or 1 */
 	unsigned long		flags;		/* ATA_DFLAG_xxx */
 	struct scsi_device	*sdev;		/* attached SCSI device */
+#ifdef CONFIG_ATA_ACPI
+	acpi_handle		acpi_handle;
+#endif
 	/* n_sector is used as CLEAR_OFFSET, read comment above CLEAR_OFFSET */
 	u64			n_sectors;	/* size of device, if ATA */
 	unsigned int		class;		/* ATA_DEV_xxx */
@@ -457,10 +463,6 @@ struct ata_device {
 	struct ata_ering	ering;
 	int			spdn_cnt;
 	unsigned int		horkage;	/* List of broken features */
-#ifdef CONFIG_ATA_ACPI
-	/* ACPI objects info */
-	acpi_handle obj_handle;
-#endif
 };
 
 /* Offset into struct ata_device.  Fields above it are maintained
@@ -549,6 +551,9 @@ struct ata_port {
 
 	void			*private_data;
 
+#ifdef CONFIG_ATA_ACPI
+	acpi_handle		acpi_handle;
+#endif
 	u8			sector_buf[ATA_SECT_SIZE]; /* owned by EH */
 };
 
