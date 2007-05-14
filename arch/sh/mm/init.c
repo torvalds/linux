@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/proc_fs.h>
+#include <linux/pagemap.h>
 #include <linux/percpu.h>
 #include <linux/io.h>
 #include <asm/mmu_context.h>
