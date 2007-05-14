@@ -75,7 +75,7 @@ prio_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 		band = res.classid;
 	}
 	band = TC_H_MIN(band) - 1;
-	if (band > q->bands)
+	if (band >= q->bands)
 		return q->queues[q->prio2band[0]];
 
 	return q->queues[band];
