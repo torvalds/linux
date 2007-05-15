@@ -46,8 +46,8 @@ struct powernow_k8_data {
 #define CPUID_XFAM			0x0ff00000	/* extended family */
 #define CPUID_XFAM_K8			0
 #define CPUID_XMOD			0x000f0000	/* extended model */
-#define CPUID_XMOD_REV_G		0x00060000
-#define CPUID_XFAM_10H 			0x00100000	/* family 0x10 */
+#define CPUID_XMOD_REV_MASK		0x00080000
+#define CPUID_XFAM_10H			0x00100000	/* family 0x10 */
 #define CPUID_USE_XFAM_XMOD		0x00000f00
 #define CPUID_GET_MAX_CAPABILITIES	0x80000000
 #define CPUID_FREQ_VOLT_CAPABILITIES	0x80000007

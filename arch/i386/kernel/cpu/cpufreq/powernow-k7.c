@@ -341,15 +341,17 @@ static int powernow_acpi_init(void)
 	pc.val = (unsigned long) acpi_processor_perf->states[0].control;
 	for (i = 0; i < number_scales; i++) {
 		u8 fid, vid;
-		unsigned int speed;
+		struct acpi_processor_px *state =
+			&acpi_processor_perf->states[i];
+		unsigned int speed, speed_mhz;
 
-		pc.val = (unsigned long) acpi_processor_perf->states[i].control;
+		pc.val = (unsigned long) state->control;
 		dprintk ("acpi:  P%d: %d MHz %d mW %d uS control %08x SGTC %d\n",
 			 i,
-			 (u32) acpi_processor_perf->states[i].core_frequency,
-			 (u32) acpi_processor_perf->states[i].power,
-			 (u32) acpi_processor_perf->states[i].transition_latency,
-			 (u32) acpi_processor_perf->states[i].control,
+			 (u32) state->core_frequency,
+			 (u32) state->power,
+			 (u32) state->transition_latency,
+			 (u32) state->control,
 			 pc.bits.sgtc);
 
 		vid = pc.bits.vid;
@@ -360,6 +362,18 @@ static int powernow_acpi_init(void)
 		powernow_table[i].index |= (vid << 8); /* upper 8 bits */
 
 		speed = powernow_table[i].frequency;
+		speed_mhz = speed / 1000;
+
+		/* processor_perflib will multiply the MHz value by 1000 to
+		 * get a KHz value (e.g. 1266000). However, powernow-k7 works
+		 * with true KHz values (e.g. 1266768). To ensure that all
+		 * powernow frequencies are available, we must ensure that
+		 * ACPI doesn't restrict them, so we round up the MHz value
+		 * to ensure that perflib's computed KHz value is greater than
+		 * or equal to powernow's KHz value.
+		 */
+		if (speed % 1000 > 0)
+			speed_mhz++;
 
 		if ((fid_codes[fid] % 10)==5) {
 			if (have_a0 == 1)
@@ -368,9 +382,15 @@ static int powernow_acpi_init(void)
 
 		dprintk ("   FID: 0x%x (%d.%dx [%dMHz])  "
 			 "VID: 0x%x (%d.%03dV)\n", fid, fid_codes[fid] / 10,
-			 fid_codes[fid] % 10, speed/1000, vid,
+			 fid_codes[fid] % 10, speed_mhz, vid,
 			 mobile_vid_table[vid]/1000,
 			 mobile_vid_table[vid]%1000);
+
+		if (state->core_frequency != speed_mhz) {
+			state->core_frequency = speed_mhz;
+			dprintk("   Corrected ACPI frequency to %d\n",
+				speed_mhz);
+		}
 
 		if (latency < pc.bits.sgtc)
 			latency = pc.bits.sgtc;
@@ -602,7 +622,7 @@ static int __init powernow_cpu_init (struct cpufreq_policy *policy)
 			result = powernow_acpi_init();
 			if (result) {
 				printk (KERN_INFO PFX "ACPI and legacy methods failed\n");
-				printk (KERN_INFO PFX "See http://www.codemonkey.org.uk/projects/cpufreq/powernow-k7.shtml\n");
+				printk (KERN_INFO PFX "See http://www.codemonkey.org.uk/projects/cpufreq/powernow-k7.html\n");
 			}
 		} else {
 			/* SGTC use the bus clock as timer */
