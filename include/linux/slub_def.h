@@ -60,7 +60,8 @@ struct kmem_cache {
 #define KMALLOC_SHIFT_LOW 3
 
 #ifdef CONFIG_LARGE_ALLOCS
-#define KMALLOC_SHIFT_HIGH 25
+#define KMALLOC_SHIFT_HIGH ((MAX_ORDER + PAGE_SHIFT) =< 25 ? \
+				(MAX_ORDER + PAGE_SHIFT - 1) : 25)
 #else
 #if !defined(CONFIG_MMU) || NR_CPUS > 512 || MAX_NUMNODES > 256
 #define KMALLOC_SHIFT_HIGH 20
@@ -86,6 +87,9 @@ static inline int kmalloc_index(int size)
 	 * here for SLAB legacy reasons.
 	 */
 	WARN_ON_ONCE(size == 0);
+
+	if (size >= (1 << KMALLOC_SHIFT_HIGH))
+		return -1;
 
 	if (size > 64 && size <= 96)
 		return 1;
