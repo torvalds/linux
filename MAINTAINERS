@@ -2386,6 +2386,13 @@ M:	stelian@popies.net
 W:	http://popies.net/meye/
 S:	Maintained
 
+MOTOROLA IMX MMC/SD HOST CONTROLLER INTERFACE DRIVER
+P:	Pavel Pisa
+M:	ppisa@pikron.com
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+W:	http://mmc.drzeus.cx/wiki/Controllers/Freescale/SDHC
+S:	Maintained
+
 MOUSE AND MISC DEVICES [GENERAL]
 P:	Alessandro Rubini
 M:	rubini@ipvvis.unipv.it
