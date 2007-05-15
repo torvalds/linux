@@ -106,18 +106,6 @@ EXPORT_SYMBOL(get_lcdclk_frequency_10khz);
 
 #ifdef CONFIG_PM
 
-int pxa_pm_prepare(suspend_state_t state)
-{
-	switch (state) {
-	case PM_SUSPEND_MEM:
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 void pxa_cpu_pm_enter(suspend_state_t state)
 {
 	extern void pxa_cpu_suspend(unsigned int);
@@ -135,7 +123,6 @@ void pxa_cpu_pm_enter(suspend_state_t state)
 }
 
 static struct pm_ops pxa25x_pm_ops = {
-	.prepare	= pxa_pm_prepare,
 	.enter		= pxa_pm_enter,
 	.valid		= pm_valid_only_mem,
 };
