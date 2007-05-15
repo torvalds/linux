@@ -333,12 +333,19 @@ SCTP_STATIC int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 	if (!sp->pf->bind_verify(sp, addr))
 		return -EADDRNOTAVAIL;
 
-	/* We must either be unbound, or bind to the same port.  */
-	if (bp->port && (snum != bp->port)) {
-		SCTP_DEBUG_PRINTK("sctp_do_bind:"
+	/* We must either be unbound, or bind to the same port.
+	 * It's OK to allow 0 ports if we are already bound.
+	 * We'll just inhert an already bound port in this case
+	 */
+	if (bp->port) {
+		if (!snum)
+			snum = bp->port;
+		else if (snum != bp->port) {
+			SCTP_DEBUG_PRINTK("sctp_do_bind:"
 				  " New port %d does not match existing port "
 				  "%d.\n", snum, bp->port);
-		return -EINVAL;
+			return -EINVAL;
+		}
 	}
 
 	if (snum && snum < PROT_SOCK && !capable(CAP_NET_BIND_SERVICE))
