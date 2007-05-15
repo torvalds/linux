@@ -46,6 +46,7 @@
 #include <asm/arch/ohci.h>
 
 #include "generic.h"
+#include "devices.h"
 
 
 static unsigned long mainstone_irq_enabled;

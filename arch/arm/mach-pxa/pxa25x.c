@@ -29,6 +29,7 @@
 #include <asm/arch/dma.h>
 
 #include "generic.h"
+#include "devices.h"
 
 /*
  * Various clock factors driven by the CCCR register.

@@ -38,6 +38,7 @@
 #include <asm/arch/mmc.h>
 
 #include "generic.h"
+#include "devices.h"
 
 /* TODO:
  * - add pxa2xx_audio_ops_t device structure

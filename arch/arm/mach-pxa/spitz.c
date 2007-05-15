@@ -48,6 +48,7 @@
 #include <asm/hardware/scoop.h>
 
 #include "generic.h"
+#include "devices.h"
 #include "sharpsl.h"
 
 /*

@@ -49,6 +49,7 @@
 #include <asm/arch/ohci.h>
 
 #include "generic.h"
+#include "devices.h"
 
 /********************************************************************************************
  * ONBOARD FLASH

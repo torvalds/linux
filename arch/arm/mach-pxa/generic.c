@@ -43,6 +43,7 @@
 #include <asm/arch/irda.h>
 #include <asm/arch/i2c.h>
 
+#include "devices.h"
 #include "generic.h"
 
 /*

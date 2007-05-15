@@ -26,6 +26,7 @@
 #include <asm/arch/dma.h>
 
 #include "generic.h"
+#include "devices.h"
 
 /* Crystal clock: 13MHz */
 #define BASE_CLK	13000000

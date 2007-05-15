@@ -42,7 +42,7 @@
 #include <asm/mach/sharpsl_param.h>
 
 #include "generic.h"
-
+#include "devices.h"
 
 /*
  * SCOOP Device

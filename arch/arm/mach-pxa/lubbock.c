@@ -48,6 +48,7 @@
 #include <asm/arch/mmc.h>
 
 #include "generic.h"
+#include "devices.h"
 
 
 #define LUB_MISC_WR		__LUB_REG(LUBBOCK_FPGA_PHYS + 0x080)

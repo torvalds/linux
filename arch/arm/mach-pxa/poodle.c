@@ -45,6 +45,7 @@
 #include <asm/mach/sharpsl_param.h>
 
 #include "generic.h"
+#include "devices.h"
 #include "sharpsl.h"
 
 static struct resource poodle_scoop_resources[] = {
