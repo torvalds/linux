@@ -792,9 +792,10 @@ int ide_tune_dma(ide_drive_t *drive)
 	if (!speed)
 		return 0;
 
-	drive->hwif->speedproc(drive, speed);
+	if (drive->hwif->speedproc(drive, speed))
+		return 0;
 
-	return ide_dma_enable(drive);
+	return 1;
 }
 
 EXPORT_SYMBOL_GPL(ide_tune_dma);

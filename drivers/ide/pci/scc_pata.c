@@ -322,26 +322,6 @@ static int scc_tune_chipset(ide_drive_t *drive, byte xferspeed)
 }
 
 /**
- *	scc_config_chipset_for_dma	-	configure for DMA
- *	@drive: drive to configure
- *
- *	Called by scc_config_drive_for_dma().
- */
-
-static int scc_config_chipset_for_dma(ide_drive_t *drive)
-{
-	u8 speed = ide_max_dma_mode(drive);
-
-	if (!speed)
-		return 0;
-
-	if (scc_tune_chipset(drive, speed))
-		return 0;
-
-	return ide_dma_enable(drive);
-}
-
-/**
  *	scc_configure_drive_for_dma	-	set up for DMA transfers
  *	@drive: drive we are going to set up
  *
@@ -354,7 +334,7 @@ static int scc_config_chipset_for_dma(ide_drive_t *drive)
 
 static int scc_config_drive_for_dma(ide_drive_t *drive)
 {
-	if (ide_use_dma(drive) && scc_config_chipset_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	if (ide_use_fast_pio(drive))

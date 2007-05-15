@@ -240,12 +240,8 @@ static int sc1200_tune_chipset(ide_drive_t *drive, u8 mode)
  */
 static int sc1200_config_dma (ide_drive_t *drive)
 {
-	if (ide_use_dma(drive)) {
-		u8 mode = ide_max_dma_mode(drive);
-
-		if (mode && drive->hwif->speedproc(drive, mode) == 0)
-			return 0;
-	}
+	if (ide_tune_dma(drive))
+		return 0;
 
 	return 1;
 }

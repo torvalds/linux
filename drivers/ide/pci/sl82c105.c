@@ -159,28 +159,13 @@ static int sl82c105_tune_chipset(ide_drive_t *drive, u8 speed)
 }
 
 /*
- * Configure the drive for DMA.
- */
-static int config_for_dma(ide_drive_t *drive)
-{
-	u8 speed = ide_max_dma_mode(drive);
-
-	DBG(("config_for_dma(drive:%s)\n", drive->name));
-
-	if (!speed || sl82c105_tune_chipset(drive, speed))
-		return 0;
-
-	return ide_dma_enable(drive);
-}
-
-/*
  * Check to see if the drive and chipset are capable of DMA mode.
  */
 static int sl82c105_ide_dma_check(ide_drive_t *drive)
 {
 	DBG(("sl82c105_ide_dma_check(drive:%s)\n", drive->name));
 
-	if (ide_use_dma(drive) && config_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	return -1;
