@@ -53,7 +53,12 @@
 # define SCIF_ORER 0x0001   /* overrun error bit */
 # define SCSCR_INIT(port) 0x3a /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 # define SCIF_ONLY
-#elif defined(CONFIG_CPU_SUBTYPE_SH7750) || defined(CONFIG_CPU_SUBTYPE_SH7751)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7750)  || \
+      defined(CONFIG_CPU_SUBTYPE_SH7750R) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7750S) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7091)  || \
+      defined(CONFIG_CPU_SUBTYPE_SH7751)  || \
+      defined(CONFIG_CPU_SUBTYPE_SH7751R)
 # define SCSPTR1 0xffe0001c /* 8  bit SCI */
 # define SCSPTR2 0xFFE80020 /* 16 bit SCIF */
 # define SCIF_ORER 0x0001   /* overrun error bit */
@@ -177,9 +182,13 @@
 #define SCI_CTRL_FLAGS_RIE  0x40 /* all */
 #define SCI_CTRL_FLAGS_TE   0x20 /* all */
 #define SCI_CTRL_FLAGS_RE   0x10 /* all */
-#if defined(CONFIG_CPU_SUBTYPE_SH7750) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7751) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7780) || \
+#if defined(CONFIG_CPU_SUBTYPE_SH7750)  || \
+    defined(CONFIG_CPU_SUBTYPE_SH7091)  || \
+    defined(CONFIG_CPU_SUBTYPE_SH7750R) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7750S) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7751)  || \
+    defined(CONFIG_CPU_SUBTYPE_SH7751R) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7780)  || \
     defined(CONFIG_CPU_SUBTYPE_SH7785)
 #define SCI_CTRL_FLAGS_REIE 0x08 /* 7750 SCIF */
 #else
@@ -514,8 +523,12 @@ static inline void set_sh771x_scif_pfc(struct uart_port *port)
 	}
 }
 
-#elif defined(CONFIG_CPU_SUBTYPE_SH7750) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7751) || \
+#elif defined(CONFIG_CPU_SUBTYPE_SH7750)  || \
+      defined(CONFIG_CPU_SUBTYPE_SH7751)  || \
+      defined(CONFIG_CPU_SUBTYPE_SH7751R) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7750R) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7750S) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7091)  || \
       defined(CONFIG_CPU_SUBTYPE_SH4_202)
 static inline int sci_rxd_in(struct uart_port *port)
 {

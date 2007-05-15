@@ -126,7 +126,6 @@ config CPU_SUBTYPE_SH7750
 config CPU_SUBTYPE_SH7091
 	bool "Support SH7091 processor"
 	select CPU_SH4
-	select CPU_SUBTYPE_SH7750
 	help
 	  Select SH7091 if you have an SH-4 based Sega device (such as
 	  the Dreamcast, Naomi, and Naomi 2).
@@ -134,13 +133,11 @@ config CPU_SUBTYPE_SH7091
 config CPU_SUBTYPE_SH7750R
 	bool "Support SH7750R processor"
 	select CPU_SH4
-	select CPU_SUBTYPE_SH7750
 	select CPU_HAS_IPR_IRQ
 
 config CPU_SUBTYPE_SH7750S
 	bool "Support SH7750S processor"
 	select CPU_SH4
-	select CPU_SUBTYPE_SH7750
 	select CPU_HAS_IPR_IRQ
 
 config CPU_SUBTYPE_SH7751
@@ -154,7 +151,6 @@ config CPU_SUBTYPE_SH7751
 config CPU_SUBTYPE_SH7751R
 	bool "Support SH7751R processor"
 	select CPU_SH4
-	select CPU_SUBTYPE_SH7751
 	select CPU_HAS_IPR_IRQ
 
 config CPU_SUBTYPE_SH7760
