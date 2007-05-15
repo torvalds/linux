@@ -129,8 +129,9 @@ struct kobj_type ktype_dlpar_io = {
 };
 
 struct kset dlpar_io_kset = {
-	.subsys = &pci_hotplug_slots_subsys,
-	.kobj = {.name = DLPAR_KOBJ_NAME, .ktype=&ktype_dlpar_io,},
+	.kobj = {.name = DLPAR_KOBJ_NAME,
+		 .ktype = &ktype_dlpar_io,
+		 .parent = &pci_hotplug_slots_subsys.kobj},
 	.ktype = &ktype_dlpar_io,
 };
 
