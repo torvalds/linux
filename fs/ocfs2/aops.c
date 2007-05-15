@@ -1188,6 +1188,31 @@ out:
 	return ret;
 }
 
+static int ocfs2_write_cluster_by_desc(struct address_space *mapping,
+				       struct ocfs2_alloc_context *data_ac,
+				       struct ocfs2_alloc_context *meta_ac,
+				       struct ocfs2_write_ctxt *wc,
+				       loff_t pos, unsigned len)
+{
+	int ret, i;
+	struct ocfs2_write_cluster_desc *desc;
+
+	for (i = 0; i < wc->w_clen; i++) {
+		desc = &wc->w_desc[i];
+
+		ret = ocfs2_write_cluster(mapping, desc->c_phys, data_ac,
+					  meta_ac, wc, desc->c_cpos, pos, len);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+	}
+
+	ret = 0;
+out:
+	return ret;
+}
+
 /*
  * ocfs2_write_end() wants to know which parts of the target page it
  * should complete the write on. It's easiest to compute them ahead of
@@ -1240,30 +1265,19 @@ static void ocfs2_set_target_boundaries(struct ocfs2_super *osb,
 	}
 }
 
-int ocfs2_write_begin_nolock(struct address_space *mapping,
-			     loff_t pos, unsigned len, unsigned flags,
-			     struct page **pagep, void **fsdata,
-			     struct buffer_head *di_bh, struct page *mmap_page)
+/*
+ * Populate each single-cluster write descriptor in the write context
+ * with information about the i/o to be done.
+ */
+static int ocfs2_populate_write_desc(struct inode *inode,
+				     struct ocfs2_write_ctxt *wc,
+				     unsigned int *clusters_to_alloc)
 {
-	int ret, i, credits = OCFS2_INODE_UPDATE_CREDITS;
-	unsigned int num_clusters = 0, clusters_to_alloc = 0;
-	u32 phys = 0;
-	struct ocfs2_write_ctxt *wc;
-	struct inode *inode = mapping->host;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct ocfs2_dinode *di;
-	struct ocfs2_alloc_context *data_ac = NULL;
-	struct ocfs2_alloc_context *meta_ac = NULL;
-	handle_t *handle;
+	int ret;
 	struct ocfs2_write_cluster_desc *desc;
-
-	ret = ocfs2_alloc_write_ctxt(&wc, osb, pos, len, di_bh);
-	if (ret) {
-		mlog_errno(ret);
-		return ret;
-	}
-
-	di = (struct ocfs2_dinode *)wc->w_di_bh->b_data;
+	unsigned int num_clusters = 0;
+	u32 phys = 0;
+	int i;
 
 	for (i = 0; i < wc->w_clen; i++) {
 		desc = &wc->w_desc[i];
@@ -1287,11 +1301,45 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 		desc->c_phys = phys;
 		if (phys == 0) {
 			desc->c_new = 1;
-			clusters_to_alloc++;
+			*clusters_to_alloc = *clusters_to_alloc + 1;
 		}
 
 		num_clusters--;
 	}
+
+	ret = 0;
+out:
+	return ret;
+}
+
+int ocfs2_write_begin_nolock(struct address_space *mapping,
+			     loff_t pos, unsigned len, unsigned flags,
+			     struct page **pagep, void **fsdata,
+			     struct buffer_head *di_bh, struct page *mmap_page)
+{
+	int ret, credits = OCFS2_INODE_UPDATE_CREDITS;
+	unsigned int clusters_to_alloc = 0;
+	struct ocfs2_write_ctxt *wc;
+	struct inode *inode = mapping->host;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_dinode *di;
+	struct ocfs2_alloc_context *data_ac = NULL;
+	struct ocfs2_alloc_context *meta_ac = NULL;
+	handle_t *handle;
+
+	ret = ocfs2_alloc_write_ctxt(&wc, osb, pos, len, di_bh);
+	if (ret) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	ret = ocfs2_populate_write_desc(inode, wc, &clusters_to_alloc);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	di = (struct ocfs2_dinode *)wc->w_di_bh->b_data;
 
 	/*
 	 * We set w_target_from, w_target_to here so that
@@ -1351,15 +1399,11 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 		goto out_commit;
 	}
 
-	for (i = 0; i < wc->w_clen; i++) {
-		desc = &wc->w_desc[i];
-
-		ret = ocfs2_write_cluster(mapping, desc->c_phys, data_ac,
-					  meta_ac, wc, desc->c_cpos, pos, len);
-		if (ret) {
-			mlog_errno(ret);
-			goto out_commit;
-		}
+	ret = ocfs2_write_cluster_by_desc(mapping, data_ac, meta_ac, wc, pos,
+					  len);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
 	}
 
 	if (data_ac)
