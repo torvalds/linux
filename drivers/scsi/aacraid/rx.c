@@ -378,7 +378,7 @@ static int aac_rx_check_health(struct aac_dev *dev)
  *
  *	Will send a fib, returning 0 if successful.
  */
-static int aac_rx_deliver_producer(struct fib * fib)
+int aac_rx_deliver_producer(struct fib * fib)
 {
 	struct aac_dev *dev = fib->dev;
 	struct aac_queue *q = &dev->queues->queue[AdapNormCmdQueue];

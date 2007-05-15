@@ -1823,6 +1823,7 @@ int aac_send_shutdown(struct aac_dev *dev);
 int aac_probe_container(struct aac_dev *dev, int cid);
 int _aac_rx_init(struct aac_dev *dev);
 int aac_rx_select_comm(struct aac_dev *dev, int comm);
+int aac_rx_deliver_producer(struct fib * fib);
 extern int numacb;
 extern int acbsize;
 extern char aac_driver_version[];
