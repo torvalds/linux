@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/cs5530.c		Version 0.71	Mar 10 2007
+ * linux/drivers/ide/pci/cs5530.c		Version 0.72	Mar 10 2007
  *
  * Copyright (C) 2000			Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2000			Mark Lord <mlord@pobox.com>
@@ -140,11 +140,6 @@ static int cs5530_config_dma(ide_drive_t *drive)
 	unsigned int reg, timings = 0;
 	unsigned long basereg;
 	u8 unit = drive->dn & 1, mode = 0;
-
-	/*
-	 * Default to DMA-off in case we run into trouble here.
-	 */
-	hwif->dma_off_quietly(drive);
 
 	if (ide_use_dma(drive))
 		mode = ide_max_dma_mode(drive);

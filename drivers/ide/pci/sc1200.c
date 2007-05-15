@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/sc1200.c		Version 0.92	Mar 10 2007
+ * linux/drivers/ide/pci/sc1200.c		Version 0.93	Mar 10 2007
  *
  * Copyright (C) 2000-2002		Mark Lord <mlord@pobox.com>
  * Copyright (C)      2007		Bartlomiej Zolnierkiewicz
@@ -137,12 +137,6 @@ static int sc1200_config_dma2 (ide_drive_t *drive, int mode)
 	unsigned int		basereg = hwif->channel ? 0x50 : 0x40;
 
 	/*
-	 * Default to DMA-off in case we run into trouble here.
-	 */
-	hwif->dma_off_quietly(drive);	/* turn off DMA while we fiddle */
-	outb(inb(hwif->dma_base+2)&~(unit?0x40:0x20), hwif->dma_base+2); /* clear DMA_capable bit */
-
-	/*
 	 * Tell the drive to switch to the new mode; abort on failure.
 	 */
 	if (!mode || sc1200_set_xfer_mode(drive, mode)) {
@@ -217,8 +211,6 @@ static int sc1200_config_dma2 (ide_drive_t *drive, int mode)
 		pci_write_config_dword(hwif->pci_dev, basereg+12, timings);
 	}
 
-	outb(inb(hwif->dma_base+2)|(unit?0x40:0x20), hwif->dma_base+2);	/* set DMA_capable bit */
-
 	return 0;	/* success */
 }
 
@@ -277,6 +269,9 @@ static void sc1200_tuneproc (ide_drive_t *drive, byte pio)	/* mode=255 means "au
 	static byte	modes[5] = {XFER_PIO_0, XFER_PIO_1, XFER_PIO_2, XFER_PIO_3, XFER_PIO_4};
 	int		mode = -1;
 
+	/*
+	 * bad abuse of ->tuneproc interface
+	 */
 	switch (pio) {
 		case 200: mode = XFER_UDMA_0;	break;
 		case 201: mode = XFER_UDMA_1;	break;
@@ -287,7 +282,9 @@ static void sc1200_tuneproc (ide_drive_t *drive, byte pio)	/* mode=255 means "au
 	}
 	if (mode != -1) {
 		printk("SC1200: %s: changing (U)DMA mode\n", drive->name);
-		(void)sc1200_config_dma2(drive, mode);
+		hwif->dma_off_quietly(drive);
+		if (sc1200_config_dma2(drive, mode) == 0)
+			hwif->dma_host_on(drive);
 		return;
 	}
 
@@ -421,12 +418,12 @@ static int sc1200_resume (struct pci_dev *dev)
 		for (d = 0; d < MAX_DRIVES; ++d) {
 			ide_drive_t *drive = &(hwif->drives[d]);
 			if (drive->present && !__ide_dma_bad_drive(drive)) {
-				int was_using_dma = drive->using_dma;
+				int enable_dma = drive->using_dma;
 				hwif->dma_off_quietly(drive);
-				sc1200_config_dma(drive);
-				if (!was_using_dma && drive->using_dma) {
-					hwif->dma_off_quietly(drive);
-				}
+				if (sc1200_config_dma(drive))
+					enable_dma = 0;
+				if (enable_dma)
+					hwif->dma_host_on(drive);
 			}
 		}
 	}
