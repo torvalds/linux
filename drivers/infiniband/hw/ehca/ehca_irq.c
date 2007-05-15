@@ -517,12 +517,11 @@ void ehca_process_eq(struct ehca_shca *shca, int is_irq)
 			else {
 				struct ehca_cq *cq = eq->eqe_cache[i].cq;
 				comp_event_callback(cq);
-				spin_lock_irqsave(&ehca_cq_idr_lock, flags);
+				spin_lock(&ehca_cq_idr_lock);
 				cq->nr_events--;
 				if (!cq->nr_events)
 					wake_up(&cq->wait_completion);
-				spin_unlock_irqrestore(&ehca_cq_idr_lock,
-						       flags);
+				spin_unlock(&ehca_cq_idr_lock);
 			}
 		} else {
 			ehca_dbg(&shca->ib_device, "Got non completion event");
@@ -711,6 +710,7 @@ static void destroy_comp_task(struct ehca_comp_pool *pool,
 		kthread_stop(task);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 static void take_over_work(struct ehca_comp_pool *pool,
 			   int cpu)
 {
@@ -735,7 +735,6 @@ static void take_over_work(struct ehca_comp_pool *pool,
 
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static int comp_pool_callback(struct notifier_block *nfb,
 			      unsigned long action,
 			      void *hcpu)

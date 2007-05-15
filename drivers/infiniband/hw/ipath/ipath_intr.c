@@ -1056,7 +1056,7 @@ irqreturn_t ipath_intr(int irq, void *data)
 			gpiostatus &= ~(1 << IPATH_GPIO_PORT0_BIT);
 			chk0rcv = 1;
 		}
-		if (unlikely(gpiostatus)) {
+		if (gpiostatus) {
 			/*
 			 * Some unexpected bits remain. If they could have
 			 * caused the interrupt, complain and clear.
@@ -1065,9 +1065,8 @@ irqreturn_t ipath_intr(int irq, void *data)
 			 * GPIO interrupts, possibly on a "three strikes"
 			 * basis.
 			 */
-			u32 mask;
-			mask = ipath_read_kreg32(
-				dd, dd->ipath_kregs->kr_gpio_mask);
+			const u32 mask = (u32) dd->ipath_gpio_mask;
+
 			if (mask & gpiostatus) {
 				ipath_dbg("Unexpected GPIO IRQ bits %x\n",
 				  gpiostatus & mask);

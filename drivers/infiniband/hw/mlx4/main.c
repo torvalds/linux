@@ -489,6 +489,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->uar_map = ioremap(ibdev->priv_uar.pfn << PAGE_SHIFT, PAGE_SIZE);
 	if (!ibdev->uar_map)
 		goto err_uar;
+	MLX4_INIT_DOORBELL_LOCK(&ibdev->uar_lock);
 
 	INIT_LIST_HEAD(&ibdev->pgdir_list);
 	mutex_init(&ibdev->pgdir_mutex);
