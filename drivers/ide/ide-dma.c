@@ -670,41 +670,6 @@ int __ide_dma_good_drive (ide_drive_t *drive)
 
 EXPORT_SYMBOL(__ide_dma_good_drive);
 
-int ide_use_dma(ide_drive_t *drive)
-{
-	struct hd_driveid *id = drive->id;
-	ide_hwif_t *hwif = drive->hwif;
-
-	if ((id->capability & 1) == 0 || drive->autodma == 0)
-		return 0;
-
-	/* consult the list of known "bad" drives */
-	if (__ide_dma_bad_drive(drive))
-		return 0;
-
-	/* capable of UltraDMA modes */
-	if (id->field_valid & 4) {
-		if (hwif->ultra_mask & id->dma_ultra)
-			return 1;
-	}
-
-	/* capable of regular DMA modes */
-	if (id->field_valid & 2) {
-		if (hwif->mwdma_mask & id->dma_mword)
-			return 1;
-		if (hwif->swdma_mask & id->dma_1word)
-			return 1;
-	}
-
-	/* consult the list of known "good" drives */
-	if (__ide_dma_good_drive(drive) && id->eide_dma_time < 150)
-		return 1;
-
-	return 0;
-}
-
-EXPORT_SYMBOL_GPL(ide_use_dma);
-
 static const u8 xfer_mode_bases[] = {
 	XFER_UDMA_0,
 	XFER_MW_DMA_0,
@@ -785,8 +750,11 @@ int ide_tune_dma(ide_drive_t *drive)
 {
 	u8 speed;
 
-	/* TODO: use only ide_max_dma_mode() */
-	if (!ide_use_dma(drive))
+	if ((drive->id->capability & 1) == 0 || drive->autodma == 0)
+		return 0;
+
+	/* consult the list of known "bad" drives */
+	if (__ide_dma_bad_drive(drive))
 		return 0;
 
 	speed = ide_max_dma_mode(drive);
