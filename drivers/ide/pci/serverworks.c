@@ -270,22 +270,11 @@ static void svwks_tune_drive (ide_drive_t *drive, u8 pio)
 	(void)svwks_tune_chipset(drive, XFER_PIO_0 + pio);
 }
 
-static int config_chipset_for_dma (ide_drive_t *drive)
-{
-	u8 speed = ide_max_dma_mode(drive);
-
-	if (!speed)
-		return 0;
-
-	(void) svwks_tune_chipset(drive, speed);
-	return ide_dma_enable(drive);
-}
-
 static int svwks_config_drive_xfer_rate (ide_drive_t *drive)
 {
 	drive->init_speed = 0;
 
-	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	if (ide_use_fast_pio(drive))
