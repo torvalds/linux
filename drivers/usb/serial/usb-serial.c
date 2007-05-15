@@ -122,11 +122,9 @@ static void return_serial(struct usb_serial *serial)
 	if (serial == NULL)
 		return;
 
-	spin_lock(&table_lock);
 	for (i = 0; i < serial->num_ports; ++i) {
 		serial_table[serial->minor + i] = NULL;
 	}
-	spin_unlock(&table_lock);
 }
 
 static void destroy_serial(struct kref *kref)
@@ -174,7 +172,9 @@ static void destroy_serial(struct kref *kref)
 
 void usb_serial_put(struct usb_serial *serial)
 {
+	spin_lock(&table_lock);
 	kref_put(&serial->kref, destroy_serial);
+	spin_unlock(&table_lock);
 }
 
 /*****************************************************************************
