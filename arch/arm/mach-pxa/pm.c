@@ -200,29 +200,3 @@ unsigned long sleep_phys_sp(void *sp)
 {
 	return virt_to_phys(sp);
 }
-
-/*
- * Called after processes are frozen, but before we shut down devices.
- */
-int pxa_pm_prepare(suspend_state_t state)
-{
-	extern int pxa_cpu_pm_prepare(suspend_state_t state);
-
-	return pxa_cpu_pm_prepare(state);
-}
-
-EXPORT_SYMBOL_GPL(pxa_pm_prepare);
-
-static struct pm_ops pxa_pm_ops = {
-	.prepare	= pxa_pm_prepare,
-	.enter		= pxa_pm_enter,
-	.valid		= pm_valid_only_mem,
-};
-
-static int __init pxa_pm_init(void)
-{
-	pm_set_ops(&pxa_pm_ops);
-	return 0;
-}
-
-device_initcall(pxa_pm_init);

@@ -23,6 +23,7 @@
 
 #include <asm/hardware.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pm.h>
 
 #include "generic.h"
 
@@ -105,7 +106,7 @@ EXPORT_SYMBOL(get_lcdclk_frequency_10khz);
 
 #ifdef CONFIG_PM
 
-int pxa_cpu_pm_prepare(suspend_state_t state)
+int pxa_pm_prepare(suspend_state_t state)
 {
 	switch (state) {
 	case PM_SUSPEND_MEM:
@@ -133,4 +134,21 @@ void pxa_cpu_pm_enter(suspend_state_t state)
 	}
 }
 
+static struct pm_ops pxa25x_pm_ops = {
+	.prepare	= pxa_pm_prepare,
+	.enter		= pxa_pm_enter,
+	.valid		= pm_valid_only_mem,
+};
 #endif
+
+static int __init pxa25x_init(void)
+{
+	if (cpu_is_pxa21x() || cpu_is_pxa25x()) {
+#ifdef CONFIG_PM
+		pm_set_ops(&pxa25x_pm_ops);
+#endif
+	}
+	return 0; 
+}
+
+subsys_initcall(pxa25x_init);

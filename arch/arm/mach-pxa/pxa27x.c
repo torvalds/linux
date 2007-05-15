@@ -21,6 +21,7 @@
 #include <asm/irq.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/ohci.h>
+#include <asm/arch/pm.h>
 
 #include "generic.h"
 
@@ -122,7 +123,7 @@ EXPORT_SYMBOL(get_lcdclk_frequency_10khz);
 
 #ifdef CONFIG_PM
 
-int pxa_cpu_pm_prepare(suspend_state_t state)
+int pxa_pm_prepare(suspend_state_t state)
 {
 	switch (state) {
 	case PM_SUSPEND_MEM:
@@ -162,6 +163,11 @@ void pxa_cpu_pm_enter(suspend_state_t state)
 	}
 }
 
+static struct pm_ops pxa27x_pm_ops = {
+	.prepare	= pxa_pm_prepare,
+	.enter		= pxa_pm_enter,
+	.valid		= pm_valid_only_mem,
+};
 #endif
 
 /*
@@ -205,7 +211,14 @@ static struct platform_device *devices[] __initdata = {
 
 static int __init pxa27x_init(void)
 {
-	return platform_add_devices(devices, ARRAY_SIZE(devices));
+	int ret = 0;
+	if (cpu_is_pxa27x()) {
+#ifdef CONFIG_PM
+		pm_set_ops(&pxa27x_pm_ops);
+#endif
+		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
+	}
+	return ret;
 }
 
 subsys_initcall(pxa27x_init);
