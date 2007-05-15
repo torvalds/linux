@@ -190,5 +190,5 @@ int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 	write_msi_msg(irq, &msg);
 	set_irq_chip_and_handler(irq, &iop13xx_msi_chip, handle_simple_irq);
 
-	return irq;
+	return 0;
 }
