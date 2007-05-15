@@ -1799,6 +1799,18 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	},
 	{
 		.subvendor = 0x1028,
+		.subdevice = 0x0186,
+		.name = "Dell Latitude D810", /* cf. Malone #41015 */
+		.type = AC97_TUNE_HP_MUTE_LED
+	},
+	{
+		.subvendor = 0x1028,
+		.subdevice = 0x0188,
+		.name = "Dell Inspiron 6000",
+		.type = AC97_TUNE_HP_MUTE_LED /* cf. Malone #41015 */
+	},
+	{
+		.subvendor = 0x1028,
 		.subdevice = 0x0191,
 		.name = "Dell Inspiron 8600",
 		.type = AC97_TUNE_HP_ONLY
@@ -1819,7 +1831,7 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.subvendor = 0x103c,
 		.subdevice = 0x088c,
 		.name = "HP nc8000",
-		.type = AC97_TUNE_MUTE_LED
+		.type = AC97_TUNE_HP_MUTE_LED
 	},
 	{
 		.subvendor = 0x103c,
@@ -1909,6 +1921,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.subvendor = 0x10cf,
 		.subdevice = 0x1253,
 		.name = "Fujitsu S6210",	/* STAC9750/51 */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.subvendor = 0x10cf,
+		.subdevice = 0x127e,
+		.name = "Fujitsu Lifebook C1211D",
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
