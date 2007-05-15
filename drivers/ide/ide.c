@@ -910,6 +910,7 @@ int set_using_dma(ide_drive_t *drive, int arg)
 	err = 0;
 
 	if (arg) {
+		hwif->dma_off_quietly(drive);
 		if (ide_set_dma(drive) || hwif->ide_dma_on(drive))
 			err = -EIO;
 	} else
