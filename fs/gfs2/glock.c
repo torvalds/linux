@@ -1823,8 +1823,8 @@ static int dump_inode(struct glock_iter *gi, struct gfs2_inode *ip)
 
 	print_dbg(gi, "  Inode:\n");
 	print_dbg(gi, "    num = %llu/%llu\n",
-		  (unsigned long long)ip->i_num.no_formal_ino,
-		  (unsigned long long)ip->i_num.no_addr);
+		  (unsigned long long)ip->i_no_formal_ino,
+		  (unsigned long long)ip->i_no_addr);
 	print_dbg(gi, "    type = %u\n", IF2DT(ip->i_inode.i_mode));
 	print_dbg(gi, "    i_flags =");
 	for (x = 0; x < 32; x++)

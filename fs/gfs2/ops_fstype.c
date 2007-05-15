@@ -236,17 +236,17 @@ fail:
 	return error;
 }
 
-static struct inode *gfs2_lookup_root(struct super_block *sb,
-				      struct gfs2_inum_host *inum)
+static inline struct inode *gfs2_lookup_root(struct super_block *sb,
+					     u64 no_addr)
 {
-	return gfs2_inode_lookup(sb, inum, DT_DIR);
+	return gfs2_inode_lookup(sb, no_addr, DT_DIR);
 }
 
 static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 {
 	struct super_block *sb = sdp->sd_vfs;
 	struct gfs2_holder sb_gh;
-	struct gfs2_inum_host *inum;
+	u64 no_addr;
 	struct inode *inode;
 	int error = 0;
 
@@ -289,10 +289,10 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 	sb_set_blocksize(sb, sdp->sd_sb.sb_bsize);
 
 	/* Get the root inode */
-	inum = &sdp->sd_sb.sb_root_dir;
+	no_addr = sdp->sd_sb.sb_root_dir.no_addr;
 	if (sb->s_type == &gfs2meta_fs_type)
-		inum = &sdp->sd_sb.sb_master_dir;
-	inode = gfs2_lookup_root(sb, inum);
+		no_addr = sdp->sd_sb.sb_master_dir.no_addr;
+	inode = gfs2_lookup_root(sb, no_addr);
 	if (IS_ERR(inode)) {
 		error = PTR_ERR(inode);
 		fs_err(sdp, "can't read in root inode: %d\n", error);
@@ -449,7 +449,7 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 	if (undo)
 		goto fail_qinode;
 
-	inode = gfs2_lookup_root(sdp->sd_vfs, &sdp->sd_sb.sb_master_dir);
+	inode = gfs2_lookup_root(sdp->sd_vfs, sdp->sd_sb.sb_master_dir.no_addr);
 	if (IS_ERR(inode)) {
 		error = PTR_ERR(inode);
 		fs_err(sdp, "can't read in master directory: %d\n", error);

@@ -63,7 +63,7 @@ int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
 static inline int gfs2_meta_inode_buffer(struct gfs2_inode *ip,
 					 struct buffer_head **bhp)
 {
-	return gfs2_meta_indirect_buffer(ip, 0, ip->i_num.no_addr, 0, bhp);
+	return gfs2_meta_indirect_buffer(ip, 0, ip->i_no_addr, 0, bhp);
 }
 
 struct buffer_head *gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen);

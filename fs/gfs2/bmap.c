@@ -1040,7 +1040,7 @@ static int trunc_end(struct gfs2_inode *ip)
 		ip->i_di.di_height = 0;
 		ip->i_di.di_goal_meta =
 			ip->i_di.di_goal_data =
-			ip->i_num.no_addr;
+			ip->i_no_addr;
 		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 	}
 	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME_SEC;

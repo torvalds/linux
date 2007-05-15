@@ -213,8 +213,8 @@ enum {
 
 struct gfs2_inode {
 	struct inode i_inode;
-	struct gfs2_inum_host i_num;
-
+	u64 i_no_addr;
+	u64 i_no_formal_ino;
 	unsigned long i_flags;		/* GIF_... */
 
 	struct gfs2_dinode_host i_di; /* To be replaced by ref to block */

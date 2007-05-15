@@ -1456,7 +1456,7 @@ int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
 		if (dip->i_di.di_entries != g.offset) {
 			fs_warn(sdp, "Number of entries corrupt in dir %llu, "
 				"ip->i_di.di_entries (%u) != g.offset (%u)\n",
-				(unsigned long long)dip->i_num.no_addr,
+				(unsigned long long)dip->i_no_addr,
 				dip->i_di.di_entries,
 				g.offset);
 			error = -EIO;
@@ -1488,24 +1488,54 @@ out:
  * Returns: errno
  */
 
-int gfs2_dir_search(struct inode *dir, const struct qstr *name,
-		    struct gfs2_inum_host *inum, unsigned int *type)
+struct inode *gfs2_dir_search(struct inode *dir, const struct qstr *name)
 {
 	struct buffer_head *bh;
 	struct gfs2_dirent *dent;
+	struct inode *inode;
+
+	dent = gfs2_dirent_search(dir, name, gfs2_dirent_find, &bh);
+	if (dent) {
+		if (IS_ERR(dent))
+			return ERR_PTR(PTR_ERR(dent));
+		inode = gfs2_inode_lookup(dir->i_sb,
+					  be64_to_cpu(dent->de_inum.no_addr),
+					  be16_to_cpu(dent->de_type));
+		brelse(bh);
+		return inode;
+	}
+	return ERR_PTR(-ENOENT);
+}
+
+int gfs2_dir_check(struct inode *dir, const struct qstr *name,
+		   const struct gfs2_inode *ip)
+{
+	struct buffer_head *bh;
+	struct gfs2_dirent *dent;
+	int ret = -ENOENT;
 
 	dent = gfs2_dirent_search(dir, name, gfs2_dirent_find, &bh);
 	if (dent) {
 		if (IS_ERR(dent))
 			return PTR_ERR(dent);
-		if (inum)
-			gfs2_inum_in(inum, (char *)&dent->de_inum);
-		if (type)
-			*type = be16_to_cpu(dent->de_type);
+		if (ip) {
+			if (be64_to_cpu(dent->de_inum.no_addr) != ip->i_no_addr)
+				goto out;
+			if (be64_to_cpu(dent->de_inum.no_formal_ino) !=
+			    ip->i_no_formal_ino)
+				goto out;
+			if (unlikely(IF2DT(ip->i_inode.i_mode) !=
+			    be16_to_cpu(dent->de_type))) {
+				gfs2_consist_inode(GFS2_I(dir));
+				ret = -EIO;
+				goto out;
+			}
+		}
+		ret = 0;
+out:
 		brelse(bh);
-		return 0;
 	}
-	return -ENOENT;
+	return ret;
 }
 
 static int dir_new_leaf(struct inode *inode, const struct qstr *name)
@@ -1565,7 +1595,7 @@ static int dir_new_leaf(struct inode *inode, const struct qstr *name)
  */
 
 int gfs2_dir_add(struct inode *inode, const struct qstr *name,
-		 const struct gfs2_inum_host *inum, unsigned type)
+		 const struct gfs2_inode *nip, unsigned type)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct buffer_head *bh;
@@ -1580,7 +1610,7 @@ int gfs2_dir_add(struct inode *inode, const struct qstr *name,
 			if (IS_ERR(dent))
 				return PTR_ERR(dent);
 			dent = gfs2_init_dirent(inode, dent, name, bh);
-			gfs2_inum_out(inum, (char *)&dent->de_inum);
+			gfs2_inum_out(nip, dent);
 			dent->de_type = cpu_to_be16(type);
 			if (ip->i_di.di_flags & GFS2_DIF_EXHASH) {
 				leaf = (struct gfs2_leaf *)bh->b_data;
@@ -1700,7 +1730,7 @@ int gfs2_dir_del(struct gfs2_inode *dip, const struct qstr *name)
  */
 
 int gfs2_dir_mvino(struct gfs2_inode *dip, const struct qstr *filename,
-		   struct gfs2_inum_host *inum, unsigned int new_type)
+		   const struct gfs2_inode *nip, unsigned int new_type)
 {
 	struct buffer_head *bh;
 	struct gfs2_dirent *dent;
@@ -1715,7 +1745,7 @@ int gfs2_dir_mvino(struct gfs2_inode *dip, const struct qstr *filename,
 		return PTR_ERR(dent);
 
 	gfs2_trans_add_bh(dip->i_gl, bh, 1);
-	gfs2_inum_out(inum, (char *)&dent->de_inum);
+	gfs2_inum_out(nip, dent);
 	dent->de_type = cpu_to_be16(new_type);
 
 	if (dip->i_di.di_flags & GFS2_DIF_EXHASH) {

@@ -757,8 +757,8 @@ static unsigned limit = 0;
 			return;
 
 		fs_warn(sdp, "ip = %llu %llu\n",
-			(unsigned long long)ip->i_num.no_formal_ino,
-			(unsigned long long)ip->i_num.no_addr);
+			(unsigned long long)ip->i_no_formal_ino,
+			(unsigned long long)ip->i_no_addr);
 
 		for (x = 0; x < GFS2_MAX_META_HEIGHT; x++)
 			fs_warn(sdp, "ip->i_cache[%u] = %s\n",

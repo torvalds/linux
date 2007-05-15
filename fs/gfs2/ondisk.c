@@ -33,26 +33,10 @@
  * first arg: the cpu-order structure
  */
 
-void gfs2_inum_in(struct gfs2_inum_host *no, const void *buf)
+void gfs2_inum_out(const struct gfs2_inode *ip, struct gfs2_dirent *dent)
 {
-	const struct gfs2_inum *str = buf;
-
-	no->no_formal_ino = be64_to_cpu(str->no_formal_ino);
-	no->no_addr = be64_to_cpu(str->no_addr);
-}
-
-void gfs2_inum_out(const struct gfs2_inum_host *no, void *buf)
-{
-	struct gfs2_inum *str = buf;
-
-	str->no_formal_ino = cpu_to_be64(no->no_formal_ino);
-	str->no_addr = cpu_to_be64(no->no_addr);
-}
-
-static void gfs2_inum_print(const struct gfs2_inum_host *no)
-{
-	printk(KERN_INFO "  no_formal_ino = %llu\n", (unsigned long long)no->no_formal_ino);
-	printk(KERN_INFO "  no_addr = %llu\n", (unsigned long long)no->no_addr);
+	dent->de_inum.no_formal_ino = cpu_to_be64(ip->i_no_formal_ino);
+	dent->de_inum.no_addr = cpu_to_be64(ip->i_no_addr);
 }
 
 static void gfs2_meta_header_in(struct gfs2_meta_header_host *mh, const void *buf)
@@ -74,9 +58,10 @@ void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf)
 	sb->sb_multihost_format = be32_to_cpu(str->sb_multihost_format);
 	sb->sb_bsize = be32_to_cpu(str->sb_bsize);
 	sb->sb_bsize_shift = be32_to_cpu(str->sb_bsize_shift);
-
-	gfs2_inum_in(&sb->sb_master_dir, (char *)&str->sb_master_dir);
-	gfs2_inum_in(&sb->sb_root_dir, (char *)&str->sb_root_dir);
+	sb->sb_master_dir.no_addr = be64_to_cpu(str->sb_master_dir.no_addr);
+	sb->sb_master_dir.no_formal_ino = be64_to_cpu(str->sb_master_dir.no_formal_ino);
+	sb->sb_root_dir.no_addr = be64_to_cpu(str->sb_root_dir.no_addr);
+	sb->sb_root_dir.no_formal_ino = be64_to_cpu(str->sb_root_dir.no_formal_ino);
 
 	memcpy(sb->sb_lockproto, str->sb_lockproto, GFS2_LOCKNAME_LEN);
 	memcpy(sb->sb_locktable, str->sb_locktable, GFS2_LOCKNAME_LEN);
@@ -146,9 +131,8 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_header.__pad0 = 0;
 	str->di_header.mh_format = cpu_to_be32(GFS2_FORMAT_DI);
 	str->di_header.__pad1 = 0;
-
-	gfs2_inum_out(&ip->i_num, &str->di_num);
-
+	str->di_num.no_addr = cpu_to_be64(ip->i_no_addr);
+	str->di_num.no_formal_ino = cpu_to_be64(ip->i_no_formal_ino);
 	str->di_mode = cpu_to_be32(ip->i_inode.i_mode);
 	str->di_uid = cpu_to_be32(ip->i_inode.i_uid);
 	str->di_gid = cpu_to_be32(ip->i_inode.i_gid);
@@ -178,7 +162,8 @@ void gfs2_dinode_print(const struct gfs2_inode *ip)
 {
 	const struct gfs2_dinode_host *di = &ip->i_di;
 
-	gfs2_inum_print(&ip->i_num);
+	printk(KERN_INFO "  no_formal_ino = %llu\n", (unsigned long long)ip->i_no_formal_ino);
+	printk(KERN_INFO "  no_addr = %llu\n", (unsigned long long)ip->i_no_addr);
 
 	printk(KERN_INFO "  di_size = %llu\n", (unsigned long long)di->di_size);
 	printk(KERN_INFO "  di_blocks = %llu\n", (unsigned long long)di->di_blocks);

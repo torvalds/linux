@@ -59,13 +59,6 @@ struct gfs2_inum_host {
 	__u64 no_addr;
 };
 
-static inline int gfs2_inum_equal(const struct gfs2_inum_host *ino1,
-				  const struct gfs2_inum_host *ino2)
-{
-	return ino1->no_formal_ino == ino2->no_formal_ino &&
-	       ino1->no_addr == ino2->no_addr;
-}
-
 /*
  * Generic metadata head structure
  * Every inplace buffer logged in the journal must start with this.
@@ -509,9 +502,9 @@ struct gfs2_quota_change_host {
 
 #ifdef __KERNEL__
 /* Translation functions */
+struct gfs2_inode;
 
-extern void gfs2_inum_in(struct gfs2_inum_host *no, const void *buf);
-extern void gfs2_inum_out(const struct gfs2_inum_host *no, void *buf);
+extern void gfs2_inum_out(const struct gfs2_inode *ip, struct gfs2_dirent *dent);
 extern void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf);
 extern void gfs2_rindex_in(struct gfs2_rindex_host *ri, const void *buf);
 extern void gfs2_rindex_out(const struct gfs2_rindex_host *ri, void *buf);

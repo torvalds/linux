@@ -360,7 +360,7 @@ int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 		name.len = sprintf(buf, "journal%u", sdp->sd_journals);
 		name.hash = gfs2_disk_hash(name.name, name.len);
 
-		error = gfs2_dir_search(sdp->sd_jindex, &name, NULL, NULL);
+		error = gfs2_dir_check(sdp->sd_jindex, &name, NULL);
 		if (error == -ENOENT) {
 			error = 0;
 			break;

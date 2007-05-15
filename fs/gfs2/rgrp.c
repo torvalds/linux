@@ -1470,7 +1470,7 @@ void gfs2_unlink_di(struct inode *inode)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_rgrpd *rgd;
-	u64 blkno = ip->i_num.no_addr;
+	u64 blkno = ip->i_no_addr;
 
 	rgd = rgblk_free(sdp, blkno, 1, GFS2_BLKST_UNLINKED);
 	if (!rgd)
@@ -1505,9 +1505,9 @@ static void gfs2_free_uninit_di(struct gfs2_rgrpd *rgd, u64 blkno)
 
 void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip)
 {
-	gfs2_free_uninit_di(rgd, ip->i_num.no_addr);
+	gfs2_free_uninit_di(rgd, ip->i_no_addr);
 	gfs2_quota_change(ip, -1, ip->i_inode.i_uid, ip->i_inode.i_gid);
-	gfs2_meta_wipe(ip, ip->i_num.no_addr, 1);
+	gfs2_meta_wipe(ip, ip->i_no_addr, 1);
 }
 
 /**
