@@ -381,18 +381,6 @@ config SH_LBOX_RE2
 	help
 	  Select L-BOX RE2 if configuring for the NTT COMWARE L-BOX RE2.
 
-config SH_UNKNOWN
-	bool "BareCPU"
-	help
-	  "Bare CPU" aka "unknown" means an SH-based system which is not one
-	  of the specific ones mentioned above, which means you need to enter
-	  all sorts of stuff like CONFIG_MEMORY_START because the config
-	  system doesn't already know what it is.  You get a machine vector
-	  without any platform-specific code in it, so things like the RTC may
-	  not work.
-
-	  This option is for the early stages of porting to a new machine.
-
 endmenu
 
 source "arch/sh/boards/renesas/hs7751rvoip/Kconfig"
@@ -401,7 +389,7 @@ source "arch/sh/boards/renesas/r7780rp/Kconfig"
 
 config CF_ENABLER
 	bool "Compact Flash Enabler support"
-	depends on SH_SOLUTION_ENGINE || SH_UNKNOWN || SH_SH03
+	depends on SH_SOLUTION_ENGINE || SH_SH03
 	---help---
 	  Compact Flash is a small, removable mass storage device introduced
 	  in 1994 originally as a PCMCIA device.  If you say `Y' here, you

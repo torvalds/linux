@@ -35,6 +35,8 @@ static struct sh_machine_vector * __init get_mv_byname(const char *name)
 	return NULL;
 }
 
+static unsigned int __initdata machvec_selected;
+
 static int __init early_parse_mv(char *from)
 {
 	char mv_name[MV_NAME_SIZE] = "";
@@ -55,9 +57,15 @@ static int __init early_parse_mv(char *from)
 	mv_name[mv_len] = '\0';
 	from = mv_end;
 
+	machvec_selected = 1;
+
+	/* Boot with the generic vector */
+	if (strcmp(mv_name, "generic") == 0)
+		return 0;
+
 	mvp = get_mv_byname(mv_name);
 	if (unlikely(!mvp)) {
-		printk("Available vectors:\n\n\t");
+		printk("Available vectors:\n\n\t'%s', ", sh_mv.mv_name);
 		for_each_mv(mvp)
 			printk("'%s', ", mvp->mv_name);
 		printk("\n\n");
@@ -76,7 +84,7 @@ void __init sh_mv_setup(void)
 	 * Only overload the machvec if one hasn't been selected on
 	 * the command line with sh_mv=
 	 */
-	if (strcmp(sh_mv.mv_name, "Unknown") != 0) {
+	if (!machvec_selected) {
 		unsigned long machvec_size;
 
 		machvec_size = ((unsigned long)&__machvec_end -
