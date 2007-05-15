@@ -76,7 +76,7 @@ void __init n2100_map_io(void)
 /*
  * N2100 PCI.
  */
-static inline int __init
+static int __init
 n2100_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;

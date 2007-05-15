@@ -144,7 +144,7 @@ void iop13xx_map_pci_memory(void)
 	}
 }
 
-static inline int iop13xx_atu_function(int atu)
+static int iop13xx_atu_function(int atu)
 {
 	int func = 0;
 	/* the function number depends on the value of the
@@ -259,7 +259,7 @@ static int iop13xx_atux_pci_status(int clear)
  * data.  Note that the data dependency on %0 encourages an abort
  * to be detected before we return.
  */
-static inline u32 iop13xx_atux_read(unsigned long addr)
+static u32 iop13xx_atux_read(unsigned long addr)
 {
 	u32 val;
 
@@ -387,7 +387,7 @@ static int iop13xx_atue_pci_status(int clear)
 	return err;
 }
 
-static inline int __init
+static int
 iop13xx_pcie_map_irq(struct pci_dev *dev, u8 idsel, u8 pin)
 {
 	WARN_ON(idsel != 0);
@@ -401,7 +401,7 @@ iop13xx_pcie_map_irq(struct pci_dev *dev, u8 idsel, u8 pin)
 	}
 }
 
-static inline u32 iop13xx_atue_read(unsigned long addr)
+static u32 iop13xx_atue_read(unsigned long addr)
 {
 	u32 val;
 

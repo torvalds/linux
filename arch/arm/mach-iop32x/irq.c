@@ -21,12 +21,12 @@
 
 static u32 iop32x_mask;
 
-static inline void intctl_write(u32 val)
+static void intctl_write(u32 val)
 {
 	asm volatile("mcr p6, 0, %0, c0, c0, 0" : : "r" (val));
 }
 
-static inline void intstr_write(u32 val)
+static void intstr_write(u32 val)
 {
 	asm volatile("mcr p6, 0, %0, c4, c0, 0" : : "r" (val));
 }

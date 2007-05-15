@@ -55,7 +55,7 @@ static struct sys_timer iq80331_timer = {
 /*
  * IQ80331 PCI.
  */
-static inline int __init
+static int __init
 iq80331_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;

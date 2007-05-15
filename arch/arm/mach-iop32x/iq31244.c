@@ -104,7 +104,7 @@ void __init iq31244_map_io(void)
 /*
  * EP80219/IQ31244 PCI.
  */
-static inline int __init
+static int __init
 ep80219_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
@@ -140,7 +140,7 @@ static struct hw_pci ep80219_pci __initdata = {
 	.map_irq	= ep80219_pci_map_irq,
 };
 
-static inline int __init
+static int __init
 iq31244_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
