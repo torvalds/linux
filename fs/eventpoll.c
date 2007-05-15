@@ -469,18 +469,16 @@ static void ep_free(struct eventpoll *ep)
 	}
 
 	mutex_unlock(&epmutex);
-
 	mutex_destroy(&ep->mtx);
+	kfree(ep);
 }
 
 static int ep_eventpoll_release(struct inode *inode, struct file *file)
 {
 	struct eventpoll *ep = file->private_data;
 
-	if (ep) {
+	if (ep)
 		ep_free(ep);
-		kfree(ep);
-	}
 
 	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: close() ep=%p\n", current, ep));
 	return 0;
@@ -1107,7 +1105,6 @@ asmlinkage long sys_epoll_create(int size)
 
 error_free:
 	ep_free(ep);
-	kfree(ep);
 error_return:
 	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_create(%d) = %d\n",
 		     current, size, error));
