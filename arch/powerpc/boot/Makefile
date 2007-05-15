@@ -204,11 +204,11 @@ dts = $(if $(shell echo $(CONFIG_DEVICE_TREE) | grep '^/'),\
 $(obj)/cuImage.%: vmlinux $(dts) $(wrapperbits)
 	$(call if_changed,wrap,cuboot-$*,$(dts))
 
-$(obj)/treeImage.%: vmlinux $(dts) $(wrapperbits)
-	$(call if_changed,wrap,treeboot-$*,$(dts))
-
 $(obj)/treeImage.initrd.%: vmlinux $(dts) $(wrapperbits)
 	$(call if_changed,wrap,treeboot-$*,$(dts),,$(obj)/ramdisk.image.gz)
+
+$(obj)/treeImage.%: vmlinux $(dts) $(wrapperbits)
+	$(call if_changed,wrap,treeboot-$*,$(dts))
 
 $(obj)/zImage:		$(addprefix $(obj)/, $(image-y))
 	@rm -f $@; ln $< $@
