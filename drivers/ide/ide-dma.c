@@ -731,10 +731,12 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base)
 			mask &= 0x07;
 		break;
 	case XFER_MW_DMA_0:
-		mask = id->dma_mword & hwif->mwdma_mask;
+		if (id->field_valid & 2)
+			mask = id->dma_mword & hwif->mwdma_mask;
 		break;
 	case XFER_SW_DMA_0:
-		mask = id->dma_1word & hwif->swdma_mask;
+		if (id->field_valid & 2)
+			mask = id->dma_1word & hwif->swdma_mask;
 		break;
 	default:
 		BUG();
