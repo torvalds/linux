@@ -62,6 +62,42 @@
 
 #ifndef __ASSEMBLY__
 
+#define __cpu_is_pxa21x(id)				\
+	({						\
+		unsigned int _id = (id) >> 4 & 0xf3f;	\
+		_id == 0x212;				\
+	})
+
+#define __cpu_is_pxa25x(id)				\
+	({						\
+		unsigned int _id = (id) >> 4 & 0xfff;	\
+		_id == 0x2d0 || _id == 0x290;		\
+	})
+
+#define __cpu_is_pxa27x(id)				\
+	({						\
+		unsigned int _id = (id) >> 4 & 0xfff;	\
+		_id == 0x411;				\
+	})
+
+#define cpu_is_pxa21x()					\
+	({						\
+		unsigned int id = read_cpuid(CPUID_ID);	\
+		__cpu_is_pxa21x(id);			\
+	})
+
+#define cpu_is_pxa25x()					\
+	({						\
+		unsigned int id = read_cpuid(CPUID_ID);	\
+		__cpu_is_pxa25x(id);			\
+	})
+
+#define cpu_is_pxa27x()					\
+	({						\
+		unsigned int id = read_cpuid(CPUID_ID);	\
+		__cpu_is_pxa27x(id);			\
+	})
+
 /*
  * Handy routine to set GPIO alternate functions
  */

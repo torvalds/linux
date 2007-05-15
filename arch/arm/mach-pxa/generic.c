@@ -448,16 +448,14 @@ static struct platform_device *devices[] __initdata = {
 
 static int __init pxa_init(void)
 {
-	int cpuid, ret;
+	int ret;
 
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	if (ret)
 		return ret;
 
 	/* Only add HWUART for PXA255/26x; PXA210/250/27x do not have it. */
-	cpuid = read_cpuid(CPUID_ID);
-	if (((cpuid >> 4) & 0xfff) == 0x2d0 ||
-	    ((cpuid >> 4) & 0xfff) == 0x290)
+	if (cpu_is_pxa25x())
 		ret = platform_device_register(&hwuart_device);
 
 	return ret;
