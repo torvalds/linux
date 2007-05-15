@@ -127,6 +127,7 @@ module_param_array(dma2, int, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 # for " IDENT " driver.");
 
 #ifdef CONFIG_PNP
+static int isa_registered;
 static int pnpc_registered;
 #ifdef CS4232
 static int pnp_registered;
@@ -770,9 +771,9 @@ static int __init alsa_card_cs423x_init(void)
 	int err;
 
 	err = isa_register_driver(&cs423x_isa_driver, SNDRV_CARDS);
-	if (err < 0)
-		return err;
 #ifdef CONFIG_PNP
+	if (!err)
+		isa_registered = 1;
 #ifdef CS4232
 	err = pnp_register_driver(&cs4232_pnp_driver);
 	if (!err)
@@ -781,8 +782,14 @@ static int __init alsa_card_cs423x_init(void)
 	err = pnp_register_card_driver(&cs423x_pnpc_driver);
 	if (!err)
 		pnpc_registered = 1;
-#endif /* CONFIG_PNP */
-	return 0;
+#ifdef CS4232
+	if (pnp_registered)
+		err = 0;
+#endif
+	if (isa_registered)
+		err = 0;
+#endif
+	return err;
 }
 
 static void __exit alsa_card_cs423x_exit(void)
@@ -794,8 +801,9 @@ static void __exit alsa_card_cs423x_exit(void)
 	if (pnp_registered)
 		pnp_unregister_driver(&cs4232_pnp_driver);
 #endif
-#endif /* CONFIG_PNP */
-	isa_unregister_driver(&cs423x_isa_driver);
+	if (isa_registered)
+#endif
+		isa_unregister_driver(&cs423x_isa_driver);
 }
 
 module_init(alsa_card_cs423x_init)
