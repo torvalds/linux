@@ -427,11 +427,13 @@ static int __devinit of_pci_phb_probe(struct of_device *dev,
 	/* Process "ranges" property */
 	pci_process_bridge_OF_ranges(phb, dev->node, 0);
 
-	/* Setup IO space.
-	 * This will not work properly for ISA IOs, something needs to be done
-	 * about it if we ever generalize that way of probing PCI brigdes
+	/* Setup IO space. We use the non-dynamic version of that code here,
+	 * which doesn't quite support unplugging. Next kernel release will
+	 * have a better fix for this.
+	 * Note also that we don't do ISA, this will also be fixed with a
+	 * more massive rework.
 	 */
-	pci_setup_phb_io_dynamic(phb, 0);
+	pci_setup_phb_io(phb, 0);
 
 	/* Init pci_dn data structures */
 	pci_devs_phb_init_dynamic(phb);
