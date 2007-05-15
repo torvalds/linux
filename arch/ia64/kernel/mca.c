@@ -273,7 +273,6 @@ static void ia64_mlogbuf_finish(int wait)
 
 	mlogbuf_finished = 1;
 }
-EXPORT_SYMBOL(ia64_mlogbuf_finish);
 
 /*
  * Print buffered messages from INIT context.
