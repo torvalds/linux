@@ -311,6 +311,7 @@ int audit_match_class(int class, unsigned syscall)
 	return classes[class][AUDIT_WORD(syscall)] & AUDIT_BIT(syscall);
 }
 
+#ifdef CONFIG_AUDITSYSCALL
 static inline int audit_match_class_bits(int class, u32 *mask)
 {
 	int i;
@@ -347,6 +348,7 @@ static int audit_match_signal(struct audit_entry *entry)
 		return 1;
 	}
 }
+#endif
 
 /* Common user-space to kernel rule translation. */
 static inline struct audit_entry *audit_to_entry_common(struct audit_rule *rule)
