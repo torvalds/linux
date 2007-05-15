@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/sc1200.c		Version 0.93	Mar 10 2007
+ * linux/drivers/ide/pci/sc1200.c		Version 0.94	Mar 10 2007
  *
  * Copyright (C) 2000-2002		Mark Lord <mlord@pobox.com>
  * Copyright (C)      2007		Bartlomiej Zolnierkiewicz
@@ -95,6 +95,20 @@ static const unsigned int sc1200_pio_timings[4][5] =
  */
 //#define SC1200_BAD_PIO(timings) (((timings)&~0x80000000)==0x00009172)
 
+static void sc1200_tunepio(ide_drive_t *drive, u8 pio)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	struct pci_dev *pdev = hwif->pci_dev;
+	unsigned int basereg = hwif->channel ? 0x50 : 0x40, format = 0;
+
+	pci_read_config_dword(pdev, basereg + 4, &format);
+	format = (format >> 31) & 1;
+	if (format)
+		format += sc1200_get_pci_clock();
+	pci_write_config_dword(pdev, basereg + ((drive->dn & 1) << 3),
+			       sc1200_pio_timings[format][pio]);
+}
+
 /*
  *	The SC1200 specifies that two drives sharing a cable cannot mix
  *	UDMA/MDMA.  It has to be one or the other, for the pair, though
@@ -124,11 +138,7 @@ out:
 	return mask;
 }
 
-/*
- * sc1200_config_dma2() handles selection/setting of DMA/UDMA modes
- * for both the chipset and drive.
- */
-static int sc1200_config_dma2 (ide_drive_t *drive, int mode)
+static int sc1200_tune_chipset(ide_drive_t *drive, u8 mode)
 {
 	ide_hwif_t		*hwif = HWIF(drive);
 	int			unit = drive->select.b.unit;
@@ -136,12 +146,24 @@ static int sc1200_config_dma2 (ide_drive_t *drive, int mode)
 	unsigned short		pci_clock;
 	unsigned int		basereg = hwif->channel ? 0x50 : 0x40;
 
+	mode = ide_rate_filter(drive, mode);
+
 	/*
 	 * Tell the drive to switch to the new mode; abort on failure.
 	 */
-	if (!mode || sc1200_set_xfer_mode(drive, mode)) {
+	if (sc1200_set_xfer_mode(drive, mode)) {
 		printk("SC1200: set xfer mode failure\n");
 		return 1;	/* failure */
+	}
+
+	switch (mode) {
+	case XFER_PIO_4:
+	case XFER_PIO_3:
+	case XFER_PIO_2:
+	case XFER_PIO_1:
+	case XFER_PIO_0:
+		sc1200_tunepio(drive, mode - XFER_PIO_0);
+		return 0;
 	}
 
 	pci_clock = sc1200_get_pci_clock();
@@ -196,11 +218,9 @@ static int sc1200_config_dma2 (ide_drive_t *drive, int mode)
 				case PCI_CLK_66:	timings = 0x00015151;	break;
 			}
 			break;
-	}
-
-	if (timings == 0) {
-		printk("%s: sc1200_config_dma: huh? mode=%02x clk=%x \n", drive->name, mode, pci_clock);
-		return 1;	/* failure */
+		default:
+			BUG();
+			break;
 	}
 
 	if (unit == 0) {			/* are we configuring drive0? */
@@ -220,12 +240,14 @@ static int sc1200_config_dma2 (ide_drive_t *drive, int mode)
  */
 static int sc1200_config_dma (ide_drive_t *drive)
 {
-	u8 mode = 0;
+	if (ide_use_dma(drive)) {
+		u8 mode = ide_max_dma_mode(drive);
 
-	if (ide_use_dma(drive))
-		mode = ide_max_dma_mode(drive);
+		if (mode && drive->hwif->speedproc(drive, mode) == 0)
+			return 0;
+	}
 
-	return sc1200_config_dma2(drive, mode);
+	return 1;
 }
 
 
@@ -265,8 +287,6 @@ static int sc1200_ide_dma_end (ide_drive_t *drive)
 static void sc1200_tuneproc (ide_drive_t *drive, byte pio)	/* mode=255 means "autotune" */
 {
 	ide_hwif_t	*hwif = HWIF(drive);
-	unsigned int	format;
-	static byte	modes[5] = {XFER_PIO_0, XFER_PIO_1, XFER_PIO_2, XFER_PIO_3, XFER_PIO_4};
 	int		mode = -1;
 
 	/*
@@ -283,21 +303,16 @@ static void sc1200_tuneproc (ide_drive_t *drive, byte pio)	/* mode=255 means "au
 	if (mode != -1) {
 		printk("SC1200: %s: changing (U)DMA mode\n", drive->name);
 		hwif->dma_off_quietly(drive);
-		if (sc1200_config_dma2(drive, mode) == 0)
+		if (sc1200_tune_chipset(drive, mode) == 0)
 			hwif->dma_host_on(drive);
 		return;
 	}
 
 	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
 	printk("SC1200: %s: setting PIO mode%d\n", drive->name, pio);
-	if (!sc1200_set_xfer_mode(drive, modes[pio])) {
-		unsigned int basereg = hwif->channel ? 0x50 : 0x40;
-		pci_read_config_dword (hwif->pci_dev, basereg+4, &format);
-		format = (format >> 31) & 1;
-		if (format)
-			format += sc1200_get_pci_clock();
-		pci_write_config_dword(hwif->pci_dev, basereg + (drive->select.b.unit << 3), sc1200_pio_timings[format][pio]);
- 	}
+
+	if (sc1200_set_xfer_mode(drive, XFER_PIO_0 + pio) == 0)
+		sc1200_tunepio(drive, pio);
 }
 
 #ifdef CONFIG_PM
@@ -447,6 +462,7 @@ static void __devinit init_hwif_sc1200 (ide_hwif_t *hwif)
         	if (!noautodma)
                 	hwif->autodma = 1;
 		hwif->tuneproc = &sc1200_tuneproc;
+		hwif->speedproc = &sc1200_tune_chipset;
 	}
         hwif->atapi_dma = 1;
         hwif->ultra_mask = 0x07;

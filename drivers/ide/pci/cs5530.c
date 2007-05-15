@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/cs5530.c		Version 0.72	Mar 10 2007
+ * linux/drivers/ide/pci/cs5530.c		Version 0.73	Mar 10 2007
  *
  * Copyright (C) 2000			Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2000			Mark Lord <mlord@pobox.com>
@@ -62,6 +62,14 @@ static unsigned int cs5530_pio_timings[2][5] = {
 #define CS5530_BAD_PIO(timings) (((timings)&~0x80000000)==0x0000e132)
 #define CS5530_BASEREG(hwif)	(((hwif)->dma_base & ~0xf) + ((hwif)->channel ? 0x30 : 0x20))
 
+static void cs5530_tunepio(ide_drive_t *drive, u8 pio)
+{
+	unsigned long basereg = CS5530_BASEREG(drive->hwif);
+	unsigned int format = (inl(basereg + 4) >> 31) & 1;
+
+	outl(cs5530_pio_timings[format][pio], basereg + ((drive->dn & 1)<<3));
+}
+
 /**
  *	cs5530_tuneproc		-	select/set PIO modes
  *
@@ -74,17 +82,10 @@ static unsigned int cs5530_pio_timings[2][5] = {
 
 static void cs5530_tuneproc (ide_drive_t *drive, u8 pio)	/* pio=255 means "autotune" */
 {
-	ide_hwif_t	*hwif = HWIF(drive);
-	unsigned int	format;
-	unsigned long basereg = CS5530_BASEREG(hwif);
-	static u8	modes[5] = { XFER_PIO_0, XFER_PIO_1, XFER_PIO_2, XFER_PIO_3, XFER_PIO_4};
-
 	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
-	if (!cs5530_set_xfer_mode(drive, modes[pio])) {
-		format = (inl(basereg + 4) >> 31) & 1;
-		outl(cs5530_pio_timings[format][pio],
-			basereg+(drive->select.b.unit<<3));
-	}
+
+	if (cs5530_set_xfer_mode(drive, XFER_PIO_0 + pio) == 0)
+		cs5530_tunepio(drive, pio);
 }
 
 /**
@@ -136,18 +137,27 @@ out:
 
 static int cs5530_config_dma(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
-	unsigned int reg, timings = 0;
-	unsigned long basereg;
-	u8 unit = drive->dn & 1, mode = 0;
+	if (ide_use_dma(drive)) {
+		u8 mode = ide_max_dma_mode(drive);
 
-	if (ide_use_dma(drive))
-		mode = ide_max_dma_mode(drive);
+		if (mode && drive->hwif->speedproc(drive, mode) == 0)
+			return 0;
+	}
+
+	return 1;
+}
+
+static int cs5530_tune_chipset(ide_drive_t *drive, u8 mode)
+{
+	unsigned long basereg;
+	unsigned int reg, timings = 0;
+
+	mode = ide_rate_filter(drive, mode);
 
 	/*
 	 * Tell the drive to switch to the new mode; abort on failure.
 	 */
-	if (!mode || cs5530_set_xfer_mode(drive, mode))
+	if (cs5530_set_xfer_mode(drive, mode))
 		return 1;	/* failure */
 
 	/*
@@ -160,14 +170,21 @@ static int cs5530_config_dma(ide_drive_t *drive)
 		case XFER_MW_DMA_0:	timings = 0x00077771; break;
 		case XFER_MW_DMA_1:	timings = 0x00012121; break;
 		case XFER_MW_DMA_2:	timings = 0x00002020; break;
+		case XFER_PIO_4:
+		case XFER_PIO_3:
+		case XFER_PIO_2:
+		case XFER_PIO_1:
+		case XFER_PIO_0:
+			cs5530_tunepio(drive, mode - XFER_PIO_0);
+			return 0;
 		default:
 			BUG();
 			break;
 	}
-	basereg = CS5530_BASEREG(hwif);
+	basereg = CS5530_BASEREG(drive->hwif);
 	reg = inl(basereg + 4);			/* get drive0 config register */
 	timings |= reg & 0x80000000;		/* preserve PIO format bit */
-	if (unit == 0) {			/* are we configuring drive0? */
+	if ((drive-> dn & 1) == 0) {		/* are we configuring drive0? */
 		outl(timings, basereg + 4);	/* write drive0 config register */
 	} else {
 		if (timings & 0x00100000)
@@ -293,6 +310,8 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 		hwif->serialized = hwif->mate->serialized = 1;
 
 	hwif->tuneproc = &cs5530_tuneproc;
+	hwif->speedproc = &cs5530_tune_chipset;
+
 	basereg = CS5530_BASEREG(hwif);
 	d0_timings = inl(basereg + 0);
 	if (CS5530_BAD_PIO(d0_timings)) {
