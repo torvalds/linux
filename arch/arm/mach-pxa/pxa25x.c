@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
 #include <linux/pm.h>
 
 #include <asm/hardware.h>
@@ -136,6 +137,19 @@ void __init pxa25x_init_irq(void)
 	pxa_init_irq_gpio(85);
 }
 
+static struct platform_device *pxa25x_devices[] __initdata = {
+	&pxamci_device,
+	&pxaudc_device,
+	&pxafb_device,
+	&ffuart_device,
+	&btuart_device,
+	&stuart_device,
+	&pxai2c_device,
+	&pxai2s_device,
+	&pxaficp_device,
+	&pxartc_device,
+};
+
 static int __init pxa25x_init(void)
 {
 	int ret = 0;
@@ -146,8 +160,14 @@ static int __init pxa25x_init(void)
 #ifdef CONFIG_PM
 		pm_set_ops(&pxa25x_pm_ops);
 #endif
+		ret = platform_add_devices(pxa25x_devices,
+					   ARRAY_SIZE(pxa25x_devices));
 	}
-	return 0; 
+	/* Only add HWUART for PXA255/26x; PXA210/250/27x do not have it. */
+	if (cpu_is_pxa25x())
+		ret = platform_device_register(&hwuart_device);
+
+	return ret;
 }
 
 subsys_initcall(pxa25x_init);

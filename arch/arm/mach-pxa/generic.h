@@ -26,3 +26,14 @@ extern unsigned int get_clk_frequency_khz(int info);
 	mi->bank[__nr].size = (__size), \
 	mi->bank[__nr].node = (((unsigned)(__start) - PHYS_OFFSET) >> 27)
 
+extern struct platform_device pxamci_device;
+extern struct platform_device pxaudc_device;
+extern struct platform_device pxafb_device;
+extern struct platform_device ffuart_device;
+extern struct platform_device btuart_device;
+extern struct platform_device stuart_device;
+extern struct platform_device hwuart_device;
+extern struct platform_device pxai2c_device;
+extern struct platform_device pxai2s_device;
+extern struct platform_device pxaficp_device;
+extern struct platform_device pxartc_device;
