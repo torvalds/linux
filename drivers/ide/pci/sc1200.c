@@ -1,7 +1,9 @@
 /*
- * linux/drivers/ide/pci/sc1200.c		Version 0.91	28-Jan-2003
+ * linux/drivers/ide/pci/sc1200.c		Version 0.92	Mar 10 2007
  *
  * Copyright (C) 2000-2002		Mark Lord <mlord@pobox.com>
+ * Copyright (C)      2007		Bartlomiej Zolnierkiewicz
+ *
  * May be copied or modified under the terms of the GNU General Public License
  *
  * Development of this chipset driver was funded
@@ -93,57 +95,33 @@ static const unsigned int sc1200_pio_timings[4][5] =
  */
 //#define SC1200_BAD_PIO(timings) (((timings)&~0x80000000)==0x00009172)
 
-static int sc1200_autoselect_dma_mode (ide_drive_t *drive)
+/*
+ *	The SC1200 specifies that two drives sharing a cable cannot mix
+ *	UDMA/MDMA.  It has to be one or the other, for the pair, though
+ *	different timings can still be chosen for each drive.  We could
+ *	set the appropriate timing bits on the fly, but that might be
+ *	a bit confusing.  So, for now we statically handle this requirement
+ *	by looking at our mate drive to see what it is capable of, before
+ *	choosing a mode for our own drive.
+ */
+static u8 sc1200_udma_filter(ide_drive_t *drive)
 {
-	int			udma_ok = 1, mode = 0;
-	ide_hwif_t		*hwif = HWIF(drive);
-	int			unit = drive->select.b.unit;
-	ide_drive_t		*mate = &hwif->drives[unit^1];
-	struct hd_driveid	*id = drive->id;
+	ide_hwif_t *hwif = drive->hwif;
+	ide_drive_t *mate = &hwif->drives[(drive->dn & 1) ^ 1];
+	struct hd_driveid *mateid = mate->id;
+	u8 mask = hwif->ultra_mask;
 
-	/*
-	 * The SC1200 specifies that two drives sharing a cable cannot
-	 * mix UDMA/MDMA.  It has to be one or the other, for the pair,
-	 * though different timings can still be chosen for each drive.
-	 * We could set the appropriate timing bits on the fly,
-	 * but that might be a bit confusing.  So, for now we statically
-	 * handle this requirement by looking at our mate drive to see
-	 * what it is capable of, before choosing a mode for our own drive.
-	 */
-	if (mate->present) {
-		struct hd_driveid *mateid = mate->id;
-		if (mateid && (mateid->capability & 1) && !__ide_dma_bad_drive(mate)) {
-			if ((mateid->field_valid & 4) && (mateid->dma_ultra & 7))
-				udma_ok = 1;
-			else if ((mateid->field_valid & 2) && (mateid->dma_mword & 7))
-				udma_ok = 0;
-			else
-				udma_ok = 1;
-		}
+	if (mate->present == 0)
+		goto out;
+
+	if ((mateid->capability & 1) && __ide_dma_bad_drive(mate) == 0) {
+		if ((mateid->field_valid & 4) && (mateid->dma_ultra & 7))
+			goto out;
+		if ((mateid->field_valid & 2) && (mateid->dma_mword & 7))
+			mask = 0;
 	}
-	/*
-	 * Now see what the current drive is capable of,
-	 * selecting UDMA only if the mate said it was ok.
-	 */
-	if (id && (id->capability & 1) && hwif->autodma && !__ide_dma_bad_drive(drive)) {
-		if (udma_ok && (id->field_valid & 4) && (id->dma_ultra & 7)) {
-			if      (id->dma_ultra & 4)
-				mode = XFER_UDMA_2;
-			else if (id->dma_ultra & 2)
-				mode = XFER_UDMA_1;
-			else if (id->dma_ultra & 1)
-				mode = XFER_UDMA_0;
-		}
-		if (!mode && (id->field_valid & 2) && (id->dma_mword & 7)) {
-			if      (id->dma_mword & 4)
-				mode = XFER_MW_DMA_2;
-			else if (id->dma_mword & 2)
-				mode = XFER_MW_DMA_1;
-			else if (id->dma_mword & 1)
-				mode = XFER_MW_DMA_0;
-		}
-	}
-	return mode;
+out:
+	return mask;
 }
 
 /*
@@ -250,7 +228,12 @@ static int sc1200_config_dma2 (ide_drive_t *drive, int mode)
  */
 static int sc1200_config_dma (ide_drive_t *drive)
 {
-	return sc1200_config_dma2(drive, sc1200_autoselect_dma_mode(drive));
+	u8 mode = 0;
+
+	if (ide_use_dma(drive))
+		mode = ide_max_dma_mode(drive);
+
+	return sc1200_config_dma2(drive, mode);
 }
 
 
@@ -461,6 +444,7 @@ static void __devinit init_hwif_sc1200 (ide_hwif_t *hwif)
 		hwif->serialized = hwif->mate->serialized = 1;
 	hwif->autodma = 0;
 	if (hwif->dma_base) {
+		hwif->udma_filter = sc1200_udma_filter;
 		hwif->ide_dma_check = &sc1200_config_dma;
 		hwif->ide_dma_end   = &sc1200_ide_dma_end;
         	if (!noautodma)

@@ -1,10 +1,10 @@
 /*
- * linux/drivers/ide/pci/cs5530.c		Version 0.7	Sept 10, 2002
+ * linux/drivers/ide/pci/cs5530.c		Version 0.71	Mar 10 2007
  *
  * Copyright (C) 2000			Andre Hedrick <andre@linux-ide.org>
- * Ditto of GNU General Public License.
- *
  * Copyright (C) 2000			Mark Lord <mlord@pobox.com>
+ * Copyright (C) 2007			Bartlomiej Zolnierkiewicz
+ *
  * May be copied or modified under the terms of the GNU General Public License
  *
  * Development of this chipset driver was funded
@@ -88,79 +88,66 @@ static void cs5530_tuneproc (ide_drive_t *drive, u8 pio)	/* pio=255 means "autot
 }
 
 /**
- *	cs5530_config_dma	-	select/set DMA and UDMA modes
+ *	cs5530_udma_filter	-	UDMA filter
+ *	@drive: drive
+ *
+ *	cs5530_udma_filter() does UDMA mask filtering for the given drive
+ *	taking into the consideration capabilities of the mate device.
+ *
+ *	The CS5530 specifies that two drives sharing a cable cannot mix
+ *	UDMA/MDMA.  It has to be one or the other, for the pair, though
+ *	different timings can still be chosen for each drive.  We could
+ *	set the appropriate timing bits on the fly, but that might be
+ *	a bit confusing.  So, for now we statically handle this requirement
+ *	by looking at our mate drive to see what it is capable of, before
+ *	choosing a mode for our own drive.
+ *
+ *	Note: This relies on the fact we never fail from UDMA to MWDMA2
+ *	but instead drop to PIO.
+ */
+
+static u8 cs5530_udma_filter(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	ide_drive_t *mate = &hwif->drives[(drive->dn & 1) ^ 1];
+	struct hd_driveid *mateid = mate->id;
+	u8 mask = hwif->ultra_mask;
+
+	if (mate->present == 0)
+		goto out;
+
+	if ((mateid->capability & 1) && __ide_dma_bad_drive(mate) == 0) {
+		if ((mateid->field_valid & 4) && (mateid->dma_ultra & 7))
+			goto out;
+		if ((mateid->field_valid & 2) && (mateid->dma_mword & 7))
+			mask = 0;
+	}
+out:
+	return mask;
+}
+
+/**
+ *	cs5530_config_dma	-	set DMA/UDMA mode
  *	@drive: drive to tune
  *
- *	cs5530_config_dma() handles selection/setting of DMA/UDMA modes
- *	for both the chipset and drive. The CS5530 has limitations about
- *	mixing DMA/UDMA on the same cable.
+ *	cs5530_config_dma() handles setting of DMA/UDMA mode
+ *	for both the chipset and drive.
  */
- 
-static int cs5530_config_dma (ide_drive_t *drive)
+
+static int cs5530_config_dma(ide_drive_t *drive)
 {
-	int			udma_ok = 1, mode = 0;
-	ide_hwif_t		*hwif = HWIF(drive);
-	int			unit = drive->select.b.unit;
-	ide_drive_t		*mate = &hwif->drives[unit^1];
-	struct hd_driveid	*id = drive->id;
-	unsigned int		reg, timings = 0;
-	unsigned long		basereg;
+	ide_hwif_t *hwif = drive->hwif;
+	unsigned int reg, timings = 0;
+	unsigned long basereg;
+	u8 unit = drive->dn & 1, mode = 0;
 
 	/*
 	 * Default to DMA-off in case we run into trouble here.
 	 */
 	hwif->dma_off_quietly(drive);
 
-	/*
-	 * The CS5530 specifies that two drives sharing a cable cannot
-	 * mix UDMA/MDMA.  It has to be one or the other, for the pair,
-	 * though different timings can still be chosen for each drive.
-	 * We could set the appropriate timing bits on the fly,
-	 * but that might be a bit confusing.  So, for now we statically
-	 * handle this requirement by looking at our mate drive to see
-	 * what it is capable of, before choosing a mode for our own drive.
-	 *
-	 * Note: This relies on the fact we never fail from UDMA to MWDMA_2
-	 * but instead drop to PIO
-	 */
-	if (mate->present) {
-		struct hd_driveid *mateid = mate->id;
-		if (mateid && (mateid->capability & 1) &&
-		    !__ide_dma_bad_drive(mate)) {
-			if ((mateid->field_valid & 4) &&
-			    (mateid->dma_ultra & 7))
-				udma_ok = 1;
-			else if ((mateid->field_valid & 2) &&
-				 (mateid->dma_mword & 7))
-				udma_ok = 0;
-			else
-				udma_ok = 1;
-		}
-	}
-
-	/*
-	 * Now see what the current drive is capable of,
-	 * selecting UDMA only if the mate said it was ok.
-	 */
-	if (id && (id->capability & 1) && drive->autodma &&
-	    !__ide_dma_bad_drive(drive)) {
-		if (udma_ok && (id->field_valid & 4) && (id->dma_ultra & 7)) {
-			if      (id->dma_ultra & 4)
-				mode = XFER_UDMA_2;
-			else if (id->dma_ultra & 2)
-				mode = XFER_UDMA_1;
-			else if (id->dma_ultra & 1)
-				mode = XFER_UDMA_0;
-		}
-		if (!mode && (id->field_valid & 2) && (id->dma_mword & 7)) {
-			if      (id->dma_mword & 4)
-				mode = XFER_MW_DMA_2;
-			else if (id->dma_mword & 2)
-				mode = XFER_MW_DMA_1;
-			else if (id->dma_mword & 1)
-				mode = XFER_MW_DMA_0;
-		}
-	}
+	if (ide_use_dma(drive))
+		mode = ide_max_dma_mode(drive);
 
 	/*
 	 * Tell the drive to switch to the new mode; abort on failure.
@@ -332,6 +319,7 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 	hwif->ultra_mask = 0x07;
 	hwif->mwdma_mask = 0x07;
 
+	hwif->udma_filter = cs5530_udma_filter;
 	hwif->ide_dma_check = &cs5530_config_dma;
 	if (!noautodma)
 		hwif->autodma = 1;
