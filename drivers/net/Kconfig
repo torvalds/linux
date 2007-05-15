@@ -2508,6 +2508,7 @@ config MLX4_CORE
 
 config MLX4_DEBUG
 	bool "Verbose debugging output" if (MLX4_CORE && EMBEDDED)
+	depends on MLX4_CORE
 	default y
 	---help---
 	  This option causes debugging code to be compiled into the

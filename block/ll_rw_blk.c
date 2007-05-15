@@ -3802,7 +3802,6 @@ static struct io_context *current_io_context(gfp_t gfp_flags, int node)
 
 	return ret;
 }
-EXPORT_SYMBOL(current_io_context);
 
 /*
  * If the current task has no IO context then create one and initialise it.

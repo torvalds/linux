@@ -542,8 +542,6 @@ static int __devinit mlx4_setup_hca(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int err;
 
-	MLX4_INIT_DOORBELL_LOCK(&priv->doorbell_lock);
-
 	err = mlx4_init_uar_table(dev);
 	if (err) {
 		mlx4_err(dev, "Failed to initialize "

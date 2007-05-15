@@ -523,6 +523,8 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 		goto create_qp_exit1;
 	}
 
+	my_qp->ib_qp.qp_num = my_qp->real_qp_num;
+
 	switch (init_attr->qp_type) {
 	case IB_QPT_RC:
 	        if (isdaqp == 0) {
@@ -568,7 +570,7 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 			parms.act_nr_recv_wqes = init_attr->cap.max_recv_wr;
 			parms.act_nr_send_sges = init_attr->cap.max_send_sge;
 			parms.act_nr_recv_sges = init_attr->cap.max_recv_sge;
-			my_qp->real_qp_num =
+			my_qp->ib_qp.qp_num =
 				(init_attr->qp_type == IB_QPT_SMI) ? 0 : 1;
 		}
 
@@ -595,7 +597,6 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 	my_qp->ib_qp.recv_cq = init_attr->recv_cq;
 	my_qp->ib_qp.send_cq = init_attr->send_cq;
 
-	my_qp->ib_qp.qp_num = my_qp->real_qp_num;
 	my_qp->ib_qp.qp_type = init_attr->qp_type;
 
 	my_qp->qp_type = init_attr->qp_type;
@@ -968,17 +969,21 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 			((ehca_mult - 1) / ah_mult) : 0;
 		else
 			mqpcb->max_static_rate = 0;
-
 		update_mask |= EHCA_BMASK_SET(MQPCB_MASK_MAX_STATIC_RATE, 1);
+
+		/*
+		 * Always supply the GRH flag, even if it's zero, to give the
+		 * hypervisor a clear "yes" or "no" instead of a "perhaps"
+		 */
+		update_mask |= EHCA_BMASK_SET(MQPCB_MASK_SEND_GRH_FLAG, 1);
 
 		/*
 		 * only if GRH is TRUE we might consider SOURCE_GID_IDX
 		 * and DEST_GID otherwise phype will return H_ATTR_PARM!!!
 		 */
 		if (attr->ah_attr.ah_flags == IB_AH_GRH) {
-			mqpcb->send_grh_flag = 1 << 31;
-			update_mask |=
-				EHCA_BMASK_SET(MQPCB_MASK_SEND_GRH_FLAG, 1);
+			mqpcb->send_grh_flag = 1;
+
 			mqpcb->source_gid_idx = attr->ah_attr.grh.sgid_index;
 			update_mask |=
 				EHCA_BMASK_SET(MQPCB_MASK_SOURCE_GID_IDX, 1);

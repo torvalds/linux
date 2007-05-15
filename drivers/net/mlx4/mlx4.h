@@ -275,7 +275,6 @@ struct mlx4_priv {
 
 	struct mlx4_uar		driver_uar;
 	void __iomem	       *kar;
-	MLX4_DECLARE_DOORBELL_LOCK(doorbell_lock)
 
 	u32			rev_id;
 	char			board_id[MLX4_BOARD_ID_LEN];

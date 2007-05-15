@@ -74,7 +74,7 @@ static struct clocksource *watchdog;
 static struct timer_list watchdog_timer;
 static DEFINE_SPINLOCK(watchdog_lock);
 static cycle_t watchdog_last;
-static int watchdog_resumed;
+static unsigned long watchdog_resumed;
 
 /*
  * Interval: 0.5sec Threshold: 0.0625s
@@ -104,9 +104,7 @@ static void clocksource_watchdog(unsigned long data)
 
 	spin_lock(&watchdog_lock);
 
-	resumed = watchdog_resumed;
-	if (unlikely(resumed))
-		watchdog_resumed = 0;
+	resumed = test_and_clear_bit(0, &watchdog_resumed);
 
 	wdnow = watchdog->read();
 	wd_nsec = cyc2ns(watchdog, (wdnow - watchdog_last) & watchdog->mask);
@@ -151,9 +149,7 @@ static void clocksource_watchdog(unsigned long data)
 }
 static void clocksource_resume_watchdog(void)
 {
-	spin_lock(&watchdog_lock);
-	watchdog_resumed = 1;
-	spin_unlock(&watchdog_lock);
+	set_bit(0, &watchdog_resumed);
 }
 
 static void clocksource_check_watchdog(struct clocksource *cs)

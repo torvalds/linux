@@ -27,8 +27,16 @@ struct device;
 void __iowrite32_copy(void __iomem *to, const void *from, size_t count);
 void __iowrite64_copy(void __iomem *to, const void *from, size_t count);
 
+#ifdef CONFIG_MMU
 int ioremap_page_range(unsigned long addr, unsigned long end,
 		       unsigned long phys_addr, pgprot_t prot);
+#else
+static inline int ioremap_page_range(unsigned long addr, unsigned long end,
+				     unsigned long phys_addr, pgprot_t prot)
+{
+	return 0;
+}
+#endif
 
 /*
  * Managed iomap interface

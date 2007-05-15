@@ -181,7 +181,7 @@ EXPORT_SYMBOL(strnlen_user);
  * Zero Userspace
  */
 
-unsigned long clear_user(void __user *to, unsigned long n)
+unsigned long __clear_user(void __user *to, unsigned long n)
 {
 	unsigned long res;
 
@@ -219,4 +219,4 @@ unsigned long clear_user(void __user *to, unsigned long n)
 
     return res;
 }
-EXPORT_SYMBOL(clear_user);
+EXPORT_SYMBOL(__clear_user);
