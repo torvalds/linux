@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/poll.h>
 #include <linux/dma-mapping.h>
+#include <linux/mm.h>
 
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
