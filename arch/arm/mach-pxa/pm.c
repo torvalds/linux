@@ -213,20 +213,9 @@ int pxa_pm_prepare(suspend_state_t state)
 
 EXPORT_SYMBOL_GPL(pxa_pm_prepare);
 
-/*
- * Called after devices are re-setup, but before processes are thawed.
- */
-int pxa_pm_finish(suspend_state_t state)
-{
-	return 0;
-}
-
-EXPORT_SYMBOL_GPL(pxa_pm_finish);
-
 static struct pm_ops pxa_pm_ops = {
 	.prepare	= pxa_pm_prepare,
 	.enter		= pxa_pm_enter,
-	.finish		= pxa_pm_finish,
 	.valid		= pm_valid_only_mem,
 };
 
