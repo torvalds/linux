@@ -332,8 +332,7 @@ static irqreturn_t sym53c416_intr_handle(int irq, void *dev_id)
 	int i;
 	unsigned long flags = 0;
 	unsigned char status_reg, pio_int_reg, int_reg;
-	struct scatterlist *sglist;
-	unsigned int sgcount;
+	struct scatterlist *sg;
 	unsigned int tot_trans = 0;
 
 	/* We search the base address of the host adapter which caused the interrupt */
@@ -429,19 +428,15 @@ static irqreturn_t sym53c416_intr_handle(int irq, void *dev_id)
 			{
 				current_command->SCp.phase = data_out;
 				outb(FLUSH_FIFO, base + COMMAND_REG);
-				sym53c416_set_transfer_counter(base, current_command->request_bufflen);
+				sym53c416_set_transfer_counter(base,
+							       scsi_bufflen(current_command));
 				outb(TRANSFER_INFORMATION | PIO_MODE, base + COMMAND_REG);
-				if(!current_command->use_sg)
-					tot_trans = sym53c416_write(base, current_command->request_buffer, current_command->request_bufflen);
-				else
-				{
-					sgcount = current_command->use_sg;
-					sglist = current_command->request_buffer;
-					while(sgcount--)
-					{
-						tot_trans += sym53c416_write(base, SG_ADDRESS(sglist), sglist->length);
-						sglist++;
-					}
+
+				scsi_for_each_sg(current_command,
+						 sg, scsi_sg_count(current_command), i) {
+					tot_trans += sym53c416_write(base,
+								     SG_ADDRESS(sg),
+								     sg->length);
 				}
 				if(tot_trans < current_command->underflow)
 					printk(KERN_WARNING "sym53c416: Underflow, wrote %d bytes, request for %d bytes.\n", tot_trans, current_command->underflow);
@@ -455,19 +450,16 @@ static irqreturn_t sym53c416_intr_handle(int irq, void *dev_id)
 			{
 				current_command->SCp.phase = data_in;
 				outb(FLUSH_FIFO, base + COMMAND_REG);
-				sym53c416_set_transfer_counter(base, current_command->request_bufflen);
+				sym53c416_set_transfer_counter(base,
+							       scsi_bufflen(current_command));
+
 				outb(TRANSFER_INFORMATION | PIO_MODE, base + COMMAND_REG);
-				if(!current_command->use_sg)
-					tot_trans = sym53c416_read(base, current_command->request_buffer, current_command->request_bufflen);
-				else
-				{
-					sgcount = current_command->use_sg;
-					sglist = current_command->request_buffer;
-					while(sgcount--)
-					{
-						tot_trans += sym53c416_read(base, SG_ADDRESS(sglist), sglist->length);
-						sglist++;
-					}
+
+				scsi_for_each_sg(current_command,
+						 sg, scsi_sg_count(current_command), i) {
+					tot_trans += sym53c416_read(base,
+								    SG_ADDRESS(sg),
+								    sg->length);
 				}
 				if(tot_trans < current_command->underflow)
 					printk(KERN_WARNING "sym53c416: Underflow, read %d bytes, request for %d bytes.\n", tot_trans, current_command->underflow);
