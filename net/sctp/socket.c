@@ -3550,6 +3550,7 @@ SCTP_STATIC int sctp_do_peeloff(struct sctp_association *asoc,
 	struct sock *sk = asoc->base.sk;
 	struct socket *sock;
 	struct inet_sock *inetsk;
+	struct sctp_af *af;
 	int err = 0;
 
 	/* An association cannot be branched off from an already peeled-off
@@ -3571,8 +3572,9 @@ SCTP_STATIC int sctp_do_peeloff(struct sctp_association *asoc,
 	/* Make peeled-off sockets more like 1-1 accepted sockets.
 	 * Set the daddr and initialize id to something more random
 	 */
+	af = sctp_get_af_specific(asoc->peer.primary_addr.sa.sa_family);
+	af->to_sk_daddr(&asoc->peer.primary_addr, sk);
 	inetsk = inet_sk(sock->sk);
-	inetsk->daddr = asoc->peer.primary_addr.v4.sin_addr.s_addr;
 	inetsk->id = asoc->next_tsn ^ jiffies;
 
 	*sockp = sock;
