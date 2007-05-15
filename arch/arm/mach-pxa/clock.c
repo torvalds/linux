@@ -12,7 +12,6 @@
 
 #include <asm/arch/pxa-regs.h>
 #include <asm/hardware.h>
-#include <asm/semaphore.h>
 
 struct clk {
 	struct list_head	node;
@@ -25,21 +24,21 @@ struct clk {
 };
 
 static LIST_HEAD(clocks);
-static DECLARE_MUTEX(clocks_sem);
+static DEFINE_MUTEX(clocks_mutex);
 static DEFINE_SPINLOCK(clocks_lock);
 
 struct clk *clk_get(struct device *dev, const char *id)
 {
 	struct clk *p, *clk = ERR_PTR(-ENOENT);
 
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 	list_for_each_entry(p, &clocks, node) {
 		if (strcmp(id, p->name) == 0 && try_module_get(p->owner)) {
 			clk = p;
 			break;
 		}
 	}
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 
 	return clk;
 }
@@ -101,18 +100,18 @@ static struct clk clk_gpio27 = {
 
 int clk_register(struct clk *clk)
 {
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 	list_add(&clk->node, &clocks);
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(clk_register);
 
 void clk_unregister(struct clk *clk)
 {
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 	list_del(&clk->node);
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 }
 EXPORT_SYMBOL(clk_unregister);
 
