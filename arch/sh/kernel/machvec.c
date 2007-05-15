@@ -29,7 +29,7 @@ static struct sh_machine_vector * __init get_mv_byname(const char *name)
 	struct sh_machine_vector *mv;
 
 	for_each_mv(mv)
-		if (strcasecmp(name, get_system_type()) == 0)
+		if (strcasecmp(name, mv->mv_name) == 0)
 			return mv;
 
 	return NULL;
@@ -55,26 +55,43 @@ static int __init early_parse_mv(char *from)
 	mv_name[mv_len] = '\0';
 	from = mv_end;
 
-	if (strcmp(sh_mv.mv_name, mv_name) != 0) {
-		mvp = get_mv_byname(mv_name);
-		if (unlikely(!mvp)) {
-			printk("Available vectors:\n\n\t");
-			for_each_mv(mvp)
-				printk("'%s', ", mvp->mv_name);
-			printk("\n\n");
-			panic("Failed to select machvec '%s' -- halting.\n",
-			      mv_name);
-		} else
-			sh_mv = *mvp;
-	}
+	mvp = get_mv_byname(mv_name);
+	if (unlikely(!mvp)) {
+		printk("Available vectors:\n\n\t");
+		for_each_mv(mvp)
+			printk("'%s', ", mvp->mv_name);
+		printk("\n\n");
+		panic("Failed to select machvec '%s' -- halting.\n",
+		      mv_name);
+	} else
+		sh_mv = *mvp;
 
-	printk(KERN_NOTICE "Booting machvec: %s\n", sh_mv.mv_name);
 	return 0;
 }
 early_param("sh_mv", early_parse_mv);
 
 void __init sh_mv_setup(void)
 {
+	/*
+	 * Only overload the machvec if one hasn't been selected on
+	 * the command line with sh_mv=
+	 */
+	if (strcmp(sh_mv.mv_name, "Unknown") != 0) {
+		unsigned long machvec_size;
+
+		machvec_size = ((unsigned long)&__machvec_end -
+				(unsigned long)&__machvec_start);
+
+		/*
+		 * If the machvec hasn't been preselected, use the first
+		 * vector (usually the only one) from .machvec.init.
+		 */
+		if (machvec_size >= sizeof(struct sh_machine_vector))
+			sh_mv = *(struct sh_machine_vector *)&__machvec_start;
+	}
+
+	printk(KERN_NOTICE "Booting machvec: %s\n", get_system_type());
+
 	/*
 	 * Manually walk the vec, fill in anything that the board hasn't yet
 	 * by hand, wrapping to the generic implementation.

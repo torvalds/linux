@@ -15,8 +15,7 @@
  * The Machine Vector
  */
 
-struct sh_machine_vector mv_se __initmv = {
+static struct sh_machine_vector mv_se __initmv = {
 	.mv_name		= "SolutionEngine",
 	.mv_nr_irqs		= 108,
 };
-ALIAS_MV(se)

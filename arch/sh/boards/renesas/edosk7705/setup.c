@@ -21,7 +21,7 @@ static void __init sh_edosk7705_init_irq(void)
 /*
  * The Machine Vector
  */
-struct sh_machine_vector mv_edosk7705 __initmv = {
+static struct sh_machine_vector mv_edosk7705 __initmv = {
 	.mv_name		= "EDOSK7705",
 	.mv_nr_irqs		= 80,
 
@@ -41,4 +41,3 @@ struct sh_machine_vector mv_edosk7705 __initmv = {
 	.mv_isa_port2addr	= sh_edosk7705_isa_port2addr,
 	.mv_init_irq		= sh_edosk7705_init_irq,
 };
-ALIAS_MV(edosk7705)

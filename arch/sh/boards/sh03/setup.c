@@ -74,11 +74,10 @@ static int __init sh03_devices_setup(void)
 }
 __initcall(sh03_devices_setup);
 
-struct sh_machine_vector mv_sh03 __initmv = {
+static struct sh_machine_vector mv_sh03 __initmv = {
 	.mv_name		= "Interface (CTP/PCI-SH03)",
 	.mv_setup		= sh03_setup,
 	.mv_nr_irqs		= 48,
 	.mv_ioport_map		= sh03_ioport_map,
 	.mv_init_irq		= init_sh03_IRQ,
 };
-ALIAS_MV(sh03)

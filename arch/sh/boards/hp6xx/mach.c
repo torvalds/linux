@@ -13,7 +13,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-struct sh_machine_vector mv_hp6xx __initmv = {
+static struct sh_machine_vector mv_hp6xx __initmv = {
 	.mv_nr_irqs = HD64461_IRQBASE + HD64461_IRQ_NUM,
 
 	.mv_inb = hd64461_inb,
@@ -42,5 +42,3 @@ struct sh_machine_vector mv_hp6xx __initmv = {
 
 	.mv_irq_demux = hd64461_irq_demux,
 };
-
-ALIAS_MV(hp6xx)

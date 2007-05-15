@@ -43,9 +43,8 @@ static void __iomem *shmin_ioport_map(unsigned long port, unsigned int size)
 
 }
 
-struct sh_machine_vector mv_shmin __initmv = {
+static struct sh_machine_vector mv_shmin __initmv = {
 	.mv_name	= "SHMIN",
 	.mv_init_irq	= init_shmin_irq,
 	.mv_ioport_map	= shmin_ioport_map,
 };
-ALIAS_MV(shmin)

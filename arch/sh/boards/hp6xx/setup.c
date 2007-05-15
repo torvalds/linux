@@ -98,10 +98,9 @@ static void __init hp6xx_setup(char **cmdline_p)
 }
 device_initcall(hp6xx_devices_setup);
 
-struct sh_machine_vector mv_hp6xx __initmv = {
+static struct sh_machine_vector mv_hp6xx __initmv = {
 	.mv_name = "hp6xx",
 	.mv_setup = hp6xx_setup,
 	.mv_nr_irqs = HD64461_IRQBASE + HD64461_IRQ_NUM,
 	.mv_irq_demux = hd64461_irq_demux,
 };
-ALIAS_MV(hp6xx)

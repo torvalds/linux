@@ -89,7 +89,7 @@ static void __init hs7751rvoip_setup(char **cmdline_p)
 	printk(KERN_INFO "Renesas Technology Sales HS7751RVoIP-2 support.\n");
 }
 
-struct sh_machine_vector mv_hs7751rvoip __initmv = {
+static struct sh_machine_vector mv_hs7751rvoip __initmv = {
 	.mv_name		= "HS7751RVoIP",
 	.mv_setup		= hs7751rvoip_setup,
 	.mv_nr_irqs		= 72,
@@ -118,4 +118,3 @@ struct sh_machine_vector mv_hs7751rvoip __initmv = {
 	.mv_init_irq		= hs7751rvoip_init_irq,
 	.mv_ioport_map		= hs7751rvoip_ioport_map,
 };
-ALIAS_MV(hs7751rvoip)

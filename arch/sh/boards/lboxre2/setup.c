@@ -77,9 +77,8 @@ device_initcall(lboxre2_devices_setup);
 /*
  * The Machine Vector
  */
-struct sh_machine_vector mv_lboxre2 __initmv = {
+static struct sh_machine_vector mv_lboxre2 __initmv = {
 	.mv_name		= "L-BOX RE2",
 	.mv_nr_irqs		= 72,
 	.mv_init_irq		= init_lboxre2_IRQ,
 };
-ALIAS_MV(lboxre2)

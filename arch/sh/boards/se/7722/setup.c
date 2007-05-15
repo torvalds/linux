@@ -137,7 +137,7 @@ static void __init se7722_setup(char **cmdline_p)
 /*
  * The Machine Vector
  */
-struct sh_machine_vector mv_se7722 __initmv = {
+static struct sh_machine_vector mv_se7722 __initmv = {
 	.mv_name                = "Solution Engine 7722" ,
 	.mv_setup               = se7722_setup ,
 	.mv_nr_irqs		= 109 ,
@@ -145,4 +145,3 @@ struct sh_machine_vector mv_se7722 __initmv = {
 	.mv_irq_demux           = se7722_irq_demux,
 
 };
-ALIAS_MV(se7722)

@@ -96,7 +96,7 @@ static void __init snapgear_setup(char **cmdline_p)
 /*
  * The Machine Vector
  */
-struct sh_machine_vector mv_snapgear __initmv = {
+static struct sh_machine_vector mv_snapgear __initmv = {
 	.mv_name		= "SnapGear SecureEdge5410",
 	.mv_setup		= snapgear_setup,
 	.mv_nr_irqs		= 72,
@@ -117,4 +117,3 @@ struct sh_machine_vector mv_snapgear __initmv = {
 
 	.mv_init_irq		= init_snapgear_IRQ,
 };
-ALIAS_MV(snapgear)

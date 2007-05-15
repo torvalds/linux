@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <asm/machvec.h>
 
-struct sh_machine_vector mv_unknown __initmv = {
+static struct sh_machine_vector mv_unknown __initmv = {
 	.mv_name		= "Unknown",
 };
-ALIAS_MV(unknown)

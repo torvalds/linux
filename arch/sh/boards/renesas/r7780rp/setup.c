@@ -166,10 +166,9 @@ static void __init highlander_setup(char **cmdline_p)
 /*
  * The Machine Vector
  */
-struct sh_machine_vector mv_highlander __initmv = {
+static struct sh_machine_vector mv_highlander __initmv = {
 	.mv_name		= "Highlander",
 	.mv_nr_irqs		= 109,
 	.mv_setup		= highlander_setup,
 	.mv_init_irq		= highlander_init_irq,
 };
-ALIAS_MV(highlander)

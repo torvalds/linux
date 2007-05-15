@@ -60,7 +60,7 @@ static void __init dreamcast_setup(char **cmdline_p)
 #endif
 }
 
-struct sh_machine_vector mv_dreamcast __initmv = {
+static struct sh_machine_vector mv_dreamcast __initmv = {
 	.mv_name		= "Sega Dreamcast",
 	.mv_setup		= dreamcast_setup,
 	.mv_irq_demux		= systemasic_irq_demux,
@@ -70,4 +70,3 @@ struct sh_machine_vector mv_dreamcast __initmv = {
 	.mv_consistent_free	= dreamcast_consistent_free,
 #endif
 };
-ALIAS_MV(dreamcast)

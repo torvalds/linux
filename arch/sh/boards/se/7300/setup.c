@@ -46,7 +46,7 @@ __initcall(se7300_devices_setup);
 /*
  * The Machine Vector
  */
-struct sh_machine_vector mv_7300se __initmv = {
+static struct sh_machine_vector mv_7300se __initmv = {
 	.mv_name = "SolutionEngine 7300",
 	.mv_nr_irqs = 109,
 	.mv_inb = sh7300se_inb,
@@ -72,4 +72,3 @@ struct sh_machine_vector mv_7300se __initmv = {
 
 	.mv_init_irq = init_7300se_IRQ,
 };
-ALIAS_MV(7300se)

@@ -28,7 +28,7 @@ static void __init init_titan_irq(void)
 	make_ipr_irq(titan_ipr_map, ARRAY_SIZE(titan_ipr_map));
 }
 
-struct sh_machine_vector mv_titan __initmv = {
+static struct sh_machine_vector mv_titan __initmv = {
 	.mv_name =	"Titan",
 
 	.mv_inb =	titan_inb,
@@ -52,4 +52,3 @@ struct sh_machine_vector mv_titan __initmv = {
 
 	.mv_init_irq =	init_titan_irq,
 };
-ALIAS_MV(titan)

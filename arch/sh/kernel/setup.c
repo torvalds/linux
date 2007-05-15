@@ -42,6 +42,13 @@ extern void * __rd_start, * __rd_end;
  * The bigger value means no problem.
  */
 struct sh_cpuinfo boot_cpu_data = { CPU_SH_NONE, 10000000, };
+
+/*
+ * The machine vector. First entry in .machvec.init, or clobbered by
+ * sh_mv= on the command line, prior to .machvec.init teardown.
+ */
+struct sh_machine_vector sh_mv = { .mv_name = "Unknown", };
+
 #ifdef CONFIG_VT
 struct screen_info screen_info;
 #endif
