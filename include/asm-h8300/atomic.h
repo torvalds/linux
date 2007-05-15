@@ -37,6 +37,7 @@ static __inline__ int atomic_sub_return(int i, atomic_t *v)
 }
 
 #define atomic_sub(i, v) atomic_sub_return(i, v)
+#define atomic_sub_and_test(i,v) (atomic_sub_return(i, v) == 0)
 
 static __inline__ int atomic_inc_return(atomic_t *v)
 {
