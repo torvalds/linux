@@ -13,6 +13,7 @@ if INPUT_TABLET
 
 config TABLET_USB_ACECAD
 	tristate "Acecad Flair tablet support (USB)"
+	depends on USB_ARCH_HAS_HCD
 	select USB
 	help
 	  Say Y here if you want to use the USB version of the Acecad Flair
@@ -25,6 +26,7 @@ config TABLET_USB_ACECAD
 
 config TABLET_USB_AIPTEK
 	tristate "Aiptek 6000U/8000U tablet support (USB)"
+	depends on USB_ARCH_HAS_HCD
 	select USB
 	help
 	  Say Y here if you want to use the USB version of the Aiptek 6000U
@@ -49,6 +51,7 @@ config TABLET_USB_GTCO
 
 config TABLET_USB_KBTAB
 	tristate "KB Gear JamStudio tablet support (USB)"
+	depends on USB_ARCH_HAS_HCD
 	select USB
 	help
 	  Say Y here if you want to use the USB version of the KB Gear
@@ -61,6 +64,7 @@ config TABLET_USB_KBTAB
 
 config TABLET_USB_WACOM
 	tristate "Wacom Intuos/Graphire tablet support (USB)"
+	depends on USB_ARCH_HAS_HCD
 	select USB
 	help
 	  Say Y here if you want to use the USB version of the Wacom Intuos

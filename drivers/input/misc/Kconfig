@@ -84,6 +84,7 @@ config INPUT_ATLAS_BTNS
 
 config INPUT_ATI_REMOTE
 	tristate "ATI / X10 USB RF remote control"
+	depends on USB_ARCH_HAS_HCD
 	select USB
 	help
 	  Say Y here if you want to use an ATI or X10 "Lola" USB remote control.
@@ -99,6 +100,7 @@ config INPUT_ATI_REMOTE
 
 config INPUT_ATI_REMOTE2
 	tristate "ATI / Philips USB RF remote control"
+	depends on USB_ARCH_HAS_HCD
 	select USB
 	help
 	  Say Y here if you want to use an ATI or Philips USB RF remote control.
@@ -114,6 +116,7 @@ config INPUT_ATI_REMOTE2
 config INPUT_KEYSPAN_REMOTE
 	tristate "Keyspan DMR USB remote control (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
+	depends on USB_ARCH_HAS_HCD
 	select USB
 	help
 	  Say Y here if you want to use a Keyspan DMR USB remote control.
@@ -128,6 +131,7 @@ config INPUT_KEYSPAN_REMOTE
 
 config INPUT_POWERMATE
 	tristate "Griffin PowerMate and Contour Jog support"
+	depends on USB_ARCH_HAS_HCD
 	select USB
 	help
 	  Say Y here if you want to use Griffin PowerMate or Contour Jog devices.
@@ -144,6 +148,7 @@ config INPUT_POWERMATE
 config INPUT_YEALINK
 	tristate "Yealink usb-p1k voip phone"
 	depends EXPERIMENTAL
+	depends on USB_ARCH_HAS_HCD
 	select USB
 	help
 	  Say Y here if you want to enable keyboard and LCD functions of the
