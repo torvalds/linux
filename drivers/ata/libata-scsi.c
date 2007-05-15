@@ -967,6 +967,7 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc)
 		 * for more info.
 		 */
 		if (ata_spindown_compat &&
+		    (qc->dev->flags & ATA_DFLAG_SPUNDOWN) &&
 		    (system_state == SYSTEM_HALT ||
 		     system_state == SYSTEM_POWER_OFF)) {
 			static unsigned long warned = 0;
@@ -1393,6 +1394,14 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 			ata_gen_ata_sense(qc);
 		}
 	}
+
+	/* XXX: track spindown state for spindown_compat */
+	if (unlikely(qc->tf.command == ATA_CMD_STANDBY ||
+		     qc->tf.command == ATA_CMD_STANDBYNOW1))
+		qc->dev->flags |= ATA_DFLAG_SPUNDOWN;
+	else if (likely(system_state != SYSTEM_HALT &&
+			system_state != SYSTEM_POWER_OFF))
+		qc->dev->flags &= ~ATA_DFLAG_SPUNDOWN;
 
 	if (need_sense && !ap->ops->error_handler)
 		ata_dump_status(ap->print_id, &qc->result_tf);
