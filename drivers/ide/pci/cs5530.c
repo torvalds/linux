@@ -1,10 +1,10 @@
 /*
- * linux/drivers/ide/pci/cs5530.c		Version 0.7	Sept 10, 2002
+ * linux/drivers/ide/pci/cs5530.c		Version 0.73	Mar 10 2007
  *
  * Copyright (C) 2000			Andre Hedrick <andre@linux-ide.org>
- * Ditto of GNU General Public License.
- *
  * Copyright (C) 2000			Mark Lord <mlord@pobox.com>
+ * Copyright (C) 2007			Bartlomiej Zolnierkiewicz
+ *
  * May be copied or modified under the terms of the GNU General Public License
  *
  * Development of this chipset driver was funded
@@ -62,6 +62,14 @@ static unsigned int cs5530_pio_timings[2][5] = {
 #define CS5530_BAD_PIO(timings) (((timings)&~0x80000000)==0x0000e132)
 #define CS5530_BASEREG(hwif)	(((hwif)->dma_base & ~0xf) + ((hwif)->channel ? 0x30 : 0x20))
 
+static void cs5530_tunepio(ide_drive_t *drive, u8 pio)
+{
+	unsigned long basereg = CS5530_BASEREG(drive->hwif);
+	unsigned int format = (inl(basereg + 4) >> 31) & 1;
+
+	outl(cs5530_pio_timings[format][pio], basereg + ((drive->dn & 1)<<3));
+}
+
 /**
  *	cs5530_tuneproc		-	select/set PIO modes
  *
@@ -74,98 +82,78 @@ static unsigned int cs5530_pio_timings[2][5] = {
 
 static void cs5530_tuneproc (ide_drive_t *drive, u8 pio)	/* pio=255 means "autotune" */
 {
-	ide_hwif_t	*hwif = HWIF(drive);
-	unsigned int	format;
-	unsigned long basereg = CS5530_BASEREG(hwif);
-	static u8	modes[5] = { XFER_PIO_0, XFER_PIO_1, XFER_PIO_2, XFER_PIO_3, XFER_PIO_4};
-
 	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
-	if (!cs5530_set_xfer_mode(drive, modes[pio])) {
-		format = (inl(basereg + 4) >> 31) & 1;
-		outl(cs5530_pio_timings[format][pio],
-			basereg+(drive->select.b.unit<<3));
-	}
+
+	if (cs5530_set_xfer_mode(drive, XFER_PIO_0 + pio) == 0)
+		cs5530_tunepio(drive, pio);
 }
 
 /**
- *	cs5530_config_dma	-	select/set DMA and UDMA modes
+ *	cs5530_udma_filter	-	UDMA filter
+ *	@drive: drive
+ *
+ *	cs5530_udma_filter() does UDMA mask filtering for the given drive
+ *	taking into the consideration capabilities of the mate device.
+ *
+ *	The CS5530 specifies that two drives sharing a cable cannot mix
+ *	UDMA/MDMA.  It has to be one or the other, for the pair, though
+ *	different timings can still be chosen for each drive.  We could
+ *	set the appropriate timing bits on the fly, but that might be
+ *	a bit confusing.  So, for now we statically handle this requirement
+ *	by looking at our mate drive to see what it is capable of, before
+ *	choosing a mode for our own drive.
+ *
+ *	Note: This relies on the fact we never fail from UDMA to MWDMA2
+ *	but instead drop to PIO.
+ */
+
+static u8 cs5530_udma_filter(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	ide_drive_t *mate = &hwif->drives[(drive->dn & 1) ^ 1];
+	struct hd_driveid *mateid = mate->id;
+	u8 mask = hwif->ultra_mask;
+
+	if (mate->present == 0)
+		goto out;
+
+	if ((mateid->capability & 1) && __ide_dma_bad_drive(mate) == 0) {
+		if ((mateid->field_valid & 4) && (mateid->dma_ultra & 7))
+			goto out;
+		if ((mateid->field_valid & 2) && (mateid->dma_mword & 7))
+			mask = 0;
+	}
+out:
+	return mask;
+}
+
+/**
+ *	cs5530_config_dma	-	set DMA/UDMA mode
  *	@drive: drive to tune
  *
- *	cs5530_config_dma() handles selection/setting of DMA/UDMA modes
- *	for both the chipset and drive. The CS5530 has limitations about
- *	mixing DMA/UDMA on the same cable.
+ *	cs5530_config_dma() handles setting of DMA/UDMA mode
+ *	for both the chipset and drive.
  */
- 
-static int cs5530_config_dma (ide_drive_t *drive)
+
+static int cs5530_config_dma(ide_drive_t *drive)
 {
-	int			udma_ok = 1, mode = 0;
-	ide_hwif_t		*hwif = HWIF(drive);
-	int			unit = drive->select.b.unit;
-	ide_drive_t		*mate = &hwif->drives[unit^1];
-	struct hd_driveid	*id = drive->id;
-	unsigned int		reg, timings = 0;
-	unsigned long		basereg;
+	if (ide_tune_dma(drive))
+		return 0;
 
-	/*
-	 * Default to DMA-off in case we run into trouble here.
-	 */
-	hwif->dma_off_quietly(drive);
+	return 1;
+}
 
-	/*
-	 * The CS5530 specifies that two drives sharing a cable cannot
-	 * mix UDMA/MDMA.  It has to be one or the other, for the pair,
-	 * though different timings can still be chosen for each drive.
-	 * We could set the appropriate timing bits on the fly,
-	 * but that might be a bit confusing.  So, for now we statically
-	 * handle this requirement by looking at our mate drive to see
-	 * what it is capable of, before choosing a mode for our own drive.
-	 *
-	 * Note: This relies on the fact we never fail from UDMA to MWDMA_2
-	 * but instead drop to PIO
-	 */
-	if (mate->present) {
-		struct hd_driveid *mateid = mate->id;
-		if (mateid && (mateid->capability & 1) &&
-		    !__ide_dma_bad_drive(mate)) {
-			if ((mateid->field_valid & 4) &&
-			    (mateid->dma_ultra & 7))
-				udma_ok = 1;
-			else if ((mateid->field_valid & 2) &&
-				 (mateid->dma_mword & 7))
-				udma_ok = 0;
-			else
-				udma_ok = 1;
-		}
-	}
+static int cs5530_tune_chipset(ide_drive_t *drive, u8 mode)
+{
+	unsigned long basereg;
+	unsigned int reg, timings = 0;
 
-	/*
-	 * Now see what the current drive is capable of,
-	 * selecting UDMA only if the mate said it was ok.
-	 */
-	if (id && (id->capability & 1) && drive->autodma &&
-	    !__ide_dma_bad_drive(drive)) {
-		if (udma_ok && (id->field_valid & 4) && (id->dma_ultra & 7)) {
-			if      (id->dma_ultra & 4)
-				mode = XFER_UDMA_2;
-			else if (id->dma_ultra & 2)
-				mode = XFER_UDMA_1;
-			else if (id->dma_ultra & 1)
-				mode = XFER_UDMA_0;
-		}
-		if (!mode && (id->field_valid & 2) && (id->dma_mword & 7)) {
-			if      (id->dma_mword & 4)
-				mode = XFER_MW_DMA_2;
-			else if (id->dma_mword & 2)
-				mode = XFER_MW_DMA_1;
-			else if (id->dma_mword & 1)
-				mode = XFER_MW_DMA_0;
-		}
-	}
+	mode = ide_rate_filter(drive, mode);
 
 	/*
 	 * Tell the drive to switch to the new mode; abort on failure.
 	 */
-	if (!mode || cs5530_set_xfer_mode(drive, mode))
+	if (cs5530_set_xfer_mode(drive, mode))
 		return 1;	/* failure */
 
 	/*
@@ -178,14 +166,21 @@ static int cs5530_config_dma (ide_drive_t *drive)
 		case XFER_MW_DMA_0:	timings = 0x00077771; break;
 		case XFER_MW_DMA_1:	timings = 0x00012121; break;
 		case XFER_MW_DMA_2:	timings = 0x00002020; break;
+		case XFER_PIO_4:
+		case XFER_PIO_3:
+		case XFER_PIO_2:
+		case XFER_PIO_1:
+		case XFER_PIO_0:
+			cs5530_tunepio(drive, mode - XFER_PIO_0);
+			return 0;
 		default:
 			BUG();
 			break;
 	}
-	basereg = CS5530_BASEREG(hwif);
+	basereg = CS5530_BASEREG(drive->hwif);
 	reg = inl(basereg + 4);			/* get drive0 config register */
 	timings |= reg & 0x80000000;		/* preserve PIO format bit */
-	if (unit == 0) {			/* are we configuring drive0? */
+	if ((drive-> dn & 1) == 0) {		/* are we configuring drive0? */
 		outl(timings, basereg + 4);	/* write drive0 config register */
 	} else {
 		if (timings & 0x00100000)
@@ -311,6 +306,8 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 		hwif->serialized = hwif->mate->serialized = 1;
 
 	hwif->tuneproc = &cs5530_tuneproc;
+	hwif->speedproc = &cs5530_tune_chipset;
+
 	basereg = CS5530_BASEREG(hwif);
 	d0_timings = inl(basereg + 0);
 	if (CS5530_BAD_PIO(d0_timings)) {
@@ -332,6 +329,7 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 	hwif->ultra_mask = 0x07;
 	hwif->mwdma_mask = 0x07;
 
+	hwif->udma_filter = cs5530_udma_filter;
 	hwif->ide_dma_check = &cs5530_config_dma;
 	if (!noautodma)
 		hwif->autodma = 1;

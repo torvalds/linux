@@ -223,6 +223,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 			break;
 		if (drive->hwif->ide_dma_check == NULL)
 			break;
+		drive->hwif->dma_off_quietly(drive);
 		ide_set_dma(drive);
 		break;
 	}

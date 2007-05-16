@@ -1002,18 +1002,6 @@ static int cris_ide_build_dmatable (ide_drive_t *drive)
 	return 1;	/* let the PIO routines handle this weirdness */
 }
 
-static int cris_config_drive_for_dma (ide_drive_t *drive)
-{
-	u8 speed = ide_max_dma_mode(drive);
-
-	if (!speed)
-		return 0;
-
-	speed_cris_ide(drive, speed);
-
-	return ide_dma_enable(drive);
-}
-
 /*
  * cris_dma_intr() is the handler for disk read/write DMA interrupts
  */
@@ -1043,7 +1031,7 @@ static ide_startstop_t cris_dma_intr (ide_drive_t *drive)
 
 static int cris_dma_check(ide_drive_t *drive)
 {
-	if (ide_use_dma(drive) && cris_config_drive_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	return -1;

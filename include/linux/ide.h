@@ -1281,7 +1281,6 @@ struct drive_list_entry {
 int ide_in_drive_list(struct hd_driveid *, const struct drive_list_entry *);
 int __ide_dma_bad_drive(ide_drive_t *);
 int __ide_dma_good_drive(ide_drive_t *);
-int ide_use_dma(ide_drive_t *);
 u8 ide_max_dma_mode(ide_drive_t *);
 int ide_tune_dma(ide_drive_t *);
 void ide_dma_off(ide_drive_t *);
@@ -1309,7 +1308,6 @@ extern int __ide_dma_timeout(ide_drive_t *);
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
 #else
-static inline int ide_use_dma(ide_drive_t *drive) { return 0; }
 static inline u8 ide_max_dma_mode(ide_drive_t *drive) { return 0; }
 static inline int ide_tune_dma(ide_drive_t *drive) { return 0; }
 static inline void ide_dma_off(ide_drive_t *drive) { ; }
@@ -1357,7 +1355,6 @@ static inline void ide_set_hwifdata (ide_hwif_t * hwif, void *data)
 
 /* ide-lib.c */
 u8 ide_rate_filter(ide_drive_t *, u8);
-extern int ide_dma_enable(ide_drive_t *drive);
 extern char *ide_xfer_verbose(u8 xfer_rate);
 extern void ide_toggle_bounce(ide_drive_t *drive, int on);
 extern int ide_set_xfer_rate(ide_drive_t *drive, u8 rate);

@@ -464,25 +464,6 @@ static int it821x_tune_chipset (ide_drive_t *drive, byte xferspeed)
 }
 
 /**
- *	config_chipset_for_dma	-	configure for DMA
- *	@drive: drive to configure
- *
- *	Called by the IDE layer when it wants the timings set up.
- */
-
-static int config_chipset_for_dma (ide_drive_t *drive)
-{
-	u8 speed = ide_max_dma_mode(drive);
-
-	if (speed == 0)
-		return 0;
-
-	it821x_tune_chipset(drive, speed);
-
-	return ide_dma_enable(drive);
-}
-
-/**
  *	it821x_configure_drive_for_dma	-	set up for DMA transfers
  *	@drive: drive we are going to set up
  *
@@ -494,7 +475,7 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 
 static int it821x_config_drive_for_dma (ide_drive_t *drive)
 {
-	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	it821x_tuneproc(drive, 255);

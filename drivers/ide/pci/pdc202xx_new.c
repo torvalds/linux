@@ -228,38 +228,11 @@ static u8 pdcnew_cable_detect(ide_hwif_t *hwif)
 	return get_indexed_reg(hwif, 0x0b) & 0x04;
 }
 
-static int config_chipset_for_dma(ide_drive_t *drive)
-{
-	struct hd_driveid *id	= drive->id;
-	ide_hwif_t *hwif	= HWIF(drive);
-	u8 speed;
-
-	if (id->capability & 4) {
-		/*
-		 * Set IORDY_EN & PREFETCH_EN (this seems to have
-		 * NO real effect since this register is reloaded
-		 * by hardware when the transfer mode is selected)
-		 */
-		u8 tmp, adj = (drive->dn & 1) ? 0x08 : 0x00;
-
-		tmp = get_indexed_reg(hwif, 0x13 + adj);
-		set_indexed_reg(hwif, 0x13 + adj, tmp | 0x03);
-	}
-
-	speed = ide_max_dma_mode(drive);
-
-	if (!speed)
-		return 0;
-
-	(void) hwif->speedproc(drive, speed);
-	return ide_dma_enable(drive);
-}
-
 static int pdcnew_config_drive_xfer_rate(ide_drive_t *drive)
 {
 	drive->init_speed = 0;
 
-	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	if (ide_use_fast_pio(drive))

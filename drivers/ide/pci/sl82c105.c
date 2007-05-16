@@ -82,7 +82,14 @@ static u8 sl82c105_tune_pio(ide_drive_t *drive, u8 pio)
 
 	pio = ide_get_best_pio_mode(drive, pio, 5, &p);
 
-	drive->drive_data = drv_ctrl = get_pio_timings(&p);
+	drv_ctrl = get_pio_timings(&p);
+
+	/*
+	 * Store the PIO timings so that we can restore them
+	 * in case DMA will be turned off...
+	 */
+	drive->drive_data &= 0xffff0000;
+	drive->drive_data |= drv_ctrl;
 
 	if (!drive->using_dma) {
 		/*
@@ -100,17 +107,55 @@ static u8 sl82c105_tune_pio(ide_drive_t *drive, u8 pio)
 }
 
 /*
- * Configure the drive for DMA.
- * We'll program the chipset only when DMA is actually turned on.
+ * Configure the drive and chipset for a new transfer speed.
  */
-static int config_for_dma(ide_drive_t *drive)
+static int sl82c105_tune_chipset(ide_drive_t *drive, u8 speed)
 {
-	DBG(("config_for_dma(drive:%s)\n", drive->name));
+	static u16 mwdma_timings[] = {0x0707, 0x0201, 0x0200};
+	u16 drv_ctrl;
 
-	if (ide_config_drive_speed(drive, XFER_MW_DMA_2) != 0)
-		return 0;
+ 	DBG(("sl82c105_tune_chipset(drive:%s, speed:%s)\n",
+	     drive->name, ide_xfer_verbose(speed)));
 
-	return ide_dma_enable(drive);
+	speed = ide_rate_filter(drive, speed);
+
+	switch (speed) {
+	case XFER_MW_DMA_2:
+	case XFER_MW_DMA_1:
+	case XFER_MW_DMA_0:
+		drv_ctrl = mwdma_timings[speed - XFER_MW_DMA_0];
+
+		/*
+		 * Store the DMA timings so that we can actually program
+		 * them when DMA will be turned on...
+		 */
+		drive->drive_data &= 0x0000ffff;
+		drive->drive_data |= (unsigned long)drv_ctrl << 16;
+
+		/*
+		 * If we are already using DMA, we just reprogram
+		 * the drive control register.
+		 */
+		if (drive->using_dma) {
+			struct pci_dev *dev	= HWIF(drive)->pci_dev;
+			int reg 		= 0x44 + drive->dn * 4;
+
+			pci_write_config_word(dev, reg, drv_ctrl);
+		}
+		break;
+	case XFER_PIO_5:
+	case XFER_PIO_4:
+	case XFER_PIO_3:
+	case XFER_PIO_2:
+	case XFER_PIO_1:
+	case XFER_PIO_0:
+		(void) sl82c105_tune_pio(drive, speed - XFER_PIO_0);
+		break;
+	default:
+		return -1;
+	}
+
+	return ide_config_drive_speed(drive, speed);
 }
 
 /*
@@ -120,7 +165,7 @@ static int sl82c105_ide_dma_check(ide_drive_t *drive)
 {
 	DBG(("sl82c105_ide_dma_check(drive:%s)\n", drive->name));
 
-	if (ide_use_dma(drive) && config_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	return -1;
@@ -219,7 +264,7 @@ static int sl82c105_ide_dma_on(ide_drive_t *drive)
 
 	rc = __ide_dma_on(drive);
 	if (rc == 0) {
-		pci_write_config_word(dev, reg, 0x0200);
+		pci_write_config_word(dev, reg, drive->drive_data >> 16);
 
 		printk(KERN_INFO "%s: DMA enabled\n", drive->name);
 	}
@@ -304,7 +349,7 @@ static unsigned int sl82c105_bridge_revision(struct pci_dev *dev)
 	/*
 	 * The bridge should be part of the same device, but function 0.
 	 */
-	bridge = pci_find_slot(dev->bus->number,
+	bridge = pci_get_bus_and_slot(dev->bus->number,
 			       PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
 	if (!bridge)
 		return -1;
@@ -314,13 +359,15 @@ static unsigned int sl82c105_bridge_revision(struct pci_dev *dev)
 	 */
 	if (bridge->vendor != PCI_VENDOR_ID_WINBOND ||
 	    bridge->device != PCI_DEVICE_ID_WINBOND_83C553 ||
-	    bridge->class >> 8 != PCI_CLASS_BRIDGE_ISA)
+	    bridge->class >> 8 != PCI_CLASS_BRIDGE_ISA) {
+	    	pci_dev_put(bridge);
 		return -1;
-
+	}
 	/*
 	 * We need to find function 0's revision, not function 1
 	 */
 	pci_read_config_byte(bridge, PCI_REVISION_ID, &rev);
+	pci_dev_put(bridge);
 
 	return rev;
 }
@@ -357,6 +404,7 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 	DBG(("init_hwif_sl82c105(hwif: ide%d)\n", hwif->index));
 
 	hwif->tuneproc		= &sl82c105_tune_drive;
+	hwif->speedproc 	= &sl82c105_tune_chipset;
 	hwif->selectproc	= &sl82c105_selectproc;
 	hwif->resetproc 	= &sl82c105_resetproc;
 
@@ -388,7 +436,7 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 	}
 
 	hwif->atapi_dma  = 1;
-	hwif->mwdma_mask = 0x04;
+	hwif->mwdma_mask = 0x07;
 
 	hwif->ide_dma_check		= &sl82c105_ide_dma_check;
 	hwif->ide_dma_on		= &sl82c105_ide_dma_on;

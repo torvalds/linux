@@ -1,8 +1,9 @@
 /*
- *  linux/drivers/ide/pci/pdc202xx_old.c	Version 0.36	Sept 11, 2002
+ *  linux/drivers/ide/pci/pdc202xx_old.c	Version 0.50	Mar 3, 2007
  *
  *  Copyright (C) 1998-2002		Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2006-2007		MontaVista Software, Inc.
+ *  Copyright (C) 2007			Bartlomiej Zolnierkiewicz
  *
  *  Promise Ultra33 cards with BIOS v1.20 through 1.28 will need this
  *  compiled into the kernel if you have more than one card installed.
@@ -60,45 +61,7 @@ static const char *pdc_quirk_drives[] = {
 	NULL
 };
 
-/* A Register */
-#define	SYNC_ERRDY_EN	0xC0
-
-#define	SYNC_IN		0x80	/* control bit, different for master vs. slave drives */
-#define	ERRDY_EN	0x40	/* control bit, different for master vs. slave drives */
-#define	IORDY_EN	0x20	/* PIO: IOREADY */
-#define	PREFETCH_EN	0x10	/* PIO: PREFETCH */
-
-#define	PA3		0x08	/* PIO"A" timing */
-#define	PA2		0x04	/* PIO"A" timing */
-#define	PA1		0x02	/* PIO"A" timing */
-#define	PA0		0x01	/* PIO"A" timing */
-
-/* B Register */
-
-#define	MB2		0x80	/* DMA"B" timing */
-#define	MB1		0x40	/* DMA"B" timing */
-#define	MB0		0x20	/* DMA"B" timing */
-
-#define	PB4		0x10	/* PIO_FORCE 1:0 */
-
-#define	PB3		0x08	/* PIO"B" timing */	/* PIO flow Control mode */
-#define	PB2		0x04	/* PIO"B" timing */	/* PIO 4 */
-#define	PB1		0x02	/* PIO"B" timing */	/* PIO 3 half */
-#define	PB0		0x01	/* PIO"B" timing */	/* PIO 3 other half */
-
-/* C Register */
-#define	IORDYp_NO_SPEED	0x4F
-#define	SPEED_DIS	0x0F
-
-#define	DMARQp		0x80
-#define	IORDYp		0x40
-#define	DMAR_EN		0x20
-#define	DMAW_EN		0x10
-
-#define	MC3		0x08	/* DMA"C" timing */
-#define	MC2		0x04	/* DMA"C" timing */
-#define	MC1		0x02	/* DMA"C" timing */
-#define	MC0		0x01	/* DMA"C" timing */
+static void pdc_old_disable_66MHz_clock(ide_hwif_t *);
 
 static int pdc202xx_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 {
@@ -107,52 +70,25 @@ static int pdc202xx_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 	u8 drive_pci		= 0x60 + (drive->dn << 2);
 	u8 speed		= ide_rate_filter(drive, xferspeed);
 
-	u32			drive_conf;
-	u8			AP, BP, CP, DP;
+	u8			AP = 0, BP = 0, CP = 0;
 	u8			TA = 0, TB = 0, TC = 0;
 
-	if (drive->media != ide_disk &&
-		drive->media != ide_cdrom && speed < XFER_SW_DMA_0)
-		return -1;
-
+#if PDC202XX_DEBUG_DRIVE_INFO
+	u32			drive_conf = 0;
 	pci_read_config_dword(dev, drive_pci, &drive_conf);
-	pci_read_config_byte(dev, (drive_pci), &AP);
-	pci_read_config_byte(dev, (drive_pci)|0x01, &BP);
-	pci_read_config_byte(dev, (drive_pci)|0x02, &CP);
-	pci_read_config_byte(dev, (drive_pci)|0x03, &DP);
+#endif
 
-	if (speed < XFER_SW_DMA_0) {
-		if ((AP & 0x0F) || (BP & 0x07)) {
-			/* clear PIO modes of lower 8421 bits of A Register */
-			pci_write_config_byte(dev, (drive_pci), AP &~0x0F);
-			pci_read_config_byte(dev, (drive_pci), &AP);
+	/*
+	 * TODO: do this once per channel
+	 */
+	if (dev->device != PCI_DEVICE_ID_PROMISE_20246)
+		pdc_old_disable_66MHz_clock(hwif);
 
-			/* clear PIO modes of lower 421 bits of B Register */
-			pci_write_config_byte(dev, (drive_pci)|0x01, BP &~0x07);
-			pci_read_config_byte(dev, (drive_pci)|0x01, &BP);
-
-			pci_read_config_byte(dev, (drive_pci), &AP);
-			pci_read_config_byte(dev, (drive_pci)|0x01, &BP);
-		}
-	} else {
-		if ((BP & 0xF0) && (CP & 0x0F)) {
-			/* clear DMA modes of upper 842 bits of B Register */
-			/* clear PIO forced mode upper 1 bit of B Register */
-			pci_write_config_byte(dev, (drive_pci)|0x01, BP &~0xF0);
-			pci_read_config_byte(dev, (drive_pci)|0x01, &BP);
-
-			/* clear DMA modes of lower 8421 bits of C Register */
-			pci_write_config_byte(dev, (drive_pci)|0x02, CP &~0x0F);
-			pci_read_config_byte(dev, (drive_pci)|0x02, &CP);
-		}
-	}
-
-	pci_read_config_byte(dev, (drive_pci), &AP);
-	pci_read_config_byte(dev, (drive_pci)|0x01, &BP);
-	pci_read_config_byte(dev, (drive_pci)|0x02, &CP);
+	pci_read_config_byte(dev, drive_pci,     &AP);
+	pci_read_config_byte(dev, drive_pci + 1, &BP);
+	pci_read_config_byte(dev, drive_pci + 2, &CP);
 
 	switch(speed) {
-		case XFER_UDMA_6:	speed = XFER_UDMA_5;
 		case XFER_UDMA_5:
 		case XFER_UDMA_4:	TB = 0x20; TC = 0x01; break;
 		case XFER_UDMA_2:	TB = 0x20; TC = 0x01; break;
@@ -161,7 +97,7 @@ static int pdc202xx_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 		case XFER_UDMA_0:
 		case XFER_MW_DMA_2:	TB = 0x60; TC = 0x03; break;
 		case XFER_MW_DMA_1:	TB = 0x60; TC = 0x04; break;
-		case XFER_MW_DMA_0:
+		case XFER_MW_DMA_0:	TB = 0xE0; TC = 0x0F; break;
 		case XFER_SW_DMA_2:	TB = 0x60; TC = 0x05; break;
 		case XFER_SW_DMA_1:	TB = 0x80; TC = 0x06; break;
 		case XFER_SW_DMA_0:	TB = 0xC0; TC = 0x0B; break;
@@ -174,24 +110,38 @@ static int pdc202xx_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 	}
 
 	if (speed < XFER_SW_DMA_0) {
-		pci_write_config_byte(dev, (drive_pci), AP|TA);
-		pci_write_config_byte(dev, (drive_pci)|0x01, BP|TB);
+		/*
+		 * preserve SYNC_INT / ERDDY_EN bits while clearing
+		 * Prefetch_EN / IORDY_EN / PA[3:0] bits of register A
+		 */
+		AP &= ~0x3f;
+		if (drive->id->capability & 4)
+			AP |= 0x20;	/* set IORDY_EN bit */
+		if (drive->media == ide_disk)
+			AP |= 0x10;	/* set Prefetch_EN bit */
+		/* clear PB[4:0] bits of register B */
+		BP &= ~0x1f;
+		pci_write_config_byte(dev, drive_pci,     AP | TA);
+		pci_write_config_byte(dev, drive_pci + 1, BP | TB);
 	} else {
-		pci_write_config_byte(dev, (drive_pci)|0x01, BP|TB);
-		pci_write_config_byte(dev, (drive_pci)|0x02, CP|TC);
+		/* clear MB[2:0] bits of register B */
+		BP &= ~0xe0;
+		/* clear MC[3:0] bits of register C */
+		CP &= ~0x0f;
+		pci_write_config_byte(dev, drive_pci + 1, BP | TB);
+		pci_write_config_byte(dev, drive_pci + 2, CP | TC);
 	}
 
 #if PDC202XX_DEBUG_DRIVE_INFO
 	printk(KERN_DEBUG "%s: %s drive%d 0x%08x ",
 		drive->name, ide_xfer_verbose(speed),
 		drive->dn, drive_conf);
-		pci_read_config_dword(dev, drive_pci, &drive_conf);
+	pci_read_config_dword(dev, drive_pci, &drive_conf);
 	printk("0x%08x\n", drive_conf);
-#endif /* PDC202XX_DEBUG_DRIVE_INFO */
+#endif
 
-	return (ide_config_drive_speed(drive, speed));
+	return ide_config_drive_speed(drive, speed);
 }
-
 
 static void pdc202xx_tune_drive(ide_drive_t *drive, u8 pio)
 {
@@ -209,6 +159,8 @@ static u8 pdc202xx_old_cable_detect (ide_hwif_t *hwif)
 /*
  * Set the control register to use the 66MHz system
  * clock for UDMA 3/4/5 mode operation when necessary.
+ *
+ * FIXME: this register is shared by both channels, some locking is needed
  *
  * It may also be possible to leave the 66MHz clock on
  * and readjust the timing parameters.
@@ -229,65 +181,11 @@ static void pdc_old_disable_66MHz_clock(ide_hwif_t *hwif)
 	outb(clock & ~(hwif->channel ? 0x08 : 0x02), clock_reg);
 }
 
-static int config_chipset_for_dma (ide_drive_t *drive)
-{
-	struct hd_driveid *id	= drive->id;
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
-	u32 drive_conf		= 0;
-	u8 drive_pci		= 0x60 + (drive->dn << 2);
-	u8 test1 = 0, test2 = 0, speed = -1;
-	u8 AP = 0;
-
-	if (dev->device != PCI_DEVICE_ID_PROMISE_20246)
-		pdc_old_disable_66MHz_clock(drive->hwif);
-
-	drive_pci = 0x60 + (drive->dn << 2);
-	pci_read_config_dword(dev, drive_pci, &drive_conf);
-	if ((drive_conf != 0x004ff304) && (drive_conf != 0x004ff3c4))
-		goto chipset_is_set;
-
-	pci_read_config_byte(dev, drive_pci, &test1);
-	if (!(test1 & SYNC_ERRDY_EN)) {
-		if (drive->select.b.unit & 0x01) {
-			pci_read_config_byte(dev, drive_pci - 4, &test2);
-			if ((test2 & SYNC_ERRDY_EN) &&
-			    !(test1 & SYNC_ERRDY_EN)) {
-				pci_write_config_byte(dev, drive_pci,
-					test1|SYNC_ERRDY_EN);
-			}
-		} else {
-			pci_write_config_byte(dev, drive_pci,
-				test1|SYNC_ERRDY_EN);
-		}
-	}
-
-chipset_is_set:
-
-	pci_read_config_byte(dev, (drive_pci), &AP);
-	if (id->capability & 4) /* IORDY_EN */
-		pci_write_config_byte(dev, (drive_pci), AP|IORDY_EN);
-	pci_read_config_byte(dev, (drive_pci), &AP);
-	if (drive->media == ide_disk)	/* PREFETCH_EN */
-		pci_write_config_byte(dev, (drive_pci), AP|PREFETCH_EN);
-
-	speed = ide_max_dma_mode(drive);
-
-	if (!(speed)) {
-		/* restore original pci-config space */
-		pci_write_config_dword(dev, drive_pci, drive_conf);
-		return 0;
-	}
-
-	(void) hwif->speedproc(drive, speed);
-	return ide_dma_enable(drive);
-}
-
 static int pdc202xx_config_drive_xfer_rate (ide_drive_t *drive)
 {
 	drive->init_speed = 0;
 
-	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	if (ide_use_fast_pio(drive))
