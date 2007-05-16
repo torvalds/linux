@@ -340,7 +340,7 @@ int aac_get_containers(struct aac_dev *dev)
 static void aac_internal_transfer(struct scsi_cmnd *scsicmd, void *data, unsigned int offset, unsigned int len)
 {
 	void *buf;
-	unsigned int transfer_len;
+	int transfer_len;
 	struct scatterlist *sg = scsicmd->request_buffer;
 
 	if (scsicmd->use_sg) {
@@ -351,7 +351,7 @@ static void aac_internal_transfer(struct scsi_cmnd *scsicmd, void *data, unsigne
 		transfer_len = min(scsicmd->request_bufflen, len + offset);
 	}
 	transfer_len -= offset;
-	if (buf && transfer_len)
+	if (buf && transfer_len > 0)
 		memcpy(buf + offset, data, transfer_len);
 
 	if (scsicmd->use_sg) 
