@@ -100,6 +100,7 @@ enum {
 	Opt_udp, Opt_tcp,
 	Opt_acl, Opt_noacl,
 	Opt_rdirplus, Opt_nordirplus,
+	Opt_sharecache, Opt_nosharecache,
 
 	/* Mount options that take integer arguments */
 	Opt_port,
@@ -146,6 +147,8 @@ static match_table_t nfs_mount_option_tokens = {
 	{ Opt_noacl, "noacl" },
 	{ Opt_rdirplus, "rdirplus" },
 	{ Opt_nordirplus, "nordirplus" },
+	{ Opt_sharecache, "sharecache" },
+	{ Opt_nosharecache, "nosharecache" },
 
 	{ Opt_port, "port=%u" },
 	{ Opt_rsize, "rsize=%u" },
@@ -450,6 +453,7 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss, 
 		{ NFS_MOUNT_NONLM, ",nolock", "" },
 		{ NFS_MOUNT_NOACL, ",noacl", "" },
 		{ NFS_MOUNT_NORDIRPLUS, ",nordirplus", "" },
+		{ NFS_MOUNT_UNSHARED, ",nosharecache", ""},
 		{ 0, NULL, NULL }
 	};
 	const struct proc_nfs_info *nfs_infop;
@@ -713,6 +717,12 @@ static int nfs_parse_mount_options(char *raw,
 			break;
 		case Opt_nordirplus:
 			mnt->flags |= NFS_MOUNT_NORDIRPLUS;
+			break;
+		case Opt_sharecache:
+			mnt->flags &= ~NFS_MOUNT_UNSHARED;
+			break;
+		case Opt_nosharecache:
+			mnt->flags |= NFS_MOUNT_UNSHARED;
 			break;
 
 		case Opt_port:
@@ -1309,6 +1319,9 @@ static int nfs_compare_super(struct super_block *sb, void *data)
 
 	if (old->nfs_client != server->nfs_client)
 		return 0;
+	/* Note: NFS_MOUNT_UNSHARED == NFS4_MOUNT_UNSHARED */
+	if (old->flags & NFS_MOUNT_UNSHARED)
+		return 0;
 	if (memcmp(&old->fsid, &server->fsid, sizeof(old->fsid)) != 0)
 		return 0;
 	return 1;
@@ -1322,6 +1335,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	struct nfs_fh mntfh;
 	struct nfs_mount_data *data = raw_data;
 	struct dentry *mntroot;
+	int (*compare_super)(struct super_block *, void *) = nfs_compare_super;
 	int error;
 
 	/* Validate the mount data */
@@ -1336,8 +1350,11 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 		goto out;
 	}
 
+	if (server->flags & NFS_MOUNT_UNSHARED)
+		compare_super = NULL;
+
 	/* Get a superblock - note that we may end up sharing one that already exists */
-	s = sget(fs_type, nfs_compare_super, nfs_set_super, server);
+	s = sget(fs_type, compare_super, nfs_set_super, server);
 	if (IS_ERR(s)) {
 		error = PTR_ERR(s);
 		goto out_err_nosb;
@@ -1402,6 +1419,7 @@ static int nfs_xdev_get_sb(struct file_system_type *fs_type, int flags,
 	struct super_block *s;
 	struct nfs_server *server;
 	struct dentry *mntroot;
+	int (*compare_super)(struct super_block *, void *) = nfs_compare_super;
 	int error;
 
 	dprintk("--> nfs_xdev_get_sb()\n");
@@ -1413,8 +1431,11 @@ static int nfs_xdev_get_sb(struct file_system_type *fs_type, int flags,
 		goto out_err_noserver;
 	}
 
+	if (server->flags & NFS_MOUNT_UNSHARED)
+		compare_super = NULL;
+
 	/* Get a superblock - note that we may end up sharing one that already exists */
-	s = sget(&nfs_fs_type, nfs_compare_super, nfs_set_super, server);
+	s = sget(&nfs_fs_type, compare_super, nfs_set_super, server);
 	if (IS_ERR(s)) {
 		error = PTR_ERR(s);
 		goto out_err_nosb;
@@ -1657,6 +1678,7 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 	struct nfs_fh mntfh;
 	struct dentry *mntroot;
 	char *mntpath = NULL, *hostname = NULL, *ip_addr = NULL;
+	int (*compare_super)(struct super_block *, void *) = nfs_compare_super;
 	int error;
 
 	/* Validate the mount data */
@@ -1673,8 +1695,11 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 		goto out;
 	}
 
+	if (server->flags & NFS4_MOUNT_UNSHARED)
+		compare_super = NULL;
+
 	/* Get a superblock - note that we may end up sharing one that already exists */
-	s = sget(fs_type, nfs_compare_super, nfs_set_super, server);
+	s = sget(fs_type, compare_super, nfs_set_super, server);
 	if (IS_ERR(s)) {
 		error = PTR_ERR(s);
 		goto out_free;
@@ -1740,6 +1765,7 @@ static int nfs4_xdev_get_sb(struct file_system_type *fs_type, int flags,
 	struct super_block *s;
 	struct nfs_server *server;
 	struct dentry *mntroot;
+	int (*compare_super)(struct super_block *, void *) = nfs_compare_super;
 	int error;
 
 	dprintk("--> nfs4_xdev_get_sb()\n");
@@ -1751,8 +1777,11 @@ static int nfs4_xdev_get_sb(struct file_system_type *fs_type, int flags,
 		goto out_err_noserver;
 	}
 
+	if (server->flags & NFS4_MOUNT_UNSHARED)
+		compare_super = NULL;
+
 	/* Get a superblock - note that we may end up sharing one that already exists */
-	s = sget(&nfs_fs_type, nfs_compare_super, nfs_set_super, server);
+	s = sget(&nfs_fs_type, compare_super, nfs_set_super, server);
 	if (IS_ERR(s)) {
 		error = PTR_ERR(s);
 		goto out_err_nosb;
@@ -1807,6 +1836,7 @@ static int nfs4_referral_get_sb(struct file_system_type *fs_type, int flags,
 	struct nfs_server *server;
 	struct dentry *mntroot;
 	struct nfs_fh mntfh;
+	int (*compare_super)(struct super_block *, void *) = nfs_compare_super;
 	int error;
 
 	dprintk("--> nfs4_referral_get_sb()\n");
@@ -1818,8 +1848,11 @@ static int nfs4_referral_get_sb(struct file_system_type *fs_type, int flags,
 		goto out_err_noserver;
 	}
 
+	if (server->flags & NFS4_MOUNT_UNSHARED)
+		compare_super = NULL;
+
 	/* Get a superblock - note that we may end up sharing one that already exists */
-	s = sget(&nfs_fs_type, nfs_compare_super, nfs_set_super, server);
+	s = sget(&nfs_fs_type, compare_super, nfs_set_super, server);
 	if (IS_ERR(s)) {
 		error = PTR_ERR(s);
 		goto out_err_nosb;
