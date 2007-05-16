@@ -1317,7 +1317,9 @@ static int nfs_compare_super(struct super_block *sb, void *data)
 {
 	struct nfs_server *server = data, *old = NFS_SB(sb);
 
-	if (old->nfs_client != server->nfs_client)
+	if (memcmp(&old->nfs_client->cl_addr,
+				&server->nfs_client->cl_addr,
+				sizeof(old->nfs_client->cl_addr)) != 0)
 		return 0;
 	/* Note: NFS_MOUNT_UNSHARED == NFS4_MOUNT_UNSHARED */
 	if (old->flags & NFS_MOUNT_UNSHARED)
@@ -1325,6 +1327,39 @@ static int nfs_compare_super(struct super_block *sb, void *data)
 	if (memcmp(&old->fsid, &server->fsid, sizeof(old->fsid)) != 0)
 		return 0;
 	return 1;
+}
+
+#define NFS_MS_MASK (MS_RDONLY|MS_NOSUID|MS_NODEV|MS_NOEXEC|MS_SYNCHRONOUS)
+
+static int nfs_compare_mount_options(const struct super_block *s, const struct nfs_server *b, int flags)
+{
+	const struct nfs_server *a = s->s_fs_info;
+	const struct rpc_clnt *clnt_a = a->client;
+	const struct rpc_clnt *clnt_b = b->client;
+
+	if ((s->s_flags & NFS_MS_MASK) != (flags & NFS_MS_MASK))
+		goto Ebusy;
+	if (a->nfs_client != b->nfs_client)
+		goto Ebusy;
+	if (a->flags != b->flags)
+		goto Ebusy;
+	if (a->wsize != b->wsize)
+		goto Ebusy;
+	if (a->rsize != b->rsize)
+		goto Ebusy;
+	if (a->acregmin != b->acregmin)
+		goto Ebusy;
+	if (a->acregmax != b->acregmax)
+		goto Ebusy;
+	if (a->acdirmin != b->acdirmin)
+		goto Ebusy;
+	if (a->acdirmax != b->acdirmax)
+		goto Ebusy;
+	if (clnt_a->cl_auth->au_flavor != clnt_b->cl_auth->au_flavor)
+		goto Ebusy;
+	return 0;
+Ebusy:
+	return -EBUSY;
 }
 
 static int nfs_get_sb(struct file_system_type *fs_type,
@@ -1361,8 +1396,11 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	}
 
 	if (s->s_fs_info != server) {
+		error = nfs_compare_mount_options(s, server, flags);
 		nfs_free_server(server);
 		server = NULL;
+		if (error < 0)
+			goto error_splat_super;
 	}
 
 	if (!s->s_root) {
@@ -1442,8 +1480,11 @@ static int nfs_xdev_get_sb(struct file_system_type *fs_type, int flags,
 	}
 
 	if (s->s_fs_info != server) {
+		error = nfs_compare_mount_options(s, server, flags);
 		nfs_free_server(server);
 		server = NULL;
+		if (error < 0)
+			goto error_splat_super;
 	}
 
 	if (!s->s_root) {
