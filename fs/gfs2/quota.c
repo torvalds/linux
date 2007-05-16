@@ -627,6 +627,8 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	err = 0;
 	qd->qd_qb.qb_magic = cpu_to_be32(GFS2_MAGIC);
 	qd->qd_qb.qb_value = cpu_to_be64(value);
+	((struct gfs2_quota_lvb*)(qd->qd_gl->gl_lvb))->qb_magic = cpu_to_be32(GFS2_MAGIC);
+	((struct gfs2_quota_lvb*)(qd->qd_gl->gl_lvb))->qb_value = cpu_to_be64(value);
 unlock:
 	unlock_page(page);
 	page_cache_release(page);
@@ -709,7 +711,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 		offset = qd2offset(qd);
 		error = gfs2_adjust_quota(ip, offset, qd->qd_change_sync,
 					  (struct gfs2_quota_data *)
-					  qd->qd_gl->gl_lvb);
+					  qd);
 		if (error)
 			goto out_end_trans;
 

@@ -275,14 +275,6 @@ enum {
 	QDF_LOCKED		= 2,
 };
 
-struct gfs2_quota_lvb {
-        __be32 qb_magic;
-        u32 __pad;
-        __be64 qb_limit;      /* Hard limit of # blocks to alloc */
-        __be64 qb_warn;       /* Warn user when alloc is above this # */
-        __be64 qb_value;       /* Current # blocks allocated */
-};
-
 struct gfs2_quota_data {
 	struct list_head qd_list;
 	unsigned int qd_count;
