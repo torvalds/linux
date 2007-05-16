@@ -51,6 +51,7 @@
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/dma-mapping.h>
 #include <linux/pci.h>
 #include <linux/pnp.h>
 #include <linux/platform_device.h>
