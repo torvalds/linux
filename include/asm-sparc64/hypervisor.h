@@ -940,6 +940,54 @@ struct hv_fault_status {
  */
 #define HV_FAST_CONS_PUTCHAR		0x61
 
+/* con_read()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_CONS_READ
+ * ARG0:	buffer real address
+ * ARG1:	buffer size in bytes
+ * RET0:	status
+ * RET1:	bytes read or BREAK or HUP
+ * ERRORS:	EWOULDBLOCK	No character available.
+ *
+ * Reads characters into a buffer from the console device.  If no
+ * character is available then an EWOULDBLOCK error is returned.
+ * If a character is available, then the returned status is EOK
+ * and the number of bytes read into the given buffer is provided
+ * in RET1.
+ *
+ * A virtual BREAK is represented by the 64-bit RET1 value -1.
+ *
+ * A virtual HUP signal is represented by the 64-bit RET1 value -2.
+ *
+ * If BREAK or HUP are indicated, no bytes were read into buffer.
+ */
+#define HV_FAST_CONS_READ		0x62
+
+/* con_write()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_CONS_WRITE
+ * ARG0:	buffer real address
+ * ARG1:	buffer size in bytes
+ * RET0:	status
+ * RET1:	bytes written
+ * ERRORS:	EWOULDBLOCK	Output buffer currently full, would block
+ *
+ * Send a characters in buffer to the console device.  Breaks must be
+ * sent using con_putchar().
+ */
+#define HV_FAST_CONS_WRITE		0x63
+
+#ifndef __ASSEMBLY__
+extern long sun4v_con_getchar(long *status);
+extern long sun4v_con_putchar(long c);
+extern long sun4v_con_read(unsigned long buffer,
+			   unsigned long size,
+			   unsigned long *bytes_read);
+extern unsigned long sun4v_con_write(unsigned long buffer,
+				     unsigned long size,
+				     unsigned long *bytes_written);
+#endif
+
 /* Trap trace services.
  *
  * The hypervisor provides a trap tracing capability for privileged
@@ -2121,8 +2169,41 @@ struct hv_mmu_statistics {
 #define HV_FAST_MMUSTAT_INFO		0x103
 
 /* Function numbers for HV_CORE_TRAP.  */
-#define HV_CORE_VER			0x00
+#define HV_CORE_SET_VER			0x00
 #define HV_CORE_PUTCHAR			0x01
 #define HV_CORE_EXIT			0x02
+#define HV_CORE_GET_VER			0x03
+
+/* Hypervisor API groups for use with HV_CORE_SET_VER and
+ * HV_CORE_GET_VER.
+ */
+#define HV_GRP_SUN4V			0x0000
+#define HV_GRP_CORE			0x0001
+#define HV_GRP_INTR			0x0002
+#define HV_GRP_SOFT_STATE		0x0003
+#define HV_GRP_PCI			0x0100
+#define HV_GRP_LDOM			0x0101
+#define HV_GRP_SVC_CHAN			0x0102
+#define HV_GRP_NCS			0x0103
+#define HV_GRP_NIAG_PERF		0x0200
+#define HV_GRP_FIRE_PERF		0x0201
+#define HV_GRP_DIAG			0x0300
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_get_version(unsigned long group,
+				       unsigned long *major,
+				       unsigned long *minor);
+extern unsigned long sun4v_set_version(unsigned long group,
+				       unsigned long major,
+				       unsigned long minor,
+				       unsigned long *actual_minor);
+
+extern int sun4v_hvapi_register(unsigned long group, unsigned long major,
+				unsigned long *minor);
+extern void sun4v_hvapi_unregister(unsigned long group);
+extern int sun4v_hvapi_get(unsigned long group,
+			   unsigned long *major,
+			   unsigned long *minor);
+#endif
 
 #endif /* !(_SPARC64_HYPERVISOR_H) */

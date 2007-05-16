@@ -1843,3 +1843,97 @@ sun4v_cpu_state:
 	mov	%o1, %o0
 1:	retl
 	 nop
+
+	/* %o0:	API group number
+	 * %o1: pointer to unsigned long major number storage
+	 * %o2: pointer to unsigned long minor number storage
+	 *
+	 * returns %o0: status
+	 */
+	.globl	sun4v_get_version
+sun4v_get_version:
+	mov	HV_CORE_GET_VER, %o5
+	mov	%o1, %o3
+	mov	%o2, %o4
+	ta	HV_CORE_TRAP
+	stx	%o1, [%o3]
+	retl
+	 stx	%o2, [%o4]
+
+	/* %o0: API group number
+	 * %o1: desired major number
+	 * %o2: desired minor number
+	 * %o3: pointer to unsigned long actual minor number storage
+	 *
+	 * returns %o0: status
+	 */
+	.globl	sun4v_set_version
+sun4v_set_version:
+	mov	HV_CORE_SET_VER, %o5
+	mov	%o3, %o4
+	ta	HV_CORE_TRAP
+	retl
+	 stx	%o1, [%o4]
+
+	/* %o0: pointer to unsigned long status
+	 *
+	 * returns %o0: signed character
+	 */
+	.globl	sun4v_con_getchar
+sun4v_con_getchar:
+	mov	%o0, %o4
+	mov	HV_FAST_CONS_GETCHAR, %o5
+	clr	%o0
+	clr	%o1
+	ta	HV_FAST_TRAP
+	stx	%o0, [%o4]
+	retl
+	 sra	%o1, 0, %o0
+
+	/* %o0: signed long character
+	 *
+	 * returns %o0: status
+	 */
+	.globl	sun4v_con_putchar
+sun4v_con_putchar:
+	mov	HV_FAST_CONS_PUTCHAR, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 sra	%o0, 0, %o0
+
+	/* %o0: buffer real address
+	 * %o1: buffer size
+	 * %o2: pointer to unsigned long bytes_read
+	 *
+	 * returns %o0: status
+	 */
+	.globl	sun4v_con_read
+sun4v_con_read:
+	mov	%o2, %o4
+	mov	HV_FAST_CONS_READ, %o5
+	ta	HV_FAST_TRAP
+	brnz	%o0, 1f
+	 cmp	%o1, -1		/* break */
+	be,a,pn	%icc, 1f
+	 mov	%o1, %o0
+	cmp	%o1, -2		/* hup */
+	be,a,pn	%icc, 1f
+	 mov	%o1, %o0
+	stx	%o1, [%o4]
+1:	retl
+	 nop
+
+	/* %o0: buffer real address
+	 * %o1: buffer size
+	 * %o2: pointer to unsigned long bytes_written
+	 *
+	 * returns %o0: status
+	 */
+	.globl	sun4v_con_write
+sun4v_con_write:
+	mov	%o2, %o4
+	mov	HV_FAST_CONS_WRITE, %o5
+	ta	HV_FAST_TRAP
+	stx	%o1, [%o4]
+	retl
+	 nop

@@ -269,6 +269,7 @@ void __init per_cpu_patch(void)
 
 void __init sun4v_patch(void)
 {
+	extern void sun4v_hvapi_init(void);
 	struct sun4v_1insn_patch_entry *p1;
 	struct sun4v_2insn_patch_entry *p2;
 
@@ -300,6 +301,8 @@ void __init sun4v_patch(void)
 
 		p2++;
 	}
+
+	sun4v_hvapi_init();
 }
 
 #ifdef CONFIG_SMP
