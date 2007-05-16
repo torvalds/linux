@@ -88,7 +88,7 @@ static inline int kmalloc_index(int size)
 	 */
 	WARN_ON_ONCE(size == 0);
 
-	if (size >= (1 << KMALLOC_SHIFT_HIGH))
+	if (size > (1 << KMALLOC_SHIFT_HIGH))
 		return -1;
 
 	if (size > 64 && size <= 96)
