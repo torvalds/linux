@@ -48,6 +48,8 @@ const char *get_system_type(void)
 	return "MIPS Atlas";
 }
 
+const char display_string[] = "        LINUX ON ATLAS       ";
+
 void __init plat_mem_setup(void)
 {
 	mips_pcibios_init();
