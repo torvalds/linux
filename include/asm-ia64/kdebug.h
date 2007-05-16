@@ -28,14 +28,24 @@
  */
 #include <linux/notifier.h>
 
-extern int register_page_fault_notifier(struct notifier_block *);
-extern int unregister_page_fault_notifier(struct notifier_block *);
+/*
+ * These are only here because kprobes.c wants them to implement a
+ * blatant layering violation.  Will hopefully go away soon once all
+ * architectures are updated.
+ */
+static inline int register_page_fault_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+static inline int unregister_page_fault_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
 
 enum die_val {
 	DIE_BREAK = 1,
 	DIE_FAULT,
 	DIE_OOPS,
-	DIE_PAGE_FAULT,
 	DIE_MACHINE_HALT,
 	DIE_MACHINE_RESTART,
 	DIE_MCA_MONARCH_ENTER,
