@@ -379,7 +379,7 @@ static ssize_t ppc_rtas_progress_write(struct file *file,
 /* ****************************************************************** */
 static int ppc_rtas_progress_show(struct seq_file *m, void *v)
 {
-	if (progress_led)
+	if (progress_led[0])
 		seq_printf(m, "%s\n", progress_led);
 	return 0;
 }
