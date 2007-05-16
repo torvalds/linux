@@ -1,13 +1,13 @@
 /*
  * drivers/net/ucc_geth_mii.h
  *
- * Gianfar Ethernet Driver -- MII Management Bus Implementation
- * Driver for the MDIO bus controller in the Gianfar register space
+ * QE UCC Gigabit Ethernet Driver -- MII Management Bus Implementation
+ * Provides Bus interface for MII Management regs in the UCC register space
  *
- * Author: Andy Fleming
- * Maintainer: Kumar Gala
+ * Copyright (C) 2007 Freescale Semiconductor, Inc.
  *
- * Copyright (c) 2002-2004 Freescale Semiconductor, Inc.
+ * Authors: Li Yang <leoli@freescale.com>
+ *	    Kim Phillips <kim.phillips@freescale.com>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
