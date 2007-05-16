@@ -17,6 +17,7 @@
 #include <linux/debugfs.h>
 
 #include "dlm_internal.h"
+#include "lock.h"
 
 #define DLM_DEBUG_BUF_LEN 4096
 static char debug_buf[DLM_DEBUG_BUF_LEN];
@@ -166,6 +167,9 @@ static int rsb_iter_next(struct rsb_iter *ri)
 			read_lock(&ls->ls_rsbtbl[i].lock);
 			if (!list_empty(&ls->ls_rsbtbl[i].list)) {
 				ri->next = ls->ls_rsbtbl[i].list.next;
+				ri->rsb = list_entry(ri->next, struct dlm_rsb,
+							res_hashchain);
+				dlm_hold_rsb(ri->rsb);
 				read_unlock(&ls->ls_rsbtbl[i].lock);
 				break;
 			}
@@ -176,6 +180,7 @@ static int rsb_iter_next(struct rsb_iter *ri)
 		if (ri->entry >= ls->ls_rsbtbl_size)
 			return 1;
 	} else {
+		struct dlm_rsb *old = ri->rsb;
 		i = ri->entry;
 		read_lock(&ls->ls_rsbtbl[i].lock);
 		ri->next = ri->next->next;
@@ -184,11 +189,13 @@ static int rsb_iter_next(struct rsb_iter *ri)
 			ri->next = NULL;
 			ri->entry++;
 			read_unlock(&ls->ls_rsbtbl[i].lock);
+			dlm_put_rsb(old);
 			goto top;
                 }
+		ri->rsb = list_entry(ri->next, struct dlm_rsb, res_hashchain);
 		read_unlock(&ls->ls_rsbtbl[i].lock);
+		dlm_put_rsb(old);
 	}
-	ri->rsb = list_entry(ri->next, struct dlm_rsb, res_hashchain);
 
 	return 0;
 }
