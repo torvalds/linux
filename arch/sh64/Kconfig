@@ -17,6 +17,9 @@ config MMU
 	bool
 	default y
 
+config QUICKLIST
+	def_bool y
+
 config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y

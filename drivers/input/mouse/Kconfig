@@ -111,6 +111,7 @@ config MOUSE_SERIAL
 
 config MOUSE_APPLETOUCH
 	tristate "Apple USB Touchpad support"
+	depends on USB_ARCH_HAS_HCD
 	select USB
 	help
 	  Say Y here if you want to use an Apple USB Touchpad.

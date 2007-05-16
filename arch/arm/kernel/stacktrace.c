@@ -1,3 +1,4 @@
+#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
 
@@ -30,6 +31,7 @@ int walk_stackframe(unsigned long fp, unsigned long low, unsigned long high,
 
 	return 0;
 }
+EXPORT_SYMBOL(walk_stackframe);
 
 #ifdef CONFIG_STACKTRACE
 struct stack_trace_data {

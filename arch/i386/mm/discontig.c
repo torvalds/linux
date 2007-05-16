@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/kexec.h>
 #include <linux/pfn.h>
+#include <linux/swap.h>
 
 #include <asm/e820.h>
 #include <asm/setup.h>
@@ -97,14 +98,8 @@ unsigned long node_memmap_size_bytes(int nid, unsigned long start_pfn,
 #endif
 
 extern unsigned long find_max_low_pfn(void);
-extern void find_max_pfn(void);
 extern void add_one_highpage_init(struct page *, int, int);
-
-extern struct e820map e820;
 extern unsigned long highend_pfn, highstart_pfn;
-extern unsigned long max_low_pfn;
-extern unsigned long totalram_pages;
-extern unsigned long totalhigh_pages;
 
 #define LARGE_PAGE_BYTES (PTRS_PER_PTE * PAGE_SIZE)
 
@@ -360,7 +355,9 @@ void __init zone_sizes_init(void)
 	max_zone_pfns[ZONE_DMA] =
 		virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+#ifdef CONFIG_HIGHMEM
 	max_zone_pfns[ZONE_HIGHMEM] = highend_pfn;
+#endif
 
 	/* If SRAT has not registered memory, register it now */
 	if (find_max_pfn_with_active_regions() == 0) {

@@ -4,7 +4,7 @@
  * May be copied or modified under the terms of the GNU General Public
  * License.  See linux/COPYING for more information.
  *
- * Defintions for the SH5 PCI hardware.
+ * Definitions for the SH5 PCI hardware.
  */
 
 /* Product ID */

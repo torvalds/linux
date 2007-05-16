@@ -10,6 +10,7 @@
  * Copyright (C) 2004, 2006  Hirokazu Takata <takata at linux-m32r.org>
  */
 
+#include <linux/compiler.h>
 #include <asm/assembler.h>
 
 #ifdef __KERNEL__
@@ -154,7 +155,7 @@ extern void  __xchg_called_with_bad_pointer(void);
 #define DCACHE_CLEAR(reg0, reg1, addr)
 #endif	/* CONFIG_CHIP_M32700_TS1 */
 
-static inline unsigned long
+static __always_inline unsigned long
 __xchg(unsigned long x, volatile void * ptr, int size)
 {
 	unsigned long flags;

@@ -166,6 +166,7 @@ config TOUCHSCREEN_UCB1400
 
 config TOUCHSCREEN_USB_COMPOSITE
 	tristate "USB Touchscreen Driver"
+	depends on USB_ARCH_HAS_HCD
 	select USB
 	help
 	  USB Touchscreen driver for:

@@ -166,5 +166,5 @@ config ZONE_DMA_FLAG
 config NR_QUICK
 	int
 	depends on QUICKLIST
-	default "2" if SUPERH
+	default "2" if (SUPERH && !SUPERH64)
 	default "1"

@@ -135,7 +135,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
 	/* SIM
 	 * Note this is now called with interrupts still disabled
 	 * This is to cope with being called for a missing IO port
-	 * address with interupts disabled. This should be fixed as
+	 * address with interrupts disabled. This should be fixed as
 	 * soon as we have a better 'fast path' miss handler.
 	 *
 	 * Plus take care how you try and debug this stuff.

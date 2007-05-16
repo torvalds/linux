@@ -255,6 +255,7 @@ config JOYSTICK_JOYDUMP
 
 config JOYSTICK_XPAD
 	tristate "X-Box gamepad support"
+	depends on USB_ARCH_HAS_HCD
 	select USB
 	help
 	  Say Y here if you want to use the X-Box pad with your computer.

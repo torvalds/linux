@@ -111,18 +111,6 @@ u8 ide_rate_filter(ide_drive_t *drive, u8 speed)
 
 EXPORT_SYMBOL(ide_rate_filter);
 
-int ide_dma_enable (ide_drive_t *drive)
-{
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct hd_driveid *id	= drive->id;
-
-	return ((int)	((((id->dma_ultra >> 8) & hwif->ultra_mask) ||
-			  ((id->dma_mword >> 8) & hwif->mwdma_mask) ||
-			  ((id->dma_1word >> 8) & hwif->swdma_mask)) ? 1 : 0));
-}
-
-EXPORT_SYMBOL(ide_dma_enable);
-
 int ide_use_fast_pio(ide_drive_t *drive)
 {
 	struct hd_driveid *id = drive->id;

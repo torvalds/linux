@@ -9,6 +9,7 @@
 
 #include <linux/msg.h>
 #include <linux/shm.h>
+#include <kern_constants.h>
 
 typedef long syscall_handler_t(void);
 
@@ -29,6 +30,6 @@ extern long old_mmap(unsigned long addr, unsigned long len,
 extern syscall_handler_t sys_modify_ldt;
 extern syscall_handler_t sys_arch_prctl;
 
-#define NR_syscalls (__NR_syscall_max + 1)
+#define NR_syscalls (UM_NR_syscall_max + 1)
 
 #endif
