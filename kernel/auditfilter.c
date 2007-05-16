@@ -304,7 +304,7 @@ int __init audit_register_class(int class, unsigned *list)
 
 int audit_match_class(int class, unsigned syscall)
 {
-	if (unlikely(syscall >= AUDIT_BITMASK_SIZE * sizeof(__u32)))
+	if (unlikely(syscall >= AUDIT_BITMASK_SIZE * 32))
 		return 0;
 	if (unlikely(class >= AUDIT_SYSCALL_CLASSES || !classes[class]))
 		return 0;
