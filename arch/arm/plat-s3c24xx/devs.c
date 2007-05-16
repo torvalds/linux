@@ -33,6 +33,7 @@
 
 #include <asm/plat-s3c24xx/devs.h>
 #include <asm/plat-s3c24xx/cpu.h>
+#include <asm/arch/regs-spi.h>
 
 /* Serial port registrations */
 
@@ -437,8 +438,8 @@ EXPORT_SYMBOL(s3c_device_spi0);
 
 static struct resource s3c_spi1_resource[] = {
 	[0] = {
-		.start = S3C24XX_PA_SPI + 0x20,
-		.end   = S3C24XX_PA_SPI + 0x20 + 0x1f,
+		.start = S3C24XX_PA_SPI + S3C2410_SPI1,
+		.end   = S3C24XX_PA_SPI + S3C2410_SPI1 + 0x1f,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {

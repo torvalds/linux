@@ -12,6 +12,8 @@
 #ifndef __ASM_ARCH_REGS_SPI_H
 #define __ASM_ARCH_REGS_SPI_H
 
+#define S3C2410_SPI1	(0x20)
+#define S3C2412_SPI1	(0x100)
 
 #define S3C2410_SPCON	(0x00)
 

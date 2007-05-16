@@ -37,6 +37,7 @@
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-gpioj.h>
 #include <asm/arch/regs-dsc.h>
+#include <asm/arch/regs-spi.h>
 
 #include <asm/plat-s3c24xx/s3c2412.h>
 #include <asm/plat-s3c24xx/cpu.h>
@@ -74,6 +75,14 @@ void __init s3c2412_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 	s3c_device_sdi.name  = "s3c2412-sdi";
 	s3c_device_lcd.name  = "s3c2412-lcd";
 	s3c_device_nand.name = "s3c2412-nand";
+
+	/* spi channel related changes, s3c2412/13 specific */
+	s3c_device_spi0.name = "s3c2412-spi";
+	s3c_device_spi0.resource[0].end = S3C24XX_PA_SPI + 0x24;
+	s3c_device_spi1.name = "s3c2412-spi";
+	s3c_device_spi1.resource[0].start = S3C24XX_PA_SPI + S3C2412_SPI1;
+	s3c_device_spi1.resource[0].end = S3C24XX_PA_SPI + S3C2412_SPI1 + 0x24;
+
 }
 
 /* s3c2412_idle
