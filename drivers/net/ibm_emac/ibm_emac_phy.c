@@ -22,6 +22,7 @@
 
 #include <asm/ocp.h>
 
+#include "ibm_emac_core.h"
 #include "ibm_emac_phy.h"
 
 static inline int phy_read(struct mii_phy *phy, int reg)
@@ -34,10 +35,38 @@ static inline void phy_write(struct mii_phy *phy, int reg, int val)
 	phy->mdio_write(phy->dev, phy->address, reg, val);
 }
 
-int mii_reset_phy(struct mii_phy *phy)
+/*
+ * polls MII_BMCR until BMCR_RESET bit clears or operation times out.
+ *
+ * returns:
+ *	>= 0 => success, value in BMCR returned to caller
+ *	-EBUSY => failure, RESET bit never cleared
+ *	otherwise => failure, lower level PHY read failed
+ */
+static int mii_spin_reset_complete(struct mii_phy *phy)
 {
 	int val;
 	int limit = 10000;
+
+	while (limit--) {
+		val = phy_read(phy, MII_BMCR);
+		if (val >= 0 && !(val & BMCR_RESET))
+			return val;	/* success */
+		udelay(10);
+	}
+	if (val & BMCR_RESET)
+		val = -EBUSY;
+
+	if (net_ratelimit())
+		printk(KERN_ERR "emac%d: PHY reset timeout (%d)\n", 
+		       ((struct ocp_enet_private *)phy->dev->priv)->def->index,
+		       val);
+	return val;		    
+}
+
+int mii_reset_phy(struct mii_phy *phy)
+{
+	int val;
 
 	val = phy_read(phy, MII_BMCR);
 	val &= ~BMCR_ISOLATE;
@@ -46,16 +75,11 @@ int mii_reset_phy(struct mii_phy *phy)
 
 	udelay(300);
 
-	while (limit--) {
-		val = phy_read(phy, MII_BMCR);
-		if (val >= 0 && (val & BMCR_RESET) == 0)
-			break;
-		udelay(10);
-	}
-	if ((val & BMCR_ISOLATE) && limit > 0)
+	val = mii_spin_reset_complete(phy);
+	if (val >= 0 && (val & BMCR_ISOLATE))
 		phy_write(phy, MII_BMCR, val & ~BMCR_ISOLATE);
 
-	return limit <= 0;
+	return val < 0;
 }
 
 static int genmii_setup_aneg(struct mii_phy *phy, u32 advertise)
@@ -102,8 +126,14 @@ static int genmii_setup_aneg(struct mii_phy *phy, u32 advertise)
 	}
 
 	/* Start/Restart aneg */
-	ctl = phy_read(phy, MII_BMCR);
-	ctl |= (BMCR_ANENABLE | BMCR_ANRESTART);
+	/* on some PHYs (e.g. National DP83843) a write to MII_ADVERTISE
+	 * causes BMCR_RESET to be set on the next read of MII_BMCR, which
+	 * if not checked for causes the PHY to be reset below */
+	ctl = mii_spin_reset_complete(phy);
+	if (ctl < 0)
+		return ctl;
+
+	ctl |= BMCR_ANENABLE | BMCR_ANRESTART;
 	phy_write(phy, MII_BMCR, ctl);
 
 	return 0;
@@ -118,13 +148,13 @@ static int genmii_setup_forced(struct mii_phy *phy, int speed, int fd)
 	phy->duplex = fd;
 	phy->pause = phy->asym_pause = 0;
 
+	/* First reset the PHY */
+	mii_reset_phy(phy);
+
 	ctl = phy_read(phy, MII_BMCR);
 	if (ctl < 0)
 		return ctl;
-	ctl &= ~(BMCR_FULLDPLX | BMCR_SPEED100 | BMCR_ANENABLE);
-
-	/* First reset the PHY */
-	phy_write(phy, MII_BMCR, ctl | BMCR_RESET);
+	ctl &= ~(BMCR_FULLDPLX | BMCR_SPEED100 | BMCR_ANENABLE | BMCR_SPEED1000);
 
 	/* Select speed & duplex */
 	switch (speed) {
