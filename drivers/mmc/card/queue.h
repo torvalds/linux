@@ -10,18 +10,10 @@ struct mmc_queue {
 	struct semaphore	thread_sem;
 	unsigned int		flags;
 	struct request		*req;
-	int			(*prep_fn)(struct mmc_queue *, struct request *);
 	int			(*issue_fn)(struct mmc_queue *, struct request *);
 	void			*data;
 	struct request_queue	*queue;
 	struct scatterlist	*sg;
-};
-
-struct mmc_io_request {
-	struct request		*rq;
-	int			num;
-	struct mmc_command	selcmd;		/* mmc_queue private */
-	struct mmc_command	cmd[4];		/* max 4 commands */
 };
 
 extern int mmc_init_queue(struct mmc_queue *, struct mmc_card *, spinlock_t *);
