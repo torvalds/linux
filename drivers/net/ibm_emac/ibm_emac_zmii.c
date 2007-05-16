@@ -215,7 +215,7 @@ void __zmii_set_speed(struct ocp_device *ocpdev, int input, int speed)
 	out_be32(&dev->base->ssr, ssr);
 }
 
-void __exit __zmii_fini(struct ocp_device *ocpdev, int input)
+void __zmii_fini(struct ocp_device *ocpdev, int input)
 {
 	struct ibm_ocp_zmii *dev = ocp_get_drvdata(ocpdev);
 	BUG_ON(!dev || dev->users == 0);

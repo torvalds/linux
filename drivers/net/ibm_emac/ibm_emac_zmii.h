@@ -40,7 +40,7 @@ struct ibm_ocp_zmii {
 #ifdef CONFIG_IBM_EMAC_ZMII
 int zmii_attach(void *emac) __init;
 
-void __zmii_fini(struct ocp_device *ocpdev, int input) __exit;
+void __zmii_fini(struct ocp_device *ocpdev, int input);
 static inline void zmii_fini(struct ocp_device *ocpdev, int input)
 {
 	if (ocpdev)

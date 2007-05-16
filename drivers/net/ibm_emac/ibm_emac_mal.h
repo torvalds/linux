@@ -223,8 +223,7 @@ void mal_exit(void) __exit;
 
 int mal_register_commac(struct ibm_ocp_mal *mal,
 			struct mal_commac *commac) __init;
-void mal_unregister_commac(struct ibm_ocp_mal *mal,
-			   struct mal_commac *commac) __exit;
+void mal_unregister_commac(struct ibm_ocp_mal *mal, struct mal_commac *commac);
 int mal_set_rcbs(struct ibm_ocp_mal *mal, int channel, unsigned long size);
 
 /* Returns BD ring offset for a particular channel
