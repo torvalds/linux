@@ -36,6 +36,7 @@
  * HT chip.
  */
 
+#include <linux/vmalloc.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/htirq.h>
