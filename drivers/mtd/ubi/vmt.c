@@ -243,7 +243,6 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	/* Reserve physical eraseblocks */
 	if (vol->reserved_pebs > ubi->avail_pebs) {
 		dbg_err("not enough PEBs, only %d available", ubi->avail_pebs);
-		spin_unlock(&ubi->volumes_lock);
 		err = -ENOSPC;
 		goto out_unlock;
 	}
