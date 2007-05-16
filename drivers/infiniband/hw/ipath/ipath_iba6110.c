@@ -1065,6 +1065,16 @@ static void ipath_setup_ht_setextled(struct ipath_devdata *dd,
 	if (ipath_diag_inuse)
 		return;
 
+	/* Allow override of LED display for, e.g. Locating system in rack */
+	if (dd->ipath_led_override) {
+		ltst = (dd->ipath_led_override & IPATH_LED_PHYS)
+			? INFINIPATH_IBCS_LT_STATE_LINKUP
+			: INFINIPATH_IBCS_LT_STATE_DISABLED;
+		lst = (dd->ipath_led_override & IPATH_LED_LOG)
+			? INFINIPATH_IBCS_L_STATE_ACTIVE
+			: INFINIPATH_IBCS_L_STATE_DOWN;
+	}
+
 	/*
 	 * start by setting both LED control bits to off, then turn
 	 * on the appropriate bit(s).

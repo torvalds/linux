@@ -596,6 +596,23 @@ bail:
 	return ret;
 }
 
+static ssize_t store_led_override(struct device *dev,
+			  struct device_attribute *attr,
+			  const char *buf,
+			  size_t count)
+{
+	struct ipath_devdata *dd = dev_get_drvdata(dev);
+	int ret;
+	u16 val;
+
+	ret = ipath_parse_ushort(buf, &val);
+	if (ret > 0)
+		ipath_set_led_override(dd, val);
+	else
+		ipath_dev_err(dd, "attempt to set invalid LED override\n");
+	return ret;
+}
+
 
 static DRIVER_ATTR(num_units, S_IRUGO, show_num_units, NULL);
 static DRIVER_ATTR(version, S_IRUGO, show_version, NULL);
@@ -625,6 +642,7 @@ static DEVICE_ATTR(status_str, S_IRUGO, show_status_str, NULL);
 static DEVICE_ATTR(boardversion, S_IRUGO, show_boardversion, NULL);
 static DEVICE_ATTR(unit, S_IRUGO, show_unit, NULL);
 static DEVICE_ATTR(rx_pol_inv, S_IWUSR, NULL, store_rx_pol_inv);
+static DEVICE_ATTR(led_override, S_IWUSR, NULL, store_led_override);
 
 static struct attribute *dev_attributes[] = {
 	&dev_attr_guid.attr,
@@ -641,6 +659,7 @@ static struct attribute *dev_attributes[] = {
 	&dev_attr_unit.attr,
 	&dev_attr_enabled.attr,
 	&dev_attr_rx_pol_inv.attr,
+	&dev_attr_led_override.attr,
 	NULL
 };
 

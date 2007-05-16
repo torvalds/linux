@@ -1846,6 +1846,87 @@ void ipath_write_kreg_port(const struct ipath_devdata *dd, ipath_kreg regno,
 	ipath_write_kreg(dd, where, value);
 }
 
+/*
+ * Following deal with the "obviously simple" task of overriding the state
+ * of the LEDS, which normally indicate link physical and logical status.
+ * The complications arise in dealing with different hardware mappings
+ * and the board-dependent routine being called from interrupts.
+ * and then there's the requirement to _flash_ them.
+ */
+#define LED_OVER_FREQ_SHIFT 8
+#define LED_OVER_FREQ_MASK (0xFF<<LED_OVER_FREQ_SHIFT)
+/* Below is "non-zero" to force override, but both actual LEDs are off */
+#define LED_OVER_BOTH_OFF (8)
+
+void ipath_run_led_override(unsigned long opaque)
+{
+	struct ipath_devdata *dd = (struct ipath_devdata *)opaque;
+	int timeoff;
+	int pidx;
+	u64 lstate, ltstate, val;
+
+	if (!(dd->ipath_flags & IPATH_INITTED))
+		return;
+
+	pidx = dd->ipath_led_override_phase++ & 1;
+	dd->ipath_led_override = dd->ipath_led_override_vals[pidx];
+	timeoff = dd->ipath_led_override_timeoff;
+
+	/*
+	 * below potentially restores the LED values per current status,
+	 * should also possibly setup the traffic-blink register,
+	 * but leave that to per-chip functions.
+	 */
+	val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_ibcstatus);
+	ltstate = (val >> INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT) &
+		  INFINIPATH_IBCS_LINKTRAININGSTATE_MASK;
+	lstate = (val >> INFINIPATH_IBCS_LINKSTATE_SHIFT) &
+		 INFINIPATH_IBCS_LINKSTATE_MASK;
+
+	dd->ipath_f_setextled(dd, lstate, ltstate);
+	mod_timer(&dd->ipath_led_override_timer, jiffies + timeoff);
+}
+
+void ipath_set_led_override(struct ipath_devdata *dd, unsigned int val)
+{
+	int timeoff, freq;
+
+	if (!(dd->ipath_flags & IPATH_INITTED))
+		return;
+
+	/* First check if we are blinking. If not, use 1HZ polling */
+	timeoff = HZ;
+	freq = (val & LED_OVER_FREQ_MASK) >> LED_OVER_FREQ_SHIFT;
+
+	if (freq) {
+		/* For blink, set each phase from one nybble of val */
+		dd->ipath_led_override_vals[0] = val & 0xF;
+		dd->ipath_led_override_vals[1] = (val >> 4) & 0xF;
+		timeoff = (HZ << 4)/freq;
+	} else {
+		/* Non-blink set both phases the same. */
+		dd->ipath_led_override_vals[0] = val & 0xF;
+		dd->ipath_led_override_vals[1] = val & 0xF;
+	}
+	dd->ipath_led_override_timeoff = timeoff;
+
+	/*
+	 * If the timer has not already been started, do so. Use a "quick"
+	 * timeout so the function will be called soon, to look at our request.
+	 */
+	if (atomic_inc_return(&dd->ipath_led_override_timer_active) == 1) {
+		/* Need to start timer */
+		init_timer(&dd->ipath_led_override_timer);
+		dd->ipath_led_override_timer.function =
+						 ipath_run_led_override;
+		dd->ipath_led_override_timer.data = (unsigned long) dd;
+		dd->ipath_led_override_timer.expires = jiffies + 1;
+		add_timer(&dd->ipath_led_override_timer);
+	} else {
+		atomic_dec(&dd->ipath_led_override_timer_active);
+	}
+}
+
 /**
  * ipath_shutdown_device - shut down a device
  * @dd: the infinipath device
@@ -1909,7 +1990,6 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 	 * Turn the LEDs off explictly for the same reason.
 	 */
 	dd->ipath_f_quiet_serdes(dd);
-	dd->ipath_f_setextled(dd, 0, 0);
 
 	if (dd->ipath_stats_timer_active) {
 		del_timer_sync(&dd->ipath_stats_timer);
@@ -2084,6 +2164,16 @@ int ipath_reset_device(int unit)
 		ret = -ENODEV;
 		goto bail;
 	}
+
+	if (atomic_read(&dd->ipath_led_override_timer_active)) {
+		/* Need to stop LED timer, _then_ shut off LEDs */
+		del_timer_sync(&dd->ipath_led_override_timer);
+		atomic_set(&dd->ipath_led_override_timer_active, 0);
+	}
+
+	/* Shut off LEDs after we are sure timer is not running */
+	dd->ipath_led_override = LED_OVER_BOTH_OFF;
+	dd->ipath_f_setextled(dd, 0, 0);
 
 	dev_info(&dd->pcidev->dev, "Reset on unit %u requested\n", unit);
 

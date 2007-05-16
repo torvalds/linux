@@ -575,6 +575,16 @@ struct ipath_devdata {
 	u16 ipath_gpio_scl_num;
 	u64 ipath_gpio_sda;
 	u64 ipath_gpio_scl;
+
+	/* used to override LED behavior */
+	u8 ipath_led_override;  /* Substituted for normal value, if non-zero */
+	u16 ipath_led_override_timeoff; /* delta to next timer event */
+	u8 ipath_led_override_vals[2]; /* Alternates per blink-frame */
+	u8 ipath_led_override_phase; /* Just counts, LSB picks from vals[] */
+	atomic_t ipath_led_override_timer_active;
+	/* Used to flash LEDs in override mode */
+	struct timer_list ipath_led_override_timer;
+
 };
 
 /* Private data for file operations */
@@ -715,6 +725,15 @@ void ipath_init_iba6110_funcs(struct ipath_devdata *);
 void ipath_get_eeprom_info(struct ipath_devdata *);
 u64 ipath_snap_cntr(struct ipath_devdata *, ipath_creg);
 void ipath_disarm_senderrbufs(struct ipath_devdata *, int);
+
+/*
+ * Set LED override, only the two LSBs have "public" meaning, but
+ * any non-zero value substitutes them for the Link and LinkTrain
+ * LED states.
+ */
+#define IPATH_LED_PHYS 1 /* Physical (linktraining) GREEN LED */
+#define IPATH_LED_LOG 2  /* Logical (link) YELLOW LED */
+void ipath_set_led_override(struct ipath_devdata *dd, unsigned int val);
 
 /*
  * number of words used for protocol header if not set by ipath_userinit();
