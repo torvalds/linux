@@ -123,7 +123,7 @@ static unsigned long long usecs_per_jiffy = 1000000/HZ; /* Approximation */
 static unsigned long long scaled_recip_ctc_ticks_per_jiffy;
 
 /* Estimate number of microseconds that have elapsed since the last timer tick,
-   by scaling the delta that has occured in the CTC register.
+   by scaling the delta that has occurred in the CTC register.
 
    WARNING WARNING WARNING : This algorithm relies on the CTC decrementing at
    the CPU clock rate.  If the CPU sleeps, the CTC stops counting.  Bear this
@@ -282,7 +282,7 @@ static long last_rtc_update = 0;
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-static inline void do_timer_interrupt(int irq, struct pt_regs *regs)
+static inline void do_timer_interrupt(void)
 {
 	unsigned long long current_ctc;
 	asm ("getcon cr62, %0" : "=r" (current_ctc));
@@ -290,9 +290,10 @@ static inline void do_timer_interrupt(int irq, struct pt_regs *regs)
 
 	do_timer(1);
 #ifndef CONFIG_SMP
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 #endif
-	profile_tick(CPU_PROFILING, regs);
+	if (current->pid)
+		profile_tick(CPU_PROFILING);
 
 #ifdef CONFIG_HEARTBEAT
 	{
@@ -323,7 +324,7 @@ static inline void do_timer_interrupt(int irq, struct pt_regs *regs)
  * Time Stamp Counter value at the time of the timer interrupt, so that
  * we later on can estimate the time of day more exactly.
  */
-static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	unsigned long timer_status;
 
@@ -340,7 +341,7 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * locally disabled. -arca
 	 */
 	write_lock(&xtime_lock);
-	do_timer_interrupt(irq, regs);
+	do_timer_interrupt();
 	write_unlock(&xtime_lock);
 
 	return IRQ_HANDLED;
@@ -465,9 +466,10 @@ static __init unsigned int get_cpu_hz(void)
 #endif
 }
 
-static irqreturn_t sh64_rtc_interrupt(int irq, void *dev_id,
-				      struct pt_regs *regs)
+static irqreturn_t sh64_rtc_interrupt(int irq, void *dev_id)
 {
+	struct pt_regs *regs = get_irq_regs();
+
 	ctrl_outb(0, RCR1);	/* Disable Carry Interrupts */
 	regs->regs[3] = 1;	/* Using r3 */
 

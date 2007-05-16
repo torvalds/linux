@@ -947,14 +947,14 @@ ret_with_reschedule:
 	! FIXME:!!!
 	! no handling of TIF_SYSCALL_TRACE yet!!
 
-	movi	(1 << TIF_NEED_RESCHED), r8
+	movi	_TIF_NEED_RESCHED, r8
 	and	r8, r7, r8
 	pta	work_resched, tr0
 	bne	r8, ZERO, tr0
 
 	pta	restore_all, tr1
 
-	movi	(1 << TIF_SIGPENDING), r8
+	movi	(_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK), r8
 	and	r8, r7, r8
 	pta	work_notifysig, tr0
 	bne	r8, ZERO, tr0

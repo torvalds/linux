@@ -29,13 +29,13 @@ unsigned long epld_virt;
 /* Note the SMSC SuperIO chip and SMSC LAN chip interrupts are all muxed onto
    the same SH-5 interrupt */
 
-static irqreturn_t cayman_interrupt_smsc(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cayman_interrupt_smsc(int irq, void *dev_id)
 {
         printk(KERN_INFO "CAYMAN: spurious SMSC interrupt\n");
 	return IRQ_NONE;
 }
 
-static irqreturn_t cayman_interrupt_pci2(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cayman_interrupt_pci2(int irq, void *dev_id)
 {
         printk(KERN_INFO "CAYMAN: spurious PCI interrupt, IRQ %d\n", irq);
 	return IRQ_NONE;

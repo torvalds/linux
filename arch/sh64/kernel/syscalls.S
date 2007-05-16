@@ -2,7 +2,7 @@
  * arch/sh64/kernel/syscalls.S
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
- * Copyright (C) 2004  Paul Mundt
+ * Copyright (C) 2004 - 2007  Paul Mundt
  * Copyright (C) 2003, 2004 Richard Curnow
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -20,7 +20,7 @@
  */
 	.globl  sys_call_table
 sys_call_table:
-	.long sys_ni_syscall		/* 0  -  old "setup()" system call  */
+	.long sys_restart_syscall	/* 0  -  old "setup()" system call  */
 	.long sys_exit
 	.long sys_fork
 	.long sys_read
@@ -347,4 +347,34 @@ sys_call_table:
 	.long sys_inotify_init
 	.long sys_inotify_add_watch
 	.long sys_inotify_rm_watch	/* 320 */
-
+	.long sys_ni_syscall
+	.long sys_migrate_pages
+	.long sys_openat
+	.long sys_mkdirat
+	.long sys_mknodat		/* 325 */
+	.long sys_fchownat
+	.long sys_futimesat
+	.long sys_fstatat64
+	.long sys_unlinkat
+	.long sys_renameat		/* 330 */
+	.long sys_linkat
+	.long sys_symlinkat
+	.long sys_readlinkat
+	.long sys_fchmodat
+	.long sys_faccessat		/* 335 */
+	.long sys_pselect6
+	.long sys_ppoll
+	.long sys_unshare
+	.long sys_set_robust_list
+	.long sys_get_robust_list	/* 340 */
+	.long sys_splice
+	.long sys_sync_file_range
+	.long sys_tee
+	.long sys_vmsplice
+	.long sys_move_pages		/* 345 */
+	.long sys_getcpu
+	.long sys_epoll_pwait
+	.long sys_utimensat
+	.long sys_signalfd
+	.long sys_timerfd		/* 350 */
+	.long sys_eventfd

@@ -14,7 +14,7 @@
  * IMPORTANT NOTES :
  * The do_fast_page_fault function is called from a context in entry.S where very few registers
  * have been saved.  In particular, the code in this file must be compiled not to use ANY
- * caller-save regiseters that are not part of the restricted save set.  Also, it means that
+ * caller-save registers that are not part of the restricted save set.  Also, it means that
  * code in this file must not make calls to functions elsewhere in the kernel, or else the
  * excepting context will see corruption in its caller-save registers.  Plus, the entry.S save
  * area is non-reentrant, so this code has to run with SR.BL==1, i.e. no interrupts taken inside
@@ -249,7 +249,7 @@ asmlinkage int do_fast_page_fault(unsigned long long ssr_md, unsigned long long 
 	/* SIM
 	 * Note this is now called with interrupts still disabled
 	 * This is to cope with being called for a missing IO port
-	 * address with interupts disabled. This should be fixed as
+	 * address with interrupts disabled. This should be fixed as
 	 * soon as we have a better 'fast path' miss handler.
 	 *
 	 * Plus take care how you try and debug this stuff.

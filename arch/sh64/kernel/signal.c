@@ -698,7 +698,9 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 	if (try_to_freeze())
 		goto no_signal;
 
-	if (!oldset)
+	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		oldset = &current->saved_sigmask;
+	else if (!oldset)
 		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, 0);
@@ -706,6 +708,15 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
 		handle_signal(signr, &info, &ka, oldset, regs);
+
+		/*
+		 * If a signal was successfully delivered, the saved sigmask
+		 * is in its frame, and we can clear the TIF_RESTORE_SIGMASK
+		 * flag.
+		 */
+		if (test_thread_flag(TIF_RESTORE_SIGMASK))
+			clear_thread_flag(TIF_RESTORE_SIGMASK);
+
 		return 1;
 	}
 
@@ -713,13 +724,27 @@ no_signal:
 	/* Did we come from a system call? */
 	if (regs->syscall_nr >= 0) {
 		/* Restart the system call - no handlers present */
-		if (regs->regs[REG_RET] == -ERESTARTNOHAND ||
-		    regs->regs[REG_RET] == -ERESTARTSYS ||
-		    regs->regs[REG_RET] == -ERESTARTNOINTR) {
+		switch (regs->regs[REG_RET]) {
+		case -ERESTARTNOHAND:
+		case -ERESTARTSYS:
+		case -ERESTARTNOINTR:
 			/* Decode Syscall # */
 			regs->regs[REG_RET] = regs->syscall_nr;
 			regs->pc -= 4;
+			break;
+
+		case -ERESTART_RESTARTBLOCK:
+			regs->regs[REG_RET] = __NR_restart_syscall;
+			regs->pc -= 4;
+			break;
 		}
 	}
+
+	/* No signal to deliver -- put the saved sigmask back */
+	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+		clear_thread_flag(TIF_RESTORE_SIGMASK);
+		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+	}
+
 	return 0;
 }
