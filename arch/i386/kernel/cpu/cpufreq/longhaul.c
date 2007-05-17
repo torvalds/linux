@@ -87,6 +87,7 @@ static int clock_ratio[32];
 static int eblcr_table[32];
 static int longhaul_version;
 static struct cpufreq_frequency_table *longhaul_table;
+static unsigned int old_ratio = -1;
 
 #ifdef CONFIG_CPU_FREQ_DEBUG
 static char speedbuffer[8];
@@ -251,7 +252,6 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 {
 	int speed, mult;
 	struct cpufreq_freqs freqs;
-	static unsigned int old_ratio=-1;
 	unsigned long flags;
 	unsigned int pic1_mask, pic2_mask;
 
