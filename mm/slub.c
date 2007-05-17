@@ -99,42 +99,42 @@
  * 			the fast path and disables lockless freelists.
  */
 
+#define FROZEN (1 << PG_active)
+
+#ifdef CONFIG_SLUB_DEBUG
+#define SLABDEBUG (1 << PG_error)
+#else
+#define SLABDEBUG 0
+#endif
+
 static inline int SlabFrozen(struct page *page)
 {
-	return PageActive(page);
+	return page->flags & FROZEN;
 }
 
 static inline void SetSlabFrozen(struct page *page)
 {
-	SetPageActive(page);
+	page->flags |= FROZEN;
 }
 
 static inline void ClearSlabFrozen(struct page *page)
 {
-	ClearPageActive(page);
+	page->flags &= ~FROZEN;
 }
 
 static inline int SlabDebug(struct page *page)
 {
-#ifdef CONFIG_SLUB_DEBUG
-	return PageError(page);
-#else
-	return 0;
-#endif
+	return page->flags & SLABDEBUG;
 }
 
 static inline void SetSlabDebug(struct page *page)
 {
-#ifdef CONFIG_SLUB_DEBUG
-	SetPageError(page);
-#endif
+	page->flags |= SLABDEBUG;
 }
 
 static inline void ClearSlabDebug(struct page *page)
 {
-#ifdef CONFIG_SLUB_DEBUG
-	ClearPageError(page);
-#endif
+	page->flags &= ~SLABDEBUG;
 }
 
 /*
