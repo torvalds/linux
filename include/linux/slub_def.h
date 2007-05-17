@@ -145,7 +145,12 @@ static inline struct kmem_cache *kmalloc_slab(size_t size)
 	if (index == 0)
 		return NULL;
 
-	if (index < 0) {
+	/*
+	 * This function only gets expanded if __builtin_constant_p(size), so
+	 * testing it here shouldn't be needed.  But some versions of gcc need
+	 * help.
+	 */
+	if (__builtin_constant_p(size) && index < 0) {
 		/*
 		 * Generate a link failure. Would be great if we could
 		 * do something to stop the compile here.
