@@ -85,7 +85,7 @@ int main(void)
   DEFINE(S_OLD_R0,		offsetof(struct pt_regs, ARM_ORIG_r0));
   DEFINE(S_FRAME_SIZE,		sizeof(struct pt_regs));
   BLANK();
-#if __LINUX_ARM_ARCH__ >= 6
+#ifdef CONFIG_CPU_HAS_ASID
   DEFINE(MM_CONTEXT_ID,		offsetof(struct mm_struct, context.id));
   BLANK();
 #endif

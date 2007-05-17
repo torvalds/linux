@@ -20,7 +20,7 @@
 
 void __check_kvm_seq(struct mm_struct *mm);
 
-#if __LINUX_ARM_ARCH__ >= 6
+#ifdef CONFIG_CPU_HAS_ASID
 
 /*
  * On ARMv6, we have the following structure in the Context ID:

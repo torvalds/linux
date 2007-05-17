@@ -351,6 +351,7 @@ config CPU_V6
 	select CPU_CACHE_V6
 	select CPU_CACHE_VIPT
 	select CPU_CP15_MMU
+	select CPU_HAS_ASID
 	select CPU_COPY_V6 if MMU
 	select CPU_TLB_V6 if MMU
 
@@ -376,6 +377,7 @@ config CPU_V7
 	select CPU_CACHE_V7
 	select CPU_CACHE_VIPT
 	select CPU_CP15_MMU
+	select CPU_HAS_ASID
 	select CPU_COPY_V6 if MMU
 	select CPU_TLB_V6 if MMU
 
@@ -497,6 +499,12 @@ config CPU_TLB_V6
 	bool
 
 endif
+
+config CPU_HAS_ASID
+	bool
+	help
+	  This indicates whether the CPU has the ASID register; used to
+	  tag TLB and possibly cache entries.
 
 config CPU_CP15
 	bool
