@@ -22,7 +22,7 @@ SECTIONS
   RODATA
   .data    :
   {
-    *(.data)
+    DATA_DATA
     CONSTRUCTORS
   }
   .data1   : { *(.data1) }

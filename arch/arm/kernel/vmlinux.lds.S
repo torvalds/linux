@@ -158,7 +158,7 @@ SECTIONS
 		/*
 		 * and the usual data section
 		 */
-		*(.data)
+		DATA_DATA
 		CONSTRUCTORS
 
 		_edata = .;

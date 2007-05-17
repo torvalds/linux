@@ -112,7 +112,7 @@ SECTIONS
 
 		/* And the rest... */
 		*(.data.rel*)
-		*(.data)
+		DATA_DATA
 		CONSTRUCTORS
 
 		_edata = .;

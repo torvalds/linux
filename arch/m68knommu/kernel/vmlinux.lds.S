@@ -133,7 +133,7 @@ SECTIONS {
 	.data DATA_ADDR : {
 		. = ALIGN(4);
 		_sdata = . ;
-		*(.data)
+		DATA_DATA
 		. = ALIGN(8192) ;
 		*(.data.init_task)
 		_edata = . ;

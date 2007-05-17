@@ -23,7 +23,7 @@ SECTIONS
   _etext = .;			/* End of text section */
 
   .data : {			/* Data */
-	*(.data)
+	DATA_DATA
 	CONSTRUCTORS
 	. = ALIGN(16);		/* Exception table */
 	__start___ex_table = .;

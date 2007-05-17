@@ -136,7 +136,8 @@ SECTIONS
 
   _sdata = .;
   .data : {			/* Data */
-	*(.data .data.*)
+	DATA_DATA
+	*(.data.*)
 	*(.exit.data)
 	CONSTRUCTORS
 	}

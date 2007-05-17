@@ -50,7 +50,7 @@ SECTIONS
   .data : {			/* Data */
 	*(.spu)
 	*(.spi)
-	*(.data)
+	DATA_DATA
 	CONSTRUCTORS
 	}
 

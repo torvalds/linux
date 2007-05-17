@@ -67,7 +67,7 @@ SECTIONS
   . = ALIGN(4096);
   .data    :
   {
-    *(.data)
+    DATA_DATA
     *(.data1)
     *(.sdata)
     *(.sdata2)

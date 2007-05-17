@@ -91,7 +91,7 @@ SECTIONS
 
   . = ALIGN(L1_CACHE_BYTES);
   .data : {			/* Data */
-	*(.data)
+	DATA_DATA
 	CONSTRUCTORS
 	}
 

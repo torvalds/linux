@@ -103,7 +103,7 @@ SECTIONS
 	. = ALIGN(0x2000) ;
 		*(.data.init_task)
 	. = ALIGN(0x4) ;
-		*(.data)
+		DATA_DATA
 	. = ALIGN(0x4) ;
 		*(.data.*)	
 

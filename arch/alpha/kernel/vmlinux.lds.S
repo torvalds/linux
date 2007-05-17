@@ -89,7 +89,7 @@ SECTIONS
 
   _data = .;
   .data : {					/* Data */
-	*(.data)
+	DATA_DATA
 	CONSTRUCTORS
   }
 

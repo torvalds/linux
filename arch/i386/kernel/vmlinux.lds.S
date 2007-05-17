@@ -74,7 +74,7 @@ SECTIONS
   /* writeable */
   . = ALIGN(4096);
   .data : AT(ADDR(.data) - LOAD_OFFSET) {	/* Data */
-	*(.data)
+	DATA_DATA
 	CONSTRUCTORS
 	} :data
 

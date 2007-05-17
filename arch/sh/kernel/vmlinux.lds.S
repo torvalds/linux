@@ -41,7 +41,7 @@ SECTIONS
   BUG_TABLE
 
   .data : {			/* Data */
-	*(.data)
+	DATA_DATA
 
  	 /* Align the initial ramdisk image (INITRD) on page boundaries. */
  	 . = ALIGN(PAGE_SIZE);

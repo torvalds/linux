@@ -78,7 +78,7 @@ SECTIONS
   _etext = .;			/* End of text section */
 
   .data : C_PHYS(.data) {			/* Data */
-	*(.data)
+	DATA_DATA
 	CONSTRUCTORS
 	}
 

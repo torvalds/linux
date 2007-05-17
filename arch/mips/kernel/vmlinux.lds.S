@@ -62,7 +62,7 @@ SECTIONS
     . = ALIGN(_PAGE_SIZE);
     *(.data.init_task)
 
-    *(.data)
+    DATA_DATA
 
     CONSTRUCTORS
   }

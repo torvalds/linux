@@ -9,6 +9,10 @@
 /* Align . to a 8 byte boundary equals to maximum function alignment. */
 #define ALIGN_FUNCTION()  . = ALIGN(8)
 
+/* .data section */
+#define DATA_DATA							\
+	*(.data)
+
 #define RODATA								\
 	. = ALIGN(4096);						\
 	.rodata           : AT(ADDR(.rodata) - LOAD_OFFSET) {		\

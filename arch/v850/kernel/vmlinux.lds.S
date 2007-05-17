@@ -113,7 +113,7 @@
 /* Kernel data segment.  */
 #define DATA_CONTENTS							      \
 		__sdata = . ;						      \
-        	*(.data)						      \
+		DATA_DATA						      \
 			*(.exit.data)	/* 2.5 convention */		      \
 			*(.data.exit)	/* 2.4 convention */		      \
 		. = ALIGN (16) ;					      \

@@ -200,7 +200,7 @@ SECTIONS
 		 __sdata = .;
 		. = ALIGN(0x2000);
 		*(.data.init_task)
-		*(.data)
+		DATA_DATA
 
 		. = ALIGN(32);
 		*(.data.cacheline_aligned)

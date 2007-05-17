@@ -48,7 +48,7 @@ SECTIONS
   BUG_TABLE
 
   .data : {			/* Data */
-	*(.data)
+	DATA_DATA
 	CONSTRUCTORS
 	}
 

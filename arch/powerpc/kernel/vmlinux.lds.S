@@ -168,7 +168,7 @@ SECTIONS
 #ifdef CONFIG_PPC32
 	.data    :
 	{
-		*(.data)
+		DATA_DATA
 		*(.sdata)
 		*(.got.plt) *(.got)
 	}

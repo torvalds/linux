@@ -28,7 +28,7 @@ SECTIONS
   _etext = .;			/* End of text section */
 
   .data : {			/* Data */
-	*(.data)
+	DATA_DATA
 	CONSTRUCTORS
 	}
 
