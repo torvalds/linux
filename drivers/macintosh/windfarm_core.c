@@ -216,7 +216,10 @@ int wf_register_control(struct wf_control *new_ct)
 	new_ct->attr.attr.mode = 0644;
 	new_ct->attr.show = wf_show_control;
 	new_ct->attr.store = wf_store_control;
-	device_create_file(&wf_platform_device.dev, &new_ct->attr);
+	if (device_create_file(&wf_platform_device.dev, &new_ct->attr))
+		printk(KERN_WARNING "windfarm: device_create_file failed"
+			" for %s\n", new_ct->name);
+		/* the subsystem still does useful work without the file */
 
 	DBG("wf: Registered control %s\n", new_ct->name);
 
@@ -326,7 +329,10 @@ int wf_register_sensor(struct wf_sensor *new_sr)
 	new_sr->attr.attr.mode = 0444;
 	new_sr->attr.show = wf_show_sensor;
 	new_sr->attr.store = NULL;
-	device_create_file(&wf_platform_device.dev, &new_sr->attr);
+	if (device_create_file(&wf_platform_device.dev, &new_sr->attr))
+		printk(KERN_WARNING "windfarm: device_create_file failed"
+			" for %s\n", new_sr->name);
+		/* the subsystem still does useful work without the file */
 
 	DBG("wf: Registered sensor %s\n", new_sr->name);
 
