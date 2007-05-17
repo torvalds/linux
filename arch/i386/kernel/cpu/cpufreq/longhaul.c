@@ -633,6 +633,10 @@ static int longhaul_setup_southbridge(void)
 
 	/* Find VT8235 southbridge */
 	dev = pci_get_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8235, NULL);
+	if (dev == NULL)
+	/* Find VT8237 southbridge */
+		dev = pci_get_device(PCI_VENDOR_ID_VIA,
+				     PCI_DEVICE_ID_VIA_8237, NULL);
 	if (dev != NULL) {
 		/* Set transition time to max */
 		pci_read_config_byte(dev, 0xec, &pci_cmd);
