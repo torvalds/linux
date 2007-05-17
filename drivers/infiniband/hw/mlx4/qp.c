@@ -188,14 +188,32 @@ static int send_wqe_overhead(enum ib_qp_type type)
 	}
 }
 
-static int set_qp_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
-		       enum ib_qp_type type, struct mlx4_ib_qp *qp)
+static int set_rq_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
+		       struct mlx4_ib_qp *qp)
 {
-	/* Sanity check QP size before proceeding */
+	/* Sanity check RQ size before proceeding */
+	if (cap->max_recv_wr  > dev->dev->caps.max_wqes  ||
+	    cap->max_recv_sge > dev->dev->caps.max_rq_sg)
+		return -EINVAL;
+
+	qp->rq.max = cap->max_recv_wr ? roundup_pow_of_two(cap->max_recv_wr) : 0;
+
+	qp->rq.wqe_shift = ilog2(roundup_pow_of_two(cap->max_recv_sge *
+						    sizeof (struct mlx4_wqe_data_seg)));
+	qp->rq.max_gs    = (1 << qp->rq.wqe_shift) / sizeof (struct mlx4_wqe_data_seg);
+
+	cap->max_recv_wr  = qp->rq.max;
+	cap->max_recv_sge = qp->rq.max_gs;
+
+	return 0;
+}
+
+static int set_kernel_sq_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
+			      enum ib_qp_type type, struct mlx4_ib_qp *qp)
+{
+	/* Sanity check SQ size before proceeding */
 	if (cap->max_send_wr	 > dev->dev->caps.max_wqes  ||
-	    cap->max_recv_wr	 > dev->dev->caps.max_wqes  ||
 	    cap->max_send_sge	 > dev->dev->caps.max_sq_sg ||
-	    cap->max_recv_sge	 > dev->dev->caps.max_rq_sg ||
 	    cap->max_inline_data + send_wqe_overhead(type) +
 	    sizeof (struct mlx4_wqe_inline_seg) > dev->dev->caps.max_sq_desc_sz)
 		return -EINVAL;
@@ -208,12 +226,7 @@ static int set_qp_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
 	    cap->max_send_sge + 2 > dev->dev->caps.max_sq_sg)
 		return -EINVAL;
 
-	qp->rq.max = cap->max_recv_wr ? roundup_pow_of_two(cap->max_recv_wr) : 0;
-	qp->sq.max = cap->max_send_wr ? roundup_pow_of_two(cap->max_send_wr) : 0;
-
-	qp->rq.wqe_shift = ilog2(roundup_pow_of_two(cap->max_recv_sge *
-						    sizeof (struct mlx4_wqe_data_seg)));
-	qp->rq.max_gs    = (1 << qp->rq.wqe_shift) / sizeof (struct mlx4_wqe_data_seg);
+	qp->sq.max = cap->max_send_wr ? roundup_pow_of_two(cap->max_send_wr) : 1;
 
 	qp->sq.wqe_shift = ilog2(roundup_pow_of_two(max(cap->max_send_sge *
 							sizeof (struct mlx4_wqe_data_seg),
@@ -233,12 +246,22 @@ static int set_qp_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
 		qp->sq.offset = 0;
 	}
 
-	cap->max_send_wr  = qp->sq.max;
-	cap->max_recv_wr  = qp->rq.max;
-	cap->max_send_sge = qp->sq.max_gs;
-	cap->max_recv_sge = qp->rq.max_gs;
+	cap->max_send_wr     = qp->sq.max;
+	cap->max_send_sge    = qp->sq.max_gs;
 	cap->max_inline_data = (1 << qp->sq.wqe_shift) - send_wqe_overhead(type) -
 		sizeof (struct mlx4_wqe_inline_seg);
+
+	return 0;
+}
+
+static int set_user_sq_size(struct mlx4_ib_qp *qp,
+			    struct mlx4_ib_create_qp *ucmd)
+{
+	qp->sq.max       = 1 << ucmd->log_sq_bb_count;
+	qp->sq.wqe_shift = ucmd->log_sq_stride;
+
+	qp->buf_size = (qp->rq.max << qp->rq.wqe_shift) +
+		(qp->sq.max << qp->sq.wqe_shift);
 
 	return 0;
 }
@@ -264,7 +287,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	qp->sq.head	    = 0;
 	qp->sq.tail	    = 0;
 
-	err = set_qp_size(dev, &init_attr->cap, init_attr->qp_type, qp);
+	err = set_rq_size(dev, &init_attr->cap, qp);
 	if (err)
 		goto err;
 
@@ -275,6 +298,10 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			err = -EFAULT;
 			goto err;
 		}
+
+		err = set_user_sq_size(qp, &ucmd);
+		if (err)
+			goto err;
 
 		qp->umem = ib_umem_get(pd->uobject->context, ucmd.buf_addr,
 				       qp->buf_size, 0);
@@ -297,6 +324,10 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		if (err)
 			goto err_mtt;
 	} else {
+		err = set_kernel_sq_size(dev, &init_attr->cap, init_attr->qp_type, qp);
+		if (err)
+			goto err;
+
 		err = mlx4_ib_db_alloc(dev, &qp->db, 0);
 		if (err)
 			goto err;
