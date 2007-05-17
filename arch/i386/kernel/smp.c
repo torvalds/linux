@@ -421,7 +421,7 @@ void flush_tlb_mm (struct mm_struct * mm)
 	}
 	if (!cpus_empty(cpu_mask))
 		flush_tlb_others(cpu_mask, mm, TLB_FLUSH_ALL);
-	check_pgt_cache();
+
 	preempt_enable();
 }
 
