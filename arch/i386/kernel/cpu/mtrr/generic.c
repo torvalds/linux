@@ -78,7 +78,7 @@ static void __cpuinit print_fixed(unsigned base, unsigned step, const mtrr_type*
 }
 
 /*  Grab all of the MTRR state for this CPU into *state  */
-void __init get_mtrr_state(void)
+void get_mtrr_state(void)
 {
 	unsigned int i;
 	struct mtrr_var_range *vrs;
