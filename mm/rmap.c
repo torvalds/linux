@@ -530,19 +530,51 @@ static void __page_set_anon_rmap(struct page *page,
 }
 
 /**
+ * page_set_anon_rmap - sanity check anonymous rmap addition
+ * @page:	the page to add the mapping to
+ * @vma:	the vm area in which the mapping is added
+ * @address:	the user virtual address mapped
+ */
+static void __page_check_anon_rmap(struct page *page,
+	struct vm_area_struct *vma, unsigned long address)
+{
+#ifdef CONFIG_DEBUG_VM
+	/*
+	 * The page's anon-rmap details (mapping and index) are guaranteed to
+	 * be set up correctly at this point.
+	 *
+	 * We have exclusion against page_add_anon_rmap because the caller
+	 * always holds the page locked, except if called from page_dup_rmap,
+	 * in which case the page is already known to be setup.
+	 *
+	 * We have exclusion against page_add_new_anon_rmap because those pages
+	 * are initially only visible via the pagetables, and the pte is locked
+	 * over the call to page_add_new_anon_rmap.
+	 */
+	struct anon_vma *anon_vma = vma->anon_vma;
+	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+	BUG_ON(page->mapping != (struct address_space *)anon_vma);
+	BUG_ON(page->index != linear_page_index(vma, address));
+#endif
+}
+
+/**
  * page_add_anon_rmap - add pte mapping to an anonymous page
  * @page:	the page to add the mapping to
  * @vma:	the vm area in which the mapping is added
  * @address:	the user virtual address mapped
  *
- * The caller needs to hold the pte lock.
+ * The caller needs to hold the pte lock and the page must be locked.
  */
 void page_add_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address)
 {
+	VM_BUG_ON(!PageLocked(page));
+	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
 	if (atomic_inc_and_test(&page->_mapcount))
 		__page_set_anon_rmap(page, vma, address);
-	/* else checking page index and mapping is racy */
+	else
+		__page_check_anon_rmap(page, vma, address);
 }
 
 /*
@@ -553,10 +585,12 @@ void page_add_anon_rmap(struct page *page,
  *
  * Same as page_add_anon_rmap but must only be called on *new* pages.
  * This means the inc-and-test can be bypassed.
+ * Page does not have to be locked.
  */
 void page_add_new_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address)
 {
+	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
 	atomic_set(&page->_mapcount, 0); /* elevate count by 1 (starts at -1) */
 	__page_set_anon_rmap(page, vma, address);
 }
@@ -572,6 +606,26 @@ void page_add_file_rmap(struct page *page)
 	if (atomic_inc_and_test(&page->_mapcount))
 		__inc_zone_page_state(page, NR_FILE_MAPPED);
 }
+
+#ifdef CONFIG_DEBUG_VM
+/**
+ * page_dup_rmap - duplicate pte mapping to a page
+ * @page:	the page to add the mapping to
+ *
+ * For copy_page_range only: minimal extract from page_add_file_rmap /
+ * page_add_anon_rmap, avoiding unnecessary tests (already checked) so it's
+ * quicker.
+ *
+ * The caller needs to hold the pte lock.
+ */
+void page_dup_rmap(struct page *page, struct vm_area_struct *vma, unsigned long address)
+{
+	BUG_ON(page_mapcount(page) == 0);
+	if (PageAnon(page))
+		__page_check_anon_rmap(page, vma, address);
+	atomic_inc(&page->_mapcount);
+}
+#endif
 
 /**
  * page_remove_rmap - take down pte mapping from a page
