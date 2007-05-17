@@ -40,7 +40,6 @@
 #include <asm/time.h>
 #include <asm/cputable.h>
 #include <asm/btext.h>
-#include <asm/div64.h>
 #include <asm/xmon.h>
 #include <asm/signal.h>
 #include <asm/dcr.h>
@@ -93,7 +92,6 @@ EXPORT_SYMBOL(strncpy);
 EXPORT_SYMBOL(strcat);
 EXPORT_SYMBOL(strlen);
 EXPORT_SYMBOL(strcmp);
-EXPORT_SYMBOL(__div64_32);
 
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_generic);
