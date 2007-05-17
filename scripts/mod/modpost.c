@@ -626,14 +626,6 @@ static int strrcmp(const char *s, const char *sub)
  *   This pattern is identified by
  *   refsymname = __init_begin, _sinittext, _einittext
  *
- * Pattern 6:
- *   During the early init phase we have references from .init.text to
- *   .text we have an intended section mismatch - do not warn about it.
- *   See kernel_init() in init/main.c
- *   tosec   = .init.text
- *   fromsec = .text
- *   atsym = kernel_init
- *
  * Pattern 7:
  *  Logos used in drivers/video/logo reside in __initdata but the
  *  funtion that references them are EXPORT_SYMBOL() so cannot be
@@ -737,12 +729,6 @@ static int secref_whitelist(const char *modname, const char *tosec,
 	for (s = pat3refsym; *s; s++)
 		if (strcmp(refsymname, *s) == 0)
 			return 1;
-
-	/* Check for pattern 6 */
-	if ((strcmp(tosec, ".init.text") == 0) &&
-	    (strcmp(fromsec, ".text") == 0) &&
-	    (strcmp(refsymname, "kernel_init") == 0))
-		return 1;
 
 	/* Check for pattern 7 */
 	if ((strcmp(tosec, ".init.data") == 0) &&
