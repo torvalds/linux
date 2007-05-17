@@ -52,21 +52,6 @@
 	.endm
 #endif /* CONFIG_MIPS_MT_SMTC */
 
-#ifdef CONFIG_CPU_SB1
-	.macro	fpu_enable_hazard
-	.set	push
-	.set	noreorder
-	.set	mips2
-	SSNOP
-	bnezl	$0, .+4
-	 SSNOP
-	.set	pop
-	.endm
-#else
-	.macro	fpu_enable_hazard
-	.endm
-#endif
-
 /*
  * Temporary until all gas have MT ASE support
  */
