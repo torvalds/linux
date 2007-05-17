@@ -57,6 +57,24 @@
 extern struct infinipath_stats ipath_stats;
 
 #define IPATH_CHIP_SWVERSION IPATH_CHIP_VERS_MAJ
+/*
+ * First-cut critierion for "device is active" is
+ * two thousand dwords combined Tx, Rx traffic per
+ * 5-second interval. SMA packets are 64 dwords,
+ * and occur "a few per second", presumably each way.
+ */
+#define IPATH_TRAFFIC_ACTIVE_THRESHOLD (2000)
+/*
+ * Struct used to indicate which errors are logged in each of the
+ * error-counters that are logged to EEPROM. A counter is incremented
+ * _once_ (saturating at 255) for each event with any bits set in
+ * the error or hwerror register masks below.
+ */
+#define IPATH_EEP_LOG_CNT (4)
+struct ipath_eep_log_mask {
+	u64 errs_to_log;
+	u64 hwerrs_to_log;
+};
 
 struct ipath_portdata {
 	void **port_rcvegrbuf;
@@ -588,6 +606,24 @@ struct ipath_devdata {
 	/* Used to flash LEDs in override mode */
 	struct timer_list ipath_led_override_timer;
 
+	/* Support (including locks) for EEPROM logging of errors and time */
+	/* control access to actual counters, timer */
+	spinlock_t ipath_eep_st_lock;
+	/* control high-level access to EEPROM */
+	struct semaphore ipath_eep_sem;
+	/* Below inc'd by ipath_snap_cntrs(), locked by ipath_eep_st_lock */
+	uint64_t ipath_traffic_wds;
+	/* active time is kept in seconds, but logged in hours */
+	atomic_t ipath_active_time;
+	/* Below are nominal shadow of EEPROM, new since last EEPROM update */
+	uint8_t ipath_eep_st_errs[IPATH_EEP_LOG_CNT];
+	uint8_t ipath_eep_st_new_errs[IPATH_EEP_LOG_CNT];
+	uint16_t ipath_eep_hrs;
+	/*
+	 * masks for which bits of errs, hwerrs that cause
+	 * each of the counters to increment.
+	 */
+	struct ipath_eep_log_mask ipath_eep_st_masks[IPATH_EEP_LOG_CNT];
 };
 
 /* Private data for file operations */
@@ -726,6 +762,8 @@ u32 __iomem *ipath_getpiobuf(struct ipath_devdata *, u32 *);
 void ipath_init_iba6120_funcs(struct ipath_devdata *);
 void ipath_init_iba6110_funcs(struct ipath_devdata *);
 void ipath_get_eeprom_info(struct ipath_devdata *);
+int ipath_update_eeprom_log(struct ipath_devdata *dd);
+void ipath_inc_eeprom_err(struct ipath_devdata *dd, u32 eidx, u32 incr);
 u64 ipath_snap_cntr(struct ipath_devdata *, ipath_creg);
 void ipath_disarm_senderrbufs(struct ipath_devdata *, int);
 

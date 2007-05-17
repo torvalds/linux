@@ -2005,6 +2005,9 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 			 ~0ULL & ~INFINIPATH_HWE_MEMBISTFAILED);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_errorclear, -1LL);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_intclear, -1LL);
+
+	ipath_cdbg(VERBOSE, "Flush time and errors to EEPROM\n");
+	ipath_update_eeprom_log(dd);
 }
 
 /**

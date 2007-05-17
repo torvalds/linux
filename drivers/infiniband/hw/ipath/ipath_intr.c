@@ -505,6 +505,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 	int i, iserr = 0;
 	int chkerrpkts = 0, noprint = 0;
 	unsigned supp_msgs;
+	int log_idx;
 
 	supp_msgs = handle_frequent_errors(dd, errs, msg, &noprint);
 
@@ -518,6 +519,13 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 	if (errs & INFINIPATH_E_HARDWARE) {
 		/* reuse same msg buf */
 		dd->ipath_f_handle_hwerrors(dd, msg, sizeof msg);
+	} else {
+		u64 mask;
+		for (log_idx = 0; log_idx < IPATH_EEP_LOG_CNT; ++log_idx) {
+			mask = dd->ipath_eep_st_masks[log_idx].errs_to_log;
+			if (errs & mask)
+				ipath_inc_eeprom_err(dd, log_idx, 1);
+		}
 	}
 
 	if (!noprint && (errs & ~dd->ipath_e_bitsextant))
