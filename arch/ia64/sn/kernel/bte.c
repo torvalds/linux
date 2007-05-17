@@ -63,7 +63,7 @@ static inline void bte_start_transfer(struct bteinfo_s *bte, u64 len, u64 mode)
  * Use the block transfer engine to move kernel memory from src to dest
  * using the assigned mode.
  *
- * Paramaters:
+ * Parameters:
  *   src - physical address of the transfer source.
  *   dest - physical address of the transfer destination.
  *   len - number of bytes to transfer from source to dest.
@@ -247,7 +247,7 @@ EXPORT_SYMBOL(bte_copy);
  * use the block transfer engine to move kernel
  * memory from src to dest using the assigned mode.
  *
- * Paramaters:
+ * Parameters:
  *   src - physical address of the transfer source.
  *   dest - physical address of the transfer destination.
  *   len - number of bytes to transfer from source to dest.
@@ -255,7 +255,7 @@ EXPORT_SYMBOL(bte_copy);
  *          for IBCT0/1 in the SGI documentation.
  *
  * NOTE: If the source, dest, and len are all cache line aligned,
- * then it would be _FAR_ preferrable to use bte_copy instead.
+ * then it would be _FAR_ preferable to use bte_copy instead.
  */
 bte_result_t bte_unaligned_copy(u64 src, u64 dest, u64 len, u64 mode)
 {
@@ -300,7 +300,7 @@ bte_result_t bte_unaligned_copy(u64 src, u64 dest, u64 len, u64 mode)
 	 * a standard bte copy.
 	 *
 	 * One nasty exception to the above rule is when the
-	 * source and destination are not symetrically
+	 * source and destination are not symmetrically
 	 * mis-aligned.  If the source offset from the first
 	 * cache line is different from the destination offset,
 	 * we make the first section be the entire transfer
@@ -337,7 +337,7 @@ bte_result_t bte_unaligned_copy(u64 src, u64 dest, u64 len, u64 mode)
 
 			if (footBcopyDest == (headBcopyDest + headBcopyLen)) {
 				/*
-				 * We have two contigous bcopy
+				 * We have two contiguous bcopy
 				 * blocks.  Merge them.
 				 */
 				headBcopyLen += footBcopyLen;
@@ -375,7 +375,7 @@ bte_result_t bte_unaligned_copy(u64 src, u64 dest, u64 len, u64 mode)
 	} else {
 
 		/*
-		 * The transfer is not symetric, we will
+		 * The transfer is not symmetric, we will
 		 * allocate a buffer large enough for all the
 		 * data, bte_copy into that buffer and then
 		 * bcopy to the destination.

@@ -1919,7 +1919,6 @@ int ata_dev_configure(struct ata_device *dev)
 			snprintf(revbuf, 7, "ATA-%d",  ata_id_major_version(id));
 
 		dev->n_sectors = ata_id_n_sectors(id);
-		dev->n_sectors_boot = dev->n_sectors;
 
 		/* SCSI only uses 4-char revisions, dump full 8 chars from ATA */
 		ata_id_c_string(dev->id, fwrevbuf, ATA_ID_FW_REV,
@@ -3632,7 +3631,6 @@ static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
 	const u16 *old_id = dev->id;
 	unsigned char model[2][ATA_ID_PROD_LEN + 1];
 	unsigned char serial[2][ATA_ID_SERNO_LEN + 1];
-	u64 new_n_sectors;
 
 	if (dev->class != new_class) {
 		ata_dev_printk(dev, KERN_INFO, "class mismatch %d != %d\n",
@@ -3644,7 +3642,6 @@ static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
 	ata_id_c_string(new_id, model[1], ATA_ID_PROD, sizeof(model[1]));
 	ata_id_c_string(old_id, serial[0], ATA_ID_SERNO, sizeof(serial[0]));
 	ata_id_c_string(new_id, serial[1], ATA_ID_SERNO, sizeof(serial[1]));
-	new_n_sectors = ata_id_n_sectors(new_id);
 
 	if (strcmp(model[0], model[1])) {
 		ata_dev_printk(dev, KERN_INFO, "model number mismatch "
@@ -3658,25 +3655,12 @@ static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
 		return 0;
 	}
 
-	if (dev->class == ATA_DEV_ATA && dev->n_sectors != new_n_sectors) {
-		ata_dev_printk(dev, KERN_INFO, "n_sectors mismatch "
-			       "%llu != %llu\n",
-			       (unsigned long long)dev->n_sectors,
-			       (unsigned long long)new_n_sectors);
-		/* Are we the boot time size - if so we appear to be the
-		   same disk at this point and our HPA got reapplied */
-		if (ata_ignore_hpa && dev->n_sectors_boot == new_n_sectors 
-		    && ata_id_hpa_enabled(new_id))
-			return 1;
-		return 0;
-	}
-
 	return 1;
 }
 
 /**
- *	ata_dev_revalidate - Revalidate ATA device
- *	@dev: device to revalidate
+ *	ata_dev_reread_id - Re-read IDENTIFY data
+ *	@adev: target ATA device
  *	@readid_flags: read ID flags
  *
  *	Re-read IDENTIFY page and make sure @dev is still attached to
@@ -3688,34 +3672,68 @@ static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
  *	RETURNS:
  *	0 on success, negative errno otherwise
  */
-int ata_dev_revalidate(struct ata_device *dev, unsigned int readid_flags)
+int ata_dev_reread_id(struct ata_device *dev, unsigned int readid_flags)
 {
 	unsigned int class = dev->class;
 	u16 *id = (void *)dev->ap->sector_buf;
 	int rc;
 
-	if (!ata_dev_enabled(dev)) {
-		rc = -ENODEV;
-		goto fail;
-	}
-
 	/* read ID data */
 	rc = ata_dev_read_id(dev, &class, readid_flags, id);
 	if (rc)
-		goto fail;
+		return rc;
 
 	/* is the device still there? */
-	if (!ata_dev_same_device(dev, class, id)) {
+	if (!ata_dev_same_device(dev, class, id))
+		return -ENODEV;
+
+	memcpy(dev->id, id, sizeof(id[0]) * ATA_ID_WORDS);
+	return 0;
+}
+
+/**
+ *	ata_dev_revalidate - Revalidate ATA device
+ *	@dev: device to revalidate
+ *	@readid_flags: read ID flags
+ *
+ *	Re-read IDENTIFY page, make sure @dev is still attached to the
+ *	port and reconfigure it according to the new IDENTIFY page.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 on success, negative errno otherwise
+ */
+int ata_dev_revalidate(struct ata_device *dev, unsigned int readid_flags)
+{
+	u64 n_sectors = dev->n_sectors;
+	int rc;
+
+	if (!ata_dev_enabled(dev))
+		return -ENODEV;
+
+	/* re-read ID */
+	rc = ata_dev_reread_id(dev, readid_flags);
+	if (rc)
+		goto fail;
+
+	/* configure device according to the new ID */
+	rc = ata_dev_configure(dev);
+	if (rc)
+		goto fail;
+
+	/* verify n_sectors hasn't changed */
+	if (dev->class == ATA_DEV_ATA && dev->n_sectors != n_sectors) {
+		ata_dev_printk(dev, KERN_INFO, "n_sectors mismatch "
+			       "%llu != %llu\n",
+			       (unsigned long long)n_sectors,
+			       (unsigned long long)dev->n_sectors);
 		rc = -ENODEV;
 		goto fail;
 	}
 
-	memcpy(dev->id, id, sizeof(id[0]) * ATA_ID_WORDS);
-
-	/* configure device according to the new ID */
-	rc = ata_dev_configure(dev);
-	if (rc == 0)
-		return 0;
+	return 0;
 
  fail:
 	ata_dev_printk(dev, KERN_ERR, "revalidation failed (errno=%d)\n", rc);

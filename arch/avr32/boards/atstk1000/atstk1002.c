@@ -16,6 +16,8 @@
 #include <linux/types.h>
 #include <linux/spi/spi.h>
 
+#include <video/atmel_lcdc.h>
+
 #include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/arch/at32ap7000.h>
@@ -23,6 +25,7 @@
 #include <asm/arch/init.h>
 #include <asm/arch/portmux.h>
 
+#include "atstk1000.h"
 
 #define	SW2_DEFAULT		/* MMCI and UART_A available */
 
@@ -31,9 +34,7 @@ struct eth_addr {
 };
 
 static struct eth_addr __initdata hw_addr[2];
-
 static struct eth_platform_data __initdata eth_data[2];
-static struct lcdc_platform_data atstk1000_fb0_data;
 
 static struct spi_board_info spi0_board_info[] __initdata = {
 	{
@@ -148,9 +149,8 @@ static int __init atstk1002_init(void)
 	set_hw_addr(at32_add_device_eth(0, &eth_data[0]));
 
 	at32_add_device_spi(0, spi0_board_info, ARRAY_SIZE(spi0_board_info));
-	atstk1000_fb0_data.fbmem_start = fbmem_start;
-	atstk1000_fb0_data.fbmem_size = fbmem_size;
-	at32_add_device_lcdc(0, &atstk1000_fb0_data);
+	at32_add_device_lcdc(0, &atstk1000_lcdc_data,
+			     fbmem_start, fbmem_size);
 
 	return 0;
 }

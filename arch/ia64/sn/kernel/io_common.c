@@ -479,7 +479,7 @@ sn_io_early_init(void)
 	}
 
 	/*
-	 * prime sn_pci_provider[].  Individial provider init routines will
+	 * prime sn_pci_provider[].  Individual provider init routines will
 	 * override their respective default entries.
 	 */
 

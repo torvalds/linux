@@ -438,7 +438,7 @@ is_mca_global(peidx_table_t *peidx, pal_bus_check_info_t *pbci,
  * @peidx:	pointer of index of processor error section
  *
  * Return value:
- *	target address on Success / 0 on Failue
+ *	target address on Success / 0 on Failure
  */
 static u64
 get_target_identifier(peidx_table_t *peidx)
@@ -701,7 +701,7 @@ recover_from_processor_error(int platform, slidx_table_t *slidx,
 		return fatal_mca("External bus check fatal status");
 
 	/*
-	 * This is a local MCA and estimated as a recoverble error.
+	 * This is a local MCA and estimated as a recoverable error.
 	 */
 	if (platform)
 		return recover_from_platform_error(slidx, peidx, pbci, sos);

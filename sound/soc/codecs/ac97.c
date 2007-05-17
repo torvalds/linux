@@ -43,8 +43,9 @@ static int ac97_prepare(struct snd_pcm_substream *substream)
 #define STD_AC97_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
 		SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 
-static struct snd_soc_codec_dai ac97_dai = {
+struct snd_soc_codec_dai ac97_dai = {
 	.name = "AC97 HiFi",
+	.type = SND_SOC_DAI_AC97,
 	.playback = {
 		.stream_name = "AC97 Playback",
 		.channels_min = 1,

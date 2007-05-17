@@ -304,7 +304,7 @@ handle_fpu_swa (int fp_fault, struct pt_regs *regs, unsigned long isr)
 			 * Lower 4 bits are used as a count. Upper bits are a sequence
 			 * number that is updated when count is reset. The cmpxchg will
 			 * fail is seqno has changed. This minimizes mutiple cpus
-			 * reseting the count.
+			 * resetting the count.
 			 */
 			if (current_jiffies > last.time)
 				(void) cmpxchg_acq(&last.count, count, 16 + (count & ~15));

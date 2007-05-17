@@ -4,7 +4,7 @@
  *	Copyright (C) 1992, 1998 Linus Torvalds, Ingo Molnar
  *
  * This file contains the code used by various IRQ handling routines:
- * asking for different IRQ's should be done through these routines
+ * asking for different IRQs should be done through these routines
  * instead of just grabbing them. Thus setups with different IRQ numbers
  * shouldn't result in any weird surprises, and installing new handlers
  * should be easier.
@@ -12,7 +12,7 @@
  * Copyright (C) Ashok Raj<ashok.raj@intel.com>, Intel Corporation 2004
  *
  * 4/14/2004: Added code to handle cpu migration and do safe irq
- *			migration without lossing interrupts for iosapic
+ *			migration without losing interrupts for iosapic
  *			architecture.
  */
 
@@ -190,7 +190,7 @@ void fixup_irqs(void)
 	}
 
 	/*
-	 * Phase 1: Locate irq's bound to this cpu and
+	 * Phase 1: Locate IRQs bound to this cpu and
 	 * relocate them for cpu removal.
 	 */
 	migrate_irqs();

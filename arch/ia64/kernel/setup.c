@@ -576,7 +576,7 @@ setup_arch (char **cmdline_p)
 }
 
 /*
- * Display cpu info for all cpu's.
+ * Display cpu info for all CPUs.
  */
 static int
 show_cpuinfo (struct seq_file *m, void *v)
@@ -761,7 +761,7 @@ identify_cpu (struct cpuinfo_ia64 *c)
 	c->cpu = smp_processor_id();
 
 	/* below default values will be overwritten  by identify_siblings() 
-	 * for Multi-Threading/Multi-Core capable cpu's
+	 * for Multi-Threading/Multi-Core capable CPUs
 	 */
 	c->threads_per_core = c->cores_per_socket = c->num_log = 1;
 	c->socket_id = -1;
@@ -947,7 +947,7 @@ cpu_init (void)
 	ia32_cpu_init();
 #endif
 
-	/* Clear ITC to eliminiate sched_clock() overflows in human time.  */
+	/* Clear ITC to eliminate sched_clock() overflows in human time.  */
 	ia64_set_itc(0);
 
 	/* disable all local interrupt sources: */

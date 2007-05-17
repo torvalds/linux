@@ -1318,7 +1318,7 @@ pfm_reserve_session(struct task_struct *task, int is_syswide, unsigned int cpu)
 {
 	unsigned long flags;
 	/*
-	 * validy checks on cpu_mask have been done upstream
+	 * validity checks on cpu_mask have been done upstream
 	 */
 	LOCK_PFS(flags);
 
@@ -1384,7 +1384,7 @@ pfm_unreserve_session(pfm_context_t *ctx, int is_syswide, unsigned int cpu)
 {
 	unsigned long flags;
 	/*
-	 * validy checks on cpu_mask have been done upstream
+	 * validity checks on cpu_mask have been done upstream
 	 */
 	LOCK_PFS(flags);
 
@@ -1835,7 +1835,7 @@ pfm_flush(struct file *filp, fl_owner_t id)
 	/*
 	 * remove our file from the async queue, if we use this mode.
 	 * This can be done without the context being protected. We come
-	 * here when the context has become unreacheable by other tasks.
+	 * here when the context has become unreachable by other tasks.
 	 *
 	 * We may still have active monitoring at this point and we may
 	 * end up in pfm_overflow_handler(). However, fasync_helper()
@@ -2132,7 +2132,7 @@ doit:
 	filp->private_data = NULL;
 
 	/*
-	 * if we free on the spot, the context is now completely unreacheable
+	 * if we free on the spot, the context is now completely unreachable
 	 * from the callers side. The monitored task side is also cut, so we
 	 * can freely cut.
 	 *
@@ -2562,7 +2562,7 @@ pfm_reset_pmu_state(pfm_context_t *ctx)
 	ctx->ctx_all_pmcs[0] = pmu_conf->impl_pmcs[0] & ~0x1;
 
 	/*
-	 * bitmask of all PMDs that are accesible to this context
+	 * bitmask of all PMDs that are accessible to this context
 	 */
 	ctx->ctx_all_pmds[0] = pmu_conf->impl_pmds[0];
 
@@ -3395,7 +3395,7 @@ pfm_read_pmds(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 		if (unlikely(!PMD_IS_IMPL(cnum))) goto error;
 		/*
 		 * we can only read the register that we use. That includes
-		 * the one we explicitely initialize AND the one we want included
+		 * the one we explicitly initialize AND the one we want included
 		 * in the sampling buffer (smpl_regs).
 		 *
 		 * Having this restriction allows optimization in the ctxsw routine
@@ -3715,7 +3715,7 @@ pfm_restart(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 	 * if non-blocking, then we ensure that the task will go into
 	 * pfm_handle_work() before returning to user mode.
 	 *
-	 * We cannot explicitely reset another task, it MUST always
+	 * We cannot explicitly reset another task, it MUST always
 	 * be done by the task itself. This works for system wide because
 	 * the tool that is controlling the session is logically doing 
 	 * "self-monitoring".
@@ -4644,7 +4644,7 @@ pfm_exit_thread(struct task_struct *task)
 	switch(state) {
 		case PFM_CTX_UNLOADED:
 			/*
-	 		 * only comes to thios function if pfm_context is not NULL, i.e., cannot
+	 		 * only comes to this function if pfm_context is not NULL, i.e., cannot
 			 * be in unloaded state
 	 		 */
 			printk(KERN_ERR "perfmon: pfm_exit_thread [%d] ctx unloaded\n", task->pid);
@@ -5247,7 +5247,7 @@ pfm_end_notify_user(pfm_context_t *ctx)
 
 /*
  * main overflow processing routine.
- * it can be called from the interrupt path or explicitely during the context switch code
+ * it can be called from the interrupt path or explicitly during the context switch code
  */
 static void
 pfm_overflow_handler(struct task_struct *task, pfm_context_t *ctx, u64 pmc0, struct pt_regs *regs)

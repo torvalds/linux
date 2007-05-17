@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/clk.h>
+#include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
@@ -16,6 +17,8 @@
 #include <asm/arch/board.h>
 #include <asm/arch/portmux.h>
 #include <asm/arch/sm.h>
+
+#include <video/atmel_lcdc.h>
 
 #include "clock.h"
 #include "hmatrix.h"
@@ -881,20 +884,26 @@ at32_add_device_spi(unsigned int id, struct spi_board_info *b, unsigned int n)
 /* --------------------------------------------------------------------
  *  LCDC
  * -------------------------------------------------------------------- */
-static struct lcdc_platform_data lcdc0_data;
-static struct resource lcdc0_resource[] = {
+static struct atmel_lcdfb_info atmel_lcdfb0_data;
+static struct resource atmel_lcdfb0_resource[] = {
 	{
 		.start		= 0xff000000,
 		.end		= 0xff000fff,
 		.flags		= IORESOURCE_MEM,
 	},
 	IRQ(1),
+	{
+		/* Placeholder for pre-allocated fb memory */
+		.start		= 0x00000000,
+		.end		= 0x00000000,
+		.flags		= 0,
+	},
 };
-DEFINE_DEV_DATA(lcdc, 0);
-DEV_CLK(hclk, lcdc0, hsb, 7);
-static struct clk lcdc0_pixclk = {
-	.name		= "pixclk",
-	.dev		= &lcdc0_device.dev,
+DEFINE_DEV_DATA(atmel_lcdfb, 0);
+DEV_CLK(hck1, atmel_lcdfb0, hsb, 7);
+static struct clk atmel_lcdfb0_pixclk = {
+	.name		= "lcdc_clk",
+	.dev		= &atmel_lcdfb0_device.dev,
 	.mode		= genclk_mode,
 	.get_rate	= genclk_get_rate,
 	.set_rate	= genclk_set_rate,
@@ -903,13 +912,34 @@ static struct clk lcdc0_pixclk = {
 };
 
 struct platform_device *__init
-at32_add_device_lcdc(unsigned int id, struct lcdc_platform_data *data)
+at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
+		     unsigned long fbmem_start, unsigned long fbmem_len)
 {
 	struct platform_device *pdev;
+	struct atmel_lcdfb_info *info;
+	struct fb_monspecs *monspecs;
+	struct fb_videomode *modedb;
+	unsigned int modedb_size;
+
+	/*
+	 * Do a deep copy of the fb data, monspecs and modedb. Make
+	 * sure all allocations are done before setting up the
+	 * portmux.
+	 */
+	monspecs = kmemdup(data->default_monspecs,
+			   sizeof(struct fb_monspecs), GFP_KERNEL);
+	if (!monspecs)
+		return NULL;
+
+	modedb_size = sizeof(struct fb_videomode) * monspecs->modedb_len;
+	modedb = kmemdup(monspecs->modedb, modedb_size, GFP_KERNEL);
+	if (!modedb)
+		goto err_dup_modedb;
+	monspecs->modedb = modedb;
 
 	switch (id) {
 	case 0:
-		pdev = &lcdc0_device;
+		pdev = &atmel_lcdfb0_device;
 		select_peripheral(PC(19), PERIPH_A, 0);	/* CC	  */
 		select_peripheral(PC(20), PERIPH_A, 0);	/* HSYNC  */
 		select_peripheral(PC(21), PERIPH_A, 0);	/* PCLK	  */
@@ -942,19 +972,32 @@ at32_add_device_lcdc(unsigned int id, struct lcdc_platform_data *data)
 		select_peripheral(PD(16), PERIPH_A, 0);	/* DATA22 */
 		select_peripheral(PD(17), PERIPH_A, 0);	/* DATA23 */
 
-		clk_set_parent(&lcdc0_pixclk, &pll0);
-		clk_set_rate(&lcdc0_pixclk, clk_get_rate(&pll0));
+		clk_set_parent(&atmel_lcdfb0_pixclk, &pll0);
+		clk_set_rate(&atmel_lcdfb0_pixclk, clk_get_rate(&pll0));
 		break;
 
 	default:
-		return NULL;
+		goto err_invalid_id;
 	}
 
-	memcpy(pdev->dev.platform_data, data,
-	       sizeof(struct lcdc_platform_data));
+	if (fbmem_len) {
+		pdev->resource[2].start = fbmem_start;
+		pdev->resource[2].end = fbmem_start + fbmem_len - 1;
+		pdev->resource[2].flags = IORESOURCE_MEM;
+	}
+
+	info = pdev->dev.platform_data;
+	memcpy(info, data, sizeof(struct atmel_lcdfb_info));
+	info->default_monspecs = monspecs;
 
 	platform_device_register(pdev);
 	return pdev;
+
+err_invalid_id:
+	kfree(modedb);
+err_dup_modedb:
+	kfree(monspecs);
+	return NULL;
 }
 
 /* --------------------------------------------------------------------
@@ -1037,8 +1080,8 @@ struct clk *at32_clock_list[] = {
 	&macb1_pclk,
 	&atmel_spi0_spi_clk,
 	&atmel_spi1_spi_clk,
-	&lcdc0_hclk,
-	&lcdc0_pixclk,
+	&atmel_lcdfb0_hck1,
+	&atmel_lcdfb0_pixclk,
 	&gclk0,
 	&gclk1,
 	&gclk2,
@@ -1077,7 +1120,7 @@ void __init at32_clock_init(void)
 	genclk_init_parent(&gclk2);
 	genclk_init_parent(&gclk3);
 	genclk_init_parent(&gclk4);
-	genclk_init_parent(&lcdc0_pixclk);
+	genclk_init_parent(&atmel_lcdfb0_pixclk);
 
 	/*
 	 * Turn on all clocks that have at least one user already, and

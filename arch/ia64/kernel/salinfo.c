@@ -162,7 +162,7 @@ static DEFINE_SPINLOCK(data_saved_lock);
 /** salinfo_platform_oemdata - optional callback to decode oemdata from an error
  * record.
  * @sect_header: pointer to the start of the section to decode.
- * @oemdata: returns vmalloc area containing the decded output.
+ * @oemdata: returns vmalloc area containing the decoded output.
  * @oemdata_size: returns length of decoded output (strlen).
  *
  * Description: If user space asks for oem data to be decoded by the kernel

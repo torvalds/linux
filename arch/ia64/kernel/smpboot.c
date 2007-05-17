@@ -694,7 +694,7 @@ int migrate_platform_irqs(unsigned int cpu)
 			set_cpei_target_cpu(new_cpei_cpu);
 			desc = irq_desc + ia64_cpe_irq;
 			/*
-			 * Switch for now, immediatly, we need to do fake intr
+			 * Switch for now, immediately, we need to do fake intr
 			 * as other interrupts, but need to study CPEI behaviour with
 			 * polling before making changes.
 			 */
@@ -840,7 +840,7 @@ __cpu_up (unsigned int cpu)
 }
 
 /*
- * Assume that CPU's have been discovered by some platform-dependent interface.  For
+ * Assume that CPUs have been discovered by some platform-dependent interface.  For
  * SoftSDV/Lion, that would be ACPI.
  *
  * Setup of the IPI irq handler is done in irq.c:init_IRQ_SMP().
@@ -854,7 +854,7 @@ init_smp_config(void)
 	} *ap_startup;
 	long sal_ret;
 
-	/* Tell SAL where to drop the AP's.  */
+	/* Tell SAL where to drop the APs.  */
 	ap_startup = (struct fptr *) start_ap;
 	sal_ret = ia64_sal_set_vectors(SAL_VECTOR_OS_BOOT_RENDEZ,
 				       ia64_tpa(ap_startup->fp), ia64_tpa(ap_startup->gp), 0, 0, 0, 0);

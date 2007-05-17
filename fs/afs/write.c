@@ -206,7 +206,6 @@ int afs_prepare_write(struct file *file, struct page *page,
 			_leave(" = %d [prep]", ret);
 			return ret;
 		}
-		SetPageUptodate(page);
 	}
 
 try_again:
@@ -311,8 +310,8 @@ int afs_commit_write(struct file *file, struct page *page,
 		spin_unlock(&vnode->writeback_lock);
 	}
 
+	SetPageUptodate(page);
 	set_page_dirty(page);
-
 	if (PageDirty(page))
 		_debug("dirtied");
 

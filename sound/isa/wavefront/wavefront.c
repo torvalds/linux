@@ -86,6 +86,7 @@ module_param_array(use_cs4232_midi, bool, NULL, 0444);
 MODULE_PARM_DESC(use_cs4232_midi, "Use CS4232 MPU-401 interface (inaccessibly located inside your computer)");
 
 #ifdef CONFIG_PNP
+static int isa_registered;
 static int pnp_registered;
 
 static struct pnp_card_device_id snd_wavefront_pnpids[] = {
@@ -706,14 +707,18 @@ static int __init alsa_card_wavefront_init(void)
 	int err;
 
 	err = isa_register_driver(&snd_wavefront_driver, SNDRV_CARDS);
-	if (err < 0)
-		return err;
 #ifdef CONFIG_PNP
+	if (!err)
+		isa_registered = 1;
+
 	err = pnp_register_card_driver(&wavefront_pnpc_driver);
 	if (!err)
 		pnp_registered = 1;
+
+	if (isa_registered)
+		err = 0;
 #endif
-	return 0;
+	return err;
 }
 
 static void __exit alsa_card_wavefront_exit(void)
@@ -721,8 +726,9 @@ static void __exit alsa_card_wavefront_exit(void)
 #ifdef CONFIG_PNP
 	if (pnp_registered)
 		pnp_unregister_card_driver(&wavefront_pnpc_driver);
+	if (isa_registered)
 #endif
-	isa_unregister_driver(&snd_wavefront_driver);
+		isa_unregister_driver(&snd_wavefront_driver);
 }
 
 module_init(alsa_card_wavefront_init)

@@ -109,6 +109,7 @@ module_param_array(wssdma, int, NULL, 0444);
 MODULE_PARM_DESC(wssdma, "DMA for CMI8330 WSS driver.");
 
 #ifdef CONFIG_PNP
+static int isa_registered;
 static int pnp_registered;
 #endif
 
@@ -686,14 +687,18 @@ static int __init alsa_card_cmi8330_init(void)
 	int err;
 
 	err = isa_register_driver(&snd_cmi8330_driver, SNDRV_CARDS);
-	if (err < 0)
-		return err;
 #ifdef CONFIG_PNP
+	if (!err)
+		isa_registered = 1;
+
 	err = pnp_register_card_driver(&cmi8330_pnpc_driver);
 	if (!err)
 		pnp_registered = 1;
+
+	if (isa_registered)
+		err = 0;
 #endif
-	return 0;
+	return err;
 }
 
 static void __exit alsa_card_cmi8330_exit(void)
@@ -701,8 +706,10 @@ static void __exit alsa_card_cmi8330_exit(void)
 #ifdef CONFIG_PNP
 	if (pnp_registered)
 		pnp_unregister_card_driver(&cmi8330_pnpc_driver);
+
+	if (isa_registered)
 #endif
-	isa_unregister_driver(&snd_cmi8330_driver);
+		isa_unregister_driver(&snd_cmi8330_driver);
 }
 
 module_init(alsa_card_cmi8330_init)

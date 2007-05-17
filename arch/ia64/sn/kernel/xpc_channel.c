@@ -293,7 +293,7 @@ xpc_pull_remote_cachelines(struct xpc_partition *part, void *dst,
 
 
 /*
- * Pull the remote per partititon specific variables from the specified
+ * Pull the remote per partition specific variables from the specified
  * partition.
  */
 enum xpc_retval
@@ -461,7 +461,7 @@ xpc_allocate_local_msgqueue(struct xpc_channel *ch)
 	// >>> may want to check for ch->flags & XPC_C_DISCONNECTING between
 	// >>> iterations of the for-loop, bail if set?
 
-	// >>> should we impose a minumum #of entries? like 4 or 8?
+	// >>> should we impose a minimum #of entries? like 4 or 8?
 	for (nentries = ch->local_nentries; nentries > 0; nentries--) {
 
 		nbytes = nentries * ch->msg_size;
@@ -514,7 +514,7 @@ xpc_allocate_remote_msgqueue(struct xpc_channel *ch)
 	// >>> may want to check for ch->flags & XPC_C_DISCONNECTING between
 	// >>> iterations of the for-loop, bail if set?
 
-	// >>> should we impose a minumum #of entries? like 4 or 8?
+	// >>> should we impose a minimum #of entries? like 4 or 8?
 	for (nentries = ch->remote_nentries; nentries > 0; nentries--) {
 
 		nbytes = nentries * ch->msg_size;
@@ -1478,7 +1478,7 @@ xpc_teardown_infrastructure(struct xpc_partition *part)
 
 
 	/*
-	 * Before proceding with the teardown we have to wait until all
+	 * Before proceeding with the teardown we have to wait until all
 	 * existing references cease.
 	 */
 	wait_event(part->teardown_wq, (atomic_read(&part->references) == 0));

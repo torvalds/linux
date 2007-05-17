@@ -22,7 +22,7 @@
 #include <sound/control.h>
 #include <sound/ac97_codec.h>
 
-#define SND_SOC_VERSION "0.13.0"
+#define SND_SOC_VERSION "0.13.1"
 
 /*
  * Convenience kcontrol builders
@@ -83,6 +83,7 @@
 #define SND_SOC_DAI_AC97	0x1
 #define SND_SOC_DAI_I2S		0x2
 #define SND_SOC_DAI_PCM		0x4
+#define SND_SOC_DAI_AC97_BUS	0x8	/* for custom i.e. non ac97_codec.c */
 
 /*
  * DAI hardware audio formats
@@ -278,6 +279,7 @@ struct snd_soc_cpu_ops {
 struct snd_soc_codec_dai {
 	char *name;
 	int id;
+	unsigned char type;
 
 	/* DAI capabilities */
 	struct snd_soc_pcm_stream playback;

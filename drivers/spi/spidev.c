@@ -484,7 +484,7 @@ static int spidev_probe(struct spi_device *spi)
 	 * Reusing minors is fine so long as udev or mdev is working.
 	 */
 	mutex_lock(&device_list_lock);
-	minor = find_first_zero_bit(minors, ARRAY_SIZE(minors));
+	minor = find_first_zero_bit(minors, N_SPI_MINORS);
 	if (minor < N_SPI_MINORS) {
 		spidev->dev.parent = &spi->dev;
 		spidev->dev.class = &spidev_class;
