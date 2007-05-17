@@ -577,6 +577,7 @@ config TCP_CONG_VENO
 config TCP_CONG_YEAH
 	tristate "YeAH TCP"
 	depends on EXPERIMENTAL
+	select TCP_CONG_VEGAS
 	default n
 	---help---
 	YeAH-TCP is a sender-side high-speed enabled TCP congestion control
