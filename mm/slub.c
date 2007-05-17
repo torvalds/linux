@@ -742,6 +742,22 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
 	return search == NULL;
 }
 
+static void trace(struct kmem_cache *s, struct page *page, void *object, int alloc)
+{
+	if (s->flags & SLAB_TRACE) {
+		printk(KERN_INFO "TRACE %s %s 0x%p inuse=%d fp=0x%p\n",
+			s->name,
+			alloc ? "alloc" : "free",
+			object, page->inuse,
+			page->freelist);
+
+		if (!alloc)
+			print_section("Object", (void *)object, s->objsize);
+
+		dump_stack();
+	}
+}
+
 /*
  * Tracking of fully allocated slabs for debugging purposes.
  */
@@ -766,8 +782,18 @@ static void remove_full(struct kmem_cache *s, struct page *page)
 	spin_unlock(&n->list_lock);
 }
 
-static int alloc_object_checks(struct kmem_cache *s, struct page *page,
-							void *object)
+static void setup_object_debug(struct kmem_cache *s, struct page *page,
+								void *object)
+{
+	if (!(s->flags & (SLAB_STORE_USER|SLAB_RED_ZONE|__OBJECT_POISON)))
+		return;
+
+	init_object(s, object, 0);
+	init_tracking(s, object);
+}
+
+static int alloc_debug_processing(struct kmem_cache *s, struct page *page,
+						void *object, void *addr)
 {
 	if (!check_slab(s, page))
 		goto bad;
@@ -782,13 +808,16 @@ static int alloc_object_checks(struct kmem_cache *s, struct page *page,
 		goto bad;
 	}
 
-	if (!object)
-		return 1;
-
-	if (!check_object(s, page, object, 0))
+	if (object && !check_object(s, page, object, 0))
 		goto bad;
 
+	/* Success perform special debug activities for allocs */
+	if (s->flags & SLAB_STORE_USER)
+		set_track(s, object, TRACK_ALLOC, addr);
+	trace(s, page, object, 1);
+	init_object(s, object, 1);
 	return 1;
+
 bad:
 	if (PageSlab(page)) {
 		/*
@@ -806,8 +835,8 @@ bad:
 	return 0;
 }
 
-static int free_object_checks(struct kmem_cache *s, struct page *page,
-							void *object)
+static int free_debug_processing(struct kmem_cache *s, struct page *page,
+						void *object, void *addr)
 {
 	if (!check_slab(s, page))
 		goto fail;
@@ -841,27 +870,20 @@ static int free_object_checks(struct kmem_cache *s, struct page *page,
 				"to slab %s", object, page->slab->name);
 		goto fail;
 	}
+
+	/* Special debug activities for freeing objects */
+	if (!SlabFrozen(page) && !page->freelist)
+		remove_full(s, page);
+	if (s->flags & SLAB_STORE_USER)
+		set_track(s, object, TRACK_FREE, addr);
+	trace(s, page, object, 0);
+	init_object(s, object, 0);
 	return 1;
+
 fail:
 	printk(KERN_ERR "@@@ SLUB: %s slab 0x%p object at 0x%p not freed.\n",
 		s->name, page, object);
 	return 0;
-}
-
-static void trace(struct kmem_cache *s, struct page *page, void *object, int alloc)
-{
-	if (s->flags & SLAB_TRACE) {
-		printk(KERN_INFO "TRACE %s %s 0x%p inuse=%d fp=0x%p\n",
-			s->name,
-			alloc ? "alloc" : "free",
-			object, page->inuse,
-			page->freelist);
-
-		if (!alloc)
-			print_section("Object", (void *)object, s->objsize);
-
-		dump_stack();
-	}
 }
 
 static int __init setup_slub_debug(char *str)
@@ -932,26 +954,20 @@ static void kmem_cache_open_debug_check(struct kmem_cache *s)
 				s->flags |= slub_debug;
 }
 #else
+static inline void setup_object_debug(struct kmem_cache *s,
+			struct page *page, void *object) {}
 
-static inline int alloc_object_checks(struct kmem_cache *s,
-		struct page *page, void *object) { return 0; }
+static inline int alloc_debug_processing(struct kmem_cache *s,
+	struct page *page, void *object, void *addr) { return 0; }
 
-static inline int free_object_checks(struct kmem_cache *s,
-		struct page *page, void *object) { return 0; }
+static inline int free_debug_processing(struct kmem_cache *s,
+	struct page *page, void *object, void *addr) { return 0; }
 
-static inline void add_full(struct kmem_cache_node *n, struct page *page) {}
-static inline void remove_full(struct kmem_cache *s, struct page *page) {}
-static inline void trace(struct kmem_cache *s, struct page *page,
-			void *object, int alloc) {}
-static inline void init_object(struct kmem_cache *s,
-			void *object, int active) {}
-static inline void init_tracking(struct kmem_cache *s, void *object) {}
 static inline int slab_pad_check(struct kmem_cache *s, struct page *page)
 			{ return 1; }
 static inline int check_object(struct kmem_cache *s, struct page *page,
 			void *object, int active) { return 1; }
-static inline void set_track(struct kmem_cache *s, void *object,
-			enum track_item alloc, void *addr) {}
+static inline void add_full(struct kmem_cache_node *n, struct page *page) {}
 static inline void kmem_cache_open_debug_check(struct kmem_cache *s) {}
 #define slub_debug 0
 #endif
@@ -988,11 +1004,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 static void setup_object(struct kmem_cache *s, struct page *page,
 				void *object)
 {
-	if (SlabDebug(page)) {
-		init_object(s, object, 0);
-		init_tracking(s, object);
-	}
-
+	setup_object_debug(s, page, object);
 	if (unlikely(s->ctor))
 		s->ctor(object, s, 0);
 }
@@ -1449,12 +1461,8 @@ new_slab:
 	return NULL;
 debug:
 	object = page->freelist;
-	if (!alloc_object_checks(s, page, object))
+	if (!alloc_debug_processing(s, page, object, addr))
 		goto another_slab;
-	if (s->flags & SLAB_STORE_USER)
-		set_track(s, object, TRACK_ALLOC, addr);
-	trace(s, page, object, 1);
-	init_object(s, object, 1);
 
 	page->inuse++;
 	page->freelist = object[page->offset];
@@ -1561,14 +1569,8 @@ slab_empty:
 	return;
 
 debug:
-	if (!free_object_checks(s, page, x))
+	if (!free_debug_processing(s, page, x, addr))
 		goto out_unlock;
-	if (!SlabFrozen(page) && !page->freelist)
-		remove_full(s, page);
-	if (s->flags & SLAB_STORE_USER)
-		set_track(s, x, TRACK_FREE, addr);
-	trace(s, page, object, 0);
-	init_object(s, object, 0);
 	goto checks_ok;
 }
 
@@ -1805,7 +1807,7 @@ static struct kmem_cache_node * __init early_kmem_cache_node_alloc(gfp_t gfpflag
 	page->freelist = get_freepointer(kmalloc_caches, n);
 	page->inuse++;
 	kmalloc_caches->node[node] = n;
-	init_object(kmalloc_caches, n, 1);
+	setup_object_debug(kmalloc_caches, page, n);
 	init_kmem_cache_node(n);
 	atomic_long_inc(&n->nr_slabs);
 	add_partial(n, page);
