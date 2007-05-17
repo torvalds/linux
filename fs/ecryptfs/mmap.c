@@ -364,18 +364,14 @@ static int fill_zeros_to_end_of_page(struct page *page, unsigned int to)
 {
 	struct inode *inode = page->mapping->host;
 	int end_byte_in_page;
-	char *page_virt;
 
 	if ((i_size_read(inode) / PAGE_CACHE_SIZE) != page->index)
 		goto out;
 	end_byte_in_page = i_size_read(inode) % PAGE_CACHE_SIZE;
 	if (to > end_byte_in_page)
 		end_byte_in_page = to;
-	page_virt = kmap_atomic(page, KM_USER0);
-	memset((page_virt + end_byte_in_page), 0,
-	       (PAGE_CACHE_SIZE - end_byte_in_page));
-	kunmap_atomic(page_virt, KM_USER0);
-	flush_dcache_page(page);
+	zero_user_page(page, end_byte_in_page,
+		PAGE_CACHE_SIZE - end_byte_in_page, KM_USER0);
 out:
 	return 0;
 }
@@ -740,7 +736,6 @@ int write_zeros(struct file *file, pgoff_t index, int start, int num_zeros)
 {
 	int rc = 0;
 	struct page *tmp_page;
-	char *tmp_page_virt;
 
 	tmp_page = ecryptfs_get1page(file, index);
 	if (IS_ERR(tmp_page)) {
@@ -757,10 +752,7 @@ int write_zeros(struct file *file, pgoff_t index, int start, int num_zeros)
 		page_cache_release(tmp_page);
 		goto out;
 	}
-	tmp_page_virt = kmap_atomic(tmp_page, KM_USER0);
-	memset(((char *)tmp_page_virt + start), 0, num_zeros);
-	kunmap_atomic(tmp_page_virt, KM_USER0);
-	flush_dcache_page(tmp_page);
+	zero_user_page(tmp_page, start, num_zeros, KM_USER0);
 	rc = ecryptfs_commit_write(file, tmp_page, start, start + num_zeros);
 	if (rc < 0) {
 		ecryptfs_printk(KERN_ERR, "Error attempting to write zero's "
