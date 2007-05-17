@@ -641,12 +641,6 @@ static int strrcmp(const char *s, const char *sub)
  *  tosec   = .init.text
  *  fromsec  = .paravirtprobe
  *
- * Pattern 9:
- *  Some of functions are common code between boot time and hotplug
- *  time. The bootmem allocater is called only boot time in its
- *  functions. So it's ok to reference.
- *  tosec    = .init.text
- *
  * Pattern 10:
  *  ia64 has machvec table for each platform and
  *  powerpc has a machine desc table for each platform.
@@ -675,12 +669,6 @@ static int secref_whitelist(const char *modname, const char *tosec,
 		"__init_begin",
 		"_sinittext",
 		"_einittext",
-		NULL
-	};
-
-	const char *pat4sym[] = {
-		"sparse_index_alloc",
-		"zone_wait_table_init",
 		NULL
 	};
 
@@ -740,13 +728,6 @@ static int secref_whitelist(const char *modname, const char *tosec,
 	if ((strcmp(tosec, ".init.text") == 0) &&
 	    (strcmp(fromsec, ".paravirtprobe") == 0))
 		return 1;
-
-	/* Check for pattern 9 */
-	if ((strcmp(tosec, ".init.text") == 0) &&
-	    (strcmp(fromsec, ".text") == 0))
-		for (s = pat4sym; *s; s++)
-			if (strcmp(atsym, *s) == 0)
-				return 1;
 
 	/* Check for pattern 10 */
 	if ((strcmp(fromsec, ".machvec") == 0) ||
