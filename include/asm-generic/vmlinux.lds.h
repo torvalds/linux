@@ -11,7 +11,8 @@
 
 /* .data section */
 #define DATA_DATA							\
-	*(.data)
+	*(.data)							\
+	*(.data.init.refok)
 
 #define RODATA								\
 	. = ALIGN(4096);						\
@@ -147,7 +148,8 @@
  * during second ld run in second ld pass when generating System.map */
 #define TEXT_TEXT							\
 		ALIGN_FUNCTION();					\
-		*(.text)
+		*(.text)						\
+		*(.text.init.refok)
 
 /* sched.text is aling to function alignment to secure we have same
  * address even at second ld pass when generating System.map */
