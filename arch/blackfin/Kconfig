@@ -560,14 +560,6 @@ endchoice
 
 source "mm/Kconfig"
 
-config LARGE_ALLOCS
-	bool "Allow allocating large blocks (> 1MB) of memory"
-	help
-	  Allow the slab memory allocator to keep chains for very large
-	  memory sizes - upto 32MB. You may need this if your system has
-	  a lot of RAM, and you need to able to allocate very large
-	  contiguous chunks. If unsure, say N.
-
 config BFIN_DMA_5XX
 	bool "Enable DMA Support"
 	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534 || BF561)

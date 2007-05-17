@@ -58,17 +58,6 @@ struct kmem_cache {
  */
 #define KMALLOC_SHIFT_LOW 3
 
-#ifdef CONFIG_LARGE_ALLOCS
-#define KMALLOC_SHIFT_HIGH ((MAX_ORDER + PAGE_SHIFT) =< 25 ? \
-				(MAX_ORDER + PAGE_SHIFT - 1) : 25)
-#else
-#if !defined(CONFIG_MMU) || NR_CPUS > 512 || MAX_NUMNODES > 256
-#define KMALLOC_SHIFT_HIGH 20
-#else
-#define KMALLOC_SHIFT_HIGH 18
-#endif
-#endif
-
 /*
  * We keep the general caches in an array of slab caches that are used for
  * 2^x bytes of allocations.
@@ -79,7 +68,7 @@ extern struct kmem_cache kmalloc_caches[KMALLOC_SHIFT_HIGH + 1];
  * Sorry that the following has to be that ugly but some versions of GCC
  * have trouble with constant propagation and loops.
  */
-static inline int kmalloc_index(int size)
+static inline int kmalloc_index(size_t size)
 {
 	/*
 	 * We should return 0 if size == 0 but we use the smallest object
@@ -87,7 +76,7 @@ static inline int kmalloc_index(int size)
 	 */
 	WARN_ON_ONCE(size == 0);
 
-	if (size > (1 << KMALLOC_SHIFT_HIGH))
+	if (size > KMALLOC_MAX_SIZE)
 		return -1;
 
 	if (size > 64 && size <= 96)
@@ -110,17 +99,13 @@ static inline int kmalloc_index(int size)
 	if (size <=  64 * 1024) return 16;
 	if (size <= 128 * 1024) return 17;
 	if (size <= 256 * 1024) return 18;
-#if KMALLOC_SHIFT_HIGH > 18
 	if (size <=  512 * 1024) return 19;
 	if (size <= 1024 * 1024) return 20;
-#endif
-#if KMALLOC_SHIFT_HIGH > 20
 	if (size <=  2 * 1024 * 1024) return 21;
 	if (size <=  4 * 1024 * 1024) return 22;
 	if (size <=  8 * 1024 * 1024) return 23;
 	if (size <= 16 * 1024 * 1024) return 24;
 	if (size <= 32 * 1024 * 1024) return 25;
-#endif
 	return -1;
 
 /*
