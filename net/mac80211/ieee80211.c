@@ -3278,8 +3278,10 @@ ieee80211_rx_h_defragment(struct ieee80211_txrx_data *rx)
 			return TXRX_DROP;
 		}
 	}
-	while ((skb = __skb_dequeue(&entry->skb_list)))
+	while ((skb = __skb_dequeue(&entry->skb_list))) {
 		memcpy(skb_put(rx->skb, skb->len), skb->data, skb->len);
+		dev_kfree_skb(skb);
+	}
 
 	/* Complete frame has been reassembled - process it now */
 	rx->fragmented = 1;
