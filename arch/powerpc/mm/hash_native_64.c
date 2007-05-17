@@ -233,15 +233,14 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	/* Even if we miss, we need to invalidate the TLB */
 	if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID)) {
 		DBG_LOW(" -> miss\n");
-		native_unlock_hpte(hptep);
 		ret = -1;
 	} else {
 		DBG_LOW(" -> hit\n");
 		/* Update the HPTE */
 		hptep->r = (hptep->r & ~(HPTE_R_PP | HPTE_R_N)) |
 			(newpp & (HPTE_R_PP | HPTE_R_N | HPTE_R_C));
-		native_unlock_hpte(hptep);
 	}
+	native_unlock_hpte(hptep);
 
 	/* Ensure it is out of the tlb too. */
 	tlbie(va, psize, local);
