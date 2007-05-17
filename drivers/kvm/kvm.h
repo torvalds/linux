@@ -288,6 +288,10 @@ struct kvm_vcpu {
 	u64 apic_base;
 	u64 ia32_misc_enable_msr;
 	int nmsrs;
+	int save_nmsrs;
+#ifdef CONFIG_X86_64
+	int msr_offset_kernel_gs_base;
+#endif
 	struct vmx_msr_entry *guest_msrs;
 	struct vmx_msr_entry *host_msrs;
 
