@@ -918,7 +918,7 @@ static int c_show(struct seq_file *m, void *v)
 
 	if ((processor_id & 0x0008f000) == 0x00000000) {
 		/* pre-ARM7 */
-		seq_printf(m, "CPU part\t\t: %07x\n", processor_id >> 4);
+		seq_printf(m, "CPU part\t: %07x\n", processor_id >> 4);
 	} else {
 		if ((processor_id & 0x0008f000) == 0x00007000) {
 			/* ARM7 */
