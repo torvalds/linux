@@ -1427,10 +1427,8 @@ static void sighand_ctor(void *data, struct kmem_cache *cachep,
 {
 	struct sighand_struct *sighand = data;
 
-	if (flags & SLAB_CTOR_CONSTRUCTOR) {
-		spin_lock_init(&sighand->siglock);
-		INIT_LIST_HEAD(&sighand->signalfd_list);
-	}
+	spin_lock_init(&sighand->siglock);
+	INIT_LIST_HEAD(&sighand->signalfd_list);
 }
 
 void __init proc_caches_init(void)

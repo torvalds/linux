@@ -32,9 +32,6 @@ typedef struct kmem_cache kmem_cache_t __deprecated;
 #define SLAB_MEM_SPREAD		0x00100000UL	/* Spread some memory over cpuset */
 #define SLAB_TRACE		0x00200000UL	/* Trace allocations and frees */
 
-/* Flags passed to a constructor functions */
-#define SLAB_CTOR_CONSTRUCTOR	0x001UL		/* If not set, then deconstructor */
-
 /*
  * struct kmem_cache related prototypes
  */
@@ -75,6 +72,21 @@ static inline void *kmem_cache_alloc_node(struct kmem_cache *cachep,
 	return kmem_cache_alloc(cachep, flags);
 }
 #endif
+
+/*
+ * The largest kmalloc size supported by the slab allocators is
+ * 32 megabyte (2^25) or the maximum allocatable page order if that is
+ * less than 32 MB.
+ *
+ * WARNING: Its not easy to increase this value since the allocators have
+ * to do various tricks to work around compiler limitations in order to
+ * ensure proper constant folding.
+ */
+#define KMALLOC_SHIFT_HIGH	((MAX_ORDER + PAGE_SHIFT) <= 25 ? \
+				(MAX_ORDER + PAGE_SHIFT) : 25)
+
+#define KMALLOC_MAX_SIZE	(1UL << KMALLOC_SHIFT_HIGH)
+#define KMALLOC_MAX_ORDER	(KMALLOC_SHIFT_HIGH - PAGE_SHIFT)
 
 /*
  * Common kmalloc functions provided by all allocators
@@ -232,9 +244,6 @@ extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, void *);
 	kmalloc_track_caller(size, flags)
 
 #endif /* DEBUG_SLAB */
-
-extern const struct seq_operations slabinfo_op;
-ssize_t slabinfo_write(struct file *, const char __user *, size_t, loff_t *);
 
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_SLAB_H */

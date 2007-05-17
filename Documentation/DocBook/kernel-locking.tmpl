@@ -551,10 +551,12 @@
 	<function>spin_lock_irqsave()</function>, which is a superset
 	of all other spinlock primitives.
    </para>
+
    <table>
 <title>Table of Locking Requirements</title>
 <tgroup cols="11">
 <tbody>
+
 <row>
 <entry></entry>
 <entry>IRQ Handler A</entry>
@@ -576,97 +578,128 @@
 
 <row>
 <entry>IRQ Handler B</entry>
-<entry>spin_lock_irqsave</entry>
+<entry>SLIS</entry>
 <entry>None</entry>
 </row>
 
 <row>
 <entry>Softirq A</entry>
-<entry>spin_lock_irq</entry>
-<entry>spin_lock_irq</entry>
-<entry>spin_lock</entry>
+<entry>SLI</entry>
+<entry>SLI</entry>
+<entry>SL</entry>
 </row>
 
 <row>
 <entry>Softirq B</entry>
-<entry>spin_lock_irq</entry>
-<entry>spin_lock_irq</entry>
-<entry>spin_lock</entry>
-<entry>spin_lock</entry>
+<entry>SLI</entry>
+<entry>SLI</entry>
+<entry>SL</entry>
+<entry>SL</entry>
 </row>
 
 <row>
 <entry>Tasklet A</entry>
-<entry>spin_lock_irq</entry>
-<entry>spin_lock_irq</entry>
-<entry>spin_lock</entry>
-<entry>spin_lock</entry>
+<entry>SLI</entry>
+<entry>SLI</entry>
+<entry>SL</entry>
+<entry>SL</entry>
 <entry>None</entry>
 </row>
 
 <row>
 <entry>Tasklet B</entry>
-<entry>spin_lock_irq</entry>
-<entry>spin_lock_irq</entry>
-<entry>spin_lock</entry>
-<entry>spin_lock</entry>
-<entry>spin_lock</entry>
+<entry>SLI</entry>
+<entry>SLI</entry>
+<entry>SL</entry>
+<entry>SL</entry>
+<entry>SL</entry>
 <entry>None</entry>
 </row>
 
 <row>
 <entry>Timer A</entry>
-<entry>spin_lock_irq</entry>
-<entry>spin_lock_irq</entry>
-<entry>spin_lock</entry>
-<entry>spin_lock</entry>
-<entry>spin_lock</entry>
-<entry>spin_lock</entry>
+<entry>SLI</entry>
+<entry>SLI</entry>
+<entry>SL</entry>
+<entry>SL</entry>
+<entry>SL</entry>
+<entry>SL</entry>
 <entry>None</entry>
 </row>
 
 <row>
 <entry>Timer B</entry>
-<entry>spin_lock_irq</entry>
-<entry>spin_lock_irq</entry>
-<entry>spin_lock</entry>
-<entry>spin_lock</entry>
-<entry>spin_lock</entry>
-<entry>spin_lock</entry>
-<entry>spin_lock</entry>
+<entry>SLI</entry>
+<entry>SLI</entry>
+<entry>SL</entry>
+<entry>SL</entry>
+<entry>SL</entry>
+<entry>SL</entry>
+<entry>SL</entry>
 <entry>None</entry>
 </row>
 
 <row>
 <entry>User Context A</entry>
-<entry>spin_lock_irq</entry>
-<entry>spin_lock_irq</entry>
-<entry>spin_lock_bh</entry>
-<entry>spin_lock_bh</entry>
-<entry>spin_lock_bh</entry>
-<entry>spin_lock_bh</entry>
-<entry>spin_lock_bh</entry>
-<entry>spin_lock_bh</entry>
+<entry>SLI</entry>
+<entry>SLI</entry>
+<entry>SLBH</entry>
+<entry>SLBH</entry>
+<entry>SLBH</entry>
+<entry>SLBH</entry>
+<entry>SLBH</entry>
+<entry>SLBH</entry>
 <entry>None</entry>
 </row>
 
 <row>
 <entry>User Context B</entry>
-<entry>spin_lock_irq</entry>
-<entry>spin_lock_irq</entry>
-<entry>spin_lock_bh</entry>
-<entry>spin_lock_bh</entry>
-<entry>spin_lock_bh</entry>
-<entry>spin_lock_bh</entry>
-<entry>spin_lock_bh</entry>
-<entry>spin_lock_bh</entry>
-<entry>down_interruptible</entry>
+<entry>SLI</entry>
+<entry>SLI</entry>
+<entry>SLBH</entry>
+<entry>SLBH</entry>
+<entry>SLBH</entry>
+<entry>SLBH</entry>
+<entry>SLBH</entry>
+<entry>SLBH</entry>
+<entry>DI</entry>
 <entry>None</entry>
 </row>
 
 </tbody>
 </tgroup>
 </table>
+
+   <table>
+<title>Legend for Locking Requirements Table</title>
+<tgroup cols="2">
+<tbody>
+
+<row>
+<entry>SLIS</entry>
+<entry>spin_lock_irqsave</entry>
+</row>
+<row>
+<entry>SLI</entry>
+<entry>spin_lock_irq</entry>
+</row>
+<row>
+<entry>SL</entry>
+<entry>spin_lock</entry>
+</row>
+<row>
+<entry>SLBH</entry>
+<entry>spin_lock_bh</entry>
+</row>
+<row>
+<entry>DI</entry>
+<entry>down_interruptible</entry>
+</row>
+
+</tbody>
+</tgroup>
+</table>
+
 </sect1>
 </chapter>
 

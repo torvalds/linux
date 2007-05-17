@@ -111,7 +111,9 @@ setting up a platform_device using the GPIO, is mark its direction:
 
 The return value is zero for success, else a negative errno.  It should
 be checked, since the get/set calls don't have error returns and since
-misconfiguration is possible.  (These calls could sleep.)
+misconfiguration is possible.  You should normally issue these calls from
+a task context.  However, for spinlock-safe GPIOs it's OK to use them
+before tasking is enabled, as part of early board setup.
 
 For output GPIOs, the value provided becomes the initial output value.
 This helps avoid signal glitching during system startup.
@@ -197,7 +199,9 @@ However, many platforms don't currently support this mechanism.
 
 Passing invalid GPIO numbers to gpio_request() will fail, as will requesting
 GPIOs that have already been claimed with that call.  The return value of
-gpio_request() must be checked.  (These calls could sleep.)
+gpio_request() must be checked.  You should normally issue these calls from
+a task context.  However, for spinlock-safe GPIOs it's OK to request GPIOs
+before tasking is enabled, as part of early board setup.
 
 These calls serve two basic purposes.  One is marking the signals which
 are actually in use as GPIOs, for better diagnostics; systems may have

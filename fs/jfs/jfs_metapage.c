@@ -184,16 +184,14 @@ static void init_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct metapage *mp = (struct metapage *)foo;
 
-	if (flags & SLAB_CTOR_CONSTRUCTOR) {
-		mp->lid = 0;
-		mp->lsn = 0;
-		mp->flag = 0;
-		mp->data = NULL;
-		mp->clsn = 0;
-		mp->log = NULL;
-		set_bit(META_free, &mp->flag);
-		init_waitqueue_head(&mp->wait);
-	}
+	mp->lid = 0;
+	mp->lsn = 0;
+	mp->flag = 0;
+	mp->data = NULL;
+	mp->clsn = 0;
+	mp->log = NULL;
+	set_bit(META_free, &mp->flag);
+	init_waitqueue_head(&mp->wait);
 }
 
 static inline struct metapage *alloc_metapage(gfp_t gfp_mask)

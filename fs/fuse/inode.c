@@ -687,8 +687,7 @@ static void fuse_inode_init_once(void *foo, struct kmem_cache *cachep,
 {
 	struct inode * inode = foo;
 
-	if (flags & SLAB_CTOR_CONSTRUCTOR)
-		inode_init_once(inode);
+	inode_init_once(inode);
 }
 
 static int __init fuse_fs_init(void)

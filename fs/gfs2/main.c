@@ -27,29 +27,27 @@
 static void gfs2_init_inode_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct gfs2_inode *ip = foo;
-	if (flags & SLAB_CTOR_CONSTRUCTOR) {
-		inode_init_once(&ip->i_inode);
-		spin_lock_init(&ip->i_spin);
-		init_rwsem(&ip->i_rw_mutex);
-		memset(ip->i_cache, 0, sizeof(ip->i_cache));
-	}
+
+	inode_init_once(&ip->i_inode);
+	spin_lock_init(&ip->i_spin);
+	init_rwsem(&ip->i_rw_mutex);
+	memset(ip->i_cache, 0, sizeof(ip->i_cache));
 }
 
 static void gfs2_init_glock_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct gfs2_glock *gl = foo;
-	if (flags & SLAB_CTOR_CONSTRUCTOR) {
-		INIT_HLIST_NODE(&gl->gl_list);
-		spin_lock_init(&gl->gl_spin);
-		INIT_LIST_HEAD(&gl->gl_holders);
-		INIT_LIST_HEAD(&gl->gl_waiters1);
-		INIT_LIST_HEAD(&gl->gl_waiters3);
-		gl->gl_lvb = NULL;
-		atomic_set(&gl->gl_lvb_count, 0);
-		INIT_LIST_HEAD(&gl->gl_reclaim);
-		INIT_LIST_HEAD(&gl->gl_ail_list);
-		atomic_set(&gl->gl_ail_count, 0);
-	}
+
+	INIT_HLIST_NODE(&gl->gl_list);
+	spin_lock_init(&gl->gl_spin);
+	INIT_LIST_HEAD(&gl->gl_holders);
+	INIT_LIST_HEAD(&gl->gl_waiters1);
+	INIT_LIST_HEAD(&gl->gl_waiters3);
+	gl->gl_lvb = NULL;
+	atomic_set(&gl->gl_lvb_count, 0);
+	INIT_LIST_HEAD(&gl->gl_reclaim);
+	INIT_LIST_HEAD(&gl->gl_ail_list);
+	atomic_set(&gl->gl_ail_count, 0);
 }
 
 /**

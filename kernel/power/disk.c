@@ -416,7 +416,8 @@ static ssize_t disk_store(struct kset *kset, const char *buf, size_t n)
 
 	mutex_lock(&pm_mutex);
 	for (i = HIBERNATION_FIRST; i <= HIBERNATION_MAX; i++) {
-		if (!strncmp(buf, hibernation_modes[i], len)) {
+		if (len == strlen(hibernation_modes[i])
+		    && !strncmp(buf, hibernation_modes[i], len)) {
 			mode = i;
 			break;
 		}

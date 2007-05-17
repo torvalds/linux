@@ -1421,7 +1421,7 @@ int vfs_quota_off(struct super_block *sb, int type)
 			/* If quota was reenabled in the meantime, we have
 			 * nothing to do */
 			if (!sb_has_quota_enabled(sb, cnt)) {
-				mutex_lock(&toputinode[cnt]->i_mutex);
+				mutex_lock_nested(&toputinode[cnt]->i_mutex, I_MUTEX_QUOTA);
 				toputinode[cnt]->i_flags &= ~(S_IMMUTABLE |
 				  S_NOATIME | S_NOQUOTA);
 				truncate_inode_pages(&toputinode[cnt]->i_data, 0);

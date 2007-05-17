@@ -262,12 +262,10 @@ static void dlmfs_init_once(void *foo,
 	struct dlmfs_inode_private *ip =
 		(struct dlmfs_inode_private *) foo;
 
-	if (flags & SLAB_CTOR_CONSTRUCTOR) {
-		ip->ip_dlm = NULL;
-		ip->ip_parent = NULL;
+	ip->ip_dlm = NULL;
+	ip->ip_parent = NULL;
 
-		inode_init_once(&ip->ip_vfs_inode);
-	}
+	inode_init_once(&ip->ip_vfs_inode);
 }
 
 static struct inode *dlmfs_alloc_inode(struct super_block *sb)
