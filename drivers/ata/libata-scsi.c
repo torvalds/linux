@@ -893,7 +893,7 @@ int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth)
 	return queue_depth;
 }
 
-/* XXX: for ata_spindown_compat */
+/* XXX: for spindown warning */
 static void ata_delayed_done_timerfn(unsigned long arg)
 {
 	struct scsi_cmnd *scmd = (void *)arg;
@@ -901,7 +901,7 @@ static void ata_delayed_done_timerfn(unsigned long arg)
 	scmd->scsi_done(scmd);
 }
 
-/* XXX: for ata_spindown_compat */
+/* XXX: for spindown warning */
 static void ata_delayed_done(struct scsi_cmnd *scmd)
 {
 	static struct timer_list timer;
@@ -966,8 +966,7 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc)
 		 * removed.  Read Documentation/feature-removal-schedule.txt
 		 * for more info.
 		 */
-		if (ata_spindown_compat &&
-		    (qc->dev->flags & ATA_DFLAG_SPUNDOWN) &&
+		if ((qc->dev->flags & ATA_DFLAG_SPUNDOWN) &&
 		    (system_state == SYSTEM_HALT ||
 		     system_state == SYSTEM_POWER_OFF)) {
 			static unsigned long warned = 0;
@@ -1395,7 +1394,7 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 		}
 	}
 
-	/* XXX: track spindown state for spindown_compat */
+	/* XXX: track spindown state for spindown skipping and warning */
 	if (unlikely(qc->tf.command == ATA_CMD_STANDBY ||
 		     qc->tf.command == ATA_CMD_STANDBYNOW1))
 		qc->dev->flags |= ATA_DFLAG_SPUNDOWN;

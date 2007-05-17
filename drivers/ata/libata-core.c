@@ -101,12 +101,6 @@ int libata_noacpi = 1;
 module_param_named(noacpi, libata_noacpi, int, 0444);
 MODULE_PARM_DESC(noacpi, "Disables the use of ACPI in suspend/resume when set");
 
-int ata_spindown_compat = 1;
-module_param_named(spindown_compat, ata_spindown_compat, int, 0644);
-MODULE_PARM_DESC(spindown_compat, "Enable backward compatible spindown "
-		 "behavior.  Will be removed.  More info can be found in "
-		 "Documentation/feature-removal-schedule.txt\n");
-
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("Library module for ATA devices");
 MODULE_LICENSE("GPL");
