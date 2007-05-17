@@ -32,6 +32,8 @@
 #include "ivtv-yuv.h"
 #include "ivtv-controls.h"
 #include "ivtv-ioctl.h"
+#include "ivtv-cards.h"
+#include <media/saa7115.h>
 
 /* This function tries to claim the stream for a specific file descriptor.
    If no one else is using this stream then the stream is claimed and
@@ -786,6 +788,13 @@ int ivtv_v4l2_close(struct inode *inode, struct file *filp)
 		ivtv_call_i2c_clients(itv, VIDIOC_S_STD, &itv->std);
 		/* Select correct audio input (i.e. TV tuner or Line in) */
 		ivtv_audio_set_io(itv);
+		if (itv->hw_flags & IVTV_HW_SAA711X)
+		{
+			struct v4l2_crystal_freq crystal_freq;
+			crystal_freq.freq = SAA7115_FREQ_32_11_MHZ;
+			crystal_freq.flags = 0;
+			ivtv_saa7115(itv, VIDIOC_INT_S_CRYSTAL_FREQ, &crystal_freq);
+		}
 		/* Done! Unmute and continue. */
 		ivtv_unmute(itv);
 		ivtv_release_stream(s);
@@ -872,6 +881,13 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 		set_bit(IVTV_F_I_RADIO_USER, &itv->i_flags);
 		/* Select the correct audio input (i.e. radio tuner) */
 		ivtv_audio_set_io(itv);
+		if (itv->hw_flags & IVTV_HW_SAA711X)
+		{
+			struct v4l2_crystal_freq crystal_freq;
+			crystal_freq.freq = SAA7115_FREQ_32_11_MHZ;
+			crystal_freq.flags = SAA7115_FREQ_FL_APLL;
+			ivtv_saa7115(itv, VIDIOC_INT_S_CRYSTAL_FREQ, &crystal_freq);
+		}
 		/* Done! Unmute and continue. */
 		ivtv_unmute(itv);
 	}
