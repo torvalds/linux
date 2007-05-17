@@ -1216,7 +1216,7 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 		/* Window = 1 */
 		writel(consumer,
 		       NETXEN_CRB_NORMALIZE(adapter,
-					    recv_crb_registers[ctxid].
+					    recv_crb_registers[adapter->portnum].
 					    crb_rcv_status_consumer));
 	}
 
