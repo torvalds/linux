@@ -351,6 +351,7 @@ static void ivtv_process_eeprom(struct ivtv *itv)
 		case 23000 ... 23999:  /* PVR500 */
 		case 25000 ... 25999:  /* Low profile PVR150 */
 		case 26000 ... 26999:  /* Regular PVR150 */
+		case 30012 ... 30039:  /* Low profile PVR150 */
 			itv->card = ivtv_get_card(IVTV_CARD_PVR_150);
 			break;
 		case 0:
