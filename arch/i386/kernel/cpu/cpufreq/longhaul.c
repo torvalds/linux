@@ -254,6 +254,8 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	struct cpufreq_freqs freqs;
 	unsigned long flags;
 	unsigned int pic1_mask, pic2_mask;
+	u32 bm_status = 0;
+	u32 bm_timeout = 100000;
 
 	if (old_ratio == clock_ratio_index)
 		return;
@@ -283,6 +285,18 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	pic1_mask = inb(0x21);	/* works on C3. save mask. */
 	outb(0xFF,0xA1);	/* Overkill */
 	outb(0xFE,0x21);	/* TMR0 only */
+
+	/* Wait while PCI bus is busy. */
+	if (longhaul_flags & USE_NORTHBRIDGE
+	    || ((pr != NULL) && pr->flags.bm_control)) {
+		acpi_get_register(ACPI_BITREG_BUS_MASTER_STATUS, &bm_status);
+		while (bm_status && bm_timeout) {
+			acpi_set_register(ACPI_BITREG_BUS_MASTER_STATUS, 1);
+			bm_timeout--;
+			acpi_get_register(ACPI_BITREG_BUS_MASTER_STATUS,
+					  &bm_status);
+		}
+	}
 
 	if (longhaul_flags & USE_NORTHBRIDGE) {
 		/* Disable AGP and PCI arbiters */
@@ -335,6 +349,10 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 
 	freqs.new = calc_speed(longhaul_get_cpu_mult());
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+
+	if (!bm_timeout)
+		printk(KERN_INFO PFX "Warning: Timeout while waiting for "
+			"idle PCI bus.\n");
 }
 
 /*
