@@ -261,14 +261,12 @@ out:
 
 static void o2net_complete_nodes_nsw(struct o2net_node *nn)
 {
-	struct list_head *iter, *tmp;
+	struct o2net_status_wait *nsw, *tmp;
 	unsigned int num_kills = 0;
-	struct o2net_status_wait *nsw;
 
 	assert_spin_locked(&nn->nn_lock);
 
-	list_for_each_safe(iter, tmp, &nn->nn_status_list) {
-		nsw = list_entry(iter, struct o2net_status_wait, ns_node_item);
+	list_for_each_entry_safe(nsw, tmp, &nn->nn_status_list, ns_node_item) {
 		o2net_complete_nsw_locked(nn, nsw, O2NET_ERR_DIED, 0);
 		num_kills++;
 	}
@@ -764,13 +762,10 @@ EXPORT_SYMBOL_GPL(o2net_register_handler);
 
 void o2net_unregister_handler_list(struct list_head *list)
 {
-	struct list_head *pos, *n;
-	struct o2net_msg_handler *nmh;
+	struct o2net_msg_handler *nmh, *n;
 
 	write_lock(&o2net_handler_lock);
-	list_for_each_safe(pos, n, list) {
-		nmh = list_entry(pos, struct o2net_msg_handler,
-				 nh_unregister_item);
+	list_for_each_entry_safe(nmh, n, list, nh_unregister_item) {
 		mlog(ML_TCP, "unregistering handler func %p type %u key %08x\n",
 		     nmh->nh_func, nmh->nh_msg_type, nmh->nh_key);
 		rb_erase(&nmh->nh_node, &o2net_handler_tree);

@@ -109,17 +109,14 @@ static int ocfs2_extent_map_lookup(struct inode *inode, unsigned int cpos,
  */
 void ocfs2_extent_map_trunc(struct inode *inode, unsigned int cpos)
 {
-	struct list_head *p, *n;
-	struct ocfs2_extent_map_item *emi;
+	struct ocfs2_extent_map_item *emi, *n;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 	struct ocfs2_extent_map *em = &oi->ip_extent_map;
 	LIST_HEAD(tmp_list);
 	unsigned int range;
 
 	spin_lock(&oi->ip_lock);
-	list_for_each_safe(p, n, &em->em_list) {
-		emi = list_entry(p, struct ocfs2_extent_map_item, ei_list);
-
+	list_for_each_entry_safe(emi, n, &em->em_list, ei_list) {
 		if (emi->ei_cpos >= cpos) {
 			/* Full truncate of this record. */
 			list_move(&emi->ei_list, &tmp_list);
@@ -136,8 +133,7 @@ void ocfs2_extent_map_trunc(struct inode *inode, unsigned int cpos)
 	}
 	spin_unlock(&oi->ip_lock);
 
-	list_for_each_safe(p, n, &tmp_list) {
-		emi = list_entry(p, struct ocfs2_extent_map_item, ei_list);
+	list_for_each_entry_safe(emi, n, &tmp_list, ei_list) {
 		list_del(&emi->ei_list);
 		kfree(emi);
 	}

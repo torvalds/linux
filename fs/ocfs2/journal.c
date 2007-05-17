@@ -722,8 +722,7 @@ void ocfs2_complete_recovery(struct work_struct *work)
 		container_of(work, struct ocfs2_journal, j_recovery_work);
 	struct ocfs2_super *osb = journal->j_osb;
 	struct ocfs2_dinode *la_dinode, *tl_dinode;
-	struct ocfs2_la_recovery_item *item;
-	struct list_head *p, *n;
+	struct ocfs2_la_recovery_item *item, *n;
 	LIST_HEAD(tmp_la_list);
 
 	mlog_entry_void();
@@ -734,8 +733,7 @@ void ocfs2_complete_recovery(struct work_struct *work)
 	list_splice_init(&journal->j_la_cleanups, &tmp_la_list);
 	spin_unlock(&journal->j_lock);
 
-	list_for_each_safe(p, n, &tmp_la_list) {
-		item = list_entry(p, struct ocfs2_la_recovery_item, lri_list);
+	list_for_each_entry_safe(item, n, &tmp_la_list, lri_list) {
 		list_del_init(&item->lri_list);
 
 		mlog(0, "Complete recovery for slot %d\n", item->lri_slot);
