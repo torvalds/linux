@@ -2610,7 +2610,7 @@ static inline kmem_bufctl_t *slab_bufctl(struct slab *slabp)
 }
 
 static void cache_init_objs(struct kmem_cache *cachep,
-			    struct slab *slabp, unsigned long ctor_flags)
+			    struct slab *slabp)
 {
 	int i;
 
@@ -2634,7 +2634,7 @@ static void cache_init_objs(struct kmem_cache *cachep,
 		 */
 		if (cachep->ctor && !(cachep->flags & SLAB_POISON))
 			cachep->ctor(objp + obj_offset(cachep), cachep,
-				     ctor_flags);
+				     0);
 
 		if (cachep->flags & SLAB_RED_ZONE) {
 			if (*dbg_redzone2(cachep, objp) != RED_INACTIVE)
@@ -2650,7 +2650,7 @@ static void cache_init_objs(struct kmem_cache *cachep,
 					 cachep->buffer_size / PAGE_SIZE, 0);
 #else
 		if (cachep->ctor)
-			cachep->ctor(objp, cachep, ctor_flags);
+			cachep->ctor(objp, cachep, 0);
 #endif
 		slab_bufctl(slabp)[i] = i + 1;
 	}
@@ -2739,7 +2739,6 @@ static int cache_grow(struct kmem_cache *cachep,
 	struct slab *slabp;
 	size_t offset;
 	gfp_t local_flags;
-	unsigned long ctor_flags;
 	struct kmem_list3 *l3;
 
 	/*
@@ -2748,7 +2747,6 @@ static int cache_grow(struct kmem_cache *cachep,
 	 */
 	BUG_ON(flags & ~(GFP_DMA | GFP_LEVEL_MASK));
 
-	ctor_flags = SLAB_CTOR_CONSTRUCTOR;
 	local_flags = (flags & GFP_LEVEL_MASK);
 	/* Take the l3 list lock to change the colour_next on this node */
 	check_irq_off();
@@ -2793,7 +2791,7 @@ static int cache_grow(struct kmem_cache *cachep,
 	slabp->nodeid = nodeid;
 	slab_map_pages(cachep, slabp, objp);
 
-	cache_init_objs(cachep, slabp, ctor_flags);
+	cache_init_objs(cachep, slabp);
 
 	if (local_flags & __GFP_WAIT)
 		local_irq_disable();
@@ -3077,7 +3075,7 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
 #endif
 	objp += obj_offset(cachep);
 	if (cachep->ctor && cachep->flags & SLAB_POISON)
-		cachep->ctor(objp, cachep, SLAB_CTOR_CONSTRUCTOR);
+		cachep->ctor(objp, cachep, 0);
 #if ARCH_SLAB_MINALIGN
 	if ((u32)objp & (ARCH_SLAB_MINALIGN-1)) {
 		printk(KERN_ERR "0x%p: not aligned to ARCH_SLAB_MINALIGN=%d\n",

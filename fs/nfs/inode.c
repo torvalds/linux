@@ -1164,21 +1164,19 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 {
 	struct nfs_inode *nfsi = (struct nfs_inode *) foo;
 
-	if (flags & SLAB_CTOR_CONSTRUCTOR) {
-		inode_init_once(&nfsi->vfs_inode);
-		spin_lock_init(&nfsi->req_lock);
-		INIT_LIST_HEAD(&nfsi->dirty);
-		INIT_LIST_HEAD(&nfsi->commit);
-		INIT_LIST_HEAD(&nfsi->open_files);
-		INIT_LIST_HEAD(&nfsi->access_cache_entry_lru);
-		INIT_LIST_HEAD(&nfsi->access_cache_inode_lru);
-		INIT_RADIX_TREE(&nfsi->nfs_page_tree, GFP_ATOMIC);
-		atomic_set(&nfsi->data_updates, 0);
-		nfsi->ndirty = 0;
-		nfsi->ncommit = 0;
-		nfsi->npages = 0;
-		nfs4_init_once(nfsi);
-	}
+	inode_init_once(&nfsi->vfs_inode);
+	spin_lock_init(&nfsi->req_lock);
+	INIT_LIST_HEAD(&nfsi->dirty);
+	INIT_LIST_HEAD(&nfsi->commit);
+	INIT_LIST_HEAD(&nfsi->open_files);
+	INIT_LIST_HEAD(&nfsi->access_cache_entry_lru);
+	INIT_LIST_HEAD(&nfsi->access_cache_inode_lru);
+	INIT_RADIX_TREE(&nfsi->nfs_page_tree, GFP_ATOMIC);
+	atomic_set(&nfsi->data_updates, 0);
+	nfsi->ndirty = 0;
+	nfsi->ncommit = 0;
+	nfsi->npages = 0;
+	nfs4_init_once(nfsi);
 }
  
 static int __init nfs_init_inodecache(void)

@@ -2358,13 +2358,11 @@ static void init_once(void *foo, struct kmem_cache *cachep,
 {
 	struct shmem_inode_info *p = (struct shmem_inode_info *) foo;
 
-	if (flags & SLAB_CTOR_CONSTRUCTOR) {
-		inode_init_once(&p->vfs_inode);
+	inode_init_once(&p->vfs_inode);
 #ifdef CONFIG_TMPFS_POSIX_ACL
-		p->i_acl = NULL;
-		p->i_default_acl = NULL;
+	p->i_acl = NULL;
+	p->i_default_acl = NULL;
 #endif
-	}
 }
 
 static int init_inodecache(void)

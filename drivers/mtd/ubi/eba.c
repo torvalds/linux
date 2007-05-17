@@ -940,9 +940,6 @@ static void ltree_entry_ctor(void *obj, struct kmem_cache *cache,
 {
 	struct ltree_entry *le = obj;
 
-	if (flags & SLAB_CTOR_CONSTRUCTOR)
-		return;
-
 	le->users = 0;
 	init_rwsem(&le->mutex);
 }

@@ -994,7 +994,7 @@ static void setup_object(struct kmem_cache *s, struct page *page,
 	}
 
 	if (unlikely(s->ctor))
-		s->ctor(object, s, SLAB_CTOR_CONSTRUCTOR);
+		s->ctor(object, s, 0);
 }
 
 static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)

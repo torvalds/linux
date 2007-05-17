@@ -134,10 +134,8 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 {
 	struct udf_inode_info *ei = (struct udf_inode_info *) foo;
 
-	if (flags & SLAB_CTOR_CONSTRUCTOR) {
-		ei->i_ext.i_data = NULL;
-		inode_init_once(&ei->vfs_inode);
-	}
+	ei->i_ext.i_data = NULL;
+	inode_init_once(&ei->vfs_inode);
 }
 
 static int init_inodecache(void)

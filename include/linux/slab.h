@@ -32,9 +32,6 @@ typedef struct kmem_cache kmem_cache_t __deprecated;
 #define SLAB_MEM_SPREAD		0x00100000UL	/* Spread some memory over cpuset */
 #define SLAB_TRACE		0x00200000UL	/* Trace allocations and frees */
 
-/* Flags passed to a constructor functions */
-#define SLAB_CTOR_CONSTRUCTOR	0x001UL		/* If not set, then deconstructor */
-
 /*
  * struct kmem_cache related prototypes
  */

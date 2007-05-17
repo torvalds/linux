@@ -327,7 +327,7 @@ void *kmem_cache_alloc(struct kmem_cache *c, gfp_t flags)
 		b = (void *)__get_free_pages(flags, get_order(c->size));
 
 	if (c->ctor)
-		c->ctor(b, c, SLAB_CTOR_CONSTRUCTOR);
+		c->ctor(b, c, 0);
 
 	return b;
 }

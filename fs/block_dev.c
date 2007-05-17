@@ -458,17 +458,15 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 	struct bdev_inode *ei = (struct bdev_inode *) foo;
 	struct block_device *bdev = &ei->bdev;
 
-	if (flags & SLAB_CTOR_CONSTRUCTOR) {
-		memset(bdev, 0, sizeof(*bdev));
-		mutex_init(&bdev->bd_mutex);
-		sema_init(&bdev->bd_mount_sem, 1);
-		INIT_LIST_HEAD(&bdev->bd_inodes);
-		INIT_LIST_HEAD(&bdev->bd_list);
+	memset(bdev, 0, sizeof(*bdev));
+	mutex_init(&bdev->bd_mutex);
+	sema_init(&bdev->bd_mount_sem, 1);
+	INIT_LIST_HEAD(&bdev->bd_inodes);
+	INIT_LIST_HEAD(&bdev->bd_list);
 #ifdef CONFIG_SYSFS
-		INIT_LIST_HEAD(&bdev->bd_holder_list);
+	INIT_LIST_HEAD(&bdev->bd_holder_list);
 #endif
-		inode_init_once(&ei->vfs_inode);
-	}
+	inode_init_once(&ei->vfs_inode);
 }
 
 static inline void __bd_forget(struct inode *inode)
