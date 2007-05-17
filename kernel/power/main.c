@@ -290,13 +290,13 @@ static ssize_t state_store(struct kset *kset, const char *buf, size_t n)
 	len = p ? p - buf : n;
 
 	/* First, check if we are requested to hibernate */
-	if (!strncmp(buf, "disk", len)) {
+	if (len == 4 && !strncmp(buf, "disk", len)) {
 		error = hibernate();
 		return error ? error : n;
 	}
 
 	for (s = &pm_states[state]; state < PM_SUSPEND_MAX; s++, state++) {
-		if (*s && !strncmp(buf, *s, len))
+		if (*s && len == strlen(*s) && !strncmp(buf, *s, len))
 			break;
 	}
 	if (state < PM_SUSPEND_MAX && *s)
