@@ -694,7 +694,7 @@ int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	}
 
 	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC &&
-	    attr->max_dest_rd_atomic > 1 << dev->dev->caps.max_qp_dest_rdma) {
+	    attr->max_dest_rd_atomic > dev->dev->caps.max_qp_dest_rdma) {
 		goto out;
 	}
 
