@@ -6,7 +6,7 @@
  * for more details.
  *
  * Copyright (C) 1996, 97, 98, 2000, 03, 04, 06 Ralf Baechle (ralf@linux-mips.org)
- * Copyright (C) 2006 Thomas Bogendoerfer (tsbogend@alpha.franken.de)
+ * Copyright (C) 2006,2007 Thomas Bogendoerfer (tsbogend@alpha.franken.de)
  */
 
 #include <linux/init.h>
@@ -131,6 +131,19 @@ static struct resource pcimt_io_resources[] = {
 	}
 };
 
+static struct resource pcimt_mem_resources[] = {
+	{
+		/*
+		 * this region should only be 4 bytes long,
+		 * but it's 16MB on all RM300C I've checked
+		 */
+		.start	= 0x1a000000,
+		.end	= 0x1affffff,
+		.name	= "PCI INT ACK",
+		.flags	= IORESOURCE_BUSY
+	}
+};
+
 static struct resource sni_mem_resource = {
 	.start	= 0x18000000UL,
 	.end	= 0x1fbfffffUL,
@@ -145,6 +158,9 @@ static void __init sni_pcimt_resource_init(void)
 	/* request I/O space for devices used on all i[345]86 PCs */
 	for (i = 0; i < ARRAY_SIZE(pcimt_io_resources); i++)
 		request_resource(&sni_io_resource, pcimt_io_resources + i);
+	/* request MEM space for devices used on all i[345]86 PCs */
+	for (i = 0; i < ARRAY_SIZE(pcimt_mem_resources); i++)
+		request_resource(&sni_mem_resource, pcimt_mem_resources + i);
 }
 
 extern struct pci_ops sni_pcimt_ops;
