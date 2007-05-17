@@ -35,6 +35,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/timer.h>
+#include <linux/rcupdate.h>
 
 struct slob_block {
 	int units;
@@ -52,6 +53,16 @@ struct bigblock {
 	struct bigblock *next;
 };
 typedef struct bigblock bigblock_t;
+
+/*
+ * struct slob_rcu is inserted at the tail of allocated slob blocks, which
+ * were created with a SLAB_DESTROY_BY_RCU slab. slob_rcu is used to free
+ * the block using call_rcu.
+ */
+struct slob_rcu {
+	struct rcu_head head;
+	int size;
+};
 
 static slob_t arena = { .next = &arena, .units = 1 };
 static slob_t *slobfree = &arena;
@@ -266,6 +277,7 @@ size_t ksize(const void *block)
 
 struct kmem_cache {
 	unsigned int size, align;
+	unsigned long flags;
 	const char *name;
 	void (*ctor)(void *, struct kmem_cache *, unsigned long);
 	void (*dtor)(void *, struct kmem_cache *, unsigned long);
@@ -283,6 +295,12 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 	if (c) {
 		c->name = name;
 		c->size = size;
+		if (flags & SLAB_DESTROY_BY_RCU) {
+			BUG_ON(dtor);
+			/* leave room for rcu footer at the end of object */
+			c->size += sizeof(struct slob_rcu);
+		}
+		c->flags = flags;
 		c->ctor = ctor;
 		c->dtor = dtor;
 		/* ignore alignment unless it's forced */
@@ -328,15 +346,35 @@ void *kmem_cache_zalloc(struct kmem_cache *c, gfp_t flags)
 }
 EXPORT_SYMBOL(kmem_cache_zalloc);
 
+static void __kmem_cache_free(void *b, int size)
+{
+	if (size < PAGE_SIZE)
+		slob_free(b, size);
+	else
+		free_pages((unsigned long)b, get_order(size));
+}
+
+static void kmem_rcu_free(struct rcu_head *head)
+{
+	struct slob_rcu *slob_rcu = (struct slob_rcu *)head;
+	void *b = (void *)slob_rcu - (slob_rcu->size - sizeof(struct slob_rcu));
+
+	__kmem_cache_free(b, slob_rcu->size);
+}
+
 void kmem_cache_free(struct kmem_cache *c, void *b)
 {
-	if (c->dtor)
-		c->dtor(b, c, 0);
-
-	if (c->size < PAGE_SIZE)
-		slob_free(b, c->size);
-	else
-		free_pages((unsigned long)b, get_order(c->size));
+	if (unlikely(c->flags & SLAB_DESTROY_BY_RCU)) {
+		struct slob_rcu *slob_rcu;
+		slob_rcu = b + (c->size - sizeof(struct slob_rcu));
+		INIT_RCU_HEAD(&slob_rcu->head);
+		slob_rcu->size = c->size;
+		call_rcu(&slob_rcu->head, kmem_rcu_free);
+	} else {
+		if (c->dtor)
+			c->dtor(b, c, 0);
+		__kmem_cache_free(b, c->size);
+	}
 }
 EXPORT_SYMBOL(kmem_cache_free);
 
