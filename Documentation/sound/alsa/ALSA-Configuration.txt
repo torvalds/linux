@@ -917,6 +917,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  ref		Reference board, base config
 	  m2-2		Some Gateway MX series laptops
 	  m6		Some Gateway NX series laptops
+	  pa6		Gateway NX860 series
 
 	STAC9227/9228/9229/927x
 	  ref		Reference board
