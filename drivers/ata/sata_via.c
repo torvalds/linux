@@ -441,7 +441,7 @@ static int vt6421_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 		return -ENOMEM;
 	}
 
-	rc = pcim_iomap_regions(pdev, 0x1f, DRV_NAME);
+	rc = pcim_iomap_regions(pdev, 0x3f, DRV_NAME);
 	if (rc) {
 		dev_printk(KERN_ERR, &pdev->dev, "failed to request/iomap "
 			   "PCI BARs (errno=%d)\n", rc);
