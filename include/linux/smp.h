@@ -6,6 +6,7 @@
  *		Alan Cox. <alan@redhat.com>
  */
 
+#include <linux/errno.h>
 
 extern void cpu_idle(void);
 
@@ -99,11 +100,9 @@ static inline void smp_send_reschedule(int cpu) { }
 #define num_booting_cpus()			1
 #define smp_prepare_boot_cpu()			do {} while (0)
 static inline int smp_call_function_single(int cpuid, void (*func) (void *info),
-				void *info, int retry, int wait)
+					   void *info, int retry, int wait)
 {
-	/* Disable interrupts here? */
-	func(info);
-	return 0;
+	return -EBUSY;
 }
 
 #endif /* !SMP */
