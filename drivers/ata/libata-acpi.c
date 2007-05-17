@@ -321,7 +321,7 @@ static int do_drive_get_GTF(struct ata_device *dev, unsigned int *gtf_length,
 
 	/* Don't continue if device has no _ADR method.
 	 * _GTF is intended for known motherboard devices. */
-	if (!(ap->cbl == ATA_CBL_SATA)) {
+	if (!(ap->flags & ATA_FLAG_ACPI_SATA)) {
 		err = pata_get_dev_handle(gdev, &dev_handle, &pcidevfn);
 		if (err < 0) {
 			if (ata_msg_probe(ap))
@@ -343,7 +343,7 @@ static int do_drive_get_GTF(struct ata_device *dev, unsigned int *gtf_length,
 
 	/* Get this drive's _ADR info. if not already known. */
 	if (!dev->obj_handle) {
-		if (!(ap->cbl == ATA_CBL_SATA)) {
+		if (!(ap->flags & ATA_FLAG_ACPI_SATA)) {
 			/* get child objects of dev_handle == channel objects,
 	 		 * + _their_ children == drive objects */
 			/* channel is ap->port_no */
@@ -528,7 +528,7 @@ static int do_drive_set_taskfiles(struct ata_device *dev,
 		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER: port#: %d\n",
 			       __FUNCTION__, ap->port_no);
 
-	if (libata_noacpi || !(ap->cbl == ATA_CBL_SATA))
+	if (libata_noacpi || !(ap->flags & ATA_FLAG_ACPI_SATA))
 		return 0;
 
 	if (!ata_dev_enabled(dev) || (ap->flags & ATA_FLAG_DISABLED))
@@ -578,7 +578,7 @@ int ata_acpi_exec_tfs(struct ata_port *ap)
 	 * we should not run GTF on PATA devices since some
 	 * PATA require execution of GTM/STM before GTF.
 	 */
-	if (!(ap->cbl == ATA_CBL_SATA))
+	if (!(ap->flags & ATA_FLAG_ACPI_SATA))
 		return 0;
 
 	for (ix = 0; ix < ATA_MAX_DEVICES; ix++) {
@@ -641,7 +641,7 @@ int ata_acpi_push_id(struct ata_device *dev)
 			       __FUNCTION__, dev->devno, ap->port_no);
 
 	/* Don't continue if not a SATA device. */
-	if (!(ap->cbl == ATA_CBL_SATA)) {
+	if (!(ap->flags & ATA_FLAG_ACPI_SATA)) {
 		if (ata_msg_probe(ap))
 			ata_dev_printk(dev, KERN_DEBUG,
 				"%s: Not a SATA device\n", __FUNCTION__);
