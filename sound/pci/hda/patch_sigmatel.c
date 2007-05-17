@@ -474,6 +474,14 @@ static struct snd_pci_quirk stac9200_cfg_tbl[] = {
 		      "Dell Precision M90", STAC_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01d6,
 		      "unknown Dell", STAC_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01d8,
+		      "Dell Inspiron 640m", STAC_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01f5,
+		      "Dell Inspiron 1501", STAC_REF),
+
+	/* Panasonic */
+	SND_PCI_QUIRK(0x10f7, 0x8338, "Panasonic CF-74", STAC_REF),
+
 	{} /* terminator */
 };
 
