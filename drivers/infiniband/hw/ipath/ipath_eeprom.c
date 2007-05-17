@@ -95,39 +95,37 @@ static int i2c_gpio_set(struct ipath_devdata *dd,
 			enum i2c_type line,
 			enum i2c_state new_line_state)
 {
-	u64 read_val, write_val, mask, *gpioval;
+	u64 out_mask, dir_mask, *gpioval;
+	unsigned long flags = 0;
 
 	gpioval = &dd->ipath_gpio_out;
-	read_val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_extctrl);
-	if (line == i2c_line_scl)
-		mask = dd->ipath_gpio_scl;
-	else
-		mask = dd->ipath_gpio_sda;
-
-	if (new_line_state == i2c_line_high)
-		/* tri-state the output rather than force high */
-		write_val = read_val & ~mask;
-	else
-		/* config line to be an output */
-		write_val = read_val | mask;
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_extctrl, write_val);
-
-	/* set high and verify */
-	if (new_line_state == i2c_line_high)
-		write_val = 0x1UL;
-	else
-		write_val = 0x0UL;
 
 	if (line == i2c_line_scl) {
-		write_val <<= dd->ipath_gpio_scl_num;
-		*gpioval = *gpioval & ~(1UL << dd->ipath_gpio_scl_num);
-		*gpioval |= write_val;
+		dir_mask = dd->ipath_gpio_scl;
+		out_mask = (1UL << dd->ipath_gpio_scl_num);
 	} else {
-		write_val <<= dd->ipath_gpio_sda_num;
-		*gpioval = *gpioval & ~(1UL << dd->ipath_gpio_sda_num);
-		*gpioval |= write_val;
+		dir_mask = dd->ipath_gpio_sda;
+		out_mask = (1UL << dd->ipath_gpio_sda_num);
 	}
+
+	spin_lock_irqsave(&dd->ipath_gpio_lock, flags);
+	if (new_line_state == i2c_line_high) {
+		/* tri-state the output rather than force high */
+		dd->ipath_extctrl &= ~dir_mask;
+	} else {
+		/* config line to be an output */
+		dd->ipath_extctrl |= dir_mask;
+	}
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_extctrl, dd->ipath_extctrl);
+
+	/* set output as well (no real verify) */
+	if (new_line_state == i2c_line_high)
+		*gpioval |= out_mask;
+	else
+		*gpioval &= ~out_mask;
+
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_out, *gpioval);
+	spin_unlock_irqrestore(&dd->ipath_gpio_lock, flags);
 
 	return 0;
 }
@@ -145,8 +143,9 @@ static int i2c_gpio_get(struct ipath_devdata *dd,
 			enum i2c_type line,
 			enum i2c_state *curr_statep)
 {
-	u64 read_val, write_val, mask;
+	u64 read_val, mask;
 	int ret;
+	unsigned long flags = 0;
 
 	/* check args */
 	if (curr_statep == NULL) {
@@ -154,15 +153,21 @@ static int i2c_gpio_get(struct ipath_devdata *dd,
 		goto bail;
 	}
 
-	read_val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_extctrl);
 	/* config line to be an input */
 	if (line == i2c_line_scl)
 		mask = dd->ipath_gpio_scl;
 	else
 		mask = dd->ipath_gpio_sda;
-	write_val = read_val & ~mask;
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_extctrl, write_val);
+
+	spin_lock_irqsave(&dd->ipath_gpio_lock, flags);
+	dd->ipath_extctrl &= ~mask;
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_extctrl, dd->ipath_extctrl);
+	/*
+	 * Below is very unlikely to reflect true input state if Output
+	 * Enable actually changed.
+	 */
 	read_val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_extstatus);
+	spin_unlock_irqrestore(&dd->ipath_gpio_lock, flags);
 
 	if (read_val & mask)
 		*curr_statep = i2c_line_high;
@@ -192,6 +197,7 @@ static void i2c_wait_for_writes(struct ipath_devdata *dd)
 
 static void scl_out(struct ipath_devdata *dd, u8 bit)
 {
+	udelay(1);
 	i2c_gpio_set(dd, i2c_line_scl, bit ? i2c_line_high : i2c_line_low);
 
 	i2c_wait_for_writes(dd);
@@ -314,12 +320,18 @@ static int eeprom_reset(struct ipath_devdata *dd)
 	int clock_cycles_left = 9;
 	u64 *gpioval = &dd->ipath_gpio_out;
 	int ret;
+	unsigned long flags;
 
-	eeprom_init = 1;
+	spin_lock_irqsave(&dd->ipath_gpio_lock, flags);
+	/* Make sure shadows are consistent */
+	dd->ipath_extctrl = ipath_read_kreg64(dd, dd->ipath_kregs->kr_extctrl);
 	*gpioval = ipath_read_kreg64(dd, dd->ipath_kregs->kr_gpio_out);
+	spin_unlock_irqrestore(&dd->ipath_gpio_lock, flags);
+
 	ipath_cdbg(VERBOSE, "Resetting i2c eeprom; initial gpioout reg "
 		   "is %llx\n", (unsigned long long) *gpioval);
 
+	eeprom_init = 1;
 	/*
 	 * This is to get the i2c into a known state, by first going low,
 	 * then tristate sda (and then tristate scl as first thing

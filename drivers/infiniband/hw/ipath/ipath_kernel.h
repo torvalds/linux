@@ -399,6 +399,8 @@ struct ipath_devdata {
 	u64 ipath_gpio_out;
 	/* shadow the gpio mask register */
 	u64 ipath_gpio_mask;
+	/* shadow the gpio output enable, etc... */
+	u64 ipath_extctrl;
 	/* kr_revision shadow */
 	u64 ipath_revision;
 	/*
@@ -473,8 +475,6 @@ struct ipath_devdata {
 	u32 ipath_cregbase;
 	/* shadow the control register contents */
 	u32 ipath_control;
-	/* shadow the gpio output contents */
-	u32 ipath_extctrl;
 	/* PCI revision register (HTC rev on FPGA) */
 	u32 ipath_pcirev;
 
@@ -575,6 +575,9 @@ struct ipath_devdata {
 	u16 ipath_gpio_scl_num;
 	u64 ipath_gpio_sda;
 	u64 ipath_gpio_scl;
+
+	/* lock for doing RMW of shadows/regs for ExtCtrl and GPIO */
+	spinlock_t ipath_gpio_lock;
 
 	/* used to override LED behavior */
 	u8 ipath_led_override;  /* Substituted for normal value, if non-zero */

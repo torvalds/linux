@@ -791,6 +791,7 @@ static void ipath_setup_pe_setextled(struct ipath_devdata *dd, u64 lst,
 				     u64 ltst)
 {
 	u64 extctl;
+	unsigned long flags = 0;
 
 	/* the diags use the LED to indicate diag info, so we leave
 	 * the external LED alone when the diags are running */
@@ -807,6 +808,7 @@ static void ipath_setup_pe_setextled(struct ipath_devdata *dd, u64 lst,
 			: INFINIPATH_IBCS_L_STATE_DOWN;
 	}
 
+	spin_lock_irqsave(&dd->ipath_gpio_lock, flags);
 	extctl = dd->ipath_extctrl & ~(INFINIPATH_EXTC_LED1PRIPORT_ON |
 				       INFINIPATH_EXTC_LED2PRIPORT_ON);
 
@@ -816,6 +818,7 @@ static void ipath_setup_pe_setextled(struct ipath_devdata *dd, u64 lst,
 		extctl |= INFINIPATH_EXTC_LED1PRIPORT_ON;
 	dd->ipath_extctrl = extctl;
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_extctrl, extctl);
+	spin_unlock_irqrestore(&dd->ipath_gpio_lock, flags);
 }
 
 /**

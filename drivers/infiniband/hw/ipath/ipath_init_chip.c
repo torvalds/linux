@@ -340,6 +340,8 @@ static int init_chip_first(struct ipath_devdata *dd,
 
 	spin_lock_init(&dd->ipath_tid_lock);
 
+	spin_lock_init(&dd->ipath_gpio_lock);
+
 done:
 	*pdp = pd;
 	return ret;
