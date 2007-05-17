@@ -6,7 +6,7 @@
  * for more details.
  *
  * Copyright (C) 1996, 97, 98, 2000, 03, 04, 06 Ralf Baechle (ralf@linux-mips.org)
- * Copyright (C) 2006 Thomas Bogendoerfer (tsbogend@alpha.franken.de)
+ * Copyright (C) 2006,2007 Thomas Bogendoerfer (tsbogend@alpha.franken.de)
  */
 #include <linux/eisa.h>
 #include <linux/init.h>
@@ -92,3 +92,34 @@ void __init plat_mem_setup(void)
 
 	sni_display_setup();
 }
+
+#if CONFIG_PCI
+
+#include <linux/pci.h>
+#include <video/vga.h>
+#include <video/cirrus.h>
+
+static void __devinit quirk_cirrus_ram_size(struct pci_dev *dev)
+{
+	u16 cmd;
+
+	/*
+	 * firmware doesn't set the ram size correct, so we
+	 * need to do it here, otherwise we get screen corruption
+	 * on older Cirrus chips
+	 */
+	pci_read_config_word (dev, PCI_COMMAND, &cmd);
+	if ((cmd & (PCI_COMMAND_IO|PCI_COMMAND_MEMORY))
+	        == (PCI_COMMAND_IO|PCI_COMMAND_MEMORY)) {
+		vga_wseq (NULL, CL_SEQR6, 0x12);	/* unlock all extension registers */
+		vga_wseq (NULL, CL_SEQRF, 0x18);
+	}
+}
+
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_5434_8,
+                        quirk_cirrus_ram_size);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_5436,
+                        quirk_cirrus_ram_size);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_5446,
+                        quirk_cirrus_ram_size);
+#endif
