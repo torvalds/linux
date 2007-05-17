@@ -280,7 +280,6 @@ struct kmem_cache {
 	unsigned long flags;
 	const char *name;
 	void (*ctor)(void *, struct kmem_cache *, unsigned long);
-	void (*dtor)(void *, struct kmem_cache *, unsigned long);
 };
 
 struct kmem_cache *kmem_cache_create(const char *name, size_t size,
@@ -296,13 +295,11 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 		c->name = name;
 		c->size = size;
 		if (flags & SLAB_DESTROY_BY_RCU) {
-			BUG_ON(dtor);
 			/* leave room for rcu footer at the end of object */
 			c->size += sizeof(struct slob_rcu);
 		}
 		c->flags = flags;
 		c->ctor = ctor;
-		c->dtor = dtor;
 		/* ignore alignment unless it's forced */
 		c->align = (flags & SLAB_HWCACHE_ALIGN) ? SLOB_ALIGN : 0;
 		if (c->align < align)
@@ -371,8 +368,6 @@ void kmem_cache_free(struct kmem_cache *c, void *b)
 		slob_rcu->size = c->size;
 		call_rcu(&slob_rcu->head, kmem_rcu_free);
 	} else {
-		if (c->dtor)
-			c->dtor(b, c, 0);
 		__kmem_cache_free(b, c->size);
 	}
 }
