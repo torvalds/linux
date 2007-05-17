@@ -1488,7 +1488,11 @@ static int handle_rmode_exception(struct kvm_vcpu *vcpu,
 	if (!vcpu->rmode.active)
 		return 0;
 
-	if (vec == GP_VECTOR && err_code == 0)
+	/*
+	 * Instruction with address size override prefix opcode 0x67
+	 * Cause the #SS fault with 0 error code in VM86 mode.
+	 */
+	if (((vec == GP_VECTOR) || (vec == SS_VECTOR)) && err_code == 0)
 		if (emulate_instruction(vcpu, NULL, 0, 0) == EMULATE_DONE)
 			return 1;
 	return 0;
