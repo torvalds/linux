@@ -861,7 +861,7 @@ apply_relocate (Elf64_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 /*
  * Modules contain a single unwind table which covers both the core and the init text
  * sections but since the two are not contiguous, we need to split this table up such that
- * we can register (and unregister) each "segment" seperately.  Fortunately, this sounds
+ * we can register (and unregister) each "segment" separately.  Fortunately, this sounds
  * more complicated than it really is.
  */
 static void

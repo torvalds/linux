@@ -156,24 +156,30 @@ kdump_init_notifier(struct notifier_block *self, unsigned long val, void *data)
 	if (!kdump_on_init)
 		return NOTIFY_DONE;
 
-	if (val != DIE_INIT_MONARCH_ENTER &&
-	    val != DIE_INIT_SLAVE_ENTER &&
+	if (val != DIE_INIT_MONARCH_LEAVE &&
+	    val != DIE_INIT_SLAVE_LEAVE &&
+	    val != DIE_INIT_MONARCH_PROCESS &&
 	    val != DIE_MCA_RENDZVOUS_LEAVE &&
 	    val != DIE_MCA_MONARCH_LEAVE)
 		return NOTIFY_DONE;
 
 	nd = (struct ia64_mca_notify_die *)args->err;
-	/* Reason code 1 means machine check rendezous*/
-	if ((val == DIE_INIT_MONARCH_ENTER || val == DIE_INIT_SLAVE_ENTER) &&
-		 nd->sos->rv_rc == 1)
+	/* Reason code 1 means machine check rendezvous*/
+	if ((val == DIE_INIT_MONARCH_LEAVE || val == DIE_INIT_SLAVE_LEAVE
+	    || val == DIE_INIT_MONARCH_PROCESS) && nd->sos->rv_rc == 1)
 		return NOTIFY_DONE;
 
 	switch (val) {
-		case DIE_INIT_MONARCH_ENTER:
+		case DIE_INIT_MONARCH_PROCESS:
+			atomic_set(&kdump_in_progress, 1);
+			*(nd->monarch_cpu) = -1;
+			break;
+		case DIE_INIT_MONARCH_LEAVE:
 			machine_kdump_on_init();
 			break;
-		case DIE_INIT_SLAVE_ENTER:
-			unw_init_running(kdump_cpu_freeze, NULL);
+		case DIE_INIT_SLAVE_LEAVE:
+			if (atomic_read(&kdump_in_progress))
+				unw_init_running(kdump_cpu_freeze, NULL);
 			break;
 		case DIE_MCA_RENDZVOUS_LEAVE:
 			if (atomic_read(&kdump_in_progress))
@@ -215,8 +221,10 @@ static ctl_table sys_table[] = {
 static int
 machine_crash_setup(void)
 {
+	/* be notified before default_monarch_init_process */
 	static struct notifier_block kdump_init_notifier_nb = {
 		.notifier_call = kdump_init_notifier,
+		.priority = 1,
 	};
 	int ret;
 	if((ret = register_die_notifier(&kdump_init_notifier_nb)) != 0)

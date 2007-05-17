@@ -104,7 +104,7 @@ static inline unsigned long wait_piowc(void)
  *
  * SN2 PIO writes from separate CPUs are not guaranteed to arrive in order.
  * Context switching user threads which have memory-mapped MMIO may cause
- * PIOs to issue from seperate CPUs, thus the PIO writes must be drained
+ * PIOs to issue from separate CPUs, thus the PIO writes must be drained
  * from the previous CPU's Shub before execution resumes on the new CPU.
  */
 void sn_migrate(struct task_struct *task)

@@ -296,11 +296,14 @@
 #define __NR_getcpu			1304
 #define __NR_epoll_pwait		1305
 #define __NR_utimensat			1306
+#define __NR_signalfd			1307
+#define __NR_timerfd			1308
+#define __NR_eventfd			1309
 
 #ifdef __KERNEL__
 
 
-#define NR_syscalls			283 /* length of syscall table */
+#define NR_syscalls			286 /* length of syscall table */
 
 #define __ARCH_WANT_SYS_RT_SIGACTION
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND

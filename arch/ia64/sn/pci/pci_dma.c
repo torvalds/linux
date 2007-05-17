@@ -333,7 +333,7 @@ int sn_pci_legacy_read(struct pci_bus *bus, u16 port, u32 *val, u8 size)
 	/*
 	 * First, try the SN_SAL_IOIF_PCI_SAFE SAL call which can work
 	 * around hw issues at the pci bus level.  SGI proms older than
-	 * 4.10 don't implment this.
+	 * 4.10 don't implement this.
 	 */
 
 	SAL_CALL(isrv, SN_SAL_IOIF_PCI_SAFE,
@@ -348,7 +348,7 @@ int sn_pci_legacy_read(struct pci_bus *bus, u16 port, u32 *val, u8 size)
 	/*
 	 * If the above failed, retry using the SAL_PROBE call which should
 	 * be present in all proms (but which cannot work round PCI chipset
-	 * bugs).  This code is retained for compatability with old
+	 * bugs).  This code is retained for compatibility with old
 	 * pre-4.10 proms, and should be removed at some point in the future.
 	 */
 
@@ -379,7 +379,7 @@ int sn_pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size)
 	/*
 	 * First, try the SN_SAL_IOIF_PCI_SAFE SAL call which can work
 	 * around hw issues at the pci bus level.  SGI proms older than
-	 * 4.10 don't implment this.
+	 * 4.10 don't implement this.
 	 */
 
 	SAL_CALL(isrv, SN_SAL_IOIF_PCI_SAFE,
@@ -394,7 +394,7 @@ int sn_pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size)
 	/*
 	 * If the above failed, retry using the SAL_PROBE call which should
 	 * be present in all proms (but which cannot work round PCI chipset
-	 * bugs).  This code is retained for compatability with old
+	 * bugs).  This code is retained for compatibility with old
 	 * pre-4.10 proms, and should be removed at some point in the future.
 	 */
 
