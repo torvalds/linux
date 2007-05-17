@@ -64,9 +64,8 @@ static inline void ehci_qtd_free (struct ehci_hcd *ehci, struct ehci_qtd *qtd)
 }
 
 
-static void qh_destroy (struct kref *kref)
+static void qh_destroy(struct ehci_qh *qh)
 {
-	struct ehci_qh *qh = container_of(kref, struct ehci_qh, kref);
 	struct ehci_hcd *ehci = qh->ehci;
 
 	/* clean qtds first, and know this is not linked */
@@ -90,7 +89,7 @@ static struct ehci_qh *ehci_qh_alloc (struct ehci_hcd *ehci, gfp_t flags)
 		return qh;
 
 	memset (qh, 0, sizeof *qh);
-	kref_init(&qh->kref);
+	qh->refcount = 1;
 	qh->ehci = ehci;
 	qh->qh_dma = dma;
 	// INIT_LIST_HEAD (&qh->qh_list);
@@ -112,13 +111,15 @@ static struct ehci_qh *ehci_qh_alloc (struct ehci_hcd *ehci, gfp_t flags)
 /* to share a qh (cpu threads, or hc) */
 static inline struct ehci_qh *qh_get (struct ehci_qh *qh)
 {
-	kref_get(&qh->kref);
+	WARN_ON(!qh->refcount);
+	qh->refcount++;
 	return qh;
 }
 
 static inline void qh_put (struct ehci_qh *qh)
 {
-	kref_put(&qh->kref, qh_destroy);
+	if (!--qh->refcount)
+		qh_destroy(qh);
 }
 
 /*-------------------------------------------------------------------------*/

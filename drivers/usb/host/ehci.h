@@ -457,7 +457,14 @@ struct ehci_qh {
 	struct ehci_qh		*reclaim;	/* next to reclaim */
 
 	struct ehci_hcd		*ehci;
-	struct kref		kref;
+
+	/*
+	 * Do NOT use atomic operations for QH refcounting. On some CPUs
+	 * (PPC7448 for example), atomic operations cannot be performed on
+	 * memory that is cache-inhibited (i.e. being used for DMA).
+	 * Spinlocks are used to protect all QH fields.
+	 */
+	u32			refcount;
 	unsigned		stamp;
 
 	u8			qh_state;
