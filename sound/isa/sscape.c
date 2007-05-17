@@ -69,7 +69,9 @@ module_param_array(dma, int, NULL, 0444);
 MODULE_PARM_DESC(dma, "DMA # for SoundScape driver.");
 
 #ifdef CONFIG_PNP
+static int isa_registered;
 static int pnp_registered;
+
 static struct pnp_card_device_id sscape_pnpids[] = {
 	{ .id = "ENS3081", .devs = { { "ENS0000" } } },
 	{ .id = "" }	/* end */
@@ -1405,22 +1407,21 @@ static struct pnp_card_driver sscape_pnpc_driver = {
 
 static int __init sscape_init(void)
 {
-	int ret;
+	int err;
 
-	/*
-	 * First check whether we were passed any parameters.
-	 * These MUST take precedence over ANY automatic way
-	 * of allocating cards, because the operator is
-	 * S-P-E-L-L-I-N-G it out for us...
-	 */
-	ret = isa_register_driver(&snd_sscape_driver, SNDRV_CARDS);
-	if (ret < 0)
-		return ret;
+	err = isa_register_driver(&snd_sscape_driver, SNDRV_CARDS);
 #ifdef CONFIG_PNP
-	if (pnp_register_card_driver(&sscape_pnpc_driver) == 0)
+	if (!err)
+		isa_registered = 1;
+
+	err = pnp_register_card_driver(&sscape_pnpc_driver);
+	if (!err)
 		pnp_registered = 1;
+
+	if (isa_registered)
+		err = 0;
 #endif
-	return 0;
+	return err;
 }
 
 static void __exit sscape_exit(void)
@@ -1428,8 +1429,9 @@ static void __exit sscape_exit(void)
 #ifdef CONFIG_PNP
 	if (pnp_registered)
 		pnp_unregister_card_driver(&sscape_pnpc_driver);
+	if (isa_registered)
 #endif
-	isa_unregister_driver(&snd_sscape_driver);
+		isa_unregister_driver(&snd_sscape_driver);
 }
 
 module_init(sscape_init);

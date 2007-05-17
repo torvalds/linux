@@ -92,6 +92,7 @@ module_param_array(opl3sa3_ymode, int, NULL, 0444);
 MODULE_PARM_DESC(opl3sa3_ymode, "Speaker size selection for 3D Enhancement mode: Desktop/Large Notebook/Small Notebook/HiFi.");
 
 #ifdef CONFIG_PNP
+static int isa_registered;
 static int pnp_registered;
 static int pnpc_registered;
 #endif
@@ -967,17 +968,22 @@ static int __init alsa_card_opl3sa2_init(void)
 	int err;
 
 	err = isa_register_driver(&snd_opl3sa2_isa_driver, SNDRV_CARDS);
-	if (err < 0)
-		return err;
 #ifdef CONFIG_PNP
+	if (!err)
+		isa_registered = 1;
+
 	err = pnp_register_driver(&opl3sa2_pnp_driver);
 	if (!err)
 		pnp_registered = 1;
+
 	err = pnp_register_card_driver(&opl3sa2_pnpc_driver);
 	if (!err)
 		pnpc_registered = 1;
+
+	if (isa_registered || pnp_registered)
+		err = 0;
 #endif
-	return 0;
+	return err;
 }
 
 static void __exit alsa_card_opl3sa2_exit(void)
@@ -987,8 +993,9 @@ static void __exit alsa_card_opl3sa2_exit(void)
 		pnp_unregister_card_driver(&opl3sa2_pnpc_driver);
 	if (pnp_registered)
 		pnp_unregister_driver(&opl3sa2_pnp_driver);
+	if (isa_registered)
 #endif
-	isa_unregister_driver(&snd_opl3sa2_isa_driver);
+		isa_unregister_driver(&snd_opl3sa2_isa_driver);
 }
 
 module_init(alsa_card_opl3sa2_init)

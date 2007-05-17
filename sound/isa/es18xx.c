@@ -2036,7 +2036,9 @@ module_param_array(dma2, int, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA 2 # for ES18xx driver.");
 
 #ifdef CONFIG_PNP
-static int pnp_registered, pnpc_registered;
+static int isa_registered;
+static int pnp_registered;
+static int pnpc_registered;
 
 static struct pnp_device_id snd_audiodrive_pnpbiosids[] = {
 	{ .id = "ESS1869" },
@@ -2466,18 +2468,22 @@ static int __init alsa_card_es18xx_init(void)
 	int err;
 
 	err = isa_register_driver(&snd_es18xx_isa_driver, SNDRV_CARDS);
-	if (err < 0)
-		return err;
-
 #ifdef CONFIG_PNP
+	if (!err)
+		isa_registered = 1;
+
 	err = pnp_register_driver(&es18xx_pnp_driver);
 	if (!err)
 		pnp_registered = 1;
+
 	err = pnp_register_card_driver(&es18xx_pnpc_driver);
 	if (!err)
 		pnpc_registered = 1;
+
+	if (isa_registered || pnp_registered)
+		err = 0;
 #endif
-	return 0;
+	return err;
 }
 
 static void __exit alsa_card_es18xx_exit(void)
@@ -2487,8 +2493,9 @@ static void __exit alsa_card_es18xx_exit(void)
 		pnp_unregister_card_driver(&es18xx_pnpc_driver);
 	if (pnp_registered)
 		pnp_unregister_driver(&es18xx_pnp_driver);
+	if (isa_registered)
 #endif
-	isa_unregister_driver(&snd_es18xx_isa_driver);
+		isa_unregister_driver(&snd_es18xx_isa_driver);
 }
 
 module_init(alsa_card_es18xx_init)

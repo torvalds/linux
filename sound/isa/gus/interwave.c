@@ -135,6 +135,7 @@ struct snd_interwave {
 
 
 #ifdef CONFIG_PNP
+static int isa_registered;
 static int pnp_registered;
 
 static struct pnp_card_device_id snd_interwave_pnpids[] = {
@@ -934,15 +935,18 @@ static int __init alsa_card_interwave_init(void)
 	int err;
 
 	err = isa_register_driver(&snd_interwave_driver, SNDRV_CARDS);
-	if (err < 0)
-		return err;
 #ifdef CONFIG_PNP
-	/* ISA PnP cards */
+	if (!err)
+		isa_registered = 1;
+
 	err = pnp_register_card_driver(&interwave_pnpc_driver);
 	if (!err)
 		pnp_registered = 1;
+
+	if (isa_registered)
+		err = 0;
 #endif
-	return 0;
+	return err;
 }
 
 static void __exit alsa_card_interwave_exit(void)
@@ -950,8 +954,9 @@ static void __exit alsa_card_interwave_exit(void)
 #ifdef CONFIG_PNP
 	if (pnp_registered)
 		pnp_unregister_card_driver(&interwave_pnpc_driver);
+	if (isa_registered)
 #endif
-	isa_unregister_driver(&snd_interwave_driver);
+		isa_unregister_driver(&snd_interwave_driver);
 }
 
 module_init(alsa_card_interwave_init)

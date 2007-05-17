@@ -360,7 +360,7 @@ static int get_ctl_value(struct usb_mixer_elem_info *cval, int request, int vali
 				    request,
 				    USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
 				    validx, cval->mixer->ctrlif | (cval->id << 8),
-				    buf, val_len, 100) >= 0) {
+				    buf, val_len, 100) >= val_len) {
 			*value_ret = convert_signed_value(cval, snd_usb_combine_bytes(buf, val_len));
 			return 0;
 		}
