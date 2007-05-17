@@ -556,6 +556,16 @@ asmlinkage long sys32_sync_file_range(int fd, int __pad,
 			flags);
 }
 
+asmlinkage long sys32_fadvise64_64(int fd, int __pad,
+	unsigned long a2, unsigned long a3,
+	unsigned long a4, unsigned long a5,
+	int flags)
+{
+	return sys_fadvise64_64(fd,
+			merge_64(a2, a3), merge_64(a4, a5),
+			flags);
+}
+
 save_static_function(sys32_clone);
 __attribute_used__ noinline static int
 _sys32_clone(nabi_no_regargs struct pt_regs regs)
