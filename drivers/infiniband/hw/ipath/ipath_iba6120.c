@@ -296,13 +296,6 @@ static const struct ipath_cregs ipath_pe_cregs = {
 #define IPATH_GPIO_SCL (1ULL << \
 	(_IPATH_GPIO_SCL_NUM+INFINIPATH_EXTC_GPIOOE_SHIFT))
 
-/*
- * Rev2 silicon allows suppressing check for ArmLaunch errors.
- * this can speed up short packet sends on systems that do
- * not guaranteee write-order.
- */
-#define INFINIPATH_XGXS_SUPPRESS_ARMLAUNCH_ERR (1ULL<<63)
-
 /* 6120 specific hardware errors... */
 static const struct ipath_hwerror_msgs ipath_6120_hwerror_msgs[] = {
 	INFINIPATH_HWE_MSG(PCIEPOISONEDTLP, "PCIe Poisoned TLP"),
@@ -679,17 +672,6 @@ static int ipath_pe_bringup_serdes(struct ipath_devdata *dd)
 		         INFINIPATH_XGXS_RX_POL_SHIFT);
 		val |= dd->ipath_rx_pol_inv <<
 			INFINIPATH_XGXS_RX_POL_SHIFT;
-	}
-	if (dd->ipath_minrev >= 2) {
-		/* Rev 2. can tolerate multiple writes to PBC, and
-		 * allowing them can provide lower latency on some
-		 * CPUs, but this feature is off by default, only
-		 * turned on by setting D63 of XGXSconfig reg.
-		 * May want to make this conditional more
-		 * fine-grained in future. This is not exactly
-		 * related to XGXS, but where the bit ended up.
-		 */
-		val |= INFINIPATH_XGXS_SUPPRESS_ARMLAUNCH_ERR;
 	}
 	if (val != prev_val)
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_xgxsconfig, val);
@@ -1323,13 +1305,6 @@ static int ipath_pe_get_base_info(struct ipath_portdata *pd, void *kbase)
 		goto done;
 
 	dd = pd->port_dd;
-
-	if (dd != NULL && dd->ipath_minrev >= 2) {
-		ipath_cdbg(PROC, "IBA6120 Rev2, allow multiple PBC write\n");
-		kinfo->spi_runtime_flags |= IPATH_RUNTIME_PBC_REWRITE;
-		ipath_cdbg(PROC, "IBA6120 Rev2, allow loose DMA alignment\n");
-		kinfo->spi_runtime_flags |= IPATH_RUNTIME_LOOSE_DMA_ALIGN;
-	}
 
 done:
 	kinfo->spi_runtime_flags |= IPATH_RUNTIME_PCIE;

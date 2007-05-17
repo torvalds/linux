@@ -189,8 +189,7 @@ typedef enum _ipath_ureg {
 #define IPATH_RUNTIME_FORCE_WC_ORDER	0x4
 #define IPATH_RUNTIME_RCVHDR_COPY	0x8
 #define IPATH_RUNTIME_MASTER	0x10
-#define IPATH_RUNTIME_PBC_REWRITE 0x20
-#define IPATH_RUNTIME_LOOSE_DMA_ALIGN 0x40
+/* 0x20 and 0x40 are no longer used, but are reserved for ABI compatibility */
 
 /*
  * This structure is returned by ipath_userinit() immediately after
