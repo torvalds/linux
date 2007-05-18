@@ -262,11 +262,17 @@ void decode_numa_list(int *numa, char *t)
 
 void slab_validate(struct slabinfo *s)
 {
+	if (strcmp(s->name, "*") == 0)
+		return;
+
 	set_obj(s, "validate", 1);
 }
 
 void slab_shrink(struct slabinfo *s)
 {
+	if (strcmp(s->name, "*") == 0)
+		return;
+
 	set_obj(s, "shrink", 1);
 }
 
@@ -550,6 +556,9 @@ int slab_empty(struct slabinfo *s)
 
 void slab_debug(struct slabinfo *s)
 {
+	if (strcmp(s->name, "*") == 0)
+		return;
+
 	if (sanity && !s->sanity_checks) {
 		set_obj(s, "sanity", 1);
 	}
