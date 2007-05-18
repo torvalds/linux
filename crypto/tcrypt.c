@@ -691,7 +691,7 @@ static int test_hash_cycles(struct hash_desc *desc, char *p, int blen,
 			if (ret)
 				goto out;
 		}
-		crypto_hash_final(desc, out);
+		ret = crypto_hash_final(desc, out);
 		if (ret)
 			goto out;
 	}
