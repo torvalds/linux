@@ -33,16 +33,17 @@ static const struct file_operations device_fops;
 struct dlm_lock_params32 {
 	__u8 mode;
 	__u8 namelen;
-	__u16 flags;
+	__u16 unused;
+	__u32 flags;
 	__u32 lkid;
 	__u32 parent;
-
+	__u64 xid;
+	__u64 timeout;
 	__u32 castparam;
 	__u32 castaddr;
 	__u32 bastparam;
 	__u32 bastaddr;
 	__u32 lksb;
-
 	char lvb[DLM_USER_LVB_LEN];
 	char name[0];
 };
@@ -68,6 +69,7 @@ struct dlm_lksb32 {
 };
 
 struct dlm_lock_result32 {
+	__u32 version[3];
 	__u32 length;
 	__u32 user_astaddr;
 	__u32 user_astparam;
@@ -102,6 +104,8 @@ static void compat_input(struct dlm_write_request *kb,
 		kb->i.lock.flags = kb32->i.lock.flags;
 		kb->i.lock.lkid = kb32->i.lock.lkid;
 		kb->i.lock.parent = kb32->i.lock.parent;
+		kb->i.lock.xid = kb32->i.lock.xid;
+		kb->i.lock.timeout = kb32->i.lock.timeout;
 		kb->i.lock.castparam = (void *)(long)kb32->i.lock.castparam;
 		kb->i.lock.castaddr = (void *)(long)kb32->i.lock.castaddr;
 		kb->i.lock.bastparam = (void *)(long)kb32->i.lock.bastparam;
@@ -115,6 +119,10 @@ static void compat_input(struct dlm_write_request *kb,
 static void compat_output(struct dlm_lock_result *res,
 			  struct dlm_lock_result32 *res32)
 {
+	res32->version[0] = res->version[0];
+	res32->version[1] = res->version[1];
+	res32->version[2] = res->version[2];
+
 	res32->user_astaddr = (__u32)(long)res->user_astaddr;
 	res32->user_astparam = (__u32)(long)res->user_astparam;
 	res32->user_lksb = (__u32)(long)res->user_lksb;
@@ -252,16 +260,18 @@ static int device_user_lock(struct dlm_user_proc *proc,
 	ua->castaddr = params->castaddr;
 	ua->bastparam = params->bastparam;
 	ua->bastaddr = params->bastaddr;
+	ua->xid = params->xid;
 
 	if (params->flags & DLM_LKF_CONVERT)
 		error = dlm_user_convert(ls, ua,
 				         params->mode, params->flags,
-				         params->lkid, params->lvb);
+				         params->lkid, params->lvb,
+					 (unsigned long) params->timeout);
 	else {
 		error = dlm_user_request(ls, ua,
 					 params->mode, params->flags,
 					 params->name, params->namelen,
-					 params->parent);
+					 (unsigned long) params->timeout);
 		if (!error)
 			error = ua->lksb.sb_lkid;
 	}
@@ -641,6 +651,9 @@ static int copy_result_to_user(struct dlm_user_args *ua, int compat, int type,
 	int struct_len;
 
 	memset(&result, 0, sizeof(struct dlm_lock_result));
+	result.version[0] = DLM_DEVICE_VERSION_MAJOR;
+	result.version[1] = DLM_DEVICE_VERSION_MINOR;
+	result.version[2] = DLM_DEVICE_VERSION_PATCH;
 	memcpy(&result.lksb, &ua->lksb, sizeof(struct dlm_lksb));
 	result.user_lksb = ua->user_lksb;
 
@@ -699,6 +712,20 @@ static int copy_result_to_user(struct dlm_user_args *ua, int compat, int type,
 	return error;
 }
 
+static int copy_version_to_user(char __user *buf, size_t count)
+{
+	struct dlm_device_version ver;
+
+	memset(&ver, 0, sizeof(struct dlm_device_version));
+	ver.version[0] = DLM_DEVICE_VERSION_MAJOR;
+	ver.version[1] = DLM_DEVICE_VERSION_MINOR;
+	ver.version[2] = DLM_DEVICE_VERSION_PATCH;
+
+	if (copy_to_user(buf, &ver, sizeof(struct dlm_device_version)))
+		return -EFAULT;
+	return sizeof(struct dlm_device_version);
+}
+
 /* a read returns a single ast described in a struct dlm_lock_result */
 
 static ssize_t device_read(struct file *file, char __user *buf, size_t count,
@@ -709,6 +736,16 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 	struct dlm_user_args *ua;
 	DECLARE_WAITQUEUE(wait, current);
 	int error, type=0, bmode=0, removed = 0;
+
+	if (count == sizeof(struct dlm_device_version)) {
+		error = copy_version_to_user(buf, count);
+		return error;
+	}
+
+	if (!proc) {
+		log_print("non-version read from control device %zu", count);
+		return -EINVAL;
+	}
 
 #ifdef CONFIG_COMPAT
 	if (count < sizeof(struct dlm_lock_result32))
@@ -745,11 +782,6 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 			spin_unlock(&proc->asts_spin);
 			return -ERESTARTSYS;
 		}
-	}
-
-	if (list_empty(&proc->asts)) {
-		spin_unlock(&proc->asts_spin);
-		return -EAGAIN;
 	}
 
 	/* there may be both completion and blocking asts to return for
@@ -823,6 +855,7 @@ static const struct file_operations device_fops = {
 static const struct file_operations ctl_device_fops = {
 	.open    = ctl_device_open,
 	.release = ctl_device_close,
+	.read    = device_read,
 	.write   = device_write,
 	.owner   = THIS_MODULE,
 };

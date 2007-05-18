@@ -1098,6 +1098,8 @@ void dlm_scan_timeout(struct dlm_ls *ls)
 		}
 
 		if (do_cancel) {
+			log_debug("timeout cancel %x node %d %s", lkb->lkb_id,
+				  lkb->lkb_nodeid, r->res_name);
 			lkb->lkb_flags &= ~DLM_IFL_WATCH_TIMEWARN;
 			lkb->lkb_flags |= DLM_IFL_TIMEOUT_CANCEL;
 			del_timeout(lkb);
@@ -1864,7 +1866,7 @@ static void confirm_master(struct dlm_rsb *r, int error)
 }
 
 static int set_lock_args(int mode, struct dlm_lksb *lksb, uint32_t flags,
-			 int namelen, uint32_t parent_lkid, void *ast,
+			 int namelen, unsigned long timeout_cs, void *ast,
 			 void *astarg, void *bast, struct dlm_args *args)
 {
 	int rv = -EINVAL;
@@ -1907,10 +1909,6 @@ static int set_lock_args(int mode, struct dlm_lksb *lksb, uint32_t flags,
 	if (flags & DLM_LKF_VALBLK && !lksb->sb_lvbptr)
 		goto out;
 
-	/* parent/child locks not yet supported */
-	if (parent_lkid)
-		goto out;
-
 	if (flags & DLM_LKF_CONVERT && !lksb->sb_lkid)
 		goto out;
 
@@ -1922,6 +1920,7 @@ static int set_lock_args(int mode, struct dlm_lksb *lksb, uint32_t flags,
 	args->astaddr = ast;
 	args->astparam = (long) astarg;
 	args->bastaddr = bast;
+	args->timeout = timeout_cs;
 	args->mode = mode;
 	args->lksb = lksb;
 	rv = 0;
@@ -1976,6 +1975,7 @@ static int validate_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	lkb->lkb_lksb = args->lksb;
 	lkb->lkb_lvbptr = args->lksb->sb_lvbptr;
 	lkb->lkb_ownpid = (int) current->pid;
+	lkb->lkb_timeout_cs = args->timeout;
 	rv = 0;
  out:
 	return rv;
@@ -2423,7 +2423,7 @@ int dlm_lock(dlm_lockspace_t *lockspace,
 	if (error)
 		goto out;
 
-	error = set_lock_args(mode, lksb, flags, namelen, parent_lkid, ast,
+	error = set_lock_args(mode, lksb, flags, namelen, 0, ast,
 			      astarg, bast, &args);
 	if (error)
 		goto out_put;
@@ -4175,7 +4175,7 @@ int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 
 int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 		     int mode, uint32_t flags, void *name, unsigned int namelen,
-		     uint32_t parent_lkid)
+		     unsigned long timeout_cs)
 {
 	struct dlm_lkb *lkb;
 	struct dlm_args args;
@@ -4203,7 +4203,7 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 	   When DLM_IFL_USER is set, the dlm knows that this is a userspace
 	   lock and that lkb_astparam is the dlm_user_args structure. */
 
-	error = set_lock_args(mode, &ua->lksb, flags, namelen, parent_lkid,
+	error = set_lock_args(mode, &ua->lksb, flags, namelen, timeout_cs,
 			      DLM_FAKE_USER_AST, ua, DLM_FAKE_USER_AST, &args);
 	lkb->lkb_flags |= DLM_IFL_USER;
 	ua->old_mode = DLM_LOCK_IV;
@@ -4240,7 +4240,8 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 }
 
 int dlm_user_convert(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
-		     int mode, uint32_t flags, uint32_t lkid, char *lvb_in)
+		     int mode, uint32_t flags, uint32_t lkid, char *lvb_in,
+		     unsigned long timeout_cs)
 {
 	struct dlm_lkb *lkb;
 	struct dlm_args args;
@@ -4268,6 +4269,7 @@ int dlm_user_convert(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	if (lvb_in && ua->lksb.sb_lvbptr)
 		memcpy(ua->lksb.sb_lvbptr, lvb_in, DLM_USER_LVB_LEN);
 
+	ua->xid = ua_tmp->xid;
 	ua->castparam = ua_tmp->castparam;
 	ua->castaddr = ua_tmp->castaddr;
 	ua->bastparam = ua_tmp->bastparam;
@@ -4275,8 +4277,8 @@ int dlm_user_convert(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	ua->user_lksb = ua_tmp->user_lksb;
 	ua->old_mode = lkb->lkb_grmode;
 
-	error = set_lock_args(mode, &ua->lksb, flags, 0, 0, DLM_FAKE_USER_AST,
-			      ua, DLM_FAKE_USER_AST, &args);
+	error = set_lock_args(mode, &ua->lksb, flags, 0, timeout_cs,
+			      DLM_FAKE_USER_AST, ua, DLM_FAKE_USER_AST, &args);
 	if (error)
 		goto out_put;
 

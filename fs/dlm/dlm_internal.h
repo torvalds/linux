@@ -151,6 +151,7 @@ struct dlm_args {
 	void			*bastaddr;
 	int			mode;
 	struct dlm_lksb		*lksb;
+	unsigned long		timeout;
 };
 
 
@@ -528,6 +529,7 @@ struct dlm_user_args {
 	void __user		*castaddr;
 	void __user		*bastparam;
 	void __user		*bastaddr;
+	uint64_t		xid;
 };
 
 #define DLM_PROC_FLAGS_CLOSING 1
