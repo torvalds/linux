@@ -123,7 +123,8 @@ static __be32 *
 nlm4_decode_lock(__be32 *p, struct nlm_lock *lock)
 {
 	struct file_lock	*fl = &lock->fl;
-	__s64			len, start, end;
+	__u64			len, start;
+	__s64			end;
 
 	if (!(p = xdr_decode_string_inplace(p, &lock->caller,
 					    &lock->len, NLM_MAXSTRLEN))
@@ -417,7 +418,8 @@ nlm4clt_decode_testres(struct rpc_rqst *req, __be32 *p, struct nlm_res *resp)
 	if (resp->status == nlm_lck_denied) {
 		struct file_lock	*fl = &resp->lock.fl;
 		u32			excl;
-		s64			start, end, len;
+		__u64			start, len;
+		__s64			end;
 
 		memset(&resp->lock, 0, sizeof(resp->lock));
 		locks_init_lock(fl);

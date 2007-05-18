@@ -646,10 +646,10 @@ static int encode_close(struct xdr_stream *xdr, const struct nfs_closeargs *arg)
 {
 	__be32 *p;
 
-	RESERVE_SPACE(8+sizeof(arg->stateid->data));
+	RESERVE_SPACE(8+NFS4_STATEID_SIZE);
 	WRITE32(OP_CLOSE);
 	WRITE32(arg->seqid->sequence->counter);
-	WRITEMEM(arg->stateid->data, sizeof(arg->stateid->data));
+	WRITEMEM(arg->stateid->data, NFS4_STATEID_SIZE);
 	
 	return 0;
 }
@@ -793,17 +793,17 @@ static int encode_lock(struct xdr_stream *xdr, const struct nfs_lock_args *args)
 	WRITE64(nfs4_lock_length(args->fl));
 	WRITE32(args->new_lock_owner);
 	if (args->new_lock_owner){
-		RESERVE_SPACE(40);
+		RESERVE_SPACE(4+NFS4_STATEID_SIZE+20);
 		WRITE32(args->open_seqid->sequence->counter);
-		WRITEMEM(args->open_stateid->data, sizeof(args->open_stateid->data));
+		WRITEMEM(args->open_stateid->data, NFS4_STATEID_SIZE);
 		WRITE32(args->lock_seqid->sequence->counter);
 		WRITE64(args->lock_owner.clientid);
 		WRITE32(4);
 		WRITE32(args->lock_owner.id);
 	}
 	else {
-		RESERVE_SPACE(20);
-		WRITEMEM(args->lock_stateid->data, sizeof(args->lock_stateid->data));
+		RESERVE_SPACE(NFS4_STATEID_SIZE+4);
+		WRITEMEM(args->lock_stateid->data, NFS4_STATEID_SIZE);
 		WRITE32(args->lock_seqid->sequence->counter);
 	}
 
@@ -830,11 +830,11 @@ static int encode_locku(struct xdr_stream *xdr, const struct nfs_locku_args *arg
 {
 	__be32 *p;
 
-	RESERVE_SPACE(44);
+	RESERVE_SPACE(12+NFS4_STATEID_SIZE+16);
 	WRITE32(OP_LOCKU);
 	WRITE32(nfs4_lock_type(args->fl, 0));
 	WRITE32(args->seqid->sequence->counter);
-	WRITEMEM(args->stateid->data, sizeof(args->stateid->data));
+	WRITEMEM(args->stateid->data, NFS4_STATEID_SIZE);
 	WRITE64(args->fl->fl_start);
 	WRITE64(nfs4_lock_length(args->fl));
 
@@ -966,9 +966,9 @@ static inline void encode_claim_delegate_cur(struct xdr_stream *xdr, const struc
 {
 	__be32 *p;
 
-	RESERVE_SPACE(4+sizeof(stateid->data));
+	RESERVE_SPACE(4+NFS4_STATEID_SIZE);
 	WRITE32(NFS4_OPEN_CLAIM_DELEGATE_CUR);
-	WRITEMEM(stateid->data, sizeof(stateid->data));
+	WRITEMEM(stateid->data, NFS4_STATEID_SIZE);
 	encode_string(xdr, name->len, name->name);
 }
 
@@ -996,9 +996,9 @@ static int encode_open_confirm(struct xdr_stream *xdr, const struct nfs_open_con
 {
 	__be32 *p;
 
-	RESERVE_SPACE(8+sizeof(arg->stateid->data));
+	RESERVE_SPACE(4+NFS4_STATEID_SIZE+4);
 	WRITE32(OP_OPEN_CONFIRM);
-	WRITEMEM(arg->stateid->data, sizeof(arg->stateid->data));
+	WRITEMEM(arg->stateid->data, NFS4_STATEID_SIZE);
 	WRITE32(arg->seqid->sequence->counter);
 
 	return 0;
@@ -1008,9 +1008,9 @@ static int encode_open_downgrade(struct xdr_stream *xdr, const struct nfs_closea
 {
 	__be32 *p;
 
-	RESERVE_SPACE(8+sizeof(arg->stateid->data));
+	RESERVE_SPACE(4+NFS4_STATEID_SIZE+4);
 	WRITE32(OP_OPEN_DOWNGRADE);
-	WRITEMEM(arg->stateid->data, sizeof(arg->stateid->data));
+	WRITEMEM(arg->stateid->data, NFS4_STATEID_SIZE);
 	WRITE32(arg->seqid->sequence->counter);
 	encode_share_access(xdr, arg->open_flags);
 	return 0;
@@ -1045,12 +1045,12 @@ static void encode_stateid(struct xdr_stream *xdr, const struct nfs_open_context
 	nfs4_stateid stateid;
 	__be32 *p;
 
-	RESERVE_SPACE(16);
+	RESERVE_SPACE(NFS4_STATEID_SIZE);
 	if (ctx->state != NULL) {
 		nfs4_copy_stateid(&stateid, ctx->state, ctx->lockowner);
-		WRITEMEM(stateid.data, sizeof(stateid.data));
+		WRITEMEM(stateid.data, NFS4_STATEID_SIZE);
 	} else
-		WRITEMEM(zero_stateid.data, sizeof(zero_stateid.data));
+		WRITEMEM(zero_stateid.data, NFS4_STATEID_SIZE);
 }
 
 static int encode_read(struct xdr_stream *xdr, const struct nfs_readargs *args)
@@ -1079,10 +1079,10 @@ static int encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg 
 	int replen;
 	__be32 *p;
 
-	RESERVE_SPACE(32+sizeof(nfs4_verifier));
+	RESERVE_SPACE(12+NFS4_VERIFIER_SIZE+20);
 	WRITE32(OP_READDIR);
 	WRITE64(readdir->cookie);
-	WRITEMEM(readdir->verifier.data, sizeof(readdir->verifier.data));
+	WRITEMEM(readdir->verifier.data, NFS4_VERIFIER_SIZE);
 	WRITE32(readdir->count >> 1);  /* We're not doing readdirplus */
 	WRITE32(readdir->count);
 	WRITE32(2);
@@ -1190,9 +1190,9 @@ encode_setacl(struct xdr_stream *xdr, struct nfs_setaclargs *arg)
 {
 	__be32 *p;
 
-	RESERVE_SPACE(4+sizeof(zero_stateid.data));
+	RESERVE_SPACE(4+NFS4_STATEID_SIZE);
 	WRITE32(OP_SETATTR);
-	WRITEMEM(zero_stateid.data, sizeof(zero_stateid.data));
+	WRITEMEM(zero_stateid.data, NFS4_STATEID_SIZE);
 	RESERVE_SPACE(2*4);
 	WRITE32(1);
 	WRITE32(FATTR4_WORD0_ACL);
@@ -1220,9 +1220,9 @@ static int encode_setattr(struct xdr_stream *xdr, const struct nfs_setattrargs *
 	int status;
 	__be32 *p;
 	
-        RESERVE_SPACE(4+sizeof(arg->stateid.data));
+        RESERVE_SPACE(4+NFS4_STATEID_SIZE);
         WRITE32(OP_SETATTR);
-	WRITEMEM(arg->stateid.data, sizeof(arg->stateid.data));
+	WRITEMEM(arg->stateid.data, NFS4_STATEID_SIZE);
 
         if ((status = encode_attrs(xdr, arg->iap, server)))
 		return status;
@@ -1234,9 +1234,9 @@ static int encode_setclientid(struct xdr_stream *xdr, const struct nfs4_setclien
 {
 	__be32 *p;
 
-	RESERVE_SPACE(4 + sizeof(setclientid->sc_verifier->data));
+	RESERVE_SPACE(4 + NFS4_VERIFIER_SIZE);
 	WRITE32(OP_SETCLIENTID);
-	WRITEMEM(setclientid->sc_verifier->data, sizeof(setclientid->sc_verifier->data));
+	WRITEMEM(setclientid->sc_verifier->data, NFS4_VERIFIER_SIZE);
 
 	encode_string(xdr, setclientid->sc_name_len, setclientid->sc_name);
 	RESERVE_SPACE(4);
@@ -1253,10 +1253,10 @@ static int encode_setclientid_confirm(struct xdr_stream *xdr, const struct nfs_c
 {
         __be32 *p;
 
-        RESERVE_SPACE(12 + sizeof(client_state->cl_confirm.data));
+        RESERVE_SPACE(12 + NFS4_VERIFIER_SIZE);
         WRITE32(OP_SETCLIENTID_CONFIRM);
         WRITE64(client_state->cl_clientid);
-        WRITEMEM(client_state->cl_confirm.data, sizeof(client_state->cl_confirm.data));
+        WRITEMEM(client_state->cl_confirm.data, NFS4_VERIFIER_SIZE);
 
         return 0;
 }
@@ -1284,10 +1284,10 @@ static int encode_delegreturn(struct xdr_stream *xdr, const nfs4_stateid *statei
 {
 	__be32 *p;
 
-	RESERVE_SPACE(20);
+	RESERVE_SPACE(4+NFS4_STATEID_SIZE);
 
 	WRITE32(OP_DELEGRETURN);
-	WRITEMEM(stateid->data, sizeof(stateid->data));
+	WRITEMEM(stateid->data, NFS4_STATEID_SIZE);
 	return 0;
 
 }
@@ -2494,7 +2494,7 @@ static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, st
 				int i;
 				dprintk("%s: using first %d of %d servers returned for location %d\n", __FUNCTION__, NFS4_FS_LOCATION_MAXSERVERS, m, res->nlocations);
 				for (i = loc->nservers; i < m; i++) {
-					int len;
+					unsigned int len;
 					char *data;
 					status = decode_opaque_inline(xdr, &len, &data);
 					if (unlikely(status != 0))
@@ -2642,7 +2642,7 @@ static int decode_attr_nlink(struct xdr_stream *xdr, uint32_t *bitmap, uint32_t 
 	return 0;
 }
 
-static int decode_attr_owner(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs_client *clp, int32_t *uid)
+static int decode_attr_owner(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs_client *clp, uint32_t *uid)
 {
 	uint32_t len;
 	__be32 *p;
@@ -2667,7 +2667,7 @@ static int decode_attr_owner(struct xdr_stream *xdr, uint32_t *bitmap, struct nf
 	return 0;
 }
 
-static int decode_attr_group(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs_client *clp, int32_t *gid)
+static int decode_attr_group(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs_client *clp, uint32_t *gid)
 {
 	uint32_t len;
 	__be32 *p;
@@ -2897,8 +2897,8 @@ static int decode_close(struct xdr_stream *xdr, struct nfs_closeres *res)
 	status = decode_op_hdr(xdr, OP_CLOSE);
 	if (status)
 		return status;
-	READ_BUF(sizeof(res->stateid.data));
-	COPYMEM(res->stateid.data, sizeof(res->stateid.data));
+	READ_BUF(NFS4_STATEID_SIZE);
+	COPYMEM(res->stateid.data, NFS4_STATEID_SIZE);
 	return 0;
 }
 
@@ -3186,8 +3186,8 @@ static int decode_lock(struct xdr_stream *xdr, struct nfs_lock_res *res)
 
 	status = decode_op_hdr(xdr, OP_LOCK);
 	if (status == 0) {
-		READ_BUF(sizeof(res->stateid.data));
-		COPYMEM(res->stateid.data, sizeof(res->stateid.data));
+		READ_BUF(NFS4_STATEID_SIZE);
+		COPYMEM(res->stateid.data, NFS4_STATEID_SIZE);
 	} else if (status == -NFS4ERR_DENIED)
 		return decode_lock_denied(xdr, NULL);
 	return status;
@@ -3209,8 +3209,8 @@ static int decode_locku(struct xdr_stream *xdr, struct nfs_locku_res *res)
 
 	status = decode_op_hdr(xdr, OP_LOCKU);
 	if (status == 0) {
-		READ_BUF(sizeof(res->stateid.data));
-		COPYMEM(res->stateid.data, sizeof(res->stateid.data));
+		READ_BUF(NFS4_STATEID_SIZE);
+		COPYMEM(res->stateid.data, NFS4_STATEID_SIZE);
 	}
 	return status;
 }
@@ -3251,8 +3251,8 @@ static int decode_delegation(struct xdr_stream *xdr, struct nfs_openres *res)
 		res->delegation_type = 0;
 		return 0;
 	}
-	READ_BUF(20);
-	COPYMEM(res->delegation.data, sizeof(res->delegation.data));
+	READ_BUF(NFS4_STATEID_SIZE+4);
+	COPYMEM(res->delegation.data, NFS4_STATEID_SIZE);
 	READ32(res->do_recall);
 	switch (delegation_type) {
 		case NFS4_OPEN_DELEGATE_READ:
@@ -3275,8 +3275,8 @@ static int decode_open(struct xdr_stream *xdr, struct nfs_openres *res)
         status = decode_op_hdr(xdr, OP_OPEN);
         if (status)
                 return status;
-        READ_BUF(sizeof(res->stateid.data));
-        COPYMEM(res->stateid.data, sizeof(res->stateid.data));
+        READ_BUF(NFS4_STATEID_SIZE);
+        COPYMEM(res->stateid.data, NFS4_STATEID_SIZE);
 
         decode_change_info(xdr, &res->cinfo);
 
@@ -3302,8 +3302,8 @@ static int decode_open_confirm(struct xdr_stream *xdr, struct nfs_open_confirmre
         status = decode_op_hdr(xdr, OP_OPEN_CONFIRM);
         if (status)
                 return status;
-        READ_BUF(sizeof(res->stateid.data));
-        COPYMEM(res->stateid.data, sizeof(res->stateid.data));
+        READ_BUF(NFS4_STATEID_SIZE);
+        COPYMEM(res->stateid.data, NFS4_STATEID_SIZE);
         return 0;
 }
 
@@ -3315,8 +3315,8 @@ static int decode_open_downgrade(struct xdr_stream *xdr, struct nfs_closeres *re
 	status = decode_op_hdr(xdr, OP_OPEN_DOWNGRADE);
 	if (status)
 		return status;
-	READ_BUF(sizeof(res->stateid.data));
-	COPYMEM(res->stateid.data, sizeof(res->stateid.data));
+	READ_BUF(NFS4_STATEID_SIZE);
+	COPYMEM(res->stateid.data, NFS4_STATEID_SIZE);
 	return 0;
 }
 
@@ -3590,9 +3590,9 @@ static int decode_setclientid(struct xdr_stream *xdr, struct nfs_client *clp)
 	}
 	READ32(nfserr);
 	if (nfserr == NFS_OK) {
-		READ_BUF(8 + sizeof(clp->cl_confirm.data));
+		READ_BUF(8 + NFS4_VERIFIER_SIZE);
 		READ64(clp->cl_clientid);
-		COPYMEM(clp->cl_confirm.data, sizeof(clp->cl_confirm.data));
+		COPYMEM(clp->cl_confirm.data, NFS4_VERIFIER_SIZE);
 	} else if (nfserr == NFSERR_CLID_INUSE) {
 		uint32_t len;
 

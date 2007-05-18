@@ -586,10 +586,6 @@ static struct rpc_version	nlm_version3 = {
 		.procs		= nlm_procedures,
 };
 
-#ifdef 	CONFIG_LOCKD_V4
-extern struct rpc_version nlm_version4;
-#endif
-
 static struct rpc_version *	nlm_versions[] = {
 	[1] = &nlm_version1,
 	[3] = &nlm_version3,

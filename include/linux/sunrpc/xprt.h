@@ -244,6 +244,8 @@ void			xprt_disconnect(struct rpc_xprt *xprt);
  */
 struct rpc_xprt *	xs_setup_udp(struct sockaddr *addr, size_t addrlen, struct rpc_timeout *to);
 struct rpc_xprt *	xs_setup_tcp(struct sockaddr *addr, size_t addrlen, struct rpc_timeout *to);
+int			init_socket_xprt(void);
+void			cleanup_socket_xprt(void);
 
 /*
  * Reserved bit positions in xprt->state

@@ -24,7 +24,7 @@ enum nfs4_callback_opnum {
 };
 
 struct cb_compound_hdr_arg {
-	int taglen;
+	unsigned int taglen;
 	const char *tag;
 	unsigned int callback_ident;
 	unsigned nops;
@@ -32,7 +32,7 @@ struct cb_compound_hdr_arg {
 
 struct cb_compound_hdr_res {
 	__be32 *status;
-	int taglen;
+	unsigned int taglen;
 	const char *tag;
 	__be32 *nops;
 };
