@@ -160,7 +160,7 @@ static inline int cancel_delayed_work(struct delayed_work *work)
 {
 	int ret;
 
-	ret = del_timer(&work->timer);
+	ret = del_timer_sync(&work->timer);
 	if (ret)
 		work_clear_pending(&work->work);
 	return ret;
