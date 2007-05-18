@@ -2396,7 +2396,7 @@ static int ip_route_output_slow(struct rtable **rp, const struct flowi *oldflp)
 
 		/* It is equivalent to inet_addr_type(saddr) == RTN_LOCAL */
 		dev_out = ip_dev_find(oldflp->fl4_src);
-		if ((dev_out == NULL) && !(sysctl_ip_nonlocal_bind))
+		if (dev_out == NULL)
 			goto out;
 
 		/* I removed check for oif == dev_out->oif here.
@@ -2407,7 +2407,7 @@ static int ip_route_output_slow(struct rtable **rp, const struct flowi *oldflp)
 		      of another iface. --ANK
 		 */
 
-		if (dev_out && oldflp->oif == 0
+		if (oldflp->oif == 0
 		    && (MULTICAST(oldflp->fl4_dst) || oldflp->fl4_dst == htonl(0xFFFFFFFF))) {
 			/* Special hack: user can direct multicasts
 			   and limited broadcast via necessary interface
