@@ -234,8 +234,12 @@ static int dlm_scand(void *data)
 	struct dlm_ls *ls;
 
 	while (!kthread_should_stop()) {
-		list_for_each_entry(ls, &lslist, ls_list)
-			dlm_scan_rsbs(ls);
+		list_for_each_entry(ls, &lslist, ls_list) {
+			if (dlm_lock_recovery_try(ls)) {
+				dlm_scan_rsbs(ls);
+				dlm_unlock_recovery(ls);
+			}
+		}
 		schedule_timeout_interruptible(dlm_config.ci_scan_secs * HZ);
 	}
 	return 0;
