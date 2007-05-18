@@ -48,6 +48,7 @@ enum {
 	IA64_MCA_RENDEZ_CHECKIN_NOTDONE	=	0x0,
 	IA64_MCA_RENDEZ_CHECKIN_DONE	=	0x1,
 	IA64_MCA_RENDEZ_CHECKIN_INIT	=	0x2,
+	IA64_MCA_RENDEZ_CHECKIN_CONCURRENT_MCA	=	0x3,
 };
 
 /* Information maintained by the MC infrastructure */
