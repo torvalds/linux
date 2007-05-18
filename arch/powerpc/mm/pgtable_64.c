@@ -322,6 +322,8 @@ EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(__iounmap);
 
+static DEFINE_SPINLOCK(phb_io_lock);
+
 void __iomem * reserve_phb_iospace(unsigned long size)
 {
 	void __iomem *virt_addr;
@@ -329,8 +331,10 @@ void __iomem * reserve_phb_iospace(unsigned long size)
 	if (phbs_io_bot >= IMALLOC_BASE) 
 		panic("reserve_phb_iospace(): phb io space overflow\n");
 			
+	spin_lock(&phb_io_lock);
 	virt_addr = (void __iomem *) phbs_io_bot;
 	phbs_io_bot += size;
+	spin_unlock(&phb_io_lock);
 
 	return virt_addr;
 }

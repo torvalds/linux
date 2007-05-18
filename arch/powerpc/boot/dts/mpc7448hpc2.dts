@@ -16,12 +16,10 @@
 	compatible = "mpc74xx";
 	#address-cells = <1>;
 	#size-cells = <1>;
-	linux,phandle = <100>;
 
 	cpus {
 		#address-cells = <1>;
 		#size-cells =<0>;
-		linux,phandle = <200>;
 				
 		PowerPC,7448@0 {
 			device_type = "cpu";
@@ -34,13 +32,11 @@
 			clock-frequency = <0>;		// From U-Boot
 			bus-frequency = <0>;		// From U-Boot
 			32-bit;
-			linux,phandle = <201>;
 		};
 	};
 
 	memory {
 		device_type = "memory";
-		linux,phandle = <300>;
 		reg = <00000000 20000000	// DDR2   512M at 0
 		       >;
 	};
@@ -55,7 +51,7 @@
 		bus-frequency = <0>;
 
 		i2c@7000 {
-			interrupt-parent = <7400>;
+			interrupt-parent = <&mpic>;
 			interrupts = <E 0>;
 			reg = <7000 400>;
 			device_type = "i2c";
@@ -66,18 +62,16 @@
 			device_type = "mdio";
 			compatible = "tsi-ethernet";
 
-			ethernet-phy@6000 {
-				linux,phandle = <6000>;
-				interrupt-parent = <7400>;
+			phy8: ethernet-phy@6000 {
+				interrupt-parent = <&mpic>;
 				interrupts = <2 1>;
 				reg = <6000 50>;
 				phy-id = <8>;
 				device_type = "ethernet-phy";
 			};
 
-			ethernet-phy@6400 {
-				linux,phandle = <6400>;
-				interrupt-parent = <7400>;
+			phy9: ethernet-phy@6400 {
+				interrupt-parent = <&mpic>;
 				interrupts = <2 1>;
 				reg = <6000 50>;
 				phy-id = <9>;
@@ -94,8 +88,8 @@
 			reg = <6000 200>;
 			address = [ 00 06 D2 00 00 01 ];
 			interrupts = <10 2>;
-			interrupt-parent = <7400>;
-			phy-handle = <6000>;
+			interrupt-parent = <&mpic>;
+			phy-handle = <&phy8>;
 		};
 
 		ethernet@6600 {
@@ -107,8 +101,8 @@
 			reg = <6400 200>;
 			address = [ 00 06 D2 00 00 02 ];
 			interrupts = <11 2>;
-			interrupt-parent = <7400>;
-			phy-handle = <6400>;
+			interrupt-parent = <&mpic>;
+			phy-handle = <&phy9>;
 		};
 
 		serial@7808 {
@@ -117,7 +111,7 @@
 			reg = <7808 200>;
 			clock-frequency = <3f6b5a00>;
 			interrupts = <c 0>;
-			interrupt-parent = <7400>;
+			interrupt-parent = <&mpic>;
 		};
 
 		serial@7c08 {
@@ -126,11 +120,10 @@
 			reg = <7c08 200>;
 			clock-frequency = <3f6b5a00>;
 			interrupts = <d 0>;
-			interrupt-parent = <7400>;
+			interrupt-parent = <&mpic>;
 		};
 
-	  	pic@7400 {
-			linux,phandle = <7400>;
+	  	mpic: pic@7400 {
 			clock-frequency = <0>;
 			interrupt-controller;
 			#address-cells = <0>;
@@ -144,7 +137,6 @@
 		pci@1000 {
 			compatible = "tsi10x";
 			device_type = "pci";
-			linux,phandle = <1000>;
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
 			#address-cells = <3>;
@@ -153,37 +145,37 @@
 			ranges = <02000000 0 e0000000 e0000000 0 1A000000	
 				  01000000 0 00000000 fa000000 0 00010000>;
 			clock-frequency = <7f28154>;
-			interrupt-parent = <7400>;
+			interrupt-parent = <&mpic>;
 			interrupts = <17 2>;
 			interrupt-map-mask = <f800 0 0 7>;
 			interrupt-map = <
 
 				/* IDSEL 0x11 */
-				0800 0 0 1 1180 24 0
-				0800 0 0 2 1180 25 0
-				0800 0 0 3 1180 26 0
-				0800 0 0 4 1180 27 0
+				0800 0 0 1 &RT0 24 0
+				0800 0 0 2 &RT0 25 0
+				0800 0 0 3 &RT0 26 0
+				0800 0 0 4 &RT0 27 0
 
 				/* IDSEL 0x12 */
-				1000 0 0 1 1180 25 0
-				1000 0 0 2 1180 26 0
-				1000 0 0 3 1180 27 0
-				1000 0 0 4 1180 24 0
+				1000 0 0 1 &RT0 25 0
+				1000 0 0 2 &RT0 26 0
+				1000 0 0 3 &RT0 27 0
+				1000 0 0 4 &RT0 24 0
 
 				/* IDSEL 0x13 */
-				1800 0 0 1 1180 26 0
-				1800 0 0 2 1180 27 0
-				1800 0 0 3 1180 24 0
-				1800 0 0 4 1180 25 0
+				1800 0 0 1 &RT0 26 0
+				1800 0 0 2 &RT0 27 0
+				1800 0 0 3 &RT0 24 0
+				1800 0 0 4 &RT0 25 0
 
 				/* IDSEL 0x14 */
-				2000 0 0 1 1180 27 0
-				2000 0 0 2 1180 24 0
-				2000 0 0 3 1180 25 0
-				2000 0 0 4 1180 26 0
+				2000 0 0 1 &RT0 27 0
+				2000 0 0 2 &RT0 24 0
+				2000 0 0 3 &RT0 25 0
+				2000 0 0 4 &RT0 26 0
 				>;
-			router@1180 {
-				linux,phandle = <1180>;
+
+			RT0: router@1180 {
 				clock-frequency = <0>;
 				interrupt-controller;
 				device_type = "pic-router";
@@ -192,7 +184,7 @@
 				built-in;
 				big-endian;
 				interrupts = <17 2>;
-				interrupt-parent = <7400>;
+				interrupt-parent = <&mpic>;
 			};
 		};
 	};

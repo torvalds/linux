@@ -48,6 +48,22 @@
 		reg = <e0000000 00100000>;	// CCSRBAR 1M
 		bus-frequency = <0>;
 
+		memory-controller@2000 {
+			compatible = "fsl,8540-memory-controller";
+			reg = <2000 1000>;
+			interrupt-parent = <&mpic>;
+			interrupts = <2 2>;
+		};
+
+		l2-cache-controller@20000 {
+			compatible = "fsl,8540-l2-cache-controller";
+			reg = <20000 1000>;
+			cache-line-size = <20>;	// 32 bytes
+			cache-size = <40000>;	// L2, 256K
+			interrupt-parent = <&mpic>;
+			interrupts = <0 2>;
+		};
+
 		i2c@3000 {
 			device_type = "i2c";
 			compatible = "fsl-i2c";

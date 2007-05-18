@@ -26,8 +26,8 @@
  * demultiplexing on TSI108EMU/SVB boards.
  */
 
-#ifndef _ASM_PPC_TSI108_IRQ_H
-#define _ASM_PPC_TSI108_IRQ_H
+#ifndef _ASM_POWERPC_TSI108_IRQ_H
+#define _ASM_POWERPC_TSI108_IRQ_H
 
 /*
  * Tsi108 interrupts
@@ -121,4 +121,4 @@ typedef enum {
 	TSI108_IRQ_DIRECTED,
 	TSI108_IRQ_DISTRIBUTED,
 } TSI108_IRQ_MODE;
-#endif				/*  _ASM_PPC_TSI108_IRQ_H */
+#endif				/*  _ASM_POWERPC_TSI108_IRQ_H */

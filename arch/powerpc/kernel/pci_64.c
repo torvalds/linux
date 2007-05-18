@@ -41,6 +41,7 @@
 
 unsigned long pci_probe_only = 1;
 int pci_assign_all_buses = 0;
+static int pci_initial_scan_done;
 
 static void fixup_resource(struct resource *res, struct pci_dev *dev);
 static void do_bus_setup(struct pci_bus *bus);
@@ -604,6 +605,8 @@ static int __init pcibios_init(void)
 		/* map in PCI I/O space */
 		phbs_remap_io();
 
+	pci_initial_scan_done = 1;
+
 	printk(KERN_DEBUG "PCI: Probing PCI hardware done\n");
 
 	return 0;
@@ -1042,12 +1045,15 @@ void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	}
 }
 
-void __init pci_setup_phb_io(struct pci_controller *hose, int primary)
+void __devinit pci_setup_phb_io(struct pci_controller *hose, int primary)
 {
 	unsigned long size = hose->pci_io_size;
 	unsigned long io_virt_offset;
 	struct resource *res;
 	struct device_node *isa_dn;
+
+	if (size == 0)
+		return;
 
 	hose->io_base_virt = reserve_phb_iospace(size);
 	DBG("phb%d io_base_phys 0x%lx io_base_virt 0x%lx\n",
@@ -1069,6 +1075,15 @@ void __init pci_setup_phb_io(struct pci_controller *hose, int primary)
 	res = &hose->io_resource;
 	res->start += io_virt_offset;
 	res->end += io_virt_offset;
+
+	/* If this is called after the initial PCI scan, then we need to
+	 * proceed to IO mappings now
+	 */
+	if (pci_initial_scan_done)
+		__ioremap_explicit(hose->io_base_phys,
+				   (unsigned long)hose->io_base_virt,
+				   hose->pci_io_size,
+				   _PAGE_NO_CACHE | _PAGE_GUARDED);
 }
 
 void __devinit pci_setup_phb_io_dynamic(struct pci_controller *hose,
@@ -1077,6 +1092,9 @@ void __devinit pci_setup_phb_io_dynamic(struct pci_controller *hose,
 	unsigned long size = hose->pci_io_size;
 	unsigned long io_virt_offset;
 	struct resource *res;
+
+	if (size == 0)
+		return;
 
 	hose->io_base_virt = __ioremap(hose->io_base_phys, size,
 					_PAGE_NO_CACHE | _PAGE_GUARDED);
@@ -1105,6 +1123,9 @@ static int get_bus_io_range(struct pci_bus *bus, unsigned long *start_phys,
 	else
 		/* Root Bus */
 		res = &hose->io_resource;
+
+	if (res->end == 0 && res->start == 0)
+		return 1;
 
 	*start_virt = pci_io_base + res->start;
 	*start_phys = *start_virt + hose->io_base_phys

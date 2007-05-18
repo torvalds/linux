@@ -4,7 +4,6 @@ config PPC_PASEMI
 	default n
 	select MPIC
 	select PPC_UDBG_16550
-	select GENERIC_TBSYNC
 	select PPC_NATIVE
 	help
 	  This option enables support for PA Semi's PWRficient line

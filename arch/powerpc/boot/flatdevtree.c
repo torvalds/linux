@@ -891,28 +891,27 @@ int ft_set_prop(struct ft_cxt *cxt, const void *phandle, const char *propname,
 	struct ft_atom atom;
 	void *node;
 	char *p, *next;
-	int nextra, depth;
+	int nextra;
 
 	node = ft_node_ph2node(cxt, phandle);
 	if (node == NULL)
 		return -1;
 
-	depth = 0;
-	p = node;
+	next = ft_next(cxt, node, &atom);
+	if (atom.tag != OF_DT_BEGIN_NODE)
+		/* phandle didn't point to a node */
+		return -1;
+	p = next;
 
 	while ((next = ft_next(cxt, p, &atom)) != NULL) {
 		switch (atom.tag) {
-		case OF_DT_BEGIN_NODE:
-			++depth;
-			break;
+		case OF_DT_BEGIN_NODE: /* properties must go before subnodes */
 		case OF_DT_END_NODE:
-			if (--depth > 0)
-				break;
 			/* haven't found the property, insert here */
 			cxt->p = p;
 			return ft_prop(cxt, propname, buf, buflen);
 		case OF_DT_PROP:
-			if ((depth != 1) || strcmp(atom.name, propname))
+			if (strcmp(atom.name, propname))
 				break;
 			/* found an existing property, overwrite it */
 			nextra = _ALIGN(buflen, 4) - _ALIGN(atom.size, 4);

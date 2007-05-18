@@ -430,7 +430,7 @@ static void __init htab_finish_init(void)
 	make_bl(ht64_call_hpte_insert2, ppc_md.hpte_insert);
 	make_bl(ht64_call_hpte_remove, ppc_md.hpte_remove);
 	make_bl(ht64_call_hpte_updatepp, ppc_md.hpte_updatepp);
-#endif /* CONFIG_PPC_64K_PAGES */
+#endif /* CONFIG_PPC_HAS_HASH_64K */
 
 	make_bl(htab_call_hpte_insert1, ppc_md.hpte_insert);
 	make_bl(htab_call_hpte_insert2, ppc_md.hpte_insert);
@@ -837,7 +837,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	if (mm->context.user_psize == MMU_PAGE_64K)
 		__hash_page_64K(ea, access, vsid, ptep, trap, local);
 	else
-#endif /* CONFIG_PPC_64K_PAGES */
+#endif /* CONFIG_PPC_HAS_HASH_64K */
 		__hash_page_4K(ea, access, vsid, ptep, trap, local);
 
 	local_irq_restore(flags);

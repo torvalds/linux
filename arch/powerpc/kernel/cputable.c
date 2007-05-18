@@ -836,7 +836,7 @@ static struct cpu_spec cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x80040000,
 		.cpu_name		= "7448",
-		.cpu_features		= CPU_FTRS_7447A,
+		.cpu_features		= CPU_FTRS_7448,
 		.cpu_user_features	= COMMON_USER |
 			PPC_FEATURE_HAS_ALTIVEC_COMP | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,

@@ -5,8 +5,8 @@
  * this one and the configuration switching is done here.
  */
 #ifdef __KERNEL__
-#ifndef __ASM_PPC_MPC8260_H__
-#define __ASM_PPC_MPC8260_H__
+#ifndef __ASM_POWERPC_MPC8260_H__
+#define __ASM_POWERPC_MPC8260_H__
 
 
 #ifdef CONFIG_8260
@@ -20,5 +20,5 @@
 #endif
 
 #endif /* CONFIG_8260 */
-#endif /* !__ASM_PPC_MPC8260_H__ */
+#endif /* !__ASM_POWERPC_MPC8260_H__ */
 #endif /* __KERNEL__ */

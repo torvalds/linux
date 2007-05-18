@@ -29,7 +29,7 @@ CROSS32CC	:= $(CC) -m32
 CROSS32AS	:= $(AS) -a32
 CROSS32LD	:= $(LD) -m elf32ppc
 CROSS32OBJCOPY	:= $(OBJCOPY)
-CROSS32AR	:= $(AR)
+CROSS32AR	:= GNUTARGET=elf32-powerpc $(AR)
 endif
 endif
 
@@ -58,6 +58,7 @@ ifeq ($(HAS_BIARCH),y)
 override AS	+= -a$(SZ)
 override LD	+= -m elf$(SZ)ppc
 override CC	+= -m$(SZ)
+override AR	:= GNUTARGET=elf$(SZ)-powerpc $(AR)
 endif
 
 LDFLAGS_vmlinux	:= -Bstatic
