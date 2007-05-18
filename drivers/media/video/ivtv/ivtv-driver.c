@@ -339,6 +339,7 @@ static void ivtv_process_eeprom(struct ivtv *itv)
 		/* In a few cases the PCI subsystem IDs do not correctly
 		   identify the card. A better method is to check the
 		   model number from the eeprom instead. */
+		case 30012 ... 30039:  /* Low profile PVR250 */
 		case 32000 ... 32999:
 		case 48000 ... 48099:  /* 48??? range are PVR250s with a cx23415 */
 		case 48400 ... 48599:
@@ -351,7 +352,6 @@ static void ivtv_process_eeprom(struct ivtv *itv)
 		case 23000 ... 23999:  /* PVR500 */
 		case 25000 ... 25999:  /* Low profile PVR150 */
 		case 26000 ... 26999:  /* Regular PVR150 */
-		case 30012 ... 30039:  /* Low profile PVR150 */
 			itv->card = ivtv_get_card(IVTV_CARD_PVR_150);
 			break;
 		case 0:
