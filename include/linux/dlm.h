@@ -85,7 +85,11 @@
  * Only relevant to locks originating in userspace.  A persistent lock will not
  * be removed if the process holding the lock exits.
  *
- * DLM_LKF_NODLKWT
+ * DLM_LKF_NODLCKWT
+ *
+ * Do not cancel the lock if it gets into conversion deadlock.
+ * Exclude this lock from being monitored due to DLM_LSFL_TIMEWARN.
+ *
  * DLM_LKF_NODLCKBLK
  *
  * net yet implemented
