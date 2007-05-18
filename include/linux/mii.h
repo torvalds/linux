@@ -56,8 +56,8 @@
 #define BMSR_ANEGCOMPLETE       0x0020  /* Auto-negotiation complete   */
 #define BMSR_RESV               0x00c0  /* Unused...                   */
 #define BMSR_ESTATEN		0x0100	/* Extended Status in R15 */
-#define BMSR_100FULL2		0x0200	/* Can do 100BASE-T2 HDX */
-#define BMSR_100HALF2		0x0400	/* Can do 100BASE-T2 FDX */
+#define BMSR_100HALF2           0x0200  /* Can do 100BASE-T2 HDX */
+#define BMSR_100FULL2           0x0400  /* Can do 100BASE-T2 FDX */
 #define BMSR_10HALF             0x0800  /* Can do 10mbps, half-duplex  */
 #define BMSR_10FULL             0x1000  /* Can do 10mbps, full-duplex  */
 #define BMSR_100HALF            0x2000  /* Can do 100mbps, half-duplex */
