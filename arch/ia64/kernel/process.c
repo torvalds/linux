@@ -763,6 +763,9 @@ get_wchan (struct task_struct *p)
 	unsigned long ip;
 	int count = 0;
 
+	if (!p || p == current || p->state == TASK_RUNNING)
+		return 0;
+
 	/*
 	 * Note: p may not be a blocked task (it could be current or
 	 * another process running on some other CPU.  Rather than
@@ -773,6 +776,8 @@ get_wchan (struct task_struct *p)
 	 */
 	unw_init_from_blocked_task(&info, p);
 	do {
+		if (p->state == TASK_RUNNING)
+			return 0;
 		if (unw_unwind(&info) < 0)
 			return 0;
 		unw_get_ip(&info, &ip);
