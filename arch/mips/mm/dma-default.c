@@ -168,8 +168,9 @@ int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 		addr = (unsigned long) page_address(sg->page);
 		if (!plat_device_is_coherent(dev) && addr)
 			__dma_sync(addr + sg->offset, sg->length, direction);
-		sg->dma_address = plat_map_dma_mem_page(dev, sg->page) +
-		                  sg->offset;
+		sg->dma_address = plat_map_dma_mem(dev,
+				                   (void *)(addr + sg->offset),
+						   sg->length);
 	}
 
 	return nents;
