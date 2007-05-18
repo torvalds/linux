@@ -1,10 +1,10 @@
 menu "Hardware crypto devices"
 
 config CRYPTO_DEV_PADLOCK
-	bool "Support for VIA PadLock ACE"
+	tristate "Support for VIA PadLock ACE"
 	depends on X86_32
 	select CRYPTO_ALGAPI
-	default y
+	default m
 	help
 	  Some VIA processors come with an integrated crypto engine
 	  (so called VIA PadLock ACE, Advanced Cryptography Engine)
