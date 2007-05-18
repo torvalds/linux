@@ -1098,8 +1098,8 @@ void dlm_scan_timeout(struct dlm_ls *ls)
 		}
 
 		if (do_cancel) {
-			log_debug("timeout cancel %x node %d %s", lkb->lkb_id,
-				  lkb->lkb_nodeid, r->res_name);
+			log_debug(r->res_ls, "timeout cancel %x node %d %s",
+				  lkb->lkb_id, lkb->lkb_nodeid, r->res_name);
 			lkb->lkb_flags &= ~DLM_IFL_WATCH_TIMEWARN;
 			lkb->lkb_flags |= DLM_IFL_TIMEOUT_CANCEL;
 			del_timeout(lkb);
