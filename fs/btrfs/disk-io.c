@@ -257,24 +257,30 @@ static struct address_space_operations btree_aops = {
 int readahead_tree_block(struct btrfs_root *root, u64 blocknr)
 {
 	struct buffer_head *bh = NULL;
+	int ret = 0;
 
 	bh = btrfs_find_create_tree_block(root, blocknr);
 	if (!bh)
 		return 0;
-	if (buffer_uptodate(bh))
+	if (buffer_uptodate(bh)) {
+		ret = 1;
 		goto done;
-	if (test_set_buffer_locked(bh))
+	}
+	if (test_set_buffer_locked(bh)) {
+		ret = 1;
 		goto done;
+	}
 	if (!buffer_uptodate(bh)) {
 		get_bh(bh);
 		bh->b_end_io = end_buffer_read_sync;
 		submit_bh(READ, bh);
 	} else {
 		unlock_buffer(bh);
+		ret = 1;
 	}
 done:
 	brelse(bh);
-	return 0;
+	return ret;
 }
 
 struct buffer_head *read_tree_block(struct btrfs_root *root, u64 blocknr)

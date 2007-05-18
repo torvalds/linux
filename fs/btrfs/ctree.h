@@ -1081,7 +1081,7 @@ static inline void btrfs_mark_buffer_dirty(struct buffer_head *bh)
 struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 						 struct btrfs_block_group_cache
 						 *hint, u64 search_start,
-						 int data);
+						 int data, int owner);
 int btrfs_inc_root_ref(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root);
 struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,

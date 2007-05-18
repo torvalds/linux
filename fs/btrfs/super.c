@@ -351,6 +351,35 @@ static int btrfs_free_inode(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+static void reada_truncate(struct btrfs_root *root, struct btrfs_path *path,
+			   u64 objectid)
+{
+	struct btrfs_node *node;
+	int i;
+	int nritems;
+	u64 item_objectid;
+	u64 blocknr;
+	int slot;
+	int ret;
+
+	if (!path->nodes[1])
+		return;
+	node = btrfs_buffer_node(path->nodes[1]);
+	slot = path->slots[1];
+	if (slot == 0)
+		return;
+	nritems = btrfs_header_nritems(&node->header);
+	for (i = slot - 1; i >= 0; i--) {
+		item_objectid = btrfs_disk_key_objectid(&node->ptrs[i].key);
+		if (item_objectid != objectid)
+			break;
+		blocknr = btrfs_node_blockptr(node, i);
+		ret = readahead_tree_block(root, blocknr);
+		if (ret)
+			break;
+	}
+}
+
 static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root,
 				   struct inode *inode)
@@ -386,6 +415,7 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 			BUG_ON(path->slots[0] == 0);
 			path->slots[0]--;
 		}
+		reada_truncate(root, path, inode->i_ino);
 		leaf = btrfs_buffer_leaf(path->nodes[0]);
 		found_key = &leaf->items[path->slots[0]].key;
 		if (btrfs_disk_key_objectid(found_key) != inode->i_ino)
@@ -587,28 +617,30 @@ printk("adding new root for inode %lu root %p (found %p)\n", inode->i_ino, sub_r
 	return d_splice_alias(inode, dentry);
 }
 
-static void reada_leaves(struct btrfs_root *root, struct btrfs_path *path)
+static void reada_leaves(struct btrfs_root *root, struct btrfs_path *path,
+			 u64 objectid)
 {
 	struct btrfs_node *node;
 	int i;
-	int nritems;
-	u64 objectid;
+	u32 nritems;
 	u64 item_objectid;
 	u64 blocknr;
 	int slot;
+	int ret;
 
 	if (!path->nodes[1])
 		return;
 	node = btrfs_buffer_node(path->nodes[1]);
 	slot = path->slots[1];
-	objectid = btrfs_disk_key_objectid(&node->ptrs[slot].key);
 	nritems = btrfs_header_nritems(&node->header);
-	for (i = slot; i < nritems; i++) {
+	for (i = slot + 1; i < nritems; i++) {
 		item_objectid = btrfs_disk_key_objectid(&node->ptrs[i].key);
 		if (item_objectid != objectid)
 			break;
 		blocknr = btrfs_node_blockptr(node, i);
-		readahead_tree_block(root, blocknr);
+		ret = readahead_tree_block(root, blocknr);
+		if (ret)
+			break;
 	}
 }
 
@@ -646,21 +678,20 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	if (ret < 0)
 		goto err;
 	advance = 0;
-	reada_leaves(root, path);
+	reada_leaves(root, path, inode->i_ino);
 	while(1) {
 		leaf = btrfs_buffer_leaf(path->nodes[0]);
 		nritems = btrfs_header_nritems(&leaf->header);
 		slot = path->slots[0];
 		if (advance || slot >= nritems) {
 			if (slot >= nritems -1) {
+				reada_leaves(root, path, inode->i_ino);
 				ret = btrfs_next_leaf(root, path);
 				if (ret)
 					break;
 				leaf = btrfs_buffer_leaf(path->nodes[0]);
 				nritems = btrfs_header_nritems(&leaf->header);
 				slot = path->slots[0];
-				if (path->slots[1] == 0)
-					reada_leaves(root, path);
 			} else {
 				slot++;
 				path->slots[0]++;
@@ -805,13 +836,18 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	struct btrfs_inode_item inode_item;
 	struct btrfs_key *location;
 	int ret;
+	int owner;
 
 	inode = new_inode(root->fs_info->sb);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
 	BTRFS_I(inode)->root = root;
-	group = btrfs_find_block_group(root, group, 0, 0);
+	if (mode & S_IFDIR)
+		owner = 0;
+	else
+		owner = 1;
+	group = btrfs_find_block_group(root, group, 0, 0, owner);
 	BTRFS_I(inode)->block_group = group;
 
 	inode->i_uid = current->fsuid;
@@ -1562,7 +1598,7 @@ failed:
 static int drop_extents(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root,
 			  struct inode *inode,
-			  u64 start, u64 end)
+			  u64 start, u64 end, u64 *hint_block)
 {
 	int ret;
 	struct btrfs_key key;
@@ -1659,17 +1695,14 @@ static int drop_extents(struct btrfs_trans_handle *trans,
 				new_num = (start - key.offset) >>
 					inode->i_blkbits;
 				old_num = btrfs_file_extent_num_blocks(extent);
+				*hint_block =
+					btrfs_file_extent_disk_blocknr(extent);
 				inode->i_blocks -= (old_num - new_num) << 3;
 				btrfs_set_file_extent_num_blocks(extent,
 								 new_num);
 				mark_buffer_dirty(path->nodes[0]);
 			} else {
 				WARN_ON(1);
-				/*
-				ret = btrfs_truncate_item(trans, root, path,
-							  start - key.offset);
-				BUG_ON(ret);
-				*/
 			}
 		}
 		if (!keep) {
@@ -1683,6 +1716,8 @@ static int drop_extents(struct btrfs_trans_handle *trans,
 				      btrfs_file_extent_disk_num_blocks(extent);
 				extent_num_blocks =
 				      btrfs_file_extent_num_blocks(extent);
+				*hint_block =
+					btrfs_file_extent_disk_blocknr(extent);
 			}
 			ret = btrfs_del_item(trans, root, path);
 			BUG_ON(ret);
@@ -1831,6 +1866,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	u64 start_pos;
 	u64 num_blocks;
 	u64 alloc_extent_start;
+	u64 hint_block;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_key ins;
 	pinned[0] = NULL;
@@ -1871,6 +1907,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	}
 	if (first_index != last_index &&
 	    (last_index << PAGE_CACHE_SHIFT) < inode->i_size &&
+	    pos + count < inode->i_size &&
 	    (count & (PAGE_CACHE_SIZE - 1))) {
 		pinned[1] = grab_cache_page(inode->i_mapping, last_index);
 		if (!PageUptodate(pinned[1])) {
@@ -1892,18 +1929,20 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	btrfs_set_trans_block_group(trans, inode);
 	/* FIXME blocksize != 4096 */
 	inode->i_blocks += num_blocks << 3;
+	hint_block = 0;
 	if (start_pos < inode->i_size) {
 		/* FIXME blocksize != pagesize */
 		ret = drop_extents(trans, root, inode,
 				   start_pos,
 				   (pos + count + root->blocksize -1) &
-				   ~((u64)root->blocksize - 1));
+				   ~((u64)root->blocksize - 1), &hint_block);
 		BUG_ON(ret);
 	}
 	if (inode->i_size >= PAGE_CACHE_SIZE || pos + count < inode->i_size ||
 	    pos + count - start_pos > BTRFS_MAX_INLINE_DATA_SIZE(root)) {
 		ret = btrfs_alloc_extent(trans, root, inode->i_ino,
-					 num_blocks, 1, (u64)-1, &ins, 1);
+					 num_blocks, hint_block, (u64)-1,
+					 &ins, 1);
 		BUG_ON(ret);
 		ret = btrfs_insert_file_extent(trans, root, inode->i_ino,
 				       start_pos, ins.objectid, ins.offset);
@@ -2454,7 +2493,6 @@ static int btrfs_get_sb(struct file_system_type *fs_type,
 	return get_sb_bdev(fs_type, flags, dev_name, data,
 			   btrfs_fill_super, mnt);
 }
-
 
 static int btrfs_getattr(struct vfsmount *mnt,
 			 struct dentry *dentry, struct kstat *stat)
