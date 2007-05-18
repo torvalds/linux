@@ -403,10 +403,6 @@ static int aac_biosparm(struct scsi_device *sdev, struct block_device *bdev,
 
 static int aac_slave_configure(struct scsi_device *sdev)
 {
-	if (sdev_channel(sdev) == CONTAINER_CHANNEL) {
-		sdev->skip_ms_page_8 = 1;
-		sdev->skip_ms_page_3f = 1;
-	}
 	if ((sdev->type == TYPE_DISK) &&
 			(sdev_channel(sdev) != CONTAINER_CHANNEL)) {
 		if (expose_physicals == 0)

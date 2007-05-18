@@ -469,7 +469,7 @@ struct adapter_ops
 	int  (*adapter_deliver)(struct fib * fib);
 	int  (*adapter_bounds)(struct aac_dev * dev, struct scsi_cmnd * cmd, u64 lba);
 	int  (*adapter_read)(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u32 count);
-	int  (*adapter_write)(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u32 count);
+	int  (*adapter_write)(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u32 count, int fua);
 	int  (*adapter_scsi)(struct fib * fib, struct scsi_cmnd * cmd);
 	/* Administrative operations */
 	int  (*adapter_comm)(struct aac_dev * dev, int comm);
@@ -1054,8 +1054,8 @@ struct aac_dev
 #define aac_adapter_read(fib,cmd,lba,count) \
 	((fib)->dev)->a_ops.adapter_read(fib,cmd,lba,count)
 
-#define aac_adapter_write(fib,cmd,lba,count) \
-	((fib)->dev)->a_ops.adapter_write(fib,cmd,lba,count)
+#define aac_adapter_write(fib,cmd,lba,count,fua) \
+	((fib)->dev)->a_ops.adapter_write(fib,cmd,lba,count,fua)
 
 #define aac_adapter_scsi(fib,cmd) \
 	((fib)->dev)->a_ops.adapter_scsi(fib,cmd)
@@ -1213,6 +1213,9 @@ struct aac_write64
 	__le32 		block;
 	__le16		pad;
 	__le16		flags;
+#define	IO_TYPE_WRITE 0x00000000
+#define	IO_TYPE_READ  0x00000001
+#define	IO_SUREWRITE  0x00000008
 	struct sgmap64	sg;	// Must be last in struct because it is variable
 };
 struct aac_write_reply

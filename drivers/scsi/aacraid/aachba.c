@@ -822,7 +822,7 @@ static int aac_read_raw_io(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u3
 	readcmd->block[1] = cpu_to_le32((u32)((lba&0xffffffff00000000LL)>>32));
 	readcmd->count = cpu_to_le32(count<<9);
 	readcmd->cid = cpu_to_le16(scmd_id(cmd));
-	readcmd->flags = cpu_to_le16(1);
+	readcmd->flags = cpu_to_le16(IO_TYPE_READ);
 	readcmd->bpTotal = 0;
 	readcmd->bpComplete = 0;
 
@@ -901,7 +901,7 @@ static int aac_read_block(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u32
 			  (void *) cmd);
 }
 
-static int aac_write_raw_io(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u32 count)
+static int aac_write_raw_io(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u32 count, int fua)
 {
 	u16 fibsize;
 	struct aac_raw_io *writecmd;
@@ -911,7 +911,9 @@ static int aac_write_raw_io(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u
 	writecmd->block[1] = cpu_to_le32((u32)((lba&0xffffffff00000000LL)>>32));
 	writecmd->count = cpu_to_le32(count<<9);
 	writecmd->cid = cpu_to_le16(scmd_id(cmd));
-	writecmd->flags = 0;
+	writecmd->flags = fua ?
+		cpu_to_le16(IO_TYPE_WRITE|IO_SUREWRITE) :
+		cpu_to_le16(IO_TYPE_WRITE);
 	writecmd->bpTotal = 0;
 	writecmd->bpComplete = 0;
 
@@ -930,7 +932,7 @@ static int aac_write_raw_io(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u
 			  (void *) cmd);
 }
 
-static int aac_write_block64(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u32 count)
+static int aac_write_block64(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u32 count, int fua)
 {
 	u16 fibsize;
 	struct aac_write64 *writecmd;
@@ -961,7 +963,7 @@ static int aac_write_block64(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, 
 			  (void *) cmd);
 }
 
-static int aac_write_block(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u32 count)
+static int aac_write_block(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u32 count, int fua)
 {
 	u16 fibsize;
 	struct aac_write *writecmd;
@@ -1495,6 +1497,7 @@ static int aac_write(struct scsi_cmnd * scsicmd)
 {
 	u64 lba;
 	u32 count;
+	int fua;
 	int status;
 	struct aac_dev *dev;
 	struct fib * cmd_fibcontext;
@@ -1509,6 +1512,7 @@ static int aac_write(struct scsi_cmnd * scsicmd)
 		count = scsicmd->cmnd[4];
 		if (count == 0)
 			count = 256;
+		fua = 0;
 	} else if (scsicmd->cmnd[0] == WRITE_16) { /* 16 byte command */
 		dprintk((KERN_DEBUG "aachba: received a write(16) command on id %d.\n", scmd_id(scsicmd)));
 
@@ -1521,6 +1525,7 @@ static int aac_write(struct scsi_cmnd * scsicmd)
 			(scsicmd->cmnd[8] << 8) | scsicmd->cmnd[9];
 		count = (scsicmd->cmnd[10] << 24) | (scsicmd->cmnd[11] << 16) |
 			(scsicmd->cmnd[12] << 8) | scsicmd->cmnd[13];
+		fua = scsicmd->cmnd[1] & 0x8;
 	} else if (scsicmd->cmnd[0] == WRITE_12) { /* 12 byte command */
 		dprintk((KERN_DEBUG "aachba: received a write(12) command on id %d.\n", scmd_id(scsicmd)));
 
@@ -1528,10 +1533,12 @@ static int aac_write(struct scsi_cmnd * scsicmd)
 		    | (scsicmd->cmnd[4] << 8) | scsicmd->cmnd[5];
 		count = (scsicmd->cmnd[6] << 24) | (scsicmd->cmnd[7] << 16)
 		      | (scsicmd->cmnd[8] << 8) | scsicmd->cmnd[9];
+		fua = scsicmd->cmnd[1] & 0x8;
 	} else {
 		dprintk((KERN_DEBUG "aachba: received a write(10) command on id %d.\n", scmd_id(scsicmd)));
 		lba = ((u64)scsicmd->cmnd[2] << 24) | (scsicmd->cmnd[3] << 16) | (scsicmd->cmnd[4] << 8) | scsicmd->cmnd[5];
 		count = (scsicmd->cmnd[7] << 8) | scsicmd->cmnd[8];
+		fua = scsicmd->cmnd[1] & 0x8;
 	}
 	dprintk((KERN_DEBUG "aac_write[cpu %d]: lba = %llu, t = %ld.\n",
 	  smp_processor_id(), (unsigned long long)lba, jiffies));
@@ -1546,7 +1553,7 @@ static int aac_write(struct scsi_cmnd * scsicmd)
 		return 0;
 	}
 
-	status = aac_adapter_write(cmd_fibcontext, scsicmd, lba, count);
+	status = aac_adapter_write(cmd_fibcontext, scsicmd, lba, count, fua);
 
 	/*
 	 *	Check that the command queued to the controller
@@ -1883,15 +1890,29 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 
 	case MODE_SENSE:
 	{
-		char mode_buf[4];
+		char mode_buf[7];
+		int mode_buf_length = 4;
 
 		dprintk((KERN_DEBUG "MODE SENSE command.\n"));
 		mode_buf[0] = 3;	/* Mode data length */
 		mode_buf[1] = 0;	/* Medium type - default */
-		mode_buf[2] = 0;	/* Device-specific param, bit 8: 0/1 = write enabled/protected */
+		mode_buf[2] = 0;	/* Device-specific param,
+					   bit 8: 0/1 = write enabled/protected
+					   bit 4: 0/1 = FUA enabled */
+		if (dev->raw_io_interface)
+			mode_buf[2] = 0x10;
 		mode_buf[3] = 0;	/* Block descriptor length */
-
-		aac_internal_transfer(scsicmd, mode_buf, 0, sizeof(mode_buf));
+		if (((scsicmd->cmnd[2] & 0x3f) == 8) ||
+		  ((scsicmd->cmnd[2] & 0x3f) == 0x3f)) {
+			mode_buf[0] = 6;
+			mode_buf[4] = 8;
+			mode_buf[5] = 1;
+			mode_buf[6] = 0x04; /* WCE */
+			mode_buf_length = 7;
+			if (mode_buf_length > scsicmd->cmnd[4])
+				mode_buf_length = scsicmd->cmnd[4];
+		}
+		aac_internal_transfer(scsicmd, mode_buf, 0, mode_buf_length);
 		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
 		scsicmd->scsi_done(scsicmd);
 
@@ -1899,18 +1920,33 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 	}
 	case MODE_SENSE_10:
 	{
-		char mode_buf[8];
+		char mode_buf[11];
+		int mode_buf_length = 8;
 
 		dprintk((KERN_DEBUG "MODE SENSE 10 byte command.\n"));
 		mode_buf[0] = 0;	/* Mode data length (MSB) */
 		mode_buf[1] = 6;	/* Mode data length (LSB) */
 		mode_buf[2] = 0;	/* Medium type - default */
-		mode_buf[3] = 0;	/* Device-specific param, bit 8: 0/1 = write enabled/protected */
+		mode_buf[3] = 0;	/* Device-specific param,
+					   bit 8: 0/1 = write enabled/protected
+					   bit 4: 0/1 = FUA enabled */
+		if (dev->raw_io_interface)
+			mode_buf[3] = 0x10;
 		mode_buf[4] = 0;	/* reserved */
 		mode_buf[5] = 0;	/* reserved */
 		mode_buf[6] = 0;	/* Block descriptor length (MSB) */
 		mode_buf[7] = 0;	/* Block descriptor length (LSB) */
-		aac_internal_transfer(scsicmd, mode_buf, 0, sizeof(mode_buf));
+		if (((scsicmd->cmnd[2] & 0x3f) == 8) ||
+		  ((scsicmd->cmnd[2] & 0x3f) == 0x3f)) {
+			mode_buf[1] = 9;
+			mode_buf[8] = 8;
+			mode_buf[9] = 1;
+			mode_buf[10] = 0x04; /* WCE */
+			mode_buf_length = 11;
+			if (mode_buf_length > scsicmd->cmnd[8])
+				mode_buf_length = scsicmd->cmnd[8];
+		}
+		aac_internal_transfer(scsicmd, mode_buf, 0, mode_buf_length);
 
 		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
 		scsicmd->scsi_done(scsicmd);
