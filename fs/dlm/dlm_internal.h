@@ -213,8 +213,10 @@ struct dlm_args {
 #define DLM_IFL_OVERLAP_UNLOCK  0x00080000
 #define DLM_IFL_OVERLAP_CANCEL  0x00100000
 #define DLM_IFL_ENDOFLIFE	0x00200000
+#define DLM_IFL_WATCH_TIMEWARN	0x00400000
 #define DLM_IFL_USER		0x00000001
 #define DLM_IFL_ORPHAN		0x00000002
+#define DLM_IFL_TIMEOUT_CANCEL	0x00000004
 
 struct dlm_lkb {
 	struct dlm_rsb		*lkb_resource;	/* the rsb */
@@ -243,6 +245,9 @@ struct dlm_lkb {
 	struct list_head	lkb_wait_reply;	/* waiting for remote reply */
 	struct list_head	lkb_astqueue;	/* need ast to be sent */
 	struct list_head	lkb_ownqueue;	/* list of locks for a process */
+	struct list_head	lkb_time_list;
+	unsigned long		lkb_timestamp;
+	unsigned long		lkb_timeout_cs;
 
 	char			*lkb_lvbptr;
 	struct dlm_lksb		*lkb_lksb;      /* caller's status block */
@@ -447,6 +452,9 @@ struct dlm_ls {
 	struct mutex		ls_orphans_mutex;
 	struct list_head	ls_orphans;
 
+	struct mutex		ls_timeout_mutex;
+	struct list_head	ls_timeout;
+
 	struct list_head	ls_nodes;	/* current nodes in ls */
 	struct list_head	ls_nodes_gone;	/* dead node list, recovery */
 	int			ls_num_nodes;	/* number of nodes in ls */
@@ -472,6 +480,7 @@ struct dlm_ls {
 	struct task_struct	*ls_recoverd_task;
 	struct mutex		ls_recoverd_active;
 	spinlock_t		ls_recover_lock;
+	unsigned long		ls_recover_begin; /* jiffies timestamp */
 	uint32_t		ls_recover_status; /* DLM_RS_ */
 	uint64_t		ls_recover_seq;
 	struct dlm_recover	*ls_recover_args;
@@ -501,6 +510,7 @@ struct dlm_ls {
 #define LSFL_RCOM_READY		3
 #define LSFL_RCOM_WAIT		4
 #define LSFL_UEVENT_WAIT	5
+#define LSFL_TIMEWARN		6
 
 /* much of this is just saving user space pointers associated with the
    lock that we pass back to the user lib with an ast */

@@ -237,6 +237,7 @@ static int dlm_scand(void *data)
 		list_for_each_entry(ls, &lslist, ls_list) {
 			if (dlm_lock_recovery_try(ls)) {
 				dlm_scan_rsbs(ls);
+				dlm_scan_timeout(ls);
 				dlm_unlock_recovery(ls);
 			}
 		}
@@ -421,10 +422,15 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 		goto out;
 	memcpy(ls->ls_name, name, namelen);
 	ls->ls_namelen = namelen;
-	ls->ls_exflags = flags;
 	ls->ls_lvblen = lvblen;
 	ls->ls_count = 0;
 	ls->ls_flags = 0;
+
+	/* ls_exflags are forced to match among nodes, and we don't
+	   need to require all nodes to have TIMEWARN active */
+	if (flags & DLM_LSFL_TIMEWARN)
+		set_bit(LSFL_TIMEWARN, &ls->ls_flags);
+	ls->ls_exflags = (flags & ~DLM_LSFL_TIMEWARN);
 
 	size = dlm_config.ci_rsbtbl_size;
 	ls->ls_rsbtbl_size = size;
@@ -465,6 +471,8 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	mutex_init(&ls->ls_waiters_mutex);
 	INIT_LIST_HEAD(&ls->ls_orphans);
 	mutex_init(&ls->ls_orphans_mutex);
+	INIT_LIST_HEAD(&ls->ls_timeout);
+	mutex_init(&ls->ls_timeout_mutex);
 
 	INIT_LIST_HEAD(&ls->ls_nodes);
 	INIT_LIST_HEAD(&ls->ls_nodes_gone);

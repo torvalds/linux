@@ -1,7 +1,7 @@
 /******************************************************************************
 *******************************************************************************
 **
-**  Copyright (C) 2005 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2005-2007 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -284,6 +284,9 @@ int dlm_ls_stop(struct dlm_ls *ls)
 	dlm_recoverd_suspend(ls);
 	ls->ls_recover_status = 0;
 	dlm_recoverd_resume(ls);
+
+	if (!ls->ls_recover_begin)
+		ls->ls_recover_begin = jiffies;
 	return 0;
 }
 

@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -149,6 +149,7 @@
 #define DLM_LKF_ALTPR		0x00008000
 #define DLM_LKF_ALTCW		0x00010000
 #define DLM_LKF_FORCEUNLOCK	0x00020000
+#define DLM_LKF_TIMEOUT		0x00040000
 
 /*
  * Some return codes that are not in errno.h
@@ -199,10 +200,10 @@ struct dlm_lksb {
 	char *	 sb_lvbptr;
 };
 
+#define DLM_LSFL_NODIR		0x00000001
+#define DLM_LSFL_TIMEWARN	0x00000002
 
 #ifdef __KERNEL__
-
-#define DLM_LSFL_NODIR		0x00000001
 
 /*
  * dlm_new_lockspace

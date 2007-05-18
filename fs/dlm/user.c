@@ -348,7 +348,7 @@ static int device_create_lockspace(struct dlm_lspace_params *params)
 		return -EPERM;
 
 	error = dlm_new_lockspace(params->name, strlen(params->name),
-				  &lockspace, 0, DLM_USER_LVB_LEN);
+				  &lockspace, params->flags, DLM_USER_LVB_LEN);
 	if (error)
 		return error;
 
