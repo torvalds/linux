@@ -328,21 +328,20 @@ Who:   Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What: libata.spindown_compat module parameter
+What: libata spindown skipping and warning
 When: Dec 2008
-Why:  halt(8) synchronizes caches for and spins down libata disks
-      because libata didn't use to spin down disk on system halt
-      (only synchronized caches).
-      Spin down on system halt is now implemented and can be tested
-      using sysfs node /sys/class/scsi_disk/h:c:i:l/manage_start_stop.
+Why:  Some halt(8) implementations synchronize caches for and spin
+      down libata disks because libata didn't use to spin down disk on
+      system halt (only synchronized caches).
+      Spin down on system halt is now implemented.  sysfs node
+      /sys/class/scsi_disk/h:c:i:l/manage_start_stop is present if
+      spin down support is available.
       Because issuing spin down command to an already spun down disk
-      makes some disks spin up just to spin down again, the old
-      behavior needs to be maintained till userspace tool is updated
-      to check the sysfs node and not to spin down disks with the
-      node set to one.
-      This module parameter is to give userspace tool the time to
-      get updated and should be removed after userspace is
-      reasonably updated.
+      makes some disks spin up just to spin down again, libata tracks
+      device spindown status to skip the extra spindown command and
+      warn about it.
+      This is to give userspace tools the time to get updated and will
+      be removed after userspace is reasonably updated.
 Who:  Tejun Heo <htejun@gmail.com>
 
 ---------------------------
