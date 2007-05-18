@@ -197,13 +197,24 @@ static int do_uevent(struct dlm_ls *ls, int in)
 	else
 		kobject_uevent(&ls->ls_kobj, KOBJ_OFFLINE);
 
+	log_debug(ls, "%s the lockspace group...", in ? "joining" : "leaving");
+
+	/* dlm_controld will see the uevent, do the necessary group management
+	   and then write to sysfs to wake us */
+
 	error = wait_event_interruptible(ls->ls_uevent_wait,
 			test_and_clear_bit(LSFL_UEVENT_WAIT, &ls->ls_flags));
+
+	log_debug(ls, "group event done %d %d", error, ls->ls_uevent_result);
+
 	if (error)
 		goto out;
 
 	error = ls->ls_uevent_result;
  out:
+	if (error)
+		log_error(ls, "group %s failed %d %d", in ? "join" : "leave",
+			  error, ls->ls_uevent_result);
 	return error;
 }
 
@@ -490,6 +501,8 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 
 	init_waitqueue_head(&ls->ls_uevent_wait);
 	ls->ls_uevent_result = 0;
+	init_completion(&ls->ls_members_done);
+	ls->ls_members_result = -1;
 
 	ls->ls_recoverd_task = NULL;
 	mutex_init(&ls->ls_recoverd_active);
@@ -540,9 +553,20 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	/* let kobject handle freeing of ls if there's an error */
 	do_unreg = 1;
 
+	/* This uevent triggers dlm_controld in userspace to add us to the
+	   group of nodes that are members of this lockspace (managed by the
+	   cluster infrastructure.)  Once it's done that, it tells us who the
+	   current lockspace members are (via configfs) and then tells the
+	   lockspace to start running (via sysfs) in dlm_ls_start(). */
+
 	error = do_uevent(ls, 1);
 	if (error)
 		goto out_stop;
+
+	wait_for_completion(&ls->ls_members_done);
+	error = ls->ls_members_result;
+	if (error)
+		goto out_members;
 
 	dlm_create_debug_file(ls);
 
@@ -551,6 +575,10 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	*lockspace = ls;
 	return 0;
 
+ out_members:
+	do_uevent(ls, 0);
+	dlm_clear_members(ls);
+	kfree(ls->ls_node_array);
  out_stop:
 	dlm_recoverd_stop(ls);
  out_delist:
@@ -588,6 +616,8 @@ int dlm_new_lockspace(char *name, int namelen, void **lockspace,
 	error = new_lockspace(name, namelen, lockspace, flags, lvblen);
 	if (!error)
 		ls_count++;
+	else if (!ls_count)
+		threads_stop();
  out:
 	mutex_unlock(&ls_lock);
 	return error;

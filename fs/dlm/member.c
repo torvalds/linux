@@ -233,6 +233,12 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 	*neg_out = neg;
 
 	error = ping_members(ls);
+	if (!error || error == -EPROTO) {
+		/* new_lockspace() may be waiting to know if the config
+		   is good or bad */
+		ls->ls_members_result = error;
+		complete(&ls->ls_members_done);
+	}
 	if (error)
 		goto out;
 

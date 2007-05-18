@@ -90,7 +90,7 @@ static int check_config(struct dlm_ls *ls, struct dlm_rcom *rc, int nodeid)
 		log_error(ls, "version mismatch: %x nodeid %d: %x",
 			  DLM_HEADER_MAJOR | DLM_HEADER_MINOR, nodeid,
 			  rc->rc_header.h_version);
-		return -EINVAL;
+		return -EPROTO;
 	}
 
 	if (rf->rf_lvblen != ls->ls_lvblen ||
@@ -98,7 +98,7 @@ static int check_config(struct dlm_ls *ls, struct dlm_rcom *rc, int nodeid)
 		log_error(ls, "config mismatch: %d,%x nodeid %d: %d,%x",
 			  ls->ls_lvblen, ls->ls_exflags,
 			  nodeid, rf->rf_lvblen, rf->rf_lsflags);
-		return -EINVAL;
+		return -EPROTO;
 	}
 	return 0;
 }
