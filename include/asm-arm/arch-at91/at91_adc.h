@@ -55,7 +55,7 @@
 #define AT91_ADC_IDR		0x28		/* Interrupt Disable Register */
 #define AT91_ADC_IMR		0x2C		/* Interrupt Mask Register */
 
-#define AT91_ADC_CHR(n)		(0x30 + ((n) * 4)	/* Channel Data Register N */
+#define AT91_ADC_CHR(n)		(0x30 + ((n) * 4))	/* Channel Data Register N */
 #define		AT91_ADC_DATA		(0x3ff)
 
 #endif
