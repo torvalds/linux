@@ -400,6 +400,7 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 {
 	struct dlm_ls *ls;
 	int i, size, error = -ENOMEM;
+	int do_unreg = 0;
 
 	if (namelen > DLM_LOCKSPACE_LEN)
 		return -EINVAL;
@@ -525,32 +526,34 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	error = dlm_recoverd_start(ls);
 	if (error) {
 		log_error(ls, "can't start dlm_recoverd %d", error);
-		goto out_rcomfree;
+		goto out_delist;
 	}
-
-	dlm_create_debug_file(ls);
 
 	error = kobject_setup(ls);
 	if (error)
-		goto out_del;
+		goto out_stop;
 
 	error = kobject_register(&ls->ls_kobj);
 	if (error)
-		goto out_del;
+		goto out_stop;
+
+	/* let kobject handle freeing of ls if there's an error */
+	do_unreg = 1;
 
 	error = do_uevent(ls, 1);
 	if (error)
-		goto out_unreg;
+		goto out_stop;
+
+	dlm_create_debug_file(ls);
+
+	log_debug(ls, "join complete");
 
 	*lockspace = ls;
 	return 0;
 
- out_unreg:
-	kobject_unregister(&ls->ls_kobj);
- out_del:
-	dlm_delete_debug_file(ls);
+ out_stop:
 	dlm_recoverd_stop(ls);
- out_rcomfree:
+ out_delist:
 	spin_lock(&lslist_lock);
 	list_del(&ls->ls_list);
 	spin_unlock(&lslist_lock);
@@ -562,7 +565,10 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
  out_rsbfree:
 	kfree(ls->ls_rsbtbl);
  out_lsfree:
-	kfree(ls);
+	if (do_unreg)
+		kobject_unregister(&ls->ls_kobj);
+	else
+		kfree(ls);
  out:
 	module_put(THIS_MODULE);
 	return error;
@@ -708,7 +714,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	dlm_clear_members_gone(ls);
 	kfree(ls->ls_node_array);
 	kobject_unregister(&ls->ls_kobj);
-        /* The ls structure will be freed when the kobject is done with */
+	/* The ls structure will be freed when the kobject is done with */
 
 	mutex_lock(&ls_lock);
 	ls_count--;
