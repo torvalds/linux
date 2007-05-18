@@ -1030,7 +1030,7 @@ void __devinit setup_sparc64_timer(void)
 	clockevents_register_device(sevt);
 }
 
-#define SPARC64_NSEC_PER_CYC_SHIFT	32UL
+#define SPARC64_NSEC_PER_CYC_SHIFT	10UL
 
 static struct clocksource clocksource_tick = {
 	.rating		= 100,
