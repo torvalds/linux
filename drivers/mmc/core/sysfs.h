@@ -23,8 +23,4 @@ static ssize_t mmc_##name##_show (struct device *dev, struct device_attribute *a
 int mmc_add_attrs(struct mmc_card *card, struct device_attribute *attrs);
 void mmc_remove_attrs(struct mmc_card *card, struct device_attribute *attrs);
 
-int mmc_schedule_work(struct work_struct *work);
-int mmc_schedule_delayed_work(struct delayed_work *work, unsigned long delay);
-void mmc_flush_scheduled_work(void);
-
 #endif
