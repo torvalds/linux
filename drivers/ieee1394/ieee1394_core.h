@@ -37,7 +37,7 @@ struct hpsb_packet {
 		hpsb_unused, hpsb_queued, hpsb_pending, hpsb_complete
 	} __attribute__((packed)) state;
 
-	/* These are core internal. */
+	/* These are core-internal. */
 	signed char tlabel;
 	signed char ack_code;
 	unsigned char tcode;
@@ -62,11 +62,15 @@ struct hpsb_packet {
 	/* Store jiffies for implementing bus timeouts. */
 	unsigned long sendtime;
 
-	/* Sizes are in bytes. *data can be DMA-mapped. */
+	/* Core-internal.  */
 	size_t allocated_data_size;	/* as allocated */
+
+	/* Sizes are in bytes. To be set by caller of hpsb_alloc_packet. */
 	size_t data_size;		/* as filled in */
 	size_t header_size;		/* as filled in, not counting the CRC */
-	quadlet_t *data;
+
+	/* Buffers */
+	quadlet_t *data;		/* can be DMA-mapped */
 	quadlet_t header[5];
 	quadlet_t embedded_data[0];	/* keep as last member */
 };
