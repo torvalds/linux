@@ -763,10 +763,8 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, const struct iovec *iov,
 		(unsigned long) count, (long long) pos);
 
 	if (nr_segs != 1)
-		return -EINVAL;
-
-	if (count < 0)
 		goto out;
+
 	retval = -EFAULT;
 	if (!access_ok(VERIFY_WRITE, buf, count))
 		goto out;
@@ -814,7 +812,7 @@ out:
 ssize_t nfs_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 				unsigned long nr_segs, loff_t pos)
 {
-	ssize_t retval;
+	ssize_t retval = -EINVAL;
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
 	/* XXX: temporary */
@@ -827,7 +825,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 		(unsigned long) count, (long long) pos);
 
 	if (nr_segs != 1)
-		return -EINVAL;
+		goto out;
 
 	retval = generic_write_checks(file, &pos, &count, 0);
 	if (retval)
