@@ -23,11 +23,6 @@ static ssize_t mmc_##name##_show (struct device *dev, struct device_attribute *a
 int mmc_add_attrs(struct mmc_card *card, struct device_attribute *attrs);
 void mmc_remove_attrs(struct mmc_card *card, struct device_attribute *attrs);
 
-struct mmc_host *mmc_alloc_host_sysfs(int extra, struct device *dev);
-int mmc_add_host_sysfs(struct mmc_host *host);
-void mmc_remove_host_sysfs(struct mmc_host *host);
-void mmc_free_host_sysfs(struct mmc_host *host);
-
 int mmc_schedule_work(struct work_struct *work);
 int mmc_schedule_delayed_work(struct delayed_work *work, unsigned long delay);
 void mmc_flush_scheduled_work(void);

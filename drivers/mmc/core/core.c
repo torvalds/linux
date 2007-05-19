@@ -496,7 +496,7 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 EXPORT_SYMBOL(mmc_detect_change);
 
 
-static void mmc_rescan(struct work_struct *work)
+void mmc_rescan(struct work_struct *work)
 {
 	struct mmc_host *host =
 		container_of(work, struct mmc_host, detect.work);
@@ -545,69 +545,13 @@ static void mmc_rescan(struct work_struct *work)
 	}
 }
 
-
-/**
- *	mmc_alloc_host - initialise the per-host structure.
- *	@extra: sizeof private data structure
- *	@dev: pointer to host device model structure
- *
- *	Initialise the per-host structure.
- */
-struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
+void mmc_start_host(struct mmc_host *host)
 {
-	struct mmc_host *host;
-
-	host = mmc_alloc_host_sysfs(extra, dev);
-	if (host) {
-		spin_lock_init(&host->lock);
-		init_waitqueue_head(&host->wq);
-		INIT_DELAYED_WORK(&host->detect, mmc_rescan);
-
-		/*
-		 * By default, hosts do not support SGIO or large requests.
-		 * They have to set these according to their abilities.
-		 */
-		host->max_hw_segs = 1;
-		host->max_phys_segs = 1;
-		host->max_seg_size = PAGE_CACHE_SIZE;
-
-		host->max_req_size = PAGE_CACHE_SIZE;
-		host->max_blk_size = 512;
-		host->max_blk_count = PAGE_CACHE_SIZE / 512;
-	}
-
-	return host;
+	mmc_power_off(host);
+	mmc_detect_change(host, 0);
 }
 
-EXPORT_SYMBOL(mmc_alloc_host);
-
-/**
- *	mmc_add_host - initialise host hardware
- *	@host: mmc host
- */
-int mmc_add_host(struct mmc_host *host)
-{
-	int ret;
-
-	ret = mmc_add_host_sysfs(host);
-	if (ret == 0) {
-		mmc_power_off(host);
-		mmc_detect_change(host, 0);
-	}
-
-	return ret;
-}
-
-EXPORT_SYMBOL(mmc_add_host);
-
-/**
- *	mmc_remove_host - remove host hardware
- *	@host: mmc host
- *
- *	Unregister and remove all cards associated with this host,
- *	and power down the MMC bus.
- */
-void mmc_remove_host(struct mmc_host *host)
+void mmc_stop_host(struct mmc_host *host)
 {
 #ifdef CONFIG_MMC_DEBUG
 	unsigned long flags;
@@ -632,23 +576,7 @@ void mmc_remove_host(struct mmc_host *host)
 	BUG_ON(host->card);
 
 	mmc_power_off(host);
-	mmc_remove_host_sysfs(host);
 }
-
-EXPORT_SYMBOL(mmc_remove_host);
-
-/**
- *	mmc_free_host - free the host structure
- *	@host: mmc host
- *
- *	Free the host once all references to it have been dropped.
- */
-void mmc_free_host(struct mmc_host *host)
-{
-	mmc_free_host_sysfs(host);
-}
-
-EXPORT_SYMBOL(mmc_free_host);
 
 #ifdef CONFIG_PM
 
