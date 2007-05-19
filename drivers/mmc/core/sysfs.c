@@ -2,6 +2,7 @@
  *  linux/drivers/mmc/core/sysfs.c
  *
  *  Copyright (C) 2003 Russell King, All Rights Reserved.
+ *  Copyright 2007 Pierre Ossman
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,225 +19,36 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 
+#include "bus.h"
 #include "sysfs.h"
 
-#define dev_to_mmc_card(d)	container_of(d, struct mmc_card, dev)
 #define to_mmc_driver(d)	container_of(d, struct mmc_driver, drv)
 #define cls_dev_to_mmc_host(d)	container_of(d, struct mmc_host, class_dev)
 
-#define MMC_ATTR(name, fmt, args...)					\
-static ssize_t mmc_##name##_show (struct device *dev, struct device_attribute *attr, char *buf)	\
-{									\
-	struct mmc_card *card = dev_to_mmc_card(dev);			\
-	return sprintf(buf, fmt, args);					\
-}
-
-MMC_ATTR(cid, "%08x%08x%08x%08x\n", card->raw_cid[0], card->raw_cid[1],
-	card->raw_cid[2], card->raw_cid[3]);
-MMC_ATTR(csd, "%08x%08x%08x%08x\n", card->raw_csd[0], card->raw_csd[1],
-	card->raw_csd[2], card->raw_csd[3]);
-MMC_ATTR(scr, "%08x%08x\n", card->raw_scr[0], card->raw_scr[1]);
-MMC_ATTR(date, "%02d/%04d\n", card->cid.month, card->cid.year);
-MMC_ATTR(fwrev, "0x%x\n", card->cid.fwrev);
-MMC_ATTR(hwrev, "0x%x\n", card->cid.hwrev);
-MMC_ATTR(manfid, "0x%06x\n", card->cid.manfid);
-MMC_ATTR(name, "%s\n", card->cid.prod_name);
-MMC_ATTR(oemid, "0x%04x\n", card->cid.oemid);
-MMC_ATTR(serial, "0x%08x\n", card->cid.serial);
-
-#define MMC_ATTR_RO(name) __ATTR(name, S_IRUGO, mmc_##name##_show, NULL)
-
-static struct device_attribute mmc_dev_attrs[] = {
-	MMC_ATTR_RO(cid),
-	MMC_ATTR_RO(csd),
-	MMC_ATTR_RO(date),
-	MMC_ATTR_RO(fwrev),
-	MMC_ATTR_RO(hwrev),
-	MMC_ATTR_RO(manfid),
-	MMC_ATTR_RO(name),
-	MMC_ATTR_RO(oemid),
-	MMC_ATTR_RO(serial),
-	__ATTR_NULL
-};
-
-static struct device_attribute mmc_dev_attr_scr = MMC_ATTR_RO(scr);
-
-
-static void mmc_release_card(struct device *dev)
+int mmc_add_attrs(struct mmc_card *card, struct device_attribute *attrs)
 {
-	struct mmc_card *card = dev_to_mmc_card(dev);
+	int error = 0;
+	int i;
 
-	kfree(card);
-}
-
-/*
- * This currently matches any MMC driver to any MMC card - drivers
- * themselves make the decision whether to drive this card in their
- * probe method.
- */
-static int mmc_bus_match(struct device *dev, struct device_driver *drv)
-{
-	return 1;
-}
-
-static int
-mmc_bus_uevent(struct device *dev, char **envp, int num_envp, char *buf,
-		int buf_size)
-{
-	struct mmc_card *card = dev_to_mmc_card(dev);
-	char ccc[13];
-	int retval = 0, i = 0, length = 0;
-
-#define add_env(fmt,val) do {					\
-	retval = add_uevent_var(envp, num_envp, &i,		\
-				buf, buf_size, &length,		\
-				fmt, val);			\
-	if (retval)						\
-		return retval;					\
-} while (0);
-
-	for (i = 0; i < 12; i++)
-		ccc[i] = card->csd.cmdclass & (1 << i) ? '1' : '0';
-	ccc[12] = '\0';
-
-	add_env("MMC_CCC=%s", ccc);
-	add_env("MMC_MANFID=%06x", card->cid.manfid);
-	add_env("MMC_NAME=%s", mmc_card_name(card));
-	add_env("MMC_OEMID=%04x", card->cid.oemid);
-#undef add_env
-	envp[i] = NULL;
-
-	return 0;
-}
-
-static int mmc_bus_suspend(struct device *dev, pm_message_t state)
-{
-	struct mmc_driver *drv = to_mmc_driver(dev->driver);
-	struct mmc_card *card = dev_to_mmc_card(dev);
-	int ret = 0;
-
-	if (dev->driver && drv->suspend)
-		ret = drv->suspend(card, state);
-	return ret;
-}
-
-static int mmc_bus_resume(struct device *dev)
-{
-	struct mmc_driver *drv = to_mmc_driver(dev->driver);
-	struct mmc_card *card = dev_to_mmc_card(dev);
-	int ret = 0;
-
-	if (dev->driver && drv->resume)
-		ret = drv->resume(card);
-	return ret;
-}
-
-static int mmc_bus_probe(struct device *dev)
-{
-	struct mmc_driver *drv = to_mmc_driver(dev->driver);
-	struct mmc_card *card = dev_to_mmc_card(dev);
-
-	return drv->probe(card);
-}
-
-static int mmc_bus_remove(struct device *dev)
-{
-	struct mmc_driver *drv = to_mmc_driver(dev->driver);
-	struct mmc_card *card = dev_to_mmc_card(dev);
-
-	drv->remove(card);
-
-	return 0;
-}
-
-static struct bus_type mmc_bus_type = {
-	.name		= "mmc",
-	.dev_attrs	= mmc_dev_attrs,
-	.match		= mmc_bus_match,
-	.uevent		= mmc_bus_uevent,
-	.probe		= mmc_bus_probe,
-	.remove		= mmc_bus_remove,
-	.suspend	= mmc_bus_suspend,
-	.resume		= mmc_bus_resume,
-};
-
-/**
- *	mmc_register_driver - register a media driver
- *	@drv: MMC media driver
- */
-int mmc_register_driver(struct mmc_driver *drv)
-{
-	drv->drv.bus = &mmc_bus_type;
-	return driver_register(&drv->drv);
-}
-
-EXPORT_SYMBOL(mmc_register_driver);
-
-/**
- *	mmc_unregister_driver - unregister a media driver
- *	@drv: MMC media driver
- */
-void mmc_unregister_driver(struct mmc_driver *drv)
-{
-	drv->drv.bus = &mmc_bus_type;
-	driver_unregister(&drv->drv);
-}
-
-EXPORT_SYMBOL(mmc_unregister_driver);
-
-
-/*
- * Internal function.  Initialise a MMC card structure.
- */
-void mmc_init_card(struct mmc_card *card, struct mmc_host *host)
-{
-	memset(card, 0, sizeof(struct mmc_card));
-	card->host = host;
-	device_initialize(&card->dev);
-	card->dev.parent = mmc_classdev(host);
-	card->dev.bus = &mmc_bus_type;
-	card->dev.release = mmc_release_card;
-}
-
-/*
- * Internal function.  Register a new MMC card with the driver model.
- */
-int mmc_register_card(struct mmc_card *card)
-{
-	int ret;
-
-	snprintf(card->dev.bus_id, sizeof(card->dev.bus_id),
-		 "%s:%04x", mmc_hostname(card->host), card->rca);
-
-	ret = device_add(&card->dev);
-	if (ret == 0) {
-		if (mmc_card_sd(card)) {
-			ret = device_create_file(&card->dev, &mmc_dev_attr_scr);
-			if (ret)
-				device_del(&card->dev);
+	for (i = 0; attr_name(attrs[i]); i++) {
+		error = device_create_file(&card->dev, &attrs[i]);
+		if (error) {
+			while (--i >= 0)
+				device_remove_file(&card->dev, &attrs[i]);
+			break;
 		}
 	}
-	if (ret == 0)
-		mmc_card_set_present(card);
-	return ret;
+
+	return error;
 }
 
-/*
- * Internal function.  Unregister a new MMC card with the
- * driver model, and (eventually) free it.
- */
-void mmc_remove_card(struct mmc_card *card)
+void mmc_remove_attrs(struct mmc_card *card, struct device_attribute *attrs)
 {
-	if (mmc_card_present(card)) {
-		if (mmc_card_sd(card))
-			device_remove_file(&card->dev, &mmc_dev_attr_scr);
+	int i;
 
-		device_del(&card->dev);
-	}
-
-	put_device(&card->dev);
+	for (i = 0; attr_name(attrs[i]); i++)
+		device_remove_file(&card->dev, &attrs[i]);
 }
-
 
 static void mmc_host_classdev_release(struct device *dev)
 {
@@ -340,11 +152,11 @@ static int __init mmc_init(void)
 	if (!workqueue)
 		return -ENOMEM;
 
-	ret = bus_register(&mmc_bus_type);
+	ret = mmc_register_bus();
 	if (ret == 0) {
 		ret = class_register(&mmc_host_class);
 		if (ret)
-			bus_unregister(&mmc_bus_type);
+			mmc_unregister_bus();
 	}
 	return ret;
 }
@@ -352,7 +164,7 @@ static int __init mmc_init(void)
 static void __exit mmc_exit(void)
 {
 	class_unregister(&mmc_host_class);
-	bus_unregister(&mmc_bus_type);
+	mmc_unregister_bus();
 	destroy_workqueue(workqueue);
 }
 

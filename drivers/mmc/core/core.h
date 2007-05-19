@@ -18,6 +18,8 @@
 struct mmc_bus_ops {
 	void (*remove)(struct mmc_host *);
 	void (*detect)(struct mmc_host *);
+	int (*sysfs_add)(struct mmc_host *, struct mmc_card *card);
+	void (*sysfs_remove)(struct mmc_host *, struct mmc_card *card);
 	void (*suspend)(struct mmc_host *);
 	void (*resume)(struct mmc_host *);
 };
@@ -53,8 +55,6 @@ void mmc_set_bus_mode(struct mmc_host *host, unsigned int mode);
 void mmc_set_bus_width(struct mmc_host *host, unsigned int width);
 u32 mmc_select_voltage(struct mmc_host *host, u32 ocr);
 void mmc_set_timing(struct mmc_host *host, unsigned int timing);
-
-struct mmc_card *mmc_alloc_card(struct mmc_host *host);
 
 static inline void mmc_delay(unsigned int ms)
 {

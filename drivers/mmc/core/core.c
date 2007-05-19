@@ -369,22 +369,6 @@ void mmc_set_timing(struct mmc_host *host, unsigned int timing)
 }
 
 /*
- * Allocate a new MMC card
- */
-struct mmc_card *mmc_alloc_card(struct mmc_host *host)
-{
-	struct mmc_card *card;
-
-	card = kmalloc(sizeof(struct mmc_card), GFP_KERNEL);
-	if (!card)
-		return ERR_PTR(-ENOMEM);
-
-	mmc_init_card(card, host);
-
-	return card;
-}
-
-/*
  * Apply power to the MMC stack.  This is a two-stage process.
  * First, we enable power to the card without the clock running.
  * We then wait a bit for the power to stabilise.  Finally,
