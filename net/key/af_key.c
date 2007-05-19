@@ -1448,8 +1448,6 @@ static int pfkey_add(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr,
 	int err;
 	struct km_event c;
 
-	xfrm_probe_algs();
-
 	x = pfkey_msg2xfrm_state(hdr, ext_hdrs);
 	if (IS_ERR(x))
 		return PTR_ERR(x);
