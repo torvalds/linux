@@ -569,10 +569,7 @@ int ib_query_port(struct ib_device *device,
 		  u8 port_num,
 		  struct ib_port_attr *port_attr)
 {
-	if (device->node_type == RDMA_NODE_IB_SWITCH) {
-		if (port_num)
-			return -EINVAL;
-	} else if (port_num < 1 || port_num > device->phys_port_cnt)
+	if (port_num < start_port(device) || port_num > end_port(device))
 		return -EINVAL;
 
 	return device->query_port(device, port_num, port_attr);
@@ -644,10 +641,7 @@ int ib_modify_port(struct ib_device *device,
 		   u8 port_num, int port_modify_mask,
 		   struct ib_port_modify *port_modify)
 {
-	if (device->node_type == RDMA_NODE_IB_SWITCH) {
-		if (port_num)
-			return -EINVAL;
-	} else if (port_num < 1 || port_num > device->phys_port_cnt)
+	if (port_num < start_port(device) || port_num > end_port(device))
 		return -EINVAL;
 
 	return device->modify_port(device, port_num, port_modify_mask,
