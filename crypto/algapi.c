@@ -34,7 +34,7 @@ void crypto_larval_error(const char *name, u32 type, u32 mask)
 	if (alg) {
 		if (crypto_is_larval(alg)) {
 			struct crypto_larval *larval = (void *)alg;
-			complete(&larval->completion);
+			complete_all(&larval->completion);
 		}
 		crypto_mod_put(alg);
 	}
@@ -164,7 +164,7 @@ static int __crypto_register_alg(struct crypto_alg *alg,
 				continue;
 
 			larval->adult = alg;
-			complete(&larval->completion);
+			complete_all(&larval->completion);
 			continue;
 		}
 
