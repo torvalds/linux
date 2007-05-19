@@ -997,7 +997,7 @@ int hidinput_connect(struct hid_device *hid)
 			if (IS_INPUT_APPLICATION(hid->collection[i].usage))
 				break;
 
-	if (i == hid->maxcollection)
+	if (i == hid->maxcollection && (hid->quirks & HID_QUIRK_HIDINPUT) == 0)
 		return -1;
 
 	if (hid->quirks & HID_QUIRK_SKIP_OUTPUT_REPORTS)
