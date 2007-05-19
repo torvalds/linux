@@ -191,8 +191,6 @@ static int nfs_writepage_setup(struct nfs_open_context *ctx, struct page *page,
 	}
 	/* Update file length */
 	nfs_grow_file(page, offset, count);
-	/* Set the PG_uptodate flag? */
-	nfs_mark_uptodate(page, offset, count);
 	nfs_unlock_request(req);
 	return 0;
 }
@@ -751,7 +749,12 @@ int nfs_updatepage(struct file *file, struct page *page,
 static void nfs_writepage_release(struct nfs_page *req)
 {
 
-	if (PageError(req->wb_page) || !nfs_reschedule_unstable_write(req)) {
+	if (PageError(req->wb_page)) {
+		nfs_end_page_writeback(req->wb_page);
+		nfs_inode_remove_request(req);
+	} else if (!nfs_reschedule_unstable_write(req)) {
+		/* Set the PG_uptodate flag */
+		nfs_mark_uptodate(req->wb_page, req->wb_pgbase, req->wb_bytes);
 		nfs_end_page_writeback(req->wb_page);
 		nfs_inode_remove_request(req);
 	} else
@@ -1039,6 +1042,8 @@ static void nfs_writeback_done_full(struct rpc_task *task, void *calldata)
 			dprintk(" marked for commit\n");
 			goto next;
 		}
+		/* Set the PG_uptodate flag? */
+		nfs_mark_uptodate(page, req->wb_pgbase, req->wb_bytes);
 		dprintk(" OK\n");
 remove_request:
 		nfs_end_page_writeback(page);
@@ -1249,6 +1254,9 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
 		 * returned by the server against all stored verfs. */
 		if (!memcmp(req->wb_verf.verifier, data->verf.verifier, sizeof(data->verf.verifier))) {
 			/* We have a match */
+			/* Set the PG_uptodate flag */
+			nfs_mark_uptodate(req->wb_page, req->wb_pgbase,
+					req->wb_bytes);
 			nfs_inode_remove_request(req);
 			dprintk(" OK\n");
 			goto next;
