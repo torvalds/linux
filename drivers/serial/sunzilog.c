@@ -1239,7 +1239,7 @@ static inline struct console *SUNZILOG_CONSOLE(void)
 #define SUNZILOG_CONSOLE()	(NULL)
 #endif
 
-static void __init sunzilog_init_kbdms(struct uart_sunzilog_port *up, int channel)
+static void __devinit sunzilog_init_kbdms(struct uart_sunzilog_port *up, int channel)
 {
 	int baud, brg;
 
@@ -1259,7 +1259,7 @@ static void __init sunzilog_init_kbdms(struct uart_sunzilog_port *up, int channe
 }
 
 #ifdef CONFIG_SERIO
-static void __init sunzilog_register_serio(struct uart_sunzilog_port *up)
+static void __devinit sunzilog_register_serio(struct uart_sunzilog_port *up)
 {
 	struct serio *serio = &up->serio;
 
