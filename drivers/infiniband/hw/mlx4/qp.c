@@ -952,6 +952,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 			(be32_to_cpu(ah->av.sl_tclass_flowlabel) >> 20) & 0xff;
 		sqp->ud_header.grh.flow_label    =
 			ah->av.sl_tclass_flowlabel & cpu_to_be32(0xfffff);
+		sqp->ud_header.grh.hop_limit     = ah->av.hop_limit;
 		ib_get_cached_gid(ib_dev, be32_to_cpu(ah->av.port_pd) >> 24,
 				  ah->av.gid_index, &sqp->ud_header.grh.source_gid);
 		memcpy(sqp->ud_header.grh.destination_gid.raw,
