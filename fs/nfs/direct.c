@@ -122,9 +122,9 @@ ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov, loff_
 	return -EINVAL;
 }
 
-static void nfs_direct_dirty_pages(struct page **pages, int npages)
+static void nfs_direct_dirty_pages(struct page **pages, unsigned int npages)
 {
-	int i;
+	unsigned int i;
 	for (i = 0; i < npages; i++) {
 		struct page *page = pages[i];
 		if (!PageCompound(page))
@@ -132,9 +132,9 @@ static void nfs_direct_dirty_pages(struct page **pages, int npages)
 	}
 }
 
-static void nfs_direct_release_pages(struct page **pages, int npages)
+static void nfs_direct_release_pages(struct page **pages, unsigned int npages)
 {
-	int i;
+	unsigned int i;
 	for (i = 0; i < npages; i++)
 		page_cache_release(pages[i]);
 }
@@ -279,9 +279,12 @@ static ssize_t nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned lo
 		result = get_user_pages(current, current->mm, user_addr,
 					data->npages, 1, 0, data->pagevec, NULL);
 		up_read(&current->mm->mmap_sem);
-		if (unlikely(result < data->npages)) {
-			if (result > 0)
-				nfs_direct_release_pages(data->pagevec, result);
+		if (result < 0) {
+			nfs_readdata_release(data);
+			break;
+		}
+		if ((unsigned)result < data->npages) {
+			nfs_direct_release_pages(data->pagevec, result);
 			nfs_readdata_release(data);
 			break;
 		}
@@ -610,9 +613,12 @@ static ssize_t nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned l
 		result = get_user_pages(current, current->mm, user_addr,
 					data->npages, 0, 0, data->pagevec, NULL);
 		up_read(&current->mm->mmap_sem);
-		if (unlikely(result < data->npages)) {
-			if (result > 0)
-				nfs_direct_release_pages(data->pagevec, result);
+		if (result < 0) {
+			nfs_writedata_release(data);
+			break;
+		}
+		if ((unsigned)result < data->npages) {
+			nfs_direct_release_pages(data->pagevec, result);
 			nfs_writedata_release(data);
 			break;
 		}
