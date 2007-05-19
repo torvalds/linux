@@ -165,10 +165,9 @@ static int ipath_mcast_add(struct ipath_ibdev *dev,
 {
 	struct rb_node **n = &mcast_tree.rb_node;
 	struct rb_node *pn = NULL;
-	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&mcast_lock, flags);
+	spin_lock_irq(&mcast_lock);
 
 	while (*n) {
 		struct ipath_mcast *tmcast;
@@ -228,7 +227,7 @@ static int ipath_mcast_add(struct ipath_ibdev *dev,
 	ret = 0;
 
 bail:
-	spin_unlock_irqrestore(&mcast_lock, flags);
+	spin_unlock_irq(&mcast_lock);
 
 	return ret;
 }
@@ -289,17 +288,16 @@ int ipath_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	struct ipath_mcast *mcast = NULL;
 	struct ipath_mcast_qp *p, *tmp;
 	struct rb_node *n;
-	unsigned long flags;
 	int last = 0;
 	int ret;
 
-	spin_lock_irqsave(&mcast_lock, flags);
+	spin_lock_irq(&mcast_lock);
 
 	/* Find the GID in the mcast table. */
 	n = mcast_tree.rb_node;
 	while (1) {
 		if (n == NULL) {
-			spin_unlock_irqrestore(&mcast_lock, flags);
+			spin_unlock_irq(&mcast_lock);
 			ret = -EINVAL;
 			goto bail;
 		}
@@ -334,7 +332,7 @@ int ipath_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		break;
 	}
 
-	spin_unlock_irqrestore(&mcast_lock, flags);
+	spin_unlock_irq(&mcast_lock);
 
 	if (p) {
 		/*
@@ -348,9 +346,9 @@ int ipath_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		atomic_dec(&mcast->refcount);
 		wait_event(mcast->wait, !atomic_read(&mcast->refcount));
 		ipath_mcast_free(mcast);
-		spin_lock(&dev->n_mcast_grps_lock);
+		spin_lock_irq(&dev->n_mcast_grps_lock);
 		dev->n_mcast_grps_allocated--;
-		spin_unlock(&dev->n_mcast_grps_lock);
+		spin_unlock_irq(&dev->n_mcast_grps_lock);
 	}
 
 	ret = 0;
