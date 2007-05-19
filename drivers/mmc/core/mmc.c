@@ -237,7 +237,7 @@ out:
  * In the case of a resume, "curcard" will contain the card
  * we're trying to reinitialise.
  */
-static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
+static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	struct mmc_card *oldcard)
 {
 	struct mmc_card *card;
@@ -500,7 +500,7 @@ static void mmc_resume(struct mmc_host *host)
 
 	mmc_claim_host(host);
 
-	err = mmc_sd_init_card(host, host->ocr, host->card);
+	err = mmc_init_card(host, host->ocr, host->card);
 	if (err != MMC_ERR_NONE) {
 		mmc_remove(host);
 		mmc_detach_bus(host);
@@ -559,7 +559,7 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 	/*
 	 * Detect and init the card.
 	 */
-	err = mmc_sd_init_card(host, host->ocr, NULL);
+	err = mmc_init_card(host, host->ocr, NULL);
 	if (err != MMC_ERR_NONE)
 		goto err;
 
