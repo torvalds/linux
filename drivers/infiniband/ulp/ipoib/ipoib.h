@@ -201,15 +201,17 @@ struct ipoib_dev_priv {
 	struct list_head multicast_list;
 	struct rb_root multicast_tree;
 
-	struct delayed_work pkey_task;
+	struct delayed_work pkey_poll_task;
 	struct delayed_work mcast_task;
 	struct work_struct flush_task;
 	struct work_struct restart_task;
 	struct delayed_work ah_reap_task;
+	struct work_struct pkey_event_task;
 
 	struct ib_device *ca;
 	u8            	  port;
 	u16           	  pkey;
+	u16               pkey_index;
 	struct ib_pd  	 *pd;
 	struct ib_mr  	 *mr;
 	struct ib_cq  	 *cq;
@@ -333,12 +335,13 @@ struct ipoib_dev_priv *ipoib_intf_alloc(const char *format);
 
 int ipoib_ib_dev_init(struct net_device *dev, struct ib_device *ca, int port);
 void ipoib_ib_dev_flush(struct work_struct *work);
+void ipoib_pkey_event(struct work_struct *work);
 void ipoib_ib_dev_cleanup(struct net_device *dev);
 
 int ipoib_ib_dev_open(struct net_device *dev);
 int ipoib_ib_dev_up(struct net_device *dev);
 int ipoib_ib_dev_down(struct net_device *dev, int flush);
-int ipoib_ib_dev_stop(struct net_device *dev);
+int ipoib_ib_dev_stop(struct net_device *dev, int flush);
 
 int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port);
 void ipoib_dev_cleanup(struct net_device *dev);
