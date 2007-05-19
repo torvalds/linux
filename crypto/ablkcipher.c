@@ -19,15 +19,40 @@
 #include <linux/module.h>
 #include <linux/seq_file.h>
 
+static int setkey_unaligned(struct crypto_ablkcipher *tfm, const u8 *key, unsigned int keylen)
+{
+	struct ablkcipher_alg *cipher = crypto_ablkcipher_alg(tfm);
+	unsigned long alignmask = crypto_ablkcipher_alignmask(tfm);
+	int ret;
+	u8 *buffer, *alignbuffer;
+	unsigned long absize;
+
+	absize = keylen + alignmask;
+	buffer = kmalloc(absize, GFP_ATOMIC);
+	if (!buffer)
+		return -ENOMEM;
+
+	alignbuffer = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
+	memcpy(alignbuffer, key, keylen);
+	ret = cipher->setkey(tfm, alignbuffer, keylen);
+	memset(alignbuffer, 0, absize);
+	kfree(buffer);
+	return ret;
+}
+
 static int setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 		  unsigned int keylen)
 {
 	struct ablkcipher_alg *cipher = crypto_ablkcipher_alg(tfm);
+	unsigned long alignmask = crypto_ablkcipher_alignmask(tfm);
 
 	if (keylen < cipher->min_keysize || keylen > cipher->max_keysize) {
 		crypto_ablkcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
+
+	if ((unsigned long)key & alignmask)
+		return setkey_unaligned(tfm, key, keylen);
 
 	return cipher->setkey(tfm, key, keylen);
 }
