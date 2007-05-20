@@ -18,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/sysdev.h>
 #include <linux/device.h>
 
 #include <asm/mach/arch.h>
