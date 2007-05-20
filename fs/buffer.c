@@ -2101,7 +2101,7 @@ int cont_prepare_write(struct page *page, unsigned offset,
 						PAGE_CACHE_SIZE, get_block);
 		if (status)
 			goto out_unmap;
-		zero_user_page(page, zerofrom, PAGE_CACHE_SIZE - zerofrom,
+		zero_user_page(new_page, zerofrom, PAGE_CACHE_SIZE - zerofrom,
 				KM_USER0);
 		generic_commit_write(NULL, new_page, zerofrom, PAGE_CACHE_SIZE);
 		unlock_page(new_page);
