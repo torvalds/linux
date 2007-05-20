@@ -9,7 +9,7 @@
  *
  *  (C) 1991  Linus Torvalds - minix filesystem
  */
-
+#include <linux/sched.h>
 #include "affs.h"
 
 extern const struct inode_operations affs_symlink_inode_operations;

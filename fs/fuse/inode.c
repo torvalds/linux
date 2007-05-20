@@ -17,6 +17,7 @@
 #include <linux/parser.h>
 #include <linux/statfs.h>
 #include <linux/random.h>
+#include <linux/sched.h>
 
 MODULE_AUTHOR("Miklos Szeredi <miklos@szeredi.hu>");
 MODULE_DESCRIPTION("Filesystem in Userspace");

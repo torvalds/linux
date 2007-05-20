@@ -16,6 +16,7 @@
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/ctype.h>
+#include <linux/sched.h>
 #include "internal.h"
 
 static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,

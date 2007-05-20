@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
+#include <linux/sched.h>
 #include "internal.h"
 
 static const char *afs_voltypes[] = { "R/W", "R/O", "BAK" };

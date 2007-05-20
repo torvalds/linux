@@ -38,6 +38,7 @@
 #include <linux/inet.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
+#include <linux/sched.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/clnt.h>

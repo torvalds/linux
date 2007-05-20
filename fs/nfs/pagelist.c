@@ -11,6 +11,7 @@
 
 #include <linux/slab.h>
 #include <linux/file.h>
+#include <linux/sched.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/nfs3.h>
 #include <linux/nfs4.h>

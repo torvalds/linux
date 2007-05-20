@@ -22,6 +22,7 @@
 #include <linux/pagemap.h>
 #include <linux/parser.h>
 #include <linux/statfs.h>
+#include <linux/sched.h>
 #include "internal.h"
 
 #define AFS_FS_MAGIC 0x6B414653 /* 'kAFS' */

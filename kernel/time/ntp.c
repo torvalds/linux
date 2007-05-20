@@ -11,6 +11,8 @@
 #include <linux/mm.h>
 #include <linux/time.h>
 #include <linux/timex.h>
+#include <linux/jiffies.h>
+#include <linux/hrtimer.h>
 
 #include <asm/div64.h>
 #include <asm/timex.h>

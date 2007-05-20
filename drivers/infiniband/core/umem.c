@@ -36,6 +36,7 @@
 
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
+#include <linux/sched.h>
 
 #include "uverbs.h"
 

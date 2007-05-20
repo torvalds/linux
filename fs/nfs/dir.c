@@ -33,6 +33,7 @@
 #include <linux/pagevec.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
+#include <linux/sched.h>
 
 #include "nfs4_fs.h"
 #include "delegation.h"

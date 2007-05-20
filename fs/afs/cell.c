@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/key.h>
 #include <linux/ctype.h>
+#include <linux/sched.h>
 #include <keys/rxrpc-type.h>
 #include "internal.h"
 

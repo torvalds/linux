@@ -4,6 +4,8 @@
 #ifndef WRITEBACK_H
 #define WRITEBACK_H
 
+#include <linux/sched.h>
+
 struct backing_dev_info;
 
 extern spinlock_t inode_lock;

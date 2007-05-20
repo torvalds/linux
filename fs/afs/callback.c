@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/circ_buf.h>
+#include <linux/sched.h>
 #include "internal.h"
 
 unsigned afs_vnode_update_timeout = 10;

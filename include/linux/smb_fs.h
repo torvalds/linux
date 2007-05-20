@@ -9,6 +9,7 @@
 #ifndef _LINUX_SMB_FS_H
 #define _LINUX_SMB_FS_H
 
+#include <linux/jiffies.h>
 #include <linux/smb.h>
 
 /*

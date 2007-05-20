@@ -13,6 +13,7 @@
 
 #include <linux/pagemap.h>
 #include <linux/mpage.h>
+#include <linux/sched.h>
 
 #include "hfs_fs.h"
 #include "btree.h"

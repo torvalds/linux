@@ -36,6 +36,7 @@
 #include <linux/seq_file.h>
 #include <linux/mount.h>
 #include <linux/idr.h>
+#include <linux/sched.h>
 
 #include "debug.h"
 #include "v9fs.h"

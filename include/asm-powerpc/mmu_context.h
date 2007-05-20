@@ -8,6 +8,7 @@
 
 #include <linux/kernel.h>	
 #include <linux/mm.h>	
+#include <linux/sched.h>
 #include <asm/mmu.h>	
 #include <asm/cputable.h>
 #include <asm-generic/mm_hooks.h>

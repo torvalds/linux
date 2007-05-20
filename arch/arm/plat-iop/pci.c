@@ -19,6 +19,7 @@
 #include <linux/ioport.h>
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <asm/signal.h>
 #include <asm/system.h>
 #include <asm/hardware.h>
 #include <asm/mach/pci.h>

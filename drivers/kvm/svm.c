@@ -19,6 +19,7 @@
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
 #include <linux/profile.h>
+#include <linux/sched.h>
 #include <asm/desc.h>
 
 #include "kvm_svm.h"

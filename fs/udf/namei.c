@@ -30,6 +30,7 @@
 #include <linux/quotaops.h>
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
+#include <linux/sched.h>
 
 static inline int udf_match(int len1, const char *name1, int len2, const char *name2)
 {

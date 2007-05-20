@@ -16,7 +16,7 @@
  *     +1 (416) 297-8565
  *     +1 (416) 297-6433 Facsimile
  */
-
+#include <linux/sched.h>
 #include "includes.h"
 #include "hardware.h"
 #include "message.h"

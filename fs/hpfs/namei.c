@@ -5,7 +5,7 @@
  *
  *  adding & removing files & directories
  */
-
+#include <linux/sched.h>
 #include "hpfs_fn.h"
 
 static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)

@@ -144,6 +144,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/sched.h>
+
 struct cpu_tlb_fns {
 	void (*flush_user_range)(unsigned long, unsigned long, struct vm_area_struct *);
 	void (*flush_kern_range)(unsigned long, unsigned long);

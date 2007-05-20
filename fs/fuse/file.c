@@ -11,6 +11,7 @@
 #include <linux/pagemap.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/sched.h>
 
 static const struct file_operations fuse_direct_io_file_operations;
 

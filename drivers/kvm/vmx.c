@@ -22,6 +22,7 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/profile.h>
+#include <linux/sched.h>
 #include <asm/io.h>
 #include <asm/desc.h>
 

@@ -37,6 +37,7 @@
  */
 
 #include <linux/hardirq.h>
+#include <linux/sched.h>
 
 #include <asm/io.h>
 

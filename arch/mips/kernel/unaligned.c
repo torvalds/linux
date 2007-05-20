@@ -76,7 +76,7 @@
 #include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/smp.h>
-
+#include <linux/sched.h>
 #include <asm/asm.h>
 #include <asm/branch.h>
 #include <asm/byteorder.h>

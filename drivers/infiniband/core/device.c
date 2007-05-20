@@ -40,6 +40,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
+#include <linux/workqueue.h>
 
 #include "core_priv.h"
 
