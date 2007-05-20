@@ -643,8 +643,6 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 			break;
 		}
 		return kvm_set_msr_common(vcpu, msr_index, data);
-		msr->data = data;
-		break;
 	}
 
 	return 0;
