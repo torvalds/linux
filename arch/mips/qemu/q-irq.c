@@ -7,8 +7,6 @@
 #include <asm/system.h>
 #include <asm/time.h>
 
-extern asmlinkage void qemu_handle_int(void);
-
 asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_status() & read_c0_cause();
