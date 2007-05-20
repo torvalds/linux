@@ -747,9 +747,9 @@ config EARLY_PRINTK
 	  to print messages very early in the bootup process.
 
 	  This is useful for kernel debugging when your machine crashes very
-	  early before the console code is initialized. For normal operation
-	  it is not recommended because it looks on some machines ugly and
-	  oesn't cooperate with an X server. You should normally N here,
+	  early before the console code is initialized. For normal operation,
+	  it is not recommended because it looks ugly on some machines and
+	  doesn't cooperate with an X server. You should normally say N here,
 	  unless you want to debug such a crash.
 
 config SYS_HAS_EARLY_PRINTK
