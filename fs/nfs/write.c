@@ -273,8 +273,6 @@ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 		 *	 request as dirty (in which case we don't care).
 		 */
 		spin_unlock(req_lock);
-		/* Prevent deadlock! */
-		nfs_pageio_complete(pgio);
 		ret = nfs_wait_on_request(req);
 		nfs_release_request(req);
 		if (ret != 0)
@@ -321,6 +319,8 @@ static int nfs_writepage_locked(struct page *page, struct writeback_control *wbc
 		pgio = &mypgio;
 	}
 
+	nfs_pageio_cond_complete(pgio, page->index);
+
 	err = nfs_page_async_flush(pgio, page);
 	if (err <= 0)
 		goto out;
@@ -328,6 +328,8 @@ static int nfs_writepage_locked(struct page *page, struct writeback_control *wbc
 	offset = nfs_page_length(page);
 	if (!offset)
 		goto out;
+
+	nfs_pageio_cond_complete(pgio, page->index);
 
 	ctx = nfs_find_open_context(inode, NULL, FMODE_WRITE);
 	if (ctx == NULL) {
