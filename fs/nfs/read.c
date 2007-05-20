@@ -483,17 +483,19 @@ int nfs_readpage(struct file *file, struct page *page)
 	 */
 	error = nfs_wb_page(inode, page);
 	if (error)
-		goto out_error;
+		goto out_unlock;
+	if (PageUptodate(page))
+		goto out_unlock;
 
 	error = -ESTALE;
 	if (NFS_STALE(inode))
-		goto out_error;
+		goto out_unlock;
 
 	if (file == NULL) {
 		error = -EBADF;
 		ctx = nfs_find_open_context(inode, NULL, FMODE_READ);
 		if (ctx == NULL)
-			goto out_error;
+			goto out_unlock;
 	} else
 		ctx = get_nfs_open_context((struct nfs_open_context *)
 				file->private_data);
@@ -502,8 +504,7 @@ int nfs_readpage(struct file *file, struct page *page)
 
 	put_nfs_open_context(ctx);
 	return error;
-
-out_error:
+out_unlock:
 	unlock_page(page);
 	return error;
 }
@@ -520,21 +521,32 @@ readpage_async_filler(void *data, struct page *page)
 	struct inode *inode = page->mapping->host;
 	struct nfs_page *new;
 	unsigned int len;
+	int error;
 
-	nfs_wb_page(inode, page);
+	error = nfs_wb_page(inode, page);
+	if (error)
+		goto out_unlock;
+	if (PageUptodate(page))
+		goto out_unlock;
+
 	len = nfs_page_length(page);
 	if (len == 0)
 		return nfs_return_empty_page(page);
+
 	new = nfs_create_request(desc->ctx, inode, page, 0, len);
-	if (IS_ERR(new)) {
-			SetPageError(page);
-			unlock_page(page);
-			return PTR_ERR(new);
-	}
+	if (IS_ERR(new))
+		goto out_error;
+
 	if (len < PAGE_CACHE_SIZE)
 		zero_user_page(page, len, PAGE_CACHE_SIZE - len, KM_USER0);
 	nfs_pageio_add_request(desc->pgio, new);
 	return 0;
+out_error:
+	error = PTR_ERR(new);
+	SetPageError(page);
+out_unlock:
+	unlock_page(page);
+	return error;
 }
 
 int nfs_readpages(struct file *filp, struct address_space *mapping,
