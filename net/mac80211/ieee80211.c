@@ -2474,6 +2474,8 @@ static int ieee80211_open(struct net_device *dev)
 	if (sdata->type == IEEE80211_IF_TYPE_STA &&
 	    !local->user_space_mlme)
 		netif_carrier_off(dev);
+	else
+		netif_carrier_on(dev);
 
 	netif_start_queue(dev);
 	return 0;
