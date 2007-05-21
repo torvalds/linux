@@ -43,6 +43,8 @@
 #include <asm/blackfin.h>
 #include <asm/cplbinit.h>
 
+u16 _bfin_swrst;
+
 unsigned long memory_start, memory_end, physical_mem_end;
 unsigned long reserved_mem_dcache_on;
 unsigned long reserved_mem_icache_on;
@@ -380,6 +382,12 @@ void __init setup_arch(char **cmdline_p)
 	l1_length = _ebss_l1 - _sdata_l1;
 	if (l1_length > L1_DATA_A_LENGTH)
 		panic("L1 memory overflow\n");
+
+#ifdef BF561_FAMILY
+	_bfin_swrst = bfin_read_SICA_SWRST();
+#else
+	_bfin_swrst = bfin_read_SWRST();
+#endif
 
 	bf53x_cache_init();
 
