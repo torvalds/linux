@@ -891,11 +891,13 @@ retry:
 		goto write_error;
 	}
 
-	err = ubi_wl_put_peb(ubi, vol->eba_tbl[lnum], 1);
-	if (err) {
-		ubi_free_vid_hdr(ubi, vid_hdr);
-		leb_write_unlock(ubi, vol_id, lnum);
-		return err;
+	if (vol->eba_tbl[lnum] >= 0) {
+		err = ubi_wl_put_peb(ubi, vol->eba_tbl[lnum], 1);
+		if (err) {
+			ubi_free_vid_hdr(ubi, vid_hdr);
+			leb_write_unlock(ubi, vol_id, lnum);
+			return err;
+		}
 	}
 
 	vol->eba_tbl[lnum] = pnum;
