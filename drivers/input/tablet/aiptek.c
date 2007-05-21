@@ -377,26 +377,6 @@ static const char *map_val_to_str(const struct aiptek_map *map, int val)
 }
 
 /***********************************************************************
- * Relative reports deliver values in 2's complement format to
- * deal with negative offsets.
- */
-static int aiptek_convert_from_2s_complement(unsigned char c)
-{
-	int ret;
-	unsigned char b = c;
-	int negate = 0;
-
-	if ((b & 0x80) != 0) {
-		b = ~b;
-		b--;
-		negate = 1;
-	}
-	ret = b;
-	ret = (negate == 1) ? -ret : ret;
-	return ret;
-}
-
-/***********************************************************************
  * aiptek_irq can receive one of six potential reports.
  * The documentation for each is in the body of the function.
  *
@@ -473,8 +453,8 @@ static void aiptek_irq(struct urb *urb)
 			aiptek->diagnostic =
 			    AIPTEK_DIAGNOSTIC_SENDING_RELATIVE_IN_ABSOLUTE;
 		} else {
-			x = aiptek_convert_from_2s_complement(data[2]);
-			y = aiptek_convert_from_2s_complement(data[3]);
+			x = (signed char) data[2];
+			y = (signed char) data[3];
 
 			/* jitterable keeps track of whether any button has been pressed.
 			 * We're also using it to remap the physical mouse button mask
