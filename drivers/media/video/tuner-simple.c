@@ -205,9 +205,13 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		/* 0x01 -> ??? no change ??? */
 		/* 0x02 -> PAL BDGHI / SECAM L */
 		/* 0x04 -> ??? PAL others / SECAM others ??? */
-		cb &= ~0x02;
-		if (t->std & V4L2_STD_SECAM)
-			cb |= 0x02;
+		cb &= ~0x03;
+		if (t->std & V4L2_STD_SECAM_L) //also valid for V4L2_STD_SECAM
+			cb |= PHILIPS_MF_SET_PAL_L;
+		else if (t->std & V4L2_STD_SECAM_LC)
+			cb |= PHILIPS_MF_SET_PAL_L2;
+		else /* V4L2_STD_B|V4L2_STD_GH */
+			cb |= PHILIPS_MF_SET_BG;
 		break;
 
 	case TUNER_TEMIC_4046FM5:
