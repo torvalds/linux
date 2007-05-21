@@ -1023,71 +1023,6 @@ static ssize_t show_tabletSize(struct device *dev, struct device_attribute *attr
 static DEVICE_ATTR(size, S_IRUGO, show_tabletSize, NULL);
 
 /***********************************************************************
- * support routines for the 'product_id' file
- */
-static ssize_t show_tabletProductId(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct aiptek *aiptek = dev_get_drvdata(dev);
-
-	if (aiptek == NULL)
-		return 0;
-
-	return snprintf(buf, PAGE_SIZE, "0x%04x\n",
-			aiptek->inputdev->id.product);
-}
-
-static DEVICE_ATTR(product_id, S_IRUGO, show_tabletProductId, NULL);
-
-/***********************************************************************
- * support routines for the 'vendor_id' file
- */
-static ssize_t show_tabletVendorId(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct aiptek *aiptek = dev_get_drvdata(dev);
-
-	if (aiptek == NULL)
-		return 0;
-
-	return snprintf(buf, PAGE_SIZE, "0x%04x\n", aiptek->inputdev->id.vendor);
-}
-
-static DEVICE_ATTR(vendor_id, S_IRUGO, show_tabletVendorId, NULL);
-
-/***********************************************************************
- * support routines for the 'vendor' file
- */
-static ssize_t show_tabletManufacturer(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct aiptek *aiptek = dev_get_drvdata(dev);
-	int retval;
-
-	if (aiptek == NULL)
-		return 0;
-
-	retval = snprintf(buf, PAGE_SIZE, "%s\n", aiptek->usbdev->manufacturer);
-	return retval;
-}
-
-static DEVICE_ATTR(vendor, S_IRUGO, show_tabletManufacturer, NULL);
-
-/***********************************************************************
- * support routines for the 'product' file
- */
-static ssize_t show_tabletProduct(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct aiptek *aiptek = dev_get_drvdata(dev);
-	int retval;
-
-	if (aiptek == NULL)
-		return 0;
-
-	retval = snprintf(buf, PAGE_SIZE, "%s\n", aiptek->usbdev->product);
-	return retval;
-}
-
-static DEVICE_ATTR(product, S_IRUGO, show_tabletProduct, NULL);
-
-/***********************************************************************
  * support routines for the 'pointer_mode' file. Note that this file
  * both displays current setting and allows reprogramming.
  */
@@ -1867,10 +1802,6 @@ static DEVICE_ATTR(firmware_code, S_IRUGO, show_firmwareCode, NULL);
 static void aiptek_delete_files(struct device *dev)
 {
 	device_remove_file(dev, &dev_attr_size);
-	device_remove_file(dev, &dev_attr_product_id);
-	device_remove_file(dev, &dev_attr_vendor_id);
-	device_remove_file(dev, &dev_attr_vendor);
-	device_remove_file(dev, &dev_attr_product);
 	device_remove_file(dev, &dev_attr_pointer_mode);
 	device_remove_file(dev, &dev_attr_coordinate_mode);
 	device_remove_file(dev, &dev_attr_tool_mode);
@@ -1901,10 +1832,6 @@ static int aiptek_add_files(struct device *dev)
 	int ret;
 
 	if ((ret = device_create_file(dev, &dev_attr_size)) ||
-	    (ret = device_create_file(dev, &dev_attr_product_id)) ||
-	    (ret = device_create_file(dev, &dev_attr_vendor_id)) ||
-	    (ret = device_create_file(dev, &dev_attr_vendor)) ||
-	    (ret = device_create_file(dev, &dev_attr_product)) ||
 	    (ret = device_create_file(dev, &dev_attr_pointer_mode)) ||
 	    (ret = device_create_file(dev, &dev_attr_coordinate_mode)) ||
 	    (ret = device_create_file(dev, &dev_attr_tool_mode)) ||
