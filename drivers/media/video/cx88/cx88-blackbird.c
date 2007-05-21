@@ -610,9 +610,6 @@ static int blackbird_start_codec(struct file *file, void *priv)
 	/* unmute audio source */
 	cx_clear(AUD_VOL_CTL, (1 << 6));
 
-	blackbird_api_cmd(dev, CX2341X_ENC_MUTE_VIDEO, 1, 0, BLACKBIRD_UNMUTE);
-	blackbird_api_cmd(dev, CX2341X_ENC_MUTE_AUDIO, 1, 0, BLACKBIRD_UNMUTE);
-
 	blackbird_api_cmd(dev, CX2341X_ENC_REFRESH_INPUT, 0,0);
 
 	/* initialize the video input */
