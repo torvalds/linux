@@ -1670,17 +1670,23 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	aiptek = kzalloc(sizeof(struct aiptek), GFP_KERNEL);
 	inputdev = input_allocate_device();
-	if (!aiptek || !inputdev)
+	if (!aiptek || !inputdev) {
+		warn("aiptek: cannot allocate memory or input device");
 		goto fail1;
+        }
 
 	aiptek->data = usb_buffer_alloc(usbdev, AIPTEK_PACKET_LENGTH,
 					GFP_ATOMIC, &aiptek->data_dma);
-	if (!aiptek->data)
+        if (!aiptek->data) {
+		warn("aiptek: cannot allocate usb buffer");
 		goto fail1;
+	}
 
 	aiptek->urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!aiptek->urb)
+	if (!aiptek->urb) {
+	        warn("aiptek: cannot allocate urb");
 		goto fail2;
+	}
 
 	aiptek->inputdev = inputdev;
 	aiptek->usbdev = usbdev;
@@ -1807,6 +1813,13 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		}
 	}
 
+	/* Murphy says that some day someone will have a tablet that fails the
+	   above test. That's you, Frederic Rodrigo */
+	if (i == ARRAY_SIZE(speeds)) {
+		info("input: Aiptek tried all speeds, no sane response");
+		goto fail2;
+	}
+
 	/* Associate this driver's struct with the usb interface.
 	 */
 	usb_set_intfdata(intf, aiptek);
@@ -1814,15 +1827,18 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	/* Set up the sysfs files
 	 */
 	err = sysfs_create_group(&intf->dev.kobj, &aiptek_attribute_group);
-	if (err)
+	if (err) {
+		warn("aiptek: cannot create sysfs group err: %d", err);
 		goto fail3;
+        }
 
 	/* Register the tablet as an Input Device
 	 */
 	err = input_register_device(aiptek->inputdev);
-	if (err)
+	if (err) {
+		warn("aiptek: input_register_device returned err: %d", err);
 		goto fail4;
-
+        }
 	return 0;
 
  fail4:	sysfs_remove_group(&intf->dev.kobj, &aiptek_attribute_group);
