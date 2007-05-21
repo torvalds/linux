@@ -470,18 +470,20 @@ static void aiptek_irq(struct urb *urb)
 			 * that a non-zero value indicates that one or more
 			 * mouse button was pressed.)
 			 */
-			jitterable = data[5] & 0x07;
+			jitterable = data[1] & 0x07;
 
-			left = (data[5] & aiptek->curSetting.mouseButtonLeft) != 0 ? 1 : 0;
-			right = (data[5] & aiptek->curSetting.mouseButtonRight) != 0 ? 1 : 0;
-			middle = (data[5] & aiptek->curSetting.mouseButtonMiddle) != 0 ? 1 : 0;
+			left = (data[1] & aiptek->curSetting.mouseButtonLeft >> 2) != 0 ? 1 : 0;
+			right = (data[1] & aiptek->curSetting.mouseButtonRight >> 2) != 0 ? 1 : 0;
+			middle = (data[1] & aiptek->curSetting.mouseButtonMiddle >> 2) != 0 ? 1 : 0;
 
 			input_report_key(inputdev, BTN_LEFT, left);
 			input_report_key(inputdev, BTN_MIDDLE, middle);
 			input_report_key(inputdev, BTN_RIGHT, right);
+
+			input_report_abs(inputdev, ABS_MISC,
+					 1 | AIPTEK_REPORT_TOOL_UNKNOWN);
 			input_report_rel(inputdev, REL_X, x);
 			input_report_rel(inputdev, REL_Y, y);
-			input_report_rel(inputdev, REL_MISC, 1 | AIPTEK_REPORT_TOOL_UNKNOWN);
 
 			/* Wheel support is in the form of a single-event
 			 * firing.
