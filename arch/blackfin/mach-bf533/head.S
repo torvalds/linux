@@ -173,7 +173,8 @@ ENTRY(__stext)
 	STI R2;
 #endif
 
-	/* Initialise UART */
+	/* Initialise UART - when booting from u-boot, the UART is not disabled
+	 * so if we dont initalize here, our serial console gets hosed */
 	p0.h = hi(UART_LCR);
 	p0.l = lo(UART_LCR);
 	r0 = 0x0(Z);
