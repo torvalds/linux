@@ -270,8 +270,9 @@ static void ir_timer(unsigned long data)
 static void ir_work(struct work_struct *work)
 {
 	struct IR_i2c *ir = container_of(work, struct IR_i2c, work);
+
 	ir_key_poll(ir);
-	mod_timer(&ir->timer, jiffies+HZ/10);
+	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(100));
 }
 
 /* ----------------------------------------------------------------------- */
