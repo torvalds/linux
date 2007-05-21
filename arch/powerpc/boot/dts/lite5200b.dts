@@ -67,7 +67,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			device_type = "interrupt-controller";
-			compatible = "mpc5200b-pic\0mpc5200_pic";
+			compatible = "mpc5200b-pic\0mpc5200-pic";
 			reg = <500 80>;
 			built-in;
 		};
