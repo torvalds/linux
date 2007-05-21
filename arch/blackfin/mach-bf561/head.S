@@ -431,7 +431,7 @@ ENTRY(_bfin_reset)
 	/* make sure SYSCR is set to use BMODE */
 	P0.h = hi(SICA_SYSCR);
 	P0.l = lo(SICA_SYSCR);
-	R0.l = 0x0;
+	R0.l = 0x20;
 	W[P0] = R0.l;
 	SSYNC;
 
