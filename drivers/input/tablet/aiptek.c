@@ -1795,67 +1795,33 @@ static ssize_t show_firmwareCode(struct device *dev, struct device_attribute *at
 
 static DEVICE_ATTR(firmware_code, S_IRUGO, show_firmwareCode, NULL);
 
-/***********************************************************************
- * This routine removes all existing sysfs files managed by this device
- * driver.
- */
-static void aiptek_delete_files(struct device *dev)
-{
-	device_remove_file(dev, &dev_attr_size);
-	device_remove_file(dev, &dev_attr_pointer_mode);
-	device_remove_file(dev, &dev_attr_coordinate_mode);
-	device_remove_file(dev, &dev_attr_tool_mode);
-	device_remove_file(dev, &dev_attr_xtilt);
-	device_remove_file(dev, &dev_attr_ytilt);
-	device_remove_file(dev, &dev_attr_jitter);
-	device_remove_file(dev, &dev_attr_delay);
-	device_remove_file(dev, &dev_attr_event_count);
-	device_remove_file(dev, &dev_attr_diagnostic);
-	device_remove_file(dev, &dev_attr_odm_code);
-	device_remove_file(dev, &dev_attr_model_code);
-	device_remove_file(dev, &dev_attr_firmware_code);
-	device_remove_file(dev, &dev_attr_stylus_lower);
-	device_remove_file(dev, &dev_attr_stylus_upper);
-	device_remove_file(dev, &dev_attr_mouse_left);
-	device_remove_file(dev, &dev_attr_mouse_middle);
-	device_remove_file(dev, &dev_attr_mouse_right);
-	device_remove_file(dev, &dev_attr_wheel);
-	device_remove_file(dev, &dev_attr_execute);
-}
+static struct attribute *aiptek_attributes[] = {
+	&dev_attr_size.attr,
+	&dev_attr_pointer_mode.attr,
+	&dev_attr_coordinate_mode.attr,
+	&dev_attr_tool_mode.attr,
+	&dev_attr_xtilt.attr,
+	&dev_attr_ytilt.attr,
+	&dev_attr_jitter.attr,
+	&dev_attr_delay.attr,
+	&dev_attr_event_count.attr,
+	&dev_attr_diagnostic.attr,
+	&dev_attr_odm_code.attr,
+	&dev_attr_model_code.attr,
+	&dev_attr_firmware_code.attr,
+	&dev_attr_stylus_lower.attr,
+	&dev_attr_stylus_upper.attr,
+	&dev_attr_mouse_left.attr,
+	&dev_attr_mouse_middle.attr,
+	&dev_attr_mouse_right.attr,
+	&dev_attr_wheel.attr,
+	&dev_attr_execute.attr,
+	NULL
+};
 
-/***********************************************************************
- * This routine creates the sysfs files managed by this device
- * driver.
- */
-static int aiptek_add_files(struct device *dev)
-{
-	int ret;
-
-	if ((ret = device_create_file(dev, &dev_attr_size)) ||
-	    (ret = device_create_file(dev, &dev_attr_pointer_mode)) ||
-	    (ret = device_create_file(dev, &dev_attr_coordinate_mode)) ||
-	    (ret = device_create_file(dev, &dev_attr_tool_mode)) ||
-	    (ret = device_create_file(dev, &dev_attr_xtilt)) ||
-	    (ret = device_create_file(dev, &dev_attr_ytilt)) ||
-	    (ret = device_create_file(dev, &dev_attr_jitter)) ||
-	    (ret = device_create_file(dev, &dev_attr_delay)) ||
-	    (ret = device_create_file(dev, &dev_attr_event_count)) ||
-	    (ret = device_create_file(dev, &dev_attr_diagnostic)) ||
-	    (ret = device_create_file(dev, &dev_attr_odm_code)) ||
-	    (ret = device_create_file(dev, &dev_attr_model_code)) ||
-	    (ret = device_create_file(dev, &dev_attr_firmware_code)) ||
-	    (ret = device_create_file(dev, &dev_attr_stylus_lower)) ||
-	    (ret = device_create_file(dev, &dev_attr_stylus_upper)) ||
-	    (ret = device_create_file(dev, &dev_attr_mouse_left)) ||
-	    (ret = device_create_file(dev, &dev_attr_mouse_middle)) ||
-	    (ret = device_create_file(dev, &dev_attr_mouse_right)) ||
-	    (ret = device_create_file(dev, &dev_attr_wheel)) ||
-	    (ret = device_create_file(dev, &dev_attr_execute))) {
-		err("aiptek: killing own sysfs device files\n");
-		aiptek_delete_files(dev);
-	}
-	return ret;
-}
+static struct attribute_group aiptek_attribute_group = {
+	.attrs	= aiptek_attributes,
+};
 
 /***********************************************************************
  * This routine is called when a tablet has been identified. It basically
@@ -2039,25 +2005,30 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		}
 	}
 
-	/* Register the tablet as an Input Device
-	 */
-	err = input_register_device(aiptek->inputdev);
-	if (err)
-		goto fail2;
-
 	/* Associate this driver's struct with the usb interface.
 	 */
 	usb_set_intfdata(intf, aiptek);
 
 	/* Set up the sysfs files
 	 */
-	aiptek_add_files(&intf->dev);
+	err = sysfs_create_group(&intf->dev.kobj, &aiptek_attribute_group);
+	if (err)
+		goto fail3;
+
+	/* Register the tablet as an Input Device
+	 */
+	err = input_register_device(aiptek->inputdev);
+	if (err)
+		goto fail4;
 
 	return 0;
 
+ fail4:	sysfs_remove_group(&intf->dev.kobj, &aiptek_attribute_group);
+ fail3: usb_free_urb(aiptek->urb);
  fail2:	usb_buffer_free(usbdev, AIPTEK_PACKET_LENGTH, aiptek->data,
 			aiptek->data_dma);
- fail1:	input_free_device(inputdev);
+ fail1: usb_set_intfdata(intf, NULL);
+	input_free_device(inputdev);
 	kfree(aiptek);
 	return err;
 }
@@ -2077,7 +2048,7 @@ static void aiptek_disconnect(struct usb_interface *intf)
 		 */
 		usb_kill_urb(aiptek->urb);
 		input_unregister_device(aiptek->inputdev);
-		aiptek_delete_files(&intf->dev);
+		sysfs_remove_group(&intf->dev.kobj, &aiptek_attribute_group);
 		usb_free_urb(aiptek->urb);
 		usb_buffer_free(interface_to_usbdev(intf),
 				AIPTEK_PACKET_LENGTH,
