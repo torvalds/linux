@@ -65,9 +65,12 @@ config INPUT_COBALT_BTNS
 config INPUT_WISTRON_BTNS
 	tristate "x86 Wistron laptop button interface"
 	depends on X86 && !X86_64
+	select NEW_LEDS
+	select LEDS_CLASS
 	help
 	  Say Y here for support of Winstron laptop button interface, used on
-	  laptops of various brands, including Acer and Fujitsu-Siemens.
+	  laptops of various brands, including Acer and Fujitsu-Siemens. If
+	  available, mail and wifi leds will be controlable via /sys/class/leds.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called wistron_btns.
