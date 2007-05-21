@@ -82,8 +82,8 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v1.5 (May-15-2004)"
-#define DRIVER_AUTHOR  "Bryan W. Headley/Chris Atenasio"
+#define DRIVER_VERSION "v2.3 (May 2, 2007)"
+#define DRIVER_AUTHOR  "Bryan W. Headley/Chris Atenasio/Cedric Brun/Rene van Paassen"
 #define DRIVER_DESC    "Aiptek HyperPen USB Tablet Driver (Linux 2.6.x)"
 
 /*
