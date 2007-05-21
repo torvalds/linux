@@ -73,6 +73,7 @@ static struct kvm_stats_debugfs_item {
 	{ "request_irq", STAT_OFFSET(request_irq_exits) },
 	{ "irq_exits", STAT_OFFSET(irq_exits) },
 	{ "light_exits", STAT_OFFSET(light_exits) },
+	{ "efer_reload", STAT_OFFSET(efer_reload) },
 	{ NULL }
 };
 
@@ -2378,6 +2379,27 @@ out:
 	return r;
 }
 
+static void cpuid_fix_nx_cap(struct kvm_vcpu *vcpu)
+{
+	u64 efer;
+	int i;
+	struct kvm_cpuid_entry *e, *entry;
+
+	rdmsrl(MSR_EFER, efer);
+	entry = NULL;
+	for (i = 0; i < vcpu->cpuid_nent; ++i) {
+		e = &vcpu->cpuid_entries[i];
+		if (e->function == 0x80000001) {
+			entry = e;
+			break;
+		}
+	}
+	if (entry && (entry->edx & EFER_NX) && !(efer & EFER_NX)) {
+		entry->edx &= ~(1 << 20);
+		printk(KERN_INFO ": guest NX capability removed\n");
+	}
+}
+
 static int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 				    struct kvm_cpuid *cpuid,
 				    struct kvm_cpuid_entry __user *entries)
@@ -2392,6 +2414,7 @@ static int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 			   cpuid->nent * sizeof(struct kvm_cpuid_entry)))
 		goto out;
 	vcpu->cpuid_nent = cpuid->nent;
+	cpuid_fix_nx_cap(vcpu);
 	return 0;
 
 out:

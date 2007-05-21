@@ -255,6 +255,7 @@ struct kvm_stat {
 	u32 request_irq_exits;
 	u32 irq_exits;
 	u32 light_exits;
+	u32 efer_reload;
 };
 
 struct kvm_vcpu {
@@ -289,6 +290,7 @@ struct kvm_vcpu {
 	u64 ia32_misc_enable_msr;
 	int nmsrs;
 	int save_nmsrs;
+	int msr_offset_efer;
 #ifdef CONFIG_X86_64
 	int msr_offset_kernel_gs_base;
 #endif
