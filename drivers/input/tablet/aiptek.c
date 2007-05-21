@@ -294,7 +294,6 @@ struct aiptek_features {
 	int modelCode;		/* Tablet model code (not unique) */
 	int firmwareCode;	/* prom/eeprom version            */
 	char usbPath[64 + 1];	/* device's physical usb path     */
-	char inputPath[64 + 1];	/* input device path              */
 };
 
 struct aiptek_settings {
@@ -1415,23 +1414,6 @@ static DEVICE_ATTR(delay,
 		   show_tabletProgrammableDelay, store_tabletProgrammableDelay);
 
 /***********************************************************************
- * support routines for the 'input_path' file. Note that this file
- * only displays current setting.
- */
-static ssize_t show_tabletInputDevice(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct aiptek *aiptek = dev_get_drvdata(dev);
-
-	if (aiptek == NULL)
-		return 0;
-
-	return snprintf(buf, PAGE_SIZE, "/dev/input/%s\n",
-			aiptek->features.inputPath);
-}
-
-static DEVICE_ATTR(input_path, S_IRUGO, show_tabletInputDevice, NULL);
-
-/***********************************************************************
  * support routines for the 'event_count' file. Note that this file
  * only displays current setting.
  */
@@ -1896,7 +1878,6 @@ static void aiptek_delete_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_ytilt);
 	device_remove_file(dev, &dev_attr_jitter);
 	device_remove_file(dev, &dev_attr_delay);
-	device_remove_file(dev, &dev_attr_input_path);
 	device_remove_file(dev, &dev_attr_event_count);
 	device_remove_file(dev, &dev_attr_diagnostic);
 	device_remove_file(dev, &dev_attr_odm_code);
@@ -1931,7 +1912,6 @@ static int aiptek_add_files(struct device *dev)
 	    (ret = device_create_file(dev, &dev_attr_ytilt)) ||
 	    (ret = device_create_file(dev, &dev_attr_jitter)) ||
 	    (ret = device_create_file(dev, &dev_attr_delay)) ||
-	    (ret = device_create_file(dev, &dev_attr_input_path)) ||
 	    (ret = device_create_file(dev, &dev_attr_event_count)) ||
 	    (ret = device_create_file(dev, &dev_attr_diagnostic)) ||
 	    (ret = device_create_file(dev, &dev_attr_odm_code)) ||
@@ -1961,8 +1941,6 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	struct usb_endpoint_descriptor *endpoint;
 	struct aiptek *aiptek;
 	struct input_dev *inputdev;
-	struct input_handle *inputhandle;
-	struct list_head *node, *next;
 	int i;
 	int speeds[] = { 0,
 		AIPTEK_PROGRAMMABLE_DELAY_50,
@@ -2140,21 +2118,6 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (err)
 		goto fail2;
 
-	/* We now will look for the evdev device which is mapped to
-	 * the tablet. The partial name is kept in the link list of
-	 * input_handles associated with this input device.
-	 * What identifies an evdev input_handler is that it begins
-	 * with 'event', continues with a digit, and that in turn
-	 * is mapped to input/eventN.
-	 */
-	list_for_each_safe(node, next, &inputdev->h_list) {
-		inputhandle = to_handle(node);
-		if (strncmp(inputhandle->name, "event", 5) == 0) {
-			strcpy(aiptek->features.inputPath, inputhandle->name);
-			break;
-		}
-	}
-
 	/* Associate this driver's struct with the usb interface.
 	 */
 	usb_set_intfdata(intf, aiptek);
@@ -2162,11 +2125,6 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	/* Set up the sysfs files
 	 */
 	aiptek_add_files(&intf->dev);
-
-	/* Make sure the evdev module is loaded. Assuming evdev IS a module :-)
-	 */
-	if (request_module("evdev") != 0)
-		info("aiptek: error loading 'evdev' module");
 
 	return 0;
 
