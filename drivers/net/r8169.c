@@ -362,15 +362,15 @@ enum desc_status_bit {
 #define RsvdMask	0x3fffc000
 
 struct TxDesc {
-	u32 opts1;
-	u32 opts2;
-	u64 addr;
+	__le32 opts1;
+	__le32 opts2;
+	__le64 addr;
 };
 
 struct RxDesc {
-	u32 opts1;
-	u32 opts2;
-	u64 addr;
+	__le32 opts1;
+	__le32 opts2;
+	__le64 addr;
 };
 
 struct ring_info {
