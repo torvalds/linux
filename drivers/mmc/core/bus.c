@@ -34,6 +34,8 @@ static ssize_t mmc_type_show(struct device *dev,
 		return sprintf(buf, "MMC\n");
 	case MMC_TYPE_SD:
 		return sprintf(buf, "SD\n");
+	case MMC_TYPE_SDIO:
+		return sprintf(buf, "SDIO\n");
 	default:
 		return -EFAULT;
 	}
@@ -75,6 +77,9 @@ mmc_bus_uevent(struct device *dev, char **envp, int num_envp, char *buf,
 		break;
 	case MMC_TYPE_SD:
 		add_env("MMC_TYPE=%s", "SD");
+		break;
+	case MMC_TYPE_SDIO:
+		add_env("MMC_TYPE=%s", "SDIO");
 		break;
 	}
 
@@ -220,6 +225,9 @@ int mmc_add_card(struct mmc_card *card)
 		type = "SD";
 		if (mmc_card_blockaddr(card))
 			type = "SDHC";
+		break;
+	case MMC_TYPE_SDIO:
+		type = "SDIO";
 		break;
 	default:
 		type = "?";

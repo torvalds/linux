@@ -32,9 +32,11 @@
 
 #include "mmc_ops.h"
 #include "sd_ops.h"
+#include "sdio_ops.h"
 
 extern int mmc_attach_mmc(struct mmc_host *host, u32 ocr);
 extern int mmc_attach_sd(struct mmc_host *host, u32 ocr);
+extern int mmc_attach_sdio(struct mmc_host *host, u32 ocr);
 
 static struct workqueue_struct *workqueue;
 
@@ -595,24 +597,38 @@ void mmc_rescan(struct work_struct *work)
 
 		mmc_send_if_cond(host, host->ocr_avail);
 
+		/*
+		 * First we search for SDIO...
+		 */
+		err = mmc_send_io_op_cond(host, 0, &ocr);
+		if (!err) {
+			if (mmc_attach_sdio(host, ocr))
+				mmc_power_off(host);
+			return;
+		}
+
+		/*
+		 * ...then normal SD...
+		 */
 		err = mmc_send_app_op_cond(host, 0, &ocr);
 		if (!err) {
 			if (mmc_attach_sd(host, ocr))
 				mmc_power_off(host);
-		} else {
-			/*
-			 * If we fail to detect any SD cards then try
-			 * searching for MMC cards.
-			 */
-			err = mmc_send_op_cond(host, 0, &ocr);
-			if (!err) {
-				if (mmc_attach_mmc(host, ocr))
-					mmc_power_off(host);
-			} else {
-				mmc_power_off(host);
-				mmc_release_host(host);
-			}
+			return;
 		}
+
+		/*
+		 * ...and finally MMC.
+		 */
+		err = mmc_send_op_cond(host, 0, &ocr);
+		if (!err) {
+			if (mmc_attach_mmc(host, ocr))
+				mmc_power_off(host);
+			return;
+		}
+
+		mmc_release_host(host);
+		mmc_power_off(host);
 	} else {
 		if (host->bus_ops->detect && !host->bus_dead)
 			host->bus_ops->detect(host);
