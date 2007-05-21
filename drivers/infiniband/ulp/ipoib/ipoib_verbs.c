@@ -173,7 +173,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	size = ipoib_sendq_size + ipoib_recvq_size + 1;
 	ret = ipoib_cm_dev_init(dev);
 	if (!ret)
-		size += ipoib_recvq_size;
+		size += ipoib_recvq_size + 1 /* 1 extra for rx_drain_qp */;
 
 	priv->cq = ib_create_cq(priv->ca, ipoib_ib_completion, NULL, dev, size, 0);
 	if (IS_ERR(priv->cq)) {
