@@ -43,13 +43,13 @@
 #define VCO1 (CONFIG_CLKIN_HZ*9)	/*99532800 */
 #define VCO(x) VCO##x
 
-#define FREQ(x) {VCO(x),VCO(x)/4},{VCO(x),VCO(x)/2},{VCO(x),VCO(x)}
+#define MFREQ(x) {VCO(x),VCO(x)/4},{VCO(x),VCO(x)/2},{VCO(x),VCO(x)}
 /* frequency */
 static struct cpufreq_frequency_table bf537_freq_table[] = {
-	FREQ(1),
-	FREQ(3),
+	MFREQ(1),
+	MFREQ(3),
 	{VCO4, VCO4 / 2}, {VCO4, VCO4},
-	FREQ(5),
+	MFREQ(5),
 	{0, CPUFREQ_TABLE_END},
 };
 
@@ -59,13 +59,14 @@ static struct cpufreq_frequency_table bf537_freq_table[] = {
  */
 static int bf537_getfreq(unsigned int cpu)
 {
-	unsigned long cclk_mhz, vco_mhz;
+	unsigned long cclk_mhz;
 
 	/* The driver only support single cpu */
 	if (cpu == 0)
 		dpmc_fops.ioctl(NULL, NULL, IOCTL_GET_CORECLOCK, &cclk_mhz);
 	else
 		cclk_mhz = -1;
+
 	return cclk_mhz;
 }
 
@@ -75,13 +76,12 @@ static int bf537_target(struct cpufreq_policy *policy,
 	unsigned long cclk_mhz;
 	unsigned long vco_mhz;
 	unsigned long flags;
-	unsigned int index, vco_index;
-	int i;
-
+	unsigned int index;
 	struct cpufreq_freqs freqs;
-	if (cpufreq_frequency_table_target
-	    (policy, bf537_freq_table, target_freq, relation, &index))
+
+	if (cpufreq_frequency_table_target(policy, bf537_freq_table, target_freq, relation, &index))
 		return -EINVAL;
+
 	cclk_mhz = bf537_freq_table[index].frequency;
 	vco_mhz = bf537_freq_table[index].index;
 
@@ -114,8 +114,6 @@ static int bf537_verify_speed(struct cpufreq_policy *policy)
 
 static int __init __bf537_cpu_init(struct cpufreq_policy *policy)
 {
-	int result;
-
 	if (policy->cpu != 0)
 		return -EINVAL;
 
