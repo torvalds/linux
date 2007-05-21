@@ -253,7 +253,10 @@
 #define __NR_utimes		313
 /* Number 314 is reserved for new sys_fallocate */
 #define __NR_utimensat		315
-#define NR_syscalls 316
+#define __NR_signalfd		316
+#define __NR_timerfd		317
+#define __NR_eventfd		318
+#define NR_syscalls 319
 
 /* 
  * There are some system calls that are not present on 64 bit, some
