@@ -738,9 +738,9 @@ EXPORT_SYMBOL(bd_release);
 static struct kobject *bdev_get_kobj(struct block_device *bdev)
 {
 	if (bdev->bd_contains != bdev)
-		return kobject_get(&bdev->bd_part->kobj);
+		return kobject_get(&bdev->bd_part->dev.kobj);
 	else
-		return kobject_get(&bdev->bd_disk->kobj);
+		return kobject_get(&bdev->bd_disk->dev.kobj);
 }
 
 static struct kobject *bdev_get_holder(struct block_device *bdev)
@@ -1176,7 +1176,7 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 				ret = -ENXIO;
 				goto out_first;
 			}
-			kobject_get(&p->kobj);
+			kobject_get(&p->dev.kobj);
 			bdev->bd_part = p;
 			bd_set_size(bdev, (loff_t) p->nr_sects << 9);
 		}
@@ -1299,7 +1299,7 @@ static int __blkdev_put(struct block_device *bdev, int for_part)
 		module_put(owner);
 
 		if (bdev->bd_contains != bdev) {
-			kobject_put(&bdev->bd_part->kobj);
+			kobject_put(&bdev->bd_part->dev.kobj);
 			bdev->bd_part = NULL;
 		}
 		bdev->bd_disk = NULL;

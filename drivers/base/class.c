@@ -17,6 +17,7 @@
 #include <linux/kdev_t.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/genhd.h>
 #include "base.h"
 
 #define to_class_attr(_attr) container_of(_attr, struct class_attribute, attr)
@@ -149,7 +150,13 @@ int class_register(struct class * cls)
 	if (error)
 		return error;
 
+#ifdef CONFIG_SYSFS_DEPRECATED
+	/* let the block class directory show up in the root of sysfs */
+	if (cls != &block_class)
+		cls->subsys.kobj.kset = class_kset;
+#else
 	cls->subsys.kobj.kset = class_kset;
+#endif
 	cls->subsys.kobj.ktype = &class_ktype;
 
 	error = kset_register(&cls->subsys);

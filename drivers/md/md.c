@@ -1396,9 +1396,9 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 		goto fail;
 
 	if (rdev->bdev->bd_part)
-		ko = &rdev->bdev->bd_part->kobj;
+		ko = &rdev->bdev->bd_part->dev.kobj;
 	else
-		ko = &rdev->bdev->bd_disk->kobj;
+		ko = &rdev->bdev->bd_disk->dev.kobj;
 	if ((err = sysfs_create_link(&rdev->kobj, ko, "block"))) {
 		kobject_del(&rdev->kobj);
 		goto fail;
@@ -3083,7 +3083,7 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	add_disk(disk);
 	mddev->gendisk = disk;
 	mutex_unlock(&disks_mutex);
-	error = kobject_init_and_add(&mddev->kobj, &md_ktype, &disk->kobj,
+	error = kobject_init_and_add(&mddev->kobj, &md_ktype, &disk->dev.kobj,
 				     "%s", "md");
 	if (error)
 		printk(KERN_WARNING "md: cannot register %s/md - name in use\n",
@@ -3361,7 +3361,7 @@ static int do_md_run(mddev_t * mddev)
 
 	mddev->changed = 1;
 	md_new_event(mddev);
-	kobject_uevent(&mddev->gendisk->kobj, KOBJ_CHANGE);
+	kobject_uevent(&mddev->gendisk->dev.kobj, KOBJ_CHANGE);
 	return 0;
 }
 

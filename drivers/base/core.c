@@ -671,14 +671,15 @@ static int device_add_class_symlinks(struct device *dev)
 
 #ifdef CONFIG_SYSFS_DEPRECATED
 	/* stacked class devices need a symlink in the class directory */
-	if (dev->kobj.parent != &dev->class->subsys.kobj) {
+	if (dev->kobj.parent != &dev->class->subsys.kobj &&
+	    dev->type != &part_type) {
 		error = sysfs_create_link(&dev->class->subsys.kobj, &dev->kobj,
 					  dev->bus_id);
 		if (error)
 			goto out_subsys;
 	}
 
-	if (dev->parent) {
+	if (dev->parent && dev->type != &part_type) {
 		struct device *parent = dev->parent;
 		char *class_name;
 
@@ -707,10 +708,11 @@ static int device_add_class_symlinks(struct device *dev)
 	return 0;
 
 out_device:
-	if (dev->parent)
+	if (dev->parent && dev->type != &part_type)
 		sysfs_remove_link(&dev->kobj, "device");
 out_busid:
-	if (dev->kobj.parent != &dev->class->subsys.kobj)
+	if (dev->kobj.parent != &dev->class->subsys.kobj &&
+	    dev->type != &part_type)
 		sysfs_remove_link(&dev->class->subsys.kobj, dev->bus_id);
 #else
 	/* link in the class directory pointing to the device */
@@ -719,7 +721,7 @@ out_busid:
 	if (error)
 		goto out_subsys;
 
-	if (dev->parent) {
+	if (dev->parent && dev->type != &part_type) {
 		error = sysfs_create_link(&dev->kobj, &dev->parent->kobj,
 					  "device");
 		if (error)
@@ -743,7 +745,7 @@ static void device_remove_class_symlinks(struct device *dev)
 		return;
 
 #ifdef CONFIG_SYSFS_DEPRECATED
-	if (dev->parent) {
+	if (dev->parent && dev->type != &part_type) {
 		char *class_name;
 
 		class_name = make_class_name(dev->class->name, &dev->kobj);
@@ -754,10 +756,11 @@ static void device_remove_class_symlinks(struct device *dev)
 		sysfs_remove_link(&dev->kobj, "device");
 	}
 
-	if (dev->kobj.parent != &dev->class->subsys.kobj)
+	if (dev->kobj.parent != &dev->class->subsys.kobj &&
+	    dev->type != &part_type)
 		sysfs_remove_link(&dev->class->subsys.kobj, dev->bus_id);
 #else
-	if (dev->parent)
+	if (dev->parent && dev->type != &part_type)
 		sysfs_remove_link(&dev->kobj, "device");
 
 	sysfs_remove_link(&dev->class->subsys.kobj, dev->bus_id);
@@ -925,6 +928,7 @@ struct device * get_device(struct device * dev)
  */
 void put_device(struct device * dev)
 {
+	/* might_sleep(); */
 	if (dev)
 		kobject_put(&dev->kobj);
 }
