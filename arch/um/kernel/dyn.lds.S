@@ -62,7 +62,7 @@ SECTIONS
   } =0x90909090
   .plt            : { *(.plt) }
   .text           : {
-    *(.text)
+    TEXT_TEXT
     SCHED_TEXT
     LOCK_TEXT
     *(.fixup)
@@ -99,7 +99,8 @@ SECTIONS
     *(.data.init_task)
     . = ALIGN(KERNEL_STACK_SIZE);
     *(.data.init_irqstack)
-    *(.data .data.* .gnu.linkonce.d.*)
+    DATA_DATA
+    *(.data.* .gnu.linkonce.d.*)
     SORT(CONSTRUCTORS)
   }
   .data1          : { *(.data1) }

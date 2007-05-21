@@ -22,7 +22,7 @@ SECTIONS
 	*(.empty_zero_page)
 	} = 0
   .text : {
-	*(.text)
+	TEXT_TEXT
 	SCHED_TEXT
 	LOCK_TEXT
 	*(.fixup)
@@ -41,7 +41,7 @@ SECTIONS
   BUG_TABLE
 
   .data : {			/* Data */
-	*(.data)
+	DATA_DATA
 
  	 /* Align the initial ramdisk image (INITRD) on page boundaries. */
  	 . = ALIGN(PAGE_SIZE);

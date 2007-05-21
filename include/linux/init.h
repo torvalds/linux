@@ -45,6 +45,19 @@
 #define __exitdata	__attribute__ ((__section__(".exit.data")))
 #define __exit_call	__attribute_used__ __attribute__ ((__section__ (".exitcall.exit")))
 
+/* modpost check for section mismatches during the kernel build.
+ * A section mismatch happens when there are references from a
+ * code or data section to an init section (both code or data).
+ * The init sections are (for most archs) discarded by the kernel
+ * when early init has completed so all such references are potential bugs.
+ * For exit sections the same issue exists.
+ * The following markers are used for the cases where the reference to
+ * the init/exit section (code or data) is valid and will teach modpost
+ * not to issue a warning.
+ * The markers follow same syntax rules as __init / __initdata. */
+#define __init_refok     noinline __attribute__ ((__section__ (".text.init.refok")))
+#define __initdata_refok          __attribute__ ((__section__ (".data.init.refok")))
+
 #ifdef MODULE
 #define __exit		__attribute__ ((__section__(".exit.text")))
 #else

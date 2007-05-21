@@ -76,7 +76,7 @@ SECTIONS
 		. = 0x100;
 		*(.scall.text)
 		*(.irq.text)
-		*(.text)
+		TEXT_TEXT
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
@@ -112,7 +112,7 @@ SECTIONS
 
 		/* And the rest... */
 		*(.data.rel*)
-		*(.data)
+		DATA_DATA
 		CONSTRUCTORS
 
 		_edata = .;

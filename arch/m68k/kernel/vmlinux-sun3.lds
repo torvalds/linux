@@ -12,7 +12,7 @@ SECTIONS
   _text = .;			/* Text and read-only data */
   .text : {
 	*(.head)
-	*(.text)
+	TEXT_TEXT
 	SCHED_TEXT
 	LOCK_TEXT
 	*(.fixup)
@@ -23,7 +23,7 @@ SECTIONS
   _etext = .;			/* End of text section */
 
   .data : {			/* Data */
-	*(.data)
+	DATA_DATA
 	CONSTRUCTORS
 	. = ALIGN(16);		/* Exception table */
 	__start___ex_table = .;
