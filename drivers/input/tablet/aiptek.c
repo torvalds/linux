@@ -417,6 +417,9 @@ static const char *map_val_to_str(const struct aiptek_map *map, int val)
  * Proximity. Why two events? I thought it interesting to know if the
  * Proximity event occurred while the tablet was in absolute or relative
  * mode.
+ * Update: REL_MISC proved not to be such a good idea. With REL_MISC you
+ * get an event transmitted each time. ABS_MISC works better, since it
+ * can be set and re-set. Thus, only using ABS_MISC from now on.
  *
  * Other tablets use the notion of a certain minimum stylus pressure
  * to infer proximity. While that could have been done, that is yet
@@ -639,7 +642,7 @@ static void aiptek_irq(struct urb *urb)
 						aiptek->curSetting.wheel = AIPTEK_WHEEL_DISABLE;
 					}
 				}
-				input_report_rel(inputdev, REL_MISC, p | AIPTEK_REPORT_TOOL_MOUSE);
+				input_report_abs(inputdev, ABS_MISC, p | AIPTEK_REPORT_TOOL_MOUSE);
 				input_sync(inputdev);
 			}
 		}
