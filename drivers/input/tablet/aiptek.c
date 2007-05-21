@@ -329,6 +329,19 @@ struct aiptek {
 	unsigned char *data;			/* incoming packet data          */
 };
 
+static const int eventTypes[] = {
+        EV_KEY, EV_ABS, EV_REL, EV_MSC,
+};
+
+static const int absEvents[] = {
+        ABS_X, ABS_Y, ABS_PRESSURE, ABS_TILT_X, ABS_TILT_Y,
+        ABS_WHEEL, ABS_MISC,
+};
+
+static const int relEvents[] = {
+        REL_X, REL_Y, REL_WHEEL,
+};
+
 static const int buttonEvents[] = {
 	BTN_LEFT, BTN_RIGHT, BTN_MIDDLE,
 	BTN_TOOL_PEN, BTN_TOOL_RUBBER, BTN_TOOL_PENCIL, BTN_TOOL_AIRBRUSH,
@@ -1727,17 +1740,16 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	/* Now program the capacities of the tablet, in terms of being
 	 * an input device.
 	 */
-	inputdev->evbit[0] |= BIT(EV_KEY)
-	    | BIT(EV_ABS)
-	    | BIT(EV_REL)
-	    | BIT(EV_MSC);
+	for (i = 0; i < ARRAY_SIZE(eventTypes); ++i)
+	        __set_bit(eventTypes[i], inputdev->evbit);
 
-	inputdev->absbit[0] |= BIT(ABS_MISC);
+	for (i = 0; i < ARRAY_SIZE(absEvents); ++i)
+	        __set_bit(absEvents[i], inputdev->absbit);
 
-	inputdev->relbit[0] |=
-	    (BIT(REL_X) | BIT(REL_Y) | BIT(REL_WHEEL) | BIT(REL_MISC));
+	for (i = 0; i < ARRAY_SIZE(relEvents); ++i)
+	        __set_bit(relEvents[i], inputdev->relbit);
 
-	inputdev->mscbit[0] = BIT(MSC_SERIAL);
+	__set_bit(MSC_SERIAL, inputdev->mscbit);
 
 	/* Set up key and button codes */
 	for (i = 0; i < ARRAY_SIZE(buttonEvents); ++i)
