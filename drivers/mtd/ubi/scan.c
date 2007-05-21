@@ -132,9 +132,9 @@ static int validate_vid_hdr(const struct ubi_vid_hdr *vid_hdr,
 			    const struct ubi_scan_volume *sv, int pnum)
 {
 	int vol_type = vid_hdr->vol_type;
-	int vol_id = ubi32_to_cpu(vid_hdr->vol_id);
-	int used_ebs = ubi32_to_cpu(vid_hdr->used_ebs);
-	int data_pad = ubi32_to_cpu(vid_hdr->data_pad);
+	int vol_id = be32_to_cpu(vid_hdr->vol_id);
+	int used_ebs = be32_to_cpu(vid_hdr->used_ebs);
+	int data_pad = be32_to_cpu(vid_hdr->data_pad);
 
 	if (sv->leb_count != 0) {
 		int sv_vol_type;
@@ -200,7 +200,7 @@ static struct ubi_scan_volume *add_volume(struct ubi_scan_info *si, int vol_id,
 	struct ubi_scan_volume *sv;
 	struct rb_node **p = &si->volumes.rb_node, *parent = NULL;
 
-	ubi_assert(vol_id == ubi32_to_cpu(vid_hdr->vol_id));
+	ubi_assert(vol_id == be32_to_cpu(vid_hdr->vol_id));
 
 	/* Walk the volume RB-tree to look if this volume is already present */
 	while (*p) {
@@ -225,8 +225,8 @@ static struct ubi_scan_volume *add_volume(struct ubi_scan_info *si, int vol_id,
 	si->max_sqnum = 0;
 	sv->vol_id = vol_id;
 	sv->root = RB_ROOT;
-	sv->used_ebs = ubi32_to_cpu(vid_hdr->used_ebs);
-	sv->data_pad = ubi32_to_cpu(vid_hdr->data_pad);
+	sv->used_ebs = be32_to_cpu(vid_hdr->used_ebs);
+	sv->data_pad = be32_to_cpu(vid_hdr->data_pad);
 	sv->compat = vid_hdr->compat;
 	sv->vol_type = vid_hdr->vol_type == UBI_VID_DYNAMIC ? UBI_DYNAMIC_VOLUME
 							    : UBI_STATIC_VOLUME;
@@ -268,10 +268,10 @@ static int compare_lebs(const struct ubi_device *ubi,
 	int len, err, second_is_newer, bitflips = 0, corrupted = 0;
 	uint32_t data_crc, crc;
 	struct ubi_vid_hdr *vidh = NULL;
-	unsigned long long sqnum2 = ubi64_to_cpu(vid_hdr->sqnum);
+	unsigned long long sqnum2 = be64_to_cpu(vid_hdr->sqnum);
 
 	if (seb->sqnum == 0 && sqnum2 == 0) {
-		long long abs, v1 = seb->leb_ver, v2 = ubi32_to_cpu(vid_hdr->leb_ver);
+		long long abs, v1 = seb->leb_ver, v2 = be32_to_cpu(vid_hdr->leb_ver);
 
 		/*
 		 * UBI constantly increases the logical eraseblock version
@@ -355,7 +355,7 @@ static int compare_lebs(const struct ubi_device *ubi,
 
 	/* Read the data of the copy and check the CRC */
 
-	len = ubi32_to_cpu(vid_hdr->data_size);
+	len = be32_to_cpu(vid_hdr->data_size);
 	buf = vmalloc(len);
 	if (!buf) {
 		err = -ENOMEM;
@@ -366,7 +366,7 @@ static int compare_lebs(const struct ubi_device *ubi,
 	if (err && err != UBI_IO_BITFLIPS)
 		goto out_free_buf;
 
-	data_crc = ubi32_to_cpu(vid_hdr->data_crc);
+	data_crc = be32_to_cpu(vid_hdr->data_crc);
 	crc = crc32(UBI_CRC32_INIT, buf, len);
 	if (crc != data_crc) {
 		dbg_bld("PEB %d CRC error: calculated %#08x, must be %#08x",
@@ -425,10 +425,10 @@ int ubi_scan_add_used(const struct ubi_device *ubi, struct ubi_scan_info *si,
 	struct ubi_scan_leb *seb;
 	struct rb_node **p, *parent = NULL;
 
-	vol_id = ubi32_to_cpu(vid_hdr->vol_id);
-	lnum = ubi32_to_cpu(vid_hdr->lnum);
-	sqnum = ubi64_to_cpu(vid_hdr->sqnum);
-	leb_ver = ubi32_to_cpu(vid_hdr->leb_ver);
+	vol_id = be32_to_cpu(vid_hdr->vol_id);
+	lnum = be32_to_cpu(vid_hdr->lnum);
+	sqnum = be64_to_cpu(vid_hdr->sqnum);
+	leb_ver = be32_to_cpu(vid_hdr->leb_ver);
 
 	dbg_bld("PEB %d, LEB %d:%d, EC %d, sqnum %llu, ver %u, bitflips %d",
 		pnum, vol_id, lnum, ec, sqnum, leb_ver, bitflips);
@@ -523,7 +523,7 @@ int ubi_scan_add_used(const struct ubi_device *ubi, struct ubi_scan_info *si,
 
 			if (sv->highest_lnum == lnum)
 				sv->last_data_size =
-					ubi32_to_cpu(vid_hdr->data_size);
+					be32_to_cpu(vid_hdr->data_size);
 
 			return 0;
 		} else {
@@ -560,7 +560,7 @@ int ubi_scan_add_used(const struct ubi_device *ubi, struct ubi_scan_info *si,
 
 	if (sv->highest_lnum <= lnum) {
 		sv->highest_lnum = lnum;
-		sv->last_data_size = ubi32_to_cpu(vid_hdr->data_size);
+		sv->last_data_size = be32_to_cpu(vid_hdr->data_size);
 	}
 
 	if (si->max_sqnum < sqnum)
@@ -687,7 +687,7 @@ int ubi_scan_erase_peb(const struct ubi_device *ubi,
 		return -EINVAL;
 	}
 
-	ec_hdr->ec = cpu_to_ubi64(ec);
+	ec_hdr->ec = cpu_to_be64(ec);
 
 	err = ubi_io_sync_erase(ubi, pnum, 0);
 	if (err < 0)
@@ -818,7 +818,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si, int pnum
 			return -EINVAL;
 		}
 
-		ec = ubi64_to_cpu(ech->ec);
+		ec = be64_to_cpu(ech->ec);
 		if (ec > UBI_MAX_ERASECOUNTER) {
 			/*
 			 * Erase counter overflow. The EC headers have 64 bits
@@ -856,9 +856,9 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si, int pnum
 		goto adjust_mean_ec;
 	}
 
-	vol_id = ubi32_to_cpu(vidh->vol_id);
+	vol_id = be32_to_cpu(vidh->vol_id);
 	if (vol_id > UBI_MAX_VOLUMES && vol_id != UBI_LAYOUT_VOL_ID) {
-		int lnum = ubi32_to_cpu(vidh->lnum);
+		int lnum = be32_to_cpu(vidh->lnum);
 
 		/* Unsupported internal volume */
 		switch (vidh->compat) {
@@ -1261,12 +1261,12 @@ static int paranoid_check_si(const struct ubi_device *ubi,
 				goto bad_vid_hdr;
 			}
 
-			if (seb->sqnum != ubi64_to_cpu(vidh->sqnum)) {
+			if (seb->sqnum != be64_to_cpu(vidh->sqnum)) {
 				ubi_err("bad sqnum %llu", seb->sqnum);
 				goto bad_vid_hdr;
 			}
 
-			if (sv->vol_id != ubi32_to_cpu(vidh->vol_id)) {
+			if (sv->vol_id != be32_to_cpu(vidh->vol_id)) {
 				ubi_err("bad vol_id %d", sv->vol_id);
 				goto bad_vid_hdr;
 			}
@@ -1276,22 +1276,22 @@ static int paranoid_check_si(const struct ubi_device *ubi,
 				goto bad_vid_hdr;
 			}
 
-			if (seb->lnum != ubi32_to_cpu(vidh->lnum)) {
+			if (seb->lnum != be32_to_cpu(vidh->lnum)) {
 				ubi_err("bad lnum %d", seb->lnum);
 				goto bad_vid_hdr;
 			}
 
-			if (sv->used_ebs != ubi32_to_cpu(vidh->used_ebs)) {
+			if (sv->used_ebs != be32_to_cpu(vidh->used_ebs)) {
 				ubi_err("bad used_ebs %d", sv->used_ebs);
 				goto bad_vid_hdr;
 			}
 
-			if (sv->data_pad != ubi32_to_cpu(vidh->data_pad)) {
+			if (sv->data_pad != be32_to_cpu(vidh->data_pad)) {
 				ubi_err("bad data_pad %d", sv->data_pad);
 				goto bad_vid_hdr;
 			}
 
-			if (seb->leb_ver != ubi32_to_cpu(vidh->leb_ver)) {
+			if (seb->leb_ver != be32_to_cpu(vidh->leb_ver)) {
 				ubi_err("bad leb_ver %u", seb->leb_ver);
 				goto bad_vid_hdr;
 			}
@@ -1300,12 +1300,12 @@ static int paranoid_check_si(const struct ubi_device *ubi,
 		if (!last_seb)
 			continue;
 
-		if (sv->highest_lnum != ubi32_to_cpu(vidh->lnum)) {
+		if (sv->highest_lnum != be32_to_cpu(vidh->lnum)) {
 			ubi_err("bad highest_lnum %d", sv->highest_lnum);
 			goto bad_vid_hdr;
 		}
 
-		if (sv->last_data_size != ubi32_to_cpu(vidh->data_size)) {
+		if (sv->last_data_size != be32_to_cpu(vidh->data_size)) {
 			ubi_err("bad last_data_size %d", sv->last_data_size);
 			goto bad_vid_hdr;
 		}

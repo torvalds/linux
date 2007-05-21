@@ -319,10 +319,10 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 
 	/* Fill volume table record */
 	memset(&vtbl_rec, 0, sizeof(struct ubi_vtbl_record));
-	vtbl_rec.reserved_pebs = cpu_to_ubi32(vol->reserved_pebs);
-	vtbl_rec.alignment     = cpu_to_ubi32(vol->alignment);
-	vtbl_rec.data_pad      = cpu_to_ubi32(vol->data_pad);
-	vtbl_rec.name_len      = cpu_to_ubi16(vol->name_len);
+	vtbl_rec.reserved_pebs = cpu_to_be32(vol->reserved_pebs);
+	vtbl_rec.alignment     = cpu_to_be32(vol->alignment);
+	vtbl_rec.data_pad      = cpu_to_be32(vol->data_pad);
+	vtbl_rec.name_len      = cpu_to_be16(vol->name_len);
 	if (vol->vol_type == UBI_DYNAMIC_VOLUME)
 		vtbl_rec.vol_type = UBI_VID_DYNAMIC;
 	else
@@ -502,7 +502,7 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 
 	/* Change volume table record */
 	memcpy(&vtbl_rec, &ubi->vtbl[vol_id], sizeof(struct ubi_vtbl_record));
-	vtbl_rec.reserved_pebs = cpu_to_ubi32(reserved_pebs);
+	vtbl_rec.reserved_pebs = cpu_to_be32(reserved_pebs);
 	err = ubi_change_vtbl_record(ubi, vol_id, &vtbl_rec);
 	if (err)
 		goto out_acc;
@@ -650,7 +650,7 @@ static void paranoid_check_volume(const struct ubi_device *ubi, int vol_id)
 	long long n;
 	const char *name;
 
-	reserved_pebs = ubi32_to_cpu(ubi->vtbl[vol_id].reserved_pebs);
+	reserved_pebs = be32_to_cpu(ubi->vtbl[vol_id].reserved_pebs);
 
 	if (!vol) {
 		if (reserved_pebs) {
@@ -764,9 +764,9 @@ static void paranoid_check_volume(const struct ubi_device *ubi, int vol_id)
 		}
 	}
 
-	alignment  = ubi32_to_cpu(ubi->vtbl[vol_id].alignment);
-	data_pad   = ubi32_to_cpu(ubi->vtbl[vol_id].data_pad);
-	name_len   = ubi16_to_cpu(ubi->vtbl[vol_id].name_len);
+	alignment  = be32_to_cpu(ubi->vtbl[vol_id].alignment);
+	data_pad   = be32_to_cpu(ubi->vtbl[vol_id].data_pad);
+	name_len   = be16_to_cpu(ubi->vtbl[vol_id].name_len);
 	upd_marker = ubi->vtbl[vol_id].upd_marker;
 	name       = &ubi->vtbl[vol_id].name[0];
 	if (ubi->vtbl[vol_id].vol_type == UBI_VID_DYNAMIC)

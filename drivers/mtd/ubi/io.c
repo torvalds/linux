@@ -557,9 +557,9 @@ static int validate_ec_hdr(const struct ubi_device *ubi,
 	long long ec;
 	int vid_hdr_offset, leb_start;
 
-	ec = ubi64_to_cpu(ec_hdr->ec);
-	vid_hdr_offset = ubi32_to_cpu(ec_hdr->vid_hdr_offset);
-	leb_start = ubi32_to_cpu(ec_hdr->data_offset);
+	ec = be64_to_cpu(ec_hdr->ec);
+	vid_hdr_offset = be32_to_cpu(ec_hdr->vid_hdr_offset);
+	leb_start = be32_to_cpu(ec_hdr->data_offset);
 
 	if (ec_hdr->version != UBI_VERSION) {
 		ubi_err("node with incompatible UBI version found: "
@@ -640,7 +640,7 @@ int ubi_io_read_ec_hdr(const struct ubi_device *ubi, int pnum,
 		read_err = err;
 	}
 
-	magic = ubi32_to_cpu(ec_hdr->magic);
+	magic = be32_to_cpu(ec_hdr->magic);
 	if (magic != UBI_EC_HDR_MAGIC) {
 		/*
 		 * The magic field is wrong. Let's check if we have read all
@@ -684,7 +684,7 @@ int ubi_io_read_ec_hdr(const struct ubi_device *ubi, int pnum,
 	}
 
 	crc = crc32(UBI_CRC32_INIT, ec_hdr, UBI_EC_HDR_SIZE_CRC);
-	hdr_crc = ubi32_to_cpu(ec_hdr->hdr_crc);
+	hdr_crc = be32_to_cpu(ec_hdr->hdr_crc);
 
 	if (hdr_crc != crc) {
 		if (verbose) {
@@ -729,12 +729,12 @@ int ubi_io_write_ec_hdr(const struct ubi_device *ubi, int pnum,
 	dbg_io("write EC header to PEB %d", pnum);
 	ubi_assert(pnum >= 0 &&  pnum < ubi->peb_count);
 
-	ec_hdr->magic = cpu_to_ubi32(UBI_EC_HDR_MAGIC);
+	ec_hdr->magic = cpu_to_be32(UBI_EC_HDR_MAGIC);
 	ec_hdr->version = UBI_VERSION;
-	ec_hdr->vid_hdr_offset = cpu_to_ubi32(ubi->vid_hdr_offset);
-	ec_hdr->data_offset = cpu_to_ubi32(ubi->leb_start);
+	ec_hdr->vid_hdr_offset = cpu_to_be32(ubi->vid_hdr_offset);
+	ec_hdr->data_offset = cpu_to_be32(ubi->leb_start);
 	crc = crc32(UBI_CRC32_INIT, ec_hdr, UBI_EC_HDR_SIZE_CRC);
-	ec_hdr->hdr_crc = cpu_to_ubi32(crc);
+	ec_hdr->hdr_crc = cpu_to_be32(crc);
 
 	err = paranoid_check_ec_hdr(ubi, pnum, ec_hdr);
 	if (err)
@@ -757,13 +757,13 @@ static int validate_vid_hdr(const struct ubi_device *ubi,
 {
 	int vol_type = vid_hdr->vol_type;
 	int copy_flag = vid_hdr->copy_flag;
-	int vol_id = ubi32_to_cpu(vid_hdr->vol_id);
-	int lnum = ubi32_to_cpu(vid_hdr->lnum);
+	int vol_id = be32_to_cpu(vid_hdr->vol_id);
+	int lnum = be32_to_cpu(vid_hdr->lnum);
 	int compat = vid_hdr->compat;
-	int data_size = ubi32_to_cpu(vid_hdr->data_size);
-	int used_ebs = ubi32_to_cpu(vid_hdr->used_ebs);
-	int data_pad = ubi32_to_cpu(vid_hdr->data_pad);
-	int data_crc = ubi32_to_cpu(vid_hdr->data_crc);
+	int data_size = be32_to_cpu(vid_hdr->data_size);
+	int used_ebs = be32_to_cpu(vid_hdr->used_ebs);
+	int data_pad = be32_to_cpu(vid_hdr->data_pad);
+	int data_crc = be32_to_cpu(vid_hdr->data_crc);
 	int usable_leb_size = ubi->leb_size - data_pad;
 
 	if (copy_flag != 0 && copy_flag != 1) {
@@ -914,7 +914,7 @@ int ubi_io_read_vid_hdr(const struct ubi_device *ubi, int pnum,
 		read_err = err;
 	}
 
-	magic = ubi32_to_cpu(vid_hdr->magic);
+	magic = be32_to_cpu(vid_hdr->magic);
 	if (magic != UBI_VID_HDR_MAGIC) {
 		/*
 		 * If we have read all 0xFF bytes, the VID header probably does
@@ -957,7 +957,7 @@ int ubi_io_read_vid_hdr(const struct ubi_device *ubi, int pnum,
 	}
 
 	crc = crc32(UBI_CRC32_INIT, vid_hdr, UBI_VID_HDR_SIZE_CRC);
-	hdr_crc = ubi32_to_cpu(vid_hdr->hdr_crc);
+	hdr_crc = be32_to_cpu(vid_hdr->hdr_crc);
 
 	if (hdr_crc != crc) {
 		if (verbose) {
@@ -1007,10 +1007,10 @@ int ubi_io_write_vid_hdr(const struct ubi_device *ubi, int pnum,
 	if (err)
 		return err > 0 ? -EINVAL: err;
 
-	vid_hdr->magic = cpu_to_ubi32(UBI_VID_HDR_MAGIC);
+	vid_hdr->magic = cpu_to_be32(UBI_VID_HDR_MAGIC);
 	vid_hdr->version = UBI_VERSION;
 	crc = crc32(UBI_CRC32_INIT, vid_hdr, UBI_VID_HDR_SIZE_CRC);
-	vid_hdr->hdr_crc = cpu_to_ubi32(crc);
+	vid_hdr->hdr_crc = cpu_to_be32(crc);
 
 	err = paranoid_check_vid_hdr(ubi, pnum, vid_hdr);
 	if (err)
@@ -1060,7 +1060,7 @@ static int paranoid_check_ec_hdr(const struct ubi_device *ubi, int pnum,
 	int err;
 	uint32_t magic;
 
-	magic = ubi32_to_cpu(ec_hdr->magic);
+	magic = be32_to_cpu(ec_hdr->magic);
 	if (magic != UBI_EC_HDR_MAGIC) {
 		ubi_err("bad magic %#08x, must be %#08x",
 			magic, UBI_EC_HDR_MAGIC);
@@ -1105,7 +1105,7 @@ static int paranoid_check_peb_ec_hdr(const struct ubi_device *ubi, int pnum)
 		goto exit;
 
 	crc = crc32(UBI_CRC32_INIT, ec_hdr, UBI_EC_HDR_SIZE_CRC);
-	hdr_crc = ubi32_to_cpu(ec_hdr->hdr_crc);
+	hdr_crc = be32_to_cpu(ec_hdr->hdr_crc);
 	if (hdr_crc != crc) {
 		ubi_err("bad CRC, calculated %#08x, read %#08x", crc, hdr_crc);
 		ubi_err("paranoid check failed for PEB %d", pnum);
@@ -1137,7 +1137,7 @@ static int paranoid_check_vid_hdr(const struct ubi_device *ubi, int pnum,
 	int err;
 	uint32_t magic;
 
-	magic = ubi32_to_cpu(vid_hdr->magic);
+	magic = be32_to_cpu(vid_hdr->magic);
 	if (magic != UBI_VID_HDR_MAGIC) {
 		ubi_err("bad VID header magic %#08x at PEB %d, must be %#08x",
 			magic, pnum, UBI_VID_HDR_MAGIC);
@@ -1187,7 +1187,7 @@ static int paranoid_check_peb_vid_hdr(const struct ubi_device *ubi, int pnum)
 		goto exit;
 
 	crc = crc32(UBI_CRC32_INIT, vid_hdr, UBI_EC_HDR_SIZE_CRC);
-	hdr_crc = ubi32_to_cpu(vid_hdr->hdr_crc);
+	hdr_crc = be32_to_cpu(vid_hdr->hdr_crc);
 	if (hdr_crc != crc) {
 		ubi_err("bad VID header CRC at PEB %d, calculated %#08x, "
 			"read %#08x", pnum, crc, hdr_crc);

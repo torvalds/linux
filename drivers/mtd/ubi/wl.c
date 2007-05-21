@@ -667,7 +667,7 @@ static int sync_erase(struct ubi_device *ubi, struct ubi_wl_entry *e, int tortur
 
 	dbg_wl("erased PEB %d, new EC %llu", e->pnum, ec);
 
-	ec_hdr->ec = cpu_to_ubi64(ec);
+	ec_hdr->ec = cpu_to_be64(ec);
 
 	err = ubi_io_write_ec_hdr(ubi, e->pnum, ec_hdr);
 	if (err)
@@ -1634,7 +1634,7 @@ static int paranoid_check_ec(const struct ubi_device *ubi, int pnum, int ec)
 		goto out_free;
 	}
 
-	read_ec = ubi64_to_cpu(ec_hdr->ec);
+	read_ec = be64_to_cpu(ec_hdr->ec);
 	if (ec != read_ec) {
 		ubi_err("paranoid check failed for PEB %d", pnum);
 		ubi_err("read EC is %lld, should be %d", read_ec, ec);
