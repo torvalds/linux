@@ -1006,9 +1006,6 @@ static ssize_t show_tabletSize(struct device *dev, struct device_attribute *attr
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	if (aiptek == NULL)
-		return 0;
-
 	return snprintf(buf, PAGE_SIZE, "%dx%d\n",
 			aiptek->inputdev->absmax[ABS_X] + 1,
 			aiptek->inputdev->absmax[ABS_Y] + 1);
@@ -1030,9 +1027,6 @@ static ssize_t show_tabletPointerMode(struct device *dev, struct device_attribut
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 	char *s;
-
-	if (aiptek == NULL)
-		return 0;
 
 	switch (aiptek->curSetting.pointerMode) {
 	case AIPTEK_POINTER_ONLY_STYLUS_MODE:
@@ -1058,8 +1052,6 @@ static ssize_t
 store_tabletPointerMode(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	if (aiptek == NULL)
-		return 0;
 
 	if (strcmp(buf, "stylus") == 0) {
 		aiptek->newSetting.pointerMode =
@@ -1085,9 +1077,6 @@ static ssize_t show_tabletCoordinateMode(struct device *dev, struct device_attri
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 	char *s;
 
-	if (aiptek == NULL)
-		return 0;
-
 	switch (aiptek->curSetting.coordinateMode) {
 	case AIPTEK_COORDINATE_ABSOLUTE_MODE:
 		s = "absolute";
@@ -1108,8 +1097,6 @@ static ssize_t
 store_tabletCoordinateMode(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	if (aiptek == NULL)
-		return 0;
 
 	if (strcmp(buf, "absolute") == 0) {
 		aiptek->newSetting.pointerMode =
@@ -1133,9 +1120,6 @@ static ssize_t show_tabletToolMode(struct device *dev, struct device_attribute *
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 	char *s;
-
-	if (aiptek == NULL)
-		return 0;
 
 	switch (TOOL_BUTTON(aiptek->curSetting.toolMode)) {
 	case AIPTEK_TOOL_BUTTON_MOUSE_MODE:
@@ -1177,8 +1161,6 @@ static ssize_t
 store_tabletToolMode(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	if (aiptek == NULL)
-		return 0;
 
 	if (strcmp(buf, "mouse") == 0) {
 		aiptek->newSetting.toolMode = AIPTEK_TOOL_BUTTON_MOUSE_MODE;
@@ -1211,9 +1193,6 @@ static ssize_t show_tabletXtilt(struct device *dev, struct device_attribute *att
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	if (aiptek == NULL)
-		return 0;
-
 	if (aiptek->curSetting.xTilt == AIPTEK_TILT_DISABLE) {
 		return snprintf(buf, PAGE_SIZE, "disable\n");
 	} else {
@@ -1227,9 +1206,6 @@ store_tabletXtilt(struct device *dev, struct device_attribute *attr, const char 
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 	int x;
-
-	if (aiptek == NULL)
-		return 0;
 
 	if (strcmp(buf, "disable") == 0) {
 		aiptek->newSetting.xTilt = AIPTEK_TILT_DISABLE;
@@ -1253,9 +1229,6 @@ static ssize_t show_tabletYtilt(struct device *dev, struct device_attribute *att
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	if (aiptek == NULL)
-		return 0;
-
 	if (aiptek->curSetting.yTilt == AIPTEK_TILT_DISABLE) {
 		return snprintf(buf, PAGE_SIZE, "disable\n");
 	} else {
@@ -1269,9 +1242,6 @@ store_tabletYtilt(struct device *dev, struct device_attribute *attr, const char 
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 	int y;
-
-	if (aiptek == NULL)
-		return 0;
 
 	if (strcmp(buf, "disable") == 0) {
 		aiptek->newSetting.yTilt = AIPTEK_TILT_DISABLE;
@@ -1295,9 +1265,6 @@ static ssize_t show_tabletJitterDelay(struct device *dev, struct device_attribut
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	if (aiptek == NULL)
-		return 0;
-
 	return snprintf(buf, PAGE_SIZE, "%d\n", aiptek->curSetting.jitterDelay);
 }
 
@@ -1305,9 +1272,6 @@ static ssize_t
 store_tabletJitterDelay(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-
-	if (aiptek == NULL)
-		return 0;
 
 	aiptek->newSetting.jitterDelay = (int)simple_strtol(buf, NULL, 10);
 	return count;
@@ -1325,9 +1289,6 @@ static ssize_t show_tabletProgrammableDelay(struct device *dev, struct device_at
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	if (aiptek == NULL)
-		return 0;
-
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			aiptek->curSetting.programmableDelay);
 }
@@ -1336,9 +1297,6 @@ static ssize_t
 store_tabletProgrammableDelay(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-
-	if (aiptek == NULL)
-		return 0;
 
 	aiptek->newSetting.programmableDelay = (int)simple_strtol(buf, NULL, 10);
 	return count;
@@ -1356,9 +1314,6 @@ static ssize_t show_tabletEventsReceived(struct device *dev, struct device_attri
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	if (aiptek == NULL)
-		return 0;
-
 	return snprintf(buf, PAGE_SIZE, "%ld\n", aiptek->eventCount);
 }
 
@@ -1372,9 +1327,6 @@ static ssize_t show_tabletDiagnosticMessage(struct device *dev, struct device_at
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 	char *retMsg;
-
-	if (aiptek == NULL)
-		return 0;
 
 	switch (aiptek->diagnostic) {
 	case AIPTEK_DIAGNOSTIC_NA:
@@ -1415,9 +1367,6 @@ static ssize_t show_tabletStylusUpper(struct device *dev, struct device_attribut
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 	char *s;
 
-	if (aiptek == NULL)
-		return 0;
-
 	switch (aiptek->curSetting.stylusButtonUpper) {
 	case AIPTEK_STYLUS_UPPER_BUTTON:
 		s = "upper";
@@ -1438,9 +1387,6 @@ static ssize_t
 store_tabletStylusUpper(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-
-	if (aiptek == NULL)
-		return 0;
 
 	if (strcmp(buf, "upper") == 0) {
 		aiptek->newSetting.stylusButtonUpper =
@@ -1465,9 +1411,6 @@ static ssize_t show_tabletStylusLower(struct device *dev, struct device_attribut
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 	char *s;
 
-	if (aiptek == NULL)
-		return 0;
-
 	switch (aiptek->curSetting.stylusButtonLower) {
 	case AIPTEK_STYLUS_UPPER_BUTTON:
 		s = "upper";
@@ -1488,9 +1431,6 @@ static ssize_t
 store_tabletStylusLower(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-
-	if (aiptek == NULL)
-		return 0;
 
 	if (strcmp(buf, "upper") == 0) {
 		aiptek->newSetting.stylusButtonLower =
@@ -1514,9 +1454,6 @@ static ssize_t show_tabletMouseLeft(struct device *dev, struct device_attribute 
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 	char *s;
-
-	if (aiptek == NULL)
-		return 0;
 
 	switch (aiptek->curSetting.mouseButtonLeft) {
 	case AIPTEK_MOUSE_LEFT_BUTTON:
@@ -1543,9 +1480,6 @@ store_tabletMouseLeft(struct device *dev, struct device_attribute *attr, const c
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	if (aiptek == NULL)
-		return 0;
-
 	if (strcmp(buf, "left") == 0) {
 		aiptek->newSetting.mouseButtonLeft = AIPTEK_MOUSE_LEFT_BUTTON;
 	} else if (strcmp(buf, "middle") == 0) {
@@ -1568,9 +1502,6 @@ static ssize_t show_tabletMouseMiddle(struct device *dev, struct device_attribut
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 	char *s;
-
-	if (aiptek == NULL)
-		return 0;
 
 	switch (aiptek->curSetting.mouseButtonMiddle) {
 	case AIPTEK_MOUSE_LEFT_BUTTON:
@@ -1597,9 +1528,6 @@ store_tabletMouseMiddle(struct device *dev, struct device_attribute *attr, const
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	if (aiptek == NULL)
-		return 0;
-
 	if (strcmp(buf, "left") == 0) {
 		aiptek->newSetting.mouseButtonMiddle = AIPTEK_MOUSE_LEFT_BUTTON;
 	} else if (strcmp(buf, "middle") == 0) {
@@ -1624,9 +1552,6 @@ static ssize_t show_tabletMouseRight(struct device *dev, struct device_attribute
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 	char *s;
-
-	if (aiptek == NULL)
-		return 0;
 
 	switch (aiptek->curSetting.mouseButtonRight) {
 	case AIPTEK_MOUSE_LEFT_BUTTON:
@@ -1653,9 +1578,6 @@ store_tabletMouseRight(struct device *dev, struct device_attribute *attr, const 
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	if (aiptek == NULL)
-		return 0;
-
 	if (strcmp(buf, "left") == 0) {
 		aiptek->newSetting.mouseButtonRight = AIPTEK_MOUSE_LEFT_BUTTON;
 	} else if (strcmp(buf, "middle") == 0) {
@@ -1679,9 +1601,6 @@ static ssize_t show_tabletWheel(struct device *dev, struct device_attribute *att
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	if (aiptek == NULL)
-		return 0;
-
 	if (aiptek->curSetting.wheel == AIPTEK_WHEEL_DISABLE) {
 		return snprintf(buf, PAGE_SIZE, "disable\n");
 	} else {
@@ -1694,9 +1613,6 @@ static ssize_t
 store_tabletWheel(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-
-	if (aiptek == NULL)
-		return 0;
 
 	aiptek->newSetting.wheel = (int)simple_strtol(buf, NULL, 10);
 	return count;
@@ -1711,11 +1627,6 @@ static DEVICE_ATTR(wheel,
  */
 static ssize_t show_tabletExecute(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct aiptek *aiptek = dev_get_drvdata(dev);
-
-	if (aiptek == NULL)
-		return 0;
-
 	/* There is nothing useful to display, so a one-line manual
 	 * is in order...
 	 */
@@ -1727,9 +1638,6 @@ static ssize_t
 store_tabletExecute(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-
-	if (aiptek == NULL)
-		return 0;
 
 	/* We do not care what you write to this file. Merely the action
 	 * of writing to this file triggers a tablet reprogramming.
@@ -1754,9 +1662,6 @@ static ssize_t show_tabletODMCode(struct device *dev, struct device_attribute *a
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	if (aiptek == NULL)
-		return 0;
-
 	return snprintf(buf, PAGE_SIZE, "0x%04x\n", aiptek->features.odmCode);
 }
 
@@ -1770,9 +1675,6 @@ static ssize_t show_tabletModelCode(struct device *dev, struct device_attribute 
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	if (aiptek == NULL)
-		return 0;
-
 	return snprintf(buf, PAGE_SIZE, "0x%04x\n", aiptek->features.modelCode);
 }
 
@@ -1785,9 +1687,6 @@ static DEVICE_ATTR(model_code, S_IRUGO, show_tabletModelCode, NULL);
 static ssize_t show_firmwareCode(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-
-	if (aiptek == NULL)
-		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%04x\n",
 			aiptek->features.firmwareCode);
