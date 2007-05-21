@@ -193,7 +193,7 @@ config BFIN537_BLUETECHNIX_CM
 	  CM-BF537 support for EVAL- and DEV-Board.
 
 config BFIN561_BLUETECHNIX_CM
-	bool "BF561-CM"
+	bool "Bluetechnix CM-BF561"
 	depends on (BF561)
 	help
 	  CM-BF561 support for EVAL- and DEV-Board.
@@ -203,6 +203,12 @@ config BFIN561_EZKIT
 	depends on (BF561)
 	help
 	  BF561-EZKIT-LITE board Support.
+
+config BFIN561_TEPLA
+	bool "BF561-TEPLA"
+	depends on (BF561)
+	help
+	 BF561-TEPLA board Support.
 
 config PNAV10
 	bool "PNAV 1.0 board"
