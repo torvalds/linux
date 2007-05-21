@@ -2814,7 +2814,11 @@ struct raw1394_iso_packets32 {
 struct raw1394_cycle_timer32 {
         __u32 cycle_timer;
         __u64 local_time;
-} __attribute__((packed));
+}
+#if defined(CONFIG_X86_64) || defined(CONFIG_IA64)
+__attribute__((packed))
+#endif
+;
 
 #define RAW1394_IOC_ISO_RECV_PACKETS32          \
         _IOW ('#', 0x25, struct raw1394_iso_packets32)
