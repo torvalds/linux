@@ -413,7 +413,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 			break;
 		}
 	}
-	BUG_ON(!orig_ret_address || (orig_ret_address == trampoline_address));
+	kretprobe_assert(ri, orig_ret_address, trampoline_address);
 	regs->psw.addr = orig_ret_address | PSW_ADDR_AMODE;
 
 	reset_current_kprobe();

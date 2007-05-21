@@ -1682,3 +1682,31 @@ compat_sys_utimes_wrapper:
 	llgtr	%r2,%r2			# char *
 	llgtr	%r3,%r3			# struct compat_timeval *
 	jg	compat_sys_utimes
+
+	.globl	compat_sys_utimensat_wrapper
+compat_sys_utimensat_wrapper:
+	llgfr	%r2,%r2			# unsigned int
+	llgtr	%r3,%r3			# char *
+	llgtr	%r4,%r4			# struct compat_timespec *
+	lgfr	%r5,%r5			# int
+	jg	compat_sys_utimensat
+
+	.globl	compat_sys_signalfd_wrapper
+compat_sys_signalfd_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# compat_sigset_t *
+	llgfr	%r4,%r4			# compat_size_t
+	jg	compat_sys_signalfd
+
+	.globl	compat_sys_timerfd_wrapper
+compat_sys_timerfd_wrapper:
+	lgfr	%r2,%r2			# int
+	lgfr	%r3,%r3			# int
+	lgfr	%r4,%r4			# int
+	llgtr	%r5,%r5			# struct compat_itimerspec *
+	jg	compat_sys_timerfd
+
+	.globl	sys_eventfd_wrapper
+sys_eventfd_wrapper:
+	llgfr	%r2,%r2			# unsigned int
+	jg	sys_eventfd
