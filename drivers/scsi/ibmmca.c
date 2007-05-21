@@ -555,7 +555,7 @@ static irqreturn_t interrupt_handler(int irq, void *dev_id)
 			printk(KERN_ERR "IBM MCA SCSI: Fatal Subsystem ERROR!\n");
 			printk(KERN_ERR "              Last cmd=0x%x, ena=%x, len=", lastSCSI, ld(shpnt)[ldn].scb.enable);
 			if (ld(shpnt)[ldn].cmd)
-				printk("%ld/%ld,", (long) (ld(shpnt)[ldn].cmd->request_bufflen), (long) (ld(shpnt)[ldn].scb.sys_buf_length));
+				printk("%ld/%ld,", (long) (scsi_bufflen(ld(shpnt)[ldn].cmd)), (long) (ld(shpnt)[ldn].scb.sys_buf_length));
 			else
 				printk("none,");
 			if (ld(shpnt)[ldn].cmd)
@@ -1708,7 +1708,7 @@ static int ibmmca_queuecommand(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
 	int target;
 	int max_pun;
 	int i;
-	struct scatterlist *sl;
+	struct scatterlist *sg;
 
 	shpnt = cmd->device->host;
 
@@ -1829,20 +1829,18 @@ static int ibmmca_queuecommand(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
 	scb->tsb_adr = isa_virt_to_bus(&(ld(shpnt)[ldn].tsb));
 	scsi_cmd = cmd->cmnd[0];
 
-	if (cmd->use_sg) {
-		i = cmd->use_sg;
-		sl = (struct scatterlist *) (cmd->request_buffer);
-		if (i > 16)
-			panic("IBM MCA SCSI: scatter-gather list too long.\n");
-		while (--i >= 0) {
-			ld(shpnt)[ldn].sge[i].address = (void *) (isa_page_to_bus(sl[i].page) + sl[i].offset);
-			ld(shpnt)[ldn].sge[i].byte_length = sl[i].length;
+	if (scsi_sg_count(cmd)) {
+		BUG_ON(scsi_sg_count(cmd) > 16);
+
+		scsi_for_each_sg(cmd, sg, scsi_sg_count(cmd), i) {
+			ld(shpnt)[ldn].sge[i].address = (void *) (isa_page_to_bus(sg->page) + sg->offset);
+			ld(shpnt)[ldn].sge[i].byte_length = sg->length;
 		}
 		scb->enable |= IM_POINTER_TO_LIST;
 		scb->sys_buf_adr = isa_virt_to_bus(&(ld(shpnt)[ldn].sge[0]));
-		scb->sys_buf_length = cmd->use_sg * sizeof(struct im_sge);
+		scb->sys_buf_length = scsi_sg_count(cmd) * sizeof(struct im_sge);
 	} else {
-		scb->sys_buf_adr = isa_virt_to_bus(cmd->request_buffer);
+ 		scb->sys_buf_adr = isa_virt_to_bus(scsi_sglist(cmd));
 		/* recent Linux midlevel SCSI places 1024 byte for inquiry
 		 * command. Far too much for old PS/2 hardware. */
 		switch (scsi_cmd) {
@@ -1853,16 +1851,16 @@ static int ibmmca_queuecommand(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
 		case REQUEST_SENSE:
 		case MODE_SENSE:
 		case MODE_SELECT:
-			if (cmd->request_bufflen > 255)
+			if (scsi_bufflen(cmd) > 255)
 				scb->sys_buf_length = 255;
 			else
-				scb->sys_buf_length = cmd->request_bufflen;
+				scb->sys_buf_length = scsi_bufflen(cmd);
 			break;
 		case TEST_UNIT_READY:
 			scb->sys_buf_length = 0;
 			break;
 		default:
-			scb->sys_buf_length = cmd->request_bufflen;
+			scb->sys_buf_length = scsi_bufflen(cmd);
 			break;
 		}
 	}
