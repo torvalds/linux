@@ -218,15 +218,9 @@
 #define AIPTEK_WHEEL_DISABLE				(-10101)
 
 	/* ToolCode values, which BTW are 0x140 .. 0x14f
-	 * We have things set up such that if TOOL_BUTTON_FIRED_BIT is
-	 * not set, we'll send one instance of AIPTEK_TOOL_BUTTON_xxx.
-	 *
-	 * Whenever the user resets the value, TOOL_BUTTON_FIRED_BIT will
-	 * get reset.
+	 * We have things set up such that if the tool button has changed,
+	 * the tools get reset.
 	 */
-#define TOOL_BUTTON(x)					((x) & 0x14f)
-#define TOOL_BUTTON_FIRED(x)				((x) & 0x200)
-#define TOOL_BUTTON_FIRED_BIT				0x200
 	/* toolMode codes
 	 */
 #define AIPTEK_TOOL_BUTTON_PEN_MODE			BTN_TOOL_PEN
@@ -326,6 +320,9 @@ struct aiptek {
 	int inDelay;				/* jitter: in jitter delay?      */
 	unsigned long endDelay;			/* jitter: time when delay ends  */
 	int previousJitterable;			/* jitterable prev value     */
+
+	int lastMacro;				/* macro key to reset            */
+	int previousToolMode;			/* pen, pencil, brush, etc. tool */
 	unsigned char *data;			/* incoming packet data          */
 };
 
@@ -542,16 +539,18 @@ static void aiptek_irq(struct urb *urb)
 			 * all 'bad' reports...
 			 */
 			if (dv != 0) {
-				/* If we've not already sent a tool_button_?? code, do
-				 * so now. Then set FIRED_BIT so it won't be resent unless
-				 * the user forces FIRED_BIT off.
+				/* If the selected tool changed, reset the old
+				 * tool key, and set the new one.
 				 */
-				if (TOOL_BUTTON_FIRED
-				    (aiptek->curSetting.toolMode) == 0) {
+				if (aiptek->previousToolMode !=
+				    aiptek->curSetting.toolMode) {
+				        input_report_key(inputdev,
+							 aiptek->previousToolMode, 0);
 					input_report_key(inputdev,
-							 TOOL_BUTTON(aiptek->curSetting.toolMode),
+							 aiptek->curSetting.toolMode,
 							 1);
-					aiptek->curSetting.toolMode |= TOOL_BUTTON_FIRED_BIT;
+					aiptek->previousToolMode =
+					          aiptek->curSetting.toolMode;
 				}
 
 				if (p != 0) {
@@ -612,16 +611,18 @@ static void aiptek_irq(struct urb *urb)
 			middle = (data[5] & aiptek->curSetting.mouseButtonMiddle) != 0 ? 1 : 0;
 
 			if (dv != 0) {
-				/* If we've not already sent a tool_button_?? code, do
-				 * so now. Then set FIRED_BIT so it won't be resent unless
-				 * the user forces FIRED_BIT off.
+				/* If the selected tool changed, reset the old
+				 * tool key, and set the new one.
 				 */
-				if (TOOL_BUTTON_FIRED
-				    (aiptek->curSetting.toolMode) == 0) {
+				if (aiptek->previousToolMode !=
+				    aiptek->curSetting.toolMode) {
+				        input_report_key(inputdev,
+							 aiptek->previousToolMode, 0);
 					input_report_key(inputdev,
-							 TOOL_BUTTON(aiptek->curSetting.toolMode),
+							 aiptek->curSetting.toolMode,
 							 1);
-					aiptek->curSetting.toolMode |= TOOL_BUTTON_FIRED_BIT;
+					aiptek->previousToolMode =
+					          aiptek->curSetting.toolMode;
 				}
 
 				if (p != 0) {
@@ -662,15 +663,18 @@ static void aiptek_irq(struct urb *urb)
 		z = le16_to_cpu(get_unaligned((__le16 *) (data + 4)));
 
 		if (dv != 0) {
-			/* If we've not already sent a tool_button_?? code, do
-			 * so now. Then set FIRED_BIT so it won't be resent unless
-			 * the user forces FIRED_BIT off.
+		        /* If the selected tool changed, reset the old
+			 * tool key, and set the new one.
 			 */
-			if (TOOL_BUTTON_FIRED(aiptek->curSetting.toolMode) == 0) {
+		        if (aiptek->previousToolMode !=
+			    aiptek->curSetting.toolMode) {
+			        input_report_key(inputdev,
+						 aiptek->previousToolMode, 0);
 				input_report_key(inputdev,
-						 TOOL_BUTTON(aiptek->curSetting.toolMode),
+						 aiptek->curSetting.toolMode,
 						 1);
-				aiptek->curSetting.toolMode |= TOOL_BUTTON_FIRED_BIT;
+				aiptek->previousToolMode =
+				        aiptek->curSetting.toolMode;
 			}
 
 			if (p != 0) {
@@ -710,15 +714,18 @@ static void aiptek_irq(struct urb *urb)
 		macro = data[3];
 
 		if (dv != 0) {
-			/* If we've not already sent a tool_button_?? code, do
-			 * so now. Then set FIRED_BIT so it won't be resent unless
-			 * the user forces FIRED_BIT off.
+		        /* If the selected tool changed, reset the old
+			 * tool key, and set the new one.
 			 */
-			if (TOOL_BUTTON_FIRED(aiptek->curSetting.toolMode) == 0) {
+		        if (aiptek->previousToolMode !=
+			    aiptek->curSetting.toolMode) {
+			        input_report_key(inputdev,
+						 aiptek->previousToolMode, 0);
 				input_report_key(inputdev,
-						 TOOL_BUTTON(aiptek->curSetting.toolMode),
+						 aiptek->curSetting.toolMode,
 						 1);
-				aiptek->curSetting.toolMode |= TOOL_BUTTON_FIRED_BIT;
+				aiptek->previousToolMode =
+				        aiptek->curSetting.toolMode;
 			}
 
 			if (p != 0) {
@@ -762,15 +769,18 @@ static void aiptek_irq(struct urb *urb)
 					 0);
 		}
 
-		/* If we've not already sent a tool_button_?? code, do
-		 * so now. Then set FIRED_BIT so it won't be resent unless
-		 * the user forces FIRED_BIT off.
-		 */
-		if (TOOL_BUTTON_FIRED(aiptek->curSetting.toolMode) == 0) {
+		/* If the selected tool changed, reset the old
+		   tool key, and set the new one.
+		*/
+		if (aiptek->previousToolMode !=
+		    aiptek->curSetting.toolMode) {
+		        input_report_key(inputdev,
+					 aiptek->previousToolMode, 0);
 			input_report_key(inputdev,
-					 TOOL_BUTTON(aiptek->curSetting.
-						     toolMode), 1);
-			aiptek->curSetting.toolMode |= TOOL_BUTTON_FIRED_BIT;
+					 aiptek->curSetting.toolMode,
+					 1);
+			aiptek->previousToolMode =
+				aiptek->curSetting.toolMode;
 		}
 
 		input_report_key(inputdev, macroKeyEvents[macro], 1);
