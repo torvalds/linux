@@ -441,7 +441,5 @@ static int process_rxed_802_11_packet(wlan_private * priv, struct sk_buff *skb)
 done:
 	LEAVE();
 
-	skb->protocol = __constant_htons(0x0019);	/* ETH_P_80211_RAW */
-
 	return (ret);
 }
