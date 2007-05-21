@@ -344,6 +344,39 @@ static const int macroKeyEvents[] = {
 };
 
 /***********************************************************************
+ * Map values to strings and back. Every map shoudl have the following
+ * as its last element: { NULL, AIPTEK_INVALID_VALUE }.
+ */
+#define AIPTEK_INVALID_VALUE	-1
+
+struct aiptek_map {
+	const char *string;
+	int value;
+};
+
+static int map_str_to_val(const struct aiptek_map *map, const char *str, size_t count)
+{
+	const struct aiptek_map *p;
+
+	for (p = map; p->string; p++)
+		if (!strncmp(str, p->string, count))
+			return p->value;
+
+	return AIPTEK_INVALID_VALUE;
+}
+
+static const char *map_val_to_str(const struct aiptek_map *map, int val)
+{
+	const struct aiptek_map *p;
+
+	for (p = map; p->value != AIPTEK_INVALID_VALUE; p++)
+		if (val == p->value)
+			return p->string;
+
+	return "unknown";
+}
+
+/***********************************************************************
  * Relative reports deliver values in 2's complement format to
  * deal with negative offsets.
  */
@@ -1023,44 +1056,32 @@ static DEVICE_ATTR(size, S_IRUGO, show_tabletSize, NULL);
  * support routines for the 'pointer_mode' file. Note that this file
  * both displays current setting and allows reprogramming.
  */
+static struct aiptek_map pointer_mode_map[] = {
+	{ "stylus",	AIPTEK_POINTER_ONLY_STYLUS_MODE },
+	{ "mouse",	AIPTEK_POINTER_ONLY_MOUSE_MODE },
+	{ "either",	AIPTEK_POINTER_EITHER_MODE },
+	{ NULL,		AIPTEK_INVALID_VALUE }
+};
+
 static ssize_t show_tabletPointerMode(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	char *s;
 
-	switch (aiptek->curSetting.pointerMode) {
-	case AIPTEK_POINTER_ONLY_STYLUS_MODE:
-		s = "stylus";
-		break;
-
-	case AIPTEK_POINTER_ONLY_MOUSE_MODE:
-		s = "mouse";
-		break;
-
-	case AIPTEK_POINTER_EITHER_MODE:
-		s = "either";
-		break;
-
-	default:
-		s = "unknown";
-		break;
-	}
-	return snprintf(buf, PAGE_SIZE, "%s\n", s);
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			map_val_to_str(pointer_mode_map,
+					aiptek->curSetting.pointerMode));
 }
 
 static ssize_t
 store_tabletPointerMode(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
+	int new_mode = map_str_to_val(pointer_mode_map, buf, count);
 
-	if (strcmp(buf, "stylus") == 0) {
-		aiptek->newSetting.pointerMode =
-		    AIPTEK_POINTER_ONLY_STYLUS_MODE;
-	} else if (strcmp(buf, "mouse") == 0) {
-		aiptek->newSetting.pointerMode = AIPTEK_POINTER_ONLY_MOUSE_MODE;
-	} else if (strcmp(buf, "either") == 0) {
-		aiptek->newSetting.pointerMode = AIPTEK_POINTER_EITHER_MODE;
-	}
+	if (new_mode == AIPTEK_INVALID_VALUE)
+		return -EINVAL;
+
+	aiptek->newSetting.pointerMode = new_mode;
 	return count;
 }
 
@@ -1072,39 +1093,32 @@ static DEVICE_ATTR(pointer_mode,
  * support routines for the 'coordinate_mode' file. Note that this file
  * both displays current setting and allows reprogramming.
  */
+
+static struct aiptek_map coordinate_mode_map[] = {
+	{ "absolute",	AIPTEK_COORDINATE_ABSOLUTE_MODE },
+	{ "relative",	AIPTEK_COORDINATE_RELATIVE_MODE },
+	{ NULL,		AIPTEK_INVALID_VALUE }
+};
+
 static ssize_t show_tabletCoordinateMode(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	char *s;
 
-	switch (aiptek->curSetting.coordinateMode) {
-	case AIPTEK_COORDINATE_ABSOLUTE_MODE:
-		s = "absolute";
-		break;
-
-	case AIPTEK_COORDINATE_RELATIVE_MODE:
-		s = "relative";
-		break;
-
-	default:
-		s = "unknown";
-		break;
-	}
-	return snprintf(buf, PAGE_SIZE, "%s\n", s);
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			map_val_to_str(coordinate_mode_map,
+					aiptek->curSetting.coordinateMode));
 }
 
 static ssize_t
 store_tabletCoordinateMode(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
+	int new_mode = map_str_to_val(coordinate_mode_map, buf, count);
 
-	if (strcmp(buf, "absolute") == 0) {
-		aiptek->newSetting.pointerMode =
-		    AIPTEK_COORDINATE_ABSOLUTE_MODE;
-	} else if (strcmp(buf, "relative") == 0) {
-		aiptek->newSetting.pointerMode =
-		    AIPTEK_COORDINATE_RELATIVE_MODE;
-	}
+	if (new_mode == AIPTEK_INVALID_VALUE)
+		return -EINVAL;
+
+	aiptek->newSetting.coordinateMode = new_mode;
 	return count;
 }
 
@@ -1116,68 +1130,37 @@ static DEVICE_ATTR(coordinate_mode,
  * support routines for the 'tool_mode' file. Note that this file
  * both displays current setting and allows reprogramming.
  */
+
+static struct aiptek_map tool_mode_map[] = {
+	{ "mouse",	AIPTEK_TOOL_BUTTON_MOUSE_MODE },
+	{ "eraser",	AIPTEK_TOOL_BUTTON_ERASER_MODE },
+	{ "pencil",	AIPTEK_TOOL_BUTTON_PENCIL_MODE },
+	{ "pen",	AIPTEK_TOOL_BUTTON_PEN_MODE },
+	{ "brush",	AIPTEK_TOOL_BUTTON_BRUSH_MODE },
+	{ "airbrush",	AIPTEK_TOOL_BUTTON_AIRBRUSH_MODE },
+	{ "lens",	AIPTEK_TOOL_BUTTON_LENS_MODE },
+	{ NULL,		AIPTEK_INVALID_VALUE }
+};
+
 static ssize_t show_tabletToolMode(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	char *s;
 
-	switch (TOOL_BUTTON(aiptek->curSetting.toolMode)) {
-	case AIPTEK_TOOL_BUTTON_MOUSE_MODE:
-		s = "mouse";
-		break;
-
-	case AIPTEK_TOOL_BUTTON_ERASER_MODE:
-		s = "eraser";
-		break;
-
-	case AIPTEK_TOOL_BUTTON_PENCIL_MODE:
-		s = "pencil";
-		break;
-
-	case AIPTEK_TOOL_BUTTON_PEN_MODE:
-		s = "pen";
-		break;
-
-	case AIPTEK_TOOL_BUTTON_BRUSH_MODE:
-		s = "brush";
-		break;
-
-	case AIPTEK_TOOL_BUTTON_AIRBRUSH_MODE:
-		s = "airbrush";
-		break;
-
-	case AIPTEK_TOOL_BUTTON_LENS_MODE:
-		s = "lens";
-		break;
-
-	default:
-		s = "unknown";
-		break;
-	}
-	return snprintf(buf, PAGE_SIZE, "%s\n", s);
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			map_val_to_str(tool_mode_map,
+					aiptek->curSetting.toolMode));
 }
 
 static ssize_t
 store_tabletToolMode(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
+	int new_mode = map_str_to_val(tool_mode_map, buf, count);
 
-	if (strcmp(buf, "mouse") == 0) {
-		aiptek->newSetting.toolMode = AIPTEK_TOOL_BUTTON_MOUSE_MODE;
-	} else if (strcmp(buf, "eraser") == 0) {
-		aiptek->newSetting.toolMode = AIPTEK_TOOL_BUTTON_ERASER_MODE;
-	} else if (strcmp(buf, "pencil") == 0) {
-		aiptek->newSetting.toolMode = AIPTEK_TOOL_BUTTON_PENCIL_MODE;
-	} else if (strcmp(buf, "pen") == 0) {
-		aiptek->newSetting.toolMode = AIPTEK_TOOL_BUTTON_PEN_MODE;
-	} else if (strcmp(buf, "brush") == 0) {
-		aiptek->newSetting.toolMode = AIPTEK_TOOL_BUTTON_BRUSH_MODE;
-	} else if (strcmp(buf, "airbrush") == 0) {
-		aiptek->newSetting.toolMode = AIPTEK_TOOL_BUTTON_AIRBRUSH_MODE;
-	} else if (strcmp(buf, "lens") == 0) {
-		aiptek->newSetting.toolMode = AIPTEK_TOOL_BUTTON_LENS_MODE;
-	}
+	if (new_mode == AIPTEK_INVALID_VALUE)
+		return -EINVAL;
 
+	aiptek->newSetting.toolMode = new_mode;
 	return count;
 }
 
@@ -1362,39 +1345,32 @@ static DEVICE_ATTR(diagnostic, S_IRUGO, show_tabletDiagnosticMessage, NULL);
  * support routines for the 'stylus_upper' file. Note that this file
  * both displays current setting and allows for setting changing.
  */
+
+static struct aiptek_map stylus_button_map[] = {
+	{ "upper",	AIPTEK_STYLUS_UPPER_BUTTON },
+	{ "lower",	AIPTEK_STYLUS_LOWER_BUTTON },
+	{ NULL,		AIPTEK_INVALID_VALUE }
+};
+
 static ssize_t show_tabletStylusUpper(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	char *s;
 
-	switch (aiptek->curSetting.stylusButtonUpper) {
-	case AIPTEK_STYLUS_UPPER_BUTTON:
-		s = "upper";
-		break;
-
-	case AIPTEK_STYLUS_LOWER_BUTTON:
-		s = "lower";
-		break;
-
-	default:
-		s = "unknown";
-		break;
-	}
-	return snprintf(buf, PAGE_SIZE, "%s\n", s);
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			map_val_to_str(stylus_button_map,
+					aiptek->curSetting.stylusButtonUpper));
 }
 
 static ssize_t
 store_tabletStylusUpper(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
+	int new_button = map_str_to_val(stylus_button_map, buf, count);
 
-	if (strcmp(buf, "upper") == 0) {
-		aiptek->newSetting.stylusButtonUpper =
-		    AIPTEK_STYLUS_UPPER_BUTTON;
-	} else if (strcmp(buf, "lower") == 0) {
-		aiptek->newSetting.stylusButtonUpper =
-		    AIPTEK_STYLUS_LOWER_BUTTON;
-	}
+	if (new_button == AIPTEK_INVALID_VALUE)
+		return -EINVAL;
+
+	aiptek->newSetting.stylusButtonUpper = new_button;
 	return count;
 }
 
@@ -1406,39 +1382,26 @@ static DEVICE_ATTR(stylus_upper,
  * support routines for the 'stylus_lower' file. Note that this file
  * both displays current setting and allows for setting changing.
  */
+
 static ssize_t show_tabletStylusLower(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	char *s;
 
-	switch (aiptek->curSetting.stylusButtonLower) {
-	case AIPTEK_STYLUS_UPPER_BUTTON:
-		s = "upper";
-		break;
-
-	case AIPTEK_STYLUS_LOWER_BUTTON:
-		s = "lower";
-		break;
-
-	default:
-		s = "unknown";
-		break;
-	}
-	return snprintf(buf, PAGE_SIZE, "%s\n", s);
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			map_val_to_str(stylus_button_map,
+					aiptek->curSetting.stylusButtonLower));
 }
 
 static ssize_t
 store_tabletStylusLower(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
+	int new_button = map_str_to_val(stylus_button_map, buf, count);
 
-	if (strcmp(buf, "upper") == 0) {
-		aiptek->newSetting.stylusButtonLower =
-		    AIPTEK_STYLUS_UPPER_BUTTON;
-	} else if (strcmp(buf, "lower") == 0) {
-		aiptek->newSetting.stylusButtonLower =
-		    AIPTEK_STYLUS_LOWER_BUTTON;
-	}
+	if (new_button == AIPTEK_INVALID_VALUE)
+		return -EINVAL;
+
+	aiptek->newSetting.stylusButtonLower = new_button;
 	return count;
 }
 
@@ -1450,43 +1413,33 @@ static DEVICE_ATTR(stylus_lower,
  * support routines for the 'mouse_left' file. Note that this file
  * both displays current setting and allows for setting changing.
  */
+
+static struct aiptek_map mouse_button_map[] = {
+	{ "left",	AIPTEK_MOUSE_LEFT_BUTTON },
+	{ "middle",	AIPTEK_MOUSE_MIDDLE_BUTTON },
+	{ "right",	AIPTEK_MOUSE_RIGHT_BUTTON },
+	{ NULL,		AIPTEK_INVALID_VALUE }
+};
+
 static ssize_t show_tabletMouseLeft(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	char *s;
 
-	switch (aiptek->curSetting.mouseButtonLeft) {
-	case AIPTEK_MOUSE_LEFT_BUTTON:
-		s = "left";
-		break;
-
-	case AIPTEK_MOUSE_MIDDLE_BUTTON:
-		s = "middle";
-		break;
-
-	case AIPTEK_MOUSE_RIGHT_BUTTON:
-		s = "right";
-		break;
-
-	default:
-		s = "unknown";
-		break;
-	}
-	return snprintf(buf, PAGE_SIZE, "%s\n", s);
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			map_val_to_str(mouse_button_map,
+					aiptek->curSetting.mouseButtonLeft));
 }
 
 static ssize_t
 store_tabletMouseLeft(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
+	int new_button = map_str_to_val(mouse_button_map, buf, count);
 
-	if (strcmp(buf, "left") == 0) {
-		aiptek->newSetting.mouseButtonLeft = AIPTEK_MOUSE_LEFT_BUTTON;
-	} else if (strcmp(buf, "middle") == 0) {
-		aiptek->newSetting.mouseButtonLeft = AIPTEK_MOUSE_MIDDLE_BUTTON;
-	} else if (strcmp(buf, "right") == 0) {
-		aiptek->newSetting.mouseButtonLeft = AIPTEK_MOUSE_RIGHT_BUTTON;
-	}
+	if (new_button == AIPTEK_INVALID_VALUE)
+		return -EINVAL;
+
+	aiptek->newSetting.mouseButtonLeft = new_button;
 	return count;
 }
 
@@ -1501,42 +1454,22 @@ static DEVICE_ATTR(mouse_left,
 static ssize_t show_tabletMouseMiddle(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	char *s;
 
-	switch (aiptek->curSetting.mouseButtonMiddle) {
-	case AIPTEK_MOUSE_LEFT_BUTTON:
-		s = "left";
-		break;
-
-	case AIPTEK_MOUSE_MIDDLE_BUTTON:
-		s = "middle";
-		break;
-
-	case AIPTEK_MOUSE_RIGHT_BUTTON:
-		s = "right";
-		break;
-
-	default:
-		s = "unknown";
-		break;
-	}
-	return snprintf(buf, PAGE_SIZE, "%s\n", s);
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			map_val_to_str(mouse_button_map,
+					aiptek->curSetting.mouseButtonMiddle));
 }
 
 static ssize_t
 store_tabletMouseMiddle(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
+	int new_button = map_str_to_val(mouse_button_map, buf, count);
 
-	if (strcmp(buf, "left") == 0) {
-		aiptek->newSetting.mouseButtonMiddle = AIPTEK_MOUSE_LEFT_BUTTON;
-	} else if (strcmp(buf, "middle") == 0) {
-		aiptek->newSetting.mouseButtonMiddle =
-		    AIPTEK_MOUSE_MIDDLE_BUTTON;
-	} else if (strcmp(buf, "right") == 0) {
-		aiptek->newSetting.mouseButtonMiddle =
-		    AIPTEK_MOUSE_RIGHT_BUTTON;
-	}
+	if (new_button == AIPTEK_INVALID_VALUE)
+		return -EINVAL;
+
+	aiptek->newSetting.mouseButtonMiddle = new_button;
 	return count;
 }
 
@@ -1551,41 +1484,22 @@ static DEVICE_ATTR(mouse_middle,
 static ssize_t show_tabletMouseRight(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	char *s;
 
-	switch (aiptek->curSetting.mouseButtonRight) {
-	case AIPTEK_MOUSE_LEFT_BUTTON:
-		s = "left";
-		break;
-
-	case AIPTEK_MOUSE_MIDDLE_BUTTON:
-		s = "middle";
-		break;
-
-	case AIPTEK_MOUSE_RIGHT_BUTTON:
-		s = "right";
-		break;
-
-	default:
-		s = "unknown";
-		break;
-	}
-	return snprintf(buf, PAGE_SIZE, "%s\n", s);
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			map_val_to_str(mouse_button_map,
+					aiptek->curSetting.mouseButtonRight));
 }
 
 static ssize_t
 store_tabletMouseRight(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
+	int new_button = map_str_to_val(mouse_button_map, buf, count);
 
-	if (strcmp(buf, "left") == 0) {
-		aiptek->newSetting.mouseButtonRight = AIPTEK_MOUSE_LEFT_BUTTON;
-	} else if (strcmp(buf, "middle") == 0) {
-		aiptek->newSetting.mouseButtonRight =
-		    AIPTEK_MOUSE_MIDDLE_BUTTON;
-	} else if (strcmp(buf, "right") == 0) {
-		aiptek->newSetting.mouseButtonRight = AIPTEK_MOUSE_RIGHT_BUTTON;
-	}
+	if (new_button == AIPTEK_INVALID_VALUE)
+		return -EINVAL;
+
+	aiptek->newSetting.mouseButtonRight = new_button;
 	return count;
 }
 
