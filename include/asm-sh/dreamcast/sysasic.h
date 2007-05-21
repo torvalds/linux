@@ -23,7 +23,7 @@
    takes.
 */
 
-#define HW_EVENT_IRQ_BASE  OFFCHIP_IRQ_BASE /* 48 */
+#define HW_EVENT_IRQ_BASE  48
 
 /* IRQ 13 */
 #define HW_EVENT_VSYNC     (HW_EVENT_IRQ_BASE +  5) /* VSync */
