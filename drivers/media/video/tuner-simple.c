@@ -54,9 +54,9 @@ MODULE_PARM_DESC(offset,"Allows to specify an offset for tuner");
     sound 2          33.16  -      -
     NICAM            33.05  33.05  39.80
  */
-#define PHILIPS_MF_SET_BG	0x01 /* Bit 2 must be zero, Bit 3 is system output */
-#define PHILIPS_MF_SET_PAL_L	0x03 // France
-#define PHILIPS_MF_SET_PAL_L2	0x02 // L'
+#define PHILIPS_MF_SET_STD_BG	0x01 /* Bit 2 must be zero, Bit 3 is system output */
+#define PHILIPS_MF_SET_STD_L	0x03 /* Used on Secam France */
+#define PHILIPS_MF_SET_STD_LC	0x02 /* Used on SECAM L' */
 
 /* Control byte */
 
@@ -207,11 +207,11 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		/* 0x04 -> ??? PAL others / SECAM others ??? */
 		cb &= ~0x03;
 		if (t->std & V4L2_STD_SECAM_L) //also valid for V4L2_STD_SECAM
-			cb |= PHILIPS_MF_SET_PAL_L;
+			cb |= PHILIPS_MF_SET_STD_L;
 		else if (t->std & V4L2_STD_SECAM_LC)
-			cb |= PHILIPS_MF_SET_PAL_L2;
+			cb |= PHILIPS_MF_SET_STD_LC;
 		else /* V4L2_STD_B|V4L2_STD_GH */
-			cb |= PHILIPS_MF_SET_BG;
+			cb |= PHILIPS_MF_SET_STD_BG;
 		break;
 
 	case TUNER_TEMIC_4046FM5:
