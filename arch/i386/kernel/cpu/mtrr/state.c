@@ -19,7 +19,7 @@ void set_mtrr_prepare_save(struct set_mtrr_context *ctxt)
 		/*  Save value of CR4 and clear Page Global Enable (bit 7)  */
 		if ( cpu_has_pge ) {
 			ctxt->cr4val = read_cr4();
-			write_cr4(ctxt->cr4val & (unsigned char) ~(1 << 7));
+			write_cr4(ctxt->cr4val & ~X86_CR4_PGE);
 		}
 
 		/*  Disable and flush caches. Note that wbinvd flushes the TLBs as
