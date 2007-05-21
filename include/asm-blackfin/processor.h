@@ -104,13 +104,13 @@ unsigned long get_wchan(struct task_struct *p);
 #define cpu_relax()    	barrier()
 
 /* Get the Silicon Revision of the chip */
-static inline uint32_t bfin_revid(void)
+static inline __attribute_pure__ uint32_t bfin_revid(void)
 {
 	/* stored in the upper 4 bits */
 	return bfin_read_CHIPID() >> 28;
 }
 
-static inline uint32_t bfin_compiled_revid(void)
+static inline __attribute_pure__ uint32_t bfin_compiled_revid(void)
 {
 #if defined(CONFIG_BF_REV_0_0)
 	return 0;
