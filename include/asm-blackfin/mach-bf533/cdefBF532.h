@@ -51,10 +51,6 @@
 #define bfin_read_PLL_LOCKCNT()              bfin_read16(PLL_LOCKCNT)
 #define bfin_write_PLL_LOCKCNT(val)          bfin_write16(PLL_LOCKCNT,val)
 #define bfin_read_CHIPID()                   bfin_read32(CHIPID)
-#define bfin_read_SWRST()                    bfin_read16(SWRST)
-#define bfin_write_SWRST(val)                bfin_write16(SWRST,val)
-#define bfin_read_SYSCR()                    bfin_read16(SYSCR)
-#define bfin_write_SYSCR(val)                bfin_write16(SYSCR,val)
 #define bfin_read_PLL_DIV()                  bfin_read16(PLL_DIV)
 #define bfin_write_PLL_DIV(val)              bfin_write16(PLL_DIV,val)
 #define bfin_read_VR_CTL()                   bfin_read16(VR_CTL)
@@ -78,6 +74,10 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 }
 
 /* System Interrupt Controller (0xFFC0 0C00-0xFFC0 0FFF) */
+#define bfin_read_SWRST()                    bfin_read16(SWRST)
+#define bfin_write_SWRST(val)                bfin_write16(SWRST,val)
+#define bfin_read_SYSCR()                    bfin_read16(SYSCR)
+#define bfin_write_SYSCR(val)                bfin_write16(SYSCR,val)
 #define bfin_read_SIC_IAR0()                 bfin_read32(SIC_IAR0)
 #define bfin_write_SIC_IAR0(val)             bfin_write32(SIC_IAR0,val)
 #define bfin_read_SIC_IAR1()                 bfin_read32(SIC_IAR1)
@@ -117,6 +117,18 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 #define bfin_read_RTC_PREN()                 bfin_read16(RTC_PREN)
 #define bfin_write_RTC_PREN(val)             bfin_write16(RTC_PREN,val)
 
+/* DMA Traffic controls */
+#define bfin_read_DMA_TCPER()                bfin_read16(DMA_TCPER)
+#define bfin_write_DMA_TCPER(val)            bfin_write16(DMA_TCPER,val)
+#define bfin_read_DMA_TCCNT()                bfin_read16(DMA_TCCNT)
+#define bfin_write_DMA_TCCNT(val)            bfin_write16(DMA_TCCNT,val)
+
+/* Alternate deprecated register names (below) provided for backwards code compatibility */
+#define bfin_read_DMA_TC_PER()               bfin_read16(DMA_TC_PER)
+#define bfin_write_DMA_TC_PER(val)           bfin_write16(DMA_TC_PER,val)
+#define bfin_read_DMA_TC_CNT()               bfin_read16(DMA_TC_CNT)
+#define bfin_write_DMA_TC_CNT(val)           bfin_write16(DMA_TC_CNT,val)
+
 /* General Purpose IO (0xFFC0 2400-0xFFC0 27FF) */
 #define bfin_read_FIO_DIR()                  bfin_read16(FIO_DIR)
 #define bfin_write_FIO_DIR(val)              bfin_write16(FIO_DIR,val)
@@ -152,16 +164,6 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 #define bfin_write_FIO_MASKB_D(val)          bfin_write16(FIO_MASKB_D,val)
 #define bfin_read_FIO_MASKB_T()              bfin_read16(FIO_MASKB_T)
 #define bfin_write_FIO_MASKB_T(val)          bfin_write16(FIO_MASKB_T,val)
-
-/* DMA Traffic controls */
-#define bfin_read_DMA_TCPER()                bfin_read16(DMA_TCPER)
-#define bfin_write_DMA_TCPER(val)            bfin_write16(DMA_TCPER,val)
-#define bfin_read_DMA_TCCNT()                bfin_read16(DMA_TCCNT)
-#define bfin_write_DMA_TCCNT(val)            bfin_write16(DMA_TCCNT,val)
-#define bfin_read_DMA_TC_PER()               bfin_read16(DMA_TC_PER)
-#define bfin_write_DMA_TC_PER(val)           bfin_write16(DMA_TC_PER,val)
-#define bfin_read_DMA_TC_CNT()               bfin_read16(DMA_TC_CNT)
-#define bfin_write_DMA_TC_CNT(val)           bfin_write16(DMA_TC_CNT,val)
 
 /* DMA Controller */
 #define bfin_read_DMA0_CONFIG()              bfin_read16(DMA0_CONFIG)

@@ -216,8 +216,12 @@
 #define EBIU_SDSTAT			0xFFC00A1C	/* SDRAM Status Register                                                */
 
 /* DMA Traffic Control Registers													*/
-#define DMA_TCPER			0xFFC00B0C	/* Traffic Control Periods Register                     */
-#define DMA_TCCNT			0xFFC00B10	/* Traffic Control Current Counts Register      */
+#define DMA_TC_PER			0xFFC00B0C	/* Traffic Control Periods Register			*/
+#define DMA_TC_CNT			0xFFC00B10	/* Traffic Control Current Counts Register	*/
+
+/* Alternate deprecated register names (below) provided for backwards code compatibility */
+#define DMA_TCPER			0xFFC00B0C	/* Traffic Control Periods Register			*/
+#define DMA_TCCNT			0xFFC00B10	/* Traffic Control Current Counts Register	*/
 
 /* DMA Controller (0xFFC00C00 - 0xFFC00FFF)															*/
 #define DMA0_NEXT_DESC_PTR		0xFFC00C00	/* DMA Channel 0 Next Descriptor Pointer Register               */
@@ -563,7 +567,7 @@
 #define CAN_GIF				0xFFC02A9C	/* Global Interrupt Flag Register                               */
 #define CAN_CONTROL			0xFFC02AA0	/* Master Control Register                                              */
 #define CAN_INTR			0xFFC02AA4	/* Interrupt Pending Register                                   */
-#define CAN_SFCMVER			0xFFC02AA8	/* Version Code Register                                                */
+
 #define CAN_MBTD			0xFFC02AAC	/* Mailbox Temporary Disable Feature                    */
 #define CAN_EWR				0xFFC02AB0	/* Programmable Warning Level                                   */
 #define CAN_ESR				0xFFC02AB4	/* Error Status Register                                                */
@@ -1026,10 +1030,11 @@
 #define	VLEV_130		0x00F0	/*              VLEV = 1.30 V (-5% - +10% Accuracy)     */
 
 #define	WAKE			0x0100	/* Enable RTC/Reset Wakeup From Hibernate       */
-#define PHYWE			0x0200	/* Enable PHY Wakeup From Hibernate                     */
-#define	CANWE			0x0400	/* Enable CAN Wakeup From Hibernate                     */
-#define	PHYCLKOE		0x4000	/* PHY Clock Output Enable                                      */
-#define	CKELOW			0x8000	/* Enable Drive CKE Low During Reset            */
+#define	CANWE			0x0200	/* Enable CAN Wakeup From Hibernate			*/
+#define	PHYWE			0x0400	/* Enable PHY Wakeup From Hibernate			*/
+#define	CLKBUFOE		0x4000	/* CLKIN Buffer Output Enable */
+#define	PHYCLKOE		CLKBUFOE	/* Alternative legacy name for the above */
+#define	SCKELOW		0x8000	/* Enable Drive CKE Low During Reset		*/
 
 /* PLL_STAT Masks																	*/
 #define ACTIVE_PLLENABLED	0x0001	/* Processor In Active Mode With PLL Enabled    */
@@ -1050,7 +1055,7 @@
 #define RESET_SOFTWARE		0x8000	/* SW Reset Occurred Since Last Read Of SWRST   */
 
 /* SYSCR Masks																				*/
-#define BMODE				0x0006	/* Boot Mode - Latched During HW Reset From Mode Pins   */
+#define BMODE				0x0007	/* Boot Mode - Latched During HW Reset From Mode Pins   */
 #define	NOBOOT				0x0010	/* Execute From L1 or ASYNC Bank 0 When BMODE = 0               */
 
 /* *************  SYSTEM INTERRUPT CONTROLLER MASKS *************************************/
@@ -1107,19 +1112,9 @@
 #define IWR_ENABLE(x)	(1 << ((x)&0x1F))	/* Wakeup Enable Peripheral #x          */
 #define IWR_DISABLE(x)	(0xFFFFFFFF ^ (1 << ((x)&0x1F)))	/* Wakeup Disable Peripheral #x         */
 
-/* ***************  WATCHDOG TIMER MASKS  *******************************************/
-/* WDOG_CTL Masks																	*/
-#define WDOG_RESET		0x0000	/* Generate Reset Event                                                 */
-#define WDOG_NMI		0x0002	/* Generate Non-Maskable Interrupt (NMI) Event  */
-#define WDOG_GPI		0x0004	/* Generate General Purpose (GP) Interrupt              */
-#define WDOG_NONE		0x0006	/* Disable Watchdog Timer Interrupts                    */
-#define TMR_EN			0x0FF0	/* Watchdog Counter Enable                                              */
-#define	TMR_DIS			0x0AD0	/* Watchdog Counter Disable                                             */
-#define TRO			0x8000	/* Watchdog Expired                                                     */
-
 /* ************** UART CONTROLLER MASKS *************************/
 /* UARTx_LCR Masks												*/
-#define WLS(x)		((((x)&0x3)-5) & 0x03)	/* Word Length Select   */
+#define WLS(x)		(((x)-5) & 0x03)	/* Word Length Select   */
 #define STB			0x04	/* Stop Bits                    */
 #define PEN			0x08	/* Parity Enable                */
 #define EPS			0x10	/* Even Parity Select   */
@@ -1128,8 +1123,8 @@
 #define DLAB		0x80	/* Divisor Latch Access */
 
 /* UARTx_MCR Mask										*/
-#define LOOP		0x10	/* Loopback Mode Enable         */
-
+#define LOOP_ENA		0x10	/* Loopback Mode Enable         */
+#define LOOP_ENA_P	0x04
 /* UARTx_LSR Masks										*/
 #define DR			0x01	/* Data Ready                           */
 #define OE			0x02	/* Overrun Error                        */
@@ -1229,10 +1224,10 @@
 #define TIMIL1			0x00000002	/* Timer 1 Interrupt                            */
 #define TIMIL2			0x00000004	/* Timer 2 Interrupt                            */
 #define TIMIL3			0x00000008	/* Timer 3 Interrupt                            */
-#define TOVL_ERR0		0x00000010	/* Timer 0 Counter Overflow                     */
-#define TOVL_ERR1		0x00000020	/* Timer 1 Counter Overflow                     */
-#define TOVL_ERR2		0x00000040	/* Timer 2 Counter Overflow                     */
-#define TOVL_ERR3		0x00000080	/* Timer 3 Counter Overflow                     */
+#define TOVF_ERR0		0x00000010	/* Timer 0 Counter Overflow			*/
+#define TOVF_ERR1		0x00000020	/* Timer 1 Counter Overflow			*/
+#define TOVF_ERR2		0x00000040	/* Timer 2 Counter Overflow			*/
+#define TOVF_ERR3		0x00000080	/* Timer 3 Counter Overflow			*/
 #define TRUN0			0x00001000	/* Timer 0 Slave Enable Status          */
 #define TRUN1			0x00002000	/* Timer 1 Slave Enable Status          */
 #define TRUN2			0x00004000	/* Timer 2 Slave Enable Status          */
@@ -1241,15 +1236,24 @@
 #define TIMIL5			0x00020000	/* Timer 5 Interrupt                            */
 #define TIMIL6			0x00040000	/* Timer 6 Interrupt                            */
 #define TIMIL7			0x00080000	/* Timer 7 Interrupt                            */
-#define TOVL_ERR4		0x00100000	/* Timer 4 Counter Overflow                     */
-#define TOVL_ERR5		0x00200000	/* Timer 5 Counter Overflow                     */
-#define TOVL_ERR6		0x00400000	/* Timer 6 Counter Overflow                     */
-#define TOVL_ERR7		0x00800000	/* Timer 7 Counter Overflow                     */
+#define TOVF_ERR4		0x00100000	/* Timer 4 Counter Overflow			*/
+#define TOVF_ERR5		0x00200000	/* Timer 5 Counter Overflow			*/
+#define TOVF_ERR6		0x00400000	/* Timer 6 Counter Overflow			*/
+#define TOVF_ERR7		0x00800000	/* Timer 7 Counter Overflow			*/
 #define TRUN4			0x10000000	/* Timer 4 Slave Enable Status          */
 #define TRUN5			0x20000000	/* Timer 5 Slave Enable Status          */
 #define TRUN6			0x40000000	/* Timer 6 Slave Enable Status          */
 #define TRUN7			0x80000000	/* Timer 7 Slave Enable Status          */
 
+/* Alternate Deprecated Macros Provided For Backwards Code Compatibility */
+#define TOVL_ERR0 TOVF_ERR0
+#define TOVL_ERR1 TOVF_ERR1
+#define TOVL_ERR2 TOVF_ERR2
+#define TOVL_ERR3 TOVF_ERR3
+#define TOVL_ERR4 TOVF_ERR4
+#define TOVL_ERR5 TOVF_ERR5
+#define TOVL_ERR6 TOVF_ERR6
+#define TOVL_ERR7 TOVF_ERR7
 /* TIMERx_CONFIG Masks													*/
 #define PWM_OUT			0x0001	/* Pulse-Width Modulation Output Mode   */
 #define WDTH_CAP		0x0002	/* Width Capture Input Mode                             */
@@ -1647,6 +1651,8 @@
 #define EBSZ_32			0x0002	/* SDRAM External Bank Size = 32MB                                              */
 #define EBSZ_64			0x0004	/* SDRAM External Bank Size = 64MB                                              */
 #define EBSZ_128		0x0006	/* SDRAM External Bank Size = 128MB                                             */
+#define EBSZ_256		0x0008		/* SDRAM External Bank Size = 256MB 	*/
+#define EBSZ_512		0x000A		/* SDRAM External Bank Size = 512MB		*/
 #define EBCAW_8			0x0000	/* SDRAM External Bank Column Address Width = 8 Bits    */
 #define EBCAW_9			0x0010	/* SDRAM External Bank Column Address Width = 9 Bits    */
 #define EBCAW_10		0x0020	/* SDRAM External Bank Column Address Width = 10 Bits   */
@@ -1859,8 +1865,10 @@
 #define	TXECNT		0xFF00	/* Transmit Error Counter       */
 
 /* CAN_INTR Masks											*/
-#define	MBRIF		0x0001	/* Mailbox Receive Interrupt    */
-#define	MBTIF		0x0002	/* Mailbox Transmit Interrupt   */
+#define	MBRIRQ	0x0001	/* Mailbox Receive Interrupt	*/
+#define	MBRIF		MBRIRQ	/* legacy */
+#define	MBTIRQ	0x0002	/* Mailbox Transmit Interrupt	*/
+#define	MBTIF		MBTIRQ	/* legacy */
 #define	GIRQ		0x0004	/* Global Interrupt                             */
 #define	SMACK		0x0008	/* Sleep Mode Acknowledge               */
 #define	CANTX		0x0040	/* CAN TX Bus Value                             */
@@ -2445,8 +2453,8 @@
 #define	PJCE_SPI		0x0004	/*              Enable SPI_SSEL7                        */
 
 #define	PFDE			0x0008	/* Port F DMA Request Enable            */
-#define	PGDE_UART		0x0000	/*              Enable UART0 RX/TX                      */
-#define	PGDE_DMA		0x0008	/*              Enable DMAR1:0                          */
+#define	PFDE_UART		0x0000	/*              Enable UART0 RX/TX                      */
+#define	PFDE_DMA		0x0008	/*              Enable DMAR1:0                          */
 
 #define	PFTE			0x0010	/* Port F Timer Enable                          */
 #define	PFTE_UART		0x0000	/*              Enable UART1 RX/TX                      */
@@ -2498,4 +2506,20 @@
 #define	OI			0x4000	/* Overflow Interrupt Generated                         */
 #define	BDI			0x8000	/* Block Done Interrupt Generated                       */
 
+/* entry addresses of the user-callable Boot ROM functions */
+
+#define _BOOTROM_RESET 0xEF000000 
+#define _BOOTROM_FINAL_INIT 0xEF000002 
+#define _BOOTROM_DO_MEMORY_DMA 0xEF000006
+#define _BOOTROM_BOOT_DXE_FLASH 0xEF000008 
+#define _BOOTROM_BOOT_DXE_SPI 0xEF00000A 
+#define _BOOTROM_BOOT_DXE_TWI 0xEF00000C 
+#define _BOOTROM_GET_DXE_ADDRESS_FLASH 0xEF000010
+#define _BOOTROM_GET_DXE_ADDRESS_SPI 0xEF000012
+#define _BOOTROM_GET_DXE_ADDRESS_TWI 0xEF000014
+
+/* Alternate Deprecated Macros Provided For Backwards Code Compatibility */
+#define	PGDE_UART   PFDE_UART
+#define	PGDE_DMA    PFDE_DMA
+#define	CKELOW		SCKELOW
 #endif				/* _DEF_BF534_H */

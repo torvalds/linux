@@ -399,6 +399,12 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 #define bfin_write_EBIU_SDSTAT(val)          bfin_write16(EBIU_SDSTAT,val)
 
 /* DMA Traffic Control Registers													*/
+#define bfin_read_DMA_TC_PER()                bfin_read16(DMA_TC_PER)
+#define bfin_write_DMA_TC_PER(val)            bfin_write16(DMA_TC_PER,val)
+#define bfin_read_DMA_TC_CNT()                bfin_read16(DMA_TC_CNT)
+#define bfin_write_DMA_TC_CNT(val)            bfin_write16(DMA_TC_CNT,val)
+
+/* Alternate deprecated register names (below) provided for backwards code compatibility */
 #define bfin_read_DMA_TCPER()                bfin_read16(DMA_TCPER)
 #define bfin_write_DMA_TCPER(val)            bfin_write16(DMA_TCPER,val)
 #define bfin_read_DMA_TCCNT()                bfin_read16(DMA_TCCNT)
@@ -1075,8 +1081,6 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 #define bfin_write_CAN_UCRC(val)             bfin_write16(CAN_UCRC,val)
 #define bfin_read_CAN_UCCNF()                bfin_read16(CAN_UCCNF)
 #define bfin_write_CAN_UCCNF(val)            bfin_write16(CAN_UCCNF,val)
-#define bfin_read_CAN_SFCMVER2()             bfin_read16(CAN_SFCMVER2)
-#define bfin_write_CAN_SFCMVER2(val)         bfin_write16(CAN_SFCMVER2,val)
 
 /* Mailbox Acceptance Masks */
 #define bfin_read_CAN_AM00L()                bfin_read16(CAN_AM00L)
