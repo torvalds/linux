@@ -927,12 +927,6 @@ asmlinkage void do_reserved(struct pt_regs *regs)
 	      (regs->cp0_cause & 0x7f) >> 2);
 }
 
-static asmlinkage void do_default_vi(void)
-{
-	show_regs(get_irq_regs());
-	panic("Caught unexpected vectored interrupt.");
-}
-
 /*
  * Some MIPS CPUs can enable/disable for cache parity detection, but do
  * it different ways.
@@ -1126,6 +1120,12 @@ void mips_srs_free(int set)
 	struct shadow_registers *sr = &shadow_registers;
 
 	clear_bit(set, &sr->sr_allocated);
+}
+
+static asmlinkage void do_default_vi(void)
+{
+	show_regs(get_irq_regs());
+	panic("Caught unexpected vectored interrupt.");
 }
 
 static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
