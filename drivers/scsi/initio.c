@@ -2563,7 +2563,7 @@ static void initio_build_scb(struct initio_host * host, struct scsi_ctrl_blk * c
 {				/* Create corresponding SCB     */
 	struct scatterlist *sglist;
 	struct sg_entry *sg;		/* Pointer to SG list           */
-	int i;
+	int i, nseg;
 	long total_len;
 	dma_addr_t dma_addr;
 
@@ -2600,34 +2600,26 @@ static void initio_build_scb(struct initio_host * host, struct scsi_ctrl_blk * c
 	}
 
 	/* todo handle map_sg error */
-	if (cmnd->use_sg) {
+	nseg = scsi_dma_map(cmnd);
+	BUG_ON(nseg < 0);
+	if (nseg) {
 		dma_addr = dma_map_single(&host->pci_dev->dev, &cblk->sglist[0],
 					  sizeof(struct sg_entry) * TOTAL_SG_ENTRY,
 					  DMA_BIDIRECTIONAL);
 		cblk->bufptr = cpu_to_le32((u32)dma_addr);
 		cmnd->SCp.dma_handle = dma_addr;
 
-		sglist = (struct scatterlist *) cmnd->request_buffer;
-		cblk->sglen = dma_map_sg(&host->pci_dev->dev, sglist,
-					     cmnd->use_sg, cmnd->sc_data_direction);
 
 		cblk->flags |= SCF_SG;	/* Turn on SG list flag       */
-		for (i = 0, total_len = 0, sg = &cblk->sglist[0];	/* 1.01g */
-		     i < cblk->sglen; i++, sg++, sglist++) {
+		total_len = 0;
+		sg = &cblk->sglist[0];
+		scsi_for_each_sg(cmnd, sglist, cblk->sglen, i) {
 			sg->data = cpu_to_le32((u32)sg_dma_address(sglist));
 			total_len += sg->len = cpu_to_le32((u32)sg_dma_len(sglist));
 		}
 
-		cblk->buflen = (cmnd->request_bufflen > total_len) ?
-		    total_len : cmnd->request_bufflen;
-	} else if (cmnd->request_bufflen) {		/* Non SG */
-		dma_addr = dma_map_single(&host->pci_dev->dev, cmnd->request_buffer,
-					  cmnd->request_bufflen,
-					  cmnd->sc_data_direction);
-		cmnd->SCp.dma_handle = dma_addr;
-		cblk->bufptr = cpu_to_le32((u32)dma_addr);
-		cblk->buflen = cpu_to_le32((u32)cmnd->request_bufflen);
-		cblk->sglen = 0;
+		cblk->buflen = (scsi_bufflen(cmnd) > total_len) ?
+			total_len : scsi_bufflen(cmnd);
 	} else {	/* No data transfer required */
 		cblk->buflen = 0;
 		cblk->sglen = 0;
@@ -2750,18 +2742,12 @@ static void i91u_unmap_scb(struct pci_dev *pci_dev, struct scsi_cmnd *cmnd)
 	}
 
 	/* request buffer */
-	if (cmnd->use_sg) {
+	if (scsi_sg_count(cmnd)) {
 		dma_unmap_single(&pci_dev->dev, cmnd->SCp.dma_handle,
 				 sizeof(struct sg_entry) * TOTAL_SG_ENTRY,
 				 DMA_BIDIRECTIONAL);
 
-		dma_unmap_sg(&pci_dev->dev, cmnd->request_buffer,
-			     cmnd->use_sg,
-			     cmnd->sc_data_direction);
-	} else if (cmnd->request_bufflen) {
-		dma_unmap_single(&pci_dev->dev, cmnd->SCp.dma_handle,
-				 cmnd->request_bufflen,
-				 cmnd->sc_data_direction);
+		scsi_dma_unmap(cmnd);
 	}
 }
 
