@@ -3355,7 +3355,7 @@ int ata_std_prereset(struct ata_port *ap, unsigned long deadline)
 		return 0;
 
 	/* if SATA, resume phy */
-	if (ap->cbl == ATA_CBL_SATA) {
+	if (ap->flags & ATA_FLAG_SATA) {
 		rc = sata_phy_resume(ap, timing, deadline);
 		/* whine about phy resume failure but proceed */
 		if (rc && rc != -EOPNOTSUPP)
@@ -5656,7 +5656,7 @@ irqreturn_t ata_interrupt (int irq, void *dev_instance)
  */
 int sata_scr_valid(struct ata_port *ap)
 {
-	return ap->cbl == ATA_CBL_SATA && ap->ops->scr_read;
+	return (ap->flags & ATA_FLAG_SATA) && ap->ops->scr_read;
 }
 
 /**
@@ -6323,7 +6323,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 		if (!ata_port_is_dummy(ap))
 			ata_port_printk(ap, KERN_INFO, "%cATA max %s cmd 0x%p "
 					"ctl 0x%p bmdma 0x%p irq %d\n",
-					ap->cbl == ATA_CBL_SATA ? 'S' : 'P',
+					(ap->flags & ATA_FLAG_SATA) ? 'S' : 'P',
 					ata_mode_string(xfer_mask),
 					ap->ioaddr.cmd_addr,
 					ap->ioaddr.ctl_addr,
