@@ -712,6 +712,11 @@ _schedule_and_signal_from_int:
 	p1.h = _evt_system_call;
 	[p0] = p1;
 	csync;
+
+	/* Set orig_p0 to -1 to indicate this isn't the end of a syscall.  */
+	r0 = -1 (x);
+	[sp + PT_ORIG_P0] = r0;
+
 	p1 = rets;
 	[sp + PT_RESERVED] = p1;
 
