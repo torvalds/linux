@@ -148,20 +148,16 @@ static void ir_timer(unsigned long data)
 static void cx88_ir_work(struct work_struct *work)
 {
 	struct cx88_IR *ir = container_of(work, struct cx88_IR, work);
-	unsigned long timeout;
 
 	cx88_ir_handle_key(ir);
-	timeout = jiffies + (ir->polling * HZ / 1000);
-	mod_timer(&ir->timer, timeout);
+	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
 static void cx88_ir_start(struct cx88_core *core, struct cx88_IR *ir)
 {
 	if (ir->polling) {
+		setup_timer(&ir->timer, ir_timer, (unsigned long)ir);
 		INIT_WORK(&ir->work, cx88_ir_work);
-		init_timer(&ir->timer);
-		ir->timer.function = ir_timer;
-		ir->timer.data = (unsigned long)ir;
 		schedule_work(&ir->work);
 	}
 	if (ir->sampling) {
