@@ -508,8 +508,8 @@ static void aiptek_irq(struct urb *urb)
 			y = le16_to_cpu(get_unaligned((__le16 *) (data + 3)));
 			z = le16_to_cpu(get_unaligned((__le16 *) (data + 6)));
 
-			p = (data[5] & 0x01) != 0 ? 1 : 0;
-			dv = (data[5] & 0x02) != 0 ? 1 : 0;
+			dv = (data[5] & 0x01) != 0 ? 1 : 0;
+			p = (data[5] & 0x02) != 0 ? 1 : 0;
 			tip = (data[5] & 0x04) != 0 ? 1 : 0;
 
 			/* Use jitterable to re-arrange button masks
@@ -587,8 +587,8 @@ static void aiptek_irq(struct urb *urb)
 
 			jitterable = data[5] & 0x1c;
 
-			p = (data[5] & 0x01) != 0 ? 1 : 0;
-			dv = (data[5] & 0x02) != 0 ? 1 : 0;
+			dv = (data[5] & 0x01) != 0 ? 1 : 0;
+			p = (data[5] & 0x02) != 0 ? 1 : 0;
 			left = (data[5] & aiptek->curSetting.mouseButtonLeft) != 0 ? 1 : 0;
 			right = (data[5] & aiptek->curSetting.mouseButtonRight) != 0 ? 1 : 0;
 			middle = (data[5] & aiptek->curSetting.mouseButtonMiddle) != 0 ? 1 : 0;
@@ -634,8 +634,8 @@ static void aiptek_irq(struct urb *urb)
 	else if (data[0] == 4) {
 		jitterable = data[1] & 0x18;
 
-		p = (data[1] & 0x01) != 0 ? 1 : 0;
-		dv = (data[1] & 0x02) != 0 ? 1 : 0;
+		dv = (data[1] & 0x01) != 0 ? 1 : 0;
+		p = (data[1] & 0x02) != 0 ? 1 : 0;
 		tip = (data[1] & 0x04) != 0 ? 1 : 0;
 		bs = (data[1] & aiptek->curSetting.stylusButtonLower) != 0 ? 1 : 0;
 		pck = (data[1] & aiptek->curSetting.stylusButtonUpper) != 0 ? 1 : 0;
@@ -684,8 +684,8 @@ static void aiptek_irq(struct urb *urb)
 	else if (data[0] == 5) {
 		jitterable = data[1] & 0x1c;
 
-		p = (data[1] & 0x01) != 0 ? 1 : 0;
-		dv = (data[1] & 0x02) != 0 ? 1 : 0;
+		dv = (data[1] & 0x01) != 0 ? 1 : 0;
+		p = (data[1] & 0x02) != 0 ? 1 : 0;
 		left = (data[1]& aiptek->curSetting.mouseButtonLeft) != 0 ? 1 : 0;
 		right = (data[1] & aiptek->curSetting.mouseButtonRight) != 0 ? 1 : 0;
 		middle = (data[1] & aiptek->curSetting.mouseButtonMiddle) != 0 ? 1 : 0;
