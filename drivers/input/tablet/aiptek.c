@@ -264,9 +264,9 @@
 
 	/* Mouse button programming
 	 */
-#define AIPTEK_MOUSE_LEFT_BUTTON		0x01
-#define AIPTEK_MOUSE_RIGHT_BUTTON		0x02
-#define AIPTEK_MOUSE_MIDDLE_BUTTON		0x04
+#define AIPTEK_MOUSE_LEFT_BUTTON		0x04
+#define AIPTEK_MOUSE_RIGHT_BUTTON		0x08
+#define AIPTEK_MOUSE_MIDDLE_BUTTON		0x10
 
 	/* Stylus button programming
 	 */
