@@ -541,9 +541,7 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 
 		/* ping was not successful, reset and upload firmware */
 		cx_write(MO_SRST_IO, 0); /* SYS_RSTO=0 */
-		msleep(1);
 		cx_write(MO_SRST_IO, 1); /* SYS_RSTO=1 */
-		msleep(1);
 		retval = blackbird_load_firmware(dev);
 		if (retval < 0)
 			return retval;
@@ -565,7 +563,6 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 		}
 		dprintk(0, "Firmware version is 0x%08x\n", version);
 	}
-	msleep(1);
 
 	cx_write(MO_PINMUX_IO, 0x88); /* 656-8bit IO and enable MPEG parallel IO */
 	cx_clear(MO_INPUT_FORMAT, 0x100); /* chroma subcarrier lock to normal? */
@@ -573,7 +570,6 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 	cx_clear(MO_OUTPUT_FORMAT, 0x0008); /* Normal Y-limits to let the mpeg encoder sync */
 
 	blackbird_codec_settings(dev);
-	msleep(1);
 
 	blackbird_api_cmd(dev, CX2341X_ENC_SET_NUM_VSYNC_LINES, 2, 0,
 			BLACKBIRD_FIELD1_SAA7115,
@@ -584,7 +580,6 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 			BLACKBIRD_CUSTOM_EXTENSION_USR_DATA,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-	msleep(1);
 	return 0;
 }
 
@@ -616,9 +611,7 @@ static int blackbird_start_codec(struct file *file, void *priv)
 	cx_clear(AUD_VOL_CTL, (1 << 6));
 
 	blackbird_api_cmd(dev, CX2341X_ENC_MUTE_VIDEO, 1, 0, BLACKBIRD_UNMUTE);
-	msleep(1);
 	blackbird_api_cmd(dev, CX2341X_ENC_MUTE_AUDIO, 1, 0, BLACKBIRD_UNMUTE);
-	msleep(1);
 
 	blackbird_api_cmd(dev, CX2341X_ENC_REFRESH_INPUT, 0,0);
 
@@ -630,7 +623,6 @@ static int blackbird_start_codec(struct file *file, void *priv)
 			BLACKBIRD_MPEG_CAPTURE,
 			BLACKBIRD_RAW_BITS_NONE
 		);
-	msleep(10);
 
 	dev->mpeg_active = 1;
 	return 0;
