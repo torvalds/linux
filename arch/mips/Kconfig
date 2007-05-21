@@ -778,6 +778,9 @@ config GENERIC_ISA_DMA_SUPPORT_BROKEN
 	bool
 	select ZONE_DMA
 
+config GENERIC_GPIO
+	bool
+
 #
 # Endianess selection.  Sufficiently obscure so many users don't know what to
 # answer,so we try hard to limit the available choices.  Also the use of a
