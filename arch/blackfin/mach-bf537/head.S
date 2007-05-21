@@ -470,38 +470,38 @@ ENTRY(_bfin_reset)
 	SSYNC;
 
 #if defined(CONFIG_MTD_M25P80)
-/*
- * The following code fix the SPI flash reboot issue,
- * /CS signal of the chip which is using PF10 return to GPIO mode
- */
+	/*
+	 * The following code fix the SPI flash reboot issue,
+	 * /CS signal of the chip which is using PF10 return to GPIO mode
+	 */
 	p0.h = hi(PORTF_FER);
 	p0.l = lo(PORTF_FER);
 	r0.l = 0x0000;
 	w[p0] = r0.l;
 	SSYNC;
 
-/* /CS return to high */
+	/* /CS return to high */
 	p0.h = hi(PORTFIO);
 	p0.l = lo(PORTFIO);
 	r0.l = 0xFFFF;
 	w[p0] = r0.l;
 	SSYNC;
 
-/* Delay some time, This is necessary */
+	/* Delay some time, This is necessary */
 	r1.h = 0;
 	r1.l = 0x400;
 	p1   = r1;
-	lsetup (_delay_lab1,_delay_lab1_end ) lc1 = p1;
-_delay_lab1:
+	lsetup (.L_delay_lab1, .L_delay_lab1_end) lc1 = p1;
+.L_delay_lab1:
 	r0.h = 0;
 	r0.l = 0x8000;
 	p0   = r0;
-	lsetup (_delay_lab0,_delay_lab0_end ) lc0 = p0;
-_delay_lab0:
+	lsetup (.L_delay_lab0, .L_delay_lab0_end) lc0 = p0;
+.L_delay_lab0:
 	nop;
-_delay_lab0_end:
+.L_delay_lab0_end:
 	nop;
-_delay_lab1_end:
+.L_delay_lab1_end:
 	nop;
 #endif
 
