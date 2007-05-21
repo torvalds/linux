@@ -296,7 +296,7 @@ static int to_mthca_st(int transport)
 	}
 }
 
-static void store_attrs(struct mthca_sqp *sqp, struct ib_qp_attr *attr,
+static void store_attrs(struct mthca_sqp *sqp, const struct ib_qp_attr *attr,
 			int attr_mask)
 {
 	if (attr_mask & IB_QP_PKEY_INDEX)
@@ -328,7 +328,7 @@ static void init_port(struct mthca_dev *dev, int port)
 		mthca_warn(dev, "INIT_IB returned status %02x.\n", status);
 }
 
-static __be32 get_hw_access_flags(struct mthca_qp *qp, struct ib_qp_attr *attr,
+static __be32 get_hw_access_flags(struct mthca_qp *qp, const struct ib_qp_attr *attr,
 				  int attr_mask)
 {
 	u8 dest_rd_atomic;
@@ -511,7 +511,7 @@ out:
 	return err;
 }
 
-static int mthca_path_set(struct mthca_dev *dev, struct ib_ah_attr *ah,
+static int mthca_path_set(struct mthca_dev *dev, const struct ib_ah_attr *ah,
 			  struct mthca_qp_path *path, u8 port)
 {
 	path->g_mylmc     = ah->src_path_bits & 0x7f;
@@ -539,72 +539,18 @@ static int mthca_path_set(struct mthca_dev *dev, struct ib_ah_attr *ah,
 	return 0;
 }
 
-int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
-		    struct ib_udata *udata)
+static int __mthca_modify_qp(struct ib_qp *ibqp,
+			     const struct ib_qp_attr *attr, int attr_mask,
+			     enum ib_qp_state cur_state, enum ib_qp_state new_state)
 {
 	struct mthca_dev *dev = to_mdev(ibqp->device);
 	struct mthca_qp *qp = to_mqp(ibqp);
-	enum ib_qp_state cur_state, new_state;
 	struct mthca_mailbox *mailbox;
 	struct mthca_qp_param *qp_param;
 	struct mthca_qp_context *qp_context;
 	u32 sqd_event = 0;
 	u8 status;
 	int err = -EINVAL;
-
-	mutex_lock(&qp->mutex);
-
-	if (attr_mask & IB_QP_CUR_STATE) {
-		cur_state = attr->cur_qp_state;
-	} else {
-		spin_lock_irq(&qp->sq.lock);
-		spin_lock(&qp->rq.lock);
-		cur_state = qp->state;
-		spin_unlock(&qp->rq.lock);
-		spin_unlock_irq(&qp->sq.lock);
-	}
-
-	new_state = attr_mask & IB_QP_STATE ? attr->qp_state : cur_state;
-
-	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type, attr_mask)) {
-		mthca_dbg(dev, "Bad QP transition (transport %d) "
-			  "%d->%d with attr 0x%08x\n",
-			  qp->transport, cur_state, new_state,
-			  attr_mask);
-		goto out;
-	}
-
-	if (cur_state == new_state && cur_state == IB_QPS_RESET) {
-		err = 0;
-		goto out;
-	}
-
-	if ((attr_mask & IB_QP_PKEY_INDEX) &&
-	     attr->pkey_index >= dev->limits.pkey_table_len) {
-		mthca_dbg(dev, "P_Key index (%u) too large. max is %d\n",
-			  attr->pkey_index, dev->limits.pkey_table_len-1);
-		goto out;
-	}
-
-	if ((attr_mask & IB_QP_PORT) &&
-	    (attr->port_num == 0 || attr->port_num > dev->limits.num_ports)) {
-		mthca_dbg(dev, "Port number (%u) is invalid\n", attr->port_num);
-		goto out;
-	}
-
-	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC &&
-	    attr->max_rd_atomic > dev->limits.max_qp_init_rdma) {
-		mthca_dbg(dev, "Max rdma_atomic as initiator %u too large (max is %d)\n",
-			  attr->max_rd_atomic, dev->limits.max_qp_init_rdma);
-		goto out;
-	}
-
-	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC &&
-	    attr->max_dest_rd_atomic > 1 << dev->qp_table.rdb_shift) {
-		mthca_dbg(dev, "Max rdma_atomic as responder %u too large (max %d)\n",
-			  attr->max_dest_rd_atomic, 1 << dev->qp_table.rdb_shift);
-		goto out;
-	}
 
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
 	if (IS_ERR(mailbox)) {
@@ -892,6 +838,98 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 
 out_mailbox:
 	mthca_free_mailbox(dev, mailbox);
+out:
+	return err;
+}
+
+static const struct ib_qp_attr dummy_init_attr = { .port_num = 1 };
+static const int dummy_init_attr_mask[] = {
+	[IB_QPT_UD]  = (IB_QP_PKEY_INDEX		|
+			IB_QP_PORT			|
+			IB_QP_QKEY),
+	[IB_QPT_UC]  = (IB_QP_PKEY_INDEX		|
+			IB_QP_PORT			|
+			IB_QP_ACCESS_FLAGS),
+	[IB_QPT_RC]  = (IB_QP_PKEY_INDEX		|
+			IB_QP_PORT			|
+			IB_QP_ACCESS_FLAGS),
+	[IB_QPT_SMI] = (IB_QP_PKEY_INDEX		|
+			IB_QP_QKEY),
+	[IB_QPT_GSI] = (IB_QP_PKEY_INDEX		|
+			IB_QP_QKEY),
+};
+
+int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
+		    struct ib_udata *udata)
+{
+	struct mthca_dev *dev = to_mdev(ibqp->device);
+	struct mthca_qp *qp = to_mqp(ibqp);
+	enum ib_qp_state cur_state, new_state;
+	int err = -EINVAL;
+
+	mutex_lock(&qp->mutex);
+	if (attr_mask & IB_QP_CUR_STATE) {
+		cur_state = attr->cur_qp_state;
+	} else {
+		spin_lock_irq(&qp->sq.lock);
+		spin_lock(&qp->rq.lock);
+		cur_state = qp->state;
+		spin_unlock(&qp->rq.lock);
+		spin_unlock_irq(&qp->sq.lock);
+	}
+
+	new_state = attr_mask & IB_QP_STATE ? attr->qp_state : cur_state;
+
+	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type, attr_mask)) {
+		mthca_dbg(dev, "Bad QP transition (transport %d) "
+			  "%d->%d with attr 0x%08x\n",
+			  qp->transport, cur_state, new_state,
+			  attr_mask);
+		goto out;
+	}
+
+	if ((attr_mask & IB_QP_PKEY_INDEX) &&
+	     attr->pkey_index >= dev->limits.pkey_table_len) {
+		mthca_dbg(dev, "P_Key index (%u) too large. max is %d\n",
+			  attr->pkey_index, dev->limits.pkey_table_len-1);
+		goto out;
+	}
+
+	if ((attr_mask & IB_QP_PORT) &&
+	    (attr->port_num == 0 || attr->port_num > dev->limits.num_ports)) {
+		mthca_dbg(dev, "Port number (%u) is invalid\n", attr->port_num);
+		goto out;
+	}
+
+	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC &&
+	    attr->max_rd_atomic > dev->limits.max_qp_init_rdma) {
+		mthca_dbg(dev, "Max rdma_atomic as initiator %u too large (max is %d)\n",
+			  attr->max_rd_atomic, dev->limits.max_qp_init_rdma);
+		goto out;
+	}
+
+	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC &&
+	    attr->max_dest_rd_atomic > 1 << dev->qp_table.rdb_shift) {
+		mthca_dbg(dev, "Max rdma_atomic as responder %u too large (max %d)\n",
+			  attr->max_dest_rd_atomic, 1 << dev->qp_table.rdb_shift);
+		goto out;
+	}
+
+	if (cur_state == new_state && cur_state == IB_QPS_RESET) {
+		err = 0;
+		goto out;
+	}
+
+	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_ERR) {
+		err = __mthca_modify_qp(ibqp, &dummy_init_attr,
+					dummy_init_attr_mask[ibqp->qp_type],
+					IB_QPS_RESET, IB_QPS_INIT);
+		if (err)
+			goto out;
+		cur_state = IB_QPS_INIT;
+	}
+
+	err = __mthca_modify_qp(ibqp, attr, attr_mask, cur_state, new_state);
 
 out:
 	mutex_unlock(&qp->mutex);

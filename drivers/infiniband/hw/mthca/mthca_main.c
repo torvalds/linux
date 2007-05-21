@@ -1250,12 +1250,14 @@ static void __mthca_remove_one(struct pci_dev *pdev)
 int __mthca_restart_one(struct pci_dev *pdev)
 {
 	struct mthca_dev *mdev;
+	int hca_type;
 
 	mdev = pci_get_drvdata(pdev);
 	if (!mdev)
 		return -ENODEV;
+	hca_type = mdev->hca_type;
 	__mthca_remove_one(pdev);
-	return __mthca_init_one(pdev, mdev->hca_type);
+	return __mthca_init_one(pdev, hca_type);
 }
 
 static int __devinit mthca_init_one(struct pci_dev *pdev,

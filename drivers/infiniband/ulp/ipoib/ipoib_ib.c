@@ -448,6 +448,13 @@ int ipoib_ib_dev_open(struct net_device *dev)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	int ret;
 
+	if (ib_find_pkey(priv->ca, priv->port, priv->pkey, &priv->pkey_index)) {
+		ipoib_warn(priv, "P_Key 0x%04x not found\n", priv->pkey);
+		clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
+		return -1;
+	}
+	set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
+
 	ret = ipoib_init_qp(dev);
 	if (ret) {
 		ipoib_warn(priv, "ipoib_init_qp returned %d\n", ret);
@@ -457,14 +464,14 @@ int ipoib_ib_dev_open(struct net_device *dev)
 	ret = ipoib_ib_post_receives(dev);
 	if (ret) {
 		ipoib_warn(priv, "ipoib_ib_post_receives returned %d\n", ret);
-		ipoib_ib_dev_stop(dev);
+		ipoib_ib_dev_stop(dev, 1);
 		return -1;
 	}
 
 	ret = ipoib_cm_dev_open(dev);
 	if (ret) {
-		ipoib_warn(priv, "ipoib_ib_post_receives returned %d\n", ret);
-		ipoib_ib_dev_stop(dev);
+		ipoib_warn(priv, "ipoib_cm_dev_open returned %d\n", ret);
+		ipoib_ib_dev_stop(dev, 1);
 		return -1;
 	}
 
@@ -516,7 +523,7 @@ int ipoib_ib_dev_down(struct net_device *dev, int flush)
 	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags)) {
 		mutex_lock(&pkey_mutex);
 		set_bit(IPOIB_PKEY_STOP, &priv->flags);
-		cancel_delayed_work(&priv->pkey_task);
+		cancel_delayed_work(&priv->pkey_poll_task);
 		mutex_unlock(&pkey_mutex);
 		if (flush)
 			flush_workqueue(ipoib_workqueue);
@@ -543,7 +550,7 @@ static int recvs_pending(struct net_device *dev)
 	return pending;
 }
 
-int ipoib_ib_dev_stop(struct net_device *dev)
+int ipoib_ib_dev_stop(struct net_device *dev, int flush)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ib_qp_attr qp_attr;
@@ -629,7 +636,8 @@ timeout:
 	/* Wait for all AHs to be reaped */
 	set_bit(IPOIB_STOP_REAPER, &priv->flags);
 	cancel_delayed_work(&priv->ah_reap_task);
-	flush_workqueue(ipoib_workqueue);
+	if (flush)
+		flush_workqueue(ipoib_workqueue);
 
 	begin = jiffies;
 
@@ -673,13 +681,24 @@ int ipoib_ib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 	return 0;
 }
 
-void ipoib_ib_dev_flush(struct work_struct *work)
+static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv, int pkey_event)
 {
-	struct ipoib_dev_priv *cpriv, *priv =
-		container_of(work, struct ipoib_dev_priv, flush_task);
+	struct ipoib_dev_priv *cpriv;
 	struct net_device *dev = priv->dev;
+	u16 new_index;
 
-	if (!test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags) ) {
+	mutex_lock(&priv->vlan_mutex);
+
+	/*
+	 * Flush any child interfaces too -- they might be up even if
+	 * the parent is down.
+	 */
+	list_for_each_entry(cpriv, &priv->child_intfs, list)
+		__ipoib_ib_dev_flush(cpriv, pkey_event);
+
+	mutex_unlock(&priv->vlan_mutex);
+
+	if (!test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags)) {
 		ipoib_dbg(priv, "Not flushing - IPOIB_FLAG_INITIALIZED not set.\n");
 		return;
 	}
@@ -689,9 +708,31 @@ void ipoib_ib_dev_flush(struct work_struct *work)
 		return;
 	}
 
+	if (pkey_event) {
+		if (ib_find_pkey(priv->ca, priv->port, priv->pkey, &new_index)) {
+			clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
+			ipoib_ib_dev_down(dev, 0);
+			ipoib_pkey_dev_delay_open(dev);
+			return;
+		}
+		set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
+
+		/* restart QP only if P_Key index is changed */
+		if (new_index == priv->pkey_index) {
+			ipoib_dbg(priv, "Not flushing - P_Key index not changed.\n");
+			return;
+		}
+		priv->pkey_index = new_index;
+	}
+
 	ipoib_dbg(priv, "flushing\n");
 
 	ipoib_ib_dev_down(dev, 0);
+
+	if (pkey_event) {
+		ipoib_ib_dev_stop(dev, 0);
+		ipoib_ib_dev_open(dev);
+	}
 
 	/*
 	 * The device could have been brought down between the start and when
@@ -701,14 +742,24 @@ void ipoib_ib_dev_flush(struct work_struct *work)
 		ipoib_ib_dev_up(dev);
 		ipoib_mcast_restart_task(&priv->restart_task);
 	}
+}
 
-	mutex_lock(&priv->vlan_mutex);
+void ipoib_ib_dev_flush(struct work_struct *work)
+{
+	struct ipoib_dev_priv *priv =
+		container_of(work, struct ipoib_dev_priv, flush_task);
 
-	/* Flush any child interfaces too */
-	list_for_each_entry(cpriv, &priv->child_intfs, list)
-		ipoib_ib_dev_flush(&cpriv->flush_task);
+	ipoib_dbg(priv, "Flushing %s\n", priv->dev->name);
+	__ipoib_ib_dev_flush(priv, 0);
+}
 
-	mutex_unlock(&priv->vlan_mutex);
+void ipoib_pkey_event(struct work_struct *work)
+{
+	struct ipoib_dev_priv *priv =
+		container_of(work, struct ipoib_dev_priv, pkey_event_task);
+
+	ipoib_dbg(priv, "Flushing %s and restarting its QP\n", priv->dev->name);
+	__ipoib_ib_dev_flush(priv, 1);
 }
 
 void ipoib_ib_dev_cleanup(struct net_device *dev)
@@ -736,7 +787,7 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
 void ipoib_pkey_poll(struct work_struct *work)
 {
 	struct ipoib_dev_priv *priv =
-		container_of(work, struct ipoib_dev_priv, pkey_task.work);
+		container_of(work, struct ipoib_dev_priv, pkey_poll_task.work);
 	struct net_device *dev = priv->dev;
 
 	ipoib_pkey_dev_check_presence(dev);
@@ -747,7 +798,7 @@ void ipoib_pkey_poll(struct work_struct *work)
 		mutex_lock(&pkey_mutex);
 		if (!test_bit(IPOIB_PKEY_STOP, &priv->flags))
 			queue_delayed_work(ipoib_workqueue,
-					   &priv->pkey_task,
+					   &priv->pkey_poll_task,
 					   HZ);
 		mutex_unlock(&pkey_mutex);
 	}
@@ -766,7 +817,7 @@ int ipoib_pkey_dev_delay_open(struct net_device *dev)
 		mutex_lock(&pkey_mutex);
 		clear_bit(IPOIB_PKEY_STOP, &priv->flags);
 		queue_delayed_work(ipoib_workqueue,
-				   &priv->pkey_task,
+				   &priv->pkey_poll_task,
 				   HZ);
 		mutex_unlock(&pkey_mutex);
 		return 1;

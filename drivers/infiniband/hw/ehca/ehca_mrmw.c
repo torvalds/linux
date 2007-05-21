@@ -2050,13 +2050,10 @@ int ehca_mrmw_map_hrc_alloc(const u64 hipz_rc)
 	switch (hipz_rc) {
 	case H_SUCCESS:	             /* successful completion */
 		return 0;
-	case H_ADAPTER_PARM:         /* invalid adapter handle */
-	case H_RT_PARM:              /* invalid resource type */
 	case H_NOT_ENOUGH_RESOURCES: /* insufficient resources */
-	case H_MLENGTH_PARM:         /* invalid memory length */
-	case H_MEM_ACCESS_PARM:      /* invalid access controls */
 	case H_CONSTRAINED:          /* resource constraint */
-		return -EINVAL;
+	case H_NO_MEM:
+		return -ENOMEM;
 	case H_BUSY:                 /* long busy */
 		return -EBUSY;
 	default:

@@ -279,6 +279,7 @@ int mthca_read_ah(struct mthca_dev *dev, struct mthca_ah *ah,
 			(be32_to_cpu(ah->av->sl_tclass_flowlabel) >> 20) & 0xff;
 		header->grh.flow_label    =
 			ah->av->sl_tclass_flowlabel & cpu_to_be32(0xfffff);
+		header->grh.hop_limit     = ah->av->hop_limit;
 		ib_get_cached_gid(&dev->ib_dev,
 				  be32_to_cpu(ah->av->port_pd) >> 24,
 				  ah->av->gid_index % dev->limits.gid_table_len,

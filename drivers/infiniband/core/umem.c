@@ -210,8 +210,10 @@ void ib_umem_release(struct ib_umem *umem)
 	__ib_umem_release(umem->context->device, umem, 1);
 
 	mm = get_task_mm(current);
-	if (!mm)
+	if (!mm) {
+		kfree(umem);
 		return;
+	}
 
 	diff = PAGE_ALIGN(umem->length + umem->offset) >> PAGE_SHIFT;
 

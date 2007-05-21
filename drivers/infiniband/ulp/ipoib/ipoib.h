@@ -132,12 +132,46 @@ struct ipoib_cm_data {
 	__be32 mtu;
 };
 
+/*
+ * Quoting 10.3.1 Queue Pair and EE Context States:
+ *
+ * Note, for QPs that are associated with an SRQ, the Consumer should take the
+ * QP through the Error State before invoking a Destroy QP or a Modify QP to the
+ * Reset State.  The Consumer may invoke the Destroy QP without first performing
+ * a Modify QP to the Error State and waiting for the Affiliated Asynchronous
+ * Last WQE Reached Event. However, if the Consumer does not wait for the
+ * Affiliated Asynchronous Last WQE Reached Event, then WQE and Data Segment
+ * leakage may occur. Therefore, it is good programming practice to tear down a
+ * QP that is associated with an SRQ by using the following process:
+ *
+ * - Put the QP in the Error State
+ * - Wait for the Affiliated Asynchronous Last WQE Reached Event;
+ * - either:
+ *       drain the CQ by invoking the Poll CQ verb and either wait for CQ
+ *       to be empty or the number of Poll CQ operations has exceeded
+ *       CQ capacity size;
+ * - or
+ *       post another WR that completes on the same CQ and wait for this
+ *       WR to return as a WC;
+ * - and then invoke a Destroy QP or Reset QP.
+ *
+ * We use the second option and wait for a completion on the
+ * rx_drain_qp before destroying QPs attached to our SRQ.
+ */
+
+enum ipoib_cm_state {
+	IPOIB_CM_RX_LIVE,
+	IPOIB_CM_RX_ERROR, /* Ignored by stale task */
+	IPOIB_CM_RX_FLUSH  /* Last WQE Reached event observed */
+};
+
 struct ipoib_cm_rx {
 	struct ib_cm_id     *id;
 	struct ib_qp        *qp;
 	struct list_head     list;
 	struct net_device   *dev;
 	unsigned long        jiffies;
+	enum ipoib_cm_state  state;
 };
 
 struct ipoib_cm_tx {
@@ -165,10 +199,16 @@ struct ipoib_cm_dev_priv {
 	struct ib_srq  	       *srq;
 	struct ipoib_cm_rx_buf *srq_ring;
 	struct ib_cm_id        *id;
-	struct list_head        passive_ids;
+	struct ib_qp           *rx_drain_qp;   /* generates WR described in 10.3.1 */
+	struct list_head        passive_ids;   /* state: LIVE */
+	struct list_head        rx_error_list; /* state: ERROR */
+	struct list_head        rx_flush_list; /* state: FLUSH, drain not started */
+	struct list_head        rx_drain_list; /* state: FLUSH, drain started */
+	struct list_head        rx_reap_list;  /* state: FLUSH, drain done */
 	struct work_struct      start_task;
 	struct work_struct      reap_task;
 	struct work_struct      skb_task;
+	struct work_struct      rx_reap_task;
 	struct delayed_work     stale_task;
 	struct sk_buff_head     skb_queue;
 	struct list_head        start_list;
@@ -201,15 +241,17 @@ struct ipoib_dev_priv {
 	struct list_head multicast_list;
 	struct rb_root multicast_tree;
 
-	struct delayed_work pkey_task;
+	struct delayed_work pkey_poll_task;
 	struct delayed_work mcast_task;
 	struct work_struct flush_task;
 	struct work_struct restart_task;
 	struct delayed_work ah_reap_task;
+	struct work_struct pkey_event_task;
 
 	struct ib_device *ca;
 	u8            	  port;
 	u16           	  pkey;
+	u16               pkey_index;
 	struct ib_pd  	 *pd;
 	struct ib_mr  	 *mr;
 	struct ib_cq  	 *cq;
@@ -333,12 +375,13 @@ struct ipoib_dev_priv *ipoib_intf_alloc(const char *format);
 
 int ipoib_ib_dev_init(struct net_device *dev, struct ib_device *ca, int port);
 void ipoib_ib_dev_flush(struct work_struct *work);
+void ipoib_pkey_event(struct work_struct *work);
 void ipoib_ib_dev_cleanup(struct net_device *dev);
 
 int ipoib_ib_dev_open(struct net_device *dev);
 int ipoib_ib_dev_up(struct net_device *dev);
 int ipoib_ib_dev_down(struct net_device *dev, int flush);
-int ipoib_ib_dev_stop(struct net_device *dev);
+int ipoib_ib_dev_stop(struct net_device *dev, int flush);
 
 int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port);
 void ipoib_dev_cleanup(struct net_device *dev);
