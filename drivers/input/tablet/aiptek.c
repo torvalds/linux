@@ -329,6 +329,13 @@ struct aiptek {
 	unsigned char *data;			/* incoming packet data          */
 };
 
+static const int buttonEvents[] = {
+	BTN_LEFT, BTN_RIGHT, BTN_MIDDLE,
+	BTN_TOOL_PEN, BTN_TOOL_RUBBER, BTN_TOOL_PENCIL, BTN_TOOL_AIRBRUSH,
+	BTN_TOOL_BRUSH, BTN_TOOL_MOUSE, BTN_TOOL_LENS, BTN_TOUCH,
+	BTN_STYLUS, BTN_STYLUS2,
+};
+
 /*
  * Permit easy lookup of keyboard events to send, versus
  * the bitmap which comes from the tablet. This hides the
@@ -1728,26 +1735,14 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	inputdev->relbit[0] |=
 	    (BIT(REL_X) | BIT(REL_Y) | BIT(REL_WHEEL) | BIT(REL_MISC));
 
-	inputdev->keybit[LONG(BTN_LEFT)] |=
-	    (BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_MIDDLE));
-
-	inputdev->keybit[LONG(BTN_DIGI)] |=
-	    (BIT(BTN_TOOL_PEN) |
-	     BIT(BTN_TOOL_RUBBER) |
-	     BIT(BTN_TOOL_PENCIL) |
-	     BIT(BTN_TOOL_AIRBRUSH) |
-	     BIT(BTN_TOOL_BRUSH) |
-	     BIT(BTN_TOOL_MOUSE) |
-	     BIT(BTN_TOOL_LENS) |
-	     BIT(BTN_TOUCH) | BIT(BTN_STYLUS) | BIT(BTN_STYLUS2));
-
 	inputdev->mscbit[0] = BIT(MSC_SERIAL);
 
-	/* Programming the tablet macro keys needs to be done with a for loop
-	 * as the keycodes are discontiguous.
-	 */
+	/* Set up key and button codes */
+	for (i = 0; i < ARRAY_SIZE(buttonEvents); ++i)
+		__set_bit(buttonEvents[i], inputdev->keybit);
+
 	for (i = 0; i < ARRAY_SIZE(macroKeyEvents); ++i)
-		set_bit(macroKeyEvents[i], inputdev->keybit);
+		__set_bit(macroKeyEvents[i], inputdev->keybit);
 
 	/*
 	 * Program the input device coordinate capacities. We do not yet
