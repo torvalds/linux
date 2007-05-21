@@ -649,9 +649,6 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 
 	fs_info->generation = btrfs_super_generation(disk_super) + 1;
 	memset(&fs_info->kobj, 0, sizeof(fs_info->kobj));
-	kobj_set_kset_s(fs_info, btrfs_subsys);
-	kobject_set_name(&fs_info->kobj, "%s", sb->s_id);
-	kobject_register(&fs_info->kobj);
 	mutex_unlock(&fs_info->fs_mutex);
 	return tree_root;
 }

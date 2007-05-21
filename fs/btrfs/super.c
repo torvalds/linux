@@ -18,23 +18,10 @@
 #include "btrfs_inode.h"
 #include "ioctl.h"
 
-static void btrfs_fsinfo_release(struct kobject *obj)
-{
-	struct btrfs_fs_info *fsinfo = container_of(obj,
-					    struct btrfs_fs_info, kobj);
-	kfree(fsinfo);
-}
-
-static struct kobj_type btrfs_fsinfo_ktype = {
-	.release = btrfs_fsinfo_release,
-};
-
 struct btrfs_iget_args {
 	u64 ino;
 	struct btrfs_root *root;
 };
-
-decl_subsys(btrfs, &btrfs_fsinfo_ktype, NULL);
 
 #define BTRFS_SUPER_MAGIC 0x9123682E
 
@@ -2438,7 +2425,7 @@ static void init_once(void * foo, struct kmem_cache * cachep,
 {
 	struct btrfs_inode *ei = (struct btrfs_inode *) foo;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
+	if ((flags & (SLAB_CTOR_CONSTRUCTOR)) ==
 	    SLAB_CTOR_CONSTRUCTOR) {
 		inode_init_once(&ei->vfs_inode);
 	}
@@ -2588,12 +2575,7 @@ static int __init init_btrfs_fs(void)
 	err = init_inodecache();
 	if (err)
 		return err;
-	kset_set_kset_s(&btrfs_subsys, fs_subsys);
-	err = subsystem_register(&btrfs_subsys);
-	if (err)
-		goto out;
 	return register_filesystem(&btrfs_fs_type);
-out:
 	destroy_inodecache();
 	return err;
 }
@@ -2602,7 +2584,6 @@ static void __exit exit_btrfs_fs(void)
 {
 	destroy_inodecache();
 	unregister_filesystem(&btrfs_fs_type);
-	subsystem_unregister(&btrfs_subsys);
 	printk("btrfs unloaded\n");
 }
 

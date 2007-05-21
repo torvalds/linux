@@ -1197,6 +1197,4 @@ struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 					  u64 objectid, u64 offset,
 					  int cow);
 /* super.c */
-extern struct subsystem btrfs_subsys;
-
 #endif
