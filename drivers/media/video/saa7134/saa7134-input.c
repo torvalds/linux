@@ -153,21 +153,18 @@ void saa7134_input_irq(struct saa7134_dev *dev)
 
 static void saa7134_input_timer(unsigned long data)
 {
-	struct saa7134_dev *dev = (struct saa7134_dev*)data;
+	struct saa7134_dev *dev = (struct saa7134_dev *)data;
 	struct card_ir *ir = dev->remote;
-	unsigned long timeout;
 
 	build_key(dev);
-	timeout = jiffies + (ir->polling * HZ / 1000);
-	mod_timer(&ir->timer, timeout);
+	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
 static void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
 {
 	if (ir->polling) {
-		init_timer(&ir->timer);
-		ir->timer.function = saa7134_input_timer;
-		ir->timer.data     = (unsigned long)dev;
+		setup_timer(&ir->timer, saa7134_input_timer,
+			    (unsigned long)dev);
 		ir->timer.expires  = jiffies + HZ;
 		add_timer(&ir->timer);
 	} else if (ir->rc5_gpio) {
