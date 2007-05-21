@@ -33,7 +33,6 @@
 #include <linux/seq_file.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
-#include <linux/console.h>
 #include <linux/tty.h>
 
 #include <linux/ext2_fs.h>
@@ -175,6 +174,9 @@ void __init setup_arch(char **cmdline_p)
 	unsigned long mtd_phys = 0;
 #endif
 
+#ifdef CONFIG_DUMMY_CONSOLE
+	conswitchp = &dummy_con;
+#endif
 	cclk = get_cclk();
 	sclk = get_sclk();
 
