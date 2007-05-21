@@ -1682,3 +1682,11 @@ compat_sys_utimes_wrapper:
 	llgtr	%r2,%r2			# char *
 	llgtr	%r3,%r3			# struct compat_timeval *
 	jg	compat_sys_utimes
+
+	.globl	compat_sys_utimensat_wrapper
+compat_sys_utimensat_wrapper:
+	llgfr	%r2,%r2			# unsigned int
+	llgtr	%r3,%r3			# char *
+	llgtr	%r4,%r4			# struct compat_timespec *
+	lgfr	%r5,%r5			# int
+	jg	compat_sys_utimensat
