@@ -25,6 +25,10 @@ config BLACKFIN
 	bool
 	default y
 
+config ZONE_DMA
+	bool
+	default y
+
 config BFIN
 	bool
 	default y
