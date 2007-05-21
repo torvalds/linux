@@ -297,6 +297,12 @@ int mlx4_ib_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			break;
 		}
 
+		if (unlikely(srq->head == srq->tail)) {
+			err = -ENOMEM;
+			*bad_wr = wr;
+			break;
+		}
+
 		srq->wrid[srq->head] = wr->wr_id;
 
 		next      = get_wqe(srq, srq->head);
