@@ -2893,9 +2893,6 @@ int ata_do_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 	if (used_dma && (ap->host->flags & ATA_HOST_SIMPLEX))
 		ap->host->simplex_claimed = ap;
 
-	/* step5: chip specific finalisation */
-	if (ap->ops->post_set_mode)
-		ap->ops->post_set_mode(ap);
  out:
 	if (rc)
 		*r_failed_dev = dev;
