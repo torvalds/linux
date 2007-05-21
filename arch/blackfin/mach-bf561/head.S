@@ -427,68 +427,30 @@ ENTRY(_bfin_reset)
 	[p0] = r0;
 	SSYNC;
 
-	/* Disable the WDOG TIMER */
-	p0.h = hi(WDOGA_CTL);
-	p0.l = lo(WDOGA_CTL);
-	r0.l = 0xAD6;
-	w[p0] = r0.l;
+	/* make sure SYSCR is set to use BMODE */
+	P0.h = hi(SICA_SYSCR);
+	P0.l = lo(SICA_SYSCR);
+	R0.l = 0x0;
+	W[P0] = R0.l;
 	SSYNC;
 
-	/* Clear the sticky bit incase it is already set */
-	p0.h = hi(WDOGA_CTL);
-	p0.l = lo(WDOGA_CTL);
-	r0.l = 0x8AD6;
-	w[p0] = r0.l;
+	/* issue a system soft reset */
+	P1.h = hi(SICA_SWRST);
+	P1.l = lo(SICA_SWRST);
+	R1.l = 0x0007;
+	W[P1] = R1;
 	SSYNC;
 
-	/* Program the count value */
-	R0.l = 0x100;
-	R0.h = 0x0;
-	P0.h = hi(WDOGA_CNT);
-	P0.l = lo(WDOGA_CNT);
-	[P0] = R0;
+	/* clear system soft reset */
+	R0.l = 0x0000;
+	W[P0] = R0;
 	SSYNC;
 
-	/* Program WDOG_STAT if necessary */
-	P0.h = hi(WDOGA_CTL);
-	P0.l = lo(WDOGA_CTL);
-	R0 = W[P0](Z);
-	CC = BITTST(R0,1);
-	if !CC JUMP .LWRITESTAT;
-	CC = BITTST(R0,2);
-	if !CC JUMP .LWRITESTAT;
-	JUMP .LSKIP_WRITE;
-
-.LWRITESTAT:
-	/* When watch dog timer is enabled,
-	 * a write to STAT will load the contents of CNT to STAT
-	 */
-	R0 = 0x0000(z);
-	P0.h = hi(WDOGA_STAT);
-	P0.l = lo(WDOGA_STAT)
-	[P0] = R0;
-	SSYNC;
-
-.LSKIP_WRITE:
-	/* Enable the reset event */
-	P0.h = hi(WDOGA_CTL);
-	P0.l = lo(WDOGA_CTL);
-	R0 = W[P0](Z);
-	BITCLR(R0,1);
-	BITCLR(R0,2);
-	W[P0] = R0.L;
-	SSYNC;
-	NOP;
-
-	/* Enable the wdog counter */
-	R0 = W[P0](Z);
-	BITCLR(R0,4);
-	W[P0] = R0.L;
-	SSYNC;
-
-	IDLE;
+	/* issue core reset */
+	raise 1;
 
 	RTS;
+ENDPROC(_bfin_reset)
 
 .data
 
