@@ -240,23 +240,29 @@ static void bfin_serial_tx_chars(struct bfin_serial_port *uart)
 		bfin_serial_stop_tx(&uart->port);
 }
 
-static irqreturn_t bfin_serial_int(int irq, void *dev_id)
+static irqreturn_t bfin_serial_rx_int(int irq, void *dev_id)
+{
+	struct bfin_serial_port *uart = dev_id;
+
+	spin_lock(&uart->port.lock);
+	while ((UART_GET_IIR(uart) & IIR_STATUS) == IIR_RX_READY)
+		bfin_serial_rx_chars(uart);
+	spin_unlock(&uart->port.lock);
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t bfin_serial_tx_int(int irq, void *dev_id)
 {
 	struct bfin_serial_port *uart = dev_id;
 	unsigned short status;
 
 	spin_lock(&uart->port.lock);
-	status = UART_GET_IIR(uart);
-	do {
-		if ((status & IIR_STATUS) == IIR_TX_READY)
-			bfin_serial_tx_chars(uart);
-		if ((status & IIR_STATUS) == IIR_RX_READY)
-			bfin_serial_rx_chars(uart);
-		status = UART_GET_IIR(uart);
-	} while (status & (IIR_TX_READY | IIR_RX_READY));
+	while ((UART_GET_IIR(uart) & IIR_STATUS) == IIR_TX_READY)
+		bfin_serial_tx_chars(uart);
 	spin_unlock(&uart->port.lock);
 	return IRQ_HANDLED;
 }
+
 
 static void bfin_serial_do_work(struct work_struct *work)
 {
@@ -545,14 +551,14 @@ static int bfin_serial_startup(struct uart_port *port)
 	add_timer(&(uart->rx_dma_timer));
 #else
 	if (request_irq
-	    (uart->port.irq, bfin_serial_int, IRQF_DISABLED,
+	    (uart->port.irq, bfin_serial_rx_int, IRQF_DISABLED,
 	     "BFIN_UART_RX", uart)) {
 		printk(KERN_NOTICE "Unable to attach BlackFin UART RX interrupt\n");
 		return -EBUSY;
 	}
 
 	if (request_irq
-	    (uart->port.irq+1, bfin_serial_int, IRQF_DISABLED,
+	    (uart->port.irq+1, bfin_serial_tx_int, IRQF_DISABLED,
 	     "BFIN_UART_TX", uart)) {
 		printk(KERN_NOTICE "Unable to attach BlackFin UART TX interrupt\n");
 		free_irq(uart->port.irq, uart);
