@@ -119,7 +119,7 @@ static void clear_dma_buffer(unsigned int channel)
 	SSYNC();
 }
 
-int __init blackfin_dma_init(void)
+static int __init blackfin_dma_init(void)
 {
 	int i;
 

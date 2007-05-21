@@ -144,7 +144,7 @@ inline int check_gpio(unsigned short gpio)
 }
 
 #ifdef BF537_FAMILY
-void port_setup(unsigned short gpio, unsigned short usage)
+static void port_setup(unsigned short gpio, unsigned short usage)
 {
 	if (usage == GPIO_USAGE) {
 		if (*port_fer[gpio_bank(gpio)] & gpio_bit(gpio))
@@ -160,7 +160,7 @@ void port_setup(unsigned short gpio, unsigned short usage)
 #endif
 
 
-void default_gpio(unsigned short gpio)
+static void default_gpio(unsigned short gpio)
 {
 	unsigned short bank,bitmask;
 
@@ -177,8 +177,7 @@ void default_gpio(unsigned short gpio)
 	gpio_bankb[bank]->edge &= ~bitmask;
 }
 
-
-int __init bfin_gpio_init(void)
+static int __init bfin_gpio_init(void)
 {
 	int i;
 
