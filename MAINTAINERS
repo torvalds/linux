@@ -2231,11 +2231,11 @@ M:	khali@linux-fr.org
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
-LOGICAL DISK MANAGER SUPPORT (LDM, Windows 2000/XP Dynamic Disks)
+LOGICAL DISK MANAGER SUPPORT (LDM, Windows 2000/XP/Vista Dynamic Disks)
 P:	Richard Russon (FlatCap)
 M:	ldm@flatcap.org
-L:	ldm-devel@lists.sourceforge.net
-W:	http://ldm.sourceforge.net
+L:	linux-ntfs-dev@lists.sourceforge.net
+W:	http://www.linux-ntfs.org/content/view/19/37/
 S:	Maintained
 
 LSILOGIC MPT FUSION DRIVERS (FC/SAS/SPI)

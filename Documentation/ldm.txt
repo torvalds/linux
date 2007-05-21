@@ -2,10 +2,13 @@
             LDM - Logical Disk Manager (Dynamic Disks)
             ------------------------------------------
 
+Originally Written by FlatCap - Richard Russon <ldm@flatcap.org>.
+Last Updated by Anton Altaparmakov on 30 March 2007 for Windows Vista.
+
 Overview
 --------
 
-Windows 2000 and XP use a new partitioning scheme.  It is a complete
+Windows 2000, XP, and Vista use a new partitioning scheme.  It is a complete
 replacement for the MSDOS style partitions.  It stores its information in a
 1MiB journalled database at the end of the physical disk.  The size of
 partitions is limited only by disk space.  The maximum number of partitions is
@@ -23,7 +26,11 @@ Once the LDM driver has divided up the disk, you can use the MD driver to
 assemble any multi-partition volumes, e.g.  Stripes, RAID5.
 
 To prevent legacy applications from repartitioning the disk, the LDM creates a
-dummy MSDOS partition containing one disk-sized partition.
+dummy MSDOS partition containing one disk-sized partition.  This is what is
+supported with the Linux LDM driver.
+
+A newer approach that has been implemented with Vista is to put LDM on top of a
+GPT label disk.  This is not supported by the Linux LDM driver yet.
 
 
 Example
@@ -88,13 +95,13 @@ and cannot boot from a Dynamic Disk.
 More Documentation
 ------------------
 
-There is an Overview of the LDM online together with complete Technical
-Documentation.  It can also be downloaded in html.
+There is an Overview of the LDM together with complete Technical Documentation.
+It is available for download.
 
-  http://linux-ntfs.sourceforge.net/ldm/index.html
-  http://linux-ntfs.sourceforge.net/downloads.html
+  http://www.linux-ntfs.org/content/view/19/37/
 
-If you have any LDM questions that aren't answered on the website, email me.
+If you have any LDM questions that aren't answered in the documentation, email
+me.
 
 Cheers,
     FlatCap - Richard Russon
