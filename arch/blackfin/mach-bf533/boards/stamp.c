@@ -338,12 +338,25 @@ static struct platform_device *stamp_devices[] __initdata = {
 
 static int __init stamp_init(void)
 {
+	int ret;
+
 	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
-	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
-#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
-	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
+	ret = platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
+	if (ret < 0)
+		return ret;
+
+#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
+# if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
+	/* setup BF533_STAMP CPLD to route AMS3 to Ethernet MAC */
+	bfin_write_FIO_DIR(bfin_read_FIO_DIR() | (1 << CONFIG_ENET_FLASH_PIN));
+	bfin_write_FIO_FLAG_S(1 << CONFIG_ENET_FLASH_PIN);
+	SSYNC();
+# endif
 #endif
-	return 0;
+
+#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
+	return spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
+#endif
 }
 
 arch_initcall(stamp_init);

@@ -383,35 +383,19 @@ void __init setup_arch(char **cmdline_p)
 
 	bf53x_cache_init();
 
-#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
-# if defined(CONFIG_BFIN_SHARED_FLASH_ENET) && defined(CONFIG_BFIN533_STAMP)
-	/* setup BF533_STAMP CPLD to route AMS3 to Ethernet MAC */
-	bfin_write_FIO_DIR(bfin_read_FIO_DIR() | (1 << CONFIG_ENET_FLASH_PIN));
-	bfin_write_FIO_FLAG_S(1 << CONFIG_ENET_FLASH_PIN);
-	SSYNC();
-# endif
-# if defined (CONFIG_BFIN561_EZKIT)
-	bfin_write_FIO0_DIR(bfin_read_FIO0_DIR() | (1 << 12));
-	SSYNC();
-# endif /* defined (CONFIG_BFIN561_EZKIT) */
-#endif
-
 	printk(KERN_INFO "Hardware Trace Enabled\n");
 	bfin_write_TBUFCTL(0x03);
 }
 
-#if defined(CONFIG_BF561)
-static struct cpu cpu[2];
-#else
-static struct cpu cpu[1];
-#endif
 static int __init topology_init(void)
 {
 #if defined (CONFIG_BF561)
+	static struct cpu cpu[2];
 	register_cpu(&cpu[0], 0);
 	register_cpu(&cpu[1], 1);
 	return 0;
 #else
+	static struct cpu cpu[1];
 	return register_cpu(cpu, 0);
 #endif
 }

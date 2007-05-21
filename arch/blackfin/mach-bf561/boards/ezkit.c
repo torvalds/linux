@@ -184,13 +184,18 @@ static int __init ezkit_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
-	ret = platform_add_devices(ezkit_devices,
-		 ARRAY_SIZE(ezkit_devices));
+	printk(KERN_INFO "%s(): registering device resources\n", __func__);
+
+	ret = platform_add_devices(ezkit_devices, ARRAY_SIZE(ezkit_devices));
 	if (ret < 0)
 		return ret;
-	return spi_register_board_info(bfin_spi_board_info,
-				ARRAY_SIZE(bfin_spi_board_info));
+
+#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
+	bfin_write_FIO0_DIR(bfin_read_FIO0_DIR() | (1 << 12));
+	SSYNC();
+#endif
+
+	return spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
 }
 
 arch_initcall(ezkit_init);
