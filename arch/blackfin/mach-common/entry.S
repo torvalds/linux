@@ -181,6 +181,12 @@ ENTRY(_ex_single_step)
 
 _return_from_exception:
 	DEBUG_START_HWTRACE
+#ifdef ANOMALY_05000257
+	R7=LC0;
+	LC0=R7;
+	R7=LC1;
+	LC1=R7;
+#endif
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	sp = retn;
