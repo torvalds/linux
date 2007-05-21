@@ -112,7 +112,7 @@
  * (returned as Report 3 - absolute coordinates from the mouse)
  *
  *        bit7  bit6  bit5  bit4  bit3  bit2  bit1  bit0
- * byte0   0     0     0     0     0     0     1     0
+ * byte0   0     0     0     0     0     0     1     1
  * byte1  X7    X6    X5    X4    X3    X2    X1    X0
  * byte2  X15   X14   X13   X12   X11   X10   X9    X8
  * byte3  Y7    Y6    Y5    Y4    Y3    Y2    Y1    Y0
@@ -134,7 +134,7 @@
  * (returned as Report 5 - macrokeys from the mouse)
  *
  *        bit7  bit6  bit5  bit4  bit3  bit2  bit1  bit0
- * byte0   0     0     0     0     0     1     0     0
+ * byte0   0     0     0     0     0     1     0     1
  * byte1   0     0     0    BS2   BS    Tip   IR    DV
  * byte2   0     0     0     0     0     0     1     0
  * byte3   0     0     0    K4    K3    K2    K1    K0
