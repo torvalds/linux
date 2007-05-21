@@ -509,6 +509,11 @@ static void aiptek_irq(struct urb *urb)
 						 aiptek->curSetting.wheel);
 				aiptek->curSetting.wheel = AIPTEK_WHEEL_DISABLE;
 			}
+			if (aiptek->lastMacro != -1) {
+			        input_report_key(inputdev,
+						 macroKeyEvents[aiptek->lastMacro], 0);
+				aiptek->lastMacro = -1;
+			}
 			input_sync(inputdev);
 		}
 	}
@@ -589,6 +594,11 @@ static void aiptek_irq(struct urb *urb)
 					}
 				}
 				input_report_abs(inputdev, ABS_MISC, p | AIPTEK_REPORT_TOOL_STYLUS);
+				if (aiptek->lastMacro != -1) {
+			                input_report_key(inputdev,
+							 macroKeyEvents[aiptek->lastMacro], 0);
+					aiptek->lastMacro = -1;
+				}
 				input_sync(inputdev);
 			}
 		}
@@ -647,6 +657,11 @@ static void aiptek_irq(struct urb *urb)
 					}
 				}
 				input_report_abs(inputdev, ABS_MISC, p | AIPTEK_REPORT_TOOL_MOUSE);
+				if (aiptek->lastMacro != -1) {
+			                input_report_key(inputdev,
+							 macroKeyEvents[aiptek->lastMacro], 0);
+				        aiptek->lastMacro = -1;
+				}
 				input_sync(inputdev);
 			}
 		}
@@ -662,10 +677,10 @@ static void aiptek_irq(struct urb *urb)
 		bs = (data[1] & aiptek->curSetting.stylusButtonLower) != 0 ? 1 : 0;
 		pck = (data[1] & aiptek->curSetting.stylusButtonUpper) != 0 ? 1 : 0;
 
-		macro = data[3];
+		macro = dv && p && tip && !(data[3] & 1) ? (data[3] >> 1) : -1;
 		z = le16_to_cpu(get_unaligned((__le16 *) (data + 4)));
 
-		if (dv != 0) {
+		if (dv) {
 		        /* If the selected tool changed, reset the old
 			 * tool key, and set the new one.
 			 */
@@ -679,30 +694,20 @@ static void aiptek_irq(struct urb *urb)
 				aiptek->previousToolMode =
 				        aiptek->curSetting.toolMode;
 			}
-
-			if (p != 0) {
-				input_report_key(inputdev, BTN_TOUCH, tip);
-				input_report_key(inputdev, BTN_STYLUS, bs);
-				input_report_key(inputdev, BTN_STYLUS2, pck);
-				input_report_abs(inputdev, ABS_PRESSURE, z);
-			}
-
-			/* For safety, we're sending key 'break' codes for the
-			 * neighboring macro keys.
-			 */
-			if (macro > 0) {
-				input_report_key(inputdev,
-						 macroKeyEvents[macro - 1], 0);
-			}
-			if (macro < 25) {
-				input_report_key(inputdev,
-						 macroKeyEvents[macro + 1], 0);
-			}
-			input_report_key(inputdev, macroKeyEvents[macro], p);
-			input_report_abs(inputdev, ABS_MISC,
-					 p | AIPTEK_REPORT_TOOL_STYLUS);
-			input_sync(inputdev);
 		}
+
+		if (aiptek->lastMacro != -1 && aiptek->lastMacro != macro) {
+		        input_report_key(inputdev, macroKeyEvents[aiptek->lastMacro], 0);
+			aiptek->lastMacro = -1;
+		}
+
+		if (macro != -1 && macro != aiptek->lastMacro) {
+			input_report_key(inputdev, macroKeyEvents[macro], 1);
+			aiptek->lastMacro = macro;
+		}
+		input_report_abs(inputdev, ABS_MISC,
+				 p | AIPTEK_REPORT_TOOL_STYLUS);
+		input_sync(inputdev);
 	}
 	/* Report 5s come from the macro keys when pressed by mouse
 	 */
@@ -714,46 +719,35 @@ static void aiptek_irq(struct urb *urb)
 		left = (data[1]& aiptek->curSetting.mouseButtonLeft) != 0 ? 1 : 0;
 		right = (data[1] & aiptek->curSetting.mouseButtonRight) != 0 ? 1 : 0;
 		middle = (data[1] & aiptek->curSetting.mouseButtonMiddle) != 0 ? 1 : 0;
-		macro = data[3];
+		macro = dv && p && left && !(data[3] & 1) ? (data[3] >> 1) : 0;
 
-		if (dv != 0) {
+		if (dv) {
 		        /* If the selected tool changed, reset the old
 			 * tool key, and set the new one.
 			 */
 		        if (aiptek->previousToolMode !=
 			    aiptek->curSetting.toolMode) {
-			        input_report_key(inputdev,
+		                input_report_key(inputdev,
 						 aiptek->previousToolMode, 0);
-				input_report_key(inputdev,
-						 aiptek->curSetting.toolMode,
-						 1);
-				aiptek->previousToolMode =
-				        aiptek->curSetting.toolMode;
+			        input_report_key(inputdev,
+						 aiptek->curSetting.toolMode, 1);
+			        aiptek->previousToolMode = aiptek->curSetting.toolMode;
 			}
-
-			if (p != 0) {
-				input_report_key(inputdev, BTN_LEFT, left);
-				input_report_key(inputdev, BTN_MIDDLE, middle);
-				input_report_key(inputdev, BTN_RIGHT, right);
-			}
-
-			/* For safety, we're sending key 'break' codes for the
-			 * neighboring macro keys.
-			 */
-			if (macro > 0) {
-				input_report_key(inputdev,
-						 macroKeyEvents[macro - 1], 0);
-			}
-			if (macro < 25) {
-				input_report_key(inputdev,
-						 macroKeyEvents[macro + 1], 0);
-			}
-
-			input_report_key(inputdev, macroKeyEvents[macro], 1);
-			input_report_rel(inputdev, ABS_MISC,
-					 p | AIPTEK_REPORT_TOOL_MOUSE);
-			input_sync(inputdev);
 		}
+
+		if (aiptek->lastMacro != -1 && aiptek->lastMacro != macro) {
+		        input_report_key(inputdev, macroKeyEvents[aiptek->lastMacro], 0);
+			aiptek->lastMacro = -1;
+		}
+
+		if (macro != -1 && macro != aiptek->lastMacro) {
+			input_report_key(inputdev, macroKeyEvents[macro], 1);
+			aiptek->lastMacro = macro;
+		}
+
+		input_report_abs(inputdev, ABS_MISC,
+				 p | AIPTEK_REPORT_TOOL_MOUSE);
+		input_sync(inputdev);
 	}
 	/* We have no idea which tool can generate a report 6. Theoretically,
 	 * neither need to, having been given reports 4 & 5 for such use.
@@ -1710,6 +1704,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	aiptek->inDelay = 0;
 	aiptek->endDelay = 0;
 	aiptek->previousJitterable = 0;
+	aiptek->lastMacro = -1;
 
 	/* Set up the curSettings struct. Said struct contains the current
 	 * programmable parameters. The newSetting struct contains changes
