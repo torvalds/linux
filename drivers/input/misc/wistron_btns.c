@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/mc146818rtc.h>
 #include <linux/module.h>
@@ -37,9 +38,10 @@
  */
 #define MAX_POLL_ITERATIONS 64
 
-#define POLL_FREQUENCY 10 /* Number of polls per second */
+#define POLL_FREQUENCY 2 /* Number of polls per second when idle */
+#define POLL_FREQUENCY_BURST 10 /* Polls per second when a key was recently pressed */
 
-#if POLL_FREQUENCY > HZ
+#if POLL_FREQUENCY_BURST > HZ
 #error "POLL_FREQUENCY too high"
 #endif
 
@@ -1079,6 +1081,8 @@ static void handle_key(u8 code)
 
 static void poll_bios(unsigned long discard)
 {
+	static unsigned long jiffies_last_press;
+	unsigned long jiffies_now = jiffies;
 	u8 qlen;
 	u16 val;
 
@@ -1087,11 +1091,17 @@ static void poll_bios(unsigned long discard)
 		if (qlen == 0)
 			break;
 		val = bios_pop_queue();
-		if (val != 0 && !discard)
+		if (val != 0 && !discard) {
 			handle_key((u8)val);
+			jiffies_last_press = jiffies_now;
+		}
 	}
 
-	mod_timer(&poll_timer, jiffies + HZ / POLL_FREQUENCY);
+	/* Increase precision if user is currently pressing keys (< 2s ago) */
+	if (time_after(jiffies_last_press, jiffies_now - (HZ * 2)))
+		mod_timer(&poll_timer, jiffies_now + HZ / POLL_FREQUENCY_BURST);
+	else
+		mod_timer(&poll_timer, jiffies_now + HZ / POLL_FREQUENCY);
 }
 
 static int __devinit wistron_probe(struct platform_device *dev)
