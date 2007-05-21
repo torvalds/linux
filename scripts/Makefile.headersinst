@@ -144,7 +144,7 @@ $(check-y) : $(INSTALL_HDR_PATH)/$(_dst)/.check.%.h : $(INSTALL_HDR_PATH)/$(_dst
 	$(call cmd,check)
 
 # Other dependencies for $(check-y)
--include /dev/null $(check-y)
+include /dev/null $(wildcard $(check-y))
 
 # ... but leave $(check-y) as .PHONY for now until those deps are actually correct.
 .PHONY: $(check-y)
