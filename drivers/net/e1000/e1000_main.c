@@ -1431,10 +1431,6 @@ e1000_open(struct net_device *netdev)
 	/* From here on the code is the same as e1000_up() */
 	clear_bit(__E1000_DOWN, &adapter->flags);
 
-#ifdef CONFIG_E1000_NAPI
-	netif_poll_enable(netdev);
-#endif
-
 	e1000_irq_enable(adapter);
 
 	/* fire a link status change interrupt to start the watchdog */
