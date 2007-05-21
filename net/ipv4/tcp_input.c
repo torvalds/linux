@@ -1501,6 +1501,8 @@ void tcp_enter_loss(struct sock *sk, int how)
 	tcp_set_ca_state(sk, TCP_CA_Loss);
 	tp->high_seq = tp->snd_nxt;
 	TCP_ECN_queue_cwr(tp);
+	/* Abort FRTO algorithm if one is in progress */
+	tp->frto_counter = 0;
 
 	clear_all_retrans_hints(tp);
 }
@@ -2608,6 +2610,7 @@ static void tcp_conservative_spur_to_response(struct tcp_sock *tp)
 {
 	tp->snd_cwnd = min(tp->snd_cwnd, tp->snd_ssthresh);
 	tp->snd_cwnd_cnt = 0;
+	TCP_ECN_queue_cwr(tp);
 	tcp_moderate_cwnd(tp);
 }
 

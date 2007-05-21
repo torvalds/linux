@@ -644,11 +644,10 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 
 	/* Copy only real data... and, alas, header. This should be
 	 * optimized for the cases when header is void. */
-	memcpy(data + nhead, skb->head,
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
-		skb->tail);
+	memcpy(data + nhead, skb->head, skb->tail);
 #else
-		skb->tail - skb->head);
+	memcpy(data + nhead, skb->head, skb->tail - skb->head);
 #endif
 	memcpy(data + size, skb_end_pointer(skb),
 	       sizeof(struct skb_shared_info));
