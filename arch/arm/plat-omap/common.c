@@ -73,7 +73,7 @@ static const void *get_config(u16 tag, size_t len, int skip, size_t *len_out)
 	}
 	if (info != NULL) {
 		/* Check the length as a lame attempt to check for
-		 * binary inconsistancy. */
+		 * binary inconsistency. */
 		if (len != NO_LENGTH_CHECK) {
 			/* Word-align len */
 			if (len & 0x03)

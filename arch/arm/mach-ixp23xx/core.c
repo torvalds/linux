@@ -389,7 +389,7 @@ struct sys_timer ixp23xx_timer = {
 
 
 /*************************************************************************
- * IXP23xx Platform Initializaion
+ * IXP23xx Platform Initialization
  *************************************************************************/
 static struct resource ixp23xx_uart_resources[] = {
 	{

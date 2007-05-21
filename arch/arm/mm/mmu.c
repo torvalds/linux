@@ -92,7 +92,7 @@ static struct cachepolicy cache_policies[] __initdata = {
 };
 
 /*
- * These are useful for identifing cache coherency
+ * These are useful for identifying cache coherency
  * problems by allowing the cache or the cache and
  * writebuffer to be turned off.  (Note: the write
  * buffer should not be on and the cache off).

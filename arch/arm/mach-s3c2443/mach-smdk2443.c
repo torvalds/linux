@@ -104,6 +104,7 @@ static struct s3c2410_uartcfg smdk2443_uartcfgs[] __initdata = {
 static struct platform_device *smdk2443_devices[] __initdata = {
 	&s3c_device_wdt,
 	&s3c_device_i2c,
+	&s3c_device_hsmmc,
 };
 
 static void __init smdk2443_map_io(void)

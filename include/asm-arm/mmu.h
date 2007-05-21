@@ -4,13 +4,13 @@
 #ifdef CONFIG_MMU
 
 typedef struct {
-#if __LINUX_ARM_ARCH__ >= 6
+#ifdef CONFIG_CPU_HAS_ASID
 	unsigned int id;
 #endif
 	unsigned int kvm_seq;
 } mm_context_t;
 
-#if __LINUX_ARM_ARCH__ >= 6
+#ifdef CONFIG_CPU_HAS_ASID
 #define ASID(mm)	((mm)->context.id & 255)
 #else
 #define ASID(mm)	(0)

@@ -276,7 +276,7 @@ static int __init ixdp2x01_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	/* Device is located after first MB bridge */
 	case 0x0008:
 		if (tmp_bus == dev->bus) {
-			/* Device is located directy after first MB bridge */
+			/* Device is located directly after first MB bridge */
 			switch (devpin) {
 			case DEVPIN(1, 1):	/* Onboard 82546 ch 0 */
 				if (machine_is_ixdp2401())
@@ -299,7 +299,7 @@ static int __init ixdp2x01_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 		break;
 	case 0x0010:
 		if (tmp_bus == dev->bus) {
-			/* Device is located directy after second MB bridge */
+			/* Device is located directly after second MB bridge */
 			/* Secondary bus of second bridge */
 			switch (devpin) {
 			case DEVPIN(0, 1):	/* DB#0 */
@@ -348,7 +348,7 @@ int __init ixdp2x01_pci_init(void)
 subsys_initcall(ixdp2x01_pci_init);
 
 /*************************************************************************
- * IXDP2x01 Machine Intialization
+ * IXDP2x01 Machine Initialization
  *************************************************************************/
 static struct flash_platform_data ixdp2x01_flash_platform_data = {
 	.map_name	= "cfi_probe",

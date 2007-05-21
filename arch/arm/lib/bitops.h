@@ -47,7 +47,7 @@
  * @store: store instruction
  *
  * Note: we can trivially conditionalise the store instruction
- * to avoid dirting the data cache.
+ * to avoid dirtying the data cache.
  */
 	.macro	testop, instr, store
 	add	r1, r1, r0, lsr #3

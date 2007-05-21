@@ -12,4 +12,3 @@ obj-$(CONFIG_LEDS)			+= leds.o
 obj-$(CONFIG_PCI)			+= pci_v3.o pci.o
 obj-$(CONFIG_CPU_FREQ_INTEGRATOR)	+= cpu.o
 obj-$(CONFIG_INTEGRATOR_IMPD1)		+= impd1.o
-obj-$(CONFIG_SMP)			+= platsmp.o headsmp.o

@@ -30,52 +30,52 @@ static DECLARE_BITMAP(msi_irq_in_use, IOP13XX_NUM_MSI_IRQS);
 
 /* IMIPR0 CP6 R8 Page 1
  */
-static inline u32 read_imipr_0(void)
+static u32 read_imipr_0(void)
 {
 	u32 val;
 	asm volatile("mrc p6, 0, %0, c8, c1, 0":"=r" (val));
 	return val;
 }
-static inline void write_imipr_0(u32 val)
+static void write_imipr_0(u32 val)
 {
 	asm volatile("mcr p6, 0, %0, c8, c1, 0"::"r" (val));
 }
 
 /* IMIPR1 CP6 R9 Page 1
  */
-static inline u32 read_imipr_1(void)
+static u32 read_imipr_1(void)
 {
 	u32 val;
 	asm volatile("mrc p6, 0, %0, c9, c1, 0":"=r" (val));
 	return val;
 }
-static inline void write_imipr_1(u32 val)
+static void write_imipr_1(u32 val)
 {
 	asm volatile("mcr p6, 0, %0, c9, c1, 0"::"r" (val));
 }
 
 /* IMIPR2 CP6 R10 Page 1
  */
-static inline u32 read_imipr_2(void)
+static u32 read_imipr_2(void)
 {
 	u32 val;
 	asm volatile("mrc p6, 0, %0, c10, c1, 0":"=r" (val));
 	return val;
 }
-static inline void write_imipr_2(u32 val)
+static void write_imipr_2(u32 val)
 {
 	asm volatile("mcr p6, 0, %0, c10, c1, 0"::"r" (val));
 }
 
 /* IMIPR3 CP6 R11 Page 1
  */
-static inline u32 read_imipr_3(void)
+static u32 read_imipr_3(void)
 {
 	u32 val;
 	asm volatile("mrc p6, 0, %0, c11, c1, 0":"=r" (val));
 	return val;
 }
-static inline void write_imipr_3(u32 val)
+static void write_imipr_3(u32 val)
 {
 	asm volatile("mcr p6, 0, %0, c11, c1, 0"::"r" (val));
 }
@@ -190,5 +190,5 @@ int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 	write_msi_msg(irq, &msg);
 	set_irq_chip_and_handler(irq, &iop13xx_msi_chip, handle_simple_irq);
 
-	return irq;
+	return 0;
 }

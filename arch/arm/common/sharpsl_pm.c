@@ -153,7 +153,7 @@ static void sharpsl_battery_thread(struct work_struct *private_)
 		sharpsl_pm.battstat.mainbat_percent = percent;
 	}
 
-	dev_dbg(sharpsl_pm.dev, "Battery: voltage: %d, status: %d, percentage: %d, time: %d\n", voltage,
+	dev_dbg(sharpsl_pm.dev, "Battery: voltage: %d, status: %d, percentage: %d, time: %ld\n", voltage,
 			sharpsl_pm.battstat.mainbat_status, sharpsl_pm.battstat.mainbat_percent, jiffies);
 
 	/* If battery is low. limit backlight intensity to save power. */
@@ -291,7 +291,7 @@ static void sharpsl_chrg_full_timer(unsigned long data)
 }
 
 /* Charging Finished Interrupt (Not present on Corgi) */
-/* Can trigger at the same time as an AC staus change so
+/* Can trigger at the same time as an AC status change so
    delay until after that has been processed */
 irqreturn_t sharpsl_chrg_full_isr(int irq, void *dev_id)
 {
@@ -625,7 +625,7 @@ static int sharpsl_fatal_check(void)
 	}
 
 	temp = get_select_val(buff);
-	dev_dbg(sharpsl_pm.dev, "sharpsl_fatal_check: acin: %d, discharge voltage: %d, no discharge: %d\n", acin, temp, sharpsl_pm.machinfo->read_devdata(SHARPSL_BATT_VOLT));
+	dev_dbg(sharpsl_pm.dev, "sharpsl_fatal_check: acin: %d, discharge voltage: %d, no discharge: %ld\n", acin, temp, sharpsl_pm.machinfo->read_devdata(SHARPSL_BATT_VOLT));
 
 	if ((acin && (temp < sharpsl_pm.machinfo->fatal_acin_volt)) ||
 			(!acin && (temp < sharpsl_pm.machinfo->fatal_noacin_volt)))
@@ -635,7 +635,7 @@ static int sharpsl_fatal_check(void)
 
 static int sharpsl_off_charge_error(void)
 {
-	dev_err(sharpsl_pm.dev, "Offline Charger: Error occured.\n");
+	dev_err(sharpsl_pm.dev, "Offline Charger: Error occurred.\n");
 	sharpsl_pm.machinfo->charge(0);
 	sharpsl_pm_led(SHARPSL_LED_ERROR);
 	sharpsl_pm.charge_mode = CHRG_ERROR;
@@ -691,14 +691,14 @@ static int sharpsl_off_charge_battery(void)
 
 		time = RCNR;
 		while(1) {
-			/* Check if any wakeup event had occured */
+			/* Check if any wakeup event had occurred */
 			if (sharpsl_pm.machinfo->charger_wakeup() != 0)
 				return 0;
 			/* Check for timeout */
 			if ((RCNR - time) > SHARPSL_WAIT_CO_TIME)
 				return 1;
 			if (sharpsl_pm.machinfo->read_devdata(SHARPSL_STATUS_CHRGFULL)) {
-				dev_dbg(sharpsl_pm.dev, "Offline Charger: Charge full occured. Retrying to check\n");
+				dev_dbg(sharpsl_pm.dev, "Offline Charger: Charge full occurred. Retrying to check\n");
 	   			sharpsl_pm.full_count++;
 				sharpsl_pm.machinfo->charge(0);
 				mdelay(SHARPSL_CHARGE_WAIT_TIME);
@@ -714,7 +714,7 @@ static int sharpsl_off_charge_battery(void)
 
 	time = RCNR;
 	while(1) {
-		/* Check if any wakeup event had occured */
+		/* Check if any wakeup event had occurred */
 		if (sharpsl_pm.machinfo->charger_wakeup() != 0)
 			return 0;
 		/* Check for timeout */
@@ -774,6 +774,8 @@ static struct pm_ops sharpsl_pm_ops = {
 
 static int __init sharpsl_pm_probe(struct platform_device *pdev)
 {
+	int ret;
+
 	if (!pdev->dev.platform_data)
 		return -EINVAL;
 
@@ -792,8 +794,10 @@ static int __init sharpsl_pm_probe(struct platform_device *pdev)
 
 	sharpsl_pm.machinfo->init();
 
-	device_create_file(&pdev->dev, &dev_attr_battery_percentage);
-	device_create_file(&pdev->dev, &dev_attr_battery_voltage);
+	ret = device_create_file(&pdev->dev, &dev_attr_battery_percentage);
+	ret |= device_create_file(&pdev->dev, &dev_attr_battery_voltage);
+	if (ret != 0)
+		dev_warn(&pdev->dev, "Failed to register attributes (%d)\n", ret);
 
 	apm_get_power_status = sharpsl_apm_get_power_status;
 

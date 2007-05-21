@@ -30,7 +30,7 @@ static unsigned long mpcore_timer_rate;
 /*
  * local_timer_ack: checks for a local timer interrupt.
  *
- * If a local timer interrupt has occured, acknowledge and return 1.
+ * If a local timer interrupt has occurred, acknowledge and return 1.
  * Otherwise, return 0.
  */
 int local_timer_ack(void)

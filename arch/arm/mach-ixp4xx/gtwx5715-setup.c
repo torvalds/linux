@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-ixp4xx/gtwx5715-setup.c
  *
- * Gemtek GTWX5715 (Linksys WRV54G) board settup
+ * Gemtek GTWX5715 (Linksys WRV54G) board setup
  *
  * Copyright (C) 2004 George T. Joseph
  * Derived from Coyote
