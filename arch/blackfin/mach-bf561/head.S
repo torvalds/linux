@@ -414,12 +414,6 @@ ENTRY(_bfin_reset)
 	w[p0] = r0.l;
 #endif
 
-	/* Clear the bits 13-15 in SWRST if they werent cleared */
-	p0.h = hi(SICA_SWRST);
-	p0.l = lo(SICA_SWRST);
-	csync;
-	r0.l = w[p0];
-
 	/* Clear the IMASK register */
 	p0.h = hi(IMASK);
 	p0.l = lo(IMASK);
