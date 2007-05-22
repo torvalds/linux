@@ -1830,3 +1830,5 @@ extern char aac_driver_version[];
 extern int startup_timeout;
 extern int aif_timeout;
 extern int expose_physicals;
+extern int aac_reset_devices;
+extern int aac_commit;
