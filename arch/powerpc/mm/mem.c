@@ -310,11 +310,12 @@ void __init paging_init(void)
 
 #ifdef CONFIG_HIGHMEM
 	map_page(PKMAP_BASE, 0, 0);	/* XXX gross */
-	pkmap_page_table = pte_offset_kernel(pmd_offset(pgd_offset_k
-			(PKMAP_BASE), PKMAP_BASE), PKMAP_BASE);
+	pkmap_page_table = pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k
+			(PKMAP_BASE), PKMAP_BASE), PKMAP_BASE), PKMAP_BASE);
 	map_page(KMAP_FIX_BEGIN, 0, 0);	/* XXX gross */
-	kmap_pte = pte_offset_kernel(pmd_offset(pgd_offset_k
-			(KMAP_FIX_BEGIN), KMAP_FIX_BEGIN), KMAP_FIX_BEGIN);
+	kmap_pte = pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k
+			(KMAP_FIX_BEGIN), KMAP_FIX_BEGIN), KMAP_FIX_BEGIN),
+			 KMAP_FIX_BEGIN);
 	kmap_prot = PAGE_KERNEL;
 #endif /* CONFIG_HIGHMEM */
 
