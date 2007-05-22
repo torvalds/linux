@@ -354,10 +354,13 @@ pci_acpi_scan_root(struct acpi_device *device, int domain, int bus)
 
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, count_window,
 			&windows);
-	controller->window = kmalloc_node(sizeof(*controller->window) * windows,
-			GFP_KERNEL, controller->node);
-	if (!controller->window)
-		goto out2;
+	if (windows) {
+		controller->window =
+			kmalloc_node(sizeof(*controller->window) * windows,
+				     GFP_KERNEL, controller->node);
+		if (!controller->window)
+			goto out2;
+	}
 
 	name = kmalloc(16, GFP_KERNEL);
 	if (!name)
