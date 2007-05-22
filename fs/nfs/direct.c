@@ -295,9 +295,14 @@ static ssize_t nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned lo
 			break;
 		}
 		if ((unsigned)result < data->npages) {
-			nfs_direct_release_pages(data->pagevec, result);
-			nfs_readdata_release(data);
-			break;
+			bytes = result * PAGE_SIZE;
+			if (bytes <= pgbase) {
+				nfs_direct_release_pages(data->pagevec, result);
+				nfs_readdata_release(data);
+				break;
+			}
+			bytes -= pgbase;
+			data->npages = result;
 		}
 
 		get_dreq(dreq);
@@ -630,9 +635,14 @@ static ssize_t nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned l
 			break;
 		}
 		if ((unsigned)result < data->npages) {
-			nfs_direct_release_pages(data->pagevec, result);
-			nfs_writedata_release(data);
-			break;
+			bytes = result * PAGE_SIZE;
+			if (bytes <= pgbase) {
+				nfs_direct_release_pages(data->pagevec, result);
+				nfs_writedata_release(data);
+				break;
+			}
+			bytes -= pgbase;
+			data->npages = result;
 		}
 
 		get_dreq(dreq);
