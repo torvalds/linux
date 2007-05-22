@@ -268,7 +268,7 @@ static int ar_context_add_page(struct ar_context *ctx)
 
 	dma_sync_single_for_device(dev, ab_bus, PAGE_SIZE, DMA_BIDIRECTIONAL);
 
-	ctx->last_buffer->descriptor.branch_address = ab_bus | 1;
+	ctx->last_buffer->descriptor.branch_address = cpu_to_le32(ab_bus | 1);
 	ctx->last_buffer->next = ab;
 	ctx->last_buffer = ab;
 
@@ -417,7 +417,8 @@ ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci, u32 regs)
 	ctx->current_buffer = ab.next;
 	ctx->pointer = ctx->current_buffer->data;
 
-	reg_write(ctx->ohci, COMMAND_PTR(ctx->regs), ab.descriptor.branch_address);
+	reg_write(ctx->ohci, COMMAND_PTR(ctx->regs),
+		  le32_to_cpu(ab.descriptor.branch_address));
 	reg_write(ctx->ohci, CONTROL_SET(ctx->regs), CONTEXT_RUN);
 	flush_writes(ctx->ohci);
 
