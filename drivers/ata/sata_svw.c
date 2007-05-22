@@ -53,7 +53,7 @@
 #endif /* CONFIG_PPC_OF */
 
 #define DRV_NAME	"sata_svw"
-#define DRV_VERSION	"2.1"
+#define DRV_VERSION	"2.2"
 
 enum {
 	/* ap->flags bits */

@@ -961,7 +961,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	u8 mcr1;
 	u32 freq;
 	int prefer_dpll = 1;
-	
+
 	unsigned long iobase = pci_resource_start(dev, 4);
 
 	const struct hpt_chip *chip_table;
@@ -1055,7 +1055,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	 */
 
 	pci_write_config_byte(dev, 0x5b, 0x23);
-	
+
 	/*
 	 * HighPoint does this for HPT372A.
 	 * NOTE: This register is only writeable via I/O space.
@@ -1088,7 +1088,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	 *	Turn the frequency check into a band and then find a timing
 	 *	table to match it.
 	 */
-	 
+
 	clock_slot = hpt37x_clock_slot(freq, chip_table->base);
 	if (chip_table->clocks[clock_slot] == NULL || prefer_dpll) {
 		/*
@@ -1099,11 +1099,11 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		 */
 		unsigned int f_low, f_high;
 		int adjust;
-		
+
 		clock_slot = 2;
 		if (port->udma_mask & 0xE0)
 			clock_slot = 3;
-		
+
 		f_low = (MHz[clock_slot] * chip_table->base) / 192;
 		f_high = f_low + 2;
 

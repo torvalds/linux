@@ -35,7 +35,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_mv"
-#define DRV_VERSION	"0.8"
+#define DRV_VERSION	"0.81"
 
 enum {
 	/* BAR's are enumerated in terms of pci_resource_start() terms */

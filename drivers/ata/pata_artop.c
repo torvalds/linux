@@ -28,7 +28,7 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_artop"
-#define DRV_VERSION	"0.4.2"
+#define DRV_VERSION	"0.4.3"
 
 /*
  *	The ARTOP has 33 Mhz and "over clocked" timing tables. Until we
@@ -99,7 +99,7 @@ static int artop6260_pre_reset(struct ata_port *ap, unsigned long deadline)
  *
  *	Identify the cable type for the ARTOp interface in question
  */
- 
+
 static int artop6260_cable_detect(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);

@@ -49,7 +49,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME			"sata_nv"
-#define DRV_VERSION			"3.3"
+#define DRV_VERSION			"3.4"
 
 #define NV_ADMA_DMA_BOUNDARY		0xffffffffUL
 
@@ -802,7 +802,7 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 			u16 status;
 			u32 gen_ctl;
 			u32 notifier, notifier_error;
-			
+
 			/* if ADMA is disabled, use standard ata interrupt handler */
 			if (pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE) {
 				u8 irq_stat = readb(host->iomap[NV_MMIO_BAR] + NV_INT_STATUS_CK804)
@@ -963,7 +963,7 @@ static void nv_adma_irq_clear(struct ata_port *ap)
 
 	/* clear ADMA status */
 	writew(0xffff, mmio + NV_ADMA_STAT);
-	
+
 	/* clear notifiers - note both ports need to be written with
 	   something even though we are only clearing on one */
 	if (ap->port_no == 0) {

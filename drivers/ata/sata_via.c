@@ -46,7 +46,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_via"
-#define DRV_VERSION	"2.1"
+#define DRV_VERSION	"2.2"
 
 enum board_ids_enum {
 	vt6420,
