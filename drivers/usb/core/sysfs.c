@@ -232,12 +232,15 @@ set_level(struct device *dev, struct device_attribute *attr,
 	int len = count;
 	char *cp;
 	int rc = 0;
+	int old_autosuspend_disabled, old_autoresume_disabled;
 
 	cp = memchr(buf, '\n', count);
 	if (cp)
 		len = cp - buf;
 
 	usb_lock_device(udev);
+	old_autosuspend_disabled = udev->autosuspend_disabled;
+	old_autoresume_disabled = udev->autoresume_disabled;
 
 	/* Setting the flags without calling usb_pm_lock is a subject to
 	 * races, but who cares...
@@ -263,6 +266,10 @@ set_level(struct device *dev, struct device_attribute *attr,
 	} else
 		rc = -EINVAL;
 
+	if (rc) {
+		udev->autosuspend_disabled = old_autosuspend_disabled;
+		udev->autoresume_disabled = old_autoresume_disabled;
+	}
 	usb_unlock_device(udev);
 	return (rc < 0 ? rc : count);
 }
