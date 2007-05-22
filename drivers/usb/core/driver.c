@@ -29,6 +29,14 @@
 #include "hcd.h"
 #include "usb.h"
 
+#define VERBOSE_DEBUG	0
+
+#if VERBOSE_DEBUG
+#define dev_vdbg	dev_dbg
+#else
+#define dev_vdbg(dev, fmt, args...)	do { } while (0)
+#endif
+
 #ifdef CONFIG_HOTPLUG
 
 /*
@@ -812,8 +820,8 @@ static int usb_suspend_device(struct usb_device *udev, pm_message_t msg)
 	}
 	status = udriver->suspend(udev, msg);
 
-done:
-	// dev_dbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
+ done:
+	dev_vdbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
 	if (status == 0)
 		udev->dev.power.power_state.event = msg.event;
 	return status;
@@ -842,8 +850,8 @@ static int usb_resume_device(struct usb_device *udev)
 	udriver = to_usb_device_driver(udev->dev.driver);
 	status = udriver->resume(udev);
 
-done:
-	// dev_dbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
+ done:
+	dev_vdbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
 	if (status == 0) {
 		udev->autoresume_disabled = 0;
 		udev->dev.power.power_state.event = PM_EVENT_ON;
@@ -881,8 +889,8 @@ static int usb_suspend_interface(struct usb_interface *intf, pm_message_t msg)
 		mark_quiesced(intf);
 	}
 
-done:
-	// dev_dbg(&intf->dev, "%s: status %d\n", __FUNCTION__, status);
+ done:
+	dev_vdbg(&intf->dev, "%s: status %d\n", __FUNCTION__, status);
 	return status;
 }
 
@@ -919,7 +927,7 @@ static int usb_resume_interface(struct usb_interface *intf, int reset_resume)
 				driver->name);
 
 done:
-	// dev_dbg(&intf->dev, "%s: status %d\n", __FUNCTION__, status);
+	dev_vdbg(&intf->dev, "%s: status %d\n", __FUNCTION__, status);
 	if (status == 0)
 		mark_active(intf);
 	return status;
@@ -1083,7 +1091,7 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 	}
 
  done:
-	// dev_dbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
+	dev_vdbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
 	return status;
 }
 
@@ -1180,7 +1188,7 @@ static int usb_resume_both(struct usb_device *udev)
 	}
 
  done:
-	// dev_dbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
+	dev_vdbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
 	udev->reset_resume = 0;
 	return status;
 }
@@ -1248,8 +1256,8 @@ void usb_autosuspend_device(struct usb_device *udev)
 	int	status;
 
 	status = usb_autopm_do_device(udev, -1);
-	// dev_dbg(&udev->dev, "%s: cnt %d\n",
-	//		__FUNCTION__, udev->pm_usage_cnt);
+	dev_vdbg(&udev->dev, "%s: cnt %d\n",
+			__FUNCTION__, udev->pm_usage_cnt);
 }
 
 /**
@@ -1268,8 +1276,8 @@ void usb_autosuspend_device(struct usb_device *udev)
 void usb_try_autosuspend_device(struct usb_device *udev)
 {
 	usb_autopm_do_device(udev, 0);
-	// dev_dbg(&udev->dev, "%s: cnt %d\n",
-	// 		__FUNCTION__, udev->pm_usage_cnt);
+	dev_vdbg(&udev->dev, "%s: cnt %d\n",
+			__FUNCTION__, udev->pm_usage_cnt);
 }
 
 /**
@@ -1296,8 +1304,8 @@ int usb_autoresume_device(struct usb_device *udev)
 	int	status;
 
 	status = usb_autopm_do_device(udev, 1);
-	// dev_dbg(&udev->dev, "%s: status %d cnt %d\n",
-	//		__FUNCTION__, status, udev->pm_usage_cnt);
+	dev_vdbg(&udev->dev, "%s: status %d cnt %d\n",
+			__FUNCTION__, status, udev->pm_usage_cnt);
 	return status;
 }
 
@@ -1369,8 +1377,8 @@ void usb_autopm_put_interface(struct usb_interface *intf)
 	int	status;
 
 	status = usb_autopm_do_interface(intf, -1);
-	// dev_dbg(&intf->dev, "%s: status %d cnt %d\n",
-	//		__FUNCTION__, status, intf->pm_usage_cnt);
+	dev_vdbg(&intf->dev, "%s: status %d cnt %d\n",
+			__FUNCTION__, status, intf->pm_usage_cnt);
 }
 EXPORT_SYMBOL_GPL(usb_autopm_put_interface);
 
@@ -1413,8 +1421,8 @@ int usb_autopm_get_interface(struct usb_interface *intf)
 	int	status;
 
 	status = usb_autopm_do_interface(intf, 1);
-	// dev_dbg(&intf->dev, "%s: status %d cnt %d\n",
-	//		__FUNCTION__, status, intf->pm_usage_cnt);
+	dev_vdbg(&intf->dev, "%s: status %d cnt %d\n",
+			__FUNCTION__, status, intf->pm_usage_cnt);
 	return status;
 }
 EXPORT_SYMBOL_GPL(usb_autopm_get_interface);
@@ -1435,8 +1443,8 @@ int usb_autopm_set_interface(struct usb_interface *intf)
 	int	status;
 
 	status = usb_autopm_do_interface(intf, 0);
-	// dev_dbg(&intf->dev, "%s: status %d cnt %d\n",
-	//		__FUNCTION__, status, intf->pm_usage_cnt);
+	dev_vdbg(&intf->dev, "%s: status %d cnt %d\n",
+			__FUNCTION__, status, intf->pm_usage_cnt);
 	return status;
 }
 EXPORT_SYMBOL_GPL(usb_autopm_set_interface);
