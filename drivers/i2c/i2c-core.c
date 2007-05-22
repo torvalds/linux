@@ -697,9 +697,10 @@ int i2c_attach_client(struct i2c_client *client)
 	if (client->driver)
 		client->dev.driver = &client->driver->driver;
 
-	if (client->driver && !is_newstyle_driver(client->driver))
+	if (client->driver && !is_newstyle_driver(client->driver)) {
 		client->dev.release = i2c_client_release;
-	else
+		client->dev.uevent_suppress = 1;
+	} else
 		client->dev.release = i2c_client_dev_release;
 
 	snprintf(&client->dev.bus_id[0], sizeof(client->dev.bus_id),
