@@ -107,7 +107,7 @@ static void cmd640_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		pci_write_config_byte(pdev, arttim + 1, (t.active << 4) | t.recover);
 	} else {
 		/* Save the shared timings for channel, they will be loaded
-		   by qc_issue_prot. Reloading the setup time is expensive 
+		   by qc_issue_prot. Reloading the setup time is expensive
 		   so we keep a merged one loaded */
 		pci_read_config_byte(pdev, ARTIM23, &reg);
 		reg &= 0x3F;
@@ -231,7 +231,7 @@ static void cmd640_hardware_init(struct pci_dev *pdev)
 	pci_write_config_byte(pdev, CMDTIM, 0);
 	/* 512 byte bursts (sector) */
 	pci_write_config_byte(pdev, BRST, 0x40);
-	/* 
+	/*
 	 * A reporter a long time ago
 	 * Had problems with the data fifo
 	 * So don't run the risk

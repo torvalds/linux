@@ -1009,7 +1009,7 @@ static unsigned int atapi_eh_request_sense(struct ata_queued_cmd *qc)
 	sense_buf[0] = 0x70;
 	sense_buf[2] = qc->result_tf.feature >> 4;
 
-	/* some devices time out if garbage left in tf */ 
+	/* some devices time out if garbage left in tf */
 	ata_tf_init(dev, &tf);
 
 	memset(cdb, 0, ATAPI_CDB_LEN);
