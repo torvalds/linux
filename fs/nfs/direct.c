@@ -122,13 +122,19 @@ ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov, loff_
 	return -EINVAL;
 }
 
-static void nfs_direct_dirty_pages(struct page **pages, unsigned int npages)
+static void nfs_direct_dirty_pages(struct page **pages, unsigned int pgbase, size_t count)
 {
+	unsigned int npages;
 	unsigned int i;
+
+	if (count == 0)
+		return;
+	pages += (pgbase >> PAGE_SHIFT);
+	npages = (count + (pgbase & ~PAGE_MASK) + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	for (i = 0; i < npages; i++) {
 		struct page *page = pages[i];
 		if (!PageCompound(page))
-			set_page_dirty_lock(page);
+			set_page_dirty(page);
 	}
 }
 
@@ -224,17 +230,18 @@ static void nfs_direct_read_result(struct rpc_task *task, void *calldata)
 	if (nfs_readpage_result(task, data) != 0)
 		return;
 
-	nfs_direct_dirty_pages(data->pagevec, data->npages);
-	nfs_direct_release_pages(data->pagevec, data->npages);
-
 	spin_lock(&dreq->lock);
-
-	if (likely(task->tk_status >= 0))
-		dreq->count += data->res.count;
-	else
+	if (unlikely(task->tk_status < 0)) {
 		dreq->error = task->tk_status;
-
-	spin_unlock(&dreq->lock);
+		spin_unlock(&dreq->lock);
+	} else {
+		dreq->count += data->res.count;
+		spin_unlock(&dreq->lock);
+		nfs_direct_dirty_pages(data->pagevec,
+				data->args.pgbase,
+				data->res.count);
+	}
+	nfs_direct_release_pages(data->pagevec, data->npages);
 
 	if (put_dreq(dreq))
 		nfs_direct_complete(dreq);
