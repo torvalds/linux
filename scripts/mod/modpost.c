@@ -384,7 +384,6 @@ static int parse_elf(struct elf_info *info, const char *filename)
 		sechdrs[i].sh_size   = TO_NATIVE(sechdrs[i].sh_size);
 		sechdrs[i].sh_link   = TO_NATIVE(sechdrs[i].sh_link);
 		sechdrs[i].sh_name   = TO_NATIVE(sechdrs[i].sh_name);
-		sechdrs[i].sh_info   = TO_NATIVE(sechdrs[i].sh_info);
 	}
 	/* Find symbol table. */
 	for (i = 1; i < hdr->e_shnum; i++) {
@@ -754,8 +753,6 @@ static Elf_Sym *find_elf_symbol(struct elf_info *elf, Elf_Addr addr,
 	for (sym = elf->symtab_start; sym < elf->symtab_stop; sym++) {
 		if (sym->st_shndx != relsym->st_shndx)
 			continue;
-		if (ELF_ST_TYPE(sym->st_info) == STT_SECTION)
-			continue;
 		if (sym->st_value == addr)
 			return sym;
 	}
@@ -898,68 +895,6 @@ static void warn_sec_mismatch(const char *modname, const char *fromsec,
 	}
 }
 
-static void addend_386_rel(struct elf_info *elf, int section, Elf_Rela *r)
-{
-	Elf_Shdr *sechdrs = elf->sechdrs;
-	unsigned int r_typ;
-	unsigned int *location;
-
-	r_typ = ELF_R_TYPE(r->r_info);
-	location = (void *)elf->hdr +
-		sechdrs[sechdrs[section].sh_info].sh_offset + r->r_offset;
-	switch (r_typ) {
-	case R_386_32:
-		r->r_addend = TO_NATIVE(*location);
-		break;
-	case R_386_PC32:
-		r->r_addend = TO_NATIVE(*location) + 4;
-		break;
-	}
-}
-
-static void addend_arm_rel(struct elf_info *elf, int section, Elf_Rela *r)
-{
-	Elf_Shdr *sechdrs = elf->sechdrs;
-	unsigned int r_typ;
-	unsigned int *location;
-
-	r_typ = ELF_R_TYPE(r->r_info);
-	location = (void *)elf->hdr +
-		sechdrs[sechdrs[section].sh_info].sh_offset + r->r_offset;
-	switch (r_typ) {
-	case R_ARM_ABS32:
-		r->r_addend = TO_NATIVE(*location);
-		break;
-	case R_ARM_PC24:
-		r->r_addend = ((TO_NATIVE(*location) & 0x00ffffff) << 2) + 8;
-		break;
-	}
-}
-
-static int addend_mips_rel(struct elf_info *elf, int section, Elf_Rela *r)
-{
-	Elf_Shdr *sechdrs = elf->sechdrs;
-	unsigned int r_typ;
-	unsigned int *location;
-	unsigned int inst;
-
-	r_typ = ELF_R_TYPE(r->r_info);
-	if (r_typ == R_MIPS_HI16)
-		return 1;	/* skip this */
-	location = (void *)elf->hdr +
-		sechdrs[sechdrs[section].sh_info].sh_offset + r->r_offset;
-	inst = TO_NATIVE(*location);
-	switch (r_typ) {
-	case R_MIPS_LO16:
-		r->r_addend = ((inst & 0xffff) ^ 0x8000) - 0x8000;
-		break;
-	case R_MIPS_26:
-		r->r_addend = (inst & 0x03ffffff) << 2;
-		break;
-	}
-	return 0;
-}
-
 /**
  * A module includes a number of sections that are discarded
  * either when loaded or when used as built-in.
@@ -1003,11 +938,8 @@ static void check_sec_ref(struct module *mod, const char *modname,
 				r.r_offset = TO_NATIVE(rela->r_offset);
 #if KERNEL_ELFCLASS == ELFCLASS64
 				if (hdr->e_machine == EM_MIPS) {
-					unsigned int r_typ;
 					r_sym = ELF64_MIPS_R_SYM(rela->r_info);
 					r_sym = TO_NATIVE(r_sym);
-					r_typ = ELF64_MIPS_R_TYPE(rela->r_info);
-					r.r_info = ELF64_R_INFO(r_sym, r_typ);
 				} else {
 					r.r_info = TO_NATIVE(rela->r_info);
 					r_sym = ELF_R_SYM(r.r_info);
@@ -1040,11 +972,8 @@ static void check_sec_ref(struct module *mod, const char *modname,
 				r.r_offset = TO_NATIVE(rel->r_offset);
 #if KERNEL_ELFCLASS == ELFCLASS64
 				if (hdr->e_machine == EM_MIPS) {
-					unsigned int r_typ;
 					r_sym = ELF64_MIPS_R_SYM(rel->r_info);
 					r_sym = TO_NATIVE(r_sym);
-					r_typ = ELF64_MIPS_R_TYPE(rel->r_info);
-					r.r_info = ELF64_R_INFO(r_sym, r_typ);
 				} else {
 					r.r_info = TO_NATIVE(rel->r_info);
 					r_sym = ELF_R_SYM(r.r_info);
@@ -1054,14 +983,6 @@ static void check_sec_ref(struct module *mod, const char *modname,
 				r_sym = ELF_R_SYM(r.r_info);
 #endif
 				r.r_addend = 0;
-				if (hdr->e_machine == EM_386)
-					addend_386_rel(elf, i, &r);
-				else if (hdr->e_machine == EM_ARM)
-					addend_arm_rel(elf, i, &r);
-				else if (hdr->e_machine == EM_MIPS) {
-					if (addend_mips_rel(elf, i, &r))
-						continue;
-				}
 				sym = elf->symtab_start + r_sym;
 				/* Skip special sections */
 				if (sym->st_shndx >= SHN_LORESERVE)
