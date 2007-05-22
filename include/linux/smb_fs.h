@@ -9,7 +9,6 @@
 #ifndef _LINUX_SMB_FS_H
 #define _LINUX_SMB_FS_H
 
-#include <linux/jiffies.h>
 #include <linux/smb.h>
 
 /*
@@ -30,6 +29,7 @@
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
 #include <linux/smb_mount.h>
+#include <linux/jiffies.h>
 #include <asm/unaligned.h>
 
 static inline struct smb_sb_info *SMB_SB(struct super_block *sb)
