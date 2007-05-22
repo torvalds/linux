@@ -158,7 +158,7 @@ static bool ldm_parse_privhead(const u8 *data, struct privhead *ph)
 		/* Warn the user and continue, carefully. */
 		ldm_info("Database is normally %u bytes, it claims to "
 			"be %llu bytes.", LDM_DB_SIZE,
-			udunsigned long long)ph->config_size);
+			(unsigned long long)ph->config_size);
 	}
 	if ((ph->logical_disk_size == 0) || (ph->logical_disk_start +
 			ph->logical_disk_size > ph->config_start)) {
