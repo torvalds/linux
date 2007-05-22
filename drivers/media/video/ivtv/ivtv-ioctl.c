@@ -362,8 +362,6 @@ static int ivtv_get_fmt(struct ivtv *itv, int streamtype, struct v4l2_format *fm
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 			return -EINVAL;
-		fmt->fmt.pix.left = itv->main_rect.left;
-		fmt->fmt.pix.top = itv->main_rect.top;
 		fmt->fmt.pix.width = itv->main_rect.width;
 		fmt->fmt.pix.height = itv->main_rect.height;
 		fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
@@ -402,8 +400,6 @@ static int ivtv_get_fmt(struct ivtv *itv, int streamtype, struct v4l2_format *fm
 		break;
 
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		fmt->fmt.pix.left = 0;
-		fmt->fmt.pix.top = 0;
 		fmt->fmt.pix.width = itv->params.width;
 		fmt->fmt.pix.height = itv->params.height;
 		fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
@@ -498,15 +494,13 @@ static int ivtv_try_or_set_fmt(struct ivtv *itv, int streamtype,
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 			return -EINVAL;
 		field = fmt->fmt.pix.field;
-		r.top = fmt->fmt.pix.top;
-		r.left = fmt->fmt.pix.left;
+		r.top = 0;
+		r.left = 0;
 		r.width = fmt->fmt.pix.width;
 		r.height = fmt->fmt.pix.height;
 		ivtv_get_fmt(itv, streamtype, fmt);
 		if (itv->output_mode != OUT_UDMA_YUV) {
 			/* TODO: would setting the rect also be valid for this mode? */
-			fmt->fmt.pix.top = r.top;
-			fmt->fmt.pix.left = r.left;
 			fmt->fmt.pix.width = r.width;
 			fmt->fmt.pix.height = r.height;
 		}
@@ -1141,8 +1135,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		fb->fmt.pixelformat = itv->osd_pixelformat;
 		fb->fmt.width = itv->osd_rect.width;
 		fb->fmt.height = itv->osd_rect.height;
-		fb->fmt.left = itv->osd_rect.left;
-		fb->fmt.top = itv->osd_rect.top;
 		fb->base = (void *)itv->osd_video_pbase;
 		if (itv->osd_global_alpha_state)
 			fb->flags |= V4L2_FBUF_FLAG_GLOBAL_ALPHA;

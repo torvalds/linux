@@ -150,6 +150,12 @@
 #define REG_GL_IMASK   0x300c  /* Interrupt mask register */
 #define   GIMSK_CCIC_EN          0x00000004    /* CCIC Interrupt enable */
 
+#define REG_GL_FCR	0x3038  /* GPIO functional control register */
+#define	  GFCR_GPIO_ON	  0x08		/* Camera GPIO enabled */
+#define REG_GL_GPIOR	0x315c	/* GPIO register */
+#define   GGPIO_OUT  		0x80000	/* GPIO output */
+#define   GGPIO_VAL  		0x00008	/* Output pin value */
+
 #define REG_LEN                REG_GL_IMASK + 4
 
 
