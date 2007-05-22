@@ -858,7 +858,7 @@ static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
 	init_event_struct(evt_struct,
 			  adapter_info_rsp,
 			  VIOSRP_MAD_FORMAT,
-			  init_timeout * HZ);
+			  init_timeout);
 	
 	req = &evt_struct->iu.mad.adapter_info;
 	memset(req, 0x00, sizeof(*req));
@@ -953,7 +953,7 @@ static int send_srp_login(struct ibmvscsi_host_data *hostdata)
 	init_event_struct(evt_struct,
 			  login_rsp,
 			  VIOSRP_SRP_FORMAT,
-			  init_timeout * HZ);
+			  init_timeout);
 
 	login = &evt_struct->iu.srp.login_req;
 	memset(login, 0x00, sizeof(struct srp_login_req));
@@ -1031,7 +1031,7 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 	init_event_struct(evt,
 			  sync_completion,
 			  VIOSRP_SRP_FORMAT,
-			  init_timeout * HZ);
+			  init_timeout);
 
 	tsk_mgmt = &evt->iu.srp.tsk_mgmt;
 	
@@ -1140,7 +1140,7 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 	init_event_struct(evt,
 			  sync_completion,
 			  VIOSRP_SRP_FORMAT,
-			  init_timeout * HZ);
+			  init_timeout);
 
 	tsk_mgmt = &evt->iu.srp.tsk_mgmt;
 
@@ -1373,7 +1373,7 @@ static int ibmvscsi_do_host_config(struct ibmvscsi_host_data *hostdata,
 	init_event_struct(evt_struct,
 			  sync_completion,
 			  VIOSRP_MAD_FORMAT,
-			  init_timeout * HZ);
+			  init_timeout);
 
 	host_config = &evt_struct->iu.mad.host_config;
 
