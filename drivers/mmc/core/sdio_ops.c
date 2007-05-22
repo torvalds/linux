@@ -10,6 +10,7 @@
  */
 
 #include <linux/mmc/host.h>
+#include <linux/mmc/card.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sdio.h>
 
@@ -45,5 +46,41 @@ int mmc_send_io_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 		*rocr = cmd.resp[0];
 
 	return err;
+}
+
+int mmc_io_rw_direct(struct mmc_card *card, int write, unsigned fn,
+	unsigned addr, u8 in, u8* out)
+{
+	struct mmc_command cmd;
+	int err;
+
+	BUG_ON(!card);
+	BUG_ON(fn > 7);
+
+	memset(&cmd, 0, sizeof(struct mmc_command));
+
+	cmd.opcode = SD_IO_RW_DIRECT;
+	cmd.arg = write ? 0x80000000 : 0x00000000;
+	cmd.arg |= fn << 28;
+	cmd.arg |= (write && out) ? 0x08000000 : 0x00000000;
+	cmd.arg |= addr << 9;
+	cmd.arg |= in;
+	cmd.flags = MMC_RSP_R5 | MMC_CMD_AC;
+
+	err = mmc_wait_for_cmd(card->host, &cmd, 0);
+	if (err)
+		return err;
+
+	if (cmd.resp[0] & R5_ERROR)
+		return -EIO;
+	if (cmd.resp[0] & R5_FUNCTION_NUMBER)
+		return -EINVAL;
+	if (cmd.resp[0] & R5_OUT_OF_RANGE)
+		return -ERANGE;
+
+	if (out)
+		*out = cmd.resp[0] & 0xFF;
+
+	return 0;
 }
 
