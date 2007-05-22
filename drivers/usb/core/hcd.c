@@ -582,10 +582,12 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 	}
 
 	/* The USB 2.0 spec says 256 ms.  This is close enough and won't
-	 * exceed that limit if HZ is 100. */
+	 * exceed that limit if HZ is 100. The math is more clunky than
+	 * maybe expected, this is to make sure that all timers for USB devices
+	 * fire at the same time to give the CPU a break inbetween */
 	if (hcd->uses_new_polling ? hcd->poll_rh :
 			(length == 0 && hcd->status_urb != NULL))
-		mod_timer (&hcd->rh_timer, jiffies + msecs_to_jiffies(250));
+		mod_timer (&hcd->rh_timer, (jiffies/(HZ/4) + 1) * (HZ/4));
 }
 EXPORT_SYMBOL_GPL(usb_hcd_poll_rh_status);
 
@@ -614,8 +616,8 @@ static int rh_queue_status (struct usb_hcd *hcd, struct urb *urb)
 		urb->hcpriv = hcd;	/* indicate it's queued */
 
 		if (!hcd->uses_new_polling)
-			mod_timer (&hcd->rh_timer, jiffies +
-					msecs_to_jiffies(250));
+			mod_timer (&hcd->rh_timer,
+				(jiffies/(HZ/4) + 1) * (HZ/4));
 
 		/* If a status change has already occurred, report it ASAP */
 		else if (hcd->poll_pending)
