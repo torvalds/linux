@@ -419,10 +419,6 @@ config SBUS
 config FSL_SOC
 	bool
 
-config FSL_PCIE
-	bool
-	depends on PPC_86xx
-
 # Yes MCA RS/6000s exist but Linux-PPC does not currently support any
 config MCA
 	bool

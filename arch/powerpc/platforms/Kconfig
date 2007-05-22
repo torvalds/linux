@@ -31,7 +31,6 @@ config PPC_86xx
 	bool "Freescale 86xx"
 	depends on 6xx
 	select FSL_SOC
-	select FSL_PCIE
 	select ALTIVEC
 	help
 	  The Freescale E600 SoCs have 74xx cores.

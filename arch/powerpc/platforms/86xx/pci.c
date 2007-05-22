@@ -133,19 +133,6 @@ mpc86xx_setup_pcie(struct pci_controller *hose, u32 pcie_offset, u32 pcie_size)
 	early_write_config_word(hose, 0, 0, PCI_COMMAND, cmd);
 
 	early_write_config_byte(hose, 0, 0, PCI_LATENCY_TIMER, 0x80);
-
-	/* PCIE Bus, Fix the MPC8641D host bridge's location to bus 0xFF. */
-	early_read_config_dword(hose, 0, 0, PCI_PRIMARY_BUS, &temps);
-	temps = (temps & 0xff000000) | (0xff) | (0x0 << 8) | (0xfe << 16);
-	early_write_config_dword(hose, 0, 0, PCI_PRIMARY_BUS, temps);
-}
-
-int mpc86xx_exclude_device(struct pci_controller *hose, u_char bus, u_char devfn)
-{
-	if (bus == 0 && PCI_SLOT(devfn) == 0)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	return PCIBIOS_SUCCESSFUL;
 }
 
 int __init mpc86xx_add_bridge(struct device_node *dev)
@@ -173,11 +160,10 @@ int __init mpc86xx_add_bridge(struct device_node *dev)
 		return -ENOMEM;
 	hose->arch_data = dev;
 
-	/* last_busno = 0xfe cause by MPC8641 PCIE bug */
 	hose->first_busno = bus_range ? bus_range[0] : 0x0;
-	hose->last_busno = bus_range ? bus_range[1] : 0xfe;
+	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
-	setup_indirect_pcie(hose, rsrc.start, rsrc.start + 0x4);
+	setup_indirect_pci(hose, rsrc.start, rsrc.start + 0x4);
 
 	/* Setup the PCIE host controller. */
 	mpc86xx_setup_pcie(hose, rsrc.start, rsrc.end - rsrc.start + 1);

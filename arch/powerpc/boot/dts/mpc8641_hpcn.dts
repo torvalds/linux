@@ -186,7 +186,7 @@
 			#size-cells = <2>;
 			#address-cells = <3>;
 			reg = <8000 1000>;
-			bus-range = <0 fe>;
+			bus-range = <0 ff>;
 			ranges = <02000000 0 80000000 80000000 0 20000000
 				  01000000 0 00000000 e2000000 0 00100000>;
 			clock-frequency = <1fca055>;
