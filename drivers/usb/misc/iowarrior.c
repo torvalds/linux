@@ -100,8 +100,6 @@ struct iowarrior {
 /*--------------*/
 /*    globals   */
 /*--------------*/
-/* prevent races between open() and disconnect() */
-static DECLARE_MUTEX(disconnect_sem);
 
 /*
  *  USB spec identifies 5 second timeouts.
@@ -600,22 +598,18 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 
 	subminor = iminor(inode);
 
-	/* prevent disconnects */
-	down(&disconnect_sem);
-
 	interface = usb_find_interface(&iowarrior_driver, subminor);
 	if (!interface) {
 		err("%s - error, can't find device for minor %d", __FUNCTION__,
 		    subminor);
-		retval = -ENODEV;
-		goto out;
+		return -ENODEV;
 	}
 
 	dev = usb_get_intfdata(interface);
-	if (!dev) {
-		retval = -ENODEV;
-		goto out;
-	}
+	if (!dev)
+		return -ENODEV;
+
+	mutex_lock(&dev->mutex);
 
 	/* Only one process can open each device, no sharing. */
 	if (dev->opened) {
@@ -636,7 +630,7 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 	retval = 0;
 
 out:
-	up(&disconnect_sem);
+	mutex_unlock(&dev->mutex);
 	return retval;
 }
 
@@ -868,18 +862,15 @@ static void iowarrior_disconnect(struct usb_interface *interface)
 	struct iowarrior *dev;
 	int minor;
 
-	/* prevent races with open() */
-	down(&disconnect_sem);
-
 	dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
-
-	mutex_lock(&dev->mutex);
 
 	minor = dev->minor;
 
 	/* give back our minor */
 	usb_deregister_dev(interface, &iowarrior_class);
+
+	mutex_lock(&dev->mutex);
 
 	/* prevent device read, write and ioctl */
 	dev->present = 0;
@@ -898,7 +889,6 @@ static void iowarrior_disconnect(struct usb_interface *interface)
 		/* no process is using the device, cleanup now */
 		iowarrior_delete(dev);
 	}
-	up(&disconnect_sem);
 
 	dev_info(&interface->dev, "I/O-Warror #%d now disconnected\n",
 		 minor - IOWARRIOR_MINOR_BASE);

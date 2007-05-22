@@ -214,18 +214,13 @@ sisusbcon_init(struct vc_data *c, int init)
 	 * are set up/restored.
 	 */
 
-	mutex_lock(&disconnect_mutex);
-
-	if (!(sisusb = sisusb_get_sisusb(c->vc_num))) {
-		mutex_unlock(&disconnect_mutex);
+	if (!(sisusb = sisusb_get_sisusb(c->vc_num)))
 		return;
-	}
 
 	mutex_lock(&sisusb->lock);
 
 	if (!sisusb_sisusb_valid(sisusb)) {
 		mutex_unlock(&sisusb->lock);
-		mutex_unlock(&disconnect_mutex);
 		return;
 	}
 
@@ -264,8 +259,6 @@ sisusbcon_init(struct vc_data *c, int init)
 
 	mutex_unlock(&sisusb->lock);
 
-	mutex_unlock(&disconnect_mutex);
-
 	if (init) {
 		c->vc_cols = cols;
 		c->vc_rows = rows;
@@ -284,12 +277,8 @@ sisusbcon_deinit(struct vc_data *c)
 	 * and others, ie not under our control.
 	 */
 
-	mutex_lock(&disconnect_mutex);
-
-	if (!(sisusb = sisusb_get_sisusb(c->vc_num))) {
-		mutex_unlock(&disconnect_mutex);
+	if (!(sisusb = sisusb_get_sisusb(c->vc_num)))
 		return;
-	}
 
 	mutex_lock(&sisusb->lock);
 
@@ -314,8 +303,6 @@ sisusbcon_deinit(struct vc_data *c)
 
 	/* decrement the usage count on our sisusb */
 	kref_put(&sisusb->kref, sisusb_delete);
-
-	mutex_unlock(&disconnect_mutex);
 }
 
 /* interface routine */
@@ -1490,14 +1477,11 @@ sisusb_console_init(struct sisusb_usb_data *sisusb, int first, int last)
 {
 	int i, ret, minor = sisusb->minor;
 
-	mutex_lock(&disconnect_mutex);
-
 	mutex_lock(&sisusb->lock);
 
 	/* Erm.. that should not happen */
 	if (sisusb->haveconsole || !sisusb->SiS_Pr) {
 		mutex_unlock(&sisusb->lock);
-		mutex_unlock(&disconnect_mutex);
 		return 1;
 	}
 
@@ -1508,14 +1492,12 @@ sisusb_console_init(struct sisusb_usb_data *sisusb, int first, int last)
 	    first > MAX_NR_CONSOLES ||
 	    last > MAX_NR_CONSOLES) {
 		mutex_unlock(&sisusb->lock);
-		mutex_unlock(&disconnect_mutex);
 		return 1;
 	}
 
 	/* If gfxcore not initialized or no consoles given, quit graciously */
 	if (!sisusb->gfxinit || first < 1 || last < 1) {
 		mutex_unlock(&sisusb->lock);
-		mutex_unlock(&disconnect_mutex);
 		return 0;
 	}
 
@@ -1526,7 +1508,6 @@ sisusb_console_init(struct sisusb_usb_data *sisusb, int first, int last)
 	/* Set up text mode (and upload  default font) */
 	if (sisusb_reset_text_mode(sisusb, 1)) {
 		mutex_unlock(&sisusb->lock);
-		mutex_unlock(&disconnect_mutex);
 		printk(KERN_ERR
 			"sisusbvga[%d]: Failed to set up text mode\n",
 			minor);
@@ -1550,7 +1531,6 @@ sisusb_console_init(struct sisusb_usb_data *sisusb, int first, int last)
 	/* Allocate screen buffer */
 	if (!(sisusb->scrbuf = (unsigned long)vmalloc(sisusb->scrbuf_size))) {
 		mutex_unlock(&sisusb->lock);
-		mutex_unlock(&disconnect_mutex);
 		printk(KERN_ERR
 			"sisusbvga[%d]: Failed to allocate screen buffer\n",
 			minor);
@@ -1558,7 +1538,6 @@ sisusb_console_init(struct sisusb_usb_data *sisusb, int first, int last)
 	}
 
 	mutex_unlock(&sisusb->lock);
-	mutex_unlock(&disconnect_mutex);
 
 	/* Now grab the desired console(s) */
 	ret = take_over_console(&sisusb_con, first - 1, last - 1, 0);
