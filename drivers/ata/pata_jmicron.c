@@ -19,7 +19,7 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_jmicron"
-#define DRV_VERSION	"0.1.4"
+#define DRV_VERSION	"0.1.5"
 
 typedef enum {
 	PORT_PATA0 = 0,

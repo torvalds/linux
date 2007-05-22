@@ -28,7 +28,7 @@
 #include <scsi/scsi_device.h>
 
 #define DRV_NAME	"sata_inic162x"
-#define DRV_VERSION	"0.1"
+#define DRV_VERSION	"0.2"
 
 enum {
 	MMIO_BAR		= 5,

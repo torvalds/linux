@@ -26,7 +26,7 @@
 #include <linux/platform_device.h>
 
 #define DRV_NAME "pata_qdi"
-#define DRV_VERSION "0.3.0"
+#define DRV_VERSION "0.3.1"
 
 #define NR_HOST 4	/* Two 6580s */
 

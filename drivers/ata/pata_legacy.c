@@ -64,7 +64,7 @@
 #include <linux/platform_device.h>
 
 #define DRV_NAME "pata_legacy"
-#define DRV_VERSION "0.5.4"
+#define DRV_VERSION "0.5.5"
 
 #define NR_HOST 6
 

@@ -18,7 +18,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_cypress"
-#define DRV_VERSION "0.1.4"
+#define DRV_VERSION "0.1.5"
 
 /* here are the offset definitions for the registers */
 

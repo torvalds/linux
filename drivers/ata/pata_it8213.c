@@ -19,7 +19,7 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_it8213"
-#define DRV_VERSION	"0.0.2"
+#define DRV_VERSION	"0.0.3"
 
 /**
  *	it8213_pre_reset	-	check for 40/80 pin

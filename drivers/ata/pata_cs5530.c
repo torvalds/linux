@@ -35,7 +35,7 @@
 #include <linux/dmi.h>
 
 #define DRV_NAME	"pata_cs5530"
-#define DRV_VERSION	"0.7.2"
+#define DRV_VERSION	"0.7.3"
 
 static void __iomem *cs5530_port_base(struct ata_port *ap)
 {

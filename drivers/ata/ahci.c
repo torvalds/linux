@@ -46,7 +46,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"ahci"
-#define DRV_VERSION	"2.1"
+#define DRV_VERSION	"2.2"
 
 
 enum {

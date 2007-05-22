@@ -30,7 +30,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_sil24"
-#define DRV_VERSION	"0.8"
+#define DRV_VERSION	"0.9"
 
 /*
  * Port request block (PRB) 32 bytes

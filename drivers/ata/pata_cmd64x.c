@@ -31,7 +31,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_cmd64x"
-#define DRV_VERSION "0.2.2"
+#define DRV_VERSION "0.2.3"
 
 /*
  * CMD64x specific registers definition.

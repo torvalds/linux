@@ -39,7 +39,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_qstor"
-#define DRV_VERSION	"0.07"
+#define DRV_VERSION	"0.08"
 
 enum {
 	QS_MMIO_BAR		= 4,

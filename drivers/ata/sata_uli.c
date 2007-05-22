@@ -36,7 +36,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_uli"
-#define DRV_VERSION	"1.1"
+#define DRV_VERSION	"1.2"
 
 enum {
 	uli_5289		= 0,

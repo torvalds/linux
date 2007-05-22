@@ -49,7 +49,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME			"sata_nv"
-#define DRV_VERSION			"3.3"
+#define DRV_VERSION			"3.4"
 
 #define NV_ADMA_DMA_BOUNDARY		0xffffffffUL
 
