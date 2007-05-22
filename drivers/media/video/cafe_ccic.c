@@ -775,6 +775,12 @@ static void cafe_ctlr_power_up(struct cafe_camera *cam)
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	cafe_reg_clear_bit(cam, REG_CTRL1, C1_PWRDWN);
 	/*
+	 * Part one of the sensor dance: turn the global
+	 * GPIO signal on.
+	 */
+	cafe_reg_write(cam, REG_GL_FCR, GFCR_GPIO_ON);
+	cafe_reg_write(cam, REG_GL_GPIOR, GGPIO_OUT|GGPIO_VAL);
+	/*
 	 * Put the sensor into operational mode (assumes OLPC-style
 	 * wiring).  Control 0 is reset - set to 1 to operate.
 	 * Control 1 is power down, set to 0 to operate.
@@ -784,6 +790,7 @@ static void cafe_ctlr_power_up(struct cafe_camera *cam)
 	cafe_reg_write(cam, REG_GPR, GPR_C1EN|GPR_C0EN|GPR_C0);
 //	mdelay(1); /* Enough? */
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
+	msleep(5); /* Just to be sure */
 }
 
 static void cafe_ctlr_power_down(struct cafe_camera *cam)
@@ -792,6 +799,8 @@ static void cafe_ctlr_power_down(struct cafe_camera *cam)
 
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	cafe_reg_write(cam, REG_GPR, GPR_C1EN|GPR_C0EN|GPR_C1);
+	cafe_reg_write(cam, REG_GL_FCR, GFCR_GPIO_ON);
+	cafe_reg_write(cam, REG_GL_GPIOR, GGPIO_OUT);
 	cafe_reg_set_bit(cam, REG_CTRL1, C1_PWRDWN);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
 }
@@ -851,6 +860,7 @@ static int cafe_cam_init(struct cafe_camera *cam)
 	ret = 0;
 	cam->state = S_IDLE;
   out:
+	cafe_ctlr_power_down(cam);
 	mutex_unlock(&cam->s_mutex);
 	return ret;
 }
@@ -2103,10 +2113,16 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	ret = request_irq(pdev->irq, cafe_irq, IRQF_SHARED, "cafe-ccic", cam);
 	if (ret)
 		goto out_iounmap;
+	/*
+	 * Initialize the controller and leave it powered up.  It will
+	 * stay that way until the sensor driver shows up.
+	 */
 	cafe_ctlr_init(cam);
 	cafe_ctlr_power_up(cam);
 	/*
-	 * Set up I2C/SMBUS communications
+	 * Set up I2C/SMBUS communications.  We have to drop the mutex here
+	 * because the sensor could attach in this call chain, leading to
+	 * unsightly deadlocks.
 	 */
 	mutex_unlock(&cam->s_mutex);  /* attach can deadlock */
 	ret = cafe_smbus_setup(cam);
