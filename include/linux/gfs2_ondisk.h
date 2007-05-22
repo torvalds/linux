@@ -502,7 +502,7 @@ struct gfs2_quota_change_host {
 
 struct gfs2_quota_lvb {
         __be32 qb_magic;
-        u32 __pad;
+        __u32 __pad;
         __be64 qb_limit;      /* Hard limit of # blocks to alloc */
         __be64 qb_warn;       /* Warn user when alloc is above this # */
         __be64 qb_value;       /* Current # blocks allocated */
