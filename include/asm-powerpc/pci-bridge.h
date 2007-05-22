@@ -70,19 +70,21 @@ struct pci_dn {
 	int	devfn;			/* pci device and function number */
 	int	class_code;		/* pci device class */
 
-#ifdef CONFIG_PPC_PSERIES
+	struct  pci_controller *phb;	/* for pci devices */
+	struct	iommu_table *iommu_table;	/* for phb's or bridges */
+	struct	pci_dev *pcidev;	/* back-pointer to the pci device */
+	struct	device_node *node;	/* back-pointer to the device_node */
+
+	int	pci_ext_config_space;	/* for pci devices */
+
+#ifdef CONFIG_EEH
 	int	eeh_mode;		/* See eeh.h for possible EEH_MODEs */
 	int	eeh_config_addr;
 	int	eeh_pe_config_addr; /* new-style partition endpoint address */
 	int 	eeh_check_count;	/* # times driver ignored error */
 	int 	eeh_freeze_count;	/* # times this device froze up. */
-#endif
-	int	pci_ext_config_space;	/* for pci devices */
-	struct  pci_controller *phb;	/* for pci devices */
-	struct	iommu_table *iommu_table;	/* for phb's or bridges */
-	struct	pci_dev *pcidev;	/* back-pointer to the pci device */
-	struct	device_node *node;	/* back-pointer to the device_node */
 	u32	config_space[16];	/* saved PCI config space */
+#endif
 };
 
 /* Get the pointer to a device_node's pci_dn */
