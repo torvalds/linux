@@ -1,6 +1,6 @@
 config INFINIBAND_MTHCA
 	tristate "Mellanox HCA support"
-	depends on PCI && INFINIBAND
+	depends on PCI
 	---help---
 	  This is a low-level driver for Mellanox InfiniHost host
 	  channel adapters (HCAs), including the MT23108 PCI-X HCA

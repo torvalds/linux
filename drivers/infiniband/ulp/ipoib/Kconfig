@@ -1,6 +1,6 @@
 config INFINIBAND_IPOIB
 	tristate "IP-over-InfiniBand"
-	depends on INFINIBAND && NETDEVICES && INET && (IPV6 || IPV6=n)
+	depends on NETDEVICES && INET && (IPV6 || IPV6=n)
 	---help---
 	  Support for the IP-over-InfiniBand protocol (IPoIB). This
 	  transports IP packets over InfiniBand so you can use your IB
