@@ -58,6 +58,7 @@ EEH_SHOW_ATTR(eeh_config_addr, eeh_config_addr, "0x%x");
 EEH_SHOW_ATTR(eeh_pe_config_addr, eeh_pe_config_addr, "0x%x");
 EEH_SHOW_ATTR(eeh_check_count, eeh_check_count, "%d");
 EEH_SHOW_ATTR(eeh_freeze_count, eeh_freeze_count, "%d");
+EEH_SHOW_ATTR(eeh_false_positives, eeh_false_positives, "%d");
 
 void eeh_sysfs_add_device(struct pci_dev *pdev)
 {
@@ -67,6 +68,7 @@ void eeh_sysfs_add_device(struct pci_dev *pdev)
 	rc += device_create_file(&pdev->dev, &dev_attr_eeh_config_addr);
 	rc += device_create_file(&pdev->dev, &dev_attr_eeh_pe_config_addr);
 	rc += device_create_file(&pdev->dev, &dev_attr_eeh_check_count);
+	rc += device_create_file(&pdev->dev, &dev_attr_eeh_false_positives);
 	rc += device_create_file(&pdev->dev, &dev_attr_eeh_freeze_count);
 
 	if (rc)
@@ -79,6 +81,7 @@ void eeh_sysfs_remove_device(struct pci_dev *pdev)
 	device_remove_file(&pdev->dev, &dev_attr_eeh_config_addr);
 	device_remove_file(&pdev->dev, &dev_attr_eeh_pe_config_addr);
 	device_remove_file(&pdev->dev, &dev_attr_eeh_check_count);
+	device_remove_file(&pdev->dev, &dev_attr_eeh_false_positives);
 	device_remove_file(&pdev->dev, &dev_attr_eeh_freeze_count);
 }
 

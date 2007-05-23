@@ -505,6 +505,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 		printk(KERN_WARNING "EEH: read_slot_reset_state() failed; rc=%d dn=%s\n",
 		       ret, dn->full_name);
 		false_positives++;
+		pdn->eeh_false_positives ++;
 		rc = 0;
 		goto dn_unlock;
 	}
@@ -513,6 +514,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	 * they are empty when they don't have children. */
 	if ((rets[0] == 5) && (dn->child == NULL)) {
 		false_positives++;
+		pdn->eeh_false_positives ++;
 		rc = 0;
 		goto dn_unlock;
 	}
@@ -522,6 +524,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 		printk(KERN_WARNING "EEH: event on unsupported device, rc=%d dn=%s\n",
 		       ret, dn->full_name);
 		false_positives++;
+		pdn->eeh_false_positives ++;
 		rc = 0;
 		goto dn_unlock;
 	}
@@ -529,6 +532,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	/* If not the kind of error we know about, punt. */
 	if (rets[0] != 1 && rets[0] != 2 && rets[0] != 4 && rets[0] != 5) {
 		false_positives++;
+		pdn->eeh_false_positives ++;
 		rc = 0;
 		goto dn_unlock;
 	}
@@ -921,6 +925,7 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 	pdn->eeh_mode = 0;
 	pdn->eeh_check_count = 0;
 	pdn->eeh_freeze_count = 0;
+	pdn->eeh_false_positives = 0;
 
 	if (status && strcmp(status, "ok") != 0)
 		return NULL;	/* ignore devices with bad status */

@@ -83,6 +83,7 @@ struct pci_dn {
 	int	eeh_pe_config_addr; /* new-style partition endpoint address */
 	int 	eeh_check_count;	/* # times driver ignored error */
 	int 	eeh_freeze_count;	/* # times this device froze up. */
+	int 	eeh_false_positives;	/* # times this device reported #ff's */
 	u32	config_space[16];	/* saved PCI config space */
 #endif
 };
