@@ -47,6 +47,7 @@ struct phantom_device {
 	struct cdev cdev;
 
 	struct mutex open_lock;
+	spinlock_t ioctl_lock;
 };
 
 static unsigned char phantom_devices[PHANTOM_MAX_MINORS];
@@ -71,8 +72,8 @@ static int phantom_status(struct phantom_device *dev, unsigned long newstat)
  * File ops
  */
 
-static int phantom_ioctl(struct inode *inode, struct file *file, u_int cmd,
-	u_long arg)
+static long phantom_ioctl(struct file *file, unsigned int cmd,
+		unsigned long arg)
 {
 	struct phantom_device *dev = file->private_data;
 	struct phm_regs rs;
@@ -92,24 +93,30 @@ static int phantom_ioctl(struct inode *inode, struct file *file, u_int cmd,
 		if (r.reg > 7)
 			return -EINVAL;
 
+		spin_lock(&dev->ioctl_lock);
 		if (r.reg == PHN_CONTROL && (r.value & PHN_CTL_IRQ) &&
-				phantom_status(dev, dev->status | PHB_RUNNING))
+				phantom_status(dev, dev->status | PHB_RUNNING)){
+			spin_unlock(&dev->ioctl_lock);
 			return -ENODEV;
+		}
 
 		pr_debug("phantom: writing %x to %u\n", r.value, r.reg);
 		iowrite32(r.value, dev->iaddr + r.reg);
 
 		if (r.reg == PHN_CONTROL && !(r.value & PHN_CTL_IRQ))
 			phantom_status(dev, dev->status & ~PHB_RUNNING);
+		spin_unlock(&dev->ioctl_lock);
 		break;
 	case PHN_SET_REGS:
 		if (copy_from_user(&rs, argp, sizeof(rs)))
 			return -EFAULT;
 
 		pr_debug("phantom: SRS %u regs %x\n", rs.count, rs.mask);
+		spin_lock(&dev->ioctl_lock);
 		for (i = 0; i < min(rs.count, 8U); i++)
 			if ((1 << i) & rs.mask)
 				iowrite32(rs.values[i], dev->oaddr + i);
+		spin_unlock(&dev->ioctl_lock);
 		break;
 	case PHN_GET_REG:
 		if (copy_from_user(&r, argp, sizeof(r)))
@@ -128,9 +135,11 @@ static int phantom_ioctl(struct inode *inode, struct file *file, u_int cmd,
 			return -EFAULT;
 
 		pr_debug("phantom: GRS %u regs %x\n", rs.count, rs.mask);
+		spin_lock(&dev->ioctl_lock);
 		for (i = 0; i < min(rs.count, 8U); i++)
 			if ((1 << i) & rs.mask)
 				rs.values[i] = ioread32(dev->iaddr + i);
+		spin_unlock(&dev->ioctl_lock);
 
 		if (copy_to_user(argp, &rs, sizeof(rs)))
 			return -EFAULT;
@@ -199,7 +208,7 @@ static unsigned int phantom_poll(struct file *file, poll_table *wait)
 static struct file_operations phantom_file_ops = {
 	.open = phantom_open,
 	.release = phantom_release,
-	.ioctl = phantom_ioctl,
+	.unlocked_ioctl = phantom_ioctl,
 	.poll = phantom_poll,
 };
 
@@ -282,6 +291,7 @@ static int __devinit phantom_probe(struct pci_dev *pdev,
 	}
 
 	mutex_init(&pht->open_lock);
+	spin_lock_init(&pht->ioctl_lock);
 	init_waitqueue_head(&pht->wait);
 	cdev_init(&pht->cdev, &phantom_file_ops);
 	pht->cdev.owner = THIS_MODULE;
