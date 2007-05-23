@@ -1458,6 +1458,10 @@ static const struct usb_device_id	products [] = {
 	// IO-DATA ETG-US2
 	USB_DEVICE (0x04bb, 0x0930),
 	.driver_info = (unsigned long) &ax88178_info,
+}, {
+	// Belkin F5D5055
+	USB_DEVICE(0x050d, 0x5055),
+	.driver_info = (unsigned long) &ax88178_info,
 },
 	{ },		// END
 };
