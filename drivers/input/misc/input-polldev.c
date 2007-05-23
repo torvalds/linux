@@ -12,6 +12,11 @@
 #include <linux/mutex.h>
 #include <linux/input-polldev.h>
 
+MODULE_AUTHOR("Dmitry Torokhov <dtor@mail.ru>");
+MODULE_DESCRIPTION("Generic implementation of a polled input device");
+MODULE_LICENSE("GPL v2");
+MODULE_VERSION("0.1");
+
 static DEFINE_MUTEX(polldev_mutex);
 static int polldev_users;
 static struct workqueue_struct *polldev_wq;
