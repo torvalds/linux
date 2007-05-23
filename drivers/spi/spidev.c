@@ -364,6 +364,7 @@ spidev_ioctl(struct inode *inode, struct file *filp,
 			break;
 		}
 		if (__copy_from_user(ioc, (void __user *)arg, tmp)) {
+			kfree(ioc);
 			retval = -EFAULT;
 			break;
 		}
