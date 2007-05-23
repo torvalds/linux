@@ -491,6 +491,12 @@ out:
 
 /* Sysfs Files */
 
+static ssize_t applesmc_name_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "applesmc\n");
+}
+
 static ssize_t applesmc_position_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
@@ -913,6 +919,8 @@ static struct led_classdev applesmc_backlight = {
 	.brightness_set		= applesmc_brightness_set,
 };
 
+static DEVICE_ATTR(name, 0444, applesmc_name_show, NULL);
+
 static DEVICE_ATTR(position, 0444, applesmc_position_show, NULL);
 static DEVICE_ATTR(calibrate, 0644,
 			applesmc_calibrate_show, applesmc_calibrate_store);
@@ -1196,6 +1204,8 @@ static int __init applesmc_init(void)
 		ret = PTR_ERR(pdev);
 		goto out_driver;
 	}
+
+	ret = sysfs_create_file(&pdev->dev.kobj, &dev_attr_name.attr);
 
 	/* Create key enumeration sysfs files */
 	ret = sysfs_create_group(&pdev->dev.kobj, &key_enumeration_group);
