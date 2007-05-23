@@ -1792,9 +1792,10 @@ config FB_IBM_GXT4500
 config FB_PS3
 	bool "PS3 GPU framebuffer driver"
 	depends on (FB = y) && PS3_PS3AV
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_SYS_FOPS
 	---help---
 	  Include support for the virtual frame buffer in the PS3 platform.
 
