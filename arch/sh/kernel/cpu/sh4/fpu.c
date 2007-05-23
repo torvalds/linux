@@ -138,7 +138,7 @@ restore_fpu(struct task_struct *tsk)
 /*
  * Load the FPU with signalling NANS.  This bit pattern we're using
  * has the property that no matter wether considered as single or as
- * double precission represents signaling NANS.  
+ * double precision represents signaling NANS.  
  */
 
 static void

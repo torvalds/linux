@@ -31,7 +31,7 @@
  */
 #if defined(CONFIG_CPU_SH4)
 /* SH4 can't access PCMCIA interface through P2 area.
- * we must remap it with appropreate attribute bit of the page set.
+ * we must remap it with appropriate attribute bit of the page set.
  * this part is based on Greg Banks' hd64465_ss.c implementation - Masahiro Abe */
 
 #if defined(CONFIG_CF_AREA6)

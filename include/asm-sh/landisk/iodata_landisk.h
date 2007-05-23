@@ -22,16 +22,6 @@
 /* 2003.10.31 I-O DATA NSD NWG	add.	for shutdown port clear */
 #define PA_PWRINT_CLR	0xb0000006	/* Shutdown Interrupt clear Register */
 
-#define PA_LCD_CLRDSP	0x00		/* LCD Clear Display Offset */
-#define PA_LCD_RTNHOME	0x00		/* LCD Return Home Offset */
-#define PA_LCD_ENTMODE	0x00		/* LCD Entry Mode Offset */
-#define PA_LCD_DSPCTL	0x00		/* LCD Display ON/OFF Control Offset */
-#define PA_LCD_FUNC	0x00		/* LCD Function Set Offset */
-#define PA_LCD_CGRAM	0x00		/* LCD Set CGRAM Address Offset */
-#define PA_LCD_DDRAM	0x00		/* LCD Set DDRAM Address Offset */
-#define PA_LCD_RDFLAG	0x01		/* LCD Read Busy Flag Offset */
-#define PA_LCD_WTDATA	0x02		/* LCD Write Datat to RAM Offset */
-#define PA_LCD_RDDATA	0x03		/* LCD Read Data from RAM Offset */
 #define PA_PIDE_OFFSET	0x40		/* CF IDE Offset */
 #define PA_SIDE_OFFSET	0x40		/* HDD IDE Offset */
 
@@ -44,33 +34,6 @@
 #define IRQ_POWER	11		/* Power Switch IRQ */
 #define IRQ_BUTTON	12		/* USL-5P Button IRQ */
 #define IRQ_FAULT	13		/* USL-5P Fault  IRQ */
-
-#define SHUTDOWN_BTN_MAJOR	99	/* Shutdown button device major no. */
-
-#define SHUTDOWN_LOOP_CNT	5	/* Shutdown button Detection loop */
-#define SHUTDOWN_DELAY		200	/* Shutdown button delay value(ms) */
-
-
-/* added by kogiidena */
-/*
- *  landisk_ledparam
- *
- * led  ------10 -6543210 -6543210 -6543210
- *     |000000..|0.......|0.......|U.......|
- *     |  HARD  |fastblik| blink  |   on   |
- *
- *   led0: power       U:update flag
- *   led1: error
- *   led2: usb1
- *   led3: usb2
- *   led4: usb3
- *   led5: usb4
- *   led6: usb5
- *
- */
-extern int landisk_ledparam;    /* from setup.c */
-extern int landisk_buzzerparam; /* from setup.c */
-extern int landisk_arch;        /* from setup.c */
 
 #define __IO_PREFIX landisk
 #include <asm/io_generic.h>

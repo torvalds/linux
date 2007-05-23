@@ -28,7 +28,7 @@
  * NOTE: ops->xfer() is the preferred way of doing things. However, there
  * are some users of the ISA DMA API that exist in common code that we
  * don't necessarily want to go out of our way to break, so we still
- * allow for some compatability at that level. Any new code is strongly
+ * allow for some compatibility at that level. Any new code is strongly
  * advised to run far away from the ISA DMA API and use the SH DMA API
  * directly.
  */

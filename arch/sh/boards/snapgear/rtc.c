@@ -108,7 +108,7 @@ static void ds1302_writebyte(unsigned int addr, unsigned int val)
 static void ds1302_reset(void)
 {
 	unsigned long	flags;
-	/* Hardware dependant reset/init */
+	/* Hardware dependent reset/init */
 	local_irq_save(flags);
 	set_dirp(get_dirp() | RTC_RESET | RTC_IODATA | RTC_SCLK);
 	set_dp(get_dp() & ~(RTC_RESET | RTC_IODATA | RTC_SCLK));
