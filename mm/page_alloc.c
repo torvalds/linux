@@ -136,6 +136,11 @@ static unsigned long __meminitdata dma_reserve;
 #endif /* CONFIG_MEMORY_HOTPLUG_RESERVE */
 #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
 
+#if MAX_NUMNODES > 1
+int nr_node_ids __read_mostly = MAX_NUMNODES;
+EXPORT_SYMBOL(nr_node_ids);
+#endif
+
 #ifdef CONFIG_DEBUG_VM
 static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
 {
@@ -668,26 +673,6 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 	spin_unlock(&zone->lock);
 	return i;
 }
-
-#if MAX_NUMNODES > 1
-int nr_node_ids __read_mostly = MAX_NUMNODES;
-EXPORT_SYMBOL(nr_node_ids);
-
-/*
- * Figure out the number of possible node ids.
- */
-static void __init setup_nr_node_ids(void)
-{
-	unsigned int node;
-	unsigned int highest = 0;
-
-	for_each_node_mask(node, node_possible_map)
-		highest = node;
-	nr_node_ids = highest + 1;
-}
-#else
-static void __init setup_nr_node_ids(void) {}
-#endif
 
 #ifdef CONFIG_NUMA
 /*
@@ -2733,6 +2718,26 @@ void __meminit free_area_init_node(int nid, struct pglist_data *pgdat,
 }
 
 #ifdef CONFIG_ARCH_POPULATES_NODE_MAP
+
+#if MAX_NUMNODES > 1
+/*
+ * Figure out the number of possible node ids.
+ */
+static void __init setup_nr_node_ids(void)
+{
+	unsigned int node;
+	unsigned int highest = 0;
+
+	for_each_node_mask(node, node_possible_map)
+		highest = node;
+	nr_node_ids = highest + 1;
+}
+#else
+static inline void setup_nr_node_ids(void)
+{
+}
+#endif
+
 /**
  * add_active_range - Register a range of PFNs backed by physical memory
  * @nid: The node ID the range resides on
