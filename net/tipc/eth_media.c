@@ -120,18 +120,20 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 
 static int enable_bearer(struct tipc_bearer *tb_ptr)
 {
-	struct net_device *dev, *pdev;
+	struct net_device *dev = NULL;
+	struct net_device *pdev = NULL;
 	struct eth_bearer *eb_ptr = &eth_bearers[0];
 	struct eth_bearer *stop = &eth_bearers[MAX_ETH_BEARERS];
 	char *driver_name = strchr((const char *)tb_ptr->name, ':') + 1;
 
 	/* Find device with specified name */
-	dev = NULL;
-	for_each_netdev(pdev)
-		if (!strncmp(dev->name, driver_name, IFNAMSIZ)) {
+
+	for_each_netdev(pdev){
+		if (!strncmp(pdev->name, driver_name, IFNAMSIZ)) {
 			dev = pdev;
 			break;
 		}
+	}
 	if (!dev)
 		return -ENODEV;
 
