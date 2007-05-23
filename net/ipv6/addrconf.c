@@ -2154,15 +2154,6 @@ static void addrconf_dev_config(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	if ((dev->type != ARPHRD_ETHER) &&
-	    (dev->type != ARPHRD_FDDI) &&
-	    (dev->type != ARPHRD_IEEE802_TR) &&
-	    (dev->type != ARPHRD_ARCNET) &&
-	    (dev->type != ARPHRD_INFINIBAND)) {
-		/* Alas, we support only Ethernet autoconfiguration. */
-		return;
-	}
-
 	idev = addrconf_add_dev(dev);
 	if (idev == NULL)
 		return;
@@ -2250,12 +2241,32 @@ static void addrconf_ip6_tnl_config(struct net_device *dev)
 	ip6_tnl_add_linklocal(idev);
 }
 
+static int ipv6_hwtype(struct net_device *dev)
+{
+	if ((dev->type == ARPHRD_ETHER) ||
+	    (dev->type == ARPHRD_LOOPBACK) ||
+	    (dev->type == ARPHRD_SIT) ||
+	    (dev->type == ARPHRD_TUNNEL6) ||
+	    (dev->type == ARPHRD_FDDI) ||
+	    (dev->type == ARPHRD_IEEE802_TR) ||
+	    (dev->type == ARPHRD_ARCNET) ||
+	    (dev->type == ARPHRD_INFINIBAND))
+		return 1;
+
+	return 0;
+}
+
 static int addrconf_notify(struct notifier_block *this, unsigned long event,
 			   void * data)
 {
 	struct net_device *dev = (struct net_device *) data;
-	struct inet6_dev *idev = __in6_dev_get(dev);
+	struct inet6_dev *idev;
 	int run_pending = 0;
+
+	if (!ipv6_hwtype(dev))
+		return NOTIFY_OK;
+
+	idev = __in6_dev_get(dev);
 
 	switch(event) {
 	case NETDEV_REGISTER:
