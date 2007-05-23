@@ -33,63 +33,6 @@
 #include "ecryptfs_kernel.h"
 
 /**
- * ecryptfs_llseek
- * @file: File we are seeking in
- * @offset: The offset to seek to
- * @origin: 2 - offset from i_size; 1 - offset from f_pos
- *
- * Returns the position we have seeked to, or negative on error
- */
-static loff_t ecryptfs_llseek(struct file *file, loff_t offset, int origin)
-{
-	loff_t rv;
-	loff_t new_end_pos;
-	int rc;
-	int expanding_file = 0;
-	struct inode *inode = file->f_mapping->host;
-
-	/* If our offset is past the end of our file, we're going to
-	 * need to grow it so we have a valid length of 0's */
-	new_end_pos = offset;
-	switch (origin) {
-	case 2:
-		new_end_pos += i_size_read(inode);
-		expanding_file = 1;
-		break;
-	case 1:
-		new_end_pos += file->f_pos;
-		if (new_end_pos > i_size_read(inode)) {
-			ecryptfs_printk(KERN_DEBUG, "new_end_pos(=[0x%.16x]) "
-					"> i_size_read(inode)(=[0x%.16x])\n",
-					new_end_pos, i_size_read(inode));
-			expanding_file = 1;
-		}
-		break;
-	default:
-		if (new_end_pos > i_size_read(inode)) {
-			ecryptfs_printk(KERN_DEBUG, "new_end_pos(=[0x%.16x]) "
-					"> i_size_read(inode)(=[0x%.16x])\n",
-					new_end_pos, i_size_read(inode));
-			expanding_file = 1;
-		}
-	}
-	ecryptfs_printk(KERN_DEBUG, "new_end_pos = [0x%.16x]\n", new_end_pos);
-	if (expanding_file) {
-		rc = ecryptfs_truncate(file->f_path.dentry, new_end_pos);
-		if (rc) {
-			rv = rc;
-			ecryptfs_printk(KERN_ERR, "Error on attempt to "
-					"truncate to (higher) offset [0x%.16x];"
-					" rc = [%d]\n", new_end_pos, rc);
-			goto out;
-		}
-	}
-	rv = generic_file_llseek(file, offset, origin);
-out:
-	return rv;
-}
-
-/**
  * ecryptfs_read_update_atime
  *
  * generic_file_read updates the atime of upper layer inode.  But, it
@@ -425,7 +368,7 @@ const struct file_operations ecryptfs_dir_fops = {
 };
 
 const struct file_operations ecryptfs_main_fops = {
-	.llseek = ecryptfs_llseek,
+	.llseek = generic_file_llseek,
 	.read = do_sync_read,
 	.aio_read = ecryptfs_read_update_atime,
 	.write = do_sync_write,
