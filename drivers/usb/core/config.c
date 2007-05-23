@@ -185,10 +185,12 @@ static int usb_parse_interface(struct device *ddev, int cfgno,
 		num_ep = USB_MAXENDPOINTS;
 	}
 
-	len = sizeof(struct usb_host_endpoint) * num_ep;
-	alt->endpoint = kzalloc(len, GFP_KERNEL);
-	if (!alt->endpoint)
-		return -ENOMEM;
+	if (num_ep > 0) {	/* Can't allocate 0 bytes */
+		len = sizeof(struct usb_host_endpoint) * num_ep;
+		alt->endpoint = kzalloc(len, GFP_KERNEL);
+		if (!alt->endpoint)
+			return -ENOMEM;
+	}
 
 	/* Parse all the endpoint descriptors */
 	n = 0;

@@ -1252,20 +1252,23 @@ EXPORT_SYMBOL_GPL(usbnet_probe);
 
 /*-------------------------------------------------------------------------*/
 
-/* FIXME these suspend/resume methods assume non-CDC style
- * devices, with only one interface.
+/*
+ * suspend the whole driver as soon as the first interface is suspended
+ * resume only when the last interface is resumed
  */
 
 int usbnet_suspend (struct usb_interface *intf, pm_message_t message)
 {
 	struct usbnet		*dev = usb_get_intfdata(intf);
 
-	/* accelerate emptying of the rx and queues, to avoid
-	 * having everything error out.
-	 */
-	netif_device_detach (dev->net);
-	(void) unlink_urbs (dev, &dev->rxq);
-	(void) unlink_urbs (dev, &dev->txq);
+	if (!dev->suspend_count++) {
+		/* accelerate emptying of the rx and queues, to avoid
+		 * having everything error out.
+		 */
+		netif_device_detach (dev->net);
+		(void) unlink_urbs (dev, &dev->rxq);
+		(void) unlink_urbs (dev, &dev->txq);
+	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usbnet_suspend);
@@ -1274,8 +1277,10 @@ int usbnet_resume (struct usb_interface *intf)
 {
 	struct usbnet		*dev = usb_get_intfdata(intf);
 
-	netif_device_attach (dev->net);
-	tasklet_schedule (&dev->bh);
+	if (!--dev->suspend_count) {
+		netif_device_attach (dev->net);
+		tasklet_schedule (&dev->bh);
+	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usbnet_resume);

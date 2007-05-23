@@ -44,6 +44,7 @@
 #define EHCI_USBSTS		4		/* status register */
 #define EHCI_USBSTS_HALTED	(1 << 12)	/* HCHalted bit */
 #define EHCI_USBINTR		8		/* interrupt register */
+#define EHCI_CONFIGFLAG		0x40		/* configured flag register */
 #define EHCI_USBLEGSUP		0		/* legacy support register */
 #define EHCI_USBLEGSUP_BIOS	(1 << 16)	/* BIOS semaphore */
 #define EHCI_USBLEGSUP_OS	(1 << 24)	/* OS semaphore */
@@ -216,6 +217,7 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 	u32	hcc_params, val;
 	u8	offset, cap_length;
 	int	count = 256/4;
+	int	tried_handoff = 0;
 
 	if (!mmio_resource_enabled(pdev, 0))
 		return;
@@ -273,6 +275,7 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 			 */
 			msec = 5000;
 			while ((cap & EHCI_USBLEGSUP_BIOS) && (msec > 0)) {
+				tried_handoff = 1;
 				msleep(10);
 				msec -= 10;
 				pci_read_config_dword(pdev, offset, &cap);
@@ -292,6 +295,12 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 			pci_write_config_dword(pdev,
 					offset + EHCI_USBLEGCTLSTS,
 					0);
+
+			/* If the BIOS ever owned the controller then we
+			 * can't expect any power sessions to remain intact.
+			 */
+			if (tried_handoff)
+				writel(0, op_reg_base + EHCI_CONFIGFLAG);
 			break;
 		case 0:			/* illegal reserved capability */
 			cap = 0;

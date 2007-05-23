@@ -137,7 +137,7 @@ static const struct pci_device_id ohci_pci_quirks[] = {
 		/* Toshiba portege 4000 */
 		.vendor		= PCI_VENDOR_ID_AL,
 		.device		= 0x5237,
-		.subvendor	= PCI_VENDOR_ID_TOSHIBA_2,
+		.subvendor	= PCI_VENDOR_ID_TOSHIBA,
 		.subdevice	= 0x0004,
 		.driver_data	= (unsigned long) broken_suspend,
 	},

@@ -57,6 +57,13 @@
 #include <asm/system.h>
 #include <asm/byteorder.h>
 #include "../core/hcd.h"
+
+	/* FIXME ohci.h is ONLY for internal use by the OHCI driver.
+	 * If you're going to try stuff like this, you need to split
+	 * out shareable stuff (register declarations?) into its own
+	 * file, maybe name <linux/usb/ohci.h>
+	 */
+
 #include "ohci.h"
 #define OHCI_CONTROL_INIT OHCI_CTRL_CBSR
 #define OHCI_INTR_INIT (OHCI_INTR_MIE | OHCI_INTR_UE | OHCI_INTR_RD | \
@@ -173,11 +180,6 @@ struct u132_ring {
         struct u132_endp *curr_endp;
         struct delayed_work scheduler;
 };
-#define OHCI_QUIRK_AMD756 0x01
-#define OHCI_QUIRK_SUPERIO 0x02
-#define OHCI_QUIRK_INITRESET 0x04
-#define OHCI_BIG_ENDIAN 0x08
-#define OHCI_QUIRK_ZFMICRO 0x10
 struct u132 {
         struct kref kref;
         struct list_head u132_list;

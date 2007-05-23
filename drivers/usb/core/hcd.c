@@ -1018,8 +1018,8 @@ done:
 		atomic_dec (&urb->use_count);
 		if (urb->reject)
 			wake_up (&usb_kill_urb_queue);
-		usb_put_urb (urb);
 		usbmon_urb_submit_error(&hcd->self, urb, status);
+		usb_put_urb (urb);
 	}
 	return status;
 }
@@ -1175,10 +1175,6 @@ void usb_hcd_endpoint_disable (struct usb_device *udev,
 	struct urb		*urb;
 
 	hcd = bus_to_hcd(udev->bus);
-
-	WARN_ON (!HC_IS_RUNNING (hcd->state) && hcd->state != HC_STATE_HALT &&
-			udev->state != USB_STATE_NOTATTACHED);
-
 	local_irq_disable ();
 
 	/* ep is already gone from udev->ep_{in,out}[]; no more submits */

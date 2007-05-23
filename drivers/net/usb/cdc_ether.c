@@ -91,6 +91,22 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 				"CDC descriptors on config\n");
 	}
 
+	/* Maybe CDC descriptors are after the endpoint?  This bug has
+	 * been seen on some 2Wire Inc RNDIS-ish products.
+	 */
+	if (len == 0) {
+		struct usb_host_endpoint	*hep;
+
+		hep = intf->cur_altsetting->endpoint;
+		if (hep) {
+			buf = hep->extra;
+			len = hep->extralen;
+		}
+		if (len)
+			dev_dbg(&intf->dev,
+				"CDC descriptors on endpoint\n");
+	}
+
 	/* this assumes that if there's a non-RNDIS vendor variant
 	 * of cdc-acm, it'll fail RNDIS requests cleanly.
 	 */
