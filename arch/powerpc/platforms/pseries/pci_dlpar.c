@@ -110,8 +110,6 @@ pcibios_fixup_new_pci_devices(struct pci_bus *bus, int fix_bus)
 			}
 		}
 	}
-
-	eeh_add_device_tree_late(bus);
 }
 EXPORT_SYMBOL_GPL(pcibios_fixup_new_pci_devices);
 
@@ -139,6 +137,8 @@ pcibios_pci_config_bridge(struct pci_dev *dev)
 
 	/* Make the discovered devices available */
 	pci_bus_add_devices(child_bus);
+
+	eeh_add_device_tree_late(child_bus);
 	return 0;
 }
 
@@ -171,6 +171,7 @@ pcibios_add_pci_devices(struct pci_bus * bus)
 		if (!list_empty(&bus->devices)) {
 			pcibios_fixup_new_pci_devices(bus, 0);
 			pci_bus_add_devices(bus);
+			eeh_add_device_tree_late(bus);
 		}
 	} else if (mode == PCI_PROBE_NORMAL) {
 		/* use legacy probe */
@@ -179,6 +180,7 @@ pcibios_add_pci_devices(struct pci_bus * bus)
 		if (num) {
 			pcibios_fixup_new_pci_devices(bus, 1);
 			pci_bus_add_devices(bus);
+			eeh_add_device_tree_late(bus);
 		}
 
 		list_for_each_entry(dev, &bus->devices, bus_list)
@@ -210,6 +212,7 @@ struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
 	scan_phb(phb);
 	pcibios_fixup_new_pci_devices(phb->bus, 0);
 	pci_bus_add_devices(phb->bus);
+	eeh_add_device_tree_late(phb->bus);
 
 	return phb;
 }

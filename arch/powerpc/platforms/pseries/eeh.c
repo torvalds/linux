@@ -1139,7 +1139,8 @@ static void eeh_add_device_late(struct pci_dev *dev)
 	pdn = PCI_DN(dn);
 	pdn->pcidev = dev;
 
-	pci_addr_cache_insert_device (dev);
+	pci_addr_cache_insert_device(dev);
+	eeh_sysfs_add_device(dev);
 }
 
 void eeh_add_device_tree_late(struct pci_bus *bus)
@@ -1178,6 +1179,7 @@ static void eeh_remove_device(struct pci_dev *dev)
 	printk(KERN_DEBUG "EEH: remove device %s\n", pci_name(dev));
 #endif
 	pci_addr_cache_remove_device(dev);
+	eeh_sysfs_remove_device(dev);
 
 	dn = pci_device_to_OF_node(dev);
 	if (PCI_DN(dn)->pcidev) {

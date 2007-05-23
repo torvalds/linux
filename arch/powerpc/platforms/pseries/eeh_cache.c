@@ -295,6 +295,8 @@ void __init pci_addr_cache_build(void)
 			continue;
 		pci_dev_get (dev);  /* matching put is in eeh_remove_device() */
 		PCI_DN(dn)->pcidev = dev;
+
+		eeh_sysfs_add_device(dev);
 	}
 
 #ifdef DEBUG

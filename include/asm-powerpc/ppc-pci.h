@@ -139,6 +139,9 @@ void eeh_clear_slot (struct device_node *dn, int mode_flag);
  */
 struct device_node * find_device_pe(struct device_node *dn);
 
+void eeh_sysfs_add_device(struct pci_dev *pdev);
+void eeh_sysfs_remove_device(struct pci_dev *pdev);
+
 #endif /* CONFIG_EEH */
 
 #else /* CONFIG_PCI */
