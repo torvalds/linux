@@ -1,3 +1,6 @@
+Last reviewed: 10/05/2007
+
+
 The Linux Watchdog driver API.
 
 Copyright 2002 Christer Weingel <wingel@nano-system.com>
@@ -22,7 +25,7 @@ the system.  If userspace fails (RAM error, kernel bug, whatever), the
 notifications cease to occur, and the hardware watchdog will reset the
 system (causing a reboot) after the timeout occurs.
 
-The Linux watchdog API is a rather AD hoc construction and different
+The Linux watchdog API is a rather ad-hoc construction and different
 drivers implement different, and sometimes incompatible, parts of it.
 This file is an attempt to document the existing usage and allow
 future driver writers to use it as a reference.
@@ -46,14 +49,16 @@ some of the drivers support the configuration option "Disable watchdog
 shutdown on close", CONFIG_WATCHDOG_NOWAYOUT.  If it is set to Y when
 compiling the kernel, there is no way of disabling the watchdog once
 it has been started.  So, if the watchdog daemon crashes, the system
-will reboot after the timeout has passed.
+will reboot after the timeout has passed. Watchdog devices also usually
+support the nowayout module parameter so that this option can be controlled
+at runtime.
 
-Some other drivers will not disable the watchdog, unless a specific
-magic character 'V' has been sent /dev/watchdog just before closing
-the file.  If the userspace daemon closes the file without sending
-this special character, the driver will assume that the daemon (and
-userspace in general) died, and will stop pinging the watchdog without
-disabling it first.  This will then cause a reboot.
+Drivers will not disable the watchdog, unless a specific magic character 'V'
+has been sent /dev/watchdog just before closing the file.  If the userspace
+daemon closes the file without sending this special character, the driver
+will assume that the daemon (and userspace in general) died, and will stop
+pinging the watchdog without disabling it first.  This will then cause a
+reboot if the watchdog is not re-opened in sufficient time.
 
 The ioctl API:
 
@@ -226,219 +231,4 @@ The following options are available:
 	WDIOS_TEMPPANIC		Kernel panic on temperature trip
 
 [FIXME -- better explanations]
-
-Implementations in the current drivers in the kernel tree:
-
-Here I have tried to summarize what the different drivers support and
-where they do strange things compared to the other drivers.
-
-acquirewdt.c -- Acquire Single Board Computer
-
-	This driver has a hardcoded timeout of 1 minute
-
-	Supports CONFIG_WATCHDOG_NOWAYOUT
-
-	GETSUPPORT returns KEEPALIVEPING.  GETSTATUS will return 1 if
-	the device is open, 0 if not.  [FIXME -- isn't this rather
-	silly?  To be able to use the ioctl, the device must be open
-	and so GETSTATUS will always return 1].
-
-advantechwdt.c -- Advantech Single Board Computer
-
-	Timeout that defaults to 60 seconds, supports SETTIMEOUT.
-
-	Supports CONFIG_WATCHDOG_NOWAYOUT
-
-	GETSUPPORT returns WDIOF_KEEPALIVEPING and WDIOF_SETTIMEOUT.
-	The GETSTATUS call returns if the device is open or not.
-	[FIXME -- silliness again?]
-	
-booke_wdt.c -- PowerPC BookE Watchdog Timer
-
-	Timeout default varies according to frequency, supports
-	SETTIMEOUT
-
-	Watchdog cannot be turned off, CONFIG_WATCHDOG_NOWAYOUT
-	does not make sense
-
-	GETSUPPORT returns the watchdog_info struct, and
-	GETSTATUS returns the supported options. GETBOOTSTATUS
-	returns a 1 if the last reset was caused by the
-	watchdog and a 0 otherwise. This watchdog cannot be
-	disabled once it has been started. The wdt_period kernel
-	parameter selects which bit of the time base changing
-	from 0->1 will trigger the watchdog exception. Changing
-	the timeout from the ioctl calls will change the
-	wdt_period as defined above. Finally if you would like to
-	replace the default Watchdog Handler you can implement the
-	WatchdogHandler() function in your own code.
-
-eurotechwdt.c -- Eurotech CPU-1220/1410
-
-	The timeout can be set using the SETTIMEOUT ioctl and defaults
-	to 60 seconds.
-
-	Also has a module parameter "ev", event type which controls
-	what should happen on a timeout, the string "int" or anything
-	else that causes a reboot.  [FIXME -- better description]
-
-	Supports CONFIG_WATCHDOG_NOWAYOUT
-
-	GETSUPPORT returns CARDRESET and WDIOF_SETTIMEOUT but
-	GETSTATUS is not supported and GETBOOTSTATUS just returns 0.
-
-i810-tco.c -- Intel 810 chipset
-
-	Also has support for a lot of other i8x0 stuff, but the
-	watchdog is one of the things.
-
-	The timeout is set using the module parameter "i810_margin",
-	which is in steps of 0.6 seconds where 2<i810_margin<64.  The
-	driver supports the SETTIMEOUT ioctl.
-
-	Supports CONFIG_WATCHDOG_NOWAYOUT.
-
-	GETSUPPORT returns WDIOF_SETTIMEOUT.  The GETSTATUS call
-	returns some kind of timer value which ist not compatible with
-	the other drivers.  GETBOOT status returns some kind of
-	hardware specific boot status.  [FIXME -- describe this]
-
-ib700wdt.c -- IB700 Single Board Computer
-
-	Default timeout of 30 seconds and the timeout is settable
-	using the SETTIMEOUT ioctl.  Note that only a few timeout
-	values are supported.
-
-	Supports CONFIG_WATCHDOG_NOWAYOUT
-
-	GETSUPPORT returns WDIOF_KEEPALIVEPING and WDIOF_SETTIMEOUT.
-	The GETSTATUS call returns if the device is open or not.
-	[FIXME -- silliness again?]
-
-machzwd.c -- MachZ ZF-Logic
-
-	Hardcoded timeout of 10 seconds
-
-	Has a module parameter "action" that controls what happens
-	when the timeout runs out which can be 0 = RESET (default), 
-	1 = SMI, 2 = NMI, 3 = SCI.
-
-	Supports CONFIG_WATCHDOG_NOWAYOUT and the magic character
-	'V' close handling.
-
-	GETSUPPORT returns WDIOF_KEEPALIVEPING, and the GETSTATUS call
-	returns if the device is open or not.  [FIXME -- silliness
-	again?]
-
-mixcomwd.c -- MixCom Watchdog
-
-	[FIXME -- I'm unable to tell what the timeout is]
-
-	Supports CONFIG_WATCHDOG_NOWAYOUT
-
-	GETSUPPORT returns WDIOF_KEEPALIVEPING, GETSTATUS returns if
-	the device is opened or not [FIXME -- I'm not really sure how
-	this works, there seems to be some magic connected to
-	CONFIG_WATCHDOG_NOWAYOUT]
-
-pcwd.c -- Berkshire PC Watchdog
-
-	Hardcoded timeout of 1.5 seconds
-
-	Supports CONFIG_WATCHDOG_NOWAYOUT
-
-	GETSUPPORT returns WDIOF_OVERHEAT|WDIOF_CARDRESET and both
-	GETSTATUS and GETBOOTSTATUS return something useful.
-
-	The SETOPTIONS call can be used to enable and disable the card
-	and to ask the driver to call panic if the system overheats.
-
-sbc60xxwdt.c -- 60xx Single Board Computer
-
-	Hardcoded timeout of 10 seconds
-
-	Does not support CONFIG_WATCHDOG_NOWAYOUT, but has the magic
-	character 'V' close handling.
-
-	No bits set in GETSUPPORT
-
-scx200.c -- National SCx200 CPUs
-
-	Not in the kernel yet.
-
-	The timeout is set using a module parameter "margin" which
-	defaults to 60 seconds.  The timeout can also be set using
-	SETTIMEOUT and read using GETTIMEOUT.
-
-	Supports a module parameter "nowayout" that is initialized
-	with the value of CONFIG_WATCHDOG_NOWAYOUT.  Also supports the
-	magic character 'V' handling.
-
-shwdt.c -- SuperH 3/4 processors
-
-	[FIXME -- I'm unable to tell what the timeout is]
-
-	Supports CONFIG_WATCHDOG_NOWAYOUT
-
-	GETSUPPORT returns WDIOF_KEEPALIVEPING, and the GETSTATUS call
-	returns if the device is open or not.  [FIXME -- silliness
-	again?]
-
-softdog.c -- Software watchdog
-
-	The timeout is set with the module parameter "soft_margin"
-	which defaults to 60 seconds, the timeout is also settable
-	using the SETTIMEOUT ioctl.
-
-	Supports CONFIG_WATCHDOG_NOWAYOUT
-
-	WDIOF_SETTIMEOUT bit set in GETSUPPORT
-
-w83877f_wdt.c -- W83877F Computer
-
-	Hardcoded timeout of 30 seconds
-
-	Does not support CONFIG_WATCHDOG_NOWAYOUT, but has the magic
-	character 'V' close handling.
-
-	No bits set in GETSUPPORT
-
-w83627hf_wdt.c -- w83627hf watchdog
-
-	Timeout that defaults to 60 seconds, supports SETTIMEOUT.
-
-	Supports CONFIG_WATCHDOG_NOWAYOUT
-
-	GETSUPPORT returns WDIOF_KEEPALIVEPING and WDIOF_SETTIMEOUT.
-	The GETSTATUS call returns if the device is open or not.
-
-wdt.c -- ICS WDT500/501 ISA and
-wdt_pci.c -- ICS WDT500/501 PCI
-
-	Default timeout of 60 seconds.  The timeout is also settable
-        using the SETTIMEOUT ioctl.
-
-	Supports CONFIG_WATCHDOG_NOWAYOUT
-
-	GETSUPPORT returns with bits set depending on the actual
-	card. The WDT501 supports a lot of external monitoring, the
-	WDT500 much less.
-
-wdt285.c -- Footbridge watchdog
-
-	The timeout is set with the module parameter "soft_margin"
-	which defaults to 60 seconds.  The timeout is also settable
-	using the SETTIMEOUT ioctl.
-
-	Does not support CONFIG_WATCHDOG_NOWAYOUT
-
-	WDIOF_SETTIMEOUT bit set in GETSUPPORT
-
-wdt977.c -- Netwinder W83977AF chip
-
-	Hardcoded timeout of 3 minutes
-
-	Supports CONFIG_WATCHDOG_NOWAYOUT
-
-	Does not support any ioctls at all.
 

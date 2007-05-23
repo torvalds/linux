@@ -1,3 +1,5 @@
+Last reviewed: 10/05/2007
+
                      Berkshire Products PC Watchdog Card
                    Support for ISA Cards  Revision A and C
            Documentation and Driver by Ken Hollis <kenji@bitgate.com>
@@ -14,8 +16,8 @@
 
  The Watchdog Driver will automatically find your watchdog card, and will
  attach a running driver for use with that card.  After the watchdog
- drivers have initialized, you can then talk to the card using the PC
- Watchdog program, available from http://ftp.bitgate.com/pcwd/.
+ drivers have initialized, you can then talk to the card using a PC
+ Watchdog program.
 
  I suggest putting a "watchdog -d" before the beginning of an fsck, and
  a "watchdog -e -t 1" immediately after the end of an fsck.  (Remember
@@ -62,5 +64,3 @@
  -- Ken Hollis
     (kenji@bitgate.com)
 
-(This documentation may be out of date.  Check
- http://ftp.bitgate.com/pcwd/ for the absolute latest additions.)
