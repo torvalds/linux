@@ -689,8 +689,15 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	}
 
 
-	if (ifm->ifi_flags)
-		dev_change_flags(dev, ifm->ifi_flags);
+	if (ifm->ifi_flags || ifm->ifi_change) {
+		unsigned int flags = ifm->ifi_flags;
+
+		/* bugwards compatibility: ifi_change == 0 is treated as ~0 */
+		if (ifm->ifi_change)
+			flags = (flags & ifm->ifi_change) |
+				(dev->flags & ~ifm->ifi_change);
+		dev_change_flags(dev, flags);
+	}
 
 	if (tb[IFLA_TXQLEN])
 		dev->tx_queue_len = nla_get_u32(tb[IFLA_TXQLEN]);
