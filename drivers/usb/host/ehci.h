@@ -302,6 +302,12 @@ struct ehci_regs {
 #define PORT_RWC_BITS   (PORT_CSC | PORT_PEC | PORT_OCC)
 } __attribute__ ((packed));
 
+#define USBMODE		0x68		/* USB Device mode */
+#define USBMODE_SDIS	(1<<3)		/* Stream disable */
+#define USBMODE_BE	(1<<2)		/* BE/LE endianness select */
+#define USBMODE_CM_HC	(3<<0)		/* host controller mode */
+#define USBMODE_CM_IDLE	(0<<0)		/* idle state */
+
 /* Appendix C, Debug port ... intended for use with special "debug devices"
  * that can help if there's no serial console.  (nonstandard enumeration.)
  */

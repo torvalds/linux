@@ -201,9 +201,15 @@ static void tdi_reset (struct ehci_hcd *ehci)
 	u32 __iomem	*reg_ptr;
 	u32		tmp;
 
-	reg_ptr = (u32 __iomem *)(((u8 __iomem *)ehci->regs) + 0x68);
+	reg_ptr = (u32 __iomem *)(((u8 __iomem *)ehci->regs) + USBMODE);
 	tmp = ehci_readl(ehci, reg_ptr);
-	tmp |= 0x3;
+	tmp |= USBMODE_CM_HC;
+	/* The default byte access to MMR space is LE after
+	 * controller reset. Set the required endian mode
+	 * for transfer buffers to match the host microprocessor
+	 */
+	if (ehci_big_endian_mmio(ehci))
+		tmp |= USBMODE_BE;
 	ehci_writel(ehci, tmp, reg_ptr);
 }
 
