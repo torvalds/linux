@@ -940,9 +940,8 @@ static const struct file_operations sel_commit_bools_ops = {
 	.write          = sel_commit_bools_write,
 };
 
-/* delete booleans - partial revoke() from
- * fs/proc/generic.c proc_kill_inodes */
-static void sel_remove_bools(struct dentry *de)
+/* partial revoke() from fs/proc/generic.c proc_kill_inodes */
+static void sel_remove_entries(struct dentry *de)
 {
 	struct list_head *p, *node;
 	struct super_block *sb = de->d_sb;
@@ -998,7 +997,7 @@ static int sel_make_bools(void)
 	kfree(bool_pending_values);
 	bool_pending_values = NULL;
 
-	sel_remove_bools(dir);
+	sel_remove_entries(dir);
 
 	if (!(page = (char*)get_zeroed_page(GFP_KERNEL)))
 		return -ENOMEM;
@@ -1048,7 +1047,7 @@ out:
 	return ret;
 err:
 	kfree(values);
-	sel_remove_bools(dir);
+	sel_remove_entries(dir);
 	ret = -ENOMEM;
 	goto out;
 }
