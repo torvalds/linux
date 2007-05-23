@@ -20,14 +20,16 @@
  */
 
 #include <linux/device.h>
+#include <linux/mutex.h>
+
 #include "power.h"
 
 LIST_HEAD(dpm_active);
 LIST_HEAD(dpm_off);
 LIST_HEAD(dpm_off_irq);
 
-DECLARE_MUTEX(dpm_sem);
-DECLARE_MUTEX(dpm_list_sem);
+DEFINE_MUTEX(dpm_mtx);
+DEFINE_MUTEX(dpm_list_mtx);
 
 int (*platform_enable_wakeup)(struct device *dev, int is_on);
 
@@ -59,12 +61,12 @@ int device_pm_add(struct device * dev)
 	pr_debug("PM: Adding info for %s:%s\n",
 		 dev->bus ? dev->bus->name : "No Bus",
 		 kobject_name(&dev->kobj));
-	down(&dpm_list_sem);
+	mutex_lock(&dpm_list_mtx);
 	list_add_tail(&dev->power.entry, &dpm_active);
 	device_pm_set_parent(dev, dev->parent);
 	if ((error = dpm_sysfs_add(dev)))
 		list_del(&dev->power.entry);
-	up(&dpm_list_sem);
+	mutex_unlock(&dpm_list_mtx);
 	return error;
 }
 
@@ -73,11 +75,11 @@ void device_pm_remove(struct device * dev)
 	pr_debug("PM: Removing info for %s:%s\n",
 		 dev->bus ? dev->bus->name : "No Bus",
 		 kobject_name(&dev->kobj));
-	down(&dpm_list_sem);
+	mutex_lock(&dpm_list_mtx);
 	dpm_sysfs_remove(dev);
 	put_device(dev->power.pm_parent);
 	list_del_init(&dev->power.entry);
-	up(&dpm_list_sem);
+	mutex_unlock(&dpm_list_mtx);
 }
 
 

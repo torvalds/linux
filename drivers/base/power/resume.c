@@ -80,7 +80,7 @@ static int resume_device_early(struct device * dev)
  */
 void dpm_resume(void)
 {
-	down(&dpm_list_sem);
+	mutex_lock(&dpm_list_mtx);
 	while(!list_empty(&dpm_off)) {
 		struct list_head * entry = dpm_off.next;
 		struct device * dev = to_device(entry);
@@ -88,13 +88,13 @@ void dpm_resume(void)
 		get_device(dev);
 		list_move_tail(entry, &dpm_active);
 
-		up(&dpm_list_sem);
+		mutex_unlock(&dpm_list_mtx);
 		if (!dev->power.prev_state.event)
 			resume_device(dev);
-		down(&dpm_list_sem);
+		mutex_lock(&dpm_list_mtx);
 		put_device(dev);
 	}
-	up(&dpm_list_sem);
+	mutex_unlock(&dpm_list_mtx);
 }
 
 
@@ -108,9 +108,9 @@ void dpm_resume(void)
 void device_resume(void)
 {
 	might_sleep();
-	down(&dpm_sem);
+	mutex_lock(&dpm_mtx);
 	dpm_resume();
-	up(&dpm_sem);
+	mutex_unlock(&dpm_mtx);
 }
 
 EXPORT_SYMBOL_GPL(device_resume);
