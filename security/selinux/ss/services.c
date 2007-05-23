@@ -1996,6 +1996,101 @@ out:
 	return rc;
 }
 
+static int get_classes_callback(void *k, void *d, void *args)
+{
+	struct class_datum *datum = d;
+	char *name = k, **classes = args;
+	int value = datum->value - 1;
+
+	classes[value] = kstrdup(name, GFP_ATOMIC);
+	if (!classes[value])
+		return -ENOMEM;
+
+	return 0;
+}
+
+int security_get_classes(char ***classes, int *nclasses)
+{
+	int rc = -ENOMEM;
+
+	POLICY_RDLOCK;
+
+	*nclasses = policydb.p_classes.nprim;
+	*classes = kcalloc(*nclasses, sizeof(*classes), GFP_ATOMIC);
+	if (!*classes)
+		goto out;
+
+	rc = hashtab_map(policydb.p_classes.table, get_classes_callback,
+			*classes);
+	if (rc < 0) {
+		int i;
+		for (i = 0; i < *nclasses; i++)
+			kfree((*classes)[i]);
+		kfree(*classes);
+	}
+
+out:
+	POLICY_RDUNLOCK;
+	return rc;
+}
+
+static int get_permissions_callback(void *k, void *d, void *args)
+{
+	struct perm_datum *datum = d;
+	char *name = k, **perms = args;
+	int value = datum->value - 1;
+
+	perms[value] = kstrdup(name, GFP_ATOMIC);
+	if (!perms[value])
+		return -ENOMEM;
+
+	return 0;
+}
+
+int security_get_permissions(char *class, char ***perms, int *nperms)
+{
+	int rc = -ENOMEM, i;
+	struct class_datum *match;
+
+	POLICY_RDLOCK;
+
+	match = hashtab_search(policydb.p_classes.table, class);
+	if (!match) {
+		printk(KERN_ERR "%s:  unrecognized class %s\n",
+			__FUNCTION__, class);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	*nperms = match->permissions.nprim;
+	*perms = kcalloc(*nperms, sizeof(*perms), GFP_ATOMIC);
+	if (!*perms)
+		goto out;
+
+	if (match->comdatum) {
+		rc = hashtab_map(match->comdatum->permissions.table,
+				get_permissions_callback, *perms);
+		if (rc < 0)
+			goto err;
+	}
+
+	rc = hashtab_map(match->permissions.table, get_permissions_callback,
+			*perms);
+	if (rc < 0)
+		goto err;
+
+out:
+	POLICY_RDUNLOCK;
+	return rc;
+
+err:
+	POLICY_RDUNLOCK;
+	for (i = 0; i < *nperms; i++)
+		kfree((*perms)[i]);
+	kfree(*perms);
+	return rc;
+}
+
 struct selinux_audit_rule {
 	u32 au_seqno;
 	struct context au_ctxt;
