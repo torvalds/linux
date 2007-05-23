@@ -63,8 +63,10 @@ static inline int thaw_process(struct task_struct *p)
  */
 static inline void frozen_process(struct task_struct *p)
 {
-	p->flags |= PF_FROZEN;
-	wmb();
+	if (!unlikely(p->flags & PF_NOFREEZE)) {
+		p->flags |= PF_FROZEN;
+		wmb();
+	}
 	clear_tsk_thread_flag(p, TIF_FREEZE);
 }
 
