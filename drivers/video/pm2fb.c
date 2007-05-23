@@ -183,15 +183,17 @@ static inline void pm2_RDAC_WR(struct pm2fb_par* p, s32 idx, u32 v)
 		index = PM2VR_RD_INDEXED_DATA;
 		break;
 	}	
-	mb();
+	wmb();
 	pm2_WR(p, index, v);
+	wmb();
 }
 
 static inline void pm2v_RDAC_WR(struct pm2fb_par* p, s32 idx, u32 v)
 {
 	pm2_WR(p, PM2VR_RD_INDEX_LOW, idx & 0xff);
-	mb();
+	wmb();
 	pm2_WR(p, PM2VR_RD_INDEXED_DATA, v);
+	wmb();
 }
 
 #ifdef CONFIG_FB_PM2_FIFO_DISCONNECT
@@ -466,11 +468,9 @@ static void set_memclock(struct pm2fb_par* par, u32 clk)
 		WAIT_FIFO(par, 8);
 		pm2_WR(par, PM2VR_RD_INDEX_HIGH, PM2VI_RD_MCLK_CONTROL >> 8);
 		pm2v_RDAC_WR(par, PM2VI_RD_MCLK_CONTROL, 0);
-		wmb();
 		pm2v_RDAC_WR(par, PM2VI_RD_MCLK_PRESCALE, m);
 		pm2v_RDAC_WR(par, PM2VI_RD_MCLK_FEEDBACK, n);
 		pm2v_RDAC_WR(par, PM2VI_RD_MCLK_POSTSCALE, p);
-		wmb();
 		pm2v_RDAC_WR(par, PM2VI_RD_MCLK_CONTROL, 1);
 		rmb();
 		for (i = 256;
@@ -483,12 +483,9 @@ static void set_memclock(struct pm2fb_par* par, u32 clk)
 		pm2_mnp(clk, &m, &n, &p);
 		WAIT_FIFO(par, 10);
 		pm2_RDAC_WR(par, PM2I_RD_MEMORY_CLOCK_3, 6);
-		wmb();
 		pm2_RDAC_WR(par, PM2I_RD_MEMORY_CLOCK_1, m);
 		pm2_RDAC_WR(par, PM2I_RD_MEMORY_CLOCK_2, n);
-		wmb();
 		pm2_RDAC_WR(par, PM2I_RD_MEMORY_CLOCK_3, 8|p);
-		wmb();
 		pm2_RDAC_RD(par, PM2I_RD_MEMORY_CLOCK_STATUS);
 		rmb();
 		for (i = 256;
@@ -509,12 +506,9 @@ static void set_pixclock(struct pm2fb_par* par, u32 clk)
 		pm2_mnp(clk, &m, &n, &p);
 		WAIT_FIFO(par, 8);
 		pm2_RDAC_WR(par, PM2I_RD_PIXEL_CLOCK_A3, 0);
-		wmb();
 		pm2_RDAC_WR(par, PM2I_RD_PIXEL_CLOCK_A1, m);
 		pm2_RDAC_WR(par, PM2I_RD_PIXEL_CLOCK_A2, n);
-		wmb();
 		pm2_RDAC_WR(par, PM2I_RD_PIXEL_CLOCK_A3, 8|p);
-		wmb();
 		pm2_RDAC_RD(par, PM2I_RD_PIXEL_CLOCK_STATUS);
 		rmb();
 		for (i = 256;
@@ -1066,10 +1060,9 @@ static void pm2fb_block_op(struct fb_info* info, int copy,
 
 	if (!w || !h)
 		return;
-	WAIT_FIFO(par, 6);
+	WAIT_FIFO(par, 5);
 	pm2_WR(par, PM2R_CONFIG, PM2F_CONFIG_FB_WRITE_ENABLE |
 		PM2F_CONFIG_FB_READ_SOURCE_ENABLE);
-	pm2_WR(par, PM2R_FB_PIXEL_OFFSET, 0);
 	if (copy)
 		pm2_WR(par, PM2R_FB_SOURCE_DELTA,
 			((ysrc-y) & 0xfff) << 16 | ((xsrc-x) & 0xfff));
