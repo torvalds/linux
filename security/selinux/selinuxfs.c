@@ -1293,7 +1293,8 @@ out:
 	return ret;
 }
 
-static int sel_make_dir(struct inode *dir, struct dentry *dentry)
+static int sel_make_dir(struct inode *dir, struct dentry *dentry,
+			unsigned long *ino)
 {
 	int ret = 0;
 	struct inode *inode;
@@ -1305,7 +1306,7 @@ static int sel_make_dir(struct inode *dir, struct dentry *dentry)
 	}
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
-	inode->i_ino = ++sel_last_ino;
+	inode->i_ino = ++(*ino);
 	/* directory inodes start off with i_nlink == 2 (for "." entry) */
 	inc_nlink(inode);
 	d_add(dentry, inode);
@@ -1351,7 +1352,7 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 		goto err;
 	}
 
-	ret = sel_make_dir(root_inode, dentry);
+	ret = sel_make_dir(root_inode, dentry, &sel_last_ino);
 	if (ret)
 		goto err;
 
@@ -1384,7 +1385,7 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 		goto err;
 	}
 
-	ret = sel_make_dir(root_inode, dentry);
+	ret = sel_make_dir(root_inode, dentry, &sel_last_ino);
 	if (ret)
 		goto err;
 
@@ -1398,7 +1399,7 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 		goto err;
 	}
 
-	ret = sel_make_dir(root_inode, dentry);
+	ret = sel_make_dir(root_inode, dentry, &sel_last_ino);
 	if (ret)
 		goto err;
 
