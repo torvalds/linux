@@ -22,6 +22,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
+#include <asm/mach/time.h>
 
 static struct flash_platform_data nslu2_flash_data = {
 	.map_name		= "cfi_probe",
@@ -157,10 +158,21 @@ static void nslu2_power_off(void)
 	gpio_line_set(NSLU2_PO_GPIO, IXP4XX_GPIO_HIGH);
 }
 
+static void __init nslu2_timer_init(void)
+{
+    /* The xtal on this machine is non-standard. */
+    ixp4xx_timer_freq = NSLU2_FREQ;
+
+    /* Call standard timer_init function. */
+    ixp4xx_timer_init();
+}
+
+static struct sys_timer nslu2_timer = {
+    .init   = nslu2_timer_init,
+};
+
 static void __init nslu2_init(void)
 {
-	ixp4xx_timer_freq = NSLU2_FREQ;
-
 	ixp4xx_sys_init();
 
 	nslu2_flash_resource.start = IXP4XX_EXP_BUS_BASE(0);
@@ -185,6 +197,6 @@ MACHINE_START(NSLU2, "Linksys NSLU2")
 	.boot_params	= 0x00000100,
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
-	.timer          = &ixp4xx_timer,
+	.timer          = &nslu2_timer,
 	.init_machine	= nslu2_init,
 MACHINE_END
