@@ -101,7 +101,7 @@ static void cancel_freezing(struct task_struct *p)
 		pr_debug("  clean up: %s\n", p->comm);
 		do_not_freeze(p);
 		spin_lock_irqsave(&p->sighand->siglock, flags);
-		recalc_sigpending_tsk(p);
+		recalc_sigpending_and_wake(p);
 		spin_unlock_irqrestore(&p->sighand->siglock, flags);
 	}
 }

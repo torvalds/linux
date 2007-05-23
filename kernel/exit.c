@@ -762,11 +762,8 @@ static void exit_notify(struct task_struct *tsk)
 		read_lock(&tasklist_lock);
 		spin_lock_irq(&tsk->sighand->siglock);
 		for (t = next_thread(tsk); t != tsk; t = next_thread(t))
-			if (!signal_pending(t) && !(t->flags & PF_EXITING)) {
-				recalc_sigpending_tsk(t);
-				if (signal_pending(t))
-					signal_wake_up(t, 0);
-			}
+			if (!signal_pending(t) && !(t->flags & PF_EXITING))
+				recalc_sigpending_and_wake(t);
 		spin_unlock_irq(&tsk->sighand->siglock);
 		read_unlock(&tasklist_lock);
 	}

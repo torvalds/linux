@@ -96,15 +96,27 @@ static inline int has_pending_signals(sigset_t *signal, sigset_t *blocked)
 
 #define PENDING(p,b) has_pending_signals(&(p)->signal, (b))
 
-fastcall void recalc_sigpending_tsk(struct task_struct *t)
+static int recalc_sigpending_tsk(struct task_struct *t)
 {
 	if (t->signal->group_stop_count > 0 ||
 	    (freezing(t)) ||
 	    PENDING(&t->pending, &t->blocked) ||
-	    PENDING(&t->signal->shared_pending, &t->blocked))
+	    PENDING(&t->signal->shared_pending, &t->blocked)) {
 		set_tsk_thread_flag(t, TIF_SIGPENDING);
-	else
-		clear_tsk_thread_flag(t, TIF_SIGPENDING);
+		return 1;
+	}
+	clear_tsk_thread_flag(t, TIF_SIGPENDING);
+	return 0;
+}
+
+/*
+ * After recalculating TIF_SIGPENDING, we need to make sure the task wakes up.
+ * This is superfluous when called on current, the wakeup is a harmless no-op.
+ */
+void recalc_sigpending_and_wake(struct task_struct *t)
+{
+	if (recalc_sigpending_tsk(t))
+		signal_wake_up(t, 0);
 }
 
 void recalc_sigpending(void)
@@ -744,7 +756,7 @@ force_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 		action->sa.sa_handler = SIG_DFL;
 		if (blocked) {
 			sigdelset(&t->blocked, sig);
-			recalc_sigpending_tsk(t);
+			recalc_sigpending_and_wake(t);
 		}
 	}
 	ret = specific_send_sig_info(sig, info, t);
@@ -2273,7 +2285,7 @@ int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
 			rm_from_queue_full(&mask, &t->signal->shared_pending);
 			do {
 				rm_from_queue_full(&mask, &t->pending);
-				recalc_sigpending_tsk(t);
+				recalc_sigpending_and_wake(t);
 				t = next_thread(t);
 			} while (t != current);
 		}
