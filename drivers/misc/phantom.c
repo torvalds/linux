@@ -60,8 +60,11 @@ static int phantom_status(struct phantom_device *dev, unsigned long newstat)
 		atomic_set(&dev->counter, 0);
 		iowrite32(PHN_CTL_IRQ, dev->iaddr + PHN_CONTROL);
 		iowrite32(0x43, dev->caddr + PHN_IRQCTL);
-	} else if ((dev->status & PHB_RUNNING) && !(newstat & PHB_RUNNING))
+		ioread32(dev->caddr + PHN_IRQCTL); /* PCI posting */
+	} else if ((dev->status & PHB_RUNNING) && !(newstat & PHB_RUNNING)) {
 		iowrite32(0, dev->caddr + PHN_IRQCTL);
+		ioread32(dev->caddr + PHN_IRQCTL); /* PCI posting */
+	}
 
 	dev->status = newstat;
 
@@ -102,6 +105,7 @@ static long phantom_ioctl(struct file *file, unsigned int cmd,
 
 		pr_debug("phantom: writing %x to %u\n", r.value, r.reg);
 		iowrite32(r.value, dev->iaddr + r.reg);
+		ioread32(dev->iaddr); /* PCI posting */
 
 		if (r.reg == PHN_CONTROL && !(r.value & PHN_CTL_IRQ))
 			phantom_status(dev, dev->status & ~PHB_RUNNING);
@@ -116,6 +120,7 @@ static long phantom_ioctl(struct file *file, unsigned int cmd,
 		for (i = 0; i < min(rs.count, 8U); i++)
 			if ((1 << i) & rs.mask)
 				iowrite32(rs.values[i], dev->oaddr + i);
+		ioread32(dev->iaddr); /* PCI posting */
 		spin_unlock(&dev->ioctl_lock);
 		break;
 	case PHN_GET_REG:
@@ -221,6 +226,7 @@ static irqreturn_t phantom_isr(int irq, void *data)
 
 	iowrite32(0, dev->iaddr);
 	iowrite32(0xc0, dev->iaddr);
+	ioread32(dev->iaddr); /* PCI posting */
 
 	atomic_inc(&dev->counter);
 	wake_up_interruptible(&dev->wait);
@@ -297,6 +303,7 @@ static int __devinit phantom_probe(struct pci_dev *pdev,
 	pht->cdev.owner = THIS_MODULE;
 
 	iowrite32(0, pht->caddr + PHN_IRQCTL);
+	ioread32(pht->caddr + PHN_IRQCTL); /* PCI posting */
 	retval = request_irq(pdev->irq, phantom_isr,
 			IRQF_SHARED | IRQF_DISABLED, "phantom", pht);
 	if (retval) {
@@ -347,6 +354,7 @@ static void __devexit phantom_remove(struct pci_dev *pdev)
 	cdev_del(&pht->cdev);
 
 	iowrite32(0, pht->caddr + PHN_IRQCTL);
+	ioread32(pht->caddr + PHN_IRQCTL); /* PCI posting */
 	free_irq(pdev->irq, pht);
 
 	pci_iounmap(pdev, pht->oaddr);
@@ -368,6 +376,7 @@ static int phantom_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct phantom_device *dev = pci_get_drvdata(pdev);
 
 	iowrite32(0, dev->caddr + PHN_IRQCTL);
+	ioread32(dev->caddr + PHN_IRQCTL); /* PCI posting */
 
 	return 0;
 }
