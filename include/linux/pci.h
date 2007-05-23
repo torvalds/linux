@@ -278,13 +278,13 @@ struct pci_bus {
 	unsigned short  bridge_ctl;	/* manage NO_ISA/FBB/et al behaviors */
 	pci_bus_flags_t bus_flags;	/* Inherited by child busses */
 	struct device		*bridge;
-	struct class_device	class_dev;
+	struct device		dev;
 	struct bin_attribute	*legacy_io; /* legacy I/O for this bus */
 	struct bin_attribute	*legacy_mem; /* legacy mem */
 };
 
 #define pci_bus_b(n)	list_entry(n, struct pci_bus, node)
-#define to_pci_bus(n)	container_of(n, struct pci_bus, class_dev)
+#define to_pci_bus(n)	container_of(n, struct pci_bus, dev)
 
 /*
  * Error values that may be returned by PCI functions.

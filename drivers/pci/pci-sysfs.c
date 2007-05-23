@@ -359,7 +359,7 @@ pci_read_legacy_io(struct kobject *kobj, struct bin_attribute *bin_attr,
 		   char *buf, loff_t off, size_t count)
 {
         struct pci_bus *bus = to_pci_bus(container_of(kobj,
-                                                      struct class_device,
+                                                      struct device,
 						      kobj));
 
         /* Only support 1, 2 or 4 byte accesses */
@@ -384,7 +384,7 @@ pci_write_legacy_io(struct kobject *kobj, struct bin_attribute *bin_attr,
 		    char *buf, loff_t off, size_t count)
 {
         struct pci_bus *bus = to_pci_bus(container_of(kobj,
-						      struct class_device,
+						      struct device,
 						      kobj));
         /* Only support 1, 2 or 4 byte accesses */
         if (count != 1 && count != 2 && count != 4)
@@ -408,7 +408,7 @@ pci_mmap_legacy_mem(struct kobject *kobj, struct bin_attribute *attr,
                     struct vm_area_struct *vma)
 {
         struct pci_bus *bus = to_pci_bus(container_of(kobj,
-                                                      struct class_device,
+                                                      struct device,
 						      kobj));
 
         return pci_mmap_legacy_page_range(bus, vma);
