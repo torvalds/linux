@@ -1544,9 +1544,10 @@ int compat_core_sys_select(int n, compat_ulong_t __user *inp,
 	compat_ulong_t __user *outp, compat_ulong_t __user *exp, s64 *timeout)
 {
 	fd_set_bits fds;
-	char *bits;
+	void *bits;
 	int size, max_fds, ret = -EINVAL;
 	struct fdtable *fdt;
+	long stack_fds[SELECT_STACK_ALLOC/sizeof(long)];
 
 	if (n < 0)
 		goto out_nofds;
@@ -1564,11 +1565,14 @@ int compat_core_sys_select(int n, compat_ulong_t __user *inp,
 	 * since we used fdset we need to allocate memory in units of
 	 * long-words.
 	 */
-	ret = -ENOMEM;
 	size = FDS_BYTES(n);
-	bits = kmalloc(6 * size, GFP_KERNEL);
-	if (!bits)
-		goto out_nofds;
+	bits = stack_fds;
+	if (size > sizeof(stack_fds) / 6) {
+		bits = kmalloc(6 * size, GFP_KERNEL);
+		ret = -ENOMEM;
+		if (!bits)
+			goto out_nofds;
+	}
 	fds.in      = (unsigned long *)  bits;
 	fds.out     = (unsigned long *) (bits +   size);
 	fds.ex      = (unsigned long *) (bits + 2*size);
@@ -1600,7 +1604,8 @@ int compat_core_sys_select(int n, compat_ulong_t __user *inp,
 	    compat_set_fd_set(n, exp, fds.res_ex))
 		ret = -EFAULT;
 out:
-	kfree(bits);
+	if (bits != stack_fds)
+		kfree(bits);
 out_nofds:
 	return ret;
 }
