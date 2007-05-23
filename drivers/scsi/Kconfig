@@ -1753,23 +1753,9 @@ config SUN3X_ESP
 	  The ESP was an on-board SCSI controller used on Sun 3/80
 	  machines.  Say Y here to compile in support for it.
 
-config SCSI_ESP_CORE
-	tristate "ESP Scsi Driver Core"
-	depends on SCSI
-	select SCSI_SPI_ATTRS
-	help
-	  This is a core driver for NCR53c9x based scsi chipsets,
-	  also known as "ESP" for Emulex Scsi Processor or
-	  Enhanced Scsi Processor.  This driver does not exist by
-	  itself, there are front-end drivers which, when enabled,
-	  select and enable this driver.  One example is SCSI_SUNESP.
-	  These front-end drivers provide probing, DMA, and register
-	  access support for the core driver.
-
 config SCSI_SUNESP
 	tristate "Sparc ESP Scsi Driver"
 	depends on SBUS && SCSI
-	select SCSI_ESP_CORE
 	help
 	  This is the driver for the Sun ESP SCSI host adapter. The ESP
 	  chipset is present in most SPARC SBUS-based computers.
