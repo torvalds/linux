@@ -123,8 +123,12 @@ int i2o_driver_register(struct i2o_driver *drv)
 	}
 
 	rc = driver_register(&drv->driver);
-	if (rc)
-		destroy_workqueue(drv->event_queue);
+	if (rc) {
+		if (drv->event) {
+			destroy_workqueue(drv->event_queue);
+			drv->event_queue = NULL;
+		}
+	}
 
 	return rc;
 };
