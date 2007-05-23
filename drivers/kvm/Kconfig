@@ -1,8 +1,12 @@
 #
 # KVM configuration
 #
-menu "Virtualization"
+menuconfig VIRTUALIZATION
+	bool "Virtualization"
 	depends on X86
+	default y
+
+if VIRTUALIZATION
 
 config KVM
 	tristate "Kernel-based Virtual Machine (KVM) support"
@@ -35,4 +39,4 @@ config KVM_AMD
 	  Provides support for KVM on AMD processors equipped with the AMD-V
 	  (SVM) extensions.
 
-endmenu
+endif # VIRTUALIZATION
