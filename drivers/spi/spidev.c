@@ -168,6 +168,12 @@ static int spidev_message(struct spidev_data *spidev,
 			n--, k_tmp++, u_tmp++) {
 		k_tmp->len = u_tmp->len;
 
+		total += k_tmp->len;
+		if (total > bufsiz) {
+			status = -EMSGSIZE;
+			goto done;
+		}
+
 		if (u_tmp->rx_buf) {
 			k_tmp->rx_buf = buf;
 			if (!access_ok(VERIFY_WRITE, u_tmp->rx_buf, u_tmp->len))
@@ -178,12 +184,6 @@ static int spidev_message(struct spidev_data *spidev,
 			if (copy_from_user(buf, (const u8 __user *)u_tmp->tx_buf,
 					u_tmp->len))
 				goto done;
-		}
-
-		total += k_tmp->len;
-		if (total > bufsiz) {
-			status = -EMSGSIZE;
-			goto done;
 		}
 		buf += k_tmp->len;
 
