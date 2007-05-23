@@ -97,6 +97,7 @@ SECTIONS
   __initramfs_end = .;
 #endif
 
+ . = ALIGN(4);
   __machvec_start = .;
   .machvec.init : { *(.machvec.init) }
   __machvec_end = .;
