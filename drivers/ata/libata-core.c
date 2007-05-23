@@ -3022,7 +3022,7 @@ int ata_wait_ready(struct ata_port *ap, unsigned long deadline)
 
 		if (!(status & ATA_BUSY))
 			return 0;
-		if (status == 0xff)
+		if (!ata_port_online(ap) && status == 0xff)
 			return -ENODEV;
 		if (time_after(now, deadline))
 			return -EBUSY;
