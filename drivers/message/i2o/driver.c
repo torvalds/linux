@@ -20,7 +20,6 @@
 #include <linux/workqueue.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <linux/log2.h>
 #include "core.h"
 
 #define OSM_NAME	"i2o"
@@ -340,10 +339,9 @@ int __init i2o_driver_init(void)
 
 	spin_lock_init(&i2o_drivers_lock);
 
-	if ((i2o_max_drivers < 2) || (i2o_max_drivers > 64) ||
-	    !is_power_of_2(i2o_max_drivers)) {
-		osm_warn("max_drivers set to %d, but must be >=2 and <= 64 and "
-			 "a power of 2\n", i2o_max_drivers);
+	if ((i2o_max_drivers < 2) || (i2o_max_drivers > 64)) {
+		osm_warn("max_drivers set to %d, but must be >=2 and <= 64\n",
+			 i2o_max_drivers);
 		i2o_max_drivers = I2O_MAX_DRIVERS;
 	}
 	osm_info("max drivers = %d\n", i2o_max_drivers);
