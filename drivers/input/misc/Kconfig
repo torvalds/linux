@@ -65,6 +65,7 @@ config INPUT_COBALT_BTNS
 config INPUT_WISTRON_BTNS
 	tristate "x86 Wistron laptop button interface"
 	depends on X86 && !X86_64
+	select INPUT_POLLDEV
 	select NEW_LEDS
 	select LEDS_CLASS
 	help

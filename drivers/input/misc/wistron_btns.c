@@ -20,7 +20,7 @@
 #include <linux/io.h>
 #include <linux/dmi.h>
 #include <linux/init.h>
-#include <linux/input.h>
+#include <linux/input-polldev.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
@@ -28,23 +28,13 @@
 #include <linux/module.h>
 #include <linux/preempt.h>
 #include <linux/string.h>
-#include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 
-/*
- * Number of attempts to read data from queue per poll;
- * the queue can hold up to 31 entries
- */
-#define MAX_POLL_ITERATIONS 64
-
-#define POLL_FREQUENCY 2 /* Number of polls per second when idle */
-#define POLL_FREQUENCY_BURST 10 /* Polls per second when a key was recently pressed */
-
-#if POLL_FREQUENCY_BURST > HZ
-#error "POLL_FREQUENCY too high"
-#endif
+/* How often we poll keys - msecs */
+#define POLL_INTERVAL_DEFAULT	500 /* when idle */
+#define POLL_INTERVAL_BURST	100 /* when a key was recently pressed */
 
 /* BIOS subsystem IDs */
 #define WIFI		0x35
@@ -973,66 +963,23 @@ static int __init select_keymap(void)
 
  /* Input layer interface */
 
-static struct input_dev *input_dev;
+static struct input_polled_dev *wistron_idev;
+static unsigned long jiffies_last_press;
+static int wifi_enabled;
+static int bluetooth_enabled;
 
-static int __devinit setup_input_dev(void)
+static void report_key(struct input_dev *dev, unsigned int keycode)
 {
-	const struct key_entry *key;
-	int error;
-
-	input_dev = input_allocate_device();
-	if (!input_dev)
-		return -ENOMEM;
-
-	input_dev->name = "Wistron laptop buttons";
-	input_dev->phys = "wistron/input0";
-	input_dev->id.bustype = BUS_HOST;
-	input_dev->cdev.dev = &wistron_device->dev;
-
-	for (key = keymap; key->type != KE_END; key++) {
-		switch (key->type) {
-			case KE_KEY:
-				set_bit(EV_KEY, input_dev->evbit);
-				set_bit(key->keycode, input_dev->keybit);
-				break;
-
-			case KE_SW:
-				set_bit(EV_SW, input_dev->evbit);
-				set_bit(key->sw.code, input_dev->swbit);
-				break;
-
-			default:
-				;
-		}
-	}
-
-	/* reads information flags on KE_END */
-	if (key->code & FE_UNTESTED)
-		printk(KERN_WARNING "Untested laptop multimedia keys, "
-			"please report success or failure to eric.piel"
-			"@tremplin-utc.net\n");
-
-	error = input_register_device(input_dev);
-	if (error) {
-		input_free_device(input_dev);
-		return error;
-	}
-
-	return 0;
+	input_report_key(dev, keycode, 1);
+	input_sync(dev);
+	input_report_key(dev, keycode, 0);
+	input_sync(dev);
 }
 
-static void report_key(unsigned keycode)
+static void report_switch(struct input_dev *dev, unsigned int code, int value)
 {
-	input_report_key(input_dev, keycode, 1);
-	input_sync(input_dev);
-	input_report_key(input_dev, keycode, 0);
-	input_sync(input_dev);
-}
-
-static void report_switch(unsigned code, int value)
-{
-	input_report_switch(input_dev, code, value);
-	input_sync(input_dev);
+	input_report_switch(dev, code, value);
+	input_sync(dev);
 }
 
 
@@ -1112,15 +1059,6 @@ static inline void wistron_led_resume(void)
 		led_classdev_resume(&wistron_wifi_led);
 }
 
- /* Driver core */
-
-static int wifi_enabled;
-static int bluetooth_enabled;
-
-static void poll_bios(unsigned long);
-
-static struct timer_list poll_timer = TIMER_INITIALIZER(poll_bios, 0, 0);
-
 static void handle_key(u8 code)
 {
 	const struct key_entry *key;
@@ -1129,11 +1067,12 @@ static void handle_key(u8 code)
 		if (code == key->code) {
 			switch (key->type) {
 			case KE_KEY:
-				report_key(key->keycode);
+				report_key(wistron_idev->input, key->keycode);
 				break;
 
 			case KE_SW:
-				report_switch(key->sw.code, key->sw.value);
+				report_switch(wistron_idev->input,
+					      key->sw.code, key->sw.value);
 				break;
 
 			case KE_WIFI:
@@ -1152,19 +1091,19 @@ static void handle_key(u8 code)
 
 			case KE_END:
 				break;
+
 			default:
 				BUG();
 			}
+			jiffies_last_press = jiffies;
 			return;
 		}
 	}
 	printk(KERN_NOTICE "wistron_btns: Unknown key code %02X\n", code);
 }
 
-static void poll_bios(unsigned long discard)
+static void poll_bios(bool discard)
 {
-	static unsigned long jiffies_last_press;
-	unsigned long jiffies_now = jiffies;
 	u8 qlen;
 	u16 val;
 
@@ -1173,24 +1112,85 @@ static void poll_bios(unsigned long discard)
 		if (qlen == 0)
 			break;
 		val = bios_pop_queue();
-		if (val != 0 && !discard) {
+		if (val != 0 && !discard)
 			handle_key((u8)val);
-			jiffies_last_press = jiffies_now;
+	}
+}
+
+static void wistron_flush(struct input_polled_dev *dev)
+{
+	/* Flush stale event queue */
+	poll_bios(true);
+}
+
+static void wistron_poll(struct input_polled_dev *dev)
+{
+	poll_bios(false);
+
+	/* Increase poll frequency if user is currently pressing keys (< 2s ago) */
+	if (time_before(jiffies, jiffies_last_press + 2 * HZ))
+		dev->poll_interval = POLL_INTERVAL_BURST;
+	else
+		dev->poll_interval = POLL_INTERVAL_DEFAULT;
+}
+
+static int __devinit setup_input_dev(void)
+{
+	const struct key_entry *key;
+	struct input_dev *input_dev;
+	int error;
+
+	wistron_idev = input_allocate_polled_device();
+	if (!wistron_idev)
+		return -ENOMEM;
+
+	wistron_idev->flush = wistron_flush;
+	wistron_idev->poll = wistron_poll;
+	wistron_idev->poll_interval = POLL_INTERVAL_DEFAULT;
+
+	input_dev = wistron_idev->input;
+	input_dev->name = "Wistron laptop buttons";
+	input_dev->phys = "wistron/input0";
+	input_dev->id.bustype = BUS_HOST;
+	input_dev->cdev.dev = &wistron_device->dev;
+
+	for (key = keymap; key->type != KE_END; key++) {
+		switch (key->type) {
+			case KE_KEY:
+				set_bit(EV_KEY, input_dev->evbit);
+				set_bit(key->keycode, input_dev->keybit);
+				break;
+
+			case KE_SW:
+				set_bit(EV_SW, input_dev->evbit);
+				set_bit(key->sw.code, input_dev->swbit);
+				break;
+
+			default:
+				break;
 		}
 	}
 
-	/* Increase precision if user is currently pressing keys (< 2s ago) */
-	if (time_after(jiffies_last_press, jiffies_now - (HZ * 2)))
-		mod_timer(&poll_timer, jiffies_now + HZ / POLL_FREQUENCY_BURST);
-	else
-		mod_timer(&poll_timer, jiffies_now + HZ / POLL_FREQUENCY);
+	/* reads information flags on KE_END */
+	if (key->code & FE_UNTESTED)
+		printk(KERN_WARNING "Untested laptop multimedia keys, "
+			"please report success or failure to eric.piel"
+			"@tremplin-utc.net\n");
+
+	error = input_register_polled_device(wistron_idev);
+	if (error) {
+		input_free_polled_device(wistron_idev);
+		return error;
+	}
+
+	return 0;
 }
+
+/* Driver core */
 
 static int __devinit wistron_probe(struct platform_device *dev)
 {
-	int err = setup_input_dev();
-	if (err)
-		return err;
+	int err;
 
 	bios_attach();
 	cmos_address = bios_get_cmos_address();
@@ -1218,16 +1218,20 @@ static int __devinit wistron_probe(struct platform_device *dev)
 	}
 
 	wistron_led_init(&dev->dev);
-	poll_bios(1); /* Flush stale event queue and arm timer */
+	err = setup_input_dev();
+	if (err) {
+		bios_detach();
+		return err;
+	}
 
 	return 0;
 }
 
 static int __devexit wistron_remove(struct platform_device *dev)
 {
-	del_timer_sync(&poll_timer);
 	wistron_led_remove();
-	input_unregister_device(input_dev);
+	input_unregister_polled_device(wistron_idev);
+	input_free_polled_device(wistron_idev);
 	bios_detach();
 
 	return 0;
@@ -1236,8 +1240,6 @@ static int __devexit wistron_remove(struct platform_device *dev)
 #ifdef CONFIG_PM
 static int wistron_suspend(struct platform_device *dev, pm_message_t state)
 {
-	del_timer_sync(&poll_timer);
-
 	if (have_wifi)
 		bios_set_state(WIFI, 0);
 
@@ -1257,7 +1259,7 @@ static int wistron_resume(struct platform_device *dev)
 		bios_set_state(BLUETOOTH, bluetooth_enabled);
 
 	wistron_led_resume();
-	poll_bios(1);
+	poll_bios(true);
 
 	return 0;
 }
