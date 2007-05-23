@@ -9,7 +9,9 @@ static struct btrfs_dir_item *insert_with_overflow(struct btrfs_trans_handle
 						   struct btrfs_root *root,
 						   struct btrfs_path *path,
 						   struct btrfs_key *cpu_key,
-						   u32 data_size)
+						   u32 data_size,
+						   const char *name,
+						   int name_len)
 {
 	int ret;
 	char *ptr;
@@ -18,6 +20,10 @@ static struct btrfs_dir_item *insert_with_overflow(struct btrfs_trans_handle
 
 	ret = btrfs_insert_empty_item(trans, root, path, cpu_key, data_size);
 	if (ret == -EEXIST) {
+		struct btrfs_dir_item *di;
+		di = btrfs_match_dir_item_name(root, path, name, name_len);
+		if (di)
+			return ERR_PTR(-EEXIST);
 		ret = btrfs_extend_item(trans, root, path, data_size);
 		WARN_ON(ret > 0);
 		if (ret)
@@ -37,6 +43,7 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 			  struct btrfs_key *location, u8 type)
 {
 	int ret = 0;
+	int ret2 = 0;
 	struct btrfs_path *path;
 	struct btrfs_dir_item *dir_item;
 	char *name_ptr;
@@ -51,9 +58,12 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	path = btrfs_alloc_path();
 	btrfs_init_path(path);
 	data_size = sizeof(*dir_item) + name_len;
-	dir_item = insert_with_overflow(trans, root, path, &key, data_size);
+	dir_item = insert_with_overflow(trans, root, path, &key, data_size,
+					name, name_len);
 	if (IS_ERR(dir_item)) {
 		ret = PTR_ERR(dir_item);
+		if (ret == -EEXIST)
+			goto second_insert;
 		goto out;
 	}
 
@@ -66,19 +76,20 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_memcpy(root, path->nodes[0]->b_data, name_ptr, name, name_len);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 
+second_insert:
 	/* FIXME, use some real flag for selecting the extra index */
 	if (root == root->fs_info->tree_root) {
 		ret = 0;
 		goto out;
 	}
-
 	btrfs_release_path(root, path);
 
 	btrfs_set_key_type(&key, BTRFS_DIR_INDEX_KEY);
 	key.offset = location->objectid;
-	dir_item = insert_with_overflow(trans, root, path, &key, data_size);
+	dir_item = insert_with_overflow(trans, root, path, &key, data_size,
+					name, name_len);
 	if (IS_ERR(dir_item)) {
-		ret = PTR_ERR(dir_item);
+		ret2 = PTR_ERR(dir_item);
 		goto out;
 	}
 	btrfs_cpu_key_to_disk(&dir_item->location, location);
@@ -90,7 +101,11 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 out:
 	btrfs_free_path(path);
-	return ret;
+	if (ret)
+		return ret;
+	if (ret2)
+		return ret2;
+	return 0;
 }
 
 struct btrfs_dir_item *btrfs_lookup_dir_item(struct btrfs_trans_handle *trans,

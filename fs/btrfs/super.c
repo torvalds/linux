@@ -375,6 +375,7 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	struct btrfs_disk_key *found_key;
+	u32 found_type;
 	struct btrfs_leaf *leaf;
 	struct btrfs_file_extent_item *fi = NULL;
 	u64 extent_start = 0;
@@ -386,12 +387,7 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 	/* FIXME, add redo link to tree so we don't leak on crash */
 	key.objectid = inode->i_ino;
 	key.offset = (u64)-1;
-	key.flags = 0;
-	/*
-	 * use BTRFS_CSUM_ITEM_KEY because it is larger than inline keys
-	 * or extent data
-	 */
-	btrfs_set_key_type(&key, BTRFS_CSUM_ITEM_KEY);
+	key.flags = (u32)-1;
 	while(1) {
 		btrfs_init_path(path);
 		ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
@@ -405,10 +401,13 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 		reada_truncate(root, path, inode->i_ino);
 		leaf = btrfs_buffer_leaf(path->nodes[0]);
 		found_key = &leaf->items[path->slots[0]].key;
+		found_type = btrfs_disk_key_type(found_key);
 		if (btrfs_disk_key_objectid(found_key) != inode->i_ino)
 			break;
-		if (btrfs_disk_key_type(found_key) != BTRFS_CSUM_ITEM_KEY &&
-		    btrfs_disk_key_type(found_key) != BTRFS_EXTENT_DATA_KEY)
+		if (found_type != BTRFS_CSUM_ITEM_KEY &&
+		    found_type != BTRFS_DIR_ITEM_KEY &&
+		    found_type != BTRFS_DIR_INDEX_KEY &&
+		    found_type != BTRFS_EXTENT_DATA_KEY)
 			break;
 		if (btrfs_disk_key_offset(found_key) < inode->i_size)
 			break;
@@ -460,10 +459,8 @@ static void btrfs_delete_inode(struct inode *inode)
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_set_trans_block_group(trans, inode);
-	if (S_ISREG(inode->i_mode)) {
-		ret = btrfs_truncate_in_trans(trans, root, inode);
-		BUG_ON(ret);
-	}
+	ret = btrfs_truncate_in_trans(trans, root, inode);
+	BUG_ON(ret);
 	btrfs_free_inode(trans, root, inode);
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
@@ -2504,6 +2501,116 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
+static int btrfs_rename(struct inode * old_dir, struct dentry *old_dentry,
+			   struct inode * new_dir,struct dentry *new_dentry)
+{
+	struct btrfs_trans_handle *trans;
+	struct btrfs_root *root = BTRFS_I(old_dir)->root;
+	struct inode *new_inode = new_dentry->d_inode;
+	struct inode *old_inode = old_dentry->d_inode;
+	struct timespec ctime = CURRENT_TIME;
+	struct btrfs_path *path;
+	struct btrfs_dir_item *di;
+	int ret;
+
+	if (S_ISDIR(old_inode->i_mode) && new_inode &&
+	    new_inode->i_size > BTRFS_EMPTY_DIR_SIZE) {
+		return -ENOTEMPTY;
+	}
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(root, 1);
+	btrfs_set_trans_block_group(trans, new_dir);
+	path = btrfs_alloc_path();
+	if (!path) {
+		ret = -ENOMEM;
+		goto out_fail;
+	}
+
+	old_dentry->d_inode->i_nlink++;
+	old_dir->i_ctime = old_dir->i_mtime = ctime;
+	new_dir->i_ctime = new_dir->i_mtime = ctime;
+	old_inode->i_ctime = ctime;
+	if (S_ISDIR(old_inode->i_mode) && old_dir != new_dir) {
+		struct btrfs_key *location = &BTRFS_I(new_dir)->location;
+		u64 old_parent_oid;
+		di = btrfs_lookup_dir_item(trans, root, path, old_inode->i_ino,
+					   "..", 2, -1);
+		if (IS_ERR(di)) {
+			ret = PTR_ERR(di);
+			goto out_fail;
+		}
+		if (!di) {
+			ret = -ENOENT;
+			goto out_fail;
+		}
+		old_parent_oid = btrfs_disk_key_objectid(&di->location);
+		ret = btrfs_del_item(trans, root, path);
+		if (ret) {
+			ret = -EIO;
+			goto out_fail;
+		}
+		btrfs_release_path(root, path);
+
+		di = btrfs_lookup_dir_index_item(trans, root, path,
+						 old_inode->i_ino,
+						 old_parent_oid,
+						 "..", 2, -1);
+		if (IS_ERR(di)) {
+			ret = PTR_ERR(di);
+			goto out_fail;
+		}
+		if (!di) {
+			ret = -ENOENT;
+			goto out_fail;
+		}
+		ret = btrfs_del_item(trans, root, path);
+		if (ret) {
+			ret = -EIO;
+			goto out_fail;
+		}
+		btrfs_release_path(root, path);
+
+		ret = btrfs_insert_dir_item(trans, root, "..", 2,
+					    old_inode->i_ino, location, 0);
+		if (ret)
+			goto out_fail;
+	}
+
+
+	ret = btrfs_add_link(trans, new_dentry, old_inode);
+	if (ret == -EEXIST && new_inode)
+		ret = 0;
+	else if (ret)
+		goto out_fail;
+
+	ret = btrfs_unlink_trans(trans, root, old_dir, old_dentry);
+	if (ret)
+		goto out_fail;
+
+	if (new_inode) {
+		new_inode->i_ctime = CURRENT_TIME;
+		di = btrfs_lookup_dir_index_item(trans, root, path,
+						 new_dir->i_ino,
+						 new_inode->i_ino,
+						 new_dentry->d_name.name,
+						 new_dentry->d_name.len, -1);
+		if (di && !IS_ERR(di)) {
+			btrfs_del_item(trans, root, path);
+			btrfs_release_path(root, path);
+		}
+		if (S_ISDIR(new_inode->i_mode))
+			clear_nlink(new_inode);
+		else
+			drop_nlink(new_inode);
+		btrfs_update_inode(trans, root, new_inode);
+	}
+out_fail:
+	btrfs_free_path(path);
+	btrfs_end_transaction(trans, root);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	return ret;
+}
+
 static struct file_system_type btrfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "btrfs",
@@ -2531,6 +2638,7 @@ static struct inode_operations btrfs_dir_inode_operations = {
 	.unlink		= btrfs_unlink,
 	.mkdir		= btrfs_mkdir,
 	.rmdir		= btrfs_rmdir,
+	.rename		= btrfs_rename,
 };
 
 static struct inode_operations btrfs_dir_ro_inode_operations = {

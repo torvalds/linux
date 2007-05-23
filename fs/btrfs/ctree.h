@@ -32,6 +32,7 @@ extern struct kmem_cache *btrfs_path_cachep;
 #define BTRFS_CSUM_SIZE 32
 /* four bytes for CRC32 */
 #define BTRFS_CRC32_SIZE 4
+#define BTRFS_EMPTY_DIR_SIZE 6
 
 /*
  * the key defines the order in the tree, and so it also defines (optimal)

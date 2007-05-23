@@ -8,6 +8,7 @@
 * Add generation number to key pointer in nodes
 * Add generation number to inode
 * Add ability to switch a block group from data to metadata or vice versa
+* forbid cross subvolume renames and hardlinks
 * Release
 * Do real tree locking
 * Add extent mirroring (backup copies of blocks)
