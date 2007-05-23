@@ -416,9 +416,6 @@ struct digi_port {
 	int dp_port_num;
 	int dp_out_buf_len;
 	unsigned char dp_out_buf[DIGI_OUT_BUF_SIZE];
-	int dp_in_buf_len;
-	unsigned char dp_in_buf[DIGI_IN_BUF_SIZE];
-	unsigned char dp_in_flag_buf[DIGI_IN_BUF_SIZE];
 	int dp_write_urb_in_use;
 	unsigned int dp_modem_signals;
 	wait_queue_head_t dp_modem_change_wait;
@@ -920,7 +917,6 @@ dbg( "digi_rx_throttle: TOP: port=%d", priv->dp_port_num );
 	spin_lock_irqsave( &priv->dp_port_lock, flags );
 	priv->dp_throttled = 1;
 	priv->dp_throttle_restart = 0;
-	priv->dp_in_buf_len = 0;
 	spin_unlock_irqrestore( &priv->dp_port_lock, flags );
 
 }
@@ -939,7 +935,6 @@ dbg( "digi_rx_unthrottle: TOP: port=%d", priv->dp_port_num );
 
 	/* turn throttle off */
 	priv->dp_throttled = 0;
-	priv->dp_in_buf_len = 0;
 	priv->dp_throttle_restart = 0;
 
 	/* restart read chain */
@@ -1676,7 +1671,6 @@ dbg( "digi_startup: TOP" );
 		spin_lock_init( &priv->dp_port_lock );
 		priv->dp_port_num = i;
 		priv->dp_out_buf_len = 0;
-		priv->dp_in_buf_len = 0;
 		priv->dp_write_urb_in_use = 0;
 		priv->dp_modem_signals = 0;
 		init_waitqueue_head( &priv->dp_modem_change_wait );
