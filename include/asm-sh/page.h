@@ -135,7 +135,9 @@ typedef struct { unsigned long pgd; } pgd_t;
 #define PFN_START		(__MEMORY_START >> PAGE_SHIFT)
 #define ARCH_PFN_OFFSET		(PFN_START)
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
+#ifdef CONFIG_FLATMEM
 #define pfn_valid(pfn)		((pfn) >= min_low_pfn && (pfn) < max_low_pfn)
+#endif
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
