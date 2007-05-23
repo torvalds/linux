@@ -4352,11 +4352,12 @@ copy_getaddrs:
 		err = -EFAULT;
 		goto error;
 	}
-	if (put_user(cnt, &((struct sctp_getaddrs __user *)optval)->addr_num))
-		return -EFAULT;
+	if (put_user(cnt, &((struct sctp_getaddrs __user *)optval)->addr_num)) {
+		err = -EFAULT;
+		goto error;
+	}
 	if (put_user(bytes_copied, optlen))
-		return -EFAULT;
-
+		err = -EFAULT;
 error:
 	kfree(addrs);
 	return err;
