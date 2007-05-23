@@ -139,8 +139,6 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 	if (!conf)
 		return NULL;
 
-	mddev->private = conf;
-
 	cnt = 0;
 	conf->array_size = 0;
 
@@ -232,7 +230,7 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 	 * First calculate the device offsets.
 	 */
 	conf->disks[0].offset = 0;
-	for (i=1; i<mddev->raid_disks; i++)
+	for (i = 1; i < raid_disks; i++)
 		conf->disks[i].offset =
 			conf->disks[i-1].offset +
 			conf->disks[i-1].size;
@@ -244,7 +242,7 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 	     curr_offset < conf->array_size;
 	     curr_offset += conf->hash_spacing) {
 
-		while (i < mddev->raid_disks-1 &&
+		while (i < raid_disks-1 &&
 		       curr_offset >= conf->disks[i+1].offset)
 			i++;
 
@@ -299,8 +297,10 @@ static int linear_add(mddev_t *mddev, mdk_rdev_t *rdev)
 	 */
 	linear_conf_t *newconf;
 
-	if (rdev->raid_disk != mddev->raid_disks)
+	if (rdev->saved_raid_disk != mddev->raid_disks)
 		return -EINVAL;
+
+	rdev->raid_disk = rdev->saved_raid_disk;
 
 	newconf = linear_conf(mddev,mddev->raid_disks+1);
 

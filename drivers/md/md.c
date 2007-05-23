@@ -1298,8 +1298,9 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 	ITERATE_RDEV(mddev,rdev2,tmp)
 		if (rdev2->desc_nr+1 > max_dev)
 			max_dev = rdev2->desc_nr+1;
-	
-	sb->max_dev = cpu_to_le32(max_dev);
+
+	if (max_dev > le32_to_cpu(sb->max_dev))
+		sb->max_dev = cpu_to_le32(max_dev);
 	for (i=0; i<max_dev;i++)
 		sb->dev_roles[i] = cpu_to_le16(0xfffe);
 	
@@ -1365,10 +1366,14 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 	}
 	/* make sure rdev->size exceeds mddev->size */
 	if (rdev->size && (mddev->size == 0 || rdev->size < mddev->size)) {
-		if (mddev->pers)
-			/* Cannot change size, so fail */
-			return -ENOSPC;
-		else
+		if (mddev->pers) {
+			/* Cannot change size, so fail
+			 * If mddev->level <= 0, then we don't care
+			 * about aligning sizes (e.g. linear)
+			 */
+			if (mddev->level > 0)
+				return -ENOSPC;
+		} else
 			mddev->size = rdev->size;
 	}
 
@@ -2142,6 +2147,9 @@ static void analyze_sbs(mddev_t * mddev)
 			rdev->desc_nr = i++;
 			rdev->raid_disk = rdev->desc_nr;
 			set_bit(In_sync, &rdev->flags);
+		} else if (rdev->raid_disk >= mddev->raid_disks) {
+			rdev->raid_disk = -1;
+			clear_bit(In_sync, &rdev->flags);
 		}
 	}
 
