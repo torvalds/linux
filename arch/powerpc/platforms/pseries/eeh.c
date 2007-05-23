@@ -117,7 +117,6 @@ static unsigned long no_cfg_addr;
 static unsigned long ignored_check;
 static unsigned long total_mmio_ffs;
 static unsigned long false_positives;
-static unsigned long ignored_failures;
 static unsigned long slot_resets;
 
 #define IS_BRIDGE(class_code) (((class_code)<<16) == PCI_BASE_CLASS_BRIDGE)
@@ -1221,11 +1220,10 @@ static int proc_eeh_show(struct seq_file *m, void *v)
 				"check not wanted=%ld\n"
 				"eeh_total_mmio_ffs=%ld\n"
 				"eeh_false_positives=%ld\n"
-				"eeh_ignored_failures=%ld\n"
 				"eeh_slot_resets=%ld\n",
 				no_device, no_dn, no_cfg_addr, 
 				ignored_check, total_mmio_ffs, 
-				false_positives, ignored_failures, 
+				false_positives,
 				slot_resets);
 	}
 
