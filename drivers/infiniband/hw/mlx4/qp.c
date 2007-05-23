@@ -319,20 +319,24 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		if (err)
 			goto err_mtt;
 
-		err = mlx4_ib_db_map_user(to_mucontext(pd->uobject->context),
-					  ucmd.db_addr, &qp->db);
-		if (err)
-			goto err_mtt;
+		if (!init_attr->srq) {
+			err = mlx4_ib_db_map_user(to_mucontext(pd->uobject->context),
+						  ucmd.db_addr, &qp->db);
+			if (err)
+				goto err_mtt;
+		}
 	} else {
 		err = set_kernel_sq_size(dev, &init_attr->cap, init_attr->qp_type, qp);
 		if (err)
 			goto err;
 
-		err = mlx4_ib_db_alloc(dev, &qp->db, 0);
-		if (err)
-			goto err;
+		if (!init_attr->srq) {
+			err = mlx4_ib_db_alloc(dev, &qp->db, 0);
+			if (err)
+				goto err;
 
-		*qp->db.db = 0;
+			*qp->db.db = 0;
+		}
 
 		if (mlx4_buf_alloc(dev->dev, qp->buf_size, PAGE_SIZE * 2, &qp->buf)) {
 			err = -ENOMEM;
@@ -386,7 +390,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	return 0;
 
 err_wrid:
-	if (pd->uobject)
+	if (pd->uobject && !init_attr->srq)
 		mlx4_ib_db_unmap_user(to_mucontext(pd->uobject->context), &qp->db);
 	else {
 		kfree(qp->sq.wrid);
@@ -403,7 +407,7 @@ err_buf:
 		mlx4_buf_free(dev->dev, qp->buf_size, &qp->buf);
 
 err_db:
-	if (!pd->uobject)
+	if (!pd->uobject && !init_attr->srq)
 		mlx4_ib_db_free(dev, &qp->db);
 
 err:
@@ -481,14 +485,16 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 	mlx4_mtt_cleanup(dev->dev, &qp->mtt);
 
 	if (is_user) {
-		mlx4_ib_db_unmap_user(to_mucontext(qp->ibqp.uobject->context),
-				      &qp->db);
+		if (!qp->ibqp.srq)
+			mlx4_ib_db_unmap_user(to_mucontext(qp->ibqp.uobject->context),
+					      &qp->db);
 		ib_umem_release(qp->umem);
 	} else {
 		kfree(qp->sq.wrid);
 		kfree(qp->rq.wrid);
 		mlx4_buf_free(dev->dev, qp->buf_size, &qp->buf);
-		mlx4_ib_db_free(dev, &qp->db);
+		if (!qp->ibqp.srq)
+			mlx4_ib_db_free(dev, &qp->db);
 	}
 }
 
@@ -852,7 +858,7 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 	if (ibqp->srq)
 		context->srqn = cpu_to_be32(1 << 24 | to_msrq(ibqp->srq)->msrq.srqn);
 
-	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
+	if (!ibqp->srq && cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
 		context->db_rec_addr = cpu_to_be64(qp->db.dma);
 
 	if (cur_state == IB_QPS_INIT &&
@@ -919,7 +925,8 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 		qp->rq.tail = 0;
 		qp->sq.head = 0;
 		qp->sq.tail = 0;
-		*qp->db.db  = 0;
+		if (!ibqp->srq)
+			*qp->db.db  = 0;
 	}
 
 out:
