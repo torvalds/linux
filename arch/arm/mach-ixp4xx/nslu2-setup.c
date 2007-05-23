@@ -50,26 +50,26 @@ static struct ixp4xx_i2c_pins nslu2_i2c_gpio_pins = {
 static struct resource nslu2_led_resources[] = {
 	{
 		.name		= "ready",  /* green led */
-		.start		= NSLU2_LED_GRN,
-		.end		= NSLU2_LED_GRN,
+		.start		= NSLU2_LED_GRN_GPIO,
+		.end		= NSLU2_LED_GRN_GPIO,
 		.flags		= IXP4XX_GPIO_HIGH,
 	},
 	{
 		.name		= "status", /* red led */
-		.start		= NSLU2_LED_RED,
-		.end		= NSLU2_LED_RED,
+		.start		= NSLU2_LED_RED_GPIO,
+		.end		= NSLU2_LED_RED_GPIO,
 		.flags		= IXP4XX_GPIO_HIGH,
 	},
 	{
 		.name		= "disk-1",
-		.start		= NSLU2_LED_DISK1,
-		.end		= NSLU2_LED_DISK1,
+		.start		= NSLU2_LED_DISK1_GPIO,
+		.end		= NSLU2_LED_DISK1_GPIO,
 		.flags		= IXP4XX_GPIO_LOW,
 	},
 	{
 		.name		= "disk-2",
-		.start		= NSLU2_LED_DISK2,
-		.end		= NSLU2_LED_DISK2,
+		.start		= NSLU2_LED_DISK2_GPIO,
+		.end		= NSLU2_LED_DISK2_GPIO,
 		.flags		= IXP4XX_GPIO_LOW,
 	},
 };
@@ -181,7 +181,8 @@ static void __init nslu2_init(void)
 
 	pm_power_off = nslu2_power_off;
 
-	/* This is only useful on a modified machine, but it is valuable
+	/*
+	 * This is only useful on a modified machine, but it is valuable
 	 * to have it first in order to see debug messages, and so that
 	 * it does *not* get removed if platform_add_devices fails!
 	 */
