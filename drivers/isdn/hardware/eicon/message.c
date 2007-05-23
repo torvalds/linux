@@ -1,4 +1,3 @@
-
 /*
  *
   Copyright (c) Eicon Networks, 2002.
@@ -533,7 +532,7 @@ word api_put(APPL   * appl, CAPI_MSG   * msg)
         if (m->header.command == _DATA_B3_R)
         {
 
-          m->info.data_b3_req.Data = (dword)(TransmitBufferSet (appl, m->info.data_b3_req.Data));
+          m->info.data_b3_req.Data = (dword)(long)(TransmitBufferSet (appl, m->info.data_b3_req.Data));
 
         }
 
@@ -1032,7 +1031,7 @@ static void plci_free_msg_in_queue (PLCI   *plci)
       {
 
         TransmitBufferFree (plci->appl,
-          (byte   *)(((CAPI_MSG   *)(&((byte   *)(plci->msg_in_queue))[i]))->info.data_b3_req.Data));
+          (byte *)(long)(((CAPI_MSG *)(&((byte *)(plci->msg_in_queue))[i]))->info.data_b3_req.Data));
 
       }
 
@@ -3118,7 +3117,7 @@ byte data_b3_req(dword Id, word Number, DIVA_CAPI_ADAPTER   * a, PLCI   * plci, 
        && (((byte   *)(parms[0].info)) < ((byte   *)(plci->msg_in_queue)) + sizeof(plci->msg_in_queue)))
       {
 
-        data->P = (byte   *)(*((dword   *)(parms[0].info)));
+        data->P = (byte *)(long)(*((dword *)(parms[0].info)));
 
       }
       else
@@ -3151,7 +3150,7 @@ byte data_b3_req(dword Id, word Number, DIVA_CAPI_ADAPTER   * a, PLCI   * plci, 
        && (((byte   *)(parms[0].info)) < ((byte   *)(plci->msg_in_queue)) + sizeof(plci->msg_in_queue)))
       {
 
-        TransmitBufferFree (appl, (byte   *)(*((dword   *)(parms[0].info))));
+        TransmitBufferFree (appl, (byte *)(long)(*((dword *)(parms[0].info))));
 
       }
     }
@@ -4057,7 +4056,7 @@ capi_callback_suffix:
     {
       if (m->header.command == _DATA_B3_R)
 
-        TransmitBufferFree (appl, (byte   *)(m->info.data_b3_req.Data));
+        TransmitBufferFree (appl, (byte *)(long)(m->info.data_b3_req.Data));
 
       dbug(1,dprintf("Error 0x%04x from msg(0x%04x)", i, m->header.command));
       break;
@@ -7134,7 +7133,7 @@ void nl_ind(PLCI   * plci)
   case N_UDATA:
     if (!(udata_forwarding_table[plci->NL.RBuffer->P[0] >> 5] & (1L << (plci->NL.RBuffer->P[0] & 0x1f))))
     {
-      plci->RData[0].P = plci->internal_ind_buffer + (-((int)(plci->internal_ind_buffer)) & 3);
+      plci->RData[0].P = plci->internal_ind_buffer + (-((int)(long)(plci->internal_ind_buffer)) & 3);
       plci->RData[0].PLength = INTERNAL_IND_BUFFER_SIZE;
       plci->NL.R = plci->RData;
       plci->NL.RNum = 1;
