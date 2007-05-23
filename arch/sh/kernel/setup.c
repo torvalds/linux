@@ -128,6 +128,7 @@ void __init setup_bootmem_allocator(unsigned long start_pfn)
 	bootmap_size = init_bootmem_node(NODE_DATA(0), start_pfn,
 					 min_low_pfn, max_low_pfn);
 
+	add_active_range(0, min_low_pfn, max_low_pfn);
 	register_bootmem_low_pages();
 
 	node_set_online(0);
@@ -192,6 +193,7 @@ static void __init setup_memory(void)
 	 */
 	start_pfn = PFN_UP(__pa(_end));
 	setup_bootmem_allocator(start_pfn);
+	sparse_memory_present_with_active_regions(0);
 }
 #else
 extern void __init setup_memory(void);
@@ -250,8 +252,9 @@ void __init setup_arch(char **cmdline_p)
 	min_low_pfn = __MEMORY_START >> PAGE_SHIFT;
 
 	nodes_clear(node_online_map);
+
+	/* Setup bootmem with available RAM */
 	setup_memory();
-	paging_init();
 	sparse_init();
 
 #ifdef CONFIG_DUMMY_CONSOLE
@@ -261,8 +264,9 @@ void __init setup_arch(char **cmdline_p)
 	/* Perform the machine specific initialisation */
 	if (likely(sh_mv.mv_setup))
 		sh_mv.mv_setup(cmdline_p);
-}
 
+	paging_init();
+}
 
 static const char *cpu_name[] = {
 	[CPU_SH7206]	= "SH7206",	[CPU_SH7619]	= "SH7619",

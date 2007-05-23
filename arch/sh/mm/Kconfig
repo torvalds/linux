@@ -300,11 +300,21 @@ config NODES_SHIFT
 config ARCH_FLATMEM_ENABLE
 	def_bool y
 
+config ARCH_SPARSEMEM_ENABLE
+	def_bool y
+	select SPARSEMEM_STATIC
+
+config ARCH_SPARSEMEM_DEFAULT
+	def_bool y
+
 config MAX_ACTIVE_REGIONS
 	int
 	default "1"
 
 config ARCH_POPULATES_NODE_MAP
+	def_bool y
+
+config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
 
 choice

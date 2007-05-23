@@ -36,14 +36,11 @@ void show_mem(void)
 	show_free_areas();
 
 	for_each_online_pgdat(pgdat) {
-		struct page *page, *end;
-		unsigned long flags;
+		unsigned long flags, i;
 
 		pgdat_resize_lock(pgdat, &flags);
-		page = pgdat->node_mem_map;
-		end = page + pgdat->node_spanned_pages;
-
-		do {
+		for (i = 0; i < pgdat->node_spanned_pages; i++) {
+			struct page *page = pgdat_page_nr(pgdat, i);
 			total++;
 			if (PageReserved(page))
 				reserved++;
@@ -55,9 +52,7 @@ void show_mem(void)
 				free++;
 			else
 				shared += page_count(page) - 1;
-			page++;
-		} while (page < end);
-
+		}
 		pgdat_resize_unlock(pgdat, &flags);
 	}
 
@@ -169,15 +164,11 @@ void __init paging_init(void)
 		low = pgdat->bdata->node_low_pfn;
 
 		max_zone_pfns[ZONE_NORMAL] = low;
-		add_active_range(nid, start_pfn, low);
 
 		printk("Node %u: start_pfn = 0x%lx, low = 0x%lx\n",
 		       nid, start_pfn, low);
 
 		free_area_init_nodes(max_zone_pfns);
-
-		printk("Node %u: mem_map starts at %p\n",
-		       pgdat->node_id, pgdat->node_mem_map);
 	}
 }
 
@@ -185,16 +176,13 @@ static struct kcore_list kcore_mem, kcore_vmalloc;
 
 void __init mem_init(void)
 {
-	int codesize, reservedpages, datasize, initsize;
+	int codesize, datasize, initsize;
 	int nid;
-
-	reservedpages = 0;
 
 	for_each_online_node(nid) {
 		pg_data_t *pgdat = NODE_DATA(nid);
 		unsigned long node_pages = 0;
 		void *node_high_memory;
-		int i;
 
 		num_physpages += pgdat->node_present_pages;
 
@@ -202,10 +190,6 @@ void __init mem_init(void)
 			node_pages = free_all_bootmem_node(pgdat);
 
 		totalram_pages += node_pages;
-
-		for (i = 0; i < node_pages; i++)
-			if (PageReserved(pgdat->node_mem_map + i))
-				reservedpages++;
 
 		node_high_memory = (void *)((pgdat->node_start_pfn +
 					     pgdat->node_spanned_pages) <<
@@ -239,11 +223,10 @@ void __init mem_init(void)
 		   VMALLOC_END - VMALLOC_START);
 
 	printk(KERN_INFO "Memory: %luk/%luk available (%dk kernel code, "
-	       "%dk reserved, %dk data, %dk init)\n",
+	       "%dk data, %dk init)\n",
 		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
 		totalram_pages << (PAGE_SHIFT-10),
 		codesize >> 10,
-		reservedpages << (PAGE_SHIFT-10),
 		datasize >> 10,
 		initsize >> 10);
 
