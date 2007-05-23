@@ -41,6 +41,7 @@ extern int selinux_mls_enabled;
 
 int security_load_policy(void * data, size_t len);
 
+#define SEL_VEC_MAX 32
 struct av_decision {
 	u32 allowed;
 	u32 decided;
