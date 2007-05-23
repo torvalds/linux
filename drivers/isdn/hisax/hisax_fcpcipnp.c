@@ -859,7 +859,11 @@ new_adapter(void)
 	for (i = 0; i < 2; i++)
 		b_if[i] = &adapter->bcs[i].b_if;
 
-	hisax_register(&adapter->isac.hisax_d_if, b_if, "fcpcipnp", protocol);
+	if (hisax_register(&adapter->isac.hisax_d_if, b_if, "fcpcipnp",
+			protocol) != 0) {
+		kfree(adapter);
+		adapter = NULL;
+	}
 
 	return adapter;
 }

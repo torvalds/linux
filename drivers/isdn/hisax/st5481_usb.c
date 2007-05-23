@@ -407,7 +407,6 @@ fill_isoc_urb(struct urb *urb, struct usb_device *dev,
 {
 	int k;
 
-	spin_lock_init(&urb->lock);
 	urb->dev=dev;
 	urb->pipe=pipe;
 	urb->interval = 1;
