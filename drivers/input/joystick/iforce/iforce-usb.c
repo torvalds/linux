@@ -65,6 +65,7 @@ void iforce_usb_xmit(struct iforce *iforce)
 	XMIT_INC(iforce->xmit.tail, n);
 
 	if ( (n=usb_submit_urb(iforce->out, GFP_ATOMIC)) ) {
+		clear_bit(IFORCE_XMIT_RUNNING, iforce->xmit_flags);
 		warn("usb_submit_urb failed %d\n", n);
 	}
 
@@ -163,8 +164,8 @@ static int iforce_usb_probe(struct usb_interface *intf,
 	usb_fill_int_urb(iforce->irq, dev, usb_rcvintpipe(dev, epirq->bEndpointAddress),
 			iforce->data, 16, iforce_usb_irq, iforce, epirq->bInterval);
 
-	usb_fill_bulk_urb(iforce->out, dev, usb_sndbulkpipe(dev, epout->bEndpointAddress),
-			iforce + 1, 32, iforce_usb_out, iforce);
+	usb_fill_int_urb(iforce->out, dev, usb_sndintpipe(dev, epout->bEndpointAddress),
+			iforce + 1, 32, iforce_usb_out, iforce, epout->bInterval);
 
 	usb_fill_control_urb(iforce->ctrl, dev, usb_rcvctrlpipe(dev, 0),
 			(void*) &iforce->cr, iforce->edata, 16, iforce_usb_ctrl, iforce);
