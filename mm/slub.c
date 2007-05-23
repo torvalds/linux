@@ -1917,7 +1917,6 @@ static int calculate_sizes(struct kmem_cache *s)
 	 */
 	s->inuse = size;
 
-#ifdef CONFIG_SLUB_DEBUG
 	if (((flags & (SLAB_DESTROY_BY_RCU | SLAB_POISON)) ||
 		s->ctor)) {
 		/*
@@ -1932,6 +1931,7 @@ static int calculate_sizes(struct kmem_cache *s)
 		size += sizeof(void *);
 	}
 
+#ifdef CONFIG_SLUB_DEBUG
 	if (flags & SLAB_STORE_USER)
 		/*
 		 * Need to store information about allocs and frees after
