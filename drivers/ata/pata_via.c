@@ -60,6 +60,7 @@
 #include <linux/delay.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
+#include <linux/dmi.h>
 
 #define DRV_NAME "pata_via"
 #define DRV_VERSION "0.3.1"
@@ -122,6 +123,31 @@ static const struct via_isa_bridge {
 	{ NULL }
 };
 
+
+/*
+ *	Cable special cases
+ */
+
+static struct dmi_system_id cable_dmi_table[] = {
+	{
+		.ident = "Acer Ferrari 3400",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Acer,Inc."),
+			DMI_MATCH(DMI_BOARD_NAME, "Ferrari 3400"),
+		},
+	},
+	{ }
+};
+
+static int via_cable_override(struct pci_dev *pdev)
+{
+	/* Systems by DMI */
+	if (dmi_check_system(cable_dmi_table))
+		return 1;
+	return 0;
+}
+
+
 /**
  *	via_cable_detect	-	cable detection
  *	@ap: ATA port
@@ -138,6 +164,9 @@ static int via_cable_detect(struct ata_port *ap) {
 	const struct via_isa_bridge *config = ap->host->private_data;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u32 ata66;
+
+	if (via_cable_override(pdev))
+		return ATA_CBL_PATA40_SHORT;
 
 	/* Early chips are 40 wire */
 	if ((config->flags & VIA_UDMA) < VIA_UDMA_66)
