@@ -299,8 +299,8 @@ struct ipv6_pinfo {
 	/* pktoption flags */
 	union {
 		struct {
-			__u16	srcrt:2,
-				osrcrt:2,
+			__u16	srcrt:1,
+				osrcrt:1,
 			        rxinfo:1,
 			        rxoinfo:1,
 				rxhlim:1,
