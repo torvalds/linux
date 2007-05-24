@@ -46,7 +46,7 @@
  */
 #define NAMEI_RA_CHUNKS  2
 #define NAMEI_RA_BLOCKS  4
-#define NAMEI_RA_SIZE        (NAMEI_RA_CHUNKS * NAMEI_RA_BLOCKS)
+#define NAMEI_RA_SIZE	     (NAMEI_RA_CHUNKS * NAMEI_RA_BLOCKS)
 #define NAMEI_RA_INDEX(c,b)  (((c) * NAMEI_RA_BLOCKS) + (b))
 
 static struct buffer_head *ext4_append(handle_t *handle,
@@ -241,7 +241,7 @@ static inline unsigned dx_node_limit (struct inode *dir)
 static void dx_show_index (char * label, struct dx_entry *entries)
 {
 	int i, n = dx_get_count (entries);
-        printk("%s index ", label);
+	printk("%s index ", label);
 	for (i = 0; i < n; i++) {
 		printk("%x->%u ", i? dx_get_hash(entries + i) :
 				0, dx_get_block(entries + i));

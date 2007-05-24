@@ -151,8 +151,8 @@ typedef int (*ext_prepare_callback)(struct inode *, struct ext4_ext_path *,
 	((struct ext4_extent_idx *) (((char *) (__hdr__)) +	\
 				     sizeof(struct ext4_extent_header)))
 #define EXT_HAS_FREE_INDEX(__path__) \
-        (le16_to_cpu((__path__)->p_hdr->eh_entries) \
-	                             < le16_to_cpu((__path__)->p_hdr->eh_max))
+	(le16_to_cpu((__path__)->p_hdr->eh_entries) \
+				     < le16_to_cpu((__path__)->p_hdr->eh_max))
 #define EXT_LAST_EXTENT(__hdr__) \
 	(EXT_FIRST_EXTENT((__hdr__)) + le16_to_cpu((__hdr__)->eh_entries) - 1)
 #define EXT_LAST_INDEX(__hdr__) \

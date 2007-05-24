@@ -32,9 +32,9 @@
 /*
  * Define EXT4_RESERVATION to reserve data blocks for expanding files
  */
-#define EXT4_DEFAULT_RESERVE_BLOCKS     8
+#define EXT4_DEFAULT_RESERVE_BLOCKS	8
 /*max window size: 1024(direct blocks) + 3([t,d]indirect blocks) */
-#define EXT4_MAX_RESERVE_BLOCKS         1027
+#define EXT4_MAX_RESERVE_BLOCKS		1027
 #define EXT4_RESERVE_WINDOW_NOT_ALLOCATED 0
 /*
  * Always enable hashed directories
@@ -204,12 +204,12 @@ struct ext4_group_desc
 
 /* Used to pass group descriptor data when online resize is done */
 struct ext4_new_group_input {
-	__u32 group;            /* Group number for this data */
-	__u64 block_bitmap;     /* Absolute block number of block bitmap */
-	__u64 inode_bitmap;     /* Absolute block number of inode bitmap */
-	__u64 inode_table;      /* Absolute block number of inode table start */
-	__u32 blocks_count;     /* Total number of blocks in this group */
-	__u16 reserved_blocks;  /* Number of reserved blocks in this group */
+	__u32 group;		/* Group number for this data */
+	__u64 block_bitmap;	/* Absolute block number of block bitmap */
+	__u64 inode_bitmap;	/* Absolute block number of inode bitmap */
+	__u64 inode_table;	/* Absolute block number of inode table start */
+	__u32 blocks_count;	/* Total number of blocks in this group */
+	__u16 reserved_blocks;	/* Number of reserved blocks in this group */
 	__u16 unused;
 };
 
@@ -310,7 +310,7 @@ struct ext4_inode {
 			__u8	l_i_frag;	/* Fragment number */
 			__u8	l_i_fsize;	/* Fragment size */
 			__le16	l_i_file_acl_high;
-			__le16	l_i_uid_high;	/* these 2 fields    */
+			__le16	l_i_uid_high;	/* these 2 fields */
 			__le16	l_i_gid_high;	/* were reserved2[0] */
 			__u32	l_i_reserved2;
 		} linux2;
@@ -780,9 +780,9 @@ void ext4_get_group_no_and_offset(struct super_block *sb, ext4_fsblk_t blocknr,
  * Ok, these declarations are also in <linux/kernel.h> but none of the
  * ext4 source programs needs to include it so they are duplicated here.
  */
-# define NORET_TYPE    /**/
-# define ATTRIB_NORET  __attribute__((noreturn))
-# define NORET_AND     noreturn,
+# define NORET_TYPE	/**/
+# define ATTRIB_NORET	__attribute__((noreturn))
+# define NORET_AND	noreturn,
 
 /* balloc.c */
 extern unsigned int ext4_block_group(struct super_block *sb,

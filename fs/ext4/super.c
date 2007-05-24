@@ -1985,7 +1985,7 @@ static journal_t *ext4_get_dev_journal(struct super_block *sb,
 
 	if (bd_claim(bdev, sb)) {
 		printk(KERN_ERR
-		        "EXT4: failed to claim external journal device.\n");
+			"EXT4: failed to claim external journal device.\n");
 		blkdev_put(bdev);
 		return NULL;
 	}
