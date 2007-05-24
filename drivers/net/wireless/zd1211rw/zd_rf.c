@@ -67,25 +67,23 @@ void zd_rf_clear(struct zd_rf *rf)
 
 int zd_rf_init_hw(struct zd_rf *rf, u8 type)
 {
-	int r, t;
+	int r = 0;
+	int t;
 	struct zd_chip *chip = zd_rf_to_chip(rf);
 
 	ZD_ASSERT(mutex_is_locked(&chip->mutex));
 	switch (type) {
 	case RF2959_RF:
 		r = zd_rf_init_rf2959(rf);
-		if (r)
-			return r;
 		break;
 	case AL2230_RF:
 		r = zd_rf_init_al2230(rf);
-		if (r)
-			return r;
 		break;
 	case AL7230B_RF:
 		r = zd_rf_init_al7230b(rf);
-		if (r)
-			return r;
+		break;
+	case UW2453_RF:
+		r = zd_rf_init_uw2453(rf);
 		break;
 	default:
 		dev_err(zd_chip_dev(chip),
@@ -93,6 +91,9 @@ int zd_rf_init_hw(struct zd_rf *rf, u8 type)
 		rf->type = 0;
 		return -ENODEV;
 	}
+
+	if (r)
+		return r;
 
 	rf->type = type;
 

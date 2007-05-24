@@ -89,5 +89,6 @@ static inline int zd_rf_should_update_pwr_int(struct zd_rf *rf)
 int zd_rf_init_rf2959(struct zd_rf *rf);
 int zd_rf_init_al2230(struct zd_rf *rf);
 int zd_rf_init_al7230b(struct zd_rf *rf);
+int zd_rf_init_uw2453(struct zd_rf *rf);
 
 #endif /* _ZD_RF_H */
