@@ -3004,8 +3004,8 @@ static int kvm_cpu_hotplug(struct notifier_block *notifier, unsigned long val,
 	int cpu = (long)v;
 
 	switch (val) {
-	case CPU_DOWN_PREPARE:
-	case CPU_DOWN_PREPARE_FROZEN:
+	case CPU_DYING:
+	case CPU_DYING_FROZEN:
 	case CPU_UP_CANCELED:
 	case CPU_UP_CANCELED_FROZEN:
 		printk(KERN_INFO "kvm: disabling virtualization on CPU%d\n",
