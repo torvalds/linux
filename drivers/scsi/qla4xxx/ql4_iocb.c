@@ -6,6 +6,10 @@
  */
 
 #include "ql4_def.h"
+#include "ql4_glbl.h"
+#include "ql4_dbg.h"
+#include "ql4_inline.h"
+
 
 #include <scsi/scsi_tcq.h>
 
@@ -243,8 +247,8 @@ int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb)
 		dma_addr_t	req_dma;
 
 		req_dma = pci_map_single(ha->pdev, cmd->request_buffer,
-					 cmd->request_bufflen,
-					 cmd->sc_data_direction);
+				 cmd->request_bufflen,
+				 cmd->sc_data_direction);
 		if (dma_mapping_error(req_dma))
 			goto queuing_error;
 

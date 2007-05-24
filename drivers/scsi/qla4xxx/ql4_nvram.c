@@ -6,6 +6,9 @@
  */
 
 #include "ql4_def.h"
+#include "ql4_glbl.h"
+#include "ql4_dbg.h"
+#include "ql4_inline.h"
 
 static inline void eeprom_cmd(uint32_t cmd, struct scsi_qla_host *ha)
 {
