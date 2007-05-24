@@ -3110,13 +3110,13 @@ static void kvm_exit_debug(void)
 
 static int kvm_suspend(struct sys_device *dev, pm_message_t state)
 {
-	on_each_cpu(hardware_disable, NULL, 0, 0);
+	hardware_disable(NULL);
 	return 0;
 }
 
 static int kvm_resume(struct sys_device *dev)
 {
-	on_each_cpu(hardware_disable, NULL, 0, 0);
+	hardware_enable(NULL);
 	return 0;
 }
 
