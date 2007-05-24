@@ -792,8 +792,9 @@ xfs_buf_get_noaddr(
  fail_free_mem:
 	while (--i >= 0)
 		__free_page(bp->b_pages[i]);
+	_xfs_buf_free_pages(bp);
  fail_free_buf:
-	xfs_buf_free(bp);
+	xfs_buf_deallocate(bp);
  fail:
 	return NULL;
 }
