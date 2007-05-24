@@ -67,6 +67,8 @@ static int proc_ide_read_imodel
 		case ide_4drives:	name = "4drives";	break;
 		case ide_pmac:		name = "mac-io";	break;
 		case ide_au1xxx:	name = "au1xxx";	break;
+		case ide_etrax100:	name = "etrax100";	break;
+		case ide_acorn:		name = "acorn";		break;
 		default:		name = "(unknown)";	break;
 	}
 	len = sprintf(page, "%s\n", name);
