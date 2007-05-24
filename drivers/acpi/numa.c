@@ -59,7 +59,7 @@ int node_to_pxm(int node)
 	return node_to_pxm_map[node];
 }
 
-int __cpuinit acpi_map_pxm_to_node(int pxm)
+int acpi_map_pxm_to_node(int pxm)
 {
 	int node = pxm_to_node_map[pxm];
 
