@@ -429,6 +429,7 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey);
 
 void ipoib_pkey_poll(struct work_struct *work);
 int ipoib_pkey_dev_delay_open(struct net_device *dev);
+void ipoib_drain_cq(struct net_device *dev);
 
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
 
