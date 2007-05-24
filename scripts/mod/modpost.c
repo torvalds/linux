@@ -870,8 +870,11 @@ static void warn_sec_mismatch(const char *modname, const char *fromsec,
 		return;
 
 	/* fromsec whitelist - without a valid 'before'
-	 * powerpc has a GOT table in .got2 section */
+	 * powerpc has a GOT table in .got2 section
+	 * and also a .toc section */
 	if (strcmp(fromsec, ".got2") == 0)
+		return;
+	if (strcmp(fromsec, ".toc") == 0)
 		return;
 
 	if (before && after) {
