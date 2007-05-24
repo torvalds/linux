@@ -1201,13 +1201,15 @@ xfs_fsync(
 }
 
 /*
- * This is called by xfs_inactive to free any blocks beyond eof,
- * when the link count isn't zero.
+ * This is called by xfs_inactive to free any blocks beyond eof
+ * when the link count isn't zero and by xfs_dm_punch_hole() when
+ * punching a hole to EOF.
  */
-STATIC int
-xfs_inactive_free_eofblocks(
+int
+xfs_free_eofblocks(
 	xfs_mount_t	*mp,
-	xfs_inode_t	*ip)
+	xfs_inode_t	*ip,
+	int		flags)
 {
 	xfs_trans_t	*tp;
 	int		error;
@@ -1216,6 +1218,7 @@ xfs_inactive_free_eofblocks(
 	xfs_filblks_t	map_len;
 	int		nimaps;
 	xfs_bmbt_irec_t	imap;
+	int		use_iolock = (flags & XFS_FREE_EOF_LOCK);
 
 	/*
 	 * Figure out if there are any blocks beyond the end
@@ -1256,11 +1259,13 @@ xfs_inactive_free_eofblocks(
 		 * cache and we can't
 		 * do that within a transaction.
 		 */
-		xfs_ilock(ip, XFS_IOLOCK_EXCL);
+		if (use_iolock)
+			xfs_ilock(ip, XFS_IOLOCK_EXCL);
 		error = xfs_itruncate_start(ip, XFS_ITRUNC_DEFINITE,
 				    ip->i_size);
 		if (error) {
-			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+			if (use_iolock)
+				xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 			return error;
 		}
 
@@ -1297,7 +1302,8 @@ xfs_inactive_free_eofblocks(
 			error = xfs_trans_commit(tp,
 						XFS_TRANS_RELEASE_LOG_RES);
 		}
-		xfs_iunlock(ip, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
+		xfs_iunlock(ip, (use_iolock ? (XFS_IOLOCK_EXCL|XFS_ILOCK_EXCL)
+					    : XFS_ILOCK_EXCL));
 	}
 	return error;
 }
@@ -1573,7 +1579,8 @@ xfs_release(
 		     (ip->i_df.if_flags & XFS_IFEXTENTS))  &&
 		    (!(ip->i_d.di_flags &
 				(XFS_DIFLAG_PREALLOC | XFS_DIFLAG_APPEND)))) {
-			if ((error = xfs_inactive_free_eofblocks(mp, ip)))
+			error = xfs_free_eofblocks(mp, ip, XFS_FREE_EOF_LOCK);
+			if (error)
 				return error;
 			/* Update linux inode block count after free above */
 			vn_to_inode(vp)->i_blocks = XFS_FSB_TO_BB(mp,
@@ -1654,7 +1661,8 @@ xfs_inactive(
 		     (!(ip->i_d.di_flags &
 				(XFS_DIFLAG_PREALLOC | XFS_DIFLAG_APPEND)) ||
 		      (ip->i_delayed_blks != 0)))) {
-			if ((error = xfs_inactive_free_eofblocks(mp, ip)))
+			error = xfs_free_eofblocks(mp, ip, XFS_FREE_EOF_LOCK);
+			if (error)
 				return VN_INACTIVE_CACHE;
 			/* Update linux inode block count after free above */
 			vn_to_inode(vp)->i_blocks = XFS_FSB_TO_BB(mp,
