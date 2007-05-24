@@ -643,6 +643,64 @@ xfs_mount_common(xfs_mount_t *mp, xfs_sb_t *sbp)
 					sbp->sb_inopblock);
 	mp->m_ialloc_blks = mp->m_ialloc_inos >> sbp->sb_inopblog;
 }
+
+/*
+ * xfs_initialize_perag_data
+ *
+ * Read in each per-ag structure so we can count up the number of
+ * allocated inodes, free inodes and used filesystem blocks as this
+ * information is no longer persistent in the superblock. Once we have
+ * this information, write it into the in-core superblock structure.
+ */
+STATIC int
+xfs_initialize_perag_data(xfs_mount_t *mp, xfs_agnumber_t agcount)
+{
+	xfs_agnumber_t	index;
+	xfs_perag_t	*pag;
+	xfs_sb_t	*sbp = &mp->m_sb;
+	uint64_t	ifree = 0;
+	uint64_t	ialloc = 0;
+	uint64_t	bfree = 0;
+	uint64_t	bfreelst = 0;
+	uint64_t	btree = 0;
+	int		error;
+	int		s;
+
+	for (index = 0; index < agcount; index++) {
+		/*
+		 * read the agf, then the agi. This gets us
+		 * all the inforamtion we need and populates the
+		 * per-ag structures for us.
+		 */
+		error = xfs_alloc_pagf_init(mp, NULL, index, 0);
+		if (error)
+			return error;
+
+		error = xfs_ialloc_pagi_init(mp, NULL, index);
+		if (error)
+			return error;
+		pag = &mp->m_perag[index];
+		ifree += pag->pagi_freecount;
+		ialloc += pag->pagi_count;
+		bfree += pag->pagf_freeblks;
+		bfreelst += pag->pagf_flcount;
+		btree += pag->pagf_btreeblks;
+	}
+	/*
+	 * Overwrite incore superblock counters with just-read data
+	 */
+	s = XFS_SB_LOCK(mp);
+	sbp->sb_ifree = ifree;
+	sbp->sb_icount = ialloc;
+	sbp->sb_fdblocks = bfree + bfreelst + btree;
+	XFS_SB_UNLOCK(mp, s);
+
+	/* Fixup the per-cpu counters as well. */
+	xfs_icsb_reinit_counters(mp);
+
+	return 0;
+}
+
 /*
  * xfs_mountfs
  *
@@ -987,6 +1045,34 @@ xfs_mountfs(
 	}
 
 	/*
+	 * Now the log is mounted, we know if it was an unclean shutdown or
+	 * not. If it was, with the first phase of recovery has completed, we
+	 * have consistent AG blocks on disk. We have not recovered EFIs yet,
+	 * but they are recovered transactionally in the second recovery phase
+	 * later.
+	 *
+	 * Hence we can safely re-initialise incore superblock counters from
+	 * the per-ag data. These may not be correct if the filesystem was not
+	 * cleanly unmounted, so we need to wait for recovery to finish before
+	 * doing this.
+	 *
+	 * If the filesystem was cleanly unmounted, then we can trust the
+	 * values in the superblock to be correct and we don't need to do
+	 * anything here.
+	 *
+	 * If we are currently making the filesystem, the initialisation will
+	 * fail as the perag data is in an undefined state.
+	 */
+
+	if (xfs_sb_version_haslazysbcount(&mp->m_sb) &&
+	    !XFS_LAST_UNMOUNT_WAS_CLEAN(mp) &&
+	     !mp->m_sb.sb_inprogress) {
+		error = xfs_initialize_perag_data(mp, sbp->sb_agcount);
+		if (error) {
+			goto error2;
+		}
+	}
+	/*
 	 * Get and sanity-check the root inode.
 	 * Save the pointer to it in the mount structure.
 	 */
@@ -1048,6 +1134,7 @@ xfs_mountfs(
 		cmn_err(CE_WARN, "XFS: log mount finish failed");
 		goto error4;
 	}
+
 
 	/*
 	 * Complete the quota initialisation, post-log-replay component.
@@ -1111,10 +1198,9 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 		xfs_binval(mp->m_rtdev_targp);
 	}
 
+	xfs_log_sbcount(mp, 1);
 	xfs_unmountfs_writesb(mp);
-
 	xfs_unmountfs_wait(mp); 		/* wait for async bufs */
-
 	xfs_log_unmount(mp);			/* Done! No more fs ops. */
 
 	xfs_freesb(mp);
@@ -1161,6 +1247,62 @@ xfs_unmountfs_wait(xfs_mount_t *mp)
 }
 
 int
+xfs_fs_writable(xfs_mount_t *mp)
+{
+	bhv_vfs_t	*vfsp = XFS_MTOVFS(mp);
+
+	return !(vfs_test_for_freeze(vfsp) || XFS_FORCED_SHUTDOWN(mp) ||
+		(vfsp->vfs_flag & VFS_RDONLY));
+}
+
+/*
+ * xfs_log_sbcount
+ *
+ * Called either periodically to keep the on disk superblock values
+ * roughly up to date or from unmount to make sure the values are
+ * correct on a clean unmount.
+ *
+ * Note this code can be called during the process of freezing, so
+ * we may need to use the transaction allocator which does not not
+ * block when the transaction subsystem is in its frozen state.
+ */
+int
+xfs_log_sbcount(
+	xfs_mount_t	*mp,
+	uint		sync)
+{
+	xfs_trans_t	*tp;
+	int		error;
+
+	if (!xfs_fs_writable(mp))
+		return 0;
+
+	xfs_icsb_sync_counters(mp);
+
+	/*
+	 * we don't need to do this if we are updating the superblock
+	 * counters on every modification.
+	 */
+	if (!xfs_sb_version_haslazysbcount(&mp->m_sb))
+		return 0;
+
+	tp = _xfs_trans_alloc(mp, XFS_TRANS_SB_COUNT);
+	error = xfs_trans_reserve(tp, 0, mp->m_sb.sb_sectsize + 128, 0, 0,
+					XFS_DEFAULT_LOG_COUNT);
+	if (error) {
+		xfs_trans_cancel(tp, 0);
+		return error;
+	}
+
+	xfs_mod_sb(tp, XFS_SB_IFREE | XFS_SB_ICOUNT | XFS_SB_FDBLOCKS);
+	if (sync)
+		xfs_trans_set_sync(tp);
+	xfs_trans_commit(tp, 0);
+
+	return 0;
+}
+
+int
 xfs_unmountfs_writesb(xfs_mount_t *mp)
 {
 	xfs_buf_t	*sbp;
@@ -1171,16 +1313,15 @@ xfs_unmountfs_writesb(xfs_mount_t *mp)
 	 * skip superblock write if fs is read-only, or
 	 * if we are doing a forced umount.
 	 */
-	sbp = xfs_getsb(mp, 0);
 	if (!(XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY ||
 		XFS_FORCED_SHUTDOWN(mp))) {
 
-		xfs_icsb_sync_counters(mp);
+		sbp = xfs_getsb(mp, 0);
+ 		sb = XFS_BUF_TO_SBP(sbp);
 
 		/*
 		 * mark shared-readonly if desired
 		 */
-		sb = XFS_BUF_TO_SBP(sbp);
 		if (mp->m_mk_sharedro) {
 			if (!(sb->sb_flags & XFS_SBF_READONLY))
 				sb->sb_flags |= XFS_SBF_READONLY;
@@ -1189,6 +1330,7 @@ xfs_unmountfs_writesb(xfs_mount_t *mp)
 			xfs_fs_cmn_err(CE_NOTE, mp,
 				"Unmounting, marking shared read-only");
 		}
+
 		XFS_BUF_UNDONE(sbp);
 		XFS_BUF_UNREAD(sbp);
 		XFS_BUF_UNDELAYWRITE(sbp);
@@ -1203,8 +1345,8 @@ xfs_unmountfs_writesb(xfs_mount_t *mp)
 					  mp, sbp, XFS_BUF_ADDR(sbp));
 		if (error && mp->m_mk_sharedro)
 			xfs_fs_cmn_err(CE_ALERT, mp, "Superblock write error detected while unmounting.  Filesystem may not be marked shared readonly");
+		xfs_buf_relse(sbp);
 	}
-	xfs_buf_relse(sbp);
 	return error;
 }
 

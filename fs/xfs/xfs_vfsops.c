@@ -672,6 +672,7 @@ xfs_mntupdate(
 	} else if (!(vfsp->vfs_flag & VFS_RDONLY)) {	/* rw -> ro */
 		bhv_vfs_sync(vfsp, SYNC_FSDATA|SYNC_BDFLUSH|SYNC_ATTR, NULL);
 		xfs_quiesce_fs(mp);
+		xfs_log_sbcount(mp, 1);
 		xfs_log_unmount_write(mp);
 		xfs_unmountfs_writesb(mp);
 		vfsp->vfs_flag |= VFS_RDONLY;
@@ -1497,6 +1498,15 @@ xfs_syncsub(
 	}
 
 	/*
+	 * If asked, update the disk superblock with incore counter values if we
+	 * are using non-persistent counters so that they don't get too far out
+	 * of sync if we crash or get a forced shutdown. We don't want to force
+	 * this to disk, just get a transaction into the iclogs....
+	 */
+	if (flags & SYNC_SUPER)
+		xfs_log_sbcount(mp, 0);
+
+	/*
 	 * Now check to see if the log needs a "dummy" transaction.
 	 */
 
@@ -1962,6 +1972,7 @@ xfs_freeze(
 	ASSERT_ALWAYS(atomic_read(&mp->m_active_trans) == 0);
 
 	/* Push the superblock and write an unmount record */
+	xfs_log_sbcount(mp, 1);
 	xfs_log_unmount_write(mp);
 	xfs_unmountfs_writesb(mp);
 	xfs_fs_log_dummy(mp);

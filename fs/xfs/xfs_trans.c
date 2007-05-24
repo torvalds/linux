@@ -427,6 +427,14 @@ undo_blocks:
  *
  * Mark the transaction structure to indicate that the superblock
  * needs to be updated before committing.
+ *
+ * Because we may not be keeping track of allocated/free inodes and
+ * used filesystem blocks in the superblock, we do not mark the
+ * superblock dirty in this transaction if we modify these fields.
+ * We still need to update the transaction deltas so that they get
+ * applied to the incore superblock, but we don't want them to
+ * cause the superblock to get locked and logged if these are the
+ * only fields in the superblock that the transaction modifies.
  */
 void
 xfs_trans_mod_sb(
@@ -434,13 +442,19 @@ xfs_trans_mod_sb(
 	uint		field,
 	int64_t		delta)
 {
+	uint32_t	flags = (XFS_TRANS_DIRTY|XFS_TRANS_SB_DIRTY);
+	xfs_mount_t	*mp = tp->t_mountp;
 
 	switch (field) {
 	case XFS_TRANS_SB_ICOUNT:
 		tp->t_icount_delta += delta;
+		if (xfs_sb_version_haslazysbcount(&mp->m_sb))
+			flags &= ~XFS_TRANS_SB_DIRTY;
 		break;
 	case XFS_TRANS_SB_IFREE:
 		tp->t_ifree_delta += delta;
+		if (xfs_sb_version_haslazysbcount(&mp->m_sb))
+			flags &= ~XFS_TRANS_SB_DIRTY;
 		break;
 	case XFS_TRANS_SB_FDBLOCKS:
 		/*
@@ -453,6 +467,8 @@ xfs_trans_mod_sb(
 			ASSERT(tp->t_blk_res_used <= tp->t_blk_res);
 		}
 		tp->t_fdblocks_delta += delta;
+		if (xfs_sb_version_haslazysbcount(&mp->m_sb))
+			flags &= ~XFS_TRANS_SB_DIRTY;
 		break;
 	case XFS_TRANS_SB_RES_FDBLOCKS:
 		/*
@@ -462,6 +478,8 @@ xfs_trans_mod_sb(
 		 */
 		ASSERT(delta < 0);
 		tp->t_res_fdblocks_delta += delta;
+		if (xfs_sb_version_haslazysbcount(&mp->m_sb))
+			flags &= ~XFS_TRANS_SB_DIRTY;
 		break;
 	case XFS_TRANS_SB_FREXTENTS:
 		/*
@@ -544,18 +562,23 @@ xfs_trans_apply_sb_deltas(
 	       (tp->t_ag_freeblks_delta + tp->t_ag_flist_delta +
 		tp->t_ag_btree_delta));
 
-	if (tp->t_icount_delta != 0) {
-		INT_MOD(sbp->sb_icount, ARCH_CONVERT, tp->t_icount_delta);
-	}
-	if (tp->t_ifree_delta != 0) {
-		INT_MOD(sbp->sb_ifree, ARCH_CONVERT, tp->t_ifree_delta);
-	}
+	/*
+	 * Only update the superblock counters if we are logging them
+	 */
+	if (!xfs_sb_version_haslazysbcount(&(tp->t_mountp->m_sb))) {
+		if (tp->t_icount_delta != 0) {
+			INT_MOD(sbp->sb_icount, ARCH_CONVERT, tp->t_icount_delta);
+		}
+		if (tp->t_ifree_delta != 0) {
+			INT_MOD(sbp->sb_ifree, ARCH_CONVERT, tp->t_ifree_delta);
+		}
 
-	if (tp->t_fdblocks_delta != 0) {
-		INT_MOD(sbp->sb_fdblocks, ARCH_CONVERT, tp->t_fdblocks_delta);
-	}
-	if (tp->t_res_fdblocks_delta != 0) {
-		INT_MOD(sbp->sb_fdblocks, ARCH_CONVERT, tp->t_res_fdblocks_delta);
+		if (tp->t_fdblocks_delta != 0) {
+			INT_MOD(sbp->sb_fdblocks, ARCH_CONVERT, tp->t_fdblocks_delta);
+		}
+		if (tp->t_res_fdblocks_delta != 0) {
+			INT_MOD(sbp->sb_fdblocks, ARCH_CONVERT, tp->t_res_fdblocks_delta);
+		}
 	}
 
 	if (tp->t_frextents_delta != 0) {
@@ -627,6 +650,7 @@ xfs_trans_unreserve_and_mod_sb(
 {
 	xfs_mod_sb_t	msb[14];	/* If you add cases, add entries */
 	xfs_mod_sb_t	*msbp;
+	xfs_mount_t	*mp = tp->t_mountp;
 	/* REFERENCED */
 	int		error;
 	int		rsvd;
@@ -659,8 +683,15 @@ xfs_trans_unreserve_and_mod_sb(
 	 * The t_res_fdblocks_delta and t_res_frextents_delta fields are
 	 * explicitly NOT applied to the in-core superblock.
 	 * The idea is that that has already been done.
+	 *
+	 * If we are not logging superblock counters, then the inode
+	 * allocated/free and used block counts are not updated in the
+	 * on disk superblock. In this case, XFS_TRANS_SB_DIRTY will
+	 * not be set when the transaction is updated but we still need
+	 * to update the incore superblock with the changes.
 	 */
-	if (tp->t_flags & XFS_TRANS_SB_DIRTY) {
+	if (xfs_sb_version_haslazysbcount(&mp->m_sb) ||
+	     (tp->t_flags & XFS_TRANS_SB_DIRTY)) {
 		if (tp->t_icount_delta != 0) {
 			msbp->msb_field = XFS_SBS_ICOUNT;
 			msbp->msb_delta = tp->t_icount_delta;
@@ -676,6 +707,9 @@ xfs_trans_unreserve_and_mod_sb(
 			msbp->msb_delta = tp->t_fdblocks_delta;
 			msbp++;
 		}
+	}
+
+	if (tp->t_flags & XFS_TRANS_SB_DIRTY) {
 		if (tp->t_frextents_delta != 0) {
 			msbp->msb_field = XFS_SBS_FREXTENTS;
 			msbp->msb_delta = tp->t_frextents_delta;
