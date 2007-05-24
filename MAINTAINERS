@@ -332,6 +332,9 @@ L:	linux-usb-devel@lists.sourceforge.net
 W:	http://www.linux-usb.org/SpeedTouch/
 S:	Maintained
 
+ALCHEMY AU1XX0 MMC DRIVER
+S:	Orphan
+
 ALI1563 I2C DRIVER
 P:	Rudolf Marek
 M:	r.marek@assembler.cz
@@ -416,6 +419,12 @@ S:	Maintained
 ARM MFM AND FLOPPY DRIVERS
 P:	Ian Molton
 M:	spyro@f2s.com
+S:	Maintained
+
+ARM PRIMECELL MMCI PL180/1 DRIVER
+P:	Russell King
+M:	rmk@arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
 ARM/ADI ROADRUNNER MACHINE SUPPORT
@@ -648,6 +657,9 @@ M:	chas@cmf.nrl.navy.mil
 L:	linux-atm-general@lists.sourceforge.net (subscribers-only)
 W:	http://linux-atm.sourceforge.net
 S:	Maintained
+
+ATMEL AT91 MCI DRIVER
+S:	Orphan
 
 ATMEL MACB ETHERNET DRIVER
 P:	Haavard Skinnemoen
@@ -2380,6 +2392,13 @@ M:	stelian@popies.net
 W:	http://popies.net/meye/
 S:	Maintained
 
+MOTOROLA IMX MMC/SD HOST CONTROLLER INTERFACE DRIVER
+P:	Pavel Pisa
+M:	ppisa@pikron.com
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+W:	http://mmc.drzeus.cx/wiki/Controllers/Freescale/SDHC
+S:	Maintained
+
 MOUSE AND MISC DEVICES [GENERAL]
 P:	Alessandro Rubini
 M:	rubini@ipvvis.unipv.it
@@ -2900,6 +2919,9 @@ M:	nico@cam.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 S:	Maintained
 
+PXA MMCI DRIVER
+S:	Orphan
+
 QLOGIC QLA2XXX FC-SCSI DRIVER
 P:	Andrew Vasquez
 M:	linux-driver@qlogic.com
@@ -3415,6 +3437,13 @@ TI FLASH MEDIA INTERFACE DRIVER
 P:      Alex Dubov
 M:      oakad@yahoo.com
 S:      Maintained
+
+TI OMAP MMC INTERFACE DRIVER
+P:	Carlos Aguiar, Anderson Briglia and Syed Khasim
+M:	linux-omap-open-source@linux.omap.com 
+W:	http://linux.omap.com
+W:	http://www.muru.com/linux/omap/
+S:	Maintained
 
 TI OMAP RANDOM NUMBER GENERATOR SUPPORT
 P:	Deepak Saxena
