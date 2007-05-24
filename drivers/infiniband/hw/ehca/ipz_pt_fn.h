@@ -105,7 +105,6 @@ void *ipz_qpageit_get_inc(struct ipz_queue *queue);
  * step in struct ipz_queue, will wrap in ringbuffer
  * returns address (kv) of Queue Entry BEFORE increment
  * warning don't use in parallel with ipz_qpageit_get_inc()
- * warning unpredictable results may occur if steps>act_nr_of_queue_entries
  */
 static inline void *ipz_qeit_get_inc(struct ipz_queue *queue)
 {
@@ -121,31 +120,24 @@ static inline void *ipz_qeit_get_inc(struct ipz_queue *queue)
 }
 
 /*
+ * return a bool indicating whether current Queue Entry is valid
+ */
+static inline int ipz_qeit_is_valid(struct ipz_queue *queue)
+{
+	struct ehca_cqe *cqe = ipz_qeit_get(queue);
+	return ((cqe->cqe_flags >> 7) == (queue->toggle_state & 1));
+}
+
+/*
  * return current Queue Entry, increment Queue Entry iterator by one
  * step in struct ipz_queue, will wrap in ringbuffer
  * returns address (kv) of Queue Entry BEFORE increment
  * returns 0 and does not increment, if wrong valid state
  * warning don't use in parallel with ipz_qpageit_get_inc()
- * warning unpredictable results may occur if steps>act_nr_of_queue_entries
  */
 static inline void *ipz_qeit_get_inc_valid(struct ipz_queue *queue)
 {
-	struct ehca_cqe *cqe = ipz_qeit_get(queue);
-	u32 cqe_flags = cqe->cqe_flags;
-
-	if ((cqe_flags >> 7) != (queue->toggle_state & 1))
-		return NULL;
-
-	ipz_qeit_get_inc(queue);
-	return cqe;
-}
-
-static inline int ipz_qeit_is_valid(struct ipz_queue *queue)
-{
-	struct ehca_cqe *cqe = ipz_qeit_get(queue);
-	u32 cqe_flags = cqe->cqe_flags;
-
-	return cqe_flags >> 7 == (queue->toggle_state & 1);
+	return ipz_qeit_is_valid(queue) ? ipz_qeit_get_inc(queue) : NULL;
 }
 
 /*

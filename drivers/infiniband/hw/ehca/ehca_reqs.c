@@ -637,7 +637,6 @@ poll_cq_exit0:
 int ehca_req_notify_cq(struct ib_cq *cq, enum ib_cq_notify_flags notify_flags)
 {
 	struct ehca_cq *my_cq = container_of(cq, struct ehca_cq, ib_cq);
-	unsigned long spl_flags;
 	int ret = 0;
 
 	switch (notify_flags & IB_CQ_SOLICITED_MASK) {
@@ -652,6 +651,7 @@ int ehca_req_notify_cq(struct ib_cq *cq, enum ib_cq_notify_flags notify_flags)
 	}
 
 	if (notify_flags & IB_CQ_REPORT_MISSED_EVENTS) {
+		unsigned long spl_flags;
 		spin_lock_irqsave(&my_cq->spinlock, spl_flags);
 		ret = ipz_qeit_is_valid(&my_cq->ipz_queue);
 		spin_unlock_irqrestore(&my_cq->spinlock, spl_flags);
