@@ -1436,7 +1436,7 @@ xlog_sync(xlog_t		*log,
 	} else {
 		iclog->ic_bwritecnt = 1;
 	}
-	XFS_BUF_SET_PTR(bp, (xfs_caddr_t) &(iclog->ic_header), count);
+	XFS_BUF_SET_COUNT(bp, count);
 	XFS_BUF_SET_FSPRIVATE(bp, iclog);	/* save for later */
 	XFS_BUF_ZEROFLAGS(bp);
 	XFS_BUF_BUSY(bp);
