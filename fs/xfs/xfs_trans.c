@@ -533,7 +533,7 @@ xfs_trans_mod_sb(
 		return;
 	}
 
-	tp->t_flags |= (XFS_TRANS_SB_DIRTY | XFS_TRANS_DIRTY);
+	tp->t_flags |= flags;
 }
 
 /*
