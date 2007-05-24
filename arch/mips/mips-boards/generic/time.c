@@ -295,11 +295,14 @@ void __init plat_perf_setup(struct irqaction *irq)
 void __init plat_timer_setup(struct irqaction *irq)
 {
 	int hwint = 0;
+#ifdef MSC01E_INT_BASE
 	if (cpu_has_veic) {
 		set_vi_handler (MSC01E_INT_CPUCTR, mips_timer_dispatch);
 		mips_cpu_timer_irq = MSC01E_INT_BASE + MSC01E_INT_CPUCTR;
 	}
-	else {
+	else
+#endif
+	{
 		if (cpu_has_mips_r2)
 			/*
 			 * Read IntCtl.IPTI to determine the timer interrupt
