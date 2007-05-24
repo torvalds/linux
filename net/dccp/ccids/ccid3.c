@@ -419,7 +419,6 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more,
 
 static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
-	const struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct ccid3_options_received *opt_recv;
 	struct dccp_tx_hist_entry *packet;
@@ -491,7 +490,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			ccid3_pr_debug("%s(%p), s=%u, MSS=%u, "
 				       "R_sample=%uus, X=%u\n", dccp_role(sk),
 				       sk, hctx->ccid3hctx_s,
-				       dp->dccps_mss_cache, r_sample,
+				       dccp_sk(sk)->dccps_mss_cache, r_sample,
 				       (unsigned)(hctx->ccid3hctx_x >> 6));
 
 			ccid3_hc_tx_set_state(sk, TFRC_SSTATE_FBACK);
