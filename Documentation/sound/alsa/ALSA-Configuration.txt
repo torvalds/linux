@@ -467,7 +467,12 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     above explicitly.
 
     The power-management is supported.
-    
+
+  Module snd-cs5530
+  _________________
+
+    Module for Cyrix/NatSemi Geode 5530 chip. 
+  
   Module snd-cs5535audio
   ----------------------
 
