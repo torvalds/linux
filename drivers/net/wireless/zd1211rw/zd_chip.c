@@ -1253,6 +1253,9 @@ static int update_channel_integration_and_calibration(struct zd_chip *chip,
 {
 	int r;
 
+	if (!zd_rf_should_update_pwr_int(&chip->rf))
+		return 0;
+
 	r = update_pwr_int(chip, channel);
 	if (r)
 		return r;

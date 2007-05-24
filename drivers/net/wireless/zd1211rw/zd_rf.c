@@ -52,10 +52,16 @@ const char *zd_rf_name(u8 type)
 void zd_rf_init(struct zd_rf *rf)
 {
 	memset(rf, 0, sizeof(*rf));
+
+	/* default to update channel integration, as almost all RF's do want
+	 * this */
+	rf->update_channel_int = 1;
 }
 
 void zd_rf_clear(struct zd_rf *rf)
 {
+	if (rf->clear)
+		rf->clear(rf);
 	ZD_MEMCLEAR(rf, sizeof(*rf));
 }
 

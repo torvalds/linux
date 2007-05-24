@@ -48,12 +48,20 @@ struct zd_rf {
 
 	u8 channel;
 
+	/* whether channel integration and calibration should be updated
+	 * defaults to 1 (yes) */
+	u8 update_channel_int:1;
+
+	/* private RF driver data */
+	void *priv;
+
 	/* RF-specific functions */
 	int (*init_hw)(struct zd_rf *rf);
 	int (*set_channel)(struct zd_rf *rf, u8 channel);
 	int (*switch_radio_on)(struct zd_rf *rf);
 	int (*switch_radio_off)(struct zd_rf *rf);
 	int (*patch_6m_band_edge)(struct zd_rf *rf, u8 channel);
+	void (*clear)(struct zd_rf *rf);
 };
 
 const char *zd_rf_name(u8 type);
@@ -70,6 +78,11 @@ int zd_switch_radio_off(struct zd_rf *rf);
 
 int zd_rf_patch_6m_band_edge(struct zd_rf *rf, u8 channel);
 int zd_rf_generic_patch_6m(struct zd_rf *rf, u8 channel);
+
+static inline int zd_rf_should_update_pwr_int(struct zd_rf *rf)
+{
+	return rf->update_channel_int;
+}
 
 /* Functions for individual RF chips */
 
