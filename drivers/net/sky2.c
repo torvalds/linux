@@ -1432,7 +1432,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		tcpsum = offset << 16;		/* sum start */
 		tcpsum |= offset + skb->csum_offset;	/* sum write */
 
-		ctrl = CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
+		ctrl |= CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
 		if (ip_hdr(skb)->protocol == IPPROTO_UDP)
 			ctrl |= UDPTCP;
 
