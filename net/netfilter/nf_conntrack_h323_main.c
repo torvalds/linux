@@ -640,7 +640,7 @@ int get_h225_addr(struct nf_conn *ct, unsigned char *data,
 	case eTransportAddress_ip6Address:
 		if (family != AF_INET6)
 			return 0;
-		p = data + taddr->ip6Address.ip6;
+		p = data + taddr->ip6Address.ip;
 		len = 16;
 		break;
 	default:
