@@ -977,30 +977,6 @@ static int process_alerting(struct sk_buff **pskb, struct nf_conn *ct,
 }
 
 /****************************************************************************/
-static int process_information(struct sk_buff **pskb,
-			       struct nf_conn *ct,
-			       enum ip_conntrack_info ctinfo,
-			       unsigned char **data, int dataoff,
-			       Information_UUIE *info)
-{
-	int ret;
-	int i;
-
-	DEBUGP("nf_ct_q931: Information\n");
-
-	if (info->options & eInformation_UUIE_fastStart) {
-		for (i = 0; i < info->fastStart.count; i++) {
-			ret = process_olc(pskb, ct, ctinfo, data, dataoff,
-					  &info->fastStart.item[i]);
-			if (ret < 0)
-				return -1;
-		}
-	}
-
-	return 0;
-}
-
-/****************************************************************************/
 static int process_facility(struct sk_buff **pskb, struct nf_conn *ct,
 			    enum ip_conntrack_info ctinfo,
 			    unsigned char **data, int dataoff,
@@ -1095,11 +1071,6 @@ static int process_q931(struct sk_buff **pskb, struct nf_conn *ct,
 	case eH323_UU_PDU_h323_message_body_alerting:
 		ret = process_alerting(pskb, ct, ctinfo, data, dataoff,
 				       &pdu->h323_message_body.alerting);
-		break;
-	case eH323_UU_PDU_h323_message_body_information:
-		ret = process_information(pskb, ct, ctinfo, data, dataoff,
-					  &pdu->h323_message_body.
-					  information);
 		break;
 	case eH323_UU_PDU_h323_message_body_facility:
 		ret = process_facility(pskb, ct, ctinfo, data, dataoff,
