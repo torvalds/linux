@@ -1531,8 +1531,7 @@ void __init trap_init(void)
 	if (cpu_has_mipsmt)
 		set_except_vector(25, handle_mt);
 
-	if (cpu_has_dsp)
-		set_except_vector(26, handle_dsp);
+	set_except_vector(26, handle_dsp);
 
 	if (cpu_has_vce)
 		/* Special exception: R4[04]00 uses also the divec space. */
