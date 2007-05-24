@@ -107,7 +107,7 @@ free to drop it...
 ---
 [informational]
 
-->link() callers hold ->i_sem on the object we are linking to.  Some of your
+->link() callers hold ->i_mutex on the object we are linking to.  Some of your
 problems might be over...
 
 ---
@@ -130,9 +130,9 @@ went in - and hadn't been documented ;-/).  Just remove it from fs_flags
 ---
 [mandatory]
 
-->setattr() is called without BKL now.  Caller _always_ holds ->i_sem, so
-watch for ->i_sem-grabbing code that might be used by your ->setattr().
-Callers of notify_change() need ->i_sem now.
+->setattr() is called without BKL now.  Caller _always_ holds ->i_mutex, so
+watch for ->i_mutex-grabbing code that might be used by your ->setattr().
+Callers of notify_change() need ->i_mutex now.
 
 ---
 [recommended]
