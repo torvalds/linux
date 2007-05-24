@@ -14,6 +14,8 @@ int gpio_direction_output(unsigned int gpio, int value);
 int gpio_get_value(unsigned int gpio);
 void gpio_set_value(unsigned int gpio, int value);
 
+#include <asm-generic/gpio.h>		/* cansleep wrappers */
+
 static inline int gpio_to_irq(unsigned int gpio)
 {
 	return gpio + GPIO_IRQ_BASE;
