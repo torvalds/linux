@@ -2218,7 +2218,7 @@ config SK98LIN
 
 config VIA_VELOCITY
 	tristate "VIA Velocity support"
-	depends on NET_PCI && PCI
+	depends on PCI
 	select CRC32
 	select CRC_CCITT
 	select MII
