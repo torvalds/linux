@@ -260,8 +260,6 @@ static struct of_device_id uec_mdio_match[] = {
 	{},
 };
 
-MODULE_DEVICE_TABLE(of, uec_mdio_match);
-
 static struct of_platform_driver uec_mdio_driver = {
 	.name	= DRV_NAME,
 	.probe	= uec_mdio_probe,
