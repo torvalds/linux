@@ -12,6 +12,7 @@
 #include <linux/percpu.h>
 #include <linux/irq.h>
 #include <linux/msi.h>
+#include <linux/log2.h>
 
 #include <asm/iommu.h>
 #include <asm/irq.h>
@@ -638,9 +639,8 @@ static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 {
 	struct iommu *iommu = pbm->iommu;
 	struct property *prop;
-	unsigned long num_tsb_entries, sz;
+	unsigned long num_tsb_entries, sz, tsbsize;
 	u32 vdma[2], dma_mask, dma_offset;
-	int tsbsize;
 
 	prop = of_find_property(pbm->prom_node, "virtual-dma", NULL);
 	if (prop) {
@@ -654,31 +654,15 @@ static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 		vdma[1] = 0x80000000;
 	}
 
-	dma_mask = vdma[0];
-	switch (vdma[1]) {
-		case 0x20000000:
-			dma_mask |= 0x1fffffff;
-			tsbsize = 64;
-			break;
-
-		case 0x40000000:
-			dma_mask |= 0x3fffffff;
-			tsbsize = 128;
-			break;
-
-		case 0x80000000:
-			dma_mask |= 0x7fffffff;
-			tsbsize = 256;
-			break;
-
-		default:
-			prom_printf("PCI-SUN4V: strange virtual-dma size.\n");
-			prom_halt();
+	if ((vdma[0] | vdma[1]) & ~IO_PAGE_MASK) {
+		prom_printf("PCI-SUN4V: strange virtual-dma[%08x:%08x].\n",
+			    vdma[0], vdma[1]);
+		prom_halt();
 	};
 
-	tsbsize *= (8 * 1024);
-
-	num_tsb_entries = tsbsize / sizeof(iopte_t);
+	dma_mask = (roundup_pow_of_two(vdma[1]) - 1UL);
+	num_tsb_entries = vdma[1] / IO_PAGE_SIZE;
+	tsbsize = num_tsb_entries * sizeof(iopte_t);
 
 	dma_offset = vdma[0];
 
@@ -689,7 +673,7 @@ static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 	iommu->dma_addr_mask = dma_mask;
 
 	/* Allocate and initialize the free area map.  */
-	sz = num_tsb_entries / 8;
+	sz = (num_tsb_entries + 7) / 8;
 	sz = (sz + 7UL) & ~7UL;
 	iommu->arena.map = kzalloc(sz, GFP_KERNEL);
 	if (!iommu->arena.map) {
