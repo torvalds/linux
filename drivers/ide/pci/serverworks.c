@@ -158,6 +158,12 @@ static int svwks_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 	pci_read_config_word(dev, 0x4A, &csb5_pio);
 	pci_read_config_byte(dev, 0x54, &ultra_enable);
 
+	/* If we are in RAID mode (eg AMI MegaIDE) then we can't it
+	   turns out trust the firmware configuration */
+
+	if ((dev->class >> 8) != PCI_CLASS_STORAGE_IDE)
+		goto oem_setup_failed;
+
 	/* Per Specified Design by OEM, and ASIC Architect */
 	if ((dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE) ||
 	    (dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2)) {
