@@ -2077,7 +2077,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				send_sig(SIGKILL,srvTcp->tsk,1);
 				tsk = srvTcp->tsk;
 				if(tsk)
-					kthread_stop(srvTcp->tsk);
+					kthread_stop(tsk);
 			}
 		}
 		 /* If find_unc succeeded then rc == 0 so we can not end */
@@ -2095,7 +2095,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 						struct task_struct *tsk;
 						send_sig(SIGKILL,pSesInfo->server->tsk,1);
 						tsk = pSesInfo->server->tsk;
-						if(tsk)
+						if (tsk)
 							kthread_stop(tsk);
 					}
 				} else
@@ -3344,7 +3344,7 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 				return 0;
 			} else if (rc == -ESHUTDOWN) {
 				cFYI(1,("Waking up socket by sending it signal"));
-				if(cifsd_task) {
+				if (cifsd_task) {
 					send_sig(SIGKILL,cifsd_task,1);
 					kthread_stop(cifsd_task);
 				}
