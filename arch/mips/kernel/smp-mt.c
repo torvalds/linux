@@ -129,13 +129,13 @@ static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
 
 static struct irqaction irq_resched = {
 	.handler	= ipi_resched_interrupt,
-	.flags		= IRQF_DISABLED,
+	.flags		= IRQF_DISABLED|IRQF_PERCPU,
 	.name		= "IPI_resched"
 };
 
 static struct irqaction irq_call = {
 	.handler	= ipi_call_interrupt,
-	.flags		= IRQF_DISABLED,
+	.flags		= IRQF_DISABLED|IRQF_PERCPU,
 	.name		= "IPI_call"
 };
 
@@ -275,10 +275,7 @@ void __init plat_prepare_cpus(unsigned int max_cpus)
 	setup_irq(cpu_ipi_resched_irq, &irq_resched);
 	setup_irq(cpu_ipi_call_irq, &irq_call);
 
-	/* need to mark IPI's as IRQ_PER_CPU */
-	irq_desc[cpu_ipi_resched_irq].status |= IRQ_PER_CPU;
 	set_irq_handler(cpu_ipi_resched_irq, handle_percpu_irq);
-	irq_desc[cpu_ipi_call_irq].status |= IRQ_PER_CPU;
 	set_irq_handler(cpu_ipi_call_irq, handle_percpu_irq);
 }
 
@@ -326,8 +323,11 @@ void prom_boot_secondary(int cpu, struct task_struct *idle)
 
 void prom_init_secondary(void)
 {
+	/* Enable per-cpu interrupts */
+
+	/* This is Malta specific: IPI,performance and timer inetrrupts */
 	write_c0_status((read_c0_status() & ~ST0_IM ) |
-	                (STATUSF_IP0 | STATUSF_IP1 | STATUSF_IP7));
+	                (STATUSF_IP0 | STATUSF_IP1 | STATUSF_IP6 | STATUSF_IP7));
 }
 
 void prom_smp_finish(void)
