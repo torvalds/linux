@@ -432,5 +432,6 @@ int zd_rf_init_al2230(struct zd_rf *rf)
 		rf->switch_radio_on = zd1211_al2230_switch_radio_on;
 	}
 	rf->patch_6m_band_edge = zd_rf_generic_patch_6m;
+	rf->patch_cck_gain = 1;
 	return 0;
 }

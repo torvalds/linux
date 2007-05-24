@@ -52,6 +52,12 @@ struct zd_rf {
 	 * defaults to 1 (yes) */
 	u8 update_channel_int:1;
 
+	/* whether CR47 should be patched from the EEPROM, if the appropriate
+	 * flag is set in the POD. The vendor driver suggests that this should
+	 * be done for all RF's, but a bug in their code prevents but their
+	 * HW_OverWritePhyRegFromE2P() routine from ever taking effect. */
+	u8 patch_cck_gain:1;
+
 	/* private RF driver data */
 	void *priv;
 
@@ -83,6 +89,14 @@ static inline int zd_rf_should_update_pwr_int(struct zd_rf *rf)
 {
 	return rf->update_channel_int;
 }
+
+static inline int zd_rf_should_patch_cck_gain(struct zd_rf *rf)
+{
+	return rf->patch_cck_gain;
+}
+
+int zd_rf_patch_6m_band_edge(struct zd_rf *rf, u8 channel);
+int zd_rf_generic_patch_6m(struct zd_rf *rf, u8 channel);
 
 /* Functions for individual RF chips */
 
