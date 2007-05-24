@@ -520,6 +520,16 @@ static int process_olca(struct sk_buff **pskb, struct nf_conn *ct,
 		}
 	}
 
+	if ((olca->options & eOpenLogicalChannelAck_separateStack) &&
+		olca->separateStack.networkAddress.choice ==
+		eNetworkAccessParameters_networkAddress_localAreaAddress) {
+		ret = expect_t120(pskb, ct, ctinfo, data, dataoff,
+				  &olca->separateStack.networkAddress.
+				  localAreaAddress);
+		if (ret < 0)
+			return -1;
+	}
+
 	return 0;
 }
 
