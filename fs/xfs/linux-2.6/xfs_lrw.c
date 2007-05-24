@@ -159,7 +159,7 @@ xfs_iozero(
 		if (status)
 			goto unlock;
 
-		memclear_highpage_flush(page, offset, bytes);
+		zero_user_page(page, offset, bytes, KM_USER0);
 
 		status = mapping->a_ops->commit_write(NULL, page, offset,
 							offset + bytes);
