@@ -152,7 +152,7 @@ static u8 opcode_table[256] = {
 static u16 twobyte_table[256] = {
 	/* 0x00 - 0x0F */
 	0, SrcMem | ModRM | DstReg, 0, 0, 0, 0, ImplicitOps, 0,
-	0, 0, 0, 0, 0, ImplicitOps | ModRM, 0, 0,
+	0, ImplicitOps, 0, 0, 0, ImplicitOps | ModRM, 0, 0,
 	/* 0x10 - 0x1F */
 	0, 0, 0, 0, 0, 0, 0, 0, ImplicitOps | ModRM, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x20 - 0x2F */
@@ -1304,6 +1304,8 @@ twobyte_special_insn:
 	/* Disable writeback. */
 	dst.orig_val = dst.val;
 	switch (b) {
+	case 0x09:		/* wbinvd */
+		break;
 	case 0x0d:		/* GrpP (prefetch) */
 	case 0x18:		/* Grp16 (prefetch/nop) */
 		break;
