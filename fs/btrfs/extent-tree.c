@@ -443,6 +443,7 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	buf_leaf = btrfs_buffer_leaf(buf);
 	for (i = 0; i < btrfs_header_nritems(&buf_node->header); i++) {
 		if (leaf) {
+			u64 disk_blocknr;
 			key = &buf_leaf->items[i].key;
 			if (btrfs_disk_key_type(key) != BTRFS_EXTENT_DATA_KEY)
 				continue;
@@ -451,8 +452,10 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			if (btrfs_file_extent_type(fi) ==
 			    BTRFS_FILE_EXTENT_INLINE)
 				continue;
-			ret = btrfs_inc_extent_ref(trans, root,
-				    btrfs_file_extent_disk_blocknr(fi),
+			disk_blocknr = btrfs_file_extent_disk_blocknr(fi);
+			if (disk_blocknr == 0)
+				continue;
+			ret = btrfs_inc_extent_ref(trans, root, disk_blocknr,
 				    btrfs_file_extent_disk_num_blocks(fi));
 			BUG_ON(ret);
 		} else {
@@ -1248,6 +1251,7 @@ static int drop_leaf_ref(struct btrfs_trans_handle *trans,
 	leaf = btrfs_buffer_leaf(cur);
 	nritems = btrfs_header_nritems(&leaf->header);
 	for (i = 0; i < nritems; i++) {
+		u64 disk_blocknr;
 		key = &leaf->items[i].key;
 		if (btrfs_disk_key_type(key) != BTRFS_EXTENT_DATA_KEY)
 			continue;
@@ -1258,8 +1262,10 @@ static int drop_leaf_ref(struct btrfs_trans_handle *trans,
 		 * FIXME make sure to insert a trans record that
 		 * repeats the snapshot del on crash
 		 */
-		ret = btrfs_free_extent(trans, root,
-					btrfs_file_extent_disk_blocknr(fi),
+		disk_blocknr = btrfs_file_extent_disk_blocknr(fi);
+		if (disk_blocknr == 0)
+			continue;
+		ret = btrfs_free_extent(trans, root, disk_blocknr,
 					btrfs_file_extent_disk_num_blocks(fi),
 					0);
 		BUG_ON(ret);

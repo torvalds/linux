@@ -9,7 +9,8 @@
 int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
 			       u64 objectid, u64 pos,
-			       u64 offset, u64 num_blocks)
+			       u64 offset, u64 disk_num_blocks,
+			       u64 num_blocks)
 {
 	int ret = 0;
 	struct btrfs_file_extent_item *item;
@@ -30,7 +31,7 @@ int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 	item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]), path->slots[0],
 			      struct btrfs_file_extent_item);
 	btrfs_set_file_extent_disk_blocknr(item, offset);
-	btrfs_set_file_extent_disk_num_blocks(item, num_blocks);
+	btrfs_set_file_extent_disk_num_blocks(item, disk_num_blocks);
 	btrfs_set_file_extent_offset(item, 0);
 	btrfs_set_file_extent_num_blocks(item, num_blocks);
 	btrfs_set_file_extent_generation(item, trans->transid);
@@ -176,14 +177,14 @@ int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
 	if (btrfs_key_type(&found_key) != BTRFS_CSUM_ITEM_KEY ||
 	    found_key.objectid != objectid ||
 	    csum_offset >= MAX_CSUM_ITEMS(root)) {
-		WARN_ON(1);
 		goto insert;
 	}
 	if (csum_offset >= btrfs_item_size(leaf->items + path->slots[0]) /
 	    BTRFS_CRC32_SIZE) {
 		u32 diff = (csum_offset + 1) * BTRFS_CRC32_SIZE;
 		diff = diff - btrfs_item_size(leaf->items + path->slots[0]);
-		WARN_ON(diff != BTRFS_CRC32_SIZE);
+		if (diff != BTRFS_CRC32_SIZE)
+			goto insert;
 		ret = btrfs_extend_item(trans, root, path, diff);
 		BUG_ON(ret);
 		goto csum;
@@ -241,7 +242,7 @@ int btrfs_csum_verify_file_block(struct btrfs_root *root,
 		ret = PTR_ERR(item);
 		/* a csum that isn't present is a preallocated region. */
 		if (ret == -ENOENT || ret == -EFBIG)
-			ret = 1;
+			ret = -ENOENT;
 		goto fail;
 	}
 

@@ -1180,6 +1180,7 @@ int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
 			       u64 objectid, u64 pos, u64 offset,
+			       u64 disk_num_blocks,
 			       u64 num_blocks);
 int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
