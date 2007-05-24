@@ -20,8 +20,7 @@
 #define AES_DIR_DECRYPT 0
 #define AES_DIR_ENCRYPT 1
 
-#define AES_FLAGS_USRKEY   (1 << 0)
-#define AES_FLAGS_COHERENT (1 << 1)
+#define AES_FLAGS_HIDDENKEY (1 << 0)
 
 struct geode_aes_op {
 
