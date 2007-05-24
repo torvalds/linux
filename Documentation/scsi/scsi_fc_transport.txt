@@ -119,67 +119,67 @@ Vport Attributes:
 
   The new fc_vport class object has the following attributes
 
-     node_name:							Read_Only
+     node_name:                                                 Read_Only
        The WWNN of the vport
 
-     port_name:							Read_Only
+     port_name:                                                 Read_Only
        The WWPN of the vport
 
-     roles:							Read_Only
+     roles:                                                     Read_Only
        Indicates the FC4 roles enabled on the vport.
 
-     symbolic_name:						Read_Write
+     symbolic_name:                                             Read_Write
        A string, appended to the driver's symbolic port name string, which
        is registered with the switch to identify the vport. For example,
        a hypervisor could set this string to "Xen Domain 2 VM 5 Vport 2",
        and this set of identifiers can be seen on switch management screens
        to identify the port.
 
-     vport_delete:						Write_Only
+     vport_delete:                                              Write_Only
        When written with a "1", will tear down the vport.
 
-     vport_disable:						Write_Only
+     vport_disable:                                             Write_Only
        When written with a "1", will transition the vport to a disabled.
        state.  The vport will still be instantiated with the Linux kernel,
        but it will not be active on the FC link.
        When written with a "0", will enable the vport.
 
-     vport_last_state:						Read_Only
+     vport_last_state:                                          Read_Only
        Indicates the previous state of the vport.  See the section below on
        "Vport States".
 
-     vport_state:						Read_Only
+     vport_state:                                               Read_Only
        Indicates the state of the vport.  See the section below on
        "Vport States".
 
-     vport_type:						Read_Only
+     vport_type:                                                Read_Only
        Reflects the FC mechanism used to create the virtual port.
        Only NPIV is supported currently.
 
 
   For the fc_host class object, the following attributes are added for vports:
 
-     max_npiv_vports:						Read_Only
+     max_npiv_vports:                                           Read_Only
        Indicates the maximum number of NPIV-based vports that the
        driver/adapter can support on the fc_host.
 
-     npiv_vports_inuse:						Read_Only
+     npiv_vports_inuse:                                         Read_Only
        Indicates how many NPIV-based vports have been instantiated on the
        fc_host.
 
-     vport_create:						Write_Only
+     vport_create:                                              Write_Only
        A "simple" create interface to instantiate a vport on an fc_host.
        A "<WWPN>:<WWNN>" string is written to the attribute. The transport
        then instantiates the vport object and calls the LLDD to create the
        vport with the role of FCP_Initiator.  Each WWN is specified as 16
        hex characters and may *not* contain any prefixes (e.g. 0x, x, etc).
 
-     vport_delete:						Write_Only
+     vport_delete:                                              Write_Only
         A "simple" delete interface to teardown a vport. A "<WWPN>:<WWNN>"
-	string is written to the attribute. The transport will locate the
-	vport on the fc_host with the same WWNs and tear it down.  Each WWN
-	is specified as 16 hex characters and may *not* contain any prefixes
-	(e.g. 0x, x, etc).
+        string is written to the attribute. The transport will locate the
+        vport on the fc_host with the same WWNs and tear it down.  Each WWN
+        is specified as 16 hex characters and may *not* contain any prefixes
+        (e.g. 0x, x, etc).
 
 
 Vport States:
@@ -198,23 +198,23 @@ Vport States:
   Once a vport has been instantiated with the kernel/LLDD, a vport state
   can be reported via the sysfs attribute. The following states exist:
 
-    FC_VPORT_UNKNOWN		- Unknown
+    FC_VPORT_UNKNOWN            - Unknown
       An temporary state, typically set only while the vport is being
       instantiated with the kernel and LLDD.
 
-    FC_VPORT_ACTIVE		- Active
+    FC_VPORT_ACTIVE             - Active
       The vport has been successfully been created on the FC link.
       It is fully functional.
 
-    FC_VPORT_DISABLED		- Disabled
+    FC_VPORT_DISABLED           - Disabled
       The vport instantiated, but "disabled". The vport is not instantiated
       on the FC link. This is equivalent to a physical port with the
       link "down".
 
-    FC_VPORT_LINKDOWN		- Linkdown
+    FC_VPORT_LINKDOWN           - Linkdown
       The vport is not operational as the physical link is not operational.
 
-    FC_VPORT_INITIALIZING	- Initializing
+    FC_VPORT_INITIALIZING       - Initializing
       The vport is in the process of instantiating on the FC link.
       The LLDD will set this state just prior to starting the ELS traffic
       to create the vport. This state will persist until the vport is
@@ -222,65 +222,65 @@ Vport States:
       (state is one of the values below).  As this state is transitory,
       it will not be preserved in the "vport_last_state".
 
-    FC_VPORT_NO_FABRIC_SUPP	- No Fabric Support
+    FC_VPORT_NO_FABRIC_SUPP     - No Fabric Support
       The vport is not operational. One of the following conditions were
       encountered:
        - The FC topology is not Point-to-Point
        - The FC port is not connected to an F_Port
        - The F_Port has indicated that NPIV is not supported.
 
-    FC_VPORT_NO_FABRIC_RSCS	- No Fabric Resources
+    FC_VPORT_NO_FABRIC_RSCS     - No Fabric Resources
       The vport is not operational. The Fabric failed FDISC with a status
       indicating that it does not have sufficient resources to complete
       the operation.
 
-    FC_VPORT_FABRIC_LOGOUT	- Fabric Logout
+    FC_VPORT_FABRIC_LOGOUT      - Fabric Logout
       The vport is not operational. The Fabric has LOGO'd the N_Port_ID
       associated with the vport.
 
-    FC_VPORT_FABRIC_REJ_WWN	- Fabric Rejected WWN
+    FC_VPORT_FABRIC_REJ_WWN     - Fabric Rejected WWN
       The vport is not operational. The Fabric failed FDISC with a status
       indicating that the WWN's are not valid.
 
-    FC_VPORT_FAILED		- VPort Failed
+    FC_VPORT_FAILED             - VPort Failed
       The vport is not operational. This is a catchall for all other
       error conditions.
 
 
   The following state table indicates the different state transitions:
 
-    State              Event				New State
+    State              Event                            New State
     --------------------------------------------------------------------
-     n/a  		Initialization			Unknown
-    Unknown:		Link Down			Linkdown
-			Link Up & Loop			No Fabric Support
-			Link Up & no Fabric		No Fabric Support
-			Link Up & FLOGI response	No Fabric Support
-			  indicates no NPIV support
-			Link Up & FDISC being sent	Initializing
-			Disable request			Disable
-    Linkdown:		Link Up				Unknown
-    Initializing:	FDISC ACC			Active
-			FDISC LS_RJT w/ no resources	No Fabric Resources
-			FDISC LS_RJT w/ invalid		Fabric Rejected WWN
-			  pname or invalid nport_id
-			FDISC LS_RJT failed for		Vport Failed
-			  other reasons
-			Link Down			Linkdown
-			Disable request			Disable
-    Disable:		Enable request			Unknown
-    Active:		LOGO received from fabric	Fabric Logout
-			Link Down			Linkdown
-			Disable request			Disable
-    Fabric Logout:	Link still up			Unknown
+     n/a                Initialization                  Unknown
+    Unknown:            Link Down                       Linkdown
+                        Link Up & Loop                  No Fabric Support
+                        Link Up & no Fabric             No Fabric Support
+                        Link Up & FLOGI response        No Fabric Support
+                          indicates no NPIV support
+                        Link Up & FDISC being sent      Initializing
+                        Disable request                 Disable
+    Linkdown:           Link Up                         Unknown
+    Initializing:       FDISC ACC                       Active
+                        FDISC LS_RJT w/ no resources    No Fabric Resources
+                        FDISC LS_RJT w/ invalid         Fabric Rejected WWN
+                          pname or invalid nport_id
+                        FDISC LS_RJT failed for         Vport Failed
+                          other reasons
+                        Link Down                       Linkdown
+                        Disable request                 Disable
+    Disable:            Enable request                  Unknown
+    Active:             LOGO received from fabric       Fabric Logout
+                        Link Down                       Linkdown
+                        Disable request                 Disable
+    Fabric Logout:      Link still up                   Unknown
 
          The following 4 error states all have the same transitions:
     No Fabric Support:
     No Fabric Resources:
     Fabric Rejected WWN:
     Vport Failed:
-			Disable request			Disable
-			Link goes down			Linkdown
+                        Disable request                 Disable
+                        Link goes down                  Linkdown
 
 
 Transport <-> LLDD Interfaces :
@@ -303,9 +303,9 @@ Vport Creation:
       int vport_create(struct fc_vport *vport, bool disable)
 
     where:
-      vport:	Is the newly allocated vport object
-      disable:	If "true", the vport is to be created in a disabled stated.
-		If "false", the vport is to be enabled upon creation.
+      vport:    Is the newly allocated vport object
+      disable:  If "true", the vport is to be created in a disabled stated.
+                If "false", the vport is to be enabled upon creation.
 
   When a request is made to create a new vport (via sgio/netlink, or the
   vport_create fc_host attribute), the transport will validate that the LLDD
@@ -342,7 +342,7 @@ Vport Creation:
     - Validate Infrastructure:
         - If the driver or adapter cannot support another vport, whether
             due to improper firmware, (a lie about) max_npiv, or a lack of
-	    some other resource - return VPCERR_UNSUPPORTED.
+            some other resource - return VPCERR_UNSUPPORTED.
         - If the driver validates the WWN's against those already active on
             the adapter and detects an overlap - return VPCERR_BAD_WWN.
         - If the driver detects the topology is loop, non-fabric, or the
@@ -351,9 +351,9 @@ Vport Creation:
         of memory conditions, return the respective negative Exxx error code.
     - If the role is FCP Initiator, the LLDD is to :
         - Call scsi_host_alloc() to allocate a scsi_host for the vport.
-	- Call scsi_add_host(new_shost, &vport->dev) to start the scsi_host
-	  and bind it as a child of the vport device.
-	- Initializes the fc_host attribute values.
+        - Call scsi_add_host(new_shost, &vport->dev) to start the scsi_host
+          and bind it as a child of the vport device.
+        - Initializes the fc_host attribute values.
     - Kick of further vport state transitions based on the disable flag and
         link state - and return success (zero).
 
@@ -376,9 +376,9 @@ Vport Disable/Enable:
       int vport_disable(struct fc_vport *vport, bool disable)
 
     where:
-      vport:	Is vport to to be enabled or disabled
-      disable:	If "true", the vport is to be disabled.
-		If "false", the vport is to be enabled.
+      vport:    Is vport to to be enabled or disabled
+      disable:  If "true", the vport is to be disabled.
+                If "false", the vport is to be enabled.
 
   When a request is made to change the disabled state on a vport, the
   transport will validate the request against the existing vport state.
@@ -404,7 +404,7 @@ Vport Deletion:
       int vport_delete(struct fc_vport *vport)
 
     where:
-      vport:	Is vport to delete
+      vport:    Is vport to delete
 
   When a request is made to delete a vport (via sgio/netlink, or via the
   fc_host or fc_vport vport_delete attributes), the transport will call

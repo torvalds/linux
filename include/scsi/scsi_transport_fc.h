@@ -1,4 +1,4 @@
-/* 
+/*
  *  FiberChannel transport specific attributes exported to sysfs.
  *
  *  Copyright (c) 2003 Silicon Graphics, Inc.  All rights reserved.
@@ -104,7 +104,7 @@ enum fc_vport_state {
 
 
 
-/* 
+/*
  * FC Classes of Service
  * Note: values are not enumerated, as they can be "or'd" together
  * for reporting (e.g. report supported_classes). If you alter this list,
@@ -117,7 +117,7 @@ enum fc_vport_state {
 #define FC_COS_CLASS4			0x10
 #define FC_COS_CLASS6			0x40
 
-/* 
+/*
  * FC Port Speeds
  * Note: values are not enumerated, as they can be "or'd" together
  * for reporting (e.g. report supported_speeds). If you alter this list,
@@ -223,6 +223,7 @@ struct fc_vport {
 	u8 flags;
 	struct list_head peers;
 	struct device dev;
+	struct work_struct vport_delete_work;
 } __attribute__((aligned(sizeof(unsigned long))));
 
 /* bit field values for struct fc_vport "flags" field: */
@@ -397,7 +398,7 @@ struct fc_host_statistics {
 	u64 prim_seq_protocol_err_count;
 	u64 invalid_tx_word_count;
 	u64 invalid_crc_count;
-	
+
 	/* fc4 statistics  (only FCP supported currently) */
 	u64 fcp_input_requests;
 	u64 fcp_output_requests;
@@ -592,11 +593,11 @@ struct fc_function_template {
 	u32	 			dd_fcrport_size;
 	u32	 			dd_fcvport_size;
 
-	/* 
+	/*
 	 * The driver sets these to tell the transport class it
 	 * wants the attributes displayed in sysfs.  If the show_ flag
 	 * is not set, the attribute will be private to the transport
-	 * class 
+	 * class
 	 */
 
 	/* remote port fixed attributes */

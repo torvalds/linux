@@ -1,4 +1,4 @@
-/* 
+/*
  *  FiberChannel transport specific attributes exported to sysfs.
  *
  *  Copyright (c) 2003 Silicon Graphics, Inc.  All rights reserved.
@@ -22,6 +22,7 @@
  *  Copyright (C) 2004-2007   James Smart, Emulex Corporation
  *    Rewrite for host, target, device, and remote port attributes,
  *    statistics, and service functions...
+ *    Add vports, etc
  *
  */
 #include <linux/module.h>
@@ -37,6 +38,7 @@
 #include "scsi_priv.h"
 
 static int fc_queue_work(struct Scsi_Host *, struct work_struct *);
+static void fc_vport_sched_delete(struct work_struct *work);
 
 /*
  * This is a temporary carrier for creating a vport. It will eventually
@@ -377,7 +379,7 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 	struct Scsi_Host *shost = dev_to_shost(dev);
 	struct fc_host_attrs *fc_host = shost_to_fc_host(shost);
 
-	/* 
+	/*
 	 * Set default values easily detected by the midlayer as
 	 * failure cases.  The scsi lldd is responsible for initializing
 	 * all transport attributes to valid values per host.
@@ -1198,12 +1200,9 @@ store_fc_vport_delete(struct class_device *cdev, const char *buf,
 			   size_t count)
 {
 	struct fc_vport *vport = transport_class_to_vport(cdev);
-	int stat;
+	struct Scsi_Host *shost = vport_to_shost(vport);
 
-	stat = fc_vport_terminate(vport);
-	if (stat)
-		return stat;
-
+	fc_queue_work(shost, &vport->vport_delete_work);
 	return count;
 }
 static FC_CLASS_DEVICE_ATTR(vport, vport_delete, S_IWUSR,
@@ -1996,7 +1995,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	i->t.eh_timed_out = fc_timed_out;
 
 	i->t.user_scan = fc_user_scan;
-	
+
 	/*
 	 * Setup SCSI Target Attributes.
 	 */
@@ -2215,23 +2214,12 @@ fc_remove_host(struct Scsi_Host *shost)
 	struct workqueue_struct *work_q;
 	struct fc_host_attrs *fc_host = shost_to_fc_host(shost);
 	unsigned long flags;
-	int stat;
 
 	spin_lock_irqsave(shost->host_lock, flags);
 
 	/* Remove any vports */
-	list_for_each_entry_safe(vport, next_vport, &fc_host->vports, peers) {
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		/* this must be called synchronously */
-		stat = fc_vport_terminate(vport);
-		spin_lock_irqsave(shost->host_lock, flags);
-		if (stat)
-			dev_printk(KERN_ERR, vport->dev.parent,
-				"%s: %s could not be deleted created via "
-				"shost%d channel %d\n", __FUNCTION__,
-				vport->dev.bus_id, vport->shost->host_no,
-				vport->channel);
-	}
+	list_for_each_entry_safe(vport, next_vport, &fc_host->vports, peers)
+		fc_queue_work(shost, &vport->vport_delete_work);
 
 	/* Remove any remote ports */
 	list_for_each_entry_safe(rport, next_rport,
@@ -2308,7 +2296,7 @@ fc_rport_final_delete(struct work_struct *work)
 	unsigned long flags;
 
 	/*
-	 * if a scan is pending, flush the SCSI Host work_q so that 
+	 * if a scan is pending, flush the SCSI Host work_q so that
 	 * that we can reclaim the rport scan work element.
 	 */
 	if (rport->flags & FC_RPORT_SCAN_PENDING)
@@ -2858,7 +2846,7 @@ EXPORT_SYMBOL(fc_remote_port_rolechg);
  * fc_timeout_deleted_rport - Timeout handler for a deleted remote port,
  * 			which we blocked, and has now failed to return
  * 			in the allotted time.
- * 
+ *
  * @work:	rport target that failed to reappear in the allotted time.
  **/
 static void
@@ -3061,6 +3049,7 @@ fc_vport_create(struct Scsi_Host *shost, int channel, struct device *pdev,
 	vport->shost = shost;
 	vport->channel = channel;
 	vport->flags = FC_VPORT_CREATING;
+	INIT_WORK(&vport->vport_delete_work, fc_vport_sched_delete);
 
 	spin_lock_irqsave(shost->host_lock, flags);
 
@@ -3207,8 +3196,30 @@ fc_vport_terminate(struct fc_vport *vport)
 }
 EXPORT_SYMBOL(fc_vport_terminate);
 
+/**
+ * fc_vport_sched_delete - workq-based delete request for a vport
+ *
+ * @work:	vport to be deleted.
+ **/
+static void
+fc_vport_sched_delete(struct work_struct *work)
+{
+	struct fc_vport *vport =
+		container_of(work, struct fc_vport, vport_delete_work);
+	int stat;
 
-MODULE_AUTHOR("Martin Hicks");
+	stat = fc_vport_terminate(vport);
+	if (stat)
+		dev_printk(KERN_ERR, vport->dev.parent,
+			"%s: %s could not be deleted created via "
+			"shost%d channel %d - error %d\n", __FUNCTION__,
+			vport->dev.bus_id, vport->shost->host_no,
+			vport->channel, stat);
+}
+
+
+/* Original Author:  Martin Hicks */
+MODULE_AUTHOR("James Smart");
 MODULE_DESCRIPTION("FC Transport Attributes");
 MODULE_LICENSE("GPL");
 
