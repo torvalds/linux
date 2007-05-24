@@ -67,7 +67,8 @@ EXPORT_SYMBOL(pm_power_off);
 unsigned int acpi_cpei_override;
 unsigned int acpi_cpei_phys_cpuid;
 
-const char *acpi_get_sysname(void)
+const char __init *
+acpi_get_sysname(void)
 {
 #ifdef CONFIG_IA64_GENERIC
 	unsigned long rsdp_phys;
