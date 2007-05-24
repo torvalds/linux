@@ -2099,8 +2099,12 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	ext4_ext_store_pblock(&newex, newblock);
 	newex.ee_len = cpu_to_le16(allocated);
 	err = ext4_ext_insert_extent(handle, inode, path, &newex);
-	if (err)
+	if (err) {
+		/* free data blocks we just allocated */
+		ext4_free_blocks(handle, inode, ext_pblock(&newex),
+					le16_to_cpu(newex.ee_len));
 		goto out2;
+	}
 
 	if (extend_disksize && inode->i_size > EXT4_I(inode)->i_disksize)
 		EXT4_I(inode)->i_disksize = inode->i_size;
