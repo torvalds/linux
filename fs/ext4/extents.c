@@ -1128,6 +1128,55 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 }
 
 /*
+ * check if a portion of the "newext" extent overlaps with an
+ * existing extent.
+ *
+ * If there is an overlap discovered, it updates the length of the newext
+ * such that there will be no overlap, and then returns 1.
+ * If there is no overlap found, it returns 0.
+ */
+unsigned int ext4_ext_check_overlap(struct inode *inode,
+				    struct ext4_extent *newext,
+				    struct ext4_ext_path *path)
+{
+	unsigned long b1, b2;
+	unsigned int depth, len1;
+	unsigned int ret = 0;
+
+	b1 = le32_to_cpu(newext->ee_block);
+	len1 = le16_to_cpu(newext->ee_len);
+	depth = ext_depth(inode);
+	if (!path[depth].p_ext)
+		goto out;
+	b2 = le32_to_cpu(path[depth].p_ext->ee_block);
+
+	/*
+	 * get the next allocated block if the extent in the path
+	 * is before the requested block(s) 
+	 */
+	if (b2 < b1) {
+		b2 = ext4_ext_next_allocated_block(path);
+		if (b2 == EXT_MAX_BLOCK)
+			goto out;
+	}
+
+	/* check for wrap through zero */
+	if (b1 + len1 < b1) {
+		len1 = EXT_MAX_BLOCK - b1;
+		newext->ee_len = cpu_to_le16(len1);
+		ret = 1;
+	}
+
+	/* check for overlap */
+	if (b1 + len1 > b2) {
+		newext->ee_len = cpu_to_le16(b2 - b1);
+		ret = 1;
+	}
+out:
+	return ret;
+}
+
+/*
  * ext4_ext_insert_extent:
  * tries to merge requsted extent into the existing extent or
  * inserts requested extent as new one into the tree,
@@ -2031,7 +2080,15 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 
 	/* allocate new block */
 	goal = ext4_ext_find_goal(inode, path, iblock);
-	allocated = max_blocks;
+
+	/* Check if we can really insert (iblock)::(iblock+max_blocks) extent */
+	newex.ee_block = cpu_to_le32(iblock);
+	newex.ee_len = cpu_to_le16(max_blocks);
+	err = ext4_ext_check_overlap(inode, &newex, path);
+	if (err)
+		allocated = le16_to_cpu(newex.ee_len);
+	else
+		allocated = max_blocks;
 	newblock = ext4_new_blocks(handle, inode, goal, &allocated, &err);
 	if (!newblock)
 		goto out2;
@@ -2039,7 +2096,6 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 			goal, newblock, allocated);
 
 	/* try to insert new extent into found leaf and return */
-	newex.ee_block = cpu_to_le32(iblock);
 	ext4_ext_store_pblock(&newex, newblock);
 	newex.ee_len = cpu_to_le16(allocated);
 	err = ext4_ext_insert_extent(handle, inode, path, &newex);
