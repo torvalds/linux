@@ -550,13 +550,30 @@ static int recvs_pending(struct net_device *dev)
 	return pending;
 }
 
+void ipoib_drain_cq(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	int i, n;
+	do {
+		n = ib_poll_cq(priv->cq, IPOIB_NUM_WC, priv->ibwc);
+		for (i = 0; i < n; ++i) {
+			if (priv->ibwc[i].wr_id & IPOIB_CM_OP_SRQ)
+				ipoib_cm_handle_rx_wc(dev, priv->ibwc + i);
+			else if (priv->ibwc[i].wr_id & IPOIB_OP_RECV)
+				ipoib_ib_handle_rx_wc(dev, priv->ibwc + i);
+			else
+				ipoib_ib_handle_tx_wc(dev, priv->ibwc + i);
+		}
+	} while (n == IPOIB_NUM_WC);
+}
+
 int ipoib_ib_dev_stop(struct net_device *dev, int flush)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ib_qp_attr qp_attr;
 	unsigned long begin;
 	struct ipoib_tx_buf *tx_req;
-	int i, n;
+	int i;
 
 	clear_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
 	netif_poll_disable(dev);
@@ -611,17 +628,7 @@ int ipoib_ib_dev_stop(struct net_device *dev, int flush)
 			goto timeout;
 		}
 
-		do {
-			n = ib_poll_cq(priv->cq, IPOIB_NUM_WC, priv->ibwc);
-			for (i = 0; i < n; ++i) {
-				if (priv->ibwc[i].wr_id & IPOIB_CM_OP_SRQ)
-					ipoib_cm_handle_rx_wc(dev, priv->ibwc + i);
-				else if (priv->ibwc[i].wr_id & IPOIB_OP_RECV)
-					ipoib_ib_handle_rx_wc(dev, priv->ibwc + i);
-				else
-					ipoib_ib_handle_tx_wc(dev, priv->ibwc + i);
-			}
-		} while (n == IPOIB_NUM_WC);
+		ipoib_drain_cq(dev);
 
 		msleep(1);
 	}

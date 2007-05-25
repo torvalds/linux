@@ -713,7 +713,7 @@ void ipoib_cm_dev_stop(struct net_device *dev)
 	while (!list_empty(&priv->cm.rx_error_list) ||
 	       !list_empty(&priv->cm.rx_flush_list) ||
 	       !list_empty(&priv->cm.rx_drain_list)) {
-		if (!time_after(jiffies, begin + 5 * HZ)) {
+		if (time_after(jiffies, begin + 5 * HZ)) {
 			ipoib_warn(priv, "RX drain timing out\n");
 
 			/*
@@ -726,6 +726,7 @@ void ipoib_cm_dev_stop(struct net_device *dev)
 		}
 		spin_unlock_irq(&priv->lock);
 		msleep(1);
+		ipoib_drain_cq(dev);
 		spin_lock_irq(&priv->lock);
 	}
 

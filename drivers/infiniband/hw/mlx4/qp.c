@@ -270,9 +270,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			    struct ib_qp_init_attr *init_attr,
 			    struct ib_udata *udata, int sqpn, struct mlx4_ib_qp *qp)
 {
-	struct mlx4_wqe_ctrl_seg *ctrl;
 	int err;
-	int i;
 
 	mutex_init(&qp->mutex);
 	spin_lock_init(&qp->sq.lock);
@@ -319,20 +317,24 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		if (err)
 			goto err_mtt;
 
-		err = mlx4_ib_db_map_user(to_mucontext(pd->uobject->context),
-					  ucmd.db_addr, &qp->db);
-		if (err)
-			goto err_mtt;
+		if (!init_attr->srq) {
+			err = mlx4_ib_db_map_user(to_mucontext(pd->uobject->context),
+						  ucmd.db_addr, &qp->db);
+			if (err)
+				goto err_mtt;
+		}
 	} else {
 		err = set_kernel_sq_size(dev, &init_attr->cap, init_attr->qp_type, qp);
 		if (err)
 			goto err;
 
-		err = mlx4_ib_db_alloc(dev, &qp->db, 0);
-		if (err)
-			goto err;
+		if (!init_attr->srq) {
+			err = mlx4_ib_db_alloc(dev, &qp->db, 0);
+			if (err)
+				goto err;
 
-		*qp->db.db = 0;
+			*qp->db.db = 0;
+		}
 
 		if (mlx4_buf_alloc(dev->dev, qp->buf_size, PAGE_SIZE * 2, &qp->buf)) {
 			err = -ENOMEM;
@@ -347,11 +349,6 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		err = mlx4_buf_write_mtt(dev->dev, &qp->mtt, &qp->buf);
 		if (err)
 			goto err_mtt;
-
-		for (i = 0; i < qp->sq.max; ++i) {
-			ctrl = get_send_wqe(qp, i);
-			ctrl->owner_opcode = cpu_to_be32(1 << 31);
-		}
 
 		qp->sq.wrid  = kmalloc(qp->sq.max * sizeof (u64), GFP_KERNEL);
 		qp->rq.wrid  = kmalloc(qp->rq.max * sizeof (u64), GFP_KERNEL);
@@ -386,7 +383,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	return 0;
 
 err_wrid:
-	if (pd->uobject)
+	if (pd->uobject && !init_attr->srq)
 		mlx4_ib_db_unmap_user(to_mucontext(pd->uobject->context), &qp->db);
 	else {
 		kfree(qp->sq.wrid);
@@ -403,7 +400,7 @@ err_buf:
 		mlx4_buf_free(dev->dev, qp->buf_size, &qp->buf);
 
 err_db:
-	if (!pd->uobject)
+	if (!pd->uobject && !init_attr->srq)
 		mlx4_ib_db_free(dev, &qp->db);
 
 err:
@@ -481,14 +478,16 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 	mlx4_mtt_cleanup(dev->dev, &qp->mtt);
 
 	if (is_user) {
-		mlx4_ib_db_unmap_user(to_mucontext(qp->ibqp.uobject->context),
-				      &qp->db);
+		if (!qp->ibqp.srq)
+			mlx4_ib_db_unmap_user(to_mucontext(qp->ibqp.uobject->context),
+					      &qp->db);
 		ib_umem_release(qp->umem);
 	} else {
 		kfree(qp->sq.wrid);
 		kfree(qp->rq.wrid);
 		mlx4_buf_free(dev->dev, qp->buf_size, &qp->buf);
-		mlx4_ib_db_free(dev, &qp->db);
+		if (!qp->ibqp.srq)
+			mlx4_ib_db_free(dev, &qp->db);
 	}
 }
 
@@ -852,7 +851,7 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 	if (ibqp->srq)
 		context->srqn = cpu_to_be32(1 << 24 | to_msrq(ibqp->srq)->msrq.srqn);
 
-	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
+	if (!ibqp->srq && cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
 		context->db_rec_addr = cpu_to_be64(qp->db.dma);
 
 	if (cur_state == IB_QPS_INIT &&
@@ -871,6 +870,21 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 		sqd_event = 1;
 	else
 		sqd_event = 0;
+
+	/*
+	 * Before passing a kernel QP to the HW, make sure that the
+	 * ownership bits of the send queue are set so that the
+	 * hardware doesn't start processing stale work requests.
+	 */
+	if (!ibqp->uobject && cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT) {
+		struct mlx4_wqe_ctrl_seg *ctrl;
+		int i;
+
+		for (i = 0; i < qp->sq.max; ++i) {
+			ctrl = get_send_wqe(qp, i);
+			ctrl->owner_opcode = cpu_to_be32(1 << 31);
+		}
+	}
 
 	err = mlx4_qp_modify(dev->dev, &qp->mtt, to_mlx4_state(cur_state),
 			     to_mlx4_state(new_state), context, optpar,
@@ -919,7 +933,8 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 		qp->rq.tail = 0;
 		qp->sq.head = 0;
 		qp->sq.tail = 0;
-		*qp->db.db  = 0;
+		if (!ibqp->srq)
+			*qp->db.db  = 0;
 	}
 
 out:
