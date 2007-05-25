@@ -50,7 +50,7 @@ do { if ((libertas_debug & (grp)) == (grp)) \
 #endif
 
 #define lbs_deb_enter(grp) \
-  LBS_DEB_LL(grp | LBS_DEB_ENTER, "%s() %d enter\n", __FUNCTION__, __LINE__);
+  LBS_DEB_LL(grp | LBS_DEB_ENTER, "%s():%d enter\n", __FUNCTION__, __LINE__);
 #define lbs_deb_enter_args(grp, fmt, args...) \
   LBS_DEB_LL(grp | LBS_DEB_ENTER, "%s(" fmt "):%d\n", __FUNCTION__, ## args, __LINE__);
 #define lbs_deb_leave(grp) \

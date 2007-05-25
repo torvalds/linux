@@ -1130,9 +1130,9 @@ void libertas_interrupt(struct net_device *dev)
 {
 	wlan_private *priv = dev->priv;
 
-	lbs_deb_enter(LBS_DEB_MAIN);
+	lbs_deb_enter(LBS_DEB_THREAD);
 
-	lbs_deb_main("libertas_interrupt: intcounter=%d\n",
+	lbs_deb_thread("libertas_interrupt: intcounter=%d\n",
 	       priv->adapter->intcounter);
 
 	priv->adapter->intcounter++;
@@ -1144,7 +1144,7 @@ void libertas_interrupt(struct net_device *dev)
 
 	wake_up_interruptible(&priv->mainthread.waitq);
 
-	lbs_deb_leave(LBS_DEB_MAIN);
+	lbs_deb_leave(LBS_DEB_THREAD);
 }
 
 static int wlan_init_module(void)
