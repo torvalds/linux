@@ -993,7 +993,7 @@ wlan_private *wlan_add_card(void *card)
 		goto err_init_fw;
 	}
 
-	lbs_pr_info("%s: Marvell Wlan 802.11 adapter ", dev->name);
+	lbs_pr_info("%s: Marvell Wlan 802.11 adapter\n", dev->name);
 
 	libertas_debugfs_init_one(priv, dev);
 
