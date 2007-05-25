@@ -31,7 +31,7 @@ static int via_do_init_map(drm_device_t * dev, drm_via_init_t * init)
 
 	DRM_DEBUG("%s\n", __FUNCTION__);
 
-	DRM_GETSAREA();
+	dev_priv->sarea = drm_getsarea(dev);
 	if (!dev_priv->sarea) {
 		DRM_ERROR("could not find sarea!\n");
 		dev->dev_private = (void *)dev_priv;

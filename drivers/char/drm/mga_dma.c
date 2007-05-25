@@ -823,8 +823,7 @@ static int mga_do_init_dma(drm_device_t * dev, drm_mga_init_t * init)
 	dev_priv->texture_offset = init->texture_offset[0];
 	dev_priv->texture_size = init->texture_size[0];
 
-	DRM_GETSAREA();
-
+	dev_priv->sarea = drm_getsarea(dev);
 	if (!dev_priv->sarea) {
 		DRM_ERROR("failed to find sarea!\n");
 		return DRM_ERR(EINVAL);

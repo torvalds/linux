@@ -96,24 +96,6 @@ static __inline__ int mtrr_del(int reg, unsigned long base, unsigned long size)
 
 #define DRM_GET_PRIV_WITH_RETURN(_priv, _filp) _priv = _filp->private_data
 
-/**
- * Get the pointer to the SAREA.
- *
- * Searches the SAREA on the mapping lists and points drm_device::sarea to it.
- */
-#define DRM_GETSAREA()							 \
-do { 									 \
-	drm_map_list_t *entry;						 \
-	list_for_each_entry( entry, &dev->maplist, head ) {		 \
-		if ( entry->map &&					 \
-		     entry->map->type == _DRM_SHM &&			 \
-		     (entry->map->flags & _DRM_CONTAINS_LOCK) ) {	 \
-			dev_priv->sarea = entry->map;			 \
- 			break;						 \
- 		}							 \
- 	}								 \
-} while (0)
-
 #define DRM_HZ HZ
 
 #define DRM_WAIT_ON( ret, queue, timeout, condition )		\

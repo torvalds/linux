@@ -132,7 +132,7 @@ static int i915_initialize(drm_device_t * dev,
 {
 	memset(dev_priv, 0, sizeof(drm_i915_private_t));
 
-	DRM_GETSAREA();
+	dev_priv->sarea = drm_getsarea(dev);
 	if (!dev_priv->sarea) {
 		DRM_ERROR("can not find sarea!\n");
 		dev->dev_private = (void *)dev_priv;

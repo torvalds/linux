@@ -711,7 +711,7 @@ static int savage_do_init_bci(drm_device_t * dev, drm_savage_init_t * init)
 	dev_priv->texture_offset = init->texture_offset;
 	dev_priv->texture_size = init->texture_size;
 
-	DRM_GETSAREA();
+	dev_priv->sarea = drm_getsarea(dev);
 	if (!dev_priv->sarea) {
 		DRM_ERROR("could not find sarea!\n");
 		savage_do_cleanup_bci(dev);
