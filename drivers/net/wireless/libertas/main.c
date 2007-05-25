@@ -266,8 +266,11 @@ static int wlan_dev_open(struct net_device *dev)
 
 	if (adapter->connect_status == libertas_connected) {
 		netif_carrier_on(priv->wlan_dev.netdev);
-	} else
+		netif_carrier_on(priv->mesh_dev);
+	} else {
 		netif_carrier_off(priv->wlan_dev.netdev);
+		netif_carrier_off(priv->mesh_dev);
+	}
 
 	lbs_deb_leave(LBS_DEB_NET);
 	return 0;
@@ -285,7 +288,7 @@ static int mesh_open(struct net_device *dev)
 	if (pre_open_check(dev) == -1)
 		return -1;
 	priv->mesh_open = 1 ;
-	netif_start_queue(priv->mesh_dev);
+	netif_wake_queue(priv->mesh_dev);
 	if (priv->infra_open == 0)
 		return wlan_dev_open(priv->wlan_dev.netdev) ;
 	return 0;
@@ -317,6 +320,7 @@ static int wlan_dev_close(struct net_device *dev)
 	lbs_deb_enter(LBS_DEB_NET);
 
 	netif_carrier_off(priv->wlan_dev.netdev);
+	netif_carrier_off(priv->mesh_dev);
 	priv->open = 0;
 
 	lbs_deb_leave(LBS_DEB_NET);
@@ -373,6 +377,7 @@ static int wlan_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	netif_stop_queue(priv->wlan_dev.netdev);
+	netif_stop_queue(priv->mesh_dev);
 
 	if (libertas_process_tx(priv, skb) == 0)
 		dev->trans_start = jiffies;
@@ -435,8 +440,10 @@ static void wlan_tx_timeout(struct net_device *dev)
 			libertas_send_tx_feedback(priv);
 		} else
 			wake_up_interruptible(&priv->mainthread.waitq);
-	} else if (priv->adapter->connect_status == libertas_connected)
+	} else if (priv->adapter->connect_status == libertas_connected) {
 		netif_wake_queue(priv->wlan_dev.netdev);
+		netif_wake_queue(priv->mesh_dev);
+	}
 
 	lbs_deb_leave(LBS_DEB_TX);
 }
@@ -1029,6 +1036,7 @@ void wlan_remove_mesh(wlan_private *priv)
 	mesh_dev = priv->mesh_dev;
 
 	netif_stop_queue(mesh_dev);
+	netif_carrier_off(priv->mesh_dev);
 
 	device_remove_file(&(mesh_dev->dev), &dev_attr_libertas_mpp);
 	unregister_netdev(mesh_dev);
@@ -1127,6 +1135,7 @@ void libertas_interrupt(struct net_device *dev)
 	if (priv->adapter->psstate == PS_STATE_SLEEP) {
 		priv->adapter->psstate = PS_STATE_AWAKE;
 		netif_wake_queue(dev);
+		netif_wake_queue(priv->mesh_dev);
 	}
 
 	wake_up_interruptible(&priv->mainthread.waitq);

@@ -60,8 +60,10 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 		/* Wake main thread if commands are pending */
 		if (!adapter->cur_cmd)
 			wake_up_interruptible(&priv->mainthread.waitq);
-		if ((adapter->connect_status == libertas_connected))
+		if ((adapter->connect_status == libertas_connected)) {
 			netif_wake_queue(dev);
+			netif_wake_queue(priv->mesh_dev);
+		}
 	}
 
 	return;
@@ -195,6 +197,9 @@ static int if_usb_probe(struct usb_interface *intf,
 	if (!(priv = wlan_add_card(usb_cardp)))
 		goto dealloc;
 
+	if (wlan_add_mesh(priv))
+		goto dealloc;
+
 	if (libertas_activate_card(priv))
 		goto dealloc;
 
@@ -202,9 +207,6 @@ static int if_usb_probe(struct usb_interface *intf,
 		libertas_devs[libertas_found] = priv->wlan_dev.netdev;
 		libertas_found++;
 	}
-
-	if (wlan_add_mesh(priv))
-		goto dealloc;
 
 	usb_get_dev(udev);
 	usb_set_intfdata(intf, usb_cardp);
@@ -790,6 +792,7 @@ int libertas_sbi_register_dev(wlan_private * priv)
 	priv->hotplug_device = &(cardp->udev->dev);
 
 	SET_NETDEV_DEV(cardp->eth_dev, &(cardp->udev->dev));
+	SET_NETDEV_DEV(priv->mesh_dev, &(cardp->udev->dev));
 
 	lbs_deb_usbd(&cardp->udev->dev, "udev pointer is at %p\n",
 		    cardp->udev);
@@ -896,6 +899,7 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 		return -1;
 
 	netif_device_detach(cardp->eth_dev);
+	netif_device_detach(priv->mesh_dev);
 
 	/* Unlink tx & rx urb */
 	usb_kill_urb(cardp->tx_urb);
@@ -910,6 +914,7 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 static int if_usb_resume(struct usb_interface *intf)
 {
 	struct usb_card_rec *cardp = usb_get_intfdata(intf);
+	wlan_private *priv = cardp->priv;
 
 	lbs_deb_enter(LBS_DEB_USB);
 
@@ -918,6 +923,7 @@ static int if_usb_resume(struct usb_interface *intf)
 	if_usb_submit_rx_urb(cardp->priv);
 
 	netif_device_attach(cardp->eth_dev);
+	netif_device_attach(priv->mesh_dev);
 
 	lbs_deb_leave(LBS_DEB_USB);
 	return 0;
