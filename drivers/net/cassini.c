@@ -4920,7 +4920,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 	pci_cmd |= PCI_COMMAND_PARITY;
 	pci_write_config_word(pdev, PCI_COMMAND, pci_cmd);
 	if (pci_set_mwi(pdev))
-		printk(KERN_WARNING PFX "Could enable MWI for %s\n",
+		printk(KERN_WARNING PFX "Could not enable MWI for %s\n",
 		       pci_name(pdev));
 
 	/*
