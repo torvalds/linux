@@ -4,6 +4,7 @@
   * thread etc..
   */
 
+#include <linux/moduleparam.h>
 #include <linux/delay.h>
 #include <linux/freezer.h>
 #include <linux/etherdevice.h>
@@ -28,6 +29,13 @@ const char libertas_driver_version[] = "COMM-USB8388-" DRIVER_RELEASE_VERSION
     "-dbg"
 #endif
     "";
+
+
+/* Module parameters */
+unsigned int libertas_debug = 0;
+module_param(libertas_debug, int, 0644);
+
+
 
 #define WLAN_TX_PWR_DEFAULT		20	/*100mW */
 #define WLAN_TX_PWR_US_DEFAULT		20	/*100mW */

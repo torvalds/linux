@@ -1,12 +1,8 @@
 /**
   * This file contains the initialization for FW and HW
   */
-#include <linux/module.h>
 #include <linux/moduleparam.h>
-
-#include <linux/vmalloc.h>
 #include <linux/firmware.h>
-#include <linux/version.h>
 
 #include "host.h"
 #include "sbi.h"
@@ -19,9 +15,6 @@
 
 char *libertas_fw_name = NULL;
 module_param_named(fw_name, libertas_fw_name, charp, 0644);
-
-unsigned int libertas_debug_flags = 0;
-module_param_named(debug, libertas_debug_flags, int, 0);
 
 /**
  *  @brief This function checks the validity of Boot2/FW image.

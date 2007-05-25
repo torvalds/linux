@@ -15,34 +15,34 @@
 #define DRV_NAME "usb8xxx"
 
 
-#define LBS_DEB_ENTER	(1<<0)
-#define LBS_DEB_LEAVE	(1<<1)
-#define LBS_DEB_MAIN	(1<<2)
-#define LBS_DEB_NET	(1<<3)
-#define LBS_DEB_MESH	(1<<4)
-#define LBS_DEB_WEXT	(1<<5)
-#define LBS_DEB_IOCTL	(1<<6)
-#define LBS_DEB_SCAN	(1<<7)
-#define LBS_DEB_ASSOC	(1<<8)
-#define LBS_DEB_JOIN	(1<<9)
-#define LBS_DEB_11D	(1<<10)
-#define LBS_DEB_DEBUGFS	(1<<11)
-#define LBS_DEB_ETHTOOL	(1<<12)
-#define LBS_DEB_HOST	(1<<13)
-#define LBS_DEB_CMD	(1<<14)
-#define LBS_DEB_RX	(1<<15)
-#define LBS_DEB_TX	(1<<16)
-#define LBS_DEB_FW	(1<<17)
-#define LBS_DEB_USB	(1<<18)
-#define LBS_DEB_CS	(1<<19)
-#define LBS_DEB_THREAD	(1<<20)
-#define LBS_DEB_HEX	(1<<21)
+#define LBS_DEB_ENTER	0x00000001
+#define LBS_DEB_LEAVE	0x00000002
+#define LBS_DEB_MAIN	0x00000004
+#define LBS_DEB_NET	0x00000008
+#define LBS_DEB_MESH	0x00000010
+#define LBS_DEB_WEXT	0x00000020
+#define LBS_DEB_IOCTL	0x00000040
+#define LBS_DEB_SCAN	0x00000080
+#define LBS_DEB_ASSOC	0x00000100
+#define LBS_DEB_JOIN	0x00000200
+#define LBS_DEB_11D	0x00000400
+#define LBS_DEB_DEBUGFS	0x00000800
+#define LBS_DEB_ETHTOOL	0x00001000
+#define LBS_DEB_HOST	0x00002000
+#define LBS_DEB_CMD	0x00004000
+#define LBS_DEB_RX	0x00008000
+#define LBS_DEB_TX	0x00010000
+#define LBS_DEB_USB	0x00020000
+#define LBS_DEB_CS	0x00040000
+#define LBS_DEB_FW	0x00080000
+#define LBS_DEB_THREAD	0x00100000
+#define LBS_DEB_HEX	0x00200000
 
-extern unsigned int libertas_debug_flags;
+extern unsigned int libertas_debug;
 
 #ifdef DEBUG
 #define LBS_DEB_LL(grp, fmt, args...) \
-do { if ((libertas_debug_flags & (grp)) == (grp)) \
+do { if ((libertas_debug & (grp)) == (grp)) \
   printk(KERN_DEBUG DRV_NAME "%s: " fmt, \
          in_interrupt() ? " (INT)" : "", ## args); } while (0)
 #else
@@ -91,7 +91,7 @@ static inline void lbs_dbg_hex(char *prompt, u8 * buf, int len)
 {
 	int i = 0;
 
-	if (!(libertas_debug_flags & LBS_DEB_HEX))
+	if (!(libertas_debug & LBS_DEB_HEX))
 		return;
 
 	printk(KERN_DEBUG "%s: ", prompt);
