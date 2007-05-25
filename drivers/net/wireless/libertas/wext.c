@@ -1186,7 +1186,7 @@ static struct iw_statistics *wlan_get_wireless_stats(struct net_device *dev)
 	quality = min(quality, tx_qual);
 
 	priv->wstats.discard.code = adapter->logmsg.wepundecryptable;
-	priv->wstats.discard.fragment = adapter->logmsg.fcserror;
+	priv->wstats.discard.fragment = adapter->logmsg.rxfrag;
 	priv->wstats.discard.retries = tx_retries;
 	priv->wstats.discard.misc = adapter->logmsg.ackfailure;
 
