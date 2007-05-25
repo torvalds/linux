@@ -248,13 +248,12 @@ void __init arch_init_irq(void)
 	case MIPS_REVISION_CORID_CORE_24K:
 	case MIPS_REVISION_CORID_CORE_EMUL_MSC:
 		if (cpu_has_veic)
-			init_msc_irqs (MSC01E_INT_BASE,
+			init_msc_irqs (MSC01E_INT_BASE, MSC01E_INT_BASE,
 				       msc_eicirqmap, msc_nr_eicirqs);
 		else
-			init_msc_irqs (MSC01C_INT_BASE,
+			init_msc_irqs (MSC01E_INT_BASE, MSC01C_INT_BASE,
 				       msc_irqmap, msc_nr_irqs);
 	}
-
 
 	if (cpu_has_veic) {
 		set_vi_handler (MSC01E_INT_ATLAS, atlas_hw0_irqdispatch);
