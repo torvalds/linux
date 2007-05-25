@@ -26,6 +26,5 @@ int libertas_sbi_prog_firmware(wlan_private *);
 
 int libertas_sbi_read_event_cause(wlan_private *);
 int libertas_sbi_host_to_card(wlan_private * priv, u8 type, u8 * payload, u16 nb);
-wlan_private *libertas_sbi_get_priv(void *card);
 
 #endif				/* _SBI_H */

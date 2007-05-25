@@ -231,7 +231,7 @@ static void if_usb_disconnect(struct usb_interface *intf)
 	/* card is removed and we can call wlan_remove_card */
 	lbs_deb_usbd(&cardp->udev->dev, "call remove card\n");
 	wlan_remove_mesh(priv);
-	wlan_remove_card(cardp);
+	wlan_remove_card(priv);
 
 	/* Unlink and free urb */
 	if_usb_free(cardp);
@@ -852,17 +852,6 @@ restart:
 done:
 	lbs_deb_leave_args(LBS_DEB_USB, "ret %d", ret);
 	return ret;
-}
-
-/**
- *  @brief Given a usb_card_rec return its wlan_private
- *  @param card		pointer to a usb_card_rec
- *  @return 	   	pointer to wlan_private
- */
-wlan_private *libertas_sbi_get_priv(void *card)
-{
-	struct usb_card_rec *cardp = card;
-	return cardp->priv;
 }
 
 #ifdef CONFIG_PM

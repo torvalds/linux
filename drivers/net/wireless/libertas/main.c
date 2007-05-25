@@ -963,9 +963,8 @@ static void wake_pending_cmdnodes(wlan_private *priv)
 }
 
 
-int wlan_remove_card(void *card)
+int wlan_remove_card(wlan_private *priv)
 {
-	wlan_private *priv = libertas_sbi_get_priv(card);
 	wlan_adapter *adapter;
 	struct net_device *dev;
 	union iwreq_data wrqu;

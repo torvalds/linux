@@ -78,7 +78,7 @@ int reset_device(wlan_private *priv);
 extern struct chan_freq_power *libertas_get_region_cfp_table(u8 region, u8 band,
 						             int *cfp_no);
 wlan_private *wlan_add_card(void *card);
-int wlan_remove_card(void *card);
+int wlan_remove_card(wlan_private *priv);
 int wlan_add_mesh(wlan_private *priv);
 void wlan_remove_mesh(wlan_private *priv);
 
