@@ -2,6 +2,7 @@
 
 #include <linux/bitops.h>
 #include <net/ieee80211.h>
+#include <linux/etherdevice.h>
 
 #include "assoc.h"
 #include "join.h"
@@ -161,8 +162,8 @@ static int assoc_helper_associate(wlan_private *priv,
 	/* If we're given and 'any' BSSID, try associating based on SSID */
 
 	if (test_bit(ASSOC_FLAG_BSSID, &assoc_req->flags)) {
-		if (memcmp(bssid_any, assoc_req->bssid, ETH_ALEN)
-		    && memcmp(bssid_off, assoc_req->bssid, ETH_ALEN)) {
+		if (compare_ether_addr(bssid_any, assoc_req->bssid)
+		    && compare_ether_addr(bssid_off, assoc_req->bssid)) {
 			ret = assoc_helper_bssid(priv, assoc_req);
 			done = 1;
 			if (ret) {
@@ -488,8 +489,8 @@ void libertas_association_worker(struct work_struct *work)
 
 	/* But don't use 'any' SSID if there's a valid locked BSSID to use */
 	if (test_bit(ASSOC_FLAG_BSSID, &assoc_req->flags)) {
-		if (memcmp(&assoc_req->bssid, bssid_any, ETH_ALEN)
-		    && memcmp(&assoc_req->bssid, bssid_off, ETH_ALEN))
+		if (compare_ether_addr(assoc_req->bssid, bssid_any)
+		    && compare_ether_addr(assoc_req->bssid, bssid_off))
 			find_any_ssid = 0;
 	}
 

@@ -1238,7 +1238,7 @@ struct bss_descriptor * libertas_find_BSSID_in_list(wlan_adapter * adapter,
 	 */
 	mutex_lock(&adapter->lock);
 	list_for_each_entry (iter_bss, &adapter->network_list, list) {
-		if (memcmp(iter_bss->bssid, bssid, ETH_ALEN))
+		if (compare_ether_addr(iter_bss->bssid, bssid))
 			continue; /* bssid doesn't match */
 		switch (mode) {
 		case IW_MODE_INFRA:
@@ -1284,7 +1284,7 @@ struct bss_descriptor * libertas_find_SSID_in_list(wlan_adapter * adapter,
 
 		if (libertas_SSID_cmp(&iter_bss->ssid, ssid) != 0)
 			continue; /* ssid doesn't match */
-		if (bssid && memcmp(iter_bss->bssid, bssid, ETH_ALEN) != 0)
+		if (bssid && compare_ether_addr(iter_bss->bssid, bssid) != 0)
 			continue; /* bssid doesn't match */
 
 		switch (mode) {
