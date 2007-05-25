@@ -198,10 +198,10 @@ static int if_usb_probe(struct usb_interface *intf,
 		goto dealloc;
 
 	if (wlan_add_mesh(priv))
-		goto dealloc;
+		goto err_add_mesh;
 
 	if (libertas_activate_card(priv))
-		goto dealloc;
+		goto err_activate_card;
 
 	if (libertas_found < MAX_DEVS) {
 		libertas_devs[libertas_found] = priv->wlan_dev.netdev;
@@ -218,6 +218,12 @@ static int if_usb_probe(struct usb_interface *intf,
 	 */
 	return 0;
 
+err_activate_card:
+	unregister_netdev(priv->mesh_dev);
+	free_netdev(priv->mesh_dev);
+err_add_mesh:
+	free_netdev(priv->wlan_dev.netdev);
+	kfree(priv->adapter);
 dealloc:
 	if_usb_free(usb_cardp);
 

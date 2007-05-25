@@ -823,6 +823,7 @@ wlan_private *wlan_add_card(void *card)
 
 err_kzalloc:
 	free_netdev(dev);
+	priv = NULL;
 done:
 	lbs_deb_leave_args(LBS_DEB_NET, "priv %p", priv);
 	return priv;
