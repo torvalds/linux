@@ -674,17 +674,7 @@ static int wlan_fwt_list_route_ioctl(wlan_private * priv, struct ifreq *req)
 				    cmd_option_waitforrsp, 0, (void *)&fwt_access);
 
 	if (ret == 0) {
-		pbuf += sprintf(pbuf, " ");
-		pbuf += eth_addr2str(fwt_access.da, pbuf);
-		pbuf += sprintf(pbuf, " %u", le32_to_cpu(fwt_access.metric));
-		pbuf += sprintf(pbuf, " %u", fwt_access.dir);
-		/* note that the firmware returns the nid in the id field */
-		pbuf += sprintf(pbuf, " %u", le32_to_cpu(fwt_access.id));
-		pbuf += sprintf(pbuf, " %u", le32_to_cpu(fwt_access.ssn));
-		pbuf += sprintf(pbuf, " %u", le32_to_cpu(fwt_access.dsn));
-		pbuf += sprintf(pbuf, "  hop %u", fwt_access.hopcount);
-		pbuf += sprintf(pbuf, "  ttl %u", fwt_access.ttl);
-		pbuf += sprintf(pbuf, " %u", le32_to_cpu(fwt_access.expiration));
+		print_route(fwt_access, pbuf);
 	} else
 		pbuf += sprintf(pbuf, " (null)");
 
