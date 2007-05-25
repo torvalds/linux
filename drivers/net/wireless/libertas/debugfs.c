@@ -4,6 +4,7 @@
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <net/iw_handler.h>
+
 #include "dev.h"
 #include "decl.h"
 #include "host.h"
@@ -15,7 +16,9 @@ static char *szStates[] = {
 	"Disconnected"
 };
 
-void libertas_debug_init(wlan_private * priv, struct net_device *dev);
+#ifdef PROC_DEBUG
+static void libertas_debug_init(wlan_private * priv, struct net_device *dev);
+#endif
 
 static int open_file_generic(struct inode *inode, struct file *file)
 {
@@ -62,15 +65,7 @@ static ssize_t libertas_getscantable(struct file *file, char __user *userbuf,
 	char *buf = (char *)addr;
 
 	pos += snprintf(buf+pos, len-pos,
-			"---------------------------------------");
-	pos += snprintf(buf+pos, len-pos,
-			"---------------------------------------\n");
-	pos += snprintf(buf+pos, len-pos,
 		"# | ch  | ss  |       bssid       |   cap    |    TSF   | Qual | SSID \n");
-	pos += snprintf(buf+pos, len-pos,
-		"---------------------------------------");
-	pos += snprintf(buf+pos, len-pos,
-		"---------------------------------------\n");
 
 	while (numscansdone < priv->adapter->numinscantable) {
 		struct bss_descriptor *pbssinfo;
@@ -1772,10 +1767,15 @@ void libertas_debugfs_remove_one(wlan_private *priv)
 	debugfs_remove(priv->debugfs_dir);
 }
 
+
+
 /* debug entry */
+
+#ifdef PROC_DEBUG
 
 #define item_size(n)	(FIELD_SIZEOF(wlan_adapter, n))
 #define item_addr(n)	(offsetof(wlan_adapter, n))
+
 
 struct debug_data {
 	char name[32];
@@ -1914,7 +1914,7 @@ static struct file_operations libertas_debug_fops = {
  *  @param dev     pointer net_device
  *  @return 	   N/A
  */
-void libertas_debug_init(wlan_private * priv, struct net_device *dev)
+static void libertas_debug_init(wlan_private * priv, struct net_device *dev)
 {
 	int i;
 
@@ -1928,4 +1928,5 @@ void libertas_debug_init(wlan_private * priv, struct net_device *dev)
 						  priv->debugfs_dir, &items[0],
 						  &libertas_debug_fops);
 }
+#endif
 
