@@ -889,19 +889,19 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		}
 		if (scsi_status & (SS_RESIDUAL_UNDER | SS_RESIDUAL_OVER)) {
 			resid = resid_len;
-			cp->resid = resid;
+			scsi_set_resid(cp, resid);
 			CMD_RESID_LEN(cp) = resid;
 
 			if (!lscsi_status &&
-			    ((unsigned)(cp->request_bufflen - resid) <
+			    ((unsigned)(scsi_bufflen(cp) - resid) <
 			     cp->underflow)) {
 				qla_printk(KERN_INFO, ha,
-				    "scsi(%ld:%d:%d:%d): Mid-layer underflow "
-				    "detected (%x of %x bytes)...returning "
-				    "error status.\n", ha->host_no,
-				    cp->device->channel, cp->device->id,
-				    cp->device->lun, resid,
-				    cp->request_bufflen);
+					   "scsi(%ld:%d:%d:%d): Mid-layer underflow "
+					   "detected (%x of %x bytes)...returning "
+					   "error status.\n", ha->host_no,
+					   cp->device->channel, cp->device->id,
+					   cp->device->lun, resid,
+					   scsi_bufflen(cp));
 
 				cp->result = DID_ERROR << 16;
 				break;
@@ -963,7 +963,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 			resid = fw_resid_len;
 
 		if (scsi_status & SS_RESIDUAL_UNDER) {
-			cp->resid = resid;
+			scsi_set_resid(cp, resid);
 			CMD_RESID_LEN(cp) = resid;
 		} else {
 			DEBUG2(printk(KERN_INFO
@@ -1042,26 +1042,26 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 			 */
 			if (!(scsi_status & SS_RESIDUAL_UNDER)) {
 				DEBUG2(printk("scsi(%ld:%d:%d:%d) Dropped "
-				    "frame(s) detected (%x of %x bytes)..."
-				    "retrying command.\n", ha->host_no,
-				    cp->device->channel, cp->device->id,
-				    cp->device->lun, resid,
-				    cp->request_bufflen));
+					      "frame(s) detected (%x of %x bytes)..."
+					      "retrying command.\n", ha->host_no,
+					      cp->device->channel, cp->device->id,
+					      cp->device->lun, resid,
+					      scsi_bufflen(cp)));
 
 				cp->result = DID_BUS_BUSY << 16;
 				break;
 			}
 
 			/* Handle mid-layer underflow */
-			if ((unsigned)(cp->request_bufflen - resid) <
+			if ((unsigned)(scsi_bufflen(cp) - resid) <
 			    cp->underflow) {
 				qla_printk(KERN_INFO, ha,
-				    "scsi(%ld:%d:%d:%d): Mid-layer underflow "
-				    "detected (%x of %x bytes)...returning "
-				    "error status.\n", ha->host_no,
-				    cp->device->channel, cp->device->id,
-				    cp->device->lun, resid,
-				    cp->request_bufflen);
+					   "scsi(%ld:%d:%d:%d): Mid-layer underflow "
+					   "detected (%x of %x bytes)...returning "
+					   "error status.\n", ha->host_no,
+					   cp->device->channel, cp->device->id,
+					   cp->device->lun, resid,
+					   scsi_bufflen(cp));
 
 				cp->result = DID_ERROR << 16;
 				break;
@@ -1084,7 +1084,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		DEBUG2(printk(KERN_INFO
 		    "PID=0x%lx req=0x%x xtra=0x%x -- returning DID_ERROR "
 		    "status!\n",
-		    cp->serial_number, cp->request_bufflen, resid_len));
+		    cp->serial_number, scsi_bufflen(cp), resid_len));
 
 		cp->result = DID_ERROR << 16;
 		break;
