@@ -257,8 +257,10 @@ struct _wlan_adapter {
 	struct WLAN_802_11_SSID previousssid;
 	u8 previousbssid[ETH_ALEN];
 
-	struct bss_descriptor *scantable;
-	u32 numinscantable;
+	/* Scan results list */
+	struct list_head network_list;
+	struct list_head network_free_list;
+	struct bss_descriptor *networks;
 
 	u8 scantype;
 	u32 scanmode;

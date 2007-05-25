@@ -18,7 +18,7 @@ static int assoc_helper_essid(wlan_private *priv,
 {
 	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
-	int i;
+	struct bss_descriptor * bss;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
@@ -28,17 +28,13 @@ static int assoc_helper_essid(wlan_private *priv,
 			libertas_send_specific_SSID_scan(priv, &assoc_req->ssid, 1);
 		}
 
-		i = libertas_find_SSID_in_list(adapter, &assoc_req->ssid,
+		bss = libertas_find_SSID_in_list(adapter, &assoc_req->ssid,
 				NULL, IW_MODE_INFRA);
-		if (i >= 0) {
-			lbs_deb_assoc(
-			       "SSID found in scan list ... associating...\n");
-
-			ret = wlan_associate(priv, &adapter->scantable[i]);
+		if (bss != NULL) {
+			lbs_deb_assoc("SSID found in scan list, associating\n");
+			ret = wlan_associate(priv, bss);
 			if (ret == 0) {
-				memcpy(&assoc_req->bssid,
-				       &adapter->scantable[i].bssid,
-				       ETH_ALEN);
+				memcpy(&assoc_req->bssid, bss->bssid, ETH_ALEN);
 			}
 		} else {
 			lbs_deb_assoc("SSID '%s' not found; cannot associate\n",
@@ -51,11 +47,11 @@ static int assoc_helper_essid(wlan_private *priv,
 		libertas_send_specific_SSID_scan(priv, &assoc_req->ssid, 0);
 
 		/* Search for the requested SSID in the scan table */
-		i = libertas_find_SSID_in_list(adapter, &assoc_req->ssid, NULL,
+		bss = libertas_find_SSID_in_list(adapter, &assoc_req->ssid, NULL,
 				IW_MODE_ADHOC);
-		if (i >= 0) {
-			lbs_deb_assoc("SSID found at %d in List, so join\n", ret);
-			libertas_join_adhoc_network(priv, &adapter->scantable[i]);
+		if (bss != NULL) {
+			lbs_deb_assoc("SSID found joining\n");
+			libertas_join_adhoc_network(priv, bss);
 		} else {
 			/* else send START command */
 			lbs_deb_assoc("SSID not found in list, so creating adhoc"
@@ -74,28 +70,28 @@ static int assoc_helper_bssid(wlan_private *priv,
                               struct assoc_request * assoc_req)
 {
 	wlan_adapter *adapter = priv->adapter;
-	int i, ret = 0;
+	int ret = 0;
+	struct bss_descriptor * bss;
 
 	lbs_deb_enter_args(LBS_DEB_ASSOC, "BSSID" MAC_FMT "\n",
 		MAC_ARG(assoc_req->bssid));
 
 	/* Search for index position in list for requested MAC */
-	i = libertas_find_BSSID_in_list(adapter, assoc_req->bssid,
+	bss = libertas_find_BSSID_in_list(adapter, assoc_req->bssid,
 			    assoc_req->mode);
-	if (i < 0) {
+	if (bss == NULL) {
 		lbs_deb_assoc("ASSOC: WAP: BSSID " MAC_FMT " not found, "
 			"cannot associate.\n", MAC_ARG(assoc_req->bssid));
 		goto out;
 	}
 
 	if (assoc_req->mode == IW_MODE_INFRA) {
-		ret = wlan_associate(priv, &adapter->scantable[i]);
-		lbs_deb_assoc("ASSOC: return from wlan_associate(bssd) was %d\n", ret);
+		ret = wlan_associate(priv, bss);
+		lbs_deb_assoc("ASSOC: wlan_associate(bssid) returned %d\n", ret);
 	} else if (assoc_req->mode == IW_MODE_ADHOC) {
-		libertas_join_adhoc_network(priv, &adapter->scantable[i]);
+		libertas_join_adhoc_network(priv, bss);
 	}
-	memcpy(&assoc_req->ssid, &adapter->scantable[i].ssid,
-		sizeof(struct WLAN_802_11_SSID));
+	memcpy(&assoc_req->ssid, &bss->ssid, sizeof(struct WLAN_802_11_SSID));
 
 out:
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);

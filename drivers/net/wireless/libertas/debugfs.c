@@ -63,35 +63,34 @@ static ssize_t libertas_getscantable(struct file *file, char __user *userbuf,
 	int numscansdone = 0, res;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
+	struct bss_descriptor * iter_bss;
 
 	pos += snprintf(buf+pos, len-pos,
 		"# | ch  | ss  |       bssid       |   cap    |    TSF   | Qual | SSID \n");
 
-	while (numscansdone < priv->adapter->numinscantable) {
-		struct bss_descriptor *pbssinfo;
+	mutex_lock(&priv->adapter->lock);
+	list_for_each_entry (iter_bss, &priv->adapter->network_list, list) {
 		u16 cap;
 
-		pbssinfo = &priv->adapter->scantable[numscansdone];
-		memcpy(&cap, &pbssinfo->cap, sizeof(cap));
+		memcpy(&cap, &iter_bss->cap, sizeof(cap));
 		pos += snprintf(buf+pos, len-pos,
 			"%02u| %03d | %03ld | %02x:%02x:%02x:%02x:%02x:%02x |",
-			numscansdone, pbssinfo->channel, pbssinfo->rssi,
-			pbssinfo->bssid[0], pbssinfo->bssid[1],
-			pbssinfo->bssid[2], pbssinfo->bssid[3],
-			pbssinfo->bssid[4], pbssinfo->bssid[5]);
+			numscansdone, iter_bss->channel, iter_bss->rssi,
+			iter_bss->bssid[0], iter_bss->bssid[1],
+			iter_bss->bssid[2], iter_bss->bssid[3],
+			iter_bss->bssid[4], iter_bss->bssid[5]);
 		pos += snprintf(buf+pos, len-pos, " %04x-", cap);
 		pos += snprintf(buf+pos, len-pos, "%c%c%c |",
-				pbssinfo->cap.ibss ? 'A' : 'I',
-				pbssinfo->cap.privacy ? 'P' : ' ',
-				pbssinfo->cap.spectrummgmt ? 'S' : ' ');
-		pos += snprintf(buf+pos, len-pos, " %08llx |", pbssinfo->networktsf);
-		pos += snprintf(buf+pos, len-pos, " %d |",
-			SCAN_RSSI(priv->adapter->scantable[numscansdone].rssi));
-
-		pos += snprintf(buf+pos, len-pos, " %s\n", pbssinfo->ssid.ssid);
+				iter_bss->cap.ibss ? 'A' : 'I',
+				iter_bss->cap.privacy ? 'P' : ' ',
+				iter_bss->cap.spectrummgmt ? 'S' : ' ');
+		pos += snprintf(buf+pos, len-pos, " %08llx |", iter_bss->networktsf);
+		pos += snprintf(buf+pos, len-pos, " %d |", SCAN_RSSI(iter_bss->rssi));
+		pos += snprintf(buf+pos, len-pos, " %s\n", iter_bss->ssid.ssid);
 
 		numscansdone++;
 	}
+	mutex_unlock(&priv->adapter->lock);
 
 	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 

@@ -156,9 +156,9 @@ struct bss_descriptor {
 	u8 mode;
 	u8 libertas_supported_rates[WLAN_SUPPORTED_RATES];
 
-	int extra_ie;
-
 	u8 timestamp[8];	//!< TSF value included in the beacon/probe response
+	unsigned long last_scanned;
+
 	union ieeetypes_phyparamset phyparamset;
 	union IEEEtypes_ssparamset ssparamset;
 	struct ieeetypes_capinfo cap;
@@ -172,14 +172,21 @@ struct bss_descriptor {
 	size_t wpa_ie_len;
 	u8 rsn_ie[MAX_WPA_IE_LEN];
 	size_t rsn_ie_len;
+
+	struct list_head list;
 };
 
 extern int libertas_SSID_cmp(struct WLAN_802_11_SSID *ssid1,
-		   struct WLAN_802_11_SSID *ssid2);
-extern int libertas_find_SSID_in_list(wlan_adapter * adapter, struct WLAN_802_11_SSID *ssid,
-			  u8 * bssid, u8 mode);
-int libertas_find_best_SSID_in_list(wlan_adapter * adapter, u8 mode);
-extern int libertas_find_BSSID_in_list(wlan_adapter * adapter, u8 * bssid, u8 mode);
+			struct WLAN_802_11_SSID *ssid2);
+
+struct bss_descriptor * libertas_find_SSID_in_list(wlan_adapter * adapter,
+			struct WLAN_802_11_SSID *ssid, u8 * bssid, u8 mode);
+
+struct bss_descriptor * libertas_find_best_SSID_in_list(wlan_adapter * adapter,
+			u8 mode);
+
+extern struct bss_descriptor * libertas_find_BSSID_in_list(wlan_adapter * adapter,
+			u8 * bssid, u8 mode);
 
 int libertas_find_best_network_SSID(wlan_private * priv,
 			struct WLAN_802_11_SSID *pSSID,

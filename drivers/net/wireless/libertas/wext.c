@@ -189,6 +189,8 @@ static int setcurrentchannel(wlan_private * priv, int channel)
 static int changeadhocchannel(wlan_private * priv, int channel)
 {
 	int ret = 0;
+	struct WLAN_802_11_SSID curadhocssid;
+	struct bss_descriptor * join_bss = NULL;
 	wlan_adapter *adapter = priv->adapter;
 
 	adapter->adhocchannel = channel;
@@ -214,43 +216,38 @@ static int changeadhocchannel(wlan_private * priv, int channel)
 		goto out;
 	}
 
-	if (adapter->connect_status == libertas_connected) {
-		int i;
-		struct WLAN_802_11_SSID curadhocssid;
+	if (adapter->connect_status != libertas_connected)
+		goto out;
 
-		lbs_deb_wext("channel changed while in IBSS\n");
+	lbs_deb_wext("channel changed while in IBSS\n");
 
-		/* Copy the current ssid */
-		memcpy(&curadhocssid, &adapter->curbssparams.ssid,
-		       sizeof(struct WLAN_802_11_SSID));
+	/* Copy the current ssid */
+	memcpy(&curadhocssid, &adapter->curbssparams.ssid,
+	       sizeof(struct WLAN_802_11_SSID));
 
-		/* Exit Adhoc mode */
-		lbs_deb_wext("in changeadhocchannel(): sending Adhoc stop\n");
-		ret = libertas_stop_adhoc_network(priv);
+	/* Exit Adhoc mode */
+	lbs_deb_wext("in changeadhocchannel(): sending Adhoc stop\n");
+	ret = libertas_stop_adhoc_network(priv);
+	if (ret)
+		goto out;
 
-		if (ret)
-			goto out;
+	/* Scan for the network, do not save previous results.  Stale
+	 *   scan data will cause us to join a non-existant adhoc network
+	 */
+	libertas_send_specific_SSID_scan(priv, &curadhocssid, 0);
 
-		/* Scan for the network, do not save previous results.  Stale
-		 *   scan data will cause us to join a non-existant adhoc network
-		 */
-		libertas_send_specific_SSID_scan(priv, &curadhocssid, 0);
+	/* find out the BSSID that matches the current SSID */
+	join_bss = libertas_find_SSID_in_list(adapter, &curadhocssid, NULL,
+			   IW_MODE_ADHOC);
 
-		// find out the BSSID that matches the current SSID
-		i = libertas_find_SSID_in_list(adapter, &curadhocssid, NULL,
-				   IW_MODE_ADHOC);
-
-		if (i >= 0) {
-			lbs_deb_wext("SSID found at %d in list,"
-			       "so join\n", i);
-			libertas_join_adhoc_network(priv, &adapter->scantable[i]);
-		} else {
-			// else send START command
-			lbs_deb_wext("SSID not found in list, "
-			       "creating AdHoc with SSID '%s'\n",
-			       curadhocssid.ssid);
-			libertas_start_adhoc_network(priv, &curadhocssid);
-		}		// end of else (START command)
+	if (join_bss) {
+		lbs_deb_wext("SSID found in list, so join\n");
+		libertas_join_adhoc_network(priv, join_bss);
+	} else {
+		lbs_deb_wext("SSID not found in list, "
+		       "creating AdHoc with SSID '%s'\n",
+		       curadhocssid.ssid);
+		libertas_start_adhoc_network(priv, &curadhocssid);
 	}
 
 out:

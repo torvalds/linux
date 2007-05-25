@@ -127,7 +127,6 @@ static inline void lbs_dbg_hex(char *prompt, u8 * buf, int len)
 #define MRVDRV_NUM_OF_CMD_BUFFER        10
 #define MRVDRV_SIZE_OF_CMD_BUFFER       (2 * 1024)
 #define MRVDRV_MAX_CHANNEL_SIZE		14
-#define MRVDRV_MAX_BSSID_LIST		64
 #define MRVDRV_ASSOCIATION_TIME_OUT	255
 #define MRVDRV_SNAP_HEADER_LEN          8
 

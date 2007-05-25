@@ -126,18 +126,17 @@ done:
 
 static int wlan_allocate_adapter(wlan_private * priv)
 {
-	u32 ulbufsize;
+	size_t bufsize;
 	wlan_adapter *adapter = priv->adapter;
 
-	struct bss_descriptor *ptempscantable;
-
 	/* Allocate buffer to store the BSSID list */
-	ulbufsize = sizeof(struct bss_descriptor) * MRVDRV_MAX_BSSID_LIST;
-	if (!(ptempscantable = kzalloc(ulbufsize, GFP_KERNEL))) {
+	bufsize = MAX_NETWORK_COUNT * sizeof(struct bss_descriptor);
+	adapter->networks = kzalloc(bufsize, GFP_KERNEL);
+	if (!adapter->networks) {
+		lbs_pr_err("Out of memory allocating beacons\n");
 		libertas_free_adapter(priv);
-		return -1;
+		return -ENOMEM;
 	}
-	adapter->scantable = ptempscantable;
 
 	/* Allocate the command buffers */
 	libertas_allocate_cmd_buffer(priv);
@@ -188,7 +187,14 @@ static void wlan_init_adapter(wlan_private * priv)
 
 	adapter->assoc_req = NULL;
 
-	adapter->numinscantable = 0;
+	/* Initialize scan result lists */
+	INIT_LIST_HEAD(&adapter->network_free_list);
+	INIT_LIST_HEAD(&adapter->network_list);
+	for (i = 0; i < MAX_NETWORK_COUNT; i++) {
+		list_add_tail(&adapter->networks[i].list,
+			      &adapter->network_free_list);
+	}
+
 	adapter->pattemptedbssdesc = NULL;
 	mutex_init(&adapter->lock);
 
@@ -291,11 +297,9 @@ void libertas_free_adapter(wlan_private * priv)
 	lbs_deb_fw("free command_timer\n");
 	del_timer(&adapter->command_timer);
 
-	lbs_deb_fw("free scantable\n");
-	if (adapter->scantable) {
-		kfree(adapter->scantable);
-		adapter->scantable = NULL;
-	}
+	lbs_deb_fw("free scan results table\n");
+	kfree(adapter->networks);
+	adapter->networks = NULL;
 
 	/* Free the adapter object itself */
 	lbs_deb_fw("free adapter\n");
