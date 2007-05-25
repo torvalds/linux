@@ -157,103 +157,6 @@ static struct chan_freq_power *find_cfp_by_band_and_freq(wlan_adapter * adapter,
 	return cfp;
 }
 
-static int updatecurrentchannel(wlan_private * priv)
-{
-	int ret;
-
-	/*
-	 ** the channel in f/w could be out of sync, get the current channel
-	 */
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11_rf_channel,
-				    cmd_opt_802_11_rf_channel_get,
-				    cmd_option_waitforrsp, 0, NULL);
-
-	lbs_deb_wext("current channel %d\n",
-	       priv->adapter->curbssparams.channel);
-
-	return ret;
-}
-
-static int setcurrentchannel(wlan_private * priv, int channel)
-{
-	lbs_deb_wext("set channel %d\n", channel);
-
-	/*
-	 **  Current channel is not set to adhocchannel requested, set channel
-	 */
-	return (libertas_prepare_and_send_command(priv, cmd_802_11_rf_channel,
-				      cmd_opt_802_11_rf_channel_set,
-				      cmd_option_waitforrsp, 0, &channel));
-}
-
-static int changeadhocchannel(wlan_private * priv, int channel)
-{
-	int ret = 0;
-	struct WLAN_802_11_SSID curadhocssid;
-	struct bss_descriptor * join_bss = NULL;
-	wlan_adapter *adapter = priv->adapter;
-
-	adapter->adhocchannel = channel;
-
-	updatecurrentchannel(priv);
-
-	if (adapter->curbssparams.channel == adapter->adhocchannel) {
-		/* adhocchannel is set to the current channel already */
-		goto out;
-	}
-
-	lbs_deb_wext("updating channel from %d to %d\n",
-	       adapter->curbssparams.channel, adapter->adhocchannel);
-
-	setcurrentchannel(priv, adapter->adhocchannel);
-
-	updatecurrentchannel(priv);
-
-	if (adapter->curbssparams.channel != adapter->adhocchannel) {
-		lbs_deb_wext("failed to updated channel to %d, channel = %d\n",
-		       adapter->adhocchannel, adapter->curbssparams.channel);
-		ret = -1;
-		goto out;
-	}
-
-	if (adapter->connect_status != libertas_connected)
-		goto out;
-
-	lbs_deb_wext("channel changed while in IBSS\n");
-
-	/* Copy the current ssid */
-	memcpy(&curadhocssid, &adapter->curbssparams.ssid,
-	       sizeof(struct WLAN_802_11_SSID));
-
-	/* Exit Adhoc mode */
-	lbs_deb_wext("in changeadhocchannel(): sending Adhoc stop\n");
-	ret = libertas_stop_adhoc_network(priv);
-	if (ret)
-		goto out;
-
-	/* Scan for the network, do not save previous results.  Stale
-	 *   scan data will cause us to join a non-existant adhoc network
-	 */
-	libertas_send_specific_SSID_scan(priv, &curadhocssid, 1);
-
-	/* find out the BSSID that matches the current SSID */
-	join_bss = libertas_find_SSID_in_list(adapter, &curadhocssid, NULL,
-			   IW_MODE_ADHOC);
-
-	if (join_bss) {
-		lbs_deb_wext("SSID found in list, so join\n");
-		libertas_join_adhoc_network(priv, join_bss);
-	} else {
-		lbs_deb_wext("SSID not found in list, "
-		       "creating AdHoc with SSID '%s'\n",
-		       curadhocssid.ssid);
-		libertas_start_adhoc_network(priv, &curadhocssid);
-	}
-
-out:
-	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
-	return ret;
-}
 
 /**
  *  @brief Set Radio On/OFF
@@ -1228,82 +1131,59 @@ out:
 static int wlan_set_freq(struct net_device *dev, struct iw_request_info *info,
 		  struct iw_freq *fwrq, char *extra)
 {
-	int ret = 0;
+	int ret = -EINVAL;
 	wlan_private *priv = dev->priv;
 	wlan_adapter *adapter = priv->adapter;
-	int rc = -EINPROGRESS;	/* Call commit handler */
 	struct chan_freq_power *cfp;
+	struct assoc_request * assoc_req;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	/*
-	 * If setting by frequency, convert to a channel
-	 */
-	if (fwrq->e == 1) {
+	mutex_lock(&adapter->lock);
+	assoc_req = wlan_get_association_request(adapter);
+	if (!assoc_req) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
+	/* If setting by frequency, convert to a channel */
+	if (fwrq->e == 1) {
 		long f = fwrq->m / 100000;
-		int c = 0;
 
 		cfp = find_cfp_by_band_and_freq(adapter, 0, f);
 		if (!cfp) {
 			lbs_deb_wext("invalid freq %ld\n", f);
-			return -EINVAL;
+			goto out;
 		}
-
-		c = (int)cfp->channel;
-
-		if (c < 0)
-			return -EINVAL;
 
 		fwrq->e = 0;
-		fwrq->m = c;
+		fwrq->m = (int) cfp->channel;
 	}
 
-	/*
-	 * Setting by channel number
-	 */
+	/* Setting by channel number */
 	if (fwrq->m > 1000 || fwrq->e > 0) {
-		rc = -EOPNOTSUPP;
-	} else {
-		int channel = fwrq->m;
-
-		cfp = libertas_find_cfp_by_band_and_channel(adapter, 0, channel);
-		if (!cfp) {
-			rc = -EINVAL;
-		} else {
-			if (adapter->mode == IW_MODE_ADHOC) {
-				rc = changeadhocchannel(priv, channel);
-				/*  If station is WEP enabled, send the
-				 *  command to set WEP in firmware
-				 */
-				if (adapter->secinfo.wep_enabled) {
-					lbs_deb_wext("set_freq: WEP enabled\n");
-					ret = libertas_prepare_and_send_command(priv,
-								    cmd_802_11_set_wep,
-								    cmd_act_add,
-								    cmd_option_waitforrsp,
-								    0,
-								    NULL);
-
-					if (ret) {
-						rc = ret;
-						goto out;
-					}
-
-					adapter->currentpacketfilter |=
-					    cmd_act_mac_wep_enable;
-
-					libertas_set_mac_packet_filter(priv);
-				}
-			} else {
-				rc = -EOPNOTSUPP;
-			}
-		}
+		goto out;
 	}
+
+	cfp = libertas_find_cfp_by_band_and_channel(adapter, 0, fwrq->m);
+	if (!cfp) {
+		goto out;
+	}
+
+	assoc_req->channel = fwrq->m;
+	ret = 0;
 
 out:
-	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", rc);
-	return rc;
+	if (ret == 0) {
+		set_bit(ASSOC_FLAG_CHANNEL, &assoc_req->flags);
+		wlan_postpone_association_work(priv);
+	} else {
+		wlan_cancel_association_work(priv);
+	}
+	mutex_unlock(&adapter->lock);
+
+	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
+	return ret;
 }
 
 /**

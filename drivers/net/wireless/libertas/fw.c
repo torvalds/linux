@@ -220,8 +220,6 @@ static void wlan_init_adapter(wlan_private * priv)
 	memset(&adapter->capinfo, 0, sizeof(adapter->capinfo));
 	adapter->capinfo.shortpreamble = SHORT_PREAMBLE_ALLOWED;
 
-	adapter->adhocchannel = DEFAULT_AD_HOC_CHANNEL;
-
 	adapter->psmode = wlan802_11powermodecam;
 	adapter->multipledtim = MRVDRV_DEFAULT_MULTIPLE_DTIM;
 

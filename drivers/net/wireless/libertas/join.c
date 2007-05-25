@@ -158,7 +158,6 @@ int libertas_start_adhoc_network(wlan_private * priv, struct WLAN_802_11_SSID *a
 
 	libertas_set_radio_control(priv);
 
-	lbs_deb_join("Adhoc channel = %d\n", adapter->adhocchannel);
 	lbs_deb_join("curbssparams.channel = %d\n",
 	       adapter->curbssparams.channel);
 	lbs_deb_join("curbssparams.band = %d\n", adapter->curbssparams.band);
@@ -513,15 +512,13 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 	adhs->phyparamset.dsparamset.elementid = DS_PARA_IE_ID;
 	adhs->phyparamset.dsparamset.len = DS_PARA_IE_LEN;
 
-	WARN_ON(!adapter->adhocchannel);
+	WARN_ON(!adapter->curbssparams.channel);
 
 	lbs_deb_join("ADHOC_S_CMD: Creating ADHOC on channel %d\n",
-	       adapter->adhocchannel);
+	       adapter->curbssparams.channel);
 
-	adapter->curbssparams.channel = adapter->adhocchannel;
-
-	pbssdesc->channel = adapter->adhocchannel;
-	adhs->phyparamset.dsparamset.currentchan = adapter->adhocchannel;
+	pbssdesc->channel = adapter->curbssparams.channel;
+	adhs->phyparamset.dsparamset.currentchan = adapter->curbssparams.channel;
 
 	memcpy(&pbssdesc->phyparamset,
 	       &adhs->phyparamset, sizeof(union ieeetypes_phyparamset));
@@ -909,7 +906,7 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 
 	lbs_deb_join("ADHOC_RESP: - Joined/Started Ad Hoc\n");
-	lbs_deb_join("ADHOC_RESP: channel = %d\n", adapter->adhocchannel);
+	lbs_deb_join("ADHOC_RESP: channel = %d\n", adapter->curbssparams.channel);
 	lbs_deb_join("ADHOC_RESP: BSSID = %02x:%02x:%02x:%02x:%02x:%02x\n",
 	       padhocresult->BSSID[0], padhocresult->BSSID[1],
 	       padhocresult->BSSID[2], padhocresult->BSSID[3],

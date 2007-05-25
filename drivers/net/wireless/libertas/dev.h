@@ -287,7 +287,6 @@ struct _wlan_adapter {
 	u32 txantenna;
 	u32 rxantenna;
 
-	u8 adhocchannel;
 	u32 fragthsd;
 	u32 rtsthsd;
 

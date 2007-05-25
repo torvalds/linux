@@ -22,6 +22,10 @@ static int assoc_helper_essid(wlan_private *priv,
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
+	/* FIXME: take channel into account when picking SSIDs if a channel
+	 * is set.
+	 */
+
 	lbs_deb_assoc("New SSID requested: %s\n", assoc_req->ssid.ssid);
 	if (assoc_req->mode == IW_MODE_INFRA) {
 		if (adapter->prescan) {
@@ -151,6 +155,69 @@ static int assoc_helper_mode(wlan_private *priv,
 				    0, cmd_option_waitforrsp,
 				    OID_802_11_INFRASTRUCTURE_MODE,
 				    (void *) (size_t) assoc_req->mode);
+
+done:
+	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
+	return ret;
+}
+
+
+static int update_channel(wlan_private * priv)
+{
+	/* the channel in f/w could be out of sync, get the current channel */
+	return libertas_prepare_and_send_command(priv, cmd_802_11_rf_channel,
+				    cmd_opt_802_11_rf_channel_get,
+				    cmd_option_waitforrsp, 0, NULL);
+}
+
+static int assoc_helper_channel(wlan_private *priv,
+                                struct assoc_request * assoc_req)
+{
+	wlan_adapter *adapter = priv->adapter;
+	int ret = 0;
+
+	lbs_deb_enter(LBS_DEB_ASSOC);
+
+	ret = update_channel(priv);
+	if (ret < 0) {
+		lbs_deb_assoc("ASSOC: channel: error getting channel.");
+	}
+
+	if (assoc_req->channel == adapter->curbssparams.channel)
+		goto done;
+
+	lbs_deb_assoc("ASSOC: channel: %d -> %d\n",
+	       adapter->curbssparams.channel, assoc_req->channel);
+
+	ret = libertas_prepare_and_send_command(priv, cmd_802_11_rf_channel,
+				cmd_opt_802_11_rf_channel_set,
+				cmd_option_waitforrsp, 0, &assoc_req->channel);
+	if (ret < 0) {
+		lbs_deb_assoc("ASSOC: channel: error setting channel.");
+	}
+
+	ret = update_channel(priv);
+	if (ret < 0) {
+		lbs_deb_assoc("ASSOC: channel: error getting channel.");
+	}
+
+	if (assoc_req->channel != adapter->curbssparams.channel) {
+		lbs_deb_assoc("ASSOC: channel: failed to update channel to %d",
+		              assoc_req->channel);
+		goto done;
+	}
+
+	if (   assoc_req->secinfo.wep_enabled
+	    &&   (assoc_req->wep_keys[0].len
+	       || assoc_req->wep_keys[1].len
+	       || assoc_req->wep_keys[2].len
+	       || assoc_req->wep_keys[3].len)) {
+		/* Make sure WEP keys are re-sent to firmware */
+		set_bit(ASSOC_FLAG_WEP_KEYS, &assoc_req->flags);
+	}
+
+	/* Must restart/rejoin adhoc networks after channel change */
+	set_bit(ASSOC_FLAG_SSID, &assoc_req->flags);
 
 done:
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
@@ -334,6 +401,11 @@ static int should_stop_adhoc(wlan_adapter *adapter,
 			return 1;
 	}
 
+	if (test_bit(ASSOC_FLAG_CHANNEL, &assoc_req->flags)) {
+		if (assoc_req->channel != adapter->curbssparams.channel)
+			return 1;
+	}
+
 	return 0;
 }
 
@@ -419,6 +491,15 @@ void libertas_association_worker(struct work_struct *work)
 		ret = assoc_helper_mode(priv, assoc_req);
 		if (ret) {
 lbs_deb_assoc("ASSOC(:%d) mode: ret = %d\n", __LINE__, ret);
+			goto out;
+		}
+	}
+
+	if (test_bit(ASSOC_FLAG_CHANNEL, &assoc_req->flags)) {
+		ret = assoc_helper_channel(priv, assoc_req);
+		if (ret) {
+			lbs_deb_assoc("ASSOC(:%d) channel: ret = %d\n",
+			              __LINE__, ret);
 			goto out;
 		}
 	}
