@@ -74,11 +74,9 @@ static ssize_t libertas_getscantable(struct file *file, char __user *userbuf,
 
 		memcpy(&cap, &iter_bss->cap, sizeof(cap));
 		pos += snprintf(buf+pos, len-pos,
-			"%02u| %03d | %03ld | %02x:%02x:%02x:%02x:%02x:%02x |",
+			"%02u| %03d | %03ld | " MAC_FMT " |",
 			numscansdone, iter_bss->channel, iter_bss->rssi,
-			iter_bss->bssid[0], iter_bss->bssid[1],
-			iter_bss->bssid[2], iter_bss->bssid[3],
-			iter_bss->bssid[4], iter_bss->bssid[5]);
+			MAC_ARG(iter_bss->bssid));
 		pos += snprintf(buf+pos, len-pos, " %04x-", cap);
 		pos += snprintf(buf+pos, len-pos, "%c%c%c |",
 				iter_bss->cap.ibss ? 'A' : 'I',

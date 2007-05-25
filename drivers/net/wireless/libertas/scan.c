@@ -241,10 +241,8 @@ static void wlan_scan_process_results(wlan_private * priv)
 	mutex_lock(&adapter->lock);
 	list_for_each_entry (iter_bss, &adapter->network_list, list) {
 		lbs_deb_scan("Scan:(%02d) " MAC_FMT ", RSSI[%03d], SSID[%s]\n",
-		       i++,
-		       iter_bss->bssid[0], iter_bss->bssid[1], iter_bss->bssid[2],
-		       iter_bss->bssid[3], iter_bss->bssid[4], iter_bss->bssid[5],
-		       (s32) iter_bss->rssi, iter_bss->ssid.ssid);
+		       i++, MAC_ARG(iter_bss->bssid), (s32) iter_bss->rssi,
+		       iter_bss->ssid.ssid);
 	}
 	mutex_unlock(&adapter->lock);
 }
@@ -983,9 +981,7 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 	bytesleftforcurrentbeacon = beaconsize;
 
 	memcpy(bss->bssid, pcurrentptr, ETH_ALEN);
-	lbs_deb_scan("process_bss: AP BSSID " MAC_FMT "\n",
-	       bss->bssid[0], bss->bssid[1], bss->bssid[2],
-	       bss->bssid[3], bss->bssid[4], bss->bssid[5]);
+	lbs_deb_scan("process_bss: AP BSSID " MAC_FMT "\n", MAC_ARG(bss->bssid));
 
 	pcurrentptr += ETH_ALEN;
 	bytesleftforcurrentbeacon -= ETH_ALEN;

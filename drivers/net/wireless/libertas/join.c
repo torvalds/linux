@@ -286,8 +286,7 @@ int libertas_cmd_80211_authenticate(wlan_private * priv,
 
 	memcpy(pauthenticate->macaddr, bssid, ETH_ALEN);
 
-	lbs_deb_join("AUTH_CMD: Bssid is : %x:%x:%x:%x:%x:%x\n",
-	       bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
+	lbs_deb_join("AUTH_CMD: Bssid is : " MAC_FMT "\n", MAC_ARG(bssid));
 	ret = 0;
 
 out:
@@ -865,10 +864,8 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 
 	lbs_deb_join("ADHOC_RESP: - Joined/Started Ad Hoc\n");
 	lbs_deb_join("ADHOC_RESP: channel = %d\n", adapter->curbssparams.channel);
-	lbs_deb_join("ADHOC_RESP: BSSID = %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       padhocresult->BSSID[0], padhocresult->BSSID[1],
-	       padhocresult->BSSID[2], padhocresult->BSSID[3],
-	       padhocresult->BSSID[4], padhocresult->BSSID[5]);
+	lbs_deb_join("ADHOC_RESP: BSSID = " MAC_FMT "\n",
+	       MAC_ARG(padhocresult->BSSID));
 
 done:
 	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
