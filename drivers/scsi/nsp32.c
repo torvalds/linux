@@ -719,7 +719,7 @@ static int nsp32_selection_autoscsi(struct scsi_cmnd *SCpnt)
 	command = 0;
 	command |= (TRANSFER_GO | ALL_COUNTER_CLR);
 	if (data->trans_method & NSP32_TRANSFER_BUSMASTER) {
-		if (SCpnt->request_bufflen > 0) {
+		if (scsi_bufflen(SCpnt) > 0) {
 			command |= BM_START;
 		}
 	} else if (data->trans_method & NSP32_TRANSFER_MMIO) {
@@ -868,31 +868,28 @@ static int nsp32_reselection(struct scsi_cmnd *SCpnt, unsigned char newlun)
 static int nsp32_setup_sg_table(struct scsi_cmnd *SCpnt)
 {
 	nsp32_hw_data *data = (nsp32_hw_data *)SCpnt->device->host->hostdata;
-	struct scatterlist   *sgl;
+	struct scatterlist *sg;
 	nsp32_sgtable *sgt = data->cur_lunt->sglun->sgt;
 	int num, i;
 	u32_le l;
-
-	if (SCpnt->request_bufflen == 0) {
-		return TRUE;
-	}
 
 	if (sgt == NULL) {
 		nsp32_dbg(NSP32_DEBUG_SGLIST, "SGT == null");
 		return FALSE;
 	}
 
-	if (SCpnt->use_sg) {
-		sgl = (struct scatterlist *)SCpnt->request_buffer;
-		num = pci_map_sg(data->Pci, sgl, SCpnt->use_sg,
-				 SCpnt->sc_data_direction);
-		for (i = 0; i < num; i++) {
+	num = scsi_dma_map(SCpnt);
+	if (!num)
+		return TRUE;
+	else if (num < 0)
+		return FALSE;
+	else {
+		scsi_for_each_sg(SCpnt, sg, num, i) {
 			/*
 			 * Build nsp32_sglist, substitute sg dma addresses.
 			 */
-			sgt[i].addr = cpu_to_le32(sg_dma_address(sgl));
-			sgt[i].len  = cpu_to_le32(sg_dma_len(sgl));
-			sgl++;
+			sgt[i].addr = cpu_to_le32(sg_dma_address(sg));
+			sgt[i].len  = cpu_to_le32(sg_dma_len(sg));
 
 			if (le32_to_cpu(sgt[i].len) > 0x10000) {
 				nsp32_msg(KERN_ERR,
@@ -909,23 +906,6 @@ static int nsp32_setup_sg_table(struct scsi_cmnd *SCpnt)
 		/* set end mark */
 		l = le32_to_cpu(sgt[num-1].len);
 		sgt[num-1].len = cpu_to_le32(l | SGTEND);
-
-	} else {
-		SCpnt->SCp.have_data_in	= pci_map_single(data->Pci,
-			SCpnt->request_buffer, SCpnt->request_bufflen,
-			SCpnt->sc_data_direction);
-
-		sgt[0].addr = cpu_to_le32(SCpnt->SCp.have_data_in);
-		sgt[0].len  = cpu_to_le32(SCpnt->request_bufflen | SGTEND); /* set end mark */
-
-		if (SCpnt->request_bufflen > 0x10000) {
-			nsp32_msg(KERN_ERR,
-				  "can't transfer over 64KB at a time, size=0x%lx", SCpnt->request_bufflen);
-			return FALSE;
-		}
-		nsp32_dbg(NSP32_DEBUG_SGLIST, "single : addr 0x%lx len=0x%lx",
-			  le32_to_cpu(sgt[0].addr),
-			  le32_to_cpu(sgt[0].len ));
 	}
 
 	return TRUE;
@@ -942,7 +922,7 @@ static int nsp32_queuecommand(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_
 		  "enter. target: 0x%x LUN: 0x%x cmnd: 0x%x cmndlen: 0x%x "
 		  "use_sg: 0x%x reqbuf: 0x%lx reqlen: 0x%x",
 		  SCpnt->device->id, SCpnt->device->lun, SCpnt->cmnd[0], SCpnt->cmd_len,
-		  SCpnt->use_sg, SCpnt->request_buffer, SCpnt->request_bufflen);
+		  scsi_sg_count(SCpnt), scsi_sglist(SCpnt), scsi_bufflen(SCpnt));
 
 	if (data->CurrentSC != NULL) {
 		nsp32_msg(KERN_ERR, "Currentsc != NULL. Cancel this command request");
@@ -974,10 +954,10 @@ static int nsp32_queuecommand(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_
 	data->CurrentSC      = SCpnt;
 	SCpnt->SCp.Status    = CHECK_CONDITION;
 	SCpnt->SCp.Message   = 0;
-	SCpnt->resid         = SCpnt->request_bufflen;
+	scsi_set_resid(SCpnt, scsi_bufflen(SCpnt));
 
-	SCpnt->SCp.ptr		    = (char *) SCpnt->request_buffer;
-	SCpnt->SCp.this_residual    = SCpnt->request_bufflen;
+	SCpnt->SCp.ptr		    = (char *)scsi_sglist(SCpnt);
+	SCpnt->SCp.this_residual    = scsi_bufflen(SCpnt);
 	SCpnt->SCp.buffer	    = NULL;
 	SCpnt->SCp.buffers_residual = 0;
 
@@ -1288,7 +1268,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 		}
 
 		if ((auto_stat & DATA_IN_PHASE) &&
-		    (SCpnt->resid > 0) &&
+		    (scsi_get_resid(SCpnt) > 0) &&
 		    ((nsp32_read2(base, FIFO_REST_CNT) & FIFO_REST_MASK) != 0)) {
 			printk( "auto+fifo\n");
 			//nsp32_pio_read(SCpnt);
@@ -1309,7 +1289,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 			nsp32_dbg(NSP32_DEBUG_INTR, "SSACK=0x%lx", 
 				    nsp32_read4(base, SAVED_SACK_CNT));
 
-			SCpnt->resid = 0; /* all data transfered! */
+			scsi_set_resid(SCpnt, 0); /* all data transfered! */
 		}
 
 		/*
@@ -1577,25 +1557,8 @@ static void nsp32_scsi_done(struct scsi_cmnd *SCpnt)
 	nsp32_hw_data *data = (nsp32_hw_data *)SCpnt->device->host->hostdata;
 	unsigned int   base = SCpnt->device->host->io_port;
 
-	/*
-	 * unmap pci
-	 */
-	if (SCpnt->request_bufflen == 0) {
-		goto skip;
-	}
+	scsi_dma_unmap(SCpnt);
 
-	if (SCpnt->use_sg) {
-		pci_unmap_sg(data->Pci,
-			     (struct scatterlist *)SCpnt->request_buffer,
-			     SCpnt->use_sg, SCpnt->sc_data_direction);
-	} else {
-		pci_unmap_single(data->Pci,
-				 (u32)SCpnt->SCp.have_data_in,
-				 SCpnt->request_bufflen,
-				 SCpnt->sc_data_direction);
-	}
-
- skip:
 	/*
 	 * clear TRANSFERCONTROL_BM_START
 	 */
@@ -1751,7 +1714,7 @@ static int nsp32_busfree_occur(struct scsi_cmnd *SCpnt, unsigned short execph)
 		SCpnt->SCp.Message = 0;
 		nsp32_dbg(NSP32_DEBUG_BUSFREE, 
 			  "normal end stat=0x%x resid=0x%x\n",
-			  SCpnt->SCp.Status, SCpnt->resid);
+			  SCpnt->SCp.Status, scsi_get_resid(SCpnt));
 		SCpnt->result = (DID_OK             << 16) |
 			        (SCpnt->SCp.Message <<  8) |
 			        (SCpnt->SCp.Status  <<  0);
@@ -1795,7 +1758,7 @@ static void nsp32_adjust_busfree(struct scsi_cmnd *SCpnt, unsigned int s_sacklen
 	unsigned int          restlen, sentlen;
 	u32_le                len, addr;
 
-	nsp32_dbg(NSP32_DEBUG_SGLIST, "old resid=0x%x", SCpnt->resid);
+	nsp32_dbg(NSP32_DEBUG_SGLIST, "old resid=0x%x", scsi_get_resid(SCpnt));
 
 	/* adjust saved SACK count with 4 byte start address boundary */
 	s_sacklen -= le32_to_cpu(sgt[old_entry].addr) & 3;
@@ -1839,12 +1802,12 @@ static void nsp32_adjust_busfree(struct scsi_cmnd *SCpnt, unsigned int s_sacklen
 	return;
 
  last:
-	if (SCpnt->resid < sentlen) {
+	if (scsi_get_resid(SCpnt) < sentlen) {
 		nsp32_msg(KERN_ERR, "resid underflow");
 	}
 
-	SCpnt->resid -= sentlen;
-	nsp32_dbg(NSP32_DEBUG_SGLIST, "new resid=0x%x", SCpnt->resid);
+	scsi_set_resid(SCpnt, scsi_get_resid(SCpnt) - sentlen);
+	nsp32_dbg(NSP32_DEBUG_SGLIST, "new resid=0x%x", scsi_get_resid(SCpnt));
 
 	/* update hostdata and lun */
 
@@ -1973,7 +1936,7 @@ static void nsp32_restart_autoscsi(struct scsi_cmnd *SCpnt, unsigned short comma
 	transfer = 0;
 	transfer |= (TRANSFER_GO | ALL_COUNTER_CLR);
 	if (data->trans_method & NSP32_TRANSFER_BUSMASTER) {
-		if (SCpnt->request_bufflen > 0) {
+		if (scsi_bufflen(SCpnt) > 0) {
 			transfer |= BM_START;
 		}
 	} else if (data->trans_method & NSP32_TRANSFER_MMIO) {
