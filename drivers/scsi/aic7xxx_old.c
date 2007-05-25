@@ -2690,17 +2690,8 @@ aic7xxx_done(struct aic7xxx_host *p, struct aic7xxx_scb *scb)
 	struct aic7xxx_scb *scbp;
 	unsigned char queue_depth;
 
-  if (cmd->use_sg > 1)
-  {
-    struct scatterlist *sg;
+        scsi_dma_unmap(cmd);
 
-    sg = (struct scatterlist *)cmd->request_buffer;
-    pci_unmap_sg(p->pdev, sg, cmd->use_sg, cmd->sc_data_direction);
-  }
-  else if (cmd->request_bufflen)
-    pci_unmap_single(p->pdev, aic7xxx_mapping(cmd),
-		     cmd->request_bufflen,
-                     cmd->sc_data_direction);
   if (scb->flags & SCB_SENSE)
   {
     pci_unmap_single(p->pdev,
@@ -3869,7 +3860,7 @@ aic7xxx_calculate_residual (struct aic7xxx_host *p, struct aic7xxx_scb *scb)
        * the mid layer didn't check residual data counts to see if the
        * command needs retried.
        */
-      cmd->resid = scb->sg_length - actual;
+      scsi_set_resid(cmd, scb->sg_length - actual);
       aic7xxx_status(cmd) = hscb->target_status;
     }
   }
@@ -10137,6 +10128,7 @@ static void aic7xxx_buildscb(struct aic7xxx_host *p, struct scsi_cmnd *cmd,
   struct scsi_device *sdptr = cmd->device;
   unsigned char tindex = TARGET_INDEX(cmd);
   struct request *req = cmd->request;
+  int use_sg;
 
   mask = (0x01 << tindex);
   hscb = scb->hscb;
@@ -10209,8 +10201,10 @@ static void aic7xxx_buildscb(struct aic7xxx_host *p, struct scsi_cmnd *cmd,
   memcpy(scb->cmnd, cmd->cmnd, cmd->cmd_len);
   hscb->SCSI_cmd_pointer = cpu_to_le32(SCB_DMA_ADDR(scb, scb->cmnd));
 
-  if (cmd->use_sg)
-  {
+  use_sg = scsi_dma_map(cmd);
+  BUG_ON(use_sg < 0);
+
+  if (use_sg) {
     struct scatterlist *sg;  /* Must be mid-level SCSI code scatterlist */
 
     /*
@@ -10219,11 +10213,11 @@ static void aic7xxx_buildscb(struct aic7xxx_host *p, struct scsi_cmnd *cmd,
      * differences and the kernel SG list uses virtual addresses where
      * we need physical addresses.
      */
-    int i, use_sg;
+    int i;
 
-    sg = (struct scatterlist *)cmd->request_buffer;
     scb->sg_length = 0;
-    use_sg = pci_map_sg(p->pdev, sg, cmd->use_sg, cmd->sc_data_direction);
+
+
     /*
      * Copy the segments into the SG array.  NOTE!!! - We used to
      * have the first entry both in the data_pointer area and the first
@@ -10231,10 +10225,9 @@ static void aic7xxx_buildscb(struct aic7xxx_host *p, struct scsi_cmnd *cmd,
      * entry in both places, but now we download the address of
      * scb->sg_list[1] instead of 0 to the sg pointer in the hscb.
      */
-    for (i = 0; i < use_sg; i++)
-    {
-      unsigned int len = sg_dma_len(sg+i);
-      scb->sg_list[i].address = cpu_to_le32(sg_dma_address(sg+i));
+    scsi_for_each_sg(cmd, sg, use_sg, i) {
+      unsigned int len = sg_dma_len(sg);
+      scb->sg_list[i].address = cpu_to_le32(sg_dma_address(sg));
       scb->sg_list[i].length = cpu_to_le32(len);
       scb->sg_length += len;
     }
@@ -10244,33 +10237,13 @@ static void aic7xxx_buildscb(struct aic7xxx_host *p, struct scsi_cmnd *cmd,
     scb->sg_count = i;
     hscb->SG_segment_count = i;
     hscb->SG_list_pointer = cpu_to_le32(SCB_DMA_ADDR(scb, &scb->sg_list[1]));
-  }
-  else
-  {
-    if (cmd->request_bufflen)
-    {
-      unsigned int address = pci_map_single(p->pdev, cmd->request_buffer,
-					    cmd->request_bufflen,
-                                            cmd->sc_data_direction);
-      aic7xxx_mapping(cmd) = address;
-      scb->sg_list[0].address = cpu_to_le32(address);
-      scb->sg_list[0].length = cpu_to_le32(cmd->request_bufflen);
-      scb->sg_count = 1;
-      scb->sg_length = cmd->request_bufflen;
-      hscb->SG_segment_count = 1;
-      hscb->SG_list_pointer = cpu_to_le32(SCB_DMA_ADDR(scb, &scb->sg_list[0]));
-      hscb->data_count = scb->sg_list[0].length;
-      hscb->data_pointer = scb->sg_list[0].address;
-    }
-    else
-    {
+  } else {
       scb->sg_count = 0;
       scb->sg_length = 0;
       hscb->SG_segment_count = 0;
       hscb->SG_list_pointer = 0;
       hscb->data_count = 0;
       hscb->data_pointer = 0;
-    }
   }
 }
 
