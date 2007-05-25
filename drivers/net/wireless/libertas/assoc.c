@@ -345,7 +345,7 @@ static int should_stop_adhoc(wlan_adapter *adapter,
 }
 
 
-void wlan_association_worker(struct work_struct *work)
+void libertas_association_worker(struct work_struct *work)
 {
 	wlan_private *priv = container_of(work, wlan_private, assoc_work.work);
 	wlan_adapter *adapter = priv->adapter;

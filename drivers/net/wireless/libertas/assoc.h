@@ -5,7 +5,7 @@
 
 #include "dev.h"
 
-void wlan_association_worker(struct work_struct *work);
+void libertas_association_worker(struct work_struct *work);
 
 struct assoc_request * wlan_get_association_request(wlan_adapter *adapter);
 
