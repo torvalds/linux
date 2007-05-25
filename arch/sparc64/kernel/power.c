@@ -19,6 +19,7 @@
 #include <asm/prom.h>
 #include <asm/of_device.h>
 #include <asm/io.h>
+#include <asm/sstate.h>
 
 #include <linux/unistd.h>
 
@@ -53,6 +54,7 @@ static void (*poweroff_method)(void) = machine_alt_power_off;
 
 void machine_power_off(void)
 {
+	sstate_poweroff();
 	if (!serial_console || scons_pwroff) {
 #ifdef CONFIG_PCI
 		if (power_reg) {

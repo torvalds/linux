@@ -1937,3 +1937,15 @@ sun4v_con_write:
 	stx	%o1, [%o4]
 	retl
 	 nop
+
+	/* %o0:	soft state
+	 * %o1:	address of description string
+	 *
+	 * returns %o0: status
+	 */
+	.globl	sun4v_mach_set_soft_state
+sun4v_mach_set_soft_state:
+	mov	HV_FAST_MACH_SET_SOFT_STATE, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop

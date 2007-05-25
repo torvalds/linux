@@ -9,6 +9,7 @@
 
 #include <asm/hypervisor.h>
 #include <asm/oplib.h>
+#include <asm/sstate.h>
 
 /* If the hypervisor indicates that the API setting
  * calls are unsupported, by returning HV_EBADTRAP or
@@ -178,6 +179,8 @@ void __init sun4v_hvapi_init(void)
 	minor = 1;
 	if (sun4v_hvapi_register(group, major, &minor))
 		goto bad;
+
+	sun4v_sstate_init();
 
 	return;
 

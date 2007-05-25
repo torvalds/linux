@@ -45,6 +45,7 @@
 #include <asm/mmu_context.h>
 #include <asm/unistd.h>
 #include <asm/hypervisor.h>
+#include <asm/sstate.h>
 
 /* #define VERBOSE_SHOWREGS */
 
@@ -106,6 +107,7 @@ extern void (*prom_keyboard)(void);
 
 void machine_halt(void)
 {
+	sstate_halt();
 	if (!serial_console && prom_palette)
 		prom_palette (1);
 	if (prom_keyboard)
@@ -116,6 +118,7 @@ void machine_halt(void)
 
 void machine_alt_power_off(void)
 {
+	sstate_poweroff();
 	if (!serial_console && prom_palette)
 		prom_palette(1);
 	if (prom_keyboard)
@@ -128,6 +131,7 @@ void machine_restart(char * cmd)
 {
 	char *p;
 	
+	sstate_reboot();
 	p = strchr (reboot_command, '\n');
 	if (p) *p = 0;
 	if (!serial_console && prom_palette)

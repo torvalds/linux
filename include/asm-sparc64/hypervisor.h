@@ -162,9 +162,14 @@
  * terminated 7-bit ASCII string of up to 31 characters not including the
  * NULL termination.
  */
-#define HV_FAST_MACH_SET_SOFT_STATE	0x03
+#define HV_FAST_MACH_SET_SOFT_STATE	0x70
 #define  HV_SOFT_STATE_NORMAL		 0x01
 #define  HV_SOFT_STATE_TRANSITION	 0x02
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_mach_set_soft_state(unsigned long soft_state,
+					       unsigned long msg_string_ra);
+#endif
 
 /* mach_get_soft_state()
  * TRAP:	HV_FAST_TRAP
@@ -181,7 +186,7 @@
  * for the software state pointer are the same as for mach_set_soft_state()
  * above.
  */
-#define HV_FAST_MACH_GET_SOFT_STATE	0x04
+#define HV_FAST_MACH_GET_SOFT_STATE	0x71
 
 /* CPU services.
  *
@@ -2204,6 +2209,7 @@ extern void sun4v_hvapi_unregister(unsigned long group);
 extern int sun4v_hvapi_get(unsigned long group,
 			   unsigned long *major,
 			   unsigned long *minor);
+extern void sun4v_hvapi_init(void);
 #endif
 
 #endif /* !(_SPARC64_HYPERVISOR_H) */
