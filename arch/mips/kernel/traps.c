@@ -311,7 +311,7 @@ void show_registers(struct pt_regs *regs)
 
 static DEFINE_SPINLOCK(die_lock);
 
-NORET_TYPE void ATTRIB_NORET die(const char * str, struct pt_regs * regs)
+void __noreturn die(const char * str, struct pt_regs * regs)
 {
 	static int die_counter;
 #ifdef CONFIG_MIPS_MT_SMTC
