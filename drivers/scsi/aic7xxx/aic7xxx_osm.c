@@ -402,18 +402,8 @@ ahc_linux_unmap_scb(struct ahc_softc *ahc, struct scb *scb)
 
 	cmd = scb->io_ctx;
 	ahc_sync_sglist(ahc, scb, BUS_DMASYNC_POSTWRITE);
-	if (cmd->use_sg != 0) {
-		struct scatterlist *sg;
 
-		sg = (struct scatterlist *)cmd->request_buffer;
-		pci_unmap_sg(ahc->dev_softc, sg, cmd->use_sg,
-			     cmd->sc_data_direction);
-	} else if (cmd->request_bufflen != 0) {
-		pci_unmap_single(ahc->dev_softc,
-				 scb->platform_data->buf_busaddr,
-				 cmd->request_bufflen,
-				 cmd->sc_data_direction);
-	}
+	scsi_dma_unmap(cmd);
 }
 
 static __inline int
@@ -1381,6 +1371,7 @@ ahc_linux_run_command(struct ahc_softc *ahc, struct ahc_linux_device *dev,
 	struct	 ahc_tmode_tstate *tstate;
 	uint16_t mask;
 	struct scb_tailq *untagged_q = NULL;
+	int nseg;
 
 	/*
 	 * Schedule us to run later.  The only reason we are not
@@ -1472,23 +1463,21 @@ ahc_linux_run_command(struct ahc_softc *ahc, struct ahc_linux_device *dev,
 	ahc_set_residual(scb, 0);
 	ahc_set_sense_residual(scb, 0);
 	scb->sg_count = 0;
-	if (cmd->use_sg != 0) {
+
+	nseg = scsi_dma_map(cmd);
+	BUG_ON(nseg < 0);
+	if (nseg > 0) {
 		struct	ahc_dma_seg *sg;
 		struct	scatterlist *cur_seg;
-		struct	scatterlist *end_seg;
-		int	nseg;
+		int i;
 
-		cur_seg = (struct scatterlist *)cmd->request_buffer;
-		nseg = pci_map_sg(ahc->dev_softc, cur_seg, cmd->use_sg,
-				  cmd->sc_data_direction);
-		end_seg = cur_seg + nseg;
 		/* Copy the segments into the SG list. */
 		sg = scb->sg_list;
 		/*
 		 * The sg_count may be larger than nseg if
 		 * a transfer crosses a 32bit page.
-		 */ 
-		while (cur_seg < end_seg) {
+		 */
+		scsi_for_each_sg(cmd, cur_seg, nseg, i) {
 			dma_addr_t addr;
 			bus_size_t len;
 			int consumed;
@@ -1499,7 +1488,6 @@ ahc_linux_run_command(struct ahc_softc *ahc, struct ahc_linux_device *dev,
 						     sg, addr, len);
 			sg += consumed;
 			scb->sg_count += consumed;
-			cur_seg++;
 		}
 		sg--;
 		sg->len |= ahc_htole32(AHC_DMA_LAST_SEG);
@@ -1516,33 +1504,6 @@ ahc_linux_run_command(struct ahc_softc *ahc, struct ahc_linux_device *dev,
 		 */
 		scb->hscb->dataptr = scb->sg_list->addr;
 		scb->hscb->datacnt = scb->sg_list->len;
-	} else if (cmd->request_bufflen != 0) {
-		struct	 ahc_dma_seg *sg;
-		dma_addr_t addr;
-
-		sg = scb->sg_list;
-		addr = pci_map_single(ahc->dev_softc,
-				      cmd->request_buffer,
-				      cmd->request_bufflen,
-				      cmd->sc_data_direction);
-		scb->platform_data->buf_busaddr = addr;
-		scb->sg_count = ahc_linux_map_seg(ahc, scb,
-						  sg, addr,
-						  cmd->request_bufflen);
-		sg->len |= ahc_htole32(AHC_DMA_LAST_SEG);
-
-		/*
-		 * Reset the sg list pointer.
-		 */
-		scb->hscb->sgptr =
-			ahc_htole32(scb->sg_list_phys | SG_FULL_RESID);
-
-		/*
-		 * Copy the first SG into the "current"
-		 * data pointer area.
-		 */
-		scb->hscb->dataptr = sg->addr;
-		scb->hscb->datacnt = sg->len;
 	} else {
 		scb->hscb->sgptr = ahc_htole32(SG_LIST_NULL);
 		scb->hscb->dataptr = 0;
