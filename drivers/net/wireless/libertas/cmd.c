@@ -861,6 +861,11 @@ static int wlan_cmd_bt_access(wlan_private * priv,
 		break;
 	case cmd_act_bt_access_reset:
 		break;
+	case cmd_act_bt_access_set_invert:
+		bt_access->id = cpu_to_le32(*(u32 *) pdata_buf);
+		break;
+	case cmd_act_bt_access_get_invert:
+		break;
 	default:
 		break;
 	}

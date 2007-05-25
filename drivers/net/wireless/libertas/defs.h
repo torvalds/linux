@@ -374,6 +374,8 @@ enum SNMP_MIB_VALUE_e {
 /* Default values for fwt commands. */
 #define FWT_DEFAULT_METRIC 0
 #define FWT_DEFAULT_DIR 1
+/* Default Rate, 11Mbps */
+#define FWT_DEFAULT_RATE 3
 #define FWT_DEFAULT_SSN 0xffffffff
 #define FWT_DEFAULT_DSN 0
 #define FWT_DEFAULT_HOPCOUNT 0

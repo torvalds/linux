@@ -241,7 +241,7 @@ static int wlan_bt_list_ioctl(wlan_private * priv, struct ifreq *req)
 	if (ret == 0) {
 		addr1 = param.addr1addr2;
 
-		pos = sprintf(pbuf, "ignoring traffic from ");
+		pos = sprintf(pbuf, "BT includes node ");
 		pbuf += pos;
 		pos = eth_addr2str(addr1, pbuf);
 		pbuf += pos;
@@ -256,6 +256,64 @@ static int wlan_bt_list_ioctl(wlan_private * priv, struct ifreq *req)
 		lbs_deb_ioctl("BT_LIST: Copy to user failed!\n");
 		return -EFAULT;
 	}
+
+	lbs_deb_leave(LBS_DEB_IOCTL);
+	return 0 ;
+}
+
+/**
+ *  @brief          Sets inverted state of blacklist (non-zero if inverted)
+ *  @param priv     A pointer to wlan_private structure
+ *  @param req      A pointer to ifreq structure
+ *  @return         0 --success, otherwise fail
+ */
+static int wlan_bt_set_invert_ioctl(wlan_private * priv, struct ifreq *req)
+{
+	int ret;
+	struct iwreq *wrq = (struct iwreq *)req;
+	union {
+		int id;
+		char addr1addr2[2 * ETH_ALEN];
+	} param;
+
+	lbs_deb_enter(LBS_DEB_IOCTL);
+
+	param.id = SUBCMD_DATA(wrq) ;
+	ret = libertas_prepare_and_send_command(priv, cmd_bt_access,
+				    cmd_act_bt_access_set_invert,
+				    cmd_option_waitforrsp, 0,
+				    (char *)&param);
+	if (ret != 0)
+		return -EFAULT;
+	lbs_deb_leave(LBS_DEB_IOCTL);
+	return 0;
+}
+
+/**
+ *  @brief          Gets inverted state of blacklist (non-zero if inverted)
+ *  @param priv     A pointer to wlan_private structure
+ *  @param req      A pointer to ifreq structure
+ *  @return         0 --success, otherwise fail
+ */
+static int wlan_bt_get_invert_ioctl(wlan_private * priv, struct ifreq *req)
+{
+	int ret;
+	union {
+		int id;
+		char addr1addr2[2 * ETH_ALEN];
+	} param;
+
+	lbs_deb_enter(LBS_DEB_IOCTL);
+
+	ret = libertas_prepare_and_send_command(priv, cmd_bt_access,
+				    cmd_act_bt_access_get_invert,
+				    cmd_option_waitforrsp, 0,
+				    (char *)&param);
+
+	if (ret == 0)
+		req->ifr_data = (char *)(le32_to_cpu(param.id));
+	else
+		return -EFAULT;
 
 	lbs_deb_leave(LBS_DEB_IOCTL);
 	return 0;
@@ -312,6 +370,11 @@ static int wlan_fwt_add_ioctl(wlan_private * priv, struct ifreq *req)
 		fwt_access.dir = (u8)simple_strtoul(ptr, &ptr, 10);
 	else
 		fwt_access.dir = FWT_DEFAULT_DIR;
+
+	if ((ptr = next_param(ptr)))
+		fwt_access.rate = (u8) simple_strtoul(ptr, &ptr, 10);
+	else
+		fwt_access.rate = FWT_DEFAULT_RATE;
 
 	if ((ptr = next_param(ptr)))
 		fwt_access.ssn =
@@ -441,15 +504,18 @@ static void print_route(struct cmd_ds_fwt_access fwt_access, char *buf)
 	buf += eth_addr2str(fwt_access.da, buf);
 	buf += sprintf(buf, " ");
 	buf += eth_addr2str(fwt_access.ra, buf);
+	buf += sprintf(buf, " %u", fwt_access.valid);
 	buf += sprintf(buf, " %u", le32_to_cpu(fwt_access.metric));
 	buf += sprintf(buf, " %u", fwt_access.dir);
+	buf += sprintf(buf, " %u", fwt_access.rate);
 	buf += sprintf(buf, " %u", le32_to_cpu(fwt_access.ssn));
 	buf += sprintf(buf, " %u", le32_to_cpu(fwt_access.dsn));
 	buf += sprintf(buf, " %u", fwt_access.hopcount);
 	buf += sprintf(buf, " %u", fwt_access.ttl);
 	buf += sprintf(buf, " %u", le32_to_cpu(fwt_access.expiration));
 	buf += sprintf(buf, " %u", fwt_access.sleepmode);
-	buf += sprintf(buf, " %u", le32_to_cpu(fwt_access.snr));
+	buf += sprintf(buf, " %u ", le32_to_cpu(fwt_access.snr));
+	buf += eth_addr2str(fwt_access.prec, buf);
 }
 
 /**
@@ -866,6 +932,10 @@ int libertas_do_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 			ret = wlan_mesh_set_ttl_ioctl(priv, idata);
 			break;
 
+		case WLAN_SUBCMD_BT_SET_INVERT:
+			ret = wlan_bt_set_invert_ioctl(priv, req);
+			break ;
+
 		default:
 			ret = -EOPNOTSUPP;
 			break;
@@ -922,6 +992,10 @@ int libertas_do_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 		case WLAN_SUBCMD_MESH_GET_TTL:
 			ret = wlan_mesh_get_ttl_ioctl(priv, req);
 			break;
+
+		case WLAN_SUBCMD_BT_GET_INVERT:
+			ret = wlan_bt_get_invert_ioctl(priv, req);
+			break ;
 
 		default:
 			ret = -EOPNOTSUPP;

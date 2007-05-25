@@ -607,18 +607,21 @@ struct cmd_ds_bt_access {
 struct cmd_ds_fwt_access {
 	u16 action;
 	u32 id;
+	u8 valid;
 	u8 da[ETH_ALEN];
 	u8 dir;
 	u8 ra[ETH_ALEN];
 	u32 ssn;
 	u32 dsn;
 	u32 metric;
+	u8 rate;
 	u8 hopcount;
 	u8 ttl;
 	u32 expiration;
 	u8 sleepmode;
 	u32 snr;
 	u32 references;
+	u8 prec[ETH_ALEN];
 } __attribute__ ((packed));
 
 struct cmd_ds_mesh_access {

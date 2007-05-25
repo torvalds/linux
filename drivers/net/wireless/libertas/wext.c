@@ -1066,6 +1066,16 @@ static const struct iw_priv_args wlan_private_args[] = {
 	 IW_PRIV_TYPE_CHAR | 128,
 	 IW_PRIV_TYPE_CHAR | 128,
 	 "bt_list"},
+	{
+	 WLAN_SUBCMD_BT_SET_INVERT,
+	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
+	 IW_PRIV_TYPE_NONE,
+	 "bt_set_invert"},
+	{
+	 WLAN_SUBCMD_BT_GET_INVERT,
+	 IW_PRIV_TYPE_NONE,
+	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
+	 "bt_get_invert"},
 	/* FWT Management */
 	{
 	 WLAN_SUBCMD_FWT_ADD,

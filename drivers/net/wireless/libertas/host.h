@@ -287,7 +287,9 @@ enum cmd_bt_access_opts {
 	cmd_act_bt_access_add = 5,
 	cmd_act_bt_access_del,
 	cmd_act_bt_access_list,
-	cmd_act_bt_access_reset
+	cmd_act_bt_access_reset,
+	cmd_act_bt_access_set_invert,
+	cmd_act_bt_access_get_invert
 };
 
 /* Define action or option for cmd_fwt_access */
