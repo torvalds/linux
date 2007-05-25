@@ -1670,7 +1670,7 @@ int libertas_execute_next_command(wlan_private * priv)
 	unsigned long flags;
 	int ret = 0;
 
-	lbs_deb_cmd("libertas_execute_next_command\n");
+	lbs_deb_enter(LBS_DEB_CMD);
 
 	spin_lock_irqsave(&adapter->driver_lock, flags);
 
@@ -1805,6 +1805,7 @@ int libertas_execute_next_command(wlan_private * priv)
 
 	ret = 0;
 done:
+	lbs_deb_leave(LBS_DEB_CMD);
 	return ret;
 }
 
