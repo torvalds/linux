@@ -172,38 +172,49 @@ int drm_rmdraw(DRM_IOCTL_ARGS)
 
 		bitfield_length = idx + 1;
 
-		if (idx != id / (8 * sizeof(*bitfield)))
-			bitfield = drm_alloc(bitfield_length *
-					     sizeof(*bitfield), DRM_MEM_BUFS);
+		bitfield = NULL;
 
-		if (!bitfield && bitfield_length) {
-			bitfield = dev->drw_bitfield;
-			bitfield_length = dev->drw_bitfield_length;
+		if (bitfield_length) {
+			if (bitfield_length != dev->drw_bitfield_length)
+				bitfield = drm_alloc(bitfield_length *
+						     sizeof(*bitfield),
+						     DRM_MEM_BUFS);
+
+			if (!bitfield) {
+				bitfield = dev->drw_bitfield;
+				bitfield_length = dev->drw_bitfield_length;
+			}
 		}
 	}
 
 	if (bitfield != dev->drw_bitfield) {
 		info_length = 8 * sizeof(*bitfield) * bitfield_length;
 
-		info = drm_alloc(info_length * sizeof(*info), DRM_MEM_BUFS);
+		if (info_length) {
+			info = drm_alloc(info_length * sizeof(*info),
+					 DRM_MEM_BUFS);
 
-		if (!info && info_length) {
-			info = dev->drw_info;
-			info_length = dev->drw_info_length;
-		}
+			if (!info) {
+				info = dev->drw_info;
+				info_length = dev->drw_info_length;
+			}
+		} else
+			info = NULL;
 
 		spin_lock_irqsave(&dev->drw_lock, irqflags);
 
-		memcpy(bitfield, dev->drw_bitfield, bitfield_length *
-		       sizeof(*bitfield));
+		if (bitfield)
+			memcpy(bitfield, dev->drw_bitfield, bitfield_length *
+			       sizeof(*bitfield));
 		drm_free(dev->drw_bitfield, sizeof(*bitfield) *
 			 dev->drw_bitfield_length, DRM_MEM_BUFS);
 		dev->drw_bitfield = bitfield;
 		dev->drw_bitfield_length = bitfield_length;
 
 		if (info != dev->drw_info) {
-			memcpy(info, dev->drw_info, info_length *
-			       sizeof(*info));
+			if (info)
+				memcpy(info, dev->drw_info, info_length *
+				       sizeof(*info));
 			drm_free(dev->drw_info, sizeof(*info) *
 				 dev->drw_info_length, DRM_MEM_BUFS);
 			dev->drw_info = info;
