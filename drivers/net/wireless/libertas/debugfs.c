@@ -1760,7 +1760,7 @@ void libertas_debugfs_remove_one(wlan_private *priv)
 
 	debugfs_remove(priv->regs_dir);
 
-	for(i=0; i<ARRAY_SIZE(debugfs_files); i++)
+	for(i=0; i<ARRAY_SIZE(debugfs_events_files); i++)
 		debugfs_remove(priv->debugfs_events_files[i]);
 
 	debugfs_remove(priv->events_dir);
@@ -1769,6 +1769,7 @@ void libertas_debugfs_remove_one(wlan_private *priv)
 #endif
 	for(i=0; i<ARRAY_SIZE(debugfs_files); i++)
 		debugfs_remove(priv->debugfs_files[i]);
+	debugfs_remove(priv->debugfs_dir);
 }
 
 /* debug entry */
