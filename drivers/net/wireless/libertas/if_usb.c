@@ -67,7 +67,7 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 
 	if (urb->status != 0) {
 		/* print the failure status number for debug */
-		lbs_pr_info("URB in failure status\n");
+		lbs_pr_info("URB in failure status: %d\n", urb->status);
 	} else {
 		/*
 		lbs_deb_usbd(&urb->dev->dev, "URB status is successfull\n");
