@@ -123,6 +123,7 @@ struct wlan_mesh_stats {
 	u32	fwd_drop_noroute; 	/* Fwd: No route to Destination */
 	u32	fwd_drop_nobuf;		/* Fwd: Run out of internal buffers */
 	u32	drop_blind;		/* Rx:  Dropped by blinding table */
+	u32	tx_failed_cnt;		/* Tx:  Failed transmissions */
 };
 
 /** Private structure for the MV device */

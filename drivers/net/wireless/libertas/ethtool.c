@@ -17,7 +17,8 @@ static const char * mesh_stat_strings[]= {
 			"drop_no_buffers",
 			"fwded_unicast_cnt",
 			"fwded_bcast_cnt",
-			"drop_blind_table"
+			"drop_blind_table",
+			"tx_failed_cnt"
 };
 
 static void libertas_ethtool_get_drvinfo(struct net_device *dev,
@@ -124,6 +125,7 @@ static void libertas_ethtool_get_stats(struct net_device * dev,
         data[4] = priv->mstats.fwd_unicast_cnt;
         data[5] = priv->mstats.fwd_bcast_cnt;
         data[6] = priv->mstats.drop_blind;
+        data[7] = priv->mstats.tx_failed_cnt;
 
 	lbs_deb_enter(LBS_DEB_ETHTOOL);
 }
@@ -153,6 +155,7 @@ static int libertas_ethtool_get_stats_count(struct net_device * dev)
         priv->mstats.fwd_unicast_cnt = mesh_access.data[4];
         priv->mstats.fwd_bcast_cnt = mesh_access.data[5];
         priv->mstats.drop_blind = mesh_access.data[6];
+        priv->mstats.tx_failed_cnt = mesh_access.data[7];
 
 	ret = MESH_STATS_NUM;
 

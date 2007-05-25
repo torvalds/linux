@@ -621,11 +621,13 @@ struct cmd_ds_fwt_access {
 	u32 references;
 } __attribute__ ((packed));
 
-#define MESH_STATS_NUM 7
 struct cmd_ds_mesh_access {
 	u16 action;
-	u32 data[MESH_STATS_NUM + 1];	/* last position reserved */
+	u32 data[32];	/* last position reserved */
 } __attribute__ ((packed));
+
+/* Number of stats counters returned by the firmware */
+#define MESH_STATS_NUM 8
 
 struct cmd_ds_command {
 	/* command header */
