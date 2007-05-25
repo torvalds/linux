@@ -1487,6 +1487,13 @@ L:	linux-usb-devel@lists.sourceforge.net
 L:	linuxppc-embedded@ozlabs.org
 S:	Maintained
 
+FREESCALE QUICC ENGINE UCC ETHERNET DRIVER
+P:	Li Yang
+M:	leoli@freescale.com
+L:	netdev@vger.kernel.org
+L:	linuxppc-embedded@ozlabs.org
+S:	Maintained
+
 FILE LOCKING (flock() and fcntl()/lockf())
 P:	Matthew Wilcox
 M:	matthew@wil.cx
