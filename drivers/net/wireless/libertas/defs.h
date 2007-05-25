@@ -51,10 +51,10 @@ static inline void lbs_dbg_hex(char *prompt, u8 * buf, int len)
 #define lbs_dbg_hex(x,y,z)				do {} while (0)
 #endif
 
-#define	ENTER()			lbs_pr_debug(1, "Enter: %s, %s:%i\n", \
-					__FUNCTION__, __FILE__, __LINE__)
-#define	LEAVE()			lbs_pr_debug(1, "Leave: %s, %s:%i\n", \
-					__FUNCTION__, __FILE__, __LINE__)
+#define	ENTER()			lbs_pr_debug(1, "Enter: %s:%i\n", \
+					__FUNCTION__, __LINE__)
+#define	LEAVE()			lbs_pr_debug(1, "Leave: %s:%i\n", \
+					__FUNCTION__, __LINE__)
 
 /** Buffer Constants */
 
