@@ -5,7 +5,6 @@
 #include <linux/firmware.h>
 
 #include "host.h"
-#include "sbi.h"
 #include "defs.h"
 #include "decl.h"
 #include "dev.h"
@@ -89,7 +88,7 @@ static int wlan_setup_station_hw(wlan_private * priv)
 		goto done;
 	}
 
-	ret = libertas_sbi_prog_firmware(priv);
+	ret = priv->hw_prog_firmware(priv);
 
 	release_firmware(priv->firmware);
 

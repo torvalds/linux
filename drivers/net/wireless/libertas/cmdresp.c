@@ -9,7 +9,6 @@
 #include <net/iw_handler.h>
 
 #include "host.h"
-#include "sbi.h"
 #include "decl.h"
 #include "defs.h"
 #include "dev.h"

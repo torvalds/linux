@@ -7,7 +7,6 @@
 #include <linux/usb.h>
 
 #include "host.h"
-#include "sbi.h"
 #include "decl.h"
 #include "defs.h"
 #include "dev.h"
@@ -33,6 +32,12 @@ MODULE_DEVICE_TABLE(usb, if_usb_table);
 static void if_usb_receive(struct urb *urb);
 static void if_usb_receive_fwload(struct urb *urb);
 static int reset_device(wlan_private *priv);
+static int if_usb_register_dev(wlan_private * priv);
+static int if_usb_unregister_dev(wlan_private *);
+static int if_usb_prog_firmware(wlan_private *);
+static int if_usb_host_to_card(wlan_private * priv, u8 type, u8 * payload, u16 nb);
+static int if_usb_get_int_status(wlan_private * priv, u8 *);
+static int if_usb_read_event_cause(wlan_private *);
 
 /**
  *  @brief  call back function to handle the status of the URB
@@ -192,13 +197,20 @@ static int if_usb_probe(struct usb_interface *intf,
 
 	/* At this point wlan_add_card() will be called.  Don't worry
 	 * about keeping pwlanpriv around since it will be set on our
-	 * usb device data in -> add() -> libertas_sbi_register_dev().
+	 * usb device data in -> add() -> hw_register_dev() -> if_usb_register_dev.
 	 */
 	if (!(priv = wlan_add_card(usb_cardp)))
 		goto dealloc;
 
 	if (wlan_add_mesh(priv))
 		goto err_add_mesh;
+
+	priv->hw_register_dev = if_usb_register_dev;
+	priv->hw_unregister_dev = if_usb_unregister_dev;
+	priv->hw_prog_firmware = if_usb_prog_firmware;
+	priv->hw_host_to_card = if_usb_host_to_card;
+	priv->hw_get_int_status = if_usb_get_int_status;
+	priv->hw_read_event_cause = if_usb_read_event_cause;
 
 	if (libertas_activate_card(priv))
 		goto err_activate_card;
@@ -702,7 +714,7 @@ rx_exit:
  *  @param len		number of bytes
  *  @return 	   	0 or -1
  */
-int libertas_sbi_host_to_card(wlan_private * priv, u8 type, u8 * payload, u16 nb)
+static int if_usb_host_to_card(wlan_private * priv, u8 type, u8 * payload, u16 nb)
 {
 	int ret = -1;
 	u32 tmp;
@@ -733,7 +745,7 @@ int libertas_sbi_host_to_card(wlan_private * priv, u8 type, u8 * payload, u16 nb
 }
 
 /* called with adapter->driver_lock held */
-int libertas_sbi_get_int_status(wlan_private * priv, u8 * ireg)
+static int if_usb_get_int_status(wlan_private * priv, u8 * ireg)
 {
 	struct usb_card_rec *cardp = priv->wlan_dev.card;
 
@@ -745,7 +757,7 @@ int libertas_sbi_get_int_status(wlan_private * priv, u8 * ireg)
 	return 0;
 }
 
-int libertas_sbi_read_event_cause(wlan_private * priv)
+static int if_usb_read_event_cause(wlan_private * priv)
 {
 	struct usb_card_rec *cardp = priv->wlan_dev.card;
 	priv->adapter->eventcause = cardp->usb_event_cause;
@@ -767,7 +779,7 @@ static int reset_device(wlan_private *priv)
 	return ret;
 }
 
-int libertas_sbi_unregister_dev(wlan_private * priv)
+static int if_usb_unregister_dev(wlan_private * priv)
 {
 	int ret = 0;
 
@@ -787,7 +799,7 @@ int libertas_sbi_unregister_dev(wlan_private * priv)
  *  @param		priv pointer to wlan_private
  *  @return		0 or -1
  */
-int libertas_sbi_register_dev(wlan_private * priv)
+static int if_usb_register_dev(wlan_private * priv)
 {
 	struct usb_card_rec *cardp = (struct usb_card_rec *)priv->wlan_dev.card;
 
@@ -809,7 +821,7 @@ int libertas_sbi_register_dev(wlan_private * priv)
 
 
 
-int libertas_sbi_prog_firmware(wlan_private * priv)
+static int if_usb_prog_firmware(wlan_private * priv)
 {
 	struct usb_card_rec *cardp = priv->wlan_dev.card;
 	int i = 0;
@@ -959,7 +971,7 @@ static struct usb_driver if_usb_driver = {
  *  @param arg		pointer to call back function parameter
  *  @return 	   	dummy success variable
  */
-int libertas_sbi_register(void)
+int if_usb_register(void)
 {
 	/*
 	 * API registers the Marvell USB driver
@@ -975,7 +987,7 @@ int libertas_sbi_register(void)
  *  @brief This function removes usb driver.
  *  @return 	   	N/A
  */
-void libertas_sbi_unregister(void)
+void if_usb_unregister(void)
 {
 	int i;
 

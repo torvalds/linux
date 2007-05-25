@@ -155,6 +155,13 @@ static inline void lbs_dbg_hex(char *prompt, u8 * buf, int len)
 #define MRVDRV_MAX_BEACON_INTERVAL		1000
 #define MRVDRV_BEACON_INTERVAL			100
 
+/** INT status Bit Definition*/
+#define his_cmddnldrdy			0x01
+#define his_cardevent			0x02
+#define his_cmdupldrdy			0x04
+
+#define SBI_EVENT_CAUSE_SHIFT		3
+
 /** TxPD status */
 
 /*	Station firmware use TxPD status field to report final Tx transmit

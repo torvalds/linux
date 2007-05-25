@@ -82,4 +82,9 @@ int wlan_remove_card(wlan_private *priv);
 int wlan_add_mesh(wlan_private *priv);
 void wlan_remove_mesh(wlan_private *priv);
 
+/* preliminary here */
+int if_usb_register(void);
+void if_usb_unregister(void);
+
+
 #endif				/* _WLAN_DECL_H_ */

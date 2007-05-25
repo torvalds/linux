@@ -5,7 +5,6 @@
 
 #include "hostcmd.h"
 #include "radiotap.h"
-#include "sbi.h"
 #include "decl.h"
 #include "defs.h"
 #include "dev.h"
@@ -132,13 +131,13 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 
 	lbs_dbg_hex("Tx Data", (u8 *) p802x_hdr, plocaltxpd->tx_packet_length);
 	memcpy(ptr, p802x_hdr, plocaltxpd->tx_packet_length);
-	ret = libertas_sbi_host_to_card(priv, MVMS_DAT,
-			       priv->adapter->tmptxbuf,
-			       plocaltxpd->tx_packet_length +
-			       sizeof(struct txpd));
+	ret = priv->hw_host_to_card(priv, MVMS_DAT,
+		priv->adapter->tmptxbuf,
+		plocaltxpd->tx_packet_length +
+		sizeof(struct txpd));
 
 	if (ret) {
-		lbs_deb_tx("tx err: libertas_sbi_host_to_card returned 0x%X\n", ret);
+		lbs_deb_tx("tx err: hw_host_to_card returned 0x%X\n", ret);
 		goto done;
 	}
 

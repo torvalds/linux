@@ -1,10 +1,8 @@
-
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/delay.h>
 
 #include "host.h"
-#include "sbi.h"
 #include "decl.h"
 #include "defs.h"
 #include "dev.h"

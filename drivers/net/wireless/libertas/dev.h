@@ -162,6 +162,14 @@ struct _wlan_private {
 
 	struct delayed_work assoc_work;
 	struct workqueue_struct *assoc_thread;
+
+	/** Hardware access */
+	int (*hw_register_dev) (wlan_private * priv);
+	int (*hw_unregister_dev) (wlan_private *);
+	int (*hw_prog_firmware) (wlan_private *);
+	int (*hw_host_to_card) (wlan_private * priv, u8 type, u8 * payload, u16 nb);
+	int (*hw_get_int_status) (wlan_private * priv, u8 *);
+	int (*hw_read_event_cause) (wlan_private *);
 };
 
 /** Association request

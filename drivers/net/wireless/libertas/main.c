@@ -15,7 +15,6 @@
 #include <net/ieee80211.h>
 
 #include "host.h"
-#include "sbi.h"
 #include "decl.h"
 #include "dev.h"
 #include "fw.h"
@@ -661,7 +660,7 @@ static int wlan_service_main_thread(void *data)
 		if (adapter->intcounter) {
 			u8 int_status;
 			adapter->intcounter = 0;
-			int_status = libertas_sbi_get_int_status(priv, &ireg);
+			int_status = priv->hw_get_int_status(priv, &ireg);
 
 			if (int_status) {
 				lbs_deb_thread(
@@ -693,9 +692,9 @@ static int wlan_service_main_thread(void *data)
 
 			adapter->hisregcpy &= ~his_cardevent;
 
-			if (libertas_sbi_read_event_cause(priv)) {
+			if (priv->hw_read_event_cause(priv)) {
 				lbs_pr_alert(
-				       "main-thread: libertas_sbi_read_event_cause failed\n");
+				       "main-thread: hw_read_event_cause failed\n");
 				spin_unlock_irq(&adapter->driver_lock);
 				continue;
 			}
@@ -850,7 +849,7 @@ int libertas_activate_card(wlan_private *priv)
 	 * relevant information from the card and request for the required
 	 * IRQ.
 	 */
-	if (libertas_sbi_register_dev(priv) < 0) {
+	if (priv->hw_register_dev(priv) < 0) {
 		lbs_pr_err("failed to register WLAN device\n");
 		goto err_registerdev;
 	}
@@ -874,7 +873,7 @@ int libertas_activate_card(wlan_private *priv)
 	goto done;
 
 err_init_fw:
-	libertas_sbi_unregister_dev(priv);
+	priv->hw_unregister_dev(priv);
 err_registerdev:
 	destroy_workqueue(priv->assoc_thread);
 	/* Stop the thread servicing the interrupts */
@@ -1156,7 +1155,7 @@ static int wlan_init_module(void)
 
 	libertas_debugfs_init();
 
-	if (libertas_sbi_register()) {
+	if (if_usb_register()) {
 		ret = -1;
 		libertas_debugfs_remove();
 	}
@@ -1169,7 +1168,7 @@ static void wlan_cleanup_module(void)
 {
 	lbs_deb_enter(LBS_DEB_MAIN);
 
-	libertas_sbi_unregister();
+	if_usb_unregister();
 	libertas_debugfs_remove();
 
 	lbs_deb_leave(LBS_DEB_MAIN);

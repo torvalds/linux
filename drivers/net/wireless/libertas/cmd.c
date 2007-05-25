@@ -6,7 +6,6 @@
 #include <net/iw_handler.h>
 #include "host.h"
 #include "hostcmd.h"
-#include "sbi.h"
 #include "decl.h"
 #include "defs.h"
 #include "dev.h"
@@ -1014,7 +1013,7 @@ static int DownloadcommandToStation(wlan_private * priv,
 	cmdnode->cmdwaitqwoken = 0;
 	cmdsize = cpu_to_le16(cmdsize);
 
-	ret = libertas_sbi_host_to_card(priv, MVMS_CMD, (u8 *) cmdptr, cmdsize);
+	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) cmdptr, cmdsize);
 
 	if (ret != 0) {
 		lbs_deb_cmd("DNLD_CMD: Host to Card failed\n");
@@ -1841,7 +1840,7 @@ static int sendconfirmsleep(wlan_private * priv, u8 * cmdptr, u16 size)
 
 	lbs_dbg_hex("SEND_SLEEPC_CMD: Sleep confirm command", cmdptr, size);
 
-	ret = libertas_sbi_host_to_card(priv, MVMS_CMD, cmdptr, size);
+	ret = priv->hw_host_to_card(priv, MVMS_CMD, cmdptr, size);
 	priv->wlan_dev.dnld_sent = DNLD_RES_RECEIVED;
 
 	spin_lock_irqsave(&adapter->driver_lock, flags);
