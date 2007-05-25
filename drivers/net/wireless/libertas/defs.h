@@ -12,7 +12,9 @@
 #define PROC_DEBUG
 #endif
 
-#define DRV_NAME "usb8xxx"
+#ifndef DRV_NAME
+#define DRV_NAME "libertas"
+#endif
 
 
 #define LBS_DEB_ENTER	0x00000001

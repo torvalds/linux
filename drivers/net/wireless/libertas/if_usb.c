@@ -8,6 +8,8 @@
 #include <linux/list.h>
 #include <linux/usb.h>
 
+#define DRV_NAME "usb8xxx"
+
 #include "host.h"
 #include "decl.h"
 #include "defs.h"

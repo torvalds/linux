@@ -8,6 +8,8 @@
 #include <linux/netdevice.h>
 #include <linux/usb.h>
 
+#define DRV_NAME "usb8xxx"
+
 #include "defs.h"
 #include "dev.h"
 #include "if_usb.h"
