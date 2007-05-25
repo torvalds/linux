@@ -169,10 +169,6 @@ u8 libertas_adhoc_rates_g[G_SUPPORTED_RATES] =
  */
 u8 libertas_adhoc_rates_b[4] = { 0x82, 0x84, 0x8b, 0x96 };
 
-#define MAX_DEVS 5
-static struct net_device *libertas_devs[MAX_DEVS];
-static int libertas_found = 0;
-
 /**
  * the table to keep region code
  */
@@ -851,11 +847,6 @@ wlan_private *wlan_add_card(void *card)
 
 	libertas_debugfs_init_one(priv, dev);
 
-	if (libertas_found == MAX_DEVS)
-		goto err_init_fw;
-	libertas_devs[libertas_found] = dev;
-	libertas_found++;
-
 	lbs_deb_leave_args(LBS_DEB_NET, "priv %p", priv);
 	return priv;
 
@@ -960,7 +951,6 @@ int wlan_remove_card(wlan_private *priv)
 	wlan_adapter *adapter;
 	struct net_device *dev;
 	union iwreq_data wrqu;
-	int i;
 
 	lbs_deb_enter(LBS_DEB_NET);
 
@@ -1002,14 +992,6 @@ int wlan_remove_card(wlan_private *priv)
 
 	lbs_deb_net("free adapter\n");
 	libertas_free_adapter(priv);
-
-	for (i = 0; i<libertas_found; i++) {
-		if (libertas_devs[i]==priv->wlan_dev.netdev) {
-			libertas_devs[i] = libertas_devs[--libertas_found];
-			libertas_devs[libertas_found] = NULL ;
-			break ;
-		}
-	}
 
 	lbs_deb_net("unregister finish\n");
 
@@ -1161,14 +1143,7 @@ static int wlan_init_module(void)
 
 static void wlan_cleanup_module(void)
 {
-	int i;
-
 	lbs_deb_enter(LBS_DEB_MAIN);
-
-	for (i = 0; i<libertas_found; i++) {
-		wlan_private *priv = libertas_devs[i]->priv;
-		reset_device(priv);
-	}
 
 	libertas_sbi_unregister();
 	libertas_debugfs_remove();

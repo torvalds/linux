@@ -73,7 +73,6 @@ extern void libertas_mac_event_disconnected(wlan_private * priv);
 
 void libertas_send_iwevcustom_event(wlan_private * priv, s8 * str);
 
-int reset_device(wlan_private *priv);
 /* main.c */
 extern struct chan_freq_power *libertas_get_region_cfp_table(u8 region, u8 band,
 						             int *cfp_no);

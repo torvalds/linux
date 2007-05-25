@@ -17,6 +17,10 @@
 
 static const char usbdriver_name[] = "usb8xxx";
 
+#define MAX_DEVS 5
+static struct net_device *libertas_devs[MAX_DEVS];
+static int libertas_found = 0;
+
 static struct usb_device_id if_usb_table[] = {
 	/* Enter the device signature inside */
 	{ USB_DEVICE(0x1286, 0x2001) },
@@ -28,6 +32,7 @@ MODULE_DEVICE_TABLE(usb, if_usb_table);
 
 static void if_usb_receive(struct urb *urb);
 static void if_usb_receive_fwload(struct urb *urb);
+static int reset_device(wlan_private *priv);
 
 /**
  *  @brief  call back function to handle the status of the URB
@@ -189,6 +194,12 @@ static int if_usb_probe(struct usb_interface *intf,
 	 */
 	if (!(priv = wlan_add_card(usb_cardp)))
 		goto dealloc;
+
+	if (libertas_found < MAX_DEVS) {
+		libertas_devs[libertas_found] = priv->wlan_dev.netdev;
+		libertas_found++;
+	}
+
 	if (wlan_add_mesh(priv))
 		goto dealloc;
 
@@ -220,6 +231,7 @@ static void if_usb_disconnect(struct usb_interface *intf)
 	struct usb_card_rec *cardp = usb_get_intfdata(intf);
 	wlan_private *priv = (wlan_private *) cardp->priv;
 	wlan_adapter *adapter = NULL;
+	int i;
 
 	adapter = priv->adapter;
 
@@ -227,6 +239,14 @@ static void if_usb_disconnect(struct usb_interface *intf)
 	 * Update Surprise removed to TRUE
 	 */
 	adapter->surpriseremoved = 1;
+
+	for (i = 0; i<libertas_found; i++) {
+		if (libertas_devs[i]==priv->wlan_dev.netdev) {
+			libertas_devs[i] = libertas_devs[--libertas_found];
+			libertas_devs[libertas_found] = NULL ;
+			break;
+		}
+	}
 
 	/* card is removed and we can call wlan_remove_card */
 	lbs_deb_usbd(&cardp->udev->dev, "call remove card\n");
@@ -330,12 +350,17 @@ static int libertas_do_reset(wlan_private *priv)
 	int ret;
 	struct usb_card_rec *cardp = priv->wlan_dev.card;
 
+	lbs_deb_enter(LBS_DEB_USB);
+
 	ret = usb_reset_device(cardp->udev);
 	if (!ret) {
 		msleep(10);
 		reset_device(priv);
 		msleep(10);
 	}
+
+	lbs_deb_leave_args(LBS_DEB_USB, "ret %d", ret);
+
 	return ret;
 }
 
@@ -718,14 +743,16 @@ int libertas_sbi_read_event_cause(wlan_private * priv)
 	return 0;
 }
 
-int reset_device(wlan_private *priv)
+static int reset_device(wlan_private *priv)
 {
 	int ret;
 
+	lbs_deb_enter(LBS_DEB_USB);
 	ret = libertas_prepare_and_send_command(priv, cmd_802_11_reset,
 				    cmd_act_halt, 0, 0, NULL);
 	msleep_interruptible(10);
 
+	lbs_deb_leave_args(LBS_DEB_USB, "ret %d", ret);
 	return ret;
 }
 
@@ -935,7 +962,13 @@ int libertas_sbi_register(void)
  */
 void libertas_sbi_unregister(void)
 {
+	int i;
+
+	for (i = 0; i<libertas_found; i++) {
+		wlan_private *priv = libertas_devs[i]->priv;
+		reset_device(priv);
+	}
+
 	/* API unregisters the driver from USB subsystem */
 	usb_deregister(&if_usb_driver);
-	return;
 }
