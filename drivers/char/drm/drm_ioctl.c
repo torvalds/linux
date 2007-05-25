@@ -204,7 +204,7 @@ int drm_getmap(struct inode *inode, struct file *filp,
 	}
 
 	i = 0;
-	list_for_each(list, &dev->maplist->head) {
+	list_for_each(list, &dev->maplist) {
 		if (i == idx) {
 			r_list = list_entry(list, drm_map_list_t, head);
 			break;
@@ -257,12 +257,18 @@ int drm_getclient(struct inode *inode, struct file *filp,
 		return -EFAULT;
 	idx = client.idx;
 	mutex_lock(&dev->struct_mutex);
-	for (i = 0, pt = dev->file_first; i < idx && pt; i++, pt = pt->next) ;
-
-	if (!pt) {
+	
+	if (list_empty(&dev->filelist)) {
 		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
+
+	i = 0;
+	list_for_each_entry(pt, &dev->filelist, lhead) {
+		if (i++ >= idx)
+			break;
+	}
+
 	client.auth = pt->authenticated;
 	client.pid = pt->pid;
 	client.uid = pt->uid;

@@ -116,7 +116,7 @@ static __inline__ struct page *drm_do_vm_nopage(struct vm_area_struct *vma,
 		/*
 		 * It's AGP memory - find the real physical page to map
 		 */
-		for (agpmem = dev->agp->memory; agpmem; agpmem = agpmem->next) {
+		list_for_each_entry(agpmem, &dev->agp->memory, head) {
 			if (agpmem->bound <= baddr &&
 			    agpmem->bound + agpmem->pages * PAGE_SIZE > baddr)
 				break;
@@ -196,10 +196,9 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 {
 	drm_file_t *priv = vma->vm_file->private_data;
 	drm_device_t *dev = priv->head->dev;
-	drm_vma_entry_t *pt, *prev, *next;
+	drm_vma_entry_t *pt, *temp;
 	drm_map_t *map;
 	drm_map_list_t *r_list;
-	struct list_head *list;
 	int found_maps = 0;
 
 	DRM_DEBUG("0x%08lx,0x%08lx\n",
@@ -209,30 +208,22 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 	map = vma->vm_private_data;
 
 	mutex_lock(&dev->struct_mutex);
-	for (pt = dev->vmalist, prev = NULL; pt; pt = next) {
-		next = pt->next;
+	list_for_each_entry_safe(pt, temp, &dev->vmalist, head) {
 		if (pt->vma->vm_private_data == map)
 			found_maps++;
 		if (pt->vma == vma) {
-			if (prev) {
-				prev->next = pt->next;
-			} else {
-				dev->vmalist = pt->next;
-			}
+			list_del(&pt->head);
 			drm_free(pt, sizeof(*pt), DRM_MEM_VMAS);
-		} else {
-			prev = pt;
 		}
 	}
+
 	/* We were the only map that was found */
 	if (found_maps == 1 && map->flags & _DRM_REMOVABLE) {
 		/* Check to see if we are in the maplist, if we are not, then
 		 * we delete this mappings information.
 		 */
 		found_maps = 0;
-		list = &dev->maplist->head;
-		list_for_each(list, &dev->maplist->head) {
-			r_list = list_entry(list, drm_map_list_t, head);
+		list_for_each_entry(r_list, &dev->maplist, head) {
 			if (r_list->map == map)
 				found_maps++;
 		}
@@ -425,9 +416,8 @@ static void drm_vm_open_locked(struct vm_area_struct *vma)
 	vma_entry = drm_alloc(sizeof(*vma_entry), DRM_MEM_VMAS);
 	if (vma_entry) {
 		vma_entry->vma = vma;
-		vma_entry->next = dev->vmalist;
 		vma_entry->pid = current->pid;
-		dev->vmalist = vma_entry;
+		list_add(&vma_entry->head, &dev->vmalist);
 	}
 }
 
@@ -453,20 +443,16 @@ static void drm_vm_close(struct vm_area_struct *vma)
 {
 	drm_file_t *priv = vma->vm_file->private_data;
 	drm_device_t *dev = priv->head->dev;
-	drm_vma_entry_t *pt, *prev;
+	drm_vma_entry_t *pt, *temp;
 
 	DRM_DEBUG("0x%08lx,0x%08lx\n",
 		  vma->vm_start, vma->vm_end - vma->vm_start);
 	atomic_dec(&dev->vma_count);
 
 	mutex_lock(&dev->struct_mutex);
-	for (pt = dev->vmalist, prev = NULL; pt; prev = pt, pt = pt->next) {
+	list_for_each_entry_safe(pt, temp, &dev->vmalist, head) {
 		if (pt->vma == vma) {
-			if (prev) {
-				prev->next = pt->next;
-			} else {
-				dev->vmalist = pt->next;
-			}
+			list_del(&pt->head);
 			drm_free(pt, sizeof(*pt), DRM_MEM_VMAS);
 			break;
 		}

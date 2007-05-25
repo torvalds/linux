@@ -52,10 +52,8 @@ EXPORT_SYMBOL(drm_get_resource_len);
 static drm_map_list_t *drm_find_matching_map(drm_device_t *dev,
 					     drm_local_map_t *map)
 {
-	struct list_head *list;
-
-	list_for_each(list, &dev->maplist->head) {
-		drm_map_list_t *entry = list_entry(list, drm_map_list_t, head);
+	drm_map_list_t *entry;
+	list_for_each_entry(entry, &dev->maplist, head) {
 		if (entry->map && map->type == entry->map->type &&
 		    ((entry->map->offset == map->offset) ||
 		     (map->type == _DRM_SHM && map->flags==_DRM_CONTAINS_LOCK))) {
@@ -237,14 +235,14 @@ static int drm_addmap_core(drm_device_t * dev, unsigned int offset,
 		 * skipped and we double check that dev->agp->memory is
 		 * actually set as well as being invalid before EPERM'ing
 		 */
-		for (entry = dev->agp->memory; entry; entry = entry->next) {
+		list_for_each_entry(entry, &dev->agp->memory, head) {
 			if ((map->offset >= entry->bound) &&
 			    (map->offset + map->size <= entry->bound + entry->pages * PAGE_SIZE)) {
 				valid = 1;
 				break;
 			}
 		}
-		if (dev->agp->memory && !valid) {
+		if (!list_empty(&dev->agp->memory) && !valid) {
 			drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 			return -EPERM;
 		}
@@ -289,7 +287,7 @@ static int drm_addmap_core(drm_device_t * dev, unsigned int offset,
 	list->map = map;
 
 	mutex_lock(&dev->struct_mutex);
-	list_add(&list->head, &dev->maplist->head);
+	list_add(&list->head, &dev->maplist);
 
 	/* Assign a 32-bit handle */
 	/* We do it here so that dev->struct_mutex protects the increment */
@@ -380,29 +378,24 @@ int drm_addmap_ioctl(struct inode *inode, struct file *filp,
  */
 int drm_rmmap_locked(drm_device_t *dev, drm_local_map_t *map)
 {
-	struct list_head *list;
-	drm_map_list_t *r_list = NULL;
+	drm_map_list_t *r_list = NULL, *list_t;
 	drm_dma_handle_t dmah;
+	int found = 0;
 
 	/* Find the list entry for the map and remove it */
-	list_for_each(list, &dev->maplist->head) {
-		r_list = list_entry(list, drm_map_list_t, head);
-
+	list_for_each_entry_safe(r_list, list_t, &dev->maplist, head) {
 		if (r_list->map == map) {
-			list_del(list);
+			list_del(&r_list->head);
 			drm_ht_remove_key(&dev->map_hash,
 					  r_list->user_token >> PAGE_SHIFT);
-			drm_free(list, sizeof(*list), DRM_MEM_MAPS);
+			drm_free(r_list, sizeof(*r_list), DRM_MEM_MAPS);
+			found = 1;
 			break;
 		}
 	}
 
-	/* List has wrapped around to the head pointer, or it's empty and we
-	 * didn't find anything.
-	 */
-	if (list == (&dev->maplist->head)) {
+	if (!found)
 		return -EINVAL;
-	}
 
 	switch (map->type) {
 	case _DRM_REGISTERS:
@@ -460,7 +453,7 @@ int drm_rmmap_ioctl(struct inode *inode, struct file *filp,
 	drm_device_t *dev = priv->head->dev;
 	drm_map_t request;
 	drm_local_map_t *map = NULL;
-	struct list_head *list;
+	drm_map_list_t *r_list;
 	int ret;
 
 	if (copy_from_user(&request, (drm_map_t __user *) arg, sizeof(request))) {
@@ -468,9 +461,7 @@ int drm_rmmap_ioctl(struct inode *inode, struct file *filp,
 	}
 
 	mutex_lock(&dev->struct_mutex);
-	list_for_each(list, &dev->maplist->head) {
-		drm_map_list_t *r_list = list_entry(list, drm_map_list_t, head);
-
+	list_for_each_entry(r_list, &dev->maplist, head) {
 		if (r_list->map &&
 		    r_list->user_token == (unsigned long)request.handle &&
 		    r_list->map->flags & _DRM_REMOVABLE) {
@@ -482,7 +473,7 @@ int drm_rmmap_ioctl(struct inode *inode, struct file *filp,
 	/* List has wrapped around to the head pointer, or its empty we didn't
 	 * find anything.
 	 */
-	if (list == (&dev->maplist->head)) {
+	if (list_empty(&dev->maplist) || !map) {
 		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
@@ -606,14 +597,14 @@ int drm_addbufs_agp(drm_device_t * dev, drm_buf_desc_t * request)
 
 	/* Make sure buffers are located in AGP memory that we own */
 	valid = 0;
-	for (agp_entry = dev->agp->memory; agp_entry; agp_entry = agp_entry->next) {
+	list_for_each_entry(agp_entry, &dev->agp->memory, head) {
 		if ((agp_offset >= agp_entry->bound) &&
 		    (agp_offset + total * count <= agp_entry->bound + agp_entry->pages * PAGE_SIZE)) {
 			valid = 1;
 			break;
 		}
 	}
-	if (dev->agp->memory && !valid) {
+	if (!list_empty(&dev->agp->memory) && !valid) {
 		DRM_DEBUG("zone invalid\n");
 		return -EINVAL;
 	}

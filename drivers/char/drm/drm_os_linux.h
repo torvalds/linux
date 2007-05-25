@@ -104,7 +104,7 @@ static __inline__ int mtrr_del(int reg, unsigned long base, unsigned long size)
 #define DRM_GETSAREA()							 \
 do { 									 \
 	drm_map_list_t *entry;						 \
-	list_for_each_entry( entry, &dev->maplist->head, head ) {	 \
+	list_for_each_entry( entry, &dev->maplist, head ) {		 \
 		if ( entry->map &&					 \
 		     entry->map->type == _DRM_SHM &&			 \
 		     (entry->map->flags & _DRM_CONTAINS_LOCK) ) {	 \

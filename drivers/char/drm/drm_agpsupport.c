@@ -232,11 +232,7 @@ int drm_agp_alloc(drm_device_t *dev, drm_agp_buffer_t *request)
 	entry->memory = memory;
 	entry->bound = 0;
 	entry->pages = pages;
-	entry->prev = NULL;
-	entry->next = dev->agp->memory;
-	if (dev->agp->memory)
-		dev->agp->memory->prev = entry;
-	dev->agp->memory = entry;
+	list_add(&entry->head, &dev->agp->memory);
 
 	request->handle = entry->handle;
 	request->physical = memory->physical;
@@ -262,10 +258,12 @@ int drm_agp_alloc_ioctl(struct inode *inode, struct file *filp,
 		return err;
 
 	if (copy_to_user(argp, &request, sizeof(request))) {
-		drm_agp_mem_t *entry = dev->agp->memory;
-
-		dev->agp->memory = entry->next;
-		dev->agp->memory->prev = NULL;
+		drm_agp_mem_t *entry;
+		list_for_each_entry(entry, &dev->agp->memory, head) {
+			if (entry->handle == request.handle)
+				break;
+		}
+		list_del(&entry->head);
 		drm_free_agp(entry->memory, entry->pages);
 		drm_free(entry, sizeof(*entry), DRM_MEM_AGPLISTS);
 		return -EFAULT;
@@ -288,7 +286,7 @@ static drm_agp_mem_t *drm_agp_lookup_entry(drm_device_t * dev,
 {
 	drm_agp_mem_t *entry;
 
-	for (entry = dev->agp->memory; entry; entry = entry->next) {
+	list_for_each_entry(entry, &dev->agp->memory, head) {
 		if (entry->handle == handle)
 			return entry;
 	}
@@ -413,13 +411,7 @@ int drm_agp_free(drm_device_t *dev, drm_agp_buffer_t *request)
 	if (entry->bound)
 		drm_unbind_agp(entry->memory);
 
-	if (entry->prev)
-		entry->prev->next = entry->next;
-	else
-		dev->agp->memory = entry->next;
-
-	if (entry->next)
-		entry->next->prev = entry->prev;
+	list_del(&entry->head);
 
 	drm_free_agp(entry->memory, entry->pages);
 	drm_free(entry, sizeof(*entry), DRM_MEM_AGPLISTS);
@@ -472,7 +464,7 @@ drm_agp_head_t *drm_agp_init(drm_device_t * dev)
 		drm_free(head, sizeof(*head), DRM_MEM_AGPLISTS);
 		return NULL;
 	}
-	head->memory = NULL;
+	INIT_LIST_HEAD(&head->memory);
 	head->cant_use_aperture = head->agp_info.cant_use_aperture;
 	head->page_mask = head->agp_info.page_mask;
 

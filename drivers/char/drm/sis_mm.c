@@ -234,7 +234,7 @@ static drm_local_map_t *sis_reg_init(drm_device_t *dev)
 	drm_map_list_t *entry;
 	drm_local_map_t *map;
 
-	list_for_each_entry(entry, &dev->maplist->head, head) {
+	list_for_each_entry(entry, &dev->maplist, head) {
 		map = entry->map;
 		if (!map)
 			continue;

@@ -79,13 +79,9 @@ static int drm_setup(drm_device_t * dev)
 	drm_ht_create(&dev->magiclist, DRM_MAGIC_HASH_ORDER);
 	INIT_LIST_HEAD(&dev->magicfree);
 
-	dev->ctxlist = drm_alloc(sizeof(*dev->ctxlist), DRM_MEM_CTXLIST);
-	if (dev->ctxlist == NULL)
-		return -ENOMEM;
-	memset(dev->ctxlist, 0, sizeof(*dev->ctxlist));
-	INIT_LIST_HEAD(&dev->ctxlist->head);
+	INIT_LIST_HEAD(&dev->ctxlist);
+	INIT_LIST_HEAD(&dev->vmalist);
 
-	dev->vmalist = NULL;
 	dev->sigdata.lock = NULL;
 	init_waitqueue_head(&dev->lock.lock_queue);
 	dev->queue_count = 0;
@@ -258,6 +254,8 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	priv->authenticated = capable(CAP_SYS_ADMIN);
 	priv->lock_count = 0;
 
+	INIT_LIST_HEAD(&priv->lhead);
+
 	if (dev->driver->open) {
 		ret = dev->driver->open(dev, priv);
 		if (ret < 0)
@@ -265,19 +263,10 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	}
 
 	mutex_lock(&dev->struct_mutex);
-	if (!dev->file_last) {
-		priv->next = NULL;
-		priv->prev = NULL;
-		dev->file_first = priv;
-		dev->file_last = priv;
-		/* first opener automatically becomes master */
+	if (list_empty(&dev->filelist))
 		priv->master = 1;
-	} else {
-		priv->next = NULL;
-		priv->prev = dev->file_last;
-		dev->file_last->next = priv;
-		dev->file_last = priv;
-	}
+
+	list_add(&priv->lhead, &dev->filelist);
 	mutex_unlock(&dev->struct_mutex);
 
 #ifdef __alpha__
@@ -414,10 +403,10 @@ int drm_release(struct inode *inode, struct file *filp)
 	drm_fasync(-1, filp, 0);
 
 	mutex_lock(&dev->ctxlist_mutex);
-	if (dev->ctxlist && (!list_empty(&dev->ctxlist->head))) {
+	if (!list_empty(&dev->ctxlist)) {
 		drm_ctx_list_t *pos, *n;
 
-		list_for_each_entry_safe(pos, n, &dev->ctxlist->head, head) {
+		list_for_each_entry_safe(pos, n, &dev->ctxlist, head) {
 			if (pos->tag == priv &&
 			    pos->handle != DRM_KERNEL_CONTEXT) {
 				if (dev->driver->context_dtor)
@@ -436,22 +425,12 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	mutex_lock(&dev->struct_mutex);
 	if (priv->remove_auth_on_close == 1) {
-		drm_file_t *temp = dev->file_first;
-		while (temp) {
+		drm_file_t *temp;
+
+		list_for_each_entry(temp, &dev->filelist, lhead)
 			temp->authenticated = 0;
-			temp = temp->next;
-		}
 	}
-	if (priv->prev) {
-		priv->prev->next = priv->next;
-	} else {
-		dev->file_first = priv->next;
-	}
-	if (priv->next) {
-		priv->next->prev = priv->prev;
-	} else {
-		dev->file_last = priv->prev;
-	}
+	list_del(&priv->lhead);
 	mutex_unlock(&dev->struct_mutex);
 
 	if (dev->driver->postclose)

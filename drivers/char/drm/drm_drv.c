@@ -132,8 +132,8 @@ static drm_ioctl_desc_t drm_ioctls[] = {
 int drm_lastclose(drm_device_t * dev)
 {
 	drm_magic_entry_t *pt, *next;
-	drm_map_list_t *r_list;
-	drm_vma_entry_t *vma, *vma_next;
+	drm_map_list_t *r_list, *list_t;
+	drm_vma_entry_t *vma, *vma_temp;
 	int i;
 
 	DRM_DEBUG("\n");
@@ -178,19 +178,17 @@ int drm_lastclose(drm_device_t * dev)
 
 	/* Clear AGP information */
 	if (drm_core_has_AGP(dev) && dev->agp) {
-		drm_agp_mem_t *entry;
-		drm_agp_mem_t *nexte;
+		drm_agp_mem_t *entry, *tempe;
 
 		/* Remove AGP resources, but leave dev->agp
 		   intact until drv_cleanup is called. */
-		for (entry = dev->agp->memory; entry; entry = nexte) {
-			nexte = entry->next;
+		list_for_each_entry_safe(entry, tempe, &dev->agp->memory, head) {
 			if (entry->bound)
 				drm_unbind_agp(entry->memory);
 			drm_free_agp(entry->memory, entry->pages);
 			drm_free(entry, sizeof(*entry), DRM_MEM_AGPLISTS);
 		}
-		dev->agp->memory = NULL;
+		INIT_LIST_HEAD(&dev->agp->memory);
 
 		if (dev->agp->acquired)
 			drm_agp_release(dev);
@@ -204,20 +202,14 @@ int drm_lastclose(drm_device_t * dev)
 	}
 
 	/* Clear vma list (only built for debugging) */
-	if (dev->vmalist) {
-		for (vma = dev->vmalist; vma; vma = vma_next) {
-			vma_next = vma->next;
-			drm_free(vma, sizeof(*vma), DRM_MEM_VMAS);
-		}
-		dev->vmalist = NULL;
+	list_for_each_entry_safe(vma, vma_temp, &dev->vmalist, head) {
+		list_del(&vma->head);
+		drm_free(vma, sizeof(*vma), DRM_MEM_VMAS);
 	}
 
-	if (dev->maplist) {
-		while (!list_empty(&dev->maplist->head)) {
-			struct list_head *list = dev->maplist->head.next;
-			r_list = list_entry(list, drm_map_list_t, head);
-			drm_rmmap_locked(dev, r_list->map);
-		}
+	list_for_each_entry_safe(r_list, list_t, &dev->maplist, head) {
+		drm_rmmap_locked(dev, r_list->map);
+		r_list = NULL;
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_DMA_QUEUE) && dev->queuelist) {
@@ -309,11 +301,7 @@ static void drm_cleanup(drm_device_t * dev)
 
 	drm_lastclose(dev);
 
-	if (dev->maplist) {
-		drm_free(dev->maplist, sizeof(*dev->maplist), DRM_MEM_MAPS);
-		dev->maplist = NULL;
-		drm_ht_remove(&dev->map_hash);
-	}
+	drm_ht_remove(&dev->map_hash);
 
 	drm_ctxbitmap_cleanup(dev);
 

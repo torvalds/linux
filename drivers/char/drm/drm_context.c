@@ -233,7 +233,7 @@ int drm_getsareactx(struct inode *inode, struct file *filp,
 	mutex_unlock(&dev->struct_mutex);
 
 	request.handle = NULL;
-	list_for_each_entry(_entry, &dev->maplist->head, head) {
+	list_for_each_entry(_entry, &dev->maplist, head) {
 		if (_entry->map == map) {
 			request.handle =
 			    (void *)(unsigned long)_entry->user_token;
@@ -268,15 +268,13 @@ int drm_setsareactx(struct inode *inode, struct file *filp,
 	drm_ctx_priv_map_t request;
 	drm_map_t *map = NULL;
 	drm_map_list_t *r_list = NULL;
-	struct list_head *list;
 
 	if (copy_from_user(&request,
 			   (drm_ctx_priv_map_t __user *) arg, sizeof(request)))
 		return -EFAULT;
 
 	mutex_lock(&dev->struct_mutex);
-	list_for_each(list, &dev->maplist->head) {
-		r_list = list_entry(list, drm_map_list_t, head);
+	list_for_each_entry(r_list, &dev->maplist, head) {
 		if (r_list->map
 		    && r_list->user_token == (unsigned long)request.handle)
 			goto found;
@@ -449,7 +447,7 @@ int drm_addctx(struct inode *inode, struct file *filp,
 	ctx_entry->tag = priv;
 
 	mutex_lock(&dev->ctxlist_mutex);
-	list_add(&ctx_entry->head, &dev->ctxlist->head);
+	list_add(&ctx_entry->head, &dev->ctxlist);
 	++dev->ctx_count;
 	mutex_unlock(&dev->ctxlist_mutex);
 
@@ -575,10 +573,10 @@ int drm_rmctx(struct inode *inode, struct file *filp,
 	}
 
 	mutex_lock(&dev->ctxlist_mutex);
-	if (!list_empty(&dev->ctxlist->head)) {
+	if (!list_empty(&dev->ctxlist)) {
 		drm_ctx_list_t *pos, *n;
 
-		list_for_each_entry_safe(pos, n, &dev->ctxlist->head, head) {
+		list_for_each_entry_safe(pos, n, &dev->ctxlist, head) {
 			if (pos->handle == ctx.handle) {
 				list_del(&pos->head);
 				drm_free(pos, sizeof(*pos), DRM_MEM_CTXLIST);

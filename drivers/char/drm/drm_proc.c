@@ -209,7 +209,6 @@ static int drm__vm_info(char *buf, char **start, off_t offset, int request,
 	int len = 0;
 	drm_map_t *map;
 	drm_map_list_t *r_list;
-	struct list_head *list;
 
 	/* Hardcoded from _DRM_FRAME_BUFFER,
 	   _DRM_REGISTERS, _DRM_SHM, _DRM_AGP, and
@@ -229,9 +228,7 @@ static int drm__vm_info(char *buf, char **start, off_t offset, int request,
 	DRM_PROC_PRINT("slot	 offset	      size type flags	 "
 		       "address mtrr\n\n");
 	i = 0;
-	if (dev->maplist != NULL)
-		list_for_each(list, &dev->maplist->head) {
-		r_list = list_entry(list, drm_map_list_t, head);
+	list_for_each_entry(r_list, &dev->maplist, head) {
 		map = r_list->map;
 		if (!map)
 			continue;
@@ -242,14 +239,15 @@ static int drm__vm_info(char *buf, char **start, off_t offset, int request,
 		DRM_PROC_PRINT("%4d 0x%08lx 0x%08lx %4.4s  0x%02x 0x%08x ",
 			       i,
 			       map->offset,
-			       map->size, type, map->flags, r_list->user_token);
+			       map->size, type, map->flags,
+			       r_list->user_token);
 		if (map->mtrr < 0) {
 			DRM_PROC_PRINT("none\n");
 		} else {
 			DRM_PROC_PRINT("%4d\n", map->mtrr);
 		}
 		i++;
-		}
+	}
 
 	if (len > request + offset)
 		return request;
@@ -444,7 +442,7 @@ static int drm__clients_info(char *buf, char **start, off_t offset,
 	*eof = 0;
 
 	DRM_PROC_PRINT("a dev	pid    uid	magic	  ioctls\n\n");
-	for (priv = dev->file_first; priv; priv = priv->next) {
+	list_for_each_entry(priv, &dev->filelist, lhead) {
 		DRM_PROC_PRINT("%c %3d %5d %5d %10u %10lu\n",
 			       priv->authenticated ? 'y' : 'n',
 			       priv->minor,
@@ -497,7 +495,7 @@ static int drm__vma_info(char *buf, char **start, off_t offset, int request,
 	DRM_PROC_PRINT("vma use count: %d, high_memory = %p, 0x%08lx\n",
 		       atomic_read(&dev->vma_count),
 		       high_memory, virt_to_phys(high_memory));
-	for (pt = dev->vmalist; pt; pt = pt->next) {
+	list_for_each_entry(pt, &dev->vmalist, head) {
 		if (!(vma = pt->vma))
 			continue;
 		DRM_PROC_PRINT("\n%5d 0x%08lx-0x%08lx %c%c%c%c%c%c 0x%08lx000",

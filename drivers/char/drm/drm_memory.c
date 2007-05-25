@@ -94,7 +94,7 @@ static void *agp_remap(unsigned long offset, unsigned long size,
 	offset -= dev->hose->mem_space->start;
 #endif
 
-	for (agpmem = dev->agp->memory; agpmem; agpmem = agpmem->next)
+	list_for_each_entry(agpmem, &dev->agp->memory, head)
 		if (agpmem->bound <= offset
 		    && (agpmem->bound + (agpmem->pages << PAGE_SHIFT)) >=
 		    (offset + size))

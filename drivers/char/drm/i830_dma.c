@@ -334,12 +334,11 @@ static int i830_dma_initialize(drm_device_t * dev,
 			       drm_i830_private_t * dev_priv,
 			       drm_i830_init_t * init)
 {
-	struct list_head *list;
+	drm_map_list_t *r_list;
 
 	memset(dev_priv, 0, sizeof(drm_i830_private_t));
 
-	list_for_each(list, &dev->maplist->head) {
-		drm_map_list_t *r_list = list_entry(list, drm_map_list_t, head);
+	list_for_each_entry(r_list, &dev->maplist, head) {
 		if (r_list->map &&
 		    r_list->map->type == _DRM_SHM &&
 		    r_list->map->flags & _DRM_CONTAINS_LOCK) {
