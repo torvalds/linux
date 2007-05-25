@@ -27,6 +27,9 @@
 
 #include "pci_sun4v.h"
 
+static unsigned long vpci_major = 1;
+static unsigned long vpci_minor = 1;
+
 #define PGLIST_NENTS	(PAGE_SIZE / sizeof(u64))
 
 struct iommu_batch {
@@ -1162,6 +1165,7 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 
 void sun4v_pci_init(struct device_node *dp, char *model_name)
 {
+	static int hvapi_negotiated = 0;
 	struct pci_controller_info *p;
 	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
@@ -1169,6 +1173,20 @@ void sun4v_pci_init(struct device_node *dp, char *model_name)
 	struct linux_prom64_registers *regs;
 	u32 devhandle;
 	int i;
+
+	if (!hvapi_negotiated++) {
+		int err = sun4v_hvapi_register(HV_GRP_PCI,
+					       vpci_major,
+					       &vpci_minor);
+
+		if (err) {
+			prom_printf("SUN4V_PCI: Could not register hvapi, "
+				    "err=%d\n", err);
+			prom_halt();
+		}
+		printk("SUN4V_PCI: Registered hvapi major[%lu] minor[%lu]\n",
+		       vpci_major, vpci_minor);
+	}
 
 	prop = of_find_property(dp, "reg", NULL);
 	regs = prop->value;
