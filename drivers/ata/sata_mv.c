@@ -21,6 +21,50 @@
  *
  */
 
+/*
+  sata_mv TODO list:
+
+  1) Needs a full errata audit for all chipsets.  I implemented most
+  of the errata workarounds found in the Marvell vendor driver, but
+  I distinctly remember a couple workarounds (one related to PCI-X)
+  are still needed.
+
+  2) Convert to LibATA new EH.  Required for hotplug, NCQ, and sane
+  probing/error handling in general.  MUST HAVE.
+
+  3) Add hotplug support (easy, once new-EH support appears)
+
+  4) Add NCQ support (easy to intermediate, once new-EH support appears)
+
+  5) Investigate problems with PCI Message Signalled Interrupts (MSI).
+
+  6) Add port multiplier support (intermediate)
+
+  7) Test and verify 3.0 Gbps support
+
+  8) Develop a low-power-consumption strategy, and implement it.
+
+  9) [Experiment, low priority] See if ATAPI can be supported using
+  "unknown FIS" or "vendor-specific FIS" support, or something creative
+  like that.
+
+  10) [Experiment, low priority] Investigate interrupt coalescing.
+  Quite often, especially with PCI Message Signalled Interrupts (MSI),
+  the overhead reduced by interrupt mitigation is quite often not
+  worth the latency cost.
+
+  11) [Experiment, Marvell value added] Is it possible to use target
+  mode to cross-connect two Linux boxes with Marvell cards?  If so,
+  creating LibATA target mode support would be very interesting.
+
+  Target mode, for those without docs, is the ability to directly
+  connect two SATA controllers.
+
+  13) Verify that 7042 is fully supported.  I only have a 6042.
+
+*/
+
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
