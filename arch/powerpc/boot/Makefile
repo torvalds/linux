@@ -33,8 +33,8 @@ endif
 
 BOOTCFLAGS	+= -I$(obj) -I$(srctree)/$(obj)
 
-$(obj)/44x.o: BOOTCFLAGS += -Wa,-mbooke
-$(obj)/ebony.o: BOOTCFLAGS += -Wa,-mbooke
+$(obj)/44x.o: BOOTCFLAGS += -mcpu=440
+$(obj)/ebony.o: BOOTCFLAGS += -mcpu=440
 
 zlib       := inffast.c inflate.c inftrees.c
 zlibheader := inffast.h inffixed.h inflate.h inftrees.h infutil.h
