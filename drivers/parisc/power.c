@@ -41,6 +41,7 @@
 #include <linux/reboot.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
+#include <linux/pm.h>
 
 #include <asm/pdc.h>
 #include <asm/io.h>
