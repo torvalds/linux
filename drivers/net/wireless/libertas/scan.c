@@ -59,6 +59,9 @@
 //! Scan time specified in the channel TLV for each channel for active scans
 #define MRVDRV_ACTIVE_SCAN_CHAN_TIME   100
 
+const u8 zeromac[ETH_ALEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+const u8 bcastmac[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+
 static inline void clear_bss_descriptor (struct bss_descriptor * bss)
 {
 	/* Don't blow away ->list, just BSS data */
@@ -409,13 +412,11 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 			    u8 * pscancurrentonly)
 {
 	wlan_adapter *adapter = priv->adapter;
-	const u8 zeromac[ETH_ALEN] = { 0, 0, 0, 0, 0, 0 };
 	struct mrvlietypes_numprobes *pnumprobestlv;
 	struct mrvlietypes_ssidparamset *pssidtlv;
 	struct wlan_scan_cmd_config * pscancfgout = NULL;
 	u8 *ptlvpos;
 	u16 numprobes;
-	u16 ssidlen;
 	int chanidx;
 	int scantype;
 	int scandur;
@@ -472,21 +473,18 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 		 * Set the BSSID filter to the incoming configuration,
 		 *   if non-zero.  If not set, it will remain disabled (all zeros).
 		 */
-		memcpy(pscancfgout->specificBSSID,
-		       puserscanin->specificBSSID,
-		       sizeof(pscancfgout->specificBSSID));
+		memcpy(pscancfgout->bssid, puserscanin->bssid,
+		       sizeof(pscancfgout->bssid));
 
-		ssidlen = strlen(puserscanin->specificSSID);
-
-		if (ssidlen) {
+		if (puserscanin->ssid_len) {
 			pssidtlv =
 			    (struct mrvlietypes_ssidparamset *) pscancfgout->
 			    tlvbuffer;
 			pssidtlv->header.type = cpu_to_le16(TLV_TYPE_SSID);
-			pssidtlv->header.len = cpu_to_le16(ssidlen);
-			memcpy(pssidtlv->ssid, puserscanin->specificSSID,
-			       ssidlen);
-			ptlvpos += sizeof(pssidtlv->header) + ssidlen;
+			pssidtlv->header.len = cpu_to_le16(puserscanin->ssid_len);
+			memcpy(pssidtlv->ssid, puserscanin->ssid,
+			       puserscanin->ssid_len);
+			ptlvpos += sizeof(pssidtlv->header) + puserscanin->ssid_len;
 		}
 
 		/*
@@ -495,8 +493,8 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 		 *    scan results.  That is not an issue with an SSID or BSSID
 		 *    filter applied to the scan results in the firmware.
 		 */
-		if (ssidlen || (memcmp(pscancfgout->specificBSSID,
-				       &zeromac, sizeof(zeromac)) != 0)) {
+		if (   puserscanin->ssid_len
+		    || (compare_ether_addr(pscancfgout->bssid, &zeromac[0]) != 0)) {
 			*pmaxchanperscan = MRVDRV_MAX_CHANNELS_PER_SCAN;
 			*pfilteredscan = 1;
 		}
@@ -743,6 +741,53 @@ done:
 	return ret;
 }
 
+static void
+clear_selected_scan_list_entries(wlan_adapter * adapter,
+                                 const struct wlan_ioctl_user_scan_cfg * scan_cfg)
+{
+	struct bss_descriptor * bss;
+	struct bss_descriptor * safe;
+	u32 clear_ssid_flag = 0, clear_bssid_flag = 0;
+
+	if (!scan_cfg)
+		return;
+
+	if (scan_cfg->clear_ssid && scan_cfg->ssid_len)
+		clear_ssid_flag = 1;
+
+	if (scan_cfg->clear_bssid
+	    && (compare_ether_addr(scan_cfg->bssid, &zeromac[0]) != 0)
+	    && (compare_ether_addr(scan_cfg->bssid, &bcastmac[0]) != 0)) {
+		clear_bssid_flag = 1;
+	}
+
+	if (!clear_ssid_flag && !clear_bssid_flag)
+		return;
+
+	mutex_lock(&adapter->lock);
+	list_for_each_entry_safe (bss, safe, &adapter->network_list, list) {
+		u32 clear = 0;
+
+		/* Check for an SSID match */
+		if (   clear_ssid_flag
+		    && (bss->ssid.ssidlength == scan_cfg->ssid_len)
+		    && !memcmp(bss->ssid.ssid, scan_cfg->ssid, bss->ssid.ssidlength))
+			clear = 1;
+
+		/* Check for a BSSID match */
+		if (   clear_bssid_flag
+		    && !compare_ether_addr(bss->bssid, scan_cfg->bssid))
+			clear = 1;
+
+		if (clear) {
+			list_move_tail (&bss->list, &adapter->network_free_list);
+			clear_bss_descriptor(bss);
+		}
+	}
+	mutex_unlock(&adapter->lock);
+}
+
+
 /**
  *  @brief Internal function used to start a scan based on an input config
  *
@@ -760,11 +805,10 @@ int wlan_scan_networks(wlan_private * priv,
 			      const struct wlan_ioctl_user_scan_cfg * puserscanin,
 			      int full_scan)
 {
-	wlan_adapter *adapter = priv->adapter;
+	wlan_adapter * adapter = priv->adapter;
 	struct mrvlietypes_chanlistparamset *pchantlvout;
 	struct chanscanparamset * scan_chan_list = NULL;
 	struct wlan_scan_cmd_config * scan_cfg = NULL;
-	u8 keeppreviousscan;
 	u8 filteredscan;
 	u8 scancurrentchanonly;
 	int maxchanperscan;
@@ -791,28 +835,7 @@ int wlan_scan_networks(wlan_private * priv,
 		goto out;
 	}
 
-	keeppreviousscan = 0;
-
-	if (puserscanin) {
-		keeppreviousscan = puserscanin->keeppreviousscan;
-	}
-
-	if (adapter->last_scanned_channel)
-		keeppreviousscan = 1;
-
-	if (!keeppreviousscan) {
-		struct bss_descriptor * iter_bss;
-		struct bss_descriptor * safe;
-
-		mutex_lock(&adapter->lock);
-		list_for_each_entry_safe (iter_bss, safe,
-				&adapter->network_list, list) {
-			list_move_tail (&iter_bss->list,
-			                &adapter->network_free_list);
-			clear_bss_descriptor(iter_bss);
-		}
-		mutex_unlock(&adapter->lock);
-	}
+	clear_selected_scan_list_entries(adapter, puserscanin);
 
 	/* Keep the data path active if we are only scanning our current channel */
 	if (!scancurrentchanonly) {
@@ -1434,30 +1457,30 @@ int libertas_set_scan(struct net_device *dev, struct iw_request_info *info,
  */
 int libertas_send_specific_SSID_scan(wlan_private * priv,
 			 struct WLAN_802_11_SSID *prequestedssid,
-			 u8 keeppreviousscan)
+			 u8 clear_ssid)
 {
 	wlan_adapter *adapter = priv->adapter;
 	struct wlan_ioctl_user_scan_cfg scancfg;
+	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
-	if (prequestedssid == NULL) {
-		return -1;
-	}
+	if (prequestedssid == NULL)
+		goto out;
 
 	memset(&scancfg, 0x00, sizeof(scancfg));
-
-	memcpy(scancfg.specificSSID, prequestedssid->ssid,
-	       prequestedssid->ssidlength);
-	scancfg.keeppreviousscan = keeppreviousscan;
+	memcpy(scancfg.ssid, prequestedssid->ssid, prequestedssid->ssidlength);
+	scancfg.ssid_len = prequestedssid->ssidlength;
+	scancfg.clear_ssid = clear_ssid;
 
 	wlan_scan_networks(priv, &scancfg, 1);
 	if (adapter->surpriseremoved)
 		return -1;
 	wait_event_interruptible(adapter->cmd_pending, !adapter->nr_cmd_pending);
 
+out:
 	lbs_deb_leave(LBS_DEB_ASSOC);
-	return 0;
+	return ret;
 }
 
 /**
@@ -1469,19 +1492,18 @@ int libertas_send_specific_SSID_scan(wlan_private * priv,
  *
  *  @return          0-success, otherwise fail
  */
-int libertas_send_specific_BSSID_scan(wlan_private * priv, u8 * bssid, u8 keeppreviousscan)
+int libertas_send_specific_BSSID_scan(wlan_private * priv, u8 * bssid, u8 clear_bssid)
 {
 	struct wlan_ioctl_user_scan_cfg scancfg;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
-	if (bssid == NULL) {
-		return -1;
-	}
+	if (bssid == NULL)
+		goto out;
 
 	memset(&scancfg, 0x00, sizeof(scancfg));
-	memcpy(scancfg.specificBSSID, bssid, sizeof(scancfg.specificBSSID));
-	scancfg.keeppreviousscan = keeppreviousscan;
+	memcpy(scancfg.bssid, bssid, ETH_ALEN);
+	scancfg.clear_bssid = clear_bssid;
 
 	wlan_scan_networks(priv, &scancfg, 1);
 	if (priv->adapter->surpriseremoved)
@@ -1489,6 +1511,7 @@ int libertas_send_specific_BSSID_scan(wlan_private * priv, u8 * bssid, u8 keeppr
 	wait_event_interruptible(priv->adapter->cmd_pending,
 		!priv->adapter->nr_cmd_pending);
 
+out:
 	lbs_deb_leave(LBS_DEB_ASSOC);
 	return 0;
 }
@@ -1727,7 +1750,7 @@ int libertas_cmd_80211_scan(wlan_private * priv,
 
 	/* Set fixed field variables in scan command */
 	pscan->bsstype = pscancfg->bsstype;
-	memcpy(pscan->BSSID, pscancfg->specificBSSID, sizeof(pscan->BSSID));
+	memcpy(pscan->BSSID, pscancfg->bssid, sizeof(pscan->BSSID));
 	memcpy(pscan->tlvbuffer, pscancfg->tlvbuffer, pscancfg->tlvbufferlen);
 
 	cmd->command = cpu_to_le16(cmd_802_11_scan);

@@ -51,7 +51,7 @@ struct wlan_scan_cmd_config {
     /**
      *  @brief Specific BSSID used to filter scan results in the firmware
      */
-	u8 specificBSSID[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
 
     /**
      *  @brief length of TLVs sent in command starting at tlvBuffer
@@ -91,15 +91,6 @@ struct wlan_ioctl_user_scan_chan {
  *  @sa libertas_set_user_scan_ioctl
  */
 struct wlan_ioctl_user_scan_cfg {
-
-    /**
-     *  @brief Flag set to keep the previous scan table intact
-     *
-     *  If set, the scan results will accumulate, replacing any previous
-     *   matched entries for a BSS with the new scan data
-     */
-	u8 keeppreviousscan;	//!< Do not erase the existing scan results
-
     /**
      *  @brief BSS type to be sent in the firmware command
      *
@@ -117,15 +108,22 @@ struct wlan_ioctl_user_scan_cfg {
      */
 	u8 numprobes;
 
-    /**
-     *  @brief BSSID filter sent in the firmware command to limit the results
-     */
-	u8 specificBSSID[ETH_ALEN];
+	/**
+	 *  @brief BSSID filter sent in the firmware command to limit the results
+	 */
+	u8 bssid[ETH_ALEN];
 
-    /**
-     *  @brief SSID filter sent in the firmware command to limit the results
-     */
-	char specificSSID[IW_ESSID_MAX_SIZE + 1];
+	/* Clear existing scan results matching this BSSID */
+	u8 clear_bssid;
+
+	/**
+	 *  @brief SSID filter sent in the firmware command to limit the results
+	 */
+	char ssid[IW_ESSID_MAX_SIZE];
+	u8 ssid_len;
+
+	/* Clear existing scan results matching this SSID */
+	u8 clear_ssid;
 
     /**
      *  @brief Variable number (fixed maximum) of channels to scan up
@@ -194,9 +192,9 @@ int libertas_find_best_network_SSID(wlan_private * priv,
 
 extern int libertas_send_specific_SSID_scan(wlan_private * priv,
 				struct WLAN_802_11_SSID *prequestedssid,
-				u8 keeppreviousscan);
+				u8 clear_ssid);
 extern int libertas_send_specific_BSSID_scan(wlan_private * priv,
-				 u8 * bssid, u8 keeppreviousscan);
+				 u8 * bssid, u8 clear_bssid);
 
 extern int libertas_cmd_80211_scan(wlan_private * priv,
 				struct cmd_ds_command *cmd,

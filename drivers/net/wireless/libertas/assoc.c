@@ -25,7 +25,7 @@ static int assoc_helper_essid(wlan_private *priv,
 	lbs_deb_assoc("New SSID requested: %s\n", assoc_req->ssid.ssid);
 	if (assoc_req->mode == IW_MODE_INFRA) {
 		if (adapter->prescan) {
-			libertas_send_specific_SSID_scan(priv, &assoc_req->ssid, 1);
+			libertas_send_specific_SSID_scan(priv, &assoc_req->ssid, 0);
 		}
 
 		bss = libertas_find_SSID_in_list(adapter, &assoc_req->ssid,
@@ -44,7 +44,7 @@ static int assoc_helper_essid(wlan_private *priv,
 		/* Scan for the network, do not save previous results.  Stale
 		 *   scan data will cause us to join a non-existant adhoc network
 		 */
-		libertas_send_specific_SSID_scan(priv, &assoc_req->ssid, 0);
+		libertas_send_specific_SSID_scan(priv, &assoc_req->ssid, 1);
 
 		/* Search for the requested SSID in the scan table */
 		bss = libertas_find_SSID_in_list(adapter, &assoc_req->ssid, NULL,

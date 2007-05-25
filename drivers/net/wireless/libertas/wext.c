@@ -234,7 +234,7 @@ static int changeadhocchannel(wlan_private * priv, int channel)
 	/* Scan for the network, do not save previous results.  Stale
 	 *   scan data will cause us to join a non-existant adhoc network
 	 */
-	libertas_send_specific_SSID_scan(priv, &curadhocssid, 0);
+	libertas_send_specific_SSID_scan(priv, &curadhocssid, 1);
 
 	/* find out the BSSID that matches the current SSID */
 	join_bss = libertas_find_SSID_in_list(adapter, &curadhocssid, NULL,

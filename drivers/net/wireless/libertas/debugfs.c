@@ -193,7 +193,7 @@ static ssize_t libertas_extscan(struct file *file, const char __user *userbuf,
 	memcpy(&extscan_ssid.ssid, buf, strlen(buf)-1);
 	extscan_ssid.ssidlength = strlen(buf)-1;
 
-	libertas_send_specific_SSID_scan(priv, &extscan_ssid, 1);
+	libertas_send_specific_SSID_scan(priv, &extscan_ssid, 0);
 
 	memset(&wrqu, 0, sizeof(union iwreq_data));
 	wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);
@@ -245,16 +245,13 @@ static void libertas_parse_bssid(char *buf, size_t count,
 {
 	char *hold;
 	unsigned int mac[ETH_ALEN];
-	int i;
 
 	hold = strstr(buf, "bssid=");
 	if (!hold)
 		return;
 	hold += 6;
-	sscanf(hold, "%2x:%2x:%2x:%2x:%2x:%2x", mac, mac+1, mac+2, mac+3,
-			mac+4, mac+5);
-	for(i=0;i<ETH_ALEN;i++)
-		scan_cfg->specificBSSID[i] = mac[i];
+	sscanf(hold, MAC_FMT, mac, mac+1, mac+2, mac+3, mac+4, mac+5);
+	memcpy(scan_cfg->bssid, mac, ETH_ALEN);
 }
 
 static void libertas_parse_ssid(char *buf, size_t count,
@@ -272,28 +269,26 @@ static void libertas_parse_ssid(char *buf, size_t count,
 		end = buf + count - 1;
 
 	size = min((size_t)IW_ESSID_MAX_SIZE, (size_t) (end - hold));
-	strncpy(scan_cfg->specificSSID, hold, size);
+	strncpy(scan_cfg->ssid, hold, size);
 
 	return;
 }
 
-static void libertas_parse_keep(char *buf, size_t count,
-                        struct wlan_ioctl_user_scan_cfg *scan_cfg)
+static int libertas_parse_clear(char *buf, size_t count, const char *tag)
 {
 	char *hold;
 	int val;
 
-	hold = strstr(buf, "keep=");
+	hold = strstr(buf, tag);
 	if (!hold)
-		return;
-	hold += 5;
+		return 0;
+	hold += strlen(tag);
 	sscanf(hold, "%d", &val);
 
 	if (val != 0)
 		val = 1;
 
-	scan_cfg->keeppreviousscan = val;
-	return;
+	return val;
 }
 
 static int libertas_parse_dur(char *buf, size_t count,
@@ -376,8 +371,9 @@ static ssize_t libertas_setuserscan(struct file *file,
 	dur = libertas_parse_dur(buf, count, scan_cfg);
 	libertas_parse_chan(buf, count, scan_cfg, dur);
 	libertas_parse_bssid(buf, count, scan_cfg);
+	scan_cfg->clear_bssid = libertas_parse_clear(buf, count, "clear_bssid=");
 	libertas_parse_ssid(buf, count, scan_cfg);
-	libertas_parse_keep(buf, count, scan_cfg);
+	scan_cfg->clear_ssid = libertas_parse_clear(buf, count, "clear_ssid=");
 	libertas_parse_probes(buf, count, scan_cfg);
 	libertas_parse_type(buf, count, scan_cfg);
 
