@@ -2,6 +2,7 @@
   * This file contains functions used in USB interface module.
   */
 #include <linux/delay.h>
+#include <linux/moduleparam.h>
 #include <linux/firmware.h>
 #include <linux/netdevice.h>
 #include <linux/usb.h>
@@ -15,6 +16,11 @@
 #define MESSAGE_HEADER_LEN	4
 
 static const char usbdriver_name[] = "usb8xxx";
+static u8 *default_fw_name = "usb8388.bin";
+
+char *libertas_fw_name = NULL;
+module_param_named(fw_name, libertas_fw_name, charp, 0644);
+
 
 #define MAX_DEVS 5
 static struct net_device *libertas_devs[MAX_DEVS];
@@ -195,14 +201,14 @@ static int if_usb_probe(struct usb_interface *intf,
 	}
 
 
-	/* At this point wlan_add_card() will be called.  Don't worry
+	/* At this point libertas_add_card() will be called.  Don't worry
 	 * about keeping pwlanpriv around since it will be set on our
 	 * usb device data in -> add() -> hw_register_dev() -> if_usb_register_dev.
 	 */
-	if (!(priv = wlan_add_card(usb_cardp)))
+	if (!(priv = libertas_add_card(usb_cardp)))
 		goto dealloc;
 
-	if (wlan_add_mesh(priv))
+	if (libertas_add_mesh(priv))
 		goto err_add_mesh;
 
 	priv->hw_register_dev = if_usb_register_dev;
@@ -212,7 +218,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	priv->hw_get_int_status = if_usb_get_int_status;
 	priv->hw_read_event_cause = if_usb_read_event_cause;
 
-	if (libertas_activate_card(priv))
+	if (libertas_activate_card(priv, libertas_fw_name))
 		goto err_activate_card;
 
 	if (libertas_found < MAX_DEVS) {
@@ -273,8 +279,8 @@ static void if_usb_disconnect(struct usb_interface *intf)
 
 	/* card is removed and we can call wlan_remove_card */
 	lbs_deb_usbd(&cardp->udev->dev, "call remove card\n");
-	wlan_remove_mesh(priv);
-	wlan_remove_card(priv);
+	libertas_remove_mesh(priv);
+	libertas_remove_card(priv);
 
 	/* Unlink and free urb */
 	if_usb_free(cardp);
@@ -964,32 +970,27 @@ static struct usb_driver if_usb_driver = {
 	.resume = if_usb_resume,
 };
 
-/**
- *  @brief This function registers driver.
- *  @param add		pointer to add_card callback function
- *  @param remove	pointer to remove card callback function
- *  @param arg		pointer to call back function parameter
- *  @return 	   	dummy success variable
- */
-int if_usb_register(void)
+static int if_usb_init_module(void)
 {
-	/*
-	 * API registers the Marvell USB driver
-	 * to the USB system
-	 */
-	usb_register(&if_usb_driver);
+	int ret = 0;
 
-	/* Return success to wlan layer */
-	return 0;
+	lbs_deb_enter(LBS_DEB_MAIN);
+
+	if (libertas_fw_name == NULL) {
+		libertas_fw_name = default_fw_name;
+	}
+
+	ret = usb_register(&if_usb_driver);
+
+	lbs_deb_leave_args(LBS_DEB_MAIN, "ret %d", ret);
+	return ret;
 }
 
-/**
- *  @brief This function removes usb driver.
- *  @return 	   	N/A
- */
-void if_usb_unregister(void)
+static void if_usb_exit_module(void)
 {
 	int i;
+
+	lbs_deb_enter(LBS_DEB_MAIN);
 
 	for (i = 0; i<libertas_found; i++) {
 		wlan_private *priv = libertas_devs[i]->priv;
@@ -998,4 +999,13 @@ void if_usb_unregister(void)
 
 	/* API unregisters the driver from USB subsystem */
 	usb_deregister(&if_usb_driver);
+
+	lbs_deb_leave(LBS_DEB_MAIN);
 }
+
+module_init(if_usb_init_module);
+module_exit(if_usb_exit_module);
+
+MODULE_DESCRIPTION("8388 USB WLAN Driver");
+MODULE_AUTHOR("Marvell International Ltd.");
+MODULE_LICENSE("GPL");

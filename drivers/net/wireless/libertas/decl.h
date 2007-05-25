@@ -74,20 +74,16 @@ void libertas_mac_event_disconnected(wlan_private * priv);
 void libertas_send_iwevcustom_event(wlan_private * priv, s8 * str);
 
 /* fw.c */
-int libertas_init_fw(wlan_private * priv);
+int libertas_init_fw(wlan_private * priv, char *fw_name);
 
 /* main.c */
 struct chan_freq_power *libertas_get_region_cfp_table(u8 region, u8 band,
 						             int *cfp_no);
-wlan_private *wlan_add_card(void *card);
-int libertas_activate_card(wlan_private *priv);
-int wlan_remove_card(wlan_private *priv);
-int wlan_add_mesh(wlan_private *priv);
-void wlan_remove_mesh(wlan_private *priv);
-
-/* preliminary here */
-int if_usb_register(void);
-void if_usb_unregister(void);
+wlan_private *libertas_add_card(void *card);
+int libertas_activate_card(wlan_private *priv, char *fw_name);
+int libertas_remove_card(wlan_private *priv);
+int libertas_add_mesh(wlan_private *priv);
+void libertas_remove_mesh(wlan_private *priv);
 
 
 #endif				/* _WLAN_DECL_H_ */

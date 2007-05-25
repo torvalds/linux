@@ -32,7 +32,7 @@ const char libertas_driver_version[] = "COMM-USB8388-" DRIVER_RELEASE_VERSION
 /* Module parameters */
 unsigned int libertas_debug = 0;
 module_param(libertas_debug, int, 0644);
-
+EXPORT_SYMBOL_GPL(libertas_debug);
 
 
 #define WLAN_TX_PWR_DEFAULT		20	/*100mW */
@@ -172,8 +172,6 @@ u8 libertas_adhoc_rates_b[4] = { 0x82, 0x84, 0x8b, 0x96 };
  */
 u16 libertas_region_code_to_index[MRVDRV_MAX_REGION_CODE] =
     { 0x10, 0x20, 0x30, 0x31, 0x32, 0x40 };
-
-static u8 *default_fw_name = "usb8388.bin";
 
 /**
  * Attributes exported through sysfs
@@ -766,7 +764,7 @@ static int wlan_service_main_thread(void *data)
  *  @param card    A pointer to card
  *  @return 	   A pointer to wlan_private structure
  */
-wlan_private *wlan_add_card(void *card)
+wlan_private *libertas_add_card(void *card)
 {
 	struct net_device *dev = NULL;
 	wlan_private *priv = NULL;
@@ -826,8 +824,9 @@ done:
 	lbs_deb_leave_args(LBS_DEB_NET, "priv %p", priv);
 	return priv;
 }
+EXPORT_SYMBOL_GPL(libertas_add_card);
 
-int libertas_activate_card(wlan_private *priv)
+int libertas_activate_card(wlan_private *priv, char *fw_name)
 {
 	struct net_device *dev = priv->wlan_dev.netdev;
 	int ret = -1;
@@ -854,7 +853,7 @@ int libertas_activate_card(wlan_private *priv)
 	}
 
 	/* init FW and HW */
-	if (libertas_init_fw(priv)) {
+	if (fw_name && libertas_init_fw(priv, fw_name)) {
 		lbs_pr_err("firmware init failed\n");
 		goto err_registerdev;
 	}
@@ -884,6 +883,8 @@ done:
 	lbs_deb_leave_args(LBS_DEB_NET, "ret %d", ret);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(libertas_activate_card);
+
 
 /**
  * @brief This function adds mshX interface
@@ -891,7 +892,7 @@ done:
  *  @param priv    A pointer to the wlan_private structure
  *  @return 	   0 if successful, -X otherwise
  */
-int wlan_add_mesh(wlan_private *priv)
+int libertas_add_mesh(wlan_private *priv)
 {
 	struct net_device *mesh_dev = NULL;
 	int ret = 0;
@@ -949,6 +950,7 @@ done:
 	lbs_deb_leave_args(LBS_DEB_MESH, "ret %d", ret);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(libertas_add_mesh);
 
 static void wake_pending_cmdnodes(wlan_private *priv)
 {
@@ -966,7 +968,7 @@ static void wake_pending_cmdnodes(wlan_private *priv)
 }
 
 
-int wlan_remove_card(wlan_private *priv)
+int libertas_remove_card(wlan_private *priv)
 {
 	wlan_adapter *adapter;
 	struct net_device *dev;
@@ -1022,8 +1024,10 @@ out:
 	lbs_deb_leave(LBS_DEB_NET);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(libertas_remove_card);
 
-void wlan_remove_mesh(wlan_private *priv)
+
+void libertas_remove_mesh(wlan_private *priv)
 {
 	struct net_device *mesh_dev;
 
@@ -1046,6 +1050,7 @@ void wlan_remove_mesh(wlan_private *priv)
 out:
 	lbs_deb_leave(LBS_DEB_NET);
 }
+EXPORT_SYMBOL_GPL(libertas_remove_mesh);
 
 /**
  *  @brief This function finds the CFP in
@@ -1141,41 +1146,28 @@ void libertas_interrupt(struct net_device *dev)
 
 	lbs_deb_leave(LBS_DEB_THREAD);
 }
+EXPORT_SYMBOL_GPL(libertas_interrupt);
 
-static int wlan_init_module(void)
+static int libertas_init_module(void)
 {
-	int ret = 0;
-
 	lbs_deb_enter(LBS_DEB_MAIN);
-
-	if (libertas_fw_name == NULL) {
-		libertas_fw_name = default_fw_name;
-	}
-
 	libertas_debugfs_init();
-
-	if (if_usb_register()) {
-		ret = -1;
-		libertas_debugfs_remove();
-	}
-
-	lbs_deb_leave_args(LBS_DEB_MAIN, "ret %d", ret);
-	return ret;
+	lbs_deb_leave(LBS_DEB_MAIN);
+	return 0;
 }
 
-static void wlan_cleanup_module(void)
+static void libertas_exit_module(void)
 {
 	lbs_deb_enter(LBS_DEB_MAIN);
 
-	if_usb_unregister();
 	libertas_debugfs_remove();
 
 	lbs_deb_leave(LBS_DEB_MAIN);
 }
 
-module_init(wlan_init_module);
-module_exit(wlan_cleanup_module);
+module_init(libertas_init_module);
+module_exit(libertas_exit_module);
 
-MODULE_DESCRIPTION("M-WLAN Driver");
+MODULE_DESCRIPTION("Libertas WLAN Driver Library");
 MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_LICENSE("GPL");

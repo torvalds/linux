@@ -1459,6 +1459,7 @@ done:
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(libertas_prepare_and_send_command);
 
 /**
  *  @brief This function allocates the command buffer and link

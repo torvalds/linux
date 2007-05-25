@@ -287,3 +287,4 @@ void libertas_send_tx_feedback(wlan_private * priv)
 		netif_wake_queue(priv->mesh_dev);
 	}
 }
+EXPORT_SYMBOL_GPL(libertas_send_tx_feedback);

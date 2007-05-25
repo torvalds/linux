@@ -277,6 +277,7 @@ done:
 	lbs_deb_leave_args(LBS_DEB_RX, "ret %d", ret);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(libertas_process_rxed_packet);
 
 /**
  *  @brief This function converts Tx/Rx rates from the Marvell WLAN format

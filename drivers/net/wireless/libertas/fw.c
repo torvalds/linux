@@ -1,7 +1,6 @@
 /**
   * This file contains the initialization for FW and HW
   */
-#include <linux/moduleparam.h>
 #include <linux/firmware.h>
 
 #include "host.h"
@@ -10,9 +9,6 @@
 #include "dev.h"
 #include "wext.h"
 #include "if_usb.h"
-
-char *libertas_fw_name = NULL;
-module_param_named(fw_name, libertas_fw_name, charp, 0644);
 
 /**
  *  @brief This function checks the validity of Boot2/FW image.
@@ -67,18 +63,18 @@ static int check_fwfile_format(u8 *data, u32 totlen)
  *  @param priv    A pointer to wlan_private structure
  *  @return 	   0 or -1
  */
-static int wlan_setup_station_hw(wlan_private * priv)
+static int wlan_setup_station_hw(wlan_private * priv, char *fw_name)
 {
 	int ret = -1;
 	wlan_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_FW);
 
-	if ((ret = request_firmware(&priv->firmware, libertas_fw_name,
+	if ((ret = request_firmware(&priv->firmware, fw_name,
 				    priv->hotplug_device)) < 0) {
 		lbs_pr_err("request_firmware() failed with %#x\n",
 		       ret);
-		lbs_pr_err("firmware %s not found\n", libertas_fw_name);
+		lbs_pr_err("firmware %s not found\n", fw_name);
 		goto done;
 	}
 
@@ -247,7 +243,7 @@ static void wlan_init_adapter(wlan_private * priv)
 
 static void command_timer_fn(unsigned long data);
 
-int libertas_init_fw(wlan_private * priv)
+int libertas_init_fw(wlan_private * priv, char *fw_name)
 {
 	int ret = -1;
 	wlan_adapter *adapter = priv->adapter;
@@ -266,7 +262,7 @@ int libertas_init_fw(wlan_private * priv)
 			(unsigned long)priv);
 
 	/* download fimrware etc. */
-	if ((ret = wlan_setup_station_hw(priv)) != 0) {
+	if ((ret = wlan_setup_station_hw(priv, fw_name)) != 0) {
 		del_timer_sync(&adapter->command_timer);
 		goto done;
 	}
