@@ -827,6 +827,8 @@ int wlan_scan_networks(wlan_private * priv,
 	wlan_scan_process_results(priv);
 
 	if (priv->adapter->connect_status == libertas_connected) {
+		netif_carrier_on(priv->wlan_dev.netdev);
+		netif_wake_queue(priv->wlan_dev.netdev);
 		netif_carrier_on(priv->mesh_dev);
 		netif_wake_queue(priv->mesh_dev);
 	}
