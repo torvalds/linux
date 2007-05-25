@@ -14,10 +14,6 @@
 #define his_cardevent			0x02
 #define his_cmdupldrdy			0x04
 
-#ifndef DEV_NAME_LEN
-#define DEV_NAME_LEN			32
-#endif
-
 #define SBI_EVENT_CAUSE_SHIFT		3
 
 /* Probe and Check if the card is present*/
