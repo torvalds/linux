@@ -1,5 +1,5 @@
 /*
- * ata-it821x.c 	- IT821x PATA for new ATA layer
+ * pata_it821x.c 	- IT821x PATA for new ATA layer
  *			  (C) 2005 Red Hat Inc
  *			  Alan Cox <alan@redhat.com>
  *
@@ -65,7 +65,6 @@
  *
  *  TODO
  *	-	ATAPI and other speed filtering
- *	-	Command filter in smart mode
  *	-	RAID configuration ioctls
  */
 

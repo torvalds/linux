@@ -97,7 +97,7 @@ static int artop6260_pre_reset(struct ata_port *ap, unsigned long deadline)
  *	artop6260_cable_detect	-	identify cable type
  *	@ap: Port
  *
- *	Identify the cable type for the ARTOp interface in question
+ *	Identify the cable type for the ARTOP interface in question
  */
 
 static int artop6260_cable_detect(struct ata_port *ap)
