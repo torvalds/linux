@@ -107,7 +107,7 @@ int sun4v_hvapi_register(unsigned long group, unsigned long major,
 				p->minor = actual_minor;
 				ret = 0;
 			} else if (hv_ret == HV_EBADTRAP ||
-				   HV_ENOTSUPPORTED) {
+				   hv_ret == HV_ENOTSUPPORTED) {
 				if (p->flags & FLAG_PRE_API) {
 					if (major == 1) {
 						p->major = 1;
