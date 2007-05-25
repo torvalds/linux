@@ -344,21 +344,16 @@ static void aac_internal_transfer(struct scsi_cmnd *scsicmd, void *data, unsigne
 {
 	void *buf;
 	int transfer_len;
-	struct scatterlist *sg = scsicmd->request_buffer;
+	struct scatterlist *sg = scsi_sglist(scsicmd);
 
-	if (scsicmd->use_sg) {
-		buf = kmap_atomic(sg->page, KM_IRQ0) + sg->offset;
-		transfer_len = min(sg->length, len + offset);
-	} else {
-		buf = scsicmd->request_buffer;
-		transfer_len = min(scsicmd->request_bufflen, len + offset);
-	}
+	buf = kmap_atomic(sg->page, KM_IRQ0) + sg->offset;
+	transfer_len = min(sg->length, len + offset);
+
 	transfer_len -= offset;
 	if (buf && transfer_len > 0)
 		memcpy(buf + offset, data, transfer_len);
 
-	if (scsicmd->use_sg) 
-		kunmap_atomic(buf - sg->offset, KM_IRQ0);
+	kunmap_atomic(buf - sg->offset, KM_IRQ0);
 
 }
 
@@ -1043,7 +1038,7 @@ static int aac_scsi_64(struct fib * fib, struct scsi_cmnd * cmd)
 	struct aac_srb * srbcmd = aac_scsi_common(fib, cmd);
 
 	aac_build_sg64(cmd, (struct sgmap64*) &srbcmd->sg);
-	srbcmd->count = cpu_to_le32(cmd->request_bufflen);
+	srbcmd->count = cpu_to_le32(scsi_bufflen(cmd));
 
 	memset(srbcmd->cdb, 0, sizeof(srbcmd->cdb));
 	memcpy(srbcmd->cdb, cmd->cmnd, cmd->cmd_len);
@@ -1071,7 +1066,7 @@ static int aac_scsi_32(struct fib * fib, struct scsi_cmnd * cmd)
 	struct aac_srb * srbcmd = aac_scsi_common(fib, cmd);
 
 	aac_build_sg(cmd, (struct sgmap*)&srbcmd->sg);
-	srbcmd->count = cpu_to_le32(cmd->request_bufflen);
+	srbcmd->count = cpu_to_le32(scsi_bufflen(cmd));
 
 	memset(srbcmd->cdb, 0, sizeof(srbcmd->cdb));
 	memcpy(srbcmd->cdb, cmd->cmnd, cmd->cmd_len);
@@ -1373,16 +1368,9 @@ static void io_callback(void *context, struct fib * fibptr)
 	}
 
 	BUG_ON(fibptr == NULL);
-		
-	if(scsicmd->use_sg)
-		pci_unmap_sg(dev->pdev, 
-			(struct scatterlist *)scsicmd->request_buffer,
-			scsicmd->use_sg,
-			scsicmd->sc_data_direction);
-	else if(scsicmd->request_bufflen)
-		pci_unmap_single(dev->pdev, scsicmd->SCp.dma_handle,
-				 scsicmd->request_bufflen,
-				 scsicmd->sc_data_direction);
+
+	scsi_dma_unmap(scsicmd);
+
 	readreply = (struct aac_read_reply *)fib_data(fibptr);
 	if (le32_to_cpu(readreply->status) == ST_OK)
 		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
@@ -2182,18 +2170,11 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 	/*
 	 *	Calculate resid for sg 
 	 */
-	 
-	scsicmd->resid = scsicmd->request_bufflen - 
-		le32_to_cpu(srbreply->data_xfer_length);
 
-	if(scsicmd->use_sg)
-		pci_unmap_sg(dev->pdev, 
-			(struct scatterlist *)scsicmd->request_buffer,
-			scsicmd->use_sg,
-			scsicmd->sc_data_direction);
-	else if(scsicmd->request_bufflen)
-		pci_unmap_single(dev->pdev, scsicmd->SCp.dma_handle, scsicmd->request_bufflen,
-			scsicmd->sc_data_direction);
+	scsi_set_resid(scsicmd, scsi_bufflen(scsicmd)
+		       - le32_to_cpu(srbreply->data_xfer_length));
+
+	scsi_dma_unmap(scsicmd);
 
 	/*
 	 * First check the fib status
@@ -2379,52 +2360,39 @@ static unsigned long aac_build_sg(struct scsi_cmnd* scsicmd, struct sgmap* psg)
 {
 	struct aac_dev *dev;
 	unsigned long byte_count = 0;
+	int nseg;
 
 	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
 	// Get rid of old data
 	psg->count = 0;
 	psg->sg[0].addr = 0;
-	psg->sg[0].count = 0;  
-	if (scsicmd->use_sg) {
+	psg->sg[0].count = 0;
+
+	nseg = scsi_dma_map(scsicmd);
+	BUG_ON(nseg < 0);
+	if (nseg) {
 		struct scatterlist *sg;
 		int i;
-		int sg_count;
-		sg = (struct scatterlist *) scsicmd->request_buffer;
 
-		sg_count = pci_map_sg(dev->pdev, sg, scsicmd->use_sg,
-			scsicmd->sc_data_direction);
-		psg->count = cpu_to_le32(sg_count);
+		psg->count = cpu_to_le32(nseg);
 
-		for (i = 0; i < sg_count; i++) {
+		scsi_for_each_sg(scsicmd, sg, nseg, i) {
 			psg->sg[i].addr = cpu_to_le32(sg_dma_address(sg));
 			psg->sg[i].count = cpu_to_le32(sg_dma_len(sg));
 			byte_count += sg_dma_len(sg);
-			sg++;
 		}
 		/* hba wants the size to be exact */
-		if(byte_count > scsicmd->request_bufflen){
-			u32 temp = le32_to_cpu(psg->sg[i-1].count) - 
-				(byte_count - scsicmd->request_bufflen);
+		if (byte_count > scsi_bufflen(scsicmd)) {
+			u32 temp = le32_to_cpu(psg->sg[i-1].count) -
+				(byte_count - scsi_bufflen(scsicmd));
 			psg->sg[i-1].count = cpu_to_le32(temp);
-			byte_count = scsicmd->request_bufflen;
+			byte_count = scsi_bufflen(scsicmd);
 		}
 		/* Check for command underflow */
 		if(scsicmd->underflow && (byte_count < scsicmd->underflow)){
 			printk(KERN_WARNING"aacraid: cmd len %08lX cmd underflow %08X\n",
 					byte_count, scsicmd->underflow);
 		}
-	}
-	else if(scsicmd->request_bufflen) {
-		u32 addr;
-		scsicmd->SCp.dma_handle = pci_map_single(dev->pdev,
-				scsicmd->request_buffer,
-				scsicmd->request_bufflen,
-				scsicmd->sc_data_direction);
-		addr = scsicmd->SCp.dma_handle;
-		psg->count = cpu_to_le32(1);
-		psg->sg[0].addr = cpu_to_le32(addr);
-		psg->sg[0].count = cpu_to_le32(scsicmd->request_bufflen);  
-		byte_count = scsicmd->request_bufflen;
 	}
 	return byte_count;
 }
@@ -2435,6 +2403,7 @@ static unsigned long aac_build_sg64(struct scsi_cmnd* scsicmd, struct sgmap64* p
 	struct aac_dev *dev;
 	unsigned long byte_count = 0;
 	u64 addr;
+	int nseg;
 
 	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
 	// Get rid of old data
@@ -2442,31 +2411,28 @@ static unsigned long aac_build_sg64(struct scsi_cmnd* scsicmd, struct sgmap64* p
 	psg->sg[0].addr[0] = 0;
 	psg->sg[0].addr[1] = 0;
 	psg->sg[0].count = 0;
-	if (scsicmd->use_sg) {
+
+	nseg = scsi_dma_map(scsicmd);
+	BUG_ON(nseg < 0);
+	if (nseg) {
 		struct scatterlist *sg;
 		int i;
-		int sg_count;
-		sg = (struct scatterlist *) scsicmd->request_buffer;
 
-		sg_count = pci_map_sg(dev->pdev, sg, scsicmd->use_sg,
-			scsicmd->sc_data_direction);
-
-		for (i = 0; i < sg_count; i++) {
+		scsi_for_each_sg(scsicmd, sg, nseg, i) {
 			int count = sg_dma_len(sg);
 			addr = sg_dma_address(sg);
 			psg->sg[i].addr[0] = cpu_to_le32(addr & 0xffffffff);
 			psg->sg[i].addr[1] = cpu_to_le32(addr>>32);
 			psg->sg[i].count = cpu_to_le32(count);
 			byte_count += count;
-			sg++;
 		}
-		psg->count = cpu_to_le32(sg_count);
+		psg->count = cpu_to_le32(nseg);
 		/* hba wants the size to be exact */
-		if(byte_count > scsicmd->request_bufflen){
-			u32 temp = le32_to_cpu(psg->sg[i-1].count) - 
-				(byte_count - scsicmd->request_bufflen);
+		if (byte_count > scsi_bufflen(scsicmd)) {
+			u32 temp = le32_to_cpu(psg->sg[i-1].count) -
+				(byte_count - scsi_bufflen(scsicmd));
 			psg->sg[i-1].count = cpu_to_le32(temp);
-			byte_count = scsicmd->request_bufflen;
+			byte_count = scsi_bufflen(scsicmd);
 		}
 		/* Check for command underflow */
 		if(scsicmd->underflow && (byte_count < scsicmd->underflow)){
@@ -2474,26 +2440,13 @@ static unsigned long aac_build_sg64(struct scsi_cmnd* scsicmd, struct sgmap64* p
 					byte_count, scsicmd->underflow);
 		}
 	}
-	else if(scsicmd->request_bufflen) {
-		scsicmd->SCp.dma_handle = pci_map_single(dev->pdev,
-				scsicmd->request_buffer,
-				scsicmd->request_bufflen,
-				scsicmd->sc_data_direction);
-		addr = scsicmd->SCp.dma_handle;
-		psg->count = cpu_to_le32(1);
-		psg->sg[0].addr[0] = cpu_to_le32(addr & 0xffffffff);
-		psg->sg[0].addr[1] = cpu_to_le32(addr >> 32);
-		psg->sg[0].count = cpu_to_le32(scsicmd->request_bufflen);  
-		byte_count = scsicmd->request_bufflen;
-	}
 	return byte_count;
 }
 
 static unsigned long aac_build_sgraw(struct scsi_cmnd* scsicmd, struct sgmapraw* psg)
 {
-	struct Scsi_Host *host = scsicmd->device->host;
-	struct aac_dev *dev = (struct aac_dev *)host->hostdata;
 	unsigned long byte_count = 0;
+	int nseg;
 
 	// Get rid of old data
 	psg->count = 0;
@@ -2503,16 +2456,14 @@ static unsigned long aac_build_sgraw(struct scsi_cmnd* scsicmd, struct sgmapraw*
 	psg->sg[0].addr[1] = 0;
 	psg->sg[0].count = 0;
 	psg->sg[0].flags = 0;
-	if (scsicmd->use_sg) {
+
+	nseg = scsi_dma_map(scsicmd);
+	BUG_ON(nseg < 0);
+	if (nseg) {
 		struct scatterlist *sg;
 		int i;
-		int sg_count;
-		sg = (struct scatterlist *) scsicmd->request_buffer;
 
-		sg_count = pci_map_sg(dev->pdev, sg, scsicmd->use_sg,
-			scsicmd->sc_data_direction);
-
-		for (i = 0; i < sg_count; i++) {
+		scsi_for_each_sg(scsicmd, sg, nseg, i) {
 			int count = sg_dma_len(sg);
 			u64 addr = sg_dma_address(sg);
 			psg->sg[i].next = 0;
@@ -2522,39 +2473,20 @@ static unsigned long aac_build_sgraw(struct scsi_cmnd* scsicmd, struct sgmapraw*
 			psg->sg[i].count = cpu_to_le32(count);
 			psg->sg[i].flags = 0;
 			byte_count += count;
-			sg++;
 		}
-		psg->count = cpu_to_le32(sg_count);
+		psg->count = cpu_to_le32(nseg);
 		/* hba wants the size to be exact */
-		if(byte_count > scsicmd->request_bufflen){
-			u32 temp = le32_to_cpu(psg->sg[i-1].count) - 
-				(byte_count - scsicmd->request_bufflen);
+		if (byte_count > scsi_bufflen(scsicmd)) {
+			u32 temp = le32_to_cpu(psg->sg[i-1].count) -
+				(byte_count - scsi_bufflen(scsicmd));
 			psg->sg[i-1].count = cpu_to_le32(temp);
-			byte_count = scsicmd->request_bufflen;
+			byte_count = scsi_bufflen(scsicmd);
 		}
 		/* Check for command underflow */
 		if(scsicmd->underflow && (byte_count < scsicmd->underflow)){
 			printk(KERN_WARNING"aacraid: cmd len %08lX cmd underflow %08X\n",
 					byte_count, scsicmd->underflow);
 		}
-	}
-	else if(scsicmd->request_bufflen) {
-		int count;
-		u64 addr;
-		scsicmd->SCp.dma_handle = pci_map_single(dev->pdev,
-				scsicmd->request_buffer,
-				scsicmd->request_bufflen,
-				scsicmd->sc_data_direction);
-		addr = scsicmd->SCp.dma_handle;
-		count = scsicmd->request_bufflen;
-		psg->count = cpu_to_le32(1);
-		psg->sg[0].next = 0;
-		psg->sg[0].prev = 0;
-		psg->sg[0].addr[1] = cpu_to_le32((u32)(addr>>32));
-		psg->sg[0].addr[0] = cpu_to_le32((u32)(addr & 0xffffffff));
-		psg->sg[0].count = cpu_to_le32(count);
-		psg->sg[0].flags = 0;
-		byte_count = scsicmd->request_bufflen;
 	}
 	return byte_count;
 }
