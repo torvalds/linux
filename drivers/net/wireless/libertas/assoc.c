@@ -37,7 +37,7 @@ static int assoc_helper_essid(wlan_private *priv,
 			ret = wlan_associate(priv, &adapter->scantable[i]);
 			if (ret == 0) {
 				memcpy(&assoc_req->bssid,
-				       &adapter->scantable[i].macaddress,
+				       &adapter->scantable[i].bssid,
 				       ETH_ALEN);
 			}
 		} else {

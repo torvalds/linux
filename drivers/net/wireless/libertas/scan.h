@@ -137,7 +137,7 @@ struct wlan_ioctl_user_scan_cfg {
  *  @brief Structure used to store information for each beacon/probe response
  */
 struct bss_descriptor {
-	u8 macaddress[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
 
 	struct WLAN_802_11_SSID ssid;
 

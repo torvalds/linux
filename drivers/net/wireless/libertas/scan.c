@@ -229,7 +229,7 @@ static void wlan_scan_process_results(wlan_private * priv)
 			if (!libertas_SSID_cmp(&adapter->scantable[i].ssid,
 				     &adapter->curbssparams.ssid) &&
 			    !memcmp(adapter->curbssparams.bssid,
-				    adapter->scantable[i].macaddress,
+				    adapter->scantable[i].bssid,
 				    ETH_ALEN)) {
 				foundcurrent = 1;
 			}
@@ -247,12 +247,12 @@ static void wlan_scan_process_results(wlan_private * priv)
 		lbs_deb_scan("Scan:(%02d) %02x:%02x:%02x:%02x:%02x:%02x, "
 		       "RSSI[%03d], SSID[%s]\n",
 		       i,
-		       adapter->scantable[i].macaddress[0],
-		       adapter->scantable[i].macaddress[1],
-		       adapter->scantable[i].macaddress[2],
-		       adapter->scantable[i].macaddress[3],
-		       adapter->scantable[i].macaddress[4],
-		       adapter->scantable[i].macaddress[5],
+		       adapter->scantable[i].bssid[0],
+		       adapter->scantable[i].bssid[1],
+		       adapter->scantable[i].bssid[2],
+		       adapter->scantable[i].bssid[3],
+		       adapter->scantable[i].bssid[4],
+		       adapter->scantable[i].bssid[5],
 		       (s32) adapter->scantable[i].rssi,
 		       adapter->scantable[i].ssid.ssid);
 	}
@@ -963,11 +963,11 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 
 	bytesleftforcurrentbeacon = beaconsize;
 
-	memcpy(pBSSEntry->macaddress, pcurrentptr, ETH_ALEN);
+	memcpy(pBSSEntry->bssid, pcurrentptr, ETH_ALEN);
 	lbs_deb_scan("InterpretIE: AP MAC Addr-%x:%x:%x:%x:%x:%x\n",
-	       pBSSEntry->macaddress[0], pBSSEntry->macaddress[1],
-	       pBSSEntry->macaddress[2], pBSSEntry->macaddress[3],
-	       pBSSEntry->macaddress[4], pBSSEntry->macaddress[5]);
+	       pBSSEntry->bssid[0], pBSSEntry->bssid[1],
+	       pBSSEntry->bssid[2], pBSSEntry->bssid[3],
+	       pBSSEntry->bssid[4], pBSSEntry->bssid[5]);
 
 	pcurrentptr += ETH_ALEN;
 	bytesleftforcurrentbeacon -= ETH_ALEN;
@@ -1246,7 +1246,7 @@ int libertas_find_BSSID_in_list(wlan_adapter * adapter, u8 * bssid, u8 mode)
 	 *   AP with multiple SSIDs assigned to the same BSSID
 	 */
 	for (i = 0; ret < 0 && i < adapter->numinscantable; i++) {
-		if (!memcmp(adapter->scantable[i].macaddress, bssid, ETH_ALEN)) {
+		if (!memcmp(adapter->scantable[i].bssid, bssid, ETH_ALEN)) {
 			switch (mode) {
 			case IW_MODE_INFRA:
 			case IW_MODE_ADHOC:
@@ -1285,8 +1285,7 @@ int libertas_find_SSID_in_list(wlan_adapter * adapter,
 	for (i = 0; i < adapter->numinscantable; i++) {
 		if (!libertas_SSID_cmp(&adapter->scantable[i].ssid, ssid) &&
 		    (!bssid ||
-		     !memcmp(adapter->scantable[i].
-			     macaddress, bssid, ETH_ALEN))) {
+		     !memcmp(adapter->scantable[i].bssid, bssid, ETH_ALEN))) {
 			switch (mode) {
 			case IW_MODE_INFRA:
 			case IW_MODE_ADHOC:
@@ -1609,7 +1608,7 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 		iwe.cmd = SIOCGIWAP;
 		iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 		memcpy(iwe.u.ap_addr.sa_data,
-		       &adapter->scantable[i].macaddress, ETH_ALEN);
+		       &adapter->scantable[i].bssid, ETH_ALEN);
 
 		iwe.len = IW_EV_ADDR_LEN;
 		current_ev =
@@ -1945,24 +1944,22 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 		     0)
 		    && CHECK_SSID_IS_VALID(&newbssentry.ssid)) {
 
-            lbs_deb_scan(
+			lbs_deb_scan(
 			       "SCAN_RESP: BSSID = %02x:%02x:%02x:%02x:%02x:%02x\n",
-			       newbssentry.macaddress[0],
-			       newbssentry.macaddress[1],
-			       newbssentry.macaddress[2],
-			       newbssentry.macaddress[3],
-			       newbssentry.macaddress[4],
-			       newbssentry.macaddress[5]);
+			       newbssentry.bssid[0],
+			       newbssentry.bssid[1],
+			       newbssentry.bssid[2],
+			       newbssentry.bssid[3],
+			       newbssentry.bssid[4],
+			       newbssentry.bssid[5]);
 
 			/*
 			 * Search the scan table for the same bssid
 			 */
 			for (bssIdx = 0; bssIdx < numintable; bssIdx++) {
-				if (memcmp(newbssentry.macaddress,
-					   adapter->scantable[bssIdx].
-					   macaddress,
-					   sizeof(newbssentry.macaddress)) ==
-				    0) {
+				if (memcmp(newbssentry.bssid,
+					   adapter->scantable[bssIdx].bssid,
+					   sizeof(newbssentry.bssid)) == 0) {
 					/*
 					 * If the SSID matches as well, it is a duplicate of
 					 *   this entry.  Keep the bssIdx set to this

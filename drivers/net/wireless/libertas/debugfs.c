@@ -76,9 +76,9 @@ static ssize_t libertas_getscantable(struct file *file, char __user *userbuf,
 		pos += snprintf(buf+pos, len-pos,
 			"%02u| %03d | %03ld | %02x:%02x:%02x:%02x:%02x:%02x |",
 			numscansdone, pbssinfo->channel, pbssinfo->rssi,
-			pbssinfo->macaddress[0], pbssinfo->macaddress[1],
-			pbssinfo->macaddress[2], pbssinfo->macaddress[3],
-			pbssinfo->macaddress[4], pbssinfo->macaddress[5]);
+			pbssinfo->bssid[0], pbssinfo->bssid[1],
+			pbssinfo->bssid[2], pbssinfo->bssid[3],
+			pbssinfo->bssid[4], pbssinfo->bssid[5]);
 		pos += snprintf(buf+pos, len-pos, " %04x-", cap);
 		pos += snprintf(buf+pos, len-pos, "%c%c%c |",
 				pbssinfo->cap.ibss ? 'A' : 'I',

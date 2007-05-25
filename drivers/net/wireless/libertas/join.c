@@ -113,7 +113,7 @@ int wlan_associate(wlan_private * priv, struct bss_descriptor * pbssdesc)
 
 	ret = libertas_prepare_and_send_command(priv, cmd_802_11_authenticate,
 				    0, cmd_option_waitforrsp,
-				    0, pbssdesc->macaddress);
+				    0, pbssdesc->bssid);
 
 	if (ret)
 		goto done;
@@ -353,7 +353,7 @@ int libertas_cmd_80211_associate(wlan_private * priv,
 	adapter->pattemptedbssdesc = pbssdesc;
 
 	memcpy(passo->peerstaaddr,
-	       pbssdesc->macaddress, sizeof(passo->peerstaaddr));
+	       pbssdesc->bssid, sizeof(passo->peerstaaddr));
 	pos += sizeof(passo->peerstaaddr);
 
 	/* set the listen interval */
@@ -632,7 +632,7 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 	padhocjoin->bssdescriptor.beaconperiod = pbssdesc->beaconperiod;
 
 	memcpy(&padhocjoin->bssdescriptor.BSSID,
-	       &pbssdesc->macaddress, ETH_ALEN);
+	       &pbssdesc->bssid, ETH_ALEN);
 
 	memcpy(&padhocjoin->bssdescriptor.SSID,
 	       &pbssdesc->ssid.ssid, pbssdesc->ssid.ssidlength);
@@ -787,7 +787,7 @@ int libertas_ret_80211_associate(wlan_private * priv,
 
 	/* Set the new BSSID (AP's MAC address) to current BSSID */
 	memcpy(adapter->curbssparams.bssid,
-	       pbssdesc->macaddress, ETH_ALEN);
+	       pbssdesc->bssid, ETH_ALEN);
 
 	/* Make a copy of current BSSID descriptor */
 	memcpy(&adapter->curbssparams.bssdescriptor,
@@ -880,8 +880,7 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 
 	if (command == cmd_ret_802_11_ad_hoc_start) {
 		/* Update the created network descriptor with the new BSSID */
-		memcpy(pbssdesc->macaddress,
-		       padhocresult->BSSID, ETH_ALEN);
+		memcpy(pbssdesc->bssid, padhocresult->BSSID, ETH_ALEN);
 	} else {
 
 		/* Make a copy of current BSSID descriptor, only needed for join since
@@ -892,8 +891,7 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 	}
 
 	/* Set the BSSID from the joined/started descriptor */
-	memcpy(&adapter->curbssparams.bssid,
-	       pbssdesc->macaddress, ETH_ALEN);
+	memcpy(&adapter->curbssparams.bssid, pbssdesc->bssid, ETH_ALEN);
 
 	/* Set the new SSID to current SSID */
 	memcpy(&adapter->curbssparams.ssid,
