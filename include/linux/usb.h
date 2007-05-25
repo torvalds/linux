@@ -1000,11 +1000,26 @@ struct usb_iso_packet_descriptor {
 
 struct urb;
 
+struct usb_anchor {
+	struct list_head urb_list;
+	wait_queue_head_t wait;
+	spinlock_t lock;
+};
+
+static inline void init_usb_anchor(struct usb_anchor *anchor)
+{
+	INIT_LIST_HEAD(&anchor->urb_list);
+	init_waitqueue_head(&anchor->wait);
+	spin_lock_init(&anchor->lock);
+}
+
 typedef void (*usb_complete_t)(struct urb *);
 
 /**
  * struct urb - USB Request Block
  * @urb_list: For use by current owner of the URB.
+ * @anchor_list: membership in the list of an anchor
+ * @anchor: to anchor URBs to a common mooring
  * @pipe: Holds endpoint number, direction, type, and more.
  *	Create these values with the eight macros available;
  *	usb_{snd,rcv}TYPEpipe(dev,endpoint), where the TYPE is "ctrl"
@@ -1177,6 +1192,8 @@ struct urb
 	/* public: documented fields in the urb that can be used by drivers */
 	struct list_head urb_list;	/* list head for use by the urb's
 					 * current owner */
+	struct list_head anchor_list;	/* the URB may be anchored by the driver */
+	struct usb_anchor *anchor;
 	struct usb_device *dev; 	/* (in) pointer to associated device */
 	unsigned int pipe;		/* (in) pipe information */
 	int status;			/* (return) non-ISO status */
@@ -1312,6 +1329,11 @@ extern struct urb *usb_get_urb(struct urb *urb);
 extern int usb_submit_urb(struct urb *urb, gfp_t mem_flags);
 extern int usb_unlink_urb(struct urb *urb);
 extern void usb_kill_urb(struct urb *urb);
+extern void usb_kill_anchored_urbs(struct usb_anchor *anchor);
+extern void usb_anchor_urb(struct urb *urb, struct usb_anchor *anchor);
+extern void usb_unanchor_urb(struct urb *urb);
+extern int usb_wait_anchor_empty_timeout(struct usb_anchor *anchor,
+					 unsigned int timeout);
 
 void *usb_buffer_alloc (struct usb_device *dev, size_t size,
 	gfp_t mem_flags, dma_addr_t *dma);
