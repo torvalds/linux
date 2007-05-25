@@ -1044,7 +1044,7 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 			pBSSEntry->ssid.ssidlength = elemlen;
 			memcpy(pBSSEntry->ssid.ssid, (pcurrentptr + 2),
 			       elemlen);
-			lbs_deb_scan("ssid: %32s", pBSSEntry->ssid.ssid);
+			lbs_deb_scan("ssid '%s'\n", pBSSEntry->ssid.ssid);
 			break;
 
 		case SUPPORTED_RATES:
@@ -1565,7 +1565,7 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 	}
 
 	if (adapter->connect_status == libertas_connected)
-		lbs_deb_scan("Current ssid: %32s\n",
+		lbs_deb_scan("current ssid '%s'\n",
 		       adapter->curbssparams.ssid.ssid);
 
 	lbs_deb_scan("Scan: Get: numinscantable = %d\n",
@@ -1586,7 +1586,7 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 
 		pscantable = &adapter->scantable[i];
 
-		lbs_deb_scan("i=%d  ssid: %32s\n", i, pscantable->ssid.ssid);
+		lbs_deb_scan("i %d, ssid '%s'\n", i, pscantable->ssid.ssid);
 
 		cfp =
 		    libertas_find_cfp_by_band_and_channel(adapter, 0,
