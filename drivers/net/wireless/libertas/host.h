@@ -99,11 +99,11 @@
 #define cmd_bt_access                 0x0087
 #define cmd_ret_bt_access                 0x8087
 
-#define cmd_fwt_access                0x0088
-#define cmd_ret_fwt_access                0x8088
+#define cmd_fwt_access                0x0095
+#define cmd_ret_fwt_access                0x8095
 
-#define cmd_mesh_access               0x0090
-#define cmd_ret_mesh_access               0x8090
+#define cmd_mesh_access               0x009b
+#define cmd_ret_mesh_access               0x809b
 
 /* For the IEEE Power Save */
 #define cmd_subcmd_enter_ps               0x0030
