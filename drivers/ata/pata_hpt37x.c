@@ -26,7 +26,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt37x"
-#define DRV_VERSION	"0.6.5"
+#define DRV_VERSION	"0.6.6"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -931,15 +931,6 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.udma_mask = 0x7f,
 		.port_ops = &hpt372_port_ops
 	};
-	/* HPT371, 372 and friends - UDMA100 at 50MHz clock */
-	static const struct ata_port_info info_hpt372_50 = {
-		.sht = &hpt37x_sht,
-		.flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
-		.udma_mask = 0x3f,
-		.port_ops = &hpt372_port_ops
-	};
 	/* HPT374 - UDMA133 */
 	static const struct ata_port_info info_hpt374 = {
 		.sht = &hpt37x_sht,
@@ -1098,17 +1089,21 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		 *	use a 50MHz DPLL by choice
 		 */
 		unsigned int f_low, f_high;
-		int adjust;
+		int dpll, adjust;
 
-		clock_slot = 2;
+		/* Compute DPLL */
+		dpll = 2;
 		if (port->udma_mask & 0xE0)
-			clock_slot = 3;
+			dpll = 3;
 
-		f_low = (MHz[clock_slot] * chip_table->base) / 192;
+		f_low = (MHz[clock_slot] * 48) / MHz[dpll];
 		f_high = f_low + 2;
+		if (clock_slot > 1)
+			f_high += 2;
 
 		/* Select the DPLL clock. */
 		pci_write_config_byte(dev, 0x5b, 0x21);
+		pci_write_config_dword(dev, 0x5C, (f_high << 16) | f_low);
 
 		for(adjust = 0; adjust < 8; adjust++) {
 			if (hpt37x_calibrate_dpll(dev))
@@ -1124,12 +1119,12 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 			printk(KERN_WARNING "hpt37x: DPLL did not stabilize.\n");
 			return -ENODEV;
 		}
-		if (clock_slot == 3)
+		if (dpll == 3)
 			private_data = (void *)hpt37x_timings_66;
 		else
 			private_data = (void *)hpt37x_timings_50;
 
-		printk(KERN_INFO "hpt37x: Bus clock %dMHz, using DPLL.\n", MHz[clock_slot]);
+		printk(KERN_INFO "hpt37x: Bus clock %dMHz, using DPLL.\n", MHz[dpll]);
 	} else {
 		private_data = (void *)chip_table->clocks[clock_slot];
 		/*
