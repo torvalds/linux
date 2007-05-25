@@ -157,7 +157,7 @@ done:
 		   received from FW */
 		skb_orphan(skb);
 		/* stop processing outgoing pkts */
-		netif_stop_queue(priv->wlan_dev.netdev);
+		netif_stop_queue(priv->dev);
 		netif_stop_queue(priv->mesh_dev);
 		/* freeze any packets already in our queues */
 		priv->adapter->TxLockFlag = 1;
@@ -196,10 +196,10 @@ static void wlan_tx_queue(wlan_private *priv, struct sk_buff *skb)
 	WARN_ON(priv->adapter->tx_queue_idx >= NR_TX_QUEUE);
 	adapter->tx_queue_ps[adapter->tx_queue_idx++] = skb;
 	if (adapter->tx_queue_idx == NR_TX_QUEUE) {
-		netif_stop_queue(priv->wlan_dev.netdev);
+		netif_stop_queue(priv->dev);
 		netif_stop_queue(priv->mesh_dev);
 	} else {
-		netif_start_queue(priv->wlan_dev.netdev);
+		netif_start_queue(priv->dev);
 		netif_start_queue(priv->mesh_dev);
 	}
 
@@ -220,9 +220,9 @@ int libertas_process_tx(wlan_private * priv, struct sk_buff *skb)
 	lbs_deb_enter(LBS_DEB_TX);
 	lbs_dbg_hex("TX Data", skb->data, min_t(unsigned int, skb->len, 100));
 
-	if (priv->wlan_dev.dnld_sent) {
+	if (priv->dnld_sent) {
 		lbs_pr_alert( "TX error: dnld_sent = %d, not sending\n",
-		       priv->wlan_dev.dnld_sent);
+		       priv->dnld_sent);
 		goto done;
 	}
 
@@ -283,7 +283,7 @@ void libertas_send_tx_feedback(wlan_private * priv)
 	adapter->currenttxskb = NULL;
 	priv->adapter->TxLockFlag = 0;
 	if (priv->adapter->connect_status == libertas_connected) {
-		netif_wake_queue(priv->wlan_dev.netdev);
+		netif_wake_queue(priv->dev);
 		netif_wake_queue(priv->mesh_dev);
 	}
 }

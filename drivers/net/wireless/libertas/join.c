@@ -804,8 +804,8 @@ int libertas_ret_80211_associate(wlan_private * priv,
 	adapter->nextSNRNF = 0;
 	adapter->numSNRNF = 0;
 
-	netif_carrier_on(priv->wlan_dev.netdev);
-	netif_wake_queue(priv->wlan_dev.netdev);
+	netif_carrier_on(priv->dev);
+	netif_wake_queue(priv->dev);
 
 	netif_carrier_on(priv->mesh_dev);
 	netif_wake_queue(priv->mesh_dev);
@@ -814,7 +814,7 @@ int libertas_ret_80211_associate(wlan_private * priv,
 
 	memcpy(wrqu.ap_addr.sa_data, adapter->curbssparams.bssid, ETH_ALEN);
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	wireless_send_event(priv->wlan_dev.netdev, SIOCGIWAP, &wrqu, NULL);
+	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 
 done:
 	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
@@ -899,8 +899,8 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 	memcpy(&adapter->curbssparams.ssid,
 	       &pbssdesc->ssid, sizeof(struct WLAN_802_11_SSID));
 
-	netif_carrier_on(priv->wlan_dev.netdev);
-	netif_wake_queue(priv->wlan_dev.netdev);
+	netif_carrier_on(priv->dev);
+	netif_wake_queue(priv->dev);
 
 	netif_carrier_on(priv->mesh_dev);
 	netif_wake_queue(priv->mesh_dev);
@@ -908,7 +908,7 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 	memset(&wrqu, 0, sizeof(wrqu));
 	memcpy(wrqu.ap_addr.sa_data, adapter->curbssparams.bssid, ETH_ALEN);
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	wireless_send_event(priv->wlan_dev.netdev, SIOCGIWAP, &wrqu, NULL);
+	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 
 	lbs_deb_join("ADHOC_RESP: - Joined/Started Ad Hoc\n");
 	lbs_deb_join("ADHOC_RESP: channel = %d\n", adapter->adhocchannel);

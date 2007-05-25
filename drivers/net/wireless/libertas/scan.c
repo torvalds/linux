@@ -733,7 +733,7 @@ static int wlan_scan_channel_list(wlan_private * priv,
 	priv->adapter->last_scanned_channel = ptmpchan->channumber;
 
 	memset(&wrqu, 0, sizeof(union iwreq_data));
-	wireless_send_event(priv->wlan_dev.netdev, SIOCGIWSCAN, &wrqu, NULL);
+	wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);
 
 done:
 	lbs_deb_leave_args(LBS_DEB_SCAN, "ret %d", ret);
@@ -805,8 +805,8 @@ int wlan_scan_networks(wlan_private * priv,
 
 	/* Keep the data path active if we are only scanning our current channel */
 	if (!scancurrentchanonly) {
-		netif_stop_queue(priv->wlan_dev.netdev);
-		netif_carrier_off(priv->wlan_dev.netdev);
+		netif_stop_queue(priv->dev);
+		netif_carrier_off(priv->dev);
 		netif_stop_queue(priv->mesh_dev);
 		netif_carrier_off(priv->mesh_dev);
 	}
@@ -827,8 +827,8 @@ int wlan_scan_networks(wlan_private * priv,
 	wlan_scan_process_results(priv);
 
 	if (priv->adapter->connect_status == libertas_connected) {
-		netif_carrier_on(priv->wlan_dev.netdev);
-		netif_wake_queue(priv->wlan_dev.netdev);
+		netif_carrier_on(priv->dev);
+		netif_wake_queue(priv->dev);
 		netif_carrier_on(priv->mesh_dev);
 		netif_wake_queue(priv->mesh_dev);
 	}

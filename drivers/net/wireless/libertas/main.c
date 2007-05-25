@@ -261,10 +261,10 @@ static int wlan_dev_open(struct net_device *dev)
 	priv->open = 1;
 
 	if (adapter->connect_status == libertas_connected) {
-		netif_carrier_on(priv->wlan_dev.netdev);
+		netif_carrier_on(priv->dev);
 		netif_carrier_on(priv->mesh_dev);
 	} else {
-		netif_carrier_off(priv->wlan_dev.netdev);
+		netif_carrier_off(priv->dev);
 		netif_carrier_off(priv->mesh_dev);
 	}
 
@@ -286,7 +286,7 @@ static int mesh_open(struct net_device *dev)
 	priv->mesh_open = 1 ;
 	netif_wake_queue(priv->mesh_dev);
 	if (priv->infra_open == 0)
-		return wlan_dev_open(priv->wlan_dev.netdev) ;
+		return wlan_dev_open(priv->dev) ;
 	return 0;
 }
 
@@ -303,9 +303,9 @@ static int wlan_open(struct net_device *dev)
 	if(pre_open_check(dev) == -1)
 		return -1;
 	priv->infra_open = 1 ;
-	netif_wake_queue(priv->wlan_dev.netdev);
+	netif_wake_queue(priv->dev);
 	if (priv->open == 0)
-		return wlan_dev_open(priv->wlan_dev.netdev) ;
+		return wlan_dev_open(priv->dev) ;
 	return 0;
 }
 
@@ -315,7 +315,7 @@ static int wlan_dev_close(struct net_device *dev)
 
 	lbs_deb_enter(LBS_DEB_NET);
 
-	netif_carrier_off(priv->wlan_dev.netdev);
+	netif_carrier_off(priv->dev);
 	netif_carrier_off(priv->mesh_dev);
 	priv->open = 0;
 
@@ -336,7 +336,7 @@ static int mesh_close(struct net_device *dev)
 	priv->mesh_open = 0;
 	netif_stop_queue(priv->mesh_dev);
 	if (priv->infra_open == 0)
-		return wlan_dev_close( ((wlan_private *) dev->priv)->wlan_dev.netdev) ;
+		return wlan_dev_close(dev);
 	else
 		return 0;
 }
@@ -351,10 +351,10 @@ static int wlan_close(struct net_device *dev)
 {
 	wlan_private *priv = (wlan_private *) dev->priv;
 
-	netif_stop_queue(priv->wlan_dev.netdev);
+	netif_stop_queue(dev);
 	priv->infra_open = 0;
 	if (priv->mesh_open == 0)
-		return wlan_dev_close( ((wlan_private *) dev->priv)->wlan_dev.netdev) ;
+		return wlan_dev_close(dev);
 	else
 		return 0;
 }
@@ -367,12 +367,12 @@ static int wlan_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	lbs_deb_enter(LBS_DEB_NET);
 
-	if (priv->wlan_dev.dnld_sent || priv->adapter->TxLockFlag) {
+	if (priv->dnld_sent || priv->adapter->TxLockFlag) {
 		priv->stats.tx_dropped++;
 		goto done;
 	}
 
-	netif_stop_queue(priv->wlan_dev.netdev);
+	netif_stop_queue(priv->dev);
 	netif_stop_queue(priv->mesh_dev);
 
 	if (libertas_process_tx(priv, skb) == 0)
@@ -395,7 +395,7 @@ static int mesh_pre_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	SET_MESH_FRAME(skb);
 
-	ret = wlan_hard_start_xmit(skb, priv->wlan_dev.netdev);
+	ret = wlan_hard_start_xmit(skb, priv->dev);
 	lbs_deb_leave_args(LBS_DEB_MESH, "ret %d", ret);
 	return ret;
 }
@@ -425,7 +425,7 @@ static void wlan_tx_timeout(struct net_device *dev)
 
 	lbs_pr_err("tx watch dog timeout\n");
 
-	priv->wlan_dev.dnld_sent = DNLD_RES_RECEIVED;
+	priv->dnld_sent = DNLD_RES_RECEIVED;
 	dev->trans_start = jiffies;
 
 	if (priv->adapter->currenttxskb) {
@@ -437,7 +437,7 @@ static void wlan_tx_timeout(struct net_device *dev)
 		} else
 			wake_up_interruptible(&priv->mainthread.waitq);
 	} else if (priv->adapter->connect_status == libertas_connected) {
-		netif_wake_queue(priv->wlan_dev.netdev);
+		netif_wake_queue(priv->dev);
 		netif_wake_queue(priv->mesh_dev);
 	}
 
@@ -611,14 +611,14 @@ static int wlan_service_main_thread(void *data)
 		lbs_deb_thread( "main-thread 111: intcounter=%d "
 		       "currenttxskb=%p dnld_sent=%d\n",
 		       adapter->intcounter,
-		       adapter->currenttxskb, priv->wlan_dev.dnld_sent);
+		       adapter->currenttxskb, priv->dnld_sent);
 
 		add_wait_queue(&thread->waitq, &wait);
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_lock_irq(&adapter->driver_lock);
 		if ((adapter->psstate == PS_STATE_SLEEP) ||
 		    (!adapter->intcounter
-		     && (priv->wlan_dev.dnld_sent || adapter->cur_cmd ||
+		     && (priv->dnld_sent || adapter->cur_cmd ||
 			 list_empty(&adapter->cmdpendingq)))) {
 			lbs_deb_thread(
 			       "main-thread sleeping... Conn=%d IntC=%d PS_mode=%d PS_State=%d\n",
@@ -633,7 +633,7 @@ static int wlan_service_main_thread(void *data)
 		lbs_deb_thread(
 		       "main-thread 222 (waking up): intcounter=%d currenttxskb=%p "
 		       "dnld_sent=%d\n", adapter->intcounter,
-		       adapter->currenttxskb, priv->wlan_dev.dnld_sent);
+		       adapter->currenttxskb, priv->dnld_sent);
 
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&thread->waitq, &wait);
@@ -642,7 +642,7 @@ static int wlan_service_main_thread(void *data)
 		lbs_deb_thread("main-thread 333: intcounter=%d currenttxskb=%p "
 		       "dnld_sent=%d\n",
 		       adapter->intcounter,
-		       adapter->currenttxskb, priv->wlan_dev.dnld_sent);
+		       adapter->currenttxskb, priv->dnld_sent);
 
 		if (kthread_should_stop()
 		    || adapter->surpriseremoved) {
@@ -671,7 +671,7 @@ static int wlan_service_main_thread(void *data)
 		lbs_deb_thread("main-thread 444: intcounter=%d currenttxskb=%p "
 		       "dnld_sent=%d\n",
 		       adapter->intcounter,
-		       adapter->currenttxskb, priv->wlan_dev.dnld_sent);
+		       adapter->currenttxskb, priv->dnld_sent);
 
 		/* command response? */
 		if (adapter->hisregcpy & his_cmdupldrdy) {
@@ -702,7 +702,7 @@ static int wlan_service_main_thread(void *data)
 
 		/* Check if we need to confirm Sleep Request received previously */
 		if (adapter->psstate == PS_STATE_PRE_SLEEP) {
-			if (!priv->wlan_dev.dnld_sent && !adapter->cur_cmd) {
+			if (!priv->dnld_sent && !adapter->cur_cmd) {
 				if (adapter->connect_status ==
 				    libertas_connected) {
 					lbs_deb_thread(
@@ -710,7 +710,7 @@ static int wlan_service_main_thread(void *data)
 					       "dnld_sent=%d cur_cmd=%p, confirm now\n",
 					       adapter->intcounter,
 					       adapter->currenttxskb,
-					       priv->wlan_dev.dnld_sent,
+					       priv->dnld_sent,
 					       adapter->cur_cmd);
 
 					libertas_ps_confirm_sleep(priv,
@@ -736,7 +736,7 @@ static int wlan_service_main_thread(void *data)
 			continue;
 
 		/* Execute the next command */
-		if (!priv->wlan_dev.dnld_sent && !priv->adapter->cur_cmd)
+		if (!priv->dnld_sent && !priv->adapter->cur_cmd)
 			libertas_execute_next_command(priv);
 
 		/* Wake-up command waiters which can't sleep in
@@ -784,8 +784,8 @@ wlan_private *libertas_add_card(void *card)
 		goto err_kzalloc;
 	}
 
-	priv->wlan_dev.netdev = dev;
-	priv->wlan_dev.card = card;
+	priv->dev = dev;
+	priv->card = card;
 	priv->mesh_open = 0;
 	priv->infra_open = 0;
 
@@ -828,7 +828,7 @@ EXPORT_SYMBOL_GPL(libertas_add_card);
 
 int libertas_activate_card(wlan_private *priv, char *fw_name)
 {
-	struct net_device *dev = priv->wlan_dev.netdev;
+	struct net_device *dev = priv->dev;
 	int ret = -1;
 
 	lbs_deb_enter(LBS_DEB_MAIN);
@@ -916,8 +916,8 @@ int libertas_add_mesh(wlan_private *priv)
 	mesh_dev->do_ioctl = libertas_do_ioctl;
 	mesh_dev->get_stats = wlan_get_stats;
 	mesh_dev->ethtool_ops = &libertas_ethtool_ops;
-	memcpy(mesh_dev->dev_addr, priv->wlan_dev.netdev->dev_addr,
-			sizeof(priv->wlan_dev.netdev->dev_addr));
+	memcpy(mesh_dev->dev_addr, priv->dev->dev_addr,
+			sizeof(priv->dev->dev_addr));
 
 #ifdef	WIRELESS_EXT
 	mesh_dev->wireless_handlers = (struct iw_handler_def *)&libertas_handler_def;
@@ -984,10 +984,10 @@ int libertas_remove_card(wlan_private *priv)
 	if (!adapter)
 		goto out;
 
-	dev = priv->wlan_dev.netdev;
+	dev = priv->dev;
 
-	netif_stop_queue(priv->wlan_dev.netdev);
-	netif_carrier_off(priv->wlan_dev.netdev);
+	netif_stop_queue(priv->dev);
+	netif_carrier_off(priv->dev);
 
 	wake_pending_cmdnodes(priv);
 
@@ -1003,7 +1003,7 @@ int libertas_remove_card(wlan_private *priv)
 
 	memset(wrqu.ap_addr.sa_data, 0xaa, ETH_ALEN);
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	wireless_send_event(priv->wlan_dev.netdev, SIOCGIWAP, &wrqu, NULL);
+	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 
 	adapter->surpriseremoved = 1;
 
@@ -1017,7 +1017,7 @@ int libertas_remove_card(wlan_private *priv)
 
 	lbs_deb_net("unregister finish\n");
 
-	priv->wlan_dev.netdev = NULL;
+	priv->dev = NULL;
 	free_netdev(dev);
 
 out:

@@ -22,7 +22,7 @@
  */
 int if_usb_issue_boot_command(wlan_private *priv, int ivalue)
 {
-	struct usb_card_rec	*cardp = priv->wlan_dev.card;
+	struct usb_card_rec	*cardp = priv->card;
 	struct bootcmdstr	sbootcmd;
 	int i;
 

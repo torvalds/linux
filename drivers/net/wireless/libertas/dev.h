@@ -89,31 +89,6 @@ struct sleep_params {
 	u16 sp_reserved;
 };
 
-/** Data structure for the Marvell WLAN device */
-typedef struct _wlan_dev {
-	/** device name */
-	char name[DEV_NAME_LEN];
-	/** card pointer */
-	void *card;
-	/** IO port */
-	u32 ioport;
-	/** Upload received */
-	u32 upld_rcv;
-	/** Upload type */
-	u32 upld_typ;
-	/** Upload length */
-	u32 upld_len;
-	/** netdev pointer */
-	struct net_device *netdev;
-	/* Upload buffer */
-	u8 upld_buf[WLAN_UPLD_SIZE];
-	/* Download sent:
-	   bit0 1/0=data_sent/data_tx_done,
-	   bit1 1/0=cmd_sent/cmd_tx_done,
-	   all other bits reserved 0 */
-	u8 dnld_sent;
-} wlan_dev_t, *pwlan_dev_t;
-
 /* Mesh statistics */
 struct wlan_mesh_stats {
 	u32	fwd_bcast_cnt;		/* Fwd: Broadcast counter */
@@ -132,8 +107,11 @@ struct _wlan_private {
 	int mesh_open;
 	int infra_open;
 
+	char name[DEV_NAME_LEN];
+
+	void *card;
 	wlan_adapter *adapter;
-	wlan_dev_t wlan_dev;
+	struct net_device *dev;
 
 	struct net_device_stats stats;
 	struct net_device *mesh_dev ; /* Virtual device */
@@ -153,6 +131,16 @@ struct _wlan_private {
 	u32 mac_offset;
 	u32 bbp_offset;
 	u32 rf_offset;
+
+	/** Upload length */
+	u32 upld_len;
+	/* Upload buffer */
+	u8 upld_buf[WLAN_UPLD_SIZE];
+	/* Download sent:
+	   bit0 1/0=data_sent/data_tx_done,
+	   bit1 1/0=cmd_sent/cmd_tx_done,
+	   all other bits reserved 0 */
+	u8 dnld_sent;
 
 	const struct firmware *firmware;
 	struct device *hotplug_device;

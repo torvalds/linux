@@ -1823,7 +1823,7 @@ void libertas_send_iwevcustom_event(wlan_private * priv, s8 * str)
 	lbs_deb_cmd("Event Indication String length = %d\n", iwrq.data.length);
 
 	lbs_deb_cmd("Sending wireless event IWEVCUSTOM for %s\n", str);
-	wireless_send_event(priv->wlan_dev.netdev, IWEVCUSTOM, &iwrq, buf);
+	wireless_send_event(priv->dev, IWEVCUSTOM, &iwrq, buf);
 
 	lbs_deb_leave(LBS_DEB_CMD);
 }
@@ -1842,7 +1842,7 @@ static int sendconfirmsleep(wlan_private * priv, u8 * cmdptr, u16 size)
 	lbs_dbg_hex("SEND_SLEEPC_CMD: Sleep confirm command", cmdptr, size);
 
 	ret = priv->hw_host_to_card(priv, MVMS_CMD, cmdptr, size);
-	priv->wlan_dev.dnld_sent = DNLD_RES_RECEIVED;
+	priv->dnld_sent = DNLD_RES_RECEIVED;
 
 	spin_lock_irqsave(&adapter->driver_lock, flags);
 	if (adapter->intcounter || adapter->currenttxskb)
@@ -1926,7 +1926,7 @@ void libertas_ps_confirm_sleep(wlan_private * priv, u16 psmode)
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	if (priv->wlan_dev.dnld_sent) {
+	if (priv->dnld_sent) {
 		allowed = 0;
 		lbs_deb_cmd("D");
 	}

@@ -42,15 +42,15 @@ void libertas_mac_event_disconnected(wlan_private * priv)
 	 */
 
 	msleep_interruptible(1000);
-	wireless_send_event(priv->wlan_dev.netdev, SIOCGIWAP, &wrqu, NULL);
+	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 
 	/* Free Tx and Rx packets */
 	kfree_skb(priv->adapter->currenttxskb);
 	priv->adapter->currenttxskb = NULL;
 
 	/* report disconnect to upper layer */
-	netif_stop_queue(priv->wlan_dev.netdev);
-	netif_carrier_off(priv->wlan_dev.netdev);
+	netif_stop_queue(priv->dev);
+	netif_carrier_off(priv->dev);
 
 	/* reset SNR/NF/RSSI values */
 	memset(adapter->SNR, 0x00, sizeof(adapter->SNR));
@@ -218,7 +218,7 @@ static int wlan_ret_get_hw_spec(wlan_private * priv,
 			ETH_ALEN);
 	}
 
-	memcpy(priv->wlan_dev.netdev->dev_addr, adapter->current_addr, ETH_ALEN);
+	memcpy(priv->dev->dev_addr, adapter->current_addr, ETH_ALEN);
 	if (priv->mesh_dev)
 		memcpy(priv->mesh_dev->dev_addr, adapter->current_addr,
 		       ETH_ALEN);
@@ -774,14 +774,14 @@ int libertas_process_rx_command(wlan_private * priv)
 	resp = (struct cmd_ds_command *)(adapter->cur_cmd->bufvirtualaddr);
 
 	lbs_dbg_hex("CMD_RESP:", adapter->cur_cmd->bufvirtualaddr,
-		priv->wlan_dev.upld_len);
+		priv->upld_len);
 
 	respcmd = le16_to_cpu(resp->command);
 
 	result = le16_to_cpu(resp->result);
 
 	lbs_deb_cmd("CMD_RESP: %x result: %d length: %d\n", respcmd,
-	       result, priv->wlan_dev.upld_len);
+	       result, priv->upld_len);
 
 	if (!(respcmd & 0x8000)) {
 		lbs_deb_cmd("Invalid response to command!");

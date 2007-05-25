@@ -197,7 +197,7 @@ static ssize_t libertas_extscan(struct file *file, const char __user *userbuf,
 	libertas_send_specific_SSID_scan(priv, &extscan_ssid, 1);
 
 	memset(&wrqu, 0, sizeof(union iwreq_data));
-	wireless_send_event(priv->wlan_dev.netdev, SIOCGIWSCAN, &wrqu, NULL);
+	wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);
 
 out_unlock:
 	free_page(addr);
@@ -387,7 +387,7 @@ static ssize_t libertas_setuserscan(struct file *file,
 				 !priv->adapter->nr_cmd_pending);
 
 	memset(&wrqu, 0x00, sizeof(union iwreq_data));
-	wireless_send_event(priv->wlan_dev.netdev, SIOCGIWSCAN, &wrqu, NULL);
+	wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);
 
 out_unlock:
 	free_page(addr);

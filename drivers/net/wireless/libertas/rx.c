@@ -143,8 +143,8 @@ void libertas_upload_rx_packet(wlan_private * priv, struct sk_buff *skb)
 	if (priv->mesh_dev && IS_MESH_FRAME(skb))
 		skb->dev = priv->mesh_dev;
 	else
-		skb->dev = priv->wlan_dev.netdev;
-	skb->protocol = eth_type_trans(skb, priv->wlan_dev.netdev);
+		skb->dev = priv->dev;
+	skb->protocol = eth_type_trans(skb, priv->dev);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	netif_rx(skb);
