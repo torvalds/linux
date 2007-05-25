@@ -852,18 +852,6 @@ wlan_private *libertas_sbi_get_priv(void *card)
 	return cardp->priv;
 }
 
-#ifdef ENABLE_PM
-int libertas_sbi_suspend(wlan_private * priv)
-{
-	return 0;
-}
-
-int libertas_sbi_resume(wlan_private * priv)
-{
-	return 0;
-}
-#endif
-
 #ifdef CONFIG_PM
 static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 {

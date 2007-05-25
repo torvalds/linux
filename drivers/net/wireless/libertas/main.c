@@ -28,10 +28,6 @@ const char libertas_driver_version[] = "COMM-USB8388-" DRIVER_RELEASE_VERSION
 #endif
     "";
 
-#ifdef ENABLE_PM
-static struct pm_dev *wlan_pm_dev = NULL;
-#endif
-
 #define WLAN_TX_PWR_DEFAULT		20	/*100mW */
 #define WLAN_TX_PWR_US_DEFAULT		20	/*100mW */
 #define WLAN_TX_PWR_JP_DEFAULT		16	/*50mW */
@@ -171,12 +167,6 @@ u8 libertas_adhoc_rates_g[G_SUPPORTED_RATES] =
  * the rates supported for ad-hoc B mode
  */
 u8 libertas_adhoc_rates_b[4] = { 0x82, 0x84, 0x8b, 0x96 };
-
-/**
- * the global variable of a pointer to wlan_private
- * structure variable
- */
-static wlan_private *wlanpriv = NULL;
 
 #define MAX_DEVS 5
 static struct net_device *libertas_devs[MAX_DEVS];
@@ -373,117 +363,6 @@ static int wlan_close(struct net_device *dev) {
 		return 0;
 }
 
-
-#ifdef ENABLE_PM
-
-/**
- *  @brief This function is a callback function. it is called by
- *  kernel to enter or exit power saving mode.
- *
- *  @param pmdev   A pointer to pm_dev
- *  @param pmreq   pm_request_t
- *  @param pmdata  A pointer to pmdata
- *  @return 	   0 or -1
- */
-static int wlan_pm_callback(struct pm_dev *pmdev, pm_request_t pmreq,
-			    void *pmdata)
-{
-	wlan_private *priv = wlanpriv;
-	wlan_adapter *adapter = priv->adapter;
-	struct net_device *dev = priv->wlan_dev.netdev;
-
-	lbs_pr_debug(1, "WPRM_PM_CALLBACK: pmreq = %d.\n", pmreq);
-
-	switch (pmreq) {
-	case PM_SUSPEND:
-		lbs_pr_debug(1, "WPRM_PM_CALLBACK: enter PM_SUSPEND.\n");
-
-		/* in associated mode */
-		if (adapter->connect_status == libertas_connected) {
-			if ((adapter->psstate != PS_STATE_SLEEP)
-			    ) {
-				lbs_pr_debug(1,
-				       "wlan_pm_callback: can't enter sleep mode\n");
-				return -1;
-			} else {
-
-				/*
-				 * Detach the network interface
-				 * if the network is running
-				 */
-				if (netif_running(dev)) {
-					netif_device_detach(dev);
-					lbs_pr_debug(1,
-					       "netif_device_detach().\n");
-				}
-				libertas_sbi_suspend(priv);
-			}
-			break;
-		}
-
-		/* in non associated mode */
-
-		/*
-		 * Detach the network interface
-		 * if the network is running
-		 */
-		if (netif_running(dev))
-			netif_device_detach(dev);
-
-		/*
-		 * Storing and restoring of the regs be taken care
-		 * at the driver rest will be done at wlan driver
-		 * this makes driver independent of the card
-		 */
-
-		libertas_sbi_suspend(priv);
-
-		break;
-
-	case PM_RESUME:
-		/* in associated mode */
-		if (adapter->connect_status == libertas_connected) {
-			{
-				/*
-				 * Bring the inteface up first
-				 * This case should not happen still ...
-				 */
-				libertas_sbi_resume(priv);
-
-				/*
-				 * Attach the network interface
-				 * if the network is running
-				 */
-				if (netif_running(dev)) {
-					netif_device_attach(dev);
-					lbs_pr_debug(1,
-					       "after netif_device_attach().\n");
-				}
-				lbs_pr_debug(1,
-				       "After netif attach, in associated mode.\n");
-			}
-			break;
-		}
-
-		/* in non associated mode */
-
-		/*
-		 * Bring the inteface up first
-		 * This case should not happen still ...
-		 */
-
-		libertas_sbi_resume(priv);
-
-		if (netif_running(dev))
-			netif_device_attach(dev);
-
-		lbs_pr_debug(1, "after netif attach, in NON associated mode.\n");
-		break;
-	}
-
-	return 0;
-}
-#endif				/* ENABLE_PM */
 
 static int wlan_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -914,7 +793,6 @@ wlan_private *wlan_add_card(void *card)
 	priv->mesh_open = 0;
 	priv->infra_open = 0;
 	priv->mesh_dev = mesh_dev;
-	wlanpriv = priv;
 
 	SET_MODULE_OWNER(dev);
 	SET_MODULE_OWNER(mesh_dev);
@@ -929,8 +807,8 @@ wlan_private *wlan_add_card(void *card)
 	mesh_dev->hard_start_xmit = mesh_pre_start_xmit;
 	mesh_dev->stop = mesh_close;
 	mesh_dev->do_ioctl = libertas_do_ioctl;
-	memcpy(mesh_dev->dev_addr, wlanpriv->wlan_dev.netdev->dev_addr,
-			sizeof(wlanpriv->wlan_dev.netdev->dev_addr));
+	memcpy(mesh_dev->dev_addr, priv->wlan_dev.netdev->dev_addr,
+			sizeof(priv->wlan_dev.netdev->dev_addr));
 
 #define	WLAN_WATCHDOG_TIMEOUT	(5 * HZ)
 
@@ -1001,10 +879,6 @@ wlan_private *wlan_add_card(void *card)
 		goto err_init_fw;
 	libertas_devs[libertas_found] = dev;
 	libertas_found++;
-#ifdef ENABLE_PM
-	if (!(wlan_pm_dev = pm_register(PM_UNKNOWN_DEV, 0, wlan_pm_callback)))
-		lbs_pr_alert( "failed to register PM callback\n");
-#endif
 	if (device_create_file(&(mesh_dev->dev), &dev_attr_libertas_mpp))
 		goto err_create_file;
 
@@ -1024,7 +898,6 @@ err_registerdev:
 err_kmalloc:
 	free_netdev(dev);
 	free_netdev(mesh_dev);
-	wlanpriv = NULL;
 
 	LEAVE();
 	return NULL;
@@ -1092,10 +965,6 @@ int wlan_remove_card(void *card)
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 	wireless_send_event(priv->wlan_dev.netdev, SIOCGIWAP, &wrqu, NULL);
 
-#ifdef ENABLE_PM
-	pm_unregister(wlan_pm_dev);
-#endif
-
 	adapter->surpriseremoved = 1;
 
 	/* Stop the thread servicing the interrupts */
@@ -1120,7 +989,6 @@ int wlan_remove_card(void *card)
 	priv->mesh_dev = NULL ;
 	free_netdev(mesh_dev);
 	free_netdev(dev);
-	wlanpriv = NULL;
 
 	LEAVE();
 	return 0;
