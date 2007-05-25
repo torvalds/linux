@@ -812,6 +812,21 @@ wlan_private *wlan_add_card(void *card)
 	spin_lock_init(&priv->adapter->driver_lock);
 	init_waitqueue_head(&priv->adapter->cmd_pending);
 	priv->adapter->nr_cmd_pending = 0;
+	goto done;
+
+err_kzalloc:
+	free_netdev(dev);
+done:
+	lbs_deb_leave_args(LBS_DEB_NET, "priv %p", priv);
+	return priv;
+}
+
+int libertas_activate_card(wlan_private *priv)
+{
+	struct net_device *dev = priv->wlan_dev.netdev;
+	int ret = -1;
+
+	lbs_deb_enter(LBS_DEB_MAIN);
 
 	lbs_deb_thread("Starting kthread...\n");
 	priv->mainthread.priv = priv;
@@ -847,8 +862,8 @@ wlan_private *wlan_add_card(void *card)
 
 	libertas_debugfs_init_one(priv, dev);
 
-	lbs_deb_leave_args(LBS_DEB_NET, "priv %p", priv);
-	return priv;
+	ret = 0;
+	goto done;
 
 err_init_fw:
 	libertas_sbi_unregister_dev(priv);
@@ -858,11 +873,10 @@ err_registerdev:
 	wake_up_interruptible(&priv->mainthread.waitq);
 	wlan_terminate_thread(&priv->mainthread);
 	kfree(priv->adapter);
-err_kzalloc:
 	free_netdev(dev);
-
-	lbs_deb_leave_args(LBS_DEB_NET, "priv NULL");
-	return NULL;
+done:
+	lbs_deb_leave_args(LBS_DEB_NET, "ret %d", ret);
+	return ret;
 }
 
 /**

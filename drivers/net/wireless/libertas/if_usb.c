@@ -195,6 +195,9 @@ static int if_usb_probe(struct usb_interface *intf,
 	if (!(priv = wlan_add_card(usb_cardp)))
 		goto dealloc;
 
+	if (libertas_activate_card(priv))
+		goto dealloc;
+
 	if (libertas_found < MAX_DEVS) {
 		libertas_devs[libertas_found] = priv->wlan_dev.netdev;
 		libertas_found++;
