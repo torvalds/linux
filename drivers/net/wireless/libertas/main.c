@@ -777,17 +777,13 @@ wlan_private *wlan_add_card(void *card)
 		lbs_pr_err("init ethX device failed\n");
 		return NULL;
 	}
-
 	priv = dev->priv;
 
 	/* allocate buffer for wlan_adapter */
-	if (!(priv->adapter = kmalloc(sizeof(wlan_adapter), GFP_KERNEL))) {
+	if (!(priv->adapter = kzalloc(sizeof(wlan_adapter), GFP_KERNEL))) {
 		lbs_pr_err("allocate buffer for wlan_adapter failed\n");
-		goto err_kmalloc;
+		goto err_kzalloc;
 	}
-
-	/* init wlan_adapter */
-	memset(priv->adapter, 0, sizeof(wlan_adapter));
 
 	priv->wlan_dev.netdev = dev;
 	priv->wlan_dev.card = card;
@@ -802,14 +798,10 @@ wlan_private *wlan_add_card(void *card)
 	dev->stop = wlan_close;
 	dev->do_ioctl = libertas_do_ioctl;
 	dev->set_mac_address = wlan_set_mac_address;
-
-#define	WLAN_WATCHDOG_TIMEOUT	(5 * HZ)
-
 	dev->tx_timeout = wlan_tx_timeout;
 	dev->get_stats = wlan_get_stats;
-	dev->watchdog_timeo = WLAN_WATCHDOG_TIMEOUT;
+	dev->watchdog_timeo = 5 * HZ;
 	dev->ethtool_ops = &libertas_ethtool_ops;
-
 #ifdef	WIRELESS_EXT
 	dev->wireless_handlers = (struct iw_handler_def *)&libertas_handler_def;
 #endif
@@ -875,7 +867,7 @@ err_registerdev:
 	wake_up_interruptible(&priv->mainthread.waitq);
 	wlan_terminate_thread(&priv->mainthread);
 	kfree(priv->adapter);
-err_kmalloc:
+err_kzalloc:
 	free_netdev(dev);
 
 	lbs_deb_leave_args(LBS_DEB_NET, "priv NULL");

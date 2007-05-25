@@ -1482,27 +1482,23 @@ int libertas_allocate_cmd_buffer(wlan_private * priv)
 	/* Allocate and initialize cmdCtrlNode */
 	ulbufsize = sizeof(struct cmd_ctrl_node) * MRVDRV_NUM_OF_CMD_BUFFER;
 
-	if (!(tempcmd_array = kmalloc(ulbufsize, GFP_KERNEL))) {
+	if (!(tempcmd_array = kzalloc(ulbufsize, GFP_KERNEL))) {
 		lbs_deb_cmd(
 		       "ALLOC_CMD_BUF: failed to allocate tempcmd_array\n");
 		ret = -1;
 		goto done;
 	}
-
 	adapter->cmd_array = tempcmd_array;
-	memset(adapter->cmd_array, 0, ulbufsize);
 
 	/* Allocate and initialize command buffers */
 	ulbufsize = MRVDRV_SIZE_OF_CMD_BUFFER;
 	for (i = 0; i < MRVDRV_NUM_OF_CMD_BUFFER; i++) {
-		if (!(ptempvirtualaddr = kmalloc(ulbufsize, GFP_KERNEL))) {
+		if (!(ptempvirtualaddr = kzalloc(ulbufsize, GFP_KERNEL))) {
 			lbs_deb_cmd(
 			       "ALLOC_CMD_BUF: ptempvirtualaddr: out of memory\n");
 			ret = -1;
 			goto done;
 		}
-
-		memset(ptempvirtualaddr, 0, ulbufsize);
 
 		/* Update command buffer virtual */
 		tempcmd_array[i].bufvirtualaddr = ptempvirtualaddr;

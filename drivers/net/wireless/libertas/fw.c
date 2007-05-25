@@ -139,13 +139,11 @@ static int wlan_allocate_adapter(wlan_private * priv)
 
 	/* Allocate buffer to store the BSSID list */
 	ulbufsize = sizeof(struct bss_descriptor) * MRVDRV_MAX_BSSID_LIST;
-	if (!(ptempscantable = kmalloc(ulbufsize, GFP_KERNEL))) {
+	if (!(ptempscantable = kzalloc(ulbufsize, GFP_KERNEL))) {
 		libertas_free_adapter(priv);
 		return -1;
 	}
-
 	adapter->scantable = ptempscantable;
-	memset(adapter->scantable, 0, ulbufsize);
 
 	/* Allocate the command buffers */
 	libertas_allocate_cmd_buffer(priv);
