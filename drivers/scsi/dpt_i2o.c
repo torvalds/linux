@@ -2078,12 +2078,13 @@ static s32 adpt_scsi_to_i2o(adpt_hba* pHba, struct scsi_cmnd* cmd, struct adpt_d
 	u32 *lenptr;
 	int direction;
 	int scsidir;
+	int nseg;
 	u32 len;
 	u32 reqlen;
 	s32 rcode;
 
 	memset(msg, 0 , sizeof(msg));
-	len = cmd->request_bufflen;
+	len = scsi_bufflen(cmd);
 	direction = 0x00000000;	
 	
 	scsidir = 0x00000000;			// DATA NO XFER
@@ -2140,21 +2141,21 @@ static s32 adpt_scsi_to_i2o(adpt_hba* pHba, struct scsi_cmnd* cmd, struct adpt_d
 	lenptr=mptr++;		/* Remember me - fill in when we know */
 	reqlen = 14;		// SINGLE SGE
 	/* Now fill in the SGList and command */
-	if(cmd->use_sg) {
-		struct scatterlist *sg = (struct scatterlist *)cmd->request_buffer;
-		int sg_count = pci_map_sg(pHba->pDev, sg, cmd->use_sg,
-				cmd->sc_data_direction);
 
+	nseg = scsi_dma_map(cmd);
+	BUG_ON(nseg < 0);
+	if (nseg) {
+		struct scatterlist *sg;
 
 		len = 0;
-		for(i = 0 ; i < sg_count; i++) {
+		scsi_for_each_sg(cmd, sg, nseg, i) {
 			*mptr++ = direction|0x10000000|sg_dma_len(sg);
 			len+=sg_dma_len(sg);
 			*mptr++ = sg_dma_address(sg);
-			sg++;
+			/* Make this an end of list */
+			if (i == nseg - 1)
+				mptr[-2] = direction|0xD0000000|sg_dma_len(sg);
 		}
-		/* Make this an end of list */
-		mptr[-2] = direction|0xD0000000|sg_dma_len(sg-1);
 		reqlen = mptr - msg;
 		*lenptr = len;
 		
@@ -2163,16 +2164,8 @@ static s32 adpt_scsi_to_i2o(adpt_hba* pHba, struct scsi_cmnd* cmd, struct adpt_d
 				len, cmd->underflow);
 		}
 	} else {
-		*lenptr = len = cmd->request_bufflen;
-		if(len == 0) {
-			reqlen = 12;
-		} else {
-			*mptr++ = 0xD0000000|direction|cmd->request_bufflen;
-			*mptr++ = pci_map_single(pHba->pDev,
-				cmd->request_buffer,
-				cmd->request_bufflen,
-				cmd->sc_data_direction);
-		}
+		*lenptr = len = 0;
+		reqlen = 12;
 	}
 	
 	/* Stick the headers on */
@@ -2232,7 +2225,7 @@ static s32 adpt_i2o_to_scsi(void __iomem *reply, struct scsi_cmnd* cmd)
 	hba_status = detailed_status >> 8;
 
 	// calculate resid for sg 
-	cmd->resid = cmd->request_bufflen - readl(reply+5);
+	scsi_set_resid(cmd, scsi_bufflen(cmd) - readl(reply+5));
 
 	pHba = (adpt_hba*) cmd->device->host->hostdata[0];
 
