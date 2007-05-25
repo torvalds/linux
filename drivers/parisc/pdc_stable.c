@@ -1067,7 +1067,7 @@ pdc_stable_init(void)
 			error = subsys_create_file(&stable_subsys, attr);
 	
 	/* register the paths subsys as a subsystem of stable subsys */
-	kset_set_kset_s(&paths_subsys, stable_subsys);
+	kobj_set_kset_s(&paths_subsys, stable_subsys);
 	if ((rc = subsystem_register(&paths_subsys)))
 		goto fail_subsysreg;
 
