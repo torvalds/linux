@@ -3160,9 +3160,9 @@ static int __init init_raw1394(void)
 	hpsb_register_highlevel(&raw1394_highlevel);
 
 	if (IS_ERR
-	    (class_device_create
-	     (hpsb_protocol_class, NULL,
-	      MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16), NULL,
+	    (device_create(
+	      hpsb_protocol_class, NULL,
+	      MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16),
 	      RAW1394_DEVICE_NAME))) {
 		ret = -EFAULT;
 		goto out_unreg;
@@ -3189,9 +3189,9 @@ static int __init init_raw1394(void)
 	goto out;
 
       out_dev:
-	class_device_destroy(hpsb_protocol_class,
-			     MKDEV(IEEE1394_MAJOR,
-				   IEEE1394_MINOR_BLOCK_RAW1394 * 16));
+	device_destroy(hpsb_protocol_class,
+		       MKDEV(IEEE1394_MAJOR,
+			     IEEE1394_MINOR_BLOCK_RAW1394 * 16));
       out_unreg:
 	hpsb_unregister_highlevel(&raw1394_highlevel);
       out:
@@ -3200,9 +3200,9 @@ static int __init init_raw1394(void)
 
 static void __exit cleanup_raw1394(void)
 {
-	class_device_destroy(hpsb_protocol_class,
-			     MKDEV(IEEE1394_MAJOR,
-				   IEEE1394_MINOR_BLOCK_RAW1394 * 16));
+	device_destroy(hpsb_protocol_class,
+		       MKDEV(IEEE1394_MAJOR,
+			     IEEE1394_MINOR_BLOCK_RAW1394 * 16));
 	cdev_del(&raw1394_cdev);
 	hpsb_unregister_highlevel(&raw1394_highlevel);
 	hpsb_unregister_protocol(&raw1394_driver);

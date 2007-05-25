@@ -57,7 +57,7 @@ struct hpsb_host {
 	struct hpsb_host_driver *driver;
 	struct pci_dev *pdev;
 	struct device device;
-	struct class_device class_dev;
+	struct device host_dev;
 
 	struct delayed_work delayed_reset;
 	unsigned config_roms:31;

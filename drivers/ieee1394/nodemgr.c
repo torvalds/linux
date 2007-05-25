@@ -154,7 +154,7 @@ struct host_info {
 };
 
 static int nodemgr_bus_match(struct device * dev, struct device_driver * drv);
-static int nodemgr_uevent(struct class_device *cdev, char **envp, int num_envp,
+static int nodemgr_uevent(struct device *dev, char **envp, int num_envp,
 			  char *buffer, int buffer_size);
 static void nodemgr_resume_ne(struct node_entry *ne);
 static void nodemgr_remove_ne(struct node_entry *ne);
@@ -165,37 +165,38 @@ struct bus_type ieee1394_bus_type = {
 	.match		= nodemgr_bus_match,
 };
 
-static void host_cls_release(struct class_device *class_dev)
+static void host_cls_release(struct device *dev)
 {
-	put_device(&container_of((class_dev), struct hpsb_host, class_dev)->device);
+	put_device(&container_of((dev), struct hpsb_host, host_dev)->device);
 }
 
 struct class hpsb_host_class = {
 	.name		= "ieee1394_host",
-	.release	= host_cls_release,
+	.dev_release	= host_cls_release,
 };
 
-static void ne_cls_release(struct class_device *class_dev)
+static void ne_cls_release(struct device *dev)
 {
-	put_device(&container_of((class_dev), struct node_entry, class_dev)->device);
+	put_device(&container_of((dev), struct node_entry, node_dev)->device);
 }
 
 static struct class nodemgr_ne_class = {
 	.name		= "ieee1394_node",
-	.release	= ne_cls_release,
+	.dev_release	= ne_cls_release,
 };
 
-static void ud_cls_release(struct class_device *class_dev)
+static void ud_cls_release(struct device *dev)
 {
-	put_device(&container_of((class_dev), struct unit_directory, class_dev)->device);
+	put_device(&container_of((dev), struct unit_directory, unit_dev)->device);
 }
 
 /* The name here is only so that unit directory hotplug works with old
- * style hotplug, which only ever did unit directories anyway. */
+ * style hotplug, which only ever did unit directories anyway.
+ */
 static struct class nodemgr_ud_class = {
 	.name		= "ieee1394",
-	.release	= ud_cls_release,
-	.uevent		= nodemgr_uevent,
+	.dev_release	= ud_cls_release,
+	.dev_uevent	= nodemgr_uevent,
 };
 
 static struct hpsb_highlevel nodemgr_highlevel;
@@ -730,11 +731,11 @@ static DEFINE_MUTEX(nodemgr_serialize_remove_uds);
 
 static void nodemgr_remove_uds(struct node_entry *ne)
 {
-	struct class_device *cdev;
+	struct device *dev;
 	struct unit_directory *tmp, *ud;
 
-	/* Iteration over nodemgr_ud_class.children has to be protected by
-	 * nodemgr_ud_class.sem, but class_device_unregister() will eventually
+	/* Iteration over nodemgr_ud_class.devices has to be protected by
+	 * nodemgr_ud_class.sem, but device_unregister() will eventually
 	 * take nodemgr_ud_class.sem too. Therefore pick out one ud at a time,
 	 * release the semaphore, and then unregister the ud. Since this code
 	 * may be called from other contexts besides the knodemgrds, protect the
@@ -744,9 +745,9 @@ static void nodemgr_remove_uds(struct node_entry *ne)
 	for (;;) {
 		ud = NULL;
 		down(&nodemgr_ud_class.sem);
-		list_for_each_entry(cdev, &nodemgr_ud_class.children, node) {
-			tmp = container_of(cdev, struct unit_directory,
-					   class_dev);
+		list_for_each_entry(dev, &nodemgr_ud_class.devices, node) {
+			tmp = container_of(dev, struct unit_directory,
+					   unit_dev);
 			if (tmp->ne == ne) {
 				ud = tmp;
 				break;
@@ -755,7 +756,7 @@ static void nodemgr_remove_uds(struct node_entry *ne)
 		up(&nodemgr_ud_class.sem);
 		if (ud == NULL)
 			break;
-		class_device_unregister(&ud->class_dev);
+		device_unregister(&ud->unit_dev);
 		device_unregister(&ud->device);
 	}
 	mutex_unlock(&nodemgr_serialize_remove_uds);
@@ -772,10 +773,9 @@ static void nodemgr_remove_ne(struct node_entry *ne)
 
 	HPSB_DEBUG("Node removed: ID:BUS[" NODE_BUS_FMT "]  GUID[%016Lx]",
 		   NODE_BUS_ARGS(ne->host, ne->nodeid), (unsigned long long)ne->guid);
-
 	nodemgr_remove_uds(ne);
 
-	class_device_unregister(&ne->class_dev);
+	device_unregister(&ne->node_dev);
 	device_unregister(dev);
 
 	put_device(dev);
@@ -783,7 +783,9 @@ static void nodemgr_remove_ne(struct node_entry *ne)
 
 static int __nodemgr_remove_host_dev(struct device *dev, void *data)
 {
-	nodemgr_remove_ne(container_of(dev, struct node_entry, device));
+	if (dev->bus == &ieee1394_bus_type)
+		nodemgr_remove_ne(container_of(dev, struct node_entry,
+				  device));
 	return 0;
 }
 
@@ -850,14 +852,14 @@ static struct node_entry *nodemgr_create_node(octlet_t guid, struct csr1212_csr 
 	snprintf(ne->device.bus_id, BUS_ID_SIZE, "%016Lx",
 		 (unsigned long long)(ne->guid));
 
-	ne->class_dev.dev = &ne->device;
-	ne->class_dev.class = &nodemgr_ne_class;
-	snprintf(ne->class_dev.class_id, BUS_ID_SIZE, "%016Lx",
-		 (unsigned long long)(ne->guid));
+	ne->node_dev.parent = &ne->device;
+	ne->node_dev.class = &nodemgr_ne_class;
+	snprintf(ne->node_dev.bus_id, BUS_ID_SIZE, "%016Lx",
+		(unsigned long long)(ne->guid));
 
 	if (device_register(&ne->device))
 		goto fail_devreg;
-	if (class_device_register(&ne->class_dev))
+	if (device_register(&ne->node_dev))
 		goto fail_classdevreg;
 	get_device(&ne->device);
 
@@ -885,12 +887,12 @@ fail_alloc:
 
 static struct node_entry *find_entry_by_guid(u64 guid)
 {
-	struct class_device *cdev;
+	struct device *dev;
 	struct node_entry *ne, *ret_ne = NULL;
 
 	down(&nodemgr_ne_class.sem);
-	list_for_each_entry(cdev, &nodemgr_ne_class.children, node) {
-		ne = container_of(cdev, struct node_entry, class_dev);
+	list_for_each_entry(dev, &nodemgr_ne_class.devices, node) {
+		ne = container_of(dev, struct node_entry, node_dev);
 
 		if (ne->guid == guid) {
 			ret_ne = ne;
@@ -906,12 +908,12 @@ static struct node_entry *find_entry_by_guid(u64 guid)
 static struct node_entry *find_entry_by_nodeid(struct hpsb_host *host,
 					       nodeid_t nodeid)
 {
-	struct class_device *cdev;
+	struct device *dev;
 	struct node_entry *ne, *ret_ne = NULL;
 
 	down(&nodemgr_ne_class.sem);
-	list_for_each_entry(cdev, &nodemgr_ne_class.children, node) {
-		ne = container_of(cdev, struct node_entry, class_dev);
+	list_for_each_entry(dev, &nodemgr_ne_class.devices, node) {
+		ne = container_of(dev, struct node_entry, node_dev);
 
 		if (ne->host == host && ne->nodeid == nodeid) {
 			ret_ne = ne;
@@ -935,14 +937,14 @@ static void nodemgr_register_device(struct node_entry *ne,
 	snprintf(ud->device.bus_id, BUS_ID_SIZE, "%s-%u",
 		 ne->device.bus_id, ud->id);
 
-	ud->class_dev.dev = &ud->device;
-	ud->class_dev.class = &nodemgr_ud_class;
-	snprintf(ud->class_dev.class_id, BUS_ID_SIZE, "%s-%u",
+	ud->unit_dev.parent = &ud->device;
+	ud->unit_dev.class = &nodemgr_ud_class;
+	snprintf(ud->unit_dev.bus_id, BUS_ID_SIZE, "%s-%u",
 		 ne->device.bus_id, ud->id);
 
 	if (device_register(&ud->device))
 		goto fail_devreg;
-	if (class_device_register(&ud->class_dev))
+	if (device_register(&ud->unit_dev))
 		goto fail_classdevreg;
 	get_device(&ud->device);
 
@@ -1159,7 +1161,7 @@ static void nodemgr_process_root_directory(struct host_info *hi, struct node_ent
 
 #ifdef CONFIG_HOTPLUG
 
-static int nodemgr_uevent(struct class_device *cdev, char **envp, int num_envp,
+static int nodemgr_uevent(struct device *dev, char **envp, int num_envp,
 			  char *buffer, int buffer_size)
 {
 	struct unit_directory *ud;
@@ -1169,10 +1171,10 @@ static int nodemgr_uevent(struct class_device *cdev, char **envp, int num_envp,
 	/* ieee1394:venNmoNspNverN */
 	char buf[8 + 1 + 3 + 8 + 2 + 8 + 2 + 8 + 3 + 8 + 1];
 
-	if (!cdev)
+	if (!dev)
 		return -ENODEV;
 
-	ud = container_of(cdev, struct unit_directory, class_dev);
+	ud = container_of(dev, struct unit_directory, unit_dev);
 
 	if (ud->ne->in_limbo || ud->ignore_driver)
 		return -ENODEV;
@@ -1207,7 +1209,7 @@ do {								\
 
 #else
 
-static int nodemgr_uevent(struct class_device *cdev, char **envp, int num_envp,
+static int nodemgr_uevent(struct device *dev, char **envp, int num_envp,
 			  char *buffer, int buffer_size)
 {
 	return -ENODEV;
@@ -1378,7 +1380,7 @@ static void nodemgr_node_scan(struct host_info *hi, int generation)
 
 static void nodemgr_suspend_ne(struct node_entry *ne)
 {
-	struct class_device *cdev;
+	struct device *dev;
 	struct unit_directory *ud;
 
 	HPSB_DEBUG("Node suspended: ID:BUS[" NODE_BUS_FMT "]  GUID[%016Lx]",
@@ -1388,8 +1390,8 @@ static void nodemgr_suspend_ne(struct node_entry *ne)
 	WARN_ON(device_create_file(&ne->device, &dev_attr_ne_in_limbo));
 
 	down(&nodemgr_ud_class.sem);
-	list_for_each_entry(cdev, &nodemgr_ud_class.children, node) {
-		ud = container_of(cdev, struct unit_directory, class_dev);
+	list_for_each_entry(dev, &nodemgr_ud_class.devices, node) {
+		ud = container_of(dev, struct unit_directory, unit_dev);
 		if (ud->ne != ne)
 			continue;
 
@@ -1404,15 +1406,15 @@ static void nodemgr_suspend_ne(struct node_entry *ne)
 
 static void nodemgr_resume_ne(struct node_entry *ne)
 {
-	struct class_device *cdev;
+	struct device *dev;
 	struct unit_directory *ud;
 
 	ne->in_limbo = 0;
 	device_remove_file(&ne->device, &dev_attr_ne_in_limbo);
 
 	down(&nodemgr_ud_class.sem);
-	list_for_each_entry(cdev, &nodemgr_ud_class.children, node) {
-		ud = container_of(cdev, struct unit_directory, class_dev);
+	list_for_each_entry(dev, &nodemgr_ud_class.devices, node) {
+		ud = container_of(dev, struct unit_directory, unit_dev);
 		if (ud->ne != ne)
 			continue;
 
@@ -1430,11 +1432,11 @@ static void nodemgr_update_pdrv(struct node_entry *ne)
 {
 	struct unit_directory *ud;
 	struct hpsb_protocol_driver *pdrv;
-	struct class_device *cdev;
+	struct device *dev;
 
 	down(&nodemgr_ud_class.sem);
-	list_for_each_entry(cdev, &nodemgr_ud_class.children, node) {
-		ud = container_of(cdev, struct unit_directory, class_dev);
+	list_for_each_entry(dev, &nodemgr_ud_class.devices, node) {
+		ud = container_of(dev, struct unit_directory, unit_dev);
 		if (ud->ne != ne)
 			continue;
 
@@ -1509,7 +1511,7 @@ static void nodemgr_probe_ne(struct host_info *hi, struct node_entry *ne, int ge
 static void nodemgr_node_probe(struct host_info *hi, int generation)
 {
 	struct hpsb_host *host = hi->host;
-	struct class_device *cdev;
+	struct device *dev;
 	struct node_entry *ne;
 
 	/* Do some processing of the nodes we've probed. This pulls them
@@ -1522,13 +1524,13 @@ static void nodemgr_node_probe(struct host_info *hi, int generation)
 	 * improvement...) */
 
 	down(&nodemgr_ne_class.sem);
-	list_for_each_entry(cdev, &nodemgr_ne_class.children, node) {
-		ne = container_of(cdev, struct node_entry, class_dev);
+	list_for_each_entry(dev, &nodemgr_ne_class.devices, node) {
+		ne = container_of(dev, struct node_entry, node_dev);
 		if (!ne->needs_probe)
 			nodemgr_probe_ne(hi, ne, generation);
 	}
-	list_for_each_entry(cdev, &nodemgr_ne_class.children, node) {
-		ne = container_of(cdev, struct node_entry, class_dev);
+	list_for_each_entry(dev, &nodemgr_ne_class.devices, node) {
+		ne = container_of(dev, struct node_entry, node_dev);
 		if (ne->needs_probe)
 			nodemgr_probe_ne(hi, ne, generation);
 	}
@@ -1756,13 +1758,13 @@ exit:
  */
 int nodemgr_for_each_host(void *data, int (*cb)(struct hpsb_host *, void *))
 {
-	struct class_device *cdev;
+	struct device *dev;
 	struct hpsb_host *host;
 	int error = 0;
 
 	down(&hpsb_host_class.sem);
-	list_for_each_entry(cdev, &hpsb_host_class.children, node) {
-		host = container_of(cdev, struct hpsb_host, class_dev);
+	list_for_each_entry(dev, &hpsb_host_class.devices, node) {
+		host = container_of(dev, struct hpsb_host, host_dev);
 
 		if ((error = cb(host, data)))
 			break;
