@@ -1949,3 +1949,12 @@ sun4v_mach_set_soft_state:
 	ta	HV_FAST_TRAP
 	retl
 	 nop
+
+	.globl	sun4v_mach_desc
+sun4v_mach_desc:
+	mov	%o2, %o4
+	mov	HV_FAST_MACH_DESC, %o5
+	ta	HV_FAST_TRAP
+	stx	%o1, [%o4]
+	retl
+	 nop

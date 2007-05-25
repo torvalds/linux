@@ -120,6 +120,11 @@
  */
 #define HV_FAST_MACH_DESC		0x01
 
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_mach_desc(unsigned long buffer_pa, unsigned long buf_len,
+				     unsigned long *real_buf_len);
+#endif
+
 /* mach_exit()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_MACH_SIR

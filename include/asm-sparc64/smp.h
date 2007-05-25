@@ -41,7 +41,7 @@ extern cpumask_t cpu_sibling_map[NR_CPUS];
 extern int hard_smp_processor_id(void);
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
-extern void smp_setup_cpu_possible_map(void);
+extern void smp_fill_in_sib_core_maps(void);
 extern unsigned char boot_cpu_id;
 
 #endif /* !(__ASSEMBLY__) */
@@ -49,7 +49,7 @@ extern unsigned char boot_cpu_id;
 #else
 
 #define hard_smp_processor_id()		0
-#define smp_setup_cpu_possible_map() do { } while (0)
+#define smp_fill_in_sib_core_maps() do { } while (0)
 #define boot_cpu_id	(0)
 
 #endif /* !(CONFIG_SMP) */

@@ -862,7 +862,6 @@ fs_initcall(clock_init);
 static unsigned long sparc64_init_timers(void)
 {
 	struct device_node *dp;
-	struct property *prop;
 	unsigned long clock;
 #ifdef CONFIG_SMP
 	extern void smp_tick_init(void);
@@ -879,17 +878,15 @@ static unsigned long sparc64_init_timers(void)
 		if (manuf == 0x17 && impl == 0x13) {
 			/* Hummingbird, aka Ultra-IIe */
 			tick_ops = &hbtick_operations;
-			prop = of_find_property(dp, "stick-frequency", NULL);
+			clock = of_getintprop_default(dp, "stick-frequency", 0);
 		} else {
 			tick_ops = &tick_operations;
-			cpu_find_by_instance(0, &dp, NULL);
-			prop = of_find_property(dp, "clock-frequency", NULL);
+			clock = local_cpu_data().clock_tick;
 		}
 	} else {
 		tick_ops = &stick_operations;
-		prop = of_find_property(dp, "stick-frequency", NULL);
+		clock = of_getintprop_default(dp, "stick-frequency", 0);
 	}
-	clock = *(unsigned int *) prop->value;
 
 #ifdef CONFIG_SMP
 	smp_tick_init();

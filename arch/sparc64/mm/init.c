@@ -23,6 +23,7 @@
 #include <linux/kprobes.h>
 #include <linux/cache.h>
 #include <linux/sort.h>
+#include <linux/percpu.h>
 
 #include <asm/head.h>
 #include <asm/system.h>
@@ -44,8 +45,7 @@
 #include <asm/hypervisor.h>
 #include <asm/prom.h>
 #include <asm/sstate.h>
-
-extern void device_scan(void);
+#include <asm/mdesc.h>
 
 #define MAX_PHYS_ADDRESS	(1UL << 42UL)
 #define KPTE_BITMAP_CHUNK_SZ	(256UL * 1024UL * 1024UL)
@@ -1335,6 +1335,9 @@ void __cpuinit sun4v_ktsb_register(void)
 extern void cheetah_ecache_flush_init(void);
 extern void sun4v_patch_tlb_handlers(void);
 
+extern void cpu_probe(void);
+extern void central_probe(void);
+
 static unsigned long last_valid_pfn;
 pgd_t swapper_pg_dir[2048];
 
@@ -1419,7 +1422,12 @@ void __init paging_init(void)
 
 	kernel_physical_mapping_init();
 
+	real_setup_per_cpu_areas();
+
 	prom_build_devicetree();
+
+	if (tlb_type == hypervisor)
+		sun4v_mdesc_init();
 
 	{
 		unsigned long zones_size[MAX_NR_ZONES];
@@ -1437,7 +1445,10 @@ void __init paging_init(void)
 				    zholes_size);
 	}
 
-	device_scan();
+	prom_printf("Booting Linux...\n");
+
+	central_probe();
+	cpu_probe();
 }
 
 static void __init taint_real_pages(void)

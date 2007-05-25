@@ -762,9 +762,10 @@ void sabre_init(struct device_node *dp, char *model_name)
 			/* Of course, Sun has to encode things a thousand
 			 * different ways, inconsistently.
 			 */
-			cpu_find_by_instance(0, &dp, NULL);
-			if (!strcmp(dp->name, "SUNW,UltraSPARC-IIe"))
-				hummingbird_p = 1;
+			for_each_node_by_type(dp, "cpu") {
+				if (!strcmp(dp->name, "SUNW,UltraSPARC-IIe"))
+					hummingbird_p = 1;
+			}
 		}
 	}
 

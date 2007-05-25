@@ -319,11 +319,6 @@ extern int prom_inst2pkg(int);
 extern int prom_service_exists(const char *service_name);
 extern void prom_sun4v_guest_soft_state(void);
 
-/* CPU probing helpers.  */
-struct device_node;
-int cpu_find_by_instance(int instance, struct device_node **dev_node, int *mid);
-int cpu_find_by_mid(int mid, struct device_node **prom_node);
-
 /* Client interface level routines. */
 extern void prom_set_trap_table(unsigned long tba);
 extern void prom_set_trap_table_sun4v(unsigned long tba, unsigned long mmfsa);
