@@ -67,25 +67,19 @@ void libertas_mac_event_disconnected(wlan_private * priv)
 	lbs_deb_cmd("Previous SSID=%s, ssid length=%u\n",
 	       adapter->previousssid.ssid, adapter->previousssid.ssidlength);
 
-	/* reset internal flags */
-	adapter->secinfo.WPAenabled = 0;
-	adapter->secinfo.WPA2enabled = 0;
-	adapter->wpa_ie_len = 0;
-
 	adapter->connect_status = libertas_disconnected;
 
-	/*
-	 * memorize the previous SSID and BSSID
-	 * it could be used for re-assoc
-	 */
+	/* Save previous SSID and BSSID for possible reassociation */
 	memcpy(&adapter->previousssid,
 	       &adapter->curbssparams.ssid, sizeof(struct WLAN_802_11_SSID));
 	memcpy(adapter->previousbssid,
 	       adapter->curbssparams.bssid, ETH_ALEN);
 
-	/* need to erase the current SSID and BSSID info */
-	adapter->pattemptedbssdesc = NULL;
-	memset(&adapter->curbssparams, 0, sizeof(adapter->curbssparams));
+	/* Clear out associated SSID and BSSID since connection is
+	 * no longer valid.
+	 */
+	memset(&adapter->curbssparams.bssid, 0, ETH_ALEN);
+	memset(&adapter->curbssparams.ssid, 0, sizeof(struct WLAN_802_11_SSID));
 
 	if (adapter->psstate != PS_STATE_FULL_POWER) {
 		/* make firmware to exit PS mode */

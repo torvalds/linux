@@ -21,9 +21,9 @@ static inline void wlan_postpone_association_work(wlan_private *priv)
 static inline void wlan_cancel_association_work(wlan_private *priv)
 {
 	cancel_delayed_work(&priv->assoc_work);
-	if (priv->adapter->assoc_req) {
-		kfree(priv->adapter->assoc_req);
-		priv->adapter->assoc_req = NULL;
+	if (priv->adapter->pending_assoc_req) {
+		kfree(priv->adapter->pending_assoc_req);
+		priv->adapter->pending_assoc_req = NULL;
 	}
 }
 

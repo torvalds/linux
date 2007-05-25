@@ -63,7 +63,6 @@ struct wlan_802_11_security {
 
 /** Current Basic Service Set State Structure */
 struct current_bss_params {
-	struct bss_descriptor bssdescriptor;
 	/** bssid */
 	u8 bssid[ETH_ALEN];
 	/** ssid */
@@ -168,18 +167,20 @@ struct _wlan_private {
 struct assoc_request {
 #define ASSOC_FLAG_SSID			1
 #define ASSOC_FLAG_CHANNEL		2
-#define ASSOC_FLAG_MODE			3
-#define ASSOC_FLAG_BSSID		4
-#define ASSOC_FLAG_WEP_KEYS		5
-#define ASSOC_FLAG_WEP_TX_KEYIDX	6
-#define ASSOC_FLAG_WPA_MCAST_KEY	7
-#define ASSOC_FLAG_WPA_UCAST_KEY	8
-#define ASSOC_FLAG_SECINFO		9
-#define ASSOC_FLAG_WPA_IE		10
+#define ASSOC_FLAG_BAND			3
+#define ASSOC_FLAG_MODE			4
+#define ASSOC_FLAG_BSSID		5
+#define ASSOC_FLAG_WEP_KEYS		6
+#define ASSOC_FLAG_WEP_TX_KEYIDX	7
+#define ASSOC_FLAG_WPA_MCAST_KEY	8
+#define ASSOC_FLAG_WPA_UCAST_KEY	9
+#define ASSOC_FLAG_SECINFO		10
+#define ASSOC_FLAG_WPA_IE		11
 	unsigned long flags;
 
 	struct WLAN_802_11_SSID ssid;
 	u8 channel;
+	u8 band;
 	u8 mode;
 	u8 bssid[ETH_ALEN];
 
@@ -196,6 +197,9 @@ struct assoc_request {
 	/** WPA Information Elements*/
 	u8 wpa_ie[MAX_WPA_IE_LEN];
 	u8 wpa_ie_len;
+
+	/* BSS to associate with for infrastructure of Ad-Hoc join */
+	struct bss_descriptor bss;
 };
 
 /** Wlan adapter data structure*/
@@ -251,8 +255,6 @@ struct _wlan_adapter {
 
 	/* IW_MODE_* */
 	u8 mode;
-
-	struct bss_descriptor *pattemptedbssdesc;
 
 	struct WLAN_802_11_SSID previousssid;
 	u8 previousbssid[ETH_ALEN];
@@ -322,7 +324,8 @@ struct _wlan_adapter {
 	u16 locallisteninterval;
 	u16 nullpktinterval;
 
-	struct assoc_request * assoc_req;
+	struct assoc_request * pending_assoc_req;
+	struct assoc_request * in_progress_assoc_req;
 
 	/** Encryption parameter */
 	struct wlan_802_11_security secinfo;

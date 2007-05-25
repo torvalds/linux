@@ -654,7 +654,8 @@ int libertas_ret_802_11d_domain_info(wlan_private * priv,
  *  @param priv    pointer to wlan_private
  *  @return 	   0; -1
  */
-int libertas_parse_dnld_countryinfo_11d(wlan_private * priv)
+int libertas_parse_dnld_countryinfo_11d(wlan_private * priv,
+                                        struct bss_descriptor * bss)
 {
 	int ret;
 	wlan_adapter *adapter = priv->adapter;
@@ -663,8 +664,7 @@ int libertas_parse_dnld_countryinfo_11d(wlan_private * priv)
 	if (priv->adapter->enable11d) {
 		memset(&adapter->parsed_region_chan, 0,
 		       sizeof(struct parsed_region_chan_11d));
-		ret = parse_domain_info_11d(&adapter->pattemptedbssdesc->
-					       countryinfo, 0,
+		ret = parse_domain_info_11d(&bss->countryinfo, 0,
 					       &adapter->parsed_region_chan);
 
 		if (ret == -1) {

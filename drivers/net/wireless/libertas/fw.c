@@ -185,7 +185,8 @@ static void wlan_init_adapter(wlan_private * priv)
 	adapter->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 	adapter->mode = IW_MODE_INFRA;
 
-	adapter->assoc_req = NULL;
+	adapter->pending_assoc_req = NULL;
+	adapter->in_progress_assoc_req = NULL;
 
 	/* Initialize scan result lists */
 	INIT_LIST_HEAD(&adapter->network_free_list);
@@ -195,7 +196,6 @@ static void wlan_init_adapter(wlan_private * priv)
 			      &adapter->network_free_list);
 	}
 
-	adapter->pattemptedbssdesc = NULL;
 	mutex_init(&adapter->lock);
 
 	adapter->prescan = 1;

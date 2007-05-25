@@ -235,24 +235,10 @@ static void wlan_scan_process_results(wlan_private * priv)
 	wlan_adapter *adapter = priv->adapter;
 	struct bss_descriptor * iter_bss;
 
+	if (adapter->connect_status == libertas_connected)
+		return;
+
 	mutex_lock(&adapter->lock);
-
-	if (adapter->connect_status != libertas_connected)
-		goto debug_print;
-
-	/* try to find the current BSSID in the scan list */
-	list_for_each_entry (iter_bss, &adapter->network_list, list) {
-		if (libertas_SSID_cmp(&iter_bss->ssid, &adapter->curbssparams.ssid))
-			continue;
-		if (memcmp(adapter->curbssparams.bssid, iter_bss->bssid, ETH_ALEN))
-			continue;
-		/* Make a copy of current BSSID descriptor */
-		memcpy(&adapter->curbssparams.bssdescriptor, iter_bss,
-		       sizeof(struct bss_descriptor));
-		break;
-	}
-
-debug_print:
 	list_for_each_entry (iter_bss, &adapter->network_list, list) {
 		lbs_deb_scan("Scan:(%02d) " MAC_FMT ", RSSI[%03d], SSID[%s]\n",
 		       i++,
@@ -260,7 +246,6 @@ debug_print:
 		       iter_bss->bssid[3], iter_bss->bssid[4], iter_bss->bssid[5],
 		       (s32) iter_bss->rssi, iter_bss->ssid.ssid);
 	}
-
 	mutex_unlock(&adapter->lock);
 }
 
