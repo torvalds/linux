@@ -2598,6 +2598,69 @@ int __ip_route_output_key(struct rtable **rp, const struct flowi *flp)
 
 EXPORT_SYMBOL_GPL(__ip_route_output_key);
 
+static void ipv4_rt_blackhole_update_pmtu(struct dst_entry *dst, u32 mtu)
+{
+}
+
+static struct dst_ops ipv4_dst_blackhole_ops = {
+	.family			=	AF_INET,
+	.protocol		=	__constant_htons(ETH_P_IP),
+	.destroy		=	ipv4_dst_destroy,
+	.check			=	ipv4_dst_check,
+	.update_pmtu		=	ipv4_rt_blackhole_update_pmtu,
+	.entry_size		=	sizeof(struct rtable),
+};
+
+
+static int ipv4_blackhole_output(struct sk_buff *skb)
+{
+	kfree_skb(skb);
+	return 0;
+}
+
+static int ipv4_dst_blackhole(struct rtable **rp, struct flowi *flp, struct sock *sk)
+{
+	struct rtable *ort = *rp;
+	struct rtable *rt = (struct rtable *)
+		dst_alloc(&ipv4_dst_blackhole_ops);
+
+	if (rt) {
+		struct dst_entry *new = &rt->u.dst;
+
+		atomic_set(&new->__refcnt, 1);
+		new->__use = 1;
+		new->input = ipv4_blackhole_output;
+		new->output = ipv4_blackhole_output;
+		memcpy(new->metrics, ort->u.dst.metrics, RTAX_MAX*sizeof(u32));
+
+		new->dev = ort->u.dst.dev;
+		if (new->dev)
+			dev_hold(new->dev);
+
+		rt->fl = ort->fl;
+
+		rt->idev = ort->idev;
+		if (rt->idev)
+			in_dev_hold(rt->idev);
+		rt->rt_flags = ort->rt_flags;
+		rt->rt_type = ort->rt_type;
+		rt->rt_dst = ort->rt_dst;
+		rt->rt_src = ort->rt_src;
+		rt->rt_iif = ort->rt_iif;
+		rt->rt_gateway = ort->rt_gateway;
+		rt->rt_spec_dst = ort->rt_spec_dst;
+		rt->peer = ort->peer;
+		if (rt->peer)
+			atomic_inc(&rt->peer->refcnt);
+
+		dst_free(new);
+	}
+
+	dst_release(&(*rp)->u.dst);
+	*rp = rt;
+	return (rt ? 0 : -ENOMEM);
+}
+
 int ip_route_output_flow(struct rtable **rp, struct flowi *flp, struct sock *sk, int flags)
 {
 	int err;
@@ -2610,7 +2673,11 @@ int ip_route_output_flow(struct rtable **rp, struct flowi *flp, struct sock *sk,
 			flp->fl4_src = (*rp)->rt_src;
 		if (!flp->fl4_dst)
 			flp->fl4_dst = (*rp)->rt_dst;
-		return xfrm_lookup((struct dst_entry **)rp, flp, sk, flags);
+		err = __xfrm_lookup((struct dst_entry **)rp, flp, sk, flags);
+		if (err == -EREMOTE)
+			err = ipv4_dst_blackhole(rp, flp, sk);
+
+		return err;
 	}
 
 	return 0;
@@ -3138,6 +3205,8 @@ int __init ip_rt_init(void)
 	ipv4_dst_ops.kmem_cachep =
 		kmem_cache_create("ip_dst_cache", sizeof(struct rtable), 0,
 				  SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+
+	ipv4_dst_blackhole_ops.kmem_cachep = ipv4_dst_ops.kmem_cachep;
 
 	rt_hash_table = (struct rt_hash_bucket *)
 		alloc_large_system_hash("IP route cache",

@@ -455,9 +455,9 @@ static int nat_q931(struct sk_buff **pskb, struct nf_conn *ct,
 		if (idx > 0 &&
 		    get_h225_addr(ct, *data, &taddr[0], &addr, &port) &&
 		    (ntohl(addr.ip) & 0xff000000) == 0x7f000000) {
-			set_h225_addr_hook(pskb, data, 0, &taddr[0],
-					   &ct->tuplehash[!dir].tuple.dst.u3,
-					   info->sig_port[!dir]);
+			set_h225_addr(pskb, data, 0, &taddr[0],
+				      &ct->tuplehash[!dir].tuple.dst.u3,
+				      info->sig_port[!dir]);
 		}
 	} else {
 		nf_conntrack_unexpect_related(exp);

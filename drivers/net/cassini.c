@@ -4919,7 +4919,10 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 	pci_cmd &= ~PCI_COMMAND_SERR;
 	pci_cmd |= PCI_COMMAND_PARITY;
 	pci_write_config_word(pdev, PCI_COMMAND, pci_cmd);
-	pci_set_mwi(pdev);
+	if (pci_set_mwi(pdev))
+		printk(KERN_WARNING PFX "Could enable MWI for %s\n",
+		       pci_name(pdev));
+
 	/*
 	 * On some architectures, the default cache line size set
 	 * by pci_set_mwi reduces perforamnce.  We have to increase

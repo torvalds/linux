@@ -37,7 +37,7 @@
 #include <linux/ptrace.h>
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
-
+#include <linux/mutex.h>
 
 /*****************************************************************************/
 /*                                                                           */
@@ -359,7 +359,7 @@ struct idt77252_dev
 	unsigned long		srambase;	/* SAR's sram  base address */
 	void __iomem		*fbq[4];	/* FBQ fill addresses */
 
-	struct semaphore	mutex;
+	struct mutex		mutex;
 	spinlock_t		cmd_lock;	/* for r/w utility/sram */
 
 	unsigned long		softstat;

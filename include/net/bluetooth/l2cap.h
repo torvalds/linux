@@ -129,8 +129,10 @@ struct l2cap_conf_rsp {
 	__u8       data[0];
 } __attribute__ ((packed));
 
-#define L2CAP_CONF_SUCCESS	0x00
-#define L2CAP_CONF_UNACCEPT	0x01
+#define L2CAP_CONF_SUCCESS	0x0000
+#define L2CAP_CONF_UNACCEPT	0x0001
+#define L2CAP_CONF_REJECT	0x0002
+#define L2CAP_CONF_UNKNOWN	0x0003
 
 struct l2cap_conf_opt {
 	__u8       type;
@@ -215,6 +217,8 @@ struct l2cap_pinfo {
 
 	__u32		link_mode;
 
+	__u8		conf_req[64];
+	__u8		conf_len;
 	__u8		conf_state;
 	__u8		conf_retry;
 	__u16		conf_mtu;

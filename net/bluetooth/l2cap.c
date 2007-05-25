@@ -507,6 +507,7 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 	}
 
 	/* Default config options */
+	pi->conf_len = 0;
 	pi->conf_mtu = L2CAP_DEFAULT_MTU;
 	pi->flush_to = L2CAP_DEFAULT_FLUSH_TO;
 }
@@ -1271,42 +1272,6 @@ static inline int l2cap_get_conf_opt(void **ptr, int *type, int *olen, unsigned 
 	return len;
 }
 
-static inline void l2cap_parse_conf_req(struct sock *sk, void *data, int len)
-{
-	int type, hint, olen;
-	unsigned long val;
-	void *ptr = data;
-
-	BT_DBG("sk %p len %d", sk, len);
-
-	while (len >= L2CAP_CONF_OPT_SIZE) {
-		len -= l2cap_get_conf_opt(&ptr, &type, &olen, &val);
-
-		hint  = type & 0x80;
-		type &= 0x7f;
-
-		switch (type) {
-		case L2CAP_CONF_MTU:
-			l2cap_pi(sk)->conf_mtu = val;
-			break;
-
-		case L2CAP_CONF_FLUSH_TO:
-			l2cap_pi(sk)->flush_to = val;
-			break;
-
-		case L2CAP_CONF_QOS:
-			break;
-
-		default:
-			if (hint)
-				break;
-
-			/* FIXME: Reject unknown option */
-			break;
-		}
-	}
-}
-
 static void l2cap_add_conf_opt(void **ptr, u8 type, u8 len, unsigned long val)
 {
 	struct l2cap_conf_opt *opt = *ptr;
@@ -1358,39 +1323,75 @@ static int l2cap_build_conf_req(struct sock *sk, void *data)
 	return ptr - data;
 }
 
-static inline int l2cap_conf_output(struct sock *sk, void **ptr)
+static int l2cap_parse_conf_req(struct sock *sk, void *data)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
-	int result = 0;
+	struct l2cap_conf_rsp *rsp = data;
+	void *ptr = rsp->data;
+	void *req = pi->conf_req;
+	int len = pi->conf_len;
+	int type, hint, olen;
+	unsigned long val;
+	u16 result = L2CAP_CONF_SUCCESS;
 
-	/* Configure output options and let the other side know
-	 * which ones we don't like. */
-	if (pi->conf_mtu < pi->omtu)
-		result = L2CAP_CONF_UNACCEPT;
-	else
-		pi->omtu = pi->conf_mtu;
+	BT_DBG("sk %p", sk);
 
-	l2cap_add_conf_opt(ptr, L2CAP_CONF_MTU, 2, pi->omtu);
+	while (len >= L2CAP_CONF_OPT_SIZE) {
+		len -= l2cap_get_conf_opt(&req, &type, &olen, &val);
 
-	BT_DBG("sk %p result %d", sk, result);
-	return result;
+		hint  = type & 0x80;
+		type &= 0x7f;
+
+		switch (type) {
+		case L2CAP_CONF_MTU:
+			pi->conf_mtu = val;
+			break;
+
+		case L2CAP_CONF_FLUSH_TO:
+			pi->flush_to = val;
+			break;
+
+		case L2CAP_CONF_QOS:
+			break;
+
+		default:
+			if (hint)
+				break;
+
+			result = L2CAP_CONF_UNKNOWN;
+			*((u8 *) ptr++) = type;
+			break;
+		}
+	}
+
+	if (result == L2CAP_CONF_SUCCESS) {
+		/* Configure output options and let the other side know
+		 * which ones we don't like. */
+
+		if (pi->conf_mtu < pi->omtu)
+			result = L2CAP_CONF_UNACCEPT;
+		else
+			pi->omtu = pi->conf_mtu;
+
+		l2cap_add_conf_opt(&ptr, L2CAP_CONF_MTU, 2, pi->omtu);
+	}
+
+	rsp->scid   = cpu_to_le16(pi->dcid);
+	rsp->result = cpu_to_le16(result);
+	rsp->flags  = cpu_to_le16(0x0000);
+
+	return ptr - data;
 }
 
-static int l2cap_build_conf_rsp(struct sock *sk, void *data, int *result)
+static int l2cap_build_conf_rsp(struct sock *sk, void *data, u16 result, u16 flags)
 {
 	struct l2cap_conf_rsp *rsp = data;
 	void *ptr = rsp->data;
-	u16 flags = 0;
 
-	BT_DBG("sk %p complete %d", sk, result ? 1 : 0);
-
-	if (result)
-		*result = l2cap_conf_output(sk, &ptr);
-	else
-		flags = 0x0001;
+	BT_DBG("sk %p", sk);
 
 	rsp->scid   = cpu_to_le16(l2cap_pi(sk)->dcid);
-	rsp->result = cpu_to_le16(result ? *result : 0);
+	rsp->result = cpu_to_le16(result);
 	rsp->flags  = cpu_to_le16(flags);
 
 	return ptr - data;
@@ -1535,7 +1536,7 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 	u16 dcid, flags;
 	u8 rsp[64];
 	struct sock *sk;
-	int result;
+	int len;
 
 	dcid  = __le16_to_cpu(req->dcid);
 	flags = __le16_to_cpu(req->flags);
@@ -1548,24 +1549,39 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 	if (sk->sk_state == BT_DISCONN)
 		goto unlock;
 
-	l2cap_parse_conf_req(sk, req->data, cmd->len - sizeof(*req));
+	/* Reject if config buffer is too small. */
+	len = cmd->len - sizeof(*req);
+	if (l2cap_pi(sk)->conf_len + len > sizeof(l2cap_pi(sk)->conf_req)) {
+		l2cap_send_cmd(conn, cmd->ident, L2CAP_CONF_RSP,
+				l2cap_build_conf_rsp(sk, rsp,
+					L2CAP_CONF_REJECT, flags), rsp);
+		goto unlock;
+	}
+
+	/* Store config. */
+	memcpy(l2cap_pi(sk)->conf_req + l2cap_pi(sk)->conf_len, req->data, len);
+	l2cap_pi(sk)->conf_len += len;
 
 	if (flags & 0x0001) {
 		/* Incomplete config. Send empty response. */
 		l2cap_send_cmd(conn, cmd->ident, L2CAP_CONF_RSP,
-				l2cap_build_conf_rsp(sk, rsp, NULL), rsp);
+				l2cap_build_conf_rsp(sk, rsp,
+					L2CAP_CONF_SUCCESS, 0x0001), rsp);
 		goto unlock;
 	}
 
 	/* Complete config. */
-	l2cap_send_cmd(conn, cmd->ident, L2CAP_CONF_RSP,
-			l2cap_build_conf_rsp(sk, rsp, &result), rsp);
-
-	if (result)
+	len = l2cap_parse_conf_req(sk, rsp);
+	if (len < 0)
 		goto unlock;
 
-	/* Output config done */
+	l2cap_send_cmd(conn, cmd->ident, L2CAP_CONF_RSP, len, rsp);
+
+	/* Output config done. */
 	l2cap_pi(sk)->conf_state |= L2CAP_CONF_OUTPUT_DONE;
+
+	/* Reset config buffer. */
+	l2cap_pi(sk)->conf_len = 0;
 
 	if (l2cap_pi(sk)->conf_state & L2CAP_CONF_INPUT_DONE) {
 		sk->sk_state = BT_CONNECTED;

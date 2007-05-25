@@ -265,8 +265,12 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	if (final_p)
 		ipv6_addr_copy(&fl.fl6_dst, final_p);
 
-	if ((err = xfrm_lookup(&dst, &fl, sk, 1)) < 0)
-		goto failure;
+	if ((err = __xfrm_lookup(&dst, &fl, sk, 1)) < 0) {
+		if (err == -EREMOTE)
+			err = ip6_dst_blackhole(sk, &dst, &fl);
+		if (err < 0)
+			goto failure;
+	}
 
 	if (saddr == NULL) {
 		saddr = &fl.fl6_src;

@@ -2,11 +2,9 @@
 # TIPC configuration
 #
 
-menu "TIPC Configuration (EXPERIMENTAL)"
-	depends on INET && EXPERIMENTAL
-
-config TIPC
+menuconfig TIPC
 	tristate "The TIPC Protocol (EXPERIMENTAL)"
+	depends on INET && EXPERIMENTAL
 	---help---
 	  The Transparent Inter Process Communication (TIPC) protocol is
 	  specially designed for intra cluster communication. This protocol
@@ -22,9 +20,10 @@ config TIPC
 
 	  If in doubt, say N.
 
+if TIPC
+
 config TIPC_ADVANCED
 	bool "TIPC: Advanced configuration"
-	depends on TIPC
 	default n
 	help
 	  Saying Y here will open some advanced configuration
@@ -33,7 +32,7 @@ config TIPC_ADVANCED
 
 config TIPC_ZONES
 	int "Maximum number of zones in network"
-	depends on TIPC && TIPC_ADVANCED
+	depends on TIPC_ADVANCED
 	default "3"
 	help
 	 Max number of zones inside TIPC network. Max supported value 
@@ -44,7 +43,7 @@ config TIPC_ZONES
 
 config TIPC_CLUSTERS
 	int "Maximum number of clusters in a zone"
-	depends on TIPC && TIPC_ADVANCED
+	depends on TIPC_ADVANCED
 	default "1"
 	help
           ***Only 1 (one cluster in a zone) is supported by current code.
@@ -59,7 +58,7 @@ config TIPC_CLUSTERS
 
 config TIPC_NODES
 	int "Maximum number of nodes in cluster"
-	depends on TIPC && TIPC_ADVANCED
+	depends on TIPC_ADVANCED
 	default "255"
 	help
 	  Maximum number of nodes inside a TIPC cluster. Maximum 
@@ -70,7 +69,7 @@ config TIPC_NODES
 
 config TIPC_SLAVE_NODES
 	int "Maximum number of slave nodes in cluster"
-	depends on TIPC && TIPC_ADVANCED
+	depends on TIPC_ADVANCED
 	default "0"
 	help
           ***This capability is not supported by current code.***
@@ -83,7 +82,7 @@ config TIPC_SLAVE_NODES
 
 config TIPC_PORTS
 	int "Maximum number of ports in a node"
-	depends on TIPC && TIPC_ADVANCED
+	depends on TIPC_ADVANCED
 	default "8191"
 	help
 	  Maximum number of ports within a node. Maximum 
@@ -94,7 +93,7 @@ config TIPC_PORTS
 
 config TIPC_LOG
 	int "Size of log buffer"
-	depends on TIPC && TIPC_ADVANCED
+	depends on TIPC_ADVANCED
 	default 0
 	help
  	  Size (in bytes) of TIPC's internal log buffer, which records the
@@ -106,7 +105,6 @@ config TIPC_LOG
 
 config TIPC_DEBUG
 	bool "Enable debugging support"
-	depends on TIPC
 	default n
 	help
  	  This will enable debugging of TIPC.
@@ -114,4 +112,4 @@ config TIPC_DEBUG
 	  Only say Y here if you are having trouble with TIPC.  It will
 	  enable the display of detailed information about what is going on.
 
-endmenu
+endif # TIPC

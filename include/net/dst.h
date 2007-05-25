@@ -265,9 +265,16 @@ static inline int xfrm_lookup(struct dst_entry **dst_p, struct flowi *fl,
 {
 	return 0;
 } 
+static inline int __xfrm_lookup(struct dst_entry **dst_p, struct flowi *fl,
+				struct sock *sk, int flags)
+{
+	return 0;
+}
 #else
 extern int xfrm_lookup(struct dst_entry **dst_p, struct flowi *fl,
 		       struct sock *sk, int flags);
+extern int __xfrm_lookup(struct dst_entry **dst_p, struct flowi *fl,
+			 struct sock *sk, int flags);
 #endif
 #endif
 
