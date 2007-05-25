@@ -231,8 +231,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	return 0;
 
 err_activate_card:
-	unregister_netdev(priv->mesh_dev);
-	free_netdev(priv->mesh_dev);
+	libertas_remove_mesh(priv);
 err_add_mesh:
 	free_netdev(priv->dev);
 	kfree(priv->adapter);
