@@ -44,7 +44,7 @@ static void init_intel_pdc(struct acpi_processor *pr)
 
 	buf[0] = ACPI_PDC_REVISION_ID;
 	buf[1] = 1;
-	buf[2] |= ACPI_PDC_EST_CAPABILITY_SMP;
+	buf[2] = ACPI_PDC_EST_CAPABILITY_SMP;
 
 	obj->type = ACPI_TYPE_BUFFER;
 	obj->buffer.length = 12;

@@ -370,7 +370,7 @@ smp_setup_percpu_timer (void)
 {
 }
 
-static void __devinit
+static void __cpuinit
 smp_callin (void)
 {
 	int cpuid, phys_id, itc_master;
@@ -456,7 +456,7 @@ smp_callin (void)
 /*
  * Activate a secondary processor.  head.S calls this.
  */
-int __devinit
+int __cpuinit
 start_secondary (void *unused)
 {
 	/* Early console may use I/O ports */
