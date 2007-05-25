@@ -99,7 +99,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	struct usb_device *udev;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
-	wlan_private *pwlanpriv;
+	wlan_private *priv;
 	struct usb_card_rec *usb_cardp;
 	int i;
 
@@ -187,7 +187,9 @@ static int if_usb_probe(struct usb_interface *intf,
 	 * about keeping pwlanpriv around since it will be set on our
 	 * usb device data in -> add() -> libertas_sbi_register_dev().
 	 */
-	if (!(pwlanpriv = wlan_add_card(usb_cardp)))
+	if (!(priv = wlan_add_card(usb_cardp)))
+		goto dealloc;
+	if (wlan_add_mesh(priv))
 		goto dealloc;
 
 	usb_get_dev(udev);
@@ -228,6 +230,7 @@ static void if_usb_disconnect(struct usb_interface *intf)
 
 	/* card is removed and we can call wlan_remove_card */
 	lbs_deb_usbd(&cardp->udev->dev, "call remove card\n");
+	wlan_remove_mesh(priv);
 	wlan_remove_card(cardp);
 
 	/* Unlink and free urb */

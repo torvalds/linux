@@ -220,7 +220,9 @@ static int wlan_ret_get_hw_spec(wlan_private * priv,
 	}
 
 	memcpy(priv->wlan_dev.netdev->dev_addr, adapter->current_addr, ETH_ALEN);
-	memcpy(priv->mesh_dev->dev_addr, adapter->current_addr, ETH_ALEN);
+	if (priv->mesh_dev)
+		memcpy(priv->mesh_dev->dev_addr, adapter->current_addr,
+		       ETH_ALEN);
 
 	if (libertas_set_regiontable(priv, adapter->regioncode, 0)) {
 		ret = -1;

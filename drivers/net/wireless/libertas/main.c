@@ -208,7 +208,6 @@ static ssize_t libertas_mpp_set(struct device * dev,
 		struct device_attribute *attr, const char * buf, size_t count) {
 	struct cmd_ds_mesh_access mesh_access;
 
-
 	memset(&mesh_access, 0, sizeof(mesh_access));
 	sscanf(buf, "%d", &(mesh_access.data[0]));
 	libertas_prepare_and_send_command((to_net_dev(dev))->priv,
@@ -287,7 +286,7 @@ static int mesh_open(struct net_device *dev)
 {
 	wlan_private *priv = (wlan_private *) dev->priv ;
 
-	if(pre_open_check(dev) == -1)
+	if (pre_open_check(dev) == -1)
 		return -1;
 	priv->mesh_open = 1 ;
 	netif_start_queue(priv->mesh_dev);
@@ -352,7 +351,8 @@ static int mesh_close(struct net_device *dev)
  *  @param dev     A pointer to net_device structure
  *  @return 	   0
  */
-static int wlan_close(struct net_device *dev) {
+static int wlan_close(struct net_device *dev)
+{
 	wlan_private *priv = (wlan_private *) dev->priv;
 
 	netif_stop_queue(priv->wlan_dev.netdev);
@@ -487,7 +487,8 @@ static int wlan_set_mac_address(struct net_device *dev, void *addr)
 
 	lbs_dbg_hex("adapter->macaddr:", adapter->current_addr, ETH_ALEN);
 	memcpy(dev->dev_addr, adapter->current_addr, ETH_ALEN);
-	memcpy(((wlan_private *) dev->priv)->mesh_dev->dev_addr, adapter->current_addr, ETH_ALEN);
+	if (priv->mesh_dev)
+		memcpy(priv->mesh_dev->dev_addr, adapter->current_addr, ETH_ALEN);
 
 done:
 	lbs_deb_leave_args(LBS_DEB_NET, "ret %d", ret);
@@ -767,7 +768,6 @@ static int wlan_service_main_thread(void *data)
 wlan_private *wlan_add_card(void *card)
 {
 	struct net_device *dev = NULL;
-	struct net_device *mesh_dev = NULL;
 	wlan_private *priv = NULL;
 
 	lbs_deb_enter(LBS_DEB_NET);
@@ -786,15 +786,6 @@ wlan_private *wlan_add_card(void *card)
 		goto err_kmalloc;
 	}
 
-	/* Allocate a virtual mesh device */
-	if (!(mesh_dev = alloc_netdev(0, "msh%d", ether_setup))) {
-		lbs_deb_mesh("init mshX device failed\n");
-		return NULL;
-	}
-
-	/* Both intervaces share the priv structure */
-	mesh_dev->priv = priv;
-
 	/* init wlan_adapter */
 	memset(priv->adapter, 0, sizeof(wlan_adapter));
 
@@ -802,10 +793,8 @@ wlan_private *wlan_add_card(void *card)
 	priv->wlan_dev.card = card;
 	priv->mesh_open = 0;
 	priv->infra_open = 0;
-	priv->mesh_dev = mesh_dev;
 
 	SET_MODULE_OWNER(dev);
-	SET_MODULE_OWNER(mesh_dev);
 
 	/* Setup the OS Interface to our functions */
 	dev->open = wlan_open;
@@ -813,12 +802,6 @@ wlan_private *wlan_add_card(void *card)
 	dev->stop = wlan_close;
 	dev->do_ioctl = libertas_do_ioctl;
 	dev->set_mac_address = wlan_set_mac_address;
-	mesh_dev->open = mesh_open;
-	mesh_dev->hard_start_xmit = mesh_pre_start_xmit;
-	mesh_dev->stop = mesh_close;
-	mesh_dev->do_ioctl = libertas_do_ioctl;
-	memcpy(mesh_dev->dev_addr, priv->wlan_dev.netdev->dev_addr,
-			sizeof(priv->wlan_dev.netdev->dev_addr));
 
 #define	WLAN_WATCHDOG_TIMEOUT	(5 * HZ)
 
@@ -826,12 +809,9 @@ wlan_private *wlan_add_card(void *card)
 	dev->get_stats = wlan_get_stats;
 	dev->watchdog_timeo = WLAN_WATCHDOG_TIMEOUT;
 	dev->ethtool_ops = &libertas_ethtool_ops;
-	mesh_dev->get_stats = wlan_get_stats;
-	mesh_dev->ethtool_ops = &libertas_ethtool_ops;
 
 #ifdef	WIRELESS_EXT
 	dev->wireless_handlers = (struct iw_handler_def *)&libertas_handler_def;
-	mesh_dev->wireless_handlers = (struct iw_handler_def *)&libertas_handler_def;
 #endif
 #define NETIF_F_DYNALLOC 16
 	dev->features |= NETIF_F_DYNALLOC;
@@ -875,12 +855,6 @@ wlan_private *wlan_add_card(void *card)
 		goto err_init_fw;
 	}
 
-	/* Register virtual mesh interface */
-	if (register_netdev(mesh_dev)) {
-		lbs_pr_err("cannot register mshX virtual interface\n");
-		goto err_init_fw;
-	}
-
 	lbs_pr_info("%s: Marvell WLAN 802.11 adapter\n", dev->name);
 
 	libertas_debugfs_init_one(priv, dev);
@@ -889,14 +863,10 @@ wlan_private *wlan_add_card(void *card)
 		goto err_init_fw;
 	libertas_devs[libertas_found] = dev;
 	libertas_found++;
-	if (device_create_file(&(mesh_dev->dev), &dev_attr_libertas_mpp))
-		goto err_create_file;
 
 	lbs_deb_leave_args(LBS_DEB_NET, "priv %p", priv);
 	return priv;
 
-err_create_file:
-	device_remove_file(&(mesh_dev->dev), &dev_attr_libertas_mpp);
 err_init_fw:
 	libertas_sbi_unregister_dev(priv);
 err_registerdev:
@@ -907,10 +877,74 @@ err_registerdev:
 	kfree(priv->adapter);
 err_kmalloc:
 	free_netdev(dev);
-	free_netdev(mesh_dev);
 
 	lbs_deb_leave_args(LBS_DEB_NET, "priv NULL");
 	return NULL;
+}
+
+/**
+ * @brief This function adds mshX interface
+ *
+ *  @param priv    A pointer to the wlan_private structure
+ *  @return 	   0 if successful, -X otherwise
+ */
+int wlan_add_mesh(wlan_private *priv)
+{
+	struct net_device *mesh_dev = NULL;
+	int ret = 0;
+
+	lbs_deb_enter(LBS_DEB_MESH);
+
+	/* Allocate a virtual mesh device */
+	if (!(mesh_dev = alloc_netdev(0, "msh%d", ether_setup))) {
+		lbs_deb_mesh("init mshX device failed\n");
+		ret = -ENOMEM;
+		goto done;
+	}
+	mesh_dev->priv = priv;
+	priv->mesh_dev = mesh_dev;
+
+	SET_MODULE_OWNER(mesh_dev);
+
+	mesh_dev->open = mesh_open;
+	mesh_dev->hard_start_xmit = mesh_pre_start_xmit;
+	mesh_dev->stop = mesh_close;
+	mesh_dev->do_ioctl = libertas_do_ioctl;
+	mesh_dev->get_stats = wlan_get_stats;
+	mesh_dev->ethtool_ops = &libertas_ethtool_ops;
+	memcpy(mesh_dev->dev_addr, priv->wlan_dev.netdev->dev_addr,
+			sizeof(priv->wlan_dev.netdev->dev_addr));
+
+#ifdef	WIRELESS_EXT
+	mesh_dev->wireless_handlers = (struct iw_handler_def *)&libertas_handler_def;
+#endif
+#define NETIF_F_DYNALLOC 16
+
+	/* Register virtual mesh interface */
+	ret = register_netdev(mesh_dev);
+	if (ret) {
+		lbs_pr_err("cannot register mshX virtual interface\n");
+		goto err_free;
+	}
+
+	ret = device_create_file(&(mesh_dev->dev), &dev_attr_libertas_mpp);
+	if (ret)
+		goto err_unregister;
+
+	/* Everything successful */
+	ret = 0;
+	goto done;
+
+
+err_unregister:
+	unregister_netdev(mesh_dev);
+
+err_free:
+	free_netdev(mesh_dev);
+
+done:
+	lbs_deb_leave_args(LBS_DEB_MESH, "ret %d", ret);
+	return ret;
 }
 
 static void wake_pending_cmdnodes(wlan_private *priv)
@@ -934,7 +968,6 @@ int wlan_remove_card(void *card)
 	wlan_private *priv = libertas_sbi_get_priv(card);
 	wlan_adapter *adapter;
 	struct net_device *dev;
-	struct net_device *mesh_dev;
 	union iwreq_data wrqu;
 	int i;
 
@@ -949,16 +982,12 @@ int wlan_remove_card(void *card)
 		goto out;
 
 	dev = priv->wlan_dev.netdev;
-	mesh_dev = priv->mesh_dev;
 
-	netif_stop_queue(mesh_dev);
 	netif_stop_queue(priv->wlan_dev.netdev);
 	netif_carrier_off(priv->wlan_dev.netdev);
 
 	wake_pending_cmdnodes(priv);
 
-	device_remove_file(&(mesh_dev->dev), &dev_attr_libertas_mpp);
-	unregister_netdev(mesh_dev);
 	unregister_netdev(dev);
 
 	cancel_delayed_work(&priv->assoc_work);
@@ -994,13 +1023,34 @@ int wlan_remove_card(void *card)
 	lbs_deb_net("unregister finish\n");
 
 	priv->wlan_dev.netdev = NULL;
-	priv->mesh_dev = NULL ;
-	free_netdev(mesh_dev);
 	free_netdev(dev);
 
 out:
 	lbs_deb_leave(LBS_DEB_NET);
 	return 0;
+}
+
+void wlan_remove_mesh(wlan_private *priv)
+{
+	struct net_device *mesh_dev;
+
+	lbs_deb_enter(LBS_DEB_NET);
+
+	if (!priv)
+		goto out;
+
+	mesh_dev = priv->mesh_dev;
+
+	netif_stop_queue(mesh_dev);
+
+	device_remove_file(&(mesh_dev->dev), &dev_attr_libertas_mpp);
+	unregister_netdev(mesh_dev);
+
+	priv->mesh_dev = NULL ;
+	free_netdev(mesh_dev);
+
+out:
+	lbs_deb_leave(LBS_DEB_NET);
 }
 
 /**

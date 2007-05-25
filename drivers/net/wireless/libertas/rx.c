@@ -140,7 +140,7 @@ void libertas_upload_rx_packet(wlan_private * priv, struct sk_buff *skb)
 {
 	lbs_deb_rx("skb->data %p\n", skb->data);
 
-	if(IS_MESH_FRAME(skb))
+	if (priv->mesh_dev && IS_MESH_FRAME(skb))
 		skb->dev = priv->mesh_dev;
 	else
 		skb->dev = priv->wlan_dev.netdev;
