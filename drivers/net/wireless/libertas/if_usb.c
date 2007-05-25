@@ -207,15 +207,10 @@ static int if_usb_probe(struct usb_interface *intf,
 		}
 	}
 
-
-	/* At this point libertas_add_card() will be called.  Don't worry
-	 * about keeping pwlanpriv around since it will be set on our
-	 * usb device data in -> add() -> hw_register_dev() -> if_usb_register_dev.
-	 */
-	if (!(priv = libertas_add_card(cardp)))
+	if (!(priv = libertas_add_card(cardp, &udev->dev)))
 		goto dealloc;
 
-	if (libertas_add_mesh(priv))
+	if (libertas_add_mesh(priv, &udev->dev))
 		goto err_add_mesh;
 
 	priv->hw_register_dev = if_usb_register_dev;
@@ -805,9 +800,6 @@ static int if_usb_register_dev(wlan_private * priv)
 	cardp->priv = priv;
 	cardp->eth_dev = priv->dev;
 	priv->hotplug_device = &(cardp->udev->dev);
-
-	SET_NETDEV_DEV(cardp->eth_dev, &(cardp->udev->dev));
-	SET_NETDEV_DEV(priv->mesh_dev, &(cardp->udev->dev));
 
 	lbs_deb_usbd(&cardp->udev->dev, "udev pointer is at %p\n",
 		    cardp->udev);

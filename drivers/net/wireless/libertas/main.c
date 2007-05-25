@@ -763,7 +763,7 @@ static int wlan_service_main_thread(void *data)
  *  @param card    A pointer to card
  *  @return 	   A pointer to wlan_private structure
  */
-wlan_private *libertas_add_card(void *card)
+wlan_private *libertas_add_card(void *card, struct device *dmdev)
 {
 	struct net_device *dev = NULL;
 	wlan_private *priv = NULL;
@@ -807,6 +807,8 @@ wlan_private *libertas_add_card(void *card)
 	dev->features |= NETIF_F_DYNALLOC;
 	dev->flags |= IFF_BROADCAST | IFF_MULTICAST;
 	dev->set_multicast_list = wlan_set_multicast_list;
+
+	SET_NETDEV_DEV(dev, dmdev);
 
 	INIT_LIST_HEAD(&priv->adapter->cmdfreeq);
 	INIT_LIST_HEAD(&priv->adapter->cmdpendingq);
@@ -891,7 +893,7 @@ EXPORT_SYMBOL_GPL(libertas_activate_card);
  *  @param priv    A pointer to the wlan_private structure
  *  @return 	   0 if successful, -X otherwise
  */
-int libertas_add_mesh(wlan_private *priv)
+int libertas_add_mesh(wlan_private *priv, struct device *dev)
 {
 	struct net_device *mesh_dev = NULL;
 	int ret = 0;
@@ -917,6 +919,8 @@ int libertas_add_mesh(wlan_private *priv)
 	mesh_dev->ethtool_ops = &libertas_ethtool_ops;
 	memcpy(mesh_dev->dev_addr, priv->dev->dev_addr,
 			sizeof(priv->dev->dev_addr));
+
+	SET_NETDEV_DEV(priv->mesh_dev, dev);
 
 #ifdef	WIRELESS_EXT
 	mesh_dev->wireless_handlers = (struct iw_handler_def *)&libertas_handler_def;
