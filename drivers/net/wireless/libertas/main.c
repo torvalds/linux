@@ -878,8 +878,6 @@ err_registerdev:
 	/* Stop the thread servicing the interrupts */
 	wake_up_interruptible(&priv->mainthread.waitq);
 	wlan_terminate_thread(&priv->mainthread);
-	kfree(priv->adapter);
-	free_netdev(dev);
 done:
 	lbs_deb_leave_args(LBS_DEB_NET, "ret %d", ret);
 	return ret;
