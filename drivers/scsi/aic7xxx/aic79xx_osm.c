@@ -376,21 +376,10 @@ static __inline void
 ahd_linux_unmap_scb(struct ahd_softc *ahd, struct scb *scb)
 {
 	struct scsi_cmnd *cmd;
-	int direction;
 
 	cmd = scb->io_ctx;
-	direction = cmd->sc_data_direction;
 	ahd_sync_sglist(ahd, scb, BUS_DMASYNC_POSTWRITE);
-	if (cmd->use_sg != 0) {
-		struct scatterlist *sg;
-
-		sg = (struct scatterlist *)cmd->request_buffer;
-		pci_unmap_sg(ahd->dev_softc, sg, cmd->use_sg, direction);
-	} else if (cmd->request_bufflen != 0) {
-		pci_unmap_single(ahd->dev_softc,
-				 scb->platform_data->buf_busaddr,
-				 cmd->request_bufflen, direction);
-	}
+	scsi_dma_unmap(cmd);
 }
 
 /******************************** Macros **************************************/
@@ -1422,6 +1411,7 @@ ahd_linux_run_command(struct ahd_softc *ahd, struct ahd_linux_device *dev,
 	u_int	 col_idx;
 	uint16_t mask;
 	unsigned long flags;
+	int nseg;
 
 	ahd_lock(ahd, &flags);
 
@@ -1494,18 +1484,17 @@ ahd_linux_run_command(struct ahd_softc *ahd, struct ahd_linux_device *dev,
 	ahd_set_residual(scb, 0);
 	ahd_set_sense_residual(scb, 0);
 	scb->sg_count = 0;
-	if (cmd->use_sg != 0) {
-		void	*sg;
-		struct	 scatterlist *cur_seg;
-		u_int	 nseg;
-		int	 dir;
 
-		cur_seg = (struct scatterlist *)cmd->request_buffer;
-		dir = cmd->sc_data_direction;
-		nseg = pci_map_sg(ahd->dev_softc, cur_seg,
-				  cmd->use_sg, dir);
+	nseg = scsi_dma_map(cmd);
+	BUG_ON(nseg < 0);
+	if (nseg > 0) {
+		void *sg = scb->sg_list;
+		struct scatterlist *cur_seg;
+		int i;
+
 		scb->platform_data->xfer_len = 0;
-		for (sg = scb->sg_list; nseg > 0; nseg--, cur_seg++) {
+
+		scsi_for_each_sg(cmd, cur_seg, nseg, i) {
 			dma_addr_t addr;
 			bus_size_t len;
 
@@ -1513,22 +1502,8 @@ ahd_linux_run_command(struct ahd_softc *ahd, struct ahd_linux_device *dev,
 			len = sg_dma_len(cur_seg);
 			scb->platform_data->xfer_len += len;
 			sg = ahd_sg_setup(ahd, scb, sg, addr, len,
-					  /*last*/nseg == 1);
+					  i == (nseg - 1));
 		}
-	} else if (cmd->request_bufflen != 0) {
-		void *sg;
-		dma_addr_t addr;
-		int dir;
-
-		sg = scb->sg_list;
-		dir = cmd->sc_data_direction;
-		addr = pci_map_single(ahd->dev_softc,
-				      cmd->request_buffer,
-				      cmd->request_bufflen, dir);
-		scb->platform_data->xfer_len = cmd->request_bufflen;
-		scb->platform_data->buf_busaddr = addr;
-		sg = ahd_sg_setup(ahd, scb, sg, addr,
-				  cmd->request_bufflen, /*last*/TRUE);
 	}
 
 	LIST_INSERT_HEAD(&ahd->pending_scbs, scb, pending_links);

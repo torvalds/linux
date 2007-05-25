@@ -781,7 +781,7 @@ int ahd_get_transfer_dir(struct scb *scb)
 static __inline
 void ahd_set_residual(struct scb *scb, u_long resid)
 {
-	scb->io_ctx->resid = resid;
+	scsi_set_resid(scb->io_ctx, resid);
 }
 
 static __inline
@@ -793,7 +793,7 @@ void ahd_set_sense_residual(struct scb *scb, u_long resid)
 static __inline
 u_long ahd_get_residual(struct scb *scb)
 {
-	return (scb->io_ctx->resid);
+	return scsi_get_resid(scb->io_ctx);
 }
 
 static __inline
