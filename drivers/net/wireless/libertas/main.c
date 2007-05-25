@@ -142,14 +142,6 @@ static struct region_cfp_table region_cfp_table[] = {
 };
 
 /**
- * the rates supported by the card
- */
-u8 libertas_wlan_data_rates[WLAN_SUPPORTED_RATES] =
-    { 0x02, 0x04, 0x0B, 0x16, 0x00, 0x0C, 0x12,
-	0x18, 0x24, 0x30, 0x48, 0x60, 0x6C, 0x00
-};
-
-/**
  * the rates supported
  */
 u8 libertas_supported_rates[G_SUPPORTED_RATES] =

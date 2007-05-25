@@ -205,8 +205,6 @@ typedef struct _wlan_adapter wlan_adapter;
 extern const char libertas_driver_version[];
 extern u16 libertas_region_code_to_index[MRVDRV_MAX_REGION_CODE];
 
-extern u8 libertas_wlan_data_rates[WLAN_SUPPORTED_RATES];
-
 extern u8 libertas_supported_rates[G_SUPPORTED_RATES];
 
 extern u8 libertas_adhoc_rates_g[G_SUPPORTED_RATES];
