@@ -316,7 +316,6 @@ static int wlan_dev_close(struct net_device *dev)
 	lbs_deb_enter(LBS_DEB_NET);
 
 	netif_carrier_off(priv->dev);
-	netif_carrier_off(priv->mesh_dev);
 	priv->open = 0;
 
 	lbs_deb_leave(LBS_DEB_NET);
