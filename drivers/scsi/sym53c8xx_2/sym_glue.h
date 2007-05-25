@@ -255,7 +255,7 @@ sym_get_cam_status(struct scsi_cmnd *cmd)
  */
 static __inline void sym_set_cam_result_ok(struct sym_ccb *cp, struct scsi_cmnd *cmd, int resid)
 {
-	cmd->resid = resid;
+	scsi_set_resid(cmd, resid);
 	cmd->result = (((DID_OK) << 16) + ((cp->ssss_status) & 0x7f));
 }
 void sym_set_cam_result_error(struct sym_hcb *np, struct sym_ccb *cp, int resid);
