@@ -11,6 +11,19 @@ config SND_CS4231_LIB
         tristate
         select SND_PCM
 
+config SND_SB_COMMON
+        tristate
+
+config SND_SB8_DSP
+        tristate
+        select SND_PCM
+        select SND_SB_COMMON
+
+config SND_SB16_DSP
+        tristate
+        select SND_PCM
+        select SND_SB_COMMON
+
 config SND_ADLIB
 	tristate "AdLib FM card"
 	depends on SND
@@ -55,7 +68,7 @@ config SND_ALS100
 	select ISAPNP
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
-	select SND_PCM
+	select SND_SB16_DSP
 	help
 	  Say Y here to include support for soundcards based on Avance
 	  Logic ALS100, ALS110, ALS120 and ALS200 chips.
@@ -81,6 +94,7 @@ config SND_CMI8330
 	tristate "C-Media CMI8330"
 	depends on SND
 	select SND_AD1848_LIB
+	select SND_SB16_DSP
 	help
 	  Say Y here to include support for soundcards based on the
 	  C-Media CMI8330 chip.
@@ -132,7 +146,7 @@ config SND_DT019X
 	select ISAPNP
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
-	select SND_PCM
+	select SND_SB16_DSP
 	help
 	  Say Y here to include support for soundcards based on the
 	  Diamond Technologies DT-019X or Avance Logic ALS-007 chips.
@@ -145,7 +159,7 @@ config SND_ES968
 	depends on SND && PNP && ISA
 	select ISAPNP
 	select SND_MPU401_UART
-	select SND_PCM
+	select SND_SB8_DSP
 	help
 	  Say Y here to include support for ESS AudioDrive ES968 chips.
 
@@ -321,7 +335,7 @@ config SND_SB8
 	depends on SND
 	select SND_OPL3_LIB
 	select SND_RAWMIDI
-	select SND_PCM
+	select SND_SB8_DSP
 	help
 	  Say Y here to include support for Creative Sound Blaster 1.0/
 	  2.0/Pro (8-bit) or 100% compatible soundcards.
@@ -334,7 +348,7 @@ config SND_SB16
 	depends on SND
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
-	select SND_PCM
+	select SND_SB16_DSP
 	help
 	  Say Y here to include support for Sound Blaster 16 soundcards
 	  (including the Plug and Play version).
@@ -347,7 +361,7 @@ config SND_SBAWE
 	depends on SND
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
-	select SND_PCM
+	select SND_SB16_DSP
 	help
 	  Say Y here to include support for Sound Blaster AWE soundcards
 	  (including the Plug and Play version).
