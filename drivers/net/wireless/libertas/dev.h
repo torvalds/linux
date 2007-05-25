@@ -396,6 +396,8 @@ struct _wlan_adapter {
 	u32 radiomode;
 	u32 debugmode;
 	u8 fw_ready;
+
+	u8 last_scanned_channel;
 };
 
 #endif				/* _WLAN_DEV_H_ */

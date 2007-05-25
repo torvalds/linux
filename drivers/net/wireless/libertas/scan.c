@@ -613,7 +613,8 @@ static int wlan_scan_channel_list(wlan_private * priv,
 				  u8 filteredscan,
 				  struct wlan_scan_cmd_config * pscancfgout,
 				  struct mrvlietypes_chanlistparamset * pchantlvout,
-				  struct chanscanparamset * pscanchanlist)
+				  struct chanscanparamset * pscanchanlist,
+				  const struct wlan_ioctl_user_scan_cfg * puserscanin)
 {
 	struct chanscanparamset *ptmpchan;
 	struct chanscanparamset *pstartchan;
@@ -621,6 +622,8 @@ static int wlan_scan_channel_list(wlan_private * priv,
 	int doneearly;
 	int tlvidx;
 	int ret = 0;
+	int scanned = 0;
+	union iwreq_data wrqu;
 
 	ENTER();
 
@@ -634,6 +637,9 @@ static int wlan_scan_channel_list(wlan_private * priv,
 
 	/* Set the temp channel struct pointer to the start of the desired list */
 	ptmpchan = pscanchanlist;
+
+	if (priv->adapter->last_scanned_channel && !puserscanin)
+		ptmpchan += priv->adapter->last_scanned_channel;
 
 	/* Loop through the desired channel list, sending a new firmware scan
 	 *   commands for each maxchanperscan channels (or for 1,6,11 individually
@@ -654,7 +660,7 @@ static int wlan_scan_channel_list(wlan_private * priv,
 		 *    - doneearly is set (controlling individual scanning of 1,6,11)
 		 */
 		while (tlvidx < maxchanperscan && ptmpchan->channumber
-		       && !doneearly) {
+		       && !doneearly && scanned < 2) {
 
             lbs_pr_debug(1,
                     "Scan: Chan(%3d), Radio(%d), mode(%d,%d), Dur(%d)\n",
@@ -701,6 +707,7 @@ static int wlan_scan_channel_list(wlan_private * priv,
 
 			/* Increment the tmp pointer to the next channel to be scanned */
 			ptmpchan++;
+			scanned++;
 
 			/* Stop the loop if the *next* channel is in the 1,6,11 set.
 			 *  This will cause it to be the only channel scanned on the next
@@ -716,7 +723,17 @@ static int wlan_scan_channel_list(wlan_private * priv,
 		/* Send the scan command to the firmware with the specified cfg */
 		ret = libertas_prepare_and_send_command(priv, cmd_802_11_scan, 0,
 					    0, 0, pscancfgout);
+		if (scanned >= 2) {
+			priv->adapter->last_scanned_channel = ptmpchan->channumber;
+			return 0;
+		}
+
 	}
+
+	priv->adapter->last_scanned_channel = ptmpchan->channumber;
+
+	memset(&wrqu, 0, sizeof(union iwreq_data));
+	wireless_send_event(priv->wlan_dev.netdev, SIOCGIWSCAN, &wrqu, NULL);
 
 	LEAVE();
 	return ret;
@@ -775,6 +792,9 @@ int wlan_scan_networks(wlan_private * priv,
 		keeppreviousscan = puserscanin->keeppreviousscan;
 	}
 
+	if (adapter->last_scanned_channel)
+		keeppreviousscan = 1;
+
 	if (!keeppreviousscan) {
 		memset(adapter->scantable, 0x00,
 		       sizeof(struct bss_descriptor) * MRVDRV_MAX_BSSID_LIST);
@@ -792,7 +812,8 @@ int wlan_scan_networks(wlan_private * priv,
 				     filteredscan,
 				     scan_cfg,
 				     pchantlvout,
-				     scan_chan_list);
+				     scan_chan_list,
+				     puserscanin);
 
 	/*  Process the resulting scan table:
 	 *    - Remove any bad ssids
@@ -1407,15 +1428,10 @@ int libertas_set_scan(struct net_device *dev, struct iw_request_info *info,
 {
 	wlan_private *priv = dev->priv;
 	wlan_adapter *adapter = priv->adapter;
-	union iwreq_data wrqu;
 
 	ENTER();
 
-	if (!wlan_scan_networks(priv, NULL)) {
-		memset(&wrqu, 0, sizeof(union iwreq_data));
-		wireless_send_event(priv->wlan_dev.netdev, SIOCGIWSCAN, &wrqu,
-				    NULL);
-	}
+	wlan_scan_networks(priv, NULL);
 
 	if (adapter->surpriseremoved)
 		return -1;
