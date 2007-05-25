@@ -1,3 +1,8 @@
+#ifndef _LIBERTAS_IF_USB_H
+#define _LIBERTAS_IF_USB_H
+
+#include <linux/list.h>
+
 /**
   * This file contains definition for USB interface.
   */
@@ -39,6 +44,7 @@ struct read_cb_info {
 
 /** USB card description structure*/
 struct usb_card_rec {
+	struct list_head list;
 	struct net_device *eth_dev;
 	struct usb_device *udev;
 	struct urb *rx_urb, *tx_urb;
@@ -100,3 +106,4 @@ int usb_tx_block(wlan_private *priv, u8 *payload, u16 nb);
 void if_usb_free(struct usb_card_rec *cardp);
 int if_usb_issue_boot_command(wlan_private *priv, int ivalue);
 
+#endif

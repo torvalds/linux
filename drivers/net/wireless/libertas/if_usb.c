@@ -5,6 +5,7 @@
 #include <linux/moduleparam.h>
 #include <linux/firmware.h>
 #include <linux/netdevice.h>
+#include <linux/list.h>
 #include <linux/usb.h>
 
 #include "host.h"
@@ -21,10 +22,14 @@ static u8 *default_fw_name = "usb8388.bin";
 char *libertas_fw_name = NULL;
 module_param_named(fw_name, libertas_fw_name, charp, 0644);
 
-
-#define MAX_DEVS 5
-static struct net_device *libertas_devs[MAX_DEVS];
-static int libertas_found = 0;
+/*
+ * We need to send a RESET command to all USB devices before
+ * we tear down the USB connection. Otherwise we would not
+ * be able to re-init device the device if the module gets
+ * loaded again. This is a list of all initialized USB devices,
+ * for the reset code see if_usb_reset_device()
+*/
+static LIST_HEAD(usb_devices);
 
 static struct usb_device_id if_usb_table[] = {
 	/* Enter the device signature inside */
@@ -37,7 +42,7 @@ MODULE_DEVICE_TABLE(usb, if_usb_table);
 
 static void if_usb_receive(struct urb *urb);
 static void if_usb_receive_fwload(struct urb *urb);
-static int reset_device(wlan_private *priv);
+static int if_usb_reset_device(wlan_private *priv);
 static int if_usb_register_dev(wlan_private * priv);
 static int if_usb_unregister_dev(wlan_private *);
 static int if_usb_prog_firmware(wlan_private *);
@@ -118,18 +123,18 @@ static int if_usb_probe(struct usb_interface *intf,
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
 	wlan_private *priv;
-	struct usb_card_rec *usb_cardp;
+	struct usb_card_rec *cardp;
 	int i;
 
 	udev = interface_to_usbdev(intf);
 
-	usb_cardp = kzalloc(sizeof(struct usb_card_rec), GFP_KERNEL);
-	if (!usb_cardp) {
+	cardp = kzalloc(sizeof(struct usb_card_rec), GFP_KERNEL);
+	if (!cardp) {
 		lbs_pr_err("Out of memory allocating private data.\n");
 		goto error;
 	}
 
-	usb_cardp->udev = udev;
+	cardp->udev = udev;
 	iface_desc = intf->cur_altsetting;
 
 	lbs_deb_usbd(&udev->dev, "bcdUSB = 0x%X bDeviceClass = 0x%X"
@@ -148,17 +153,17 @@ static int if_usb_probe(struct usb_interface *intf,
 			lbs_deb_usbd(&udev->dev, "Bulk in size is %d\n",
 			       endpoint->wMaxPacketSize);
 			if (!
-			    (usb_cardp->rx_urb =
+			    (cardp->rx_urb =
 			     usb_alloc_urb(0, GFP_KERNEL))) {
 				lbs_deb_usbd(&udev->dev,
 				       "Rx URB allocation failed\n");
 				goto dealloc;
 			}
-			usb_cardp->rx_urb_recall = 0;
+			cardp->rx_urb_recall = 0;
 
-			usb_cardp->bulk_in_size =
+			cardp->bulk_in_size =
 			    endpoint->wMaxPacketSize;
-			usb_cardp->bulk_in_endpointAddr =
+			cardp->bulk_in_endpointAddr =
 			    (endpoint->
 			     bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
 			lbs_deb_usbd(&udev->dev, "in_endpoint = %d\n",
@@ -172,27 +177,27 @@ static int if_usb_probe(struct usb_interface *intf,
 			USB_ENDPOINT_XFER_BULK)) {
 			/* We found bulk out endpoint */
 			if (!
-			    (usb_cardp->tx_urb =
+			    (cardp->tx_urb =
 			     usb_alloc_urb(0, GFP_KERNEL))) {
 				lbs_deb_usbd(&udev->dev,
 				       "Tx URB allocation failed\n");
 				goto dealloc;
 			}
 
-			usb_cardp->bulk_out_size =
+			cardp->bulk_out_size =
 			    endpoint->wMaxPacketSize;
 			lbs_deb_usbd(&udev->dev,
 				    "Bulk out size is %d\n",
 				    endpoint->wMaxPacketSize);
-			usb_cardp->bulk_out_endpointAddr =
+			cardp->bulk_out_endpointAddr =
 			    endpoint->bEndpointAddress;
 			lbs_deb_usbd(&udev->dev, "out_endpoint = %d\n",
 				    endpoint->bEndpointAddress);
-			usb_cardp->bulk_out_buffer =
+			cardp->bulk_out_buffer =
 			    kmalloc(MRVDRV_ETH_TX_PACKET_BUFFER_SIZE,
 				    GFP_KERNEL);
 
-			if (!usb_cardp->bulk_out_buffer) {
+			if (!cardp->bulk_out_buffer) {
 				lbs_deb_usbd(&udev->dev,
 				       "Could not allocate buffer\n");
 				goto dealloc;
@@ -205,7 +210,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	 * about keeping pwlanpriv around since it will be set on our
 	 * usb device data in -> add() -> hw_register_dev() -> if_usb_register_dev.
 	 */
-	if (!(priv = libertas_add_card(usb_cardp)))
+	if (!(priv = libertas_add_card(cardp)))
 		goto dealloc;
 
 	if (libertas_add_mesh(priv))
@@ -221,19 +226,11 @@ static int if_usb_probe(struct usb_interface *intf,
 	if (libertas_activate_card(priv, libertas_fw_name))
 		goto err_activate_card;
 
-	if (libertas_found < MAX_DEVS) {
-		libertas_devs[libertas_found] = priv->wlan_dev.netdev;
-		libertas_found++;
-	}
+	list_add_tail(&cardp->list, &usb_devices);
 
 	usb_get_dev(udev);
-	usb_set_intfdata(intf, usb_cardp);
+	usb_set_intfdata(intf, cardp);
 
-	/*
-	 * return card structure, which can be got back in the
-	 * diconnect function as the ptr
-	 * argument.
-	 */
 	return 0;
 
 err_activate_card:
@@ -243,7 +240,7 @@ err_add_mesh:
 	free_netdev(priv->wlan_dev.netdev);
 	kfree(priv->adapter);
 dealloc:
-	if_usb_free(usb_cardp);
+	if_usb_free(cardp);
 
 error:
 	return -ENOMEM;
@@ -251,8 +248,7 @@ error:
 
 /**
  *  @brief free resource and cleanup
- *  @param udev		pointer to usb_device
- *  @param ptr		pointer to usb_cardp
+ *  @param intf		USB interface structure
  *  @return 	   	N/A
  */
 static void if_usb_disconnect(struct usb_interface *intf)
@@ -260,7 +256,6 @@ static void if_usb_disconnect(struct usb_interface *intf)
 	struct usb_card_rec *cardp = usb_get_intfdata(intf);
 	wlan_private *priv = (wlan_private *) cardp->priv;
 	wlan_adapter *adapter = NULL;
-	int i;
 
 	adapter = priv->adapter;
 
@@ -269,13 +264,7 @@ static void if_usb_disconnect(struct usb_interface *intf)
 	 */
 	adapter->surpriseremoved = 1;
 
-	for (i = 0; i<libertas_found; i++) {
-		if (libertas_devs[i]==priv->wlan_dev.netdev) {
-			libertas_devs[i] = libertas_devs[--libertas_found];
-			libertas_devs[libertas_found] = NULL ;
-			break;
-		}
-	}
+	list_del(&cardp->list);
 
 	/* card is removed and we can call wlan_remove_card */
 	lbs_deb_usbd(&cardp->udev->dev, "call remove card\n");
@@ -384,7 +373,7 @@ static int libertas_do_reset(wlan_private *priv)
 	ret = usb_reset_device(cardp->udev);
 	if (!ret) {
 		msleep(10);
-		reset_device(priv);
+		if_usb_reset_device(priv);
 		msleep(10);
 	}
 
@@ -772,7 +761,7 @@ static int if_usb_read_event_cause(wlan_private * priv)
 	return 0;
 }
 
-static int reset_device(wlan_private *priv)
+static int if_usb_reset_device(wlan_private *priv)
 {
 	int ret;
 
@@ -794,7 +783,7 @@ static int if_usb_unregister_dev(wlan_private * priv)
 	 * again.
 	 */
 	if (priv)
-		reset_device(priv);
+		if_usb_reset_device(priv);
 
 	return ret;
 }
@@ -988,13 +977,14 @@ static int if_usb_init_module(void)
 
 static void if_usb_exit_module(void)
 {
-	int i;
+	struct list_head *ptr;
+	struct usb_card_rec *cardp;
 
 	lbs_deb_enter(LBS_DEB_MAIN);
 
-	for (i = 0; i<libertas_found; i++) {
-		wlan_private *priv = libertas_devs[i]->priv;
-		reset_device(priv);
+	list_for_each(ptr, &usb_devices) {
+		cardp = list_entry(ptr, struct usb_card_rec, list);
+		if_usb_reset_device((wlan_private *) cardp->priv);
 	}
 
 	/* API unregisters the driver from USB subsystem */
