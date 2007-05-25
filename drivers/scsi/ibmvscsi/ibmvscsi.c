@@ -350,20 +350,19 @@ static void unmap_cmd_data(struct srp_cmd *cmd,
 	}
 }
 
-static int map_sg_list(int num_entries, 
-		       struct scatterlist *sg,
+static int map_sg_list(struct scsi_cmnd *cmd, int nseg,
 		       struct srp_direct_buf *md)
 {
 	int i;
+	struct scatterlist *sg;
 	u64 total_length = 0;
 
-	for (i = 0; i < num_entries; ++i) {
+	scsi_for_each_sg(cmd, sg, nseg, i) {
 		struct srp_direct_buf *descr = md + i;
-		struct scatterlist *sg_entry = &sg[i];
-		descr->va = sg_dma_address(sg_entry);
-		descr->len = sg_dma_len(sg_entry);
+		descr->va = sg_dma_address(sg);
+		descr->len = sg_dma_len(sg);
 		descr->key = 0;
-		total_length += sg_dma_len(sg_entry);
+		total_length += sg_dma_len(sg);
  	}
 	return total_length;
 }
@@ -384,24 +383,28 @@ static int map_sg_data(struct scsi_cmnd *cmd,
 
 	int sg_mapped;
 	u64 total_length = 0;
-	struct scatterlist *sg = cmd->request_buffer;
 	struct srp_direct_buf *data =
 		(struct srp_direct_buf *) srp_cmd->add_data;
 	struct srp_indirect_buf *indirect =
 		(struct srp_indirect_buf *) data;
 
-	sg_mapped = dma_map_sg(dev, sg, cmd->use_sg, DMA_BIDIRECTIONAL);
-
-	if (sg_mapped == 0)
+	sg_mapped = scsi_dma_map(cmd);
+	if (!sg_mapped)
+		return 1;
+	else if (sg_mapped < 0)
 		return 0;
+	else if (sg_mapped > SG_ALL) {
+		printk(KERN_ERR
+		       "ibmvscsi: More than %d mapped sg entries, got %d\n",
+		       SG_ALL, sg_mapped);
+		return 0;
+	}
 
 	set_srp_direction(cmd, srp_cmd, sg_mapped);
 
 	/* special case; we can use a single direct descriptor */
 	if (sg_mapped == 1) {
-		data->va = sg_dma_address(&sg[0]);
-		data->len = sg_dma_len(&sg[0]);
-		data->key = 0;
+		map_sg_list(cmd, sg_mapped, data);
 		return 1;
 	}
 
@@ -410,7 +413,7 @@ static int map_sg_data(struct scsi_cmnd *cmd,
 	indirect->table_desc.key = 0;
 
 	if (sg_mapped <= MAX_INDIRECT_BUFS) {
-		total_length = map_sg_list(sg_mapped, sg,
+		total_length = map_sg_list(cmd, sg_mapped,
 					   &indirect->desc_list[0]);
 		indirect->len = total_length;
 		return 1;
@@ -419,7 +422,7 @@ static int map_sg_data(struct scsi_cmnd *cmd,
 	/* get indirect table */
 	if (!evt_struct->ext_list) {
 		evt_struct->ext_list = (struct srp_direct_buf *)
-			dma_alloc_coherent(dev, 
+			dma_alloc_coherent(dev,
 					   SG_ALL * sizeof(struct srp_direct_buf),
 					   &evt_struct->ext_list_token, 0);
 		if (!evt_struct->ext_list) {
@@ -429,47 +432,14 @@ static int map_sg_data(struct scsi_cmnd *cmd,
 		}
 	}
 
-	total_length = map_sg_list(sg_mapped, sg, evt_struct->ext_list);	
+	total_length = map_sg_list(cmd, sg_mapped, evt_struct->ext_list);
 
 	indirect->len = total_length;
 	indirect->table_desc.va = evt_struct->ext_list_token;
 	indirect->table_desc.len = sg_mapped * sizeof(indirect->desc_list[0]);
 	memcpy(indirect->desc_list, evt_struct->ext_list,
 	       MAX_INDIRECT_BUFS * sizeof(struct srp_direct_buf));
-	
  	return 1;
-}
-
-/**
- * map_single_data: - Maps memory and initializes memory decriptor fields
- * @cmd:	struct scsi_cmnd with the memory to be mapped
- * @srp_cmd:	srp_cmd that contains the memory descriptor
- * @dev:	device for which to map dma memory
- *
- * Called by map_data_for_srp_cmd() when building srp cmd from scsi cmd.
- * Returns 1 on success.
-*/
-static int map_single_data(struct scsi_cmnd *cmd,
-			   struct srp_cmd *srp_cmd, struct device *dev)
-{
-	struct srp_direct_buf *data =
-		(struct srp_direct_buf *) srp_cmd->add_data;
-
-	data->va =
-		dma_map_single(dev, cmd->request_buffer,
-			       cmd->request_bufflen,
-			       DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(data->va)) {
-		sdev_printk(KERN_ERR, cmd->device,
-			    "Unable to map request_buffer for command!\n");
-		return 0;
-	}
-	data->len = cmd->request_bufflen;
-	data->key = 0;
-
-	set_srp_direction(cmd, srp_cmd, 1);
-
-	return 1;
 }
 
 /**
@@ -502,11 +472,7 @@ static int map_data_for_srp_cmd(struct scsi_cmnd *cmd,
 		return 0;
 	}
 
-	if (!cmd->request_buffer)
-		return 1;
-	if (cmd->use_sg)
-		return map_sg_data(cmd, evt_struct, srp_cmd, dev);
-	return map_single_data(cmd, srp_cmd, dev);
+	return map_sg_data(cmd, evt_struct, srp_cmd, dev);
 }
 
 /**
@@ -712,9 +678,9 @@ static void handle_cmd_rsp(struct srp_event_struct *evt_struct)
 			       evt_struct->hostdata->dev);
 
 		if (rsp->flags & SRP_RSP_FLAG_DOOVER)
-			cmnd->resid = rsp->data_out_res_cnt;
+			scsi_set_resid(cmnd, rsp->data_out_res_cnt);
 		else if (rsp->flags & SRP_RSP_FLAG_DIOVER)
-			cmnd->resid = rsp->data_in_res_cnt;
+			scsi_set_resid(cmnd, rsp->data_in_res_cnt);
 	}
 
 	if (evt_struct->cmnd_done)
