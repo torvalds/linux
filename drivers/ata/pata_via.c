@@ -621,10 +621,11 @@ static int via_reinit_one(struct pci_dev *pdev)
 #endif
 
 static const struct pci_device_id via[] = {
-	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_82C576_1), },
-	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_82C586_1), },
-	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_6410), },
-	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_SATA_EIDE), },
+	{ PCI_VDEVICE(VIA, 0x0571), },
+	{ PCI_VDEVICE(VIA, 0x0581), },
+	{ PCI_VDEVICE(VIA, 0x1571), },
+	{ PCI_VDEVICE(VIA, 0x3164), },
+	{ PCI_VDEVICE(VIA, 0x5324), },
 
 	{ },
 };

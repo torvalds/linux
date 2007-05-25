@@ -85,6 +85,9 @@ static const struct pci_device_id svia_pci_tbl[] = {
 	{ PCI_VDEVICE(VIA, 0x0591), vt6420 },
 	{ PCI_VDEVICE(VIA, 0x3149), vt6420 },
 	{ PCI_VDEVICE(VIA, 0x3249), vt6421 },
+	{ PCI_VDEVICE(VIA, 0x5287), vt6420 },
+	{ PCI_VDEVICE(VIA, 0x5372), vt6420 },
+	{ PCI_VDEVICE(VIA, 0x7372), vt6420 },
 
 	{ }	/* terminate list */
 };
