@@ -6,8 +6,8 @@
  * Copyright (C) 2006  Ralf Baechle <ralf@linux-mips.org>
  *
  */
-#ifndef __ASM_MACH_IP35_DMA_COHERENCE_H
-#define __ASM_MACH_IP35_DMA_COHERENCE_H
+#ifndef __ASM_MACH_IP32_DMA_COHERENCE_H
+#define __ASM_MACH_IP32_DMA_COHERENCE_H
 
 #include <asm/ip32/crime.h>
 
@@ -69,4 +69,4 @@ static inline int plat_device_is_coherent(struct device *dev)
 	return 0;		/* IP32 is non-cohernet */
 }
 
-#endif /* __ASM_MACH_IP35_DMA_COHERENCE_H */
+#endif /* __ASM_MACH_IP32_DMA_COHERENCE_H */
