@@ -455,10 +455,7 @@ static void srp_unmap_data(struct scsi_cmnd *scmnd,
 			   struct srp_target_port *target,
 			   struct srp_request *req)
 {
-	struct scatterlist *scat;
-	int nents;
-
-	if (!scmnd->request_buffer ||
+	if (!scsi_sglist(scmnd) ||
 	    (scmnd->sc_data_direction != DMA_TO_DEVICE &&
 	     scmnd->sc_data_direction != DMA_FROM_DEVICE))
 		return;
@@ -468,20 +465,8 @@ static void srp_unmap_data(struct scsi_cmnd *scmnd,
 		req->fmr = NULL;
 	}
 
-	/*
-	 * This handling of non-SG commands can be killed when the
-	 * SCSI midlayer no longer generates non-SG commands.
-	 */
-	if (likely(scmnd->use_sg)) {
-		nents = scmnd->use_sg;
-		scat  = scmnd->request_buffer;
-	} else {
-		nents = 1;
-		scat  = &req->fake_sg;
-	}
-
-	ib_dma_unmap_sg(target->srp_host->dev->dev, scat, nents,
-			scmnd->sc_data_direction);
+	ib_dma_unmap_sg(target->srp_host->dev->dev, scsi_sglist(scmnd),
+			scsi_sg_count(scmnd), scmnd->sc_data_direction);
 }
 
 static void srp_remove_req(struct srp_target_port *target, struct srp_request *req)
@@ -595,6 +580,7 @@ static int srp_map_fmr(struct srp_target_port *target, struct scatterlist *scat,
 	int ret;
 	struct srp_device *dev = target->srp_host->dev;
 	struct ib_device *ibdev = dev->dev;
+	struct scatterlist *sg;
 
 	if (!dev->fmr_pool)
 		return -ENODEV;
@@ -604,16 +590,16 @@ static int srp_map_fmr(struct srp_target_port *target, struct scatterlist *scat,
 		return -EINVAL;
 
 	len = page_cnt = 0;
-	for (i = 0; i < sg_cnt; ++i) {
-		unsigned int dma_len = ib_sg_dma_len(ibdev, &scat[i]);
+	scsi_for_each_sg(req->scmnd, sg, sg_cnt, i) {
+		unsigned int dma_len = ib_sg_dma_len(ibdev, sg);
 
-		if (ib_sg_dma_address(ibdev, &scat[i]) & ~dev->fmr_page_mask) {
+		if (ib_sg_dma_address(ibdev, sg) & ~dev->fmr_page_mask) {
 			if (i > 0)
 				return -EINVAL;
 			else
 				++page_cnt;
 		}
-		if ((ib_sg_dma_address(ibdev, &scat[i]) + dma_len) &
+		if ((ib_sg_dma_address(ibdev, sg) + dma_len) &
 		    ~dev->fmr_page_mask) {
 			if (i < sg_cnt - 1)
 				return -EINVAL;
@@ -633,12 +619,12 @@ static int srp_map_fmr(struct srp_target_port *target, struct scatterlist *scat,
 		return -ENOMEM;
 
 	page_cnt = 0;
-	for (i = 0; i < sg_cnt; ++i) {
-		unsigned int dma_len = ib_sg_dma_len(ibdev, &scat[i]);
+	scsi_for_each_sg(req->scmnd, sg, sg_cnt, i) {
+		unsigned int dma_len = ib_sg_dma_len(ibdev, sg);
 
 		for (j = 0; j < dma_len; j += dev->fmr_page_size)
 			dma_pages[page_cnt++] =
-				(ib_sg_dma_address(ibdev, &scat[i]) &
+				(ib_sg_dma_address(ibdev, sg) &
 				 dev->fmr_page_mask) + j;
 	}
 
@@ -673,7 +659,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_target_port *target,
 	struct srp_device *dev;
 	struct ib_device *ibdev;
 
-	if (!scmnd->request_buffer || scmnd->sc_data_direction == DMA_NONE)
+	if (!scsi_sglist(scmnd) || scmnd->sc_data_direction == DMA_NONE)
 		return sizeof (struct srp_cmd);
 
 	if (scmnd->sc_data_direction != DMA_FROM_DEVICE &&
@@ -683,18 +669,8 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_target_port *target,
 		return -EINVAL;
 	}
 
-	/*
-	 * This handling of non-SG commands can be killed when the
-	 * SCSI midlayer no longer generates non-SG commands.
-	 */
-	if (likely(scmnd->use_sg)) {
-		nents = scmnd->use_sg;
-		scat  = scmnd->request_buffer;
-	} else {
-		nents = 1;
-		scat  = &req->fake_sg;
-		sg_init_one(scat, scmnd->request_buffer, scmnd->request_bufflen);
-	}
+	nents = scsi_sg_count(scmnd);
+	scat  = scsi_sglist(scmnd);
 
 	dev = target->srp_host->dev;
 	ibdev = dev->dev;
@@ -724,6 +700,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_target_port *target,
 		 * descriptor.
 		 */
 		struct srp_indirect_buf *buf = (void *) cmd->add_data;
+		struct scatterlist *sg;
 		u32 datalen = 0;
 		int i;
 
@@ -732,11 +709,11 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_target_port *target,
 			sizeof (struct srp_indirect_buf) +
 			count * sizeof (struct srp_direct_buf);
 
-		for (i = 0; i < count; ++i) {
-			unsigned int dma_len = ib_sg_dma_len(ibdev, &scat[i]);
+		scsi_for_each_sg(scmnd, sg, count, i) {
+			unsigned int dma_len = ib_sg_dma_len(ibdev, sg);
 
 			buf->desc_list[i].va  =
-				cpu_to_be64(ib_sg_dma_address(ibdev, &scat[i]));
+				cpu_to_be64(ib_sg_dma_address(ibdev, sg));
 			buf->desc_list[i].key =
 				cpu_to_be32(dev->mr->rkey);
 			buf->desc_list[i].len = cpu_to_be32(dma_len);
@@ -802,9 +779,9 @@ static void srp_process_rsp(struct srp_target_port *target, struct srp_rsp *rsp)
 		}
 
 		if (rsp->flags & (SRP_RSP_FLAG_DOOVER | SRP_RSP_FLAG_DOUNDER))
-			scmnd->resid = be32_to_cpu(rsp->data_out_res_cnt);
+			scsi_set_resid(scmnd, be32_to_cpu(rsp->data_out_res_cnt));
 		else if (rsp->flags & (SRP_RSP_FLAG_DIOVER | SRP_RSP_FLAG_DIUNDER))
-			scmnd->resid = be32_to_cpu(rsp->data_in_res_cnt);
+			scsi_set_resid(scmnd, be32_to_cpu(rsp->data_in_res_cnt));
 
 		if (!req->tsk_mgmt) {
 			scmnd->host_scribble = (void *) -1L;
