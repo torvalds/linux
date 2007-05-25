@@ -970,15 +970,12 @@ static int if_usb_init_module(void)
 
 static void if_usb_exit_module(void)
 {
-	struct list_head *ptr;
-	struct usb_card_rec *cardp;
+	struct usb_card_rec *cardp, *cardp_temp;
 
 	lbs_deb_enter(LBS_DEB_MAIN);
 
-	list_for_each(ptr, &usb_devices) {
-		cardp = list_entry(ptr, struct usb_card_rec, list);
+	list_for_each_entry_safe(cardp, cardp_temp, &usb_devices, list)
 		if_usb_reset_device((wlan_private *) cardp->priv);
-	}
 
 	/* API unregisters the driver from USB subsystem */
 	usb_deregister(&if_usb_driver);
