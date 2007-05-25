@@ -199,7 +199,8 @@ extern int libertas_ret_80211_scan(wlan_private * priv,
 				struct cmd_ds_command *resp);
 
 int wlan_scan_networks(wlan_private * priv,
-                const struct wlan_ioctl_user_scan_cfg * puserscanin);
+                const struct wlan_ioctl_user_scan_cfg * puserscanin,
+                int full_scan);
 
 struct ifreq;
 

@@ -387,7 +387,7 @@ static ssize_t libertas_setuserscan(struct file *file,
 	libertas_parse_probes(buf, count, scan_cfg);
 	libertas_parse_type(buf, count, scan_cfg);
 
-	wlan_scan_networks(priv, scan_cfg);
+	wlan_scan_networks(priv, scan_cfg, 1);
 	wait_event_interruptible(priv->adapter->cmd_pending,
 				 !priv->adapter->nr_cmd_pending);
 

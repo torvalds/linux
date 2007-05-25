@@ -614,7 +614,8 @@ static int wlan_scan_channel_list(wlan_private * priv,
 				  struct wlan_scan_cmd_config * pscancfgout,
 				  struct mrvlietypes_chanlistparamset * pchantlvout,
 				  struct chanscanparamset * pscanchanlist,
-				  const struct wlan_ioctl_user_scan_cfg * puserscanin)
+				  const struct wlan_ioctl_user_scan_cfg * puserscanin,
+				  int full_scan)
 {
 	struct chanscanparamset *ptmpchan;
 	struct chanscanparamset *pstartchan;
@@ -723,11 +724,11 @@ static int wlan_scan_channel_list(wlan_private * priv,
 		/* Send the scan command to the firmware with the specified cfg */
 		ret = libertas_prepare_and_send_command(priv, cmd_802_11_scan, 0,
 					    0, 0, pscancfgout);
-		if (scanned >= 2) {
+		if (scanned >= 2 && !full_scan) {
 			priv->adapter->last_scanned_channel = ptmpchan->channumber;
 			return 0;
 		}
-
+		scanned = 0;
 	}
 
 	priv->adapter->last_scanned_channel = ptmpchan->channumber;
@@ -753,7 +754,8 @@ static int wlan_scan_channel_list(wlan_private * priv,
  *  @return              0 or < 0 if error
  */
 int wlan_scan_networks(wlan_private * priv,
-			      const struct wlan_ioctl_user_scan_cfg * puserscanin)
+			      const struct wlan_ioctl_user_scan_cfg * puserscanin,
+			      int full_scan)
 {
 	wlan_adapter *adapter = priv->adapter;
 	struct mrvlietypes_chanlistparamset *pchantlvout;
@@ -813,7 +815,8 @@ int wlan_scan_networks(wlan_private * priv,
 				     scan_cfg,
 				     pchantlvout,
 				     scan_chan_list,
-				     puserscanin);
+				     puserscanin,
+				     full_scan);
 
 	/*  Process the resulting scan table:
 	 *    - Remove any bad ssids
@@ -1388,7 +1391,7 @@ int libertas_find_best_network_SSID(wlan_private * priv,
 
 	memset(pSSID, 0, sizeof(struct WLAN_802_11_SSID));
 
-	wlan_scan_networks(priv, NULL);
+	wlan_scan_networks(priv, NULL, 1);
 	if (adapter->surpriseremoved)
 		return -1;
 	wait_event_interruptible(adapter->cmd_pending, !adapter->nr_cmd_pending);
@@ -1431,7 +1434,7 @@ int libertas_set_scan(struct net_device *dev, struct iw_request_info *info,
 
 	ENTER();
 
-	wlan_scan_networks(priv, NULL);
+	wlan_scan_networks(priv, NULL, 0);
 
 	if (adapter->surpriseremoved)
 		return -1;
@@ -1468,7 +1471,7 @@ int libertas_send_specific_SSID_scan(wlan_private * priv,
 	       prequestedssid->ssidlength);
 	scancfg.keeppreviousscan = keeppreviousscan;
 
-	wlan_scan_networks(priv, &scancfg);
+	wlan_scan_networks(priv, &scancfg, 1);
 	if (adapter->surpriseremoved)
 		return -1;
 	wait_event_interruptible(adapter->cmd_pending, !adapter->nr_cmd_pending);
@@ -1500,7 +1503,7 @@ int libertas_send_specific_BSSID_scan(wlan_private * priv, u8 * bssid, u8 keeppr
 	memcpy(scancfg.specificBSSID, bssid, sizeof(scancfg.specificBSSID));
 	scancfg.keeppreviousscan = keeppreviousscan;
 
-	wlan_scan_networks(priv, &scancfg);
+	wlan_scan_networks(priv, &scancfg, 1);
 	if (priv->adapter->surpriseremoved)
 		return -1;
 	wait_event_interruptible(priv->adapter->cmd_pending,
@@ -1549,8 +1552,13 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 	 * if there's either commands in the queue or one being
 	 * processed return -EAGAIN for iwlist to retry later.
 	 */
-    if (adapter->nr_cmd_pending)
+	if (adapter->nr_cmd_pending)
 		return -EAGAIN;
+
+	if (adapter->last_scanned_channel) {
+		wlan_scan_networks(priv, NULL, 0);
+		return -EAGAIN;
+	}
 
 	if (adapter->connect_status == libertas_connected)
 		lbs_pr_debug(1, "Current ssid: %32s\n",
