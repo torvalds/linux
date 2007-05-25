@@ -19,12 +19,8 @@ static const char usbdriver_name[] = "usb8xxx";
 
 static struct usb_device_id if_usb_table[] = {
 	/* Enter the device signature inside */
-	{
-		USB_DEVICE(USB8388_VID_1, USB8388_PID_1),
-	},
-	{
-		USB_DEVICE(USB8388_VID_2, USB8388_PID_2),
-	},
+	{ USB_DEVICE(0x1286, 0x2001) },
+	{ USB_DEVICE(0x05a3, 0x8388) },
 	{}	/* Terminating entry */
 };
 
