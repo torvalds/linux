@@ -8,7 +8,6 @@
 #include "defs.h"
 #include "decl.h"
 #include "dev.h"
-#include "fw.h"
 #include "wext.h"
 #include "if_usb.h"
 

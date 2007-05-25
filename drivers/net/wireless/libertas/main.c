@@ -17,7 +17,6 @@
 #include "host.h"
 #include "decl.h"
 #include "dev.h"
-#include "fw.h"
 #include "wext.h"
 #include "debugfs.h"
 #include "assoc.h"
