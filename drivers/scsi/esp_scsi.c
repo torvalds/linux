@@ -324,17 +324,14 @@ static void esp_reset_esp(struct esp *esp)
 static void esp_map_dma(struct esp *esp, struct scsi_cmnd *cmd)
 {
 	struct esp_cmd_priv *spriv = ESP_CMD_PRIV(cmd);
-	struct scatterlist *sg = cmd->request_buffer;
+	struct scatterlist *sg = scsi_sglist(cmd);
 	int dir = cmd->sc_data_direction;
 	int total, i;
 
 	if (dir == DMA_NONE)
 		return;
 
-	BUG_ON(cmd->use_sg == 0);
-
-	spriv->u.num_sg = esp->ops->map_sg(esp, sg,
-					   cmd->use_sg, dir);
+	spriv->u.num_sg = esp->ops->map_sg(esp, sg, scsi_sg_count(cmd), dir);
 	spriv->cur_residue = sg_dma_len(sg);
 	spriv->cur_sg = sg;
 
@@ -407,8 +404,7 @@ static void esp_unmap_dma(struct esp *esp, struct scsi_cmnd *cmd)
 	if (dir == DMA_NONE)
 		return;
 
-	esp->ops->unmap_sg(esp, cmd->request_buffer,
-			   spriv->u.num_sg, dir);
+	esp->ops->unmap_sg(esp, scsi_sglist(cmd), spriv->u.num_sg, dir);
 }
 
 static void esp_save_pointers(struct esp *esp, struct esp_cmd_entry *ent)
