@@ -20,8 +20,8 @@
 char *libertas_fw_name = NULL;
 module_param_named(fw_name, libertas_fw_name, charp, 0644);
 
-unsigned int libertas_debug = 0;
-module_param(libertas_debug, int, 0);
+unsigned int libertas_debug_flags = 0;
+module_param_named(debug, libertas_debug_flags, int, 0);
 
 /**
  *  @brief This function checks the validity of Boot2/FW image.
@@ -61,9 +61,9 @@ static int check_fwfile_format(u8 *data, u32 totlen)
 	} while (!exit);
 
 	if (ret)
-		lbs_pr_err("bin file format check FAIL...\n");
+		lbs_pr_err("firmware file format check FAIL\n");
 	else
-		lbs_pr_debug(1, "bin file format check PASS...\n");
+		lbs_deb_fw("firmware file format check PASS\n");
 
 	return ret;
 }
@@ -81,13 +81,13 @@ static int wlan_setup_station_hw(wlan_private * priv)
 	int ret = -1;
 	wlan_adapter *adapter = priv->adapter;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_FW);
 
 	if ((ret = request_firmware(&priv->firmware, libertas_fw_name,
 				    priv->hotplug_device)) < 0) {
-		lbs_pr_err("request_firmware() failed, error code = %#x\n",
+		lbs_pr_err("request_firmware() failed with %#x\n",
 		       ret);
-		lbs_pr_err("%s not found in /lib/firmware\n", libertas_fw_name);
+		lbs_pr_err("firmware %s not found\n", libertas_fw_name);
 		goto done;
 	}
 
@@ -101,7 +101,7 @@ static int wlan_setup_station_hw(wlan_private * priv)
 	release_firmware(priv->firmware);
 
 	if (ret) {
-		lbs_pr_debug(1, "Bootloader in invalid state!\n");
+		lbs_deb_fw("bootloader in invalid state\n");
 		ret = -1;
 		goto done;
 	}
@@ -133,9 +133,8 @@ static int wlan_setup_station_hw(wlan_private * priv)
 
 	ret = 0;
 done:
-	LEAVE();
-
-	return (ret);
+	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);
+	return ret;
 }
 
 static int wlan_allocate_adapter(wlan_private * priv)
@@ -264,7 +263,7 @@ int libertas_init_fw(wlan_private * priv)
 	int ret = -1;
 	wlan_adapter *adapter = priv->adapter;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_FW);
 
 	/* Allocate adapter structure */
 	if ((ret = wlan_allocate_adapter(priv)) != 0)
@@ -288,7 +287,7 @@ int libertas_init_fw(wlan_private * priv)
 
 	ret = 0;
 done:
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);
 	return ret;
 }
 
@@ -297,25 +296,24 @@ void libertas_free_adapter(wlan_private * priv)
 	wlan_adapter *adapter = priv->adapter;
 
 	if (!adapter) {
-		lbs_pr_debug(1, "Why double free adapter?:)\n");
+		lbs_deb_fw("why double free adapter?\n");
 		return;
 	}
 
-	lbs_pr_debug(1, "Free command buffer\n");
+	lbs_deb_fw("free command buffer\n");
 	libertas_free_cmd_buffer(priv);
 
-	lbs_pr_debug(1, "Free commandTimer\n");
+	lbs_deb_fw("free command_timer\n");
 	del_timer(&adapter->command_timer);
 
-	lbs_pr_debug(1, "Free scantable\n");
+	lbs_deb_fw("free scantable\n");
 	if (adapter->scantable) {
 		kfree(adapter->scantable);
 		adapter->scantable = NULL;
 	}
 
-	lbs_pr_debug(1, "Free adapter\n");
-
 	/* Free the adapter object itself */
+	lbs_deb_fw("free adapter\n");
 	kfree(adapter);
 	priv->adapter = NULL;
 }
@@ -334,17 +332,17 @@ static void command_timer_fn(unsigned long data)
 
 	ptempnode = adapter->cur_cmd;
 	if (ptempnode == NULL) {
-		lbs_pr_debug(1, "PTempnode Empty\n");
+		lbs_deb_fw("ptempnode empty\n");
 		return;
 	}
 
 	cmd = (struct cmd_ds_command *)ptempnode->bufvirtualaddr;
 	if (!cmd) {
-		lbs_pr_debug(1, "cmd is NULL\n");
+		lbs_deb_fw("cmd is NULL\n");
 		return;
 	}
 
-	lbs_pr_info("command_timer_fn fired (%x)\n", cmd->command);
+	lbs_deb_fw("command_timer_fn fired, cmd %x\n", cmd->command);
 
 	if (!adapter->fw_ready)
 		return;
@@ -353,7 +351,7 @@ static void command_timer_fn(unsigned long data)
 	adapter->cur_cmd = NULL;
 	spin_unlock_irqrestore(&adapter->driver_lock, flags);
 
-	lbs_pr_debug(1, "Re-sending same command as it timeout...!\n");
+	lbs_deb_fw("re-sending same command because of timeout\n");
 	libertas_queue_cmd(adapter, ptempnode, 0);
 
 	wake_up_interruptible(&priv->mainthread.waitq);

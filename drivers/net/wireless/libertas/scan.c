@@ -86,7 +86,7 @@
  */
 static int is_network_compatible(wlan_adapter * adapter, int index, u8 mode)
 {
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	if (adapter->scantable[index].mode == mode) {
 		if (   !adapter->secinfo.wep_enabled
@@ -96,15 +96,13 @@ static int is_network_compatible(wlan_adapter * adapter, int index, u8 mode)
 		    && adapter->scantable[index].rsn_ie[0] != WPA2_IE
 		    && !adapter->scantable[index].privacy) {
 			/* no security */
-			LEAVE();
-			return index;
+			goto done;
 		} else if (   adapter->secinfo.wep_enabled
 			   && !adapter->secinfo.WPAenabled
 			   && !adapter->secinfo.WPA2enabled
 			   && adapter->scantable[index].privacy) {
 			/* static WEP enabled */
-			LEAVE();
-			return index;
+			goto done;
 		} else if (   !adapter->secinfo.wep_enabled
 			   && adapter->secinfo.WPAenabled
 			   && !adapter->secinfo.WPA2enabled
@@ -113,7 +111,7 @@ static int is_network_compatible(wlan_adapter * adapter, int index, u8 mode)
 			      && adapter->scantable[index].privacy */
 		    ) {
 			/* WPA enabled */
-			lbs_pr_debug(1,
+            lbs_deb_scan(
 			       "is_network_compatible() WPA: index=%d wpa_ie=%#x "
 			       "wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s "
 			       "privacy=%#x\n", index,
@@ -123,8 +121,7 @@ static int is_network_compatible(wlan_adapter * adapter, int index, u8 mode)
 			       adapter->secinfo.WPAenabled ? "e" : "d",
 			       adapter->secinfo.WPA2enabled ? "e" : "d",
 			       adapter->scantable[index].privacy);
-			LEAVE();
-			return index;
+			goto done;
 		} else if (   !adapter->secinfo.wep_enabled
 			   && !adapter->secinfo.WPAenabled
 			   && adapter->secinfo.WPA2enabled
@@ -133,7 +130,7 @@ static int is_network_compatible(wlan_adapter * adapter, int index, u8 mode)
 			      && adapter->scantable[index].privacy */
 		    ) {
 			/* WPA2 enabled */
-			lbs_pr_debug(1,
+            lbs_deb_scan(
 			       "is_network_compatible() WPA2: index=%d wpa_ie=%#x "
 			       "wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s "
 			       "privacy=%#x\n", index,
@@ -143,8 +140,7 @@ static int is_network_compatible(wlan_adapter * adapter, int index, u8 mode)
 			       adapter->secinfo.WPAenabled ? "e" : "d",
 			       adapter->secinfo.WPA2enabled ? "e" : "d",
 			       adapter->scantable[index].privacy);
-			LEAVE();
-			return index;
+			goto done;
 		} else if (   !adapter->secinfo.wep_enabled
 			   && !adapter->secinfo.WPAenabled
 			   && !adapter->secinfo.WPA2enabled
@@ -152,19 +148,18 @@ static int is_network_compatible(wlan_adapter * adapter, int index, u8 mode)
 			   && (adapter->scantable[index].rsn_ie[0] != WPA2_IE)
 			   && adapter->scantable[index].privacy) {
 			/* dynamic WEP enabled */
-			lbs_pr_debug(1,
+            lbs_deb_scan(
 			       "is_network_compatible() dynamic WEP: index=%d "
 			       "wpa_ie=%#x wpa2_ie=%#x privacy=%#x\n",
 			       index,
 			       adapter->scantable[index].wpa_ie[0],
 			       adapter->scantable[index].rsn_ie[0],
 			       adapter->scantable[index].privacy);
-			LEAVE();
-			return index;
+			goto done;
 		}
 
 		/* security doesn't match */
-		lbs_pr_debug(1,
+        lbs_deb_scan(
 		       "is_network_compatible() FAILED: index=%d wpa_ie=%#x "
 		       "wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s privacy=%#x\n",
 		       index,
@@ -174,13 +169,16 @@ static int is_network_compatible(wlan_adapter * adapter, int index, u8 mode)
 		       adapter->secinfo.WPAenabled ? "e" : "d",
 		       adapter->secinfo.WPA2enabled ? "e" : "d",
 		       adapter->scantable[index].privacy);
-		LEAVE();
-		return -ECONNREFUSED;
+		index = -ECONNREFUSED;
+		goto done;
 	}
 
 	/* mode doesn't match */
-	LEAVE();
-	return -ENETUNREACH;
+	index = -ENETUNREACH;
+
+done:
+	lbs_deb_leave_args(LBS_DEB_SCAN, "index %d", index);
+	return index;
 }
 
 /**
@@ -246,7 +244,7 @@ static void wlan_scan_process_results(wlan_private * priv)
 	}
 
 	for (i = 0; i < adapter->numinscantable; i++) {
-		lbs_pr_debug(1, "Scan:(%02d) %02x:%02x:%02x:%02x:%02x:%02x, "
+		lbs_deb_scan("Scan:(%02d) %02x:%02x:%02x:%02x:%02x:%02x, "
 		       "RSSI[%03d], SSID[%s]\n",
 		       i,
 		       adapter->scantable[i].macaddress[0],
@@ -529,7 +527,7 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 
 	if (puserscanin && puserscanin->chanlist[0].channumber) {
 
-		lbs_pr_debug(1, "Scan: Using supplied channel list\n");
+		lbs_deb_scan("Scan: Using supplied channel list\n");
 
 		for (chanidx = 0;
 		     chanidx < WLAN_IOCTL_USER_SCAN_CHAN_MAX
@@ -573,11 +571,11 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 				       ==
 				       priv->adapter->curbssparams.channel)) {
 			*pscancurrentonly = 1;
-			lbs_pr_debug(1, "Scan: Scanning current channel only");
+			lbs_deb_scan("Scan: Scanning current channel only");
 		}
 
 	} else {
-		lbs_pr_debug(1, "Scan: Creating full region channel list\n");
+		lbs_deb_scan("Scan: Creating full region channel list\n");
 		wlan_scan_create_channel_list(priv, pscanchanlist,
 					      *pfilteredscan);
 	}
@@ -626,10 +624,10 @@ static int wlan_scan_channel_list(wlan_private * priv,
 	int scanned = 0;
 	union iwreq_data wrqu;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	if (pscancfgout == 0 || pchantlvout == 0 || pscanchanlist == 0) {
-		lbs_pr_debug(1, "Scan: Null detect: %p, %p, %p\n",
+		lbs_deb_scan("Scan: Null detect: %p, %p, %p\n",
 		       pscancfgout, pchantlvout, pscanchanlist);
 		return -1;
 	}
@@ -663,7 +661,7 @@ static int wlan_scan_channel_list(wlan_private * priv,
 		while (tlvidx < maxchanperscan && ptmpchan->channumber
 		       && !doneearly && scanned < 2) {
 
-            lbs_pr_debug(1,
+            lbs_deb_scan(
                     "Scan: Chan(%3d), Radio(%d), mode(%d,%d), Dur(%d)\n",
                 ptmpchan->channumber, ptmpchan->radiotype,
                 ptmpchan->chanscanmode.passivescan,
@@ -726,7 +724,8 @@ static int wlan_scan_channel_list(wlan_private * priv,
 					    0, 0, pscancfgout);
 		if (scanned >= 2 && !full_scan) {
 			priv->adapter->last_scanned_channel = ptmpchan->channumber;
-			return 0;
+			ret = 0;
+			goto done;
 		}
 		scanned = 0;
 	}
@@ -736,7 +735,8 @@ static int wlan_scan_channel_list(wlan_private * priv,
 	memset(&wrqu, 0, sizeof(union iwreq_data));
 	wireless_send_event(priv->wlan_dev.netdev, SIOCGIWSCAN, &wrqu, NULL);
 
-	LEAVE();
+done:
+	lbs_deb_leave_args(LBS_DEB_SCAN, "ret %d", ret);
 	return ret;
 }
 
@@ -767,7 +767,7 @@ int wlan_scan_networks(wlan_private * priv,
 	int maxchanperscan;
 	int ret;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	scan_chan_list = kzalloc(sizeof(struct chanscanparamset) *
 				WLAN_IOCTL_USER_SCAN_CHAN_MAX, GFP_KERNEL);
@@ -836,7 +836,7 @@ out:
 	if (scan_chan_list)
 		kfree(scan_chan_list);
 
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_SCAN, "ret %d", ret);
 	return ret;
 }
 
@@ -867,7 +867,7 @@ void wlan_ret_802_11_scan_get_tlv_ptrs(struct mrvlietypes_data * ptlv,
 	tlvbufleft = tlvbufsize;
 	*ptsftlv = NULL;
 
-	lbs_pr_debug(1, "SCAN_RESP: tlvbufsize = %d\n", tlvbufsize);
+	lbs_deb_scan("SCAN_RESP: tlvbufsize = %d\n", tlvbufsize);
 	lbs_dbg_hex("SCAN_RESP: TLV Buf", (u8 *) ptlv, tlvbufsize);
 
 	while (tlvbufleft >= sizeof(struct mrvlietypesheader)) {
@@ -880,7 +880,7 @@ void wlan_ret_802_11_scan_get_tlv_ptrs(struct mrvlietypes_data * ptlv,
 			break;
 
 		default:
-			lbs_pr_debug(1, "SCAN_RESP: Unhandled TLV = %d\n",
+			lbs_deb_scan("SCAN_RESP: Unhandled TLV = %d\n",
 			       tlvtype);
 			/* Give up, this seems corrupted */
 			return;
@@ -921,13 +921,14 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 	u16 beaconsize;
 	u8 founddatarateie;
 	int bytesleftforcurrentbeacon;
+	int ret;
 
 	struct IE_WPA *pIe;
 	const u8 oui01[4] = { 0x00, 0x50, 0xf2, 0x01 };
 
 	struct ieeetypes_countryinfoset *pcountryinfo;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	founddatarateie = 0;
 	ratesize = 0;
@@ -959,7 +960,7 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 	bytesleftforcurrentbeacon = beaconsize;
 
 	memcpy(pBSSEntry->macaddress, pcurrentptr, ETH_ALEN);
-	lbs_pr_debug(1, "InterpretIE: AP MAC Addr-%x:%x:%x:%x:%x:%x\n",
+	lbs_deb_scan("InterpretIE: AP MAC Addr-%x:%x:%x:%x:%x:%x\n",
 	       pBSSEntry->macaddress[0], pBSSEntry->macaddress[1],
 	       pBSSEntry->macaddress[2], pBSSEntry->macaddress[3],
 	       pBSSEntry->macaddress[4], pBSSEntry->macaddress[5]);
@@ -968,7 +969,7 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 	bytesleftforcurrentbeacon -= ETH_ALEN;
 
 	if (bytesleftforcurrentbeacon < 12) {
-		lbs_pr_debug(1, "InterpretIE: Not enough bytes left\n");
+		lbs_deb_scan("InterpretIE: Not enough bytes left\n");
 		return -1;
 	}
 
@@ -979,7 +980,7 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 
 	/* RSSI is 1 byte long */
 	pBSSEntry->rssi = le32_to_cpu((long)(*pcurrentptr));
-	lbs_pr_debug(1, "InterpretIE: RSSI=%02X\n", *pcurrentptr);
+	lbs_deb_scan("InterpretIE: RSSI=%02X\n", *pcurrentptr);
 	pcurrentptr += 1;
 	bytesleftforcurrentbeacon -= 1;
 
@@ -997,7 +998,7 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 
 	/* capability information is 2 bytes long */
 	memcpy(&fixedie.capabilities, pcurrentptr, 2);
-	lbs_pr_debug(1, "InterpretIE: fixedie.capabilities=0x%X\n",
+	lbs_deb_scan("InterpretIE: fixedie.capabilities=0x%X\n",
 	       fixedie.capabilities);
 	fixedie.capabilities = le16_to_cpu(fixedie.capabilities);
 	pcap = (struct ieeetypes_capinfo *) & fixedie.capabilities;
@@ -1006,14 +1007,14 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 	bytesleftforcurrentbeacon -= 2;
 
 	/* rest of the current buffer are IE's */
-	lbs_pr_debug(1, "InterpretIE: IElength for this AP = %d\n",
+	lbs_deb_scan("InterpretIE: IElength for this AP = %d\n",
 	       bytesleftforcurrentbeacon);
 
 	lbs_dbg_hex("InterpretIE: IE info", (u8 *) pcurrentptr,
 		bytesleftforcurrentbeacon);
 
 	if (pcap->privacy) {
-		lbs_pr_debug(1, "InterpretIE: AP WEP enabled\n");
+		lbs_deb_scan("InterpretIE: AP WEP enabled\n");
 		pBSSEntry->privacy = wlan802_11privfilter8021xWEP;
 	} else {
 		pBSSEntry->privacy = wlan802_11privfilteracceptall;
@@ -1031,7 +1032,7 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 		elemlen = *((u8 *) pcurrentptr + 1);
 
 		if (bytesleftforcurrentbeacon < elemlen) {
-			lbs_pr_debug(1, "InterpretIE: error in processing IE, "
+			lbs_deb_scan("InterpretIE: error in processing IE, "
 			       "bytes left < IE length\n");
 			bytesleftforcurrentbeacon = 0;
 			continue;
@@ -1043,7 +1044,7 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 			pBSSEntry->ssid.ssidlength = elemlen;
 			memcpy(pBSSEntry->ssid.ssid, (pcurrentptr + 2),
 			       elemlen);
-			lbs_pr_debug(1, "ssid: %32s", pBSSEntry->ssid.ssid);
+			lbs_deb_scan("ssid: %32s", pBSSEntry->ssid.ssid);
 			break;
 
 		case SUPPORTED_RATES:
@@ -1056,7 +1057,7 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 			break;
 
 		case EXTRA_IE:
-			lbs_pr_debug(1, "InterpretIE: EXTRA_IE Found!\n");
+			lbs_deb_scan("InterpretIE: EXTRA_IE Found!\n");
 			pBSSEntry->extra_ie = 1;
 			break;
 
@@ -1108,12 +1109,12 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 			if (pcountryinfo->len <
 			    sizeof(pcountryinfo->countrycode)
 			    || pcountryinfo->len > 254) {
-				lbs_pr_debug(1, "InterpretIE: 11D- Err "
+				lbs_deb_scan("InterpretIE: 11D- Err "
 				       "CountryInfo len =%d min=%zd max=254\n",
 				       pcountryinfo->len,
 				       sizeof(pcountryinfo->countrycode));
-				LEAVE();
-				return -1;
+				ret = -1;
+				goto done;
 			}
 
 			memcpy(&pBSSEntry->countryinfo,
@@ -1188,8 +1189,11 @@ static int InterpretBSSDescriptionWithIE(struct bss_descriptor * pBSSEntry,
 		bytesleftforcurrentbeacon -= (elemlen + 2);
 
 	}			/* while (bytesleftforcurrentbeacon > 2) */
+	ret = 0;
 
-	return 0;
+done:
+	lbs_deb_leave_args(LBS_DEB_SCAN, "ret %d", ret);
+	return ret;
 }
 
 /**
@@ -1228,7 +1232,7 @@ int libertas_find_BSSID_in_list(wlan_adapter * adapter, u8 * bssid, u8 mode)
 	if (!bssid)
 		return -EFAULT;
 
-	lbs_pr_debug(1, "FindBSSID: Num of BSSIDs = %d\n",
+	lbs_deb_scan("FindBSSID: Num of BSSIDs = %d\n",
 	       adapter->numinscantable);
 
 	/* Look through the scan table for a compatible match. The ret return
@@ -1272,7 +1276,7 @@ int libertas_find_SSID_in_list(wlan_adapter * adapter,
 	int i;
 	int j;
 
-	lbs_pr_debug(1, "Num of Entries in Table = %d\n", adapter->numinscantable);
+	lbs_deb_scan("Num of Entries in Table = %d\n", adapter->numinscantable);
 
 	for (i = 0; i < adapter->numinscantable; i++) {
 		if (!libertas_SSID_cmp(&adapter->scantable[i].ssid, ssid) &&
@@ -1337,9 +1341,9 @@ int libertas_find_best_SSID_in_list(wlan_adapter * adapter, u8 mode)
 	u8 bestrssi = 0;
 	int i;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
-	lbs_pr_debug(1, "Num of BSSIDs = %d\n", adapter->numinscantable);
+	lbs_deb_scan("Num of BSSIDs = %d\n", adapter->numinscantable);
 
 	for (i = 0; i < adapter->numinscantable; i++) {
 		switch (mode) {
@@ -1366,7 +1370,7 @@ int libertas_find_best_SSID_in_list(wlan_adapter * adapter, u8 mode)
 		}
 	}
 
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_SCAN, "bestnet %d", bestnet);
 	return bestnet;
 }
 
@@ -1387,7 +1391,7 @@ int libertas_find_best_network_SSID(wlan_private * priv,
 	struct bss_descriptor *preqbssid;
 	int i;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	memset(pSSID, 0, sizeof(struct WLAN_802_11_SSID));
 
@@ -1412,7 +1416,7 @@ int libertas_find_best_network_SSID(wlan_private * priv,
 	}
 
 out:
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_SCAN, "ret %d", ret);
 	return ret;
 }
 
@@ -1432,14 +1436,14 @@ int libertas_set_scan(struct net_device *dev, struct iw_request_info *info,
 	wlan_private *priv = dev->priv;
 	wlan_adapter *adapter = priv->adapter;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_SCAN);
 
 	wlan_scan_networks(priv, NULL, 0);
 
 	if (adapter->surpriseremoved)
 		return -1;
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_SCAN);
 	return 0;
 }
 
@@ -1459,7 +1463,7 @@ int libertas_send_specific_SSID_scan(wlan_private * priv,
 	wlan_adapter *adapter = priv->adapter;
 	struct wlan_ioctl_user_scan_cfg scancfg;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	if (prequestedssid == NULL) {
 		return -1;
@@ -1476,7 +1480,7 @@ int libertas_send_specific_SSID_scan(wlan_private * priv,
 		return -1;
 	wait_event_interruptible(adapter->cmd_pending, !adapter->nr_cmd_pending);
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_ASSOC);
 	return 0;
 }
 
@@ -1493,7 +1497,7 @@ int libertas_send_specific_BSSID_scan(wlan_private * priv, u8 * bssid, u8 keeppr
 {
 	struct wlan_ioctl_user_scan_cfg scancfg;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	if (bssid == NULL) {
 		return -1;
@@ -1509,7 +1513,7 @@ int libertas_send_specific_BSSID_scan(wlan_private * priv, u8 * bssid, u8 keeppr
 	wait_event_interruptible(priv->adapter->cmd_pending,
 		!priv->adapter->nr_cmd_pending);
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_ASSOC);
 	return 0;
 }
 
@@ -1546,7 +1550,7 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 	u8 buf[16 + 256 * 2];
 	u8 *ptr;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	/*
 	 * if there's either commands in the queue or one being
@@ -1561,10 +1565,10 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 	}
 
 	if (adapter->connect_status == libertas_connected)
-		lbs_pr_debug(1, "Current ssid: %32s\n",
+		lbs_deb_scan("Current ssid: %32s\n",
 		       adapter->curbssparams.ssid.ssid);
 
-	lbs_pr_debug(1, "Scan: Get: numinscantable = %d\n",
+	lbs_deb_scan("Scan: Get: numinscantable = %d\n",
 	       adapter->numinscantable);
 
 	/* The old API using SIOCGIWAPLIST had a hard limit of IW_MAX_AP.
@@ -1574,7 +1578,7 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 	 */
 	for (i = 0; i < adapter->numinscantable; i++) {
 		if ((current_ev + MAX_SCAN_CELL_SIZE) >= end_buf) {
-			lbs_pr_debug(1, "i=%d break out: current_ev=%p end_buf=%p "
+			lbs_deb_scan("i=%d break out: current_ev=%p end_buf=%p "
 			       "MAX_SCAN_CELL_SIZE=%zd\n",
 			       i, current_ev, end_buf, MAX_SCAN_CELL_SIZE);
 			break;
@@ -1582,13 +1586,13 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 
 		pscantable = &adapter->scantable[i];
 
-		lbs_pr_debug(1, "i=%d  ssid: %32s\n", i, pscantable->ssid.ssid);
+		lbs_deb_scan("i=%d  ssid: %32s\n", i, pscantable->ssid.ssid);
 
 		cfp =
 		    libertas_find_cfp_by_band_and_channel(adapter, 0,
 						 pscantable->channel);
 		if (!cfp) {
-			lbs_pr_debug(1, "Invalid channel number %d\n",
+			lbs_deb_scan("Invalid channel number %d\n",
 			       pscantable->channel);
 			continue;
 		}
@@ -1767,9 +1771,9 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 			ptr += sprintf(ptr, "extra_ie");
 			iwe.u.data.length = strlen(buf);
 
-			lbs_pr_debug(1, "iwe.u.data.length %d\n",
+			lbs_deb_scan("iwe.u.data.length %d\n",
 			       iwe.u.data.length);
-			lbs_pr_debug(1, "BUF: %s \n", buf);
+			lbs_deb_scan("BUF: %s \n", buf);
 
 			iwe.cmd = IWEVCUSTOM;
 			iwe.len = IW_EV_POINT_LEN + iwe.u.data.length;
@@ -1790,7 +1794,7 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 	dwrq->length = (current_ev - extra);
 	dwrq->flags = 0;
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_ASSOC);
 	return 0;
 }
 
@@ -1820,7 +1824,7 @@ int libertas_cmd_80211_scan(wlan_private * priv,
 	struct cmd_ds_802_11_scan *pscan = &cmd->params.scan;
 	struct wlan_scan_cmd_config *pscancfg;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	pscancfg = pdata_buf;
 
@@ -1836,9 +1840,10 @@ int libertas_cmd_80211_scan(wlan_private * priv,
 				     + sizeof(pscan->BSSID)
 				     + pscancfg->tlvbufferlen + S_DS_GEN);
 
-	lbs_pr_debug(1, "SCAN_CMD: command=%x, size=%x, seqnum=%x\n",
+	lbs_deb_scan("SCAN_CMD: command=%x, size=%x, seqnum=%x\n",
 	       cmd->command, cmd->size, cmd->seqnum);
-	LEAVE();
+
+	lbs_deb_leave(LBS_DEB_ASSOC);
 	return 0;
 }
 
@@ -1881,24 +1886,25 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 	int idx;
 	int tlvbufsize;
 	u64 tsfval;
+	int ret;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	pscan = &resp->params.scanresp;
 
 	if (pscan->nr_sets > MRVDRV_MAX_BSSID_LIST) {
-        lbs_pr_debug(1,
+        lbs_deb_scan(
 		       "SCAN_RESP: Invalid number of AP returned (%d)!!\n",
 		       pscan->nr_sets);
-		LEAVE();
-		return -1;
+		ret = -1;
+		goto done;
 	}
 
 	bytesleft = le16_to_cpu(pscan->bssdescriptsize);
-	lbs_pr_debug(1, "SCAN_RESP: bssdescriptsize %d\n", bytesleft);
+	lbs_deb_scan("SCAN_RESP: bssdescriptsize %d\n", bytesleft);
 
 	scanrespsize = le16_to_cpu(resp->size);
-	lbs_pr_debug(1, "SCAN_RESP: returned %d AP before parsing\n",
+	lbs_deb_scan("SCAN_RESP: returned %d AP before parsing\n",
 	       pscan->nr_sets);
 
 	numintable = adapter->numinscantable;
@@ -1935,7 +1941,7 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 		     0)
 		    && CHECK_SSID_IS_VALID(&newbssentry.ssid)) {
 
-            lbs_pr_debug(1,
+            lbs_deb_scan(
 			       "SCAN_RESP: BSSID = %02x:%02x:%02x:%02x:%02x:%02x\n",
 			       newbssentry.macaddress[0],
 			       newbssentry.macaddress[1],
@@ -1968,7 +1974,7 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 					      ssid,
 					      newbssentry.ssid.ssidlength) ==
 					     0)) {
-                        lbs_pr_debug(1,
+                        lbs_deb_scan(
 						       "SCAN_RESP: Duplicate of index: %d\n",
 						       bssIdx);
 						break;
@@ -2012,18 +2018,20 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 		} else {
 
 			/* error parsing/interpreting the scan response, skipped */
-			lbs_pr_debug(1, "SCAN_RESP: "
+			lbs_deb_scan("SCAN_RESP: "
 			       "InterpretBSSDescriptionWithIE returned ERROR\n");
 		}
 	}
 
-	lbs_pr_debug(1, "SCAN_RESP: Scanned %2d APs, %d valid, %d total\n",
+	lbs_deb_scan("SCAN_RESP: Scanned %2d APs, %d valid, %d total\n",
 	       pscan->nr_sets, numintable - adapter->numinscantable,
 	       numintable);
 
 	/* Update the total number of BSSIDs in the scan table */
 	adapter->numinscantable = numintable;
+	ret = 0;
 
-	LEAVE();
-	return 0;
+done:
+	lbs_deb_leave_args(LBS_DEB_SCAN, "ret %d", ret);
+	return ret;
 }

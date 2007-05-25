@@ -402,11 +402,11 @@ static int libertas_event_initcmd(wlan_private *priv, void **response_buf,
 	u16 wait_option = cmd_option_waitforrsp;
 
 	if (!(*cmdnode = libertas_get_free_cmd_ctrl_node(priv))) {
-		lbs_pr_debug(1, "failed libertas_get_free_cmd_ctrl_node\n");
+		lbs_deb_debugfs("failed libertas_get_free_cmd_ctrl_node\n");
 		return -ENOMEM;
 	}
 	if (!(*response_buf = kmalloc(3000, GFP_KERNEL))) {
-		lbs_pr_debug(1, "failed to allocate response buffer!\n");
+		lbs_deb_debugfs("failed to allocate response buffer!\n");
 		return -ENOMEM;
 	}
 	libertas_set_cmd_ctrl_node(priv, *cmdnode, 0, wait_option, NULL);
@@ -1864,7 +1864,7 @@ static ssize_t wlan_debugfs_write(struct file *f, const char __user *buf,
 		return 0;
 
 	if (copy_from_user(pdata, buf, cnt)) {
-		lbs_pr_debug(1, "Copy from user failed\n");
+		lbs_deb_debugfs("Copy from user failed\n");
 		kfree(pdata);
 		return 0;
 	}

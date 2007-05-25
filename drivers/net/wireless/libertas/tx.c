@@ -68,7 +68,7 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 	u32 new_rate;
 	u8 *ptr = priv->adapter->tmptxbuf;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_TX);
 
 	if (priv->adapter->surpriseremoved)
 		return -1;
@@ -78,7 +78,7 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 			 min_t(unsigned int, skb->len, 100));
 
 	if (!skb->len || (skb->len > MRVDRV_ETH_TX_PACKET_BUFFER_SIZE)) {
-		lbs_pr_debug(1, "Tx error: Bad skb length %d : %zd\n",
+		lbs_deb_tx("tx err: skb length %d 0 or > %zd\n",
 		       skb->len, MRVDRV_ETH_TX_PACKET_BUFFER_SIZE);
 		ret = -1;
 		goto done;
@@ -138,13 +138,13 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 			       sizeof(struct txpd));
 
 	if (ret) {
-		lbs_pr_debug(1, "Tx error: libertas_sbi_host_to_card failed: 0x%X\n", ret);
+		lbs_deb_tx("tx err: libertas_sbi_host_to_card returned 0x%X\n", ret);
 		goto done;
 	}
 
-	lbs_pr_debug(1, "SendSinglePacket succeeds\n");
+	lbs_deb_tx("SendSinglePacket succeeds\n");
 
-      done:
+done:
 	if (!ret) {
 		priv->stats.tx_packets++;
 		priv->stats.tx_bytes += skb->len;
@@ -166,7 +166,7 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 		priv->adapter->currenttxskb = NULL;
 	}
 
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_TX, "ret %d", ret);
 	return ret;
 }
 
@@ -214,8 +214,7 @@ int libertas_process_tx(wlan_private * priv, struct sk_buff *skb)
 {
 	int ret = -1;
 
-	ENTER();
-
+	lbs_deb_enter(LBS_DEB_TX);
 	lbs_dbg_hex("TX Data", skb->data, min_t(unsigned int, skb->len, 100));
 
 	if (priv->wlan_dev.dnld_sent) {
@@ -234,7 +233,7 @@ int libertas_process_tx(wlan_private * priv, struct sk_buff *skb)
 
 	ret = SendSinglePacket(priv, skb);
 done:
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_TX, "ret %d", ret);
 	return ret;
 }
 

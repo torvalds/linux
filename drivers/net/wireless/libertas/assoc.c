@@ -20,9 +20,9 @@ static int assoc_helper_essid(wlan_private *priv,
 	int ret = 0;
 	int i;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
-	lbs_pr_debug(1, "New SSID requested: %s\n", assoc_req->ssid.ssid);
+	lbs_deb_assoc("New SSID requested: %s\n", assoc_req->ssid.ssid);
 	if (assoc_req->mode == IW_MODE_INFRA) {
 		if (adapter->prescan) {
 			libertas_send_specific_SSID_scan(priv, &assoc_req->ssid, 1);
@@ -31,7 +31,7 @@ static int assoc_helper_essid(wlan_private *priv,
 		i = libertas_find_SSID_in_list(adapter, &assoc_req->ssid,
 				NULL, IW_MODE_INFRA);
 		if (i >= 0) {
-			lbs_pr_debug(1,
+			lbs_deb_assoc(
 			       "SSID found in scan list ... associating...\n");
 
 			ret = wlan_associate(priv, &adapter->scantable[i]);
@@ -41,7 +41,7 @@ static int assoc_helper_essid(wlan_private *priv,
 				       ETH_ALEN);
 			}
 		} else {
-			lbs_pr_debug(1, "SSID '%s' not found; cannot associate\n",
+			lbs_deb_assoc("SSID '%s' not found; cannot associate\n",
 				assoc_req->ssid.ssid);
 		}
 	} else if (assoc_req->mode == IW_MODE_ADHOC) {
@@ -54,18 +54,18 @@ static int assoc_helper_essid(wlan_private *priv,
 		i = libertas_find_SSID_in_list(adapter, &assoc_req->ssid, NULL,
 				IW_MODE_ADHOC);
 		if (i >= 0) {
-			lbs_pr_debug(1, "SSID found at %d in List, so join\n", ret);
+			lbs_deb_assoc("SSID found at %d in List, so join\n", ret);
 			libertas_join_adhoc_network(priv, &adapter->scantable[i]);
 		} else {
 			/* else send START command */
-			lbs_pr_debug(1, "SSID not found in list, so creating adhoc"
+			lbs_deb_assoc("SSID not found in list, so creating adhoc"
 				" with SSID '%s'\n", assoc_req->ssid.ssid);
 			libertas_start_adhoc_network(priv, &assoc_req->ssid);
 		}
 		memcpy(&assoc_req->bssid, &adapter->current_addr, ETH_ALEN);
 	}
 
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
 
@@ -76,23 +76,21 @@ static int assoc_helper_bssid(wlan_private *priv,
 	wlan_adapter *adapter = priv->adapter;
 	int i, ret = 0;
 
-	ENTER();
-
-	lbs_pr_debug(1, "ASSOC: WAP: BSSID = " MAC_FMT "\n",
+	lbs_deb_enter_args(LBS_DEB_ASSOC, "BSSID" MAC_FMT "\n",
 		MAC_ARG(assoc_req->bssid));
 
 	/* Search for index position in list for requested MAC */
 	i = libertas_find_BSSID_in_list(adapter, assoc_req->bssid,
 			    assoc_req->mode);
 	if (i < 0) {
-		lbs_pr_debug(1, "ASSOC: WAP: BSSID " MAC_FMT " not found, "
+		lbs_deb_assoc("ASSOC: WAP: BSSID " MAC_FMT " not found, "
 			"cannot associate.\n", MAC_ARG(assoc_req->bssid));
 		goto out;
 	}
 
 	if (assoc_req->mode == IW_MODE_INFRA) {
 		ret = wlan_associate(priv, &adapter->scantable[i]);
-		lbs_pr_debug(1, "ASSOC: return from wlan_associate(bssd) was %d\n", ret);
+		lbs_deb_assoc("ASSOC: return from wlan_associate(bssd) was %d\n", ret);
 	} else if (assoc_req->mode == IW_MODE_ADHOC) {
 		libertas_join_adhoc_network(priv, &adapter->scantable[i]);
 	}
@@ -100,7 +98,7 @@ static int assoc_helper_bssid(wlan_private *priv,
 		sizeof(struct WLAN_802_11_SSID));
 
 out:
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
 
@@ -118,7 +116,7 @@ static int assoc_helper_associate(wlan_private *priv,
 			ret = assoc_helper_bssid(priv, assoc_req);
 			done = 1;
 			if (ret) {
-				lbs_pr_debug(1, "ASSOC: bssid: ret = %d\n", ret);
+				lbs_deb_assoc("ASSOC: bssid: ret = %d\n", ret);
 			}
 		}
 	}
@@ -126,7 +124,7 @@ static int assoc_helper_associate(wlan_private *priv,
 	if (!done && test_bit(ASSOC_FLAG_SSID, &assoc_req->flags)) {
 		ret = assoc_helper_essid(priv, assoc_req);
 		if (ret) {
-			lbs_pr_debug(1, "ASSOC: bssid: ret = %d\n", ret);
+			lbs_deb_assoc("ASSOC: bssid: ret = %d\n", ret);
 		}
 	}
 
@@ -140,12 +138,10 @@ static int assoc_helper_mode(wlan_private *priv,
 	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
-	if (assoc_req->mode == adapter->mode) {
-		LEAVE();
-		return 0;
-	}
+	if (assoc_req->mode == adapter->mode)
+		goto done;
 
 	if (assoc_req->mode == IW_MODE_INFRA) {
 		if (adapter->psstate != PS_STATE_FULL_POWER)
@@ -160,7 +156,8 @@ static int assoc_helper_mode(wlan_private *priv,
 				    OID_802_11_INFRASTRUCTURE_MODE,
 				    (void *) (size_t) assoc_req->mode);
 
-	LEAVE();
+done:
+	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
 
@@ -172,7 +169,7 @@ static int assoc_helper_wep_keys(wlan_private *priv,
 	int i;
 	int ret = 0;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	/* Set or remove WEP keys */
 	if (   assoc_req->wep_keys[0].len
@@ -216,7 +213,7 @@ static int assoc_helper_wep_keys(wlan_private *priv,
 	mutex_unlock(&adapter->lock);
 
 out:
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
 
@@ -226,14 +223,14 @@ static int assoc_helper_secinfo(wlan_private *priv,
 	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	memcpy(&adapter->secinfo, &assoc_req->secinfo,
 		sizeof(struct wlan_802_11_security));
 
 	ret = libertas_set_mac_packet_filter(priv);
 
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
 
@@ -243,7 +240,7 @@ static int assoc_helper_wpa_keys(wlan_private *priv,
 {
 	int ret = 0;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	/* enable/Disable RSN */
 	ret = libertas_prepare_and_send_command(priv,
@@ -261,7 +258,7 @@ static int assoc_helper_wpa_keys(wlan_private *priv,
 				    0, assoc_req);
 
 out:
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
 
@@ -272,7 +269,7 @@ static int assoc_helper_wpa_ie(wlan_private *priv,
 	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	if (assoc_req->secinfo.WPAenabled || assoc_req->secinfo.WPA2enabled) {
 		memcpy(&adapter->wpa_ie, &assoc_req->wpa_ie, assoc_req->wpa_ie_len);
@@ -282,7 +279,7 @@ static int assoc_helper_wpa_ie(wlan_private *priv,
 		adapter->wpa_ie_len = 0;
 	}
 
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
 
@@ -294,21 +291,21 @@ static int should_deauth_infrastructure(wlan_adapter *adapter,
 		return 0;
 
 	if (test_bit(ASSOC_FLAG_SSID, &assoc_req->flags)) {
-		lbs_pr_debug(1, "Deauthenticating due to new SSID in "
+		lbs_deb_assoc("Deauthenticating due to new SSID in "
 			" configuration request.\n");
 		return 1;
 	}
 
 	if (test_bit(ASSOC_FLAG_SECINFO, &assoc_req->flags)) {
 		if (adapter->secinfo.auth_mode != assoc_req->secinfo.auth_mode) {
-			lbs_pr_debug(1, "Deauthenticating due to updated security "
+			lbs_deb_assoc("Deauthenticating due to updated security "
 				"info in configuration request.\n");
 			return 1;
 		}
 	}
 
 	if (test_bit(ASSOC_FLAG_BSSID, &assoc_req->flags)) {
-		lbs_pr_debug(1, "Deauthenticating due to new BSSID in "
+		lbs_deb_assoc("Deauthenticating due to new BSSID in "
 			" configuration request.\n");
 		return 1;
 	}
@@ -353,19 +350,17 @@ void libertas_association_worker(struct work_struct *work)
 	int ret = 0;
 	int find_any_ssid = 0;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	mutex_lock(&adapter->lock);
 	assoc_req = adapter->assoc_req;
 	adapter->assoc_req = NULL;
 	mutex_unlock(&adapter->lock);
 
-	if (!assoc_req) {
-		LEAVE();
-		return;
-	}
+	if (!assoc_req)
+		goto done;
 
-	lbs_pr_debug(1, "ASSOC: starting new association request: flags = 0x%lX\n",
+	lbs_deb_assoc("ASSOC: starting new association request: flags = 0x%lX\n",
 		assoc_req->flags);
 
 	/* If 'any' SSID was specified, find an SSID to associate with */
@@ -386,7 +381,7 @@ void libertas_association_worker(struct work_struct *work)
 		ret = libertas_find_best_network_SSID(priv, &assoc_req->ssid,
 				assoc_req->mode, &new_mode);
 		if (ret) {
-			lbs_pr_debug(1, "Could not find best network\n");
+			lbs_deb_assoc("Could not find best network\n");
 			ret = -ENETUNREACH;
 			goto out;
 		}
@@ -406,7 +401,7 @@ void libertas_association_worker(struct work_struct *work)
 		if (should_deauth_infrastructure(adapter, assoc_req)) {
 			ret = libertas_send_deauthentication(priv);
 			if (ret) {
-				lbs_pr_debug(1, "Deauthentication due to new "
+				lbs_deb_assoc("Deauthentication due to new "
 					"configuration request failed: %d\n",
 					ret);
 			}
@@ -415,7 +410,7 @@ void libertas_association_worker(struct work_struct *work)
 		if (should_stop_adhoc(adapter, assoc_req)) {
 			ret = libertas_stop_adhoc_network(priv);
 			if (ret) {
-				lbs_pr_debug(1, "Teardown of AdHoc network due to "
+				lbs_deb_assoc("Teardown of AdHoc network due to "
 					"new configuration request failed: %d\n",
 					ret);
 			}
@@ -427,7 +422,7 @@ void libertas_association_worker(struct work_struct *work)
 	if (test_bit(ASSOC_FLAG_MODE, &assoc_req->flags)) {
 		ret = assoc_helper_mode(priv, assoc_req);
 		if (ret) {
-lbs_pr_debug(1, "ASSOC(:%d) mode: ret = %d\n", __LINE__, ret);
+lbs_deb_assoc("ASSOC(:%d) mode: ret = %d\n", __LINE__, ret);
 			goto out;
 		}
 	}
@@ -436,7 +431,7 @@ lbs_pr_debug(1, "ASSOC(:%d) mode: ret = %d\n", __LINE__, ret);
 	    || test_bit(ASSOC_FLAG_WEP_TX_KEYIDX, &assoc_req->flags)) {
 		ret = assoc_helper_wep_keys(priv, assoc_req);
 		if (ret) {
-lbs_pr_debug(1, "ASSOC(:%d) wep_keys: ret = %d\n", __LINE__, ret);
+lbs_deb_assoc("ASSOC(:%d) wep_keys: ret = %d\n", __LINE__, ret);
 			goto out;
 		}
 	}
@@ -444,7 +439,7 @@ lbs_pr_debug(1, "ASSOC(:%d) wep_keys: ret = %d\n", __LINE__, ret);
 	if (test_bit(ASSOC_FLAG_SECINFO, &assoc_req->flags)) {
 		ret = assoc_helper_secinfo(priv, assoc_req);
 		if (ret) {
-lbs_pr_debug(1, "ASSOC(:%d) secinfo: ret = %d\n", __LINE__, ret);
+lbs_deb_assoc("ASSOC(:%d) secinfo: ret = %d\n", __LINE__, ret);
 			goto out;
 		}
 	}
@@ -452,7 +447,7 @@ lbs_pr_debug(1, "ASSOC(:%d) secinfo: ret = %d\n", __LINE__, ret);
 	if (test_bit(ASSOC_FLAG_WPA_IE, &assoc_req->flags)) {
 		ret = assoc_helper_wpa_ie(priv, assoc_req);
 		if (ret) {
-lbs_pr_debug(1, "ASSOC(:%d) wpa_ie: ret = %d\n", __LINE__, ret);
+lbs_deb_assoc("ASSOC(:%d) wpa_ie: ret = %d\n", __LINE__, ret);
 			goto out;
 		}
 	}
@@ -461,7 +456,7 @@ lbs_pr_debug(1, "ASSOC(:%d) wpa_ie: ret = %d\n", __LINE__, ret);
 	    || test_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags)) {
 		ret = assoc_helper_wpa_keys(priv, assoc_req);
 		if (ret) {
-lbs_pr_debug(1, "ASSOC(:%d) wpa_keys: ret = %d\n", __LINE__, ret);
+lbs_deb_assoc("ASSOC(:%d) wpa_keys: ret = %d\n", __LINE__, ret);
 			goto out;
 		}
 	}
@@ -475,19 +470,19 @@ lbs_pr_debug(1, "ASSOC(:%d) wpa_keys: ret = %d\n", __LINE__, ret);
 
 		ret = assoc_helper_associate(priv, assoc_req);
 		if (ret) {
-			lbs_pr_debug(1, "ASSOC: association attempt unsuccessful: %d\n",
+			lbs_deb_assoc("ASSOC: association attempt unsuccessful: %d\n",
 				ret);
 			success = 0;
 		}
 
 		if (adapter->connect_status != libertas_connected) {
-			lbs_pr_debug(1, "ASSOC: assoication attempt unsuccessful, "
+			lbs_deb_assoc("ASSOC: assoication attempt unsuccessful, "
 				"not connected.\n");
 			success = 0;
 		}
 
 		if (success) {
-			lbs_pr_debug(1, "ASSOC: association attempt successful. "
+			lbs_deb_assoc("ASSOC: association attempt successful. "
 				"Associated to '%s' (" MAC_FMT ")\n",
 				assoc_req->ssid.ssid, MAC_ARG(assoc_req->bssid));
 			libertas_prepare_and_send_command(priv,
@@ -505,11 +500,13 @@ lbs_pr_debug(1, "ASSOC(:%d) wpa_keys: ret = %d\n", __LINE__, ret);
 
 out:
 	if (ret) {
-		lbs_pr_debug(1, "ASSOC: reconfiguration attempt unsuccessful: %d\n",
+		lbs_deb_assoc("ASSOC: reconfiguration attempt unsuccessful: %d\n",
 			ret);
 	}
 	kfree(assoc_req);
-	LEAVE();
+
+done:
+	lbs_deb_leave(LBS_DEB_ASSOC);
 }
 
 

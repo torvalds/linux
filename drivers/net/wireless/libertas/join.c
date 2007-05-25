@@ -60,7 +60,7 @@ static int get_common_rates(wlan_adapter * adapter, u8 * rate1,
 	lbs_dbg_hex("rate1 (AP) rates:", tmp, sizeof(tmp));
 	lbs_dbg_hex("rate2 (Card) rates:", rate2, rate2_size);
 	lbs_dbg_hex("Common rates:", ptr, rate1_size);
-	lbs_pr_debug(1, "Tx datarate is set to 0x%X\n", adapter->datarate);
+	lbs_deb_join("Tx datarate is set to 0x%X\n", adapter->datarate);
 
 	if (!adapter->is_datarate_auto) {
 		while (*ptr) {
@@ -109,16 +109,14 @@ int wlan_associate(wlan_private * priv, struct bss_descriptor * pbssdesc)
 	wlan_adapter *adapter = priv->adapter;
 	int ret;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_JOIN);
 
 	ret = libertas_prepare_and_send_command(priv, cmd_802_11_authenticate,
 				    0, cmd_option_waitforrsp,
 				    0, pbssdesc->macaddress);
 
-	if (ret) {
-		LEAVE();
-		return ret;
-	}
+	if (ret)
+		goto done;
 
 	/* set preamble to firmware */
 	if (adapter->capinfo.shortpreamble && pbssdesc->cap.shortpreamble)
@@ -131,7 +129,8 @@ int wlan_associate(wlan_private * priv, struct bss_descriptor * pbssdesc)
 	ret = libertas_prepare_and_send_command(priv, cmd_802_11_associate,
 				    0, cmd_option_waitforrsp, 0, pbssdesc);
 
-	LEAVE();
+done:
+	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
 	return ret;
 }
 
@@ -150,19 +149,19 @@ int libertas_start_adhoc_network(wlan_private * priv, struct WLAN_802_11_SSID *a
 	adapter->adhoccreate = 1;
 
 	if (!adapter->capinfo.shortpreamble) {
-		lbs_pr_debug(1, "AdhocStart: Long preamble\n");
+		lbs_deb_join("AdhocStart: Long preamble\n");
 		adapter->preamble = cmd_type_long_preamble;
 	} else {
-		lbs_pr_debug(1, "AdhocStart: Short preamble\n");
+		lbs_deb_join("AdhocStart: Short preamble\n");
 		adapter->preamble = cmd_type_short_preamble;
 	}
 
 	libertas_set_radio_control(priv);
 
-	lbs_pr_debug(1, "Adhoc channel = %d\n", adapter->adhocchannel);
-	lbs_pr_debug(1, "curbssparams.channel = %d\n",
+	lbs_deb_join("Adhoc channel = %d\n", adapter->adhocchannel);
+	lbs_deb_join("curbssparams.channel = %d\n",
 	       adapter->curbssparams.channel);
-	lbs_pr_debug(1, "curbssparams.band = %d\n", adapter->curbssparams.band);
+	lbs_deb_join("curbssparams.band = %d\n", adapter->curbssparams.band);
 
 	ret = libertas_prepare_and_send_command(priv, cmd_802_11_ad_hoc_start,
 				    0, cmd_option_waitforrsp, 0, adhocssid);
@@ -184,12 +183,12 @@ int libertas_join_adhoc_network(wlan_private * priv, struct bss_descriptor * pbs
 	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
 
-	lbs_pr_debug(1, "libertas_join_adhoc_network: CurBss.ssid =%s\n",
+	lbs_deb_join("libertas_join_adhoc_network: CurBss.ssid =%s\n",
 	       adapter->curbssparams.ssid.ssid);
-	lbs_pr_debug(1, "libertas_join_adhoc_network: CurBss.ssid_len =%u\n",
+	lbs_deb_join("libertas_join_adhoc_network: CurBss.ssid_len =%u\n",
 	       adapter->curbssparams.ssid.ssidlength);
-	lbs_pr_debug(1, "libertas_join_adhoc_network: ssid =%s\n", pbssdesc->ssid.ssid);
-	lbs_pr_debug(1, "libertas_join_adhoc_network: ssid len =%u\n",
+	lbs_deb_join("libertas_join_adhoc_network: ssid =%s\n", pbssdesc->ssid.ssid);
+	lbs_deb_join("libertas_join_adhoc_network: ssid len =%u\n",
 	       pbssdesc->ssid.ssidlength);
 
 	/* check if the requested SSID is already joined */
@@ -197,7 +196,7 @@ int libertas_join_adhoc_network(wlan_private * priv, struct bss_descriptor * pbs
 	    && !libertas_SSID_cmp(&pbssdesc->ssid, &adapter->curbssparams.ssid)
 	    && (adapter->mode == IW_MODE_ADHOC)) {
 
-        lbs_pr_debug(1,
+        lbs_deb_join(
 		       "ADHOC_J_CMD: New ad-hoc SSID is the same as current, "
 		       "not attempting to re-join");
 
@@ -207,18 +206,18 @@ int libertas_join_adhoc_network(wlan_private * priv, struct bss_descriptor * pbs
 	/*Use shortpreamble only when both creator and card supports
 	   short preamble */
 	if (!pbssdesc->cap.shortpreamble || !adapter->capinfo.shortpreamble) {
-		lbs_pr_debug(1, "AdhocJoin: Long preamble\n");
+		lbs_deb_join("AdhocJoin: Long preamble\n");
 		adapter->preamble = cmd_type_long_preamble;
 	} else {
-		lbs_pr_debug(1, "AdhocJoin: Short preamble\n");
+		lbs_deb_join("AdhocJoin: Short preamble\n");
 		adapter->preamble = cmd_type_short_preamble;
 	}
 
 	libertas_set_radio_control(priv);
 
-	lbs_pr_debug(1, "curbssparams.channel = %d\n",
+	lbs_deb_join("curbssparams.channel = %d\n",
 	       adapter->curbssparams.channel);
-	lbs_pr_debug(1, "curbssparams.band = %c\n", adapter->curbssparams.band);
+	lbs_deb_join("curbssparams.band = %c\n", adapter->curbssparams.band);
 
 	adapter->adhoccreate = 0;
 
@@ -281,14 +280,14 @@ int libertas_cmd_80211_authenticate(wlan_private * priv,
 		pauthenticate->authtype = 0x80;
 		break;
 	default:
-		lbs_pr_debug(1, "AUTH_CMD: invalid auth alg 0x%X\n",
+		lbs_deb_join("AUTH_CMD: invalid auth alg 0x%X\n",
 		             adapter->secinfo.auth_mode);
 		goto out;
 	}
 
 	memcpy(pauthenticate->macaddr, bssid, ETH_ALEN);
 
-	lbs_pr_debug(1, "AUTH_CMD: Bssid is : %x:%x:%x:%x:%x:%x\n",
+	lbs_deb_join("AUTH_CMD: Bssid is : %x:%x:%x:%x:%x:%x\n",
 	       bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
 	ret = 0;
 
@@ -302,7 +301,7 @@ int libertas_cmd_80211_deauthenticate(wlan_private * priv,
 	wlan_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_deauthenticate *dauth = &cmd->params.deauth;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_JOIN);
 
 	cmd->command = cpu_to_le16(cmd_802_11_deauthenticate);
 	cmd->size =
@@ -317,7 +316,7 @@ int libertas_cmd_80211_deauthenticate(wlan_private * priv,
 #define REASON_CODE_STA_LEAVING 3
 	dauth->reasoncode = cpu_to_le16(REASON_CODE_STA_LEAVING);
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_JOIN);
 	return 0;
 }
 
@@ -338,7 +337,7 @@ int libertas_cmd_80211_associate(wlan_private * priv,
 	struct mrvlietypes_ratesparamset *rates;
 	struct mrvlietypes_rsnparamset *rsn;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_JOIN);
 
 	pbssdesc = pdata_buf;
 	pos = (u8 *) passo;
@@ -427,7 +426,7 @@ int libertas_cmd_80211_associate(wlan_private * priv,
 	memcpy(&adapter->curbssparams.datarates, &rates->rates,
 	       min_t(size_t, sizeof(adapter->curbssparams.datarates), rates->header.len));
 
-	lbs_pr_debug(1, "ASSOC_CMD: rates->header.len = %d\n", rates->header.len);
+	lbs_deb_join("ASSOC_CMD: rates->header.len = %d\n", rates->header.len);
 
 	/* set IBSS field */
 	if (pbssdesc->mode == IW_MODE_INFRA) {
@@ -445,13 +444,13 @@ int libertas_cmd_80211_associate(wlan_private * priv,
 	/* set the capability info at last */
 	memcpy(&tmpcap, &pbssdesc->cap, sizeof(passo->capinfo));
 	tmpcap &= CAPINFO_MASK;
-	lbs_pr_debug(1, "ASSOC_CMD: tmpcap=%4X CAPINFO_MASK=%4X\n",
+	lbs_deb_join("ASSOC_CMD: tmpcap=%4X CAPINFO_MASK=%4X\n",
 	       tmpcap, CAPINFO_MASK);
 	tmpcap = cpu_to_le16(tmpcap);
 	memcpy(&passo->capinfo, &tmpcap, sizeof(passo->capinfo));
 
-      done:
-	LEAVE();
+done:
+	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
 	return ret;
 }
 
@@ -467,7 +466,7 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 	struct bss_descriptor *pbssdesc;
 	struct WLAN_802_11_SSID *ssid = pssid;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_JOIN);
 
 	if (!adapter) {
 		ret = -1;
@@ -495,7 +494,7 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 
 	memcpy(adhs->SSID, ssid->ssid, ssid->ssidlength);
 
-	lbs_pr_debug(1, "ADHOC_S_CMD: SSID = %s\n", adhs->SSID);
+	lbs_deb_join("ADHOC_S_CMD: SSID = %s\n", adhs->SSID);
 
 	memset(pbssdesc->ssid.ssid, 0, IW_ESSID_MAX_SIZE);
 	memcpy(pbssdesc->ssid.ssid, ssid->ssid, ssid->ssidlength);
@@ -516,7 +515,7 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 
 	WARN_ON(!adapter->adhocchannel);
 
-	lbs_pr_debug(1, "ADHOC_S_CMD: Creating ADHOC on channel %d\n",
+	lbs_deb_join("ADHOC_S_CMD: Creating ADHOC on channel %d\n",
 	       adapter->adhocchannel);
 
 	adapter->curbssparams.channel = adapter->adhocchannel;
@@ -547,11 +546,11 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 
 	/* set up privacy in adapter->scantable[i] */
 	if (adapter->secinfo.wep_enabled) {
-		lbs_pr_debug(1, "ADHOC_S_CMD: WEP enabled, setting privacy on\n");
+		lbs_deb_join("ADHOC_S_CMD: WEP enabled, setting privacy on\n");
 		pbssdesc->privacy = wlan802_11privfilter8021xWEP;
 		adhs->cap.privacy = AD_HOC_CAP_PRIVACY_ON;
 	} else {
-		lbs_pr_debug(1, "ADHOC_S_CMD: WEP disabled, setting privacy off\n");
+		lbs_deb_join("ADHOC_S_CMD: WEP disabled, setting privacy off\n");
 		pbssdesc->privacy = wlan802_11privfilteracceptall;
 	}
 
@@ -574,14 +573,14 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 	memcpy(&adapter->curbssparams.datarates,
 	       &adhs->datarate, adapter->curbssparams.numofrates);
 
-	lbs_pr_debug(1, "ADHOC_S_CMD: rates=%02x %02x %02x %02x \n",
+	lbs_deb_join("ADHOC_S_CMD: rates=%02x %02x %02x %02x \n",
 	       adhs->datarate[0], adhs->datarate[1],
 	       adhs->datarate[2], adhs->datarate[3]);
 
-	lbs_pr_debug(1, "ADHOC_S_CMD: AD HOC Start command is ready\n");
+	lbs_deb_join("ADHOC_S_CMD: AD HOC Start command is ready\n");
 
 	if (libertas_create_dnld_countryinfo_11d(priv)) {
-		lbs_pr_debug(1, "ADHOC_S_CMD: dnld_countryinfo_11d failed\n");
+		lbs_deb_join("ADHOC_S_CMD: dnld_countryinfo_11d failed\n");
 		ret = -1;
 		goto done;
 	}
@@ -596,7 +595,7 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 
 	ret = 0;
 done:
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
 	return ret;
 }
 
@@ -622,7 +621,7 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 	u16 tmpcap;
 	int i;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_JOIN);
 
 	adapter->pattemptedbssdesc = pbssdesc;
 
@@ -647,13 +646,13 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 	memcpy(&tmpcap, &pbssdesc->cap, sizeof(struct ieeetypes_capinfo));
 	tmpcap &= CAPINFO_MASK;
 
-	lbs_pr_debug(1, "ADHOC_J_CMD: tmpcap=%4X CAPINFO_MASK=%4X\n",
+	lbs_deb_join("ADHOC_J_CMD: tmpcap=%4X CAPINFO_MASK=%4X\n",
 	       tmpcap, CAPINFO_MASK);
 	memcpy(&padhocjoin->bssdescriptor.cap, &tmpcap,
 	       sizeof(struct ieeetypes_capinfo));
 
 	/* information on BSSID descriptor passed to FW */
-    lbs_pr_debug(1,
+    lbs_deb_join(
 	       "ADHOC_J_CMD: BSSID = %2x-%2x-%2x-%2x-%2x-%2x, SSID = %s\n",
 	       padhocjoin->bssdescriptor.BSSID[0],
 	       padhocjoin->bssdescriptor.BSSID[1],
@@ -685,7 +684,7 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 	if (get_common_rates(adapter, padhocjoin->bssdescriptor.datarates,
 			     sizeof(padhocjoin->bssdescriptor.datarates),
 			     card_rates, card_rates_size)) {
-		lbs_pr_debug(1, "ADHOC_J_CMD: get_common_rates returns error.\n");
+		lbs_deb_join("ADHOC_J_CMD: get_common_rates returns error.\n");
 		ret = -1;
 		goto done;
 	}
@@ -742,8 +741,8 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 	memcpy(&padhocjoin->bssdescriptor.cap,
 	       &tmpcap, sizeof(struct ieeetypes_capinfo));
 
-      done:
-	LEAVE();
+done:
+	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
 	return ret;
 }
 
@@ -756,7 +755,7 @@ int libertas_ret_80211_associate(wlan_private * priv,
 	struct ieeetypes_assocrsp *passocrsp;
 	struct bss_descriptor *pbssdesc;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_JOIN);
 
 	passocrsp = (struct ieeetypes_assocrsp *) & resp->params;
 
@@ -764,9 +763,8 @@ int libertas_ret_80211_associate(wlan_private * priv,
 
 		libertas_mac_event_disconnected(priv);
 
-        lbs_pr_debug(1,
-		       "ASSOC_RESP: Association failed, status code = %d\n",
-		       passocrsp->statuscode);
+        lbs_deb_join("ASSOC_RESP: Association failed, status code = %d\n",
+		     passocrsp->statuscode);
 
 		ret = -1;
 		goto done;
@@ -781,7 +779,7 @@ int libertas_ret_80211_associate(wlan_private * priv,
 	/* Set the attempted BSSID Index to current */
 	pbssdesc = adapter->pattemptedbssdesc;
 
-	lbs_pr_debug(1, "ASSOC_RESP: %s\n", pbssdesc->ssid.ssid);
+	lbs_deb_join("ASSOC_RESP: %s\n", pbssdesc->ssid.ssid);
 
 	/* Set the new SSID to current SSID */
 	memcpy(&adapter->curbssparams.ssid,
@@ -795,7 +793,7 @@ int libertas_ret_80211_associate(wlan_private * priv,
 	memcpy(&adapter->curbssparams.bssdescriptor,
 	       pbssdesc, sizeof(struct bss_descriptor));
 
-	lbs_pr_debug(1, "ASSOC_RESP: currentpacketfilter is %x\n",
+	lbs_deb_join("ASSOC_RESP: currentpacketfilter is %x\n",
 	       adapter->currentpacketfilter);
 
 	adapter->SNR[TYPE_RXPD][TYPE_AVG] = 0;
@@ -809,25 +807,25 @@ int libertas_ret_80211_associate(wlan_private * priv,
 	netif_carrier_on(priv->wlan_dev.netdev);
 	netif_wake_queue(priv->wlan_dev.netdev);
 
-	lbs_pr_debug(1, "ASSOC_RESP: Associated \n");
+	lbs_deb_join("ASSOC_RESP: Associated \n");
 
 	memcpy(wrqu.ap_addr.sa_data, adapter->curbssparams.bssid, ETH_ALEN);
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 	wireless_send_event(priv->wlan_dev.netdev, SIOCGIWAP, &wrqu, NULL);
 
-      done:
-	LEAVE();
+done:
+	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
 	return ret;
 }
 
 int libertas_ret_80211_disassociate(wlan_private * priv,
 				 struct cmd_ds_command *resp)
 {
-	ENTER();
+	lbs_deb_enter(LBS_DEB_JOIN);
 
 	libertas_mac_event_disconnected(priv);
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_JOIN);
 	return 0;
 }
 
@@ -842,13 +840,13 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 	union iwreq_data wrqu;
 	struct bss_descriptor *pbssdesc;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_JOIN);
 
 	padhocresult = &resp->params.result;
 
-	lbs_pr_debug(1, "ADHOC_S_RESP: size = %d\n", le16_to_cpu(resp->size));
-	lbs_pr_debug(1, "ADHOC_S_RESP: command = %x\n", command);
-	lbs_pr_debug(1, "ADHOC_S_RESP: result = %x\n", result);
+	lbs_deb_join("ADHOC_S_RESP: size = %d\n", le16_to_cpu(resp->size));
+	lbs_deb_join("ADHOC_S_RESP: command = %x\n", command);
+	lbs_deb_join("ADHOC_S_RESP: result = %x\n", result);
 
 	pbssdesc = adapter->pattemptedbssdesc;
 
@@ -856,7 +854,7 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 	 * Join result code 0 --> SUCCESS
 	 */
 	if (result) {
-		lbs_pr_debug(1, "ADHOC_RESP failed\n");
+		lbs_deb_join("ADHOC_RESP failed\n");
 		if (adapter->connect_status == libertas_connected) {
 			libertas_mac_event_disconnected(priv);
 		}
@@ -864,15 +862,15 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 		memset(&adapter->curbssparams.bssdescriptor,
 		       0x00, sizeof(adapter->curbssparams.bssdescriptor));
 
-		LEAVE();
-		return -1;
+		ret = -1;
+		goto done;
 	}
 
 	/*
 	 * Now the join cmd should be successful
 	 * If BSSID has changed use SSID to compare instead of BSSID
 	 */
-	lbs_pr_debug(1, "ADHOC_J_RESP  %s\n", pbssdesc->ssid.ssid);
+	lbs_deb_join("ADHOC_J_RESP  %s\n", pbssdesc->ssid.ssid);
 
 	/* Send a Media Connected event, according to the Spec */
 	adapter->connect_status = libertas_connected;
@@ -906,24 +904,25 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 	wireless_send_event(priv->wlan_dev.netdev, SIOCGIWAP, &wrqu, NULL);
 
-	lbs_pr_debug(1, "ADHOC_RESP: - Joined/Started Ad Hoc\n");
-	lbs_pr_debug(1, "ADHOC_RESP: channel = %d\n", adapter->adhocchannel);
-	lbs_pr_debug(1, "ADHOC_RESP: BSSID = %02x:%02x:%02x:%02x:%02x:%02x\n",
+	lbs_deb_join("ADHOC_RESP: - Joined/Started Ad Hoc\n");
+	lbs_deb_join("ADHOC_RESP: channel = %d\n", adapter->adhocchannel);
+	lbs_deb_join("ADHOC_RESP: BSSID = %02x:%02x:%02x:%02x:%02x:%02x\n",
 	       padhocresult->BSSID[0], padhocresult->BSSID[1],
 	       padhocresult->BSSID[2], padhocresult->BSSID[3],
 	       padhocresult->BSSID[4], padhocresult->BSSID[5]);
 
-	LEAVE();
+done:
+	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
 	return ret;
 }
 
 int libertas_ret_80211_ad_hoc_stop(wlan_private * priv,
 				struct cmd_ds_command *resp)
 {
-	ENTER();
+	lbs_deb_enter(LBS_DEB_JOIN);
 
 	libertas_mac_event_disconnected(priv);
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_JOIN);
 	return 0;
 }

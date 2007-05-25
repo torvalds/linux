@@ -32,7 +32,7 @@ void libertas_mac_event_disconnected(wlan_private * priv)
 	if (adapter->connect_status != libertas_connected)
 		return;
 
-	lbs_pr_debug(1, "Handles disconnect event.\n");
+	lbs_deb_cmd("Handles disconnect event.\n");
 
 	memset(wrqu.ap_addr.sa_data, 0x00, ETH_ALEN);
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
@@ -62,10 +62,10 @@ void libertas_mac_event_disconnected(wlan_private * priv)
 	adapter->nextSNRNF = 0;
 	adapter->numSNRNF = 0;
 	adapter->rxpd_rate = 0;
-	lbs_pr_debug(1, "Current SSID=%s, ssid length=%u\n",
+	lbs_deb_cmd("Current SSID=%s, ssid length=%u\n",
 	       adapter->curbssparams.ssid.ssid,
 	       adapter->curbssparams.ssid.ssidlength);
-	lbs_pr_debug(1, "Previous SSID=%s, ssid length=%u\n",
+	lbs_deb_cmd("Previous SSID=%s, ssid length=%u\n",
 	       adapter->previousssid.ssid, adapter->previousssid.ssidlength);
 
 	/* reset internal flags */
@@ -90,7 +90,7 @@ void libertas_mac_event_disconnected(wlan_private * priv)
 
 	if (adapter->psstate != PS_STATE_FULL_POWER) {
 		/* make firmware to exit PS mode */
-		lbs_pr_debug(1, "Disconnected, so exit PS mode.\n");
+		lbs_deb_cmd("Disconnected, so exit PS mode.\n");
 		libertas_ps_wakeup(priv, 0);
 	}
 }
@@ -122,9 +122,10 @@ static void handle_mic_failureevent(wlan_private * priv, u32 event)
 static int wlan_ret_reg_access(wlan_private * priv,
 			       u16 type, struct cmd_ds_command *resp)
 {
+	int ret = 0;
 	wlan_adapter *adapter = priv->adapter;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_CMD);
 
 	switch (type) {
 	case cmd_ret_mac_reg_access:
@@ -165,12 +166,11 @@ static int wlan_ret_reg_access(wlan_private * priv,
 		}
 
 	default:
-		LEAVE();
-		return -1;
+		ret = -1;
 	}
 
-	LEAVE();
-	return 0;
+	lbs_deb_enter_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
 }
 
 static int wlan_ret_get_hw_spec(wlan_private * priv,
@@ -181,19 +181,19 @@ static int wlan_ret_get_hw_spec(wlan_private * priv,
 	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_CMD);
 
 	adapter->fwcapinfo = le32_to_cpu(hwspec->fwcapinfo);
 
 	adapter->fwreleasenumber = hwspec->fwreleasenumber;
 
-	lbs_pr_debug(1, "GET_HW_SPEC: FWReleaseVersion- 0x%X\n",
+	lbs_deb_cmd("GET_HW_SPEC: FWReleaseVersion- 0x%X\n",
 	       adapter->fwreleasenumber);
-	lbs_pr_debug(1, "GET_HW_SPEC: Permanent addr- %2x:%2x:%2x:%2x:%2x:%2x\n",
+	lbs_deb_cmd("GET_HW_SPEC: Permanent addr- %2x:%2x:%2x:%2x:%2x:%2x\n",
 	       hwspec->permanentaddr[0], hwspec->permanentaddr[1],
 	       hwspec->permanentaddr[2], hwspec->permanentaddr[3],
 	       hwspec->permanentaddr[4], hwspec->permanentaddr[5]);
-	lbs_pr_debug(1, "GET_HW_SPEC: hwifversion=0x%X  version=0x%X\n",
+	lbs_deb_cmd("GET_HW_SPEC: hwifversion=0x%X  version=0x%X\n",
 	       hwspec->hwifversion, hwspec->version);
 
 	adapter->regioncode = le16_to_cpu(hwspec->regioncode);
@@ -232,8 +232,8 @@ static int wlan_ret_get_hw_spec(wlan_private * priv,
 		goto done;
 	}
 
-      done:
-	LEAVE();
+done:
+	lbs_deb_enter_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
 }
 
@@ -243,9 +243,9 @@ static int wlan_ret_802_11_sleep_params(wlan_private * priv,
 	struct cmd_ds_802_11_sleep_params *sp = &resp->params.sleep_params;
 	wlan_adapter *adapter = priv->adapter;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_CMD);
 
-	lbs_pr_debug(1, "error=%x offset=%x stabletime=%x calcontrol=%x\n"
+	lbs_deb_cmd("error=%x offset=%x stabletime=%x calcontrol=%x\n"
 	       " extsleepclk=%x\n", sp->error, sp->offset,
 	       sp->stabletime, sp->calcontrol, sp->externalsleepclk);
 	adapter->sp.sp_error = le16_to_cpu(sp->error);
@@ -255,7 +255,7 @@ static int wlan_ret_802_11_sleep_params(wlan_private * priv,
 	adapter->sp.sp_extsleepclk = le16_to_cpu(sp->externalsleepclk);
 	adapter->sp.sp_reserved = le16_to_cpu(sp->reserved);
 
-	LEAVE();
+	lbs_deb_enter(LBS_DEB_CMD);
 	return 0;
 }
 
@@ -281,11 +281,11 @@ static int wlan_ret_802_11_snmp_mib(wlan_private * priv,
 	u16 oid = le16_to_cpu(smib->oid);
 	u16 querytype = le16_to_cpu(smib->querytype);
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_CMD);
 
-	lbs_pr_debug(1, "SNMP_RESP: value of the oid = %x, querytype=%x\n", oid,
+	lbs_deb_cmd("SNMP_RESP: value of the oid = %x, querytype=%x\n", oid,
 	       querytype);
-	lbs_pr_debug(1, "SNMP_RESP: Buf size  = %x\n",
+	lbs_deb_cmd("SNMP_RESP: Buf size  = %x\n",
 	       le16_to_cpu(smib->bufsize));
 
 	if (querytype == cmd_act_get) {
@@ -294,21 +294,21 @@ static int wlan_ret_802_11_snmp_mib(wlan_private * priv,
 			priv->adapter->fragthsd =
 			    le16_to_cpu(*
 					     ((unsigned short *)(smib->value)));
-			lbs_pr_debug(1, "SNMP_RESP: fragthsd =%u\n",
+			lbs_deb_cmd("SNMP_RESP: fragthsd =%u\n",
 			       priv->adapter->fragthsd);
 			break;
 		case rtsthresh_i:
 			priv->adapter->rtsthsd =
 			    le16_to_cpu(*
 					     ((unsigned short *)(smib->value)));
-			lbs_pr_debug(1, "SNMP_RESP: rtsthsd =%u\n",
+			lbs_deb_cmd("SNMP_RESP: rtsthsd =%u\n",
 			       priv->adapter->rtsthsd);
 			break;
 		case short_retrylim_i:
 			priv->adapter->txretrycount =
 			    le16_to_cpu(*
 					     ((unsigned short *)(smib->value)));
-			lbs_pr_debug(1, "SNMP_RESP: txretrycount =%u\n",
+			lbs_deb_cmd("SNMP_RESP: txretrycount =%u\n",
 			       priv->adapter->rtsthsd);
 			break;
 		default:
@@ -316,7 +316,7 @@ static int wlan_ret_802_11_snmp_mib(wlan_private * priv,
 		}
 	}
 
-	LEAVE();
+	lbs_deb_enter(LBS_DEB_CMD);
 	return 0;
 }
 
@@ -328,7 +328,7 @@ static int wlan_ret_802_11_key_material(wlan_private * priv,
 	wlan_adapter *adapter = priv->adapter;
 	u16 action = le16_to_cpu(pkeymaterial->action);
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_CMD);
 
 	/* Copy the returned key to driver private data */
 	if (action == cmd_act_get) {
@@ -371,7 +371,7 @@ static int wlan_ret_802_11_key_material(wlan_private * priv,
 		}
 	}
 
-	LEAVE();
+	lbs_deb_enter(LBS_DEB_CMD);
 	return 0;
 }
 
@@ -381,11 +381,11 @@ static int wlan_ret_802_11_mac_address(wlan_private * priv,
 	struct cmd_ds_802_11_mac_address *macadd = &resp->params.macadd;
 	wlan_adapter *adapter = priv->adapter;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_CMD);
 
 	memcpy(adapter->current_addr, macadd->macadd, ETH_ALEN);
 
-	LEAVE();
+	lbs_deb_enter(LBS_DEB_CMD);
 	return 0;
 }
 
@@ -395,13 +395,13 @@ static int wlan_ret_802_11_rf_tx_power(wlan_private * priv,
 	struct cmd_ds_802_11_rf_tx_power *rtp = &resp->params.txp;
 	wlan_adapter *adapter = priv->adapter;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_CMD);
 
 	adapter->txpowerlevel = le16_to_cpu(rtp->currentlevel);
 
-	lbs_pr_debug(1, "Current TxPower Level = %d\n", adapter->txpowerlevel);
+	lbs_deb_cmd("Current TxPower Level = %d\n", adapter->txpowerlevel);
 
-	LEAVE();
+	lbs_deb_enter(LBS_DEB_CMD);
 	return 0;
 }
 
@@ -420,7 +420,7 @@ static int wlan_ret_802_11_rf_antenna(wlan_private * priv,
 		adapter->txantennamode =
 		    le16_to_cpu(pAntenna->antennamode);
 
-	lbs_pr_debug(1, "RF_ANT_RESP: action = 0x%x, mode = 0x%04x\n",
+	lbs_deb_cmd("RF_ANT_RESP: action = 0x%x, mode = 0x%04x\n",
 	       action, le16_to_cpu(pAntenna->antennamode));
 
 	return 0;
@@ -433,15 +433,14 @@ static int wlan_ret_802_11_rate_adapt_rateset(wlan_private * priv,
 	    &resp->params.rateset;
 	wlan_adapter *adapter = priv->adapter;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_CMD);
 
 	if (rates->action == cmd_act_get) {
 		adapter->enablehwauto = rates->enablehwauto;
 		adapter->ratebitmap = rates->bitmap;
 	}
 
-	LEAVE();
-
+	lbs_deb_enter(LBS_DEB_CMD);
 	return 0;
 }
 
@@ -452,7 +451,7 @@ static int wlan_ret_802_11_data_rate(wlan_private * priv,
 	wlan_adapter *adapter = priv->adapter;
 	u8 dot11datarate;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_CMD);
 
 	lbs_dbg_hex("DATA_RATE_RESP: data_rate- ",
 		(u8 *) pdatarate, sizeof(struct cmd_ds_802_11_data_rate));
@@ -464,7 +463,7 @@ static int wlan_ret_802_11_data_rate(wlan_private * priv,
 	}
 	adapter->datarate = libertas_index_to_data_rate(dot11datarate);
 
-	LEAVE();
+	lbs_deb_enter(LBS_DEB_CMD);
 	return 0;
 }
 
@@ -477,18 +476,18 @@ static int wlan_ret_802_11_rf_channel(wlan_private * priv,
 	u16 action = le16_to_cpu(rfchannel->action);
 	u16 newchannel = le16_to_cpu(rfchannel->currentchannel);
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_CMD);
 
 	if (action == cmd_opt_802_11_rf_channel_get
 	    && adapter->curbssparams.channel != newchannel) {
-		lbs_pr_debug(1, "channel Switch: %d to %d\n",
+		lbs_deb_cmd("channel Switch: %d to %d\n",
 		       adapter->curbssparams.channel, newchannel);
 
 		/* Update the channel again */
 		adapter->curbssparams.channel = newchannel;
 	}
 
-	LEAVE();
+	lbs_deb_enter(LBS_DEB_CMD);
 	return 0;
 }
 
@@ -515,7 +514,7 @@ static int wlan_ret_802_11_rssi(wlan_private * priv,
 	    CAL_RSSI(adapter->SNR[TYPE_BEACON][TYPE_AVG] / AVG_SCALE,
 		     adapter->NF[TYPE_BEACON][TYPE_AVG] / AVG_SCALE);
 
-	lbs_pr_debug(1, "Beacon RSSI value = 0x%x\n",
+	lbs_deb_cmd("Beacon RSSI value = 0x%x\n",
 	       adapter->RSSI[TYPE_BEACON][TYPE_AVG]);
 
 	return 0;
@@ -528,11 +527,11 @@ static int wlan_ret_802_11_eeprom_access(wlan_private * priv,
 	struct wlan_ioctl_regrdwr *pbuf;
 	pbuf = (struct wlan_ioctl_regrdwr *) adapter->prdeeprom;
 
-	lbs_pr_debug(1, "eeprom read len=%x\n",
+	lbs_deb_cmd("eeprom read len=%x\n",
 	       le16_to_cpu(resp->params.rdeeprom.bytecount));
 	if (pbuf->NOB < le16_to_cpu(resp->params.rdeeprom.bytecount)) {
 		pbuf->NOB = 0;
-		lbs_pr_debug(1, "eeprom read return length is too big\n");
+		lbs_deb_cmd("eeprom read return length is too big\n");
 		return -1;
 	}
 	pbuf->NOB = le16_to_cpu(resp->params.rdeeprom.bytecount);
@@ -553,13 +552,13 @@ static int wlan_ret_get_log(wlan_private * priv,
 	    (struct cmd_ds_802_11_get_log *)&resp->params.glog;
 	wlan_adapter *adapter = priv->adapter;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_CMD);
 
 	/* TODO Convert it to Big Endian before copy */
 	memcpy(&adapter->logmsg, logmessage,
 	       sizeof(struct cmd_ds_802_11_get_log));
 
-	LEAVE();
+	lbs_deb_enter(LBS_DEB_CMD);
 	return 0;
 }
 
@@ -663,7 +662,7 @@ static inline int handle_cmd_response(u16 respcmd,
 		break;
 
 	case cmd_ret_802_11_key_material:
-		lbs_pr_debug(1, "CMD_RESP: KEY_MATERIAL command response\n");
+		lbs_deb_cmd("CMD_RESP: KEY_MATERIAL command response\n");
 		ret = wlan_ret_802_11_key_material(priv, resp);
 		break;
 
@@ -739,7 +738,7 @@ static inline int handle_cmd_response(u16 respcmd,
 		priv->adapter->txrate = resp->params.txrate.txrate;
 		break;
 	default:
-		lbs_pr_debug(1, "CMD_RESP: Unknown command response %#x\n",
+		lbs_deb_cmd("CMD_RESP: Unknown command response %#x\n",
 		       resp->command);
 		break;
 	}
@@ -755,9 +754,9 @@ int libertas_process_rx_command(wlan_private * priv)
 	ulong flags;
 	u16 result;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_CMD);
 
-	lbs_pr_debug(1, "CMD_RESP: @ %lu\n", jiffies);
+	lbs_deb_cmd("CMD_RESP: @ %lu\n", jiffies);
 
 	/* Now we got response from FW, cancel the command timer */
 	del_timer(&adapter->command_timer);
@@ -766,7 +765,7 @@ int libertas_process_rx_command(wlan_private * priv)
 	spin_lock_irqsave(&adapter->driver_lock, flags);
 
 	if (!adapter->cur_cmd) {
-		lbs_pr_debug(1, "CMD_RESP: NULL cur_cmd=%p\n", adapter->cur_cmd);
+		lbs_deb_cmd("CMD_RESP: NULL cur_cmd=%p\n", adapter->cur_cmd);
 		ret = -1;
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 		goto done;
@@ -780,11 +779,11 @@ int libertas_process_rx_command(wlan_private * priv)
 
 	result = le16_to_cpu(resp->result);
 
-	lbs_pr_debug(1, "CMD_RESP: %x result: %d length: %d\n", respcmd,
+	lbs_deb_cmd("CMD_RESP: %x result: %d length: %d\n", respcmd,
 	       result, priv->wlan_dev.upld_len);
 
 	if (!(respcmd & 0x8000)) {
-		lbs_pr_debug(1, "Invalid response to command!");
+		lbs_deb_cmd("Invalid response to command!");
 		adapter->cur_cmd_retcode = -1;
 		__libertas_cleanup_and_insert_cmd(priv, adapter->cur_cmd);
 		adapter->nr_cmd_pending--;
@@ -801,13 +800,13 @@ int libertas_process_rx_command(wlan_private * priv)
 		struct cmd_ds_802_11_ps_mode *psmode;
 
 		psmode = &resp->params.psmode;
-		lbs_pr_debug(1,
+		lbs_deb_cmd(
 		       "CMD_RESP: PS_MODE cmd reply result=%#x action=0x%X\n",
 		       resp->result, psmode->action);
 		psmode->action = cpu_to_le16(psmode->action);
 
 		if (result) {
-			lbs_pr_debug(1, "CMD_RESP: PS command failed- %#x \n",
+			lbs_deb_cmd("CMD_RESP: PS command failed- %#x \n",
 			       resp->result);
 			if (adapter->mode == IW_MODE_ADHOC) {
 				/*
@@ -823,13 +822,13 @@ int libertas_process_rx_command(wlan_private * priv)
 			adapter->needtowakeup = 0;
 			adapter->psstate = PS_STATE_AWAKE;
 
-			lbs_pr_debug(1, "CMD_RESP: Enter_PS command response\n");
+			lbs_deb_cmd("CMD_RESP: Enter_PS command response\n");
 			if (adapter->connect_status != libertas_connected) {
 				/*
 				 * When Deauth Event received before Enter_PS command
 				 * response, We need to wake up the firmware.
 				 */
-				lbs_pr_debug(1,
+				lbs_deb_cmd(
 				       "Disconnected, Going to invoke libertas_ps_wakeup\n");
 
 				mutex_unlock(&adapter->lock);
@@ -841,9 +840,9 @@ int libertas_process_rx_command(wlan_private * priv)
 		} else if (psmode->action == cmd_subcmd_exit_ps) {
 			adapter->needtowakeup = 0;
 			adapter->psstate = PS_STATE_FULL_POWER;
-			lbs_pr_debug(1, "CMD_RESP: Exit_PS command response\n");
+			lbs_deb_cmd("CMD_RESP: Exit_PS command response\n");
 		} else {
-			lbs_pr_debug(1, "CMD_RESP: PS- action=0x%X\n",
+			lbs_deb_cmd("CMD_RESP: PS- action=0x%X\n",
 			       psmode->action);
 		}
 
@@ -865,7 +864,7 @@ int libertas_process_rx_command(wlan_private * priv)
 
 	/* If the command is not successful, cleanup and return failure */
 	if ((result != 0 || !(respcmd & 0x8000))) {
-		lbs_pr_debug(1, "CMD_RESP: command reply %#x result=%#x\n",
+		lbs_deb_cmd("CMD_RESP: command reply %#x result=%#x\n",
 		       resp->command, resp->result);
 		/*
 		 * Handling errors here
@@ -873,7 +872,7 @@ int libertas_process_rx_command(wlan_private * priv)
 		switch (respcmd) {
 		case cmd_ret_hw_spec_info:
 		case cmd_ret_802_11_reset:
-			lbs_pr_debug(1, "CMD_RESP: Reset command failed\n");
+			lbs_deb_cmd("CMD_RESP: Reset command failed\n");
 			break;
 
 		}
@@ -903,7 +902,7 @@ int libertas_process_rx_command(wlan_private * priv)
 
 done:
 	mutex_unlock(&adapter->lock);
-	LEAVE();
+	lbs_deb_enter_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
 }
 
@@ -917,37 +916,37 @@ int libertas_process_event(wlan_private * priv)
 	eventcause = adapter->eventcause;
 	spin_unlock_irq(&adapter->driver_lock);
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_CMD);
 
-	lbs_pr_debug(1, "EVENT Cause %x\n", eventcause);
+	lbs_deb_cmd("EVENT Cause %x\n", eventcause);
 
 	switch (eventcause >> SBI_EVENT_CAUSE_SHIFT) {
 	case MACREG_INT_CODE_LINK_SENSED:
-		lbs_pr_debug(1, "EVENT: MACREG_INT_CODE_LINK_SENSED\n");
+		lbs_deb_cmd("EVENT: MACREG_INT_CODE_LINK_SENSED\n");
 		break;
 
 	case MACREG_INT_CODE_DEAUTHENTICATED:
-		lbs_pr_debug(1, "EVENT: Deauthenticated\n");
+		lbs_deb_cmd("EVENT: Deauthenticated\n");
 		libertas_mac_event_disconnected(priv);
 		break;
 
 	case MACREG_INT_CODE_DISASSOCIATED:
-		lbs_pr_debug(1, "EVENT: Disassociated\n");
+		lbs_deb_cmd("EVENT: Disassociated\n");
 		libertas_mac_event_disconnected(priv);
 		break;
 
 	case MACREG_INT_CODE_LINK_LOSE_NO_SCAN:
-		lbs_pr_debug(1, "EVENT: Link lost\n");
+		lbs_deb_cmd("EVENT: Link lost\n");
 		libertas_mac_event_disconnected(priv);
 		break;
 
 	case MACREG_INT_CODE_PS_SLEEP:
-		lbs_pr_debug(1, "EVENT: SLEEP\n");
-		lbs_pr_debug(1, "_");
+		lbs_deb_cmd("EVENT: SLEEP\n");
+		lbs_deb_cmd("_");
 
 		/* handle unexpected PS SLEEP event */
 		if (adapter->psstate == PS_STATE_FULL_POWER) {
-			lbs_pr_debug(1,
+			lbs_deb_cmd(
 			       "EVENT: In FULL POWER mode - ignore PS SLEEP\n");
 			break;
 		}
@@ -958,12 +957,12 @@ int libertas_process_event(wlan_private * priv)
 		break;
 
 	case MACREG_INT_CODE_PS_AWAKE:
-		lbs_pr_debug(1, "EVENT: AWAKE \n");
-		lbs_pr_debug(1, "|");
+		lbs_deb_cmd("EVENT: AWAKE \n");
+		lbs_deb_cmd("|");
 
 		/* handle unexpected PS AWAKE event */
 		if (adapter->psstate == PS_STATE_FULL_POWER) {
-			lbs_pr_debug(1,
+			lbs_deb_cmd(
 			       "EVENT: In FULL POWER mode - ignore PS AWAKE\n");
 			break;
 		}
@@ -977,18 +976,18 @@ int libertas_process_event(wlan_private * priv)
 			 * adapter->needtowakeup will be set to FALSE
 			 * in libertas_ps_wakeup()
 			 */
-			lbs_pr_debug(1, "Waking up...\n");
+			lbs_deb_cmd("Waking up...\n");
 			libertas_ps_wakeup(priv, 0);
 		}
 		break;
 
 	case MACREG_INT_CODE_MIC_ERR_UNICAST:
-		lbs_pr_debug(1, "EVENT: UNICAST MIC ERROR\n");
+		lbs_deb_cmd("EVENT: UNICAST MIC ERROR\n");
 		handle_mic_failureevent(priv, MACREG_INT_CODE_MIC_ERR_UNICAST);
 		break;
 
 	case MACREG_INT_CODE_MIC_ERR_MULTICAST:
-		lbs_pr_debug(1, "EVENT: MULTICAST MIC ERROR\n");
+		lbs_deb_cmd("EVENT: MULTICAST MIC ERROR\n");
 		handle_mic_failureevent(priv, MACREG_INT_CODE_MIC_ERR_MULTICAST);
 		break;
 	case MACREG_INT_CODE_MIB_CHANGED:
@@ -996,7 +995,7 @@ int libertas_process_event(wlan_private * priv)
 		break;
 
 	case MACREG_INT_CODE_ADHOC_BCN_LOST:
-		lbs_pr_debug(1, "EVENT: HWAC - ADHOC BCN LOST\n");
+		lbs_deb_cmd("EVENT: HWAC - ADHOC BCN LOST\n");
 		break;
 
 	case MACREG_INT_CODE_RSSI_LOW:
@@ -1024,6 +1023,7 @@ int libertas_process_event(wlan_private * priv)
 	spin_lock_irq(&adapter->driver_lock);
 	adapter->eventcause = 0;
 	spin_unlock_irq(&adapter->driver_lock);
-	LEAVE();
+
+	lbs_deb_enter_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
 }

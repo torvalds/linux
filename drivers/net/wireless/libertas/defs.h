@@ -7,14 +7,77 @@
 
 #include <linux/spinlock.h>
 
-extern unsigned int libertas_debug;
-
 #ifdef CONFIG_LIBERTAS_DEBUG
 #define DEBUG
 #define PROC_DEBUG
 #endif
 
-#define DRV_NAME		"usb8xxx"
+#define DRV_NAME "usb8xxx"
+
+
+#define LBS_DEB_ENTER	(1<<0)
+#define LBS_DEB_LEAVE	(1<<1)
+#define LBS_DEB_MAIN	(1<<2)
+#define LBS_DEB_NET	(1<<3)
+#define LBS_DEB_MESH	(1<<4)
+#define LBS_DEB_WEXT	(1<<5)
+#define LBS_DEB_IOCTL	(1<<6)
+#define LBS_DEB_SCAN	(1<<7)
+#define LBS_DEB_ASSOC	(1<<8)
+#define LBS_DEB_JOIN	(1<<9)
+#define LBS_DEB_11D	(1<<10)
+#define LBS_DEB_DEBUGFS	(1<<11)
+#define LBS_DEB_ETHTOOL	(1<<12)
+#define LBS_DEB_HOST	(1<<13)
+#define LBS_DEB_CMD	(1<<14)
+#define LBS_DEB_RX	(1<<15)
+#define LBS_DEB_TX	(1<<16)
+#define LBS_DEB_FW	(1<<17)
+#define LBS_DEB_USB	(1<<18)
+#define LBS_DEB_CS	(1<<19)
+#define LBS_DEB_THREAD	(1<<20)
+#define LBS_DEB_HEX	(1<<21)
+
+extern unsigned int libertas_debug_flags;
+
+#ifdef DEBUG
+#define LBS_DEB_LL(grp, fmt, args...) \
+do { if ((libertas_debug_flags & (grp)) == (grp)) \
+  printk(KERN_DEBUG DRV_NAME "%s: " fmt, \
+         in_interrupt() ? " (INT)" : "", ## args); } while (0)
+#else
+#define LBS_DEB_LL(grp, fmt, args...) do {} while (0)
+#endif
+
+#define lbs_deb_enter(grp) \
+  LBS_DEB_LL(grp | LBS_DEB_ENTER, "%s() %d enter\n", __FUNCTION__, __LINE__);
+#define lbs_deb_enter_args(grp, fmt, args...) \
+  LBS_DEB_LL(grp | LBS_DEB_ENTER, "%s(" fmt "):%d\n", __FUNCTION__, ## args, __LINE__);
+#define lbs_deb_leave(grp) \
+  LBS_DEB_LL(grp | LBS_DEB_LEAVE, "%s():%d leave\n", __FUNCTION__, __LINE__);
+#define lbs_deb_leave_args(grp, fmt, args...) \
+  LBS_DEB_LL(grp | LBS_DEB_LEAVE, "%s():%d leave, " fmt "\n", \
+  __FUNCTION__, __LINE__, ##args);
+#define lbs_deb_main(fmt, args...)      LBS_DEB_LL(LBS_DEB_MAIN, fmt, ##args)
+#define lbs_deb_net(fmt, args...)       LBS_DEB_LL(LBS_DEB_NET, fmt, ##args)
+#define lbs_deb_mesh(fmt, args...)      LBS_DEB_LL(LBS_DEB_MESH, fmt, ##args)
+#define lbs_deb_wext(fmt, args...)      LBS_DEB_LL(LBS_DEB_WEXT, fmt, ##args)
+#define lbs_deb_ioctl(fmt, args...)     LBS_DEB_LL(LBS_DEB_IOCTL, fmt, ##args)
+#define lbs_deb_scan(fmt, args...)      LBS_DEB_LL(LBS_DEB_SCAN, fmt, ##args)
+#define lbs_deb_assoc(fmt, args...)     LBS_DEB_LL(LBS_DEB_ASSOC, fmt, ##args)
+#define lbs_deb_join(fmt, args...)      LBS_DEB_LL(LBS_DEB_JOIN, fmt, ##args)
+#define lbs_deb_11d(fmt, args...)       LBS_DEB_LL(LBS_DEB_11D, fmt, ##args)
+#define lbs_deb_debugfs(fmt, args...)   LBS_DEB_LL(LBS_DEB_DEBUGFS, fmt, ##args)
+#define lbs_deb_ethtool(fmt, args...)   LBS_DEB_LL(LBS_DEB_ETHTOOL, fmt, ##args)
+#define lbs_deb_host(fmt, args...)      LBS_DEB_LL(LBS_DEB_HOST, fmt, ##args)
+#define lbs_deb_cmd(fmt, args...)       LBS_DEB_LL(LBS_DEB_CMD, fmt, ##args)
+#define lbs_deb_rx(fmt, args...)        LBS_DEB_LL(LBS_DEB_RX, fmt, ##args)
+#define lbs_deb_tx(fmt, args...)        LBS_DEB_LL(LBS_DEB_TX, fmt, ##args)
+#define lbs_deb_fw(fmt, args...)        LBS_DEB_LL(LBS_DEB_FW, fmt, ##args)
+#define lbs_deb_usb(fmt, args...)       LBS_DEB_LL(LBS_DEB_USB, fmt, ##args)
+#define lbs_deb_usbd(dev, fmt, args...) LBS_DEB_LL(LBS_DEB_USB, "%s:" fmt, (dev)->bus_id, ##args)
+#define lbs_deb_cs(fmt, args...)        LBS_DEB_LL(LBS_DEB_CS, fmt, ##args)
+#define lbs_deb_thread(fmt, args...)    LBS_DEB_LL(LBS_DEB_THREAD, fmt, ##args)
 
 #define lbs_pr_info(format, args...) \
 	printk(KERN_INFO DRV_NAME": " format, ## args)
@@ -24,37 +87,25 @@ extern unsigned int libertas_debug;
 	printk(KERN_ALERT DRV_NAME": " format, ## args)
 
 #ifdef DEBUG
-#define lbs_pr_debug(level, format, args...) \
-	do { if (libertas_debug >= level) \
-	printk(KERN_INFO DRV_NAME": " format, ##args); } while (0)
-#define lbs_dev_dbg(level, device, format, args...) \
-        lbs_pr_debug(level, "%s: " format, \
-        (device)->bus_id , ## args)
-
 static inline void lbs_dbg_hex(char *prompt, u8 * buf, int len)
 {
 	int i = 0;
 
-	if (!libertas_debug)
+	if (!(libertas_debug_flags & LBS_DEB_HEX))
 		return;
 
 	printk(KERN_DEBUG "%s: ", prompt);
 	for (i = 1; i <= len; i++) {
-		printk(KERN_DEBUG "%02x ", (u8) * buf);
+		printk("%02x ", (u8) * buf);
 		buf++;
 	}
 	printk("\n");
 }
 #else
-#define lbs_pr_debug(level, format, args...)		do {} while (0)
-#define lbs_dev_dbg(level, device, format, args...)	do {} while (0)
 #define lbs_dbg_hex(x,y,z)				do {} while (0)
 #endif
 
-#define	ENTER()			lbs_pr_debug(1, "Enter: %s:%i\n", \
-					__FUNCTION__, __LINE__)
-#define	LEAVE()			lbs_pr_debug(1, "Leave: %s:%i\n", \
-					__FUNCTION__, __LINE__)
+
 
 /** Buffer Constants */
 

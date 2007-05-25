@@ -11,6 +11,7 @@
 #include <linux/if_arp.h>
 
 #include <net/iw_handler.h>
+#include <net/ieee80211.h>
 
 #include "host.h"
 #include "sbi.h"
@@ -227,7 +228,8 @@ static DEVICE_ATTR(libertas_mpp, 0644, libertas_mpp_get,
  * function to work around the issue.
  *
  */
-static int pre_open_check(struct net_device *dev) {
+static int pre_open_check(struct net_device *dev)
+{
 	wlan_private *priv = (wlan_private *) dev->priv;
 	wlan_adapter *adapter = priv->adapter;
 	int i = 0;
@@ -237,8 +239,7 @@ static int pre_open_check(struct net_device *dev) {
 		msleep_interruptible(100);
 	}
 	if (!adapter->fw_ready) {
-		lbs_pr_info("FW not ready, pre_open_check() return failure\n");
-		LEAVE();
+		lbs_pr_err("firmware not ready\n");
 		return -1;
 	}
 
@@ -256,8 +257,7 @@ static int wlan_dev_open(struct net_device *dev)
 	wlan_private *priv = (wlan_private *) dev->priv;
 	wlan_adapter *adapter = priv->adapter;
 
-	ENTER();
-
+	lbs_deb_enter(LBS_DEB_NET);
 
 	priv->open = 1;
 
@@ -266,7 +266,7 @@ static int wlan_dev_open(struct net_device *dev)
 	} else
 		netif_carrier_off(priv->wlan_dev.netdev);
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_NET);
 	return 0;
 }
 /**
@@ -311,12 +311,12 @@ static int wlan_dev_close(struct net_device *dev)
 {
 	wlan_private *priv = dev->priv;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_NET);
 
 	netif_carrier_off(priv->wlan_dev.netdev);
 	priv->open = 0;
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_NET);
 	return 0;
 }
 
@@ -361,7 +361,7 @@ static int wlan_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int ret = 0;
 	wlan_private *priv = dev->priv;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_NET);
 
 	if (priv->wlan_dev.dnld_sent || priv->adapter->TxLockFlag) {
 		priv->stats.tx_dropped++;
@@ -373,7 +373,7 @@ static int wlan_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (libertas_process_tx(priv, skb) == 0)
 		dev->trans_start = jiffies;
 done:
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_NET, "ret %d", ret);
 	return ret;
 }
 
@@ -384,31 +384,41 @@ done:
 static int mesh_pre_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	wlan_private *priv = dev->priv;
-	ENTER();
-	SET_MESH_FRAME(skb);
-	LEAVE();
+	int ret;
 
-	return wlan_hard_start_xmit(skb, priv->wlan_dev.netdev);
+	lbs_deb_enter(LBS_DEB_MESH);
+
+	SET_MESH_FRAME(skb);
+
+	ret = wlan_hard_start_xmit(skb, priv->wlan_dev.netdev);
+	lbs_deb_leave_args(LBS_DEB_MESH, "ret %d", ret);
+	return ret;
 }
 
 /**
  * @brief Mark non-mesh packets and handover them to wlan_hard_start_xmit
  *
  */
-static int wlan_pre_start_xmit(struct sk_buff *skb, struct net_device *dev) {
-	ENTER();
+static int wlan_pre_start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	int ret;
+
+	lbs_deb_enter(LBS_DEB_NET);
+
 	UNSET_MESH_FRAME(skb);
-	LEAVE();
-	return wlan_hard_start_xmit(skb, dev);
+
+	ret = wlan_hard_start_xmit(skb, dev);
+	lbs_deb_leave_args(LBS_DEB_NET, "ret %d", ret);
+	return ret;
 }
 
 static void wlan_tx_timeout(struct net_device *dev)
 {
 	wlan_private *priv = (wlan_private *) dev->priv;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_TX);
 
-	lbs_pr_err("tx watch dog timeout!\n");
+	lbs_pr_err("tx watch dog timeout\n");
 
 	priv->wlan_dev.dnld_sent = DNLD_RES_RECEIVED;
 	dev->trans_start = jiffies;
@@ -424,7 +434,7 @@ static void wlan_tx_timeout(struct net_device *dev)
 	} else if (priv->adapter->connect_status == libertas_connected)
 		netif_wake_queue(priv->wlan_dev.netdev);
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_TX);
 }
 
 /**
@@ -447,7 +457,7 @@ static int wlan_set_mac_address(struct net_device *dev, void *addr)
 	wlan_adapter *adapter = priv->adapter;
 	struct sockaddr *phwaddr = addr;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_NET);
 
 	memset(adapter->current_addr, 0, ETH_ALEN);
 
@@ -462,7 +472,7 @@ static int wlan_set_mac_address(struct net_device *dev, void *addr)
 				    cmd_option_waitforrsp, 0, NULL);
 
 	if (ret) {
-		lbs_pr_debug(1, "set mac address failed.\n");
+		lbs_deb_net("set MAC address failed\n");
 		ret = -1;
 		goto done;
 	}
@@ -472,7 +482,7 @@ static int wlan_set_mac_address(struct net_device *dev, void *addr)
 	memcpy(((wlan_private *) dev->priv)->mesh_dev->dev_addr, adapter->current_addr, ETH_ALEN);
 
 done:
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_NET, "ret %d", ret);
 	return ret;
 }
 
@@ -497,12 +507,12 @@ static void wlan_set_multicast_list(struct net_device *dev)
 	wlan_adapter *adapter = priv->adapter;
 	int oldpacketfilter;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_NET);
 
 	oldpacketfilter = adapter->currentpacketfilter;
 
 	if (dev->flags & IFF_PROMISC) {
-		lbs_pr_debug(1, "enable Promiscuous mode\n");
+		lbs_deb_net("enable promiscuous mode\n");
 		adapter->currentpacketfilter |=
 		    cmd_act_mac_promiscuous_enable;
 		adapter->currentpacketfilter &=
@@ -515,7 +525,7 @@ static void wlan_set_multicast_list(struct net_device *dev)
 
 		if (dev->flags & IFF_ALLMULTI || dev->mc_count >
 		    MRVDRV_MAX_MULTICAST_LIST_SIZE) {
-			lbs_pr_debug(1, "Enabling All Multicast!\n");
+			lbs_deb_net( "enabling all multicast\n");
 			adapter->currentpacketfilter |=
 			    cmd_act_mac_all_multicast_enable;
 			adapter->currentpacketfilter &=
@@ -525,8 +535,8 @@ static void wlan_set_multicast_list(struct net_device *dev)
 			    ~cmd_act_mac_all_multicast_enable;
 
 			if (!dev->mc_count) {
-				lbs_pr_debug(1, "No multicast addresses - "
-				       "disabling multicast!\n");
+				lbs_deb_net("no multicast addresses, "
+				       "disabling multicast\n");
 				adapter->currentpacketfilter &=
 				    ~cmd_act_mac_multicast_enable;
 			} else {
@@ -538,12 +548,12 @@ static void wlan_set_multicast_list(struct net_device *dev)
 				adapter->nr_of_multicastmacaddr =
 				    wlan_copy_multicast_address(adapter, dev);
 
-				lbs_pr_debug(1, "Multicast addresses: %d\n",
+				lbs_deb_net("multicast addresses: %d\n",
 				       dev->mc_count);
 
 				for (i = 0; i < dev->mc_count; i++) {
-					lbs_pr_debug(1, "Multicast address %d:"
-					       "%x %x %x %x %x %x\n", i,
+					lbs_deb_net("Multicast address %d:"
+					       MAC_FMT "\n", i,
 					       adapter->multicastlist[i][0],
 					       adapter->multicastlist[i][1],
 					       adapter->multicastlist[i][2],
@@ -551,7 +561,7 @@ static void wlan_set_multicast_list(struct net_device *dev)
 					       adapter->multicastlist[i][4],
 					       adapter->multicastlist[i][5]);
 				}
-				/* set multicast addresses to firmware */
+				/* send multicast addresses to firmware */
 				libertas_prepare_and_send_command(priv,
 						      cmd_mac_multicast_adr,
 						      cmd_act_set, 0, 0,
@@ -564,13 +574,13 @@ static void wlan_set_multicast_list(struct net_device *dev)
 		libertas_set_mac_packet_filter(priv);
 	}
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_NET);
 }
 
 /**
- *  @brief This function hanldes the major job in WLAN driver.
- *  it handles the event generated by firmware, rx data received
- *  from firmware and tx data sent from kernel.
+ *  @brief This function handles the major jobs in the WLAN driver.
+ *  It handles all events generated by firmware, RX data received
+ *  from firmware and TX data sent from kernel.
  *
  *  @param data    A pointer to wlan_thread structure
  *  @return 	   0
@@ -583,14 +593,14 @@ static int wlan_service_main_thread(void *data)
 	wait_queue_t wait;
 	u8 ireg = 0;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_THREAD);
 
 	wlan_activate_thread(thread);
 
 	init_waitqueue_entry(&wait, current);
 
 	for (;;) {
-		lbs_pr_debug(1, "main-thread 111: intcounter=%d "
+		lbs_deb_thread( "main-thread 111: intcounter=%d "
 		       "currenttxskb=%p dnld_sent=%d\n",
 		       adapter->intcounter,
 		       adapter->currenttxskb, priv->wlan_dev.dnld_sent);
@@ -602,7 +612,7 @@ static int wlan_service_main_thread(void *data)
 		    (!adapter->intcounter
 		     && (priv->wlan_dev.dnld_sent || adapter->cur_cmd ||
 			 list_empty(&adapter->cmdpendingq)))) {
-			lbs_pr_debug(1,
+			lbs_deb_thread(
 			       "main-thread sleeping... Conn=%d IntC=%d PS_mode=%d PS_State=%d\n",
 			       adapter->connect_status, adapter->intcounter,
 			       adapter->psmode, adapter->psstate);
@@ -612,7 +622,7 @@ static int wlan_service_main_thread(void *data)
 			spin_unlock_irq(&adapter->driver_lock);
 
 
-		lbs_pr_debug(1,
+		lbs_deb_thread(
 		       "main-thread 222 (waking up): intcounter=%d currenttxskb=%p "
 		       "dnld_sent=%d\n", adapter->intcounter,
 		       adapter->currenttxskb, priv->wlan_dev.dnld_sent);
@@ -621,14 +631,14 @@ static int wlan_service_main_thread(void *data)
 		remove_wait_queue(&thread->waitq, &wait);
 		try_to_freeze();
 
-		lbs_pr_debug(1, "main-thread 333: intcounter=%d currenttxskb=%p "
+		lbs_deb_thread("main-thread 333: intcounter=%d currenttxskb=%p "
 		       "dnld_sent=%d\n",
 		       adapter->intcounter,
 		       adapter->currenttxskb, priv->wlan_dev.dnld_sent);
 
 		if (kthread_should_stop()
 		    || adapter->surpriseremoved) {
-			lbs_pr_debug(1,
+			lbs_deb_thread(
 			       "main-thread: break from main thread: surpriseremoved=0x%x\n",
 			       adapter->surpriseremoved);
 			break;
@@ -642,7 +652,7 @@ static int wlan_service_main_thread(void *data)
 			int_status = libertas_sbi_get_int_status(priv, &ireg);
 
 			if (int_status) {
-				lbs_pr_debug(1,
+				lbs_deb_thread(
 				       "main-thread: reading HOST_INT_STATUS_REG failed\n");
 				spin_unlock_irq(&adapter->driver_lock);
 				continue;
@@ -650,14 +660,14 @@ static int wlan_service_main_thread(void *data)
 			adapter->hisregcpy |= ireg;
 		}
 
-		lbs_pr_debug(1, "main-thread 444: intcounter=%d currenttxskb=%p "
+		lbs_deb_thread("main-thread 444: intcounter=%d currenttxskb=%p "
 		       "dnld_sent=%d\n",
 		       adapter->intcounter,
 		       adapter->currenttxskb, priv->wlan_dev.dnld_sent);
 
 		/* command response? */
 		if (adapter->hisregcpy & his_cmdupldrdy) {
-			lbs_pr_debug(1, "main-thread: cmd response ready.\n");
+			lbs_deb_thread("main-thread: cmd response ready\n");
 
 			adapter->hisregcpy &= ~his_cmdupldrdy;
 			spin_unlock_irq(&adapter->driver_lock);
@@ -667,13 +677,13 @@ static int wlan_service_main_thread(void *data)
 
 		/* Any Card Event */
 		if (adapter->hisregcpy & his_cardevent) {
-			lbs_pr_debug(1, "main-thread: Card Event Activity.\n");
+			lbs_deb_thread("main-thread: Card Event Activity\n");
 
 			adapter->hisregcpy &= ~his_cardevent;
 
 			if (libertas_sbi_read_event_cause(priv)) {
 				lbs_pr_alert(
-				       "main-thread: libertas_sbi_read_event_cause failed.\n");
+				       "main-thread: libertas_sbi_read_event_cause failed\n");
 				spin_unlock_irq(&adapter->driver_lock);
 				continue;
 			}
@@ -687,7 +697,7 @@ static int wlan_service_main_thread(void *data)
 			if (!priv->wlan_dev.dnld_sent && !adapter->cur_cmd) {
 				if (adapter->connect_status ==
 				    libertas_connected) {
-					lbs_pr_debug(1,
+					lbs_deb_thread(
 					       "main_thread: PRE_SLEEP--intcounter=%d currenttxskb=%p "
 					       "dnld_sent=%d cur_cmd=%p, confirm now\n",
 					       adapter->intcounter,
@@ -735,7 +745,7 @@ static int wlan_service_main_thread(void *data)
 	wake_up_all(&adapter->cmd_pending);
 	wlan_deactivate_thread(thread);
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_THREAD);
 	return 0;
 }
 
@@ -752,11 +762,11 @@ wlan_private *wlan_add_card(void *card)
 	struct net_device *mesh_dev = NULL;
 	wlan_private *priv = NULL;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_NET);
 
 	/* Allocate an Ethernet device and register it */
 	if (!(dev = alloc_etherdev(sizeof(wlan_private)))) {
-		lbs_pr_alert( "Init ethernet device failed!\n");
+		lbs_pr_err("init ethX device failed\n");
 		return NULL;
 	}
 
@@ -764,13 +774,13 @@ wlan_private *wlan_add_card(void *card)
 
 	/* allocate buffer for wlan_adapter */
 	if (!(priv->adapter = kmalloc(sizeof(wlan_adapter), GFP_KERNEL))) {
-		lbs_pr_alert( "Allocate buffer for wlan_adapter failed!\n");
+		lbs_pr_err("allocate buffer for wlan_adapter failed\n");
 		goto err_kmalloc;
 	}
 
 	/* Allocate a virtual mesh device */
 	if (!(mesh_dev = alloc_netdev(0, "msh%d", ether_setup))) {
-		lbs_pr_debug(1, "Init ethernet device failed!\n");
+		lbs_deb_mesh("init mshX device failed\n");
 		return NULL;
 	}
 
@@ -827,7 +837,7 @@ wlan_private *wlan_add_card(void *card)
 	init_waitqueue_head(&priv->adapter->cmd_pending);
 	priv->adapter->nr_cmd_pending = 0;
 
-	lbs_pr_debug(1, "Starting kthread...\n");
+	lbs_deb_thread("Starting kthread...\n");
 	priv->mainthread.priv = priv;
 	wlan_create_thread(wlan_service_main_thread,
 			   &priv->mainthread, "wlan_main_service");
@@ -842,28 +852,28 @@ wlan_private *wlan_add_card(void *card)
 	 * IRQ.
 	 */
 	if (libertas_sbi_register_dev(priv) < 0) {
-		lbs_pr_info("failed to register wlan device!\n");
+		lbs_pr_err("failed to register WLAN device\n");
 		goto err_registerdev;
 	}
 
 	/* init FW and HW */
 	if (libertas_init_fw(priv)) {
-		lbs_pr_debug(1, "Firmware Init failed\n");
+		lbs_pr_err("firmware init failed\n");
 		goto err_registerdev;
 	}
 
 	if (register_netdev(dev)) {
-		lbs_pr_err("Cannot register network device!\n");
+		lbs_pr_err("cannot register ethX device\n");
 		goto err_init_fw;
 	}
 
 	/* Register virtual mesh interface */
 	if (register_netdev(mesh_dev)) {
-		lbs_pr_info("Cannot register mesh virtual interface!\n");
+		lbs_pr_err("cannot register mshX virtual interface\n");
 		goto err_init_fw;
 	}
 
-	lbs_pr_info("%s: Marvell Wlan 802.11 adapter\n", dev->name);
+	lbs_pr_info("%s: Marvell WLAN 802.11 adapter\n", dev->name);
 
 	libertas_debugfs_init_one(priv, dev);
 
@@ -874,7 +884,7 @@ wlan_private *wlan_add_card(void *card)
 	if (device_create_file(&(mesh_dev->dev), &dev_attr_libertas_mpp))
 		goto err_create_file;
 
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_NET, "priv %p", priv);
 	return priv;
 
 err_create_file:
@@ -891,7 +901,7 @@ err_kmalloc:
 	free_netdev(dev);
 	free_netdev(mesh_dev);
 
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_NET, "priv NULL");
 	return NULL;
 }
 
@@ -899,6 +909,8 @@ static void wake_pending_cmdnodes(wlan_private *priv)
 {
 	struct cmd_ctrl_node *cmdnode;
 	unsigned long flags;
+
+	lbs_deb_enter(LBS_DEB_CMD);
 
 	spin_lock_irqsave(&priv->adapter->driver_lock, flags);
 	list_for_each_entry(cmdnode, &priv->adapter->cmdpendingq, list) {
@@ -918,19 +930,15 @@ int wlan_remove_card(void *card)
 	union iwreq_data wrqu;
 	int i;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_NET);
 
-	if (!priv) {
-		LEAVE();
-		return 0;
-	}
+	if (!priv)
+		goto out;
 
 	adapter = priv->adapter;
 
-	if (!adapter) {
-		LEAVE();
-		return 0;
-	}
+	if (!adapter)
+		goto out;
 
 	dev = priv->wlan_dev.netdev;
 	mesh_dev = priv->mesh_dev;
@@ -964,7 +972,7 @@ int wlan_remove_card(void *card)
 
 	libertas_debugfs_remove_one(priv);
 
-	lbs_pr_debug(1, "Free adapter\n");
+	lbs_deb_net("free adapter\n");
 	libertas_free_adapter(priv);
 
 	for (i = 0; i<libertas_found; i++) {
@@ -975,14 +983,15 @@ int wlan_remove_card(void *card)
 		}
 	}
 
-	lbs_pr_debug(1, "Unregister finish\n");
+	lbs_deb_net("unregister finish\n");
 
 	priv->wlan_dev.netdev = NULL;
 	priv->mesh_dev = NULL ;
 	free_netdev(mesh_dev);
 	free_netdev(dev);
 
-	LEAVE();
+out:
+	lbs_deb_leave(LBS_DEB_NET);
 	return 0;
 }
 
@@ -999,33 +1008,34 @@ struct chan_freq_power *libertas_get_region_cfp_table(u8 region, u8 band, int *c
 {
 	int i, end;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_MAIN);
 
 	end = sizeof(region_cfp_table)/sizeof(struct region_cfp_table);
 
 	for (i = 0; i < end ; i++) {
-		lbs_pr_debug(1, "region_cfp_table[i].region=%d\n",
+		lbs_deb_main("region_cfp_table[i].region=%d\n",
 			region_cfp_table[i].region);
 		if (region_cfp_table[i].region == region) {
 			*cfp_no = region_cfp_table[i].cfp_no_BG;
-			LEAVE();
+			lbs_deb_leave(LBS_DEB_MAIN);
 			return region_cfp_table[i].cfp_BG;
 		}
 	}
 
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_MAIN, "ret NULL");
 	return NULL;
 }
 
 int libertas_set_regiontable(wlan_private * priv, u8 region, u8 band)
 {
 	wlan_adapter *adapter = priv->adapter;
+	int ret = 0;
 	int i = 0;
 
 	struct chan_freq_power *cfp;
 	int cfp_no;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_MAIN);
 
 	memset(adapter->region_channel, 0, sizeof(adapter->region_channel));
 
@@ -1035,17 +1045,19 @@ int libertas_set_regiontable(wlan_private * priv, u8 region, u8 band)
 			adapter->region_channel[i].nrcfp = cfp_no;
 			adapter->region_channel[i].CFP = cfp;
 		} else {
-			lbs_pr_debug(1, "wrong region code %#x in band B-G\n",
+			lbs_deb_main("wrong region code %#x in band B/G\n",
 			       region);
-			return -1;
+			ret = -1;
+			goto out;
 		}
 		adapter->region_channel[i].valid = 1;
 		adapter->region_channel[i].region = region;
 		adapter->region_channel[i].band = band;
 		i++;
 	}
-	LEAVE();
-	return 0;
+out:
+	lbs_deb_leave_args(LBS_DEB_MAIN, "ret %d", ret);
+	return ret;
 }
 
 /**
@@ -1060,9 +1072,9 @@ void libertas_interrupt(struct net_device *dev)
 {
 	wlan_private *priv = dev->priv;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_MAIN);
 
-	lbs_pr_debug(1, "libertas_interrupt: intcounter=%d\n",
+	lbs_deb_main("libertas_interrupt: intcounter=%d\n",
 	       priv->adapter->intcounter);
 
 	priv->adapter->intcounter++;
@@ -1074,14 +1086,14 @@ void libertas_interrupt(struct net_device *dev)
 
 	wake_up_interruptible(&priv->mainthread.waitq);
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_MAIN);
 }
 
 static int wlan_init_module(void)
 {
 	int ret = 0;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_MAIN);
 
 	if (libertas_fw_name == NULL) {
 		libertas_fw_name = default_fw_name;
@@ -1092,11 +1104,9 @@ static int wlan_init_module(void)
 	if (libertas_sbi_register()) {
 		ret = -1;
 		libertas_debugfs_remove();
-		goto done;
 	}
 
-done:
-	LEAVE();
+	lbs_deb_leave_args(LBS_DEB_MAIN, "ret %d", ret);
 	return ret;
 }
 
@@ -1104,7 +1114,7 @@ static void wlan_cleanup_module(void)
 {
 	int i;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_MAIN);
 
 	for (i = 0; i<libertas_found; i++) {
 		wlan_private *priv = libertas_devs[i]->priv;
@@ -1114,7 +1124,7 @@ static void wlan_cleanup_module(void)
 	libertas_sbi_unregister();
 	libertas_debugfs_remove();
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_MAIN);
 }
 
 module_init(wlan_init_module);
