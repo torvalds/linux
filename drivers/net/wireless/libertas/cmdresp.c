@@ -826,8 +826,8 @@ int libertas_process_rx_command(wlan_private * priv)
 				lbs_deb_cmd(
 				       "Disconnected, Going to invoke libertas_ps_wakeup\n");
 
-				mutex_unlock(&adapter->lock);
 				spin_unlock_irqrestore(&adapter->driver_lock, flags);
+				mutex_unlock(&adapter->lock);
 				libertas_ps_wakeup(priv, 0);
 				mutex_lock(&adapter->lock);
 				spin_lock_irqsave(&adapter->driver_lock, flags);
