@@ -1506,7 +1506,6 @@ static inline char *libertas_translate_scan(wlan_private *priv,
 	char *current_val;	/* For rates */
 	struct iw_event iwe;	/* Temporary buffer */
 	int j;
-	int ret;
 #define PERFECT_RSSI ((u8)50)
 #define WORST_RSSI   ((u8)0)
 #define RSSI_DIFF    ((u8)(PERFECT_RSSI - WORST_RSSI))
@@ -1560,22 +1559,18 @@ static inline char *libertas_translate_scan(wlan_private *priv,
 		iwe.u.qual.noise =
 		    CAL_NF(adapter->NF[TYPE_BEACON][TYPE_NOAVG]);
 	}
-	if ((adapter->mode == IW_MODE_AUTO) &&
-	    !libertas_SSID_cmp(&adapter->curbssparams.ssid, &bss->ssid)
-	    && adapter->adhoccreate) {
-		ret = libertas_prepare_and_send_command(priv,
-					    cmd_802_11_rssi,
-					    0,
-					    cmd_option_waitforrsp,
-					    0, NULL);
 
-		if (!ret) {
-			iwe.u.qual.level =
-			    CAL_RSSI(adapter->SNR[TYPE_RXPD][TYPE_AVG] /
-				     AVG_SCALE,
-				     adapter->NF[TYPE_RXPD][TYPE_AVG] /
-				     AVG_SCALE);
-		}
+	/* Locally created ad-hoc BSSs won't have beacons if this is the
+	 * only station in the adhoc network; so get signal strength
+	 * from receive statistics.
+	 */
+	if ((adapter->mode == IW_MODE_ADHOC)
+	    && adapter->adhoccreate
+	    && !libertas_SSID_cmp(&adapter->curbssparams.ssid, &bss->ssid)) {
+		int snr, nf;
+		snr = adapter->SNR[TYPE_RXPD][TYPE_AVG] / AVG_SCALE;
+		nf = adapter->NF[TYPE_RXPD][TYPE_AVG] / AVG_SCALE;
+		iwe.u.qual.level = CAL_RSSI(snr, nf);
 	}
 	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_QUAL_LEN);
 
@@ -1664,6 +1659,12 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 	/* If we've got an uncompleted scan, schedule the next part */
 	if (!adapter->nr_cmd_pending && adapter->last_scanned_channel)
 		wlan_scan_networks(priv, NULL, 0);
+
+	/* Update RSSI if current BSS is a locally created ad-hoc BSS */
+	if ((adapter->inframode == wlan802_11ibss) && adapter->adhoccreate) {
+		libertas_prepare_and_send_command(priv, cmd_802_11_rssi, 0,
+					cmd_option_waitforrsp, 0, NULL);
+	}
 
 	mutex_lock(&adapter->lock);
 	list_for_each_entry_safe (iter_bss, safe, &adapter->network_list, list) {
