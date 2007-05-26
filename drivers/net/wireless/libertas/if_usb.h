@@ -100,7 +100,7 @@ struct fwsyncheader {
 #define FW_HAS_LAST_BLOCK		0x00000004
 
 #define FW_DATA_XMIT_SIZE \
-	sizeof(struct fwheader) + fwdata->fwheader.datalength + sizeof(u32)
+	sizeof(struct fwheader) + le32_to_cpu(fwdata->fwheader.datalength) + sizeof(u32)
 
 int usb_tx_block(wlan_private *priv, u8 *payload, u16 nb);
 void if_usb_free(struct usb_card_rec *cardp);

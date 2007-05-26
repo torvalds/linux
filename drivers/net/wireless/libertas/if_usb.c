@@ -313,7 +313,7 @@ static int if_prog_firmware(wlan_private * priv)
 
 	/*
 	lbs_deb_usbd(&cardp->udev->dev,
-		    "Data length = %d\n", fwdata->fwheader.datalength);
+		    "Data length = %d\n", le32_to_cpu(fwdata->fwheader.datalength));
 	*/
 
 	cardp->fwseqnum = cardp->fwseqnum + 1;
@@ -332,7 +332,7 @@ static int if_prog_firmware(wlan_private * priv)
 		memcpy(cardp->bulk_out_buffer, fwheader, FW_DATA_XMIT_SIZE);
 		usb_tx_block(priv, cardp->bulk_out_buffer, FW_DATA_XMIT_SIZE);
 
-	} else if (fwdata->fwheader.dnldcmd == FW_HAS_LAST_BLOCK) {
+	} else if (fwdata->fwheader.dnldcmd == cpu_to_le32(FW_HAS_LAST_BLOCK)) {
 		/*
 		lbs_deb_usbd(&cardp->udev->dev,
 			    "Host has finished FW downloading\n");
