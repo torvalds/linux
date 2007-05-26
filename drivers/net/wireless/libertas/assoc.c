@@ -132,7 +132,7 @@ static int assoc_helper_bssid(wlan_private *priv,
 	int ret = 0;
 	struct bss_descriptor * bss;
 
-	lbs_deb_enter_args(LBS_DEB_ASSOC, "BSSID" MAC_FMT "\n",
+	lbs_deb_enter_args(LBS_DEB_ASSOC, "BSSID " MAC_FMT "\n",
 		MAC_ARG(assoc_req->bssid));
 
 	/* Search for index position in list for requested MAC */
@@ -627,7 +627,6 @@ lbs_deb_assoc("ASSOC(:%d) wpa_keys: ret = %d\n", __LINE__, ret);
 				cmd_802_11_get_log,
 				0, cmd_option_waitforrsp, 0, NULL);
 		} else {
-
 			ret = -1;
 		}
 	}
