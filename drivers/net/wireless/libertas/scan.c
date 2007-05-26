@@ -707,19 +707,19 @@ static int wlan_scan_channel_list(wlan_private * priv,
 		ret = libertas_prepare_and_send_command(priv, cmd_802_11_scan, 0,
 					    0, 0, pscancfgout);
 		if (scanned >= 2 && !full_scan) {
-			priv->adapter->last_scanned_channel = ptmpchan->channumber;
 			ret = 0;
 			goto done;
 		}
 		scanned = 0;
 	}
 
+done:
 	priv->adapter->last_scanned_channel = ptmpchan->channumber;
 
+	/* Tell userspace the scan table has been updated */
 	memset(&wrqu, 0, sizeof(union iwreq_data));
 	wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);
 
-done:
 	lbs_deb_leave_args(LBS_DEB_SCAN, "ret %d", ret);
 	return ret;
 }
