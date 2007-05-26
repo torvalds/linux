@@ -48,19 +48,16 @@ static void print_assoc_req(const char * extra, struct assoc_request * assoc_req
 	       "       band:       %d\n"
 	       "       mode:       %d\n"
 	       "       BSSID:      " MAC_FMT "\n"
-	       "       WPA:        %d\n"
-	       "       WPA2:       %d\n"
-	       "       WEP status: %d\n"
-	       "       auth:       %d\n"
-	       "       auth_alg:   %d\n"
-	       "       encmode:    %d\n",
+	       "       Encryption:%s%s%s\n"
+	       "       auth:       %d\n",
 	       extra, assoc_req->flags,
 	       libertas_escape_essid(assoc_req->ssid.ssid, assoc_req->ssid.ssidlength),
 	       assoc_req->channel, assoc_req->band, assoc_req->mode,
-	       MAC_ARG(assoc_req->bssid), assoc_req->secinfo.WPAenabled,
-	       assoc_req->secinfo.WPA2enabled, assoc_req->secinfo.WEPstatus,
-	       assoc_req->secinfo.authmode, assoc_req->secinfo.auth1xalg,
-	       assoc_req->secinfo.Encryptionmode);
+	       MAC_ARG(assoc_req->bssid),
+	       assoc_req->secinfo.WPAenabled ? " WPA" : "",
+	       assoc_req->secinfo.WPA2enabled ? " WPA2" : "",
+	       assoc_req->secinfo.wep_enabled ? " WEP" : "",
+	       assoc_req->secinfo.auth_mode);
 }
 
 
@@ -132,7 +129,7 @@ static int assoc_helper_bssid(wlan_private *priv,
 	int ret = 0;
 	struct bss_descriptor * bss;
 
-	lbs_deb_enter_args(LBS_DEB_ASSOC, "BSSID " MAC_FMT "\n",
+	lbs_deb_enter_args(LBS_DEB_ASSOC, "BSSID " MAC_FMT,
 		MAC_ARG(assoc_req->bssid));
 
 	/* Search for index position in list for requested MAC */
