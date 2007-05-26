@@ -603,12 +603,14 @@ static int wlan_fwt_list_ioctl(wlan_private * priv, struct ifreq *req)
 	char *ptr = in_str;
 	static char out_str[128];
 	char *pbuf = out_str;
-	int ret;
+	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_IOCTL);
 
-	if (copy_from_user(in_str, wrq->u.data.pointer, sizeof(in_str)))
-		return -EFAULT;
+	if (copy_from_user(in_str, wrq->u.data.pointer, sizeof(in_str))) {
+		ret = -EFAULT;
+		goto out;
+	}
 
 	fwt_access.id = cpu_to_le32(simple_strtoul(ptr, &ptr, 10));
 
@@ -632,11 +634,15 @@ static int wlan_fwt_list_ioctl(wlan_private * priv, struct ifreq *req)
 	if (copy_to_user(wrq->u.data.pointer, (char *)out_str,
 			 wrq->u.data.length)) {
 		lbs_deb_ioctl("FWT_LIST: Copy to user failed!\n");
-		return -EFAULT;
+		ret = -EFAULT;
+		goto out;
 	}
 
+	ret = 0;
+
+out:
 	lbs_deb_leave(LBS_DEB_IOCTL);
-	return 0;
+	return ret;
 }
 
 /**
