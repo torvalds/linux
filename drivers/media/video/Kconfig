@@ -347,7 +347,7 @@ endmenu # encoder / decoder chips
 
 config VIDEO_VIVI
 	tristate "Virtual Video Driver"
-	depends on VIDEO_V4L2 && !SPARC32 && !SPARC64 && PCI
+	depends on VIDEO_V4L2 && !SPARC32 && !SPARC64 && PCI && VIDEO_DEV
 	select VIDEO_BUF
 	default n
 	---help---
