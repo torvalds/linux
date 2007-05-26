@@ -12,5 +12,7 @@ objs-y$(CONFIG_ARCH_OMAP2) += dispc.o
 objs-$(CONFIG_ARCH_OMAP1)$(CONFIG_FB_OMAP_LCDC_EXTERNAL) += sossi.o
 objs-$(CONFIG_ARCH_OMAP2)$(CONFIG_FB_OMAP_LCDC_EXTERNAL) += rfbi.o
 
+objs-y$(CONFIG_FB_OMAP_LCDC_HWA742) += hwa742.o
+
 omapfb-objs := $(objs-yy)
 
