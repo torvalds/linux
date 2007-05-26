@@ -9,5 +9,5 @@ endif
 obj-$(CONFIG_MMC)		+= mmc_core.o
 mmc_core-y			:= core.o sysfs.o bus.o host.o \
 				   mmc.o mmc_ops.o sd.o sd_ops.o \
-				   sdio.o sdio_ops.o
+				   sdio.o sdio_ops.o sdio_bus.o
 

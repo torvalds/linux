@@ -56,6 +56,9 @@ struct sd_switch_caps {
 };
 
 struct mmc_host;
+struct sdio_func;
+
+#define SDIO_MAX_FUNCS		7
 
 /*
  * MMC device
@@ -73,6 +76,7 @@ struct mmc_card {
 #define MMC_STATE_READONLY	(1<<1)		/* card is read-only */
 #define MMC_STATE_HIGHSPEED	(1<<2)		/* card is in high speed mode */
 #define MMC_STATE_BLOCKADDR	(1<<3)		/* card uses block-addressing */
+
 	u32			raw_cid[4];	/* raw card CID */
 	u32			raw_csd[4];	/* raw card CSD */
 	u32			raw_scr[2];	/* raw card SCR */
@@ -81,6 +85,9 @@ struct mmc_card {
 	struct mmc_ext_csd	ext_csd;	/* mmc v4 extended card specific */
 	struct sd_scr		scr;		/* extra SD information */
 	struct sd_switch_caps	sw_caps;	/* switch (CMD6) caps */
+
+	unsigned int		sdio_funcs;	/* number of SDIO functions */
+	struct sdio_func	*sdio_func[SDIO_MAX_FUNCS]; /* SDIO functions (devices) */
 };
 
 #define mmc_card_mmc(c)		((c)->type == MMC_TYPE_MMC)

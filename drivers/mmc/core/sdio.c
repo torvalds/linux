@@ -13,20 +13,48 @@
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
+#include <linux/mmc/sdio_func.h>
 
 #include "core.h"
 #include "bus.h"
+#include "sdio_bus.h"
 #include "mmc_ops.h"
 #include "sd_ops.h"
 #include "sdio_ops.h"
+
+static int sdio_init_func(struct mmc_card *card, unsigned int fn)
+{
+	struct sdio_func *func;
+
+	BUG_ON(fn > SDIO_MAX_FUNCS);
+
+	func = sdio_alloc_func(card);
+	if (IS_ERR(func))
+		return PTR_ERR(func);
+
+	func->num = fn;
+
+	card->sdio_func[fn - 1] = func;
+
+	return 0;
+}
 
 /*
  * Host is being removed. Free up the current card.
  */
 static void mmc_sdio_remove(struct mmc_host *host)
 {
+	int i;
+
 	BUG_ON(!host);
 	BUG_ON(!host->card);
+
+	for (i = 0;i < host->card->sdio_funcs;i++) {
+		if (host->card->sdio_func[i]) {
+			sdio_remove_func(host->card->sdio_func[i]);
+			host->card->sdio_func[i] = NULL;
+		}
+	}
 
 	mmc_remove_card(host->card);
 	host->card = NULL;
@@ -73,7 +101,7 @@ static const struct mmc_bus_ops mmc_sdio_ops = {
 int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 {
 	int err;
-	int funcs;
+	int i, funcs;
 	struct mmc_card *card;
 
 	BUG_ON(!host);
@@ -132,13 +160,16 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 	}
 
 	card->type = MMC_TYPE_SDIO;
+	card->sdio_funcs = funcs;
+
+	host->card = card;
 
 	/*
 	 * Set card RCA.
 	 */
 	err = mmc_send_relative_addr(host, &card->rca);
 	if (err)
-		goto free_card;
+		goto remove;
 
 	mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
 
@@ -147,23 +178,46 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 	 */
 	err = mmc_select_card(card);
 	if (err)
-		goto free_card;
+		goto remove;
 
-	host->card = card;
+	/*
+	 * Initialize (but don't add) all present functions.
+	 */
+	for (i = 0;i < funcs;i++) {
+		err = sdio_init_func(host->card, i + 1);
+		if (err)
+			goto remove;
+	}
 
 	mmc_release_host(host);
 
+	/*
+	 * First add the card to the driver model...
+	 */
 	err = mmc_add_card(host->card);
 	if (err)
-		goto reclaim_host;
+		goto remove_added;
+
+	/*
+	 * ...then the SDIO functions.
+	 */
+	for (i = 0;i < funcs;i++) {
+		err = sdio_add_func(host->card->sdio_func[i]);
+		if (err)
+			goto remove_added;
+	}
 
 	return 0;
 
-reclaim_host:
+
+remove_added:
+	/* Remove without lock if the device has been added. */
+	mmc_sdio_remove(host);
 	mmc_claim_host(host);
-free_card:
-	mmc_remove_card(card);
-	host->card = NULL;
+remove:
+	/* And with lock if it hasn't been added. */
+	if (host->card)
+		mmc_sdio_remove(host);
 err:
 	mmc_detach_bus(host);
 	mmc_release_host(host);

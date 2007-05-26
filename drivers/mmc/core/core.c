@@ -29,6 +29,7 @@
 #include "core.h"
 #include "bus.h"
 #include "host.h"
+#include "sdio_bus.h"
 
 #include "mmc_ops.h"
 #include "sd_ops.h"
@@ -739,16 +740,32 @@ static int __init mmc_init(void)
 		return -ENOMEM;
 
 	ret = mmc_register_bus();
-	if (ret == 0) {
-		ret = mmc_register_host_class();
-		if (ret)
-			mmc_unregister_bus();
-	}
+	if (ret)
+		goto destroy_workqueue;
+
+	ret = mmc_register_host_class();
+	if (ret)
+		goto unregister_bus;
+
+	ret = sdio_register_bus();
+	if (ret)
+		goto unregister_host_class;
+
+	return 0;
+
+unregister_host_class:
+	mmc_unregister_host_class();
+unregister_bus:
+	mmc_unregister_bus();
+destroy_workqueue:
+	destroy_workqueue(workqueue);
+
 	return ret;
 }
 
 static void __exit mmc_exit(void)
 {
+	sdio_unregister_bus();
 	mmc_unregister_host_class();
 	mmc_unregister_bus();
 	destroy_workqueue(workqueue);
