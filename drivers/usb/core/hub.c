@@ -1443,7 +1443,7 @@ int usb_new_device(struct usb_device *udev)
 			if (err < 0)
 				dev_dbg(&udev->dev, "HNP fail, %d\n", err);
 		}
-		err = -ENODEV;
+		err = -ENOTSUPP;
 		goto fail;
 	}
 #endif
@@ -2582,7 +2582,7 @@ loop:
 		ep0_reinit(udev);
 		release_address(udev);
 		usb_put_dev(udev);
-		if (status == -ENOTCONN)
+		if ((status == -ENOTCONN) || (status == -ENOTSUPP))
 			break;
 	}
  
