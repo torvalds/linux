@@ -1651,9 +1651,9 @@ static void ep0_irq(struct omap_udc *udc, u16 irq_src)
 			UDC_EP_NUM_REG = 0;
 		} while (UDC_IRQ_SRC_REG & UDC_SETUP);
 
-#define	w_value		le16_to_cpup (&u.r.wValue)
-#define	w_index		le16_to_cpup (&u.r.wIndex)
-#define	w_length	le16_to_cpup (&u.r.wLength)
+#define	w_value		le16_to_cpu(u.r.wValue)
+#define	w_index		le16_to_cpu(u.r.wIndex)
+#define	w_length	le16_to_cpu(u.r.wLength)
 
 		/* Delegate almost all control requests to the gadget driver,
 		 * except for a handful of ch9 status/feature requests that
