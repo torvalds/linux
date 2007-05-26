@@ -110,7 +110,7 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 		/* skip the radiotap header */
 		p802x_hdr += sizeof(struct tx_radiotap_hdr);
 		plocaltxpd->tx_packet_length =
-			cpu_to_le32(le32_to_cpu(plocaltxpd->tx_packet_length)
+			cpu_to_le16(le16_to_cpu(plocaltxpd->tx_packet_length)
 				    - sizeof(struct tx_radiotap_hdr));
 
 	}
@@ -130,11 +130,11 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 
 	ptr += sizeof(struct txpd);
 
-	lbs_dbg_hex("Tx Data", (u8 *) p802x_hdr, le32_to_cpu(plocaltxpd->tx_packet_length));
-	memcpy(ptr, p802x_hdr, le32_to_cpu(plocaltxpd->tx_packet_length));
+	lbs_dbg_hex("Tx Data", (u8 *) p802x_hdr, le16_to_cpu(plocaltxpd->tx_packet_length));
+	memcpy(ptr, p802x_hdr, le16_to_cpu(plocaltxpd->tx_packet_length));
 	ret = priv->hw_host_to_card(priv, MVMS_DAT,
 				    priv->adapter->tmptxbuf,
-				    le32_to_cpu(plocaltxpd->tx_packet_length) +
+				    le16_to_cpu(plocaltxpd->tx_packet_length) +
 				    sizeof(struct txpd));
 
 	if (ret) {
