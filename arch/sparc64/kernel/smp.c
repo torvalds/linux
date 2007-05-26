@@ -400,7 +400,7 @@ static __inline__ void spitfire_xcall_deliver(u64 data0, u64 data1, u64 data2, c
 static void cheetah_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t mask)
 {
 	u64 pstate, ver;
-	int nack_busy_id, is_jbus;
+	int nack_busy_id, is_jbus, need_more;
 
 	if (cpus_empty(mask))
 		return;
@@ -416,6 +416,7 @@ static void cheetah_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t mas
 	__asm__ __volatile__("rdpr %%pstate, %0" : "=r" (pstate));
 
 retry:
+	need_more = 0;
 	__asm__ __volatile__("wrpr %0, %1, %%pstate\n\t"
 			     : : "r" (pstate), "i" (PSTATE_IE));
 
@@ -444,6 +445,10 @@ retry:
 				: /* no outputs */
 				: "r" (target), "i" (ASI_INTR_W));
 			nack_busy_id++;
+			if (nack_busy_id == 32) {
+				need_more = 1;
+				break;
+			}
 		}
 	}
 
@@ -460,6 +465,16 @@ retry:
 			if (dispatch_stat == 0UL) {
 				__asm__ __volatile__("wrpr %0, 0x0, %%pstate"
 						     : : "r" (pstate));
+				if (unlikely(need_more)) {
+					int i, cnt = 0;
+					for_each_cpu_mask(i, mask) {
+						cpu_clear(i, mask);
+						cnt++;
+						if (cnt == 32)
+							break;
+					}
+					goto retry;
+				}
 				return;
 			}
 			if (!--stuck)
@@ -497,6 +512,8 @@ retry:
 				if ((dispatch_stat & check_mask) == 0)
 					cpu_clear(i, mask);
 				this_busy_nack += 2;
+				if (this_busy_nack == 64)
+					break;
 			}
 
 			goto retry;

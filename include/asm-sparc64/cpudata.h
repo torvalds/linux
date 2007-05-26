@@ -202,7 +202,7 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
  * the calculations done by the macro mid-stream.
  */
 #define LOAD_PER_CPU_BASE(DEST, THR, REG1, REG2, REG3)	\
-	ldub	[THR + TI_CPU], REG1;			\
+	lduh	[THR + TI_CPU], REG1;			\
 	sethi	%hi(__per_cpu_shift), REG3;		\
 	sethi	%hi(__per_cpu_base), REG2;		\
 	ldx	[REG3 + %lo(__per_cpu_shift)], REG3;	\

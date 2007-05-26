@@ -191,12 +191,9 @@ inline void flush_dcache_page_impl(struct page *page)
 }
 
 #define PG_dcache_dirty		PG_arch_1
-#define PG_dcache_cpu_shift	24UL
-#define PG_dcache_cpu_mask	(256UL - 1UL)
-
-#if NR_CPUS > 256
-#error D-cache dirty tracking and thread_info->cpu need fixing for > 256 cpus
-#endif
+#define PG_dcache_cpu_shift	32UL
+#define PG_dcache_cpu_mask	\
+	((1UL<<ilog2(roundup_pow_of_two(NR_CPUS)))-1UL)
 
 #define dcache_dirty_cpu(page) \
 	(((page)->flags >> PG_dcache_cpu_shift) & PG_dcache_cpu_mask)
@@ -1348,6 +1345,19 @@ void __init paging_init(void)
 {
 	unsigned long end_pfn, pages_avail, shift, phys_base;
 	unsigned long real_end, i;
+
+	/* These build time checkes make sure that the dcache_dirty_cpu()
+	 * page->flags usage will work.
+	 *
+	 * When a page gets marked as dcache-dirty, we store the
+	 * cpu number starting at bit 32 in the page->flags.  Also,
+	 * functions like clear_dcache_dirty_cpu use the cpu mask
+	 * in 13-bit signed-immediate instruction fields.
+	 */
+	BUILD_BUG_ON(FLAGS_RESERVED != 32);
+	BUILD_BUG_ON(SECTIONS_WIDTH + NODES_WIDTH + ZONES_WIDTH +
+		     ilog2(roundup_pow_of_two(NR_CPUS)) > FLAGS_RESERVED);
+	BUILD_BUG_ON(NR_CPUS > 4096);
 
 	kern_base = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
 	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;

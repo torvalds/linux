@@ -523,7 +523,7 @@ tlb_fixup_done:
 #else
 	mov	0, %o0
 #endif
-	stb	%o0, [%g6 + TI_CPU]
+	sth	%o0, [%g6 + TI_CPU]
 
 	/* Off we go.... */
 	call	start_kernel
