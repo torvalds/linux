@@ -95,7 +95,7 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 
 		if (sts_entry->iscsiFlags &
 		    (ISCSI_FLAG_RESIDUAL_OVER|ISCSI_FLAG_RESIDUAL_UNDER))
-			cmd->resid = residual;
+			scsi_set_resid(cmd, residual);
 
 		cmd->result = DID_OK << 16 | scsi_status;
 
@@ -179,14 +179,14 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 			 * Firmware detected a SCSI transport underrun
 			 * condition
 			 */
-			cmd->resid = residual;
+			scsi_set_resid(cmd, residual);
 			DEBUG2(printk("scsi%ld:%d:%d:%d: %s: UNDERRUN status "
 				      "detected, xferlen = 0x%x, residual = "
 				      "0x%x\n",
 				      ha->host_no, cmd->device->channel,
 				      cmd->device->id,
 				      cmd->device->lun, __func__,
-				      cmd->request_bufflen,
+				      scsi_bufflen(cmd),
 				      residual));
 		}
 
@@ -230,7 +230,7 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 			if ((sts_entry->iscsiFlags &
 			     ISCSI_FLAG_RESIDUAL_UNDER) == 0) {
 				cmd->result = DID_BUS_BUSY << 16;
-			} else if ((cmd->request_bufflen - residual) <
+			} else if ((scsi_bufflen(cmd) - residual) <
 				   cmd->underflow) {
 				/*
 				 * Handle mid-layer underflow???
@@ -251,7 +251,7 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 					      cmd->device->channel,
 					      cmd->device->id,
 					      cmd->device->lun, __func__,
-					      cmd->request_bufflen, residual));
+					      scsi_bufflen(cmd), residual));
 
 				cmd->result = DID_ERROR << 16;
 			} else {

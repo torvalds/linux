@@ -373,14 +373,7 @@ static void qla4xxx_srb_free_dma(struct scsi_qla_host *ha, struct srb *srb)
 	struct scsi_cmnd *cmd = srb->cmd;
 
 	if (srb->flags & SRB_DMA_VALID) {
-		if (cmd->use_sg) {
-			pci_unmap_sg(ha->pdev, cmd->request_buffer,
-				     cmd->use_sg, cmd->sc_data_direction);
-		} else if (cmd->request_bufflen) {
-			pci_unmap_single(ha->pdev, srb->dma_handle,
-					 cmd->request_bufflen,
-					 cmd->sc_data_direction);
-		}
+		scsi_dma_unmap(cmd);
 		srb->flags &= ~SRB_DMA_VALID;
 	}
 	cmd->SCp.ptr = NULL;
