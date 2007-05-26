@@ -372,6 +372,30 @@ static int wlan_get_nick(struct net_device *dev, struct iw_request_info *info,
 	return 0;
 }
 
+static int mesh_get_nick(struct net_device *dev, struct iw_request_info *info,
+			 struct iw_point *dwrq, char *extra)
+{
+	wlan_private *priv = dev->priv;
+	wlan_adapter *adapter = priv->adapter;
+
+	lbs_deb_enter(LBS_DEB_WEXT);
+
+	/* Use nickname to indicate that mesh is on */
+
+	if (adapter->connect_status == libertas_connected) {
+		strncpy(extra, "Mesh", 12);
+		extra[12] = '\0';
+		dwrq->length = strlen(extra) + 1;
+	}
+
+	else {
+		extra[0] = '\0';
+		dwrq->length = 1 ;
+	}
+
+	lbs_deb_leave(LBS_DEB_WEXT);
+	return 0;
+}
 static int wlan_set_rts(struct net_device *dev, struct iw_request_info *info,
 			struct iw_param *vwrq, char *extra)
 {
@@ -487,6 +511,18 @@ static int wlan_get_mode(struct net_device *dev,
 	lbs_deb_enter(LBS_DEB_WEXT);
 
 	*uwrq = adapter->mode;
+
+	lbs_deb_leave(LBS_DEB_WEXT);
+	return 0;
+}
+
+static int mesh_wlan_get_mode(struct net_device *dev,
+		              struct iw_request_info *info, u32 * uwrq,
+			      char *extra)
+{
+	lbs_deb_enter(LBS_DEB_WEXT);
+
+	*uwrq = IW_MODE_REPEAT ;
 
 	lbs_deb_leave(LBS_DEB_WEXT);
 	return 0;
@@ -2342,12 +2378,80 @@ static const iw_handler wlan_handler[] = {
 	(iw_handler) NULL,		/* SIOCSIWPMKSA */
 };
 
+static const iw_handler mesh_wlan_handler[] = {
+	(iw_handler) NULL,	/* SIOCSIWCOMMIT */
+	(iw_handler) wlan_get_name,	/* SIOCGIWNAME */
+	(iw_handler) NULL,	/* SIOCSIWNWID */
+	(iw_handler) NULL,	/* SIOCGIWNWID */
+	(iw_handler) wlan_set_freq,	/* SIOCSIWFREQ */
+	(iw_handler) wlan_get_freq,	/* SIOCGIWFREQ */
+	(iw_handler) NULL,		/* SIOCSIWMODE */
+	(iw_handler) mesh_wlan_get_mode,	/* SIOCGIWMODE */
+	(iw_handler) NULL,	/* SIOCSIWSENS */
+	(iw_handler) NULL,	/* SIOCGIWSENS */
+	(iw_handler) NULL,	/* SIOCSIWRANGE */
+	(iw_handler) wlan_get_range,	/* SIOCGIWRANGE */
+	(iw_handler) NULL,	/* SIOCSIWPRIV */
+	(iw_handler) NULL,	/* SIOCGIWPRIV */
+	(iw_handler) NULL,	/* SIOCSIWSTATS */
+	(iw_handler) NULL,	/* SIOCGIWSTATS */
+	iw_handler_set_spy,	/* SIOCSIWSPY */
+	iw_handler_get_spy,	/* SIOCGIWSPY */
+	iw_handler_set_thrspy,	/* SIOCSIWTHRSPY */
+	iw_handler_get_thrspy,	/* SIOCGIWTHRSPY */
+	(iw_handler) NULL,	/* SIOCSIWAP */
+	(iw_handler) NULL,	/* SIOCGIWAP */
+	(iw_handler) NULL,	/* SIOCSIWMLME */
+	(iw_handler) NULL,	/* SIOCGIWAPLIST - deprecated */
+	(iw_handler) libertas_set_scan,	/* SIOCSIWSCAN */
+	(iw_handler) libertas_get_scan,	/* SIOCGIWSCAN */
+	(iw_handler) NULL,		/* SIOCSIWESSID */
+	(iw_handler) NULL,		/* SIOCGIWESSID */
+	(iw_handler) NULL,		/* SIOCSIWNICKN */
+	(iw_handler) mesh_get_nick,	/* SIOCGIWNICKN */
+	(iw_handler) NULL,	/* -- hole -- */
+	(iw_handler) NULL,	/* -- hole -- */
+	(iw_handler) wlan_set_rate,	/* SIOCSIWRATE */
+	(iw_handler) wlan_get_rate,	/* SIOCGIWRATE */
+	(iw_handler) wlan_set_rts,	/* SIOCSIWRTS */
+	(iw_handler) wlan_get_rts,	/* SIOCGIWRTS */
+	(iw_handler) wlan_set_frag,	/* SIOCSIWFRAG */
+	(iw_handler) wlan_get_frag,	/* SIOCGIWFRAG */
+	(iw_handler) wlan_set_txpow,	/* SIOCSIWTXPOW */
+	(iw_handler) wlan_get_txpow,	/* SIOCGIWTXPOW */
+	(iw_handler) wlan_set_retry,	/* SIOCSIWRETRY */
+	(iw_handler) wlan_get_retry,	/* SIOCGIWRETRY */
+	(iw_handler) wlan_set_encode,	/* SIOCSIWENCODE */
+	(iw_handler) wlan_get_encode,	/* SIOCGIWENCODE */
+	(iw_handler) wlan_set_power,	/* SIOCSIWPOWER */
+	(iw_handler) wlan_get_power,	/* SIOCGIWPOWER */
+	(iw_handler) NULL,	/* -- hole -- */
+	(iw_handler) NULL,	/* -- hole -- */
+	(iw_handler) wlan_set_genie,	/* SIOCSIWGENIE */
+	(iw_handler) wlan_get_genie,	/* SIOCGIWGENIE */
+	(iw_handler) wlan_set_auth,	/* SIOCSIWAUTH */
+	(iw_handler) wlan_get_auth,	/* SIOCGIWAUTH */
+	(iw_handler) wlan_set_encodeext,/* SIOCSIWENCODEEXT */
+	(iw_handler) wlan_get_encodeext,/* SIOCGIWENCODEEXT */
+	(iw_handler) NULL,		/* SIOCSIWPMKSA */
+};
 struct iw_handler_def libertas_handler_def = {
 	.num_standard	= sizeof(wlan_handler) / sizeof(iw_handler),
 	.num_private	= sizeof(wlan_private_handler) / sizeof(iw_handler),
 	.num_private_args = sizeof(wlan_private_args) /
 		sizeof(struct iw_priv_args),
 	.standard	= (iw_handler *) wlan_handler,
+	.private	= (iw_handler *) wlan_private_handler,
+	.private_args	= (struct iw_priv_args *)wlan_private_args,
+	.get_wireless_stats = wlan_get_wireless_stats,
+};
+
+struct iw_handler_def mesh_handler_def = {
+	.num_standard	= sizeof(mesh_wlan_handler) / sizeof(iw_handler),
+	.num_private	= sizeof(wlan_private_handler) / sizeof(iw_handler),
+	.num_private_args = sizeof(wlan_private_args) /
+		sizeof(struct iw_priv_args),
+	.standard	= (iw_handler *) mesh_wlan_handler,
 	.private	= (iw_handler *) wlan_private_handler,
 	.private_args	= (struct iw_priv_args *)wlan_private_args,
 	.get_wireless_stats = wlan_get_wireless_stats,

@@ -925,7 +925,7 @@ int libertas_add_mesh(wlan_private *priv, struct device *dev)
 	SET_NETDEV_DEV(priv->mesh_dev, dev);
 
 #ifdef	WIRELESS_EXT
-	mesh_dev->wireless_handlers = (struct iw_handler_def *)&libertas_handler_def;
+	mesh_dev->wireless_handlers = (struct iw_handler_def *)&mesh_handler_def;
 #endif
 #define NETIF_F_DYNALLOC 16
 

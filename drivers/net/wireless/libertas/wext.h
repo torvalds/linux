@@ -58,6 +58,7 @@ struct wlan_ioctl_regrdwr {
 };
 
 extern struct iw_handler_def libertas_handler_def;
+extern struct iw_handler_def mesh_handler_def;
 int libertas_do_ioctl(struct net_device *dev, struct ifreq *req, int i);
 int wlan_radio_ioctl(wlan_private * priv, u8 option);
 
