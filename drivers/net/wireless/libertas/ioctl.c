@@ -297,6 +297,7 @@ static int wlan_bt_set_invert_ioctl(wlan_private * priv, struct ifreq *req)
  */
 static int wlan_bt_get_invert_ioctl(wlan_private * priv, struct ifreq *req)
 {
+	struct iwreq *wrq = (struct iwreq *)req;
 	int ret;
 	union {
 		int id;
@@ -311,7 +312,7 @@ static int wlan_bt_get_invert_ioctl(wlan_private * priv, struct ifreq *req)
 				    (char *)&param);
 
 	if (ret == 0)
-		req->ifr_data = (char *)(le32_to_cpu(param.id));
+		wrq->u.param.value = le32_to_cpu(param.id);
 	else
 		return -EFAULT;
 

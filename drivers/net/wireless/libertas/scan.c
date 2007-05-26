@@ -59,8 +59,8 @@
 //! Scan time specified in the channel TLV for each channel for active scans
 #define MRVDRV_ACTIVE_SCAN_CHAN_TIME   100
 
-const u8 zeromac[ETH_ALEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-const u8 bcastmac[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+static const u8 zeromac[ETH_ALEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+static const u8 bcastmac[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 static inline void clear_bss_descriptor (struct bss_descriptor * bss)
 {
@@ -1855,7 +1855,6 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 	for (idx = 0; idx < pscan->nr_sets && bytesleft; idx++) {
 		struct bss_descriptor new;
 		struct bss_descriptor * found = NULL;
-		struct bss_descriptor * iter_bss = NULL;
 		struct bss_descriptor * oldest = NULL;
 
 		/* Process the data fields and IEs returned for this BSS */
