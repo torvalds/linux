@@ -362,25 +362,25 @@ int libertas_cmd_80211_associate(wlan_private * priv,
 
 	ssid = (struct mrvlietypes_ssidparamset *) pos;
 	ssid->header.type = cpu_to_le16(TLV_TYPE_SSID);
-	ssid->header.len = cpu_to_le16(bss->ssid.ssidlength);
-	memcpy(ssid->ssid, bss->ssid.ssid, ssid->header.len);
-	pos += sizeof(ssid->header) + ssid->header.len;
-	ssid->header.len = cpu_to_le16(ssid->header.len);
+	tmplen = bss->ssid.ssidlength;
+	ssid->header.len = cpu_to_le16(tmplen);
+	memcpy(ssid->ssid, bss->ssid.ssid, tmplen);
+	pos += sizeof(ssid->header) + tmplen;
 
 	phy = (struct mrvlietypes_phyparamset *) pos;
 	phy->header.type = cpu_to_le16(TLV_TYPE_PHY_DS);
-	phy->header.len = cpu_to_le16(sizeof(phy->fh_ds.dsparamset));
+	tmplen = sizeof(phy->fh_ds.dsparamset);
+	phy->header.len = cpu_to_le16(tmplen);
 	memcpy(&phy->fh_ds.dsparamset,
 	       &bss->phyparamset.dsparamset.currentchan,
-	       sizeof(phy->fh_ds.dsparamset));
-	pos += sizeof(phy->header) + phy->header.len;
-	phy->header.len = cpu_to_le16(phy->header.len);
+	       tmplen);
+	pos += sizeof(phy->header) + tmplen;
 
 	ss = (struct mrvlietypes_ssparamset *) pos;
 	ss->header.type = cpu_to_le16(TLV_TYPE_CF);
-	ss->header.len = cpu_to_le16(sizeof(ss->cf_ibss.cfparamset));
-	pos += sizeof(ss->header) + ss->header.len;
-	ss->header.len = cpu_to_le16(ss->header.len);
+	tmplen = sizeof(ss->cf_ibss.cfparamset);
+	ss->header.len = cpu_to_le16(tmplen);
+	pos += sizeof(ss->header) + tmplen;
 
 	rates = (struct mrvlietypes_ratesparamset *) pos;
 	rates->header.type = cpu_to_le16(TLV_TYPE_RATES);
