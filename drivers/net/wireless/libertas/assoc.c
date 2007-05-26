@@ -70,12 +70,16 @@ static int assoc_helper_essid(wlan_private *priv,
 	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
 	struct bss_descriptor * bss;
+	int channel = -1;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	/* FIXME: take channel into account when picking SSIDs if a channel
 	 * is set.
 	 */
+
+	if (test_bit(ASSOC_FLAG_CHANNEL, &assoc_req->flags))
+		channel = assoc_req->channel;
 
 	lbs_deb_assoc("New SSID requested: %s\n", assoc_req->ssid.ssid);
 	if (assoc_req->mode == IW_MODE_INFRA) {
@@ -84,7 +88,7 @@ static int assoc_helper_essid(wlan_private *priv,
 		}
 
 		bss = libertas_find_SSID_in_list(adapter, &assoc_req->ssid,
-				NULL, IW_MODE_INFRA);
+				NULL, IW_MODE_INFRA, channel);
 		if (bss != NULL) {
 			lbs_deb_assoc("SSID found in scan list, associating\n");
 			memcpy(&assoc_req->bss, bss, sizeof(struct bss_descriptor));
@@ -101,7 +105,7 @@ static int assoc_helper_essid(wlan_private *priv,
 
 		/* Search for the requested SSID in the scan table */
 		bss = libertas_find_SSID_in_list(adapter, &assoc_req->ssid, NULL,
-				IW_MODE_ADHOC);
+				IW_MODE_ADHOC, channel);
 		if (bss != NULL) {
 			lbs_deb_assoc("SSID found joining\n");
 			memcpy(&assoc_req->bss, bss, sizeof(struct bss_descriptor));

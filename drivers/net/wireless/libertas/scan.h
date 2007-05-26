@@ -178,7 +178,8 @@ extern int libertas_SSID_cmp(struct WLAN_802_11_SSID *ssid1,
 			struct WLAN_802_11_SSID *ssid2);
 
 struct bss_descriptor * libertas_find_SSID_in_list(wlan_adapter * adapter,
-			struct WLAN_802_11_SSID *ssid, u8 * bssid, u8 mode);
+			struct WLAN_802_11_SSID *ssid, u8 * bssid, u8 mode,
+			int channel);
 
 struct bss_descriptor * libertas_find_best_SSID_in_list(wlan_adapter * adapter,
 			u8 mode);

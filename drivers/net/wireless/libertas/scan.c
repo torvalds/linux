@@ -1268,7 +1268,8 @@ struct bss_descriptor * libertas_find_BSSID_in_list(wlan_adapter * adapter,
  *  @return         index in BSSID list
  */
 struct bss_descriptor * libertas_find_SSID_in_list(wlan_adapter * adapter,
-		   struct WLAN_802_11_SSID *ssid, u8 * bssid, u8 mode)
+		   struct WLAN_802_11_SSID *ssid, u8 * bssid, u8 mode,
+		   int channel)
 {
 	u8 bestrssi = 0;
 	struct bss_descriptor * iter_bss = NULL;
@@ -1286,6 +1287,8 @@ struct bss_descriptor * libertas_find_SSID_in_list(wlan_adapter * adapter,
 			continue; /* ssid doesn't match */
 		if (bssid && compare_ether_addr(iter_bss->bssid, bssid) != 0)
 			continue; /* bssid doesn't match */
+		if ((channel > 0) && (iter_bss->channel != channel))
+			continue; /* channel doesn't match */
 
 		switch (mode) {
 		case IW_MODE_INFRA:
@@ -1661,7 +1664,7 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 		wlan_scan_networks(priv, NULL, 0);
 
 	/* Update RSSI if current BSS is a locally created ad-hoc BSS */
-	if ((adapter->inframode == wlan802_11ibss) && adapter->adhoccreate) {
+	if ((adapter->mode == IW_MODE_ADHOC) && adapter->adhoccreate) {
 		libertas_prepare_and_send_command(priv, cmd_802_11_rssi, 0,
 					cmd_option_waitforrsp, 0, NULL);
 	}
