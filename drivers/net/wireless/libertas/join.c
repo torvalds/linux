@@ -263,6 +263,8 @@ int libertas_cmd_80211_authenticate(wlan_private * priv,
 	int ret = -1;
 	u8 *bssid = pdata_buf;
 
+	lbs_deb_enter(LBS_DEB_JOIN);
+
 	cmd->command = cpu_to_le16(cmd_802_11_authenticate);
 	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_authenticate)
 	                        + S_DS_GEN);
@@ -286,10 +288,12 @@ int libertas_cmd_80211_authenticate(wlan_private * priv,
 
 	memcpy(pauthenticate->macaddr, bssid, ETH_ALEN);
 
-	lbs_deb_join("AUTH_CMD: Bssid is : " MAC_FMT "\n", MAC_ARG(bssid));
+	lbs_deb_join("AUTH_CMD: BSSID is : " MAC_FMT " auth=0x%X\n",
+	             MAC_ARG(bssid), pauthenticate->authtype);
 	ret = 0;
 
 out:
+	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
 	return ret;
 }
 
