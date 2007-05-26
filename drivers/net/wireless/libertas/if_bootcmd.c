@@ -27,7 +27,7 @@ int if_usb_issue_boot_command(wlan_private *priv, int ivalue)
 	int i;
 
 	/* Prepare command */
-	sbootcmd.u32magicnumber = BOOT_CMD_MAGIC_NUMBER;
+	sbootcmd.u32magicnumber = cpu_to_le32(BOOT_CMD_MAGIC_NUMBER);
 	sbootcmd.u8cmd_tag = ivalue;
 	for (i=0; i<11; i++)
 		sbootcmd.au8dumy[i]=0x00;

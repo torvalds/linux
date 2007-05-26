@@ -323,14 +323,12 @@ static void wlan_scan_create_channel_list(wlan_private * priv,
 
 			if (scantype == cmd_scan_type_passive) {
 				scanchanlist[chanidx].maxscantime =
-				    cpu_to_le16
-				    (MRVDRV_PASSIVE_SCAN_CHAN_TIME);
+				    cpu_to_le16(MRVDRV_PASSIVE_SCAN_CHAN_TIME);
 				scanchanlist[chanidx].chanscanmode.passivescan =
 				    1;
 			} else {
 				scanchanlist[chanidx].maxscantime =
-				    cpu_to_le16
-				    (MRVDRV_ACTIVE_SCAN_CHAN_TIME);
+				    cpu_to_le16(MRVDRV_ACTIVE_SCAN_CHAN_TIME);
 				scanchanlist[chanidx].chanscanmode.passivescan =
 				    0;
 			}
@@ -487,16 +485,11 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 	/* If the input config or adapter has the number of Probes set, add tlv */
 	if (numprobes) {
 		pnumprobestlv = (struct mrvlietypes_numprobes *) ptlvpos;
-		pnumprobestlv->header.type =
-		    cpu_to_le16(TLV_TYPE_NUMPROBES);
-		pnumprobestlv->header.len = sizeof(pnumprobestlv->numprobes);
+		pnumprobestlv->header.type = cpu_to_le16(TLV_TYPE_NUMPROBES);
+		pnumprobestlv->header.len = cpu_to_le16(2);
 		pnumprobestlv->numprobes = cpu_to_le16(numprobes);
 
-		ptlvpos +=
-		    sizeof(pnumprobestlv->header) + pnumprobestlv->header.len;
-
-		pnumprobestlv->header.len =
-		    cpu_to_le16(pnumprobestlv->header.len);
+		ptlvpos += sizeof(*pnumprobestlv);
 	}
 
 	/*
@@ -655,8 +648,11 @@ static int wlan_scan_channel_list(wlan_private * priv,
 			       ptmpchan, sizeof(pchantlvout->chanscanparam));
 
 			/* Increment the TLV header length by the size appended */
-			pchantlvout->header.len +=
-			    sizeof(pchantlvout->chanscanparam);
+			/* Ew, it would be _so_ nice if we could just declare the
+			   variable little-endian and let GCC handle it for us */
+			pchantlvout->header.len =
+				cpu_to_le16(le16_to_cpu(pchantlvout->header.len) +
+					    sizeof(pchantlvout->chanscanparam));
 
 			/*
 			 *  The tlv buffer length is set to the number of bytes of the
@@ -670,7 +666,7 @@ static int wlan_scan_channel_list(wlan_private * priv,
 			/*  Add the size of the channel tlv header and the data length */
 			pscancfgout->tlvbufferlen +=
 			    (sizeof(pchantlvout->header)
-			     + pchantlvout->header.len);
+			     + le16_to_cpu(pchantlvout->header.len));
 
 			/* Increment the index to the channel tlv we are constructing */
 			tlvidx++;
@@ -955,8 +951,7 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 
 	if (*bytesleft >= sizeof(beaconsize)) {
 		/* Extract & convert beacon size from the command buffer */
-		memcpy(&beaconsize, *pbeaconinfo, sizeof(beaconsize));
-		beaconsize = le16_to_cpu(beaconsize);
+		beaconsize = le16_to_cpup((void *)*pbeaconinfo);
 		*bytesleft -= sizeof(beaconsize);
 		*pbeaconinfo += sizeof(beaconsize);
 	}
@@ -995,28 +990,25 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 	 */
 
 	/* RSSI is 1 byte long */
-	bss->rssi = le32_to_cpu((long)(*pcurrentptr));
+	bss->rssi = *pcurrentptr;
 	lbs_deb_scan("process_bss: RSSI=%02X\n", *pcurrentptr);
 	pcurrentptr += 1;
 	bytesleftforcurrentbeacon -= 1;
 
 	/* time stamp is 8 bytes long */
-	memcpy(fixedie.timestamp, pcurrentptr, 8);
-	memcpy(bss->timestamp, pcurrentptr, 8);
+	fixedie.timestamp = bss->timestamp = le64_to_cpup((void *)pcurrentptr);
 	pcurrentptr += 8;
 	bytesleftforcurrentbeacon -= 8;
 
 	/* beacon interval is 2 bytes long */
-	memcpy(&fixedie.beaconinterval, pcurrentptr, 2);
-	bss->beaconperiod = le16_to_cpu(fixedie.beaconinterval);
+	fixedie.beaconinterval = bss->beaconperiod = le16_to_cpup((void *)pcurrentptr);
 	pcurrentptr += 2;
 	bytesleftforcurrentbeacon -= 2;
 
 	/* capability information is 2 bytes long */
-	memcpy(&fixedie.capabilities, pcurrentptr, 2);
+        memcpy(&fixedie.capabilities, pcurrentptr, 2);
 	lbs_deb_scan("process_bss: fixedie.capabilities=0x%X\n",
 	       fixedie.capabilities);
-	fixedie.capabilities = le16_to_cpu(fixedie.capabilities);
 	pcap = (struct ieeetypes_capinfo *) & fixedie.capabilities;
 	memcpy(&bss->cap, pcap, sizeof(struct ieeetypes_capinfo));
 	pcurrentptr += 2;
@@ -1077,8 +1069,10 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 			pFH = (struct ieeetypes_fhparamset *) pcurrentptr;
 			memmove(&bss->phyparamset.fhparamset, pFH,
 				sizeof(struct ieeetypes_fhparamset));
+#if 0 /* I think we can store these LE */
 			bss->phyparamset.fhparamset.dwelltime
 			    = le16_to_cpu(bss->phyparamset.fhparamset.dwelltime);
+#endif
 			break;
 
 		case DS_PARAM_SET:
@@ -1099,8 +1093,10 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 			bss->atimwindow = le32_to_cpu(pibss->atimwindow);
 			memmove(&bss->ssparamset.ibssparamset, pibss,
 				sizeof(struct ieeetypes_ibssparamset));
+#if 0
 			bss->ssparamset.ibssparamset.atimwindow
 			    = le16_to_cpu(bss->ssparamset.ibssparamset.atimwindow);
+#endif
 			break;
 
 			/* Handle Country Info IE */
@@ -1744,7 +1740,8 @@ int libertas_cmd_80211_scan(wlan_private * priv,
 				     + pscancfg->tlvbufferlen + S_DS_GEN);
 
 	lbs_deb_scan("SCAN_CMD: command=%x, size=%x, seqnum=%x\n",
-	       cmd->command, cmd->size, cmd->seqnum);
+		     le16_to_cpu(cmd->command), le16_to_cpu(cmd->size),
+		     le16_to_cpu(cmd->seqnum));
 
 	lbs_deb_leave(LBS_DEB_ASSOC);
 	return 0;
@@ -1799,7 +1796,6 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 	int bytesleft;
 	int idx;
 	int tlvbufsize;
-	u64 tsfval;
 	int ret;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
@@ -1905,9 +1901,7 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 		 *   beacon or probe response was received.
 		 */
 		if (ptsftlv) {
-			memcpy(&tsfval, &ptsftlv->tsftable[idx], sizeof(tsfval));
-			tsfval = le64_to_cpu(tsfval);
-			memcpy(&new.networktsf, &tsfval, sizeof(new.networktsf));
+			new.networktsf = le64_to_cpup(&ptsftlv->tsftable[idx]);
 		}
 
 		/* Copy the locally created newbssentry to the scan table */

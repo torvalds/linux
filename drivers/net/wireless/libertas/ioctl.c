@@ -216,7 +216,7 @@ static int wlan_bt_list_ioctl(wlan_private * priv, struct ifreq *req)
 	struct iwreq *wrq = (struct iwreq *)req;
 	/* used to pass id and store the bt entry returned by the FW */
 	union {
-		int id;
+		u32 id;
 		char addr1addr2[2 * ETH_ALEN];
 	} param;
 	static char outstr[64];
@@ -272,7 +272,7 @@ static int wlan_bt_set_invert_ioctl(wlan_private * priv, struct ifreq *req)
 	int ret;
 	struct iwreq *wrq = (struct iwreq *)req;
 	union {
-		int id;
+		u32 id;
 		char addr1addr2[2 * ETH_ALEN];
 	} param;
 
@@ -300,7 +300,7 @@ static int wlan_bt_get_invert_ioctl(wlan_private * priv, struct ifreq *req)
 	struct iwreq *wrq = (struct iwreq *)req;
 	int ret;
 	union {
-		int id;
+		u32 id;
 		char addr1addr2[2 * ETH_ALEN];
 	} param;
 
@@ -365,7 +365,7 @@ static int wlan_fwt_add_ioctl(wlan_private * priv, struct ifreq *req)
 		fwt_access.metric =
 			cpu_to_le32(simple_strtoul(ptr, &ptr, 10));
 	else
-		fwt_access.metric = FWT_DEFAULT_METRIC;
+		fwt_access.metric = cpu_to_le32(FWT_DEFAULT_METRIC);
 
 	if ((ptr = next_param(ptr)))
 		fwt_access.dir = (u8)simple_strtoul(ptr, &ptr, 10);
@@ -381,13 +381,13 @@ static int wlan_fwt_add_ioctl(wlan_private * priv, struct ifreq *req)
 		fwt_access.ssn =
 			cpu_to_le32(simple_strtoul(ptr, &ptr, 10));
 	else
-		fwt_access.ssn = FWT_DEFAULT_SSN;
+		fwt_access.ssn = cpu_to_le32(FWT_DEFAULT_SSN);
 
 	if ((ptr = next_param(ptr)))
 		fwt_access.dsn =
 			cpu_to_le32(simple_strtoul(ptr, &ptr, 10));
 	else
-		fwt_access.dsn = FWT_DEFAULT_DSN;
+		fwt_access.dsn = cpu_to_le32(FWT_DEFAULT_DSN);
 
 	if ((ptr = next_param(ptr)))
 		fwt_access.hopcount = simple_strtoul(ptr, &ptr, 10);
@@ -403,7 +403,7 @@ static int wlan_fwt_add_ioctl(wlan_private * priv, struct ifreq *req)
 		fwt_access.expiration =
 			cpu_to_le32(simple_strtoul(ptr, &ptr, 10));
 	else
-		fwt_access.expiration = FWT_DEFAULT_EXPIRATION;
+		fwt_access.expiration = cpu_to_le32(FWT_DEFAULT_EXPIRATION);
 
 	if ((ptr = next_param(ptr)))
 		fwt_access.sleepmode = (u8)simple_strtoul(ptr, &ptr, 10);
@@ -414,7 +414,7 @@ static int wlan_fwt_add_ioctl(wlan_private * priv, struct ifreq *req)
 		fwt_access.snr =
 			cpu_to_le32(simple_strtoul(ptr, &ptr, 10));
 	else
-		fwt_access.snr = FWT_DEFAULT_SNR;
+		fwt_access.snr = cpu_to_le32(FWT_DEFAULT_SNR);
 
 #ifdef DEBUG
 	{
@@ -864,7 +864,7 @@ static int wlan_mesh_set_ttl_ioctl(wlan_private * priv, int ttl)
 		return -EINVAL;
 
 	memset(&mesh_access, 0, sizeof(mesh_access));
-	mesh_access.data[0] = ttl;
+	mesh_access.data[0] = cpu_to_le32(ttl);
 
 	ret = libertas_prepare_and_send_command(priv, cmd_mesh_access,
 						cmd_act_mesh_set_ttl,

@@ -200,7 +200,7 @@ int libertas_process_rxed_packet(wlan_private * priv, struct sk_buff *skb)
 	/*
 	 * Check rxpd status and update 802.3 stat,
 	 */
-	if (!(p_rx_pd->status & MRVDRV_RXPD_STATUS_OK)) {
+	if (!(p_rx_pd->status & cpu_to_le16(MRVDRV_RXPD_STATUS_OK))) {
 		lbs_deb_rx("rx err: frame received with bad status\n");
 		lbs_pr_alert("rxpd not ok\n");
 		priv->stats.rx_errors++;
@@ -353,7 +353,7 @@ static int process_rxed_802_11_packet(wlan_private * priv, struct sk_buff *skb)
 	/*
 	 * Check rxpd status and update 802.3 stat,
 	 */
-	if (!(prxpd->status & MRVDRV_RXPD_STATUS_OK)) {
+	if (!(prxpd->status & cpu_to_le16(MRVDRV_RXPD_STATUS_OK))) {
 		//lbs_deb_rx("rx err: frame received with bad status\n");
 		priv->stats.rx_errors++;
 	}
@@ -386,7 +386,7 @@ static int process_rxed_802_11_packet(wlan_private * priv, struct sk_buff *skb)
 		/* XXX must check no carryout */
 		radiotap_hdr.antsignal = prxpd->snr + prxpd->nf;
 		radiotap_hdr.rx_flags = 0;
-		if (!(prxpd->status & MRVDRV_RXPD_STATUS_OK))
+		if (!(prxpd->status & cpu_to_le16(MRVDRV_RXPD_STATUS_OK)))
 			radiotap_hdr.rx_flags |= IEEE80211_RADIOTAP_F_RX_BADFCS;
 		//memset(radiotap_hdr.pad, 0x11, IEEE80211_RADIOTAP_HDRLEN - 18);
 

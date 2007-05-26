@@ -190,7 +190,7 @@ static ssize_t libertas_mpp_get(struct device * dev,
 			cmd_act_mesh_get_mpp,
 			cmd_option_waitforrsp, 0, (void *)&mesh_access);
 
-	return snprintf(buf, 3, "%d\n", mesh_access.data[0]);
+	return snprintf(buf, 3, "%d\n", le32_to_cpu(mesh_access.data[0]));
 }
 
 /**
@@ -199,9 +199,12 @@ static ssize_t libertas_mpp_get(struct device * dev,
 static ssize_t libertas_mpp_set(struct device * dev,
 		struct device_attribute *attr, const char * buf, size_t count) {
 	struct cmd_ds_mesh_access mesh_access;
+	uint32_t datum;
 
 	memset(&mesh_access, 0, sizeof(mesh_access));
-	sscanf(buf, "%d", &(mesh_access.data[0]));
+	sscanf(buf, "%d", &datum);
+	mesh_access.data[0] = cpu_to_le32(datum);
+
 	libertas_prepare_and_send_command((to_net_dev(dev))->priv,
 			cmd_mesh_access,
 			cmd_act_mesh_set_mpp,
@@ -213,8 +216,7 @@ static ssize_t libertas_mpp_set(struct device * dev,
  * libertas_mpp attribute to be exported per mshX interface
  * through sysfs (/sys/class/net/mshX/libertas-mpp)
  */
-static DEVICE_ATTR(libertas_mpp, 0644, libertas_mpp_get,
-		libertas_mpp_set );
+static DEVICE_ATTR(libertas_mpp, 0644, libertas_mpp_get, libertas_mpp_set );
 
 /**
  *  @brief Check if the device can be open and wait if necessary.

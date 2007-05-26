@@ -19,7 +19,7 @@
  */
 static int check_fwfile_format(u8 *data, u32 totlen)
 {
-	u8  bincmd, exit;
+	u32 bincmd, exit;
 	u32 blksize, offset, len;
 	int ret;
 
@@ -27,8 +27,10 @@ static int check_fwfile_format(u8 *data, u32 totlen)
 	exit = len = 0;
 
 	do {
-		bincmd = *data;
-		blksize = *(u32*)(data + offsetof(struct fwheader, datalength));
+		struct fwheader *fwh = (void *)data;
+
+		bincmd = le32_to_cpu(fwh->dnldcmd);
+		blksize = le32_to_cpu(fwh->datalength);
 		switch (bincmd) {
 		case FW_HAS_DATA_TO_RECV:
 			offset = sizeof(struct fwheader) + blksize;
@@ -72,13 +74,12 @@ static int wlan_setup_station_hw(wlan_private * priv, char *fw_name)
 
 	if ((ret = request_firmware(&priv->firmware, fw_name,
 				    priv->hotplug_device)) < 0) {
-		lbs_pr_err("request_firmware() failed with %#x\n",
-		       ret);
+		lbs_pr_err("request_firmware() failed with %#x\n", ret);
 		lbs_pr_err("firmware %s not found\n", fw_name);
 		goto done;
 	}
 
-	if(check_fwfile_format(priv->firmware->data, priv->firmware->size)) {
+	if (check_fwfile_format(priv->firmware->data, priv->firmware->size)) {
 		release_firmware(priv->firmware);
 		goto done;
 	}

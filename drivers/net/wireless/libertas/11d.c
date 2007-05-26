@@ -570,7 +570,7 @@ int libertas_cmd_802_11d_domain_info(wlan_private * priv,
 		    cpu_to_le16(sizeof(pdomaininfo->action) + S_DS_GEN);
 	}
 
-	lbs_dbg_hex("11D:802_11D_DOMAIN_INFO:", (u8 *) cmd, (int)(cmd->size));
+	lbs_dbg_hex("11D:802_11D_DOMAIN_INFO:", (u8 *) cmd, le16_to_cpu(cmd->size));
 
 done:
 	lbs_deb_enter(LBS_DEB_11D);
@@ -611,8 +611,7 @@ int libertas_cmd_enable_11d(wlan_private * priv, struct iwreq *wrq)
 int libertas_ret_802_11d_domain_info(wlan_private * priv,
 				 struct cmd_ds_command *resp)
 {
-	struct cmd_ds_802_11d_domain_info
-	*domaininfo = &resp->params.domaininforesp;
+	struct cmd_ds_802_11d_domain_info *domaininfo = &resp->params.domaininforesp;
 	struct mrvlietypes_domainparamset *domain = &domaininfo->domain;
 	u16 action = le16_to_cpu(domaininfo->action);
 	s16 ret = 0;
@@ -623,8 +622,8 @@ int libertas_ret_802_11d_domain_info(wlan_private * priv,
 	lbs_dbg_hex("11D DOMAIN Info Rsp Data:", (u8 *) resp,
 		(int)le16_to_cpu(resp->size));
 
-	nr_subband = (domain->header.len - 3) / sizeof(struct ieeetypes_subbandset);
-	/* countrycode 3 bytes */
+	nr_subband = (le16_to_cpu(domain->header.len) - COUNTRY_CODE_LEN) /
+		      sizeof(struct ieeetypes_subbandset);
 
 	lbs_deb_11d("11D Domain Info Resp: nr_subband=%d\n", nr_subband);
 

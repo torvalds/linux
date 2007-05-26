@@ -209,7 +209,7 @@ static int assoc_helper_mode(wlan_private *priv,
 				    cmd_802_11_snmp_mib,
 				    0, cmd_option_waitforrsp,
 				    OID_802_11_INFRASTRUCTURE_MODE,
-				    (void *) (size_t) assoc_req->mode);
+		/* Shoot me now */  (void *) (size_t) assoc_req->mode);
 
 done:
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);

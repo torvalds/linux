@@ -123,37 +123,27 @@ static int wlan_ret_reg_access(wlan_private * priv,
 	switch (type) {
 	case cmd_ret_mac_reg_access:
 		{
-			struct cmd_ds_mac_reg_access *reg;
+			struct cmd_ds_mac_reg_access *reg = &resp->params.macreg;
 
-			reg =
-			    (struct cmd_ds_mac_reg_access *)&resp->params.
-			    macreg;
-
-			adapter->offsetvalue.offset = reg->offset;
-			adapter->offsetvalue.value = reg->value;
+			adapter->offsetvalue.offset = (u32)le16_to_cpu(reg->offset);
+			adapter->offsetvalue.value = le32_to_cpu(reg->value);
 			break;
 		}
 
 	case cmd_ret_bbp_reg_access:
 		{
-			struct cmd_ds_bbp_reg_access *reg;
-			reg =
-			    (struct cmd_ds_bbp_reg_access *)&resp->params.
-			    bbpreg;
+			struct cmd_ds_bbp_reg_access *reg = &resp->params.bbpreg;
 
-			adapter->offsetvalue.offset = reg->offset;
+			adapter->offsetvalue.offset = (u32)le16_to_cpu(reg->offset);
 			adapter->offsetvalue.value = reg->value;
 			break;
 		}
 
 	case cmd_ret_rf_reg_access:
 		{
-			struct cmd_ds_rf_reg_access *reg;
-			reg =
-			    (struct cmd_ds_rf_reg_access *)&resp->params.
-			    rfreg;
+			struct cmd_ds_rf_reg_access *reg = &resp->params.rfreg;
 
-			adapter->offsetvalue.offset = reg->offset;
+			adapter->offsetvalue.offset = (u32)le16_to_cpu(reg->offset);
 			adapter->offsetvalue.value = reg->value;
 			break;
 		}
@@ -178,7 +168,7 @@ static int wlan_ret_get_hw_spec(wlan_private * priv,
 
 	adapter->fwcapinfo = le32_to_cpu(hwspec->fwcapinfo);
 
-	adapter->fwreleasenumber = hwspec->fwreleasenumber;
+	adapter->fwreleasenumber = le32_to_cpu(hwspec->fwreleasenumber);
 
 	lbs_deb_cmd("GET_HW_SPEC: FWReleaseVersion- 0x%X\n",
 	       adapter->fwreleasenumber);
@@ -203,19 +193,15 @@ static int wlan_ret_get_hw_spec(wlan_private * priv,
 	if (i >= MRVDRV_MAX_REGION_CODE) {
 		adapter->regioncode = 0x10;
 		adapter->regiontableindex = 0;
-		lbs_pr_info(
-		       "unidentified region code, use the default (USA)\n");
+		lbs_pr_info("unidentified region code; using the default (USA)\n");
 	}
 
-	if (adapter->current_addr[0] == 0xff) {
-		memmove(adapter->current_addr, hwspec->permanentaddr,
-			ETH_ALEN);
-	}
+	if (adapter->current_addr[0] == 0xff)
+		memmove(adapter->current_addr, hwspec->permanentaddr, ETH_ALEN);
 
 	memcpy(priv->dev->dev_addr, adapter->current_addr, ETH_ALEN);
 	if (priv->mesh_dev)
-		memcpy(priv->mesh_dev->dev_addr, adapter->current_addr,
-		       ETH_ALEN);
+		memcpy(priv->mesh_dev->dev_addr, adapter->current_addr, ETH_ALEN);
 
 	if (libertas_set_regiontable(priv, adapter->regioncode, 0)) {
 		ret = -1;
@@ -241,13 +227,15 @@ static int wlan_ret_802_11_sleep_params(wlan_private * priv,
 	lbs_deb_enter(LBS_DEB_CMD);
 
 	lbs_deb_cmd("error=%x offset=%x stabletime=%x calcontrol=%x\n"
-	       " extsleepclk=%x\n", sp->error, sp->offset,
-	       sp->stabletime, sp->calcontrol, sp->externalsleepclk);
+		    " extsleepclk=%x\n", le16_to_cpu(sp->error),
+		    le16_to_cpu(sp->offset), le16_to_cpu(sp->stabletime),
+		    sp->calcontrol, sp->externalsleepclk);
+
 	adapter->sp.sp_error = le16_to_cpu(sp->error);
 	adapter->sp.sp_offset = le16_to_cpu(sp->offset);
 	adapter->sp.sp_stabletime = le16_to_cpu(sp->stabletime);
-	adapter->sp.sp_calcontrol = le16_to_cpu(sp->calcontrol);
-	adapter->sp.sp_extsleepclk = le16_to_cpu(sp->externalsleepclk);
+	adapter->sp.sp_calcontrol = sp->calcontrol;
+	adapter->sp.sp_extsleepclk = sp->externalsleepclk;
 	adapter->sp.sp_reserved = le16_to_cpu(sp->reserved);
 
 	lbs_deb_enter(LBS_DEB_CMD);
@@ -280,31 +268,27 @@ static int wlan_ret_802_11_snmp_mib(wlan_private * priv,
 
 	lbs_deb_cmd("SNMP_RESP: value of the oid = %x, querytype=%x\n", oid,
 	       querytype);
-	lbs_deb_cmd("SNMP_RESP: Buf size  = %x\n",
-	       le16_to_cpu(smib->bufsize));
+	lbs_deb_cmd("SNMP_RESP: Buf size  = %x\n", le16_to_cpu(smib->bufsize));
 
 	if (querytype == cmd_act_get) {
 		switch (oid) {
 		case fragthresh_i:
 			priv->adapter->fragthsd =
-			    le16_to_cpu(*
-					     ((unsigned short *)(smib->value)));
+				le16_to_cpu(*((__le16 *)(smib->value)));
 			lbs_deb_cmd("SNMP_RESP: fragthsd =%u\n",
-			       priv->adapter->fragthsd);
+				    priv->adapter->fragthsd);
 			break;
 		case rtsthresh_i:
 			priv->adapter->rtsthsd =
-			    le16_to_cpu(*
-					     ((unsigned short *)(smib->value)));
+				le16_to_cpu(*((__le16 *)(smib->value)));
 			lbs_deb_cmd("SNMP_RESP: rtsthsd =%u\n",
-			       priv->adapter->rtsthsd);
+				    priv->adapter->rtsthsd);
 			break;
 		case short_retrylim_i:
 			priv->adapter->txretrycount =
-			    le16_to_cpu(*
-					     ((unsigned short *)(smib->value)));
+				le16_to_cpu(*((__le16 *)(smib->value)));
 			lbs_deb_cmd("SNMP_RESP: txretrycount =%u\n",
-			       priv->adapter->rtsthsd);
+				    priv->adapter->rtsthsd);
 			break;
 		default:
 			break;
@@ -408,12 +392,10 @@ static int wlan_ret_802_11_rf_antenna(wlan_private * priv,
 	u16 action = le16_to_cpu(pAntenna->action);
 
 	if (action == cmd_act_get_rx)
-		adapter->rxantennamode =
-		    le16_to_cpu(pAntenna->antennamode);
+		adapter->rxantennamode = le16_to_cpu(pAntenna->antennamode);
 
 	if (action == cmd_act_get_tx)
-		adapter->txantennamode =
-		    le16_to_cpu(pAntenna->antennamode);
+		adapter->txantennamode = le16_to_cpu(pAntenna->antennamode);
 
 	lbs_deb_cmd("RF_ANT_RESP: action = 0x%x, mode = 0x%04x\n",
 	       action, le16_to_cpu(pAntenna->antennamode));
@@ -424,15 +406,14 @@ static int wlan_ret_802_11_rf_antenna(wlan_private * priv,
 static int wlan_ret_802_11_rate_adapt_rateset(wlan_private * priv,
 					      struct cmd_ds_command *resp)
 {
-	struct cmd_ds_802_11_rate_adapt_rateset *rates =
-	    &resp->params.rateset;
+	struct cmd_ds_802_11_rate_adapt_rateset *rates = &resp->params.rateset;
 	wlan_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
 	if (rates->action == cmd_act_get) {
-		adapter->enablehwauto = rates->enablehwauto;
-		adapter->ratebitmap = rates->bitmap;
+		adapter->enablehwauto = le16_to_cpu(rates->enablehwauto);
+		adapter->ratebitmap = le16_to_cpu(rates->bitmap);
 	}
 
 	lbs_deb_enter(LBS_DEB_CMD);
@@ -452,7 +433,7 @@ static int wlan_ret_802_11_data_rate(wlan_private * priv,
 		(u8 *) pdatarate, sizeof(struct cmd_ds_802_11_data_rate));
 
 	dot11datarate = pdatarate->datarate[0];
-	if (pdatarate->action == cmd_act_get_tx_rate) {
+	if (pdatarate->action == cpu_to_le16(cmd_act_get_tx_rate)) {
 		memcpy(adapter->libertas_supported_rates, pdatarate->datarate,
 		       sizeof(adapter->libertas_supported_rates));
 	}
@@ -465,8 +446,7 @@ static int wlan_ret_802_11_data_rate(wlan_private * priv,
 static int wlan_ret_802_11_rf_channel(wlan_private * priv,
 				      struct cmd_ds_command *resp)
 {
-	struct cmd_ds_802_11_rf_channel *rfchannel =
-	    &resp->params.rfchannel;
+	struct cmd_ds_802_11_rf_channel *rfchannel = &resp->params.rfchannel;
 	wlan_adapter *adapter = priv->adapter;
 	u16 action = le16_to_cpu(rfchannel->action);
 	u16 newchannel = le16_to_cpu(rfchannel->currentchannel);
@@ -494,12 +474,10 @@ static int wlan_ret_802_11_rssi(wlan_private * priv,
 
 	/* store the non average value */
 	adapter->SNR[TYPE_BEACON][TYPE_NOAVG] = le16_to_cpu(rssirsp->SNR);
-	adapter->NF[TYPE_BEACON][TYPE_NOAVG] =
-	    le16_to_cpu(rssirsp->noisefloor);
+	adapter->NF[TYPE_BEACON][TYPE_NOAVG] = le16_to_cpu(rssirsp->noisefloor);
 
 	adapter->SNR[TYPE_BEACON][TYPE_AVG] = le16_to_cpu(rssirsp->avgSNR);
-	adapter->NF[TYPE_BEACON][TYPE_AVG] =
-	    le16_to_cpu(rssirsp->avgnoisefloor);
+	adapter->NF[TYPE_BEACON][TYPE_AVG] = le16_to_cpu(rssirsp->avgnoisefloor);
 
 	adapter->RSSI[TYPE_BEACON][TYPE_NOAVG] =
 	    CAL_RSSI(adapter->SNR[TYPE_BEACON][TYPE_NOAVG],
@@ -543,15 +521,13 @@ static int wlan_ret_802_11_eeprom_access(wlan_private * priv,
 static int wlan_ret_get_log(wlan_private * priv,
 			    struct cmd_ds_command *resp)
 {
-	struct cmd_ds_802_11_get_log *logmessage =
-	    (struct cmd_ds_802_11_get_log *)&resp->params.glog;
+	struct cmd_ds_802_11_get_log *logmessage = &resp->params.glog;
 	wlan_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	/* TODO Convert it to Big Endian before copy */
-	memcpy(&adapter->logmsg, logmessage,
-	       sizeof(struct cmd_ds_802_11_get_log));
+	/* Stored little-endian */
+	memcpy(&adapter->logmsg, logmessage, sizeof(struct cmd_ds_802_11_get_log));
 
 	lbs_deb_enter(LBS_DEB_CMD);
 	return 0;
@@ -614,8 +590,7 @@ static inline int handle_cmd_response(u16 respcmd,
 	case cmd_ret_802_11_set_afc:
 	case cmd_ret_802_11_get_afc:
 		spin_lock_irqsave(&adapter->driver_lock, flags);
-		memmove(adapter->cur_cmd->pdata_buf,
-			&resp->params.afc,
+		memmove(adapter->cur_cmd->pdata_buf, &resp->params.afc,
 			sizeof(struct cmd_ds_802_11_afc));
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 
@@ -681,22 +656,19 @@ static inline int handle_cmd_response(u16 respcmd,
 
 	case cmd_ret_802_11_tpc_cfg:
 		spin_lock_irqsave(&adapter->driver_lock, flags);
-		memmove(adapter->cur_cmd->pdata_buf,
-			&resp->params.tpccfg,
+		memmove(adapter->cur_cmd->pdata_buf, &resp->params.tpccfg,
 			sizeof(struct cmd_ds_802_11_tpc_cfg));
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 		break;
 	case cmd_ret_802_11_led_gpio_ctrl:
 		spin_lock_irqsave(&adapter->driver_lock, flags);
-		memmove(adapter->cur_cmd->pdata_buf,
-			&resp->params.ledgpio,
+		memmove(adapter->cur_cmd->pdata_buf, &resp->params.ledgpio,
 			sizeof(struct cmd_ds_802_11_led_ctrl));
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 		break;
 	case cmd_ret_802_11_pwr_cfg:
 		spin_lock_irqsave(&adapter->driver_lock, flags);
-		memmove(adapter->cur_cmd->pdata_buf,
-			&resp->params.pwrcfg,
+		memmove(adapter->cur_cmd->pdata_buf, &resp->params.pwrcfg,
 			sizeof(struct cmd_ds_802_11_pwr_cfg));
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 
@@ -718,15 +690,13 @@ static inline int handle_cmd_response(u16 respcmd,
 	case cmd_ret_fwt_access:
 		spin_lock_irqsave(&adapter->driver_lock, flags);
 		if (adapter->cur_cmd->pdata_buf)
-			memcpy(adapter->cur_cmd->pdata_buf,
-			       &resp->params.fwt,
-				sizeof(resp->params.fwt));
+			memcpy(adapter->cur_cmd->pdata_buf, &resp->params.fwt,
+			       sizeof(resp->params.fwt));
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 		break;
 	case cmd_ret_mesh_access:
 		if (adapter->cur_cmd->pdata_buf)
-			memcpy(adapter->cur_cmd->pdata_buf,
-			       &resp->params.mesh,
+			memcpy(adapter->cur_cmd->pdata_buf, &resp->params.mesh,
 			       sizeof(resp->params.mesh));
 		break;
 	case cmd_rte_802_11_tx_rate_query:
@@ -734,7 +704,7 @@ static inline int handle_cmd_response(u16 respcmd,
 		break;
 	default:
 		lbs_deb_cmd("CMD_RESP: Unknown command response %#x\n",
-		       resp->command);
+			    resp->command);
 		break;
 	}
 	return ret;
@@ -768,14 +738,14 @@ int libertas_process_rx_command(wlan_private * priv)
 	resp = (struct cmd_ds_command *)(adapter->cur_cmd->bufvirtualaddr);
 
 	lbs_dbg_hex("CMD_RESP:", adapter->cur_cmd->bufvirtualaddr,
-		priv->upld_len);
+		    priv->upld_len);
 
 	respcmd = le16_to_cpu(resp->command);
 
 	result = le16_to_cpu(resp->result);
 
 	lbs_deb_cmd("CMD_RESP: %x result: %d length: %d\n", respcmd,
-	       result, priv->upld_len);
+		    result, priv->upld_len);
 
 	if (!(respcmd & 0x8000)) {
 		lbs_deb_cmd("Invalid response to command!");
@@ -789,31 +759,28 @@ int libertas_process_rx_command(wlan_private * priv)
 	}
 
 	/* Store the response code to cur_cmd_retcode. */
-	adapter->cur_cmd_retcode = le16_to_cpu(resp->result);
+	adapter->cur_cmd_retcode = result;;
 
 	if (respcmd == cmd_ret_802_11_ps_mode) {
-		struct cmd_ds_802_11_ps_mode *psmode;
+		struct cmd_ds_802_11_ps_mode *psmode = &resp->params.psmode;
+		u16 action = le16_to_cpu(psmode->action);
 
-		psmode = &resp->params.psmode;
 		lbs_deb_cmd(
 		       "CMD_RESP: PS_MODE cmd reply result=%#x action=0x%X\n",
-		       resp->result, psmode->action);
-		psmode->action = cpu_to_le16(psmode->action);
+		       result, action);
 
 		if (result) {
 			lbs_deb_cmd("CMD_RESP: PS command failed- %#x \n",
-			       resp->result);
-			if (adapter->mode == IW_MODE_ADHOC) {
-				/*
-				 * We should not re-try enter-ps command in
-				 * ad-hoc mode. It takes place in
-				 * libertas_execute_next_command().
-				 */
-				if (psmode->action == cmd_subcmd_enter_ps)
-					adapter->psmode =
-					    wlan802_11powermodecam;
-			}
-		} else if (psmode->action == cmd_subcmd_enter_ps) {
+				    result);
+			/*
+			 * We should not re-try enter-ps command in
+			 * ad-hoc mode. It takes place in
+			 * libertas_execute_next_command().
+			 */
+			if (adapter->mode == IW_MODE_ADHOC &&
+			    action == cmd_subcmd_enter_ps)
+				adapter->psmode = wlan802_11powermodecam;
+		} else if (action == cmd_subcmd_enter_ps) {
 			adapter->needtowakeup = 0;
 			adapter->psstate = PS_STATE_AWAKE;
 
@@ -832,13 +799,12 @@ int libertas_process_rx_command(wlan_private * priv)
 				mutex_lock(&adapter->lock);
 				spin_lock_irqsave(&adapter->driver_lock, flags);
 			}
-		} else if (psmode->action == cmd_subcmd_exit_ps) {
+		} else if (action == cmd_subcmd_exit_ps) {
 			adapter->needtowakeup = 0;
 			adapter->psstate = PS_STATE_FULL_POWER;
 			lbs_deb_cmd("CMD_RESP: Exit_PS command response\n");
 		} else {
-			lbs_deb_cmd("CMD_RESP: PS- action=0x%X\n",
-			       psmode->action);
+			lbs_deb_cmd("CMD_RESP: PS- action=0x%X\n", action);
 		}
 
 		__libertas_cleanup_and_insert_cmd(priv, adapter->cur_cmd);
@@ -860,7 +826,7 @@ int libertas_process_rx_command(wlan_private * priv)
 	/* If the command is not successful, cleanup and return failure */
 	if ((result != 0 || !(respcmd & 0x8000))) {
 		lbs_deb_cmd("CMD_RESP: command reply %#x result=%#x\n",
-		       resp->command, resp->result);
+		       respcmd, result);
 		/*
 		 * Handling errors here
 		 */

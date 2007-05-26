@@ -85,13 +85,13 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 
 	memset(plocaltxpd, 0, sizeof(struct txpd));
 
-	plocaltxpd->tx_packet_length = skb->len;
+	plocaltxpd->tx_packet_length = cpu_to_le16(skb->len);
 
 	/* offset of actual data */
-	plocaltxpd->tx_packet_location = sizeof(struct txpd);
+	plocaltxpd->tx_packet_location = cpu_to_le32(sizeof(struct txpd));
 
 	/* TxCtrl set by user or default */
-	plocaltxpd->tx_control = adapter->pkttxctrl;
+	plocaltxpd->tx_control = cpu_to_le32(adapter->pkttxctrl);
 
 	p802x_hdr = skb->data;
 	if (priv->adapter->radiomode == WLAN_RADIOMODE_RADIOTAP) {
@@ -102,15 +102,16 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 		/* set txpd fields from the radiotap header */
 		new_rate = convert_radiotap_rate_to_mv(pradiotap_hdr->rate);
 		if (new_rate != 0) {
-			/* erase tx_control[4:0] */
-			plocaltxpd->tx_control &= ~0x1f;
-			/* write new tx_control[4:0] */
-			plocaltxpd->tx_control |= new_rate;
+			/* use new tx_control[4:0] */
+			new_rate |= (adapter->pkttxctrl & ~0x1f);
+			plocaltxpd->tx_control = cpu_to_le32(new_rate);
 		}
 
 		/* skip the radiotap header */
 		p802x_hdr += sizeof(struct tx_radiotap_hdr);
-		plocaltxpd->tx_packet_length -= sizeof(struct tx_radiotap_hdr);
+		plocaltxpd->tx_packet_length =
+			cpu_to_le32(le32_to_cpu(plocaltxpd->tx_packet_length)
+				    - sizeof(struct tx_radiotap_hdr));
 
 	}
 	/* copy destination address from 802.3 or 802.11 header */
@@ -122,19 +123,19 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 	lbs_dbg_hex("txpd", (u8 *) plocaltxpd, sizeof(struct txpd));
 
 	if (IS_MESH_FRAME(skb)) {
-		plocaltxpd->tx_control |= TxPD_MESH_FRAME;
+		plocaltxpd->tx_control |= cpu_to_le32(TxPD_MESH_FRAME);
 	}
 
 	memcpy(ptr, plocaltxpd, sizeof(struct txpd));
 
 	ptr += sizeof(struct txpd);
 
-	lbs_dbg_hex("Tx Data", (u8 *) p802x_hdr, plocaltxpd->tx_packet_length);
-	memcpy(ptr, p802x_hdr, plocaltxpd->tx_packet_length);
+	lbs_dbg_hex("Tx Data", (u8 *) p802x_hdr, le32_to_cpu(plocaltxpd->tx_packet_length));
+	memcpy(ptr, p802x_hdr, le32_to_cpu(plocaltxpd->tx_packet_length));
 	ret = priv->hw_host_to_card(priv, MVMS_DAT,
-		priv->adapter->tmptxbuf,
-		plocaltxpd->tx_packet_length +
-		sizeof(struct txpd));
+				    priv->adapter->tmptxbuf,
+				    le32_to_cpu(plocaltxpd->tx_packet_length) +
+				    sizeof(struct txpd));
 
 	if (ret) {
 		lbs_deb_tx("tx err: hw_host_to_card returned 0x%X\n", ret);

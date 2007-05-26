@@ -402,7 +402,7 @@ static int wlan_set_rts(struct net_device *dev, struct iw_request_info *info,
 	int ret = 0;
 	wlan_private *priv = dev->priv;
 	wlan_adapter *adapter = priv->adapter;
-	int rthr = vwrq->value;
+	u32 rthr = vwrq->value;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -452,7 +452,7 @@ static int wlan_set_frag(struct net_device *dev, struct iw_request_info *info,
 			 struct iw_param *vwrq, char *extra)
 {
 	int ret = 0;
-	int fthr = vwrq->value;
+	u32 fthr = vwrq->value;
 	wlan_private *priv = dev->priv;
 	wlan_adapter *adapter = priv->adapter;
 
@@ -1115,7 +1115,7 @@ static struct iw_statistics *wlan_get_wireless_stats(struct net_device *dev)
 	/* Quality by TX errors */
 	priv->wstats.discard.retries = priv->stats.tx_errors;
 
-	tx_retries = adapter->logmsg.retry;
+	tx_retries = le16_to_cpu(adapter->logmsg.retry);
 
 	if (tx_retries > 75)
 		tx_qual = (90 - tx_retries) * POOR / 15;
@@ -1131,10 +1131,10 @@ static struct iw_statistics *wlan_get_wireless_stats(struct net_device *dev)
 		    (PERFECT - VERY_GOOD) / 50 + VERY_GOOD;
 	quality = min(quality, tx_qual);
 
-	priv->wstats.discard.code = adapter->logmsg.wepundecryptable;
-	priv->wstats.discard.fragment = adapter->logmsg.rxfrag;
+	priv->wstats.discard.code = le16_to_cpu(adapter->logmsg.wepundecryptable);
+	priv->wstats.discard.fragment = le16_to_cpu(adapter->logmsg.rxfrag);
 	priv->wstats.discard.retries = tx_retries;
-	priv->wstats.discard.misc = adapter->logmsg.ackfailure;
+	priv->wstats.discard.misc = le16_to_cpu(adapter->logmsg.ackfailure);
 
 	/* Calculate quality */
 	priv->wstats.qual.qual = max(quality, (u32)100);

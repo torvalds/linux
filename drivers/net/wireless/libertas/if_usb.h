@@ -20,7 +20,7 @@
 
 struct bootcmdstr
 {
-	u32 u32magicnumber;
+	__le32 u32magicnumber;
 	u8  u8cmd_tag;
 	u8  au8dumy[11];
 };
@@ -30,7 +30,7 @@ struct bootcmdstr
 
 struct bootcmdrespStr
 {
-	u32 u32magicnumber;
+	__le32 u32magicnumber;
 	u8  u8cmd_tag;
 	u8  u8result;
 	u8  au8dumy[2];
@@ -76,24 +76,24 @@ struct usb_card_rec {
 
 /** fwheader */
 struct fwheader {
-	u32 dnldcmd;
-	u32 baseaddr;
-	u32 datalength;
-	u32 CRC;
+	__le32 dnldcmd;
+	__le32 baseaddr;
+	__le32 datalength;
+	__le32 CRC;
 };
 
 #define FW_MAX_DATA_BLK_SIZE	600
 /** FWData */
 struct FWData {
 	struct fwheader fwheader;
-	u32 seqnum;
+	__le32 seqnum;
 	u8 data[FW_MAX_DATA_BLK_SIZE];
 };
 
 /** fwsyncheader */
 struct fwsyncheader {
-	u32 cmd;
-	u32 seqnum;
+	__le32 cmd;
+	__le32 seqnum;
 };
 
 #define FW_HAS_DATA_TO_RECV		0x00000001

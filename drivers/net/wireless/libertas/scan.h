@@ -154,7 +154,7 @@ struct bss_descriptor {
 	u8 mode;
 	u8 libertas_supported_rates[WLAN_SUPPORTED_RATES];
 
-	u8 timestamp[8];	//!< TSF value included in the beacon/probe response
+	__le64 timestamp;	//!< TSF value included in the beacon/probe response
 	unsigned long last_scanned;
 
 	union ieeetypes_phyparamset phyparamset;
@@ -162,7 +162,7 @@ struct bss_descriptor {
 	struct ieeetypes_capinfo cap;
 	u8 datarates[WLAN_SUPPORTED_RATES];
 
-	__le64 networktsf;		//!< TSF timestamp from the current firmware TSF
+	u64 networktsf;		//!< TSF timestamp from the current firmware TSF
 
 	struct ieeetypes_countryinfofullset countryinfo;
 

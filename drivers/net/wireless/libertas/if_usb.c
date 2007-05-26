@@ -141,10 +141,10 @@ static int if_usb_probe(struct usb_interface *intf,
 
 	lbs_deb_usbd(&udev->dev, "bcdUSB = 0x%X bDeviceClass = 0x%X"
 	       " bDeviceSubClass = 0x%X, bDeviceProtocol = 0x%X\n",
-	       udev->descriptor.bcdUSB,
-	       udev->descriptor.bDeviceClass,
-	       udev->descriptor.bDeviceSubClass,
-	       udev->descriptor.bDeviceProtocol);
+		     le16_to_cpu(udev->descriptor.bcdUSB),
+		     udev->descriptor.bDeviceClass,
+		     udev->descriptor.bDeviceSubClass,
+		     udev->descriptor.bDeviceProtocol);
 
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
@@ -153,10 +153,8 @@ static int if_usb_probe(struct usb_interface *intf,
 			USB_ENDPOINT_XFER_BULK)) {
 			/* we found a bulk in endpoint */
 			lbs_deb_usbd(&udev->dev, "Bulk in size is %d\n",
-			       endpoint->wMaxPacketSize);
-			if (!
-			    (cardp->rx_urb =
-			     usb_alloc_urb(0, GFP_KERNEL))) {
+				     le16_to_cpu(endpoint->wMaxPacketSize));
+			if (!(cardp->rx_urb = usb_alloc_urb(0, GFP_KERNEL))) {
 				lbs_deb_usbd(&udev->dev,
 				       "Rx URB allocation failed\n");
 				goto dealloc;
@@ -164,7 +162,7 @@ static int if_usb_probe(struct usb_interface *intf,
 			cardp->rx_urb_recall = 0;
 
 			cardp->bulk_in_size =
-			    endpoint->wMaxPacketSize;
+				le16_to_cpu(endpoint->wMaxPacketSize);
 			cardp->bulk_in_endpointAddr =
 			    (endpoint->
 			     bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
@@ -178,19 +176,17 @@ static int if_usb_probe(struct usb_interface *intf,
 		    && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
 			USB_ENDPOINT_XFER_BULK)) {
 			/* We found bulk out endpoint */
-			if (!
-			    (cardp->tx_urb =
-			     usb_alloc_urb(0, GFP_KERNEL))) {
+			if (!(cardp->tx_urb = usb_alloc_urb(0, GFP_KERNEL))) {
 				lbs_deb_usbd(&udev->dev,
 				       "Tx URB allocation failed\n");
 				goto dealloc;
 			}
 
 			cardp->bulk_out_size =
-			    endpoint->wMaxPacketSize;
+				le16_to_cpu(endpoint->wMaxPacketSize);
 			lbs_deb_usbd(&udev->dev,
-				    "Bulk out size is %d\n",
-				    endpoint->wMaxPacketSize);
+				     "Bulk out size is %d\n",
+				     le16_to_cpu(endpoint->wMaxPacketSize));
 			cardp->bulk_out_endpointAddr =
 			    endpoint->bEndpointAddress;
 			lbs_deb_usbd(&udev->dev, "out_endpoint = %d\n",
@@ -313,7 +309,7 @@ static int if_prog_firmware(wlan_private * priv)
 
 	/* lbs_deb_usbd(&cardp->udev->dev,"Copy Data\n"); */
 	memcpy(fwdata->data, &firmware[cardp->totalbytes],
-	       fwdata->fwheader.datalength);
+	       le32_to_cpu(fwdata->fwheader.datalength));
 
 	/*
 	lbs_deb_usbd(&cardp->udev->dev,
@@ -322,13 +318,13 @@ static int if_prog_firmware(wlan_private * priv)
 
 	cardp->fwseqnum = cardp->fwseqnum + 1;
 
-	fwdata->seqnum = cardp->fwseqnum;
-	cardp->lastseqnum = fwdata->seqnum;
-	cardp->totalbytes += fwdata->fwheader.datalength;
+	fwdata->seqnum = cpu_to_le32(cardp->fwseqnum);
+	cardp->lastseqnum = cardp->fwseqnum;
+	cardp->totalbytes += le32_to_cpu(fwdata->fwheader.datalength);
 
-	if (fwheader->dnldcmd == FW_HAS_DATA_TO_RECV) {
+	if (fwheader->dnldcmd == cpu_to_le32(FW_HAS_DATA_TO_RECV)) {
 		/*
-		lbs_deb_usbd(&cardp->udev->dev, "There is data to follow\n");
+		lbs_deb_usbd(&cardp->udev->dev, "There are data to follow\n");
 		lbs_deb_usbd(&cardp->udev->dev,
 			    "seqnum = %d totalbytes = %d\n", cardp->fwseqnum,
 			    cardp->totalbytes);
@@ -486,7 +482,7 @@ static void if_usb_receive_fwload(struct urb *urb)
 	if (cardp->bootcmdresp == 0) {
 		memcpy (&bootcmdresp, skb->data + IPFIELD_ALIGN_OFFSET,
 			sizeof(bootcmdresp));
-		if (cardp->udev->descriptor.bcdDevice < 0x3106) {
+		if (le16_to_cpu(cardp->udev->descriptor.bcdDevice) < 0x3106) {
 			kfree_skb(skb);
 			if_usb_submit_rx_urb_fwload(priv);
 			cardp->bootcmdresp = 1;
@@ -494,10 +490,10 @@ static void if_usb_receive_fwload(struct urb *urb)
 				    "Received valid boot command response\n");
 			return;
 		}
-		if (bootcmdresp.u32magicnumber != BOOT_CMD_MAGIC_NUMBER) {
+		if (bootcmdresp.u32magicnumber != cpu_to_le32(BOOT_CMD_MAGIC_NUMBER)) {
 			lbs_pr_info(
 				"boot cmd response wrong magic number (0x%x)\n",
-				bootcmdresp.u32magicnumber);
+				le32_to_cpu(bootcmdresp.u32magicnumber));
 		} else if (bootcmdresp.u8cmd_tag != BOOT_CMD_FW_BY_USB) {
 			lbs_pr_info(
 				"boot cmd response cmd_tag error (%d)\n",
@@ -672,7 +668,7 @@ static void if_usb_receive(struct urb *urb)
 	case CMD_TYPE_INDICATION:
 		/* Event cause handling */
 		spin_lock(&priv->adapter->driver_lock);
-		cardp->usb_event_cause = *(u32 *) (recvbuff + MESSAGE_HEADER_LEN);
+		cardp->usb_event_cause = le32_to_cpu(*(__le32 *) (recvbuff + MESSAGE_HEADER_LEN));
 		lbs_deb_usbd(&cardp->udev->dev,"**EVENT** 0x%X\n",
 			    cardp->usb_event_cause);
 		if (cardp->usb_event_cause & 0xffff0000) {
@@ -680,7 +676,7 @@ static void if_usb_receive(struct urb *urb)
 			spin_unlock(&priv->adapter->driver_lock);
 			break;
 		}
-		cardp->usb_event_cause = le32_to_cpu(cardp->usb_event_cause) << 3;
+		cardp->usb_event_cause <<= 3;
 		cardp->usb_int_cause |= his_cardevent;
 		kfree_skb(skb);
 		libertas_interrupt(priv->dev);

@@ -47,7 +47,7 @@ struct mrvlietypes_domainparamset {
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11d_domain_info {
-	u16 action;
+	__le16 action;
 	struct mrvlietypes_domainparamset domain;
 } __attribute__ ((packed));
 

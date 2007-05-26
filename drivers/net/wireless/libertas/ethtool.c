@@ -146,14 +146,14 @@ static int libertas_ethtool_get_stats_count(struct net_device * dev)
 		goto done;
 	}
 
-        priv->mstats.fwd_drop_rbt = mesh_access.data[0];
-        priv->mstats.fwd_drop_ttl = mesh_access.data[1];
-        priv->mstats.fwd_drop_noroute = mesh_access.data[2];
-        priv->mstats.fwd_drop_nobuf = mesh_access.data[3];
-        priv->mstats.fwd_unicast_cnt = mesh_access.data[4];
-        priv->mstats.fwd_bcast_cnt = mesh_access.data[5];
-        priv->mstats.drop_blind = mesh_access.data[6];
-        priv->mstats.tx_failed_cnt = mesh_access.data[7];
+        priv->mstats.fwd_drop_rbt = le32_to_cpu(mesh_access.data[0]);
+        priv->mstats.fwd_drop_ttl = le32_to_cpu(mesh_access.data[1]);
+        priv->mstats.fwd_drop_noroute = le32_to_cpu(mesh_access.data[2]);
+        priv->mstats.fwd_drop_nobuf = le32_to_cpu(mesh_access.data[3]);
+        priv->mstats.fwd_unicast_cnt = le32_to_cpu(mesh_access.data[4]);
+        priv->mstats.fwd_bcast_cnt = le32_to_cpu(mesh_access.data[5]);
+        priv->mstats.drop_blind = le32_to_cpu(mesh_access.data[6]);
+        priv->mstats.tx_failed_cnt = le32_to_cpu(mesh_access.data[7]);
 
 	ret = MESH_STATS_NUM;
 
