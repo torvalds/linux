@@ -347,7 +347,17 @@ static int assoc_helper_secinfo(wlan_private *priv,
 		sizeof(struct wlan_802_11_security));
 
 	ret = libertas_set_mac_packet_filter(priv);
+	if (ret)
+		goto out;
 
+	/* enable/disable RSN */
+	ret = libertas_prepare_and_send_command(priv,
+				    cmd_802_11_enable_rsn,
+				    cmd_act_set,
+				    cmd_option_waitforrsp,
+				    0, assoc_req);
+
+out:
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
@@ -360,22 +370,12 @@ static int assoc_helper_wpa_keys(wlan_private *priv,
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
-	/* enable/Disable RSN */
-	ret = libertas_prepare_and_send_command(priv,
-				    cmd_802_11_enable_rsn,
-				    cmd_act_set,
-				    cmd_option_waitforrsp,
-				    0, assoc_req);
-	if (ret)
-		goto out;
-
 	ret = libertas_prepare_and_send_command(priv,
 				    cmd_802_11_key_material,
 				    cmd_act_set,
 				    cmd_option_waitforrsp,
 				    0, assoc_req);
 
-out:
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }

@@ -99,7 +99,6 @@ static inline int match_bss_wpa(struct wlan_802_11_security * secinfo,
 {
 	if (  !secinfo->wep_enabled
 	   && secinfo->WPAenabled
-	   && !secinfo->WPA2enabled
 	   && (match_bss->wpa_ie[0] == WPA_IE)
 	   /* privacy bit may NOT be set in some APs like LinkSys WRT54G
 	      && bss->privacy */
@@ -113,7 +112,6 @@ static inline int match_bss_wpa2(struct wlan_802_11_security * secinfo,
 			struct bss_descriptor * match_bss)
 {
 	if (  !secinfo->wep_enabled
-	   && !secinfo->WPAenabled
 	   && secinfo->WPA2enabled
 	   && (match_bss->rsn_ie[0] == WPA2_IE)
 	   /* privacy bit may NOT be set in some APs like LinkSys WRT54G

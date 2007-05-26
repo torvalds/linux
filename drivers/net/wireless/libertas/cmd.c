@@ -232,22 +232,25 @@ done:
 
 static int wlan_cmd_802_11_enable_rsn(wlan_private * priv,
 				      struct cmd_ds_command *cmd,
-				      u16 cmd_action)
+				      u16 cmd_action,
+				      void * pdata_buf)
 {
 	struct cmd_ds_802_11_enable_rsn *penableRSN = &cmd->params.enbrsn;
-	wlan_adapter *adapter = priv->adapter;
+	struct assoc_request * assoc_req = pdata_buf;
+
+	lbs_deb_enter(LBS_DEB_CMD);
 
 	cmd->command = cpu_to_le16(cmd_802_11_enable_rsn);
-	cmd->size =
-	    cpu_to_le16(sizeof(struct cmd_ds_802_11_enable_rsn) +
-			     S_DS_GEN);
+	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_enable_rsn) +
+				S_DS_GEN);
 	penableRSN->action = cpu_to_le16(cmd_action);
-	if (adapter->secinfo.WPAenabled || adapter->secinfo.WPA2enabled) {
+	if (assoc_req->secinfo.WPAenabled || assoc_req->secinfo.WPA2enabled) {
 		penableRSN->enable = cpu_to_le16(cmd_enable_rsn);
 	} else {
 		penableRSN->enable = cpu_to_le16(cmd_disable_rsn);
 	}
 
+	lbs_deb_leave(LBS_DEB_CMD);
 	return 0;
 }
 
@@ -258,14 +261,12 @@ static void set_one_wpa_key(struct MrvlIEtype_keyParamSet * pkeyparamset,
 	pkeyparamset->keytypeid = cpu_to_le16(pkey->type);
 
 	if (pkey->flags & KEY_INFO_WPA_ENABLED) {
-		pkeyparamset->keyinfo = cpu_to_le16(KEY_INFO_WPA_ENABLED);
-	} else {
-		pkeyparamset->keyinfo = cpu_to_le16(!KEY_INFO_WPA_ENABLED);
+		pkeyparamset->keyinfo |= cpu_to_le16(KEY_INFO_WPA_ENABLED);
 	}
-
 	if (pkey->flags & KEY_INFO_WPA_UNICAST) {
 		pkeyparamset->keyinfo |= cpu_to_le16(KEY_INFO_WPA_UNICAST);
-	} else if (pkey->flags & KEY_INFO_WPA_MCAST) {
+	}
+	if (pkey->flags & KEY_INFO_WPA_MCAST) {
 		pkeyparamset->keyinfo |= cpu_to_le16(KEY_INFO_WPA_MCAST);
 	}
 
@@ -283,9 +284,9 @@ static int wlan_cmd_802_11_key_material(wlan_private * priv,
 					u16 cmd_action,
 					u32 cmd_oid, void *pdata_buf)
 {
-	wlan_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_key_material *pkeymaterial =
 	    &cmd->params.keymaterial;
+	struct assoc_request * assoc_req = pdata_buf;
 	int ret = 0;
 	int index = 0;
 
@@ -295,29 +296,28 @@ static int wlan_cmd_802_11_key_material(wlan_private * priv,
 	pkeymaterial->action = cpu_to_le16(cmd_action);
 
 	if (cmd_action == cmd_act_get) {
-		cmd->size = cpu_to_le16(  S_DS_GEN
-		                             + sizeof (pkeymaterial->action));
+		cmd->size = cpu_to_le16(S_DS_GEN + sizeof (pkeymaterial->action));
 		ret = 0;
 		goto done;
 	}
 
 	memset(&pkeymaterial->keyParamSet, 0, sizeof(pkeymaterial->keyParamSet));
 
-	if (adapter->wpa_unicast_key.len) {
+	if (test_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags)) {
 		set_one_wpa_key(&pkeymaterial->keyParamSet[index],
-		                &adapter->wpa_unicast_key);
+		                &assoc_req->wpa_unicast_key);
 		index++;
 	}
 
-	if (adapter->wpa_mcast_key.len) {
+	if (test_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags)) {
 		set_one_wpa_key(&pkeymaterial->keyParamSet[index],
-		                &adapter->wpa_mcast_key);
+		                &assoc_req->wpa_mcast_key);
 		index++;
 	}
 
 	cmd->size = cpu_to_le16(  S_DS_GEN
-	                             + sizeof (pkeymaterial->action)
-	                             + index * sizeof(struct MrvlIEtype_keyParamSet));
+	                        + sizeof (pkeymaterial->action)
+	                        + (index * sizeof(struct MrvlIEtype_keyParamSet)));
 
 	ret = 0;
 
@@ -1302,13 +1302,13 @@ int libertas_prepare_and_send_command(wlan_private * priv,
 		break;
 
 	case cmd_802_11_enable_rsn:
-		ret = wlan_cmd_802_11_enable_rsn(priv, cmdptr, cmd_action);
+		ret = wlan_cmd_802_11_enable_rsn(priv, cmdptr, cmd_action,
+				pdata_buf);
 		break;
 
 	case cmd_802_11_key_material:
-		ret = wlan_cmd_802_11_key_material(priv, cmdptr,
-						   cmd_action, cmd_oid,
-						   pdata_buf);
+		ret = wlan_cmd_802_11_key_material(priv, cmdptr, cmd_action,
+				cmd_oid, pdata_buf);
 		break;
 
 	case cmd_802_11_pairwise_tsc:

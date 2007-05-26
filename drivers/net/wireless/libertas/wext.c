@@ -1498,6 +1498,8 @@ static void disable_wep(struct assoc_request *assoc_req)
 {
 	int i;
 
+	lbs_deb_enter(LBS_DEB_WEXT);
+
 	/* Set Open System auth mode */
 	assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 
@@ -1508,6 +1510,27 @@ static void disable_wep(struct assoc_request *assoc_req)
 
 	set_bit(ASSOC_FLAG_SECINFO, &assoc_req->flags);
 	set_bit(ASSOC_FLAG_WEP_KEYS, &assoc_req->flags);
+
+	lbs_deb_leave(LBS_DEB_WEXT);
+}
+
+static void disable_wpa(struct assoc_request *assoc_req)
+{
+	lbs_deb_enter(LBS_DEB_WEXT);
+
+	memset(&assoc_req->wpa_mcast_key, 0, sizeof (struct WLAN_802_11_KEY));
+	assoc_req->wpa_mcast_key.flags = KEY_INFO_WPA_MCAST;
+	set_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags);
+
+	memset(&assoc_req->wpa_unicast_key, 0, sizeof (struct WLAN_802_11_KEY));
+	assoc_req->wpa_unicast_key.flags = KEY_INFO_WPA_UNICAST;
+	set_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags);
+
+	assoc_req->secinfo.WPAenabled = 0;
+	assoc_req->secinfo.WPA2enabled = 0;
+	set_bit(ASSOC_FLAG_SECINFO, &assoc_req->flags);
+
+	lbs_deb_leave(LBS_DEB_WEXT);
 }
 
 /**
@@ -1540,6 +1563,7 @@ static int wlan_set_encode(struct net_device *dev,
 
 	if (dwrq->flags & IW_ENCODE_DISABLED) {
 		disable_wep (assoc_req);
+		disable_wpa (assoc_req);
 		goto out;
 	}
 
@@ -1641,6 +1665,7 @@ static int wlan_get_encodeext(struct net_device *dev,
 		if (   adapter->secinfo.wep_enabled
 		    && !adapter->secinfo.WPAenabled
 		    && !adapter->secinfo.WPA2enabled) {
+			/* WEP */
 			ext->alg = IW_ENCODE_ALG_WEP;
 			ext->key_len = adapter->wep_keys[index].len;
 			key = &adapter->wep_keys[index].key[0];
@@ -1648,8 +1673,27 @@ static int wlan_get_encodeext(struct net_device *dev,
 		           && (adapter->secinfo.WPAenabled ||
 		               adapter->secinfo.WPA2enabled)) {
 			/* WPA */
-			ext->alg = IW_ENCODE_ALG_TKIP;
-			ext->key_len = 0;
+			struct WLAN_802_11_KEY * pkey = NULL;
+
+			if (   adapter->wpa_mcast_key.len
+			    && (adapter->wpa_mcast_key.flags & KEY_INFO_WPA_ENABLED))
+				pkey = &adapter->wpa_mcast_key;
+			else if (   adapter->wpa_unicast_key.len
+			         && (adapter->wpa_unicast_key.flags & KEY_INFO_WPA_ENABLED))
+				pkey = &adapter->wpa_unicast_key;
+
+			if (pkey) {
+				if (pkey->type == KEY_TYPE_ID_AES) {
+					ext->alg = IW_ENCODE_ALG_CCMP;
+				} else {
+					ext->alg = IW_ENCODE_ALG_TKIP;
+				}
+				ext->key_len = pkey->len;
+				key = &pkey->key[0];
+			} else {
+				ext->alg = IW_ENCODE_ALG_TKIP;
+				ext->key_len = 0;
+			}
 		} else {
 			goto out;
 		}
@@ -1704,6 +1748,7 @@ static int wlan_set_encodeext(struct net_device *dev,
 
 	if ((alg == IW_ENCODE_ALG_NONE) || (dwrq->flags & IW_ENCODE_DISABLED)) {
 		disable_wep (assoc_req);
+		disable_wpa (assoc_req);
 	} else if (alg == IW_ENCODE_ALG_WEP) {
 		u16 is_default = 0, index, set_tx_key = 0;
 
@@ -1739,7 +1784,6 @@ static int wlan_set_encodeext(struct net_device *dev,
 			set_bit(ASSOC_FLAG_WEP_KEYS, &assoc_req->flags);
 		if (set_tx_key)
 			set_bit(ASSOC_FLAG_WEP_TX_KEYIDX, &assoc_req->flags);
-
 	} else if ((alg == IW_ENCODE_ALG_TKIP) || (alg == IW_ENCODE_ALG_CCMP)) {
 		struct WLAN_802_11_KEY * pkey;
 
@@ -1756,28 +1800,35 @@ static int wlan_set_encodeext(struct net_device *dev,
 				goto out;
 		}
 
-		if (ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY)
+		if (ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY) {
 			pkey = &assoc_req->wpa_mcast_key;
-		else
+			set_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags);
+		} else {
 			pkey = &assoc_req->wpa_unicast_key;
+			set_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags);
+		}
 
 		memset(pkey, 0, sizeof (struct WLAN_802_11_KEY));
 		memcpy(pkey->key, ext->key, ext->key_len);
 		pkey->len = ext->key_len;
-		pkey->flags = KEY_INFO_WPA_ENABLED;
+		if (pkey->len)
+			pkey->flags |= KEY_INFO_WPA_ENABLED;
 
+		/* Do this after zeroing key structure */
 		if (ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY) {
 			pkey->flags |= KEY_INFO_WPA_MCAST;
-			set_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags);
 		} else {
 			pkey->flags |= KEY_INFO_WPA_UNICAST;
-			set_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags);
 		}
 
-		if (alg == IW_ENCODE_ALG_TKIP)
+		if (alg == IW_ENCODE_ALG_TKIP) {
 			pkey->type = KEY_TYPE_ID_TKIP;
-		else if (alg == IW_ENCODE_ALG_CCMP)
+		} else if (alg == IW_ENCODE_ALG_CCMP) {
 			pkey->type = KEY_TYPE_ID_AES;
+		} else {
+			ret = -EINVAL;
+			goto out;
+		}
 
 		/* If WPA isn't enabled yet, do that now */
 		if (   assoc_req->secinfo.WPAenabled == 0
@@ -1904,6 +1955,7 @@ static int wlan_set_auth(struct net_device *dev,
 	case IW_AUTH_CIPHER_PAIRWISE:
 	case IW_AUTH_CIPHER_GROUP:
 	case IW_AUTH_KEY_MGMT:
+	case IW_AUTH_DROP_UNENCRYPTED:
 		/*
 		 * libertas does not use these parameters
 		 */
@@ -1913,6 +1965,7 @@ static int wlan_set_auth(struct net_device *dev,
 		if (dwrq->value & IW_AUTH_WPA_VERSION_DISABLED) {
 			assoc_req->secinfo.WPAenabled = 0;
 			assoc_req->secinfo.WPA2enabled = 0;
+			disable_wpa (assoc_req);
 		}
 		if (dwrq->value & IW_AUTH_WPA_VERSION_WPA) {
 			assoc_req->secinfo.WPAenabled = 1;
@@ -1923,17 +1976,6 @@ static int wlan_set_auth(struct net_device *dev,
 			assoc_req->secinfo.WPA2enabled = 1;
 			assoc_req->secinfo.wep_enabled = 0;
 			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
-		}
-		updated = 1;
-		break;
-
-	case IW_AUTH_DROP_UNENCRYPTED:
-		if (dwrq->value) {
-			adapter->currentpacketfilter |=
-			    cmd_act_mac_strict_protection_enable;
-		} else {
-			adapter->currentpacketfilter &=
-			    ~cmd_act_mac_strict_protection_enable;
 		}
 		updated = 1;
 		break;
@@ -1963,6 +2005,7 @@ static int wlan_set_auth(struct net_device *dev,
 		} else {
 			assoc_req->secinfo.WPAenabled = 0;
 			assoc_req->secinfo.WPA2enabled = 0;
+			disable_wpa (assoc_req);
 		}
 		updated = 1;
 		break;
@@ -2006,13 +2049,6 @@ static int wlan_get_auth(struct net_device *dev,
 			dwrq->value |= IW_AUTH_WPA_VERSION_WPA2;
 		if (!dwrq->value)
 			dwrq->value |= IW_AUTH_WPA_VERSION_DISABLED;
-		break;
-
-	case IW_AUTH_DROP_UNENCRYPTED:
-		dwrq->value = 0;
-		if (adapter->currentpacketfilter &
-		    cmd_act_mac_strict_protection_enable)
-			dwrq->value = 1;
 		break;
 
 	case IW_AUTH_80211_AUTH_ALG:
