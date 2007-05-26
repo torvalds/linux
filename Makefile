@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 22
-EXTRAVERSION = -rc2
-NAME = Nocturnal Monster Puppy
+EXTRAVERSION = -rc3
+NAME = Jeff Thinks I Should Change This, But To What?
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
