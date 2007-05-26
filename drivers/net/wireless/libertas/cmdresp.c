@@ -1009,6 +1009,16 @@ int libertas_process_event(wlan_private * priv)
 		lbs_pr_alert( "EVENT: SNR_HIGH\n");
 		break;
 
+	case MACREG_INT_CODE_MESH_AUTO_STARTED:
+		lbs_pr_alert( "EVENT: MESH_AUTO_STARTED\n");
+		adapter->connect_status = libertas_connected ;
+		if (priv->mesh_open == 1) {
+			netif_wake_queue(priv->mesh_dev) ;
+			netif_carrier_on(priv->mesh_dev) ;
+		}
+		adapter->mode = IW_MODE_ADHOC ;
+		break;
+
 	default:
 		lbs_pr_alert( "EVENT: unknown event id: %#x\n",
 		       eventcause >> SBI_EVENT_CAUSE_SHIFT);
