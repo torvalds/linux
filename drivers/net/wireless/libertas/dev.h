@@ -205,7 +205,7 @@ struct assoc_request {
 /** Wlan adapter data structure*/
 struct _wlan_adapter {
 	/** STATUS variables */
-	u32 fwreleasenumber;
+	u8 fwreleasenumber[4];
 	u32 fwcapinfo;
 	/* protected with big lock */
 

@@ -2297,22 +2297,23 @@ static int wlan_set_wap(struct net_device *dev, struct iw_request_info *info,
 
 void libertas_get_fwversion(wlan_adapter * adapter, char *fwversion, int maxlen)
 {
-	union {
-		u32 l;
-		u8 c[4];
-	} ver;
 	char fwver[32];
 
 	mutex_lock(&adapter->lock);
-	ver.l = adapter->fwreleasenumber;
-	mutex_unlock(&adapter->lock);
 
-	if (ver.c[3] == 0)
-		sprintf(fwver, "%u.%u.%u", ver.c[2], ver.c[1], ver.c[0]);
+	if (adapter->fwreleasenumber[3] == 0)
+		sprintf(fwver, "%u.%u.%u",
+			adapter->fwreleasenumber[2],
+			adapter->fwreleasenumber[1],
+			adapter->fwreleasenumber[0]);
 	else
 		sprintf(fwver, "%u.%u.%u.p%u",
-			ver.c[2], ver.c[1], ver.c[0], ver.c[3]);
+			adapter->fwreleasenumber[2],
+			adapter->fwreleasenumber[1],
+			adapter->fwreleasenumber[0],
+			adapter->fwreleasenumber[3]);
 
+	mutex_unlock(&adapter->lock);
 	snprintf(fwversion, maxlen, fwver);
 }
 

@@ -168,10 +168,11 @@ static int wlan_ret_get_hw_spec(wlan_private * priv,
 
 	adapter->fwcapinfo = le32_to_cpu(hwspec->fwcapinfo);
 
-	adapter->fwreleasenumber = le32_to_cpu(hwspec->fwreleasenumber);
+	memcpy(adapter->fwreleasenumber, hwspec->fwreleasenumber, 4);
 
-	lbs_deb_cmd("GET_HW_SPEC: FWReleaseVersion- 0x%X\n",
-	       adapter->fwreleasenumber);
+	lbs_deb_cmd("GET_HW_SPEC: FWReleaseVersion- %u.%u.%u.p%u\n",
+		    adapter->fwreleasenumber[2], adapter->fwreleasenumber[1],
+		    adapter->fwreleasenumber[0], adapter->fwreleasenumber[3]);
 	lbs_deb_cmd("GET_HW_SPEC: Permanent addr- %2x:%2x:%2x:%2x:%2x:%2x\n",
 	       hwspec->permanentaddr[0], hwspec->permanentaddr[1],
 	       hwspec->permanentaddr[2], hwspec->permanentaddr[3],
