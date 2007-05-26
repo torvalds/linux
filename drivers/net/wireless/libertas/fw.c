@@ -201,6 +201,7 @@ static void wlan_init_adapter(wlan_private * priv)
 	adapter->prescan = 1;
 
 	memset(&adapter->curbssparams, 0, sizeof(adapter->curbssparams));
+	adapter->curbssparams.channel = DEFAULT_AD_HOC_CHANNEL;
 
 	/* PnP and power profile */
 	adapter->surpriseremoved = 0;
