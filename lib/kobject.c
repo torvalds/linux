@@ -597,10 +597,17 @@ int kset_add(struct kset * k)
 
 int kset_register(struct kset * k)
 {
+	int err;
+
 	if (!k)
 		return -EINVAL;
+
 	kset_init(k);
-	return kset_add(k);
+	err = kset_add(k);
+	if (err)
+		return err;
+	kobject_uevent(&k->kobj, KOBJ_ADD);
+	return 0;
 }
 
 

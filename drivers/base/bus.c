@@ -138,12 +138,24 @@ void bus_remove_file(struct bus_type * bus, struct bus_attribute * attr)
 	}
 }
 
-static struct kobj_type ktype_bus = {
+static struct kobj_type bus_ktype = {
 	.sysfs_ops	= &bus_sysfs_ops,
-
 };
 
-static decl_subsys(bus, &ktype_bus, NULL);
+static int bus_uevent_filter(struct kset *kset, struct kobject *kobj)
+{
+	struct kobj_type *ktype = get_ktype(kobj);
+
+	if (ktype == &bus_ktype)
+		return 1;
+	return 0;
+}
+
+static struct kset_uevent_ops bus_uevent_ops = {
+	.filter = bus_uevent_filter,
+};
+
+static decl_subsys(bus, &bus_ktype, &bus_uevent_ops);
 
 
 #ifdef CONFIG_HOTPLUG
