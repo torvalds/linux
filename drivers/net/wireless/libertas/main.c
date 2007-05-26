@@ -465,6 +465,9 @@ static int wlan_set_mac_address(struct net_device *dev, void *addr)
 
 	lbs_deb_enter(LBS_DEB_NET);
 
+	/* In case it was called from the mesh device */
+	dev = priv->dev ;
+
 	memset(adapter->current_addr, 0, ETH_ALEN);
 
 	/* dev->dev_addr is 8 bytes */
@@ -914,6 +917,7 @@ int libertas_add_mesh(wlan_private *priv, struct device *dev)
 	mesh_dev->stop = mesh_close;
 	mesh_dev->do_ioctl = libertas_do_ioctl;
 	mesh_dev->get_stats = wlan_get_stats;
+	mesh_dev->set_mac_address = wlan_set_mac_address;
 	mesh_dev->ethtool_ops = &libertas_ethtool_ops;
 	memcpy(mesh_dev->dev_addr, priv->dev->dev_addr,
 			sizeof(priv->dev->dev_addr));
