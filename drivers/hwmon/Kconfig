@@ -620,7 +620,7 @@ config SENSORS_HDAPS
 
 config SENSORS_APPLESMC
 	tristate "Apple SMC (Motion sensor, light sensor, keyboard backlight)"
-	depends on HWMON && INPUT && X86
+	depends on INPUT && X86
 	select NEW_LEDS
 	select LEDS_CLASS
 	default n
