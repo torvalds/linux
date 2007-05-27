@@ -194,6 +194,27 @@ MODULE_PARM_DESC(workarounds, "Work around device bugs (default = 0"
 	", override internal blacklist = " __stringify(SBP2_WORKAROUND_OVERRIDE)
 	", or a combination)");
 
+/*
+ * This influences the format of the sysfs attribute
+ * /sys/bus/scsi/devices/.../ieee1394_id.
+ *
+ * The default format is like in older kernels:  %016Lx:%d:%d
+ * It contains the target's EUI-64, a number given to the logical unit by
+ * the ieee1394 driver's nodemgr (starting at 0), and the LUN.
+ *
+ * The long format is:  %016Lx:%06x:%04x
+ * It contains the target's EUI-64, the unit directory's directory_ID as per
+ * IEEE 1212 clause 7.7.19, and the LUN.  This format comes closest to the
+ * format of SBP(-3) target port and logical unit identifier as per SAM (SCSI
+ * Architecture Model) rev.2 to 4 annex A.  Therefore and because it is
+ * independent of the implementation of the ieee1394 nodemgr, the longer format
+ * is recommended for future use.
+ */
+static int sbp2_long_sysfs_ieee1394_id;
+module_param_named(long_ieee1394_id, sbp2_long_sysfs_ieee1394_id, bool, 0644);
+MODULE_PARM_DESC(long_ieee1394_id, "8+3+2 bytes format of ieee1394_id in sysfs "
+		 "(default = backwards-compatible = N, SAM-conforming = Y)");
+
 
 #define SBP2_INFO(fmt, args...)	HPSB_INFO("sbp2: "fmt, ## args)
 #define SBP2_ERR(fmt, args...)	HPSB_ERR("sbp2: "fmt, ## args)
@@ -2100,8 +2121,14 @@ static ssize_t sbp2_sysfs_ieee1394_id_show(struct device *dev,
 	if (!(lu = (struct sbp2_lu *)sdev->host->hostdata[0]))
 		return 0;
 
-	return sprintf(buf, "%016Lx:%d:%d\n", (unsigned long long)lu->ne->guid,
-		       lu->ud->id, ORB_SET_LUN(lu->lun));
+	if (sbp2_long_sysfs_ieee1394_id)
+		return sprintf(buf, "%016Lx:%06x:%04x\n",
+				(unsigned long long)lu->ne->guid,
+				lu->ud->directory_id, ORB_SET_LUN(lu->lun));
+	else
+		return sprintf(buf, "%016Lx:%d:%d\n",
+				(unsigned long long)lu->ne->guid,
+				lu->ud->id, ORB_SET_LUN(lu->lun));
 }
 
 MODULE_AUTHOR("Ben Collins <bcollins@debian.org>");

@@ -75,6 +75,7 @@ struct unit_directory {
 	struct csr1212_keyval *model_name_kv;
 	quadlet_t specifier_id;
 	quadlet_t version;
+	quadlet_t directory_id;
 
 	unsigned int id;
 
