@@ -35,7 +35,7 @@ enum cpu_type {
 	mako2	= 12  /* pa8900		pa 2.0  */
 };
 
-extern char *cpu_name_version[][2]; /* mapping from enum cpu_type to strings */
+extern const char * const cpu_name_version[][2]; /* mapping from enum cpu_type to strings */
 
 struct parisc_driver;
 

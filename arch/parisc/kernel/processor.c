@@ -76,7 +76,7 @@ extern int update_cr16_clocksource(void);	/* from time.c */
  * (return 1).  If so, initialize the chip and tell other partners in crime 
  * they have work to do.
  */
-static int __init processor_probe(struct parisc_device *dev)
+static int __cpuinit processor_probe(struct parisc_device *dev)
 {
 	unsigned long txn_addr;
 	unsigned long cpuid;
@@ -381,12 +381,12 @@ show_cpuinfo (struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct parisc_device_id processor_tbl[] __read_mostly = {
+static const struct parisc_device_id processor_tbl[] = {
 	{ HPHW_NPROC, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, SVERSION_ANY_ID },
 	{ 0, }
 };
 
-static struct parisc_driver cpu_driver __read_mostly = {
+static struct parisc_driver cpu_driver = {
 	.name		= "CPU",
 	.id_table	= processor_tbl,
 	.probe		= processor_probe

@@ -69,8 +69,8 @@ struct system_cpuinfo_parisc {
 		char   sys_model_name[81]; /* PDC-ROM returnes this model name */
 	} pdc;
 
-	char		*cpu_name;	/* e.g. "PA7300LC (PCX-L2)" */
-	char		*family_name;	/* e.g. "1.1e" */
+	const char	*cpu_name;	/* e.g. "PA7300LC (PCX-L2)" */
+	const char	*family_name;	/* e.g. "1.1e" */
 };
 
 

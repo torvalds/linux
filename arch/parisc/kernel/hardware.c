@@ -38,7 +38,7 @@
  *	so don't reference this table after starting the init process
  */
  
-static struct hp_hardware hp_hardware_list[] __initdata = {
+static struct hp_hardware hp_hardware_list[] __devinitdata = {
 	{HPHW_NPROC,0x01,0x4,0x0,"Indigo (840, 930)"},
 	{HPHW_NPROC,0x8,0x4,0x01,"Firefox(825,925)"},
 	{HPHW_NPROC,0xA,0x4,0x01,"Top Gun (835,834,935,635)"},
@@ -1219,7 +1219,7 @@ static struct hp_cpu_type_mask {
 	unsigned short model;
 	unsigned short mask;
 	enum cpu_type cpu;
-} hp_cpu_type_mask_list[] __initdata = {
+} hp_cpu_type_mask_list[] __devinitdata = {
 
 	{ 0x0000, 0x0ff0, pcx    },  /* 0x0000 - 0x000f */
 	{ 0x0048, 0x0ff0, pcxl   },  /* 0x0040 - 0x004f */
@@ -1300,7 +1300,7 @@ static struct hp_cpu_type_mask {
 	{ 0x0000, 0x0000, pcx    }	/* terminate table */
 };
 
-char *cpu_name_version[][2] = {
+const char * const cpu_name_version[][2] = {
 	[pcx]	= { "PA7000 (PCX)",	"1.0" },
 	[pcxs]	= { "PA7000 (PCX-S)",	"1.1a" },
 	[pcxt]	= { "PA7100 (PCX-T)",	"1.1b" },
@@ -1316,7 +1316,7 @@ char *cpu_name_version[][2] = {
 	[mako2] = { "PA8900 (Shortfin)",	"2.0" }
 };
 
-const char * __init
+const char * __devinit
 parisc_hardware_description(struct parisc_device_id *id)
 {
 	struct hp_hardware *listptr;
@@ -1355,7 +1355,7 @@ parisc_hardware_description(struct parisc_device_id *id)
 
 
 /* Interpret hversion (ret[0]) from PDC_MODEL(4)/PDC_MODEL_INFO(0) */
-enum cpu_type __init
+enum cpu_type __cpuinit
 parisc_get_cpu_type(unsigned long hversion)
 {
 	struct hp_cpu_type_mask *ptr;
