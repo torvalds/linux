@@ -461,7 +461,7 @@ void __init smp_callin(void)
 /*
  * Bring one cpu online.
  */
-int __init smp_boot_one_cpu(int cpuid)
+int __cpuinit smp_boot_one_cpu(int cpuid)
 {
 	struct task_struct *idle;
 	long timeout;
