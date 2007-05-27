@@ -1227,7 +1227,7 @@ ccio_get_iotlb_size(struct parisc_device *dev)
 #endif /* 0 */
 
 /* We *can't* support JAVA (T600). Venture there at your own risk. */
-static struct parisc_device_id ccio_tbl[] = {
+static const struct parisc_device_id ccio_tbl[] = {
 	{ HPHW_IOA, HVERSION_REV_ANY_ID, U2_IOA_RUNWAY, 0xb }, /* U2 */
 	{ HPHW_IOA, HVERSION_REV_ANY_ID, UTURN_IOA_RUNWAY, 0xb }, /* UTurn */
 	{ 0, }
@@ -1370,7 +1370,7 @@ ccio_ioc_init(struct ioc *ioc)
 	}
 }
 
-static void
+static void __init
 ccio_init_resource(struct resource *res, char *name, void __iomem *ioaddr)
 {
 	int result;
@@ -1537,7 +1537,7 @@ int ccio_request_resource(const struct parisc_device *dev,
  * If so, initialize the chip and tell other partners in crime they
  * have work to do.
  */
-static int ccio_probe(struct parisc_device *dev)
+static int __init ccio_probe(struct parisc_device *dev)
 {
 	int i;
 	struct ioc *ioc, **ioc_p = &ioc_list;
