@@ -10,6 +10,8 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/signal.h>
+#include <linux/sched.h>
 #include <linux/mm.h>
 #include <asm/signal.h>
 
