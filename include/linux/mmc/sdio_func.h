@@ -31,5 +31,23 @@ struct sdio_func {
 
 #define sdio_func_id(f)		((f)->dev.bus_id)
 
+#define sdio_get_drvdata(f)	dev_get_drvdata(&(f)->dev)
+#define sdio_set_drvdata(f,d)	dev_set_drvdata(&(f)->dev, d)
+
+/*
+ * SDIO function device driver
+ */
+struct sdio_driver {
+	char *name;
+
+	int (*probe)(struct sdio_func *);
+	void (*remove)(struct sdio_func *);
+
+	struct device_driver drv;
+};
+
+extern int sdio_register_driver(struct sdio_driver *);
+extern void sdio_unregister_driver(struct sdio_driver *);
+
 #endif
 
