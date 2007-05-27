@@ -410,6 +410,8 @@ static irqreturn_t       do_fdomain_16x0_intr( int irq, void *dev_id );
 static char * fdomain = NULL;
 module_param(fdomain, charp, 0);
 
+#ifndef PCMCIA
+
 static unsigned long addresses[] = {
    0xc8000,
    0xca000,
@@ -425,6 +427,8 @@ static unsigned short ports[] = { 0x140, 0x150, 0x160, 0x170 };
 #define PORT_COUNT ARRAY_SIZE(ports)
 
 static unsigned short ints[] = { 3, 5, 10, 11, 12, 14, 15, 0 };
+
+#endif /* !PCMCIA */
 
 /*
 
@@ -457,6 +461,8 @@ static unsigned short ints[] = { 3, 5, 10, 11, 12, 14, 15, 0 };
   you have a "8-bit" card, and should *NOT* use this driver.)
 
 */
+
+#ifndef PCMCIA
 
 static struct signature {
    const char *signature;
@@ -502,6 +508,8 @@ static struct signature {
 };
 
 #define SIGNATURE_COUNT ARRAY_SIZE(signatures)
+
+#endif /* !PCMCIA */
 
 static void print_banner( struct Scsi_Host *shpnt )
 {
@@ -633,6 +641,8 @@ static int fdomain_test_loopback( void )
    return 0;
 }
 
+#ifndef PCMCIA
+
 /* fdomain_get_irq assumes that we have a valid MCA ID for a
    TMC-1660/TMC-1680 Future Domain board.  Now, check to be sure the
    bios_base matches these ports.  If someone was unlucky enough to have
@@ -667,7 +677,6 @@ static int fdomain_get_irq( int base )
 
 static int fdomain_isa_detect( int *irq, int *iobase )
 {
-#ifndef PCMCIA
    int i, j;
    int base = 0xdeadbeef;
    int flag = 0;
@@ -786,10 +795,21 @@ found:
    *iobase = base;
 
    return 1;			/* success */
-#else
-   return 0;
-#endif
 }
+
+#else /* PCMCIA */
+
+static int fdomain_isa_detect( int *irq, int *iobase )
+{
+	if (irq)
+		*irq = 0;
+	if (iobase)
+		*iobase = 0;
+	return 0;
+}
+
+#endif /* !PCMCIA */
+
 
 /* PCI detection function: int fdomain_pci_bios_detect(int* irq, int*
    iobase) This function gets the Interrupt Level and I/O base address from
