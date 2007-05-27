@@ -228,9 +228,9 @@ static void ahci_thaw(struct ata_port *ap);
 static void ahci_error_handler(struct ata_port *ap);
 static void ahci_vt8251_error_handler(struct ata_port *ap);
 static void ahci_post_internal_cmd(struct ata_queued_cmd *qc);
+static int ahci_port_resume(struct ata_port *ap);
 #ifdef CONFIG_PM
 static int ahci_port_suspend(struct ata_port *ap, pm_message_t mesg);
-static int ahci_port_resume(struct ata_port *ap);
 static int ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg);
 static int ahci_pci_device_resume(struct pci_dev *pdev);
 #endif
@@ -740,7 +740,7 @@ static void ahci_power_down(struct ata_port *ap)
 }
 #endif
 
-static void ahci_init_port(struct ata_port *ap)
+static void ahci_start_port(struct ata_port *ap)
 {
 	/* enable FIS reception */
 	ahci_start_fis_rx(ap);
@@ -1242,7 +1242,7 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 		ata_port_abort(ap);
 }
 
-static void ahci_host_intr(struct ata_port *ap)
+static void ahci_port_intr(struct ata_port *ap)
 {
 	void __iomem *port_mmio = ap->ioaddr.cmd_addr;
 	struct ata_eh_info *ehi = &ap->eh_info;
@@ -1368,7 +1368,7 @@ static irqreturn_t ahci_interrupt(int irq, void *dev_instance)
 
 		ap = host->ports[i];
 		if (ap) {
-			ahci_host_intr(ap);
+			ahci_port_intr(ap);
 			VPRINTK("port %u\n", i);
 		} else {
 			VPRINTK("port %u (no irq)\n", i);
@@ -1476,7 +1476,7 @@ static int ahci_port_suspend(struct ata_port *ap, pm_message_t mesg)
 		ahci_power_down(ap);
 	else {
 		ata_port_printk(ap, KERN_ERR, "%s (%d)\n", emsg, rc);
-		ahci_init_port(ap);
+		ahci_start_port(ap);
 	}
 
 	return rc;
@@ -1485,7 +1485,7 @@ static int ahci_port_suspend(struct ata_port *ap, pm_message_t mesg)
 static int ahci_port_resume(struct ata_port *ap)
 {
 	ahci_power_up(ap);
-	ahci_init_port(ap);
+	ahci_start_port(ap);
 
 	return 0;
 }
@@ -1583,13 +1583,8 @@ static int ahci_port_start(struct ata_port *ap)
 
 	ap->private_data = pp;
 
-	/* power up port */
-	ahci_power_up(ap);
-
-	/* initialize port */
-	ahci_init_port(ap);
-
-	return 0;
+	/* engage engines, captain */
+	return ahci_port_resume(ap);
 }
 
 static void ahci_port_stop(struct ata_port *ap)
