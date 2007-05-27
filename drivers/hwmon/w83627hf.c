@@ -965,8 +965,10 @@ static int __init w83627hf_find(int sioaddr, unsigned short *addr,
 	case W687THF_DEVID:
 		sio_data->type = w83687thf;
 		break;
+	case 0xff:	/* No device at all */
+		goto exit;
 	default:
-		pr_debug(DRVNAME ": Unsupported chip (DEVID=0x%x)\n", val);
+		pr_debug(DRVNAME ": Unsupported chip (DEVID=0x%02x)\n", val);
 		goto exit;
 	}
 
