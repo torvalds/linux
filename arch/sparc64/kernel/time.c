@@ -1362,6 +1362,7 @@ static int hypervisor_set_rtc_time(struct rtc_time *time)
 	return hypervisor_set_time(seconds);
 }
 
+#ifdef CONFIG_PCI
 static void bq4802_get_rtc_time(struct rtc_time *time)
 {
 	unsigned char val = readb(bq4802_regs + 0x0e);
@@ -1433,6 +1434,7 @@ static int bq4802_set_rtc_time(struct rtc_time *time)
 
 	return 0;
 }
+#endif /* CONFIG_PCI */
 
 struct mini_rtc_ops {
 	void (*get_rtc_time)(struct rtc_time *);
@@ -1449,10 +1451,12 @@ static struct mini_rtc_ops hypervisor_rtc_ops = {
 	.set_rtc_time = hypervisor_set_rtc_time,
 };
 
+#ifdef CONFIG_PCI
 static struct mini_rtc_ops bq4802_rtc_ops = {
 	.get_rtc_time = bq4802_get_rtc_time,
 	.set_rtc_time = bq4802_set_rtc_time,
 };
+#endif /* CONFIG_PCI */
 
 static struct mini_rtc_ops *mini_rtc_ops;
 
@@ -1576,8 +1580,10 @@ static int __init rtc_mini_init(void)
 		mini_rtc_ops = &hypervisor_rtc_ops;
 	else if (this_is_starfire)
 		mini_rtc_ops = &starfire_rtc_ops;
+#ifdef CONFIG_PCI
 	else if (bq4802_regs)
 		mini_rtc_ops = &bq4802_rtc_ops;
+#endif /* CONFIG_PCI */
 	else
 		return -ENODEV;
 
