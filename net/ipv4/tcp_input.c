@@ -118,6 +118,7 @@ int sysctl_tcp_abc __read_mostly;
 #define IsSackFrto() (sysctl_tcp_frto == 0x2)
 
 #define TCP_REMNANT (TCP_FLAG_FIN|TCP_FLAG_URG|TCP_FLAG_SYN|TCP_FLAG_PSH)
+#define TCP_HP_BITS (~(TCP_RESERVED_BITS|TCP_FLAG_PSH))
 
 /* Adapt the MSS value used to make delayed ack decision to the
  * real world.
@@ -196,6 +197,55 @@ static inline int tcp_in_quickack_mode(const struct sock *sk)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	return icsk->icsk_ack.quick && !icsk->icsk_ack.pingpong;
+}
+
+static inline void TCP_ECN_queue_cwr(struct tcp_sock *tp)
+{
+	if (tp->ecn_flags&TCP_ECN_OK)
+		tp->ecn_flags |= TCP_ECN_QUEUE_CWR;
+}
+
+static inline void TCP_ECN_accept_cwr(struct tcp_sock *tp, struct sk_buff *skb)
+{
+	if (tcp_hdr(skb)->cwr)
+		tp->ecn_flags &= ~TCP_ECN_DEMAND_CWR;
+}
+
+static inline void TCP_ECN_withdraw_cwr(struct tcp_sock *tp)
+{
+	tp->ecn_flags &= ~TCP_ECN_DEMAND_CWR;
+}
+
+static inline void TCP_ECN_check_ce(struct tcp_sock *tp, struct sk_buff *skb)
+{
+	if (tp->ecn_flags&TCP_ECN_OK) {
+		if (INET_ECN_is_ce(TCP_SKB_CB(skb)->flags))
+			tp->ecn_flags |= TCP_ECN_DEMAND_CWR;
+		/* Funny extension: if ECT is not set on a segment,
+		 * it is surely retransmit. It is not in ECN RFC,
+		 * but Linux follows this rule. */
+		else if (INET_ECN_is_not_ect((TCP_SKB_CB(skb)->flags)))
+			tcp_enter_quickack_mode((struct sock *)tp);
+	}
+}
+
+static inline void TCP_ECN_rcv_synack(struct tcp_sock *tp, struct tcphdr *th)
+{
+	if ((tp->ecn_flags&TCP_ECN_OK) && (!th->ece || th->cwr))
+		tp->ecn_flags &= ~TCP_ECN_OK;
+}
+
+static inline void TCP_ECN_rcv_syn(struct tcp_sock *tp, struct tcphdr *th)
+{
+	if ((tp->ecn_flags&TCP_ECN_OK) && (!th->ece || !th->cwr))
+		tp->ecn_flags &= ~TCP_ECN_OK;
+}
+
+static inline int TCP_ECN_rcv_ecn_echo(struct tcp_sock *tp, struct tcphdr *th)
+{
+	if (th->ece && !th->syn && (tp->ecn_flags&TCP_ECN_OK))
+		return 1;
+	return 0;
 }
 
 /* Buffer size and advertised window tuning.

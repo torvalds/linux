@@ -39,6 +39,7 @@
 #include <net/snmp.h>
 #include <net/ip.h>
 #include <net/tcp_states.h>
+#include <net/inet_ecn.h>
 
 #include <linux/seq_file.h>
 
@@ -330,6 +331,17 @@ static inline void tcp_clear_options(struct tcp_options_received *rx_opt)
  	rx_opt->tstamp_ok = rx_opt->sack_ok = rx_opt->wscale_ok = rx_opt->snd_wscale = 0;
 }
 
+#define	TCP_ECN_OK		1
+#define	TCP_ECN_QUEUE_CWR	2
+#define	TCP_ECN_DEMAND_CWR	4
+
+static __inline__ void
+TCP_ECN_create_request(struct request_sock *req, struct tcphdr *th)
+{
+	if (sysctl_tcp_ecn && th->ece && th->cwr)
+		inet_rsk(req)->ecn_ok = 1;
+}
+
 enum tcp_tw_status
 {
 	TCP_TW_SUCCESS = 0,
@@ -572,8 +584,6 @@ struct tcp_skb_cb {
 };
 
 #define TCP_SKB_CB(__skb)	((struct tcp_skb_cb *)&((__skb)->cb[0]))
-
-#include <net/tcp_ecn.h>
 
 /* Due to TSO, an SKB can be composed of multiple actual
  * packets.  To keep these tracked properly, we use this.

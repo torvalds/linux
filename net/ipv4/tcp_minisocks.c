@@ -368,6 +368,12 @@ void tcp_twsk_destructor(struct sock *sk)
 
 EXPORT_SYMBOL_GPL(tcp_twsk_destructor);
 
+static inline void TCP_ECN_openreq_child(struct tcp_sock *tp,
+					 struct request_sock *req)
+{
+	tp->ecn_flags = inet_rsk(req)->ecn_ok ? TCP_ECN_OK : 0;
+}
+
 /* This is not only more efficient than what we used to do, it eliminates
  * a lot of code duplication between IPv4/IPv6 SYN recv processing. -DaveM
  *

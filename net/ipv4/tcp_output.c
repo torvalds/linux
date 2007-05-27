@@ -269,6 +269,56 @@ static u16 tcp_select_window(struct sock *sk)
 	return new_win;
 }
 
+static inline void TCP_ECN_send_synack(struct tcp_sock *tp,
+				       struct sk_buff *skb)
+{
+	TCP_SKB_CB(skb)->flags &= ~TCPCB_FLAG_CWR;
+	if (!(tp->ecn_flags&TCP_ECN_OK))
+		TCP_SKB_CB(skb)->flags &= ~TCPCB_FLAG_ECE;
+}
+
+static inline void TCP_ECN_send_syn(struct sock *sk, struct sk_buff *skb)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	tp->ecn_flags = 0;
+	if (sysctl_tcp_ecn) {
+		TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_ECE|TCPCB_FLAG_CWR;
+		tp->ecn_flags = TCP_ECN_OK;
+	}
+}
+
+static __inline__ void
+TCP_ECN_make_synack(struct request_sock *req, struct tcphdr *th)
+{
+	if (inet_rsk(req)->ecn_ok)
+		th->ece = 1;
+}
+
+static inline void TCP_ECN_send(struct sock *sk, struct sk_buff *skb,
+				int tcp_header_len)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (tp->ecn_flags & TCP_ECN_OK) {
+		/* Not-retransmitted data segment: set ECT and inject CWR. */
+		if (skb->len != tcp_header_len &&
+		    !before(TCP_SKB_CB(skb)->seq, tp->snd_nxt)) {
+			INET_ECN_xmit(sk);
+			if (tp->ecn_flags&TCP_ECN_QUEUE_CWR) {
+				tp->ecn_flags &= ~TCP_ECN_QUEUE_CWR;
+				tcp_hdr(skb)->cwr = 1;
+				skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
+			}
+		} else {
+			/* ACK or retransmitted segment: clear ECT|CE */
+			INET_ECN_dontxmit(sk);
+		}
+		if (tp->ecn_flags & TCP_ECN_DEMAND_CWR)
+			tcp_hdr(skb)->ece = 1;
+	}
+}
+
 static void tcp_build_and_update_options(__be32 *ptr, struct tcp_sock *tp,
 					 __u32 tstamp, __u8 **md5_hash)
 {
