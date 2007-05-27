@@ -55,6 +55,9 @@ extern void sdio_unregister_driver(struct sdio_driver *);
 extern void sdio_claim_host(struct sdio_func *func);
 extern void sdio_release_host(struct sdio_func *func);
 
+extern int sdio_enable_func(struct sdio_func *func);
+extern int sdio_disable_func(struct sdio_func *func);
+
 extern unsigned char sdio_readb(struct sdio_func *func,
 	unsigned int addr, int *err_ret);
 
