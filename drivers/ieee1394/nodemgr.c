@@ -976,7 +976,7 @@ static struct unit_directory *nodemgr_process_unit_directory
 
 	ud->ne = ne;
 	ud->ignore_driver = ignore_drivers;
-	ud->address = ud_kv->offset + CSR1212_CONFIG_ROM_SPACE_BASE;
+	ud->address = ud_kv->offset + CSR1212_REGISTER_SPACE_BASE;
 	ud->ud_kv = ud_kv;
 	ud->id = (*id)++;
 
