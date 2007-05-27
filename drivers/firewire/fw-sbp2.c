@@ -1108,6 +1108,58 @@ static int sbp2_scsi_abort(struct scsi_cmnd *cmd)
 	return SUCCESS;
 }
 
+/*
+ * Format of /sys/bus/scsi/devices/.../ieee1394_id:
+ * u64 EUI-64 : u24 directory_ID : u16 LUN  (all printed in hexadecimal)
+ *
+ * This is the concatenation of target port identifier and logical unit
+ * identifier as per SAM-2...SAM-4 annex A.
+ */
+static ssize_t
+sbp2_sysfs_ieee1394_id_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	struct sbp2_device *sd;
+	struct fw_unit *unit;
+	struct fw_device *device;
+	u32 directory_id;
+	struct fw_csr_iterator ci;
+	int key, value, lun;
+
+	if (!sdev)
+		return 0;
+	sd = (struct sbp2_device *)sdev->host->hostdata;
+	unit = sd->unit;
+	device = fw_device(unit->device.parent);
+
+	/* implicit directory ID */
+	directory_id = ((unit->directory - device->config_rom) * 4
+			+ CSR_CONFIG_ROM) & 0xffffff;
+
+	/* explicit directory ID, overrides implicit ID if present */
+	fw_csr_iterator_init(&ci, unit->directory);
+	while (fw_csr_iterator_next(&ci, &key, &value))
+		if (key == CSR_DIRECTORY_ID) {
+			directory_id = value;
+			break;
+		}
+
+	/* FIXME: Make this work for multi-lun devices. */
+	lun = 0;
+
+	return sprintf(buf, "%08x%08x:%06x:%04x\n",
+			device->config_rom[3], device->config_rom[4],
+			directory_id, lun);
+}
+
+static DEVICE_ATTR(ieee1394_id, S_IRUGO, sbp2_sysfs_ieee1394_id_show, NULL);
+
+static struct device_attribute *sbp2_scsi_sysfs_attrs[] = {
+	&dev_attr_ieee1394_id,
+	NULL
+};
+
 static struct scsi_host_template scsi_driver_template = {
 	.module			= THIS_MODULE,
 	.name			= "SBP-2 IEEE-1394",
@@ -1121,6 +1173,7 @@ static struct scsi_host_template scsi_driver_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.cmd_per_lun		= 1,
 	.can_queue		= 1,
+	.sdev_attrs		= sbp2_scsi_sysfs_attrs,
 };
 
 MODULE_AUTHOR("Kristian Hoegsberg <krh@bitplanet.net>");
