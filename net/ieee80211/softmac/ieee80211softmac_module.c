@@ -33,7 +33,10 @@ struct net_device *alloc_ieee80211softmac(int sizeof_priv)
 	struct ieee80211softmac_device *softmac;
 	struct net_device *dev;
 
-	dev = alloc_ieee80211(sizeof(struct ieee80211softmac_device) + sizeof_priv);
+	dev = alloc_ieee80211(sizeof(*softmac) + sizeof_priv);
+	if (!dev)
+		return NULL;
+
 	softmac = ieee80211_priv(dev);
 	softmac->dev = dev;
 	softmac->ieee = netdev_priv(dev);
