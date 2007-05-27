@@ -30,9 +30,9 @@ void
 sunserial_console_termios(struct console *con)
 {
 	char mode[16], buf[16], *s;
-	char *mode_prop = "ttyX-mode";
-	char *cd_prop = "ttyX-ignore-cd";
-	char *dtr_prop = "ttyX-rts-dtr-off";
+	char mode_prop[] = "ttyX-mode";
+	char cd_prop[]   = "ttyX-ignore-cd";
+	char dtr_prop[]  = "ttyX-rts-dtr-off";
 	char *ssp_console_modes_prop = "ssp-console-modes";
 	int baud, bits, stop, cflag;
 	char parity;
