@@ -365,7 +365,7 @@ complete_transaction(struct fw_card *card, int rcode,
 		    response->response.data, response->response.length);
 }
 
-static ssize_t ioctl_send_request(struct client *client, void *buffer)
+static int ioctl_send_request(struct client *client, void *buffer)
 {
 	struct fw_device *device = client->device;
 	struct fw_cdev_send_request *request = buffer;
