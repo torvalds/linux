@@ -1206,11 +1206,13 @@ static int __init applesmc_init(void)
 	}
 
 	ret = sysfs_create_file(&pdev->dev.kobj, &dev_attr_name.attr);
+	if (ret)
+		goto out_device;
 
 	/* Create key enumeration sysfs files */
 	ret = sysfs_create_group(&pdev->dev.kobj, &key_enumeration_group);
 	if (ret)
-		goto out_device;
+		goto out_name;
 
 	/* create fan files */
 	count = applesmc_get_fan_count();
@@ -1310,6 +1312,8 @@ out_fan_1:
 	sysfs_remove_group(&pdev->dev.kobj, &fan_attribute_groups[1]);
 out_key_enumeration:
 	sysfs_remove_group(&pdev->dev.kobj, &key_enumeration_group);
+out_name:
+	sysfs_remove_file(&pdev->dev.kobj, &dev_attr_name.attr);
 out_device:
 	platform_device_unregister(pdev);
 out_driver:
@@ -1335,6 +1339,7 @@ static void __exit applesmc_exit(void)
 	sysfs_remove_group(&pdev->dev.kobj, &fan_attribute_groups[0]);
 	sysfs_remove_group(&pdev->dev.kobj, &fan_attribute_groups[1]);
 	sysfs_remove_group(&pdev->dev.kobj, &key_enumeration_group);
+	sysfs_remove_file(&pdev->dev.kobj, &dev_attr_name.attr);
 	platform_device_unregister(pdev);
 	platform_driver_unregister(&applesmc_driver);
 	release_region(APPLESMC_DATA_PORT, APPLESMC_NR_PORTS);
