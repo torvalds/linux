@@ -83,6 +83,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/io.h>
 #include <asm/pgtable.h>
