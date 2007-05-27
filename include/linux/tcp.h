@@ -346,7 +346,6 @@ struct tcp_sock {
 	int     fastpath_cnt_hint;
 	int     lost_cnt_hint;
 	int     retransmit_cnt_hint;
-	int     forward_cnt_hint;
 
 	u16	advmss;		/* Advertised MSS			*/
 	u16	prior_ssthresh; /* ssthresh saved at recovery start	*/

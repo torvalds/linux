@@ -1945,33 +1945,28 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 	 * and retransmission... Both ways have their merits...
 	 *
 	 * For now we do not retransmit anything, while we have some new
-	 * segments to send.
+	 * segments to send. In the other cases, follow rule 3 for
+	 * NextSeg() specified in RFC3517.
 	 */
 
 	if (tcp_may_send_now(sk))
 		return;
 
-	if (tp->forward_skb_hint) {
+	/* If nothing is SACKed, highest_sack in the loop won't be valid */
+	if (!tp->sacked_out)
+		return;
+
+	if (tp->forward_skb_hint)
 		skb = tp->forward_skb_hint;
-		packet_cnt = tp->forward_cnt_hint;
-	} else{
+	else
 		skb = tcp_write_queue_head(sk);
-		packet_cnt = 0;
-	}
 
 	tcp_for_write_queue_from(skb, sk) {
 		if (skb == tcp_send_head(sk))
 			break;
-		tp->forward_cnt_hint = packet_cnt;
 		tp->forward_skb_hint = skb;
 
-		/* Similar to the retransmit loop above we
-		 * can pretend that the retransmitted SKB
-		 * we send out here will be composed of one
-		 * real MSS sized packet because tcp_retransmit_skb()
-		 * will fragment it if necessary.
-		 */
-		if (++packet_cnt > tp->fackets_out)
+		if (after(TCP_SKB_CB(skb)->seq, tp->highest_sack))
 			break;
 
 		if (tcp_packets_in_flight(tp) >= tp->snd_cwnd)
