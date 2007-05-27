@@ -1414,6 +1414,11 @@ static void usbvision_isocIrq(struct urb *urb)
 	if (!USBVISION_IS_OPERATIONAL(usbvision))
 		return;
 
+	/* any urb with wrong status is ignored without acknowledgement */
+	if (urb->status == -ENOENT) {
+		return;
+	}
+
 	f = &usbvision->curFrame;
 
 	/* Manage streaming interruption */
@@ -1436,18 +1441,21 @@ static void usbvision_isocIrq(struct urb *urb)
 	if (usbvision->streaming == Stream_On) {
 
 		/* If we collected enough data let's parse! */
-		if (scratch_len(usbvision) > USBVISION_HEADER_LENGTH) {	/* 12 == header_length */
-			/*If we don't have a frame we're current working on, complain */
-			if(!list_empty(&(usbvision->inqueue))) {
-				if (!(*f)) {
-					(*f) = list_entry(usbvision->inqueue.next,struct usbvision_frame, frame);
-				}
-				usbvision_parse_data(usbvision);
+		if ((scratch_len(usbvision) > USBVISION_HEADER_LENGTH) &&
+		    (!list_empty(&(usbvision->inqueue))) ) {
+			if (!(*f)) {
+				(*f) = list_entry(usbvision->inqueue.next,
+						  struct usbvision_frame,
+						  frame);
 			}
-			else {
-				PDEBUG(DBG_IRQ, "received data, but no one needs it");
-				scratch_reset(usbvision);
-			}
+			usbvision_parse_data(usbvision);
+		}
+		else {
+			/*If we don't have a frame
+			  we're current working on, complain */
+			PDEBUG(DBG_IRQ,
+			       "received data, but no one needs it");
+			scratch_reset(usbvision);
 		}
 	}
 	else {
@@ -1466,10 +1474,10 @@ static void usbvision_isocIrq(struct urb *urb)
 	urb->dev = usbvision->dev;
 	errCode = usb_submit_urb (urb, GFP_ATOMIC);
 
-	/* Disable this warning.  By design of the driver. */
-	//	if(errCode) {
-	//		err("%s: usb_submit_urb failed: error %d", __FUNCTION__, errCode);
-	//	}
+	if(errCode) {
+		err("%s: usb_submit_urb failed: error %d",
+		    __FUNCTION__, errCode);
+	}
 
 	return;
 }
@@ -2394,7 +2402,7 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 {
 	struct usb_device *dev = usbvision->dev;
 	int bufIdx, errCode, regValue;
-	const int sb_size = USBVISION_URB_FRAMES * USBVISION_MAX_ISOC_PACKET_SIZE;
+	int sb_size;
 
 	if (!USBVISION_IS_OPERATIONAL(usbvision))
 		return -EFAULT;
@@ -2408,11 +2416,14 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 		usbvision->last_error = errCode;
 		return -EBUSY;
 	}
+	sb_size = USBVISION_URB_FRAMES * usbvision->isocPacketSize;
 
-	regValue = (16 - usbvision_read_reg(usbvision, USBVISION_ALTER_REG)) & 0x0F;
+	regValue = (16 - usbvision_read_reg(usbvision,
+					    USBVISION_ALTER_REG)) & 0x0F;
 
 	usbvision->usb_bandwidth = regValue >> 1;
-	PDEBUG(DBG_ISOC, "USB Bandwidth Usage: %dMbit/Sec", usbvision->usb_bandwidth);
+	PDEBUG(DBG_ISOC, "USB Bandwidth Usage: %dMbit/Sec",
+	       usbvision->usb_bandwidth);
 
 
 
@@ -2428,7 +2439,11 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 			return -ENOMEM;
 		}
 		usbvision->sbuf[bufIdx].urb = urb;
-		usbvision->sbuf[bufIdx].data = usb_buffer_alloc(usbvision->dev, sb_size, GFP_KERNEL,&urb->transfer_dma);
+		usbvision->sbuf[bufIdx].data =
+			usb_buffer_alloc(usbvision->dev,
+					 sb_size,
+					 GFP_KERNEL,
+					 &urb->transfer_dma);
 		urb->dev = dev;
 		urb->context = usbvision;
 		urb->pipe = usb_rcvisocpipe(dev, usbvision->video_endp);
@@ -2442,21 +2457,26 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 		for (j = k = 0; j < USBVISION_URB_FRAMES; j++,
 		     k += usbvision->isocPacketSize) {
 			urb->iso_frame_desc[j].offset = k;
-			urb->iso_frame_desc[j].length = usbvision->isocPacketSize;
+			urb->iso_frame_desc[j].length =
+				usbvision->isocPacketSize;
 		}
 	}
 
 
 	/* Submit all URBs */
 	for (bufIdx = 0; bufIdx < USBVISION_NUMSBUF; bufIdx++) {
-			errCode = usb_submit_urb(usbvision->sbuf[bufIdx].urb, GFP_KERNEL);
+			errCode = usb_submit_urb(usbvision->sbuf[bufIdx].urb,
+						 GFP_KERNEL);
 		if (errCode) {
-			err("%s: usb_submit_urb(%d) failed: error %d", __FUNCTION__, bufIdx, errCode);
+			err("%s: usb_submit_urb(%d) failed: error %d",
+			    __FUNCTION__, bufIdx, errCode);
 		}
 	}
 
 	usbvision->streaming = Stream_Idle;
-	PDEBUG(DBG_ISOC, "%s: streaming=1 usbvision->video_endp=$%02x", __FUNCTION__, usbvision->video_endp);
+	PDEBUG(DBG_ISOC, "%s: streaming=1 usbvision->video_endp=$%02x",
+	       __FUNCTION__,
+	       usbvision->video_endp);
 	return 0;
 }
 
@@ -2470,7 +2490,7 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 {
 	int bufIdx, errCode, regValue;
-	const int sb_size = USBVISION_URB_FRAMES * USBVISION_MAX_ISOC_PACKET_SIZE;
+	int sb_size = USBVISION_URB_FRAMES * usbvision->isocPacketSize;
 
 	if ((usbvision->streaming == Stream_Off) || (usbvision->dev == NULL))
 		return;
@@ -2499,15 +2519,19 @@ void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 		errCode = usb_set_interface(usbvision->dev, usbvision->iface,
 					    usbvision->ifaceAlt);
 		if (errCode < 0) {
-			err("%s: usb_set_interface() failed: error %d", __FUNCTION__, errCode);
+			err("%s: usb_set_interface() failed: error %d",
+			    __FUNCTION__, errCode);
 			usbvision->last_error = errCode;
 		}
-		regValue = (16 - usbvision_read_reg(usbvision, USBVISION_ALTER_REG)) & 0x0F;
-		usbvision->isocPacketSize = (regValue == 0) ? 0 : (regValue * 64) - 1;
-		PDEBUG(DBG_ISOC, "ISO Packet Length:%d", usbvision->isocPacketSize);
+		regValue = (16-usbvision_read_reg(usbvision, USBVISION_ALTER_REG)) & 0x0F;
+		usbvision->isocPacketSize =
+			(regValue == 0) ? 0 : (regValue * 64) - 1;
+		PDEBUG(DBG_ISOC, "ISO Packet Length:%d",
+		       usbvision->isocPacketSize);
 
 		usbvision->usb_bandwidth = regValue >> 1;
-		PDEBUG(DBG_ISOC, "USB Bandwidth Usage: %dMbit/Sec", usbvision->usb_bandwidth);
+		PDEBUG(DBG_ISOC, "USB Bandwidth Usage: %dMbit/Sec",
+		       usbvision->usb_bandwidth);
 	}
 }
 
