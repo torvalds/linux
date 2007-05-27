@@ -1314,6 +1314,53 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 /* F-RTO can only be used if TCP has never retransmitted anything other than
  * head (SACK enhanced variant from Appendix B of RFC4138 is more robust here)
  */
+static void tcp_check_reno_reordering(struct sock *sk, const int addend)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	u32 holes;
+
+	holes = max(tp->lost_out, 1U);
+	holes = min(holes, tp->packets_out);
+
+	if ((tp->sacked_out + holes) > tp->packets_out) {
+		tp->sacked_out = tp->packets_out - holes;
+		tcp_update_reordering(sk, tp->packets_out + addend, 0);
+	}
+}
+
+/* Emulate SACKs for SACKless connection: account for a new dupack. */
+
+static void tcp_add_reno_sack(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	tp->sacked_out++;
+	tcp_check_reno_reordering(sk, 0);
+	tcp_sync_left_out(tp);
+}
+
+/* Account for ACK, ACKing some data in Reno Recovery phase. */
+
+static void tcp_remove_reno_sacks(struct sock *sk, int acked)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (acked > 0) {
+		/* One ACK acked hole. The rest eat duplicate ACKs. */
+		if (acked-1 >= tp->sacked_out)
+			tp->sacked_out = 0;
+		else
+			tp->sacked_out -= acked-1;
+	}
+	tcp_check_reno_reordering(sk, acked);
+	tcp_sync_left_out(tp);
+}
+
+static inline void tcp_reset_reno_sack(struct tcp_sock *tp)
+{
+	tp->sacked_out = 0;
+	tp->left_out = tp->lost_out;
+}
+
 int tcp_use_frto(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
@@ -1728,57 +1775,6 @@ static int tcp_time_to_recover(struct sock *sk)
 	}
 
 	return 0;
-}
-
-/* If we receive more dupacks than we expected counting segments
- * in assumption of absent reordering, interpret this as reordering.
- * The only another reason could be bug in receiver TCP.
- */
-static void tcp_check_reno_reordering(struct sock *sk, const int addend)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-	u32 holes;
-
-	holes = max(tp->lost_out, 1U);
-	holes = min(holes, tp->packets_out);
-
-	if ((tp->sacked_out + holes) > tp->packets_out) {
-		tp->sacked_out = tp->packets_out - holes;
-		tcp_update_reordering(sk, tp->packets_out + addend, 0);
-	}
-}
-
-/* Emulate SACKs for SACKless connection: account for a new dupack. */
-
-static void tcp_add_reno_sack(struct sock *sk)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-	tp->sacked_out++;
-	tcp_check_reno_reordering(sk, 0);
-	tcp_sync_left_out(tp);
-}
-
-/* Account for ACK, ACKing some data in Reno Recovery phase. */
-
-static void tcp_remove_reno_sacks(struct sock *sk, int acked)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	if (acked > 0) {
-		/* One ACK acked hole. The rest eat duplicate ACKs. */
-		if (acked-1 >= tp->sacked_out)
-			tp->sacked_out = 0;
-		else
-			tp->sacked_out -= acked-1;
-	}
-	tcp_check_reno_reordering(sk, acked);
-	tcp_sync_left_out(tp);
-}
-
-static inline void tcp_reset_reno_sack(struct tcp_sock *tp)
-{
-	tp->sacked_out = 0;
-	tp->left_out = tp->lost_out;
 }
 
 /* RFC: This is from the original, I doubt that this is necessary at all:
