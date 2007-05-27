@@ -401,6 +401,11 @@
 	ENTRY_COMP(statfs64)
 	ENTRY_COMP(fstatfs64)
 	ENTRY_COMP(kexec_load)		/* 300 */
+	ENTRY_COMP(utimensat)
+	ENTRY_COMP(signalfd)
+	ENTRY_COMP(timerfd)
+	ENTRY_SAME(eventfd)
+
 	/* Nothing yet */
 
 #undef ENTRY_SAME
