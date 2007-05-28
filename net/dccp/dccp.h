@@ -184,7 +184,7 @@ DECLARE_SNMP_STAT(struct dccp_mib, dccp_statistics);
 /*
  * 	Checksumming routines
  */
-static inline int dccp_csum_coverage(const struct sk_buff *skb)
+static inline unsigned int dccp_csum_coverage(const struct sk_buff *skb)
 {
 	const struct dccp_hdr* dh = dccp_hdr(skb);
 
@@ -195,7 +195,7 @@ static inline int dccp_csum_coverage(const struct sk_buff *skb)
 
 static inline void dccp_csum_outgoing(struct sk_buff *skb)
 {
-	int cov = dccp_csum_coverage(skb);
+	unsigned int cov = dccp_csum_coverage(skb);
 
 	if (cov >= skb->len)
 		dccp_hdr(skb)->dccph_cscov = 0;
