@@ -382,7 +382,7 @@ static int pdc_sata_port_start(struct ata_port *ap)
 
 	/* fix up PHYMODE4 align timing */
 	if (ap->flags & PDC_FLAG_GEN_II) {
-		void __iomem *mmio = (void __iomem *) ap->ioaddr.scr_addr;
+		void __iomem *mmio = ap->ioaddr.scr_addr;
 		unsigned int tmp;
 
 		tmp = readl(mmio + 0x014);
@@ -418,7 +418,7 @@ static void pdc_reset_port(struct ata_port *ap)
 static int pdc_pata_cable_detect(struct ata_port *ap)
 {
 	u8 tmp;
-	void __iomem *mmio = (void __iomem *) ap->ioaddr.cmd_addr + PDC_CTLSTAT + 0x03;
+	void __iomem *mmio = ap->ioaddr.cmd_addr + PDC_CTLSTAT + 0x03;
 
 	tmp = readb(mmio);
 	if (tmp & 0x01)
@@ -573,7 +573,7 @@ static void pdc_qc_prep(struct ata_queued_cmd *qc)
 
 static void pdc_freeze(struct ata_port *ap)
 {
-	void __iomem *mmio = (void __iomem *) ap->ioaddr.cmd_addr;
+	void __iomem *mmio = ap->ioaddr.cmd_addr;
 	u32 tmp;
 
 	tmp = readl(mmio + PDC_CTLSTAT);
@@ -585,7 +585,7 @@ static void pdc_freeze(struct ata_port *ap)
 
 static void pdc_thaw(struct ata_port *ap)
 {
-	void __iomem *mmio = (void __iomem *) ap->ioaddr.cmd_addr;
+	void __iomem *mmio = ap->ioaddr.cmd_addr;
 	u32 tmp;
 
 	/* clear IRQ */

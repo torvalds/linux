@@ -192,7 +192,7 @@ static void inic_reset_port(void __iomem *port_base)
 
 static u32 inic_scr_read(struct ata_port *ap, unsigned sc_reg)
 {
-	void __iomem *scr_addr = (void __iomem *)ap->ioaddr.scr_addr;
+	void __iomem *scr_addr = ap->ioaddr.scr_addr;
 	void __iomem *addr;
 	u32 val;
 
@@ -210,7 +210,7 @@ static u32 inic_scr_read(struct ata_port *ap, unsigned sc_reg)
 
 static void inic_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val)
 {
-	void __iomem *scr_addr = (void __iomem *)ap->ioaddr.scr_addr;
+	void __iomem *scr_addr = ap->ioaddr.scr_addr;
 	void __iomem *addr;
 
 	if (unlikely(sc_reg >= ARRAY_SIZE(scr_map)))

@@ -56,7 +56,7 @@ static void ixp4xx_mmio_data_xfer(struct ata_device *adev, unsigned char *buf,
 	unsigned int words = buflen >> 1;
 	u16 *buf16 = (u16 *) buf;
 	struct ata_port *ap = adev->ap;
-	void __iomem *mmio = (void __iomem *)ap->ioaddr.data_addr;
+	void __iomem *mmio = ap->ioaddr.data_addr;
 	struct ixp4xx_pata_data *data = ap->host->dev->platform_data;
 
 	/* set the expansion bus in 16bit mode and restore
