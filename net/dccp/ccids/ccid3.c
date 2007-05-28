@@ -829,7 +829,7 @@ static u32 ccid3_hc_rx_calc_first_li(struct sock *sk)
 	struct dccp_rx_hist_entry *entry, *next, *tail = NULL;
 	u32 x_recv, p;
 	suseconds_t rtt, delta;
-	struct timeval tstamp = { 0, };
+	struct timeval tstamp = { 0, 0 };
 	int interval = 0;
 	int win_count = 0;
 	int step = 0;
