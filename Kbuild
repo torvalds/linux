@@ -13,6 +13,7 @@ offsets-file := include/asm-$(ARCH)/asm-offsets.h
 always  := $(offsets-file)
 targets := $(offsets-file)
 targets += arch/$(ARCH)/kernel/asm-offsets.s
+clean-files := $(addprefix $(objtree)/,$(targets))
 
 # Default sed regexp - multiline due to syntax constraints
 define sed-y
