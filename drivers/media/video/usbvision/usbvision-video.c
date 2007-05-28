@@ -149,35 +149,12 @@ static int vbi_nr = -1;
 /* Grab parameters for the device driver */
 
 /* Showing parameters under SYSFS */
-#if defined(module_param)
 module_param(isocMode, int, 0444);
 module_param(video_debug, int, 0444);
 module_param(PowerOnAtOpen, int, 0444);
 module_param(video_nr, int, 0444);
 module_param(radio_nr, int, 0444);
 module_param(vbi_nr, int, 0444);
-#else
-/* Old Style */
-MODULE_PARAM(isocMode, "i");
-/* Grab the Debug Mode of the device driver */
-MODULE_PARM(video_debug, "i");
-/* Grab the compression to be adaptive */
-MODULE_PARM(adjustCompression, "i");
-/* Grab the device to power on at startup */
-MODULE_PARM(PowerOnAtOpen, "i");
-/* To help people with Black and White output with using s-video input.
-   Some cables and input device are wired differently. */
-MODULE_PARM(SwitchSVideoInput, "i");
-/* video_nr option allows to specify a certain /dev/videoX device
-   (like /dev/video0 or /dev/video1 ...) */
-MODULE_PARM(video_nr, "i");
-/* radio_nr option allows to specify a certain /dev/radioX device
-   (like /dev/radio0 or /dev/radio1 ...) */
-MODULE_PARM(radio_nr, "i");
-/* vbi_nr option allows to specify a certain /dev/vbiX device
-   (like /dev/vbi0 or /dev/vbi1 ...) */
-MODULE_PARM(vbi_nr, "i");
-#endif
 
 MODULE_PARM_DESC(isocMode, " Set the default format for ISOC endpoint.  Default: 0x60 (Compression On)");
 MODULE_PARM_DESC(video_debug, " Set the default Debug Mode of the device driver.  Default: 0 (Off)");
