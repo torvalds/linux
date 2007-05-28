@@ -22,6 +22,8 @@
 
 #include <linux/mtd/mtd.h>
 
+#include "mtdcore.h"
+
 /* These are exported solely for the purpose of mtd_blkdevs.c. You
    should not use them for _anything_ else */
 DEFINE_MUTEX(mtd_table_mutex);

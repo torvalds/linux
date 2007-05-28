@@ -23,10 +23,9 @@
 #include <linux/kthread.h>
 #include <asm/uaccess.h>
 
-static LIST_HEAD(blktrans_majors);
+#include "mtdcore.h"
 
-extern struct mutex mtd_table_mutex;
-extern struct mtd_info *mtd_table[];
+static LIST_HEAD(blktrans_majors);
 
 struct mtd_blkcore_priv {
 	struct task_struct *thread;
