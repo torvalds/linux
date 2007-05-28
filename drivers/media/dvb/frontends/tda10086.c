@@ -41,6 +41,7 @@ struct tda10086_state {
 	/* private demod data */
 	u32 frequency;
 	u32 symbol_rate;
+	bool has_lock;
 };
 
 static int debug = 0;
@@ -116,7 +117,7 @@ static int tda10086_init(struct dvb_frontend* fe)
 	// misc setup
 	tda10086_write_byte(state, 0x01, 0x94);
 	tda10086_write_byte(state, 0x02, 0x35); // NOTE: TT drivers appear to disable CSWP
-	tda10086_write_byte(state, 0x03, 0x64);
+	tda10086_write_byte(state, 0x03, 0xe4);
 	tda10086_write_byte(state, 0x04, 0x43);
 	tda10086_write_byte(state, 0x0c, 0x0c);
 	tda10086_write_byte(state, 0x1b, 0xb0); // noise threshold
@@ -146,7 +147,7 @@ static int tda10086_init(struct dvb_frontend* fe)
 	// setup AGC
 	tda10086_write_byte(state, 0x05, 0x0B);
 	tda10086_write_byte(state, 0x37, 0x63);
-	tda10086_write_byte(state, 0x3f, 0x03); // NOTE: flydvb uses 0x0a and varies it
+	tda10086_write_byte(state, 0x3f, 0x0a); // NOTE: flydvb varies it
 	tda10086_write_byte(state, 0x40, 0x64);
 	tda10086_write_byte(state, 0x41, 0x4f);
 	tda10086_write_byte(state, 0x42, 0x43);
@@ -398,6 +399,10 @@ static int tda10086_set_frontend(struct dvb_frontend* fe,
 
 	dprintk ("%s\n", __FUNCTION__);
 
+	// modify parameters for tuning
+	tda10086_write_byte(state, 0x02, 0x35);
+	state->has_lock = false;
+
 	// set params
 	if (fe->ops.tuner_ops.set_params) {
 		fe->ops.tuner_ops.set_params(fe, fe_params);
@@ -542,8 +547,14 @@ static int tda10086_read_status(struct dvb_frontend* fe, fe_status_t *fe_status)
 		*fe_status |= FE_HAS_VITERBI;
 	if (val & 0x08)
 		*fe_status |= FE_HAS_SYNC;
-	if (val & 0x10)
+	if (val & 0x10) {
 		*fe_status |= FE_HAS_LOCK;
+		if (!state->has_lock) {
+			state->has_lock = true;
+			// modify parameters for stable reception
+			tda10086_write_byte(state, 0x02, 0x00);
+		}
+	}
 
 	return 0;
 }
@@ -555,7 +566,7 @@ static int tda10086_read_signal_strength(struct dvb_frontend* fe, u16 * signal)
 
 	dprintk ("%s\n", __FUNCTION__);
 
-	_str = tda10086_read_byte(state, 0x43);
+	_str = 0xff - tda10086_read_byte(state, 0x43);
 	*signal = (_str << 8) | _str;
 
 	return 0;
@@ -568,7 +579,7 @@ static int tda10086_read_snr(struct dvb_frontend* fe, u16 * snr)
 
 	dprintk ("%s\n", __FUNCTION__);
 
-	_snr = tda10086_read_byte(state, 0x1c);
+	_snr = 0xff - tda10086_read_byte(state, 0x1c);
 	*snr = (_snr << 8) | _snr;
 
 	return 0;
