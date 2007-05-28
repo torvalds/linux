@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
+#include <linux/module.h>
 
 #include <asm/irq.h>
 #include <asm/io.h>
@@ -40,6 +41,7 @@ int ucc_set_qe_mux_mii_mng(int ucc_num)
 
 	return 0;
 }
+EXPORT_SYMBOL(ucc_set_qe_mux_mii_mng);
 
 int ucc_set_type(int ucc_num, struct ucc_common *regs,
 		 enum ucc_speed_type speed)
