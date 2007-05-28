@@ -30,6 +30,54 @@
  *
  */
 
+/*
+	Theory of operation
+	-------------------
+
+	The SX4 (PDC20621) chip features a single Host DMA (HDMA) copy
+	engine, DIMM memory, and four ATA engines (one per SATA port).
+	Data is copied to/from DIMM memory by the HDMA engine, before
+	handing off to one (or more) of the ATA engines.  The ATA
+	engines operate solely on DIMM memory.
+
+	The SX4 behaves like a PATA chip, with no SATA controls or
+	knowledge whatsoever, leading to the presumption that
+	PATA<->SATA bridges exist on SX4 boards, external to the
+	PDC20621 chip itself.
+
+	The chip is quite capable, supporting an XOR engine and linked
+	hardware commands (permits a string to transactions to be
+	submitted and waited-on as a single unit), and an optional
+	microprocessor.
+
+	The limiting factor is largely software.  This Linux driver was
+	written to multiplex the single HDMA engine to copy disk
+	transactions into a fixed DIMM memory space, from where an ATA
+	engine takes over.  As a result, each WRITE looks like this:
+
+		submit HDMA packet to hardware
+		hardware copies data from system memory to DIMM
+		hardware raises interrupt
+
+		submit ATA packet to hardware
+		hardware executes ATA WRITE command, w/ data in DIMM
+		hardware raises interrupt
+	
+	and each READ looks like this:
+
+		submit ATA packet to hardware
+		hardware executes ATA READ command, w/ data in DIMM
+		hardware raises interrupt
+	
+		submit HDMA packet to hardware
+		hardware copies data from DIMM to system memory
+		hardware raises interrupt
+
+	This is a very slow, lock-step way of doing things that can
+	certainly be improved by motivated kernel hackers.
+
+ */
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -57,6 +105,8 @@ enum {
 	PDC_HDMA_PKT_SUBMIT	= 0x100, /* Host DMA packet pointer addr */
 	PDC_INT_SEQMASK		= 0x40,	/* Mask of asserted SEQ INTs */
 	PDC_HDMA_CTLSTAT	= 0x12C, /* Host DMA control / status */
+
+	PDC_CTLSTAT		= 0x60,	/* IDEn control / status */
 
 	PDC_20621_SEQCTL	= 0x400,
 	PDC_20621_SEQMASK	= 0x480,
@@ -89,6 +139,7 @@ enum {
 
 	PDC_MASK_INT		= (1 << 10), /* HDMA/ATA mask int */
 	PDC_RESET		= (1 << 11), /* HDMA/ATA reset */
+	PDC_DMA_ENABLE		= (1 << 7),  /* DMA start/stop */
 
 	PDC_MAX_HDMA		= 32,
 	PDC_HDMA_Q_MASK		= (PDC_MAX_HDMA - 1),

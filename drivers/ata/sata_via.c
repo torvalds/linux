@@ -303,9 +303,7 @@ static int vt6420_prereset(struct ata_port *ap, unsigned long deadline)
 	if (!(ap->pflags & ATA_PFLAG_LOADING))
 		goto skip_scr;
 
-	/* Resume phy.  This is the old resume sequence from
-	 * __sata_phy_reset().
-	 */
+	/* Resume phy.  This is the old SATA resume sequence */
 	svia_scr_write(ap, SCR_CONTROL, 0x300);
 	svia_scr_read(ap, SCR_CONTROL); /* flush */
 
