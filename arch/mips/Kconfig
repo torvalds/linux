@@ -317,7 +317,7 @@ config PNX8550_JBS
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
 config PNX8550_STB810
-	bool "Support for Philips PNX8550 based STB810 board"
+	bool "Philips PNX8550 based STB810 board"
 	select PNX8550
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
@@ -392,7 +392,7 @@ config QEMU
 	  can be found at http://www.linux-mips.org/wiki/Qemu.
 
 config MARKEINS
-	bool "Support for NEC EMMA2RH Mark-eins"
+	bool "NEC EMMA2RH Mark-eins"
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select IRQ_CPU
