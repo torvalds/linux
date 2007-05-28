@@ -530,7 +530,7 @@ static int __devinit pata_icside_add_ports(struct pata_icside_info *info)
 
 		ap->pio_mask = 0x1f;
 		ap->mwdma_mask = info->mwdma_mask;
-		ap->flags |= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
+		ap->flags |= ATA_FLAG_SLAVE_POSS;
 		ap->ops = &pata_icside_port_ops;
 
 		pata_icside_setup_ioaddr(&ap->ioaddr, info->base, info->port[i]);
