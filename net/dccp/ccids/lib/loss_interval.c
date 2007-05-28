@@ -18,6 +18,15 @@
 #include "packet_history.h"
 #include "tfrc.h"
 
+#define DCCP_LI_HIST_IVAL_F_LENGTH  8
+
+struct dccp_li_hist_entry {
+	struct list_head dccplih_node;
+	u64		 dccplih_seqno:48,
+			 dccplih_win_count:4;
+	u32		 dccplih_interval;
+};
+
 struct kmem_cache *dccp_li_cachep __read_mostly;
 
 static inline struct dccp_li_hist_entry *dccp_li_hist_entry_new(const gfp_t prio)

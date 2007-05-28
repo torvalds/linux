@@ -14,17 +14,7 @@
  */
 
 #include <linux/list.h>
-#include <linux/slab.h>
 #include <linux/time.h>
-
-#define DCCP_LI_HIST_IVAL_F_LENGTH  8
-
-struct dccp_li_hist_entry {
-	struct list_head dccplih_node;
-	u64		 dccplih_seqno:48,
-			 dccplih_win_count:4;
-	u32		 dccplih_interval;
-};
 
 extern void dccp_li_hist_purge(struct list_head *list);
 
