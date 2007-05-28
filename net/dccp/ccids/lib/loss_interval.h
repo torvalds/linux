@@ -19,13 +19,6 @@
 
 #define DCCP_LI_HIST_IVAL_F_LENGTH  8
 
-struct dccp_li_hist {
-	struct kmem_cache *dccplih_slab;
-};
-
-extern struct dccp_li_hist *dccp_li_hist_new(const char *name);
-extern void dccp_li_hist_delete(struct dccp_li_hist *hist);
-
 struct dccp_li_hist_entry {
 	struct list_head dccplih_node;
 	u64		 dccplih_seqno:48,
@@ -33,12 +26,11 @@ struct dccp_li_hist_entry {
 	u32		 dccplih_interval;
 };
 
-extern void dccp_li_hist_purge(struct dccp_li_hist *hist,
-			       struct list_head *list);
+extern void dccp_li_hist_purge(struct list_head *list);
 
 extern u32 dccp_li_hist_calc_i_mean(struct list_head *list);
 
-extern void dccp_li_update_li(struct sock *sk, struct dccp_li_hist *li_hist,
+extern void dccp_li_update_li(struct sock *sk,
 			      struct list_head *li_hist_list,
 			      struct list_head *hist_list,
 			      struct timeval *last_feedback, u16 s,

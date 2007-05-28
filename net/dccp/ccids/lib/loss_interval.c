@@ -18,71 +18,26 @@
 #include "packet_history.h"
 #include "tfrc.h"
 
-struct dccp_li_hist *dccp_li_hist_new(const char *name)
+struct kmem_cache *dccp_li_cachep __read_mostly;
+
+static inline struct dccp_li_hist_entry *dccp_li_hist_entry_new(const gfp_t prio)
 {
-	struct dccp_li_hist *hist = kmalloc(sizeof(*hist), GFP_ATOMIC);
-	static const char dccp_li_hist_mask[] = "li_hist_%s";
-	char *slab_name;
-
-	if (hist == NULL)
-		goto out;
-
-	slab_name = kmalloc(strlen(name) + sizeof(dccp_li_hist_mask) - 1,
-			    GFP_ATOMIC);
-	if (slab_name == NULL)
-		goto out_free_hist;
-
-	sprintf(slab_name, dccp_li_hist_mask, name);
-	hist->dccplih_slab = kmem_cache_create(slab_name,
-					     sizeof(struct dccp_li_hist_entry),
-					       0, SLAB_HWCACHE_ALIGN,
-					       NULL, NULL);
-	if (hist->dccplih_slab == NULL)
-		goto out_free_slab_name;
-out:
-	return hist;
-out_free_slab_name:
-	kfree(slab_name);
-out_free_hist:
-	kfree(hist);
-	hist = NULL;
-	goto out;
+	return kmem_cache_alloc(dccp_li_cachep, prio);
 }
 
-EXPORT_SYMBOL_GPL(dccp_li_hist_new);
-
-void dccp_li_hist_delete(struct dccp_li_hist *hist)
-{
-	const char* name = kmem_cache_name(hist->dccplih_slab);
-
-	kmem_cache_destroy(hist->dccplih_slab);
-	kfree(name);
-	kfree(hist);
-}
-
-EXPORT_SYMBOL_GPL(dccp_li_hist_delete);
-
-static inline struct dccp_li_hist_entry *
-		dccp_li_hist_entry_new(struct dccp_li_hist *hist,
-				       const gfp_t prio)
-{
-	return kmem_cache_alloc(hist->dccplih_slab, prio);
-}
-
-static inline void dccp_li_hist_entry_delete(struct dccp_li_hist *hist,
-					     struct dccp_li_hist_entry *entry)
+static inline void dccp_li_hist_entry_delete(struct dccp_li_hist_entry *entry)
 {
 	if (entry != NULL)
-		kmem_cache_free(hist->dccplih_slab, entry);
+		kmem_cache_free(dccp_li_cachep, entry);
 }
 
-void dccp_li_hist_purge(struct dccp_li_hist *hist, struct list_head *list)
+void dccp_li_hist_purge(struct list_head *list)
 {
 	struct dccp_li_hist_entry *entry, *next;
 
 	list_for_each_entry_safe(entry, next, list, dccplih_node) {
 		list_del_init(&entry->dccplih_node);
-		kmem_cache_free(hist->dccplih_slab, entry);
+		kmem_cache_free(dccp_li_cachep, entry);
 	}
 }
 
@@ -134,17 +89,16 @@ u32 dccp_li_hist_calc_i_mean(struct list_head *list)
 
 EXPORT_SYMBOL_GPL(dccp_li_hist_calc_i_mean);
 
-static int dccp_li_hist_interval_new(struct dccp_li_hist *hist,
-				     struct list_head *list,
+static int dccp_li_hist_interval_new(struct list_head *list,
 				     const u64 seq_loss, const u8 win_loss)
 {
 	struct dccp_li_hist_entry *entry;
 	int i;
 
 	for (i = 0; i < DCCP_LI_HIST_IVAL_F_LENGTH; i++) {
-		entry = dccp_li_hist_entry_new(hist, GFP_ATOMIC);
+		entry = dccp_li_hist_entry_new(GFP_ATOMIC);
 		if (entry == NULL) {
-			dccp_li_hist_purge(hist, list);
+			dccp_li_hist_purge(list);
 			DCCP_BUG("loss interval list entry is NULL");
 			return 0;
 		}
@@ -260,7 +214,7 @@ found:
 		return 1000000 / p;
 }
 
-void dccp_li_update_li(struct sock *sk, struct dccp_li_hist *li_hist,
+void dccp_li_update_li(struct sock *sk,
 		       struct list_head *li_hist_list,
 		       struct list_head *hist_list,
 		       struct timeval *last_feedback, u16 s, u32 bytes_recv,
@@ -270,8 +224,8 @@ void dccp_li_update_li(struct sock *sk, struct dccp_li_hist *li_hist,
 	u64 seq_temp;
 
 	if (list_empty(li_hist_list)) {
-		if (!dccp_li_hist_interval_new(li_hist, li_hist_list,
-					       seq_loss, win_loss))
+		if (!dccp_li_hist_interval_new(li_hist_list, seq_loss,
+					       win_loss))
 			return;
 
 		head = list_entry(li_hist_list->next, struct dccp_li_hist_entry,
@@ -293,7 +247,7 @@ void dccp_li_update_li(struct sock *sk, struct dccp_li_hist *li_hist,
 		/* new loss event detected */
 		/* calculate last interval length */
 		seq_temp = dccp_delta_seqno(head->dccplih_seqno, seq_loss);
-		entry = dccp_li_hist_entry_new(li_hist, GFP_ATOMIC);
+		entry = dccp_li_hist_entry_new(GFP_ATOMIC);
 
 		if (entry == NULL) {
 			DCCP_BUG("out of memory - can not allocate entry");
@@ -304,7 +258,7 @@ void dccp_li_update_li(struct sock *sk, struct dccp_li_hist *li_hist,
 
 		tail = li_hist_list->prev;
 		list_del(tail);
-		kmem_cache_free(li_hist->dccplih_slab, tail);
+		kmem_cache_free(dccp_li_cachep, tail);
 
 		/* Create the newest interval */
 		entry->dccplih_seqno = seq_loss;
@@ -314,3 +268,19 @@ void dccp_li_update_li(struct sock *sk, struct dccp_li_hist *li_hist,
 }
 
 EXPORT_SYMBOL_GPL(dccp_li_update_li);
+
+static __init int dccp_li_init(void)
+{
+	dccp_li_cachep = kmem_cache_create("dccp_li_hist",
+					   sizeof(struct dccp_li_hist_entry),
+					   0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+	return dccp_li_cachep == NULL ? -ENOBUFS : 0;
+}
+
+static __exit void dccp_li_exit(void)
+{
+	kmem_cache_destroy(dccp_li_cachep);
+}
+
+module_init(dccp_li_init);
+module_exit(dccp_li_exit);
