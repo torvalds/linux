@@ -2704,6 +2704,8 @@ ap_tx_ret hostap_handle_sta_tx(local_info_t *local, struct hostap_tx_data *tx)
 
 	if (hdr->addr1[0] & 0x01) {
 		/* broadcast/multicast frame - no AP related processing */
+		if (local->ap->num_sta <= 0)
+			ret = AP_TX_DROP;
 		goto out;
 	}
 
