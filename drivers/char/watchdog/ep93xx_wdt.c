@@ -107,10 +107,6 @@ static ssize_t
 ep93xx_wdt_write(struct file *file, const char __user *data, size_t len,
 		 loff_t *ppos)
 {
-	/* Can't seek (pwrite) on this device */
-	if (*ppos != file->f_pos)
-		return -ESPIPE;
-
 	if (len) {
 		if (!nowayout) {
 			size_t i;
