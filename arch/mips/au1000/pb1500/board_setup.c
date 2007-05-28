@@ -125,7 +125,7 @@ void __init board_setup(void)
 		au_writel((au_readl(0xac000028) | 0x20), 0xac000028);
 	}
 	/* Put the clock in BCD mode */
-	if (readl(0xac00002C) & 0x4) { /* reg B */
+	if (au_readl(0xac00002C) & 0x4) { /* reg B */
 		au_writel(au_readl(0xac00002c) & ~0x4, 0xac00002c);
 		au_sync();
 	}
