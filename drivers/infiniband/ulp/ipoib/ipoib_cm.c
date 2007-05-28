@@ -69,8 +69,9 @@ static struct ib_qp_attr ipoib_cm_err_attr = {
 
 #define IPOIB_CM_RX_DRAIN_WRID 0x7fffffff
 
-static struct ib_recv_wr ipoib_cm_rx_drain_wr = {
-	.wr_id = IPOIB_CM_RX_DRAIN_WRID
+static struct ib_send_wr ipoib_cm_rx_drain_wr = {
+	.wr_id = IPOIB_CM_RX_DRAIN_WRID,
+	.opcode = IB_WR_SEND,
 };
 
 static int ipoib_cm_tx_handler(struct ib_cm_id *cm_id,
@@ -163,16 +164,22 @@ partial_error:
 
 static void ipoib_cm_start_rx_drain(struct ipoib_dev_priv* priv)
 {
-	struct ib_recv_wr *bad_wr;
+	struct ib_send_wr *bad_wr;
+	struct ipoib_cm_rx *p;
 
-	/* rx_drain_qp send queue depth is 1, so
+	/* We only reserved 1 extra slot in CQ for drain WRs, so
 	 * make sure we have at most 1 outstanding WR. */
 	if (list_empty(&priv->cm.rx_flush_list) ||
 	    !list_empty(&priv->cm.rx_drain_list))
 		return;
 
-	if (ib_post_recv(priv->cm.rx_drain_qp, &ipoib_cm_rx_drain_wr, &bad_wr))
-		ipoib_warn(priv, "failed to post rx_drain wr\n");
+	/*
+	 * QPs on flush list are error state.  This way, a "flush
+	 * error" WC will be immediately generated for each WR we post.
+	 */
+	p = list_entry(priv->cm.rx_flush_list.next, typeof(*p), list);
+	if (ib_post_send(p->qp, &ipoib_cm_rx_drain_wr, &bad_wr))
+		ipoib_warn(priv, "failed to post drain wr\n");
 
 	list_splice_init(&priv->cm.rx_flush_list, &priv->cm.rx_drain_list);
 }
@@ -199,10 +206,10 @@ static struct ib_qp *ipoib_cm_create_rx_qp(struct net_device *dev,
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ib_qp_init_attr attr = {
 		.event_handler = ipoib_cm_rx_event_handler,
-		.send_cq = priv->cq, /* does not matter, we never send anything */
+		.send_cq = priv->cq, /* For drain WR */
 		.recv_cq = priv->cq,
 		.srq = priv->cm.srq,
-		.cap.max_send_wr = 1, /* FIXME: 0 Seems not to work */
+		.cap.max_send_wr = 1, /* For drain WR */
 		.cap.max_send_sge = 1, /* FIXME: 0 Seems not to work */
 		.sq_sig_type = IB_SIGNAL_ALL_WR,
 		.qp_type = IB_QPT_RC,
@@ -242,6 +249,27 @@ static int ipoib_cm_modify_rx_qp(struct net_device *dev,
 		ipoib_warn(priv, "failed to modify QP to RTR: %d\n", ret);
 		return ret;
 	}
+
+	/*
+	 * Current Mellanox HCA firmware won't generate completions
+	 * with error for drain WRs unless the QP has been moved to
+	 * RTS first. This work-around leaves a window where a QP has
+	 * moved to error asynchronously, but this will eventually get
+	 * fixed in firmware, so let's not error out if modify QP
+	 * fails.
+	 */
+	qp_attr.qp_state = IB_QPS_RTS;
+	ret = ib_cm_init_qp_attr(cm_id, &qp_attr, &qp_attr_mask);
+	if (ret) {
+		ipoib_warn(priv, "failed to init QP attr for RTS: %d\n", ret);
+		return 0;
+	}
+	ret = ib_modify_qp(qp, &qp_attr, qp_attr_mask);
+	if (ret) {
+		ipoib_warn(priv, "failed to modify QP to RTS: %d\n", ret);
+		return 0;
+	}
+
 	return 0;
 }
 
@@ -623,37 +651,10 @@ static void ipoib_cm_tx_completion(struct ib_cq *cq, void *tx_ptr)
 int ipoib_cm_dev_open(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	struct ib_qp_init_attr qp_init_attr = {
-		.send_cq = priv->cq,   /* does not matter, we never send anything */
-		.recv_cq = priv->cq,
-		.cap.max_send_wr = 1,  /* FIXME: 0 Seems not to work */
-		.cap.max_send_sge = 1, /* FIXME: 0 Seems not to work */
-		.cap.max_recv_wr = 1,
-		.cap.max_recv_sge = 1, /* FIXME: 0 Seems not to work */
-		.sq_sig_type = IB_SIGNAL_ALL_WR,
-		.qp_type = IB_QPT_UC,
-	};
 	int ret;
 
 	if (!IPOIB_CM_SUPPORTED(dev->dev_addr))
 		return 0;
-
-	priv->cm.rx_drain_qp = ib_create_qp(priv->pd, &qp_init_attr);
-	if (IS_ERR(priv->cm.rx_drain_qp)) {
-		printk(KERN_WARNING "%s: failed to create CM ID\n", priv->ca->name);
-		ret = PTR_ERR(priv->cm.rx_drain_qp);
-		return ret;
-	}
-
-	/*
-	 * We put the QP in error state directly.  This way, a "flush
-	 * error" WC will be immediately generated for each WR we post.
-	 */
-	ret = ib_modify_qp(priv->cm.rx_drain_qp, &ipoib_cm_err_attr, IB_QP_STATE);
-	if (ret) {
-		ipoib_warn(priv, "failed to modify drain QP to error: %d\n", ret);
-		goto err_qp;
-	}
 
 	priv->cm.id = ib_create_cm_id(priv->ca, ipoib_cm_rx_handler, dev);
 	if (IS_ERR(priv->cm.id)) {
@@ -676,8 +677,6 @@ err_listen:
 	ib_destroy_cm_id(priv->cm.id);
 err_cm:
 	priv->cm.id = NULL;
-err_qp:
-	ib_destroy_qp(priv->cm.rx_drain_qp);
 	return ret;
 }
 
@@ -740,7 +739,6 @@ void ipoib_cm_dev_stop(struct net_device *dev)
 		kfree(p);
 	}
 
-	ib_destroy_qp(priv->cm.rx_drain_qp);
 	cancel_delayed_work(&priv->cm.stale_task);
 }
 
