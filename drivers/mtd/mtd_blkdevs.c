@@ -201,7 +201,7 @@ static int blktrans_ioctl(struct inode *inode, struct file *file,
 	}
 }
 
-struct block_device_operations mtd_blktrans_ops = {
+static struct block_device_operations mtd_blktrans_ops = {
 	.owner		= THIS_MODULE,
 	.open		= blktrans_open,
 	.release	= blktrans_release,
