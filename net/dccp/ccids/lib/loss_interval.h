@@ -52,9 +52,6 @@ extern void dccp_li_hist_purge(struct dccp_li_hist *hist,
 
 extern u32 dccp_li_hist_calc_i_mean(struct list_head *list);
 
-extern int dccp_li_hist_interval_new(struct dccp_li_hist *hist,
-   struct list_head *list, const u64 seq_loss, const u8 win_loss);
-
 extern void dccp_li_update_li(struct sock *sk, struct dccp_li_hist *li_hist,
 			      struct list_head *li_hist_list,
 			      struct list_head *hist_list,

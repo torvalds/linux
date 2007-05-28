@@ -120,8 +120,9 @@ u32 dccp_li_hist_calc_i_mean(struct list_head *list)
 
 EXPORT_SYMBOL_GPL(dccp_li_hist_calc_i_mean);
 
-int dccp_li_hist_interval_new(struct dccp_li_hist *hist,
-   struct list_head *list, const u64 seq_loss, const u8 win_loss)
+static int dccp_li_hist_interval_new(struct dccp_li_hist *hist,
+				     struct list_head *list,
+				     const u64 seq_loss, const u8 win_loss)
 {
 	struct dccp_li_hist_entry *entry;
 	int i;
@@ -141,8 +142,6 @@ int dccp_li_hist_interval_new(struct dccp_li_hist *hist,
 	entry->dccplih_win_count = win_loss;
 	return 1;
 }
-
-EXPORT_SYMBOL_GPL(dccp_li_hist_interval_new);
 
 /* calculate first loss interval
  *
