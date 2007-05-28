@@ -33,20 +33,6 @@ struct dccp_li_hist_entry {
 	u32		 dccplih_interval;
 };
 
-static inline struct dccp_li_hist_entry *
-		dccp_li_hist_entry_new(struct dccp_li_hist *hist,
-				       const gfp_t prio)
-{
-	return kmem_cache_alloc(hist->dccplih_slab, prio);
-}
-
-static inline void dccp_li_hist_entry_delete(struct dccp_li_hist *hist,
-					     struct dccp_li_hist_entry *entry)
-{
-	if (entry != NULL)
-		kmem_cache_free(hist->dccplih_slab, entry);
-}
-
 extern void dccp_li_hist_purge(struct dccp_li_hist *hist,
 			       struct list_head *list);
 
