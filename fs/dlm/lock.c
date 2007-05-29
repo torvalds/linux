@@ -1010,17 +1010,18 @@ static void add_timeout(struct dlm_lkb *lkb)
 {
 	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
 
-	if (is_master_copy(lkb))
+	if (is_master_copy(lkb)) {
+		lkb->lkb_timestamp = jiffies;
 		return;
-
-	if (lkb->lkb_exflags & DLM_LKF_TIMEOUT)
-		goto add_it;
+	}
 
 	if (test_bit(LSFL_TIMEWARN, &ls->ls_flags) &&
 	    !(lkb->lkb_exflags & DLM_LKF_NODLCKWT)) {
 		lkb->lkb_flags |= DLM_IFL_WATCH_TIMEWARN;
 		goto add_it;
 	}
+	if (lkb->lkb_exflags & DLM_LKF_TIMEOUT)
+		goto add_it;
 	return;
 
  add_it:
@@ -3510,8 +3511,7 @@ static void _receive_cancel_reply(struct dlm_lkb *lkb, struct dlm_message *ms)
 	case -DLM_ECANCEL:
 		receive_flags_reply(lkb, ms);
 		revert_lock_pc(r, lkb);
-		if (ms->m_result)
-			queue_cast(r, lkb, -DLM_ECANCEL);
+		queue_cast(r, lkb, -DLM_ECANCEL);
 		break;
 	case 0:
 		break;
@@ -4534,6 +4534,7 @@ void dlm_clear_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
 		lkb = del_proc_lock(ls, proc);
 		if (!lkb)
 			break;
+		del_timeout(lkb);
 		if (lkb->lkb_exflags & DLM_LKF_PERSISTENT)
 			orphan_proc_lock(ls, lkb);
 		else

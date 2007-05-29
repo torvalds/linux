@@ -133,8 +133,6 @@ void dlm_timeout_warn(struct dlm_lkb *lkb)
 	size_t size;
 	int rv;
 
-	log_debug(lkb->lkb_resource->res_ls, "timeout_warn %x", lkb->lkb_id);
-
 	size = nla_total_size(sizeof(struct dlm_lock_data)) +
 	       nla_total_size(0); /* why this? */
 

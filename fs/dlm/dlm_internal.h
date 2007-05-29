@@ -215,9 +215,9 @@ struct dlm_args {
 #define DLM_IFL_OVERLAP_CANCEL  0x00100000
 #define DLM_IFL_ENDOFLIFE	0x00200000
 #define DLM_IFL_WATCH_TIMEWARN	0x00400000
+#define DLM_IFL_TIMEOUT_CANCEL	0x00800000
 #define DLM_IFL_USER		0x00000001
 #define DLM_IFL_ORPHAN		0x00000002
-#define DLM_IFL_TIMEOUT_CANCEL	0x00000004
 
 struct dlm_lkb {
 	struct dlm_rsb		*lkb_resource;	/* the rsb */

@@ -138,6 +138,35 @@ static void compat_output(struct dlm_lock_result *res,
 }
 #endif
 
+/* Figure out if this lock is at the end of its life and no longer
+   available for the application to use.  The lkb still exists until
+   the final ast is read.  A lock becomes EOL in three situations:
+     1. a noqueue request fails with EAGAIN
+     2. an unlock completes with EUNLOCK
+     3. a cancel of a waiting request completes with ECANCEL/EDEADLK
+   An EOL lock needs to be removed from the process's list of locks.
+   And we can't allow any new operation on an EOL lock.  This is
+   not related to the lifetime of the lkb struct which is managed
+   entirely by refcount. */
+
+static int lkb_is_endoflife(struct dlm_lkb *lkb, int sb_status, int type)
+{
+	switch (sb_status) {
+	case -DLM_EUNLOCK:
+		return 1;
+	case -DLM_ECANCEL:
+	case -ETIMEDOUT:
+		if (lkb->lkb_grmode == DLM_LOCK_IV)
+			return 1;
+		break;
+	case -EAGAIN:
+		if (type == AST_COMP && lkb->lkb_grmode == DLM_LOCK_IV)
+			return 1;
+		break;
+	}
+	return 0;
+}
+
 /* we could possibly check if the cancel of an orphan has resulted in the lkb
    being removed and then remove that lkb from the orphans list and free it */
 
@@ -184,25 +213,7 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, int type)
 		log_debug(ls, "ast overlap %x status %x %x",
 			  lkb->lkb_id, ua->lksb.sb_status, lkb->lkb_flags);
 
-	/* Figure out if this lock is at the end of its life and no longer
-	   available for the application to use.  The lkb still exists until
-	   the final ast is read.  A lock becomes EOL in three situations:
-	     1. a noqueue request fails with EAGAIN
-	     2. an unlock completes with EUNLOCK
-	     3. a cancel of a waiting request completes with ECANCEL
-	   An EOL lock needs to be removed from the process's list of locks.
-	   And we can't allow any new operation on an EOL lock.  This is
-	   not related to the lifetime of the lkb struct which is managed
-	   entirely by refcount. */
-
-	if (type == AST_COMP &&
-	    lkb->lkb_grmode == DLM_LOCK_IV &&
-	    ua->lksb.sb_status == -EAGAIN)
-		eol = 1;
-	else if (ua->lksb.sb_status == -DLM_EUNLOCK ||
-	    (ua->lksb.sb_status == -DLM_ECANCEL &&
-	     lkb->lkb_grmode == DLM_LOCK_IV))
-		eol = 1;
+	eol = lkb_is_endoflife(lkb, ua->lksb.sb_status, type);
 	if (eol) {
 		lkb->lkb_ast_type &= ~AST_BAST;
 		lkb->lkb_flags |= DLM_IFL_ENDOFLIFE;
