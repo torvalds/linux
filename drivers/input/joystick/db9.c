@@ -54,7 +54,7 @@ static struct db9_config db9_cfg[DB9_MAX_PORTS] __initdata;
 
 module_param_array_named(dev, db9_cfg[0].args, int, &db9_cfg[0].nargs, 0);
 MODULE_PARM_DESC(dev, "Describes first attached device (<parport#>,<type>)");
-module_param_array_named(dev2, db9_cfg[1].args, int, &db9_cfg[0].nargs, 0);
+module_param_array_named(dev2, db9_cfg[1].args, int, &db9_cfg[1].nargs, 0);
 MODULE_PARM_DESC(dev2, "Describes second attached device (<parport#>,<type>)");
 module_param_array_named(dev3, db9_cfg[2].args, int, &db9_cfg[2].nargs, 0);
 MODULE_PARM_DESC(dev3, "Describes third attached device (<parport#>,<type>)");
