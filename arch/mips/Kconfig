@@ -63,6 +63,7 @@ config MACH_DECSTATION
 	bool "DECstations"
 	select BOOT_ELF32
 	select DMA_NONCOHERENT
+	select NO_IOPORT
 	select SYS_HAS_EARLY_PRINTK
 	select IRQ_CPU
 	select SYS_HAS_CPU_R3000
@@ -774,6 +775,9 @@ config MIPS_NILE4
 
 config MIPS_DISABLE_OBSOLETE_IDE
 	bool
+
+config NO_IOPORT
+	def_bool n
 
 config GENERIC_ISA_DMA_SUPPORT_BROKEN
 	bool
