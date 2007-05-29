@@ -43,6 +43,7 @@
 #include <linux/notifier.h>
 #include <asm/setup.h>
 #include <asm/io.h>
+#include <linux/log2.h>
 
 extern struct atomic_notifier_head panic_notifier_list;
 static int alpha_panic_event(struct notifier_block *, unsigned long, void *);
@@ -1303,7 +1304,7 @@ external_cache_probe(int minsize, int width)
 	long size = minsize, maxsize = MAX_BCACHE_SIZE * 2;
 
 	if (maxsize > (max_low_pfn + 1) << PAGE_SHIFT)
-		maxsize = 1 << (floor_log2(max_low_pfn + 1) + PAGE_SHIFT);
+		maxsize = 1 << (ilog2(max_low_pfn + 1) + PAGE_SHIFT);
 
 	/* Get the first block cached. */
 	read_mem_block(__va(0), stride, size);
