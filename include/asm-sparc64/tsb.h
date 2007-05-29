@@ -271,7 +271,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 #define KERN_TSB4M_LOOKUP_TL1(TAG, REG1, REG2, REG3, REG4, OK_LABEL) \
 	sethi		%hi(swapper_4m_tsb), REG1; \
 	or		REG1, %lo(swapper_4m_tsb), REG1; \
-	and		TAG, (KERNEL_TSB_NENTRIES - 1), REG2; \
+	and		TAG, (KERNEL_TSB4M_NENTRIES - 1), REG2; \
 	sllx		REG2, 4, REG2; \
 	add		REG1, REG2, REG2; \
 	KTSB_LOAD_QUAD(REG2, REG3); \

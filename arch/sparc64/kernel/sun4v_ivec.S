@@ -22,12 +22,12 @@ sun4v_cpu_mondo:
 	be,pn	%xcc, sun4v_cpu_mondo_queue_empty
 	 nop
 
-	/* Get &trap_block[smp_processor_id()] into %g3.  */
-	ldxa	[%g0] ASI_SCRATCHPAD, %g3
-	sub	%g3, TRAP_PER_CPU_FAULT_INFO, %g3
+	/* Get &trap_block[smp_processor_id()] into %g4.  */
+	ldxa	[%g0] ASI_SCRATCHPAD, %g4
+	sub	%g4, TRAP_PER_CPU_FAULT_INFO, %g4
 
 	/* Get CPU mondo queue base phys address into %g7.  */
-	ldx	[%g3 + TRAP_PER_CPU_CPU_MONDO_PA], %g7
+	ldx	[%g4 + TRAP_PER_CPU_CPU_MONDO_PA], %g7
 
 	/* Now get the cross-call arguments and handler PC, same
 	 * layout as sun4u:
@@ -47,8 +47,7 @@ sun4v_cpu_mondo:
 	add	%g2, 0x40 - 0x8 - 0x8, %g2
 
 	/* Update queue head pointer.  */
-	sethi	%hi(8192 - 1), %g4
-	or	%g4, %lo(8192 - 1), %g4
+	lduw	[%g4 + TRAP_PER_CPU_CPU_MONDO_QMASK], %g4
 	and	%g2, %g4, %g2
 
 	mov	INTRQ_CPU_MONDO_HEAD, %g4
@@ -71,12 +70,12 @@ sun4v_dev_mondo:
 	be,pn	%xcc, sun4v_dev_mondo_queue_empty
 	 nop
 
-	/* Get &trap_block[smp_processor_id()] into %g3.  */
-	ldxa	[%g0] ASI_SCRATCHPAD, %g3
-	sub	%g3, TRAP_PER_CPU_FAULT_INFO, %g3
+	/* Get &trap_block[smp_processor_id()] into %g4.  */
+	ldxa	[%g0] ASI_SCRATCHPAD, %g4
+	sub	%g4, TRAP_PER_CPU_FAULT_INFO, %g4
 
 	/* Get DEV mondo queue base phys address into %g5.  */
-	ldx	[%g3 + TRAP_PER_CPU_DEV_MONDO_PA], %g5
+	ldx	[%g4 + TRAP_PER_CPU_DEV_MONDO_PA], %g5
 
 	/* Load IVEC into %g3.  */
 	ldxa	[%g5 + %g2] ASI_PHYS_USE_EC, %g3
@@ -90,8 +89,7 @@ sun4v_dev_mondo:
 	 */
 
 	/* Update queue head pointer, this frees up some registers.  */
-	sethi	%hi(8192 - 1), %g4
-	or	%g4, %lo(8192 - 1), %g4
+	lduw	[%g4 + TRAP_PER_CPU_DEV_MONDO_QMASK], %g4
 	and	%g2, %g4, %g2
 
 	mov	INTRQ_DEVICE_MONDO_HEAD, %g4
@@ -143,6 +141,8 @@ sun4v_res_mondo:
 	brnz,pn	%g1, sun4v_res_mondo_queue_full
 	 nop
 
+	lduw	[%g3 + TRAP_PER_CPU_RESUM_QMASK], %g4
+
 	/* Remember this entry's offset in %g1.  */
 	mov	%g2, %g1
 
@@ -173,8 +173,6 @@ sun4v_res_mondo:
 	add	%g2, 0x08, %g2
 
 	/* Update queue head pointer.  */
-	sethi	%hi(8192 - 1), %g4
-	or	%g4, %lo(8192 - 1), %g4
 	and	%g2, %g4, %g2
 
 	mov	INTRQ_RESUM_MONDO_HEAD, %g4
@@ -254,6 +252,8 @@ sun4v_nonres_mondo:
 	brnz,pn	%g1, sun4v_nonres_mondo_queue_full
 	 nop
 
+	lduw	[%g3 + TRAP_PER_CPU_NONRESUM_QMASK], %g4
+
 	/* Remember this entry's offset in %g1.  */
 	mov	%g2, %g1
 
@@ -284,8 +284,6 @@ sun4v_nonres_mondo:
 	add	%g2, 0x08, %g2
 
 	/* Update queue head pointer.  */
-	sethi	%hi(8192 - 1), %g4
-	or	%g4, %lo(8192 - 1), %g4
 	and	%g2, %g4, %g2
 
 	mov	INTRQ_NONRESUM_MONDO_HEAD, %g4

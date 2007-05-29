@@ -73,6 +73,8 @@
 #define HV_ENOTSUPPORTED		13 /* Function not supported       */
 #define HV_ENOMAP			14 /* No mapping found             */
 #define HV_ETOOMANY			15 /* Too many items specified     */
+#define HV_ECHANNEL			16 /* Invalid LDC channel          */
+#define HV_EBUSY			17 /* Resource busy                */
 
 /* mach_exit()
  * TRAP:	HV_FAST_TRAP
@@ -94,6 +96,10 @@
  *
  */
 #define HV_FAST_MACH_EXIT		0x00
+
+#ifndef __ASSEMBLY__
+extern void sun4v_mach_exit(unsigned long exit_core);
+#endif
 
 /* Domain services.  */
 
@@ -120,7 +126,13 @@
  */
 #define HV_FAST_MACH_DESC		0x01
 
-/* mach_exit()
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_mach_desc(unsigned long buffer_pa,
+				     unsigned long buf_len,
+				     unsigned long *real_buf_len);
+#endif
+
+/* mach_sir()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_MACH_SIR
  * ERRORS:	This service does not return.
@@ -135,53 +147,66 @@
  */
 #define HV_FAST_MACH_SIR		0x02
 
-/* mach_set_soft_state()
- * TRAP:	HV_FAST_TRAP
- * FUNCTION:	HV_FAST_MACH_SET_SOFT_STATE
- * ARG0:	software state
- * ARG1:	software state description pointer
- * RET0:	status
- * ERRORS:	EINVAL		software state not valid or software state
- *				description is not NULL terminated
- *		ENORADDR	software state description pointer is not a
- *				valid real address
- *		EBADALIGNED	software state description is not correctly
- *				aligned
- *
- * This allows the guest to report it's soft state to the hypervisor.  There
- * are two primary components to this state.  The first part states whether
- * the guest software is running or not.  The second containts optional
- * details specific to the software.
- *
- * The software state argument is defined below in HV_SOFT_STATE_*, and
- * indicates whether the guest is operating normally or in a transitional
- * state.
- *
- * The software state description argument is a real address of a data buffer
- * of size 32-bytes aligned on a 32-byte boundary.  It is treated as a NULL
- * terminated 7-bit ASCII string of up to 31 characters not including the
- * NULL termination.
- */
-#define HV_FAST_MACH_SET_SOFT_STATE	0x03
-#define  HV_SOFT_STATE_NORMAL		 0x01
-#define  HV_SOFT_STATE_TRANSITION	 0x02
+#ifndef __ASSEMBLY__
+extern void sun4v_mach_sir(void);
+#endif
 
-/* mach_get_soft_state()
+/* mach_set_watchdog()
  * TRAP:	HV_FAST_TRAP
- * FUNCTION:	HV_FAST_MACH_GET_SOFT_STATE
- * ARG0:	software state description pointer
+ * FUNCTION:	HV_FAST_MACH_SET_WATCHDOG
+ * ARG0:	timeout in milliseconds
  * RET0:	status
- * RET1:	software state
- * ERRORS:	ENORADDR	software state description pointer is not a
- *				valid real address
- *		EBADALIGNED	software state description is not correctly
- *				aligned
+ * RET1:	time remaining in milliseconds
  *
- * Retrieve the current value of the guest's software state.  The rules
- * for the software state pointer are the same as for mach_set_soft_state()
- * above.
+ * A guest uses this API to set a watchdog timer.  Once the gues has set
+ * the timer, it must call the timer service again either to disable or
+ * postpone the expiration.  If the timer expires before being reset or
+ * disabled, then the hypervisor take a platform specific action leading
+ * to guest termination within a bounded time period.  The platform action
+ * may include recovery actions such as reporting the expiration to a
+ * Service Processor, and/or automatically restarting the gues.
+ *
+ * The 'timeout' parameter is specified in milliseconds, however the
+ * implementated granularity is given by the 'watchdog-resolution'
+ * property in the 'platform' node of the guest's machine description.
+ * The largest allowed timeout value is specified by the
+ * 'watchdog-max-timeout' property of the 'platform' node.
+ *
+ * If the 'timeout' argument is not zero, the watchdog timer is set to
+ * expire after a minimum of 'timeout' milliseconds.
+ *
+ * If the 'timeout' argument is zero, the watchdog timer is disabled.
+ *
+ * If the 'timeout' value exceeds the value of the 'max-watchdog-timeout'
+ * property, the hypervisor leaves the watchdog timer state unchanged,
+ * and returns a status of EINVAL.
+ *
+ * The 'time remaining' return value is valid regardless of whether the
+ * return status is EOK or EINVAL.  A non-zero return value indicates the
+ * number of milliseconds that were remaining until the timer was to expire.
+ * If less than one millisecond remains, the return value is '1'.  If the
+ * watchdog timer was disabled at the time of the call, the return value is
+ * zero.
+ *
+ * If the hypervisor cannot support the exact timeout value requested, but
+ * can support a larger timeout value, the hypervisor may round the actual
+ * timeout to a value larger than the requested timeout, consequently the
+ * 'time remaining' return value may be larger than the previously requested
+ * timeout value.
+ *
+ * Any guest OS debugger should be aware that the watchdog service may be in
+ * use.  Consequently, it is recommended that the watchdog service is
+ * disabled upon debugger entry (e.g. reaching a breakpoint), and then
+ * re-enabled upon returning to normal execution.  The API has been designed
+ * with this in mind, and the 'time remaining' result of the disable call may
+ * be used directly as the timeout argument of the re-enable call.
  */
-#define HV_FAST_MACH_GET_SOFT_STATE	0x04
+#define HV_FAST_MACH_SET_WATCHDOG	0x05
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_mach_set_watchdog(unsigned long timeout,
+					     unsigned long *orig_timeout);
+#endif
 
 /* CPU services.
  *
@@ -206,8 +231,8 @@
  * FUNCTION:	HV_FAST_CPU_START
  * ARG0:	CPU ID
  * ARG1:	PC
- * ARG1:	RTBA
- * ARG1:	target ARG0
+ * ARG2:	RTBA
+ * ARG3:	target ARG0
  * RET0:	status
  * ERRORS:	ENOCPU		Invalid CPU ID
  *		EINVAL		Target CPU ID is not in the stopped state
@@ -223,6 +248,13 @@
  * and RTBA in %tba.
  */
 #define HV_FAST_CPU_START		0x10
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_cpu_start(unsigned long cpuid,
+				     unsigned long pc,
+				     unsigned long rtba,
+				     unsigned long arg0);
+#endif
 
 /* cpu_stop()
  * TRAP:	HV_FAST_TRAP
@@ -244,6 +276,10 @@
  *       and exit a running domain, a guest must use the mach_exit() service.
  */
 #define HV_FAST_CPU_STOP		0x11
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_cpu_stop(unsigned long cpuid);
+#endif
 
 /* cpu_yield()
  * TRAP:	HV_FAST_TRAP
@@ -588,6 +624,11 @@ struct hv_fault_status {
  */
 #define HV_FAST_MMU_TSB_CTX0		0x20
 
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_mmu_tsb_ctx0(unsigned long num_descriptions,
+					unsigned long tsb_desc_ra);
+#endif
+
 /* mmu_tsb_ctxnon0()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_MMU_TSB_CTXNON0
@@ -693,6 +734,13 @@ struct hv_fault_status {
  *       this mechanism can be used to map kernel nucleus code and data.
  */
 #define HV_FAST_MMU_MAP_PERM_ADDR	0x25
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
+					     unsigned long set_to_zero,
+					     unsigned long tte,
+					     unsigned long flags);
+#endif
 
 /* mmu_fault_area_conf()
  * TRAP:	HV_FAST_TRAP
@@ -892,6 +940,10 @@ struct hv_fault_status {
  */
 #define HV_FAST_TOD_GET			0x50
 
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_tod_get(unsigned long *time);
+#endif
+
 /* tod_set()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_TOD_SET
@@ -904,6 +956,10 @@ struct hv_fault_status {
  * block if TOD access is temporarily not possible.
  */
 #define HV_FAST_TOD_SET			0x51
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_tod_set(unsigned long time);
+#endif
 
 /* Console services */
 
@@ -987,6 +1043,59 @@ extern unsigned long sun4v_con_write(unsigned long buffer,
 				     unsigned long size,
 				     unsigned long *bytes_written);
 #endif
+
+/* mach_set_soft_state()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_MACH_SET_SOFT_STATE
+ * ARG0:	software state
+ * ARG1:	software state description pointer
+ * RET0:	status
+ * ERRORS:	EINVAL		software state not valid or software state
+ *				description is not NULL terminated
+ *		ENORADDR	software state description pointer is not a
+ *				valid real address
+ *		EBADALIGNED	software state description is not correctly
+ *				aligned
+ *
+ * This allows the guest to report it's soft state to the hypervisor.  There
+ * are two primary components to this state.  The first part states whether
+ * the guest software is running or not.  The second containts optional
+ * details specific to the software.
+ *
+ * The software state argument is defined below in HV_SOFT_STATE_*, and
+ * indicates whether the guest is operating normally or in a transitional
+ * state.
+ *
+ * The software state description argument is a real address of a data buffer
+ * of size 32-bytes aligned on a 32-byte boundary.  It is treated as a NULL
+ * terminated 7-bit ASCII string of up to 31 characters not including the
+ * NULL termination.
+ */
+#define HV_FAST_MACH_SET_SOFT_STATE	0x70
+#define  HV_SOFT_STATE_NORMAL		 0x01
+#define  HV_SOFT_STATE_TRANSITION	 0x02
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_mach_set_soft_state(unsigned long soft_state,
+					       unsigned long msg_string_ra);
+#endif
+
+/* mach_get_soft_state()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_MACH_GET_SOFT_STATE
+ * ARG0:	software state description pointer
+ * RET0:	status
+ * RET1:	software state
+ * ERRORS:	ENORADDR	software state description pointer is not a
+ *				valid real address
+ *		EBADALIGNED	software state description is not correctly
+ *				aligned
+ *
+ * Retrieve the current value of the guest's software state.  The rules
+ * for the software state pointer are the same as for mach_set_soft_state()
+ * above.
+ */
+#define HV_FAST_MACH_GET_SOFT_STATE	0x71
 
 /* Trap trace services.
  *
@@ -1377,6 +1486,113 @@ extern unsigned long sun4v_intr_gettarget(unsigned long sysino);
 
 #ifndef __ASSEMBLY__
 extern unsigned long sun4v_intr_settarget(unsigned long sysino, unsigned long cpuid);
+#endif
+
+/* vintr_get_cookie()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_VINTR_GET_COOKIE
+ * ARG0:	device handle
+ * ARG1:	device ino
+ * RET0:	status
+ * RET1:	cookie
+ */
+#define HV_FAST_VINTR_GET_COOKIE	0xa7
+
+/* vintr_set_cookie()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_VINTR_SET_COOKIE
+ * ARG0:	device handle
+ * ARG1:	device ino
+ * ARG2:	cookie
+ * RET0:	status
+ */
+#define HV_FAST_VINTR_SET_COOKIE	0xa8
+
+/* vintr_get_valid()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_VINTR_GET_VALID
+ * ARG0:	device handle
+ * ARG1:	device ino
+ * RET0:	status
+ * RET1:	valid state
+ */
+#define HV_FAST_VINTR_GET_VALID		0xa9
+
+/* vintr_set_valid()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_VINTR_SET_VALID
+ * ARG0:	device handle
+ * ARG1:	device ino
+ * ARG2:	valid state
+ * RET0:	status
+ */
+#define HV_FAST_VINTR_SET_VALID		0xaa
+
+/* vintr_get_state()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_VINTR_GET_STATE
+ * ARG0:	device handle
+ * ARG1:	device ino
+ * RET0:	status
+ * RET1:	state
+ */
+#define HV_FAST_VINTR_GET_STATE		0xab
+
+/* vintr_set_state()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_VINTR_SET_STATE
+ * ARG0:	device handle
+ * ARG1:	device ino
+ * ARG2:	state
+ * RET0:	status
+ */
+#define HV_FAST_VINTR_SET_STATE		0xac
+
+/* vintr_get_target()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_VINTR_GET_TARGET
+ * ARG0:	device handle
+ * ARG1:	device ino
+ * RET0:	status
+ * RET1:	cpuid
+ */
+#define HV_FAST_VINTR_GET_TARGET	0xad
+
+/* vintr_set_target()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_VINTR_SET_TARGET
+ * ARG0:	device handle
+ * ARG1:	device ino
+ * ARG2:	cpuid
+ * RET0:	status
+ */
+#define HV_FAST_VINTR_SET_TARGET	0xae
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_vintr_get_cookie(unsigned long dev_handle,
+					    unsigned long dev_ino,
+					    unsigned long *cookie);
+extern unsigned long sun4v_vintr_set_cookie(unsigned long dev_handle,
+					    unsigned long dev_ino,
+					    unsigned long cookie);
+extern unsigned long sun4v_vintr_get_valid(unsigned long dev_handle,
+					   unsigned long dev_ino,
+					   unsigned long *valid);
+extern unsigned long sun4v_vintr_set_valid(unsigned long dev_handle,
+					   unsigned long dev_ino,
+					   unsigned long valid);
+extern unsigned long sun4v_vintr_get_state(unsigned long dev_handle,
+					   unsigned long dev_ino,
+					   unsigned long *state);
+extern unsigned long sun4v_vintr_set_state(unsigned long dev_handle,
+					   unsigned long dev_ino,
+					   unsigned long state);
+extern unsigned long sun4v_vintr_get_target(unsigned long dev_handle,
+					    unsigned long dev_ino,
+					    unsigned long *cpuid);
+extern unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
+					    unsigned long dev_ino,
+					    unsigned long cpuid);
 #endif
 
 /* PCI IO services.
@@ -2037,6 +2253,346 @@ extern unsigned long sun4v_intr_settarget(unsigned long sysino, unsigned long cp
  */
 #define HV_FAST_PCI_MSG_SETVALID	0xd3
 
+/* Logical Domain Channel services.  */
+
+#define LDC_CHANNEL_DOWN		0
+#define LDC_CHANNEL_UP			1
+#define LDC_CHANNEL_RESETTING		2
+
+/* ldc_tx_qconf()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_LDC_TX_QCONF
+ * ARG0:	channel ID
+ * ARG1:	real address base of queue
+ * ARG2:	num entries in queue
+ * RET0:	status
+ *
+ * Configure transmit queue for the LDC endpoint specified by the
+ * given channel ID, to be placed at the given real address, and
+ * be of the given num entries.  Num entries must be a power of two.
+ * The real address base of the queue must be aligned on the queue
+ * size.  Each queue entry is 64-bytes, so for example, a 32 entry
+ * queue must be aligned on a 2048 byte real address boundary.
+ *
+ * Upon configuration of a valid transmit queue the head and tail
+ * pointers are set to a hypervisor specific identical value indicating
+ * that the queue initially is empty.
+ *
+ * The endpoint's transmit queue is un-configured if num entries is zero.
+ *
+ * The maximum number of entries for each queue for a specific cpu may be
+ * determined from the machine description.  A transmit queue may be
+ * specified even in the event that the LDC is down (peer endpoint has no
+ * receive queue specified).  Transmission will begin as soon as the peer
+ * endpoint defines a receive queue.
+ *
+ * It is recommended that a guest wait for a transmit queue to empty prior
+ * to reconfiguring it, or un-configuring it.  Re or un-configuring of a
+ * non-empty transmit queue behaves exactly as defined above, however it
+ * is undefined as to how many of the pending entries in the original queue
+ * will be delivered prior to the re-configuration taking effect.
+ * Furthermore, as the queue configuration causes a reset of the head and
+ * tail pointers there is no way for a guest to determine how many entries
+ * have been sent after the configuration operation.
+ */
+#define HV_FAST_LDC_TX_QCONF		0xe0
+
+/* ldc_tx_qinfo()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_LDC_TX_QINFO
+ * ARG0:	channel ID
+ * RET0:	status
+ * RET1:	real address base of queue
+ * RET2:	num entries in queue
+ *
+ * Return the configuration info for the transmit queue of LDC endpoint
+ * defined by the given channel ID.  The real address is the currently
+ * defined real address base of the defined queue, and num entries is the
+ * size of the queue in terms of number of entries.
+ *
+ * If the specified channel ID is a valid endpoint number, but no transmit
+ * queue has been defined this service will return success, but with num
+ * entries set to zero and the real address will have an undefined value.
+ */
+#define HV_FAST_LDC_TX_QINFO		0xe1
+
+/* ldc_tx_get_state()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_LDC_TX_GET_STATE
+ * ARG0:	channel ID
+ * RET0:	status
+ * RET1:	head offset
+ * RET2:	tail offset
+ * RET3:	channel state
+ *
+ * Return the transmit state, and the head and tail queue pointers, for
+ * the transmit queue of the LDC endpoint defined by the given channel ID.
+ * The head and tail values are the byte offset of the head and tail
+ * positions of the transmit queue for the specified endpoint.
+ */
+#define HV_FAST_LDC_TX_GET_STATE	0xe2
+
+/* ldc_tx_set_qtail()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_LDC_TX_SET_QTAIL
+ * ARG0:	channel ID
+ * ARG1:	tail offset
+ * RET0:	status
+ *
+ * Update the tail pointer for the transmit queue associated with the LDC
+ * endpoint defined by the given channel ID.  The tail offset specified
+ * must be aligned on a 64 byte boundary, and calculated so as to increase
+ * the number of pending entries on the transmit queue.  Any attempt to
+ * decrease the number of pending transmit queue entires is considered
+ * an invalid tail offset and will result in an EINVAL error.
+ *
+ * Since the tail of the transmit queue may not be moved backwards, the
+ * transmit queue may be flushed by configuring a new transmit queue,
+ * whereupon the hypervisor will configure the initial transmit head and
+ * tail pointers to be equal.
+ */
+#define HV_FAST_LDC_TX_SET_QTAIL	0xe3
+
+/* ldc_rx_qconf()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_LDC_RX_QCONF
+ * ARG0:	channel ID
+ * ARG1:	real address base of queue
+ * ARG2:	num entries in queue
+ * RET0:	status
+ *
+ * Configure receive queue for the LDC endpoint specified by the
+ * given channel ID, to be placed at the given real address, and
+ * be of the given num entries.  Num entries must be a power of two.
+ * The real address base of the queue must be aligned on the queue
+ * size.  Each queue entry is 64-bytes, so for example, a 32 entry
+ * queue must be aligned on a 2048 byte real address boundary.
+ *
+ * The endpoint's transmit queue is un-configured if num entries is zero.
+ *
+ * If a valid receive queue is specified for a local endpoint the LDC is
+ * in the up state for the purpose of transmission to this endpoint.
+ *
+ * The maximum number of entries for each queue for a specific cpu may be
+ * determined from the machine description.
+ *
+ * As receive queue configuration causes a reset of the queue's head and
+ * tail pointers there is no way for a gues to determine how many entries
+ * have been received between a preceeding ldc_get_rx_state() API call
+ * and the completion of the configuration operation.  It should be noted
+ * that datagram delivery is not guarenteed via domain channels anyway,
+ * and therefore any higher protocol should be resilient to datagram
+ * loss if necessary.  However, to overcome this specific race potential
+ * it is recommended, for example, that a higher level protocol be employed
+ * to ensure either retransmission, or ensure that no datagrams are pending
+ * on the peer endpoint's transmit queue prior to the configuration process.
+ */
+#define HV_FAST_LDC_RX_QCONF		0xe4
+
+/* ldc_rx_qinfo()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_LDC_RX_QINFO
+ * ARG0:	channel ID
+ * RET0:	status
+ * RET1:	real address base of queue
+ * RET2:	num entries in queue
+ *
+ * Return the configuration info for the receive queue of LDC endpoint
+ * defined by the given channel ID.  The real address is the currently
+ * defined real address base of the defined queue, and num entries is the
+ * size of the queue in terms of number of entries.
+ *
+ * If the specified channel ID is a valid endpoint number, but no receive
+ * queue has been defined this service will return success, but with num
+ * entries set to zero and the real address will have an undefined value.
+ */
+#define HV_FAST_LDC_RX_QINFO		0xe5
+
+/* ldc_rx_get_state()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_LDC_RX_GET_STATE
+ * ARG0:	channel ID
+ * RET0:	status
+ * RET1:	head offset
+ * RET2:	tail offset
+ * RET3:	channel state
+ *
+ * Return the receive state, and the head and tail queue pointers, for
+ * the receive queue of the LDC endpoint defined by the given channel ID.
+ * The head and tail values are the byte offset of the head and tail
+ * positions of the receive queue for the specified endpoint.
+ */
+#define HV_FAST_LDC_RX_GET_STATE	0xe6
+
+/* ldc_rx_set_qhead()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_LDC_RX_SET_QHEAD
+ * ARG0:	channel ID
+ * ARG1:	head offset
+ * RET0:	status
+ *
+ * Update the head pointer for the receive queue associated with the LDC
+ * endpoint defined by the given channel ID.  The head offset specified
+ * must be aligned on a 64 byte boundary, and calculated so as to decrease
+ * the number of pending entries on the receive queue.  Any attempt to
+ * increase the number of pending receive queue entires is considered
+ * an invalid head offset and will result in an EINVAL error.
+ *
+ * The receive queue may be flushed by setting the head offset equal
+ * to the current tail offset.
+ */
+#define HV_FAST_LDC_RX_SET_QHEAD	0xe7
+
+/* LDC Map Table Entry.  Each slot is defined by a translation table
+ * entry, as specified by the LDC_MTE_* bits below, and a 64-bit
+ * hypervisor invalidation cookie.
+ */
+#define LDC_MTE_PADDR	0x0fffffffffffe000 /* pa[55:13]          */
+#define LDC_MTE_COPY_W	0x0000000000000400 /* copy write access  */
+#define LDC_MTE_COPY_R	0x0000000000000200 /* copy read access   */
+#define LDC_MTE_IOMMU_W	0x0000000000000100 /* IOMMU write access */
+#define LDC_MTE_IOMMU_R	0x0000000000000080 /* IOMMU read access  */
+#define LDC_MTE_EXEC	0x0000000000000040 /* execute            */
+#define LDC_MTE_WRITE	0x0000000000000020 /* read               */
+#define LDC_MTE_READ	0x0000000000000010 /* write              */
+#define LDC_MTE_SZALL	0x000000000000000f /* page size bits     */
+#define LDC_MTE_SZ16GB	0x0000000000000007 /* 16GB page          */
+#define LDC_MTE_SZ2GB	0x0000000000000006 /* 2GB page           */
+#define LDC_MTE_SZ256MB	0x0000000000000005 /* 256MB page         */
+#define LDC_MTE_SZ32MB	0x0000000000000004 /* 32MB page          */
+#define LDC_MTE_SZ4MB	0x0000000000000003 /* 4MB page           */
+#define LDC_MTE_SZ512K	0x0000000000000002 /* 512K page          */
+#define LDC_MTE_SZ64K	0x0000000000000001 /* 64K page           */
+#define LDC_MTE_SZ8K	0x0000000000000000 /* 8K page            */
+
+#ifndef __ASSEMBLY__
+struct ldc_mtable_entry {
+	unsigned long	mte;
+	unsigned long	cookie;
+};
+#endif
+
+/* ldc_set_map_table()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_LDC_SET_MAP_TABLE
+ * ARG0:	channel ID
+ * ARG1:	table real address
+ * ARG2:	num entries
+ * RET0:	status
+ *
+ * Register the MTE table at the given table real address, with the
+ * specified num entries, for the LDC indicated by the given channel
+ * ID.
+ */
+#define HV_FAST_LDC_SET_MAP_TABLE	0xea
+
+/* ldc_get_map_table()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_LDC_GET_MAP_TABLE
+ * ARG0:	channel ID
+ * RET0:	status
+ * RET1:	table real address
+ * RET2:	num entries
+ *
+ * Return the configuration of the current mapping table registered
+ * for the given channel ID.
+ */
+#define HV_FAST_LDC_GET_MAP_TABLE	0xeb
+
+#define LDC_COPY_IN	0
+#define LDC_COPY_OUT	1
+
+/* ldc_copy()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_LDC_COPY
+ * ARG0:	channel ID
+ * ARG1:	LDC_COPY_* direction code
+ * ARG2:	target real address
+ * ARG3:	local real address
+ * ARG4:	length in bytes
+ * RET0:	status
+ * RET1:	actual length in bytes
+ */
+#define HV_FAST_LDC_COPY		0xec
+
+#define LDC_MEM_READ	1
+#define LDC_MEM_WRITE	2
+#define LDC_MEM_EXEC	4
+
+/* ldc_mapin()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_LDC_MAPIN
+ * ARG0:	channel ID
+ * ARG1:	cookie
+ * RET0:	status
+ * RET1:	real address
+ * RET2:	LDC_MEM_* permissions
+ */
+#define HV_FAST_LDC_MAPIN		0xed
+
+/* ldc_unmap()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_LDC_UNMAP
+ * ARG0:	real address
+ * RET0:	status
+ */
+#define HV_FAST_LDC_UNMAP		0xee
+
+/* ldc_revoke()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_LDC_REVOKE
+ * ARG0:	cookie
+ * ARG1:	ldc_mtable_entry cookie
+ * RET0:	status
+ */
+#define HV_FAST_LDC_REVOKE		0xef
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_ldc_tx_qconf(unsigned long channel,
+					unsigned long ra,
+					unsigned long num_entries);
+extern unsigned long sun4v_ldc_tx_qinfo(unsigned long channel,
+					unsigned long *ra,
+					unsigned long *num_entries);
+extern unsigned long sun4v_ldc_tx_get_state(unsigned long channel,
+					    unsigned long *head_off,
+					    unsigned long *tail_off,
+					    unsigned long *chan_state);
+extern unsigned long sun4v_ldc_tx_set_qtail(unsigned long channel,
+					    unsigned long tail_off);
+extern unsigned long sun4v_ldc_rx_qconf(unsigned long channel,
+					unsigned long ra,
+					unsigned long num_entries);
+extern unsigned long sun4v_ldc_rx_qinfo(unsigned long channel,
+					unsigned long *ra,
+					unsigned long *num_entries);
+extern unsigned long sun4v_ldc_rx_get_state(unsigned long channel,
+					    unsigned long *head_off,
+					    unsigned long *tail_off,
+					    unsigned long *chan_state);
+extern unsigned long sun4v_ldc_rx_set_qhead(unsigned long channel,
+					    unsigned long head_off);
+extern unsigned long sun4v_ldc_set_map_table(unsigned long channel,
+					     unsigned long ra,
+					     unsigned long num_entries);
+extern unsigned long sun4v_ldc_get_map_table(unsigned long channel,
+					     unsigned long *ra,
+					     unsigned long *num_entries);
+extern unsigned long sun4v_ldc_copy(unsigned long channel,
+				    unsigned long dir_code,
+				    unsigned long tgt_raddr,
+				    unsigned long lcl_raddr,
+				    unsigned long len,
+				    unsigned long *actual_len);
+extern unsigned long sun4v_ldc_mapin(unsigned long channel,
+				     unsigned long cookie,
+				     unsigned long *ra,
+				     unsigned long *perm);
+extern unsigned long sun4v_ldc_unmap(unsigned long ra);
+extern unsigned long sun4v_ldc_revoke(unsigned long cookie,
+				      unsigned long mte_cookie);
+#endif
+
 /* Performance counter services.  */
 
 #define HV_PERF_JBUS_PERF_CTRL_REG	0x00
@@ -2204,6 +2760,7 @@ extern void sun4v_hvapi_unregister(unsigned long group);
 extern int sun4v_hvapi_get(unsigned long group,
 			   unsigned long *major,
 			   unsigned long *minor);
+extern void sun4v_hvapi_init(void);
 #endif
 
 #endif /* !(_SPARC64_HYPERVISOR_H) */

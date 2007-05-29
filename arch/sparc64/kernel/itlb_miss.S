@@ -11,12 +11,12 @@
 /* ITLB ** ICACHE line 2: TSB compare and TLB load	*/
 	bne,pn	%xcc, tsb_miss_itlb		! Miss
 	 mov	FAULT_CODE_ITLB, %g3
-	andcc	%g5, _PAGE_EXEC_4U, %g0		! Executable?
+	sethi	%hi(_PAGE_EXEC_4U), %g4
+	andcc	%g5, %g4, %g0			! Executable?
 	be,pn	%xcc, tsb_do_fault
 	 nop					! Delay slot, fill me
 	stxa	%g5, [%g0] ASI_ITLB_DATA_IN	! Load TLB
 	retry					! Trap done
-	nop
 
 /* ITLB ** ICACHE line 3: 				*/
 	nop

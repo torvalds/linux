@@ -4,6 +4,7 @@
  *
  */
 
+#include <linux/completion.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/types.h>
@@ -50,15 +51,9 @@ static struct ctrl_inquiry {
 } *fcs __initdata;
 static int fcscount __initdata = 0;
 static atomic_t fcss __initdata = ATOMIC_INIT(0);
-DECLARE_MUTEX_LOCKED(fc_sem);
+static DECLARE_COMPLETION(fc_detect_complete);
 
 static int pluto_encode_addr(Scsi_Cmnd *SCpnt, u16 *addr, fc_channel *fc, fcp_cmnd *fcmd);
-
-static void __init pluto_detect_timeout(unsigned long data)
-{
-	PLND(("Timeout\n"))
-	up(&fc_sem);
-}
 
 static void __init pluto_detect_done(Scsi_Cmnd *SCpnt)
 {
@@ -69,7 +64,7 @@ static void __init pluto_detect_scsi_done(Scsi_Cmnd *SCpnt)
 {
 	PLND(("Detect done %08lx\n", (long)SCpnt))
 	if (atomic_dec_and_test (&fcss))
-		up(&fc_sem);
+		complete(&fc_detect_complete);
 }
 
 int pluto_slave_configure(struct scsi_device *device)
@@ -96,7 +91,6 @@ int __init pluto_detect(struct scsi_host_template *tpnt)
 	int i, retry, nplutos;
 	fc_channel *fc;
 	struct scsi_device dev;
-	DEFINE_TIMER(fc_timer, pluto_detect_timeout, 0, 0);
 
 	tpnt->proc_name = "pluto";
 	fcscount = 0;
@@ -187,15 +181,11 @@ int __init pluto_detect(struct scsi_host_template *tpnt)
 			}
 		}
 	    
-		fc_timer.expires = jiffies + 10 * HZ;
-		add_timer(&fc_timer);
-		
-		down(&fc_sem);
+		wait_for_completion_timeout(&fc_detect_complete, 10 * HZ);
 		PLND(("Woken up\n"))
 		if (!atomic_read(&fcss))
 			break; /* All fc channels have answered us */
 	}
-	del_timer_sync(&fc_timer);
 
 	PLND(("Finished search\n"))
 	for (i = 0, nplutos = 0; i < fcscount; i++) {

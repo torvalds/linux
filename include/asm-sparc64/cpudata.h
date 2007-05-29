@@ -17,11 +17,11 @@
 typedef struct {
 	/* Dcache line 1 */
 	unsigned int	__softirq_pending; /* must be 1st, see rtrap.S */
-	unsigned int	__pad0_1;
-	unsigned int	__pad0_2;
-	unsigned int	__pad1;
+	unsigned int	__pad0;
 	unsigned long	clock_tick;	/* %tick's per second */
 	unsigned long	udelay_val;
+	unsigned int	__pad1;
+	unsigned int	__pad2;
 
 	/* Dcache line 2, rarely used */
 	unsigned int	dcache_size;
@@ -30,8 +30,8 @@ typedef struct {
 	unsigned int	icache_line_size;
 	unsigned int	ecache_size;
 	unsigned int	ecache_line_size;
+	int		core_id;
 	unsigned int	__pad3;
-	unsigned int	__pad4;
 } cpuinfo_sparc;
 
 DECLARE_PER_CPU(cpuinfo_sparc, __cpu_data);
@@ -76,12 +76,18 @@ struct trap_per_cpu {
 
 /* Dcache line 8: IRQ work list, and keep trap_block a power-of-2 in size.  */
 	unsigned int		irq_worklist;
-	unsigned int		__pad1;
-	unsigned long		__pad2[3];
+	unsigned int		cpu_mondo_qmask;
+	unsigned int		dev_mondo_qmask;
+	unsigned int		resum_qmask;
+	unsigned int		nonresum_qmask;
+	unsigned int		__pad2[3];
 } __attribute__((aligned(64)));
 extern struct trap_per_cpu trap_block[NR_CPUS];
 extern void init_cur_cpu_trap(struct thread_info *);
 extern void setup_tba(void);
+extern int ncpus_probed;
+
+extern unsigned long real_hard_smp_processor_id(void);
 
 struct cpuid_patch_entry {
 	unsigned int	addr;
@@ -122,6 +128,10 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 #define TRAP_PER_CPU_TSB_HUGE		0xd0
 #define TRAP_PER_CPU_TSB_HUGE_TEMP	0xd8
 #define TRAP_PER_CPU_IRQ_WORKLIST	0xe0
+#define TRAP_PER_CPU_CPU_MONDO_QMASK	0xe4
+#define TRAP_PER_CPU_DEV_MONDO_QMASK	0xe8
+#define TRAP_PER_CPU_RESUM_QMASK	0xec
+#define TRAP_PER_CPU_NONRESUM_QMASK	0xf0
 
 #define TRAP_BLOCK_SZ_SHIFT		8
 
@@ -192,7 +202,7 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
  * the calculations done by the macro mid-stream.
  */
 #define LOAD_PER_CPU_BASE(DEST, THR, REG1, REG2, REG3)	\
-	ldub	[THR + TI_CPU], REG1;			\
+	lduh	[THR + TI_CPU], REG1;			\
 	sethi	%hi(__per_cpu_shift), REG3;		\
 	sethi	%hi(__per_cpu_base), REG2;		\
 	ldx	[REG3 + %lo(__per_cpu_shift)], REG3;	\

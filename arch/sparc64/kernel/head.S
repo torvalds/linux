@@ -523,7 +523,7 @@ tlb_fixup_done:
 #else
 	mov	0, %o0
 #endif
-	stb	%o0, [%g6 + TI_CPU]
+	sth	%o0, [%g6 + TI_CPU]
 
 	/* Off we go.... */
 	call	start_kernel
@@ -653,32 +653,53 @@ setup_tba:
 	 restore
 sparc64_boot_end:
 
-#include "ktlb.S"
-#include "tsb.S"
 #include "etrap.S"
 #include "rtrap.S"
 #include "winfixup.S"
 #include "entry.S"
 #include "sun4v_tlb_miss.S"
 #include "sun4v_ivec.S"
+#include "ktlb.S"
+#include "tsb.S"
 
 /*
  * The following skip makes sure the trap table in ttable.S is aligned
  * on a 32K boundary as required by the v9 specs for TBA register.
  *
  * We align to a 32K boundary, then we have the 32K kernel TSB,
- * then the 32K aligned trap table.
+ * the 64K kernel 4MB TSB, and then the 32K aligned trap table.
  */
 1:
 	.skip	0x4000 + _start - 1b
+
+! 0x0000000000408000
 
 	.globl	swapper_tsb
 swapper_tsb:
 	.skip	(32 * 1024)
 
-! 0x0000000000408000
+	.globl	swapper_4m_tsb
+swapper_4m_tsb:
+	.skip	(64 * 1024)
 
+! 0x0000000000420000
+
+	/* Some care needs to be exercised if you try to move the
+	 * location of the trap table relative to other things.  For
+	 * one thing there are br* instructions in some of the
+	 * trap table entires which branch back to code in ktlb.S
+	 * Those instructions can only handle a signed 16-bit
+	 * displacement.
+	 *
+	 * There is a binutils bug (bugzilla #4558) which causes
+	 * the relocation overflow checks for such instructions to
+	 * not be done correctly.  So bintuils will not notice the
+	 * error and will instead write junk into the relocation and
+	 * you'll have an unbootable kernel.
+	 */
 #include "ttable.S"
+
+! 0x0000000000428000
 
 #include "systbls.S"
 

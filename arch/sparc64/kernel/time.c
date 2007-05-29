@@ -680,22 +680,14 @@ static int starfire_set_time(u32 val)
 
 static u32 hypervisor_get_time(void)
 {
-	register unsigned long func asm("%o5");
-	register unsigned long arg0 asm("%o0");
-	register unsigned long arg1 asm("%o1");
+	unsigned long ret, time;
 	int retries = 10000;
 
 retry:
-	func = HV_FAST_TOD_GET;
-	arg0 = 0;
-	arg1 = 0;
-	__asm__ __volatile__("ta	%6"
-			     : "=&r" (func), "=&r" (arg0), "=&r" (arg1)
-			     : "0" (func), "1" (arg0), "2" (arg1),
-			       "i" (HV_FAST_TRAP));
-	if (arg0 == HV_EOK)
-		return arg1;
-	if (arg0 == HV_EWOULDBLOCK) {
+	ret = sun4v_tod_get(&time);
+	if (ret == HV_EOK)
+		return time;
+	if (ret == HV_EWOULDBLOCK) {
 		if (--retries > 0) {
 			udelay(100);
 			goto retry;
@@ -709,20 +701,14 @@ retry:
 
 static int hypervisor_set_time(u32 secs)
 {
-	register unsigned long func asm("%o5");
-	register unsigned long arg0 asm("%o0");
+	unsigned long ret;
 	int retries = 10000;
 
 retry:
-	func = HV_FAST_TOD_SET;
-	arg0 = secs;
-	__asm__ __volatile__("ta	%4"
-			     : "=&r" (func), "=&r" (arg0)
-			     : "0" (func), "1" (arg0),
-			       "i" (HV_FAST_TRAP));
-	if (arg0 == HV_EOK)
+	ret = sun4v_tod_set(secs);
+	if (ret == HV_EOK)
 		return 0;
-	if (arg0 == HV_EWOULDBLOCK) {
+	if (ret == HV_EWOULDBLOCK) {
 		if (--retries > 0) {
 			udelay(100);
 			goto retry;
@@ -862,7 +848,6 @@ fs_initcall(clock_init);
 static unsigned long sparc64_init_timers(void)
 {
 	struct device_node *dp;
-	struct property *prop;
 	unsigned long clock;
 #ifdef CONFIG_SMP
 	extern void smp_tick_init(void);
@@ -879,17 +864,15 @@ static unsigned long sparc64_init_timers(void)
 		if (manuf == 0x17 && impl == 0x13) {
 			/* Hummingbird, aka Ultra-IIe */
 			tick_ops = &hbtick_operations;
-			prop = of_find_property(dp, "stick-frequency", NULL);
+			clock = of_getintprop_default(dp, "stick-frequency", 0);
 		} else {
 			tick_ops = &tick_operations;
-			cpu_find_by_instance(0, &dp, NULL);
-			prop = of_find_property(dp, "clock-frequency", NULL);
+			clock = local_cpu_data().clock_tick;
 		}
 	} else {
 		tick_ops = &stick_operations;
-		prop = of_find_property(dp, "stick-frequency", NULL);
+		clock = of_getintprop_default(dp, "stick-frequency", 0);
 	}
-	clock = *(unsigned int *) prop->value;
 
 #ifdef CONFIG_SMP
 	smp_tick_init();
@@ -1365,6 +1348,7 @@ static int hypervisor_set_rtc_time(struct rtc_time *time)
 	return hypervisor_set_time(seconds);
 }
 
+#ifdef CONFIG_PCI
 static void bq4802_get_rtc_time(struct rtc_time *time)
 {
 	unsigned char val = readb(bq4802_regs + 0x0e);
@@ -1436,6 +1420,7 @@ static int bq4802_set_rtc_time(struct rtc_time *time)
 
 	return 0;
 }
+#endif /* CONFIG_PCI */
 
 struct mini_rtc_ops {
 	void (*get_rtc_time)(struct rtc_time *);
@@ -1452,10 +1437,12 @@ static struct mini_rtc_ops hypervisor_rtc_ops = {
 	.set_rtc_time = hypervisor_set_rtc_time,
 };
 
+#ifdef CONFIG_PCI
 static struct mini_rtc_ops bq4802_rtc_ops = {
 	.get_rtc_time = bq4802_get_rtc_time,
 	.set_rtc_time = bq4802_set_rtc_time,
 };
+#endif /* CONFIG_PCI */
 
 static struct mini_rtc_ops *mini_rtc_ops;
 
@@ -1579,8 +1566,10 @@ static int __init rtc_mini_init(void)
 		mini_rtc_ops = &hypervisor_rtc_ops;
 	else if (this_is_starfire)
 		mini_rtc_ops = &starfire_rtc_ops;
+#ifdef CONFIG_PCI
 	else if (bq4802_regs)
 		mini_rtc_ops = &bq4802_rtc_ops;
+#endif /* CONFIG_PCI */
 	else
 		return -ENODEV;
 

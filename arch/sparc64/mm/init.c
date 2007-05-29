@@ -23,6 +23,7 @@
 #include <linux/kprobes.h>
 #include <linux/cache.h>
 #include <linux/sort.h>
+#include <linux/percpu.h>
 
 #include <asm/head.h>
 #include <asm/system.h>
@@ -43,8 +44,8 @@
 #include <asm/tsb.h>
 #include <asm/hypervisor.h>
 #include <asm/prom.h>
-
-extern void device_scan(void);
+#include <asm/sstate.h>
+#include <asm/mdesc.h>
 
 #define MAX_PHYS_ADDRESS	(1UL << 42UL)
 #define KPTE_BITMAP_CHUNK_SZ	(256UL * 1024UL * 1024UL)
@@ -60,8 +61,11 @@ unsigned long kern_linear_pte_xor[2] __read_mostly;
 unsigned long kpte_linear_bitmap[KPTE_BITMAP_BYTES / sizeof(unsigned long)];
 
 #ifndef CONFIG_DEBUG_PAGEALLOC
-/* A special kernel TSB for 4MB and 256MB linear mappings.  */
-struct tsb swapper_4m_tsb[KERNEL_TSB4M_NENTRIES];
+/* A special kernel TSB for 4MB and 256MB linear mappings.
+ * Space is allocated for this right after the trap table
+ * in arch/sparc64/kernel/head.S
+ */
+extern struct tsb swapper_4m_tsb[KERNEL_TSB4M_NENTRIES];
 #endif
 
 #define MAX_BANKS	32
@@ -190,12 +194,9 @@ inline void flush_dcache_page_impl(struct page *page)
 }
 
 #define PG_dcache_dirty		PG_arch_1
-#define PG_dcache_cpu_shift	24UL
-#define PG_dcache_cpu_mask	(256UL - 1UL)
-
-#if NR_CPUS > 256
-#error D-cache dirty tracking and thread_info->cpu need fixing for > 256 cpus
-#endif
+#define PG_dcache_cpu_shift	32UL
+#define PG_dcache_cpu_mask	\
+	((1UL<<ilog2(roundup_pow_of_two(NR_CPUS)))-1UL)
 
 #define dcache_dirty_cpu(page) \
 	(((page)->flags >> PG_dcache_cpu_shift) & PG_dcache_cpu_mask)
@@ -557,26 +558,11 @@ static void __init hypervisor_tlb_lock(unsigned long vaddr,
 				       unsigned long pte,
 				       unsigned long mmu)
 {
-	register unsigned long func asm("%o5");
-	register unsigned long arg0 asm("%o0");
-	register unsigned long arg1 asm("%o1");
-	register unsigned long arg2 asm("%o2");
-	register unsigned long arg3 asm("%o3");
+	unsigned long ret = sun4v_mmu_map_perm_addr(vaddr, 0, pte, mmu);
 
-	func = HV_FAST_MMU_MAP_PERM_ADDR;
-	arg0 = vaddr;
-	arg1 = 0;
-	arg2 = pte;
-	arg3 = mmu;
-	__asm__ __volatile__("ta	0x80"
-			     : "=&r" (func), "=&r" (arg0),
-			       "=&r" (arg1), "=&r" (arg2),
-			       "=&r" (arg3)
-			     : "0" (func), "1" (arg0), "2" (arg1),
-			       "3" (arg2), "4" (arg3));
-	if (arg0 != 0) {
+	if (ret != 0) {
 		prom_printf("hypervisor_tlb_lock[%lx:%lx:%lx:%lx]: "
-			    "errors with %lx\n", vaddr, 0, pte, mmu, arg0);
+			    "errors with %lx\n", vaddr, 0, pte, mmu, ret);
 		prom_halt();
 	}
 }
@@ -1313,26 +1299,25 @@ static void __init sun4v_ktsb_init(void)
 
 void __cpuinit sun4v_ktsb_register(void)
 {
-	register unsigned long func asm("%o5");
-	register unsigned long arg0 asm("%o0");
-	register unsigned long arg1 asm("%o1");
-	unsigned long pa;
+	unsigned long pa, ret;
 
 	pa = kern_base + ((unsigned long)&ktsb_descr[0] - KERNBASE);
 
-	func = HV_FAST_MMU_TSB_CTX0;
-	arg0 = NUM_KTSB_DESCR;
-	arg1 = pa;
-	__asm__ __volatile__("ta	%6"
-			     : "=&r" (func), "=&r" (arg0), "=&r" (arg1)
-			     : "0" (func), "1" (arg0), "2" (arg1),
-			       "i" (HV_FAST_TRAP));
+	ret = sun4v_mmu_tsb_ctx0(NUM_KTSB_DESCR, pa);
+	if (ret != 0) {
+		prom_printf("hypervisor_mmu_tsb_ctx0[%lx]: "
+			    "errors with %lx\n", pa, ret);
+		prom_halt();
+	}
 }
 
 /* paging_init() sets up the page tables */
 
 extern void cheetah_ecache_flush_init(void);
 extern void sun4v_patch_tlb_handlers(void);
+
+extern void cpu_probe(void);
+extern void central_probe(void);
 
 static unsigned long last_valid_pfn;
 pgd_t swapper_pg_dir[2048];
@@ -1345,8 +1330,23 @@ void __init paging_init(void)
 	unsigned long end_pfn, pages_avail, shift, phys_base;
 	unsigned long real_end, i;
 
+	/* These build time checkes make sure that the dcache_dirty_cpu()
+	 * page->flags usage will work.
+	 *
+	 * When a page gets marked as dcache-dirty, we store the
+	 * cpu number starting at bit 32 in the page->flags.  Also,
+	 * functions like clear_dcache_dirty_cpu use the cpu mask
+	 * in 13-bit signed-immediate instruction fields.
+	 */
+	BUILD_BUG_ON(FLAGS_RESERVED != 32);
+	BUILD_BUG_ON(SECTIONS_WIDTH + NODES_WIDTH + ZONES_WIDTH +
+		     ilog2(roundup_pow_of_two(NR_CPUS)) > FLAGS_RESERVED);
+	BUILD_BUG_ON(NR_CPUS > 4096);
+
 	kern_base = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
 	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;
+
+	sstate_booting();
 
 	/* Invalidate both kernel TSBs.  */
 	memset(swapper_tsb, 0x40, sizeof(swapper_tsb));
@@ -1416,7 +1416,12 @@ void __init paging_init(void)
 
 	kernel_physical_mapping_init();
 
+	real_setup_per_cpu_areas();
+
 	prom_build_devicetree();
+
+	if (tlb_type == hypervisor)
+		sun4v_mdesc_init();
 
 	{
 		unsigned long zones_size[MAX_NR_ZONES];
@@ -1434,7 +1439,10 @@ void __init paging_init(void)
 				    zholes_size);
 	}
 
-	device_scan();
+	prom_printf("Booting Linux...\n");
+
+	central_probe();
+	cpu_probe();
 }
 
 static void __init taint_real_pages(void)

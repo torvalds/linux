@@ -306,6 +306,20 @@ static void __init pci_controller_probe(void)
 	pci_controller_scan(pci_controller_init);
 }
 
+static int ofpci_verbose;
+
+static int __init ofpci_debug(char *str)
+{
+	int val = 0;
+
+	get_option(&str, &val);
+	if (val)
+		ofpci_verbose = 1;
+	return 1;
+}
+
+__setup("ofpci_debug=", ofpci_debug);
+
 static unsigned long pci_parse_of_flags(u32 addr0)
 {
 	unsigned long flags = 0;
@@ -337,7 +351,9 @@ static void pci_parse_of_addrs(struct of_device *op,
 	addrs = of_get_property(node, "assigned-addresses", &proplen);
 	if (!addrs)
 		return;
-	printk("    parse addresses (%d bytes) @ %p\n", proplen, addrs);
+	if (ofpci_verbose)
+		printk("    parse addresses (%d bytes) @ %p\n",
+		       proplen, addrs);
 	op_res = &op->resource[0];
 	for (; proplen >= 20; proplen -= 20, addrs += 5, op_res++) {
 		struct resource *res;
@@ -348,8 +364,9 @@ static void pci_parse_of_addrs(struct of_device *op,
 		if (!flags)
 			continue;
 		i = addrs[0] & 0xff;
-		printk("  start: %lx, end: %lx, i: %x\n",
-		       op_res->start, op_res->end, i);
+		if (ofpci_verbose)
+			printk("  start: %lx, end: %lx, i: %x\n",
+			       op_res->start, op_res->end, i);
 
 		if (PCI_BASE_ADDRESS_0 <= i && i <= PCI_BASE_ADDRESS_5) {
 			res = &dev->resource[(i - PCI_BASE_ADDRESS_0) >> 2];
@@ -393,8 +410,9 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	if (type == NULL)
 		type = "";
 
-	printk("    create device, devfn: %x, type: %s hostcontroller(%d)\n",
-	       devfn, type, host_controller);
+	if (ofpci_verbose)
+		printk("    create device, devfn: %x, type: %s\n",
+		       devfn, type);
 
 	dev->bus = bus;
 	dev->sysdata = node;
@@ -434,8 +452,9 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 		sprintf(pci_name(dev), "%04x:%02x:%02x.%d", pci_domain_nr(bus),
 			dev->bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn));
 	}
-	printk("    class: 0x%x device name: %s\n",
-	       dev->class, pci_name(dev));
+	if (ofpci_verbose)
+		printk("    class: 0x%x device name: %s\n",
+		       dev->class, pci_name(dev));
 
 	/* I have seen IDE devices which will not respond to
 	 * the bmdma simplex check reads if bus mastering is
@@ -469,7 +488,8 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	}
 	pci_parse_of_addrs(sd->op, node, dev);
 
-	printk("    adding to system ...\n");
+	if (ofpci_verbose)
+		printk("    adding to system ...\n");
 
 	pci_device_add(dev, bus);
 
@@ -547,7 +567,8 @@ static void __devinit of_scan_pci_bridge(struct pci_pbm_info *pbm,
 	unsigned int flags;
 	u64 size;
 
-	printk("of_scan_pci_bridge(%s)\n", node->full_name);
+	if (ofpci_verbose)
+		printk("of_scan_pci_bridge(%s)\n", node->full_name);
 
 	/* parse bus-range property */
 	busrange = of_get_property(node, "bus-range", &len);
@@ -632,7 +653,8 @@ static void __devinit of_scan_pci_bridge(struct pci_pbm_info *pbm,
 simba_cont:
 	sprintf(bus->name, "PCI Bus %04x:%02x", pci_domain_nr(bus),
 		bus->number);
-	printk("    bus name: %s\n", bus->name);
+	if (ofpci_verbose)
+		printk("    bus name: %s\n", bus->name);
 
 	pci_of_scan_bus(pbm, node, bus);
 }
@@ -646,12 +668,14 @@ static void __devinit pci_of_scan_bus(struct pci_pbm_info *pbm,
 	int reglen, devfn;
 	struct pci_dev *dev;
 
-	printk("PCI: scan_bus[%s] bus no %d\n",
-	       node->full_name, bus->number);
+	if (ofpci_verbose)
+		printk("PCI: scan_bus[%s] bus no %d\n",
+		       node->full_name, bus->number);
 
 	child = NULL;
 	while ((child = of_get_next_child(node, child)) != NULL) {
-		printk("  * %s\n", child->full_name);
+		if (ofpci_verbose)
+			printk("  * %s\n", child->full_name);
 		reg = of_get_property(child, "reg", &reglen);
 		if (reg == NULL || reglen < 20)
 			continue;
@@ -661,7 +685,9 @@ static void __devinit pci_of_scan_bus(struct pci_pbm_info *pbm,
 		dev = of_create_pci_dev(pbm, child, bus, devfn, 0);
 		if (!dev)
 			continue;
-		printk("PCI: dev header type: %x\n", dev->hdr_type);
+		if (ofpci_verbose)
+			printk("PCI: dev header type: %x\n",
+			       dev->hdr_type);
 
 		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
 		    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)

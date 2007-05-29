@@ -46,10 +46,16 @@
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/mmu.h>
+#include <asm/ns87303.h>
 
 #ifdef CONFIG_IP_PNP
 #include <net/ipconfig.h>
 #endif
+
+/* Used to synchronize accesses to NatSemi SUPER I/O chip configure
+ * operations in asm/ns87303.h
+ */
+DEFINE_SPINLOCK(ns87303_lock);
 
 struct screen_info screen_info = {
 	0, 0,			/* orig-x, orig-y */
@@ -370,8 +376,6 @@ void __init setup_arch(char **cmdline_p)
 	init_cur_cpu_trap(current_thread_info());
 
 	paging_init();
-
-	smp_setup_cpu_possible_map();
 }
 
 static int __init set_preferred_console(void)
@@ -424,7 +428,7 @@ extern void mmu_info(struct seq_file *);
 unsigned int dcache_parity_tl1_occurred;
 unsigned int icache_parity_tl1_occurred;
 
-static int ncpus_probed;
+int ncpus_probed;
 
 static int show_cpuinfo(struct seq_file *m, void *__unused)
 {
@@ -515,14 +519,6 @@ static int __init topology_init(void)
 	int i, err;
 
 	err = -ENOMEM;
-
-	/* Count the number of physically present processors in
-	 * the machine, even on uniprocessor, so that /proc/cpuinfo
-	 * output is consistent with 2.4.x
-	 */
-	ncpus_probed = 0;
-	while (!cpu_find_by_instance(ncpus_probed, NULL, NULL))
-		ncpus_probed++;
 
 	for_each_possible_cpu(i) {
 		struct cpu *p = kzalloc(sizeof(*p), GFP_KERNEL);
