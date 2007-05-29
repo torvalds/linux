@@ -361,13 +361,13 @@ static int mt2032_init(struct i2c_client *c)
 static void mt2050_set_antenna(struct i2c_client *c, unsigned char antenna)
 {
 	struct tuner *t = i2c_get_clientdata(c);
-       unsigned char buf[2];
-       int ret;
+	unsigned char buf[2];
+	int ret;
 
-       buf[0] = 6;
-       buf[1] = antenna ? 0x11 : 0x10;
-       ret=i2c_master_send(c,buf,2);
-       tuner_dbg("mt2050: enabled antenna connector %d\n", antenna);
+	buf[0] = 6;
+	buf[1] = antenna ? 0x11 : 0x10;
+	ret=i2c_master_send(c,buf,2);
+	tuner_dbg("mt2050: enabled antenna connector %d\n", antenna);
 }
 
 static void mt2050_set_if_freq(struct i2c_client *c,unsigned int freq, unsigned int if2)
