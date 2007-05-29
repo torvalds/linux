@@ -454,57 +454,35 @@ acpi_ec_space_setup(acpi_handle region_handle,
 }
 
 static acpi_status
-acpi_ec_space_handler(u32 function,
-		      acpi_physical_address address,
-		      u32 bit_width,
-		      acpi_integer * value,
+acpi_ec_space_handler(u32 function, acpi_physical_address address,
+		      u32 bits, acpi_integer *value,
 		      void *handler_context, void *region_context)
 {
-	int result = 0;
 	struct acpi_ec *ec = handler_context;
-	u64 temp = *value;
-	acpi_integer f_v = 0;
-	int i = 0;
+	int result = 0, i = 0;
+	u8 temp = 0;
 
 	if ((address > 0xFF) || !value || !handler_context)
 		return AE_BAD_PARAMETER;
 
-	if (bit_width != 8 && acpi_strict) {
+	if (function != ACPI_READ && function != ACPI_WRITE)
 		return AE_BAD_PARAMETER;
+
+	if (bits != 8 && acpi_strict)
+		return AE_BAD_PARAMETER;
+
+	while (bits - i > 0) {
+		if (function == ACPI_READ) {
+			result = acpi_ec_read(ec, address, &temp);
+			(*value) |= ((acpi_integer)temp) << i;
+		} else {
+			temp = 0xff & ((*value) >> i);
+			result = acpi_ec_write(ec, address, temp);
+		}
+		i += 8;
+		++address;
 	}
 
-      next_byte:
-	switch (function) {
-	case ACPI_READ:
-		temp = 0;
-		result = acpi_ec_read(ec, (u8) address, (u8 *) & temp);
-		break;
-	case ACPI_WRITE:
-		result = acpi_ec_write(ec, (u8) address, (u8) temp);
-		break;
-	default:
-		result = -EINVAL;
-		goto out;
-		break;
-	}
-
-	bit_width -= 8;
-	if (bit_width) {
-		if (function == ACPI_READ)
-			f_v |= temp << 8 * i;
-		if (function == ACPI_WRITE)
-			temp >>= 8;
-		i++;
-		address++;
-		goto next_byte;
-	}
-
-	if (function == ACPI_READ) {
-		f_v |= temp << 8 * i;
-		*value = f_v;
-	}
-
-      out:
 	switch (result) {
 	case -EINVAL:
 		return AE_BAD_PARAMETER;
