@@ -2266,13 +2266,6 @@ static int patch_stac927x(struct hda_codec *codec)
 
 	codec->patch_ops = stac92xx_patch_ops;
 
-	/* Fix Mux capture level; max to 2 */
-	snd_hda_override_amp_caps(codec, 0x12, HDA_OUTPUT,
-				  (0 << AC_AMPCAP_OFFSET_SHIFT) |
-				  (2 << AC_AMPCAP_NUM_STEPS_SHIFT) |
-				  (0x27 << AC_AMPCAP_STEP_SIZE_SHIFT) |
-				  (0 << AC_AMPCAP_MUTE_SHIFT));
-
 	return 0;
 }
 
