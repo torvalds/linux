@@ -78,9 +78,7 @@ static int tcp_out_of_resources(struct sock *sk, int do_reset)
 	if (sk->sk_err_soft)
 		orphans <<= 1;
 
-	if (orphans >= sysctl_tcp_max_orphans ||
-	    (sk->sk_wmem_queued > SOCK_MIN_SNDBUF &&
-	     atomic_read(&tcp_memory_allocated) > sysctl_tcp_mem[2])) {
+	if (tcp_too_many_orphans(sk, orphans)) {
 		if (net_ratelimit())
 			printk(KERN_INFO "Out of socket memory\n");
 

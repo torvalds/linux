@@ -254,6 +254,12 @@ static inline int between(__u32 seq1, __u32 seq2, __u32 seq3)
 	return seq3 - seq2 >= seq1 - seq2;
 }
 
+static inline int tcp_too_many_orphans(struct sock *sk, int num)
+{
+	return (num > sysctl_tcp_max_orphans) ||
+		(sk->sk_wmem_queued > SOCK_MIN_SNDBUF &&
+		 atomic_read(&tcp_memory_allocated) > sysctl_tcp_mem[2]);
+}
 
 extern struct proto tcp_prot;
 
