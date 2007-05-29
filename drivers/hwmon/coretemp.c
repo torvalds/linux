@@ -176,6 +176,22 @@ static int __devinit coretemp_probe(struct platform_device *pdev)
 		goto exit_free;
 	}
 
+	/* Check if we have problem with errata AE18 of Core processors:
+	   Readings might stop update when processor visited too deep sleep,
+	   fixed for stepping D0 (6EC).
+	*/
+
+	if ((c->x86_model == 0xe) && (c->x86_mask < 0xc)) {
+		/* check for microcode update */
+		rdmsr_on_cpu(data->id, MSR_IA32_UCODE_REV, &eax, &edx);
+		if (edx < 0x39) {
+			dev_err(&pdev->dev,
+				"Errata AE18 not fixed, update BIOS or "
+				"microcode of the CPU!\n");
+			goto exit_free;
+		}
+	}
+
 	/* Some processors have Tjmax 85 following magic should detect it
 	   Intel won't disclose the information without signed NDA, but
 	   individuals cannot sign it. Catch(ed) 22.
@@ -191,6 +207,19 @@ static int __devinit coretemp_probe(struct platform_device *pdev)
 		} else if (eax & 0x40000000) {
 			data->tjmax = 85000;
 		}
+	}
+
+	/* Intel says that above should not work for desktop Core2 processors,
+	   but it seems to work. There is no other way how get the absolute
+	   readings. Warn the user about this. First check if are desktop,
+	   bit 50 of MSR_IA32_PLATFORM_ID should be 0.
+	*/
+
+	rdmsr_safe_on_cpu(data->id, MSR_IA32_PLATFORM_ID, &eax, &edx);
+
+	if ((c->x86_model == 0xf) && (!(edx & 0x00040000))) {
+		dev_warn(&pdev->dev, "Using undocumented features, absolute "
+			 "temperature might be wrong!\n");
 	}
 
 	platform_set_drvdata(pdev, data);
@@ -329,9 +358,6 @@ static int __init coretemp_init(void)
 {
 	int i, err = -ENODEV;
 	struct pdev_entry *p, *n;
-
-	printk(KERN_NOTICE DRVNAME ": This driver uses undocumented features "
-		"of Core CPU. Temperature might be wrong!\n");
 
 	/* quick check if we run Intel */
 	if (cpu_data[0].x86_vendor != X86_VENDOR_INTEL)
