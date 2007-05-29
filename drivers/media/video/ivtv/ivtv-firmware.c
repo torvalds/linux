@@ -56,9 +56,7 @@ retry:
 		volatile u32 __iomem *dst = (volatile u32 __iomem *)mem;
 		const u32 *src = (const u32 *)fw->data;
 
-		/* temporarily allow 256 KB encoding firmwares as well for
-		   compatibility with blackbird cards */
-		if (fw->size != size && fw->size != 256 * 1024) {
+		if (fw->size != size) {
 			/* Due to race conditions in firmware loading (esp. with udev <0.95)
 			   the wrong file was sometimes loaded. So we check filesizes to
 			   see if at least the right-sized file was loaded. If not, then we
