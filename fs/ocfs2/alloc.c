@@ -825,6 +825,74 @@ bail:
 }
 
 /*
+ * Grow a b-tree so that it has more records.
+ *
+ * We might shift the tree depth in which case existing paths should
+ * be considered invalid.
+ *
+ * Tree depth after the grow is returned via *final_depth.
+ */
+static int ocfs2_grow_tree(struct inode *inode, handle_t *handle,
+			   struct buffer_head *di_bh, int *final_depth,
+			   struct buffer_head *last_eb_bh,
+			   struct ocfs2_alloc_context *meta_ac)
+{
+	int ret, shift;
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
+	int depth = le16_to_cpu(di->id2.i_list.l_tree_depth);
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct buffer_head *bh = NULL;
+
+	BUG_ON(meta_ac == NULL);
+
+	shift = ocfs2_find_branch_target(osb, inode, di_bh, &bh);
+	if (shift < 0) {
+		ret = shift;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	/* We traveled all the way to the bottom of the allocation tree
+	 * and didn't find room for any more extents - we need to add
+	 * another tree level */
+	if (shift) {
+		BUG_ON(bh);
+		mlog(0, "need to shift tree depth (current = %d)\n", depth);
+
+		/* ocfs2_shift_tree_depth will return us a buffer with
+		 * the new extent block (so we can pass that to
+		 * ocfs2_add_branch). */
+		ret = ocfs2_shift_tree_depth(osb, handle, inode, di_bh,
+					     meta_ac, &bh);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out;
+		}
+		depth++;
+		/* Special case: we have room now if we shifted from
+		 * tree_depth 0 */
+		if (depth == 1)
+			goto out;
+	}
+
+	/* call ocfs2_add_branch to add the final part of the tree with
+	 * the new data. */
+	mlog(0, "add branch. bh = %p\n", bh);
+	ret = ocfs2_add_branch(osb, handle, inode, di_bh, bh, last_eb_bh,
+			       meta_ac);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+out:
+	if (final_depth)
+		*final_depth = depth;
+	brelse(bh);
+	return ret;
+}
+
+/*
  * This is only valid for leaf nodes, which are the only ones that can
  * have empty extents anyway.
  */
@@ -2325,7 +2393,7 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 			u32 new_clusters,
 			struct ocfs2_alloc_context *meta_ac)
 {
-	int status, shift;
+	int status;
 	struct buffer_head *last_eb_bh = NULL;
 	struct buffer_head *bh = NULL;
 	struct ocfs2_insert_type insert = {0, };
@@ -2360,55 +2428,16 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 	     insert.ins_appending, insert.ins_contig, insert.ins_contig_index,
 	     insert.ins_free_records, insert.ins_tree_depth);
 
-	/*
-	 * Avoid growing the tree unless we're out of records and the
-	 * insert type requres one.
-	 */
-	if (insert.ins_contig != CONTIG_NONE || insert.ins_free_records)
-		goto out_add;
-
-	shift = ocfs2_find_branch_target(osb, inode, fe_bh, &bh);
-	if (shift < 0) {
-		status = shift;
-		mlog_errno(status);
-		goto bail;
-	}
-
-	/* We traveled all the way to the bottom of the allocation tree
-	 * and didn't find room for any more extents - we need to add
-	 * another tree level */
-	if (shift) {
-		BUG_ON(bh);
-		mlog(0, "need to shift tree depth "
-		     "(current = %d)\n", insert.ins_tree_depth);
-
-		/* ocfs2_shift_tree_depth will return us a buffer with
-		 * the new extent block (so we can pass that to
-		 * ocfs2_add_branch). */
-		status = ocfs2_shift_tree_depth(osb, handle, inode, fe_bh,
-						meta_ac, &bh);
-		if (status < 0) {
+	if (insert.ins_contig == CONTIG_NONE && insert.ins_free_records == 0) {
+		status = ocfs2_grow_tree(inode, handle, fe_bh,
+					 &insert.ins_tree_depth, last_eb_bh,
+					 meta_ac);
+		if (status) {
 			mlog_errno(status);
 			goto bail;
 		}
-		insert.ins_tree_depth++;
-		/* Special case: we have room now if we shifted from
-		 * tree_depth 0 */
-		if (insert.ins_tree_depth == 1)
-			goto out_add;
 	}
 
-	/* call ocfs2_add_branch to add the final part of the tree with
-	 * the new data. */
-	mlog(0, "add branch. bh = %p\n", bh);
-	status = ocfs2_add_branch(osb, handle, inode, fe_bh, bh, last_eb_bh,
-				  meta_ac);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
-
-out_add:
 	/* Finally, we can add clusters. This might rotate the tree for us. */
 	status = ocfs2_do_insert_extent(inode, handle, fe_bh, &rec, &insert);
 	if (status < 0)
