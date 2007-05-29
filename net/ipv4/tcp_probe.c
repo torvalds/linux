@@ -80,7 +80,8 @@ static void printl(const char *fmt, ...)
 
 	kfifo_put(tcpw.fifo, tbuf, len);
 	wake_up(&tcpw.wait);
-}
+} __attribute__ ((format (printf, 1, 2)));
+
 
 /*
  * Hook inserted to be called before each receive packet.
