@@ -1646,15 +1646,17 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_drvdata(pdev, dev);
 
 	if (netif_msg_probe(tp)) {
+		u32 xid = RTL_R32(TxConfig) & 0x7cf0f8ff;
+
 		printk(KERN_INFO "%s: %s at 0x%lx, "
 		       "%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x, "
-		       "IRQ %d\n",
+		       "XID %08x IRQ %d\n",
 		       dev->name,
 		       rtl_chip_info[tp->chipset].name,
 		       dev->base_addr,
 		       dev->dev_addr[0], dev->dev_addr[1],
 		       dev->dev_addr[2], dev->dev_addr[3],
-		       dev->dev_addr[4], dev->dev_addr[5], dev->irq);
+		       dev->dev_addr[4], dev->dev_addr[5], xid, dev->irq);
 	}
 
 	rtl8169_init_phy(dev, tp);
