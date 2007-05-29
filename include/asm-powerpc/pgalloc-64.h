@@ -90,7 +90,8 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 static inline struct page *pte_alloc_one(struct mm_struct *mm,
 					 unsigned long address)
 {
-	return virt_to_page(pte_alloc_one_kernel(mm, address));
+	pte_t *pte = pte_alloc_one_kernel(mm, address);
+	return pte ? virt_to_page(pte) : NULL;
 }
 
 static inline void pte_free_kernel(pte_t *pte)
