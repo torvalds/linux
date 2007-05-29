@@ -73,6 +73,9 @@ static void *acpi_irq_context;
 static struct workqueue_struct *kacpid_wq;
 static struct workqueue_struct *kacpi_notify_wq;
 
+#define	OSI_STRING_LENGTH_MAX 64	/* arbitrary */
+static char osi_additional_string[OSI_STRING_LENGTH_MAX];
+
 static void __init acpi_request_region (struct acpi_generic_address *addr,
 	unsigned int length, char *desc)
 {
@@ -961,19 +964,23 @@ static int __init acpi_os_name_setup(char *str)
 __setup("acpi_os_name=", acpi_os_name_setup);
 
 /*
- * _OSI control
+ * Modify the list of "OS Interfaces" reported to BIOS via _OSI
+ *
  * empty string disables _OSI
- * TBD additional string adds to _OSI
+ * string starting with '!' disables that string
+ * otherwise string is added to list, augmenting built-in strings
  */
 static int __init acpi_osi_setup(char *str)
 {
 	if (str == NULL || *str == '\0') {
 		printk(KERN_INFO PREFIX "_OSI method disabled\n");
 		acpi_gbl_create_osi_method = FALSE;
-	} else {
-		/* TBD */
-		printk(KERN_ERR PREFIX "_OSI additional string ignored -- %s\n",
-		       str);
+	} else if (*str == '!') {
+		if (acpi_osi_invalidate(++str) == AE_OK)
+			printk(KERN_INFO PREFIX "Deleted _OSI(%s)\n", str);
+	} else if (*osi_additional_string == '\0') {
+		strncpy(osi_additional_string, str, OSI_STRING_LENGTH_MAX);
+		printk(KERN_INFO PREFIX "Added _OSI(%s)\n", str);
 	}
 
 	return 1;
@@ -1143,10 +1150,10 @@ acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
 acpi_status
 acpi_os_validate_interface (char *interface)
 {
-
-    return AE_SUPPORT;
+	if (!strncmp(osi_additional_string, interface, OSI_STRING_LENGTH_MAX))
+		return AE_OK;
+	return AE_SUPPORT;
 }
-
 
 /******************************************************************************
  *

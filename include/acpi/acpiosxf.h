@@ -236,6 +236,7 @@ acpi_os_derive_pci_id(acpi_handle rhandle,
  * Miscellaneous
  */
 acpi_status acpi_os_validate_interface(char *interface);
+acpi_status acpi_osi_invalidate(char* interface);
 
 acpi_status
 acpi_os_validate_address(u8 space_id,
