@@ -61,8 +61,11 @@ unsigned long kern_linear_pte_xor[2] __read_mostly;
 unsigned long kpte_linear_bitmap[KPTE_BITMAP_BYTES / sizeof(unsigned long)];
 
 #ifndef CONFIG_DEBUG_PAGEALLOC
-/* A special kernel TSB for 4MB and 256MB linear mappings.  */
-struct tsb swapper_4m_tsb[KERNEL_TSB4M_NENTRIES];
+/* A special kernel TSB for 4MB and 256MB linear mappings.
+ * Space is allocated for this right after the trap table
+ * in arch/sparc64/kernel/head.S
+ */
+extern struct tsb swapper_4m_tsb[KERNEL_TSB4M_NENTRIES];
 #endif
 
 #define MAX_BANKS	32
