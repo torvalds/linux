@@ -146,7 +146,7 @@ static char *aac_get_status_string(u32 status);
 static int nondasd = -1;
 static int dacmode = -1;
 
-static int commit = -1;
+int aac_commit = -1;
 int startup_timeout = 180;
 int aif_timeout = 120;
 
@@ -154,7 +154,7 @@ module_param(nondasd, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(nondasd, "Control scanning of hba for nondasd devices. 0=off, 1=on");
 module_param(dacmode, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(dacmode, "Control whether dma addressing is using 64 bit DAC. 0=off, 1=on");
-module_param(commit, int, S_IRUGO|S_IWUSR);
+module_param_named(commit, aac_commit, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(commit, "Control whether a COMMIT_CONFIG is issued to the adapter for foreign arrays.\nThis is typically needed in systems that do not have a BIOS. 0=off, 1=on");
 module_param(startup_timeout, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(startup_timeout, "The duration of time in seconds to wait for adapter to have it's kernel up and\nrunning. This is typically adjusted for large systems that do not have a BIOS.");
@@ -173,6 +173,9 @@ int expose_physicals = -1;
 module_param(expose_physicals, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(expose_physicals, "Expose physical components of the arrays. -1=protect 0=off, 1=on");
 
+int aac_reset_devices = 0;
+module_param_named(reset_devices, aac_reset_devices, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(reset_devices, "Force an adapter reset at initialization.");
 
 static inline int aac_valid_context(struct scsi_cmnd *scsicmd,
 		struct fib *fibptr) {
@@ -246,7 +249,7 @@ int aac_get_config_status(struct aac_dev *dev, int commit_flag)
 	aac_fib_complete(fibptr);
 	/* Send a CT_COMMIT_CONFIG to enable discovery of devices */
 	if (status >= 0) {
-		if ((commit == 1) || commit_flag) {
+		if ((aac_commit == 1) || commit_flag) {
 			struct aac_commit_config * dinfo;
 			aac_fib_init(fibptr);
 			dinfo = (struct aac_commit_config *) fib_data(fibptr);
@@ -261,7 +264,7 @@ int aac_get_config_status(struct aac_dev *dev, int commit_flag)
 				    1, 1,
 				    NULL, NULL);
 			aac_fib_complete(fibptr);
-		} else if (commit == 0) {
+		} else if (aac_commit == 0) {
 			printk(KERN_WARNING
 			  "aac_get_config_status: Foreign device configurations are being ignored\n");
 		}
@@ -340,7 +343,7 @@ int aac_get_containers(struct aac_dev *dev)
 static void aac_internal_transfer(struct scsi_cmnd *scsicmd, void *data, unsigned int offset, unsigned int len)
 {
 	void *buf;
-	unsigned int transfer_len;
+	int transfer_len;
 	struct scatterlist *sg = scsicmd->request_buffer;
 
 	if (scsicmd->use_sg) {
@@ -351,7 +354,7 @@ static void aac_internal_transfer(struct scsi_cmnd *scsicmd, void *data, unsigne
 		transfer_len = min(scsicmd->request_bufflen, len + offset);
 	}
 	transfer_len -= offset;
-	if (buf && transfer_len)
+	if (buf && transfer_len > 0)
 		memcpy(buf + offset, data, transfer_len);
 
 	if (scsicmd->use_sg) 

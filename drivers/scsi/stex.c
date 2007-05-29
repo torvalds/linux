@@ -32,11 +32,12 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
+#include <scsi/scsi_dbg.h>
 
 #define DRV_NAME "stex"
-#define ST_DRIVER_VERSION "3.1.0.1"
+#define ST_DRIVER_VERSION "3.6.0000.1"
 #define ST_VER_MAJOR 		3
-#define ST_VER_MINOR 		1
+#define ST_VER_MINOR 		6
 #define ST_OEM 			0
 #define ST_BUILD_VER 		1
 
@@ -112,10 +113,6 @@ enum {
 	SG_CF_EOT				= 0x80,	/* end of table */
 	SG_CF_64B				= 0x40,	/* 64 bit item */
 	SG_CF_HOST				= 0x20,	/* sg in host memory */
-
-	ST_MAX_ARRAY_SUPPORTED			= 16,
-	ST_MAX_TARGET_NUM			= (ST_MAX_ARRAY_SUPPORTED+1),
-	ST_MAX_LUN_PER_TARGET			= 16,
 
 	st_shasta				= 0,
 	st_vsc					= 1,
@@ -586,7 +583,7 @@ stex_queuecommand(struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
 	u16 tag;
 	host = cmd->device->host;
 	id = cmd->device->id;
-	lun = cmd->device->channel; /* firmware lun issue work around */
+	lun = cmd->device->lun;
 	hba = (struct st_hba *) &host->hostdata[0];
 
 	switch (cmd->cmnd[0]) {
@@ -605,8 +602,26 @@ stex_queuecommand(struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
 			stex_invalid_field(cmd, done);
 		return 0;
 	}
+	case REPORT_LUNS:
+		/*
+		 * The shasta firmware does not report actual luns in the
+		 * target, so fail the command to force sequential lun scan.
+		 * Also, the console device does not support this command.
+		 */
+		if (hba->cardtype == st_shasta || id == host->max_id - 1) {
+			stex_invalid_field(cmd, done);
+			return 0;
+		}
+		break;
+	case TEST_UNIT_READY:
+		if (id == host->max_id - 1) {
+			cmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8;
+			done(cmd);
+			return 0;
+		}
+		break;
 	case INQUIRY:
-		if (id != ST_MAX_ARRAY_SUPPORTED)
+		if (id != host->max_id - 1)
 			break;
 		if (lun == 0 && (cmd->cmnd[1] & INQUIRY_EVPD) == 0) {
 			stex_direct_copy(cmd, console_inq_page,
@@ -624,7 +639,7 @@ stex_queuecommand(struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
 			ver.oem = ST_OEM;
 			ver.build = ST_BUILD_VER;
 			ver.signature[0] = PASSTHRU_SIGNATURE;
-			ver.console_id = ST_MAX_ARRAY_SUPPORTED;
+			ver.console_id = host->max_id - 1;
 			ver.host_no = hba->host->host_no;
 			cmd->result = stex_direct_copy(cmd, &ver, sizeof(ver)) ?
 				DID_OK << 16 | COMMAND_COMPLETE << 8 :
@@ -645,13 +660,8 @@ stex_queuecommand(struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
 
 	req = stex_alloc_req(hba);
 
-	if (hba->cardtype == st_yosemite) {
-		req->lun = lun * (ST_MAX_TARGET_NUM - 1) + id;
-		req->target = 0;
-	} else {
-		req->lun = lun;
-		req->target = id;
-	}
+	req->lun = lun;
+	req->target = id;
 
 	/* cdb */
 	memcpy(req->cdb, cmd->cmnd, STEX_CDB_LENGTH);
@@ -767,18 +777,6 @@ static void stex_ys_commands(struct st_hba *hba,
 			ccb->srb_status = SRB_STATUS_SELECTION_TIMEOUT;
 		else
 			ccb->srb_status = SRB_STATUS_SUCCESS;
-	} else if (ccb->cmd->cmnd[0] == REPORT_LUNS) {
-		u8 *report_lun_data = (u8 *)hba->copy_buffer;
-
-		count = STEX_EXTRA_SIZE;
-		stex_internal_copy(ccb->cmd, report_lun_data,
-			&count, ccb->sg_count, ST_FROM_CMD);
-		if (report_lun_data[2] || report_lun_data[3]) {
-			report_lun_data[2] = 0x00;
-			report_lun_data[3] = 0x08;
-			stex_internal_copy(ccb->cmd, report_lun_data,
-				&count, ccb->sg_count, ST_TO_CMD);
-		}
 	}
 }
 
@@ -995,6 +993,11 @@ static int stex_abort(struct scsi_cmnd *cmd)
 	u32 data;
 	int result = SUCCESS;
 	unsigned long flags;
+
+	printk(KERN_INFO DRV_NAME
+		"(%s): aborting command\n", pci_name(hba->pdev));
+	scsi_print_command(cmd);
+
 	base = hba->mmio_base;
 	spin_lock_irqsave(host->host_lock, flags);
 	if (tag < host->can_queue && hba->ccb[tag].cmd == cmd)
@@ -1051,7 +1054,12 @@ static void stex_hard_reset(struct st_hba *hba)
 	pci_read_config_byte(bus->self, PCI_BRIDGE_CONTROL, &pci_bctl);
 	pci_bctl |= PCI_BRIDGE_CTL_BUS_RESET;
 	pci_write_config_byte(bus->self, PCI_BRIDGE_CONTROL, pci_bctl);
-	msleep(1);
+
+	/*
+	 * 1 ms may be enough for 8-port controllers. But 16-port controllers
+	 * require more time to finish bus reset. Use 100 ms here for safety
+	 */
+	msleep(100);
 	pci_bctl &= ~PCI_BRIDGE_CTL_BUS_RESET;
 	pci_write_config_byte(bus->self, PCI_BRIDGE_CONTROL, pci_bctl);
 
@@ -1074,6 +1082,10 @@ static int stex_reset(struct scsi_cmnd *cmd)
 	unsigned long flags;
 	unsigned long before;
 	hba = (struct st_hba *) &cmd->device->host->hostdata[0];
+
+	printk(KERN_INFO DRV_NAME
+		"(%s): resetting host\n", pci_name(hba->pdev));
+	scsi_print_command(cmd);
 
 	hba->mu_status = MU_STATE_RESETTING;
 
@@ -1194,7 +1206,7 @@ stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_scsi_host_put;
 	}
 
-	hba->mmio_base = ioremap(pci_resource_start(pdev, 0),
+	hba->mmio_base = ioremap_nocache(pci_resource_start(pdev, 0),
 		pci_resource_len(pdev, 0));
 	if ( !hba->mmio_base) {
 		printk(KERN_ERR DRV_NAME "(%s): memory map failed\n",
@@ -1229,12 +1241,18 @@ stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hba->copy_buffer = hba->dma_mem + MU_BUFFER_SIZE;
 	hba->mu_status = MU_STATE_STARTING;
 
-	/* firmware uses id/lun pair for a logical drive, but lun would be
-	   always 0 if CONFIG_SCSI_MULTI_LUN not configured, so we use
-	   channel to map lun here */
-	host->max_channel = ST_MAX_LUN_PER_TARGET - 1;
-	host->max_id = ST_MAX_TARGET_NUM;
-	host->max_lun = 1;
+	if (hba->cardtype == st_shasta) {
+		host->max_lun = 8;
+		host->max_id = 16 + 1;
+	} else if (hba->cardtype == st_yosemite) {
+		host->max_lun = 128;
+		host->max_id = 1 + 1;
+	} else {
+		/* st_vsc and st_vsc1 */
+		host->max_lun = 1;
+		host->max_id = 128 + 1;
+	}
+	host->max_channel = 0;
 	host->unique_id = host->host_no;
 	host->max_cmd_len = STEX_CDB_LENGTH;
 

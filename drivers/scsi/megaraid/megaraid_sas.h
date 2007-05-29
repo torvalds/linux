@@ -18,9 +18,9 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"00.00.03.10-rc1"
-#define MEGASAS_RELDATE				"Feb 14, 2007"
-#define MEGASAS_EXT_VERSION			"Wed Feb 14 10:14:25 PST 2007"
+#define MEGASAS_VERSION				"00.00.03.10-rc5"
+#define MEGASAS_RELDATE				"May 17, 2007"
+#define MEGASAS_EXT_VERSION			"Thu May 17 10:09:32 PDT 2007"
 
 /*
  * Device IDs
@@ -539,6 +539,8 @@ struct megasas_ctrl_info {
 
 #define MEGASAS_DBG_LVL				1
 
+#define MEGASAS_FW_BUSY				1
+
 /*
  * When SCSI mid-layer calls driver's reset routine, driver waits for
  * MEGASAS_RESET_WAIT_TIME seconds for all outstanding IO to complete. Note
@@ -549,8 +551,8 @@ struct megasas_ctrl_info {
 #define MEGASAS_RESET_WAIT_TIME			180
 #define MEGASAS_INTERNAL_CMD_WAIT_TIME		180
 #define	MEGASAS_RESET_NOTICE_INTERVAL		5
-
 #define MEGASAS_IOCTL_CMD			0
+#define MEGASAS_DEFAULT_CMD_TIMEOUT		90
 
 /*
  * FW reports the maximum of number of commands that it can accept (maximum
@@ -1073,7 +1075,6 @@ struct megasas_instance {
 	struct megasas_register_set __iomem *reg_set;
 
 	s8 init_id;
-	u8 reserved[3];
 
 	u16 max_num_sge;
 	u16 max_fw_cmds;
@@ -1104,6 +1105,9 @@ struct megasas_instance {
 
 	struct megasas_instance_template *instancet;
 	struct tasklet_struct isr_tasklet;
+
+	u8 flag;
+	unsigned long last_time;
 };
 
 #define MEGASAS_IS_LOGICAL(scp)						\

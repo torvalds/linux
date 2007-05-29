@@ -62,7 +62,7 @@ Who:	Dan Dennedy <dan@dennedy.org>, Stefan Richter <stefanr@s5r6.in-berlin.de>
 What:	old NCR53C9x driver
 When:	October 2007
 Why:	Replaced by the much better esp_scsi driver.  Actual low-level
-	driver can ported over almost trivially.
+	driver can be ported over almost trivially.
 Who:	David Miller <davem@davemloft.net>
 	Christoph Hellwig <hch@lst.de>
 

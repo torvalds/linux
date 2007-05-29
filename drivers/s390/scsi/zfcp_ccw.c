@@ -189,9 +189,7 @@ zfcp_ccw_set_online(struct ccw_device *ccw_device)
  * @ccw_device: pointer to belonging ccw device
  *
  * This function gets called by the common i/o layer and sets an adapter
- * into state offline. Setting an fcp device offline means that it will be
- * unregistered from the SCSI stack and that the adapter will be shut down
- * asynchronously.
+ * into state offline.
  */
 static int
 zfcp_ccw_set_offline(struct ccw_device *ccw_device)
@@ -202,7 +200,6 @@ zfcp_ccw_set_offline(struct ccw_device *ccw_device)
 	adapter = dev_get_drvdata(&ccw_device->dev);
 	zfcp_erp_adapter_shutdown(adapter, 0);
 	zfcp_erp_wait(adapter);
-	zfcp_adapter_scsi_unregister(adapter);
 	zfcp_erp_thread_kill(adapter);
 	zfcp_adapter_debug_unregister(adapter);
 	up(&zfcp_data.config_sema);

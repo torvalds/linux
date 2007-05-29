@@ -3954,6 +3954,13 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd * scsi_cmd)
 		spin_unlock_irq(scsi_cmd->device->host->host_lock);
 		ata_do_eh(ap, NULL, NULL, ipr_sata_reset, NULL);
 		spin_lock_irq(scsi_cmd->device->host->host_lock);
+
+		list_for_each_entry(ipr_cmd, &ioa_cfg->pending_q, queue) {
+			if (ipr_cmd->ioarcb.res_handle == res->cfgte.res_handle) {
+				rc = -EIO;
+				break;
+			}
+		}
 	} else
 		rc = ipr_device_reset(ioa_cfg, res);
 	res->resetting_device = 0;
