@@ -5,15 +5,13 @@
 config UCC_SLOW
 	bool
 	default n
-	select UCC
 	help
 	  This option provides qe_lib support to UCC slow
 	  protocols: UART, BISYNC, QMC
 
 config UCC_FAST
 	bool
-	default n
-	select UCC
+	default y if UCC_GETH
 	help
 	  This option provides qe_lib support to UCC fast
 	  protocols: HDLC, Ethernet, ATM, transparent

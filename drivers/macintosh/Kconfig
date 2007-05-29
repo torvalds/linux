@@ -113,7 +113,6 @@ config PMAC_SMU
 
 config PMAC_APM_EMU
 	tristate "APM emulation"
-	select SYS_SUPPORTS_APM_EMULATION
 	select APM_EMULATION
 	depends on ADB_PMU && PM
 
