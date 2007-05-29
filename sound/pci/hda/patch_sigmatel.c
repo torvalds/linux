@@ -1764,6 +1764,21 @@ static void stac92xx_set_pinctl(struct hda_codec *codec, hda_nid_t nid,
 	unsigned int pin_ctl = snd_hda_codec_read(codec, nid,
 			0, AC_VERB_GET_PIN_WIDGET_CONTROL, 0x00);
 
+	if (pin_ctl & AC_PINCTL_IN_EN) {
+		/*
+		 * we need to check the current set-up direction of
+		 * shared input pins since they can be switched via
+		 * "xxx as Output" mixer switch
+		 */
+		struct sigmatel_spec *spec = codec->spec;
+		struct auto_pin_cfg *cfg = &spec->autocfg;
+		if ((nid == cfg->input_pins[AUTO_PIN_LINE] &&
+		     spec->line_switch) ||
+		    (nid == cfg->input_pins[AUTO_PIN_MIC] &&
+		     spec->mic_switch))
+			return;
+	}
+
 	/* if setting pin direction bits, clear the current
 	   direction bits first */
 	if (flag & (AC_PINCTL_IN_EN | AC_PINCTL_OUT_EN))
