@@ -995,7 +995,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		case AUDIT_IPC: {
 			struct audit_aux_data_ipcctl *axi = (void *)aux;
 			audit_log_format(ab, 
-				 "ouid=%u ogid=%u mode=%x",
+				 "ouid=%u ogid=%u mode=%#o",
 				 axi->uid, axi->gid, axi->mode);
 			if (axi->osid != 0) {
 				char *ctx = NULL;
@@ -1014,7 +1014,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		case AUDIT_IPC_SET_PERM: {
 			struct audit_aux_data_ipcctl *axi = (void *)aux;
 			audit_log_format(ab,
-				"qbytes=%lx ouid=%u ogid=%u mode=%x",
+				"qbytes=%lx ouid=%u ogid=%u mode=%#o",
 				axi->qbytes, axi->uid, axi->gid, axi->mode);
 			break; }
 
