@@ -1,5 +1,6 @@
 /* ld script to make UltraLinux kernel */
 
+#include <asm/page.h>
 #include <asm-generic/vmlinux.lds.h>
 
 OUTPUT_FORMAT("elf64-sparc", "elf64-sparc", "elf64-sparc")
@@ -23,7 +24,7 @@ SECTIONS
   _etext = .;
   PROVIDE (etext = .);
 
-  RODATA
+  RO_DATA(PAGE_SIZE)
 
   .data    :
   {
@@ -44,7 +45,7 @@ SECTIONS
   __ex_table : { *(__ex_table) }
   __stop___ex_table = .;
 
-  . = ALIGN(8192);
+  . = ALIGN(PAGE_SIZE);
   __init_begin = .;
   .init.text : { 
 	_sinittext = .;
@@ -83,17 +84,17 @@ SECTIONS
   __sun4v_2insn_patch_end = .;
 
 #ifdef CONFIG_BLK_DEV_INITRD
-  . = ALIGN(8192); 
+  . = ALIGN(PAGE_SIZE);
   __initramfs_start = .;
   .init.ramfs : { *(.init.ramfs) }
   __initramfs_end = .;
 #endif
 
-  . = ALIGN(8192);
+  . = ALIGN(PAGE_SIZE);
   __per_cpu_start = .;
   .data.percpu  : { *(.data.percpu) }
   __per_cpu_end = .;
-  . = ALIGN(8192);
+  . = ALIGN(PAGE_SIZE);
   __init_end = .;
   __bss_start = .;
   .sbss      : { *(.sbss) *(.scommon) }
