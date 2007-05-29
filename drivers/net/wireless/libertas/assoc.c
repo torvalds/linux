@@ -58,11 +58,11 @@ static int assoc_helper_essid(wlan_private *priv,
 	              escape_essid(assoc_req->ssid, assoc_req->ssid_len));
 	if (assoc_req->mode == IW_MODE_INFRA) {
 		if (adapter->prescan) {
-			libertas_send_specific_SSID_scan(priv, assoc_req->ssid,
+			libertas_send_specific_ssid_scan(priv, assoc_req->ssid,
 				assoc_req->ssid_len, 0);
 		}
 
-		bss = libertas_find_SSID_in_list(adapter, assoc_req->ssid,
+		bss = libertas_find_ssid_in_list(adapter, assoc_req->ssid,
 				assoc_req->ssid_len, NULL, IW_MODE_INFRA, channel);
 		if (bss != NULL) {
 			lbs_deb_assoc("SSID found in scan list, associating\n");
@@ -75,11 +75,11 @@ static int assoc_helper_essid(wlan_private *priv,
 		/* Scan for the network, do not save previous results.  Stale
 		 *   scan data will cause us to join a non-existant adhoc network
 		 */
-		libertas_send_specific_SSID_scan(priv, assoc_req->ssid,
+		libertas_send_specific_ssid_scan(priv, assoc_req->ssid,
 			assoc_req->ssid_len, 1);
 
 		/* Search for the requested SSID in the scan table */
-		bss = libertas_find_SSID_in_list(adapter, assoc_req->ssid,
+		bss = libertas_find_ssid_in_list(adapter, assoc_req->ssid,
 				assoc_req->ssid_len, NULL, IW_MODE_ADHOC, channel);
 		if (bss != NULL) {
 			lbs_deb_assoc("SSID found, will join\n");
@@ -111,7 +111,7 @@ static int assoc_helper_bssid(wlan_private *priv,
 		MAC_ARG(assoc_req->bssid));
 
 	/* Search for index position in list for requested MAC */
-	bss = libertas_find_BSSID_in_list(adapter, assoc_req->bssid,
+	bss = libertas_find_bssid_in_list(adapter, assoc_req->bssid,
 			    assoc_req->mode);
 	if (bss == NULL) {
 		lbs_deb_assoc("ASSOC: WAP: BSSID " MAC_FMT " not found, "
@@ -419,7 +419,7 @@ static int should_stop_adhoc(wlan_adapter *adapter,
 	if (adapter->connect_status != libertas_connected)
 		return 0;
 
-	if (libertas_SSID_cmp(adapter->curbssparams.ssid,
+	if (libertas_ssid_cmp(adapter->curbssparams.ssid,
 	                      adapter->curbssparams.ssid_len,
 	                      assoc_req->ssid, assoc_req->ssid_len) != 0)
 		return 1;
@@ -475,7 +475,7 @@ void libertas_association_worker(struct work_struct *work)
 	if (find_any_ssid) {
 		u8 new_mode;
 
-		ret = libertas_find_best_network_SSID(priv, assoc_req->ssid,
+		ret = libertas_find_best_network_ssid(priv, assoc_req->ssid,
 				&assoc_req->ssid_len, assoc_req->mode, &new_mode);
 		if (ret) {
 			lbs_deb_assoc("Could not find best network\n");

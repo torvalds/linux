@@ -195,7 +195,7 @@ int libertas_join_adhoc_network(wlan_private * priv, struct assoc_request * asso
 
 	/* check if the requested SSID is already joined */
 	if (adapter->curbssparams.ssid_len
-	    && !libertas_SSID_cmp(adapter->curbssparams.ssid,
+	    && !libertas_ssid_cmp(adapter->curbssparams.ssid,
 	                          adapter->curbssparams.ssid_len,
 	                          bss->ssid, bss->ssid_len)
 	    && (adapter->mode == IW_MODE_ADHOC)) {

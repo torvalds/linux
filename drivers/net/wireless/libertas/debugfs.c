@@ -185,7 +185,7 @@ static ssize_t libertas_extscan(struct file *file, const char __user *userbuf,
 		goto out_unlock;
 	}
 
-	libertas_send_specific_SSID_scan(priv, buf, strlen(buf)-1, 0);
+	libertas_send_specific_ssid_scan(priv, buf, strlen(buf)-1, 0);
 
 	memset(&wrqu, 0, sizeof(union iwreq_data));
 	wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);

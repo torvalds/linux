@@ -1197,7 +1197,7 @@ done:
  *
  *  @return         0--ssid is same, otherwise is different
  */
-int libertas_SSID_cmp(u8 *ssid1, u8 ssid1_len, u8 *ssid2, u8 ssid2_len)
+int libertas_ssid_cmp(u8 *ssid1, u8 ssid1_len, u8 *ssid2, u8 ssid2_len)
 {
 	if (ssid1_len != ssid2_len)
 		return -1;
@@ -1214,7 +1214,7 @@ int libertas_SSID_cmp(u8 *ssid1, u8 ssid1_len, u8 *ssid2, u8 ssid2_len)
  *
  *  @return         index in BSSID list, or error return code (< 0)
  */
-struct bss_descriptor * libertas_find_BSSID_in_list(wlan_adapter * adapter,
+struct bss_descriptor * libertas_find_bssid_in_list(wlan_adapter * adapter,
 		u8 * bssid, u8 mode)
 {
 	struct bss_descriptor * iter_bss;
@@ -1261,7 +1261,7 @@ struct bss_descriptor * libertas_find_BSSID_in_list(wlan_adapter * adapter,
  *
  *  @return         index in BSSID list
  */
-struct bss_descriptor * libertas_find_SSID_in_list(wlan_adapter * adapter,
+struct bss_descriptor * libertas_find_ssid_in_list(wlan_adapter * adapter,
 		   u8 *ssid, u8 ssid_len, u8 * bssid, u8 mode,
 		   int channel)
 {
@@ -1277,7 +1277,7 @@ struct bss_descriptor * libertas_find_SSID_in_list(wlan_adapter * adapter,
 		    || (iter_bss->last_scanned < tmp_oldest->last_scanned))
 			tmp_oldest = iter_bss;
 
-		if (libertas_SSID_cmp(iter_bss->ssid, iter_bss->ssid_len,
+		if (libertas_ssid_cmp(iter_bss->ssid, iter_bss->ssid_len,
 		                      ssid, ssid_len) != 0)
 			continue; /* ssid doesn't match */
 		if (bssid && compare_ether_addr(iter_bss->bssid, bssid) != 0)
@@ -1327,7 +1327,7 @@ out:
  *
  *  @return         index in BSSID list
  */
-struct bss_descriptor * libertas_find_best_SSID_in_list(wlan_adapter * adapter,
+struct bss_descriptor * libertas_find_best_ssid_in_list(wlan_adapter * adapter,
 		u8 mode)
 {
 	u8 bestrssi = 0;
@@ -1369,7 +1369,7 @@ struct bss_descriptor * libertas_find_best_SSID_in_list(wlan_adapter * adapter,
  *
  *  @return             0--success, otherwise--fail
  */
-int libertas_find_best_network_SSID(wlan_private * priv,
+int libertas_find_best_network_ssid(wlan_private * priv,
 		u8 *out_ssid, u8 *out_ssid_len, u8 preferred_mode, u8 *out_mode)
 {
 	wlan_adapter *adapter = priv->adapter;
@@ -1384,7 +1384,7 @@ int libertas_find_best_network_SSID(wlan_private * priv,
 
 	wait_event_interruptible(adapter->cmd_pending, !adapter->nr_cmd_pending);
 
-	found = libertas_find_best_SSID_in_list(adapter, preferred_mode);
+	found = libertas_find_best_ssid_in_list(adapter, preferred_mode);
 	if (found && (found->ssid_len > 0)) {
 		memcpy(out_ssid, &found->ssid, IW_ESSID_MAX_SIZE);
 		*out_ssid_len = found->ssid_len;
@@ -1432,7 +1432,7 @@ int libertas_set_scan(struct net_device *dev, struct iw_request_info *info,
  *
  *  @return                0-success, otherwise fail
  */
-int libertas_send_specific_SSID_scan(wlan_private * priv,
+int libertas_send_specific_ssid_scan(wlan_private * priv,
 			u8 *ssid, u8 ssid_len, u8 clear_ssid)
 {
 	wlan_adapter *adapter = priv->adapter;
@@ -1468,7 +1468,7 @@ out:
  *
  *  @return          0-success, otherwise fail
  */
-int libertas_send_specific_BSSID_scan(wlan_private * priv, u8 * bssid, u8 clear_bssid)
+int libertas_send_specific_bssid_scan(wlan_private * priv, u8 * bssid, u8 clear_bssid)
 {
 	struct wlan_ioctl_user_scan_cfg scancfg;
 
@@ -1561,7 +1561,7 @@ static inline char *libertas_translate_scan(wlan_private *priv,
 	 */
 	if ((adapter->mode == IW_MODE_ADHOC)
 	    && adapter->adhoccreate
-	    && !libertas_SSID_cmp(adapter->curbssparams.ssid,
+	    && !libertas_ssid_cmp(adapter->curbssparams.ssid,
 	                          adapter->curbssparams.ssid_len,
 	                          bss->ssid, bss->ssid_len)) {
 		int snr, nf;
@@ -1598,7 +1598,7 @@ static inline char *libertas_translate_scan(wlan_private *priv,
 					 stop, &iwe, IW_EV_PARAM_LEN);
 	}
 	if ((bss->mode == IW_MODE_ADHOC)
-	    && !libertas_SSID_cmp(adapter->curbssparams.ssid,
+	    && !libertas_ssid_cmp(adapter->curbssparams.ssid,
 	                          adapter->curbssparams.ssid_len,
 	                          bss->ssid, bss->ssid_len)
 	    && adapter->adhoccreate) {
