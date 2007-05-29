@@ -521,4 +521,8 @@ sys_call_table:
 	PTR	compat_sys_epoll_pwait
 	PTR	sys_ioprio_set
 	PTR	sys_ioprio_get			/* 4315 */
+	PTR	compat_sys_utimensat
+	PTR	compat_sys_signalfd
+	PTR	compat_sys_timerfd
+	PTR	sys_eventfd
 	.size	sys_call_table,.-sys_call_table
