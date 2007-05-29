@@ -59,6 +59,12 @@ enum {
 	STAC_D945_REF,
 	STAC_D945GTP3,
 	STAC_D945GTP5,
+	STAC_INTEL_MAC_V1,
+	STAC_INTEL_MAC_V2,
+	STAC_INTEL_MAC_V3,
+	STAC_INTEL_MAC_V4,
+	STAC_INTEL_MAC_V5,
+	/* for backward compitability */
 	STAC_MACMINI,
 	STAC_MACBOOK,
 	STAC_MACBOOK_PRO_V1,
@@ -550,46 +556,64 @@ static unsigned int d945gtp5_pin_configs[10] = {
 	0x02a19320, 0x40000100,
 };
 
-static unsigned int macbook_pro_v1_pin_configs[10] = {
-	0x0321e230, 0x03a1e020, 0x9017e110, 0x01014010,
-	0x01a19021, 0x0381e021, 0x1345e240, 0x13c5e22e,
-	0x02a19320, 0x400000fb
-};
-
-static unsigned int macbook_pro_v2_pin_configs[10] = {
-	0x0221401f, 0x90a70120, 0x01813024, 0x01014010,
-	0x400000fd, 0x01016011, 0x1345e240, 0x13c5e22e,
+static unsigned int intel_mac_v1_pin_configs[10] = {
+	0x0121e21f, 0x400000ff, 0x9017e110, 0x400000fd,
+	0x400000fe, 0x0181e020, 0x1145e030, 0x11c5e240,
 	0x400000fc, 0x400000fb,
 };
 
-static unsigned int imac_intel_pin_configs[10] = {
-	0x0121e230, 0x90a70120, 0x9017e110, 0x400000fe,
-	0x400000fd, 0x0181e021, 0x1145e040, 0x400000fa,
+static unsigned int intel_mac_v2_pin_configs[10] = {
+	0x0121e21f, 0x90a7012e, 0x9017e110, 0x400000fd,
+	0x400000fe, 0x0181e020, 0x1145e230, 0x500000fa,
 	0x400000fc, 0x400000fb,
 };
 
-static unsigned int imac_intel_20_pin_configs[10] = {
-	0x0121E21F, 0x90A7012E, 0x9017E110, 0x400000FD,
-	0x400000FE, 0x0181E020, 0x1145E230, 0x11C5E240,
-	0x400000FC, 0x400000FB,
+static unsigned int intel_mac_v3_pin_configs[10] = {
+	0x0121e21f, 0x90a7012e, 0x9017e110, 0x400000fd,
+	0x400000fe, 0x0181e020, 0x1145e230, 0x11c5e240,
+	0x400000fc, 0x400000fb,
+};
+
+static unsigned int intel_mac_v4_pin_configs[10] = {
+	0x0321e21f, 0x03a1e02e, 0x9017e110, 0x9017e11f,
+	0x400000fe, 0x0381e020, 0x1345e230, 0x13c5e240,
+	0x400000fc, 0x400000fb,
+};
+
+static unsigned int intel_mac_v5_pin_configs[10] = {
+	0x0321e21f, 0x03a1e02e, 0x9017e110, 0x9017e11f,
+	0x400000fe, 0x0381e020, 0x1345e230, 0x13c5e240,
+	0x400000fc, 0x400000fb,
 };
 
 static unsigned int *stac922x_brd_tbl[STAC_922X_MODELS] = {
 	[STAC_D945_REF] = ref922x_pin_configs,
 	[STAC_D945GTP3] = d945gtp3_pin_configs,
 	[STAC_D945GTP5] = d945gtp5_pin_configs,
-	[STAC_MACMINI] = macbook_pro_v1_pin_configs,
-	[STAC_MACBOOK] = macbook_pro_v1_pin_configs,
-	[STAC_MACBOOK_PRO_V1] = macbook_pro_v1_pin_configs,
-	[STAC_MACBOOK_PRO_V2] = macbook_pro_v2_pin_configs,
-	[STAC_IMAC_INTEL] = imac_intel_pin_configs,
-	[STAC_IMAC_INTEL_20] = imac_intel_20_pin_configs,
+	[STAC_INTEL_MAC_V1] = intel_mac_v1_pin_configs,
+	[STAC_INTEL_MAC_V2] = intel_mac_v2_pin_configs,
+	[STAC_INTEL_MAC_V3] = intel_mac_v3_pin_configs,
+	[STAC_INTEL_MAC_V4] = intel_mac_v4_pin_configs,
+	[STAC_INTEL_MAC_V5] = intel_mac_v5_pin_configs,
+	/* for backward compitability */
+	[STAC_MACMINI] = intel_mac_v3_pin_configs,
+	[STAC_MACBOOK] = intel_mac_v5_pin_configs,
+	[STAC_MACBOOK_PRO_V1] = intel_mac_v3_pin_configs,
+	[STAC_MACBOOK_PRO_V2] = intel_mac_v3_pin_configs,
+	[STAC_IMAC_INTEL] = intel_mac_v2_pin_configs,
+	[STAC_IMAC_INTEL_20] = intel_mac_v3_pin_configs,
 };
 
 static const char *stac922x_models[STAC_922X_MODELS] = {
 	[STAC_D945_REF]	= "ref",
 	[STAC_D945GTP5]	= "5stack",
 	[STAC_D945GTP3]	= "3stack",
+	[STAC_INTEL_MAC_V1] = "intel-mac-v1",
+	[STAC_INTEL_MAC_V2] = "intel-mac-v2",
+	[STAC_INTEL_MAC_V3] = "intel-mac-v3",
+	[STAC_INTEL_MAC_V4] = "intel-mac-v4",
+	[STAC_INTEL_MAC_V5] = "intel-mac-v5",
+	/* for backward compitability */
 	[STAC_MACMINI]	= "macmini",
 	[STAC_MACBOOK]	= "macbook",
 	[STAC_MACBOOK_PRO_V1]	= "macbook-pro-v1",
@@ -658,7 +682,7 @@ static struct snd_pci_quirk stac922x_cfg_tbl[] = {
 	/* other systems  */
 	/* Apple Mac Mini (early 2006) */
 	SND_PCI_QUIRK(0x8384, 0x7680,
-		      "Mac Mini", STAC_MACMINI),
+		      "Mac Mini", STAC_INTEL_MAC_V3),
 	{} /* terminator */
 };
 
@@ -2027,27 +2051,36 @@ static int patch_stac922x(struct hda_codec *codec)
 	spec->board_config = snd_hda_check_board_config(codec, STAC_922X_MODELS,
 							stac922x_models,
 							stac922x_cfg_tbl);
-	if (spec->board_config == STAC_MACMINI) {
+	if (spec->board_config == STAC_INTEL_MAC_V3) {
 		spec->gpio_mute = 1;
 		/* Intel Macs have all same PCI SSID, so we need to check
 		 * codec SSID to distinguish the exact models
 		 */
 		printk(KERN_INFO "hda_codec: STAC922x, Apple subsys_id=%x\n", codec->subsystem_id);
 		switch (codec->subsystem_id) {
-		case 0x106b0a00: /* MacBook First generatoin */
-			spec->board_config = STAC_MACBOOK;
+
+		case 0x106b0800:
+			spec->board_config = STAC_INTEL_MAC_V1;
 			break;
-		case 0x106b0200: /* MacBook Pro first generation */
-			spec->board_config = STAC_MACBOOK_PRO_V1;
+		case 0x106b0600:
+		case 0x106b0700:
+			spec->board_config = STAC_INTEL_MAC_V2;
 			break;
-		case 0x106b1e00: /* MacBook Pro second generation */
-			spec->board_config = STAC_MACBOOK_PRO_V2;
+		case 0x106b0e00:
+		case 0x106b0f00:
+		case 0x106b1600:
+		case 0x106b1700:
+		case 0x106b0200:
+		case 0x106b1e00:
+			spec->board_config = STAC_INTEL_MAC_V3;
 			break;
-		case 0x106b0700: /* Intel-based iMac */
-			spec->board_config = STAC_IMAC_INTEL;
+		case 0x106b1a00:
+		case 0x00000100:
+			spec->board_config = STAC_INTEL_MAC_V4;
 			break;
-		case 0x106b1700: /* Intel iMac 20 */
-			spec->board_config = STAC_IMAC_INTEL_20;
+		case 0x106b0a00:
+		case 0x106b2200:
+			spec->board_config = STAC_INTEL_MAC_V5;
 			break;
 		}
 	}
