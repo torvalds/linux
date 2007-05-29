@@ -558,26 +558,11 @@ static void __init hypervisor_tlb_lock(unsigned long vaddr,
 				       unsigned long pte,
 				       unsigned long mmu)
 {
-	register unsigned long func asm("%o5");
-	register unsigned long arg0 asm("%o0");
-	register unsigned long arg1 asm("%o1");
-	register unsigned long arg2 asm("%o2");
-	register unsigned long arg3 asm("%o3");
+	unsigned long ret = sun4v_mmu_map_perm_addr(vaddr, 0, pte, mmu);
 
-	func = HV_FAST_MMU_MAP_PERM_ADDR;
-	arg0 = vaddr;
-	arg1 = 0;
-	arg2 = pte;
-	arg3 = mmu;
-	__asm__ __volatile__("ta	0x80"
-			     : "=&r" (func), "=&r" (arg0),
-			       "=&r" (arg1), "=&r" (arg2),
-			       "=&r" (arg3)
-			     : "0" (func), "1" (arg0), "2" (arg1),
-			       "3" (arg2), "4" (arg3));
-	if (arg0 != 0) {
+	if (ret != 0) {
 		prom_printf("hypervisor_tlb_lock[%lx:%lx:%lx:%lx]: "
-			    "errors with %lx\n", vaddr, 0, pte, mmu, arg0);
+			    "errors with %lx\n", vaddr, 0, pte, mmu, ret);
 		prom_halt();
 	}
 }
@@ -1314,20 +1299,16 @@ static void __init sun4v_ktsb_init(void)
 
 void __cpuinit sun4v_ktsb_register(void)
 {
-	register unsigned long func asm("%o5");
-	register unsigned long arg0 asm("%o0");
-	register unsigned long arg1 asm("%o1");
-	unsigned long pa;
+	unsigned long pa, ret;
 
 	pa = kern_base + ((unsigned long)&ktsb_descr[0] - KERNBASE);
 
-	func = HV_FAST_MMU_TSB_CTX0;
-	arg0 = NUM_KTSB_DESCR;
-	arg1 = pa;
-	__asm__ __volatile__("ta	%6"
-			     : "=&r" (func), "=&r" (arg0), "=&r" (arg1)
-			     : "0" (func), "1" (arg0), "2" (arg1),
-			       "i" (HV_FAST_TRAP));
+	ret = sun4v_mmu_tsb_ctx0(NUM_KTSB_DESCR, pa);
+	if (ret != 0) {
+		prom_printf("hypervisor_mmu_tsb_ctx0[%lx]: "
+			    "errors with %lx\n", pa, ret);
+		prom_halt();
+	}
 }
 
 /* paging_init() sets up the page tables */

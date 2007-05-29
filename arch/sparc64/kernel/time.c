@@ -680,22 +680,14 @@ static int starfire_set_time(u32 val)
 
 static u32 hypervisor_get_time(void)
 {
-	register unsigned long func asm("%o5");
-	register unsigned long arg0 asm("%o0");
-	register unsigned long arg1 asm("%o1");
+	unsigned long ret, time;
 	int retries = 10000;
 
 retry:
-	func = HV_FAST_TOD_GET;
-	arg0 = 0;
-	arg1 = 0;
-	__asm__ __volatile__("ta	%6"
-			     : "=&r" (func), "=&r" (arg0), "=&r" (arg1)
-			     : "0" (func), "1" (arg0), "2" (arg1),
-			       "i" (HV_FAST_TRAP));
-	if (arg0 == HV_EOK)
-		return arg1;
-	if (arg0 == HV_EWOULDBLOCK) {
+	ret = sun4v_tod_get(&time);
+	if (ret == HV_EOK)
+		return time;
+	if (ret == HV_EWOULDBLOCK) {
 		if (--retries > 0) {
 			udelay(100);
 			goto retry;
@@ -709,20 +701,14 @@ retry:
 
 static int hypervisor_set_time(u32 secs)
 {
-	register unsigned long func asm("%o5");
-	register unsigned long arg0 asm("%o0");
+	unsigned long ret;
 	int retries = 10000;
 
 retry:
-	func = HV_FAST_TOD_SET;
-	arg0 = secs;
-	__asm__ __volatile__("ta	%4"
-			     : "=&r" (func), "=&r" (arg0)
-			     : "0" (func), "1" (arg0),
-			       "i" (HV_FAST_TRAP));
-	if (arg0 == HV_EOK)
+	ret = sun4v_tod_set(secs);
+	if (ret == HV_EOK)
 		return 0;
-	if (arg0 == HV_EWOULDBLOCK) {
+	if (ret == HV_EWOULDBLOCK) {
 		if (--retries > 0) {
 			udelay(100);
 			goto retry;
