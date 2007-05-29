@@ -1198,5 +1198,8 @@ struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 					  struct btrfs_path *path,
 					  u64 objectid, u64 offset,
 					  int cow);
+int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
+			struct btrfs_root *root, struct btrfs_path *path,
+			u64 isize);
 /* super.c */
 #endif

@@ -2,6 +2,7 @@
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
+#include "print-tree.h"
 
 #define MAX_CSUM_ITEMS(r) ((((BTRFS_LEAF_DATA_SIZE(r) - \
 			       sizeof(struct btrfs_item) * 2) / \
@@ -27,6 +28,10 @@ int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_insert_empty_item(trans, root, path, &file_key,
 				      sizeof(*item));
+	if (ret) {
+printk("failed to insert %Lu %Lu ret %d\n", objectid, pos, ret);
+btrfs_print_leaf(root, btrfs_buffer_leaf(path->nodes[0]));
+	}
 	BUG_ON(ret);
 	item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]), path->slots[0],
 			      struct btrfs_file_extent_item);
@@ -215,6 +220,31 @@ found:
 fail:
 	btrfs_release_path(root, path);
 	btrfs_free_path(path);
+	return ret;
+}
+
+int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
+			struct btrfs_root *root, struct btrfs_path *path,
+			u64 isize)
+{
+	struct btrfs_key key;
+	struct btrfs_leaf *leaf = btrfs_buffer_leaf(path->nodes[0]);
+	int slot = path->slots[0];
+	int ret;
+	u32 new_item_size;
+	u64 new_item_span;
+	u64 blocks;
+
+	btrfs_disk_key_to_cpu(&key, &leaf->items[slot].key);
+	if (isize <= key.offset)
+		return 0;
+	new_item_span = isize - key.offset;
+	blocks = (new_item_span + root->blocksize - 1) / root->blocksize;
+	new_item_size = blocks * BTRFS_CRC32_SIZE;
+	if (new_item_size >= btrfs_item_size(leaf->items + slot))
+		return 0;
+	ret = btrfs_truncate_item(trans, root, path, new_item_size);
+	BUG_ON(ret);
 	return ret;
 }
 
