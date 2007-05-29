@@ -249,10 +249,13 @@ struct btrfs_device_item {
 /* tag for the radix tree of block groups in ram */
 #define BTRFS_BLOCK_GROUP_DIRTY 0
 #define BTRFS_BLOCK_GROUP_AVAIL 1
-#define BTRFS_BLOCK_GROUP_HINTS 8
 #define BTRFS_BLOCK_GROUP_SIZE (256 * 1024 * 1024)
+
+
+#define BTRFS_BLOCK_GROUP_DATA 1
 struct btrfs_block_group_item {
 	__le64 used;
+	u8 flags;
 } __attribute__ ((__packed__));
 
 struct btrfs_block_group_cache {
