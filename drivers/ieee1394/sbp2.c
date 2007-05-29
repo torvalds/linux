@@ -70,6 +70,7 @@
 #include <linux/stringify.h>
 #include <linux/types.h>
 #include <linux/wait.h>
+#include <linux/workqueue.h>
 
 #include <asm/byteorder.h>
 #include <asm/errno.h>
