@@ -391,11 +391,10 @@ $work_resched:
 	bne	$2, $work_resched
 
 $work_notifysig:
-	mov	$sp, $17
+	mov	$sp, $16
 	br	$1, do_switch_stack
-	mov	$5, $21
-	mov	$sp, $18
-	mov	$31, $16
+	mov	$sp, $17
+	mov	$5, $18
 	jsr	$26, do_notify_resume
 	bsr	$1, undo_switch_stack
 	br	restore_all

@@ -233,6 +233,20 @@
 #define __NR_osf_memcntl	260	/* not implemented */
 #define __NR_osf_fdatasync	261	/* not implemented */
 
+/*
+ * Ignore legacy syscalls that we don't use.
+ */
+#define __IGNORE_alarm
+#define __IGNORE_creat
+#define __IGNORE_getegid
+#define __IGNORE_geteuid
+#define __IGNORE_getgid
+#define __IGNORE_getpid
+#define __IGNORE_getppid
+#define __IGNORE_getuid
+#define __IGNORE_pause
+#define __IGNORE_time
+#define __IGNORE_utime
 
 /*
  * Linux-specific system calls begin at 300
@@ -387,10 +401,42 @@
 #define __NR_inotify_init		444
 #define __NR_inotify_add_watch		445
 #define __NR_inotify_rm_watch		446
+#define __NR_fdatasync			447
+#define __NR_kexec_load			448
+#define __NR_migrate_pages		449
+#define __NR_openat			450
+#define __NR_mkdirat			451
+#define __NR_mknodat			452
+#define __NR_fchownat			453
+#define __NR_futimesat			454
+#define __NR_fstatat64			455
+#define __NR_unlinkat			456
+#define __NR_renameat			457
+#define __NR_linkat			458
+#define __NR_symlinkat			459
+#define __NR_readlinkat			460
+#define __NR_fchmodat			461
+#define __NR_faccessat			462
+#define __NR_pselect6			463
+#define __NR_ppoll			464
+#define __NR_unshare			465
+#define __NR_set_robust_list		466
+#define __NR_get_robust_list		467
+#define __NR_splice			468
+#define __NR_sync_file_range		469
+#define __NR_tee			470
+#define __NR_vmsplice			471
+#define __NR_move_pages			472
+#define __NR_getcpu			473
+#define __NR_epoll_pwait		474
+#define __NR_utimensat			475
+#define __NR_signalfd			476
+#define __NR_timerfd			477
+#define __NR_eventfd			478
 
 #ifdef __KERNEL__
 
-#define NR_SYSCALLS			447
+#define NR_SYSCALLS			479
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
