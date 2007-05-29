@@ -2,6 +2,7 @@
  * atomic32.c: 32-bit atomic_t implementation
  *
  * Copyright (C) 2004 Keith M Wesolowski
+ * Copyright (C) 2007 Kyle McMartin
  * 
  * Based on asm-parisc/atomic.h Copyright (C) 2000 Philipp Rumpf
  */
@@ -117,3 +118,17 @@ unsigned long ___change_bit(unsigned long *addr, unsigned long mask)
 	return old & mask;
 }
 EXPORT_SYMBOL(___change_bit);
+
+unsigned long __cmpxchg_u32(volatile u32 *ptr, u32 old, u32 new)
+{
+	unsigned long flags;
+	u32 prev;
+
+	spin_lock_irqsave(ATOMIC_HASH(addr), flags);
+	if ((prev = *ptr) == old)
+		*ptr = new;
+	spin_unlock_irqrestore(ATOMIC_HASH(addr), flags);
+
+	return (unsigned long)prev;
+}
+EXPORT_SYMBOL(__cmpxchg_u32);
