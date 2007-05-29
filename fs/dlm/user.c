@@ -156,6 +156,7 @@ static int lkb_is_endoflife(struct dlm_lkb *lkb, int sb_status, int type)
 		return 1;
 	case -DLM_ECANCEL:
 	case -ETIMEDOUT:
+	case -EDEADLK:
 		if (lkb->lkb_grmode == DLM_LOCK_IV)
 			return 1;
 		break;
@@ -316,6 +317,22 @@ static int device_user_unlock(struct dlm_user_proc *proc,
 		error = dlm_user_unlock(ls, ua, params->flags, params->lkid,
 					params->lvb);
  out:
+	dlm_put_lockspace(ls);
+	return error;
+}
+
+static int device_user_deadlock(struct dlm_user_proc *proc,
+				struct dlm_lock_params *params)
+{
+	struct dlm_ls *ls;
+	int error;
+
+	ls = dlm_find_lockspace_local(proc->lockspace);
+	if (!ls)
+		return -ENOENT;
+
+	error = dlm_user_deadlock(ls, params->flags, params->lkid);
+
 	dlm_put_lockspace(ls);
 	return error;
 }
@@ -543,6 +560,14 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 			goto out_sig;
 		}
 		error = device_user_unlock(proc, &kbuf->i.lock);
+		break;
+
+	case DLM_USER_DEADLOCK:
+		if (!proc) {
+			log_print("no locking on control device");
+			goto out_sig;
+		}
+		error = device_user_deadlock(proc, &kbuf->i.lock);
 		break;
 
 	case DLM_USER_CREATE_LOCKSPACE:

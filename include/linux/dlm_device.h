@@ -92,6 +92,7 @@ struct dlm_lock_result {
 #define DLM_USER_CREATE_LOCKSPACE  4
 #define DLM_USER_REMOVE_LOCKSPACE  5
 #define DLM_USER_PURGE        6
+#define DLM_USER_DEADLOCK     7
 
 /* Arbitrary length restriction */
 #define MAX_LS_NAME_LEN 64
