@@ -1158,6 +1158,30 @@ static void release_address(struct usb_device *udev)
 	}
 }
 
+#ifdef	CONFIG_USB_SUSPEND
+
+static void usb_stop_pm(struct usb_device *udev)
+{
+	/* Synchronize with the ksuspend thread to prevent any more
+	 * autosuspend requests from being submitted, and decrement
+	 * the parent's count of unsuspended children.
+	 */
+	usb_pm_lock(udev);
+	if (udev->parent && !udev->discon_suspended)
+		usb_autosuspend_device(udev->parent);
+	usb_pm_unlock(udev);
+
+	/* Stop any autosuspend requests already submitted */
+	cancel_rearming_delayed_work(&udev->autosuspend);
+}
+
+#else
+
+static inline void usb_stop_pm(struct usb_device *udev)
+{ }
+
+#endif
+
 /**
  * usb_disconnect - disconnect a device (usbcore-internal)
  * @pdev: pointer to device being disconnected
@@ -1224,13 +1248,7 @@ void usb_disconnect(struct usb_device **pdev)
 	*pdev = NULL;
 	spin_unlock_irq(&device_state_lock);
 
-	/* Decrement the parent's count of unsuspended children */
-	if (udev->parent) {
-		usb_pm_lock(udev);
-		if (!udev->discon_suspended)
-			usb_autosuspend_device(udev->parent);
-		usb_pm_unlock(udev);
-	}
+	usb_stop_pm(udev);
 
 	put_device(&udev->dev);
 }
