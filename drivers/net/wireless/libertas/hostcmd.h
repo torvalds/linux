@@ -102,11 +102,6 @@ struct IE_WPA {
 	__le16 version;
 };
 
-struct WPA_SUPPLICANT {
-	u8 wpa_ie[256];
-	u8 wpa_ie_len;
-};
-
 /* wlan_offset_value */
 struct wlan_offset_value {
 	u32 offset;
