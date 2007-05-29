@@ -1152,6 +1152,7 @@ static int init_section_ref_ok(const char *name)
 		".debug",
 		".parainstructions",
 		".rodata",
+		".note",		/* ignore ELF notes - may contain anything */
 		NULL
 	};
 	/* part of section name */
@@ -1228,6 +1229,7 @@ static int exit_section_ref_ok(const char *name)
 	/* Start of section names */
 	const char *namelist2[] = {
 		".debug",
+		".note",		/* ignore ELF notes - may contain anything */
 		NULL
 	};
 	/* part of section name */
