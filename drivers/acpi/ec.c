@@ -39,20 +39,19 @@
 #include <acpi/acpi_drivers.h>
 #include <acpi/actypes.h>
 
-#define _COMPONENT		ACPI_EC_COMPONENT
-ACPI_MODULE_NAME("ec");
-#define ACPI_EC_COMPONENT		0x00100000
 #define ACPI_EC_CLASS			"embedded_controller"
 #define ACPI_EC_HID			"PNP0C09"
 #define ACPI_EC_DEVICE_NAME		"Embedded Controller"
 #define ACPI_EC_FILE_INFO		"info"
 #undef PREFIX
 #define PREFIX				"ACPI: EC: "
+
 /* EC status register */
 #define ACPI_EC_FLAG_OBF	0x01	/* Output buffer full */
 #define ACPI_EC_FLAG_IBF	0x02	/* Input buffer full */
 #define ACPI_EC_FLAG_BURST	0x10	/* burst mode */
 #define ACPI_EC_FLAG_SCI	0x20	/* EC-SCI occurred */
+
 /* EC commands */
 enum ec_command {
 	ACPI_EC_COMMAND_READ = 0x80,
@@ -245,7 +244,7 @@ static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
 
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0, 0, 0);
 	if (status) {
-		printk(KERN_DEBUG PREFIX
+		printk(KERN_ERR PREFIX
 		       "input buffer is not empty, aborting transaction\n");
 		goto end;
 	}
@@ -630,10 +629,6 @@ static int acpi_ec_add(struct acpi_device *device)
 
 	acpi_ec_add_fs(device);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "%s [%s] (gpe %d) interrupt mode.",
-			  acpi_device_name(device), acpi_device_bid(device),
-			  (u32) ec->gpe));
-
 	return 0;
 }
 
@@ -718,9 +713,6 @@ static int acpi_ec_start(struct acpi_device *device)
 	if (!ec)
 		return -EINVAL;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "gpe=0x%02lx, ports=0x%2lx,0x%2lx",
-			  ec->gpe, ec->command_addr, ec->data_addr));
-
 	/* Boot EC is already working */
 	if (ec == boot_ec)
 		return 0;
@@ -779,8 +771,8 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 
 	ec->handle = handle;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "GPE=0x%02lx, ports=0x%2lx, 0x%2lx",
-			  ec->gpe, ec->command_addr, ec->data_addr));
+	printk(KERN_INFO PREFIX "GPE = 0x%lx, I/O: command/status = 0x%lx, data = 0x%lx",
+			  ec->gpe, ec->command_addr, ec->data_addr);
 
 	return AE_CTRL_TERMINATE;
 }
@@ -803,7 +795,7 @@ int __init acpi_ec_ecdt_probe(void)
 	if (ACPI_FAILURE(status))
 		goto error;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found ECDT"));
+	printk(KERN_INFO PREFIX "EC description table is found, configuring boot EC\n");
 
 	boot_ec->command_addr = ecdt_ptr->control.address;
 	boot_ec->data_addr = ecdt_ptr->data.address;
