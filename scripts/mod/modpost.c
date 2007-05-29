@@ -637,12 +637,6 @@ static int strrcmp(const char *s, const char *sub)
  *  fromsec    = .text*
  *  refsymname = logo_
  *
- * Pattern 8:
- *  Symbols contained in .paravirtprobe may safely reference .init.text.
- *  The pattern is:
- *  tosec   = .init.text
- *  fromsec  = .paravirtprobe
- *
  * Pattern 10:
  *  ia64 has machvec table for each platform and
  *  powerpc has a machine desc table for each platform.
@@ -724,11 +718,6 @@ static int secref_whitelist(const char *modname, const char *tosec,
 	if ((strcmp(tosec, ".init.data") == 0) &&
 	    (strncmp(fromsec, ".text", strlen(".text")) == 0) &&
 	    (strncmp(refsymname, "logo_", strlen("logo_")) == 0))
-		return 1;
-
-	/* Check for pattern 8 */
-	if ((strcmp(tosec, ".init.text") == 0) &&
-	    (strcmp(fromsec, ".paravirtprobe") == 0))
 		return 1;
 
 	/* Check for pattern 10 */
