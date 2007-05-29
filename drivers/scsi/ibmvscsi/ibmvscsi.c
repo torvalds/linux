@@ -1375,6 +1375,23 @@ static int ibmvscsi_slave_configure(struct scsi_device *sdev)
 	return 0;
 }
 
+/**
+ * ibmvscsi_change_queue_depth - Change the device's queue depth
+ * @sdev:	scsi device struct
+ * @qdepth:	depth to set
+ *
+ * Return value:
+ * 	actual depth set
+ **/
+static int ibmvscsi_change_queue_depth(struct scsi_device *sdev, int qdepth)
+{
+	if (qdepth > IBMVSCSI_MAX_CMDS_PER_LUN)
+		qdepth = IBMVSCSI_MAX_CMDS_PER_LUN;
+
+	scsi_adjust_queue_depth(sdev, 0, qdepth);
+	return sdev->queue_depth;
+}
+
 /* ------------------------------------------------------------
  * sysfs attributes
  */
@@ -1521,6 +1538,7 @@ static struct scsi_host_template driver_template = {
 	.eh_abort_handler = ibmvscsi_eh_abort_handler,
 	.eh_device_reset_handler = ibmvscsi_eh_device_reset_handler,
 	.slave_configure = ibmvscsi_slave_configure,
+	.change_queue_depth = ibmvscsi_change_queue_depth,
 	.cmd_per_lun = 16,
 	.can_queue = IBMVSCSI_MAX_REQUESTS_DEFAULT,
 	.this_id = -1,
