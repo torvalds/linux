@@ -139,10 +139,8 @@ int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 	nf_reset(skb);
 
 	if (decaps) {
-		if (!(skb->dev->flags&IFF_LOOPBACK)) {
-			dst_release(skb->dst);
-			skb->dst = NULL;
-		}
+		dst_release(skb->dst);
+		skb->dst = NULL;
 		netif_rx(skb);
 		return 0;
 	} else {

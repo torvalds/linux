@@ -104,10 +104,8 @@ int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi)
 	nf_reset(skb);
 
 	if (decaps) {
-		if (!(skb->dev->flags&IFF_LOOPBACK)) {
-			dst_release(skb->dst);
-			skb->dst = NULL;
-		}
+		dst_release(skb->dst);
+		skb->dst = NULL;
 		netif_rx(skb);
 		return -1;
 	} else {
