@@ -139,16 +139,16 @@ int in4_pton(const char *src, int srclen,
 	while(1) {
 		int c;
 		c = xdigit2bin(srclen > 0 ? *s : '\0', delim);
-		if (!(c & (IN6PTON_DIGIT | IN6PTON_DOT | IN6PTON_DELIM))) {
+		if (!(c & (IN6PTON_DIGIT | IN6PTON_DOT | IN6PTON_DELIM | IN6PTON_COLON_MASK))) {
 			goto out;
 		}
-		if (c & (IN6PTON_DOT | IN6PTON_DELIM)) {
+		if (c & (IN6PTON_DOT | IN6PTON_DELIM | IN6PTON_COLON_MASK)) {
 			if (w == 0)
 				goto out;
 			*d++ = w & 0xff;
 			w = 0;
 			i++;
-			if (c & IN6PTON_DELIM) {
+			if (c & (IN6PTON_DELIM | IN6PTON_COLON_MASK)) {
 				if (i != 4)
 					goto out;
 				break;
