@@ -247,6 +247,21 @@ void tick_nohz_stop_sched_tick(void)
 		if (cpu == tick_do_timer_cpu)
 			tick_do_timer_cpu = -1;
 
+		ts->idle_sleeps++;
+
+		/*
+		 * delta_jiffies >= NEXT_TIMER_MAX_DELTA signals that
+		 * there is no timer pending or at least extremly far
+		 * into the future (12 days for HZ=1000). In this case
+		 * we simply stop the tick timer:
+		 */
+		if (unlikely(delta_jiffies >= NEXT_TIMER_MAX_DELTA)) {
+			ts->idle_expires.tv64 = KTIME_MAX;
+			if (ts->nohz_mode == NOHZ_MODE_HIGHRES)
+				hrtimer_cancel(&ts->sched_timer);
+			goto out;
+		}
+
 		/*
 		 * calculate the expiry time for the next timer wheel
 		 * timer
@@ -254,7 +269,6 @@ void tick_nohz_stop_sched_tick(void)
 		expires = ktime_add_ns(last_update, tick_period.tv64 *
 				       delta_jiffies);
 		ts->idle_expires = expires;
-		ts->idle_sleeps++;
 
 		if (ts->nohz_mode == NOHZ_MODE_HIGHRES) {
 			hrtimer_start(&ts->sched_timer, expires,

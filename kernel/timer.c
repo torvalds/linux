@@ -666,7 +666,7 @@ static inline void __run_timers(tvec_base_t *base)
 static unsigned long __next_timer_interrupt(tvec_base_t *base)
 {
 	unsigned long timer_jiffies = base->timer_jiffies;
-	unsigned long expires = timer_jiffies + (LONG_MAX >> 1);
+	unsigned long expires = timer_jiffies + NEXT_TIMER_MAX_DELTA;
 	int index, slot, array, found = 0;
 	struct timer_list *nte;
 	tvec_t *varray[4];
@@ -752,6 +752,14 @@ static unsigned long cmp_next_hrtimer_event(unsigned long now,
 
 	tsdelta = ktime_to_timespec(hr_delta);
 	delta = timespec_to_jiffies(&tsdelta);
+
+	/*
+	 * Limit the delta to the max value, which is checked in
+	 * tick_nohz_stop_sched_tick():
+	 */
+	if (delta > NEXT_TIMER_MAX_DELTA)
+		delta = NEXT_TIMER_MAX_DELTA;
+
 	/*
 	 * Take rounding errors in to account and make sure, that it
 	 * expires in the next tick. Otherwise we go into an endless
