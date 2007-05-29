@@ -910,6 +910,17 @@ static inline int netif_rx_reschedule(struct net_device *dev, int undo)
 	return 0;
 }
 
+/* same as netif_rx_complete, except that local_irq_save(flags)
+ * has already been issued
+ */
+static inline void __netif_rx_complete(struct net_device *dev)
+{
+	BUG_ON(!test_bit(__LINK_STATE_RX_SCHED, &dev->state));
+	list_del(&dev->poll_list);
+	smp_mb__before_clear_bit();
+	clear_bit(__LINK_STATE_RX_SCHED, &dev->state);
+}
+
 /* Remove interface from poll list: it must be in the poll list
  * on current cpu. This primitive is called by dev->poll(), when
  * it completes the work. The device cannot be out of poll list at this
@@ -920,10 +931,7 @@ static inline void netif_rx_complete(struct net_device *dev)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	BUG_ON(!test_bit(__LINK_STATE_RX_SCHED, &dev->state));
-	list_del(&dev->poll_list);
-	smp_mb__before_clear_bit();
-	clear_bit(__LINK_STATE_RX_SCHED, &dev->state);
+	__netif_rx_complete(dev);
 	local_irq_restore(flags);
 }
 
@@ -936,17 +944,6 @@ static inline void netif_poll_disable(struct net_device *dev)
 
 static inline void netif_poll_enable(struct net_device *dev)
 {
-	smp_mb__before_clear_bit();
-	clear_bit(__LINK_STATE_RX_SCHED, &dev->state);
-}
-
-/* same as netif_rx_complete, except that local_irq_save(flags)
- * has already been issued
- */
-static inline void __netif_rx_complete(struct net_device *dev)
-{
-	BUG_ON(!test_bit(__LINK_STATE_RX_SCHED, &dev->state));
-	list_del(&dev->poll_list);
 	smp_mb__before_clear_bit();
 	clear_bit(__LINK_STATE_RX_SCHED, &dev->state);
 }
