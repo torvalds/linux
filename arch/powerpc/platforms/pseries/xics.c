@@ -752,6 +752,7 @@ skip_gserver_check:
 void xics_request_IPIs(void)
 {
 	unsigned int ipi;
+	int rc;
 
 	ipi = irq_create_mapping(xics_host, XICS_IPI);
 	BUG_ON(ipi == NO_IRQ);
@@ -762,11 +763,12 @@ void xics_request_IPIs(void)
 	 */
 	set_irq_handler(ipi, handle_percpu_irq);
 	if (firmware_has_feature(FW_FEATURE_LPAR))
-		request_irq(ipi, xics_ipi_action_lpar, IRQF_DISABLED,
-			    "IPI", NULL);
+		rc = request_irq(ipi, xics_ipi_action_lpar, IRQF_DISABLED,
+				"IPI", NULL);
 	else
-		request_irq(ipi, xics_ipi_action_direct, IRQF_DISABLED,
-			    "IPI", NULL);
+		rc = request_irq(ipi, xics_ipi_action_direct, IRQF_DISABLED,
+				"IPI", NULL);
+	BUG_ON(rc);
 }
 #endif /* CONFIG_SMP */
 
