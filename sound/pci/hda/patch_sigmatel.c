@@ -501,8 +501,8 @@ static unsigned int stac925x_PA6_pin_configs[8] = {
 };
 
 static unsigned int stac925xM2_2_pin_configs[8] = {
-	0x40c003f3, 0x424503f2, 0x041800f4, 0x02a19020,
-	0x50a103F0, 0x90100210, 0x400003f1, 0x9033032e,
+	0x40c003f3, 0x424503f2, 0x04180011, 0x02a19020,
+	0x50a103f0, 0x90100212, 0x400003f1, 0x9033032e,
 };
 
 static unsigned int *stac925x_brd_tbl[STAC_925x_MODELS] = {
