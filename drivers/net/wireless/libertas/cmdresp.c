@@ -61,25 +61,28 @@ void libertas_mac_event_disconnected(wlan_private * priv)
 	adapter->nextSNRNF = 0;
 	adapter->numSNRNF = 0;
 	adapter->rxpd_rate = 0;
-	lbs_deb_cmd("Current SSID=%s, ssid length=%u\n",
-	       adapter->curbssparams.ssid.ssid,
-	       adapter->curbssparams.ssid.ssidlength);
-	lbs_deb_cmd("Previous SSID=%s, ssid length=%u\n",
-	       adapter->previousssid.ssid, adapter->previousssid.ssidlength);
+	lbs_deb_cmd("Current SSID='%s', ssid length=%u\n",
+	            escape_essid(adapter->curbssparams.ssid,
+	                         adapter->curbssparams.ssid_len),
+	            adapter->curbssparams.ssid_len);
+	lbs_deb_cmd("Previous SSID='%s', ssid length=%u\n",
+	            escape_essid(adapter->prev_ssid, adapter->prev_ssid_len),
+	            adapter->prev_ssid_len);
 
 	adapter->connect_status = libertas_disconnected;
 
 	/* Save previous SSID and BSSID for possible reassociation */
-	memcpy(&adapter->previousssid,
-	       &adapter->curbssparams.ssid, sizeof(struct WLAN_802_11_SSID));
-	memcpy(adapter->previousbssid,
-	       adapter->curbssparams.bssid, ETH_ALEN);
+	memcpy(&adapter->prev_ssid, &adapter->curbssparams.ssid,
+	       IW_ESSID_MAX_SIZE);
+	adapter->prev_ssid_len = adapter->curbssparams.ssid_len;
+	memcpy(adapter->prev_bssid, adapter->curbssparams.bssid, ETH_ALEN);
 
 	/* Clear out associated SSID and BSSID since connection is
 	 * no longer valid.
 	 */
 	memset(&adapter->curbssparams.bssid, 0, ETH_ALEN);
-	memset(&adapter->curbssparams.ssid, 0, sizeof(struct WLAN_802_11_SSID));
+	memset(&adapter->curbssparams.ssid, 0, IW_ESSID_MAX_SIZE);
+	adapter->curbssparams.ssid_len = 0;
 
 	if (adapter->psstate != PS_STATE_FULL_POWER) {
 		/* make firmware to exit PS mode */

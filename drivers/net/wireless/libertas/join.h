@@ -40,9 +40,6 @@ extern int libertas_ret_80211_associate(wlan_private * priv,
 
 extern int libertas_reassociation_thread(void *data);
 
-struct WLAN_802_11_SSID;
-struct bss_descriptor;
-
 extern int libertas_start_adhoc_network(wlan_private * priv,
 			     struct assoc_request * assoc_req);
 extern int libertas_join_adhoc_network(wlan_private * priv,

@@ -137,7 +137,8 @@ struct wlan_ioctl_user_scan_cfg {
 struct bss_descriptor {
 	u8 bssid[ETH_ALEN];
 
-	struct WLAN_802_11_SSID ssid;
+	u8 ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 ssid_len;
 
 	/* WEP encryption requirement */
 	u32 privacy;
@@ -174,11 +175,10 @@ struct bss_descriptor {
 	struct list_head list;
 };
 
-extern int libertas_SSID_cmp(struct WLAN_802_11_SSID *ssid1,
-			struct WLAN_802_11_SSID *ssid2);
+extern int libertas_SSID_cmp(u8 *ssid1, u8 ssid1_len, u8 *ssid2, u8 ssid2_len);
 
 struct bss_descriptor * libertas_find_SSID_in_list(wlan_adapter * adapter,
-			struct WLAN_802_11_SSID *ssid, u8 * bssid, u8 mode,
+			u8 *ssid, u8 ssid_len, u8 * bssid, u8 mode,
 			int channel);
 
 struct bss_descriptor * libertas_find_best_SSID_in_list(wlan_adapter * adapter,
@@ -187,13 +187,11 @@ struct bss_descriptor * libertas_find_best_SSID_in_list(wlan_adapter * adapter,
 extern struct bss_descriptor * libertas_find_BSSID_in_list(wlan_adapter * adapter,
 			u8 * bssid, u8 mode);
 
-int libertas_find_best_network_SSID(wlan_private * priv,
-			struct WLAN_802_11_SSID *pSSID,
-			u8 preferred_mode, u8 *out_mode);
+int libertas_find_best_network_SSID(wlan_private * priv, u8 *out_ssid,
+			u8 *out_ssid_len, u8 preferred_mode, u8 *out_mode);
 
-extern int libertas_send_specific_SSID_scan(wlan_private * priv,
-				struct WLAN_802_11_SSID *prequestedssid,
-				u8 clear_ssid);
+extern int libertas_send_specific_SSID_scan(wlan_private * priv, u8 *ssid,
+				u8 ssid_len, u8 clear_ssid);
 extern int libertas_send_specific_BSSID_scan(wlan_private * priv,
 				 u8 * bssid, u8 clear_bssid);
 

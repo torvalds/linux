@@ -184,18 +184,20 @@ int libertas_join_adhoc_network(wlan_private * priv, struct assoc_request * asso
 	struct bss_descriptor * bss = &assoc_req->bss;
 	int ret = 0;
 
-	lbs_deb_join("libertas_join_adhoc_network: CurBss.ssid =%s\n",
-	       adapter->curbssparams.ssid.ssid);
-	lbs_deb_join("libertas_join_adhoc_network: CurBss.ssid_len =%u\n",
-	       adapter->curbssparams.ssid.ssidlength);
-	lbs_deb_join("libertas_join_adhoc_network: ssid = '%s'\n",
-		bss->ssid.ssid);
-	lbs_deb_join("libertas_join_adhoc_network: ssid len = %u\n",
-		bss->ssid.ssidlength);
+	lbs_deb_join("%s: Current SSID '%s', ssid length %u\n",
+	             __func__,
+	             escape_essid(adapter->curbssparams.ssid,
+	                          adapter->curbssparams.ssid_len),
+	             adapter->curbssparams.ssid_len);
+	lbs_deb_join("%s: requested ssid '%s', ssid length %u\n",
+	             __func__, escape_essid(bss->ssid, bss->ssid_len),
+	             bss->ssid_len);
 
 	/* check if the requested SSID is already joined */
-	if (adapter->curbssparams.ssid.ssidlength
-	    && !libertas_SSID_cmp(&bss->ssid, &adapter->curbssparams.ssid)
+	if (adapter->curbssparams.ssid_len
+	    && !libertas_SSID_cmp(adapter->curbssparams.ssid,
+	                          adapter->curbssparams.ssid_len,
+	                          bss->ssid, bss->ssid_len)
 	    && (adapter->mode == IW_MODE_ADHOC)) {
 		lbs_deb_join(
 		       "ADHOC_J_CMD: New ad-hoc SSID is the same as current, "
@@ -362,9 +364,9 @@ int libertas_cmd_80211_associate(wlan_private * priv,
 
 	ssid = (struct mrvlietypes_ssidparamset *) pos;
 	ssid->header.type = cpu_to_le16(TLV_TYPE_SSID);
-	tmplen = bss->ssid.ssidlength;
+	tmplen = bss->ssid_len;
 	ssid->header.len = cpu_to_le16(tmplen);
-	memcpy(ssid->ssid, bss->ssid.ssid, tmplen);
+	memcpy(ssid->ssid, bss->ssid, tmplen);
 	pos += sizeof(ssid->header) + tmplen;
 
 	phy = (struct mrvlietypes_phyparamset *) pos;
@@ -482,9 +484,11 @@ int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 	 */
 
 	memset(adhs->SSID, 0, IW_ESSID_MAX_SIZE);
-	memcpy(adhs->SSID, assoc_req->ssid.ssid, assoc_req->ssid.ssidlength);
+	memcpy(adhs->SSID, assoc_req->ssid, assoc_req->ssid_len);
 
-	lbs_deb_join("ADHOC_S_CMD: SSID = %s\n", adhs->SSID);
+	lbs_deb_join("ADHOC_S_CMD: SSID '%s', ssid length %u\n",
+	             escape_essid(assoc_req->ssid, assoc_req->ssid_len),
+	             assoc_req->ssid_len);
 
 	/* set the BSS type */
 	adhs->bsstype = cmd_bss_type_ibss;
@@ -600,7 +604,7 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 	padhocjoin->bssdescriptor.beaconperiod = cpu_to_le16(bss->beaconperiod);
 
 	memcpy(&padhocjoin->bssdescriptor.BSSID, &bss->bssid, ETH_ALEN);
-	memcpy(&padhocjoin->bssdescriptor.SSID, &bss->ssid.ssid, bss->ssid.ssidlength);
+	memcpy(&padhocjoin->bssdescriptor.SSID, &bss->ssid, bss->ssid_len);
 
 	memcpy(&padhocjoin->bssdescriptor.phyparamset,
 	       &bss->phyparamset, sizeof(union ieeetypes_phyparamset));
@@ -733,11 +737,12 @@ int libertas_ret_80211_associate(wlan_private * priv,
 	/* Send a Media Connected event, according to the Spec */
 	adapter->connect_status = libertas_connected;
 
-	lbs_deb_join("ASSOC_RESP: %s\n", bss->ssid.ssid);
+	lbs_deb_join("ASSOC_RESP: assocated to '%s'\n",
+	             escape_essid(bss->ssid, bss->ssid_len));
 
 	/* Update current SSID and BSSID */
-	memcpy(&adapter->curbssparams.ssid,
-	       &bss->ssid, sizeof(struct WLAN_802_11_SSID));
+	memcpy(&adapter->curbssparams.ssid, &bss->ssid, IW_ESSID_MAX_SIZE);
+	adapter->curbssparams.ssid_len = bss->ssid_len;
 	memcpy(adapter->curbssparams.bssid, bss->bssid, ETH_ALEN);
 
 	lbs_deb_join("ASSOC_RESP: currentpacketfilter is %x\n",
@@ -821,7 +826,8 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 	 * Now the join cmd should be successful
 	 * If BSSID has changed use SSID to compare instead of BSSID
 	 */
-	lbs_deb_join("ADHOC_RESP: %s\n", bss->ssid.ssid);
+	lbs_deb_join("ADHOC_RESP: associated to '%s'\n",
+	             escape_essid(bss->ssid, bss->ssid_len));
 
 	/* Send a Media Connected event, according to the Spec */
 	adapter->connect_status = libertas_connected;
@@ -835,8 +841,8 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 	memcpy(&adapter->curbssparams.bssid, bss->bssid, ETH_ALEN);
 
 	/* Set the new SSID to current SSID */
-	memcpy(&adapter->curbssparams.ssid, &bss->ssid,
-	       sizeof(struct WLAN_802_11_SSID));
+	memcpy(&adapter->curbssparams.ssid, &bss->ssid, IW_ESSID_MAX_SIZE);
+	adapter->curbssparams.ssid_len = bss->ssid_len;
 
 	netif_carrier_on(priv->dev);
 	netif_wake_queue(priv->dev);

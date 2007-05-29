@@ -2163,12 +2163,12 @@ static int wlan_get_essid(struct net_device *dev, struct iw_request_info *info,
 	 * Get the current SSID
 	 */
 	if (adapter->connect_status == libertas_connected) {
-		memcpy(extra, adapter->curbssparams.ssid.ssid,
-		       adapter->curbssparams.ssid.ssidlength);
-		extra[adapter->curbssparams.ssid.ssidlength] = '\0';
+		memcpy(extra, adapter->curbssparams.ssid,
+		       adapter->curbssparams.ssid_len);
+		extra[adapter->curbssparams.ssid_len] = '\0';
 	} else {
 		memset(extra, 0, 32);
-		extra[adapter->curbssparams.ssid.ssidlength] = '\0';
+		extra[adapter->curbssparams.ssid_len] = '\0';
 	}
 	/*
 	 * If none, we may want to get the one that was set
@@ -2176,10 +2176,10 @@ static int wlan_get_essid(struct net_device *dev, struct iw_request_info *info,
 
 	/* To make the driver backward compatible with WPA supplicant v0.2.4 */
 	if (dwrq->length == 32)	/* check with WPA supplicant buffer size */
-		dwrq->length = min_t(size_t, adapter->curbssparams.ssid.ssidlength,
+		dwrq->length = min_t(size_t, adapter->curbssparams.ssid_len,
 				   IW_ESSID_MAX_SIZE);
 	else
-		dwrq->length = adapter->curbssparams.ssid.ssidlength + 1;
+		dwrq->length = adapter->curbssparams.ssid_len + 1;
 
 	dwrq->flags = 1;	/* active */
 
@@ -2193,9 +2193,10 @@ static int wlan_set_essid(struct net_device *dev, struct iw_request_info *info,
 	wlan_private *priv = dev->priv;
 	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
-	struct WLAN_802_11_SSID ssid;
+	u8 ssid[IW_ESSID_MAX_SIZE];
+	u8 ssid_len = 0;
 	struct assoc_request * assoc_req;
-	int ssid_len = dwrq->length;
+	int in_ssid_len = dwrq->length;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -2204,27 +2205,31 @@ static int wlan_set_essid(struct net_device *dev, struct iw_request_info *info,
 	 * SSID length so it can be used like a string.  WE-21 and later don't,
 	 * but some userspace tools aren't able to cope with the change.
 	 */
-	if ((ssid_len > 0) && (extra[ssid_len - 1] == '\0'))
-		ssid_len--;
+	if ((in_ssid_len > 0) && (extra[in_ssid_len - 1] == '\0'))
+		in_ssid_len--;
 
 	/* Check the size of the string */
-	if (ssid_len > IW_ESSID_MAX_SIZE) {
+	if (in_ssid_len > IW_ESSID_MAX_SIZE) {
 		ret = -E2BIG;
 		goto out;
 	}
 
-	memset(&ssid, 0, sizeof(struct WLAN_802_11_SSID));
+	memset(&ssid, 0, sizeof(ssid));
 
-	if (!dwrq->flags || !ssid_len) {
+	if (!dwrq->flags || !in_ssid_len) {
 		/* "any" SSID requested; leave SSID blank */
 	} else {
 		/* Specific SSID requested */
-		memcpy(&ssid.ssid, extra, ssid_len);
-		ssid.ssidlength = ssid_len;
+		memcpy(&ssid, extra, in_ssid_len);
+		ssid_len = in_ssid_len;
 	}
 
-	lbs_deb_wext("requested new SSID '%s'\n",
-	       (ssid.ssidlength > 0) ? (char *)ssid.ssid : "any");
+	if (!ssid_len) {
+		lbs_deb_wext("requested any SSID\n");
+	} else {
+		lbs_deb_wext("requested SSID '%s'\n",
+		             escape_essid(ssid, ssid_len));
+	}
 
 out:
 	mutex_lock(&adapter->lock);
@@ -2235,7 +2240,8 @@ out:
 			ret = -ENOMEM;
 		} else {
 			/* Copy the SSID to the association request */
-			memcpy(&assoc_req->ssid, &ssid, sizeof(struct WLAN_802_11_SSID));
+			memcpy(&assoc_req->ssid, &ssid, IW_ESSID_MAX_SIZE);
+			assoc_req->ssid_len = ssid_len;
 			set_bit(ASSOC_FLAG_SSID, &assoc_req->flags);
 			wlan_postpone_association_work(priv);
 		}

@@ -102,14 +102,6 @@ struct IE_WPA {
 	__le16 version;
 };
 
-struct WLAN_802_11_SSID {
-	/* SSID length */
-	__le32 ssidlength;
-
-	/* SSID information field */
-	u8 ssid[IW_ESSID_MAX_SIZE];
-};
-
 struct WPA_SUPPLICANT {
 	u8 wpa_ie[256];
 	u8 wpa_ie_len;

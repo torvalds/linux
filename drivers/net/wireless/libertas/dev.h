@@ -66,7 +66,8 @@ struct current_bss_params {
 	/** bssid */
 	u8 bssid[ETH_ALEN];
 	/** ssid */
-	struct WLAN_802_11_SSID ssid;
+	u8 ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 ssid_len;
 
 	/** band */
 	u8 band;
@@ -178,7 +179,8 @@ struct assoc_request {
 #define ASSOC_FLAG_WPA_IE		11
 	unsigned long flags;
 
-	struct WLAN_802_11_SSID ssid;
+	u8 ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 ssid_len;
 	u8 channel;
 	u8 band;
 	u8 mode;
@@ -256,8 +258,9 @@ struct _wlan_adapter {
 	/* IW_MODE_* */
 	u8 mode;
 
-	struct WLAN_802_11_SSID previousssid;
-	u8 previousbssid[ETH_ALEN];
+	u8 prev_ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 prev_ssid_len;
+	u8 prev_bssid[ETH_ALEN];
 
 	/* Scan results list */
 	struct list_head network_list;

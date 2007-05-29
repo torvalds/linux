@@ -84,7 +84,8 @@ static ssize_t libertas_getscantable(struct file *file, char __user *userbuf,
 				iter_bss->cap.spectrummgmt ? 'S' : ' ');
 		pos += snprintf(buf+pos, len-pos, " %08llx |", iter_bss->networktsf);
 		pos += snprintf(buf+pos, len-pos, " %d |", SCAN_RSSI(iter_bss->rssi));
-		pos += snprintf(buf+pos, len-pos, " %s\n", iter_bss->ssid.ssid);
+		pos += snprintf(buf+pos, len-pos, " %s\n",
+		                escape_essid(iter_bss->ssid, iter_bss->ssid_len));
 
 		numscansdone++;
 	}
@@ -174,7 +175,6 @@ static ssize_t libertas_extscan(struct file *file, const char __user *userbuf,
 {
 	wlan_private *priv = file->private_data;
 	ssize_t res, buf_size;
-	struct WLAN_802_11_SSID extscan_ssid;
 	union iwreq_data wrqu;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
@@ -185,10 +185,7 @@ static ssize_t libertas_extscan(struct file *file, const char __user *userbuf,
 		goto out_unlock;
 	}
 
-	memcpy(&extscan_ssid.ssid, buf, strlen(buf)-1);
-	extscan_ssid.ssidlength = strlen(buf)-1;
-
-	libertas_send_specific_SSID_scan(priv, &extscan_ssid, 0);
+	libertas_send_specific_SSID_scan(priv, buf, strlen(buf)-1, 0);
 
 	memset(&wrqu, 0, sizeof(union iwreq_data));
 	wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);

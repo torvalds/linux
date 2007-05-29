@@ -14,30 +14,6 @@
 static const u8 bssid_any[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 static const u8 bssid_off[ETH_ALEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-/* From ieee80211_module.c */
-static const char *libertas_escape_essid(const char *essid, u8 essid_len)
-{
-	static char escaped[IW_ESSID_MAX_SIZE * 2 + 1];
-	const char *s = essid;
-	char *d = escaped;
-
-	if (ieee80211_is_empty_essid(essid, essid_len))
-		return "";
-
-	essid_len = min(essid_len, (u8) IW_ESSID_MAX_SIZE);
-	while (essid_len--) {
-		if (*s == '\0') {
-			*d++ = '\\';
-			*d++ = '0';
-			s++;
-		} else {
-			*d++ = *s++;
-		}
-	}
-	*d = '\0';
-	return escaped;
-}
-
 static void print_assoc_req(const char * extra, struct assoc_request * assoc_req)
 {
 	lbs_deb_assoc(
@@ -51,7 +27,7 @@ static void print_assoc_req(const char * extra, struct assoc_request * assoc_req
 	       "       Encryption:%s%s%s\n"
 	       "       auth:       %d\n",
 	       extra, assoc_req->flags,
-	       libertas_escape_essid(assoc_req->ssid.ssid, assoc_req->ssid.ssidlength),
+	       escape_essid(assoc_req->ssid, assoc_req->ssid_len),
 	       assoc_req->channel, assoc_req->band, assoc_req->mode,
 	       MAC_ARG(assoc_req->bssid),
 	       assoc_req->secinfo.WPAenabled ? " WPA" : "",
@@ -78,41 +54,43 @@ static int assoc_helper_essid(wlan_private *priv,
 	if (test_bit(ASSOC_FLAG_CHANNEL, &assoc_req->flags))
 		channel = assoc_req->channel;
 
-	lbs_deb_assoc("New SSID requested: %s\n", assoc_req->ssid.ssid);
+	lbs_deb_assoc("New SSID requested: '%s'\n",
+	              escape_essid(assoc_req->ssid, assoc_req->ssid_len));
 	if (assoc_req->mode == IW_MODE_INFRA) {
 		if (adapter->prescan) {
-			libertas_send_specific_SSID_scan(priv, &assoc_req->ssid, 0);
+			libertas_send_specific_SSID_scan(priv, assoc_req->ssid,
+				assoc_req->ssid_len, 0);
 		}
 
-		bss = libertas_find_SSID_in_list(adapter, &assoc_req->ssid,
-				NULL, IW_MODE_INFRA, channel);
+		bss = libertas_find_SSID_in_list(adapter, assoc_req->ssid,
+				assoc_req->ssid_len, NULL, IW_MODE_INFRA, channel);
 		if (bss != NULL) {
 			lbs_deb_assoc("SSID found in scan list, associating\n");
 			memcpy(&assoc_req->bss, bss, sizeof(struct bss_descriptor));
 			ret = wlan_associate(priv, assoc_req);
 		} else {
-			lbs_deb_assoc("SSID '%s' not found; cannot associate\n",
-				assoc_req->ssid.ssid);
+			lbs_deb_assoc("SSID not found; cannot associate\n");
 		}
 	} else if (assoc_req->mode == IW_MODE_ADHOC) {
 		/* Scan for the network, do not save previous results.  Stale
 		 *   scan data will cause us to join a non-existant adhoc network
 		 */
-		libertas_send_specific_SSID_scan(priv, &assoc_req->ssid, 1);
+		libertas_send_specific_SSID_scan(priv, assoc_req->ssid,
+			assoc_req->ssid_len, 1);
 
 		/* Search for the requested SSID in the scan table */
-		bss = libertas_find_SSID_in_list(adapter, &assoc_req->ssid, NULL,
-				IW_MODE_ADHOC, channel);
+		bss = libertas_find_SSID_in_list(adapter, assoc_req->ssid,
+				assoc_req->ssid_len, NULL, IW_MODE_ADHOC, channel);
 		if (bss != NULL) {
-			lbs_deb_assoc("SSID found joining\n");
+			lbs_deb_assoc("SSID found, will join\n");
 			memcpy(&assoc_req->bss, bss, sizeof(struct bss_descriptor));
 			libertas_join_adhoc_network(priv, assoc_req);
 		} else {
 			/* else send START command */
-			lbs_deb_assoc("SSID not found in list, so creating adhoc"
-				" with SSID '%s'\n", assoc_req->ssid.ssid);
+			lbs_deb_assoc("SSID not found, creating adhoc network\n");
 			memcpy(&assoc_req->bss.ssid, &assoc_req->ssid,
-				sizeof(struct WLAN_802_11_SSID));
+				IW_ESSID_MAX_SIZE);
+			assoc_req->bss.ssid_len = assoc_req->ssid_len;
 			libertas_start_adhoc_network(priv, assoc_req);
 		}
 	}
@@ -441,10 +419,9 @@ static int should_stop_adhoc(wlan_adapter *adapter,
 	if (adapter->connect_status != libertas_connected)
 		return 0;
 
-	if (adapter->curbssparams.ssid.ssidlength != assoc_req->ssid.ssidlength)
-		return 1;
-	if (memcmp(adapter->curbssparams.ssid.ssid, assoc_req->ssid.ssid,
-			adapter->curbssparams.ssid.ssidlength))
+	if (libertas_SSID_cmp(adapter->curbssparams.ssid,
+	                      adapter->curbssparams.ssid_len,
+	                      assoc_req->ssid, assoc_req->ssid_len) != 0)
 		return 1;
 
 	/* FIXME: deal with 'auto' mode somehow */
@@ -485,7 +462,7 @@ void libertas_association_worker(struct work_struct *work)
 
 	/* If 'any' SSID was specified, find an SSID to associate with */
 	if (test_bit(ASSOC_FLAG_SSID, &assoc_req->flags)
-	    && !assoc_req->ssid.ssidlength)
+	    && !assoc_req->ssid_len)
 		find_any_ssid = 1;
 
 	/* But don't use 'any' SSID if there's a valid locked BSSID to use */
@@ -498,8 +475,8 @@ void libertas_association_worker(struct work_struct *work)
 	if (find_any_ssid) {
 		u8 new_mode;
 
-		ret = libertas_find_best_network_SSID(priv, &assoc_req->ssid,
-				assoc_req->mode, &new_mode);
+		ret = libertas_find_best_network_SSID(priv, assoc_req->ssid,
+				&assoc_req->ssid_len, assoc_req->mode, &new_mode);
 		if (ret) {
 			lbs_deb_assoc("Could not find best network\n");
 			ret = -ENETUNREACH;
@@ -613,8 +590,8 @@ lbs_deb_assoc("ASSOC(:%d) wpa_keys: ret = %d\n", __LINE__, ret);
 		if (success) {
 			lbs_deb_assoc("ASSOC: association attempt successful. "
 				"Associated to '%s' (" MAC_FMT ")\n",
-				libertas_escape_essid(adapter->curbssparams.ssid.ssid,
-				             adapter->curbssparams.ssid.ssidlength),
+				escape_essid(adapter->curbssparams.ssid,
+				             adapter->curbssparams.ssid_len),
 				MAC_ARG(adapter->curbssparams.bssid));
 			libertas_prepare_and_send_command(priv,
 				cmd_802_11_rssi,
@@ -667,7 +644,8 @@ struct assoc_request * wlan_get_association_request(wlan_adapter *adapter)
 	assoc_req = adapter->pending_assoc_req;
 	if (!test_bit(ASSOC_FLAG_SSID, &assoc_req->flags)) {
 		memcpy(&assoc_req->ssid, &adapter->curbssparams.ssid,
-		       sizeof(struct WLAN_802_11_SSID));
+		       IW_ESSID_MAX_SIZE);
+		assoc_req->ssid_len = adapter->curbssparams.ssid_len;
 	}
 
 	if (!test_bit(ASSOC_FLAG_CHANNEL, &assoc_req->flags))

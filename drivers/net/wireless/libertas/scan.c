@@ -232,6 +232,7 @@ static void wlan_scan_process_results(wlan_private * priv)
 {
 	wlan_adapter *adapter = priv->adapter;
 	struct bss_descriptor * iter_bss;
+	int i = 0;
 
 	if (adapter->connect_status == libertas_connected)
 		return;
@@ -240,7 +241,7 @@ static void wlan_scan_process_results(wlan_private * priv)
 	list_for_each_entry (iter_bss, &adapter->network_list, list) {
 		lbs_deb_scan("Scan:(%02d) " MAC_FMT ", RSSI[%03d], SSID[%s]\n",
 		       i++, MAC_ARG(iter_bss->bssid), (s32) iter_bss->rssi,
-		       iter_bss->ssid.ssid);
+		       escape_essid(iter_bss->ssid, iter_bss->ssid_len));
 	}
 	mutex_unlock(&adapter->lock);
 }
@@ -747,8 +748,8 @@ clear_selected_scan_list_entries(wlan_adapter * adapter,
 
 		/* Check for an SSID match */
 		if (   clear_ssid_flag
-		    && (bss->ssid.ssidlength == scan_cfg->ssid_len)
-		    && !memcmp(bss->ssid.ssid, scan_cfg->ssid, bss->ssid.ssidlength))
+		    && (bss->ssid_len == scan_cfg->ssid_len)
+		    && !memcmp(bss->ssid, scan_cfg->ssid, bss->ssid_len))
 			clear = 1;
 
 		/* Check for a BSSID match */
@@ -1048,9 +1049,11 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 
 		switch (elemID) {
 		case SSID:
-			bss->ssid.ssidlength = elemlen;
-			memcpy(bss->ssid.ssid, (pcurrentptr + 2), elemlen);
-			lbs_deb_scan("ssid '%s'\n", bss->ssid.ssid);
+			bss->ssid_len = elemlen;
+			memcpy(bss->ssid, (pcurrentptr + 2), elemlen);
+			lbs_deb_scan("ssid '%s', ssid length %u\n",
+			             escape_essid(bss->ssid, bss->ssid_len),
+			             bss->ssid_len);
 			break;
 
 		case SUPPORTED_RATES:
@@ -1194,15 +1197,12 @@ done:
  *
  *  @return         0--ssid is same, otherwise is different
  */
-int libertas_SSID_cmp(struct WLAN_802_11_SSID *ssid1, struct WLAN_802_11_SSID *ssid2)
+int libertas_SSID_cmp(u8 *ssid1, u8 ssid1_len, u8 *ssid2, u8 ssid2_len)
 {
-	if (!ssid1 || !ssid2)
+	if (ssid1_len != ssid2_len)
 		return -1;
 
-	if (ssid1->ssidlength != ssid2->ssidlength)
-		return -1;
-
-	return memcmp(ssid1->ssid, ssid2->ssid, ssid1->ssidlength);
+	return memcmp(ssid1, ssid2, ssid1_len);
 }
 
 /**
@@ -1262,7 +1262,7 @@ struct bss_descriptor * libertas_find_BSSID_in_list(wlan_adapter * adapter,
  *  @return         index in BSSID list
  */
 struct bss_descriptor * libertas_find_SSID_in_list(wlan_adapter * adapter,
-		   struct WLAN_802_11_SSID *ssid, u8 * bssid, u8 mode,
+		   u8 *ssid, u8 ssid_len, u8 * bssid, u8 mode,
 		   int channel)
 {
 	u8 bestrssi = 0;
@@ -1277,7 +1277,8 @@ struct bss_descriptor * libertas_find_SSID_in_list(wlan_adapter * adapter,
 		    || (iter_bss->last_scanned < tmp_oldest->last_scanned))
 			tmp_oldest = iter_bss;
 
-		if (libertas_SSID_cmp(&iter_bss->ssid, ssid) != 0)
+		if (libertas_SSID_cmp(iter_bss->ssid, iter_bss->ssid_len,
+		                      ssid, ssid_len) != 0)
 			continue; /* ssid doesn't match */
 		if (bssid && compare_ether_addr(iter_bss->bssid, bssid) != 0)
 			continue; /* bssid doesn't match */
@@ -1369,16 +1370,13 @@ struct bss_descriptor * libertas_find_best_SSID_in_list(wlan_adapter * adapter,
  *  @return             0--success, otherwise--fail
  */
 int libertas_find_best_network_SSID(wlan_private * priv,
-                                    struct WLAN_802_11_SSID *ssid,
-                                    u8 preferred_mode, u8 *out_mode)
+		u8 *out_ssid, u8 *out_ssid_len, u8 preferred_mode, u8 *out_mode)
 {
 	wlan_adapter *adapter = priv->adapter;
 	int ret = -1;
 	struct bss_descriptor * found;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
-
-	memset(ssid, 0, sizeof(struct WLAN_802_11_SSID));
 
 	wlan_scan_networks(priv, NULL, 1);
 	if (adapter->surpriseremoved)
@@ -1387,8 +1385,9 @@ int libertas_find_best_network_SSID(wlan_private * priv,
 	wait_event_interruptible(adapter->cmd_pending, !adapter->nr_cmd_pending);
 
 	found = libertas_find_best_SSID_in_list(adapter, preferred_mode);
-	if (found && (found->ssid.ssidlength > 0)) {
-		memcpy(ssid, &found->ssid, sizeof(struct WLAN_802_11_SSID));
+	if (found && (found->ssid_len > 0)) {
+		memcpy(out_ssid, &found->ssid, IW_ESSID_MAX_SIZE);
+		*out_ssid_len = found->ssid_len;
 		*out_mode = found->mode;
 		ret = 0;
 	}
@@ -1434,8 +1433,7 @@ int libertas_set_scan(struct net_device *dev, struct iw_request_info *info,
  *  @return                0-success, otherwise fail
  */
 int libertas_send_specific_SSID_scan(wlan_private * priv,
-			 struct WLAN_802_11_SSID *prequestedssid,
-			 u8 clear_ssid)
+			u8 *ssid, u8 ssid_len, u8 clear_ssid)
 {
 	wlan_adapter *adapter = priv->adapter;
 	struct wlan_ioctl_user_scan_cfg scancfg;
@@ -1443,12 +1441,12 @@ int libertas_send_specific_SSID_scan(wlan_private * priv,
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
-	if (prequestedssid == NULL)
+	if (!ssid_len)
 		goto out;
 
 	memset(&scancfg, 0x00, sizeof(scancfg));
-	memcpy(scancfg.ssid, prequestedssid->ssid, prequestedssid->ssidlength);
-	scancfg.ssid_len = prequestedssid->ssidlength;
+	memcpy(scancfg.ssid, ssid, ssid_len);
+	scancfg.ssid_len = ssid_len;
 	scancfg.clear_ssid = clear_ssid;
 
 	wlan_scan_networks(priv, &scancfg, 1);
@@ -1523,8 +1521,8 @@ static inline char *libertas_translate_scan(wlan_private *priv,
 	/* SSID */
 	iwe.cmd = SIOCGIWESSID;
 	iwe.u.data.flags = 1;
-	iwe.u.data.length = min(bss->ssid.ssidlength, (u32) IW_ESSID_MAX_SIZE);
-	start = iwe_stream_add_point(start, stop, &iwe, bss->ssid.ssid);
+	iwe.u.data.length = min((u32) bss->ssid_len, (u32) IW_ESSID_MAX_SIZE);
+	start = iwe_stream_add_point(start, stop, &iwe, bss->ssid);
 
 	/* Mode */
 	iwe.cmd = SIOCGIWMODE;
@@ -1563,7 +1561,9 @@ static inline char *libertas_translate_scan(wlan_private *priv,
 	 */
 	if ((adapter->mode == IW_MODE_ADHOC)
 	    && adapter->adhoccreate
-	    && !libertas_SSID_cmp(&adapter->curbssparams.ssid, &bss->ssid)) {
+	    && !libertas_SSID_cmp(adapter->curbssparams.ssid,
+	                          adapter->curbssparams.ssid_len,
+	                          bss->ssid, bss->ssid_len)) {
 		int snr, nf;
 		snr = adapter->SNR[TYPE_RXPD][TYPE_AVG] / AVG_SCALE;
 		nf = adapter->NF[TYPE_RXPD][TYPE_AVG] / AVG_SCALE;
@@ -1579,7 +1579,7 @@ static inline char *libertas_translate_scan(wlan_private *priv,
 		iwe.u.data.flags = IW_ENCODE_DISABLED;
 	}
 	iwe.u.data.length = 0;
-	start = iwe_stream_add_point(start, stop, &iwe, bss->ssid.ssid);
+	start = iwe_stream_add_point(start, stop, &iwe, bss->ssid);
 
 	current_val = start + IW_EV_LCP_LEN;
 
@@ -1598,7 +1598,9 @@ static inline char *libertas_translate_scan(wlan_private *priv,
 					 stop, &iwe, IW_EV_PARAM_LEN);
 	}
 	if ((bss->mode == IW_MODE_ADHOC)
-	    && !libertas_SSID_cmp(&adapter->curbssparams.ssid, &bss->ssid)
+	    && !libertas_SSID_cmp(adapter->curbssparams.ssid,
+	                          adapter->curbssparams.ssid_len,
+	                          bss->ssid, bss->ssid_len)
 	    && adapter->adhoccreate) {
 		iwe.u.bitrate.value = 22 * 500000;
 		current_val = iwe_stream_add_value(start, current_val,
@@ -1753,10 +1755,10 @@ static inline int is_same_network(struct bss_descriptor *src,
 	/* A network is only a duplicate if the channel, BSSID, and ESSID
 	 * all match.  We treat all <hidden> with the same BSSID and channel
 	 * as one network */
-	return ((src->ssid.ssidlength == dst->ssid.ssidlength) &&
+	return ((src->ssid_len == dst->ssid_len) &&
 		(src->channel == dst->channel) &&
 		!compare_ether_addr(src->bssid, dst->bssid) &&
-		!memcmp(src->ssid.ssid, dst->ssid.ssid, src->ssid.ssidlength));
+		!memcmp(src->ssid, dst->ssid, src->ssid_len));
 }
 
 /**
