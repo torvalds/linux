@@ -80,7 +80,7 @@ struct iscsi_mgmt_task {
 	 */
 	struct iscsi_hdr	*hdr;
 	char			*data;		/* mgmt payload */
-	int			data_count;	/* counts data to be sent */
+	unsigned		data_count;	/* counts data to be sent */
 	uint32_t		itt;		/* this ITT */
 	void			*dd_data;	/* driver/transport data */
 	struct list_head	running;
@@ -101,13 +101,12 @@ struct iscsi_cmd_task {
 	int			itt;		/* this ITT */
 
 	uint32_t		unsol_datasn;
-	int			imm_count;	/* imm-data (bytes)   */
-	int			unsol_count;	/* unsolicited (bytes)*/
+	unsigned		imm_count;	/* imm-data (bytes)   */
+	unsigned		unsol_count;	/* unsolicited (bytes)*/
 	/* offset in unsolicited stream (bytes); */
-	int			unsol_offset;
-	int			data_count;	/* remaining Data-Out */
+	unsigned		unsol_offset;
+	unsigned		data_count;	/* remaining Data-Out */
 	struct scsi_cmnd	*sc;		/* associated SCSI cmd*/
-	int			total_length;
 	struct iscsi_conn	*conn;		/* used connection    */
 	struct iscsi_mgmt_task	*mtask;		/* tmf mtask in progr */
 
@@ -173,8 +172,8 @@ struct iscsi_conn {
 	int			tmabort_state;	/* see TMABORT_INITIAL, etc.*/
 
 	/* negotiated params */
-	int			max_recv_dlength; /* initiator_max_recv_dsl*/
-	int			max_xmit_dlength; /* target_max_recv_dsl */
+	unsigned		max_recv_dlength; /* initiator_max_recv_dsl*/
+	unsigned		max_xmit_dlength; /* target_max_recv_dsl */
 	int			hdrdgst_en;
 	int			datadgst_en;
 	int			ifmarker_en;
@@ -212,10 +211,10 @@ struct iscsi_session {
 
 	/* configuration */
 	int			initial_r2t_en;
-	int			max_r2t;
+	unsigned		max_r2t;
 	int			imm_data_en;
-	int			first_burst;
-	int			max_burst;
+	unsigned		first_burst;
+	unsigned		max_burst;
 	int			time2wait;
 	int			time2retain;
 	int			pdu_inorder_en;

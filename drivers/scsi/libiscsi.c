@@ -147,19 +147,19 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 		ctask->unsol_datasn = 0;
 
 		if (session->imm_data_en) {
-			if (ctask->total_length >= session->first_burst)
+			if (sc->request_bufflen >= session->first_burst)
 				ctask->imm_count = min(session->first_burst,
 							conn->max_xmit_dlength);
 			else
-				ctask->imm_count = min(ctask->total_length,
+				ctask->imm_count = min(sc->request_bufflen,
 							conn->max_xmit_dlength);
 			hton24(ctask->hdr->dlength, ctask->imm_count);
 		} else
 			zero_data(ctask->hdr->dlength);
 
 		if (!session->initial_r2t_en) {
-			ctask->unsol_count = min(session->first_burst,
-				ctask->total_length) - ctask->imm_count;
+			ctask->unsol_count = min((session->first_burst),
+				(sc->request_bufflen)) - ctask->imm_count;
 			ctask->unsol_offset = ctask->imm_count;
 		}
 
@@ -815,7 +815,6 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 	ctask->conn = conn;
 	ctask->sc = sc;
 	INIT_LIST_HEAD(&ctask->running);
-	ctask->total_length = sc->request_bufflen;
 	iscsi_prep_scsi_cmd_pdu(ctask);
 
 	session->tt->init_cmd_task(ctask);

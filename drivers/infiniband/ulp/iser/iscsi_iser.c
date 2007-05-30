@@ -140,10 +140,10 @@ iscsi_iser_cmd_init(struct iscsi_cmd_task *ctask)
 	iser_ctask->iser_conn    = iser_conn;
 
 	if (sc->sc_data_direction == DMA_TO_DEVICE) {
-		BUG_ON(ctask->total_length == 0);
+		BUG_ON(sc->request_bufflen == 0);
 
 		debug_scsi("cmd [itt %x total %d imm %d unsol_data %d\n",
-			   ctask->itt, ctask->total_length, ctask->imm_count,
+			   ctask->itt, sc->request_bufflen, ctask->imm_count,
 			   ctask->unsol_count);
 	}
 

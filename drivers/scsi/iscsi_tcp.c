@@ -216,6 +216,7 @@ iscsi_data_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
 	struct iscsi_data_rsp *rhdr = (struct iscsi_data_rsp *)tcp_conn->in.hdr;
 	struct iscsi_session *session = conn->session;
+	struct scsi_cmnd *sc = ctask->sc;
 	int datasn = be32_to_cpu(rhdr->datasn);
 
 	rc = iscsi_check_assign_cmdsn(session, (struct iscsi_nopin*)rhdr);
@@ -238,12 +239,14 @@ iscsi_data_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	tcp_ctask->exp_datasn++;
 
 	tcp_ctask->data_offset = be32_to_cpu(rhdr->offset);
-	if (tcp_ctask->data_offset + tcp_conn->in.datalen > ctask->total_length)
+	if (tcp_ctask->data_offset + tcp_conn->in.datalen > sc->request_bufflen) {
+		debug_tcp("%s: data_offset(%d) + data_len(%d) > total_length_in(%d)\n",
+		          __FUNCTION__, tcp_ctask->data_offset,
+		          tcp_conn->in.datalen, sc->request_bufflen);
 		return ISCSI_ERR_DATA_OFFSET;
+	}
 
 	if (rhdr->flags & ISCSI_FLAG_DATA_STATUS) {
-		struct scsi_cmnd *sc = ctask->sc;
-
 		conn->exp_statsn = be32_to_cpu(rhdr->statsn) + 1;
 		if (rhdr->flags & ISCSI_FLAG_DATA_UNDERFLOW) {
 			int res_count = be32_to_cpu(rhdr->residual_count);
@@ -405,11 +408,11 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 			    r2t->data_length, session->max_burst);
 
 	r2t->data_offset = be32_to_cpu(rhdr->data_offset);
-	if (r2t->data_offset + r2t->data_length > ctask->total_length) {
+	if (r2t->data_offset + r2t->data_length > ctask->sc->request_bufflen) {
 		spin_unlock(&session->lock);
 		printk(KERN_ERR "iscsi_tcp: invalid R2T with data len %u at "
 		       "offset %u and total length %d\n", r2t->data_length,
-		       r2t->data_offset, ctask->total_length);
+		       r2t->data_offset, ctask->sc->request_bufflen);
 		return ISCSI_ERR_DATALEN;
 	}
 
@@ -604,7 +607,7 @@ iscsi_ctask_copy(struct iscsi_tcp_conn *tcp_conn, struct iscsi_cmd_task *ctask,
 {
 	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
 	int buf_left = buf_size - (tcp_conn->data_copied + offset);
-	int size = min(tcp_conn->in.copy, buf_left);
+	unsigned size = min(tcp_conn->in.copy, buf_left);
 	int rc;
 
 	size = min(size, ctask->data_count);
@@ -613,7 +616,7 @@ iscsi_ctask_copy(struct iscsi_tcp_conn *tcp_conn, struct iscsi_cmd_task *ctask,
 	       size, tcp_conn->in.offset, tcp_conn->in.copied);
 
 	BUG_ON(size <= 0);
-	BUG_ON(tcp_ctask->sent + size > ctask->total_length);
+	BUG_ON(tcp_ctask->sent + size > ctask->sc->request_bufflen);
 
 	rc = skb_copy_bits(tcp_conn->in.skb, tcp_conn->in.offset,
 			   (char*)buf + (offset + tcp_conn->data_copied), size);
@@ -1292,7 +1295,7 @@ iscsi_tcp_cmd_init(struct iscsi_cmd_task *ctask)
 
 	if (sc->sc_data_direction == DMA_TO_DEVICE) {
 		tcp_ctask->xmstate = XMSTATE_W_HDR;
-		BUG_ON(ctask->total_length == 0);
+		BUG_ON(sc->request_bufflen == 0);
 
 		if (sc->use_sg) {
 			struct scatterlist *sg = sc->request_buffer;
@@ -1309,7 +1312,7 @@ iscsi_tcp_cmd_init(struct iscsi_cmd_task *ctask)
 		}
 		debug_scsi("cmd [itt 0x%x total %d imm_data %d "
 			   "unsol count %d, unsol offset %d]\n",
-			   ctask->itt, ctask->total_length, ctask->imm_count,
+			   ctask->itt, sc->request_bufflen, ctask->imm_count,
 			   ctask->unsol_count, ctask->unsol_offset);
 	} else
 		tcp_ctask->xmstate = XMSTATE_R_HDR;
