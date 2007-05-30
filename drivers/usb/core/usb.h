@@ -36,7 +36,6 @@ extern void usb_host_cleanup(void);
 extern void usb_autosuspend_work(struct work_struct *work);
 extern int usb_port_suspend(struct usb_device *dev);
 extern int usb_port_resume(struct usb_device *dev);
-extern int usb_reset_suspended_device(struct usb_device *udev);
 extern int usb_external_suspend_device(struct usb_device *udev,
 		pm_message_t msg);
 extern int usb_external_resume_device(struct usb_device *udev);

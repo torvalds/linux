@@ -219,8 +219,6 @@ static int generic_resume(struct usb_device *udev)
 	 */
 	if (!udev->parent)
 		rc = hcd_bus_resume(udev);
-	else if (udev->reset_resume)
-		rc = usb_reset_suspended_device(udev);
 	else
 		rc = usb_port_resume(udev);
 	return rc;

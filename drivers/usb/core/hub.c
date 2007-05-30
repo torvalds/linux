@@ -31,6 +31,12 @@
 #include "hcd.h"
 #include "hub.h"
 
+#ifdef	CONFIG_USB_PERSIST
+#define	USB_PERSIST	1
+#else
+#define	USB_PERSIST	0
+#endif
+
 struct usb_hub {
 	struct device		*intfdev;	/* the "interface" device */
 	struct usb_device	*hdev;
@@ -1080,72 +1086,6 @@ void usb_set_device_state(struct usb_device *udev,
 	spin_unlock_irqrestore(&device_state_lock, flags);
 }
 
-
-#ifdef	CONFIG_PM
-
-/**
- * usb_reset_suspended_device - reset a suspended device instead of resuming it
- * @udev: device to be reset instead of resumed
- *
- * If a host controller doesn't maintain VBUS suspend current during a
- * system sleep or is reset when the system wakes up, all the USB
- * power sessions below it will be broken.  This is especially troublesome
- * for mass-storage devices containing mounted filesystems, since the
- * device will appear to have disconnected and all the memory mappings
- * to it will be lost.
- *
- * As an alternative, this routine attempts to recover power sessions for
- * devices that are still present by resetting them instead of resuming
- * them.  If all goes well, the devices will appear to persist across the
- * the interruption of the power sessions.
- *
- * This facility is inherently dangerous.  Although usb_reset_device()
- * makes every effort to insure that the same device is present after the
- * reset as before, it cannot provide a 100% guarantee.  Furthermore it's
- * quite possible for a device to remain unaltered but its media to be
- * changed.  If the user replaces a flash memory card while the system is
- * asleep, he will have only himself to blame when the filesystem on the
- * new card is corrupted and the system crashes.
- */
-int usb_reset_suspended_device(struct usb_device *udev)
-{
-	int rc = 0;
-
-	dev_dbg(&udev->dev, "usb %sresume\n", "reset-");
-
-	/* After we're done the device won't be suspended any more.
-	 * In addition, the reset won't work if udev->state is SUSPENDED.
-	 */
-	usb_set_device_state(udev, udev->actconfig
-			? USB_STATE_CONFIGURED
-			: USB_STATE_ADDRESS);
-
-	/* Root hubs don't need to be (and can't be) reset */
-	if (udev->parent)
-		rc = usb_reset_device(udev);
-	return rc;
-}
-
-/**
- * usb_root_hub_lost_power - called by HCD if the root hub lost Vbus power
- * @rhdev: struct usb_device for the root hub
- *
- * The USB host controller driver calls this function when its root hub
- * is resumed and Vbus power has been interrupted or the controller
- * has been reset.  The routine marks @rhdev as having lost power.  When
- * the hub driver is resumed it will take notice; if CONFIG_USB_PERSIST
- * is enabled then it will carry out power-session recovery, otherwise
- * it will disconnect all the child devices.
- */
-void usb_root_hub_lost_power(struct usb_device *rhdev)
-{
-	dev_warn(&rhdev->dev, "root hub lost power or was reset\n");
-	rhdev->reset_resume = 1;
-}
-EXPORT_SYMBOL_GPL(usb_root_hub_lost_power);
-
-#endif	/* CONFIG_PM */
-
 static void choose_address(struct usb_device *udev)
 {
 	int		devnum;
@@ -1672,18 +1612,22 @@ int usb_port_suspend(struct usb_device *udev)
 /*
  * If the USB "suspend" state is in use (rather than "global suspend"),
  * many devices will be individually taken out of suspend state using
- * special" resume" signaling.  These routines kick in shortly after
+ * special "resume" signaling.  This routine kicks in shortly after
  * hardware resume signaling is finished, either because of selective
  * resume (by host) or remote wakeup (by device) ... now see what changed
  * in the tree that's rooted at this device.
+ *
+ * If @udev->reset_resume is set then the device is reset before the
+ * status check is done.
  */
 static int finish_port_resume(struct usb_device *udev)
 {
-	int	status;
+	int	status = 0;
 	u16	devstatus;
 
 	/* caller owns the udev device lock */
-	dev_dbg(&udev->dev, "finish resume\n");
+	dev_dbg(&udev->dev, "finish %sresume\n",
+			udev->reset_resume ? "reset-" : "");
 
 	/* usb ch9 identifies four variants of SUSPENDED, based on what
 	 * state the device resumes to.  Linux currently won't see the
@@ -1694,13 +1638,23 @@ static int finish_port_resume(struct usb_device *udev)
 			? USB_STATE_CONFIGURED
 			: USB_STATE_ADDRESS);
 
+	/* 10.5.4.5 says not to reset a suspended port if the attached
+	 * device is enabled for remote wakeup.  Hence the reset
+	 * operation is carried out here, after the port has been
+	 * resumed.
+	 */
+	if (udev->reset_resume)
+		status = usb_reset_device(udev);
+
  	/* 10.5.4.5 says be sure devices in the tree are still there.
  	 * For now let's assume the device didn't go crazy on resume,
 	 * and device drivers will know about any resume quirks.
 	 */
-	status = usb_get_status(udev, USB_RECIP_DEVICE, 0, &devstatus);
-	if (status >= 0)
-		status = (status == 2 ? 0 : -ENODEV);
+	if (status == 0) {
+		status = usb_get_status(udev, USB_RECIP_DEVICE, 0, &devstatus);
+		if (status >= 0)
+			status = (status == 2 ? 0 : -ENODEV);
+	}
 
 	if (status) {
 		dev_dbg(&udev->dev, "gone after usb resume? status %d\n",
@@ -1735,6 +1689,28 @@ static int finish_port_resume(struct usb_device *udev)
  * the host and the device is the same as it was when the device
  * suspended.
  *
+ * If CONFIG_USB_PERSIST and @udev->reset_resume are both set then this
+ * routine won't check that the port is still enabled.  Furthermore,
+ * if @udev->reset_resume is set then finish_port_resume() above will
+ * reset @udev.  The end result is that a broken power session can be
+ * recovered and @udev will appear to persist across a loss of VBUS power.
+ *
+ * For example, if a host controller doesn't maintain VBUS suspend current
+ * during a system sleep or is reset when the system wakes up, all the USB
+ * power sessions below it will be broken.  This is especially troublesome
+ * for mass-storage devices containing mounted filesystems, since the
+ * device will appear to have disconnected and all the memory mappings
+ * to it will be lost.  Using the USB_PERSIST facility, the device can be
+ * made to appear as if it had not disconnected.
+ *
+ * This facility is inherently dangerous.  Although usb_reset_device()
+ * makes every effort to insure that the same device is present after the
+ * reset as before, it cannot provide a 100% guarantee.  Furthermore it's
+ * quite possible for a device to remain unaltered but its media to be
+ * changed.  If the user replaces a flash memory card while the system is
+ * asleep, he will have only himself to blame when the filesystem on the
+ * new card is corrupted and the system crashes.
+ *
  * Returns 0 on success, else negative errno.
  */
 int usb_port_resume(struct usb_device *udev)
@@ -1743,6 +1719,7 @@ int usb_port_resume(struct usb_device *udev)
 	int		port1 = udev->portnum;
 	int		status;
 	u16		portchange, portstatus;
+	unsigned	mask_flags, want_flags;
 
 	/* Skip the initial Clear-Suspend step for a remote wakeup */
 	status = hub_port_status(hub, port1, &portstatus, &portchange);
@@ -1765,20 +1742,23 @@ int usb_port_resume(struct usb_device *udev)
 				udev->auto_pm ? "auto-" : "");
 		msleep(25);
 
-#define LIVE_FLAGS	( USB_PORT_STAT_POWER \
-			| USB_PORT_STAT_ENABLE \
-			| USB_PORT_STAT_CONNECTION)
-
 		/* Virtual root hubs can trigger on GET_PORT_STATUS to
 		 * stop resume signaling.  Then finish the resume
 		 * sequence.
 		 */
 		status = hub_port_status(hub, port1, &portstatus, &portchange);
-SuspendCleared:
-		if (status < 0
-				|| (portstatus & LIVE_FLAGS) != LIVE_FLAGS
-				|| (portstatus & USB_PORT_STAT_SUSPEND) != 0
-				) {
+
+ SuspendCleared:
+		if (USB_PERSIST && udev->reset_resume)
+			want_flags = USB_PORT_STAT_POWER
+					| USB_PORT_STAT_CONNECTION;
+		else
+			want_flags = USB_PORT_STAT_POWER
+					| USB_PORT_STAT_CONNECTION
+					| USB_PORT_STAT_ENABLE;
+		mask_flags = want_flags | USB_PORT_STAT_SUSPEND;
+
+		if (status < 0 || (portstatus & mask_flags) != want_flags) {
 			dev_dbg(hub->intfdev,
 				"port %d status %04x.%04x after resume, %d\n",
 				port1, portchange, portstatus, status);
@@ -1790,18 +1770,19 @@ SuspendCleared:
 						USB_PORT_FEAT_C_SUSPEND);
 			/* TRSMRCY = 10 msec */
 			msleep(10);
-			status = finish_port_resume(udev);
 		}
-	}
-	if (status < 0) {
-		dev_dbg(&udev->dev, "can't resume, status %d\n", status);
-		hub_port_logical_disconnect(hub, port1);
 	}
 
 	clear_bit(port1, hub->busy_bits);
 	if (!hub->hdev->parent && !hub->busy_bits[0])
 		usb_enable_root_hub_irq(hub->hdev->bus);
 
+	if (status == 0)
+		status = finish_port_resume(udev);
+	if (status < 0) {
+		dev_dbg(&udev->dev, "can't resume, status %d\n", status);
+		hub_port_logical_disconnect(hub, port1);
+	}
 	return status;
 }
 
@@ -1830,7 +1811,14 @@ int usb_port_suspend(struct usb_device *udev)
 
 int usb_port_resume(struct usb_device *udev)
 {
-	return 0;
+	int status = 0;
+
+	/* However we may need to do a reset-resume */
+	if (udev->reset_resume) {
+		dev_dbg(&udev->dev, "reset-resume\n");
+		status = usb_reset_device(udev);
+	}
+	return status;
 }
 
 static inline int remote_wakeup(struct usb_device *udev)
@@ -1886,8 +1874,6 @@ static int hub_resume(struct usb_interface *intf)
 
 #ifdef	CONFIG_USB_PERSIST
 
-#define USB_PERSIST	1
-
 /* For "persistent-device" resets we must mark the child devices for reset
  * and turn off a possible connect-change status (so khubd won't disconnect
  * them later).
@@ -1909,8 +1895,6 @@ static void mark_children_for_reset_resume(struct usb_hub *hub)
 }
 
 #else
-
-#define USB_PERSIST	0
 
 static inline void mark_children_for_reset_resume(struct usb_hub *hub)
 { }
@@ -1935,6 +1919,24 @@ static int hub_reset_resume(struct usb_interface *intf)
 	hub_activate(hub);
 	return 0;
 }
+
+/**
+ * usb_root_hub_lost_power - called by HCD if the root hub lost Vbus power
+ * @rhdev: struct usb_device for the root hub
+ *
+ * The USB host controller driver calls this function when its root hub
+ * is resumed and Vbus power has been interrupted or the controller
+ * has been reset.  The routine marks @rhdev as having lost power.  When
+ * the hub driver is resumed it will take notice; if CONFIG_USB_PERSIST
+ * is enabled then it will carry out power-session recovery, otherwise
+ * it will disconnect all the child devices.
+ */
+void usb_root_hub_lost_power(struct usb_device *rhdev)
+{
+	dev_warn(&rhdev->dev, "root hub lost power or was reset\n");
+	rhdev->reset_resume = 1;
+}
+EXPORT_SYMBOL_GPL(usb_root_hub_lost_power);
 
 #else	/* CONFIG_PM */
 
