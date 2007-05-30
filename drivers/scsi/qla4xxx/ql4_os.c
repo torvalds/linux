@@ -60,6 +60,8 @@ static int qla4xxx_conn_get_param(struct iscsi_cls_conn *conn,
 				  enum iscsi_param param, char *buf);
 static int qla4xxx_sess_get_param(struct iscsi_cls_session *sess,
 				  enum iscsi_param param, char *buf);
+static int qla4xxx_host_get_param(struct Scsi_Host *shost,
+				  enum iscsi_host_param param, char *buf);
 static void qla4xxx_conn_stop(struct iscsi_cls_conn *conn, int flag);
 static int qla4xxx_conn_start(struct iscsi_cls_conn *conn);
 static void qla4xxx_recovery_timedout(struct iscsi_cls_session *session);
@@ -99,16 +101,16 @@ static struct scsi_host_template qla4xxx_driver_template = {
 static struct iscsi_transport qla4xxx_iscsi_transport = {
 	.owner			= THIS_MODULE,
 	.name			= DRIVER_NAME,
-	.param_mask		= ISCSI_CONN_PORT |
-				  ISCSI_CONN_ADDRESS |
-				  ISCSI_TARGET_NAME |
-				  ISCSI_TPGT,
+	.param_mask		= ISCSI_CONN_PORT | ISCSI_CONN_ADDRESS |
+				  ISCSI_TARGET_NAME | ISCSI_TPGT,
+	.host_param_mask	= ISCSI_HOST_HWADDRESS,
 	.sessiondata_size	= sizeof(struct ddb_entry),
 	.host_template		= &qla4xxx_driver_template,
 
 	.tgt_dscvr		= qla4xxx_tgt_dscvr,
 	.get_conn_param		= qla4xxx_conn_get_param,
 	.get_session_param	= qla4xxx_sess_get_param,
+	.get_host_param		= qla4xxx_host_get_param,
 	.start_conn		= qla4xxx_conn_start,
 	.stop_conn		= qla4xxx_conn_stop,
 	.session_recovery_timedout = qla4xxx_recovery_timedout,
@@ -163,6 +165,35 @@ static void qla4xxx_conn_stop(struct iscsi_cls_conn *conn, int flag)
 		iscsi_block_session(session);
 	else
 		printk(KERN_ERR "iscsi: invalid stop flag %d\n", flag);
+}
+
+static ssize_t format_addr(char *buf, const unsigned char *addr, int len)
+{
+	int i;
+	char *cp = buf;
+
+	for (i = 0; i < len; i++)
+		cp += sprintf(cp, "%02x%c", addr[i],
+			      i == (len - 1) ? '\n' : ':');
+	return cp - buf;
+}
+
+
+static int qla4xxx_host_get_param(struct Scsi_Host *shost,
+				  enum iscsi_host_param param, char *buf)
+{
+	struct scsi_qla_host *ha = to_qla_host(shost);
+	int len;
+
+	switch (param) {
+	case ISCSI_HOST_PARAM_HWADDRESS:
+		len = format_addr(buf, ha->my_mac, MAC_ADDR_LEN);
+		break;
+	default:
+		return -ENOSYS;
+	}
+
+	return len;
 }
 
 static int qla4xxx_sess_get_param(struct iscsi_cls_session *sess,
