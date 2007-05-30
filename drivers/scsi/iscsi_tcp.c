@@ -896,11 +896,27 @@ more:
 		}
 	}
 
-	if (tcp_conn->in_progress == IN_PROGRESS_DDIGEST_RECV) {
+	if (tcp_conn->in_progress == IN_PROGRESS_DDIGEST_RECV &&
+	    tcp_conn->in.copy) {
 		uint32_t recv_digest;
 
 		debug_tcp("extra data_recv offset %d copy %d\n",
 			  tcp_conn->in.offset, tcp_conn->in.copy);
+
+		if (!tcp_conn->data_copied) {
+			if (tcp_conn->in.padding) {
+				debug_tcp("padding -> %d\n",
+					  tcp_conn->in.padding);
+				memset(pad, 0, tcp_conn->in.padding);
+				sg_init_one(&sg, pad, tcp_conn->in.padding);
+				crypto_hash_update(&tcp_conn->rx_hash,
+						   &sg, sg.length);
+			}
+			crypto_hash_final(&tcp_conn->rx_hash,
+					  (u8 *) &tcp_conn->in.datadgst);
+			debug_tcp("rx digest 0x%x\n", tcp_conn->in.datadgst);
+		}
+
 		rc = iscsi_tcp_copy(conn, sizeof(uint32_t));
 		if (rc) {
 			if (rc == -EAGAIN)
@@ -925,8 +941,7 @@ more:
 	}
 
 	if (tcp_conn->in_progress == IN_PROGRESS_DATA_RECV &&
-	   tcp_conn->in.copy) {
-
+	    tcp_conn->in.copy) {
 		debug_tcp("data_recv offset %d copy %d\n",
 		       tcp_conn->in.offset, tcp_conn->in.copy);
 
@@ -937,24 +952,32 @@ more:
 			iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
 			return 0;
 		}
-		tcp_conn->in.copy -= tcp_conn->in.padding;
-		tcp_conn->in.offset += tcp_conn->in.padding;
-		if (conn->datadgst_en) {
-			if (tcp_conn->in.padding) {
-				debug_tcp("padding -> %d\n",
-					  tcp_conn->in.padding);
-				memset(pad, 0, tcp_conn->in.padding);
-				sg_init_one(&sg, pad, tcp_conn->in.padding);
-				crypto_hash_update(&tcp_conn->rx_hash,
-						   &sg, sg.length);
-			}
-			crypto_hash_final(&tcp_conn->rx_hash,
-					  (u8 *) &tcp_conn->in.datadgst);
-			debug_tcp("rx digest 0x%x\n", tcp_conn->in.datadgst);
+
+		if (tcp_conn->in.padding)
+			tcp_conn->in_progress = IN_PROGRESS_PAD_RECV;
+		else if (conn->datadgst_en)
 			tcp_conn->in_progress = IN_PROGRESS_DDIGEST_RECV;
-			tcp_conn->data_copied = 0;
-		} else
+		else
 			tcp_conn->in_progress = IN_PROGRESS_WAIT_HEADER;
+		tcp_conn->data_copied = 0;
+	}
+
+	if (tcp_conn->in_progress == IN_PROGRESS_PAD_RECV &&
+	    tcp_conn->in.copy) {
+		int copylen = min(tcp_conn->in.padding - tcp_conn->data_copied,
+				  tcp_conn->in.copy);
+
+		tcp_conn->in.copy -= copylen;
+		tcp_conn->in.offset += copylen;
+		tcp_conn->data_copied += copylen;
+
+		if (tcp_conn->data_copied != tcp_conn->in.padding)
+			tcp_conn->in_progress = IN_PROGRESS_PAD_RECV;
+		else if (conn->datadgst_en)
+			tcp_conn->in_progress = IN_PROGRESS_DDIGEST_RECV;
+		else
+			tcp_conn->in_progress = IN_PROGRESS_WAIT_HEADER;
+		tcp_conn->data_copied = 0;
 	}
 
 	debug_tcp("f, processed %d from out of %d padding %d\n",

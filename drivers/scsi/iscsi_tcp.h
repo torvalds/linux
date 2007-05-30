@@ -29,6 +29,7 @@
 #define IN_PROGRESS_HEADER_GATHER	0x1
 #define IN_PROGRESS_DATA_RECV		0x2
 #define IN_PROGRESS_DDIGEST_RECV	0x3
+#define IN_PROGRESS_PAD_RECV		0x4
 
 /* xmit state machine */
 #define XMSTATE_IDLE			0x0
