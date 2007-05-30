@@ -48,6 +48,7 @@ enum iscsi_uevent_e {
 	ISCSI_UEVENT_TRANSPORT_EP_DISCONNECT	= UEVENT_BASE + 14,
 
 	ISCSI_UEVENT_TGT_DSCVR		= UEVENT_BASE + 15,
+	ISCSI_UEVENT_SET_HOST_PARAM	= UEVENT_BASE + 16,
 
 	/* up events */
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
@@ -136,6 +137,11 @@ struct iscsi_uevent {
 			 */
 			uint32_t	enable;
 		} tgt_dscvr;
+		struct msg_set_host_param {
+			uint32_t	host_no;
+			uint32_t	param; /* enum iscsi_host_param */
+			uint32_t	len;
+		} set_host_param;
 	} u;
 	union {
 		/* messages k -> u */

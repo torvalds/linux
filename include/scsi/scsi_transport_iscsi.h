@@ -108,6 +108,9 @@ struct iscsi_transport {
 				  enum iscsi_param param, char *buf);
 	int (*get_host_param) (struct Scsi_Host *shost,
 				enum iscsi_host_param param, char *buf);
+	int (*set_host_param) (struct Scsi_Host *shost,
+			       enum iscsi_host_param param, char *buf,
+			       int buflen);
 	int (*send_pdu) (struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 			 char *data, uint32_t data_size);
 	void (*get_stats) (struct iscsi_cls_conn *conn,

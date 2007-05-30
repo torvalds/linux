@@ -968,6 +968,30 @@ iscsi_tgt_dscvr(struct iscsi_transport *transport,
 }
 
 static int
+iscsi_set_host_param(struct iscsi_transport *transport,
+		     struct iscsi_uevent *ev)
+{
+	char *data = (char*)ev + sizeof(*ev);
+	struct Scsi_Host *shost;
+	int err;
+
+	if (!transport->set_host_param)
+		return -ENOSYS;
+
+	shost = scsi_host_lookup(ev->u.set_host_param.host_no);
+	if (IS_ERR(shost)) {
+		printk(KERN_ERR "set_host_param could not find host no %u\n",
+		       ev->u.set_host_param.host_no);
+		return -ENODEV;
+	}
+
+	err = transport->set_host_param(shost, ev->u.set_host_param.param,
+					data, ev->u.set_host_param.len);
+	scsi_host_put(shost);
+	return err;
+}
+
+static int
 iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	int err = 0;
@@ -1058,8 +1082,11 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	case ISCSI_UEVENT_TGT_DSCVR:
 		err = iscsi_tgt_dscvr(transport, ev);
 		break;
+	case ISCSI_UEVENT_SET_HOST_PARAM:
+		err = iscsi_set_host_param(transport, ev);
+		break;
 	default:
-		err = -EINVAL;
+		err = -ENOSYS;
 		break;
 	}
 
