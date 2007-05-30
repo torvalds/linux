@@ -406,7 +406,7 @@ static snd_pcm_uframes_t rme9652_hw_pointer(struct snd_rme9652 *rme9652)
 		} else if (!frag)
 			return 0;
 		offset -= rme9652->max_jitter;
-		if (offset < 0)
+		if ((int)offset < 0)
 			offset += period_size * 2;
 	} else {
 		if (offset > period_size + rme9652->max_jitter) {
