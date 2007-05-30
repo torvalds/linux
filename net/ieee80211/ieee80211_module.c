@@ -140,7 +140,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 
 	dev = alloc_etherdev(sizeof(struct ieee80211_device) + sizeof_priv);
 	if (!dev) {
-		IEEE80211_ERROR("Unable to network device.\n");
+		IEEE80211_ERROR("Unable to allocate network device.\n");
 		goto failed;
 	}
 	ieee = netdev_priv(dev);

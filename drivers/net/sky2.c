@@ -364,7 +364,7 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 			/* for SFP-module set SIGDET polarity to low */
 			ctrl = gm_phy_read(hw, port, PHY_MARV_PHY_CTRL);
 			ctrl |= PHY_M_FIB_SIGD_POL;
-			gm_phy_write(hw, port, PHY_MARV_CTRL, ctrl);
+			gm_phy_write(hw, port, PHY_MARV_PHY_CTRL, ctrl);
 		}
 
 		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, pg);
@@ -658,7 +658,7 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 	const u8 *addr = hw->dev[port]->dev_addr;
 
 	sky2_write32(hw, SK_REG(port, GPHY_CTRL), GPC_RST_SET);
-	sky2_write32(hw, SK_REG(port, GPHY_CTRL), GPC_RST_CLR|GPC_ENA_PAUSE);
+	sky2_write32(hw, SK_REG(port, GPHY_CTRL), GPC_RST_CLR);
 
 	sky2_write8(hw, SK_REG(port, GMAC_CTRL), GMC_RST_CLR);
 
@@ -1432,7 +1432,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		tcpsum = offset << 16;		/* sum start */
 		tcpsum |= offset + skb->csum_offset;	/* sum write */
 
-		ctrl = CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
+		ctrl |= CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
 		if (ip_hdr(skb)->protocol == IPPROTO_UDP)
 			ctrl |= UDPTCP;
 
