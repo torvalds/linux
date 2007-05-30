@@ -21,10 +21,6 @@
  */
 
 
-/* #define DEBUG */
-
-#define debug(format, arg...) pr_debug("hid-zpff: " format "\n" , ## arg)
-
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/hid.h>
@@ -49,14 +45,14 @@ static int hid_zpff_play(struct input_dev *dev, void *data,
 
 	left = effect->u.rumble.strong_magnitude;
 	right = effect->u.rumble.weak_magnitude;
-	debug("called with 0x%04x 0x%04x", left, right);
+	dbg_hid("called with 0x%04x 0x%04x\n", left, right);
 
 	left = left * 0x7f / 0xffff;
 	right = right * 0x7f / 0xffff;
 
 	zpff->report->field[2]->value[0] = left;
 	zpff->report->field[3]->value[0] = right;
-	debug("running with 0x%02x 0x%02x", left, right);
+	dbg_hid("running with 0x%02x 0x%02x\n", left, right);
 	usbhid_submit_report(hid, zpff->report, USB_DIR_OUT);
 
 	return 0;

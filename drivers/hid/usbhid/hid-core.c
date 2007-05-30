@@ -127,7 +127,7 @@ static void hid_reset(struct work_struct *work)
 			hid_io_error(hid);
 		break;
 	default:
-		err("can't reset device, %s-%s/input%d, status %d",
+		err_hid("can't reset device, %s-%s/input%d, status %d",
 				hid_to_usb_dev(hid)->bus->bus_name,
 				hid_to_usb_dev(hid)->devpath,
 				usbhid->ifnum, rc);
@@ -220,7 +220,7 @@ static void hid_irq_in(struct urb *urb)
 	if (status) {
 		clear_bit(HID_IN_RUNNING, &usbhid->iofl);
 		if (status != -EPERM) {
-			err("can't resubmit intr, %s-%s/input%d, status %d",
+			err_hid("can't resubmit intr, %s-%s/input%d, status %d",
 					hid_to_usb_dev(hid)->bus->bus_name,
 					hid_to_usb_dev(hid)->devpath,
 					usbhid->ifnum, status);
@@ -240,10 +240,10 @@ static int hid_submit_out(struct hid_device *hid)
 	usbhid->urbout->transfer_buffer_length = ((report->size - 1) >> 3) + 1 + (report->id > 0);
 	usbhid->urbout->dev = hid_to_usb_dev(hid);
 
-	dbg("submitting out urb");
+	dbg_hid("submitting out urb\n");
 
 	if (usb_submit_urb(usbhid->urbout, GFP_ATOMIC)) {
-		err("usb_submit_urb(out) failed");
+		err_hid("usb_submit_urb(out) failed");
 		return -1;
 	}
 
@@ -287,12 +287,12 @@ static int hid_submit_ctrl(struct hid_device *hid)
 	usbhid->cr->wIndex = cpu_to_le16(usbhid->ifnum);
 	usbhid->cr->wLength = cpu_to_le16(len);
 
-	dbg("submitting ctrl urb: %s wValue=0x%04x wIndex=0x%04x wLength=%u",
+	dbg_hid("submitting ctrl urb: %s wValue=0x%04x wIndex=0x%04x wLength=%u\n",
 		usbhid->cr->bRequest == HID_REQ_SET_REPORT ? "Set_Report" : "Get_Report",
 		usbhid->cr->wValue, usbhid->cr->wIndex, usbhid->cr->wLength);
 
 	if (usb_submit_urb(usbhid->urbctrl, GFP_ATOMIC)) {
-		err("usb_submit_urb(ctrl) failed");
+		err_hid("usb_submit_urb(ctrl) failed");
 		return -1;
 	}
 
@@ -474,7 +474,7 @@ int usbhid_wait_io(struct hid_device *hid)
 	if (!wait_event_timeout(hid->wait, (!test_bit(HID_CTRL_RUNNING, &usbhid->iofl) &&
 					!test_bit(HID_OUT_RUNNING, &usbhid->iofl)),
 					10*HZ)) {
-		dbg("timeout waiting for ctrl or out queue to clear");
+		dbg_hid("timeout waiting for ctrl or out queue to clear\n");
 		return -1;
 	}
 
@@ -667,7 +667,7 @@ static void hid_fixup_sony_ps3_controller(struct usb_device *dev, int ifnum)
 				 USB_CTRL_GET_TIMEOUT);
 
 	if (result < 0)
-		err("%s failed: %d\n", __func__, result);
+		err_hid("%s failed: %d\n", __func__, result);
 
 	kfree(buf);
 }
@@ -746,7 +746,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	if (usb_get_extra_descriptor(interface, HID_DT_HID, &hdesc) &&
 	    (!interface->desc.bNumEndpoints ||
 	     usb_get_extra_descriptor(&interface->endpoint[0], HID_DT_HID, &hdesc))) {
-		dbg("class descriptor not present\n");
+		dbg_hid("class descriptor not present\n");
 		return NULL;
 	}
 
@@ -755,19 +755,19 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 			rsize = le16_to_cpu(hdesc->desc[n].wDescriptorLength);
 
 	if (!rsize || rsize > HID_MAX_DESCRIPTOR_SIZE) {
-		dbg("weird size of report descriptor (%u)", rsize);
+		dbg_hid("weird size of report descriptor (%u)\n", rsize);
 		return NULL;
 	}
 
 	if (!(rdesc = kmalloc(rsize, GFP_KERNEL))) {
-		dbg("couldn't allocate rdesc memory");
+		dbg_hid("couldn't allocate rdesc memory\n");
 		return NULL;
 	}
 
 	hid_set_idle(dev, interface->desc.bInterfaceNumber, 0, 0);
 
 	if ((n = hid_get_class_descriptor(dev, interface->desc.bInterfaceNumber, HID_DT_REPORT, rdesc, rsize)) < 0) {
-		dbg("reading report descriptor failed");
+		dbg_hid("reading report descriptor failed\n");
 		kfree(rdesc);
 		return NULL;
 	}
@@ -781,15 +781,13 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	if (quirks & HID_QUIRK_SWAPPED_MIN_MAX)
 		hid_fixup_cypress_descriptor(rdesc, rsize);
 
-#ifdef CONFIG_HID_DEBUG
-	printk(KERN_DEBUG __FILE__ ": report descriptor (size %u, read %d) = ", rsize, n);
+	dbg_hid("report descriptor (size %u, read %d) = ", rsize, n);
 	for (n = 0; n < rsize; n++)
-		printk(" %02x", (unsigned char) rdesc[n]);
-	printk("\n");
-#endif
+		dbg_hid_line(" %02x", (unsigned char) rdesc[n]);
+	dbg_hid_line("\n");
 
 	if (!(hid = hid_parse_report(rdesc, n))) {
-		dbg("parsing report descriptor failed");
+		dbg_hid("parsing report descriptor failed\n");
 		kfree(rdesc);
 		return NULL;
 	}
@@ -861,7 +859,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	}
 
 	if (!usbhid->urbin) {
-		err("couldn't find an input interrupt endpoint");
+		err_hid("couldn't find an input interrupt endpoint");
 		goto fail;
 	}
 
@@ -978,7 +976,7 @@ static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	int i;
 	char *c;
 
-	dbg("HID probe called for ifnum %d",
+	dbg_hid("HID probe called for ifnum %d\n",
 			intf->altsetting->desc.bInterfaceNumber);
 
 	if (!(hid = usb_hid_configure(intf)))

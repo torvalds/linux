@@ -493,7 +493,7 @@ static struct hid_blacklist *usbhid_exists_dquirk(const u16 idVendor,
 	}
 
 	if (bl_entry != NULL)
-		dbg("Found dynamic quirk 0x%x for USB HID vendor 0x%hx prod 0x%hx\n",
+		dbg_hid("Found dynamic quirk 0x%x for USB HID vendor 0x%hx prod 0x%hx\n",
 				bl_entry->quirks, bl_entry->idVendor,
 				bl_entry->idProduct);
 
@@ -521,13 +521,13 @@ int usbhid_modify_dquirk(const u16 idVendor, const u16 idProduct,
 	int list_edited = 0;
 
 	if (!idVendor) {
-		dbg("Cannot add a quirk with idVendor = 0");
+		dbg_hid("Cannot add a quirk with idVendor = 0\n");
 		return -EINVAL;
 	}
 
 	q_new = kmalloc(sizeof(struct quirks_list_struct), GFP_KERNEL);
 	if (!q_new) {
-		dbg("Could not allocate quirks_list_struct");
+		dbg_hid("Could not allocate quirks_list_struct\n");
 		return -ENOMEM;
 	}
 
@@ -643,7 +643,7 @@ static const struct hid_blacklist *usbhid_exists_squirk(const u16 idVendor,
 			bl_entry = &hid_blacklist[n];
 
 	if (bl_entry != NULL)
-		dbg("Found squirk 0x%x for USB HID vendor 0x%hx prod 0x%hx\n",
+		dbg_hid("Found squirk 0x%x for USB HID vendor 0x%hx prod 0x%hx\n",
 				bl_entry->quirks, bl_entry->idVendor, 
 				bl_entry->idProduct);
 	return bl_entry;

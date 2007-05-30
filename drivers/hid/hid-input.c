@@ -308,9 +308,7 @@ static int hidinput_setkeycode(struct input_dev *dev, int scancode,
 		
 		clear_bit(old_keycode, dev->keybit);
 		set_bit(usage->code, dev->keybit);
-#ifdef CONFIG_HID_DEBUG
-		printk (KERN_DEBUG "Assigned keycode %d to HID usage code %x\n", keycode, scancode);
-#endif
+		dbg_hid(KERN_DEBUG "Assigned keycode %d to HID usage code %x\n", keycode, scancode);
 		/* Set the keybit for the old keycode if the old keycode is used
 		 * by another key */
 		if (hidinput_find_key (hid, 0, old_keycode))
@@ -333,11 +331,9 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 	field->hidinput = hidinput;
 
-#ifdef CONFIG_HID_DEBUG
-	printk(KERN_DEBUG "Mapping: ");
+	dbg_hid("Mapping: ");
 	hid_resolv_usage(usage->hid);
-	printk(" ---> ");
-#endif
+	dbg_hid_line(" ---> ");
 
 	if (field->flags & HID_MAIN_ITEM_CONSTANT)
 		goto ignore;
@@ -819,15 +815,13 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 	}
 
 	hid_resolv_event(usage->type, usage->code);
-#ifdef CONFIG_HID_DEBUG
-	printk("\n");
-#endif
+
+	dbg_hid_line("\n");
+
 	return;
 
 ignore:
-#ifdef CONFIG_HID_DEBUG
-	printk("IGNORED\n");
-#endif
+	dbg_hid_line("IGNORED\n");
 	return;
 }
 
@@ -896,12 +890,12 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 	}
 
 	if (usage->hid == (HID_UP_PID | 0x83UL)) { /* Simultaneous Effects Max */
-		dbg("Maximum Effects - %d",value);
+		dbg_hid("Maximum Effects - %d\n",value);
 		return;
 	}
 
 	if (usage->hid == (HID_UP_PID | 0x7fUL)) {
-		dbg("PID Pool Report\n");
+		dbg_hid("PID Pool Report\n");
 		return;
 	}
 
@@ -994,7 +988,7 @@ int hidinput_connect(struct hid_device *hid)
 				if (!hidinput || !input_dev) {
 					kfree(hidinput);
 					input_free_device(input_dev);
-					err("Out of memory during hid input probe");
+					err_hid("Out of memory during hid input probe");
 					return -1;
 				}
 

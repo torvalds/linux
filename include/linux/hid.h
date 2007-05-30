@@ -488,6 +488,11 @@ struct hid_descriptor {
 #define IS_INPUT_APPLICATION(a) (((a >= 0x00010000) && (a <= 0x00010008)) || (a == 0x00010080) || (a == 0x000c0001))
 
 /* HID core API */
+
+#ifdef CONFIG_HID_DEBUG
+extern int hid_debug;
+#endif
+
 extern void hidinput_hid_event(struct hid_device *, struct hid_field *, struct hid_usage *, __s32);
 extern void hidinput_report_event(struct hid_device *hid, struct hid_report *report);
 extern int hidinput_connect(struct hid_device *);
@@ -523,14 +528,19 @@ static inline int hid_pidff_init(struct hid_device *hid) { return -ENODEV; }
 #else
 static inline int hid_ff_init(struct hid_device *hid) { return -1; }
 #endif
-#ifdef DEBUG
-#define dbg(format, arg...) printk(KERN_DEBUG "%s: " format "\n" , \
-		__FILE__ , ## arg)
+
+#ifdef CONFIG_HID_DEBUG
+#define dbg_hid(format, arg...) if (hid_debug) \
+				printk(KERN_DEBUG "%s: " format ,\
+				__FILE__ , ## arg)
+#define dbg_hid_line(format, arg...) if (hid_debug) \
+				printk(format, ## arg)
 #else
-#define dbg(format, arg...) do {} while (0)
+#define dbg_hid(format, arg...) do {} while (0)
+#define dbg_hid_line dbg_hid
 #endif
 
-#define err(format, arg...) printk(KERN_ERR "%s: " format "\n" , \
+#define err_hid(format, arg...) printk(KERN_ERR "%s: " format "\n" , \
 		__FILE__ , ## arg)
 #endif
 
