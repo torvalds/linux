@@ -411,6 +411,11 @@ static int should_deauth_infrastructure(wlan_adapter *adapter,
 		return 1;
 	}
 
+	if (test_bit(ASSOC_FLAG_CHANNEL, &assoc_req->flags)) {
+		lbs_deb_assoc("Deauthenticating due to channel switch.\n");
+		return 1;
+	}
+
 	/* FIXME: deal with 'auto' mode somehow */
 	if (test_bit(ASSOC_FLAG_MODE, &assoc_req->flags)) {
 		if (assoc_req->mode != IW_MODE_INFRA)
