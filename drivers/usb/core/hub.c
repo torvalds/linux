@@ -605,72 +605,25 @@ static void disconnect_all_children(struct usb_hub *hub, int logical)
 	}
 }
 
-#ifdef	CONFIG_USB_PERSIST
-
-#define USB_PERSIST	1
-
-/* For "persistent-device" resets we must mark the child devices for reset
- * and turn off a possible connect-change status (so khubd won't disconnect
- * them later).
- */
-static void mark_children_for_reset_resume(struct usb_hub *hub)
-{
-	struct usb_device *hdev = hub->hdev;
-	int port1;
-
-	for (port1 = 1; port1 <= hdev->maxchild; ++port1) {
-		struct usb_device *child = hdev->children[port1-1];
-
-		if (child) {
-			child->reset_resume = 1;
-			clear_port_feature(hdev, port1,
-					USB_PORT_FEAT_C_CONNECTION);
-		}
-	}
-}
-
-#else
-
-#define USB_PERSIST	0
-
-static inline void mark_children_for_reset_resume(struct usb_hub *hub)
-{ }
-
-#endif	/* CONFIG_USB_PERSIST */
-
 /* caller has locked the hub device */
-static void hub_pre_reset(struct usb_interface *intf)
+static int hub_pre_reset(struct usb_interface *intf)
 {
 	struct usb_hub *hub = usb_get_intfdata(intf);
 
-	/* This routine doesn't run as part of a reset-resume, so it's safe
-	 * to disconnect all the drivers below the hub.
-	 */
 	disconnect_all_children(hub, 0);
 	hub_quiesce(hub);
+	return 0;
 }
 
 /* caller has locked the hub device */
-static void hub_post_reset(struct usb_interface *intf, int reset_resume)
+static int hub_post_reset(struct usb_interface *intf)
 {
 	struct usb_hub *hub = usb_get_intfdata(intf);
 
 	hub_power_on(hub);
-	if (reset_resume) {
-		if (USB_PERSIST)
-			mark_children_for_reset_resume(hub);
-		else {
-			/* Reset-resume doesn't call pre_reset, so we have to
-			 * disconnect the children here.  But we may not lock
-			 * the child devices, so we have to do a "logical"
-			 * disconnect.
-			 */
-			disconnect_all_children(hub, 1);
-		}
-	}
 	hub_activate(hub);
+	return 0;
 }
-
 
 static int hub_configure(struct usb_hub *hub,
 	struct usb_endpoint_descriptor *endpoint)
@@ -1931,6 +1884,58 @@ static int hub_resume(struct usb_interface *intf)
 	return 0;
 }
 
+#ifdef	CONFIG_USB_PERSIST
+
+#define USB_PERSIST	1
+
+/* For "persistent-device" resets we must mark the child devices for reset
+ * and turn off a possible connect-change status (so khubd won't disconnect
+ * them later).
+ */
+static void mark_children_for_reset_resume(struct usb_hub *hub)
+{
+	struct usb_device *hdev = hub->hdev;
+	int port1;
+
+	for (port1 = 1; port1 <= hdev->maxchild; ++port1) {
+		struct usb_device *child = hdev->children[port1-1];
+
+		if (child) {
+			child->reset_resume = 1;
+			clear_port_feature(hdev, port1,
+					USB_PORT_FEAT_C_CONNECTION);
+		}
+	}
+}
+
+#else
+
+#define USB_PERSIST	0
+
+static inline void mark_children_for_reset_resume(struct usb_hub *hub)
+{ }
+
+#endif	/* CONFIG_USB_PERSIST */
+
+static int hub_reset_resume(struct usb_interface *intf)
+{
+	struct usb_hub *hub = usb_get_intfdata(intf);
+
+	hub_power_on(hub);
+	if (USB_PERSIST)
+		mark_children_for_reset_resume(hub);
+	else {
+		/* Reset-resume doesn't call pre_reset, so we have to
+		 * disconnect the children here.  But we may not lock
+		 * the child devices, so we have to do a "logical"
+		 * disconnect.
+		 */
+		disconnect_all_children(hub, 1);
+	}
+	hub_activate(hub);
+	return 0;
+}
+
 #else	/* CONFIG_PM */
 
 static inline int remote_wakeup(struct usb_device *udev)
@@ -1938,8 +1943,9 @@ static inline int remote_wakeup(struct usb_device *udev)
 	return 0;
 }
 
-#define hub_suspend NULL
-#define hub_resume NULL
+#define hub_suspend		NULL
+#define hub_resume		NULL
+#define hub_reset_resume	NULL
 #endif
 
 
@@ -2768,6 +2774,7 @@ static struct usb_driver hub_driver = {
 	.disconnect =	hub_disconnect,
 	.suspend =	hub_suspend,
 	.resume =	hub_resume,
+	.reset_resume =	hub_reset_resume,
 	.pre_reset =	hub_pre_reset,
 	.post_reset =	hub_post_reset,
 	.ioctl =	hub_ioctl,
@@ -3021,6 +3028,7 @@ int usb_reset_composite_device(struct usb_device *udev,
 				drv = to_usb_driver(cintf->dev.driver);
 				if (drv->pre_reset)
 					(drv->pre_reset)(cintf);
+	/* FIXME: Unbind if pre_reset returns an error or isn't defined */
 			}
 		}
 	}
@@ -3038,7 +3046,8 @@ int usb_reset_composite_device(struct usb_device *udev,
 					cintf->dev.driver) {
 				drv = to_usb_driver(cintf->dev.driver);
 				if (drv->post_reset)
-					(drv->post_reset)(cintf, 0);
+					(drv->post_reset)(cintf);
+	/* FIXME: Unbind if post_reset returns an error or isn't defined */
 			}
 			if (cintf != iface)
 				up(&cintf->dev.sem);

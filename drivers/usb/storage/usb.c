@@ -219,6 +219,20 @@ static int storage_resume(struct usb_interface *iface)
 	return 0;
 }
 
+static int storage_reset_resume(struct usb_interface *iface)
+{
+	struct us_data *us = usb_get_intfdata(iface);
+
+	US_DEBUGP("%s\n", __FUNCTION__);
+
+	/* Report the reset to the SCSI core */
+	usb_stor_report_bus_reset(us);
+
+	/* FIXME: Notify the subdrivers that they need to reinitialize
+	 * the device */
+	return 0;
+}
+
 #endif /* CONFIG_PM */
 
 /*
@@ -226,7 +240,7 @@ static int storage_resume(struct usb_interface *iface)
  * a USB port reset, whether from this driver or a different one.
  */
 
-static void storage_pre_reset(struct usb_interface *iface)
+static int storage_pre_reset(struct usb_interface *iface)
 {
 	struct us_data *us = usb_get_intfdata(iface);
 
@@ -234,26 +248,23 @@ static void storage_pre_reset(struct usb_interface *iface)
 
 	/* Make sure no command runs during the reset */
 	mutex_lock(&us->dev_mutex);
+	return 0;
 }
 
-static void storage_post_reset(struct usb_interface *iface, int reset_resume)
+static int storage_post_reset(struct usb_interface *iface)
 {
 	struct us_data *us = usb_get_intfdata(iface);
 
 	US_DEBUGP("%s\n", __FUNCTION__);
 
 	/* Report the reset to the SCSI core */
-	scsi_lock(us_to_host(us));
 	usb_stor_report_bus_reset(us);
-	scsi_unlock(us_to_host(us));
 
 	/* FIXME: Notify the subdrivers that they need to reinitialize
 	 * the device */
 
-	/* If this is a reset-resume then the pre_reset routine wasn't
-	 * called, so we don't need to unlock the mutex. */
-	if (!reset_resume)
-		mutex_unlock(&us->dev_mutex);
+	mutex_unlock(&us->dev_mutex);
+	return 0;
 }
 
 /*
@@ -1061,6 +1072,7 @@ static struct usb_driver usb_storage_driver = {
 #ifdef CONFIG_PM
 	.suspend =	storage_suspend,
 	.resume =	storage_resume,
+	.reset_resume =	storage_reset_resume,
 #endif
 	.pre_reset =	storage_pre_reset,
 	.post_reset =	storage_post_reset,

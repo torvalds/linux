@@ -839,6 +839,8 @@ struct usbdrv_wrap {
  *	do (or don't) show up otherwise in the filesystem.
  * @suspend: Called when the device is going to be suspended by the system.
  * @resume: Called when the device is being resumed by the system.
+ * @reset_resume: Called when the suspended device has been reset instead
+ *	of being resumed.
  * @pre_reset: Called by usb_reset_composite_device() when the device
  *	is about to be reset.
  * @post_reset: Called by usb_reset_composite_device() after the device
@@ -885,9 +887,10 @@ struct usb_driver {
 
 	int (*suspend) (struct usb_interface *intf, pm_message_t message);
 	int (*resume) (struct usb_interface *intf);
+	int (*reset_resume)(struct usb_interface *intf);
 
-	void (*pre_reset) (struct usb_interface *intf);
-	void (*post_reset) (struct usb_interface *intf, int reset_resume);
+	int (*pre_reset)(struct usb_interface *intf);
+	int (*post_reset)(struct usb_interface *intf);
 
 	const struct usb_device_id *id_table;
 

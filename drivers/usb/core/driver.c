@@ -915,21 +915,37 @@ static int usb_resume_interface(struct usb_interface *intf, int reset_resume)
 	}
 	driver = to_usb_driver(intf->dev.driver);
 
-	if (reset_resume && driver->post_reset)
-		driver->post_reset(intf, reset_resume);
-	else if (driver->resume) {
-		status = driver->resume(intf);
-		if (status)
-			dev_err(&intf->dev, "%s error %d\n",
-					"resume", status);
-	} else
-		dev_warn(&intf->dev, "no resume for driver %s?\n",
-				driver->name);
+	if (reset_resume) {
+		if (driver->reset_resume) {
+			status = driver->reset_resume(intf);
+			if (status)
+				dev_err(&intf->dev, "%s error %d\n",
+						"reset_resume", status);
+		} else {
+			// status = -EOPNOTSUPP;
+			dev_warn(&intf->dev, "no %s for driver %s?\n",
+					"reset_resume", driver->name);
+		}
+	} else {
+		if (driver->resume) {
+			status = driver->resume(intf);
+			if (status)
+				dev_err(&intf->dev, "%s error %d\n",
+						"resume", status);
+		} else {
+			// status = -EOPNOTSUPP;
+			dev_warn(&intf->dev, "no %s for driver %s?\n",
+					"resume", driver->name);
+		}
+	}
 
 done:
 	dev_vdbg(&intf->dev, "%s: status %d\n", __FUNCTION__, status);
 	if (status == 0)
 		mark_active(intf);
+
+	/* FIXME: Unbind the driver and reprobe if the resume failed
+	 * (not possible if auto_pm is set) */
 	return status;
 }
 
@@ -965,6 +981,18 @@ static int autosuspend_check(struct usb_device *udev)
 				dev_dbg(&udev->dev, "remote wakeup needed "
 						"for autosuspend\n");
 				return -EOPNOTSUPP;
+			}
+
+			/* Don't allow autosuspend if the device will need
+			 * a reset-resume and any of its interface drivers
+			 * doesn't include support.
+			 */
+			if (udev->quirks & USB_QUIRK_RESET_RESUME) {
+				struct usb_driver *driver;
+
+				driver = to_usb_driver(intf->dev.driver);
+				if (!driver->reset_resume)
+					return -EOPNOTSUPP;
 			}
 		}
 	}
@@ -1146,7 +1174,8 @@ static int usb_resume_both(struct usb_device *udev)
 			status = usb_autoresume_device(parent);
 			if (status == 0) {
 				status = usb_resume_device(udev);
-				if (status) {
+				if (status || udev->state ==
+						USB_STATE_NOTATTACHED) {
 					usb_autosuspend_device(parent);
 
 					/* It's possible usb_resume_device()
