@@ -2019,10 +2019,9 @@ ENTRY(syscall_exit)
 	STREG     %r28,TASK_PT_GR28(%r1)
 
 #ifdef CONFIG_HPUX
-
 /* <linux/personality.h> cannot be easily included */
 #define PER_HPUX 0x10
-	LDREG     TASK_PERSONALITY(%r1),%r19
+	ldw	TASK_PERSONALITY(%r1),%r19
 
 	/* We can't use "CMPIB<> PER_HPUX" since "im5" field is sign extended */
 	ldo	  -PER_HPUX(%r19), %r19
@@ -2081,7 +2080,7 @@ syscall_restore:
 	/* Are we being ptraced? */
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
 
-	LDREG	TASK_PTRACE(%r1), %r19
+	ldw	TASK_PTRACE(%r1), %r19
 	bb,<	%r19,31,syscall_restore_rfi
 	nop
 
