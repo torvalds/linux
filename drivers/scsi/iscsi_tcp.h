@@ -32,8 +32,8 @@
 
 /* xmit state machine */
 #define XMSTATE_IDLE			0x0
-#define XMSTATE_R_HDR			0x1
-#define XMSTATE_W_HDR			0x2
+#define XMSTATE_CMD_HDR_INIT		0x1
+#define XMSTATE_CMD_HDR_XMIT		0x2
 #define XMSTATE_IMM_HDR			0x4
 #define XMSTATE_IMM_DATA		0x8
 #define XMSTATE_UNS_INIT		0x10
@@ -44,6 +44,8 @@
 #define XMSTATE_W_PAD			0x200
 #define XMSTATE_W_RESEND_PAD		0x400
 #define XMSTATE_W_RESEND_DATA_DIGEST	0x800
+#define XMSTATE_IMM_HDR_INIT		0x1000
+#define XMSTATE_SOL_HDR_INIT		0x2000
 
 #define ISCSI_PAD_LEN			4
 #define ISCSI_SG_TABLESIZE		SG_ALL

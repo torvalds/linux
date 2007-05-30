@@ -125,6 +125,7 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 			MAX_COMMAND_SIZE - sc->cmd_len);
 
 	ctask->data_count = 0;
+	ctask->imm_count = 0;
 	if (sc->sc_data_direction == DMA_TO_DEVICE) {
 		hdr->flags |= ISCSI_FLAG_CMD_WRITE;
 		/*
@@ -141,7 +142,6 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 		 *
 		 *      pad_count       bytes to be sent as zero-padding
 		 */
-		ctask->imm_count = 0;
 		ctask->unsol_count = 0;
 		ctask->unsol_offset = 0;
 		ctask->unsol_datasn = 0;
