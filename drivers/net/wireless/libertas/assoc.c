@@ -200,6 +200,14 @@ static int update_channel(wlan_private * priv)
 				    cmd_option_waitforrsp, 0, NULL);
 }
 
+void libertas_sync_channel(struct work_struct *work)
+{
+	wlan_private *priv = container_of(work, wlan_private, sync_channel);
+
+	if (update_channel(priv) != 0)
+		lbs_pr_info("Channel synchronization failed.");
+}
+
 static int assoc_helper_channel(wlan_private *priv,
                                 struct assoc_request * assoc_req)
 {

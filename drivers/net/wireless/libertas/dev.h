@@ -150,6 +150,7 @@ struct _wlan_private {
 
 	struct delayed_work assoc_work;
 	struct workqueue_struct *assoc_thread;
+	struct work_struct sync_channel;
 
 	/** Hardware access */
 	int (*hw_register_dev) (wlan_private * priv);

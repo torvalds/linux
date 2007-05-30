@@ -847,6 +847,7 @@ int libertas_activate_card(wlan_private *priv, char *fw_name)
 	priv->assoc_thread =
 		create_singlethread_workqueue("libertas_assoc");
 	INIT_DELAYED_WORK(&priv->assoc_work, libertas_association_worker);
+	INIT_WORK(&priv->sync_channel, libertas_sync_channel);
 
 	/*
 	 * Register the device. Fillup the private data structure with

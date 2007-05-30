@@ -987,6 +987,7 @@ int libertas_process_event(wlan_private * priv)
 			netif_carrier_on(priv->mesh_dev) ;
 		}
 		adapter->mode = IW_MODE_ADHOC ;
+		schedule_work(&priv->sync_channel);
 		break;
 
 	default:
