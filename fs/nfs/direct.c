@@ -168,13 +168,18 @@ static inline struct nfs_direct_req *nfs_direct_req_alloc(void)
 	return dreq;
 }
 
-static void nfs_direct_req_release(struct kref *kref)
+static void nfs_direct_req_free(struct kref *kref)
 {
 	struct nfs_direct_req *dreq = container_of(kref, struct nfs_direct_req, kref);
 
 	if (dreq->ctx != NULL)
 		put_nfs_open_context(dreq->ctx);
 	kmem_cache_free(nfs_direct_cachep, dreq);
+}
+
+static void nfs_direct_req_release(struct nfs_direct_req *dreq)
+{
+	kref_put(&dreq->kref, nfs_direct_req_free);
 }
 
 /*
@@ -196,7 +201,6 @@ static ssize_t nfs_direct_wait(struct nfs_direct_req *dreq)
 		result = dreq->count;
 
 out:
-	kref_put(&dreq->kref, nfs_direct_req_release);
 	return (ssize_t) result;
 }
 
@@ -214,7 +218,7 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq)
 	}
 	complete_all(&dreq->completion);
 
-	kref_put(&dreq->kref, nfs_direct_req_release);
+	nfs_direct_req_release(dreq);
 }
 
 /*
@@ -369,6 +373,7 @@ static ssize_t nfs_direct_read(struct kiocb *iocb, unsigned long user_addr, size
 	if (!result)
 		result = nfs_direct_wait(dreq);
 	rpc_clnt_sigunmask(clnt, &oldset);
+	nfs_direct_req_release(dreq);
 
 	return result;
 }
@@ -716,6 +721,7 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, siz
 	if (!result)
 		result = nfs_direct_wait(dreq);
 	rpc_clnt_sigunmask(clnt, &oldset);
+	nfs_direct_req_release(dreq);
 
 	return result;
 }
