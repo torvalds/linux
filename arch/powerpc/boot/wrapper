@@ -129,7 +129,7 @@ case "$platform" in
 pmac|pseries|chrp)
     platformo=$object/of.o
     ;;
-pmaccoff)
+coff)
     platformo=$object/of.o
     lds=$object/zImage.coff.lds
     ;;
@@ -220,7 +220,7 @@ case "$platform" in
 pseries|chrp)
     $object/addnote "$ofile"
     ;;
-pmaccoff)
+coff)
     ${CROSS}objcopy -O aixcoff-rs6000 --set-start "$entry" "$ofile"
     $object/hack-coff "$ofile"
     ;;
