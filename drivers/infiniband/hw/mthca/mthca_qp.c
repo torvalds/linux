@@ -2284,10 +2284,10 @@ void mthca_free_err_wqe(struct mthca_dev *dev, struct mthca_qp *qp, int is_send,
 	struct mthca_next_seg *next;
 
 	/*
-	 * For SRQs, all WQEs generate a CQE, so we're always at the
-	 * end of the doorbell chain.
+	 * For SRQs, all receive WQEs generate a CQE, so we're always
+	 * at the end of the doorbell chain.
 	 */
-	if (qp->ibqp.srq) {
+	if (qp->ibqp.srq && !is_send) {
 		*new_wqe = 0;
 		return;
 	}
