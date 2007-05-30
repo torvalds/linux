@@ -2590,7 +2590,7 @@ qla2x00_down_timeout(struct semaphore *sema, unsigned long timeout)
 			return 0;
 		if (msleep_interruptible(step))
 			break;
-	} while (--iterations >= 0);
+	} while (--iterations > 0);
 
 	return -ETIMEDOUT;
 }
