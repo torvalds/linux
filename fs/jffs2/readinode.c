@@ -1044,7 +1044,8 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 
 		case JFFS2_NODETYPE_DIRENT:
 
-			if (JFFS2_MIN_NODE_HEADER < sizeof(struct jffs2_raw_dirent)) {
+			if (JFFS2_MIN_NODE_HEADER < sizeof(struct jffs2_raw_dirent) &&
+			    len < sizeof(struct jffs2_raw_dirent)) {
 				err = read_more(c, ref, sizeof(struct jffs2_raw_dirent), &len, buf);
 				if (unlikely(err))
 					goto free_out;
@@ -1058,7 +1059,8 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 
 		case JFFS2_NODETYPE_INODE:
 
-			if (JFFS2_MIN_NODE_HEADER < sizeof(struct jffs2_raw_inode)) {
+			if (JFFS2_MIN_NODE_HEADER < sizeof(struct jffs2_raw_inode) &&
+			    len < sizeof(struct jffs2_raw_inode)) {
 				err = read_more(c, ref, sizeof(struct jffs2_raw_inode), &len, buf);
 				if (unlikely(err))
 					goto free_out;
@@ -1071,7 +1073,8 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 			break;
 
 		default:
-			if (JFFS2_MIN_NODE_HEADER < sizeof(struct jffs2_unknown_node)) {
+			if (JFFS2_MIN_NODE_HEADER < sizeof(struct jffs2_unknown_node) &&
+			    len < sizeof(struct jffs2_unknown_node)) {
 				err = read_more(c, ref, sizeof(struct jffs2_unknown_node), &len, buf);
 				if (unlikely(err))
 					goto free_out;
