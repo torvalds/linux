@@ -241,6 +241,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 {
 	hpa_t shadow_addr;
 	int level;
+	u64 *shadow_ent;
 	u64 *prev_shadow_ent = NULL;
 	pt_element_t *guest_ent = walker->ptep;
 
@@ -257,13 +258,13 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 
 	for (; ; level--) {
 		u32 index = SHADOW_PT_INDEX(addr, level);
-		u64 *shadow_ent = ((u64 *)__va(shadow_addr)) + index;
 		struct kvm_mmu_page *shadow_page;
 		u64 shadow_pte;
 		int metaphysical;
 		gfn_t table_gfn;
 		unsigned hugepage_access = 0;
 
+		shadow_ent = ((u64 *)__va(shadow_addr)) + index;
 		if (is_present_pte(*shadow_ent) || is_io_pte(*shadow_ent)) {
 			if (level == PT_PAGE_TABLE_LEVEL)
 				return shadow_ent;
@@ -272,22 +273,8 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			continue;
 		}
 
-		if (level == PT_PAGE_TABLE_LEVEL) {
-
-			if (walker->level == PT_DIRECTORY_LEVEL) {
-				if (prev_shadow_ent)
-					*prev_shadow_ent |= PT_SHADOW_PS_MARK;
-				FNAME(set_pde)(vcpu, *guest_ent, shadow_ent,
-					       walker->inherited_ar,
-					       walker->gfn);
-			} else {
-				ASSERT(walker->level == PT_PAGE_TABLE_LEVEL);
-				FNAME(set_pte)(vcpu, *guest_ent, shadow_ent,
-					       walker->inherited_ar,
-					       walker->gfn);
-			}
-			return shadow_ent;
-		}
+		if (level == PT_PAGE_TABLE_LEVEL)
+			break;
 
 		if (level - 1 == PT_PAGE_TABLE_LEVEL
 		    && walker->level == PT_DIRECTORY_LEVEL) {
@@ -310,6 +297,19 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		*shadow_ent = shadow_pte;
 		prev_shadow_ent = shadow_ent;
 	}
+
+	if (walker->level == PT_DIRECTORY_LEVEL) {
+		if (prev_shadow_ent)
+			*prev_shadow_ent |= PT_SHADOW_PS_MARK;
+		FNAME(set_pde)(vcpu, *guest_ent, shadow_ent,
+			       walker->inherited_ar, walker->gfn);
+	} else {
+		ASSERT(walker->level == PT_PAGE_TABLE_LEVEL);
+		FNAME(set_pte)(vcpu, *guest_ent, shadow_ent,
+			       walker->inherited_ar,
+			       walker->gfn);
+	}
+	return shadow_ent;
 }
 
 /*
