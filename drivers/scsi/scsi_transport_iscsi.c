@@ -32,7 +32,7 @@
 
 #define ISCSI_SESSION_ATTRS 11
 #define ISCSI_CONN_ATTRS 11
-#define ISCSI_HOST_ATTRS 0
+#define ISCSI_HOST_ATTRS 1
 #define ISCSI_TRANSPORT_VERSION "2.0-724"
 
 struct iscsi_internal {
@@ -1197,6 +1197,25 @@ static ISCSI_CLASS_ATTR(priv_sess, field, S_IRUGO, show_priv_session_##field, \
 			NULL)
 iscsi_priv_session_attr(recovery_tmo, "%d");
 
+/*
+ * iSCSI host attrs
+ */
+#define iscsi_host_attr_show(param)					\
+static ssize_t								\
+show_host_param_##param(struct class_device *cdev, char *buf)		\
+{									\
+	struct Scsi_Host *shost = transport_class_to_shost(cdev);	\
+	struct iscsi_internal *priv = to_iscsi_internal(shost->transportt); \
+	return priv->iscsi_transport->get_host_param(shost, param, buf); \
+}
+
+#define iscsi_host_attr(field, param)					\
+	iscsi_host_attr_show(param)					\
+static ISCSI_CLASS_ATTR(host, field, S_IRUGO, show_host_param_##param,	\
+			NULL);
+
+iscsi_host_attr(hwaddress, ISCSI_HOST_PARAM_HWADDRESS);
+
 #define SETUP_PRIV_SESSION_RD_ATTR(field)				\
 do {									\
 	priv->session_attrs[count] = &class_device_attr_priv_sess_##field; \
@@ -1216,6 +1235,14 @@ do {									\
 do {									\
 	if (tt->param_mask & param_flag) {				\
 		priv->conn_attrs[count] = &class_device_attr_conn_##field; \
+		count++;						\
+	}								\
+} while (0)
+
+#define SETUP_HOST_RD_ATTR(field, param_flag)				\
+do {									\
+	if (tt->host_param_mask & param_flag) {				\
+		priv->host_attrs[count] = &class_device_attr_host_##field; \
 		count++;						\
 	}								\
 } while (0)
@@ -1321,8 +1348,12 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	priv->t.host_attrs.ac.class = &iscsi_host_class.class;
 	priv->t.host_attrs.ac.match = iscsi_host_match;
 	priv->t.host_size = sizeof(struct iscsi_host);
-	priv->host_attrs[0] = NULL;
 	transport_container_register(&priv->t.host_attrs);
+
+	SETUP_HOST_RD_ATTR(hwaddress, ISCSI_HOST_HWADDRESS);
+	BUG_ON(count > ISCSI_HOST_ATTRS);
+	priv->host_attrs[count] = NULL;
+	count = 0;
 
 	/* connection parameters */
 	priv->conn_cont.ac.attrs = &priv->conn_attrs[0];

@@ -250,6 +250,14 @@ enum iscsi_param {
 #define ISCSI_CONN_PORT			(1 << ISCSI_PARAM_CONN_PORT)
 #define ISCSI_CONN_ADDRESS		(1 << ISCSI_PARAM_CONN_ADDRESS)
 
+/* iSCSI HBA params */
+enum iscsi_host_param {
+	ISCSI_HOST_PARAM_HWADDRESS,
+	ISCSI_HOST_PARAM_MAX,
+};
+
+#define ISCSI_HOST_HWADDRESS		(1 << ISCSI_HOST_PARAM_HWADDRESS)
+
 #define iscsi_ptr(_handle) ((void*)(unsigned long)_handle)
 #define iscsi_handle(_ptr) ((uint64_t)(unsigned long)_ptr)
 #define hostdata_session(_hostdata) (iscsi_ptr(*(unsigned long *)_hostdata))
