@@ -5,8 +5,9 @@
 #include "transaction.h"
 
 static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
-			    *orig_root, u64 num_blocks, u64 search_start, u64
-			    search_end, struct btrfs_key *ins, int data);
+			    *orig_root, u64 num_blocks, u64 search_start,
+			    u64 search_end, u64 hint_block,
+			    struct btrfs_key *ins, int data);
 static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 				 btrfs_root *extent_root);
 static int del_pending_extents(struct btrfs_trans_handle *trans, struct
@@ -156,12 +157,6 @@ static struct btrfs_block_group_cache *lookup_block_group(struct
 		if (block_group->key.objectid <= blocknr && blocknr <=
 		    block_group->key.objectid + block_group->key.offset)
 			return block_group;
-	}
-	WARN_ON(1);
-	printk("lookup_block_group fails for blocknr %Lu\n", blocknr);
-	printk("last ret was %d\n", ret);
-	if (ret) {
-		printk("last block group was %Lu %Lu\n", block_group->key.objectid, block_group->key.offset);
 	}
 	return NULL;
 }
@@ -378,7 +373,7 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	struct btrfs_key ins;
 	u32 refs;
 
-	find_free_extent(trans, root->fs_info->extent_root, 0, 0, (u64)-1,
+	find_free_extent(trans, root->fs_info->extent_root, 0, 0, (u64)-1, 0,
 			 &ins, 0);
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
@@ -495,7 +490,7 @@ static int write_one_cache_group(struct btrfs_trans_handle *trans,
 	struct btrfs_block_group_item *bi;
 	struct btrfs_key ins;
 
-	find_free_extent(trans, extent_root, 0, 0, (u64)-1, &ins, 0);
+	find_free_extent(trans, extent_root, 0, 0, (u64)-1, 0, &ins, 0);
 	ret = btrfs_search_slot(trans, extent_root, &cache->key, path, 0, 1);
 	BUG_ON(ret);
 	bi = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]), path->slots[0],
@@ -788,7 +783,7 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
 	key.offset = num_blocks;
 
-	find_free_extent(trans, root, 0, 0, (u64)-1, &ins, 0);
+	find_free_extent(trans, root, 0, 0, (u64)-1, 0, &ins, 0);
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 	btrfs_init_path(path);
@@ -906,7 +901,8 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
  */
 static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 			    *orig_root, u64 num_blocks, u64 search_start, u64
-			    search_end, struct btrfs_key *ins, int data)
+			    search_end, u64 hint_block,
+			    struct btrfs_key *ins, int data)
 {
 	struct btrfs_path *path;
 	struct btrfs_key key;
@@ -926,6 +922,7 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	int level;
 	struct btrfs_block_group_cache *block_group;
 	int full_scan = 0;
+	int wrapped = 0;
 	u64 limit;
 
 	path = btrfs_alloc_path();
@@ -940,10 +937,10 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	}
 	if (search_end == (u64)-1)
 		search_end = btrfs_super_total_blocks(info->disk_super);
-	if (search_start) {
-		block_group = lookup_block_group(info, search_start);
+	if (hint_block) {
+		block_group = lookup_block_group(info, hint_block);
 		block_group = btrfs_find_block_group(root, block_group,
-						     search_start, data, 1);
+						     hint_block, data, 1);
 	} else {
 		block_group = btrfs_find_block_group(root,
 						     trans->block_group, 0,
@@ -954,7 +951,7 @@ check_failed:
 	if (!block_group->data)
 		search_start = find_search_start(root, &block_group,
 						 search_start, total_needed);
-	else
+	else if (!full_scan)
 		search_start = max(block_group->last_alloc, search_start);
 
 	btrfs_init_path(path);
@@ -1039,7 +1036,7 @@ check_failed:
 
 		start_found = 1;
 		last_block = key.objectid + key.offset;
-		if (last_block >= block_group->key.objectid +
+		if (!full_scan && last_block >= block_group->key.objectid +
 		    block_group->key.offset) {
 			btrfs_release_path(root, path);
 			search_start = block_group->key.objectid +
@@ -1059,10 +1056,15 @@ check_pending:
 	BUG_ON(ins->objectid < search_start);
 
 	if (ins->objectid + num_blocks >= search_end) {
-		if (full_scan)
-			return -ENOSPC;
+		if (full_scan) {
+			ret = -ENOSPC;
+			goto error;
+		}
 		search_start = orig_search_start;
-		full_scan = 1;
+		if (wrapped)
+			full_scan = 1;
+		else
+			wrapped = 1;
 		goto new_group;
 	}
 	for (test_block = ins->objectid;
@@ -1132,14 +1134,20 @@ check_pending:
 new_group:
 	if (search_start + num_blocks >= search_end) {
 		search_start = orig_search_start;
-printk("doing full scan!\n");
-		full_scan = 1;
+		if (full_scan) {
+			ret = -ENOSPC;
+			goto error;
+		}
+		if (wrapped)
+			full_scan = 1;
+		else
+			wrapped = 1;
 	}
 	block_group = lookup_block_group(info, search_start);
+	cond_resched();
 	if (!full_scan)
 		block_group = btrfs_find_block_group(root, block_group,
 						     search_start, data, 0);
-	cond_resched();
 	goto check_failed;
 
 error:
@@ -1156,12 +1164,13 @@ error:
  */
 int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, u64 owner,
-		       u64 num_blocks, u64 search_start,
+		       u64 num_blocks, u64 hint_block,
 		       u64 search_end, struct btrfs_key *ins, int data)
 {
 	int ret;
 	int pending_ret;
 	u64 super_blocks_used;
+	u64 search_start = 0;
 	struct btrfs_fs_info *info = root->fs_info;
 	struct btrfs_root *extent_root = info->extent_root;
 	struct btrfs_extent_item extent_item;
@@ -1193,7 +1202,7 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	 */
 	if (data) {
 		ret = find_free_extent(trans, root, 0, 0,
-				       search_end, &prealloc_key, 0);
+				       search_end, 0, &prealloc_key, 0);
 		if (ret) {
 			return ret;
 		}
@@ -1204,9 +1213,11 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 			search_start = info->extent_tree_prealloc[0] + 1;
 		}
 	}
+	if (hint_block < search_start)
+		hint_block = search_start;
 	/* do the real allocation */
 	ret = find_free_extent(trans, root, num_blocks, search_start,
-			       search_end, ins, data);
+			       search_end, hint_block, ins, data);
 	if (ret) {
 		return ret;
 	}
@@ -1226,8 +1237,12 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		else
 			search_start = ins->objectid + ins->offset;
 
+		if (hint_block < search_start)
+			hint_block = search_start;
+
 		ret = find_free_extent(trans, root, 0, search_start,
-				       search_end, &prealloc_key, 0);
+				       search_end, hint_block,
+				       &prealloc_key, 0);
 		if (ret) {
 			return ret;
 		}
