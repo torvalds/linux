@@ -219,7 +219,13 @@ static int xaui_direct_get_link_status(struct cphy *phy, int *link_ok,
 		unsigned int status;
 
 		status = t3_read_reg(phy->adapter,
-				     XGM_REG(A_XGM_SERDES_STAT0, phy->addr));
+				     XGM_REG(A_XGM_SERDES_STAT0, phy->addr)) |
+		    t3_read_reg(phy->adapter,
+				XGM_REG(A_XGM_SERDES_STAT1, phy->addr)) |
+		    t3_read_reg(phy->adapter,
+				XGM_REG(A_XGM_SERDES_STAT2, phy->addr)) |
+		    t3_read_reg(phy->adapter,
+				XGM_REG(A_XGM_SERDES_STAT3, phy->addr));
 		*link_ok = !(status & F_LOWSIG0);
 	}
 	if (speed)
@@ -247,5 +253,5 @@ static struct cphy_ops xaui_direct_ops = {
 void t3_xaui_direct_phy_prep(struct cphy *phy, struct adapter *adapter,
 			     int phy_addr, const struct mdio_ops *mdio_ops)
 {
-	cphy_init(phy, adapter, 1, &xaui_direct_ops, mdio_ops);
+	cphy_init(phy, adapter, phy_addr, &xaui_direct_ops, mdio_ops);
 }

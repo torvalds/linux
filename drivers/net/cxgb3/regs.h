@@ -2128,6 +2128,8 @@
 #define F_RESETPLL01    V_RESETPLL01(1U)
 
 #define A_XGM_SERDES_STAT0 0x8f0
+#define A_XGM_SERDES_STAT1 0x8f4
+#define A_XGM_SERDES_STAT2 0x8f8
 
 #define S_LOWSIG0    0
 #define V_LOWSIG0(x) ((x) << S_LOWSIG0)
