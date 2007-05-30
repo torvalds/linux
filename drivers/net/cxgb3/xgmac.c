@@ -501,6 +501,10 @@ int t3b2_mac_watchdog_task(struct cmac *mac)
 	unsigned int rx_xcnt;
 	int status;
 
+	status = 0;
+	tx_xcnt = 1;		/* By default tx_xcnt is making progress */
+	tx_tcnt = mac->tx_tcnt;	/* If tx_mcnt is progressing ignore tx_tcnt */
+	rx_xcnt = 1;		/* By default rx_xcnt is making progress */
 	if (tx_mcnt == mac->tx_mcnt) {
 		tx_xcnt = (G_TXSPI4SOPCNT(t3_read_reg(adap,
 						A_XGM_TX_SPI4_SOP_EOP_CNT +
@@ -511,37 +515,44 @@ int t3b2_mac_watchdog_task(struct cmac *mac)
 			tx_tcnt = (G_TXDROPCNTCH0RCVD(t3_read_reg(adap,
 						      A_TP_PIO_DATA)));
 		} else {
-			mac->toggle_cnt = 0;
-			return 0;
+			goto rxcheck;
 		}
 	} else {
 		mac->toggle_cnt = 0;
-		return 0;
+		goto rxcheck;
 	}
 
 	if (((tx_tcnt != mac->tx_tcnt) &&
 	     (tx_xcnt == 0) && (mac->tx_xcnt == 0)) ||
 	    ((mac->tx_mcnt == tx_mcnt) &&
 	     (tx_xcnt != 0) && (mac->tx_xcnt != 0))) {
-		if (mac->toggle_cnt > 4)
+		if (mac->toggle_cnt > 4) {
 			status = 2;
-		else 
+			goto out;
+		} else {
 			status = 1;
+			goto out;
+		}
 	} else {
 		mac->toggle_cnt = 0;
-		return 0;
+		goto rxcheck;
 	}
 
+rxcheck:
 	if (rx_mcnt != mac->rx_mcnt)
 		rx_xcnt = (G_TXSPI4SOPCNT(t3_read_reg(adap,
 						A_XGM_RX_SPI4_SOP_EOP_CNT +
 						mac->offset)));
-	else 
-		return 0;
+	else
+		goto out;
 
-	if (mac->rx_mcnt != s->rx_frames && rx_xcnt == 0 && mac->rx_xcnt == 0) 
+	if (mac->rx_mcnt != s->rx_frames && rx_xcnt == 0 &&
+	    mac->rx_xcnt == 0) {
 		status = 2;
-	
+		goto out;
+	}
+
+out:
 	mac->tx_tcnt = tx_tcnt;
 	mac->tx_xcnt = tx_xcnt;
 	mac->tx_mcnt = s->tx_frames;
