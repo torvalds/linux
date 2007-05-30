@@ -381,6 +381,10 @@ get_wchan(struct task_struct *p)
 	struct unwind_frame_info info;
 	unsigned long ip;
 	int count = 0;
+
+	if (!p || p == current || p->state == TASK_RUNNING)
+		return 0;
+
 	/*
 	 * These bracket the sleeping functions..
 	 */
