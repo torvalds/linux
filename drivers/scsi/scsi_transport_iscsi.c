@@ -609,12 +609,10 @@ iscsi_if_send_reply(int pid, int seq, int type, int done, int multi,
 	int t = done ? NLMSG_DONE : type;
 
 	skb = alloc_skb(len, GFP_ATOMIC);
-	/*
-	 * FIXME:
-	 * user is supposed to react on iferror == -ENOMEM;
-	 * see iscsi_if_rx().
-	 */
-	BUG_ON(!skb);
+	if (!skb) {
+		printk(KERN_ERR "Could not allocate skb to send reply.\n");
+		return -ENOMEM;
+	}
 
 	nlh = __nlmsg_put(skb, pid, seq, t, (len - sizeof(*nlh)), 0);
 	nlh->nlmsg_flags = flags;
