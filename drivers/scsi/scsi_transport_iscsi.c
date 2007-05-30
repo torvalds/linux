@@ -814,6 +814,8 @@ iscsi_if_create_session(struct iscsi_internal *priv, struct iscsi_uevent *ev)
 	uint32_t hostno;
 
 	session = transport->create_session(transport, &priv->t,
+					    ev->u.c_session.cmds_max,
+					    ev->u.c_session.queue_depth,
 					    ev->u.c_session.initial_cmdsn,
 					    &hostno);
 	if (!session)

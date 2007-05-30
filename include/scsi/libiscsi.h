@@ -48,9 +48,8 @@ struct iscsi_nopin;
 #define debug_scsi(fmt...)
 #endif
 
-#define ISCSI_XMIT_CMDS_MAX	128	/* must be power of 2 */
-#define ISCSI_MGMT_CMDS_MAX	32	/* must be power of 2 */
-#define ISCSI_CONN_MAX			1
+#define ISCSI_DEF_XMIT_CMDS_MAX	128	/* must be power of 2 */
+#define ISCSI_MGMT_CMDS_MAX	16	/* must be power of 2 */
 
 #define ISCSI_MGMT_ITT_OFFSET	0xa00
 
@@ -268,7 +267,7 @@ extern int iscsi_host_get_param(struct Scsi_Host *shost,
  */
 extern struct iscsi_cls_session *
 iscsi_session_setup(struct iscsi_transport *, struct scsi_transport_template *,
-		    int, int, uint32_t, uint32_t *);
+		    uint16_t, uint16_t, int, int, uint32_t, uint32_t *);
 extern void iscsi_session_teardown(struct iscsi_cls_session *);
 extern struct iscsi_session *class_to_transport_session(struct iscsi_cls_session *);
 extern void iscsi_session_recovery_timedout(struct iscsi_cls_session *);

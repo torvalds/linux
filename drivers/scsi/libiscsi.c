@@ -1330,6 +1330,10 @@ EXPORT_SYMBOL_GPL(iscsi_pool_free);
  * iscsi_session_setup - create iscsi cls session and host and session
  * @scsit: scsi transport template
  * @iscsit: iscsi transport template
+ * @cmds_max: scsi host can queue
+ * @qdepth: scsi host cmds per lun
+ * @cmd_task_size: LLD ctask private data size
+ * @mgmt_task_size: LLD mtask private data size
  * @initial_cmdsn: initial CmdSN
  * @hostno: host no allocated
  *
@@ -1339,6 +1343,7 @@ EXPORT_SYMBOL_GPL(iscsi_pool_free);
 struct iscsi_cls_session *
 iscsi_session_setup(struct iscsi_transport *iscsit,
 		    struct scsi_transport_template *scsit,
+		    uint16_t cmds_max, uint16_t qdepth,
 		    int cmd_task_size, int mgmt_task_size,
 		    uint32_t initial_cmdsn, uint32_t *hostno)
 {
@@ -1347,11 +1352,32 @@ iscsi_session_setup(struct iscsi_transport *iscsit,
 	struct iscsi_cls_session *cls_session;
 	int cmd_i;
 
+	if (qdepth > ISCSI_MAX_CMD_PER_LUN || qdepth < 1) {
+		if (qdepth != 0)
+			printk(KERN_ERR "iscsi: invalid queue depth of %d. "
+			      "Queue depth must be between 1 and %d.\n",
+			      qdepth, ISCSI_MAX_CMD_PER_LUN);
+		qdepth = ISCSI_DEF_CMD_PER_LUN;
+	}
+
+	if (cmds_max < 2 || (cmds_max & (cmds_max - 1)) ||
+	    cmds_max >= ISCSI_MGMT_ITT_OFFSET) {
+		if (cmds_max != 0)
+			printk(KERN_ERR "iscsi: invalid can_queue of %d. "
+			       "can_queue must be a power of 2 and between "
+			       "2 and %d - setting to %d.\n", cmds_max,
+			       ISCSI_MGMT_ITT_OFFSET, ISCSI_DEF_XMIT_CMDS_MAX);
+		cmds_max = ISCSI_DEF_XMIT_CMDS_MAX;
+	}
+
 	shost = scsi_host_alloc(iscsit->host_template,
 				hostdata_privsize(sizeof(*session)));
 	if (!shost)
 		return NULL;
 
+	/* the iscsi layer takes one task for reserve */
+	shost->can_queue = cmds_max - 1;
+	shost->cmd_per_lun = qdepth;
 	shost->max_id = 1;
 	shost->max_channel = 0;
 	shost->max_lun = iscsit->max_lun;
@@ -1365,7 +1391,7 @@ iscsi_session_setup(struct iscsi_transport *iscsit,
 	session->host = shost;
 	session->state = ISCSI_STATE_FREE;
 	session->mgmtpool_max = ISCSI_MGMT_CMDS_MAX;
-	session->cmds_max = ISCSI_XMIT_CMDS_MAX;
+	session->cmds_max = cmds_max;
 	session->cmdsn = initial_cmdsn;
 	session->exp_cmdsn = initial_cmdsn + 1;
 	session->max_cmdsn = initial_cmdsn + 1;

@@ -72,6 +72,8 @@ struct iscsi_uevent {
 		/* messages u -> k */
 		struct msg_create_session {
 			uint32_t	initial_cmdsn;
+			uint16_t	cmds_max;
+			uint16_t	queue_depth;
 		} c_session;
 		struct msg_destroy_session {
 			uint32_t	sid;

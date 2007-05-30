@@ -373,7 +373,8 @@ static struct iscsi_transport iscsi_iser_transport;
 static struct iscsi_cls_session *
 iscsi_iser_session_create(struct iscsi_transport *iscsit,
 			 struct scsi_transport_template *scsit,
-			  uint32_t initial_cmdsn, uint32_t *hostno)
+			 uint16_t cmds_max, uint16_t qdepth,
+			 uint32_t initial_cmdsn, uint32_t *hostno)
 {
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
@@ -384,7 +385,13 @@ iscsi_iser_session_create(struct iscsi_transport *iscsit,
 	struct iscsi_iser_cmd_task *iser_ctask;
 	struct iser_desc *desc;
 
+	/*
+	 * we do not support setting can_queue cmd_per_lun from userspace yet
+	 * because we preallocate so many resources
+	 */
 	cls_session = iscsi_session_setup(iscsit, scsit,
+					  ISCSI_DEF_XMIT_CMDS_MAX,
+					  ISCSI_MAX_CMD_PER_LUN,
 					  sizeof(struct iscsi_iser_cmd_task),
 					  sizeof(struct iser_desc),
 					  initial_cmdsn, &hn);
@@ -543,7 +550,7 @@ iscsi_iser_ep_disconnect(__u64 ep_handle)
 static struct scsi_host_template iscsi_iser_sht = {
 	.name                   = "iSCSI Initiator over iSER, v." DRV_VER,
 	.queuecommand           = iscsi_queuecommand,
-	.can_queue		= ISCSI_XMIT_CMDS_MAX - 1,
+	.can_queue		= ISCSI_DEF_XMIT_CMDS_MAX - 1,
 	.sg_tablesize           = ISCSI_ISER_SG_TABLESIZE,
 	.max_sectors		= 1024,
 	.cmd_per_lun            = ISCSI_MAX_CMD_PER_LUN,

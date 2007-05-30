@@ -2114,6 +2114,7 @@ iscsi_conn_get_stats(struct iscsi_cls_conn *cls_conn, struct iscsi_stats *stats)
 static struct iscsi_cls_session *
 iscsi_tcp_session_create(struct iscsi_transport *iscsit,
 			 struct scsi_transport_template *scsit,
+			 uint16_t cmds_max, uint16_t qdepth,
 			 uint32_t initial_cmdsn, uint32_t *hostno)
 {
 	struct iscsi_cls_session *cls_session;
@@ -2121,7 +2122,7 @@ iscsi_tcp_session_create(struct iscsi_transport *iscsit,
 	uint32_t hn;
 	int cmd_i;
 
-	cls_session = iscsi_session_setup(iscsit, scsit,
+	cls_session = iscsi_session_setup(iscsit, scsit, cmds_max, qdepth,
 					 sizeof(struct iscsi_tcp_cmd_task),
 					 sizeof(struct iscsi_tcp_mgmt_task),
 					 initial_cmdsn, &hn);
@@ -2164,7 +2165,7 @@ static struct scsi_host_template iscsi_sht = {
 	.name			= "iSCSI Initiator over TCP/IP",
 	.queuecommand           = iscsi_queuecommand,
 	.change_queue_depth	= iscsi_change_queue_depth,
-	.can_queue		= ISCSI_XMIT_CMDS_MAX - 1,
+	.can_queue		= ISCSI_DEF_XMIT_CMDS_MAX - 1,
 	.sg_tablesize		= ISCSI_SG_TABLESIZE,
 	.max_sectors		= 0xFFFF,
 	.cmd_per_lun		= ISCSI_DEF_CMD_PER_LUN,

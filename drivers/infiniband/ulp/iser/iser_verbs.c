@@ -155,8 +155,8 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 	params.max_pages_per_fmr = ISCSI_ISER_SG_TABLESIZE + 1;
 	/* make the pool size twice the max number of SCSI commands *
 	 * the ML is expected to queue, watermark for unmap at 50%  */
-	params.pool_size	 = ISCSI_XMIT_CMDS_MAX * 2;
-	params.dirty_watermark	 = ISCSI_XMIT_CMDS_MAX;
+	params.pool_size	 = ISCSI_DEF_XMIT_CMDS_MAX * 2;
+	params.dirty_watermark	 = ISCSI_DEF_XMIT_CMDS_MAX;
 	params.cache		 = 0;
 	params.flush_function	 = NULL;
 	params.access		 = (IB_ACCESS_LOCAL_WRITE  |
