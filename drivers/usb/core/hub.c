@@ -1625,65 +1625,8 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 #ifdef	CONFIG_USB_SUSPEND
 
 /*
- * Selective port suspend reduces power; most suspended devices draw
- * less than 500 uA.  It's also used in OTG, along with remote wakeup.
- * All devices below the suspended port are also suspended.
- *
- * Devices leave suspend state when the host wakes them up.  Some devices
- * also support "remote wakeup", where the device can activate the USB
- * tree above them to deliver data, such as a keypress or packet.  In
- * some cases, this wakes the USB host.
- */
-static int hub_port_suspend(struct usb_hub *hub, int port1,
-		struct usb_device *udev)
-{
-	int	status;
-
-	// dev_dbg(hub->intfdev, "suspend port %d\n", port1);
-
-	/* enable remote wakeup when appropriate; this lets the device
-	 * wake up the upstream hub (including maybe the root hub).
-	 *
-	 * NOTE:  OTG devices may issue remote wakeup (or SRP) even when
-	 * we don't explicitly enable it here.
-	 */
-	if (udev->do_remote_wakeup) {
-		status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				USB_REQ_SET_FEATURE, USB_RECIP_DEVICE,
-				USB_DEVICE_REMOTE_WAKEUP, 0,
-				NULL, 0,
-				USB_CTRL_SET_TIMEOUT);
-		if (status)
-			dev_dbg(&udev->dev,
-				"won't remote wakeup, status %d\n",
-				status);
-	}
-
-	/* see 7.1.7.6 */
-	status = set_port_feature(hub->hdev, port1, USB_PORT_FEAT_SUSPEND);
-	if (status) {
-		dev_dbg(hub->intfdev,
-			"can't suspend port %d, status %d\n",
-			port1, status);
-		/* paranoia:  "should not happen" */
-		(void) usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				USB_REQ_CLEAR_FEATURE, USB_RECIP_DEVICE,
-				USB_DEVICE_REMOTE_WAKEUP, 0,
-				NULL, 0,
-				USB_CTRL_SET_TIMEOUT);
-	} else {
-		/* device has up to 10 msec to fully suspend */
-		dev_dbg(&udev->dev, "usb %ssuspend\n",
-				udev->auto_pm ? "auto-" : "");
-		usb_set_device_state(udev, USB_STATE_SUSPENDED);
-		msleep(10);
-	}
-	return status;
-}
-
-/*
  * usb_port_suspend - suspend a usb device's upstream port
- * @udev: device that's no longer in active use
+ * @udev: device that's no longer in active use, not a root hub
  * Context: must be able to sleep; device not locked; pm locks held
  *
  * Suspends a USB device that isn't in active use, conserving power.
@@ -1694,6 +1637,15 @@ static int hub_port_suspend(struct usb_hub *hub, int port1,
  *
  * This only affects the USB hardware for a device; its interfaces
  * (and, for hubs, child devices) must already have been suspended.
+ *
+ * Selective port suspend reduces power; most suspended devices draw
+ * less than 500 uA.  It's also used in OTG, along with remote wakeup.
+ * All devices below the suspended port are also suspended.
+ *
+ * Devices leave suspend state when the host wakes them up.  Some devices
+ * also support "remote wakeup", where the device can activate the USB
+ * tree above them to deliver data, such as a keypress or packet.  In
+ * some cases, this wakes the USB host.
  *
  * Suspending OTG devices may trigger HNP, if that's been enabled
  * between a pair of dual-role devices.  That will change roles, such
@@ -1720,10 +1672,47 @@ static int hub_port_suspend(struct usb_hub *hub, int port1,
  */
 int usb_port_suspend(struct usb_device *udev)
 {
-	int	status = 0;
+	struct usb_hub	*hub = hdev_to_hub(udev->parent);
+	int		port1 = udev->portnum;
+	int		status;
 
-	status = hub_port_suspend(hdev_to_hub(udev->parent),
-			udev->portnum, udev);
+	// dev_dbg(hub->intfdev, "suspend port %d\n", port1);
+
+	/* enable remote wakeup when appropriate; this lets the device
+	 * wake up the upstream hub (including maybe the root hub).
+	 *
+	 * NOTE:  OTG devices may issue remote wakeup (or SRP) even when
+	 * we don't explicitly enable it here.
+	 */
+	if (udev->do_remote_wakeup) {
+		status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+				USB_REQ_SET_FEATURE, USB_RECIP_DEVICE,
+				USB_DEVICE_REMOTE_WAKEUP, 0,
+				NULL, 0,
+				USB_CTRL_SET_TIMEOUT);
+		if (status)
+			dev_dbg(&udev->dev, "won't remote wakeup, status %d\n",
+					status);
+	}
+
+	/* see 7.1.7.6 */
+	status = set_port_feature(hub->hdev, port1, USB_PORT_FEAT_SUSPEND);
+	if (status) {
+		dev_dbg(hub->intfdev, "can't suspend port %d, status %d\n",
+				port1, status);
+		/* paranoia:  "should not happen" */
+		(void) usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+				USB_REQ_CLEAR_FEATURE, USB_RECIP_DEVICE,
+				USB_DEVICE_REMOTE_WAKEUP, 0,
+				NULL, 0,
+				USB_CTRL_SET_TIMEOUT);
+	} else {
+		/* device has up to 10 msec to fully suspend */
+		dev_dbg(&udev->dev, "usb %ssuspend\n",
+				udev->auto_pm ? "auto-" : "");
+		usb_set_device_state(udev, USB_STATE_SUSPENDED);
+		msleep(10);
+	}
 	return status;
 }
 
@@ -1760,11 +1749,10 @@ static int finish_port_resume(struct usb_device *udev)
 	if (status >= 0)
 		status = (status == 2 ? 0 : -ENODEV);
 
-	if (status)
-		dev_dbg(&udev->dev,
-			"gone after usb resume? status %d\n",
-			status);
-	else if (udev->actconfig) {
+	if (status) {
+		dev_dbg(&udev->dev, "gone after usb resume? status %d\n",
+				status);
+	} else if (udev->actconfig) {
 		le16_to_cpus(&devstatus);
 		if (devstatus & (1 << USB_DEVICE_REMOTE_WAKEUP)) {
 			status = usb_control_msg(udev,
@@ -1783,11 +1771,25 @@ static int finish_port_resume(struct usb_device *udev)
 	return status;
 }
 
-static int
-hub_port_resume(struct usb_hub *hub, int port1, struct usb_device *udev)
+/*
+ * usb_port_resume - re-activate a suspended usb device's upstream port
+ * @udev: device to re-activate, not a root hub
+ * Context: must be able to sleep; device not locked; pm locks held
+ *
+ * This will re-activate the suspended device, increasing power usage
+ * while letting drivers communicate again with its endpoints.
+ * USB resume explicitly guarantees that the power session between
+ * the host and the device is the same as it was when the device
+ * suspended.
+ *
+ * Returns 0 on success, else negative errno.
+ */
+int usb_port_resume(struct usb_device *udev)
 {
-	int	status;
-	u16	portchange, portstatus;
+	struct usb_hub	*hub = hdev_to_hub(udev->parent);
+	int		port1 = udev->portnum;
+	int		status;
+	u16		portchange, portstatus;
 
 	/* Skip the initial Clear-Suspend step for a remote wakeup */
 	status = hub_port_status(hub, port1, &portstatus, &portchange);
@@ -1802,9 +1804,8 @@ hub_port_resume(struct usb_hub *hub, int port1, struct usb_device *udev)
 	status = clear_port_feature(hub->hdev,
 			port1, USB_PORT_FEAT_SUSPEND);
 	if (status) {
-		dev_dbg(hub->intfdev,
-			"can't resume port %d, status %d\n",
-			port1, status);
+		dev_dbg(hub->intfdev, "can't resume port %d, status %d\n",
+				port1, status);
 	} else {
 		/* drive resume for at least 20 msec */
 		dev_dbg(&udev->dev, "usb %sresume\n",
@@ -1839,37 +1840,15 @@ SuspendCleared:
 			status = finish_port_resume(udev);
 		}
 	}
-	if (status < 0)
+	if (status < 0) {
+		dev_dbg(&udev->dev, "can't resume, status %d\n", status);
 		hub_port_logical_disconnect(hub, port1);
+	}
 
 	clear_bit(port1, hub->busy_bits);
 	if (!hub->hdev->parent && !hub->busy_bits[0])
 		usb_enable_root_hub_irq(hub->hdev->bus);
 
-	return status;
-}
-
-/*
- * usb_port_resume - re-activate a suspended usb device's upstream port
- * @udev: device to re-activate
- * Context: must be able to sleep; device not locked; pm locks held
- *
- * This will re-activate the suspended device, increasing power usage
- * while letting drivers communicate again with its endpoints.
- * USB resume explicitly guarantees that the power session between
- * the host and the device is the same as it was when the device
- * suspended.
- *
- * Returns 0 on success, else negative errno.
- */
-int usb_port_resume(struct usb_device *udev)
-{
-	int	status;
-
-	status = hub_port_resume(hdev_to_hub(udev->parent),
-			udev->portnum, udev);
-	if (status < 0)
-		dev_dbg(&udev->dev, "can't resume, status %d\n", status);
 	return status;
 }
 
@@ -1892,18 +1871,6 @@ static int remote_wakeup(struct usb_device *udev)
 /* When CONFIG_USB_SUSPEND isn't set, we never suspend or resume any ports. */
 
 int usb_port_suspend(struct usb_device *udev)
-{
-	return 0;
-}
-
-static inline int
-finish_port_resume(struct usb_device *udev)
-{
-	return 0;
-}
-
-static inline int
-hub_port_resume(struct usb_hub *hub, int port1, struct usb_device *udev)
 {
 	return 0;
 }
