@@ -1463,6 +1463,7 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 
 	kfree(session->targetname);
 	kfree(session->hwaddress);
+	kfree(session->initiatorname);
 
 	iscsi_destroy_session(cls_session);
 	scsi_host_put(shost);
@@ -2004,6 +2005,13 @@ int iscsi_host_get_param(struct Scsi_Host *shost, enum iscsi_host_param param,
 		else
 			len = sprintf(buf, "%s\n", session->hwaddress);
 		break;
+	case ISCSI_HOST_PARAM_INITIATOR_NAME:
+		if (!session->initiatorname)
+			len = sprintf(buf, "%s\n", "unknown");
+		else
+			len = sprintf(buf, "%s\n", session->initiatorname);
+		break;
+
 	default:
 		return -ENOSYS;
 	}
@@ -2021,6 +2029,10 @@ int iscsi_host_set_param(struct Scsi_Host *shost, enum iscsi_host_param param,
 	case ISCSI_HOST_PARAM_HWADDRESS:
 		if (!session->hwaddress)
 			session->hwaddress = kstrdup(buf, GFP_KERNEL);
+		break;
+	case ISCSI_HOST_PARAM_INITIATOR_NAME:
+		if (!session->initiatorname)
+			session->initiatorname = kstrdup(buf, GFP_KERNEL);
 		break;
 	default:
 		return -ENOSYS;

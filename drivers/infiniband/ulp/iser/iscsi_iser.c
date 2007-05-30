@@ -576,7 +576,8 @@ static struct iscsi_transport iscsi_iser_transport = {
 				  ISCSI_PERSISTENT_ADDRESS |
 				  ISCSI_TARGET_NAME |
 				  ISCSI_TPGT,
-	.host_param_mask	= ISCSI_HOST_HWADDRESS,
+	.host_param_mask	= ISCSI_HOST_HWADDRESS |
+				  ISCSI_HOST_INITIATOR_NAME,
 	.host_template          = &iscsi_iser_sht,
 	.conndata_size		= sizeof(struct iscsi_conn),
 	.max_lun                = ISCSI_ISER_MAX_LUN,

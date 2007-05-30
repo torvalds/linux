@@ -104,7 +104,8 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 	.name			= DRIVER_NAME,
 	.param_mask		= ISCSI_CONN_PORT | ISCSI_CONN_ADDRESS |
 				  ISCSI_TARGET_NAME | ISCSI_TPGT,
-	.host_param_mask	= ISCSI_HOST_HWADDRESS,
+	.host_param_mask	= ISCSI_HOST_HWADDRESS |
+				  ISCSI_HOST_INITIATOR_NAME,
 	.sessiondata_size	= sizeof(struct ddb_entry),
 	.host_template		= &qla4xxx_driver_template,
 
@@ -189,6 +190,9 @@ static int qla4xxx_host_get_param(struct Scsi_Host *shost,
 	switch (param) {
 	case ISCSI_HOST_PARAM_HWADDRESS:
 		len = format_addr(buf, ha->my_mac, MAC_ADDR_LEN);
+		break;
+	case ISCSI_HOST_PARAM_INITIATOR_NAME:
+		len = sprintf(buf, ha->name_string);
 		break;
 	default:
 		return -ENOSYS;

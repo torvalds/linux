@@ -224,6 +224,7 @@ struct iscsi_session {
 	int			erl;
 	int			tpgt;
 	char			*targetname;
+	char			*initiatorname;
 	/* hw address being used for iscsi connection */
 	char			*hwaddress;
 	/* control data */

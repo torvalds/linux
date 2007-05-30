@@ -32,7 +32,7 @@
 
 #define ISCSI_SESSION_ATTRS 11
 #define ISCSI_CONN_ATTRS 11
-#define ISCSI_HOST_ATTRS 1
+#define ISCSI_HOST_ATTRS 2
 #define ISCSI_TRANSPORT_VERSION "2.0-724"
 
 struct iscsi_internal {
@@ -1253,6 +1253,7 @@ static ISCSI_CLASS_ATTR(host, field, S_IRUGO, show_host_param_##param,	\
 			NULL);
 
 iscsi_host_attr(hwaddress, ISCSI_HOST_PARAM_HWADDRESS);
+iscsi_host_attr(initiatorname, ISCSI_HOST_PARAM_INITIATOR_NAME);
 
 #define SETUP_PRIV_SESSION_RD_ATTR(field)				\
 do {									\
@@ -1389,6 +1390,7 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	transport_container_register(&priv->t.host_attrs);
 
 	SETUP_HOST_RD_ATTR(hwaddress, ISCSI_HOST_HWADDRESS);
+	SETUP_HOST_RD_ATTR(initiatorname, ISCSI_HOST_INITIATOR_NAME);
 	BUG_ON(count > ISCSI_HOST_ATTRS);
 	priv->host_attrs[count] = NULL;
 	count = 0;
