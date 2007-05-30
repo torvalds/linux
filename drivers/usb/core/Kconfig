@@ -91,12 +91,15 @@ config USB_PERSIST
 	depends on USB && PM && EXPERIMENTAL
 	default n
 	help
-	  If you say Y here, USB device data structures will remain
+
+	  If you say Y here and enable the "power/persist" attribute
+	  for a USB device, the device's data structures will remain
 	  persistent across system suspend, even if the USB bus loses
-	  power.  (This includes software-suspend, also known as swsusp,
-	  or suspend-to-disk.)  The devices will reappear as if by magic
-	  when the system wakes up, with no need to unmount USB filesystems,
-	  rmmod host-controller drivers, or do anything else.
+	  power.  (This includes hibernation, also known as swsusp or
+	  suspend-to-disk.)  The devices will reappear as if by magic
+	  when the system wakes up, with no need to unmount USB
+	  filesystems, rmmod host-controller drivers, or do anything
+	  else.
 
 	  	WARNING: This option can be dangerous!
 

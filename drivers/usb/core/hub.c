@@ -596,27 +596,18 @@ static void hub_port_logical_disconnect(struct usb_hub *hub, int port1)
  	kick_khubd(hub);
 }
 
-static void disconnect_all_children(struct usb_hub *hub, int logical)
-{
-	struct usb_device *hdev = hub->hdev;
-	int port1;
-
-	for (port1 = 1; port1 <= hdev->maxchild; ++port1) {
-		if (hdev->children[port1-1]) {
-			if (logical)
-				hub_port_logical_disconnect(hub, port1);
-			else
-				usb_disconnect(&hdev->children[port1-1]);
-		}
-	}
-}
-
 /* caller has locked the hub device */
 static int hub_pre_reset(struct usb_interface *intf)
 {
 	struct usb_hub *hub = usb_get_intfdata(intf);
+	struct usb_device *hdev = hub->hdev;
+	int i;
 
-	disconnect_all_children(hub, 0);
+	/* Disconnect all the children */
+	for (i = 0; i < hdev->maxchild; ++i) {
+		if (hdev->children[i])
+			usb_disconnect(&hdev->children[i]);
+	}
 	hub_quiesce(hub);
 	return 0;
 }
@@ -1872,50 +1863,39 @@ static int hub_resume(struct usb_interface *intf)
 	return 0;
 }
 
-#ifdef	CONFIG_USB_PERSIST
-
-/* For "persistent-device" resets we must mark the child devices for reset
- * and turn off a possible connect-change status (so khubd won't disconnect
- * them later).
- */
-static void mark_children_for_reset_resume(struct usb_hub *hub)
+static int hub_reset_resume(struct usb_interface *intf)
 {
+	struct usb_hub *hub = usb_get_intfdata(intf);
 	struct usb_device *hdev = hub->hdev;
 	int port1;
+
+	hub_power_on(hub);
 
 	for (port1 = 1; port1 <= hdev->maxchild; ++port1) {
 		struct usb_device *child = hdev->children[port1-1];
 
 		if (child) {
-			child->reset_resume = 1;
-			clear_port_feature(hdev, port1,
-					USB_PORT_FEAT_C_CONNECTION);
+
+			/* For "USB_PERSIST"-enabled children we must
+			 * mark the child device for reset-resume and
+			 * turn off the connect-change status to prevent
+			 * khubd from disconnecting it later.
+			 */
+			if (USB_PERSIST && child->persist_enabled) {
+				child->reset_resume = 1;
+				clear_port_feature(hdev, port1,
+						USB_PORT_FEAT_C_CONNECTION);
+
+			/* Otherwise we must disconnect the child,
+			 * but as we may not lock the child device here
+			 * we have to do a "logical" disconnect.
+			 */
+			} else {
+				hub_port_logical_disconnect(hub, port1);
+			}
 		}
 	}
-}
 
-#else
-
-static inline void mark_children_for_reset_resume(struct usb_hub *hub)
-{ }
-
-#endif	/* CONFIG_USB_PERSIST */
-
-static int hub_reset_resume(struct usb_interface *intf)
-{
-	struct usb_hub *hub = usb_get_intfdata(intf);
-
-	hub_power_on(hub);
-	if (USB_PERSIST)
-		mark_children_for_reset_resume(hub);
-	else {
-		/* Reset-resume doesn't call pre_reset, so we have to
-		 * disconnect the children here.  But we may not lock
-		 * the child devices, so we have to do a "logical"
-		 * disconnect.
-		 */
-		disconnect_all_children(hub, 1);
-	}
 	hub_activate(hub);
 	return 0;
 }

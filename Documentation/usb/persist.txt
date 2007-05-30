@@ -2,7 +2,7 @@
 
 		   Alan Stern <stern@rowland.harvard.edu>
 
-		 September 2, 2006 (Updated March 27, 2007)
+		 September 2, 2006 (Updated May 29, 2007)
 
 
 	What is the problem?
@@ -52,9 +52,9 @@ you can convince the BIOS supplier to fix the problem (lots of luck!).
 
 On many systems the USB host controllers will get reset after a
 suspend-to-RAM.  On almost all systems, no suspend current is
-available during suspend-to-disk (also known as swsusp).  You can
-check the kernel log after resuming to see if either of these has
-happened; look for lines saying "root hub lost power or was reset".
+available during hibernation (also known as swsusp or suspend-to-disk).
+You can check the kernel log after resuming to see if either of these
+has happened; look for lines saying "root hub lost power or was reset".
 
 In practice, people are forced to unmount any filesystems on a USB
 device before suspending.  If the root filesystem is on a USB device,
@@ -71,15 +71,16 @@ structures are allowed to persist across a power-session disruption.
 It works like this.  If the kernel sees that a USB host controller is
 not in the expected state during resume (i.e., if the controller was
 reset or otherwise had lost power) then it applies a persistence check
-to each of the USB devices below that controller.  It doesn't try to
-resume the device; that can't work once the power session is gone.
-Instead it issues a USB port reset and then re-enumerates the device.
-(This is exactly the same thing that happens whenever a USB device is
-reset.)  If the re-enumeration shows that the device now attached to
-that port has the same descriptors as before, including the Vendor and
-Product IDs, then the kernel continues to use the same device
-structure.  In effect, the kernel treats the device as though it had
-merely been reset instead of unplugged.
+to each of the USB devices below that controller for which the
+"persist" attribute is set.  It doesn't try to resume the device; that
+can't work once the power session is gone.  Instead it issues a USB
+port reset and then re-enumerates the device.  (This is exactly the
+same thing that happens whenever a USB device is reset.)  If the
+re-enumeration shows that the device now attached to that port has the
+same descriptors as before, including the Vendor and Product IDs, then
+the kernel continues to use the same device structure.  In effect, the
+kernel treats the device as though it had merely been reset instead of
+unplugged.
 
 If no device is now attached to the port, or if the descriptors are
 different from what the kernel remembers, then the treatment is what
@@ -90,6 +91,17 @@ plugged in, just as it would without the CONFIG_USB_PERSIST option.
 The end result is that the USB device remains available and usable.
 Filesystem mounts and memory mappings are unaffected, and the world is
 now a good and happy place.
+
+Note that even when CONFIG_USB_PERSIST is set, the "persist" feature
+will be applied only to those devices for which it is enabled.  You
+can enable the feature by doing (as root):
+
+	echo 1 >/sys/bus/usb/devices/.../power/persist
+
+where the "..." should be filled in the with the device's ID.  Disable
+the feature by writing 0 instead of 1.  For hubs the feature is
+automatically and permanently enabled, so you only have to worry about
+setting it for devices where it really matters.
 
 
 	Is this the best solution?
