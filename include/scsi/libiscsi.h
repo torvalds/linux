@@ -224,7 +224,8 @@ struct iscsi_session {
 	int			erl;
 	int			tpgt;
 	char			*targetname;
-
+	/* hw address being used for iscsi connection */
+	char			*hwaddress;
 	/* control data */
 	struct iscsi_transport	*tt;
 	struct Scsi_Host	*host;
@@ -254,6 +255,16 @@ extern int iscsi_eh_abort(struct scsi_cmnd *sc);
 extern int iscsi_eh_host_reset(struct scsi_cmnd *sc);
 extern int iscsi_queuecommand(struct scsi_cmnd *sc,
 			      void (*done)(struct scsi_cmnd *));
+
+
+/*
+ * iSCSI host helpers.
+ */
+extern int iscsi_host_set_param(struct Scsi_Host *shost,
+				enum iscsi_host_param param, char *buf,
+				int buflen);
+extern int iscsi_host_get_param(struct Scsi_Host *shost,
+				enum iscsi_host_param param, char *buf);
 
 /*
  * session management

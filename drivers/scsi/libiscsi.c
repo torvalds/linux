@@ -1462,6 +1462,7 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 	iscsi_pool_free(&session->cmdpool, (void**)session->cmds);
 
 	kfree(session->targetname);
+	kfree(session->hwaddress);
 
 	iscsi_destroy_session(cls_session);
 	scsi_host_put(shost);
@@ -1989,6 +1990,45 @@ int iscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 	return len;
 }
 EXPORT_SYMBOL_GPL(iscsi_conn_get_param);
+
+int iscsi_host_get_param(struct Scsi_Host *shost, enum iscsi_host_param param,
+			 char *buf)
+{
+	struct iscsi_session *session = iscsi_hostdata(shost->hostdata);
+	int len;
+
+	switch (param) {
+	case ISCSI_HOST_PARAM_HWADDRESS:
+		if (!session->hwaddress)
+			len = sprintf(buf, "%s\n", "default");
+		else
+			len = sprintf(buf, "%s\n", session->hwaddress);
+		break;
+	default:
+		return -ENOSYS;
+	}
+
+	return len;
+}
+EXPORT_SYMBOL_GPL(iscsi_host_get_param);
+
+int iscsi_host_set_param(struct Scsi_Host *shost, enum iscsi_host_param param,
+			 char *buf, int buflen)
+{
+	struct iscsi_session *session = iscsi_hostdata(shost->hostdata);
+
+	switch (param) {
+	case ISCSI_HOST_PARAM_HWADDRESS:
+		if (!session->hwaddress)
+			session->hwaddress = kstrdup(buf, GFP_KERNEL);
+		break;
+	default:
+		return -ENOSYS;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iscsi_host_set_param);
 
 MODULE_AUTHOR("Mike Christie");
 MODULE_DESCRIPTION("iSCSI library functions");
