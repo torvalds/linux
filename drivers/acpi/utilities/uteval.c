@@ -62,7 +62,6 @@ acpi_ut_translate_one_cid(union acpi_operand_object *obj_desc,
 static char *acpi_interfaces_supported[] = {
 	/* Operating System Vendor Strings */
 
-	"Linux",
 	"Windows 2000",
 	"Windows 2001",
 	"Windows 2001 SP0",
