@@ -1472,6 +1472,7 @@ static const struct ethtool_ops myri10ge_ethtool_ops = {
 	.set_sg = ethtool_op_set_sg,
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = ethtool_op_set_tso,
+	.get_link = ethtool_op_get_link,
 	.get_strings = myri10ge_get_strings,
 	.get_stats_count = myri10ge_get_stats_count,
 	.get_ethtool_stats = myri10ge_get_ethtool_stats,
