@@ -279,7 +279,7 @@ int __init ixdp2800_pci_init(void)
 
 subsys_initcall(ixdp2800_pci_init);
 
-void ixdp2800_init_irq(void)
+void __init ixdp2800_init_irq(void)
 {
 	ixdp2x00_init_irq(IXDP2800_CPLD_INT_STAT, IXDP2800_CPLD_INT_MASK, IXDP2800_NR_IRQS);
 }

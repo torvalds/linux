@@ -138,6 +138,19 @@
 # define v6wbi_always_flags	(-1UL)
 #endif
 
+#ifdef CONFIG_CPU_TLB_V7
+# define v7wbi_possible_flags	v6wbi_tlb_flags
+# define v7wbi_always_flags	v6wbi_tlb_flags
+# ifdef _TLB
+#  define MULTI_TLB 1
+# else
+#  define _TLB v7wbi
+# endif
+#else
+# define v7wbi_possible_flags	0
+# define v7wbi_always_flags	(-1UL)
+#endif
+
 #ifndef _TLB
 #error Unknown TLB model
 #endif

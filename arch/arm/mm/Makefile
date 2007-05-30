@@ -46,6 +46,7 @@ obj-$(CONFIG_CPU_TLB_V4WT)	+= tlb-v4.o
 obj-$(CONFIG_CPU_TLB_V4WB)	+= tlb-v4wb.o
 obj-$(CONFIG_CPU_TLB_V4WBI)	+= tlb-v4wbi.o
 obj-$(CONFIG_CPU_TLB_V6)	+= tlb-v6.o
+obj-$(CONFIG_CPU_TLB_V7)	+= tlb-v7.o
 
 obj-$(CONFIG_CPU_ARM610)	+= proc-arm6_7.o
 obj-$(CONFIG_CPU_ARM710)	+= proc-arm6_7.o

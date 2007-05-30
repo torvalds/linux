@@ -153,6 +153,10 @@
 #define S3C2440_PA_AC97	   (0x5B000000)
 #define S3C2440_SZ_AC97	   SZ_1M
 
+/* S3C2443 High-speed SD/MMC */
+#define S3C2443_PA_HSMMC   (0x4A800000)
+#define S3C2443_SZ_HSMMC   (256)
+
 /* ISA style IO, for each machine to sort out mappings for, if it
  * implements it. We reserve two 16M regions for ISA.
  */

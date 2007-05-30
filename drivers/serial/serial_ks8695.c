@@ -589,7 +589,7 @@ static int __init ks8695_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver ks8695_reg;
+static struct uart_driver ks8695_reg;
 
 static struct console ks8695_console = {
 	.name		= SERIAL_KS8695_DEVNAME,

@@ -283,7 +283,7 @@ static struct irqaction ixp4xx_timer_irq = {
 	.handler	= ixp4xx_timer_interrupt,
 };
 
-static void __init ixp4xx_timer_init(void)
+void __init ixp4xx_timer_init(void)
 {
 	/* Reset/disable counter */
 	*IXP4XX_OSRT1 = 0;

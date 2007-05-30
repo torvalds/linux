@@ -45,7 +45,7 @@ static struct hw_pci cats_pci __initdata = {
 	.postinit		= dc21285_postinit,
 };
 
-static int cats_pci_init(void)
+static int __init cats_pci_init(void)
 {
 	if (machine_is_cats())
 		pci_common_init(&cats_pci);

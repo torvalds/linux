@@ -379,7 +379,7 @@ config CPU_V7
 	select CPU_CP15_MMU
 	select CPU_HAS_ASID
 	select CPU_COPY_V6 if MMU
-	select CPU_TLB_V6 if MMU
+	select CPU_TLB_V7 if MMU
 
 # Figure out what processor architecture version we should be using.
 # This defines the compiler instruction set which depends on the machine type.
@@ -496,6 +496,9 @@ config CPU_TLB_V4WBI
 	  instruction cache entry.
 
 config CPU_TLB_V6
+	bool
+
+config CPU_TLB_V7
 	bool
 
 endif

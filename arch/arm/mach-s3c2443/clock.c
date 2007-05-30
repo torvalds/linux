@@ -394,7 +394,7 @@ static int s3c2443_setrate_usbhost(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
-struct clk clk_usb_bus_host = {
+static struct clk clk_usb_bus_host = {
 	.name		= "usb-bus-host-parent",
 	.id		= -1,
 	.parent		= &clk_esysclk,
@@ -758,7 +758,6 @@ static struct clk init_clocks[] = {
 		.parent		= &clk_h,
 		.enable		= s3c2443_clkcon_enable_h,
 		.ctrlbit	= S3C2443_HCLKCON_CFC,
-		.ctrlbit	= S3C2443_HCLKCON_HSMMC,
 	}, {
 		.name		= "ssmc",
 		.id		= -1,

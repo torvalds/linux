@@ -837,20 +837,10 @@ static const struct i2c_algorithm i2c_pxa_algorithm = {
 	.functionality	= i2c_pxa_functionality,
 };
 
-static struct pxa_i2c i2c_pxa = {
-	.lock	= __SPIN_LOCK_UNLOCKED(i2c_pxa.lock),
-	.adap	= {
-		.owner		= THIS_MODULE,
-		.algo		= &i2c_pxa_algorithm,
-		.name		= "pxa2xx-i2c.0",
-		.retries	= 5,
-	},
-};
-
 #define res_len(r)		((r)->end - (r)->start + 1)
 static int i2c_pxa_probe(struct platform_device *dev)
 {
-	struct pxa_i2c *i2c = &i2c_pxa;
+	struct pxa_i2c *i2c;
 	struct resource *res;
 	struct i2c_pxa_platform_data *plat = dev->dev.platform_data;
 	int ret;
@@ -864,15 +854,20 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	if (!request_mem_region(res->start, res_len(res), res->name))
 		return -ENOMEM;
 
-	i2c = kmalloc(sizeof(struct pxa_i2c), GFP_KERNEL);
+	i2c = kzalloc(sizeof(struct pxa_i2c), GFP_KERNEL);
 	if (!i2c) {
 		ret = -ENOMEM;
 		goto emalloc;
 	}
 
-	memcpy(i2c, &i2c_pxa, sizeof(struct pxa_i2c));
+	i2c->adap.owner   = THIS_MODULE;
+	i2c->adap.algo    = &i2c_pxa_algorithm;
+	i2c->adap.retries = 5;
+
+	spin_lock_init(&i2c->lock);
 	init_waitqueue_head(&i2c->wait);
-	i2c->adap.name[strlen(i2c->adap.name) - 1] = '0' + dev->id % 10;
+
+	sprintf(i2c->adap.name, "pxa_i2c-i2c.%u", dev->id);
 
 	i2c->reg_base = ioremap(res->start, res_len(res));
 	if (!i2c->reg_base) {

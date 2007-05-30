@@ -139,12 +139,12 @@ static u_int neponset_get_mctrl(struct uart_port *port)
 	return ret;
 }
 
-static struct sa1100_port_fns neponset_port_fns __initdata = {
+static struct sa1100_port_fns neponset_port_fns __devinitdata = {
 	.set_mctrl	= neponset_set_mctrl,
 	.get_mctrl	= neponset_get_mctrl,
 };
 
-static int neponset_probe(struct platform_device *dev)
+static int __devinit neponset_probe(struct platform_device *dev)
 {
 	sa1100_register_uart_fns(&neponset_port_fns);
 
