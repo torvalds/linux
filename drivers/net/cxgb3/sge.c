@@ -2217,7 +2217,6 @@ irqreturn_t t3_sge_intr_msix_napi(int irq, void *cookie)
 	struct sge_rspq *q = &qs->rspq;
 
 	spin_lock(&q->lock);
-	BUG_ON(napi_is_scheduled(qs->netdev));
 
 	if (handle_responses(adap, q) < 0)
 		q->unhandled_irqs++;
