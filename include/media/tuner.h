@@ -199,21 +199,10 @@ struct tuner {
 	v4l2_std_id  std;
 
 	int          using_v4l2;
+	void *priv;
 
 	/* used by tda9887 */
 	unsigned int       tda9887_config;
-	unsigned char 	   tda9887_data[4];
-
-	/* used by MT2032 */
-	unsigned int xogc;
-	unsigned int radio_if2;
-
-	/* used by tda8290 */
-	unsigned char tda8290_easy_mode;
-	unsigned char tda827x_lpsel;
-	unsigned char tda827x_addr;
-	unsigned char tda827x_ver;
-	unsigned int sgIF;
 
 	unsigned int config;
 	int (*tuner_callback) (void *dev, int command,int arg);

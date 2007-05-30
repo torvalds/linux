@@ -177,6 +177,9 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		return;
 	}
 
+	/* discard private data, in case set_type() was previously called */
+	kfree(t->priv);
+	t->priv = NULL;
 	switch (t->type) {
 	case TUNER_MT2032:
 		microtune_init(c);
@@ -450,7 +453,6 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	memcpy(&t->i2c, &client_template, sizeof(struct i2c_client));
 	i2c_set_clientdata(&t->i2c, t);
 	t->type = UNSET;
-	t->radio_if2 = 10700 * 1000;	/* 10.7MHz - FM radio */
 	t->audmode = V4L2_TUNER_MODE_STEREO;
 	t->mode_mask = T_UNINITIALIZED;
 	t->tuner_status = tuner_status;
@@ -559,6 +561,7 @@ static int tuner_detach(struct i2c_client *client)
 		return err;
 	}
 
+	kfree(t->priv);
 	kfree(t);
 	return 0;
 }
