@@ -956,7 +956,7 @@ static void hid_disconnect(struct usb_interface *intf)
 	usb_kill_urb(usbhid->urbctrl);
 
 	del_timer_sync(&usbhid->io_retry);
-	flush_scheduled_work();
+	cancel_work_sync(&usbhid->reset_work);
 
 	if (hid->claimed & HID_CLAIMED_INPUT)
 		hidinput_disconnect(hid);
