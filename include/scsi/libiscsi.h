@@ -90,6 +90,7 @@ enum {
 	ISCSI_TASK_COMPLETED,
 	ISCSI_TASK_PENDING,
 	ISCSI_TASK_RUNNING,
+	ISCSI_TASK_ABORTING,
 };
 
 struct iscsi_cmd_task {
@@ -150,18 +151,11 @@ struct iscsi_conn {
 	struct iscsi_cmd_task	*ctask;		/* xmit ctask in progress */
 
 	/* xmit */
-	struct kfifo		*immqueue;	/* immediate xmit queue */
 	struct kfifo		*mgmtqueue;	/* mgmt (control) xmit queue */
 	struct list_head	mgmt_run_list;	/* list of control tasks */
 	struct list_head	xmitqueue;	/* data-path cmd queue */
 	struct list_head	run_list;	/* list of cmds in progress */
 	struct work_struct	xmitwork;	/* per-conn. xmit workqueue */
-	/*
-	 * serializes connection xmit, access to kfifos:
-	 * xmitqueue, immqueue, mgmtqueue
-	 */
-	struct mutex		xmitmutex;
-
 	unsigned long		suspend_tx;	/* suspend Tx */
 	unsigned long		suspend_rx;	/* suspend Rx */
 
@@ -303,8 +297,7 @@ extern int iscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 /*
  * pdu and task processing
  */
-extern int iscsi_check_assign_cmdsn(struct iscsi_session *,
-				    struct iscsi_nopin *);
+extern void iscsi_update_cmdsn(struct iscsi_session *, struct iscsi_nopin *);
 extern void iscsi_prep_unsolicit_data_pdu(struct iscsi_cmd_task *,
 					struct iscsi_data *hdr);
 extern int iscsi_conn_send_pdu(struct iscsi_cls_conn *, struct iscsi_hdr *,

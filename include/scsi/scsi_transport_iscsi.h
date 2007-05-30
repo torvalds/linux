@@ -117,8 +117,7 @@ struct iscsi_transport {
 			   struct iscsi_stats *stats);
 	void (*init_cmd_task) (struct iscsi_cmd_task *ctask);
 	void (*init_mgmt_task) (struct iscsi_conn *conn,
-				struct iscsi_mgmt_task *mtask,
-				char *data, uint32_t data_size);
+				struct iscsi_mgmt_task *mtask);
 	int (*xmit_cmd_task) (struct iscsi_conn *conn,
 			      struct iscsi_cmd_task *ctask);
 	void (*cleanup_cmd_task) (struct iscsi_conn *conn,

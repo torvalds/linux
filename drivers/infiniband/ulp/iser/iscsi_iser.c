@@ -134,19 +134,9 @@ iscsi_iser_cmd_init(struct iscsi_cmd_task *ctask)
 {
 	struct iscsi_iser_conn     *iser_conn  = ctask->conn->dd_data;
 	struct iscsi_iser_cmd_task *iser_ctask = ctask->dd_data;
-	struct scsi_cmnd  *sc = ctask->sc;
 
 	iser_ctask->command_sent = 0;
 	iser_ctask->iser_conn    = iser_conn;
-
-	if (sc->sc_data_direction == DMA_TO_DEVICE) {
-		BUG_ON(sc->request_bufflen == 0);
-
-		debug_scsi("cmd [itt %x total %d imm %d unsol_data %d\n",
-			   ctask->itt, sc->request_bufflen, ctask->imm_count,
-			   ctask->unsol_count);
-	}
-
 	iser_ctask_rdma_init(iser_ctask);
 }
 
@@ -218,6 +208,14 @@ iscsi_iser_ctask_xmit(struct iscsi_conn *conn,
 {
 	struct iscsi_iser_cmd_task *iser_ctask = ctask->dd_data;
 	int error = 0;
+
+	if (ctask->sc->sc_data_direction == DMA_TO_DEVICE) {
+		BUG_ON(ctask->sc->request_bufflen == 0);
+
+		debug_scsi("cmd [itt %x total %d imm %d unsol_data %d\n",
+			   ctask->itt, ctask->sc->request_bufflen,
+			   ctask->imm_count, ctask->unsol_count);
+	}
 
 	debug_scsi("ctask deq [cid %d itt 0x%x]\n",
 		   conn->id, ctask->itt);

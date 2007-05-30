@@ -34,7 +34,6 @@
 #include <linux/delay.h>
 #include <linux/kfifo.h>
 #include <linux/scatterlist.h>
-#include <linux/mutex.h>
 #include <net/tcp.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
@@ -211,7 +210,6 @@ iscsi_tcp_cleanup_ctask(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 static int
 iscsi_data_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 {
-	int rc;
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
 	struct iscsi_data_rsp *rhdr = (struct iscsi_data_rsp *)tcp_conn->in.hdr;
@@ -219,9 +217,7 @@ iscsi_data_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	struct scsi_cmnd *sc = ctask->sc;
 	int datasn = be32_to_cpu(rhdr->datasn);
 
-	rc = iscsi_check_assign_cmdsn(session, (struct iscsi_nopin*)rhdr);
-	if (rc)
-		return rc;
+	iscsi_update_cmdsn(session, (struct iscsi_nopin*)rhdr);
 	/*
 	 * setup Data-In byte counter (gets decremented..)
 	 */
@@ -377,12 +373,10 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 		return ISCSI_ERR_R2TSN;
 	}
 
-	rc = iscsi_check_assign_cmdsn(session, (struct iscsi_nopin*)rhdr);
-	if (rc)
-		return rc;
-
 	/* fill-in new R2T associated with the task */
 	spin_lock(&session->lock);
+	iscsi_update_cmdsn(session, (struct iscsi_nopin*)rhdr);
+
 	if (!ctask->sc || ctask->mtask ||
 	     session->state != ISCSI_STATE_LOGGED_IN) {
 		printk(KERN_INFO "iscsi_tcp: dropping R2T itt %d in "
@@ -1762,12 +1756,6 @@ iscsi_tcp_ctask_xmit(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	debug_scsi("ctask deq [cid %d xmstate %x itt 0x%x]\n",
 		conn->id, tcp_ctask->xmstate, ctask->itt);
 
-	/*
-	 * serialize with TMF AbortTask
-	 */
-	if (ctask->mtask)
-		return rc;
-
 	rc = iscsi_send_cmd_hdr(conn, ctask);
 	if (rc)
 		return rc;
@@ -1949,8 +1937,7 @@ iscsi_tcp_conn_bind(struct iscsi_cls_session *cls_session,
 
 /* called with host lock */
 static void
-iscsi_tcp_mgmt_init(struct iscsi_conn *conn, struct iscsi_mgmt_task *mtask,
-		    char *data, uint32_t data_size)
+iscsi_tcp_mgmt_init(struct iscsi_conn *conn, struct iscsi_mgmt_task *mtask)
 {
 	struct iscsi_tcp_mgmt_task *tcp_mtask = mtask->dd_data;
 	tcp_mtask->xmstate = XMSTATE_IMM_HDR_INIT;
@@ -2073,22 +2060,15 @@ iscsi_tcp_conn_get_param(struct iscsi_cls_conn *cls_conn,
 
 	switch(param) {
 	case ISCSI_PARAM_CONN_PORT:
-		mutex_lock(&conn->xmitmutex);
-		if (!tcp_conn->sock) {
-			mutex_unlock(&conn->xmitmutex);
+		if (!tcp_conn->sock)
 			return -EINVAL;
-		}
 
 		inet = inet_sk(tcp_conn->sock->sk);
 		len = sprintf(buf, "%hu\n", be16_to_cpu(inet->dport));
-		mutex_unlock(&conn->xmitmutex);
 		break;
 	case ISCSI_PARAM_CONN_ADDRESS:
-		mutex_lock(&conn->xmitmutex);
-		if (!tcp_conn->sock) {
-			mutex_unlock(&conn->xmitmutex);
+		if (!tcp_conn->sock)
 			return -EINVAL;
-		}
 
 		sk = tcp_conn->sock->sk;
 		if (sk->sk_family == PF_INET) {
@@ -2099,7 +2079,6 @@ iscsi_tcp_conn_get_param(struct iscsi_cls_conn *cls_conn,
 			np = inet6_sk(sk);
 			len = sprintf(buf, NIP6_FMT "\n", NIP6(np->daddr));
 		}
-		mutex_unlock(&conn->xmitmutex);
 		break;
 	default:
 		return iscsi_conn_get_param(cls_conn, param, buf);
