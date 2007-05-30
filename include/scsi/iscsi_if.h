@@ -299,6 +299,8 @@ enum iscsi_host_param {
 #define CAP_MULTI_CONN		0x40
 #define CAP_TEXT_NEGO		0x80
 #define CAP_MARKERS		0x100
+#define CAP_FW_DB		0x200
+#define CAP_SENDTARGETS_OFFLOAD	0x400
 
 /*
  * These flags describes reason of stop_conn() call
