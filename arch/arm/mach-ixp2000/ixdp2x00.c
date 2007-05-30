@@ -145,7 +145,7 @@ static struct irq_chip ixdp2x00_cpld_irq_chip = {
 	.unmask	= ixdp2x00_irq_unmask
 };
 
-void ixdp2x00_init_irq(volatile unsigned long *stat_reg, volatile unsigned long *mask_reg, unsigned long nr_irqs)
+void __init ixdp2x00_init_irq(volatile unsigned long *stat_reg, volatile unsigned long *mask_reg, unsigned long nr_irqs)
 {
 	unsigned int irq;
 

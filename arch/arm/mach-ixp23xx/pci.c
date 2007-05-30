@@ -284,7 +284,7 @@ int ixp23xx_pci_setup(int nr, struct pci_sys_data *sys)
 	return 1;
 }
 
-void ixp23xx_pci_slave_init(void)
+void __init ixp23xx_pci_slave_init(void)
 {
 	ixp23xx_pci_common_init();
 }

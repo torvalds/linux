@@ -132,7 +132,7 @@ static struct mtd_partition __initdata dk_nand_partition[] = {
 	},
 };
 
-static struct mtd_partition *nand_partitions(int size, int *num_partitions)
+static struct mtd_partition * __init nand_partitions(int size, int *num_partitions)
 {
 	*num_partitions = ARRAY_SIZE(dk_nand_partition);
 	return dk_nand_partition;

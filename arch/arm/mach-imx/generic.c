@@ -201,7 +201,6 @@ void __init imx_set_mmc_info(struct imxmmc_platform_data *info)
 {
 	imx_mmc_device.dev.platform_data = info;
 }
-EXPORT_SYMBOL(imx_set_mmc_info);
 
 static struct imxfb_mach_info imx_fb_info;
 
