@@ -239,7 +239,7 @@ struct snd_ali_image {
 
 
 struct snd_ali {
-	unsigned long	irq;
+	int		irq;
 	unsigned long	port;
 	unsigned char	revision;
 
@@ -2343,7 +2343,7 @@ static int __devinit snd_ali_probe(struct pci_dev *pci,
 	strcpy(card->driver, "ALI5451");
 	strcpy(card->shortname, "ALI 5451");
 	
-	sprintf(card->longname, "%s at 0x%lx, irq %li",
+	sprintf(card->longname, "%s at 0x%lx, irq %i",
 		card->shortname, codec->port, codec->irq);
 
 	snd_ali_printk("register card.\n");
