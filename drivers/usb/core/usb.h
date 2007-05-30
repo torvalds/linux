@@ -53,8 +53,16 @@ static inline void usb_pm_unlock(struct usb_device *udev)
 
 #else
 
-#define usb_port_suspend(dev)		0
-#define usb_port_resume(dev)		0
+static inline int usb_port_suspend(struct usb_device *udev)
+{
+	return 0;
+}
+
+static inline int usb_port_resume(struct usb_device *udev)
+{
+	return 0;
+}
+
 static inline void usb_pm_lock(struct usb_device *udev) {}
 static inline void usb_pm_unlock(struct usb_device *udev) {}
 

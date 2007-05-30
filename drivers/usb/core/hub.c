@@ -1333,7 +1333,6 @@ static inline void show_string(struct usb_device *udev, char *id, char *string)
 
 #ifdef	CONFIG_USB_OTG
 #include "otg_whitelist.h"
-static int __usb_port_suspend(struct usb_device *, int port1);
 #endif
 
 /**
@@ -1439,7 +1438,7 @@ int usb_new_device(struct usb_device *udev)
 		 * (Includes HNP test device.)
 		 */
 		if (udev->bus->b_hnp_enable || udev->bus->is_b_host) {
-			err = __usb_port_suspend(udev, udev->bus->otg_port);
+			err = usb_port_suspend(udev);
 			if (err < 0)
 				dev_dbg(&udev->dev, "HNP fail, %d\n", err);
 		}
@@ -1683,46 +1682,6 @@ static int hub_port_suspend(struct usb_hub *hub, int port1,
 }
 
 /*
- * Devices on USB hub ports have only one "suspend" state, corresponding
- * to ACPI D2, "may cause the device to lose some context".
- * State transitions include:
- *
- *   - suspend, resume ... when the VBUS power link stays live
- *   - suspend, disconnect ... VBUS lost
- *
- * Once VBUS drop breaks the circuit, the port it's using has to go through
- * normal re-enumeration procedures, starting with enabling VBUS power.
- * Other than re-initializing the hub (plug/unplug, except for root hubs),
- * Linux (2.6) currently has NO mechanisms to initiate that:  no khubd
- * timer, no SRP, no requests through sysfs.
- *
- * If CONFIG_USB_SUSPEND isn't enabled, devices only really suspend when
- * the root hub for their bus goes into global suspend ... so we don't
- * (falsely) update the device power state to say it suspended.
- */
-static int __usb_port_suspend (struct usb_device *udev, int port1)
-{
-	int	status = 0;
-
-	/* caller owns the udev device lock */
-	if (port1 < 0)
-		return port1;
-
-	/* we change the device's upstream USB link,
-	 * but root hubs have no upstream USB link.
-	 */
-	if (udev->parent)
-		status = hub_port_suspend(hdev_to_hub(udev->parent), port1,
-				udev);
-	else {
-		dev_dbg(&udev->dev, "usb %ssuspend\n",
-				udev->auto_pm ? "auto-" : "");
-		usb_set_device_state(udev, USB_STATE_SUSPENDED);
-	}
-	return status;
-}
-
-/*
  * usb_port_suspend - suspend a usb device's upstream port
  * @udev: device that's no longer in active use
  * Context: must be able to sleep; device not locked; pm locks held
@@ -1740,11 +1699,41 @@ static int __usb_port_suspend (struct usb_device *udev, int port1)
  * between a pair of dual-role devices.  That will change roles, such
  * as from A-Host to A-Peripheral or from B-Host back to B-Peripheral.
  *
+ * Devices on USB hub ports have only one "suspend" state, corresponding
+ * to ACPI D2, "may cause the device to lose some context".
+ * State transitions include:
+ *
+ *   - suspend, resume ... when the VBUS power link stays live
+ *   - suspend, disconnect ... VBUS lost
+ *
+ * Once VBUS drop breaks the circuit, the port it's using has to go through
+ * normal re-enumeration procedures, starting with enabling VBUS power.
+ * Other than re-initializing the hub (plug/unplug, except for root hubs),
+ * Linux (2.6) currently has NO mechanisms to initiate that:  no khubd
+ * timer, no SRP, no requests through sysfs.
+ *
+ * If CONFIG_USB_SUSPEND isn't enabled, devices only really suspend when
+ * the root hub for their bus goes into global suspend ... so we don't
+ * (falsely) update the device power state to say it suspended.
+ *
  * Returns 0 on success, else negative errno.
  */
 int usb_port_suspend(struct usb_device *udev)
 {
-	return __usb_port_suspend(udev, udev->portnum);
+	int	status = 0;
+
+	/* we change the device's upstream USB link,
+	 * but root hubs have no upstream USB link.
+	 */
+	if (udev->parent)
+		status = hub_port_suspend(hdev_to_hub(udev->parent),
+				udev->portnum, udev);
+	else {
+		dev_dbg(&udev->dev, "usb %ssuspend\n",
+				udev->auto_pm ? "auto-" : "");
+		usb_set_device_state(udev, USB_STATE_SUSPENDED);
+	}
+	return status;
 }
 
 /*
