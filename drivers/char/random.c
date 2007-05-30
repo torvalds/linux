@@ -760,7 +760,7 @@ static size_t account(struct entropy_store *r, size_t nbytes, int min,
 
 static void extract_buf(struct entropy_store *r, __u8 *out)
 {
-	int i, x;
+	int i;
 	__u32 data[16], buf[5 + SHA_WORKSPACE_WORDS];
 
 	sha_init(buf);
@@ -772,9 +772,11 @@ static void extract_buf(struct entropy_store *r, __u8 *out)
 	 * attempts to find previous ouputs), unless the hash
 	 * function can be inverted.
 	 */
-	for (i = 0, x = 0; i < r->poolinfo->poolwords; i += 16, x+=2) {
-		sha_transform(buf, (__u8 *)r->pool+i, buf + 5);
-		add_entropy_words(r, &buf[x % 5], 1);
+	for (i = 0; i < r->poolinfo->poolwords; i += 16) {
+		/* hash blocks of 16 words = 512 bits */
+		sha_transform(buf, (__u8 *)(r->pool + i), buf + 5);
+		/* feed back portion of the resulting hash */
+		add_entropy_words(r, &buf[i % 5], 1);
 	}
 
 	/*
@@ -782,7 +784,7 @@ static void extract_buf(struct entropy_store *r, __u8 *out)
 	 * portion of the pool while mixing, and hash one
 	 * final time.
 	 */
-	__add_entropy_words(r, &buf[x % 5], 1, data);
+	__add_entropy_words(r, &buf[i % 5], 1, data);
 	sha_transform(buf, (__u8 *)data, buf + 5);
 
 	/*
