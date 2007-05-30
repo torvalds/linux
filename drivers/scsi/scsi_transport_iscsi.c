@@ -30,7 +30,7 @@
 #include <scsi/scsi_transport_iscsi.h>
 #include <scsi/iscsi_if.h>
 
-#define ISCSI_SESSION_ATTRS 11
+#define ISCSI_SESSION_ATTRS 15
 #define ISCSI_CONN_ATTRS 11
 #define ISCSI_HOST_ATTRS 2
 #define ISCSI_TRANSPORT_VERSION "2.0-724"
@@ -1196,30 +1196,37 @@ iscsi_conn_attr(address, ISCSI_PARAM_CONN_ADDRESS);
 /*
  * iSCSI session attrs
  */
-#define iscsi_session_attr_show(param)					\
+#define iscsi_session_attr_show(param, perm)				\
 static ssize_t								\
 show_session_param_##param(struct class_device *cdev, char *buf)	\
 {									\
 	struct iscsi_cls_session *session = iscsi_cdev_to_session(cdev); \
 	struct iscsi_transport *t = session->transport;			\
+									\
+	if (perm && !capable(CAP_SYS_ADMIN))				\
+		return -EACCES;						\
 	return t->get_session_param(session, param, buf);		\
 }
 
-#define iscsi_session_attr(field, param)				\
-	iscsi_session_attr_show(param)					\
+#define iscsi_session_attr(field, param, perm)				\
+	iscsi_session_attr_show(param, perm)				\
 static ISCSI_CLASS_ATTR(sess, field, S_IRUGO, show_session_param_##param, \
 			NULL);
 
-iscsi_session_attr(targetname, ISCSI_PARAM_TARGET_NAME);
-iscsi_session_attr(initial_r2t, ISCSI_PARAM_INITIAL_R2T_EN);
-iscsi_session_attr(max_outstanding_r2t, ISCSI_PARAM_MAX_R2T);
-iscsi_session_attr(immediate_data, ISCSI_PARAM_IMM_DATA_EN);
-iscsi_session_attr(first_burst_len, ISCSI_PARAM_FIRST_BURST);
-iscsi_session_attr(max_burst_len, ISCSI_PARAM_MAX_BURST);
-iscsi_session_attr(data_pdu_in_order, ISCSI_PARAM_PDU_INORDER_EN);
-iscsi_session_attr(data_seq_in_order, ISCSI_PARAM_DATASEQ_INORDER_EN);
-iscsi_session_attr(erl, ISCSI_PARAM_ERL);
-iscsi_session_attr(tpgt, ISCSI_PARAM_TPGT);
+iscsi_session_attr(targetname, ISCSI_PARAM_TARGET_NAME, 0);
+iscsi_session_attr(initial_r2t, ISCSI_PARAM_INITIAL_R2T_EN, 0);
+iscsi_session_attr(max_outstanding_r2t, ISCSI_PARAM_MAX_R2T, 0);
+iscsi_session_attr(immediate_data, ISCSI_PARAM_IMM_DATA_EN, 0);
+iscsi_session_attr(first_burst_len, ISCSI_PARAM_FIRST_BURST, 0);
+iscsi_session_attr(max_burst_len, ISCSI_PARAM_MAX_BURST, 0);
+iscsi_session_attr(data_pdu_in_order, ISCSI_PARAM_PDU_INORDER_EN, 0);
+iscsi_session_attr(data_seq_in_order, ISCSI_PARAM_DATASEQ_INORDER_EN, 0);
+iscsi_session_attr(erl, ISCSI_PARAM_ERL, 0);
+iscsi_session_attr(tpgt, ISCSI_PARAM_TPGT, 0);
+iscsi_session_attr(username, ISCSI_PARAM_USERNAME, 1);
+iscsi_session_attr(username_in, ISCSI_PARAM_USERNAME_IN, 1);
+iscsi_session_attr(password, ISCSI_PARAM_PASSWORD, 1);
+iscsi_session_attr(password_in, ISCSI_PARAM_PASSWORD_IN, 1);
 
 #define iscsi_priv_session_attr_show(field, format)			\
 static ssize_t								\
@@ -1433,6 +1440,10 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	SETUP_SESSION_RD_ATTR(erl, ISCSI_ERL);
 	SETUP_SESSION_RD_ATTR(targetname, ISCSI_TARGET_NAME);
 	SETUP_SESSION_RD_ATTR(tpgt, ISCSI_TPGT);
+	SETUP_SESSION_RD_ATTR(password, ISCSI_USERNAME);
+	SETUP_SESSION_RD_ATTR(password_in, ISCSI_USERNAME_IN);
+	SETUP_SESSION_RD_ATTR(username, ISCSI_PASSWORD);
+	SETUP_SESSION_RD_ATTR(username_in, ISCSI_PASSWORD_IN);
 	SETUP_PRIV_SESSION_RD_ATTR(recovery_tmo);
 
 	BUG_ON(count > ISCSI_SESSION_ATTRS);

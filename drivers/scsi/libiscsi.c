@@ -1461,6 +1461,10 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 	iscsi_pool_free(&session->mgmtpool, (void**)session->mgmt_cmds);
 	iscsi_pool_free(&session->cmdpool, (void**)session->cmds);
 
+	kfree(session->password);
+	kfree(session->password_in);
+	kfree(session->username);
+	kfree(session->username_in);
 	kfree(session->targetname);
 	kfree(session->hwaddress);
 	kfree(session->initiatorname);
@@ -1869,6 +1873,30 @@ int iscsi_set_param(struct iscsi_cls_conn *cls_conn,
 	case ISCSI_PARAM_EXP_STATSN:
 		sscanf(buf, "%u", &conn->exp_statsn);
 		break;
+	case ISCSI_PARAM_USERNAME:
+		kfree(session->username);
+		session->username = kstrdup(buf, GFP_KERNEL);
+		if (!session->username)
+			return -ENOMEM;
+		break;
+	case ISCSI_PARAM_USERNAME_IN:
+		kfree(session->username_in);
+		session->username_in = kstrdup(buf, GFP_KERNEL);
+		if (!session->username_in)
+			return -ENOMEM;
+		break;
+	case ISCSI_PARAM_PASSWORD:
+		kfree(session->password);
+		session->password = kstrdup(buf, GFP_KERNEL);
+		if (!session->password)
+			return -ENOMEM;
+		break;
+	case ISCSI_PARAM_PASSWORD_IN:
+		kfree(session->password_in);
+		session->password_in = kstrdup(buf, GFP_KERNEL);
+		if (!session->password_in)
+			return -ENOMEM;
+		break;
 	case ISCSI_PARAM_TARGET_NAME:
 		/* this should not change between logins */
 		if (session->targetname)
@@ -1941,6 +1969,18 @@ int iscsi_session_get_param(struct iscsi_cls_session *cls_session,
 		break;
 	case ISCSI_PARAM_TPGT:
 		len = sprintf(buf, "%d\n", session->tpgt);
+		break;
+	case ISCSI_PARAM_USERNAME:
+		len = sprintf(buf, "%s\n", session->username);
+		break;
+	case ISCSI_PARAM_USERNAME_IN:
+		len = sprintf(buf, "%s\n", session->username_in);
+		break;
+	case ISCSI_PARAM_PASSWORD:
+		len = sprintf(buf, "%s\n", session->password);
+		break;
+	case ISCSI_PARAM_PASSWORD_IN:
+		len = sprintf(buf, "%s\n", session->password_in);
 		break;
 	default:
 		return -ENOSYS;

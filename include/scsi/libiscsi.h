@@ -221,6 +221,10 @@ struct iscsi_session {
 	int			dataseq_inorder_en;
 	int			erl;
 	int			tpgt;
+	char			*username;
+	char			*username_in;
+	char			*password;
+	char			*password_in;
 	char			*targetname;
 	char			*initiatorname;
 	/* hw address being used for iscsi connection */

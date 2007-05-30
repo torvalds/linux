@@ -574,8 +574,9 @@ static struct iscsi_transport iscsi_iser_transport = {
 				  ISCSI_EXP_STATSN |
 				  ISCSI_PERSISTENT_PORT |
 				  ISCSI_PERSISTENT_ADDRESS |
-				  ISCSI_TARGET_NAME |
-				  ISCSI_TPGT,
+				  ISCSI_TARGET_NAME | ISCSI_TPGT |
+				  ISCSI_USERNAME | ISCSI_PASSWORD |
+				  ISCSI_USERNAME_IN | ISCSI_PASSWORD_IN,
 	.host_param_mask	= ISCSI_HOST_HWADDRESS |
 				  ISCSI_HOST_INITIATOR_NAME,
 	.host_template          = &iscsi_iser_sht,
