@@ -47,7 +47,7 @@ MODULE_DESCRIPTION("R8A66597 USB Host Controller Driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yoshihiro Shimoda");
 
-#define DRIVER_VERSION	"9 May 2007"
+#define DRIVER_VERSION	"29 May 2007"
 
 static const char hcd_name[] = "r8a66597_hcd";
 
@@ -543,6 +543,9 @@ static void pipe_toggle_restore(struct r8a66597 *r8a66597,
 	struct r8a66597_device *dev = get_urb_to_r8a66597_dev(r8a66597, urb);
 	unsigned char endpoint = usb_pipeendpoint(urb->pipe);
 	unsigned short *toggle = get_toggle_pointer(dev, urb->pipe);
+
+	if (!toggle)
+		return;
 
 	r8a66597_pipe_toggle(r8a66597, pipe, *toggle & (1 << endpoint));
 }
