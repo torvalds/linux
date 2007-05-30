@@ -647,8 +647,23 @@ static int ehci_hub_control (
 			status |= 1 << USB_PORT_FEAT_C_CONNECTION;
 		if (temp & PORT_PEC)
 			status |= 1 << USB_PORT_FEAT_C_ENABLE;
-		if ((temp & PORT_OCC) && !ignore_oc)
+
+		if ((temp & PORT_OCC) && !ignore_oc){
 			status |= 1 << USB_PORT_FEAT_C_OVER_CURRENT;
+
+			/*
+			 * Hubs should disable port power on over-current.
+			 * However, not all EHCI implementations do this
+			 * automatically, even if they _do_ support per-port
+			 * power switching; they're allowed to just limit the
+			 * current.  khubd will turn the power back on.
+			 */
+			if (HCS_PPC (ehci->hcs_params)){
+				ehci_writel(ehci,
+					temp & ~(PORT_RWC_BITS | PORT_POWER),
+					status_reg);
+			}
+		}
 
 		/* whoever resumes must GetPortStatus to complete it!! */
 		if (temp & PORT_RESUME) {
