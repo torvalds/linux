@@ -29,6 +29,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/inet.h>
+#include <linux/file.h>
 #include <linux/blkdev.h>
 #include <linux/crypto.h>
 #include <linux/delay.h>
@@ -1878,7 +1879,7 @@ iscsi_tcp_release_conn(struct iscsi_conn *conn)
 	iscsi_conn_restore_callbacks(tcp_conn);
 	sock_put(tcp_conn->sock->sk);
 
-	sock_release(tcp_conn->sock);
+	sockfd_put(tcp_conn->sock);
 	tcp_conn->sock = NULL;
 	conn->recv_lock = NULL;
 }
