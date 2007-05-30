@@ -326,7 +326,6 @@ static struct kvm *kvm_create_vm(void)
 		vcpu->cpu = -1;
 		vcpu->kvm = kvm;
 		vcpu->mmu.root_hpa = INVALID_PAGE;
-		INIT_LIST_HEAD(&vcpu->free_pages);
 		spin_lock(&kvm_lock);
 		list_add(&kvm->vm_list, &vm_list);
 		spin_unlock(&kvm_lock);
