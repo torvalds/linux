@@ -278,8 +278,6 @@ static int beep_write(char *buf);
  * Bluetooth subdriver
  */
 
-#define TPACPI_BLUETH_SYSFS_GROUP "bluetooth"
-
 enum {
 	/* ACPI GBDC/SBDC bits */
 	TP_ACPI_BLUETOOTH_HWPRESENT	= 0x01,	/* Bluetooth hw available */
@@ -416,8 +414,6 @@ static int fan_write_cmd_watchdog(const char *cmd, int *rc);
  * Hotkey subdriver
  */
 
-#define TPACPI_HOTKEY_SYSFS_GROUP "hotkey"
-
 static int hotkey_orig_status;
 static int hotkey_orig_mask;
 
@@ -552,8 +548,6 @@ static int volume_write(char *buf);
 /*
  * Wan subdriver
  */
-
-#define TPACPI_WAN_SYSFS_GROUP "wwan"
 
 enum {
 	/* ACPI GWAN/SWAN bits */

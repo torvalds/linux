@@ -740,7 +740,7 @@ static ssize_t hotkey_enable_store(struct device *dev,
 }
 
 static struct device_attribute dev_attr_hotkey_enable =
-	__ATTR(enable, S_IWUSR | S_IRUGO,
+	__ATTR(hotkey_enable, S_IWUSR | S_IRUGO,
 		hotkey_enable_show, hotkey_enable_store);
 
 /* sysfs hotkey mask --------------------------------------------------- */
@@ -775,7 +775,7 @@ static ssize_t hotkey_mask_store(struct device *dev,
 }
 
 static struct device_attribute dev_attr_hotkey_mask =
-	__ATTR(mask, S_IWUSR | S_IRUGO,
+	__ATTR(hotkey_mask, S_IWUSR | S_IRUGO,
 		hotkey_mask_show, hotkey_mask_store);
 
 /* sysfs hotkey bios_enabled ------------------------------------------- */
@@ -787,7 +787,7 @@ static ssize_t hotkey_bios_enabled_show(struct device *dev,
 }
 
 static struct device_attribute dev_attr_hotkey_bios_enabled =
-	__ATTR(bios_enabled, S_IRUGO, hotkey_bios_enabled_show, NULL);
+	__ATTR(hotkey_bios_enabled, S_IRUGO, hotkey_bios_enabled_show, NULL);
 
 /* sysfs hotkey bios_mask ---------------------------------------------- */
 static ssize_t hotkey_bios_mask_show(struct device *dev,
@@ -798,7 +798,7 @@ static ssize_t hotkey_bios_mask_show(struct device *dev,
 }
 
 static struct device_attribute dev_attr_hotkey_bios_mask =
-	__ATTR(bios_mask, S_IRUGO, hotkey_bios_mask_show, NULL);
+	__ATTR(hotkey_bios_mask, S_IRUGO, hotkey_bios_mask_show, NULL);
 
 /* --------------------------------------------------------------------- */
 
@@ -824,8 +824,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.hotkey));
 
 	if (tp_features.hotkey) {
-		hotkey_dev_attributes = create_attr_set(4,
-						TPACPI_HOTKEY_SYSFS_GROUP);
+		hotkey_dev_attributes = create_attr_set(4, NULL);
 		if (!hotkey_dev_attributes)
 			return -ENOMEM;
 		res = add_to_attr_set(hotkey_dev_attributes,
@@ -1050,7 +1049,7 @@ static ssize_t bluetooth_enable_store(struct device *dev,
 }
 
 static struct device_attribute dev_attr_bluetooth_enable =
-	__ATTR(enable, S_IWUSR | S_IRUGO,
+	__ATTR(bluetooth_enable, S_IWUSR | S_IRUGO,
 		bluetooth_enable_show, bluetooth_enable_store);
 
 /* --------------------------------------------------------------------- */
@@ -1061,7 +1060,6 @@ static struct attribute *bluetooth_attributes[] = {
 };
 
 static const struct attribute_group bluetooth_attr_group = {
-	.name = TPACPI_BLUETH_SYSFS_GROUP,
 	.attrs = bluetooth_attributes,
 };
 
@@ -1215,7 +1213,7 @@ static ssize_t wan_enable_store(struct device *dev,
 }
 
 static struct device_attribute dev_attr_wan_enable =
-	__ATTR(enable, S_IWUSR | S_IRUGO,
+	__ATTR(wwan_enable, S_IWUSR | S_IRUGO,
 		wan_enable_show, wan_enable_store);
 
 /* --------------------------------------------------------------------- */
@@ -1226,7 +1224,6 @@ static struct attribute *wan_attributes[] = {
 };
 
 static const struct attribute_group wan_attr_group = {
-	.name = TPACPI_WAN_SYSFS_GROUP,
 	.attrs = wan_attributes,
 };
 
