@@ -229,10 +229,13 @@ iscsi_data_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	if (tcp_conn->in.datalen == 0)
 		return 0;
 
-	if (ctask->datasn != datasn)
+	if (tcp_ctask->exp_datasn != datasn) {
+		debug_tcp("%s: ctask->exp_datasn(%d) != rhdr->datasn(%d)\n",
+		          __FUNCTION__, tcp_ctask->exp_datasn, datasn);
 		return ISCSI_ERR_DATASN;
+	}
 
-	ctask->datasn++;
+	tcp_ctask->exp_datasn++;
 
 	tcp_ctask->data_offset = be32_to_cpu(rhdr->offset);
 	if (tcp_ctask->data_offset + tcp_conn->in.datalen > ctask->total_length)
@@ -365,14 +368,15 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 		return ISCSI_ERR_DATALEN;
 	}
 
-	if (tcp_ctask->exp_r2tsn && tcp_ctask->exp_r2tsn != r2tsn)
+	if (tcp_ctask->exp_datasn != r2tsn){
+		debug_tcp("%s: ctask->exp_datasn(%d) != rhdr->r2tsn(%d)\n",
+		          __FUNCTION__, tcp_ctask->exp_datasn, r2tsn);
 		return ISCSI_ERR_R2TSN;
+	}
 
 	rc = iscsi_check_assign_cmdsn(session, (struct iscsi_nopin*)rhdr);
 	if (rc)
 		return rc;
-
-	/* FIXME: use R2TSN to detect missing R2T */
 
 	/* fill-in new R2T associated with the task */
 	spin_lock(&session->lock);
@@ -414,7 +418,7 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 
 	iscsi_solicit_data_init(conn, ctask, r2t);
 
-	tcp_ctask->exp_r2tsn = r2tsn + 1;
+	tcp_ctask->exp_datasn = r2tsn + 1;
 	__kfifo_put(tcp_ctask->r2tqueue, (void*)&r2t, sizeof(void*));
 	tcp_ctask->xmstate |= XMSTATE_SOL_HDR;
 	list_move_tail(&ctask->running, &conn->xmitqueue);
@@ -1284,10 +1288,10 @@ iscsi_tcp_cmd_init(struct iscsi_cmd_task *ctask)
 
 	tcp_ctask->sent = 0;
 	tcp_ctask->sg_count = 0;
+	tcp_ctask->exp_datasn = 0;
 
 	if (sc->sc_data_direction == DMA_TO_DEVICE) {
 		tcp_ctask->xmstate = XMSTATE_W_HDR;
-		tcp_ctask->exp_r2tsn = 0;
 		BUG_ON(ctask->total_length == 0);
 
 		if (sc->use_sg) {

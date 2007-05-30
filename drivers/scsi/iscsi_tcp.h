@@ -152,7 +152,7 @@ struct iscsi_tcp_cmd_task {
 	struct scatterlist	*sg;			/* per-cmd SG list  */
 	struct scatterlist	*bad_sg;		/* assert statement */
 	int			sg_count;		/* SG's to process  */
-	uint32_t		exp_r2tsn;
+	uint32_t		exp_datasn;		/* expected target's R2TSN/DataSN */
 	int			data_offset;
 	struct iscsi_r2t_info	*r2t;			/* in progress R2T    */
 	struct iscsi_queue	r2tpool;

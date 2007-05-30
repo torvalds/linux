@@ -99,7 +99,6 @@ struct iscsi_cmd_task {
 	 */
 	struct iscsi_cmd	*hdr;
 	int			itt;		/* this ITT */
-	int			datasn;		/* DataSN */
 
 	uint32_t		unsol_datasn;
 	int			imm_count;	/* imm-data (bytes)   */

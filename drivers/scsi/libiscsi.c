@@ -120,7 +120,9 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
         session->cmdsn++;
         hdr->exp_statsn = cpu_to_be32(conn->exp_statsn);
         memcpy(hdr->cdb, sc->cmnd, sc->cmd_len);
-        memset(&hdr->cdb[sc->cmd_len], 0, MAX_COMMAND_SIZE - sc->cmd_len);
+	if (sc->cmd_len < MAX_COMMAND_SIZE)
+		memset(&hdr->cdb[sc->cmd_len], 0,
+			MAX_COMMAND_SIZE - sc->cmd_len);
 
 	ctask->data_count = 0;
 	if (sc->sc_data_direction == DMA_TO_DEVICE) {
@@ -165,7 +167,6 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 			/* No unsolicit Data-Out's */
 			ctask->hdr->flags |= ISCSI_FLAG_CMD_FINAL;
 	} else {
-		ctask->datasn = 0;
 		hdr->flags |= ISCSI_FLAG_CMD_FINAL;
 		zero_data(hdr->dlength);
 
