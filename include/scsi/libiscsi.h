@@ -72,6 +72,8 @@ struct iscsi_nopin;
 #define ISCSI_AGE_SHIFT			28
 #define ISCSI_AGE_MASK			(0xf << ISCSI_AGE_SHIFT)
 
+#define ISCSI_ADDRESS_BUF_LEN		64
+
 struct iscsi_mgmt_task {
 	/*
 	 * Becuae LLDs allocate their hdr differently, this is a pointer to
@@ -174,6 +176,12 @@ struct iscsi_conn {
 	/* values userspace uses to id a conn */
 	int			persistent_port;
 	char			*persistent_address;
+	/* remote portal currently connected to */
+	int			portal_port;
+	char			portal_address[ISCSI_ADDRESS_BUF_LEN];
+	/* local address */
+	int			local_port;
+	char			local_address[ISCSI_ADDRESS_BUF_LEN];
 
 	/* MIB-statistics */
 	uint64_t		txdata_octets;
