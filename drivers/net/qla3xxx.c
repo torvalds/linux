@@ -2433,37 +2433,22 @@ static int ql_get_seg_count(struct ql3_adapter *qdev,
 	return -1;
 }
 
-static void ql_hw_csum_setup(struct sk_buff *skb,
+static void ql_hw_csum_setup(const struct sk_buff *skb,
 			     struct ob_mac_iocb_req *mac_iocb_ptr)
 {
-	struct ethhdr *eth;
-	struct iphdr *ip = NULL;
-	u8 offset = ETH_HLEN;
+	const struct iphdr *ip = ip_hdr(skb);
 
-	eth = (struct ethhdr *)(skb->data);
+	mac_iocb_ptr->ip_hdr_off = skb_network_offset(skb);
+	mac_iocb_ptr->ip_hdr_len = ip->ihl;
 
-	if (eth->h_proto == __constant_htons(ETH_P_IP)) {
-		ip = (struct iphdr *)&skb->data[ETH_HLEN];
-	} else if (eth->h_proto == htons(ETH_P_8021Q) &&
-		   ((struct vlan_ethhdr *)skb->data)->
-		   h_vlan_encapsulated_proto == __constant_htons(ETH_P_IP)) {
-		ip = (struct iphdr *)&skb->data[VLAN_ETH_HLEN];
-		offset = VLAN_ETH_HLEN;
+	if (ip->protocol == IPPROTO_TCP) {
+		mac_iocb_ptr->flags1 |= OB_3032MAC_IOCB_REQ_TC |
+			OB_3032MAC_IOCB_REQ_IC;
+	} else {
+		mac_iocb_ptr->flags1 |= OB_3032MAC_IOCB_REQ_UC |
+			OB_3032MAC_IOCB_REQ_IC;
 	}
 
-	if (ip) {
-		if (ip->protocol == IPPROTO_TCP) {
-			mac_iocb_ptr->flags1 |= OB_3032MAC_IOCB_REQ_TC | 
-			OB_3032MAC_IOCB_REQ_IC;
-			mac_iocb_ptr->ip_hdr_off = offset;
-			mac_iocb_ptr->ip_hdr_len = ip->ihl;
-		} else if (ip->protocol == IPPROTO_UDP) {
-			mac_iocb_ptr->flags1 |= OB_3032MAC_IOCB_REQ_UC | 
-			OB_3032MAC_IOCB_REQ_IC;
-			mac_iocb_ptr->ip_hdr_off = offset;
-			mac_iocb_ptr->ip_hdr_len = ip->ihl;
-		}
-	}
 }
 
 /*
