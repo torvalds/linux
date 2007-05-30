@@ -61,7 +61,7 @@ struct mlx4_cq_context {
 	__be32			solicit_producer_index;
 	__be32			consumer_index;
 	__be32			producer_index;
-	u8			reserved6[2];
+	u32			reserved6[2];
 	__be64			db_rec_addr;
 };
 
