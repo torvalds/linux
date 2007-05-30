@@ -44,7 +44,7 @@ MODULE_DESCRIPTION("M66592 USB gadget driiver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yoshihiro Shimoda");
 
-#define DRIVER_VERSION	"9 May 2007"
+#define DRIVER_VERSION	"29 May 2007"
 
 /* module parameters */
 static unsigned short clock = M66592_XTAL24;
@@ -1567,7 +1567,7 @@ static int __init m66592_probe(struct platform_device *pdev)
 
 	m66592->bi_bufnum = M66592_BASE_BUFNUM;
 
-	ret = request_irq(irq, m66592_irq, SA_INTERRUPT | SA_SHIRQ,
+	ret = request_irq(irq, m66592_irq, IRQF_DISABLED | IRQF_SHARED,
 			  udc_name, m66592);
 	if (ret < 0) {
 		printk(KERN_ERR "request_irq error (%d)\n", ret);
