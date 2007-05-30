@@ -56,8 +56,7 @@ MODULE_PARM_DESC(debug,"enable debug messages [blackbird]");
 
 /* ------------------------------------------------------------------ */
 
-#define OLD_BLACKBIRD_FIRM_IMAGE_SIZE 262144
-#define     BLACKBIRD_FIRM_IMAGE_SIZE 376836
+#define BLACKBIRD_FIRM_IMAGE_SIZE 376836
 
 /* defines below are from ivtv-driver.h */
 
@@ -453,11 +452,9 @@ static int blackbird_load_firmware(struct cx8802_dev *dev)
 		return -1;
 	}
 
-	if ((firmware->size != BLACKBIRD_FIRM_IMAGE_SIZE) &&
-	    (firmware->size != OLD_BLACKBIRD_FIRM_IMAGE_SIZE)) {
-		dprintk(0, "ERROR: Firmware size mismatch (have %zd, expected %d or %d)\n",
-			firmware->size, BLACKBIRD_FIRM_IMAGE_SIZE,
-			OLD_BLACKBIRD_FIRM_IMAGE_SIZE);
+	if (firmware->size != BLACKBIRD_FIRM_IMAGE_SIZE) {
+		dprintk(0, "ERROR: Firmware size mismatch (have %zd, expected %d)\n",
+			firmware->size, BLACKBIRD_FIRM_IMAGE_SIZE);
 		release_firmware(firmware);
 		return -1;
 	}
