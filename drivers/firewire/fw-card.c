@@ -407,11 +407,6 @@ fw_card_add(struct fw_card *card,
 	card->link_speed = link_speed;
 	card->guid = guid;
 
-	/* Activate link_on bit and contender bit in our self ID packets.*/
-	if (card->driver->update_phy_reg(card, 4, 0,
-					 PHY_LINK_ACTIVE | PHY_CONTENDER) < 0)
-		return -EIO;
-
 	/*
 	 * The subsystem grabs a reference when the card is added and
 	 * drops it when the driver calls fw_core_remove_card.
