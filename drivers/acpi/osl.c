@@ -86,7 +86,7 @@ int osi_linux;		/* disable _OSI(Linux) by default */
 
 
 #ifdef CONFIG_DMI
-static struct dmi_system_id acpi_osl_dmi_table[];
+static struct __initdata dmi_system_id acpi_osl_dmi_table[];
 #endif
 
 static void __init acpi_request_region (struct acpi_generic_address *addr,
@@ -137,7 +137,7 @@ static int __init acpi_reserve_resources(void)
 }
 device_initcall(acpi_reserve_resources);
 
-acpi_status acpi_os_initialize(void)
+acpi_status __init acpi_os_initialize(void)
 {
 	dmi_check_system(acpi_osl_dmi_table);
 	return AE_OK;
@@ -1243,7 +1243,7 @@ static int dmi_osi_linux(struct dmi_system_id *d)
 }
 #endif
 
-static struct dmi_system_id acpi_osl_dmi_table[] = {
+static struct dmi_system_id acpi_osl_dmi_table[] __initdata = {
 #ifdef	OSI_LINUX_ENABLED
 	/*
 	 * Boxes that need NOT _OSI(Linux)
