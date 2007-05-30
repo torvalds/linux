@@ -1483,6 +1483,7 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 	kfree(session->username);
 	kfree(session->username_in);
 	kfree(session->targetname);
+	kfree(session->netdev);
 	kfree(session->hwaddress);
 	kfree(session->initiatorname);
 
@@ -2040,6 +2041,12 @@ int iscsi_host_get_param(struct Scsi_Host *shost, enum iscsi_host_param param,
 	int len;
 
 	switch (param) {
+	case ISCSI_HOST_PARAM_NETDEV_NAME:
+		if (!session->netdev)
+			len = sprintf(buf, "%s\n", "default");
+		else
+			len = sprintf(buf, "%s\n", session->netdev);
+		break;
 	case ISCSI_HOST_PARAM_HWADDRESS:
 		if (!session->hwaddress)
 			len = sprintf(buf, "%s\n", "default");
@@ -2067,6 +2074,10 @@ int iscsi_host_set_param(struct Scsi_Host *shost, enum iscsi_host_param param,
 	struct iscsi_session *session = iscsi_hostdata(shost->hostdata);
 
 	switch (param) {
+	case ISCSI_HOST_PARAM_NETDEV_NAME:
+		if (!session->netdev)
+			session->netdev = kstrdup(buf, GFP_KERNEL);
+		break;
 	case ISCSI_HOST_PARAM_HWADDRESS:
 		if (!session->hwaddress)
 			session->hwaddress = kstrdup(buf, GFP_KERNEL);

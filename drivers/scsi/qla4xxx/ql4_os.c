@@ -102,7 +102,8 @@ static struct scsi_host_template qla4xxx_driver_template = {
 static struct iscsi_transport qla4xxx_iscsi_transport = {
 	.owner			= THIS_MODULE,
 	.name			= DRIVER_NAME,
-	.caps			= CAP_FW_DB | CAP_SENDTARGETS_OFFLOAD,
+	.caps			= CAP_FW_DB | CAP_SENDTARGETS_OFFLOAD |
+				  CAP_DATA_PATH_OFFLOAD,
 	.param_mask		= ISCSI_CONN_PORT | ISCSI_CONN_ADDRESS |
 				  ISCSI_TARGET_NAME | ISCSI_TPGT,
 	.host_param_mask	= ISCSI_HOST_HWADDRESS |

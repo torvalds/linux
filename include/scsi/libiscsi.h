@@ -228,8 +228,9 @@ struct iscsi_session {
 	char			*password_in;
 	char			*targetname;
 	char			*initiatorname;
-	/* hw address being used for iscsi connection */
+	/* hw address or netdev iscsi connection is bound to */
 	char			*hwaddress;
+	char			*netdev;
 	/* control data */
 	struct iscsi_transport	*tt;
 	struct Scsi_Host	*host;

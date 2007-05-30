@@ -32,7 +32,7 @@
 
 #define ISCSI_SESSION_ATTRS 15
 #define ISCSI_CONN_ATTRS 11
-#define ISCSI_HOST_ATTRS 3
+#define ISCSI_HOST_ATTRS 4
 #define ISCSI_TRANSPORT_VERSION "2.0-724"
 
 struct iscsi_internal {
@@ -1261,8 +1261,9 @@ show_host_param_##param(struct class_device *cdev, char *buf)		\
 static ISCSI_CLASS_ATTR(host, field, S_IRUGO, show_host_param_##param,	\
 			NULL);
 
-iscsi_host_attr(ipaddress, ISCSI_HOST_PARAM_IPADDRESS);
+iscsi_host_attr(netdev, ISCSI_HOST_PARAM_NETDEV_NAME);
 iscsi_host_attr(hwaddress, ISCSI_HOST_PARAM_HWADDRESS);
+iscsi_host_attr(ipaddress, ISCSI_HOST_PARAM_IPADDRESS);
 iscsi_host_attr(initiatorname, ISCSI_HOST_PARAM_INITIATOR_NAME);
 
 #define SETUP_PRIV_SESSION_RD_ATTR(field)				\
@@ -1399,6 +1400,7 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	priv->t.host_size = sizeof(struct iscsi_host);
 	transport_container_register(&priv->t.host_attrs);
 
+	SETUP_HOST_RD_ATTR(netdev, ISCSI_HOST_NETDEV_NAME);
 	SETUP_HOST_RD_ATTR(ipaddress, ISCSI_HOST_IPADDRESS);
 	SETUP_HOST_RD_ATTR(hwaddress, ISCSI_HOST_HWADDRESS);
 	SETUP_HOST_RD_ATTR(initiatorname, ISCSI_HOST_INITIATOR_NAME);

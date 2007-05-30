@@ -271,12 +271,14 @@ enum iscsi_param {
 enum iscsi_host_param {
 	ISCSI_HOST_PARAM_HWADDRESS,
 	ISCSI_HOST_PARAM_INITIATOR_NAME,
+	ISCSI_HOST_PARAM_NETDEV_NAME,
 	ISCSI_HOST_PARAM_IPADDRESS,
 	ISCSI_HOST_PARAM_MAX,
 };
 
 #define ISCSI_HOST_HWADDRESS		(1 << ISCSI_HOST_PARAM_HWADDRESS)
 #define ISCSI_HOST_INITIATOR_NAME	(1 << ISCSI_HOST_PARAM_INITIATOR_NAME)
+#define ISCSI_HOST_NETDEV_NAME		(1 << ISCSI_HOST_PARAM_NETDEV_NAME)
 #define ISCSI_HOST_IPADDRESS		(1 << ISCSI_HOST_PARAM_IPADDRESS)
 
 #define iscsi_ptr(_handle) ((void*)(unsigned long)_handle)
@@ -303,6 +305,7 @@ enum iscsi_host_param {
 #define CAP_MARKERS		0x100
 #define CAP_FW_DB		0x200
 #define CAP_SENDTARGETS_OFFLOAD	0x400
+#define CAP_DATA_PATH_OFFLOAD	0x800
 
 /*
  * These flags describes reason of stop_conn() call

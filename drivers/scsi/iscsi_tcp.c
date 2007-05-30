@@ -2303,7 +2303,8 @@ static struct iscsi_transport iscsi_tcp_transport = {
 				  ISCSI_USERNAME | ISCSI_PASSWORD |
 				  ISCSI_USERNAME_IN | ISCSI_PASSWORD_IN,
 	.host_param_mask	= ISCSI_HOST_HWADDRESS | ISCSI_HOST_IPADDRESS |
-				  ISCSI_HOST_INITIATOR_NAME,
+				  ISCSI_HOST_INITIATOR_NAME |
+				  ISCSI_HOST_NETDEV_NAME,
 	.host_template		= &iscsi_sht,
 	.conndata_size		= sizeof(struct iscsi_conn),
 	.max_conn		= 1,
