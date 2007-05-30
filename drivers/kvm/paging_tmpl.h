@@ -192,14 +192,62 @@ static void FNAME(mark_pagetable_dirty)(struct kvm *kvm,
 	mark_page_dirty(kvm, walker->table_gfn[walker->level - 1]);
 }
 
+static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
+				  u64 *shadow_pte,
+				  gpa_t gaddr,
+				  int dirty,
+				  u64 access_bits,
+				  gfn_t gfn)
+{
+	hpa_t paddr;
+
+	*shadow_pte |= access_bits << PT_SHADOW_BITS_OFFSET;
+	if (!dirty)
+		access_bits &= ~PT_WRITABLE_MASK;
+
+	paddr = gpa_to_hpa(vcpu, gaddr & PT64_BASE_ADDR_MASK);
+
+	*shadow_pte |= access_bits;
+
+	if (is_error_hpa(paddr)) {
+		*shadow_pte |= gaddr;
+		*shadow_pte |= PT_SHADOW_IO_MARK;
+		*shadow_pte &= ~PT_PRESENT_MASK;
+		return;
+	}
+
+	*shadow_pte |= paddr;
+
+	if (access_bits & PT_WRITABLE_MASK) {
+		struct kvm_mmu_page *shadow;
+
+		shadow = kvm_mmu_lookup_page(vcpu, gfn);
+		if (shadow) {
+			pgprintk("%s: found shadow page for %lx, marking ro\n",
+				 __FUNCTION__, gfn);
+			access_bits &= ~PT_WRITABLE_MASK;
+			if (is_writeble_pte(*shadow_pte)) {
+				    *shadow_pte &= ~PT_WRITABLE_MASK;
+				    kvm_arch_ops->tlb_flush(vcpu);
+			}
+		}
+	}
+
+	if (access_bits & PT_WRITABLE_MASK)
+		mark_page_dirty(vcpu->kvm, gaddr >> PAGE_SHIFT);
+
+	page_header_update_slot(vcpu->kvm, shadow_pte, gaddr);
+	rmap_add(vcpu, shadow_pte);
+}
+
 static void FNAME(set_pte)(struct kvm_vcpu *vcpu, u64 guest_pte,
 			   u64 *shadow_pte, u64 access_bits, gfn_t gfn)
 {
 	ASSERT(*shadow_pte == 0);
 	access_bits &= guest_pte;
 	*shadow_pte = (guest_pte & PT_PTE_COPY_MASK);
-	set_pte_common(vcpu, shadow_pte, guest_pte & PT_BASE_ADDR_MASK,
-		       guest_pte & PT_DIRTY_MASK, access_bits, gfn);
+	FNAME(set_pte_common)(vcpu, shadow_pte, guest_pte & PT_BASE_ADDR_MASK,
+			      guest_pte & PT_DIRTY_MASK, access_bits, gfn);
 }
 
 static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
@@ -229,8 +277,8 @@ static void FNAME(set_pde)(struct kvm_vcpu *vcpu, u64 guest_pde,
 		gaddr |= (guest_pde & PT32_DIR_PSE36_MASK) <<
 			(32 - PT32_DIR_PSE36_SHIFT);
 	*shadow_pte = guest_pde & PT_PTE_COPY_MASK;
-	set_pte_common(vcpu, shadow_pte, gaddr,
-		       guest_pde & PT_DIRTY_MASK, access_bits, gfn);
+	FNAME(set_pte_common)(vcpu, shadow_pte, gaddr,
+			      guest_pde & PT_DIRTY_MASK, access_bits, gfn);
 }
 
 /*

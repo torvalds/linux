@@ -965,54 +965,6 @@ static void paging_new_cr3(struct kvm_vcpu *vcpu)
 	kvm_arch_ops->set_cr3(vcpu, vcpu->mmu.root_hpa);
 }
 
-static inline void set_pte_common(struct kvm_vcpu *vcpu,
-			     u64 *shadow_pte,
-			     gpa_t gaddr,
-			     int dirty,
-			     u64 access_bits,
-			     gfn_t gfn)
-{
-	hpa_t paddr;
-
-	*shadow_pte |= access_bits << PT_SHADOW_BITS_OFFSET;
-	if (!dirty)
-		access_bits &= ~PT_WRITABLE_MASK;
-
-	paddr = gpa_to_hpa(vcpu, gaddr & PT64_BASE_ADDR_MASK);
-
-	*shadow_pte |= access_bits;
-
-	if (is_error_hpa(paddr)) {
-		*shadow_pte |= gaddr;
-		*shadow_pte |= PT_SHADOW_IO_MARK;
-		*shadow_pte &= ~PT_PRESENT_MASK;
-		return;
-	}
-
-	*shadow_pte |= paddr;
-
-	if (access_bits & PT_WRITABLE_MASK) {
-		struct kvm_mmu_page *shadow;
-
-		shadow = kvm_mmu_lookup_page(vcpu, gfn);
-		if (shadow) {
-			pgprintk("%s: found shadow page for %lx, marking ro\n",
-				 __FUNCTION__, gfn);
-			access_bits &= ~PT_WRITABLE_MASK;
-			if (is_writeble_pte(*shadow_pte)) {
-				    *shadow_pte &= ~PT_WRITABLE_MASK;
-				    kvm_arch_ops->tlb_flush(vcpu);
-			}
-		}
-	}
-
-	if (access_bits & PT_WRITABLE_MASK)
-		mark_page_dirty(vcpu->kvm, gaddr >> PAGE_SHIFT);
-
-	page_header_update_slot(vcpu->kvm, shadow_pte, gaddr);
-	rmap_add(vcpu, shadow_pte);
-}
-
 static void inject_page_fault(struct kvm_vcpu *vcpu,
 			      u64 addr,
 			      u32 err_code)
