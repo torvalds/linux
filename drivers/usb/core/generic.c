@@ -196,20 +196,15 @@ static int generic_suspend(struct usb_device *udev, pm_message_t msg)
 {
 	int rc;
 
-	rc = usb_port_suspend(udev);
-
-	/* Root hubs don't have upstream ports to suspend,
-	 * so the line above won't do much for them.  We have to
-	 * shut down their downstream HC-to-USB interfaces manually,
-	 * by doing a bus (or "global") suspend.
+	/* Normal USB devices suspend through their upstream port.
+	 * Root hubs don't have upstream ports to suspend,
+	 * so we have to shut down their downstream HC-to-USB
+	 * interfaces manually by doing a bus (or "global") suspend.
 	 */
-	if (rc == 0 && !udev->parent) {
-		rc = hcd_bus_suspend(udev->bus);
-		if (rc) {
-			dev_dbg(&udev->dev, "'global' suspend %d\n", rc);
-			usb_port_resume(udev);
-		}
-	}
+	if (!udev->parent)
+		rc = hcd_bus_suspend(udev);
+	else
+		rc = usb_port_suspend(udev);
 	return rc;
 }
 
@@ -217,25 +212,17 @@ static int generic_resume(struct usb_device *udev)
 {
 	int rc;
 
-	if (udev->reset_resume)
+	/* Normal USB devices resume/reset through their upstream port.
+	 * Root hubs don't have upstream ports to resume or reset,
+	 * so we have to start up their downstream HC-to-USB
+	 * interfaces manually by doing a bus (or "global") resume.
+	 */
+	if (!udev->parent)
+		rc = hcd_bus_resume(udev);
+	else if (udev->reset_resume)
 		rc = usb_reset_suspended_device(udev);
 	else
 		rc = usb_port_resume(udev);
-
-	/* Root hubs don't have upstream ports to resume or reset,
-	 * so the line above won't do much for them.  We have to
-	 * start up their downstream HC-to-USB interfaces manually,
-	 * by doing a bus (or "global") resume.
-	 */
-	if (rc == 0 && !udev->parent) {
-		rc = hcd_bus_resume(udev->bus);
-		if (rc)
-			dev_dbg(&udev->dev, "'global' resume %d\n", rc);
-		else {
-			/* TRSMRCY = 10 msec */
-			msleep(10);
-		}
-	}
 	return rc;
 }
 

@@ -1722,17 +1722,8 @@ int usb_port_suspend(struct usb_device *udev)
 {
 	int	status = 0;
 
-	/* we change the device's upstream USB link,
-	 * but root hubs have no upstream USB link.
-	 */
-	if (udev->parent)
-		status = hub_port_suspend(hdev_to_hub(udev->parent),
-				udev->portnum, udev);
-	else {
-		dev_dbg(&udev->dev, "usb %ssuspend\n",
-				udev->auto_pm ? "auto-" : "");
-		usb_set_device_state(udev, USB_STATE_SUSPENDED);
-	}
+	status = hub_port_suspend(hdev_to_hub(udev->parent),
+			udev->portnum, udev);
 	return status;
 }
 
@@ -1775,8 +1766,7 @@ static int finish_port_resume(struct usb_device *udev)
 			status);
 	else if (udev->actconfig) {
 		le16_to_cpus(&devstatus);
-		if ((devstatus & (1 << USB_DEVICE_REMOTE_WAKEUP))
-				&& udev->parent) {
+		if (devstatus & (1 << USB_DEVICE_REMOTE_WAKEUP)) {
 			status = usb_control_msg(udev,
 					usb_sndctrlpipe(udev, 0),
 					USB_REQ_CLEAR_FEATURE,
@@ -1789,10 +1779,6 @@ static int finish_port_resume(struct usb_device *udev)
 					"wakeup, status %d\n", status);
 		}
 		status = 0;
-
-	} else if (udev->devnum <= 0) {
-		dev_dbg(&udev->dev, "bogus resume!\n");
-		status = -EINVAL;
 	}
 	return status;
 }
@@ -1821,9 +1807,8 @@ hub_port_resume(struct usb_hub *hub, int port1, struct usb_device *udev)
 			port1, status);
 	} else {
 		/* drive resume for at least 20 msec */
-		if (udev)
-			dev_dbg(&udev->dev, "usb %sresume\n",
-					udev->auto_pm ? "auto-" : "");
+		dev_dbg(&udev->dev, "usb %sresume\n",
+				udev->auto_pm ? "auto-" : "");
 		msleep(25);
 
 #define LIVE_FLAGS	( USB_PORT_STAT_POWER \
@@ -1851,8 +1836,7 @@ SuspendCleared:
 						USB_PORT_FEAT_C_SUSPEND);
 			/* TRSMRCY = 10 msec */
 			msleep(10);
-			if (udev)
-				status = finish_port_resume(udev);
+			status = finish_port_resume(udev);
 		}
 	}
 	if (status < 0)
@@ -1882,18 +1866,8 @@ int usb_port_resume(struct usb_device *udev)
 {
 	int	status;
 
-	/* we change the device's upstream USB link,
-	 * but root hubs have no upstream USB link.
-	 */
-	if (udev->parent) {
-		// NOTE this fails if parent is also suspended...
-		status = hub_port_resume(hdev_to_hub(udev->parent),
-				udev->portnum, udev);
-	} else {
-		dev_dbg(&udev->dev, "usb %sresume\n",
-				udev->auto_pm ? "auto-" : "");
-		status = finish_port_resume(udev);
-	}
+	status = hub_port_resume(hdev_to_hub(udev->parent),
+			udev->portnum, udev);
 	if (status < 0)
 		dev_dbg(&udev->dev, "can't resume, status %d\n", status);
 	return status;

@@ -1257,40 +1257,54 @@ rescan:
 
 #ifdef	CONFIG_PM
 
-int hcd_bus_suspend (struct usb_bus *bus)
+int hcd_bus_suspend(struct usb_device *rhdev)
 {
-	struct usb_hcd		*hcd;
-	int			status;
+	struct usb_hcd	*hcd = container_of(rhdev->bus, struct usb_hcd, self);
+	int		status;
+	int		old_state = hcd->state;
 
-	hcd = container_of (bus, struct usb_hcd, self);
-	if (!hcd->driver->bus_suspend)
-		return -ENOENT;
-	hcd->state = HC_STATE_QUIESCING;
-	status = hcd->driver->bus_suspend (hcd);
-	if (status == 0)
+	dev_dbg(&rhdev->dev, "bus %s%s\n",
+			rhdev->auto_pm ? "auto-" : "", "suspend");
+	if (!hcd->driver->bus_suspend) {
+		status = -ENOENT;
+	} else {
+		hcd->state = HC_STATE_QUIESCING;
+		status = hcd->driver->bus_suspend(hcd);
+	}
+	if (status == 0) {
+		usb_set_device_state(rhdev, USB_STATE_SUSPENDED);
 		hcd->state = HC_STATE_SUSPENDED;
-	else
-		dev_dbg(&bus->root_hub->dev, "%s fail, err %d\n",
+	} else {
+		hcd->state = old_state;
+		dev_dbg(&rhdev->dev, "bus %s fail, err %d\n",
 				"suspend", status);
+	}
 	return status;
 }
 
-int hcd_bus_resume (struct usb_bus *bus)
+int hcd_bus_resume(struct usb_device *rhdev)
 {
-	struct usb_hcd		*hcd;
-	int			status;
+	struct usb_hcd	*hcd = container_of(rhdev->bus, struct usb_hcd, self);
+	int		status;
 
-	hcd = container_of (bus, struct usb_hcd, self);
+	dev_dbg(&rhdev->dev, "usb %s%s\n",
+			rhdev->auto_pm ? "auto-" : "", "resume");
 	if (!hcd->driver->bus_resume)
 		return -ENOENT;
 	if (hcd->state == HC_STATE_RUNNING)
 		return 0;
+
 	hcd->state = HC_STATE_RESUMING;
-	status = hcd->driver->bus_resume (hcd);
-	if (status == 0)
+	status = hcd->driver->bus_resume(hcd);
+	if (status == 0) {
+		/* TRSMRCY = 10 msec */
+		msleep(10);
+		usb_set_device_state(rhdev, rhdev->actconfig
+				? USB_STATE_CONFIGURED
+				: USB_STATE_ADDRESS);
 		hcd->state = HC_STATE_RUNNING;
-	else {
-		dev_dbg(&bus->root_hub->dev, "%s fail, err %d\n",
+	} else {
+		dev_dbg(&rhdev->dev, "bus %s fail, err %d\n",
 				"resume", status);
 		usb_hc_died(hcd);
 	}
