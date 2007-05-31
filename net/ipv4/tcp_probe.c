@@ -80,7 +80,8 @@ static void printl(const char *fmt, ...)
 
 	kfifo_put(tcpw.fifo, tbuf, len);
 	wake_up(&tcpw.wait);
-}
+} __attribute__ ((format (printf, 1, 2)));
+
 
 /*
  * Hook inserted to be called before each receive packet.
@@ -95,7 +96,7 @@ static int jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 	/* Only update if port matches */
 	if ((port == 0 || ntohs(inet->dport) == port || ntohs(inet->sport) == port)
 	    && (full || tp->snd_cwnd != tcpw.lastcwnd)) {
-		printl("%d.%d.%d.%d:%u %d.%d.%d.%d:%u %d %#x %#x %u %u %u\n",
+		printl("%d.%d.%d.%d:%u %d.%d.%d.%d:%u %d %#x %#x %u %u %u %u\n",
 		       NIPQUAD(inet->saddr), ntohs(inet->sport),
 		       NIPQUAD(inet->daddr), ntohs(inet->dport),
 		       skb->len, tp->snd_nxt, tp->snd_una,

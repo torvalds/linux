@@ -237,7 +237,6 @@ extern int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo);
 extern int xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo);
 extern void km_policy_notify(struct xfrm_policy *xp, int dir, struct km_event *c);
 extern void km_state_notify(struct xfrm_state *x, struct km_event *c);
-#define XFRM_ACQ_EXPIRES	30
 
 struct xfrm_tmpl;
 extern int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol);

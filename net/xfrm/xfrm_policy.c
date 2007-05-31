@@ -26,10 +26,11 @@
 #include <net/xfrm.h>
 #include <net/ip.h>
 #include <linux/audit.h>
+#include <linux/cache.h>
 
 #include "xfrm_hash.h"
 
-int sysctl_xfrm_larval_drop;
+int sysctl_xfrm_larval_drop __read_mostly;
 
 DEFINE_MUTEX(xfrm_cfg_mutex);
 EXPORT_SYMBOL(xfrm_cfg_mutex);

@@ -619,14 +619,6 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 
 	ins = &fn->leaf;
 
-	if (fn->fn_flags&RTN_TL_ROOT &&
-	    fn->leaf == &ip6_null_entry &&
-	    !(rt->rt6i_flags & (RTF_DEFAULT | RTF_ADDRCONF)) ){
-		fn->leaf = rt;
-		rt->u.dst.rt6_next = NULL;
-		goto out;
-	}
-
 	for (iter = fn->leaf; iter; iter=iter->u.dst.rt6_next) {
 		/*
 		 *	Search for duplicates
@@ -666,7 +658,6 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 	 *	insert node
 	 */
 
-out:
 	rt->u.dst.rt6_next = iter;
 	*ins = rt;
 	rt->rt6i_node = fn;

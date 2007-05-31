@@ -21,17 +21,20 @@
 #include <linux/cache.h>
 #include <asm/uaccess.h>
 #include <linux/audit.h>
+#include <linux/cache.h>
 
 #include "xfrm_hash.h"
 
 struct sock *xfrm_nl;
 EXPORT_SYMBOL(xfrm_nl);
 
-u32 sysctl_xfrm_aevent_etime = XFRM_AE_ETIME;
+u32 sysctl_xfrm_aevent_etime __read_mostly = XFRM_AE_ETIME;
 EXPORT_SYMBOL(sysctl_xfrm_aevent_etime);
 
-u32 sysctl_xfrm_aevent_rseqth = XFRM_AE_SEQT_SIZE;
+u32 sysctl_xfrm_aevent_rseqth __read_mostly = XFRM_AE_SEQT_SIZE;
 EXPORT_SYMBOL(sysctl_xfrm_aevent_rseqth);
+
+u32 sysctl_xfrm_acq_expires __read_mostly = 30;
 
 /* Each xfrm_state may be linked to two tables:
 
@@ -622,8 +625,8 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 				h = xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto, family);
 				hlist_add_head(&x->byspi, xfrm_state_byspi+h);
 			}
-			x->lft.hard_add_expires_seconds = XFRM_ACQ_EXPIRES;
-			x->timer.expires = jiffies + XFRM_ACQ_EXPIRES*HZ;
+			x->lft.hard_add_expires_seconds = sysctl_xfrm_acq_expires;
+			x->timer.expires = jiffies + sysctl_xfrm_acq_expires*HZ;
 			add_timer(&x->timer);
 			xfrm_state_num++;
 			xfrm_hash_grow_check(x->bydst.next != NULL);
@@ -772,9 +775,9 @@ static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 re
 		x->props.family = family;
 		x->props.mode = mode;
 		x->props.reqid = reqid;
-		x->lft.hard_add_expires_seconds = XFRM_ACQ_EXPIRES;
+		x->lft.hard_add_expires_seconds = sysctl_xfrm_acq_expires;
 		xfrm_state_hold(x);
-		x->timer.expires = jiffies + XFRM_ACQ_EXPIRES*HZ;
+		x->timer.expires = jiffies + sysctl_xfrm_acq_expires*HZ;
 		add_timer(&x->timer);
 		hlist_add_head(&x->bydst, xfrm_state_bydst+h);
 		h = xfrm_src_hash(daddr, saddr, family);

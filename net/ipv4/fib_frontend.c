@@ -250,8 +250,6 @@ e_inval:
 	return -EINVAL;
 }
 
-#ifndef CONFIG_IP_NOSIOCRT
-
 static inline __be32 sk_extract_addr(struct sockaddr *addr)
 {
 	return ((struct sockaddr_in *) addr)->sin_addr.s_addr;
@@ -442,15 +440,6 @@ int ip_rt_ioctl(unsigned int cmd, void __user *arg)
 	}
 	return -EINVAL;
 }
-
-#else
-
-int ip_rt_ioctl(unsigned int cmd, void *arg)
-{
-	return -EINVAL;
-}
-
-#endif
 
 struct nla_policy rtm_ipv4_policy[RTA_MAX+1] __read_mostly = {
 	[RTA_DST]		= { .type = NLA_U32 },

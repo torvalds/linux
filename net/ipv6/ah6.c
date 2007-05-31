@@ -247,7 +247,7 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 	memcpy(tmp_base, top_iph, sizeof(tmp_base));
 
 	tmp_ext = NULL;
-	extlen = skb_transport_offset(skb) + sizeof(struct ipv6hdr);
+	extlen = skb_transport_offset(skb) - sizeof(struct ipv6hdr);
 	if (extlen) {
 		extlen += sizeof(*tmp_ext);
 		tmp_ext = kmalloc(extlen, GFP_ATOMIC);

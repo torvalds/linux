@@ -85,6 +85,8 @@ static int xfrm4_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph->saddr = x->props.saddr.a4;
 	top_iph->daddr = x->id.daddr.a4;
 
+	skb->protocol = htons(ETH_P_IP);
+
 	memset(&(IPCB(skb)->opt), 0, sizeof(struct ip_options));
 	return 0;
 }

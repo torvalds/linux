@@ -83,22 +83,6 @@
 #include <net/inet_common.h>
 #endif
 
-#define CONFIG_SOCK_PACKET	1
-
-/*
-   Proposed replacement for SIOC{ADD,DEL}MULTI and
-   IFF_PROMISC, IFF_ALLMULTI flags.
-
-   It is more expensive, but I believe,
-   it is really correct solution: reentereble, safe and fault tolerant.
-
-   IFF_PROMISC/IFF_ALLMULTI/SIOC{ADD/DEL}MULTI are faked by keeping
-   reference count and global flag, so that real status is
-   (gflag|(count != 0)), so that we can use obsolete faulty interface
-   not harming clever users.
- */
-#define CONFIG_PACKET_MULTICAST	1
-
 /*
    Assumptions:
    - if device has no dev->hard_header routine, it adds and removes ll header
@@ -159,7 +143,6 @@ static atomic_t packet_socks_nr;
 
 /* Private packet socket structures. */
 
-#ifdef CONFIG_PACKET_MULTICAST
 struct packet_mclist
 {
 	struct packet_mclist	*next;
@@ -179,7 +162,7 @@ struct packet_mreq_max
 	unsigned short	mr_alen;
 	unsigned char	mr_address[MAX_ADDR_LEN];
 };
-#endif
+
 #ifdef CONFIG_PACKET_MMAP
 static int packet_set_ring(struct sock *sk, struct tpacket_req *req, int closing);
 #endif
@@ -205,9 +188,7 @@ struct packet_sock {
 				origdev:1;
 	int			ifindex;	/* bound device		*/
 	__be16			num;
-#ifdef CONFIG_PACKET_MULTICAST
 	struct packet_mclist	*mclist;
-#endif
 #ifdef CONFIG_PACKET_MMAP
 	atomic_t		mapped;
 	unsigned int            pg_vec_order;
@@ -263,7 +244,6 @@ static void packet_sock_destruct(struct sock *sk)
 
 static const struct proto_ops packet_ops;
 
-#ifdef CONFIG_SOCK_PACKET
 static const struct proto_ops packet_ops_spkt;
 
 static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct packet_type *pt, struct net_device *orig_dev)
@@ -435,7 +415,6 @@ out_unlock:
 		dev_put(dev);
 	return err;
 }
-#endif
 
 static inline unsigned int run_filter(struct sk_buff *skb, struct sock *sk,
 				      unsigned int res)
@@ -851,9 +830,7 @@ static int packet_release(struct socket *sock)
 		__sock_put(sk);
 	}
 
-#ifdef CONFIG_PACKET_MULTICAST
 	packet_flush_mclist(sk);
-#endif
 
 #ifdef CONFIG_PACKET_MMAP
 	if (po->pg_vec) {
@@ -936,8 +913,6 @@ out_unlock:
  *	Bind a packet socket to a device
  */
 
-#ifdef CONFIG_SOCK_PACKET
-
 static int packet_bind_spkt(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 {
 	struct sock *sk=sock->sk;
@@ -960,7 +935,6 @@ static int packet_bind_spkt(struct socket *sock, struct sockaddr *uaddr, int add
 	}
 	return err;
 }
-#endif
 
 static int packet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 {
@@ -1012,11 +986,8 @@ static int packet_create(struct socket *sock, int protocol)
 
 	if (!capable(CAP_NET_RAW))
 		return -EPERM;
-	if (sock->type != SOCK_DGRAM && sock->type != SOCK_RAW
-#ifdef CONFIG_SOCK_PACKET
-	    && sock->type != SOCK_PACKET
-#endif
-	    )
+	if (sock->type != SOCK_DGRAM && sock->type != SOCK_RAW &&
+	    sock->type != SOCK_PACKET)
 		return -ESOCKTNOSUPPORT;
 
 	sock->state = SS_UNCONNECTED;
@@ -1027,10 +998,9 @@ static int packet_create(struct socket *sock, int protocol)
 		goto out;
 
 	sock->ops = &packet_ops;
-#ifdef CONFIG_SOCK_PACKET
 	if (sock->type == SOCK_PACKET)
 		sock->ops = &packet_ops_spkt;
-#endif
+
 	sock_init_data(sock, sk);
 
 	po = pkt_sk(sk);
@@ -1046,10 +1016,10 @@ static int packet_create(struct socket *sock, int protocol)
 
 	spin_lock_init(&po->bind_lock);
 	po->prot_hook.func = packet_rcv;
-#ifdef CONFIG_SOCK_PACKET
+
 	if (sock->type == SOCK_PACKET)
 		po->prot_hook.func = packet_rcv_spkt;
-#endif
+
 	po->prot_hook.af_packet_priv = sk;
 
 	if (proto) {
@@ -1169,7 +1139,6 @@ out:
 	return err;
 }
 
-#ifdef CONFIG_SOCK_PACKET
 static int packet_getname_spkt(struct socket *sock, struct sockaddr *uaddr,
 			       int *uaddr_len, int peer)
 {
@@ -1190,7 +1159,6 @@ static int packet_getname_spkt(struct socket *sock, struct sockaddr *uaddr,
 
 	return 0;
 }
-#endif
 
 static int packet_getname(struct socket *sock, struct sockaddr *uaddr,
 			  int *uaddr_len, int peer)
@@ -1221,7 +1189,6 @@ static int packet_getname(struct socket *sock, struct sockaddr *uaddr,
 	return 0;
 }
 
-#ifdef CONFIG_PACKET_MULTICAST
 static void packet_dev_mc(struct net_device *dev, struct packet_mclist *i, int what)
 {
 	switch (i->type) {
@@ -1349,7 +1316,6 @@ static void packet_flush_mclist(struct sock *sk)
 	}
 	rtnl_unlock();
 }
-#endif
 
 static int
 packet_setsockopt(struct socket *sock, int level, int optname, char __user *optval, int optlen)
@@ -1362,7 +1328,6 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 		return -ENOPROTOOPT;
 
 	switch(optname)	{
-#ifdef CONFIG_PACKET_MULTICAST
 	case PACKET_ADD_MEMBERSHIP:
 	case PACKET_DROP_MEMBERSHIP:
 	{
@@ -1383,7 +1348,7 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 			ret = packet_mc_drop(sk, &mreq);
 		return ret;
 	}
-#endif
+
 #ifdef CONFIG_PACKET_MMAP
 	case PACKET_RX_RING:
 	{
@@ -1506,11 +1471,10 @@ static int packet_notifier(struct notifier_block *this, unsigned long msg, void 
 
 		switch (msg) {
 		case NETDEV_UNREGISTER:
-#ifdef CONFIG_PACKET_MULTICAST
 			if (po->mclist)
 				packet_dev_mclist(dev, po->mclist, -1);
-			// fallthrough
-#endif
+			/* fallthrough */
+
 		case NETDEV_DOWN:
 			if (dev->ifindex == po->ifindex) {
 				spin_lock(&po->bind_lock);
@@ -1856,7 +1820,6 @@ out:
 #endif
 
 
-#ifdef CONFIG_SOCK_PACKET
 static const struct proto_ops packet_ops_spkt = {
 	.family =	PF_PACKET,
 	.owner =	THIS_MODULE,
@@ -1877,7 +1840,6 @@ static const struct proto_ops packet_ops_spkt = {
 	.mmap =		sock_no_mmap,
 	.sendpage =	sock_no_sendpage,
 };
-#endif
 
 static const struct proto_ops packet_ops = {
 	.family =	PF_PACKET,

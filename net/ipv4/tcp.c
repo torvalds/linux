@@ -1674,9 +1674,8 @@ adjudge_to_death:
 	}
 	if (sk->sk_state != TCP_CLOSE) {
 		sk_stream_mem_reclaim(sk);
-		if (atomic_read(sk->sk_prot->orphan_count) > sysctl_tcp_max_orphans ||
-		    (sk->sk_wmem_queued > SOCK_MIN_SNDBUF &&
-		     atomic_read(&tcp_memory_allocated) > sysctl_tcp_mem[2])) {
+		if (tcp_too_many_orphans(sk,
+				atomic_read(sk->sk_prot->orphan_count))) {
 			if (net_ratelimit())
 				printk(KERN_INFO "TCP: too many of orphaned "
 				       "sockets\n");
