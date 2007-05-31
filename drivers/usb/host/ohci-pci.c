@@ -111,6 +111,18 @@ static int ohci_quirk_toshiba_scc(struct usb_hcd *hcd)
 #endif
 }
 
+/* Check for NEC chip and apply quirk for allegedly lost interrupts.
+ */
+static int ohci_quirk_nec(struct usb_hcd *hcd)
+{
+	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
+
+	ohci->flags |= OHCI_QUIRK_NEC;
+	ohci_dbg (ohci, "enabled NEC chipset lost interrupt quirk\n");
+
+	return 0;
+}
+
 /* List of quirks for OHCI */
 static const struct pci_device_id ohci_pci_quirks[] = {
 	{
@@ -132,6 +144,10 @@ static const struct pci_device_id ohci_pci_quirks[] = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA_2, 0x01b6),
 		.driver_data = (unsigned long)ohci_quirk_toshiba_scc,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_NEC, PCI_DEVICE_ID_NEC_USB),
+		.driver_data = (unsigned long)ohci_quirk_nec,
 	},
 	{
 		/* Toshiba portege 4000 */

@@ -35,6 +35,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 #include <linux/reboot.h>
+#include <linux/workqueue.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -82,6 +83,8 @@ static const char	hcd_name [] = "ohci_hcd";
 static void ohci_dump (struct ohci_hcd *ohci, int verbose);
 static int ohci_init (struct ohci_hcd *ohci);
 static void ohci_stop (struct usb_hcd *hcd);
+static int ohci_restart (struct ohci_hcd *ohci);
+static void ohci_quirk_nec_worker (struct work_struct *work);
 
 #include "ohci-hub.c"
 #include "ohci-dbg.c"
@@ -651,9 +654,20 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	}
 
 	if (ints & OHCI_INTR_UE) {
-		disable (ohci);
-		ohci_err (ohci, "OHCI Unrecoverable Error, disabled\n");
 		// e.g. due to PCI Master/Target Abort
+		if (ohci->flags & OHCI_QUIRK_NEC) {
+			/* Workaround for a silicon bug in some NEC chips used
+			 * in Apple's PowerBooks. Adapted from Darwin code.
+			 */
+			ohci_err (ohci, "OHCI Unrecoverable Error, scheduling NEC chip restart\n");
+
+			ohci_writel (ohci, OHCI_INTR_UE, &regs->intrdisable);
+
+			schedule_work (&ohci->nec_work);
+		} else {
+			disable (ohci);
+			ohci_err (ohci, "OHCI Unrecoverable Error, disabled\n");
+		}
 
 		ohci_dump (ohci, 1);
 		ohci_usb_reset (ohci);
@@ -755,23 +769,16 @@ static void ohci_stop (struct usb_hcd *hcd)
 /*-------------------------------------------------------------------------*/
 
 /* must not be called from interrupt context */
-
-#ifdef	CONFIG_PM
-
 static int ohci_restart (struct ohci_hcd *ohci)
 {
 	int temp;
 	int i;
 	struct urb_priv *priv;
 
-	/* mark any devices gone, so they do nothing till khubd disconnects.
-	 * recycle any "live" eds/tds (and urbs) right away.
-	 * later, khubd disconnect processing will recycle the other state,
-	 * (either as disconnect/reconnect, or maybe someday as a reset).
-	 */
 	spin_lock_irq(&ohci->lock);
 	disable (ohci);
-	usb_root_hub_lost_power(ohci_to_hcd(ohci)->self.root_hub);
+
+	/* Recycle any "live" eds/tds (and urbs). */
 	if (!list_empty (&ohci->pending))
 		ohci_dbg(ohci, "abort schedule...\n");
 	list_for_each_entry (priv, &ohci->pending, pending) {
@@ -822,7 +829,27 @@ static int ohci_restart (struct ohci_hcd *ohci)
 	ohci_dbg(ohci, "restart complete\n");
 	return 0;
 }
-#endif
+
+/*-------------------------------------------------------------------------*/
+
+/* NEC workaround */
+static void ohci_quirk_nec_worker(struct work_struct *work)
+{
+	struct ohci_hcd *ohci = container_of(work, struct ohci_hcd, nec_work);
+	int status;
+
+	status = ohci_init(ohci);
+	if (status != 0) {
+		ohci_err(ohci, "Restarting NEC controller failed "
+			 "in ohci_init, %d\n", status);
+		return;
+	}
+
+	status = ohci_restart(ohci);
+	if (status != 0)
+		ohci_err(ohci, "Restarting NEC controller failed "
+			 "in ohci_restart, %d\n", status);
+}
 
 /*-------------------------------------------------------------------------*/
 
