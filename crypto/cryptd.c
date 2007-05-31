@@ -298,7 +298,7 @@ static inline int cryptd_create_thread(struct cryptd_state *state,
 	mutex_init(&state->mutex);
 	crypto_init_queue(&state->queue, CRYPTD_MAX_QLEN);
 
-	state->task = kthread_create(fn, state, name);
+	state->task = kthread_run(fn, state, name);
 	if (IS_ERR(state->task))
 		return PTR_ERR(state->task);
 
@@ -315,6 +315,8 @@ static int cryptd_thread(void *data)
 {
 	struct cryptd_state *state = data;
 	int stop;
+
+	current->flags |= PF_NOFREEZE;
 
 	do {
 		struct crypto_async_request *req, *backlog;
