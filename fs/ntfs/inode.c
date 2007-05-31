@@ -140,7 +140,7 @@ static int ntfs_init_locked_inode(struct inode *vi, ntfs_attr *na)
 		if (!ni->name)
 			return -ENOMEM;
 		memcpy(ni->name, na->name, i);
-		ni->name[i] = 0;
+		ni->name[na->name_len] = 0;
 	}
 	return 0;
 }
