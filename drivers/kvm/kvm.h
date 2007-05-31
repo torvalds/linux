@@ -265,6 +265,65 @@ struct kvm_stat {
 	u32 efer_reload;
 };
 
+struct kvm_io_device {
+	void (*read)(struct kvm_io_device *this,
+		     gpa_t addr,
+		     int len,
+		     void *val);
+	void (*write)(struct kvm_io_device *this,
+		      gpa_t addr,
+		      int len,
+		      const void *val);
+	int (*in_range)(struct kvm_io_device *this, gpa_t addr);
+	void (*destructor)(struct kvm_io_device *this);
+
+	void             *private;
+};
+
+static inline void kvm_iodevice_read(struct kvm_io_device *dev,
+				     gpa_t addr,
+				     int len,
+				     void *val)
+{
+	dev->read(dev, addr, len, val);
+}
+
+static inline void kvm_iodevice_write(struct kvm_io_device *dev,
+				      gpa_t addr,
+				      int len,
+				      const void *val)
+{
+	dev->write(dev, addr, len, val);
+}
+
+static inline int kvm_iodevice_inrange(struct kvm_io_device *dev, gpa_t addr)
+{
+	return dev->in_range(dev, addr);
+}
+
+static inline void kvm_iodevice_destructor(struct kvm_io_device *dev)
+{
+	dev->destructor(dev);
+}
+
+/*
+ * It would be nice to use something smarter than a linear search, TBD...
+ * Thankfully we dont expect many devices to register (famous last words :),
+ * so until then it will suffice.  At least its abstracted so we can change
+ * in one place.
+ */
+struct kvm_io_bus {
+	int                   dev_count;
+#define NR_IOBUS_DEVS 6
+	struct kvm_io_device *devs[NR_IOBUS_DEVS];
+};
+
+void kvm_io_bus_init(struct kvm_io_bus *bus);
+void kvm_io_bus_destroy(struct kvm_io_bus *bus);
+struct kvm_io_device *kvm_io_bus_find_dev(struct kvm_io_bus *bus, gpa_t addr);
+void kvm_io_bus_register_dev(struct kvm_io_bus *bus,
+			     struct kvm_io_device *dev);
+
 struct kvm_vcpu {
 	struct kvm *kvm;
 	union {
@@ -393,6 +452,7 @@ struct kvm {
 	unsigned long rmap_overflow;
 	struct list_head vm_list;
 	struct file *filp;
+	struct kvm_io_bus mmio_bus;
 };
 
 struct descriptor_table {

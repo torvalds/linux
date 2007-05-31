@@ -366,6 +366,7 @@ static struct kvm *kvm_create_vm(void)
 	spin_lock(&kvm_lock);
 	list_add(&kvm->vm_list, &vm_list);
 	spin_unlock(&kvm_lock);
+	kvm_io_bus_init(&kvm->mmio_bus);
 	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
 		struct kvm_vcpu *vcpu = &kvm->vcpus[i];
 
@@ -474,6 +475,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	spin_lock(&kvm_lock);
 	list_del(&kvm->vm_list);
 	spin_unlock(&kvm_lock);
+	kvm_io_bus_destroy(&kvm->mmio_bus);
 	kvm_free_vcpus(kvm);
 	kvm_free_physmem(kvm);
 	kfree(kvm);
@@ -1097,12 +1099,25 @@ static int emulator_write_std(unsigned long addr,
 	return X86EMUL_UNHANDLEABLE;
 }
 
+static struct kvm_io_device *vcpu_find_mmio_dev(struct kvm_vcpu *vcpu,
+						gpa_t addr)
+{
+	/*
+	 * Note that its important to have this wrapper function because
+	 * in the very near future we will be checking for MMIOs against
+	 * the LAPIC as well as the general MMIO bus
+	 */
+	return kvm_io_bus_find_dev(&vcpu->kvm->mmio_bus, addr);
+}
+
 static int emulator_read_emulated(unsigned long addr,
 				  void *val,
 				  unsigned int bytes,
 				  struct x86_emulate_ctxt *ctxt)
 {
-	struct kvm_vcpu *vcpu = ctxt->vcpu;
+	struct kvm_vcpu      *vcpu = ctxt->vcpu;
+	struct kvm_io_device *mmio_dev;
+	gpa_t                 gpa;
 
 	if (vcpu->mmio_read_completed) {
 		memcpy(val, vcpu->mmio_data, bytes);
@@ -1111,18 +1126,26 @@ static int emulator_read_emulated(unsigned long addr,
 	} else if (emulator_read_std(addr, val, bytes, ctxt)
 		   == X86EMUL_CONTINUE)
 		return X86EMUL_CONTINUE;
-	else {
-		gpa_t gpa = vcpu->mmu.gva_to_gpa(vcpu, addr);
 
-		if (gpa == UNMAPPED_GVA)
-			return X86EMUL_PROPAGATE_FAULT;
-		vcpu->mmio_needed = 1;
-		vcpu->mmio_phys_addr = gpa;
-		vcpu->mmio_size = bytes;
-		vcpu->mmio_is_write = 0;
+	gpa = vcpu->mmu.gva_to_gpa(vcpu, addr);
+	if (gpa == UNMAPPED_GVA)
+		return X86EMUL_PROPAGATE_FAULT;
 
-		return X86EMUL_UNHANDLEABLE;
+	/*
+	 * Is this MMIO handled locally?
+	 */
+	mmio_dev = vcpu_find_mmio_dev(vcpu, gpa);
+	if (mmio_dev) {
+		kvm_iodevice_read(mmio_dev, gpa, bytes, val);
+		return X86EMUL_CONTINUE;
 	}
+
+	vcpu->mmio_needed = 1;
+	vcpu->mmio_phys_addr = gpa;
+	vcpu->mmio_size = bytes;
+	vcpu->mmio_is_write = 0;
+
+	return X86EMUL_UNHANDLEABLE;
 }
 
 static int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
@@ -1150,8 +1173,9 @@ static int emulator_write_emulated(unsigned long addr,
 				   unsigned int bytes,
 				   struct x86_emulate_ctxt *ctxt)
 {
-	struct kvm_vcpu *vcpu = ctxt->vcpu;
-	gpa_t gpa = vcpu->mmu.gva_to_gpa(vcpu, addr);
+	struct kvm_vcpu      *vcpu = ctxt->vcpu;
+	struct kvm_io_device *mmio_dev;
+	gpa_t                 gpa = vcpu->mmu.gva_to_gpa(vcpu, addr);
 
 	if (gpa == UNMAPPED_GVA) {
 		kvm_arch_ops->inject_page_fault(vcpu, addr, 2);
@@ -1160,6 +1184,15 @@ static int emulator_write_emulated(unsigned long addr,
 
 	if (emulator_write_phys(vcpu, gpa, val, bytes))
 		return X86EMUL_CONTINUE;
+
+	/*
+	 * Is this MMIO handled locally?
+	 */
+	mmio_dev = vcpu_find_mmio_dev(vcpu, gpa);
+	if (mmio_dev) {
+		kvm_iodevice_write(mmio_dev, gpa, bytes, val);
+		return X86EMUL_CONTINUE;
+	}
 
 	vcpu->mmio_needed = 1;
 	vcpu->mmio_phys_addr = gpa;
@@ -3029,6 +3062,43 @@ static int kvm_cpu_hotplug(struct notifier_block *notifier, unsigned long val,
 		break;
 	}
 	return NOTIFY_OK;
+}
+
+void kvm_io_bus_init(struct kvm_io_bus *bus)
+{
+	memset(bus, 0, sizeof(*bus));
+}
+
+void kvm_io_bus_destroy(struct kvm_io_bus *bus)
+{
+	int i;
+
+	for (i = 0; i < bus->dev_count; i++) {
+		struct kvm_io_device *pos = bus->devs[i];
+
+		kvm_iodevice_destructor(pos);
+	}
+}
+
+struct kvm_io_device *kvm_io_bus_find_dev(struct kvm_io_bus *bus, gpa_t addr)
+{
+	int i;
+
+	for (i = 0; i < bus->dev_count; i++) {
+		struct kvm_io_device *pos = bus->devs[i];
+
+		if (pos->in_range(pos, addr))
+			return pos;
+	}
+
+	return NULL;
+}
+
+void kvm_io_bus_register_dev(struct kvm_io_bus *bus, struct kvm_io_device *dev)
+{
+	BUG_ON(bus->dev_count > (NR_IOBUS_DEVS-1));
+
+	bus->devs[bus->dev_count++] = dev;
 }
 
 static struct notifier_block kvm_cpu_notifier = {
