@@ -11,6 +11,7 @@
  * Copyright (C) 2000, 01 MIPS Technologies, Inc.
  * Copyright (C) 2002, 2003, 2004, 2005  Maciej W. Rozycki
  */
+#include <linux/bug.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -1190,8 +1191,8 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 
 		memcpy (b, &except_vec_vi, handler_len);
 #ifdef CONFIG_MIPS_MT_SMTC
-		if (n > 7)
-			printk("Vector index %d exceeds SMTC maximum\n", n);
+		BUG_ON(n > 7);	/* Vector index %d exceeds SMTC maximum. */
+
 		w = (u32 *)(b + mori_offset);
 		*w = (*w & 0xffff0000) | (0x100 << n);
 #endif /* CONFIG_MIPS_MT_SMTC */
