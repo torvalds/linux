@@ -240,17 +240,6 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 
 	spte |= paddr;
 
-	if (!write_fault && (spte & PT_SHADOW_USER_MASK) &&
-	    !(spte & PT_USER_MASK)) {
-		/*
-		 * If supervisor write protect is disabled, we shadow kernel
-		 * pages as user pages so we can trap the write access.
-		 */
-		spte |= PT_USER_MASK;
-		spte &= ~PT_WRITABLE_MASK;
-		access_bits &= ~PT_WRITABLE_MASK;
-	}
-
 	if ((access_bits & PT_WRITABLE_MASK)
 	    || (write_fault && !is_write_protection(vcpu) && !user_fault)) {
 		struct kvm_mmu_page *shadow;
