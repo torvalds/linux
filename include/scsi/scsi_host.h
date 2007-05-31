@@ -671,6 +671,10 @@ struct Scsi_Host {
 #define shost_printk(prefix, shost, fmt, a...)	\
 	dev_printk(prefix, &(shost)->shost_gendev, fmt, ##a)
 
+static inline void *shost_priv(struct Scsi_Host *shost)
+{
+	return (void *)shost->hostdata;
+}
 
 int scsi_is_host_device(const struct device *);
 
