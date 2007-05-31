@@ -27,6 +27,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/module.h>
+
 #define get_user_page(vaddr)		__get_free_page(GFP_KERNEL)
 #define free_user_page(page, addr)	free_page(addr)
 
@@ -114,14 +116,35 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #ifndef __ASSEMBLY__
 
+extern unsigned long m68k_memoffset;
+
 #ifndef CONFIG_SUN3
 
 #define WANT_PAGE_VIRTUAL
 #ifdef CONFIG_SINGLE_MEMORY_CHUNK
-extern unsigned long m68k_memoffset;
 
-#define __pa(vaddr)		((unsigned long)(vaddr)+m68k_memoffset)
-#define __va(paddr)		((void *)((unsigned long)(paddr)-m68k_memoffset))
+static inline unsigned long ___pa(void *vaddr)
+{
+	unsigned long paddr;
+	asm (
+		"1:	addl #0,%0\n"
+		m68k_fixup(%c2, 1b+2)
+		: "=r" (paddr)
+		: "0" (vaddr), "i" (m68k_fixup_memoffset));
+	return paddr;
+}
+#define __pa(vaddr)    ___pa((void *)(vaddr))
+static inline void *__va(unsigned long paddr)
+{
+	void *vaddr;
+	asm (
+		"1:	subl #0,%0\n"
+		m68k_fixup(%c2, 1b+2)
+		: "=r" (vaddr)
+		: "0" (paddr), "i" (m68k_fixup_memoffset));
+	return vaddr;
+}
+
 #else
 #define __pa(vaddr)		virt_to_phys((void *)(vaddr))
 #define __va(paddr)		phys_to_virt((unsigned long)(paddr))

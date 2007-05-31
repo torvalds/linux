@@ -222,6 +222,9 @@ void __init paging_init(void)
 			pgprot_val(protection_map[i]) |= _PAGE_CACHE040;
 	}
 
+	module_fixup(NULL, __start_fixup, __stop_fixup);
+	flush_icache();
+
 	/*
 	 * Map the physical memory available into the kernel virtual
 	 * address space.  It may allocate some memory for page
