@@ -14,8 +14,8 @@
 	*(.data)							\
 	*(.data.init.refok)
 
-#define RODATA								\
-	. = ALIGN(4096);						\
+#define RO_DATA(align)							\
+	. = ALIGN((align));						\
 	.rodata           : AT(ADDR(.rodata) - LOAD_OFFSET) {		\
 		VMLINUX_SYMBOL(__start_rodata) = .;			\
 		*(.rodata) *(.rodata.*)					\
@@ -135,7 +135,11 @@
 		VMLINUX_SYMBOL(__end_rodata) = .;			\
 	}								\
 									\
-	. = ALIGN(4096);
+	. = ALIGN((align));
+
+/* RODATA provided for backward compatibility.
+ * All archs are supposed to use RO_DATA() */
+#define RODATA RO_DATA(4096)
 
 #define SECURITY_INIT							\
 	.security_initcall.init : AT(ADDR(.security_initcall.init) - LOAD_OFFSET) { \
