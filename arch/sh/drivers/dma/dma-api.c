@@ -16,6 +16,7 @@
 #include <linux/list.h>
 #include <linux/platform_device.h>
 #include <linux/mm.h>
+#include <linux/sched.h>
 #include <asm/dma.h>
 
 DEFINE_SPINLOCK(dma_spin_lock);
