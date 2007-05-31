@@ -688,6 +688,12 @@ ccw_device_disband_done(struct ccw_device *cdev, int err)
 		ccw_device_done(cdev, DEV_STATE_BOXED);
 		break;
 	default:
+		cdev->private->flags.donotify = 0;
+		if (get_device(&cdev->dev)) {
+			PREPARE_WORK(&cdev->private->kick_work,
+				     ccw_device_call_sch_unregister);
+			queue_work(ccw_device_work, &cdev->private->kick_work);
+		}
 		ccw_device_done(cdev, DEV_STATE_NOT_OPER);
 		break;
 	}

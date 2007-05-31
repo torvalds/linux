@@ -296,30 +296,57 @@ static void ccw_device_unregister(struct ccw_device *cdev)
 		device_del(&cdev->dev);
 }
 
-static void
-ccw_device_remove_disconnected(struct ccw_device *cdev)
+static void ccw_device_remove_orphan_cb(struct device *dev)
+{
+	struct ccw_device *cdev = to_ccwdev(dev);
+
+	ccw_device_unregister(cdev);
+	put_device(&cdev->dev);
+}
+
+static void ccw_device_remove_sch_cb(struct device *dev)
 {
 	struct subchannel *sch;
-	unsigned long flags;
-	/*
-	 * Forced offline in disconnected state means
-	 * 'throw away device'.
-	 */
-	if (ccw_device_is_orphan(cdev)) {
-		/* Deregister ccw device. */
-		spin_lock_irqsave(cdev->ccwlock, flags);
-		cdev->private->state = DEV_STATE_NOT_OPER;
-		spin_unlock_irqrestore(cdev->ccwlock, flags);
-		ccw_device_unregister(cdev);
-		put_device(&cdev->dev);
-		return ;
-	}
-	sch = to_subchannel(cdev->dev.parent);
+
+	sch = to_subchannel(dev);
 	css_sch_device_unregister(sch);
 	/* Reset intparm to zeroes. */
 	sch->schib.pmcw.intparm = 0;
 	cio_modify(sch);
 	put_device(&sch->dev);
+}
+
+static void
+ccw_device_remove_disconnected(struct ccw_device *cdev)
+{
+	unsigned long flags;
+	int rc;
+
+	/*
+	 * Forced offline in disconnected state means
+	 * 'throw away device'.
+	 */
+	if (ccw_device_is_orphan(cdev)) {
+		/*
+		 * Deregister ccw device.
+		 * Unfortunately, we cannot do this directly from the
+		 * attribute method.
+		 */
+		spin_lock_irqsave(cdev->ccwlock, flags);
+		cdev->private->state = DEV_STATE_NOT_OPER;
+		spin_unlock_irqrestore(cdev->ccwlock, flags);
+		rc = device_schedule_callback(&cdev->dev,
+					      ccw_device_remove_orphan_cb);
+		if (rc)
+			dev_info(&cdev->dev, "Couldn't unregister orphan\n");
+		return;
+	}
+	/* Deregister subchannel, which will kill the ccw device. */
+	rc = device_schedule_callback(cdev->dev.parent,
+				      ccw_device_remove_sch_cb);
+	if (rc)
+		dev_info(&cdev->dev,
+			 "Couldn't unregister disconnected device\n");
 }
 
 int
