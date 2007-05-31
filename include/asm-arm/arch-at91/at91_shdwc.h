@@ -14,8 +14,8 @@
 #define AT91_SHDWC_H
 
 #define AT91_SHDW_CR		(AT91_SHDWC + 0x00)	/* Shut Down Control Register */
-#define		AT91_SHDW_SHDW		(1    << 0)		/* Processor Reset */
-#define		AT91_SHDW_KEY		(0xff << 24)		/* KEY Password */
+#define		AT91_SHDW_SHDW		(1    << 0)		/* Shut Down command */
+#define		AT91_SHDW_KEY		(0xa5 << 24)		/* KEY Password */
 
 #define AT91_SHDW_MR		(AT91_SHDWC + 0x04)	/* Shut Down Mode Register */
 #define		AT91_SHDW_WKMODE0	(3 << 0)		/* Wake-up 0 Mode Selection */
