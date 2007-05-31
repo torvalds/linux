@@ -384,8 +384,6 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	}
 
 	if (walker->level == PT_DIRECTORY_LEVEL) {
-		if (prev_shadow_ent)
-			*prev_shadow_ent |= PT_SHADOW_PS_MARK;
 		FNAME(set_pde)(vcpu, guest_ent, shadow_ent,
 			       walker->inherited_ar, user_fault, write_fault,
 			       ptwrite, walker, walker->gfn);
