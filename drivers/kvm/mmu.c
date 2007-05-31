@@ -731,6 +731,17 @@ static int kvm_mmu_unprotect_page(struct kvm_vcpu *vcpu, gfn_t gfn)
 	return r;
 }
 
+static void mmu_unshadow(struct kvm_vcpu *vcpu, gfn_t gfn)
+{
+	struct kvm_mmu_page *page;
+
+	while ((page = kvm_mmu_lookup_page(vcpu, gfn)) != NULL) {
+		pgprintk("%s: zap %lx %x\n",
+			 __FUNCTION__, gfn, page->role.word);
+		kvm_mmu_zap_page(vcpu, page);
+	}
+}
+
 static void page_header_update_slot(struct kvm *kvm, void *pte, gpa_t gpa)
 {
 	int slot = memslot_id(kvm, gfn_to_memslot(kvm, gpa >> PAGE_SHIFT));
