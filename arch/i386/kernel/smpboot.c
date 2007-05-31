@@ -943,10 +943,9 @@ exit:
 
 static void smp_tune_scheduling(void)
 {
-	unsigned long cachesize;       /* kB   */
-
 	if (cpu_khz) {
-		cachesize = boot_cpu_data.x86_cache_size;
+		/* cache size in kB */
+		long cachesize = boot_cpu_data.x86_cache_size;
 
 		if (cachesize > 0)
 			max_cache_size = cachesize * 1024;
