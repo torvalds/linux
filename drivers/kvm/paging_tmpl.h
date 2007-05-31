@@ -218,6 +218,7 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 		FNAME(mark_pagetable_dirty)(vcpu->kvm, walker);
 	}
 
+	*shadow_pte |= *gpte & PT_PTE_COPY_MASK;
 	*shadow_pte |= access_bits << PT_SHADOW_BITS_OFFSET;
 	if (!dirty)
 		access_bits &= ~PT_WRITABLE_MASK;
@@ -288,7 +289,6 @@ static void FNAME(set_pte)(struct kvm_vcpu *vcpu, pt_element_t *gpte,
 			   struct guest_walker *walker, gfn_t gfn)
 {
 	access_bits &= *gpte;
-	*shadow_pte |= (*gpte & PT_PTE_COPY_MASK);
 	FNAME(set_pte_common)(vcpu, shadow_pte, *gpte & PT_BASE_ADDR_MASK,
 			      gpte, access_bits, user_fault, write_fault,
 			      ptwrite, walker, gfn);
@@ -322,7 +322,6 @@ static void FNAME(set_pde)(struct kvm_vcpu *vcpu, pt_element_t *gpde,
 	if (PTTYPE == 32 && is_cpuid_PSE36())
 		gaddr |= (*gpde & PT32_DIR_PSE36_MASK) <<
 			(32 - PT32_DIR_PSE36_SHIFT);
-	*shadow_pte |= *gpde & PT_PTE_COPY_MASK;
 	FNAME(set_pte_common)(vcpu, shadow_pte, gaddr,
 			      gpde, access_bits, user_fault, write_fault,
 			      ptwrite, walker, gfn);
