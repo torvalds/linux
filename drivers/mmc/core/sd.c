@@ -15,6 +15,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/mmc.h>
+#include <linux/mmc/sd.h>
 
 #include "core.h"
 #include "sysfs.h"
@@ -192,6 +193,16 @@ static int mmc_read_switch(struct mmc_card *card)
 	int err;
 	u8 *status;
 
+	if (card->scr.sda_vsn < SCR_SPEC_VER_1)
+		return MMC_ERR_NONE;
+
+	if (!(card->csd.cmdclass & CCC_SWITCH)) {
+		printk(KERN_WARNING "%s: card lacks mandatory switch "
+			"function, performance might suffer.\n",
+			mmc_hostname(card->host));
+		return MMC_ERR_NONE;
+	}
+
 	err = MMC_ERR_FAILED;
 
 	status = kmalloc(64, GFP_KERNEL);
@@ -204,10 +215,9 @@ static int mmc_read_switch(struct mmc_card *card)
 
 	err = mmc_sd_switch(card, 0, 0, 1, status);
 	if (err != MMC_ERR_NONE) {
-		/*
-		 * Card not supporting high-speed will ignore the
-		 * command.
-		 */
+		printk(KERN_WARNING "%s: problem reading switch "
+			"capabilities, performance might suffer.\n",
+			mmc_hostname(card->host));
 		err = MMC_ERR_NONE;
 		goto out;
 	}
@@ -228,6 +238,12 @@ static int mmc_switch_hs(struct mmc_card *card)
 {
 	int err;
 	u8 *status;
+
+	if (card->scr.sda_vsn < SCR_SPEC_VER_1)
+		return MMC_ERR_NONE;
+
+	if (!(card->csd.cmdclass & CCC_SWITCH))
+		return MMC_ERR_NONE;
 
 	if (!(card->host->caps & MMC_CAP_SD_HIGHSPEED))
 		return MMC_ERR_NONE;
