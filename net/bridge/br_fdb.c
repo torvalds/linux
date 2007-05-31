@@ -121,6 +121,7 @@ void br_fdb_cleanup(unsigned long _data)
 {
 	struct net_bridge *br = (struct net_bridge *)_data;
 	unsigned long delay = hold_time(br);
+	unsigned long next_timer = jiffies + br->forward_delay;
 	int i;
 
 	spin_lock_bh(&br->hash_lock);
@@ -129,14 +130,21 @@ void br_fdb_cleanup(unsigned long _data)
 		struct hlist_node *h, *n;
 
 		hlist_for_each_entry_safe(f, h, n, &br->hash[i], hlist) {
-			if (!f->is_static &&
-			    time_before_eq(f->ageing_timer + delay, jiffies))
+			unsigned long this_timer;
+			if (f->is_static)
+				continue;
+			this_timer = f->ageing_timer + delay;
+			if (time_before_eq(this_timer, jiffies))
 				fdb_delete(f);
+			else if (this_timer < next_timer)
+				next_timer = this_timer;
 		}
 	}
 	spin_unlock_bh(&br->hash_lock);
 
-	mod_timer(&br->gc_timer, jiffies + HZ/10);
+	/* Add HZ/4 to ensure we round the jiffies upwards to be after the next
+	 * timer, otherwise we might round down and will have no-op run. */
+	mod_timer(&br->gc_timer, round_jiffies(next_timer + HZ/4));
 }
 
 /* Completely flush all dynamic entries in forwarding database.*/
