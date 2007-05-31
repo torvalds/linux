@@ -13,6 +13,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/wait.h>
+#include <linux/sched.h>
 #include <linux/sysdev.h>
 #include <asm/cpu/dma.h>
 

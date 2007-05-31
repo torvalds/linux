@@ -11,6 +11,7 @@
 #define __ASM_SH_SPINLOCK_H
 
 #include <asm/atomic.h>
+#include <asm/spinlock_types.h>
 
 /*
  * Your basic SMP spinlocks, allowing only a single CPU anywhere
@@ -42,7 +43,7 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 
 static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
-	assert_spin_locked(lock);
+	//assert_spin_locked(lock);
 
 	lock->lock = 0;
 }
@@ -86,6 +87,11 @@ static inline void __raw_write_unlock(raw_rwlock_t *rw)
 {
 	atomic_set(&rw->counter, 0);
 	__raw_spin_unlock(&rw->lock);
+}
+
+static inline int __raw_write_can_lock(raw_rwlock_t *rw)
+{
+	return (atomic_read(&rw->counter) == RW_LOCK_BIAS);
 }
 
 static inline int __raw_read_trylock(raw_rwlock_t *lock)

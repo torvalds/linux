@@ -17,6 +17,7 @@
 #include <linux/gfp.h>
 #include <linux/module.h>
 #include <linux/elf.h>
+#include <linux/sched.h>
 
 /*
  * Should the kernel map a VDSO page into processes and pass its

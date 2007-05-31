@@ -116,13 +116,13 @@ void __raw_readsl(unsigned long addr, void *data, int longlen);
  * redefined by userlevel programs.
  */
 #ifdef __readb
-# define readb(a)	({ unsigned long r_ = __raw_readb(a); mb(); r_; })
+# define readb(a)	({ unsigned int r_ = __raw_readb(a); mb(); r_; })
 #endif
 #ifdef __raw_readw
-# define readw(a)	({ unsigned long r_ = __raw_readw(a); mb(); r_; })
+# define readw(a)	({ unsigned int r_ = __raw_readw(a); mb(); r_; })
 #endif
 #ifdef __raw_readl
-# define readl(a)	({ unsigned long r_ = __raw_readl(a); mb(); r_; })
+# define readl(a)	({ unsigned int r_ = __raw_readl(a); mb(); r_; })
 #endif
 
 #ifdef __raw_writeb

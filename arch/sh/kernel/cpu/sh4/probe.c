@@ -12,6 +12,7 @@
  */
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/smp.h>
 #include <asm/processor.h>
 #include <asm/cache.h>
 

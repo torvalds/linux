@@ -13,7 +13,7 @@
 #include <linux/string.h>
 #include <asm/timer.h>
 
-static struct sys_timer *sys_timers[] __initdata = {
+static struct sys_timer *sys_timers[] = {
 #ifdef CONFIG_SH_TMU
 	&tmu_timer,
 #endif
@@ -26,7 +26,7 @@ static struct sys_timer *sys_timers[] __initdata = {
 	NULL,
 };
 
-static char timer_override[10] __initdata;
+static char timer_override[10];
 static int __init timer_setup(char *str)
 {
 	if (str)
@@ -53,4 +53,3 @@ struct sys_timer *get_sys_timer(void)
 
 	return NULL;
 }
-

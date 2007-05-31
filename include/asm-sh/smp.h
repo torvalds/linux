@@ -15,7 +15,7 @@
 
 #ifdef CONFIG_SMP
 
-#include <asm/spinlock.h>
+#include <linux/spinlock.h>
 #include <asm/atomic.h>
 #include <asm/current.h>
 
