@@ -2498,3 +2498,75 @@ sun4v_vintr_set_target:
 	retl
 	 nop
 	.size	sun4v_vintr_set_target, .-sun4v_vintr_set_target
+
+	/* %o0: NCS sub-function
+	 * %o1:	sub-function arg real-address
+	 * %o2:	sub-function arg size
+	 *
+	 * returns %o0:	status
+	 */
+	.globl	sun4v_ncs_request
+	.type	sun4v_ncs_request,#function
+sun4v_ncs_request:
+	mov	HV_FAST_NCS_REQUEST, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+	.size	sun4v_ncs_request, .-sun4v_ncs_request
+
+	.globl	sun4v_scv_send
+	.type	sun4v_scv_send,#function
+sun4v_scv_send:
+	save	%sp, -192, %sp
+	mov	%i0, %o0
+	mov	%i1, %o1
+	mov	%i2, %o2
+	mov	HV_FAST_SVC_SEND, %o5
+	ta	HV_FAST_TRAP
+	stx	%o1, [%i3]
+	ret
+	restore
+	.size	sun4v_scv_send, .-sun4v_scv_send
+
+	.globl	sun4v_scv_recv
+	.type	sun4v_scv_recv,#function
+sun4v_scv_recv:
+	save	%sp, -192, %sp
+	mov	%i0, %o0
+	mov	%i1, %o1
+	mov	%i2, %o2
+	mov	HV_FAST_SVC_RECV, %o5
+	ta	HV_FAST_TRAP
+	stx	%o1, [%i3]
+	ret
+	restore
+	.size	sun4v_scv_recv, .-sun4v_scv_recv
+
+	.globl	sun4v_scv_getstatus
+	.type	sun4v_scv_getstatus,#function
+sun4v_scv_getstatus:
+	mov	HV_FAST_SVC_GETSTATUS, %o5
+	mov	%o1, %o4
+	ta	HV_FAST_TRAP
+	stx	%o1, [%o4]
+	retl
+	 nop
+	.size	sun4v_scv_getstatus, .-sun4v_scv_getstatus
+
+	.globl	sun4v_scv_setstatus
+	.type	sun4v_scv_setstatus,#function
+sun4v_scv_setstatus:
+	mov	HV_FAST_SVC_SETSTATUS, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+	.size	sun4v_scv_setstatus, .-sun4v_scv_setstatus
+
+	.globl	sun4v_scv_clrstatus
+	.type	sun4v_scv_clrstatus,#function
+sun4v_scv_clrstatus:
+	mov	HV_FAST_SVC_CLRSTATUS, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+	.size	sun4v_scv_clrstatus, .-sun4v_scv_clrstatus

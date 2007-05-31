@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/smp_lock.h>
 #include <linux/spinlock.h>
+#include <linux/mm.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>

@@ -124,10 +124,10 @@ unsigned long __cmpxchg_u32(volatile u32 *ptr, u32 old, u32 new)
 	unsigned long flags;
 	u32 prev;
 
-	spin_lock_irqsave(ATOMIC_HASH(addr), flags);
+	spin_lock_irqsave(ATOMIC_HASH(ptr), flags);
 	if ((prev = *ptr) == old)
 		*ptr = new;
-	spin_unlock_irqrestore(ATOMIC_HASH(addr), flags);
+	spin_unlock_irqrestore(ATOMIC_HASH(ptr), flags);
 
 	return (unsigned long)prev;
 }
