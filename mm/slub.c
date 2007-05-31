@@ -2435,6 +2435,7 @@ void __init kmem_cache_init(void)
 	 */
 	create_kmalloc_cache(&kmalloc_caches[0], "kmem_cache_node",
 		sizeof(struct kmem_cache_node), GFP_KERNEL);
+	kmalloc_caches[0].refcount = -1;
 #endif
 
 	/* Able to allocate the per node structures */
@@ -2480,6 +2481,12 @@ static int slab_unmergeable(struct kmem_cache *s)
 		return 1;
 
 	if (s->ctor)
+		return 1;
+
+	/*
+	 * We may have set a slab to be unmergeable during bootstrap.
+	 */
+	if (s->refcount < 0)
 		return 1;
 
 	return 0;
