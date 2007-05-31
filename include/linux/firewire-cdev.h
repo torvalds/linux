@@ -198,13 +198,15 @@ struct fw_cdev_create_iso_context {
 	__u32 handle;
 };
 
+#define FW_CDEV_ISO_PAYLOAD_LENGTH(v)	(v)
+#define FW_CDEV_ISO_INTERRUPT		(1 << 16)
+#define FW_CDEV_ISO_SKIP		(1 << 17)
+#define FW_CDEV_ISO_TAG(v)		((v) << 18)
+#define FW_CDEV_ISO_SY(v)		((v) << 20)
+#define FW_CDEV_ISO_HEADER_LENGTH(v)	((v) << 24)
+
 struct fw_cdev_iso_packet {
-	__u16 payload_length;	/* Length of indirect payload. */
-	__u32 interrupt : 1;	/* Generate interrupt on this packet */
-	__u32 skip : 1;		/* Set to not send packet at all. */
-	__u32 tag : 2;
-	__u32 sy : 4;
-	__u32 header_length : 8;	/* Length of immediate header. */
+	__u32 control;
 	__u32 header[0];
 };
 
