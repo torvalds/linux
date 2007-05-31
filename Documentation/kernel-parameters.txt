@@ -1132,9 +1132,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			when set.
 			Format: <int>
 
-	noaliencache	[MM, NUMA] Disables the allcoation of alien caches in
-			the slab allocator.  Saves per-node memory, but will
-			impact performance on real NUMA hardware.
+	noaliencache	[MM, NUMA, SLAB] Disables the allocation of alien
+			caches in the slab allocator.  Saves per-node memory,
+			but will impact performance.
 
 	noalign		[KNL,ARM]
 
@@ -1612,6 +1612,37 @@ and is between 256 and 4096 characters. It is defined in the file
 			See header of drivers/cdrom/sjcd.c.
 
 	slram=		[HW,MTD]
+
+	slub_debug	[MM, SLUB]
+			Enabling slub_debug allows one to determine the culprit
+			if slab objects become corrupted. Enabling slub_debug
+			creates guard zones around objects and poisons objects
+			when not in use. Also tracks the last alloc / free.
+			For more information see Documentation/vm/slub.txt.
+
+	slub_max_order= [MM, SLUB]
+			Determines the maximum allowed order for slabs. Setting
+			this too high may cause fragmentation.
+			For more information see Documentation/vm/slub.txt.
+
+	slub_min_objects=	[MM, SLUB]
+			The minimum objects per slab. SLUB will increase the
+			slab order up to slub_max_order to generate a
+			sufficiently big slab to satisfy the number of objects.
+			The higher the number of objects the smaller the overhead
+			of tracking slabs.
+			For more information see Documentation/vm/slub.txt.
+
+	slub_min_order=	[MM, SLUB]
+			Determines the mininum page order for slabs. Must be
+			lower than slub_max_order
+			For more information see Documentation/vm/slub.txt.
+
+	slub_nomerge	[MM, SLUB]
+			Disable merging of slabs of similar size. May be
+			necessary if there is some reason to distinguish
+			allocs to different slabs.
+			For more information see Documentation/vm/slub.txt.
 
 	smart2=		[HW]
 			Format: <io1>[,<io2>[,...,<io8>]]
