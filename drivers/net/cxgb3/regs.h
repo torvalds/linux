@@ -1218,6 +1218,13 @@
 
 #define A_TP_PROXY_FLOW_CNTL 0x4b0
 
+#define A_TP_EMBED_OP_FIELD0 0x4e8
+#define A_TP_EMBED_OP_FIELD1 0x4ec
+#define A_TP_EMBED_OP_FIELD2 0x4f0
+#define A_TP_EMBED_OP_FIELD3 0x4f4
+#define A_TP_EMBED_OP_FIELD4 0x4f8
+#define A_TP_EMBED_OP_FIELD5 0x4fc
+
 #define A_ULPRX_CTL 0x500
 
 #define S_ROUND_ROBIN    4
