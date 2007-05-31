@@ -107,22 +107,7 @@ extern void *empty_zero_page;
 /* 64-bit machines, beware!  SRB. */
 #define SIZEOF_PTR_LOG2			       2
 
-/*
- * Check if the addr/len goes up to the end of a physical
- * memory chunk.  Used for DMA functions.
- */
-#ifdef CONFIG_SINGLE_MEMORY_CHUNK
-/*
- * It makes no sense to consider whether we cross a memory boundary if
- * we support just one physical chunk of memory.
- */
-static inline int mm_end_of_chunk(unsigned long addr, int len)
-{
-	return 0;
-}
-#else
-int mm_end_of_chunk (unsigned long addr, int len);
-#endif
+#define mm_end_of_chunk(addr, len)	0
 
 extern void kernel_set_cachemode(void *addr, unsigned long size, int cmode);
 

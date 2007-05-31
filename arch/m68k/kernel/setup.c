@@ -60,14 +60,12 @@ extern unsigned long availmem;
 int m68k_num_memory;
 int m68k_realnum_memory;
 EXPORT_SYMBOL(m68k_realnum_memory);
-#ifdef CONFIG_SINGLE_MEMORY_CHUNK
 unsigned long m68k_memoffset;
 EXPORT_SYMBOL(m68k_memoffset);
-#endif
 struct mem_info m68k_memory[NUM_MEMINFO];
 EXPORT_SYMBOL(m68k_memory);
 
-static struct mem_info m68k_ramdisk;
+struct mem_info m68k_ramdisk;
 
 static char m68k_command_line[CL_SIZE];
 
@@ -208,9 +206,6 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 void __init setup_arch(char **cmdline_p)
 {
 	extern int _etext, _edata, _end;
-#ifndef CONFIG_SUN3
-	unsigned long endmem, startmem;
-#endif
 	int i;
 
 	/* The bootinfo is located right after the kernel bss */
@@ -320,30 +315,16 @@ void __init setup_arch(char **cmdline_p)
 		panic("No configuration setup");
 	}
 
+	paging_init();
+
 #ifndef CONFIG_SUN3
-	startmem= m68k_memory[0].addr;
-	endmem = startmem + m68k_memory[0].size;
-	high_memory = (void *)PAGE_OFFSET;
-	for (i = 0; i < m68k_num_memory; i++) {
-		m68k_memory[i].size &= MASK_256K;
-		if (m68k_memory[i].addr < startmem)
-			startmem = m68k_memory[i].addr;
-		if (m68k_memory[i].addr+m68k_memory[i].size > endmem)
-			endmem = m68k_memory[i].addr+m68k_memory[i].size;
-		high_memory += m68k_memory[i].size;
-	}
-
-	availmem += init_bootmem_node(NODE_DATA(0), availmem >> PAGE_SHIFT,
-				      startmem >> PAGE_SHIFT, endmem >> PAGE_SHIFT);
-
-	for (i = 0; i < m68k_num_memory; i++)
-		free_bootmem(m68k_memory[i].addr, m68k_memory[i].size);
-
-	reserve_bootmem(m68k_memory[0].addr, availmem - m68k_memory[0].addr);
-
+	for (i = 1; i < m68k_num_memory; i++)
+		free_bootmem_node(NODE_DATA(i), m68k_memory[i].addr,
+				  m68k_memory[i].size);
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (m68k_ramdisk.size) {
-		reserve_bootmem(m68k_ramdisk.addr, m68k_ramdisk.size);
+		reserve_bootmem_node(__virt_to_node(phys_to_virt(m68k_ramdisk.addr)),
+				     m68k_ramdisk.addr, m68k_ramdisk.size);
 		initrd_start = (unsigned long)phys_to_virt(m68k_ramdisk.addr);
 		initrd_end = initrd_start + m68k_ramdisk.size;
 		printk("initrd: %08lx - %08lx\n", initrd_start, initrd_end);
@@ -361,8 +342,6 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #endif /* !CONFIG_SUN3 */
-
-	paging_init();
 
 /* set ISA defs early as possible */
 #if defined(CONFIG_ISA) && defined(MULTI_ISA)

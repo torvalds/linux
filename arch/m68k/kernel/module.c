@@ -149,6 +149,9 @@ void module_fixup(struct module *mod, struct m68k_fixup_info *start,
 		case m68k_fixup_memoffset:
 			*(u32 *)fixup->addr = m68k_memoffset;
 			break;
+		case m68k_fixup_vnode_shift:
+			*(u16 *)fixup->addr += m68k_virt_to_node_shift;
+			break;
 		}
 	}
 }

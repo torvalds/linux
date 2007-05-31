@@ -2689,7 +2689,7 @@ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
 			map = alloc_bootmem_node(pgdat, size);
 		pgdat->node_mem_map = map + (pgdat->node_start_pfn - start);
 	}
-#ifdef CONFIG_FLATMEM
+#ifndef CONFIG_NEED_MULTIPLE_NODES
 	/*
 	 * With no DISCONTIG, the global mem_map is just set as node 0's
 	 */

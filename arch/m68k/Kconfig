@@ -355,8 +355,9 @@ config RMW_INSNS
 	  adventurous.
 
 config SINGLE_MEMORY_CHUNK
-	bool "Use one physical chunk of memory only"
-	depends on ADVANCED && !SUN3
+	bool "Use one physical chunk of memory only" if ADVANCED && !SUN3
+	default y if SUN3
+	select NEED_MULTIPLE_NODES
 	help
 	  Ignore all but the first contiguous chunk of physical memory for VM
 	  purposes.  This will save a few bytes kernel size and may speed up
@@ -376,6 +377,14 @@ config 060_WRITETHROUGH
 	  drivers on 68060 based systems where the 68060 bus snooping signal
 	  is hardwired on.  The 53c710 SCSI driver is known to suffer from
 	  this problem.
+
+config ARCH_DISCONTIGMEM_ENABLE
+	def_bool !SINGLE_MEMORY_CHUNK
+
+config NODES_SHIFT
+	int
+	default "3"
+	depends on !SINGLE_MEMORY_CHUNK
 
 source "mm/Kconfig"
 

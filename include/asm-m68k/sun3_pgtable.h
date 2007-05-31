@@ -132,8 +132,8 @@ static inline void pte_clear (struct mm_struct *mm, unsigned long addr, pte_t *p
 #define pfn_pte(pfn, pgprot) \
 ({ pte_t __pte; pte_val(__pte) = pfn | pgprot_val(pgprot); __pte; })
 
-#define pte_page(pte)		(mem_map+((__pte_page(pte) - PAGE_OFFSET) >> PAGE_SHIFT))
-#define pmd_page(pmd)		(mem_map+((__pmd_page(pmd) - PAGE_OFFSET) >> PAGE_SHIFT))
+#define pte_page(pte)		virt_to_page(__pte_page(pte))
+#define pmd_page(pmd)		virt_to_page(__pmd_page(pmd))
 
 
 static inline int pmd_none2 (pmd_t *pmd) { return !pmd_val (*pmd); }

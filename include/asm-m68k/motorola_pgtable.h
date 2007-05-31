@@ -130,7 +130,7 @@ static inline void pgd_set(pgd_t *pgdp, pmd_t *pmdp)
 #define pte_present(pte)	(pte_val(pte) & (_PAGE_PRESENT | _PAGE_PROTNONE))
 #define pte_clear(mm,addr,ptep)		({ pte_val(*(ptep)) = 0; })
 
-#define pte_page(pte)		(mem_map + ((unsigned long)(__va(pte_val(pte)) - PAGE_OFFSET) >> PAGE_SHIFT))
+#define pte_page(pte)		virt_to_page(__va(pte_val(pte)))
 #define pte_pfn(pte)		(pte_val(pte) >> PAGE_SHIFT)
 #define pfn_pte(pfn, prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
 
@@ -143,7 +143,7 @@ static inline void pgd_set(pgd_t *pgdp, pmd_t *pmdp)
 	while (--__i >= 0)			\
 		*__ptr++ = 0;			\
 })
-#define pmd_page(pmd)		(mem_map + ((unsigned long)(__va(pmd_val(pmd)) - PAGE_OFFSET) >> PAGE_SHIFT))
+#define pmd_page(pmd)		virt_to_page(__va(pmd_val(pmd)))
 
 
 #define pgd_none(pgd)		(!pgd_val(pgd))
@@ -223,10 +223,10 @@ static inline pte_t *pte_offset_kernel(pmd_t *pmdp, unsigned long address)
 	return (pte_t *)__pmd_page(*pmdp) + ((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1));
 }
 
-#define pte_offset_map(pmdp,address) ((pte_t *)kmap(pmd_page(*pmdp)) + ((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)))
+#define pte_offset_map(pmdp,address) ((pte_t *)__pmd_page(*pmdp) + (((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)))
 #define pte_offset_map_nested(pmdp, address) pte_offset_map(pmdp, address)
-#define pte_unmap(pte) kunmap(pte)
-#define pte_unmap_nested(pte) kunmap(pte)
+#define pte_unmap(pte)		((void)0)
+#define pte_unmap_nested(pte)	((void)0)
 
 /*
  * Allocate and free page tables. The xxx_kernel() versions are

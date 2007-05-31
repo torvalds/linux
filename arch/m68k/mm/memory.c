@@ -127,67 +127,6 @@ int free_pointer_table (pmd_t *ptable)
 	return 0;
 }
 
-#ifdef DEBUG_INVALID_PTOV
-int mm_inv_cnt = 5;
-#endif
-
-#ifndef CONFIG_SINGLE_MEMORY_CHUNK
-/*
- * The following two routines map from a physical address to a kernel
- * virtual address and vice versa.
- */
-unsigned long mm_vtop(unsigned long vaddr)
-{
-	int i=0;
-	unsigned long voff = (unsigned long)vaddr - PAGE_OFFSET;
-
-	do {
-		if (voff < m68k_memory[i].size) {
-#ifdef DEBUGPV
-			printk ("VTOP(%p)=%lx\n", vaddr,
-				m68k_memory[i].addr + voff);
-#endif
-			return m68k_memory[i].addr + voff;
-		}
-		voff -= m68k_memory[i].size;
-	} while (++i < m68k_num_memory);
-
-	/* As a special case allow `__pa(high_memory)'.  */
-	if (voff == 0)
-		return m68k_memory[i-1].addr + m68k_memory[i-1].size;
-
-	return -1;
-}
-EXPORT_SYMBOL(mm_vtop);
-
-unsigned long mm_ptov (unsigned long paddr)
-{
-	int i = 0;
-	unsigned long poff, voff = PAGE_OFFSET;
-
-	do {
-		poff = paddr - m68k_memory[i].addr;
-		if (poff < m68k_memory[i].size) {
-#ifdef DEBUGPV
-			printk ("PTOV(%lx)=%lx\n", paddr, poff + voff);
-#endif
-			return poff + voff;
-		}
-		voff += m68k_memory[i].size;
-	} while (++i < m68k_num_memory);
-
-#ifdef DEBUG_INVALID_PTOV
-	if (mm_inv_cnt > 0) {
-		mm_inv_cnt--;
-		printk("Invalid use of phys_to_virt(0x%lx) at 0x%p!\n",
-			paddr, __builtin_return_address(0));
-	}
-#endif
-	return -1;
-}
-EXPORT_SYMBOL(mm_ptov);
-#endif
-
 /* invalidate page in both caches */
 static inline void clear040(unsigned long paddr)
 {
@@ -354,15 +293,3 @@ void cache_push (unsigned long paddr, int len)
 }
 EXPORT_SYMBOL(cache_push);
 
-#ifndef CONFIG_SINGLE_MEMORY_CHUNK
-int mm_end_of_chunk (unsigned long addr, int len)
-{
-	int i;
-
-	for (i = 0; i < m68k_num_memory; i++)
-		if (m68k_memory[i].addr + m68k_memory[i].size == addr + len)
-			return 1;
-	return 0;
-}
-EXPORT_SYMBOL(mm_end_of_chunk);
-#endif

@@ -8,11 +8,12 @@
 #include <asm/virtconvert.h>
 
 
-
 #ifdef CONFIG_SUN3
 #include <asm/sun3_pgalloc.h>
 #else
 #include <asm/motorola_pgalloc.h>
 #endif
+
+extern void m68k_setup_node(int node);
 
 #endif /* M68K_PGALLOC_H */

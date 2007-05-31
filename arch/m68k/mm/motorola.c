@@ -43,6 +43,11 @@ unsigned long mm_cachebits;
 EXPORT_SYMBOL(mm_cachebits);
 #endif
 
+/* size of memory already mapped in head.S */
+#define INIT_MAPPED_SIZE	(4UL<<20)
+
+extern unsigned long availmem;
+
 static pte_t * __init kernel_page_table(void)
 {
 	pte_t *ptablep;
@@ -98,19 +103,20 @@ static pmd_t * __init kernel_ptr_table(void)
 	return last_pgtable;
 }
 
-static unsigned long __init
-map_chunk (unsigned long addr, long size)
+static void __init map_node(int node)
 {
 #define PTRTREESIZE (256*1024)
 #define ROOTTREESIZE (32*1024*1024)
-	static unsigned long virtaddr = PAGE_OFFSET;
-	unsigned long physaddr;
+	unsigned long physaddr, virtaddr, size;
 	pgd_t *pgd_dir;
 	pmd_t *pmd_dir;
 	pte_t *pte_dir;
 
-	physaddr = (addr | m68k_supervisor_cachemode |
-		    _PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_DIRTY);
+	size = m68k_memory[node].size;
+	physaddr = m68k_memory[node].addr;
+	virtaddr = (unsigned long)phys_to_virt(physaddr);
+	physaddr |= m68k_supervisor_cachemode |
+		    _PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_DIRTY;
 	if (CPU_IS_040_OR_060)
 		physaddr |= _PAGE_GLOBAL040;
 
@@ -190,8 +196,6 @@ map_chunk (unsigned long addr, long size)
 #ifdef DEBUG
 	printk("\n");
 #endif
-
-	return virtaddr;
 }
 
 /*
@@ -200,15 +204,16 @@ map_chunk (unsigned long addr, long size)
  */
 void __init paging_init(void)
 {
-	int chunk;
-	unsigned long mem_avail = 0;
 	unsigned long zones_size[MAX_NR_ZONES] = { 0, };
+	unsigned long min_addr, max_addr;
+	unsigned long addr, size, end;
+	int i;
 
 #ifdef DEBUG
 	{
 		extern unsigned long availmem;
-		printk ("start of paging_init (%p, %lx, %lx, %lx)\n",
-			kernel_pg_dir, availmem, start_mem, end_mem);
+		printk ("start of paging_init (%p, %lx)\n",
+			kernel_pg_dir, availmem);
 	}
 #endif
 
@@ -222,27 +227,62 @@ void __init paging_init(void)
 			pgprot_val(protection_map[i]) |= _PAGE_CACHE040;
 	}
 
+	min_addr = m68k_memory[0].addr;
+	max_addr = min_addr + m68k_memory[0].size;
+	for (i = 1; i < m68k_num_memory;) {
+		if (m68k_memory[i].addr < min_addr) {
+			printk("Ignoring memory chunk at 0x%lx:0x%lx before the first chunk\n",
+				m68k_memory[i].addr, m68k_memory[i].size);
+			printk("Fix your bootloader or use a memfile to make use of this area!\n");
+			m68k_num_memory--;
+			memmove(m68k_memory + i, m68k_memory + i + 1,
+				(m68k_num_memory - i) * sizeof(struct mem_info));
+			continue;
+		}
+		addr = m68k_memory[i].addr + m68k_memory[i].size;
+		if (addr > max_addr)
+			max_addr = addr;
+		i++;
+	}
+	m68k_memoffset = min_addr - PAGE_OFFSET;
+	m68k_virt_to_node_shift = fls(max_addr - min_addr - 1) - 6;
+
 	module_fixup(NULL, __start_fixup, __stop_fixup);
 	flush_icache();
 
-	/*
-	 * Map the physical memory available into the kernel virtual
-	 * address space.  It may allocate some memory for page
-	 * tables and thus modify availmem.
-	 */
+	high_memory = phys_to_virt(max_addr);
 
-	for (chunk = 0; chunk < m68k_num_memory; chunk++) {
-		mem_avail = map_chunk (m68k_memory[chunk].addr,
-				       m68k_memory[chunk].size);
+	min_low_pfn = availmem >> PAGE_SHIFT;
+	max_low_pfn = max_addr >> PAGE_SHIFT;
 
+	for (i = 0; i < m68k_num_memory; i++) {
+		addr = m68k_memory[i].addr;
+		end = addr + m68k_memory[i].size;
+		m68k_setup_node(i);
+		availmem = PAGE_ALIGN(availmem);
+		availmem += init_bootmem_node(NODE_DATA(i),
+					      availmem >> PAGE_SHIFT,
+					      addr >> PAGE_SHIFT,
+					      end >> PAGE_SHIFT);
 	}
 
+	/*
+	 * Map the physical memory available into the kernel virtual
+	 * address space. First initialize the bootmem allocator with
+	 * the memory we already mapped, so map_node() has something
+	 * to allocate.
+	 */
+	addr = m68k_memory[0].addr;
+	size = m68k_memory[0].size;
+	free_bootmem_node(NODE_DATA(0), availmem, min(INIT_MAPPED_SIZE, size) - (availmem - addr));
+	map_node(0);
+	if (size > INIT_MAPPED_SIZE)
+		free_bootmem_node(NODE_DATA(0), addr + INIT_MAPPED_SIZE, size - INIT_MAPPED_SIZE);
+
+	for (i = 1; i < m68k_num_memory; i++)
+		map_node(i);
+
 	flush_tlb_all();
-#ifdef DEBUG
-	printk ("memory available is %ldKB\n", mem_avail >> 10);
-	printk ("start_mem is %#lx\nvirtual_end is %#lx\n",
-		start_mem, end_mem);
-#endif
 
 	/*
 	 * initialize the bad page table and bad page to point
@@ -259,14 +299,11 @@ void __init paging_init(void)
 #ifdef DEBUG
 	printk ("before free_area_init\n");
 #endif
-	zones_size[ZONE_DMA] = (mach_max_dma_address < (unsigned long)high_memory ?
-				(mach_max_dma_address+1) : (unsigned long)high_memory);
-	zones_size[ZONE_NORMAL] = (unsigned long)high_memory - zones_size[0];
-
-	zones_size[ZONE_DMA] = (zones_size[ZONE_DMA] - PAGE_OFFSET) >> PAGE_SHIFT;
-	zones_size[ZONE_NORMAL] >>= PAGE_SHIFT;
-
-	free_area_init(zones_size);
+	for (i = 0; i < m68k_num_memory; i++) {
+		zones_size[ZONE_DMA] = m68k_memory[i].size >> PAGE_SHIFT;
+		free_area_init_node(i, pg_data_map + i, zones_size,
+				    m68k_memory[i].addr >> PAGE_SHIFT, NULL);
+	}
 }
 
 extern char __init_begin, __init_end;

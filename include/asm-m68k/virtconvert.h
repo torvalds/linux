@@ -8,56 +8,35 @@
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>
+#include <linux/mmzone.h>
 #include <asm/setup.h>
 #include <asm/page.h>
-
-#ifdef CONFIG_AMIGA
-#include <asm/amigahw.h>
-#endif
 
 /*
  * Change virtual addresses to physical addresses and vv.
  */
-#ifndef CONFIG_SUN3
-extern unsigned long mm_vtop(unsigned long addr) __attribute_const__;
-extern unsigned long mm_ptov(unsigned long addr) __attribute_const__;
-#else
-static inline unsigned long mm_vtop(unsigned long vaddr)
-{
-	return __pa(vaddr);
-}
-
-static inline unsigned long mm_ptov(unsigned long paddr)
-{
-	return (unsigned long)__va(paddr);
-}
-#endif
-
-#ifdef CONFIG_SINGLE_MEMORY_CHUNK
-static inline unsigned long virt_to_phys(void *vaddr)
-{
-	return (unsigned long)vaddr - PAGE_OFFSET + m68k_memory[0].addr;
-}
-
-static inline void * phys_to_virt(unsigned long paddr)
-{
-	return (void *)(paddr - m68k_memory[0].addr + PAGE_OFFSET);
-}
-#else
 static inline unsigned long virt_to_phys(void *address)
 {
-	return mm_vtop((unsigned long)address);
+	return __pa(address);
 }
 
 static inline void *phys_to_virt(unsigned long address)
 {
-	return (void *) mm_ptov(address);
+	return __va(address);
 }
-#endif
 
 /* Permanent address of a page. */
-#define __page_address(page)	(PAGE_OFFSET + (((page) - mem_map) << PAGE_SHIFT))
-#define page_to_phys(page)	virt_to_phys((void *)__page_address(page))
+#ifdef CONFIG_SINGLE_MEMORY_CHUNK
+#define page_to_phys(page) \
+	__pa(PAGE_OFFSET + (((page) - pg_data_map[0].node_mem_map) << PAGE_SHIFT))
+#else
+#define page_to_phys(_page) ({						\
+	struct page *__page = _page;					\
+	struct pglist_data *pgdat;					\
+	pgdat = pg_data_table[page_to_nid(__page)];			\
+	page_to_pfn(__page) << PAGE_SHIFT;				\
+})
+#endif
 
 /*
  * IO bus memory addresses are 1:1 with the physical address,
