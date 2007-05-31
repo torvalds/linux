@@ -1902,17 +1902,11 @@ out:
 static void twa_scsiop_execute_scsi_complete(TW_Device_Extension *tw_dev, int request_id)
 {
 	struct scsi_cmnd *cmd = tw_dev->srb[request_id];
-	int use_sg = scsi_sg_count(cmd);
 
 	if (scsi_bufflen(cmd) < TW_MIN_SGL_LENGTH &&
 	    (cmd->sc_data_direction == DMA_FROM_DEVICE ||
 	     cmd->sc_data_direction == DMA_BIDIRECTIONAL)) {
-		if (!use_sg)
-			memcpy(scsi_sglist(cmd),
-			       tw_dev->generic_buffer_virt[request_id],
-			       scsi_bufflen(cmd));
-
-		if (use_sg == 1) {
+		if (scsi_sg_count(cmd) == 1) {
 			struct scatterlist *sg = scsi_sglist(tw_dev->srb[request_id]);
 			char *buf;
 			unsigned long flags = 0;
