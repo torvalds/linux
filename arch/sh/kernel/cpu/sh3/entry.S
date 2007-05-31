@@ -320,6 +320,7 @@ skip_restore:
 
 	.align	2
 5:	.long	0x00001000	! DSP
+6:	.long	in_nmi
 7:	.long	0x30000000
 
 ! common exception handler
