@@ -2474,6 +2474,8 @@ static int ieee80211_open(struct net_device *dev)
 	if (sdata->type == IEEE80211_IF_TYPE_STA &&
 	    !local->user_space_mlme)
 		netif_carrier_off(dev);
+	else
+		netif_carrier_on(dev);
 
 	netif_start_queue(dev);
 	return 0;
@@ -3278,8 +3280,10 @@ ieee80211_rx_h_defragment(struct ieee80211_txrx_data *rx)
 			return TXRX_DROP;
 		}
 	}
-	while ((skb = __skb_dequeue(&entry->skb_list)))
+	while ((skb = __skb_dequeue(&entry->skb_list))) {
 		memcpy(skb_put(rx->skb, skb->len), skb->data, skb->len);
+		dev_kfree_skb(skb);
+	}
 
 	/* Complete frame has been reassembled - process it now */
 	rx->fragmented = 1;
