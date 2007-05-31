@@ -63,6 +63,8 @@ unsigned int processor_id;
 unsigned int __machine_arch_type;
 EXPORT_SYMBOL(__machine_arch_type);
 
+unsigned int __atags_pointer __initdata;
+
 unsigned int system_rev;
 EXPORT_SYMBOL(system_rev);
 
@@ -780,7 +782,9 @@ void __init setup_arch(char **cmdline_p)
 	if (mdesc->soft_reboot)
 		reboot_setup("s");
 
-	if (mdesc->boot_params)
+	if (__atags_pointer)
+		tags = phys_to_virt(__atags_pointer);
+	else if (mdesc->boot_params)
 		tags = phys_to_virt(mdesc->boot_params);
 
 	/*
