@@ -280,6 +280,14 @@ config ACPI_DEBUG
 	  of verbosity. Saying Y enables these statements. This will increase
 	  your kernel size by around 50K.
 
+config ACPI_DEBUG_FUNC_TRACE
+	bool "Additionally enable ACPI function tracing"
+	default n
+	depends on ACPI_DEBUG
+	help
+	  ACPI Debug Statements slow down ACPI processing. Function trace
+	  is about half of the penalty and is rarely useful.
+
 config ACPI_EC
 	bool
 	default y
