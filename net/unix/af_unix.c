@@ -858,6 +858,31 @@ out_mknod_parent:
 	goto out_up;
 }
 
+static void unix_state_double_lock(struct sock *sk1, struct sock *sk2)
+{
+	if (unlikely(sk1 == sk2) || !sk2) {
+		unix_state_lock(sk1);
+		return;
+	}
+	if (sk1 < sk2) {
+		unix_state_lock(sk1);
+		unix_state_lock_nested(sk2);
+	} else {
+		unix_state_lock(sk2);
+		unix_state_lock_nested(sk1);
+	}
+}
+
+static void unix_state_double_unlock(struct sock *sk1, struct sock *sk2)
+{
+	if (unlikely(sk1 == sk2) || !sk2) {
+		unix_state_unlock(sk1);
+		return;
+	}
+	unix_state_unlock(sk1);
+	unix_state_unlock(sk2);
+}
+
 static int unix_dgram_connect(struct socket *sock, struct sockaddr *addr,
 			      int alen, int flags)
 {
@@ -877,11 +902,19 @@ static int unix_dgram_connect(struct socket *sock, struct sockaddr *addr,
 		    !unix_sk(sk)->addr && (err = unix_autobind(sock)) != 0)
 			goto out;
 
+restart:
 		other=unix_find_other(sunaddr, alen, sock->type, hash, &err);
 		if (!other)
 			goto out;
 
-		unix_state_lock(sk);
+		unix_state_double_lock(sk, other);
+
+		/* Apparently VFS overslept socket death. Retry. */
+		if (sock_flag(other, SOCK_DEAD)) {
+			unix_state_double_unlock(sk, other);
+			sock_put(other);
+			goto restart;
+		}
 
 		err = -EPERM;
 		if (!unix_may_send(sk, other))
@@ -896,7 +929,7 @@ static int unix_dgram_connect(struct socket *sock, struct sockaddr *addr,
 		 *	1003.1g breaking connected state with AF_UNSPEC
 		 */
 		other = NULL;
-		unix_state_lock(sk);
+		unix_state_double_lock(sk, other);
 	}
 
 	/*
@@ -905,19 +938,19 @@ static int unix_dgram_connect(struct socket *sock, struct sockaddr *addr,
 	if (unix_peer(sk)) {
 		struct sock *old_peer = unix_peer(sk);
 		unix_peer(sk)=other;
-		unix_state_unlock(sk);
+		unix_state_double_unlock(sk, other);
 
 		if (other != old_peer)
 			unix_dgram_disconnected(sk, old_peer);
 		sock_put(old_peer);
 	} else {
 		unix_peer(sk)=other;
-		unix_state_unlock(sk);
+		unix_state_double_unlock(sk, other);
 	}
 	return 0;
 
 out_unlock:
-	unix_state_unlock(sk);
+	unix_state_double_unlock(sk, other);
 	sock_put(other);
 out:
 	return err;
