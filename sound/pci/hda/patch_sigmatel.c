@@ -51,6 +51,7 @@ enum {
 	STAC_925x_REF,
 	STAC_M2_2,
 	STAC_MA6,
+	STAC_PA6,
 	STAC_925x_MODELS
 };
 
@@ -150,6 +151,10 @@ static hda_nid_t stac925x_mux_nids[1] = {
 
 static hda_nid_t stac925x_dac_nids[1] = {
         0x02,
+};
+
+static hda_nid_t stac925x_dmic_nids[1] = {
+	0x15, 
 };
 
 static hda_nid_t stac922x_adc_nids[2] = {
@@ -469,6 +474,14 @@ static struct snd_pci_quirk stac9200_cfg_tbl[] = {
 		      "Dell Precision M90", STAC_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01d6,
 		      "unknown Dell", STAC_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01d8,
+		      "Dell Inspiron 640m", STAC_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01f5,
+		      "Dell Inspiron 1501", STAC_REF),
+
+	/* Panasonic */
+	SND_PCI_QUIRK(0x10f7, 0x8338, "Panasonic CF-74", STAC_REF),
+
 	{} /* terminator */
 };
 
@@ -482,29 +495,38 @@ static unsigned int stac925x_MA6_pin_configs[8] = {
 	0x90a70320, 0x90100211, 0x400003f1, 0x9033032e,
 };
 
+static unsigned int stac925x_PA6_pin_configs[8] = {
+	0x40c003f0, 0x424503f2, 0x01813022, 0x02a19021,
+	0x50a103f0, 0x90100211, 0x400003f1, 0x9033032e,
+};
+
 static unsigned int stac925xM2_2_pin_configs[8] = {
-	0x40c003f3, 0x424503f2, 0x041800f4, 0x02a19020,
-	0x50a103F0, 0x90100210, 0x400003f1, 0x9033032e,
+	0x40c003f3, 0x424503f2, 0x04180011, 0x02a19020,
+	0x50a103f0, 0x90100212, 0x400003f1, 0x9033032e,
 };
 
 static unsigned int *stac925x_brd_tbl[STAC_925x_MODELS] = {
 	[STAC_REF] = ref925x_pin_configs,
 	[STAC_M2_2] = stac925xM2_2_pin_configs,
 	[STAC_MA6] = stac925x_MA6_pin_configs,
+	[STAC_PA6] = stac925x_PA6_pin_configs,
 };
 
 static const char *stac925x_models[STAC_925x_MODELS] = {
 	[STAC_REF] = "ref",
 	[STAC_M2_2] = "m2-2",
 	[STAC_MA6] = "m6",
+	[STAC_PA6] = "pa6",
 };
 
 static struct snd_pci_quirk stac925x_cfg_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668, "DFI LanParty", STAC_REF),
+	SND_PCI_QUIRK(0x8384, 0x7632, "Stac9202 Reference Board", STAC_REF),
 	SND_PCI_QUIRK(0x107b, 0x0316, "Gateway M255", STAC_REF),
 	SND_PCI_QUIRK(0x107b, 0x0366, "Gateway MP6954", STAC_REF),
 	SND_PCI_QUIRK(0x107b, 0x0461, "Gateway NX560XL", STAC_MA6),
+	SND_PCI_QUIRK(0x107b, 0x0681, "Gateway NX860", STAC_PA6),
 	SND_PCI_QUIRK(0x1002, 0x437b, "Gateway MX6453", STAC_M2_2),
 	{} /* terminator */
 };
@@ -1742,6 +1764,21 @@ static void stac92xx_set_pinctl(struct hda_codec *codec, hda_nid_t nid,
 	unsigned int pin_ctl = snd_hda_codec_read(codec, nid,
 			0, AC_VERB_GET_PIN_WIDGET_CONTROL, 0x00);
 
+	if (pin_ctl & AC_PINCTL_IN_EN) {
+		/*
+		 * we need to check the current set-up direction of
+		 * shared input pins since they can be switched via
+		 * "xxx as Output" mixer switch
+		 */
+		struct sigmatel_spec *spec = codec->spec;
+		struct auto_pin_cfg *cfg = &spec->autocfg;
+		if ((nid == cfg->input_pins[AUTO_PIN_LINE] &&
+		     spec->line_switch) ||
+		    (nid == cfg->input_pins[AUTO_PIN_MIC] &&
+		     spec->mic_switch))
+			return;
+	}
+
 	/* if setting pin direction bits, clear the current
 	   direction bits first */
 	if (flag & (AC_PINCTL_IN_EN | AC_PINCTL_OUT_EN))
@@ -1911,7 +1948,8 @@ static int patch_stac925x(struct hda_codec *codec)
 							stac925x_cfg_tbl);
  again:
 	if (spec->board_config < 0) {
-		snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC925x, using BIOS defaults\n");
+		snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC925x," 
+				      "using BIOS defaults\n");
 		err = stac92xx_save_bios_config_regs(codec);
 		if (err < 0) {
 			stac92xx_free(codec);
@@ -1929,7 +1967,18 @@ static int patch_stac925x(struct hda_codec *codec)
 	spec->adc_nids = stac925x_adc_nids;
 	spec->mux_nids = stac925x_mux_nids;
 	spec->num_muxes = 1;
-	spec->num_dmics = 0;
+	switch (codec->vendor_id) {
+	case 0x83847632: /* STAC9202  */
+	case 0x83847633: /* STAC9202D */
+	case 0x83847636: /* STAC9251  */
+	case 0x83847637: /* STAC9251D */
+		spec->num_dmics = 1;
+		spec->dmic_nids = stac925x_dmic_nids;
+		break;
+	default:
+		spec->num_dmics = 0;
+		break;
+	}
 
 	spec->init = stac925x_core_init;
 	spec->mixer = stac925x_mixer;
@@ -2109,6 +2158,13 @@ static int patch_stac927x(struct hda_codec *codec)
 	}
 
 	codec->patch_ops = stac92xx_patch_ops;
+
+	/* Fix Mux capture level; max to 2 */
+	snd_hda_override_amp_caps(codec, 0x12, HDA_OUTPUT,
+				  (0 << AC_AMPCAP_OFFSET_SHIFT) |
+				  (2 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+				  (0x27 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+				  (0 << AC_AMPCAP_MUTE_SHIFT));
 
 	return 0;
 }

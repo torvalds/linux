@@ -1250,7 +1250,7 @@ static int snd_ali_playback_hw_params(struct snd_pcm_substream *substream,
 			evoice->substream = substream;
 		}
 	} else {
-		if (!evoice) {
+		if (evoice) {
 			snd_ali_free_voice(codec, evoice);
 			pvoice->extra = evoice = NULL;
 		}
@@ -1267,7 +1267,7 @@ static int snd_ali_playback_hw_free(struct snd_pcm_substream *substream)
 	struct snd_ali_voice *evoice = pvoice ? pvoice->extra : NULL;
 
 	snd_pcm_lib_free_pages(substream);
-	if (!evoice) {
+	if (evoice) {
 		snd_ali_free_voice(codec, evoice);
 		pvoice->extra = NULL;
 	}
@@ -1356,7 +1356,7 @@ static int snd_ali_playback_prepare(struct snd_pcm_substream *substream)
 				 VOL,
 				 CTRL,
 				 EC);
-	if (!evoice) {
+	if (evoice) {
 		evoice->count = pvoice->count;
 		evoice->eso = pvoice->count << 1;
 		ESO = evoice->eso - 1;

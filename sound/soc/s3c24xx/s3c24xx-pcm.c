@@ -337,6 +337,8 @@ static int s3c24xx_pcm_open(struct snd_pcm_substream *substream)
 	if (prtd == NULL)
 		return -ENOMEM;
 
+	spin_lock_init(&prtd->lock);
+
 	runtime->private_data = prtd;
 	return 0;
 }
