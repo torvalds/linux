@@ -972,23 +972,6 @@ static void inject_page_fault(struct kvm_vcpu *vcpu,
 	kvm_arch_ops->inject_page_fault(vcpu, addr, err_code);
 }
 
-static inline int fix_read_pf(u64 *shadow_ent)
-{
-	if ((*shadow_ent & PT_SHADOW_USER_MASK) &&
-	    !(*shadow_ent & PT_USER_MASK)) {
-		/*
-		 * If supervisor write protect is disabled, we shadow kernel
-		 * pages as user pages so we can trap the write access.
-		 */
-		*shadow_ent |= PT_USER_MASK;
-		*shadow_ent &= ~PT_WRITABLE_MASK;
-
-		return 1;
-
-	}
-	return 0;
-}
-
 static void paging_free(struct kvm_vcpu *vcpu)
 {
 	nonpaging_free(vcpu);
