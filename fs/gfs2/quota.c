@@ -573,12 +573,13 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	struct inode *inode = &ip->i_inode;
 	struct address_space *mapping = inode->i_mapping;
 	unsigned long index = loc >> PAGE_CACHE_SHIFT;
-	unsigned offset = loc & (PAGE_CACHE_SHIFT - 1);
+	unsigned offset = loc & (PAGE_CACHE_SIZE - 1);
 	unsigned blocksize, iblock, pos;
 	struct buffer_head *bh;
 	struct page *page;
 	void *kaddr;
-	__be64 *ptr;
+	char *ptr;
+	struct gfs2_quota_host qp;
 	s64 value;
 	int err = -EIO;
 
@@ -620,8 +621,10 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 
 	kaddr = kmap_atomic(page, KM_USER0);
 	ptr = kaddr + offset;
-	value = (s64)be64_to_cpu(*ptr) + change;
-	*ptr = cpu_to_be64(value);
+	gfs2_quota_in(&qp, ptr);
+	qp.qu_value += change;
+	value = qp.qu_value;
+	gfs2_quota_out(&qp, ptr);
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr, KM_USER0);
 	err = 0;

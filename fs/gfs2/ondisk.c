@@ -121,6 +121,16 @@ void gfs2_quota_in(struct gfs2_quota_host *qu, const void *buf)
 	qu->qu_value = be64_to_cpu(str->qu_value);
 }
 
+void gfs2_quota_out(const struct gfs2_quota_host *qu, void *buf)
+{
+	struct gfs2_quota *str = buf;
+
+	str->qu_limit = cpu_to_be64(qu->qu_limit);
+	str->qu_warn = cpu_to_be64(qu->qu_warn);
+	str->qu_value = cpu_to_be64(qu->qu_value);
+	memset(&str->qu_reserved, 0, sizeof(str->qu_reserved));
+}
+
 void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 {
 	const struct gfs2_dinode_host *di = &ip->i_di;
