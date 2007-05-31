@@ -75,15 +75,13 @@ static int __devinit of_platform_serial_probe(struct of_device *ofdev,
 		goto out;
 
 	switch (port_type) {
-	case PORT_UNKNOWN:
-		dev_info(&ofdev->dev, "Unknown serial port found, "
-			"attempting to use 8250 driver\n");
-		/* fallthrough */
 	case PORT_8250 ... PORT_MAX_8250:
 		ret = serial8250_register_port(&port);
 		break;
 	default:
 		/* need to add code for these */
+	case PORT_UNKNOWN:
+		dev_info(&ofdev->dev, "Unknown serial port found, ignored\n");
 		ret = -ENODEV;
 		break;
 	}
