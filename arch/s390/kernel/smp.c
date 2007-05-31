@@ -492,7 +492,7 @@ static unsigned int __init smp_count_cpus(void)
 /*
  *	Activate a secondary processor.
  */
-int __devinit start_secondary(void *cpuvoid)
+int __cpuinit start_secondary(void *cpuvoid)
 {
 	/* Setup the cpu */
 	cpu_init();
@@ -741,7 +741,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 			smp_create_idle(cpu);
 }
 
-void __devinit smp_prepare_boot_cpu(void)
+void __init smp_prepare_boot_cpu(void)
 {
 	BUG_ON(smp_processor_id() != 0);
 
@@ -750,7 +750,7 @@ void __devinit smp_prepare_boot_cpu(void)
 	current_set[0] = current;
 }
 
-void smp_cpus_done(unsigned int max_cpus)
+void __init smp_cpus_done(unsigned int max_cpus)
 {
 	cpu_present_map = cpu_possible_map;
 }
