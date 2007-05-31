@@ -62,13 +62,11 @@ struct unix_skb_parms {
 #define UNIXCREDS(skb)	(&UNIXCB((skb)).creds)
 #define UNIXSID(skb)	(&UNIXCB((skb)).secid)
 
-#define unix_state_rlock(s)	spin_lock(&unix_sk(s)->lock)
-#define unix_state_runlock(s)	spin_unlock(&unix_sk(s)->lock)
-#define unix_state_wlock(s)	spin_lock(&unix_sk(s)->lock)
-#define unix_state_wlock_nested(s) \
+#define unix_state_lock(s)	spin_lock(&unix_sk(s)->lock)
+#define unix_state_unlock(s)	spin_unlock(&unix_sk(s)->lock)
+#define unix_state_lock_nested(s) \
 				spin_lock_nested(&unix_sk(s)->lock, \
 				SINGLE_DEPTH_NESTING)
-#define unix_state_wunlock(s)	spin_unlock(&unix_sk(s)->lock)
 
 #ifdef __KERNEL__
 /* The AF_UNIX socket */
