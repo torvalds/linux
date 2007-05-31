@@ -1097,6 +1097,80 @@ extern unsigned long sun4v_mach_set_soft_state(unsigned long soft_state,
  */
 #define HV_FAST_MACH_GET_SOFT_STATE	0x71
 
+/* svc_send()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_SVC_SEND
+ * ARG0:	service ID
+ * ARG1:	buffer real address
+ * ARG2:	buffer size
+ * RET0:	STATUS
+ * RET1:	sent_bytes
+ *
+ * Be careful, all output registers are clobbered by this operation,
+ * so for example it is not possible to save away a value in %o4
+ * across the trap.
+ */
+#define HV_FAST_SVC_SEND		0x80
+
+/* svc_recv()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_SVC_RECV
+ * ARG0:	service ID
+ * ARG1:	buffer real address
+ * ARG2:	buffer size
+ * RET0:	STATUS
+ * RET1:	recv_bytes
+ *
+ * Be careful, all output registers are clobbered by this operation,
+ * so for example it is not possible to save away a value in %o4
+ * across the trap.
+ */
+#define HV_FAST_SVC_RECV		0x81
+
+/* svc_getstatus()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_SVC_GETSTATUS
+ * ARG0:	service ID
+ * RET0:	STATUS
+ * RET1:	status bits
+ */
+#define HV_FAST_SVC_GETSTATUS		0x82
+
+/* svc_setstatus()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_SVC_SETSTATUS
+ * ARG0:	service ID
+ * ARG1:	bits to set
+ * RET0:	STATUS
+ */
+#define HV_FAST_SVC_SETSTATUS		0x83
+
+/* svc_clrstatus()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_SVC_CLRSTATUS
+ * ARG0:	service ID
+ * ARG1:	bits to clear
+ * RET0:	STATUS
+ */
+#define HV_FAST_SVC_CLRSTATUS		0x84
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_svc_send(unsigned long svc_id,
+				    unsigned long buffer,
+				    unsigned long buffer_size,
+				    unsigned long *sent_bytes);
+extern unsigned long sun4v_svc_recv(unsigned long svc_id,
+				    unsigned long buffer,
+				    unsigned long buffer_size,
+				    unsigned long *recv_bytes);
+extern unsigned long sun4v_svc_getstatus(unsigned long svc_id,
+					 unsigned long *status_bits);
+extern unsigned long sun4v_svc_setstatus(unsigned long svc_id,
+					 unsigned long status_bits);
+extern unsigned long sun4v_svc_clrstatus(unsigned long svc_id,
+					 unsigned long status_bits);
+#endif
+
 /* Trap trace services.
  *
  * The hypervisor provides a trap tracing capability for privileged
@@ -2723,6 +2797,100 @@ struct hv_mmu_statistics {
  * MMU statistics buffer on the current virtual CPU.
  */
 #define HV_FAST_MMUSTAT_INFO		0x103
+
+/* NCS crypto services  */
+
+/* ncs_request() sub-function numbers */
+#define HV_NCS_QCONF			0x01
+#define HV_NCS_QTAIL_UPDATE		0x02
+
+#ifndef __ASSEMBLY__
+struct hv_ncs_queue_entry {
+	/* MAU Control Register */
+	unsigned long	mau_control;
+#define MAU_CONTROL_INV_PARITY	0x0000000000002000
+#define MAU_CONTROL_STRAND	0x0000000000001800
+#define MAU_CONTROL_BUSY	0x0000000000000400
+#define MAU_CONTROL_INT		0x0000000000000200
+#define MAU_CONTROL_OP		0x00000000000001c0
+#define MAU_CONTROL_OP_SHIFT	6
+#define MAU_OP_LOAD_MA_MEMORY	0x0
+#define MAU_OP_STORE_MA_MEMORY	0x1
+#define MAU_OP_MODULAR_MULT	0x2
+#define MAU_OP_MODULAR_REDUCE	0x3
+#define MAU_OP_MODULAR_EXP_LOOP	0x4
+#define MAU_CONTROL_LEN		0x000000000000003f
+#define MAU_CONTROL_LEN_SHIFT	0
+
+	/* Real address of bytes to load or store bytes
+	 * into/out-of the MAU.
+	 */
+	unsigned long	mau_mpa;
+
+	/* Modular Arithmetic MA Offset Register.  */
+	unsigned long	mau_ma;
+
+	/* Modular Arithmetic N Prime Register.  */
+	unsigned long	mau_np;
+};
+
+struct hv_ncs_qconf_arg {
+	unsigned long	mid;      /* MAU ID, 1 per core on Niagara */
+	unsigned long	base;     /* Real address base of queue */
+	unsigned long	end;	  /* Real address end of queue */
+	unsigned long	num_ents; /* Number of entries in queue */
+};
+
+struct hv_ncs_qtail_update_arg {
+	unsigned long	mid;      /* MAU ID, 1 per core on Niagara */
+	unsigned long	tail;     /* New tail index to use */
+	unsigned long	syncflag; /* only SYNCFLAG_SYNC is implemented */
+#define HV_NCS_SYNCFLAG_SYNC	0x00
+#define HV_NCS_SYNCFLAG_ASYNC	0x01
+};
+#endif
+
+/* ncs_request()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_NCS_REQUEST
+ * ARG0:	NCS sub-function
+ * ARG1:	sub-function argument real address
+ * ARG2:	size in bytes of sub-function argument
+ * RET0:	status
+ *
+ * The MAU chip of the Niagara processor is not directly accessible
+ * to privileged code, instead it is programmed indirectly via this
+ * hypervisor API.
+ *
+ * The interfaces defines a queue of MAU operations to perform.
+ * Privileged code registers a queue with the hypervisor by invoking
+ * this HVAPI with the HV_NCS_QCONF sub-function, which defines the
+ * base, end, and number of entries of the queue.  Each queue entry
+ * contains a MAU register struct block.
+ *
+ * The privileged code then proceeds to add entries to the queue and
+ * then invoke the HV_NCS_QTAIL_UPDATE sub-function.  Since only
+ * synchronous operations are supported by the current hypervisor,
+ * HV_NCS_QTAIL_UPDATE will run all the pending queue entries to
+ * completion and return HV_EOK, or return an error code.
+ *
+ * The real address of the sub-function argument must be aligned on at
+ * least an 8-byte boundary.
+ *
+ * The tail argument of HV_NCS_QTAIL_UPDATE is an index, not a byte
+ * offset, into the queue and must be less than or equal the 'num_ents'
+ * argument given in the HV_NCS_QCONF call.
+ */
+#define HV_FAST_NCS_REQUEST		0x110
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_ncs_request(unsigned long request,
+				       unsigned long arg_ra,
+				       unsigned long arg_size);
+#endif
+
+#define HV_FAST_FIRE_GET_PERFREG	0x120
+#define HV_FAST_FIRE_SET_PERFREG	0x121
 
 /* Function numbers for HV_CORE_TRAP.  */
 #define HV_CORE_SET_VER			0x00
