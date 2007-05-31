@@ -143,7 +143,7 @@ static int __devinit esp_jazz_probe(struct platform_device *dev)
 		goto fail;
 
 	host->max_id = 8;
-	esp = host_to_esp(host);
+	esp = shost_priv(host);
 
 	esp->host = host;
 	esp->dev = dev;

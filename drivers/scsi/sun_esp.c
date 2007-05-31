@@ -493,7 +493,7 @@ static int __devinit esp_sbus_probe_one(struct device *dev,
 		goto fail;
 
 	host->max_id = (hme ? 16 : 8);
-	esp = host_to_esp(host);
+	esp = shost_priv(host);
 
 	esp->host = host;
 	esp->dev = esp_dev;

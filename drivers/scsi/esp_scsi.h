@@ -517,8 +517,6 @@ struct esp {
 	struct sbus_dma		*dma;
 };
 
-#define host_to_esp(host)	((struct esp *)(host)->hostdata)
-
 /* A front-end driver for the ESP chip should do the following in
  * it's device probe routine:
  * 1) Allocate the host and private area using scsi_host_alloc()
