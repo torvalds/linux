@@ -157,14 +157,24 @@ targets	+= $(image-y) $(initrd-y)
 
 $(addprefix $(obj)/, $(initrd-y)): $(obj)/ramdisk.image.gz
 
+# If CONFIG_WANT_DEVICE_TREE is set and CONFIG_DEVICE_TREE isn't an
+# empty string, define 'dts' to be path to the dts
+# CONFIG_DEVICE_TREE will have "" around it, make sure to strip them
+ifeq ($(CONFIG_WANT_DEVICE_TREE),y)
+ifneq ($(CONFIG_DEVICE_TREE),"")
+dts = $(if $(shell echo $(CONFIG_DEVICE_TREE) | grep '^/'),\
+	,$(srctree)/$(src)/dts/)$(CONFIG_DEVICE_TREE:"%"=%)
+endif
+endif
+
 # Don't put the ramdisk on the pattern rule; when its missing make will try
 # the pattern rule with less dependencies that also matches (even with the
 # hard dependency listed).
-$(obj)/zImage.initrd.%: vmlinux $(wrapperbits)
-	$(call if_changed,wrap,$*,,,$(obj)/ramdisk.image.gz)
+$(obj)/zImage.initrd.%: vmlinux $(wrapperbits) $(dts)
+	$(call if_changed,wrap,$*,$(dts),,$(obj)/ramdisk.image.gz)
 
-$(obj)/zImage.%: vmlinux $(wrapperbits)
-	$(call if_changed,wrap,$*)
+$(obj)/zImage.%: vmlinux $(wrapperbits) $(dts)
+	$(call if_changed,wrap,$*,$(dts))
 
 $(obj)/zImage.iseries: vmlinux
 	$(STRIP) -s -R .comment $< -o $@
@@ -183,10 +193,6 @@ $(obj)/zImage.initrd.holly-elf: vmlinux $(wrapperbits) $(obj)/ramdisk.image.gz
 
 $(obj)/uImage: vmlinux $(wrapperbits)
 	$(call if_changed,wrap,uboot)
-
-# CONFIG_DEVICE_TREE will have "" around it, make sure to strip them
-dts = $(if $(shell echo $(CONFIG_DEVICE_TREE) | grep '^/'),\
-	,$(srctree)/$(src)/dts/)$(CONFIG_DEVICE_TREE:"%"=%)
 
 $(obj)/cuImage.%: vmlinux $(dts) $(wrapperbits)
 	$(call if_changed,wrap,cuboot-$*,$(dts))
