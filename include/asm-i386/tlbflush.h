@@ -90,6 +90,8 @@
 
 #ifndef CONFIG_SMP
 
+#include <linux/sched.h>
+
 #define flush_tlb() __flush_tlb()
 #define flush_tlb_all() __flush_tlb_all()
 #define local_flush_tlb() __flush_tlb()

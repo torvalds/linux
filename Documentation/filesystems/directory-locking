@@ -1,5 +1,6 @@
 	Locking scheme used for directory operations is based on two
-kinds of locks - per-inode (->i_sem) and per-filesystem (->s_vfs_rename_sem).
+kinds of locks - per-inode (->i_mutex) and per-filesystem
+(->s_vfs_rename_mutex).
 
 	For our purposes all operations fall in 5 classes:
 
@@ -63,7 +64,7 @@ objects - A < B iff A is an ancestor of B.
 attempt to acquire some lock and already holds at least one lock.  Let's
 consider the set of contended locks.  First of all, filesystem lock is
 not contended, since any process blocked on it is not holding any locks.
-Thus all processes are blocked on ->i_sem.
+Thus all processes are blocked on ->i_mutex.
 
 	Non-directory objects are not contended due to (3).  Thus link
 creation can't be a part of deadlock - it can't be blocked on source

@@ -25,7 +25,7 @@ static unsigned long __init sa1100_get_rtc_time(void)
 {
 	/*
 	 * According to the manual we should be able to let RTTR be zero
-	 * and then a default diviser for a 32.768KHz clock is used.
+	 * and then a default divisor for a 32.768KHz clock is used.
 	 * Apparently this doesn't work, at least for my SA1110 rev 5.
 	 * If the clock divider is uninitialized then reset it to the
 	 * default value to get the 1Hz clock.

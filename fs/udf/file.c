@@ -36,6 +36,7 @@
 #include <linux/smp_lock.h>
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
+#include <linux/aio.h>
 
 #include "udf_i.h"
 #include "udf_sb.h"

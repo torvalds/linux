@@ -5,7 +5,8 @@
 
 #ifdef CONFIG_SMP
 
-extern void setup_per_cpu_areas(void);
+#define setup_per_cpu_areas()			do { } while (0)
+extern void real_setup_per_cpu_areas(void);
 
 extern unsigned long __per_cpu_base;
 extern unsigned long __per_cpu_shift;
@@ -34,6 +35,7 @@ do {								\
 } while (0)
 #else /* ! SMP */
 
+#define real_setup_per_cpu_areas()		do { } while (0)
 #define DEFINE_PER_CPU(type, name) \
     __typeof__(type) per_cpu__##name
 

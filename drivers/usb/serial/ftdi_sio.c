@@ -273,11 +273,17 @@ static __u16 product;
 
 /* struct ftdi_sio_quirk is used by devices requiring special attention. */
 struct ftdi_sio_quirk {
+	int (*probe)(struct usb_serial *);
 	void (*setup)(struct usb_serial *); /* Special settings during startup. */
 };
 
+static int   ftdi_olimex_probe		(struct usb_serial *serial);
 static void  ftdi_USB_UIRT_setup	(struct usb_serial *serial);
 static void  ftdi_HE_TIRA1_setup	(struct usb_serial *serial);
+
+static struct ftdi_sio_quirk ftdi_olimex_quirk = {
+	.probe	= ftdi_olimex_probe,
+};
 
 static struct ftdi_sio_quirk ftdi_USB_UIRT_quirk = {
 	.setup = ftdi_USB_UIRT_setup,
@@ -319,6 +325,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_8U2232C_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_MICRO_CHAMELEON_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_RELAIS_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_OPENDCC_PID) },
 	{ USB_DEVICE(INTERBIOMETRICS_VID, INTERBIOMETRICS_IOBOARD_PID) },
 	{ USB_DEVICE(INTERBIOMETRICS_VID, INTERBIOMETRICS_MINI_IOBOARD_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_XF_632_PID) },
@@ -525,6 +532,9 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_TACTRIX_OPENPORT_13U_PID) },
 	{ USB_DEVICE(ELEKTOR_VID, ELEKTOR_FT323R_PID) },
 	{ USB_DEVICE(TELLDUS_VID, TELLDUS_TELLSTICK_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_MAXSTREAM_PID) },
+	{ USB_DEVICE(OLIMEX_VID, OLIMEX_ARM_USB_OCD_PID),
+		.driver_info = (kernel_ulong_t)&ftdi_olimex_quirk },
 	{ },					/* Optional parameter entry */
 	{ }					/* Terminating entry */
 };
@@ -669,7 +679,7 @@ static struct usb_serial_driver ftdi_sio_device = {
 
 /*
  * ***************************************************************************
- * Utlity functions
+ * Utility functions
  * ***************************************************************************
  */
 
@@ -1171,9 +1181,17 @@ static void remove_sysfs_attrs(struct usb_serial_port *port)
 /* Probe function to check for special devices */
 static int ftdi_sio_probe (struct usb_serial *serial, const struct usb_device_id *id)
 {
+	struct ftdi_sio_quirk *quirk = (struct ftdi_sio_quirk *)id->driver_info;
+
+	if (quirk && quirk->probe) {
+		int ret = quirk->probe(serial);
+		if (ret != 0)
+			return ret;
+	}
+
 	usb_set_serial_data(serial, (void *)id->driver_info);
 
-	return (0);
+	return 0;
 }
 
 static int ftdi_sio_port_probe(struct usb_serial_port *port)
@@ -1268,6 +1286,24 @@ static void ftdi_HE_TIRA1_setup (struct usb_serial *serial)
 	priv->force_rtscts = 1;
 } /* ftdi_HE_TIRA1_setup */
 
+/*
+ * First port on Olimex arm-usb-ocd is reserved for JTAG interface
+ * and can be accessed from userspace using openocd.
+ */
+static int ftdi_olimex_probe(struct usb_serial *serial)
+{
+	struct usb_device *udev = serial->dev;
+	struct usb_interface *interface = serial->interface;
+
+	dbg("%s",__FUNCTION__);
+
+	if (interface == udev->actconfig->interface[0]) {
+		info("Ignoring reserved serial port on Olimex arm-usb-ocd\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
 
 /* ftdi_shutdown is called from usbserial:usb_serial_disconnect
  *   it is called when the usb device is disconnected

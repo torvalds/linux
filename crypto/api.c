@@ -48,8 +48,10 @@ EXPORT_SYMBOL_GPL(crypto_mod_get);
 
 void crypto_mod_put(struct crypto_alg *alg)
 {
+	struct module *module = alg->cra_module;
+
 	crypto_alg_put(alg);
-	module_put(alg->cra_module);
+	module_put(module);
 }
 EXPORT_SYMBOL_GPL(crypto_mod_put);
 

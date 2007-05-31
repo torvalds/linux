@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/statfs.h>
 #include <linux/magic.h>
+#include <linux/sched.h>
 
 /* Mark the filesystem dirty, so that chkdsk checks it when os/2 booted */
 
@@ -176,11 +177,9 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 {
 	struct hpfs_inode_info *ei = (struct hpfs_inode_info *) foo;
 
-	if (flags & SLAB_CTOR_CONSTRUCTOR) {
-		mutex_init(&ei->i_mutex);
-		mutex_init(&ei->i_parent_mutex);
-		inode_init_once(&ei->vfs_inode);
-	}
+	mutex_init(&ei->i_mutex);
+	mutex_init(&ei->i_parent_mutex);
+	inode_init_once(&ei->vfs_inode);
 }
  
 static int init_inodecache(void)

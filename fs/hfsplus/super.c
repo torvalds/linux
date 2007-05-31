@@ -470,8 +470,7 @@ static void hfsplus_init_once(void *p, struct kmem_cache *cachep, unsigned long 
 {
 	struct hfsplus_inode_info *i = p;
 
-	if (flags & SLAB_CTOR_CONSTRUCTOR)
-		inode_init_once(&i->vfs_inode);
+	inode_init_once(&i->vfs_inode);
 }
 
 static int __init init_hfsplus_fs(void)

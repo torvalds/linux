@@ -38,6 +38,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 
 #include <rdma/ib_cache.h>
 

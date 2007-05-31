@@ -10,6 +10,7 @@
 #ifndef __GLOCK_DOT_H__
 #define __GLOCK_DOT_H__
 
+#include <linux/sched.h>
 #include "incore.h"
 
 /* Flags for lock requests; used in gfs2_holder gh_flag field.

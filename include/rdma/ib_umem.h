@@ -35,6 +35,7 @@
 
 #include <linux/list.h>
 #include <linux/scatterlist.h>
+#include <linux/workqueue.h>
 
 struct ib_ucontext;
 

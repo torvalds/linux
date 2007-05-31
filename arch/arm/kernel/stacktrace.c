@@ -13,7 +13,7 @@ int walk_stackframe(unsigned long fp, unsigned long low, unsigned long high,
 		/*
 		 * Check current frame pointer is within bounds
 		 */
-		if ((fp - 12) < low || fp + 4 >= high)
+		if (fp < (low + 12) || fp + 4 >= high)
 			break;
 
 		frame = (struct stackframe *)(fp - 12);

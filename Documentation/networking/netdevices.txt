@@ -49,7 +49,7 @@ dev->hard_start_xmit:
 	for this and return -1 when the spin lock fails. 
 	The locking there should also properly protect against 
 	set_multicast_list
-	Context: BHs disabled
+	Context: Process with BHs disabled or BH (timer).
 	Notes: netif_queue_stopped() is guaranteed false
                Interrupts must be enabled when calling hard_start_xmit.
                 (Interrupts must also be enabled when enabling the BH handler.)

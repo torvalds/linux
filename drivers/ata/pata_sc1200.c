@@ -40,7 +40,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sc1200"
-#define DRV_VERSION	"0.2.4"
+#define DRV_VERSION	"0.2.5"
 
 #define SC1200_REV_A	0x00
 #define SC1200_REV_B1	0x01

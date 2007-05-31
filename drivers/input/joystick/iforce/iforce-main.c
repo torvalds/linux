@@ -370,10 +370,8 @@ int iforce_init_device(struct iforce *iforce)
 
 /*
  * Disable spring, enable force feedback.
- * FIXME: We should use iforce_set_autocenter() et al here.
  */
-
-	iforce_send_packet(iforce, FF_CMD_AUTOCENTER, "\004\000");
+	iforce_set_autocenter(input_dev, 0);
 
 /*
  * Find appropriate device entry

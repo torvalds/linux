@@ -40,7 +40,7 @@
 #define PICTRL_ADRS     0x06
 #define POLCTRL_ADRS    0x07
 
-/* Resgister Bit Definitions */
+/* Register Bit Definitions */
 #define RESCTL_QVGA     0x01
 #define RESCTL_VGA      0x00
 
@@ -55,11 +55,11 @@
 #define POWER0_COM_DCLK 0x01  /* COM Voltage DC Bias DAC Serial Data Clock */
 #define POWER0_COM_DOUT 0x02  /* COM Voltage DC Bias DAC Serial Data Out */
 #define POWER0_DAC_ON   0x04  /* DAC Power Supply ON */
-#define POWER0_COM_ON   0x08  /* COM Powewr Supply ON */
+#define POWER0_COM_ON   0x08  /* COM Power Supply ON */
 #define POWER0_VCC5_ON  0x10  /* VCC5 Power Supply ON */
 
 #define POWER0_DAC_OFF  0x00  /* DAC Power Supply OFF */
-#define POWER0_COM_OFF  0x00  /* COM Powewr Supply OFF */
+#define POWER0_COM_OFF  0x00  /* COM Power Supply OFF */
 #define POWER0_VCC5_OFF 0x00  /* VCC5 Power Supply OFF */
 
 #define PICTRL_INIT_STATE      0x01
@@ -145,7 +145,7 @@ static void lcdtg_set_common_voltage(u8 base_data, u8 data)
 	lcdtg_i2c_send_stop(base_data);
 }
 
-/* Set Phase Adjuct */
+/* Set Phase Adjust */
 static void lcdtg_set_phadadj(int mode)
 {
 	int adj;
@@ -226,7 +226,7 @@ static void lcdtg_hw_init(int mode)
 		/* Signals output enable */
 		corgi_ssp_lcdtg_send(PICTRL_ADRS, 0);
 
-		/* Set Phase Adjuct */
+		/* Set Phase Adjust */
 		lcdtg_set_phadadj(mode);
 
 		/* Initialize for Input Signals from ATI */

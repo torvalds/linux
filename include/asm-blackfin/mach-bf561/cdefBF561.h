@@ -59,12 +59,14 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 {
 	unsigned long flags, iwr;
 
-	bfin_write16(VR_CTL, val);
-	__builtin_bfin_ssync();
 	/* Enable the PLL Wakeup bit in SIC IWR */
 	iwr = bfin_read32(SICA_IWR0);
 	/* Only allow PPL Wakeup) */
 	bfin_write32(SICA_IWR0, IWR_ENABLE(0));
+
+	bfin_write16(VR_CTL, val);
+	__builtin_bfin_ssync();
+
 	local_irq_save(flags);
 	asm("IDLE;");
 	local_irq_restore(flags);

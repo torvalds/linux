@@ -47,7 +47,6 @@ struct cpu_workqueue_struct {
 
 	struct workqueue_struct *wq;
 	struct task_struct *thread;
-	int should_stop;
 
 	int run_depth;		/* Detect run_workqueue() recursion depth */
 } ____cacheline_aligned;
@@ -71,7 +70,13 @@ static LIST_HEAD(workqueues);
 
 static int singlethread_cpu __read_mostly;
 static cpumask_t cpu_singlethread_map __read_mostly;
-/* optimization, we could use cpu_possible_map */
+/*
+ * _cpu_down() first removes CPU from cpu_online_map, then CPU_DEAD
+ * flushes cwq->worklist. This means that flush_workqueue/wait_on_work
+ * which comes in between can't use for_each_online_cpu(). We could
+ * use cpu_possible_map, the cpumask below is more a documentation
+ * than optimization.
+ */
 static cpumask_t cpu_populated_map __read_mostly;
 
 /* If it's single threaded, it isn't in the list of workqueues. */
@@ -272,24 +277,6 @@ static void run_workqueue(struct cpu_workqueue_struct *cwq)
 	spin_unlock_irq(&cwq->lock);
 }
 
-/*
- * NOTE: the caller must not touch *cwq if this func returns true
- */
-static int cwq_should_stop(struct cpu_workqueue_struct *cwq)
-{
-	int should_stop = cwq->should_stop;
-
-	if (unlikely(should_stop)) {
-		spin_lock_irq(&cwq->lock);
-		should_stop = cwq->should_stop && list_empty(&cwq->worklist);
-		if (should_stop)
-			cwq->thread = NULL;
-		spin_unlock_irq(&cwq->lock);
-	}
-
-	return should_stop;
-}
-
 static int worker_thread(void *__cwq)
 {
 	struct cpu_workqueue_struct *cwq = __cwq;
@@ -302,14 +289,15 @@ static int worker_thread(void *__cwq)
 
 	for (;;) {
 		prepare_to_wait(&cwq->more_work, &wait, TASK_INTERRUPTIBLE);
-		if (!freezing(current) && !cwq->should_stop
-		    && list_empty(&cwq->worklist))
+		if (!freezing(current) &&
+		    !kthread_should_stop() &&
+		    list_empty(&cwq->worklist))
 			schedule();
 		finish_wait(&cwq->more_work, &wait);
 
 		try_to_freeze();
 
-		if (cwq_should_stop(cwq))
+		if (kthread_should_stop())
 			break;
 
 		run_workqueue(cwq);
@@ -340,18 +328,21 @@ static void insert_wq_barrier(struct cpu_workqueue_struct *cwq,
 	insert_work(cwq, &barr->work, tail);
 }
 
-static void flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
+static int flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
 {
+	int active;
+
 	if (cwq->thread == current) {
 		/*
 		 * Probably keventd trying to flush its own queue. So simply run
 		 * it by hand rather than deadlocking.
 		 */
 		run_workqueue(cwq);
+		active = 1;
 	} else {
 		struct wq_barrier barr;
-		int active = 0;
 
+		active = 0;
 		spin_lock_irq(&cwq->lock);
 		if (!list_empty(&cwq->worklist) || cwq->current_work != NULL) {
 			insert_wq_barrier(cwq, &barr, 1);
@@ -362,6 +353,8 @@ static void flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
 		if (active)
 			wait_for_completion(&barr.done);
 	}
+
+	return active;
 }
 
 /**
@@ -674,7 +667,6 @@ static int create_workqueue_thread(struct cpu_workqueue_struct *cwq, int cpu)
 		return PTR_ERR(p);
 
 	cwq->thread = p;
-	cwq->should_stop = 0;
 
 	return 0;
 }
@@ -740,29 +732,27 @@ EXPORT_SYMBOL_GPL(__create_workqueue);
 
 static void cleanup_workqueue_thread(struct cpu_workqueue_struct *cwq, int cpu)
 {
-	struct wq_barrier barr;
-	int alive = 0;
+	/*
+	 * Our caller is either destroy_workqueue() or CPU_DEAD,
+	 * workqueue_mutex protects cwq->thread
+	 */
+	if (cwq->thread == NULL)
+		return;
 
-	spin_lock_irq(&cwq->lock);
-	if (cwq->thread != NULL) {
-		insert_wq_barrier(cwq, &barr, 1);
-		cwq->should_stop = 1;
-		alive = 1;
-	}
-	spin_unlock_irq(&cwq->lock);
+	/*
+	 * If the caller is CPU_DEAD the single flush_cpu_workqueue()
+	 * is not enough, a concurrent flush_workqueue() can insert a
+	 * barrier after us.
+	 * When ->worklist becomes empty it is safe to exit because no
+	 * more work_structs can be queued on this cwq: flush_workqueue
+	 * checks list_empty(), and a "normal" queue_work() can't use
+	 * a dead CPU.
+	 */
+	while (flush_cpu_workqueue(cwq))
+		;
 
-	if (alive) {
-		wait_for_completion(&barr.done);
-
-		while (unlikely(cwq->thread != NULL))
-			cpu_relax();
-		/*
-		 * Wait until cwq->thread unlocks cwq->lock,
-		 * it won't touch *cwq after that.
-		 */
-		smp_rmb();
-		spin_unlock_wait(&cwq->lock);
-	}
+	kthread_stop(cwq->thread);
+	cwq->thread = NULL;
 }
 
 /**

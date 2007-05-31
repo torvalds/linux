@@ -119,15 +119,17 @@ static const struct drive_list_entry drive_blacklist [] = {
 	{ "HITACHI CDR-8335"	,	"ALL"		},
 	{ "HITACHI CDR-8435"	,	"ALL"		},
 	{ "Toshiba CD-ROM XM-6202B"	,	"ALL"		},
+	{ "TOSHIBA CD-ROM XM-1702BC",	"ALL"		},
 	{ "CD-532E-A"		,	"ALL"		},
 	{ "E-IDE CD-ROM CR-840",	"ALL"		},
 	{ "CD-ROM Drive/F5A",	"ALL"		},
 	{ "WPI CDD-820",		"ALL"		},
 	{ "SAMSUNG CD-ROM SC-148C",	"ALL"		},
 	{ "SAMSUNG CD-ROM SC",	"ALL"		},
-	{ "SanDisk SDP3B-64"	,	"ALL"		},
 	{ "ATAPI CD-ROM DRIVE 40X MAXIMUM",	"ALL"		},
 	{ "_NEC DV5800A",               "ALL"           },  
+	{ "SAMSUNG CD-ROM SN-124",	"N001" },
+	{ "Seagate STT20000A",		"ALL" },
 	{ NULL			,	NULL		}
 
 };

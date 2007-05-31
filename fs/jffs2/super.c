@@ -47,10 +47,8 @@ static void jffs2_i_init_once(void * foo, struct kmem_cache * cachep, unsigned l
 {
 	struct jffs2_inode_info *ei = (struct jffs2_inode_info *) foo;
 
-	if (flags & SLAB_CTOR_CONSTRUCTOR) {
-		init_MUTEX(&ei->sem);
-		inode_init_once(&ei->vfs_inode);
-	}
+	init_MUTEX(&ei->sem);
+	inode_init_once(&ei->vfs_inode);
 }
 
 static int jffs2_sync_fs(struct super_block *sb, int wait)

@@ -36,9 +36,7 @@ extern void __chk_io_ptr(const void __iomem *);
 
 #ifdef __KERNEL__
 
-#if __GNUC__ > 4
-#error no compiler-gcc.h file for this gcc version
-#elif __GNUC__ == 4
+#if __GNUC__ >= 4
 # include <linux/compiler-gcc4.h>
 #elif __GNUC__ == 3 && __GNUC_MINOR__ >= 2
 # include <linux/compiler-gcc3.h>

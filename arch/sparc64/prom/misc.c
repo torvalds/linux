@@ -15,6 +15,25 @@
 #include <asm/oplib.h>
 #include <asm/system.h>
 
+int prom_service_exists(const char *service_name)
+{
+	int err = p1275_cmd("test", P1275_ARG(0, P1275_ARG_IN_STRING) |
+			    P1275_INOUT(1, 1), service_name);
+
+	if (err)
+		return 0;
+	return 1;
+}
+
+void prom_sun4v_guest_soft_state(void)
+{
+	const char *svc = "SUNW,soft-state-supported";
+
+	if (!prom_service_exists(svc))
+		return;
+	p1275_cmd(svc, P1275_INOUT(0, 0));
+}
+
 /* Reset and reboot the machine with the command 'bcommand'. */
 void prom_reboot(const char *bcommand)
 {

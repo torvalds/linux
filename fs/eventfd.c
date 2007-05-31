@@ -17,7 +17,6 @@
 #include <linux/eventfd.h>
 
 struct eventfd_ctx {
-	spinlock_t lock;
 	wait_queue_head_t wqh;
 	/*
 	 * Every time that a write(2) is performed on an eventfd, the
@@ -45,13 +44,13 @@ int eventfd_signal(struct file *file, int n)
 
 	if (n < 0)
 		return -EINVAL;
-	spin_lock_irqsave(&ctx->lock, flags);
+	spin_lock_irqsave(&ctx->wqh.lock, flags);
 	if (ULLONG_MAX - ctx->count < n)
 		n = (int) (ULLONG_MAX - ctx->count);
 	ctx->count += n;
 	if (waitqueue_active(&ctx->wqh))
 		wake_up_locked(&ctx->wqh);
-	spin_unlock_irqrestore(&ctx->lock, flags);
+	spin_unlock_irqrestore(&ctx->wqh.lock, flags);
 
 	return n;
 }
@@ -70,14 +69,14 @@ static unsigned int eventfd_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &ctx->wqh, wait);
 
-	spin_lock_irqsave(&ctx->lock, flags);
+	spin_lock_irqsave(&ctx->wqh.lock, flags);
 	if (ctx->count > 0)
 		events |= POLLIN;
 	if (ctx->count == ULLONG_MAX)
 		events |= POLLERR;
 	if (ULLONG_MAX - 1 > ctx->count)
 		events |= POLLOUT;
-	spin_unlock_irqrestore(&ctx->lock, flags);
+	spin_unlock_irqrestore(&ctx->wqh.lock, flags);
 
 	return events;
 }
@@ -92,7 +91,7 @@ static ssize_t eventfd_read(struct file *file, char __user *buf, size_t count,
 
 	if (count < sizeof(ucnt))
 		return -EINVAL;
-	spin_lock_irq(&ctx->lock);
+	spin_lock_irq(&ctx->wqh.lock);
 	res = -EAGAIN;
 	ucnt = ctx->count;
 	if (ucnt > 0)
@@ -110,9 +109,9 @@ static ssize_t eventfd_read(struct file *file, char __user *buf, size_t count,
 				res = -ERESTARTSYS;
 				break;
 			}
-			spin_unlock_irq(&ctx->lock);
+			spin_unlock_irq(&ctx->wqh.lock);
 			schedule();
-			spin_lock_irq(&ctx->lock);
+			spin_lock_irq(&ctx->wqh.lock);
 		}
 		__remove_wait_queue(&ctx->wqh, &wait);
 		__set_current_state(TASK_RUNNING);
@@ -122,7 +121,7 @@ static ssize_t eventfd_read(struct file *file, char __user *buf, size_t count,
 		if (waitqueue_active(&ctx->wqh))
 			wake_up_locked(&ctx->wqh);
 	}
-	spin_unlock_irq(&ctx->lock);
+	spin_unlock_irq(&ctx->wqh.lock);
 	if (res > 0 && put_user(ucnt, (__u64 __user *) buf))
 		return -EFAULT;
 
@@ -143,7 +142,7 @@ static ssize_t eventfd_write(struct file *file, const char __user *buf, size_t c
 		return -EFAULT;
 	if (ucnt == ULLONG_MAX)
 		return -EINVAL;
-	spin_lock_irq(&ctx->lock);
+	spin_lock_irq(&ctx->wqh.lock);
 	res = -EAGAIN;
 	if (ULLONG_MAX - ctx->count > ucnt)
 		res = sizeof(ucnt);
@@ -159,9 +158,9 @@ static ssize_t eventfd_write(struct file *file, const char __user *buf, size_t c
 				res = -ERESTARTSYS;
 				break;
 			}
-			spin_unlock_irq(&ctx->lock);
+			spin_unlock_irq(&ctx->wqh.lock);
 			schedule();
-			spin_lock_irq(&ctx->lock);
+			spin_lock_irq(&ctx->wqh.lock);
 		}
 		__remove_wait_queue(&ctx->wqh, &wait);
 		__set_current_state(TASK_RUNNING);
@@ -171,7 +170,7 @@ static ssize_t eventfd_write(struct file *file, const char __user *buf, size_t c
 		if (waitqueue_active(&ctx->wqh))
 			wake_up_locked(&ctx->wqh);
 	}
-	spin_unlock_irq(&ctx->lock);
+	spin_unlock_irq(&ctx->wqh.lock);
 
 	return res;
 }
@@ -210,7 +209,6 @@ asmlinkage long sys_eventfd(unsigned int count)
 		return -ENOMEM;
 
 	init_waitqueue_head(&ctx->wqh);
-	spin_lock_init(&ctx->lock);
 	ctx->count = count;
 
 	/*

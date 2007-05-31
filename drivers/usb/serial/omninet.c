@@ -165,12 +165,10 @@ static int omninet_open (struct usb_serial_port *port, struct file *filp)
 {
 	struct usb_serial	*serial = port->serial;
 	struct usb_serial_port	*wport;
-	struct omninet_data	*od = usb_get_serial_port_data(port);
 	int			result = 0;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	od = kmalloc( sizeof(struct omninet_data), GFP_KERNEL );
 	wport = serial->port[1];
 	wport->tty = port->tty;
 

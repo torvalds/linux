@@ -11,6 +11,7 @@
 
 #include <linux/slab.h>
 #include <linux/file.h>
+#include <linux/sched.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/nfs3.h>
 #include <linux/nfs4.h>
@@ -352,6 +353,26 @@ int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 void nfs_pageio_complete(struct nfs_pageio_descriptor *desc)
 {
 	nfs_pageio_doio(desc);
+}
+
+/**
+ * nfs_pageio_cond_complete - Conditional I/O completion
+ * @desc: pointer to io descriptor
+ * @index: page index
+ *
+ * It is important to ensure that processes don't try to take locks
+ * on non-contiguous ranges of pages as that might deadlock. This
+ * function should be called before attempting to wait on a locked
+ * nfs_page. It will complete the I/O if the page index 'index'
+ * is not contiguous with the existing list of pages in 'desc'.
+ */
+void nfs_pageio_cond_complete(struct nfs_pageio_descriptor *desc, pgoff_t index)
+{
+	if (!list_empty(&desc->pg_list)) {
+		struct nfs_page *prev = nfs_list_entry(desc->pg_list.prev);
+		if (index != prev->wb_index + 1)
+			nfs_pageio_doio(desc);
+	}
 }
 
 #define NFS_SCAN_MAXENTRIES 16

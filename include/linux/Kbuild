@@ -239,6 +239,7 @@ unifdef-y += ipc.h
 unifdef-y += ipmi.h
 unifdef-y += ipv6.h
 unifdef-y += ipv6_route.h
+unifdef-y += ip6_tunnel.h
 unifdef-y += isdn.h
 unifdef-y += isdnif.h
 unifdef-y += isdn_divertif.h

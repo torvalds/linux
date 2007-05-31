@@ -8,6 +8,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/poison.h>
+#include <linux/sched.h>
 
 /*
  * Pool allocator ... wraps the dma_alloc_coherent page allocator, so

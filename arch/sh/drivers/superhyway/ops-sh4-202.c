@@ -130,7 +130,7 @@ static int sh4202_read_vcr(unsigned long base, struct superhyway_vcr_info *vcr)
 	 * Some modules (PBR and ePBR for instance) also appear to have
 	 * VCRL/VCRH flipped in the documentation, but on the SH4-202
 	 * itself it appears that these are all consistently mapped with
-	 * VCRH preceeding VCRL.
+	 * VCRH preceding VCRL.
 	 *
 	 * Do not trust the documentation, for it is evil.
 	 */

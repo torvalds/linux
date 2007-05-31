@@ -129,6 +129,7 @@ MODULE_PARM_DESC(seq_ports, "Number of sequencer ports for WaveTable synth.");
 #endif
 
 #ifdef CONFIG_PNP
+static int isa_registered;
 static int pnp_registered;
 #endif
 
@@ -702,15 +703,18 @@ static int __init alsa_card_sb16_init(void)
 	int err;
 
 	err = isa_register_driver(&snd_sb16_isa_driver, SNDRV_CARDS);
-	if (err < 0)
-		return err;
 #ifdef CONFIG_PNP
-	/* PnP cards at last */
+	if (!err)
+		isa_registered = 1;
+
 	err = pnp_register_card_driver(&sb16_pnpc_driver);
 	if (!err)
 		pnp_registered = 1;
+
+	if (isa_registered)
+		err = 0;
 #endif
-	return 0;
+	return err;
 }
 
 static void __exit alsa_card_sb16_exit(void)
@@ -718,8 +722,9 @@ static void __exit alsa_card_sb16_exit(void)
 #ifdef CONFIG_PNP
 	if (pnp_registered)
 		pnp_unregister_card_driver(&sb16_pnpc_driver);
+	if (isa_registered)
 #endif
-	isa_unregister_driver(&snd_sb16_isa_driver);
+		isa_unregister_driver(&snd_sb16_isa_driver);
 }
 
 module_init(alsa_card_sb16_init)

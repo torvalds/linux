@@ -7,6 +7,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/bootmem.h>
+#include <linux/log2.h>
 
 #include <asm/io.h>
 #include <asm/hwrpb.h>
@@ -53,7 +54,7 @@ size_for_memory(unsigned long max)
 {
 	unsigned long mem = max_low_pfn << PAGE_SHIFT;
 	if (mem < max)
-		max = 1UL << ceil_log2(mem);
+		max = roundup_pow_of_two(mem);
 	return max;
 }
 

@@ -186,7 +186,7 @@ handle_IPI (int irq, void *dev_id)
 }
 
 /*
- * Called with preeemption disabled.
+ * Called with preemption disabled.
  */
 static inline void
 send_IPI_single (int dest_cpu, int op)
@@ -196,7 +196,7 @@ send_IPI_single (int dest_cpu, int op)
 }
 
 /*
- * Called with preeemption disabled.
+ * Called with preemption disabled.
  */
 static inline void
 send_IPI_allbutself (int op)
@@ -210,7 +210,7 @@ send_IPI_allbutself (int op)
 }
 
 /*
- * Called with preeemption disabled.
+ * Called with preemption disabled.
  */
 static inline void
 send_IPI_all (int op)
@@ -223,7 +223,7 @@ send_IPI_all (int op)
 }
 
 /*
- * Called with preeemption disabled.
+ * Called with preemption disabled.
  */
 static inline void
 send_IPI_self (int op)
@@ -252,7 +252,7 @@ kdump_smp_send_init(void)
 }
 #endif
 /*
- * Called with preeemption disabled.
+ * Called with preemption disabled.
  */
 void
 smp_send_reschedule (int cpu)
@@ -261,7 +261,7 @@ smp_send_reschedule (int cpu)
 }
 
 /*
- * Called with preeemption disabled.
+ * Called with preemption disabled.
  */
 static void
 smp_send_local_flush_tlb (int cpu)

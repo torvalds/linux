@@ -179,7 +179,7 @@ static int ramfs_nommu_resize(struct inode *inode, loff_t newsize, loff_t size)
 			return ret;
 	}
 
-	ret = vmtruncate(inode, size);
+	ret = vmtruncate(inode, newsize);
 
 	return ret;
 }

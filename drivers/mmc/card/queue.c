@@ -20,40 +20,21 @@
 #define MMC_QUEUE_SUSPENDED	(1 << 0)
 
 /*
- * Prepare a MMC request.  Essentially, this means passing the
- * preparation off to the media driver.  The media driver will
- * create a mmc_io_request in req->special.
+ * Prepare a MMC request. This just filters out odd stuff.
  */
 static int mmc_prep_request(struct request_queue *q, struct request *req)
 {
-	struct mmc_queue *mq = q->queuedata;
-	int ret = BLKPREP_KILL;
-
-	if (blk_special_request(req)) {
-		/*
-		 * Special commands already have the command
-		 * blocks already setup in req->special.
-		 */
-		BUG_ON(!req->special);
-
-		ret = BLKPREP_OK;
-	} else if (blk_fs_request(req) || blk_pc_request(req)) {
-		/*
-		 * Block I/O requests need translating according
-		 * to the protocol.
-		 */
-		ret = mq->prep_fn(mq, req);
-	} else {
-		/*
-		 * Everything else is invalid.
-		 */
+	/*
+	 * We only like normal block requests.
+	 */
+	if (!blk_fs_request(req) && !blk_pc_request(req)) {
 		blk_dump_rq_flags(req, "MMC bad request");
+		return BLKPREP_KILL;
 	}
 
-	if (ret == BLKPREP_OK)
-		req->cmd_flags |= REQ_DONTPREP;
+	req->cmd_flags |= REQ_DONTPREP;
 
-	return ret;
+	return BLKPREP_OK;
 }
 
 static int mmc_queue_thread(void *d)

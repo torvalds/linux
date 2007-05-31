@@ -385,7 +385,7 @@ static void __init osk_init(void)
 	/* Workaround for wrong CS3 (NOR flash) timing
 	 * There are some U-Boot versions out there which configure
 	 * wrong CS3 memory timings. This mainly leads to CRC
-	 * or similiar errors if you use NOR flash (e.g. with JFFS2)
+	 * or similar errors if you use NOR flash (e.g. with JFFS2)
 	 */
 	if (EMIFS_CCS(3) != EMIFS_CS3_VAL)
 		EMIFS_CCS(3) = EMIFS_CS3_VAL;

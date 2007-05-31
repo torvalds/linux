@@ -4,7 +4,7 @@
  * May be copied or modified under the terms of the GNU General Public
  * License.  See linux/COPYING for more information.                            
  *
- * Defintions for the ST40 PCI hardware.
+ * Definitions for the ST40 PCI hardware.
  */
 
 #ifndef __PCI_ST40_H__

@@ -40,6 +40,7 @@
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
+#include <linux/sched.h>
 
 #include "x86_emulate.h"
 #include "segment_descriptor.h"

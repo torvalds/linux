@@ -515,6 +515,7 @@ static int rndis_bind(struct usbnet *dev, struct usb_interface *intf)
 		dev_err(&intf->dev,
 			"dev can't take %u byte packets (max %u)\n",
 			dev->hard_mtu, tmp);
+		retval = -EINVAL;
 		goto fail_and_release;
 	}
 

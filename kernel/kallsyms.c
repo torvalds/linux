@@ -257,7 +257,8 @@ const char *kallsyms_lookup(unsigned long addr,
 		pos = get_symbol_pos(addr, symbolsize, offset);
 		/* Grab name */
 		kallsyms_expand_symbol(get_symbol_offset(pos), namebuf);
-		*modname = NULL;
+		if (modname)
+			*modname = NULL;
 		return namebuf;
 	}
 

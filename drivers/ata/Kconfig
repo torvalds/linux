@@ -132,7 +132,7 @@ config SATA_SIS
 	depends on PCI
 	select PATA_SIS
 	help
-	  This option enables support for SiS Serial ATA on 
+	  This option enables support for SiS Serial ATA on
 	  SiS 964/965/966/180 and Parallel ATA on SiS 180.
 	  The PATA support for SiS 180 requires additionally to
 	  enable the PATA_SIS driver in the config.

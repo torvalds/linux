@@ -116,7 +116,8 @@ void paging_init(void)
 	{
 		unsigned long zones_size[MAX_NR_ZONES] = { 0, };
 
-		zones_size[ZONE_NORMAL] = (end_mem - PAGE_OFFSET) >> PAGE_SHIFT;
+		zones_size[ZONE_DMA] = (end_mem - PAGE_OFFSET) >> PAGE_SHIFT;
+		zones_size[ZONE_NORMAL] = 0;
 #ifdef CONFIG_HIGHMEM
 		zones_size[ZONE_HIGHMEM] = 0;
 #endif

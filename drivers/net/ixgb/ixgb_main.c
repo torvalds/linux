@@ -227,7 +227,7 @@ int
 ixgb_up(struct ixgb_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	int err;
+	int err, irq_flags = IRQF_SHARED;
 	int max_frame = netdev->mtu + ENET_HEADER_SIZE + ENET_FCS_LENGTH;
 	struct ixgb_hw *hw = &adapter->hw;
 
@@ -246,26 +246,21 @@ ixgb_up(struct ixgb_adapter *adapter)
 	/* disable interrupts and get the hardware into a known state */
 	IXGB_WRITE_REG(&adapter->hw, IMC, 0xffffffff);
 
-#ifdef CONFIG_PCI_MSI
-	{
-	boolean_t pcix = (IXGB_READ_REG(&adapter->hw, STATUS) & 
-						  IXGB_STATUS_PCIX_MODE) ? TRUE : FALSE;
-	adapter->have_msi = TRUE;
-
-	if (!pcix)
-	   adapter->have_msi = FALSE;
-	else if((err = pci_enable_msi(adapter->pdev))) {
-		DPRINTK(PROBE, ERR,
-		 "Unable to allocate MSI interrupt Error: %d\n", err);
-		adapter->have_msi = FALSE;
+	/* only enable MSI if bus is in PCI-X mode */
+	if (IXGB_READ_REG(&adapter->hw, STATUS) & IXGB_STATUS_PCIX_MODE) {
+		err = pci_enable_msi(adapter->pdev);
+		if (!err) {
+			adapter->have_msi = 1;
+			irq_flags = 0;
+		}
 		/* proceed to try to request regular interrupt */
 	}
-	}
 
-#endif
-	if((err = request_irq(adapter->pdev->irq, &ixgb_intr,
-				  IRQF_SHARED | IRQF_SAMPLE_RANDOM,
-			          netdev->name, netdev))) {
+	err = request_irq(adapter->pdev->irq, &ixgb_intr, irq_flags,
+	                  netdev->name, netdev);
+	if (err) {
+		if (adapter->have_msi)
+			pci_disable_msi(adapter->pdev);
 		DPRINTK(PROBE, ERR,
 		 "Unable to allocate interrupt Error: %d\n", err);
 		return err;
@@ -307,11 +302,10 @@ ixgb_down(struct ixgb_adapter *adapter, boolean_t kill_watchdog)
 
 	ixgb_irq_disable(adapter);
 	free_irq(adapter->pdev->irq, netdev);
-#ifdef CONFIG_PCI_MSI
-	if(adapter->have_msi == TRUE)
+
+	if (adapter->have_msi)
 		pci_disable_msi(adapter->pdev);
 
-#endif
 	if(kill_watchdog)
 		del_timer_sync(&adapter->watchdog_timer);
 #ifdef CONFIG_IXGB_NAPI

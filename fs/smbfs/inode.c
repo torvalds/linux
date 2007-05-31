@@ -25,6 +25,7 @@
 #include <linux/net.h>
 #include <linux/vfs.h>
 #include <linux/highuid.h>
+#include <linux/sched.h>
 #include <linux/smb_fs.h>
 #include <linux/smbno.h>
 #include <linux/smb_mount.h>
@@ -70,8 +71,7 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 {
 	struct smb_inode_info *ei = (struct smb_inode_info *) foo;
 
-	if (flags & SLAB_CTOR_CONSTRUCTOR)
-		inode_init_once(&ei->vfs_inode);
+	inode_init_once(&ei->vfs_inode);
 }
  
 static int init_inodecache(void)

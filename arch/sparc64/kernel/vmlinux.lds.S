@@ -14,7 +14,7 @@ SECTIONS
   .text 0x0000000000404000 :
   {
     _text = .;
-    *(.text)
+    TEXT_TEXT
     SCHED_TEXT
     LOCK_TEXT
     KPROBES_TEXT
@@ -27,7 +27,7 @@ SECTIONS
 
   .data    :
   {
-    *(.data)
+    DATA_DATA
     CONSTRUCTORS
   }
   .data1   : { *(.data1) }

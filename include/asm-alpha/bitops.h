@@ -313,32 +313,29 @@ static inline int ffs(int word)
  * fls: find last bit set.
  */
 #if defined(CONFIG_ALPHA_EV6) && defined(CONFIG_ALPHA_EV67)
-static inline int fls(int word)
+static inline int fls64(unsigned long word)
 {
-	return 64 - __kernel_ctlz(word & 0xffffffff);
+	return 64 - __kernel_ctlz(word);
 }
 #else
-#include <asm-generic/bitops/fls.h>
-#endif
-#include <asm-generic/bitops/fls64.h>
+extern const unsigned char __flsm1_tab[256];
 
-/* Compute powers of two for the given integer.  */
-static inline long floor_log2(unsigned long word)
+static inline int fls64(unsigned long x)
 {
-#if defined(CONFIG_ALPHA_EV6) && defined(CONFIG_ALPHA_EV67)
-	return 63 - __kernel_ctlz(word);
-#else
-	long bit;
-	for (bit = -1; word ; bit++)
-		word >>= 1;
-	return bit;
-#endif
+	unsigned long t, a, r;
+
+	t = __kernel_cmpbge (x, 0x0101010101010101);
+	a = __flsm1_tab[t];
+	t = __kernel_extbl (x, a);
+	r = a*8 + __flsm1_tab[t] + (x != 0);
+
+	return r;
 }
+#endif
 
-static inline long ceil_log2(unsigned long word)
+static inline int fls(int x)
 {
-	long bit = floor_log2(word);
-	return bit + (word > (1UL << bit));
+	return fls64((unsigned int) x);
 }
 
 /*
@@ -353,9 +350,20 @@ static inline unsigned long hweight64(unsigned long w)
 	return __kernel_ctpop(w);
 }
 
-#define hweight32(x)	(unsigned int) hweight64((x) & 0xfffffffful)
-#define hweight16(x)	(unsigned int) hweight64((x) & 0xfffful)
-#define hweight8(x)	(unsigned int) hweight64((x) & 0xfful)
+static inline unsigned int hweight32(unsigned int w)
+{
+	return hweight64(w);
+}
+
+static inline unsigned int hweight16(unsigned int w)
+{
+	return hweight64(w & 0xffff);
+}
+
+static inline unsigned int hweight8(unsigned int w)
+{
+	return hweight64(w & 0xff);
+}
 #else
 #include <asm-generic/bitops/hweight.h>
 #endif

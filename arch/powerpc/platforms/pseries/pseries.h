@@ -21,8 +21,8 @@ extern int pSeries_machine_check_exception(struct pt_regs *regs);
 extern void smp_init_pseries_mpic(void);
 extern void smp_init_pseries_xics(void);
 #else
-static inline smp_init_pseries_mpic(void) { };
-static inline smp_init_pseries_xics(void) { };
+static inline void smp_init_pseries_mpic(void) { };
+static inline void smp_init_pseries_xics(void) { };
 #endif
 
 #ifdef CONFIG_KEXEC

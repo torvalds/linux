@@ -769,11 +769,6 @@ static void mos7840_bulk_out_data_callback(struct urb *urb)
 		return;
 	}
 
-	if (!mos7840_port) {
-		dbg("%s", "NULL mos7840_port pointer \n");
-		return;
-	}
-
 	if (mos7840_port_paranoia_check(mos7840_port->port, __FUNCTION__)) {
 		dbg("%s", "Port Paranoia failed \n");
 		return;

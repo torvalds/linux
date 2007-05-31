@@ -135,23 +135,6 @@ struct mmc_blk_request {
 	struct mmc_data		data;
 };
 
-static int mmc_blk_prep_rq(struct mmc_queue *mq, struct request *req)
-{
-	struct mmc_blk_data *md = mq->data;
-	int stat = BLKPREP_OK;
-
-	/*
-	 * If we have no device, we haven't finished initialising.
-	 */
-	if (!md || !mq->card) {
-		printk(KERN_ERR "%s: killing request - no device/host\n",
-		       req->rq_disk->disk_name);
-		stat = BLKPREP_KILL;
-	}
-
-	return stat;
-}
-
 static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 {
 	int err;
@@ -460,7 +443,6 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 	if (ret)
 		goto err_putdisk;
 
-	md->queue.prep_fn = mmc_blk_prep_rq;
 	md->queue.issue_fn = mmc_blk_issue_rq;
 	md->queue.data = md;
 

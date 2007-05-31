@@ -32,6 +32,7 @@
 #include <linux/namei.h>
 #include <linux/backing-dev.h>
 #include <linux/capability.h>
+#include <linux/sched.h>
 
 #include <linux/configfs.h>
 #include "configfs_internal.h"

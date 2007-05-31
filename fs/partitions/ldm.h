@@ -2,10 +2,10 @@
  * ldm - Part of the Linux-NTFS project.
  *
  * Copyright (C) 2001,2002 Richard Russon <ldm@flatcap.org>
- * Copyright (C) 2001      Anton Altaparmakov <aia21@cantab.net>
+ * Copyright (c) 2001-2007 Anton Altaparmakov
  * Copyright (C) 2001,2002 Jakob Kemi <jakob.kemi@telia.com>
  *
- * Documentation is available at http://linux-ntfs.sf.net/ldm
+ * Documentation is available at http://www.linux-ntfs.org/content/view/19/37/
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -93,7 +93,7 @@ struct parsed_partitions;
 
 #define OFF_VMDB		17		/* List of partitions. */
 
-#define WIN2K_DYNAMIC_PARTITION	0x42		/* Formerly SFS (Landis). */
+#define LDM_PARTITION		0x42		/* Formerly SFS (Landis). */
 
 #define TOC_BITMAP1		"config"	/* Names of the two defined */
 #define TOC_BITMAP2		"log"		/* bitmaps in the TOCBLOCK. */

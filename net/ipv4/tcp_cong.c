@@ -276,30 +276,34 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
 
 
 /*
- * Slow start (exponential increase) with
- * RFC3742 Limited Slow Start (fast linear increase) support.
+ * Slow start is used when congestion window is less than slow start
+ * threshold. This version implements the basic RFC2581 version
+ * and optionally supports:
+ * 	RFC3742 Limited Slow Start  	  - growth limited to max_ssthresh
+ *	RFC3465 Appropriate Byte Counting - growth limited by bytes acknowledged
  */
 void tcp_slow_start(struct tcp_sock *tp)
 {
-	int cnt = 0;
+	int cnt; /* increase in packets */
 
-	if (sysctl_tcp_abc) {
-		/* RFC3465: Slow Start
-		 * TCP sender SHOULD increase cwnd by the number of
-		 * previously unacknowledged bytes ACKed by each incoming
-		 * acknowledgment, provided the increase is not more than L
-		 */
-		if (tp->bytes_acked < tp->mss_cache)
-			return;
-	}
+	/* RFC3465: ABC Slow start
+	 * Increase only after a full MSS of bytes is acked
+	 *
+	 * TCP sender SHOULD increase cwnd by the number of
+	 * previously unacknowledged bytes ACKed by each incoming
+	 * acknowledgment, provided the increase is not more than L
+	 */
+	if (sysctl_tcp_abc && tp->bytes_acked < tp->mss_cache)
+		return;
 
-	if (sysctl_tcp_max_ssthresh > 0 &&
-	    tp->snd_cwnd > sysctl_tcp_max_ssthresh)
-		cnt += sysctl_tcp_max_ssthresh>>1;
+	if (sysctl_tcp_max_ssthresh > 0 && tp->snd_cwnd > sysctl_tcp_max_ssthresh)
+		cnt = sysctl_tcp_max_ssthresh >> 1;	/* limited slow start */
 	else
-		cnt += tp->snd_cwnd;
+		cnt = tp->snd_cwnd;			/* exponential increase */
 
-	/* RFC3465: We MAY increase by 2 if discovered delayed ack */
+	/* RFC3465: ABC
+	 * We MAY increase by 2 if discovered delayed ack
+	 */
 	if (sysctl_tcp_abc > 1 && tp->bytes_acked >= 2*tp->mss_cache)
 		cnt <<= 1;
 	tp->bytes_acked = 0;

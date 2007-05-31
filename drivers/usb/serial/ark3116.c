@@ -63,7 +63,8 @@ static inline void ARK3116_RCV(struct usb_serial *serial, int seq,
 				 request, requesttype, value, index,
 				 buf, 0x0000001, 1000);
 	if (result)
-		dbg("%03d < %d bytes [0x%02X]", seq, result, buf[0]);
+		dbg("%03d < %d bytes [0x%02X]", seq, result,
+		    ((unsigned char *)buf)[0]);
 	else
 		dbg("%03d < 0 bytes", seq);
 }

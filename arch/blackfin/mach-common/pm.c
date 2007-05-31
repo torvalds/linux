@@ -102,10 +102,8 @@ static int bfin_pm_prepare(suspend_state_t state)
 	switch (state) {
 	case PM_SUSPEND_STANDBY:
 		break;
-	case PM_SUSPEND_MEM:
-		return -ENOTSUPP;
 
-	case PM_SUSPEND_DISK:
+	case PM_SUSPEND_MEM:
 		return -ENOTSUPP;
 
 	default:
@@ -126,10 +124,8 @@ static int bfin_pm_enter(suspend_state_t state)
 	case PM_SUSPEND_STANDBY:
 		bfin_pm_suspend_standby_enter();
 		break;
-	case PM_SUSPEND_MEM:
-		return -ENOTSUPP;
 
-	case PM_SUSPEND_DISK:
+	case PM_SUSPEND_MEM:
 		return -ENOTSUPP;
 
 	default:
@@ -155,9 +151,6 @@ static int bfin_pm_finish(suspend_state_t state)
 	case PM_SUSPEND_MEM:
 		return -ENOTSUPP;
 
-	case PM_SUSPEND_DISK:
-		return -ENOTSUPP;
-
 	default:
 		return -EINVAL;
 	}
@@ -166,7 +159,6 @@ static int bfin_pm_finish(suspend_state_t state)
 }
 
 struct pm_ops bfin_pm_ops = {
-	.pm_disk_mode = PM_DISK_PLATFORM,
 	.prepare = bfin_pm_prepare,
 	.enter = bfin_pm_enter,
 	.finish = bfin_pm_finish,

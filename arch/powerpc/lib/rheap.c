@@ -468,25 +468,19 @@ unsigned long rh_alloc_align(rh_info_t * info, int size, int alignment, const ch
 	if (blk->size == size) {
 		/* Move from free list to taken list */
 		list_del(&blk->list);
-		blk->owner = owner;
-		start = blk->start;
+		newblk = blk;
+	} else {
+		newblk = get_slot(info);
+		newblk->start = blk->start;
+		newblk->size = size;
 
-		attach_taken_block(info, blk);
-
-		return start;
+		/* blk still in free list, with updated start, size */
+		blk->start += size;
+		blk->size -= size;
 	}
 
-	newblk = get_slot(info);
-	newblk->start = blk->start;
-	newblk->size = size;
 	newblk->owner = owner;
-
-	/* blk still in free list, with updated start, size */
-	blk->start += size;
-	blk->size -= size;
-
 	start = newblk->start;
-
 	attach_taken_block(info, newblk);
 
 	/* for larger alignment return fixed up pointer  */

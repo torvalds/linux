@@ -124,7 +124,7 @@ static struct irq_chip ixdp2351_intb_chip = {
 	.unmask	= ixdp2351_intb_unmask
 };
 
-void ixdp2351_init_irq(void)
+void __init ixdp2351_init_irq(void)
 {
 	int irq;
 

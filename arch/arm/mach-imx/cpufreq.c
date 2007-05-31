@@ -245,7 +245,7 @@ static int imx_set_target(struct cpufreq_policy *policy,
 	if(mpctl0) {
 		CSCR |= CSCR_MPLL_RESTART;
 
-		/* Wait until MPLL is stablized */
+		/* Wait until MPLL is stabilized */
 		while( CSCR & CSCR_MPLL_RESTART );
 
 		imx_set_async_mode();

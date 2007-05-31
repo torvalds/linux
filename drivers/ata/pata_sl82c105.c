@@ -26,7 +26,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_sl82c105"
-#define DRV_VERSION "0.3.0"
+#define DRV_VERSION "0.3.1"
 
 enum {
 	/*

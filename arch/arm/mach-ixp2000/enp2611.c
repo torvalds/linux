@@ -198,7 +198,7 @@ subsys_initcall(enp2611_pci_init);
 
 
 /*************************************************************************
- * ENP-2611 Machine Intialization
+ * ENP-2611 Machine Initialization
  *************************************************************************/
 static struct flash_platform_data enp2611_flash_platform_data = {
 	.map_name	= "cfi_probe",

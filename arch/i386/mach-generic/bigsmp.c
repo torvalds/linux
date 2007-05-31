@@ -21,7 +21,7 @@
 
 static int dmi_bigsmp; /* can be set by dmi scanners */
 
-static __init int hp_ht_bigsmp(struct dmi_system_id *d)
+static int hp_ht_bigsmp(struct dmi_system_id *d)
 {
 #ifdef CONFIG_X86_GENERICARCH
 	printk(KERN_NOTICE "%s detected: force use of apic=bigsmp\n", d->ident);
@@ -31,7 +31,7 @@ static __init int hp_ht_bigsmp(struct dmi_system_id *d)
 }
 
 
-static struct dmi_system_id __initdata bigsmp_dmi_table[] = {
+static struct dmi_system_id bigsmp_dmi_table[] = {
 	{ hp_ht_bigsmp, "HP ProLiant DL760 G2", {
 		DMI_MATCH(DMI_BIOS_VENDOR, "HP"),
 		DMI_MATCH(DMI_BIOS_VERSION, "P44-"),
@@ -45,7 +45,7 @@ static struct dmi_system_id __initdata bigsmp_dmi_table[] = {
 };
 
 
-static int __init probe_bigsmp(void)
+static int probe_bigsmp(void)
 { 
 	if (def_to_bigsmp)
         	dmi_bigsmp = 1;

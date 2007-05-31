@@ -45,7 +45,7 @@
 #include <asm/uaccess.h>
 #include <asm/scatterlist.h>
 #include <linux/crypto.h>
-
+#include <linux/sched.h>
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 

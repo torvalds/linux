@@ -14,7 +14,7 @@
 #include <linux/string.h>
 
 #include <asm/segment.h>
-#ifndef CONFIG_NO_ACCESS_CHECK
+#ifdef CONFIG_ACCESS_CHECK
 # include <asm/bfin-global.h>
 #endif
 
@@ -56,7 +56,7 @@ static inline int is_in_rom(unsigned long addr)
  * get_fs() == KERNEL_DS, checking is bypassed.
  */
 
-#ifdef CONFIG_NO_ACCESS_CHECK
+#ifndef CONFIG_ACCESS_CHECK
 static inline int _access_ok(unsigned long addr, unsigned long size) { return 1; }
 #else
 #ifdef CONFIG_ACCESS_OK_L1

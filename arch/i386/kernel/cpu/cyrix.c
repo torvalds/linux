@@ -7,6 +7,7 @@
 #include <asm/processor.h>
 #include <asm/timer.h>
 #include <asm/pci-direct.h>
+#include <asm/tsc.h>
 
 #include "cpu.h"
 

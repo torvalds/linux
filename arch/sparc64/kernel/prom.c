@@ -28,6 +28,7 @@
 #include <asm/irq.h>
 #include <asm/asi.h>
 #include <asm/upa.h>
+#include <asm/smp.h>
 
 static struct device_node *allnodes;
 
@@ -1665,6 +1666,150 @@ static struct device_node * __init build_tree(struct device_node *parent, phandl
 	return ret;
 }
 
+static const char *get_mid_prop(void)
+{
+	return (tlb_type == spitfire ? "upa-portid" : "portid");
+}
+
+struct device_node *of_find_node_by_cpuid(int cpuid)
+{
+	struct device_node *dp;
+	const char *mid_prop = get_mid_prop();
+
+	for_each_node_by_type(dp, "cpu") {
+		int id = of_getintprop_default(dp, mid_prop, -1);
+		const char *this_mid_prop = mid_prop;
+
+		if (id < 0) {
+			this_mid_prop = "cpuid";
+			id = of_getintprop_default(dp, this_mid_prop, -1);
+		}
+
+		if (id < 0) {
+			prom_printf("OF: Serious problem, cpu lacks "
+				    "%s property", this_mid_prop);
+			prom_halt();
+		}
+		if (cpuid == id)
+			return dp;
+	}
+	return NULL;
+}
+
+static void __init of_fill_in_cpu_data(void)
+{
+	struct device_node *dp;
+	const char *mid_prop = get_mid_prop();
+
+	ncpus_probed = 0;
+	for_each_node_by_type(dp, "cpu") {
+		int cpuid = of_getintprop_default(dp, mid_prop, -1);
+		const char *this_mid_prop = mid_prop;
+		struct device_node *portid_parent;
+		int portid = -1;
+
+		portid_parent = NULL;
+		if (cpuid < 0) {
+			this_mid_prop = "cpuid";
+			cpuid = of_getintprop_default(dp, this_mid_prop, -1);
+			if (cpuid >= 0) {
+				int limit = 2;
+
+				portid_parent = dp;
+				while (limit--) {
+					portid_parent = portid_parent->parent;
+					if (!portid_parent)
+						break;
+					portid = of_getintprop_default(portid_parent,
+								       "portid", -1);
+					if (portid >= 0)
+						break;
+				}
+			}
+		}
+
+		if (cpuid < 0) {
+			prom_printf("OF: Serious problem, cpu lacks "
+				    "%s property", this_mid_prop);
+			prom_halt();
+		}
+
+		ncpus_probed++;
+
+#ifdef CONFIG_SMP
+		if (cpuid >= NR_CPUS)
+			continue;
+#else
+		/* On uniprocessor we only want the values for the
+		 * real physical cpu the kernel booted onto, however
+		 * cpu_data() only has one entry at index 0.
+		 */
+		if (cpuid != real_hard_smp_processor_id())
+			continue;
+		cpuid = 0;
+#endif
+
+		cpu_data(cpuid).clock_tick =
+			of_getintprop_default(dp, "clock-frequency", 0);
+
+		if (portid_parent) {
+			cpu_data(cpuid).dcache_size =
+				of_getintprop_default(dp, "l1-dcache-size",
+						      16 * 1024);
+			cpu_data(cpuid).dcache_line_size =
+				of_getintprop_default(dp, "l1-dcache-line-size",
+						      32);
+			cpu_data(cpuid).icache_size =
+				of_getintprop_default(dp, "l1-icache-size",
+						      8 * 1024);
+			cpu_data(cpuid).icache_line_size =
+				of_getintprop_default(dp, "l1-icache-line-size",
+						      32);
+			cpu_data(cpuid).ecache_size =
+				of_getintprop_default(dp, "l2-cache-size", 0);
+			cpu_data(cpuid).ecache_line_size =
+				of_getintprop_default(dp, "l2-cache-line-size", 0);
+			if (!cpu_data(cpuid).ecache_size ||
+			    !cpu_data(cpuid).ecache_line_size) {
+				cpu_data(cpuid).ecache_size =
+					of_getintprop_default(portid_parent,
+							      "l2-cache-size",
+							      (4 * 1024 * 1024));
+				cpu_data(cpuid).ecache_line_size =
+					of_getintprop_default(portid_parent,
+							      "l2-cache-line-size", 64);
+			}
+
+			cpu_data(cpuid).core_id = portid + 1;
+		} else {
+			cpu_data(cpuid).dcache_size =
+				of_getintprop_default(dp, "dcache-size", 16 * 1024);
+			cpu_data(cpuid).dcache_line_size =
+				of_getintprop_default(dp, "dcache-line-size", 32);
+
+			cpu_data(cpuid).icache_size =
+				of_getintprop_default(dp, "icache-size", 16 * 1024);
+			cpu_data(cpuid).icache_line_size =
+				of_getintprop_default(dp, "icache-line-size", 32);
+
+			cpu_data(cpuid).ecache_size =
+				of_getintprop_default(dp, "ecache-size",
+						      (4 * 1024 * 1024));
+			cpu_data(cpuid).ecache_line_size =
+				of_getintprop_default(dp, "ecache-line-size", 64);
+
+			cpu_data(cpuid).core_id = 0;
+		}
+
+#ifdef CONFIG_SMP
+		cpu_set(cpuid, cpu_present_map);
+		cpu_set(cpuid, phys_cpu_present_map);
+#endif
+	}
+
+	smp_fill_in_sib_core_maps();
+}
+
 void __init prom_build_devicetree(void)
 {
 	struct device_node **nextp;
@@ -1679,4 +1824,7 @@ void __init prom_build_devicetree(void)
 				     &nextp);
 	printk("PROM: Built device tree with %u bytes of memory.\n",
 	       prom_early_allocated);
+
+	if (tlb_type != hypervisor)
+		of_fill_in_cpu_data();
 }

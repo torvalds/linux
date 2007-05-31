@@ -582,6 +582,12 @@ static int strrcmp(const char *s, const char *sub)
 
 /**
  * Whitelist to allow certain references to pass with no warning.
+ *
+ * Pattern 0:
+ *   Do not warn if funtion/data are marked with __init_refok/__initdata_refok.
+ *   The pattern is identified by:
+ *   fromsec = .text.init.refok | .data.init.refok
+ *
  * Pattern 1:
  *   If a module parameter is declared __initdata and permissions=0
  *   then this is legal despite the warning generated.
@@ -619,14 +625,6 @@ static int strrcmp(const char *s, const char *sub)
  *   This pattern is identified by
  *   refsymname = __init_begin, _sinittext, _einittext
  *
- * Pattern 6:
- *   During the early init phase we have references from .init.text to
- *   .text we have an intended section mismatch - do not warn about it.
- *   See kernel_init() in init/main.c
- *   tosec   = .init.text
- *   fromsec = .text
- *   atsym = kernel_init
- *
  * Pattern 7:
  *  Logos used in drivers/video/logo reside in __initdata but the
  *  funtion that references them are EXPORT_SYMBOL() so cannot be
@@ -642,16 +640,11 @@ static int strrcmp(const char *s, const char *sub)
  *  tosec   = .init.text
  *  fromsec  = .paravirtprobe
  *
- * Pattern 9:
- *  Some of functions are common code between boot time and hotplug
- *  time. The bootmem allocater is called only boot time in its
- *  functions. So it's ok to reference.
- *  tosec    = .init.text
- *
  * Pattern 10:
- *  ia64 has machvec table for each platform. It is mixture of function
- *  pointer of .init.text and .text.
- *  fromsec  = .machvec
+ *  ia64 has machvec table for each platform and
+ *  powerpc has a machine desc table for each platform.
+ *  It is mixture of function pointers of .init.text and .text.
+ *  fromsec  = .machvec | .machine.desc
  **/
 static int secref_whitelist(const char *modname, const char *tosec,
 			    const char *fromsec, const char *atsym,
@@ -678,11 +671,10 @@ static int secref_whitelist(const char *modname, const char *tosec,
 		NULL
 	};
 
-	const char *pat4sym[] = {
-		"sparse_index_alloc",
-		"zone_wait_table_init",
-		NULL
-	};
+	/* Check for pattern 0 */
+	if ((strcmp(fromsec, ".text.init.refok") == 0) ||
+	    (strcmp(fromsec, ".data.init.refok") == 0))
+		return 1;
 
 	/* Check for pattern 1 */
 	if (strcmp(tosec, ".init.data") != 0)
@@ -725,12 +717,6 @@ static int secref_whitelist(const char *modname, const char *tosec,
 		if (strcmp(refsymname, *s) == 0)
 			return 1;
 
-	/* Check for pattern 6 */
-	if ((strcmp(tosec, ".init.text") == 0) &&
-	    (strcmp(fromsec, ".text") == 0) &&
-	    (strcmp(refsymname, "kernel_init") == 0))
-		return 1;
-
 	/* Check for pattern 7 */
 	if ((strcmp(tosec, ".init.data") == 0) &&
 	    (strncmp(fromsec, ".text", strlen(".text")) == 0) &&
@@ -742,15 +728,9 @@ static int secref_whitelist(const char *modname, const char *tosec,
 	    (strcmp(fromsec, ".paravirtprobe") == 0))
 		return 1;
 
-	/* Check for pattern 9 */
-	if ((strcmp(tosec, ".init.text") == 0) &&
-	    (strcmp(fromsec, ".text") == 0))
-		for (s = pat4sym; *s; s++)
-			if (strcmp(atsym, *s) == 0)
-				return 1;
-
 	/* Check for pattern 10 */
-	if (strcmp(fromsec, ".machvec") == 0)
+	if ((strcmp(fromsec, ".machvec") == 0) ||
+	    (strcmp(fromsec, ".machine.desc") == 0))
 		return 1;
 
 	return 0;
@@ -884,30 +864,34 @@ static void warn_sec_mismatch(const char *modname, const char *fromsec,
 			     elf->strtab + before->st_name, refsymname))
 		return;
 
+	/* fromsec whitelist - without a valid 'before'
+	 * powerpc has a GOT table in .got2 section */
+	if (strcmp(fromsec, ".got2") == 0)
+		return;
+
 	if (before && after) {
-		warn("%s - Section mismatch: reference to %s:%s from %s "
-		     "between '%s' (at offset 0x%llx) and '%s'\n",
-		     modname, secname, refsymname, fromsec,
+		warn("%s(%s+0x%llx): Section mismatch: reference to %s:%s "
+		     "(between '%s' and '%s')\n",
+		     modname, fromsec, (unsigned long long)r.r_offset,
+		     secname, refsymname,
 		     elf->strtab + before->st_name,
-		     (long long)r.r_offset,
 		     elf->strtab + after->st_name);
 	} else if (before) {
-		warn("%s - Section mismatch: reference to %s:%s from %s "
-		     "after '%s' (at offset 0x%llx)\n",
-		     modname, secname, refsymname, fromsec,
-		     elf->strtab + before->st_name,
-		     (long long)r.r_offset);
+		warn("%s(%s+0x%llx): Section mismatch: reference to %s:%s "
+		     "(after '%s')\n",
+		     modname, fromsec, (unsigned long long)r.r_offset,
+		     secname, refsymname,
+		     elf->strtab + before->st_name);
 	} else if (after) {
-		warn("%s - Section mismatch: reference to %s:%s from %s "
+		warn("%s(%s+0x%llx): Section mismatch: reference to %s:%s "
 		     "before '%s' (at offset -0x%llx)\n",
-		     modname, secname, refsymname, fromsec,
-		     elf->strtab + after->st_name,
-		     (long long)r.r_offset);
+		     modname, fromsec, (unsigned long long)r.r_offset,
+		     secname, refsymname,
+		     elf->strtab + after->st_name);
 	} else {
-		warn("%s - Section mismatch: reference to %s:%s from %s "
-		     "(offset 0x%llx)\n",
-		     modname, secname, fromsec, refsymname,
-		     (long long)r.r_offset);
+		warn("%s(%s+0x%llx): Section mismatch: reference to %s:%s\n",
+		     modname, fromsec, (unsigned long long)r.r_offset,
+		     secname, refsymname);
 	}
 }
 

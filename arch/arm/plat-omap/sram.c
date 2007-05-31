@@ -59,8 +59,8 @@ extern unsigned long omapfb_reserve_sram(unsigned long sram_pstart,
 
 /*
  * Depending on the target RAMFS firewall setup, the public usable amount of
- * SRAM varies.  The default accessable size for all device types is 2k. A GP
- * device allows ARM11 but not other initators for full size. This
+ * SRAM varies.  The default accessible size for all device types is 2k. A GP
+ * device allows ARM11 but not other initiators for full size. This
  * functionality seems ok until some nice security API happens.
  */
 static int is_sram_locked(void)
@@ -71,7 +71,7 @@ static int is_sram_locked(void)
 		type = __raw_readl(VA_CONTROL_STAT) & TYPE_MASK;
 
 	if (type == GP_DEVICE) {
-		/* RAMFW: R/W access to all initators for all qualifier sets */
+		/* RAMFW: R/W access to all initiators for all qualifier sets */
 		if (cpu_is_omap242x()) {
 			__raw_writel(0xFF, VA_REQINFOPERM0); /* all q-vects */
 			__raw_writel(0xCFDE, VA_READPERM0);  /* all i-read */

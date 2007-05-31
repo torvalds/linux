@@ -171,8 +171,6 @@ skip:
 	return 0;
 }
 
-extern unsigned long real_hard_smp_processor_id(void);
-
 static unsigned int sun4u_compute_tid(unsigned long imap, unsigned long cpuid)
 {
 	unsigned int tid;
@@ -694,9 +692,20 @@ void init_irqwork_curcpu(void)
 	trap_block[cpu].irq_worklist = 0;
 }
 
-static void __cpuinit register_one_mondo(unsigned long paddr, unsigned long type)
+/* Please be very careful with register_one_mondo() and
+ * sun4v_register_mondo_queues().
+ *
+ * On SMP this gets invoked from the CPU trampoline before
+ * the cpu has fully taken over the trap table from OBP,
+ * and it's kernel stack + %g6 thread register state is
+ * not fully cooked yet.
+ *
+ * Therefore you cannot make any OBP calls, not even prom_printf,
+ * from these two routines.
+ */
+static void __cpuinit register_one_mondo(unsigned long paddr, unsigned long type, unsigned long qmask)
 {
-	unsigned long num_entries = 128;
+	unsigned long num_entries = (qmask + 1) / 64;
 	unsigned long status;
 
 	status = sun4v_cpu_qconf(type, paddr, num_entries);
@@ -711,44 +720,58 @@ static void __cpuinit sun4v_register_mondo_queues(int this_cpu)
 {
 	struct trap_per_cpu *tb = &trap_block[this_cpu];
 
-	register_one_mondo(tb->cpu_mondo_pa, HV_CPU_QUEUE_CPU_MONDO);
-	register_one_mondo(tb->dev_mondo_pa, HV_CPU_QUEUE_DEVICE_MONDO);
-	register_one_mondo(tb->resum_mondo_pa, HV_CPU_QUEUE_RES_ERROR);
-	register_one_mondo(tb->nonresum_mondo_pa, HV_CPU_QUEUE_NONRES_ERROR);
+	register_one_mondo(tb->cpu_mondo_pa, HV_CPU_QUEUE_CPU_MONDO,
+			   tb->cpu_mondo_qmask);
+	register_one_mondo(tb->dev_mondo_pa, HV_CPU_QUEUE_DEVICE_MONDO,
+			   tb->dev_mondo_qmask);
+	register_one_mondo(tb->resum_mondo_pa, HV_CPU_QUEUE_RES_ERROR,
+			   tb->resum_qmask);
+	register_one_mondo(tb->nonresum_mondo_pa, HV_CPU_QUEUE_NONRES_ERROR,
+			   tb->nonresum_qmask);
 }
 
-static void __cpuinit alloc_one_mondo(unsigned long *pa_ptr, int use_bootmem)
+static void __cpuinit alloc_one_mondo(unsigned long *pa_ptr, unsigned long qmask, int use_bootmem)
 {
-	void *page;
+	unsigned long size = PAGE_ALIGN(qmask + 1);
+	unsigned long order = get_order(size);
+	void *p = NULL;
 
-	if (use_bootmem)
-		page = alloc_bootmem_low_pages(PAGE_SIZE);
-	else
-		page = (void *) get_zeroed_page(GFP_ATOMIC);
+	if (use_bootmem) {
+		p = __alloc_bootmem_low(size, size, 0);
+	} else {
+		struct page *page = alloc_pages(GFP_ATOMIC | __GFP_ZERO, order);
+		if (page)
+			p = page_address(page);
+	}
 
-	if (!page) {
+	if (!p) {
 		prom_printf("SUN4V: Error, cannot allocate mondo queue.\n");
 		prom_halt();
 	}
 
-	*pa_ptr = __pa(page);
+	*pa_ptr = __pa(p);
 }
 
-static void __cpuinit alloc_one_kbuf(unsigned long *pa_ptr, int use_bootmem)
+static void __cpuinit alloc_one_kbuf(unsigned long *pa_ptr, unsigned long qmask, int use_bootmem)
 {
-	void *page;
+	unsigned long size = PAGE_ALIGN(qmask + 1);
+	unsigned long order = get_order(size);
+	void *p = NULL;
 
-	if (use_bootmem)
-		page = alloc_bootmem_low_pages(PAGE_SIZE);
-	else
-		page = (void *) get_zeroed_page(GFP_ATOMIC);
+	if (use_bootmem) {
+		p = __alloc_bootmem_low(size, size, 0);
+	} else {
+		struct page *page = alloc_pages(GFP_ATOMIC | __GFP_ZERO, order);
+		if (page)
+			p = page_address(page);
+	}
 
-	if (!page) {
+	if (!p) {
 		prom_printf("SUN4V: Error, cannot allocate kbuf page.\n");
 		prom_halt();
 	}
 
-	*pa_ptr = __pa(page);
+	*pa_ptr = __pa(p);
 }
 
 static void __cpuinit init_cpu_send_mondo_info(struct trap_per_cpu *tb, int use_bootmem)
@@ -779,12 +802,12 @@ void __cpuinit sun4v_init_mondo_queues(int use_bootmem, int cpu, int alloc, int 
 	struct trap_per_cpu *tb = &trap_block[cpu];
 
 	if (alloc) {
-		alloc_one_mondo(&tb->cpu_mondo_pa, use_bootmem);
-		alloc_one_mondo(&tb->dev_mondo_pa, use_bootmem);
-		alloc_one_mondo(&tb->resum_mondo_pa, use_bootmem);
-		alloc_one_kbuf(&tb->resum_kernel_buf_pa, use_bootmem);
-		alloc_one_mondo(&tb->nonresum_mondo_pa, use_bootmem);
-		alloc_one_kbuf(&tb->nonresum_kernel_buf_pa, use_bootmem);
+		alloc_one_mondo(&tb->cpu_mondo_pa, tb->cpu_mondo_qmask, use_bootmem);
+		alloc_one_mondo(&tb->dev_mondo_pa, tb->dev_mondo_qmask, use_bootmem);
+		alloc_one_mondo(&tb->resum_mondo_pa, tb->resum_qmask, use_bootmem);
+		alloc_one_kbuf(&tb->resum_kernel_buf_pa, tb->resum_qmask, use_bootmem);
+		alloc_one_mondo(&tb->nonresum_mondo_pa, tb->nonresum_qmask, use_bootmem);
+		alloc_one_kbuf(&tb->nonresum_kernel_buf_pa, tb->nonresum_qmask, use_bootmem);
 
 		init_cpu_send_mondo_info(tb, use_bootmem);
 	}

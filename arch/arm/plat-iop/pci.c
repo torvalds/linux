@@ -19,6 +19,7 @@
 #include <linux/ioport.h>
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <asm/signal.h>
 #include <asm/system.h>
 #include <asm/hardware.h>
 #include <asm/mach/pci.h>
@@ -85,10 +86,10 @@ static int iop3xx_pci_status(void)
 
 /*
  * Simply write the address register and read the configuration
- * data.  Note that the 4 nop's ensure that we are able to handle
+ * data.  Note that the 4 nops ensure that we are able to handle
  * a delayed abort (in theory.)
  */
-static inline u32 iop3xx_read(unsigned long addr)
+static u32 iop3xx_read(unsigned long addr)
 {
 	u32 val;
 
@@ -321,7 +322,7 @@ void __init iop3xx_atu_disable(void)
 /* Flag to determine whether the ATU is initialized and the PCI bus scanned */
 int init_atu;
 
-void iop3xx_pci_preinit(void)
+void __init iop3xx_pci_preinit(void)
 {
 	if (iop3xx_get_init_atu() == IOP3XX_INIT_ATU_ENABLE) {
 		iop3xx_atu_disable();

@@ -148,7 +148,7 @@ fmac(struct sh_fpu_soft_struct *fregs, struct pt_regs *regs, int m, int n)
 	return 0;
 }
 
-// to process fmov's extention (odd n for DR access XD).
+// to process fmov's extension (odd n for DR access XD).
 #define FMOV_EXT(x) if(x&1) x+=16-1
 
 static int

@@ -24,7 +24,6 @@
 struct timerfd_ctx {
 	struct hrtimer tmr;
 	ktime_t tintv;
-	spinlock_t lock;
 	wait_queue_head_t wqh;
 	int expired;
 };
@@ -39,10 +38,10 @@ static enum hrtimer_restart timerfd_tmrproc(struct hrtimer *htmr)
 	struct timerfd_ctx *ctx = container_of(htmr, struct timerfd_ctx, tmr);
 	unsigned long flags;
 
-	spin_lock_irqsave(&ctx->lock, flags);
+	spin_lock_irqsave(&ctx->wqh.lock, flags);
 	ctx->expired = 1;
 	wake_up_locked(&ctx->wqh);
-	spin_unlock_irqrestore(&ctx->lock, flags);
+	spin_unlock_irqrestore(&ctx->wqh.lock, flags);
 
 	return HRTIMER_NORESTART;
 }
@@ -83,10 +82,10 @@ static unsigned int timerfd_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &ctx->wqh, wait);
 
-	spin_lock_irqsave(&ctx->lock, flags);
+	spin_lock_irqsave(&ctx->wqh.lock, flags);
 	if (ctx->expired)
 		events |= POLLIN;
-	spin_unlock_irqrestore(&ctx->lock, flags);
+	spin_unlock_irqrestore(&ctx->wqh.lock, flags);
 
 	return events;
 }
@@ -101,7 +100,7 @@ static ssize_t timerfd_read(struct file *file, char __user *buf, size_t count,
 
 	if (count < sizeof(ticks))
 		return -EINVAL;
-	spin_lock_irq(&ctx->lock);
+	spin_lock_irq(&ctx->wqh.lock);
 	res = -EAGAIN;
 	if (!ctx->expired && !(file->f_flags & O_NONBLOCK)) {
 		__add_wait_queue(&ctx->wqh, &wait);
@@ -115,9 +114,9 @@ static ssize_t timerfd_read(struct file *file, char __user *buf, size_t count,
 				res = -ERESTARTSYS;
 				break;
 			}
-			spin_unlock_irq(&ctx->lock);
+			spin_unlock_irq(&ctx->wqh.lock);
 			schedule();
-			spin_lock_irq(&ctx->lock);
+			spin_lock_irq(&ctx->wqh.lock);
 		}
 		__remove_wait_queue(&ctx->wqh, &wait);
 		__set_current_state(TASK_RUNNING);
@@ -139,7 +138,7 @@ static ssize_t timerfd_read(struct file *file, char __user *buf, size_t count,
 		} else
 			ticks = 1;
 	}
-	spin_unlock_irq(&ctx->lock);
+	spin_unlock_irq(&ctx->wqh.lock);
 	if (ticks)
 		res = put_user(ticks, buf) ? -EFAULT: sizeof(ticks);
 	return res;
@@ -176,7 +175,6 @@ asmlinkage long sys_timerfd(int ufd, int clockid, int flags,
 			return -ENOMEM;
 
 		init_waitqueue_head(&ctx->wqh);
-		spin_lock_init(&ctx->lock);
 
 		timerfd_setup(ctx, clockid, flags, &ktmr);
 
@@ -202,10 +200,10 @@ asmlinkage long sys_timerfd(int ufd, int clockid, int flags,
 		 * it to the new values.
 		 */
 		for (;;) {
-			spin_lock_irq(&ctx->lock);
+			spin_lock_irq(&ctx->wqh.lock);
 			if (hrtimer_try_to_cancel(&ctx->tmr) >= 0)
 				break;
-			spin_unlock_irq(&ctx->lock);
+			spin_unlock_irq(&ctx->wqh.lock);
 			cpu_relax();
 		}
 		/*
@@ -213,7 +211,7 @@ asmlinkage long sys_timerfd(int ufd, int clockid, int flags,
 		 */
 		timerfd_setup(ctx, clockid, flags, &ktmr);
 
-		spin_unlock_irq(&ctx->lock);
+		spin_unlock_irq(&ctx->wqh.lock);
 		fput(file);
 	}
 

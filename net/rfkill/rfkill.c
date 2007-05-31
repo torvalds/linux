@@ -296,7 +296,7 @@ struct rfkill *rfkill_allocate(struct device *parent, enum rfkill_type type)
 	struct device *dev;
 
 	rfkill = kzalloc(sizeof(struct rfkill), GFP_KERNEL);
-	if (rfkill)
+	if (!rfkill)
 		return NULL;
 
 	mutex_init(&rfkill->mutex);

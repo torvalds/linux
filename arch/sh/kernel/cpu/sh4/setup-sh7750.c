@@ -106,6 +106,7 @@ static struct ipr_data sh7750_ipr_map[] = {
 	{ 38, 2,  8, 7 }, /* DMAC DMAE */
 };
 
+#ifdef CONFIG_CPU_SUBTYPE_SH7751
 static struct ipr_data sh7751_ipr_map[] = {
 	{ 44, 2,  8, 7 }, /* DMAC DMTE4 */
 	{ 45, 2,  8, 7 }, /* DMAC DMTE5 */
@@ -117,6 +118,7 @@ static struct ipr_data sh7751_ipr_map[] = {
 	/*{ 72, INTPRI00,  8, ? },*/ /* TMU3 TUNI */
 	/*{ 76, INTPRI00, 12, ? },*/ /* TMU4 TUNI */
 };
+#endif
 
 static unsigned long ipr_offsets[] = {
 	0xffd00004UL,	/* 0: IPRA */

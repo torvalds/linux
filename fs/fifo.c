@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
+#include <linux/sched.h>
 #include <linux/pipe_fs_i.h>
 
 static void wait_for_partner(struct inode* inode, unsigned int *cnt)

@@ -43,7 +43,7 @@
 #include "sis.h"
 
 #define DRV_NAME	"sata_sis"
-#define DRV_VERSION	"0.7"
+#define DRV_VERSION	"0.8"
 
 enum {
 	sis_180			= 0,
@@ -255,7 +255,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
 	struct ata_port_info pi = sis_port_info;
-	const struct ata_port_info *ppi[] = { &pi, NULL };
+	const struct ata_port_info *ppi[] = { &pi, &pi };
 	struct ata_host *host;
 	u32 genctl, val;
 	u8 pmr;

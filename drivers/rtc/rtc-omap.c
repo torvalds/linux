@@ -371,7 +371,7 @@ static int __devinit omap_rtc_probe(struct platform_device *pdev)
 		goto fail;
 	}
 	platform_set_drvdata(pdev, rtc);
-	dev_set_devdata(&rtc->dev, mem);
+	dev_set_drvdata(&rtc->dev, mem);
 
 	/* clear pending irqs, and set 1/second periodic,
 	 * which we'll use instead of update irqs
@@ -453,7 +453,7 @@ static int __devexit omap_rtc_remove(struct platform_device *pdev)
 	free_irq(omap_rtc_timer, rtc);
 	free_irq(omap_rtc_alarm, rtc);
 
-	release_resource(dev_get_devdata(&rtc->dev));
+	release_resource(dev_get_drvdata(&rtc->dev));
 	rtc_device_unregister(rtc);
 	return 0;
 }

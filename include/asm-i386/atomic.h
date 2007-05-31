@@ -182,7 +182,7 @@ static __inline__ int atomic_add_return(int i, atomic_t *v)
 	int __i;
 #ifdef CONFIG_M386
 	unsigned long flags;
-	if(unlikely(boot_cpu_data.x86==3))
+	if(unlikely(boot_cpu_data.x86 <= 3))
 		goto no_xadd;
 #endif
 	/* Modern 486+ processor */

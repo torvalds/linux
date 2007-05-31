@@ -251,11 +251,15 @@ static const struct alps_model_info *alps_get_model(struct psmouse *psmouse, int
 
 	dbg("E7 report: %2.2x %2.2x %2.2x", param[0], param[1], param[2]);
 
-	for (i = 0; i < ARRAY_SIZE(rates) && param[2] != rates[i]; i++);
-	*version = (param[0] << 8) | (param[1] << 4) | i;
+	if (version) {
+		for (i = 0; i < ARRAY_SIZE(rates) && param[2] != rates[i]; i++)
+			/* empty */;
+		*version = (param[0] << 8) | (param[1] << 4) | i;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(alps_model_data); i++)
-		if (!memcmp(param, alps_model_data[i].signature, sizeof(alps_model_data[i].signature)))
+		if (!memcmp(param, alps_model_data[i].signature,
+			    sizeof(alps_model_data[i].signature)))
 			return alps_model_data + i;
 
 	return NULL;
@@ -380,30 +384,44 @@ static int alps_poll(struct psmouse *psmouse)
 	return 0;
 }
 
-static int alps_reconnect(struct psmouse *psmouse)
+static int alps_hw_init(struct psmouse *psmouse, int *version)
 {
 	struct alps_data *priv = psmouse->private;
-	int version;
 
-	psmouse_reset(psmouse);
-
-	if (!(priv->i = alps_get_model(psmouse, &version)))
+	priv->i = alps_get_model(psmouse, version);
+	if (!priv->i)
 		return -1;
 
 	if ((priv->i->flags & ALPS_PASS) && alps_passthrough_mode(psmouse, 1))
 		return -1;
 
 	if (alps_tap_mode(psmouse, 1)) {
-		printk(KERN_WARNING "alps.c: Failed to reenable hardware tapping\n");
+		printk(KERN_WARNING "alps.c: Failed to enable hardware tapping\n");
 		return -1;
 	}
 
 	if (alps_absolute_mode(psmouse)) {
-		printk(KERN_ERR "alps.c: Failed to reenable absolute mode\n");
+		printk(KERN_ERR "alps.c: Failed to enable absolute mode\n");
 		return -1;
 	}
 
 	if ((priv->i->flags & ALPS_PASS) && alps_passthrough_mode(psmouse, 0))
+		return -1;
+
+	/* ALPS needs stream mode, otherwise it won't report any data */
+	if (ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_SETSTREAM)) {
+		printk(KERN_ERR "alps.c: Failed to enable stream mode\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int alps_reconnect(struct psmouse *psmouse)
+{
+	psmouse_reset(psmouse);
+
+	if (alps_hw_init(psmouse, NULL))
 		return -1;
 
 	return 0;
@@ -430,23 +448,9 @@ int alps_init(struct psmouse *psmouse)
 		goto init_fail;
 
 	priv->dev2 = dev2;
+	psmouse->private = priv;
 
-	priv->i = alps_get_model(psmouse, &version);
-	if (!priv->i)
-		goto init_fail;
-
-	if ((priv->i->flags & ALPS_PASS) && alps_passthrough_mode(psmouse, 1))
-		goto init_fail;
-
-	if (alps_tap_mode(psmouse, 1))
-		printk(KERN_WARNING "alps.c: Failed to enable hardware tapping\n");
-
-	if (alps_absolute_mode(psmouse)) {
-		printk(KERN_ERR "alps.c: Failed to enable absolute mode\n");
-		goto init_fail;
-	}
-
-	if ((priv->i->flags & ALPS_PASS) && alps_passthrough_mode(psmouse, 0))
+	if (alps_hw_init(psmouse, &version))
 		goto init_fail;
 
 	dev1->evbit[LONG(EV_KEY)] |= BIT(EV_KEY);
@@ -493,13 +497,13 @@ int alps_init(struct psmouse *psmouse)
 	/* We are having trouble resyncing ALPS touchpads so disable it for now */
 	psmouse->resync_time = 0;
 
-	psmouse->private = priv;
 	return 0;
 
 init_fail:
 	psmouse_reset(psmouse);
 	input_free_device(dev2);
 	kfree(priv);
+	psmouse->private = NULL;
 	return -1;
 }
 

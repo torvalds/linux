@@ -158,6 +158,12 @@ static int svwks_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 	pci_read_config_word(dev, 0x4A, &csb5_pio);
 	pci_read_config_byte(dev, 0x54, &ultra_enable);
 
+	/* If we are in RAID mode (eg AMI MegaIDE) then we can't it
+	   turns out trust the firmware configuration */
+
+	if ((dev->class >> 8) != PCI_CLASS_STORAGE_IDE)
+		goto oem_setup_failed;
+
 	/* Per Specified Design by OEM, and ASIC Architect */
 	if ((dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE) ||
 	    (dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2)) {
@@ -173,7 +179,7 @@ dma_pio:
 				   ((dma_stat&(1<<(5+unit)))==(1<<(5+unit)))) {
 				u8 dmaspeed = dma_timing;
 
-				dma_timing &= ~0xFF;
+				dma_timing &= ~0xFFU;
 				if ((dmaspeed & 0x20) == 0x20)
 					dmaspeed = XFER_MW_DMA_2;
 				else if ((dmaspeed & 0x21) == 0x21)
@@ -187,7 +193,7 @@ dma_pio:
 			} else if (pio_timing) {
 				u8 piospeed = pio_timing;
 
-				pio_timing &= ~0xFF;
+				pio_timing &= ~0xFFU;
 				if ((piospeed & 0x20) == 0x20)
 					piospeed = XFER_PIO_4;
 				else if ((piospeed & 0x22) == 0x22)
@@ -208,8 +214,8 @@ dma_pio:
 
 oem_setup_failed:
 
-	pio_timing	&= ~0xFF;
-	dma_timing	&= ~0xFF;
+	pio_timing	&= ~0xFFU;
+	dma_timing	&= ~0xFFU;
 	ultra_timing	&= ~(0x0F << (4*unit));
 	ultra_enable	&= ~(0x01 << drive->dn);
 	csb5_pio	&= ~(0x0F << (4*drive->dn));

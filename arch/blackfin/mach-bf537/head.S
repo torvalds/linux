@@ -181,7 +181,8 @@ ENTRY(__stext)
 	SSYNC;
 #endif
 
-	/*Initialise UART*/
+	/* Initialise UART - when booting from u-boot, the UART is not disabled
+	 * so if we dont initalize here, our serial console gets hosed */
 	p0.h = hi(UART_LCR);
 	p0.l = lo(UART_LCR);
 	r0 = 0x0(Z);
@@ -469,46 +470,40 @@ ENTRY(_bfin_reset)
 	SSYNC;
 
 #if defined(CONFIG_MTD_M25P80)
-/*
- * The following code fix the SPI flash reboot issue,
- * /CS signal of the chip which is using PF10 return to GPIO mode
- */
+	/*
+	 * The following code fix the SPI flash reboot issue,
+	 * /CS signal of the chip which is using PF10 return to GPIO mode
+	 */
 	p0.h = hi(PORTF_FER);
 	p0.l = lo(PORTF_FER);
 	r0.l = 0x0000;
 	w[p0] = r0.l;
 	SSYNC;
 
-/* /CS return to high */
+	/* /CS return to high */
 	p0.h = hi(PORTFIO);
 	p0.l = lo(PORTFIO);
 	r0.l = 0xFFFF;
 	w[p0] = r0.l;
 	SSYNC;
 
-/* Delay some time, This is necessary */
+	/* Delay some time, This is necessary */
 	r1.h = 0;
 	r1.l = 0x400;
 	p1   = r1;
-	lsetup (_delay_lab1,_delay_lab1_end ) lc1 = p1;
-_delay_lab1:
+	lsetup (.L_delay_lab1, .L_delay_lab1_end) lc1 = p1;
+.L_delay_lab1:
 	r0.h = 0;
 	r0.l = 0x8000;
 	p0   = r0;
-	lsetup (_delay_lab0,_delay_lab0_end ) lc0 = p0;
-_delay_lab0:
+	lsetup (.L_delay_lab0, .L_delay_lab0_end) lc0 = p0;
+.L_delay_lab0:
 	nop;
-_delay_lab0_end:
+.L_delay_lab0_end:
 	nop;
-_delay_lab1_end:
+.L_delay_lab1_end:
 	nop;
 #endif
-
-	/* Clear the bits 13-15 in SWRST if they werent cleared */
-	p0.h = hi(SWRST);
-	p0.l = lo(SWRST);
-	csync;
-	r0.l = w[p0];
 
 	/* Clear the IMASK register */
 	p0.h = hi(IMASK);
@@ -523,68 +518,30 @@ _delay_lab1_end:
 	[p0] = r0;
 	SSYNC;
 
-	/* Disable the WDOG TIMER */
-	p0.h = hi(WDOG_CTL);
-	p0.l = lo(WDOG_CTL);
-	r0.l = 0xAD6;
-	w[p0] = r0.l;
+	/* make sure SYSCR is set to use BMODE */
+	P0.h = hi(SYSCR);
+	P0.l = lo(SYSCR);
+	R0.l = 0x0;
+	W[P0] = R0.l;
 	SSYNC;
 
-	/* Clear the sticky bit incase it is already set */
-	p0.h = hi(WDOG_CTL);
-	p0.l = lo(WDOG_CTL);
-	r0.l = 0x8AD6;
-	w[p0] = r0.l;
+	/* issue a system soft reset */
+	P1.h = hi(SWRST);
+	P1.l = lo(SWRST);
+	R1.l = 0x0007;
+	W[P1] = R1;
 	SSYNC;
 
-	/* Program the count value */
-	R0.l = 0x100;
-	R0.h = 0x0;
-	P0.h = hi(WDOG_CNT);
-	P0.l = lo(WDOG_CNT);
-	[P0] = R0;
+	/* clear system soft reset */
+	R0.l = 0x0000;
+	W[P0] = R0;
 	SSYNC;
 
-	/* Program WDOG_STAT if necessary */
-	P0.h = hi(WDOG_CTL);
-	P0.l = lo(WDOG_CTL);
-	R0 = W[P0](Z);
-	CC = BITTST(R0,1);
-	if !CC JUMP .LWRITESTAT;
-	CC = BITTST(R0,2);
-	if !CC JUMP .LWRITESTAT;
-	JUMP .LSKIP_WRITE;
-
-.LWRITESTAT:
-	/* When watch dog timer is enabled,
-	 * a write to STAT will load the contents of CNT to STAT
-	 */
-	R0 = 0x0000(z);
-	P0.h = hi(WDOG_STAT);
-	P0.l = lo(WDOG_STAT)
-	[P0] = R0;
-	SSYNC;
-
-.LSKIP_WRITE:
-	/* Enable the reset event */
-	P0.h = hi(WDOG_CTL);
-	P0.l = lo(WDOG_CTL);
-	R0 = W[P0](Z);
-	BITCLR(R0,1);
-	BITCLR(R0,2);
-	W[P0] = R0.L;
-	SSYNC;
-	NOP;
-
-	/* Enable the wdog counter */
-	R0 = W[P0](Z);
-	BITCLR(R0,4);
-	W[P0] = R0.L;
-	SSYNC;
-
-	IDLE;
+	/* issue core reset */
+	raise 1;
 
 	RTS;
+ENDPROC(_bfin_reset)
 
 .data
 

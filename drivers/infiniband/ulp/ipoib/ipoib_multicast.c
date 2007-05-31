@@ -524,7 +524,7 @@ void ipoib_mcast_join_task(struct work_struct *work)
 		return;
 
 	if (ib_query_gid(priv->ca, priv->port, 0, &priv->local_gid))
-		ipoib_warn(priv, "ib_gid_entry_get() failed\n");
+		ipoib_warn(priv, "ib_query_gid() failed\n");
 	else
 		memcpy(priv->dev->dev_addr + 4, priv->local_gid.raw, sizeof (union ib_gid));
 

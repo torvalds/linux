@@ -15,6 +15,7 @@ GZFLAGS          := -9
 CFLAGS_MODULE    += -mlong-calls
 KALLSYMS         += --symbol-prefix=_
 
+KBUILD_DEFCONFIG := BF537-STAMP_defconfig
 
 # setup the machine name and the machine dependent settings
 machine-$(CONFIG_BF531) := bf533

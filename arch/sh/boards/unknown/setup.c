@@ -6,7 +6,7 @@
  * May be copied or modified under the terms of the GNU General Public
  * License.  See linux/COPYING for more information.
  *
- * Setup code for an unknown machine (internal peripherials only)
+ * Setup code for an unknown machine (internal peripherals only)
  *
  * This is the simplest of all boards, and serves only as a quick and dirty
  * method to start debugging a new board during bring-up until proper board

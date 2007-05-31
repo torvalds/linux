@@ -33,6 +33,7 @@
 #include <linux/pagevec.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
+#include <linux/sched.h>
 
 #include "nfs4_fs.h"
 #include "delegation.h"
@@ -607,7 +608,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	return res;
 }
 
-loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int origin)
+static loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int origin)
 {
 	mutex_lock(&filp->f_path.dentry->d_inode->i_mutex);
 	switch (origin) {
@@ -633,7 +634,7 @@ out:
  * All directory operations under NFS are synchronous, so fsync()
  * is a dummy operation.
  */
-int nfs_fsync_dir(struct file *filp, struct dentry *dentry, int datasync)
+static int nfs_fsync_dir(struct file *filp, struct dentry *dentry, int datasync)
 {
 	dfprintk(VFS, "NFS: fsync_dir(%s/%s) datasync %d\n",
 			dentry->d_parent->d_name.name, dentry->d_name.name,

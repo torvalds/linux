@@ -30,6 +30,8 @@
 
 #ifdef __KERNEL__
 
+#include <acpi/pdc_intel.h>
+
 #include <linux/init.h>
 #include <linux/numa.h>
 #include <asm/system.h>
@@ -118,11 +120,6 @@ extern int additional_cpus;
 extern int __devinitdata pxm_to_nid_map[MAX_PXM_DOMAINS];
 extern int __initdata nid_to_pxm_map[MAX_NUMNODES];
 #endif
-
-/*
- * Refer Intel ACPI _PDC support document for bit definitions
- */
-#define ACPI_PDC_EST_CAPABILITY_SMP     0x8
 
 #endif /*__KERNEL__*/
 

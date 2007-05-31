@@ -107,7 +107,7 @@ int ipoib_open(struct net_device *dev)
 		return -EINVAL;
 
 	if (ipoib_ib_dev_up(dev)) {
-		ipoib_ib_dev_stop(dev);
+		ipoib_ib_dev_stop(dev, 1);
 		return -EINVAL;
 	}
 
@@ -152,7 +152,7 @@ static int ipoib_stop(struct net_device *dev)
 	flush_workqueue(ipoib_workqueue);
 
 	ipoib_ib_dev_down(dev, 1);
-	ipoib_ib_dev_stop(dev);
+	ipoib_ib_dev_stop(dev, 1);
 
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 		struct ipoib_dev_priv *cpriv;
@@ -988,7 +988,8 @@ static void ipoib_setup(struct net_device *dev)
 	INIT_LIST_HEAD(&priv->dead_ahs);
 	INIT_LIST_HEAD(&priv->multicast_list);
 
-	INIT_DELAYED_WORK(&priv->pkey_task,    ipoib_pkey_poll);
+	INIT_DELAYED_WORK(&priv->pkey_poll_task, ipoib_pkey_poll);
+	INIT_WORK(&priv->pkey_event_task, ipoib_pkey_event);
 	INIT_DELAYED_WORK(&priv->mcast_task,   ipoib_mcast_join_task);
 	INIT_WORK(&priv->flush_task,   ipoib_ib_dev_flush);
 	INIT_WORK(&priv->restart_task, ipoib_mcast_restart_task);

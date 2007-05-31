@@ -46,7 +46,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_via"
-#define DRV_VERSION	"2.1"
+#define DRV_VERSION	"2.2"
 
 enum board_ids_enum {
 	vt6420,
@@ -85,6 +85,9 @@ static const struct pci_device_id svia_pci_tbl[] = {
 	{ PCI_VDEVICE(VIA, 0x0591), vt6420 },
 	{ PCI_VDEVICE(VIA, 0x3149), vt6420 },
 	{ PCI_VDEVICE(VIA, 0x3249), vt6421 },
+	{ PCI_VDEVICE(VIA, 0x5287), vt6420 },
+	{ PCI_VDEVICE(VIA, 0x5372), vt6420 },
+	{ PCI_VDEVICE(VIA, 0x7372), vt6420 },
 
 	{ }	/* terminate list */
 };
@@ -441,7 +444,7 @@ static int vt6421_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 		return -ENOMEM;
 	}
 
-	rc = pcim_iomap_regions(pdev, 0x1f, DRV_NAME);
+	rc = pcim_iomap_regions(pdev, 0x3f, DRV_NAME);
 	if (rc) {
 		dev_printk(KERN_ERR, &pdev->dev, "failed to request/iomap "
 			   "PCI BARs (errno=%d)\n", rc);

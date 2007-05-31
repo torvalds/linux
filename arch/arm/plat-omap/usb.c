@@ -177,7 +177,7 @@ static u32 __init omap_usb0_init(unsigned nwires, unsigned is_device)
 
 	/* NOTE:  SPEED and SUSP aren't configured here.  OTG hosts
 	 * may be able to use I2C requests to set those bits along
-	 * with VBUS switching and overcurrent detction.
+	 * with VBUS switching and overcurrent detection.
 	 */
 
 	if (cpu_class_is_omap1() && nwires != 6)

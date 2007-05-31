@@ -91,9 +91,9 @@ static int early_serial_putc(unsigned char ch)
 static void early_serial_write(struct console *con, const char *s, unsigned n)
 {
 	while (*s && n-- > 0) {
-		early_serial_putc(*s);
 		if (*s == '\n')
 			early_serial_putc('\r');
+		early_serial_putc(*s);
 		s++;
 	}
 }

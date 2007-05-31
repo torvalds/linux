@@ -27,6 +27,7 @@
 #include <linux/spinlock.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/timer.h>
 #include <asm/types.h>
 
 struct iommu_table {

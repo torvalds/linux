@@ -73,6 +73,13 @@ static struct list_head ftdi_static_list;
 #include "usb_u132.h"
 #include <asm/io.h>
 #include "../core/hcd.h"
+
+	/* FIXME ohci.h is ONLY for internal use by the OHCI driver.
+	 * If you're going to try stuff like this, you need to split
+	 * out shareable stuff (register declarations?) into its own
+	 * file, maybe name <linux/usb/ohci.h>
+	 */
+
 #include "../host/ohci.h"
 /* Define these values to match your devices*/
 #define USB_FTDI_ELAN_VENDOR_ID 0x0403
@@ -2300,10 +2307,7 @@ static int ftdi_elan_checkingPCI(struct usb_ftdi *ftdi)
         offsetof(struct ohci_regs, member), 0, data);
 #define ftdi_write_pcimem(ftdi, member, data) ftdi_elan_write_pcimem(ftdi, \
         offsetof(struct ohci_regs, member), 0, data);
-#define OHCI_QUIRK_AMD756 0x01
-#define OHCI_QUIRK_SUPERIO 0x02
-#define OHCI_QUIRK_INITRESET 0x04
-#define OHCI_BIG_ENDIAN 0x08
+
 #define OHCI_CONTROL_INIT OHCI_CTRL_CBSR
 #define OHCI_INTR_INIT (OHCI_INTR_MIE | OHCI_INTR_UE | OHCI_INTR_RD | \
         OHCI_INTR_WDH)

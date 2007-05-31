@@ -107,12 +107,17 @@ static int probe_st5481(struct usb_interface *intf,
 	for (i = 0; i < 2; i++)
 		b_if[i] = &adapter->bcs[i].b_if;
 
-	hisax_register(&adapter->hisax_d_if, b_if, "st5481_usb", protocol);
+	if (hisax_register(&adapter->hisax_d_if, b_if, "st5481_usb",
+			protocol) != 0)
+		goto err_b1;
+
 	st5481_start(adapter);
 
 	usb_set_intfdata(intf, adapter);
 	return 0;
 
+ err_b1:
+	st5481_release_b(&adapter->bcs[1]);
  err_b:
 	st5481_release_b(&adapter->bcs[0]);
  err_d:

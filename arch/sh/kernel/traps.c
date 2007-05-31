@@ -21,6 +21,7 @@
 #include <linux/bug.h>
 #include <linux/debug_locks.h>
 #include <linux/kdebug.h>
+#include <linux/kexec.h>
 #include <linux/limits.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -101,6 +102,16 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	bust_spinlocks(0);
 	spin_unlock_irq(&die_lock);
+
+	if (kexec_should_crash(current))
+		crash_kexec(regs);
+
+	if (in_interrupt())
+		panic("Fatal exception in interrupt");
+
+	if (panic_on_oops)
+		panic("Fatal exception");
+
 	do_exit(SIGSEGV);
 }
 
@@ -513,7 +524,7 @@ static int handle_unaligned_access(u16 instruction, struct pt_regs *regs)
  *       misaligned data access
  *       access to >= 0x80000000 is user mode
  * Unfortuntaly we can't distinguish between instruction address error
- * and data address errors caused by read acceses.
+ * and data address errors caused by read accesses.
  */
 asmlinkage void do_address_error(struct pt_regs *regs,
 				 unsigned long writeaccess,

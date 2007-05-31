@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/sched.h>
 #include "internal.h"
 
 unsigned afs_vlocation_timeout = 10;	/* volume location timeout in seconds */

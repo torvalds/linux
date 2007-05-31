@@ -54,7 +54,7 @@ SECTIONS
 	{
 		 _text = .;
 		 __stext = .;
-		*(.text)
+		TEXT_TEXT
 		SCHED_TEXT
 		*(.text.lock)
 		. = ALIGN(16);
@@ -200,7 +200,7 @@ SECTIONS
 		 __sdata = .;
 		. = ALIGN(0x2000);
 		*(.data.init_task)
-		*(.data)
+		DATA_DATA
 
 		. = ALIGN(32);
 		*(.data.cacheline_aligned)

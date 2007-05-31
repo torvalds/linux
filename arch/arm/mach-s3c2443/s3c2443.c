@@ -63,6 +63,10 @@ int __init s3c2443_init(void)
 
 	s3c_device_nand.name = "s3c2412-nand";
 
+	/* change WDT IRQ number */
+	s3c_device_wdt.resource[1].start = IRQ_S3C2443_WDT;
+	s3c_device_wdt.resource[1].end   = IRQ_S3C2443_WDT;
+
 	return sysdev_register(&s3c2443_sysdev);
 }
 

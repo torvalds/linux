@@ -59,7 +59,7 @@ comment "RTC interfaces"
 	depends on RTC_CLASS
 
 config RTC_INTF_SYSFS
-	boolean "sysfs"
+	boolean "/sys/class/rtc/rtcN (sysfs)"
 	depends on RTC_CLASS && SYSFS
 	default RTC_CLASS
 	help
@@ -70,7 +70,7 @@ config RTC_INTF_SYSFS
 	  will be called rtc-sysfs.
 
 config RTC_INTF_PROC
-	boolean "proc"
+	boolean "/proc/driver/rtc (procfs for rtc0)"
 	depends on RTC_CLASS && PROC_FS
 	default RTC_CLASS
 	help
@@ -82,7 +82,7 @@ config RTC_INTF_PROC
 	  will be called rtc-proc.
 
 config RTC_INTF_DEV
-	boolean "dev"
+	boolean "/dev/rtcN (character devices)"
 	depends on RTC_CLASS
 	default RTC_CLASS
 	help

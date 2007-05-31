@@ -8,6 +8,7 @@
 #ifndef _AERDRV_H_
 #define _AERDRV_H_
 
+#include <linux/workqueue.h>
 #include <linux/pcieport_if.h>
 #include <linux/aer.h>
 

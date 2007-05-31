@@ -59,8 +59,7 @@ int __init mal_register_commac(struct ibm_ocp_mal *mal,
 	return 0;
 }
 
-void __exit mal_unregister_commac(struct ibm_ocp_mal *mal,
-				  struct mal_commac *commac)
+void mal_unregister_commac(struct ibm_ocp_mal *mal, struct mal_commac *commac)
 {
 	unsigned long flags;
 	local_irq_save(flags);

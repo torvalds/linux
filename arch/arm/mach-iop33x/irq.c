@@ -22,32 +22,32 @@
 static u32 iop33x_mask0;
 static u32 iop33x_mask1;
 
-static inline void intctl0_write(u32 val)
+static void intctl0_write(u32 val)
 {
 	asm volatile("mcr p6, 0, %0, c0, c0, 0" : : "r" (val));
 }
 
-static inline void intctl1_write(u32 val)
+static void intctl1_write(u32 val)
 {
 	asm volatile("mcr p6, 0, %0, c1, c0, 0" : : "r" (val));
 }
 
-static inline void intstr0_write(u32 val)
+static void intstr0_write(u32 val)
 {
 	asm volatile("mcr p6, 0, %0, c2, c0, 0" : : "r" (val));
 }
 
-static inline void intstr1_write(u32 val)
+static void intstr1_write(u32 val)
 {
 	asm volatile("mcr p6, 0, %0, c3, c0, 0" : : "r" (val));
 }
 
-static inline void intbase_write(u32 val)
+static void intbase_write(u32 val)
 {
 	asm volatile("mcr p6, 0, %0, c12, c0, 0" : : "r" (val));
 }
 
-static inline void intsize_write(u32 val)
+static void intsize_write(u32 val)
 {
 	asm volatile("mcr p6, 0, %0, c13, c0, 0" : : "r" (val));
 }

@@ -27,9 +27,9 @@
 #include "44x.h"
 
 static struct of_device_id ebony_of_bus[] = {
-	{ .type = "ibm,plb", },
-	{ .type = "ibm,opb", },
-	{ .type = "ibm,ebc", },
+	{ .compatible = "ibm,plb4", },
+	{ .compatible = "ibm,opb", },
+	{ .compatible = "ibm,ebc", },
 	{},
 };
 

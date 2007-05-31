@@ -394,7 +394,7 @@ static int s3c2443_setrate_usbhost(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
-struct clk clk_usb_bus_host = {
+static struct clk clk_usb_bus_host = {
 	.name		= "usb-bus-host-parent",
 	.id		= -1,
 	.parent		= &clk_esysclk,
@@ -747,6 +747,24 @@ static struct clk init_clocks[] = {
 		.enable		= s3c2443_clkcon_enable_h,
 		.ctrlbit	= S3C2443_HCLKCON_USBD,
 	}, {
+		.name		= "hsmmc",
+		.id		= -1,
+		.parent		= &clk_h,
+		.enable		= s3c2443_clkcon_enable_h,
+		.ctrlbit	= S3C2443_HCLKCON_HSMMC,
+	}, {
+		.name		= "cfc",
+		.id		= -1,
+		.parent		= &clk_h,
+		.enable		= s3c2443_clkcon_enable_h,
+		.ctrlbit	= S3C2443_HCLKCON_CFC,
+	}, {
+		.name		= "ssmc",
+		.id		= -1,
+		.parent		= &clk_h,
+		.enable		= s3c2443_clkcon_enable_h,
+		.ctrlbit	= S3C2443_HCLKCON_SSMC,
+	}, {
 		.name		= "timers",
 		.id		= -1,
 		.parent		= &clk_p,
@@ -791,7 +809,8 @@ static struct clk init_clocks[] = {
 		.name		= "usb-bus-host",
 		.id		= -1,
 		.parent		= &clk_usb_bus_host,
-	}, {	.name		= "ac97",
+	}, {
+		.name		= "ac97",
 		.id		= -1,
 		.parent		= &clk_p,
 		.ctrlbit	= S3C2443_PCLKCON_AC97,

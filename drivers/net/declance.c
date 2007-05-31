@@ -932,8 +932,6 @@ static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Kick the lance: transmit now */
 	writereg(&ll->rdp, LE_C0_INEA | LE_C0_TDMD);
 
-	spin_unlock_irq(&lp->lock);
-
 	dev->trans_start = jiffies;
 	dev_kfree_skb(skb);
 

@@ -53,8 +53,8 @@ MODULE_PARM_DESC(polarity, "Output's polarity: 0 = active high, 1 = active low")
 
 /* The DS1621 registers */
 #define DS1621_REG_TEMP			0xAA /* word, RO */
-#define DS1621_REG_TEMP_MIN		0xA1 /* word, RW */
-#define DS1621_REG_TEMP_MAX		0xA2 /* word, RW */
+#define DS1621_REG_TEMP_MIN		0xA2 /* word, RW */
+#define DS1621_REG_TEMP_MAX		0xA1 /* word, RW */
 #define DS1621_REG_CONF			0xAC /* byte, RW */
 #define DS1621_COM_START		0xEE /* no data */
 #define DS1621_COM_STOP			0x22 /* no data */
@@ -328,9 +328,9 @@ static struct ds1621_data *ds1621_update_client(struct device *dev)
 
 		/* reset alarms if necessary */
 		new_conf = data->conf;
-		if (data->temp < data->temp_min)
+		if (data->temp > data->temp_min)
 			new_conf &= ~DS1621_ALARM_TEMP_LOW;
-		if (data->temp > data->temp_max)
+		if (data->temp < data->temp_max)
 			new_conf &= ~DS1621_ALARM_TEMP_HIGH;
 		if (data->conf != new_conf)
 			ds1621_write_value(client, DS1621_REG_CONF,

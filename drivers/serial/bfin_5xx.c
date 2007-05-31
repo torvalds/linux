@@ -6,8 +6,6 @@
  * Created:
  * Description:  Driver for blackfin 5xx serial ports
  *
- * Rev:          $Id: bfin_5xx.c,v 1.19 2006/09/24 02:33:53 aubrey Exp $
- *
  * Modified:
  *               Copyright 2006 Analog Devices Inc.
  *
@@ -152,7 +150,7 @@ static void local_put_char(struct bfin_serial_port *uart, char ch)
 
 static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 {
-	struct tty_struct *tty = uart->port.info?uart->port.info->tty:0;
+	struct tty_struct *tty = uart->port.info->tty;
 	unsigned int status, ch, flg;
 #ifdef BF533_FAMILY
 	static int in_break = 0;
@@ -173,8 +171,10 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 		if (ch != 0) {
 			in_break = 0;
 			ch = UART_GET_CHAR(uart);
-		}
-		return;
+			if (bfin_revid() < 5)
+				return;
+		} else
+			return;
 	}
 #endif
 
@@ -185,27 +185,32 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 		uart->port.icount.brk++;
 		if (uart_handle_break(&uart->port))
 			goto ignore_char;
-		flg = TTY_BREAK;
-	} else if (status & PE) {
-		flg = TTY_PARITY;
+	}
+	if (status & PE)
 		uart->port.icount.parity++;
-	} else if (status & OE) {
-		flg = TTY_OVERRUN;
+	if (status & OE)
 		uart->port.icount.overrun++;
-	} else if (status & FE) {
-		flg = TTY_FRAME;
+	if (status & FE)
 		uart->port.icount.frame++;
-	} else
+
+	status &= uart->port.read_status_mask;
+
+	if (status & BI)
+		flg = TTY_BREAK;
+	else if (status & PE)
+		flg = TTY_PARITY;
+	else if (status & FE)
+		flg = TTY_FRAME;
+	else
 		flg = TTY_NORMAL;
 
 	if (uart_handle_sysrq_char(&uart->port, ch))
 		goto ignore_char;
-	if (tty)
-		uart_insert_char(&uart->port, status, 2, ch, flg);
 
-ignore_char:
-	if (tty)
-		tty_flip_buffer_push(tty);
+	uart_insert_char(&uart->port, status, OE, ch, flg);
+
+ ignore_char:
+	tty_flip_buffer_push(tty);
 }
 
 static void bfin_serial_tx_chars(struct bfin_serial_port *uart)
@@ -240,23 +245,28 @@ static void bfin_serial_tx_chars(struct bfin_serial_port *uart)
 		bfin_serial_stop_tx(&uart->port);
 }
 
-static irqreturn_t bfin_serial_int(int irq, void *dev_id)
+static irqreturn_t bfin_serial_rx_int(int irq, void *dev_id)
 {
 	struct bfin_serial_port *uart = dev_id;
-	unsigned short status;
 
 	spin_lock(&uart->port.lock);
-	status = UART_GET_IIR(uart);
-	do {
-		if ((status & IIR_STATUS) == IIR_TX_READY)
-			bfin_serial_tx_chars(uart);
-		if ((status & IIR_STATUS) == IIR_RX_READY)
-			bfin_serial_rx_chars(uart);
-		status = UART_GET_IIR(uart);
-	} while (status & (IIR_TX_READY | IIR_RX_READY));
+	while ((UART_GET_IIR(uart) & IIR_STATUS) == IIR_RX_READY)
+		bfin_serial_rx_chars(uart);
 	spin_unlock(&uart->port.lock);
 	return IRQ_HANDLED;
 }
+
+static irqreturn_t bfin_serial_tx_int(int irq, void *dev_id)
+{
+	struct bfin_serial_port *uart = dev_id;
+
+	spin_lock(&uart->port.lock);
+	while ((UART_GET_IIR(uart) & IIR_STATUS) == IIR_TX_READY)
+		bfin_serial_tx_chars(uart);
+	spin_unlock(&uart->port.lock);
+	return IRQ_HANDLED;
+}
+
 
 static void bfin_serial_do_work(struct work_struct *work)
 {
@@ -319,7 +329,7 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 	spin_unlock_irqrestore(&uart->port.lock, flags);
 }
 
-static void bfin_serial_dma_rx_chars(struct bfin_serial_port * uart)
+static void bfin_serial_dma_rx_chars(struct bfin_serial_port *uart)
 {
 	struct tty_struct *tty = uart->port.info->tty;
 	int i, flg, status;
@@ -331,25 +341,32 @@ static void bfin_serial_dma_rx_chars(struct bfin_serial_port * uart)
 		uart->port.icount.brk++;
 		if (uart_handle_break(&uart->port))
 			goto dma_ignore_char;
-		flg = TTY_BREAK;
-	} else if (status & PE) {
-		flg = TTY_PARITY;
+	}
+	if (status & PE)
 		uart->port.icount.parity++;
-	} else if (status & OE) {
-		flg = TTY_OVERRUN;
+	if (status & OE)
 		uart->port.icount.overrun++;
-	} else if (status & FE) {
-		flg = TTY_FRAME;
+	if (status & FE)
 		uart->port.icount.frame++;
-	} else
+
+	status &= uart->port.read_status_mask;
+
+	if (status & BI)
+		flg = TTY_BREAK;
+	else if (status & PE)
+		flg = TTY_PARITY;
+	else if (status & FE)
+		flg = TTY_FRAME;
+	else
 		flg = TTY_NORMAL;
 
 	for (i = uart->rx_dma_buf.head; i < uart->rx_dma_buf.tail; i++) {
 		if (uart_handle_sysrq_char(&uart->port, uart->rx_dma_buf.buf[i]))
 			goto dma_ignore_char;
-		uart_insert_char(&uart->port, status, 2, uart->rx_dma_buf.buf[i], flg);
+		uart_insert_char(&uart->port, status, OE, uart->rx_dma_buf.buf[i], flg);
 	}
-dma_ignore_char:
+
+ dma_ignore_char:
 	tty_flip_buffer_push(tty);
 }
 
@@ -545,14 +562,14 @@ static int bfin_serial_startup(struct uart_port *port)
 	add_timer(&(uart->rx_dma_timer));
 #else
 	if (request_irq
-	    (uart->port.irq, bfin_serial_int, IRQF_DISABLED,
+	    (uart->port.irq, bfin_serial_rx_int, IRQF_DISABLED,
 	     "BFIN_UART_RX", uart)) {
 		printk(KERN_NOTICE "Unable to attach BlackFin UART RX interrupt\n");
 		return -EBUSY;
 	}
 
 	if (request_irq
-	    (uart->port.irq+1, bfin_serial_int, IRQF_DISABLED,
+	    (uart->port.irq+1, bfin_serial_tx_int, IRQF_DISABLED,
 	     "BFIN_UART_TX", uart)) {
 		printk(KERN_NOTICE "Unable to attach BlackFin UART TX interrupt\n");
 		free_irq(uart->port.irq, uart);
@@ -614,13 +631,27 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 			lcr |= EPS;
 	}
 
-	/* These controls are not implemented for this port */
-	termios->c_iflag |= INPCK | BRKINT | PARMRK;
-	termios->c_iflag &= ~(IGNPAR | IGNBRK);
+	port->read_status_mask = OE;
+	if (termios->c_iflag & INPCK)
+		port->read_status_mask |= (FE | PE);
+	if (termios->c_iflag & (BRKINT | PARMRK))
+		port->read_status_mask |= BI;
 
-	/* These controls are not implemented for this port */
-	termios->c_iflag |= INPCK | BRKINT | PARMRK;
-	termios->c_iflag &= ~(IGNPAR | IGNBRK);
+	/*
+	 * Characters to ignore
+	 */
+	port->ignore_status_mask = 0;
+	if (termios->c_iflag & IGNPAR)
+		port->ignore_status_mask |= FE | PE;
+	if (termios->c_iflag & IGNBRK) {
+		port->ignore_status_mask |= BI;
+		/*
+		 * If we're ignoring parity and break indicators,
+		 * ignore overruns too (for real raw support).
+		 */
+		if (termios->c_iflag & IGNPAR)
+			port->ignore_status_mask |= OE;
+	}
 
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk/16);
 	quot = uart_get_divisor(port, baud);

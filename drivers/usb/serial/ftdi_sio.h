@@ -60,6 +60,9 @@
 /* DMX4ALL DMX Interfaces */
 #define FTDI_DMX4ALL 0xC850
 
+/* OpenDCC (www.opendcc.de) product id */
+#define FTDI_OPENDCC_PID	0xBFD8
+
 /* www.crystalfontz.com devices - thanx for providing free devices for evaluation ! */
 /* they use the ftdi chipset for the USB interface and the vendor id is the same */
 #define FTDI_XF_632_PID 0xFC08	/* 632: 16x2 Character Display */
@@ -517,6 +520,15 @@
 #define FTDI_IBS_APP70_PID	0xff3d  /* APP 70 (dust monitoring system) */
 #define FTDI_IBS_PEDO_PID	0xff3e  /* IBS PEDO-Modem (RF modem 868.35 MHz) */
 #define FTDI_IBS_PROD_PID	0xff3f  /* future device */
+
+/*
+ *  MaxStream devices	www.maxstream.net
+ */
+#define FTDI_MAXSTREAM_PID	0xEE18	/* Xbee PKG-U Module */
+
+/* Olimex */
+#define OLIMEX_VID			0x15BA
+#define OLIMEX_ARM_USB_OCD_PID		0x0003
 
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */

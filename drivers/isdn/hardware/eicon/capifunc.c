@@ -189,21 +189,21 @@ void *TransmitBufferSet(APPL * appl, dword ref)
 {
 	appl->xbuffer_used[ref] = true;
 	DBG_PRV1(("%d:xbuf_used(%d)", appl->Id, ref + 1))
-	    return (void *) ref;
+	    return (void *)(long)ref;
 }
 
 void *TransmitBufferGet(APPL * appl, void *p)
 {
-	if (appl->xbuffer_internal[(dword) p])
-		return appl->xbuffer_internal[(dword) p];
+	if (appl->xbuffer_internal[(dword)(long)p])
+		return appl->xbuffer_internal[(dword)(long)p];
 
-	return appl->xbuffer_ptr[(dword) p];
+	return appl->xbuffer_ptr[(dword)(long)p];
 }
 
 void TransmitBufferFree(APPL * appl, void *p)
 {
-	appl->xbuffer_used[(dword) p] = false;
-	DBG_PRV1(("%d:xbuf_free(%d)", appl->Id, ((dword) p) + 1))
+	appl->xbuffer_used[(dword)(long)p] = false;
+	DBG_PRV1(("%d:xbuf_free(%d)", appl->Id, ((dword)(long)p) + 1))
 }
 
 void *ReceiveBufferGet(APPL * appl, int Num)
@@ -301,7 +301,7 @@ void sendf(APPL * appl, word command, dword Id, word Number, byte * format, ...)
 	/* if DATA_B3_IND, copy data too */
 	if (command == _DATA_B3_I) {
 		dword data = GET_DWORD(&msg.info.data_b3_ind.Data);
-		memcpy(write + length, (void *) data, dlength);
+		memcpy(write + length, (void *)(long)data, dlength);
 	}
 
 #ifndef DIVA_NO_DEBUGLIB
@@ -318,7 +318,7 @@ void sendf(APPL * appl, word command, dword Id, word Number, byte * format, ...)
 			if (myDriverDebugHandle.dbgMask & DL_BLK) {
 				xlog("\x00\x02", &msg, 0x81, length);
 				for (i = 0; i < dlength; i += 256) {
-				  DBG_BLK((((char *) GET_DWORD(&msg.info.data_b3_ind.Data)) + i,
+				  DBG_BLK((((char *)(long)GET_DWORD(&msg.info.data_b3_ind.Data)) + i,
 				  	((dlength - i) < 256) ? (dlength - i) : 256))
 				  if (!(myDriverDebugHandle.dbgMask & DL_PRV0))
 					  break; /* not more if not explicitely requested */

@@ -30,7 +30,7 @@ static void mark_ate(struct ate_resource *ate_resource, int start, int number,
 
 /*
  * find_free_ate:  Find the first free ate index starting from the given
- *		   index for the desired consequtive count.
+ *		   index for the desired consecutive count.
  */
 static int find_free_ate(struct ate_resource *ate_resource, int start,
 			 int count)
@@ -88,7 +88,7 @@ static inline int alloc_ate_resource(struct ate_resource *ate_resource,
 		return -1;
 
 	/*
-	 * Find the required number of free consequtive ates.
+	 * Find the required number of free consecutive ates.
 	 */
 	start_index =
 	    find_free_ate(ate_resource, ate_resource->lowest_free_index,
@@ -105,7 +105,7 @@ static inline int alloc_ate_resource(struct ate_resource *ate_resource,
 /*
  * Allocate "count" contiguous Bridge Address Translation Entries
  * on the specified bridge to be used for PCI to XTALK mappings.
- * Indices in rm map range from 1..num_entries.  Indicies returned
+ * Indices in rm map range from 1..num_entries.  Indices returned
  * to caller range from 0..num_entries-1.
  *
  * Return the start index on success, -1 on failure.

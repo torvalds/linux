@@ -18,6 +18,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
+#include <asm/mach/time.h>
 
 static struct flash_platform_data dsmg600_flash_data = {
 	.map_name		= "cfi_probe",
@@ -128,6 +129,19 @@ static void dsmg600_power_off(void)
 	gpio_line_set(DSMG600_PO_GPIO, IXP4XX_GPIO_HIGH);
 }
 
+static void __init dsmg600_timer_init(void)
+{
+    /* The xtal on this machine is non-standard. */
+    ixp4xx_timer_freq = DSMG600_FREQ;
+
+    /* Call standard timer_init function. */
+    ixp4xx_timer_init();
+}
+
+static struct sys_timer dsmg600_timer = {
+    .init   = dsmg600_timer_init,
+};
+
 static void __init dsmg600_init(void)
 {
 	ixp4xx_sys_init();
@@ -155,21 +169,13 @@ static void __init dsmg600_init(void)
 #endif
 }
 
-static void __init dsmg600_fixup(struct machine_desc *desc,
-                struct tag *tags, char **cmdline, struct meminfo *mi)
-{
-       /* The xtal on this machine is non-standard. */
-        ixp4xx_timer_freq = DSMG600_FREQ;
-}
-
 MACHINE_START(DSMG600, "D-Link DSM-G600 RevA")
 	/* Maintainer: www.nslu2-linux.org */
 	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
 	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
-	.fixup          = dsmg600_fixup,
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
-	.timer          = &ixp4xx_timer,
+	.timer          = &dsmg600_timer,
 	.init_machine	= dsmg600_init,
 MACHINE_END

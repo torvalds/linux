@@ -148,10 +148,6 @@
 
 #ifdef BF537_FAMILY
 #define MAX_BLACKFIN_GPIOS 48
-#define PORT_F 0
-#define PORT_G 1
-#define PORT_H 2
-#define PORT_J 3
 
 #define	GPIO_PF0	0
 #define	GPIO_PF1	1
@@ -202,13 +198,17 @@
 #define	GPIO_PH14      	46
 #define	GPIO_PH15      	47
 
+#define PORT_F GPIO_PF0
+#define PORT_G GPIO_PG0
+#define PORT_H GPIO_PH0
+
 #endif
 
 #ifdef BF561_FAMILY
 #define MAX_BLACKFIN_GPIOS 48
-#define PORT_FIO0 0
-#define PORT_FIO1 1
-#define PORT_FIO2 2
+#define PORT_FIO0 GPIO_0
+#define PORT_FIO1 GPIO_16
+#define PORT_FIO2 GPIO_32
 #endif
 
 #ifndef __ASSEMBLY__

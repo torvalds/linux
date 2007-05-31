@@ -48,7 +48,7 @@
 #include <linux/delay.h>
 #include <asm/uaccess.h>
 #include <linux/sysrq.h>
-
+#include <linux/timer.h>
 
 #define VERSION_STR "0.9.0"
 

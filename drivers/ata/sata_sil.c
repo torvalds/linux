@@ -305,7 +305,7 @@ static int sil_set_mode (struct ata_port *ap, struct ata_device **r_failed)
 	u32 tmp, dev_mode[2];
 	unsigned int i;
 	int rc;
-	
+
 	rc = ata_do_set_mode(ap, r_failed);
 	if (rc)
 		return rc;

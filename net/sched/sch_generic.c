@@ -169,8 +169,8 @@ requeue:
 		else
 			q->ops->requeue(skb, q);
 		netif_schedule(dev);
-		return 0;
 	}
+	return 0;
 
 out:
 	BUG_ON((int) q->q.qlen < 0);

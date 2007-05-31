@@ -12,6 +12,7 @@
 #include <linux/mman.h>
 #include <linux/file.h>
 #include <linux/syscalls.h>
+#include <linux/sched.h>
 
 /*
  * MS_SYNC syncs the entire file - including mappings.

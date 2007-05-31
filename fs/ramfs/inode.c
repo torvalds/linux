@@ -32,7 +32,7 @@
 #include <linux/string.h>
 #include <linux/backing-dev.h>
 #include <linux/ramfs.h>
-
+#include <linux/sched.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 

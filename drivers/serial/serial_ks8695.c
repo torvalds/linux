@@ -301,11 +301,11 @@ static int ks8695uart_startup(struct uart_port *port)
 
 	retval = request_irq(KS8695_IRQ_UART_LINE_STATUS, ks8695uart_rx_chars, IRQF_DISABLED, "UART LineStatus", port);
 	if (retval)
-		return err_ls;
+		goto err_ls;
 
 	retval = request_irq(KS8695_IRQ_UART_MODEM_STATUS, ks8695uart_modem_status, IRQF_DISABLED, "UART ModemStatus", port);
 	if (retval)
-		return err_ms;
+		goto err_ms;
 
 	return 0;
 
@@ -589,7 +589,7 @@ static int __init ks8695_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver ks8695_reg;
+static struct uart_driver ks8695_reg;
 
 static struct console ks8695_console = {
 	.name		= SERIAL_KS8695_DEVNAME,

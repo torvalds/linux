@@ -60,7 +60,7 @@
 #endif
 
 int core_uses_pid;
-char core_pattern[128] = "core";
+char core_pattern[CORENAME_MAX_SIZE] = "core";
 int suid_dumpable = 0;
 
 EXPORT_SYMBOL(suid_dumpable);
@@ -134,6 +134,9 @@ asmlinkage long sys_uselib(const char __user * library)
 	if (error)
 		goto out;
 
+	error = -EACCES;
+	if (nd.mnt->mnt_flags & MNT_NOEXEC)
+		goto exit;
 	error = -EINVAL;
 	if (!S_ISREG(nd.dentry->d_inode->i_mode))
 		goto exit;
@@ -1263,8 +1266,6 @@ int set_binfmt(struct linux_binfmt *new)
 }
 
 EXPORT_SYMBOL(set_binfmt);
-
-#define CORENAME_MAX_SIZE 64
 
 /* format_corename will inspect the pattern parameter, and output a
  * name into corename, which must have space for at least

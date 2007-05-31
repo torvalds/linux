@@ -136,7 +136,7 @@ static void prepare_set(void)
 	/*  Save value of CR4 and clear Page Global Enable (bit 7)  */
 	if ( cpu_has_pge ) {
 		cr4 = read_cr4();
-		write_cr4(cr4 & (unsigned char) ~(1 << 7));
+		write_cr4(cr4 & ~X86_CR4_PGE);
 	}
 
 	/*  Disable and flush caches. Note that wbinvd flushes the TLBs as

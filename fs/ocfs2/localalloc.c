@@ -471,9 +471,6 @@ int ocfs2_reserve_local_alloc_bits(struct ocfs2_super *osb,
 
 	mutex_lock(&local_alloc_inode->i_mutex);
 
-	ac->ac_inode = local_alloc_inode;
-	ac->ac_which = OCFS2_AC_USE_LOCAL;
-
 	if (osb->local_alloc_state != OCFS2_LA_ENABLED) {
 		status = -ENOSPC;
 		goto bail;
@@ -511,10 +508,14 @@ int ocfs2_reserve_local_alloc_bits(struct ocfs2_super *osb,
 		}
 	}
 
+	ac->ac_inode = local_alloc_inode;
+	ac->ac_which = OCFS2_AC_USE_LOCAL;
 	get_bh(osb->local_alloc_bh);
 	ac->ac_bh = osb->local_alloc_bh;
 	status = 0;
 bail:
+	if (status < 0 && local_alloc_inode)
+		iput(local_alloc_inode);
 
 	mlog_exit(status);
 	return status;

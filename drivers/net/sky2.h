@@ -1149,7 +1149,7 @@ enum {
 	PHY_M_IS_JABBER		= 1<<0, /* Jabber */
 
 	PHY_M_DEF_MSK		= PHY_M_IS_LSP_CHANGE | PHY_M_IS_LST_CHANGE
-				 | PHY_M_IS_FIFO_ERROR,
+				 | PHY_M_IS_DUP_CHANGE,
 	PHY_M_AN_MSK	       = PHY_M_IS_AN_ERROR | PHY_M_IS_AN_COMPL,
 };
 
@@ -1732,28 +1732,6 @@ enum {
 
 /*	GPHY_CTRL		32 bit	GPHY Control Reg (YUKON only) */
 enum {
-	GPC_SEL_BDT	= 1<<28, /* Select Bi-Dir. Transfer for MDC/MDIO */
-	GPC_INT_POL_HI	= 1<<27, /* IRQ Polarity is Active HIGH */
-	GPC_75_OHM	= 1<<26, /* Use 75 Ohm Termination instead of 50 */
-	GPC_DIS_FC	= 1<<25, /* Disable Automatic Fiber/Copper Detection */
-	GPC_DIS_SLEEP	= 1<<24, /* Disable Energy Detect */
-	GPC_HWCFG_M_3	= 1<<23, /* HWCFG_MODE[3] */
-	GPC_HWCFG_M_2	= 1<<22, /* HWCFG_MODE[2] */
-	GPC_HWCFG_M_1	= 1<<21, /* HWCFG_MODE[1] */
-	GPC_HWCFG_M_0	= 1<<20, /* HWCFG_MODE[0] */
-	GPC_ANEG_0	= 1<<19, /* ANEG[0] */
-	GPC_ENA_XC	= 1<<18, /* Enable MDI crossover */
-	GPC_DIS_125	= 1<<17, /* Disable 125 MHz clock */
-	GPC_ANEG_3	= 1<<16, /* ANEG[3] */
-	GPC_ANEG_2	= 1<<15, /* ANEG[2] */
-	GPC_ANEG_1	= 1<<14, /* ANEG[1] */
-	GPC_ENA_PAUSE	= 1<<13, /* Enable Pause (SYM_OR_REM) */
-	GPC_PHYADDR_4	= 1<<12, /* Bit 4 of Phy Addr */
-	GPC_PHYADDR_3	= 1<<11, /* Bit 3 of Phy Addr */
-	GPC_PHYADDR_2	= 1<<10, /* Bit 2 of Phy Addr */
-	GPC_PHYADDR_1	= 1<<9,	 /* Bit 1 of Phy Addr */
-	GPC_PHYADDR_0	= 1<<8,	 /* Bit 0 of Phy Addr */
-						/* Bits  7..2:	reserved */
 	GPC_RST_CLR	= 1<<1,	/* Clear GPHY Reset */
 	GPC_RST_SET	= 1<<0,	/* Set   GPHY Reset */
 };

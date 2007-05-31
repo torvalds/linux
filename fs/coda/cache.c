@@ -16,6 +16,7 @@
 #include <asm/uaccess.h>
 #include <linux/string.h>
 #include <linux/list.h>
+#include <linux/sched.h>
 
 #include <linux/coda.h>
 #include <linux/coda_linux.h>

@@ -18,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/sysdev.h>
 #include <linux/platform_device.h>
 
 #include <linux/mtd/mtd.h>
@@ -29,6 +30,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <asm/mach-types.h>
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -191,6 +193,9 @@ void __init smdk_machine_init(void)
 	s3c2410_gpio_setpin(S3C2410_GPF5, 1);
 	s3c2410_gpio_setpin(S3C2410_GPF6, 1);
 	s3c2410_gpio_setpin(S3C2410_GPF7, 1);
+
+	if (machine_is_smdk2443())
+		smdk_nand_info.twrph0 = 50;
 
 	s3c_device_nand.dev.platform_data = &smdk_nand_info;
 

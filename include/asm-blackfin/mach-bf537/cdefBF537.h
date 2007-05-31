@@ -40,7 +40,6 @@
 
 /* Include Macro "Defines" For EMAC (Unique to BF536/BF537		*/
 /* 10/100 Ethernet Controller	(0xFFC03000 - 0xFFC031FF) 						*/
-#define	pEMAC_OPMODE		((volatile unsigned long  *)EMAC_OPMODE)
 #define bfin_read_EMAC_OPMODE()              bfin_read32(EMAC_OPMODE)
 #define bfin_write_EMAC_OPMODE(val)          bfin_write32(EMAC_OPMODE,val)
 #define bfin_read_EMAC_ADDRLO()              bfin_read32(EMAC_ADDRLO)
@@ -80,7 +79,6 @@
 #define bfin_read_EMAC_WKUP_FFCRC1()         bfin_read32(EMAC_WKUP_FFCRC1)
 #define bfin_write_EMAC_WKUP_FFCRC1(val)     bfin_write32(EMAC_WKUP_FFCRC1,val)
 
-#define	pEMAC_SYSCTL		((volatile unsigned long  *)EMAC_SYSCTL)
 #define bfin_read_EMAC_SYSCTL()              bfin_read32(EMAC_SYSCTL)
 #define bfin_write_EMAC_SYSCTL(val)          bfin_write32(EMAC_SYSCTL,val)
 #define bfin_read_EMAC_SYSTAT()              bfin_read32(EMAC_SYSTAT)
@@ -147,7 +145,6 @@
 #define bfin_write_EMAC_RXC_SHORT(val)       bfin_write32(EMAC_RXC_SHORT,val)
 #define bfin_read_EMAC_RXC_EQ64()            bfin_read32(EMAC_RXC_EQ64)
 #define bfin_write_EMAC_RXC_EQ64(val)        bfin_write32(EMAC_RXC_EQ64,val)
-#define	pEMAC_RXC_LT128		((volatile unsigned long  *)EMAC_RXC_LT128)
 #define bfin_read_EMAC_RXC_LT128()           bfin_read32(EMAC_RXC_LT128)
 #define bfin_write_EMAC_RXC_LT128(val)       bfin_write32(EMAC_RXC_LT128,val)
 #define bfin_read_EMAC_RXC_LT256()           bfin_read32(EMAC_RXC_LT256)

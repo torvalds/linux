@@ -2,6 +2,7 @@
    This runs in 16bit mode so that the caller can still use the BIOS
    to output errors on the screen */
 #include <asm/cpufeature.h>
+#include <asm/msr.h>
 
 verify_cpu:
 	pushfl				# Save caller passed flags
@@ -45,6 +46,32 @@ verify_cpu:
 	cmpl	$0x1,%eax
 	jb	bad			# no cpuid 1
 
+#if REQUIRED_MASK1 & NEED_CMPXCHG64
+	/* Some VIA C3s need magic MSRs to enable CX64. Do this here */
+	cmpl	$0x746e6543,%ebx	# Cent
+	jne	1f
+	cmpl 	$0x48727561,%edx	# aurH
+	jne	1f
+	cmpl	$0x736c7561,%ecx	# auls
+	jne	1f
+	movl	$1,%eax			# check model
+	cpuid
+	movl	%eax,%ebx
+	shr	$8,%ebx
+	andl	$0xf,%ebx
+	cmp	$6,%ebx			# check family == 6
+	jne	1f
+	shr	$4,%eax
+	andl	$0xf,%eax
+	cmpl	$6,%eax			# check model >= 6
+	jb	1f
+	# assume models >= 6 all support this MSR
+	movl	$MSR_VIA_FCR,%ecx
+	rdmsr
+	orl	$((1<<1)|(1<<7)),%eax	# enable CMPXCHG64 and PGE
+	wrmsr
+1:
+#endif
 	movl    $0x1,%eax		# Does the cpu have what it takes
 	cpuid
 

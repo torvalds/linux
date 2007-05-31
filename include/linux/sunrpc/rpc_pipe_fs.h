@@ -47,6 +47,8 @@ extern struct dentry *rpc_mkpipe(struct dentry *, const char *, void *, struct r
 extern int rpc_unlink(struct dentry *);
 extern struct vfsmount *rpc_get_mount(void);
 extern void rpc_put_mount(void);
+extern int register_rpc_pipefs(void);
+extern void unregister_rpc_pipefs(void);
 
 #endif
 #endif

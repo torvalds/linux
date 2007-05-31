@@ -69,7 +69,7 @@ static int gio_ioctl(struct inode *inode, struct file *filp,
 	}
 
 	switch (cmd) {
-	case GIODRV_IOCSGIOSETADDR:	/* addres set */
+	case GIODRV_IOCSGIOSETADDR:	/* address set */
 		addr = data;
 		break;
 

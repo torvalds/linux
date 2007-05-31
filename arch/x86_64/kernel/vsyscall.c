@@ -175,10 +175,13 @@ int __vsyscall(0) vgettimeofday(struct timeval * tv, struct timezone * tz)
  * unlikely */
 time_t __vsyscall(1) vtime(time_t *t)
 {
+	struct timeval tv;
 	time_t result;
 	if (unlikely(!__vsyscall_gtod_data.sysctl_enabled))
 		return time_syscall(t);
-	result = __vsyscall_gtod_data.wall_time_sec;
+
+	vgettimeofday(&tv, 0);
+	result = tv.tv_sec;
 	if (t)
 		*t = result;
 	return result;

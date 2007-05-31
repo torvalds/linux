@@ -989,8 +989,6 @@ void rpc_killall_tasks(struct rpc_clnt *clnt)
 	spin_unlock(&rpc_sched_lock);
 }
 
-static DECLARE_MUTEX_LOCKED(rpciod_running);
-
 static void rpciod_killall(void)
 {
 	unsigned long flags;

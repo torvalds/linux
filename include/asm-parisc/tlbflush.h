@@ -4,6 +4,7 @@
 /* TLB flushing routines.... */
 
 #include <linux/mm.h>
+#include <linux/sched.h>
 #include <asm/mmu_context.h>
 
 

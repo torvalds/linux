@@ -38,7 +38,7 @@ static struct hw_interrupt_type maskreg_irq_type = {
 	.end = end_maskreg_irq
 };
 
-/* actual implementatin */
+/* actual implementation */
 static unsigned int startup_maskreg_irq(unsigned int irq)
 {
 	enable_maskreg_irq(irq);

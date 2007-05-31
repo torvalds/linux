@@ -40,8 +40,7 @@ mangle_rfc959_packet(struct sk_buff **pskb,
 		     unsigned int matchoff,
 		     unsigned int matchlen,
 		     struct nf_conn *ct,
-		     enum ip_conntrack_info ctinfo,
-		     u32 *seq)
+		     enum ip_conntrack_info ctinfo)
 {
 	char buffer[sizeof("nnn,nnn,nnn,nnn,nnn,nnn")];
 
@@ -50,7 +49,6 @@ mangle_rfc959_packet(struct sk_buff **pskb,
 
 	DEBUGP("calling nf_nat_mangle_tcp_packet\n");
 
-	*seq += strlen(buffer) - matchlen;
 	return nf_nat_mangle_tcp_packet(pskb, ct, ctinfo, matchoff,
 					matchlen, buffer, strlen(buffer));
 }
@@ -63,8 +61,7 @@ mangle_eprt_packet(struct sk_buff **pskb,
 		   unsigned int matchoff,
 		   unsigned int matchlen,
 		   struct nf_conn *ct,
-		   enum ip_conntrack_info ctinfo,
-		   u32 *seq)
+		   enum ip_conntrack_info ctinfo)
 {
 	char buffer[sizeof("|1|255.255.255.255|65535|")];
 
@@ -72,7 +69,6 @@ mangle_eprt_packet(struct sk_buff **pskb,
 
 	DEBUGP("calling nf_nat_mangle_tcp_packet\n");
 
-	*seq += strlen(buffer) - matchlen;
 	return nf_nat_mangle_tcp_packet(pskb, ct, ctinfo, matchoff,
 					matchlen, buffer, strlen(buffer));
 }
@@ -85,8 +81,7 @@ mangle_epsv_packet(struct sk_buff **pskb,
 		   unsigned int matchoff,
 		   unsigned int matchlen,
 		   struct nf_conn *ct,
-		   enum ip_conntrack_info ctinfo,
-		   u32 *seq)
+		   enum ip_conntrack_info ctinfo)
 {
 	char buffer[sizeof("|||65535|")];
 
@@ -94,14 +89,13 @@ mangle_epsv_packet(struct sk_buff **pskb,
 
 	DEBUGP("calling nf_nat_mangle_tcp_packet\n");
 
-	*seq += strlen(buffer) - matchlen;
 	return nf_nat_mangle_tcp_packet(pskb, ct, ctinfo, matchoff,
 					matchlen, buffer, strlen(buffer));
 }
 
 static int (*mangle[])(struct sk_buff **, __be32, u_int16_t,
 		       unsigned int, unsigned int, struct nf_conn *,
-		       enum ip_conntrack_info, u32 *seq)
+		       enum ip_conntrack_info)
 = {
 	[NF_CT_FTP_PORT] = mangle_rfc959_packet,
 	[NF_CT_FTP_PASV] = mangle_rfc959_packet,
@@ -116,8 +110,7 @@ static unsigned int nf_nat_ftp(struct sk_buff **pskb,
 			       enum nf_ct_ftp_type type,
 			       unsigned int matchoff,
 			       unsigned int matchlen,
-			       struct nf_conntrack_expect *exp,
-			       u32 *seq)
+			       struct nf_conntrack_expect *exp)
 {
 	__be32 newip;
 	u_int16_t port;
@@ -145,8 +138,7 @@ static unsigned int nf_nat_ftp(struct sk_buff **pskb,
 	if (port == 0)
 		return NF_DROP;
 
-	if (!mangle[type](pskb, newip, port, matchoff, matchlen, ct, ctinfo,
-			  seq)) {
+	if (!mangle[type](pskb, newip, port, matchoff, matchlen, ct, ctinfo)) {
 		nf_conntrack_unexpect_related(exp);
 		return NF_DROP;
 	}

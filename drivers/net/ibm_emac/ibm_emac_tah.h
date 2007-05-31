@@ -55,7 +55,7 @@ struct tah_regs {
 #ifdef CONFIG_IBM_EMAC_TAH
 int tah_attach(void *emac) __init;
 
-void __tah_fini(struct ocp_device *ocpdev) __exit;
+void __tah_fini(struct ocp_device *ocpdev);
 static inline void tah_fini(struct ocp_device *ocpdev)
 {
 	if (ocpdev)

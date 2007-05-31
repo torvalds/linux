@@ -273,7 +273,6 @@ static void ia64_mlogbuf_finish(int wait)
 
 	mlogbuf_finished = 1;
 }
-EXPORT_SYMBOL(ia64_mlogbuf_finish);
 
 /*
  * Print buffered messages from INIT context.
@@ -1477,6 +1476,10 @@ default_monarch_init_process(struct notifier_block *self, unsigned long val, voi
 	struct task_struct *g, *t;
 	if (val != DIE_INIT_MONARCH_PROCESS)
 		return NOTIFY_DONE;
+#ifdef CONFIG_KEXEC
+	if (atomic_read(&kdump_in_progress))
+		return NOTIFY_DONE;
+#endif
 
 	/*
 	 * FIXME: mlogbuf will brim over with INIT stack dumps.

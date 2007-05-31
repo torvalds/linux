@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/proc_fs.h>
+#include <linux/pagemap.h>
 #include <linux/percpu.h>
 #include <linux/io.h>
 #include <asm/mmu_context.h>
@@ -112,7 +113,7 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
  * As a performance optimization, other platforms preserve the fixmap mapping
  * across a context switch, we don't presently do this, but this could be done
  * in a similar fashion as to the wired TLB interface that sh64 uses (by way
- * of the memorry mapped UTLB configuration) -- this unfortunately forces us to
+ * of the memory mapped UTLB configuration) -- this unfortunately forces us to
  * give up a TLB entry for each mapping we want to preserve. While this may be
  * viable for a small number of fixmaps, it's not particularly useful for
  * everything and needs to be carefully evaluated. (ie, we may want this for

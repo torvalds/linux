@@ -115,13 +115,21 @@ static inline unsigned int readl(void __iomem *addr)
 
 #ifndef __ASSEMBLY__
 
-extern void outsb(void __iomem *port, const void *addr, unsigned long count);
-extern void outsw(void __iomem *port, const void *addr, unsigned long count);
-extern void outsl(void __iomem *port, const void *addr, unsigned long count);
+extern void outsb(void __iomem *port, const void *addr, unsigned short count);
+extern void outsw(void __iomem *port, const void *addr, unsigned short count);
+extern void outsl(void __iomem *port, const void *addr, unsigned short count);
 
-extern void insb(const void __iomem *port, void *addr, unsigned long count);
-extern void insw(const void __iomem *port, void *addr, unsigned long count);
-extern void insl(const void __iomem *port, void *addr, unsigned long count);
+extern void insb(const void __iomem *port, void *addr, unsigned short count);
+extern void insw(const void __iomem *port, void *addr, unsigned short count);
+extern void insl(const void __iomem *port, void *addr, unsigned short count);
+
+extern void dma_outsb(void __iomem *port, const void *addr, unsigned short count);
+extern void dma_outsw(void __iomem *port, const void *addr, unsigned short count);
+extern void dma_outsl(void __iomem *port, const void *addr, unsigned short count);
+
+extern void dma_insb(const void __iomem *port, void *addr, unsigned short count);
+extern void dma_insw(const void __iomem *port, void *addr, unsigned short count);
+extern void dma_insl(const void __iomem *port, void *addr, unsigned short count);
 
 /*
  * Map some physical address range into the kernel address space.

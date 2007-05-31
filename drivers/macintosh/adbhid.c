@@ -628,16 +628,16 @@ static void real_leds(unsigned char leds, int device)
  */
 static int adbhid_kbd_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
-	struct adbhid *adbhid = dev->private;
+	struct adbhid *adbhid = input_get_drvdata(dev);
 	unsigned char leds;
 
 	switch (type) {
 	case EV_LED:
-	  leds = (test_bit(LED_SCROLLL, dev->led) ? 4 : 0)
-	       | (test_bit(LED_NUML,    dev->led) ? 1 : 0)
-	       | (test_bit(LED_CAPSL,   dev->led) ? 2 : 0);
-	  real_leds(leds, adbhid->id);
-	  return 0;
+		leds =  (test_bit(LED_SCROLLL, dev->led) ? 4 : 0) |
+			(test_bit(LED_NUML,    dev->led) ? 1 : 0) |
+			(test_bit(LED_CAPSL,   dev->led) ? 2 : 0);
+		real_leds(leds, adbhid->id);
+		return 0;
 	}
 
 	return -1;
@@ -649,7 +649,7 @@ adb_message_handler(struct notifier_block *this, unsigned long code, void *x)
 	switch (code) {
 	case ADB_MSG_PRE_RESET:
 	case ADB_MSG_POWERDOWN:
-	    	/* Stop the repeat timer. Autopoll is already off at this point */
+		/* Stop the repeat timer. Autopoll is already off at this point */
 		{
 			int i;
 			for (i = 1; i < 16; i++) {
@@ -699,7 +699,7 @@ adbhid_input_register(int id, int default_id, int original_handler_id,
 	hid->current_handler_id = current_handler_id;
 	hid->mouse_kind = mouse_kind;
 	hid->flags = 0;
-	input_dev->private = hid;
+	input_set_drvdata(input_dev, hid);
 	input_dev->name = hid->name;
 	input_dev->phys = hid->phys;
 	input_dev->id.bustype = BUS_ADB;

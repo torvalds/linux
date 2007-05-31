@@ -16,6 +16,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/delay.h>
 #include <linux/sysdev.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
@@ -29,6 +30,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
+#include <asm/arch/reset.h>
 #include <asm/arch/idle.h>
 
 #include <asm/arch/regs-clock.h>
@@ -37,6 +39,8 @@
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-gpioj.h>
 #include <asm/arch/regs-dsc.h>
+#include <asm/arch/regs-spi.h>
+#include <asm/arch/regs-s3c2412.h>
 
 #include <asm/plat-s3c24xx/s3c2412.h>
 #include <asm/plat-s3c24xx/cpu.h>
@@ -74,6 +78,14 @@ void __init s3c2412_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 	s3c_device_sdi.name  = "s3c2412-sdi";
 	s3c_device_lcd.name  = "s3c2412-lcd";
 	s3c_device_nand.name = "s3c2412-nand";
+
+	/* spi channel related changes, s3c2412/13 specific */
+	s3c_device_spi0.name = "s3c2412-spi";
+	s3c_device_spi0.resource[0].end = S3C24XX_PA_SPI + 0x24;
+	s3c_device_spi1.name = "s3c2412-spi";
+	s3c_device_spi1.resource[0].start = S3C24XX_PA_SPI + S3C2412_SPI1;
+	s3c_device_spi1.resource[0].end = S3C24XX_PA_SPI + S3C2412_SPI1 + 0x24;
+
 }
 
 /* s3c2412_idle
@@ -97,6 +109,23 @@ static void s3c2412_idle(void)
 	cpu_do_idle();
 }
 
+static void s3c2412_hard_reset(void)
+{
+	/* errata "Watch-dog/Software Reset Problem" specifies that
+	 * this reset must be done with the SYSCLK sourced from
+	 * EXTCLK instead of FOUT to avoid a glitch in the reset
+	 * mechanism.
+	 *
+	 * See the watchdog section of the S3C2412 manual for more
+	 * information on this fix.
+	 */
+
+	__raw_writel(0x00, S3C2412_CLKSRC);
+	__raw_writel(S3C2412_SWRST_RESET, S3C2412_SWRST);
+
+	mdelay(1);
+}
+
 /* s3c2412_map_io
  *
  * register the standard cpu IO areas, and any passed in from the
@@ -112,6 +141,10 @@ void __init s3c2412_map_io(struct map_desc *mach_desc, int mach_size)
 	/* set our idle function */
 
 	s3c24xx_idle = s3c2412_idle;
+
+	/* set custom reset hook */
+
+	s3c24xx_reset_hook = s3c2412_hard_reset;
 
 	/* register our io-tables */
 

@@ -222,7 +222,10 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 		goto out;
 	}
 
-	down_read(&OCFS2_I(inode)->ip_alloc_sem);
+	if (down_read_trylock(&OCFS2_I(inode)->ip_alloc_sem) == 0) {
+		ret = AOP_TRUNCATED_PAGE;
+		goto out_meta_unlock;
+	}
 
 	/*
 	 * i_size might have just been updated as we grabed the meta lock.  We
@@ -235,10 +238,7 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 	 * XXX sys_readahead() seems to get that wrong?
 	 */
 	if (start >= i_size_read(inode)) {
-		char *addr = kmap(page);
-		memset(addr, 0, PAGE_SIZE);
-		flush_dcache_page(page);
-		kunmap(page);
+		zero_user_page(page, 0, PAGE_SIZE, KM_USER0);
 		SetPageUptodate(page);
 		ret = 0;
 		goto out_alloc;
@@ -258,6 +258,7 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 	ocfs2_data_unlock(inode, 0);
 out_alloc:
 	up_read(&OCFS2_I(inode)->ip_alloc_sem);
+out_meta_unlock:
 	ocfs2_meta_unlock(inode, 0);
 out:
 	if (unlock)

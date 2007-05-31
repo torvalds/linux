@@ -110,7 +110,7 @@ static int __init roadrunner_map_irq(struct pci_dev *dev, u8 idsel, u8 pin)
 	return NO_IRQ;
 }
 
-static void roadrunner_pci_preinit(void)
+static void __init roadrunner_pci_preinit(void)
 {
 	set_irq_type(IRQ_ROADRUNNER_PCI_INTC, IRQT_LOW);
 	set_irq_type(IRQ_ROADRUNNER_PCI_INTD, IRQT_LOW);

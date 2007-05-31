@@ -1172,7 +1172,7 @@ static void set_b1_regs(void)
 		break;
 	default:
 		BUG();
-		return;	/* Supress warning about uninitialized vars */
+		return;	/* Suppress warning about uninitialized vars */
 	}
 
 	if (omap_dma_in_1510_mode()) {

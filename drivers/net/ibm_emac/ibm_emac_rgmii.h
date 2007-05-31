@@ -37,7 +37,7 @@ struct ibm_ocp_rgmii {
 #ifdef CONFIG_IBM_EMAC_RGMII
 int rgmii_attach(void *emac) __init;
 
-void __rgmii_fini(struct ocp_device *ocpdev, int input) __exit;
+void __rgmii_fini(struct ocp_device *ocpdev, int input);
 static inline void rgmii_fini(struct ocp_device *ocpdev, int input)
 {
 	if (ocpdev)

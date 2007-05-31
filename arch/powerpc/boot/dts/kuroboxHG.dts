@@ -21,19 +21,16 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHG.dtb -V 16 kuroboxHG.dts"
  */
 
 / {
-	linux,phandle = <1000>;
 	model = "KuroboxHG";
 	compatible = "linkstation";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
 	cpus {
-		linux,phandle = <2000>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
 		PowerPC,603e { /* Really 8241 */
-			linux,phandle = <2100>;
 			device_type = "cpu";
 			reg = <0>;
 			clock-frequency = <fdad680>;	/* Fixed by bootwrapper */
@@ -48,13 +45,11 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHG.dtb -V 16 kuroboxHG.dts"
 	};
 
 	memory {
-		linux,phandle = <3000>;
 		device_type = "memory";
 		reg = <00000000 08000000>;
 	};
 
 	soc10x { /* AFAICT need to make soc for 8245's uarts to be defined */
-		linux,phandle = <4000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		#interrupt-cells = <2>;
@@ -69,38 +64,35 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHG.dtb -V 16 kuroboxHG.dts"
 			  fef00000 fef00000 00100000>;	/* pci iack */
 
 		i2c@80003000 {
-			linux,phandle = <4300>;
 			device_type = "i2c";
 			compatible = "fsl-i2c";
 			reg = <80003000 1000>;
 			interrupts = <5 2>;
-			interrupt-parent = <4400>;
+			interrupt-parent = <&mpic>;
 		};
 
 		serial@80004500 {
-			linux,phandle = <4511>;
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <80004500 8>;
 			clock-frequency = <7c044a8>;
 			current-speed = <2580>;
 			interrupts = <9 2>;
-			interrupt-parent = <4400>;
+			interrupt-parent = <&mpic>;
 		};
 
 		serial@80004600 {
-			linux,phandle = <4512>;
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <80004600 8>;
 			clock-frequency = <7c044a8>;
 			current-speed = <e100>;
 			interrupts = <a 0>;
-			interrupt-parent = <4400>;
+			interrupt-parent = <&mpic>;
 		};
 
-		pic@80040000 {
-			linux,phandle = <4400>;
+		mpic: pic@80040000 {
+			interrupt-parent = <&mpic>;
 			#interrupt-cells = <2>;
 			#address-cells = <0>;
 			device_type = "open-pic";
@@ -111,7 +103,6 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHG.dtb -V 16 kuroboxHG.dts"
 		};
 
 		pci@fec00000 {
-			linux,phandle = <4500>;
 			#address-cells = <3>;
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
@@ -122,24 +113,24 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHG.dtb -V 16 kuroboxHG.dts"
 				  02000000 0 80000000 80000000 0 70000000>;
 			bus-range = <0 ff>;
 			clock-frequency = <7f28155>;
-			interrupt-parent = <4400>;
+			interrupt-parent = <&mpic>;
 			interrupt-map-mask = <f800 0 0 7>;
 			interrupt-map = <
 				/* IDSEL 11 - IRQ0 ETH */
-				5800 0 0 1 4400 0 1
-				5800 0 0 2 4400 1 1
-				5800 0 0 3 4400 2 1
-				5800 0 0 4 4400 3 1
+				5800 0 0 1 &mpic 0 1
+				5800 0 0 2 &mpic 1 1
+				5800 0 0 3 &mpic 2 1
+				5800 0 0 4 &mpic 3 1
 				/* IDSEL 12 - IRQ1 IDE0 */
-				6000 0 0 1 4400 1 1
-				6000 0 0 2 4400 2 1
-				6000 0 0 3 4400 3 1
-				6000 0 0 4 4400 0 1
+				6000 0 0 1 &mpic 1 1
+				6000 0 0 2 &mpic 2 1
+				6000 0 0 3 &mpic 3 1
+				6000 0 0 4 &mpic 0 1
 				/* IDSEL 14 - IRQ3 USB2.0 */
-				7000 0 0 1 4400 3 1
-				7000 0 0 2 4400 3 1
-				7000 0 0 3 4400 3 1
-				7000 0 0 4 4400 3 1
+				7000 0 0 1 &mpic 3 1
+				7000 0 0 2 &mpic 3 1
+				7000 0 0 3 &mpic 3 1
+				7000 0 0 4 &mpic 3 1
 			>;
 		};
 	};

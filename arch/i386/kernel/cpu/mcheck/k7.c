@@ -72,11 +72,11 @@ void amd_mcheck_init(struct cpuinfo_x86 *c)
 	u32 l, h;
 	int i;
 
-	machine_check_vector = k7_machine_check;
-	wmb();
-
 	if (!cpu_has(c, X86_FEATURE_MCE))
 		return;
+
+	machine_check_vector = k7_machine_check;
+	wmb();
 
 	printk (KERN_INFO "Intel machine check architecture supported.\n");
 	rdmsr (MSR_IA32_MCG_CAP, l, h);

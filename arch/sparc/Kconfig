@@ -178,6 +178,13 @@ config ARCH_HAS_ILOG2_U64
 	bool
 	default n
 
+config EMULATED_CMPXCHG
+	bool
+	default y
+	help
+	  Sparc32 does not have a CAS instruction like sparc64. cmpxchg()
+	  is emulated, and therefore it is not completely atomic.
+
 config SUN_PM
 	bool
 	default y

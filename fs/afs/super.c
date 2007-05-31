@@ -22,6 +22,7 @@
 #include <linux/pagemap.h>
 #include <linux/parser.h>
 #include <linux/statfs.h>
+#include <linux/sched.h>
 #include "internal.h"
 
 #define AFS_FS_MAGIC 0x6B414653 /* 'kAFS' */
@@ -47,7 +48,6 @@ struct file_system_type afs_fs_type = {
 static const struct super_operations afs_super_ops = {
 	.statfs		= afs_statfs,
 	.alloc_inode	= afs_alloc_inode,
-	.drop_inode	= generic_delete_inode,
 	.write_inode	= afs_write_inode,
 	.destroy_inode	= afs_destroy_inode,
 	.clear_inode	= afs_clear_inode,
@@ -452,17 +452,15 @@ static void afs_i_init_once(void *_vnode, struct kmem_cache *cachep,
 {
 	struct afs_vnode *vnode = _vnode;
 
-	if (flags & SLAB_CTOR_CONSTRUCTOR) {
-		memset(vnode, 0, sizeof(*vnode));
-		inode_init_once(&vnode->vfs_inode);
-		init_waitqueue_head(&vnode->update_waitq);
-		mutex_init(&vnode->permits_lock);
-		mutex_init(&vnode->validate_lock);
-		spin_lock_init(&vnode->writeback_lock);
-		spin_lock_init(&vnode->lock);
-		INIT_LIST_HEAD(&vnode->writebacks);
-		INIT_WORK(&vnode->cb_broken_work, afs_broken_callback_work);
-	}
+	memset(vnode, 0, sizeof(*vnode));
+	inode_init_once(&vnode->vfs_inode);
+	init_waitqueue_head(&vnode->update_waitq);
+	mutex_init(&vnode->permits_lock);
+	mutex_init(&vnode->validate_lock);
+	spin_lock_init(&vnode->writeback_lock);
+	spin_lock_init(&vnode->lock);
+	INIT_LIST_HEAD(&vnode->writebacks);
+	INIT_WORK(&vnode->cb_broken_work, afs_broken_callback_work);
 }
 
 /*

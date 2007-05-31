@@ -67,14 +67,6 @@
 
 #include <media/ivtv.h>
 
-#ifdef CONFIG_LIRC_I2C
-#  error "This driver is not compatible with the LIRC I2C kernel configuration option."
-#endif /* CONFIG_LIRC_I2C */
-
-#ifndef CONFIG_PCI
-#  error "This driver requires kernel PCI support."
-#endif /* CONFIG_PCI */
-
 #define IVTV_ENCODER_OFFSET	0x00000000
 #define IVTV_ENCODER_SIZE	0x00800000	/* Last half isn't needed 0x01000000 */
 

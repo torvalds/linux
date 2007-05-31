@@ -584,7 +584,7 @@ int swsusp_check(void)
 	resume_bdev = open_by_devnum(swsusp_resume_device, FMODE_READ);
 	if (!IS_ERR(resume_bdev)) {
 		set_blocksize(resume_bdev, PAGE_SIZE);
-		memset(swsusp_header, 0, sizeof(PAGE_SIZE));
+		memset(swsusp_header, 0, PAGE_SIZE);
 		error = bio_read_page(swsusp_resume_block,
 					swsusp_header, NULL);
 		if (error)

@@ -360,8 +360,7 @@ xfs_fs_inode_init_once(
 	kmem_zone_t		*zonep,
 	unsigned long		flags)
 {
-	if (flags & SLAB_CTOR_CONSTRUCTOR)
-		inode_init_once(vn_to_inode((bhv_vnode_t *)vnode));
+	inode_init_once(vn_to_inode((bhv_vnode_t *)vnode));
 }
 
 STATIC int

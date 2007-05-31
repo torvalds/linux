@@ -104,9 +104,6 @@ config MACH_DSMG600
 	  DSM-G600 RevA device. For more information on this platform,
 	  see http://www.nslu2-linux.org/wiki/DSMG600/HomePage
 
-#
-# Avila and IXDP share the same source for now. Will change in future
-#
 config	ARCH_IXDP4XX
 	bool
 	depends on ARCH_IXDP425 || MACH_IXDP465 || MACH_KIXRP435

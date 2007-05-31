@@ -17,6 +17,7 @@
 #include <linux/highuid.h>
 #include <linux/smp_lock.h>
 #include <linux/vmalloc.h>
+#include <linux/sched.h>
 
 #include <linux/ncp_fs.h>
 

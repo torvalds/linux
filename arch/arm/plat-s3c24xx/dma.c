@@ -1153,7 +1153,7 @@ EXPORT_SYMBOL(s3c2410_dma_set_buffdone_fn);
  *
  * hwcfg:     the value for xxxSTCn register,
  *            bit 0: 0=increment pointer, 1=leave pointer
- *            bit 1: 0=soucre is AHB, 1=soucre is APB
+ *            bit 1: 0=source is AHB, 1=source is APB
  *
  * devaddr:   physical address of the source
 */

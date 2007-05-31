@@ -333,17 +333,21 @@ static void command_timer_fn(unsigned long data)
 	unsigned long flags;
 
 	ptempnode = adapter->cur_cmd;
+	if (ptempnode == NULL) {
+		lbs_pr_debug(1, "PTempnode Empty\n");
+		return;
+	}
+
 	cmd = (struct cmd_ds_command *)ptempnode->bufvirtualaddr;
+	if (!cmd) {
+		lbs_pr_debug(1, "cmd is NULL\n");
+		return;
+	}
 
 	lbs_pr_info("command_timer_fn fired (%x)\n", cmd->command);
 
 	if (!adapter->fw_ready)
 		return;
-
-	if (ptempnode == NULL) {
-		lbs_pr_debug(1, "PTempnode Empty\n");
-		return;
-	}
 
 	spin_lock_irqsave(&adapter->driver_lock, flags);
 	adapter->cur_cmd = NULL;

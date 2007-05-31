@@ -311,7 +311,7 @@ struct vm_struct *remove_vm_area(void *addr)
 	return v;
 }
 
-void __vunmap(void *addr, int deallocate_pages)
+static void __vunmap(void *addr, int deallocate_pages)
 {
 	struct vm_struct *area;
 

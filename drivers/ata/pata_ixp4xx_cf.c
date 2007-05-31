@@ -23,7 +23,7 @@
 #include <scsi/scsi_host.h>
 
 #define DRV_NAME	"pata_ixp4xx_cf"
-#define DRV_VERSION	"0.1.2"
+#define DRV_VERSION	"0.1.3"
 
 static int ixp4xx_set_mode(struct ata_port *ap, struct ata_device **error)
 {

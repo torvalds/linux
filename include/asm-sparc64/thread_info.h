@@ -38,8 +38,8 @@ struct thread_info {
 	/* D$ line 1 */
 	struct task_struct	*task;
 	unsigned long		flags;
-	__u8			cpu;
 	__u8			fpsaved[7];
+	__u8			pad;
 	unsigned long		ksp;
 
 	/* D$ line 2 */
@@ -49,7 +49,7 @@ struct thread_info {
 	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
 	__u8			new_child;
 	__u8			syscall_noerror;
-	__u16			__pad;
+	__u16			cpu;
 
 	unsigned long		*utraps;
 
@@ -83,8 +83,7 @@ struct thread_info {
 #define TI_CURRENT_DS	(TI_FLAGS + TI_FLAG_BYTE_CURRENT_DS)
 #define TI_FPDEPTH	(TI_FLAGS + TI_FLAG_BYTE_FPDEPTH)
 #define TI_WSAVED	(TI_FLAGS + TI_FLAG_BYTE_WSAVED)
-#define TI_CPU		0x00000010
-#define TI_FPSAVED	0x00000011
+#define TI_FPSAVED	0x00000010
 #define TI_KSP		0x00000018
 #define TI_FAULT_ADDR	0x00000020
 #define TI_KREGS	0x00000028
@@ -92,6 +91,7 @@ struct thread_info {
 #define TI_PRE_COUNT	0x00000038
 #define TI_NEW_CHILD	0x0000003c
 #define TI_SYS_NOERROR	0x0000003d
+#define TI_CPU		0x0000003e
 #define TI_UTRAPS	0x00000040
 #define TI_REG_WINDOW	0x00000048
 #define TI_RWIN_SPTRS	0x000003c8	

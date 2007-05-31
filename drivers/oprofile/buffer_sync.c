@@ -26,6 +26,7 @@
 #include <linux/profile.h>
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/sched.h>
  
 #include "oprofile_stats.h"
 #include "event_buffer.h"

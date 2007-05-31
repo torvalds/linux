@@ -11,6 +11,7 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
+#include <asm/signal.h>
 
 #include "vmx.h"
 #include <linux/kvm.h>

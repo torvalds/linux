@@ -240,14 +240,6 @@ menu "Processor type and features"
    config RESET_GUARD
    	  bool "Reset Guard"
 
-   config LARGE_ALLOCS
-	  bool "Allow allocating large blocks (> 1MB) of memory"
-	  help
-	     Allow the slab memory allocator to keep chains for very large
-	     memory sizes - upto 32MB. You may need this if your system has
-	     a lot of RAM, and you need to able to allocate very large
-	     contiguous chunks. If unsure, say N.
-
 source "mm/Kconfig"
 
 endmenu

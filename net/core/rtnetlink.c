@@ -437,7 +437,7 @@ static void copy_rtnl_link_stats(struct rtnl_link_stats *a,
 	a->tx_compressed = b->tx_compressed;
 };
 
-static inline size_t if_nlmsg_size(int iwbuflen)
+static inline size_t if_nlmsg_size(void)
 {
 	return NLMSG_ALIGN(sizeof(struct ifinfomsg))
 	       + nla_total_size(IFNAMSIZ) /* IFLA_IFNAME */
@@ -452,13 +452,12 @@ static inline size_t if_nlmsg_size(int iwbuflen)
 	       + nla_total_size(4) /* IFLA_LINK */
 	       + nla_total_size(4) /* IFLA_MASTER */
 	       + nla_total_size(1) /* IFLA_OPERSTATE */
-	       + nla_total_size(1) /* IFLA_LINKMODE */
-	       + nla_total_size(iwbuflen);
+	       + nla_total_size(1); /* IFLA_LINKMODE */
 }
 
 static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
-			    void *iwbuf, int iwbuflen, int type, u32 pid,
-			    u32 seq, u32 change, unsigned int flags)
+			    int type, u32 pid, u32 seq, u32 change,
+			    unsigned int flags)
 {
 	struct ifinfomsg *ifm;
 	struct nlmsghdr *nlh;
@@ -523,9 +522,6 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 		}
 	}
 
-	if (iwbuf)
-		NLA_PUT(skb, IFLA_WIRELESS, iwbuflen, iwbuf);
-
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
@@ -543,7 +539,7 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 	for_each_netdev(dev) {
 		if (idx < s_idx)
 			goto cont;
-		if (rtnl_fill_ifinfo(skb, dev, NULL, 0, RTM_NEWLINK,
+		if (rtnl_fill_ifinfo(skb, dev, RTM_NEWLINK,
 				     NETLINK_CB(cb->skb).pid,
 				     cb->nlh->nlmsg_seq, 0, NLM_F_MULTI) <= 0)
 			break;
@@ -689,8 +685,15 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	}
 
 
-	if (ifm->ifi_flags)
-		dev_change_flags(dev, ifm->ifi_flags);
+	if (ifm->ifi_flags || ifm->ifi_change) {
+		unsigned int flags = ifm->ifi_flags;
+
+		/* bugwards compatibility: ifi_change == 0 is treated as ~0 */
+		if (ifm->ifi_change)
+			flags = (flags & ifm->ifi_change) |
+				(dev->flags & ~ifm->ifi_change);
+		dev_change_flags(dev, flags);
+	}
 
 	if (tb[IFLA_TXQLEN])
 		dev->tx_queue_len = nla_get_u32(tb[IFLA_TXQLEN]);
@@ -730,8 +733,6 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	struct nlattr *tb[IFLA_MAX+1];
 	struct net_device *dev = NULL;
 	struct sk_buff *nskb;
-	char *iw_buf = NULL, *iw = NULL;
-	int iw_buf_len = 0;
 	int err;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy);
@@ -746,14 +747,14 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	} else
 		return -EINVAL;
 
-	nskb = nlmsg_new(if_nlmsg_size(iw_buf_len), GFP_KERNEL);
+	nskb = nlmsg_new(if_nlmsg_size(), GFP_KERNEL);
 	if (nskb == NULL) {
 		err = -ENOBUFS;
 		goto errout;
 	}
 
-	err = rtnl_fill_ifinfo(nskb, dev, iw, iw_buf_len, RTM_NEWLINK,
-			       NETLINK_CB(skb).pid, nlh->nlmsg_seq, 0, 0);
+	err = rtnl_fill_ifinfo(nskb, dev, RTM_NEWLINK, NETLINK_CB(skb).pid,
+			       nlh->nlmsg_seq, 0, 0);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in if_nlmsg_size */
 		WARN_ON(err == -EMSGSIZE);
@@ -762,7 +763,6 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	}
 	err = rtnl_unicast(nskb, NETLINK_CB(skb).pid);
 errout:
-	kfree(iw_buf);
 	dev_put(dev);
 
 	return err;
@@ -797,11 +797,11 @@ void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change)
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
 
-	skb = nlmsg_new(if_nlmsg_size(0), GFP_KERNEL);
+	skb = nlmsg_new(if_nlmsg_size(), GFP_KERNEL);
 	if (skb == NULL)
 		goto errout;
 
-	err = rtnl_fill_ifinfo(skb, dev, NULL, 0, type, 0, 0, change, 0);
+	err = rtnl_fill_ifinfo(skb, dev, type, 0, 0, change, 0);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in if_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);

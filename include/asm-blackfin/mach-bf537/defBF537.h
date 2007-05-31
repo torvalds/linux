@@ -32,11 +32,11 @@
 #ifndef _DEF_BF537_H
 #define _DEF_BF537_H
 
-/*include all Core registers and bit definitions*/
-#include "defBF537.h"
-
-/*include core specific register pointer definitions*/
+/* Include all Core registers and bit definitions*/
 #include <asm/mach-common/cdef_LPBlackfin.h>
+
+/* Include all MMR and bit defines common to BF534 */
+#include "defBF534.h"
 
 /************************************************************************************
 ** Define EMAC Section Unique to BF536/BF537

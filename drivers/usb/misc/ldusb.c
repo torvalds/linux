@@ -165,6 +165,8 @@ struct ld_usb {
 	size_t			interrupt_in_endpoint_size;
 	int			interrupt_in_running;
 	int			interrupt_in_done;
+	int			buffer_overflow;
+	spinlock_t		rbsl;
 
 	char*			interrupt_out_buffer;
 	struct usb_endpoint_descriptor* interrupt_out_endpoint;
@@ -230,10 +232,12 @@ static void ld_usb_interrupt_in_callback(struct urb *urb)
 		} else {
 			dbg_info(&dev->intf->dev, "%s: nonzero status received: %d\n",
 				 __FUNCTION__, urb->status);
+			spin_lock(&dev->rbsl);
 			goto resubmit; /* maybe we can recover */
 		}
 	}
 
+	spin_lock(&dev->rbsl);
 	if (urb->actual_length > 0) {
 		next_ring_head = (dev->ring_head+1) % ring_buffer_size;
 		if (next_ring_head != dev->ring_tail) {
@@ -244,21 +248,25 @@ static void ld_usb_interrupt_in_callback(struct urb *urb)
 			dev->ring_head = next_ring_head;
 			dbg_info(&dev->intf->dev, "%s: received %d bytes\n",
 				 __FUNCTION__, urb->actual_length);
-		} else
+		} else {
 			dev_warn(&dev->intf->dev,
 				 "Ring buffer overflow, %d bytes dropped\n",
 				 urb->actual_length);
+			dev->buffer_overflow = 1;
+		}
 	}
 
 resubmit:
 	/* resubmit if we're still running */
-	if (dev->interrupt_in_running && dev->intf) {
+	if (dev->interrupt_in_running && !dev->buffer_overflow && dev->intf) {
 		retval = usb_submit_urb(dev->interrupt_in_urb, GFP_ATOMIC);
-		if (retval)
+		if (retval) {
 			dev_err(&dev->intf->dev,
 				"usb_submit_urb failed (%d)\n", retval);
+			dev->buffer_overflow = 1;
+		}
 	}
-
+	spin_unlock(&dev->rbsl);
 exit:
 	dev->interrupt_in_done = 1;
 	wake_up_interruptible(&dev->read_wait);
@@ -330,6 +338,7 @@ static int ld_usb_open(struct inode *inode, struct file *file)
 	/* initialize in direction */
 	dev->ring_head = 0;
 	dev->ring_tail = 0;
+	dev->buffer_overflow = 0;
 	usb_fill_int_urb(dev->interrupt_in_urb,
 			 interface_to_usbdev(interface),
 			 usb_rcvintpipe(interface_to_usbdev(interface),
@@ -439,6 +448,7 @@ static ssize_t ld_usb_read(struct file *file, char __user *buffer, size_t count,
 	size_t *actual_buffer;
 	size_t bytes_to_read;
 	int retval = 0;
+	int rv;
 
 	dev = file->private_data;
 
@@ -460,7 +470,10 @@ static ssize_t ld_usb_read(struct file *file, char __user *buffer, size_t count,
 	}
 
 	/* wait for data */
+	spin_lock_irq(&dev->rbsl);
 	if (dev->ring_head == dev->ring_tail) {
+		dev->interrupt_in_done = 0;
+		spin_unlock_irq(&dev->rbsl);
 		if (file->f_flags & O_NONBLOCK) {
 			retval = -EAGAIN;
 			goto unlock_exit;
@@ -468,6 +481,8 @@ static ssize_t ld_usb_read(struct file *file, char __user *buffer, size_t count,
 		retval = wait_event_interruptible(dev->read_wait, dev->interrupt_in_done);
 		if (retval < 0)
 			goto unlock_exit;
+	} else {
+		spin_unlock_irq(&dev->rbsl);
 	}
 
 	/* actual_buffer contains actual_length + interrupt_in_buffer */
@@ -485,6 +500,17 @@ static ssize_t ld_usb_read(struct file *file, char __user *buffer, size_t count,
 	dev->ring_tail = (dev->ring_tail+1) % ring_buffer_size;
 
 	retval = bytes_to_read;
+
+	spin_lock_irq(&dev->rbsl);
+	if (dev->buffer_overflow) {
+		dev->buffer_overflow = 0;
+		spin_unlock_irq(&dev->rbsl);
+		rv = usb_submit_urb(dev->interrupt_in_urb, GFP_KERNEL);
+		if (rv < 0)
+			dev->buffer_overflow = 1;
+	} else {
+		spin_unlock_irq(&dev->rbsl);
+	}
 
 unlock_exit:
 	/* unlock the device */
@@ -635,6 +661,7 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 		goto exit;
 	}
 	init_MUTEX(&dev->sem);
+	spin_lock_init(&dev->rbsl);
 	dev->intf = intf;
 	init_waitqueue_head(&dev->read_wait);
 	init_waitqueue_head(&dev->write_wait);

@@ -131,7 +131,6 @@ static void nmi_save_registers(void * dummy)
 {
 	int cpu = smp_processor_id();
 	struct op_msrs * msrs = &cpu_msrs[cpu];
-	model->fill_in_addresses(msrs);
 	nmi_cpu_save_registers(msrs);
 }
 
@@ -195,6 +194,7 @@ static struct notifier_block profile_exceptions_nb = {
 static int nmi_setup(void)
 {
 	int err=0;
+	int cpu;
 
 	if (!allocate_msrs())
 		return -ENOMEM;
@@ -207,6 +207,13 @@ static int nmi_setup(void)
 	/* We need to serialize save and setup for HT because the subset
 	 * of msrs are distinct for save and setup operations
 	 */
+
+	/* Assume saved/restored counters are the same on all CPUs */
+	model->fill_in_addresses(&cpu_msrs[0]);
+	for_each_possible_cpu (cpu) {
+		if (cpu != 0)
+			cpu_msrs[cpu] = cpu_msrs[0];
+	}
 	on_each_cpu(nmi_save_registers, NULL, 0, 1);
 	on_each_cpu(nmi_cpu_setup, NULL, 0, 1);
 	nmi_enabled = 1;

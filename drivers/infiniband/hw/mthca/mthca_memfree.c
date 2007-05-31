@@ -36,6 +36,7 @@
 
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
+#include <linux/sched.h>
 
 #include <asm/page.h>
 

@@ -17,7 +17,6 @@
 #include <asm/clock.h>
 #include <asm/freq.h>
 
-#define SH7722_PLL_FREQ (32000000/8)
 #define N  (-1)
 #define NM (-2)
 #define ROUND_NEAREST 0
@@ -141,27 +140,35 @@ static void adjust_clocks(int originate, int *l, unsigned long v[],
 */
 static int divisors2[] = { 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24, 32, 40 };
 
-static void master_clk_init(struct clk *clk)
+static void master_clk_recalc(struct clk *clk)
 {
-	clk_set_rate(clk, clk_get_rate(clk));
+	unsigned frqcr = ctrl_inl(FRQCR);
+
+	clk->rate = CONFIG_SH_PCLK_FREQ * (((frqcr >> 24) & 0x1f) + 1);
 }
 
-static void master_clk_recalc(struct clk *clk)
+static void master_clk_init(struct clk *clk)
+{
+	clk->parent = NULL;
+	clk->flags |= CLK_RATE_PROPAGATES;
+	clk->rate = CONFIG_SH_PCLK_FREQ;
+	master_clk_recalc(clk);
+}
+
+
+static void module_clk_recalc(struct clk *clk)
 {
 	unsigned long frqcr = ctrl_inl(FRQCR);
 
-	clk->rate = CONFIG_SH_PCLK_FREQ * (1 + (frqcr >> 24 & 0xF));
+	clk->rate = clk->parent->rate / (((frqcr >> 24) & 0x1f) + 1);
 }
 
 static int master_clk_setrate(struct clk *clk, unsigned long rate, int id)
 {
-	int div = rate / SH7722_PLL_FREQ;
+	int div = rate / clk->rate;
 	int master_divs[] = { 2, 3, 4, 6, 8, 16 };
 	int index;
 	unsigned long frqcr;
-
-	if (rate < SH7722_PLL_FREQ * 2)
-		return -EINVAL;
 
 	for (index = 1; index < ARRAY_SIZE(master_divs); index++)
 		if (div >= master_divs[index - 1] && div < master_divs[index])
@@ -183,6 +190,10 @@ static struct clk_ops sh7722_master_clk_ops = {
 	.init = master_clk_init,
 	.recalc = master_clk_recalc,
 	.set_rate = master_clk_setrate,
+};
+
+static struct clk_ops sh7722_module_clk_ops = {
+       .recalc = module_clk_recalc,
 };
 
 struct frqcr_context {
@@ -489,7 +500,7 @@ static void sh7722_siu_recalc(struct clk *clk)
 
 	if (siu < 0)
 		return /* siu */ ;
-	BUG_ON(siu > 1);
+	BUG_ON(siu > 2);
 	r = ctrl_inl(sh7722_siu_regs[siu]);
 	clk->rate = clk->parent->rate * 2 / divisors2[r & 0xF];
 }
@@ -571,7 +582,7 @@ static struct clk *sh7722_clocks[] = {
  */
 struct clk_ops *onchip_ops[] = {
 	&sh7722_master_clk_ops,
-	&sh7722_frqcr_clk_ops,
+	&sh7722_module_clk_ops,
 	&sh7722_frqcr_clk_ops,
 	&sh7722_frqcr_clk_ops,
 };
@@ -583,7 +594,7 @@ arch_init_clk_ops(struct clk_ops **ops, int type)
 	*ops = onchip_ops[type];
 }
 
-int __init sh7722_clock_init(void)
+int __init arch_clk_init(void)
 {
 	struct clk *master;
 	int i;
@@ -597,4 +608,3 @@ int __init sh7722_clock_init(void)
 	clk_put(master);
 	return 0;
 }
-arch_initcall(sh7722_clock_init);

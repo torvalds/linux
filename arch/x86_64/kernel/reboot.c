@@ -8,6 +8,7 @@
 #include <linux/string.h>
 #include <linux/pm.h>
 #include <linux/kdebug.h>
+#include <linux/sched.h>
 #include <asm/io.h>
 #include <asm/delay.h>
 #include <asm/hw_irq.h>

@@ -333,11 +333,9 @@ struct e1000_adapter {
 	struct e1000_tx_ring test_tx_ring;
 	struct e1000_rx_ring test_rx_ring;
 
-
 	int msg_enable;
-#ifdef CONFIG_PCI_MSI
 	boolean_t have_msi;
-#endif
+
 	/* to not mess up cache alignment, always add to the bottom */
 	boolean_t tso_force;
 	boolean_t smart_power_down;	/* phy smart power down */

@@ -43,11 +43,11 @@ config IP_ADVANCED_ROUTER
 	  asymmetric routing (packets from you to a host take a different path
 	  than packets from that host to you) or if you operate a non-routing
 	  host which has several IP addresses on different interfaces. To turn
-	  rp_filter off use:
+	  rp_filter on use:
 
-	  echo 0 > /proc/sys/net/ipv4/conf/<device>/rp_filter
+	  echo 1 > /proc/sys/net/ipv4/conf/<device>/rp_filter
 	  or
-	  echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter
+	  echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
 
 	  If unsure, say N here.
 
@@ -577,6 +577,7 @@ config TCP_CONG_VENO
 config TCP_CONG_YEAH
 	tristate "YeAH TCP"
 	depends on EXPERIMENTAL
+	select TCP_CONG_VEGAS
 	default n
 	---help---
 	YeAH-TCP is a sender-side high-speed enabled TCP congestion control

@@ -18,7 +18,7 @@ config FIREWIRE
 	  your IEEE 1394 adapter.
 
 	  To compile this driver as a module, say M here: the module will be
-	  called fw-core.
+	  called firewire-core.
 
 	  This is the "JUJU" FireWire stack, an alternative implementation
 	  designed for robustness and simplicity.  You can build either this
@@ -34,11 +34,11 @@ config FIREWIRE_OHCI
 	  is the only chipset in use, so say Y here.
 
 	  To compile this driver as a module, say M here:  The module will be
-	  called fw-ohci.
+	  called firewire-ohci.
 
 	  If you also build ohci1394 of the classic IEEE 1394 driver stack,
-	  blacklist either ohci1394 or fw-ohci to let hotplug load the desired
-	  driver.
+	  blacklist either ohci1394 or firewire-ohci to let hotplug load the
+	  desired driver.
 
 config FIREWIRE_SBP2
 	tristate "Support for storage devices (SBP-2 protocol driver)"
@@ -50,12 +50,12 @@ config FIREWIRE_SBP2
 	  like scanners.
 
 	  To compile this driver as a module, say M here:  The module will be
-	  called fw-sbp2.
+	  called firewire-sbp2.
 
 	  You should also enable support for disks, CD-ROMs, etc. in the SCSI
 	  configuration section.
 
 	  If you also build sbp2 of the classic IEEE 1394 driver stack,
-	  blacklist either sbp2 or fw-sbp2 to let hotplug load the desired
-	  driver.
+	  blacklist either sbp2 or firewire-sbp2 to let hotplug load the
+	  desired driver.
 

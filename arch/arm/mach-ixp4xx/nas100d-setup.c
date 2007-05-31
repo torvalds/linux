@@ -155,7 +155,8 @@ static void __init nas100d_init(void)
 
 	pm_power_off = nas100d_power_off;
 
-	/* This is only useful on a modified machine, but it is valuable
+	/*
+	 * This is only useful on a modified machine, but it is valuable
 	 * to have it first in order to see debug messages, and so that
 	 * it does *not* get removed if platform_add_devices fails!
 	 */

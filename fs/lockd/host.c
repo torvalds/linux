@@ -221,7 +221,7 @@ nlm_bind_host(struct nlm_host *host)
 					host->h_nextrebind - jiffies);
 		}
 	} else {
-		unsigned long increment = nlmsvc_timeout * HZ;
+		unsigned long increment = nlmsvc_timeout;
 		struct rpc_timeout timeparms = {
 			.to_initval	= increment,
 			.to_increment	= increment,

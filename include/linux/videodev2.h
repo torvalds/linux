@@ -267,8 +267,6 @@ struct v4l2_pix_format
 	__u32          		sizeimage;
 	enum v4l2_colorspace	colorspace;
 	__u32			priv;		/* private data, depends on pixelformat */
-	__u32 			left;	/* only valid if V4L2_CAP_VIDEO_OUTPUT_POS is set */
-	__u32 			top;	/* only valid if V4L2_CAP_VIDEO_OUTPUT_POS is set */
 };
 
 /*      Pixel format         FOURCC                        depth  Description  */

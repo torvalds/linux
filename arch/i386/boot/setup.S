@@ -310,6 +310,8 @@ loader_ok:
 	call verify_cpu
 	testl  %eax,%eax
 	jz	cpu_ok
+	movw	%cs,%ax		# aka SETUPSEG
+	movw	%ax,%ds
 	lea	cpu_panic_mess,%si
 	call	prtstr
 1:	jmp	1b

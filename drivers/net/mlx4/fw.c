@@ -90,7 +90,7 @@ static void dump_dev_cap_flags(struct mlx4_dev *dev, u32 flags)
 	int i;
 
 	mlx4_dbg(dev, "DEV_CAP flags:\n");
-	for (i = 0; i < 32; ++i)
+	for (i = 0; i < ARRAY_SIZE(fname); ++i)
 		if (fname[i] && (flags & (1 << i)))
 			mlx4_dbg(dev, "    %s\n", fname[i]);
 }

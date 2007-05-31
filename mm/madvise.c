@@ -10,6 +10,7 @@
 #include <linux/syscalls.h>
 #include <linux/mempolicy.h>
 #include <linux/hugetlb.h>
+#include <linux/sched.h>
 
 /*
  * Any behaviour which results in changes to the vma->vm_flags needs to

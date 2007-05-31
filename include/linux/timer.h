@@ -69,6 +69,12 @@ extern int __mod_timer(struct timer_list *timer, unsigned long expires);
 extern int mod_timer(struct timer_list *timer, unsigned long expires);
 
 /*
+ * The jiffies value which is added to now, when there is no timer
+ * in the timer wheel:
+ */
+#define NEXT_TIMER_MAX_DELTA	((1UL << 30) - 1)
+
+/*
  * Return when the next timer-wheel timeout occurs (in absolute jiffies),
  * locks the timer base:
  */

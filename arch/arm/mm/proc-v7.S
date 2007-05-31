@@ -256,7 +256,7 @@ __v7_proc_info:
 	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_EDSP
 	.long	cpu_v7_name
 	.long	v7_processor_functions
-	.long	v6wbi_tlb_fns
+	.long	v7wbi_tlb_fns
 	.long	v6_user_fns
 	.long	v7_cache_fns
 	.size	__v7_proc_info, . - __v7_proc_info

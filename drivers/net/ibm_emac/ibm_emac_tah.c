@@ -63,7 +63,7 @@ int __init tah_attach(void *emac)
 	return 0;
 }
 
-void __exit __tah_fini(struct ocp_device *ocpdev)
+void __tah_fini(struct ocp_device *ocpdev)
 {
 	struct tah_regs *p = ocp_get_drvdata(ocpdev);
 	BUG_ON(!p);

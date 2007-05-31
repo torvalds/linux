@@ -201,7 +201,7 @@ pcibr_dmatrans_direct32(struct pcidev_info * info,
 }
 
 /*
- * Wrapper routine for free'ing DMA maps
+ * Wrapper routine for freeing DMA maps
  * DMA mappings for Direct 64 and 32 do not have any DMA maps.
  */
 void

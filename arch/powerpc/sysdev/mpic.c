@@ -1424,7 +1424,7 @@ unsigned int mpic_get_irq(void)
 void mpic_request_ipis(void)
 {
 	struct mpic *mpic = mpic_primary;
-	int i;
+	int i, err;
 	static char *ipi_names[] = {
 		"IPI0 (call function)",
 		"IPI1 (reschedule)",
@@ -1442,8 +1442,14 @@ void mpic_request_ipis(void)
 			printk(KERN_ERR "Failed to map IPI %d\n", i);
 			break;
 		}
-		request_irq(vipi, mpic_ipi_action, IRQF_DISABLED|IRQF_PERCPU,
-			    ipi_names[i], mpic);
+		err = request_irq(vipi, mpic_ipi_action,
+				  IRQF_DISABLED|IRQF_PERCPU,
+				  ipi_names[i], mpic);
+		if (err) {
+			printk(KERN_ERR "Request of irq %d for IPI %d failed\n",
+			       vipi, i);
+			break;
+		}
 	}
 }
 

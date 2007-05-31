@@ -46,11 +46,7 @@
 
 #ifndef _DEF_BF532_H
 #define _DEF_BF532_H
-/*
-#if !defined(__ADSPLPBLACKFIN__)
-#warning defBF532.h should only be included for 532 compatible chips
-#endif
-*/
+
 /* include all Core registers and bit definitions */
 #include <asm/mach-common/def_LPBlackfin.h>
 
@@ -65,10 +61,10 @@
 #define PLL_STAT               0xFFC0000C	/* PLL Status register (16-bit) */
 #define PLL_LOCKCNT            0xFFC00010	/* PLL Lock Count register (16-bit) */
 #define CHIPID                 0xFFC00014       /* Chip ID Register */
-#define SWRST                  0xFFC00100	/* Software Reset Register (16-bit) */
-#define SYSCR                  0xFFC00104	/* System Configuration registe */
 
 /* System Interrupt Controller (0xFFC00100 - 0xFFC001FF) */
+#define SWRST			0xFFC00100  /* Software Reset Register (16-bit) */
+#define SYSCR			0xFFC00104  /* System Configuration registe */
 #define SIC_RVECT             		0xFFC00108	/* Interrupt Reset Vector Address Register */
 #define SIC_IMASK             		0xFFC0010C	/* Interrupt Mask Register */
 #define SIC_IAR0               		0xFFC00110	/* Interrupt Assignment Register 0 */
@@ -218,10 +214,12 @@
 #define EBIU_SDSTAT			0xFFC00A1C	/* SDRAM Status Register */
 
 /* DMA Traffic controls */
-#define DMA_TCPER 0xFFC00B0C	/* Traffic Control Periods Register */
-#define DMA_TCCNT 0xFFC00B10	/* Traffic Control Current Counts Register */
 #define DMA_TC_PER 0xFFC00B0C	/* Traffic Control Periods Register */
 #define DMA_TC_CNT 0xFFC00B10	/* Traffic Control Current Counts Register */
+
+/* Alternate deprecated register names (below) provided for backwards code compatibility */
+#define DMA_TCPER 0xFFC00B0C	/* Traffic Control Periods Register */
+#define DMA_TCCNT 0xFFC00B10	/* Traffic Control Current Counts Register */
 
 /* DMA Controller (0xFFC00C00 - 0xFFC00FFF) */
 #define DMA0_CONFIG		0xFFC00C08	/* DMA Channel 0 Configuration Register */
@@ -407,14 +405,25 @@
 /* ********************* PLL AND RESET MASKS ************************ */
 
 /* PLL_CTL Masks */
-#define PLL_CLKIN              0x00000000	/* Pass CLKIN to PLL */
-#define PLL_CLKIN_DIV2         0x00000001	/* Pass CLKIN/2 to PLL */
-#define PLL_OFF                0x00000002	/* Shut off PLL clocks */
-#define STOPCK_OFF             0x00000008	/* Core clock off */
-#define PDWN                   0x00000020	/* Put the PLL in a Deep Sleep state */
-#define BYPASS                 0x00000100	/* Bypass the PLL */
+#define PLL_CLKIN			0x0000  /* Pass CLKIN to PLL */
+#define PLL_CLKIN_DIV2			0x0001  /* Pass CLKIN/2 to PLL */
+#define DF				0x0001	/* 0: PLL = CLKIN, 1: PLL = CLKIN/2					*/
+#define PLL_OFF				0x0002  /* Shut off PLL clocks */
+#define STOPCK_OFF			0x0008  /* Core clock off */
+#define STOPCK				0x0008	/* Core Clock Off									*/
+#define PDWN				0x0020  /* Put the PLL in a Deep Sleep state */
+#if !defined(__ADSPBF538__)
+/* this file is included in defBF538.h but IN_DELAY/OUT_DELAY are different */
+# define IN_DELAY        0x0040  /* Add 200ps Delay To EBIU Input Latches */
+# define OUT_DELAY       0x0080  /* Add 200ps Delay To EBIU Output Signals */
+#endif
+#define BYPASS				0x0100  /* Bypass the PLL */
+/* PLL_CTL Macros (Only Use With Logic OR While Setting Lower Order Bits)			*/
+#define	SET_MSEL(x)		(((x)&0x3F) << 0x9)	/* Set MSEL = 0-63 --> VCO = CLKIN*MSEL		*/
 
 /* PLL_DIV Masks */
+#define SSEL				0x000F	/* System Select						*/
+#define	CSEL				0x0030	/* Core Select							*/
 
 #define SCLK_DIV(x)  (x)	/* SCLK = VCO / x */
 
@@ -422,6 +431,8 @@
 #define CCLK_DIV2              0x00000010	/* CCLK = VCO / 2 */
 #define CCLK_DIV4              0x00000020	/* CCLK = VCO / 4 */
 #define CCLK_DIV8              0x00000030	/* CCLK = VCO / 8 */
+/* PLL_DIV Macros														*/
+#define SET_SSEL(x)			((x)&0xF)	/* Set SSEL = 0-15 --> SCLK = VCO/SSEL	*/
 
 /* PLL_STAT Masks																	*/
 #define ACTIVE_PLLENABLED	0x0001	/* Processor In Active Mode With PLL Enabled    */
@@ -429,13 +440,47 @@
 #define ACTIVE_PLLDISABLED	0x0004	/* Processor In Active Mode With PLL Disabled   */
 #define	PLL_LOCKED			0x0020	/* PLL_LOCKCNT Has Been Reached                                 */
 
+/* VR_CTL Masks																	*/
+#define	FREQ			0x0003	/* Switching Oscillator Frequency For Regulator	*/
+#define	HIBERNATE		0x0000	/* 		Powerdown/Bypass On-Board Regulation	*/
+#define	FREQ_333		0x0001	/* 		Switching Frequency Is 333 kHz			*/
+#define	FREQ_667		0x0002	/* 		Switching Frequency Is 667 kHz			*/
+#define	FREQ_1000		0x0003	/* 		Switching Frequency Is 1 MHz			*/
+
+#define GAIN			0x000C	/* Voltage Level Gain	*/
+#define	GAIN_5			0x0000	/* 		GAIN = 5		*/
+#define	GAIN_10			0x0004	/* 		GAIN = 10		*/
+#define	GAIN_20			0x0008	/* 		GAIN = 20		*/
+#define	GAIN_50			0x000C	/* 		GAIN = 50		*/
+
+#define	VLEV			0x00F0	/* Internal Voltage Level					*/
+#define	VLEV_085 		0x0060	/* 		VLEV = 0.85 V (-5% - +10% Accuracy)	*/
+#define	VLEV_090		0x0070	/* 		VLEV = 0.90 V (-5% - +10% Accuracy)	*/
+#define	VLEV_095		0x0080	/* 		VLEV = 0.95 V (-5% - +10% Accuracy)	*/
+#define	VLEV_100		0x0090	/* 		VLEV = 1.00 V (-5% - +10% Accuracy)	*/
+#define	VLEV_105		0x00A0	/* 		VLEV = 1.05 V (-5% - +10% Accuracy)	*/
+#define	VLEV_110		0x00B0	/* 		VLEV = 1.10 V (-5% - +10% Accuracy)	*/
+#define	VLEV_115		0x00C0	/* 		VLEV = 1.15 V (-5% - +10% Accuracy)	*/
+#define	VLEV_120		0x00D0	/* 		VLEV = 1.20 V (-5% - +10% Accuracy)	*/
+
+#define	WAKE			0x0100	/* Enable RTC/Reset Wakeup From Hibernate	*/
+#define	SCKELOW			0x8000	/* Do Not Drive SCKE High During Reset After Hibernate */
+
 /* CHIPID Masks */
 #define CHIPID_VERSION         0xF0000000
 #define CHIPID_FAMILY          0x0FFFF000
 #define CHIPID_MANUFACTURE     0x00000FFE
 
 /* SWRST Mask */
-#define SYSTEM_RESET           0x00000007	/* Initiates a system software reset */
+#define SYSTEM_RESET	0x0007	/* Initiates A System Software Reset			*/
+#define	DOUBLE_FAULT	0x0008	/* Core Double Fault Causes Reset				*/
+#define RESET_DOUBLE	0x2000	/* SW Reset Generated By Core Double-Fault		*/
+#define RESET_WDOG	0x4000	/* SW Reset Generated By Watchdog Timer			*/
+#define RESET_SOFTWARE	0x8000	/* SW Reset Occurred Since Last Read Of SWRST	*/
+
+/* SYSCR Masks																				*/
+#define BMODE			0x0006	/* Boot Mode - Latched During HW Reset From Mode Pins	*/
+#define	NOBOOT			0x0010	/* Execute From L1 or ASYNC Bank 0 When BMODE = 0		*/
 
 /* *************  SYSTEM INTERRUPT CONTROLLER MASKS ***************** */
 
@@ -482,23 +527,6 @@
 #define IWR_ENABLE_ALL         0xFFFFFFFF	/* Wakeup Enable all peripherals */
 #define IWR_ENABLE(x)	       (1 << (x))	/* Wakeup Enable Peripheral #x */
 #define IWR_DISABLE(x) (0xFFFFFFFF ^ (1 << (x)))	/* Wakeup Disable Peripheral #x */
-
-/* *********  WATCHDOG TIMER MASKS  ********************8 */
-
-/* Watchdog Timer WDOG_CTL Register */
-#define ICTL(x) ((x<<1) & 0x0006)
-#define ENABLE_RESET     0x00000000	/* Set Watchdog Timer to generate reset */
-#define ENABLE_NMI       0x00000002	/* Set Watchdog Timer to generate non-maskable interrupt */
-#define ENABLE_GPI       0x00000004	/* Set Watchdog Timer to generate general-purpose interrupt */
-#define DISABLE_EVT      0x00000006	/* Disable Watchdog Timer interrupts */
-
-#define TMR_EN		0x0000
-#define TMR_DIS		0x0AD0
-#define TRO		0x8000
-
-#define ICTL_P0		0x01
-#define ICTL_P1		0x02
-#define TRO_P		0x0F
 
 /* ***************************** UART CONTROLLER MASKS ********************** */
 
@@ -583,6 +611,9 @@
 #define TSPEN    0x0001		/* TX enable  */
 #define ITCLK    0x0002		/* Internal TX Clock Select  */
 #define TDTYPE   0x000C		/* TX Data Formatting Select */
+#define DTYPE_NORM	0x0000		/* Data Format Normal							*/
+#define DTYPE_ULAW	0x0008		/* Compand Using u-Law							*/
+#define DTYPE_ALAW	0x000C		/* Compand Using A-Law							*/
 #define TLSBIT   0x0010		/* TX Bit Order */
 #define ITFS     0x0200		/* Internal TX Frame Sync Select  */
 #define TFSR     0x0400		/* TX Frame Sync Required Select  */
@@ -592,7 +623,12 @@
 #define TCKFE    0x4000		/* TX Clock Falling Edge Select  */
 
 /* SPORTx_TCR2 Masks */
-#define SLEN	    0x001F	/*TX Word Length  */
+#if defined(__ADSPBF531__) || defined(__ADSPBF532__) || \
+    defined(__ADSPBF533__)
+# define SLEN	    0x001F	/*TX Word Length  */
+#else
+# define SLEN(x)		((x)&0x1F)	/* SPORT TX Word Length (2 - 31)				*/
+#endif
 #define TXSE        0x0100	/*TX Secondary Enable */
 #define TSFSE       0x0200	/*TX Stereo Frame Sync Enable */
 #define TRFST       0x0400	/*TX Right-First Data Order  */
@@ -601,8 +637,9 @@
 #define RSPEN    0x0001		/* RX enable  */
 #define IRCLK    0x0002		/* Internal RX Clock Select  */
 #define RDTYPE   0x000C		/* RX Data Formatting Select */
-#define RULAW    0x0008		/* u-Law enable  */
-#define RALAW    0x000C		/* A-Law enable  */
+#define DTYPE_NORM	0x0000		/* no companding							*/
+#define DTYPE_ULAW	0x0008		/* Compand Using u-Law							*/
+#define DTYPE_ALAW	0x000C		/* Compand Using A-Law							*/
 #define RLSBIT   0x0010		/* RX Bit Order */
 #define IRFS     0x0200		/* Internal RX Frame Sync Select  */
 #define RFSR     0x0400		/* RX Frame Sync Required Select  */
@@ -611,7 +648,7 @@
 #define RCKFE    0x4000		/* RX Clock Falling Edge Select  */
 
 /* SPORTx_RCR2 Masks */
-#define SLEN	    0x001F	/*RX Word Length  */
+/* SLEN defined above */
 #define RXSE        0x0100	/*RX Secondary Enable */
 #define RSFSE       0x0200	/*RX Stereo Frame Sync Enable */
 #define RRFST       0x0400	/*Right-First Data Order  */
@@ -628,14 +665,37 @@
 /*SPORTx_MCMC1 Masks */
 #define SP_WSIZE		0x0000F000	/*Multichannel Window Size Field */
 #define SP_WOFF		0x000003FF	/*Multichannel Window Offset Field */
+/* SPORTx_MCMC1 Macros															*/
+#define SET_SP_WOFF(x)	((x) & 0x3FF) 	/* Multichannel Window Offset Field			*/
+/* Only use SET_WSIZE Macro With Logic OR While Setting Lower Order Bits						*/
+#define SET_SP_WSIZE(x)	(((((x)>>0x3)-1)&0xF) << 0xC)	/* Multichannel Window Size = (x/8)-1	*/
 
 /*SPORTx_MCMC2 Masks */
-#define MCCRM		0x00000003	/*Multichannel Clock Recovery Mode */
-#define MCDTXPE		0x00000004	/*Multichannel DMA Transmit Packing */
-#define MCDRXPE		0x00000008	/*Multichannel DMA Receive Packing */
-#define MCMEN		0x00000010	/*Multichannel Frame Mode Enable */
-#define FSDR		0x00000080	/*Multichannel Frame Sync to Data Relationship */
-#define MFD		0x0000F000	/*Multichannel Frame Delay    */
+#define MCCRM		0x00000003 	/*Multichannel Clock Recovery Mode */
+#define REC_BYPASS	0x0000		/* Bypass Mode (No Clock Recovery)				*/
+#define REC_2FROM4	0x0002		/* Recover 2 MHz Clock from 4 MHz Clock			*/
+#define REC_8FROM16	0x0003		/* Recover 8 MHz Clock from 16 MHz Clock		*/
+#define MCDTXPE		0x00000004 	/*Multichannel DMA Transmit Packing */
+#define MCDRXPE		0x00000008 	/*Multichannel DMA Receive Packing */
+#define MCMEN		0x00000010 	/*Multichannel Frame Mode Enable */
+#define FSDR		0x00000080 	/*Multichannel Frame Sync to Data Relationship */
+#define MFD		0x0000F000 	/*Multichannel Frame Delay    */
+#define MFD_0		0x0000		/* Multichannel Frame Delay = 0					*/
+#define MFD_1		0x1000		/* Multichannel Frame Delay = 1					*/
+#define MFD_2		0x2000		/* Multichannel Frame Delay = 2					*/
+#define MFD_3		0x3000		/* Multichannel Frame Delay = 3					*/
+#define MFD_4		0x4000		/* Multichannel Frame Delay = 4					*/
+#define MFD_5		0x5000		/* Multichannel Frame Delay = 5					*/
+#define MFD_6		0x6000		/* Multichannel Frame Delay = 6					*/
+#define MFD_7		0x7000		/* Multichannel Frame Delay = 7					*/
+#define MFD_8		0x8000		/* Multichannel Frame Delay = 8					*/
+#define MFD_9		0x9000		/* Multichannel Frame Delay = 9					*/
+#define MFD_10		0xA000		/* Multichannel Frame Delay = 10				*/
+#define MFD_11		0xB000		/* Multichannel Frame Delay = 11				*/
+#define MFD_12		0xC000		/* Multichannel Frame Delay = 12				*/
+#define MFD_13		0xD000		/* Multichannel Frame Delay = 13				*/
+#define MFD_14		0xE000		/* Multichannel Frame Delay = 14				*/
+#define MFD_15		0xF000		/* Multichannel Frame Delay = 15				*/
 
 /*  *********  PARALLEL PERIPHERAL INTERFACE (PPI) MASKS ****************   */
 
@@ -660,6 +720,8 @@
 #define DLEN_16			0x3800	/* Data Length = 16 Bits                        */
 #define DLEN(x)	(((x-9) & 0x07) << 11)	/* PPI Data Length (only works for x=10-->x=16) */
 #define POL                  0x0000C000	/* PPI Signal Polarities       */
+#define POLC		0x4000		/* PPI Clock Polarity				*/
+#define POLS		0x8000		/* PPI Frame Sync Polarity			*/
 
 /* PPI_STATUS Masks                                          */
 #define FLD	             0x00000400	/* Field Indicator   */
@@ -729,6 +791,15 @@
 #define PCAPRD	            0x00000800	/* DMA Read Operation Indicator */
 #define PMAP	            0x00007000	/* DMA Peripheral Map Field */
 
+#define PMAP_PPI		0x0000	/* PMAP PPI Port DMA */
+#define	PMAP_SPORT0RX		0x1000	/* PMAP SPORT0 Receive DMA */
+#define PMAP_SPORT0TX		0x2000	/* PMAP SPORT0 Transmit DMA */
+#define	PMAP_SPORT1RX		0x3000	/* PMAP SPORT1 Receive DMA */
+#define PMAP_SPORT1TX		0x4000	/* PMAP SPORT1 Transmit DMA */
+#define PMAP_SPI		0x5000	/* PMAP SPI DMA */
+#define PMAP_UARTRX		0x6000	/* PMAP UART Receive DMA */
+#define PMAP_UARTTX		0x7000	/* PMAP UART Transmit DMA */
+
 /*  *************  GENERAL PURPOSE TIMER MASKS  ******************** */
 
 /* PWM Timer bit definitions */
@@ -755,9 +826,9 @@
 #define TIMIL0		0x0001
 #define TIMIL1		0x0002
 #define TIMIL2		0x0004
-#define TOVL_ERR0	0x0010
-#define TOVL_ERR1	0x0020
-#define TOVL_ERR2	0x0040
+#define TOVF_ERR0		0x0010	/* Timer 0 Counter Overflow		*/
+#define TOVF_ERR1		0x0020	/* Timer 1 Counter Overflow		*/
+#define TOVF_ERR2		0x0040	/* Timer 2 Counter Overflow		*/
 #define TRUN0		0x1000
 #define TRUN1		0x2000
 #define TRUN2		0x4000
@@ -765,12 +836,20 @@
 #define TIMIL0_P	0x00
 #define TIMIL1_P	0x01
 #define TIMIL2_P	0x02
-#define TOVL_ERR0_P	0x04
-#define TOVL_ERR1_P	0x05
-#define TOVL_ERR2_P	0x06
+#define TOVF_ERR0_P		0x04
+#define TOVF_ERR1_P		0x05
+#define TOVF_ERR2_P		0x06
 #define TRUN0_P		0x0C
 #define TRUN1_P		0x0D
 #define TRUN2_P		0x0E
+
+/* Alternate Deprecated Macros Provided For Backwards Code Compatibility */
+#define TOVL_ERR0 		TOVF_ERR0
+#define TOVL_ERR1 		TOVF_ERR1
+#define TOVL_ERR2 		TOVF_ERR2
+#define TOVL_ERR0_P		TOVF_ERR0_P
+#define TOVL_ERR1_P 		TOVF_ERR1_P
+#define TOVL_ERR2_P 		TOVF_ERR2_P
 
 /* TIMERx_CONFIG Registers */
 #define PWM_OUT		0x0001
@@ -841,6 +920,10 @@
 
 /* SPI_CTL Masks */
 #define TIMOD                  0x00000003	/* Transfer initiation mode and interrupt generation */
+#define RDBR_CORE	0x0000		/* 		RDBR Read Initiates, IRQ When RDBR Full		*/
+#define	TDBR_CORE	0x0001		/* 		TDBR Write Initiates, IRQ When TDBR Empty	*/
+#define RDBR_DMA	0x0002		/* 		DMA Read, DMA Until FIFO Empty				*/
+#define TDBR_DMA	0x0003		/* 		DMA Write, DMA Until FIFO Full				*/
 #define SZ                     0x00000004	/* Send Zero (=0) or last (=1) word when TDBR empty. */
 #define GM                     0x00000008	/* When RDBR full, get more (=1) data or discard (=0) incoming Data */
 #define PSSE                   0x00000010	/* Enable (=1) Slave-Select input for Master. */
@@ -894,10 +977,20 @@
 #define RXS                    0x00000020	/* SPI_RDBR Data Buffer Status (0=Empty, 1=Full)  */
 #define TXCOL                  0x00000040	/* When set (=1), corrupt data may have been transmitted  */
 
+/* SPIx_FLG Masks																	*/
+#define FLG1E	0xFDFF		/* Activates SPI_FLOUT1 							*/
+#define FLG2E	0xFBFF		/* Activates SPI_FLOUT2								*/
+#define FLG3E	0xF7FF		/* Activates SPI_FLOUT3								*/
+#define FLG4E	0xEFFF		/* Activates SPI_FLOUT4								*/
+#define FLG5E	0xDFFF		/* Activates SPI_FLOUT5								*/
+#define FLG6E	0xBFFF		/* Activates SPI_FLOUT6								*/
+#define FLG7E	0x7FFF		/* Activates SPI_FLOUT7								*/
+
 /* *********************  ASYNCHRONOUS MEMORY CONTROLLER MASKS  ************* */
 
 /* AMGCTL Masks */
 #define AMCKEN			0x00000001	/* Enable CLKOUT */
+#define	AMBEN_NONE		0x00000000	/* All Banks Disabled								*/
 #define AMBEN_B0		0x00000002	/* Enable Asynchronous Memory Bank 0 only */
 #define AMBEN_B0_B1		0x00000004	/* Enable Asynchronous Memory Banks 0 & 1 only */
 #define AMBEN_B0_B1_B2		0x00000006	/* Enable Asynchronous Memory Banks 0, 1, and 2 */
@@ -1097,6 +1190,9 @@
 #define CL_3			0x0000000C	/* SDRAM CAS latency = 3 cycles */
 #define PFE			0x00000010	/* Enable SDRAM prefetch */
 #define PFP			0x00000020	/* Prefetch has priority over AMC requests */
+#define PASR_ALL		0x00000000	/* All 4 SDRAM Banks Refreshed In Self-Refresh				*/
+#define PASR_B0_B1		0x00000010	/* SDRAM Banks 0 and 1 Are Refreshed In Self-Refresh		*/
+#define PASR_B0			0x00000020	/* Only SDRAM Bank 0 Is Refreshed In Self-Refresh			*/
 #define TRAS_1			0x00000040	/* SDRAM tRAS = 1 cycle */
 #define TRAS_2			0x00000080	/* SDRAM tRAS = 2 cycles */
 #define TRAS_3			0x000000C0	/* SDRAM tRAS = 3 cycles */
@@ -1158,18 +1254,5 @@
 #define SDEASE		      0x00000010	/* SDRAM EAB sticky error status - W1C */
 #define BGSTAT			0x00000020	/* Bus granted */
 
-/*VR_CTL Masks*/
-#define WAKE                    0x100
-#define VLEV_6                  0x60
-#define VLEV_7                  0x70
-#define VLEV_8                  0x80
-#define VLEV_9                  0x90
-#define VLEV_10                 0xA0
-#define VLEV_11                 0xB0
-#define VLEV_12                 0xC0
-#define VLEV_13                 0xD0
-#define VLEV_14                 0xE0
-#define VLEV_15                 0xF0
-#define FREQ_3                  0x03
 
 #endif				/* _DEF_BF532_H */

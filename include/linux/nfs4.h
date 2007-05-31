@@ -16,6 +16,7 @@
 #include <linux/types.h>
 
 #define NFS4_VERIFIER_SIZE	8
+#define NFS4_STATEID_SIZE	16
 #define NFS4_FHSIZE		128
 #define NFS4_MAXPATHLEN		PATH_MAX
 #define NFS4_MAXNAMLEN		NAME_MAX
@@ -113,7 +114,7 @@ struct nfs4_acl {
 };
 
 typedef struct { char data[NFS4_VERIFIER_SIZE]; } nfs4_verifier;
-typedef struct { char data[16]; } nfs4_stateid;
+typedef struct { char data[NFS4_STATEID_SIZE]; } nfs4_stateid;
 
 enum nfs_opnum4 {
 	OP_ACCESS = 3,

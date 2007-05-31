@@ -104,7 +104,7 @@ struct rpc_cred *nfs4_get_renew_cred(struct nfs_client *clp)
 	return cred;
 }
 
-struct rpc_cred *nfs4_get_setclientid_cred(struct nfs_client *clp)
+static struct rpc_cred *nfs4_get_setclientid_cred(struct nfs_client *clp)
 {
 	struct nfs4_state_owner *sp;
 

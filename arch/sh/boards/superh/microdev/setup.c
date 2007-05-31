@@ -349,7 +349,7 @@ static int __init smsc_superio_setup(void)
 	SMSC_WRITE_INDEXED(0x00, 0xc7);	/* GP47 = nIOWOP */
 	SMSC_WRITE_INDEXED(0x08, 0xe8);	/* GP20 = nIDE2_OE */
 
-		/* Exit the configuraton state */
+		/* Exit the configuration state */
 	outb(SMSC_EXIT_CONFIG_KEY, SMSC_CONFIG_PORT_ADDR);
 
 	return 0;

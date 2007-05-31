@@ -198,12 +198,12 @@ void microdev_outb(unsigned char b, unsigned long port)
 	/*
 	 *	There is a board feature with the current SH4-202 MicroDev in
 	 *	that the 2 byte enables (nBE0 and nBE1) are tied together (and
-	 *	to the Chip Select Line (Ethernet_CS)). Due to this conectivity,
+	 *	to the Chip Select Line (Ethernet_CS)). Due to this connectivity,
 	 *	it is not possible to safely perform 8-bit writes to the
 	 *	Ethernet registers, as 16-bits will be consumed from the Data
 	 *	lines (corrupting the other byte).  Hence, this function is
-	 *	written to impliment 16-bit read/modify/write for all byte-wide
-	 *	acceses.
+	 *	written to implement 16-bit read/modify/write for all byte-wide
+	 *	accesses.
 	 *
 	 *	Note: there is no problem with byte READS (even or odd).
 	 *

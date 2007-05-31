@@ -162,7 +162,7 @@ void rgmii_set_speed(struct ocp_device *ocpdev, int input, int speed)
 	out_be32(&dev->base->ssr, ssr);
 }
 
-void __exit __rgmii_fini(struct ocp_device *ocpdev, int input)
+void __rgmii_fini(struct ocp_device *ocpdev, int input)
 {
 	struct ibm_ocp_rgmii *dev = ocp_get_drvdata(ocpdev);
 	BUG_ON(!dev || dev->users == 0);

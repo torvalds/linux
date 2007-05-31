@@ -1194,6 +1194,7 @@ static int vt_check(struct file *file)
 {
 	struct tty_struct *tty;
 	struct inode *inode = file->f_path.dentry->d_inode;
+	struct vc_data *vc;
 	
 	if (file->f_op->ioctl != tty_ioctl)
 		return -EINVAL;
@@ -1204,12 +1205,16 @@ static int vt_check(struct file *file)
 	                                                
 	if (tty->driver->ioctl != vt_ioctl)
 		return -EINVAL;
-	
+
+	vc = (struct vc_data *)tty->driver_data;
+	if (!vc_cons_allocated(vc->vc_num)) 	/* impossible? */
+		return -ENOIOCTLCMD;
+
 	/*
 	 * To have permissions to do most of the vt ioctls, we either have
-	 * to be the owner of the tty, or super-user.
+	 * to be the owner of the tty, or have CAP_SYS_TTY_CONFIG.
 	 */
-	if (current->signal->tty == tty || capable(CAP_SYS_ADMIN))
+	if (current->signal->tty == tty || capable(CAP_SYS_TTY_CONFIG))
 		return 1;
 	return 0;                                                    
 }
@@ -1310,16 +1315,28 @@ static int do_unimap_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg,
 	struct unimapdesc32 tmp;
 	struct unimapdesc32 __user *user_ud = compat_ptr(arg);
 	int perm = vt_check(file);
-	
-	if (perm < 0) return perm;
+	struct vc_data *vc;
+
+	if (perm < 0)
+		return perm;
 	if (copy_from_user(&tmp, user_ud, sizeof tmp))
 		return -EFAULT;
+	if (tmp.entries)
+		if (!access_ok(VERIFY_WRITE, compat_ptr(tmp.entries),
+				tmp.entry_ct*sizeof(struct unipair)))
+			return -EFAULT;
+	vc = ((struct tty_struct *)file->private_data)->driver_data;
 	switch (cmd) {
 	case PIO_UNIMAP:
-		if (!perm) return -EPERM;
-		return con_set_unimap(vc_cons[fg_console].d, tmp.entry_ct, compat_ptr(tmp.entries));
+		if (!perm)
+			return -EPERM;
+		return con_set_unimap(vc, tmp.entry_ct,
+						compat_ptr(tmp.entries));
 	case GIO_UNIMAP:
-		return con_get_unimap(vc_cons[fg_console].d, tmp.entry_ct, &(user_ud->entry_ct), compat_ptr(tmp.entries));
+		if (!perm && fg_console != vc->vc_num)
+			return -EPERM;
+		return con_get_unimap(vc, tmp.entry_ct, &(user_ud->entry_ct),
+						compat_ptr(tmp.entries));
 	}
 	return 0;
 }

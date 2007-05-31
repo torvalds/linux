@@ -760,7 +760,7 @@ static size_t account(struct entropy_store *r, size_t nbytes, int min,
 
 static void extract_buf(struct entropy_store *r, __u8 *out)
 {
-	int i, x;
+	int i;
 	__u32 data[16], buf[5 + SHA_WORKSPACE_WORDS];
 
 	sha_init(buf);
@@ -772,9 +772,11 @@ static void extract_buf(struct entropy_store *r, __u8 *out)
 	 * attempts to find previous ouputs), unless the hash
 	 * function can be inverted.
 	 */
-	for (i = 0, x = 0; i < r->poolinfo->poolwords; i += 16, x+=2) {
-		sha_transform(buf, (__u8 *)r->pool+i, buf + 5);
-		add_entropy_words(r, &buf[x % 5], 1);
+	for (i = 0; i < r->poolinfo->poolwords; i += 16) {
+		/* hash blocks of 16 words = 512 bits */
+		sha_transform(buf, (__u8 *)(r->pool + i), buf + 5);
+		/* feed back portion of the resulting hash */
+		add_entropy_words(r, &buf[i % 5], 1);
 	}
 
 	/*
@@ -782,7 +784,7 @@ static void extract_buf(struct entropy_store *r, __u8 *out)
 	 * portion of the pool while mixing, and hash one
 	 * final time.
 	 */
-	__add_entropy_words(r, &buf[x % 5], 1, data);
+	__add_entropy_words(r, &buf[i % 5], 1, data);
 	sha_transform(buf, (__u8 *)data, buf + 5);
 
 	/*
@@ -1018,37 +1020,44 @@ random_poll(struct file *file, poll_table * wait)
 	return mask;
 }
 
+static int
+write_pool(struct entropy_store *r, const char __user *buffer, size_t count)
+{
+	size_t bytes;
+	__u32 buf[16];
+	const char __user *p = buffer;
+
+	while (count > 0) {
+		bytes = min(count, sizeof(buf));
+		if (copy_from_user(&buf, p, bytes))
+			return -EFAULT;
+
+		count -= bytes;
+		p += bytes;
+
+		add_entropy_words(r, buf, (bytes + 3) / 4);
+	}
+
+	return 0;
+}
+
 static ssize_t
 random_write(struct file * file, const char __user * buffer,
 	     size_t count, loff_t *ppos)
 {
-	int ret = 0;
-	size_t bytes;
-	__u32 buf[16];
-	const char __user *p = buffer;
-	size_t c = count;
+	size_t ret;
+	struct inode *inode = file->f_path.dentry->d_inode;
 
-	while (c > 0) {
-		bytes = min(c, sizeof(buf));
+	ret = write_pool(&blocking_pool, buffer, count);
+	if (ret)
+		return ret;
+	ret = write_pool(&nonblocking_pool, buffer, count);
+	if (ret)
+		return ret;
 
-		bytes -= copy_from_user(&buf, p, bytes);
-		if (!bytes) {
-			ret = -EFAULT;
-			break;
-		}
-		c -= bytes;
-		p += bytes;
-
-		add_entropy_words(&input_pool, buf, (bytes + 3) / 4);
-	}
-	if (p == buffer) {
-		return (ssize_t)ret;
-	} else {
-		struct inode *inode = file->f_path.dentry->d_inode;
-	        inode->i_mtime = current_fs_time(inode->i_sb);
-		mark_inode_dirty(inode);
-		return (ssize_t)(p - buffer);
-	}
+	inode->i_mtime = current_fs_time(inode->i_sb);
+	mark_inode_dirty(inode);
+	return (ssize_t)count;
 }
 
 static int
@@ -1087,8 +1096,8 @@ random_ioctl(struct inode * inode, struct file * file,
 			return -EINVAL;
 		if (get_user(size, p++))
 			return -EFAULT;
-		retval = random_write(file, (const char __user *) p,
-				      size, &file->f_pos);
+		retval = write_pool(&input_pool, (const char __user *)p,
+				    size);
 		if (retval < 0)
 			return retval;
 		credit_entropy_store(&input_pool, ent_count);

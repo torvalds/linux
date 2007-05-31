@@ -51,8 +51,8 @@ u32 mlx4_bitmap_alloc(struct mlx4_bitmap *bitmap)
 
 	if (obj < bitmap->max) {
 		set_bit(obj, bitmap->table);
+		bitmap->last = (obj + 1) & (bitmap->max - 1);
 		obj |= bitmap->top;
-		bitmap->last = obj + 1;
 	} else
 		obj = -1;
 

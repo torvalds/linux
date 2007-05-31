@@ -97,25 +97,26 @@ static int suspend_prepare(suspend_state_t state)
 		}
 	}
 
-	if (pm_ops->prepare) {
-		if ((error = pm_ops->prepare(state)))
-			goto Thaw;
-	}
-
 	suspend_console();
 	error = device_suspend(PMSG_SUSPEND);
 	if (error) {
 		printk(KERN_ERR "Some devices failed to suspend\n");
-		goto Resume_devices;
+		goto Resume_console;
 	}
+	if (pm_ops->prepare) {
+		if ((error = pm_ops->prepare(state)))
+			goto Resume_devices;
+	}
+
 	error = disable_nonboot_cpus();
 	if (!error)
 		return 0;
 
 	enable_nonboot_cpus();
- Resume_devices:
 	pm_finish(state);
+ Resume_devices:
 	device_resume();
+ Resume_console:
 	resume_console();
  Thaw:
 	thaw_processes();
@@ -289,13 +290,13 @@ static ssize_t state_store(struct kset *kset, const char *buf, size_t n)
 	len = p ? p - buf : n;
 
 	/* First, check if we are requested to hibernate */
-	if (!strncmp(buf, "disk", len)) {
+	if (len == 4 && !strncmp(buf, "disk", len)) {
 		error = hibernate();
 		return error ? error : n;
 	}
 
 	for (s = &pm_states[state]; state < PM_SUSPEND_MAX; s++, state++) {
-		if (*s && !strncmp(buf, *s, len))
+		if (*s && len == strlen(*s) && !strncmp(buf, *s, len))
 			break;
 	}
 	if (state < PM_SUSPEND_MAX && *s)

@@ -251,8 +251,12 @@
 #define __NR_getcpu		311
 #define __NR_epoll_pwait	312
 #define __NR_utimes		313
-
-#define NR_syscalls 314
+/* Number 314 is reserved for new sys_fallocate */
+#define __NR_utimensat		315
+#define __NR_signalfd		316
+#define __NR_timerfd		317
+#define __NR_eventfd		318
+#define NR_syscalls 319
 
 /* 
  * There are some system calls that are not present on 64 bit, some
@@ -345,6 +349,19 @@
 #endif
 
 #ifdef __KERNEL__
+
+#ifndef CONFIG_64BIT
+#define __IGNORE_select
+#else
+#define __IGNORE_time
+#endif
+
+/* Ignore NUMA system calls. Not wired up on s390. */
+#define __IGNORE_mbind
+#define __IGNORE_get_mempolicy
+#define __IGNORE_set_mempolicy
+#define __IGNORE_migrate_pages
+#define __IGNORE_move_pages
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR

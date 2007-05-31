@@ -72,7 +72,7 @@ void __init iq80321_map_io(void)
 /*
  * IQ80321 PCI.
  */
-static inline int __init
+static int __init
 iq80321_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;

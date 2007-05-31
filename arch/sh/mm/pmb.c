@@ -3,7 +3,7 @@
  *
  * Privileged Space Mapping Buffer (PMB) Support.
  *
- * Copyright (C) 2005, 2006 Paul Mundt
+ * Copyright (C) 2005, 2006, 2007 Paul Mundt
  *
  * P1/P2 Section mapping definitions from map32.h, which was:
  *
@@ -68,6 +68,32 @@ static inline unsigned long mk_pmb_data(unsigned int entry)
 	return mk_pmb_entry(entry) | PMB_DATA;
 }
 
+static DEFINE_SPINLOCK(pmb_list_lock);
+static struct pmb_entry *pmb_list;
+
+static inline void pmb_list_add(struct pmb_entry *pmbe)
+{
+	struct pmb_entry **p, *tmp;
+
+	p = &pmb_list;
+	while ((tmp = *p) != NULL)
+		p = &tmp->next;
+
+	pmbe->next = tmp;
+	*p = pmbe;
+}
+
+static inline void pmb_list_del(struct pmb_entry *pmbe)
+{
+	struct pmb_entry **p, *tmp;
+
+	for (p = &pmb_list; (tmp = *p); p = &tmp->next)
+		if (tmp == pmbe) {
+			*p = tmp->next;
+			return;
+		}
+}
+
 struct pmb_entry *pmb_alloc(unsigned long vpn, unsigned long ppn,
 			    unsigned long flags)
 {
@@ -81,11 +107,19 @@ struct pmb_entry *pmb_alloc(unsigned long vpn, unsigned long ppn,
 	pmbe->ppn	= ppn;
 	pmbe->flags	= flags;
 
+	spin_lock_irq(&pmb_list_lock);
+	pmb_list_add(pmbe);
+	spin_unlock_irq(&pmb_list_lock);
+
 	return pmbe;
 }
 
 void pmb_free(struct pmb_entry *pmbe)
 {
+	spin_lock_irq(&pmb_list_lock);
+	pmb_list_del(pmbe);
+	spin_unlock_irq(&pmb_list_lock);
+
 	kmem_cache_free(pmb_cache, pmbe);
 }
 
@@ -167,31 +201,6 @@ void clear_pmb_entry(struct pmb_entry *pmbe)
 	clear_bit(entry, &pmb_map);
 }
 
-static DEFINE_SPINLOCK(pmb_list_lock);
-static struct pmb_entry *pmb_list;
-
-static inline void pmb_list_add(struct pmb_entry *pmbe)
-{
-	struct pmb_entry **p, *tmp;
-
-	p = &pmb_list;
-	while ((tmp = *p) != NULL)
-		p = &tmp->next;
-
-	pmbe->next = tmp;
-	*p = pmbe;
-}
-
-static inline void pmb_list_del(struct pmb_entry *pmbe)
-{
-	struct pmb_entry **p, *tmp;
-
-	for (p = &pmb_list; (tmp = *p); p = &tmp->next)
-		if (tmp == pmbe) {
-			*p = tmp->next;
-			return;
-		}
-}
 
 static struct {
 	unsigned long size;
@@ -283,25 +292,14 @@ void pmb_unmap(unsigned long addr)
 	} while (pmbe);
 }
 
-static void pmb_cache_ctor(void *pmb, struct kmem_cache *cachep, unsigned long flags)
+static void pmb_cache_ctor(void *pmb, struct kmem_cache *cachep,
+			   unsigned long flags)
 {
 	struct pmb_entry *pmbe = pmb;
 
 	memset(pmb, 0, sizeof(struct pmb_entry));
 
-	spin_lock_irq(&pmb_list_lock);
-
 	pmbe->entry = PMB_NO_ENTRY;
-	pmb_list_add(pmbe);
-
-	spin_unlock_irq(&pmb_list_lock);
-}
-
-static void pmb_cache_dtor(void *pmb, struct kmem_cache *cachep, unsigned long flags)
-{
-	spin_lock_irq(&pmb_list_lock);
-	pmb_list_del(pmb);
-	spin_unlock_irq(&pmb_list_lock);
 }
 
 static int __init pmb_init(void)
@@ -312,8 +310,7 @@ static int __init pmb_init(void)
 	BUG_ON(unlikely(nr_entries >= NR_PMB_ENTRIES));
 
 	pmb_cache = kmem_cache_create("pmb", sizeof(struct pmb_entry), 0,
-				      SLAB_PANIC, pmb_cache_ctor,
-				      pmb_cache_dtor);
+				      SLAB_PANIC, pmb_cache_ctor, NULL);
 
 	jump_to_P2();
 

@@ -72,7 +72,7 @@ static inline unsigned int gic_irq(unsigned int irq)
  * unmask it, in the same way we need to unmask an interrupt when
  * we first enable it.
  *
- * The GIC has a seperate notion of "end of interrupt" to re-enable
+ * The GIC has a separate notion of "end of interrupt" to re-enable
  * an interrupt after handling, in order to support hardware
  * prioritisation.
  *
@@ -125,12 +125,11 @@ static void gic_set_cpu(unsigned int irq, cpumask_t mask_val)
 }
 #endif
 
-static void fastcall gic_handle_cascade_irq(unsigned int irq,
-					    struct irq_desc *desc)
+static void gic_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 {
 	struct gic_chip_data *chip_data = get_irq_data(irq);
 	struct irq_chip *chip = get_irq_chip(irq);
-	unsigned int cascade_irq;
+	unsigned int cascade_irq, gic_irq;
 	unsigned long status;
 
 	/* primary controller ack'ing */
@@ -140,16 +139,15 @@ static void fastcall gic_handle_cascade_irq(unsigned int irq,
 	status = readl(chip_data->cpu_base + GIC_CPU_INTACK);
 	spin_unlock(&irq_controller_lock);
 
-	cascade_irq = (status & 0x3ff);
-	if (cascade_irq > 1020)
+	gic_irq = (status & 0x3ff);
+	if (gic_irq == 1023)
 		goto out;
-	if (cascade_irq < 32 || cascade_irq >= NR_IRQS) {
-		do_bad_IRQ(cascade_irq, desc);
-		goto out;
-	}
 
-	cascade_irq += chip_data->irq_offset;
-	generic_handle_irq(cascade_irq);
+	cascade_irq = gic_irq + chip_data->irq_offset;
+	if (unlikely(gic_irq < 32 || gic_irq > 1020 || cascade_irq >= NR_IRQS))
+		do_bad_IRQ(cascade_irq, desc);
+	else
+		generic_handle_irq(cascade_irq);
 
  out:
 	/* primary controller unmasking */

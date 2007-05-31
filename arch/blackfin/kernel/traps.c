@@ -59,9 +59,10 @@ static int printk_address(unsigned long address)
 	struct vm_list_struct *vml;
 	struct task_struct *p;
 	struct mm_struct *mm;
+	unsigned long offset;
 
 #ifdef CONFIG_KALLSYMS
-	unsigned long offset = 0, symsize;
+	unsigned long symsize;
 	const char *symname;
 	char *modname;
 	char *delim = ":";
@@ -106,12 +107,19 @@ static int printk_address(unsigned long address)
 					              sizeof(_tmpbuf));
 				}
 
+				/* FLAT does not have its text aligned to the start of
+				 * the map while FDPIC ELF does ...
+				 */
+				if (current->mm &&
+				    (address > current->mm->start_code) &&
+				    (address < current->mm->end_code))
+					offset = address - current->mm->start_code;
+				else
+					offset = (address - vma->vm_start) + (vma->vm_pgoff << PAGE_SHIFT);
+
 				write_unlock_irq(&tasklist_lock);
 				return printk("<0x%p> [ %s + 0x%lx ]",
-				              (void*)address, name,
-				              (unsigned long)
-				                ((address - vma->vm_start) +
-				                 (vma->vm_pgoff << PAGE_SHIFT)));
+				              (void*)address, name, offset);
 			}
 
 			vml = vml->next;

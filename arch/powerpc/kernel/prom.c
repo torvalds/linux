@@ -1472,6 +1472,11 @@ static int of_finish_dynamic_node(struct device_node *node)
 	node->name = of_get_property(node, "name", NULL);
 	node->type = of_get_property(node, "device_type", NULL);
 
+	if (!node->name)
+		node->name = "<NULL>";
+	if (!node->type)
+		node->type = "<NULL>";
+
 	if (!parent) {
 		err = -ENODEV;
 		goto out;
