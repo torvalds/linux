@@ -219,7 +219,6 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 
 	spte |= PT_PRESENT_MASK | PT_ACCESSED_MASK | PT_DIRTY_MASK;
 	spte |= *gpte & PT64_NX_MASK;
-	spte |= access_bits << PT_SHADOW_BITS_OFFSET;
 	if (!dirty)
 		access_bits &= ~PT_WRITABLE_MASK;
 
