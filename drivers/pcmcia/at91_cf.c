@@ -336,16 +336,21 @@ static int at91_cf_suspend(struct platform_device *pdev, pm_message_t mesg)
 		enable_irq_wake(board->det_pin);
 		if (board->irq_pin)
 			enable_irq_wake(board->irq_pin);
-	} else {
-		disable_irq_wake(board->det_pin);
-		if (board->irq_pin)
-			disable_irq_wake(board->irq_pin);
 	}
 	return 0;
 }
 
 static int at91_cf_resume(struct platform_device *pdev)
 {
+	struct at91_cf_socket	*cf = platform_get_drvdata(pdev);
+	struct at91_cf_data	*board = cf->board;
+
+	if (device_may_wakeup(&pdev->dev)) {
+		disable_irq_wake(board->det_pin);
+		if (board->irq_pin)
+			disable_irq_wake(board->irq_pin);
+	}
+
 	pcmcia_socket_dev_resume(&pdev->dev);
 	return 0;
 }
