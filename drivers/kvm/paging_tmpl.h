@@ -205,11 +205,12 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 {
 	hpa_t paddr;
 	int dirty = *gpte & PT_DIRTY_MASK;
-	int was_rmapped = is_rmap_pte(*shadow_pte);
+	u64 spte = *shadow_pte;
+	int was_rmapped = is_rmap_pte(spte);
 
 	pgprintk("%s: spte %llx gpte %llx access %llx write_fault %d"
 		 " user_fault %d gfn %lx\n",
-		 __FUNCTION__, *shadow_pte, (u64)*gpte, access_bits,
+		 __FUNCTION__, spte, (u64)*gpte, access_bits,
 		 write_fault, user_fault, gfn);
 
 	if (write_fault && !dirty) {
@@ -218,34 +219,35 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 		FNAME(mark_pagetable_dirty)(vcpu->kvm, walker);
 	}
 
-	*shadow_pte |= *gpte & PT_PTE_COPY_MASK;
-	*shadow_pte |= access_bits << PT_SHADOW_BITS_OFFSET;
+	spte |= *gpte & PT_PTE_COPY_MASK;
+	spte |= access_bits << PT_SHADOW_BITS_OFFSET;
 	if (!dirty)
 		access_bits &= ~PT_WRITABLE_MASK;
 
 	paddr = gpa_to_hpa(vcpu, gaddr & PT64_BASE_ADDR_MASK);
 
-	*shadow_pte |= PT_PRESENT_MASK;
+	spte |= PT_PRESENT_MASK;
 	if (access_bits & PT_USER_MASK)
-		*shadow_pte |= PT_USER_MASK;
+		spte |= PT_USER_MASK;
 
 	if (is_error_hpa(paddr)) {
-		*shadow_pte |= gaddr;
-		*shadow_pte |= PT_SHADOW_IO_MARK;
-		*shadow_pte &= ~PT_PRESENT_MASK;
+		spte |= gaddr;
+		spte |= PT_SHADOW_IO_MARK;
+		spte &= ~PT_PRESENT_MASK;
+		*shadow_pte = spte;
 		return;
 	}
 
-	*shadow_pte |= paddr;
+	spte |= paddr;
 
-	if (!write_fault && (*shadow_pte & PT_SHADOW_USER_MASK) &&
-	    !(*shadow_pte & PT_USER_MASK)) {
+	if (!write_fault && (spte & PT_SHADOW_USER_MASK) &&
+	    !(spte & PT_USER_MASK)) {
 		/*
 		 * If supervisor write protect is disabled, we shadow kernel
 		 * pages as user pages so we can trap the write access.
 		 */
-		*shadow_pte |= PT_USER_MASK;
-		*shadow_pte &= ~PT_WRITABLE_MASK;
+		spte |= PT_USER_MASK;
+		spte &= ~PT_WRITABLE_MASK;
 		access_bits &= ~PT_WRITABLE_MASK;
 	}
 
@@ -253,7 +255,7 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 	    || (write_fault && !is_write_protection(vcpu) && !user_fault)) {
 		struct kvm_mmu_page *shadow;
 
-		*shadow_pte |= PT_WRITABLE_MASK;
+		spte |= PT_WRITABLE_MASK;
 		if (user_fault) {
 			mmu_unshadow(vcpu, gfn);
 			goto unshadowed;
@@ -264,8 +266,8 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 			pgprintk("%s: found shadow page for %lx, marking ro\n",
 				 __FUNCTION__, gfn);
 			access_bits &= ~PT_WRITABLE_MASK;
-			if (is_writeble_pte(*shadow_pte)) {
-				*shadow_pte &= ~PT_WRITABLE_MASK;
+			if (is_writeble_pte(spte)) {
+				spte &= ~PT_WRITABLE_MASK;
 				kvm_arch_ops->tlb_flush(vcpu);
 			}
 			if (write_fault)
@@ -278,6 +280,7 @@ unshadowed:
 	if (access_bits & PT_WRITABLE_MASK)
 		mark_page_dirty(vcpu->kvm, gaddr >> PAGE_SHIFT);
 
+	*shadow_pte = spte;
 	page_header_update_slot(vcpu->kvm, shadow_pte, gaddr);
 	if (!was_rmapped)
 		rmap_add(vcpu, shadow_pte);
