@@ -24,6 +24,9 @@
 #define FRQMR1			0xffc80014
 #else
 #define FRQCR			0xffc00000
+#define FRQCR_PSTBY		0x0200
+#define FRQCR_PLLEN		0x0400
+#define FRQCR_CKOEN		0x0800
 #endif
 #define MIN_DIVISOR_NR		0
 #define MAX_DIVISOR_NR		3

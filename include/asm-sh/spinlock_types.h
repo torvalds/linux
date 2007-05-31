@@ -9,7 +9,9 @@ typedef struct {
 	volatile unsigned long lock;
 } raw_spinlock_t;
 
-#define __SPIN_LOCK_UNLOCKED		{ 0 }
+#define __RAW_SPIN_LOCK_UNLOCKED	{ 1 }
+
+#include <asm/atomic.h>
 
 typedef struct {
 	raw_spinlock_t lock;
