@@ -22,6 +22,7 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/module.h>
+#include <asm/cmpxchg.h>
 
 #include "vmx.h"
 #include "kvm.h"
@@ -202,6 +203,15 @@ static int is_rmap_pte(u64 pte)
 {
 	return (pte & (PT_WRITABLE_MASK | PT_PRESENT_MASK))
 		== (PT_WRITABLE_MASK | PT_PRESENT_MASK);
+}
+
+static void set_shadow_pte(u64 *sptep, u64 spte)
+{
+#ifdef CONFIG_X86_64
+	set_64bit((unsigned long *)sptep, spte);
+#else
+	set_64bit((unsigned long long *)sptep, spte);
+#endif
 }
 
 static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
@@ -446,7 +456,7 @@ static void rmap_write_protect(struct kvm_vcpu *vcpu, u64 gfn)
 		rmap_printk("rmap_write_protect: spte %p %llx\n", spte, *spte);
 		rmap_remove(vcpu, spte);
 		kvm_arch_ops->tlb_flush(vcpu);
-		*spte &= ~(u64)PT_WRITABLE_MASK;
+		set_shadow_pte(spte, *spte & ~PT_WRITABLE_MASK);
 	}
 }
 
@@ -699,7 +709,7 @@ static void kvm_mmu_zap_page(struct kvm_vcpu *vcpu,
 		}
 		BUG_ON(!parent_pte);
 		kvm_mmu_put_page(vcpu, page, parent_pte);
-		*parent_pte = 0;
+		set_shadow_pte(parent_pte, 0);
 	}
 	kvm_mmu_page_unlink_children(vcpu, page);
 	if (!page->root_count) {

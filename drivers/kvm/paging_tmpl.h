@@ -234,7 +234,7 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 		spte |= gaddr;
 		spte |= PT_SHADOW_IO_MARK;
 		spte &= ~PT_PRESENT_MASK;
-		*shadow_pte = spte;
+		set_shadow_pte(shadow_pte, spte);
 		return;
 	}
 
@@ -280,7 +280,7 @@ unshadowed:
 	if (access_bits & PT_WRITABLE_MASK)
 		mark_page_dirty(vcpu->kvm, gaddr >> PAGE_SHIFT);
 
-	*shadow_pte = spte;
+	set_shadow_pte(shadow_pte, spte);
 	page_header_update_slot(vcpu->kvm, shadow_pte, gaddr);
 	if (!was_rmapped)
 		rmap_add(vcpu, shadow_pte);
