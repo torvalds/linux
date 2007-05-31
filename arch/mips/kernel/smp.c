@@ -68,7 +68,7 @@ extern ATTRIB_NORET void cpu_idle(void);
  * First C code run on the secondary CPUs after being started up by
  * the master.
  */
-asmlinkage void start_secondary(void)
+asmlinkage __cpuinit void start_secondary(void)
 {
 	unsigned int cpu;
 
