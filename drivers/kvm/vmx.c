@@ -1992,13 +1992,13 @@ static int vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	int r;
 
 preempted:
-	if (!vcpu->mmio_read_completed)
-		do_interrupt_requests(vcpu, kvm_run);
-
 	if (vcpu->guest_debug.enabled)
 		kvm_guest_debug_pre(vcpu);
 
 again:
+	if (!vcpu->mmio_read_completed)
+		do_interrupt_requests(vcpu, kvm_run);
+
 	vmx_save_host_state(vcpu);
 	kvm_load_guest_fpu(vcpu);
 
