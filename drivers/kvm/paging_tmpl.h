@@ -31,7 +31,6 @@
 	#define PT_INDEX(addr, level) PT64_INDEX(addr, level)
 	#define SHADOW_PT_INDEX(addr, level) PT64_INDEX(addr, level)
 	#define PT_LEVEL_MASK(level) PT64_LEVEL_MASK(level)
-	#define PT_PTE_COPY_MASK PT64_PTE_COPY_MASK
 	#ifdef CONFIG_X86_64
 	#define PT_MAX_FULL_LEVELS 4
 	#else
@@ -46,7 +45,6 @@
 	#define PT_INDEX(addr, level) PT32_INDEX(addr, level)
 	#define SHADOW_PT_INDEX(addr, level) PT64_INDEX(addr, level)
 	#define PT_LEVEL_MASK(level) PT32_LEVEL_MASK(level)
-	#define PT_PTE_COPY_MASK PT32_PTE_COPY_MASK
 	#define PT_MAX_FULL_LEVELS 2
 #else
 	#error Invalid PTTYPE value
@@ -219,7 +217,8 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 		FNAME(mark_pagetable_dirty)(vcpu->kvm, walker);
 	}
 
-	spte |= *gpte & PT_PTE_COPY_MASK;
+	spte |= PT_PRESENT_MASK | PT_ACCESSED_MASK | PT_DIRTY_MASK;
+	spte |= *gpte & PT64_NX_MASK;
 	spte |= access_bits << PT_SHADOW_BITS_OFFSET;
 	if (!dirty)
 		access_bits &= ~PT_WRITABLE_MASK;
@@ -495,7 +494,5 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
 #undef PT_INDEX
 #undef SHADOW_PT_INDEX
 #undef PT_LEVEL_MASK
-#undef PT_PTE_COPY_MASK
-#undef PT_NON_PTE_COPY_MASK
 #undef PT_DIR_BASE_ADDR_MASK
 #undef PT_MAX_FULL_LEVELS
