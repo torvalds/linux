@@ -31,8 +31,7 @@ static inline const char *msk2str(unsigned int mask)
 	case PM_256M:	return "256Mb";
 #endif
 	}
-
-	return "unknown";
+	return "";
 }
 
 #define BARRIER()					\
@@ -43,7 +42,8 @@ static inline const char *msk2str(unsigned int mask)
 
 void dump_tlb(int first, int last)
 {
-	unsigned long s_entryhi, entryhi, entrylo0, entrylo1, asid;
+	unsigned long s_entryhi, entryhi, asid;
+	unsigned long long entrylo0, entrylo1;
 	unsigned int s_index, pagemask, c0, c1, i;
 
 	s_entryhi = read_c0_entryhi();
@@ -63,6 +63,11 @@ void dump_tlb(int first, int last)
 		/* Unused entries have a virtual address of CKSEG0.  */
 		if ((entryhi & ~0x1ffffUL) != CKSEG0
 		    && (entryhi & 0xff) == asid) {
+#ifdef CONFIG_32BIT
+			int width = 8;
+#else
+			int width = 11;
+#endif
 			/*
 			 * Only print entries in use
 			 */
@@ -71,19 +76,21 @@ void dump_tlb(int first, int last)
 			c0 = (entrylo0 >> 3) & 7;
 			c1 = (entrylo1 >> 3) & 7;
 
-			printk("va=%011lx asid=%02lx\n",
-			       (entryhi & ~0x1fffUL),
+			printk("va=%0*lx asid=%02lx\n",
+			       width, (entryhi & ~0x1fffUL),
 			       entryhi & 0xff);
-			printk("\t[pa=%011lx c=%d d=%d v=%d g=%ld] ",
+			printk("\t[pa=%0*llx c=%d d=%d v=%d g=%d] ",
+			       width,
 			       (entrylo0 << 6) & PAGE_MASK, c0,
 			       (entrylo0 & 4) ? 1 : 0,
 			       (entrylo0 & 2) ? 1 : 0,
-			       (entrylo0 & 1));
-			printk("[pa=%011lx c=%d d=%d v=%d g=%ld]\n",
+			       (entrylo0 & 1) ? 1 : 0);
+			printk("[pa=%0*llx c=%d d=%d v=%d g=%d]\n",
+			       width,
 			       (entrylo1 << 6) & PAGE_MASK, c1,
 			       (entrylo1 & 4) ? 1 : 0,
 			       (entrylo1 & 2) ? 1 : 0,
-			       (entrylo1 & 1));
+			       (entrylo1 & 1) ? 1 : 0);
 		}
 	}
 	printk("\n");
@@ -143,29 +150,48 @@ void dump_list_process(struct task_struct *t, void *address)
 	pmd_t	*pmd;
 	pte_t	*pte, page;
 	unsigned long addr, val;
+	int width = sizeof(long) * 2;
 
 	addr = (unsigned long) address;
 
 	printk("Addr                 == %08lx\n", addr);
+#ifdef CONFIG_64BIT
 	printk("tasks->mm.pgd        == %08lx\n", (unsigned long) t->mm->pgd);
+#endif
 
+#ifdef CONFIG_64BIT
 	page_dir = pgd_offset(t->mm, 0UL);
-	printk("page_dir == %016lx\n", (unsigned long) page_dir);
-
 	pgd = pgd_offset(t->mm, addr);
-	printk("pgd == %016lx\n", (unsigned long) pgd);
+#else
+	if (addr > KSEG0) {
+		page_dir = pgd_offset_k(0);
+		pgd = pgd_offset_k(addr);
+	} else if (t->mm) {
+		page_dir = pgd_offset(t->mm, 0);
+		pgd = pgd_offset(t->mm, addr);
+	} else {
+		printk("Current thread has no mm\n");
+		return;
+	}
+#endif
+	printk("page_dir == %0*lx\n", width, (unsigned long) page_dir);
+	printk("pgd == %0*lx\n", width, (unsigned long) pgd);
 
 	pud = pud_offset(pgd, addr);
-	printk("pud == %016lx\n", (unsigned long) pud);
+	printk("pud == %0*lx\n", width, (unsigned long) pud);
 
 	pmd = pmd_offset(pud, addr);
-	printk("pmd == %016lx\n", (unsigned long) pmd);
+	printk("pmd == %0*lx\n", width, (unsigned long) pmd);
 
 	pte = pte_offset(pmd, addr);
-	printk("pte == %016lx\n", (unsigned long) pte);
+	printk("pte == %0*lx\n", width, (unsigned long) pte);
 
 	page = *pte;
-	printk("page == %08lx\n", pte_val(page));
+#ifdef CONFIG_64BIT_PHYS_ADDR
+	printk("page == %08Lx\n", pte_val(page));
+#else
+	printk("page == %0*lx\n", width, pte_val(page));
+#endif
 
 	val = pte_val(page);
 	if (val & _PAGE_PRESENT) printk("present ");
