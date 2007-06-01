@@ -231,7 +231,7 @@ int DIVA_INIT_FUNCTION divasfunc_init(int dbgmask)
 /*
  * exit
  */
-void DIVA_EXIT_FUNCTION divasfunc_exit(void)
+void divasfunc_exit(void)
 {
 	divasa_xdi_driver_unload();
 	disconnect_didd();
