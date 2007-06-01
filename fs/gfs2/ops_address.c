@@ -50,6 +50,8 @@ static void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
 		end = start + bsize;
 		if (end <= from || start >= to)
 			continue;
+		if (gfs2_is_jdata(ip))
+			set_buffer_uptodate(bh);
 		gfs2_trans_add_bh(ip->i_gl, bh, 0);
 	}
 }
