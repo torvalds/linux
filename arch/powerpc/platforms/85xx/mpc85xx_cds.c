@@ -69,52 +69,44 @@ static int mpc85xx_exclude_device(struct pci_controller *hose,
 		return PCIBIOS_SUCCESSFUL;
 }
 
-static void __init mpc85xx_cds_pcibios_fixup(void)
+static void __init mpc85xx_cds_pci_irq_fixup(struct pci_dev *dev)
 {
-	struct pci_dev *dev;
-	u_char		c;
+	u_char c;
+	if (dev->vendor == PCI_VENDOR_ID_VIA) {
+		switch (dev->device) {
+		case PCI_DEVICE_ID_VIA_82C586_1:
+			/*
+			 * U-Boot does not set the enable bits
+			 * for the IDE device. Force them on here.
+			 */
+			pci_read_config_byte(dev, 0x40, &c);
+			c |= 0x03; /* IDE: Chip Enable Bits */
+			pci_write_config_byte(dev, 0x40, c);
 
-	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
-					PCI_DEVICE_ID_VIA_82C586_1, NULL))) {
+			/*
+			 * Since only primary interface works, force the
+			 * IDE function to standard primary IDE interrupt
+			 * w/ 8259 offset
+			 */
+			dev->irq = 14;
+			pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
+			break;
 		/*
-		 * U-Boot does not set the enable bits
-		 * for the IDE device. Force them on here.
+		 * Force legacy USB interrupt routing
 		 */
-		pci_read_config_byte(dev, 0x40, &c);
-		c |= 0x03; /* IDE: Chip Enable Bits */
-		pci_write_config_byte(dev, 0x40, c);
-
-		/*
-		 * Since only primary interface works, force the
-		 * IDE function to standard primary IDE interrupt
-		 * w/ 8259 offset
+		case PCI_DEVICE_ID_VIA_82C586_2:
+		/* There are two USB controllers.
+		 * Identify them by functon number
 		 */
-		dev->irq = 14;
-		pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
-		pci_dev_put(dev);
+			if (PCI_FUNC(dev->devfn))
+				dev->irq = 11;
+			else
+				dev->irq = 10;
+			pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
+		default:
+			break;
+		}
 	}
-
-	/*
-	 * Force legacy USB interrupt routing
-	 */
-	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
-					PCI_DEVICE_ID_VIA_82C586_2, NULL))) {
-		dev->irq = 10;
-		pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 10);
-		pci_dev_put(dev);
-	}
-
-	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
-					PCI_DEVICE_ID_VIA_82C586_2, dev))) {
-		dev->irq = 11;
-		pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 11);
-		pci_dev_put(dev);
-	}
-
-	/* Now map all the PCI irqs */
-	dev = NULL;
-	for_each_pci_dev(dev)
-		pci_read_irq_line(dev);
 }
 
 #ifdef CONFIG_PPC_I8259
@@ -229,7 +221,7 @@ static void __init mpc85xx_cds_setup_arch(void)
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
 		mpc85xx_add_bridge(np);
 
-	ppc_md.pcibios_fixup = mpc85xx_cds_pcibios_fixup;
+	ppc_md.pci_irq_fixup = mpc85xx_cds_pci_irq_fixup;
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
 #endif
 }
