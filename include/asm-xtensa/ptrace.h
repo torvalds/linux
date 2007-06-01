@@ -99,7 +99,8 @@ struct pt_regs {
 	unsigned long windowbase;	/*  48 */
 	unsigned long windowstart;	/*  52 */
 	unsigned long syscall;		/*  56 */
-	int reserved[2];		/*  64 */
+	unsigned long icountlevel;	/*  60 */
+	int reserved[1];		/*  64 */
 
 	/* Make sure the areg field is 16 bytes aligned. */
 	int align[0] __attribute__ ((aligned(16)));

@@ -39,6 +39,7 @@ int main(void)
 	DEFINE(PT_LEND, offsetof (struct pt_regs, lend));
 	DEFINE(PT_LCOUNT, offsetof (struct pt_regs, lcount));
 	DEFINE(PT_SAR, offsetof (struct pt_regs, sar));
+	DEFINE(PT_ICOUNTLEVEL, offsetof (struct pt_regs, icountlevel));
 	DEFINE(PT_SYSCALL, offsetof (struct pt_regs, syscall));
 	DEFINE(PT_AREG, offsetof (struct pt_regs, areg[0]));
 	DEFINE(PT_AREG0, offsetof (struct pt_regs, areg[0]));

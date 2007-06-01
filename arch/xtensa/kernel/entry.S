@@ -125,8 +125,9 @@ _user_exception:
 
 	movi	a2, 0
 	rsr	a3, SAR
-	wsr	a2, ICOUNTLEVEL
+	xsr	a2, ICOUNTLEVEL
 	s32i	a3, a1, PT_SAR
+	s32i	a2, a1, PT_ICOUNTLEVEL
 
 	/* Rotate ws so that the current windowbase is at bit0. */
 	/* Assume ws = xxwww1yyyy. Rotate ws right, so that a2 = yyyyxxwww1 */
@@ -276,8 +277,9 @@ _kernel_exception:
 
 	movi	a2, 0
 	rsr	a3, SAR
-	wsr	a2, ICOUNTLEVEL
+	xsr	a2, ICOUNTLEVEL
 	s32i	a3, a1, PT_SAR
+	s32i	a2, a1, PT_ICOUNTLEVEL
 
 	/* Rotate ws so that the current windowbase is at bit0. */
 	/* Assume ws = xxwww1yyyy. Rotate ws right, so that a2 = yyyyxxwww1 */
@@ -330,14 +332,16 @@ _kernel_exception:
 
 common_exception:
 
-	/* Save EXCVADDR, DEBUGCAUSE, and PC, and clear LCOUNT */
+	/* Save some registers, disable loops and clear the syscall flag. */
 
 	rsr	a2, DEBUGCAUSE
 	rsr	a3, EPC_1
 	s32i	a2, a1, PT_DEBUGCAUSE
 	s32i	a3, a1, PT_PC
 
+	movi	a2, -1
 	rsr	a3, EXCVADDR
+	s32i	a2, a1, PT_SYSCALL
 	movi	a2, 0
 	s32i	a3, a1, PT_EXCVADDR
 	xsr	a2, LCOUNT
@@ -450,26 +454,7 @@ common_exception_return:
 
 	/* Restore the state of the task and return from the exception. */
 
-
-	/* If we are returning from a user exception, and the process
-	 * to run next has PT_SINGLESTEP set, we want to setup
-	 * ICOUNT and ICOUNTLEVEL to step one instruction.
-	 * PT_SINGLESTEP is set by sys_ptrace (ptrace.c)
-	 */
-
 4:	/* a2 holds GET_CURRENT(a2,a1)  */
-
-	l32i	a3, a2, TI_TASK
-	l32i	a3, a3, TASK_PTRACE
-	bbci.l	a3, PT_SINGLESTEP_BIT, 1f # jump if single-step flag is not set
-
-	movi	a3, -2			# PT_SINGLESTEP flag is set,
-	movi	a4, 1			# icountlevel of 1 means it won't
-	wsr	a3, ICOUNT		# start counting until after rfe
-	wsr	a4, ICOUNTLEVEL		# so setup icount & icountlevel.
-	isync
-
-1:
 
 #if XCHAL_EXTRA_SA_SIZE
 
@@ -664,6 +649,13 @@ common_exception_exit:
 	l32i	a2, a1, PT_LCOUNT
 	wsr	a3, LEND
 	wsr	a2, LCOUNT
+
+	/* We control single stepping through the ICOUNTLEVEL register. */
+
+	l32i	a2, a1, PT_ICOUNTLEVEL
+	movi	a3, -2
+	wsr	a2, ICOUNTLEVEL
+	wsr	a3, ICOUNT
 
 	/* Check if it was double exception. */
 

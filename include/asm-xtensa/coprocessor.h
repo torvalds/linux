@@ -64,6 +64,7 @@ typedef struct {
 #  define COPROCESSOR_INFO_SIZE 8
 # endif
 #endif
+#endif	/* XCHAL_HAVE_CP */
 
 
 #ifndef __ASSEMBLY__
@@ -74,8 +75,11 @@ extern void save_coprocessor_registers(void*, int);
 # else
 #  define release_coprocessors(task)
 # endif
-#endif
 
-#endif
+typedef unsigned char cp_state_t[XTENSA_CP_EXTRA_SIZE]
+	__attribute__ ((aligned (XTENSA_CP_EXTRA_ALIGN)));
+
+#endif	/* !__ASSEMBLY__ */
+
 
 #endif	/* _XTENSA_COPROCESSOR_H */
