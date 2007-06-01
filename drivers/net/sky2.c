@@ -1049,26 +1049,22 @@ static void sky2_vlan_rx_register(struct net_device *dev, struct vlan_group *grp
 	u16 port = sky2->port;
 
 	netif_tx_lock_bh(dev);
+	netif_poll_disable(sky2->hw->dev[0]);
 
-	sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T), RX_VLAN_STRIP_ON);
-	sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T), TX_VLAN_TAG_ON);
 	sky2->vlgrp = grp;
+	if (grp) {
+		sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T),
+			     RX_VLAN_STRIP_ON);
+		sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
+			     TX_VLAN_TAG_ON);
+	} else {
+		sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T),
+			     RX_VLAN_STRIP_OFF);
+		sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
+			     TX_VLAN_TAG_OFF);
+	}
 
-	netif_tx_unlock_bh(dev);
-}
-
-static void sky2_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
-{
-	struct sky2_port *sky2 = netdev_priv(dev);
-	struct sky2_hw *hw = sky2->hw;
-	u16 port = sky2->port;
-
-	netif_tx_lock_bh(dev);
-
-	sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T), RX_VLAN_STRIP_OFF);
-	sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T), TX_VLAN_TAG_OFF);
-	vlan_group_set_device(sky2->vlgrp, vid, NULL);
-
+	netif_poll_enable(sky2->hw->dev[0]);
 	netif_tx_unlock_bh(dev);
 }
 #endif
@@ -3484,7 +3480,6 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 #ifdef SKY2_VLAN_TAG_USED
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 	dev->vlan_rx_register = sky2_vlan_rx_register;
-	dev->vlan_rx_kill_vid = sky2_vlan_rx_kill_vid;
 #endif
 
 	/* read the mac address */
