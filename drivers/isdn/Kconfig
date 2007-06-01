@@ -26,9 +26,9 @@ menu "Old ISDN4Linux"
 	depends on NET && ISDN
 
 config ISDN_I4L
-	tristate "Old ISDN4Linux (obsolete)"
+	tristate "Old ISDN4Linux (deprecated)"
 	---help---
-	  This driver allows you to use an ISDN-card for networking
+	  This driver allows you to use an ISDN adapter for networking
 	  connections and as dialin/out device.  The isdn-tty's have a built
 	  in AT-compatible modem emulator.  Network devices support autodial,
 	  channel-bundling, callback and caller-authentication without having
@@ -39,8 +39,9 @@ config ISDN_I4L
 
 	  ISDN support in the linux kernel is moving towards a new API,
 	  called CAPI (Common ISDN Application Programming Interface).
-	  Therefore the old ISDN4Linux layer is becoming obsolete. It is 
-	  still usable, though, if you select this option.
+	  Therefore the old ISDN4Linux layer will eventually become obsolete.
+	  It is still available, though, for use with adapters that are not
+	  supported by the new CAPI subsystem yet.
 
 if ISDN_I4L
 source "drivers/isdn/i4l/Kconfig"
