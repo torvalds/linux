@@ -328,10 +328,7 @@ struct saa7134_pgtable {
 
 /* tvaudio thread status */
 struct saa7134_thread {
-	pid_t                      pid;
-	struct completion          exit;
-	wait_queue_head_t          wq;
-	unsigned int               shutdown;
+	struct task_struct         *thread;
 	unsigned int               scan1;
 	unsigned int               scan2;
 	unsigned int               mode;
