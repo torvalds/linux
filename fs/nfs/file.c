@@ -41,7 +41,9 @@ static int nfs_file_open(struct inode *, struct file *);
 static int nfs_file_release(struct inode *, struct file *);
 static loff_t nfs_file_llseek(struct file *file, loff_t offset, int origin);
 static int  nfs_file_mmap(struct file *, struct vm_area_struct *);
-static ssize_t nfs_file_sendfile(struct file *, loff_t *, size_t, read_actor_t, void *);
+static ssize_t nfs_file_splice_read(struct file *filp, loff_t *ppos,
+					struct pipe_inode_info *pipe,
+					size_t count, unsigned int flags);
 static ssize_t nfs_file_read(struct kiocb *, const struct iovec *iov,
 				unsigned long nr_segs, loff_t pos);
 static ssize_t nfs_file_write(struct kiocb *, const struct iovec *iov,
@@ -65,7 +67,7 @@ const struct file_operations nfs_file_operations = {
 	.fsync		= nfs_fsync,
 	.lock		= nfs_lock,
 	.flock		= nfs_flock,
-	.sendfile	= nfs_file_sendfile,
+	.splice_read	= nfs_file_splice_read,
 	.check_flags	= nfs_check_flags,
 };
 
@@ -224,20 +226,21 @@ nfs_file_read(struct kiocb *iocb, const struct iovec *iov,
 }
 
 static ssize_t
-nfs_file_sendfile(struct file *filp, loff_t *ppos, size_t count,
-		read_actor_t actor, void *target)
+nfs_file_splice_read(struct file *filp, loff_t *ppos,
+		     struct pipe_inode_info *pipe, size_t count,
+		     unsigned int flags)
 {
 	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	ssize_t res;
 
-	dfprintk(VFS, "nfs: sendfile(%s/%s, %lu@%Lu)\n",
+	dfprintk(VFS, "nfs: splice_read(%s/%s, %lu@%Lu)\n",
 		dentry->d_parent->d_name.name, dentry->d_name.name,
 		(unsigned long) count, (unsigned long long) *ppos);
 
 	res = nfs_revalidate_mapping(inode, filp->f_mapping);
 	if (!res)
-		res = generic_file_sendfile(filp, ppos, count, actor, target);
+		res = generic_file_splice_read(filp, ppos, pipe, count, flags);
 	return res;
 }
 
