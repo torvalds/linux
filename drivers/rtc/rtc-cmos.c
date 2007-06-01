@@ -641,9 +641,16 @@ cmos_pnp_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 	 * drivers can't provide shutdown() methods to disable IRQs.
 	 * Or better yet, fix PNP to allow those methods...
 	 */
-	return cmos_do_probe(&pnp->dev,
-			&pnp->res.port_resource[0],
-			pnp->res.irq_resource[0].start);
+	if (pnp_port_start(pnp,0) == 0x70 && !pnp_irq_valid(pnp,0))
+		/* Some machines contain a PNP entry for the RTC, but
+		 * don't define the IRQ. It should always be safe to
+		 * hardcode it in these cases
+		 */
+		return cmos_do_probe(&pnp->dev, &pnp->res.port_resource[0], 8);
+	else
+		return cmos_do_probe(&pnp->dev,
+				     &pnp->res.port_resource[0],
+				     pnp->res.irq_resource[0].start);
 }
 
 static void __exit cmos_pnp_remove(struct pnp_dev *pnp)
