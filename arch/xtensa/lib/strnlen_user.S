@@ -24,18 +24,18 @@
 /*
  * size_t __strnlen_user(const char *s, size_t len)
  */
-.text
-.begin literal
-.align	4
-.Lmask0:
-	.byte	0xff, 0x00, 0x00, 0x00
-.Lmask1:
-	.byte	0x00, 0xff, 0x00, 0x00
-.Lmask2:
-	.byte	0x00, 0x00, 0xff, 0x00
-.Lmask3:
-	.byte	0x00, 0x00, 0x00, 0xff
-.end literal
+
+#ifdef __XTENSA_EB__
+# define MASK0 0xff000000
+# define MASK1 0x00ff0000
+# define MASK2 0x0000ff00
+# define MASK3 0x000000ff
+#else
+# define MASK0 0x000000ff
+# define MASK1 0x0000ff00
+# define MASK2 0x00ff0000
+# define MASK3 0xff000000
+#endif
 
 # Register use:
 #   a2/ src
@@ -48,6 +48,7 @@
 #   a9/ tmp
 #   a10/ tmp
 
+.text
 .align	4
 .global	__strnlen_user
 .type	__strnlen_user,@function
@@ -56,10 +57,10 @@ __strnlen_user:
 	# a2/ s, a3/ len
 	addi	a4, a2, -4	# because we overincrement at the end;
 				# we compensate with load offsets of 4
-	l32r	a5, .Lmask0	# mask for byte 0
-	l32r	a6, .Lmask1	# mask for byte 1
-	l32r	a7, .Lmask2	# mask for byte 2
-	l32r	a8, .Lmask3	# mask for byte 3
+	movi	a5, MASK0	# mask for byte 0
+	movi	a6, MASK1	# mask for byte 1
+	movi	a7, MASK2	# mask for byte 2
+	movi	a8, MASK3	# mask for byte 3
 	bbsi.l	a2, 0, .L1mod2	# if only  8-bit aligned
 	bbsi.l	a2, 1, .L2mod4	# if only 16-bit aligned
 
