@@ -2892,8 +2892,8 @@ W:	ftp://ftp.kernel.org/pub/linux/kernel/people/rml/preempt-kernel
 S:	Supported
 
 PRISM54 WIRELESS DRIVER
-P:	Prism54 Development Team
-M:	developers@islsm.org
+P:	Luis R. Rodriguez
+M:	mcgrof@gmail.com
 L:	linux-wireless@vger.kernel.org
 W:	http://prism54.org
 S:	Maintained
