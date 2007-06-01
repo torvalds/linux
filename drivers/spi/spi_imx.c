@@ -121,7 +121,7 @@
 							32.768 KHz Clock */
 
 /* SPI DMA Register Bit Fields & Masks */
-#define SPI_DMA_RHDMA	(0xF << 4)	/* RXFIFO Half Status */
+#define SPI_DMA_RHDMA	(0x1 << 4)	/* RXFIFO Half Status */
 #define SPI_DMA_RFDMA	(0x1 << 5)      /* RXFIFO Full Status */
 #define SPI_DMA_TEDMA	(0x1 << 6)      /* TXFIFO Empty Status */
 #define SPI_DMA_THDMA	(0x1 << 7)      /* TXFIFO Half Status */
@@ -1355,6 +1355,7 @@ static int setup(struct spi_device *spi)
 		spi->bits_per_word,
 		spi_speed_hz(SPI_CONTROL_DATARATE_MIN),
 		spi->max_speed_hz);
+	return status;
 
 err_first_setup:
 	kfree(chip);
