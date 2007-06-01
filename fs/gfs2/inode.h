@@ -38,6 +38,14 @@ static inline int gfs2_check_inum(const struct gfs2_inode *ip, u64 no_addr,
 	return ip->i_no_addr == no_addr && ip->i_no_formal_ino == no_formal_ino;
 }
 
+static inline void gfs2_inum_out(const struct gfs2_inode *ip,
+				 struct gfs2_dirent *dent)
+{
+	dent->de_inum.no_formal_ino = cpu_to_be64(ip->i_no_formal_ino);
+	dent->de_inum.no_addr = cpu_to_be64(ip->i_no_addr);
+}
+
+
 void gfs2_inode_attr_in(struct gfs2_inode *ip);
 struct inode *gfs2_inode_lookup(struct super_block *sb, u64 no_addr, unsigned type);
 struct inode *gfs2_ilookup(struct super_block *sb, u64 no_addr);
@@ -59,6 +67,8 @@ int gfs2_readlinki(struct gfs2_inode *ip, char **buf, unsigned int *len);
 int gfs2_glock_nq_atime(struct gfs2_holder *gh);
 int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr);
 struct inode *gfs2_lookup_simple(struct inode *dip, const char *name);
+void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf);
+void gfs2_dinode_print(const struct gfs2_inode *ip);
 
 #endif /* __INODE_DOT_H__ */
 

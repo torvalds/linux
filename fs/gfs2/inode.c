@@ -38,6 +38,11 @@
 #include "trans.h"
 #include "util.h"
 
+struct gfs2_inum_range_host {
+	u64 ir_start;
+	u64 ir_length;
+};
+
 static int iget_test(struct inode *inode, void *opaque)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
@@ -402,6 +407,22 @@ out:
 	return inode ? inode : ERR_PTR(error);
 }
 
+static void gfs2_inum_range_in(struct gfs2_inum_range_host *ir, const void *buf)
+{
+	const struct gfs2_inum_range *str = buf;
+
+	ir->ir_start = be64_to_cpu(str->ir_start);
+	ir->ir_length = be64_to_cpu(str->ir_length);
+}
+
+static void gfs2_inum_range_out(const struct gfs2_inum_range_host *ir, void *buf)
+{
+	struct gfs2_inum_range *str = buf;
+
+	str->ir_start = cpu_to_be64(ir->ir_start);
+	str->ir_length = cpu_to_be64(ir->ir_length);
+}
+
 static int pick_formal_ino_1(struct gfs2_sbd *sdp, u64 *formal_ino)
 {
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_ir_inode);
@@ -741,7 +762,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 			goto fail_quota_locks;
 
 		error = gfs2_trans_begin(sdp, sdp->sd_max_dirres +
-					 al->al_rgd->rd_ri.ri_length +
+					 al->al_rgd->rd_length +
 					 2 * RES_DINODE +
 					 RES_STATFS + RES_QUOTA, 0);
 		if (error)
@@ -1232,5 +1253,65 @@ int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
 	error = __gfs2_setattr_simple(ip, attr);
 	gfs2_trans_end(GFS2_SB(&ip->i_inode));
 	return error;
+}
+
+void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
+{
+	const struct gfs2_dinode_host *di = &ip->i_di;
+	struct gfs2_dinode *str = buf;
+
+	str->di_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
+	str->di_header.mh_type = cpu_to_be32(GFS2_METATYPE_DI);
+	str->di_header.__pad0 = 0;
+	str->di_header.mh_format = cpu_to_be32(GFS2_FORMAT_DI);
+	str->di_header.__pad1 = 0;
+	str->di_num.no_addr = cpu_to_be64(ip->i_no_addr);
+	str->di_num.no_formal_ino = cpu_to_be64(ip->i_no_formal_ino);
+	str->di_mode = cpu_to_be32(ip->i_inode.i_mode);
+	str->di_uid = cpu_to_be32(ip->i_inode.i_uid);
+	str->di_gid = cpu_to_be32(ip->i_inode.i_gid);
+	str->di_nlink = cpu_to_be32(ip->i_inode.i_nlink);
+	str->di_size = cpu_to_be64(di->di_size);
+	str->di_blocks = cpu_to_be64(di->di_blocks);
+	str->di_atime = cpu_to_be64(ip->i_inode.i_atime.tv_sec);
+	str->di_mtime = cpu_to_be64(ip->i_inode.i_mtime.tv_sec);
+	str->di_ctime = cpu_to_be64(ip->i_inode.i_ctime.tv_sec);
+
+	str->di_goal_meta = cpu_to_be64(di->di_goal_meta);
+	str->di_goal_data = cpu_to_be64(di->di_goal_data);
+	str->di_generation = cpu_to_be64(di->di_generation);
+
+	str->di_flags = cpu_to_be32(di->di_flags);
+	str->di_height = cpu_to_be16(di->di_height);
+	str->di_payload_format = cpu_to_be32(S_ISDIR(ip->i_inode.i_mode) &&
+					     !(ip->i_di.di_flags & GFS2_DIF_EXHASH) ?
+					     GFS2_FORMAT_DE : 0);
+	str->di_depth = cpu_to_be16(di->di_depth);
+	str->di_entries = cpu_to_be32(di->di_entries);
+
+	str->di_eattr = cpu_to_be64(di->di_eattr);
+}
+
+void gfs2_dinode_print(const struct gfs2_inode *ip)
+{
+	const struct gfs2_dinode_host *di = &ip->i_di;
+
+	printk(KERN_INFO "  no_formal_ino = %llu\n",
+	       (unsigned long long)ip->i_no_formal_ino);
+	printk(KERN_INFO "  no_addr = %llu\n",
+	       (unsigned long long)ip->i_no_addr);
+	printk(KERN_INFO "  di_size = %llu\n", (unsigned long long)di->di_size);
+	printk(KERN_INFO "  di_blocks = %llu\n",
+	       (unsigned long long)di->di_blocks);
+	printk(KERN_INFO "  di_goal_meta = %llu\n",
+	       (unsigned long long)di->di_goal_meta);
+	printk(KERN_INFO "  di_goal_data = %llu\n",
+	       (unsigned long long)di->di_goal_data);
+	printk(KERN_INFO "  di_flags = 0x%.8X\n", di->di_flags);
+	printk(KERN_INFO "  di_height = %u\n", di->di_height);
+	printk(KERN_INFO "  di_depth = %u\n", di->di_depth);
+	printk(KERN_INFO "  di_entries = %u\n", di->di_entries);
+	printk(KERN_INFO "  di_eattr = %llu\n",
+	       (unsigned long long)di->di_eattr);
 }
 

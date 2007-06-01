@@ -137,7 +137,7 @@ int gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd, int cluster_wide,
 		"GFS2: fsid=%s:   RG = %llu\n"
 		"GFS2: fsid=%s:   function = %s, file = %s, line = %u\n",
 		sdp->sd_fsname,
-		sdp->sd_fsname, (unsigned long long)rgd->rd_ri.ri_addr,
+		sdp->sd_fsname, (unsigned long long)rgd->rd_addr,
 		sdp->sd_fsname, function, file, line);
 	return rv;
 }

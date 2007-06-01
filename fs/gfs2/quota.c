@@ -66,6 +66,18 @@
 #define QUOTA_USER 1
 #define QUOTA_GROUP 0
 
+struct gfs2_quota_host {
+	u64 qu_limit;
+	u64 qu_warn;
+	s64 qu_value;
+};
+
+struct gfs2_quota_change_host {
+	u64 qc_change;
+	u32 qc_flags; /* GFS2_QCF_... */
+	u32 qc_id;
+};
+
 static u64 qd2offset(struct gfs2_quota_data *qd)
 {
 	u64 offset;
@@ -561,6 +573,25 @@ static void do_qc(struct gfs2_quota_data *qd, s64 change)
 	mutex_unlock(&sdp->sd_quota_mutex);
 }
 
+static void gfs2_quota_in(struct gfs2_quota_host *qu, const void *buf)
+{
+	const struct gfs2_quota *str = buf;
+
+	qu->qu_limit = be64_to_cpu(str->qu_limit);
+	qu->qu_warn = be64_to_cpu(str->qu_warn);
+	qu->qu_value = be64_to_cpu(str->qu_value);
+}
+
+static void gfs2_quota_out(const struct gfs2_quota_host *qu, void *buf)
+{
+	struct gfs2_quota *str = buf;
+
+	str->qu_limit = cpu_to_be64(qu->qu_limit);
+	str->qu_warn = cpu_to_be64(qu->qu_warn);
+	str->qu_value = cpu_to_be64(qu->qu_value);
+	memset(&str->qu_reserved, 0, sizeof(str->qu_reserved));
+}
+
 /**
  * gfs2_adjust_quota
  *
@@ -694,7 +725,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 			goto out_alloc;
 
 		error = gfs2_trans_begin(sdp,
-					 al->al_rgd->rd_ri.ri_length +
+					 al->al_rgd->rd_length +
 					 num_qd * data_blocks +
 					 nalloc * ind_blocks +
 					 RES_DINODE + num_qd +
@@ -1053,6 +1084,15 @@ int gfs2_quota_refresh(struct gfs2_sbd *sdp, int user, u32 id)
 	qd_put(qd);
 
 	return error;
+}
+
+static void gfs2_quota_change_in(struct gfs2_quota_change_host *qc, const void *buf)
+{
+	const struct gfs2_quota_change *str = buf;
+
+	qc->qc_change = be64_to_cpu(str->qc_change);
+	qc->qc_flags = be32_to_cpu(str->qc_flags);
+	qc->qc_id = be32_to_cpu(str->qc_id);
 }
 
 int gfs2_quota_init(struct gfs2_sbd *sdp)

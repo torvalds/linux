@@ -22,9 +22,17 @@
 #include "glops.h"
 #include "inode.h"
 #include "ops_dentry.h"
-#include "ops_export.h"
+#include "ops_fstype.h"
 #include "rgrp.h"
 #include "util.h"
+
+#define GFS2_SMALL_FH_SIZE 4
+#define GFS2_LARGE_FH_SIZE 10
+
+struct gfs2_fh_obj {
+	struct gfs2_inum_host this;
+	u32 imode;
+};
 
 static struct dentry *gfs2_decode_fh(struct super_block *sb,
 				     __u32 *p,

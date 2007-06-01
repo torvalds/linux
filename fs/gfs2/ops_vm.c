@@ -66,7 +66,7 @@ static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
 	if (error)
 		goto out_gunlock_q;
 
-	error = gfs2_trans_begin(sdp, al->al_rgd->rd_ri.ri_length +
+	error = gfs2_trans_begin(sdp, al->al_rgd->rd_length +
 				 ind_blocks + RES_DINODE +
 				 RES_STATFS + RES_QUOTA, 0);
 	if (error)

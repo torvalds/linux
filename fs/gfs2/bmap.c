@@ -718,7 +718,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	for (x = 0; x < rlist.rl_rgrps; x++) {
 		struct gfs2_rgrpd *rgd;
 		rgd = rlist.rl_ghs[x].gh_gl->gl_object;
-		rg_blocks += rgd->rd_ri.ri_length;
+		rg_blocks += rgd->rd_length;
 	}
 
 	error = gfs2_glock_nq_m(rlist.rl_rgrps, rlist.rl_ghs);
@@ -824,7 +824,7 @@ static int do_grow(struct gfs2_inode *ip, u64 size)
 		goto out_gunlock_q;
 
 	error = gfs2_trans_begin(sdp,
-			sdp->sd_max_height + al->al_rgd->rd_ri.ri_length +
+			sdp->sd_max_height + al->al_rgd->rd_length +
 			RES_JDATA + RES_DINODE + RES_STATFS + RES_QUOTA, 0);
 	if (error)
 		goto out_ipres;

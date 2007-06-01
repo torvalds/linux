@@ -1897,7 +1897,7 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
 	for (x = 0; x < rlist.rl_rgrps; x++) {
 		struct gfs2_rgrpd *rgd;
 		rgd = rlist.rl_ghs[x].gh_gl->gl_object;
-		rg_blocks += rgd->rd_ri.ri_length;
+		rg_blocks += rgd->rd_length;
 	}
 
 	error = gfs2_glock_nq_m(rlist.rl_rgrps, rlist.rl_ghs);
