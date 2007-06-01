@@ -152,6 +152,7 @@
 #include <linux/sched.h>
 #include <linux/tty.h>
 #include <linux/mutex.h>
+#include <linux/sysrq.h>
 
 struct uart_port;
 struct uart_info;
