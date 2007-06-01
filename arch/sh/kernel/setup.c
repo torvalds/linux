@@ -116,7 +116,7 @@ static void __init register_bootmem_low_pages(void)
 	free_bootmem(PFN_PHYS(curr_pfn), PFN_PHYS(pages));
 }
 
-void __init setup_bootmem_allocator(unsigned long start_pfn)
+void __init setup_bootmem_allocator(unsigned long free_pfn)
 {
 	unsigned long bootmap_size;
 
@@ -125,7 +125,7 @@ void __init setup_bootmem_allocator(unsigned long start_pfn)
 	 * bootstrap step all allocations (until the page allocator
 	 * is intact) must be done via bootmem_alloc().
 	 */
-	bootmap_size = init_bootmem_node(NODE_DATA(0), start_pfn,
+	bootmap_size = init_bootmem_node(NODE_DATA(0), free_pfn,
 					 min_low_pfn, max_low_pfn);
 
 	add_active_range(0, min_low_pfn, max_low_pfn);
@@ -141,13 +141,15 @@ void __init setup_bootmem_allocator(unsigned long start_pfn)
 	 * an invalid RAM area.
 	 */
 	reserve_bootmem(__MEMORY_START+PAGE_SIZE,
-		(PFN_PHYS(start_pfn)+bootmap_size+PAGE_SIZE-1)-__MEMORY_START);
+		(PFN_PHYS(free_pfn)+bootmap_size+PAGE_SIZE-1)-__MEMORY_START);
 
 	/*
 	 * reserve physical page 0 - it's a special BIOS page on many boxes,
 	 * enabling clean reboots, SMP operation, laptop functions.
 	 */
 	reserve_bootmem(__MEMORY_START, PAGE_SIZE);
+
+	sparse_memory_present_with_active_regions(0);
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	ROOT_DEV = MKDEV(RAMDISK_MAJOR, 0);
@@ -193,7 +195,6 @@ static void __init setup_memory(void)
 	 */
 	start_pfn = PFN_UP(__pa(_end));
 	setup_bootmem_allocator(start_pfn);
-	sparse_memory_present_with_active_regions(0);
 }
 #else
 extern void __init setup_memory(void);
