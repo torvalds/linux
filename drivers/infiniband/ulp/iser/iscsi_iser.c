@@ -210,10 +210,10 @@ iscsi_iser_ctask_xmit(struct iscsi_conn *conn,
 	int error = 0;
 
 	if (ctask->sc->sc_data_direction == DMA_TO_DEVICE) {
-		BUG_ON(ctask->sc->request_bufflen == 0);
+		BUG_ON(scsi_bufflen(ctask->sc) == 0);
 
 		debug_scsi("cmd [itt %x total %d imm %d unsol_data %d\n",
-			   ctask->itt, ctask->sc->request_bufflen,
+			   ctask->itt, scsi_bufflen(ctask->sc),
 			   ctask->imm_count, ctask->unsol_count);
 	}
 

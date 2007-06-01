@@ -351,18 +351,12 @@ int iser_send_command(struct iscsi_conn     *conn,
 	else
 		data_buf = &iser_ctask->data[ISER_DIR_OUT];
 
-	if (sc->use_sg) { /* using a scatter list */
-		data_buf->buf  = sc->request_buffer;
-		data_buf->size = sc->use_sg;
-	} else if (sc->request_bufflen) {
-		/* using a single buffer - convert it into one entry SG */
-		sg_init_one(&data_buf->sg_single,
-			    sc->request_buffer, sc->request_bufflen);
-		data_buf->buf   = &data_buf->sg_single;
-		data_buf->size  = 1;
+	if (scsi_sg_count(sc)) { /* using a scatter list */
+		data_buf->buf  = scsi_sglist(sc);
+		data_buf->size = scsi_sg_count(sc);
 	}
 
-	data_buf->data_len = sc->request_bufflen;
+	data_buf->data_len = scsi_bufflen(sc);
 
 	if (hdr->flags & ISCSI_FLAG_CMD_READ) {
 		err = iser_prepare_read_cmd(ctask, edtl);
