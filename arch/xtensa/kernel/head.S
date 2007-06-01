@@ -19,6 +19,8 @@
 #include <asm/page.h>
 #include <asm/cacheasm.h>
 
+#include <linux/linkage.h>
+
 /*
  * This module contains the entry code for kernel images. It performs the
  * minimal setup needed to call the generic C routines.
@@ -227,13 +229,14 @@ _startup:
 should_never_return:
 	j	should_never_return
 
-	/* Define some common data structures here.  We define them
-	 * here in this assembly file due to their unusual alignment
-	 * requirements.
-	 */
 
-	.comm   swapper_pg_dir,PAGE_SIZE,PAGE_SIZE
-	.comm	empty_bad_page_table,PAGE_SIZE,PAGE_SIZE
-	.comm	empty_bad_page,PAGE_SIZE,PAGE_SIZE
-	.comm	empty_zero_page,PAGE_SIZE,PAGE_SIZE
+/*
+ * BSS section
+ */
+	
+.section ".bss.page_aligned", "w"
+ENTRY(swapper_pg_dir)
+	.fill	PAGE_SIZE, 1, 0
+ENTRY(empty_zero_page)
+	.fill	PAGE_SIZE, 1, 0
 
