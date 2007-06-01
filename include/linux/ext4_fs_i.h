@@ -41,14 +41,14 @@ struct ext4_reserve_window_node {
 
 struct ext4_block_alloc_info {
 	/* information about reservation window */
-	struct ext4_reserve_window_node	rsv_window_node;
+	struct ext4_reserve_window_node rsv_window_node;
 	/*
 	 * was i_next_alloc_block in ext4_inode_info
 	 * is the logical (file-relative) number of the
 	 * most-recently-allocated block in this file.
 	 * We use this for detecting linearly ascending allocation requests.
 	 */
-	__u32                   last_alloc_logical_block;
+	__u32 last_alloc_logical_block;
 	/*
 	 * Was i_next_alloc_goal in ext4_inode_info
 	 * is the *physical* companion to i_next_alloc_block.
@@ -56,7 +56,7 @@ struct ext4_block_alloc_info {
 	 * allocated to this file.  This give us the goal (target) for the next
 	 * allocation when we detect linearly ascending requests.
 	 */
-	ext4_fsblk_t		last_alloc_physical_block;
+	ext4_fsblk_t last_alloc_physical_block;
 };
 
 #define rsv_start rsv_window._rsv_start

@@ -255,8 +255,8 @@ static int verify_chain(Indirect *from, Indirect *to)
  *	@inode: inode in question (we are only interested in its superblock)
  *	@i_block: block number to be parsed
  *	@offsets: array to store the offsets in
- *      @boundary: set this non-zero if the referred-to block is likely to be
- *             followed (on disk) by an indirect block.
+ *	@boundary: set this non-zero if the referred-to block is likely to be
+ *	       followed (on disk) by an indirect block.
  *
  *	To store the locations of file's data ext4 uses a data structure common
  *	for UNIX filesystems - tree of pointers anchored in the inode, with
