@@ -317,6 +317,33 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 	size_t retlen;
 	int ret = -EIO;
 
+	if (c->mtd->point) {
+		unsigned long *wordebuf;
+
+		ret = c->mtd->point(c->mtd, jeb->offset, c->sector_size, &retlen, (unsigned char **)&ebuf);
+		if (ret) {
+			D1(printk(KERN_DEBUG "MTD point failed %d\n", ret));
+			goto do_flash_read;
+		}
+		if (retlen < c->sector_size) {
+			/* Don't muck about if it won't let us point to the whole erase sector */
+			D1(printk(KERN_DEBUG "MTD point returned len too short: 0x%zx\n", retlen));
+			c->mtd->unpoint(c->mtd, ebuf, jeb->offset, c->sector_size);
+			goto do_flash_read;
+		}
+		wordebuf = ebuf-sizeof(*wordebuf);
+		retlen /= sizeof(*wordebuf);
+		do {
+		   if (*++wordebuf != ~0)
+			   break;
+		} while(--retlen);
+		c->mtd->unpoint(c->mtd, ebuf, jeb->offset, c->sector_size);
+		if (retlen)
+			printk(KERN_WARNING "Newly-erased block contained word 0x%lx at offset 0x%08x\n",
+			       *wordebuf, jeb->offset + c->sector_size-retlen*sizeof(*wordebuf));
+		return 0;
+	}
+ do_flash_read:
 	ebuf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!ebuf) {
 		printk(KERN_WARNING "Failed to allocate page buffer for verifying erase at 0x%08x. Refiling\n", jeb->offset);
