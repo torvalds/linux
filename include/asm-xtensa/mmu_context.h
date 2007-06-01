@@ -14,6 +14,7 @@
 #define _XTENSA_MMU_CONTEXT_H
 
 #include <linux/stringify.h>
+#include <linux/sched.h>
 
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>

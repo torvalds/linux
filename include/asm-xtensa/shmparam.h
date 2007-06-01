@@ -9,8 +9,6 @@
 #ifndef _XTENSA_SHMPARAM_H
 #define _XTENSA_SHMPARAM_H
 
-#include <asm/processor.h>
-
 /*
  * Xtensa can have variable size caches, and if
  * the size of single way is larger than the page size,

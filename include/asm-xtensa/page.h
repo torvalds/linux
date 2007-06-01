@@ -131,6 +131,6 @@ void copy_user_page(void *to,void* from,unsigned long vaddr,struct page* page);
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
-#endif /* __KERNEL__ */
 #include <asm-generic/memory_model.h>
+#endif /* __KERNEL__ */
 #endif /* _XTENSA_PAGE_H */

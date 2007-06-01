@@ -57,9 +57,6 @@ static inline int __ffs(unsigned long x)
 	return 31 - __cntlz(x & -x);
 }
 
-
-#ifdef __KERNEL__
-
 /*
  * ffs: Find first bit set in word. This is defined the same way as
  * the libc and compiler builtin ffs routines, therefore
@@ -97,11 +94,15 @@ static inline int fls (unsigned int x)
 #include <asm-generic/bitops/ext2-non-atomic.h>
 
 #ifdef __XTENSA_EL__
-# define ext2_set_bit_atomic(lock,nr,addr) test_and_set_bit((nr),(addr))
-# define ext2_clear_bit_atomic(lock,nr,addr) test_and_clear_bit((nr),(addr))
+# define ext2_set_bit_atomic(lock,nr,addr)				\
+	test_and_set_bit((nr), (unsigned long*)(addr))
+# define ext2_clear_bit_atomic(lock,nr,addr)				\
+	test_and_clear_bit((nr), (unsigned long*)(addr))
 #elif defined(__XTENSA_EB__)
-# define ext2_set_bit_atomic(lock,nr,addr) test_and_set_bit((nr) ^ 0x18, (addr))
-# define ext2_clear_bit_atomic(lock,nr,addr) test_and_clear_bit((nr)^0x18,(addr))
+# define ext2_set_bit_atomic(lock,nr,addr)				\
+	test_and_set_bit((nr) ^ 0x18, (unsigned long*)(addr))
+# define ext2_clear_bit_atomic(lock,nr,addr)				\
+	test_and_clear_bit((nr) ^ 0x18, (unsigned long*)(addr))
 #else
 # error processor byte order undefined!
 #endif

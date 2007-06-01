@@ -84,9 +84,7 @@ SECTIONS
   {
     /* The .head.text section must be the first section! */
     *(.head.text)
-    *(.literal)
-    TEXT_TEXT
-    *(.srom.text)
+    *(.literal .text)
     VMLINUX_SYMBOL(__sched_text_start) = .;
     *(.sched.literal .sched.text)
     VMLINUX_SYMBOL(__sched_text_end) = .;
@@ -96,38 +94,13 @@ SECTIONS
 
   }
   _etext = .;
+  PROVIDE (etext = .);
 
   . = ALIGN(16);
 
   RODATA
 
   /*  Relocation table */
-
-  . = ALIGN(16);
-  __boot_reloc_table_start = ABSOLUTE(.);
-
-  __relocate : {
-
-    RELOCATE_ENTRY(_WindowVectors_text,
-		   .WindowVectors.text);
-#if 0
-    RELOCATE_ENTRY(_KernelExceptionVector_literal,
-		   .KernelExceptionVector.literal);
-#endif
-    RELOCATE_ENTRY(_KernelExceptionVector_text,
-		   .KernelExceptionVector.text);
-#if 0
-    RELOCATE_ENTRY(_UserExceptionVector_literal,
-		   .UserExceptionVector.literal);
-#endif
-    RELOCATE_ENTRY(_UserExceptionVector_text,
-		   .UserExceptionVector.text);
-    RELOCATE_ENTRY(_DoubleExceptionVector_literal,
-		   .DoubleExceptionVector.literal);
-    RELOCATE_ENTRY(_DoubleExceptionVector_text,
-		   .DoubleExceptionVector.text);
-  }
-  __boot_reloc_table_end = ABSOLUTE(.) ;
 
   .fixup   : { *(.fixup) }
 
@@ -145,8 +118,7 @@ SECTIONS
   _fdata = .;
   .data :
   {
-    DATA_DATA
-    CONSTRUCTORS
+    *(.data) CONSTRUCTORS
     . = ALIGN(XCHAL_ICACHE_LINESIZE);
     *(.data.cacheline_aligned)
   }
@@ -174,6 +146,22 @@ SECTIONS
     __tagtable_begin = .;
     *(.taglist)
     __tagtable_end = .;
+
+    . = ALIGN(16);
+    __boot_reloc_table_start = ABSOLUTE(.);
+
+    RELOCATE_ENTRY(_WindowVectors_text,
+		   .WindowVectors.text);
+    RELOCATE_ENTRY(_KernelExceptionVector_text,
+		   .KernelExceptionVector.text);
+    RELOCATE_ENTRY(_UserExceptionVector_text,
+		   .UserExceptionVector.text);
+    RELOCATE_ENTRY(_DoubleExceptionVector_literal,
+		   .DoubleExceptionVector.literal);
+    RELOCATE_ENTRY(_DoubleExceptionVector_text,
+		   .DoubleExceptionVector.text);
+  
+    __boot_reloc_table_end = ABSOLUTE(.) ;
   }
 
   . = ALIGN(XCHAL_ICACHE_LINESIZE);
@@ -194,16 +182,6 @@ SECTIONS
 
   SECURITY_INIT
 
-  . = ALIGN(4);
-
-  __start___ftr_fixup = .;
-  __ftr_fixup : { *(__ftr_fixup) }
-  __stop___ftr_fixup = .;
-
-  . = ALIGN(4096);
-  __per_cpu_start = .;
-  .data.percpu  : { *(.data.percpu) }
-  __per_cpu_end = .;
 
 #ifdef CONFIG_BLK_DEV_INITRD
   . = ALIGN(4096);
@@ -211,6 +189,12 @@ SECTIONS
   .init.ramfs : { *(.init.ramfs) }
   __initramfs_end = .;
 #endif
+
+  . = ALIGN(4096);
+  __per_cpu_start = .;
+  .data.percpu  : { *(.data.percpu) }
+  __per_cpu_end = .;
+
 
   /* We need this dummy segment here */
 
@@ -273,9 +257,9 @@ SECTIONS
 
   /* BSS section */
   _bss_start = .;
-  .sbss : { *(.sbss) *(.scommon) }
-  .bss : { *(COMMON) *(.bss) }
+  .bss : { *(.bss.page_aligned) *(.bss) }
   _bss_end = .;
+
   _end = .;
 
   /* only used by the boot loader  */
@@ -293,16 +277,16 @@ SECTIONS
     *(.ResetVector.text)
   }
 
-
   /* Sections to be discarded */
   /DISCARD/ :
   {
-        *(.text.exit)
-	*(.text.exit.literal)
-        *(.data.exit)
+  	*(.exit.literal .exit.text)
+  	*(.exit.data)
         *(.exitcall.exit)
   }
 
+  .xt.lit : { *(.xt.lit) }
+  .xt.prop : { *(.xt.prop) }
 
   .debug  0 :  { *(.debug) }
   .line  0 :  { *(.line) }

@@ -41,6 +41,7 @@
 #include <asm/platform.h>
 #include <asm/page.h>
 #include <asm/setup.h>
+#include <asm/param.h>
 
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
 struct screen_info screen_info = { 0, 24, 0, 0, 0, 80, 0, 0, 0, 24, 1, 16};

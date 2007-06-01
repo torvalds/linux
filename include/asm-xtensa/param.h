@@ -11,15 +11,13 @@
 #ifndef _XTENSA_PARAM_H
 #define _XTENSA_PARAM_H
 
-#include <asm/variant/core.h>
-
 #ifdef __KERNEL__
 # define HZ		100		/* internal timer frequency */
 # define USER_HZ	100		/* for user interfaces in "ticks" */
 # define CLOCKS_PER_SEC (USER_HZ)	/* frequnzy at which times() counts */
 #endif
 
-#define EXEC_PAGESIZE	(1 << XCHAL_MMU_MIN_PTE_PAGE_SIZE)
+#define EXEC_PAGESIZE	4096
 
 #ifndef NGROUPS
 #define NGROUPS		32
