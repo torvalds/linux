@@ -136,7 +136,7 @@ void show_stack(struct task_struct *task, unsigned long *esp)
 	printk("\nCall Trace:");
 	i = 0;
 	stack = esp;
-	while (((unsigned long)stack & (THREAD_SIZE - 1)) == 0) {
+	while (((unsigned long)stack & (THREAD_SIZE - 1)) != 0) {
 		addr = *stack++;
 		/*
 		 * If the address is either in the text segment of the

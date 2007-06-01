@@ -288,9 +288,9 @@ asmlinkage void syscall_print(void *dummy,...)
 int kernel_execve(const char *filename, char *const argv[], char *const envp[])
 {
 	register long res __asm__("er0");
+	register char *const *_c __asm__("er3") = envp;
+	register char *const *_b __asm__("er2") = argv;
 	register const char * _a __asm__("er1") = filename;
-	register void *_b __asm__("er2") = argv;
-	register void *_c __asm__("er3") = envp;
 	__asm__ __volatile__ ("mov.l %1,er0\n\t"
 			"trapa	#0\n\t"
 			: "=r" (res)

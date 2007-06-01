@@ -78,7 +78,7 @@ struct thread_struct {
 do {							        \
 	set_fs(USER_DS);           /* reads from user space */  \
   	(_regs)->pc = (_pc);				        \
-	(_regs)->ccr &= 0x00;	   /* clear kernel flag */      \
+	(_regs)->ccr = 0x00;	   /* clear all flags */        \
 	(_regs)->er5 = current->mm->start_data;	/* GOT base */  \
 	wrusp((unsigned long)(_usp) - sizeof(unsigned long)*3);	\
 } while(0)
