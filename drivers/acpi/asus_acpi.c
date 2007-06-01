@@ -1357,7 +1357,7 @@ static struct backlight_ops asus_backlight_data = {
         .update_status  = set_brightness_status,
 };
 
-static void __exit asus_acpi_exit(void)
+static void asus_acpi_exit(void)
 {
 	if (asus_backlight_device)
 		backlight_device_unregister(asus_backlight_device);
