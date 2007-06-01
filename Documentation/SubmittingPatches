@@ -118,7 +118,20 @@ then only post say 15 or so at a time and wait for review and integration.
 
 
 
-4) Select e-mail destination.
+4) Style check your changes.
+
+Check your patch for basic style violations, details of which can be
+found in Documentation/CodingStyle.  Failure to do so simply wastes
+the reviewers time and will get your patch rejected, probabally
+without even being read.
+
+At a minimum you should check your patches with the patch style
+checker prior to submission (scripts/patchcheck.pl).  You should
+be able to justify all violations that remain in your patch.
+
+
+
+5) Select e-mail destination.
 
 Look through the MAINTAINERS file and the source code, and determine
 if your change applies to a specific subsystem of the kernel, with
@@ -146,7 +159,7 @@ discussed should the patch then be submitted to Linus.
 
 
 
-5) Select your CC (e-mail carbon copy) list.
+6) Select your CC (e-mail carbon copy) list.
 
 Unless you have a reason NOT to do so, CC linux-kernel@vger.kernel.org.
 
@@ -187,8 +200,7 @@ URL: <http://www.kernel.org/pub/linux/kernel/people/bunk/trivial/>
 
 
 
-
-6) No MIME, no links, no compression, no attachments.  Just plain text.
+7) No MIME, no links, no compression, no attachments.  Just plain text.
 
 Linus and other kernel developers need to be able to read and comment
 on the changes you are submitting.  It is important for a kernel
@@ -223,9 +235,9 @@ pref("mailnews.display.disable_format_flowed_support", true);
 
 
 
-7) E-mail size.
+8) E-mail size.
 
-When sending patches to Linus, always follow step #6.
+When sending patches to Linus, always follow step #7.
 
 Large changes are not appropriate for mailing lists, and some
 maintainers.  If your patch, uncompressed, exceeds 40 kB in size,
@@ -234,7 +246,7 @@ server, and provide instead a URL (link) pointing to your patch.
 
 
 
-8) Name your kernel version.
+9) Name your kernel version.
 
 It is important to note, either in the subject line or in the patch
 description, the kernel version to which this patch applies.
@@ -244,7 +256,7 @@ Linus will not apply it.
 
 
 
-9) Don't get discouraged.  Re-submit.
+10) Don't get discouraged.  Re-submit.
 
 After you have submitted your change, be patient and wait.  If Linus
 likes your change and applies it, it will appear in the next version
@@ -270,7 +282,7 @@ When in doubt, solicit comments on linux-kernel mailing list.
 
 
 
-10) Include PATCH in the subject
+11) Include PATCH in the subject
 
 Due to high e-mail traffic to Linus, and to linux-kernel, it is common
 convention to prefix your subject line with [PATCH].  This lets Linus
@@ -279,7 +291,7 @@ e-mail discussions.
 
 
 
-11) Sign your work
+12) Sign your work
 
 To improve tracking of who did what, especially with patches that can
 percolate to their final resting place in the kernel through several
@@ -328,7 +340,8 @@ now, but you can do this to mark internal company procedures or just
 point out some special detail about the sign-off. 
 
 
-12) The canonical patch format
+
+13) The canonical patch format
 
 The canonical patch subject line is:
 
@@ -426,6 +439,10 @@ section Linus Computer Science 101.
 
 Nuff said.  If your code deviates too much from this, it is likely
 to be rejected without further review, and without comment.
+
+Check your patches with the patch style checker prior to submission
+(scripts/checkpatch.pl).  You should be able to justify all
+violations that remain in your patch.
 
 
 

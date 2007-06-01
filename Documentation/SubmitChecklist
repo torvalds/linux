@@ -84,3 +84,9 @@ kernel patches.
 24: Avoid whitespace damage such as indenting with spaces or whitespace
     at the end of lines.  You can test this by feeding the patch to
     "git apply --check --whitespace=error-all"
+
+25: Check your patch for general style as detailed in
+    Documentation/CodingStyle.  Check for trivial violations with the
+    patch style checker prior to submission (scripts/checkpatch.pl).
+    You should be able to justify all violations that remain in
+    your patch.

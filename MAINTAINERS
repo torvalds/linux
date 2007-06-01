@@ -30,8 +30,11 @@ trivial patch so apply some common sense.
 	job the maintainers (and especially Linus) do is to keep things
 	looking the same. Sometimes this means that the clever hack in
 	your driver to get around a problem actually needs to become a
-	generalized kernel feature ready for next time. See
-	Documentation/CodingStyle for guidance here.
+	generalized kernel feature ready for next time.
+
+	PLEASE check your patch with the automated style checker
+	(scripts/checkpatch.pl) to catch trival style violations.
+	See Documentation/CodingStyle for guidance here.
 
 	PLEASE try to include any credit lines you want added with the
 	patch. It avoids people being missed off by mistake and makes
@@ -971,6 +974,15 @@ P:	Johannes Berg
 M:	johannes@sipsolutions.net
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
+
+CHECKPATCH
+P:	Andy Whitcroft
+M:	apw@shadowen.org
+P:	Randy Dunlap
+M:	rdunlap@xenotime.net
+P:	Joel Schopp
+M:	jschopp@austin.ibm.com
+S:	Supported
 
 COMMON INTERNET FILE SYSTEM (CIFS)
 P:	Steve French
