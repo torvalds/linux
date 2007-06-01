@@ -489,7 +489,7 @@ struct irq_host *irq_alloc_host(unsigned int revmap_type,
 	case IRQ_HOST_MAP_LINEAR:
 		rmap = (unsigned int *)(host + 1);
 		for (i = 0; i < revmap_arg; i++)
-			rmap[i] = IRQ_NONE;
+			rmap[i] = NO_IRQ;
 		host->revmap_data.linear.size = revmap_arg;
 		smp_wmb();
 		host->revmap_data.linear.revmap = rmap;
@@ -614,7 +614,7 @@ unsigned int irq_create_mapping(struct irq_host *host,
 	 * host->ops->map() to update the flags
 	 */
 	virq = irq_find_mapping(host, hwirq);
-	if (virq != IRQ_NONE) {
+	if (virq != NO_IRQ) {
 		if (host->ops->remap)
 			host->ops->remap(host, virq, hwirq);
 		pr_debug("irq: -> existing mapping on virq %d\n", virq);
@@ -741,7 +741,7 @@ void irq_dispose_mapping(unsigned int virq)
 	switch(host->revmap_type) {
 	case IRQ_HOST_MAP_LINEAR:
 		if (hwirq < host->revmap_data.linear.size)
-			host->revmap_data.linear.revmap[hwirq] = IRQ_NONE;
+			host->revmap_data.linear.revmap[hwirq] = NO_IRQ;
 		break;
 	case IRQ_HOST_MAP_TREE:
 		/* Check if radix tree allocated yet */
