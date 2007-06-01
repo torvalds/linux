@@ -50,8 +50,12 @@ int ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 			       RT_CONN_FLAGS(sk), oif,
 			       sk->sk_protocol,
 			       inet->sport, usin->sin_port, sk, 1);
-	if (err)
+	if (err) {
+		if (err == -ENETUNREACH)
+			IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
 		return err;
+	}
+
 	if ((rt->rt_flags & RTCF_BROADCAST) && !sock_flag(sk, SOCK_BROADCAST)) {
 		ip_rt_put(rt);
 		return -EACCES;
