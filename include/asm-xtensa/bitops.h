@@ -7,7 +7,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2001 - 2007 Tensilica Inc.
  */
 
 #ifndef _XTENSA_BITOPS_H
@@ -31,54 +31,34 @@
 
 #if XCHAL_HAVE_NSA
 
-static __inline__ int __cntlz (unsigned long x)
+static inline unsigned long __cntlz (unsigned long x)
 {
 	int lz;
 	asm ("nsau %0, %1" : "=r" (lz) : "r" (x));
-	return 31 - lz;
+	return lz;
 }
-
-#else
-
-static __inline__ int __cntlz (unsigned long x)
-{
-	unsigned long sum, x1, x2, x4, x8, x16;
-	x1  = x & 0xAAAAAAAA;
-	x2  = x & 0xCCCCCCCC;
-	x4  = x & 0xF0F0F0F0;
-	x8  = x & 0xFF00FF00;
-	x16 = x & 0xFFFF0000;
-	sum = x2 ? 2 : 0;
-	sum += (x16 != 0) * 16;
-	sum += (x8 != 0) * 8;
-	sum += (x4 != 0) * 4;
-	sum += (x1 != 0);
-
-	return sum;
-}
-
-#endif
 
 /*
  * ffz: Find first zero in word. Undefined if no zero exists.
  * bit 0 is the LSB of addr; bit 32 is the LSB of (addr+1).
  */
 
-static __inline__ int ffz(unsigned long x)
+static inline int ffz(unsigned long x)
 {
-	if ((x = ~x) == 0)
-		return 32;
-	return __cntlz(x & -x);
+	return 31 - __cntlz(~x & -~x);
 }
 
 /*
  * __ffs: Find first bit set in word. Return 0 for bit 0
  */
 
-static __inline__ int __ffs(unsigned long x)
+static inline int __ffs(unsigned long x)
 {
-	return __cntlz(x & -x);
+	return 31 - __cntlz(x & -x);
 }
+
+
+#ifdef __KERNEL__
 
 /*
  * ffs: Find first bit set in word. This is defined the same way as
@@ -86,9 +66,9 @@ static __inline__ int __ffs(unsigned long x)
  * differs in spirit from the above ffz (man ffs).
  */
 
-static __inline__ int ffs(unsigned long x)
+static inline int ffs(unsigned long x)
 {
-	return __cntlz(x & -x) + 1;
+	return 32 - __cntlz(x & -x);
 }
 
 /*
@@ -96,10 +76,22 @@ static __inline__ int ffs(unsigned long x)
  * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
  */
 
-static __inline__ int fls (unsigned int x)
+static inline int fls (unsigned int x)
 {
-	return __cntlz(x);
+	return 32 - __cntlz(x);
 }
+
+#else
+
+/* Use the generic implementation if we don't have the nsa/nsau instructions. */
+
+# include <asm-generic/bitops/ffs.h>
+# include <asm-generic/bitops/__ffs.h>
+# include <asm-generic/bitops/ffz.h>
+# include <asm-generic/bitops/fls.h>
+
+#endif
+
 #include <asm-generic/bitops/fls64.h>
 #include <asm-generic/bitops/find.h>
 #include <asm-generic/bitops/ext2-non-atomic.h>
