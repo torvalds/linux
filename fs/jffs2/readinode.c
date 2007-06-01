@@ -229,9 +229,16 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 	   check anyway. */
 	if (!tn->fn->size) {
 		if (rii->mdata_tn) {
-			/* We had a candidate mdata node already */
-			dbg_readinode("kill old mdata with ver %d\n", rii->mdata_tn->version);
-			jffs2_kill_tn(c, rii->mdata_tn);
+			if (rii->mdata_tn->version < tn->version) {
+				/* We had a candidate mdata node already */
+				dbg_readinode("kill old mdata with ver %d\n", rii->mdata_tn->version);
+				jffs2_kill_tn(c, rii->mdata_tn);
+			} else {
+				dbg_readinode("kill new mdata with ver %d (older than existing %d\n",
+					      tn->version, rii->mdata_tn->version);
+				jffs2_kill_tn(c, tn);
+				return 0;
+			}
 		}
 		rii->mdata_tn = tn;
 		dbg_readinode("keep new mdata with ver %d\n", tn->version);
