@@ -5180,7 +5180,7 @@ ahd_handle_devreset(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 			cur_lun = lun;
 			max_lun = lun;
 		}
-		for (cur_lun <= max_lun; cur_lun++) {
+		for (;cur_lun <= max_lun; cur_lun++) {
 			struct ahd_tmode_lstate* lstate;
 
 			lstate = tstate->enabled_luns[cur_lun];

@@ -615,7 +615,7 @@ typedef enum {
 #define SSTATE  2
 
 /* Assume contoller gets data 10 times the maximum processing time */
-#define  REPEAT_CNT			10;
+#define  REPEAT_CNT			10
 
 /* amd8111e decriptor flag definitions */
 typedef enum {

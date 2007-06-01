@@ -1748,7 +1748,7 @@ char *addr_to_string(struct fddi_addr *addr)
 #endif
 
 #ifdef	AM29K
-smt_ifconfig(int argc, char *argv[])
+int smt_ifconfig(int argc, char *argv[])
 {
 	if (argc >= 2 && !strcmp(argv[0],"opt_bypass") &&
 	    !strcmp(argv[1],"yes")) {

@@ -81,7 +81,7 @@ __setup("ppchameleonevb_fio_pbase=", ppchameleonevb_fio_pbase);
  */
 static struct mtd_partition partition_info_hi[] = {
       { .name = "PPChameleon HI Nand Flash",
-	offset = 0,
+	.offset = 0,
 	.size = 128 * 1024 * 1024
       }
 };

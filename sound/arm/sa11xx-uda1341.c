@@ -987,7 +987,7 @@ static int __init sa11xx_uda1341_init(void)
 		if (platform_get_drvdata(device))
 			return 0;
 		platform_device_unregister(device);
-		err = -ENODEV
+		err = -ENODEV;
 	} else
 		err = PTR_ERR(device);
 	platform_driver_unregister(&sa11xx_uda1341_driver);

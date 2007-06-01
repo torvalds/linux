@@ -101,7 +101,7 @@ static void autcpu12_hwcontrol(struct mtd_info *mtd, int cmd,
 	struct nand_chip *chip = mtd->priv;
 
 	if (ctrl & NAND_CTRL_CHANGE) {
-		void __iomem *addr
+		void __iomem *addr;
 		unsigned char bits;
 
 		addr = CS89712_VIRT_BASE + AUTCPU12_SMC_PORT_OFFSET;

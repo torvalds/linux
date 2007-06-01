@@ -155,7 +155,7 @@ This function will write into PHY registers.
 */
 static int amd8111e_write_phy(struct amd8111e_priv* lp,int phy_id, int reg, u32 val)
 {
-	unsigned int repeat = REPEAT_CNT
+	unsigned int repeat = REPEAT_CNT;
 	void __iomem *mmio = lp->mmio;
 	unsigned int reg_val;
 
