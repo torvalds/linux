@@ -262,7 +262,7 @@ static void ail2_empty(struct gfs2_sbd *sdp, unsigned int new_tail)
  * @sdp: The GFS2 superblock
  * @blks: The number of blocks to reserve
  *
- * Note that we never give out the last 6 blocks of the journal. Thats
+ * Note that we never give out the last few blocks of the journal. Thats
  * due to the fact that there is are a small number of header blocks
  * associated with each log flush. The exact number can't be known until
  * flush time, so we ensure that we have just enough free blocks at all
@@ -274,6 +274,7 @@ static void ail2_empty(struct gfs2_sbd *sdp, unsigned int new_tail)
 int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
 {
 	unsigned int try = 0;
+	unsigned reserved_blks = 6 * (4096 / sdp->sd_vfs->s_blocksize);
 
 	if (gfs2_assert_warn(sdp, blks) ||
 	    gfs2_assert_warn(sdp, blks <= sdp->sd_jdesc->jd_blocks))
@@ -281,7 +282,7 @@ int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
 
 	mutex_lock(&sdp->sd_log_reserve_mutex);
 	gfs2_log_lock(sdp);
-	while(sdp->sd_log_blks_free <= (blks + 6)) {
+	while(sdp->sd_log_blks_free <= (blks + reserved_blks)) {
 		gfs2_log_unlock(sdp);
 		gfs2_ail1_empty(sdp, 0);
 		gfs2_log_flush(sdp, NULL);
