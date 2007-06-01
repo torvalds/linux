@@ -478,7 +478,7 @@ static int __init microcode_dev_init (void)
 	return 0;
 }
 
-static void __exit microcode_dev_exit (void)
+static void microcode_dev_exit (void)
 {
 	misc_deregister(&microcode_dev);
 }
