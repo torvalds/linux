@@ -6,12 +6,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/sched.h>
-#include <linux/string.h>
 
-#include <asm/bootinfo.h>
-#include <asm/cachectl.h>
-#include <asm/cpu.h>
 #include <asm/mipsregs.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -40,7 +35,7 @@ static inline const char *msk2str(unsigned int mask)
 		"nop;nop;nop;nop;nop;nop;nop\n\t"	\
 		".set\treorder");
 
-void dump_tlb(int first, int last)
+static void dump_tlb(int first, int last)
 {
 	unsigned long s_entryhi, entryhi, asid;
 	unsigned long long entrylo0, entrylo1;
@@ -102,141 +97,4 @@ void dump_tlb(int first, int last)
 void dump_tlb_all(void)
 {
 	dump_tlb(0, current_cpu_data.tlbsize - 1);
-}
-
-void dump_tlb_wired(void)
-{
-	int	wired;
-
-	wired = read_c0_wired();
-	printk("Wired: %d", wired);
-	dump_tlb(0, read_c0_wired());
-}
-
-void dump_tlb_addr(unsigned long addr)
-{
-	unsigned int flags, oldpid;
-	int index;
-
-	local_irq_save(flags);
-	oldpid = read_c0_entryhi() & 0xff;
-	BARRIER();
-	write_c0_entryhi((addr & PAGE_MASK) | oldpid);
-	BARRIER();
-	tlb_probe();
-	BARRIER();
-	index = read_c0_index();
-	write_c0_entryhi(oldpid);
-	local_irq_restore(flags);
-
-	if (index < 0) {
-		printk("No entry for address 0x%08lx in TLB\n", addr);
-		return;
-	}
-
-	printk("Entry %d maps address 0x%08lx\n", index, addr);
-	dump_tlb(index, index);
-}
-
-void dump_tlb_nonwired(void)
-{
-	dump_tlb(read_c0_wired(), current_cpu_data.tlbsize - 1);
-}
-
-void dump_list_process(struct task_struct *t, void *address)
-{
-	pgd_t	*page_dir, *pgd;
-	pud_t	*pud;
-	pmd_t	*pmd;
-	pte_t	*pte, page;
-	unsigned long addr, val;
-	int width = sizeof(long) * 2;
-
-	addr = (unsigned long) address;
-
-	printk("Addr                 == %08lx\n", addr);
-#ifdef CONFIG_64BIT
-	printk("tasks->mm.pgd        == %08lx\n", (unsigned long) t->mm->pgd);
-#endif
-
-#ifdef CONFIG_64BIT
-	page_dir = pgd_offset(t->mm, 0UL);
-	pgd = pgd_offset(t->mm, addr);
-#else
-	if (addr > KSEG0) {
-		page_dir = pgd_offset_k(0);
-		pgd = pgd_offset_k(addr);
-	} else if (t->mm) {
-		page_dir = pgd_offset(t->mm, 0);
-		pgd = pgd_offset(t->mm, addr);
-	} else {
-		printk("Current thread has no mm\n");
-		return;
-	}
-#endif
-	printk("page_dir == %0*lx\n", width, (unsigned long) page_dir);
-	printk("pgd == %0*lx\n", width, (unsigned long) pgd);
-
-	pud = pud_offset(pgd, addr);
-	printk("pud == %0*lx\n", width, (unsigned long) pud);
-
-	pmd = pmd_offset(pud, addr);
-	printk("pmd == %0*lx\n", width, (unsigned long) pmd);
-
-	pte = pte_offset(pmd, addr);
-	printk("pte == %0*lx\n", width, (unsigned long) pte);
-
-	page = *pte;
-#ifdef CONFIG_64BIT_PHYS_ADDR
-	printk("page == %08Lx\n", pte_val(page));
-#else
-	printk("page == %0*lx\n", width, pte_val(page));
-#endif
-
-	val = pte_val(page);
-	if (val & _PAGE_PRESENT) printk("present ");
-	if (val & _PAGE_READ) printk("read ");
-	if (val & _PAGE_WRITE) printk("write ");
-	if (val & _PAGE_ACCESSED) printk("accessed ");
-	if (val & _PAGE_MODIFIED) printk("modified ");
-	if (val & _PAGE_R4KBUG) printk("r4kbug ");
-	if (val & _PAGE_GLOBAL) printk("global ");
-	if (val & _PAGE_VALID) printk("valid ");
-	printk("\n");
-}
-
-void dump_list_current(void *address)
-{
-	dump_list_process(current, address);
-}
-
-unsigned long vtop(void *address)
-{
-	pgd_t	*pgd;
-	pud_t	*pud;
-	pmd_t	*pmd;
-	pte_t	*pte;
-	unsigned long addr, paddr;
-
-	addr = (unsigned long) address;
-	pgd = pgd_offset(current->mm, addr);
-	pud = pud_offset(pgd, addr);
-	pmd = pmd_offset(pud, addr);
-	pte = pte_offset(pmd, addr);
-	paddr = (CKSEG1 | (unsigned int) pte_val(*pte)) & PAGE_MASK;
-	paddr |= (addr & ~PAGE_MASK);
-
-	return paddr;
-}
-
-void dump16(unsigned long *p)
-{
-	int i;
-
-	for (i = 0; i < 8; i++) {
-		printk("*%08lx == %08lx, ", (unsigned long)p, *p);
-		p++;
-		printk("*%08lx == %08lx\n", (unsigned long)p, *p);
-		p++;
-	}
 }
