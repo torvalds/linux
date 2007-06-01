@@ -27,6 +27,7 @@
 #include <linux/bootmem.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
+#include <linux/sched.h>
 #include <asm/vmi.h>
 #include <asm/io.h>
 #include <asm/fixmap.h>
