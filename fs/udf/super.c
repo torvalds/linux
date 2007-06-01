@@ -1351,7 +1351,7 @@ udf_load_partition(struct super_block *sb, kernel_lb_addr *fileset)
 
 	for (i=0; i<UDF_SB_NUMPARTS(sb); i++)
 	{
-		switch UDF_SB_PARTTYPE(sb, i)
+		switch (UDF_SB_PARTTYPE(sb, i))
 		{
 			case UDF_VIRTUAL_MAP15:
 			case UDF_VIRTUAL_MAP20:

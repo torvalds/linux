@@ -197,7 +197,7 @@ skip:
 	return rc;
 }
 
-main()
+int main()
 {
 	int rc;
 

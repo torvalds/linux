@@ -71,19 +71,19 @@ static inline void pci0WriteConfigReg(unsigned int offset, unsigned int data)
 }
 
 static struct resource ocelot_mem_resource = {
-	start	= GT_PCI_MEM_BASE;
-	end	= GT_PCI_MEM_BASE + GT_PCI_MEM_BASE - 1;
+	.start	= GT_PCI_MEM_BASE,
+	.end	= GT_PCI_MEM_BASE + GT_PCI_MEM_BASE - 1,
 };
 
 static struct resource ocelot_io_resource = {
-	start	= GT_PCI_IO_BASE;
-	end	= GT_PCI_IO_BASE + GT_PCI_IO_SIZE - 1;
+	.start	= GT_PCI_IO_BASE,
+	.end	= GT_PCI_IO_BASE + GT_PCI_IO_SIZE - 1,
 };
 
 static struct pci_controller ocelot_pci_controller = {
-	.pci_ops	= gt64xxx_pci0_ops;
-	.mem_resource	= &ocelot_mem_resource;
-	.io_resource	= &ocelot_io_resource;
+	.pci_ops	= gt64xxx_pci0_ops,
+	.mem_resource	= &ocelot_mem_resource,
+	.io_resource	= &ocelot_io_resource,
 };
 
 static int __init ocelot_pcibios_init(void)

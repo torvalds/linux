@@ -630,7 +630,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 
 	fs = get_fs();
 	set_fs(KERNEL_DS);
-	if thumb_mode(regs) {
+	if (thumb_mode(regs)) {
 		fault = __get_user(tinstr, (u16 *)(instrptr & ~1));
 		if (!(fault))
 			instr = thumb2arm(tinstr);

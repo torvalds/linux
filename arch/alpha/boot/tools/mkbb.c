@@ -81,7 +81,7 @@ typedef union __bootblock {
 #define	bootblock_label		__u1.__label
 #define bootblock_checksum	__u2.__checksum
 
-main(int argc, char ** argv)
+int main(int argc, char ** argv)
 {
     bootblock		bootblock_from_disk;
     bootblock		bootloader_image;

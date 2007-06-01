@@ -550,7 +550,7 @@ static int fec_enet_rx_common(struct net_device *dev, int *budget)
 				skbn = dev_alloc_skb(pkt_len + 2);
 				if (skbn != NULL) {
 					skb_reserve(skbn, 2);	/* align IP header */
-					skb_copy_from_linear_data(skb
+					skb_copy_from_linear_data(skb,
 								  skbn->data,
 								  pkt_len);
 					/* swap */

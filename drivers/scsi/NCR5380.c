@@ -2625,7 +2625,7 @@ static void NCR5380_reselect(struct Scsi_Host *instance) {
 #ifdef REAL_DMA
 static void NCR5380_dma_complete(NCR5380_instance * instance) {
 	NCR5380_local_declare();
-	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata * instance->hostdata);
+	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
 	int transferred;
 	NCR5380_setup(instance);
 
