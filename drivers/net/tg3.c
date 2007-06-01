@@ -9121,21 +9121,6 @@ static void tg3_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 	if (netif_running(dev))
 		tg3_netif_start(tp);
 }
-
-static void tg3_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
-{
-	struct tg3 *tp = netdev_priv(dev);
-
-	if (netif_running(dev))
-		tg3_netif_stop(tp);
-
-	tg3_full_lock(tp, 0);
-	vlan_group_set_device(tp->vlgrp, vid, NULL);
-	tg3_full_unlock(tp);
-
-	if (netif_running(dev))
-		tg3_netif_start(tp);
-}
 #endif
 
 static int tg3_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
@@ -11778,7 +11763,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 #if TG3_VLAN_TAG_USED
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 	dev->vlan_rx_register = tg3_vlan_rx_register;
-	dev->vlan_rx_kill_vid = tg3_vlan_rx_kill_vid;
 #endif
 
 	tp = netdev_priv(dev);

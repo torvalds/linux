@@ -4786,19 +4786,6 @@ bnx2_vlan_rx_register(struct net_device *dev, struct vlan_group *vlgrp)
 
 	bnx2_netif_start(bp);
 }
-
-/* Called with rtnl_lock */
-static void
-bnx2_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
-{
-	struct bnx2 *bp = netdev_priv(dev);
-
-	bnx2_netif_stop(bp);
-	vlan_group_set_device(bp->vlgrp, vid, NULL);
-	bnx2_set_rx_mode(dev);
-
-	bnx2_netif_start(bp);
-}
 #endif
 
 /* Called with netif_tx_lock.
@@ -6453,7 +6440,6 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->watchdog_timeo = TX_TIMEOUT;
 #ifdef BCM_VLAN
 	dev->vlan_rx_register = bnx2_vlan_rx_register;
-	dev->vlan_rx_kill_vid = bnx2_vlan_rx_kill_vid;
 #endif
 	dev->poll = bnx2_poll;
 	dev->ethtool_ops = &bnx2_ethtool_ops;

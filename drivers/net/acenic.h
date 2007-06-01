@@ -787,7 +787,6 @@ static struct net_device_stats *ace_get_stats(struct net_device *dev);
 static int read_eeprom_byte(struct net_device *dev, unsigned long offset);
 #if ACENIC_DO_VLAN
 static void ace_vlan_rx_register(struct net_device *dev, struct vlan_group *grp);
-static void ace_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid);
 #endif
 
 #endif /* _ACENIC_H_ */
