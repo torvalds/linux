@@ -132,7 +132,6 @@ static struct fb_info info;
 static struct xxx_par __initdata current_par;
 
 int xxxfb_init(void);
-int xxxfb_setup(char*);
 
 /**
  *	xxxfb_open - Optional function. Called when the framebuffer is
@@ -975,6 +974,21 @@ static struct platform_device xxxfb_device = {
 	.name = "xxxfb",
 };
 
+#ifndef MODULE
+    /*
+     *  Setup
+     */
+
+/*
+ * Only necessary if your driver takes special options,
+ * otherwise we fall back on the generic fb_setup().
+ */
+int __init xxxfb_setup(char *options)
+{
+    /* Parse user speficied options (`video=xxxfb:') */
+}
+#endif /* MODULE */
+
 static int __init xxxfb_init(void)
 {
 	int ret;
@@ -1005,21 +1019,6 @@ static void __exit xxxfb_exit(void)
 	driver_unregister(&xxxfb_driver);
 }
 #endif /* CONFIG_PCI */
-
-#ifdef MODULE
-    /*
-     *  Setup
-     */
-
-/* 
- * Only necessary if your driver takes special options,
- * otherwise we fall back on the generic fb_setup().
- */
-int __init xxxfb_setup(char *options)
-{
-    /* Parse user speficied options (`video=xxxfb:') */
-}
-#endif /* MODULE */
 
 /* ------------------------------------------------------------------------- */
 
