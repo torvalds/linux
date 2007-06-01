@@ -35,7 +35,8 @@
 		       dev->pci_device == 0x2982 || \
 		       dev->pci_device == 0x2992 || \
 		       dev->pci_device == 0x29A2 || \
-		       dev->pci_device == 0x2A02)
+		       dev->pci_device == 0x2A02 || \
+		       dev->pci_device == 0x2A12)
 
 /* Really want an OS-independent resettable timer.  Would like to have
  * this loop run for (eg) 3 sec, but have the timer reset every time
