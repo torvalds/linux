@@ -23,6 +23,7 @@
 #include <linux/personality.h>
 #include <linux/binfmts.h>
 #include <linux/freezer.h>
+#include <linux/io.h>
 #include <asm/system.h>
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
