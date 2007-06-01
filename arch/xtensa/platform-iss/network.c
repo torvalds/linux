@@ -473,7 +473,7 @@ static int iss_net_open(struct net_device *dev)
 	netif_start_queue(dev);
 
 	/* clear buffer - it can happen that the host side of the interface
-	 * is full when we gethere. In this case, new data is never queued,
+	 * is full when we get here. In this case, new data is never queued,
 	 * SIGIOs never arrive, and the net never works.
 	 */
 	while ((err = iss_net_rx(dev)) > 0)
