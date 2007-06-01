@@ -460,8 +460,8 @@ static struct buffer_head * inode_getblk(struct inode * inode, sector_t block,
 	kernel_long_ad laarr[EXTENT_MERGE_SIZE];
 	struct extent_position prev_epos, cur_epos, next_epos;
 	int count = 0, startnum = 0, endnum = 0;
-	uint32_t elen = 0;
-	kernel_lb_addr eloc;
+	uint32_t elen = 0, tmpelen;
+	kernel_lb_addr eloc, tmpeloc;
 	int c = 1;
 	loff_t lbcount = 0, b_off = 0;
 	uint32_t newblocknum, newblock;
@@ -520,8 +520,12 @@ static struct buffer_head * inode_getblk(struct inode * inode, sector_t block,
 
 	b_off -= lbcount;
 	offset = b_off >> inode->i_sb->s_blocksize_bits;
-	/* Move into indirect extent if we are at a pointer to it */
-	udf_next_aext(inode, &prev_epos, &eloc, &elen, 0);
+	/*
+	 * Move prev_epos and cur_epos into indirect extent if we are at
+	 * the pointer to it
+	 */
+	udf_next_aext(inode, &prev_epos, &tmpeloc, &tmpelen, 0);
+	udf_next_aext(inode, &cur_epos, &tmpeloc, &tmpelen, 0);
 
 	/* if the extent is allocated and recorded, return the block
        if the extent is not a multiple of the blocksize, round up */
