@@ -2608,6 +2608,19 @@ static void for_all_slabs(void (*func)(struct kmem_cache *, int), int cpu)
 }
 
 /*
+ * Version of __flush_cpu_slab for the case that interrupts
+ * are enabled.
+ */
+static void cpu_slab_flush(struct kmem_cache *s, int cpu)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	__flush_cpu_slab(s, cpu);
+	local_irq_restore(flags);
+}
+
+/*
  * Use the cpu notifier to insure that the cpu slabs are flushed when
  * necessary.
  */
@@ -2621,7 +2634,7 @@ static int __cpuinit slab_cpuup_callback(struct notifier_block *nfb,
 	case CPU_UP_CANCELED_FROZEN:
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
-		for_all_slabs(__flush_cpu_slab, cpu);
+		for_all_slabs(cpu_slab_flush, cpu);
 		break;
 	default:
 		break;
