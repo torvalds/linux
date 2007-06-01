@@ -71,7 +71,7 @@ void mac_debugging_short(int pos, short num)
 
 	/* calculate current offset */
 	pengoffset = (unsigned char *)mac_videobase +
-		(150+line*2) * mac_rowbytes) + 80 * peng;
+		(150+line*2) * mac_rowbytes + 80 * peng;
 
 	pptr = pengoffset;
 
