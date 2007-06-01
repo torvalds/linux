@@ -77,8 +77,6 @@ static const char *sctp_cid_tbl[SCTP_NUM_BASE_CHUNK_TYPES] = {
 /* Lookup "chunk type" debug name. */
 const char *sctp_cname(const sctp_subtype_t cid)
 {
-	if (cid.chunk < 0)
-		return "illegal chunk id";
 	if (cid.chunk <= SCTP_CID_BASE_MAX)
 		return sctp_cid_tbl[cid.chunk];
 
@@ -146,8 +144,6 @@ static const char *sctp_primitive_tbl[SCTP_NUM_PRIMITIVE_TYPES] = {
 /* Lookup primitive debug name. */
 const char *sctp_pname(const sctp_subtype_t id)
 {
-	if (id.primitive < 0)
-		return "illegal primitive";
 	if (id.primitive <= SCTP_EVENT_PRIMITIVE_MAX)
 		return sctp_primitive_tbl[id.primitive];
 	return "unknown_primitive";
@@ -161,8 +157,6 @@ static const char *sctp_other_tbl[] = {
 /* Lookup "other" debug name. */
 const char *sctp_oname(const sctp_subtype_t id)
 {
-	if (id.other < 0)
-		return "illegal 'other' event";
 	if (id.other <= SCTP_EVENT_OTHER_MAX)
 		return sctp_other_tbl[id.other];
 	return "unknown 'other' event";
@@ -184,8 +178,6 @@ static const char *sctp_timer_tbl[] = {
 /* Lookup timer debug name. */
 const char *sctp_tname(const sctp_subtype_t id)
 {
-	if (id.timeout < 0)
-		return "illegal 'timer' event";
 	if (id.timeout <= SCTP_EVENT_TIMEOUT_MAX)
 		return sctp_timer_tbl[id.timeout];
 	return "unknown_timer";
