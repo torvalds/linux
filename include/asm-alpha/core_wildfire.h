@@ -295,7 +295,7 @@ __EXTERN_INLINE int wildfire_is_ioaddr(unsigned long addr)
 
 __EXTERN_INLINE int wildfire_is_mmio(const volatile void __iomem *xaddr)
 {
-	unsigned long addr = (unsigned long)addr;
+	unsigned long addr = (unsigned long)xaddr;
 	return (addr & 0x100000000UL) == 0;
 }
 
