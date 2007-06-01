@@ -260,7 +260,7 @@ static int nodeid_to_addr(int nodeid, struct sockaddr *retaddr)
 static void lowcomms_data_ready(struct sock *sk, int count_unused)
 {
 	struct connection *con = sock2con(sk);
-	if (!test_and_set_bit(CF_READ_PENDING, &con->flags))
+	if (con && !test_and_set_bit(CF_READ_PENDING, &con->flags))
 		queue_work(recv_workqueue, &con->rwork);
 }
 
@@ -268,7 +268,7 @@ static void lowcomms_write_space(struct sock *sk)
 {
 	struct connection *con = sock2con(sk);
 
-	if (!test_and_set_bit(CF_WRITE_PENDING, &con->flags))
+	if (con && !test_and_set_bit(CF_WRITE_PENDING, &con->flags))
 		queue_work(send_workqueue, &con->swork);
 }
 
@@ -1400,8 +1400,11 @@ void dlm_lowcomms_stop(void)
 	down(&connections_lock);
 	for (i = 0; i <= max_nodeid; i++) {
 		con = __nodeid2con(i, 0);
-		if (con)
+		if (con) {
 			con->flags |= 0xFF;
+			if (con->sock)
+				con->sock->sk->sk_user_data = NULL;
+		}
 	}
 	up(&connections_lock);
 
