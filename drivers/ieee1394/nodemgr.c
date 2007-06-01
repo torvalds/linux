@@ -976,7 +976,8 @@ static struct unit_directory *nodemgr_process_unit_directory
 
 	ud->ne = ne;
 	ud->ignore_driver = ignore_drivers;
-	ud->address = ud_kv->offset + CSR1212_CONFIG_ROM_SPACE_BASE;
+	ud->address = ud_kv->offset + CSR1212_REGISTER_SPACE_BASE;
+	ud->directory_id = ud->address & 0xffffff;
 	ud->ud_kv = ud_kv;
 	ud->id = (*id)++;
 
@@ -1083,6 +1084,10 @@ static struct unit_directory *nodemgr_process_unit_directory
 				nodemgr_register_device(ne, ud_child, &ud->device);
 			}
 
+			break;
+
+		case CSR1212_KV_ID_DIRECTORY_ID:
+			ud->directory_id = kv->value.immediate;
 			break;
 
 		default:

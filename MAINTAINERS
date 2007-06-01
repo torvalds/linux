@@ -1498,6 +1498,14 @@ P:	Alexander Viro
 M:	viro@zeniv.linux.org.uk
 S:	Maintained
 
+FIREWIRE SUBSYSTEM
+P:	Kristian Hoegsberg, Stefan Richter
+M:	krh@redhat.com, stefanr@s5r6.in-berlin.de
+L:	linux1394-devel@lists.sourceforge.net
+W:	http://www.linux1394.org/
+T:	git kernel.org:/pub/scm/linux/kernel/git/ieee1394/linux1394-2.6.git
+S:	Maintained
+
 FIRMWARE LOADER (request_firmware)
 L:	linux-kernel@vger.kernel.org
 S:	Orphan
