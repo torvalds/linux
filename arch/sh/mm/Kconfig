@@ -58,6 +58,7 @@ config CPU_SUBTYPE_SH7619
 config CPU_SUBTYPE_SH7206
 	bool "Support SH7206 processor"
 	select CPU_SH2A
+	select CPU_HAS_IPR_IRQ
 
 # SH-3 Processor Support
 
