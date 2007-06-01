@@ -380,12 +380,7 @@ struct el_PRIVATEER_envdata_mcheck {
 /*
  * Memory functions.  all accesses are done through linear space.
  */
-
-__EXTERN_INLINE void __iomem *titan_ioportmap(unsigned long addr)
-{
-	return (void __iomem *)(addr + TITAN_IO_BIAS);
-}
-
+extern void __iomem *titan_ioportmap(unsigned long addr);
 extern void __iomem *titan_ioremap(unsigned long addr, unsigned long size);
 extern void titan_iounmap(volatile void __iomem *addr);
 

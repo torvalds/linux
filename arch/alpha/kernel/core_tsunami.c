@@ -19,6 +19,7 @@
 
 #include <asm/ptrace.h>
 #include <asm/smp.h>
+#include <asm/vga.h>
 
 #include "proto.h"
 #include "pci_impl.h"
@@ -349,6 +350,26 @@ tsunami_init_one_pchip(tsunami_pchip *pchip, int index)
 	tsunami_pci_tbi(hose, 0, -1);
 }
 
+
+void __iomem *
+tsunami_ioportmap(unsigned long addr)
+{
+	FIXUP_IOADDR_VGA(addr);
+	return (void __iomem *)(addr + TSUNAMI_IO_BIAS);
+}
+
+void __iomem *
+tsunami_ioremap(unsigned long addr, unsigned long size)
+{
+	FIXUP_MEMADDR_VGA(addr);
+	return (void __iomem *)(addr + TSUNAMI_MEM_BIAS);
+}
+
+#ifndef CONFIG_ALPHA_GENERIC
+EXPORT_SYMBOL(tsunami_ioportmap);
+EXPORT_SYMBOL(tsunami_ioremap);
+#endif
+
 void __init
 tsunami_init_arch(void)
 {
@@ -393,6 +414,9 @@ tsunami_init_arch(void)
 	tsunami_init_one_pchip(TSUNAMI_pchip0, 0);
 	if (TSUNAMI_cchip->csc.csr & 1L<<14)
 		tsunami_init_one_pchip(TSUNAMI_pchip1, 1);
+
+	/* Check for graphic console location (if any).  */
+	find_console_vga_hose();
 }
 
 static void

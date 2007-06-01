@@ -108,6 +108,15 @@ extern int wildfire_cpuid_to_nid(int);
 extern unsigned long wildfire_node_mem_start(int);
 extern unsigned long wildfire_node_mem_size(int);
 
+/* console.c */
+#ifdef CONFIG_VGA_HOSE
+extern void find_console_vga_hose(void);
+extern void locate_and_init_vga(void *(*)(void *, void *));
+#else
+static inline void find_console_vga_hose(void) { }
+static inline void locate_and_init_vga(void *(*sel_func)(void *, void *)) { }
+#endif
+
 /* setup.c */
 extern unsigned long srm_hae;
 extern int boot_cpuid;

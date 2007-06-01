@@ -331,9 +331,7 @@ titan_init_pci(void)
 	pci_probe_only = 1;
 	common_init_pci();
 	SMC669_Init(0);
-#ifdef CONFIG_VGA_HOSE
 	locate_and_init_vga(NULL);
-#endif
 }
 
 

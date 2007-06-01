@@ -25,6 +25,7 @@
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/rtc.h>
+#include <asm/vga.h>
 
 #include "proto.h"
 #include "pci_impl.h"
@@ -367,9 +368,8 @@ marvel_io7_present(gct6_node *node)
 }
 
 static void __init
-marvel_init_vga_hose(void)
+marvel_find_console_vga_hose(void)
 {
-#ifdef CONFIG_VGA_HOSE
 	u64 *pu64 = (u64 *)((u64)hwrpb + hwrpb->ctbt_offset);
 
 	if (pu64[7] == 3) {	/* TERM_TYPE == graphics */
@@ -403,7 +403,6 @@ marvel_init_vga_hose(void)
 			pci_vga_hose = hose;
 		}
 	}
-#endif /* CONFIG_VGA_HOSE */
 }
 
 gct6_search_struct gct_wanted_node_list[] = {
@@ -459,7 +458,7 @@ marvel_init_arch(void)
 		marvel_init_io7(io7);
 
 	/* Check for graphic console location (if any).  */
-	marvel_init_vga_hose();
+	marvel_find_console_vga_hose();
 }
 
 void
@@ -684,9 +683,6 @@ __marvel_rtc_io(u8 b, unsigned long addr, int write)
 /*
  * IO map support.
  */
-
-#define __marvel_is_mem_vga(a)	(((a) >= 0xa0000) && ((a) <= 0xc0000))
-
 void __iomem *
 marvel_ioremap(unsigned long addr, unsigned long size)
 {
@@ -698,13 +694,9 @@ marvel_ioremap(unsigned long addr, unsigned long size)
 	unsigned long pfn;
 
 	/*
-	 * Adjust the addr.
+	 * Adjust the address.
 	 */ 
-#ifdef CONFIG_VGA_HOSE
-	if (pci_vga_hose && __marvel_is_mem_vga(addr)) {
-		addr += pci_vga_hose->mem_space->start;
-	}
-#endif
+	FIXUP_MEMADDR_VGA(addr);
 
 	/*
 	 * Find the hose.
@@ -781,7 +773,9 @@ marvel_ioremap(unsigned long addr, unsigned long size)
 		return (void __iomem *) vaddr;
 	}
 
-	return NULL;
+	/* Assume it was already a reasonable address */
+	vaddr = baddr + hose->mem_space->start;
+	return (void __iomem *) vaddr;
 }
 
 void
@@ -803,21 +797,12 @@ marvel_is_mmio(const volatile void __iomem *xaddr)
 		return (addr & 0xFF000000UL) == 0;
 }
 
-#define __marvel_is_port_vga(a)	\
-  (((a) >= 0x3b0) && ((a) < 0x3e0) && ((a) != 0x3b3) && ((a) != 0x3d3))
 #define __marvel_is_port_kbd(a)	(((a) == 0x60) || ((a) == 0x64))
 #define __marvel_is_port_rtc(a)	(((a) == 0x70) || ((a) == 0x71))
 
 void __iomem *marvel_ioportmap (unsigned long addr)
 {
-	if (__marvel_is_port_rtc (addr) || __marvel_is_port_kbd(addr))
-		;
-#ifdef CONFIG_VGA_HOSE
-	else if (__marvel_is_port_vga (addr) && pci_vga_hose)
-		addr += pci_vga_hose->io_space->start;
-#endif
-	else
-		return NULL;
+	FIXUP_IOADDR_VGA(addr);
 	return (void __iomem *)addr;
 }
 
@@ -829,8 +814,14 @@ marvel_ioread8(void __iomem *xaddr)
 		return 0;
 	else if (__marvel_is_port_rtc(addr))
 		return __marvel_rtc_io(0, addr, 0);
-	else
+	else if (marvel_is_ioaddr(addr))
 		return __kernel_ldbu(*(vucp)addr);
+	else
+		/* this should catch other legacy addresses
+		   that would normally fail on MARVEL,
+		   because there really is nothing there...
+		*/
+		return ~0;
 }
 
 void
@@ -841,7 +832,7 @@ marvel_iowrite8(u8 b, void __iomem *xaddr)
 		return;
 	else if (__marvel_is_port_rtc(addr)) 
 		__marvel_rtc_io(b, addr, 1);
-	else
+	else if (marvel_is_ioaddr(addr))
 		__kernel_stb(b, *(vucp)addr);
 }
 

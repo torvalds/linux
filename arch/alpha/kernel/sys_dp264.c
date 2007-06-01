@@ -543,6 +543,7 @@ dp264_init_pci(void)
 {
 	common_init_pci();
 	SMC669_Init(0);
+	locate_and_init_vga(NULL);
 }
 
 static void __init
@@ -551,6 +552,14 @@ monet_init_pci(void)
 	common_init_pci();
 	SMC669_Init(1);
 	es1888_init();
+	locate_and_init_vga(NULL);
+}
+
+static void __init
+clipper_init_pci(void)
+{
+	common_init_pci();
+	locate_and_init_vga(NULL);
 }
 
 static void __init
@@ -655,7 +664,7 @@ struct alpha_machine_vector clipper_mv __initmv = {
 	.init_arch		= tsunami_init_arch,
 	.init_irq		= clipper_init_irq,
 	.init_rtc		= common_init_rtc,
-	.init_pci		= common_init_pci,
+	.init_pci		= clipper_init_pci,
 	.kill_arch		= tsunami_kill_arch,
 	.pci_map_irq		= clipper_map_irq,
 	.pci_swizzle		= common_swizzle,

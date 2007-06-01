@@ -2,6 +2,7 @@
 #define __ALPHA_TSUNAMI__H__
 
 #include <linux/types.h>
+#include <linux/pci.h>
 #include <asm/compiler.h>
 
 /*
@@ -302,18 +303,8 @@ struct el_TSUNAMI_sysdata_mcheck {
 /*
  * Memory functions.  all accesses are done through linear space.
  */
-
-__EXTERN_INLINE void __iomem *tsunami_ioportmap(unsigned long addr)
-{
-	return (void __iomem *)(addr + TSUNAMI_IO_BIAS);
-}
-
-__EXTERN_INLINE void __iomem *tsunami_ioremap(unsigned long addr, 
-					      unsigned long size)
-{
-	return (void __iomem *)(addr + TSUNAMI_MEM_BIAS);
-}
-
+extern void __iomem *tsunami_ioportmap(unsigned long addr);
+extern void __iomem *tsunami_ioremap(unsigned long addr, unsigned long size);
 __EXTERN_INLINE int tsunami_is_ioaddr(unsigned long addr)
 {
 	return addr >= TSUNAMI_BASE;
