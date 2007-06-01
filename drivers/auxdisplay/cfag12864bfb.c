@@ -73,9 +73,11 @@ static int cfag12864bfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 static struct fb_ops cfag12864bfb_ops = {
 	.owner = THIS_MODULE,
-	.fb_fillrect = cfb_fillrect,
-	.fb_copyarea = cfb_copyarea,
-	.fb_imageblit = cfb_imageblit,
+	.fb_read = fb_sys_read,
+	.fb_write = fb_sys_write,
+	.fb_fillrect = sys_fillrect,
+	.fb_copyarea = sys_copyarea,
+	.fb_imageblit = sys_imageblit,
 	.fb_mmap = cfag12864bfb_mmap,
 };
 
