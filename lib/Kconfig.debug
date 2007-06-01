@@ -126,7 +126,10 @@ config TIMER_STATS
 	  reprogrammed. The statistics can be read from /proc/timer_stats.
 	  The statistics collection is started by writing 1 to /proc/timer_stats,
 	  writing 0 stops it. This feature is useful to collect information
-	  about timer usage patterns in kernel and userspace.
+	  about timer usage patterns in kernel and userspace. This feature
+	  is lightweight if enabled in the kernel config but not activated
+	  (it defaults to deactivated on bootup and will only be activated
+	  if some application like powertop activates it explicitly).
 
 config DEBUG_SLAB
 	bool "Debug slab memory allocations"

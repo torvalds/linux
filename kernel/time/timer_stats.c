@@ -236,9 +236,14 @@ void timer_stats_update_stats(void *timer, pid_t pid, void *startf,
 	/*
 	 * It doesnt matter which lock we take:
 	 */
-	spinlock_t *lock = &per_cpu(lookup_lock, raw_smp_processor_id());
+	spinlock_t *lock;
 	struct entry *entry, input;
 	unsigned long flags;
+
+	if (likely(!active))
+		return;
+
+	lock = &per_cpu(lookup_lock, raw_smp_processor_id());
 
 	input.timer = timer;
 	input.start_func = startf;

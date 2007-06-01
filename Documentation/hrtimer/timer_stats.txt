@@ -2,9 +2,10 @@ timer_stats - timer usage statistics
 ------------------------------------
 
 timer_stats is a debugging facility to make the timer (ab)usage in a Linux
-system visible to kernel and userspace developers. It is not intended for
-production usage as it adds significant overhead to the (hr)timer code and the
-(hr)timer data structures.
+system visible to kernel and userspace developers. If enabled in the config
+but not used it has almost zero runtime overhead, and a relatively small
+data structure overhead. Even if collection is enabled runtime all the
+locking is per-CPU and lookup is hashed.
 
 timer_stats should be used by kernel and userspace developers to verify that
 their code does not make unduly use of timers. This helps to avoid unnecessary
