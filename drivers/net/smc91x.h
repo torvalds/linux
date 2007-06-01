@@ -281,17 +281,14 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 
 #elif   defined(CONFIG_SUPERH)
 
-#if defined(CONFIG_SH_7780_SOLUTION_ENGINE) || defined(CONFIG_SH_7722_SOLUTION_ENGINE)
+#ifdef CONFIG_SOLUTION_ENGINE
 #define SMC_CAN_USE_8BIT       0
 #define SMC_CAN_USE_16BIT      1
 #define SMC_CAN_USE_32BIT      0
 #define SMC_IO_SHIFT           0
 #define SMC_NOWAIT             1
 
-#define SMC_inb(a, r)          (inw((a) + ((r)&~1)) >> (8*(r%2)))&0xff
 #define SMC_inw(a, r)          inw((a) + (r))
-#define SMC_outb(v, a, r)      outw(((inw((a)+((r)&~1))*(0xff<<8*(r%2)))) | ((v)<<(8*(r&2)))), (a) + ((r)&~1))
-
 #define SMC_outw(v, a, r)      outw(v, (a) + (r))
 #define SMC_insw(a, r, p, l)   insw((a) + (r), p, l)
 #define SMC_outsw(a, r, p, l)  outsw((a) + (r), p, l)
