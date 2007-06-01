@@ -106,9 +106,9 @@ static int get_sb_mtd_nr(struct file_system_type *fs_type, int flags,
 	struct mtd_info *mtd;
 
 	mtd = get_mtd_device(NULL, mtdnr);
-	if (!mtd) {
+	if (IS_ERR(mtd)) {
 		DEBUG(0, "MTDSB: Device #%u doesn't appear to exist\n", mtdnr);
-		return -EINVAL;
+		return PTR_ERR(mtd);
 	}
 
 	return get_sb_mtd_aux(fs_type, flags, dev_name, data, mtd, fill_super,
@@ -145,7 +145,7 @@ int get_sb_mtd(struct file_system_type *fs_type, int flags,
 
 			for (mtdnr = 0; mtdnr < MAX_MTD_DEVICES; mtdnr++) {
 				mtd = get_mtd_device(NULL, mtdnr);
-				if (mtd) {
+				if (!IS_ERR(mtd)) {
 					if (!strcmp(mtd->name, dev_name + 4))
 						return get_sb_mtd_aux(
 							fs_type, flags,
