@@ -498,7 +498,7 @@ static int pm3fb_set_par(struct fb_info *info)
 	else
 		par->video |= PM3VideoControl_LINE_DOUBLE_OFF;
 
-	if (info->var.activate == FB_ACTIVATE_NOW)
+	if ((info->var.activate & FB_ACTIVATE_MASK) == FB_ACTIVATE_NOW)
 		par->video |= PM3VideoControl_ENABLE;
 	else {
 		par->video |= PM3VideoControl_DISABLE;
