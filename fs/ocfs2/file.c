@@ -1822,7 +1822,6 @@ const struct inode_operations ocfs2_special_file_iops = {
 const struct file_operations ocfs2_fops = {
 	.read		= do_sync_read,
 	.write		= do_sync_write,
-	.sendfile	= generic_file_sendfile,
 	.mmap		= ocfs2_mmap,
 	.fsync		= ocfs2_sync_file,
 	.release	= ocfs2_file_release,
