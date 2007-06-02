@@ -68,6 +68,10 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *user_obj,
 				union acpi_operand_object **return_obj);
 
 static acpi_status
+acpi_ut_copy_epackage_to_ipackage(union acpi_object *external_object,
+				  union acpi_operand_object **internal_object);
+
+static acpi_status
 acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 			   union acpi_operand_object *dest_desc);
 
@@ -518,77 +522,73 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 	return_ACPI_STATUS(AE_NO_MEMORY);
 }
 
-#ifdef ACPI_FUTURE_IMPLEMENTATION
-/* Code to convert packages that are parameters to control methods */
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_copy_epackage_to_ipackage
  *
- * PARAMETERS:  *internal_object   - Pointer to the object we are returning
- *              *Buffer            - Where the object is returned
- *              *space_used        - Where the length of the object is returned
+ * PARAMETERS:  external_object     - The external object to be converted
+ *              internal_object     - Where the internal object is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: This function is called to place a package object in a user
- *              buffer.  A package object by definition contains other objects.
- *
- *              The buffer is assumed to have sufficient space for the object.
- *              The caller must have verified the buffer length needed using the
- *              acpi_ut_get_object_size function before calling this function.
+ * DESCRIPTION: Copy an external package object to an internal package.
+ *              Handles nested packages.
  *
  ******************************************************************************/
 
 static acpi_status
-acpi_ut_copy_epackage_to_ipackage(union acpi_operand_object *internal_object,
-				  u8 * buffer, u32 * space_used)
+acpi_ut_copy_epackage_to_ipackage(union acpi_object *external_object,
+				  union acpi_operand_object **internal_object)
 {
-	u8 *free_space;
-	union acpi_object *external_object;
-	u32 length = 0;
-	u32 this_index;
-	u32 object_space = 0;
-	union acpi_operand_object *this_internal_obj;
-	union acpi_object *this_external_obj;
+	acpi_status status = AE_OK;
+	union acpi_operand_object *package_object;
+	union acpi_operand_object **package_elements;
+	acpi_native_uint i;
 
 	ACPI_FUNCTION_TRACE(ut_copy_epackage_to_ipackage);
 
-	/*
-	 * First package at head of the buffer
-	 */
-	external_object = (union acpi_object *)buffer;
+	/* Create the package object */
+
+	package_object =
+	    acpi_ut_create_package_object(external_object->package.count);
+	if (!package_object) {
+		return_ACPI_STATUS(AE_NO_MEMORY);
+	}
+
+	package_elements = package_object->package.elements;
 
 	/*
-	 * Free space begins right after the first package
+	 * Recursive implementation. Probably ok, since nested external packages
+	 * as parameters should be very rare.
 	 */
-	free_space = buffer + sizeof(union acpi_object);
+	for (i = 0; i < external_object->package.count; i++) {
+		status =
+		    acpi_ut_copy_eobject_to_iobject(&external_object->package.
+						    elements[i],
+						    &package_elements[i]);
+		if (ACPI_FAILURE(status)) {
 
-	external_object->type = ACPI_GET_OBJECT_TYPE(internal_object);
-	external_object->package.count = internal_object->package.count;
-	external_object->package.elements = (union acpi_object *)free_space;
+			/* Truncate package and delete it */
 
-	/*
-	 * Build an array of ACPI_OBJECTS in the buffer
-	 * and move the free space past it
-	 */
-	free_space +=
-	    external_object->package.count * sizeof(union acpi_object);
+			package_object->package.count = i;
+			package_elements[i] = NULL;
+			acpi_ut_remove_reference(package_object);
+			return_ACPI_STATUS(status);
+		}
+	}
 
-	/* Call walk_package */
-
+	*internal_object = package_object;
+	return_ACPI_STATUS(status);
 }
-
-#endif				/* Future implementation */
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_copy_eobject_to_iobject
  *
- * PARAMETERS:  *internal_object   - The external object to be converted
- *              *buffer_ptr     - Where the internal object is returned
+ * PARAMETERS:  external_object     - The external object to be converted
+ *              internal_object     - Where the internal object is returned
  *
- * RETURN:      Status          - the status of the call
+ * RETURN:      Status              - the status of the call
  *
  * DESCRIPTION: Converts an external object to an internal object.
  *
@@ -603,16 +603,10 @@ acpi_ut_copy_eobject_to_iobject(union acpi_object *external_object,
 	ACPI_FUNCTION_TRACE(ut_copy_eobject_to_iobject);
 
 	if (external_object->type == ACPI_TYPE_PACKAGE) {
-		/*
-		 * Packages as external input to control methods are not supported,
-		 */
-		ACPI_ERROR((AE_INFO,
-			    "Packages as parameters not implemented!"));
-
-		return_ACPI_STATUS(AE_NOT_IMPLEMENTED);
-	}
-
-	else {
+		status =
+		    acpi_ut_copy_epackage_to_ipackage(external_object,
+						      internal_object);
+	} else {
 		/*
 		 * Build a simple object (no nested objects)
 		 */
@@ -803,33 +797,19 @@ acpi_ut_copy_ielement_to_ielement(u8 object_type,
 		 * Create and build the package object
 		 */
 		target_object =
-		    acpi_ut_create_internal_object(ACPI_TYPE_PACKAGE);
+		    acpi_ut_create_package_object(source_object->package.count);
 		if (!target_object) {
 			return (AE_NO_MEMORY);
 		}
 
-		target_object->package.count = source_object->package.count;
 		target_object->common.flags = source_object->common.flags;
 
-		/*
-		 * Create the object array
-		 */
-		target_object->package.elements =
-		    ACPI_ALLOCATE_ZEROED(((acpi_size) source_object->package.
-					  count + 1) * sizeof(void *));
-		if (!target_object->package.elements) {
-			status = AE_NO_MEMORY;
-			goto error_exit;
-		}
+		/* Pass the new package object back to the package walk routine */
 
-		/*
-		 * Pass the new package object back to the package walk routine
-		 */
 		state->pkg.this_target_obj = target_object;
 
-		/*
-		 * Store the object pointer in the parent package object
-		 */
+		/* Store the object pointer in the parent package object */
+
 		*this_target_ptr = target_object;
 		break;
 

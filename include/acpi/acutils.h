@@ -390,6 +390,8 @@ void acpi_ut_delete_object_desc(union acpi_operand_object *object);
 
 u8 acpi_ut_valid_internal_object(void *object);
 
+union acpi_operand_object *acpi_ut_create_package_object(u32 count);
+
 union acpi_operand_object *acpi_ut_create_buffer_object(acpi_size buffer_size);
 
 union acpi_operand_object *acpi_ut_create_string_object(acpi_size string_size);

@@ -138,7 +138,7 @@ Hot keys
 --------
 
 procfs: /proc/acpi/ibm/hotkey
-sysfs device attribute: hotkey/*
+sysfs device attribute: hotkey_*
 
 Without this driver, only the Fn-F4 key (sleep button) generates an
 ACPI event. With the driver loaded, the hotkey feature enabled and the
@@ -196,10 +196,7 @@ The following commands can be written to the /proc/acpi/ibm/hotkey file:
 
 sysfs notes:
 
-	The hot keys attributes are in a hotkey/ subdirectory off the
-	thinkpad device.
-
-	bios_enabled:
+	hotkey_bios_enabled:
 		Returns the status of the hot keys feature when
 		thinkpad-acpi was loaded.  Upon module unload, the hot
 		key feature status will be restored to this value.
@@ -207,19 +204,19 @@ sysfs notes:
 		0: hot keys were disabled
 		1: hot keys were enabled
 
-	bios_mask:
+	hotkey_bios_mask:
 		Returns the hot keys mask when thinkpad-acpi was loaded.
 		Upon module unload, the hot keys mask will be restored
 		to this value.
 
-	enable:
+	hotkey_enable:
 		Enables/disables the hot keys feature, and reports
 		current status of the hot keys feature.
 
 		0: disables the hot keys feature / feature disabled
 		1: enables the hot keys feature / feature enabled
 
-	mask:
+	hotkey_mask:
 		bit mask to enable ACPI event generation for each hot
 		key (see above).  Returns the current status of the hot
 		keys mask, and allows one to modify it.
@@ -229,7 +226,7 @@ Bluetooth
 ---------
 
 procfs: /proc/acpi/ibm/bluetooth
-sysfs device attribute: bluetooth/enable
+sysfs device attribute: bluetooth_enable
 
 This feature shows the presence and current state of a ThinkPad
 Bluetooth device in the internal ThinkPad CDC slot.
@@ -244,7 +241,7 @@ If Bluetooth is installed, the following commands can be used:
 Sysfs notes:
 
 	If the Bluetooth CDC card is installed, it can be enabled /
-	disabled through the "bluetooth/enable" thinkpad-acpi device
+	disabled through the "bluetooth_enable" thinkpad-acpi device
 	attribute, and its current status can also be queried.
 
 	enable:
@@ -252,7 +249,7 @@ Sysfs notes:
 		1: enables Bluetooth / Bluetooth is enabled.
 
 	Note: this interface will be probably be superseeded by the
-	generic rfkill class.
+	generic rfkill class, so it is NOT to be considered stable yet.
 
 Video output control -- /proc/acpi/ibm/video
 --------------------------------------------
@@ -898,7 +895,7 @@ EXPERIMENTAL: WAN
 -----------------
 
 procfs: /proc/acpi/ibm/wan
-sysfs device attribute: wwan/enable
+sysfs device attribute: wwan_enable
 
 This feature is marked EXPERIMENTAL because the implementation
 directly accesses hardware registers and may not work as expected. USE
@@ -921,7 +918,7 @@ If the W-WAN card is installed, the following commands can be used:
 Sysfs notes:
 
 	If the W-WAN card is installed, it can be enabled /
-	disabled through the "wwan/enable" thinkpad-acpi device
+	disabled through the "wwan_enable" thinkpad-acpi device
 	attribute, and its current status can also be queried.
 
 	enable:
@@ -929,7 +926,7 @@ Sysfs notes:
 		1: enables WWAN card / WWAN card is enabled.
 
 	Note: this interface will be probably be superseeded by the
-	generic rfkill class.
+	generic rfkill class, so it is NOT to be considered stable yet.
 
 Multiple Commands, Module Parameters
 ------------------------------------
