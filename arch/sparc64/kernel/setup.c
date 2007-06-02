@@ -513,22 +513,3 @@ void sun_do_break(void)
 
 int serial_console = -1;
 int stop_a_enabled = 1;
-
-static int __init topology_init(void)
-{
-	int i, err;
-
-	err = -ENOMEM;
-
-	for_each_possible_cpu(i) {
-		struct cpu *p = kzalloc(sizeof(*p), GFP_KERNEL);
-		if (p) {
-			register_cpu(p, i);
-			err = 0;
-		}
-	}
-
-	return err;
-}
-
-subsys_initcall(topology_init);
