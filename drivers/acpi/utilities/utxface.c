@@ -61,7 +61,7 @@ ACPI_MODULE_NAME("utxface")
  *              called, so any early initialization belongs here.
  *
  ******************************************************************************/
-acpi_status acpi_initialize_subsystem(void)
+acpi_status __init acpi_initialize_subsystem(void)
 {
 	acpi_status status;
 
@@ -107,8 +107,6 @@ acpi_status acpi_initialize_subsystem(void)
 	ACPI_DEBUGGER_EXEC(status = acpi_db_initialize());
 	return_ACPI_STATUS(status);
 }
-
-ACPI_EXPORT_SYMBOL(acpi_initialize_subsystem)
 
 /*******************************************************************************
  *

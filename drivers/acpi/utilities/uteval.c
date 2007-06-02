@@ -59,10 +59,9 @@ acpi_ut_translate_one_cid(union acpi_operand_object *obj_desc,
 /*
  * Strings supported by the _OSI predefined (internal) method.
  */
-static const char *acpi_interfaces_supported[] = {
+static char *acpi_interfaces_supported[] = {
 	/* Operating System Vendor Strings */
 
-	"Linux",
 	"Windows 2000",
 	"Windows 2001",
 	"Windows 2001 SP0",
@@ -154,6 +153,31 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 
 	return_desc->integer.value = 0;
 	return_ACPI_STATUS(AE_CTRL_TERMINATE);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_osi_invalidate
+ *
+ * PARAMETERS:  interface_string
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: invalidate string in pre-defiend _OSI string list
+ *
+ ******************************************************************************/
+
+acpi_status acpi_osi_invalidate(char *interface)
+{
+	int i;
+
+	for (i = 0; i < ACPI_ARRAY_LENGTH(acpi_interfaces_supported); i++) {
+		if (!ACPI_STRCMP(interface, acpi_interfaces_supported[i])) {
+			*acpi_interfaces_supported[i] = '\0';
+			return AE_OK;
+		}
+	}
+	return AE_NOT_FOUND;
 }
 
 /*******************************************************************************
