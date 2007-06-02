@@ -167,8 +167,9 @@ struct acpi_processor_throttling {
 	struct acpi_processor_tx_tss *states_tss;
 	struct acpi_tsd_package domain_info;
 	cpumask_t shared_cpu_map;
-	int (*acpi_processor_get_throttling) (struct acpi_processor *pr);
-	int (*acpi_processor_set_throttling) (struct acpi_processor *pr, int state);
+	int (*acpi_processor_get_throttling) (struct acpi_processor * pr);
+	int (*acpi_processor_set_throttling) (struct acpi_processor * pr,
+					      int state);
 
 	u32 address;
 	u8 duty_offset;
@@ -207,7 +208,7 @@ struct acpi_processor {
 	u32 pblk;
 	int performance_platform_limit;
 	int throttling_platform_limit;
-		/*0 - states 0..n-th satte available*/
+	/* 0 - states 0..n-th state available */
 
 	struct acpi_processor_flags flags;
 	struct acpi_processor_power power;
