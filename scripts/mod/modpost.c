@@ -1214,7 +1214,6 @@ static int exit_section_ref_ok(const char *name)
 		".exit.data",
 		".exit.text",
 		".exitcall.exit",
-		".init.text",
 		".rodata",
 		NULL
 	};
