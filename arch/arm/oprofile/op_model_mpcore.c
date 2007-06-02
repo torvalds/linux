@@ -200,8 +200,10 @@ static int em_call_function(int (*fn)(void))
 	data.fn = fn;
 	data.ret = 0;
 
+	preempt_disable();
 	smp_call_function(em_func, &data, 1, 1);
 	em_func(&data);
+	preempt_enable();
 
 	return data.ret;
 }
