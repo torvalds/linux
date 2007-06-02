@@ -522,8 +522,8 @@ static int debug = 0;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
-		      const struct dvb_frontend_parameters *params)
+static int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
+			     const struct dvb_frontend_parameters *params)
 {
 	u32 div;
 	int i;

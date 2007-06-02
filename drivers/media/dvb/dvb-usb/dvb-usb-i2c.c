@@ -78,26 +78,6 @@ int dvb_usb_tuner_init_i2c(struct dvb_frontend *fe)
 }
 EXPORT_SYMBOL(dvb_usb_tuner_init_i2c);
 
-int dvb_usb_tuner_calc_regs(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep, u8 *b, int buf_len)
-{
-	struct dvb_usb_adapter *adap = fe->dvb->priv;
-
-	if (buf_len != 5)
-		return -EINVAL;
-	if (adap->pll_desc == NULL)
-		return 0;
-
-	deb_pll("pll addr: %x, freq: %d %p\n",adap->pll_addr, fep->frequency, adap->pll_desc);
-
-	b[0] = adap->pll_addr;
-	dvb_pll_configure(adap->pll_desc, &b[1], fep);
-
-	deb_pll("pll-buf: %x %x %x %x %x\n",b[0],b[1],b[2],b[3],b[4]);
-
-	return 5;
-}
-EXPORT_SYMBOL(dvb_usb_tuner_calc_regs);
-
 int dvb_usb_tuner_set_params_i2c(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
 {
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
@@ -105,7 +85,7 @@ int dvb_usb_tuner_set_params_i2c(struct dvb_frontend *fe, struct dvb_frontend_pa
 	u8 b[5];
 	struct i2c_msg msg = { .addr = adap->pll_addr, .flags = 0, .buf = &b[1], .len = 4 };
 
-	dvb_usb_tuner_calc_regs(fe,fep,b,5);
+	fe->ops.tuner_ops.calc_regs(fe, fep, b, sizeof(b));
 
 	if (adap->tuner_pass_ctrl)
 		adap->tuner_pass_ctrl(fe, 1, adap->pll_addr);
