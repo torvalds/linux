@@ -624,14 +624,6 @@ static int strrcmp(const char *s, const char *sub)
  *   This pattern is identified by
  *   refsymname = __init_begin, _sinittext, _einittext
  *
- * Pattern 5:
- *  Logos used in drivers/video/logo reside in __initdata but the
- *  funtion that references them are EXPORT_SYMBOL() so cannot be
- *  marker __init. So we whitelist them here.
- *  The pattern is:
- *  tosec      = .init.data
- *  fromsec    = .text*
- *  refsymname = logo_
  **/
 static int secref_whitelist(const char *modname, const char *tosec,
 			    const char *fromsec, const char *atsym,
@@ -697,12 +689,6 @@ static int secref_whitelist(const char *modname, const char *tosec,
 	for (s = pat3refsym; *s; s++)
 		if (strcmp(refsymname, *s) == 0)
 			return 1;
-
-	/* Check for pattern 5 */
-	if ((strcmp(tosec, ".init.data") == 0) &&
-	    (strncmp(fromsec, ".text", strlen(".text")) == 0) &&
-	    (strncmp(refsymname, "logo_", strlen("logo_")) == 0))
-		return 1;
 
 	return 0;
 }
