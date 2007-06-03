@@ -435,20 +435,12 @@ static void cp_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 
 	spin_lock_irqsave(&cp->lock, flags);
 	cp->vlgrp = grp;
-	cp->cpcmd |= RxVlanOn;
-	cpw16(CpCmd, cp->cpcmd);
-	spin_unlock_irqrestore(&cp->lock, flags);
-}
+	if (grp)
+		cp->cpcmd |= RxVlanOn;
+	else
+		cp->cpcmd &= ~RxVlanOn;
 
-static void cp_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
-{
-	struct cp_private *cp = netdev_priv(dev);
-	unsigned long flags;
-
-	spin_lock_irqsave(&cp->lock, flags);
-	cp->cpcmd &= ~RxVlanOn;
 	cpw16(CpCmd, cp->cpcmd);
-	vlan_group_set_device(cp->vlgrp, vid, NULL);
 	spin_unlock_irqrestore(&cp->lock, flags);
 }
 #endif /* CP_VLAN_TAG_USED */
@@ -1944,7 +1936,6 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 #if CP_VLAN_TAG_USED
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 	dev->vlan_rx_register = cp_vlan_rx_register;
-	dev->vlan_rx_kill_vid = cp_vlan_rx_kill_vid;
 #endif
 
 	if (pci_using_dac)

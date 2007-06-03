@@ -654,8 +654,6 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 	if (adapter->portnum == 0)
 		netxen_free_adapter_offload(adapter);
 
-	if (adapter->irq)
-		free_irq(adapter->irq, adapter);
 	if(adapter->portnum == 0) {
 		/* leave the hw in the same state as reboot */
 		writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));

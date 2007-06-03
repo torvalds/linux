@@ -1487,6 +1487,13 @@ L:	linux-usb-devel@lists.sourceforge.net
 L:	linuxppc-embedded@ozlabs.org
 S:	Maintained
 
+FREESCALE QUICC ENGINE UCC ETHERNET DRIVER
+P:	Li Yang
+M:	leoli@freescale.com
+L:	netdev@vger.kernel.org
+L:	linuxppc-embedded@ozlabs.org
+S:	Maintained
+
 FILE LOCKING (flock() and fcntl()/lockf())
 P:	Matthew Wilcox
 M:	matthew@wil.cx
@@ -3545,7 +3552,7 @@ S:	Maintained
 
 TULIP NETWORK DRIVER
 P:	Valerie Henson
-M:	val_henson@linux.intel.com
+M:	val@nmt.edu
 L:	tulip-users@lists.sourceforge.net
 W:	http://sourceforge.net/projects/tulip/
 S:	Maintained

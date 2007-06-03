@@ -886,16 +886,6 @@ static void rtl8169_vlan_rx_register(struct net_device *dev,
 	spin_unlock_irqrestore(&tp->lock, flags);
 }
 
-static void rtl8169_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-	unsigned long flags;
-
-	spin_lock_irqsave(&tp->lock, flags);
-	vlan_group_set_device(tp->vlgrp, vid, NULL);
-	spin_unlock_irqrestore(&tp->lock, flags);
-}
-
 static int rtl8169_rx_vlan_skb(struct rtl8169_private *tp, struct RxDesc *desc,
 			       struct sk_buff *skb)
 {
@@ -1671,7 +1661,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_R8169_VLAN
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 	dev->vlan_rx_register = rtl8169_vlan_rx_register;
-	dev->vlan_rx_kill_vid = rtl8169_vlan_rx_kill_vid;
 #endif
 
 #ifdef CONFIG_NET_POLL_CONTROLLER

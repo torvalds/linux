@@ -1142,13 +1142,16 @@ e1000_probe(struct pci_dev *pdev,
 	    !e1000_check_mng_mode(&adapter->hw))
 		e1000_get_hw_control(adapter);
 
-	strcpy(netdev->name, "eth%d");
-	if ((err = register_netdev(netdev)))
-		goto err_register;
-
 	/* tell the stack to leave us alone until e1000_open() is called */
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
+#ifdef CONFIG_E1000_NAPI
+	netif_poll_disable(netdev);
+#endif
+
+	strcpy(netdev->name, "eth%d");
+	if ((err = register_netdev(netdev)))
+		goto err_register;
 
 	DPRINTK(PROBE, INFO, "Intel(R) PRO/1000 Network Connection\n");
 

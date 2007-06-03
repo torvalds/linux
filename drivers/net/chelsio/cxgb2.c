@@ -883,15 +883,6 @@ static void vlan_rx_register(struct net_device *dev,
 	t1_set_vlan_accel(adapter, grp != NULL);
 	spin_unlock_irq(&adapter->async_lock);
 }
-
-static void vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
-{
-	struct adapter *adapter = dev->priv;
-
-	spin_lock_irq(&adapter->async_lock);
-	vlan_group_set_device(adapter->vlan_grp, vid, NULL);
-	spin_unlock_irq(&adapter->async_lock);
-}
 #endif
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1099,7 +1090,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 			netdev->features |=
 				NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 			netdev->vlan_rx_register = vlan_rx_register;
-			netdev->vlan_rx_kill_vid = vlan_rx_kill_vid;
 #endif
 
 			/* T204: disable TSO */

@@ -1229,39 +1229,9 @@ static void atl1_vlan_rx_register(struct net_device *netdev,
 	spin_unlock_irqrestore(&adapter->lock, flags);
 }
 
-/* FIXME: justify or remove -- CHS */
-static void atl1_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
-{
-	/* We don't do Vlan filtering */
-	return;
-}
-
-/* FIXME: this looks wrong too -- CHS */
-static void atl1_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
-{
-	struct atl1_adapter *adapter = netdev_priv(netdev);
-	unsigned long flags;
-
-	spin_lock_irqsave(&adapter->lock, flags);
-	/* atl1_irq_disable(adapter); */
-	vlan_group_set_device(adapter->vlgrp, vid, NULL);
-	/* atl1_irq_enable(adapter); */
-	spin_unlock_irqrestore(&adapter->lock, flags);
-	/* We don't do Vlan filtering */
-	return;
-}
-
 static void atl1_restore_vlan(struct atl1_adapter *adapter)
 {
 	atl1_vlan_rx_register(adapter->netdev, adapter->vlgrp);
-	if (adapter->vlgrp) {
-		u16 vid;
-		for (vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
-			if (!vlan_group_get_device(adapter->vlgrp, vid))
-				continue;
-			atl1_vlan_rx_add_vid(adapter->netdev, vid);
-		}
-	}
 }
 
 static u16 tpd_avail(struct atl1_tpd_ring *tpd_ring)
@@ -2203,8 +2173,7 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 	netdev->poll_controller = atl1_poll_controller;
 #endif
 	netdev->vlan_rx_register = atl1_vlan_rx_register;
-	netdev->vlan_rx_add_vid = atl1_vlan_rx_add_vid;
-	netdev->vlan_rx_kill_vid = atl1_vlan_rx_kill_vid;
+
 	netdev->ethtool_ops = &atl1_ethtool_ops;
 	adapter->bd_number = cards_found;
 	adapter->pci_using_64 = pci_using_64;

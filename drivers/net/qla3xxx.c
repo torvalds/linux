@@ -4044,7 +4044,7 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	if (pci_using_dac)
 		ndev->features |= NETIF_F_HIGHDMA;
 	if (qdev->device_id == QL3032_DEVICE_ID)
-		ndev->features |= (NETIF_F_HW_CSUM | NETIF_F_SG);
+		ndev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
 
 	qdev->mem_map_registers =
 	    ioremap_nocache(pci_resource_start(pdev, 1),
