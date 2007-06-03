@@ -609,7 +609,7 @@ static int strrcmp(const char *s, const char *sub)
  *   the pattern is identified by:
  *   tosec   = .init.text | .exit.text | .init.data
  *   fromsec = .data
- *   atsym = *driver, *_template, *_sht, *_ops, *_probe, *probe_one, *_console
+ *   atsym = *driver, *_template, *_sht, *_ops, *_probe, *probe_one, *_console, *_timer
  *
  * Pattern 3:
  *   Whitelist all refereces from .text.head to .init.data
@@ -634,6 +634,7 @@ static int secref_whitelist(const char *modname, const char *tosec,
 	const char *pat2sym[] = {
 		"driver",
 		"_template", /* scsi uses *_template a lot */
+		"_timer",    /* arm uses ops structures named _timer a lot */
 		"_sht",      /* scsi also used *_sht to some extent */
 		"_ops",
 		"_probe",
