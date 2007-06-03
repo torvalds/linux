@@ -894,45 +894,6 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 }
 
 /*
- * our own old-style timeout update
- */
-/*
- * The strategy is to cause the timer code to call scsi_times_out()
- * when the soonest timeout is pending.
- * The arguments are used when we are queueing a new command, because
- * we do not want to subtract the time used from this time, but when we
- * set the timer, we want to take this value into account.
- */
-
-int atari_scsi_update_timeout(Scsi_Cmnd * SCset, int timeout)
-{
-	int rtn;
-
-	/*
-	 * We are using the new error handling code to actually register/deregister
-	 * timers for timeout.
-	 */
-
-	if (!timer_pending(&SCset->eh_timeout))
-		rtn = 0;
-	else
-		rtn = SCset->eh_timeout.expires - jiffies;
-
-	if (timeout == 0) {
-		del_timer(&SCset->eh_timeout);
-		SCset->eh_timeout.data = (unsigned long)NULL;
-		SCset->eh_timeout.expires = 0;
-	} else {
-		if (SCset->eh_timeout.data != (unsigned long)NULL)
-			del_timer(&SCset->eh_timeout);
-		SCset->eh_timeout.data = (unsigned long)SCset;
-		SCset->eh_timeout.expires = jiffies + timeout;
-		add_timer(&SCset->eh_timeout);
-	}
-	return rtn;
-}
-
-/*
  * Function : int NCR5380_queue_command (Scsi_Cmnd *cmd,
  *	void (*done)(Scsi_Cmnd *))
  *
@@ -956,7 +917,6 @@ static int NCR5380_queue_command(Scsi_Cmnd *cmd, void (*done)(Scsi_Cmnd *))
 	Scsi_Cmnd *tmp;
 	int oldto;
 	unsigned long flags;
-	// extern int update_timeout(Scsi_Cmnd * SCset, int timeout);
 
 #if (NDEBUG & NDEBUG_NO_WRITE)
 	switch (cmd->cmnd[0]) {
@@ -1029,9 +989,9 @@ static int NCR5380_queue_command(Scsi_Cmnd *cmd, void (*done)(Scsi_Cmnd *))
 	 * alter queues and touch the lock.
 	 */
 	if (!IS_A_TT()) {
-		oldto = atari_scsi_update_timeout(cmd, 0);
+		/* perhaps stop command timer here */
 		falcon_get_lock();
-		atari_scsi_update_timeout(cmd, oldto);
+		/* perhaps restart command timer here */
 	}
 	if (!(hostdata->issue_queue) || (cmd->cmnd[0] == REQUEST_SENSE)) {
 		LIST(cmd, hostdata->issue_queue);
