@@ -54,12 +54,19 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-static int mixcomwd_ioports[] = { 0x180, 0x280, 0x380, 0x000 };
-
-#define MIXCOM_WATCHDOG_OFFSET 0xc10
+/*
+ * We have two types of cards that can be probed:
+ * 1) The Mixcom cards: these cards can be found at addresses
+ *    0x180, 0x280, 0x380 with an additional offset of 0xc10.
+ *    (Or 0xd90, 0xe90, 0xf90).
+ * 2) The FlashCOM cards: these cards can be set up at
+ *    0x300 -> 0x378, in 0x8 jumps with an offset of 0x04.
+ *    (Or 0x304 -> 0x37c in 0x8 jumps).
+ *    Each card has it's own ID.
+ */
 #define MIXCOM_ID 0x11
-#define FLASHCOM_WATCHDOG_OFFSET 0x4
 #define FLASHCOM_ID 0x18
+static int mixcomwd_ioports[] = { 0xd90, 0xe90, 0xf90, 0x000 };
 
 static void mixcomwd_timerfun(unsigned long d);
 
@@ -214,7 +221,6 @@ static int __init mixcomwd_checkcard(int port)
 {
 	int id;
 
-	port += MIXCOM_WATCHDOG_OFFSET;
 	if (!request_region(port, 1, "MixCOM watchdog")) {
 		return 0;
 	}
@@ -231,7 +237,6 @@ static int __init flashcom_checkcard(int port)
 {
 	int id;
 
-	port += FLASHCOM_WATCHDOG_OFFSET;
 	if (!request_region(port, 1, "MixCOM watchdog")) {
 		return 0;
 	}
@@ -257,8 +262,8 @@ static int __init mixcomwd_init(void)
 		}
 	}
 
-	/* The FlashCOM card can be set up at 0x300 -> 0x378, in 0x8 jumps */
-	for (i = 0x300; !found && i < 0x380; i+=0x8) {
+	/* The FlashCOM card can be set up at 0x304 -> 0x37c, in 0x8 jumps */
+	for (i = 0x304; !found && i < 0x380; i+=0x8) {
 		watchdog_port = flashcom_checkcard(i);
 		if (watchdog_port) {
 			found = 1;
