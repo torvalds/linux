@@ -411,7 +411,7 @@ EXPORT_SYMBOL_GPL(spi_alloc_master);
  */
 int spi_register_master(struct spi_master *master)
 {
-	static atomic_t		dyn_bus_id = ATOMIC_INIT((1<<16) - 1);
+	static atomic_t		dyn_bus_id = ATOMIC_INIT((1<<15) - 1);
 	struct device		*dev = master->cdev.dev;
 	int			status = -ENODEV;
 	int			dynamic = 0;
