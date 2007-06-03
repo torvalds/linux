@@ -25,6 +25,7 @@
 #include <asm/machdep.h>
 #include <asm/udbg.h>
 #include <asm/lv1call.h>
+#include <asm/smp.h>
 
 #include "platform.h"
 

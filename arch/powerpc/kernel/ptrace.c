@@ -218,6 +218,7 @@ set_single_step(struct task_struct *task)
 		regs->msr |= MSR_SE;
 #endif
 	}
+	set_tsk_thread_flag(task, TIF_SINGLESTEP);
 }
 
 static inline void
@@ -233,6 +234,7 @@ clear_single_step(struct task_struct *task)
 		regs->msr &= ~MSR_SE;
 #endif
 	}
+	clear_tsk_thread_flag(task, TIF_SINGLESTEP);
 }
 #endif /* CONFIG_PPC32 */
 

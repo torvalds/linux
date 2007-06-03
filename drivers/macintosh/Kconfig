@@ -114,7 +114,7 @@ config PMAC_SMU
 config PMAC_APM_EMU
 	tristate "APM emulation"
 	select APM_EMULATION
-	depends on ADB_PMU && PM
+	depends on ADB_PMU && PM && PPC32
 
 config PMAC_MEDIABAY
 	bool "Support PowerBook hotswap media bay"

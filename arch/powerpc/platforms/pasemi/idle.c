@@ -26,6 +26,7 @@
 
 #include <asm/machdep.h>
 #include <asm/reg.h>
+#include <asm/smp.h>
 
 #include "pasemi.h"
 

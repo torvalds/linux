@@ -1171,11 +1171,12 @@ EXPORT_SYMBOL(of_find_node_by_name);
 
 /**
  *	of_find_node_by_type - Find a node by its "device_type" property
- *	@from:	The node to start searching from or NULL, the node
- *		you pass will not be searched, only the next one
- *		will; typically, you pass what the previous call
- *		returned. of_node_put() will be called on it
- *	@name:	The type string to match against
+ *	@from:	The node to start searching from, or NULL to start searching
+ *		the entire device tree. The node you pass will not be
+ *		searched, only the next one will; typically, you pass
+ *		what the previous call returned. of_node_put() will be
+ *		called on from for you.
+ *	@type:	The type string to match against
  *
  *	Returns a node pointer with refcount incremented, use
  *	of_node_put() on it when done.

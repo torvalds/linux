@@ -1,4 +1,5 @@
 #include <linux/module.h>
+#include <asm/ibm4xx.h>
 #include <asm/ocp.h>
 
 struct ocp_sys_info_data ocp_sys_info = {
