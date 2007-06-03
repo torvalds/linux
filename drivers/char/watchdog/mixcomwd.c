@@ -66,7 +66,34 @@
  */
 #define MIXCOM_ID 0x11
 #define FLASHCOM_ID 0x18
-static int mixcomwd_ioports[] = { 0xd90, 0xe90, 0xf90, 0x000 };
+static struct {
+	int ioport;
+	int id;
+} mixcomwd_io_info[] __devinitdata = {
+	/* The Mixcom cards */
+	{0x0d90, MIXCOM_ID},
+	{0x0e90, MIXCOM_ID},
+	{0x0f90, MIXCOM_ID},
+	/* The FlashCOM cards */
+	{0x0304, FLASHCOM_ID},
+	{0x030c, FLASHCOM_ID},
+	{0x0314, FLASHCOM_ID},
+	{0x031c, FLASHCOM_ID},
+	{0x0324, FLASHCOM_ID},
+	{0x032c, FLASHCOM_ID},
+	{0x0334, FLASHCOM_ID},
+	{0x033c, FLASHCOM_ID},
+	{0x0344, FLASHCOM_ID},
+	{0x034c, FLASHCOM_ID},
+	{0x0354, FLASHCOM_ID},
+	{0x035c, FLASHCOM_ID},
+	{0x0364, FLASHCOM_ID},
+	{0x036c, FLASHCOM_ID},
+	{0x0374, FLASHCOM_ID},
+	{0x037c, FLASHCOM_ID},
+	/* The end of the list */
+	{0x0000, 0},
+};
 
 static void mixcomwd_timerfun(unsigned long d);
 
@@ -242,18 +269,11 @@ static int __init mixcomwd_init(void)
 	int ret;
 	int found=0;
 
-	for (i = 0; !found && mixcomwd_ioports[i] != 0; i++) {
-		if (checkcard(mixcomwd_ioports[i], MIXCOM_ID)) {
+	for (i = 0; !found && mixcomwd_io_info[i].ioport != 0; i++) {
+		if (checkcard(mixcomwd_io_info[i].ioport,
+			      mixcomwd_io_info[i].id)) {
 			found = 1;
-			watchdog_port = mixcomwd_ioports[i];
-		}
-	}
-
-	/* The FlashCOM card can be set up at 0x304 -> 0x37c, in 0x8 jumps */
-	for (i = 0x304; !found && i < 0x380; i+=0x8) {
-		if (checkcard(i, FLASHCOM_ID)) {
-			found = 1;
-			watchdog_port = i;
+			watchdog_port = mixcomwd_io_info[i].ioport;
 		}
 	}
 
