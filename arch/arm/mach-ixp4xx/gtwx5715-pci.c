@@ -29,7 +29,6 @@
 
 #include <asm/mach-types.h>
 #include <asm/hardware.h>
-#include <asm/irq.h>
 #include <asm/arch/gtwx5715.h>
 #include <asm/mach/pci.h>
 

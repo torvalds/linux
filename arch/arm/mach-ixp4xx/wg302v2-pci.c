@@ -24,7 +24,6 @@
 
 #include <asm/mach-types.h>
 #include <asm/hardware.h>
-#include <asm/irq.h>
 
 #include <asm/mach/pci.h>
 
