@@ -1932,7 +1932,7 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu,
 };
 
 static const int kvm_vmx_max_exit_handlers =
-	sizeof(kvm_vmx_exit_handlers) / sizeof(*kvm_vmx_exit_handlers);
+	ARRAY_SIZE(kvm_vmx_exit_handlers);
 
 /*
  * The guest has exited.  See if we can fix it or if we need userspace
