@@ -198,7 +198,7 @@ linux_gateway_entry:
 	ldil	L%sys_call_table, %r1
 	ldo     R%sys_call_table(%r1), %r19
 #endif	
-	comiclr,>>=	__NR_Linux_syscalls, %r20, %r0
+	comiclr,>>	__NR_Linux_syscalls, %r20, %r0
 	b,n	.Lsyscall_nosys
 	
 	LDREGX  %r20(%r19), %r19
