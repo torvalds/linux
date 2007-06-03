@@ -649,11 +649,7 @@ MODULE_DESCRIPTION(PMC551_VERSION);
  * Stuff these outside the ifdef so as to not bust compiled in driver support
  */
 static int msize = 0;
-#if defined(CONFIG_MTD_PMC551_APERTURE_SIZE)
-static int asize = CONFIG_MTD_PMC551_APERTURE_SIZE;
-#else
 static int asize = 0;
-#endif
 
 module_param(msize, int, 0);
 MODULE_PARM_DESC(msize, "memory size in MiB [1 - 1024]");
