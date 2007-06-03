@@ -217,23 +217,7 @@ static struct miscdevice mixcomwd_miscdev=
 	.fops	= &mixcomwd_fops,
 };
 
-static int __init mixcomwd_checkcard(int port)
-{
-	int id;
-
-	if (!request_region(port, 1, "MixCOM watchdog")) {
-		return 0;
-	}
-
-	id=inb_p(port) & 0x3f;
-	if(id!=MIXCOM_ID) {
-		release_region(port, 1);
-		return 0;
-	}
-	return port;
-}
-
-static int __init flashcom_checkcard(int port)
+static int __init checkcard(int port, int card_id)
 {
 	int id;
 
@@ -242,12 +226,15 @@ static int __init flashcom_checkcard(int port)
 	}
 
 	id=inb_p(port);
- 	if(id!=FLASHCOM_ID) {
+	if (card_id==MIXCOM_ID)
+		id &= 0x3f;
+
+	if (id!=card_id) {
 		release_region(port, 1);
 		return 0;
 	}
- 	return port;
- }
+	return 1;
+}
 
 static int __init mixcomwd_init(void)
 {
@@ -256,17 +243,17 @@ static int __init mixcomwd_init(void)
 	int found=0;
 
 	for (i = 0; !found && mixcomwd_ioports[i] != 0; i++) {
-		watchdog_port = mixcomwd_checkcard(mixcomwd_ioports[i]);
-		if (watchdog_port) {
+		if (checkcard(mixcomwd_ioports[i], MIXCOM_ID)) {
 			found = 1;
+			watchdog_port = mixcomwd_ioports[i];
 		}
 	}
 
 	/* The FlashCOM card can be set up at 0x304 -> 0x37c, in 0x8 jumps */
 	for (i = 0x304; !found && i < 0x380; i+=0x8) {
-		watchdog_port = flashcom_checkcard(i);
-		if (watchdog_port) {
+		if (checkcard(i, FLASHCOM_ID)) {
 			found = 1;
+			watchdog_port = i;
 		}
 	}
 
