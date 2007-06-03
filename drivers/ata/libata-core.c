@@ -6435,6 +6435,9 @@ int ata_host_activate(struct ata_host *host, int irq,
 	if (rc)
 		devm_free_irq(host->dev, irq, host);
 
+	/* Used to print device info at probe */
+	host->irq = irq;
+
 	return rc;
 }
 
