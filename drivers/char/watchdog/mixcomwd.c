@@ -287,13 +287,19 @@ static int __init mixcomwd_init(void)
 	ret = misc_register(&mixcomwd_miscdev);
 	if (ret)
 	{
-		release_region(watchdog_port, 1);
-		return ret;
+		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
+			WATCHDOG_MINOR, ret);
+		goto error_misc_register_watchdog;
 	}
 
 	printk(KERN_INFO "MixCOM watchdog driver v%s, watchdog port at 0x%3x\n",VERSION,watchdog_port);
 
 	return 0;
+
+error_misc_register_watchdog:
+	release_region(watchdog_port, 1);
+	watchdog_port = 0x0000;
+	return ret;
 }
 
 static void __exit mixcomwd_exit(void)
@@ -306,8 +312,8 @@ static void __exit mixcomwd_exit(void)
 			mixcomwd_timer_alive=0;
 		}
 	}
-	release_region(watchdog_port,1);
 	misc_deregister(&mixcomwd_miscdev);
+	release_region(watchdog_port,1);
 }
 
 module_init(mixcomwd_init);
