@@ -1565,7 +1565,7 @@ static void ether1394_complete_cb(void *__ptask)
 /* Transmit a packet (called by kernel) */
 static int ether1394_tx(struct sk_buff *skb, struct net_device *dev)
 {
-	struct eth1394hdr *eth;
+	struct eth1394hdr hdr_buf;
 	struct eth1394_priv *priv = netdev_priv(dev);
 	__be16 proto;
 	unsigned long flags;
@@ -1595,16 +1595,17 @@ static int ether1394_tx(struct sk_buff *skb, struct net_device *dev)
 	if (!skb)
 		goto fail;
 
-	/* Get rid of the fake eth1394 header, but save a pointer */
-	eth = (struct eth1394hdr *)skb->data;
+	/* Get rid of the fake eth1394 header, but first make a copy.
+	 * We might need to rebuild the header on tx failure. */
+	memcpy(&hdr_buf, skb->data, sizeof(hdr_buf));
 	skb_pull(skb, ETH1394_HLEN);
 
-	proto = eth->h_proto;
+	proto = hdr_buf.h_proto;
 	dg_size = skb->len;
 
 	/* Set the transmission type for the packet.  ARP packets and IP
 	 * broadcast packets are sent via GASP. */
-	if (memcmp(eth->h_dest, dev->broadcast, ETH1394_ALEN) == 0 ||
+	if (memcmp(hdr_buf.h_dest, dev->broadcast, ETH1394_ALEN) == 0 ||
 	    proto == htons(ETH_P_ARP) ||
 	    (proto == htons(ETH_P_IP) &&
 	     IN_MULTICAST(ntohl(ip_hdr(skb)->daddr)))) {
@@ -1616,7 +1617,7 @@ static int ether1394_tx(struct sk_buff *skb, struct net_device *dev)
 		if (max_payload < dg_size + hdr_type_len[ETH1394_HDR_LF_UF])
 			priv->bc_dgl++;
 	} else {
-		__be64 guid = get_unaligned((u64 *)eth->h_dest);
+		__be64 guid = get_unaligned((u64 *)hdr_buf.h_dest);
 
 		node = eth1394_find_node_guid(&priv->ip_node_list,
 					      be64_to_cpu(guid));
@@ -1672,6 +1673,14 @@ static int ether1394_tx(struct sk_buff *skb, struct net_device *dev)
 	if (ether1394_send_packet(ptask, tx_len)) {
 		if (dest_node == (LOCAL_BUS | ALL_NODES))
 			goto fail;
+
+		/* At this point we want to restore the packet.  When we return
+		 * here with NETDEV_TX_BUSY we will get another entrance in this
+		 * routine with the same skb and we need it to look the same.
+		 * So we pull 4 more bytes, then build the header again. */
+		skb_pull(skb, 4);
+		ether1394_header(skb, dev, ntohs(hdr_buf.h_proto),
+				 hdr_buf.h_dest, NULL, 0);
 
 		/* Most failures of ether1394_send_packet are recoverable. */
 		netif_stop_queue(dev);
