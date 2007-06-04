@@ -336,7 +336,7 @@ static void ipath_reset_qp(struct ipath_qp *qp)
 	qp->qkey = 0;
 	qp->qp_access_flags = 0;
 	qp->s_busy = 0;
-	qp->s_flags &= ~IPATH_S_SIGNAL_REQ_WR;
+	qp->s_flags &= IPATH_S_SIGNAL_REQ_WR;
 	qp->s_hdrwords = 0;
 	qp->s_psn = 0;
 	qp->r_psn = 0;
