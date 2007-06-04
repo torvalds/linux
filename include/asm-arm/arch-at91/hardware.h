@@ -26,18 +26,29 @@
 #include <asm/arch/at91sam9263.h>
 #elif defined(CONFIG_ARCH_AT91SAM9RL)
 #include <asm/arch/at91sam9rl.h>
+#elif defined(CONFIG_ARCH_AT91X40)
+#include <asm/arch/at91x40.h>
 #else
 #error "Unsupported AT91 processor"
 #endif
 
 
+#ifdef CONFIG_MMU
 /*
  * Remap the peripherals from address 0xFFF78000 .. 0xFFFFFFFF
  * to 0xFEF78000 .. 0xFF000000.  (544Kb)
  */
 #define AT91_IO_PHYS_BASE	0xFFF78000
-#define AT91_IO_SIZE		(0xFFFFFFFF - AT91_IO_PHYS_BASE + 1)
 #define AT91_IO_VIRT_BASE	(0xFF000000 - AT91_IO_SIZE)
+#else
+/*
+ * Identity mapping for the non MMU case.
+ */
+#define AT91_IO_PHYS_BASE	AT91_BASE_SYS
+#define AT91_IO_VIRT_BASE	AT91_IO_PHYS_BASE
+#endif
+
+#define AT91_IO_SIZE		(0xFFFFFFFF - AT91_IO_PHYS_BASE + 1)
 
  /* Convert a physical IO address to virtual IO address */
 #define AT91_IO_P2V(x)		((x) - AT91_IO_PHYS_BASE + AT91_IO_VIRT_BASE)
@@ -66,7 +77,11 @@
 #define AT91_CHIPSELECT_7	0x80000000
 
 /* SDRAM */
+#ifdef CONFIG_DRAM_BASE
+#define AT91_SDRAM_BASE		CONFIG_DRAM_BASE
+#else
 #define AT91_SDRAM_BASE		AT91_CHIPSELECT_1
+#endif
 
 /* Clocks */
 #define AT91_SLOW_CLOCK		32768		/* slow clock */
