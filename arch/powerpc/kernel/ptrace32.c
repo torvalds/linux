@@ -206,7 +206,9 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 		else
 			part = 0;  /* want the 1st half of the register (left-most). */
 
-		/* Validate the input - check to see if address is on the wrong boundary or beyond the end of the user area */
+		/* Validate the input - check to see if address is on the wrong boundary
+		 * or beyond the end of the user area
+		 */
 		if ((addr & 3) || numReg > PT_FPSCR)
 			break;
 
@@ -270,8 +272,6 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 		if ((addr & 3) || (index > PT_FPSCR32))
 			break;
 
-		if (index == PT_ORIG_R3)
-			break;
 		if (index < PT_FPR0) {
 			ret = ptrace_put_reg(child, index, data);
 		} else {
@@ -302,24 +302,25 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 		/* Determine which register the user wants */
 		index = (u64)addr >> 2;
 		numReg = index / 2;
+
 		/*
 		 * Validate the input - check to see if address is on the
 		 * wrong boundary or beyond the end of the user area
 		 */
 		if ((addr & 3) || (numReg > PT_FPSCR))
 			break;
-		/* Insure it is a register we let them change */
-		if ((numReg == PT_ORIG_R3)
-				|| ((numReg > PT_CCR) && (numReg < PT_FPR0)))
-			break;
-		if (numReg >= PT_FPR0) {
+		if (numReg < PT_FPR0) {
+			unsigned long freg = ptrace_get_reg(child, numReg);
+			if (index % 2)
+				freg = (freg & ~0xfffffffful) | (data & 0xfffffffful);
+			else
+				freg = (freg & 0xfffffffful) | (data << 32);
+			ret = ptrace_put_reg(child, numReg, freg);
+		} else {
 			flush_fp_to_thread(child);
+			((unsigned int *)child->thread.regs)[index] = data;
+			ret = 0;
 		}
-		if (numReg == PT_MSR)
-			data = (data & MSR_DEBUGCHANGE)
-				| (child->thread.regs->msr & ~MSR_DEBUGCHANGE);
-		((u32*)child->thread.regs)[index] = data;
-		ret = 0;
 		break;
 	}
 

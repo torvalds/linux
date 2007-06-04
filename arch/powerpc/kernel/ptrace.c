@@ -75,10 +75,15 @@ int ptrace_put_reg(struct task_struct *task, int regno, unsigned long data)
 	if (task->thread.regs == NULL)
 		return -EIO;
 
-	if (regno <= PT_MAX_PUT_REG) {
+	if (regno <= PT_MAX_PUT_REG || regno == PT_TRAP) {
 		if (regno == PT_MSR)
 			data = (data & MSR_DEBUGCHANGE)
 				| (task->thread.regs->msr & ~MSR_DEBUGCHANGE);
+		/* We prevent mucking around with the reserved area of trap
+		 * which are used internally by the kernel
+		 */
+		if (regno == PT_TRAP)
+			data &= 0xfff0;
 		((unsigned long *)task->thread.regs)[regno] = data;
 		return 0;
 	}
@@ -409,8 +414,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			break;
 
 		CHECK_FULL_REGS(child->thread.regs);
-		if (index == PT_ORIG_R3)
-			break;
 		if (index < PT_FPR0) {
 			ret = ptrace_put_reg(child, index, data);
 		} else {
