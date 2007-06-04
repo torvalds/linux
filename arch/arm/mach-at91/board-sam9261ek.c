@@ -28,6 +28,8 @@
 #include <linux/spi/ads7846.h>
 #include <linux/dm9000.h>
 #include <linux/fb.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
 
 #include <video/atmel_lcdc.h>
 
@@ -333,6 +335,68 @@ static struct atmel_lcdfb_info __initdata ek_lcdc_data;
 #endif
 
 
+/*
+ * GPIO Buttons
+ */
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+static struct gpio_keys_button ek_buttons[] = {
+	{
+		.gpio		= AT91_PIN_PA27,
+		.keycode	= BTN_0,
+		.desc		= "Button 0",
+		.active_low	= 1,
+	},
+	{
+		.gpio		= AT91_PIN_PA26,
+		.keycode	= BTN_1,
+		.desc		= "Button 1",
+		.active_low	= 1,
+	},
+	{
+		.gpio		= AT91_PIN_PA25,
+		.keycode	= BTN_2,
+		.desc		= "Button 2",
+		.active_low	= 1,
+	},
+	{
+		.gpio		= AT91_PIN_PA24,
+		.keycode	= BTN_3,
+		.desc		= "Button 3",
+		.active_low	= 1,
+	}
+};
+
+static struct gpio_keys_platform_data ek_button_data = {
+	.buttons	= ek_buttons,
+	.nbuttons	= ARRAY_SIZE(ek_buttons),
+};
+
+static struct platform_device ek_button_device = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.num_resources	= 0,
+	.dev		= {
+		.platform_data	= &ek_button_data,
+	}
+};
+
+static void __init ek_add_device_buttons(void)
+{
+	at91_set_gpio_input(AT91_PIN_PB27, 0);	/* btn0 */
+	at91_set_deglitch(AT91_PIN_PB27, 1);
+	at91_set_gpio_input(AT91_PIN_PB26, 0);	/* btn1 */
+	at91_set_deglitch(AT91_PIN_PB26, 1);
+	at91_set_gpio_input(AT91_PIN_PB25, 0);	/* btn2 */
+	at91_set_deglitch(AT91_PIN_PB25, 1);
+	at91_set_gpio_input(AT91_PIN_PB24, 0);	/* btn3 */
+	at91_set_deglitch(AT91_PIN_PB24, 1);
+
+	platform_device_register(&ek_button_device);
+}
+#else
+static void __init ek_add_device_buttons(void) {}
+#endif
+
 static void __init ek_board_init(void)
 {
 	/* Serial */
@@ -360,6 +424,8 @@ static void __init ek_board_init(void)
 #endif
 	/* LCD Controller */
 	at91_add_device_lcdc(&ek_lcdc_data);
+	/* Push Buttons */
+	ek_add_device_buttons();
 }
 
 MACHINE_START(AT91SAM9261EK, "Atmel AT91SAM9261-EK")
