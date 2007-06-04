@@ -1,7 +1,7 @@
 /*
  * firmware_sample_driver.c -
  *
- * Copyright (c) 2003 Manuel Estrada Sainz <ranty@debian.org>
+ * Copyright (c) 2003 Manuel Estrada Sainz
  *
  * Sample code on how to use request_firmware() from drivers.
  *

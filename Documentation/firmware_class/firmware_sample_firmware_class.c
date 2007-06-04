@@ -1,7 +1,7 @@
 /*
  * firmware_sample_firmware_class.c -
  *
- * Copyright (c) 2003 Manuel Estrada Sainz <ranty@debian.org>
+ * Copyright (c) 2003 Manuel Estrada Sainz
  *
  * NOTE: This is just a probe of concept, if you think that your driver would
  * be well served by this mechanism please contact me first.
@@ -19,7 +19,7 @@
 #include <linux/firmware.h>
 
 
-MODULE_AUTHOR("Manuel Estrada Sainz <ranty@debian.org>");
+MODULE_AUTHOR("Manuel Estrada Sainz");
 MODULE_DESCRIPTION("Hackish sample for using firmware class directly");
 MODULE_LICENSE("GPL");
 
