@@ -217,6 +217,7 @@ unsigned long spufs_get_unmapped_area(struct file *file, unsigned long addr,
 
 static const struct file_operations spufs_mem_fops = {
 	.open	 		= spufs_mem_open,
+	.release 		= spufs_mem_release,
 	.read   		= spufs_mem_read,
 	.write   		= spufs_mem_write,
 	.llseek  		= generic_file_llseek,
