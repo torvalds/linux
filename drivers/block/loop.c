@@ -74,7 +74,7 @@
 #include <linux/highmem.h>
 #include <linux/gfp.h>
 #include <linux/kthread.h>
-#include <linux/pipe_fs_i.h>
+#include <linux/splice.h>
 
 #include <asm/uaccess.h>
 

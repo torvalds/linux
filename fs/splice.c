@@ -20,7 +20,7 @@
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/pagemap.h>
-#include <linux/pipe_fs_i.h>
+#include <linux/splice.h>
 #include <linux/mm_inline.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
@@ -28,22 +28,6 @@
 #include <linux/module.h>
 #include <linux/syscalls.h>
 #include <linux/uio.h>
-
-struct partial_page {
-	unsigned int offset;
-	unsigned int len;
-};
-
-/*
- * Passed to splice_to_pipe
- */
-struct splice_pipe_desc {
-	struct page **pages;		/* page map */
-	struct partial_page *partial;	/* pages[] may not be contig */
-	int nr_pages;			/* number of pages in map */
-	unsigned int flags;		/* splice flags */
-	const struct pipe_buf_operations *ops;/* ops associated with output pipe */
-};
 
 /*
  * Attempt to steal a page from a pipe buffer. This should perhaps go into
@@ -170,11 +154,11 @@ static const struct pipe_buf_operations user_page_pipe_buf_ops = {
 };
 
 /*
- * Pipe output worker. This sets up our pipe format with the page cache
- * pipe buffer operations. Otherwise very similar to the regular pipe_writev().
+ * Pipe output worker. This fills a pipe with the information contained
+ * from splice_pipe_desc().
  */
-static ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
-			      struct splice_pipe_desc *spd)
+ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
+		       struct splice_pipe_desc *spd)
 {
 	unsigned int spd_pages = spd->nr_pages;
 	int ret, do_wakeup, page_nr;

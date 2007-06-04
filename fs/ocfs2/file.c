@@ -31,7 +31,7 @@
 #include <linux/pagemap.h>
 #include <linux/uio.h>
 #include <linux/sched.h>
-#include <linux/pipe_fs_i.h>
+#include <linux/splice.h>
 #include <linux/mount.h>
 #include <linux/writeback.h>
 

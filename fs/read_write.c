@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/syscalls.h>
 #include <linux/pagemap.h>
-#include <linux/pipe_fs_i.h>
+#include <linux/splice.h>
 #include "read_write.h"
 
 #include <asm/uaccess.h>

@@ -24,7 +24,7 @@
 #include <linux/crash_dump.h>
 #include <linux/backing-dev.h>
 #include <linux/bootmem.h>
-#include <linux/pipe_fs_i.h>
+#include <linux/splice.h>
 #include <linux/pfn.h>
 
 #include <asm/uaccess.h>
