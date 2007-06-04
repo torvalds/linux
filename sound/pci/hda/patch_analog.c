@@ -2883,8 +2883,8 @@ static struct snd_kcontrol_new ad1984_dmic_mixers[] = {
  */
 static struct hda_verb ad1884_init_verbs[] = {
 	/* DACs; mute as default */
-	{0x03, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	{0x03, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 	/* Port-A (HP) mixer */
 	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
@@ -2960,7 +2960,7 @@ static int patch_ad1884(struct hda_codec *codec)
  * Lenovo Thinkpad T61/X61
  */
 static struct hda_input_mux ad1984_thinkpad_capture_source = {
-	.num_items = 4,
+	.num_items = 3,
 	.items = {
 		{ "Mic", 0x0 },
 		{ "Internal Mic", 0x1 },
