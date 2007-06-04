@@ -274,6 +274,7 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 	goto out;
 
 out_free_ctx:
+	spu_forget(ctx);
 	put_spu_context(ctx);
 out_iput:
 	iput(inode);
