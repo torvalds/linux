@@ -477,7 +477,7 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 
 	MLX4_GET(fw_ver, outbox, QUERY_FW_VER_OFFSET);
 	/*
-	 * FW subminor version is at more signifant bits than minor
+	 * FW subminor version is at more significant bits than minor
 	 * version, so swap here.
 	 */
 	dev->caps.fw_ver = (fw_ver & 0xffff00000000ull) |
