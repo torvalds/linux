@@ -320,7 +320,9 @@ skip_restore:
 
 	.align	2
 5:	.long	0x00001000	! DSP
+#ifdef CONFIG_KGDB_NMI
 6:	.long	in_nmi
+#endif
 7:	.long	0x30000000
 
 ! common exception handler
