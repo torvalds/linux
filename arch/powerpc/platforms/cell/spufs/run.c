@@ -142,8 +142,12 @@ static int spu_run_init(struct spu_context *ctx, u32 * npc)
 			runcntl = SPU_RUNCNTL_RUNNABLE;
 		ctx->ops->runcntl_write(ctx, runcntl);
 	} else {
+		unsigned long mode = SPU_PRIVCNTL_MODE_NORMAL;
 		spu_start_tick(ctx);
 		ctx->ops->npc_write(ctx, *npc);
+		if (test_thread_flag(TIF_SINGLESTEP))
+			mode = SPU_PRIVCNTL_MODE_SINGLE_STEP;
+		out_be64(&ctx->spu->priv2->spu_privcntl_RW, mode);
 		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
 	}
 
@@ -334,7 +338,8 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 		ret = spu_process_events(ctx);
 
 	} while (!ret && !(status & (SPU_STATUS_STOPPED_BY_STOP |
-				      SPU_STATUS_STOPPED_BY_HALT)));
+				      SPU_STATUS_STOPPED_BY_HALT |
+				       SPU_STATUS_SINGLE_STEP)));
 
 	ctx->ops->master_stop(ctx);
 	ret = spu_run_fini(ctx, npc, &status);
@@ -344,10 +349,15 @@ out2:
 	if ((ret == 0) ||
 	    ((ret == -ERESTARTSYS) &&
 	     ((status & SPU_STATUS_STOPPED_BY_HALT) ||
+	      (status & SPU_STATUS_SINGLE_STEP) ||
 	      ((status & SPU_STATUS_STOPPED_BY_STOP) &&
 	       (status >> SPU_STOP_STATUS_SHIFT != 0x2104)))))
 		ret = status;
 
+	/* Note: we don't need to force_sig SIGTRAP on single-step
+	 * since we have TIF_SINGLESTEP set, thus the kernel will do
+	 * it upon return from the syscall anyawy
+	 */
 	if ((status & SPU_STATUS_STOPPED_BY_STOP)
 	    && (status >> SPU_STOP_STATUS_SHIFT) == 0x3fff) {
 		force_sig(SIGTRAP, current);
