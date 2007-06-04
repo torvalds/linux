@@ -215,6 +215,7 @@ struct tuner {
 	int  (*get_afc)(struct i2c_client *c);
 	void (*tuner_status)(struct i2c_client *c);
 	void (*standby)(struct i2c_client *c);
+	void (*release)(struct i2c_client *c);
 };
 
 extern unsigned const int tuner_count;

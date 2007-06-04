@@ -178,8 +178,11 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	}
 
 	/* discard private data, in case set_type() was previously called */
+	if (t->release)
+		t->release(c);
 	kfree(t->priv);
 	t->priv = NULL;
+
 	switch (t->type) {
 	case TUNER_MT2032:
 		microtune_init(c);
@@ -561,6 +564,8 @@ static int tuner_detach(struct i2c_client *client)
 		return err;
 	}
 
+	if (t->release)
+		t->release(client);
 	kfree(t->priv);
 	kfree(t);
 	return 0;
