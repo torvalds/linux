@@ -755,7 +755,7 @@ config FB_LEO
 
 config FB_IGA
 	bool "IGA 168x display support"
-	depends on FB && SPARC32
+	depends on (FB = y) && SPARC32
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -765,7 +765,7 @@ config FB_IGA
 
 config FB_XVR500
 	bool "Sun XVR-500 3DLABS Wildcat support"
-	depends on FB && PCI && SPARC64
+	depends on (FB = y) && PCI && SPARC64
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -778,7 +778,7 @@ config FB_XVR500
 
 config FB_XVR2500
 	bool "Sun XVR-2500 3DLABS Wildcat support"
-	depends on FB && PCI && SPARC64
+	depends on (FB = y) && PCI && SPARC64
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
