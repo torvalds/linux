@@ -72,7 +72,7 @@
  * This handles the memory map.
  */
 #ifndef PAGE_OFFSET
-#define PAGE_OFFSET		CAC_BASE
+#define PAGE_OFFSET		(CAC_BASE + PHYS_OFFSET)
 #endif
 
 #endif /* __ASM_MACH_GENERIC_SPACES_H */
