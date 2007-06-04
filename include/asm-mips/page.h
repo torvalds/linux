@@ -34,12 +34,8 @@
 
 #ifndef __ASSEMBLY__
 
-/*
- * This gives the physical RAM offset.
- */
-#ifndef PHYS_OFFSET
-#define PHYS_OFFSET		0UL
-#endif
+#include <linux/pfn.h>
+#include <linux/io.h>
 
 /*
  * It's normally defined only for FLATMEM config but it's
@@ -47,9 +43,6 @@
  * So always define it.
  */
 #define ARCH_PFN_OFFSET		PFN_UP(PHYS_OFFSET)
-
-#include <linux/pfn.h>
-#include <asm/io.h>
 
 extern void clear_page(void * page);
 extern void copy_page(void * to, void * from);

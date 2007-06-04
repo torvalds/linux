@@ -12,6 +12,13 @@
 
 #include <linux/const.h>
 
+/*
+ * This gives the physical RAM offset.
+ */
+#ifndef PHYS_OFFSET
+#define PHYS_OFFSET		_AC(0, UL)
+#endif
+
 #ifdef CONFIG_32BIT
 
 #define CAC_BASE		_AC(0x80000000, UL)
