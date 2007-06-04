@@ -33,8 +33,6 @@
 #include <asm/pgtable.h>
 #include <asm/system.h>
 
-#include "ptrace-ppc64.h"
-
 /*
  * does not yet catch signals sent when the child dies.
  * in exit.c or in signal.c.

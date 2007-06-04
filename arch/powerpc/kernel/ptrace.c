@@ -35,16 +35,28 @@
 #include <asm/pgtable.h>
 #include <asm/system.h>
 
-#ifdef CONFIG_PPC64
-#include "ptrace-ppc64.h"
-#else
-#include "ptrace-ppc32.h"
-#endif
-
 /*
  * does not yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
  */
+
+/*
+ * Set of msr bits that gdb can change on behalf of a process.
+ */
+#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
+#define MSR_DEBUGCHANGE	0
+#else
+#define MSR_DEBUGCHANGE	(MSR_SE | MSR_BE)
+#endif
+
+/*
+ * Max register writeable via put_reg
+ */
+#ifdef CONFIG_PPC32
+#define PT_MAX_PUT_REG	PT_MQ
+#else
+#define PT_MAX_PUT_REG	PT_CCR
+#endif
 
 /*
  * Get contents of register REGNO in task TASK.
@@ -58,7 +70,7 @@ unsigned long ptrace_get_reg(struct task_struct *task, int regno)
 
 	if (regno == PT_MSR) {
 		tmp = ((unsigned long *)task->thread.regs)[PT_MSR];
-		return PT_MUNGE_MSR(tmp, task);
+		return tmp | task->thread.fpexc_mode;
 	}
 
 	if (regno < (sizeof(struct pt_regs) / sizeof(unsigned long)))
@@ -273,6 +285,27 @@ static void clear_single_step(struct task_struct *task)
 	}
 	clear_tsk_thread_flag(task, TIF_SINGLESTEP);
 }
+
+#ifdef CONFIG_PPC64
+static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
+			       unsigned long data)
+{
+	/* We only support one DABR and no IABRS at the moment */
+	if (addr > 0)
+		return -EINVAL;
+
+	/* The bottom 3 bits are flags */
+	if ((data & ~0x7UL) >= TASK_SIZE)
+		return -EIO;
+
+	/* Ensure translation is on */
+	if (data && !(data & DABR_TRANSLATION))
+		return -EIO;
+
+	task->thread.dabr = data;
+	return 0;
+}
+#endif
 
 /*
  * Called by kernel/ptrace.c when detaching..
