@@ -1,9 +1,7 @@
-#ifndef __ASM_SH_HITACHI_SE73180_H
-#define __ASM_SH_HITACHI_SE73180_H
+#ifndef __ASM_SH_SE73180_H
+#define __ASM_SH_SE73180_H
 
 /*
- * include/asm-sh/se/se73180.h
- *
  * Copyright (C) 2003 Takashi Kusuda <kusuda-takashi@hitachi-ul.co.jp>
  *
  * SH-Mobile SolutionEngine 73180 support
@@ -62,4 +60,7 @@
 #define __IO_PREFIX	sh73180se
 #include <asm/io_generic.h>
 
-#endif  /* __ASM_SH_HITACHI_SE73180_H */
+/* arch/sh/boards/se/73180/irq.c */
+int shmse_irq_demux(int irq);
+
+#endif  /* __ASM_SH_SE73180_H */
