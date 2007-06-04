@@ -63,3 +63,10 @@ void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 		regs->ccr |= 0x10000000;
 	}
 }
+
+long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
+		unsigned long r5, unsigned long r6, unsigned long r7,
+		unsigned long r8, struct pt_regs *regs)
+{
+	return do_sigaltstack(uss, uoss, regs->gpr[1]);
+}

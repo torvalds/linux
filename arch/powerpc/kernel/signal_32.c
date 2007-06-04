@@ -253,14 +253,6 @@ long sys_sigsuspend(old_sigset_t mask)
  	return -ERESTARTNOHAND;
 }
 
-#ifdef CONFIG_PPC32
-long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss, int r5,
-		int r6, int r7, int r8, struct pt_regs *regs)
-{
-	return do_sigaltstack(uss, uoss, regs->gpr[1]);
-}
-#endif
-
 long sys_sigaction(int sig, struct old_sigaction __user *act,
 		struct old_sigaction __user *oact)
 {
