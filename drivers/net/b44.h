@@ -443,8 +443,6 @@ struct b44 {
 #define B44_FLAG_TX_RING_HACK	0x40000000
 #define B44_FLAG_WOL_ENABLE	0x80000000
 
-	u32			rx_offset;
-
 	u32			msg_enable;
 
 	struct timer_list	timer;
