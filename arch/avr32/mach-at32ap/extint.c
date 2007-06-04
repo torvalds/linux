@@ -17,42 +17,83 @@
 
 #include <asm/io.h>
 
-#include <asm/arch/sm.h>
+/* EIC register offsets */
+#define EIC_IER					0x0000
+#define EIC_IDR					0x0004
+#define EIC_IMR					0x0008
+#define EIC_ISR					0x000c
+#define EIC_ICR					0x0010
+#define EIC_MODE				0x0014
+#define EIC_EDGE				0x0018
+#define EIC_LEVEL				0x001c
+#define EIC_TEST				0x0020
+#define EIC_NMIC				0x0024
 
-#include "sm.h"
+/* Bitfields in TEST */
+#define EIC_TESTEN_OFFSET			31
+#define EIC_TESTEN_SIZE				1
 
-static void eim_ack_irq(unsigned int irq)
+/* Bitfields in NMIC */
+#define EIC_EN_OFFSET				0
+#define EIC_EN_SIZE				1
+
+/* Bit manipulation macros */
+#define EIC_BIT(name)					\
+	(1 << EIC_##name##_OFFSET)
+#define EIC_BF(name,value)				\
+	(((value) & ((1 << EIC_##name##_SIZE) - 1))	\
+	 << EIC_##name##_OFFSET)
+#define EIC_BFEXT(name,value)				\
+	(((value) >> EIC_##name##_OFFSET)		\
+	 & ((1 << EIC_##name##_SIZE) - 1))
+#define EIC_BFINS(name,value,old)			\
+	(((old) & ~(((1 << EIC_##name##_SIZE) - 1)	\
+		    << EIC_##name##_OFFSET))		\
+	 | EIC_BF(name,value))
+
+/* Register access macros */
+#define eic_readl(port,reg)				\
+	__raw_readl((port)->regs + EIC_##reg)
+#define eic_writel(port,reg,value)			\
+	__raw_writel((value), (port)->regs + EIC_##reg)
+
+struct eic {
+	void __iomem *regs;
+	struct irq_chip *chip;
+	unsigned int first_irq;
+};
+
+static void eic_ack_irq(unsigned int irq)
 {
-	struct at32_sm *sm = get_irq_chip_data(irq);
-	sm_writel(sm, EIM_ICR, 1 << (irq - sm->eim_first_irq));
+	struct eic *eic = get_irq_chip_data(irq);
+	eic_writel(eic, ICR, 1 << (irq - eic->first_irq));
 }
 
-static void eim_mask_irq(unsigned int irq)
+static void eic_mask_irq(unsigned int irq)
 {
-	struct at32_sm *sm = get_irq_chip_data(irq);
-	sm_writel(sm, EIM_IDR, 1 << (irq - sm->eim_first_irq));
+	struct eic *eic = get_irq_chip_data(irq);
+	eic_writel(eic, IDR, 1 << (irq - eic->first_irq));
 }
 
-static void eim_mask_ack_irq(unsigned int irq)
+static void eic_mask_ack_irq(unsigned int irq)
 {
-	struct at32_sm *sm = get_irq_chip_data(irq);
-	sm_writel(sm, EIM_ICR, 1 << (irq - sm->eim_first_irq));
-	sm_writel(sm, EIM_IDR, 1 << (irq - sm->eim_first_irq));
+	struct eic *eic = get_irq_chip_data(irq);
+	eic_writel(eic, ICR, 1 << (irq - eic->first_irq));
+	eic_writel(eic, IDR, 1 << (irq - eic->first_irq));
 }
 
-static void eim_unmask_irq(unsigned int irq)
+static void eic_unmask_irq(unsigned int irq)
 {
-	struct at32_sm *sm = get_irq_chip_data(irq);
-	sm_writel(sm, EIM_IER, 1 << (irq - sm->eim_first_irq));
+	struct eic *eic = get_irq_chip_data(irq);
+	eic_writel(eic, IER, 1 << (irq - eic->first_irq));
 }
 
-static int eim_set_irq_type(unsigned int irq, unsigned int flow_type)
+static int eic_set_irq_type(unsigned int irq, unsigned int flow_type)
 {
-	struct at32_sm *sm = get_irq_chip_data(irq);
+	struct eic *eic = get_irq_chip_data(irq);
 	struct irq_desc *desc;
-	unsigned int i = irq - sm->eim_first_irq;
+	unsigned int i = irq - eic->first_irq;
 	u32 mode, edge, level;
-	unsigned long flags;
 	int ret = 0;
 
 	flow_type &= IRQ_TYPE_SENSE_MASK;
@@ -60,11 +101,10 @@ static int eim_set_irq_type(unsigned int irq, unsigned int flow_type)
 		flow_type = IRQ_TYPE_LEVEL_LOW;
 
 	desc = &irq_desc[irq];
-	spin_lock_irqsave(&sm->lock, flags);
 
-	mode = sm_readl(sm, EIM_MODE);
-	edge = sm_readl(sm, EIM_EDGE);
-	level = sm_readl(sm, EIM_LEVEL);
+	mode = eic_readl(eic, MODE);
+	edge = eic_readl(eic, EDGE);
+	level = eic_readl(eic, LEVEL);
 
 	switch (flow_type) {
 	case IRQ_TYPE_LEVEL_LOW:
@@ -89,9 +129,9 @@ static int eim_set_irq_type(unsigned int irq, unsigned int flow_type)
 	}
 
 	if (ret == 0) {
-		sm_writel(sm, EIM_MODE, mode);
-		sm_writel(sm, EIM_EDGE, edge);
-		sm_writel(sm, EIM_LEVEL, level);
+		eic_writel(eic, MODE, mode);
+		eic_writel(eic, EDGE, edge);
+		eic_writel(eic, LEVEL, level);
 
 		if (flow_type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
 			flow_type |= IRQ_LEVEL;
@@ -99,35 +139,33 @@ static int eim_set_irq_type(unsigned int irq, unsigned int flow_type)
 		desc->status |= flow_type;
 	}
 
-	spin_unlock_irqrestore(&sm->lock, flags);
-
 	return ret;
 }
 
-struct irq_chip eim_chip = {
-	.name		= "eim",
-	.ack		= eim_ack_irq,
-	.mask		= eim_mask_irq,
-	.mask_ack	= eim_mask_ack_irq,
-	.unmask		= eim_unmask_irq,
-	.set_type	= eim_set_irq_type,
+struct irq_chip eic_chip = {
+	.name		= "eic",
+	.ack		= eic_ack_irq,
+	.mask		= eic_mask_irq,
+	.mask_ack	= eic_mask_ack_irq,
+	.unmask		= eic_unmask_irq,
+	.set_type	= eic_set_irq_type,
 };
 
-static void demux_eim_irq(unsigned int irq, struct irq_desc *desc)
+static void demux_eic_irq(unsigned int irq, struct irq_desc *desc)
 {
-	struct at32_sm *sm = desc->handler_data;
+	struct eic *eic = desc->handler_data;
 	struct irq_desc *ext_desc;
 	unsigned long status, pending;
 	unsigned int i, ext_irq;
 
-	status = sm_readl(sm, EIM_ISR);
-	pending = status & sm_readl(sm, EIM_IMR);
+	status = eic_readl(eic, ISR);
+	pending = status & eic_readl(eic, IMR);
 
 	while (pending) {
 		i = fls(pending) - 1;
 		pending &= ~(1 << i);
 
-		ext_irq = i + sm->eim_first_irq;
+		ext_irq = i + eic->first_irq;
 		ext_desc = irq_desc + ext_irq;
 		if (ext_desc->status & IRQ_LEVEL)
 			handle_level_irq(ext_irq, ext_desc);
@@ -136,51 +174,85 @@ static void demux_eim_irq(unsigned int irq, struct irq_desc *desc)
 	}
 }
 
-static int __init eim_init(void)
+static int __init eic_probe(struct platform_device *pdev)
 {
-	struct at32_sm *sm = &system_manager;
+	struct eic *eic;
+	struct resource *regs;
 	unsigned int i;
 	unsigned int nr_irqs;
 	unsigned int int_irq;
+	int ret;
 	u32 pattern;
 
-	/*
-	 * The EIM is really the same module as SM, so register
-	 * mapping, etc. has been taken care of already.
-	 */
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	int_irq = platform_get_irq(pdev, 0);
+	if (!regs || !int_irq) {
+		dev_dbg(&pdev->dev, "missing regs and/or irq resource\n");
+		return -ENXIO;
+	}
+
+	ret = -ENOMEM;
+	eic = kzalloc(sizeof(struct eic), GFP_KERNEL);
+	if (!eic) {
+		dev_dbg(&pdev->dev, "no memory for eic structure\n");
+		goto err_kzalloc;
+	}
+
+	eic->first_irq = EIM_IRQ_BASE + 32 * pdev->id;
+	eic->regs = ioremap(regs->start, regs->end - regs->start + 1);
+	if (!eic->regs) {
+		dev_dbg(&pdev->dev, "failed to map regs\n");
+		goto err_ioremap;
+	}
 
 	/*
 	 * Find out how many interrupt lines that are actually
 	 * implemented in hardware.
 	 */
-	sm_writel(sm, EIM_IDR, ~0UL);
-	sm_writel(sm, EIM_MODE, ~0UL);
-	pattern = sm_readl(sm, EIM_MODE);
+	eic_writel(eic, IDR, ~0UL);
+	eic_writel(eic, MODE, ~0UL);
+	pattern = eic_readl(eic, MODE);
 	nr_irqs = fls(pattern);
 
 	/* Trigger on falling edge unless overridden by driver */
-	sm_writel(sm, EIM_MODE, 0UL);
-	sm_writel(sm, EIM_EDGE, 0UL);
+	eic_writel(eic, MODE, 0UL);
+	eic_writel(eic, EDGE, 0UL);
 
-	sm->eim_chip = &eim_chip;
+	eic->chip = &eic_chip;
 
 	for (i = 0; i < nr_irqs; i++) {
 		/* NOTE the handler we set here is ignored by the demux */
-		set_irq_chip_and_handler(sm->eim_first_irq + i, &eim_chip,
+		set_irq_chip_and_handler(eic->first_irq + i, &eic_chip,
 					 handle_level_irq);
-		set_irq_chip_data(sm->eim_first_irq + i, sm);
+		set_irq_chip_data(eic->first_irq + i, eic);
 	}
 
-	int_irq = platform_get_irq_byname(sm->pdev, "eim");
+	set_irq_chained_handler(int_irq, demux_eic_irq);
+	set_irq_data(int_irq, eic);
 
-	set_irq_chained_handler(int_irq, demux_eim_irq);
-	set_irq_data(int_irq, sm);
-
-	printk("EIM: External Interrupt Module at 0x%p, IRQ %u\n",
-	       sm->regs, int_irq);
-	printk("EIM: Handling %u external IRQs, starting with IRQ %u\n",
-	       nr_irqs, sm->eim_first_irq);
+	dev_info(&pdev->dev,
+		 "External Interrupt Controller at 0x%p, IRQ %u\n",
+		 eic->regs, int_irq);
+	dev_info(&pdev->dev,
+		 "Handling %u external IRQs, starting with IRQ %u\n",
+		 nr_irqs, eic->first_irq);
 
 	return 0;
+
+err_ioremap:
+	kfree(eic);
+err_kzalloc:
+	return ret;
 }
-arch_initcall(eim_init);
+
+static struct platform_driver eic_driver = {
+	.driver = {
+		.name = "at32_eic",
+	},
+};
+
+static int __init eic_init(void)
+{
+	return platform_driver_probe(&eic_driver, eic_probe);
+}
+arch_initcall(eic_init);
