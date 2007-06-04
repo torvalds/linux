@@ -59,6 +59,62 @@ void ptrace_disable(struct task_struct *child)
 	clear_single_step(child);
 }
 
+/*
+ * Here are the old "legacy" powerpc specific getregs/setregs ptrace calls,
+ * we mark them as obsolete now, they will be removed in a future version
+ */
+static long arch_ptrace_old(struct task_struct *child, long request, long addr,
+			    long data)
+{
+	int ret = -EPERM;
+
+	switch(request) {
+	case PPC_PTRACE_GETREGS: { /* Get GPRs 0 - 31. */
+		int i;
+		unsigned long *reg = &((unsigned long *)child->thread.regs)[0];
+		unsigned long __user *tmp = (unsigned long __user *)addr;
+
+		for (i = 0; i < 32; i++) {
+			ret = put_user(*reg, tmp);
+			if (ret)
+				break;
+			reg++;
+			tmp++;
+		}
+		break;
+	}
+
+	case PPC_PTRACE_SETREGS: { /* Set GPRs 0 - 31. */
+		int i;
+		unsigned long *reg = &((unsigned long *)child->thread.regs)[0];
+		unsigned long __user *tmp = (unsigned long __user *)addr;
+
+		for (i = 0; i < 32; i++) {
+			ret = get_user(*reg, tmp);
+			if (ret)
+				break;
+			reg++;
+			tmp++;
+		}
+		break;
+	}
+
+	case PPC_PTRACE_GETFPREGS: { /* Get FPRs 0 - 31. */
+		flush_fp_to_thread(child);
+		ret = get_fpregs((void __user *)addr, child, 0);
+		break;
+	}
+
+	case PPC_PTRACE_SETFPREGS: { /* Get FPRs 0 - 31. */
+		flush_fp_to_thread(child);
+		ret = set_fpregs((void __user *)addr, child, 0);
+		break;
+	}
+
+	}
+	return ret;
+}
+
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	int ret = -EPERM;
@@ -214,71 +270,58 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = ptrace_detach(child, data);
 		break;
 
-	case PPC_PTRACE_GETREGS: { /* Get GPRs 0 - 31. */
-		int i;
-		unsigned long *reg = &((unsigned long *)child->thread.regs)[0];
-		unsigned long __user *tmp = (unsigned long __user *)addr;
-
-		for (i = 0; i < 32; i++) {
-			ret = put_user(*reg, tmp);
-			if (ret)
-				break;
-			reg++;
-			tmp++;
+#ifdef CONFIG_PPC64
+	case PTRACE_GETREGS64:
+#endif
+	case PTRACE_GETREGS: { /* Get all pt_regs from the child. */
+		int ui;
+	  	if (!access_ok(VERIFY_WRITE, (void __user *)data,
+			       sizeof(struct pt_regs))) {
+			ret = -EIO;
+			break;
 		}
-		break;
-	}
-
-	case PPC_PTRACE_SETREGS: { /* Set GPRs 0 - 31. */
-		int i;
-		unsigned long *reg = &((unsigned long *)child->thread.regs)[0];
-		unsigned long __user *tmp = (unsigned long __user *)addr;
-
-		for (i = 0; i < 32; i++) {
-			ret = get_user(*reg, tmp);
-			if (ret)
-				break;
-			reg++;
-			tmp++;
+		ret = 0;
+		for (ui = 0; ui < PT_REGS_COUNT; ui ++) {
+			ret |= __put_user(get_reg(child, ui),
+					  (unsigned long __user *) data);
+			data += sizeof(long);
 		}
 		break;
 	}
 
 #ifdef CONFIG_PPC64
-	case PPC_PTRACE_GETFPREGS: { /* Get FPRs 0 - 31. */
-		int i;
-		unsigned long *reg = &((unsigned long *)child->thread.fpr)[0];
-		unsigned long __user *tmp = (unsigned long __user *)addr;
-
-		flush_fp_to_thread(child);
-
-		for (i = 0; i < 32; i++) {
-			ret = put_user(*reg, tmp);
+	case PTRACE_SETREGS64:
+#endif
+	case PTRACE_SETREGS: { /* Set all gp regs in the child. */
+		unsigned long tmp;
+		int ui;
+	  	if (!access_ok(VERIFY_READ, (void __user *)data,
+			       sizeof(struct pt_regs))) {
+			ret = -EIO;
+			break;
+		}
+		ret = 0;
+		for (ui = 0; ui < PT_REGS_COUNT; ui ++) {
+			ret = __get_user(tmp, (unsigned long __user *) data);
 			if (ret)
 				break;
-			reg++;
-			tmp++;
+			put_reg(child, ui, tmp);
+			data += sizeof(long);
 		}
 		break;
 	}
 
-	case PPC_PTRACE_SETFPREGS: { /* Get FPRs 0 - 31. */
-		int i;
-		unsigned long *reg = &((unsigned long *)child->thread.fpr)[0];
-		unsigned long __user *tmp = (unsigned long __user *)addr;
-
+	case PTRACE_GETFPREGS: { /* Get the child FPU state (FPR0...31 + FPSCR) */
 		flush_fp_to_thread(child);
-
-		for (i = 0; i < 32; i++) {
-			ret = get_user(*reg, tmp);
-			if (ret)
-				break;
-			reg++;
-			tmp++;
-		}
+		ret = get_fpregs((void __user *)data, child, 1);
 		break;
 	}
-#endif /* CONFIG_PPC64 */
+
+	case PTRACE_SETFPREGS: { /* Set the child FPU state (FPR0...31 + FPSCR) */
+		flush_fp_to_thread(child);
+		ret = set_fpregs((void __user *)data, child, 1);
+		break;
+	}
 
 #ifdef CONFIG_ALTIVEC
 	case PTRACE_GETVRREGS:
@@ -311,11 +354,18 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 #endif
 
+	/* Old reverse args ptrace callss */
+	case PPC_PTRACE_GETREGS: /* Get GPRs 0 - 31. */
+	case PPC_PTRACE_SETREGS: /* Set GPRs 0 - 31. */
+	case PPC_PTRACE_GETFPREGS: /* Get FPRs 0 - 31. */
+	case PPC_PTRACE_SETFPREGS: /* Get FPRs 0 - 31. */
+		ret = arch_ptrace_old(child, request, addr, data);
+		break;
+
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		break;
 	}
-
 	return ret;
 }
 

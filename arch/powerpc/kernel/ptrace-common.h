@@ -52,6 +52,29 @@ static inline int put_reg(struct task_struct *task, int regno,
 }
 
 
+static inline int get_fpregs(void __user *data,
+			     struct task_struct *task,
+			     int has_fpscr)
+{
+	unsigned int count = has_fpscr ? 33 : 32;
+
+	if (copy_to_user(data, task->thread.fpr, count * sizeof(double)))
+		return -EFAULT;
+	return 0;
+}
+
+static inline int set_fpregs(void __user *data,
+			     struct task_struct *task,
+			     int has_fpscr)
+{
+	unsigned int count = has_fpscr ? 33 : 32;
+
+	if (copy_from_user(task->thread.fpr, data, count * sizeof(double)))
+		return -EFAULT;
+	return 0;
+}
+
+
 #ifdef CONFIG_ALTIVEC
 /*
  * Get/set all the altivec registers vr0..vr31, vscr, vrsave, in one go.

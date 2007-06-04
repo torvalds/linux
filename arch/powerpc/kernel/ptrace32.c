@@ -41,6 +41,50 @@
  * in exit.c or in signal.c.
  */
 
+/*
+ * Here are the old "legacy" powerpc specific getregs/setregs ptrace calls,
+ * we mark them as obsolete now, they will be removed in a future version
+ */
+static long compat_ptrace_old(struct task_struct *child, long request,
+			      long addr, long data)
+{
+	int ret = -EPERM;
+
+	switch(request) {
+	case PPC_PTRACE_GETREGS: { /* Get GPRs 0 - 31. */
+		int i;
+		unsigned long *reg = &((unsigned long *)child->thread.regs)[0];
+		unsigned int __user *tmp = (unsigned int __user *)addr;
+
+		for (i = 0; i < 32; i++) {
+			ret = put_user(*reg, tmp);
+			if (ret)
+				break;
+			reg++;
+			tmp++;
+		}
+		break;
+	}
+
+	case PPC_PTRACE_SETREGS: { /* Set GPRs 0 - 31. */
+		int i;
+		unsigned long *reg = &((unsigned long *)child->thread.regs)[0];
+		unsigned int __user *tmp = (unsigned int __user *)addr;
+
+		for (i = 0; i < 32; i++) {
+			ret = get_user(*reg, tmp);
+			if (ret)
+				break;
+			reg++;
+			tmp++;
+		}
+		break;
+	}
+
+	}
+	return ret;
+}
+
 long compat_sys_ptrace(int request, int pid, unsigned long addr,
 		       unsigned long data)
 {
@@ -280,52 +324,6 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 		break;
 	}
 
-	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
-	case PTRACE_CONT: { /* restart after signal. */
-		ret = -EIO;
-		if (!valid_signal(data))
-			break;
-		if (request == PTRACE_SYSCALL)
-			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		else
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		child->exit_code = data;
-		/* make sure the single step bit is not set. */
-		clear_single_step(child);
-		wake_up_process(child);
-		ret = 0;
-		break;
-	}
-
-	/*
-	 * make the child exit.  Best I can do is send it a sigkill.
-	 * perhaps it should be put in the status that it wants to
-	 * exit.
-	 */
-	case PTRACE_KILL: {
-		ret = 0;
-		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
-			break;
-		child->exit_code = SIGKILL;
-		/* make sure the single step bit is not set. */
-		clear_single_step(child);
-		wake_up_process(child);
-		break;
-	}
-
-	case PTRACE_SINGLESTEP: {  /* set the trap flag. */
-		ret = -EIO;
-		if (!valid_signal(data))
-			break;
-		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		set_single_step(child);
-		child->exit_code = data;
-		/* give it a chance to run. */
-		wake_up_process(child);
-		ret = 0;
-		break;
-	}
-
 	case PTRACE_GET_DEBUGREG: {
 		ret = -EINVAL;
 		/* We only support one DABR and no IABRS at the moment */
@@ -335,95 +333,67 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 		break;
 	}
 
-	case PTRACE_SET_DEBUGREG:
-		ret = ptrace_set_debugreg(child, addr, data);
-		break;
-
-	case PTRACE_DETACH:
-		ret = ptrace_detach(child, data);
-		break;
-
-	case PPC_PTRACE_GETREGS: { /* Get GPRs 0 - 31. */
-		int i;
-		unsigned long *reg = &((unsigned long *)child->thread.regs)[0];
-		unsigned int __user *tmp = (unsigned int __user *)addr;
-
-		for (i = 0; i < 32; i++) {
-			ret = put_user(*reg, tmp);
-			if (ret)
-				break;
-			reg++;
-			tmp++;
-		}
-		break;
-	}
-
-	case PPC_PTRACE_SETREGS: { /* Set GPRs 0 - 31. */
-		int i;
-		unsigned long *reg = &((unsigned long *)child->thread.regs)[0];
-		unsigned int __user *tmp = (unsigned int __user *)addr;
-
-		for (i = 0; i < 32; i++) {
-			ret = get_user(*reg, tmp);
-			if (ret)
-				break;
-			reg++;
-			tmp++;
-		}
-		break;
-	}
-
-	case PPC_PTRACE_GETFPREGS: { /* Get FPRs 0 - 31. */
-		int i;
-		unsigned long *reg = &((unsigned long *)child->thread.fpr)[0];
-		unsigned int __user *tmp = (unsigned int __user *)addr;
-
-		flush_fp_to_thread(child);
-
-		for (i = 0; i < 32; i++) {
-			ret = put_user(*reg, tmp);
-			if (ret)
-				break;
-			reg++;
-			tmp++;
-		}
-		break;
-	}
-
-	case PPC_PTRACE_SETFPREGS: { /* Get FPRs 0 - 31. */
-		int i;
-		unsigned long *reg = &((unsigned long *)child->thread.fpr)[0];
-		unsigned int __user *tmp = (unsigned int __user *)addr;
-
-		flush_fp_to_thread(child);
-
-		for (i = 0; i < 32; i++) {
-			ret = get_user(*reg, tmp);
-			if (ret)
-				break;
-			reg++;
-			tmp++;
-		}
-		break;
-	}
-
 	case PTRACE_GETEVENTMSG:
 		ret = put_user(child->ptrace_message, (unsigned int __user *) data);
 		break;
 
-#ifdef CONFIG_ALTIVEC
+	case PTRACE_GETREGS: { /* Get all pt_regs from the child. */
+		int ui;
+	  	if (!access_ok(VERIFY_WRITE, (void __user *)data,
+			       PT_REGS_COUNT * sizeof(int))) {
+			ret = -EIO;
+			break;
+		}
+		ret = 0;
+		for (ui = 0; ui < PT_REGS_COUNT; ui ++) {
+			ret |= __put_user(get_reg(child, ui),
+					  (unsigned int __user *) data);
+			data += sizeof(int);
+		}
+		break;
+	}
+
+	case PTRACE_SETREGS: { /* Set all gp regs in the child. */
+		unsigned long tmp;
+		int ui;
+	  	if (!access_ok(VERIFY_READ, (void __user *)data,
+			       PT_REGS_COUNT * sizeof(int))) {
+			ret = -EIO;
+			break;
+		}
+		ret = 0;
+		for (ui = 0; ui < PT_REGS_COUNT; ui ++) {
+			ret = __get_user(tmp, (unsigned int __user *) data);
+			if (ret)
+				break;
+			put_reg(child, ui, tmp);
+			data += sizeof(int);
+		}
+		break;
+	}
+
+	case PTRACE_GETFPREGS:
+	case PTRACE_SETFPREGS:
 	case PTRACE_GETVRREGS:
-		/* Get the child altivec register state. */
-		flush_altivec_to_thread(child);
-		ret = get_vrregs((unsigned long __user *)data, child);
+	case PTRACE_SETVRREGS:
+	case PTRACE_GETREGS64:
+	case PTRACE_SETREGS64:
+	case PPC_PTRACE_GETFPREGS:
+	case PPC_PTRACE_SETFPREGS:
+	case PTRACE_KILL:
+	case PTRACE_SINGLESTEP:
+	case PTRACE_DETACH:
+	case PTRACE_SET_DEBUGREG:
+	case PTRACE_SYSCALL:
+	case PTRACE_CONT:
+		ret = arch_ptrace(child, request, addr, data);
 		break;
 
-	case PTRACE_SETVRREGS:
-		/* Set the child altivec register state. */
-		flush_altivec_to_thread(child);
-		ret = set_vrregs(child, (unsigned long __user *)data);
+	/* Old reverse args ptrace callss */
+	case PPC_PTRACE_GETREGS: /* Get GPRs 0 - 31. */
+	case PPC_PTRACE_SETREGS: /* Set GPRs 0 - 31. */
+		ret = compat_ptrace_old(child, request, addr, data);
 		break;
-#endif
 
 	default:
 		ret = ptrace_request(child, request, addr, data);
