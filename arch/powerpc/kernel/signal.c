@@ -9,7 +9,6 @@
  * this archive for more details.
  */
 
-#include <linux/freezer.h>
 #include <linux/ptrace.h>
 #include <linux/signal.h>
 #include <asm/unistd.h>
@@ -101,14 +100,6 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	int ret;
 	int is32 = is_32bit_task();
 
-#ifdef CONFIG_PPC32
-	if (try_to_freeze()) {
-		signr = 0;
-		if (!signal_pending(current))
-			goto no_signal;
-	}
-#endif
-
 	if (test_thread_flag(TIF_RESTORE_SIGMASK))
 		oldset = &current->saved_sigmask;
 	else if (!oldset)
@@ -116,9 +107,6 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 
-#ifdef CONFIG_PPC32
-no_signal:
-#endif
 	/* Is there any syscall restart business here ? */
 	check_syscall_restart(regs, &ka, signr > 0);
 
