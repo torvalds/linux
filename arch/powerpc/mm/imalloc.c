@@ -301,7 +301,8 @@ void im_free(void * addr)
 	for (p = &imlist ; (tmp = *p) ; p = &tmp->next) {
 		if (tmp->addr == addr) {
 			*p = tmp->next;
-			unmap_vm_area(tmp);
+			unmap_kernel_range((unsigned long)tmp->addr,
+					   tmp->size);
 			kfree(tmp);
 			mutex_unlock(&imlist_mutex);
 			return;
