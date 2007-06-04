@@ -391,12 +391,48 @@ int xfrm_state_delete(struct xfrm_state *x)
 }
 EXPORT_SYMBOL(xfrm_state_delete);
 
-void xfrm_state_flush(u8 proto, struct xfrm_audit *audit_info)
+#ifdef CONFIG_SECURITY_NETWORK_XFRM
+static inline int
+xfrm_state_flush_secctx_check(u8 proto, struct xfrm_audit *audit_info)
 {
-	int i;
-	int err = 0;
+	int i, err = 0;
+
+	for (i = 0; i <= xfrm_state_hmask; i++) {
+		struct hlist_node *entry;
+		struct xfrm_state *x;
+
+		hlist_for_each_entry(x, entry, xfrm_state_bydst+i, bydst) {
+			if (xfrm_id_proto_match(x->id.proto, proto) &&
+			   (err = security_xfrm_state_delete(x)) != 0) {
+				xfrm_audit_log(audit_info->loginuid,
+					       audit_info->secid,
+					       AUDIT_MAC_IPSEC_DELSA,
+                                               0, NULL, x);
+
+				return err;
+			}
+		}
+	}
+
+	return err;
+}
+#else
+static inline int
+xfrm_state_flush_secctx_check(u8 proto, struct xfrm_audit *audit_info)
+{
+	return 0;
+}
+#endif
+
+int xfrm_state_flush(u8 proto, struct xfrm_audit *audit_info)
+{
+	int i, err = 0;
 
 	spin_lock_bh(&xfrm_state_lock);
+	err = xfrm_state_flush_secctx_check(proto, audit_info);
+	if (err)
+		goto out;
+
 	for (i = 0; i <= xfrm_state_hmask; i++) {
 		struct hlist_node *entry;
 		struct xfrm_state *x;
@@ -419,8 +455,12 @@ restart:
 			}
 		}
 	}
+	err = 0;
+
+out:
 	spin_unlock_bh(&xfrm_state_lock);
 	wake_up(&km_waitq);
+	return err;
 }
 EXPORT_SYMBOL(xfrm_state_flush);
 
