@@ -600,6 +600,10 @@ spufs_create_root(struct super_block *sb, void *data)
 	struct inode *inode;
 	int ret;
 
+	ret = -ENODEV;
+	if (!spu_management_ops)
+		goto out;
+
 	ret = -ENOMEM;
 	inode = spufs_new_inode(sb, S_IFDIR | 0775);
 	if (!inode)
