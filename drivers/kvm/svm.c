@@ -1483,6 +1483,10 @@ static int svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	int r;
 
 again:
+	r = kvm_mmu_reload(vcpu);
+	if (unlikely(r))
+		return r;
+
 	if (!vcpu->mmio_read_completed)
 		do_interrupt_requests(vcpu, kvm_run);
 

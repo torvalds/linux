@@ -544,6 +544,8 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		       const u8 *old, const u8 *new, int bytes);
 int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva);
 void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu);
+int kvm_mmu_load(struct kvm_vcpu *vcpu);
+void kvm_mmu_unload(struct kvm_vcpu *vcpu);
 
 int kvm_hypercall(struct kvm_vcpu *vcpu, struct kvm_run *run);
 
@@ -553,6 +555,14 @@ static inline int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 	if (unlikely(vcpu->kvm->n_free_mmu_pages < KVM_MIN_FREE_MMU_PAGES))
 		kvm_mmu_free_some_pages(vcpu);
 	return vcpu->mmu.page_fault(vcpu, gva, error_code);
+}
+
+static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
+{
+	if (likely(vcpu->mmu.root_hpa != INVALID_PAGE))
+		return 0;
+
+	return kvm_mmu_load(vcpu);
 }
 
 static inline int is_long_mode(struct kvm_vcpu *vcpu)
