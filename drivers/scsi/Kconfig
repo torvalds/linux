@@ -1532,6 +1532,7 @@ source "drivers/scsi/arm/Kconfig"
 config JAZZ_ESP
 	bool "MIPS JAZZ FAS216 SCSI support"
 	depends on MACH_JAZZ && SCSI
+	select SCSI_SPI_ATTRS
 	help
 	  This is the driver for the onboard SCSI host adapter of MIPS Magnum
 	  4000, Acer PICA, Olivetti M700-10 and a few other identical OEM
@@ -1756,6 +1757,7 @@ config SUN3X_ESP
 config SCSI_SUNESP
 	tristate "Sparc ESP Scsi Driver"
 	depends on SBUS && SCSI
+	select SCSI_SPI_ATTRS
 	help
 	  This is the driver for the Sun ESP SCSI host adapter. The ESP
 	  chipset is present in most SPARC SBUS-based computers.

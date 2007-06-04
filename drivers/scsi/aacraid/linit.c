@@ -863,6 +863,14 @@ static struct scsi_host_template aac_driver_template = {
 	.emulated                       = 1,
 };
 
+static void __aac_shutdown(struct aac_dev * aac)
+{
+	kthread_stop(aac->thread);
+	aac_send_shutdown(aac);
+	aac_adapter_disable_int(aac);
+	free_irq(aac->pdev->irq, aac);
+}
+
 static int __devinit aac_probe_one(struct pci_dev *pdev,
 		const struct pci_device_id *id)
 {
@@ -1015,10 +1023,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	return 0;
 
  out_deinit:
-	kthread_stop(aac->thread);
-	aac_send_shutdown(aac);
-	aac_adapter_disable_int(aac);
-	free_irq(pdev->irq, aac);
+	__aac_shutdown(aac);
  out_unmap:
 	aac_fib_map_free(aac);
 	pci_free_consistent(aac->pdev, aac->comm_size, aac->comm_addr, aac->comm_phys);
@@ -1038,7 +1043,8 @@ static void aac_shutdown(struct pci_dev *dev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(dev);
 	struct aac_dev *aac = (struct aac_dev *)shost->hostdata;
-	aac_send_shutdown(aac);
+	scsi_block_requests(shost);
+	__aac_shutdown(aac);
 }
 
 static void __devexit aac_remove_one(struct pci_dev *pdev)
@@ -1048,16 +1054,12 @@ static void __devexit aac_remove_one(struct pci_dev *pdev)
 
 	scsi_remove_host(shost);
 
-	kthread_stop(aac->thread);
-
-	aac_send_shutdown(aac);
-	aac_adapter_disable_int(aac);
+	__aac_shutdown(aac);
 	aac_fib_map_free(aac);
 	pci_free_consistent(aac->pdev, aac->comm_size, aac->comm_addr,
 			aac->comm_phys);
 	kfree(aac->queues);
 
-	free_irq(pdev->irq, aac);
 	aac_adapter_ioremap(aac, 0);
 	
 	kfree(aac->fibs);
