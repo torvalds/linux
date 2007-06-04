@@ -28,6 +28,7 @@
 #include <linux/pagemap.h>
 #include <linux/poll.h>
 #include <linux/ptrace.h>
+#include <linux/seq_file.h>
 
 #include <asm/io.h>
 #include <asm/semaphore.h>
@@ -38,6 +39,7 @@
 #include "spufs.h"
 
 #define SPUFS_MMAP_4K (PAGE_SIZE == 0x1000)
+
 
 static int
 spufs_mem_open(struct inode *inode, struct file *file)
@@ -1797,6 +1799,29 @@ static int spufs_info_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int spufs_caps_show(struct seq_file *s, void *private)
+{
+	struct spu_context *ctx = s->private;
+
+	if (!(ctx->flags & SPU_CREATE_NOSCHED))
+		seq_puts(s, "sched\n");
+	if (!(ctx->flags & SPU_CREATE_ISOLATE))
+		seq_puts(s, "step\n");
+	return 0;
+}
+
+static int spufs_caps_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, spufs_caps_show, SPUFS_I(inode)->i_ctx);
+}
+
+static const struct file_operations spufs_caps_fops = {
+	.open		= spufs_caps_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static ssize_t __spufs_mbox_info_read(struct spu_context *ctx,
 			char __user *buf, size_t len, loff_t *pos)
 {
@@ -2015,6 +2040,7 @@ static const struct file_operations spufs_proxydma_info_fops = {
 };
 
 struct tree_descr spufs_dir_contents[] = {
+	{ "capabilities", &spufs_caps_fops, 0444, },
 	{ "mem",  &spufs_mem_fops,  0666, },
 	{ "regs", &spufs_regs_fops,  0666, },
 	{ "mbox", &spufs_mbox_fops, 0444, },
@@ -2050,6 +2076,7 @@ struct tree_descr spufs_dir_contents[] = {
 };
 
 struct tree_descr spufs_dir_nosched_contents[] = {
+	{ "capabilities", &spufs_caps_fops, 0444, },
 	{ "mem",  &spufs_mem_fops,  0666, },
 	{ "mbox", &spufs_mbox_fops, 0444, },
 	{ "ibox", &spufs_ibox_fops, 0444, },
