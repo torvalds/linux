@@ -1687,7 +1687,7 @@ platforms are moved over to use the flattened-device-tree model.
 		};
 	};
 
-    g) Flash chip nodes
+    j) Flash chip nodes
 
     Flash chips (Memory Technology Devices) are often used for solid state
     file systems on embedded devices.
