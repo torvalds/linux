@@ -13,6 +13,21 @@
 #include <linux/signal.h>
 #include <asm/unistd.h>
 
+#include "signal.h"
+
+
+/*
+ * Restore the user process's signal mask
+ */
+void restore_sigmask(sigset_t *set)
+{
+	sigdelsetmask(set, ~_BLOCKABLE);
+	spin_lock_irq(&current->sighand->siglock);
+	current->blocked = *set;
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
+}
+
 void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 			   int has_handler)
 {

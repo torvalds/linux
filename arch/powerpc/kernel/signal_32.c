@@ -55,8 +55,6 @@
 
 #undef DEBUG_SIG
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 #ifdef CONFIG_PPC64
 #define do_signal	do_signal32
 #define sys_sigsuspend	compat_sys_sigsuspend
@@ -696,23 +694,6 @@ int compat_sys_sigaltstack(u32 __new, u32 __old, int r5,
 	return ret;
 }
 #endif /* CONFIG_PPC64 */
-
-
-/*
- * Restore the user process's signal mask
- */
-#ifdef CONFIG_PPC64
-extern void restore_sigmask(sigset_t *set);
-#else /* CONFIG_PPC64 */
-static void restore_sigmask(sigset_t *set)
-{
-	sigdelsetmask(set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = *set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-}
-#endif
 
 /*
  * Set up a signal frame for a "real-time" signal handler

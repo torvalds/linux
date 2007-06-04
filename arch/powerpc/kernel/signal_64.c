@@ -38,8 +38,6 @@
 
 #define DEBUG_SIG 0
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 #define GP_REGS_SIZE	min(sizeof(elf_gregset_t), sizeof(struct pt_regs))
 #define FP_REGS_SIZE	sizeof(elf_fpregset_t)
 
@@ -241,19 +239,6 @@ static long setup_trampoline(unsigned int syscall, unsigned int __user *tramp)
 
 	return err;
 }
-
-/*
- * Restore the user process's signal mask (also used by signal32.c)
- */
-void restore_sigmask(sigset_t *set)
-{
-	sigdelsetmask(set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = *set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-}
-
 
 /*
  * Handle {get,set,swap}_context operations

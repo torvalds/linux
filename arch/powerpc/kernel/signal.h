@@ -10,6 +10,9 @@
 #ifndef _POWERPC_ARCH_SIGNAL_H
 #define _POWERPC_ARCH_SIGNAL_H
 
+#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
+
+extern void restore_sigmask(sigset_t *set);
 extern void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 				  int has_handler);
 
