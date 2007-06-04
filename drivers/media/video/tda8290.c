@@ -595,6 +595,14 @@ static void tda8290_init_tuner(struct i2c_client *c)
 
 /*---------------------------------------------------------------------*/
 
+static void tda8290_release(struct i2c_client *c)
+{
+	struct tuner *t = i2c_get_clientdata(c);
+
+	kfree(t->priv);
+	t->priv = NULL;
+}
+
 int tda8290_init(struct i2c_client *c)
 {
 	struct tda8290_priv *priv = NULL;
@@ -663,6 +671,7 @@ int tda8290_init(struct i2c_client *c)
 	t->set_radio_freq = set_radio_freq;
 	t->has_signal = has_signal;
 	t->standby = standby;
+	t->release = tda8290_release;
 	priv->tda827x_lpsel = 0;
 	t->mode = V4L2_TUNER_ANALOG_TV;
 

@@ -495,6 +495,14 @@ static int mt2050_init(struct i2c_client *c)
 	return 0;
 }
 
+static void microtune_release(struct i2c_client *c)
+{
+	struct tuner *t = i2c_get_clientdata(c);
+
+	kfree(t->priv);
+	t->priv = NULL;
+}
+
 int microtune_init(struct i2c_client *c)
 {
 	struct microtune_priv *priv = NULL;
@@ -514,6 +522,7 @@ int microtune_init(struct i2c_client *c)
 	t->set_tv_freq    = NULL;
 	t->set_radio_freq = NULL;
 	t->standby    = NULL;
+	t->release        = microtune_release;
 	if (t->std & V4L2_STD_525_60) {
 		tuner_dbg("pinnacle ntsc\n");
 		priv->radio_if2 = 41300 * 1000;

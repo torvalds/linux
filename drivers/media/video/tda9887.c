@@ -591,6 +591,14 @@ static void tda9887_set_freq(struct i2c_client *client, unsigned int freq)
 	tda9887_configure(client);
 }
 
+static void tda9887_release(struct i2c_client *c)
+{
+	struct tuner *t = i2c_get_clientdata(c);
+
+	kfree(t->priv);
+	t->priv = NULL;
+}
+
 int tda9887_tuner_init(struct i2c_client *c)
 {
 	struct tda9887_priv *priv = NULL;
@@ -611,6 +619,7 @@ int tda9887_tuner_init(struct i2c_client *c)
 	t->standby = tda9887_standby;
 	t->tuner_status = tda9887_tuner_status;
 	t->get_afc = tda9887_get_afc;
+	t->release = tda9887_release;
 
 	return 0;
 }
