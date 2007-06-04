@@ -433,7 +433,7 @@ static int __devinit of_pci_phb_probe(struct of_device *dev,
 	 * Note also that we don't do ISA, this will also be fixed with a
 	 * more massive rework.
 	 */
-	pci_setup_phb_io(phb, 0);
+	pci_setup_phb_io(phb, pci_io_base == 0);
 
 	/* Init pci_dn data structures */
 	pci_devs_phb_init_dynamic(phb);
