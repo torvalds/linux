@@ -144,8 +144,7 @@ static struct kobj_type mlog_ktype = {
 };
 
 static struct kset mlog_kset = {
-	.kobj  = {.name = "logmask"},
-	.ktype = &mlog_ktype
+	.kobj   = {.name = "logmask", .ktype = &mlog_ktype},
 };
 
 int mlog_sys_init(struct kset *o2cb_subsys)
