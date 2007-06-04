@@ -51,6 +51,8 @@
 #include <asm/pgtable.h>
 #endif
 
+#include "signal.h"
+
 #undef DEBUG_SIG
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
@@ -1156,30 +1158,8 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 #ifdef CONFIG_PPC32
 no_signal:
 #endif
-	if (TRAP(regs) == 0x0C00		/* System Call! */
-	    && regs->ccr & 0x10000000		/* error signalled */
-	    && ((ret = regs->gpr[3]) == ERESTARTSYS
-		|| ret == ERESTARTNOHAND || ret == ERESTARTNOINTR
-		|| ret == ERESTART_RESTARTBLOCK)) {
-
-		if (signr > 0
-		    && (ret == ERESTARTNOHAND || ret == ERESTART_RESTARTBLOCK
-			|| (ret == ERESTARTSYS
-			    && !(ka.sa.sa_flags & SA_RESTART)))) {
-			/* make the system call return an EINTR error */
-			regs->result = -EINTR;
-			regs->gpr[3] = EINTR;
-			/* note that the cr0.SO bit is already set */
-		} else {
-			regs->nip -= 4;	/* Back up & retry system call */
-			regs->result = 0;
-			regs->trap = 0;
-			if (ret == ERESTART_RESTARTBLOCK)
-				regs->gpr[0] = __NR_restart_syscall;
-			else
-				regs->gpr[3] = regs->orig_gpr3;
-		}
-	}
+	/* Is there any syscall restart business here ? */
+	check_syscall_restart(regs, &ka, signr > 0);
 
 	if (signr == 0) {
 		/* No signal to deliver -- put the saved sigmask back */

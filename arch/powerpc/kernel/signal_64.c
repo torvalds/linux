@@ -34,6 +34,8 @@
 #include <asm/syscalls.h>
 #include <asm/vdso.h>
 
+#include "signal.h"
+
 #define DEBUG_SIG 0
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
@@ -463,41 +465,6 @@ static int handle_signal(unsigned long sig, struct k_sigaction *ka,
 	return ret;
 }
 
-static inline void syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
-{
-	switch ((int)regs->result) {
-	case -ERESTART_RESTARTBLOCK:
-	case -ERESTARTNOHAND:
-		/* ERESTARTNOHAND means that the syscall should only be
-		 * restarted if there was no handler for the signal, and since
-		 * we only get here if there is a handler, we dont restart.
-		 */
-		regs->result = -EINTR;
-		regs->gpr[3] = EINTR;
-		regs->ccr |= 0x10000000;
-		break;
-	case -ERESTARTSYS:
-		/* ERESTARTSYS means to restart the syscall if there is no
-		 * handler or the handler was registered with SA_RESTART
-		 */
-		if (!(ka->sa.sa_flags & SA_RESTART)) {
-			regs->result = -EINTR;
-			regs->gpr[3] = EINTR;
-			regs->ccr |= 0x10000000;
-			break;
-		}
-		/* fallthrough */
-	case -ERESTARTNOINTR:
-		/* ERESTARTNOINTR means that the syscall should be
-		 * called again after the signal handler returns.
-		 */
-		regs->gpr[3] = regs->orig_gpr3;
-		regs->nip -= 4;
-		regs->result = 0;
-		break;
-	}
-}
-
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
@@ -522,12 +489,12 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
+
+	/* Is there any syscall restart business here ? */
+	check_syscall_restart(regs, &ka, signr > 0);
+
 	if (signr > 0) {
 		int ret;
-
-		/* Whee!  Actually deliver the signal.  */
-		if (TRAP(regs) == 0x0C00)
-			syscall_restart(regs, &ka);
 
 		/*
 		 * Reenable the DABR before delivering the signal to
@@ -537,6 +504,7 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 		if (current->thread.dabr)
 			set_dabr(current->thread.dabr);
 
+		/* Whee!  Actually deliver the signal.  */
 		ret = handle_signal(signr, &ka, &info, oldset, regs);
 
 		/* If a signal was successfully delivered, the saved sigmask is in
@@ -547,19 +515,6 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 		return ret;
 	}
 
-	if (TRAP(regs) == 0x0C00) {	/* System Call! */
-		if ((int)regs->result == -ERESTARTNOHAND ||
-		    (int)regs->result == -ERESTARTSYS ||
-		    (int)regs->result == -ERESTARTNOINTR) {
-			regs->gpr[3] = regs->orig_gpr3;
-			regs->nip -= 4; /* Back up & retry system call */
-			regs->result = 0;
-		} else if ((int)regs->result == -ERESTART_RESTARTBLOCK) {
-			regs->gpr[0] = __NR_restart_syscall;
-			regs->nip -= 4;
-			regs->result = 0;
-		}
-	}
 	/* No signal to deliver -- put the saved sigmask back */
 	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
 		clear_thread_flag(TIF_RESTORE_SIGMASK);
