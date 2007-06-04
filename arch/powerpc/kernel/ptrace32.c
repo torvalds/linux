@@ -34,7 +34,6 @@
 #include <asm/system.h>
 
 #include "ptrace-ppc64.h"
-#include "ptrace-common.h"
 
 /*
  * does not yet catch signals sent when the child dies.
@@ -168,7 +167,7 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 			break;
 
 		if (index < PT_FPR0) {
-			tmp = get_reg(child, index);
+			tmp = ptrace_get_reg(child, index);
 		} else {
 			flush_fp_to_thread(child);
 			/*
@@ -215,7 +214,7 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 			flush_fp_to_thread(child);
 			tmp = ((unsigned long int *)child->thread.fpr)[numReg - PT_FPR0];
 		} else { /* register within PT_REGS struct */
-			tmp = get_reg(child, numReg);
+			tmp = ptrace_get_reg(child, numReg);
 		} 
 		reg32bits = ((u32*)&tmp)[part];
 		ret = put_user(reg32bits, (u32 __user *)data);
@@ -274,7 +273,7 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 		if (index == PT_ORIG_R3)
 			break;
 		if (index < PT_FPR0) {
-			ret = put_reg(child, index, data);
+			ret = ptrace_put_reg(child, index, data);
 		} else {
 			flush_fp_to_thread(child);
 			/*
@@ -346,7 +345,7 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 		}
 		ret = 0;
 		for (ui = 0; ui < PT_REGS_COUNT; ui ++) {
-			ret |= __put_user(get_reg(child, ui),
+			ret |= __put_user(ptrace_get_reg(child, ui),
 					  (unsigned int __user *) data);
 			data += sizeof(int);
 		}
@@ -366,7 +365,7 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 			ret = __get_user(tmp, (unsigned int __user *) data);
 			if (ret)
 				break;
-			put_reg(child, ui, tmp);
+			ptrace_put_reg(child, ui, tmp);
 			data += sizeof(int);
 		}
 		break;

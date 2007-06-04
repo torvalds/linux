@@ -92,6 +92,11 @@ extern unsigned long profile_pc(struct pt_regs *regs);
 		set_thread_flag(TIF_NOERROR); \
 	} while(0)
 
+struct task_struct;
+extern unsigned long ptrace_get_reg(struct task_struct *task, int regno);
+extern int ptrace_put_reg(struct task_struct *task, int regno,
+			  unsigned long data);
+
 /*
  * We use the least-significant bit of the trap field to indicate
  * whether we have saved the full set of registers, or only a
