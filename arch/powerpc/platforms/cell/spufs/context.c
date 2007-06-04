@@ -39,7 +39,7 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	if (spu_init_csa(&ctx->csa))
 		goto out_free;
 	spin_lock_init(&ctx->mmio_lock);
-	spin_lock_init(&ctx->mapping_lock);
+	mutex_init(&ctx->mapping_lock);
 	kref_init(&ctx->kref);
 	mutex_init(&ctx->state_mutex);
 	mutex_init(&ctx->run_mutex);
@@ -103,6 +103,7 @@ void spu_forget(struct spu_context *ctx)
 
 void spu_unmap_mappings(struct spu_context *ctx)
 {
+	mutex_lock(&ctx->mapping_lock);
 	if (ctx->local_store)
 		unmap_mapping_range(ctx->local_store, 0, LS_SIZE, 1);
 	if (ctx->mfc)
@@ -117,6 +118,7 @@ void spu_unmap_mappings(struct spu_context *ctx)
 		unmap_mapping_range(ctx->mss, 0, 0x1000, 1);
 	if (ctx->psmap)
 		unmap_mapping_range(ctx->psmap, 0, 0x20000, 1);
+	mutex_unlock(&ctx->mapping_lock);
 }
 
 /**
