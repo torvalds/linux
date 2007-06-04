@@ -229,8 +229,7 @@ static int mixcomwd_ioctl(struct inode *inode, struct file *file,
 	return 0;
 }
 
-static const struct file_operations mixcomwd_fops=
-{
+static const struct file_operations mixcomwd_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= mixcomwd_write,
@@ -239,8 +238,7 @@ static const struct file_operations mixcomwd_fops=
 	.release	= mixcomwd_release,
 };
 
-static struct miscdevice mixcomwd_miscdev=
-{
+static struct miscdevice mixcomwd_miscdev = {
 	.minor	= WATCHDOG_MINOR,
 	.name	= "watchdog",
 	.fops	= &mixcomwd_fops,
@@ -292,7 +290,8 @@ static int __init mixcomwd_init(void)
 		goto error_misc_register_watchdog;
 	}
 
-	printk(KERN_INFO "MixCOM watchdog driver v%s, watchdog port at 0x%3x\n",VERSION,watchdog_port);
+	printk(KERN_INFO "MixCOM watchdog driver v%s, watchdog port at 0x%3x\n",
+		VERSION, watchdog_port);
 
 	return 0;
 
