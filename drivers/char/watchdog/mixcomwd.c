@@ -39,6 +39,8 @@
  */
 
 #define VERSION "0.6"
+#define WATCHDOG_NAME "mixcomwd"
+#define PFX WATCHDOG_NAME ": "
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -152,13 +154,13 @@ static int mixcomwd_release(struct inode *inode, struct file *file)
 {
 	if (expect_close == 42) {
 		if(mixcomwd_timer_alive) {
-			printk(KERN_ERR "mixcomwd: release called while internal timer alive");
+			printk(KERN_ERR PFX "release called while internal timer alive");
 			return -EBUSY;
 		}
 		mixcomwd_timer_alive=1;
 		mod_timer(&mixcomwd_timer, jiffies + 5 * HZ);
 	} else {
-		printk(KERN_CRIT "mixcomwd: WDT device closed unexpectedly.  WDT will not stop!\n");
+		printk(KERN_CRIT PFX "WDT device closed unexpectedly.  WDT will not stop!\n");
 	}
 
 	clear_bit(0,&mixcomwd_opened);
@@ -278,7 +280,7 @@ static int __init mixcomwd_init(void)
 	}
 
 	if (!found) {
-		printk("mixcomwd: No card detected, or port not available.\n");
+		printk(KERN_ERR PFX "No card detected, or port not available.\n");
 		return -ENODEV;
 	}
 
@@ -298,7 +300,7 @@ static void __exit mixcomwd_exit(void)
 {
 	if (!nowayout) {
 		if(mixcomwd_timer_alive) {
-			printk(KERN_WARNING "mixcomwd: I quit now, hardware will"
+			printk(KERN_WARNING PFX "I quit now, hardware will"
 			       " probably reboot!\n");
 			del_timer_sync(&mixcomwd_timer);
 			mixcomwd_timer_alive=0;
@@ -313,5 +315,6 @@ module_exit(mixcomwd_exit);
 
 MODULE_AUTHOR("Gergely Madarasz <gorgo@itc.hu>");
 MODULE_DESCRIPTION("MixCom Watchdog driver");
+MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
