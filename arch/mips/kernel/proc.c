@@ -14,7 +14,6 @@
 #include <asm/cpu-features.h>
 #include <asm/mipsregs.h>
 #include <asm/processor.h>
-#include <asm/watch.h>
 
 unsigned int vced_count, vcei_count;
 
