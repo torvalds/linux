@@ -146,7 +146,6 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 		return 0;               /* no signals delivered */
 	}
 
-#ifdef CONFIG_PPC64
         /*
 	 * Reenable the DABR before delivering the signal to
 	 * user space. The DABR will have been cleared if it
@@ -154,7 +153,6 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	 */
 	if (current->thread.dabr)
 		set_dabr(current->thread.dabr);
-#endif
 
 	if (is32) {
         	if (ka.sa.sa_flags & SA_SIGINFO)
