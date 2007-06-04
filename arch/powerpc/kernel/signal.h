@@ -24,8 +24,32 @@ extern int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 			      siginfo_t *info, sigset_t *oldset,
 			      struct pt_regs *regs);
 
+
+#ifdef CONFIG_PPC64
+
+static inline int is_32bit_task(void)
+{
+	return test_thread_flag(TIF_32BIT);
+}
+
 extern int handle_rt_signal64(int signr, struct k_sigaction *ka,
 			      siginfo_t *info, sigset_t *set,
 			      struct pt_regs *regs);
+
+#else /* CONFIG_PPC64 */
+
+static inline int is_32bit_task(void)
+{
+	return 1;
+}
+
+static inline int handle_rt_signal64(int signr, struct k_sigaction *ka,
+				     siginfo_t *info, sigset_t *set,
+				     struct pt_regs *regs)
+{
+	return -EFAULT;
+}
+
+#endif /* !defined(CONFIG_PPC64) */
 
 #endif  /* _POWERPC_ARCH_SIGNAL_H */

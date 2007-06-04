@@ -16,19 +16,6 @@
 
 #include "signal.h"
 
-
-#ifdef CONFIG_PPC64
-static inline int is_32bit_task(void)
-{
-	return test_thread_flag(TIF_32BIT);
-}
-#else
-static inline int is_32bit_task(void)
-{
-	return 1;
-}
-#endif
-
 /*
  * Allocate space for the signal frame
  */
@@ -161,10 +148,8 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 		else
 			ret = handle_signal32(signr, &ka, &info, oldset,
 					regs);
-#ifdef CONFIG_PPC64
 	} else {
 		ret = handle_rt_signal64(signr, &ka, &info, oldset, regs);
-#endif
 	}
 
 	if (ret) {
