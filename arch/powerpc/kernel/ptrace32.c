@@ -33,6 +33,7 @@
 #include <asm/pgtable.h>
 #include <asm/system.h>
 
+#include "ptrace-ppc64.h"
 #include "ptrace-common.h"
 
 /*

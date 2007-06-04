@@ -1,5 +1,6 @@
 /*
  *    Copyright (c) 2002 Stephen Rothwell, IBM Coproration
+ *    Copyright (c) 2007 Benjamin Herrenschmidt, IBM Coproration
  *    Extracted from ptrace.c and ptrace32.c
  *
  * This file is subject to the terms and conditions of the GNU General
@@ -7,15 +8,8 @@
  * this archive for more details.
  */
 
-#ifndef _PPC64_PTRACE_COMMON_H
-#define _PPC64_PTRACE_COMMON_H
-
-#include <asm/system.h>
-
-/*
- * Set of msr bits that gdb can change on behalf of a process.
- */
-#define MSR_DEBUGCHANGE	(MSR_FE0 | MSR_SE | MSR_BE | MSR_FE1)
+#ifndef _POWERPC_PTRACE_COMMON_H
+#define _POWERPC_PTRACE_COMMON_H
 
 /*
  * Get contents of register REGNO in task TASK.
@@ -24,18 +18,18 @@ static inline unsigned long get_reg(struct task_struct *task, int regno)
 {
 	unsigned long tmp = 0;
 
-	/*
-	 * Put the correct FP bits in, they might be wrong as a result
-	 * of our lazy FP restore.
-	 */
+	if (task->thread.regs == NULL)
+		return -EIO;
+
 	if (regno == PT_MSR) {
 		tmp = ((unsigned long *)task->thread.regs)[PT_MSR];
-		tmp |= task->thread.fpexc_mode;
-	} else if (regno < (sizeof(struct pt_regs) / sizeof(unsigned long))) {
-		tmp = ((unsigned long *)task->thread.regs)[regno];
+		return PT_MUNGE_MSR(tmp, task);
 	}
 
-	return tmp;
+	if (regno < (sizeof(struct pt_regs) / sizeof(unsigned long)))
+		return ((unsigned long *)task->thread.regs)[regno];
+
+	return -EIO;
 }
 
 /*
@@ -44,7 +38,10 @@ static inline unsigned long get_reg(struct task_struct *task, int regno)
 static inline int put_reg(struct task_struct *task, int regno,
 			  unsigned long data)
 {
-	if (regno < PT_SOFTE) {
+	if (task->thread.regs == NULL)
+		return -EIO;
+
+	if (regno <= PT_MAX_PUT_REG) {
 		if (regno == PT_MSR)
 			data = (data & MSR_DEBUGCHANGE)
 				| (task->thread.regs->msr & ~MSR_DEBUGCHANGE);
@@ -54,21 +51,6 @@ static inline int put_reg(struct task_struct *task, int regno,
 	return -EIO;
 }
 
-static inline void set_single_step(struct task_struct *task)
-{
-	struct pt_regs *regs = task->thread.regs;
-	if (regs != NULL)
-		regs->msr |= MSR_SE;
-	set_tsk_thread_flag(task, TIF_SINGLESTEP);
-}
-
-static inline void clear_single_step(struct task_struct *task)
-{
-	struct pt_regs *regs = task->thread.regs;
-	if (regs != NULL)
-		regs->msr &= ~MSR_SE;
-	clear_tsk_thread_flag(task, TIF_SINGLESTEP);
-}
 
 #ifdef CONFIG_ALTIVEC
 /*
@@ -137,25 +119,36 @@ static inline int set_vrregs(struct task_struct *task,
 
 	return 0;
 }
-#endif
+#endif /* CONFIG_ALTIVEC */
 
-static inline int ptrace_set_debugreg(struct task_struct *task,
-				      unsigned long addr, unsigned long data)
+static inline void set_single_step(struct task_struct *task)
 {
-	/* We only support one DABR and no IABRS at the moment */
-	if (addr > 0)
-		return -EINVAL;
+	struct pt_regs *regs = task->thread.regs;
 
-	/* The bottom 3 bits are flags */
-	if ((data & ~0x7UL) >= TASK_SIZE)
-		return -EIO;
-
-	/* Ensure translation is on */
-	if (data && !(data & DABR_TRANSLATION))
-		return -EIO;
-
-	task->thread.dabr = data;
-	return 0;
+	if (regs != NULL) {
+#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
+		task->thread.dbcr0 = DBCR0_IDM | DBCR0_IC;
+		regs->msr |= MSR_DE;
+#else
+		regs->msr |= MSR_SE;
+#endif
+	}
+	set_tsk_thread_flag(task, TIF_SINGLESTEP);
 }
 
-#endif /* _PPC64_PTRACE_COMMON_H */
+static inline void clear_single_step(struct task_struct *task)
+{
+	struct pt_regs *regs = task->thread.regs;
+
+	if (regs != NULL) {
+#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
+		task->thread.dbcr0 = 0;
+		regs->msr &= ~MSR_DE;
+#else
+		regs->msr &= ~MSR_SE;
+#endif
+	}
+	clear_tsk_thread_flag(task, TIF_SINGLESTEP);
+}
+
+#endif /* _POWERPC_PTRACE_COMMON_H */
