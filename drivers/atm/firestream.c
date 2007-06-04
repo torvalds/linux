@@ -1475,6 +1475,7 @@ static void top_off_fp (struct fs_dev *dev, struct freepool *fp,
 	struct FS_BPENTRY *qe, *ne;
 	struct sk_buff *skb;
 	int n = 0;
+	u32 qe_tmp;
 
 	fs_dprintk (FS_DEBUG_QUEUE, "Topping off queue at %x (%d-%d/%d)\n", 
 		    fp->offset, read_fs (dev, FP_CNT (fp->offset)), fp->n, 
@@ -1502,10 +1503,16 @@ static void top_off_fp (struct fs_dev *dev, struct freepool *fp,
 		ne->skb = skb;
 		ne->fp = fp;
 
-		qe = (struct FS_BPENTRY *) (read_fs (dev, FP_EA(fp->offset)));
-		fs_dprintk (FS_DEBUG_QUEUE, "link at %p\n", qe);
-		if (qe) {
-			qe = bus_to_virt ((long) qe);
+		/*
+		 * FIXME: following code encodes and decodes
+		 * machine pointers (could be 64-bit) into a
+		 * 32-bit register.
+		 */
+
+		qe_tmp = read_fs (dev, FP_EA(fp->offset));
+		fs_dprintk (FS_DEBUG_QUEUE, "link at %x\n", qe_tmp);
+		if (qe_tmp) {
+			qe = bus_to_virt ((long) qe_tmp);
 			qe->next = virt_to_bus(ne);
 			qe->flags &= ~FP_FLAGS_EPI;
 		} else

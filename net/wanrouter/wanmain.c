@@ -454,7 +454,7 @@ static int wanrouter_device_setup(struct wan_device *wandev,
 	}
 
 	if (conf->data_size && conf->data) {
-		if (conf->data_size > 128000 || conf->data_size < 0) {
+		if (conf->data_size > 128000) {
 			printk(KERN_INFO
 			    "%s: ERROR, Invalid firmware data size %i !\n",
 					wandev->name, conf->data_size);

@@ -168,8 +168,7 @@ icmpv6_error_message(struct sk_buff *skb,
 					   skb->len - inip6off
 						    - sizeof(struct ipv6hdr));
 
-	if ((inprotoff < 0) || (inprotoff > skb->len) ||
-	    (inprotonum == NEXTHDR_FRAGMENT)) {
+	if ((inprotoff > skb->len) || (inprotonum == NEXTHDR_FRAGMENT)) {
 		DEBUGP("icmpv6_error: Can't get protocol header in ICMPv6 payload.\n");
 		return -NF_ACCEPT;
 	}

@@ -177,8 +177,7 @@ static unsigned int ipv6_confirm(unsigned int hooknum,
 
 	protoff = nf_ct_ipv6_skip_exthdr(*pskb, extoff, &pnum,
 					 (*pskb)->len - extoff);
-	if (protoff < 0 || protoff > (*pskb)->len ||
-	    pnum == NEXTHDR_FRAGMENT) {
+	if (protoff > (*pskb)->len || pnum == NEXTHDR_FRAGMENT) {
 		DEBUGP("proto header not found\n");
 		return NF_ACCEPT;
 	}

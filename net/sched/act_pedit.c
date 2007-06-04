@@ -164,8 +164,7 @@ static int tcf_pedit(struct sk_buff *skb, struct tc_action *a,
 				printk("offset must be on 32 bit boundaries\n");
 				goto bad;
 			}
-			if (skb->len < 0 ||
-			    (offset > 0 && offset > skb->len)) {
+			if (offset > 0 && offset > skb->len) {
 				printk("offset %d cant exceed pkt length %d\n",
 				       offset, skb->len);
 				goto bad;

@@ -128,7 +128,7 @@ static ssize_t dccpprobe_read(struct file *file, char __user *buf,
 	int error = 0, cnt = 0;
 	unsigned char *tbuf;
 
-	if (!buf || len < 0)
+	if (!buf)
 		return -EINVAL;
 
 	if (len == 0)
