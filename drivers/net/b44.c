@@ -599,8 +599,7 @@ static void b44_timer(unsigned long __opaque)
 
 	spin_unlock_irq(&bp->lock);
 
-	bp->timer.expires = jiffies + HZ;
-	add_timer(&bp->timer);
+	mod_timer(&bp->timer, round_jiffies(jiffies + HZ));
 }
 
 static void b44_tx(struct b44 *bp)
@@ -2348,11 +2347,11 @@ static int b44_resume(struct pci_dev *pdev)
 	netif_device_attach(bp->dev);
 	spin_unlock_irq(&bp->lock);
 
-	bp->timer.expires = jiffies + HZ;
-	add_timer(&bp->timer);
-
 	b44_enable_ints(bp);
 	netif_wake_queue(dev);
+
+	mod_timer(&bp->timer, jiffies + 1);
+
 	return 0;
 }
 
