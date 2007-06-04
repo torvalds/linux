@@ -219,6 +219,41 @@ static unsigned long cpu_clk_get_rate(struct clk *clk)
 	return bus_clk_get_rate(clk, shift);
 }
 
+static long cpu_clk_set_rate(struct clk *clk, unsigned long rate, int apply)
+{
+	u32 control;
+	unsigned long parent_rate, child_div, actual_rate, div;
+
+	parent_rate = clk->parent->get_rate(clk->parent);
+	control = pm_readl(CKSEL);
+
+	if (control & PM_BIT(HSBDIV))
+		child_div = 1 << (PM_BFEXT(HSBSEL, control) + 1);
+	else
+		child_div = 1;
+
+	if (rate > 3 * (parent_rate / 4) || child_div == 1) {
+		actual_rate = parent_rate;
+		control &= ~PM_BIT(CPUDIV);
+	} else {
+		unsigned int cpusel;
+		div = (parent_rate + rate / 2) / rate;
+		if (div > child_div)
+			div = child_div;
+		cpusel = (div > 1) ? (fls(div) - 2) : 0;
+		control = PM_BIT(CPUDIV) | PM_BFINS(CPUSEL, cpusel, control);
+		actual_rate = parent_rate / (1 << (cpusel + 1));
+	}
+
+	pr_debug("clk %s: new rate %lu (actual rate %lu)\n",
+			clk->name, rate, actual_rate);
+
+	if (apply)
+		pm_writel(CKSEL, control);
+
+	return actual_rate;
+}
+
 static void hsb_clk_mode(struct clk *clk, int enabled)
 {
 	unsigned long flags;
@@ -300,6 +335,7 @@ static unsigned long pbb_clk_get_rate(struct clk *clk)
 static struct clk cpu_clk = {
 	.name		= "cpu",
 	.get_rate	= cpu_clk_get_rate,
+	.set_rate	= cpu_clk_set_rate,
 	.users		= 1,
 };
 static struct clk hsb_clk = {
@@ -1152,10 +1188,13 @@ void __init at32_clock_init(void)
 	u32 cpu_mask = 0, hsb_mask = 0, pba_mask = 0, pbb_mask = 0;
 	int i;
 
-	if (pm_readl(MCCTRL) & PM_BIT(PLLSEL))
+	if (pm_readl(MCCTRL) & PM_BIT(PLLSEL)) {
 		main_clock = &pll0;
-	else
+		cpu_clk.parent = &pll0;
+	} else {
 		main_clock = &osc0;
+		cpu_clk.parent = &osc0;
+	}
 
 	if (pm_readl(PLL0) & PM_BIT(PLLOSC))
 		pll0.parent = &osc1;
