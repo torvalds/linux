@@ -2570,3 +2570,25 @@ sun4v_svc_clrstatus:
 	retl
 	 nop
 	.size	sun4v_svc_clrstatus, .-sun4v_svc_clrstatus
+
+	.globl	sun4v_mmustat_conf
+	.type	sun4v_mmustat_conf,#function
+sun4v_mmustat_conf:
+	mov	%o1, %o4
+	mov	HV_FAST_MMUSTAT_CONF, %o5
+	ta	HV_FAST_TRAP
+	stx	%o1, [%o4]
+	retl
+	 nop
+	.size	sun4v_mmustat_conf, .-sun4v_mmustat_conf
+
+	.globl	sun4v_mmustat_info
+	.type	sun4v_mmustat_info,#function
+sun4v_mmustat_info:
+	mov	%o0, %o4
+	mov	HV_FAST_MMUSTAT_INFO, %o5
+	ta	HV_FAST_TRAP
+	stx	%o1, [%o4]
+	retl
+	 nop
+	.size	sun4v_mmustat_info, .-sun4v_mmustat_info

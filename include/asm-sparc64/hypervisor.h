@@ -2798,6 +2798,11 @@ struct hv_mmu_statistics {
  */
 #define HV_FAST_MMUSTAT_INFO		0x103
 
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_mmustat_conf(unsigned long ra, unsigned long *orig_ra);
+extern unsigned long sun4v_mmustat_info(unsigned long *ra);
+#endif
+
 /* NCS crypto services  */
 
 /* ncs_request() sub-function numbers */
