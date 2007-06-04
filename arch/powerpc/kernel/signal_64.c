@@ -196,25 +196,6 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 }
 
 /*
- * Allocate space for the signal frame
- */
-static inline void __user * get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
-				  size_t frame_size)
-{
-        unsigned long newsp;
-
-        /* Default to using normal stack */
-        newsp = regs->gpr[1];
-
-	if ((ka->sa.sa_flags & SA_ONSTACK) && current->sas_ss_size) {
-		if (! on_sig_stack(regs->gpr[1]))
-			newsp = (current->sas_ss_sp + current->sas_ss_size);
-	}
-
-        return (void __user *)((newsp - frame_size) & -16ul);
-}
-
-/*
  * Setup the trampoline code on the stack
  */
 static long setup_trampoline(unsigned int syscall, unsigned int __user *tramp)
@@ -348,8 +329,7 @@ int handle_rt_signal64(int signr, struct k_sigaction *ka, siginfo_t *info,
 	long err = 0;
 
 	frame = get_sigframe(ka, regs, sizeof(*frame));
-
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
+	if (unlikely(frame == NULL))
 		goto badframe;
 
 	err |= __put_user(&frame->info, &frame->pinfo);
@@ -386,7 +366,7 @@ int handle_rt_signal64(int signr, struct k_sigaction *ka, siginfo_t *info,
 	funct_desc_ptr = (func_descr_t __user *) ka->sa.sa_handler;
 
 	/* Allocate a dummy caller frame for the signal handler. */
-	newsp = (unsigned long)frame - __SIGNAL_FRAMESIZE;
+	newsp = ((unsigned long)frame) - __SIGNAL_FRAMESIZE;
 	err |= put_user(regs->gpr[1], (unsigned long __user *)newsp);
 
 	/* Set up "regs" so we "return" to the signal handler. */

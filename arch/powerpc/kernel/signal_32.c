@@ -282,14 +282,17 @@ long sys_sigaction(int sig, struct old_sigaction __user *act,
 /*
  * When we have signals to deliver, we set up on the
  * user stack, going down from the original stack pointer:
- *	a sigregs struct
+ *	an ABI gap of 56 words
+ *	an mcontext struct
  *	a sigcontext struct
  *	a gap of __SIGNAL_FRAMESIZE bytes
  *
- * Each of these things must be a multiple of 16 bytes in size.
+ * Each of these things must be a multiple of 16 bytes in size. The following
+ * structure represent all of this except the __SIGNAL_FRAMESIZE gap
  *
  */
-struct sigregs {
+struct sigframe {
+	struct sigcontext sctx;		/* the sigcontext */
 	struct mcontext	mctx;		/* all the register values */
 	/*
 	 * Programs using the rs6000/xcoff abi can save up to 19 gp
@@ -698,21 +701,16 @@ int compat_sys_sigaltstack(u32 __new, u32 __old, int r5,
  */
 int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 		siginfo_t *info, sigset_t *oldset,
-		struct pt_regs *regs, unsigned long newsp)
+		struct pt_regs *regs)
 {
 	struct rt_sigframe __user *rt_sf;
 	struct mcontext __user *frame;
-	unsigned long origsp = newsp;
+	unsigned long newsp = 0;
 
 	/* Set up Signal Frame */
 	/* Put a Real Time Context onto stack */
-	newsp -= sizeof(*rt_sf);
-	rt_sf = (struct rt_sigframe __user *)newsp;
-
-	/* create a stack frame for the caller of the handler */
-	newsp -= __SIGNAL_FRAMESIZE + 16;
-
-	if (!access_ok(VERIFY_WRITE, (void __user *)newsp, origsp - newsp))
+	rt_sf = get_sigframe(ka, regs, sizeof(*rt_sf));
+	if (unlikely(rt_sf == NULL))
 		goto badframe;
 
 	/* Put the siginfo & fill in most of the ucontext */
@@ -742,8 +740,12 @@ int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 
 	current->thread.fpscr.val = 0;	/* turn off all fp exceptions */
 
+	/* create a stack frame for the caller of the handler */
+	newsp = ((unsigned long)rt_sf) - (__SIGNAL_FRAMESIZE + 16);
 	if (put_user(regs->gpr[1], (u32 __user *)newsp))
 		goto badframe;
+
+	/* Fill registers for signal handler */
 	regs->gpr[1] = newsp;
 	regs->gpr[3] = sig;
 	regs->gpr[4] = (unsigned long) &rt_sf->info;
@@ -988,26 +990,17 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
  * OK, we're invoking a handler
  */
 int handle_signal32(unsigned long sig, struct k_sigaction *ka,
-		siginfo_t *info, sigset_t *oldset, struct pt_regs *regs,
-		unsigned long newsp)
+		    siginfo_t *info, sigset_t *oldset, struct pt_regs *regs)
 {
 	struct sigcontext __user *sc;
-	struct sigregs __user *frame;
-	unsigned long origsp = newsp;
+	struct sigframe __user *frame;
+	unsigned long newsp = 0;
 
 	/* Set up Signal Frame */
-	newsp -= sizeof(struct sigregs);
-	frame = (struct sigregs __user *) newsp;
-
-	/* Put a sigcontext on the stack */
-	newsp -= sizeof(*sc);
-	sc = (struct sigcontext __user *) newsp;
-
-	/* create a stack frame for the caller of the handler */
-	newsp -= __SIGNAL_FRAMESIZE;
-
-	if (!access_ok(VERIFY_WRITE, (void __user *) newsp, origsp - newsp))
+	frame = get_sigframe(ka, regs, sizeof(*frame));
+	if (unlikely(frame == NULL))
 		goto badframe;
+	sc = (struct sigcontext __user *) &frame->sctx;
 
 #if _NSIG != 64
 #error "Please adjust handle_signal()"
@@ -1019,7 +1012,7 @@ int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 #else
 	    || __put_user(oldset->sig[1], &sc->_unused[3])
 #endif
-	    || __put_user(to_user_ptr(frame), &sc->regs)
+	    || __put_user(to_user_ptr(&frame->mctx), &sc->regs)
 	    || __put_user(sig, &sc->signal))
 		goto badframe;
 
@@ -1035,8 +1028,11 @@ int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 
 	current->thread.fpscr.val = 0;	/* turn off all fp exceptions */
 
+	/* create a stack frame for the caller of the handler */
+	newsp = ((unsigned long)frame) - __SIGNAL_FRAMESIZE;
 	if (put_user(regs->gpr[1], (u32 __user *)newsp))
 		goto badframe;
+
 	regs->gpr[1] = newsp;
 	regs->gpr[3] = sig;
 	regs->gpr[4] = (unsigned long) sc;

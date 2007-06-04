@@ -12,15 +12,17 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
+extern void __user * get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
+				  size_t frame_size);
 extern void restore_sigmask(sigset_t *set);
 
 extern int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 			   siginfo_t *info, sigset_t *oldset,
-			   struct pt_regs *regs, unsigned long newsp);
+			   struct pt_regs *regs);
 
 extern int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 			      siginfo_t *info, sigset_t *oldset,
-			      struct pt_regs *regs, unsigned long newsp);
+			      struct pt_regs *regs);
 
 extern int handle_rt_signal64(int signr, struct k_sigaction *ka,
 			      siginfo_t *info, sigset_t *set,

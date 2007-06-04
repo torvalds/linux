@@ -11,6 +11,7 @@
 
 #include <linux/ptrace.h>
 #include <linux/signal.h>
+#include <asm/uaccess.h>
 #include <asm/unistd.h>
 
 #include "signal.h"
@@ -27,6 +28,32 @@ static inline int is_32bit_task(void)
 	return 1;
 }
 #endif
+
+/*
+ * Allocate space for the signal frame
+ */
+void __user * get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
+			   size_t frame_size)
+{
+        unsigned long oldsp, newsp;
+
+        /* Default to using normal stack */
+        oldsp = regs->gpr[1];
+
+	/* Check for alt stack */
+	if ((ka->sa.sa_flags & SA_ONSTACK) &&
+	    current->sas_ss_size && !on_sig_stack(oldsp))
+		oldsp = (current->sas_ss_sp + current->sas_ss_size);
+
+	/* Get aligned frame */
+	newsp = (oldsp - frame_size) & ~0xFUL;
+
+	/* Check access */
+	if (!access_ok(VERIFY_WRITE, (void __user *)newsp, oldsp - newsp))
+		return NULL;
+
+        return (void __user *)newsp;
+}
 
 
 /*
@@ -130,20 +157,12 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 #endif
 
 	if (is32) {
-		unsigned int newsp;
-
-		if ((ka.sa.sa_flags & SA_ONSTACK) &&
-		    current->sas_ss_size && !on_sig_stack(regs->gpr[1]))
-			newsp = current->sas_ss_sp + current->sas_ss_size;
-		else
-			newsp = regs->gpr[1];
-
         	if (ka.sa.sa_flags & SA_SIGINFO)
 			ret = handle_rt_signal32(signr, &ka, &info, oldset,
-					regs, newsp);
+					regs);
 		else
 			ret = handle_signal32(signr, &ka, &info, oldset,
-					regs, newsp);
+					regs);
 #ifdef CONFIG_PPC64
 	} else {
 		ret = handle_rt_signal64(signr, &ka, &info, oldset, regs);
