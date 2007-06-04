@@ -90,16 +90,4 @@ static inline void flush_HPTE(unsigned context, unsigned long va,
 	else
 		_tlbie(va);
 }
-#else /* CONFIG_PPC64 */
-/* imalloc region types */
-#define IM_REGION_UNUSED	0x1
-#define IM_REGION_SUBSET	0x2
-#define IM_REGION_EXISTS	0x4
-#define IM_REGION_OVERLAP	0x8
-#define IM_REGION_SUPERSET	0x10
-
-extern struct vm_struct * im_get_free_area(unsigned long size);
-extern struct vm_struct * im_get_area(unsigned long v_addr, unsigned long size,
-				      int region_type);
-extern void im_free(void *addr);
 #endif

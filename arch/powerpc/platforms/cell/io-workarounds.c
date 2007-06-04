@@ -102,7 +102,7 @@ static void spider_io_flush(const volatile void __iomem *addr)
 		vaddr = (unsigned long)PCI_FIX_ADDR(addr);
 
 		/* Check if it's in allowed range for  PIO */
-		if (vaddr < PHBS_IO_BASE || vaddr >= IMALLOC_BASE)
+		if (vaddr < PHB_IO_BASE || vaddr > PHB_IO_END)
 			return;
 
 		/* Try to find a PTE. If not, clear the paddr, we'll do

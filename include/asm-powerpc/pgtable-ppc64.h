@@ -27,7 +27,7 @@ struct mm_struct;
  */
 #define PGTABLE_EADDR_SIZE (PTE_INDEX_SIZE + PMD_INDEX_SIZE + \
                 	    PUD_INDEX_SIZE + PGD_INDEX_SIZE + PAGE_SHIFT)
-#define PGTABLE_RANGE (1UL << PGTABLE_EADDR_SIZE)
+#define PGTABLE_RANGE (ASM_CONST(1) << PGTABLE_EADDR_SIZE)
 
 #if TASK_SIZE_USER64 > PGTABLE_RANGE
 #error TASK_SIZE_USER64 exceeds pagetable range
@@ -37,19 +37,28 @@ struct mm_struct;
 #error TASK_SIZE_USER64 exceeds user VSID range
 #endif
 
+
 /*
  * Define the address range of the vmalloc VM area.
  */
 #define VMALLOC_START ASM_CONST(0xD000000000000000)
-#define VMALLOC_SIZE  ASM_CONST(0x80000000000)
+#define VMALLOC_SIZE  (PGTABLE_RANGE >> 1)
 #define VMALLOC_END   (VMALLOC_START + VMALLOC_SIZE)
 
 /*
- * Define the address range of the imalloc VM area.
+ * Define the address ranges for MMIO and IO space :
+ *
+ *  ISA_IO_BASE = VMALLOC_END, 64K reserved area
+ *  PHB_IO_BASE = ISA_IO_BASE + 64K to ISA_IO_BASE + 2G, PHB IO spaces
+ * IOREMAP_BASE = ISA_IO_BASE + 2G to VMALLOC_START + PGTABLE_RANGE
  */
-#define PHBS_IO_BASE	VMALLOC_END
-#define IMALLOC_BASE	(PHBS_IO_BASE + 0x80000000ul)	/* Reserve 2 gigs for PHBs */
-#define IMALLOC_END	(VMALLOC_START + PGTABLE_RANGE)
+#define FULL_IO_SIZE	0x80000000ul
+#define  ISA_IO_BASE	(VMALLOC_END)
+#define  ISA_IO_END	(VMALLOC_END + 0x10000ul)
+#define  PHB_IO_BASE	(ISA_IO_END)
+#define  PHB_IO_END	(VMALLOC_END + FULL_IO_SIZE)
+#define IOREMAP_BASE	(PHB_IO_END)
+#define IOREMAP_END	(VMALLOC_START + PGTABLE_RANGE)
 
 /*
  * Region IDs

@@ -11,7 +11,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
+#define DEBUG
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -22,6 +22,7 @@
 #include <linux/list.h>
 #include <linux/syscalls.h>
 #include <linux/irq.h>
+#include <linux/vmalloc.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -41,34 +42,25 @@
 
 unsigned long pci_probe_only = 1;
 int pci_assign_all_buses = 0;
-static int pci_initial_scan_done;
 
 static void fixup_resource(struct resource *res, struct pci_dev *dev);
 static void do_bus_setup(struct pci_bus *bus);
-static void phbs_remap_io(void);
 
 /* pci_io_base -- the base address from which io bars are offsets.
  * This is the lowest I/O base address (so bar values are always positive),
  * and it *must* be the start of ISA space if an ISA bus exists because
- * ISA drivers use hard coded offsets.  If no ISA bus exists a dummy
- * page is mapped and isa_io_limit prevents access to it.
+ * ISA drivers use hard coded offsets.  If no ISA bus exists nothing
+ * is mapped on the first 64K of IO space
  */
-unsigned long isa_io_base;	/* NULL if no ISA bus */
-EXPORT_SYMBOL(isa_io_base);
-unsigned long pci_io_base;
+unsigned long pci_io_base = ISA_IO_BASE;
 EXPORT_SYMBOL(pci_io_base);
-
-void iSeries_pcibios_init(void);
 
 LIST_HEAD(hose_list);
 
 static struct dma_mapping_ops *pci_dma_ops;
 
+/* XXX kill that some day ... */
 int global_phb_number;		/* Global phb counter */
-
-/* Cached ISA bridge dev. */
-struct pci_dev *ppc64_isabridge_dev = NULL;
-EXPORT_SYMBOL_GPL(ppc64_isabridge_dev);
 
 void set_pci_dma_ops(struct dma_mapping_ops *dma_ops)
 {
@@ -100,7 +92,7 @@ void  pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region
 		return;
 
 	if (res->flags & IORESOURCE_IO)
-	        offset = (unsigned long)hose->io_base_virt - pci_io_base;
+	        offset = (unsigned long)hose->io_base_virt - _IO_BASE;
 
 	if (res->flags & IORESOURCE_MEM)
 		offset = hose->pci_mem_offset;
@@ -119,7 +111,7 @@ void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
 		return;
 
 	if (res->flags & IORESOURCE_IO)
-	        offset = (unsigned long)hose->io_base_virt - pci_io_base;
+	        offset = (unsigned long)hose->io_base_virt - _IO_BASE;
 
 	if (res->flags & IORESOURCE_MEM)
 		offset = hose->pci_mem_offset;
@@ -156,7 +148,7 @@ void pcibios_align_resource(void *data, struct resource *res,
 
 	if (res->flags & IORESOURCE_IO) {
 	        unsigned long offset = (unsigned long)hose->io_base_virt -
-					pci_io_base;
+					_IO_BASE;
 		/* Make sure we start at our min on all hoses */
 		if (start - offset < PCIBIOS_MIN_IO)
 			start = PCIBIOS_MIN_IO + offset;
@@ -535,10 +527,16 @@ void __devinit scan_phb(struct pci_controller *hose)
 	bus->secondary = hose->first_busno;
 	hose->bus = bus;
 
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		pcibios_map_io_space(bus);
+
 	bus->resource[0] = res = &hose->io_resource;
-	if (res->flags && request_resource(&ioport_resource, res))
+	if (res->flags && request_resource(&ioport_resource, res)) {
 		printk(KERN_ERR "Failed to request PCI IO region "
 		       "on PCI domain %04x\n", hose->global_number);
+		DBG("res->start = 0x%016lx, res->end = 0x%016lx\n",
+		    res->start, res->end);
+	}
 
 	for (i = 0; i < 3; ++i) {
 		res = &hose->mem_resources[i];
@@ -595,17 +593,6 @@ static int __init pcibios_init(void)
 	/* Call machine dependent final fixup */
 	if (ppc_md.pcibios_fixup)
 		ppc_md.pcibios_fixup();
-
-	/* Cache the location of the ISA bridge (if we have one) */
-	ppc64_isabridge_dev = pci_get_class(PCI_CLASS_BRIDGE_ISA << 8, NULL);
-	if (ppc64_isabridge_dev != NULL)
-		printk(KERN_DEBUG "ISA bridge at %s\n", pci_name(ppc64_isabridge_dev));
-
-	if (!firmware_has_feature(FW_FEATURE_ISERIES))
-		/* map in PCI I/O space */
-		phbs_remap_io();
-
-	pci_initial_scan_done = 1;
 
 	printk(KERN_DEBUG "PCI: Probing PCI hardware done\n");
 
@@ -711,7 +698,7 @@ static struct resource *__pci_mmap_make_offset(struct pci_dev *dev,
 #endif
 		res_bit = IORESOURCE_MEM;
 	} else {
-		io_offset = (unsigned long)hose->io_base_virt - pci_io_base;
+		io_offset = (unsigned long)hose->io_base_virt - _IO_BASE;
 		*offset += io_offset;
 		res_bit = IORESOURCE_IO;
 	}
@@ -881,76 +868,6 @@ void pcibios_add_platform_entries(struct pci_dev *pdev)
 	device_create_file(&pdev->dev, &dev_attr_devspec);
 }
 
-#define ISA_SPACE_MASK 0x1
-#define ISA_SPACE_IO 0x1
-
-static void __devinit pci_process_ISA_OF_ranges(struct device_node *isa_node,
-				      unsigned long phb_io_base_phys,
-				      void __iomem * phb_io_base_virt)
-{
-	/* Remove these asap */
-
-	struct pci_address {
-		u32 a_hi;
-		u32 a_mid;
-		u32 a_lo;
-	};
-
-	struct isa_address {
-		u32 a_hi;
-		u32 a_lo;
-	};
-
-	struct isa_range {
-		struct isa_address isa_addr;
-		struct pci_address pci_addr;
-		unsigned int size;
-	};
-
-	const struct isa_range *range;
-	unsigned long pci_addr;
-	unsigned int isa_addr;
-	unsigned int size;
-	int rlen = 0;
-
-	range = of_get_property(isa_node, "ranges", &rlen);
-	if (range == NULL || (rlen < sizeof(struct isa_range))) {
-		printk(KERN_ERR "no ISA ranges or unexpected isa range size,"
-		       "mapping 64k\n");
-		__ioremap_explicit(phb_io_base_phys,
-				   (unsigned long)phb_io_base_virt,
-				   0x10000, _PAGE_NO_CACHE | _PAGE_GUARDED);
-		return;	
-	}
-	
-	/* From "ISA Binding to 1275"
-	 * The ranges property is laid out as an array of elements,
-	 * each of which comprises:
-	 *   cells 0 - 1:	an ISA address
-	 *   cells 2 - 4:	a PCI address 
-	 *			(size depending on dev->n_addr_cells)
-	 *   cell 5:		the size of the range
-	 */
-	if ((range->isa_addr.a_hi && ISA_SPACE_MASK) == ISA_SPACE_IO) {
-		isa_addr = range->isa_addr.a_lo;
-		pci_addr = (unsigned long) range->pci_addr.a_mid << 32 | 
-			range->pci_addr.a_lo;
-
-		/* Assume these are both zero */
-		if ((pci_addr != 0) || (isa_addr != 0)) {
-			printk(KERN_ERR "unexpected isa to pci mapping: %s\n",
-					__FUNCTION__);
-			return;
-		}
-		
-		size = PAGE_ALIGN(range->size);
-
-		__ioremap_explicit(phb_io_base_phys, 
-				   (unsigned long) phb_io_base_virt, 
-				   size, _PAGE_NO_CACHE | _PAGE_GUARDED);
-	}
-}
-
 void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
 					    struct device_node *dev, int prim)
 {
@@ -1045,155 +962,122 @@ void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	}
 }
 
-void __devinit pci_setup_phb_io(struct pci_controller *hose, int primary)
+#ifdef CONFIG_HOTPLUG
+
+int pcibios_unmap_io_space(struct pci_bus *bus)
 {
-	unsigned long size = hose->pci_io_size;
-	unsigned long io_virt_offset;
-	struct resource *res;
-	struct device_node *isa_dn;
+	struct pci_controller *hose;
 
-	if (size == 0)
-		return;
+	WARN_ON(bus == NULL);
 
-	hose->io_base_virt = reserve_phb_iospace(size);
-	DBG("phb%d io_base_phys 0x%lx io_base_virt 0x%lx\n",
-		hose->global_number, hose->io_base_phys,
-		(unsigned long) hose->io_base_virt);
-
-	if (primary) {
-		pci_io_base = (unsigned long)hose->io_base_virt;
-		isa_dn = of_find_node_by_type(NULL, "isa");
-		if (isa_dn) {
-			isa_io_base = pci_io_base;
-			pci_process_ISA_OF_ranges(isa_dn, hose->io_base_phys,
-						hose->io_base_virt);
-			of_node_put(isa_dn);
-		}
-	}
-
-	io_virt_offset = (unsigned long)hose->io_base_virt - pci_io_base;
-	res = &hose->io_resource;
-	res->start += io_virt_offset;
-	res->end += io_virt_offset;
-
-	/* If this is called after the initial PCI scan, then we need to
-	 * proceed to IO mappings now
+	/* If this is not a PHB, we only flush the hash table over
+	 * the area mapped by this bridge. We don't play with the PTE
+	 * mappings since we might have to deal with sub-page alignemnts
+	 * so flushing the hash table is the only sane way to make sure
+	 * that no hash entries are covering that removed bridge area
+	 * while still allowing other busses overlapping those pages
 	 */
-	if (pci_initial_scan_done)
-		__ioremap_explicit(hose->io_base_phys,
-				   (unsigned long)hose->io_base_virt,
-				   hose->pci_io_size,
-				   _PAGE_NO_CACHE | _PAGE_GUARDED);
-}
+	if (bus->self) {
+		struct resource *res = bus->resource[0];
 
-void __devinit pci_setup_phb_io_dynamic(struct pci_controller *hose,
-					int primary)
+		DBG("IO unmapping for PCI-PCI bridge %s\n",
+		    pci_name(bus->self));
+
+		__flush_hash_table_range(&init_mm, res->start + _IO_BASE,
+					 res->end - res->start + 1);
+		return 0;
+	}
+
+	/* Get the host bridge */
+	hose = pci_bus_to_host(bus);
+
+	/* Check if we have IOs allocated */
+	if (hose->io_base_alloc == 0)
+		return 0;
+
+	DBG("IO unmapping for PHB %s\n",
+	    ((struct device_node *)hose->arch_data)->full_name);
+	DBG("  alloc=0x%p\n", hose->io_base_alloc);
+
+	/* This is a PHB, we fully unmap the IO area */
+	vunmap(hose->io_base_alloc);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pcibios_unmap_io_space);
+
+#endif /* CONFIG_HOTPLUG */
+
+int __devinit pcibios_map_io_space(struct pci_bus *bus)
 {
-	unsigned long size = hose->pci_io_size;
+	struct vm_struct *area;
+	unsigned long phys_page;
+	unsigned long size_page;
 	unsigned long io_virt_offset;
-	struct resource *res;
+	struct pci_controller *hose;
 
-	if (size == 0)
-		return;
+	WARN_ON(bus == NULL);
 
-	hose->io_base_virt = __ioremap(hose->io_base_phys, size,
-					_PAGE_NO_CACHE | _PAGE_GUARDED);
-	DBG("phb%d io_base_phys 0x%lx io_base_virt 0x%lx\n",
-		hose->global_number, hose->io_base_phys,
-		(unsigned long) hose->io_base_virt);
-
-	if (primary)
-		pci_io_base = (unsigned long)hose->io_base_virt;
-
-	io_virt_offset = (unsigned long)hose->io_base_virt - pci_io_base;
-	res = &hose->io_resource;
-	res->start += io_virt_offset;
-	res->end += io_virt_offset;
-}
-
-
-static int get_bus_io_range(struct pci_bus *bus, unsigned long *start_phys,
-				unsigned long *start_virt, unsigned long *size)
-{
-	struct pci_controller *hose = pci_bus_to_host(bus);
-	struct resource *res;
-
-	if (bus->self)
-		res = bus->resource[0];
-	else
-		/* Root Bus */
-		res = &hose->io_resource;
-
-	if (res->end == 0 && res->start == 0)
-		return 1;
-
-	*start_virt = pci_io_base + res->start;
-	*start_phys = *start_virt + hose->io_base_phys
-		- (unsigned long) hose->io_base_virt;
-
-	if (res->end > res->start)
-		*size = res->end - res->start + 1;
-	else {
-		printk("%s(): unexpected region 0x%lx->0x%lx\n",
-		       __FUNCTION__, res->start, res->end);
-		return 1;
+	/* If this not a PHB, nothing to do, page tables still exist and
+	 * thus HPTEs will be faulted in when needed
+	 */
+	if (bus->self) {
+		DBG("IO mapping for PCI-PCI bridge %s\n",
+		    pci_name(bus->self));
+		DBG("  virt=0x%016lx...0x%016lx\n",
+		    bus->resource[0]->start + _IO_BASE,
+		    bus->resource[0]->end + _IO_BASE);
+		return 0;
 	}
+
+	/* Get the host bridge */
+	hose = pci_bus_to_host(bus);
+	phys_page = _ALIGN_DOWN(hose->io_base_phys, PAGE_SIZE);
+	size_page = _ALIGN_UP(hose->pci_io_size, PAGE_SIZE);
+
+	/* Make sure IO area address is clear */
+	hose->io_base_alloc = NULL;
+
+	/* If there's no IO to map on that bus, get away too */
+	if (hose->pci_io_size == 0 || hose->io_base_phys == 0)
+		return 0;
+
+	/* Let's allocate some IO space for that guy. We don't pass
+	 * VM_IOREMAP because we don't care about alignment tricks that
+	 * the core does in that case. Maybe we should due to stupid card
+	 * with incomplete address decoding but I'd rather not deal with
+	 * those outside of the reserved 64K legacy region.
+	 */
+	area = __get_vm_area(size_page, 0, PHB_IO_BASE, PHB_IO_END);
+	if (area == NULL)
+		return -ENOMEM;
+	hose->io_base_alloc = area->addr;
+	hose->io_base_virt = (void __iomem *)(area->addr +
+					      hose->io_base_phys - phys_page);
+
+	DBG("IO mapping for PHB %s\n",
+	    ((struct device_node *)hose->arch_data)->full_name);
+	DBG("  phys=0x%016lx, virt=0x%p (alloc=0x%p)\n",
+	    hose->io_base_phys, hose->io_base_virt, hose->io_base_alloc);
+	DBG("  size=0x%016lx (alloc=0x%016lx)\n",
+	    hose->pci_io_size, size_page);
+
+	/* Establish the mapping */
+	if (__ioremap_at(phys_page, area->addr, size_page,
+			 _PAGE_NO_CACHE | _PAGE_GUARDED) == NULL)
+		return -ENOMEM;
+
+	/* Fixup hose IO resource */
+	io_virt_offset = (unsigned long)hose->io_base_virt - _IO_BASE;
+	hose->io_resource.start += io_virt_offset;
+	hose->io_resource.end += io_virt_offset;
+
+	DBG("  hose->io_resource=0x%016lx...0x%016lx\n",
+	    hose->io_resource.start, hose->io_resource.end);
 
 	return 0;
 }
-
-int unmap_bus_range(struct pci_bus *bus)
-{
-	unsigned long start_phys;
-	unsigned long start_virt;
-	unsigned long size;
-
-	if (!bus) {
-		printk(KERN_ERR "%s() expected bus\n", __FUNCTION__);
-		return 1;
-	}
-	
-	if (get_bus_io_range(bus, &start_phys, &start_virt, &size))
-		return 1;
-	if (__iounmap_explicit((void __iomem *) start_virt, size))
-		return 1;
-
-	return 0;
-}
-EXPORT_SYMBOL(unmap_bus_range);
-
-int remap_bus_range(struct pci_bus *bus)
-{
-	unsigned long start_phys;
-	unsigned long start_virt;
-	unsigned long size;
-
-	if (!bus) {
-		printk(KERN_ERR "%s() expected bus\n", __FUNCTION__);
-		return 1;
-	}
-	
-	
-	if (get_bus_io_range(bus, &start_phys, &start_virt, &size))
-		return 1;
-	if (start_phys == 0)
-		return 1;
-	printk(KERN_DEBUG "mapping IO %lx -> %lx, size: %lx\n", start_phys, start_virt, size);
-	if (__ioremap_explicit(start_phys, start_virt, size,
-			       _PAGE_NO_CACHE | _PAGE_GUARDED))
-		return 1;
-
-	return 0;
-}
-EXPORT_SYMBOL(remap_bus_range);
-
-static void phbs_remap_io(void)
-{
-	struct pci_controller *hose, *tmp;
-
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
-		remap_bus_range(hose->bus);
-}
+EXPORT_SYMBOL_GPL(pcibios_map_io_space);
 
 static void __devinit fixup_resource(struct resource *res, struct pci_dev *dev)
 {
@@ -1201,8 +1085,7 @@ static void __devinit fixup_resource(struct resource *res, struct pci_dev *dev)
 	unsigned long offset;
 
 	if (res->flags & IORESOURCE_IO) {
-		offset = (unsigned long)hose->io_base_virt - pci_io_base;
-
+		offset = (unsigned long)hose->io_base_virt - _IO_BASE;
 		res->start += offset;
 		res->end += offset;
 	} else if (res->flags & IORESOURCE_MEM) {
@@ -1217,9 +1100,20 @@ void __devinit pcibios_fixup_device_resources(struct pci_dev *dev,
 	/* Update device resources.  */
 	int i;
 
-	for (i = 0; i < PCI_NUM_RESOURCES; i++)
-		if (dev->resource[i].flags)
-			fixup_resource(&dev->resource[i], dev);
+	DBG("%s: Fixup resources:\n", pci_name(dev));
+	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
+		struct resource *res = &dev->resource[i];
+		if (!res->flags)
+			continue;
+
+		DBG("  0x%02x < %08lx:0x%016lx...0x%016lx\n",
+		    i, res->flags, res->start, res->end);
+
+		fixup_resource(res, dev);
+
+		DBG("       > %08lx:0x%016lx...0x%016lx\n",
+		    res->flags, res->start, res->end);
+	}
 }
 EXPORT_SYMBOL(pcibios_fixup_device_resources);
 
@@ -1360,7 +1254,7 @@ void pci_resource_to_user(const struct pci_dev *dev, int bar,
 		return;
 
 	if (rsrc->flags & IORESOURCE_IO)
-		offset = (unsigned long)hose->io_base_virt - pci_io_base;
+		offset = (unsigned long)hose->io_base_virt - _IO_BASE;
 
 	/* We pass a fully fixed up address to userland for MMIO instead of
 	 * a BAR value because X is lame and expects to be able to use that
@@ -1410,7 +1304,7 @@ unsigned long pci_address_to_pio(phys_addr_t address)
 		if (address >= hose->io_base_phys &&
 		    address < (hose->io_base_phys + hose->pci_io_size)) {
 			unsigned long base =
-				(unsigned long)hose->io_base_virt - pci_io_base;
+				(unsigned long)hose->io_base_virt - _IO_BASE;
 			return base + (address - hose->io_base_phys);
 		}
 	}

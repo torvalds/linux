@@ -202,8 +202,6 @@ struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
 	rtas_setup_phb(phb);
 	pci_process_bridge_OF_ranges(phb, dn, 0);
 
-	pci_setup_phb_io_dynamic(phb, primary);
-
 	pci_devs_phb_init_dynamic(phb);
 
 	if (dn->child)

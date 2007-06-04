@@ -31,6 +31,7 @@ struct pci_controller {
 	int last_busno;
 
 	void __iomem *io_base_virt;
+	void *io_base_alloc;
 	resource_size_t io_base_phys;
 
 	/* Some machines have a non 1:1 mapping of
@@ -166,6 +167,11 @@ static inline unsigned long pci_address_to_pio(phys_addr_t address)
 	return (unsigned long)-1;
 }
 #endif
+
+extern void isa_bridge_find_early(struct pci_controller *hose);
+
+extern int pcibios_unmap_io_space(struct pci_bus *bus);
+extern int pcibios_map_io_space(struct pci_bus *bus);
 
 /* Return values for ppc_md.pci_probe_mode function */
 #define PCI_PROBE_NONE		-1	/* Don't look at this bus at all */

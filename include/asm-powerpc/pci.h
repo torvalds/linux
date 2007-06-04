@@ -220,10 +220,6 @@ static inline struct resource *pcibios_select_root(struct pci_dev *pdev,
 	return root;
 }
 
-extern int unmap_bus_range(struct pci_bus *bus);
-
-extern int remap_bus_range(struct pci_bus *bus);
-
 extern void pcibios_fixup_device_resources(struct pci_dev *dev,
 			struct pci_bus *bus);
 
