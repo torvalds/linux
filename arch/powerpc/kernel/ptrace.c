@@ -286,7 +286,6 @@ static void clear_single_step(struct task_struct *task)
 	clear_tsk_thread_flag(task, TIF_SINGLESTEP);
 }
 
-#ifdef CONFIG_PPC64
 static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 			       unsigned long data)
 {
@@ -305,7 +304,6 @@ static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	task->thread.dabr = data;
 	return 0;
 }
-#endif
 
 /*
  * Called by kernel/ptrace.c when detaching..
@@ -503,7 +501,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 	}
 
-#ifdef CONFIG_PPC64
 	case PTRACE_GET_DEBUGREG: {
 		ret = -EINVAL;
 		/* We only support one DABR and no IABRS at the moment */
@@ -517,7 +514,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_SET_DEBUGREG:
 		ret = ptrace_set_debugreg(child, addr, data);
 		break;
-#endif
 
 	case PTRACE_DETACH:
 		ret = ptrace_detach(child, data);
