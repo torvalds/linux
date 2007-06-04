@@ -434,6 +434,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 	}
 
+#ifdef CONFIG_PPC64
 	case PPC_PTRACE_GETFPREGS: { /* Get FPRs 0 - 31. */
 		int i;
 		unsigned long *reg = &((unsigned long *)child->thread.fpr)[0];
@@ -467,6 +468,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		}
 		break;
 	}
+#endif /* CONFIG_PPC64 */
 
 #ifdef CONFIG_ALTIVEC
 	case PTRACE_GETVRREGS:
