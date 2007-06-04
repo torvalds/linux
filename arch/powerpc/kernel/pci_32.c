@@ -1370,7 +1370,7 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 		for (i = 0; i < 4; ++i) {
 			if ((res = bus->resource[i]) == NULL)
 				continue;
-			if (!res->flags)
+			if (!res->flags || bus->self->transparent)
 				continue;
 			if (io_offset && (res->flags & IORESOURCE_IO)) {
 				res->start += io_offset;
