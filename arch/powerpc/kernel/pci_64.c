@@ -231,7 +231,6 @@ static unsigned int pci_parse_of_flags(u32 addr0)
 	return flags;
 }
 
-#define GET_64BIT(prop, i)	((((u64) (prop)[(i)]) << 32) | (prop)[(i)+1])
 
 static void pci_parse_of_addrs(struct device_node *node, struct pci_dev *dev)
 {
@@ -250,8 +249,8 @@ static void pci_parse_of_addrs(struct device_node *node, struct pci_dev *dev)
 		flags = pci_parse_of_flags(addrs[0]);
 		if (!flags)
 			continue;
-		base = GET_64BIT(addrs, 1);
-		size = GET_64BIT(addrs, 3);
+		base = of_read_number(&addrs[1], 2);
+		size = of_read_number(&addrs[3], 2);
 		if (!size)
 			continue;
 		i = addrs[0] & 0xff;
@@ -417,7 +416,7 @@ void __devinit of_scan_pci_bridge(struct device_node *node,
 	i = 1;
 	for (; len >= 32; len -= 32, ranges += 8) {
 		flags = pci_parse_of_flags(ranges[0]);
-		size = GET_64BIT(ranges, 6);
+		size = of_read_number(&ranges[6], 2);
 		if (flags == 0 || size == 0)
 			continue;
 		if (flags & IORESOURCE_IO) {
@@ -436,7 +435,7 @@ void __devinit of_scan_pci_bridge(struct device_node *node,
 			res = bus->resource[i];
 			++i;
 		}
-		res->start = GET_64BIT(ranges, 1);
+		res->start = of_read_number(&ranges[1], 2);
 		res->end = res->start + size - 1;
 		res->flags = flags;
 		fixup_resource(res, dev);
