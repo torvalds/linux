@@ -334,7 +334,7 @@ badframe:
 	return 0;
 }
 
-static int setup_rt_frame(int signr, struct k_sigaction *ka, siginfo_t *info,
+int handle_rt_signal64(int signr, struct k_sigaction *ka, siginfo_t *info,
 		sigset_t *set, struct pt_regs *regs)
 {
 	/* Handler is *really* a pointer to the function descriptor for
@@ -417,87 +417,3 @@ badframe:
 	force_sigsegv(signr, current);
 	return 0;
 }
-
-
-/*
- * OK, we're invoking a handler
- */
-static int handle_signal(unsigned long sig, struct k_sigaction *ka,
-			 siginfo_t *info, sigset_t *oldset, struct pt_regs *regs)
-{
-	int ret;
-
-	/* Set up Signal Frame */
-	ret = setup_rt_frame(sig, ka, info, oldset, regs);
-
-	if (ret) {
-		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
-		if (!(ka->sa.sa_flags & SA_NODEFER))
-			sigaddset(&current->blocked,sig);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-	}
-
-	return ret;
-}
-
-/*
- * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
- * mistake.
- */
-int do_signal(sigset_t *oldset, struct pt_regs *regs)
-{
-	siginfo_t info;
-	int signr;
-	struct k_sigaction ka;
-
-	/*
-	 * If the current thread is 32 bit - invoke the
-	 * 32 bit signal handling code
-	 */
-	if (test_thread_flag(TIF_32BIT))
-		return do_signal32(oldset, regs);
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else if (!oldset)
-		oldset = &current->blocked;
-
-	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-
-	/* Is there any syscall restart business here ? */
-	check_syscall_restart(regs, &ka, signr > 0);
-
-	if (signr > 0) {
-		int ret;
-
-		/*
-		 * Reenable the DABR before delivering the signal to
-		 * user space. The DABR will have been cleared if it
-		 * triggered inside the kernel.
-		 */
-		if (current->thread.dabr)
-			set_dabr(current->thread.dabr);
-
-		/* Whee!  Actually deliver the signal.  */
-		ret = handle_signal(signr, &ka, &info, oldset, regs);
-
-		/* If a signal was successfully delivered, the saved sigmask is in
-		   its frame, and we can clear the TIF_RESTORE_SIGMASK flag */
-		if (ret && test_thread_flag(TIF_RESTORE_SIGMASK))
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
-
-		return ret;
-	}
-
-	/* No signal to deliver -- put the saved sigmask back */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(do_signal);

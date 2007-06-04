@@ -13,7 +13,17 @@
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
 extern void restore_sigmask(sigset_t *set);
-extern void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
-				  int has_handler);
+
+extern int handle_signal32(unsigned long sig, struct k_sigaction *ka,
+			   siginfo_t *info, sigset_t *oldset,
+			   struct pt_regs *regs, unsigned long newsp);
+
+extern int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
+			      siginfo_t *info, sigset_t *oldset,
+			      struct pt_regs *regs, unsigned long newsp);
+
+extern int handle_rt_signal64(int signr, struct k_sigaction *ka,
+			      siginfo_t *info, sigset_t *set,
+			      struct pt_regs *regs);
 
 #endif  /* _POWERPC_ARCH_SIGNAL_H */

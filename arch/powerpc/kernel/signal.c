@@ -9,11 +9,25 @@
  * this archive for more details.
  */
 
+#include <linux/freezer.h>
 #include <linux/ptrace.h>
 #include <linux/signal.h>
 #include <asm/unistd.h>
 
 #include "signal.h"
+
+
+#ifdef CONFIG_PPC64
+static inline int is_32bit_task(void)
+{
+	return test_thread_flag(TIF_32BIT);
+}
+#else
+static inline int is_32bit_task(void)
+{
+	return 1;
+}
+#endif
 
 
 /*
@@ -28,8 +42,8 @@ void restore_sigmask(sigset_t *set)
 	spin_unlock_irq(&current->sighand->siglock);
 }
 
-void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
-			   int has_handler)
+static void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
+				  int has_handler)
 {
 	unsigned long ret = regs->gpr[3];
 	int restart = 1;
@@ -77,6 +91,95 @@ void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 		regs->gpr[3] = EINTR;
 		regs->ccr |= 0x10000000;
 	}
+}
+
+int do_signal(sigset_t *oldset, struct pt_regs *regs)
+{
+	siginfo_t info;
+	int signr;
+	struct k_sigaction ka;
+	int ret;
+	int is32 = is_32bit_task();
+
+#ifdef CONFIG_PPC32
+	if (try_to_freeze()) {
+		signr = 0;
+		if (!signal_pending(current))
+			goto no_signal;
+	}
+#endif
+
+	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		oldset = &current->saved_sigmask;
+	else if (!oldset)
+		oldset = &current->blocked;
+
+	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
+
+#ifdef CONFIG_PPC32
+no_signal:
+#endif
+	/* Is there any syscall restart business here ? */
+	check_syscall_restart(regs, &ka, signr > 0);
+
+	if (signr <= 0) {
+		/* No signal to deliver -- put the saved sigmask back */
+		if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+			clear_thread_flag(TIF_RESTORE_SIGMASK);
+			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+		}
+		return 0;               /* no signals delivered */
+	}
+
+#ifdef CONFIG_PPC64
+        /*
+	 * Reenable the DABR before delivering the signal to
+	 * user space. The DABR will have been cleared if it
+	 * triggered inside the kernel.
+	 */
+	if (current->thread.dabr)
+		set_dabr(current->thread.dabr);
+#endif
+
+	if (is32) {
+		unsigned int newsp;
+
+		if ((ka.sa.sa_flags & SA_ONSTACK) &&
+		    current->sas_ss_size && !on_sig_stack(regs->gpr[1]))
+			newsp = current->sas_ss_sp + current->sas_ss_size;
+		else
+			newsp = regs->gpr[1];
+
+        	if (ka.sa.sa_flags & SA_SIGINFO)
+			ret = handle_rt_signal32(signr, &ka, &info, oldset,
+					regs, newsp);
+		else
+			ret = handle_signal32(signr, &ka, &info, oldset,
+					regs, newsp);
+#ifdef CONFIG_PPC64
+	} else {
+		ret = handle_rt_signal64(signr, &ka, &info, oldset, regs);
+#endif
+	}
+
+	if (ret) {
+		spin_lock_irq(&current->sighand->siglock);
+		sigorsets(&current->blocked, &current->blocked,
+			  &ka.sa.sa_mask);
+		if (!(ka.sa.sa_flags & SA_NODEFER))
+			sigaddset(&current->blocked, signr);
+		recalc_sigpending();
+		spin_unlock_irq(&current->sighand->siglock);
+
+		/*
+		 * A signal was successfully delivered; the saved sigmask is in
+		 * its frame, and we can clear the TIF_RESTORE_SIGMASK flag.
+		 */
+		if (test_thread_flag(TIF_RESTORE_SIGMASK))
+			clear_thread_flag(TIF_RESTORE_SIGMASK);
+	}
+
+	return ret;
 }
 
 long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,

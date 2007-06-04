@@ -56,7 +56,6 @@
 #undef DEBUG_SIG
 
 #ifdef CONFIG_PPC64
-#define do_signal	do_signal32
 #define sys_sigsuspend	compat_sys_sigsuspend
 #define sys_rt_sigsuspend	compat_sys_rt_sigsuspend
 #define sys_rt_sigreturn	compat_sys_rt_sigreturn
@@ -230,8 +229,6 @@ static inline int restore_general_regs(struct pt_regs *regs,
 }
 
 #endif /* CONFIG_PPC64 */
-
-int do_signal(sigset_t *oldset, struct pt_regs *regs);
 
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
@@ -699,7 +696,7 @@ int compat_sys_sigaltstack(u32 __new, u32 __old, int r5,
  * Set up a signal frame for a "real-time" signal handler
  * (one which gets siginfo).
  */
-static int handle_rt_signal(unsigned long sig, struct k_sigaction *ka,
+int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 		siginfo_t *info, sigset_t *oldset,
 		struct pt_regs *regs, unsigned long newsp)
 {
@@ -990,7 +987,7 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 /*
  * OK, we're invoking a handler
  */
-static int handle_signal(unsigned long sig, struct k_sigaction *ka,
+int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 		siginfo_t *info, sigset_t *oldset, struct pt_regs *regs,
 		unsigned long newsp)
 {
@@ -1100,85 +1097,4 @@ long sys_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 badframe:
 	force_sig(SIGSEGV, current);
 	return 0;
-}
-
-/*
- * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
- * mistake.
- */
-int do_signal(sigset_t *oldset, struct pt_regs *regs)
-{
-	siginfo_t info;
-	struct k_sigaction ka;
-	unsigned int newsp;
-	int signr, ret;
-
-#ifdef CONFIG_PPC32
-	if (try_to_freeze()) {
-		signr = 0;
-		if (!signal_pending(current))
-			goto no_signal;
-	}
-#endif
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else if (!oldset)
-		oldset = &current->blocked;
-
-	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-#ifdef CONFIG_PPC32
-no_signal:
-#endif
-	/* Is there any syscall restart business here ? */
-	check_syscall_restart(regs, &ka, signr > 0);
-
-	if (signr == 0) {
-		/* No signal to deliver -- put the saved sigmask back */
-		if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
-			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-		}
-		return 0;		/* no signals delivered */
-	}
-
-	if ((ka.sa.sa_flags & SA_ONSTACK) && current->sas_ss_size
-	    && !on_sig_stack(regs->gpr[1]))
-		newsp = current->sas_ss_sp + current->sas_ss_size;
-	else
-		newsp = regs->gpr[1];
-	newsp &= ~0xfUL;
-
-#ifdef CONFIG_PPC64
-	/*
-	 * Reenable the DABR before delivering the signal to
-	 * user space. The DABR will have been cleared if it
-	 * triggered inside the kernel.
-	 */
-	if (current->thread.dabr)
-		set_dabr(current->thread.dabr);
-#endif
-
-	/* Whee!  Actually deliver the signal.  */
-	if (ka.sa.sa_flags & SA_SIGINFO)
-		ret = handle_rt_signal(signr, &ka, &info, oldset, regs, newsp);
-	else
-		ret = handle_signal(signr, &ka, &info, oldset, regs, newsp);
-
-	if (ret) {
-		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked, &current->blocked,
-			  &ka.sa.sa_mask);
-		if (!(ka.sa.sa_flags & SA_NODEFER))
-			sigaddset(&current->blocked, signr);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-		/* A signal was successfully delivered; the saved sigmask is in
-		   its frame, and we can clear the TIF_RESTORE_SIGMASK flag */
-		if (test_thread_flag(TIF_RESTORE_SIGMASK))
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
-	}
-
-	return ret;
 }
