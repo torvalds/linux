@@ -699,9 +699,9 @@ static void evdev_disconnect(struct input_handle *handle)
 	if (evdev->open) {
 		input_flush_device(handle, NULL);
 		input_close_device(handle);
-		wake_up_interruptible(&evdev->wait);
 		list_for_each_entry(client, &evdev->client_list, node)
 			kill_fasync(&client->fasync, SIGIO, POLL_HUP);
+		wake_up_interruptible(&evdev->wait);
 	} else
 		evdev_free(evdev);
 }

@@ -476,9 +476,9 @@ static void tsdev_disconnect(struct input_handle *handle)
 
 	if (tsdev->open) {
 		input_close_device(handle);
-		wake_up_interruptible(&tsdev->wait);
 		list_for_each_entry(client, &tsdev->client_list, node)
 			kill_fasync(&client->fasync, SIGIO, POLL_HUP);
+		wake_up_interruptible(&tsdev->wait);
 	} else
 		tsdev_free(tsdev);
 }

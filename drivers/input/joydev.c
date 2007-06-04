@@ -594,9 +594,9 @@ static void joydev_disconnect(struct input_handle *handle)
 
 	if (joydev->open) {
 		input_close_device(handle);
-		wake_up_interruptible(&joydev->wait);
 		list_for_each_entry(client, &joydev->client_list, node)
 			kill_fasync(&client->fasync, SIGIO, POLL_HUP);
+		wake_up_interruptible(&joydev->wait);
 	} else
 		joydev_free(joydev);
 }

@@ -766,9 +766,9 @@ static void mousedev_disconnect(struct input_handle *handle)
 
 	if (mousedev->open) {
 		input_close_device(handle);
-		wake_up_interruptible(&mousedev->wait);
 		list_for_each_entry(client, &mousedev->client_list, node)
 			kill_fasync(&client->fasync, SIGIO, POLL_HUP);
+		wake_up_interruptible(&mousedev->wait);
 	} else
 		mousedev_free(mousedev);
 }
