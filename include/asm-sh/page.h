@@ -151,5 +151,12 @@ typedef struct { unsigned long pgd; } pgd_t;
 #define __HAVE_ARCH_GATE_AREA
 #endif
 
+/*
+ * Slub defaults to 8-byte alignment, we're only interested in 4.
+ * Slab defaults to BYTES_PER_WORD, which ends up being the same anyways.
+ */
+#define ARCH_KMALLOC_MINALIGN	4
+#define ARCH_SLAB_MINALIGN	4
+
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_PAGE_H */
