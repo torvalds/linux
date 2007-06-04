@@ -16,6 +16,21 @@ struct pipe_buffer {
 	unsigned int flags;
 };
 
+struct pipe_inode_info {
+	wait_queue_head_t wait;
+	unsigned int nrbufs, curbuf;
+	struct page *tmp_page;
+	unsigned int readers;
+	unsigned int writers;
+	unsigned int waiting_writers;
+	unsigned int r_counter;
+	unsigned int w_counter;
+	struct fasync_struct *fasync_readers;
+	struct fasync_struct *fasync_writers;
+	struct inode *inode;
+	struct pipe_buffer bufs[PIPE_BUFFERS];
+};
+
 /*
  * Note on the nesting of these functions:
  *
@@ -36,21 +51,6 @@ struct pipe_buf_operations {
 	void (*release)(struct pipe_inode_info *, struct pipe_buffer *);
 	int (*steal)(struct pipe_inode_info *, struct pipe_buffer *);
 	void (*get)(struct pipe_inode_info *, struct pipe_buffer *);
-};
-
-struct pipe_inode_info {
-	wait_queue_head_t wait;
-	unsigned int nrbufs, curbuf;
-	struct page *tmp_page;
-	unsigned int readers;
-	unsigned int writers;
-	unsigned int waiting_writers;
-	unsigned int r_counter;
-	unsigned int w_counter;
-	struct fasync_struct *fasync_readers;
-	struct fasync_struct *fasync_writers;
-	struct inode *inode;
-	struct pipe_buffer bufs[PIPE_BUFFERS];
 };
 
 /* Differs from PIPE_BUF in that PIPE_SIZE is the length of the actual
