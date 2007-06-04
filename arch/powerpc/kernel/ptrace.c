@@ -371,9 +371,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 #endif
 			break;
 
-#ifdef CONFIG_PPC32
 		CHECK_FULL_REGS(child->thread.regs);
-#endif
 		if (index < PT_FPR0) {
 			tmp = ptrace_get_reg(child, (int) index);
 		} else {
@@ -410,9 +408,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 #endif
 			break;
 
-#ifdef CONFIG_PPC32
 		CHECK_FULL_REGS(child->thread.regs);
-#endif
 		if (index == PT_ORIG_R3)
 			break;
 		if (index < PT_FPR0) {
