@@ -77,7 +77,6 @@ static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev
 	struct ata_host *host;
 	struct ata_port *ap;
 	void __iomem *cmd_addr, *ctl_addr;
-	int rc;
 
 	if (pnp_port_valid(idev, 0) == 0)
 		return -ENODEV;
