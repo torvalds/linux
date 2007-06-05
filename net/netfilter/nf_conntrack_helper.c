@@ -93,7 +93,7 @@ static inline int unhelp(struct nf_conntrack_tuple_hash *i,
 
 	if (help && help->helper == me) {
 		nf_conntrack_event(IPCT_HELPER, ct);
-		help->helper = NULL;
+		rcu_assign_pointer(help->helper, NULL);
 	}
 	return 0;
 }

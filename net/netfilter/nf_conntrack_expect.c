@@ -337,6 +337,10 @@ int nf_conntrack_expect_related(struct nf_conntrack_expect *expect)
 	NF_CT_ASSERT(master_help);
 
 	write_lock_bh(&nf_conntrack_lock);
+	if (!master_help->helper) {
+		ret = -ESHUTDOWN;
+		goto out;
+	}
 	list_for_each_entry(i, &nf_conntrack_expect_list, list) {
 		if (expect_matches(i, expect)) {
 			/* Refresh timer: if it's dying, ignore.. */

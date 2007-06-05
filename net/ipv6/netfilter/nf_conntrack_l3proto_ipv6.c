@@ -160,6 +160,7 @@ static unsigned int ipv6_confirm(unsigned int hooknum,
 {
 	struct nf_conn *ct;
 	struct nf_conn_help *help;
+	struct nf_conntrack_helper *helper;
 	enum ip_conntrack_info ctinfo;
 	unsigned int ret, protoff;
 	unsigned int extoff = (u8 *)(ipv6_hdr(*pskb) + 1) - (*pskb)->data;
@@ -172,7 +173,11 @@ static unsigned int ipv6_confirm(unsigned int hooknum,
 		goto out;
 
 	help = nfct_help(ct);
-	if (!help || !help->helper)
+	if (!help)
+		goto out;
+	/* rcu_read_lock()ed by nf_hook_slow */
+	helper = rcu_dereference(help->helper);
+	if (!helper)
 		goto out;
 
 	protoff = nf_ct_ipv6_skip_exthdr(*pskb, extoff, &pnum,
@@ -182,7 +187,7 @@ static unsigned int ipv6_confirm(unsigned int hooknum,
 		return NF_ACCEPT;
 	}
 
-	ret = help->helper->help(pskb, protoff, ct, ctinfo);
+	ret = helper->help(pskb, protoff, ct, ctinfo);
 	if (ret != NF_ACCEPT)
 		return ret;
 out:

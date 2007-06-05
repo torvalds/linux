@@ -171,21 +171,29 @@ ctnetlink_dump_helpinfo(struct sk_buff *skb, const struct nf_conn *ct)
 {
 	struct nfattr *nest_helper;
 	const struct nf_conn_help *help = nfct_help(ct);
+	struct nf_conntrack_helper *helper;
 
-	if (!help || !help->helper)
+	if (!help)
 		return 0;
 
-	nest_helper = NFA_NEST(skb, CTA_HELP);
-	NFA_PUT(skb, CTA_HELP_NAME, strlen(help->helper->name), help->helper->name);
+	rcu_read_lock();
+	helper = rcu_dereference(help->helper);
+	if (!helper)
+		goto out;
 
-	if (help->helper->to_nfattr)
-		help->helper->to_nfattr(skb, ct);
+	nest_helper = NFA_NEST(skb, CTA_HELP);
+	NFA_PUT(skb, CTA_HELP_NAME, strlen(helper->name), helper->name);
+
+	if (helper->to_nfattr)
+		helper->to_nfattr(skb, ct);
 
 	NFA_NEST_END(skb, nest_helper);
-
+out:
+	rcu_read_unlock();
 	return 0;
 
 nfattr_failure:
+	rcu_read_unlock();
 	return -1;
 }
 
@@ -842,7 +850,7 @@ ctnetlink_change_helper(struct nf_conn *ct, struct nfattr *cda[])
 		if (help && help->helper) {
 			/* we had a helper before ... */
 			nf_ct_remove_expectations(ct);
-			help->helper = NULL;
+			rcu_assign_pointer(help->helper, NULL);
 		}
 
 		return 0;
@@ -866,7 +874,7 @@ ctnetlink_change_helper(struct nf_conn *ct, struct nfattr *cda[])
 
 	/* need to zero data of old helper */
 	memset(&help->help, 0, sizeof(help->help));
-	help->helper = helper;
+	rcu_assign_pointer(help->helper, helper);
 
 	return 0;
 }
@@ -950,6 +958,7 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 	struct nf_conn *ct;
 	int err = -EINVAL;
 	struct nf_conn_help *help;
+	struct nf_conntrack_helper *helper = NULL;
 
 	ct = nf_conntrack_alloc(otuple, rtuple);
 	if (ct == NULL || IS_ERR(ct))
@@ -980,14 +989,17 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 #endif
 
 	help = nfct_help(ct);
-	if (help)
-		help->helper = nf_ct_helper_find_get(rtuple);
+	if (help) {
+		helper = nf_ct_helper_find_get(rtuple);
+		/* not in hash table yet so not strictly necessary */
+		rcu_assign_pointer(help->helper, helper);
+	}
 
 	add_timer(&ct->timeout);
 	nf_conntrack_hash_insert(ct);
 
-	if (help && help->helper)
-		nf_ct_helper_put(help->helper);
+	if (helper)
+		nf_ct_helper_put(helper);
 
 	return 0;
 
