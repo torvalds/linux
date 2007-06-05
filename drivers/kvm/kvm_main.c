@@ -319,6 +319,9 @@ static struct kvm *kvm_create_vm(void)
 
 	spin_lock_init(&kvm->lock);
 	INIT_LIST_HEAD(&kvm->active_mmu_pages);
+	spin_lock(&kvm_lock);
+	list_add(&kvm->vm_list, &vm_list);
+	spin_unlock(&kvm_lock);
 	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
 		struct kvm_vcpu *vcpu = &kvm->vcpus[i];
 
@@ -326,9 +329,6 @@ static struct kvm *kvm_create_vm(void)
 		vcpu->cpu = -1;
 		vcpu->kvm = kvm;
 		vcpu->mmu.root_hpa = INVALID_PAGE;
-		spin_lock(&kvm_lock);
-		list_add(&kvm->vm_list, &vm_list);
-		spin_unlock(&kvm_lock);
 	}
 	return kvm;
 }
