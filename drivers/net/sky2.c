@@ -217,13 +217,19 @@ static void sky2_power_on(struct sky2_hw *hw)
 		sky2_write8(hw, B2_Y2_CLK_GATE, 0);
 
 	if (hw->chip_id == CHIP_ID_YUKON_EC_U || hw->chip_id == CHIP_ID_YUKON_EX) {
-		u32 reg1;
+		u32 reg;
 
-		sky2_pci_write32(hw, PCI_DEV_REG3, 0);
-		reg1 = sky2_pci_read32(hw, PCI_DEV_REG4);
-		reg1 &= P_ASPM_CONTROL_MSK;
-		sky2_pci_write32(hw, PCI_DEV_REG4, reg1);
-		sky2_pci_write32(hw, PCI_DEV_REG5, 0);
+		reg = sky2_pci_read32(hw, PCI_DEV_REG4);
+		/* set all bits to 0 except bits 15..12 and 8 */
+		reg &= P_ASPM_CONTROL_MSK;
+		sky2_pci_write32(hw, PCI_DEV_REG4, reg);
+
+		reg = sky2_pci_read32(hw, PCI_DEV_REG5);
+		/* set all bits to 0 except bits 28 & 27 */
+		reg &= P_CTL_TIM_VMAIN_AV_MSK;
+		sky2_pci_write32(hw, PCI_DEV_REG5, reg);
+
+		sky2_pci_write32(hw, PCI_CFG_REG_1, 0);
 	}
 }
 
