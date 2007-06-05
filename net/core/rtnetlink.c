@@ -580,7 +580,7 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 
 	err = -EINVAL;
 	ifm = nlmsg_data(nlh);
-	if (ifm->ifi_index >= 0)
+	if (ifm->ifi_index > 0)
 		dev = dev_get_by_index(ifm->ifi_index);
 	else if (tb[IFLA_IFNAME])
 		dev = dev_get_by_name(ifname);
@@ -672,7 +672,7 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	 * name provided implies that a name change has been
 	 * requested.
 	 */
-	if (ifm->ifi_index >= 0 && ifname[0]) {
+	if (ifm->ifi_index > 0 && ifname[0]) {
 		err = dev_change_name(dev, ifname);
 		if (err < 0)
 			goto errout_dev;
@@ -740,7 +740,7 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		return err;
 
 	ifm = nlmsg_data(nlh);
-	if (ifm->ifi_index >= 0) {
+	if (ifm->ifi_index > 0) {
 		dev = dev_get_by_index(ifm->ifi_index);
 		if (dev == NULL)
 			return -ENODEV;
