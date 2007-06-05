@@ -59,6 +59,11 @@ static inline void ipv4_devconf_set(struct in_device *in_dev, int index,
 	in_dev->cnf.data[index] = val;
 }
 
+static inline void ipv4_devconf_setall(struct in_device *in_dev)
+{
+	bitmap_fill(in_dev->cnf.state, __NET_IPV4_CONF_MAX - 1);
+}
+
 #define IN_DEV_CONF_GET(in_dev, attr) \
 	ipv4_devconf_get((in_dev), NET_IPV4_CONF_ ## attr)
 #define IN_DEV_CONF_SET(in_dev, attr, val) \
@@ -125,7 +130,6 @@ extern struct net_device 	*ip_dev_find(__be32 addr);
 extern int		inet_addr_onlink(struct in_device *in_dev, __be32 a, __be32 b);
 extern int		devinet_ioctl(unsigned int cmd, void __user *);
 extern void		devinet_init(void);
-extern struct in_device *inetdev_init(struct net_device *dev);
 extern struct in_device	*inetdev_by_index(int);
 extern __be32		inet_select_addr(const struct net_device *dev, __be32 dst, int scope);
 extern __be32		inet_confirm_addr(const struct net_device *dev, __be32 dst, __be32 local, int scope);

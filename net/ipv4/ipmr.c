@@ -152,9 +152,11 @@ struct net_device *ipmr_new_tunnel(struct vifctl *v)
 			dev->flags |= IFF_MULTICAST;
 
 			in_dev = __in_dev_get_rtnl(dev);
-			if (in_dev == NULL && (in_dev = inetdev_init(dev)) == NULL)
+			if (in_dev == NULL)
 				goto failure;
-			IN_DEV_CONF_SET(in_dev, RP_FILTER, 0);
+
+			ipv4_devconf_setall(in_dev);
+			IPV4_DEVCONF(in_dev->cnf, RP_FILTER) = 0;
 
 			if (dev_open(dev))
 				goto failure;
@@ -218,10 +220,15 @@ static struct net_device *ipmr_reg_vif(void)
 	}
 	dev->iflink = 0;
 
-	if ((in_dev = inetdev_init(dev)) == NULL)
+	rcu_read_lock();
+	if ((in_dev = __in_dev_get_rcu(dev)) == NULL) {
+		rcu_read_unlock();
 		goto failure;
+	}
 
-	IN_DEV_CONF_SET(in_dev, RP_FILTER, 0);
+	ipv4_devconf_setall(in_dev);
+	IPV4_DEVCONF(in_dev->cnf, RP_FILTER) = 0;
+	rcu_read_unlock();
 
 	if (dev_open(dev))
 		goto failure;
