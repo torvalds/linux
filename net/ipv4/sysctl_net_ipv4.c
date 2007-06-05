@@ -37,12 +37,12 @@ static
 int ipv4_sysctl_forward(ctl_table *ctl, int write, struct file * filp,
 			void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	int val = ipv4_devconf.forwarding;
+	int val = IPV4_DEVCONF_ALL(FORWARDING);
 	int ret;
 
 	ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
 
-	if (write && ipv4_devconf.forwarding != val)
+	if (write && IPV4_DEVCONF_ALL(FORWARDING) != val)
 		inet_forward_change();
 
 	return ret;
@@ -222,7 +222,7 @@ ctl_table ipv4_table[] = {
 	{
 		.ctl_name	= NET_IPV4_FORWARD,
 		.procname	= "ip_forward",
-		.data		= &ipv4_devconf.forwarding,
+		.data		= &IPV4_DEVCONF_ALL(FORWARDING),
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &ipv4_sysctl_forward,

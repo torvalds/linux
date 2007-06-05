@@ -64,19 +64,25 @@
 #include <net/rtnetlink.h>
 
 struct ipv4_devconf ipv4_devconf = {
-	.accept_redirects = 1,
-	.send_redirects =  1,
-	.secure_redirects = 1,
-	.shared_media =	  1,
+	.data = {
+		[NET_IPV4_CONF_ACCEPT_REDIRECTS - 1] = 1,
+		[NET_IPV4_CONF_SEND_REDIRECTS - 1] = 1,
+		[NET_IPV4_CONF_SECURE_REDIRECTS - 1] = 1,
+		[NET_IPV4_CONF_SHARED_MEDIA - 1] = 1,
+	},
 };
 
 static struct ipv4_devconf ipv4_devconf_dflt = {
-	.accept_redirects =  1,
-	.send_redirects =    1,
-	.secure_redirects =  1,
-	.shared_media =	     1,
-	.accept_source_route = 1,
+	.data = {
+		[NET_IPV4_CONF_ACCEPT_REDIRECTS - 1] = 1,
+		[NET_IPV4_CONF_SEND_REDIRECTS - 1] = 1,
+		[NET_IPV4_CONF_SECURE_REDIRECTS - 1] = 1,
+		[NET_IPV4_CONF_SHARED_MEDIA - 1] = 1,
+		[NET_IPV4_CONF_ACCEPT_SOURCE_ROUTE - 1] = 1,
+	},
 };
+
+#define IPV4_DEVCONF_DFLT(attr) IPV4_DEVCONF(ipv4_devconf_dflt, attr)
 
 static struct nla_policy ifa_ipv4_policy[IFA_MAX+1] __read_mostly = {
 	[IFA_LOCAL]     	= { .type = NLA_U32 },
@@ -1061,8 +1067,8 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 				if (!in_dev)
 					panic("devinet: "
 					      "Failed to create loopback\n");
-				in_dev->cnf.no_xfrm = 1;
-				in_dev->cnf.no_policy = 1;
+				IN_DEV_CONF_SET(in_dev, NOXFRM, 1);
+				IN_DEV_CONF_SET(in_dev, NOPOLICY, 1);
 			}
 		}
 		goto out;
@@ -1241,10 +1247,10 @@ errout:
 void inet_forward_change(void)
 {
 	struct net_device *dev;
-	int on = ipv4_devconf.forwarding;
+	int on = IPV4_DEVCONF_ALL(FORWARDING);
 
-	ipv4_devconf.accept_redirects = !on;
-	ipv4_devconf_dflt.forwarding = on;
+	IPV4_DEVCONF_ALL(ACCEPT_REDIRECTS) = !on;
+	IPV4_DEVCONF_DFLT(FORWARDING) = on;
 
 	read_lock(&dev_base_lock);
 	for_each_netdev(dev) {
@@ -1252,7 +1258,7 @@ void inet_forward_change(void)
 		rcu_read_lock();
 		in_dev = __in_dev_get_rcu(dev);
 		if (in_dev)
-			in_dev->cnf.forwarding = on;
+			IN_DEV_CONF_SET(in_dev, FORWARDING, on);
 		rcu_read_unlock();
 	}
 	read_unlock(&dev_base_lock);
@@ -1269,9 +1275,9 @@ static int devinet_sysctl_forward(ctl_table *ctl, int write,
 	int ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
 
 	if (write && *valp != val) {
-		if (valp == &ipv4_devconf.forwarding)
+		if (valp == &IPV4_DEVCONF_ALL(FORWARDING))
 			inet_forward_change();
-		else if (valp != &ipv4_devconf_dflt.forwarding)
+		else if (valp != &IPV4_DEVCONF_DFLT(FORWARDING))
 			rt_cache_flush(0);
 	}
 
@@ -1333,6 +1339,31 @@ int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
 }
 
 
+#define DEVINET_SYSCTL_ENTRY(attr, name, mval, proc, sysctl) \
+	{ \
+		.ctl_name	= NET_IPV4_CONF_ ## attr, \
+		.procname	= name, \
+		.data		= ipv4_devconf.data + \
+				  NET_IPV4_CONF_ ## attr - 1, \
+		.maxlen		= sizeof(int), \
+		.mode		= mval, \
+		.proc_handler	= proc, \
+		.strategy	= sysctl, \
+	}
+
+#define DEVINET_SYSCTL_RW_ENTRY(attr, name) \
+	DEVINET_SYSCTL_ENTRY(attr, name, 0644, &proc_dointvec, NULL)
+
+#define DEVINET_SYSCTL_RO_ENTRY(attr, name) \
+	DEVINET_SYSCTL_ENTRY(attr, name, 0444, &proc_dointvec, NULL)
+
+#define DEVINET_SYSCTL_COMPLEX_ENTRY(attr, name, proc, sysctl) \
+	DEVINET_SYSCTL_ENTRY(attr, name, 0644, proc, sysctl)
+
+#define DEVINET_SYSCTL_FLUSHING_ENTRY(attr, name) \
+	DEVINET_SYSCTL_COMPLEX_ENTRY(attr, name, ipv4_doint_and_flush, \
+				     ipv4_doint_and_flush_strategy)
+
 static struct devinet_sysctl_table {
 	struct ctl_table_header *sysctl_header;
 	ctl_table		devinet_vars[__NET_IPV4_CONF_MAX];
@@ -1342,178 +1373,33 @@ static struct devinet_sysctl_table {
 	ctl_table		devinet_root_dir[2];
 } devinet_sysctl = {
 	.devinet_vars = {
-		{
-			.ctl_name	= NET_IPV4_CONF_FORWARDING,
-			.procname	= "forwarding",
-			.data		= &ipv4_devconf.forwarding,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &devinet_sysctl_forward,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_MC_FORWARDING,
-			.procname	= "mc_forwarding",
-			.data		= &ipv4_devconf.mc_forwarding,
-			.maxlen		= sizeof(int),
-			.mode		= 0444,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_ACCEPT_REDIRECTS,
-			.procname	= "accept_redirects",
-			.data		= &ipv4_devconf.accept_redirects,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_SECURE_REDIRECTS,
-			.procname	= "secure_redirects",
-			.data		= &ipv4_devconf.secure_redirects,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_SHARED_MEDIA,
-			.procname	= "shared_media",
-			.data		= &ipv4_devconf.shared_media,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_RP_FILTER,
-			.procname	= "rp_filter",
-			.data		= &ipv4_devconf.rp_filter,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_SEND_REDIRECTS,
-			.procname	= "send_redirects",
-			.data		= &ipv4_devconf.send_redirects,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_ACCEPT_SOURCE_ROUTE,
-			.procname	= "accept_source_route",
-			.data		= &ipv4_devconf.accept_source_route,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_PROXY_ARP,
-			.procname	= "proxy_arp",
-			.data		= &ipv4_devconf.proxy_arp,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_MEDIUM_ID,
-			.procname	= "medium_id",
-			.data		= &ipv4_devconf.medium_id,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_BOOTP_RELAY,
-			.procname	= "bootp_relay",
-			.data		= &ipv4_devconf.bootp_relay,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_LOG_MARTIANS,
-			.procname	= "log_martians",
-			.data		= &ipv4_devconf.log_martians,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_TAG,
-			.procname	= "tag",
-			.data		= &ipv4_devconf.tag,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_ARPFILTER,
-			.procname	= "arp_filter",
-			.data		= &ipv4_devconf.arp_filter,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_ARP_ANNOUNCE,
-			.procname	= "arp_announce",
-			.data		= &ipv4_devconf.arp_announce,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_ARP_IGNORE,
-			.procname	= "arp_ignore",
-			.data		= &ipv4_devconf.arp_ignore,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_ARP_ACCEPT,
-			.procname	= "arp_accept",
-			.data		= &ipv4_devconf.arp_accept,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_NOXFRM,
-			.procname	= "disable_xfrm",
-			.data		= &ipv4_devconf.no_xfrm,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &ipv4_doint_and_flush,
-			.strategy	= &ipv4_doint_and_flush_strategy,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_NOPOLICY,
-			.procname	= "disable_policy",
-			.data		= &ipv4_devconf.no_policy,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &ipv4_doint_and_flush,
-			.strategy	= &ipv4_doint_and_flush_strategy,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_FORCE_IGMP_VERSION,
-			.procname	= "force_igmp_version",
-			.data		= &ipv4_devconf.force_igmp_version,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &ipv4_doint_and_flush,
-			.strategy	= &ipv4_doint_and_flush_strategy,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_PROMOTE_SECONDARIES,
-			.procname	= "promote_secondaries",
-			.data		= &ipv4_devconf.promote_secondaries,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &ipv4_doint_and_flush,
-			.strategy	= &ipv4_doint_and_flush_strategy,
-		},
+		DEVINET_SYSCTL_COMPLEX_ENTRY(FORWARDING, "forwarding",
+					     devinet_sysctl_forward, NULL),
+		DEVINET_SYSCTL_RO_ENTRY(MC_FORWARDING, "mc_forwarding"),
+
+		DEVINET_SYSCTL_RW_ENTRY(ACCEPT_REDIRECTS, "accept_redirects"),
+		DEVINET_SYSCTL_RW_ENTRY(SECURE_REDIRECTS, "secure_redirects"),
+		DEVINET_SYSCTL_RW_ENTRY(SHARED_MEDIA, "shared_media"),
+		DEVINET_SYSCTL_RW_ENTRY(RP_FILTER, "rp_filter"),
+		DEVINET_SYSCTL_RW_ENTRY(SEND_REDIRECTS, "send_redirects"),
+		DEVINET_SYSCTL_RW_ENTRY(ACCEPT_SOURCE_ROUTE,
+					"accept_source_route"),
+		DEVINET_SYSCTL_RW_ENTRY(PROXY_ARP, "proxy_arp"),
+		DEVINET_SYSCTL_RW_ENTRY(MEDIUM_ID, "medium_id"),
+		DEVINET_SYSCTL_RW_ENTRY(BOOTP_RELAY, "bootp_relay"),
+		DEVINET_SYSCTL_RW_ENTRY(LOG_MARTIANS, "log_martians"),
+		DEVINET_SYSCTL_RW_ENTRY(TAG, "tag"),
+		DEVINET_SYSCTL_RW_ENTRY(ARPFILTER, "arp_filter"),
+		DEVINET_SYSCTL_RW_ENTRY(ARP_ANNOUNCE, "arp_announce"),
+		DEVINET_SYSCTL_RW_ENTRY(ARP_IGNORE, "arp_ignore"),
+		DEVINET_SYSCTL_RW_ENTRY(ARP_ACCEPT, "arp_accept"),
+
+		DEVINET_SYSCTL_FLUSHING_ENTRY(NOXFRM, "disable_xfrm"),
+		DEVINET_SYSCTL_FLUSHING_ENTRY(NOPOLICY, "disable_policy"),
+		DEVINET_SYSCTL_FLUSHING_ENTRY(FORCE_IGMP_VERSION,
+					      "force_igmp_version"),
+		DEVINET_SYSCTL_FLUSHING_ENTRY(PROMOTE_SECONDARIES,
+					      "promote_secondaries"),
 	},
 	.devinet_dev = {
 		{

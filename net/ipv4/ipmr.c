@@ -154,7 +154,7 @@ struct net_device *ipmr_new_tunnel(struct vifctl *v)
 			in_dev = __in_dev_get_rtnl(dev);
 			if (in_dev == NULL && (in_dev = inetdev_init(dev)) == NULL)
 				goto failure;
-			in_dev->cnf.rp_filter = 0;
+			IN_DEV_CONF_SET(in_dev, RP_FILTER, 0);
 
 			if (dev_open(dev))
 				goto failure;
@@ -221,7 +221,7 @@ static struct net_device *ipmr_reg_vif(void)
 	if ((in_dev = inetdev_init(dev)) == NULL)
 		goto failure;
 
-	in_dev->cnf.rp_filter = 0;
+	IN_DEV_CONF_SET(in_dev, RP_FILTER, 0);
 
 	if (dev_open(dev))
 		goto failure;
@@ -281,7 +281,7 @@ static int vif_delete(int vifi)
 	dev_set_allmulti(dev, -1);
 
 	if ((in_dev = __in_dev_get_rtnl(dev)) != NULL) {
-		in_dev->cnf.mc_forwarding--;
+		IPV4_DEVCONF(in_dev->cnf, MC_FORWARDING)--;
 		ip_rt_multicast_event(in_dev);
 	}
 
@@ -426,7 +426,7 @@ static int vif_add(struct vifctl *vifc, int mrtsock)
 
 	if ((in_dev = __in_dev_get_rtnl(dev)) == NULL)
 		return -EADDRNOTAVAIL;
-	in_dev->cnf.mc_forwarding++;
+	IPV4_DEVCONF(in_dev->cnf, MC_FORWARDING)++;
 	dev_set_allmulti(dev, +1);
 	ip_rt_multicast_event(in_dev);
 
@@ -841,7 +841,7 @@ static void mrtsock_destruct(struct sock *sk)
 {
 	rtnl_lock();
 	if (sk == mroute_socket) {
-		ipv4_devconf.mc_forwarding--;
+		IPV4_DEVCONF_ALL(MC_FORWARDING)--;
 
 		write_lock_bh(&mrt_lock);
 		mroute_socket=NULL;
@@ -890,7 +890,7 @@ int ip_mroute_setsockopt(struct sock *sk,int optname,char __user *optval,int opt
 			mroute_socket=sk;
 			write_unlock_bh(&mrt_lock);
 
-			ipv4_devconf.mc_forwarding++;
+			IPV4_DEVCONF_ALL(MC_FORWARDING)++;
 		}
 		rtnl_unlock();
 		return ret;
