@@ -28,7 +28,7 @@ struct s3d_info {
 	unsigned int		depth;
 	unsigned int		fb_size;
 
-	u32			pseudo_palette[256];
+	u32			pseudo_palette[16];
 };
 
 static int __devinit s3d_get_props(struct s3d_info *sp)
@@ -52,15 +52,14 @@ static int s3d_setcolreg(unsigned regno,
 {
 	u32 value;
 
-	if (regno >= 256)
-		return 1;
+	if (regno < 16) {
+		red >>= 8;
+		green >>= 8;
+		blue >>= 8;
 
-	red >>= 8;
-	green >>= 8;
-	blue >>= 8;
-
-	value = (blue << 24) | (green << 16) | (red << 8);
-	((u32 *)info->pseudo_palette)[regno] = value;
+		value = (blue << 24) | (green << 16) | (red << 8);
+		((u32 *)info->pseudo_palette)[regno] = value;
+	}
 
 	return 0;
 }
