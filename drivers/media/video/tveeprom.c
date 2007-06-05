@@ -490,7 +490,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 			to indicate 4052 mux was removed in favor of using MSP
 			inputs directly. */
 			audioic = eeprom_data[i+2] & 0x7f;
-			if (audioic < sizeof(audioIC)/sizeof(*audioIC))
+			if (audioic < ARRAY_SIZE(audioIC))
 				tvee->audio_processor = audioIC[audioic].id;
 			else
 				tvee->audio_processor = AUDIO_CHIP_UNKNOWN;
@@ -523,7 +523,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 			to indicate 4052 mux was removed in favor of using MSP
 			inputs directly. */
 			audioic = eeprom_data[i+1] & 0x7f;
-			if (audioic < sizeof(audioIC)/sizeof(*audioIC))
+			if (audioic < ARRAY_SIZE(audioIC))
 				tvee->audio_processor = audioIC[audioic].id;
 			else
 				tvee->audio_processor = AUDIO_CHIP_UNKNOWN;
@@ -678,7 +678,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 		tveeprom_info("audio processor is unknown (no idx)\n");
 		tvee->audio_processor=AUDIO_CHIP_UNKNOWN;
 	} else {
-		if (audioic < sizeof(audioIC)/sizeof(*audioIC))
+		if (audioic < ARRAY_SIZE(audioIC))
 			tveeprom_info("audio processor is %s (idx %d)\n",
 					audioIC[audioic].name,audioic);
 		else
