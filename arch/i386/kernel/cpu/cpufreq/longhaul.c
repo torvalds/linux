@@ -69,6 +69,7 @@ static unsigned int minmult, maxmult;
 static int can_scale_voltage;
 static struct acpi_processor *pr = NULL;
 static struct acpi_processor_cx *cx = NULL;
+static u32 acpi_regs_addr;
 static u8 longhaul_flags;
 static unsigned int longhaul_index;
 
@@ -247,7 +248,7 @@ static void longhaul_setstate(unsigned int table_index)
 	unsigned long flags;
 	unsigned int pic1_mask, pic2_mask;
 	u32 bm_status = 0;
-	u32 bm_timeout = 100000;
+	u32 bm_timeout = 1000;
 	unsigned int dir = 0;
 
 	clock_ratio_index = longhaul_table[table_index].index;
@@ -282,12 +283,13 @@ static void longhaul_setstate(unsigned int table_index)
 	/* Wait while PCI bus is busy. */
 	if (longhaul_flags & USE_NORTHBRIDGE
 	    || ((pr != NULL) && pr->flags.bm_control)) {
-		acpi_get_register(ACPI_BITREG_BUS_MASTER_STATUS, &bm_status);
+		bm_status = inl(acpi_regs_addr);
+		bm_status &= 1 << 4;
 		while (bm_status && bm_timeout) {
-			acpi_set_register(ACPI_BITREG_BUS_MASTER_STATUS, 1);
+			outl(1 << 4, acpi_regs_addr);
 			bm_timeout--;
-			acpi_get_register(ACPI_BITREG_BUS_MASTER_STATUS,
-					  &bm_status);
+			bm_status = inl(acpi_regs_addr);
+			bm_status &= 1 << 4;
 		}
 	}
 
@@ -344,8 +346,7 @@ static void longhaul_setstate(unsigned int table_index)
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
 	if (!bm_timeout)
-		printk(KERN_INFO PFX "Warning: Timeout while waiting for "
-			"idle PCI bus.\n");
+		printk(KERN_INFO PFX "Warning: Timeout while waiting for idle PCI bus.\n");
 }
 
 /*
@@ -713,6 +714,14 @@ static int longhaul_setup_southbridge(void)
 		pci_read_config_byte(dev, 0xe5, &pci_cmd);
 		pci_cmd |= 1 << 7;
 		pci_write_config_byte(dev, 0xe5, pci_cmd);
+		/* Get address of ACPI registers block*/
+		pci_read_config_byte(dev, 0x81, &pci_cmd);
+		if (pci_cmd & 1 << 7) {
+			pci_read_config_dword(dev, 0x88, &acpi_regs_addr);
+			acpi_regs_addr &= 0xff00;
+			printk(KERN_INFO PFX "ACPI I/O at 0x%x\n", acpi_regs_addr);
+		}
+
 		pci_dev_put(dev);
 		return 1;
 	}
