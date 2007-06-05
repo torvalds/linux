@@ -1781,6 +1781,7 @@ static void __init of_fill_in_cpu_data(void)
 			}
 
 			cpu_data(cpuid).core_id = portid + 1;
+			cpu_data(cpuid).proc_id = portid;
 		} else {
 			cpu_data(cpuid).dcache_size =
 				of_getintprop_default(dp, "dcache-size", 16 * 1024);
@@ -1799,8 +1800,8 @@ static void __init of_fill_in_cpu_data(void)
 				of_getintprop_default(dp, "ecache-line-size", 64);
 
 			cpu_data(cpuid).core_id = 0;
+			cpu_data(cpuid).proc_id = -1;
 		}
-		cpu_data(cpuid).proc_id = -1;
 
 #ifdef CONFIG_SMP
 		cpu_set(cpuid, cpu_present_map);
