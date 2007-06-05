@@ -25,7 +25,7 @@
 
 /* standard i2c insmod options */
 static unsigned short normal_i2c[] = {
-#ifdef CONFIG_TUNER_5761
+#ifdef CONFIG_TUNER_TEA5761
 	0x10,
 #endif
 	0x42, 0x43, 0x4a, 0x4b,			/* tda8290 */
@@ -195,12 +195,12 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		}
 		t->mode_mask = T_RADIO;
 		break;
-#ifdef CONFIG_TUNER_5761
+#ifdef CONFIG_TUNER_TEA5761
 	case TUNER_TEA5761:
 		if (tea5761_tuner_init(c) == EINVAL) {
 			t->type = TUNER_ABSENT;
 			t->mode_mask = T_UNINITIALIZED;
-			return -ENODEV;
+			return;
 		}
 		t->mode_mask = T_RADIO;
 		break;
@@ -475,7 +475,7 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	/* autodetection code based on the i2c addr */
 	if (!no_autodetect) {
 		switch (addr) {
-#ifdef CONFIG_TUNER_5761
+#ifdef CONFIG_TUNER_TEA5761
 		case 0x10:
 			if (tea5761_autodetection(&t->i2c) != EINVAL) {
 				t->type = TUNER_TEA5761;
