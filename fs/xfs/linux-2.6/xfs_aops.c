@@ -161,6 +161,8 @@ xfs_setfilesize(
 	xfs_fsize_t		bsize;
 
 	ip = xfs_vtoi(ioend->io_vnode);
+	if (!ip)
+		return;
 
 	ASSERT((ip->i_d.di_mode & S_IFMT) == S_IFREG);
 	ASSERT(ioend->io_type != IOMAP_READ);
