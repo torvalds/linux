@@ -104,7 +104,7 @@ static int pxakbd_open(struct input_dev *dev)
 	KPREC = 0x7F;
 
 	/* Enable unit clock */
-	pxa_set_cken(CKEN19_KEYPAD, 1);
+	pxa_set_cken(CKEN_KEYPAD, 1);
 
 	return 0;
 }
@@ -112,7 +112,7 @@ static int pxakbd_open(struct input_dev *dev)
 static void pxakbd_close(struct input_dev *dev)
 {
 	/* Disable clock unit */
-	pxa_set_cken(CKEN19_KEYPAD, 0);
+	pxa_set_cken(CKEN_KEYPAD, 0);
 }
 
 #ifdef CONFIG_PM
@@ -185,7 +185,7 @@ static int __devinit pxakbd_probe(struct platform_device *pdev)
 			    DRIVER_NAME, pdev);
 	if (error) {
 		printk(KERN_ERR "Cannot request keypad IRQ\n");
-		pxa_set_cken(CKEN19_KEYPAD, 0);
+		pxa_set_cken(CKEN_KEYPAD, 0);
 		goto err_free_dev;
 	}
 
