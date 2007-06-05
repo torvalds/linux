@@ -1800,6 +1800,7 @@ static void __init of_fill_in_cpu_data(void)
 
 			cpu_data(cpuid).core_id = 0;
 		}
+		cpu_data(cpuid).proc_id = -1;
 
 #ifdef CONFIG_SMP
 		cpu_set(cpuid, cpu_present_map);
