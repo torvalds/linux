@@ -652,7 +652,6 @@ find_page:
 	 * accessed, we are now done!
 	 */
 	mark_page_accessed(page);
-	balance_dirty_pages_ratelimited(mapping);
 out:
 	page_cache_release(page);
 	unlock_page(page);
@@ -823,6 +822,7 @@ generic_file_splice_write_nolock(struct pipe_inode_info *pipe, struct file *out,
 			if (err)
 				ret = err;
 		}
+		balance_dirty_pages_ratelimited(mapping);
 	}
 
 	return ret;
@@ -876,6 +876,7 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 			if (err)
 				ret = err;
 		}
+		balance_dirty_pages_ratelimited(mapping);
 	}
 
 	return ret;
