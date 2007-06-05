@@ -656,7 +656,7 @@ static int ffb_setcolreg(unsigned regno,
 {
 	u32 value;
 
-	if (regno >= 256)
+	if (regno >= 16)
 		return 1;
 
 	red >>= 8;
@@ -903,7 +903,7 @@ ffb_init_fix(struct fb_info *info)
 struct all_info {
 	struct fb_info info;
 	struct ffb_par par;
-	u32 pseudo_palette[256];
+	u32 pseudo_palette[16];
 };
 
 static int ffb_init_one(struct of_device *op)
