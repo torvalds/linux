@@ -104,6 +104,7 @@ static void init_vfs(struct super_block *sb, unsigned noatime)
 	sb->s_magic = GFS2_MAGIC;
 	sb->s_op = &gfs2_super_ops;
 	sb->s_export_op = &gfs2_export_ops;
+	sb->s_time_gran = 1;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 
 	if (sb->s_flags & (MS_NOATIME | MS_NODIRATIME))

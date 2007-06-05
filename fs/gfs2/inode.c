@@ -178,11 +178,11 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	di->di_blocks = be64_to_cpu(str->di_blocks);
 	gfs2_set_inode_blocks(&ip->i_inode);
 	ip->i_inode.i_atime.tv_sec = be64_to_cpu(str->di_atime);
-	ip->i_inode.i_atime.tv_nsec = 0;
+	ip->i_inode.i_atime.tv_nsec = be32_to_cpu(str->di_atime_nsec);
 	ip->i_inode.i_mtime.tv_sec = be64_to_cpu(str->di_mtime);
-	ip->i_inode.i_mtime.tv_nsec = 0;
+	ip->i_inode.i_mtime.tv_nsec = be32_to_cpu(str->di_mtime_nsec);
 	ip->i_inode.i_ctime.tv_sec = be64_to_cpu(str->di_ctime);
-	ip->i_inode.i_ctime.tv_nsec = 0;
+	ip->i_inode.i_ctime.tv_nsec = be32_to_cpu(str->di_ctime_nsec);
 
 	di->di_goal_meta = be64_to_cpu(str->di_goal_meta);
 	di->di_goal_data = be64_to_cpu(str->di_goal_data);
@@ -317,7 +317,7 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 	else
 		drop_nlink(&ip->i_inode);
 
-	ip->i_inode.i_ctime = CURRENT_TIME_SEC;
+	ip->i_inode.i_ctime = CURRENT_TIME;
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);
@@ -648,6 +648,7 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct gfs2_dinode *di;
 	struct buffer_head *dibh;
+	struct timespec tv = CURRENT_TIME;
 
 	dibh = gfs2_meta_new(gl, inum->no_addr);
 	gfs2_trans_add_bh(gl, dibh, 1);
@@ -663,7 +664,7 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	di->di_nlink = 0;
 	di->di_size = 0;
 	di->di_blocks = cpu_to_be64(1);
-	di->di_atime = di->di_mtime = di->di_ctime = cpu_to_be64(get_seconds());
+	di->di_atime = di->di_mtime = di->di_ctime = cpu_to_be64(tv.tv_sec);
 	di->di_major = cpu_to_be32(MAJOR(dev));
 	di->di_minor = cpu_to_be32(MINOR(dev));
 	di->di_goal_meta = di->di_goal_data = cpu_to_be64(inum->no_addr);
@@ -693,6 +694,9 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	di->di_entries = 0;
 	memset(&di->__pad4, 0, sizeof(di->__pad4));
 	di->di_eattr = 0;
+	di->di_atime_nsec = cpu_to_be32(tv.tv_nsec);
+	di->di_mtime_nsec = cpu_to_be32(tv.tv_nsec);
+	di->di_ctime_nsec = cpu_to_be32(tv.tv_nsec);
 	memset(&di->di_reserved, 0, sizeof(di->di_reserved));
 
 	brelse(dibh);
@@ -1135,10 +1139,11 @@ int gfs2_glock_nq_atime(struct gfs2_holder *gh)
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct gfs2_inode *ip = gl->gl_object;
-	s64 curtime, quantum = gfs2_tune_get(sdp, gt_atime_quantum);
+	s64 quantum = gfs2_tune_get(sdp, gt_atime_quantum);
 	unsigned int state;
 	int flags;
 	int error;
+	struct timespec tv = CURRENT_TIME;
 
 	if (gfs2_assert_warn(sdp, gh->gh_flags & GL_ATIME) ||
 	    gfs2_assert_warn(sdp, !(gh->gh_flags & GL_ASYNC)) ||
@@ -1156,8 +1161,7 @@ int gfs2_glock_nq_atime(struct gfs2_holder *gh)
 	    (sdp->sd_vfs->s_flags & MS_RDONLY))
 		return 0;
 
-	curtime = get_seconds();
-	if (curtime - ip->i_inode.i_atime.tv_sec >= quantum) {
+	if (tv.tv_sec - ip->i_inode.i_atime.tv_sec >= quantum) {
 		gfs2_glock_dq(gh);
 		gfs2_holder_reinit(LM_ST_EXCLUSIVE, gh->gh_flags & ~LM_FLAG_ANY,
 				   gh);
@@ -1168,8 +1172,8 @@ int gfs2_glock_nq_atime(struct gfs2_holder *gh)
 		/* Verify that atime hasn't been updated while we were
 		   trying to get exclusive lock. */
 
-		curtime = get_seconds();
-		if (curtime - ip->i_inode.i_atime.tv_sec >= quantum) {
+		tv = CURRENT_TIME;
+		if (tv.tv_sec - ip->i_inode.i_atime.tv_sec >= quantum) {
 			struct buffer_head *dibh;
 			struct gfs2_dinode *di;
 
@@ -1183,11 +1187,12 @@ int gfs2_glock_nq_atime(struct gfs2_holder *gh)
 			if (error)
 				goto fail_end_trans;
 
-			ip->i_inode.i_atime.tv_sec = curtime;
+			ip->i_inode.i_atime = tv;
 
 			gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 			di = (struct gfs2_dinode *)dibh->b_data;
 			di->di_atime = cpu_to_be64(ip->i_inode.i_atime.tv_sec);
+			di->di_atime_nsec = cpu_to_be32(ip->i_inode.i_atime.tv_nsec);
 			brelse(dibh);
 
 			gfs2_trans_end(sdp);
@@ -1290,6 +1295,9 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_entries = cpu_to_be32(di->di_entries);
 
 	str->di_eattr = cpu_to_be64(di->di_eattr);
+	str->di_atime_nsec = cpu_to_be32(ip->i_inode.i_atime.tv_nsec);
+	str->di_mtime_nsec = cpu_to_be32(ip->i_inode.i_mtime.tv_nsec);
+	str->di_ctime_nsec = cpu_to_be32(ip->i_inode.i_ctime.tv_nsec);
 }
 
 void gfs2_dinode_print(const struct gfs2_inode *ip)

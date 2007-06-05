@@ -259,8 +259,11 @@ struct gfs2_dinode {
 	struct gfs2_inum __pad4; /* Unused even in current gfs1 */
 
 	__be64 di_eattr;	/* extended attribute block number */
+	__be32 di_atime_nsec;   /* nsec portion of atime */
+	__be32 di_mtime_nsec;   /* nsec portion of mtime */
+	__be32 di_ctime_nsec;   /* nsec portion of ctime */
 
-	__u8 di_reserved[56];
+	__u8 di_reserved[44];
 };
 
 /*
