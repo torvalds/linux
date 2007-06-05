@@ -1244,7 +1244,7 @@ static int nfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	attr.ia_mode = mode;
 	attr.ia_valid = ATTR_MODE;
 
-	if (nd && (nd->flags & LOOKUP_CREATE))
+	if ((nd->flags & LOOKUP_CREATE) != 0)
 		open_flags = nd->intent.open.flags;
 
 	lock_kernel();
