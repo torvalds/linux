@@ -5219,10 +5219,10 @@ xfs_bmapi(
 		 * Else go on to the next record.
 		 */
 		ep = xfs_iext_get_ext(ifp, ++lastx);
-		if (lastx >= nextents) {
+		prev = got;
+		if (lastx >= nextents)
 			eof = 1;
-			prev = got;
-		} else
+		else
 			xfs_bmbt_get_all(ep, &got);
 	}
 	ifp->if_lastex = lastx;
