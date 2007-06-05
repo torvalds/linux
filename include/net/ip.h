@@ -143,6 +143,7 @@ struct ip_reply_arg {
 	__wsum 	    csum;
 	int	    csumoffset; /* u16 offset of csum in iov[0].iov_base */
 				/* -1 if not needed */ 
+	int	    bound_dev_if;
 }; 
 
 void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *arg,
