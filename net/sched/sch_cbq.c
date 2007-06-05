@@ -1748,10 +1748,12 @@ cbq_destroy(struct Qdisc* sch)
 	 * classes from root to leafs which means that filters can still
 	 * be bound to classes which have been destroyed already. --TGR '04
 	 */
-	for (h = 0; h < 16; h++)
-		for (cl = q->classes[h]; cl; cl = cl->next)
+	for (h = 0; h < 16; h++) {
+		for (cl = q->classes[h]; cl; cl = cl->next) {
 			tcf_destroy_chain(cl->filter_list);
-
+			cl->filter_list = NULL;
+		}
+	}
 	for (h = 0; h < 16; h++) {
 		struct cbq_class *next;
 
