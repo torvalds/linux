@@ -1244,6 +1244,91 @@ errout:
 
 #ifdef CONFIG_SYSCTL
 
+static void devinet_copy_dflt_conf(int i)
+{
+	struct net_device *dev;
+
+	read_lock(&dev_base_lock);
+	for_each_netdev(dev) {
+		struct in_device *in_dev;
+		rcu_read_lock();
+		in_dev = __in_dev_get_rcu(dev);
+		if (in_dev && !test_bit(i, in_dev->cnf.state))
+			in_dev->cnf.data[i] = ipv4_devconf_dflt.data[i];
+		rcu_read_unlock();
+	}
+	read_unlock(&dev_base_lock);
+}
+
+static int devinet_conf_proc(ctl_table *ctl, int write,
+			     struct file* filp, void __user *buffer,
+			     size_t *lenp, loff_t *ppos)
+{
+	int ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
+
+	if (write) {
+		struct ipv4_devconf *cnf = ctl->extra1;
+		int i = (int *)ctl->data - cnf->data;
+
+		set_bit(i, cnf->state);
+
+		if (cnf == &ipv4_devconf_dflt)
+			devinet_copy_dflt_conf(i);
+	}
+
+	return ret;
+}
+
+static int devinet_conf_sysctl(ctl_table *table, int __user *name, int nlen,
+			       void __user *oldval, size_t __user *oldlenp,
+			       void __user *newval, size_t newlen)
+{
+	struct ipv4_devconf *cnf;
+	int *valp = table->data;
+	int new;
+	int i;
+
+	if (!newval || !newlen)
+		return 0;
+
+	if (newlen != sizeof(int))
+		return -EINVAL;
+
+	if (get_user(new, (int __user *)newval))
+		return -EFAULT;
+
+	if (new == *valp)
+		return 0;
+
+	if (oldval && oldlenp) {
+		size_t len;
+
+		if (get_user(len, oldlenp))
+			return -EFAULT;
+
+		if (len) {
+			if (len > table->maxlen)
+				len = table->maxlen;
+			if (copy_to_user(oldval, valp, len))
+				return -EFAULT;
+			if (put_user(len, oldlenp))
+				return -EFAULT;
+		}
+	}
+
+	*valp = new;
+
+	cnf = table->extra1;
+	i = (int *)table->data - cnf->data;
+
+	set_bit(i, cnf->state);
+
+	if (cnf == &ipv4_devconf_dflt)
+		devinet_copy_dflt_conf(i);
+
+	return 1;
+}
+
 void inet_forward_change(void)
 {
 	struct net_device *dev;
@@ -1302,40 +1387,13 @@ int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
 				  void __user *oldval, size_t __user *oldlenp,
 				  void __user *newval, size_t newlen)
 {
-	int *valp = table->data;
-	int new;
+	int ret = devinet_conf_sysctl(table, name, nlen, oldval, oldlenp,
+				      newval, newlen);
 
-	if (!newval || !newlen)
-		return 0;
+	if (ret == 1)
+		rt_cache_flush(0);
 
-	if (newlen != sizeof(int))
-		return -EINVAL;
-
-	if (get_user(new, (int __user *)newval))
-		return -EFAULT;
-
-	if (new == *valp)
-		return 0;
-
-	if (oldval && oldlenp) {
-		size_t len;
-
-		if (get_user(len, oldlenp))
-			return -EFAULT;
-
-		if (len) {
-			if (len > table->maxlen)
-				len = table->maxlen;
-			if (copy_to_user(oldval, valp, len))
-				return -EFAULT;
-			if (put_user(len, oldlenp))
-				return -EFAULT;
-		}
-	}
-
-	*valp = new;
-	rt_cache_flush(0);
-	return 1;
+	return ret;
 }
 
 
@@ -1349,13 +1407,16 @@ int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
 		.mode		= mval, \
 		.proc_handler	= proc, \
 		.strategy	= sysctl, \
+		.extra1		= &ipv4_devconf, \
 	}
 
 #define DEVINET_SYSCTL_RW_ENTRY(attr, name) \
-	DEVINET_SYSCTL_ENTRY(attr, name, 0644, &proc_dointvec, NULL)
+	DEVINET_SYSCTL_ENTRY(attr, name, 0644, devinet_conf_proc, \
+			     devinet_conf_sysctl)
 
 #define DEVINET_SYSCTL_RO_ENTRY(attr, name) \
-	DEVINET_SYSCTL_ENTRY(attr, name, 0444, &proc_dointvec, NULL)
+	DEVINET_SYSCTL_ENTRY(attr, name, 0444, devinet_conf_proc, \
+			     devinet_conf_sysctl)
 
 #define DEVINET_SYSCTL_COMPLEX_ENTRY(attr, name, proc, sysctl) \
 	DEVINET_SYSCTL_ENTRY(attr, name, 0644, proc, sysctl)
@@ -1374,7 +1435,8 @@ static struct devinet_sysctl_table {
 } devinet_sysctl = {
 	.devinet_vars = {
 		DEVINET_SYSCTL_COMPLEX_ENTRY(FORWARDING, "forwarding",
-					     devinet_sysctl_forward, NULL),
+					     devinet_sysctl_forward,
+					     devinet_conf_sysctl),
 		DEVINET_SYSCTL_RO_ENTRY(MC_FORWARDING, "mc_forwarding"),
 
 		DEVINET_SYSCTL_RW_ENTRY(ACCEPT_REDIRECTS, "accept_redirects"),
@@ -1448,6 +1510,7 @@ static void devinet_sysctl_register(struct in_device *in_dev,
 		return;
 	for (i = 0; i < ARRAY_SIZE(t->devinet_vars) - 1; i++) {
 		t->devinet_vars[i].data += (char *)p - (char *)&ipv4_devconf;
+		t->devinet_vars[i].extra1 = p;
 	}
 
 	if (dev) {

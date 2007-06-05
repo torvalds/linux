@@ -3,6 +3,7 @@
 
 #ifdef __KERNEL__
 
+#include <linux/bitmap.h>
 #include <linux/if.h>
 #include <linux/netdevice.h>
 #include <linux/rcupdate.h>
@@ -12,6 +13,7 @@ struct ipv4_devconf
 {
 	void	*sysctl;
 	int	data[__NET_IPV4_CONF_MAX - 1];
+	DECLARE_BITMAP(state, __NET_IPV4_CONF_MAX - 1);
 };
 
 extern struct ipv4_devconf ipv4_devconf;
@@ -53,6 +55,7 @@ static inline void ipv4_devconf_set(struct in_device *in_dev, int index,
 				    int val)
 {
 	index--;
+	set_bit(index, in_dev->cnf.state);
 	in_dev->cnf.data[index] = val;
 }
 
