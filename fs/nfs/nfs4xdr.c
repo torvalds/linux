@@ -3269,7 +3269,7 @@ static int decode_delegation(struct xdr_stream *xdr, struct nfs_openres *res)
 static int decode_open(struct xdr_stream *xdr, struct nfs_openres *res)
 {
         __be32 *p;
-        uint32_t bmlen;
+	uint32_t savewords, bmlen, i;
         int status;
 
         status = decode_op_hdr(xdr, OP_OPEN);
@@ -3287,7 +3287,12 @@ static int decode_open(struct xdr_stream *xdr, struct nfs_openres *res)
                 goto xdr_error;
 
         READ_BUF(bmlen << 2);
-        p += bmlen;
+	savewords = min_t(uint32_t, bmlen, NFS4_BITMAP_SIZE);
+	for (i = 0; i < savewords; ++i)
+		READ32(res->attrset[i]);
+	for (; i < NFS4_BITMAP_SIZE; i++)
+		res->attrset[i] = 0;
+
 	return decode_delegation(xdr, res);
 xdr_error:
 	dprintk("%s: Bitmap too large! Length = %u\n", __FUNCTION__, bmlen);

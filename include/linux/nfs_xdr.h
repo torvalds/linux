@@ -144,6 +144,7 @@ struct nfs_openres {
 	nfs4_stateid		delegation;
 	__u32			do_recall;
 	__u64			maxsize;
+	__u32			attrset[NFS4_BITMAP_SIZE];
 };
 
 /*

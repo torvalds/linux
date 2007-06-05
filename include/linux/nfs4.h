@@ -15,6 +15,7 @@
 
 #include <linux/types.h>
 
+#define NFS4_BITMAP_SIZE	2
 #define NFS4_VERIFIER_SIZE	8
 #define NFS4_STATEID_SIZE	16
 #define NFS4_FHSIZE		128

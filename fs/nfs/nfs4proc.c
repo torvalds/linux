@@ -943,6 +943,22 @@ static struct nfs4_state *nfs4_open_delegated(struct inode *inode, int flags, st
 }
 
 /*
+ * on an EXCLUSIVE create, the server should send back a bitmask with FATTR4-*
+ * fields corresponding to attributes that were used to store the verifier.
+ * Make sure we clobber those fields in the later setattr call
+ */
+static inline void nfs4_exclusive_attrset(struct nfs4_opendata *opendata, struct iattr *sattr)
+{
+	if ((opendata->o_res.attrset[1] & FATTR4_WORD1_TIME_ACCESS) &&
+	    !(sattr->ia_valid & ATTR_ATIME_SET))
+		sattr->ia_valid |= ATTR_ATIME;
+
+	if ((opendata->o_res.attrset[1] & FATTR4_WORD1_TIME_MODIFY) &&
+	    !(sattr->ia_valid & ATTR_MTIME_SET))
+		sattr->ia_valid |= ATTR_MTIME;
+}
+
+/*
  * Returns a referenced nfs4_state
  */
 static int _nfs4_do_open(struct inode *dir, struct path *path, int flags, struct iattr *sattr, struct rpc_cred *cred, struct nfs4_state **res)
@@ -972,6 +988,9 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, int flags, struct
 	status = _nfs4_proc_open(opendata);
 	if (status != 0)
 		goto err_opendata_free;
+
+	if (opendata->o_arg.open_flags & O_EXCL)
+		nfs4_exclusive_attrset(opendata, sattr);
 
 	status = -ENOMEM;
 	state = nfs4_opendata_to_nfs4_state(opendata);
@@ -1784,6 +1803,7 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		status = nfs4_do_setattr(state->inode, &fattr, sattr, state);
 		if (status == 0)
 			nfs_setattr_update_inode(state->inode, sattr);
+		nfs_post_op_update_inode(state->inode, &fattr);
 	}
 	if (status == 0 && (nd->flags & LOOKUP_OPEN) != 0)
 		status = nfs4_intent_set_file(nd, &path, state);
