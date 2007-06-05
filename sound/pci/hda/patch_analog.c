@@ -2872,9 +2872,9 @@ static struct snd_kcontrol_new ad1984_dmic_mixers[] = {
 	HDA_CODEC_VOLUME("Digital Mic Capture Volume", 0x05, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Digital Mic Capture Switch", 0x05, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME_IDX("Digital Mic Capture Volume", 1, 0x06, 0x0,
-			     HDA_OUTPUT),
+			     HDA_INPUT),
 	HDA_CODEC_MUTE_IDX("Digital Mic Capture Switch", 1, 0x06, 0x0,
-			   HDA_OUTPUT),
+			   HDA_INPUT),
 	{ } /* end */
 };
 
