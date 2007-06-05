@@ -961,8 +961,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		goto out_changed;
 
 	server = NFS_SERVER(inode);
-	/* Update the fsid if and only if this is the root directory */
-	if (inode == inode->i_sb->s_root->d_inode
+	/* Update the fsid? */
+	if (S_ISDIR(inode->i_mode)
 			&& !nfs_fsid_equal(&server->fsid, &fattr->fsid))
 		server->fsid = fattr->fsid;
 
