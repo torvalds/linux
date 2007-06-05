@@ -3788,7 +3788,10 @@ bnx2_init_chip(struct bnx2 *bp)
 	REG_WR(bp, BNX2_HC_CMD_TICKS,
 	       (bp->cmd_ticks_int << 16) | bp->cmd_ticks);
 
-	REG_WR(bp, BNX2_HC_STATS_TICKS, bp->stats_ticks & 0xffff00);
+	if (CHIP_NUM(bp) == CHIP_NUM_5708)
+		REG_WR(bp, BNX2_HC_STATS_TICKS, 0);
+	else
+		REG_WR(bp, BNX2_HC_STATS_TICKS, bp->stats_ticks & 0xffff00);
 	REG_WR(bp, BNX2_HC_STAT_COLLECT_TICKS, 0xbb8);  /* 3ms */
 
 	if (CHIP_ID(bp) == CHIP_ID_5706_A1)
@@ -4641,6 +4644,11 @@ bnx2_timer(unsigned long data)
 
 	bp->stats_blk->stat_FwRxDrop = REG_RD_IND(bp, BNX2_FW_RX_DROP_COUNT);
 
+	/* workaround occasional corrupted counters */
+	if (CHIP_NUM(bp) == CHIP_NUM_5708 && bp->stats_ticks)
+		REG_WR(bp, BNX2_HC_COMMAND, bp->hc_cmd |
+					    BNX2_HC_COMMAND_STATS_NOW);
+
 	if (bp->phy_flags & PHY_SERDES_FLAG) {
 		if (CHIP_NUM(bp) == CHIP_NUM_5706)
 			bnx2_5706_serdes_timer(bp);
@@ -5438,6 +5446,10 @@ bnx2_set_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
 		0xff;
 
 	bp->stats_ticks = coal->stats_block_coalesce_usecs;
+	if (CHIP_NUM(bp) == CHIP_NUM_5708) {
+		if (bp->stats_ticks != 0 && bp->stats_ticks != USEC_PER_SEC)
+			bp->stats_ticks = USEC_PER_SEC;
+	}
 	if (bp->stats_ticks > 0xffff00) bp->stats_ticks = 0xffff00;
 	bp->stats_ticks &= 0xffff00;
 
