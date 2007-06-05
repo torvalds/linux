@@ -195,6 +195,11 @@ static int ramfs_nommu_setattr(struct dentry *dentry, struct iattr *ia)
 	unsigned int old_ia_valid = ia->ia_valid;
 	int ret = 0;
 
+	/* POSIX UID/GID verification for setting inode attributes */
+	ret = inode_change_ok(inode, ia);
+	if (ret)
+		return ret;
+
 	/* by providing our own setattr() method, we skip this quotaism */
 	if ((old_ia_valid & ATTR_UID && ia->ia_uid != inode->i_uid) ||
 	    (old_ia_valid & ATTR_GID && ia->ia_gid != inode->i_gid))
