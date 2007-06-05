@@ -984,8 +984,10 @@ static void bus_reset_tasklet(unsigned long data)
 	 */
 
 	if (ohci->next_config_rom != NULL) {
-		free_rom     = ohci->config_rom;
-		free_rom_bus = ohci->config_rom_bus;
+		if (ohci->next_config_rom != ohci->config_rom) {
+			free_rom      = ohci->config_rom;
+			free_rom_bus  = ohci->config_rom_bus;
+		}
 		ohci->config_rom      = ohci->next_config_rom;
 		ohci->config_rom_bus  = ohci->next_config_rom_bus;
 		ohci->next_config_rom = NULL;
@@ -1161,19 +1163,30 @@ static int ohci_enable(struct fw_card *card, u32 *config_rom, size_t length)
 	 * the right values in the bus reset tasklet.
 	 */
 
-	ohci->next_config_rom =
-		dma_alloc_coherent(ohci->card.device, CONFIG_ROM_SIZE,
-				   &ohci->next_config_rom_bus, GFP_KERNEL);
-	if (ohci->next_config_rom == NULL)
-		return -ENOMEM;
+	if (config_rom) {
+		ohci->next_config_rom =
+			dma_alloc_coherent(ohci->card.device, CONFIG_ROM_SIZE,
+					   &ohci->next_config_rom_bus,
+					   GFP_KERNEL);
+		if (ohci->next_config_rom == NULL)
+			return -ENOMEM;
 
-	memset(ohci->next_config_rom, 0, CONFIG_ROM_SIZE);
-	fw_memcpy_to_be32(ohci->next_config_rom, config_rom, length * 4);
+		memset(ohci->next_config_rom, 0, CONFIG_ROM_SIZE);
+		fw_memcpy_to_be32(ohci->next_config_rom, config_rom, length * 4);
+	} else {
+		/*
+		 * In the suspend case, config_rom is NULL, which
+		 * means that we just reuse the old config rom.
+		 */
+		ohci->next_config_rom = ohci->config_rom;
+		ohci->next_config_rom_bus = ohci->config_rom_bus;
+	}
 
-	ohci->next_header = config_rom[0];
+	ohci->next_header = be32_to_cpu(ohci->next_config_rom[0]);
 	ohci->next_config_rom[0] = 0;
 	reg_write(ohci, OHCI1394_ConfigROMhdr, 0);
-	reg_write(ohci, OHCI1394_BusOptions, config_rom[2]);
+	reg_write(ohci, OHCI1394_BusOptions,
+		  be32_to_cpu(ohci->next_config_rom[2]));
 	reg_write(ohci, OHCI1394_ConfigROMmap, ohci->next_config_rom_bus);
 
 	reg_write(ohci, OHCI1394_AsReqFilterHiSet, 0x80000000);
@@ -1984,7 +1997,7 @@ static int pci_resume(struct pci_dev *pdev)
 		return err;
 	}
 
-	return ohci_enable(&ohci->card, ohci->config_rom, CONFIG_ROM_SIZE);
+	return ohci_enable(&ohci->card, NULL, 0);
 }
 #endif
 
