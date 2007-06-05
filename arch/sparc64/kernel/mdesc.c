@@ -624,6 +624,10 @@ static void __init mdesc_fill_in_cpu_data(void)
 		c->proc_id = -1;
 	}
 
+#ifdef CONFIG_SMP
+	sparc64_multi_core = 1;
+#endif
+
 	set_core_ids();
 	set_proc_ids();
 

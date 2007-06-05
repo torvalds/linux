@@ -44,6 +44,8 @@
 
 extern void calibrate_delay(void);
 
+int sparc64_multi_core __read_mostly;
+
 /* Please don't make this stuff initdata!!!  --DaveM */
 unsigned char boot_cpu_id;
 

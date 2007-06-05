@@ -34,6 +34,7 @@ extern cpumask_t phys_cpu_present_map;
 
 extern cpumask_t cpu_sibling_map[NR_CPUS];
 extern cpumask_t cpu_core_map[NR_CPUS];
+extern int sparc64_multi_core;
 
 /*
  *	General functions that each host system must provide.
