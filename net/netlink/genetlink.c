@@ -472,7 +472,7 @@ static struct sk_buff *ctrl_build_msg(struct genl_family *family, u32 pid,
 	return skb;
 }
 
-static struct nla_policy ctrl_policy[CTRL_ATTR_MAX+1] __read_mostly = {
+static const struct nla_policy ctrl_policy[CTRL_ATTR_MAX+1] = {
 	[CTRL_ATTR_FAMILY_ID]	= { .type = NLA_U16 },
 	[CTRL_ATTR_FAMILY_NAME]	= { .type = NLA_NUL_STRING,
 				    .len = GENL_NAMSIZ - 1 },

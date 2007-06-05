@@ -157,7 +157,7 @@ static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 	return 1;
 }
 
-static struct nla_policy fib6_rule_policy[FRA_MAX+1] __read_mostly = {
+static const struct nla_policy fib6_rule_policy[FRA_MAX+1] = {
 	FRA_GENERIC_POLICY,
 };
 

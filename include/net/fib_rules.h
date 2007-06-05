@@ -64,7 +64,7 @@ struct fib_rules_ops
 	void			(*flush_cache)(void);
 
 	int			nlgroup;
-	struct nla_policy	*policy;
+	const struct nla_policy	*policy;
 	struct list_head	*rules_list;
 	struct module		*owner;
 };

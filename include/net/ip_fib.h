@@ -213,7 +213,7 @@ extern void fib_select_default(const struct flowi *flp, struct fib_result *res);
 #endif /* CONFIG_IP_MULTIPLE_TABLES */
 
 /* Exported by fib_frontend.c */
-extern struct nla_policy rtm_ipv4_policy[];
+extern const struct nla_policy rtm_ipv4_policy[];
 extern void		ip_fib_init(void);
 extern int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 			       struct net_device *dev, __be32 *spec_dst, u32 *itag);

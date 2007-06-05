@@ -84,7 +84,7 @@ static struct ipv4_devconf ipv4_devconf_dflt = {
 
 #define IPV4_DEVCONF_DFLT(attr) IPV4_DEVCONF(ipv4_devconf_dflt, attr)
 
-static struct nla_policy ifa_ipv4_policy[IFA_MAX+1] __read_mostly = {
+static const struct nla_policy ifa_ipv4_policy[IFA_MAX+1] = {
 	[IFA_LOCAL]     	= { .type = NLA_U32 },
 	[IFA_ADDRESS]   	= { .type = NLA_U32 },
 	[IFA_BROADCAST] 	= { .type = NLA_U32 },

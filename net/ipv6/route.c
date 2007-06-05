@@ -1999,7 +1999,7 @@ void rt6_mtu_change(struct net_device *dev, unsigned mtu)
 	fib6_clean_all(rt6_mtu_change_route, 0, &arg);
 }
 
-static struct nla_policy rtm_ipv6_policy[RTA_MAX+1] __read_mostly = {
+static const struct nla_policy rtm_ipv6_policy[RTA_MAX+1] = {
 	[RTA_GATEWAY]           = { .len = sizeof(struct in6_addr) },
 	[RTA_OIF]               = { .type = NLA_U32 },
 	[RTA_IIF]		= { .type = NLA_U32 },

@@ -551,7 +551,7 @@ cont:
 	return skb->len;
 }
 
-static struct nla_policy ifla_policy[IFLA_MAX+1] __read_mostly = {
+static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_IFNAME]		= { .type = NLA_STRING, .len = IFNAMSIZ-1 },
 	[IFLA_MAP]		= { .len = sizeof(struct rtnl_link_ifmap) },
 	[IFLA_MTU]		= { .type = NLA_U32 },

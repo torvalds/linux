@@ -441,7 +441,7 @@ int ip_rt_ioctl(unsigned int cmd, void __user *arg)
 	return -EINVAL;
 }
 
-struct nla_policy rtm_ipv4_policy[RTA_MAX+1] __read_mostly = {
+const struct nla_policy rtm_ipv4_policy[RTA_MAX+1] = {
 	[RTA_DST]		= { .type = NLA_U32 },
 	[RTA_SRC]		= { .type = NLA_U32 },
 	[RTA_IIF]		= { .type = NLA_U32 },

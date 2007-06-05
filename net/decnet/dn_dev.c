@@ -638,7 +638,7 @@ static struct dn_dev *dn_dev_by_index(int ifindex)
 	return dn_dev;
 }
 
-static struct nla_policy dn_ifa_policy[IFA_MAX+1] __read_mostly = {
+static const struct nla_policy dn_ifa_policy[IFA_MAX+1] = {
 	[IFA_ADDRESS]		= { .type = NLA_U16 },
 	[IFA_LOCAL]		= { .type = NLA_U16 },
 	[IFA_LABEL]		= { .type = NLA_STRING,
