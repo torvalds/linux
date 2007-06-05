@@ -3330,7 +3330,7 @@ static int sky2_get_regs_len(struct net_device *dev)
 
 /*
  * Returns copy of control register region
- * Note: access to the RAM address register set will cause timeouts.
+ * Note: ethtool_get_regs always provides full size (16k) buffer
  */
 static void sky2_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 			  void *p)
@@ -3338,15 +3338,19 @@ static void sky2_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	const struct sky2_port *sky2 = netdev_priv(dev);
 	const void __iomem *io = sky2->hw->regs;
 
-	BUG_ON(regs->len < B3_RI_WTO_R1);
 	regs->version = 1;
 	memset(p, 0, regs->len);
 
 	memcpy_fromio(p, io, B3_RAM_ADDR);
 
-	memcpy_fromio(p + B3_RI_WTO_R1,
-		      io + B3_RI_WTO_R1,
-		      regs->len - B3_RI_WTO_R1);
+	/* skip diagnostic ram region */
+	memcpy_fromio(p + B3_RI_WTO_R1, io + B3_RI_WTO_R1, 0x2000 - B3_RI_WTO_R1);
+
+	/* copy GMAC registers */
+	memcpy_fromio(p + BASE_GMAC_1, io + BASE_GMAC_1, 0x1000);
+	if (sky2->hw->ports > 1)
+		memcpy_fromio(p + BASE_GMAC_2, io + BASE_GMAC_2, 0x1000);
+
 }
 
 /* In order to do Jumbo packets on these chips, need to turn off the
