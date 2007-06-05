@@ -453,7 +453,7 @@ static int nfs4_open_recover(struct nfs4_opendata *opendata, struct nfs4_state *
 						opendata->owner->so_cred,
 						&opendata->o_res);
 		}
-		nfs4_close_state(newstate, opendata->o_arg.open_flags);
+		nfs4_close_state(&opendata->path, newstate, opendata->o_arg.open_flags);
 	}
 	if (newstate != state)
 		return -ESTALE;
@@ -603,7 +603,7 @@ static void nfs4_open_confirm_release(void *calldata)
 	nfs_confirm_seqid(&data->owner->so_seqid, 0);
 	state = nfs4_opendata_to_nfs4_state(data);
 	if (state != NULL)
-		nfs4_close_state(state, data->o_arg.open_flags);
+		nfs4_close_state(&data->path, state, data->o_arg.open_flags);
 out_free:
 	nfs4_opendata_free(data);
 }
@@ -706,7 +706,7 @@ static void nfs4_open_release(void *calldata)
 	nfs_confirm_seqid(&data->owner->so_seqid, 0);
 	state = nfs4_opendata_to_nfs4_state(data);
 	if (state != NULL)
-		nfs4_close_state(state, data->o_arg.open_flags);
+		nfs4_close_state(&data->path, state, data->o_arg.open_flags);
 out_free:
 	nfs4_opendata_free(data);
 }
@@ -1103,6 +1103,7 @@ static int nfs4_do_setattr(struct inode *inode, struct nfs_fattr *fattr,
 }
 
 struct nfs4_closedata {
+	struct path path;
 	struct inode *inode;
 	struct nfs4_state *state;
 	struct nfs_closeargs arg;
@@ -1119,6 +1120,8 @@ static void nfs4_free_closedata(void *data)
 	nfs4_put_open_state(calldata->state);
 	nfs_free_seqid(calldata->arg.seqid);
 	nfs4_put_state_owner(sp);
+	dput(calldata->path.dentry);
+	mntput(calldata->path.mnt);
 	kfree(calldata);
 }
 
@@ -1211,18 +1214,18 @@ static const struct rpc_call_ops nfs4_close_ops = {
  *
  * NOTE: Caller must be holding the sp->so_owner semaphore!
  */
-int nfs4_do_close(struct inode *inode, struct nfs4_state *state) 
+int nfs4_do_close(struct path *path, struct nfs4_state *state)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(state->inode);
 	struct nfs4_closedata *calldata;
 	int status = -ENOMEM;
 
 	calldata = kmalloc(sizeof(*calldata), GFP_KERNEL);
 	if (calldata == NULL)
 		goto out;
-	calldata->inode = inode;
+	calldata->inode = state->inode;
 	calldata->state = state;
-	calldata->arg.fh = NFS_FH(inode);
+	calldata->arg.fh = NFS_FH(state->inode);
 	calldata->arg.stateid = &state->stateid;
 	/* Serialization for the sequence id */
 	calldata->arg.seqid = nfs_alloc_seqid(&state->owner->so_seqid);
@@ -1231,6 +1234,8 @@ int nfs4_do_close(struct inode *inode, struct nfs4_state *state)
 	calldata->arg.bitmask = server->attr_bitmask;
 	calldata->res.fattr = &calldata->fattr;
 	calldata->res.server = server;
+	calldata->path.mnt = mntget(path->mnt);
+	calldata->path.dentry = dget(path->dentry);
 
 	status = nfs4_call_async(server->client, &nfs4_close_ops, calldata);
 	if (status == 0)
@@ -1243,18 +1248,18 @@ out:
 	return status;
 }
 
-static int nfs4_intent_set_file(struct nameidata *nd, struct dentry *dentry, struct nfs4_state *state)
+static int nfs4_intent_set_file(struct nameidata *nd, struct path *path, struct nfs4_state *state)
 {
 	struct file *filp;
 
-	filp = lookup_instantiate_filp(nd, dentry, NULL);
+	filp = lookup_instantiate_filp(nd, path->dentry, NULL);
 	if (!IS_ERR(filp)) {
 		struct nfs_open_context *ctx;
 		ctx = (struct nfs_open_context *)filp->private_data;
 		ctx->state = state;
 		return 0;
 	}
-	nfs4_close_state(state, nd->intent.open.flags);
+	nfs4_close_state(path, state, nd->intent.open.flags);
 	return PTR_ERR(filp);
 }
 
@@ -1293,7 +1298,7 @@ nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	res = d_add_unique(dentry, igrab(state->inode));
 	if (res != NULL)
 		dentry = res;
-	nfs4_intent_set_file(nd, dentry, state);
+	nfs4_intent_set_file(nd, &path, state);
 	return res;
 }
 
@@ -1328,10 +1333,10 @@ nfs4_open_revalidate(struct inode *dir, struct dentry *dentry, int openflags, st
 		}
 	}
 	if (state->inode == dentry->d_inode) {
-		nfs4_intent_set_file(nd, dentry, state);
+		nfs4_intent_set_file(nd, &path, state);
 		return 1;
 	}
-	nfs4_close_state(state, openflags);
+	nfs4_close_state(&path, state, openflags);
 out_drop:
 	d_drop(dentry);
 	return 0;
@@ -1789,9 +1794,9 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 			nfs_setattr_update_inode(state->inode, sattr);
 	}
 	if (status == 0 && (nd->flags & LOOKUP_OPEN) != 0)
-		status = nfs4_intent_set_file(nd, dentry, state);
+		status = nfs4_intent_set_file(nd, &path, state);
 	else
-		nfs4_close_state(state, flags);
+		nfs4_close_state(&path, state, flags);
 out:
 	return status;
 }

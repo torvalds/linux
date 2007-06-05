@@ -341,7 +341,7 @@ void nfs4_put_open_state(struct nfs4_state *state)
 /*
  * Close the current file.
  */
-void nfs4_close_state(struct nfs4_state *state, mode_t mode)
+void nfs4_close_state(struct path *path, struct nfs4_state *state, mode_t mode)
 {
 	struct inode *inode = state->inode;
 	struct nfs4_state_owner *owner = state->owner;
@@ -375,7 +375,7 @@ void nfs4_close_state(struct nfs4_state *state, mode_t mode)
 	spin_unlock(&inode->i_lock);
 	spin_unlock(&owner->so_lock);
 
-	if (oldstate != newstate && nfs4_do_close(inode, state) == 0)
+	if (oldstate != newstate && nfs4_do_close(path, state) == 0)
 		return;
 	nfs4_put_open_state(state);
 	nfs4_put_state_owner(owner);

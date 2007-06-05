@@ -490,7 +490,7 @@ void put_nfs_open_context(struct nfs_open_context *ctx)
 			spin_unlock(&inode->i_lock);
 		}
 		if (ctx->state != NULL)
-			nfs4_close_state(ctx->state, ctx->mode);
+			nfs4_close_state(&ctx->path, ctx->state, ctx->mode);
 		if (ctx->cred != NULL)
 			put_rpccred(ctx->cred);
 		dput(ctx->path.dentry);
@@ -1103,27 +1103,10 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
  */
 void nfs4_clear_inode(struct inode *inode)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
-
 	/* If we are holding a delegation, return it! */
 	nfs_inode_return_delegation(inode);
 	/* First call standard NFS clear_inode() code */
 	nfs_clear_inode(inode);
-	/* Now clear out any remaining state */
-	while (!list_empty(&nfsi->open_states)) {
-		struct nfs4_state *state;
-		
-		state = list_entry(nfsi->open_states.next,
-				struct nfs4_state,
-				inode_states);
-		dprintk("%s(%s/%Ld): found unclaimed NFSv4 state %p\n",
-				__FUNCTION__,
-				inode->i_sb->s_id,
-				(long long)NFS_FILEID(inode),
-				state);
-		BUG_ON(atomic_read(&state->count) != 1);
-		nfs4_close_state(state, state->state);
-	}
 }
 #endif
 
