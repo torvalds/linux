@@ -960,6 +960,7 @@ static void mii_phy_probe(struct net_device *dev)
 
 static int pcnet_open(struct net_device *dev)
 {
+    int ret;
     pcnet_dev_t *info = PRIV(dev);
     struct pcmcia_device *link = info->p_dev;
 
@@ -968,10 +969,12 @@ static int pcnet_open(struct net_device *dev)
     if (!pcmcia_dev_present(link))
 	return -ENODEV;
 
-    link->open++;
-
     set_misc_reg(dev);
-    request_irq(dev->irq, ei_irq_wrapper, IRQF_SHARED, dev_info, dev);
+    ret = request_irq(dev->irq, ei_irq_wrapper, IRQF_SHARED, dev_info, dev);
+    if (ret)
+	    return ret;
+
+    link->open++;
 
     info->phy_id = info->eth_phy;
     info->link_status = 0x00;
