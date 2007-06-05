@@ -2519,6 +2519,9 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 {
 	u8 t8;
 
+	/* Enable all clocks */
+	sky2_pci_write32(hw, PCI_DEV_REG3, 0);
+
 	sky2_write8(hw, B0_CTST, CS_RST_CLR);
 
 	hw->chip_id = sky2_read8(hw, B2_CHIP_ID);
@@ -2531,10 +2534,6 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 	if (hw->chip_id == CHIP_ID_YUKON_EX)
 		dev_warn(&hw->pdev->dev, "this driver not yet tested on this chip type\n"
 			 "Please report success or failure to <netdev@vger.kernel.org>\n");
-
-	/* Make sure and enable all clocks */
-	if (hw->chip_id == CHIP_ID_YUKON_EX || hw->chip_id == CHIP_ID_YUKON_EC_U)
-		sky2_pci_write32(hw, PCI_DEV_REG3, 0);
 
 	hw->chip_rev = (sky2_read8(hw, B2_MAC_CFG) & CFG_CHIP_R_MSK) >> 4;
 
