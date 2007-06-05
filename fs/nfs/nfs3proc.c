@@ -335,9 +335,7 @@ again:
 		 * not sure this buys us anything (and I'd have
 		 * to revamp the NFSv3 XDR code) */
 		status = nfs3_proc_setattr(dentry, &fattr, sattr);
-		if (status == 0)
-			nfs_setattr_update_inode(dentry->d_inode, sattr);
-		nfs_refresh_inode(dentry->d_inode, &fattr);
+		nfs_post_op_update_inode(dentry->d_inode, &fattr);
 		dprintk("NFS reply setattr (post-create): %d\n", status);
 	}
 	if (status != 0)
