@@ -1778,6 +1778,15 @@ bnx2_init_5709_context(struct bnx2 *bp)
 	val = BNX2_CTX_COMMAND_ENABLED | BNX2_CTX_COMMAND_MEM_INIT | (1 << 12);
 	val |= (BCM_PAGE_BITS - 8) << 16;
 	REG_WR(bp, BNX2_CTX_COMMAND, val);
+	for (i = 0; i < 10; i++) {
+		val = REG_RD(bp, BNX2_CTX_COMMAND);
+		if (!(val & BNX2_CTX_COMMAND_MEM_INIT))
+			break;
+		udelay(2);
+	}
+	if (val & BNX2_CTX_COMMAND_MEM_INIT)
+		return -EBUSY;
+
 	for (i = 0; i < bp->ctx_pages; i++) {
 		int j;
 
@@ -3696,9 +3705,11 @@ bnx2_init_chip(struct bnx2 *bp)
 
 	/* Initialize context mapping and zero out the quick contexts.  The
 	 * context block must have already been enabled. */
-	if (CHIP_NUM(bp) == CHIP_NUM_5709)
-		bnx2_init_5709_context(bp);
-	else
+	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
+		rc = bnx2_init_5709_context(bp);
+		if (rc)
+			return rc;
+	} else
 		bnx2_init_context(bp);
 
 	if ((rc = bnx2_init_cpus(bp)) != 0)
