@@ -430,7 +430,20 @@ static int nfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
  */
 static void nfs_umount_begin(struct vfsmount *vfsmnt, int flags)
 {
+	struct nfs_server *server = NFS_SB(vfsmnt->mnt_sb);
+	struct rpc_clnt *rpc;
+
 	shrink_submounts(vfsmnt, &nfs_automount_list);
+
+	if (!(flags & MNT_FORCE))
+		return;
+	/* -EIO all pending I/O */
+	rpc = server->client_acl;
+	if (!IS_ERR(rpc))
+		rpc_killall_tasks(rpc);
+	rpc = server->client;
+	if (!IS_ERR(rpc))
+		rpc_killall_tasks(rpc);
 }
 
 /*
