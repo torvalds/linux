@@ -499,7 +499,8 @@ check_entry(struct ipt_entry *e, const char *name)
 }
 
 static inline int check_match(struct ipt_entry_match *m, const char *name,
-				const struct ipt_ip *ip, unsigned int hookmask)
+				const struct ipt_ip *ip, unsigned int hookmask,
+				unsigned int *i)
 {
 	struct xt_match *match;
 	int ret;
@@ -515,6 +516,8 @@ static inline int check_match(struct ipt_entry_match *m, const char *name,
 			 m->u.kernel.match->name);
 		ret = -EINVAL;
 	}
+	if (!ret)
+		(*i)++;
 	return ret;
 }
 
@@ -537,11 +540,10 @@ find_check_match(struct ipt_entry_match *m,
 	}
 	m->u.kernel.match = match;
 
-	ret = check_match(m, name, ip, hookmask);
+	ret = check_match(m, name, ip, hookmask, i);
 	if (ret)
 		goto err;
 
-	(*i)++;
 	return 0;
 err:
 	module_put(m->u.kernel.match->me);
@@ -1425,7 +1427,7 @@ out:
 }
 
 static inline int
-compat_check_calc_match(struct ipt_entry_match *m,
+compat_find_calc_match(struct ipt_entry_match *m,
 	    const char *name,
 	    const struct ipt_ip *ip,
 	    unsigned int hookmask,
@@ -1445,6 +1447,31 @@ compat_check_calc_match(struct ipt_entry_match *m,
 	*size += xt_compat_match_offset(match);
 
 	(*i)++;
+	return 0;
+}
+
+static inline int
+compat_release_match(struct ipt_entry_match *m, unsigned int *i)
+{
+	if (i && (*i)-- == 0)
+		return 1;
+
+	module_put(m->u.kernel.match->me);
+	return 0;
+}
+
+static inline int
+compat_release_entry(struct ipt_entry *e, unsigned int *i)
+{
+	struct ipt_entry_target *t;
+
+	if (i && (*i)-- == 0)
+		return 1;
+
+	/* Cleanup all matches */
+	IPT_MATCH_ITERATE(e, compat_release_match, NULL);
+	t = ipt_get_target(e);
+	module_put(t->u.kernel.target->me);
 	return 0;
 }
 
@@ -1485,10 +1512,10 @@ check_compat_entry_size_and_hooks(struct ipt_entry *e,
 	off = 0;
 	entry_offset = (void *)e - (void *)base;
 	j = 0;
-	ret = IPT_MATCH_ITERATE(e, compat_check_calc_match, name, &e->ip,
+	ret = IPT_MATCH_ITERATE(e, compat_find_calc_match, name, &e->ip,
 			e->comefrom, &off, &j);
 	if (ret != 0)
-		goto cleanup_matches;
+		goto release_matches;
 
 	t = ipt_get_target(e);
 	target = try_then_request_module(xt_find_target(AF_INET,
@@ -1499,7 +1526,7 @@ check_compat_entry_size_and_hooks(struct ipt_entry *e,
 		duprintf("check_compat_entry_size_and_hooks: `%s' not found\n",
 							t->u.user.name);
 		ret = target ? PTR_ERR(target) : -ENOENT;
-		goto cleanup_matches;
+		goto release_matches;
 	}
 	t->u.kernel.target = target;
 
@@ -1526,8 +1553,8 @@ check_compat_entry_size_and_hooks(struct ipt_entry *e,
 
 out:
 	module_put(t->u.kernel.target->me);
-cleanup_matches:
-	IPT_MATCH_ITERATE(e, cleanup_match, &j);
+release_matches:
+	IPT_MATCH_ITERATE(e, compat_release_match, &j);
 	return ret;
 }
 
@@ -1574,15 +1601,26 @@ static int compat_copy_entry_from_user(struct ipt_entry *e, void **dstptr,
 	return ret;
 }
 
-static inline int compat_check_entry(struct ipt_entry *e, const char *name)
+static inline int compat_check_entry(struct ipt_entry *e, const char *name,
+						unsigned int *i)
 {
-	int ret;
+	int j, ret;
 
-	ret = IPT_MATCH_ITERATE(e, check_match, name, &e->ip, e->comefrom);
+	j = 0;
+	ret = IPT_MATCH_ITERATE(e, check_match, name, &e->ip, e->comefrom, &j);
 	if (ret)
-		return ret;
+		goto cleanup_matches;
 
-	return check_target(e, name);
+	ret = check_target(e, name);
+	if (ret)
+		goto cleanup_matches;
+
+	(*i)++;
+	return 0;
+
+ cleanup_matches:
+	IPT_MATCH_ITERATE(e, cleanup_match, &j);
+	return ret;
 }
 
 static int
@@ -1673,10 +1711,17 @@ translate_compat_table(const char *name,
 	if (!mark_source_chains(newinfo, valid_hooks, entry1))
 		goto free_newinfo;
 
+	i = 0;
 	ret = IPT_ENTRY_ITERATE(entry1, newinfo->size, compat_check_entry,
-									name);
-	if (ret)
-		goto free_newinfo;
+								name, &i);
+	if (ret) {
+		j -= i;
+		IPT_ENTRY_ITERATE_CONTINUE(entry1, newinfo->size, i,
+						compat_release_entry, &j);
+		IPT_ENTRY_ITERATE(entry1, newinfo->size, cleanup_entry, &i);
+		xt_free_table_info(newinfo);
+		return ret;
+	}
 
 	/* And one copy for every other CPU */
 	for_each_possible_cpu(i)
@@ -1691,7 +1736,7 @@ translate_compat_table(const char *name,
 free_newinfo:
 	xt_free_table_info(newinfo);
 out:
-	IPT_ENTRY_ITERATE(entry0, total_size, cleanup_entry, &j);
+	IPT_ENTRY_ITERATE(entry0, total_size, compat_release_entry, &j);
 	return ret;
 out_unlock:
 	compat_flush_offsets();
