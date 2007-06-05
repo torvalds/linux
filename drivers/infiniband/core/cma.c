@@ -2773,8 +2773,8 @@ static int cma_init(void)
 	int ret;
 
 	get_random_bytes(&next_port, sizeof next_port);
-	next_port = (next_port % (sysctl_local_port_range[1] -
-				  sysctl_local_port_range[0])) +
+	next_port = ((unsigned int) next_port %
+		    (sysctl_local_port_range[1] - sysctl_local_port_range[0])) +
 		    sysctl_local_port_range[0];
 	cma_wq = create_singlethread_workqueue("rdma_cm");
 	if (!cma_wq)
