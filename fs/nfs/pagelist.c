@@ -114,7 +114,7 @@ void nfs_unlock_request(struct nfs_page *req)
  */
 int nfs_set_page_writeback_locked(struct nfs_page *req)
 {
-	struct nfs_inode *nfsi = NFS_I(req->wb_context->dentry->d_inode);
+	struct nfs_inode *nfsi = NFS_I(req->wb_context->path.dentry->d_inode);
 
 	if (!nfs_lock_request(req))
 		return 0;
@@ -127,7 +127,7 @@ int nfs_set_page_writeback_locked(struct nfs_page *req)
  */
 void nfs_clear_page_writeback(struct nfs_page *req)
 {
-	struct nfs_inode *nfsi = NFS_I(req->wb_context->dentry->d_inode);
+	struct nfs_inode *nfsi = NFS_I(req->wb_context->path.dentry->d_inode);
 
 	if (req->wb_page != NULL) {
 		spin_lock(&nfsi->req_lock);
@@ -193,7 +193,7 @@ static int nfs_wait_bit_interruptible(void *word)
 int
 nfs_wait_on_request(struct nfs_page *req)
 {
-        struct rpc_clnt	*clnt = NFS_CLIENT(req->wb_context->dentry->d_inode);
+	struct rpc_clnt *clnt = NFS_CLIENT(req->wb_context->path.dentry->d_inode);
 	sigset_t oldmask;
 	int ret = 0;
 

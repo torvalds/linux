@@ -512,7 +512,7 @@ static int nfs4_open_reclaim(struct nfs4_state_owner *sp, struct nfs4_state *sta
 	ctx = nfs4_state_find_open_context(state);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
-	ret = nfs4_do_open_reclaim(sp, state, ctx->dentry);
+	ret = nfs4_do_open_reclaim(sp, state, ctx->path.dentry);
 	put_nfs_open_context(ctx);
 	return ret;
 }
@@ -862,7 +862,7 @@ static int nfs4_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *sta
 	ctx = nfs4_state_find_open_context(state);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
-	ret = nfs4_do_open_expired(sp, state, ctx->dentry);
+	ret = nfs4_do_open_expired(sp, state, ctx->path.dentry);
 	put_nfs_open_context(ctx);
 	return ret;
 }
@@ -3285,7 +3285,7 @@ static void nfs4_lock_done(struct rpc_task *task, void *calldata)
 		memcpy(data->lsp->ls_stateid.data, data->res.stateid.data,
 					sizeof(data->lsp->ls_stateid.data));
 		data->lsp->ls_flags |= NFS_LOCK_INITIALIZED;
-		renew_lease(NFS_SERVER(data->ctx->dentry->d_inode), data->timestamp);
+		renew_lease(NFS_SERVER(data->ctx->path.dentry->d_inode), data->timestamp);
 	}
 	nfs_increment_lock_seqid(data->rpc_status, data->arg.lock_seqid);
 out:

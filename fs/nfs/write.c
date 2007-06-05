@@ -407,7 +407,7 @@ static int nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
  */
 static void nfs_inode_remove_request(struct nfs_page *req)
 {
-	struct inode *inode = req->wb_context->dentry->d_inode;
+	struct inode *inode = req->wb_context->path.dentry->d_inode;
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	BUG_ON (!NFS_WBACK_BUSY(req));
@@ -455,7 +455,7 @@ nfs_dirty_request(struct nfs_page *req)
 static void
 nfs_mark_request_commit(struct nfs_page *req)
 {
-	struct inode *inode = req->wb_context->dentry->d_inode;
+	struct inode *inode = req->wb_context->path.dentry->d_inode;
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	spin_lock(&nfsi->req_lock);
@@ -789,7 +789,7 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 	 * NB: take care not to mess about with data->commit et al. */
 
 	data->req = req;
-	data->inode = inode = req->wb_context->dentry->d_inode;
+	data->inode = inode = req->wb_context->path.dentry->d_inode;
 	data->cred = req->wb_context->cred;
 
 	data->args.fh     = NFS_FH(inode);
@@ -957,8 +957,8 @@ static void nfs_writeback_done_partial(struct rpc_task *task, void *calldata)
 	struct page		*page = req->wb_page;
 
 	dprintk("NFS: write (%s/%Ld %d@%Ld)",
-		req->wb_context->dentry->d_inode->i_sb->s_id,
-		(long long)NFS_FILEID(req->wb_context->dentry->d_inode),
+		req->wb_context->path.dentry->d_inode->i_sb->s_id,
+		(long long)NFS_FILEID(req->wb_context->path.dentry->d_inode),
 		req->wb_bytes,
 		(long long)req_offset(req));
 
@@ -1023,8 +1023,8 @@ static void nfs_writeback_done_full(struct rpc_task *task, void *calldata)
 		page = req->wb_page;
 
 		dprintk("NFS: write (%s/%Ld %d@%Ld)",
-			req->wb_context->dentry->d_inode->i_sb->s_id,
-			(long long)NFS_FILEID(req->wb_context->dentry->d_inode),
+			req->wb_context->path.dentry->d_inode->i_sb->s_id,
+			(long long)NFS_FILEID(req->wb_context->path.dentry->d_inode),
 			req->wb_bytes,
 			(long long)req_offset(req));
 
@@ -1162,7 +1162,7 @@ static void nfs_commit_rpcsetup(struct list_head *head,
 
 	list_splice_init(head, &data->pages);
 	first = nfs_list_entry(data->pages.next);
-	inode = first->wb_context->dentry->d_inode;
+	inode = first->wb_context->path.dentry->d_inode;
 
 	data->inode	  = inode;
 	data->cred	  = first->wb_context->cred;
@@ -1239,8 +1239,8 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
 
 		dprintk("NFS: commit (%s/%Ld %d@%Ld)",
-			req->wb_context->dentry->d_inode->i_sb->s_id,
-			(long long)NFS_FILEID(req->wb_context->dentry->d_inode),
+			req->wb_context->path.dentry->d_inode->i_sb->s_id,
+			(long long)NFS_FILEID(req->wb_context->path.dentry->d_inode),
 			req->wb_bytes,
 			(long long)req_offset(req));
 		if (task->tk_status < 0) {

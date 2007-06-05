@@ -145,8 +145,8 @@ static void nfs_readpage_release(struct nfs_page *req)
 	unlock_page(req->wb_page);
 
 	dprintk("NFS: read done (%s/%Ld %d@%Ld)\n",
-			req->wb_context->dentry->d_inode->i_sb->s_id,
-			(long long)NFS_FILEID(req->wb_context->dentry->d_inode),
+			req->wb_context->path.dentry->d_inode->i_sb->s_id,
+			(long long)NFS_FILEID(req->wb_context->path.dentry->d_inode),
 			req->wb_bytes,
 			(long long)req_offset(req));
 	nfs_clear_request(req);
@@ -164,7 +164,7 @@ static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 	int flags;
 
 	data->req	  = req;
-	data->inode	  = inode = req->wb_context->dentry->d_inode;
+	data->inode	  = inode = req->wb_context->path.dentry->d_inode;
 	data->cred	  = req->wb_context->cred;
 
 	data->args.fh     = NFS_FH(inode);
