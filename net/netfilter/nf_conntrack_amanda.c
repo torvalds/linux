@@ -208,13 +208,14 @@ static int __init nf_conntrack_amanda_init(void)
 {
 	int ret, i;
 
-	ret = -ENOMEM;
 	for (i = 0; i < ARRAY_SIZE(search); i++) {
 		search[i].ts = textsearch_prepare(ts_algo, search[i].string,
 						  search[i].len,
 						  GFP_KERNEL, TS_AUTOLOAD);
-		if (search[i].ts == NULL)
+		if (IS_ERR(search[i].ts)) {
+			ret = PTR_ERR(search[i].ts);
 			goto err1;
+		}
 	}
 	ret = nf_conntrack_helper_register(&amanda_helper[0]);
 	if (ret < 0)
@@ -227,10 +228,9 @@ static int __init nf_conntrack_amanda_init(void)
 err2:
 	nf_conntrack_helper_unregister(&amanda_helper[0]);
 err1:
-	for (; i >= 0; i--) {
-		if (search[i].ts)
-			textsearch_destroy(search[i].ts);
-	}
+	while (--i >= 0)
+		textsearch_destroy(search[i].ts);
+
 	return ret;
 }
 
