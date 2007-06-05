@@ -754,6 +754,10 @@ void jffs2_clear_xattr_subsystem(struct jffs2_sb_info *c)
 		list_del(&xd->xindex);
 		jffs2_free_xattr_datum(xd);
 	}
+	list_for_each_entry_safe(xd, _xd, &c->xattr_unchecked, xindex) {
+		list_del(&xd->xindex);
+		jffs2_free_xattr_datum(xd);
+	}
 }
 
 #define XREF_TMPHASH_SIZE	(128)
@@ -825,7 +829,7 @@ void jffs2_build_xattr_subsystem(struct jffs2_sb_info *c)
 			   ref->xd and ref->ic are not valid yet. */
 			xd = jffs2_find_xattr_datum(c, ref->xid);
 			ic = jffs2_get_ino_cache(c, ref->ino);
-			if (!xd || !ic) {
+			if (!xd || !ic || !ic->nlink) {
 				dbg_xattr("xref(ino=%u, xid=%u, xseqno=%u) is orphan.\n",
 					  ref->ino, ref->xid, ref->xseqno);
 				ref->xseqno |= XREF_DELETE_MARKER;
