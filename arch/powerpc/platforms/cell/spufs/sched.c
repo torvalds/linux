@@ -430,9 +430,11 @@ void spu_deactivate(struct spu_context *ctx)
  */
 void spu_yield(struct spu_context *ctx)
 {
-	mutex_lock(&ctx->state_mutex);
-	__spu_deactivate(ctx, 0, MAX_PRIO);
-	mutex_unlock(&ctx->state_mutex);
+	if (!(ctx->flags & SPU_CREATE_NOSCHED)) {
+		mutex_lock(&ctx->state_mutex);
+		__spu_deactivate(ctx, 0, MAX_PRIO);
+		mutex_unlock(&ctx->state_mutex);
+	}
 }
 
 void spu_sched_tick(struct work_struct *work)
