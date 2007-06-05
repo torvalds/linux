@@ -838,11 +838,12 @@ static void mmu_free_roots(struct kvm_vcpu *vcpu)
 	int i;
 	struct kvm_mmu_page *page;
 
+	if (!VALID_PAGE(vcpu->mmu.root_hpa))
+		return;
 #ifdef CONFIG_X86_64
 	if (vcpu->mmu.shadow_root_level == PT64_ROOT_LEVEL) {
 		hpa_t root = vcpu->mmu.root_hpa;
 
-		ASSERT(VALID_PAGE(root));
 		page = page_header(root);
 		--page->root_count;
 		vcpu->mmu.root_hpa = INVALID_PAGE;
@@ -853,7 +854,6 @@ static void mmu_free_roots(struct kvm_vcpu *vcpu)
 		hpa_t root = vcpu->mmu.pae_root[i];
 
 		if (root) {
-			ASSERT(VALID_PAGE(root));
 			root &= PT64_BASE_ADDR_MASK;
 			page = page_header(root);
 			--page->root_count;

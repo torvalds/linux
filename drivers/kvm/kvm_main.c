@@ -381,6 +381,16 @@ static void free_pio_guest_pages(struct kvm_vcpu *vcpu)
 		}
 }
 
+static void kvm_unload_vcpu_mmu(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->vmcs)
+		return;
+
+	vcpu_load(vcpu);
+	kvm_mmu_unload(vcpu);
+	vcpu_put(vcpu);
+}
+
 static void kvm_free_vcpu(struct kvm_vcpu *vcpu)
 {
 	if (!vcpu->vmcs)
@@ -401,6 +411,11 @@ static void kvm_free_vcpus(struct kvm *kvm)
 {
 	unsigned int i;
 
+	/*
+	 * Unpin any mmu pages first.
+	 */
+	for (i = 0; i < KVM_MAX_VCPUS; ++i)
+		kvm_unload_vcpu_mmu(&kvm->vcpus[i]);
 	for (i = 0; i < KVM_MAX_VCPUS; ++i)
 		kvm_free_vcpu(&kvm->vcpus[i]);
 }
