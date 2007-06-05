@@ -269,7 +269,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		} else if (newinode) {
 			pCifsFile =
 			   kzalloc(sizeof (struct cifsFileInfo), GFP_KERNEL);
-			
+
 			if (pCifsFile == NULL)
 				goto cifs_create_out;
 			pCifsFile->netfid = fileHandle;
@@ -299,7 +299,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 				if ((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
 					pCifsInode->clientCanCacheAll = TRUE;
 					pCifsInode->clientCanCacheRead = TRUE;
-					cFYI(1,("Exclusive Oplock for inode %p",
+					cFYI(1, ("Exclusive Oplock inode %p",
 						newinode));
 				} else if ((oplock & 0xF) == OPLOCK_READ)
 					pCifsInode->clientCanCacheRead = TRUE;
@@ -517,7 +517,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	/*	if it was once a directory (but how can we tell?) we could do
 		shrink_dcache_parent(direntry); */
 	} else {
-		cERROR(1,("Error 0x%x on cifs_get_inode_info in lookup of %s",
+		cERROR(1, ("Error 0x%x on cifs_get_inode_info in lookup of %s",
 			   rc, full_path));
 		/* BB special case check for Access Denied - watch security
 		exposure of returning dir info implicitly via different rc

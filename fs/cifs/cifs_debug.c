@@ -7,16 +7,16 @@
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or 
+ *   the Free Software Foundation; either version 2 of the License, or
  *   (at your option) any later version.
- * 
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
  *   the GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software 
+ *   along with this program;  if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/fs.h>
@@ -39,7 +39,7 @@ cifs_dump_mem(char *label, void *data, int length)
 	char *charptr = data;
 	char buf[10], line[80];
 
-	printk(KERN_DEBUG "%s: dump of %d bytes of data at 0x%p\n", 
+	printk(KERN_DEBUG "%s: dump of %d bytes of data at 0x%p\n",
 		label, length, data);
 	for (i = 0; i < length; i += 16) {
 		line[0] = 0;
@@ -60,10 +60,10 @@ cifs_dump_mem(char *label, void *data, int length)
 #ifdef CONFIG_CIFS_DEBUG2
 void cifs_dump_detail(struct smb_hdr * smb)
 {
-	cERROR(1,("Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d",
+	cERROR(1, ("Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d",
 		  smb->Command, smb->Status.CifsError,
 		  smb->Flags, smb->Flags2, smb->Mid, smb->Pid));
-	cERROR(1,("smb buf %p len %d", smb, smbCalcSize_LE(smb)));
+	cERROR(1, ("smb buf %p len %d", smb, smbCalcSize_LE(smb)));
 }
 
 
@@ -72,36 +72,35 @@ void cifs_dump_mids(struct TCP_Server_Info * server)
 	struct list_head *tmp;
 	struct mid_q_entry * mid_entry;
 
-	if(server == NULL)
+	if (server == NULL)
 		return;
 
-	cERROR(1,("Dump pending requests:"));
+	cERROR(1, ("Dump pending requests:"));
 	spin_lock(&GlobalMid_Lock);
 	list_for_each(tmp, &server->pending_mid_q) {
 		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-		if(mid_entry) {
-			cERROR(1,("State: %d Cmd: %d Pid: %d Tsk: %p Mid %d",
+		if (mid_entry) {
+			cERROR(1, ("State: %d Cmd: %d Pid: %d Tsk: %p Mid %d",
 				mid_entry->midState,
 				(int)mid_entry->command,
 				mid_entry->pid,
 				mid_entry->tsk,
 				mid_entry->mid));
 #ifdef CONFIG_CIFS_STATS2
-			cERROR(1,("IsLarge: %d buf: %p time rcv: %ld now: %ld",
+			cERROR(1, ("IsLarge: %d buf: %p time rcv: %ld now: %ld",
 				mid_entry->largeBuf,
 				mid_entry->resp_buf,
 				mid_entry->when_received,
 				jiffies));
 #endif /* STATS2 */
-			cERROR(1,("IsMult: %d IsEnd: %d", mid_entry->multiRsp,
+			cERROR(1, ("IsMult: %d IsEnd: %d", mid_entry->multiRsp,
 				  mid_entry->multiEnd));
-			if(mid_entry->resp_buf) {
+			if (mid_entry->resp_buf) {
 				cifs_dump_detail(mid_entry->resp_buf);
 				cifs_dump_mem("existing buf: ",
 					mid_entry->resp_buf,
 					62 /* fixme */);
 			}
-			
 		}
 	}
 	spin_unlock(&GlobalMid_Lock);
@@ -129,9 +128,10 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 		    "Display Internal CIFS Data Structures for Debugging\n"
 		    "---------------------------------------------------\n");
 	buf += length;
-	length = sprintf(buf,"CIFS Version %s\n",CIFS_VERSION);
+	length = sprintf(buf, "CIFS Version %s\n", CIFS_VERSION);
 	buf += length;
-	length = sprintf(buf,"Active VFS Requests: %d\n", GlobalTotalActiveXid);
+	length = sprintf(buf,
+		"Active VFS Requests: %d\n", GlobalTotalActiveXid);
 	buf += length;
 	length = sprintf(buf, "Servers:");
 	buf += length;
@@ -141,7 +141,7 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 	list_for_each(tmp, &GlobalSMBSessionList) {
 		i++;
 		ses = list_entry(tmp, struct cifsSesInfo, cifsSessionList);
-		if((ses->serverDomain == NULL) || (ses->serverOS == NULL) ||
+		if ((ses->serverDomain == NULL) || (ses->serverOS == NULL) ||
 		   (ses->serverNOS == NULL)) {
 			buf += sprintf(buf, "\nentry for %s not fully "
 					"displayed\n\t", ses->serverName);
@@ -149,15 +149,18 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 		} else {
 			length =
 			    sprintf(buf,
-				    "\n%d) Name: %s  Domain: %s Mounts: %d OS: %s  \n\tNOS: %s\tCapability: 0x%x\n\tSMB session status: %d\t",
+				    "\n%d) Name: %s  Domain: %s Mounts: %d OS:"
+				    " %s  \n\tNOS: %s\tCapability: 0x%x\n\tSMB"
+				    " session status: %d\t",
 				i, ses->serverName, ses->serverDomain,
 				atomic_read(&ses->inUse),
 				ses->serverOS, ses->serverNOS,
-				ses->capabilities,ses->status);
+				ses->capabilities, ses->status);
 			buf += length;
 		}
-		if(ses->server) {
-			buf += sprintf(buf, "TCP status: %d\n\tLocal Users To Server: %d SecMode: 0x%x Req On Wire: %d",
+		if (ses->server) {
+			buf += sprintf(buf, "TCP status: %d\n\tLocal Users To "
+				    "Server: %d SecMode: 0x%x Req On Wire: %d",
 				ses->server->tcpStatus,
 				atomic_read(&ses->server->socketUseCount),
 				ses->server->secMode,
@@ -165,7 +168,7 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 
 #ifdef CONFIG_CIFS_STATS2
 			buf += sprintf(buf, " In Send: %d In MaxReq Wait: %d",
-				atomic_read(&ses->server->inSend), 
+				atomic_read(&ses->server->inSend),
 				atomic_read(&ses->server->num_waiters));
 #endif
 
@@ -177,17 +180,19 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 				mid_entry = list_entry(tmp1, struct
 					mid_q_entry,
 					qhead);
-				if(mid_entry) {
-					length = sprintf(buf,"State: %d com: %d pid: %d tsk: %p mid %d\n",
-						mid_entry->midState,
-						(int)mid_entry->command,
-						mid_entry->pid,
-						mid_entry->tsk,
-						mid_entry->mid);
+				if (mid_entry) {
+					length = sprintf(buf,
+							"State: %d com: %d pid:"
+							" %d tsk: %p mid %d\n",
+							mid_entry->midState,
+							(int)mid_entry->command,
+							mid_entry->pid,
+							mid_entry->tsk,
+							mid_entry->mid);
 					buf += length;
 				}
 			}
-			spin_unlock(&GlobalMid_Lock); 
+			spin_unlock(&GlobalMid_Lock);
 		}
 
 	}
@@ -207,7 +212,8 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 		dev_type = le32_to_cpu(tcon->fsDevInfo.DeviceType);
 		length =
 		    sprintf(buf,
-			    "\n%d) %s Uses: %d Type: %s DevInfo: 0x%x Attributes: 0x%x\nPathComponentMax: %d Status: %d",
+			    "\n%d) %s Uses: %d Type: %s DevInfo: 0x%x "
+			    "Attributes: 0x%x\nPathComponentMax: %d Status: %d",
 			    i, tcon->treeName,
 			    atomic_read(&tcon->useCount),
 			    tcon->nativeFileSystem,
@@ -215,7 +221,7 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 			    le32_to_cpu(tcon->fsAttrInfo.Attributes),
 			    le32_to_cpu(tcon->fsAttrInfo.MaxPathNameComponentLength),
 			    tcon->tidStatus);
-		buf += length;        
+		buf += length;
 		if (dev_type == FILE_DEVICE_DISK)
 			length = sprintf(buf, " type: DISK ");
 		else if (dev_type == FILE_DEVICE_CD_ROM)
@@ -224,7 +230,7 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 			length =
 			    sprintf(buf, " type: %d ", dev_type);
 		buf += length;
-		if(tcon->tidStatus == CifsNeedReconnect) {
+		if (tcon->tidStatus == CifsNeedReconnect) {
 			buf += sprintf(buf, "\tDISCONNECTED ");
 			length += 14;
 		}
@@ -238,9 +244,9 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 	/* Now calculate total size of returned data */
 	length = buf - original_buf;
 
-	if(offset + count >= length)
+	if (offset + count >= length)
 		*eof = 1;
-	if(length < offset) {
+	if (length < offset) {
 		*eof = 1;
 		return 0;
 	} else {
@@ -256,18 +262,18 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 
 static int
 cifs_stats_write(struct file *file, const char __user *buffer,
-               unsigned long count, void *data)
+		 unsigned long count, void *data)
 {
-        char c;
-        int rc;
+	char c;
+	int rc;
 	struct list_head *tmp;
 	struct cifsTconInfo *tcon;
 
-        rc = get_user(c, buffer);
-        if (rc)
-                return rc;
+	rc = get_user(c, buffer);
+	if (rc)
+		return rc;
 
-        if (c == '1' || c == 'y' || c == 'Y' || c == '0') {
+	if (c == '1' || c == 'y' || c == 'Y' || c == '0') {
 		read_lock(&GlobalSMBSeslock);
 #ifdef CONFIG_CIFS_STATS2
 		atomic_set(&totBufAllocCount, 0);
@@ -297,14 +303,14 @@ cifs_stats_write(struct file *file, const char __user *buffer,
 		read_unlock(&GlobalSMBSeslock);
 	}
 
-        return count;
+	return count;
 }
 
 static int
 cifs_stats_read(char *buf, char **beginBuffer, off_t offset,
 		  int count, int *eof, void *data)
 {
-	int item_length,i,length;
+	int item_length, i, length;
 	struct list_head *tmp;
 	struct cifsTconInfo *tcon;
 
@@ -314,44 +320,44 @@ cifs_stats_read(char *buf, char **beginBuffer, off_t offset,
 			"Resources in use\nCIFS Session: %d\n",
 			sesInfoAllocCount.counter);
 	buf += length;
-	item_length = 
-		sprintf(buf,"Share (unique mount targets): %d\n",
+	item_length =
+		sprintf(buf, "Share (unique mount targets): %d\n",
 			tconInfoAllocCount.counter);
 	length += item_length;
-	buf += item_length;      
-	item_length = 
-		sprintf(buf,"SMB Request/Response Buffer: %d Pool size: %d\n",
+	buf += item_length;
+	item_length =
+		sprintf(buf, "SMB Request/Response Buffer: %d Pool size: %d\n",
 			bufAllocCount.counter,
 			cifs_min_rcv + tcpSesAllocCount.counter);
 	length += item_length;
 	buf += item_length;
-	item_length = 
-		sprintf(buf,"SMB Small Req/Resp Buffer: %d Pool size: %d\n",
-			smBufAllocCount.counter,cifs_min_small);
+	item_length =
+		sprintf(buf, "SMB Small Req/Resp Buffer: %d Pool size: %d\n",
+			smBufAllocCount.counter, cifs_min_small);
 	length += item_length;
 	buf += item_length;
 #ifdef CONFIG_CIFS_STATS2
-        item_length = sprintf(buf, "Total Large %d Small %d Allocations\n",
+	item_length = sprintf(buf, "Total Large %d Small %d Allocations\n",
 				atomic_read(&totBufAllocCount),
-		                atomic_read(&totSmBufAllocCount));
+				atomic_read(&totSmBufAllocCount));
 	length += item_length;
 	buf += item_length;
 #endif /* CONFIG_CIFS_STATS2 */
 
-	item_length = 
-		sprintf(buf,"Operations (MIDs): %d\n",
+	item_length =
+		sprintf(buf, "Operations (MIDs): %d\n",
 			midCount.counter);
 	length += item_length;
 	buf += item_length;
 	item_length = sprintf(buf,
 		"\n%d session %d share reconnects\n",
-		tcpSesReconnectCount.counter,tconInfoReconnectCount.counter);
+		tcpSesReconnectCount.counter, tconInfoReconnectCount.counter);
 	length += item_length;
 	buf += item_length;
 
 	item_length = sprintf(buf,
 		"Total vfs operations: %d maximum at one time: %d\n",
-		GlobalCurrentXid,GlobalMaxActiveXid);
+		GlobalCurrentXid, GlobalMaxActiveXid);
 	length += item_length;
 	buf += item_length;
 
@@ -360,10 +366,10 @@ cifs_stats_read(char *buf, char **beginBuffer, off_t offset,
 	list_for_each(tmp, &GlobalTreeConnectionList) {
 		i++;
 		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
-		item_length = sprintf(buf,"\n%d) %s",i, tcon->treeName);
+		item_length = sprintf(buf, "\n%d) %s", i, tcon->treeName);
 		buf += item_length;
 		length += item_length;
-		if(tcon->tidStatus == CifsNeedReconnect) {
+		if (tcon->tidStatus == CifsNeedReconnect) {
 			buf += sprintf(buf, "\tDISCONNECTED ");
 			length += 14;
 		}
@@ -380,15 +386,15 @@ cifs_stats_read(char *buf, char **beginBuffer, off_t offset,
 		item_length = sprintf(buf, "\nWrites: %d Bytes: %lld",
 			atomic_read(&tcon->num_writes),
 			(long long)(tcon->bytes_written));
-                buf += item_length;
-                length += item_length;
-                item_length = sprintf(buf, 
+		buf += item_length;
+		length += item_length;
+		item_length = sprintf(buf,
 			"\nLocks: %d HardLinks: %d Symlinks: %d",
-                        atomic_read(&tcon->num_locks),
+			atomic_read(&tcon->num_locks),
 			atomic_read(&tcon->num_hardlinks),
 			atomic_read(&tcon->num_symlinks));
-                buf += item_length;
-                length += item_length;
+		buf += item_length;
+		length += item_length;
 
 		item_length = sprintf(buf, "\nOpens: %d Closes: %d Deletes: %d",
 			atomic_read(&tcon->num_opens),
@@ -415,12 +421,12 @@ cifs_stats_read(char *buf, char **beginBuffer, off_t offset,
 	}
 	read_unlock(&GlobalSMBSeslock);
 
-	buf += sprintf(buf,"\n");
+	buf += sprintf(buf, "\n");
 	length++;
 
-	if(offset + count >= length)
+	if (offset + count >= length)
 		*eof = 1;
-	if(length < offset) {
+	if (length < offset) {
 		*eof = 1;
 		return 0;
 	} else {
@@ -428,7 +434,7 @@ cifs_stats_read(char *buf, char **beginBuffer, off_t offset,
 	}
 	if (length > count)
 		length = count;
-		
+
 	return length;
 }
 #endif
@@ -547,11 +553,11 @@ cifs_proc_clean(void)
 	remove_proc_entry("MultiuserMount", proc_fs_cifs);
 	remove_proc_entry("OplockEnabled", proc_fs_cifs);
 /*	remove_proc_entry("NTLMV2Enabled",proc_fs_cifs); */
-	remove_proc_entry("SecurityFlags",proc_fs_cifs);
-/*	remove_proc_entry("PacketSigningEnabled",proc_fs_cifs); */
-	remove_proc_entry("LinuxExtensionsEnabled",proc_fs_cifs);
-	remove_proc_entry("Experimental",proc_fs_cifs);
-	remove_proc_entry("LookupCacheEnabled",proc_fs_cifs);
+	remove_proc_entry("SecurityFlags", proc_fs_cifs);
+/*	remove_proc_entry("PacketSigningEnabled", proc_fs_cifs); */
+	remove_proc_entry("LinuxExtensionsEnabled", proc_fs_cifs);
+	remove_proc_entry("Experimental", proc_fs_cifs);
+	remove_proc_entry("LookupCacheEnabled", proc_fs_cifs);
 	remove_proc_entry("cifs", proc_root_fs);
 }
 
@@ -590,7 +596,7 @@ cifsFYI_write(struct file *file, const char __user *buffer,
 		cifsFYI = 0;
 	else if (c == '1' || c == 'y' || c == 'Y')
 		cifsFYI = 1;
-	else if((c > '1') && (c <= '9'))
+	else if ((c > '1') && (c <= '9'))
 		cifsFYI = (int) (c - '0'); /* see cifs_debug.h for meanings */
 
 	return count;
@@ -637,28 +643,28 @@ oplockEnabled_write(struct file *file, const char __user *buffer,
 
 static int
 experimEnabled_read(char *page, char **start, off_t off,
-                   int count, int *eof, void *data)
+		    int count, int *eof, void *data)
 {
-        int len;
+	int len;
 
-        len = sprintf(page, "%d\n", experimEnabled);
+	len = sprintf(page, "%d\n", experimEnabled);
 
-        len -= off;
-        *start = page + off;
+	len -= off;
+	*start = page + off;
 
-        if (len > count)
-                len = count;
-        else
-                *eof = 1;
+	if (len > count)
+		len = count;
+	else
+		*eof = 1;
 
-        if (len < 0)
-                len = 0;
+	if (len < 0)
+		len = 0;
 
-        return len;
+	return len;
 }
 static int
 experimEnabled_write(struct file *file, const char __user *buffer,
-                    unsigned long count, void *data)
+		     unsigned long count, void *data)
 {
 	char c;
 	int rc;
@@ -678,46 +684,46 @@ experimEnabled_write(struct file *file, const char __user *buffer,
 
 static int
 linuxExtensionsEnabled_read(char *page, char **start, off_t off,
-                   int count, int *eof, void *data)
+			    int count, int *eof, void *data)
 {
-        int len;
+	int len;
 
-        len = sprintf(page, "%d\n", linuxExtEnabled);
-        len -= off;
-        *start = page + off;
+	len = sprintf(page, "%d\n", linuxExtEnabled);
+	len -= off;
+	*start = page + off;
 
-        if (len > count)
-                len = count;
-        else
-                *eof = 1;
+	if (len > count)
+		len = count;
+	else
+		*eof = 1;
 
-        if (len < 0)
-                len = 0;
+	if (len < 0)
+		len = 0;
 
-        return len;
+	return len;
 }
 static int
 linuxExtensionsEnabled_write(struct file *file, const char __user *buffer,
-                    unsigned long count, void *data)
+			     unsigned long count, void *data)
 {
-        char c;
-        int rc;
+	char c;
+	int rc;
 
-        rc = get_user(c, buffer);
-        if (rc)
-                return rc;
-        if (c == '0' || c == 'n' || c == 'N')
-                linuxExtEnabled = 0;
-        else if (c == '1' || c == 'y' || c == 'Y')
-                linuxExtEnabled = 1;
+	rc = get_user(c, buffer);
+	if (rc)
+		return rc;
+	if (c == '0' || c == 'n' || c == 'N')
+		linuxExtEnabled = 0;
+	else if (c == '1' || c == 'y' || c == 'Y')
+		linuxExtEnabled = 1;
 
-        return count;
+	return count;
 }
 
 
 static int
 lookupFlag_read(char *page, char **start, off_t off,
-		   int count, int *eof, void *data)
+		int count, int *eof, void *data)
 {
 	int len;
 
@@ -860,15 +866,15 @@ security_flags_write(struct file *file, const char __user *buffer,
 	char flags_string[12];
 	char c;
 
-	if((count < 1) || (count > 11))
+	if ((count < 1) || (count > 11))
 		return -EINVAL;
 
 	memset(flags_string, 0, 12);
 
-	if(copy_from_user(flags_string, buffer, count))
+	if (copy_from_user(flags_string, buffer, count))
 		return -EFAULT;
 
-	if(count < 3) {
+	if (count < 3) {
 		/* single char or single char followed by null */
 		c = flags_string[0];
 		if (c == '0' || c == 'n' || c == 'N')
@@ -881,15 +887,15 @@ security_flags_write(struct file *file, const char __user *buffer,
 
 	flags = simple_strtoul(flags_string, NULL, 0);
 
-	cFYI(1,("sec flags 0x%x", flags));
+	cFYI(1, ("sec flags 0x%x", flags));
 
-	if(flags <= 0)  {
-		cERROR(1,("invalid security flags %s",flags_string));
+	if (flags <= 0)  {
+		cERROR(1, ("invalid security flags %s", flags_string));
 		return -EINVAL;
 	}
 
-	if(flags & ~CIFSSEC_MASK) {
-		cERROR(1,("attempt to set unsupported security flags 0x%x",
+	if (flags & ~CIFSSEC_MASK) {
+		cERROR(1, ("attempt to set unsupported security flags 0x%x",
 			flags & ~CIFSSEC_MASK));
 		return -EINVAL;
 	}
