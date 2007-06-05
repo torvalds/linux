@@ -63,7 +63,7 @@ enum rfkill_state {
  * This structure represents a RF switch located on a network device.
  */
 struct rfkill {
-	char *name;
+	const char *name;
 	enum rfkill_type type;
 
 	enum rfkill_state state;
