@@ -250,6 +250,7 @@ static int rsb_iter_next(struct rsb_iter *ri)
 			goto top;
                 }
 		ri->rsb = list_entry(ri->next, struct dlm_rsb, res_hashchain);
+		dlm_hold_rsb(ri->rsb);
 		read_unlock(&ls->ls_rsbtbl[i].lock);
 		dlm_put_rsb(old);
 	}
