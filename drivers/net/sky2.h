@@ -483,6 +483,11 @@ enum {
 	CHIP_REV_YU_FE_A2    = 2,
 
 };
+enum yukon_ex_rev {
+	CHIP_REV_YU_EX_A0    = 1,
+	CHIP_REV_YU_EX_B0    = 2,
+};
+
 
 /*	B2_Y2_CLK_GATE	 8 bit	Clock Gating (Yukon-2 only) */
 enum {
@@ -1692,6 +1697,16 @@ enum {
 	RX_VLAN_STRIP_ON = 1<<25,	/* enable  VLAN stripping */
 	RX_VLAN_STRIP_OFF = 1<<24,	/* disable VLAN stripping */
 
+	RX_MACSEC_FLUSH_ON  = 1<<23,
+	RX_MACSEC_FLUSH_OFF = 1<<22,
+	RX_MACSEC_ASF_FLUSH_ON = 1<<21,
+	RX_MACSEC_ASF_FLUSH_OFF = 1<<20,
+
+	GMF_RX_OVER_ON      = 1<<19,	/* enable flushing on receive overrun */
+	GMF_RX_OVER_OFF     = 1<<18,	/* disable flushing on receive overrun */
+	GMF_ASF_RX_OVER_ON  = 1<<17,	/* enable flushing of ASF when overrun */
+	GMF_ASF_RX_OVER_OFF = 1<<16,	/* disable flushing of ASF when overrun */
+
 	GMF_WP_TST_ON	= 1<<14,	/* Write Pointer Test On */
 	GMF_WP_TST_OFF	= 1<<13,	/* Write Pointer Test Off */
 	GMF_WP_STEP	= 1<<12,	/* Write Pointer Step/Increment */
@@ -1804,6 +1819,15 @@ enum {
 
 /*	GMAC_CTRL		32 bit	GMAC Control Reg (YUKON only) */
 enum {
+	GMC_SET_RST	    = 1<<15,/* MAC SEC RST */
+	GMC_SEC_RST_OFF     = 1<<14,/* MAC SEC RSt OFF */
+	GMC_BYP_MACSECRX_ON = 1<<13,/* Bypass macsec RX */
+	GMC_BYP_MACSECRX_OFF= 1<<12,/* Bypass macsec RX off */
+	GMC_BYP_MACSECTX_ON = 1<<11,/* Bypass macsec TX */
+	GMC_BYP_MACSECTX_OFF= 1<<10,/* Bypass macsec TX  off*/
+	GMC_BYP_RETR_ON	= 1<<9, /* Bypass retransmit FIFO On */
+	GMC_BYP_RETR_OFF= 1<<8, /* Bypass retransmit FIFO Off */
+
 	GMC_H_BURST_ON	= 1<<7,	/* Half Duplex Burst Mode On */
 	GMC_H_BURST_OFF	= 1<<6,	/* Half Duplex Burst Mode Off */
 	GMC_F_LOOPB_ON	= 1<<5,	/* FIFO Loopback On */
@@ -1889,9 +1913,13 @@ enum {
 	OP_ADDR64VLAN	= OP_ADDR64 | OP_VLAN,
 	OP_LRGLEN	= 0x24,
 	OP_LRGLENVLAN	= OP_LRGLEN | OP_VLAN,
+	OP_MSS		= 0x28,
+	OP_MSSVLAN	= OP_MSS | OP_VLAN,
+
 	OP_BUFFER	= 0x40,
 	OP_PACKET	= 0x41,
 	OP_LARGESEND	= 0x43,
+	OP_LSOV2	= 0x45,
 
 /* YUKON-2 STATUS opcodes defines */
 	OP_RXSTAT	= 0x60,
@@ -1902,6 +1930,19 @@ enum {
 	OP_RXTIMEVLAN	= OP_RXTIMESTAMP | OP_RXVLAN,
 	OP_RSS_HASH	= 0x65,
 	OP_TXINDEXLE	= 0x68,
+	OP_MACSEC	= 0x6c,
+	OP_PUTIDX	= 0x70,
+};
+
+enum status_css {
+	CSS_TCPUDPCSOK	= 1<<7,	/* TCP / UDP checksum is ok */
+	CSS_ISUDP	= 1<<6, /* packet is a UDP packet */
+	CSS_ISTCP	= 1<<5, /* packet is a TCP packet */
+	CSS_ISIPFRAG	= 1<<4, /* packet is a TCP/UDP frag, CS calc not done */
+	CSS_ISIPV6	= 1<<3, /* packet is a IPv6 packet */
+	CSS_IPV4CSUMOK	= 1<<2, /* IP v4: TCP header checksum is ok */
+	CSS_ISIPV4	= 1<<1, /* packet is a IPv4 packet */
+	CSS_LINK_BIT	= 1<<0, /* port number (legacy) */
 };
 
 /* Yukon 2 hardware interface */
@@ -1922,7 +1963,7 @@ struct sky2_rx_le {
 struct sky2_status_le {
 	__le32	status;	/* also checksum */
 	__le16	length;	/* also vlan tag */
-	u8	link;
+	u8	css;
 	u8	opcode;
 } __attribute((packed));
 
