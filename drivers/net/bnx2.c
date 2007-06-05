@@ -1811,6 +1811,7 @@ bnx2_init_context(struct bnx2 *bp)
 	vcid = 96;
 	while (vcid) {
 		u32 vcid_addr, pcid_addr, offset;
+		int i;
 
 		vcid--;
 
@@ -1831,16 +1832,20 @@ bnx2_init_context(struct bnx2 *bp)
 			pcid_addr = vcid_addr;
 		}
 
-		REG_WR(bp, BNX2_CTX_VIRT_ADDR, 0x00);
-		REG_WR(bp, BNX2_CTX_PAGE_TBL, pcid_addr);
+		for (i = 0; i < (CTX_SIZE / PHY_CTX_SIZE); i++) {
+			vcid_addr += (i << PHY_CTX_SHIFT);
+			pcid_addr += (i << PHY_CTX_SHIFT);
 
-		/* Zero out the context. */
-		for (offset = 0; offset < PHY_CTX_SIZE; offset += 4) {
-			CTX_WR(bp, 0x00, offset, 0);
+			REG_WR(bp, BNX2_CTX_VIRT_ADDR, 0x00);
+			REG_WR(bp, BNX2_CTX_PAGE_TBL, pcid_addr);
+
+			/* Zero out the context. */
+			for (offset = 0; offset < PHY_CTX_SIZE; offset += 4)
+				CTX_WR(bp, 0x00, offset, 0);
+
+			REG_WR(bp, BNX2_CTX_VIRT_ADDR, vcid_addr);
+			REG_WR(bp, BNX2_CTX_PAGE_TBL, pcid_addr);
 		}
-
-		REG_WR(bp, BNX2_CTX_VIRT_ADDR, vcid_addr);
-		REG_WR(bp, BNX2_CTX_PAGE_TBL, pcid_addr);
 	}
 }
 
