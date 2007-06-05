@@ -55,7 +55,7 @@
 #define INVALID_PAGE (~(hpa_t)0)
 #define UNMAPPED_GVA (~(gpa_t)0)
 
-#define KVM_MAX_VCPUS 1
+#define KVM_MAX_VCPUS 4
 #define KVM_ALIAS_SLOTS 4
 #define KVM_MEMORY_SLOTS 4
 #define KVM_NUM_MMU_PAGES 1024
