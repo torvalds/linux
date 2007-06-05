@@ -108,14 +108,19 @@ xfs_page_trace(
 
 /*
  * Schedule IO completion handling on a xfsdatad if this was
- * the final hold on this ioend.
+ * the final hold on this ioend. If we are asked to wait,
+ * flush the workqueue.
  */
 STATIC void
 xfs_finish_ioend(
-	xfs_ioend_t		*ioend)
+	xfs_ioend_t	*ioend,
+	int		wait)
 {
-	if (atomic_dec_and_test(&ioend->io_remaining))
+	if (atomic_dec_and_test(&ioend->io_remaining)) {
 		queue_work(xfsdatad_workqueue, &ioend->io_work);
+		if (wait)
+			flush_workqueue(xfsdatad_workqueue);
+	}
 }
 
 /*
@@ -334,7 +339,7 @@ xfs_end_bio(
 	bio->bi_end_io = NULL;
 	bio_put(bio);
 
-	xfs_finish_ioend(ioend);
+	xfs_finish_ioend(ioend, 0);
 	return 0;
 }
 
@@ -470,7 +475,7 @@ xfs_submit_ioend(
 		}
 		if (bio)
 			xfs_submit_ioend_bio(ioend, bio);
-		xfs_finish_ioend(ioend);
+		xfs_finish_ioend(ioend, 0);
 	} while ((ioend = next) != NULL);
 }
 
@@ -1416,6 +1421,13 @@ xfs_end_io_direct(
 	 * This is not necessary for synchronous direct I/O, but we do
 	 * it anyway to keep the code uniform and simpler.
 	 *
+	 * Well, if only it were that simple. Because synchronous direct I/O
+	 * requires extent conversion to occur *before* we return to userspace,
+	 * we have to wait for extent conversion to complete. Look at the
+	 * iocb that has been passed to us to determine if this is AIO or
+	 * not. If it is synchronous, tell xfs_finish_ioend() to kick the
+	 * workqueue and wait for it to complete.
+	 *
 	 * The core direct I/O code might be changed to always call the
 	 * completion handler in the future, in which case all this can
 	 * go away.
@@ -1423,9 +1435,9 @@ xfs_end_io_direct(
 	ioend->io_offset = offset;
 	ioend->io_size = size;
 	if (ioend->io_type == IOMAP_READ) {
-		xfs_finish_ioend(ioend);
+		xfs_finish_ioend(ioend, 0);
 	} else if (private && size > 0) {
-		xfs_finish_ioend(ioend);
+		xfs_finish_ioend(ioend, is_sync_kiocb(iocb));
 	} else {
 		/*
 		 * A direct I/O write ioend starts it's life in unwritten
@@ -1434,7 +1446,7 @@ xfs_end_io_direct(
 		 * handler.
 		 */
 		INIT_WORK(&ioend->io_work, xfs_end_bio_written);
-		xfs_finish_ioend(ioend);
+		xfs_finish_ioend(ioend, 0);
 	}
 
 	/*
