@@ -441,6 +441,20 @@ enum {
 	TST_CFG_WRITE_OFF= 1<<0, /* Disable Config Reg WR */
 };
 
+/* 	B2_GPIO */
+enum {
+	GLB_GPIO_CLK_DEB_ENA = 1<<31,	/* Clock Debug Enable */
+	GLB_GPIO_CLK_DBG_MSK = 0xf<<26, /* Clock Debug */
+
+	GLB_GPIO_INT_RST_D3_DIS = 1<<15, /* Disable Internal Reset After D3 to D0 */
+	GLB_GPIO_LED_PAD_SPEED_UP = 1<<14, /* LED PAD Speed Up */
+	GLB_GPIO_STAT_RACE_DIS	= 1<<13, /* Status Race Disable */
+	GLB_GPIO_TEST_SEL_MSK	= 3<<11, /* Testmode Select */
+	GLB_GPIO_TEST_SEL_BASE	= 1<<11,
+	GLB_GPIO_RAND_ENA	= 1<<10, /* Random Enable */
+	GLB_GPIO_RAND_BIT_1	= 1<<9,  /* Random Bit 1 */
+};
+
 /*	B2_MAC_CFG		 8 bit	MAC Configuration / Chip Revision */
 enum {
 	CFG_CHIP_R_MSK	  = 0xf<<4,	/* Bit 7.. 4: Chip Revision */

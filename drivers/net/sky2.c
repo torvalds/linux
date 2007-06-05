@@ -230,6 +230,11 @@ static void sky2_power_on(struct sky2_hw *hw)
 		sky2_pci_write32(hw, PCI_DEV_REG5, reg);
 
 		sky2_pci_write32(hw, PCI_CFG_REG_1, 0);
+
+		/* Enable workaround for dev 4.107 on Yukon-Ultra & Extreme */
+		reg = sky2_read32(hw, B2_GP_IO);
+		reg |= GLB_GPIO_STAT_RACE_DIS;
+		sky2_write32(hw, B2_GP_IO, reg);
 	}
 }
 
