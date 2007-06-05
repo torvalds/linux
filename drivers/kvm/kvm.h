@@ -347,6 +347,7 @@ struct kvm_vcpu {
 			u32 ar;
 		} tr, es, ds, fs, gs;
 	} rmode;
+	int halt_request; /* real mode on Intel only */
 
 	int cpuid_nent;
 	struct kvm_cpuid_entry cpuid_entries[KVM_MAX_CPUID_ENTRIES];
