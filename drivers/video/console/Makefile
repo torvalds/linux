@@ -47,7 +47,7 @@ targets := promcon_tbl.c
 quiet_cmd_conmakehash = CNMKHSH $@
       cmd_conmakehash = scripts/conmakehash $< | \
 		sed -e '/\#include <[^>]*>/p' -e 's/types/init/' \
-		-e 's/dfont\(_uni.*\]\)/promfont\1 __initdata/' > $@
+		-e 's/dfont\(_uni.*\]\)/promfont\1 /' > $@
 
 $(obj)/promcon_tbl.c: $(src)/prom.uni
 	$(call cmd,conmakehash)
