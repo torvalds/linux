@@ -64,7 +64,6 @@ config MACH_DECSTATION
 	select BOOT_ELF32
 	select DMA_NONCOHERENT
 	select NO_IOPORT
-	select SYS_HAS_EARLY_PRINTK
 	select IRQ_CPU
 	select SYS_HAS_CPU_R3000
 	select SYS_HAS_CPU_R4X00
