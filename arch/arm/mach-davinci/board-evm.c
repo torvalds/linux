@@ -32,6 +32,7 @@
 void __init davinci_psc_init(void);
 void __init davinci_irq_init(void);
 void __init davinci_map_common_io(void);
+void __init davinci_init_common_hw(void);
 
 /* NOR Flash base address set to CS0 by default */
 #define NOR_FLASH_PHYS 0x02000000
@@ -116,6 +117,7 @@ static __init void davinci_evm_init(void)
 
 static __init void davinci_evm_irq_init(void)
 {
+	davinci_init_common_hw();
 	davinci_irq_init();
 }
 
