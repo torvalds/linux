@@ -433,8 +433,8 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	cFYI(1,("secFlags 0x%x",secFlags));
 
 	pSMB->hdr.Mid = GetNextMid(server);
-	pSMB->hdr.Flags2 |= SMBFLG2_UNICODE;
-	if((secFlags & CIFSSEC_MUST_KRB5) == CIFSSEC_MUST_KRB5)
+	pSMB->hdr.Flags2 |= (SMBFLG2_UNICODE | SMBFLG2_ERR_STATUS);
+	if ((secFlags & CIFSSEC_MUST_KRB5) == CIFSSEC_MUST_KRB5)
 		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
 	
 	count = 0;
