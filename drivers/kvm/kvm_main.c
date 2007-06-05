@@ -970,7 +970,7 @@ EXPORT_SYMBOL_GPL(gfn_to_page);
 void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
 {
 	int i;
-	struct kvm_memory_slot *memslot = NULL;
+	struct kvm_memory_slot *memslot;
 	unsigned long rel_gfn;
 
 	for (i = 0; i < kvm->nmemslots; ++i) {
@@ -979,7 +979,7 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
 		if (gfn >= memslot->base_gfn
 		    && gfn < memslot->base_gfn + memslot->npages) {
 
-			if (!memslot || !memslot->dirty_bitmap)
+			if (!memslot->dirty_bitmap)
 				return;
 
 			rel_gfn = gfn - memslot->base_gfn;
