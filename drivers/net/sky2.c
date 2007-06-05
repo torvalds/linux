@@ -1140,7 +1140,7 @@ static int sky2_rx_start(struct sky2_port *sky2)
 	if (hw->chip_id == CHIP_ID_YUKON_EC_U &&
 	    (hw->chip_rev == CHIP_REV_YU_EC_U_A1
 	     || hw->chip_rev == CHIP_REV_YU_EC_U_B0))
-		sky2_write32(hw, Q_ADDR(rxq, Q_F), F_M_RX_RAM_DIS);
+		sky2_write32(hw, Q_ADDR(rxq, Q_TEST), F_M_RX_RAM_DIS);
 
 	sky2_prefetch_init(hw, rxq, sky2->rx_le_map, RX_LE_SIZE - 1);
 
