@@ -1057,9 +1057,10 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 	if (!in_dev) {
 		if (event == NETDEV_REGISTER) {
 			in_dev = inetdev_init(dev);
-			if (!in_dev)
-				panic("devinet: Failed to create loopback\n");
 			if (dev == &loopback_dev) {
+				if (!in_dev)
+					panic("devinet: "
+					      "Failed to create loopback\n");
 				in_dev->cnf.no_xfrm = 1;
 				in_dev->cnf.no_policy = 1;
 			}
