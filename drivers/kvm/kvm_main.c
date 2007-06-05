@@ -1285,6 +1285,17 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 }
 EXPORT_SYMBOL_GPL(emulate_instruction);
 
+int kvm_emulate_halt(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->irq_summary)
+		return 1;
+
+	vcpu->run->exit_reason = KVM_EXIT_HLT;
+	++vcpu->stat.halt_exits;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_halt);
+
 int kvm_hypercall(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	unsigned long nr, a0, a1, a2, a3, a4, a5, ret;

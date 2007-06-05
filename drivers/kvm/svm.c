@@ -1115,12 +1115,7 @@ static int halt_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	vcpu->svm->next_rip = vcpu->svm->vmcb->save.rip + 1;
 	skip_emulated_instruction(vcpu);
-	if (vcpu->irq_summary)
-		return 1;
-
-	kvm_run->exit_reason = KVM_EXIT_HLT;
-	++vcpu->stat.halt_exits;
-	return 0;
+	return kvm_emulate_halt(vcpu);
 }
 
 static int vmmcall_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)

@@ -1896,12 +1896,7 @@ static int handle_interrupt_window(struct kvm_vcpu *vcpu,
 static int handle_halt(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	skip_emulated_instruction(vcpu);
-	if (vcpu->irq_summary)
-		return 1;
-
-	kvm_run->exit_reason = KVM_EXIT_HLT;
-	++vcpu->stat.halt_exits;
-	return 0;
+	return kvm_emulate_halt(vcpu);
 }
 
 static int handle_vmcall(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
