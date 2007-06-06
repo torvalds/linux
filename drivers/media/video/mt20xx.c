@@ -361,8 +361,8 @@ static int mt2032_init(struct i2c_client *c)
 	} while (xok != 1 );
 	priv->xogc=xogc;
 
-	t->set_tv_freq    = mt2032_set_tv_freq;
-	t->set_radio_freq = mt2032_set_radio_freq;
+	t->ops.set_tv_freq    = mt2032_set_tv_freq;
+	t->ops.set_radio_freq = mt2032_set_radio_freq;
 	return(1);
 }
 
@@ -490,8 +490,8 @@ static int mt2050_init(struct i2c_client *c)
 	i2c_master_recv(c,buf,1);
 
 	tuner_dbg("mt2050: sro is %x\n",buf[0]);
-	t->set_tv_freq    = mt2050_set_tv_freq;
-	t->set_radio_freq = mt2050_set_radio_freq;
+	t->ops.set_tv_freq    = mt2050_set_tv_freq;
+	t->ops.set_radio_freq = mt2050_set_radio_freq;
 	return 0;
 }
 
@@ -519,10 +519,10 @@ int microtune_init(struct i2c_client *c)
 	priv->radio_if2 = 10700 * 1000;	/* 10.7MHz - FM radio */
 
 	memset(buf,0,sizeof(buf));
-	t->set_tv_freq    = NULL;
-	t->set_radio_freq = NULL;
-	t->standby    = NULL;
-	t->release        = microtune_release;
+	t->ops.set_tv_freq    = NULL;
+	t->ops.set_radio_freq = NULL;
+	t->ops.standby    = NULL;
+	t->ops.release        = microtune_release;
 	if (t->std & V4L2_STD_525_60) {
 		tuner_dbg("pinnacle ntsc\n");
 		priv->radio_if2 = 41300 * 1000;

@@ -667,11 +667,11 @@ int tda8290_init(struct i2c_client *c)
 	}
 	tuner_info("type set to %s\n", c->name);
 
-	t->set_tv_freq    = set_tv_freq;
-	t->set_radio_freq = set_radio_freq;
-	t->has_signal = has_signal;
-	t->standby = standby;
-	t->release = tda8290_release;
+	t->ops.set_tv_freq    = set_tv_freq;
+	t->ops.set_radio_freq = set_radio_freq;
+	t->ops.has_signal = has_signal;
+	t->ops.standby = standby;
+	t->ops.release = tda8290_release;
 	priv->tda827x_lpsel = 0;
 	t->mode = V4L2_TUNER_ANALOG_TV;
 

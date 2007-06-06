@@ -487,11 +487,11 @@ int default_tuner_init(struct i2c_client *c)
 		   t->type, tuners[t->type].name);
 	strlcpy(c->name, tuners[t->type].name, sizeof(c->name));
 
-	t->set_tv_freq = default_set_tv_freq;
-	t->set_radio_freq = default_set_radio_freq;
-	t->has_signal = tuner_signal;
-	t->is_stereo = tuner_stereo;
-	t->standby = NULL;
+	t->ops.set_tv_freq = default_set_tv_freq;
+	t->ops.set_radio_freq = default_set_radio_freq;
+	t->ops.has_signal = tuner_signal;
+	t->ops.is_stereo = tuner_stereo;
+	t->ops.standby = NULL;
 
 	return 0;
 }

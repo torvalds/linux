@@ -350,11 +350,11 @@ int tea5767_tuner_init(struct i2c_client *c)
 	tuner_info("type set to %d (%s)\n", t->type, "Philips TEA5767HN FM Radio");
 	strlcpy(c->name, "tea5767", sizeof(c->name));
 
-	t->set_tv_freq = set_tv_freq;
-	t->set_radio_freq = set_radio_freq;
-	t->has_signal = tea5767_signal;
-	t->is_stereo = tea5767_stereo;
-	t->standby = tea5767_standby;
+	t->ops.set_tv_freq = set_tv_freq;
+	t->ops.set_radio_freq = set_radio_freq;
+	t->ops.has_signal = tea5767_signal;
+	t->ops.is_stereo = tea5767_stereo;
+	t->ops.standby = tea5767_standby;
 
 	return (0);
 }

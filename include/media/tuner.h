@@ -183,6 +183,17 @@ struct tuner_setup {
 	int (*tuner_callback) (void *dev, int command,int arg);
 };
 
+struct tuner_operations {
+	void (*set_tv_freq)(struct i2c_client *c, unsigned int freq);
+	void (*set_radio_freq)(struct i2c_client *c, unsigned int freq);
+	int  (*has_signal)(struct i2c_client *c);
+	int  (*is_stereo)(struct i2c_client *c);
+	int  (*get_afc)(struct i2c_client *c);
+	void (*tuner_status)(struct i2c_client *c);
+	void (*standby)(struct i2c_client *c);
+	void (*release)(struct i2c_client *c);
+};
+
 struct tuner {
 	/* device */
 	struct i2c_client i2c;
@@ -207,15 +218,7 @@ struct tuner {
 	unsigned int config;
 	int (*tuner_callback) (void *dev, int command,int arg);
 
-	/* function ptrs */
-	void (*set_tv_freq)(struct i2c_client *c, unsigned int freq);
-	void (*set_radio_freq)(struct i2c_client *c, unsigned int freq);
-	int  (*has_signal)(struct i2c_client *c);
-	int  (*is_stereo)(struct i2c_client *c);
-	int  (*get_afc)(struct i2c_client *c);
-	void (*tuner_status)(struct i2c_client *c);
-	void (*standby)(struct i2c_client *c);
-	void (*release)(struct i2c_client *c);
+	struct tuner_operations ops;
 };
 
 extern unsigned const int tuner_count;
