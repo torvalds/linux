@@ -894,6 +894,16 @@ choice
 	prompt "CPU type"
 	default CPU_R4X00
 
+config CPU_LOONGSON2
+	bool "Loongson 2"
+	depends on SYS_HAS_CPU_LOONGSON2
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
+	help
+	  The Loongson 2E processor implements the MIPS III instruction set
+	  with many extensions.
+
 config CPU_MIPS32_R1
 	bool "MIPS32 Release 1"
 	depends on SYS_HAS_CPU_MIPS32_R1
@@ -1103,6 +1113,9 @@ config CPU_SB1
 	select WEAK_ORDERING
 
 endchoice
+
+config SYS_HAS_CPU_LOONGSON2
+	bool
 
 config SYS_HAS_CPU_MIPS32_R1
 	bool
@@ -1437,6 +1450,15 @@ config CPU_HAS_SMARTMIPS
 
 config CPU_HAS_WB
 	bool
+
+config 64BIT_CONTEXT
+	bool "Save 64bit integer registers"
+	depends on 32BIT && CPU_LOONGSON2
+	help
+	  Loongson2 CPU is 64bit , when used in 32BIT mode, its integer
+	  registers can still be accessed as 64bit, mainly for multimedia
+	  instructions. We must have all 64bit save/restored to make sure
+	  those instructions to get correct result.
 
 #
 # Vectored interrupt mode is an R2 feature
