@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/serial.h>
 #include <linux/mm.h>
+#include <asm/mmzone.h>
 #include <asm/sci.h>
 
 static struct plat_sci_port sci_platform_data[] = {
