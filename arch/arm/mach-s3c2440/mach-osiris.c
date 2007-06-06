@@ -16,6 +16,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/sysdev.h>
 #include <linux/serial_core.h>
 
 #include <asm/mach/arch.h>
@@ -245,6 +246,40 @@ static struct platform_device osiris_pcmcia = {
 	.resource	= osiris_pcmcia_resource,
 };
 
+/* Osiris power management device */
+
+#ifdef CONFIG_PM
+static unsigned char pm_osiris_ctrl0;
+
+static int osiris_pm_suspend(struct sys_device *sd, pm_message_t state)
+{
+	pm_osiris_ctrl0 = __raw_readb(OSIRIS_VA_CTRL0);
+	return 0;
+}
+
+static int osiris_pm_resume(struct sys_device *sd)
+{
+	if (pm_osiris_ctrl0 & OSIRIS_CTRL0_FIX8)
+		__raw_writeb(OSIRIS_CTRL1_FIX8, OSIRIS_VA_CTRL1);
+
+	return 0;
+}
+
+#else
+#define osiris_pm_suspend NULL
+#define osiris_pm_resume NULL
+#endif
+
+static struct sysdev_class osiris_pm_sysclass = {
+	set_kset_name("mach-osiris"),
+	.suspend	= osiris_pm_suspend,
+	.resume		= osiris_pm_resume,
+};
+
+static struct sys_device osiris_pm_sysdev = {
+	.cls		= &osiris_pm_sysclass,
+};
+
 /* Standard Osiris devices */
 
 static struct platform_device *osiris_devices[] __initdata = {
@@ -299,6 +334,9 @@ static void __init osiris_map_io(void)
 
 static void __init osiris_init(void)
 {
+	sysdev_class_register(&osiris_pm_sysclass);
+	sysdev_register(&osiris_pm_sysdev);
+
 	platform_add_devices(osiris_devices, ARRAY_SIZE(osiris_devices));
 };
 
@@ -310,5 +348,6 @@ MACHINE_START(OSIRIS, "Simtec-OSIRIS")
 	.map_io		= osiris_map_io,
 	.init_machine	= osiris_init,
 	.init_irq	= s3c24xx_init_irq,
+	.init_machine	= osiris_init,
 	.timer		= &s3c24xx_timer,
 MACHINE_END
