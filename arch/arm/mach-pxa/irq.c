@@ -30,12 +30,12 @@
 
 static void pxa_mask_low_irq(unsigned int irq)
 {
-	ICMR &= ~(1 << (irq + PXA_IRQ_SKIP));
+	ICMR &= ~(1 << irq);
 }
 
 static void pxa_unmask_low_irq(unsigned int irq)
 {
-	ICMR |= (1 << (irq + PXA_IRQ_SKIP));
+	ICMR |= (1 << irq);
 }
 
 static int pxa_set_wake(unsigned int irq, unsigned int on)
@@ -75,12 +75,12 @@ static struct irq_chip pxa_internal_chip_low = {
 
 static void pxa_mask_high_irq(unsigned int irq)
 {
-	ICMR2 &= ~(1 << (irq - 32 + PXA_IRQ_SKIP));
+	ICMR2 &= ~(1 << (irq - 32));
 }
 
 static void pxa_unmask_high_irq(unsigned int irq)
 {
-	ICMR2 |= (1 << (irq - 32 + PXA_IRQ_SKIP));
+	ICMR2 |= (1 << (irq - 32));
 }
 
 static struct irq_chip pxa_internal_chip_high = {
@@ -351,7 +351,7 @@ void __init pxa_init_irq(void)
 	/* GPIO 0 and 1 must have their mask bit always set */
 	GPIO_IRQ_mask[0] = 3;
 
-	for (irq = PXA_IRQ(PXA_IRQ_SKIP); irq <= PXA_IRQ(31); irq++) {
+	for (irq = PXA_IRQ(0); irq <= PXA_IRQ(31); irq++) {
 		set_irq_chip(irq, &pxa_internal_chip_low);
 		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);

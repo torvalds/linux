@@ -34,6 +34,6 @@
 		rsb	\irqstat, \irqnr, #0
 		and	\irqstat, \irqstat, \irqnr
 		clz	\irqnr, \irqstat
-		rsb	\irqnr, \irqnr, #(31 - PXA_IRQ_SKIP)
+		rsb	\irqnr, \irqnr, #31
 1001:
 		.endm

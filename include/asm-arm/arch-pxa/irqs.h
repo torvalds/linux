@@ -11,14 +11,9 @@
  */
 
 
+#define PXA_IRQ(x)	(x)
+
 #ifdef CONFIG_PXA27x
-#define PXA_IRQ_SKIP	0
-#else
-#define PXA_IRQ_SKIP	7
-#endif
-
-#define PXA_IRQ(x)	((x) - PXA_IRQ_SKIP)
-
 #define IRQ_SSP3	PXA_IRQ(0)	/* SSP3 service request */
 #define IRQ_MSL		PXA_IRQ(1)	/* MSL Interface interrupt */
 #define IRQ_USBH2	PXA_IRQ(2)	/* USB Host interrupt 1 (OHCI) */
@@ -26,6 +21,8 @@
 #define IRQ_KEYPAD	PXA_IRQ(4)	/* Key pad controller */
 #define IRQ_MEMSTK	PXA_IRQ(5)	/* Memory Stick interrupt */
 #define IRQ_PWRI2C	PXA_IRQ(6)	/* Power I2C interrupt */
+#endif
+
 #define IRQ_HWUART	PXA_IRQ(7)	/* HWUART Transmit/Receive/Error (PXA26x) */
 #define IRQ_OST_4_11	PXA_IRQ(7)	/* OS timer 4-11 matches (PXA27x) */
 #define	IRQ_GPIO0	PXA_IRQ(8)	/* GPIO0 Edge Detect */
