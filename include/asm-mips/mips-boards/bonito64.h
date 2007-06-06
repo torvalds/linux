@@ -26,7 +26,12 @@
 /* offsets from base register */
 #define BONITO(x)	(x)
 
-#else /* !__ASSEMBLY__ */
+#elif defined(CONFIG_LEMOTE_FULONG)
+
+#define BONITO(x) (*(volatile u32 *)((char *)CKSEG1ADDR(BONITO_REG_BASE) + (x)))
+#define BONITO_IRQ_BASE   32
+
+#else
 
 /*
  * Algorithmics Bonito64 system controller register base.
