@@ -1,7 +1,7 @@
 /*
  * SH7722 Setup
  *
- *  Copyright (C) 2006  Paul Mundt
+ *  Copyright (C) 2006 - 2007  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -10,6 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/serial.h>
+#include <linux/mm.h>
 #include <asm/sci.h>
 
 static struct plat_sci_port sci_platform_data[] = {
@@ -77,4 +78,10 @@ unsigned int map_ipridx_to_addr(int idx)
 void __init init_IRQ_ipr(void)
 {
 	make_ipr_irq(sh7722_ipr_map, ARRAY_SIZE(sh7722_ipr_map));
+}
+
+void __init plat_mem_setup(void)
+{
+	/* Register the URAM space as Node 1 */
+	setup_bootmem_node(1, 0x055f0000, 0x05610000);
 }
