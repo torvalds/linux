@@ -219,6 +219,13 @@ int tea5761_autodetection(struct i2c_client *c)
 	return 0;
 }
 
+static struct tuner_operations tea5761_tuner_ops = {
+	.set_tv_freq    = set_tv_freq,
+	.set_radio_freq = set_radio_freq,
+	.has_signal     = tea5761_signal,
+	.is_stereo      = tea5761_stereo,
+};
+
 int tea5761_tuner_init(struct i2c_client *c)
 {
 	struct tuner *t = i2c_get_clientdata(c);
@@ -229,10 +236,7 @@ int tea5761_tuner_init(struct i2c_client *c)
 	tuner_info("type set to %d (%s)\n", t->type, "Philips TEA5761HN FM Radio");
 	strlcpy(c->name, "tea5761", sizeof(c->name));
 
-	t->ops.set_tv_freq = set_tv_freq;
-	t->ops.set_radio_freq = set_radio_freq;
-	t->ops.has_signal = tea5761_signal;
-	t->ops.is_stereo = tea5761_stereo;
+	memcpy(&t->ops, &tea5761_tuner_ops, sizeof(struct tuner_operations));
 
 	return (0);
 }
