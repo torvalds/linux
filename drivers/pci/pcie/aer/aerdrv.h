@@ -19,10 +19,6 @@
 #define AER_ERROR_MASK			0x001fffff
 #define AER_ERROR(d)			(d & AER_ERROR_MASK)
 
-#define OSC_METHOD_RUN_SUCCESS		0
-#define OSC_METHOD_NOT_SUPPORTED	1
-#define OSC_METHOD_RUN_FAILURE		2
-
 /* Root Error Status Register Bits */
 #define ROOT_ERR_STATUS_MASKS			0x0f
 
@@ -121,6 +117,14 @@ extern void aer_delete_rootport(struct aer_rpc *rpc);
 extern int aer_init(struct pcie_device *dev);
 extern void aer_isr(struct work_struct *work);
 extern void aer_print_error(struct pci_dev *dev, struct aer_err_info *info);
-extern int aer_osc_setup(struct pci_dev *dev);
+
+#ifdef CONFIG_ACPI
+extern int aer_osc_setup(struct pcie_device *pciedev);
+#else
+static inline int aer_osc_setup(struct pcie_device *pciedev)
+{
+	return 0;
+}
+#endif
 
 #endif //_AERDRV_H_

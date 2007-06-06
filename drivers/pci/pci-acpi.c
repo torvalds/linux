@@ -55,8 +55,6 @@ acpi_query_osc (
 
 	status = acpi_evaluate_object(handle, "_OSC", &input, &output);
 	if (ACPI_FAILURE (status)) {
-		printk(KERN_DEBUG  
-			"Evaluate _OSC Set fails. Status = 0x%04x\n", status);
 		*ret_status = status;
 		return status;
 	}
@@ -124,11 +122,9 @@ acpi_run_osc (
 	in_params[3].buffer.pointer 	= (u8 *)context;
 
 	status = acpi_evaluate_object(handle, "_OSC", &input, &output);
-	if (ACPI_FAILURE (status)) {
-		printk(KERN_DEBUG  
-			"Evaluate _OSC Set fails. Status = 0x%04x\n", status);
+	if (ACPI_FAILURE (status))
 		return status;
-	}
+
 	out_obj = output.pointer;
 	if (out_obj->type != ACPI_TYPE_BUFFER) {
 		printk(KERN_DEBUG  

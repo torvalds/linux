@@ -4,7 +4,7 @@
 
 config PCIEAER
 	boolean "Root Port Advanced Error Reporting support"
-	depends on PCIEPORTBUS && ACPI
+	depends on PCIEPORTBUS
 	default y
 	help
 	  This enables PCI Express Root Port Advanced Error Reporting
