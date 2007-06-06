@@ -18,6 +18,7 @@ config MPC8560_ADS
 config MPC85xx_CDS
 	bool "Freescale MPC85xx CDS"
 	select DEFAULT_UIMAGE
+	select PPC_I8259
 	help
 	  This option enables support for the MPC85xx CDS board
 

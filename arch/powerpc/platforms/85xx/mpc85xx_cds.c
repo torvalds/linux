@@ -24,6 +24,7 @@
 #include <linux/seq_file.h>
 #include <linux/initrd.h>
 #include <linux/module.h>
+#include <linux/interrupt.h>
 #include <linux/fsl_devices.h>
 
 #include <asm/system.h>
@@ -119,16 +120,30 @@ DECLARE_PCI_FIXUP_EARLY(0x3fff, 0x1957, skip_fake_bridge);
 DECLARE_PCI_FIXUP_EARLY(0xff3f, 0x5719, skip_fake_bridge);
 
 #ifdef CONFIG_PPC_I8259
-#warning The i8259 PIC support is currently broken
-static void mpc85xx_8259_cascade(unsigned int irq, struct irq_desc *desc)
+static void mpc85xx_8259_cascade_handler(unsigned int irq,
+					 struct irq_desc *desc)
 {
 	unsigned int cascade_irq = i8259_irq();
 
 	if (cascade_irq != NO_IRQ)
+		/* handle an interrupt from the 8259 */
 		generic_handle_irq(cascade_irq);
 
-	desc->chip->eoi(irq);
+	/* check for any interrupts from the shared IRQ line */
+	handle_fasteoi_irq(irq, desc);
 }
+
+static irqreturn_t mpc85xx_8259_cascade_action(int irq, void *dev_id)
+{
+	return IRQ_HANDLED;
+}
+
+static struct irqaction mpc85xxcds_8259_irqaction = {
+	.handler = mpc85xx_8259_cascade_action,
+	.flags = IRQF_SHARED,
+	.mask = CPU_MASK_NONE,
+	.name = "8259 cascade",
+};
 #endif /* PPC_I8259 */
 #endif /* CONFIG_PCI */
 
@@ -137,7 +152,7 @@ static void __init mpc85xx_cds_pic_init(void)
 	struct mpic *mpic;
 	struct resource r;
 	struct device_node *np = NULL;
-#ifdef CONFIG_PPC_I8259
+#if defined(CONFIG_PPC_I8259) && defined(CONFIG_PCI)
 	struct device_node *cascade_node = NULL;
 	int cascade_irq;
 #endif
@@ -165,7 +180,7 @@ static void __init mpc85xx_cds_pic_init(void)
 
 	mpic_init(mpic);
 
-#ifdef CONFIG_PPC_I8259
+#if defined(CONFIG_PPC_I8259) && defined(CONFIG_PCI)
 	/* Initialize the i8259 controller */
 	for_each_node_by_type(np, "interrupt-controller")
 		if (of_device_is_compatible(np, "chrp,iic")) {
@@ -187,7 +202,17 @@ static void __init mpc85xx_cds_pic_init(void)
 	i8259_init(cascade_node, 0);
 	of_node_put(cascade_node);
 
-	set_irq_chained_handler(cascade_irq, mpc85xx_8259_cascade);
+	/*
+	 *  Hook the interrupt to make sure desc->action is never NULL.
+	 *  This is required to ensure that the interrupt does not get
+	 *  disabled when the last user of the shared IRQ line frees their
+	 *  interrupt.
+	 */
+	if (setup_irq(cascade_irq, &mpc85xxcds_8259_irqaction))
+		printk(KERN_ERR "Failed to setup cascade interrupt\n");
+	else
+		/* Success. Connect our low-level cascade handler. */
+		set_irq_handler(cascade_irq, mpc85xx_8259_cascade_handler);
 #endif /* CONFIG_PPC_I8259 */
 }
 
