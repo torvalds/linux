@@ -347,35 +347,19 @@ static struct irq_chip pxa_muxed_gpio_chip = {
 	.set_wake	= pxa_set_gpio_wake,
 };
 
-void __init pxa_init_irq(void)
+void __init pxa_init_irq_gpio(int gpio_nr)
 {
-	int irq;
+	int irq, i;
 
 	/* clear all GPIO edge detects */
-	GFER0 = 0;
-	GFER1 = 0;
-	GFER2 = 0;
-	GRER0 = 0;
-	GRER1 = 0;
-	GRER2 = 0;
-	GEDR0 = GEDR0;
-	GEDR1 = GEDR1;
-	GEDR2 = GEDR2;
-
-#ifdef CONFIG_PXA27x
-	/* And similarly for the extra regs on the PXA27x */
-	GFER3 = 0;
-	GRER3 = 0;
-	GEDR3 = GEDR3;
-#endif
+	for (i = 0; i < gpio_nr; i += 32) {
+		GFER(i) = 0;
+		GRER(i) = 0;
+		GEDR(i) = GEDR(i);
+	}
 
 	/* GPIO 0 and 1 must have their mask bit always set */
 	GPIO_IRQ_mask[0] = 3;
-
-	pxa_init_irq_low();
-#ifdef CONFIG_PXA27x
-	pxa_init_irq_high();
-#endif
 
 	for (irq = IRQ_GPIO0; irq <= IRQ_GPIO1; irq++) {
 		set_irq_chip(irq, &pxa_low_gpio_chip);
@@ -383,7 +367,7 @@ void __init pxa_init_irq(void)
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
-	for (irq = IRQ_GPIO(2); irq <= IRQ_GPIO(PXA_LAST_GPIO); irq++) {
+	for (irq = IRQ_GPIO(2); irq <= IRQ_GPIO(gpio_nr); irq++) {
 		set_irq_chip(irq, &pxa_muxed_gpio_chip);
 		set_irq_handler(irq, handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
@@ -392,4 +376,13 @@ void __init pxa_init_irq(void)
 	/* Install handler for GPIO>=2 edge detect interrupts */
 	set_irq_chip(IRQ_GPIO_2_x, &pxa_internal_chip_low);
 	set_irq_chained_handler(IRQ_GPIO_2_x, pxa_gpio_demux_handler);
+}
+
+void __init pxa_init_irq(void)
+{
+	pxa_init_irq_low();
+#ifdef CONFIG_PXA27x
+	pxa_init_irq_high();
+#endif
+	pxa_init_irq_gpio(PXA_LAST_GPIO + 1);
 }
