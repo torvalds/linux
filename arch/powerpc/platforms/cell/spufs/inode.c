@@ -177,7 +177,7 @@ static int spufs_rmdir(struct inode *parent, struct dentry *dir)
 static int spufs_fill_dir(struct dentry *dir, struct tree_descr *files,
 			  int mode, struct spu_context *ctx)
 {
-	struct dentry *dentry;
+	struct dentry *dentry, *tmp;
 	int ret;
 
 	while (files->name && files->name[0]) {
@@ -193,7 +193,20 @@ static int spufs_fill_dir(struct dentry *dir, struct tree_descr *files,
 	}
 	return 0;
 out:
-	spufs_prune_dir(dir);
+	/*
+	 * remove all children from dir. dir->inode is not set so don't
+	 * just simply use spufs_prune_dir() and panic afterwards :)
+	 * dput() looks like it will do the right thing:
+	 * - dec parent's ref counter
+	 * - remove child from parent's child list
+	 * - free child's inode if possible
+	 * - free child
+	 */
+	list_for_each_entry_safe(dentry, tmp, &dir->d_subdirs, d_u.d_child) {
+		dput(dentry);
+	}
+
+	shrink_dcache_parent(dir);
 	return ret;
 }
 
