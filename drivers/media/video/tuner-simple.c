@@ -479,6 +479,13 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 		tuner_warn("i2c i/o error: rc == %d (should be 4)\n",rc);
 }
 
+static struct tuner_operations simple_tuner_ops = {
+	.set_tv_freq    = default_set_tv_freq,
+	.set_radio_freq = default_set_radio_freq,
+	.has_signal     = tuner_signal,
+	.is_stereo      = tuner_stereo,
+};
+
 int default_tuner_init(struct i2c_client *c)
 {
 	struct tuner *t = i2c_get_clientdata(c);
@@ -487,11 +494,7 @@ int default_tuner_init(struct i2c_client *c)
 		   t->type, tuners[t->type].name);
 	strlcpy(c->name, tuners[t->type].name, sizeof(c->name));
 
-	t->ops.set_tv_freq = default_set_tv_freq;
-	t->ops.set_radio_freq = default_set_radio_freq;
-	t->ops.has_signal = tuner_signal;
-	t->ops.is_stereo = tuner_stereo;
-	t->ops.standby = NULL;
+	memcpy(&t->ops, &simple_tuner_ops, sizeof(struct tuner_operations));
 
 	return 0;
 }
