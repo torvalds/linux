@@ -250,7 +250,7 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
 	do {
 		loop = 0;
 
-		mask = GEDR0 & ~3;
+		mask = GEDR0 & GPIO_IRQ_mask[0] & ~3;
 		if (mask) {
 			GEDR0 = mask;
 			irq = IRQ_GPIO(2);
@@ -266,7 +266,7 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
 			loop = 1;
 		}
 
-		mask = GEDR1;
+		mask = GEDR1 & GPIO_IRQ_mask[1];
 		if (mask) {
 			GEDR1 = mask;
 			irq = IRQ_GPIO(32);
@@ -281,7 +281,7 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
 			loop = 1;
 		}
 
-		mask = GEDR2;
+		mask = GEDR2 & GPIO_IRQ_mask[2];
 		if (mask) {
 			GEDR2 = mask;
 			irq = IRQ_GPIO(64);
@@ -296,8 +296,7 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
 			loop = 1;
 		}
 
-#if PXA_LAST_GPIO >= 96
-		mask = GEDR3;
+		mask = GEDR3 & GPIO_IRQ_mask[3];
 		if (mask) {
 			GEDR3 = mask;
 			irq = IRQ_GPIO(96);
@@ -311,7 +310,6 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
 			} while (mask);
 			loop = 1;
 		}
-#endif
 	} while (loop);
 }
 
