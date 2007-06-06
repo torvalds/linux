@@ -63,9 +63,9 @@
  *
  *   On-disk:
  *
- *     FEALISTs are stored on disk using blocks allocated by dbAlloc() and
- *     written directly. An EA list may be in-lined in the inode if there is
- *     sufficient room available.
+ *	FEALISTs are stored on disk using blocks allocated by dbAlloc() and
+ *	written directly. An EA list may be in-lined in the inode if there is
+ *	sufficient room available.
  */
 
 struct ea_buffer {
