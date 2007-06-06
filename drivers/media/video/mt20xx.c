@@ -42,6 +42,14 @@ struct microtune_priv {
 	unsigned int radio_if2;
 };
 
+static void microtune_release(struct i2c_client *c)
+{
+	struct tuner *t = i2c_get_clientdata(c);
+
+	kfree(t->priv);
+	t->priv = NULL;
+}
+
 // IsSpurInBand()?
 static int mt2032_spurcheck(struct i2c_client *c,
 			    int f1, int f2, int spectrum_from,int spectrum_to)
@@ -308,6 +316,12 @@ static void mt2032_set_radio_freq(struct i2c_client *c, unsigned int freq)
 			      1085*1000*1000,if2,if2,if2);
 }
 
+static struct tuner_operations mt2032_tuner_ops = {
+	.set_tv_freq    = mt2032_set_tv_freq,
+	.set_radio_freq = mt2032_set_radio_freq,
+	.release        = microtune_release,
+};
+
 // Initalization as described in "MT203x Programming Procedures", Rev 1.2, Feb.2001
 static int mt2032_init(struct i2c_client *c)
 {
@@ -361,8 +375,8 @@ static int mt2032_init(struct i2c_client *c)
 	} while (xok != 1 );
 	priv->xogc=xogc;
 
-	t->ops.set_tv_freq    = mt2032_set_tv_freq;
-	t->ops.set_radio_freq = mt2032_set_radio_freq;
+	memcpy(&t->ops, &mt2032_tuner_ops, sizeof(struct tuner_operations));
+
 	return(1);
 }
 
@@ -471,6 +485,12 @@ static void mt2050_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	mt2050_set_antenna(c, radio_antenna);
 }
 
+static struct tuner_operations mt2050_tuner_ops = {
+	.set_tv_freq    = mt2050_set_tv_freq,
+	.set_radio_freq = mt2050_set_radio_freq,
+	.release        = microtune_release,
+};
+
 static int mt2050_init(struct i2c_client *c)
 {
 	struct tuner *t = i2c_get_clientdata(c);
@@ -490,17 +510,10 @@ static int mt2050_init(struct i2c_client *c)
 	i2c_master_recv(c,buf,1);
 
 	tuner_dbg("mt2050: sro is %x\n",buf[0]);
-	t->ops.set_tv_freq    = mt2050_set_tv_freq;
-	t->ops.set_radio_freq = mt2050_set_radio_freq;
+
+	memcpy(&t->ops, &mt2050_tuner_ops, sizeof(struct tuner_operations));
+
 	return 0;
-}
-
-static void microtune_release(struct i2c_client *c)
-{
-	struct tuner *t = i2c_get_clientdata(c);
-
-	kfree(t->priv);
-	t->priv = NULL;
 }
 
 int microtune_init(struct i2c_client *c)
@@ -519,10 +532,7 @@ int microtune_init(struct i2c_client *c)
 	priv->radio_if2 = 10700 * 1000;	/* 10.7MHz - FM radio */
 
 	memset(buf,0,sizeof(buf));
-	t->ops.set_tv_freq    = NULL;
-	t->ops.set_radio_freq = NULL;
-	t->ops.standby    = NULL;
-	t->ops.release        = microtune_release;
+
 	if (t->std & V4L2_STD_525_60) {
 		tuner_dbg("pinnacle ntsc\n");
 		priv->radio_if2 = 41300 * 1000;
