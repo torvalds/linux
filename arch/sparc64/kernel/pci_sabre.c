@@ -636,13 +636,18 @@ static void apb_init(struct pci_bus *sabre_bus)
 static void sabre_scan_bus(struct pci_pbm_info *pbm)
 {
 	static int once;
-	struct pci_bus *pbus;
 
 	/* The APB bridge speaks to the Sabre host PCI bridge
 	 * at 66Mhz, but the front side of APB runs at 33Mhz
 	 * for both segments.
+	 *
+	 * Hummingbird systems do not use APB, so they run
+	 * at 66MHZ.
 	 */
-	pbm->is_66mhz_capable = 0;
+	if (hummingbird_p)
+		pbm->is_66mhz_capable = 1;
+	else
+		pbm->is_66mhz_capable = 0;
 
 	/* This driver has not been verified to handle
 	 * multiple SABREs yet, so trap this.
@@ -656,13 +661,13 @@ static void sabre_scan_bus(struct pci_pbm_info *pbm)
 	}
 	once++;
 
-	pbus = pci_scan_one_pbm(pbm);
-	if (!pbus)
+	pbm->pci_bus = pci_scan_one_pbm(pbm);
+	if (!pbm->pci_bus)
 		return;
 
-	sabre_root_bus = pbus;
+	sabre_root_bus = pbm->pci_bus;
 
-	apb_init(pbus);
+	apb_init(pbm->pci_bus);
 
 	sabre_register_error_handlers(pbm);
 }
