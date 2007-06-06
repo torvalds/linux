@@ -444,6 +444,11 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 		set_bit(LSFL_TIMEWARN, &ls->ls_flags);
 	ls->ls_exflags = (flags & ~DLM_LSFL_TIMEWARN);
 
+	if (flags & DLM_LSFL_FS)
+		ls->ls_allocation = GFP_NOFS;
+	else
+		ls->ls_allocation = GFP_KERNEL;
+
 	size = dlm_config.ci_rsbtbl_size;
 	ls->ls_rsbtbl_size = size;
 

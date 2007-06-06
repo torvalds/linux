@@ -206,6 +206,7 @@ struct dlm_lksb {
 
 #define DLM_LSFL_NODIR		0x00000001
 #define DLM_LSFL_TIMEWARN	0x00000002
+#define DLM_LSFL_FS     	0x00000004
 
 #ifdef __KERNEL__
 
