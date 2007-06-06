@@ -249,6 +249,7 @@ static struct platform_device osiris_pcmcia = {
 
 static struct platform_device *osiris_devices[] __initdata = {
 	&s3c_device_i2c,
+	&s3c_device_wdt,
 	&s3c_device_nand,
 	&osiris_pcmcia,
 };
