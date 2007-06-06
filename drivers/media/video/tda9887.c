@@ -599,6 +599,15 @@ static void tda9887_release(struct i2c_client *c)
 	t->priv = NULL;
 }
 
+static struct tuner_operations tda9887_tuner_ops = {
+	.set_tv_freq    = tda9887_set_freq,
+	.set_radio_freq = tda9887_set_freq,
+	.standby        = tda9887_standby,
+	.tuner_status   = tda9887_tuner_status,
+	.get_afc        = tda9887_get_afc,
+	.release        = tda9887_release,
+};
+
 int tda9887_tuner_init(struct i2c_client *c)
 {
 	struct tda9887_priv *priv = NULL;
@@ -614,12 +623,7 @@ int tda9887_tuner_init(struct i2c_client *c)
 	tda9887_info("tda988[5/6/7] found @ 0x%x (%s)\n", t->i2c.addr,
 						t->i2c.driver->driver.name);
 
-	t->ops.set_tv_freq = tda9887_set_freq;
-	t->ops.set_radio_freq = tda9887_set_freq;
-	t->ops.standby = tda9887_standby;
-	t->ops.tuner_status = tda9887_tuner_status;
-	t->ops.get_afc = tda9887_get_afc;
-	t->ops.release = tda9887_release;
+	memcpy(&t->ops, &tda9887_tuner_ops, sizeof(struct tuner_operations));
 
 	return 0;
 }
