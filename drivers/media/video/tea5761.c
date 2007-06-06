@@ -11,7 +11,6 @@
 #include <linux/videodev.h>
 #include <linux/delay.h>
 #include <media/tuner.h>
-#include <media/tuner.h>
 
 #define PREFIX "TEA5761 "
 
