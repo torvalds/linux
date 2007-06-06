@@ -76,8 +76,7 @@ const struct {
 #endif
 };
 
-#define AU1XMMC_CONTROLLER_COUNT \
-	(sizeof(au1xmmc_card_table) / sizeof(au1xmmc_card_table[0]))
+#define AU1XMMC_CONTROLLER_COUNT (ARRAY_SIZE(au1xmmc_card_table))
 
 /* This array stores pointers for the hosts (used by the IRQ handler) */
 struct au1xmmc_host *au1xmmc_hosts[AU1XMMC_CONTROLLER_COUNT];
