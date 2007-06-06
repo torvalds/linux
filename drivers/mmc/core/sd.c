@@ -402,7 +402,7 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	/*
 	 * Switch to wider bus (if supported).
 	 */
-	if ((host->caps && MMC_CAP_4_BIT_DATA) &&
+	if ((host->caps & MMC_CAP_4_BIT_DATA) &&
 		(card->scr.bus_widths & SD_SCR_BUS_WIDTH_4)) {
 		err = mmc_app_set_bus_width(card, MMC_BUS_WIDTH_4);
 		if (err != MMC_ERR_NONE)
