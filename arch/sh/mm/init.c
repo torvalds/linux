@@ -18,6 +18,7 @@
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
 #include <asm/cacheflush.h>
+#include <asm/sections.h>
 #include <asm/cache.h>
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
@@ -131,11 +132,6 @@ void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 	set_pte_phys(address, phys, prot);
 }
 #endif	/* CONFIG_MMU */
-
-/* References to section boundaries */
-
-extern char _text, _etext, _edata, __bss_start, _end;
-extern char __init_begin, __init_end;
 
 /*
  * paging_init() sets up the page tables
@@ -251,8 +247,9 @@ void free_initmem(void)
 		free_page(addr);
 		totalram_pages++;
 	}
-	printk("Freeing unused kernel memory: %dk freed\n",
-	       (&__init_end - &__init_begin) >> 10);
+	printk("Freeing unused kernel memory: %ldk freed\n",
+	       ((unsigned long)&__init_end -
+	        (unsigned long)&__init_begin) >> 10);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
