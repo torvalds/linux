@@ -762,11 +762,6 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 		optpar |= MLX4_QP_OPTPAR_PKEY_INDEX;
 	}
 
-	if (attr_mask & IB_QP_RNR_RETRY) {
-		context->params1 |= cpu_to_be32(attr->rnr_retry << 13);
-		optpar |= MLX4_QP_OPTPAR_RNR_RETRY;
-	}
-
 	if (attr_mask & IB_QP_AV) {
 		if (mlx4_set_path(dev, &attr->ah_attr, &context->pri_path,
 				  attr_mask & IB_QP_PORT ? attr->port_num : qp->port)) {
@@ -802,6 +797,12 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 
 	context->pd	    = cpu_to_be32(to_mpd(ibqp->pd)->pdn);
 	context->params1    = cpu_to_be32(MLX4_IB_ACK_REQ_FREQ << 28);
+
+	if (attr_mask & IB_QP_RNR_RETRY) {
+		context->params1 |= cpu_to_be32(attr->rnr_retry << 13);
+		optpar |= MLX4_QP_OPTPAR_RNR_RETRY;
+	}
+
 	if (attr_mask & IB_QP_RETRY_CNT) {
 		context->params1 |= cpu_to_be32(attr->retry_cnt << 16);
 		optpar |= MLX4_QP_OPTPAR_RETRY_COUNT;
