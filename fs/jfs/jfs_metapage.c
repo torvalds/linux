@@ -472,7 +472,8 @@ add_failed:
 	printk(KERN_ERR "JFS: bio_add_page failed unexpectedly\n");
 	goto skip;
 dump_bio:
-	dump_mem("bio", bio, sizeof(*bio));
+	printk(KERN_ERR "JFS: dump of bio:\n");
+	print_hex_dump(KERN_ERR, DUMP_PREFIX_ADDRESS, bio, sizeof(*bio));
 skip:
 	bio_put(bio);
 	unlock_page(page);

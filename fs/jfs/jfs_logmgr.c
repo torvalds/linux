@@ -1622,16 +1622,22 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 	if (!list_empty(&log->synclist)) {
 		struct logsyncblk *lp;
 
+		printk(KERN_ERR "jfs_flush_journal: synclist not empty\n");
 		list_for_each_entry(lp, &log->synclist, synclist) {
 			if (lp->xflag & COMMIT_PAGE) {
 				struct metapage *mp = (struct metapage *)lp;
-				dump_mem("orphan metapage", lp,
-					 sizeof(struct metapage));
-				dump_mem("page", mp->page, sizeof(struct page));
+				printk (KERN_ERR "orphan metapage:\n");
+				print_hex_dump(KERN_ERR, DUMP_PREFIX_ADDRESS,
+					       lp, sizeof(struct metapage));
+				printk (KERN_ERR "page:\n");
+				print_hex_dump(KERN_ERR, DUMP_PREFIX_ADDRESS,
+					       mp->page, sizeof(struct page));
 			}
-			else
-				dump_mem("orphan tblock", lp,
-					 sizeof(struct tblock));
+			else {
+				printk (KERN_ERR "orphan tblock:\n");
+				print_hex_dump(KERN_ERR, DUMP_PREFIX_ADDRESS,
+					       lp, sizeof(struct tblock));
+			}
 		}
 	}
 #endif

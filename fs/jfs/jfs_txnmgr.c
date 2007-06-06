@@ -829,12 +829,17 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 	/* Only locks on ipimap or ipaimap should reach here */
 	/* assert(jfs_ip->fileset == AGGREGATE_I); */
 	if (jfs_ip->fileset != AGGREGATE_I) {
-		jfs_err("txLock: trying to lock locked page!");
-		dump_mem("ip", ip, sizeof(struct inode));
-		dump_mem("mp", mp, sizeof(struct metapage));
-		dump_mem("Locker's tblk", tid_to_tblock(tid),
-			 sizeof(struct tblock));
-		dump_mem("Tlock", tlck, sizeof(struct tlock));
+		printk(KERN_ERR "txLock: trying to lock locked page!");
+		printk(KERN_ERR "ip:\n");
+		print_hex_dump(KERN_ERR, DUMP_PREFIX_ADDRESS, ip, sizeof(*ip));
+		printk(KERN_ERR "mp:\n");
+		print_hex_dump(KERN_ERR, DUMP_PREFIX_ADDRESS, mp, sizeof(*mp));
+		printk(KERN_ERR "Locker's tblk:\n");
+		print_hex_dump(KERN_ERR, DUMP_PREFIX_ADDRESS,
+			       tid_to_tblock(tid), sizeof(struct tblock));
+		printk(KERN_ERR "Tlock:\n");
+		print_hex_dump(KERN_ERR, DUMP_PREFIX_ADDRESS, tlck,
+			       sizeof(*tlck));
 		BUG();
 	}
 	INCREMENT(stattx.waitlock);	/* statistics */
