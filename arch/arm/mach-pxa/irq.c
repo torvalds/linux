@@ -67,7 +67,7 @@ static struct irq_chip pxa_internal_chip_low = {
 	.set_wake	= pxa_set_wake,
 };
 
-#if PXA_INTERNAL_IRQS > 32
+#ifdef CONFIG_PXA27x
 
 /*
  * This is for the second set of internal IRQs as found on the PXA27x.
@@ -90,6 +90,19 @@ static struct irq_chip pxa_internal_chip_high = {
 	.unmask		= pxa_unmask_high_irq,
 };
 
+void __init pxa_init_irq_high(void)
+{
+	int irq;
+
+	ICMR2 = 0;
+	ICLR2 = 0;
+
+	for (irq = PXA_IRQ(32); irq < PXA_IRQ(64); irq++) {
+		set_irq_chip(irq, &pxa_internal_chip_high);
+		set_irq_handler(irq, handle_level_irq);
+		set_irq_flags(irq, IRQF_VALID);
+	}
+}
 #endif
 
 /* Note that if an input/irq line ever gets changed to an output during
@@ -314,7 +327,6 @@ static struct irq_chip pxa_muxed_gpio_chip = {
 	.set_wake	= pxa_set_gpio_wake,
 };
 
-
 void __init pxa_init_irq(void)
 {
 	int irq;
@@ -338,8 +350,6 @@ void __init pxa_init_irq(void)
 
 #ifdef CONFIG_PXA27x
 	/* And similarly for the extra regs on the PXA27x */
-	ICMR2 = 0;
-	ICLR2 = 0;
 	GFER3 = 0;
 	GRER3 = 0;
 	GEDR3 = GEDR3;
@@ -357,12 +367,8 @@ void __init pxa_init_irq(void)
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
-#if PXA_INTERNAL_IRQS > 32
-	for (irq = PXA_IRQ(32); irq < PXA_IRQ(PXA_INTERNAL_IRQS); irq++) {
-		set_irq_chip(irq, &pxa_internal_chip_high);
-		set_irq_handler(irq, handle_level_irq);
-		set_irq_flags(irq, IRQF_VALID);
-	}
+#ifdef CONFIG_PXA27x
+	pxa_init_irq_high();
 #endif
 
 	for (irq = IRQ_GPIO0; irq <= IRQ_GPIO1; irq++) {
