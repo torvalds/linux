@@ -142,6 +142,7 @@ extern char __init_begin, __init_end;
  */
 void __init paging_init(void)
 {
+	unsigned long max_zone_pfns[MAX_NR_ZONES];
 	int nid;
 
 	/* We don't need to map the kernel through the TLB, as
@@ -153,23 +154,23 @@ void __init paging_init(void)
 	 * check for a null value. */
 	set_TTB(swapper_pg_dir);
 
+	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+
 	for_each_online_node(nid) {
 		pg_data_t *pgdat = NODE_DATA(nid);
-		unsigned long max_zone_pfns[MAX_NR_ZONES];
 		unsigned long low, start_pfn;
-
-		memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 
 		start_pfn = pgdat->bdata->node_boot_start >> PAGE_SHIFT;
 		low = pgdat->bdata->node_low_pfn;
 
-		max_zone_pfns[ZONE_NORMAL] = low;
+		if (max_zone_pfns[ZONE_NORMAL] < low)
+			max_zone_pfns[ZONE_NORMAL] = low;
 
 		printk("Node %u: start_pfn = 0x%lx, low = 0x%lx\n",
 		       nid, start_pfn, low);
-
-		free_area_init_nodes(max_zone_pfns);
 	}
+
+	free_area_init_nodes(max_zone_pfns);
 }
 
 static struct kcore_list kcore_mem, kcore_vmalloc;
@@ -178,6 +179,9 @@ void __init mem_init(void)
 {
 	int codesize, datasize, initsize;
 	int nid;
+
+	num_physpages = 0;
+	high_memory = NULL;
 
 	for_each_online_node(nid) {
 		pg_data_t *pgdat = NODE_DATA(nid);
@@ -191,9 +195,9 @@ void __init mem_init(void)
 
 		totalram_pages += node_pages;
 
-		node_high_memory = (void *)((pgdat->node_start_pfn +
-					     pgdat->node_spanned_pages) <<
-						PAGE_SHIFT);
+		node_high_memory = (void *)__va((pgdat->node_start_pfn +
+						 pgdat->node_spanned_pages) <<
+						 PAGE_SHIFT);
 		if (node_high_memory > high_memory)
 			high_memory = node_high_memory;
 	}
@@ -225,7 +229,7 @@ void __init mem_init(void)
 	printk(KERN_INFO "Memory: %luk/%luk available (%dk kernel code, "
 	       "%dk data, %dk init)\n",
 		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
-		totalram_pages << (PAGE_SHIFT-10),
+		num_physpages << (PAGE_SHIFT-10),
 		codesize >> 10,
 		datasize >> 10,
 		initsize >> 10);
@@ -247,7 +251,8 @@ void free_initmem(void)
 		free_page(addr);
 		totalram_pages++;
 	}
-	printk ("Freeing unused kernel memory: %dk freed\n", (&__init_end - &__init_begin) >> 10);
+	printk("Freeing unused kernel memory: %dk freed\n",
+	       (&__init_end - &__init_begin) >> 10);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -260,6 +265,6 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 		free_page(p);
 		totalram_pages++;
 	}
-	printk ("Freeing initrd memory: %ldk freed\n", (end - start) >> 10);
+	printk("Freeing initrd memory: %ldk freed\n", (end - start) >> 10);
 }
 #endif
