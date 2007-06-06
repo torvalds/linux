@@ -296,7 +296,7 @@ config VSYSCALL
 
 config NUMA
 	bool "Non Uniform Memory Access (NUMA) Support"
-	depends on MMU && EXPERIMENTAL
+	depends on MMU && SPARSEMEM && EXPERIMENTAL
 	default n
 	help
 	  Some SH systems have many various memories scattered around
