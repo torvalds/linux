@@ -29,13 +29,15 @@
 #define IOP13XX_TPMI_MMR(dev) 	IOP13XX_REG_ADDR32_PHYS(0x48000 + (dev << 12))
 #define IOP13XX_TPMI_MEM(dev) 	IOP13XX_REG_ADDR32_PHYS(0x60000 + (dev << 13))
 #define IOP13XX_TPMI_CTRL(dev)	IOP13XX_REG_ADDR32_PHYS(0x50000 + (dev << 10))
+#define IOP13XX_TPMI_IOP_CTRL(dev) (IOP13XX_TPMI_CTRL(dev) + 0x2000)
 #define IOP13XX_TPMI_MMR_SIZE	    (SZ_4K - 1)
 #define IOP13XX_TPMI_MEM_SIZE	    (255)
 #define IOP13XX_TPMI_MEM_CTRL	    (SZ_1K - 1)
 #define IOP13XX_TPMI_RESOURCE_MMR  0
 #define IOP13XX_TPMI_RESOURCE_MEM  1
 #define IOP13XX_TPMI_RESOURCE_CTRL 2
-#define IOP13XX_TPMI_RESOURCE_IRQ  3
+#define IOP13XX_TPMI_RESOURCE_IOP_CTRL 3
+#define IOP13XX_TPMI_RESOURCE_IRQ  4
 
 static struct resource iop13xx_tpmi_0_resources[] = {
 	[IOP13XX_TPMI_RESOURCE_MMR] = {
@@ -51,6 +53,11 @@ static struct resource iop13xx_tpmi_0_resources[] = {
 	[IOP13XX_TPMI_RESOURCE_CTRL] = {
 		.start = IOP13XX_TPMI_CTRL(0),
 		.end = IOP13XX_TPMI_CTRL(0) + IOP13XX_TPMI_MEM_CTRL,
+		.flags = IORESOURCE_MEM,
+	},
+	[IOP13XX_TPMI_RESOURCE_IOP_CTRL] = {
+		.start = IOP13XX_TPMI_IOP_CTRL(0),
+		.end = IOP13XX_TPMI_IOP_CTRL(0) + IOP13XX_TPMI_MEM_CTRL,
 		.flags = IORESOURCE_MEM,
 	},
 	[IOP13XX_TPMI_RESOURCE_IRQ] = {
@@ -76,6 +83,11 @@ static struct resource iop13xx_tpmi_1_resources[] = {
 		.end = IOP13XX_TPMI_CTRL(1) + IOP13XX_TPMI_MEM_CTRL,
 		.flags = IORESOURCE_MEM,
 	},
+	[IOP13XX_TPMI_RESOURCE_IOP_CTRL] = {
+		.start = IOP13XX_TPMI_IOP_CTRL(1),
+		.end = IOP13XX_TPMI_IOP_CTRL(1) + IOP13XX_TPMI_MEM_CTRL,
+		.flags = IORESOURCE_MEM,
+	},
 	[IOP13XX_TPMI_RESOURCE_IRQ] = {
 		.start = IRQ_IOP13XX_TPMI1_OUT,
 		.end = IRQ_IOP13XX_TPMI1_OUT,
@@ -97,6 +109,11 @@ static struct resource iop13xx_tpmi_2_resources[] = {
 	[IOP13XX_TPMI_RESOURCE_CTRL] = {
 		.start = IOP13XX_TPMI_CTRL(2),
 		.end = IOP13XX_TPMI_CTRL(2) + IOP13XX_TPMI_MEM_CTRL,
+		.flags = IORESOURCE_MEM,
+	},
+	[IOP13XX_TPMI_RESOURCE_IOP_CTRL] = {
+		.start = IOP13XX_TPMI_IOP_CTRL(2),
+		.end = IOP13XX_TPMI_IOP_CTRL(2) + IOP13XX_TPMI_MEM_CTRL,
 		.flags = IORESOURCE_MEM,
 	},
 	[IOP13XX_TPMI_RESOURCE_IRQ] = {
@@ -122,6 +139,11 @@ static struct resource iop13xx_tpmi_3_resources[] = {
 		.end = IOP13XX_TPMI_CTRL(3) + IOP13XX_TPMI_MEM_CTRL,
 		.flags = IORESOURCE_MEM,
 	},
+	[IOP13XX_TPMI_RESOURCE_IOP_CTRL] = {
+		.start = IOP13XX_TPMI_IOP_CTRL(3),
+		.end = IOP13XX_TPMI_IOP_CTRL(3) + IOP13XX_TPMI_MEM_CTRL,
+		.flags = IORESOURCE_MEM,
+	},
 	[IOP13XX_TPMI_RESOURCE_IRQ] = {
 		.start = IRQ_IOP13XX_TPMI3_OUT,
 		.end = IRQ_IOP13XX_TPMI3_OUT,
@@ -133,7 +155,7 @@ u64 iop13xx_tpmi_mask = DMA_64BIT_MASK;
 static struct platform_device iop13xx_tpmi_0_device = {
 	.name = "iop-tpmi",
 	.id = 0,
-	.num_resources = 4,
+	.num_resources = ARRAY_SIZE(iop13xx_tpmi_0_resources),
 	.resource = iop13xx_tpmi_0_resources,
 	.dev = {
 		.dma_mask          = &iop13xx_tpmi_mask,
@@ -144,7 +166,7 @@ static struct platform_device iop13xx_tpmi_0_device = {
 static struct platform_device iop13xx_tpmi_1_device = {
 	.name = "iop-tpmi",
 	.id = 1,
-	.num_resources = 4,
+	.num_resources = ARRAY_SIZE(iop13xx_tpmi_1_resources),
 	.resource = iop13xx_tpmi_1_resources,
 	.dev = {
 		.dma_mask          = &iop13xx_tpmi_mask,
@@ -155,7 +177,7 @@ static struct platform_device iop13xx_tpmi_1_device = {
 static struct platform_device iop13xx_tpmi_2_device = {
 	.name = "iop-tpmi",
 	.id = 2,
-	.num_resources = 4,
+	.num_resources = ARRAY_SIZE(iop13xx_tpmi_2_resources),
 	.resource = iop13xx_tpmi_2_resources,
 	.dev = {
 		.dma_mask          = &iop13xx_tpmi_mask,
@@ -166,7 +188,7 @@ static struct platform_device iop13xx_tpmi_2_device = {
 static struct platform_device iop13xx_tpmi_3_device = {
 	.name = "iop-tpmi",
 	.id = 3,
-	.num_resources = 4,
+	.num_resources = ARRAY_SIZE(iop13xx_tpmi_3_resources),
 	.resource = iop13xx_tpmi_3_resources,
 	.dev = {
 		.dma_mask          = &iop13xx_tpmi_mask,
