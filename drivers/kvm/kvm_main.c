@@ -41,6 +41,8 @@
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/sched.h>
+#include <linux/cpumask.h>
+#include <linux/smp.h>
 
 #include "x86_emulate.h"
 #include "segment_descriptor.h"
@@ -307,6 +309,48 @@ static void vcpu_put(struct kvm_vcpu *vcpu)
 {
 	kvm_arch_ops->vcpu_put(vcpu);
 	mutex_unlock(&vcpu->mutex);
+}
+
+static void ack_flush(void *_completed)
+{
+	atomic_t *completed = _completed;
+
+	atomic_inc(completed);
+}
+
+void kvm_flush_remote_tlbs(struct kvm *kvm)
+{
+	int i, cpu, needed;
+	cpumask_t cpus;
+	struct kvm_vcpu *vcpu;
+	atomic_t completed;
+
+	atomic_set(&completed, 0);
+	cpus_clear(cpus);
+	needed = 0;
+	for (i = 0; i < kvm->nvcpus; ++i) {
+		vcpu = &kvm->vcpus[i];
+		if (test_and_set_bit(KVM_TLB_FLUSH, &vcpu->requests))
+			continue;
+		cpu = vcpu->cpu;
+		if (cpu != -1 && cpu != raw_smp_processor_id())
+			if (!cpu_isset(cpu, cpus)) {
+				cpu_set(cpu, cpus);
+				++needed;
+			}
+	}
+
+	/*
+	 * We really want smp_call_function_mask() here.  But that's not
+	 * available, so ipi all cpus in parallel and wait for them
+	 * to complete.
+	 */
+	for (cpu = first_cpu(cpus); cpu != NR_CPUS; cpu = next_cpu(cpu, cpus))
+		smp_call_function_single(cpu, ack_flush, &completed, 1, 0);
+	while (atomic_read(&completed) != needed) {
+		cpu_relax();
+		barrier();
+	}
 }
 
 static struct kvm *kvm_create_vm(void)

@@ -1470,6 +1470,11 @@ static void load_db_regs(unsigned long *db_regs)
 	asm volatile ("mov %0, %%dr3" : : "r"(db_regs[3]));
 }
 
+static void svm_flush_tlb(struct kvm_vcpu *vcpu)
+{
+	force_new_asid(vcpu);
+}
+
 static int svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	u16 fs_selector;
@@ -1486,6 +1491,11 @@ again:
 		do_interrupt_requests(vcpu, kvm_run);
 
 	clgi();
+
+	vcpu->guest_mode = 1;
+	if (vcpu->requests)
+		if (test_and_clear_bit(KVM_TLB_FLUSH, &vcpu->requests))
+		    svm_flush_tlb(vcpu);
 
 	pre_svm_run(vcpu);
 
@@ -1618,6 +1628,8 @@ again:
 #endif
 		: "cc", "memory" );
 
+	vcpu->guest_mode = 0;
+
 	if (vcpu->fpu_active) {
 		fx_save(vcpu->guest_fx_image);
 		fx_restore(vcpu->host_fx_image);
@@ -1680,11 +1692,6 @@ again:
 	}
 	post_kvm_run_save(vcpu, kvm_run);
 	return r;
-}
-
-static void svm_flush_tlb(struct kvm_vcpu *vcpu)
-{
-	force_new_asid(vcpu);
 }
 
 static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)

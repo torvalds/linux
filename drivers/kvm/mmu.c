@@ -441,7 +441,7 @@ static void rmap_write_protect(struct kvm_vcpu *vcpu, u64 gfn)
 		BUG_ON(!(*spte & PT_WRITABLE_MASK));
 		rmap_printk("rmap_write_protect: spte %p %llx\n", spte, *spte);
 		rmap_remove(vcpu, spte);
-		kvm_arch_ops->tlb_flush(vcpu);
+		kvm_flush_remote_tlbs(vcpu->kvm);
 		set_shadow_pte(spte, *spte & ~PT_WRITABLE_MASK);
 	}
 }
@@ -656,7 +656,7 @@ static void kvm_mmu_page_unlink_children(struct kvm_vcpu *vcpu,
 				rmap_remove(vcpu, &pt[i]);
 			pt[i] = 0;
 		}
-		kvm_arch_ops->tlb_flush(vcpu);
+		kvm_flush_remote_tlbs(vcpu->kvm);
 		return;
 	}
 
@@ -669,6 +669,7 @@ static void kvm_mmu_page_unlink_children(struct kvm_vcpu *vcpu,
 		ent &= PT64_BASE_ADDR_MASK;
 		mmu_page_remove_parent_pte(vcpu, page_header(ent), &pt[i]);
 	}
+	kvm_flush_remote_tlbs(vcpu->kvm);
 }
 
 static void kvm_mmu_put_page(struct kvm_vcpu *vcpu,
@@ -1093,6 +1094,7 @@ static void mmu_pte_write_zap_pte(struct kvm_vcpu *vcpu,
 		}
 	}
 	*spte = 0;
+	kvm_flush_remote_tlbs(vcpu->kvm);
 }
 
 static void mmu_pte_write_new_pte(struct kvm_vcpu *vcpu,
@@ -1308,7 +1310,7 @@ void kvm_mmu_zap_all(struct kvm_vcpu *vcpu)
 	}
 
 	mmu_free_memory_caches(vcpu);
-	kvm_arch_ops->tlb_flush(vcpu);
+	kvm_flush_remote_tlbs(vcpu->kvm);
 	init_kvm_mmu(vcpu);
 }
 

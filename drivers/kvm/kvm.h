@@ -84,6 +84,11 @@
 #define KVM_PIO_PAGE_OFFSET 1
 
 /*
+ * vcpu->requests bit members
+ */
+#define KVM_TLB_FLUSH 0
+
+/*
  * Address types:
  *
  *  gva - guest virtual address
@@ -272,6 +277,8 @@ struct kvm_vcpu {
 	u64 host_tsc;
 	struct kvm_run *run;
 	int interrupt_window_open;
+	int guest_mode;
+	unsigned long requests;
 	unsigned long irq_summary; /* bit vector: 1 per word in irq_pending */
 #define NR_IRQ_WORDS KVM_IRQ_BITMAP_SIZE(unsigned long)
 	unsigned long irq_pending[NR_IRQ_WORDS];
@@ -530,6 +537,7 @@ void save_msrs(struct vmx_msr_entry *e, int n);
 void kvm_resched(struct kvm_vcpu *vcpu);
 void kvm_load_guest_fpu(struct kvm_vcpu *vcpu);
 void kvm_put_guest_fpu(struct kvm_vcpu *vcpu);
+void kvm_flush_remote_tlbs(struct kvm *kvm);
 
 int kvm_read_guest(struct kvm_vcpu *vcpu,
 	       gva_t addr,

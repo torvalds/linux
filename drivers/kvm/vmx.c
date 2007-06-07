@@ -1972,6 +1972,11 @@ static int dm_request_for_irq_injection(struct kvm_vcpu *vcpu,
 		(vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_IF));
 }
 
+static void vmx_flush_tlb(struct kvm_vcpu *vcpu)
+{
+	vmcs_writel(GUEST_CR3, vmcs_readl(GUEST_CR3));
+}
+
 static int vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	u8 fail;
@@ -1997,9 +2002,15 @@ again:
 	 */
 	vmcs_writel(HOST_CR0, read_cr0());
 
+	local_irq_disable();
+
+	vcpu->guest_mode = 1;
+	if (vcpu->requests)
+		if (test_and_clear_bit(KVM_TLB_FLUSH, &vcpu->requests))
+		    vmx_flush_tlb(vcpu);
+
 	asm (
 		/* Store host registers */
-		"pushf \n\t"
 #ifdef CONFIG_X86_64
 		"push %%rax; push %%rbx; push %%rdx;"
 		"push %%rsi; push %%rdi; push %%rbp;"
@@ -2091,7 +2102,6 @@ again:
 		"pop %%ecx; popa \n\t"
 #endif
 		"setbe %0 \n\t"
-		"popf \n\t"
 	      : "=q" (fail)
 	      : "r"(vcpu->launched), "d"((unsigned long)HOST_RSP),
 		"c"(vcpu),
@@ -2114,6 +2124,9 @@ again:
 #endif
 		[cr2]"i"(offsetof(struct kvm_vcpu, cr2))
 	      : "cc", "memory" );
+
+	vcpu->guest_mode = 0;
+	local_irq_enable();
 
 	++vcpu->stat.exits;
 
@@ -2165,11 +2178,6 @@ out:
 
 	post_kvm_run_save(vcpu, kvm_run);
 	return r;
-}
-
-static void vmx_flush_tlb(struct kvm_vcpu *vcpu)
-{
-	vmcs_writel(GUEST_CR3, vmcs_readl(GUEST_CR3));
 }
 
 static void vmx_inject_page_fault(struct kvm_vcpu *vcpu,
