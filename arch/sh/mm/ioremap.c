@@ -22,6 +22,7 @@
 #include <asm/addrspace.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+#include <asm/mmu.h>
 
 /*
  * Remap an arbitrary physical address space into the kernel virtual

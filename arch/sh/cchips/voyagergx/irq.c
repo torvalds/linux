@@ -28,7 +28,7 @@ static void disable_voyagergx_irq(unsigned int irq)
 	unsigned long val;
 	unsigned long mask = 1 << (irq - VOYAGER_IRQ_BASE);
 
-	pr_debug("disable_voyagergx_irq(%d): mask=%x\n", irq, mask);
+	pr_debug("disable_voyagergx_irq(%d): mask=%lx\n", irq, mask);
 	val = readl((void __iomem *)VOYAGER_INT_MASK);
 	val &= ~mask;
 	writel(val, (void __iomem *)VOYAGER_INT_MASK);
@@ -39,7 +39,7 @@ static void enable_voyagergx_irq(unsigned int irq)
 	unsigned long val;
 	unsigned long mask = 1 << (irq - VOYAGER_IRQ_BASE);
 
-	pr_debug("disable_voyagergx_irq(%d): mask=%x\n", irq, mask);
+	pr_debug("disable_voyagergx_irq(%d): mask=%lx\n", irq, mask);
 	val = readl((void __iomem *)VOYAGER_INT_MASK);
 	val |= mask;
 	writel(val, (void __iomem *)VOYAGER_INT_MASK);
@@ -125,11 +125,12 @@ int voyagergx_irq_demux(int irq)
 			i = 17;
 		else
 			printk("Unexpected IRQ irq = %d status = 0x%08lx\n", irq, val);
-		pr_debug("voyagergx_irq_demux %d \n", i);
-    	    	if (i < VOYAGER_IRQ_NUM) {
+		pr_debug("voyagergx_irq_demux %ld \n", i);
+		if (i < VOYAGER_IRQ_NUM) {
 			irq = VOYAGER_IRQ_BASE + i;
-    	    		if (voyagergx_demux[i].func != 0)
-				irq = voyagergx_demux[i].func(irq, voyagergx_demux[i].dev);
+			if (voyagergx_demux[i].func != 0)
+				irq = voyagergx_demux[i].func(irq,
+						voyagergx_demux[i].dev);
 		}
 	}
 	return irq;

@@ -38,8 +38,8 @@ static struct platform_device *se73180_devices[] __initdata = {
 
 static int __init se73180_devices_setup(void)
 {
-	return platform_add_devices(sh7343se_platform_devices,
-				    ARRAY_SIZE(sh7343se_platform_devices));
+	return platform_add_devices(se73180_devices,
+				    ARRAY_SIZE(se73180_devices));
 }
 __initcall(se73180_devices_setup);
 
