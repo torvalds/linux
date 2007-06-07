@@ -331,6 +331,14 @@ config ARCH_POPULATES_NODE_MAP
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
 
+config ARCH_ENABLE_MEMORY_HOTPLUG
+	def_bool y
+	depends on SPARSEMEM
+
+config ARCH_MEMORY_PROBE
+	def_bool y
+	depends on MEMORY_HOTPLUG
+
 choice
 	prompt "Kernel page size"
 	default PAGE_SIZE_4KB

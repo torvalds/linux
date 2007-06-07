@@ -265,3 +265,45 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 	printk("Freeing initrd memory: %ldk freed\n", (end - start) >> 10);
 }
 #endif
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+void online_page(struct page *page)
+{
+	ClearPageReserved(page);
+	init_page_count(page);
+	__free_page(page);
+	totalram_pages++;
+	num_physpages++;
+}
+
+int arch_add_memory(int nid, u64 start, u64 size)
+{
+	pg_data_t *pgdat;
+	unsigned long start_pfn = start >> PAGE_SHIFT;
+	unsigned long nr_pages = size >> PAGE_SHIFT;
+	int ret;
+
+	pgdat = NODE_DATA(nid);
+
+	/* We only have ZONE_NORMAL, so this is easy.. */
+	ret = __add_pages(pgdat->node_zones + ZONE_NORMAL, start_pfn, nr_pages);
+	if (unlikely(ret))
+		printk("%s: Failed, __add_pages() == %d\n", __FUNCTION__, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(arch_add_memory);
+
+int remove_memory(u64 start, u64 size)
+{
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(remove_memory);
+
+int memory_add_physaddr_to_nid(u64 addr)
+{
+	/* Node 0 for now.. */
+	return 0;
+}
+EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+#endif
