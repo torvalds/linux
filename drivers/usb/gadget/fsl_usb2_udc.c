@@ -2189,27 +2189,19 @@ static void fsl_udc_release(struct device *dev)
  * init resource for globle controller
  * Return the udc handle on success or NULL on failure
  ------------------------------------------------------------------*/
-static struct fsl_udc *__init struct_udc_setup(struct platform_device *pdev)
+static int __init struct_udc_setup(struct fsl_udc *udc,
+		struct platform_device *pdev)
 {
-	struct fsl_udc *udc;
 	struct fsl_usb2_platform_data *pdata;
 	size_t size;
 
-	udc = kzalloc(sizeof(struct fsl_udc), GFP_KERNEL);
-	if (udc == NULL) {
-		ERR("malloc udc failed\n");
-		return NULL;
-	}
-
 	pdata = pdev->dev.platform_data;
 	udc->phy_mode = pdata->phy_mode;
-	/* max_ep_nr is bidirectional ep number, max_ep doubles the number */
-	udc->max_ep = pdata->max_ep_nr * 2;
 
 	udc->eps = kzalloc(sizeof(struct fsl_ep) * udc->max_ep, GFP_KERNEL);
 	if (!udc->eps) {
 		ERR("malloc fsl_ep failed\n");
-		goto cleanup;
+		return -1;
 	}
 
 	/* initialized QHs, take care of alignment */
@@ -2225,7 +2217,7 @@ static struct fsl_udc *__init struct_udc_setup(struct platform_device *pdev)
 	if (!udc->ep_qh) {
 		ERR("malloc QHs for udc failed\n");
 		kfree(udc->eps);
-		goto cleanup;
+		return -1;
 	}
 
 	udc->ep_qh_size = size;
@@ -2244,11 +2236,7 @@ static struct fsl_udc *__init struct_udc_setup(struct platform_device *pdev)
 	udc->remote_wakeup = 0;	/* default to 0 on reset */
 	spin_lock_init(&udc->lock);
 
-	return udc;
-
-cleanup:
-	kfree(udc);
-	return NULL;
+	return 0;
 }
 
 /*----------------------------------------------------------------
@@ -2287,35 +2275,37 @@ static int __init struct_ep_setup(struct fsl_udc *udc, unsigned char index,
 }
 
 /* Driver probe function
- * all intialize operations implemented here except enabling usb_intr reg
+ * all intialization operations implemented here except enabling usb_intr reg
+ * board setup should have been done in the platform code
  */
 static int __init fsl_udc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int ret = -ENODEV;
 	unsigned int i;
+	u32 dccparams;
 
 	if (strcmp(pdev->name, driver_name)) {
 		VDBG("Wrong device\n");
 		return -ENODEV;
 	}
 
-	/* board setup should have been done in the platform code */
-
-	/* Initialize the udc structure including QH member and other member */
-	udc_controller = struct_udc_setup(pdev);
-	if (!udc_controller) {
-		VDBG("udc_controller is NULL \n");
+	udc_controller = kzalloc(sizeof(struct fsl_udc), GFP_KERNEL);
+	if (udc_controller == NULL) {
+		ERR("malloc udc failed\n");
 		return -ENOMEM;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
+	if (!res) {
+		kfree(udc_controller);
 		return -ENXIO;
+	}
 
 	if (!request_mem_region(res->start, res->end - res->start + 1,
 				driver_name)) {
 		ERR("request mem region for %s failed \n", pdev->name);
+		kfree(udc_controller);
 		return -EBUSY;
 	}
 
@@ -2327,6 +2317,17 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 
 	usb_sys_regs = (struct usb_sys_interface *)
 			((u32)dr_regs + USB_DR_SYS_OFFSET);
+
+	/* Read Device Controller Capability Parameters register */
+	dccparams = fsl_readl(&dr_regs->dccparams);
+	if (!(dccparams & DCCPARAMS_DC)) {
+		ERR("This SOC doesn't support device role\n");
+		ret = -ENODEV;
+		goto err2;
+	}
+	/* Get max device endpoints */
+	/* DEN is bidirectional ep number, max_ep doubles the number */
+	udc_controller->max_ep = (dccparams & DCCPARAMS_DEN_MASK) * 2;
 
 	udc_controller->irq = platform_get_irq(pdev, 0);
 	if (!udc_controller->irq) {
@@ -2340,6 +2341,13 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 		ERR("cannot request irq %d err %d \n",
 				udc_controller->irq, ret);
 		goto err2;
+	}
+
+	/* Initialize the udc structure including QH member and other member */
+	if (struct_udc_setup(udc_controller, pdev)) {
+		ERR("Can't initialize udc data structure\n");
+		ret = -ENOMEM;
+		goto err3;
 	}
 
 	/* initialize usb hw reg except for regs for EP,
@@ -2403,6 +2411,7 @@ err2:
 	iounmap(dr_regs);
 err1:
 	release_mem_region(res->start, res->end - res->start + 1);
+	kfree(udc_controller);
 	return ret;
 }
 
