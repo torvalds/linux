@@ -283,14 +283,15 @@ static int at32_wdt_resume(struct platform_device *pdev)
 		at32_wdt_start();
 	return 0;
 }
+#else
+#define at32_wdt_suspend NULL
+#define at32_wdt_resume NULL
 #endif
 
 static struct platform_driver at32_wdt_driver = {
 	.remove		= __exit_p(at32_wdt_remove),
-#ifdef CONFIG_PM
 	.suspend	= at32_wdt_suspend,
 	.resume		= at32_wdt_resume,
-#endif
 	.driver		= {
 		.name	= "at32_wdt",
 		.owner	= THIS_MODULE,
