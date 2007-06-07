@@ -55,7 +55,7 @@ struct spu_context {
 	struct address_space *signal2;	   /* 'signal2' area mappings. */
 	struct address_space *mss;	   /* 'mss' area mappings. */
 	struct address_space *psmap;	   /* 'psmap' area mappings. */
-	spinlock_t mapping_lock;
+	struct mutex mapping_lock;
 	u64 object_id;		   /* user space pointer for oprofile */
 
 	enum { SPU_STATE_RUNNABLE, SPU_STATE_SAVED } state;

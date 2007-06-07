@@ -177,7 +177,7 @@ static int spufs_rmdir(struct inode *parent, struct dentry *dir)
 static int spufs_fill_dir(struct dentry *dir, struct tree_descr *files,
 			  int mode, struct spu_context *ctx)
 {
-	struct dentry *dentry;
+	struct dentry *dentry, *tmp;
 	int ret;
 
 	while (files->name && files->name[0]) {
@@ -193,7 +193,20 @@ static int spufs_fill_dir(struct dentry *dir, struct tree_descr *files,
 	}
 	return 0;
 out:
-	spufs_prune_dir(dir);
+	/*
+	 * remove all children from dir. dir->inode is not set so don't
+	 * just simply use spufs_prune_dir() and panic afterwards :)
+	 * dput() looks like it will do the right thing:
+	 * - dec parent's ref counter
+	 * - remove child from parent's child list
+	 * - free child's inode if possible
+	 * - free child
+	 */
+	list_for_each_entry_safe(dentry, tmp, &dir->d_subdirs, d_u.d_child) {
+		dput(dentry);
+	}
+
+	shrink_dcache_parent(dir);
 	return ret;
 }
 
@@ -274,6 +287,7 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 	goto out;
 
 out_free_ctx:
+	spu_forget(ctx);
 	put_spu_context(ctx);
 out_iput:
 	iput(inode);
@@ -349,37 +363,6 @@ out:
 	return ret;
 }
 
-static int spufs_rmgang(struct inode *root, struct dentry *dir)
-{
-	/* FIXME: this fails if the dir is not empty,
-	          which causes a leak of gangs. */
-	return simple_rmdir(root, dir);
-}
-
-static int spufs_gang_close(struct inode *inode, struct file *file)
-{
-	struct inode *parent;
-	struct dentry *dir;
-	int ret;
-
-	dir = file->f_path.dentry;
-	parent = dir->d_parent->d_inode;
-
-	ret = spufs_rmgang(parent, dir);
-	WARN_ON(ret);
-
-	return dcache_dir_close(inode, file);
-}
-
-const struct file_operations spufs_gang_fops = {
-	.open		= dcache_dir_open,
-	.release	= spufs_gang_close,
-	.llseek		= dcache_dir_lseek,
-	.read		= generic_read_dir,
-	.readdir	= dcache_readdir,
-	.fsync		= simple_sync_file,
-};
-
 static int
 spufs_mkgang(struct inode *dir, struct dentry *dentry, int mode)
 {
@@ -407,7 +390,6 @@ spufs_mkgang(struct inode *dir, struct dentry *dentry, int mode)
 	inode->i_fop = &simple_dir_operations;
 
 	d_instantiate(dentry, inode);
-	dget(dentry);
 	dir->i_nlink++;
 	dentry->d_inode->i_nlink++;
 	return ret;
@@ -437,7 +419,7 @@ static int spufs_gang_open(struct dentry *dentry, struct vfsmount *mnt)
 		goto out;
 	}
 
-	filp->f_op = &spufs_gang_fops;
+	filp->f_op = &simple_dir_operations;
 	fd_install(ret, filp);
 out:
 	return ret;
@@ -458,8 +440,10 @@ static int spufs_create_gang(struct inode *inode,
 	 * in error path of *_open().
 	 */
 	ret = spufs_gang_open(dget(dentry), mntget(mnt));
-	if (ret < 0)
-		WARN_ON(spufs_rmgang(inode, dentry));
+	if (ret < 0) {
+		int err = simple_rmdir(inode, dentry);
+		WARN_ON(err);
+	}
 
 out:
 	mutex_unlock(&inode->i_mutex);
@@ -599,6 +583,10 @@ spufs_create_root(struct super_block *sb, void *data)
 {
 	struct inode *inode;
 	int ret;
+
+	ret = -ENODEV;
+	if (!spu_management_ops)
+		goto out;
 
 	ret = -ENOMEM;
 	inode = spufs_new_inode(sb, S_IFDIR | 0775);

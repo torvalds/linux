@@ -67,6 +67,7 @@ static u64 MIC_Slow_Next_Timer_table[] = {
 	0x00003FC000000000ull,
 };
 
+static unsigned int pmi_frequency_limit = 0;
 /*
  * hardware specific functions
  */
@@ -164,7 +165,6 @@ static int set_pmode(int cpu, unsigned int slow_mode) {
 
 static void cbe_cpufreq_handle_pmi(struct of_device *dev, pmi_message_t pmi_msg)
 {
-	struct cpufreq_policy policy;
 	u8 cpu;
 	u8 cbe_pmode_new;
 
@@ -173,14 +173,26 @@ static void cbe_cpufreq_handle_pmi(struct of_device *dev, pmi_message_t pmi_msg)
 	cpu = cbe_node_to_cpu(pmi_msg.data1);
 	cbe_pmode_new = pmi_msg.data2;
 
-	cpufreq_get_policy(&policy, cpu);
+	pmi_frequency_limit = cbe_freqs[cbe_pmode_new].frequency;
 
-	policy.max = min(policy.max, cbe_freqs[cbe_pmode_new].frequency);
-	policy.min = min(policy.min, policy.max);
-
-	pr_debug("cbe_handle_pmi: new policy.min=%d policy.max=%d\n", policy.min, policy.max);
-	cpufreq_set_policy(&policy);
+	pr_debug("cbe_handle_pmi: max freq=%d\n", pmi_frequency_limit);
 }
+
+static int pmi_notifier(struct notifier_block *nb,
+				       unsigned long event, void *data)
+{
+	struct cpufreq_policy *policy = data;
+
+	if (event != CPUFREQ_INCOMPATIBLE)
+		return 0;
+
+	cpufreq_verify_within_limits(policy, 0, pmi_frequency_limit);
+	return 0;
+}
+
+static struct notifier_block pmi_notifier_block = {
+	.notifier_call = pmi_notifier,
+};
 
 static struct pmi_handler cbe_pmi_handler = {
 	.type			= PMI_TYPE_FREQ_CHANGE,
@@ -238,12 +250,21 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	cpufreq_frequency_table_get_attr(cbe_freqs, policy->cpu);
 
+	if (pmi_dev) {
+		/* frequency might get limited later, initialize limit with max_freq */
+		pmi_frequency_limit = max_freq;
+		cpufreq_register_notifier(&pmi_notifier_block, CPUFREQ_POLICY_NOTIFIER);
+	}
+
 	/* this ensures that policy->cpuinfo_min and policy->cpuinfo_max are set correctly */
 	return cpufreq_frequency_table_cpuinfo(policy, cbe_freqs);
 }
 
 static int cbe_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 {
+	if (pmi_dev)
+		cpufreq_unregister_notifier(&pmi_notifier_block, CPUFREQ_POLICY_NOTIFIER);
+
 	cpufreq_frequency_table_put_attr(policy->cpu);
 	return 0;
 }

@@ -93,43 +93,6 @@ void spu_stop_tick(struct spu_context *ctx)
 	}
 }
 
-void spu_sched_tick(struct work_struct *work)
-{
-	struct spu_context *ctx =
-		container_of(work, struct spu_context, sched_work.work);
-	struct spu *spu;
-	int preempted = 0;
-
-	/*
-	 * If this context is being stopped avoid rescheduling from the
-	 * scheduler tick because we would block on the state_mutex.
-	 * The caller will yield the spu later on anyway.
-	 */
-	if (test_bit(SPU_SCHED_EXITING, &ctx->sched_flags))
-		return;
-
-	mutex_lock(&ctx->state_mutex);
-	spu = ctx->spu;
-	if (spu) {
-		int best = sched_find_first_bit(spu_prio->bitmap);
-		if (best <= ctx->prio) {
-			spu_deactivate(ctx);
-			preempted = 1;
-		}
-	}
-	mutex_unlock(&ctx->state_mutex);
-
-	if (preempted) {
-		/*
-		 * We need to break out of the wait loop in spu_run manually
-		 * to ensure this context gets put on the runqueue again
-		 * ASAP.
-		 */
-		wake_up(&ctx->stop_wq);
-	} else
-		spu_start_tick(ctx);
-}
-
 /**
  * spu_add_to_active_list - add spu to active list
  * @spu:	spu to add to the active list
@@ -273,34 +236,6 @@ static void spu_prio_wait(struct spu_context *ctx)
 	remove_wait_queue(&ctx->stop_wq, &wait);
 }
 
-/**
- * spu_reschedule - try to find a runnable context for a spu
- * @spu:       spu available
- *
- * This function is called whenever a spu becomes idle.  It looks for the
- * most suitable runnable spu context and schedules it for execution.
- */
-static void spu_reschedule(struct spu *spu)
-{
-	int best;
-
-	spu_free(spu);
-
-	spin_lock(&spu_prio->runq_lock);
-	best = sched_find_first_bit(spu_prio->bitmap);
-	if (best < MAX_PRIO) {
-		struct list_head *rq = &spu_prio->runq[best];
-		struct spu_context *ctx;
-
-		BUG_ON(list_empty(rq));
-
-		ctx = list_entry(rq->next, struct spu_context, rq);
-		__spu_del_from_rq(ctx);
-		wake_up(&ctx->stop_wq);
-	}
-	spin_unlock(&spu_prio->runq_lock);
-}
-
 static struct spu *spu_get_idle(struct spu_context *ctx)
 {
 	struct spu *spu = NULL;
@@ -429,6 +364,51 @@ int spu_activate(struct spu_context *ctx, unsigned long flags)
 }
 
 /**
+ * grab_runnable_context - try to find a runnable context
+ *
+ * Remove the highest priority context on the runqueue and return it
+ * to the caller.  Returns %NULL if no runnable context was found.
+ */
+static struct spu_context *grab_runnable_context(int prio)
+{
+	struct spu_context *ctx = NULL;
+	int best;
+
+	spin_lock(&spu_prio->runq_lock);
+	best = sched_find_first_bit(spu_prio->bitmap);
+	if (best < prio) {
+		struct list_head *rq = &spu_prio->runq[best];
+
+		BUG_ON(list_empty(rq));
+
+		ctx = list_entry(rq->next, struct spu_context, rq);
+		__spu_del_from_rq(ctx);
+	}
+	spin_unlock(&spu_prio->runq_lock);
+
+	return ctx;
+}
+
+static int __spu_deactivate(struct spu_context *ctx, int force, int max_prio)
+{
+	struct spu *spu = ctx->spu;
+	struct spu_context *new = NULL;
+
+	if (spu) {
+		new = grab_runnable_context(max_prio);
+		if (new || force) {
+			spu_unbind_context(spu, ctx);
+			spu_free(spu);
+			if (new)
+				wake_up(&new->stop_wq);
+		}
+
+	}
+
+	return new != NULL;
+}
+
+/**
  * spu_deactivate - unbind a context from it's physical spu
  * @ctx:	spu context to unbind
  *
@@ -437,12 +417,7 @@ int spu_activate(struct spu_context *ctx, unsigned long flags)
  */
 void spu_deactivate(struct spu_context *ctx)
 {
-	struct spu *spu = ctx->spu;
-
-	if (spu) {
-		spu_unbind_context(spu, ctx);
-		spu_reschedule(spu);
-	}
+	__spu_deactivate(ctx, 1, MAX_PRIO);
 }
 
 /**
@@ -455,18 +430,40 @@ void spu_deactivate(struct spu_context *ctx)
  */
 void spu_yield(struct spu_context *ctx)
 {
-	struct spu *spu;
-
-	if (mutex_trylock(&ctx->state_mutex)) {
-		if ((spu = ctx->spu) != NULL) {
-			int best = sched_find_first_bit(spu_prio->bitmap);
-			if (best < MAX_PRIO) {
-				pr_debug("%s: yielding SPU %d NODE %d\n",
-					 __FUNCTION__, spu->number, spu->node);
-				spu_deactivate(ctx);
-			}
-		}
+	if (!(ctx->flags & SPU_CREATE_NOSCHED)) {
+		mutex_lock(&ctx->state_mutex);
+		__spu_deactivate(ctx, 0, MAX_PRIO);
 		mutex_unlock(&ctx->state_mutex);
+	}
+}
+
+void spu_sched_tick(struct work_struct *work)
+{
+	struct spu_context *ctx =
+		container_of(work, struct spu_context, sched_work.work);
+	int preempted;
+
+	/*
+	 * If this context is being stopped avoid rescheduling from the
+	 * scheduler tick because we would block on the state_mutex.
+	 * The caller will yield the spu later on anyway.
+	 */
+	if (test_bit(SPU_SCHED_EXITING, &ctx->sched_flags))
+		return;
+
+	mutex_lock(&ctx->state_mutex);
+	preempted = __spu_deactivate(ctx, 0, ctx->prio + 1);
+	mutex_unlock(&ctx->state_mutex);
+
+	if (preempted) {
+		/*
+		 * We need to break out of the wait loop in spu_run manually
+		 * to ensure this context gets put on the runqueue again
+		 * ASAP.
+		 */
+		wake_up(&ctx->stop_wq);
+	} else {
+		spu_start_tick(ctx);
 	}
 }
 

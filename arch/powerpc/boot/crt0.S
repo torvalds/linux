@@ -13,6 +13,7 @@
 
 	.text
 	/* a procedure descriptor used when booting this as a COFF file */
+	.globl	_zimage_start_opd
 _zimage_start_opd:
 	.long	_zimage_start, 0, 0, 0
 
