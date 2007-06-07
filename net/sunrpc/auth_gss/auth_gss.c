@@ -306,8 +306,6 @@ gss_add_msg(struct gss_auth *gss_auth, struct gss_upcall_msg *gss_msg)
 static void
 __gss_unhash_msg(struct gss_upcall_msg *gss_msg)
 {
-	if (list_empty(&gss_msg->list))
-		return;
 	list_del_init(&gss_msg->list);
 	rpc_wake_up_status(&gss_msg->rpc_waitqueue, gss_msg->msg.errno);
 	wake_up_all(&gss_msg->waitqueue);
@@ -320,8 +318,11 @@ gss_unhash_msg(struct gss_upcall_msg *gss_msg)
 	struct gss_auth *gss_auth = gss_msg->auth;
 	struct inode *inode = gss_auth->dentry->d_inode;
 
+	if (list_empty(&gss_msg->list))
+		return;
 	spin_lock(&inode->i_lock);
-	__gss_unhash_msg(gss_msg);
+	if (!list_empty(&gss_msg->list))
+		__gss_unhash_msg(gss_msg);
 	spin_unlock(&inode->i_lock);
 }
 
@@ -493,12 +494,11 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	void *buf;
 	struct rpc_clnt *clnt;
 	struct gss_auth *gss_auth;
-	struct rpc_cred *cred;
 	struct gss_upcall_msg *gss_msg;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct gss_cl_ctx *ctx;
 	uid_t uid;
-	int err = -EFBIG;
+	ssize_t err = -EFBIG;
 
 	if (mlen > MSG_BUF_MAXSIZE)
 		goto out;
@@ -523,43 +523,39 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	ctx = gss_alloc_context();
 	if (ctx == NULL)
 		goto err;
-	err = 0;
+
+	err = -ENOENT;
+	/* Find a matching upcall */
 	gss_auth = container_of(clnt->cl_auth, struct gss_auth, rpc_auth);
+	spin_lock(&inode->i_lock);
+	gss_msg = __gss_find_upcall(gss_auth, uid);
+	if (gss_msg == NULL) {
+		spin_unlock(&inode->i_lock);
+		goto err_put_ctx;
+	}
+	list_del_init(&gss_msg->list);
+	spin_unlock(&inode->i_lock);
+
 	p = gss_fill_context(p, end, ctx, gss_auth->mech);
 	if (IS_ERR(p)) {
 		err = PTR_ERR(p);
-		if (err != -EACCES)
-			goto err_put_ctx;
+		gss_msg->msg.errno = (err == -EACCES) ? -EACCES : -EAGAIN;
+		goto err_release_msg;
 	}
+	gss_msg->ctx = gss_get_ctx(ctx);
+	err = mlen;
+
+err_release_msg:
 	spin_lock(&inode->i_lock);
-	gss_msg = __gss_find_upcall(gss_auth, uid);
-	if (gss_msg) {
-		if (err == 0 && gss_msg->ctx == NULL)
-			gss_msg->ctx = gss_get_ctx(ctx);
-		gss_msg->msg.errno = err;
-		__gss_unhash_msg(gss_msg);
-		spin_unlock(&inode->i_lock);
-		gss_release_msg(gss_msg);
-	} else {
-		struct auth_cred acred = { .uid = uid };
-		spin_unlock(&inode->i_lock);
-		cred = rpcauth_lookup_credcache(clnt->cl_auth, &acred, RPCAUTH_LOOKUP_NEW);
-		if (IS_ERR(cred)) {
-			err = PTR_ERR(cred);
-			goto err_put_ctx;
-		}
-		gss_cred_set_ctx(cred, gss_get_ctx(ctx));
-	}
-	gss_put_ctx(ctx);
-	kfree(buf);
-	dprintk("RPC:       gss_pipe_downcall returning length %Zu\n", mlen);
-	return mlen;
+	__gss_unhash_msg(gss_msg);
+	spin_unlock(&inode->i_lock);
+	gss_release_msg(gss_msg);
 err_put_ctx:
 	gss_put_ctx(ctx);
 err:
 	kfree(buf);
 out:
-	dprintk("RPC:       gss_pipe_downcall returning %d\n", err);
+	dprintk("RPC:       gss_pipe_downcall returning %Zd\n", err);
 	return err;
 }
 
