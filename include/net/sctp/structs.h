@@ -912,6 +912,9 @@ struct sctp_transport {
 	 */
 	__u16 pathmaxrxt;
 
+	/* is the Path MTU update pending on this tranport */
+	__u8 pmtu_pending;
+
 	/* PMTU	      : The current known path MTU.  */
 	__u32 pathmtu;
 
@@ -1565,6 +1568,9 @@ struct sctp_association {
 	 * association.
 	 */
 	__u16 pathmaxrxt;
+
+	/* Flag that path mtu update is pending */
+	__u8   pmtu_pending;
 
 	/* Association : The smallest PMTU discovered for all of the
 	 * PMTU	       : peer's transport addresses.

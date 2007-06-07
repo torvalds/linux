@@ -1662,6 +1662,9 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 		goto out_free;
 	}
 
+	if (asoc->pmtu_pending)
+		sctp_assoc_pending_pmtu(asoc);
+
 	/* If fragmentation is disabled and the message length exceeds the
 	 * association fragmentation point, return EMSGSIZE.  The I-D
 	 * does not specify what this error is, but this looks like

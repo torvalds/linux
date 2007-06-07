@@ -367,8 +367,14 @@ static void sctp_add_backlog(struct sock *sk, struct sk_buff *skb)
 void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 			   struct sctp_transport *t, __u32 pmtu)
 {
-	if (sock_owned_by_user(sk) || !t || (t->pathmtu == pmtu))
+	if (!t || (t->pathmtu == pmtu))
 		return;
+
+	if (sock_owned_by_user(sk)) {
+		asoc->pmtu_pending = 1;
+		t->pmtu_pending = 1;
+		return;
+	}
 
 	if (t->param_flags & SPP_PMTUD_ENABLE) {
 		/* Update transports view of the MTU */
