@@ -178,45 +178,45 @@ u16 libertas_region_code_to_index[MRVDRV_MAX_REGION_CODE] =
  */
 
 /**
- * @brief Get function for sysfs attribute libertas_mpp
+ * @brief Get function for sysfs attribute anycast_mask
  */
-static ssize_t libertas_mpp_get(struct device * dev,
+static ssize_t libertas_anycast_get(struct device * dev,
 		struct device_attribute *attr, char * buf) {
 	struct cmd_ds_mesh_access mesh_access;
 
 	memset(&mesh_access, 0, sizeof(mesh_access));
 	libertas_prepare_and_send_command(to_net_dev(dev)->priv,
 			cmd_mesh_access,
-			cmd_act_mesh_get_mpp,
+			cmd_act_mesh_get_anycast,
 			cmd_option_waitforrsp, 0, (void *)&mesh_access);
 
-	return snprintf(buf, 3, "%d\n", le32_to_cpu(mesh_access.data[0]));
+	return snprintf(buf, 12, "0x%X\n", le32_to_cpu(mesh_access.data[0]));
 }
 
 /**
- * @brief Set function for sysfs attribute libertas_mpp
+ * @brief Set function for sysfs attribute anycast_mask
  */
-static ssize_t libertas_mpp_set(struct device * dev,
+static ssize_t libertas_anycast_set(struct device * dev,
 		struct device_attribute *attr, const char * buf, size_t count) {
 	struct cmd_ds_mesh_access mesh_access;
 	uint32_t datum;
 
 	memset(&mesh_access, 0, sizeof(mesh_access));
-	sscanf(buf, "%d", &datum);
+	sscanf(buf, "%x", &datum);
 	mesh_access.data[0] = cpu_to_le32(datum);
 
 	libertas_prepare_and_send_command((to_net_dev(dev))->priv,
 			cmd_mesh_access,
-			cmd_act_mesh_set_mpp,
+			cmd_act_mesh_set_anycast,
 			cmd_option_waitforrsp, 0, (void *)&mesh_access);
 	return strlen(buf);
 }
 
 /**
- * libertas_mpp attribute to be exported per mshX interface
- * through sysfs (/sys/class/net/mshX/libertas-mpp)
+ * anycast_mask attribute to be exported per mshX interface
+ * through sysfs (/sys/class/net/mshX/anycast_mask)
  */
-static DEVICE_ATTR(libertas_mpp, 0644, libertas_mpp_get, libertas_mpp_set );
+static DEVICE_ATTR(anycast_mask, 0644, libertas_anycast_get, libertas_anycast_set);
 
 /**
  *  @brief Check if the device can be open and wait if necessary.
@@ -939,7 +939,7 @@ int libertas_add_mesh(wlan_private *priv, struct device *dev)
 		goto err_free;
 	}
 
-	ret = device_create_file(&(mesh_dev->dev), &dev_attr_libertas_mpp);
+	ret = device_create_file(&(mesh_dev->dev), &dev_attr_anycast_mask);
 	if (ret)
 		goto err_unregister;
 
@@ -1049,7 +1049,7 @@ void libertas_remove_mesh(wlan_private *priv)
 	netif_stop_queue(mesh_dev);
 	netif_carrier_off(priv->mesh_dev);
 
-	device_remove_file(&(mesh_dev->dev), &dev_attr_libertas_mpp);
+	device_remove_file(&(mesh_dev->dev), &dev_attr_anycast_mask);
 	unregister_netdev(mesh_dev);
 
 	priv->mesh_dev = NULL ;
