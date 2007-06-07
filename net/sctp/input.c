@@ -371,20 +371,8 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 		return;
 
 	if (t->param_flags & SPP_PMTUD_ENABLE) {
-		if (unlikely(pmtu < SCTP_DEFAULT_MINSEGMENT)) {
-			printk(KERN_WARNING "%s: Reported pmtu %d too low, "
-			       "using default minimum of %d\n",
-			       __FUNCTION__, pmtu,
-			       SCTP_DEFAULT_MINSEGMENT);
-			/* Use default minimum segment size and disable
-			 * pmtu discovery on this transport.
-			 */
-			t->pathmtu = SCTP_DEFAULT_MINSEGMENT;
-			t->param_flags = (t->param_flags & ~SPP_PMTUD) |
-				SPP_PMTUD_DISABLE;
-		} else {
-			t->pathmtu = pmtu;
-		}
+		/* Update transports view of the MTU */
+		sctp_transport_update_pmtu(t, pmtu);
 
 		/* Update association pmtu. */
 		sctp_assoc_sync_pmtu(asoc);
