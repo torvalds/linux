@@ -309,7 +309,7 @@
 	};
 
 	chosen {
-		bootargs = "ip=on console=ttyMM0";
+		bootargs = "ip=on";
 		linux,stdout-path = "/mv64x60@f1000000/mpsc@8000";
 	};
 };
