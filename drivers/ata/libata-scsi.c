@@ -2595,12 +2595,10 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		tf->device = cdb[8];
 		tf->command = cdb[9];
 	}
-	/*
-	 * If slave is possible, enforce correct master/slave bit
-	*/
-	if (qc->ap->flags & ATA_FLAG_SLAVE_POSS)
-		tf->device = qc->dev->devno ?
-			tf->device | ATA_DEV1 : tf->device & ~ATA_DEV1;
+
+	/* enforce correct master/slave bit */
+	tf->device = dev->devno ?
+		tf->device | ATA_DEV1 : tf->device & ~ATA_DEV1;
 
 	/* sanity check for pio multi commands */
 	if ((cdb[1] & 0xe0) && !is_multi_taskfile(tf))
