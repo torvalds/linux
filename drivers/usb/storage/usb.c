@@ -425,23 +425,15 @@ SkipForAbort:
 		mutex_unlock(&us->dev_mutex);
 	} /* for (;;) */
 
-	scsi_host_put(host);
-
-	/* notify the exit routine that we're actually exiting now 
-	 *
-	 * complete()/wait_for_completion() is similar to up()/down(),
-	 * except that complete() is safe in the case where the structure
-	 * is getting deleted in a parallel mode of execution (i.e. just
-	 * after the down() -- that's necessary for the thread-shutdown
-	 * case.
-	 *
-	 * complete_and_exit() goes even further than this -- it is safe in
-	 * the case that the thread of the caller is going away (not just
-	 * the structure) -- this is necessary for the module-remove case.
-	 * This is important in preemption kernels, which transfer the flow
-	 * of execution immediately upon a complete().
-	 */
-	complete_and_exit(&threads_gone, 0);
+	/* Wait until we are told to stop */
+	for (;;) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (kthread_should_stop())
+			break;
+		schedule();
+	}
+	__set_current_state(TASK_RUNNING);
+	return 0;
 }	
 
 /***********************************************************************
@@ -809,19 +801,13 @@ static int usb_stor_acquire_resources(struct us_data *us)
 	}
 
 	/* Start up our control thread */
-	th = kthread_create(usb_stor_control_thread, us, "usb-storage");
+	th = kthread_run(usb_stor_control_thread, us, "usb-storage");
 	if (IS_ERR(th)) {
 		printk(KERN_WARNING USB_STORAGE 
 		       "Unable to start control thread\n");
 		return PTR_ERR(th);
 	}
-
-	/* Take a reference to the host for the control thread and
-	 * count it among all the threads we have launched.  Then
-	 * start it up. */
-	scsi_host_get(us_to_host(us));
-	atomic_inc(&total_threads);
-	wake_up_process(th);
+	us->ctl_thread = th;
 
 	return 0;
 }
@@ -838,6 +824,8 @@ static void usb_stor_release_resources(struct us_data *us)
 	US_DEBUGP("-- sending exit command to thread\n");
 	set_bit(US_FLIDX_DISCONNECTING, &us->flags);
 	up(&us->sema);
+	if (us->ctl_thread)
+		kthread_stop(us->ctl_thread);
 
 	/* Call the destructor routine, if it exists */
 	if (us->extra_destructor) {
