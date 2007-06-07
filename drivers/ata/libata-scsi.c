@@ -2551,10 +2551,6 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	if (tf->protocol == ATA_PROT_DMA && dev->dma_mode == 0)
 		goto invalid_fld;
 
-	if (cdb[1] & 0xe0)
-		/* PIO multi not supported yet */
-		goto invalid_fld;
-
 	/*
 	 * 12 and 16 byte CDBs use different offsets to
 	 * provide the various register values.
@@ -2605,6 +2601,22 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	if (qc->ap->flags & ATA_FLAG_SLAVE_POSS)
 		tf->device = qc->dev->devno ?
 			tf->device | ATA_DEV1 : tf->device & ~ATA_DEV1;
+
+	/* sanity check for pio multi commands */
+	if ((cdb[1] & 0xe0) && !is_multi_taskfile(tf))
+		goto invalid_fld;
+
+	if (is_multi_taskfile(tf)) {
+		unsigned int multi_count = 1 << (cdb[1] >> 5);
+
+		/* compare the passed through multi_count
+		 * with the cached multi_count of libata
+		 */
+		if (multi_count != dev->multi_count)
+			ata_dev_printk(dev, KERN_WARNING,
+				       "invalid multi_count %u ignored\n",
+				       multi_count);
+	}	
 
 	/* READ/WRITE LONG use a non-standard sect_size */
 	qc->sect_size = ATA_SECT_SIZE;
