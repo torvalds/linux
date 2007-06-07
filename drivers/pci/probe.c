@@ -656,7 +656,7 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max, int pass
 			       pcibios_assign_all_busses() ? " " :
 			       " (try 'pci=assign-busses')");
 			printk(KERN_WARNING "Please report the result to "
-			       "linux-kernel to fix this permanently\n");
+			       "<bk@suse.de> to fix this permanently\n");
 		}
 		bus = bus->parent;
 	}
