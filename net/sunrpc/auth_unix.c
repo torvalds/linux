@@ -92,6 +92,7 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 		if (i < NFS_NGROUPS)
 		  cred->uc_gids[i] = NOGROUP;
 	}
+	cred->uc_base.cr_auth = &unix_auth;
 	cred->uc_base.cr_ops = &unix_credops;
 
 	return (struct rpc_cred *) cred;

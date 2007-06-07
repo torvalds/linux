@@ -386,7 +386,7 @@ static inline int
 gss_refresh_upcall(struct rpc_task *task)
 {
 	struct rpc_cred *cred = task->tk_msg.rpc_cred;
-	struct gss_auth *gss_auth = container_of(task->tk_client->cl_auth,
+	struct gss_auth *gss_auth = container_of(cred->cr_auth,
 			struct gss_auth, rpc_auth);
 	struct gss_cred *gss_cred = container_of(cred,
 			struct gss_cred, gc_base);
@@ -741,6 +741,7 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	 * fail to flag the credential as RPCAUTH_CRED_UPTODATE.
 	 */
 	cred->gc_flags = 0;
+	cred->gc_base.cr_auth = auth;
 	cred->gc_base.cr_ops = &gss_credops;
 	cred->gc_base.cr_flags = RPCAUTH_CRED_NEW;
 	cred->gc_service = gss_auth->service;

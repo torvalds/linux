@@ -30,8 +30,11 @@ struct auth_cred {
 /*
  * Client user credentials
  */
+struct rpc_auth;
+struct rpc_credops;
 struct rpc_cred {
 	struct hlist_node	cr_hash;	/* hash chain */
+	struct rpc_auth *	cr_auth;
 	struct rpc_credops *	cr_ops;
 	unsigned long		cr_expire;	/* when to gc */
 	atomic_t		cr_count;	/* ref count */
@@ -60,6 +63,7 @@ struct rpc_cred_cache {
 	unsigned long		expire;		/* cache expiry interval */
 };
 
+struct rpc_authops;
 struct rpc_auth {
 	unsigned int		au_cslack;	/* call cred size estimate */
 				/* guess at number of u32's auth adds before

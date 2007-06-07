@@ -133,6 +133,7 @@ struct rpc_credops	null_credops = {
 
 static
 struct rpc_cred null_cred = {
+	.cr_auth	= &null_auth,
 	.cr_ops		= &null_credops,
 	.cr_count	= ATOMIC_INIT(1),
 	.cr_flags	= RPCAUTH_CRED_UPTODATE,
