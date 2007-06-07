@@ -88,7 +88,6 @@ struct gss_auth {
 	struct list_head upcalls;
 	struct rpc_clnt *client;
 	struct dentry *dentry;
-	spinlock_t lock;
 };
 
 static void gss_destroy_ctx(struct gss_cl_ctx *);
@@ -290,16 +289,17 @@ __gss_find_upcall(struct gss_auth *gss_auth, uid_t uid)
 static inline struct gss_upcall_msg *
 gss_add_msg(struct gss_auth *gss_auth, struct gss_upcall_msg *gss_msg)
 {
+	struct inode *inode = gss_auth->dentry->d_inode;
 	struct gss_upcall_msg *old;
 
-	spin_lock(&gss_auth->lock);
+	spin_lock(&inode->i_lock);
 	old = __gss_find_upcall(gss_auth, gss_msg->uid);
 	if (old == NULL) {
 		atomic_inc(&gss_msg->count);
 		list_add(&gss_msg->list, &gss_auth->upcalls);
 	} else
 		gss_msg = old;
-	spin_unlock(&gss_auth->lock);
+	spin_unlock(&inode->i_lock);
 	return gss_msg;
 }
 
@@ -318,10 +318,11 @@ static void
 gss_unhash_msg(struct gss_upcall_msg *gss_msg)
 {
 	struct gss_auth *gss_auth = gss_msg->auth;
+	struct inode *inode = gss_auth->dentry->d_inode;
 
-	spin_lock(&gss_auth->lock);
+	spin_lock(&inode->i_lock);
 	__gss_unhash_msg(gss_msg);
-	spin_unlock(&gss_auth->lock);
+	spin_unlock(&inode->i_lock);
 }
 
 static void
@@ -330,16 +331,16 @@ gss_upcall_callback(struct rpc_task *task)
 	struct gss_cred *gss_cred = container_of(task->tk_msg.rpc_cred,
 			struct gss_cred, gc_base);
 	struct gss_upcall_msg *gss_msg = gss_cred->gc_upcall;
+	struct inode *inode = gss_msg->auth->dentry->d_inode;
 
-	BUG_ON(gss_msg == NULL);
 	if (gss_msg->ctx)
 		gss_cred_set_ctx(task->tk_msg.rpc_cred, gss_get_ctx(gss_msg->ctx));
 	else
 		task->tk_status = gss_msg->msg.errno;
-	spin_lock(&gss_msg->auth->lock);
+	spin_lock(&inode->i_lock);
 	gss_cred->gc_upcall = NULL;
 	rpc_wake_up_status(&gss_msg->rpc_waitqueue, gss_msg->msg.errno);
-	spin_unlock(&gss_msg->auth->lock);
+	spin_unlock(&inode->i_lock);
 	gss_release_msg(gss_msg);
 }
 
@@ -391,6 +392,7 @@ gss_refresh_upcall(struct rpc_task *task)
 	struct gss_cred *gss_cred = container_of(cred,
 			struct gss_cred, gc_base);
 	struct gss_upcall_msg *gss_msg;
+	struct inode *inode = gss_auth->dentry->d_inode;
 	int err = 0;
 
 	dprintk("RPC: %5u gss_refresh_upcall for uid %u\n", task->tk_pid,
@@ -400,7 +402,7 @@ gss_refresh_upcall(struct rpc_task *task)
 		err = PTR_ERR(gss_msg);
 		goto out;
 	}
-	spin_lock(&gss_auth->lock);
+	spin_lock(&inode->i_lock);
 	if (gss_cred->gc_upcall != NULL)
 		rpc_sleep_on(&gss_cred->gc_upcall->rpc_waitqueue, task, NULL, NULL);
 	else if (gss_msg->ctx == NULL && gss_msg->msg.errno >= 0) {
@@ -411,7 +413,7 @@ gss_refresh_upcall(struct rpc_task *task)
 		rpc_sleep_on(&gss_msg->rpc_waitqueue, task, gss_upcall_callback, NULL);
 	} else
 		err = gss_msg->msg.errno;
-	spin_unlock(&gss_auth->lock);
+	spin_unlock(&inode->i_lock);
 	gss_release_msg(gss_msg);
 out:
 	dprintk("RPC: %5u gss_refresh_upcall for uid %u result %d\n",
@@ -422,6 +424,7 @@ out:
 static inline int
 gss_create_upcall(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 {
+	struct inode *inode = gss_auth->dentry->d_inode;
 	struct rpc_cred *cred = &gss_cred->gc_base;
 	struct gss_upcall_msg *gss_msg;
 	DEFINE_WAIT(wait);
@@ -435,12 +438,12 @@ gss_create_upcall(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 	}
 	for (;;) {
 		prepare_to_wait(&gss_msg->waitqueue, &wait, TASK_INTERRUPTIBLE);
-		spin_lock(&gss_auth->lock);
+		spin_lock(&inode->i_lock);
 		if (gss_msg->ctx != NULL || gss_msg->msg.errno < 0) {
-			spin_unlock(&gss_auth->lock);
+			spin_unlock(&inode->i_lock);
 			break;
 		}
-		spin_unlock(&gss_auth->lock);
+		spin_unlock(&inode->i_lock);
 		if (signalled()) {
 			err = -ERESTARTSYS;
 			goto out_intr;
@@ -492,6 +495,7 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	struct gss_auth *gss_auth;
 	struct rpc_cred *cred;
 	struct gss_upcall_msg *gss_msg;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct gss_cl_ctx *ctx;
 	uid_t uid;
 	int err = -EFBIG;
@@ -503,7 +507,7 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	if (!buf)
 		goto out;
 
-	clnt = RPC_I(filp->f_path.dentry->d_inode)->private;
+	clnt = RPC_I(inode)->private;
 	err = -EFAULT;
 	if (copy_from_user(buf, src, mlen))
 		goto err;
@@ -527,18 +531,18 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 		if (err != -EACCES)
 			goto err_put_ctx;
 	}
-	spin_lock(&gss_auth->lock);
+	spin_lock(&inode->i_lock);
 	gss_msg = __gss_find_upcall(gss_auth, uid);
 	if (gss_msg) {
 		if (err == 0 && gss_msg->ctx == NULL)
 			gss_msg->ctx = gss_get_ctx(ctx);
 		gss_msg->msg.errno = err;
 		__gss_unhash_msg(gss_msg);
-		spin_unlock(&gss_auth->lock);
+		spin_unlock(&inode->i_lock);
 		gss_release_msg(gss_msg);
 	} else {
 		struct auth_cred acred = { .uid = uid };
-		spin_unlock(&gss_auth->lock);
+		spin_unlock(&inode->i_lock);
 		cred = rpcauth_lookup_credcache(clnt->cl_auth, &acred, RPCAUTH_LOOKUP_NEW);
 		if (IS_ERR(cred)) {
 			err = PTR_ERR(cred);
@@ -570,7 +574,7 @@ gss_pipe_release(struct inode *inode)
 	clnt = rpci->private;
 	auth = clnt->cl_auth;
 	gss_auth = container_of(auth, struct gss_auth, rpc_auth);
-	spin_lock(&gss_auth->lock);
+	spin_lock(&inode->i_lock);
 	while (!list_empty(&gss_auth->upcalls)) {
 		struct gss_upcall_msg *gss_msg;
 
@@ -579,11 +583,11 @@ gss_pipe_release(struct inode *inode)
 		gss_msg->msg.errno = -EPIPE;
 		atomic_inc(&gss_msg->count);
 		__gss_unhash_msg(gss_msg);
-		spin_unlock(&gss_auth->lock);
+		spin_unlock(&inode->i_lock);
 		gss_release_msg(gss_msg);
-		spin_lock(&gss_auth->lock);
+		spin_lock(&inode->i_lock);
 	}
-	spin_unlock(&gss_auth->lock);
+	spin_unlock(&inode->i_lock);
 }
 
 static void
@@ -638,7 +642,6 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 	if (gss_auth->service == 0)
 		goto err_put_mech;
 	INIT_LIST_HEAD(&gss_auth->upcalls);
-	spin_lock_init(&gss_auth->lock);
 	auth = &gss_auth->rpc_auth;
 	auth->au_cslack = GSS_CRED_SLACK >> 2;
 	auth->au_rslack = GSS_VERF_SLACK >> 2;
