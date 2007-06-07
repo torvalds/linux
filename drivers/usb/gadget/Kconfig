@@ -208,6 +208,27 @@ config USB_OTG
 
 	   Select this only if your OMAP board has a Mini-AB connector.
 
+config USB_GADGET_S3C2410
+	boolean "S3C2410 USB Device Controller"
+	depends on ARCH_S3C2410
+	help
+	  Samsung's S3C2410 is an ARM-4 processor with an integrated
+	  full speed USB 1.1 device controller.  It has 4 configurable
+	  endpoints, as well as endpoint zero (for control transfers).
+
+	  This driver has been tested on the S3C2410, S3C2412, and
+	  S3C2440 processors.
+
+config USB_S3C2410
+	tristate
+	depends on USB_GADGET_S3C2410
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
+config USB_S3C2410_DEBUG
+	boolean "S3C2410 udc debug messages"
+	depends on USB_GADGET_S3C2410
+
 config USB_GADGET_AT91
 	boolean "AT91 USB Device Port"
 	depends on ARCH_AT91 && !ARCH_AT91SAM9RL
