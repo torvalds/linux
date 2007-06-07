@@ -2514,9 +2514,9 @@ sun4v_ncs_request:
 	 nop
 	.size	sun4v_ncs_request, .-sun4v_ncs_request
 
-	.globl	sun4v_scv_send
-	.type	sun4v_scv_send,#function
-sun4v_scv_send:
+	.globl	sun4v_svc_send
+	.type	sun4v_svc_send,#function
+sun4v_svc_send:
 	save	%sp, -192, %sp
 	mov	%i0, %o0
 	mov	%i1, %o1
@@ -2526,11 +2526,11 @@ sun4v_scv_send:
 	stx	%o1, [%i3]
 	ret
 	restore
-	.size	sun4v_scv_send, .-sun4v_scv_send
+	.size	sun4v_svc_send, .-sun4v_svc_send
 
-	.globl	sun4v_scv_recv
-	.type	sun4v_scv_recv,#function
-sun4v_scv_recv:
+	.globl	sun4v_svc_recv
+	.type	sun4v_svc_recv,#function
+sun4v_svc_recv:
 	save	%sp, -192, %sp
 	mov	%i0, %o0
 	mov	%i1, %o1
@@ -2540,33 +2540,55 @@ sun4v_scv_recv:
 	stx	%o1, [%i3]
 	ret
 	restore
-	.size	sun4v_scv_recv, .-sun4v_scv_recv
+	.size	sun4v_svc_recv, .-sun4v_svc_recv
 
-	.globl	sun4v_scv_getstatus
-	.type	sun4v_scv_getstatus,#function
-sun4v_scv_getstatus:
+	.globl	sun4v_svc_getstatus
+	.type	sun4v_svc_getstatus,#function
+sun4v_svc_getstatus:
 	mov	HV_FAST_SVC_GETSTATUS, %o5
 	mov	%o1, %o4
 	ta	HV_FAST_TRAP
 	stx	%o1, [%o4]
 	retl
 	 nop
-	.size	sun4v_scv_getstatus, .-sun4v_scv_getstatus
+	.size	sun4v_svc_getstatus, .-sun4v_svc_getstatus
 
-	.globl	sun4v_scv_setstatus
-	.type	sun4v_scv_setstatus,#function
-sun4v_scv_setstatus:
+	.globl	sun4v_svc_setstatus
+	.type	sun4v_svc_setstatus,#function
+sun4v_svc_setstatus:
 	mov	HV_FAST_SVC_SETSTATUS, %o5
 	ta	HV_FAST_TRAP
 	retl
 	 nop
-	.size	sun4v_scv_setstatus, .-sun4v_scv_setstatus
+	.size	sun4v_svc_setstatus, .-sun4v_svc_setstatus
 
-	.globl	sun4v_scv_clrstatus
-	.type	sun4v_scv_clrstatus,#function
-sun4v_scv_clrstatus:
+	.globl	sun4v_svc_clrstatus
+	.type	sun4v_svc_clrstatus,#function
+sun4v_svc_clrstatus:
 	mov	HV_FAST_SVC_CLRSTATUS, %o5
 	ta	HV_FAST_TRAP
 	retl
 	 nop
-	.size	sun4v_scv_clrstatus, .-sun4v_scv_clrstatus
+	.size	sun4v_svc_clrstatus, .-sun4v_svc_clrstatus
+
+	.globl	sun4v_mmustat_conf
+	.type	sun4v_mmustat_conf,#function
+sun4v_mmustat_conf:
+	mov	%o1, %o4
+	mov	HV_FAST_MMUSTAT_CONF, %o5
+	ta	HV_FAST_TRAP
+	stx	%o1, [%o4]
+	retl
+	 nop
+	.size	sun4v_mmustat_conf, .-sun4v_mmustat_conf
+
+	.globl	sun4v_mmustat_info
+	.type	sun4v_mmustat_info,#function
+sun4v_mmustat_info:
+	mov	%o0, %o4
+	mov	HV_FAST_MMUSTAT_INFO, %o5
+	ta	HV_FAST_TRAP
+	stx	%o1, [%o4]
+	retl
+	 nop
+	.size	sun4v_mmustat_info, .-sun4v_mmustat_info

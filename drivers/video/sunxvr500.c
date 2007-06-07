@@ -50,7 +50,7 @@ struct e3d_info {
 	u32			fb8_0_off;
 	u32			fb8_1_off;
 
-	u32			pseudo_palette[256];
+	u32			pseudo_palette[16];
 };
 
 static int __devinit e3d_get_props(struct e3d_info *ep)
@@ -126,7 +126,9 @@ static int e3d_setcolreg(unsigned regno,
 	blue_8 = blue >> 8;
 
 	value = (blue_8 << 24) | (green_8 << 16) | (red_8 << 8);
-	((u32 *)info->pseudo_palette)[regno] = value;
+
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR && regno < 16)
+		((u32 *)info->pseudo_palette)[regno] = value;
 
 
 	red_10 = red >> 6;

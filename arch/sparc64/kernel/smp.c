@@ -44,12 +44,16 @@
 
 extern void calibrate_delay(void);
 
+int sparc64_multi_core __read_mostly;
+
 /* Please don't make this stuff initdata!!!  --DaveM */
 unsigned char boot_cpu_id;
 
 cpumask_t cpu_online_map __read_mostly = CPU_MASK_NONE;
 cpumask_t phys_cpu_present_map __read_mostly = CPU_MASK_NONE;
 cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly =
+	{ [0 ... NR_CPUS-1] = CPU_MASK_NONE };
+cpumask_t cpu_core_map[NR_CPUS] __read_mostly =
 	{ [0 ... NR_CPUS-1] = CPU_MASK_NONE };
 static cpumask_t smp_commenced_mask;
 static cpumask_t cpu_callout_map;
@@ -1217,13 +1221,28 @@ void __devinit smp_fill_in_sib_core_maps(void)
 		unsigned int j;
 
 		if (cpu_data(i).core_id == 0) {
-			cpu_set(i, cpu_sibling_map[i]);
+			cpu_set(i, cpu_core_map[i]);
 			continue;
 		}
 
 		for_each_possible_cpu(j) {
 			if (cpu_data(i).core_id ==
 			    cpu_data(j).core_id)
+				cpu_set(j, cpu_core_map[i]);
+		}
+	}
+
+	for_each_possible_cpu(i) {
+		unsigned int j;
+
+		if (cpu_data(i).proc_id == -1) {
+			cpu_set(i, cpu_sibling_map[i]);
+			continue;
+		}
+
+		for_each_possible_cpu(j) {
+			if (cpu_data(i).proc_id ==
+			    cpu_data(j).proc_id)
 				cpu_set(j, cpu_sibling_map[i]);
 		}
 	}

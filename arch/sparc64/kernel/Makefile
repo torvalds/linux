@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.70 2002/02/09 19:49:30 davem Exp $
+#
 # Makefile for the linux kernel.
 #
 
@@ -8,7 +8,7 @@ EXTRA_CFLAGS := -Werror
 extra-y		:= head.o init_task.o vmlinux.lds
 
 obj-y		:= process.o setup.o cpu.o idprom.o \
-		   traps.o auxio.o una_asm.o \
+		   traps.o auxio.o una_asm.o sysfs.o \
 		   irq.o ptrace.o time.o sys_sparc.o signal.o \
 		   unaligned.o central.o pci.o starfire.o semaphore.o \
 		   power.o sbus.o iommu_common.o sparc64_ksyms.o chmc.o \

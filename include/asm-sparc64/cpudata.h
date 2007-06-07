@@ -31,7 +31,7 @@ typedef struct {
 	unsigned int	ecache_size;
 	unsigned int	ecache_line_size;
 	int		core_id;
-	unsigned int	__pad3;
+	int		proc_id;
 } cpuinfo_sparc;
 
 DECLARE_PER_CPU(cpuinfo_sparc, __cpu_data);

@@ -473,6 +473,53 @@ static void __init set_core_ids(void)
 	}
 }
 
+static void __init mark_proc_ids(struct mdesc_node *mp, int proc_id)
+{
+	int i;
+
+	for (i = 0; i < mp->num_arcs; i++) {
+		struct mdesc_node *t = mp->arcs[i].arc;
+		const u64 *id;
+
+		if (strcmp(mp->arcs[i].name, "back"))
+			continue;
+
+		if (strcmp(t->name, "cpu"))
+			continue;
+
+		id = md_get_property(t, "id", NULL);
+		if (*id < NR_CPUS)
+			cpu_data(*id).proc_id = proc_id;
+	}
+}
+
+static void __init __set_proc_ids(const char *exec_unit_name)
+{
+	struct mdesc_node *mp;
+	int idx;
+
+	idx = 0;
+	md_for_each_node_by_name(mp, exec_unit_name) {
+		const char *type;
+		int len;
+
+		type = md_get_property(mp, "type", &len);
+		if (!find_in_proplist(type, "int", len) &&
+		    !find_in_proplist(type, "integer", len))
+			continue;
+
+		mark_proc_ids(mp, idx);
+
+		idx++;
+	}
+}
+
+static void __init set_proc_ids(void)
+{
+	__set_proc_ids("exec_unit");
+	__set_proc_ids("exec-unit");
+}
+
 static void __init get_one_mondo_bits(const u64 *p, unsigned int *mask, unsigned char def)
 {
 	u64 val;
@@ -574,9 +621,15 @@ static void __init mdesc_fill_in_cpu_data(void)
 #endif
 
 		c->core_id = 0;
+		c->proc_id = -1;
 	}
 
+#ifdef CONFIG_SMP
+	sparc64_multi_core = 1;
+#endif
+
 	set_core_ids();
+	set_proc_ids();
 
 	smp_fill_in_sib_core_maps();
 }

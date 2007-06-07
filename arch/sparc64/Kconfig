@@ -396,6 +396,15 @@ config SCHED_SMT
 	  when dealing with UltraSPARC cpus at a cost of slightly increased
 	  overhead in some places. If unsure say N here.
 
+config SCHED_MC
+	bool "Multi-core scheduler support"
+	depends on SMP
+	default y
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
+
 source "kernel/Kconfig.preempt"
 
 config CMDLINE_BOOL
