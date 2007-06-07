@@ -238,10 +238,11 @@ static inline int test_and_set_bit(unsigned long nr,
 	volatile unsigned long *addr)
 {
 	unsigned short bit = nr & SZLONG_MASK;
+	unsigned long res;
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp, res;
+		unsigned long temp;
 
 		__asm__ __volatile__(
 		"	.set	mips3					\n"
@@ -254,11 +255,9 @@ static inline int test_and_set_bit(unsigned long nr,
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << bit), "m" (*m)
 		: "memory");
-
-		return res != 0;
 	} else if (cpu_has_llsc) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp, res;
+		unsigned long temp;
 
 		__asm__ __volatile__(
 		"	.set	push					\n"
@@ -277,25 +276,22 @@ static inline int test_and_set_bit(unsigned long nr,
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << bit), "m" (*m)
 		: "memory");
-
-		return res != 0;
 	} else {
 		volatile unsigned long *a = addr;
 		unsigned long mask;
-		int retval;
 		unsigned long flags;
 
 		a += nr >> SZLONG_LOG;
 		mask = 1UL << bit;
 		raw_local_irq_save(flags);
-		retval = (mask & *a) != 0;
+		res = (mask & *a);
 		*a |= mask;
 		raw_local_irq_restore(flags);
-
-		return retval;
 	}
 
 	smp_mb();
+
+	return res != 0;
 }
 
 /*
@@ -310,6 +306,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 	volatile unsigned long *addr)
 {
 	unsigned short bit = nr & SZLONG_MASK;
+	unsigned long res;
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
@@ -327,12 +324,10 @@ static inline int test_and_clear_bit(unsigned long nr,
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << bit), "m" (*m)
 		: "memory");
-
-		return res != 0;
 #ifdef CONFIG_CPU_MIPSR2
 	} else if (__builtin_constant_p(nr)) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp, res;
+		unsigned long temp;
 
 		__asm__ __volatile__(
 		"1:	" __LL	"%0, %1		# test_and_clear_bit	\n"
@@ -346,12 +341,10 @@ static inline int test_and_clear_bit(unsigned long nr,
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "ri" (bit), "m" (*m)
 		: "memory");
-
-		return res;
 #endif
 	} else if (cpu_has_llsc) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp, res;
+		unsigned long temp;
 
 		__asm__ __volatile__(
 		"	.set	push					\n"
@@ -371,25 +364,22 @@ static inline int test_and_clear_bit(unsigned long nr,
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << bit), "m" (*m)
 		: "memory");
-
-		return res != 0;
 	} else {
 		volatile unsigned long *a = addr;
 		unsigned long mask;
-		int retval;
 		unsigned long flags;
 
 		a += nr >> SZLONG_LOG;
 		mask = 1UL << bit;
 		raw_local_irq_save(flags);
-		retval = (mask & *a) != 0;
+		res = (mask & *a);
 		*a &= ~mask;
 		raw_local_irq_restore(flags);
-
-		return retval;
 	}
 
 	smp_mb();
+
+	return res != 0;
 }
 
 /*
@@ -404,10 +394,11 @@ static inline int test_and_change_bit(unsigned long nr,
 	volatile unsigned long *addr)
 {
 	unsigned short bit = nr & SZLONG_MASK;
+	unsigned long res;
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp, res;
+		unsigned long temp;
 
 		__asm__ __volatile__(
 		"	.set	mips3					\n"
@@ -420,11 +411,9 @@ static inline int test_and_change_bit(unsigned long nr,
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << bit), "m" (*m)
 		: "memory");
-
-		return res != 0;
 	} else if (cpu_has_llsc) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
-		unsigned long temp, res;
+		unsigned long temp;
 
 		__asm__ __volatile__(
 		"	.set	push					\n"
@@ -443,24 +432,22 @@ static inline int test_and_change_bit(unsigned long nr,
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << bit), "m" (*m)
 		: "memory");
-
-		return res != 0;
 	} else {
 		volatile unsigned long *a = addr;
-		unsigned long mask, retval;
+		unsigned long mask;
 		unsigned long flags;
 
 		a += nr >> SZLONG_LOG;
 		mask = 1UL << bit;
 		raw_local_irq_save(flags);
-		retval = (mask & *a) != 0;
+		res = (mask & *a);
 		*a ^= mask;
 		raw_local_irq_restore(flags);
-
-		return retval;
 	}
 
 	smp_mb();
+
+	return res != 0;
 }
 
 #include <asm-generic/bitops/non-atomic.h>
