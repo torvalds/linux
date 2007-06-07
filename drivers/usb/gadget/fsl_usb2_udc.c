@@ -2334,7 +2334,7 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	ret = request_irq(udc_controller->irq, fsl_udc_irq, SA_SHIRQ,
+	ret = request_irq(udc_controller->irq, fsl_udc_irq, IRQF_SHARED,
 			driver_name, udc_controller);
 	if (ret != 0) {
 		ERR("cannot request irq %d err %d \n",
