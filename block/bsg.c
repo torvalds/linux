@@ -471,6 +471,7 @@ static int bsg_complete_all_commands(struct bsg_device *bd)
 			spin_unlock_irq(&bd->lock);
 			break;
 		}
+		spin_unlock_irq(&bd->lock);
 
 		bc = bsg_get_done_cmd(bd);
 		if (IS_ERR(bc))
