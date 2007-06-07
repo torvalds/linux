@@ -749,7 +749,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		if (error)
 			goto out_end_trans;
 
-		error = gfs2_dir_mvino(ip, &name, nip, DT_DIR);
+		error = gfs2_dir_mvino(ip, &name, ndip, DT_DIR);
 		if (error)
 			goto out_end_trans;
 	} else {
