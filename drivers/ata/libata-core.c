@@ -1727,7 +1727,7 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 
 	/* sanity check */
 	rc = -EINVAL;
-	reason = "device reports illegal type";
+	reason = "device reports invalid type";
 
 	if (class == ATA_DEV_ATA) {
 		if (!ata_id_is_ata(id) && !ata_id_is_cfa(id))
