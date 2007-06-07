@@ -379,6 +379,7 @@ struct kvm {
 	struct list_head active_mmu_pages;
 	int n_free_mmu_pages;
 	struct hlist_head mmu_page_hash[KVM_NUM_MMU_PAGES];
+	int nvcpus;
 	struct kvm_vcpu vcpus[KVM_MAX_VCPUS];
 	int memory_config_version;
 	int busy;

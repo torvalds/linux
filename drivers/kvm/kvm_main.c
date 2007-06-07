@@ -2391,6 +2391,11 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, int n)
 	if (r < 0)
 		goto out_free_vcpus;
 
+	spin_lock(&kvm_lock);
+	if (n >= kvm->nvcpus)
+		kvm->nvcpus = n + 1;
+	spin_unlock(&kvm_lock);
+
 	return r;
 
 out_free_vcpus:
