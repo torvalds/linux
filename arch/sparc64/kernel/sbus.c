@@ -629,29 +629,29 @@ void sbus_set_sbus64(struct sbus_dev *sdev, int bursts)
  * This should conform to both Sunfire/Wildfire server and Fusion
  * desktop designs.
  */
-#define SYSIO_IMAP_SLOT0	0x2c04UL
-#define SYSIO_IMAP_SLOT1	0x2c0cUL
-#define SYSIO_IMAP_SLOT2	0x2c14UL
-#define SYSIO_IMAP_SLOT3	0x2c1cUL
-#define SYSIO_IMAP_SCSI		0x3004UL
-#define SYSIO_IMAP_ETH		0x300cUL
-#define SYSIO_IMAP_BPP		0x3014UL
-#define SYSIO_IMAP_AUDIO	0x301cUL
-#define SYSIO_IMAP_PFAIL	0x3024UL
-#define SYSIO_IMAP_KMS		0x302cUL
-#define SYSIO_IMAP_FLPY		0x3034UL
-#define SYSIO_IMAP_SHW		0x303cUL
-#define SYSIO_IMAP_KBD		0x3044UL
-#define SYSIO_IMAP_MS		0x304cUL
-#define SYSIO_IMAP_SER		0x3054UL
-#define SYSIO_IMAP_TIM0		0x3064UL
-#define SYSIO_IMAP_TIM1		0x306cUL
-#define SYSIO_IMAP_UE		0x3074UL
-#define SYSIO_IMAP_CE		0x307cUL
-#define SYSIO_IMAP_SBERR	0x3084UL
-#define SYSIO_IMAP_PMGMT	0x308cUL
-#define SYSIO_IMAP_GFX		0x3094UL
-#define SYSIO_IMAP_EUPA		0x309cUL
+#define SYSIO_IMAP_SLOT0	0x2c00UL
+#define SYSIO_IMAP_SLOT1	0x2c08UL
+#define SYSIO_IMAP_SLOT2	0x2c10UL
+#define SYSIO_IMAP_SLOT3	0x2c18UL
+#define SYSIO_IMAP_SCSI		0x3000UL
+#define SYSIO_IMAP_ETH		0x3008UL
+#define SYSIO_IMAP_BPP		0x3010UL
+#define SYSIO_IMAP_AUDIO	0x3018UL
+#define SYSIO_IMAP_PFAIL	0x3020UL
+#define SYSIO_IMAP_KMS		0x3028UL
+#define SYSIO_IMAP_FLPY		0x3030UL
+#define SYSIO_IMAP_SHW		0x3038UL
+#define SYSIO_IMAP_KBD		0x3040UL
+#define SYSIO_IMAP_MS		0x3048UL
+#define SYSIO_IMAP_SER		0x3050UL
+#define SYSIO_IMAP_TIM0		0x3060UL
+#define SYSIO_IMAP_TIM1		0x3068UL
+#define SYSIO_IMAP_UE		0x3070UL
+#define SYSIO_IMAP_CE		0x3078UL
+#define SYSIO_IMAP_SBERR	0x3080UL
+#define SYSIO_IMAP_PMGMT	0x3088UL
+#define SYSIO_IMAP_GFX		0x3090UL
+#define SYSIO_IMAP_EUPA		0x3098UL
 
 #define bogon     ((unsigned long) -1)
 static unsigned long sysio_irq_offsets[] = {
@@ -700,10 +700,10 @@ static unsigned long sysio_irq_offsets[] = {
  * Interrupt Clear register pointer, SYSIO specific version.
  */
 #define SYSIO_ICLR_UNUSED0	0x3400UL
-#define SYSIO_ICLR_SLOT0	0x340cUL
-#define SYSIO_ICLR_SLOT1	0x344cUL
-#define SYSIO_ICLR_SLOT2	0x348cUL
-#define SYSIO_ICLR_SLOT3	0x34ccUL
+#define SYSIO_ICLR_SLOT0	0x3408UL
+#define SYSIO_ICLR_SLOT1	0x3448UL
+#define SYSIO_ICLR_SLOT2	0x3488UL
+#define SYSIO_ICLR_SLOT3	0x34c8UL
 static unsigned long sysio_imap_to_iclr(unsigned long imap)
 {
 	unsigned long diff = SYSIO_ICLR_UNUSED0 - SYSIO_IMAP_SLOT0;
