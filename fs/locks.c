@@ -1326,7 +1326,7 @@ int fcntl_getlease(struct file *filp)
 }
 
 /**
- *	__setlease	-	sets a lease on an open file
+ *	setlease	-	sets a lease on an open file
  *	@filp: file pointer
  *	@arg: type of lease to obtain
  *	@flp: input - file_lock to use, output - file_lock inserted
@@ -1336,7 +1336,7 @@ int fcntl_getlease(struct file *filp)
  *
  *	Called with kernel lock held.
  */
-static int __setlease(struct file *filp, long arg, struct file_lock **flp)
+static int setlease(struct file *filp, long arg, struct file_lock **flp)
 {
 	struct file_lock *fl, **before, **my_before = NULL, *lease;
 	struct dentry *dentry = filp->f_path.dentry;
@@ -1423,7 +1423,7 @@ out:
 }
 
  /**
- *	setlease        -       sets a lease on an open file
+ *	vfs_setlease        -       sets a lease on an open file
  *	@filp: file pointer
  *	@arg: type of lease to obtain
  *	@lease: file_lock to use
@@ -1432,18 +1432,17 @@ out:
  *	The fl_lmops fl_break function is required by break_lease
  */
 
-int setlease(struct file *filp, long arg, struct file_lock **lease)
+int vfs_setlease(struct file *filp, long arg, struct file_lock **lease)
 {
 	int error;
 
 	lock_kernel();
-	error = __setlease(filp, arg, lease);
+	error = setlease(filp, arg, lease);
 	unlock_kernel();
 
 	return error;
 }
-
-EXPORT_SYMBOL(setlease);
+EXPORT_SYMBOL_GPL(vfs_setlease);
 
 /**
  *	fcntl_setlease	-	sets a lease on an open file
@@ -1469,7 +1468,7 @@ int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
 
 	lock_kernel();
 
-	error = __setlease(filp, arg, &flp);
+	error = vfs_setlease(filp, arg, &flp);
 	if (error || arg == F_UNLCK)
 		goto out_unlock;
 
