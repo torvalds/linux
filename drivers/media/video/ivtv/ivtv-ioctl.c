@@ -1007,7 +1007,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		if (itv->hw_flags & IVTV_HW_CX25840) {
 			itv->vbi.sliced_decoder_line_size = itv->is_60hz ? 272 : 284;
 		}
-		IVTV_DEBUG_INFO("Switching standard to %llx.\n", itv->std);
+		IVTV_DEBUG_INFO("Switching standard to %llx.\n", (unsigned long long)itv->std);
 
 		/* Tuner */
 		ivtv_call_i2c_clients(itv, VIDIOC_S_STD, &itv->std);
@@ -1237,7 +1237,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 					(s->buffers - s->q_free.buffers) * 100 / s->buffers,
 					(s->buffers * s->buf_size) / 1024, s->buffers);
 		}
-		IVTV_INFO("Read MPEG/VBI: %lld/%lld bytes\n", itv->mpg_data_received, itv->vbi_data_inserted);
+		IVTV_INFO("Read MPEG/VBI: %lld/%lld bytes\n", (long long)itv->mpg_data_received, (long long)itv->vbi_data_inserted);
 		IVTV_INFO("==================  END STATUS CARD #%d  ==================\n", itv->num);
 		break;
 	}

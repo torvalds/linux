@@ -868,7 +868,7 @@ int ivtv_stop_v4l2_decode_stream(struct ivtv_stream *s, int flags, u64 pts)
 	if (!test_bit(IVTV_F_S_STREAMING, &s->s_flags))
 		return 0;
 
-	IVTV_DEBUG_INFO("Stop Decode at %llu, flags: %x\n", pts, flags);
+	IVTV_DEBUG_INFO("Stop Decode at %llu, flags: %x\n", (unsigned long long)pts, flags);
 
 	/* Stop Decoder */
 	if (!(flags & VIDEO_CMD_STOP_IMMEDIATELY) || pts) {
