@@ -701,6 +701,14 @@ out:
 	return ret;
 }
 
+void inotify_evict_watch(struct inotify_watch *watch)
+{
+	get_inotify_watch(watch);
+	mutex_lock(&watch->ih->mutex);
+	inotify_remove_watch_locked(watch->ih, watch);
+	mutex_unlock(&watch->ih->mutex);
+}
+
 /**
  * inotify_rm_wd - remove a watch from an inotify instance
  * @ih: inotify handle
