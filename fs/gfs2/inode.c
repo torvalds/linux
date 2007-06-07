@@ -857,7 +857,7 @@ static int gfs2_security_init(struct gfs2_inode *dip, struct gfs2_inode *ip)
 struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 			   unsigned int mode, dev_t dev)
 {
-	struct inode *inode;
+	struct inode *inode = NULL;
 	struct gfs2_inode *dip = ghs->gh_gl->gl_object;
 	struct inode *dir = &dip->i_inode;
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
@@ -900,28 +900,28 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 
 	error = gfs2_inode_refresh(GFS2_I(inode));
 	if (error)
-		goto fail_iput;
+		goto fail_gunlock2;
 
 	error = gfs2_acl_create(dip, GFS2_I(inode));
 	if (error)
-		goto fail_iput;
+		goto fail_gunlock2;
 
 	error = gfs2_security_init(dip, GFS2_I(inode));
 	if (error)
-		goto fail_iput;
+		goto fail_gunlock2;
 
 	error = link_dinode(dip, name, GFS2_I(inode));
 	if (error)
-		goto fail_iput;
+		goto fail_gunlock2;
 
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 	return inode;
 
-fail_iput:
-	iput(inode);
 fail_gunlock2:
 	gfs2_glock_dq_uninit(ghs + 1);
+	if (inode)
+		iput(inode);
 fail_gunlock:
 	gfs2_glock_dq(ghs);
 fail:
