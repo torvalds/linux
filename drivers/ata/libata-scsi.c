@@ -2506,6 +2506,8 @@ ata_scsi_map_proto(u8 byte1)
 			return ATA_PROT_NODATA;
 
 		case 6:		/* DMA */
+		case 10:	/* UDMA Data-in */
+		case 11:	/* UDMA Data-Out */
 			return ATA_PROT_DMA;
 
 		case 4:		/* PIO Data-in */
@@ -2517,8 +2519,6 @@ ata_scsi_map_proto(u8 byte1)
 		case 8:		/* Device Diagnostic */
 		case 9:		/* Device Reset */
 		case 7:		/* DMA Queued */
-		case 10:	/* UDMA Data-in */
-		case 11:	/* UDMA Data-Out */
 		case 12:	/* FPDMA */
 		case 15:	/* Return Response Info */
 		default:	/* Reserved */
