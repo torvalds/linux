@@ -272,7 +272,6 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 	struct page *page;
 	pgoff_t index, end_index;
 	loff_t isize;
-	size_t total_len;
 	int error, page_nr;
 	struct splice_pipe_desc spd = {
 		.pages = pages,
@@ -298,7 +297,6 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 	 * Now fill in the holes:
 	 */
 	error = 0;
-	total_len = 0;
 
 	/*
 	 * Lookup the (hopefully) full range of pages we need.
@@ -429,29 +427,33 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 			 * the length and stop
 			 */
 			if (end_index == index) {
-				loff = PAGE_CACHE_SIZE - (isize & ~PAGE_CACHE_MASK);
-				if (total_len + loff > isize)
+				unsigned int plen;
+
+				/*
+				 * max good bytes in this page
+				 */
+				plen = ((isize - 1) & ~PAGE_CACHE_MASK) + 1;
+				if (plen <= loff)
 					break;
+
 				/*
 				 * force quit after adding this page
 				 */
+				this_len = min(this_len, plen - loff);
 				len = this_len;
-				this_len = min(this_len, loff);
-				loff = 0;
 			}
 		}
 fill_it:
 		partial[page_nr].offset = loff;
 		partial[page_nr].len = this_len;
 		len -= this_len;
-		total_len += this_len;
 		loff = 0;
 		spd.nr_pages++;
 		index++;
 	}
 
 	/*
-	 * Release any pages at the end, if we quit early. 'i' is how far
+	 * Release any pages at the end, if we quit early. 'page_nr' is how far
 	 * we got, 'nr_pages' is how many pages are in the map.
 	 */
 	while (page_nr < nr_pages)
