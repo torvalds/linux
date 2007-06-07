@@ -317,7 +317,6 @@ static int __init smp_psurge_probe(void)
 		ncpus = NR_CPUS;
 	for (i = 1; i < ncpus ; ++i) {
 		cpu_set(i, cpu_present_map);
-		cpu_set(i, cpu_possible_map);
 		set_hard_smp_processor_id(i, i);
 	}
 
