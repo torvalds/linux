@@ -413,37 +413,37 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 
 				break;
 			}
+		}
+fill_it:
+		/*
+		 * i_size must be checked after PageUptodate.
+		 */
+		isize = i_size_read(mapping->host);
+		end_index = (isize - 1) >> PAGE_CACHE_SHIFT;
+		if (unlikely(!isize || index > end_index))
+			break;
+
+		/*
+		 * if this is the last page, see if we need to shrink
+		 * the length and stop
+		 */
+		if (end_index == index) {
+			unsigned int plen;
 
 			/*
-			 * i_size must be checked after ->readpage().
+			 * max good bytes in this page
 			 */
-			isize = i_size_read(mapping->host);
-			end_index = (isize - 1) >> PAGE_CACHE_SHIFT;
-			if (unlikely(!isize || index > end_index))
+			plen = ((isize - 1) & ~PAGE_CACHE_MASK) + 1;
+			if (plen <= loff)
 				break;
 
 			/*
-			 * if this is the last page, see if we need to shrink
-			 * the length and stop
+			 * force quit after adding this page
 			 */
-			if (end_index == index) {
-				unsigned int plen;
-
-				/*
-				 * max good bytes in this page
-				 */
-				plen = ((isize - 1) & ~PAGE_CACHE_MASK) + 1;
-				if (plen <= loff)
-					break;
-
-				/*
-				 * force quit after adding this page
-				 */
-				this_len = min(this_len, plen - loff);
-				len = this_len;
-			}
+			this_len = min(this_len, plen - loff);
+			len = this_len;
 		}
-fill_it:
+
 		partial[page_nr].offset = loff;
 		partial[page_nr].len = this_len;
 		len -= this_len;
