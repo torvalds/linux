@@ -16,9 +16,8 @@
 #include <linux/fs.h>
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
-
-#include <asm/uaccess.h>
-#include <asm/io.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 
 #define TIMEOUT_MIN		1
 #define TIMEOUT_DEFAULT		CONFIG_AT32AP700X_WDT_TIMEOUT
@@ -120,7 +119,10 @@ static int at32_wdt_settimeout(int time)
 	if ((time < TIMEOUT_MIN) || (time > TIMEOUT_MAX))
 		return -EINVAL;
 
-	/* Set new watchdog time. It will be used when at32_wdt_start() is called. */
+	/*
+	 * Set new watchdog time. It will be used when at32_wdt_start() is
+	 * called.
+	 */
 	wdt->timeout = time;
 	return 0;
 }
@@ -141,7 +143,7 @@ static int at32_wdt_ioctl(struct inode *inode, struct file *file,
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
 
-	switch(cmd) {
+	switch (cmd) {
 	case WDIOC_KEEPALIVE:
 		at32_wdt_pat();
 		ret = 0;
@@ -182,7 +184,8 @@ static int at32_wdt_ioctl(struct inode *inode, struct file *file,
 	return ret;
 }
 
-static ssize_t at32_wdt_write(struct file *file, const char *data, size_t len, loff_t *ppos)
+static ssize_t at32_wdt_write(struct file *file, const char *data, size_t len,
+				loff_t *ppos)
 {
 	at32_wdt_pat();
 	return len;
