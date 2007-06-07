@@ -247,7 +247,7 @@ static void longhaul_setstate(unsigned int table_index)
 	struct cpufreq_freqs freqs;
 	unsigned long flags;
 	unsigned int pic1_mask, pic2_mask;
-	u32 bm_status = 0;
+	u16 bm_status = 0;
 	u32 bm_timeout = 1000;
 	unsigned int dir = 0;
 
@@ -281,14 +281,14 @@ static void longhaul_setstate(unsigned int table_index)
 	outb(0xFE,0x21);	/* TMR0 only */
 
 	/* Wait while PCI bus is busy. */
-	if (longhaul_flags & USE_NORTHBRIDGE
-	    || ((pr != NULL) && pr->flags.bm_control)) {
-		bm_status = inl(acpi_regs_addr);
+	if (acpi_regs_addr && (longhaul_flags & USE_NORTHBRIDGE
+	    || ((pr != NULL) && pr->flags.bm_control))) {
+		bm_status = inw(acpi_regs_addr);
 		bm_status &= 1 << 4;
 		while (bm_status && bm_timeout) {
-			outl(1 << 4, acpi_regs_addr);
+			outw(1 << 4, acpi_regs_addr);
 			bm_timeout--;
-			bm_status = inl(acpi_regs_addr);
+			bm_status = inw(acpi_regs_addr);
 			bm_status &= 1 << 4;
 		}
 	}
