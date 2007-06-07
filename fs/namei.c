@@ -1174,7 +1174,7 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 out:
 	if (unlikely(!retval && !audit_dummy_context() && nd->dentry &&
 				nd->dentry->d_inode))
-		audit_inode(name, nd->dentry->d_inode);
+		audit_inode(name, nd->dentry);
 out_fail:
 	return retval;
 
@@ -1214,7 +1214,7 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 	retval = path_walk(name, nd);
 	if (unlikely(!retval && !audit_dummy_context() && nd->dentry &&
 				nd->dentry->d_inode))
-		audit_inode(name, nd->dentry->d_inode);
+		audit_inode(name, nd->dentry);
 
 	return retval;
 
@@ -1469,7 +1469,7 @@ static int may_delete(struct inode *dir,struct dentry *victim,int isdir)
 		return -ENOENT;
 
 	BUG_ON(victim->d_parent->d_inode != dir);
-	audit_inode_child(victim->d_name.name, victim->d_inode, dir);
+	audit_inode_child(victim->d_name.name, victim, dir);
 
 	error = permission(dir,MAY_WRITE | MAY_EXEC, NULL);
 	if (error)
@@ -1783,7 +1783,7 @@ do_last:
 	 * It already exists.
 	 */
 	mutex_unlock(&dir->d_inode->i_mutex);
-	audit_inode(pathname, path.dentry->d_inode);
+	audit_inode(pathname, path.dentry);
 
 	error = -EEXIST;
 	if (flag & O_EXCL)
@@ -2562,7 +2562,7 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (!error) {
 		const char *new_name = old_dentry->d_name.name;
 		fsnotify_move(old_dir, new_dir, old_name, new_name, is_dir,
-			      new_dentry->d_inode, old_dentry->d_inode);
+			      new_dentry->d_inode, old_dentry);
 	}
 	fsnotify_oldname_free(old_name);
 

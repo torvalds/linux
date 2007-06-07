@@ -1403,10 +1403,11 @@ static void audit_copy_inode(struct audit_names *name, const struct inode *inode
  *
  * Called from fs/namei.c:path_lookup().
  */
-void __audit_inode(const char *name, const struct inode *inode)
+void __audit_inode(const char *name, const struct dentry *dentry)
 {
 	int idx;
 	struct audit_context *context = current->audit_context;
+	const struct inode *inode = inode = dentry->d_inode;
 
 	if (!context->in_syscall)
 		return;
@@ -1443,12 +1444,13 @@ void __audit_inode(const char *name, const struct inode *inode)
  * must be hooked prior, in order to capture the target inode during
  * unsuccessful attempts.
  */
-void __audit_inode_child(const char *dname, const struct inode *inode,
+void __audit_inode_child(const char *dname, const struct dentry *dentry,
 			 const struct inode *parent)
 {
 	int idx;
 	struct audit_context *context = current->audit_context;
 	const char *found_parent = NULL, *found_child = NULL;
+	const struct inode *inode = dentry->d_inode;
 	int dirlen = 0;
 
 	if (!context->in_syscall)
