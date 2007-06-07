@@ -1534,7 +1534,7 @@ static int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *sym
 
 	lock_kernel();
 
-	page = alloc_page(GFP_KERNEL);
+	page = alloc_page(GFP_HIGHUSER);
 	if (!page) {
 		unlock_kernel();
 		return -ENOMEM;
