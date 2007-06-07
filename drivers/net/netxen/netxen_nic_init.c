@@ -585,7 +585,7 @@ int netxen_backup_crbinit(struct netxen_adapter *adapter)
 {
 	int ret = FLASH_SUCCESS;
 	int val;
-	char *buffer = kmalloc(FLASH_SECTOR_SIZE, GFP_KERNEL);
+	char *buffer = kmalloc(NETXEN_FLASH_SECTOR_SIZE, GFP_KERNEL);
 
 	if (!buffer)
 		return -ENOMEM;	
@@ -601,13 +601,13 @@ int netxen_backup_crbinit(struct netxen_adapter *adapter)
 		goto out_kfree;
 
 	/* copy  sector 0 to sector 63 */
-	ret = netxen_rom_fast_read_words(adapter, CRBINIT_START, 
-						buffer, FLASH_SECTOR_SIZE);
+	ret = netxen_rom_fast_read_words(adapter, NETXEN_CRBINIT_START, 
+					buffer, NETXEN_FLASH_SECTOR_SIZE);
 	if (ret != FLASH_SUCCESS)
 		goto out_kfree;
 
-	ret = netxen_rom_fast_write_words(adapter, FIXED_START, 
-						buffer, FLASH_SECTOR_SIZE);
+	ret = netxen_rom_fast_write_words(adapter, NETXEN_FIXED_START, 
+					buffer, NETXEN_FLASH_SECTOR_SIZE);
 	if (ret != FLASH_SUCCESS)
 		goto out_kfree;
 
@@ -654,7 +654,8 @@ void check_erased_flash(struct netxen_adapter *adapter, int addr)
 	int count = 0, erased_errors = 0;
 	int range;
 
-	range = (addr == USER_START) ? FIXED_START : addr + FLASH_SECTOR_SIZE;
+	range = (addr == NETXEN_USER_START) ? 
+		NETXEN_FIXED_START : addr + NETXEN_FLASH_SECTOR_SIZE;
 	
 	for (i = addr; i < range; i += 4) {
 		netxen_rom_fast_read(adapter, i, &val);
@@ -689,7 +690,7 @@ netxen_flash_erase_sections(struct netxen_adapter *adapter, int start, int end)
 	int i;
 
 	for (i = start; i < end; i++) {
-		ret = netxen_rom_se(adapter, i * FLASH_SECTOR_SIZE);
+		ret = netxen_rom_se(adapter, i * NETXEN_FLASH_SECTOR_SIZE);
 		if (ret)
 			break;
 		ret = netxen_rom_wip_poll(adapter);
@@ -706,8 +707,8 @@ netxen_flash_erase_secondary(struct netxen_adapter *adapter)
 	int ret = FLASH_SUCCESS;
 	int start, end;
 
-	start = SECONDARY_START / FLASH_SECTOR_SIZE;
-	end   = USER_START / FLASH_SECTOR_SIZE;
+	start = NETXEN_SECONDARY_START / NETXEN_FLASH_SECTOR_SIZE;
+	end   = NETXEN_USER_START / NETXEN_FLASH_SECTOR_SIZE;
 	ret = netxen_flash_erase_sections(adapter, start, end);
 
 	return ret;
@@ -719,8 +720,8 @@ netxen_flash_erase_primary(struct netxen_adapter *adapter)
 	int ret = FLASH_SUCCESS;
 	int start, end;
 
-	start = PRIMARY_START / FLASH_SECTOR_SIZE;
-	end   = SECONDARY_START / FLASH_SECTOR_SIZE;
+	start = NETXEN_PRIMARY_START / NETXEN_FLASH_SECTOR_SIZE;
+	end   = NETXEN_SECONDARY_START / NETXEN_FLASH_SECTOR_SIZE;
 	ret = netxen_flash_erase_sections(adapter, start, end);
 
 	return ret;

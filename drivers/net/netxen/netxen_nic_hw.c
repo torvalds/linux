@@ -257,7 +257,7 @@ u64 ctx_addr_sig_regs[][3] = {
 #define ADDR_IN_RANGE(addr, low, high)	\
 	(((addr) <= (high)) && ((addr) >= (low)))
 
-#define NETXEN_FLASH_BASE	(BOOTLD_START)
+#define NETXEN_FLASH_BASE	(NETXEN_BOOTLD_START)
 #define NETXEN_PHANTOM_MEM_BASE	(NETXEN_FLASH_BASE)
 #define NETXEN_MAX_MTU		8000 + NETXEN_ENET_HEADER_SIZE + NETXEN_ETH_FCS_SIZE
 #define NETXEN_MIN_MTU		64
@@ -611,7 +611,7 @@ int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 mac[])
 	u32 *pmac = (u32 *) & mac[0];
 
 	if (netxen_get_flash_block(adapter,
-				   USER_START +
+				   NETXEN_USER_START +
 				   offsetof(struct netxen_new_user_info,
 					    mac_addr),
 				   FLASH_NUM_PORTS * sizeof(u64), pmac) == -1) {
@@ -619,7 +619,7 @@ int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 mac[])
 	}
 	if (*mac == ~0ULL) {
 		if (netxen_get_flash_block(adapter,
-					   USER_START_OLD +
+					   NETXEN_USER_START_OLD +
 					   offsetof(struct netxen_user_old_info,
 						    mac_addr),
 					   FLASH_NUM_PORTS * sizeof(u64),
@@ -942,7 +942,7 @@ netxen_nic_pci_set_window(struct netxen_adapter *adapter,
 int
 netxen_nic_erase_pxe(struct netxen_adapter *adapter)
 {
-	if (netxen_rom_fast_write(adapter, PXE_START, 0) == -1) {
+	if (netxen_rom_fast_write(adapter, NETXEN_PXE_START, 0) == -1) {
 		printk(KERN_ERR "%s: erase pxe failed\n", 
 			netxen_nic_driver_name);
 		return -1;
@@ -953,7 +953,7 @@ netxen_nic_erase_pxe(struct netxen_adapter *adapter)
 int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 {
 	int rv = 0;
-	int addr = BRDCFG_START;
+	int addr = NETXEN_BRDCFG_START;
 	struct netxen_board_info *boardinfo;
 	int index;
 	u32 *ptr32;
@@ -1115,7 +1115,7 @@ void netxen_nic_flash_print(struct netxen_adapter *adapter)
 	u32 fw_build = 0;
 	char brd_name[NETXEN_MAX_SHORT_NAME];
 	struct netxen_new_user_info user_info;
-	int i, addr = USER_START;
+	int i, addr = NETXEN_USER_START;
 	__le32 *ptr32;
 
 	struct netxen_board_info *board_info = &(adapter->ahw.boardcfg);
