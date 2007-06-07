@@ -85,7 +85,6 @@ struct gss_auth {
 	struct rpc_auth rpc_auth;
 	struct gss_api_mech *mech;
 	enum rpc_gss_svc service;
-	struct list_head upcalls;
 	struct rpc_clnt *client;
 	struct dentry *dentry;
 };
@@ -268,10 +267,10 @@ gss_release_msg(struct gss_upcall_msg *gss_msg)
 }
 
 static struct gss_upcall_msg *
-__gss_find_upcall(struct gss_auth *gss_auth, uid_t uid)
+__gss_find_upcall(struct rpc_inode *rpci, uid_t uid)
 {
 	struct gss_upcall_msg *pos;
-	list_for_each_entry(pos, &gss_auth->upcalls, list) {
+	list_for_each_entry(pos, &rpci->in_downcall, list) {
 		if (pos->uid != uid)
 			continue;
 		atomic_inc(&pos->count);
@@ -290,13 +289,14 @@ static inline struct gss_upcall_msg *
 gss_add_msg(struct gss_auth *gss_auth, struct gss_upcall_msg *gss_msg)
 {
 	struct inode *inode = gss_auth->dentry->d_inode;
+	struct rpc_inode *rpci = RPC_I(inode);
 	struct gss_upcall_msg *old;
 
 	spin_lock(&inode->i_lock);
-	old = __gss_find_upcall(gss_auth, gss_msg->uid);
+	old = __gss_find_upcall(rpci, gss_msg->uid);
 	if (old == NULL) {
 		atomic_inc(&gss_msg->count);
-		list_add(&gss_msg->list, &gss_auth->upcalls);
+		list_add(&gss_msg->list, &rpci->in_downcall);
 	} else
 		gss_msg = old;
 	spin_unlock(&inode->i_lock);
@@ -493,7 +493,6 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	const void *p, *end;
 	void *buf;
 	struct rpc_clnt *clnt;
-	struct gss_auth *gss_auth;
 	struct gss_upcall_msg *gss_msg;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct gss_cl_ctx *ctx;
@@ -526,9 +525,8 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 
 	err = -ENOENT;
 	/* Find a matching upcall */
-	gss_auth = container_of(clnt->cl_auth, struct gss_auth, rpc_auth);
 	spin_lock(&inode->i_lock);
-	gss_msg = __gss_find_upcall(gss_auth, uid);
+	gss_msg = __gss_find_upcall(RPC_I(inode), uid);
 	if (gss_msg == NULL) {
 		spin_unlock(&inode->i_lock);
 		goto err_put_ctx;
@@ -536,7 +534,7 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	list_del_init(&gss_msg->list);
 	spin_unlock(&inode->i_lock);
 
-	p = gss_fill_context(p, end, ctx, gss_auth->mech);
+	p = gss_fill_context(p, end, ctx, gss_msg->auth->mech);
 	if (IS_ERR(p)) {
 		err = PTR_ERR(p);
 		gss_msg->msg.errno = (err == -EACCES) ? -EACCES : -EAGAIN;
@@ -563,18 +561,12 @@ static void
 gss_pipe_release(struct inode *inode)
 {
 	struct rpc_inode *rpci = RPC_I(inode);
-	struct rpc_clnt *clnt;
-	struct rpc_auth *auth;
-	struct gss_auth *gss_auth;
+	struct gss_upcall_msg *gss_msg;
 
-	clnt = rpci->private;
-	auth = clnt->cl_auth;
-	gss_auth = container_of(auth, struct gss_auth, rpc_auth);
 	spin_lock(&inode->i_lock);
-	while (!list_empty(&gss_auth->upcalls)) {
-		struct gss_upcall_msg *gss_msg;
+	while (!list_empty(&rpci->in_downcall)) {
 
-		gss_msg = list_entry(gss_auth->upcalls.next,
+		gss_msg = list_entry(rpci->in_downcall.next,
 				struct gss_upcall_msg, list);
 		gss_msg->msg.errno = -EPIPE;
 		atomic_inc(&gss_msg->count);
@@ -637,7 +629,6 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 	gss_auth->service = gss_pseudoflavor_to_service(gss_auth->mech, flavor);
 	if (gss_auth->service == 0)
 		goto err_put_mech;
-	INIT_LIST_HEAD(&gss_auth->upcalls);
 	auth = &gss_auth->rpc_auth;
 	auth->au_cslack = GSS_CRED_SLACK >> 2;
 	auth->au_rslack = GSS_VERF_SLACK >> 2;

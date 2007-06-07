@@ -833,6 +833,7 @@ init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 	rpci->nreaders = 0;
 	rpci->nwriters = 0;
 	INIT_LIST_HEAD(&rpci->in_upcall);
+	INIT_LIST_HEAD(&rpci->in_downcall);
 	INIT_LIST_HEAD(&rpci->pipe);
 	rpci->pipelen = 0;
 	init_waitqueue_head(&rpci->waitq);

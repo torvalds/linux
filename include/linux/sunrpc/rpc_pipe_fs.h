@@ -23,6 +23,7 @@ struct rpc_inode {
 	void *private;
 	struct list_head pipe;
 	struct list_head in_upcall;
+	struct list_head in_downcall;
 	int pipelen;
 	int nreaders;
 	int nwriters;
