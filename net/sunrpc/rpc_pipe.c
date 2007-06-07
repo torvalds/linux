@@ -621,7 +621,7 @@ __rpc_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 static struct dentry *
-rpc_lookup_create(struct dentry *parent, const char *name, int len)
+rpc_lookup_create(struct dentry *parent, const char *name, int len, int exclusive)
 {
 	struct inode *dir = parent->d_inode;
 	struct dentry *dentry;
@@ -630,7 +630,7 @@ rpc_lookup_create(struct dentry *parent, const char *name, int len)
 	dentry = lookup_one_len(name, parent, len);
 	if (IS_ERR(dentry))
 		goto out_err;
-	if (dentry->d_inode) {
+	if (dentry->d_inode && exclusive) {
 		dput(dentry);
 		dentry = ERR_PTR(-EEXIST);
 		goto out_err;
@@ -649,7 +649,7 @@ rpc_lookup_negative(char *path, struct nameidata *nd)
 
 	if ((error = rpc_lookup_parent(path, nd)) != 0)
 		return ERR_PTR(error);
-	dentry = rpc_lookup_create(nd->dentry, nd->last.name, nd->last.len);
+	dentry = rpc_lookup_create(nd->dentry, nd->last.name, nd->last.len, 1);
 	if (IS_ERR(dentry))
 		rpc_release_path(nd);
 	return dentry;
@@ -716,10 +716,20 @@ rpc_mkpipe(struct dentry *parent, const char *name, void *private, struct rpc_pi
 	struct inode *dir, *inode;
 	struct rpc_inode *rpci;
 
-	dentry = rpc_lookup_create(parent, name, strlen(name));
+	dentry = rpc_lookup_create(parent, name, strlen(name), 0);
 	if (IS_ERR(dentry))
 		return dentry;
 	dir = parent->d_inode;
+	if (dentry->d_inode) {
+		rpci = RPC_I(dentry->d_inode);
+		if (rpci->private != private ||
+				rpci->ops != ops ||
+				rpci->flags != flags) {
+			dput (dentry);
+			dentry = ERR_PTR(-EBUSY);
+		}
+		goto out;
+	}
 	inode = rpc_get_inode(dir->i_sb, S_IFIFO | S_IRUSR | S_IWUSR);
 	if (!inode)
 		goto err_dput;
