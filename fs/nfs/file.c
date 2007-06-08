@@ -53,6 +53,7 @@ static int  nfs_fsync(struct file *, struct dentry *dentry, int datasync);
 static int nfs_check_flags(int flags);
 static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl);
 static int nfs_flock(struct file *filp, int cmd, struct file_lock *fl);
+static int nfs_setlease(struct file *file, long arg, struct file_lock **fl);
 
 const struct file_operations nfs_file_operations = {
 	.llseek		= nfs_file_llseek,
@@ -69,6 +70,7 @@ const struct file_operations nfs_file_operations = {
 	.flock		= nfs_flock,
 	.splice_read	= nfs_file_splice_read,
 	.check_flags	= nfs_check_flags,
+	.setlease	= nfs_setlease,
 };
 
 const struct inode_operations nfs_file_inode_operations = {
@@ -557,4 +559,14 @@ static int nfs_flock(struct file *filp, int cmd, struct file_lock *fl)
 	if (fl->fl_type == F_UNLCK)
 		return do_unlk(filp, cmd, fl);
 	return do_setlk(filp, cmd, fl);
+}
+
+static int nfs_setlease(struct file *file, long arg, struct file_lock **fl)
+{
+	/*
+	 * There is no protocol support for leases, so we have no way
+	 * to implement them correctly in the face of opens by other
+	 * clients.
+	 */
+	return -EINVAL;
 }
