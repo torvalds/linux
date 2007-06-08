@@ -448,6 +448,7 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 		 */
 		pci_read_config_dword(dev, PCI_CLASS_REVISION, &class);
 		dev->class = class >> 8;
+		dev->revision = class & 0xff;
 
 		sprintf(pci_name(dev), "%04x:%02x:%02x.%d", pci_domain_nr(bus),
 			dev->bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn));

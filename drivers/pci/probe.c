@@ -702,6 +702,7 @@ static int pci_setup_device(struct pci_dev * dev)
 		dev->bus->number, PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
 
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class);
+	dev->revision = class & 0xff;
 	class >>= 8;				    /* upper 3 bytes */
 	dev->class = class;
 	class >>= 8;

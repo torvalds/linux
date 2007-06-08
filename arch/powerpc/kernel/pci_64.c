@@ -367,8 +367,10 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	sprintf(pci_name(dev), "%04x:%02x:%02x.%d", pci_domain_nr(bus),
 		dev->bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn));
 	dev->class = get_int_prop(node, "class-code", 0);
+	dev->revision = get_int_prop(node, "revision-id", 0);
 
 	DBG("    class: 0x%x\n", dev->class);
+	DBG("    revision: 0x%x\n", dev->revision);
 
 	dev->current_state = 4;		/* unknown power state */
 	dev->error_state = pci_channel_io_normal;
