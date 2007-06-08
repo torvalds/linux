@@ -1709,22 +1709,22 @@ void cipso_v4_error(struct sk_buff *skb, int error, u32 gateway)
 }
 
 /**
- * cipso_v4_socket_setattr - Add a CIPSO option to a socket
- * @sock: the socket
+ * cipso_v4_sock_setattr - Add a CIPSO option to a socket
+ * @sk: the socket
  * @doi_def: the CIPSO DOI to use
  * @secattr: the specific security attributes of the socket
  *
  * Description:
  * Set the CIPSO option on the given socket using the DOI definition and
  * security attributes passed to the function.  This function requires
- * exclusive access to @sock->sk, which means it either needs to be in the
- * process of being created or locked via lock_sock(sock->sk).  Returns zero on
- * success and negative values on failure.
+ * exclusive access to @sk, which means it either needs to be in the
+ * process of being created or locked.  Returns zero on success and negative
+ * values on failure.
  *
  */
-int cipso_v4_socket_setattr(const struct socket *sock,
-			    const struct cipso_v4_doi *doi_def,
-			    const struct netlbl_lsm_secattr *secattr)
+int cipso_v4_sock_setattr(struct sock *sk,
+			  const struct cipso_v4_doi *doi_def,
+			  const struct netlbl_lsm_secattr *secattr)
 {
 	int ret_val = -EPERM;
 	u32 iter;
@@ -1732,7 +1732,6 @@ int cipso_v4_socket_setattr(const struct socket *sock,
 	u32 buf_len = 0;
 	u32 opt_len;
 	struct ip_options *opt = NULL;
-	struct sock *sk;
 	struct inet_sock *sk_inet;
 	struct inet_connection_sock *sk_conn;
 
@@ -1740,7 +1739,6 @@ int cipso_v4_socket_setattr(const struct socket *sock,
 	 * defined yet but it is not a problem as the only users of these
 	 * "lite" PF_INET sockets are functions which do an accept() call
 	 * afterwards so we will label the socket as part of the accept(). */
-	sk = sock->sk;
 	if (sk == NULL)
 		return 0;
 
@@ -1887,29 +1885,6 @@ int cipso_v4_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
 		break;
 	}
 	rcu_read_unlock();
-
-	return ret_val;
-}
-
-/**
- * cipso_v4_socket_getattr - Get the security attributes from a socket
- * @sock: the socket
- * @secattr: the security attributes
- *
- * Description:
- * Query @sock to see if there is a CIPSO option attached to the socket and if
- * there is return the CIPSO security attributes in @secattr.  Returns zero on
- * success and negative values on failure.
- *
- */
-int cipso_v4_socket_getattr(const struct socket *sock,
-			    struct netlbl_lsm_secattr *secattr)
-{
-	int ret_val;
-
-	lock_sock(sock->sk);
-	ret_val = cipso_v4_sock_getattr(sock->sk, secattr);
-	release_sock(sock->sk);
 
 	return ret_val;
 }
