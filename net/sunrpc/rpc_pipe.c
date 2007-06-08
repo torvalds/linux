@@ -737,6 +737,7 @@ rpc_mkpipe(struct dentry *parent, const char *name, void *private, struct rpc_pi
 			dput (dentry);
 			dentry = ERR_PTR(-EBUSY);
 		}
+		rpci->nkern_readwriters++;
 		goto out;
 	}
 	inode = rpc_get_inode(dir->i_sb, S_IFIFO | S_IRUSR | S_IWUSR);
@@ -749,6 +750,7 @@ rpc_mkpipe(struct dentry *parent, const char *name, void *private, struct rpc_pi
 	rpci->private = private;
 	rpci->flags = flags;
 	rpci->ops = ops;
+	rpci->nkern_readwriters = 1;
 	inode_dir_notify(dir, DN_CREATE);
 	dget(dentry);
 out:
@@ -773,10 +775,12 @@ rpc_unlink(struct dentry *dentry)
 	parent = dget_parent(dentry);
 	dir = parent->d_inode;
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
-	rpc_close_pipes(dentry->d_inode);
-	error = simple_unlink(dir, dentry);
-	if (!error)
-		d_delete(dentry);
+	if (--RPC_I(dentry->d_inode)->nkern_readwriters == 0) {
+		rpc_close_pipes(dentry->d_inode);
+		error = simple_unlink(dir, dentry);
+		if (!error)
+			d_delete(dentry);
+	}
 	dput(dentry);
 	mutex_unlock(&dir->i_mutex);
 	dput(parent);
