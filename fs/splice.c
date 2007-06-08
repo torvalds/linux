@@ -1057,8 +1057,6 @@ out_release:
 	return ret;
 }
 
-EXPORT_SYMBOL(do_splice_direct);
-
 /*
  * After the inode slimming patch, i_pipe/i_bdev/i_cdev share the same
  * location, so checking ->i_pipe is not enough to verify that this is a
