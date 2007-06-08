@@ -782,11 +782,6 @@ M:	rathamahata@php4.ru
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
-BERKSHIRE PRODUCTS PC WATCHDOG DRIVER
-P:	Kenji Hollis
-W:	http://ftp.bitgate.com/pcwd/
-S:	Maintained
-
 BFS FILE SYSTEM
 P:	Tigran A. Aivazian
 M:	tigran@aivazian.fsnet.co.uk
@@ -3904,10 +3899,6 @@ S:	Maintained
 
 UCLINUX FOR NEC V850
 P:	Miles Bader
-M:	uclinux-v850@lsi.nec.co.jp
-W:	http://www.ic.nec.co.jp/micro/uclinux/eng/
-W:	http://www.ee.nec.de/uclinux/
-S:	Supported
 
 UCLINUX FOR RENESAS H8/300
 P:	Yoshinori Sato
@@ -3916,10 +3907,10 @@ W:	http://uclinux-h8.sourceforge.jp/
 S:	Supported
 
 UFS FILESYSTEM
-P: Evgeniy Dushistov
-M: dushistov@mail.ru
-L: linux-kernel@vger.kernel.org
-S: Maintained
+P:	Evgeniy Dushistov
+M:	dushistov@mail.ru
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
 
 USB DIAMOND RIO500 DRIVER
 P:	Cesar Miquel
