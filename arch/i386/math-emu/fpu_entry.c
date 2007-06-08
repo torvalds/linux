@@ -754,7 +754,7 @@ int save_i387_soft(void *s387, struct _fpstate __user * buf)
     return -1;
   if ( offset )
     if (__copy_to_user(d+other, (u_char *)&S387->st_space, offset))
-      return -1
+      return -1;
   RE_ENTRANT_CHECK_ON;
 
   return 1;

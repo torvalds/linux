@@ -365,13 +365,13 @@ int qspan_pcibios_find_class(unsigned int class_code, unsigned short index,
 }
 
 void __init
-m8xx_pcibios_fixup(void))
+m8xx_pcibios_fixup(void)
 {
    /* Lots to do here, all board and configuration specific. */
 }
 
 void __init
-m8xx_setup_pci_ptrs(void))
+m8xx_setup_pci_ptrs(void)
 {
 	set_config_access_method(qspan);
 

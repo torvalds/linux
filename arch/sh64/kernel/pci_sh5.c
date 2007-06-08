@@ -521,10 +521,10 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 		bus->resource[0]->start = PCIBIOS_MIN_IO;
 		bus->resource[1]->start = PCIBIOS_MIN_MEM;
 #else
-		bus->resource[0]->end = 0
-		bus->resource[1]->end = 0
-		bus->resource[0]->start =0
-		  bus->resource[1]->start = 0;
+		bus->resource[0]->end = 0;
+		bus->resource[1]->end = 0;
+		bus->resource[0]->start =0;
+		bus->resource[1]->start = 0;
 #endif
 		/* Turn off downstream PF memory address range by default */
 		bus->resource[2]->start = 1024*1024;

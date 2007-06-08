@@ -1053,11 +1053,11 @@ static void __exit mcdx_exit(void)
 	if (unregister_blkdev(MAJOR_NR, "mcdx") != 0) {
 		xwarn("cleanup() unregister_blkdev() failed\n");
 	}
-	blk_cleanup_queue(mcdx_queue);
 #if !MCDX_QUIET
 	else
 	xinfo("cleanup() succeeded\n");
 #endif
+	blk_cleanup_queue(mcdx_queue);
 }
 
 #ifdef MODULE
