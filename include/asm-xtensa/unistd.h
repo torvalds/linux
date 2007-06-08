@@ -485,8 +485,8 @@ __SYSCALL(217, sys_sched_get_priority_min, 1)
 __SYSCALL(218, sys_sched_rr_get_interval, 2)
 #define __NR_sched_yield 			219
 __SYSCALL(219, sys_sched_yield, 0)
-#define __NR_sigreturn	 			222
-__SYSCALL(222, xtensa_sigreturn, 0)
+#define __NR_available222 			222
+__SYSCALL(222, sys_ni_syscall, 0)
 
 /* Signal Handling */
 

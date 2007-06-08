@@ -13,7 +13,6 @@
 #ifndef _XTENSA_ELF_H
 #define _XTENSA_ELF_H
 
-#include <asm/variant/core.h>
 #include <asm/ptrace.h>
 
 /* Xtensa processor ELF architecture-magic number */
@@ -49,7 +48,7 @@ typedef struct {
 	elf_greg_t lcount;
 	elf_greg_t sar;
 	elf_greg_t syscall;
-	elf_greg_t ar[XCHAL_NUM_AREGS];
+	elf_greg_t ar[64];
 } xtensa_gregset_t;
 
 #define ELF_NGREG	(sizeof(xtensa_gregset_t) / sizeof(elf_greg_t))

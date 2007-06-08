@@ -11,8 +11,6 @@
 #ifndef _XTENSA_PTRACE_H
 #define _XTENSA_PTRACE_H
 
-#include <asm/variant/core.h>
-
 /*
  * Kernel stack
  *
@@ -101,7 +99,8 @@ struct pt_regs {
 	unsigned long windowbase;	/*  48 */
 	unsigned long windowstart;	/*  52 */
 	unsigned long syscall;		/*  56 */
-	int reserved[2];		/*  64 */
+	unsigned long icountlevel;	/*  60 */
+	int reserved[1];		/*  64 */
 
 	/* Make sure the areg field is 16 bytes aligned. */
 	int align[0] __attribute__ ((aligned(16)));
@@ -113,6 +112,9 @@ struct pt_regs {
 };
 
 #ifdef __KERNEL__
+
+#include <asm/variant/core.h>
+
 # define task_pt_regs(tsk) ((struct pt_regs*) \
   (task_stack_page(tsk) + KERNEL_STACK_SIZE - (XCHAL_NUM_AREGS-16)*4) - 1)
 # define user_mode(regs) (((regs)->ps & 0x00000020)!=0)

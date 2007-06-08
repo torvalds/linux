@@ -401,7 +401,7 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
  * Also, think for a moment about likes of floppy.c that
  * include architecture specific parts. They may want to redefine ins/outs.
  *
- * We do not use horroble macroses here because we want to
+ * We do not use horrible macros here because we want to
  * advance pointer by sizeof(size).
  */
 void outsb(unsigned long addr, const void *src, unsigned long count) {
