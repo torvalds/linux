@@ -20,6 +20,7 @@
 #define MAJOR_NR UBD_MAJOR
 #define UBD_SHIFT 4
 
+#include "linux/kernel.h"
 #include "linux/module.h"
 #include "linux/blkdev.h"
 #include "linux/hdreg.h"

@@ -3,6 +3,7 @@
  * Licensed under the GPL
  */
 
+#include "linux/kernel.h"
 #include "linux/sched.h"
 #include "linux/slab.h"
 #include "linux/list.h"

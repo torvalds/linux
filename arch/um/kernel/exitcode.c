@@ -1,8 +1,9 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
 
+#include "linux/kernel.h"
 #include "linux/init.h"
 #include "linux/ctype.h"
 #include "linux/proc_fs.h"
@@ -24,11 +25,14 @@ static int read_proc_exitcode(char *page, char **start, off_t off,
 	val = uml_exitcode;
 	len = sprintf(page, "%d\n", val);
 	len -= off;
-	if(len <= off+count) *eof = 1;
+	if(len <= off+count)
+		*eof = 1;
 	*start = page + off;
-	if(len > count) len = count;
-	if(len < 0) len = 0;
-	return(len);
+	if(len > count)
+		len = count;
+	if(len < 0)
+		len = 0;
+	return len;
 }
 
 static int write_proc_exitcode(struct file *file, const char __user *buffer,
@@ -38,12 +42,14 @@ static int write_proc_exitcode(struct file *file, const char __user *buffer,
 	int tmp;
 
 	if(copy_from_user(buf, buffer, count))
-		return(-EFAULT);
+		return -EFAULT;
+
 	tmp = simple_strtol(buf, &end, 0);
 	if((*end != '\0') && !isspace(*end))
-		return(-EINVAL);
+		return -EINVAL;
+
 	uml_exitcode = tmp;
-	return(count);
+	return count;
 }
 
 static int make_proc_exitcode(void)
@@ -54,24 +60,13 @@ static int make_proc_exitcode(void)
 	if(ent == NULL){
 		printk(KERN_WARNING "make_proc_exitcode : Failed to register "
 		       "/proc/exitcode\n");
-		return(0);
+		return 0;
 	}
 
 	ent->read_proc = read_proc_exitcode;
 	ent->write_proc = write_proc_exitcode;
-	
-	return(0);
+
+	return 0;
 }
 
 __initcall(make_proc_exitcode);
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

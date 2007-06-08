@@ -1,3 +1,4 @@
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/console.h>
 
