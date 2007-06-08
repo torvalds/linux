@@ -459,7 +459,7 @@ sys_call_table:
 	PTR	sys_remap_file_pages
 	PTR	sys_set_tid_address
 	PTR	sys_restart_syscall
-	PTR	sys_fadvise64_64
+	PTR	sys32_fadvise64_64
 	PTR	compat_sys_statfs64		/* 4255 */
 	PTR	compat_sys_fstatfs64
 	PTR	compat_sys_timer_create

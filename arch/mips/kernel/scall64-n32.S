@@ -299,7 +299,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_ni_syscall			/* res. for afs_syscall */
 	PTR	sys_ni_syscall			/* res. for security */
 	PTR	sys_gettid
-	PTR	sys32_readahead
+	PTR	sys_readahead
 	PTR	sys_setxattr			/* 6180 */
 	PTR	sys_lsetxattr
 	PTR	sys_fsetxattr

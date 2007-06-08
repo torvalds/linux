@@ -43,6 +43,8 @@ const char *get_system_type(void)
 	return "MIPS SEAD";
 }
 
+const char display_string[] = "        LINUX ON SEAD       ";
+
 void __init plat_mem_setup(void)
 {
 	ioport_resource.end = 0x7fffffff;

@@ -174,7 +174,7 @@ LEAF(_init_fpu)
 	or	t0, t1
 	mtc0	t0, CP0_STATUS
 #endif /* CONFIG_MIPS_MT_SMTC */
-	fpu_enable_hazard
+	enable_fpu_hazard
 
 	li	t1, FPU_DEFAULT
 	ctc1	t1, fcr31

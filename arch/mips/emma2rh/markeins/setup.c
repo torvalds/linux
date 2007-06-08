@@ -115,30 +115,6 @@ extern void markeins_irq_setup(void);
 
 static void inline __init markeins_sio_setup(void)
 {
-#ifdef CONFIG_KGDB_8250
-	struct uart_port emma_port;
-
-	memset(&emma_port, 0, sizeof(emma_port));
-
-	emma_port.flags =
-	    UPF_BOOT_AUTOCONF | UPF_SKIP_TEST;
-	emma_port.iotype = UPIO_MEM;
-	emma_port.regshift = 4;	/* I/O addresses are every 8 bytes */
-	emma_port.uartclk = 18544000;	/* Clock rate of the chip */
-
-	emma_port.line = 0;
-	emma_port.mapbase = KSEG1ADDR(EMMA2RH_PFUR0_BASE + 3);
-	emma_port.membase = (u8*)emma_port.mapbase;
-	early_serial_setup(&emma_port);
-
-	emma_port.line = 1;
-	emma_port.mapbase = KSEG1ADDR(EMMA2RH_PFUR1_BASE + 3);
-	emma_port.membase = (u8*)emma_port.mapbase;
-	early_serial_setup(&emma_port);
-
-	emma_port.irq = EMMA2RH_IRQ_PFUR1;
-	kgdb8250_add_port(1, &emma_port);
-#endif
 }
 
 void __init plat_mem_setup(void)
