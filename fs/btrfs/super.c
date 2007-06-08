@@ -43,6 +43,18 @@ static int drop_extents(struct btrfs_trans_handle *trans,
 static int btrfs_get_block(struct inode *inode, sector_t iblock,
 			   struct buffer_head *result, int create);
 
+
+#define S_SHIFT 12
+static unsigned char btrfs_type_by_mode[S_IFMT >> S_SHIFT] = {
+	[S_IFREG >> S_SHIFT]	= BTRFS_FT_REG_FILE,
+	[S_IFDIR >> S_SHIFT]	= BTRFS_FT_DIR,
+	[S_IFCHR >> S_SHIFT]	= BTRFS_FT_CHRDEV,
+	[S_IFBLK >> S_SHIFT]	= BTRFS_FT_BLKDEV,
+	[S_IFIFO >> S_SHIFT]	= BTRFS_FT_FIFO,
+	[S_IFSOCK >> S_SHIFT]	= BTRFS_FT_SOCK,
+	[S_IFLNK >> S_SHIFT]	= BTRFS_FT_SYMLINK,
+};
+
 static void btrfs_read_locked_inode(struct inode *inode)
 {
 	struct btrfs_path *path;
@@ -785,6 +797,9 @@ static void reada_leaves(struct btrfs_root *root, struct btrfs_path *path,
 			break;
 	}
 }
+static unsigned char btrfs_filetype_table[] = {
+	DT_UNKNOWN, DT_REG, DT_DIR, DT_CHR, DT_BLK, DT_FIFO, DT_SOCK, DT_LNK
+};
 
 static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
@@ -799,7 +814,7 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	struct btrfs_leaf *leaf;
 	int slot;
 	int advance;
-	unsigned char d_type = DT_UNKNOWN;
+	unsigned char d_type;
 	int over = 0;
 	u32 di_cur;
 	u32 di_total;
@@ -853,6 +868,7 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		di_cur = 0;
 		di_total = btrfs_item_size(leaf->items + slot);
 		while(di_cur < di_total) {
+			d_type = btrfs_filetype_table[btrfs_dir_type(di)];
 			over = filldir(dirent, (const char *)(di + 1),
 				       btrfs_dir_name_len(di),
 				       btrfs_disk_key_offset(&item->key),
@@ -1012,6 +1028,11 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	return inode;
 }
 
+static inline u8 btrfs_inode_type(struct inode *inode)
+{
+	return btrfs_type_by_mode[(inode->i_mode & S_IFMT) >> S_SHIFT];
+}
+
 static int btrfs_add_link(struct btrfs_trans_handle *trans,
 			    struct dentry *dentry, struct inode *inode)
 {
@@ -1026,7 +1047,7 @@ static int btrfs_add_link(struct btrfs_trans_handle *trans,
 	ret = btrfs_insert_dir_item(trans, root,
 				    dentry->d_name.name, dentry->d_name.len,
 				    dentry->d_parent->d_inode->i_ino,
-				    &key, 0);
+				    &key, btrfs_inode_type(inode));
 	if (ret == 0) {
 		dentry->d_parent->d_inode->i_size += dentry->d_name.len * 2;
 		ret = btrfs_update_inode(trans, root,
@@ -1150,12 +1171,12 @@ static int btrfs_make_empty_dir(struct btrfs_trans_handle *trans,
 	btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
 
 	ret = btrfs_insert_dir_item(trans, root, buf, 1, objectid,
-				    &key, 1);
+				    &key, BTRFS_FT_DIR);
 	if (ret)
 		goto error;
 	key.objectid = dirid;
 	ret = btrfs_insert_dir_item(trans, root, buf, 2, objectid,
-				    &key, 1);
+				    &key, BTRFS_FT_DIR);
 	if (ret)
 		goto error;
 error:
@@ -1265,6 +1286,10 @@ printk("btrfs sync_fs\n");
 	return 0;
 }
 
+#define BTRFS_GET_BLOCK_NO_CREATE 0
+#define BTRFS_GET_BLOCK_CREATE 1
+#define BTRFS_GET_BLOCK_NO_DIRECT 2
+
 static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 			   struct buffer_head *result, int create)
 {
@@ -1286,7 +1311,7 @@ static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 	btrfs_init_path(path);
-	if (create) {
+	if (create & BTRFS_GET_BLOCK_CREATE) {
 		WARN_ON(1);
 		/* this almost but not quite works */
 		trans = btrfs_start_transaction(root, 1);
@@ -1349,6 +1374,11 @@ static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 		char *ptr;
 		char *map;
 		u32 size;
+
+		if (create & BTRFS_GET_BLOCK_NO_DIRECT) {
+			err = -EINVAL;
+			goto out;
+		}
 		size = btrfs_file_extent_inline_len(leaf->items +
 						    path->slots[0]);
 		extent_end = (extent_start + size) >> inode->i_blkbits;
@@ -1367,7 +1397,7 @@ static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 		btrfs_map_bh_to_logical(root, result, 0);
 	}
 not_found:
-	if (create) {
+	if (create & BTRFS_GET_BLOCK_CREATE) {
 		struct btrfs_key ins;
 		ret = btrfs_alloc_extent(trans, root, inode->i_ino,
 					 1, alloc_hint, (u64)-1,
@@ -1397,6 +1427,21 @@ static int btrfs_get_block(struct inode *inode, sector_t iblock,
 	err = btrfs_get_block_lock(inode, iblock, result, create);
 	mutex_unlock(&root->fs_info->fs_mutex);
 	return err;
+}
+
+static int btrfs_get_block_bmap(struct inode *inode, sector_t iblock,
+			   struct buffer_head *result, int create)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	mutex_lock(&root->fs_info->fs_mutex);
+	btrfs_get_block_lock(inode, iblock, result, BTRFS_GET_BLOCK_NO_DIRECT);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	return 0;
+}
+
+static sector_t btrfs_bmap(struct address_space *as, sector_t block)
+{
+	return generic_block_bmap(as, block, btrfs_get_block_bmap);
 }
 
 static int btrfs_prepare_write(struct file *file, struct page *page,
@@ -2428,7 +2473,8 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 	key.offset = (u64)-1;
 	dir = root->fs_info->sb->s_root->d_inode;
 	ret = btrfs_insert_dir_item(trans, root->fs_info->tree_root,
-				    name, namelen, dir->i_ino, &key, 0);
+				    name, namelen, dir->i_ino, &key,
+				    BTRFS_FT_DIR);
 	BUG_ON(ret);
 
 	ret = btrfs_commit_transaction(trans, root);
@@ -2505,7 +2551,7 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	ret = btrfs_insert_dir_item(trans, root->fs_info->tree_root,
 				    name, namelen,
 				    root->fs_info->sb->s_root->d_inode->i_ino,
-				    &key, 0);
+				    &key, BTRFS_FT_DIR);
 
 	BUG_ON(ret);
 
@@ -2833,7 +2879,8 @@ static int btrfs_rename(struct inode * old_dir, struct dentry *old_dentry,
 		btrfs_release_path(root, path);
 
 		ret = btrfs_insert_dir_item(trans, root, "..", 2,
-					    old_inode->i_ino, location, 0);
+					    old_inode->i_ino, location,
+					    BTRFS_FT_DIR);
 		if (ret)
 			goto out_fail;
 	}
@@ -3003,6 +3050,7 @@ static struct address_space_operations btrfs_aops = {
 	.sync_page	= block_sync_page,
 	.prepare_write	= btrfs_prepare_write,
 	.commit_write	= btrfs_commit_write,
+	.bmap		= btrfs_bmap,
 };
 
 static struct address_space_operations btrfs_symlink_aops = {

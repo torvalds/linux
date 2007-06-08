@@ -1264,6 +1264,7 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	}
 	ret = update_block_group(trans, root, ins->objectid, ins->offset, 1, 0,
 				 data);
+	BUG_ON(ret);
 	return 0;
 }
 

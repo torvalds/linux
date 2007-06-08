@@ -34,6 +34,16 @@ extern struct kmem_cache *btrfs_path_cachep;
 #define BTRFS_CRC32_SIZE 4
 #define BTRFS_EMPTY_DIR_SIZE 6
 
+#define BTRFS_FT_UNKNOWN	0
+#define BTRFS_FT_REG_FILE	1
+#define BTRFS_FT_DIR		2
+#define BTRFS_FT_CHRDEV		3
+#define BTRFS_FT_BLKDEV		4
+#define BTRFS_FT_FIFO		5
+#define BTRFS_FT_SOCK		6
+#define BTRFS_FT_SYMLINK	7
+#define BTRFS_FT_MAX		8
+
 /*
  * the key defines the order in the tree, and so it also defines (optimal)
  * block layout.  objectid corresonds to the inode number.  The flags
