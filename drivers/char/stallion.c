@@ -4710,6 +4710,29 @@ static int __init stallion_module_init(void)
 	spin_lock_init(&stallion_lock);
 	spin_lock_init(&brd_lock);
 
+	stl_serial = alloc_tty_driver(STL_MAXBRDS * STL_MAXPORTS);
+	if (!stl_serial) {
+		retval = -ENOMEM;
+		goto err;
+	}
+
+	stl_serial->owner = THIS_MODULE;
+	stl_serial->driver_name = stl_drvname;
+	stl_serial->name = "ttyE";
+	stl_serial->major = STL_SERIALMAJOR;
+	stl_serial->minor_start = 0;
+	stl_serial->type = TTY_DRIVER_TYPE_SERIAL;
+	stl_serial->subtype = SERIAL_TYPE_NORMAL;
+	stl_serial->init_termios = stl_deftermios;
+	stl_serial->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
+	tty_set_operations(stl_serial, &stl_ops);
+
+	retval = tty_register_driver(stl_serial);
+	if (retval) {
+		printk("STALLION: failed to register serial driver\n");
+		goto err_frtty;
+	}
+
 /*
  *	Find any dynamically supported boards. That is via module load
  *	line options.
@@ -4739,13 +4762,9 @@ static int __init stallion_module_init(void)
 
 	/* this has to be _after_ isa finding because of locking */
 	retval = pci_register_driver(&stl_pcidriver);
-	if (retval && stl_nrbrds == 0)
-		goto err;
-
-	stl_serial = alloc_tty_driver(STL_MAXBRDS * STL_MAXPORTS);
-	if (!stl_serial) {
-		retval = -ENOMEM;
-		goto err_pcidr;
+	if (retval && stl_nrbrds == 0) {
+		printk(KERN_ERR "STALLION: can't register pci driver\n");
+		goto err_unrtty;
 	}
 
 /*
@@ -4756,43 +4775,18 @@ static int __init stallion_module_init(void)
 		printk("STALLION: failed to register serial board device\n");
 
 	stallion_class = class_create(THIS_MODULE, "staliomem");
-	if (IS_ERR(stallion_class)) {
-		retval = PTR_ERR(stallion_class);
-		goto err_reg;
-	}
+	if (IS_ERR(stallion_class))
+		printk("STALLION: failed to create class\n");
 	for (i = 0; i < 4; i++)
 		class_device_create(stallion_class, NULL,
 				    MKDEV(STL_SIOMEMMAJOR, i), NULL,
 				    "staliomem%d", i);
 
-	stl_serial->owner = THIS_MODULE;
-	stl_serial->driver_name = stl_drvname;
-	stl_serial->name = "ttyE";
-	stl_serial->major = STL_SERIALMAJOR;
-	stl_serial->minor_start = 0;
-	stl_serial->type = TTY_DRIVER_TYPE_SERIAL;
-	stl_serial->subtype = SERIAL_TYPE_NORMAL;
-	stl_serial->init_termios = stl_deftermios;
-	stl_serial->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
-	tty_set_operations(stl_serial, &stl_ops);
-
-	retval = tty_register_driver(stl_serial);
-	if (retval) {
-		printk("STALLION: failed to register serial driver\n");
-		goto err_clsdev;
-	}
-
 	return 0;
-err_clsdev:
-	for (i = 0; i < 4; i++)
-		class_device_destroy(stallion_class, MKDEV(STL_SIOMEMMAJOR, i));
-	class_destroy(stallion_class);
-err_reg:
-	unregister_chrdev(STL_SIOMEMMAJOR, "staliomem");
+err_unrtty:
+	tty_unregister_driver(stl_serial);
+err_frtty:
 	put_tty_driver(stl_serial);
-err_pcidr:
-	pci_unregister_driver(&stl_pcidriver);
-	stl_free_isabrds();
 err:
 	return retval;
 }
@@ -4821,8 +4815,6 @@ static void __exit stallion_module_exit(void)
 			tty_unregister_device(stl_serial,
 				brdp->brdnr * STL_MAXPORTS + j);
 	}
-	tty_unregister_driver(stl_serial);
-	put_tty_driver(stl_serial);
 
 	for (i = 0; i < 4; i++)
 		class_device_destroy(stallion_class, MKDEV(STL_SIOMEMMAJOR, i));
@@ -4834,6 +4826,9 @@ static void __exit stallion_module_exit(void)
 	pci_unregister_driver(&stl_pcidriver);
 
 	stl_free_isabrds();
+
+	tty_unregister_driver(stl_serial);
+	put_tty_driver(stl_serial);
 }
 
 module_init(stallion_module_init);
