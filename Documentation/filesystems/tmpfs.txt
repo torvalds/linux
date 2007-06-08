@@ -94,10 +94,10 @@ largest node numbers in the range.  For example, mpol=bind:0-3,5,7,9-15
 
 Note that trying to mount a tmpfs with an mpol option will fail if the
 running kernel does not support NUMA; and will fail if its nodelist
-specifies a node >= MAX_NUMNODES.  If your system relies on that tmpfs
-being mounted, but from time to time runs a kernel built without NUMA
-capability (perhaps a safe recovery kernel), or configured to support
-fewer nodes, then it is advisable to omit the mpol option from automatic
+specifies a node which is not online.  If your system relies on that
+tmpfs being mounted, but from time to time runs a kernel built without
+NUMA capability (perhaps a safe recovery kernel), or with fewer nodes
+online, then it is advisable to omit the mpol option from automatic
 mount options.  It can be added later, when the tmpfs is already mounted
 on MountPoint, by 'mount -o remount,mpol=Policy:NodeList MountPoint'.
 
@@ -121,4 +121,4 @@ RAM/SWAP in 10240 inodes and it is only accessible by root.
 Author:
    Christoph Rohland <cr@sap.com>, 1.12.01
 Updated:
-   Hugh Dickins <hugh@veritas.com>, 19 February 2006
+   Hugh Dickins <hugh@veritas.com>, 4 June 2007

@@ -967,6 +967,8 @@ static inline int shmem_parse_mpol(char *value, int *policy, nodemask_t *policy_
 		*nodelist++ = '\0';
 		if (nodelist_parse(nodelist, *policy_nodes))
 			goto out;
+		if (!nodes_subset(*policy_nodes, node_online_map))
+			goto out;
 	}
 	if (!strcmp(value, "default")) {
 		*policy = MPOL_DEFAULT;
