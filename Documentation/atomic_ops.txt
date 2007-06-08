@@ -149,7 +149,7 @@ defined which accomplish this:
 	void smp_mb__before_atomic_dec(void);
 	void smp_mb__after_atomic_dec(void);
 	void smp_mb__before_atomic_inc(void);
-	void smp_mb__after_atomic_dec(void);
+	void smp_mb__after_atomic_inc(void);
 
 For example, smp_mb__before_atomic_dec() can be used like so:
 
