@@ -1243,16 +1243,19 @@ const char * buf, size_t count)
 
 	if (attr == &veth_active_attr) {
 		if (value && !pool->active) {
-			if(ibmveth_alloc_buffer_pool(pool)) {
-                                ibmveth_error_printk("unable to alloc pool\n");
-                                return -ENOMEM;
-                        }
-			pool->active = 1;
-			adapter->pool_config = 1;
-			ibmveth_close(netdev);
-			adapter->pool_config = 0;
-			if ((rc = ibmveth_open(netdev)))
-				return rc;
+			if (netif_running(netdev)) {
+				if(ibmveth_alloc_buffer_pool(pool)) {
+					ibmveth_error_printk("unable to alloc pool\n");
+					return -ENOMEM;
+				}
+				pool->active = 1;
+				adapter->pool_config = 1;
+				ibmveth_close(netdev);
+				adapter->pool_config = 0;
+				if ((rc = ibmveth_open(netdev)))
+					return rc;
+			} else
+				pool->active = 1;
 		} else if (!value && pool->active) {
 			int mtu = netdev->mtu + IBMVETH_BUFF_OH;
 			int i;
@@ -1281,23 +1284,29 @@ const char * buf, size_t count)
 		if (value <= 0 || value > IBMVETH_MAX_POOL_COUNT)
 			return -EINVAL;
 		else {
-			adapter->pool_config = 1;
-			ibmveth_close(netdev);
-			adapter->pool_config = 0;
-			pool->size = value;
-			if ((rc = ibmveth_open(netdev)))
-				return rc;
+			if (netif_running(netdev)) {
+				adapter->pool_config = 1;
+				ibmveth_close(netdev);
+				adapter->pool_config = 0;
+				pool->size = value;
+				if ((rc = ibmveth_open(netdev)))
+					return rc;
+			} else
+				pool->size = value;
 		}
 	} else if (attr == &veth_size_attr) {
 		if (value <= IBMVETH_BUFF_OH || value > IBMVETH_MAX_BUF_SIZE)
 			return -EINVAL;
 		else {
-			adapter->pool_config = 1;
-			ibmveth_close(netdev);
-			adapter->pool_config = 0;
-			pool->buff_size = value;
-			if ((rc = ibmveth_open(netdev)))
-				return rc;
+			if (netif_running(netdev)) {
+				adapter->pool_config = 1;
+				ibmveth_close(netdev);
+				adapter->pool_config = 0;
+				pool->buff_size = value;
+				if ((rc = ibmveth_open(netdev)))
+					return rc;
+			} else
+				pool->buff_size = value;
 		}
 	}
 
