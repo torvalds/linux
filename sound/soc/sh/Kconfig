@@ -2,8 +2,7 @@ menu "SoC Audio support for SuperH"
 
 config SND_SOC_PCM_SH7760
 	tristate "SoC Audio support for Renesas SH7760"
-	depends on CPU_SUBTYPE_SH7760 && SND_SOC
-	select SH_DMABRG
+	depends on CPU_SUBTYPE_SH7760 && SND_SOC && SH_DMABRG
 	help
 	  Enable this option for SH7760 AC97/I2S audio support.
 
