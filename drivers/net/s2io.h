@@ -1033,7 +1033,6 @@ static void s2io_set_link(struct work_struct *work);
 static int s2io_set_swapper(struct s2io_nic * sp);
 static void s2io_card_down(struct s2io_nic *nic);
 static int s2io_card_up(struct s2io_nic *nic);
-static int get_xena_rev_id(struct pci_dev *pdev);
 static int wait_for_cmd_complete(void __iomem *addr, u64 busy_bit,
 					int bit_state);
 static int s2io_add_isr(struct s2io_nic * sp);

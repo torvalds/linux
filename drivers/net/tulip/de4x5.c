@@ -2134,7 +2134,7 @@ srom_search(struct net_device *dev, struct pci_dev *pdev)
     u_short vendor, status;
     u_int irq = 0, device;
     u_long iobase = 0;                     /* Clear upper 32 bits in Alphas */
-    int i, j, cfrv;
+    int i, j;
     struct de4x5_private *lp = netdev_priv(dev);
     struct list_head *walk;
 
@@ -2150,7 +2150,6 @@ srom_search(struct net_device *dev, struct pci_dev *pdev)
 
 	/* Get the chip configuration revision register */
 	pb = this_dev->bus->number;
-	pci_read_config_dword(this_dev, PCI_REVISION_ID, &cfrv);
 
 	/* Set the device number information */
 	lp->device = PCI_SLOT(this_dev->devfn);
@@ -2158,7 +2157,8 @@ srom_search(struct net_device *dev, struct pci_dev *pdev)
 
 	/* Set the chipset information */
 	if (is_DC2114x) {
-	    device = ((cfrv & CFRV_RN) < DC2114x_BRK ? DC21142 : DC21143);
+	    device = ((this_dev->revision & CFRV_RN) < DC2114x_BRK
+		      ? DC21142 : DC21143);
 	}
 	lp->chipset = device;
 
@@ -2254,7 +2254,7 @@ static int __devinit de4x5_pci_probe (struct pci_dev *pdev,
 	}
 
 	/* Get the chip configuration revision register */
-	pci_read_config_dword(pdev, PCI_REVISION_ID, &lp->cfrv);
+	lp->cfrv = pdev->revision;
 
 	/* Set the device number information */
 	lp->device = dev_num;

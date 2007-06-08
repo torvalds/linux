@@ -210,7 +210,6 @@ struct atl1_hw {
 	u16 phy_spd_default;
 
 	u16 dev_rev;
-	u8 revision_id;
 
 	/* spi flash */
 	u8 flash_vendor;

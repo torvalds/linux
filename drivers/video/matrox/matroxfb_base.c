@@ -1994,7 +1994,6 @@ static void matroxfb_unregister_device(struct matrox_fb_info* minfo) {
 
 static int matroxfb_probe(struct pci_dev* pdev, const struct pci_device_id* dummy) {
 	struct board* b;
-	u_int8_t rev;
 	u_int16_t svid;
 	u_int16_t sid;
 	struct matrox_fb_info* minfo;
@@ -2005,11 +2004,10 @@ static int matroxfb_probe(struct pci_dev* pdev, const struct pci_device_id* dumm
 #endif
 	DBG(__FUNCTION__)
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
 	svid = pdev->subsystem_vendor;
 	sid = pdev->subsystem_device;
 	for (b = dev_list; b->vendor; b++) {
-		if ((b->vendor != pdev->vendor) || (b->device != pdev->device) || (b->rev < rev)) continue;
+		if ((b->vendor != pdev->vendor) || (b->device != pdev->device) || (b->rev < pdev->revision)) continue;
 		if (b->svid)
 			if ((b->svid != svid) || (b->sid != sid)) continue;
 		break;

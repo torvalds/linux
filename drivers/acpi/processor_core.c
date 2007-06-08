@@ -115,7 +115,6 @@ struct acpi_processor_errata errata __read_mostly;
 
 static int acpi_processor_errata_piix4(struct pci_dev *dev)
 {
-	u8 rev = 0;
 	u8 value1 = 0;
 	u8 value2 = 0;
 
@@ -127,9 +126,7 @@ static int acpi_processor_errata_piix4(struct pci_dev *dev)
 	 * Note that 'dev' references the PIIX4 ACPI Controller.
 	 */
 
-	pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
-
-	switch (rev) {
+	switch (dev->revision) {
 	case 0:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found PIIX4 A-step\n"));
 		break;
@@ -147,7 +144,7 @@ static int acpi_processor_errata_piix4(struct pci_dev *dev)
 		break;
 	}
 
-	switch (rev) {
+	switch (dev->revision) {
 
 	case 0:		/* PIIX4 A-step */
 	case 1:		/* PIIX4 B-step */

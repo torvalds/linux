@@ -391,8 +391,6 @@ static struct cpufreq_driver nforce2_driver = {
  */
 static unsigned int nforce2_detect_chipset(void)
 {
-	u8 revision;
-
 	nforce2_chipset_dev = pci_get_subsys(PCI_VENDOR_ID_NVIDIA,
 					PCI_DEVICE_ID_NVIDIA_NFORCE2,
 					PCI_ANY_ID, PCI_ANY_ID, NULL);
@@ -400,10 +398,8 @@ static unsigned int nforce2_detect_chipset(void)
 	if (nforce2_chipset_dev == NULL)
 		return -ENODEV;
 
-	pci_read_config_byte(nforce2_chipset_dev, PCI_REVISION_ID, &revision);
-
 	printk(KERN_INFO "cpufreq: Detected nForce2 chipset revision %X\n",
-	       revision);
+	       nforce2_chipset_dev->revision);
 	printk(KERN_INFO
 	       "cpufreq: FSB changing is maybe unstable and can lead to crashes and data loss.\n");
 

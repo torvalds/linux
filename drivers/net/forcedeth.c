@@ -5084,15 +5084,13 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	np->wolenabled = 0;
 
 	if (id->driver_data & DEV_HAS_POWER_CNTRL) {
-		u8 revision_id;
-		pci_read_config_byte(pci_dev, PCI_REVISION_ID, &revision_id);
 
 		/* take phy and nic out of low power mode */
 		powerstate = readl(base + NvRegPowerState2);
 		powerstate &= ~NVREG_POWERSTATE2_POWERUP_MASK;
 		if ((id->device == PCI_DEVICE_ID_NVIDIA_NVENET_12 ||
 		     id->device == PCI_DEVICE_ID_NVIDIA_NVENET_13) &&
-		    revision_id >= 0xA3)
+		    pci_dev->revision >= 0xA3)
 			powerstate |= NVREG_POWERSTATE2_POWERUP_REV_A3;
 		writel(powerstate, base + NvRegPowerState2);
 	}

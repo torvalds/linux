@@ -1266,8 +1266,7 @@ e1000_sw_init(struct e1000_adapter *adapter)
 	hw->device_id = pdev->device;
 	hw->subsystem_vendor_id = pdev->subsystem_vendor;
 	hw->subsystem_id = pdev->subsystem_device;
-
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &hw->revision_id);
+	hw->revision_id = pdev->revision;
 
 	pci_read_config_word(pdev, PCI_COMMAND, &hw->pci_cmd_word);
 

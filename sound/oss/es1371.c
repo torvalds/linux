@@ -2894,7 +2894,7 @@ static int __devinit es1371_probe(struct pci_dev *pcidev, const struct pci_devic
 	s->irq = pcidev->irq;
 	s->vendor = pcidev->vendor;
 	s->device = pcidev->device;
-	pci_read_config_byte(pcidev, PCI_REVISION_ID, &s->rev);
+	s->rev = pcidev->revision;
 	s->codec->private_data = s;
 	s->codec->id = 0;
 	s->codec->codec_read = rdcodec;

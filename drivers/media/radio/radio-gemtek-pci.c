@@ -94,7 +94,6 @@ struct gemtek_pci_card {
 
 	u32 iobase;
 	u32 length;
-	u8  chiprev;
 	u16 model;
 
 	u32 current_frequency;
@@ -415,7 +414,6 @@ static int __devinit gemtek_pci_probe( struct pci_dev *pci_dev, const struct pci
 		goto err_pci;
 	}
 
-	pci_read_config_byte( pci_dev, PCI_REVISION_ID, &card->chiprev );
 	pci_read_config_word( pci_dev, PCI_SUBSYSTEM_ID, &card->model );
 
 	pci_set_drvdata( pci_dev, card );
@@ -436,7 +434,7 @@ static int __devinit gemtek_pci_probe( struct pci_dev *pci_dev, const struct pci
 	gemtek_pci_mute( card );
 
 	printk( KERN_INFO "Gemtek PCI Radio (rev. %d) found at 0x%04x-0x%04x.\n",
-		card->chiprev, card->iobase, card->iobase + card->length - 1 );
+		pci_dev->revision, card->iobase, card->iobase + card->length - 1 );
 
 	return 0;
 

@@ -397,8 +397,7 @@ found:
 	case PCI_DEVICE_ID_VIA_82C686_4:
 		/* The VT82C686B (rev 0x40) does support I2C block
 		   transactions, but the VT82C686A (rev 0x30) doesn't */
-		if (!pci_read_config_byte(pdev, PCI_REVISION_ID, &temp)
-		 && temp >= 0x40)
+		if (pdev->revision >= 0x40)
 			vt596_features |= FEATURE_I2CBLOCK;
 		break;
 	}

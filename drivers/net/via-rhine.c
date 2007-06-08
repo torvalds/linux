@@ -622,7 +622,6 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 	struct net_device *dev;
 	struct rhine_private *rp;
 	int i, rc;
-	u8 pci_rev;
 	u32 quirks;
 	long pioaddr;
 	long memaddr;
@@ -642,27 +641,25 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 		printk(version);
 #endif
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &pci_rev);
-
 	io_size = 256;
 	phy_id = 0;
 	quirks = 0;
 	name = "Rhine";
-	if (pci_rev < VTunknown0) {
+	if (pdev->revision < VTunknown0) {
 		quirks = rqRhineI;
 		io_size = 128;
 	}
-	else if (pci_rev >= VT6102) {
+	else if (pdev->revision >= VT6102) {
 		quirks = rqWOL | rqForceReset;
-		if (pci_rev < VT6105) {
+		if (pdev->revision < VT6105) {
 			name = "Rhine II";
 			quirks |= rqStatusWBRace;	/* Rhine-II exclusive */
 		}
 		else {
 			phy_id = 1;	/* Integrated PHY, phy_id fixed to 1 */
-			if (pci_rev >= VT6105_B0)
+			if (pdev->revision >= VT6105_B0)
 				quirks |= rq6patterns;
-			if (pci_rev < VT6105M)
+			if (pdev->revision < VT6105M)
 				name = "Rhine III";
 			else
 				name = "Rhine III (Management Adapter)";

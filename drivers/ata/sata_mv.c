@@ -1573,12 +1573,9 @@ static void mv5_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
 
 static void mv5_reset_bus(struct pci_dev *pdev, void __iomem *mmio)
 {
-	u8 rev_id;
 	int early_5080;
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev_id);
-
-	early_5080 = (pdev->device == 0x5080) && (rev_id == 0);
+	early_5080 = (pdev->device == 0x5080) && (pdev->revision == 0);
 
 	if (!early_5080) {
 		u32 tmp = readl(mmio + MV_PCI_EXP_ROM_BAR_CTL);
@@ -2139,17 +2136,14 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 {
 	struct pci_dev *pdev = to_pci_dev(host->dev);
 	struct mv_host_priv *hpriv = host->private_data;
-	u8 rev_id;
 	u32 hp_flags = hpriv->hp_flags;
-
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev_id);
 
 	switch(board_idx) {
 	case chip_5080:
 		hpriv->ops = &mv5xxx_ops;
 		hp_flags |= MV_HP_50XX;
 
-		switch (rev_id) {
+		switch (pdev->revision) {
 		case 0x1:
 			hp_flags |= MV_HP_ERRATA_50XXB0;
 			break;
@@ -2169,7 +2163,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 		hpriv->ops = &mv5xxx_ops;
 		hp_flags |= MV_HP_50XX;
 
-		switch (rev_id) {
+		switch (pdev->revision) {
 		case 0x0:
 			hp_flags |= MV_HP_ERRATA_50XXB0;
 			break;
@@ -2188,7 +2182,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 	case chip_608x:
 		hpriv->ops = &mv6xxx_ops;
 
-		switch (rev_id) {
+		switch (pdev->revision) {
 		case 0x7:
 			hp_flags |= MV_HP_ERRATA_60X1B2;
 			break;
@@ -2209,7 +2203,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 
 		hp_flags |= MV_HP_GEN_IIE;
 
-		switch (rev_id) {
+		switch (pdev->revision) {
 		case 0x0:
 			hp_flags |= MV_HP_ERRATA_XX42A0;
 			break;
@@ -2337,14 +2331,12 @@ static void mv_print_info(struct ata_host *host)
 {
 	struct pci_dev *pdev = to_pci_dev(host->dev);
 	struct mv_host_priv *hpriv = host->private_data;
-	u8 rev_id, scc;
+	u8 scc;
 	const char *scc_s, *gen;
 
 	/* Use this to determine the HW stepping of the chip so we know
 	 * what errata to workaround
 	 */
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev_id);
-
 	pci_read_config_byte(pdev, PCI_CLASS_DEVICE, &scc);
 	if (scc == 0)
 		scc_s = "SCSI";

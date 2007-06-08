@@ -3422,21 +3422,19 @@ done:
 static void cas_check_pci_invariants(struct cas *cp)
 {
 	struct pci_dev *pdev = cp->pdev;
-	u8 rev;
 
 	cp->cas_flags = 0;
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
 	if ((pdev->vendor == PCI_VENDOR_ID_SUN) &&
 	    (pdev->device == PCI_DEVICE_ID_SUN_CASSINI)) {
-		if (rev >= CAS_ID_REVPLUS)
+		if (pdev->revision >= CAS_ID_REVPLUS)
 			cp->cas_flags |= CAS_FLAG_REG_PLUS;
-		if (rev < CAS_ID_REVPLUS02u)
+		if (pdev->revision < CAS_ID_REVPLUS02u)
 			cp->cas_flags |= CAS_FLAG_TARGET_ABORT;
 
 		/* Original Cassini supports HW CSUM, but it's not
 		 * enabled by default as it can trigger TX hangs.
 		 */
-		if (rev < CAS_ID_REV2)
+		if (pdev->revision < CAS_ID_REV2)
 			cp->cas_flags |= CAS_FLAG_NO_HW_CSUM;
 	} else {
 		/* Only sun has original cassini chips.  */

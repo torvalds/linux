@@ -88,7 +88,7 @@ static int jsm_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	spin_lock_init(&brd->bd_intr_lock);
 
 	/* store which revision we have */
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &brd->rev);
+	brd->rev = pdev->revision;
 
 	brd->irq = pdev->irq;
 

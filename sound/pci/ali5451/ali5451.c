@@ -2218,7 +2218,7 @@ static int __devinit snd_ali_create(struct snd_card *card,
 	codec->card = card;
 	codec->pci = pci;
 	codec->irq = -1;
-	pci_read_config_byte(pci, PCI_REVISION_ID, &codec->revision);
+	codec->revision = pci->revision;
 	codec->spdif_support = spdif_support;
 
 	if (pcm_streams < 1)

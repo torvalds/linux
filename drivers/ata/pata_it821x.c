@@ -587,8 +587,7 @@ static int it821x_port_start(struct ata_port *ap)
 	itdev->want[1][1] = ATA_ANY;
 	itdev->last_device = -1;
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &conf);
-	if (conf == 0x10) {
+	if (pdev->revision == 0x11) {
 		itdev->timing10 = 1;
 		/* Need to disable ATAPI DMA for this case */
 		if (!itdev->smart)

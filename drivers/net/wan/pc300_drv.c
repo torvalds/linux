@@ -3439,7 +3439,6 @@ static int __devinit
 cpc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int first_time = 1;
-	ucchar cpc_rev_id;
 	int err, eeprom_outdated = 0;
 	ucshort device_id;
 	pc300_t *card;
@@ -3480,7 +3479,6 @@ cpc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	card->hw.falcsize = pci_resource_len(pdev, 4);
 	card->hw.plxphys = pci_resource_start(pdev, 5);
 	card->hw.plxsize = pci_resource_len(pdev, 5);
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &cpc_rev_id);
 
 	switch (device_id) {
 		case PCI_DEVICE_ID_PC300_RX_1:
@@ -3498,7 +3496,7 @@ cpc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 #ifdef PC300_DEBUG_PCI
 	printk("cpc (bus=0x0%x,pci_id=0x%x,", pdev->bus->number, pdev->devfn);
-	printk("rev_id=%d) IRQ%d\n", cpc_rev_id, card->hw.irq);
+	printk("rev_id=%d) IRQ%d\n", pdev->revision, card->hw.irq);
 	printk("cpc:found  ramaddr=0x%08lx plxaddr=0x%08lx "
 	       "ctladdr=0x%08lx falcaddr=0x%08lx\n",
 	       card->hw.ramphys, card->hw.plxphys, card->hw.scaphys,

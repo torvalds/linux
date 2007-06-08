@@ -533,7 +533,6 @@ static int __devinit TLan_probe1(struct pci_dev *pdev,
 
 	struct net_device  *dev;
 	TLanPrivateInfo    *priv;
-	u8		   pci_rev;
 	u16		   device_id;
 	int		   reg, rc = -ENODEV;
 
@@ -577,8 +576,6 @@ static int __devinit TLan_probe1(struct pci_dev *pdev,
 			goto err_out_free_dev;
 		}
 
-		pci_read_config_byte ( pdev, PCI_REVISION_ID, &pci_rev);
-
 		for ( reg= 0; reg <= 5; reg ++ ) {
 			if (pci_resource_flags(pdev, reg) & IORESOURCE_IO) {
 				pci_io_base = pci_resource_start(pdev, reg);
@@ -595,7 +592,7 @@ static int __devinit TLan_probe1(struct pci_dev *pdev,
 
 		dev->base_addr = pci_io_base;
 		dev->irq = pdev->irq;
-		priv->adapterRev = pci_rev;
+		priv->adapterRev = pdev->revision;
 		pci_set_master(pdev);
 		pci_set_drvdata(pdev, dev);
 

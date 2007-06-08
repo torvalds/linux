@@ -397,7 +397,6 @@ struct netdev_private {
 	unsigned char phys[MII_CNT];		/* MII device addresses, only first one used. */
 	struct pci_dev *pci_dev;
 	void __iomem *base;
-	unsigned char pci_rev_id;
 };
 
 /* The station address location in the EEPROM. */
@@ -543,8 +542,6 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 	dev->watchdog_timeo = TX_TIMEOUT;
 	dev->change_mtu = &change_mtu;
 	pci_set_drvdata(pdev, dev);
-
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &np->pci_rev_id);
 
 	i = register_netdev(dev);
 	if (i)
@@ -828,7 +825,7 @@ static int netdev_open(struct net_device *dev)
 	iowrite8(100, ioaddr + RxDMAPollPeriod);
 	iowrite8(127, ioaddr + TxDMAPollPeriod);
 	/* Fix DFE-580TX packet drop issue */
-	if (np->pci_rev_id >= 0x14)
+	if (np->pci_dev->revision >= 0x14)
 		iowrite8(0x01, ioaddr + DebugCtrl1);
 	netif_start_queue(dev);
 
@@ -1194,7 +1191,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 			hw_frame_id = ioread8(ioaddr + TxFrameId);
 		}
 
-		if (np->pci_rev_id >= 0x14) {
+		if (np->pci_dev->revision >= 0x14) {
 			spin_lock(&np->lock);
 			for (; np->cur_tx - np->dirty_tx > 0; np->dirty_tx++) {
 				int entry = np->dirty_tx % TX_RING_SIZE;

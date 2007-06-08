@@ -237,16 +237,14 @@ static int via82cxxx_ide_dma_check (ide_drive_t *drive)
 static struct via_isa_bridge *via_config_find(struct pci_dev **isa)
 {
 	struct via_isa_bridge *via_config;
-	u8 t;
 
 	for (via_config = via_isa_bridges; via_config->id; via_config++)
 		if ((*isa = pci_get_device(PCI_VENDOR_ID_VIA +
 			!!(via_config->flags & VIA_BAD_ID),
 			via_config->id, NULL))) {
 
-			pci_read_config_byte(*isa, PCI_REVISION_ID, &t);
-			if (t >= via_config->rev_min &&
-			    t <= via_config->rev_max)
+			if ((*isa)->revision >= via_config->rev_min &&
+			    (*isa)->revision <= via_config->rev_max)
 				break;
 			pci_dev_put(*isa);
 		}
@@ -404,10 +402,9 @@ static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev, const 
 	 * Print the boot message.
 	 */
 
-	pci_read_config_byte(isa, PCI_REVISION_ID, &t);
 	printk(KERN_INFO "VP_IDE: VIA %s (rev %02x) IDE %sDMA%s "
 		"controller on pci%s\n",
-		via_config->name, t,
+		via_config->name, isa->revision,
 		via_config->udma_mask ? "U" : "MW",
 		via_dma[via_config->udma_mask ?
 			(fls(via_config->udma_mask) - 1) : 0],

@@ -88,7 +88,6 @@ static char * print_cmd64x_get_info (char *buf, struct pci_dev *dev, int index)
 	u8 reg72 = 0, reg73 = 0;			/* primary */
 	u8 reg7a = 0, reg7b = 0;			/* secondary */
 	u8 reg50 = 1, reg51 = 1, reg57 = 0, reg71 = 0;	/* extra */
-	u8 rev = 0;
 
 	p += sprintf(p, "\nController: %d\n", index);
 	p += sprintf(p, "PCI-%x Chipset.\n", dev->device);
@@ -103,9 +102,8 @@ static char * print_cmd64x_get_info (char *buf, struct pci_dev *dev, int index)
 	(void) pci_read_config_byte(dev, UDIDETCR1, &reg7b);
 
 	/* PCI0643/6 originally didn't have the primary channel enable bit */
-	(void) pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
 	if ((dev->device == PCI_DEVICE_ID_CMD_643) ||
-	    (dev->device == PCI_DEVICE_ID_CMD_646 && rev < 3))
+	    (dev->device == PCI_DEVICE_ID_CMD_646 && dev->revision < 3))
 		reg51 |= CNTRL_ENA_1ST;
 
 	p += sprintf(p, "---------------- Primary Channel "
@@ -604,14 +602,11 @@ static int __devinit init_setup_cmd64x(struct pci_dev *dev, ide_pci_device_t *d)
 
 static int __devinit init_setup_cmd646(struct pci_dev *dev, ide_pci_device_t *d)
 {
-	u8 rev = 0;
-
 	/*
 	 * The original PCI0646 didn't have the primary channel enable bit,
 	 * it appeared starting with PCI0646U (i.e. revision ID 3).
 	 */
-	pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
-	if (rev < 3)
+	if (dev->revision < 3)
 		d->enablebits[0].reg = 0;
 
 	return ide_setup_pci_device(dev, d);

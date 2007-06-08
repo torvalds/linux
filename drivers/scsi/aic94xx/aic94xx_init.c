@@ -223,13 +223,8 @@ static int __devinit asd_common_setup(struct asd_ha_struct *asd_ha)
 {
 	int err, i;
 
-	err = pci_read_config_byte(asd_ha->pcidev, PCI_REVISION_ID,
-				   &asd_ha->revision_id);
-	if (err) {
-		asd_printk("couldn't read REVISION ID register of %s\n",
-			   pci_name(asd_ha->pcidev));
-		goto Err;
-	}
+	asd_ha->revision_id = asd_ha->pcidev->revision;
+
 	err = -ENODEV;
 	if (asd_ha->revision_id < AIC9410_DEV_REV_B0) {
 		asd_printk("%s is revision %s (%X), which is not supported\n",

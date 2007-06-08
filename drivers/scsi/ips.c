@@ -7148,7 +7148,6 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 	uint32_t mem_addr;
 	uint32_t io_len;
 	uint32_t mem_len;
-	uint8_t revision_id;
 	uint8_t bus;
 	uint8_t func;
 	uint8_t irq;
@@ -7227,12 +7226,6 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 		}
 	}
 
-	/* get the revision ID */
-	if (pci_read_config_byte(pci_dev, PCI_REVISION_ID, &revision_id)) {
-		IPS_PRINTK(KERN_WARNING, pci_dev, "Can't get revision id.\n");
-		return -1;
-	}
-
 	subdevice_id = pci_dev->subsystem_device;
 
 	/* found a controller */
@@ -7258,7 +7251,7 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 	ha->mem_ptr = mem_ptr;
 	ha->ioremap_ptr = ioremap_ptr;
 	ha->host_num = (uint32_t) index;
-	ha->revision_id = revision_id;
+	ha->revision_id = pci_dev->revision;
 	ha->slot_num = PCI_SLOT(pci_dev->devfn);
 	ha->device_id = pci_dev->device;
 	ha->subdevice_id = subdevice_id;

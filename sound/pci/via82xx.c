@@ -2431,7 +2431,6 @@ static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 {
 	struct snd_card *card;
 	struct via82xx *chip;
-	unsigned char revision;
 	int chip_type = 0, card_type;
 	unsigned int i;
 	int err;
@@ -2441,18 +2440,17 @@ static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 		return -ENOMEM;
 
 	card_type = pci_id->driver_data;
-	pci_read_config_byte(pci, PCI_REVISION_ID, &revision);
 	switch (card_type) {
 	case TYPE_CARD_VIA686:
 		strcpy(card->driver, "VIA686A");
-		sprintf(card->shortname, "VIA 82C686A/B rev%x", revision);
+		sprintf(card->shortname, "VIA 82C686A/B rev%x", pci->revision);
 		chip_type = TYPE_VIA686;
 		break;
 	case TYPE_CARD_VIA8233:
 		chip_type = TYPE_VIA8233;
-		sprintf(card->shortname, "VIA 823x rev%x", revision);
+		sprintf(card->shortname, "VIA 823x rev%x", pci->revision);
 		for (i = 0; i < ARRAY_SIZE(via823x_cards); i++) {
-			if (revision == via823x_cards[i].revision) {
+			if (pci->revision == via823x_cards[i].revision) {
 				chip_type = via823x_cards[i].type;
 				strcpy(card->shortname, via823x_cards[i].name);
 				break;
@@ -2460,7 +2458,7 @@ static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 		}
 		if (chip_type != TYPE_VIA8233A) {
 			if (dxs_support == VIA_DXS_AUTO)
-				dxs_support = check_dxs_list(pci, revision);
+				dxs_support = check_dxs_list(pci, pci->revision);
 			/* force to use VIA8233 or 8233A model according to
 			 * dxs_support module option
 			 */
@@ -2471,7 +2469,7 @@ static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 		}
 		if (chip_type == TYPE_VIA8233A)
 			strcpy(card->driver, "VIA8233A");
-		else if (revision >= VIA_REV_8237)
+		else if (pci->revision >= VIA_REV_8237)
 			strcpy(card->driver, "VIA8237"); /* no slog assignment */
 		else
 			strcpy(card->driver, "VIA8233");
@@ -2482,7 +2480,7 @@ static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 		goto __error;
 	}
 		
-	if ((err = snd_via82xx_create(card, pci, chip_type, revision,
+	if ((err = snd_via82xx_create(card, pci, chip_type, pci->revision,
 				      ac97_clock, &chip)) < 0)
 		goto __error;
 	card->private_data = chip;

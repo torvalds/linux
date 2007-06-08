@@ -1302,7 +1302,7 @@ static int __devinit emu10k1_probe(struct pci_dev *pci_dev, const struct pci_dev
 		goto err_irq;
 	}
 
-	pci_read_config_byte(pci_dev, PCI_REVISION_ID, &card->chiprev);
+	card->chiprev = pci_dev->revision;
 	pci_read_config_word(pci_dev, PCI_SUBSYSTEM_ID, &card->model);
 
 	printk(KERN_INFO "emu10k1: %s rev %d model %#04x found, IO at %#04lx-%#04lx, IRQ %d\n",

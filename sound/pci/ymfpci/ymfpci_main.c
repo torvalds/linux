@@ -2404,7 +2404,7 @@ int __devinit snd_ymfpci_create(struct snd_card *card,
 	chip->pci = pci;
 	chip->irq = -1;
 	chip->device_id = pci->device;
-	pci_read_config_byte(pci, PCI_REVISION_ID, &chip->rev);
+	chip->rev = pci->revision;
 	chip->reg_area_phys = pci_resource_start(pci, 0);
 	chip->reg_area_virt = ioremap_nocache(chip->reg_area_phys, 0x8000);
 	pci_set_master(pci);

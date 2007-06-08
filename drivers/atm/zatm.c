@@ -1182,7 +1182,6 @@ static int __devinit zatm_init(struct atm_dev *dev)
 	struct zatm_dev *zatm_dev;
 	struct pci_dev *pci_dev;
 	unsigned short command;
-	unsigned char revision;
 	int error,i,last;
 	unsigned long t0,t1,t2;
 
@@ -1192,8 +1191,7 @@ static int __devinit zatm_init(struct atm_dev *dev)
 	pci_dev = zatm_dev->pci_dev;
 	zatm_dev->base = pci_resource_start(pci_dev, 0);
 	zatm_dev->irq = pci_dev->irq;
-	if ((error = pci_read_config_word(pci_dev,PCI_COMMAND,&command)) ||
-	    (error = pci_read_config_byte(pci_dev,PCI_REVISION_ID,&revision))) {
+	if ((error = pci_read_config_word(pci_dev,PCI_COMMAND,&command))) {
 		printk(KERN_ERR DEV_LABEL "(itf %d): init error 0x%02x\n",
 		    dev->number,error);
 		return -EINVAL;
@@ -1206,7 +1204,7 @@ static int __devinit zatm_init(struct atm_dev *dev)
 	}
 	eprom_get_esi(dev);
 	printk(KERN_NOTICE DEV_LABEL "(itf %d): rev.%d,base=0x%x,irq=%d,",
-	    dev->number,revision,zatm_dev->base,zatm_dev->irq);
+	    dev->number,pci_dev->revision,zatm_dev->base,zatm_dev->irq);
 	/* reset uPD98401 */
 	zout(0,SWR);
 	while (!(zin(GSR) & uPD98401_INT_IND));

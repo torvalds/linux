@@ -1511,7 +1511,6 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	struct snd_emu10k1 *emu;
 	int idx, err;
 	int is_audigy;
-	unsigned char revision;
 	unsigned int silent_page;
 	const struct snd_emu_chip_details *c;
 	static struct snd_device_ops ops = {
@@ -1543,8 +1542,7 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	emu->synth = NULL;
 	emu->get_synth_voice = NULL;
 	/* read revision & serial */
-	pci_read_config_byte(pci, PCI_REVISION_ID, &revision);
-	emu->revision = revision;
+	emu->revision = pci->revision;
 	pci_read_config_dword(pci, PCI_SUBSYSTEM_VENDOR_ID, &emu->serial);
 	pci_read_config_word(pci, PCI_SUBSYSTEM_ID, &emu->model);
 	snd_printdd("vendor=0x%x, device=0x%x, subsystem_vendor_id=0x%x, subsystem_id=0x%x\n",pci->vendor, pci->device, emu->serial, emu->model);

@@ -2110,7 +2110,6 @@ static int __devinit snd_ensoniq_create(struct snd_card *card,
 				     struct ensoniq ** rensoniq)
 {
 	struct ensoniq *ensoniq;
-	unsigned char cmdb;
 	int err;
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_ensoniq_dev_free,
@@ -2151,8 +2150,7 @@ static int __devinit snd_ensoniq_create(struct snd_card *card,
 	}
 #endif
 	pci_set_master(pci);
-	pci_read_config_byte(pci, PCI_REVISION_ID, &cmdb);
-	ensoniq->rev = cmdb;
+	ensoniq->rev = pci->revision;
 #ifdef CHIP1370
 #if 0
 	ensoniq->ctrl = ES_1370_CDC_EN | ES_1370_SERR_DISABLE |

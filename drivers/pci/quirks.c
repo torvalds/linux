@@ -587,10 +587,7 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8237,		quirk_via_v
  */
 static void __devinit quirk_amd_ioapic(struct pci_dev *dev)
 {
-	u8 rev;
-
-	pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
-	if (rev >= 0x02) {
+	if (dev->revision >= 0x02) {
 		printk(KERN_WARNING "I/O APIC: AMD Erratum #22 may be present. In the event of instability try\n");
 		printk(KERN_WARNING "        : booting with the \"noapic\" option.\n");
 	}
@@ -610,13 +607,12 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SI,	PCI_ANY_ID,			quirk_ioapic_rmw );
 #define AMD8131_NIOAMODE_BIT 0
 static void quirk_amd_8131_ioapic(struct pci_dev *dev)
 { 
-        unsigned char revid, tmp;
+        unsigned char tmp;
         
         if (nr_ioapics == 0) 
                 return;
 
-        pci_read_config_byte(dev, PCI_REVISION_ID, &revid);
-        if (revid == AMD8131_revA0 || revid == AMD8131_revB0) {
+        if (dev->revision == AMD8131_revA0 || dev->revision == AMD8131_revB0) {
                 printk(KERN_INFO "Fixing up AMD8131 IOAPIC mode\n"); 
                 pci_read_config_byte( dev, AMD8131_MISC, &tmp);
                 tmp &= ~(1 << AMD8131_NIOAMODE_BIT);
@@ -859,10 +855,8 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_CYRIX,	PCI_DEVICE_ID_CYRIX_PCI_MASTER, qu
 static void quirk_disable_pxb(struct pci_dev *pdev)
 {
 	u16 config;
-	u8 rev;
 	
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
-	if (rev != 0x04)		/* Only C0 requires this */
+	if (pdev->revision != 0x04)		/* Only C0 requires this */
 		return;
 	pci_read_config_word(pdev, 0x40, &config);
 	if (config & (1<<6)) {
