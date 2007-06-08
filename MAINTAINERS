@@ -2814,11 +2814,6 @@ P: 	Kristen Carlson Accardi
 M:	kristen.c.accardi@intel.com
 S:	Supported
 
-PCI HOTPLUG COMPAQ DRIVER
-P:	Greg Kroah-Hartman
-M:	greg@kroah.com
-S:	Maintained
-
 PCIE HOTPLUG DRIVER
 P:	Kristen Carlson Accardi
 M:	kristen.c.accardi@intel.com
