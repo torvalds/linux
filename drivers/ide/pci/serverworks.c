@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/serverworks.c		Version 0.9	Mar 4 2007
+ * linux/drivers/ide/pci/serverworks.c		Version 0.10	Jun 2 2007
  *
  * Copyright (C) 1998-2000 Michel Aubry
  * Copyright (C) 1998-2000 Andrzej Krzysztofowicz
@@ -170,7 +170,6 @@ static int svwks_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 		if (!drive->init_speed) {
 			u8 dma_stat = inb(hwif->dma_status);
 
-dma_pio:
 			if (((ultra_enable << (7-drive->dn) & 0x80) == 0x80) &&
 			    ((dma_stat & (1<<(5+unit))) == (1<<(5+unit)))) {
 				drive->current_speed = drive->init_speed = XFER_UDMA_0 + udma_modes[(ultra_timing >> (4*unit)) & ~(0xF0)];
@@ -179,7 +178,6 @@ dma_pio:
 				   ((dma_stat&(1<<(5+unit)))==(1<<(5+unit)))) {
 				u8 dmaspeed = dma_timing;
 
-				dma_timing &= ~0xFFU;
 				if ((dmaspeed & 0x20) == 0x20)
 					dmaspeed = XFER_MW_DMA_2;
 				else if ((dmaspeed & 0x21) == 0x21)
@@ -190,10 +188,11 @@ dma_pio:
 					goto dma_pio;
 				drive->current_speed = drive->init_speed = dmaspeed;
 				return 0;
-			} else if (pio_timing) {
+			}
+dma_pio:
+			if (pio_timing) {
 				u8 piospeed = pio_timing;
 
-				pio_timing &= ~0xFFU;
 				if ((piospeed & 0x20) == 0x20)
 					piospeed = XFER_PIO_4;
 				else if ((piospeed & 0x22) == 0x22)
@@ -214,8 +213,8 @@ dma_pio:
 
 oem_setup_failed:
 
-	pio_timing	&= ~0xFFU;
-	dma_timing	&= ~0xFFU;
+	pio_timing	= 0;
+	dma_timing	= 0;
 	ultra_timing	&= ~(0x0F << (4*unit));
 	ultra_enable	&= ~(0x01 << drive->dn);
 	csb5_pio	&= ~(0x0F << (4*drive->dn));
