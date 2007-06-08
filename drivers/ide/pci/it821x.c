@@ -1,6 +1,6 @@
 
 /*
- * linux/drivers/ide/pci/it821x.c		Version 0.10	Mar 10 2007
+ * linux/drivers/ide/pci/it821x.c		Version 0.15	Jun 2 2007
  *
  * Copyright (C) 2004		Red Hat <alan@redhat.com>
  * Copyright (C) 2007		Bartlomiej Zolnierkiewicz
@@ -262,7 +262,7 @@ static int it821x_tunepio(ide_drive_t *drive, u8 set_pio)
 	}
 
 	if (itdev->smart)
-		goto set_drive_speed;
+		return 0;
 
 	/* We prefer 66Mhz clock for PIO 0-3, don't care for PIO4 */
 	itdev->want[unit][1] = pio_want[set_pio];
@@ -271,7 +271,6 @@ static int it821x_tunepio(ide_drive_t *drive, u8 set_pio)
 	it821x_clock_strategy(drive);
 	it821x_program(drive, itdev->pio[unit]);
 
-set_drive_speed:
 	return ide_config_drive_speed(drive, XFER_PIO_0 + set_pio);
 }
 
@@ -455,12 +454,12 @@ static int it821x_tune_chipset (ide_drive_t *drive, byte xferspeed)
 			default:
 				return 1;
 		}
+
+		return ide_config_drive_speed(drive, speed);
 	}
-	/*
-	 *	In smart mode the clocking is done by the host controller
-	 * 	snooping the mode we picked. The rest of it is not our problem
-	 */
-	return ide_config_drive_speed(drive, speed);
+
+	/* don't touch anything in the smart mode */
+	return 0;
 }
 
 /**
@@ -559,17 +558,10 @@ static void __devinit it821x_fixups(ide_hwif_t *hwif)
 				if(idbits[129] != 1)
 					printk("(%dK stripe)", idbits[146]);
 				printk(".\n");
-			/* Now the core code will have wrongly decided no DMA
-			   so we need to fix this */
-			hwif->dma_off_quietly(drive);
-#ifdef CONFIG_IDEDMA_ONLYDISK
-			if (drive->media == ide_disk)
-#endif
-				ide_set_dma(drive);
 		} else {
 			/* Non RAID volume. Fixups to stop the core code
 			   doing unsupported things */
-			id->field_valid &= 1;
+			id->field_valid &= 3;
 			id->queue_depth = 0;
 			id->command_set_1 = 0;
 			id->command_set_2 &= 0xC400;
@@ -583,6 +575,16 @@ static void __devinit it821x_fixups(ide_hwif_t *hwif)
 			id->cfa_power = 0;
 			printk(KERN_INFO "%s: Performing identify fixups.\n",
 				drive->name);
+		}
+
+		/*
+		 * Set MWDMA0 mode as enabled/support - just to tell
+		 * IDE core that DMA is supported (it821x hardware
+		 * takes care of DMA mode programming).
+		 */
+		if (id->capability & 1) {
+			id->dma_mword |= 0x0101;
+			drive->current_speed = XFER_MW_DMA_0;
 		}
 	}
 
