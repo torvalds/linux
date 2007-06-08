@@ -195,7 +195,7 @@ static int DIVA_INIT_FUNCTION connect_didd(void)
 /*
  * disconnect from didd
  */
-static void DIVA_EXIT_FUNCTION disconnect_didd(void)
+static void disconnect_didd(void)
 {
 	IDI_SYNC_REQ req;
 
