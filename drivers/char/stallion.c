@@ -2177,6 +2177,7 @@ static int __devinit stl_initech(struct stlbrd *brdp)
 		if (!panelp) {
 			printk("STALLION: failed to allocate memory "
 				"(size=%Zd)\n", sizeof(struct stlpanel));
+			retval = -ENOMEM;
 			goto err_fr;
 		}
 		panelp->magic = STL_PANELMAGIC;
@@ -2223,8 +2224,10 @@ static int __devinit stl_initech(struct stlbrd *brdp)
 		brdp->nrports += panelp->nrports;
 		brdp->panels[panelnr++] = panelp;
 		if ((brdp->brdtype != BRD_ECHPCI) &&
-		    (ioaddr >= (brdp->ioaddr2 + brdp->iosize2)))
+		    (ioaddr >= (brdp->ioaddr2 + brdp->iosize2))) {
+			retval = -EINVAL;
 			goto err_fr;
+		}
 	}
 
 	brdp->nrpanels = panelnr;
@@ -2371,6 +2374,7 @@ static int __devinit stl_pciprobe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "too many boards found, "
 			"maximum supported %d\n", STL_MAXBRDS);
 		mutex_unlock(&stl_brdslock);
+		retval = -ENODEV;
 		goto err_fr;
 	}
 	brdp->brdnr = (unsigned int)brdnr;
