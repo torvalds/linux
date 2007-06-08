@@ -24,6 +24,7 @@
 #include <linux/syscalls.h>
 #include <linux/percpu.h>
 #include <linux/init.h>
+#include <linux/rwsem.h>
 #include <net/compat.h>
 
 #include <asm/oplib.h>
@@ -58,7 +59,6 @@
 #include <asm/ns87303.h>
 #include <asm/timer.h>
 #include <asm/cpudata.h>
-#include <asm/rwsem.h>
 
 struct poll {
 	int fd;
