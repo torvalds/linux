@@ -223,6 +223,11 @@ static int __init at32_wdt_probe(struct platform_device *pdev)
 	}
 
 	wdt->regs = ioremap(regs->start, regs->end - regs->start + 1);
+	if (!wdt->regs) {
+		ret = -ENOMEM;
+		dev_dbg(&pdev->dev, "could not map I/O memory\n");
+		goto err_free;
+	}
 	wdt->users = 0;
 	wdt->miscdev.minor = WATCHDOG_MINOR;
 	wdt->miscdev.name = "watchdog";
@@ -238,7 +243,7 @@ static int __init at32_wdt_probe(struct platform_device *pdev)
 	ret = misc_register(&wdt->miscdev);
 	if (ret) {
 		dev_dbg(&pdev->dev, "failed to register wdt miscdev\n");
-		goto err_register;
+		goto err_iounmap;
 	}
 
 	platform_set_drvdata(pdev, wdt);
@@ -247,7 +252,9 @@ static int __init at32_wdt_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_register:
+err_iounmap:
+	iounmap(wdt->regs);
+err_free:
 	kfree(wdt);
 	wdt = NULL;
 	return ret;
