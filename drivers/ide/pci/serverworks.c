@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/serverworks.c		Version 0.10	Jun 2 2007
+ * linux/drivers/ide/pci/serverworks.c		Version 0.11	Jun 2 2007
  *
  * Copyright (C) 1998-2000 Michel Aubry
  * Copyright (C) 1998-2000 Andrzej Krzysztofowicz
@@ -176,35 +176,49 @@ static int svwks_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 				return 0;
 			} else if ((dma_timing) &&
 				   ((dma_stat&(1<<(5+unit)))==(1<<(5+unit)))) {
-				u8 dmaspeed = dma_timing;
+				u8 dmaspeed;
 
-				if ((dmaspeed & 0x20) == 0x20)
+				switch (dma_timing & 0x77) {
+				case 0x20:
 					dmaspeed = XFER_MW_DMA_2;
-				else if ((dmaspeed & 0x21) == 0x21)
+					break;
+				case 0x21:
 					dmaspeed = XFER_MW_DMA_1;
-				else if ((dmaspeed & 0x77) == 0x77)
+					break;
+				case 0x77:
 					dmaspeed = XFER_MW_DMA_0;
-				else
+					break;
+				default:
 					goto dma_pio;
+				}
+
 				drive->current_speed = drive->init_speed = dmaspeed;
 				return 0;
 			}
 dma_pio:
 			if (pio_timing) {
-				u8 piospeed = pio_timing;
+				u8 piospeed;
 
-				if ((piospeed & 0x20) == 0x20)
+				switch (pio_timing & 0x7f) {
+				case 0x20:
 					piospeed = XFER_PIO_4;
-				else if ((piospeed & 0x22) == 0x22)
+					break;
+				case 0x22:
 					piospeed = XFER_PIO_3;
-				else if ((piospeed & 0x34) == 0x34)
+					break;
+				case 0x34:
 					piospeed = XFER_PIO_2;
-				else if ((piospeed & 0x47) == 0x47)
+					break;
+				case 0x47:
 					piospeed = XFER_PIO_1;
-				else if ((piospeed & 0x5d) == 0x5d)
+					break;
+				case 0x5d:
 					piospeed = XFER_PIO_0;
-				else
+					break;
+				default:
 					goto oem_setup_failed;
+				}
+
 				drive->current_speed = drive->init_speed = piospeed;
 				return 0;
 			}
