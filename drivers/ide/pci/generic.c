@@ -198,32 +198,41 @@ static ide_pci_device_t generic_chipsets[] __devinitdata = {
 static int __devinit generic_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	ide_pci_device_t *d = &generic_chipsets[id->driver_data];
-	u16 command;
 	int ret = -ENODEV;
 
 	/* Don't use the generic entry unless instructed to do so */
 	if (id->driver_data == 0 && ide_generic_all == 0)
 			goto out;
 
-	if (dev->vendor == PCI_VENDOR_ID_UMC &&
-	    dev->device == PCI_DEVICE_ID_UMC_UM8886A &&
-	    (!(PCI_FUNC(dev->devfn) & 1)))
-		goto out; /* UM8886A/BF pair */
-
-	if (dev->vendor == PCI_VENDOR_ID_OPTI &&
-	    dev->device == PCI_DEVICE_ID_OPTI_82C558 &&
-	    (!(PCI_FUNC(dev->devfn) & 1)))
-		goto out;
-
-	if (dev->vendor == PCI_VENDOR_ID_JMICRON) {
-		if (dev->device != PCI_DEVICE_ID_JMICRON_JMB368 && PCI_FUNC(dev->devfn) != 1)
+	switch (dev->vendor) {
+	case PCI_VENDOR_ID_UMC:
+		if (dev->device == PCI_DEVICE_ID_UMC_UM8886A &&
+				!(PCI_FUNC(dev->devfn) & 1))
+			goto out; /* UM8886A/BF pair */
+		break;
+	case PCI_VENDOR_ID_OPTI:
+		if (dev->device == PCI_DEVICE_ID_OPTI_82C558 &&
+				!(PCI_FUNC(dev->devfn) & 1))
 			goto out;
+		break;
+	case PCI_VENDOR_ID_JMICRON:
+		if (dev->device != PCI_DEVICE_ID_JMICRON_JMB368 &&
+				PCI_FUNC(dev->devfn) != 1)
+			goto out;
+		break;
+	case PCI_VENDOR_ID_NS:
+		if (dev->device == PCI_DEVICE_ID_NS_87410 &&
+				(dev->class >> 8) != PCI_CLASS_STORAGE_IDE)
+			goto out;
+		break;
 	}
 
 	if (dev->vendor != PCI_VENDOR_ID_JMICRON) {
+		u16 command;
 		pci_read_config_word(dev, PCI_COMMAND, &command);
 		if (!(command & PCI_COMMAND_IO)) {
-			printk(KERN_INFO "Skipping disabled %s IDE controller.\n", d->name);
+			printk(KERN_INFO "Skipping disabled %s IDE "
+					"controller.\n", d->name);
 			goto out;
 		}
 	}
