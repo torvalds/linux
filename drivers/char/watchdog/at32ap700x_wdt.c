@@ -257,6 +257,7 @@ static int __exit at32_wdt_remove(struct platform_device *pdev)
 {
 	if (wdt && platform_get_drvdata(pdev) == wdt) {
 		misc_deregister(&wdt->miscdev);
+		iounmap(wdt->regs);
 		kfree(wdt);
 		wdt = NULL;
 		platform_set_drvdata(pdev, NULL);
