@@ -62,10 +62,13 @@ void coldfire_tick(void)
 
 /***************************************************************************/
 
+static int ticks_per_intr;
+
 void coldfire_timer_init(irq_handler_t handler)
 {
 	__raw_writew(MCFTIMER_TMR_DISABLE, TA(MCFTIMER_TMR));
-	__raw_writetrr(((MCF_BUSCLK / 16) / HZ), TA(MCFTIMER_TRR));
+	ticks_per_intr = (MCF_BUSCLK / 16) / HZ;
+	__raw_writetrr(ticks_per_intr - 1, TA(MCFTIMER_TRR));
 	__raw_writew(MCFTIMER_TMR_ENORI | MCFTIMER_TMR_CLK16 |
 		MCFTIMER_TMR_RESTART | MCFTIMER_TMR_ENABLE, TA(MCFTIMER_TMR));
 
@@ -81,11 +84,10 @@ void coldfire_timer_init(irq_handler_t handler)
 
 unsigned long coldfire_timer_offset(void)
 {
-	unsigned long trr, tcn, offset;
+	unsigned long tcn, offset;
 
 	tcn = __raw_readw(TA(MCFTIMER_TCN));
-	trr = __raw_readtrr(TA(MCFTIMER_TRR));
-	offset = (tcn * (1000000 / HZ)) / trr;
+	offset = ((tcn + 1) * (1000000 / HZ)) / ticks_per_intr;
 
 	/* Check if we just wrapped the counters and maybe missed a tick */
 	if ((offset < (1000000 / HZ / 2)) && mcf_timerirqpending(1))
