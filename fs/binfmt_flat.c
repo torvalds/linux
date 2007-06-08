@@ -558,7 +558,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 			if (!realdatastart)
 				realdatastart = (unsigned long) -ENOMEM;
 			printk("Unable to allocate RAM for process data, errno %d\n",
-					(int)-datapos);
+					(int)-realdatastart);
 			do_munmap(current->mm, textpos, text_len);
 			ret = realdatastart;
 			goto err;
