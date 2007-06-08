@@ -7,7 +7,7 @@ zr36067-objs	:=	zoran_procfs.o zoran_device.o \
 tuner-objs	:=	tuner-core.o tuner-types.o tuner-simple.o \
 			mt20xx.o tda8290.o tea5767.o tda9887.o
 
-ifneq ($(CONFIG_TUNER_TEA5761),n)
+ifneq ($(CONFIG_TUNER_TEA5761),)
   tuner-objs += tea5761.o
 endif
 
