@@ -1,4 +1,5 @@
 #include <linux/usb.h>
+#include <linux/usb/ch9.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -49,7 +50,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 	unsigned char *buffer0 = buffer;
 	struct usb_endpoint_descriptor *d;
 	struct usb_host_endpoint *endpoint;
-	int n, i;
+	int n, i, j;
 
 	d = (struct usb_endpoint_descriptor *) buffer;
 	buffer += d->bLength;
@@ -83,6 +84,45 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 
 	memcpy(&endpoint->desc, d, n);
 	INIT_LIST_HEAD(&endpoint->urb_list);
+
+	/* If the bInterval value is outside the legal range,
+	 * set it to a default value: 32 ms */
+	i = 0;		/* i = min, j = max, n = default */
+	j = 255;
+	if (usb_endpoint_xfer_int(d)) {
+		i = 1;
+		switch (to_usb_device(ddev)->speed) {
+		case USB_SPEED_HIGH:
+			n = 9;		/* 32 ms = 2^(9-1) uframes */
+			j = 16;
+			break;
+		default:		/* USB_SPEED_FULL or _LOW */
+			/* For low-speed, 10 ms is the official minimum.
+			 * But some "overclocked" devices might want faster
+			 * polling so we'll allow it. */
+			n = 32;
+			break;
+		}
+	} else if (usb_endpoint_xfer_isoc(d)) {
+		i = 1;
+		j = 16;
+		switch (to_usb_device(ddev)->speed) {
+		case USB_SPEED_HIGH:
+			n = 9;		/* 32 ms = 2^(9-1) uframes */
+			break;
+		default:		/* USB_SPEED_FULL */
+			n = 6;		/* 32 ms = 2^(6-1) frames */
+			break;
+		}
+	}
+	if (d->bInterval < i || d->bInterval > j) {
+		dev_warn(ddev, "config %d interface %d altsetting %d "
+		    "endpoint 0x%X has an invalid bInterval %d, "
+		    "changing to %d\n",
+		    cfgno, inum, asnum,
+		    d->bEndpointAddress, d->bInterval, n);
+		endpoint->desc.bInterval = n;
+	}
 
 	/* Skip over any Class Specific or Vendor Specific descriptors;
 	 * find the next endpoint or interface descriptor */
