@@ -214,7 +214,6 @@ static void account_process_time(struct pt_regs *regs)
  	run_posix_cpu_timers(current);
 }
 
-#ifdef CONFIG_PPC_SPLPAR
 /*
  * Stuff for accounting stolen time.
  */
@@ -279,6 +278,7 @@ void calculate_steal_time(void)
 	pme->purr = purr;
 }
 
+#ifdef CONFIG_PPC_SPLPAR
 /*
  * Must be called before the cpu is added to the online map when
  * a cpu is being brought up at runtime.

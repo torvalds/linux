@@ -232,7 +232,7 @@ extern void account_process_vtime(struct task_struct *tsk);
 #define account_process_vtime(tsk)		do { } while (0)
 #endif
 
-#if defined(CONFIG_VIRT_CPU_ACCOUNTING) && defined(CONFIG_PPC_SPLPAR)
+#if defined(CONFIG_VIRT_CPU_ACCOUNTING)
 extern void calculate_steal_time(void);
 extern void snapshot_timebases(void);
 #else
