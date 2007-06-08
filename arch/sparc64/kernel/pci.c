@@ -522,6 +522,89 @@ static void pci_resource_adjust(struct resource *res,
 	res->end += root->start;
 }
 
+/* For PCI bus devices which lack a 'ranges' property we interrogate
+ * the config space values to set the resources, just like the generic
+ * Linux PCI probing code does.
+ */
+static void __devinit pci_cfg_fake_ranges(struct pci_dev *dev,
+					  struct pci_bus *bus,
+					  struct pci_pbm_info *pbm)
+{
+	struct resource *res;
+	u8 io_base_lo, io_limit_lo;
+	u16 mem_base_lo, mem_limit_lo;
+	unsigned long base, limit;
+
+	pci_read_config_byte(dev, PCI_IO_BASE, &io_base_lo);
+	pci_read_config_byte(dev, PCI_IO_LIMIT, &io_limit_lo);
+	base = (io_base_lo & PCI_IO_RANGE_MASK) << 8;
+	limit = (io_limit_lo & PCI_IO_RANGE_MASK) << 8;
+
+	if ((io_base_lo & PCI_IO_RANGE_TYPE_MASK) == PCI_IO_RANGE_TYPE_32) {
+		u16 io_base_hi, io_limit_hi;
+
+		pci_read_config_word(dev, PCI_IO_BASE_UPPER16, &io_base_hi);
+		pci_read_config_word(dev, PCI_IO_LIMIT_UPPER16, &io_limit_hi);
+		base |= (io_base_hi << 16);
+		limit |= (io_limit_hi << 16);
+	}
+
+	res = bus->resource[0];
+	if (base <= limit) {
+		res->flags = (io_base_lo & PCI_IO_RANGE_TYPE_MASK) | IORESOURCE_IO;
+		if (!res->start)
+			res->start = base;
+		if (!res->end)
+			res->end = limit + 0xfff;
+		pci_resource_adjust(res, &pbm->io_space);
+	}
+
+	pci_read_config_word(dev, PCI_MEMORY_BASE, &mem_base_lo);
+	pci_read_config_word(dev, PCI_MEMORY_LIMIT, &mem_limit_lo);
+	base = (mem_base_lo & PCI_MEMORY_RANGE_MASK) << 16;
+	limit = (mem_limit_lo & PCI_MEMORY_RANGE_MASK) << 16;
+
+	res = bus->resource[1];
+	if (base <= limit) {
+		res->flags = ((mem_base_lo & PCI_MEMORY_RANGE_TYPE_MASK) |
+			      IORESOURCE_MEM);
+		res->start = base;
+		res->end = limit + 0xfffff;
+		pci_resource_adjust(res, &pbm->mem_space);
+	}
+
+	pci_read_config_word(dev, PCI_PREF_MEMORY_BASE, &mem_base_lo);
+	pci_read_config_word(dev, PCI_PREF_MEMORY_LIMIT, &mem_limit_lo);
+	base = (mem_base_lo & PCI_PREF_RANGE_MASK) << 16;
+	limit = (mem_limit_lo & PCI_PREF_RANGE_MASK) << 16;
+
+	if ((mem_base_lo & PCI_PREF_RANGE_TYPE_MASK) == PCI_PREF_RANGE_TYPE_64) {
+		u32 mem_base_hi, mem_limit_hi;
+
+		pci_read_config_dword(dev, PCI_PREF_BASE_UPPER32, &mem_base_hi);
+		pci_read_config_dword(dev, PCI_PREF_LIMIT_UPPER32, &mem_limit_hi);
+
+		/*
+		 * Some bridges set the base > limit by default, and some
+		 * (broken) BIOSes do not initialize them.  If we find
+		 * this, just assume they are not being used.
+		 */
+		if (mem_base_hi <= mem_limit_hi) {
+			base |= ((long) mem_base_hi) << 32;
+			limit |= ((long) mem_limit_hi) << 32;
+		}
+	}
+
+	res = bus->resource[2];
+	if (base <= limit) {
+		res->flags = ((mem_base_lo & PCI_MEMORY_RANGE_TYPE_MASK) |
+			      IORESOURCE_MEM | IORESOURCE_PREFETCH);
+		res->start = base;
+		res->end = limit + 0xfffff;
+		pci_resource_adjust(res, &pbm->mem_space);
+	}
+}
+
 /* Cook up fake bus resources for SUNW,simba PCI bridges which lack
  * a proper 'ranges' property.
  */
@@ -581,13 +664,8 @@ static void __devinit of_scan_pci_bridge(struct pci_pbm_info *pbm,
 	simba = 0;
 	if (ranges == NULL) {
 		const char *model = of_get_property(node, "model", NULL);
-		if (model && !strcmp(model, "SUNW,simba")) {
+		if (model && !strcmp(model, "SUNW,simba"))
 			simba = 1;
-		} else {
-			printk(KERN_DEBUG "Can't get ranges for PCI-PCI bridge %s\n",
-			       node->full_name);
-			return;
-		}
 	}
 
 	bus = pci_add_new_bus(dev->bus, dev, busrange[0]);
@@ -611,7 +689,10 @@ static void __devinit of_scan_pci_bridge(struct pci_pbm_info *pbm,
 	}
 	if (simba) {
 		apb_fake_ranges(dev, bus, pbm);
-		goto simba_cont;
+		goto after_ranges;
+	} else if (ranges == NULL) {
+		pci_cfg_fake_ranges(dev, bus, pbm);
+		goto after_ranges;
 	}
 	i = 1;
 	for (; len >= 32; len -= 32, ranges += 8) {
@@ -650,7 +731,7 @@ static void __devinit of_scan_pci_bridge(struct pci_pbm_info *pbm,
 		 */
 		pci_resource_adjust(res, root);
 	}
-simba_cont:
+after_ranges:
 	sprintf(bus->name, "PCI Bus %04x:%02x", pci_domain_nr(bus),
 		bus->number);
 	if (ofpci_verbose)
