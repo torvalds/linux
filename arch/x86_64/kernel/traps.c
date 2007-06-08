@@ -465,13 +465,14 @@ static unsigned int die_nest_count;
 
 unsigned __kprobes long oops_begin(void)
 {
-	int cpu = smp_processor_id();
+	int cpu;
 	unsigned long flags;
 
 	oops_enter();
 
 	/* racy, but better than risking deadlock. */
 	local_irq_save(flags);
+	cpu = smp_processor_id();
 	if (!spin_trylock(&die_lock)) { 
 		if (cpu == die_owner) 
 			/* nested oops. should stop eventually */;
