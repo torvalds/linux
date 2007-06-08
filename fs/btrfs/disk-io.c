@@ -563,6 +563,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	INIT_RADIX_TREE(&fs_info->block_group_radix, GFP_KERNEL);
 	INIT_RADIX_TREE(&fs_info->block_group_data_radix, GFP_KERNEL);
 	INIT_LIST_HEAD(&fs_info->trans_list);
+	INIT_LIST_HEAD(&fs_info->dead_roots);
 	sb_set_blocksize(sb, 4096);
 	fs_info->running_transaction = NULL;
 	fs_info->tree_root = tree_root;
@@ -577,6 +578,8 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->do_barriers = 1;
 	fs_info->extent_tree_insert_nr = 0;
 	fs_info->extent_tree_prealloc_nr = 0;
+	fs_info->closing = 0;
+
 	INIT_DELAYED_WORK(&fs_info->trans_work, btrfs_transaction_cleaner);
 	BTRFS_I(fs_info->btree_inode)->root = tree_root;
 	memset(&BTRFS_I(fs_info->btree_inode)->location, 0,
@@ -746,6 +749,7 @@ int close_ctree(struct btrfs_root *root)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
+	fs_info->closing = 1;
 	btrfs_transaction_flush_work(root);
 	mutex_lock(&fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);

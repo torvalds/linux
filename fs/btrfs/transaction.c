@@ -12,12 +12,10 @@ static struct workqueue_struct *trans_wq;
 
 #define BTRFS_ROOT_TRANS_TAG 0
 
-#define TRANS_MAGIC 0xE1E10E
 static void put_transaction(struct btrfs_transaction *transaction)
 {
 	WARN_ON(transaction->use_count == 0);
 	transaction->use_count--;
-	WARN_ON(transaction->magic != TRANS_MAGIC);
 	if (transaction->use_count == 0) {
 		WARN_ON(total_trans == 0);
 		total_trans--;
@@ -42,7 +40,6 @@ static int join_transaction(struct btrfs_root *root)
 		cur_trans->transid = root->fs_info->generation;
 		init_waitqueue_head(&cur_trans->writer_wait);
 		init_waitqueue_head(&cur_trans->commit_wait);
-		cur_trans->magic = TRANS_MAGIC;
 		cur_trans->in_commit = 0;
 		cur_trans->use_count = 1;
 		cur_trans->commit_done = 0;
@@ -83,7 +80,6 @@ struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 	h->block_group = NULL;
 	root->fs_info->running_transaction->use_count++;
 	mutex_unlock(&root->fs_info->trans_mutex);
-	h->magic = h->magic2 = TRANS_MAGIC;
 	return h;
 }
 
@@ -92,8 +88,6 @@ int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_transaction *cur_trans;
 
-	WARN_ON(trans->magic != TRANS_MAGIC);
-	WARN_ON(trans->magic2 != TRANS_MAGIC);
 	mutex_lock(&root->fs_info->trans_mutex);
 	cur_trans = root->fs_info->running_transaction;
 	WARN_ON(cur_trans->num_writers < 1);
@@ -257,8 +251,8 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 	struct dirty_root *dirty;
 	struct btrfs_trans_handle *trans;
 	int ret;
-
 	while(!list_empty(list)) {
+		mutex_lock(&tree_root->fs_info->fs_mutex);
 		dirty = list_entry(list->next, struct dirty_root, list);
 		list_del_init(&dirty->list);
 		trans = btrfs_start_transaction(tree_root, 1);
@@ -271,6 +265,7 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 		ret = btrfs_end_transaction(trans, tree_root);
 		BUG_ON(ret);
 		kfree(dirty);
+		mutex_unlock(&tree_root->fs_info->fs_mutex);
 	}
 	return 0;
 }
@@ -346,10 +341,18 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	wake_up(&cur_trans->commit_wait);
 	put_transaction(cur_trans);
 	put_transaction(cur_trans);
+	if (root->fs_info->closing)
+		list_splice_init(&root->fs_info->dead_roots, &dirty_fs_roots);
+	else
+		list_splice_init(&dirty_fs_roots, &root->fs_info->dead_roots);
 	mutex_unlock(&root->fs_info->trans_mutex);
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 
-	drop_dirty_roots(root->fs_info->tree_root, &dirty_fs_roots);
+	if (root->fs_info->closing) {
+		mutex_unlock(&root->fs_info->fs_mutex);
+		drop_dirty_roots(root->fs_info->tree_root, &dirty_fs_roots);
+		mutex_lock(&root->fs_info->fs_mutex);
+	}
 	return ret;
 }
 
@@ -362,11 +365,19 @@ void btrfs_transaction_cleaner(struct work_struct *work)
 	struct btrfs_root *root = fs_info->tree_root;
 	struct btrfs_transaction *cur;
 	struct btrfs_trans_handle *trans;
+	struct list_head dirty_roots;
 	unsigned long now;
 	unsigned long delay = HZ * 30;
 	int ret;
 
-printk("btrfs transaction cleaner\n");
+	INIT_LIST_HEAD(&dirty_roots);
+	mutex_lock(&root->fs_info->trans_mutex);
+	list_splice_init(&root->fs_info->dead_roots, &dirty_roots);
+	mutex_unlock(&root->fs_info->trans_mutex);
+
+	if (!list_empty(&dirty_roots)) {
+		drop_dirty_roots(root, &dirty_roots);
+	}
 	mutex_lock(&root->fs_info->fs_mutex);
 	mutex_lock(&root->fs_info->trans_mutex);
 	cur = root->fs_info->running_transaction;
@@ -381,7 +392,6 @@ printk("btrfs transaction cleaner\n");
 		goto out;
 	}
 	mutex_unlock(&root->fs_info->trans_mutex);
-printk("forcing commit\n");
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);
 out:

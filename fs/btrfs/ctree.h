@@ -283,6 +283,7 @@ struct btrfs_block_group_cache {
 struct crypto_hash;
 
 struct btrfs_fs_info {
+	spinlock_t hash_lock;
 	struct btrfs_root *extent_root;
 	struct btrfs_root *tree_root;
 	struct btrfs_root *dev_root;
@@ -308,10 +309,11 @@ struct btrfs_fs_info {
 	struct mutex trans_mutex;
 	struct mutex fs_mutex;
 	struct list_head trans_list;
+	struct list_head dead_roots;
 	struct crypto_hash *hash_tfm;
 	struct delayed_work trans_work;
-	spinlock_t hash_lock;
 	int do_barriers;
+	int closing;
 };
 
 /*

@@ -8,7 +8,6 @@ struct btrfs_transaction {
 	int in_commit;
 	int use_count;
 	int commit_done;
-	int magic;
 	struct list_head list;
 	struct radix_tree_root dirty_pages;
 	unsigned long start_time;
@@ -17,13 +16,11 @@ struct btrfs_transaction {
 };
 
 struct btrfs_trans_handle {
-	int magic;
 	u64 transid;
 	unsigned long blocks_reserved;
 	unsigned long blocks_used;
 	struct btrfs_transaction *transaction;
 	struct btrfs_block_group_cache *block_group;
-	int magic2;
 };
 
 
