@@ -79,6 +79,8 @@ void show_mem(void)
 			if (unlikely(i % MAX_ORDER_NR_PAGES == 0)) {
 				touch_nmi_watchdog();
 			}
+			if (!pfn_valid(pgdat->node_start_pfn + i))
+				continue;
 			page = pfn_to_page(pgdat->node_start_pfn + i);
 			total++;
 			if (PageReserved(page))
