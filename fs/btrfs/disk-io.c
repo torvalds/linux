@@ -577,6 +577,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->do_barriers = 1;
 	fs_info->extent_tree_insert_nr = 0;
 	fs_info->extent_tree_prealloc_nr = 0;
+	INIT_DELAYED_WORK(&fs_info->trans_work, btrfs_transaction_cleaner);
 	BTRFS_I(fs_info->btree_inode)->root = tree_root;
 	memset(&BTRFS_I(fs_info->btree_inode)->location, 0,
 	       sizeof(struct btrfs_key));
@@ -648,7 +649,6 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	btrfs_read_block_groups(extent_root);
 
 	fs_info->generation = btrfs_super_generation(disk_super) + 1;
-	memset(&fs_info->kobj, 0, sizeof(fs_info->kobj));
 	mutex_unlock(&fs_info->fs_mutex);
 	return tree_root;
 }
@@ -746,6 +746,7 @@ int close_ctree(struct btrfs_root *root)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
+	btrfs_transaction_flush_work(root);
 	mutex_lock(&fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_commit_transaction(trans, root);
@@ -776,7 +777,6 @@ int close_ctree(struct btrfs_root *root)
 	del_fs_roots(fs_info);
 	kfree(fs_info->extent_root);
 	kfree(fs_info->tree_root);
-	kobject_unregister(&fs_info->kobj);
 	return 0;
 }
 

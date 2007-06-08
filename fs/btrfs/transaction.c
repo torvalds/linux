@@ -8,6 +8,8 @@ static int total_trans = 0;
 extern struct kmem_cache *btrfs_trans_handle_cachep;
 extern struct kmem_cache *btrfs_transaction_cachep;
 
+static struct workqueue_struct *trans_wq;
+
 #define BTRFS_ROOT_TRANS_TAG 0
 
 #define TRANS_MAGIC 0xE1E10E
@@ -44,6 +46,7 @@ static int join_transaction(struct btrfs_root *root)
 		cur_trans->in_commit = 0;
 		cur_trans->use_count = 1;
 		cur_trans->commit_done = 0;
+		cur_trans->start_time = get_seconds();
 		list_add_tail(&cur_trans->list, &root->fs_info->trans_list);
 		init_bit_radix(&cur_trans->dirty_pages);
 	}
@@ -348,5 +351,62 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	drop_dirty_roots(root->fs_info->tree_root, &dirty_fs_roots);
 	return ret;
+}
+
+void btrfs_transaction_cleaner(struct work_struct *work)
+{
+	struct btrfs_fs_info *fs_info = container_of(work,
+						     struct btrfs_fs_info,
+						     trans_work.work);
+
+	struct btrfs_root *root = fs_info->tree_root;
+	struct btrfs_transaction *cur;
+	struct btrfs_trans_handle *trans;
+	unsigned long now;
+	unsigned long delay = HZ * 30;
+	int ret;
+
+printk("btrfs transaction cleaner\n");
+	mutex_lock(&root->fs_info->fs_mutex);
+	mutex_lock(&root->fs_info->trans_mutex);
+	cur = root->fs_info->running_transaction;
+	if (!cur) {
+		mutex_unlock(&root->fs_info->trans_mutex);
+		goto out;
+	}
+	now = get_seconds();
+	if (now < cur->start_time || now - cur->start_time < 30) {
+		mutex_unlock(&root->fs_info->trans_mutex);
+		delay = HZ * 5;
+		goto out;
+	}
+	mutex_unlock(&root->fs_info->trans_mutex);
+printk("forcing commit\n");
+	trans = btrfs_start_transaction(root, 1);
+	ret = btrfs_commit_transaction(trans, root);
+out:
+	mutex_unlock(&root->fs_info->fs_mutex);
+	btrfs_transaction_queue_work(root, delay);
+}
+
+void btrfs_transaction_queue_work(struct btrfs_root *root, int delay)
+{
+	queue_delayed_work(trans_wq, &root->fs_info->trans_work, delay);
+}
+
+void btrfs_transaction_flush_work(struct btrfs_root *root)
+{
+	cancel_rearming_delayed_workqueue(trans_wq, &root->fs_info->trans_work);
+	flush_workqueue(trans_wq);
+}
+
+void __init btrfs_init_transaction_sys(void)
+{
+	trans_wq = create_workqueue("btrfs");
+}
+
+void __exit btrfs_exit_transaction_sys(void)
+{
+	destroy_workqueue(trans_wq);
 }
 

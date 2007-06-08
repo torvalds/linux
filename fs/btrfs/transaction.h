@@ -11,6 +11,7 @@ struct btrfs_transaction {
 	int magic;
 	struct list_head list;
 	struct radix_tree_root dirty_pages;
+	unsigned long start_time;
 	wait_queue_head_t writer_wait;
 	wait_queue_head_t commit_wait;
 };
@@ -47,4 +48,11 @@ int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root);
 int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root);
+
+void btrfs_transaction_cleaner(struct work_struct *work);
+void btrfs_transaction_flush_work(struct btrfs_root *root);
+void btrfs_transaction_queue_work(struct btrfs_root *root, int delay);
+void btrfs_init_transaction_sys(void);
+void btrfs_exit_transaction_sys(void);
+
 #endif

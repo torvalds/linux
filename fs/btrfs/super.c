@@ -12,6 +12,7 @@
 #include <linux/swap.h>
 #include <linux/writeback.h>
 #include <linux/statfs.h>
+#include <linux/compat.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -950,7 +951,7 @@ static int btrfs_fill_super(struct super_block * sb, void * data, int silent)
 		return -ENOMEM;
 	}
 	sb->s_root = root_dentry;
-
+	btrfs_transaction_queue_work(tree_root, HZ * 30);
 	return 0;
 }
 
@@ -1452,7 +1453,7 @@ static int btrfs_prepare_write(struct file *file, struct page *page,
 
 static void btrfs_write_super(struct super_block *sb)
 {
-	btrfs_sync_fs(sb, 1);
+	sb->s_dirt = 0;
 }
 
 static int btrfs_readpage(struct file *file, struct page *page)
@@ -2698,6 +2699,20 @@ static int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
 	return ret;
 }
 
+#ifdef CONFIG_COMPAT
+static long btrfs_compat_ioctl(struct file *file, unsigned int cmd,
+			       unsigned long arg)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	int ret;
+	lock_kernel();
+	ret = btrfs_ioctl(inode, file, cmd, (unsigned long) compat_ptr(arg));
+	unlock_kernel();
+	return ret;
+
+}
+#endif
+
 static struct kmem_cache *btrfs_inode_cachep;
 struct kmem_cache *btrfs_trans_handle_cachep;
 struct kmem_cache *btrfs_transaction_cachep;
@@ -3042,6 +3057,9 @@ static struct file_operations btrfs_dir_file_operations = {
 	.read		= generic_read_dir,
 	.readdir	= btrfs_readdir,
 	.ioctl		= btrfs_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= btrfs_compat_ioctl,
+#endif
 };
 
 static struct address_space_operations btrfs_aops = {
@@ -3073,6 +3091,9 @@ static struct file_operations btrfs_file_operations = {
 	.open		= generic_file_open,
 	.ioctl		= btrfs_ioctl,
 	.fsync		= btrfs_sync_file,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= btrfs_compat_ioctl,
+#endif
 };
 
 static struct inode_operations btrfs_symlink_inode_operations = {
@@ -3085,6 +3106,7 @@ static int __init init_btrfs_fs(void)
 {
 	int err;
 	printk("btrfs loaded!\n");
+	btrfs_init_transaction_sys();
 	err = init_inodecache();
 	if (err)
 		return err;
@@ -3095,6 +3117,7 @@ static int __init init_btrfs_fs(void)
 
 static void __exit exit_btrfs_fs(void)
 {
+	btrfs_exit_transaction_sys();
 	destroy_inodecache();
 	unregister_filesystem(&btrfs_fs_type);
 	printk("btrfs unloaded\n");

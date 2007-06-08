@@ -3,7 +3,7 @@
 
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
-#include <linux/kobject.h>
+#include <linux/workqueue.h>
 #include "bit-radix.h"
 
 struct btrfs_trans_handle;
@@ -281,6 +281,7 @@ struct btrfs_block_group_cache {
 };
 
 struct crypto_hash;
+
 struct btrfs_fs_info {
 	struct btrfs_root *extent_root;
 	struct btrfs_root *tree_root;
@@ -308,9 +309,9 @@ struct btrfs_fs_info {
 	struct mutex fs_mutex;
 	struct list_head trans_list;
 	struct crypto_hash *hash_tfm;
+	struct delayed_work trans_work;
 	spinlock_t hash_lock;
 	int do_barriers;
-	struct kobject kobj;
 };
 
 /*
