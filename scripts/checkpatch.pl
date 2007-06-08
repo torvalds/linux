@@ -290,8 +290,8 @@ sub process {
 		}
 
 #make up the handle for any error we report on this line
-		$here = "PATCH: $ARGV:$linenr:";
-		$here .= "\nFILE: $realfile:$realline:" if ($realcnt != 0);
+		$here = "#$linenr: ";
+		$here .= "FILE: $realfile:$realline:" if ($realcnt != 0);
 
 		my $herecurr = "$here\n$line\n\n";
 		my $hereprev = "$here\n$prevline\n$line\n\n";
