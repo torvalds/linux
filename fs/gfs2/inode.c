@@ -389,7 +389,7 @@ struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 	struct super_block *sb = dir->i_sb;
 	struct gfs2_inode *dip = GFS2_I(dir);
 	struct gfs2_holder d_gh;
-	int error;
+	int error = 0;
 	struct inode *inode = NULL;
 	int unlock = 0;
 
