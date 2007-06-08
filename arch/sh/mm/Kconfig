@@ -45,10 +45,6 @@ choice
 
 # SH-2 Processor Support
 
-config CPU_SUBTYPE_SH7604
-	bool "Support SH7604 processor"
-	select CPU_SH2
-
 config CPU_SUBTYPE_SH7619
 	bool "Support SH7619 processor"
 	select CPU_SH2
