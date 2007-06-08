@@ -124,6 +124,21 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 		endpoint->desc.bInterval = n;
 	}
 
+	/* Some buggy low-speed devices have Bulk endpoints, which is
+	 * explicitly forbidden by the USB spec.  In an attempt to make
+	 * them usable, we will try treating them as Interrupt endpoints.
+	 */
+	if (to_usb_device(ddev)->speed == USB_SPEED_LOW &&
+			usb_endpoint_xfer_bulk(d)) {
+		dev_warn(ddev, "config %d interface %d altsetting %d "
+		    "endpoint 0x%X is Bulk; changing to Interrupt\n",
+		    cfgno, inum, asnum, d->bEndpointAddress);
+		endpoint->desc.bmAttributes = USB_ENDPOINT_XFER_INT;
+		endpoint->desc.bInterval = 1;
+		if (le16_to_cpu(endpoint->desc.wMaxPacketSize) > 8)
+			endpoint->desc.wMaxPacketSize = cpu_to_le16(8);
+	}
+
 	/* Skip over any Class Specific or Vendor Specific descriptors;
 	 * find the next endpoint or interface descriptor */
 	endpoint->extra = buffer;
