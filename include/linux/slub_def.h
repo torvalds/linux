@@ -70,11 +70,8 @@ extern struct kmem_cache kmalloc_caches[KMALLOC_SHIFT_HIGH + 1];
  */
 static inline int kmalloc_index(size_t size)
 {
-	/*
-	 * We should return 0 if size == 0 but we use the smallest object
-	 * here for SLAB legacy reasons.
-	 */
-	WARN_ON_ONCE(size == 0);
+	if (!size)
+		return 0;
 
 	if (size > KMALLOC_MAX_SIZE)
 		return -1;
@@ -153,13 +150,25 @@ static inline struct kmem_cache *kmalloc_slab(size_t size)
 #define SLUB_DMA 0
 #endif
 
+
+/*
+ * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
+ *
+ * Dereferencing ZERO_SIZE_PTR will lead to a distinct access fault.
+ *
+ * ZERO_SIZE_PTR can be passed to kfree though in the same way that NULL can.
+ * Both make kfree a no-op.
+ */
+#define ZERO_SIZE_PTR ((void *)16)
+
+
 static inline void *kmalloc(size_t size, gfp_t flags)
 {
 	if (__builtin_constant_p(size) && !(flags & SLUB_DMA)) {
 		struct kmem_cache *s = kmalloc_slab(size);
 
 		if (!s)
-			return NULL;
+			return ZERO_SIZE_PTR;
 
 		return kmem_cache_alloc(s, flags);
 	} else
@@ -172,7 +181,7 @@ static inline void *kzalloc(size_t size, gfp_t flags)
 		struct kmem_cache *s = kmalloc_slab(size);
 
 		if (!s)
-			return NULL;
+			return ZERO_SIZE_PTR;
 
 		return kmem_cache_zalloc(s, flags);
 	} else
@@ -188,7 +197,7 @@ static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 		struct kmem_cache *s = kmalloc_slab(size);
 
 		if (!s)
-			return NULL;
+			return ZERO_SIZE_PTR;
 
 		return kmem_cache_alloc_node(s, flags, node);
 	} else
