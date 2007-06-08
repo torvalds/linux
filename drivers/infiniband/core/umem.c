@@ -121,6 +121,7 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 
 	cur_base = addr & PAGE_MASK;
 
+	ret = 0;
 	while (npages) {
 		ret = get_user_pages(current, current->mm, cur_base,
 				     min_t(int, npages,
