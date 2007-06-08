@@ -59,7 +59,7 @@ static struct genl_family netlbl_mgmt_gnl_family = {
 };
 
 /* NetLabel Netlink attribute policy */
-static struct nla_policy netlbl_mgmt_genl_policy[NLBL_MGMT_A_MAX + 1] = {
+static const struct nla_policy netlbl_mgmt_genl_policy[NLBL_MGMT_A_MAX + 1] = {
 	[NLBL_MGMT_A_DOMAIN] = { .type = NLA_NUL_STRING },
 	[NLBL_MGMT_A_PROTOCOL] = { .type = NLA_U32 },
 	[NLBL_MGMT_A_VERSION] = { .type = NLA_U32 },

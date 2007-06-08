@@ -61,7 +61,7 @@ static struct genl_family netlbl_unlabel_gnl_family = {
 };
 
 /* NetLabel Netlink attribute policy */
-static struct nla_policy netlbl_unlabel_genl_policy[NLBL_UNLABEL_A_MAX + 1] = {
+static const struct nla_policy netlbl_unlabel_genl_policy[NLBL_UNLABEL_A_MAX + 1] = {
 	[NLBL_UNLABEL_A_ACPTFLG] = { .type = NLA_U8 },
 };
 

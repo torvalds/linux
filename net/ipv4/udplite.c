@@ -19,15 +19,14 @@ struct hlist_head 	udplite_hash[UDP_HTABLE_SIZE];
 static int		udplite_port_rover;
 
 int udplite_get_port(struct sock *sk, unsigned short p,
-		     const struct udp_get_port_ops *ops)
+		     int (*c)(const struct sock *, const struct sock *))
 {
-	return  __udp_lib_get_port(sk, p, udplite_hash,
-				   &udplite_port_rover, ops);
+	return  __udp_lib_get_port(sk, p, udplite_hash, &udplite_port_rover, c);
 }
 
 static int udplite_v4_get_port(struct sock *sk, unsigned short snum)
 {
-	return udplite_get_port(sk, snum, &udp_ipv4_ops);
+	return udplite_get_port(sk, snum, ipv4_rcv_saddr_equal);
 }
 
 static int udplite_rcv(struct sk_buff *skb)

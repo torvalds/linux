@@ -2990,7 +2990,7 @@ static struct in6_addr *extract_addr(struct nlattr *addr, struct nlattr *local)
 	return pfx;
 }
 
-static struct nla_policy ifa_ipv6_policy[IFA_MAX+1] __read_mostly = {
+static const struct nla_policy ifa_ipv6_policy[IFA_MAX+1] = {
 	[IFA_ADDRESS]		= { .len = sizeof(struct in6_addr) },
 	[IFA_LOCAL]		= { .len = sizeof(struct in6_addr) },
 	[IFA_CACHEINFO]		= { .len = sizeof(struct ifa_cacheinfo) },

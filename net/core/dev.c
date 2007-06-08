@@ -2577,7 +2577,7 @@ unsigned dev_get_flags(const struct net_device *dev)
 
 int dev_change_flags(struct net_device *dev, unsigned flags)
 {
-	int ret;
+	int ret, changes;
 	int old_flags = dev->flags;
 
 	/*
@@ -2632,8 +2632,10 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 		dev_set_allmulti(dev, inc);
 	}
 
-	if (old_flags ^ dev->flags)
-		rtmsg_ifinfo(RTM_NEWLINK, dev, old_flags ^ dev->flags);
+	/* Exclude state transition flags, already notified */
+	changes = (old_flags ^ dev->flags) & ~(IFF_UP | IFF_RUNNING);
+	if (changes)
+		rtmsg_ifinfo(RTM_NEWLINK, dev, changes);
 
 	return ret;
 }

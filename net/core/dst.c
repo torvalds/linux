@@ -111,13 +111,7 @@ out:
 	spin_unlock(&dst_lock);
 }
 
-static int dst_discard_in(struct sk_buff *skb)
-{
-	kfree_skb(skb);
-	return 0;
-}
-
-static int dst_discard_out(struct sk_buff *skb)
+static int dst_discard(struct sk_buff *skb)
 {
 	kfree_skb(skb);
 	return 0;
@@ -138,8 +132,7 @@ void * dst_alloc(struct dst_ops * ops)
 	dst->ops = ops;
 	dst->lastuse = jiffies;
 	dst->path = dst;
-	dst->input = dst_discard_in;
-	dst->output = dst_discard_out;
+	dst->input = dst->output = dst_discard;
 #if RT_CACHE_DEBUG >= 2
 	atomic_inc(&dst_total);
 #endif
@@ -153,8 +146,7 @@ static void ___dst_free(struct dst_entry * dst)
 	   protocol module is unloaded.
 	 */
 	if (dst->dev == NULL || !(dst->dev->flags&IFF_UP)) {
-		dst->input = dst_discard_in;
-		dst->output = dst_discard_out;
+		dst->input = dst->output = dst_discard;
 	}
 	dst->obsolete = 2;
 }
@@ -242,8 +234,7 @@ static inline void dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 		return;
 
 	if (!unregister) {
-		dst->input = dst_discard_in;
-		dst->output = dst_discard_out;
+		dst->input = dst->output = dst_discard;
 	} else {
 		dst->dev = &loopback_dev;
 		dev_hold(&loopback_dev);

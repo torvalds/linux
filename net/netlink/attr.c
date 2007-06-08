@@ -24,9 +24,9 @@ static u16 nla_attr_minlen[NLA_TYPE_MAX+1] __read_mostly = {
 };
 
 static int validate_nla(struct nlattr *nla, int maxtype,
-			struct nla_policy *policy)
+			const struct nla_policy *policy)
 {
-	struct nla_policy *pt;
+	const struct nla_policy *pt;
 	int minlen = 0, attrlen = nla_len(nla);
 
 	if (nla->nla_type <= 0 || nla->nla_type > maxtype)
@@ -99,7 +99,7 @@ static int validate_nla(struct nlattr *nla, int maxtype,
  * Returns 0 on success or a negative error code.
  */
 int nla_validate(struct nlattr *head, int len, int maxtype,
-		 struct nla_policy *policy)
+		 const struct nla_policy *policy)
 {
 	struct nlattr *nla;
 	int rem, err;
@@ -130,7 +130,7 @@ errout:
  * Returns 0 on success or a negative error code.
  */
 int nla_parse(struct nlattr *tb[], int maxtype, struct nlattr *head, int len,
-	      struct nla_policy *policy)
+	      const struct nla_policy *policy)
 {
 	struct nlattr *nla;
 	int rem, err;

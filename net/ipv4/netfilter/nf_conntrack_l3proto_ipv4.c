@@ -133,6 +133,7 @@ static unsigned int ipv4_conntrack_help(unsigned int hooknum,
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn_help *help;
+	struct nf_conntrack_helper *helper;
 
 	/* This is where we call the helper: as the packet goes out. */
 	ct = nf_ct_get(*pskb, &ctinfo);
@@ -140,12 +141,14 @@ static unsigned int ipv4_conntrack_help(unsigned int hooknum,
 		return NF_ACCEPT;
 
 	help = nfct_help(ct);
-	if (!help || !help->helper)
+	if (!help)
 		return NF_ACCEPT;
-
-	return help->helper->help(pskb,
-				  skb_network_offset(*pskb) + ip_hdrlen(*pskb),
-				  ct, ctinfo);
+	/* rcu_read_lock()ed by nf_hook_slow */
+	helper = rcu_dereference(help->helper);
+	if (!helper)
+		return NF_ACCEPT;
+	return helper->help(pskb, skb_network_offset(*pskb) + ip_hdrlen(*pskb),
+			    ct, ctinfo);
 }
 
 static unsigned int ipv4_conntrack_defrag(unsigned int hooknum,

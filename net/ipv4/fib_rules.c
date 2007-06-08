@@ -169,7 +169,7 @@ static struct fib_table *fib_empty_table(void)
 	return NULL;
 }
 
-static struct nla_policy fib4_rule_policy[FRA_MAX+1] __read_mostly = {
+static const struct nla_policy fib4_rule_policy[FRA_MAX+1] = {
 	FRA_GENERIC_POLICY,
 	[FRA_FLOW]	= { .type = NLA_U32 },
 };

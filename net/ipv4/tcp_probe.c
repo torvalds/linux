@@ -63,6 +63,9 @@ struct {
  * FIXME: causes an extra copy
  */
 static void printl(const char *fmt, ...)
+	__attribute__ ((format (printf, 1, 2)));
+
+static void printl(const char *fmt, ...)
 {
 	va_list args;
 	int len;
@@ -80,8 +83,7 @@ static void printl(const char *fmt, ...)
 
 	kfifo_put(tcpw.fifo, tbuf, len);
 	wake_up(&tcpw.wait);
-} __attribute__ ((format (printf, 1, 2)));
-
+}
 
 /*
  * Hook inserted to be called before each receive packet.

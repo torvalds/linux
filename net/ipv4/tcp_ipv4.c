@@ -705,6 +705,8 @@ static void tcp_v4_send_ack(struct tcp_timewait_sock *twsk,
 				      ip_hdr(skb)->saddr, /* XXX */
 				      arg.iov[0].iov_len, IPPROTO_TCP, 0);
 	arg.csumoffset = offsetof(struct tcphdr, check) / 2;
+	if (twsk)
+		arg.bound_dev_if = twsk->tw_sk.tw_bound_dev_if;
 
 	ip_send_reply(tcp_socket->sk, skb, &arg, arg.iov[0].iov_len);
 

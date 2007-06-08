@@ -350,9 +350,15 @@ static void death_by_timeout(unsigned long ul_conntrack)
 {
 	struct nf_conn *ct = (void *)ul_conntrack;
 	struct nf_conn_help *help = nfct_help(ct);
+	struct nf_conntrack_helper *helper;
 
-	if (help && help->helper && help->helper->destroy)
-		help->helper->destroy(ct);
+	if (help) {
+		rcu_read_lock();
+		helper = rcu_dereference(help->helper);
+		if (helper && helper->destroy)
+			helper->destroy(ct);
+		rcu_read_unlock();
+	}
 
 	write_lock_bh(&nf_conntrack_lock);
 	/* Inside lock so preempt is disabled on module removal path.
@@ -661,6 +667,7 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 	       unsigned int dataoff)
 {
 	struct nf_conn *conntrack;
+	struct nf_conn_help *help;
 	struct nf_conntrack_tuple repl_tuple;
 	struct nf_conntrack_expect *exp;
 	u_int32_t features = 0;
@@ -691,6 +698,7 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 	write_lock_bh(&nf_conntrack_lock);
 	exp = find_expectation(tuple);
 
+	help = nfct_help(conntrack);
 	if (exp) {
 		DEBUGP("conntrack: expectation arrives ct=%p exp=%p\n",
 			conntrack, exp);
@@ -698,7 +706,7 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 		__set_bit(IPS_EXPECTED_BIT, &conntrack->status);
 		conntrack->master = exp->master;
 		if (exp->helper)
-			nfct_help(conntrack)->helper = exp->helper;
+			rcu_assign_pointer(help->helper, exp->helper);
 #ifdef CONFIG_NF_CONNTRACK_MARK
 		conntrack->mark = exp->master->mark;
 #endif
@@ -708,10 +716,11 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 		nf_conntrack_get(&conntrack->master->ct_general);
 		NF_CT_STAT_INC(expect_new);
 	} else {
-		struct nf_conn_help *help = nfct_help(conntrack);
-
-		if (help)
-			help->helper = __nf_ct_helper_find(&repl_tuple);
+		if (help) {
+			/* not in hash table yet, so not strictly necessary */
+			rcu_assign_pointer(help->helper,
+					   __nf_ct_helper_find(&repl_tuple));
+		}
 		NF_CT_STAT_INC(new);
 	}
 
@@ -893,7 +902,8 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 		helper = __nf_ct_helper_find(newreply);
 		if (helper)
 			memset(&help->help, 0, sizeof(help->help));
-		help->helper = helper;
+		/* not in hash table yet, so not strictly necessary */
+		rcu_assign_pointer(help->helper, helper);
 	}
 	write_unlock_bh(&nf_conntrack_lock);
 }

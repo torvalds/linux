@@ -100,7 +100,6 @@ int nf_ct_gre_keymap_add(struct nf_conn *ct, enum ip_conntrack_dir dir,
 	struct nf_conn_help *help = nfct_help(ct);
 	struct nf_ct_gre_keymap **kmp, *km;
 
-	BUG_ON(strcmp(help->helper->name, "pptp"));
 	kmp = &help->help.ct_pptp_info.keymap[dir];
 	if (*kmp) {
 		/* check whether it's a retransmission */
@@ -137,7 +136,6 @@ void nf_ct_gre_keymap_destroy(struct nf_conn *ct)
 	enum ip_conntrack_dir dir;
 
 	DEBUGP("entering for ct %p\n", ct);
-	BUG_ON(strcmp(help->helper->name, "pptp"));
 
 	write_lock_bh(&nf_ct_gre_lock);
 	for (dir = IP_CT_DIR_ORIGINAL; dir < IP_CT_DIR_MAX; dir++) {

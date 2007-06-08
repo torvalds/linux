@@ -64,21 +64,27 @@
 #include <net/rtnetlink.h>
 
 struct ipv4_devconf ipv4_devconf = {
-	.accept_redirects = 1,
-	.send_redirects =  1,
-	.secure_redirects = 1,
-	.shared_media =	  1,
+	.data = {
+		[NET_IPV4_CONF_ACCEPT_REDIRECTS - 1] = 1,
+		[NET_IPV4_CONF_SEND_REDIRECTS - 1] = 1,
+		[NET_IPV4_CONF_SECURE_REDIRECTS - 1] = 1,
+		[NET_IPV4_CONF_SHARED_MEDIA - 1] = 1,
+	},
 };
 
 static struct ipv4_devconf ipv4_devconf_dflt = {
-	.accept_redirects =  1,
-	.send_redirects =    1,
-	.secure_redirects =  1,
-	.shared_media =	     1,
-	.accept_source_route = 1,
+	.data = {
+		[NET_IPV4_CONF_ACCEPT_REDIRECTS - 1] = 1,
+		[NET_IPV4_CONF_SEND_REDIRECTS - 1] = 1,
+		[NET_IPV4_CONF_SECURE_REDIRECTS - 1] = 1,
+		[NET_IPV4_CONF_SHARED_MEDIA - 1] = 1,
+		[NET_IPV4_CONF_ACCEPT_SOURCE_ROUTE - 1] = 1,
+	},
 };
 
-static struct nla_policy ifa_ipv4_policy[IFA_MAX+1] __read_mostly = {
+#define IPV4_DEVCONF_DFLT(attr) IPV4_DEVCONF(ipv4_devconf_dflt, attr)
+
+static const struct nla_policy ifa_ipv4_policy[IFA_MAX+1] = {
 	[IFA_LOCAL]     	= { .type = NLA_U32 },
 	[IFA_ADDRESS]   	= { .type = NLA_U32 },
 	[IFA_BROADCAST] 	= { .type = NLA_U32 },
@@ -141,7 +147,7 @@ void in_dev_finish_destroy(struct in_device *idev)
 	}
 }
 
-struct in_device *inetdev_init(struct net_device *dev)
+static struct in_device *inetdev_init(struct net_device *dev)
 {
 	struct in_device *in_dev;
 
@@ -399,12 +405,10 @@ static int inet_set_ifa(struct net_device *dev, struct in_ifaddr *ifa)
 	ASSERT_RTNL();
 
 	if (!in_dev) {
-		in_dev = inetdev_init(dev);
-		if (!in_dev) {
-			inet_free_ifa(ifa);
-			return -ENOBUFS;
-		}
+		inet_free_ifa(ifa);
+		return -ENOBUFS;
 	}
+	ipv4_devconf_setall(in_dev);
 	if (ifa->ifa_dev != in_dev) {
 		BUG_TRAP(!ifa->ifa_dev);
 		in_dev_hold(in_dev);
@@ -514,12 +518,11 @@ static struct in_ifaddr *rtm_to_ifaddr(struct nlmsghdr *nlh)
 
 	in_dev = __in_dev_get_rtnl(dev);
 	if (in_dev == NULL) {
-		in_dev = inetdev_init(dev);
-		if (in_dev == NULL) {
-			err = -ENOBUFS;
-			goto errout;
-		}
+		err = -ENOBUFS;
+		goto errout;
 	}
+
+	ipv4_devconf_setall(in_dev);
 
 	ifa = inet_alloc_ifa();
 	if (ifa == NULL) {
@@ -1057,11 +1060,12 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 	if (!in_dev) {
 		if (event == NETDEV_REGISTER) {
 			in_dev = inetdev_init(dev);
-			if (!in_dev)
-				panic("devinet: Failed to create loopback\n");
 			if (dev == &loopback_dev) {
-				in_dev->cnf.no_xfrm = 1;
-				in_dev->cnf.no_policy = 1;
+				if (!in_dev)
+					panic("devinet: "
+					      "Failed to create loopback\n");
+				IN_DEV_CONF_SET(in_dev, NOXFRM, 1);
+				IN_DEV_CONF_SET(in_dev, NOPOLICY, 1);
 			}
 		}
 		goto out;
@@ -1237,66 +1241,49 @@ errout:
 
 #ifdef CONFIG_SYSCTL
 
-void inet_forward_change(void)
+static void devinet_copy_dflt_conf(int i)
 {
 	struct net_device *dev;
-	int on = ipv4_devconf.forwarding;
-
-	ipv4_devconf.accept_redirects = !on;
-	ipv4_devconf_dflt.forwarding = on;
 
 	read_lock(&dev_base_lock);
 	for_each_netdev(dev) {
 		struct in_device *in_dev;
 		rcu_read_lock();
 		in_dev = __in_dev_get_rcu(dev);
-		if (in_dev)
-			in_dev->cnf.forwarding = on;
+		if (in_dev && !test_bit(i, in_dev->cnf.state))
+			in_dev->cnf.data[i] = ipv4_devconf_dflt.data[i];
 		rcu_read_unlock();
 	}
 	read_unlock(&dev_base_lock);
-
-	rt_cache_flush(0);
 }
 
-static int devinet_sysctl_forward(ctl_table *ctl, int write,
-				  struct file* filp, void __user *buffer,
-				  size_t *lenp, loff_t *ppos)
+static int devinet_conf_proc(ctl_table *ctl, int write,
+			     struct file* filp, void __user *buffer,
+			     size_t *lenp, loff_t *ppos)
 {
-	int *valp = ctl->data;
-	int val = *valp;
 	int ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
 
-	if (write && *valp != val) {
-		if (valp == &ipv4_devconf.forwarding)
-			inet_forward_change();
-		else if (valp != &ipv4_devconf_dflt.forwarding)
-			rt_cache_flush(0);
+	if (write) {
+		struct ipv4_devconf *cnf = ctl->extra1;
+		int i = (int *)ctl->data - cnf->data;
+
+		set_bit(i, cnf->state);
+
+		if (cnf == &ipv4_devconf_dflt)
+			devinet_copy_dflt_conf(i);
 	}
 
 	return ret;
 }
 
-int ipv4_doint_and_flush(ctl_table *ctl, int write,
-			 struct file* filp, void __user *buffer,
-			 size_t *lenp, loff_t *ppos)
+static int devinet_conf_sysctl(ctl_table *table, int __user *name, int nlen,
+			       void __user *oldval, size_t __user *oldlenp,
+			       void __user *newval, size_t newlen)
 {
-	int *valp = ctl->data;
-	int val = *valp;
-	int ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
-
-	if (write && *valp != val)
-		rt_cache_flush(0);
-
-	return ret;
-}
-
-int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
-				  void __user *oldval, size_t __user *oldlenp,
-				  void __user *newval, size_t newlen)
-{
+	struct ipv4_devconf *cnf;
 	int *valp = table->data;
 	int new;
+	int i;
 
 	if (!newval || !newlen)
 		return 0;
@@ -1327,10 +1314,113 @@ int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
 	}
 
 	*valp = new;
-	rt_cache_flush(0);
+
+	cnf = table->extra1;
+	i = (int *)table->data - cnf->data;
+
+	set_bit(i, cnf->state);
+
+	if (cnf == &ipv4_devconf_dflt)
+		devinet_copy_dflt_conf(i);
+
 	return 1;
 }
 
+void inet_forward_change(void)
+{
+	struct net_device *dev;
+	int on = IPV4_DEVCONF_ALL(FORWARDING);
+
+	IPV4_DEVCONF_ALL(ACCEPT_REDIRECTS) = !on;
+	IPV4_DEVCONF_DFLT(FORWARDING) = on;
+
+	read_lock(&dev_base_lock);
+	for_each_netdev(dev) {
+		struct in_device *in_dev;
+		rcu_read_lock();
+		in_dev = __in_dev_get_rcu(dev);
+		if (in_dev)
+			IN_DEV_CONF_SET(in_dev, FORWARDING, on);
+		rcu_read_unlock();
+	}
+	read_unlock(&dev_base_lock);
+
+	rt_cache_flush(0);
+}
+
+static int devinet_sysctl_forward(ctl_table *ctl, int write,
+				  struct file* filp, void __user *buffer,
+				  size_t *lenp, loff_t *ppos)
+{
+	int *valp = ctl->data;
+	int val = *valp;
+	int ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
+
+	if (write && *valp != val) {
+		if (valp == &IPV4_DEVCONF_ALL(FORWARDING))
+			inet_forward_change();
+		else if (valp != &IPV4_DEVCONF_DFLT(FORWARDING))
+			rt_cache_flush(0);
+	}
+
+	return ret;
+}
+
+int ipv4_doint_and_flush(ctl_table *ctl, int write,
+			 struct file* filp, void __user *buffer,
+			 size_t *lenp, loff_t *ppos)
+{
+	int *valp = ctl->data;
+	int val = *valp;
+	int ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
+
+	if (write && *valp != val)
+		rt_cache_flush(0);
+
+	return ret;
+}
+
+int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
+				  void __user *oldval, size_t __user *oldlenp,
+				  void __user *newval, size_t newlen)
+{
+	int ret = devinet_conf_sysctl(table, name, nlen, oldval, oldlenp,
+				      newval, newlen);
+
+	if (ret == 1)
+		rt_cache_flush(0);
+
+	return ret;
+}
+
+
+#define DEVINET_SYSCTL_ENTRY(attr, name, mval, proc, sysctl) \
+	{ \
+		.ctl_name	= NET_IPV4_CONF_ ## attr, \
+		.procname	= name, \
+		.data		= ipv4_devconf.data + \
+				  NET_IPV4_CONF_ ## attr - 1, \
+		.maxlen		= sizeof(int), \
+		.mode		= mval, \
+		.proc_handler	= proc, \
+		.strategy	= sysctl, \
+		.extra1		= &ipv4_devconf, \
+	}
+
+#define DEVINET_SYSCTL_RW_ENTRY(attr, name) \
+	DEVINET_SYSCTL_ENTRY(attr, name, 0644, devinet_conf_proc, \
+			     devinet_conf_sysctl)
+
+#define DEVINET_SYSCTL_RO_ENTRY(attr, name) \
+	DEVINET_SYSCTL_ENTRY(attr, name, 0444, devinet_conf_proc, \
+			     devinet_conf_sysctl)
+
+#define DEVINET_SYSCTL_COMPLEX_ENTRY(attr, name, proc, sysctl) \
+	DEVINET_SYSCTL_ENTRY(attr, name, 0644, proc, sysctl)
+
+#define DEVINET_SYSCTL_FLUSHING_ENTRY(attr, name) \
+	DEVINET_SYSCTL_COMPLEX_ENTRY(attr, name, ipv4_doint_and_flush, \
+				     ipv4_doint_and_flush_strategy)
 
 static struct devinet_sysctl_table {
 	struct ctl_table_header *sysctl_header;
@@ -1341,178 +1431,34 @@ static struct devinet_sysctl_table {
 	ctl_table		devinet_root_dir[2];
 } devinet_sysctl = {
 	.devinet_vars = {
-		{
-			.ctl_name	= NET_IPV4_CONF_FORWARDING,
-			.procname	= "forwarding",
-			.data		= &ipv4_devconf.forwarding,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &devinet_sysctl_forward,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_MC_FORWARDING,
-			.procname	= "mc_forwarding",
-			.data		= &ipv4_devconf.mc_forwarding,
-			.maxlen		= sizeof(int),
-			.mode		= 0444,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_ACCEPT_REDIRECTS,
-			.procname	= "accept_redirects",
-			.data		= &ipv4_devconf.accept_redirects,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_SECURE_REDIRECTS,
-			.procname	= "secure_redirects",
-			.data		= &ipv4_devconf.secure_redirects,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_SHARED_MEDIA,
-			.procname	= "shared_media",
-			.data		= &ipv4_devconf.shared_media,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_RP_FILTER,
-			.procname	= "rp_filter",
-			.data		= &ipv4_devconf.rp_filter,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_SEND_REDIRECTS,
-			.procname	= "send_redirects",
-			.data		= &ipv4_devconf.send_redirects,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_ACCEPT_SOURCE_ROUTE,
-			.procname	= "accept_source_route",
-			.data		= &ipv4_devconf.accept_source_route,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_PROXY_ARP,
-			.procname	= "proxy_arp",
-			.data		= &ipv4_devconf.proxy_arp,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_MEDIUM_ID,
-			.procname	= "medium_id",
-			.data		= &ipv4_devconf.medium_id,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_BOOTP_RELAY,
-			.procname	= "bootp_relay",
-			.data		= &ipv4_devconf.bootp_relay,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_LOG_MARTIANS,
-			.procname	= "log_martians",
-			.data		= &ipv4_devconf.log_martians,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_TAG,
-			.procname	= "tag",
-			.data		= &ipv4_devconf.tag,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_ARPFILTER,
-			.procname	= "arp_filter",
-			.data		= &ipv4_devconf.arp_filter,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_ARP_ANNOUNCE,
-			.procname	= "arp_announce",
-			.data		= &ipv4_devconf.arp_announce,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_ARP_IGNORE,
-			.procname	= "arp_ignore",
-			.data		= &ipv4_devconf.arp_ignore,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_ARP_ACCEPT,
-			.procname	= "arp_accept",
-			.data		= &ipv4_devconf.arp_accept,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_NOXFRM,
-			.procname	= "disable_xfrm",
-			.data		= &ipv4_devconf.no_xfrm,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &ipv4_doint_and_flush,
-			.strategy	= &ipv4_doint_and_flush_strategy,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_NOPOLICY,
-			.procname	= "disable_policy",
-			.data		= &ipv4_devconf.no_policy,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &ipv4_doint_and_flush,
-			.strategy	= &ipv4_doint_and_flush_strategy,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_FORCE_IGMP_VERSION,
-			.procname	= "force_igmp_version",
-			.data		= &ipv4_devconf.force_igmp_version,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &ipv4_doint_and_flush,
-			.strategy	= &ipv4_doint_and_flush_strategy,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_PROMOTE_SECONDARIES,
-			.procname	= "promote_secondaries",
-			.data		= &ipv4_devconf.promote_secondaries,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &ipv4_doint_and_flush,
-			.strategy	= &ipv4_doint_and_flush_strategy,
-		},
+		DEVINET_SYSCTL_COMPLEX_ENTRY(FORWARDING, "forwarding",
+					     devinet_sysctl_forward,
+					     devinet_conf_sysctl),
+		DEVINET_SYSCTL_RO_ENTRY(MC_FORWARDING, "mc_forwarding"),
+
+		DEVINET_SYSCTL_RW_ENTRY(ACCEPT_REDIRECTS, "accept_redirects"),
+		DEVINET_SYSCTL_RW_ENTRY(SECURE_REDIRECTS, "secure_redirects"),
+		DEVINET_SYSCTL_RW_ENTRY(SHARED_MEDIA, "shared_media"),
+		DEVINET_SYSCTL_RW_ENTRY(RP_FILTER, "rp_filter"),
+		DEVINET_SYSCTL_RW_ENTRY(SEND_REDIRECTS, "send_redirects"),
+		DEVINET_SYSCTL_RW_ENTRY(ACCEPT_SOURCE_ROUTE,
+					"accept_source_route"),
+		DEVINET_SYSCTL_RW_ENTRY(PROXY_ARP, "proxy_arp"),
+		DEVINET_SYSCTL_RW_ENTRY(MEDIUM_ID, "medium_id"),
+		DEVINET_SYSCTL_RW_ENTRY(BOOTP_RELAY, "bootp_relay"),
+		DEVINET_SYSCTL_RW_ENTRY(LOG_MARTIANS, "log_martians"),
+		DEVINET_SYSCTL_RW_ENTRY(TAG, "tag"),
+		DEVINET_SYSCTL_RW_ENTRY(ARPFILTER, "arp_filter"),
+		DEVINET_SYSCTL_RW_ENTRY(ARP_ANNOUNCE, "arp_announce"),
+		DEVINET_SYSCTL_RW_ENTRY(ARP_IGNORE, "arp_ignore"),
+		DEVINET_SYSCTL_RW_ENTRY(ARP_ACCEPT, "arp_accept"),
+
+		DEVINET_SYSCTL_FLUSHING_ENTRY(NOXFRM, "disable_xfrm"),
+		DEVINET_SYSCTL_FLUSHING_ENTRY(NOPOLICY, "disable_policy"),
+		DEVINET_SYSCTL_FLUSHING_ENTRY(FORCE_IGMP_VERSION,
+					      "force_igmp_version"),
+		DEVINET_SYSCTL_FLUSHING_ENTRY(PROMOTE_SECONDARIES,
+					      "promote_secondaries"),
 	},
 	.devinet_dev = {
 		{
@@ -1561,6 +1507,7 @@ static void devinet_sysctl_register(struct in_device *in_dev,
 		return;
 	for (i = 0; i < ARRAY_SIZE(t->devinet_vars) - 1; i++) {
 		t->devinet_vars[i].data += (char *)p - (char *)&ipv4_devconf;
+		t->devinet_vars[i].extra1 = p;
 	}
 
 	if (dev) {

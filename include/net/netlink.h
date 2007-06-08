@@ -222,10 +222,10 @@ extern int		nlmsg_notify(struct sock *sk, struct sk_buff *skb,
 				     gfp_t flags);
 
 extern int		nla_validate(struct nlattr *head, int len, int maxtype,
-				     struct nla_policy *policy);
+				     const struct nla_policy *policy);
 extern int		nla_parse(struct nlattr *tb[], int maxtype,
 				  struct nlattr *head, int len,
-				  struct nla_policy *policy);
+				  const struct nla_policy *policy);
 extern struct nlattr *	nla_find(struct nlattr *head, int len, int attrtype);
 extern size_t		nla_strlcpy(char *dst, const struct nlattr *nla,
 				    size_t dstsize);
@@ -360,7 +360,7 @@ static inline struct nlmsghdr *nlmsg_next(struct nlmsghdr *nlh, int *remaining)
  */
 static inline int nlmsg_parse(struct nlmsghdr *nlh, int hdrlen,
 			      struct nlattr *tb[], int maxtype,
-			      struct nla_policy *policy)
+			      const struct nla_policy *policy)
 {
 	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
 		return -EINVAL;
@@ -392,7 +392,7 @@ static inline struct nlattr *nlmsg_find_attr(struct nlmsghdr *nlh,
  * @policy: validation policy
  */
 static inline int nlmsg_validate(struct nlmsghdr *nlh, int hdrlen, int maxtype,
-				 struct nla_policy *policy)
+				 const struct nla_policy *policy)
 {
 	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
 		return -EINVAL;
@@ -729,7 +729,7 @@ static inline struct nlattr *nla_find_nested(struct nlattr *nla, int attrtype)
  */
 static inline int nla_parse_nested(struct nlattr *tb[], int maxtype,
 				   struct nlattr *nla,
-				   struct nla_policy *policy)
+				   const struct nla_policy *policy)
 {
 	return nla_parse(tb, maxtype, nla_data(nla), nla_len(nla), policy);
 }
@@ -990,7 +990,7 @@ static inline int nla_nest_cancel(struct sk_buff *skb, struct nlattr *start)
  * Returns 0 on success or a negative error code.
  */
 static inline int nla_validate_nested(struct nlattr *start, int maxtype,
-				      struct nla_policy *policy)
+				      const struct nla_policy *policy)
 {
 	return nla_validate(nla_data(start), nla_len(start), maxtype, policy);
 }

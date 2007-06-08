@@ -108,7 +108,7 @@ errout:
 	return err;
 }
 
-static struct nla_policy dn_fib_rule_policy[FRA_MAX+1] __read_mostly = {
+static const struct nla_policy dn_fib_rule_policy[FRA_MAX+1] = {
 	FRA_GENERIC_POLICY,
 };
 

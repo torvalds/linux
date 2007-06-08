@@ -672,7 +672,7 @@ static int c2_up(struct net_device *netdev)
 	 * rdma interface.
 	 */
 	in_dev = in_dev_get(netdev);
-	in_dev->cnf.arp_ignore = 1;
+	IN_DEV_CONF_SET(in_dev, ARP_IGNORE, 1);
 	in_dev_put(in_dev);
 
 	return 0;

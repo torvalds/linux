@@ -1761,7 +1761,7 @@ static inline struct neigh_parms *lookup_neigh_params(struct neigh_table *tbl,
 	return NULL;
 }
 
-static struct nla_policy nl_neightbl_policy[NDTA_MAX+1] __read_mostly = {
+static const struct nla_policy nl_neightbl_policy[NDTA_MAX+1] = {
 	[NDTA_NAME]		= { .type = NLA_STRING },
 	[NDTA_THRESH1]		= { .type = NLA_U32 },
 	[NDTA_THRESH2]		= { .type = NLA_U32 },
@@ -1770,7 +1770,7 @@ static struct nla_policy nl_neightbl_policy[NDTA_MAX+1] __read_mostly = {
 	[NDTA_PARMS]		= { .type = NLA_NESTED },
 };
 
-static struct nla_policy nl_ntbl_parm_policy[NDTPA_MAX+1] __read_mostly = {
+static const struct nla_policy nl_ntbl_parm_policy[NDTPA_MAX+1] = {
 	[NDTPA_IFINDEX]			= { .type = NLA_U32 },
 	[NDTPA_QUEUE_LEN]		= { .type = NLA_U32 },
 	[NDTPA_PROXY_QLEN]		= { .type = NLA_U32 },

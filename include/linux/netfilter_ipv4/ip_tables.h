@@ -264,6 +264,26 @@ ipt_get_target(struct ipt_entry *e)
 	__ret;							\
 })
 
+/* fn returns 0 to continue iteration */
+#define IPT_ENTRY_ITERATE_CONTINUE(entries, size, n, fn, args...) \
+({								\
+	unsigned int __i, __n;					\
+	int __ret = 0;						\
+	struct ipt_entry *__entry;				\
+								\
+	for (__i = 0, __n = 0; __i < (size);			\
+	     __i += __entry->next_offset, __n++) { 		\
+		__entry = (void *)(entries) + __i;		\
+		if (__n < n)					\
+			continue;				\
+								\
+		__ret = fn(__entry , ## args);			\
+		if (__ret != 0)					\
+			break;					\
+	}							\
+	__ret;							\
+})
+
 /*
  *	Main firewall chains definitions and global var's definitions.
  */

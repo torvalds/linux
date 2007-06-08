@@ -54,8 +54,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.5.10"
-#define DRV_MODULE_RELDATE	"May 1, 2007"
+#define DRV_MODULE_VERSION	"1.5.11"
+#define DRV_MODULE_RELDATE	"June 4, 2007"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -1778,6 +1778,15 @@ bnx2_init_5709_context(struct bnx2 *bp)
 	val = BNX2_CTX_COMMAND_ENABLED | BNX2_CTX_COMMAND_MEM_INIT | (1 << 12);
 	val |= (BCM_PAGE_BITS - 8) << 16;
 	REG_WR(bp, BNX2_CTX_COMMAND, val);
+	for (i = 0; i < 10; i++) {
+		val = REG_RD(bp, BNX2_CTX_COMMAND);
+		if (!(val & BNX2_CTX_COMMAND_MEM_INIT))
+			break;
+		udelay(2);
+	}
+	if (val & BNX2_CTX_COMMAND_MEM_INIT)
+		return -EBUSY;
+
 	for (i = 0; i < bp->ctx_pages; i++) {
 		int j;
 
@@ -1811,6 +1820,7 @@ bnx2_init_context(struct bnx2 *bp)
 	vcid = 96;
 	while (vcid) {
 		u32 vcid_addr, pcid_addr, offset;
+		int i;
 
 		vcid--;
 
@@ -1831,16 +1841,20 @@ bnx2_init_context(struct bnx2 *bp)
 			pcid_addr = vcid_addr;
 		}
 
-		REG_WR(bp, BNX2_CTX_VIRT_ADDR, 0x00);
-		REG_WR(bp, BNX2_CTX_PAGE_TBL, pcid_addr);
+		for (i = 0; i < (CTX_SIZE / PHY_CTX_SIZE); i++) {
+			vcid_addr += (i << PHY_CTX_SHIFT);
+			pcid_addr += (i << PHY_CTX_SHIFT);
 
-		/* Zero out the context. */
-		for (offset = 0; offset < PHY_CTX_SIZE; offset += 4) {
-			CTX_WR(bp, 0x00, offset, 0);
+			REG_WR(bp, BNX2_CTX_VIRT_ADDR, 0x00);
+			REG_WR(bp, BNX2_CTX_PAGE_TBL, pcid_addr);
+
+			/* Zero out the context. */
+			for (offset = 0; offset < PHY_CTX_SIZE; offset += 4)
+				CTX_WR(bp, 0x00, offset, 0);
+
+			REG_WR(bp, BNX2_CTX_VIRT_ADDR, vcid_addr);
+			REG_WR(bp, BNX2_CTX_PAGE_TBL, pcid_addr);
 		}
-
-		REG_WR(bp, BNX2_CTX_VIRT_ADDR, vcid_addr);
-		REG_WR(bp, BNX2_CTX_PAGE_TBL, pcid_addr);
 	}
 }
 
@@ -3691,9 +3705,11 @@ bnx2_init_chip(struct bnx2 *bp)
 
 	/* Initialize context mapping and zero out the quick contexts.  The
 	 * context block must have already been enabled. */
-	if (CHIP_NUM(bp) == CHIP_NUM_5709)
-		bnx2_init_5709_context(bp);
-	else
+	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
+		rc = bnx2_init_5709_context(bp);
+		if (rc)
+			return rc;
+	} else
 		bnx2_init_context(bp);
 
 	if ((rc = bnx2_init_cpus(bp)) != 0)
@@ -3772,7 +3788,10 @@ bnx2_init_chip(struct bnx2 *bp)
 	REG_WR(bp, BNX2_HC_CMD_TICKS,
 	       (bp->cmd_ticks_int << 16) | bp->cmd_ticks);
 
-	REG_WR(bp, BNX2_HC_STATS_TICKS, bp->stats_ticks & 0xffff00);
+	if (CHIP_NUM(bp) == CHIP_NUM_5708)
+		REG_WR(bp, BNX2_HC_STATS_TICKS, 0);
+	else
+		REG_WR(bp, BNX2_HC_STATS_TICKS, bp->stats_ticks & 0xffff00);
 	REG_WR(bp, BNX2_HC_STAT_COLLECT_TICKS, 0xbb8);  /* 3ms */
 
 	if (CHIP_ID(bp) == CHIP_ID_5706_A1)
@@ -3799,6 +3818,11 @@ bnx2_init_chip(struct bnx2 *bp)
 	/* Initialize the receive filter. */
 	bnx2_set_rx_mode(bp->dev);
 
+	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
+		val = REG_RD(bp, BNX2_MISC_NEW_CORE_CTL);
+		val |= BNX2_MISC_NEW_CORE_CTL_DMA_ENABLE;
+		REG_WR(bp, BNX2_MISC_NEW_CORE_CTL, val);
+	}
 	rc = bnx2_fw_sync(bp, BNX2_DRV_MSG_DATA_WAIT2 | BNX2_DRV_MSG_CODE_RESET,
 			  0);
 
@@ -4620,6 +4644,11 @@ bnx2_timer(unsigned long data)
 
 	bp->stats_blk->stat_FwRxDrop = REG_RD_IND(bp, BNX2_FW_RX_DROP_COUNT);
 
+	/* workaround occasional corrupted counters */
+	if (CHIP_NUM(bp) == CHIP_NUM_5708 && bp->stats_ticks)
+		REG_WR(bp, BNX2_HC_COMMAND, bp->hc_cmd |
+					    BNX2_HC_COMMAND_STATS_NOW);
+
 	if (bp->phy_flags & PHY_SERDES_FLAG) {
 		if (CHIP_NUM(bp) == CHIP_NUM_5706)
 			bnx2_5706_serdes_timer(bp);
@@ -5417,6 +5446,10 @@ bnx2_set_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
 		0xff;
 
 	bp->stats_ticks = coal->stats_block_coalesce_usecs;
+	if (CHIP_NUM(bp) == CHIP_NUM_5708) {
+		if (bp->stats_ticks != 0 && bp->stats_ticks != USEC_PER_SEC)
+			bp->stats_ticks = USEC_PER_SEC;
+	}
 	if (bp->stats_ticks > 0xffff00) bp->stats_ticks = 0xffff00;
 	bp->stats_ticks &= 0xffff00;
 

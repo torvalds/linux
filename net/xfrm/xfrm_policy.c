@@ -834,11 +834,67 @@ struct xfrm_policy *xfrm_policy_byid(u8 type, int dir, u32 id, int delete,
 }
 EXPORT_SYMBOL(xfrm_policy_byid);
 
-void xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info)
+#ifdef CONFIG_SECURITY_NETWORK_XFRM
+static inline int
+xfrm_policy_flush_secctx_check(u8 type, struct xfrm_audit *audit_info)
 {
-	int dir;
+	int dir, err = 0;
+
+	for (dir = 0; dir < XFRM_POLICY_MAX; dir++) {
+		struct xfrm_policy *pol;
+		struct hlist_node *entry;
+		int i;
+
+		hlist_for_each_entry(pol, entry,
+				     &xfrm_policy_inexact[dir], bydst) {
+			if (pol->type != type)
+				continue;
+			err = security_xfrm_policy_delete(pol);
+			if (err) {
+				xfrm_audit_log(audit_info->loginuid,
+					       audit_info->secid,
+					       AUDIT_MAC_IPSEC_DELSPD, 0,
+					       pol, NULL);
+				return err;
+			}
+                }
+		for (i = xfrm_policy_bydst[dir].hmask; i >= 0; i--) {
+			hlist_for_each_entry(pol, entry,
+					     xfrm_policy_bydst[dir].table + i,
+					     bydst) {
+				if (pol->type != type)
+					continue;
+				err = security_xfrm_policy_delete(pol);
+				if (err) {
+					xfrm_audit_log(audit_info->loginuid,
+						       audit_info->secid,
+						       AUDIT_MAC_IPSEC_DELSPD,
+						       0, pol, NULL);
+					return err;
+				}
+			}
+		}
+	}
+	return err;
+}
+#else
+static inline int
+xfrm_policy_flush_secctx_check(u8 type, struct xfrm_audit *audit_info)
+{
+	return 0;
+}
+#endif
+
+int xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info)
+{
+	int dir, err = 0;
 
 	write_lock_bh(&xfrm_policy_lock);
+
+	err = xfrm_policy_flush_secctx_check(type, audit_info);
+	if (err)
+		goto out;
+
 	for (dir = 0; dir < XFRM_POLICY_MAX; dir++) {
 		struct xfrm_policy *pol;
 		struct hlist_node *entry;
@@ -891,7 +947,9 @@ void xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info)
 		xfrm_policy_count[dir] -= killed;
 	}
 	atomic_inc(&flow_cache_genid);
+out:
 	write_unlock_bh(&xfrm_policy_lock);
+	return err;
 }
 EXPORT_SYMBOL(xfrm_policy_flush);
 
@@ -2583,4 +2641,3 @@ restore_state:
 }
 EXPORT_SYMBOL(xfrm_migrate);
 #endif
-

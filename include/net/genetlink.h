@@ -60,7 +60,7 @@ struct genl_ops
 {
 	u8			cmd;
 	unsigned int		flags;
-	struct nla_policy	*policy;
+	const struct nla_policy	*policy;
 	int		       (*doit)(struct sk_buff *skb,
 				       struct genl_info *info);
 	int		       (*dumpit)(struct sk_buff *skb,

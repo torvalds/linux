@@ -59,7 +59,7 @@ static struct genl_family netlbl_cipsov4_gnl_family = {
 };
 
 /* NetLabel Netlink attribute policy */
-static struct nla_policy netlbl_cipsov4_genl_policy[NLBL_CIPSOV4_A_MAX + 1] = {
+static const struct nla_policy netlbl_cipsov4_genl_policy[NLBL_CIPSOV4_A_MAX + 1] = {
 	[NLBL_CIPSOV4_A_DOI] = { .type = NLA_U32 },
 	[NLBL_CIPSOV4_A_MTYPE] = { .type = NLA_U32 },
 	[NLBL_CIPSOV4_A_TAG] = { .type = NLA_U8 },
