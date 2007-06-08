@@ -15,7 +15,7 @@
 
 #define AT91_WDT_CR		(AT91_WDT + 0x00)	/* Watchdog Control Register */
 #define		AT91_WDT_WDRSTT		(1    << 0)		/* Restart */
-#define		AT91_WDT_KEY		(0xff << 24)		/* KEY Password */
+#define		AT91_WDT_KEY		(0xa5 << 24)		/* KEY Password */
 
 #define AT91_WDT_MR		(AT91_WDT + 0x04)	/* Watchdog Mode Register */
 #define		AT91_WDT_WDV		(0xfff << 0)		/* Counter Value */

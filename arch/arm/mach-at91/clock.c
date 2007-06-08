@@ -364,19 +364,14 @@ static int at91_clk_show(struct seq_file *s, void *unused)
 {
 	u32		scsr, pcsr, sr;
 	struct clk	*clk;
-	unsigned	i;
 
 	seq_printf(s, "SCSR = %8x\n", scsr = at91_sys_read(AT91_PMC_SCSR));
 	seq_printf(s, "PCSR = %8x\n", pcsr = at91_sys_read(AT91_PMC_PCSR));
-
 	seq_printf(s, "MOR  = %8x\n", at91_sys_read(AT91_CKGR_MOR));
 	seq_printf(s, "MCFR = %8x\n", at91_sys_read(AT91_CKGR_MCFR));
 	seq_printf(s, "PLLA = %8x\n", at91_sys_read(AT91_CKGR_PLLAR));
 	seq_printf(s, "PLLB = %8x\n", at91_sys_read(AT91_CKGR_PLLBR));
-
 	seq_printf(s, "MCKR = %8x\n", at91_sys_read(AT91_PMC_MCKR));
-	for (i = 0; i < 4; i++)
-		seq_printf(s, "PCK%d = %8x\n", i, at91_sys_read(AT91_PMC_PCKR(i)));
 	seq_printf(s, "SR   = %8x\n", sr = at91_sys_read(AT91_PMC_SR));
 
 	seq_printf(s, "\n");

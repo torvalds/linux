@@ -76,12 +76,11 @@ static int at91_pm_verify_clocks(void)
 			pr_debug("AT91: PM - Suspend-to-RAM with USB still active\n");
 			return 0;
 		}
-	} else if (cpu_is_at91sam9260()) {
-#warning "Check SAM9260 USB clocks"
-	} else if (cpu_is_at91sam9261()) {
-#warning "Check SAM9261 USB clocks"
-	} else if (cpu_is_at91sam9263()) {
-#warning "Check SAM9263 USB clocks"
+	} else if (cpu_is_at91sam9260() || cpu_is_at91sam9261() || cpu_is_at91sam9263()) {
+		if ((scsr & (AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP)) != 0) {
+			pr_debug("AT91: PM - Suspend-to-RAM with USB still active\n");
+			return 0;
+		}
 	}
 
 #ifdef CONFIG_AT91_PROGRAMMABLE_CLOCKS
