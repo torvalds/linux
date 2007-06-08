@@ -448,6 +448,15 @@ void rpc_put_mount(void)
 	simple_release_fs(&rpc_mount, &rpc_mount_count);
 }
 
+static int rpc_delete_dentry(struct dentry *dentry)
+{
+	return 1;
+}
+
+static struct dentry_operations rpc_dentry_operations = {
+	.d_delete = rpc_delete_dentry,
+};
+
 static int
 rpc_lookup_parent(char *path, struct nameidata *nd)
 {
@@ -506,7 +515,7 @@ rpc_get_inode(struct super_block *sb, int mode)
  * FIXME: This probably has races.
  */
 static void
-rpc_depopulate(struct dentry *parent)
+rpc_depopulate(struct dentry *parent, int start, int eof)
 {
 	struct inode *dir = parent->d_inode;
 	struct list_head *pos, *next;
@@ -518,6 +527,10 @@ repeat:
 	spin_lock(&dcache_lock);
 	list_for_each_safe(pos, next, &parent->d_subdirs) {
 		dentry = list_entry(pos, struct dentry, d_u.d_child);
+		if (!dentry->d_inode ||
+				dentry->d_inode->i_ino < start ||
+				dentry->d_inode->i_ino >= eof)
+			continue;
 		spin_lock(&dentry->d_lock);
 		if (!d_unhashed(dentry)) {
 			dget_locked(dentry);
@@ -533,11 +546,11 @@ repeat:
 	if (n) {
 		do {
 			dentry = dvec[--n];
-			if (dentry->d_inode) {
-				rpc_close_pipes(dentry->d_inode);
+			if (S_ISREG(dentry->d_inode->i_mode))
 				simple_unlink(dir, dentry);
-			}
-			inode_dir_notify(dir, DN_DELETE);
+			else if (S_ISDIR(dentry->d_inode->i_mode))
+				simple_rmdir(dir, dentry);
+			d_delete(dentry);
 			dput(dentry);
 		} while (n);
 		goto repeat;
@@ -560,6 +573,7 @@ rpc_populate(struct dentry *parent,
 		dentry = d_alloc_name(parent, files[i].name);
 		if (!dentry)
 			goto out_bad;
+		dentry->d_op = &rpc_dentry_operations;
 		mode = files[i].mode;
 		inode = rpc_get_inode(dir->i_sb, mode);
 		if (!inode) {
@@ -607,17 +621,10 @@ static int
 __rpc_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	int error;
-
-	shrink_dcache_parent(dentry);
-	if (d_unhashed(dentry))
-		return 0;
-	if ((error = simple_rmdir(dir, dentry)) != 0)
-		return error;
-	if (!error) {
-		inode_dir_notify(dir, DN_DELETE);
-		d_drop(dentry);
-	}
-	return 0;
+	error = simple_rmdir(dir, dentry);
+	if (!error)
+		d_delete(dentry);
+	return error;
 }
 
 static struct dentry *
@@ -630,7 +637,9 @@ rpc_lookup_create(struct dentry *parent, const char *name, int len, int exclusiv
 	dentry = lookup_one_len(name, parent, len);
 	if (IS_ERR(dentry))
 		goto out_err;
-	if (dentry->d_inode && exclusive) {
+	if (!dentry->d_inode)
+		dentry->d_op = &rpc_dentry_operations;
+	else if (exclusive) {
 		dput(dentry);
 		dentry = ERR_PTR(-EEXIST);
 		goto out_err;
@@ -681,7 +690,7 @@ out:
 	rpc_release_path(&nd);
 	return dentry;
 err_depopulate:
-	rpc_depopulate(dentry);
+	rpc_depopulate(dentry, RPCAUTH_info, RPCAUTH_EOF);
 	__rpc_rmdir(dir, dentry);
 err_dput:
 	dput(dentry);
@@ -701,7 +710,7 @@ rpc_rmdir(struct dentry *dentry)
 	parent = dget_parent(dentry);
 	dir = parent->d_inode;
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
-	rpc_depopulate(dentry);
+	rpc_depopulate(dentry, RPCAUTH_info, RPCAUTH_EOF);
 	error = __rpc_rmdir(dir, dentry);
 	dput(dentry);
 	mutex_unlock(&dir->i_mutex);
@@ -764,14 +773,10 @@ rpc_unlink(struct dentry *dentry)
 	parent = dget_parent(dentry);
 	dir = parent->d_inode;
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
-	if (!d_unhashed(dentry)) {
-		d_drop(dentry);
-		if (dentry->d_inode) {
-			rpc_close_pipes(dentry->d_inode);
-			error = simple_unlink(dir, dentry);
-		}
-		inode_dir_notify(dir, DN_DELETE);
-	}
+	rpc_close_pipes(dentry->d_inode);
+	error = simple_unlink(dir, dentry);
+	if (!error)
+		d_delete(dentry);
 	dput(dentry);
 	mutex_unlock(&dir->i_mutex);
 	dput(parent);
