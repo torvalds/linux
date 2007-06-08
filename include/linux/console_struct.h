@@ -9,6 +9,9 @@
  * to achieve effects such as fast scrolling by changing the origin.
  */
 
+#ifndef _LINUX_CONSOLE_STRUCT_H
+#define _LINUX_CONSOLE_STRUCT_H
+
 #include <linux/wait.h>
 #include <linux/vt.h>
 #include <linux/workqueue.h>
@@ -130,3 +133,5 @@ extern void vc_SAK(struct work_struct *work);
 #define CUR_DEFAULT CUR_UNDERLINE
 
 #define CON_IS_VISIBLE(conp) (*conp->vc_display_fg == conp)
+
+#endif /* _LINUX_CONSOLE_STRUCT_H */
