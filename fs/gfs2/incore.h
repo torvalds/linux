@@ -95,6 +95,8 @@ struct gfs2_rgrpd {
 	u32 rd_last_alloc_data;
 	u32 rd_last_alloc_meta;
 	struct gfs2_sbd *rd_sbd;
+	unsigned long rd_flags;
+#define GFS2_RDF_CHECK        0x0001          /* Need to check for unlinked inodes */
 };
 
 enum gfs2_state_bits {

@@ -98,22 +98,8 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, u64 no_addr, unsigned in
 
 	if (inode->i_state & I_NEW) {
 		struct gfs2_sbd *sdp = GFS2_SB(inode);
-		umode_t mode = DT2IF(type);
+		umode_t mode;
 		inode->i_private = ip;
-		inode->i_mode = mode;
-
-		if (S_ISREG(mode)) {
-			inode->i_op = &gfs2_file_iops;
-			inode->i_fop = &gfs2_file_fops;
-			inode->i_mapping->a_ops = &gfs2_file_aops;
-		} else if (S_ISDIR(mode)) {
-			inode->i_op = &gfs2_dir_iops;
-			inode->i_fop = &gfs2_dir_fops;
-		} else if (S_ISLNK(mode)) {
-			inode->i_op = &gfs2_symlink_iops;
-		} else {
-			inode->i_op = &gfs2_dev_iops;
-		}
 
 		error = gfs2_glock_get(sdp, no_addr, &gfs2_inode_glops, CREATE, &ip->i_gl);
 		if (unlikely(error))
@@ -130,10 +116,44 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, u64 no_addr, unsigned in
 			goto fail_iopen;
 
 		gfs2_glock_put(io_gl);
+
+		/*
+		 * We must read the inode in order to work out its type in
+		 * this case. Note that this doesn't happen often as we normally
+		 * know the type beforehand. This code path only occurs during
+		 * unlinked inode recovery (where it is safe to do this glock,
+		 * which is not true in the general case).
+		 */
+		inode->i_mode = mode = DT2IF(type);
+		if (type == DT_UNKNOWN) {
+			struct gfs2_holder gh;
+			error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
+			if (unlikely(error))
+				goto fail_glock;
+			/* Inode is now uptodate */
+			mode = inode->i_mode;
+			gfs2_glock_dq_uninit(&gh);
+		}
+
+		if (S_ISREG(mode)) {
+			inode->i_op = &gfs2_file_iops;
+			inode->i_fop = &gfs2_file_fops;
+			inode->i_mapping->a_ops = &gfs2_file_aops;
+		} else if (S_ISDIR(mode)) {
+			inode->i_op = &gfs2_dir_iops;
+			inode->i_fop = &gfs2_dir_fops;
+		} else if (S_ISLNK(mode)) {
+			inode->i_op = &gfs2_symlink_iops;
+		} else {
+			inode->i_op = &gfs2_dev_iops;
+		}
+
 		unlock_new_inode(inode);
 	}
 
 	return inode;
+fail_glock:
+	gfs2_glock_dq(&ip->i_iopen_gh);
 fail_iopen:
 	gfs2_glock_put(io_gl);
 fail_put:

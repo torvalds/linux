@@ -28,6 +28,7 @@
 #include "ops_file.h"
 #include "util.h"
 #include "log.h"
+#include "inode.h"
 
 #define BFITNOENT ((u32)~0)
 
@@ -49,6 +50,9 @@ static const char valid_change[16] = {
 	/* w */ 0, 0, 0, 1,
 	        1, 0, 0, 0
 };
+
+static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
+                        unsigned char old_state, unsigned char new_state);
 
 /**
  * gfs2_setbit - Set a bit in the bitmaps
@@ -531,6 +535,7 @@ static int read_rindex_entry(struct gfs2_inode *ip,
 
 	rgd->rd_gl->gl_object = rgd;
 	rgd->rd_rg_vn = rgd->rd_gl->gl_vn - 1;
+	rgd->rd_flags |= GFS2_RDF_CHECK;
 	return error;
 }
 
@@ -846,6 +851,37 @@ static int try_rgrp_fit(struct gfs2_rgrpd *rgd, struct gfs2_alloc *al)
 }
 
 /**
+ * try_rgrp_unlink - Look for any unlinked, allocated, but unused inodes
+ * @rgd: The rgrp
+ *
+ * Returns: The inode, if one has been found
+ */
+
+static struct inode *try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked)
+{
+	struct inode *inode;
+	u32 goal = 0;
+	u64 ino;
+
+	for(;;) {
+		goal = rgblk_search(rgd, goal, GFS2_BLKST_UNLINKED,
+				    GFS2_BLKST_UNLINKED);
+		if (goal == 0)
+			return 0;
+		ino = goal + rgd->rd_data0;
+		if (ino <= *last_unlinked)
+			continue;
+		*last_unlinked = ino;
+		inode = gfs2_inode_lookup(rgd->rd_sbd->sd_vfs, ino, DT_UNKNOWN);
+		if (!IS_ERR(inode))
+			return inode;
+	}
+
+	rgd->rd_flags &= ~GFS2_RDF_CHECK;
+	return NULL;
+}
+
+/**
  * recent_rgrp_first - get first RG from "recent" list
  * @sdp: The GFS2 superblock
  * @rglast: address of the rgrp used last
@@ -1006,8 +1042,9 @@ static void forward_rgrp_set(struct gfs2_sbd *sdp, struct gfs2_rgrpd *rgd)
  * Returns: errno
  */
 
-static int get_local_rgrp(struct gfs2_inode *ip)
+static struct inode *get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 {
+	struct inode *inode = NULL;
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrpd *rgd, *begin = NULL;
 	struct gfs2_alloc *al = &ip->i_alloc;
@@ -1027,7 +1064,11 @@ static int get_local_rgrp(struct gfs2_inode *ip)
 		case 0:
 			if (try_rgrp_fit(rgd, al))
 				goto out;
+			if (rgd->rd_flags & GFS2_RDF_CHECK)
+				inode = try_rgrp_unlink(rgd, last_unlinked);
 			gfs2_glock_dq_uninit(&al->al_rgd_gh);
+			if (inode)
+				return inode;
 			rgd = recent_rgrp_next(rgd, 1);
 			break;
 
@@ -1036,7 +1077,7 @@ static int get_local_rgrp(struct gfs2_inode *ip)
 			break;
 
 		default:
-			return error;
+			return ERR_PTR(error);
 		}
 	}
 
@@ -1051,7 +1092,11 @@ static int get_local_rgrp(struct gfs2_inode *ip)
 		case 0:
 			if (try_rgrp_fit(rgd, al))
 				goto out;
+			if (rgd->rd_flags & GFS2_RDF_CHECK)
+				inode = try_rgrp_unlink(rgd, last_unlinked);
 			gfs2_glock_dq_uninit(&al->al_rgd_gh);
+			if (inode)
+				return inode;
 			break;
 
 		case GLR_TRYFAILED:
@@ -1059,7 +1104,7 @@ static int get_local_rgrp(struct gfs2_inode *ip)
 			break;
 
 		default:
-			return error;
+			return ERR_PTR(error);
 		}
 
 		rgd = gfs2_rgrpd_get_next(rgd);
@@ -1068,7 +1113,7 @@ static int get_local_rgrp(struct gfs2_inode *ip)
 
 		if (rgd == begin) {
 			if (++loops >= 3)
-				return -ENOSPC;
+				return ERR_PTR(-ENOSPC);
 			if (!skipped)
 				loops++;
 			flags = 0;
@@ -1088,7 +1133,7 @@ out:
 		forward_rgrp_set(sdp, rgd);
 	}
 
-	return 0;
+	return NULL;
 }
 
 /**
@@ -1102,11 +1147,14 @@ int gfs2_inplace_reserve_i(struct gfs2_inode *ip, char *file, unsigned int line)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_alloc *al = &ip->i_alloc;
+	struct inode *inode;
 	int error = 0;
+	u64 last_unlinked = 0;
 
 	if (gfs2_assert_warn(sdp, al->al_requested))
 		return -EINVAL;
 
+try_again:
 	/* We need to hold the rindex unless the inode we're using is
 	   the rindex itself, in which case it's already held. */
 	if (ip != GFS2_I(sdp->sd_rindex))
@@ -1117,11 +1165,15 @@ int gfs2_inplace_reserve_i(struct gfs2_inode *ip, char *file, unsigned int line)
 	if (error)
 		return error;
 
-	error = get_local_rgrp(ip);
-	if (error) {
+	inode = get_local_rgrp(ip, &last_unlinked);
+	if (inode) {
 		if (ip != GFS2_I(sdp->sd_rindex))
 			gfs2_glock_dq_uninit(&al->al_ri_gh);
-		return error;
+		if (IS_ERR(inode))
+			return PTR_ERR(inode);
+		iput(inode);
+		gfs2_log_flush(sdp, NULL);
+		goto try_again;
 	}
 
 	al->al_file = file;
@@ -1209,7 +1261,7 @@ unsigned char gfs2_get_block_type(struct gfs2_rgrpd *rgd, u64 block)
  */
 
 static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
-			     unsigned char old_state, unsigned char new_state)
+			unsigned char old_state, unsigned char new_state)
 {
 	struct gfs2_bitmap *bi = NULL;
 	u32 length = rgd->rd_length;
@@ -1250,17 +1302,18 @@ static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
 		goal = 0;
 	}
 
-	if (gfs2_assert_withdraw(rgd->rd_sbd, x <= length))
-		blk = 0;
+	if (old_state != new_state) {
+		gfs2_assert_withdraw(rgd->rd_sbd, blk != BFITNOENT);
 
-	gfs2_trans_add_bh(rgd->rd_gl, bi->bi_bh, 1);
-	gfs2_setbit(rgd, bi->bi_bh->b_data + bi->bi_offset,
-		    bi->bi_len, blk, new_state);
-	if (bi->bi_clone)
-		gfs2_setbit(rgd, bi->bi_clone + bi->bi_offset,
+		gfs2_trans_add_bh(rgd->rd_gl, bi->bi_bh, 1);
+		gfs2_setbit(rgd, bi->bi_bh->b_data + bi->bi_offset,
 			    bi->bi_len, blk, new_state);
+		if (bi->bi_clone)
+			gfs2_setbit(rgd, bi->bi_clone + bi->bi_offset,
+				    bi->bi_len, blk, new_state);
+	}
 
-	return bi->bi_start * GFS2_NBBY + blk;
+	return (blk == BFITNOENT) ? 0 : (bi->bi_start * GFS2_NBBY) + blk;
 }
 
 /**
