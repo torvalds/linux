@@ -278,6 +278,7 @@ config HIGHMEM
 config KERNEL_STACK_ORDER
 	int "Kernel stack size order"
 	default 1 if 64BIT
+	range 1 10 if 64BIT
 	default 0 if !64BIT
 	help
 	This option determines the size of UML kernel stacks.  They will
