@@ -740,9 +740,10 @@ static void via686a_init_client(struct i2c_client *client)
 	via686a_write_value(client, VIA686A_REG_CONFIG, (reg|0x01)&0x7F);
 
 	/* Configure temp interrupt mode for continuous-interrupt operation */
+	reg = via686a_read_value(client, VIA686A_REG_TEMP_MODE);
 	via686a_write_value(client, VIA686A_REG_TEMP_MODE,
-			    via686a_read_value(client, VIA686A_REG_TEMP_MODE) &
-			    !(VIA686A_TEMP_MODE_MASK | VIA686A_TEMP_MODE_CONTINUOUS));
+			    (reg & ~VIA686A_TEMP_MODE_MASK)
+			    | VIA686A_TEMP_MODE_CONTINUOUS);
 }
 
 static struct via686a_data *via686a_update_device(struct device *dev)
