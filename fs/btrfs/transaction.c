@@ -371,13 +371,6 @@ void btrfs_transaction_cleaner(struct work_struct *work)
 	int ret;
 
 	INIT_LIST_HEAD(&dirty_roots);
-	mutex_lock(&root->fs_info->trans_mutex);
-	list_splice_init(&root->fs_info->dead_roots, &dirty_roots);
-	mutex_unlock(&root->fs_info->trans_mutex);
-
-	if (!list_empty(&dirty_roots)) {
-		drop_dirty_roots(root, &dirty_roots);
-	}
 	mutex_lock(&root->fs_info->fs_mutex);
 	mutex_lock(&root->fs_info->trans_mutex);
 	cur = root->fs_info->running_transaction;
@@ -396,6 +389,14 @@ void btrfs_transaction_cleaner(struct work_struct *work)
 	ret = btrfs_commit_transaction(trans, root);
 out:
 	mutex_unlock(&root->fs_info->fs_mutex);
+
+	mutex_lock(&root->fs_info->trans_mutex);
+	list_splice_init(&root->fs_info->dead_roots, &dirty_roots);
+	mutex_unlock(&root->fs_info->trans_mutex);
+
+	if (!list_empty(&dirty_roots)) {
+		drop_dirty_roots(root, &dirty_roots);
+	}
 	btrfs_transaction_queue_work(root, delay);
 }
 
