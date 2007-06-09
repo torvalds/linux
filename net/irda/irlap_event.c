@@ -317,23 +317,6 @@ void irlap_do_event(struct irlap_cb *self, IRLAP_EVENT event,
 }
 
 /*
- * Function irlap_next_state (self, state)
- *
- *    Switches state and provides debug information
- *
- */
-static inline void irlap_next_state(struct irlap_cb *self, IRLAP_STATE state)
-{
-	/*
-	if (!self || self->magic != LAP_MAGIC)
-		return;
-
-	IRDA_DEBUG(4, "next LAP state = %s\n", irlap_state[state]);
-	*/
-	self->state = state;
-}
-
-/*
  * Function irlap_state_ndm (event, skb, frame)
  *
  *    NDM (Normal Disconnected Mode) state
@@ -1086,7 +1069,6 @@ static int irlap_state_xmit_p(struct irlap_cb *self, IRLAP_EVENT event,
 			} else {
 				/* Final packet of window */
 				irlap_send_data_primary_poll(self, skb);
-				irlap_next_state(self, LAP_NRM_P);
 
 				/*
 				 * Make sure state machine does not try to send

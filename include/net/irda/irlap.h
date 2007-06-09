@@ -289,4 +289,21 @@ static inline void irlap_clear_disconnect(struct irlap_cb *self)
 	self->disconnect_pending = FALSE;
 }
 
+/*
+ * Function irlap_next_state (self, state)
+ *
+ *    Switches state and provides debug information
+ *
+ */
+static inline void irlap_next_state(struct irlap_cb *self, IRLAP_STATE state)
+{
+	/*
+	if (!self || self->magic != LAP_MAGIC)
+		return;
+
+	IRDA_DEBUG(4, "next LAP state = %s\n", irlap_state[state]);
+	*/
+	self->state = state;
+}
+
 #endif
