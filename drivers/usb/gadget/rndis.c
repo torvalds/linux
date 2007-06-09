@@ -186,10 +186,14 @@ gen_ndis_query_resp (int configNr, u32 OID, u8 *buf, unsigned buf_len,
 		DEBUG("query OID %08x value, len %d:\n", OID, buf_len);
 		for (i = 0; i < buf_len; i += 16) {
 			DEBUG ("%03d: %08x %08x %08x %08x\n", i,
-				le32_to_cpup((__le32 *)&buf[i]),
-				le32_to_cpup((__le32 *)&buf[i + 4]),
-				le32_to_cpup((__le32 *)&buf[i + 8]),
-				le32_to_cpup((__le32 *)&buf[i + 12]));
+				le32_to_cpu(get_unaligned((__le32 *)
+					&buf[i])),
+				le32_to_cpu(get_unaligned((__le32 *)
+					&buf[i + 4])),
+				le32_to_cpu(get_unaligned((__le32 *)
+					&buf[i + 8])),
+				le32_to_cpu(get_unaligned((__le32 *)
+					&buf[i + 12])));
 		}
 	}
 
@@ -665,7 +669,7 @@ gen_ndis_query_resp (int configNr, u32 OID, u8 *buf, unsigned buf_len,
 		break;
 	case OID_PNP_QUERY_POWER:
 		DEBUG("%s: OID_PNP_QUERY_POWER D%d\n", __FUNCTION__,
-				le32_to_cpup((__le32 *) buf) - 1);
+				le32_to_cpu(get_unaligned((__le32 *)buf)) - 1);
 		/* only suspend is a real power state, and
 		 * it can't be entered by OID_PNP_SET_POWER...
 		 */
@@ -704,10 +708,14 @@ static int gen_ndis_set_resp (u8 configNr, u32 OID, u8 *buf, u32 buf_len,
 		DEBUG("set OID %08x value, len %d:\n", OID, buf_len);
 		for (i = 0; i < buf_len; i += 16) {
 			DEBUG ("%03d: %08x %08x %08x %08x\n", i,
-				le32_to_cpup((__le32 *)&buf[i]),
-				le32_to_cpup((__le32 *)&buf[i + 4]),
-				le32_to_cpup((__le32 *)&buf[i + 8]),
-				le32_to_cpup((__le32 *)&buf[i + 12]));
+				le32_to_cpu(get_unaligned((__le32 *)
+					&buf[i])),
+				le32_to_cpu(get_unaligned((__le32 *)
+					&buf[i + 4])),
+				le32_to_cpu(get_unaligned((__le32 *)
+					&buf[i + 8])),
+				le32_to_cpu(get_unaligned((__le32 *)
+					&buf[i + 12])));
 		}
 	}
 
@@ -721,7 +729,8 @@ static int gen_ndis_set_resp (u8 configNr, u32 OID, u8 *buf, u32 buf_len,
 		 *	PROMISCUOUS, DIRECTED,
 		 *	MULTICAST, ALL_MULTICAST, BROADCAST
 		 */
-		*params->filter = (u16) le32_to_cpup((__le32 *)buf);
+		*params->filter = (u16) le32_to_cpu(get_unaligned(
+				(__le32 *)buf));
 		DEBUG("%s: OID_GEN_CURRENT_PACKET_FILTER %08x\n",
 			__FUNCTION__, *params->filter);
 
@@ -771,7 +780,7 @@ update_linkstate:
 		 * resuming, Windows forces a reset, and then SET_POWER D0.
 		 * FIXME ... then things go batty; Windows wedges itself.
 		 */
-		i = le32_to_cpup((__force __le32 *)buf);
+		i = le32_to_cpu(get_unaligned((__le32 *)buf));
 		DEBUG("%s: OID_PNP_SET_POWER D%d\n", __FUNCTION__, i - 1);
 		switch (i) {
 		case NdisDeviceStateD0:
@@ -1058,8 +1067,8 @@ int rndis_msg_parser (u8 configNr, u8 *buf)
 		return -ENOMEM;
 
 	tmp = (__le32 *) buf;
-	MsgType   = le32_to_cpup(tmp++);
-	MsgLength = le32_to_cpup(tmp++);
+	MsgType   = le32_to_cpu(get_unaligned(tmp++));
+	MsgLength = le32_to_cpu(get_unaligned(tmp++));
 
 	if (configNr >= RNDIS_MAX_CONFIGS)
 		return -ENOTSUPP;

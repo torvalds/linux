@@ -1179,8 +1179,8 @@ UNUSUAL_DEV( 0x0a17, 0x006, 0x0000, 0xffff,
                 US_SC_DEVICE, US_PR_DEVICE, NULL,
                 US_FL_FIX_INQUIRY ),
 
-/* These are virtual windows driver CDs, which the zd1211rw driver automatically
- * converts into a WLAN devices. */
+/* These are virtual windows driver CDs, which the zd1211rw driver
+ * automatically converts into WLAN devices. */
 UNUSUAL_DEV( 0x0ace, 0x2011, 0x0101, 0x0101,
                 "ZyXEL",
                 "G-220F USB-WLAN Install",
@@ -1192,6 +1192,14 @@ UNUSUAL_DEV( 0x0ace, 0x20ff, 0x0101, 0x0101,
 		"WL-117 USB-WLAN Install",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_DEVICE ),
+
+/* SanDisk that has a second LUN for a driver ISO, reported by
+ * Ben Collins <bcollins@ubuntu.com> */
+UNUSUAL_DEV( 0x0781, 0x5406, 0x0000, 0xffff,
+		"SanDisk",
+		"U3 Cruzer Micro driver ISO",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN ),
 
 #ifdef CONFIG_USB_STORAGE_ISD200
 UNUSUAL_DEV(  0x0bf6, 0xa001, 0x0100, 0x0110,
@@ -1270,6 +1278,15 @@ UNUSUAL_DEV( 0x0dd8, 0x1060, 0x0000, 0xffff,
 		"USB-CF-Card",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY ),
+
+/* Reported by Edward Chapman (taken from linux-usb mailing list)
+   Netac OnlyDisk Mini U2CV2 512MB USB 2.0 Flash Drive */
+UNUSUAL_DEV( 0x0dd8, 0xd202, 0x0000, 0x9999,
+		"Netac",
+		"USB Flash Disk",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
+
 
 /* Patch by Stephan Walter <stephan.walter@epfl.ch>
  * I don't know why, but it works... */

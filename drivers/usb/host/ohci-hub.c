@@ -417,6 +417,8 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 	unsigned long	flags;
 
 	spin_lock_irqsave (&ohci->lock, flags);
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags))
+		goto done;
 
 	/* undocumented erratum seen on at least rev D */
 	if ((ohci->flags & OHCI_QUIRK_AMD756)

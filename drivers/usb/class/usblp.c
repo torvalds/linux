@@ -347,10 +347,8 @@ static int handle_bidir (struct usblp *usblp)
 	if (usblp->bidir && usblp->used && !usblp->sleeping) {
 		usblp->readcount = 0;
 		usblp->readurb->dev = usblp->dev;
-		if (usb_submit_urb(usblp->readurb, GFP_KERNEL) < 0) {
-			usblp->used = 0;
+		if (usb_submit_urb(usblp->readurb, GFP_KERNEL) < 0)
 			return -EIO;
-		}
 	}
 
 	return 0;
@@ -412,6 +410,7 @@ static int usblp_open(struct inode *inode, struct file *file)
 	usblp->readurb->status = 0;
 
 	if (handle_bidir(usblp) < 0) {
+		usblp->used = 0;
 		file->private_data = NULL;
 		retval = -EIO;
 	}

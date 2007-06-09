@@ -1369,12 +1369,12 @@ config_buf (struct dev_data *dev, u8 type, unsigned index)
 		hs = !hs;
 	if (hs) {
 		dev->req->buf = dev->hs_config;
-		len = le16_to_cpup (&dev->hs_config->wTotalLength);
+		len = le16_to_cpu(dev->hs_config->wTotalLength);
 	} else
 #endif
 	{
 		dev->req->buf = dev->config;
-		len = le16_to_cpup (&dev->config->wTotalLength);
+		len = le16_to_cpu(dev->config->wTotalLength);
 	}
 	((u8 *)dev->req->buf) [1] = type;
 	return len;
@@ -1885,7 +1885,7 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 
 	/* full or low speed config */
 	dev->config = (void *) kbuf;
-	total = le16_to_cpup (&dev->config->wTotalLength);
+	total = le16_to_cpu(dev->config->wTotalLength);
 	if (!is_valid_config (dev->config) || total >= length)
 		goto fail;
 	kbuf += total;
@@ -1894,7 +1894,7 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	/* optional high speed config */
 	if (kbuf [1] == USB_DT_CONFIG) {
 		dev->hs_config = (void *) kbuf;
-		total = le16_to_cpup (&dev->hs_config->wTotalLength);
+		total = le16_to_cpu(dev->hs_config->wTotalLength);
 		if (!is_valid_config (dev->hs_config) || total >= length)
 			goto fail;
 		kbuf += total;

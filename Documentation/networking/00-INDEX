@@ -32,6 +32,8 @@ cops.txt
 	- info on the COPS LocalTalk Linux driver
 cs89x0.txt
 	- the Crystal LAN (CS8900/20-based) Ethernet ISA adapter driver
+cxacru.txt
+	- Conexant AccessRunner USB ADSL Modem
 de4x5.txt
 	- the Digital EtherWORKS DE4?? and DE5?? PCI Ethernet driver
 decnet.txt
