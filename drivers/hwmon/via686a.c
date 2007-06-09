@@ -36,6 +36,7 @@
 #include <linux/jiffies.h>
 #include <linux/platform_device.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
@@ -332,24 +333,35 @@ static void via686a_init_device(struct via686a_data *data);
 /* following are the sysfs callback functions */
 
 /* 7 voltage sensors */
-static ssize_t show_in(struct device *dev, char *buf, int nr) {
+static ssize_t show_in(struct device *dev, struct device_attribute *da,
+		char *buf) {
 	struct via686a_data *data = via686a_update_device(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	int nr = attr->index;
 	return sprintf(buf, "%ld\n", IN_FROM_REG(data->in[nr], nr));
 }
 
-static ssize_t show_in_min(struct device *dev, char *buf, int nr) {
+static ssize_t show_in_min(struct device *dev, struct device_attribute *da,
+		char *buf) {
 	struct via686a_data *data = via686a_update_device(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	int nr = attr->index;
 	return sprintf(buf, "%ld\n", IN_FROM_REG(data->in_min[nr], nr));
 }
 
-static ssize_t show_in_max(struct device *dev, char *buf, int nr) {
+static ssize_t show_in_max(struct device *dev, struct device_attribute *da,
+		char *buf) {
 	struct via686a_data *data = via686a_update_device(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	int nr = attr->index;
 	return sprintf(buf, "%ld\n", IN_FROM_REG(data->in_max[nr], nr));
 }
 
-static ssize_t set_in_min(struct device *dev, const char *buf,
-		size_t count, int nr) {
+static ssize_t set_in_min(struct device *dev, struct device_attribute *da,
+		const char *buf, size_t count) {
 	struct via686a_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	int nr = attr->index;
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
@@ -359,9 +371,11 @@ static ssize_t set_in_min(struct device *dev, const char *buf,
 	mutex_unlock(&data->update_lock);
 	return count;
 }
-static ssize_t set_in_max(struct device *dev, const char *buf,
-		size_t count, int nr) {
+static ssize_t set_in_max(struct device *dev, struct device_attribute *da,
+		const char *buf, size_t count) {
 	struct via686a_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	int nr = attr->index;
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
@@ -372,36 +386,12 @@ static ssize_t set_in_max(struct device *dev, const char *buf,
 	return count;
 }
 #define show_in_offset(offset)					\
-static ssize_t 							\
-	show_in##offset (struct device *dev, struct device_attribute *attr, char *buf)		\
-{								\
-	return show_in(dev, buf, offset);			\
-}								\
-static ssize_t 							\
-	show_in##offset##_min (struct device *dev, struct device_attribute *attr, char *buf)	\
-{								\
-	return show_in_min(dev, buf, offset);		\
-}								\
-static ssize_t 							\
-	show_in##offset##_max (struct device *dev, struct device_attribute *attr, char *buf)	\
-{								\
-	return show_in_max(dev, buf, offset);		\
-}								\
-static ssize_t set_in##offset##_min (struct device *dev, struct device_attribute *attr, 	\
-		const char *buf, size_t count) 			\
-{								\
-	return set_in_min(dev, buf, count, offset);		\
-}								\
-static ssize_t set_in##offset##_max (struct device *dev, struct device_attribute *attr,	\
-			const char *buf, size_t count)		\
-{								\
-	return set_in_max(dev, buf, count, offset);		\
-}								\
-static DEVICE_ATTR(in##offset##_input, S_IRUGO, show_in##offset, NULL);\
-static DEVICE_ATTR(in##offset##_min, S_IRUGO | S_IWUSR, 	\
-		show_in##offset##_min, set_in##offset##_min);	\
-static DEVICE_ATTR(in##offset##_max, S_IRUGO | S_IWUSR, 	\
-		show_in##offset##_max, set_in##offset##_max);
+static SENSOR_DEVICE_ATTR(in##offset##_input, S_IRUGO,		\
+		show_in, NULL, offset);				\
+static SENSOR_DEVICE_ATTR(in##offset##_min, S_IRUGO | S_IWUSR,	\
+		show_in_min, set_in_min, offset);		\
+static SENSOR_DEVICE_ATTR(in##offset##_max, S_IRUGO | S_IWUSR,	\
+		show_in_max, set_in_max, offset);
 
 show_in_offset(0);
 show_in_offset(1);
@@ -410,21 +400,32 @@ show_in_offset(3);
 show_in_offset(4);
 
 /* 3 temperatures */
-static ssize_t show_temp(struct device *dev, char *buf, int nr) {
+static ssize_t show_temp(struct device *dev, struct device_attribute *da,
+		char *buf) {
 	struct via686a_data *data = via686a_update_device(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	int nr = attr->index;
 	return sprintf(buf, "%ld\n", TEMP_FROM_REG10(data->temp[nr]));
 }
-static ssize_t show_temp_over(struct device *dev, char *buf, int nr) {
+static ssize_t show_temp_over(struct device *dev, struct device_attribute *da,
+		char *buf) {
 	struct via686a_data *data = via686a_update_device(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	int nr = attr->index;
 	return sprintf(buf, "%ld\n", TEMP_FROM_REG(data->temp_over[nr]));
 }
-static ssize_t show_temp_hyst(struct device *dev, char *buf, int nr) {
+static ssize_t show_temp_hyst(struct device *dev, struct device_attribute *da,
+		char *buf) {
 	struct via686a_data *data = via686a_update_device(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	int nr = attr->index;
 	return sprintf(buf, "%ld\n", TEMP_FROM_REG(data->temp_hyst[nr]));
 }
-static ssize_t set_temp_over(struct device *dev, const char *buf,
-		size_t count, int nr) {
+static ssize_t set_temp_over(struct device *dev, struct device_attribute *da,
+		const char *buf, size_t count) {
 	struct via686a_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	int nr = attr->index;
 	int val = simple_strtol(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
@@ -434,9 +435,11 @@ static ssize_t set_temp_over(struct device *dev, const char *buf,
 	mutex_unlock(&data->update_lock);
 	return count;
 }
-static ssize_t set_temp_hyst(struct device *dev, const char *buf,
-		size_t count, int nr) {
+static ssize_t set_temp_hyst(struct device *dev, struct device_attribute *da,
+		const char *buf, size_t count) {
 	struct via686a_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	int nr = attr->index;
 	int val = simple_strtol(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
@@ -447,58 +450,46 @@ static ssize_t set_temp_hyst(struct device *dev, const char *buf,
 	return count;
 }
 #define show_temp_offset(offset)					\
-static ssize_t show_temp_##offset (struct device *dev, struct device_attribute *attr, char *buf)	\
-{									\
-	return show_temp(dev, buf, offset - 1);				\
-}									\
-static ssize_t								\
-show_temp_##offset##_over (struct device *dev, struct device_attribute *attr, char *buf)		\
-{									\
-	return show_temp_over(dev, buf, offset - 1);			\
-}									\
-static ssize_t								\
-show_temp_##offset##_hyst (struct device *dev, struct device_attribute *attr, char *buf)		\
-{									\
-	return show_temp_hyst(dev, buf, offset - 1);			\
-}									\
-static ssize_t set_temp_##offset##_over (struct device *dev, struct device_attribute *attr, 		\
-		const char *buf, size_t count) 				\
-{									\
-	return set_temp_over(dev, buf, count, offset - 1);		\
-}									\
-static ssize_t set_temp_##offset##_hyst (struct device *dev, struct device_attribute *attr, 		\
-		const char *buf, size_t count) 				\
-{									\
-	return set_temp_hyst(dev, buf, count, offset - 1);		\
-}									\
-static DEVICE_ATTR(temp##offset##_input, S_IRUGO, show_temp_##offset, NULL);\
-static DEVICE_ATTR(temp##offset##_max, S_IRUGO | S_IWUSR, 		\
-		show_temp_##offset##_over, set_temp_##offset##_over);	\
-static DEVICE_ATTR(temp##offset##_max_hyst, S_IRUGO | S_IWUSR, 		\
-		show_temp_##offset##_hyst, set_temp_##offset##_hyst);
+static SENSOR_DEVICE_ATTR(temp##offset##_input, S_IRUGO,		\
+		show_temp, NULL, offset - 1);				\
+static SENSOR_DEVICE_ATTR(temp##offset##_max, S_IRUGO | S_IWUSR,	\
+		show_temp_over, set_temp_over, offset - 1);		\
+static SENSOR_DEVICE_ATTR(temp##offset##_max_hyst, S_IRUGO | S_IWUSR,	\
+		show_temp_hyst, set_temp_hyst, offset - 1);
 
 show_temp_offset(1);
 show_temp_offset(2);
 show_temp_offset(3);
 
 /* 2 Fans */
-static ssize_t show_fan(struct device *dev, char *buf, int nr) {
+static ssize_t show_fan(struct device *dev, struct device_attribute *da,
+		char *buf) {
 	struct via686a_data *data = via686a_update_device(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	int nr = attr->index;
 	return sprintf(buf, "%d\n", FAN_FROM_REG(data->fan[nr],
 				DIV_FROM_REG(data->fan_div[nr])) );
 }
-static ssize_t show_fan_min(struct device *dev, char *buf, int nr) {
+static ssize_t show_fan_min(struct device *dev, struct device_attribute *da,
+		char *buf) {
 	struct via686a_data *data = via686a_update_device(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	int nr = attr->index;
 	return sprintf(buf, "%d\n",
 		FAN_FROM_REG(data->fan_min[nr], DIV_FROM_REG(data->fan_div[nr])) );
 }
-static ssize_t show_fan_div(struct device *dev, char *buf, int nr) {
+static ssize_t show_fan_div(struct device *dev, struct device_attribute *da,
+		char *buf) {
 	struct via686a_data *data = via686a_update_device(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	int nr = attr->index;
 	return sprintf(buf, "%d\n", DIV_FROM_REG(data->fan_div[nr]) );
 }
-static ssize_t set_fan_min(struct device *dev, const char *buf,
-		size_t count, int nr) {
+static ssize_t set_fan_min(struct device *dev, struct device_attribute *da,
+		const char *buf, size_t count) {
 	struct via686a_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	int nr = attr->index;
 	int val = simple_strtol(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
@@ -507,9 +498,11 @@ static ssize_t set_fan_min(struct device *dev, const char *buf,
 	mutex_unlock(&data->update_lock);
 	return count;
 }
-static ssize_t set_fan_div(struct device *dev, const char *buf,
-		size_t count, int nr) {
+static ssize_t set_fan_div(struct device *dev, struct device_attribute *da,
+		const char *buf, size_t count) {
 	struct via686a_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	int nr = attr->index;
 	int val = simple_strtol(buf, NULL, 10);
 	int old;
 
@@ -523,33 +516,12 @@ static ssize_t set_fan_div(struct device *dev, const char *buf,
 }
 
 #define show_fan_offset(offset)						\
-static ssize_t show_fan_##offset (struct device *dev, struct device_attribute *attr, char *buf)	\
-{									\
-	return show_fan(dev, buf, offset - 1);				\
-}									\
-static ssize_t show_fan_##offset##_min (struct device *dev, struct device_attribute *attr, char *buf)	\
-{									\
-	return show_fan_min(dev, buf, offset - 1);			\
-}									\
-static ssize_t show_fan_##offset##_div (struct device *dev, struct device_attribute *attr, char *buf)	\
-{									\
-	return show_fan_div(dev, buf, offset - 1);			\
-}									\
-static ssize_t set_fan_##offset##_min (struct device *dev, struct device_attribute *attr, 		\
-	const char *buf, size_t count) 					\
-{									\
-	return set_fan_min(dev, buf, count, offset - 1);		\
-}									\
-static ssize_t set_fan_##offset##_div (struct device *dev, struct device_attribute *attr, 		\
-		const char *buf, size_t count) 				\
-{									\
-	return set_fan_div(dev, buf, count, offset - 1);		\
-}									\
-static DEVICE_ATTR(fan##offset##_input, S_IRUGO, show_fan_##offset, NULL);\
-static DEVICE_ATTR(fan##offset##_min, S_IRUGO | S_IWUSR, 		\
-		show_fan_##offset##_min, set_fan_##offset##_min);	\
-static DEVICE_ATTR(fan##offset##_div, S_IRUGO | S_IWUSR, 		\
-		show_fan_##offset##_div, set_fan_##offset##_div);
+static SENSOR_DEVICE_ATTR(fan##offset##_input, S_IRUGO,			\
+		show_fan, NULL, offset - 1);				\
+static SENSOR_DEVICE_ATTR(fan##offset##_min, S_IRUGO | S_IWUSR,		\
+		show_fan_min, set_fan_min, offset - 1);			\
+static SENSOR_DEVICE_ATTR(fan##offset##_div, S_IRUGO | S_IWUSR,		\
+		show_fan_div, set_fan_div, offset - 1);
 
 show_fan_offset(1);
 show_fan_offset(2);
@@ -570,38 +542,38 @@ static ssize_t show_name(struct device *dev, struct device_attribute
 static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
 
 static struct attribute *via686a_attributes[] = {
-	&dev_attr_in0_input.attr,
-	&dev_attr_in1_input.attr,
-	&dev_attr_in2_input.attr,
-	&dev_attr_in3_input.attr,
-	&dev_attr_in4_input.attr,
-	&dev_attr_in0_min.attr,
-	&dev_attr_in1_min.attr,
-	&dev_attr_in2_min.attr,
-	&dev_attr_in3_min.attr,
-	&dev_attr_in4_min.attr,
-	&dev_attr_in0_max.attr,
-	&dev_attr_in1_max.attr,
-	&dev_attr_in2_max.attr,
-	&dev_attr_in3_max.attr,
-	&dev_attr_in4_max.attr,
+	&sensor_dev_attr_in0_input.dev_attr.attr,
+	&sensor_dev_attr_in1_input.dev_attr.attr,
+	&sensor_dev_attr_in2_input.dev_attr.attr,
+	&sensor_dev_attr_in3_input.dev_attr.attr,
+	&sensor_dev_attr_in4_input.dev_attr.attr,
+	&sensor_dev_attr_in0_min.dev_attr.attr,
+	&sensor_dev_attr_in1_min.dev_attr.attr,
+	&sensor_dev_attr_in2_min.dev_attr.attr,
+	&sensor_dev_attr_in3_min.dev_attr.attr,
+	&sensor_dev_attr_in4_min.dev_attr.attr,
+	&sensor_dev_attr_in0_max.dev_attr.attr,
+	&sensor_dev_attr_in1_max.dev_attr.attr,
+	&sensor_dev_attr_in2_max.dev_attr.attr,
+	&sensor_dev_attr_in3_max.dev_attr.attr,
+	&sensor_dev_attr_in4_max.dev_attr.attr,
 
-	&dev_attr_temp1_input.attr,
-	&dev_attr_temp2_input.attr,
-	&dev_attr_temp3_input.attr,
-	&dev_attr_temp1_max.attr,
-	&dev_attr_temp2_max.attr,
-	&dev_attr_temp3_max.attr,
-	&dev_attr_temp1_max_hyst.attr,
-	&dev_attr_temp2_max_hyst.attr,
-	&dev_attr_temp3_max_hyst.attr,
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp2_input.dev_attr.attr,
+	&sensor_dev_attr_temp3_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	&sensor_dev_attr_temp2_max.dev_attr.attr,
+	&sensor_dev_attr_temp3_max.dev_attr.attr,
+	&sensor_dev_attr_temp1_max_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp2_max_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp3_max_hyst.dev_attr.attr,
 
-	&dev_attr_fan1_input.attr,
-	&dev_attr_fan2_input.attr,
-	&dev_attr_fan1_min.attr,
-	&dev_attr_fan2_min.attr,
-	&dev_attr_fan1_div.attr,
-	&dev_attr_fan2_div.attr,
+	&sensor_dev_attr_fan1_input.dev_attr.attr,
+	&sensor_dev_attr_fan2_input.dev_attr.attr,
+	&sensor_dev_attr_fan1_min.dev_attr.attr,
+	&sensor_dev_attr_fan2_min.dev_attr.attr,
+	&sensor_dev_attr_fan1_div.dev_attr.attr,
+	&sensor_dev_attr_fan2_div.dev_attr.attr,
 
 	&dev_attr_alarms.attr,
 	&dev_attr_name.attr,
