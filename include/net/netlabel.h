@@ -332,17 +332,15 @@ static inline int netlbl_secattr_catmap_setrng(
  */
 
 #ifdef CONFIG_NETLABEL
-int netlbl_socket_setattr(const struct socket *sock,
-			  const struct netlbl_lsm_secattr *secattr);
+int netlbl_sock_setattr(struct sock *sk,
+			const struct netlbl_lsm_secattr *secattr);
 int netlbl_sock_getattr(struct sock *sk,
 			struct netlbl_lsm_secattr *secattr);
-int netlbl_socket_getattr(const struct socket *sock,
-			  struct netlbl_lsm_secattr *secattr);
 int netlbl_skbuff_getattr(const struct sk_buff *skb,
 			  struct netlbl_lsm_secattr *secattr);
 void netlbl_skbuff_err(struct sk_buff *skb, int error);
 #else
-static inline int netlbl_socket_setattr(const struct socket *sock,
+static inline int netlbl_sock_setattr(struct sock *sk,
 				     const struct netlbl_lsm_secattr *secattr)
 {
 	return -ENOSYS;
@@ -350,12 +348,6 @@ static inline int netlbl_socket_setattr(const struct socket *sock,
 
 static inline int netlbl_sock_getattr(struct sock *sk,
 				      struct netlbl_lsm_secattr *secattr)
-{
-	return -ENOSYS;
-}
-
-static inline int netlbl_socket_getattr(const struct socket *sock,
-					struct netlbl_lsm_secattr *secattr)
 {
 	return -ENOSYS;
 }

@@ -246,19 +246,18 @@ int netlbl_secattr_catmap_setrng(struct netlbl_lsm_secattr_catmap *catmap,
 
 /**
  * netlbl_socket_setattr - Label a socket using the correct protocol
- * @sock: the socket to label
+ * @sk: the socket to label
  * @secattr: the security attributes
  *
  * Description:
  * Attach the correct label to the given socket using the security attributes
- * specified in @secattr.  This function requires exclusive access to
- * @sock->sk, which means it either needs to be in the process of being
- * created or locked via lock_sock(sock->sk).  Returns zero on success,
- * negative values on failure.
+ * specified in @secattr.  This function requires exclusive access to @sk,
+ * which means it either needs to be in the process of being created or locked.
+ * Returns zero on success, negative values on failure.
  *
  */
-int netlbl_socket_setattr(const struct socket *sock,
-			  const struct netlbl_lsm_secattr *secattr)
+int netlbl_sock_setattr(struct sock *sk,
+			const struct netlbl_lsm_secattr *secattr)
 {
 	int ret_val = -ENOENT;
 	struct netlbl_dom_map *dom_entry;
@@ -269,9 +268,9 @@ int netlbl_socket_setattr(const struct socket *sock,
 		goto socket_setattr_return;
 	switch (dom_entry->type) {
 	case NETLBL_NLTYPE_CIPSOV4:
-		ret_val = cipso_v4_socket_setattr(sock,
-						  dom_entry->type_def.cipsov4,
-						  secattr);
+		ret_val = cipso_v4_sock_setattr(sk,
+						dom_entry->type_def.cipsov4,
+						secattr);
 		break;
 	case NETLBL_NLTYPE_UNLABELED:
 		ret_val = 0;
@@ -302,30 +301,6 @@ int netlbl_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
 	int ret_val;
 
 	ret_val = cipso_v4_sock_getattr(sk, secattr);
-	if (ret_val == 0)
-		return 0;
-
-	return netlbl_unlabel_getattr(secattr);
-}
-
-/**
- * netlbl_socket_getattr - Determine the security attributes of a socket
- * @sock: the socket
- * @secattr: the security attributes
- *
- * Description:
- * Examines the given socket to see any NetLabel style labeling has been
- * applied to the socket, if so it parses the socket label and returns the
- * security attributes in @secattr.  Returns zero on success, negative values
- * on failure.
- *
- */
-int netlbl_socket_getattr(const struct socket *sock,
-			  struct netlbl_lsm_secattr *secattr)
-{
-	int ret_val;
-
-	ret_val = cipso_v4_socket_getattr(sock, secattr);
 	if (ret_val == 0)
 		return 0;
 
