@@ -180,10 +180,12 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj, char **envp,
 			const char *path;
 
 			path = kobject_get_path(&parent->kobj, GFP_KERNEL);
-			add_uevent_var(envp, num_envp, &i,
-				       buffer, buffer_size, &length,
-				       "PHYSDEVPATH=%s", path);
-			kfree(path);
+			if (path) {
+				add_uevent_var(envp, num_envp, &i,
+					       buffer, buffer_size, &length,
+					       "PHYSDEVPATH=%s", path);
+				kfree(path);
+			}
 
 			add_uevent_var(envp, num_envp, &i,
 				       buffer, buffer_size, &length,

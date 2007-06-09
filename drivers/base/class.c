@@ -369,36 +369,6 @@ char *make_class_name(const char *name, struct kobject *kobj)
 	return class_name;
 }
 
-static int deprecated_class_uevent(char **envp, int num_envp, int *cur_index,
-				   char *buffer, int buffer_size,
-				   int *cur_len,
-				   struct class_device *class_dev)
-{
-	struct device *dev = class_dev->dev;
-	char *path;
-
-	if (!dev)
-		return 0;
-
-	/* add device, backing this class device (deprecated) */
-	path = kobject_get_path(&dev->kobj, GFP_KERNEL);
-
-	add_uevent_var(envp, num_envp, cur_index, buffer, buffer_size,
-		       cur_len, "PHYSDEVPATH=%s", path);
-	kfree(path);
-
-	if (dev->bus)
-		add_uevent_var(envp, num_envp, cur_index,
-			       buffer, buffer_size, cur_len,
-			       "PHYSDEVBUS=%s", dev->bus->name);
-
-	if (dev->driver)
-		add_uevent_var(envp, num_envp, cur_index,
-			       buffer, buffer_size, cur_len,
-			       "PHYSDEVDRIVER=%s", dev->driver->name);
-	return 0;
-}
-
 static int make_deprecated_class_device_links(struct class_device *class_dev)
 {
 	char *class_name;
@@ -430,11 +400,6 @@ static void remove_deprecated_class_device_links(struct class_device *class_dev)
 	kfree(class_name);
 }
 #else
-static inline int deprecated_class_uevent(char **envp, int num_envp,
-					  int *cur_index, char *buffer,
-					  int buffer_size, int *cur_len,
-					  struct class_device *class_dev)
-{ return 0; }
 static inline int make_deprecated_class_device_links(struct class_device *cd)
 { return 0; }
 static void remove_deprecated_class_device_links(struct class_device *cd)
@@ -445,14 +410,12 @@ static int class_uevent(struct kset *kset, struct kobject *kobj, char **envp,
 			 int num_envp, char *buffer, int buffer_size)
 {
 	struct class_device *class_dev = to_class_dev(kobj);
+	struct device *dev = class_dev->dev;
 	int i = 0;
 	int length = 0;
 	int retval = 0;
 
 	pr_debug("%s - name = %s\n", __FUNCTION__, class_dev->class_id);
-
-	deprecated_class_uevent(envp, num_envp, &i, buffer, buffer_size,
-				&length, class_dev);
 
 	if (MAJOR(class_dev->devt)) {
 		add_uevent_var(envp, num_envp, &i,
@@ -462,6 +425,26 @@ static int class_uevent(struct kset *kset, struct kobject *kobj, char **envp,
 		add_uevent_var(envp, num_envp, &i,
 			       buffer, buffer_size, &length,
 			       "MINOR=%u", MINOR(class_dev->devt));
+	}
+
+	if (dev) {
+		const char *path = kobject_get_path(&dev->kobj, GFP_KERNEL);
+		if (path) {
+			add_uevent_var(envp, num_envp, &i,
+				       buffer, buffer_size, &length,
+				       "PHYSDEVPATH=%s", path);
+			kfree(path);
+		}
+
+		if (dev->bus)
+			add_uevent_var(envp, num_envp, &i,
+				       buffer, buffer_size, &length,
+				       "PHYSDEVBUS=%s", dev->bus->name);
+
+		if (dev->driver)
+			add_uevent_var(envp, num_envp, &i,
+				       buffer, buffer_size, &length,
+				       "PHYSDEVDRIVER=%s", dev->driver->name);
 	}
 
 	/* terminate, set to next free slot, shrink available space */

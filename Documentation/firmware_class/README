@@ -1,7 +1,7 @@
 
  request_firmware() hotplug interface:
  ------------------------------------
-	Copyright (C) 2003 Manuel Estrada Sainz <ranty@debian.org>
+	Copyright (C) 2003 Manuel Estrada Sainz
 
  Why:
  ---
