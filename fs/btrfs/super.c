@@ -2566,83 +2566,6 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	return 0;
 }
 
-static int add_disk(struct btrfs_root *root, char *name, int namelen)
-{
-	struct block_device *bdev;
-	struct btrfs_path *path;
-	struct super_block *sb = root->fs_info->sb;
-	struct btrfs_root *dev_root = root->fs_info->dev_root;
-	struct btrfs_trans_handle *trans;
-	struct btrfs_device_item *dev_item;
-	struct btrfs_key key;
-	u16 item_size;
-	u64 num_blocks;
-	u64 new_blocks;
-	u64 device_id;
-	int ret;
-
-printk("adding disk %s\n", name);
-	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
-	num_blocks = btrfs_super_total_blocks(root->fs_info->disk_super);
-	bdev = open_bdev_excl(name, O_RDWR, sb);
-	if (IS_ERR(bdev)) {
-		ret = PTR_ERR(bdev);
-printk("open bdev excl failed ret %d\n", ret);
-		goto out_nolock;
-	}
-	set_blocksize(bdev, sb->s_blocksize);
-	new_blocks = bdev->bd_inode->i_size >> sb->s_blocksize_bits;
-	key.objectid = num_blocks;
-	key.offset = new_blocks;
-	key.flags = 0;
-	btrfs_set_key_type(&key, BTRFS_DEV_ITEM_KEY);
-
-	mutex_lock(&dev_root->fs_info->fs_mutex);
-	trans = btrfs_start_transaction(dev_root, 1);
-	item_size = sizeof(*dev_item) + namelen;
-printk("insert empty on %Lu %Lu %u size %d\n", num_blocks, new_blocks, key.flags, item_size);
-	ret = btrfs_insert_empty_item(trans, dev_root, path, &key, item_size);
-	if (ret) {
-printk("insert failed %d\n", ret);
-		close_bdev_excl(bdev);
-		if (ret > 0)
-			ret = -EEXIST;
-		goto out;
-	}
-	dev_item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
-				  path->slots[0], struct btrfs_device_item);
-	btrfs_set_device_pathlen(dev_item, namelen);
-	memcpy(dev_item + 1, name, namelen);
-
-	device_id = btrfs_super_last_device_id(root->fs_info->disk_super) + 1;
-	btrfs_set_super_last_device_id(root->fs_info->disk_super, device_id);
-	btrfs_set_device_id(dev_item, device_id);
-	mark_buffer_dirty(path->nodes[0]);
-
-	ret = btrfs_insert_dev_radix(root, bdev, device_id, num_blocks,
-				     new_blocks);
-
-	if (!ret) {
-		btrfs_set_super_total_blocks(root->fs_info->disk_super,
-					     num_blocks + new_blocks);
-		i_size_write(root->fs_info->btree_inode,
-			     (num_blocks + new_blocks) <<
-			     root->fs_info->btree_inode->i_blkbits);
-	}
-
-out:
-	ret = btrfs_commit_transaction(trans, dev_root);
-	BUG_ON(ret);
-	mutex_unlock(&root->fs_info->fs_mutex);
-out_nolock:
-	btrfs_free_path(path);
-	btrfs_btree_balance_dirty(root);
-
-	return ret;
-}
-
 static int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
 		       cmd, unsigned long arg)
 {
@@ -2681,17 +2604,6 @@ static int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
 		else
 			ret = create_snapshot(root, vol_args.name, namelen);
 		WARN_ON(ret);
-		break;
-	case BTRFS_IOC_ADD_DISK:
-		if (copy_from_user(&vol_args,
-				   (struct btrfs_ioctl_vol_args __user *)arg,
-				   sizeof(vol_args)))
-			return -EFAULT;
-		namelen = strlen(vol_args.name);
-		if (namelen > BTRFS_VOL_NAME_MAX)
-			return -EINVAL;
-		vol_args.name[namelen] = '\0';
-		ret = add_disk(root, vol_args.name, namelen);
 		break;
 	default:
 		return -ENOTTY;
