@@ -6,6 +6,7 @@
               IT8712F  Super I/O chip w/LPC interface
               IT8716F  Super I/O chip w/LPC interface
               IT8718F  Super I/O chip w/LPC interface
+              IT8726F  Super I/O chip w/LPC interface
               Sis950   A clone of the IT8705F
 
     Copyright (C) 2001 Chris Gauthron <chrisg@0-in.com> 
@@ -97,6 +98,7 @@ superio_exit(void)
 #define IT8705F_DEVID 0x8705
 #define IT8716F_DEVID 0x8716
 #define IT8718F_DEVID 0x8718
+#define IT8726F_DEVID 0x8726
 #define IT87_ACT_REG  0x30
 #define IT87_BASE_REG 0x60
 
@@ -885,6 +887,7 @@ static int __init it87_find(unsigned short *address)
 	chip_type = superio_inw(DEVID);
 	if (chip_type != IT8712F_DEVID
 	 && chip_type != IT8716F_DEVID
+	 && chip_type != IT8726F_DEVID
 	 && chip_type != IT8718F_DEVID
 	 && chip_type != IT8705F_DEVID)
 	 	goto exit;
@@ -965,6 +968,8 @@ static int it87_detect(struct i2c_adapter *adapter)
 		data->type = it8712;
 		name = "it8712";
 		break;
+	case IT8726F_DEVID:
+	/* fall through */
 	case IT8716F_DEVID:
 		data->type = it8716;
 		name = "it8716";
@@ -1389,7 +1394,7 @@ static void __exit sm_it87_exit(void)
 
 MODULE_AUTHOR("Chris Gauthron <chrisg@0-in.com>, "
 	      "Jean Delvare <khali@linux-fr.org>");
-MODULE_DESCRIPTION("IT8705F/8712F/8716F/8718F, SiS950 driver");
+MODULE_DESCRIPTION("IT8705F/8712F/8716F/8718F/8726F, SiS950 driver");
 module_param(update_vbat, bool, 0);
 MODULE_PARM_DESC(update_vbat, "Update vbat if set else return powerup value");
 module_param(fix_pwm_polarity, bool, 0);
