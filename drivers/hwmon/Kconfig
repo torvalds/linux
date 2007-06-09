@@ -405,8 +405,6 @@ config SENSORS_MAX6650
 
 config SENSORS_PC87360
 	tristate "National Semiconductor PC87360 family"
-	depends on I2C && EXPERIMENTAL
-	select I2C_ISA
 	select HWMON_VID
 	help
 	  If you say yes here you get access to the hardware monitoring
