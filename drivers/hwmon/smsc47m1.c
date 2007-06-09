@@ -693,15 +693,12 @@ static int __init smsc47m1_device_add(unsigned short address,
 		goto exit_device_put;
 	}
 
-	pdev->dev.platform_data = kmalloc(sizeof(struct smsc47m1_sio_data),
-					  GFP_KERNEL);
-	if (!pdev->dev.platform_data) {
-		err = -ENOMEM;
+	err = platform_device_add_data(pdev, sio_data,
+				       sizeof(struct smsc47m1_sio_data));
+	if (err) {
 		printk(KERN_ERR DRVNAME ": Platform data allocation failed\n");
 		goto exit_device_put;
 	}
-	memcpy(pdev->dev.platform_data, sio_data,
-	       sizeof(struct smsc47m1_sio_data));
 
 	err = platform_device_add(pdev);
 	if (err) {
