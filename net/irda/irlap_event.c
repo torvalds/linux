@@ -1418,14 +1418,14 @@ static int irlap_state_nrm_p(struct irlap_cb *self, IRLAP_EVENT event,
 		 */
 		self->remote_busy = FALSE;
 
+		/* Stop final timer */
+		del_timer(&self->final_timer);
+
 		/*
 		 *  Nr as expected?
 		 */
 		ret = irlap_validate_nr_received(self, info->nr);
 		if (ret == NR_EXPECTED) {
-			/* Stop final timer */
-			del_timer(&self->final_timer);
-
 			/* Update Nr received */
 			irlap_update_nr_received(self, info->nr);
 
@@ -1457,14 +1457,12 @@ static int irlap_state_nrm_p(struct irlap_cb *self, IRLAP_EVENT event,
 
 			/* Resend rejected frames */
 			irlap_resend_rejected_frames(self, CMD_FRAME);
-
-			/* Final timer ??? Jean II */
+			irlap_start_final_timer(self, self->final_timeout * 2);
 
 			irlap_next_state(self, LAP_NRM_P);
 		} else if (ret == NR_INVALID) {
 			IRDA_DEBUG(1, "%s(), Received RR with "
 				   "invalid nr !\n", __FUNCTION__);
-			del_timer(&self->final_timer);
 
 			irlap_next_state(self, LAP_RESET_WAIT);
 
