@@ -61,6 +61,7 @@ nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res)
 			status);
 	else
 		status = 0;
+	rpc_shutdown_client(clnt);
  out:
 	return status;
 }
@@ -138,7 +139,6 @@ nsm_create(void)
 		.program	= &nsm_program,
 		.version	= SM_VERSION,
 		.authflavor	= RPC_AUTH_NULL,
-		.flags		= (RPC_CLNT_CREATE_ONESHOT),
 	};
 
 	return rpc_create(&args);

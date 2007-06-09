@@ -249,8 +249,6 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 		clnt->cl_intr = 1;
 	if (args->flags & RPC_CLNT_CREATE_AUTOBIND)
 		clnt->cl_autobind = 1;
-	if (args->flags & RPC_CLNT_CREATE_ONESHOT)
-		clnt->cl_oneshot = 1;
 	if (args->flags & RPC_CLNT_CREATE_DISCRTRY)
 		clnt->cl_discrtry = 1;
 
@@ -285,7 +283,6 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	new->cl_xprt = xprt_get(clnt->cl_xprt);
 	/* Turn off autobind on clones */
 	new->cl_autobind = 0;
-	new->cl_oneshot = 0;
 	INIT_LIST_HEAD(&new->cl_tasks);
 	spin_lock_init(&new->cl_lock);
 	rpc_init_rtt(&new->cl_rtt_default, clnt->cl_xprt->timeout.to_initval);
@@ -304,8 +301,7 @@ out_no_clnt:
 
 /*
  * Properly shut down an RPC client, terminating all outstanding
- * requests. Note that we must be certain that cl_oneshot is cleared,
- * or else the client would be destroyed when the last task releases it.
+ * requests.
  */
 int
 rpc_shutdown_client(struct rpc_clnt *clnt)
@@ -314,8 +310,6 @@ rpc_shutdown_client(struct rpc_clnt *clnt)
 			clnt->cl_protname, clnt->cl_server);
 
 	while (!list_empty(&clnt->cl_tasks)) {
-		/* Don't let rpc_release_client destroy us */
-		clnt->cl_oneshot = 0;
 		rpc_killall_tasks(clnt);
 		wait_event_timeout(destroy_wait,
 			list_empty(&clnt->cl_tasks), 1*HZ);
@@ -366,8 +360,6 @@ rpc_release_client(struct rpc_clnt *clnt)
 
 	if (list_empty(&clnt->cl_tasks))
 		wake_up(&destroy_wait);
-	if (clnt->cl_oneshot)
-		rpc_destroy_client(clnt);
 	kref_put(&clnt->cl_kref, rpc_free_client);
 }
 

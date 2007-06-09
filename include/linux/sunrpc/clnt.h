@@ -44,8 +44,7 @@ struct rpc_clnt {
 	unsigned int		cl_softrtry : 1,/* soft timeouts */
 				cl_intr     : 1,/* interruptible */
 				cl_discrtry : 1,/* disconnect before retry */
-				cl_autobind : 1,/* use getport() */
-				cl_oneshot  : 1;/* dispose after use */
+				cl_autobind : 1;/* use getport() */
 
 	struct rpc_rtt *	cl_rtt;		/* RTO estimator data */
 
@@ -112,10 +111,9 @@ struct rpc_create_args {
 #define RPC_CLNT_CREATE_HARDRTRY	(1UL << 0)
 #define RPC_CLNT_CREATE_INTR		(1UL << 1)
 #define RPC_CLNT_CREATE_AUTOBIND	(1UL << 2)
-#define RPC_CLNT_CREATE_ONESHOT		(1UL << 3)
-#define RPC_CLNT_CREATE_NONPRIVPORT	(1UL << 4)
-#define RPC_CLNT_CREATE_NOPING		(1UL << 5)
-#define RPC_CLNT_CREATE_DISCRTRY	(1UL << 6)
+#define RPC_CLNT_CREATE_NONPRIVPORT	(1UL << 3)
+#define RPC_CLNT_CREATE_NOPING		(1UL << 4)
+#define RPC_CLNT_CREATE_DISCRTRY	(1UL << 5)
 
 struct rpc_clnt *rpc_create(struct rpc_create_args *args);
 struct rpc_clnt	*rpc_bind_new_program(struct rpc_clnt *,

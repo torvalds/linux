@@ -69,6 +69,7 @@ nfsroot_mount(struct sockaddr_in *addr, char *path, struct nfs_fh *fh,
 		msg.rpc_proc = &mnt_clnt->cl_procinfo[MNTPROC_MNT];
 
 	status = rpc_call_sync(mnt_clnt, &msg, 0);
+	rpc_shutdown_client(mnt_clnt);
 	return status < 0? status : (result.status? -EACCES : 0);
 }
 
@@ -84,8 +85,7 @@ mnt_create(char *hostname, struct sockaddr_in *srvaddr, int version,
 		.program	= &mnt_program,
 		.version	= version,
 		.authflavor	= RPC_AUTH_UNIX,
-		.flags		= (RPC_CLNT_CREATE_ONESHOT |
-				   RPC_CLNT_CREATE_INTR),
+		.flags		= RPC_CLNT_CREATE_INTR,
 	};
 
 	return rpc_create(&args);

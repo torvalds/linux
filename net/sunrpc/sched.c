@@ -876,9 +876,7 @@ static void rpc_free_task(struct rcu_head *rcu)
 }
 
 /*
- * Create a new task for the specified client.  We have to
- * clean up after an allocation failure, as the client may
- * have specified "oneshot".
+ * Create a new task for the specified client.
  */
 struct rpc_task *rpc_new_task(struct rpc_clnt *clnt, int flags, const struct rpc_call_ops *tk_ops, void *calldata)
 {
@@ -886,7 +884,7 @@ struct rpc_task *rpc_new_task(struct rpc_clnt *clnt, int flags, const struct rpc
 
 	task = rpc_alloc_task();
 	if (!task)
-		goto cleanup;
+		goto out;
 
 	rpc_init_task(task, clnt, flags, tk_ops, calldata);
 
@@ -894,14 +892,6 @@ struct rpc_task *rpc_new_task(struct rpc_clnt *clnt, int flags, const struct rpc
 	task->tk_flags |= RPC_TASK_DYNAMIC;
 out:
 	return task;
-
-cleanup:
-	/* Check whether to release the client */
-	if (clnt) {
-		kref_get(&clnt->cl_kref); /* pretend we were used ... */
-		rpc_release_client(clnt);
-	}
-	goto out;
 }
 
 

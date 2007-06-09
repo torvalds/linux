@@ -184,8 +184,7 @@ static struct rpc_clnt *rpcb_create(char *hostname, struct sockaddr *srvaddr,
 		.program	= &rpcb_program,
 		.version	= version,
 		.authflavor	= RPC_AUTH_UNIX,
-		.flags		= (RPC_CLNT_CREATE_ONESHOT |
-				   RPC_CLNT_CREATE_NOPING),
+		.flags		= RPC_CLNT_CREATE_NOPING,
 	};
 
 	((struct sockaddr_in *)srvaddr)->sin_port = htons(RPCBIND_PORT);
@@ -238,6 +237,7 @@ int rpcb_register(u32 prog, u32 vers, int prot, unsigned short port, int *okay)
 
 	error = rpc_call_sync(rpcb_clnt, &msg, 0);
 
+	rpc_shutdown_client(rpcb_clnt);
 	if (error < 0)
 		printk(KERN_WARNING "RPC: failed to contact local rpcbind "
 				"server (errno %d).\n", -error);
@@ -286,6 +286,7 @@ int rpcb_getport_external(struct sockaddr_in *sin, __u32 prog,
 		return PTR_ERR(rpcb_clnt);
 
 	status = rpc_call_sync(rpcb_clnt, &msg, 0);
+	rpc_shutdown_client(rpcb_clnt);
 
 	if (status >= 0) {
 		if (map.r_port != 0)
@@ -379,6 +380,7 @@ void rpcb_getport(struct rpc_task *task)
 	}
 
 	child = rpc_run_task(rpcb_clnt, RPC_TASK_ASYNC, &rpcb_getport_ops, map);
+	rpc_destroy_client(rpcb_clnt);
 	if (IS_ERR(child)) {
 		status = -EIO;
 		dprintk("RPC: %5u rpcb_getport rpc_run_task failed\n",
