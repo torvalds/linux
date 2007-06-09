@@ -429,7 +429,7 @@ static DEVICE_ATTR(pec, S_IWUSR | S_IRUGO, show_pec, set_pec);
  */
 
 /* The ADM1032 supports PEC but not on write byte transactions, so we need
-   to explicitely ask for a transaction without PEC. */
+   to explicitly ask for a transaction without PEC. */
 static inline s32 adm1032_write_byte(struct i2c_client *client, u8 value)
 {
 	return i2c_smbus_xfer(client->adapter, client->addr,

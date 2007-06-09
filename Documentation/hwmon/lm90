@@ -141,7 +141,7 @@ SMBus Read Byte, and PEC will work properly.
 Additionally, the ADM1032 doesn't support SMBus Send Byte with PEC.
 Instead, it will try to write the PEC value to the register (because the
 SMBus Send Byte transaction with PEC is similar to a Write Byte transaction
-without PEC), which is not what we want. Thus, PEC is explicitely disabled
+without PEC), which is not what we want. Thus, PEC is explicitly disabled
 on SMBus Send Byte transactions in the lm90 driver.
 
 PEC on byte data transactions represents a significant increase in bandwidth
