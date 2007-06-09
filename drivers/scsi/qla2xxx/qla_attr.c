@@ -11,8 +11,9 @@
 /* SYSFS attributes --------------------------------------------------------- */
 
 static ssize_t
-qla2x00_sysfs_read_fw_dump(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_read_fw_dump(struct kobject *kobj,
+			   struct bin_attribute *bin_attr,
+			   char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -31,8 +32,9 @@ qla2x00_sysfs_read_fw_dump(struct kobject *kobj, char *buf, loff_t off,
 }
 
 static ssize_t
-qla2x00_sysfs_write_fw_dump(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_write_fw_dump(struct kobject *kobj,
+			    struct bin_attribute *bin_attr,
+			    char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -80,8 +82,9 @@ static struct bin_attribute sysfs_fw_dump_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_nvram(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_read_nvram(struct kobject *kobj,
+			 struct bin_attribute *bin_attr,
+			 char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -100,8 +103,9 @@ qla2x00_sysfs_read_nvram(struct kobject *kobj, char *buf, loff_t off,
 }
 
 static ssize_t
-qla2x00_sysfs_write_nvram(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_write_nvram(struct kobject *kobj,
+			  struct bin_attribute *bin_attr,
+			  char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -155,8 +159,9 @@ static struct bin_attribute sysfs_nvram_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_optrom(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_read_optrom(struct kobject *kobj,
+			  struct bin_attribute *bin_attr,
+			  char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -174,8 +179,9 @@ qla2x00_sysfs_read_optrom(struct kobject *kobj, char *buf, loff_t off,
 }
 
 static ssize_t
-qla2x00_sysfs_write_optrom(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_write_optrom(struct kobject *kobj,
+			   struct bin_attribute *bin_attr,
+			   char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -203,8 +209,9 @@ static struct bin_attribute sysfs_optrom_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
+			       struct bin_attribute *bin_attr,
+			       char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -282,8 +289,9 @@ static struct bin_attribute sysfs_optrom_ctl_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_vpd(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_read_vpd(struct kobject *kobj,
+		       struct bin_attribute *bin_attr,
+		       char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -301,8 +309,9 @@ qla2x00_sysfs_read_vpd(struct kobject *kobj, char *buf, loff_t off,
 }
 
 static ssize_t
-qla2x00_sysfs_write_vpd(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_write_vpd(struct kobject *kobj,
+			struct bin_attribute *bin_attr,
+			char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -330,8 +339,9 @@ static struct bin_attribute sysfs_vpd_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_sfp(struct kobject *kobj, char *buf, loff_t off,
-    size_t count)
+qla2x00_sysfs_read_sfp(struct kobject *kobj,
+		       struct bin_attribute *bin_attr,
+		       char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));

@@ -40,7 +40,7 @@ fill_read(struct dentry *dentry, char *buffer, loff_t off, size_t count)
 
 	rc = -EIO;
 	if (attr->read)
-		rc = attr->read(kobj, buffer, off, count);
+		rc = attr->read(kobj, attr, buffer, off, count);
 
 	sysfs_put_active_two(attr_sd);
 
@@ -97,7 +97,7 @@ flush_write(struct dentry *dentry, char *buffer, loff_t offset, size_t count)
 
 	rc = -EIO;
 	if (attr->write)
-		rc = attr->write(kobj, buffer, offset, count);
+		rc = attr->write(kobj, attr, buffer, offset, count);
 
 	sysfs_put_active_two(attr_sd);
 

@@ -213,7 +213,8 @@ struct device_attribute pci_dev_attrs[] = {
 };
 
 static ssize_t
-pci_read_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
+pci_read_config(struct kobject *kobj, struct bin_attribute *bin_attr,
+		char *buf, loff_t off, size_t count)
 {
 	struct pci_dev *dev = to_pci_dev(container_of(kobj,struct device,kobj));
 	unsigned int size = 64;
@@ -285,7 +286,8 @@ pci_read_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
 }
 
 static ssize_t
-pci_write_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
+pci_write_config(struct kobject *kobj, struct bin_attribute *bin_attr,
+		 char *buf, loff_t off, size_t count)
 {
 	struct pci_dev *dev = to_pci_dev(container_of(kobj,struct device,kobj));
 	unsigned int size = count;
@@ -352,7 +354,8 @@ pci_write_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
  * callback routine (pci_legacy_read).
  */
 ssize_t
-pci_read_legacy_io(struct kobject *kobj, char *buf, loff_t off, size_t count)
+pci_read_legacy_io(struct kobject *kobj, struct bin_attribute *bin_attr,
+		   char *buf, loff_t off, size_t count)
 {
         struct pci_bus *bus = to_pci_bus(container_of(kobj,
                                                       struct class_device,
@@ -376,7 +379,8 @@ pci_read_legacy_io(struct kobject *kobj, char *buf, loff_t off, size_t count)
  * callback routine (pci_legacy_write).
  */
 ssize_t
-pci_write_legacy_io(struct kobject *kobj, char *buf, loff_t off, size_t count)
+pci_write_legacy_io(struct kobject *kobj, struct bin_attribute *bin_attr,
+		    char *buf, loff_t off, size_t count)
 {
         struct pci_bus *bus = to_pci_bus(container_of(kobj,
 						      struct class_device,
@@ -528,7 +532,8 @@ static inline void pci_remove_resource_files(struct pci_dev *dev) { return; }
  * writing anything except 0 enables it
  */
 static ssize_t
-pci_write_rom(struct kobject *kobj, char *buf, loff_t off, size_t count)
+pci_write_rom(struct kobject *kobj, struct bin_attribute *bin_attr,
+	      char *buf, loff_t off, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(container_of(kobj, struct device, kobj));
 
@@ -551,7 +556,8 @@ pci_write_rom(struct kobject *kobj, char *buf, loff_t off, size_t count)
  * device corresponding to @kobj.
  */
 static ssize_t
-pci_read_rom(struct kobject *kobj, char *buf, loff_t off, size_t count)
+pci_read_rom(struct kobject *kobj, struct bin_attribute *bin_attr,
+	     char *buf, loff_t off, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(container_of(kobj, struct device, kobj));
 	void __iomem *rom;

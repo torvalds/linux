@@ -258,8 +258,9 @@ static const struct rtc_class_ops ds1553_rtc_ops = {
 	.ioctl		= ds1553_rtc_ioctl,
 };
 
-static ssize_t ds1553_nvram_read(struct kobject *kobj, char *buf,
-				 loff_t pos, size_t size)
+static ssize_t ds1553_nvram_read(struct kobject *kobj,
+				 struct bin_attribute *bin_attr,
+				 char *buf, loff_t pos, size_t size)
 {
 	struct platform_device *pdev =
 		to_platform_device(container_of(kobj, struct device, kobj));
@@ -272,8 +273,9 @@ static ssize_t ds1553_nvram_read(struct kobject *kobj, char *buf,
 	return count;
 }
 
-static ssize_t ds1553_nvram_write(struct kobject *kobj, char *buf,
-				  loff_t pos, size_t size)
+static ssize_t ds1553_nvram_write(struct kobject *kobj,
+				  struct bin_attribute *bin_attr,
+				  char *buf, loff_t pos, size_t size)
 {
 	struct platform_device *pdev =
 		to_platform_device(container_of(kobj, struct device, kobj));

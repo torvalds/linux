@@ -543,8 +543,9 @@ static ssize_t read_rbu_mono_data(char *buffer, loff_t pos, size_t count)
 	return ret_count;
 }
 
-static ssize_t read_rbu_data(struct kobject *kobj, char *buffer,
-	loff_t pos, size_t count)
+static ssize_t read_rbu_data(struct kobject *kobj,
+			     struct bin_attribute *bin_attr,
+			     char *buffer, loff_t pos, size_t count)
 {
 	ssize_t ret_count = 0;
 
@@ -591,8 +592,9 @@ static void callbackfn_rbu(const struct firmware *fw, void *context)
 	spin_unlock(&rbu_data.lock);
 }
 
-static ssize_t read_rbu_image_type(struct kobject *kobj, char *buffer,
-	loff_t pos, size_t count)
+static ssize_t read_rbu_image_type(struct kobject *kobj,
+				   struct bin_attribute *bin_attr,
+				   char *buffer, loff_t pos, size_t count)
 {
 	int size = 0;
 	if (!pos)
@@ -600,8 +602,9 @@ static ssize_t read_rbu_image_type(struct kobject *kobj, char *buffer,
 	return size;
 }
 
-static ssize_t write_rbu_image_type(struct kobject *kobj, char *buffer,
-	loff_t pos, size_t count)
+static ssize_t write_rbu_image_type(struct kobject *kobj,
+				    struct bin_attribute *bin_attr,
+				    char *buffer, loff_t pos, size_t count)
 {
 	int rc = count;
 	int req_firm_rc = 0;
@@ -660,8 +663,9 @@ static ssize_t write_rbu_image_type(struct kobject *kobj, char *buffer,
 	return rc;
 }
 
-static ssize_t read_rbu_packet_size(struct kobject *kobj, char *buffer,
-	loff_t pos, size_t count)
+static ssize_t read_rbu_packet_size(struct kobject *kobj,
+				    struct bin_attribute *bin_attr,
+				    char *buffer, loff_t pos, size_t count)
 {
 	int size = 0;
 	if (!pos) {
@@ -672,8 +676,9 @@ static ssize_t read_rbu_packet_size(struct kobject *kobj, char *buffer,
 	return size;
 }
 
-static ssize_t write_rbu_packet_size(struct kobject *kobj, char *buffer,
-	loff_t pos, size_t count)
+static ssize_t write_rbu_packet_size(struct kobject *kobj,
+				     struct bin_attribute *bin_attr,
+				     char *buffer, loff_t pos, size_t count)
 {
 	unsigned long temp;
 	spin_lock(&rbu_data.lock);
