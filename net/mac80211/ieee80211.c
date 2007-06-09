@@ -5095,7 +5095,7 @@ int ieee80211_register_hwmode(struct ieee80211_hw *hw,
 	}
 
 	if (!(hw->flags & IEEE80211_HW_DEFAULT_REG_DOMAIN_CONFIGURED))
-		ieee80211_init_client(local->mdev);
+		ieee80211_set_default_regdomain(mode);
 
 	return 0;
 }
@@ -5246,6 +5246,7 @@ static int __init ieee80211_init(void)
 	}
 
 	ieee80211_debugfs_netdev_init();
+	ieee80211_regdomain_init();
 
 	return 0;
 }
