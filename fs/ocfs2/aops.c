@@ -798,6 +798,11 @@ int ocfs2_map_and_write_splice_data(struct inode *inode,
 	}
 	to = from + bytes;
 
+	BUG_ON(from > PAGE_CACHE_SIZE);
+	BUG_ON(to > PAGE_CACHE_SIZE);
+	BUG_ON(from < cluster_start);
+	BUG_ON(to > cluster_end);
+
 	if (wc->w_this_page_new)
 		ret = ocfs2_map_page_blocks(wc->w_this_page, p_blkno, inode,
 					    cluster_start, cluster_end, 1);
@@ -808,11 +813,6 @@ int ocfs2_map_and_write_splice_data(struct inode *inode,
 		mlog_errno(ret);
 		goto out;
 	}
-
-	BUG_ON(from > PAGE_CACHE_SIZE);
-	BUG_ON(to > PAGE_CACHE_SIZE);
-	BUG_ON(from > osb->s_clustersize);
-	BUG_ON(to > osb->s_clustersize);
 
 	src = buf->ops->map(sp->s_pipe, buf, 1);
 	dst = kmap_atomic(wc->w_this_page, KM_USER1);
@@ -890,6 +890,11 @@ int ocfs2_map_and_write_user_data(struct inode *inode,
 
 	to = from + bytes;
 
+	BUG_ON(from > PAGE_CACHE_SIZE);
+	BUG_ON(to > PAGE_CACHE_SIZE);
+	BUG_ON(from < cluster_start);
+	BUG_ON(to > cluster_end);
+
 	if (wc->w_this_page_new)
 		ret = ocfs2_map_page_blocks(wc->w_this_page, p_blkno, inode,
 					    cluster_start, cluster_end, 1);
@@ -900,11 +905,6 @@ int ocfs2_map_and_write_user_data(struct inode *inode,
 		mlog_errno(ret);
 		goto out;
 	}
-
-	BUG_ON(from > PAGE_CACHE_SIZE);
-	BUG_ON(to > PAGE_CACHE_SIZE);
-	BUG_ON(from > osb->s_clustersize);
-	BUG_ON(to > osb->s_clustersize);
 
 	dst = kmap(wc->w_this_page);
 	memcpy(dst + from, bp->b_src_buf + src_from, bytes);
