@@ -1283,6 +1283,12 @@ M:	tori@unhappy.mine.nu
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+DME1737 HARDWARE MONITOR DRIVER
+P:	Juerg Haefliger
+M:	juergh@gmail.com
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 DOCBOOK FOR DOCUMENTATION
 P:	Randy Dunlap
 M:	rdunlap@xenotime.net
