@@ -313,8 +313,8 @@ config USB_KC2190
 	boolean "KT Technology KC2190 based cables (InstaNet)"
 	depends on USB_NET_CDC_SUBSET && EXPERIMENTAL
 	help
-	  Choose this option if you're using a host-to-host cable
-	  with one of these chips.
+	  Choose this option if you're using a host-to-host cable
+	  with one of these chips.
 
 config USB_NET_ZAURUS
 	tristate "Sharp Zaurus (stock ROMs) and compatible"
