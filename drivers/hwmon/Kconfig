@@ -442,6 +442,18 @@ config SENSORS_SIS5595
 	  This driver can also be built as a module.  If so, the module
 	  will be called sis5595.
 
+config SENSORS_DME1737
+	tristate "SMSC DME1737 and compatibles"
+	depends on I2C && EXPERIMENTAL
+	select HWMON_VID
+	help
+	  If you say yes here you get support for the hardware monitoring
+	  and fan control features of the SMSC DME1737 (and compatibles
+	  like the Asus A8000) Super-I/O chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called dme1737.
+
 config SENSORS_SMSC47M1
 	tristate "SMSC LPC47M10x and compatibles"
 	help
