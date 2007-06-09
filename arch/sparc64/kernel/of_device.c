@@ -343,6 +343,15 @@ static int of_bus_simba_match(struct device_node *np)
 
 	if (model && !strcmp(model, "SUNW,simba"))
 		return 1;
+
+	/* Treat PCI busses lacking ranges property just like
+	 * simba.
+	 */
+	if (!strcmp(np->type, "pci") || !strcmp(np->type, "pciex")) {
+		if (!of_find_property(np, "ranges", NULL))
+			return 1;
+	}
+
 	return 0;
 }
 
@@ -549,8 +558,6 @@ static int __init build_one_resource(struct device_node *parent,
 
 static int __init use_1to1_mapping(struct device_node *pp)
 {
-	const char *model;
-
 	/* If this is on the PMU bus, don't try to translate it even
 	 * if a ranges property exists.
 	 */
@@ -567,9 +574,11 @@ static int __init use_1to1_mapping(struct device_node *pp)
 	if (!strcmp(pp->name, "dma"))
 		return 0;
 
-	/* Similarly for Simba PCI bridges.  */
-	model = of_get_property(pp, "model", NULL);
-	if (model && !strcmp(model, "SUNW,simba"))
+	/* Similarly for all PCI bridges, if we get this far
+	 * it lacks a ranges property, and this will include
+	 * cases like Simba.
+	 */
+	if (!strcmp(pp->type, "pci") || !strcmp(pp->type, "pciex"))
 		return 0;
 
 	return 1;
