@@ -985,7 +985,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	 * transfer direction not handled.
 	 */
 	if (cmd->sc_data_direction == DMA_BIDIRECTIONAL) {
-		fw_error("Cannot handle DMA_BIDIRECTIONAL - rejecting command");
+		fw_error("Can't handle DMA_BIDIRECTIONAL, rejecting command\n");
 		cmd->result = DID_ERROR << 16;
 		done(cmd);
 		return 0;

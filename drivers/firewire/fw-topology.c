@@ -214,7 +214,7 @@ static struct fw_node *build_tree(struct fw_card *card,
 
 		node = fw_node_create(q, port_count, card->color);
 		if (node == NULL) {
-			fw_error("Out of memory while building topology.");
+			fw_error("Out of memory while building topology.\n");
 			return NULL;
 		}
 
