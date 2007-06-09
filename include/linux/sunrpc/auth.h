@@ -143,7 +143,8 @@ int			rpcauth_refreshcred(struct rpc_task *);
 void			rpcauth_invalcred(struct rpc_task *);
 int			rpcauth_uptodatecred(struct rpc_task *);
 int			rpcauth_init_credcache(struct rpc_auth *, unsigned long);
-void			rpcauth_free_credcache(struct rpc_auth *);
+void			rpcauth_destroy_credcache(struct rpc_auth *);
+void			rpcauth_clear_credcache(struct rpc_cred_cache *);
 
 static inline
 struct rpc_cred *	get_rpccred(struct rpc_cred *cred)

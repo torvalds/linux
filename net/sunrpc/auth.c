@@ -137,9 +137,8 @@ void rpcauth_destroy_credlist(struct hlist_head *head)
  * that are not referenced.
  */
 void
-rpcauth_free_credcache(struct rpc_auth *auth)
+rpcauth_clear_credcache(struct rpc_cred_cache *cache)
 {
-	struct rpc_cred_cache *cache = auth->au_credcache;
 	HLIST_HEAD(free);
 	struct hlist_node *pos, *next;
 	struct rpc_cred	*cred;
@@ -155,6 +154,21 @@ rpcauth_free_credcache(struct rpc_auth *auth)
 	}
 	spin_unlock(&rpc_credcache_lock);
 	rpcauth_destroy_credlist(&free);
+}
+
+/*
+ * Destroy the RPC credential cache
+ */
+void
+rpcauth_destroy_credcache(struct rpc_auth *auth)
+{
+	struct rpc_cred_cache *cache = auth->au_credcache;
+
+	if (cache) {
+		auth->au_credcache = NULL;
+		rpcauth_clear_credcache(cache);
+		kfree(cache);
+	}
 }
 
 static void

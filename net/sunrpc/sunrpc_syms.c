@@ -57,7 +57,7 @@ EXPORT_SYMBOL(rpcauth_unregister);
 EXPORT_SYMBOL(rpcauth_create);
 EXPORT_SYMBOL(rpcauth_lookupcred);
 EXPORT_SYMBOL(rpcauth_lookup_credcache);
-EXPORT_SYMBOL(rpcauth_free_credcache);
+EXPORT_SYMBOL(rpcauth_destroy_credcache);
 EXPORT_SYMBOL(rpcauth_init_credcache);
 EXPORT_SYMBOL(put_rpccred);
 

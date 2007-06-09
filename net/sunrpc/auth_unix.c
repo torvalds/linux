@@ -50,7 +50,7 @@ static void
 unx_destroy(struct rpc_auth *auth)
 {
 	dprintk("RPC:       destroying UNIX authenticator %p\n", auth);
-	rpcauth_free_credcache(auth);
+	rpcauth_clear_credcache(auth->au_credcache);
 }
 
 /*

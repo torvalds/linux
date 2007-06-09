@@ -665,12 +665,13 @@ gss_destroy(struct rpc_auth *auth)
 	dprintk("RPC:       destroying GSS authenticator %p flavor %d\n",
 			auth, auth->au_flavor);
 
+	rpcauth_destroy_credcache(auth);
+
 	gss_auth = container_of(auth, struct gss_auth, rpc_auth);
 	rpc_unlink(gss_auth->dentry);
 	gss_auth->dentry = NULL;
 	gss_mech_put(gss_auth->mech);
 
-	rpcauth_free_credcache(auth);
 	kfree(gss_auth);
 	module_put(THIS_MODULE);
 }
