@@ -636,10 +636,6 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 	auth->au_flavor = flavor;
 	atomic_set(&auth->au_count, 1);
 
-	err = rpcauth_init_credcache(auth, GSS_CRED_EXPIRE);
-	if (err)
-		goto err_put_mech;
-
 	gss_auth->dentry = rpc_mkpipe(clnt->cl_dentry, gss_auth->mech->gm_name,
 			clnt, &gss_upcall_ops, RPC_PIPE_WAIT_FOR_OPEN);
 	if (IS_ERR(gss_auth->dentry)) {
@@ -647,7 +643,13 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 		goto err_put_mech;
 	}
 
+	err = rpcauth_init_credcache(auth, GSS_CRED_EXPIRE);
+	if (err)
+		goto err_unlink_pipe;
+
 	return auth;
+err_unlink_pipe:
+	rpc_unlink(gss_auth->dentry);
 err_put_mech:
 	gss_mech_put(gss_auth->mech);
 err_free:
