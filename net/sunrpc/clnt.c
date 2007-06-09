@@ -286,7 +286,6 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	/* Turn off autobind on clones */
 	new->cl_autobind = 0;
 	new->cl_oneshot = 0;
-	new->cl_dead = 0;
 	INIT_LIST_HEAD(&new->cl_tasks);
 	spin_lock_init(&new->cl_lock);
 	rpc_init_rtt(&new->cl_rtt_default, clnt->cl_xprt->timeout.to_initval);
@@ -305,9 +304,8 @@ out_no_clnt:
 
 /*
  * Properly shut down an RPC client, terminating all outstanding
- * requests. Note that we must be certain that cl_oneshot and
- * cl_dead are cleared, or else the client would be destroyed
- * when the last task releases it.
+ * requests. Note that we must be certain that cl_oneshot is cleared,
+ * or else the client would be destroyed when the last task releases it.
  */
 int
 rpc_shutdown_client(struct rpc_clnt *clnt)
@@ -318,7 +316,6 @@ rpc_shutdown_client(struct rpc_clnt *clnt)
 	while (!list_empty(&clnt->cl_tasks)) {
 		/* Don't let rpc_release_client destroy us */
 		clnt->cl_oneshot = 0;
-		clnt->cl_dead = 0;
 		rpc_killall_tasks(clnt);
 		wait_event_timeout(destroy_wait,
 			list_empty(&clnt->cl_tasks), 1*HZ);
@@ -369,7 +366,7 @@ rpc_release_client(struct rpc_clnt *clnt)
 
 	if (list_empty(&clnt->cl_tasks))
 		wake_up(&destroy_wait);
-	if (clnt->cl_oneshot || clnt->cl_dead)
+	if (clnt->cl_oneshot)
 		rpc_destroy_client(clnt);
 	kref_put(&clnt->cl_kref, rpc_free_client);
 }
@@ -483,10 +480,6 @@ int rpc_call_sync(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 	sigset_t	oldset;
 	int		status;
 
-	/* If this client is slain all further I/O fails */
-	if (clnt->cl_dead)
-		return -EIO;
-
 	BUG_ON(flags & RPC_TASK_ASYNC);
 
 	task = rpc_new_task(clnt, flags, &rpc_default_ops, NULL);
@@ -518,11 +511,6 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 	struct rpc_task	*task;
 	sigset_t	oldset;
 	int		status;
-
-	/* If this client is slain all further I/O fails */
-	status = -EIO;
-	if (clnt->cl_dead)
-		goto out_release;
 
 	flags |= RPC_TASK_ASYNC;
 

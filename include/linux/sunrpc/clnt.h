@@ -45,8 +45,7 @@ struct rpc_clnt {
 				cl_intr     : 1,/* interruptible */
 				cl_discrtry : 1,/* disconnect before retry */
 				cl_autobind : 1,/* use getport() */
-				cl_oneshot  : 1,/* dispose after use */
-				cl_dead     : 1;/* abandoned */
+				cl_oneshot  : 1;/* dispose after use */
 
 	struct rpc_rtt *	cl_rtt;		/* RTO estimator data */
 
