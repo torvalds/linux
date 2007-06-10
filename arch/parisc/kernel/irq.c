@@ -46,13 +46,9 @@ extern irqreturn_t ipi_interrupt(int, void *);
 static volatile unsigned long cpu_eiem = 0;
 
 /*
-** ack bitmap ... habitually set to 1, but reset to zero
+** local ACK bitmap ... habitually set to 1, but reset to zero
 ** between ->ack() and ->end() of the interrupt to prevent
 ** re-interruption of a processing interrupt.
-*/
-static volatile unsigned long global_ack_eiem = ~0UL;
-/*
-** Local bitmap, same as above but for per-cpu interrupts
 */
 static DEFINE_PER_CPU(unsigned long, local_ack_eiem) = ~0UL;
 
@@ -94,13 +90,11 @@ void cpu_ack_irq(unsigned int irq)
 	int cpu = smp_processor_id();
 
 	/* Clear in EIEM so we can no longer process */
-	if (CHECK_IRQ_PER_CPU(irq_desc[irq].status))
-		per_cpu(local_ack_eiem, cpu) &= ~mask;
-	else
-		global_ack_eiem &= ~mask;
+	per_cpu(local_ack_eiem, cpu) &= ~mask;
 
 	/* disable the interrupt */
-	set_eiem(cpu_eiem & global_ack_eiem & per_cpu(local_ack_eiem, cpu));
+	set_eiem(cpu_eiem & per_cpu(local_ack_eiem, cpu));
+
 	/* and now ack it */
 	mtctl(mask, 23);
 }
@@ -111,13 +105,10 @@ void cpu_end_irq(unsigned int irq)
 	int cpu = smp_processor_id();
 
 	/* set it in the eiems---it's no longer in process */
-	if (CHECK_IRQ_PER_CPU(irq_desc[irq].status))
-		per_cpu(local_ack_eiem, cpu) |= mask;
-	else
-		global_ack_eiem |= mask;
+	per_cpu(local_ack_eiem, cpu) |= mask;
 
 	/* enable the interrupt */
-	set_eiem(cpu_eiem & global_ack_eiem & per_cpu(local_ack_eiem, cpu));
+	set_eiem(cpu_eiem & per_cpu(local_ack_eiem, cpu));
 }
 
 #ifdef CONFIG_SMP
@@ -354,8 +345,7 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 	local_irq_disable();
 	irq_enter();
 
-	eirr_val = mfctl(23) & cpu_eiem & global_ack_eiem &
-		per_cpu(local_ack_eiem, cpu);
+	eirr_val = mfctl(23) & cpu_eiem & per_cpu(local_ack_eiem, cpu);
 	if (!eirr_val)
 		goto set_out;
 	irq = eirr_to_irq(eirr_val);
@@ -381,7 +371,7 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 	return;
 
  set_out:
-	set_eiem(cpu_eiem & global_ack_eiem & per_cpu(local_ack_eiem, cpu));
+	set_eiem(cpu_eiem & per_cpu(local_ack_eiem, cpu));
 	goto out;
 }
 
