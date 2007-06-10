@@ -29,6 +29,10 @@ do_vfp:
 	add	r10, r10, #TI_VFPSTATE	@ r10 = workspace
 	ldr	pc, [r4]		@ call VFP entry point
 
+ENTRY(vfp_null_entry)
+	mov	pc, lr
+ENDPROC(vfp_null_entry)
+
 .LCvfp:
 	.word	vfp_vector
 
