@@ -346,8 +346,7 @@ sbp2_send_orb(struct sbp2_orb *orb, struct fw_unit *unit,
 	spin_unlock_irqrestore(&device->card->lock, flags);
 
 	fw_send_request(device->card, &orb->t, TCODE_WRITE_BLOCK_REQUEST,
-			node_id, generation,
-			device->node->max_speed, offset,
+			node_id, generation, device->max_speed, offset,
 			&orb->pointer, sizeof(orb->pointer),
 			complete_transaction, orb);
 }
@@ -1018,8 +1017,8 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	 * if we set this to max_speed + 7, we get the right value.
 	 */
 	orb->request.misc =
-		COMMAND_ORB_MAX_PAYLOAD(device->node->max_speed + 7) |
-		COMMAND_ORB_SPEED(device->node->max_speed) |
+		COMMAND_ORB_MAX_PAYLOAD(device->max_speed + 7) |
+		COMMAND_ORB_SPEED(device->max_speed) |
 		COMMAND_ORB_NOTIFY;
 
 	if (cmd->sc_data_direction == DMA_FROM_DEVICE)
