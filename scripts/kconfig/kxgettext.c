@@ -212,7 +212,9 @@ void menu__xgettext(void)
 	struct message *m = message__list;
 
 	while (m != NULL) {
-		message__print_gettext_msgid_msgstr(m);
+		/* skip empty lines ("") */
+		if (strlen(m->msg) > sizeof("\"\""))
+			message__print_gettext_msgid_msgstr(m);
 		m = m->next;
 	}
 }
