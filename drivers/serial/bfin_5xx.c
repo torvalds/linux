@@ -185,6 +185,7 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 		uart->port.icount.brk++;
 		if (uart_handle_break(&uart->port))
 			goto ignore_char;
+		status &= ~(PE | FE);
 	}
 	if (status & PE)
 		uart->port.icount.parity++;
@@ -341,6 +342,7 @@ static void bfin_serial_dma_rx_chars(struct bfin_serial_port *uart)
 		uart->port.icount.brk++;
 		if (uart_handle_break(&uart->port))
 			goto dma_ignore_char;
+		status &= ~(PE | FE);
 	}
 	if (status & PE)
 		uart->port.icount.parity++;
