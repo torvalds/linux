@@ -4,7 +4,7 @@
  * Author:
  *
  * Created:      ?
- * Description:  Set up the interupt priorities
+ * Description:  Set up the interrupt priorities
  *
  * Modified:
  *               1996 Roman Zippel

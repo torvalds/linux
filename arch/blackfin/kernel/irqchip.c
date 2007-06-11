@@ -91,7 +91,7 @@ int show_interrupts(struct seq_file *p, void *v)
 }
 
 /*
- * do_IRQ handles all hardware IRQ's.  Decoded IRQs should not
+ * do_IRQ handles all hardware IRQs.  Decoded IRQs should not
  * come via this function.  Instead, they should provide their
  * own 'handler'
  */

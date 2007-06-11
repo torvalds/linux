@@ -1,7 +1,7 @@
 /*
  * File:         arch/blackfin/mach-bf533/boards/cm_bf533.c
  * Based on:     arch/blackfin/mach-bf533/boards/ezkit.c
- * Author:       Aidan Williams <aidan@nicta.com.au> Copright 2005
+ * Author:       Aidan Williams <aidan@nicta.com.au> Copyright 2005
  *
  * Created:      2005
  * Description:  Board description file

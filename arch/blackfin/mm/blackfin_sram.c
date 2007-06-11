@@ -149,7 +149,7 @@ static void *_l1_sram_alloc(size_t size, struct l1_sram_piece *pfree, int count)
 	size = (size + 3) & ~3;
 
 	/* not use the good method to match the best slot !!! */
-	/* search an available memeory slot */
+	/* search an available memory slot */
 	for (i = 0; i < count; i++) {
 		if ((pfree[i].flag == SRAM_SLT_FREE)
 		    && (pfree[i].size >= size)) {
@@ -162,7 +162,7 @@ static void *_l1_sram_alloc(size_t size, struct l1_sram_piece *pfree, int count)
 	if (i >= count)
 		return NULL;
 
-	/* updated the NULL memeory slot !!! */
+	/* updated the NULL memory slot !!! */
 	if (pfree[i].size > size) {
 		for (i = 0; i < count; i++) {
 			if (pfree[i].flag == SRAM_SLT_NULL) {
@@ -186,7 +186,7 @@ static void *_l1_sram_alloc_max(struct l1_sram_piece *pfree, int count,
 	int i, index = -1;
 	void *addr = NULL;
 
-	/* search an available memeory slot */
+	/* search an available memory slot */
 	for (i = 0; i < count; i++) {
 		if (pfree[i].flag == SRAM_SLT_FREE && pfree[i].size > best) {
 			addr = pfree[i].paddr;

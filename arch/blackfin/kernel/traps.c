@@ -557,7 +557,7 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 				break;
 #ifndef CONFIG_DEBUG_HWERR
 			/* If one of the last few instructions was a STI
-			 * it is likily that the error occured awhile ago
+			 * it is likely that the error occured awhile ago
 			 * and we just noticed
 			 */
 			if (x >= 0x0040 && x <= 0x0047 && i <= 0)
