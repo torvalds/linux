@@ -635,13 +635,12 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	if (termios->c_cflag & CSTOPB)
 		lcr |= STB;
-	if (termios->c_cflag & PARENB) {
+	if (termios->c_cflag & PARENB)
 		lcr |= PEN;
-		if (!(termios->c_cflag & PARODD))
-			lcr |= EPS;
-		if (termios->c_cflag & CMSPAR)
-			lcr |= STP;
-	}
+	if (!(termios->c_cflag & PARODD))
+		lcr |= EPS;
+	if (termios->c_cflag & CMSPAR)
+		lcr |= STP;
 
 	port->read_status_mask = OE;
 	if (termios->c_iflag & INPCK)
