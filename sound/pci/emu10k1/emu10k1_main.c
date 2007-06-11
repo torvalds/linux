@@ -694,6 +694,37 @@ static int snd_emu1010_load_firmware(struct snd_emu10k1 * emu, const char * file
 	return 0;
 }
 
+/*
+ * EMU-1010 - details found out from this driver, official MS Win drivers,
+ * testing the card:
+ *
+ * Audigy2 (aka Alice2):
+ * ---------------------
+ * 	* communication over PCI
+ * 	* conversion of 32-bit data coming over EMU32 links from HANA FPGA
+ *	  to 2 x 16-bit, using internal DSP instructions
+ * 	* slave mode, clock supplied by HANA
+ * 	* linked to HANA using:
+ * 		32 x 32-bit serial EMU32 output channels
+ * 		16 x EMU32 input channels
+ * 		(?) x I2S I/O channels (?)
+ *
+ * FPGA (aka HANA):
+ * ---------------
+ * 	* provides all (?) physical inputs and outputs of the card
+ * 		(ADC, DAC, SPDIF I/O, ADAT I/O, etc.)
+ * 	* provides clock signal for the card and Alice2
+ * 	* two crystals - for 44.1kHz and 48kHz multiples
+ * 	* provides internal routing of signal sources to signal destinations
+ * 	* inputs/outputs to Alice2 - see above
+ *
+ * Current status of the driver:
+ * ----------------------------
+ * 	* only 44.1/48kHz supported (the MS Win driver supports up to 192 kHz)
+ * 	* PCM device nb. 2:
+ *		16 x 16-bit playback - snd_emu10k1_fx8010_playback_ops
+ * 		16 x 32-bit capture - snd_emu10k1_capture_efx_ops
+ */
 static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 {
 	unsigned int i;
@@ -850,6 +881,27 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 		EMU_DST_ALICE2_EMU32_6, EMU_SRC_DOCK_ADC2_LEFT1);
 	snd_emu1010_fpga_link_dst_src_write(emu,
 		EMU_DST_ALICE2_EMU32_7, EMU_SRC_DOCK_ADC2_RIGHT1);
+	/* Pavel Hofman - setting defaults for 8 more capture channels
+	 * Defaults only, users will set their own values anyways, let's
+	 * just copy/paste.
+	 */
+	
+	snd_emu1010_fpga_link_dst_src_write(emu,
+		EMU_DST_ALICE2_EMU32_8, EMU_SRC_DOCK_MIC_A1);
+	snd_emu1010_fpga_link_dst_src_write(emu,
+		EMU_DST_ALICE2_EMU32_9, EMU_SRC_DOCK_MIC_B1);
+	snd_emu1010_fpga_link_dst_src_write(emu,
+		EMU_DST_ALICE2_EMU32_A, EMU_SRC_HAMOA_ADC_LEFT2);
+	snd_emu1010_fpga_link_dst_src_write(emu,
+		EMU_DST_ALICE2_EMU32_B, EMU_SRC_HAMOA_ADC_LEFT2);
+	snd_emu1010_fpga_link_dst_src_write(emu,
+		EMU_DST_ALICE2_EMU32_C, EMU_SRC_DOCK_ADC1_LEFT1);
+	snd_emu1010_fpga_link_dst_src_write(emu,
+		EMU_DST_ALICE2_EMU32_D, EMU_SRC_DOCK_ADC1_RIGHT1);
+	snd_emu1010_fpga_link_dst_src_write(emu,
+		EMU_DST_ALICE2_EMU32_E, EMU_SRC_DOCK_ADC2_LEFT1);
+	snd_emu1010_fpga_link_dst_src_write(emu,
+		EMU_DST_ALICE2_EMU32_F, EMU_SRC_DOCK_ADC2_RIGHT1);
 #endif
 #if 0
 	/* Original */
