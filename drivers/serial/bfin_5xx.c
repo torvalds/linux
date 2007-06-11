@@ -519,6 +519,14 @@ static void bfin_serial_mctrl_check(struct bfin_serial_port *uart)
  */
 static void bfin_serial_break_ctl(struct uart_port *port, int break_state)
 {
+	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
+	u16 lcr = UART_GET_LCR(uart);
+	if (break_state)
+		lcr |= SB;
+	else
+		lcr &= ~SB;
+	UART_PUT_LCR(uart, lcr);
+	SSYNC();
 }
 
 static int bfin_serial_startup(struct uart_port *port)
