@@ -252,7 +252,7 @@ void sysfs_drop_dentry(struct sysfs_dirent * sd, struct dentry * parent)
 	if (dentry) {
 		spin_lock(&dcache_lock);
 		spin_lock(&dentry->d_lock);
-		if (!(d_unhashed(dentry) && dentry->d_inode)) {
+		if (!d_unhashed(dentry) && dentry->d_inode) {
 			inode = dentry->d_inode;
 			spin_lock(&inode->i_lock);
 			__iget(inode);
