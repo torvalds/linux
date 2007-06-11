@@ -1156,9 +1156,11 @@ static inline void myri10ge_check_statblock(struct myri10ge_priv *mgp)
 	struct mcp_irq_data *stats = mgp->fw_stats;
 
 	if (unlikely(stats->stats_updated)) {
-		if (mgp->link_state != stats->link_up) {
-			mgp->link_state = stats->link_up;
-			if (mgp->link_state) {
+		unsigned link_up = ntohl(stats->link_up);
+		if (mgp->link_state != link_up) {
+			mgp->link_state = link_up;
+
+			if (mgp->link_state == MXGEFW_LINK_UP) {
 				if (netif_msg_link(mgp))
 					printk(KERN_INFO
 					       "myri10ge: %s: link up\n",
@@ -1168,8 +1170,11 @@ static inline void myri10ge_check_statblock(struct myri10ge_priv *mgp)
 			} else {
 				if (netif_msg_link(mgp))
 					printk(KERN_INFO
-					       "myri10ge: %s: link down\n",
-					       mgp->dev->name);
+					       "myri10ge: %s: link %s\n",
+					       mgp->dev->name,
+					       (link_up == MXGEFW_LINK_MYRINET ?
+						"mismatch (Myrinet detected)" :
+						"down"));
 				netif_carrier_off(mgp->dev);
 				mgp->link_changes++;
 			}
