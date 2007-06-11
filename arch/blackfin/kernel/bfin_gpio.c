@@ -138,7 +138,7 @@ static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PROG0_INT
 
 inline int check_gpio(unsigned short gpio)
 {
-	if (gpio > MAX_BLACKFIN_GPIOS)
+	if (gpio >= MAX_BLACKFIN_GPIOS)
 		return -EINVAL;
 	return 0;
 }
