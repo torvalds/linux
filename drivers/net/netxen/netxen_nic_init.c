@@ -1037,18 +1037,23 @@ void netxen_watchdog_task(struct work_struct *work)
 	if ((adapter->portnum  == 0) && netxen_nic_check_temp(adapter))
 		return;
 
-	netdev = adapter->netdev;
-	if ((netif_running(netdev)) && !netif_carrier_ok(netdev)) {
-		printk(KERN_INFO "%s port %d, %s carrier is now ok\n",
-		       netxen_nic_driver_name, adapter->portnum, netdev->name);
-		netif_carrier_on(netdev);
-	}
-
-	if (netif_queue_stopped(netdev))
-		netif_wake_queue(netdev);
-
 	if (adapter->handle_phy_intr)
 		adapter->handle_phy_intr(adapter);
+
+	netdev = adapter->netdev;
+	if ((netif_running(netdev)) && !netif_carrier_ok(netdev) &&
+			netxen_nic_link_ok(adapter) ) {
+		printk(KERN_INFO "%s %s (port %d), Link is up\n",
+			       netxen_nic_driver_name, netdev->name, adapter->portnum);
+		netif_carrier_on(netdev);
+		netif_wake_queue(netdev);
+	} else if(!(netif_running(netdev)) && netif_carrier_ok(netdev)) {
+		printk(KERN_ERR "%s %s Link is Down\n",
+				netxen_nic_driver_name, netdev->name);
+		netif_carrier_off(netdev);
+		netif_stop_queue(netdev);
+	}
+
 	mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
 }
 

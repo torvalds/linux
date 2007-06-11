@@ -1049,6 +1049,7 @@ int netxen_rom_se(struct netxen_adapter *adapter, int addr);
 int netxen_do_rom_se(struct netxen_adapter *adapter, int addr);
 
 /* Functions from netxen_nic_isr.c */
+int netxen_nic_link_ok(struct netxen_adapter *adapter);
 void netxen_nic_isr_other(struct netxen_adapter *adapter);
 void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 link);
 void netxen_handle_port_int(struct netxen_adapter *adapter, u32 enable);

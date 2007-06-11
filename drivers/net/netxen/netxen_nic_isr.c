@@ -169,6 +169,24 @@ void netxen_nic_gbe_handle_phy_intr(struct netxen_adapter *adapter)
 	netxen_nic_isr_other(adapter);
 }
 
+int netxen_nic_link_ok(struct netxen_adapter *adapter)
+{
+	switch (adapter->ahw.board_type) {
+	case NETXEN_NIC_GBE:
+		return ((adapter->ahw.qg_linksup) & 1);
+
+	case NETXEN_NIC_XGBE:
+		return ((adapter->ahw.xg_linkup) & 1);
+
+	default:
+		printk(KERN_ERR"%s: Function: %s, Unknown board type\n",
+			netxen_nic_driver_name, __FUNCTION__);
+		break;
+	}
+
+	return 0;
+}
+
 void netxen_nic_xgbe_handle_phy_intr(struct netxen_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -183,6 +201,10 @@ void netxen_nic_xgbe_handle_phy_intr(struct netxen_adapter *adapter)
 		printk(KERN_INFO "%s: %s NIC Link is down\n",
 		       netxen_nic_driver_name, netdev->name);
 		adapter->ahw.xg_linkup = 0;
+		if (netif_running(netdev)) {
+			netif_carrier_off(netdev);
+			netif_stop_queue(netdev);
+		}
 		/* read twice to clear sticky bits */
 		/* WINDOW = 0 */
 		netxen_nic_read_w0(adapter, NETXEN_NIU_XG_STATUS, &val1);
@@ -196,5 +218,7 @@ void netxen_nic_xgbe_handle_phy_intr(struct netxen_adapter *adapter)
 		printk(KERN_INFO "%s: %s NIC Link is up\n",
 		       netxen_nic_driver_name, netdev->name);
 		adapter->ahw.xg_linkup = 1;
+		netif_carrier_on(netdev);
+		netif_wake_queue(netdev);
 	}
 }
