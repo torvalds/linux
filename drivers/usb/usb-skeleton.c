@@ -467,12 +467,35 @@ static int skel_resume (struct usb_interface *intf)
 	return 0;
 }
 
+static int skel_pre_reset(struct usb_interface *intf)
+{
+	struct usb_skel *dev = usb_get_intfdata(intf);
+
+	mutex_lock(&dev->io_mutex);
+	skel_draw_down(dev);
+
+	return 0;
+}
+
+static int skel_post_reset(struct usb_interface *intf)
+{
+	struct usb_skel *dev = usb_get_intfdata(intf);
+
+	/* we are sure no URBs are active - no locking needed */
+	dev->errors = -EPIPE;
+	mutex_unlock(&dev->io_mutex);
+
+	return 0;
+}
+
 static struct usb_driver skel_driver = {
 	.name =		"skeleton",
 	.probe =	skel_probe,
 	.disconnect =	skel_disconnect,
 	.suspend =	skel_suspend,
 	.resume =	skel_resume,
+	.pre_reset =	skel_pre_reset,
+	.post_reset =	skel_post_reset,
 	.id_table =	skel_table,
 	.supports_autosuspend = 1,
 };
