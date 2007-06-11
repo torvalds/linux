@@ -89,8 +89,8 @@ static int tda826x_set_params(struct dvb_frontend *fe, struct dvb_frontend_param
 	buf[2] = (1<<5) | 0x0b; // 1Mhz + 0.45 VCO
 	buf[3] = div >> 7;
 	buf[4] = div << 1;
-	buf[5] = 0xff; // basedband filter to max
-	buf[6] = 0xfe; // gains at max + no RF attenuation
+	buf[5] = 0x77; // baseband cut-off 19 MHz
+	buf[6] = 0xfe; // baseband gain 9 db + no RF attenuation
 	buf[7] = 0x83; // charge pumps at high, tests off
 	buf[8] = 0x80; // recommended value 4 for AMPVCO + disable ports.
 	buf[9] = 0x1a; // normal caltime + recommended values for SELTH + SELVTL
