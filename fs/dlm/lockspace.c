@@ -438,16 +438,17 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	ls->ls_count = 0;
 	ls->ls_flags = 0;
 
-	/* ls_exflags are forced to match among nodes, and we don't
-	   need to require all nodes to have TIMEWARN active */
 	if (flags & DLM_LSFL_TIMEWARN)
 		set_bit(LSFL_TIMEWARN, &ls->ls_flags);
-	ls->ls_exflags = (flags & ~DLM_LSFL_TIMEWARN);
 
 	if (flags & DLM_LSFL_FS)
 		ls->ls_allocation = GFP_NOFS;
 	else
 		ls->ls_allocation = GFP_KERNEL;
+
+	/* ls_exflags are forced to match among nodes, and we don't
+	   need to require all nodes to have TIMEWARN or FS set */
+	ls->ls_exflags = (flags & ~(DLM_LSFL_TIMEWARN | DLM_LSFL_FS));
 
 	size = dlm_config.ci_rsbtbl_size;
 	ls->ls_rsbtbl_size = size;
