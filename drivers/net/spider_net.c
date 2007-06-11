@@ -1172,7 +1172,7 @@ spider_net_decode_one_descr(struct spider_net_card *card)
 		goto bad_desc;
 	}
 
-	if (hwdescr->dmac_cmd_status & 0xfefe) {
+	if (hwdescr->dmac_cmd_status & 0xfcf4) {
 		pr_err("%s: bad status, cmd_status=x%08x\n",
 			       card->netdev->name,
 			       hwdescr->dmac_cmd_status);
@@ -1251,6 +1251,7 @@ spider_net_poll(struct net_device *netdev, int *budget)
 	if (no_more_packets) {
 		netif_rx_complete(netdev);
 		spider_net_rx_irq_on(card);
+		card->ignore_rx_ramfull = 0;
 		return 0;
 	}
 
@@ -1484,15 +1485,15 @@ spider_net_handle_error_irq(struct spider_net_card *card, u32 status_reg)
 	case SPIDER_NET_GRFBFLLINT: /* fallthrough */
 	case SPIDER_NET_GRFAFLLINT: /* fallthrough */
 	case SPIDER_NET_GRMFLLINT:
-		if (netif_msg_intr(card) && net_ratelimit())
-			pr_err("Spider RX RAM full, incoming packets "
-			       "might be discarded!\n");
 		/* Could happen when rx chain is full */
-		spider_net_resync_head_ptr(card);
-		spider_net_refill_rx_chain(card);
-		spider_net_enable_rxdmac(card);
-		card->num_rx_ints ++;
-		netif_rx_schedule(card->netdev);
+		if (card->ignore_rx_ramfull == 0) {
+			card->ignore_rx_ramfull = 1;
+			spider_net_resync_head_ptr(card);
+			spider_net_refill_rx_chain(card);
+			spider_net_enable_rxdmac(card);
+			card->num_rx_ints ++;
+			netif_rx_schedule(card->netdev);
+		}
 		show_error = 0;
 		break;
 
@@ -2265,6 +2266,7 @@ spider_net_setup_netdev(struct spider_net_card *card)
 
 	netdev->irq = card->pdev->irq;
 	card->num_rx_ints = 0;
+	card->ignore_rx_ramfull = 0;
 
 	dn = pci_device_to_OF_node(card->pdev);
 	if (!dn)

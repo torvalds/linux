@@ -462,6 +462,7 @@ struct spider_net_card {
 	atomic_t tx_timeout_task_counter;
 	wait_queue_head_t waitq;
 	int num_rx_ints;
+	int ignore_rx_ramfull;
 
 	/* for ethtool */
 	int msg_enable;
