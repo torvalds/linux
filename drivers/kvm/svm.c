@@ -581,7 +581,7 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 		goto out2;
 
 	vcpu->svm->vmcb = page_address(page);
-	memset(vcpu->svm->vmcb, 0, PAGE_SIZE);
+	clear_page(vcpu->svm->vmcb);
 	vcpu->svm->vmcb_pa = page_to_pfn(page) << PAGE_SHIFT;
 	vcpu->svm->asid_generation = 0;
 	memset(vcpu->svm->db_regs, 0, sizeof(vcpu->svm->db_regs));
@@ -957,7 +957,7 @@ static int shutdown_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	 * VMCB is undefined after a SHUTDOWN intercept
 	 * so reinitialize it.
 	 */
-	memset(vcpu->svm->vmcb, 0, PAGE_SIZE);
+	clear_page(vcpu->svm->vmcb);
 	init_vmcb(vcpu->svm->vmcb);
 
 	kvm_run->exit_reason = KVM_EXIT_SHUTDOWN;
