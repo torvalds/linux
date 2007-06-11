@@ -724,8 +724,7 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	in_inode = in_file->f_path.dentry->d_inode;
 	if (!in_inode)
 		goto fput_in;
-	if (!in_file->f_op || (!in_file->f_op->sendfile &&
-	    !in_file->f_op->splice_read))
+	if (!in_file->f_op || !in_file->f_op->splice_read)
 		goto fput_in;
 	retval = -ESPIPE;
 	if (!ppos)
@@ -778,21 +777,18 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 		count = max - pos;
 	}
 
-	if (in_file->f_op->splice_read) {
-		fl = 0;
+	fl = 0;
 #if 0
-		/*
-		 * We need to debate whether we can enable this or not. The
-		 * man page documents EAGAIN return for the output at least,
-		 * and the application is arguably buggy if it doesn't expect
-		 * EAGAIN on a non-blocking file descriptor.
-		 */
-		if (in_file->f_flags & O_NONBLOCK)
-			fl = SPLICE_F_NONBLOCK;
+	/*
+	 * We need to debate whether we can enable this or not. The
+	 * man page documents EAGAIN return for the output at least,
+	 * and the application is arguably buggy if it doesn't expect
+	 * EAGAIN on a non-blocking file descriptor.
+	 */
+	if (in_file->f_flags & O_NONBLOCK)
+		fl = SPLICE_F_NONBLOCK;
 #endif
-		retval = do_splice_direct(in_file, ppos, out_file, count, fl);
-	} else
-		retval = in_file->f_op->sendfile(in_file, ppos, count, file_send_actor, out_file);
+	retval = do_splice_direct(in_file, ppos, out_file, count, fl);
 
 	if (retval > 0) {
 		add_rchar(current, retval);
