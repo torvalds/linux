@@ -731,8 +731,7 @@ static void snd_ali_detect_spdif_rate(struct snd_ali *codec)
 		return;
 	}
 
-	count = 0;
-	while (count++ <= 50000) {
+	for (count = 0; count <= 50000; count++) {
 		snd_ali_delay(codec, 6);
 		bval = inb(ALI_REG(codec,ALI_SPDIF_CTRL + 1));
 		R2 = bval & 0x1F;
