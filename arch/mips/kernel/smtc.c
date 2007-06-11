@@ -611,12 +611,12 @@ void smtc_cpus_done(void)
 int setup_irq_smtc(unsigned int irq, struct irqaction * new,
 			unsigned long hwmask)
 {
+#ifdef CONFIG_SMTC_IDLE_HOOK_DEBUG
 	unsigned int vpe = current_cpu_data.vpe_id;
 
-	irq_hwmask[irq] = hwmask;
-#ifdef CONFIG_SMTC_IDLE_HOOK_DEBUG
 	vpemask[vpe][irq - MIPSCPU_INT_BASE] = 1;
 #endif
+	irq_hwmask[irq] = hwmask;
 
 	return setup_irq(irq, new);
 }
