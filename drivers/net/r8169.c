@@ -2495,7 +2495,7 @@ static inline int rtl8169_try_rx_copy(struct sk_buff **sk_buff, int pkt_size,
 		skb = dev_alloc_skb(pkt_size + align);
 		if (skb) {
 			skb_reserve(skb, (align - 1) & (unsigned long)skb->data);
-			eth_copy_and_sum(skb, sk_buff[0]->data, pkt_size, 0);
+			skb_copy_from_linear_data(*sk_buff, skb->data, pkt_size);
 			*sk_buff = skb;
 			rtl8169_mark_to_asic(desc, rx_buf_sz);
 			ret = 0;
