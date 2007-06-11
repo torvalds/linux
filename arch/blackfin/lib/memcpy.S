@@ -140,3 +140,5 @@ ENTRY(_memcpy)
 	B[P0--] = R1;
 
 	RTS;
+
+ENDPROC(_memcpy)

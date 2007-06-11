@@ -100,4 +100,4 @@ ENTRY(_memmove)
 	P3 = I1;
 	RTS;
 
-.size _memmove,.-_memmove
+ENDPROC(_memmove)

@@ -106,4 +106,4 @@ ENTRY(_memset)
 	B[P0++] = R1;
 	JUMP .Laligned;
 
-.size _memset,.-_memset
+ENDPROC(_memset)

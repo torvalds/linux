@@ -58,10 +58,12 @@ ENTRY(_ret_from_fork)
 	RESTORE_ALL_SYS
 	p0 = reti;
 	jump (p0);
+ENDPROC(_ret_from_fork)
 
 ENTRY(_sys_fork)
 	r0 = -EINVAL;
 	rts;
+ENDPROC(_sys_fork)
 
 ENTRY(_sys_vfork)
 	r0 = sp;
@@ -72,6 +74,7 @@ ENTRY(_sys_vfork)
 	SP += 12;
 	rets = [sp++];
 	rts;
+ENDPROC(_sys_vfork)
 
 ENTRY(_sys_clone)
 	r0 = sp;
@@ -82,6 +85,7 @@ ENTRY(_sys_clone)
 	SP += 12;
 	rets = [sp++];
 	rts;
+ENDPROC(_sys_clone)
 
 ENTRY(_sys_rt_sigreturn)
 	r0 = sp;
@@ -92,3 +96,4 @@ ENTRY(_sys_rt_sigreturn)
 	SP += 12;
 	rets = [sp++];
 	rts;
+ENDPROC(_sys_rt_sigreturn)

@@ -296,3 +296,5 @@ ENTRY(___udivsi3)
   R1 = R0 - R3;
   IF CC R0 = R1;
   RTS;
+
+ENDPROC(___udivsi3)

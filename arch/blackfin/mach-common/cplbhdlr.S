@@ -42,8 +42,6 @@
 
 .align 2
 
-.global __cplb_hdr;
-.type __cplb_hdr, STT_FUNC;
 ENTRY(__cplb_hdr)
 	R2 = SEQSTAT;
 
@@ -128,3 +126,5 @@ ENTRY(__cplb_hdr)
 	call _panic_cplb_error;
 	SP += 12;
 	JUMP _handle_bad_cplb;
+
+ENDPROC(__cplb_hdr)

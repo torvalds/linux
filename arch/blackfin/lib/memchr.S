@@ -67,4 +67,4 @@ ENTRY(_memchr)
 	R0 += -1;
 	RTS;
 
-.size _memchr,.-_memchr
+ENDPROC(_memchr)

@@ -107,4 +107,4 @@ ENTRY(_memcmp)
 	P3 = I1;
 	RTS;
 
-.size _memcmp,.-_memcmp
+ENDPROC(_memcmp)

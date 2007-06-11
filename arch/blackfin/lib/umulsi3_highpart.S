@@ -21,3 +21,5 @@ ___umulsi3_highpart:
 	R1 = PACK(R1.l,R0.h);
 	R0 = R1 + R2;
 	RTS;
+
+.size ___umulsi3_highpart, .-___umulsi3_highpart

@@ -77,3 +77,5 @@ ___modsi3:
 	R0 = 0;
 .LRETURN_R0:
 	RTS;
+
+.size ___modsi3, .-___modsi3
