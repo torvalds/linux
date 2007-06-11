@@ -57,6 +57,7 @@ struct usb_skel {
 	__u8			bulk_in_endpointAddr;	/* the address of the bulk in endpoint */
 	__u8			bulk_out_endpointAddr;	/* the address of the bulk out endpoint */
 	int			errors;			/* the last request tanked */
+	int			open_count;		/* count the number of openers */
 	spinlock_t		err_lock;		/* lock for errors */
 	struct kref		kref;
 	struct mutex		io_mutex;		/* synchronize I/O with disconnect */
@@ -101,12 +102,26 @@ static int skel_open(struct inode *inode, struct file *file)
 	/* increment our usage count for the device */
 	kref_get(&dev->kref);
 
-	/* prevent the device from being autosuspended */
-	retval = usb_autopm_get_interface(interface);
-	if (retval) {
+	/* lock the device to allow correctly handling errors
+	 * in resumption */
+	mutex_lock(&dev->io_mutex);
+
+	if (!dev->open_count++) {
+		retval = usb_autopm_get_interface(interface);
+			if (retval) {
+				dev->open_count--;
+				mutex_unlock(&dev->io_mutex);
+				kref_put(&dev->kref, skel_delete);
+				goto exit;
+			}
+	} /* else { //uncomment this block if you want exclusive open
+		retval = -EBUSY;
+		dev->open_count--;
+		mutex_unlock(&dev->io_mutex);
 		kref_put(&dev->kref, skel_delete);
 		goto exit;
-	}
+	} */
+	/* prevent the device from being autosuspended */
 
 	/* save our object in the file's private structure */
 	file->private_data = dev;
@@ -125,7 +140,7 @@ static int skel_release(struct inode *inode, struct file *file)
 
 	/* allow the device to be autosuspended */
 	mutex_lock(&dev->io_mutex);
-	if (dev->interface)
+	if (!--dev->open_count && dev->interface)
 		usb_autopm_put_interface(dev->interface);
 	mutex_unlock(&dev->io_mutex);
 
@@ -437,10 +452,27 @@ static void skel_draw_down(struct usb_skel *dev)
 		usb_kill_anchored_urbs(&dev->submitted);
 }
 
+static int skel_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct usb_skel *dev = usb_get_intfdata(intf);
+
+	if (!dev)
+		return 0;
+	skel_draw_down(dev);
+	return 0;
+}
+
+static int skel_resume (struct usb_interface *intf)
+{
+	return 0;
+}
+
 static struct usb_driver skel_driver = {
 	.name =		"skeleton",
 	.probe =	skel_probe,
 	.disconnect =	skel_disconnect,
+	.suspend =	skel_suspend,
+	.resume =	skel_resume,
 	.id_table =	skel_table,
 	.supports_autosuspend = 1,
 };
