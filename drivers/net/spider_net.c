@@ -716,7 +716,7 @@ spider_net_prepare_tx_descr(struct spider_net_card *card,
 	hwdescr->data_status = 0;
 
 	hwdescr->dmac_cmd_status =
-			SPIDER_NET_DESCR_CARDOWNED | SPIDER_NET_DMAC_NOCS;
+			SPIDER_NET_DESCR_CARDOWNED | SPIDER_NET_DMAC_TXFRMTL;
 	spin_unlock_irqrestore(&chain->lock, flags);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
