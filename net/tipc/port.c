@@ -1,8 +1,8 @@
 /*
  * net/tipc/port.c: TIPC port code
  *
- * Copyright (c) 1992-2006, Ericsson AB
- * Copyright (c) 2004-2005, Wind River Systems
+ * Copyright (c) 1992-2007, Ericsson AB
+ * Copyright (c) 2004-2007, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -239,6 +239,8 @@ u32 tipc_createport_raw(void *usr_handle,
 	}
 
 	tipc_port_lock(ref);
+	p_ptr->publ.usr_handle = usr_handle;
+	p_ptr->publ.max_pkt = MAX_PKT_DEFAULT;
 	p_ptr->publ.ref = ref;
 	msg = &p_ptr->publ.phdr;
 	msg_init(msg, DATA_LOW, TIPC_NAMED_MSG, TIPC_OK, LONG_H_SIZE, 0);
@@ -248,11 +250,9 @@ u32 tipc_createport_raw(void *usr_handle,
 	msg_set_importance(msg,importance);
 	p_ptr->last_in_seqno = 41;
 	p_ptr->sent = 1;
-	p_ptr->publ.usr_handle = usr_handle;
 	INIT_LIST_HEAD(&p_ptr->wait_list);
 	INIT_LIST_HEAD(&p_ptr->subscription.nodesub_list);
 	p_ptr->congested_link = NULL;
-	p_ptr->max_pkt = MAX_PKT_DEFAULT;
 	p_ptr->dispatcher = dispatcher;
 	p_ptr->wakeup = wakeup;
 	p_ptr->user_port = NULL;
@@ -1243,7 +1243,7 @@ int tipc_connect2port(u32 ref, struct tipc_portid const *peer)
 	res = TIPC_OK;
 exit:
 	tipc_port_unlock(p_ptr);
-	p_ptr->max_pkt = tipc_link_get_max_pkt(peer->node, ref);
+	p_ptr->publ.max_pkt = tipc_link_get_max_pkt(peer->node, ref);
 	return res;
 }
 

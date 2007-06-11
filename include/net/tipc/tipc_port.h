@@ -1,8 +1,8 @@
 /*
  * include/net/tipc/tipc_port.h: Include file for privileged access to TIPC ports
  * 
- * Copyright (c) 1994-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 1994-2007, Ericsson AB
+ * Copyright (c) 2005-2007, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,6 +55,7 @@
  * @conn_unacked: number of unacknowledged messages received from peer port
  * @published: non-zero if port has one or more associated names
  * @congested: non-zero if cannot send because of link or port congestion
+ * @max_pkt: maximum packet size "hint" used when building messages sent by port
  * @ref: unique reference to port in TIPC object registry
  * @phdr: preformatted message header used when sending messages
  */
@@ -68,6 +69,7 @@ struct tipc_port {
 	u32 conn_unacked;
 	int published;
 	u32 congested;
+	u32 max_pkt;
 	u32 ref;
 	struct tipc_msg phdr;
 };

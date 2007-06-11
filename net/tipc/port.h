@@ -1,8 +1,8 @@
 /*
  * net/tipc/port.h: Include file for TIPC port code
  *
- * Copyright (c) 1994-2006, Ericsson AB
- * Copyright (c) 2004-2005, Wind River Systems
+ * Copyright (c) 1994-2007, Ericsson AB
+ * Copyright (c) 2004-2007, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,7 +81,6 @@ struct user_port {
  * @acked:
  * @publications: list of publications for port
  * @pub_count: total # of publications port has made during its lifetime
- * @max_pkt: maximum packet size "hint" used when building messages sent by port
  * @probing_state:
  * @probing_interval:
  * @last_in_seqno:
@@ -102,7 +101,6 @@ struct port {
 	u32 acked;
 	struct list_head publications;
 	u32 pub_count;
-	u32 max_pkt;
 	u32 probing_state;
 	u32 probing_interval;
 	u32 last_in_seqno;

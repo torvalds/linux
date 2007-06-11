@@ -607,23 +607,24 @@ exit:
 static int send_stream(struct kiocb *iocb, struct socket *sock,
 		       struct msghdr *m, size_t total_len)
 {
+	struct tipc_port *tport;
 	struct msghdr my_msg;
 	struct iovec my_iov;
 	struct iovec *curr_iov;
 	int curr_iovlen;
 	char __user *curr_start;
+	u32 hdr_size;
 	int curr_left;
 	int bytes_to_send;
 	int bytes_sent;
 	int res;
 
-	if (likely(total_len <= TIPC_MAX_USER_MSG_SIZE))
-		return send_packet(iocb, sock, m, total_len);
-
-	/* Can only send large data streams if already connected */
+	/* Handle special cases where there is no connection */
 
 	if (unlikely(sock->state != SS_CONNECTED)) {
-		if (sock->state == SS_DISCONNECTING)
+		if (sock->state == SS_UNCONNECTED)
+			return send_packet(iocb, sock, m, total_len);
+		else if (sock->state == SS_DISCONNECTING)
 			return -EPIPE;
 		else
 			return -ENOTCONN;
@@ -648,17 +649,25 @@ static int send_stream(struct kiocb *iocb, struct socket *sock,
 	my_msg.msg_name = NULL;
 	bytes_sent = 0;
 
+	tport = tipc_sk(sock->sk)->p;
+	hdr_size = msg_hdr_sz(&tport->phdr);
+
 	while (curr_iovlen--) {
 		curr_start = curr_iov->iov_base;
 		curr_left = curr_iov->iov_len;
 
 		while (curr_left) {
-			bytes_to_send = (curr_left < TIPC_MAX_USER_MSG_SIZE)
-				? curr_left : TIPC_MAX_USER_MSG_SIZE;
+			bytes_to_send = tport->max_pkt - hdr_size;
+			if (bytes_to_send > TIPC_MAX_USER_MSG_SIZE)
+				bytes_to_send = TIPC_MAX_USER_MSG_SIZE;
+			if (curr_left < bytes_to_send)
+				bytes_to_send = curr_left;
 			my_iov.iov_base = curr_start;
 			my_iov.iov_len = bytes_to_send;
 			if ((res = send_packet(iocb, sock, &my_msg, 0)) < 0) {
-				return bytes_sent ? bytes_sent : res;
+				if (bytes_sent != 0)
+					res = bytes_sent;
+				return res;
 			}
 			curr_left -= bytes_to_send;
 			curr_start += bytes_to_send;
