@@ -586,7 +586,7 @@ void avc_audit(u32 ssid, u32 tsid,
 				}
 			}
 			if (inode)
-				audit_log_format(ab, " dev=%s ino=%ld",
+				audit_log_format(ab, " dev=%s ino=%lu",
 						 inode->i_sb->s_id,
 						 inode->i_ino);
 			break;
