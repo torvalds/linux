@@ -90,7 +90,7 @@ void __init bf53x_cache_init(void)
 #endif
 }
 
-void bf53x_relocate_l1_mem(void)
+void __init bf53x_relocate_l1_mem(void)
 {
 	unsigned long l1_code_length;
 	unsigned long l1_data_a_length;
@@ -411,7 +411,7 @@ static int __init topology_init(void)
 subsys_initcall(topology_init);
 
 #if defined(CONFIG_BLKFIN_DCACHE) || defined(CONFIG_BLKFIN_CACHE)
-u16 lock_kernel_check(u32 start, u32 end)
+static u16 __init lock_kernel_check(u32 start, u32 end)
 {
 	if ((start <= (u32) _stext && end >= (u32) _end)
 	    || (start >= (u32) _stext && end <= (u32) _end))
@@ -681,7 +681,7 @@ static void __init generate_cpl_tables(void)
 
 #endif
 
-static inline u_long get_vco(void)
+static u_long get_vco(void)
 {
 	u_long msel;
 	u_long vco;
@@ -889,8 +889,8 @@ struct seq_operations cpuinfo_op = {
 	.show = show_cpuinfo,
 };
 
-void cmdline_init(unsigned long r0)
+void __init cmdline_init(char *r0)
 {
 	if (r0)
-		strncpy(command_line, (char *)r0, COMMAND_LINE_SIZE);
+		strncpy(command_line, r0, COMMAND_LINE_SIZE);
 }
