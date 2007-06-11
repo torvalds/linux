@@ -114,6 +114,7 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, u64 no_addr, unsigned in
 		error = gfs2_glock_nq_init(io_gl, LM_ST_SHARED, GL_EXACT, &ip->i_iopen_gh);
 		if (unlikely(error))
 			goto fail_iopen;
+		ip->i_iopen_gh.gh_gl->gl_object = ip;
 
 		gfs2_glock_put(io_gl);
 

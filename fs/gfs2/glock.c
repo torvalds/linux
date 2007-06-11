@@ -422,11 +422,11 @@ void gfs2_holder_uninit(struct gfs2_holder *gh)
 static void gfs2_holder_wake(struct gfs2_holder *gh)
 {
 	clear_bit(HIF_WAIT, &gh->gh_iflags);
-	smp_mb();
+	smp_mb__after_clear_bit();
 	wake_up_bit(&gh->gh_iflags, HIF_WAIT);
 }
 
-static int holder_wait(void *word)
+static int just_schedule(void *word)
 {
         schedule();
         return 0;
@@ -435,7 +435,20 @@ static int holder_wait(void *word)
 static void wait_on_holder(struct gfs2_holder *gh)
 {
 	might_sleep();
-	wait_on_bit(&gh->gh_iflags, HIF_WAIT, holder_wait, TASK_UNINTERRUPTIBLE);
+	wait_on_bit(&gh->gh_iflags, HIF_WAIT, just_schedule, TASK_UNINTERRUPTIBLE);
+}
+
+static void gfs2_demote_wake(struct gfs2_glock *gl)
+{
+        clear_bit(GLF_DEMOTE, &gl->gl_flags);
+        smp_mb__after_clear_bit();
+        wake_up_bit(&gl->gl_flags, GLF_DEMOTE);
+}
+
+static void wait_on_demote(struct gfs2_glock *gl)
+{
+	might_sleep();
+	wait_on_bit(&gl->gl_flags, GLF_DEMOTE, just_schedule, TASK_UNINTERRUPTIBLE);
 }
 
 /**
@@ -528,7 +541,7 @@ static int rq_demote(struct gfs2_glock *gl)
 
 	if (gl->gl_state == gl->gl_demote_state ||
 	    gl->gl_state == LM_ST_UNLOCKED) {
-		clear_bit(GLF_DEMOTE, &gl->gl_flags);
+		gfs2_demote_wake(gl);
 		return 0;
 	}
 	set_bit(GLF_LOCK, &gl->gl_flags);
@@ -666,12 +679,22 @@ static void gfs2_glmutex_unlock(struct gfs2_glock *gl)
  * practise: LM_ST_SHARED and LM_ST_UNLOCKED
  */
 
-static void handle_callback(struct gfs2_glock *gl, unsigned int state)
+static void handle_callback(struct gfs2_glock *gl, unsigned int state, int remote)
 {
 	spin_lock(&gl->gl_spin);
 	if (test_and_set_bit(GLF_DEMOTE, &gl->gl_flags) == 0) {
 		gl->gl_demote_state = state;
 		gl->gl_demote_time = jiffies;
+		if (remote && gl->gl_ops->go_type == LM_TYPE_IOPEN &&
+		    gl->gl_object) {
+			struct inode *inode = igrab(gl->gl_object);
+			spin_unlock(&gl->gl_spin);
+			if (inode) {
+				d_prune_aliases(inode);
+				iput(inode);
+			}
+			return;
+		}
 	} else if (gl->gl_demote_state != LM_ST_UNLOCKED) {
 		gl->gl_demote_state = state;
 	}
@@ -740,7 +763,7 @@ static void xmote_bh(struct gfs2_glock *gl, unsigned int ret)
 		if (ret & LM_OUT_CANCELED)
 			op_done = 0;
 		else
-			clear_bit(GLF_DEMOTE, &gl->gl_flags);
+			gfs2_demote_wake(gl);
 	} else {
 		spin_lock(&gl->gl_spin);
 		list_del_init(&gh->gh_list);
@@ -848,7 +871,7 @@ static void drop_bh(struct gfs2_glock *gl, unsigned int ret)
 	gfs2_assert_warn(sdp, !ret);
 
 	state_change(gl, LM_ST_UNLOCKED);
-	clear_bit(GLF_DEMOTE, &gl->gl_flags);
+	gfs2_demote_wake(gl);
 
 	if (glops->go_inval)
 		glops->go_inval(gl, DIO_METADATA);
@@ -1174,7 +1197,7 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 
 	if (gh->gh_flags & GL_NOCACHE)
-		handle_callback(gl, LM_ST_UNLOCKED);
+		handle_callback(gl, LM_ST_UNLOCKED, 0);
 
 	gfs2_glmutex_lock(gl);
 
@@ -1194,6 +1217,13 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 	clear_bit(GLF_LOCK, &gl->gl_flags);
 	run_queue(gl);
 	spin_unlock(&gl->gl_spin);
+}
+
+void gfs2_glock_dq_wait(struct gfs2_holder *gh)
+{
+	struct gfs2_glock *gl = gh->gh_gl;
+	gfs2_glock_dq(gh);
+	wait_on_demote(gl);
 }
 
 /**
@@ -1456,7 +1486,7 @@ static void blocking_cb(struct gfs2_sbd *sdp, struct lm_lockname *name,
 	if (!gl)
 		return;
 
-	handle_callback(gl, state);
+	handle_callback(gl, state, 1);
 
 	spin_lock(&gl->gl_spin);
 	run_queue(gl);
@@ -1596,7 +1626,7 @@ void gfs2_reclaim_glock(struct gfs2_sbd *sdp)
 	if (gfs2_glmutex_trylock(gl)) {
 		if (list_empty(&gl->gl_holders) &&
 		    gl->gl_state != LM_ST_UNLOCKED && demote_ok(gl))
-			handle_callback(gl, LM_ST_UNLOCKED);
+			handle_callback(gl, LM_ST_UNLOCKED, 0);
 		gfs2_glmutex_unlock(gl);
 	}
 
@@ -1709,7 +1739,7 @@ static void clear_glock(struct gfs2_glock *gl)
 	if (gfs2_glmutex_trylock(gl)) {
 		if (list_empty(&gl->gl_holders) &&
 		    gl->gl_state != LM_ST_UNLOCKED)
-			handle_callback(gl, LM_ST_UNLOCKED);
+			handle_callback(gl, LM_ST_UNLOCKED, 0);
 		gfs2_glmutex_unlock(gl);
 	}
 }
