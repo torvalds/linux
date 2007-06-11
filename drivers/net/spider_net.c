@@ -1285,7 +1285,6 @@ spider_net_poll(struct net_device *netdev, int *budget)
 	int packets_to_do, packets_done = 0;
 	int no_more_packets = 0;
 
-	spider_net_cleanup_tx_ring(card);
 	packets_to_do = min(*budget, netdev->quota);
 
 	while (packets_to_do) {
@@ -1309,6 +1308,8 @@ spider_net_poll(struct net_device *netdev, int *budget)
 	*budget -= packets_done;
 	spider_net_refill_rx_chain(card);
 	spider_net_enable_rxdmac(card);
+
+	spider_net_cleanup_tx_ring(card);
 
 	/* if all packets are in the stack, enable interrupts and return 0 */
 	/* if not, return 1 */
