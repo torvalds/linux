@@ -335,14 +335,6 @@ cflags-$(CONFIG_MOMENCO_OCELOT)	+= -Iinclude/asm-mips/mach-ocelot
 load-$(CONFIG_MOMENCO_OCELOT)	+= 0xffffffff80100000
 
 #
-# Momentum Ocelot-C and -CS boards
-#
-# The Ocelot-C[S] setup.o must be linked early - it does the ioremap() for the
-# mips_io_port_base.
-core-$(CONFIG_MOMENCO_OCELOT_C)	+= arch/mips/momentum/ocelot_c/
-load-$(CONFIG_MOMENCO_OCELOT_C)	+= 0xffffffff80100000
-
-#
 # PMC-Sierra Yosemite
 #
 core-$(CONFIG_PMC_YOSEMITE)	+= arch/mips/pmc-sierra/yosemite/
