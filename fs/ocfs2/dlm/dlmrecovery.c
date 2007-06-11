@@ -1155,7 +1155,7 @@ static void dlm_init_migratable_lockres(struct dlm_migratable_lockres *mres,
 					u8 flags, u8 master)
 {
 	/* mres here is one full page */
-	memset(mres, 0, PAGE_SIZE);
+	clear_page(mres);
 	mres->lockname_len = namelen;
 	memcpy(mres->lockname, lockname, namelen);
 	mres->num_locks = 0;
