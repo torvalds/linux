@@ -311,6 +311,7 @@ restore_all:
 	rte
 	 nop
 
+	.align 2
 #ifdef CONFIG_TRACE_IRQFLAGS
 1:     .long   trace_hardirqs_off
 #endif
