@@ -246,9 +246,23 @@ static inline void orphan_all_buffers(struct inode *node)
  */
 void sysfs_drop_dentry(struct sysfs_dirent * sd, struct dentry * parent)
 {
-	struct dentry * dentry = sd->s_dentry;
+	struct dentry *dentry = NULL;
 	struct inode *inode;
 
+	/* We're not holding a reference to ->s_dentry dentry but the
+	 * field will stay valid as long as sysfs_lock is held.
+	 */
+	spin_lock(&sysfs_lock);
+	spin_lock(&dcache_lock);
+
+	/* dget dentry if it's still alive */
+	if (sd->s_dentry && sd->s_dentry->d_inode)
+		dentry = dget_locked(sd->s_dentry);
+
+	spin_unlock(&dcache_lock);
+	spin_unlock(&sysfs_lock);
+
+	/* drop dentry */
 	if (dentry) {
 		spin_lock(&dcache_lock);
 		spin_lock(&dentry->d_lock);
@@ -268,6 +282,8 @@ void sysfs_drop_dentry(struct sysfs_dirent * sd, struct dentry * parent)
 			spin_unlock(&dentry->d_lock);
 			spin_unlock(&dcache_lock);
 		}
+
+		dput(dentry);
 	}
 }
 

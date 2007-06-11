@@ -13,14 +13,26 @@
 #include "sysfs.h"
 
 DECLARE_RWSEM(sysfs_rename_sem);
+spinlock_t sysfs_lock = SPIN_LOCK_UNLOCKED;
 
 static void sysfs_d_iput(struct dentry * dentry, struct inode * inode)
 {
 	struct sysfs_dirent * sd = dentry->d_fsdata;
 
 	if (sd) {
-		BUG_ON(sd->s_dentry != dentry);
-		sd->s_dentry = NULL;
+		/* sd->s_dentry is protected with sysfs_lock.  This
+		 * allows sysfs_drop_dentry() to dereference it.
+		 */
+		spin_lock(&sysfs_lock);
+
+		/* The dentry might have been deleted or another
+		 * lookup could have happened updating sd->s_dentry to
+		 * point the new dentry.  Ignore if it isn't pointing
+		 * to this dentry.
+		 */
+		if (sd->s_dentry == dentry)
+			sd->s_dentry = NULL;
+		spin_unlock(&sysfs_lock);
 		sysfs_put(sd);
 	}
 	iput(inode);
@@ -247,7 +259,10 @@ static int sysfs_attach_attr(struct sysfs_dirent * sd, struct dentry * dentry)
         }
 
 	dentry->d_fsdata = sysfs_get(sd);
+	/* protect sd->s_dentry against sysfs_d_iput */
+	spin_lock(&sysfs_lock);
 	sd->s_dentry = dentry;
+	spin_unlock(&sysfs_lock);
 	error = sysfs_create(dentry, (attr->mode & S_IALLUGO) | S_IFREG, init);
 	if (error) {
 		sysfs_put(sd);
@@ -269,7 +284,10 @@ static int sysfs_attach_link(struct sysfs_dirent * sd, struct dentry * dentry)
 	int err = 0;
 
 	dentry->d_fsdata = sysfs_get(sd);
+	/* protect sd->s_dentry against sysfs_d_iput */
+	spin_lock(&sysfs_lock);
 	sd->s_dentry = dentry;
+	spin_unlock(&sysfs_lock);
 	err = sysfs_create(dentry, S_IFLNK|S_IRWXUGO, init_symlink);
 	if (!err) {
 		dentry->d_op = &sysfs_dentry_ops;
