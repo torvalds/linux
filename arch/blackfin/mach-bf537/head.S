@@ -40,7 +40,7 @@
 .extern ___bss_start
 .extern _bf53x_relocate_l1_mem
 
-#define INITIAL_STACK   0xFFB01000
+#define INITIAL_STACK	0xFFB01000
 
 .text
 
@@ -48,12 +48,14 @@ ENTRY(__start)
 ENTRY(__stext)
 	/* R0: argument of command line string, passed from uboot, save it */
 	R7 = R0;
-	/* Set the SYSCFG register */
+	/* Set the SYSCFG register:
+	 * Enable Cycle Counter and Nesting Of Interrupts (3rd Bit)
+	 */
 	R0 = 0x36;
-	SYSCFG = R0;   /*Enable Cycle Counter and Nesting Of Interrupts(3rd Bit)*/
+	SYSCFG = R0;
 	R0 = 0;
 
-	/* Clear Out All the data and pointer  Registers*/
+	/* Clear Out All the data and pointer Registers */
 	R1 = R0;
 	R2 = R0;
 	R3 = R0;
@@ -75,7 +77,7 @@ ENTRY(__stext)
 	L2 = r0;
 	L3 = r0;
 
-	/* Clear Out All the DAG Registers*/
+	/* Clear Out All the DAG Registers */
 	B0 = r0;
 	B1 = r0;
 	B2 = r0;
@@ -191,7 +193,7 @@ ENTRY(__stext)
 
 	p0.h = hi(UART_DLL);
 	p0.l = lo(UART_DLL);
-	r0 = 0x00(Z);
+	r0 = 0x0(Z);
 	w[p0] = r0.L;
 	ssync;
 
@@ -218,6 +220,7 @@ ENTRY(__stext)
 #if CONFIG_BFIN_KERNEL_CLOCK
 	call _start_dma_code;
 #endif
+
 	/* Code for initializing Async memory banks */
 
 	p2.h = hi(EBIU_AMBCTL1);
@@ -291,7 +294,7 @@ ENTRY(_real_start)
 	p2.h = ___bss_stop;
 	r0 = 0;
 	p2 -= p1;
-	lsetup (.L_clear_bss, .L_clear_bss ) lc0 = p2;
+	lsetup (.L_clear_bss, .L_clear_bss) lc0 = p2;
 .L_clear_bss:
 	B[p1++] = r0;
 
@@ -306,7 +309,7 @@ ENTRY(_real_start)
 	r0 = r0 >> 1;
 	p2 = r0;
 	r0 = 0;
-	lsetup (.L_clear_zero, .L_clear_zero ) lc0 = p2;
+	lsetup (.L_clear_zero, .L_clear_zero) lc0 = p2;
 .L_clear_zero:
 	W[p1++] = r0;
 
@@ -328,9 +331,8 @@ ENTRY(_real_start)
 	r1 = p3;
 	[p1] = r1;
 
-
 	/*
-	 *  load the current thread pointer and stack
+	 * load the current thread pointer and stack
 	 */
 	r1.l = _init_thread_union;
 	r1.h = _init_thread_union;
