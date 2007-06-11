@@ -2045,10 +2045,7 @@ static void *established_get_first(struct seq_file *seq)
 		struct hlist_node *node;
 		struct inet_timewait_sock *tw;
 
-		/* We can reschedule _before_ having picked the target: */
-		cond_resched_softirq();
-
-		read_lock(&tcp_hashinfo.ehash[st->bucket].lock);
+		read_lock_bh(&tcp_hashinfo.ehash[st->bucket].lock);
 		sk_for_each(sk, node, &tcp_hashinfo.ehash[st->bucket].chain) {
 			if (sk->sk_family != st->family) {
 				continue;
@@ -2065,7 +2062,7 @@ static void *established_get_first(struct seq_file *seq)
 			rc = tw;
 			goto out;
 		}
-		read_unlock(&tcp_hashinfo.ehash[st->bucket].lock);
+		read_unlock_bh(&tcp_hashinfo.ehash[st->bucket].lock);
 		st->state = TCP_SEQ_STATE_ESTABLISHED;
 	}
 out:
@@ -2092,14 +2089,11 @@ get_tw:
 			cur = tw;
 			goto out;
 		}
-		read_unlock(&tcp_hashinfo.ehash[st->bucket].lock);
+		read_unlock_bh(&tcp_hashinfo.ehash[st->bucket].lock);
 		st->state = TCP_SEQ_STATE_ESTABLISHED;
 
-		/* We can reschedule between buckets: */
-		cond_resched_softirq();
-
 		if (++st->bucket < tcp_hashinfo.ehash_size) {
-			read_lock(&tcp_hashinfo.ehash[st->bucket].lock);
+			read_lock_bh(&tcp_hashinfo.ehash[st->bucket].lock);
 			sk = sk_head(&tcp_hashinfo.ehash[st->bucket].chain);
 		} else {
 			cur = NULL;
@@ -2144,7 +2138,6 @@ static void *tcp_get_idx(struct seq_file *seq, loff_t pos)
 
 	if (!rc) {
 		inet_listen_unlock(&tcp_hashinfo);
-		local_bh_disable();
 		st->state = TCP_SEQ_STATE_ESTABLISHED;
 		rc	  = established_get_idx(seq, pos);
 	}
@@ -2177,7 +2170,6 @@ static void *tcp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		rc = listening_get_next(seq, v);
 		if (!rc) {
 			inet_listen_unlock(&tcp_hashinfo);
-			local_bh_disable();
 			st->state = TCP_SEQ_STATE_ESTABLISHED;
 			rc	  = established_get_first(seq);
 		}
@@ -2209,8 +2201,7 @@ static void tcp_seq_stop(struct seq_file *seq, void *v)
 	case TCP_SEQ_STATE_TIME_WAIT:
 	case TCP_SEQ_STATE_ESTABLISHED:
 		if (v)
-			read_unlock(&tcp_hashinfo.ehash[st->bucket].lock);
-		local_bh_enable();
+			read_unlock_bh(&tcp_hashinfo.ehash[st->bucket].lock);
 		break;
 	}
 }
