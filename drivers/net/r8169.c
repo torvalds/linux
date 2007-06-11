@@ -158,9 +158,9 @@ enum mac_version {
 	RTL_GIGA_MAC_VER_05 = 0x04,
 	RTL_GIGA_MAC_VER_11 = 0x0b, // 8168Bb
 	RTL_GIGA_MAC_VER_12 = 0x0c, // 8168Be 8168Bf
-	RTL_GIGA_MAC_VER_13 = 0x0d,
-	RTL_GIGA_MAC_VER_14 = 0x0e,
-	RTL_GIGA_MAC_VER_15 = 0x0f
+	RTL_GIGA_MAC_VER_13 = 0x0d, // 8101Eb 8101Ec
+	RTL_GIGA_MAC_VER_14 = 0x0e, // 8101
+	RTL_GIGA_MAC_VER_15 = 0x0f  // 8101
 };
 
 enum phy_version {
@@ -1892,11 +1892,6 @@ static void rtl_hw_start_8169(struct net_device *dev)
 		pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE, 0x08);
 	}
 
-	if (tp->mac_version == RTL_GIGA_MAC_VER_13) {
-		pci_write_config_word(pdev, 0x68, 0x00);
-		pci_write_config_word(pdev, 0x69, 0x08);
-	}
-
 	/* Undocumented stuff. */
 	if (tp->mac_version == RTL_GIGA_MAC_VER_05) {
 		/* Realtek's r1000_n.c driver uses '&& 0x01' here. Well... */
@@ -2002,7 +1997,41 @@ static void rtl_hw_start_8168(struct net_device *dev)
 
 static void rtl_hw_start_8101(struct net_device *dev)
 {
-	rtl_hw_start_8169(dev);
+	struct rtl8169_private *tp = netdev_priv(dev);
+	void __iomem *ioaddr = tp->mmio_addr;
+	struct pci_dev *pdev = tp->pci_dev;
+
+	if (tp->mac_version == RTL_GIGA_MAC_VER_13) {
+		pci_write_config_word(pdev, 0x68, 0x00);
+		pci_write_config_word(pdev, 0x69, 0x08);
+	}
+
+	RTL_W8(Cfg9346, Cfg9346_Unlock);
+
+	RTL_W8(EarlyTxThres, EarlyTxThld);
+
+	rtl_set_rx_max_size(ioaddr);
+
+	tp->cp_cmd |= rtl_rw_cpluscmd(ioaddr) | PCIMulRW;
+
+	RTL_W16(CPlusCmd, tp->cp_cmd);
+
+	RTL_W16(IntrMitigate, 0x0000);
+
+	rtl_set_rx_tx_desc_registers(tp, ioaddr);
+
+	RTL_W8(ChipCmd, CmdTxEnb | CmdRxEnb);
+	rtl_set_rx_tx_config_registers(tp);
+
+	RTL_W8(Cfg9346, Cfg9346_Lock);
+
+	RTL_R8(IntrMask);
+
+	RTL_W32(RxMissed, 0);
+
+	rtl_set_rx_mode(dev);
+
+	RTL_W16(MultiIntr, RTL_R16(MultiIntr) & 0xf000);
 }
 
 static int rtl8169_change_mtu(struct net_device *dev, int new_mtu)
