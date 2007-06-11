@@ -41,6 +41,7 @@ struct splice_desc {
 struct partial_page {
 	unsigned int offset;
 	unsigned int len;
+	unsigned long private;
 };
 
 /*

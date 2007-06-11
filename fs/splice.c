@@ -185,6 +185,7 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 			buf->page = spd->pages[page_nr];
 			buf->offset = spd->partial[page_nr].offset;
 			buf->len = spd->partial[page_nr].len;
+			buf->private = spd->partial[page_nr].private;
 			buf->ops = spd->ops;
 			if (spd->flags & SPLICE_F_GIFT)
 				buf->flags |= PIPE_BUF_FLAG_GIFT;

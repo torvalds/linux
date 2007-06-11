@@ -14,6 +14,7 @@ struct pipe_buffer {
 	unsigned int offset, len;
 	const struct pipe_buf_operations *ops;
 	unsigned int flags;
+	unsigned long private;
 };
 
 struct pipe_inode_info {
