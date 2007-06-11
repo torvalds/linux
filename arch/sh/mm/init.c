@@ -300,10 +300,12 @@ int remove_memory(u64 start, u64 size)
 }
 EXPORT_SYMBOL_GPL(remove_memory);
 
+#ifdef CONFIG_NUMA
 int memory_add_physaddr_to_nid(u64 addr)
 {
 	/* Node 0 for now.. */
 	return 0;
 }
 EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+#endif
 #endif

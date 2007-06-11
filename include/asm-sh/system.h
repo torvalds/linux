@@ -126,7 +126,7 @@ static inline void sched_cacheflush(void)
 #define smp_read_barrier_depends()	do { } while(0)
 #endif
 
-#define set_mb(var, value) do { xchg(&var, value); } while (0)
+#define set_mb(var, value) do { (void)xchg(&var, value); } while (0)
 
 /*
  * Jump to P2 area.

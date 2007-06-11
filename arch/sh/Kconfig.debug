@@ -86,6 +86,7 @@ config SH_KGDB
 	bool "Include KGDB kernel debugger"
 	select FRAME_POINTER
 	select DEBUG_INFO
+	depends on CPU_SH3 || CPU_SH4
 	help
 	  Include in-kernel hooks for kgdb, the Linux kernel source level
 	  debugger.  See <http://kgdb.sourceforge.net/> for more information.

@@ -228,11 +228,7 @@ static __inline__ void grab_fpu(struct pt_regs *regs)
 	regs->sr &= ~SR_FD;
 }
 
-#ifdef CONFIG_CPU_SH4
 extern void save_fpu(struct task_struct *__tsk, struct pt_regs *regs);
-#else
-#define save_fpu(tsk)	do { } while (0)
-#endif
 
 #define unlazy_fpu(tsk, regs) do {			\
 	if (test_tsk_thread_flag(tsk, TIF_USEDFPU)) {	\

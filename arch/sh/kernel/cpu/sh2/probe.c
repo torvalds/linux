@@ -9,9 +9,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-
-
 #include <linux/init.h>
+#include <linux/smp.h>
 #include <asm/processor.h>
 #include <asm/cache.h>
 

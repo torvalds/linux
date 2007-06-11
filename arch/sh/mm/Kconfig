@@ -48,6 +48,7 @@ choice
 config CPU_SUBTYPE_SH7619
 	bool "Support SH7619 processor"
 	select CPU_SH2
+	select CPU_HAS_IPR_IRQ
 
 # SH-2A Processor Support
 
@@ -208,6 +209,7 @@ config CPU_SUBTYPE_SH7722
 	select CPU_SHX2
 	select CPU_HAS_IPR_IRQ
 	select ARCH_SPARSEMEM_ENABLE
+	select SYS_SUPPORTS_NUMA
 
 endchoice
 
@@ -292,7 +294,7 @@ config VSYSCALL
 
 config NUMA
 	bool "Non Uniform Memory Access (NUMA) Support"
-	depends on MMU && SPARSEMEM && EXPERIMENTAL
+	depends on MMU && SYS_SUPPORTS_NUMA && EXPERIMENTAL
 	default n
 	help
 	  Some SH systems have many various memories scattered around
@@ -308,6 +310,7 @@ config NODES_SHIFT
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
+	depends on !NUMA
 
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
@@ -416,17 +419,6 @@ config SH_WRITETHROUGH
 	  Since there's sill some aliasing issues on SH-4, this option will
 	  unfortunately still require the majority of flushing functions to
 	  be implemented to deal with aliasing.
-
-	  If unsure, say N.
-
-config SH_OCRAM
-	bool "Operand Cache RAM (OCRAM) support"
-	help
-	  Selecting this option will automatically tear down the number of
-	  sets in the dcache by half, which in turn exposes a memory range.
-
-	  The addresses for the OC RAM base will vary according to the
-	  processor version. Consult vendor documentation for specifics.
 
 	  If unsure, say N.
 

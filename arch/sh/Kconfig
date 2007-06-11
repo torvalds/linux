@@ -55,7 +55,20 @@ config GENERIC_TIME
 config GENERIC_CLOCKEVENTS
 	def_bool n
 
+config SYS_SUPPORTS_PM
+	bool
+
 config SYS_SUPPORTS_APM_EMULATION
+	bool
+	select SYS_SUPPORTS_PM
+
+config SYS_SUPPORTS_SMP
+	bool
+
+config SYS_SUPPORTS_NUMA
+	bool
+
+config SYS_SUPPORTS_PCI
 	bool
 
 config ARCH_MAY_HAVE_PC_FDC
@@ -102,7 +115,7 @@ endchoice
 
 config SH_FPU
 	bool "FPU support"
-	depends on !CPU_SH3
+	depends on CPU_SH4
 	default y
 	help
 	  Selecting this option will enable support for SH processors that
@@ -236,6 +249,7 @@ config SH_7751_SOLUTION_ENGINE
 config SH_7780_SOLUTION_ENGINE
 	bool "SolutionEngine7780"
 	select SOLUTION_ENGINE
+	select SYS_SUPPORTS_PCI
 	depends on CPU_SUBTYPE_SH7780
 	help
 	  Select 7780 SolutionEngine if configuring for a Renesas SH7780
@@ -275,20 +289,16 @@ config SH_7751_SYSTEMH
 config SH_HP6XX
 	bool "HP6XX"
 	select SYS_SUPPORTS_APM_EMULATION
+	select HD6446X_SERIES
 	depends on CPU_SUBTYPE_SH7709
 	help
 	  Select HP6XX if configuring for a HP jornada HP6xx.
 	  More information (hardware only) at
 	  <http://www.hp.com/jornada/>.
 
-config SH_SATURN
-	bool "Saturn"
-	depends on CPU_SUBTYPE_SH7604
-	help
-	  Select Saturn if configuring for a SEGA Saturn.
-
 config SH_DREAMCAST
 	bool "Dreamcast"
+	select SYS_SUPPORTS_PCI
 	depends on CPU_SUBTYPE_SH7091
 	help
 	  Select Dreamcast if configuring for a SEGA Dreamcast.
@@ -307,6 +317,7 @@ config SH_MPC1211
 config SH_SH03
 	bool "Interface CTP/PCI-SH03"
 	depends on CPU_SUBTYPE_SH7751 && BROKEN
+	select SYS_SUPPORTS_PCI
 	help
 	  CTP/PCI-SH03 is a CPU module computer that is produced
 	  by Interface Corporation.
@@ -315,6 +326,7 @@ config SH_SH03
 config SH_SECUREEDGE5410
 	bool "SecureEdge5410"
 	depends on CPU_SUBTYPE_SH7751R
+	select SYS_SUPPORTS_PCI
 	help
 	  Select SecureEdge5410 if configuring for a SnapGear SH board.
 	  This includes both the OEM SecureEdge products as well as the
@@ -337,6 +349,7 @@ config SH_7710VOIPGW
 config SH_RTS7751R2D
 	bool "RTS7751R2D"
 	depends on CPU_SUBTYPE_SH7751R
+	select SYS_SUPPORTS_PCI
 	help
 	  Select RTS7751R2D if configuring for a Renesas Technology
 	  Sales SH-Graphics board.
@@ -344,6 +357,7 @@ config SH_RTS7751R2D
 config SH_HIGHLANDER
 	bool "Highlander"
 	depends on CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785
+	select SYS_SUPPORTS_PCI
 
 config SH_EDOSK7705
 	bool "EDOSK7705"
@@ -359,12 +373,14 @@ config SH_SH4202_MICRODEV
 config SH_LANDISK
 	bool "LANDISK"
 	depends on CPU_SUBTYPE_SH7751R
+	select SYS_SUPPORTS_PCI
 	help
 	  I-O DATA DEVICE, INC. "LANDISK Series" support.
 
 config SH_TITAN
 	bool "TITAN"
 	depends on CPU_SUBTYPE_SH7751R
+	select SYS_SUPPORTS_PCI
 	help
 	  Select Titan if you are configuring for a Nimble Microsystems
 	  NetEngine NP51R.
@@ -378,6 +394,7 @@ config SH_SHMIN
 config SH_LBOX_RE2
 	bool "L-BOX RE2"
 	depends on CPU_SUBTYPE_SH7751R
+	select SYS_SUPPORTS_PCI
 	help
 	  Select L-BOX RE2 if configuring for the NTT COMWARE L-BOX RE2.
 
@@ -481,8 +498,10 @@ config SH_PCLK_FREQ
 
 config SH_CLK_MD
 	int "CPU Mode Pin Setting"
-	default 0
 	depends on CPU_SUBTYPE_SH7619 || CPU_SUBTYPE_SH7206
+	default 6 if CPU_SUBTYPE_SH7206
+	default 5 if CPU_SUBTYPE_SH7619
+	default 0
 	help
 	  MD2 - MD0 pin setting.
 
@@ -554,6 +573,7 @@ config CRASH_DUMP
 
 config SMP
 	bool "Symmetric multi-processing support"
+	depends on SYS_SUPPORTS_SMP
 	---help---
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -617,6 +637,7 @@ config BOOT_LINK_OFFSET
 
 config UBC_WAKEUP
 	bool "Wakeup UBC on startup"
+	depends on CPU_SH4
 	help
 	  Selecting this option will wakeup the User Break Controller (UBC) on
 	  startup. Although the UBC is left in an awake state when the processor
@@ -645,8 +666,8 @@ menu "Bus options"
 # we're not using PCMCIA, so we make it dependent on
 # PCMCIA outright. -- PFM.
 config ISA
-	bool
-	default y if PCMCIA
+	def_bool y
+	depends on PCMCIA && HD6446X_SERIES
 	help
 	  Find out whether you have ISA slots on your motherboard.  ISA is the
 	  name of a bus system, i.e. the way the CPU talks to the other stuff
@@ -701,7 +722,7 @@ source "fs/Kconfig.binfmt"
 endmenu
 
 menu "Power management options (EXPERIMENTAL)"
-depends on EXPERIMENTAL
+depends on EXPERIMENTAL && SYS_SUPPORTS_PM
 
 source kernel/power/Kconfig
 

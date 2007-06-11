@@ -9,6 +9,7 @@
 #define __ASM_SH_CACHE_H
 #ifdef __KERNEL__
 
+#include <linux/init.h>
 #include <asm/cpu/cache.h>
 
 #define SH_CACHE_VALID		1
@@ -48,6 +49,9 @@ struct cache_info {
 
 	unsigned long flags;
 };
+
+int __init detect_cpu_and_cache_system(void);
+
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_CACHE_H */

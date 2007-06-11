@@ -320,9 +320,7 @@ static void ubc_set_tracing(int asid, unsigned long pc)
 	ctrl_outl(pc, UBC_BARA);
 
 #ifdef CONFIG_MMU
-	/* We don't have any ASID settings for the SH-2! */
-	if (current_cpu_data.type != CPU_SH7604)
-		ctrl_outb(asid, UBC_BASRA);
+	ctrl_outb(asid, UBC_BASRA);
 #endif
 
 	ctrl_outl(0, UBC_BAMRA);

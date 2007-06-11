@@ -13,10 +13,8 @@ config VOYAGERGX
 	  are additional GPIO bits that can be used to interface to
 	  external as well.
 
-# A board must have defined HD6446X_SERIES in order to see these
 config HD6446X_SERIES
-	bool "HD6446x support"
-	default n
+	bool
 
 choice
 	prompt "HD6446x options"
@@ -25,7 +23,6 @@ choice
 
 config HD64461
 	bool "Hitachi HD64461 companion chip support"
-	depends on CPU_SUBTYPE_SH7709
 	---help---
 	  The Hitachi HD64461 provides an interface for
 	  the SH7709 CPU, supporting a LCD controller,
@@ -40,7 +37,6 @@ config HD64461
 
 config HD64465
 	bool "Hitachi HD64465 companion chip support"
-	depends on CPU_SUBTYPE_SH7750
 	---help---
 	  The Hitachi HD64465 provides an interface for
 	  the SH7750 CPU, supporting a LCD controller,
