@@ -23,8 +23,34 @@
 #include "sd_ops.h"
 #include "sdio_ops.h"
 
+static int sdio_read_fbr(struct sdio_func *func)
+{
+	int ret;
+	unsigned char data;
+
+	ret = mmc_io_rw_direct(func->card, 0, 0,
+		func->num * 0x100 + SDIO_FBR_STD_IF, 0, &data);
+	if (ret)
+		goto out;
+
+	data &= 0x0f;
+
+	if (data == 0x0f) {
+		ret = mmc_io_rw_direct(func->card, 0, 0,
+			func->num * 0x100 + SDIO_FBR_STD_IF_EXT, 0, &data);
+		if (ret)
+			goto out;
+	}
+
+	func->class = data;
+
+out:
+	return ret;
+}
+
 static int sdio_init_func(struct mmc_card *card, unsigned int fn)
 {
+	int ret;
 	struct sdio_func *func;
 
 	BUG_ON(fn > SDIO_MAX_FUNCS);
@@ -35,9 +61,21 @@ static int sdio_init_func(struct mmc_card *card, unsigned int fn)
 
 	func->num = fn;
 
+	ret = sdio_read_fbr(func);
+	if (ret)
+		goto fail;
+
 	card->sdio_func[fn - 1] = func;
 
 	return 0;
+
+fail:
+	/*
+	 * It is okay to remove the function here even though we hold
+	 * the host lock as we haven't registered the device yet.
+	 */
+	sdio_remove_func(func);
+	return ret;
 }
 
 static int sdio_read_cccr(struct mmc_card *card)

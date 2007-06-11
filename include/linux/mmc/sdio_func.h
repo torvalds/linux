@@ -21,6 +21,11 @@ struct sdio_func {
 	struct mmc_card		*card;		/* the card this device belongs to */
 	struct device		dev;		/* the device */
 	unsigned int		num;		/* function number */
+
+	unsigned char		class;		/* standard interface class */
+	unsigned short		vendor;		/* vendor id */
+	unsigned short		device;		/* device id */
+
 	unsigned int		state;		/* function state */
 #define SDIO_STATE_PRESENT	(1<<0)		/* present in sysfs */
 };
