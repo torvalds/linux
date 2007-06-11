@@ -1180,16 +1180,16 @@ static int init_rmode_tss(struct kvm* kvm)
 	}
 
 	page = kmap_atomic(p1, KM_USER0);
-	memset(page, 0, PAGE_SIZE);
+	clear_page(page);
 	*(u16*)(page + 0x66) = TSS_BASE_SIZE + TSS_REDIRECTION_SIZE;
 	kunmap_atomic(page, KM_USER0);
 
 	page = kmap_atomic(p2, KM_USER0);
-	memset(page, 0, PAGE_SIZE);
+	clear_page(page);
 	kunmap_atomic(page, KM_USER0);
 
 	page = kmap_atomic(p3, KM_USER0);
-	memset(page, 0, PAGE_SIZE);
+	clear_page(page);
 	*(page + RMODE_TSS_SIZE - 2 * PAGE_SIZE - 1) = ~0;
 	kunmap_atomic(page, KM_USER0);
 
