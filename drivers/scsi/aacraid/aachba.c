@@ -312,11 +312,10 @@ int aac_get_containers(struct aac_dev *dev)
 
 	if (maximum_num_containers < MAXIMUM_NUM_CONTAINERS)
 		maximum_num_containers = MAXIMUM_NUM_CONTAINERS;
-	fsa_dev_ptr =  kmalloc(sizeof(*fsa_dev_ptr) * maximum_num_containers,
+	fsa_dev_ptr = kzalloc(sizeof(*fsa_dev_ptr) * maximum_num_containers,
 			GFP_KERNEL);
 	if (!fsa_dev_ptr)
 		return -ENOMEM;
-	memset(fsa_dev_ptr, 0, sizeof(*fsa_dev_ptr) * maximum_num_containers);
 
 	dev->fsa_dev = fsa_dev_ptr;
 	dev->maximum_num_containers = maximum_num_containers;
@@ -446,7 +445,7 @@ static int aac_probe_container_callback2(struct scsi_cmnd * scsicmd)
 {
 	struct fsa_dev_info *fsa_dev_ptr = ((struct aac_dev *)(scsicmd->device->host->hostdata))->fsa_dev;
 
-	if (fsa_dev_ptr[scmd_id(scsicmd)].valid)
+	if ((fsa_dev_ptr[scmd_id(scsicmd)].valid & 1))
 		return aac_scsi_cmd(scsicmd);
 
 	scsicmd->result = DID_NO_CONNECT << 16;
@@ -454,18 +453,18 @@ static int aac_probe_container_callback2(struct scsi_cmnd * scsicmd)
 	return 0;
 }
 
-static int _aac_probe_container2(void * context, struct fib * fibptr)
+static void _aac_probe_container2(void * context, struct fib * fibptr)
 {
 	struct fsa_dev_info *fsa_dev_ptr;
 	int (*callback)(struct scsi_cmnd *);
 	struct scsi_cmnd * scsicmd = (struct scsi_cmnd *)context;
 
-	if (!aac_valid_context(scsicmd, fibptr))
-		return 0;
 
-	fsa_dev_ptr = ((struct aac_dev *)(scsicmd->device->host->hostdata))->fsa_dev;
+	if (!aac_valid_context(scsicmd, fibptr))
+		return;
 
 	scsicmd->SCp.Status = 0;
+	fsa_dev_ptr = fibptr->dev->fsa_dev;
 	if (fsa_dev_ptr) {
 		struct aac_mount * dresp = (struct aac_mount *) fib_data(fibptr);
 		fsa_dev_ptr += scmd_id(scsicmd);
@@ -488,10 +487,11 @@ static int _aac_probe_container2(void * context, struct fib * fibptr)
 	aac_fib_free(fibptr);
 	callback = (int (*)(struct scsi_cmnd *))(scsicmd->SCp.ptr);
 	scsicmd->SCp.ptr = NULL;
-	return (*callback)(scsicmd);
+	(*callback)(scsicmd);
+	return;
 }
 
-static int _aac_probe_container1(void * context, struct fib * fibptr)
+static void _aac_probe_container1(void * context, struct fib * fibptr)
 {
 	struct scsi_cmnd * scsicmd;
 	struct aac_mount * dresp;
@@ -501,13 +501,14 @@ static int _aac_probe_container1(void * context, struct fib * fibptr)
 	dresp = (struct aac_mount *) fib_data(fibptr);
 	dresp->mnt[0].capacityhigh = 0;
 	if ((le32_to_cpu(dresp->status) != ST_OK) ||
-	    (le32_to_cpu(dresp->mnt[0].vol) != CT_NONE))
-		return _aac_probe_container2(context, fibptr);
+	    (le32_to_cpu(dresp->mnt[0].vol) != CT_NONE)) {
+		_aac_probe_container2(context, fibptr);
+		return;
+	}
 	scsicmd = (struct scsi_cmnd *) context;
-	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
 
 	if (!aac_valid_context(scsicmd, fibptr))
-		return 0;
+		return;
 
 	aac_fib_init(fibptr);
 
@@ -522,21 +523,18 @@ static int _aac_probe_container1(void * context, struct fib * fibptr)
 			  sizeof(struct aac_query_mount),
 			  FsaNormal,
 			  0, 1,
-			  (fib_callback) _aac_probe_container2,
+			  _aac_probe_container2,
 			  (void *) scsicmd);
 	/*
 	 *	Check that the command queued to the controller
 	 */
-	if (status == -EINPROGRESS) {
+	if (status == -EINPROGRESS)
 		scsicmd->SCp.phase = AAC_OWNER_FIRMWARE;
-		return 0;
-	}
-	if (status < 0) {
+	else if (status < 0) {
 		/* Inherit results from VM_NameServe, if any */
 		dresp->status = cpu_to_le32(ST_OK);
-		return _aac_probe_container2(context, fibptr);
+		_aac_probe_container2(context, fibptr);
 	}
-	return 0;
 }
 
 static int _aac_probe_container(struct scsi_cmnd * scsicmd, int (*callback)(struct scsi_cmnd *))
@@ -561,7 +559,7 @@ static int _aac_probe_container(struct scsi_cmnd * scsicmd, int (*callback)(stru
 			  sizeof(struct aac_query_mount),
 			  FsaNormal,
 			  0, 1,
-			  (fib_callback) _aac_probe_container1,
+			  _aac_probe_container1,
 			  (void *) scsicmd);
 		/*
 		 *	Check that the command queued to the controller
@@ -615,7 +613,7 @@ int aac_probe_container(struct aac_dev *dev, int cid)
 		return -ENOMEM;
 	}
 	scsicmd->list.next = NULL;
-	scsicmd->scsi_done = (void (*)(struct scsi_cmnd*))_aac_probe_container1;
+	scsicmd->scsi_done = (void (*)(struct scsi_cmnd*))aac_probe_container_callback1;
 
 	scsicmd->device = scsidev;
 	scsidev->sdev_state = 0;
@@ -1329,7 +1327,7 @@ static void io_callback(void *context, struct fib * fibptr)
 	if (!aac_valid_context(scsicmd, fibptr))
 		return;
 
-	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
+	dev = fibptr->dev;
 	cid = scmd_id(scsicmd);
 
 	if (nblank(dprintk(x))) {
@@ -1587,7 +1585,7 @@ static void synchronize_callback(void *context, struct fib *fibptr)
 			COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
 	else {
 		struct scsi_device *sdev = cmd->device;
-		struct aac_dev *dev = (struct aac_dev *)sdev->host->hostdata;
+		struct aac_dev *dev = fibptr->dev;
 		u32 cid = sdev_id(sdev);
 		printk(KERN_WARNING 
 		     "synchronize_callback: synchronize failed, status = %d\n",
@@ -1694,7 +1692,7 @@ static int aac_synchronize(struct scsi_cmnd *scsicmd)
  
 int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 {
-	u32 cid = 0;
+	u32 cid;
 	struct Scsi_Host *host = scsicmd->device->host;
 	struct aac_dev *dev = (struct aac_dev *)host->hostdata;
 	struct fsa_dev_info *fsa_dev_ptr = dev->fsa_dev;
@@ -1706,15 +1704,15 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 	 *	Test does not apply to ID 16, the pseudo id for the controller
 	 *	itself.
 	 */
-	if (scmd_id(scsicmd) != host->this_id) {
-		if ((scmd_channel(scsicmd) == CONTAINER_CHANNEL)) {
-			if((scmd_id(scsicmd) >= dev->maximum_num_containers) ||
+	cid = scmd_id(scsicmd);
+	if (cid != host->this_id) {
+		if (scmd_channel(scsicmd) == CONTAINER_CHANNEL) {
+			if((cid >= dev->maximum_num_containers) ||
 					(scsicmd->device->lun != 0)) {
 				scsicmd->result = DID_NO_CONNECT << 16;
 				scsicmd->scsi_done(scsicmd);
 				return 0;
 			}
-			cid = scmd_id(scsicmd);
 
 			/*
 			 *	If the target container doesn't exist, it may have
@@ -1777,7 +1775,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 	{
 		struct inquiry_data inq_data;
 
-		dprintk((KERN_DEBUG "INQUIRY command, ID: %d.\n", scmd_id(scsicmd)));
+		dprintk((KERN_DEBUG "INQUIRY command, ID: %d.\n", cid));
 		memset(&inq_data, 0, sizeof (struct inquiry_data));
 
 		inq_data.inqd_ver = 2;	/* claim compliance to SCSI-2 */
@@ -1789,7 +1787,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		 *	Set the Vendor, Product, and Revision Level
 		 *	see: <vendor>.c i.e. aac.c
 		 */
-		if (scmd_id(scsicmd) == host->this_id) {
+		if (cid == host->this_id) {
 			setinqstr(dev, (void *) (inq_data.inqd_vid), ARRAY_SIZE(container_types));
 			inq_data.inqd_pdt = INQD_PDT_PROC;	/* Processor device */
 			aac_internal_transfer(scsicmd, &inq_data, 0, sizeof(inq_data));
@@ -2160,9 +2158,9 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 	if (!aac_valid_context(scsicmd, fibptr))
 		return;
 
-	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
-
 	BUG_ON(fibptr == NULL);
+
+	dev = fibptr->dev;
 
 	srbreply = (struct aac_srb_reply *) fib_data(fibptr);
 
