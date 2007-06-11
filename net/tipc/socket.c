@@ -1,8 +1,8 @@
 /*
  * net/tipc/socket.c: TIPC socket API
  *
- * Copyright (c) 2001-2006, Ericsson AB
- * Copyright (c) 2004-2006, Wind River Systems
+ * Copyright (c) 2001-2007, Ericsson AB
+ * Copyright (c) 2004-2007, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1600,33 +1600,6 @@ static int getsockopt(struct socket *sock,
 }
 
 /**
- * Placeholders for non-implemented functionality
- *
- * Returns error code (POSIX-compliant where defined)
- */
-
-static int ioctl(struct socket *s, u32 cmd, unsigned long arg)
-{
-	return -EINVAL;
-}
-
-static int no_mmap(struct file *file, struct socket *sock,
-		   struct vm_area_struct *vma)
-{
-	return -EINVAL;
-}
-static ssize_t no_sendpage(struct socket *sock, struct page *page,
-			   int offset, size_t size, int flags)
-{
-	return -EINVAL;
-}
-
-static int no_skpair(struct socket *s1, struct socket *s2)
-{
-	return -EOPNOTSUPP;
-}
-
-/**
  * Protocol switches for the various types of TIPC sockets
  */
 
@@ -1636,19 +1609,19 @@ static struct proto_ops msg_ops = {
 	.release	= release,
 	.bind		= bind,
 	.connect	= connect,
-	.socketpair	= no_skpair,
+	.socketpair	= sock_no_socketpair,
 	.accept		= accept,
 	.getname	= get_name,
 	.poll		= poll,
-	.ioctl		= ioctl,
+	.ioctl		= sock_no_ioctl,
 	.listen		= listen,
 	.shutdown	= shutdown,
 	.setsockopt	= setsockopt,
 	.getsockopt	= getsockopt,
 	.sendmsg	= send_msg,
 	.recvmsg	= recv_msg,
-	.mmap		= no_mmap,
-	.sendpage	= no_sendpage
+        .mmap		= sock_no_mmap,
+        .sendpage	= sock_no_sendpage
 };
 
 static struct proto_ops packet_ops = {
@@ -1657,19 +1630,19 @@ static struct proto_ops packet_ops = {
 	.release	= release,
 	.bind		= bind,
 	.connect	= connect,
-	.socketpair	= no_skpair,
+	.socketpair	= sock_no_socketpair,
 	.accept		= accept,
 	.getname	= get_name,
 	.poll		= poll,
-	.ioctl		= ioctl,
+	.ioctl		= sock_no_ioctl,
 	.listen		= listen,
 	.shutdown	= shutdown,
 	.setsockopt	= setsockopt,
 	.getsockopt	= getsockopt,
 	.sendmsg	= send_packet,
 	.recvmsg	= recv_msg,
-	.mmap		= no_mmap,
-	.sendpage	= no_sendpage
+        .mmap		= sock_no_mmap,
+        .sendpage	= sock_no_sendpage
 };
 
 static struct proto_ops stream_ops = {
@@ -1678,19 +1651,19 @@ static struct proto_ops stream_ops = {
 	.release	= release,
 	.bind		= bind,
 	.connect	= connect,
-	.socketpair	= no_skpair,
+	.socketpair	= sock_no_socketpair,
 	.accept		= accept,
 	.getname	= get_name,
 	.poll		= poll,
-	.ioctl		= ioctl,
+	.ioctl		= sock_no_ioctl,
 	.listen		= listen,
 	.shutdown	= shutdown,
 	.setsockopt	= setsockopt,
 	.getsockopt	= getsockopt,
 	.sendmsg	= send_stream,
 	.recvmsg	= recv_stream,
-	.mmap		= no_mmap,
-	.sendpage	= no_sendpage
+        .mmap		= sock_no_mmap,
+        .sendpage	= sock_no_sendpage
 };
 
 static struct net_proto_family tipc_family_ops = {
