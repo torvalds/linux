@@ -1,8 +1,8 @@
 /*
  * net/tipc/eth_media.c: Ethernet bearer support for TIPC
  *
- * Copyright (c) 2001-2006, Ericsson AB
- * Copyright (c) 2005-2006, Wind River Systems
+ * Copyright (c) 2001-2007, Ericsson AB
+ * Copyright (c) 2005-2007, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -87,6 +87,9 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 /**
  * recv_msg - handle incoming TIPC message from an Ethernet interface
  *
+ * Accept only packets explicitly sent to this node, or broadcast packets;
+ * ignores packets sent using Ethernet multicast, and traffic sent to other
+ * nodes (which can happen if interface is running in promiscuous mode).
  * Routine truncates any Ethernet padding/CRC appended to the message,
  * and ensures message size matches actual length
  */
@@ -98,9 +101,7 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 	u32 size;
 
 	if (likely(eb_ptr->bearer)) {
-	       if (likely(!dev->promiscuity) ||
-		   !memcmp(skb_mac_header(buf), dev->dev_addr, ETH_ALEN) ||
-		   !memcmp(skb_mac_header(buf), dev->broadcast, ETH_ALEN)) {
+		if (likely(buf->pkt_type <= PACKET_BROADCAST)) {
 			size = msg_size((struct tipc_msg *)buf->data);
 			skb_trim(buf, size);
 			if (likely(buf->len == size)) {
