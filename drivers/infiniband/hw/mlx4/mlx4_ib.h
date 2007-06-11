@@ -35,6 +35,7 @@
 
 #include <linux/compiler.h>
 #include <linux/list.h>
+#include <linux/mutex.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_umem.h>
