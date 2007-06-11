@@ -1813,7 +1813,7 @@ static void rtl8169_hw_reset(void __iomem *ioaddr)
 	RTL_R8(ChipCmd);
 }
 
-static void rtl8169_set_rx_tx_config_registers(struct rtl8169_private *tp)
+static void rtl_set_rx_tx_config_registers(struct rtl8169_private *tp)
 {
 	void __iomem *ioaddr = tp->mmio_addr;
 	u32 cfg = rtl8169_rx_config;
@@ -1850,6 +1850,35 @@ static void rtl_hw_start(struct net_device *dev)
 	netif_start_queue(dev);
 }
 
+
+static void rtl_set_rx_tx_desc_registers(struct rtl8169_private *tp,
+					 void __iomem *ioaddr)
+{
+	/*
+	 * Magic spell: some iop3xx ARM board needs the TxDescAddrHigh
+	 * register to be written before TxDescAddrLow to work.
+	 * Switching from MMIO to I/O access fixes the issue as well.
+	 */
+	RTL_W32(TxDescStartAddrHigh, ((u64) tp->TxPhyAddr) >> 32);
+	RTL_W32(TxDescStartAddrLow, ((u64) tp->TxPhyAddr) & DMA_32BIT_MASK);
+	RTL_W32(RxDescAddrHigh, ((u64) tp->RxPhyAddr) >> 32);
+	RTL_W32(RxDescAddrLow, ((u64) tp->RxPhyAddr) & DMA_32BIT_MASK);
+}
+
+static u16 rtl_rw_cpluscmd(void __iomem *ioaddr)
+{
+	u16 cmd;
+
+	cmd = RTL_R16(CPlusCmd);
+	RTL_W16(CPlusCmd, cmd);
+	return cmd;
+}
+
+static void rtl_set_rx_max_size(void __iomem *ioaddr)
+{
+	/* Low hurts. Let's disable the filtering. */
+	RTL_W16(RxMaxSize, 16383);
+}
 
 static void rtl_hw_start_8169(struct net_device *dev)
 {
@@ -1890,19 +1919,15 @@ static void rtl_hw_start_8169(struct net_device *dev)
 
 	RTL_W8(EarlyTxThres, EarlyTxThld);
 
-	/* Low hurts. Let's disable the filtering. */
-	RTL_W16(RxMaxSize, 16383);
+	rtl_set_rx_max_size(ioaddr);
 
 	if ((tp->mac_version == RTL_GIGA_MAC_VER_01) ||
 	    (tp->mac_version == RTL_GIGA_MAC_VER_02) ||
 	    (tp->mac_version == RTL_GIGA_MAC_VER_03) ||
 	    (tp->mac_version == RTL_GIGA_MAC_VER_04))
-		rtl8169_set_rx_tx_config_registers(tp);
+		rtl_set_rx_tx_config_registers(tp);
 
-	cmd = RTL_R16(CPlusCmd);
-	RTL_W16(CPlusCmd, cmd);
-
-	tp->cp_cmd |= cmd | PCIMulRW;
+	tp->cp_cmd |= rtl_rw_cpluscmd(ioaddr) | PCIMulRW;
 
 	if ((tp->mac_version == RTL_GIGA_MAC_VER_02) ||
 	    (tp->mac_version == RTL_GIGA_MAC_VER_03)) {
@@ -1919,22 +1944,14 @@ static void rtl_hw_start_8169(struct net_device *dev)
 	 */
 	RTL_W16(IntrMitigate, 0x0000);
 
-	/*
-	 * Magic spell: some iop3xx ARM board needs the TxDescAddrHigh
-	 * register to be written before TxDescAddrLow to work.
-	 * Switching from MMIO to I/O access fixes the issue as well.
-	 */
-	RTL_W32(TxDescStartAddrHigh, ((u64) tp->TxPhyAddr >> 32));
-	RTL_W32(TxDescStartAddrLow, ((u64) tp->TxPhyAddr & DMA_32BIT_MASK));
-	RTL_W32(RxDescAddrHigh, ((u64) tp->RxPhyAddr >> 32));
-	RTL_W32(RxDescAddrLow, ((u64) tp->RxPhyAddr & DMA_32BIT_MASK));
+	rtl_set_rx_tx_desc_registers(tp, ioaddr);
 
 	if ((tp->mac_version != RTL_GIGA_MAC_VER_01) &&
 	    (tp->mac_version != RTL_GIGA_MAC_VER_02) &&
 	    (tp->mac_version != RTL_GIGA_MAC_VER_03) &&
 	    (tp->mac_version != RTL_GIGA_MAC_VER_04)) {
 		RTL_W8(ChipCmd, CmdTxEnb | CmdRxEnb);
-		rtl8169_set_rx_tx_config_registers(tp);
+		rtl_set_rx_tx_config_registers(tp);
 	}
 
 	RTL_W8(Cfg9346, Cfg9346_Lock);
