@@ -1363,12 +1363,22 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 	 * schedule EH_REVALIDATE operation to update the IDENTIFY DEVICE
 	 * cache
 	 */
-	if (ap->ops->error_handler &&
-	    !need_sense && (qc->tf.command == ATA_CMD_SET_FEATURES) &&
-	    ((qc->tf.feature == SETFEATURES_WC_ON) ||
-	     (qc->tf.feature == SETFEATURES_WC_OFF))) {
-		ap->eh_info.action |= ATA_EH_REVALIDATE;
-		ata_port_schedule_eh(ap);
+	if (ap->ops->error_handler && !need_sense) {
+		switch (qc->tf.command) {
+		case ATA_CMD_SET_FEATURES:
+			if ((qc->tf.feature == SETFEATURES_WC_ON) ||
+			    (qc->tf.feature == SETFEATURES_WC_OFF)) {
+				ap->eh_info.action |= ATA_EH_REVALIDATE;
+				ata_port_schedule_eh(ap);
+			}
+			break;
+
+		case ATA_CMD_INIT_DEV_PARAMS: /* CHS translation changed */
+		case ATA_CMD_SET_MULTI: /* multi_count changed */
+			ap->eh_info.action |= ATA_EH_REVALIDATE;
+			ata_port_schedule_eh(ap);
+			break;
+		}
 	}
 
 	/* For ATA pass thru (SAT) commands, generate a sense block if
@@ -2506,22 +2516,21 @@ ata_scsi_map_proto(u8 byte1)
 			return ATA_PROT_NODATA;
 
 		case 6:		/* DMA */
+		case 10:	/* UDMA Data-in */
+		case 11:	/* UDMA Data-Out */
 			return ATA_PROT_DMA;
 
 		case 4:		/* PIO Data-in */
 		case 5:		/* PIO Data-out */
 			return ATA_PROT_PIO;
 
-		case 10:	/* Device Reset */
 		case 0:		/* Hard Reset */
 		case 1:		/* SRST */
-		case 2:		/* Bus Idle */
-		case 7:		/* Packet */
-		case 8:		/* DMA Queued */
-		case 9:		/* Device Diagnostic */
-		case 11:	/* UDMA Data-in */
-		case 12:	/* UDMA Data-Out */
-		case 13:	/* FPDMA */
+		case 8:		/* Device Diagnostic */
+		case 9:		/* Device Reset */
+		case 7:		/* DMA Queued */
+		case 12:	/* FPDMA */
+		case 15:	/* Return Response Info */
 		default:	/* Reserved */
 			break;
 	}
@@ -2550,10 +2559,6 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 
 	/* We may not issue DMA commands if no DMA mode is set */
 	if (tf->protocol == ATA_PROT_DMA && dev->dma_mode == 0)
-		goto invalid_fld;
-
-	if (cdb[1] & 0xe0)
-		/* PIO multi not supported yet */
 		goto invalid_fld;
 
 	/*
@@ -2600,12 +2605,26 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		tf->device = cdb[8];
 		tf->command = cdb[9];
 	}
-	/*
-	 * If slave is possible, enforce correct master/slave bit
-	*/
-	if (qc->ap->flags & ATA_FLAG_SLAVE_POSS)
-		tf->device = qc->dev->devno ?
-			tf->device | ATA_DEV1 : tf->device & ~ATA_DEV1;
+
+	/* enforce correct master/slave bit */
+	tf->device = dev->devno ?
+		tf->device | ATA_DEV1 : tf->device & ~ATA_DEV1;
+
+	/* sanity check for pio multi commands */
+	if ((cdb[1] & 0xe0) && !is_multi_taskfile(tf))
+		goto invalid_fld;
+
+	if (is_multi_taskfile(tf)) {
+		unsigned int multi_count = 1 << (cdb[1] >> 5);
+
+		/* compare the passed through multi_count
+		 * with the cached multi_count of libata
+		 */
+		if (multi_count != dev->multi_count)
+			ata_dev_printk(dev, KERN_WARNING,
+				       "invalid multi_count %u ignored\n",
+				       multi_count);
+	}	
 
 	/* READ/WRITE LONG use a non-standard sect_size */
 	qc->sect_size = ATA_SECT_SIZE;
