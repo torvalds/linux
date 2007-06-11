@@ -7,7 +7,7 @@
  * Description:  SRAM driver for Blackfin ADSP-BF5xx
  *
  * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
+ *               Copyright 2004-2007 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
@@ -80,7 +80,7 @@ static struct l1_sram_piece l1_inst_sram[CONFIG_L1_MAX_PIECE];
 #endif
 
 /* L1 Scratchpad SRAM initialization function */
-void l1sram_init(void)
+void __init l1sram_init(void)
 {
 	printk(KERN_INFO "Blackfin Scratchpad data SRAM: %d KB\n",
 	       L1_SCRATCH_LENGTH >> 10);
@@ -94,7 +94,7 @@ void l1sram_init(void)
 	spin_lock_init(&l1sram_lock);
 }
 
-void l1_data_sram_init(void)
+void __init l1_data_sram_init(void)
 {
 #if L1_DATA_A_LENGTH != 0
 	printk(KERN_INFO "Blackfin DATA_A SRAM: %d KB\n",
@@ -120,7 +120,7 @@ void l1_data_sram_init(void)
 	spin_lock_init(&l1_data_sram_lock);
 }
 
-void l1_inst_sram_init(void)
+void __init l1_inst_sram_init(void)
 {
 #if L1_CODE_LENGTH != 0
 	printk(KERN_INFO "Blackfin Instruction SRAM: %d KB\n",
