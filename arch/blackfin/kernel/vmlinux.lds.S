@@ -52,6 +52,7 @@ SECTIONS
 
 	.text :
 	{
+		 __text = .;
 		 _text = .;
 		 __stext = .;
 		TEXT_TEXT
