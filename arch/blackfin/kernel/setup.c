@@ -61,7 +61,7 @@ EXPORT_SYMBOL(memory_mtd_start);
 EXPORT_SYMBOL(mtd_size);
 #endif
 
-char command_line[COMMAND_LINE_SIZE];
+char __initdata command_line[COMMAND_LINE_SIZE];
 
 #if defined(CONFIG_BLKFIN_DCACHE) || defined(CONFIG_BLKFIN_CACHE)
 static void generate_cpl_tables(void);
@@ -205,7 +205,6 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #if defined(CONFIG_CMDLINE_BOOL)
-	memset(command_line, 0, sizeof(command_line));
 	strncpy(&command_line[0], CONFIG_CMDLINE, sizeof(command_line));
 	command_line[sizeof(command_line) - 1] = 0;
 #endif
@@ -213,7 +212,7 @@ void __init setup_arch(char **cmdline_p)
 	/* Keep a copy of command line */
 	*cmdline_p = &command_line[0];
 	memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
-	boot_command_line[COMMAND_LINE_SIZE - 1] = 0;
+	boot_command_line[COMMAND_LINE_SIZE - 1] = '\0';
 
 	/* setup memory defaults from the user config */
 	physical_mem_end = 0;
@@ -898,7 +897,7 @@ struct seq_operations cpuinfo_op = {
 	.show = show_cpuinfo,
 };
 
-void __init cmdline_init(char *r0)
+void __init cmdline_init(const char *r0)
 {
 	if (r0)
 		strncpy(command_line, r0, COMMAND_LINE_SIZE);
