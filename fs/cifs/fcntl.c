@@ -2,7 +2,7 @@
  *   fs/cifs/fcntl.c
  *
  *   vfs operations that deal with the file control API
- * 
+ *
  *   Copyright (C) International Business Machines  Corp., 2003,2004
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
@@ -35,34 +35,33 @@ static __u32 convert_to_cifs_notify_flags(unsigned long fcntl_notify_flags)
 
 	/* No way on Linux VFS to ask to monitor xattr
 	changes (and no stream support either */
-	if(fcntl_notify_flags & DN_ACCESS) {
+	if (fcntl_notify_flags & DN_ACCESS) {
 		cifs_ntfy_flags |= FILE_NOTIFY_CHANGE_LAST_ACCESS;
 	}
-	if(fcntl_notify_flags & DN_MODIFY) {
+	if (fcntl_notify_flags & DN_MODIFY) {
 		/* What does this mean on directories? */
 		cifs_ntfy_flags |= FILE_NOTIFY_CHANGE_LAST_WRITE |
 			FILE_NOTIFY_CHANGE_SIZE;
 	}
-	if(fcntl_notify_flags & DN_CREATE) {
-		cifs_ntfy_flags |= FILE_NOTIFY_CHANGE_CREATION | 
+	if (fcntl_notify_flags & DN_CREATE) {
+		cifs_ntfy_flags |= FILE_NOTIFY_CHANGE_CREATION |
 			FILE_NOTIFY_CHANGE_LAST_WRITE;
 	}
-	if(fcntl_notify_flags & DN_DELETE) {
+	if (fcntl_notify_flags & DN_DELETE) {
 		cifs_ntfy_flags |= FILE_NOTIFY_CHANGE_LAST_WRITE;
 	}
-	if(fcntl_notify_flags & DN_RENAME) {
+	if (fcntl_notify_flags & DN_RENAME) {
 		/* BB review this - checking various server behaviors */
-		cifs_ntfy_flags |= FILE_NOTIFY_CHANGE_DIR_NAME | 
+		cifs_ntfy_flags |= FILE_NOTIFY_CHANGE_DIR_NAME |
 			FILE_NOTIFY_CHANGE_FILE_NAME;
 	}
-	if(fcntl_notify_flags & DN_ATTRIB) {
-		cifs_ntfy_flags |= FILE_NOTIFY_CHANGE_SECURITY | 
+	if (fcntl_notify_flags & DN_ATTRIB) {
+		cifs_ntfy_flags |= FILE_NOTIFY_CHANGE_SECURITY |
 			FILE_NOTIFY_CHANGE_ATTRIBUTES;
 	}
-/*	if(fcntl_notify_flags & DN_MULTISHOT) {
+/*	if (fcntl_notify_flags & DN_MULTISHOT) {
 		cifs_ntfy_flags |= ;
 	} */ /* BB fixme - not sure how to handle this with CIFS yet */
-
 
 	return cifs_ntfy_flags;
 }
@@ -78,8 +77,7 @@ int cifs_dir_notify(struct file * file, unsigned long arg)
 	__u32 filter = FILE_NOTIFY_CHANGE_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES;
 	__u16 netfid;
 
-
-	if(experimEnabled == 0)
+	if (experimEnabled == 0)
 		return 0;
 
 	xid = GetXid();
@@ -88,21 +86,21 @@ int cifs_dir_notify(struct file * file, unsigned long arg)
 
 	full_path = build_path_from_dentry(file->f_path.dentry);
 
-	if(full_path == NULL) {
+	if (full_path == NULL) {
 		rc = -ENOMEM;
 	} else {
-		cFYI(1,("dir notify on file %s Arg 0x%lx",full_path,arg));
-		rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN, 
+		cFYI(1, ("dir notify on file %s Arg 0x%lx", full_path, arg));
+		rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN,
 			GENERIC_READ | SYNCHRONIZE, 0 /* create options */,
-			&netfid, &oplock,NULL, cifs_sb->local_nls,
+			&netfid, &oplock, NULL, cifs_sb->local_nls,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 		/* BB fixme - add this handle to a notify handle list */
-		if(rc) {
-			cFYI(1,("Could not open directory for notify"));
+		if (rc) {
+			cFYI(1, ("Could not open directory for notify"));
 		} else {
 			filter = convert_to_cifs_notify_flags(arg);
-			if(filter != 0) {
-				rc = CIFSSMBNotify(xid, pTcon, 
+			if (filter != 0) {
+				rc = CIFSSMBNotify(xid, pTcon,
 					0 /* no subdirs */, netfid,
 					filter, file, arg & DN_MULTISHOT,
 					cifs_sb->local_nls);
@@ -113,10 +111,10 @@ int cifs_dir_notify(struct file * file, unsigned long arg)
 			it would close automatically but may be a way
 			to do it easily when inode freed or when
 			notify info is cleared/changed */
-			cFYI(1,("notify rc %d",rc));
+			cFYI(1, ("notify rc %d", rc));
 		}
 	}
-	
+
 	FreeXid(xid);
 	return rc;
 }

@@ -825,8 +825,8 @@ cifs_init_mids(void)
 				sizeof (struct oplock_q_entry), 0,
 				SLAB_HWCACHE_ALIGN, NULL, NULL);
 	if (cifs_oplock_cachep == NULL) {
-		kmem_cache_destroy(cifs_mid_cachep);
 		mempool_destroy(cifs_mid_poolp);
+		kmem_cache_destroy(cifs_mid_cachep);
 		return -ENOMEM;
 	}
 
