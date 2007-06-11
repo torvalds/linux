@@ -13,6 +13,7 @@
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
+#include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
 
 #include "core.h"
@@ -37,6 +38,61 @@ static int sdio_init_func(struct mmc_card *card, unsigned int fn)
 	card->sdio_func[fn - 1] = func;
 
 	return 0;
+}
+
+static int sdio_read_cccr(struct mmc_card *card)
+{
+	int ret;
+	int cccr_vsn;
+	unsigned char data;
+
+	memset(&card->cccr, 0, sizeof(struct sdio_cccr));
+
+	ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_CCCR, 0, &data);
+	if (ret)
+		goto out;
+
+	cccr_vsn = data & 0x0f;
+
+	if (cccr_vsn > SDIO_CCCR_REV_1_20) {
+		printk(KERN_ERR "%s: unrecognised CCCR structure version %d\n",
+			mmc_hostname(card->host), cccr_vsn);
+		return -EINVAL;
+	}
+
+	card->cccr.sdio_vsn = (data & 0xf0) >> 4;
+
+	ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_CAPS, 0, &data);
+	if (ret)
+		goto out;
+
+	if (data & SDIO_CCCR_CAP_SMB)
+		card->cccr.multi_block = 1;
+	if (data & SDIO_CCCR_CAP_LSC)
+		card->cccr.low_speed = 1;
+	if (data & SDIO_CCCR_CAP_4BLS)
+		card->cccr.wide_bus = 1;
+
+	if (cccr_vsn >= SDIO_CCCR_REV_1_10) {
+		ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_POWER, 0, &data);
+		if (ret)
+			goto out;
+
+		if (data & SDIO_POWER_SMPC)
+			card->cccr.high_power = 1;
+	}
+
+	if (cccr_vsn >= SDIO_CCCR_REV_1_20) {
+		ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_SPEED, 0, &data);
+		if (ret)
+			goto out;
+
+		if (data & SDIO_SPEED_SHS)
+			card->cccr.high_speed = 1;
+	}
+
+out:
+	return ret;
 }
 
 /*
@@ -177,6 +233,13 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 	 * Select card, as all following commands rely on that.
 	 */
 	err = mmc_select_card(card);
+	if (err)
+		goto remove;
+
+	/*
+	 * Read the common registers.
+	 */
+	err = sdio_read_cccr(card);
 	if (err)
 		goto remove;
 

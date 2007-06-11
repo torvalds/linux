@@ -55,6 +55,16 @@ struct sd_switch_caps {
 	unsigned int		hs_max_dtr;
 };
 
+struct sdio_cccr {
+	unsigned int		sdio_vsn;
+	unsigned int		sd_vsn;
+	unsigned int		multi_block:1,
+				low_speed:1,
+				wide_bus:1,
+				high_power:1,
+				high_speed:1;
+};
+
 struct mmc_host;
 struct sdio_func;
 
@@ -87,6 +97,7 @@ struct mmc_card {
 	struct sd_switch_caps	sw_caps;	/* switch (CMD6) caps */
 
 	unsigned int		sdio_funcs;	/* number of SDIO functions */
+	struct sdio_cccr	cccr;		/* common card info */
 	struct sdio_func	*sdio_func[SDIO_MAX_FUNCS]; /* SDIO functions (devices) */
 };
 
