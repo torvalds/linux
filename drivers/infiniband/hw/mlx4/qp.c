@@ -189,18 +189,28 @@ static int send_wqe_overhead(enum ib_qp_type type)
 }
 
 static int set_rq_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
-		       struct mlx4_ib_qp *qp)
+		       int is_user, int has_srq, struct mlx4_ib_qp *qp)
 {
 	/* Sanity check RQ size before proceeding */
 	if (cap->max_recv_wr  > dev->dev->caps.max_wqes  ||
 	    cap->max_recv_sge > dev->dev->caps.max_rq_sg)
 		return -EINVAL;
 
-	qp->rq.max = cap->max_recv_wr ? roundup_pow_of_two(cap->max_recv_wr) : 0;
+	if (has_srq) {
+		/* QPs attached to an SRQ should have no RQ */
+		if (cap->max_recv_wr)
+			return -EINVAL;
 
-	qp->rq.wqe_shift = ilog2(roundup_pow_of_two(cap->max_recv_sge *
-						    sizeof (struct mlx4_wqe_data_seg)));
-	qp->rq.max_gs    = (1 << qp->rq.wqe_shift) / sizeof (struct mlx4_wqe_data_seg);
+		qp->rq.max = qp->rq.max_gs = 0;
+	} else {
+		/* HW requires >= 1 RQ entry with >= 1 gather entry */
+		if (is_user && (!cap->max_recv_wr || !cap->max_recv_sge))
+			return -EINVAL;
+
+		qp->rq.max	 = roundup_pow_of_two(max(1, cap->max_recv_wr));
+		qp->rq.max_gs	 = roundup_pow_of_two(max(1, cap->max_recv_sge));
+		qp->rq.wqe_shift = ilog2(qp->rq.max_gs * sizeof (struct mlx4_wqe_data_seg));
+	}
 
 	cap->max_recv_wr  = qp->rq.max;
 	cap->max_recv_sge = qp->rq.max_gs;
@@ -285,7 +295,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	qp->sq.head	    = 0;
 	qp->sq.tail	    = 0;
 
-	err = set_rq_size(dev, &init_attr->cap, qp);
+	err = set_rq_size(dev, &init_attr->cap, !!pd->uobject, !!init_attr->srq, qp);
 	if (err)
 		goto err;
 
@@ -762,11 +772,6 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 		optpar |= MLX4_QP_OPTPAR_PKEY_INDEX;
 	}
 
-	if (attr_mask & IB_QP_RNR_RETRY) {
-		context->params1 |= cpu_to_be32(attr->rnr_retry << 13);
-		optpar |= MLX4_QP_OPTPAR_RNR_RETRY;
-	}
-
 	if (attr_mask & IB_QP_AV) {
 		if (mlx4_set_path(dev, &attr->ah_attr, &context->pri_path,
 				  attr_mask & IB_QP_PORT ? attr->port_num : qp->port)) {
@@ -802,6 +807,12 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 
 	context->pd	    = cpu_to_be32(to_mpd(ibqp->pd)->pdn);
 	context->params1    = cpu_to_be32(MLX4_IB_ACK_REQ_FREQ << 28);
+
+	if (attr_mask & IB_QP_RNR_RETRY) {
+		context->params1 |= cpu_to_be32(attr->rnr_retry << 13);
+		optpar |= MLX4_QP_OPTPAR_RNR_RETRY;
+	}
+
 	if (attr_mask & IB_QP_RETRY_CNT) {
 		context->params1 |= cpu_to_be32(attr->retry_cnt << 16);
 		optpar |= MLX4_QP_OPTPAR_RETRY_COUNT;

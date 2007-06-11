@@ -37,6 +37,10 @@
 #include "fw.h"
 #include "icm.h"
 
+enum {
+	MLX4_COMMAND_INTERFACE_REV	= 1
+};
+
 extern void __buggy_use_of_MLX4_GET(void);
 extern void __buggy_use_of_MLX4_PUT(void);
 
@@ -452,10 +456,12 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 	u32 *outbox;
 	int err = 0;
 	u64 fw_ver;
+	u16 cmd_if_rev;
 	u8 lg;
 
 #define QUERY_FW_OUT_SIZE             0x100
 #define QUERY_FW_VER_OFFSET            0x00
+#define QUERY_FW_CMD_IF_REV_OFFSET     0x0a
 #define QUERY_FW_MAX_CMD_OFFSET        0x0f
 #define QUERY_FW_ERR_START_OFFSET      0x30
 #define QUERY_FW_ERR_SIZE_OFFSET       0x38
@@ -477,21 +483,36 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 
 	MLX4_GET(fw_ver, outbox, QUERY_FW_VER_OFFSET);
 	/*
-	 * FW subminor version is at more signifant bits than minor
+	 * FW subminor version is at more significant bits than minor
 	 * version, so swap here.
 	 */
 	dev->caps.fw_ver = (fw_ver & 0xffff00000000ull) |
 		((fw_ver & 0xffff0000ull) >> 16) |
 		((fw_ver & 0x0000ffffull) << 16);
 
+	MLX4_GET(cmd_if_rev, outbox, QUERY_FW_CMD_IF_REV_OFFSET);
+	if (cmd_if_rev != MLX4_COMMAND_INTERFACE_REV) {
+		mlx4_err(dev, "Installed FW has unsupported "
+			 "command interface revision %d.\n",
+			 cmd_if_rev);
+		mlx4_err(dev, "(Installed FW version is %d.%d.%03d)\n",
+			 (int) (dev->caps.fw_ver >> 32),
+			 (int) (dev->caps.fw_ver >> 16) & 0xffff,
+			 (int) dev->caps.fw_ver & 0xffff);
+		mlx4_err(dev, "This driver version supports only revision %d.\n",
+			 MLX4_COMMAND_INTERFACE_REV);
+		err = -ENODEV;
+		goto out;
+	}
+
 	MLX4_GET(lg, outbox, QUERY_FW_MAX_CMD_OFFSET);
 	cmd->max_cmds = 1 << lg;
 
-	mlx4_dbg(dev, "FW version %d.%d.%03d, max commands %d\n",
+	mlx4_dbg(dev, "FW version %d.%d.%03d (cmd intf rev %d), max commands %d\n",
 		 (int) (dev->caps.fw_ver >> 32),
 		 (int) (dev->caps.fw_ver >> 16) & 0xffff,
 		 (int) dev->caps.fw_ver & 0xffff,
-		 cmd->max_cmds);
+		 cmd_if_rev, cmd->max_cmds);
 
 	MLX4_GET(fw->catas_offset, outbox, QUERY_FW_ERR_START_OFFSET);
 	MLX4_GET(fw->catas_size,   outbox, QUERY_FW_ERR_SIZE_OFFSET);
