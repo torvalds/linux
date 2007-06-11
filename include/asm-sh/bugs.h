@@ -22,7 +22,7 @@ static void __init check_bugs(void)
 	current_cpu_data.loops_per_jiffy = loops_per_jiffy;
 
 	switch (current_cpu_data.type) {
-	case CPU_SH7604 ... CPU_SH7619:
+	case CPU_SH7619:
 		*p++ = '2';
 		break;
 	case CPU_SH7206:
