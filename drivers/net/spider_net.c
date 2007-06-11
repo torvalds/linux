@@ -434,7 +434,8 @@ spider_net_prepare_rx_descr(struct spider_net_card *card,
 				      bufsize + SPIDER_NET_RXBUF_ALIGN - 1);
 	if (!descr->skb) {
 		if (netif_msg_rx_err(card) && net_ratelimit())
-			pr_err("Not enough memory to allocate rx buffer\n");
+			dev_err(&card->netdev->dev,
+			        "Not enough memory to allocate rx buffer\n");
 		card->spider_stats.alloc_rx_skb_error++;
 		return -ENOMEM;
 	}
@@ -455,7 +456,7 @@ spider_net_prepare_rx_descr(struct spider_net_card *card,
 		dev_kfree_skb_any(descr->skb);
 		descr->skb = NULL;
 		if (netif_msg_rx_err(card) && net_ratelimit())
-			pr_err("Could not iommu-map rx buffer\n");
+			dev_err(&card->netdev->dev, "Could not iommu-map rx buffer\n");
 		card->spider_stats.rx_iommu_map_error++;
 		hwdescr->dmac_cmd_status = SPIDER_NET_DESCR_NOT_IN_USE;
 	} else {
@@ -692,7 +693,7 @@ spider_net_prepare_tx_descr(struct spider_net_card *card,
 	buf = pci_map_single(card->pdev, skb->data, skb->len, PCI_DMA_TODEVICE);
 	if (pci_dma_mapping_error(buf)) {
 		if (netif_msg_tx_err(card) && net_ratelimit())
-			pr_err("could not iommu-map packet (%p, %i). "
+			dev_err(&card->netdev->dev, "could not iommu-map packet (%p, %i). "
 				  "Dropping packet\n", skb->data, skb->len);
 		card->spider_stats.tx_iommu_map_error++;
 		return -ENOMEM;
@@ -832,9 +833,8 @@ spider_net_release_tx_chain(struct spider_net_card *card, int brutal)
 		case SPIDER_NET_DESCR_PROTECTION_ERROR:
 		case SPIDER_NET_DESCR_FORCE_END:
 			if (netif_msg_tx_err(card))
-				pr_err("%s: forcing end of tx descriptor "
-				       "with status x%02x\n",
-				       card->netdev->name, status);
+				dev_err(&card->netdev->dev, "forcing end of tx descriptor "
+				       "with status x%02x\n", status);
 			card->netdev_stats.tx_errors++;
 			break;
 
@@ -1147,8 +1147,8 @@ spider_net_decode_one_descr(struct spider_net_card *card)
 	     (status == SPIDER_NET_DESCR_PROTECTION_ERROR) ||
 	     (status == SPIDER_NET_DESCR_FORCE_END) ) {
 		if (netif_msg_rx_err(card))
-			pr_err("%s: dropping RX descriptor with state %d\n",
-			       card->netdev->name, status);
+			dev_err(&card->netdev->dev,
+			       "dropping RX descriptor with state %d\n", status);
 		card->netdev_stats.rx_dropped++;
 		goto bad_desc;
 	}
@@ -1156,8 +1156,8 @@ spider_net_decode_one_descr(struct spider_net_card *card)
 	if ( (status != SPIDER_NET_DESCR_COMPLETE) &&
 	     (status != SPIDER_NET_DESCR_FRAME_END) ) {
 		if (netif_msg_rx_err(card))
-			pr_err("%s: RX descriptor with unknown state %d\n",
-			       card->netdev->name, status);
+			dev_err(&card->netdev->dev,
+			       "RX descriptor with unknown state %d\n", status);
 		card->spider_stats.rx_desc_unk_state++;
 		goto bad_desc;
 	}
@@ -1165,16 +1165,15 @@ spider_net_decode_one_descr(struct spider_net_card *card)
 	/* The cases we'll throw away the packet immediately */
 	if (hwdescr->data_error & SPIDER_NET_DESTROY_RX_FLAGS) {
 		if (netif_msg_rx_err(card))
-			pr_err("%s: error in received descriptor found, "
+			dev_err(&card->netdev->dev,
+			       "error in received descriptor found, "
 			       "data_status=x%08x, data_error=x%08x\n",
-			       card->netdev->name,
 			       hwdescr->data_status, hwdescr->data_error);
 		goto bad_desc;
 	}
 
 	if (hwdescr->dmac_cmd_status & 0xfcf4) {
-		pr_err("%s: bad status, cmd_status=x%08x\n",
-			       card->netdev->name,
+		dev_err(&card->netdev->dev, "bad status, cmd_status=x%08x\n",
 			       hwdescr->dmac_cmd_status);
 		pr_err("buf_addr=x%08x\n", hwdescr->buf_addr);
 		pr_err("buf_size=x%08x\n", hwdescr->buf_size);
@@ -1415,7 +1414,7 @@ spider_net_handle_error_irq(struct spider_net_card *card, u32 status_reg)
 	case SPIDER_NET_GPWFFINT:
 		/* PHY command queue full */
 		if (netif_msg_intr(card))
-			pr_err("PHY write queue full\n");
+			dev_err(&card->netdev->dev, "PHY write queue full\n");
 		show_error = 0;
 		break;
 
@@ -1582,9 +1581,8 @@ spider_net_handle_error_irq(struct spider_net_card *card, u32 status_reg)
 	}
 
 	if ((show_error) && (netif_msg_intr(card)) && net_ratelimit())
-		pr_err("Got error interrupt on %s, GHIINT0STS = 0x%08x, "
+		dev_err(&card->netdev->dev, "Error interrupt, GHIINT0STS = 0x%08x, "
 		       "GHIINT1STS = 0x%08x, GHIINT2STS = 0x%08x\n",
-		       card->netdev->name,
 		       status_reg, error_reg1, error_reg2);
 
 	/* clear interrupt sources */
@@ -1849,7 +1847,8 @@ spider_net_init_firmware(struct spider_net_card *card)
 			     SPIDER_NET_FIRMWARE_NAME, &card->pdev->dev) == 0) {
 		if ( (firmware->size != SPIDER_NET_FIRMWARE_LEN) &&
 		     netif_msg_probe(card) ) {
-			pr_err("Incorrect size of spidernet firmware in " \
+			dev_err(&card->netdev->dev,
+			       "Incorrect size of spidernet firmware in " \
 			       "filesystem. Looking in host firmware...\n");
 			goto try_host_fw;
 		}
@@ -1873,8 +1872,8 @@ try_host_fw:
 
 	if ( (fw_size != SPIDER_NET_FIRMWARE_LEN) &&
 	     netif_msg_probe(card) ) {
-		pr_err("Incorrect size of spidernet firmware in " \
-		       "host firmware\n");
+		dev_err(&card->netdev->dev,
+		       "Incorrect size of spidernet firmware in host firmware\n");
 		goto done;
 	}
 
@@ -1884,7 +1883,8 @@ done:
 	return err;
 out_err:
 	if (netif_msg_probe(card))
-		pr_err("Couldn't find spidernet firmware in filesystem " \
+		dev_err(&card->netdev->dev,
+		       "Couldn't find spidernet firmware in filesystem " \
 		       "or host firmware\n");
 	return err;
 }
@@ -2279,13 +2279,14 @@ spider_net_setup_netdev(struct spider_net_card *card)
 
 	result = spider_net_set_mac(netdev, &addr);
 	if ((result) && (netif_msg_probe(card)))
-		pr_err("Failed to set MAC address: %i\n", result);
+		dev_err(&card->netdev->dev,
+		        "Failed to set MAC address: %i\n", result);
 
 	result = register_netdev(netdev);
 	if (result) {
 		if (netif_msg_probe(card))
-			pr_err("Couldn't register net_device: %i\n",
-				  result);
+			dev_err(&card->netdev->dev,
+			        "Couldn't register net_device: %i\n", result);
 		return result;
 	}
 
@@ -2363,17 +2364,19 @@ spider_net_setup_pci_dev(struct pci_dev *pdev)
 	unsigned long mmio_start, mmio_len;
 
 	if (pci_enable_device(pdev)) {
-		pr_err("Couldn't enable PCI device\n");
+		dev_err(&pdev->dev, "Couldn't enable PCI device\n");
 		return NULL;
 	}
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		pr_err("Couldn't find proper PCI device base address.\n");
+		dev_err(&pdev->dev,
+		        "Couldn't find proper PCI device base address.\n");
 		goto out_disable_dev;
 	}
 
 	if (pci_request_regions(pdev, spider_net_driver_name)) {
-		pr_err("Couldn't obtain PCI resources, aborting.\n");
+		dev_err(&pdev->dev,
+		        "Couldn't obtain PCI resources, aborting.\n");
 		goto out_disable_dev;
 	}
 
@@ -2381,8 +2384,8 @@ spider_net_setup_pci_dev(struct pci_dev *pdev)
 
 	card = spider_net_alloc_card();
 	if (!card) {
-		pr_err("Couldn't allocate net_device structure, "
-			  "aborting.\n");
+		dev_err(&pdev->dev,
+		        "Couldn't allocate net_device structure, aborting.\n");
 		goto out_release_regions;
 	}
 	card->pdev = pdev;
@@ -2396,7 +2399,8 @@ spider_net_setup_pci_dev(struct pci_dev *pdev)
 	card->regs = ioremap(mmio_start, mmio_len);
 
 	if (!card->regs) {
-		pr_err("Couldn't obtain PCI resources, aborting.\n");
+		dev_err(&pdev->dev,
+		        "Couldn't obtain PCI resources, aborting.\n");
 		goto out_release_regions;
 	}
 
