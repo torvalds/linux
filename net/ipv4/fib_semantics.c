@@ -42,7 +42,6 @@
 #include <net/tcp.h>
 #include <net/sock.h>
 #include <net/ip_fib.h>
-#include <net/ip_mp_alg.h>
 #include <net/netlink.h>
 #include <net/nexthop.h>
 
@@ -697,13 +696,6 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 			goto err_inval;
 	}
 #endif
-#ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-	if (cfg->fc_mp_alg) {
-		if (cfg->fc_mp_alg < IP_MP_ALG_NONE ||
-		    cfg->fc_mp_alg > IP_MP_ALG_MAX)
-			goto err_inval;
-	}
-#endif
 
 	err = -ENOBUFS;
 	if (fib_info_cnt >= fib_hash_size) {
@@ -790,10 +782,6 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 		nh->nh_weight = 1;
 #endif
 	}
-
-#ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-	fi->fib_mp_alg = cfg->fc_mp_alg;
-#endif
 
 	if (fib_props[cfg->fc_type].error) {
 		if (cfg->fc_gw || cfg->fc_oif || cfg->fc_mp)
@@ -940,10 +928,6 @@ out_fill_res:
 	res->type = fa->fa_type;
 	res->scope = fa->fa_scope;
 	res->fi = fa->fa_info;
-#ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-	res->netmask = mask;
-	res->network = zone & inet_make_mask(prefixlen);
-#endif
 	atomic_inc(&res->fi->fib_clntref);
 	return 0;
 }

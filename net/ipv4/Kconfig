@@ -116,48 +116,6 @@ config IP_ROUTE_MULTIPATH
 	  equal "cost" and chooses one of them in a non-deterministic fashion
 	  if a matching packet arrives.
 
-config IP_ROUTE_MULTIPATH_CACHED
-	bool "IP: equal cost multipath with caching support (EXPERIMENTAL)"
-	depends on IP_ROUTE_MULTIPATH
-	help
-	  Normally, equal cost multipath routing is not supported by the
-	  routing cache. If you say Y here, alternative routes are cached
-	  and on cache lookup a route is chosen in a configurable fashion.
-
-	  If unsure, say N.
-
-config IP_ROUTE_MULTIPATH_RR
-	tristate "MULTIPATH: round robin algorithm"
-	depends on IP_ROUTE_MULTIPATH_CACHED
-	help
-	  Multipath routes are chosen according to Round Robin
-
-config IP_ROUTE_MULTIPATH_RANDOM
-	tristate "MULTIPATH: random algorithm"
-	depends on IP_ROUTE_MULTIPATH_CACHED
-	help
-	  Multipath routes are chosen in a random fashion. Actually,
-	  there is no weight for a route. The advantage of this policy
-	  is that it is implemented stateless and therefore introduces only
-	  a very small delay.
-
-config IP_ROUTE_MULTIPATH_WRANDOM
-	tristate "MULTIPATH: weighted random algorithm"
-	depends on IP_ROUTE_MULTIPATH_CACHED
-	help
-	  Multipath routes are chosen in a weighted random fashion. 
-	  The per route weights are the weights visible via ip route 2. As the
-	  corresponding state management introduces some overhead routing delay
-	  is increased.
-
-config IP_ROUTE_MULTIPATH_DRR
-	tristate "MULTIPATH: interface round robin algorithm"
-	depends on IP_ROUTE_MULTIPATH_CACHED
-	help
-	  Connections are distributed in a round robin fashion over the
-	  available interfaces. This policy makes sense if the connections 
-	  should be primarily distributed on interfaces and not on routes. 
-
 config IP_ROUTE_VERBOSE
 	bool "IP: verbose route monitoring"
 	depends on IP_ADVANCED_ROUTER
