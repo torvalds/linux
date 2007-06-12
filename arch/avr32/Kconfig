@@ -113,6 +113,10 @@ config BOARD_ATNGW100
 	bool "ATNGW100 Network Gateway"
 endchoice
 
+if BOARD_ATSTK1000
+source "arch/avr32/boards/atstk1000/Kconfig"
+endif
+
 choice
 	prompt "Boot loader type"
 	default LOADER_U_BOOT
