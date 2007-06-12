@@ -2592,11 +2592,17 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 
 	read_lock(&local->sub_if_lock);
 	list_for_each_entry(sdata, &local->sub_if_list, list) {
+
+		/* No need to wake the master device. */
+		if (sdata->dev == local->mdev)
+			continue;
+
 		if (sdata->type == IEEE80211_IF_TYPE_STA) {
 			if (sdata->u.sta.associated)
 				ieee80211_send_nullfunc(local, sdata, 0);
 			ieee80211_sta_timer((unsigned long)sdata);
 		}
+
 		netif_wake_queue(sdata->dev);
 	}
 	read_unlock(&local->sub_if_lock);
@@ -2738,6 +2744,12 @@ static int ieee80211_sta_start_scan(struct net_device *dev,
 
 	read_lock(&local->sub_if_lock);
 	list_for_each_entry(sdata, &local->sub_if_list, list) {
+
+		/* Don't stop the master interface, otherwise we can't transmit
+		 * probes! */
+		if (sdata->dev == local->mdev)
+			continue;
+
 		netif_stop_queue(sdata->dev);
 		if (sdata->type == IEEE80211_IF_TYPE_STA &&
 		    sdata->u.sta.associated)

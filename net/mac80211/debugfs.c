@@ -112,7 +112,7 @@ DEBUGFS_READONLY_FILE(wep_iv, 20, "%#06x",
 		      local->wep_iv & 0xffffff);
 DEBUGFS_READONLY_FILE(tx_power_reduction, 20, "%d.%d dBm",
 		      local->hw.conf.tx_power_reduction / 10,
-		      local->hw.conf.tx_power_reduction & 10);
+		      local->hw.conf.tx_power_reduction % 10);
 DEBUGFS_READONLY_FILE(rate_ctrl_alg, 100, "%s",
 		      local->rate_ctrl ? local->rate_ctrl->ops->name : "<unset>");
 

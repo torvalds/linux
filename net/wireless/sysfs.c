@@ -33,7 +33,7 @@ static ssize_t _show_permaddr(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
 {
-	char *addr = dev_to_rdev(dev)->wiphy.perm_addr;
+	unsigned char *addr = dev_to_rdev(dev)->wiphy.perm_addr;
 
 	return sprintf(buf, "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
 		       addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
