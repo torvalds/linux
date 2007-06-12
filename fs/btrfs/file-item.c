@@ -28,10 +28,6 @@ int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_insert_empty_item(trans, root, path, &file_key,
 				      sizeof(*item));
-	if (ret) {
-printk("failed to insert %Lu %Lu ret %d\n", objectid, pos, ret);
-btrfs_print_leaf(root, btrfs_buffer_leaf(path->nodes[0]));
-	}
 	BUG_ON(ret);
 	item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]), path->slots[0],
 			      struct btrfs_file_extent_item);
@@ -201,7 +197,6 @@ insert:
 	ret = btrfs_insert_empty_item(trans, root, path, &file_key,
 				      BTRFS_CRC32_SIZE);
 	if (ret != 0) {
-		printk("at insert for %Lu %u %Lu ret is %d\n", file_key.objectid, file_key.flags, file_key.offset, ret);
 		WARN_ON(1);
 		goto fail;
 	}

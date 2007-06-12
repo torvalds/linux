@@ -584,8 +584,6 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 	while(total) {
 		cache = btrfs_lookup_block_group(info, blocknr);
 		if (!cache) {
-			printk(KERN_CRIT "blocknr %Lu lookup failed\n",
-			       blocknr);
 			return -1;
 		}
 		block_in_group = blocknr - cache->key.objectid;
@@ -795,9 +793,6 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	ret = btrfs_search_slot(trans, extent_root, &key, path, -1, 1);
 	if (ret) {
-		printk("failed to find %Lu\n", key.objectid);
-		btrfs_print_tree(extent_root, extent_root->node);
-		printk("failed to find %Lu\n", key.objectid);
 		BUG();
 	}
 	ei = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]), path->slots[0],

@@ -20,8 +20,9 @@ static int check_tree_block(struct btrfs_root *root, struct buffer_head *buf)
 {
 	struct btrfs_node *node = btrfs_buffer_node(buf);
 	if (bh_blocknr(buf) != btrfs_header_blocknr(&node->header)) {
-		printk(KERN_CRIT "bh_blocknr(buf) is %Lu, header is %Lu\n",
-		       bh_blocknr(buf), btrfs_header_blocknr(&node->header));
+		printk(KERN_CRIT "bh_blocknr(buf) is %llu, header is %llu\n",
+		       (unsigned long long)bh_blocknr(buf),
+		       (unsigned long long)btrfs_header_blocknr(&node->header));
 		return 1;
 	}
 	return 0;
@@ -157,8 +158,9 @@ static int csum_tree_block(struct btrfs_root *root, struct buffer_head *bh,
 		return ret;
 	if (verify) {
 		if (memcmp(bh->b_data, result, BTRFS_CRC32_SIZE)) {
-			printk("checksum verify failed on %Lu\n",
-			       bh_blocknr(bh));
+			printk("btrfs: %s checksum verify failed on %llu\n",
+			       root->fs_info->sb->s_id,
+			       (unsigned long long)bh_blocknr(bh));
 			return 1;
 		}
 	} else {
