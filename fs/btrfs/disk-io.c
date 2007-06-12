@@ -106,7 +106,7 @@ struct buffer_head *btrfs_find_create_tree_block(struct btrfs_root *root,
 	int err;
 	u64 first_block = index << (PAGE_CACHE_SHIFT - blockbits);
 
-	page = grab_cache_page(mapping, index);
+	page = find_or_create_page(mapping, index, GFP_NOFS);
 	if (!page)
 		return NULL;
 

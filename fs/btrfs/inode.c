@@ -1754,6 +1754,7 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 				BTRFS_I(dir)->block_group, S_IFDIR | 0700);
 	inode->i_op = &btrfs_dir_inode_operations;
 	inode->i_fop = &btrfs_dir_file_operations;
+	new_root->inode = inode;
 
 	ret = btrfs_make_empty_dir(trans, new_root, new_dirid, new_dirid);
 	BUG_ON(ret);
@@ -1765,8 +1766,6 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 
 	ret = btrfs_commit_transaction(trans, new_root);
 	BUG_ON(ret);
-
-	iput(inode);
 
 	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_btree_balance_dirty(root);

@@ -112,7 +112,7 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		if (buffer_mapped(bh) && bh->b_blocknr == 0) {
 			struct btrfs_key key;
 			struct btrfs_path *path;
-			char *ptr;
+			char *ptr, *kaddr;
 			u32 datasize;
 
 			/* create an inline extent, and copy the data in */
@@ -135,8 +135,11 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 			btrfs_set_file_extent_type(ei,
 						   BTRFS_FILE_EXTENT_INLINE);
 			ptr = btrfs_file_extent_inline_start(ei);
+			kaddr = kmap_atomic(bh->b_page, KM_USER0);
 			btrfs_memcpy(root, path->nodes[0]->b_data,
-				     ptr, bh->b_data, offset + write_bytes);
+				     ptr, kaddr + bh_offset(bh),
+				     offset + write_bytes);
+			kunmap_atomic(kaddr, KM_USER0);
 			mark_buffer_dirty(path->nodes[0]);
 			btrfs_free_path(path);
 		} else if (buffer_mapped(bh)) {
