@@ -464,21 +464,24 @@ static int aac_rx_restart_adapter(struct aac_dev *dev, int bled)
 {
 	u32 var;
 
-	if (bled)
-		printk(KERN_ERR "%s%d: adapter kernel panic'd %x.\n",
-			dev->name, dev->id, bled);
-	else {
-		bled = aac_adapter_sync_cmd(dev, IOP_RESET_ALWAYS,
-		  0, 0, 0, 0, 0, 0, &var, NULL, NULL, NULL, NULL);
-		if (!bled && (var != 0x00000001))
-			bled = -EINVAL;
-	}
-	if (bled && (bled != -ETIMEDOUT))
-		bled = aac_adapter_sync_cmd(dev, IOP_RESET,
-		  0, 0, 0, 0, 0, 0, &var, NULL, NULL, NULL, NULL);
+	if (!(dev->supplement_adapter_info.SupportedOptions2 &
+	  le32_to_cpu(AAC_OPTION_MU_RESET)) || (bled >= 0) || (bled == -2)) {
+		if (bled)
+			printk(KERN_ERR "%s%d: adapter kernel panic'd %x.\n",
+				dev->name, dev->id, bled);
+		else {
+			bled = aac_adapter_sync_cmd(dev, IOP_RESET_ALWAYS,
+			  0, 0, 0, 0, 0, 0, &var, NULL, NULL, NULL, NULL);
+			if (!bled && (var != 0x00000001))
+				bled = -EINVAL;
+		}
+		if (bled && (bled != -ETIMEDOUT))
+			bled = aac_adapter_sync_cmd(dev, IOP_RESET,
+			  0, 0, 0, 0, 0, 0, &var, NULL, NULL, NULL, NULL);
 
-	if (bled && (bled != -ETIMEDOUT))
-		return -EINVAL;
+		if (bled && (bled != -ETIMEDOUT))
+			return -EINVAL;
+	}
 	if (bled || (var == 0x3803000F)) { /* USE_OTHER_METHOD */
 		rx_writel(dev, MUnit.reserved2, 3);
 		msleep(5000); /* Delay 5 seconds */
@@ -596,7 +599,7 @@ int _aac_rx_init(struct aac_dev *dev)
 		}
 		msleep(1);
 	}
-	if (restart)
+	if (restart && aac_commit)
 		aac_commit = 1;
 	/*
 	 *	Fill in the common function dispatch table.

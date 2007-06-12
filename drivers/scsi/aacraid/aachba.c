@@ -169,6 +169,18 @@ int acbsize = -1;
 module_param(acbsize, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(acbsize, "Request a specific adapter control block (FIB) size. Valid values are 512, 2048, 4096 and 8192. Default is to use suggestion from Firmware.");
 
+int update_interval = 30 * 60;
+module_param(update_interval, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(update_interval, "Interval in seconds between time sync updates issued to adapter.");
+
+int check_interval = 24 * 60 * 60;
+module_param(check_interval, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(check_interval, "Interval in seconds between adapter health checks.");
+
+int check_reset = 1;
+module_param(check_reset, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(check_reset, "If adapter fails health check, reset the adapter.");
+
 int expose_physicals = -1;
 module_param(expose_physicals, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(expose_physicals, "Expose physical components of the arrays. -1=protect 0=off, 1=on");
@@ -1196,6 +1208,12 @@ int aac_get_adapter_info(struct aac_dev* dev)
 			  dev->name, dev->id,
 			  (int)sizeof(dev->supplement_adapter_info.VpdInfo.Tsid),
 			  dev->supplement_adapter_info.VpdInfo.Tsid);
+		}
+		if (!check_reset ||
+		  (dev->supplement_adapter_info.SupportedOptions2 &
+		  le32_to_cpu(AAC_OPTION_IGNORE_RESET))) {
+			printk(KERN_INFO "%s%d: Reset Adapter Ignored\n",
+			  dev->name, dev->id);
 		}
 	}
 

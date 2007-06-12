@@ -12,8 +12,8 @@
  *----------------------------------------------------------------------------*/
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 2437
-# define AAC_DRIVER_BRANCH "-mh4"
+# define AAC_DRIVER_BUILD 2447
+# define AAC_DRIVER_BRANCH "-ms"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
 
@@ -860,10 +860,12 @@ struct aac_supplement_adapter_info
 	__le32	FlashFirmwareBootBuild;
 	u8	MfgPcbaSerialNo[12];
 	u8	MfgWWNName[8];
-	__le32	MoreFeatureBits;
+	__le32	SupportedOptions2;
 	__le32	ReservedGrowth[1];
 };
 #define AAC_FEATURE_FALCON	0x00000010
+#define AAC_OPTION_MU_RESET	0x00000001
+#define AAC_OPTION_IGNORE_RESET	0x00000002
 #define AAC_SIS_VERSION_V3	3
 #define AAC_SIS_SLOT_UNKNOWN	0xFF
 
@@ -1258,6 +1260,19 @@ struct aac_synchronize_reply {
 	__le32		parm4;
 	__le32		parm5;
 	u8		data[16];
+};
+
+#define CT_PAUSE_IO    65
+#define CT_RELEASE_IO  66
+struct aac_pause {
+	__le32		command;	/* VM_ContainerConfig */
+	__le32		type;		/* CT_PAUSE_IO */
+	__le32		timeout;	/* 10ms ticks */
+	__le32		min;
+	__le32		noRescan;
+	__le32		parm3;
+	__le32		parm4;
+	__le32		count;	/* sizeof(((struct aac_pause_reply *)NULL)->data) */
 };
 
 struct aac_srb
@@ -1816,6 +1831,7 @@ int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw
 unsigned int aac_response_normal(struct aac_queue * q);
 unsigned int aac_command_normal(struct aac_queue * q);
 unsigned int aac_intr_normal(struct aac_dev * dev, u32 Index);
+int aac_reset_adapter(struct aac_dev * dev, int forced);
 int aac_check_health(struct aac_dev * dev);
 int aac_command_thread(void *data);
 int aac_close_fib_context(struct aac_dev * dev, struct aac_fib_context *fibctx);
@@ -1835,3 +1851,6 @@ extern int aif_timeout;
 extern int expose_physicals;
 extern int aac_reset_devices;
 extern int aac_commit;
+extern int update_interval;
+extern int check_interval;
+extern int check_reset;

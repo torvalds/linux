@@ -39,10 +39,8 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/dma-mapping.h>
 #include <linux/syscalls.h>
 #include <linux/delay.h>
-#include <linux/smp_lock.h>
 #include <linux/kthread.h>
 #include <asm/semaphore.h>
 
@@ -581,6 +579,14 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 		ssleep(1);
 	}
 	printk(KERN_ERR "%s: SCSI bus appears hung\n", AAC_DRIVERNAME);
+	/*
+	 * This adapter needs a blind reset, only do so for Adapters that
+	 * support a register, instead of a commanded, reset.
+	 */
+	if ((aac->supplement_adapter_info.SupportedOptions2 &
+	  le32_to_cpu(AAC_OPTION_MU_RESET|AAC_OPTION_IGNORE_RESET)) ==
+	  le32_to_cpu(AAC_OPTION_MU_RESET))
+		aac_reset_adapter(aac, 2); /* Bypass wait for command quiesce */
 	return SUCCESS; /* Cause an immediate retry of the command with a ten second delay after successful tur */
 }
 
@@ -788,6 +794,31 @@ static ssize_t aac_show_max_id(struct class_device *class_dev, char *buf)
 	  class_to_shost(class_dev)->max_id);
 }
 
+static ssize_t aac_store_reset_adapter(struct class_device *class_dev,
+		const char *buf, size_t count)
+{
+	int retval = -EACCES;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return retval;
+	retval = aac_reset_adapter((struct aac_dev*)class_to_shost(class_dev)->hostdata, buf[0] == '!');
+	if (retval >= 0)
+		retval = count;
+	return retval;
+}
+
+static ssize_t aac_show_reset_adapter(struct class_device *class_dev,
+		char *buf)
+{
+	struct aac_dev *dev = (struct aac_dev*)class_to_shost(class_dev)->hostdata;
+	int len, tmp;
+
+	tmp = aac_adapter_check_health(dev);
+	if ((tmp == 0) && dev->in_reset)
+		tmp = -EBUSY;
+	len = snprintf(buf, PAGE_SIZE, "0x%x", tmp);
+	return len;
+}
 
 static struct class_device_attribute aac_model = {
 	.attr = {
@@ -845,6 +876,14 @@ static struct class_device_attribute aac_max_id = {
 	},
 	.show = aac_show_max_id,
 };
+static struct class_device_attribute aac_reset = {
+	.attr = {
+		.name = "reset_host",
+		.mode = S_IWUSR|S_IRUGO,
+	},
+	.store = aac_store_reset_adapter,
+	.show = aac_show_reset_adapter,
+};
 
 static struct class_device_attribute *aac_attrs[] = {
 	&aac_model,
@@ -855,6 +894,7 @@ static struct class_device_attribute *aac_attrs[] = {
 	&aac_serial_number,
 	&aac_max_channel,
 	&aac_max_id,
+	&aac_reset,
 	NULL
 };
 
@@ -1118,7 +1158,7 @@ static int __init aac_init(void)
 {
 	int error;
 	
-	printk(KERN_INFO "Adaptec %s driver (%s)\n",
+	printk(KERN_INFO "Adaptec %s driver %s\n",
 	  AAC_DRIVERNAME, aac_driver_version);
 
 	error = pci_register_driver(&aac_pci_driver);
