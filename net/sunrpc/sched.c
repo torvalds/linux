@@ -933,29 +933,6 @@ static void rpc_release_task(struct rpc_task *task)
 	rpc_put_task(task);
 }
 
-/**
- * rpc_run_task - Allocate a new RPC task, then run rpc_execute against it
- * @clnt: pointer to RPC client
- * @flags: RPC flags
- * @ops: RPC call ops
- * @data: user call data
- */
-struct rpc_task *rpc_run_task(struct rpc_clnt *clnt, int flags,
-					const struct rpc_call_ops *ops,
-					void *data)
-{
-	struct rpc_task *task;
-	task = rpc_new_task(clnt, flags, ops, data);
-	if (task == NULL) {
-		rpc_release_calldata(ops, data);
-		return ERR_PTR(-ENOMEM);
-	}
-	atomic_inc(&task->tk_count);
-	rpc_execute(task);
-	return task;
-}
-EXPORT_SYMBOL(rpc_run_task);
-
 /*
  * Kill all tasks for the given client.
  * XXX: kill their descendants as well?

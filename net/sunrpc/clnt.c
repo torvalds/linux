@@ -474,73 +474,96 @@ void rpc_clnt_sigunmask(struct rpc_clnt *clnt, sigset_t *oldset)
 	rpc_restore_sigmask(oldset);
 }
 
-/*
- * New rpc_call implementation
+static
+struct rpc_task *rpc_do_run_task(struct rpc_clnt *clnt,
+		struct rpc_message *msg,
+		int flags,
+		const struct rpc_call_ops *ops,
+		void *data)
+{
+	struct rpc_task *task, *ret;
+	sigset_t oldset;
+
+	task = rpc_new_task(clnt, flags, ops, data);
+	if (task == NULL) {
+		rpc_release_calldata(ops, data);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	/* Mask signals on synchronous RPC calls and RPCSEC_GSS upcalls */
+	rpc_task_sigmask(task, &oldset);
+	if (msg != NULL) {
+		rpc_call_setup(task, msg, 0);
+		if (task->tk_status != 0) {
+			ret = ERR_PTR(task->tk_status);
+			rpc_put_task(task);
+			goto out;
+		}
+	}
+	atomic_inc(&task->tk_count);
+	rpc_execute(task);
+	ret = task;
+out:
+	rpc_restore_sigmask(&oldset);
+	return ret;
+}
+
+/**
+ * rpc_call_sync - Perform a synchronous RPC call
+ * @clnt: pointer to RPC client
+ * @msg: RPC call parameters
+ * @flags: RPC call flags
  */
 int rpc_call_sync(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 {
 	struct rpc_task	*task;
-	sigset_t	oldset;
-	int		status;
+	int status;
 
 	BUG_ON(flags & RPC_TASK_ASYNC);
 
-	task = rpc_new_task(clnt, flags, &rpc_default_ops, NULL);
-	if (task == NULL)
-		return -ENOMEM;
-
-	/* Mask signals on RPC calls _and_ GSS_AUTH upcalls */
-	rpc_task_sigmask(task, &oldset);
-
-	/* Set up the call info struct and execute the task */
-	rpc_call_setup(task, msg, 0);
-	if (task->tk_status == 0) {
-		atomic_inc(&task->tk_count);
-		rpc_execute(task);
-	}
+	task = rpc_do_run_task(clnt, msg, flags, &rpc_default_ops, NULL);
+	if (IS_ERR(task))
+		return PTR_ERR(task);
 	status = task->tk_status;
 	rpc_put_task(task);
-	rpc_restore_sigmask(&oldset);
 	return status;
 }
 
-/*
- * New rpc_call implementation
+/**
+ * rpc_call_async - Perform an asynchronous RPC call
+ * @clnt: pointer to RPC client
+ * @msg: RPC call parameters
+ * @flags: RPC call flags
+ * @ops: RPC call ops
+ * @data: user call data
  */
 int
 rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 	       const struct rpc_call_ops *tk_ops, void *data)
 {
 	struct rpc_task	*task;
-	sigset_t	oldset;
-	int		status;
 
-	flags |= RPC_TASK_ASYNC;
-
-	/* Create/initialize a new RPC task */
-	status = -ENOMEM;
-	if (!(task = rpc_new_task(clnt, flags, tk_ops, data)))
-		goto out_release;
-
-	/* Mask signals on GSS_AUTH upcalls */
-	rpc_task_sigmask(task, &oldset);
-
-	rpc_call_setup(task, msg, 0);
-
-	/* Set up the call info struct and execute the task */
-	status = task->tk_status;
-	if (status == 0)
-		rpc_execute(task);
-	else
-		rpc_put_task(task);
-
-	rpc_restore_sigmask(&oldset);
-	return status;
-out_release:
-	rpc_release_calldata(tk_ops, data);
-	return status;
+	task = rpc_do_run_task(clnt, msg, flags|RPC_TASK_ASYNC, tk_ops, data);
+	if (IS_ERR(task))
+		return PTR_ERR(task);
+	rpc_put_task(task);
+	return 0;
 }
 
+/**
+ * rpc_run_task - Allocate a new RPC task, then run rpc_execute against it
+ * @clnt: pointer to RPC client
+ * @flags: RPC flags
+ * @ops: RPC call ops
+ * @data: user call data
+ */
+struct rpc_task *rpc_run_task(struct rpc_clnt *clnt, int flags,
+					const struct rpc_call_ops *tk_ops,
+					void *data)
+{
+	return rpc_do_run_task(clnt, NULL, flags, tk_ops, data);
+}
+EXPORT_SYMBOL(rpc_run_task);
 
 void
 rpc_call_setup(struct rpc_task *task, struct rpc_message *msg, int flags)
