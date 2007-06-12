@@ -83,6 +83,11 @@ static void gfs2_ail1_start_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 
 			gfs2_assert(sdp, bd->bd_ail == ai);
 
+			if (!bh){
+				list_move(&bd->bd_ail_st_list, &ai->ai_ail2_list);
+                                continue;
+                        }
+
 			if (!buffer_busy(bh)) {
 				if (!buffer_uptodate(bh)) {
 					gfs2_log_unlock(sdp);
@@ -124,6 +129,11 @@ static int gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai, int fl
 	list_for_each_entry_safe_reverse(bd, s, &ai->ai_ail1_list,
 					 bd_ail_st_list) {
 		bh = bd->bd_bh;
+
+		if (!bh){
+			list_move(&bd->bd_ail_st_list, &ai->ai_ail2_list);
+			continue;
+		}
 
 		gfs2_assert(sdp, bd->bd_ail == ai);
 
@@ -227,7 +237,10 @@ static void gfs2_ail2_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 		list_del(&bd->bd_ail_st_list);
 		list_del(&bd->bd_ail_gl_list);
 		atomic_dec(&bd->bd_gl->gl_ail_count);
-		brelse(bd->bd_bh);
+		if (bd->bd_bh)
+			brelse(bd->bd_bh);
+		else
+			kmem_cache_free(gfs2_bufdata_cachep, bd);
 	}
 }
 

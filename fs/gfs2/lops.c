@@ -607,7 +607,8 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 				if (unlikely(magic != 0))
 					set_buffer_escaped(bh1);
 				gfs2_log_lock(sdp);
-				if (n++ > num)
+				n += 2;
+				if (n >= num)
 					break;
 			} else if (!bh1) {
 				total_dbuf--;
@@ -624,6 +625,7 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 		}
 		gfs2_log_unlock(sdp);
 		if (bh) {
+			set_buffer_mapped(bh);
 			set_buffer_dirty(bh);
 			ll_rw_block(WRITE, 1, &bh);
 			bh = NULL;

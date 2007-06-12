@@ -137,7 +137,9 @@ static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 		return 0; /* don't care */
 	}
 
-	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip)) {
+	if ((sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip)) &&
+	    PageChecked(page)) {
+		ClearPageChecked(page);
 		error = gfs2_trans_begin(sdp, RES_DINODE + 1, 0);
 		if (error)
 			goto out_ignore;
@@ -574,6 +576,23 @@ fail_nounlock:
 }
 
 /**
+ * gfs2_set_page_dirty - Page dirtying function
+ * @page: The page to dirty
+ *
+ * Returns: 1 if it dirtyed the page, or 0 otherwise
+ */
+ 
+static int gfs2_set_page_dirty(struct page *page)
+{
+	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
+	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
+
+	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip))
+		SetPageChecked(page);
+	return __set_page_dirty_buffers(page);
+}
+
+/**
  * gfs2_bmap - Block map function
  * @mapping: Address space info
  * @lblock: The block to map
@@ -609,6 +628,8 @@ static void discard_buffer(struct gfs2_sbd *sdp, struct buffer_head *bh)
 	if (bd) {
 		bd->bd_bh = NULL;
 		bh->b_private = NULL;
+		if (!bd->bd_ail && list_empty(&bd->bd_le.le_list))
+			kmem_cache_free(gfs2_bufdata_cachep, bd);
 	}
 	gfs2_log_unlock(sdp);
 
@@ -629,6 +650,8 @@ static void gfs2_invalidatepage(struct page *page, unsigned long offset)
 	unsigned int curr_off = 0;
 
 	BUG_ON(!PageLocked(page));
+	if (offset == 0)
+		ClearPageChecked(page);
 	if (!page_has_buffers(page))
 		return;
 
@@ -841,6 +864,7 @@ const struct address_space_operations gfs2_file_aops = {
 	.sync_page = block_sync_page,
 	.prepare_write = gfs2_prepare_write,
 	.commit_write = gfs2_commit_write,
+	.set_page_dirty = gfs2_set_page_dirty,
 	.bmap = gfs2_bmap,
 	.invalidatepage = gfs2_invalidatepage,
 	.releasepage = gfs2_releasepage,
