@@ -375,10 +375,11 @@ void nfs4_close_state(struct path *path, struct nfs4_state *state, mode_t mode)
 	spin_unlock(&inode->i_lock);
 	spin_unlock(&owner->so_lock);
 
-	if (oldstate != newstate && nfs4_do_close(path, state) == 0)
-		return;
-	nfs4_put_open_state(state);
-	nfs4_put_state_owner(owner);
+	if (oldstate == newstate) {
+		nfs4_put_open_state(state);
+		nfs4_put_state_owner(owner);
+	} else
+		nfs4_do_close(path, state);
 }
 
 /*

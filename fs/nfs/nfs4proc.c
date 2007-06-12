@@ -295,18 +295,6 @@ static void nfs4_opendata_free(struct nfs4_opendata *p)
 	}
 }
 
-/* Helper for asynchronous RPC calls */
-static int nfs4_call_async(struct rpc_clnt *clnt,
-		const struct rpc_call_ops *tk_ops, void *calldata)
-{
-	struct rpc_task *task;
-
-	if (!(task = rpc_new_task(clnt, RPC_TASK_ASYNC, tk_ops, calldata)))
-		return -ENOMEM;
-	rpc_execute(task);
-	return 0;
-}
-
 static int nfs4_wait_for_completion_rpc_task(struct rpc_task *task)
 {
 	sigset_t oldset;
@@ -1218,6 +1206,8 @@ int nfs4_do_close(struct path *path, struct nfs4_state *state)
 {
 	struct nfs_server *server = NFS_SERVER(state->inode);
 	struct nfs4_closedata *calldata;
+	struct nfs4_state_owner *sp = state->owner;
+	struct rpc_task *task;
 	int status = -ENOMEM;
 
 	calldata = kmalloc(sizeof(*calldata), GFP_KERNEL);
@@ -1237,14 +1227,16 @@ int nfs4_do_close(struct path *path, struct nfs4_state *state)
 	calldata->path.mnt = mntget(path->mnt);
 	calldata->path.dentry = dget(path->dentry);
 
-	status = nfs4_call_async(server->client, &nfs4_close_ops, calldata);
-	if (status == 0)
-		goto out;
-
-	nfs_free_seqid(calldata->arg.seqid);
+	task = rpc_run_task(server->client, RPC_TASK_ASYNC, &nfs4_close_ops, calldata);
+	if (IS_ERR(task))
+		return PTR_ERR(task);
+	rpc_put_task(task);
+	return 0;
 out_free_calldata:
 	kfree(calldata);
 out:
+	nfs4_put_open_state(state);
+	nfs4_put_state_owner(sp);
 	return status;
 }
 
