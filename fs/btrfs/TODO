@@ -1,4 +1,3 @@
-* fix printk warnings
 * cleanup, add more error checking, get rid of BUG_ONs
 * Fix ENOSPC handling
 * Make allocator smarter
