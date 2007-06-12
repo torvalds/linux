@@ -188,7 +188,6 @@ static inline void set_eiem(unsigned long val)
 # define __lock_aligned __attribute__((__section__(".data.lock_aligned")))
 #endif
 
-#define KERNEL_START (0x10100000 - 0x1000)
 #define arch_align_stack(x) (x)
 
 #endif
