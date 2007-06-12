@@ -1306,6 +1306,7 @@ static int __devinit w83627hf_probe(struct platform_device *pdev)
 	sysfs_remove_group(&dev->kobj, &w83627hf_group);
 	sysfs_remove_group(&dev->kobj, &w83627hf_group_opt);
       ERROR3:
+	platform_set_drvdata(pdev, NULL);
 	kfree(data);
       ERROR1:
 	release_region(res->start, WINB_REGION_SIZE);
@@ -1318,11 +1319,11 @@ static int __devexit w83627hf_remove(struct platform_device *pdev)
 	struct w83627hf_data *data = platform_get_drvdata(pdev);
 	struct resource *res;
 
-	platform_set_drvdata(pdev, NULL);
 	hwmon_device_unregister(data->class_dev);
 
 	sysfs_remove_group(&pdev->dev.kobj, &w83627hf_group);
 	sysfs_remove_group(&pdev->dev.kobj, &w83627hf_group_opt);
+	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);

@@ -743,6 +743,7 @@ exit_remove_files:
 	sysfs_remove_group(&pdev->dev.kobj, &vt8231_group);
 
 exit_free:
+	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 
 exit_release:

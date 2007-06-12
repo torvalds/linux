@@ -1287,6 +1287,7 @@ abituguru_probe_error:
 	for (i = 0; i < ARRAY_SIZE(abituguru_sysfs_attr); i++)
 		device_remove_file(&pdev->dev,
 			&abituguru_sysfs_attr[i].dev_attr);
+	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 	return res;
 }
@@ -1296,13 +1297,13 @@ static int __devexit abituguru_remove(struct platform_device *pdev)
 	int i;
 	struct abituguru_data *data = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	hwmon_device_unregister(data->class_dev);
 	for (i = 0; data->sysfs_attr[i].dev_attr.attr.name; i++)
 		device_remove_file(&pdev->dev, &data->sysfs_attr[i].dev_attr);
 	for (i = 0; i < ARRAY_SIZE(abituguru_sysfs_attr); i++)
 		device_remove_file(&pdev->dev,
 			&abituguru_sysfs_attr[i].dev_attr);
+	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 
 	return 0;

@@ -1242,12 +1242,12 @@ static int __devexit f71805f_remove(struct platform_device *pdev)
 	struct resource *res;
 	int i;
 
-	platform_set_drvdata(pdev, NULL);
 	hwmon_device_unregister(data->class_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &f71805f_group);
 	for (i = 0; i < 4; i++)
 		sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_optin[i]);
 	sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_pwm_freq);
+	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
