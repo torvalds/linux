@@ -94,6 +94,7 @@ struct splice_desc {
 	union {
 		void __user *userptr;	/* memory to write to */
 		struct file *file;	/* file to read/write */
+		void *data;		/* cookie */
 	} u;
 	loff_t pos;			/* file position */
 };
