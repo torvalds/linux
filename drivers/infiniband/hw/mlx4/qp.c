@@ -207,8 +207,8 @@ static int set_rq_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
 		if (is_user && (!cap->max_recv_wr || !cap->max_recv_sge))
 			return -EINVAL;
 
-		qp->rq.max	 = roundup_pow_of_two(max(1, cap->max_recv_wr));
-		qp->rq.max_gs	 = roundup_pow_of_two(max(1, cap->max_recv_sge));
+		qp->rq.max	 = roundup_pow_of_two(max(1U, cap->max_recv_wr));
+		qp->rq.max_gs	 = roundup_pow_of_two(max(1U, cap->max_recv_sge));
 		qp->rq.wqe_shift = ilog2(qp->rq.max_gs * sizeof (struct mlx4_wqe_data_seg));
 	}
 
