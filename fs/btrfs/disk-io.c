@@ -22,7 +22,7 @@ static int check_tree_block(struct btrfs_root *root, struct buffer_head *buf)
 	if (bh_blocknr(buf) != btrfs_header_blocknr(&node->header)) {
 		printk(KERN_CRIT "bh_blocknr(buf) is %Lu, header is %Lu\n",
 		       bh_blocknr(buf), btrfs_header_blocknr(&node->header));
-		BUG();
+		return 1;
 	}
 	return 0;
 }
@@ -253,7 +253,7 @@ uptodate:
 		set_buffer_checked(bh);
 	}
 	if (check_tree_block(root, bh))
-		BUG();
+		goto fail;
 	return bh;
 fail:
 	brelse(bh);
@@ -398,8 +398,13 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	struct btrfs_fs_info *fs_info = kmalloc(sizeof(*fs_info),
 						GFP_NOFS);
 	int ret;
+	int err = -EIO;
 	struct btrfs_super_block *disk_super;
 
+	if (!extent_root || !tree_root || !fs_info) {
+		err = -ENOMEM;
+		goto fail;
+	}
 	init_bit_radix(&fs_info->pinned_radix);
 	init_bit_radix(&fs_info->pending_del_radix);
 	init_bit_radix(&fs_info->extent_map_radix);
@@ -431,9 +436,11 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
 	fs_info->hash_tfm = crypto_alloc_hash("crc32c", 0, CRYPTO_ALG_ASYNC);
 	spin_lock_init(&fs_info->hash_lock);
+
 	if (!fs_info->hash_tfm || IS_ERR(fs_info->hash_tfm)) {
-		printk("failed to allocate digest hash\n");
-		return NULL;
+		printk("btrfs: failed hash setup, modprobe cryptomgr?\n");
+		err = -ENOMEM;
+		goto fail_iput;
 	}
 	mutex_init(&fs_info->trans_mutex);
 	mutex_init(&fs_info->fs_mutex);
@@ -446,30 +453,53 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 					     sb->s_blocksize);
 
 	if (!fs_info->sb_buffer)
-		return NULL;
+		goto fail_iput;
 	disk_super = (struct btrfs_super_block *)fs_info->sb_buffer->b_data;
+
 	if (!btrfs_super_root(disk_super))
-		return NULL;
+		goto fail_sb_buffer;
 
 	i_size_write(fs_info->btree_inode,
 		     btrfs_super_total_blocks(disk_super) <<
 		     fs_info->btree_inode->i_blkbits);
 
 	fs_info->disk_super = disk_super;
+
+	if (strncmp((char *)(&disk_super->magic), BTRFS_MAGIC,
+		    sizeof(disk_super->magic))) {
+		printk("btrfs: valid FS not found on %s\n", sb->s_id);
+		goto fail_sb_buffer;
+	}
 	tree_root->node = read_tree_block(tree_root,
 					  btrfs_super_root(disk_super));
-	BUG_ON(!tree_root->node);
+	if (!tree_root->node)
+		goto fail_sb_buffer;
 
 	mutex_lock(&fs_info->fs_mutex);
 	ret = find_and_setup_root(sb->s_blocksize, tree_root, fs_info,
 				  BTRFS_EXTENT_TREE_OBJECTID, extent_root);
-	BUG_ON(ret);
+	if (ret) {
+		mutex_unlock(&fs_info->fs_mutex);
+		goto fail_tree_root;
+	}
 
 	btrfs_read_block_groups(extent_root);
 
 	fs_info->generation = btrfs_super_generation(disk_super) + 1;
 	mutex_unlock(&fs_info->fs_mutex);
 	return tree_root;
+
+fail_tree_root:
+	btrfs_block_release(tree_root, tree_root->node);
+fail_sb_buffer:
+	btrfs_block_release(tree_root, fs_info->sb_buffer);
+fail_iput:
+	iput(fs_info->btree_inode);
+fail:
+	kfree(extent_root);
+	kfree(tree_root);
+	kfree(fs_info);
+	return ERR_PTR(err);
 }
 
 int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root

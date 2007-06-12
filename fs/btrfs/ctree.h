@@ -1123,5 +1123,28 @@ struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct btrfs_path *path,
 			u64 isize);
-/* super.c */
+/* inode.c */
+void btrfs_delete_inode(struct inode *inode);
+void btrfs_read_locked_inode(struct inode *inode);
+int btrfs_write_inode(struct inode *inode, int wait);
+void btrfs_dirty_inode(struct inode *inode);
+struct inode *btrfs_alloc_inode(struct super_block *sb);
+void btrfs_destroy_inode(struct inode *inode);
+int btrfs_init_cachep(void);
+void btrfs_destroy_cachep(void);
+int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
+		unsigned long arg);
+long btrfs_compat_ioctl(struct file *file, unsigned int cmd,
+			       unsigned long arg);
+struct inode *btrfs_iget_locked(struct super_block *s, u64 objectid,
+				struct btrfs_root *root);
+int btrfs_commit_write(struct file *file, struct page *page,
+		       unsigned from, unsigned to);
+int btrfs_get_block(struct inode *inode, sector_t iblock,
+		    struct buffer_head *result, int create);
+/* file.c */
+extern struct file_operations btrfs_file_operations;
+int btrfs_drop_extents(struct btrfs_trans_handle *trans,
+		       struct btrfs_root *root, struct inode *inode,
+		       u64 start, u64 end, u64 *hint_block);
 #endif
