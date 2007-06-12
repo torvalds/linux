@@ -291,8 +291,9 @@ void pci_determine_mem_io_space(struct pci_pbm_info *pbm)
 
 	for (i = 0; i < num_pbm_ranges; i++) {
 		const struct linux_prom_pci_ranges *pr = &pbm_ranges[i];
-		unsigned long a;
+		unsigned long a, size;
 		u32 parent_phys_hi, parent_phys_lo;
+		u32 size_hi, size_lo;
 		int type;
 
 		parent_phys_hi = pr->parent_phys_hi;
@@ -300,9 +301,14 @@ void pci_determine_mem_io_space(struct pci_pbm_info *pbm)
 		if (tlb_type == hypervisor)
 			parent_phys_hi &= 0x0fffffff;
 
+		size_hi = pr->size_hi;
+		size_lo = pr->size_lo;
+
 		type = (pr->child_phys_hi >> 24) & 0x3;
 		a = (((unsigned long)parent_phys_hi << 32UL) |
 		     ((unsigned long)parent_phys_lo  <<  0UL));
+		size = (((unsigned long)size_hi << 32UL) |
+			((unsigned long)size_lo  <<  0UL));
 
 		switch (type) {
 		case 0:
@@ -313,7 +319,7 @@ void pci_determine_mem_io_space(struct pci_pbm_info *pbm)
 		case 1:
 			/* 16-bit IO space, 16MB */
 			pbm->io_space.start = a;
-			pbm->io_space.end = a + ((16UL*1024UL*1024UL) - 1UL);
+			pbm->io_space.end = a + size - 1UL;
 			pbm->io_space.flags = IORESOURCE_IO;
 			saw_io = 1;
 			break;
@@ -321,7 +327,7 @@ void pci_determine_mem_io_space(struct pci_pbm_info *pbm)
 		case 2:
 			/* 32-bit MEM space, 2GB */
 			pbm->mem_space.start = a;
-			pbm->mem_space.end = a + (0x80000000UL - 1UL);
+			pbm->mem_space.end = a + size - 1UL;
 			pbm->mem_space.flags = IORESOURCE_MEM;
 			saw_mem = 1;
 			break;
