@@ -2037,7 +2037,7 @@ static void tcp_try_to_open(struct sock *sk, int flag)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	tp->left_out = tp->sacked_out;
+	tcp_sync_left_out(tp);
 
 	if (tp->retrans_out == 0)
 		tp->retrans_stamp = 0;
