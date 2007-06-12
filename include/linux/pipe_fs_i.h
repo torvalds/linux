@@ -94,13 +94,15 @@ struct splice_desc {
 
 typedef int (splice_actor)(struct pipe_inode_info *, struct pipe_buffer *,
 			   struct splice_desc *);
+typedef int (splice_direct_actor)(struct pipe_inode_info *,
+				  struct splice_desc *);
 
 extern ssize_t splice_from_pipe(struct pipe_inode_info *, struct file *,
 				loff_t *, size_t, unsigned int,
 				splice_actor *);
-
-extern ssize_t __splice_from_pipe(struct pipe_inode_info *, struct file *,
-				  loff_t *, size_t, unsigned int,
-				  splice_actor *);
+extern ssize_t __splice_from_pipe(struct pipe_inode_info *,
+				  struct splice_desc *, splice_actor *);
+extern ssize_t splice_direct_to_actor(struct file *, struct splice_desc *,
+				      splice_direct_actor *);
 
 #endif

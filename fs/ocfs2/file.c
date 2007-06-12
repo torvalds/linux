@@ -1636,9 +1636,14 @@ static ssize_t __ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 	int ret, err;
 	struct address_space *mapping = out->f_mapping;
 	struct inode *inode = mapping->host;
+	struct splice_desc sd = {
+		.total_len = len,
+		.flags = flags,
+		.pos = *ppos,
+		.file = out,
+	};
 
-	ret = __splice_from_pipe(pipe, out, ppos, len, flags,
-				 ocfs2_splice_write_actor);
+	ret = __splice_from_pipe(pipe, &sd, ocfs2_splice_write_actor);
 	if (ret > 0) {
 		*ppos += ret;
 
