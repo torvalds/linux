@@ -1831,6 +1831,8 @@ int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
 		namelen = strlen(vol_args.name);
 		if (namelen > BTRFS_VOL_NAME_MAX)
 			return -EINVAL;
+		if (strchr(vol_args.name, '/'))
+			return -EINVAL;
 		path = btrfs_alloc_path();
 		if (!path)
 			return -ENOMEM;
