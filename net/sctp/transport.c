@@ -271,8 +271,6 @@ void sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
 		 * pmtu discovery on this transport.
 		 */
 		t->pathmtu = SCTP_DEFAULT_MINSEGMENT;
-		t->param_flags = (t->param_flags & ~SPP_PMTUD) |
-			SPP_PMTUD_DISABLE;
 	} else {
 		t->pathmtu = pmtu;
 	}
