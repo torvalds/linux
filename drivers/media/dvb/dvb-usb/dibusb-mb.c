@@ -14,6 +14,14 @@
  */
 #include "dibusb.h"
 
+static int dib3000mb_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
+{
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct dibusb_state *st = adap->priv;
+
+	return st->ops.tuner_pass_ctrl(fe, enable, st->tuner_addr);
+}
+
 static int dibusb_dib3000mb_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	struct dib3000_config demod_cfg;
@@ -25,13 +33,17 @@ static int dibusb_dib3000mb_frontend_attach(struct dvb_usb_adapter *adap)
 				   &adap->dev->i2c_adap, &st->ops)) == NULL)
 		return -ENODEV;
 
-	adap->tuner_pass_ctrl = st->ops.tuner_pass_ctrl;
+	adap->fe->ops.i2c_gate_ctrl = dib3000mb_i2c_gate_ctrl;
 
 	return 0;
 }
 
 static int dibusb_thomson_tuner_attach(struct dvb_usb_adapter *adap)
 {
+	struct dibusb_state *st = adap->priv;
+
+	st->tuner_addr = 0x61;
+
 	dvb_attach(dvb_pll_attach, adap->fe, 0x61, &adap->dev->i2c_adap,
 		   &dvb_pll_tua6010xs);
 	return 0;
@@ -39,6 +51,10 @@ static int dibusb_thomson_tuner_attach(struct dvb_usb_adapter *adap)
 
 static int dibusb_panasonic_tuner_attach(struct dvb_usb_adapter *adap)
 {
+	struct dibusb_state *st = adap->priv;
+
+	st->tuner_addr = 0x60;
+
 	dvb_attach(dvb_pll_attach, adap->fe, 0x60, &adap->dev->i2c_adap,
 		   &dvb_pll_tda665x);
 	return 0;
@@ -55,20 +71,21 @@ static int dibusb_tuner_probe_and_attach(struct dvb_usb_adapter *adap)
 		{ .flags = 0,        .buf = b,  .len = 2 },
 		{ .flags = I2C_M_RD, .buf = b2, .len = 1 },
 	};
+	struct dibusb_state *st = adap->priv;
 
 	/* the Panasonic sits on I2C addrass 0x60, the Thomson on 0x61 */
-	msg[0].addr = msg[1].addr = 0x60;
+	st->tuner_addr = 0x60;
 
-	if (adap->tuner_pass_ctrl)
-		adap->tuner_pass_ctrl(adap->fe,1,msg[0].addr);
+	if (adap->fe->ops.i2c_gate_ctrl)
+		adap->fe->ops.i2c_gate_ctrl(adap->fe,1);
 
 	if (i2c_transfer(&adap->dev->i2c_adap, msg, 2) != 2) {
 		err("tuner i2c write failed.");
 		ret = -EREMOTEIO;
 	}
 
-	if (adap->tuner_pass_ctrl)
-		adap->tuner_pass_ctrl(adap->fe,0,msg[0].addr);
+	if (adap->fe->ops.i2c_gate_ctrl)
+		adap->fe->ops.i2c_gate_ctrl(adap->fe,0);
 
 	if (b2[0] == 0xfe) {
 		info("This device has the Thomson Cable onboard. Which is default.");

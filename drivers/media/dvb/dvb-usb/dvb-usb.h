@@ -297,8 +297,6 @@ struct dvb_usb_adapter {
 	int feedcount;
 	int pid_filtering;
 
-	int (*tuner_pass_ctrl) (struct dvb_frontend *, int, u8);
-
 	/* dvb */
 	struct dvb_adapter   dvb_adap;
 	struct dmxdev        dmxdev;
