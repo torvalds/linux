@@ -354,7 +354,7 @@ static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 	if (is_send) {
 		wq = &(*cur_qp)->sq;
 		wqe_ctr = be16_to_cpu(cqe->wqe_index);
-		wq->tail += wqe_ctr - (u16) wq->tail;
+		wq->tail += (u16) (wqe_ctr - (u16) wq->tail);
 		wc->wr_id = wq->wrid[wq->tail & (wq->max - 1)];
 		++wq->tail;
 	} else if ((*cur_qp)->ibqp.srq) {
