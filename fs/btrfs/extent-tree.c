@@ -65,7 +65,6 @@ static int cache_block_group(struct btrfs_root *root,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-printk("cache block group %Lu\n", block_group->key.objectid);
 	key.objectid = block_group->key.objectid;
 	key.flags = 0;
 	key.offset = 0;
@@ -164,8 +163,8 @@ struct btrfs_block_group_cache *btrfs_lookup_block_group(struct
 static u64 leaf_range(struct btrfs_root *root)
 {
 	u64 size = BTRFS_LEAF_DATA_SIZE(root);
-	size = size / (sizeof(struct btrfs_extent_item) +
-		       sizeof(struct btrfs_item));
+	do_div(size, sizeof(struct btrfs_extent_item) +
+		sizeof(struct btrfs_item));
 	return size;
 }
 
@@ -219,6 +218,13 @@ new_group:
 	goto again;
 }
 
+static u64 div_factor(u64 num, int factor)
+{
+	num *= factor;
+	do_div(num, 10);
+	return num;
+}
+
 struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 						 struct btrfs_block_group_cache
 						 *hint, u64 search_start,
@@ -255,17 +261,18 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 		if (shint->data == data) {
 			used = btrfs_block_group_used(&shint->item);
 			if (used + shint->pinned <
-			    (shint->key.offset * factor) / 10) {
+			    div_factor(shint->key.offset, factor)) {
 				return shint;
 			}
 		}
 	}
 	if (hint && hint->data == data) {
 		used = btrfs_block_group_used(&hint->item);
-		if (used + hint->pinned < (hint->key.offset * factor) / 10) {
+		if (used + hint->pinned <
+		    div_factor(hint->key.offset, factor)) {
 			return hint;
 		}
-		if (used >= (hint->key.offset * 8) / 10) {
+		if (used >= div_factor(hint->key.offset, 8)) {
 			radix_tree_tag_clear(radix,
 					     hint->key.objectid +
 					     hint->key.offset - 1,
@@ -297,11 +304,11 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 				cache[i]->key.offset;
 			used = btrfs_block_group_used(&cache[i]->item);
 			if (used + cache[i]->pinned <
-			    (cache[i]->key.offset * factor) / 10) {
+			    div_factor(cache[i]->key.offset, factor)) {
 				found_group = cache[i];
 				goto found;
 			}
-			if (used >= (cache[i]->key.offset * 8) / 10) {
+			if (used >= div_factor(cache[i]->key.offset, 8)) {
 				radix_tree_tag_clear(radix,
 						     cache[i]->key.objectid +
 						     cache[i]->key.offset - 1,
@@ -348,7 +355,6 @@ again:
 		goto again;
 	}
 	if (!found_group) {
-printk("find block group bailing to zero data %d\n", data);
 		ret = radix_tree_gang_lookup(radix,
 					     (void **)&found_group, 0, 1);
 		if (ret == 0) {
@@ -386,7 +392,6 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	ret = btrfs_search_slot(trans, root->fs_info->extent_root, &key, path,
 				0, 1);
 	if (ret != 0) {
-printk("can't find block %Lu %Lu\n", blocknr, num_blocks);
 		BUG();
 	}
 	BUG_ON(ret != 0);
@@ -601,8 +606,7 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 				}
 			}
 			if (cache->data != data &&
-			    old_val < cache->key.offset / 2) {
-printk("changing block group %Lu from %d to %d\n", cache->key.objectid, cache->data, data);
+			    old_val < (cache->key.offset >> 1)) {
 				cache->data = data;
 				radix_tree_delete(cache->radix,
 						  cache->key.objectid +
@@ -634,9 +638,8 @@ printk("changing block group %Lu from %d to %d\n", cache->key.objectid, cache->d
 						      blocknr + i);
 				}
 			}
-			if (old_val < cache->key.offset / 2 &&
-			    old_val + num >= cache->key.offset / 2) {
-printk("group %Lu now available\n", cache->key.objectid);
+			if (old_val < (cache->key.offset >> 1) &&
+			    old_val + num >= (cache->key.offset >> 1)) {
 				radix_tree_tag_set(cache->radix,
 						   cache->key.objectid +
 						   cache->key.offset - 1,
@@ -1000,10 +1003,10 @@ check_failed:
 			}
 			if (start_found)
 				limit = last_block +
-					block_group->key.offset / 2;
+					(block_group->key.offset >> 1);
 			else
 				limit = search_start +
-					block_group->key.offset / 2;
+					(block_group->key.offset >> 1);
 			ret = btrfs_next_leaf(root, path);
 			if (ret == 0)
 				continue;
@@ -1534,9 +1537,11 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 	struct btrfs_key key;
 	struct btrfs_key found_key;
 	struct btrfs_leaf *leaf;
-	u64 group_size_blocks = BTRFS_BLOCK_GROUP_SIZE / root->blocksize;
+	u64 group_size_blocks;
 	u64 used;
 
+	group_size_blocks = BTRFS_BLOCK_GROUP_SIZE >>
+		root->fs_info->sb->s_blocksize_bits;
 	root = info->extent_root;
 	key.objectid = 0;
 	key.offset = group_size_blocks;
@@ -1590,7 +1595,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 					(void *)cache);
 		BUG_ON(ret);
 		used = btrfs_block_group_used(bi);
-		if (used < (key.offset * 8) / 10) {
+		if (used < div_factor(key.offset, 8)) {
 			radix_tree_tag_set(radix, found_key.objectid +
 					   found_key.offset - 1,
 					   BTRFS_BLOCK_GROUP_AVAIL);

@@ -82,7 +82,7 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 
 	for (i = 0; i < num_pages; i++) {
 		offset = pos & (PAGE_CACHE_SIZE -1);
-		this_write = min(PAGE_CACHE_SIZE - offset, write_bytes);
+		this_write = min((size_t)PAGE_CACHE_SIZE - offset, write_bytes);
 		/* FIXME, one block at a time */
 
 		mutex_lock(&root->fs_info->fs_mutex);
@@ -395,7 +395,7 @@ static int prepare_pages(struct btrfs_root *root,
 		cancel_dirty_page(pages[i], PAGE_CACHE_SIZE);
 		wait_on_page_writeback(pages[i]);
 		offset = pos & (PAGE_CACHE_SIZE -1);
-		this_write = min(PAGE_CACHE_SIZE - offset, write_bytes);
+		this_write = min((size_t)PAGE_CACHE_SIZE - offset, write_bytes);
 		if (!page_has_buffers(pages[i])) {
 			create_empty_buffers(pages[i],
 					     root->fs_info->sb->s_blocksize,
@@ -567,7 +567,8 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 
 	while(count > 0) {
 		size_t offset = pos & (PAGE_CACHE_SIZE - 1);
-		size_t write_bytes = min(count, PAGE_CACHE_SIZE - offset);
+		size_t write_bytes = min(count,
+					 (size_t)PAGE_CACHE_SIZE - offset);
 		size_t num_pages = (write_bytes + PAGE_CACHE_SIZE - 1) >>
 					PAGE_CACHE_SHIFT;
 

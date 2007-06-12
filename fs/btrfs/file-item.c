@@ -239,7 +239,8 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 	if (isize <= key.offset)
 		return 0;
 	new_item_span = isize - key.offset;
-	blocks = (new_item_span + root->blocksize - 1) / root->blocksize;
+	blocks = (new_item_span + root->blocksize - 1) >>
+		root->fs_info->sb->s_blocksize_bits;
 	new_item_size = blocks * BTRFS_CRC32_SIZE;
 	if (new_item_size >= btrfs_item_size(leaf->items + slot))
 		return 0;

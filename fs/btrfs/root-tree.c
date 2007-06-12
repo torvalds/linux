@@ -102,7 +102,7 @@ int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		ret = btrfs_del_item(trans, root, path);
 	} else {
 		btrfs_set_root_refs(ri, refs - 1);
-printk("ref now %u root %Lu %Lu %u\n", refs -1, key->objectid, key->offset, key->flags);
+printk("ref now %u root %llu %Lu %u\n", refs -1, key->objectid, key->offset, key->flags);
 		mark_buffer_dirty(path->nodes[0]);
 	}
 out:
