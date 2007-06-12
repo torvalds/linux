@@ -148,7 +148,7 @@ static int digitv_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	struct digitv_state *st = adap->dev->priv;
 
-	if (!dvb_attach(dvb_pll_attach, adap->fe, 0x60, NULL, &dvb_pll_tded4))
+	if (!dvb_attach(dvb_pll_attach, adap->fe, 0x60, NULL, DVB_PLL_TDED4))
 		return -ENODEV;
 
 	if (st->is_nxt6000)

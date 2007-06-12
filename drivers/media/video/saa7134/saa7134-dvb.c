@@ -855,7 +855,7 @@ static int dvb_init(struct saa7134_dev *dev)
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   NULL, &dvb_pll_philips_td1316);
+				   NULL, DVB_PLL_PHILIPS_TD1316);
 		}
 		break;
 	case SAA7134_BOARD_MD7134:
@@ -864,7 +864,7 @@ static int dvb_init(struct saa7134_dev *dev)
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, medion_cardbus.tuner_address,
-				   &dev->i2c_adap, &dvb_pll_fmd1216me);
+				   &dev->i2c_adap, DVB_PLL_FMD1216ME);
 		}
 		break;
 	case SAA7134_BOARD_PHILIPS_TOUGH:
@@ -962,7 +962,7 @@ static int dvb_init(struct saa7134_dev *dev)
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   NULL, &dvb_pll_tdhu2);
+				   NULL, DVB_PLL_TDHU2);
 		}
 		break;
 	case SAA7134_BOARD_KWORLD_ATSC110:
@@ -970,7 +970,7 @@ static int dvb_init(struct saa7134_dev *dev)
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   NULL, &dvb_pll_tuv1236d);
+				   NULL, DVB_PLL_TUV1236D);
 		}
 		break;
 	case SAA7134_BOARD_FLYDVBS_LR300:
@@ -995,7 +995,7 @@ static int dvb_init(struct saa7134_dev *dev)
 			dev->dvb.frontend->ops.sleep = philips_europa_demod_sleep;
 
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, medion_cardbus.tuner_address,
-				   &dev->i2c_adap, &dvb_pll_fmd1216me);
+				   &dev->i2c_adap, DVB_PLL_FMD1216ME);
 		}
 		break;
 	case SAA7134_BOARD_VIDEOMATE_DVBT_200A:

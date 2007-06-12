@@ -45,7 +45,7 @@ static int dibusb_thomson_tuner_attach(struct dvb_usb_adapter *adap)
 	st->tuner_addr = 0x61;
 
 	dvb_attach(dvb_pll_attach, adap->fe, 0x61, &adap->dev->i2c_adap,
-		   &dvb_pll_tua6010xs);
+		   DVB_PLL_TUA6010XS);
 	return 0;
 }
 
@@ -56,7 +56,7 @@ static int dibusb_panasonic_tuner_attach(struct dvb_usb_adapter *adap)
 	st->tuner_addr = 0x60;
 
 	dvb_attach(dvb_pll_attach, adap->fe, 0x60, &adap->dev->i2c_adap,
-		   &dvb_pll_tda665x);
+		   DVB_PLL_TDA665X);
 	return 0;
 }
 

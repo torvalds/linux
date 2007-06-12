@@ -966,7 +966,7 @@ static void frontend_init(struct budget_av *budget_av)
 		if (fe) {
 			dvb_attach(dvb_pll_attach, fe, 0x60,
 				   &budget_av->budget.i2c_adap,
-				   &dvb_pll_philips_sd1878_tda8261);
+				   DVB_PLL_PHILIPS_SD1878_TDA8261);
 		}
 		break;
 

@@ -263,7 +263,7 @@ static int opera1_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	dvb_attach(
 		dvb_pll_attach, adap->fe, 0xc0>>1,
-		&adap->dev->i2c_adap, &dvb_pll_opera1
+		&adap->dev->i2c_adap, DVB_PLL_OPERA1
 	);
 	return 0;
 }

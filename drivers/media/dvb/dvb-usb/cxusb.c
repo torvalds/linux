@@ -355,34 +355,34 @@ static struct mt352_config cxusb_mt352_config = {
 static int cxusb_fmd1216me_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	dvb_attach(dvb_pll_attach, adap->fe, 0x61, &adap->dev->i2c_adap,
-		   &dvb_pll_fmd1216me);
+		   DVB_PLL_FMD1216ME);
 	return 0;
 }
 
 static int cxusb_dee1601_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	dvb_attach(dvb_pll_attach, adap->fe, 0x61,
-		   NULL, &dvb_pll_thomson_dtt7579);
+		   NULL, DVB_PLL_THOMSON_DTT7579);
 	return 0;
 }
 
 static int cxusb_lgz201_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	dvb_attach(dvb_pll_attach, adap->fe, 0x61, NULL, &dvb_pll_lg_z201);
+	dvb_attach(dvb_pll_attach, adap->fe, 0x61, NULL, DVB_PLL_LG_Z201);
 	return 0;
 }
 
 static int cxusb_dtt7579_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	dvb_attach(dvb_pll_attach, adap->fe, 0x60,
-		   NULL, &dvb_pll_thomson_dtt7579);
+		   NULL, DVB_PLL_THOMSON_DTT7579);
 	return 0;
 }
 
 static int cxusb_lgh064f_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	dvb_attach(dvb_pll_attach, adap->fe, 0x61, &adap->dev->i2c_adap,
-		   &dvb_pll_lg_tdvs_h06xf);
+		   DVB_PLL_LG_TDVS_H06XF);
 	return 0;
 }
 
