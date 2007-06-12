@@ -85,6 +85,10 @@ static void page_cache_pipe_buf_release(struct pipe_inode_info *pipe,
 	buf->flags &= ~PIPE_BUF_FLAG_LRU;
 }
 
+/*
+ * Check whether the contents of buf is OK to access. Since the content
+ * is a page cache page, IO may be in flight.
+ */
 static int page_cache_pipe_buf_confirm(struct pipe_inode_info *pipe,
 				       struct pipe_buffer *buf)
 {
