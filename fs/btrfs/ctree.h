@@ -998,6 +998,9 @@ static inline void btrfs_mark_buffer_dirty(struct buffer_head *bh)
 	btrfs_item_offset((leaf)->items + (slot))))
 
 /* extent-tree.c */
+struct btrfs_block_group_cache *btrfs_lookup_block_group(struct
+							 btrfs_fs_info *info,
+							 u64 blocknr);
 struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 						 struct btrfs_block_group_cache
 						 *hint, u64 search_start,

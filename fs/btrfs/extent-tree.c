@@ -135,9 +135,9 @@ printk("cache block group %Lu\n", block_group->key.objectid);
 	return 0;
 }
 
-static struct btrfs_block_group_cache *lookup_block_group(struct
-							  btrfs_fs_info *info,
-							  u64 blocknr)
+struct btrfs_block_group_cache *btrfs_lookup_block_group(struct
+							 btrfs_fs_info *info,
+							 u64 blocknr)
 {
 	struct btrfs_block_group_cache *block_group;
 	int ret;
@@ -208,7 +208,8 @@ out:
 	return max(cache->last_alloc, search_start);
 
 new_group:
-	cache = lookup_block_group(root->fs_info, last + cache->key.offset - 1);
+	cache = btrfs_lookup_block_group(root->fs_info,
+					 last + cache->key.offset - 1);
 	if (!cache) {
 		return max((*cache_ret)->last_alloc, search_start);
 	}
@@ -250,7 +251,7 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 
 	if (search_start) {
 		struct btrfs_block_group_cache *shint;
-		shint = lookup_block_group(info, search_start);
+		shint = btrfs_lookup_block_group(info, search_start);
 		if (shint->data == data) {
 			used = btrfs_block_group_used(&shint->item);
 			if (used + shint->pinned <
@@ -576,7 +577,7 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 	int ret;
 
 	while(total) {
-		cache = lookup_block_group(info, blocknr);
+		cache = btrfs_lookup_block_group(info, blocknr);
 		if (!cache) {
 			printk(KERN_CRIT "blocknr %Lu lookup failed\n",
 			       blocknr);
@@ -677,8 +678,8 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
 			first = gang[0];
 		for (i = 0; i < ret; i++) {
 			clear_radix_bit(pinned_radix, gang[i]);
-			block_group = lookup_block_group(root->fs_info,
-							 gang[i]);
+			block_group = btrfs_lookup_block_group(root->fs_info,
+							       gang[i]);
 			if (block_group) {
 				WARN_ON(block_group->pinned == 0);
 				block_group->pinned--;
@@ -751,7 +752,8 @@ static int pin_down_block(struct btrfs_root *root, u64 blocknr, int pending)
 		err = set_radix_bit(&root->fs_info->pinned_radix, blocknr);
 		if (!err) {
 			struct btrfs_block_group_cache *cache;
-			cache = lookup_block_group(root->fs_info, blocknr);
+			cache = btrfs_lookup_block_group(root->fs_info,
+							 blocknr);
 			if (cache)
 				cache->pinned++;
 		}
@@ -851,7 +853,8 @@ static int del_pending_extents(struct btrfs_trans_handle *trans, struct
 		for (i = 0; i < ret; i++) {
 			wret = set_radix_bit(pinned_radix, gang[i]);
 			if (wret == 0) {
-				cache = lookup_block_group(extent_root->fs_info,
+				cache =
+				  btrfs_lookup_block_group(extent_root->fs_info,
 							   gang[i]);
 				if (cache)
 					cache->pinned++;
@@ -938,7 +941,7 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (search_end == (u64)-1)
 		search_end = btrfs_super_total_blocks(info->disk_super);
 	if (hint_block) {
-		block_group = lookup_block_group(info, hint_block);
+		block_group = btrfs_lookup_block_group(info, hint_block);
 		block_group = btrfs_find_block_group(root, block_group,
 						     hint_block, data, 1);
 	} else {
@@ -1118,7 +1121,7 @@ check_pending:
 		info->extent_tree_prealloc_nr = total_found;
 	}
 	if (!data) {
-		block_group = lookup_block_group(info, ins->objectid);
+		block_group = btrfs_lookup_block_group(info, ins->objectid);
 		if (block_group) {
 			if (fill_prealloc)
 				block_group->last_prealloc =
@@ -1143,7 +1146,7 @@ new_group:
 		else
 			wrapped = 1;
 	}
-	block_group = lookup_block_group(info, search_start);
+	block_group = btrfs_lookup_block_group(info, search_start);
 	cond_resched();
 	if (!full_scan)
 		block_group = btrfs_find_block_group(root, block_group,

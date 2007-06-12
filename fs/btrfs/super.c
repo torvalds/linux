@@ -62,7 +62,6 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	struct btrfs_inode_item *inode_item;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_key location;
-	struct btrfs_block_group_cache *alloc_group;
 	u64 alloc_group_block;
 	int ret;
 
@@ -95,11 +94,8 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	inode->i_blocks = btrfs_inode_nblocks(inode_item);
 	inode->i_generation = btrfs_inode_generation(inode_item);
 	alloc_group_block = btrfs_inode_block_group(inode_item);
-	ret = radix_tree_gang_lookup(&root->fs_info->block_group_radix,
-				     (void **)&alloc_group,
-				     alloc_group_block, 1);
-	BUG_ON(!ret);
-	BTRFS_I(inode)->block_group = alloc_group;
+	BTRFS_I(inode)->block_group = btrfs_lookup_block_group(root->fs_info,
+						       alloc_group_block);
 
 	btrfs_free_path(path);
 	inode_item = NULL;

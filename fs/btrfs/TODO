@@ -16,6 +16,5 @@
 * Use relocation to try and fix write errors
 * Make allocator much smarter
 * xattrs (directory streams for regular files)
-* fsck
 * Scrub & defrag
 
