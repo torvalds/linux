@@ -609,7 +609,7 @@ static int strrcmp(const char *s, const char *sub)
  *   warn here.
  *   the pattern is identified by:
  *   tosec   = .init.text | .exit.text | .init.data
- *   fromsec = .data
+ *   fromsec = .data | .data.rel | .data.rel.*
  *   atsym = *driver, *_template, *_sht, *_ops, *_probe, *probe_one, *_console, *_timer
  *
  * Pattern 3:
@@ -672,7 +672,9 @@ static int secref_whitelist(const char *modname, const char *tosec,
 	    (strcmp(tosec, ".exit.text") != 0) &&
 	    (strcmp(tosec, ".init.data") != 0))
 		f2 = 0;
-	if (strcmp(fromsec, ".data") != 0)
+	if ((strcmp(fromsec, ".data") != 0) &&
+	    (strcmp(fromsec, ".data.rel") != 0) &&
+	    (strncmp(fromsec, ".data.rel.", strlen(".data.rel.")) != 0))
 		f2 = 0;
 
 	for (s = pat2sym; *s; s++)
