@@ -517,9 +517,8 @@ config SENSORS_VT1211
 
 config SENSORS_VT8231
 	tristate "VIA VT8231"
-	depends on I2C && PCI && EXPERIMENTAL
+	depends on PCI
 	select HWMON_VID
-	select I2C_ISA
 	help
 	  If you say yes here then you get support for the integrated sensors
 	  in the VIA VT8231 device.
