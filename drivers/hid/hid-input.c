@@ -598,7 +598,9 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x21b: map_key_clear(KEY_COPY);		break;
 				case 0x21c: map_key_clear(KEY_CUT);		break;
 				case 0x21d: map_key_clear(KEY_PASTE);		break;
-				case 0x221: map_key_clear(KEY_FIND);		break;
+				case 0x21f: map_key_clear(KEY_FIND);		break;
+				case 0x221: map_key_clear(KEY_SEARCH);		break;
+				case 0x222: map_key_clear(KEY_GOTO);		break;
 				case 0x223: map_key_clear(KEY_HOMEPAGE);	break;
 				case 0x224: map_key_clear(KEY_BACK);		break;
 				case 0x225: map_key_clear(KEY_FORWARD);		break;
