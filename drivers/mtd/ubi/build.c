@@ -33,6 +33,7 @@
 #include <linux/moduleparam.h>
 #include <linux/stringify.h>
 #include <linux/stat.h>
+#include <linux/log2.h>
 #include "ubi.h"
 
 /* Maximum length of the 'mtd=' parameter */
@@ -422,8 +423,7 @@ static int io_init(struct ubi_device *ubi)
 	ubi->hdrs_min_io_size = ubi->mtd->writesize >> ubi->mtd->subpage_sft;
 
 	/* Make sure minimal I/O unit is power of 2 */
-	if (ubi->min_io_size == 0 ||
-	    (ubi->min_io_size & (ubi->min_io_size - 1))) {
+	if (!is_power_of_2(ubi->min_io_size)) {
 		ubi_err("bad min. I/O unit");
 		return -EINVAL;
 	}
