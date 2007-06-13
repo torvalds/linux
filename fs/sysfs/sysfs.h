@@ -90,7 +90,6 @@ extern int sysfs_create_subdir(struct kobject *kobj, const char *name,
 			       struct sysfs_dirent **p_sd);
 extern void sysfs_remove_subdir(struct sysfs_dirent *sd);
 
-extern void sysfs_drop_dentry(struct sysfs_dirent *sd);
 extern int sysfs_setattr(struct dentry *dentry, struct iattr *iattr);
 
 extern spinlock_t sysfs_assoc_lock;
