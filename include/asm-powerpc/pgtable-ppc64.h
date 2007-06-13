@@ -7,11 +7,7 @@
 
 #ifndef __ASSEMBLY__
 #include <linux/stddef.h>
-#include <asm/processor.h>		/* For TASK_SIZE */
-#include <asm/mmu.h>
-#include <asm/page.h>
 #include <asm/tlbflush.h>
-struct mm_struct;
 #endif /* __ASSEMBLY__ */
 
 #ifdef CONFIG_PPC_64K_PAGES
@@ -142,16 +138,6 @@ struct mm_struct;
 #define __S101	PAGE_READONLY_X
 #define __S110	PAGE_SHARED_X
 #define __S111	PAGE_SHARED_X
-
-#ifndef __ASSEMBLY__
-
-/*
- * ZERO_PAGE is a global shared page that is always zero: used
- * for zero-mapped memory areas etc..
- */
-extern unsigned long empty_zero_page[PAGE_SIZE/sizeof(unsigned long)];
-#define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
-#endif /* __ASSEMBLY__ */
 
 #ifdef CONFIG_HUGETLB_PAGE
 
@@ -447,10 +433,6 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 #define pgd_ERROR(e) \
 	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
-extern pgd_t swapper_pg_dir[];
-
-extern void paging_init(void);
-
 /* Encode and de-code a swap entry */
 #define __swp_type(entry)	(((entry).val >> 1) & 0x3f)
 #define __swp_offset(entry)	((entry).val >> 8)
@@ -460,17 +442,6 @@ extern void paging_init(void);
 #define pte_to_pgoff(pte)	(pte_val(pte) >> PTE_RPN_SHIFT)
 #define pgoff_to_pte(off)	((pte_t) {((off) << PTE_RPN_SHIFT)|_PAGE_FILE})
 #define PTE_FILE_MAX_BITS	(BITS_PER_LONG - PTE_RPN_SHIFT)
-
-/*
- * kern_addr_valid is intended to indicate whether an address is a valid
- * kernel address.  Most 32-bit archs define it as always true (like this)
- * but most 64-bit archs actually perform a test.  What should we do here?
- * The only use is in fs/ncpfs/dir.c
- */
-#define kern_addr_valid(addr)	(1)
-
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
-		remap_pfn_range(vma, vaddr, pfn, size, prot)
 
 void pgtable_cache_init(void);
 
