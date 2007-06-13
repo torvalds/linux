@@ -3,6 +3,7 @@ struct sysfs_dirent {
 	struct sysfs_dirent	* s_parent;
 	struct list_head	s_sibling;
 	struct list_head	s_children;
+	const char		* s_name;
 	void 			* s_element;
 	int			s_type;
 	umode_t			s_mode;
@@ -21,8 +22,8 @@ extern int sysfs_create(struct dentry *, int mode, int (*init)(struct inode *));
 
 extern void release_sysfs_dirent(struct sysfs_dirent * sd);
 extern int sysfs_dirent_exist(struct sysfs_dirent *, const unsigned char *);
-extern struct sysfs_dirent *sysfs_new_dirent(void *element, umode_t mode,
-					     int type);
+extern struct sysfs_dirent *sysfs_new_dirent(const char *name, void *element,
+					     umode_t mode, int type);
 extern void sysfs_attach_dirent(struct sysfs_dirent *sd,
 				struct sysfs_dirent *parent_sd,
 				struct dentry *dentry);
@@ -34,7 +35,6 @@ extern struct sysfs_dirent *sysfs_find(struct sysfs_dirent *dir, const char * na
 extern int sysfs_create_subdir(struct kobject *, const char *, struct dentry **);
 extern void sysfs_remove_subdir(struct dentry *);
 
-extern const unsigned char * sysfs_get_name(struct sysfs_dirent *sd);
 extern void sysfs_drop_dentry(struct sysfs_dirent *sd, struct dentry *parent);
 extern int sysfs_setattr(struct dentry *dentry, struct iattr *iattr);
 
@@ -48,7 +48,6 @@ extern const struct inode_operations sysfs_dir_inode_operations;
 extern const struct inode_operations sysfs_symlink_inode_operations;
 
 struct sysfs_symlink {
-	char * link_name;
 	struct kobject * target_kobj;
 };
 

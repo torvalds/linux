@@ -54,10 +54,11 @@ void release_sysfs_dirent(struct sysfs_dirent * sd)
 
 	if (sd->s_type & SYSFS_KOBJ_LINK) {
 		struct sysfs_symlink * sl = sd->s_element;
-		kfree(sl->link_name);
 		kobject_put(sl->target_kobj);
 		kfree(sl);
 	}
+	if (sd->s_type & SYSFS_COPY_NAME)
+		kfree(sd->s_name);
 	kfree(sd->s_iattr);
 	sysfs_free_ino(sd->s_ino);
 	kmem_cache_free(sysfs_dir_cachep, sd);
@@ -94,29 +95,41 @@ static struct dentry_operations sysfs_dentry_ops = {
 	.d_iput		= sysfs_d_iput,
 };
 
-struct sysfs_dirent *sysfs_new_dirent(void *element, umode_t mode, int type)
+struct sysfs_dirent *sysfs_new_dirent(const char *name, void *element,
+				      umode_t mode, int type)
 {
-	struct sysfs_dirent * sd;
+	char *dup_name = NULL;
+	struct sysfs_dirent *sd = NULL;
+
+	if (type & SYSFS_COPY_NAME) {
+		name = dup_name = kstrdup(name, GFP_KERNEL);
+		if (!name)
+			goto err_out;
+	}
 
 	sd = kmem_cache_zalloc(sysfs_dir_cachep, GFP_KERNEL);
 	if (!sd)
-		return NULL;
+		goto err_out;
 
-	if (sysfs_alloc_ino(&sd->s_ino)) {
-		kmem_cache_free(sysfs_dir_cachep, sd);
-		return NULL;
-	}
+	if (sysfs_alloc_ino(&sd->s_ino))
+		goto err_out;
 
 	atomic_set(&sd->s_count, 1);
 	atomic_set(&sd->s_event, 1);
 	INIT_LIST_HEAD(&sd->s_children);
 	INIT_LIST_HEAD(&sd->s_sibling);
 
+	sd->s_name = name;
 	sd->s_element = element;
 	sd->s_mode = mode;
 	sd->s_type = type;
 
 	return sd;
+
+ err_out:
+	kfree(dup_name);
+	kmem_cache_free(sysfs_dir_cachep, sd);
+	return NULL;
 }
 
 void sysfs_attach_dirent(struct sysfs_dirent *sd,
@@ -148,8 +161,7 @@ int sysfs_dirent_exist(struct sysfs_dirent *parent_sd,
 
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
 		if (sd->s_element) {
-			const unsigned char *existing = sysfs_get_name(sd);
-			if (strcmp(existing, new))
+			if (strcmp(sd->s_name, new))
 				continue;
 			else
 				return -EEXIST;
@@ -203,7 +215,7 @@ static int create_dir(struct kobject *kobj, struct dentry *parent,
 		goto out_dput;
 
 	error = -ENOMEM;
-	sd = sysfs_new_dirent(kobj, mode, SYSFS_DIR);
+	sd = sysfs_new_dirent(name, kobj, mode, SYSFS_DIR);
 	if (!sd)
 		goto out_drop;
 	sysfs_attach_dirent(sd, parent->d_fsdata, dentry);
@@ -334,9 +346,7 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
 		if (sd->s_type & SYSFS_NOT_PINNED) {
-			const unsigned char * name = sysfs_get_name(sd);
-
-			if (strcmp(name, dentry->d_name.name))
+			if (strcmp(sd->s_name, dentry->d_name.name))
 				continue;
 
 			if (sd->s_type & SYSFS_KOBJ_LINK)
@@ -427,9 +437,11 @@ void sysfs_remove_dir(struct kobject * kobj)
 int sysfs_rename_dir(struct kobject * kobj, struct dentry *new_parent,
 		     const char *new_name)
 {
+	struct sysfs_dirent *sd = kobj->dentry->d_fsdata;
+	struct sysfs_dirent *parent_sd = new_parent->d_fsdata;
+	struct dentry *new_dentry;
+	char *dup_name;
 	int error;
-	struct dentry * new_dentry;
-	struct sysfs_dirent *sd, *parent_sd;
 
 	if (!new_parent)
 		return -EFAULT;
@@ -457,15 +469,22 @@ int sysfs_rename_dir(struct kobject * kobj, struct dentry *new_parent,
 	if (new_dentry->d_inode)
 		goto out_dput;
 
-	error = kobject_set_name(kobj, "%s", new_name);
-	if (error)
+	/* rename kobject and sysfs_dirent */
+	error = -ENOMEM;
+	new_name = dup_name = kstrdup(new_name, GFP_KERNEL);
+	if (!new_name)
 		goto out_drop;
 
+	error = kobject_set_name(kobj, "%s", new_name);
+	if (error)
+		goto out_free;
+
+	kfree(sd->s_name);
+	sd->s_name = new_name;
+
+	/* move under the new parent */
 	d_add(new_dentry, NULL);
 	d_move(kobj->dentry, new_dentry);
-
-	sd = kobj->dentry->d_fsdata;
-	parent_sd = new_parent->d_fsdata;
 
 	list_del_init(&sd->s_sibling);
 	list_add(&sd->s_sibling, &parent_sd->s_children);
@@ -473,6 +492,8 @@ int sysfs_rename_dir(struct kobject * kobj, struct dentry *new_parent,
 	error = 0;
 	goto out_unlock;
 
+ out_free:
+	kfree(dup_name);
  out_drop:
 	d_drop(new_dentry);
  out_dput:
@@ -535,7 +556,7 @@ static int sysfs_dir_open(struct inode *inode, struct file *file)
 	struct sysfs_dirent * sd;
 
 	mutex_lock(&dentry->d_inode->i_mutex);
-	sd = sysfs_new_dirent(NULL, 0, 0);
+	sd = sysfs_new_dirent("_DIR_", NULL, 0, 0);
 	if (sd)
 		sysfs_attach_dirent(sd, parent_sd, NULL);
 	mutex_unlock(&dentry->d_inode->i_mutex);
@@ -605,7 +626,7 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 				if (!next->s_element)
 					continue;
 
-				name = sysfs_get_name(next);
+				name = next->s_name;
 				len = strlen(name);
 				ino = next->s_ino;
 
@@ -717,7 +738,7 @@ struct dentry *sysfs_create_shadow_dir(struct kobject *kobj)
 	if (!shadow)
 		goto nomem;
 
-	sd = sysfs_new_dirent(kobj, inode->i_mode, SYSFS_DIR);
+	sd = sysfs_new_dirent("_SHADOW_", kobj, inode->i_mode, SYSFS_DIR);
 	if (!sd)
 		goto nomem;
 	/* point to parent_sd but don't attach to it */

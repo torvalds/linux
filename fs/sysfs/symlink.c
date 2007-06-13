@@ -57,14 +57,9 @@ static int sysfs_add_link(struct dentry * parent, const char * name, struct kobj
 	if (!sl)
 		goto err_out;
 
-	sl->link_name = kmalloc(strlen(name) + 1, GFP_KERNEL);
-	if (!sl->link_name)
-		goto err_out;
-
-	strcpy(sl->link_name, name);
 	sl->target_kobj = kobject_get(target);
 
-	sd = sysfs_new_dirent(sl, S_IFLNK|S_IRWXUGO, SYSFS_KOBJ_LINK);
+	sd = sysfs_new_dirent(name, sl, S_IFLNK|S_IRWXUGO, SYSFS_KOBJ_LINK);
 	if (!sd)
 		goto err_out;
 	sysfs_attach_dirent(sd, parent_sd, NULL);
@@ -74,7 +69,6 @@ static int sysfs_add_link(struct dentry * parent, const char * name, struct kobj
  err_out:
 	if (sl) {
 		kobject_put(sl->target_kobj);
-		kfree(sl->link_name);
 		kfree(sl);
 	}
 	return error;

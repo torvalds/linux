@@ -191,37 +191,6 @@ int sysfs_create(struct dentry * dentry, int mode, int (*init)(struct inode *))
 	return error;
 }
 
-/*
- * Get the name for corresponding element represented by the given sysfs_dirent
- */
-const unsigned char * sysfs_get_name(struct sysfs_dirent *sd)
-{
-	struct attribute * attr;
-	struct bin_attribute * bin_attr;
-	struct sysfs_symlink  * sl;
-
-	BUG_ON(!sd || !sd->s_element);
-
-	switch (sd->s_type) {
-		case SYSFS_DIR:
-			/* Always have a dentry so use that */
-			return sd->s_dentry->d_name.name;
-
-		case SYSFS_KOBJ_ATTR:
-			attr = sd->s_element;
-			return attr->name;
-
-		case SYSFS_KOBJ_BIN_ATTR:
-			bin_attr = sd->s_element;
-			return bin_attr->attr.name;
-
-		case SYSFS_KOBJ_LINK:
-			sl = sd->s_element;
-			return sl->link_name;
-	}
-	return NULL;
-}
-
 static inline void orphan_all_buffers(struct inode *node)
 {
 	struct sysfs_buffer_collection *set;
@@ -305,7 +274,7 @@ int sysfs_hash_and_remove(struct dentry * dir, const char * name)
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
 		if (!sd->s_element)
 			continue;
-		if (!strcmp(sysfs_get_name(sd), name)) {
+		if (!strcmp(sd->s_name, name)) {
 			list_del_init(&sd->s_sibling);
 			sysfs_drop_dentry(sd, dir);
 			sysfs_put(sd);

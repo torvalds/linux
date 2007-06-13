@@ -454,7 +454,7 @@ int sysfs_add_file(struct dentry * dir, const struct attribute * attr, int type)
 		goto out_unlock;
 	}
 
-	sd = sysfs_new_dirent((void *)attr, mode, type);
+	sd = sysfs_new_dirent(attr->name, (void *)attr, mode, type);
 	if (!sd) {
 		error = -ENOMEM;
 		goto out_unlock;
