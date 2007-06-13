@@ -54,7 +54,7 @@ void release_sysfs_dirent(struct sysfs_dirent * sd)
 	parent_sd = sd->s_parent;
 
 	if (sd->s_type & SYSFS_KOBJ_LINK)
-		kobject_put(sd->s_elem.symlink.target_kobj);
+		sysfs_put(sd->s_elem.symlink.target_sd);
 	if (sd->s_type & SYSFS_COPY_NAME)
 		kfree(sd->s_name);
 	kfree(sd->s_iattr);

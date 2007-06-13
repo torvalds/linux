@@ -3,7 +3,7 @@ struct sysfs_elem_dir {
 };
 
 struct sysfs_elem_symlink {
-	struct kobject		* target_kobj;
+	struct sysfs_dirent	* target_sd;
 };
 
 struct sysfs_elem_attr {
@@ -100,10 +100,11 @@ static inline struct kobject *sysfs_get_kobject(struct dentry *dentry)
 	spin_lock(&dcache_lock);
 	if (!d_unhashed(dentry)) {
 		struct sysfs_dirent * sd = dentry->d_fsdata;
+
 		if (sd->s_type & SYSFS_KOBJ_LINK)
-			kobj = kobject_get(sd->s_elem.symlink.target_kobj);
-		else
-			kobj = kobject_get(sd->s_elem.dir.kobj);
+			sd = sd->s_elem.symlink.target_sd;
+
+		kobj = kobject_get(sd->s_elem.dir.kobj);
 	}
 	spin_unlock(&dcache_lock);
 
