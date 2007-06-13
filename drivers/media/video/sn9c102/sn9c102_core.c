@@ -48,8 +48,8 @@
 #define SN9C102_MODULE_AUTHOR   "(C) 2004-2007 Luca Risolia"
 #define SN9C102_AUTHOR_EMAIL    "<luca.risolia@studio.unibo.it>"
 #define SN9C102_MODULE_LICENSE  "GPL"
-#define SN9C102_MODULE_VERSION  "1:1.44"
-#define SN9C102_MODULE_VERSION_CODE  KERNEL_VERSION(1, 1, 44)
+#define SN9C102_MODULE_VERSION  "1:1.47"
+#define SN9C102_MODULE_VERSION_CODE  KERNEL_VERSION(1, 1, 47)
 
 /*****************************************************************************/
 
@@ -64,9 +64,10 @@ MODULE_LICENSE(SN9C102_MODULE_LICENSE);
 static short video_nr[] = {[0 ... SN9C102_MAX_DEVICES-1] = -1};
 module_param_array(video_nr, short, NULL, 0444);
 MODULE_PARM_DESC(video_nr,
-		 "\n<-1|n[,...]> Specify V4L2 minor mode number."
-		 "\n -1 = use next available (default)"
-		 "\n  n = use minor number n (integer >= 0)"
+		 " <-1|n[,...]>"
+		 "\nSpecify V4L2 minor mode number."
+		 "\n-1 = use next available (default)"
+		 "\n n = use minor number n (integer >= 0)"
 		 "\nYou can specify up to "__MODULE_STRING(SN9C102_MAX_DEVICES)
 		 " cameras this way."
 		 "\nFor example:"
@@ -79,13 +80,14 @@ static short force_munmap[] = {[0 ... SN9C102_MAX_DEVICES-1] =
 			       SN9C102_FORCE_MUNMAP};
 module_param_array(force_munmap, bool, NULL, 0444);
 MODULE_PARM_DESC(force_munmap,
-		 "\n<0|1[,...]> Force the application to unmap previously"
+		 " <0|1[,...]>"
+		 "\nForce the application to unmap previously"
 		 "\nmapped buffer memory before calling any VIDIOC_S_CROP or"
 		 "\nVIDIOC_S_FMT ioctl's. Not all the applications support"
 		 "\nthis feature. This parameter is specific for each"
 		 "\ndetected camera."
-		 "\n 0 = do not force memory unmapping"
-		 "\n 1 = force memory unmapping (save memory)"
+		 "\n0 = do not force memory unmapping"
+		 "\n1 = force memory unmapping (save memory)"
 		 "\nDefault value is "__MODULE_STRING(SN9C102_FORCE_MUNMAP)"."
 		 "\n");
 
@@ -93,7 +95,8 @@ static unsigned int frame_timeout[] = {[0 ... SN9C102_MAX_DEVICES-1] =
 				       SN9C102_FRAME_TIMEOUT};
 module_param_array(frame_timeout, uint, NULL, 0644);
 MODULE_PARM_DESC(frame_timeout,
-		 "\n<0|n[,...]> Timeout for a video frame in seconds before"
+		 " <0|n[,...]>"
+		 "\nTimeout for a video frame in seconds before"
 		 "\nreturning an I/O error; 0 for infinity."
 		 "\nThis parameter is specific for each detected camera."
 		 "\nDefault value is "__MODULE_STRING(SN9C102_FRAME_TIMEOUT)"."
@@ -103,7 +106,8 @@ MODULE_PARM_DESC(frame_timeout,
 static unsigned short debug = SN9C102_DEBUG_LEVEL;
 module_param(debug, ushort, 0644);
 MODULE_PARM_DESC(debug,
-		 "\n<n> Debugging information level, from 0 to 3:"
+		 " <n>"
+		 "\nDebugging information level, from 0 to 3:"
 		 "\n0 = none (use carefully)"
 		 "\n1 = critical errors"
 		 "\n2 = significant informations"
@@ -1616,7 +1620,8 @@ static int sn9c102_init(struct sn9c102_device* cam)
 	int err = 0;
 
 	if (!(cam->state & DEV_INITIALIZED)) {
-		init_waitqueue_head(&cam->open);
+		mutex_init(&cam->open_mutex);
+		init_waitqueue_head(&cam->wait_open);
 		qctrl = s->qctrl;
 		rect = &(s->cropcap.defrect);
 	} else { /* use current values */
@@ -1706,21 +1711,27 @@ static int sn9c102_init(struct sn9c102_device* cam)
 	return 0;
 }
 
+/*****************************************************************************/
 
-static void sn9c102_release_resources(struct sn9c102_device* cam)
+static void sn9c102_release_resources(struct kref *kref)
 {
+	struct sn9c102_device *cam;
+
 	mutex_lock(&sn9c102_sysfs_lock);
+
+	cam = container_of(kref, struct sn9c102_device, kref);
 
 	DBG(2, "V4L2 device /dev/video%d deregistered", cam->v4ldev->minor);
 	video_set_drvdata(cam->v4ldev, NULL);
 	video_unregister_device(cam->v4ldev);
+	usb_put_dev(cam->usbdev);
+	kfree(cam->control_buffer);
+	kfree(cam);
 
 	mutex_unlock(&sn9c102_sysfs_lock);
 
-	kfree(cam->control_buffer);
 }
 
-/*****************************************************************************/
 
 static int sn9c102_open(struct inode* inode, struct file* filp)
 {
@@ -1728,42 +1739,77 @@ static int sn9c102_open(struct inode* inode, struct file* filp)
 	int err = 0;
 
 	/*
-	   This is the only safe way to prevent race conditions with
-	   disconnect
+	   A read_trylock() in open() is the only safe way to prevent race
+	   conditions with disconnect(), one close() and multiple (not
+	   necessarily simultaneous) attempts to open(). For example, it
+	   prevents from waiting for a second access, while the device
+	   structure is being deallocated, after a possible disconnect() and
+	   during a following close() holding the write lock: given that, after
+	   this deallocation, no access will be possible anymore, using the
+	   non-trylock version would have let open() gain the access to the
+	   device structure improperly.
+	   For this reason the lock must also not be per-device.
 	*/
-	if (!down_read_trylock(&sn9c102_disconnect))
+	if (!down_read_trylock(&sn9c102_dev_lock))
 		return -ERESTARTSYS;
 
 	cam = video_get_drvdata(video_devdata(filp));
 
-	if (mutex_lock_interruptible(&cam->dev_mutex)) {
-		up_read(&sn9c102_disconnect);
+	if (wait_for_completion_interruptible(&cam->probe)) {
+		up_read(&sn9c102_dev_lock);
 		return -ERESTARTSYS;
 	}
 
+	kref_get(&cam->kref);
+
+	/*
+	    Make sure to isolate all the simultaneous opens.
+	*/
+	if (mutex_lock_interruptible(&cam->open_mutex)) {
+		kref_put(&cam->kref, sn9c102_release_resources);
+		up_read(&sn9c102_dev_lock);
+		return -ERESTARTSYS;
+	}
+
+	if (cam->state & DEV_DISCONNECTED) {
+		DBG(1, "Device not present");
+		err = -ENODEV;
+		goto out;
+	}
+
 	if (cam->users) {
-		DBG(2, "Device /dev/video%d is busy...", cam->v4ldev->minor);
+		DBG(2, "Device /dev/video%d is already in use",
+		       cam->v4ldev->minor);
 		DBG(3, "Simultaneous opens are not supported");
+		/*
+		   open() must follow the open flags and should block
+		   eventually while the device is in use.
+		*/
 		if ((filp->f_flags & O_NONBLOCK) ||
 		    (filp->f_flags & O_NDELAY)) {
 			err = -EWOULDBLOCK;
 			goto out;
 		}
-		mutex_unlock(&cam->dev_mutex);
-		err = wait_event_interruptible_exclusive(cam->open,
-						  cam->state & DEV_DISCONNECTED
+		DBG(2, "A blocking open() has been requested. Wait for the "
+		       "device to be released...");
+		up_read(&sn9c102_dev_lock);
+		/*
+		   We will not release the "open_mutex" lock, so that only one
+		   process can be in the wait queue below. This way the process
+		   will be sleeping while holding the lock, without loosing its
+		   priority after any wake_up().
+		*/
+		err = wait_event_interruptible_exclusive(cam->wait_open,
+						(cam->state & DEV_DISCONNECTED)
 							 || !cam->users);
-		if (err) {
-			up_read(&sn9c102_disconnect);
-			return err;
-		}
+		down_read(&sn9c102_dev_lock);
+		if (err)
+			goto out;
 		if (cam->state & DEV_DISCONNECTED) {
-			up_read(&sn9c102_disconnect);
-			return -ENODEV;
+			err = -ENODEV;
+			goto out;
 		}
-		mutex_lock(&cam->dev_mutex);
 	}
-
 
 	if (cam->state & DEV_MISCONFIGURED) {
 		err = sn9c102_init(cam);
@@ -1789,36 +1835,33 @@ static int sn9c102_open(struct inode* inode, struct file* filp)
 	DBG(3, "Video device /dev/video%d is open", cam->v4ldev->minor);
 
 out:
-	mutex_unlock(&cam->dev_mutex);
-	up_read(&sn9c102_disconnect);
+	mutex_unlock(&cam->open_mutex);
+	if (err)
+		kref_put(&cam->kref, sn9c102_release_resources);
+
+	up_read(&sn9c102_dev_lock);
 	return err;
 }
 
 
 static int sn9c102_release(struct inode* inode, struct file* filp)
 {
-	struct sn9c102_device* cam = video_get_drvdata(video_devdata(filp));
+	struct sn9c102_device* cam;
 
-	mutex_lock(&cam->dev_mutex); /* prevent disconnect() to be called */
+	down_write(&sn9c102_dev_lock);
+
+	cam = video_get_drvdata(video_devdata(filp));
 
 	sn9c102_stop_transfer(cam);
-
 	sn9c102_release_buffers(cam);
-
-	if (cam->state & DEV_DISCONNECTED) {
-		sn9c102_release_resources(cam);
-		usb_put_dev(cam->usbdev);
-		mutex_unlock(&cam->dev_mutex);
-		kfree(cam);
-		return 0;
-	}
-
 	cam->users--;
-	wake_up_interruptible_nr(&cam->open, 1);
+	wake_up_interruptible_nr(&cam->wait_open, 1);
 
 	DBG(3, "Video device /dev/video%d closed", cam->v4ldev->minor);
 
-	mutex_unlock(&cam->dev_mutex);
+	kref_put(&cam->kref, sn9c102_release_resources);
+
+	up_write(&sn9c102_dev_lock);
 
 	return 0;
 }
@@ -2085,7 +2128,6 @@ static int sn9c102_mmap(struct file* filp, struct vm_area_struct *vma)
 
 	vma->vm_ops = &sn9c102_vm_ops;
 	vma->vm_private_data = &cam->frame[i];
-
 	sn9c102_vm_open(vma);
 
 	mutex_unlock(&cam->fileop_mutex);
@@ -3215,8 +3257,6 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 		goto fail;
 	}
 
-	mutex_init(&cam->dev_mutex);
-
 	r = sn9c102_read_reg(cam, 0x00);
 	if (r < 0 || (r != 0x10 && r != 0x11 && r != 0x12)) {
 		DBG(1, "Sorry, this is not a SN9C1xx-based camera "
@@ -3282,7 +3322,7 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	cam->v4ldev->release = video_device_release;
 	video_set_drvdata(cam->v4ldev, cam);
 
-	mutex_lock(&cam->dev_mutex);
+	init_completion(&cam->probe);
 
 	err = video_register_device(cam->v4ldev, VFL_TYPE_GRABBER,
 				    video_nr[dev_nr]);
@@ -3292,7 +3332,7 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 			DBG(1, "Free /dev/videoX node not found");
 		video_nr[dev_nr] = -1;
 		dev_nr = (dev_nr < SN9C102_MAX_DEVICES-1) ? dev_nr+1 : 0;
-		mutex_unlock(&cam->dev_mutex);
+		complete_all(&cam->probe);
 		goto fail;
 	}
 
@@ -3318,8 +3358,10 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 #endif
 
 	usb_set_intfdata(intf, cam);
+	kref_init(&cam->kref);
+	usb_get_dev(cam->usbdev);
 
-	mutex_unlock(&cam->dev_mutex);
+	complete_all(&cam->probe);
 
 	return 0;
 
@@ -3336,40 +3378,31 @@ fail:
 
 static void sn9c102_usb_disconnect(struct usb_interface* intf)
 {
-	struct sn9c102_device* cam = usb_get_intfdata(intf);
+	struct sn9c102_device* cam;
 
-	if (!cam)
-		return;
+	down_write(&sn9c102_dev_lock);
 
-	down_write(&sn9c102_disconnect);
-
-	mutex_lock(&cam->dev_mutex);
+	cam = usb_get_intfdata(intf);
 
 	DBG(2, "Disconnecting %s...", cam->v4ldev->name);
 
-	wake_up_interruptible_all(&cam->open);
-
 	if (cam->users) {
 		DBG(2, "Device /dev/video%d is open! Deregistration and "
-		       "memory deallocation are deferred on close.",
+		       "memory deallocation are deferred.",
 		    cam->v4ldev->minor);
 		cam->state |= DEV_MISCONFIGURED;
 		sn9c102_stop_transfer(cam);
 		cam->state |= DEV_DISCONNECTED;
 		wake_up_interruptible(&cam->wait_frame);
 		wake_up(&cam->wait_stream);
-		usb_get_dev(cam->usbdev);
-	} else {
+	} else
 		cam->state |= DEV_DISCONNECTED;
-		sn9c102_release_resources(cam);
-	}
 
-	mutex_unlock(&cam->dev_mutex);
+	wake_up_interruptible_all(&cam->wait_open);
 
-	if (!cam->users)
-		kfree(cam);
+	kref_put(&cam->kref, sn9c102_release_resources);
 
-	up_write(&sn9c102_disconnect);
+	up_write(&sn9c102_dev_lock);
 }
 
 
