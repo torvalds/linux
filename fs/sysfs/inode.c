@@ -133,62 +133,68 @@ static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
  */
 static struct lock_class_key sysfs_inode_imutex_key;
 
-struct inode * sysfs_new_inode(mode_t mode, struct sysfs_dirent * sd)
+void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode)
 {
-	struct inode * inode = new_inode(sysfs_sb);
-	if (inode) {
-		inode->i_blocks = 0;
-		inode->i_mapping->a_ops = &sysfs_aops;
-		inode->i_mapping->backing_dev_info = &sysfs_backing_dev_info;
-		inode->i_op = &sysfs_inode_operations;
-		inode->i_ino = sd->s_ino;
-		lockdep_set_class(&inode->i_mutex, &sysfs_inode_imutex_key);
+	inode->i_blocks = 0;
+	inode->i_mapping->a_ops = &sysfs_aops;
+	inode->i_mapping->backing_dev_info = &sysfs_backing_dev_info;
+	inode->i_op = &sysfs_inode_operations;
+	inode->i_ino = sd->s_ino;
+	lockdep_set_class(&inode->i_mutex, &sysfs_inode_imutex_key);
 
-		if (sd->s_iattr) {
-			/* sysfs_dirent has non-default attributes
-			 * get them for the new inode from persistent copy
-			 * in sysfs_dirent
-			 */
-			set_inode_attr(inode, sd->s_iattr);
-		} else
-			set_default_inode_attr(inode, mode);
-	}
+	if (sd->s_iattr) {
+		/* sysfs_dirent has non-default attributes
+		 * get them for the new inode from persistent copy
+		 * in sysfs_dirent
+		 */
+		set_inode_attr(inode, sd->s_iattr);
+	} else
+		set_default_inode_attr(inode, sd->s_mode);
+}
+
+/**
+ *	sysfs_new_inode - allocate new inode for sysfs_dirent
+ *	@sd: sysfs_dirent to allocate inode for
+ *
+ *	Allocate inode for @sd and initialize basics.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ *
+ *	RETURNS:
+ *	Pointer to allocated inode on success, NULL on failure.
+ */
+struct inode * sysfs_new_inode(struct sysfs_dirent *sd)
+{
+	struct inode *inode;
+
+	inode = new_inode(sysfs_sb);
+	if (inode)
+		sysfs_init_inode(sd, inode);
+
 	return inode;
 }
 
-int sysfs_create(struct sysfs_dirent *sd, struct dentry *dentry, int mode,
-		 int (*init)(struct inode *))
+/**
+ *	sysfs_instantiate - instantiate dentry
+ *	@dentry: dentry to be instantiated
+ *	@inode: inode associated with @sd
+ *
+ *	Instantiate @dentry with @inode.
+ *
+ *	LOCKING:
+ *	None.
+ */
+void sysfs_instantiate(struct dentry *dentry, struct inode *inode)
 {
-	int error = 0;
-	struct inode * inode = NULL;
-	if (dentry) {
-		if (!dentry->d_inode) {
-			if ((inode = sysfs_new_inode(mode, sd))) {
-				if (dentry->d_parent && dentry->d_parent->d_inode) {
-					struct inode *p_inode = dentry->d_parent->d_inode;
-					p_inode->i_mtime = p_inode->i_ctime = CURRENT_TIME;
-				}
-				goto Proceed;
-			}
-			else 
-				error = -ENOMEM;
-		} else
-			error = -EEXIST;
-	} else 
-		error = -ENOENT;
-	goto Done;
+	BUG_ON(!dentry || dentry->d_inode);
 
- Proceed:
-	if (init)
-		error = init(inode);
-	if (!error) {
-		d_instantiate(dentry, inode);
-		if (S_ISDIR(mode))
-			dget(dentry);  /* pin only directory dentry in core */
-	} else
-		iput(inode);
- Done:
-	return error;
+	if (dentry->d_parent && dentry->d_parent->d_inode) {
+		struct inode *p_inode = dentry->d_parent->d_inode;
+		p_inode->i_mtime = p_inode->i_ctime = CURRENT_TIME;
+	}
+
+	d_instantiate(dentry, inode);
 }
 
 /**

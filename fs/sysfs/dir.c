@@ -191,39 +191,18 @@ int sysfs_dirent_exist(struct sysfs_dirent *parent_sd,
 	return 0;
 }
 
-static int init_dir(struct inode * inode)
-{
-	inode->i_op = &sysfs_dir_inode_operations;
-	inode->i_fop = &sysfs_dir_operations;
-
-	/* directory inodes start off with i_nlink == 2 (for "." entry) */
-	inc_nlink(inode);
-	return 0;
-}
-
-static int init_file(struct inode * inode)
-{
-	inode->i_size = PAGE_SIZE;
-	inode->i_fop = &sysfs_file_operations;
-	return 0;
-}
-
-static int init_symlink(struct inode * inode)
-{
-	inode->i_op = &sysfs_symlink_inode_operations;
-	return 0;
-}
-
 static int create_dir(struct kobject *kobj, struct dentry *parent,
 		      const char *name, struct dentry **p_dentry)
 {
 	int error;
 	umode_t mode = S_IFDIR| S_IRWXU | S_IRUGO | S_IXUGO;
 	struct dentry *dentry;
+	struct inode *inode;
 	struct sysfs_dirent *sd;
 
 	mutex_lock(&parent->d_inode->i_mutex);
 
+	/* allocate */
 	dentry = lookup_one_len(name, parent, strlen(name));
 	if (IS_ERR(dentry)) {
 		error = PTR_ERR(dentry);
@@ -231,7 +210,7 @@ static int create_dir(struct kobject *kobj, struct dentry *parent,
 	}
 
 	error = -EEXIST;
-	if (sysfs_dirent_exist(parent->d_fsdata, name))
+	if (dentry->d_inode)
 		goto out_dput;
 
 	error = -ENOMEM;
@@ -240,19 +219,31 @@ static int create_dir(struct kobject *kobj, struct dentry *parent,
 		goto out_drop;
 	sd->s_elem.dir.kobj = kobj;
 
-	error = sysfs_create(sd, dentry, mode, init_dir);
-	if (error)
+	inode = sysfs_new_inode(sd);
+	if (!inode)
 		goto out_sput;
 
+	inode->i_op = &sysfs_dir_inode_operations;
+	inode->i_fop = &sysfs_dir_operations;
+	/* directory inodes start off with i_nlink == 2 (for "." entry) */
+	inc_nlink(inode);
+
+	/* link in */
+	error = -EEXIST;
+	if (sysfs_dirent_exist(parent->d_fsdata, name))
+		goto out_iput;
+
+	sysfs_instantiate(dentry, inode);
 	inc_nlink(parent->d_inode);
 	sysfs_attach_dirent(sd, parent->d_fsdata, dentry);
 
 	*p_dentry = dentry;
 	error = 0;
-	goto out_dput;
+	goto out_unlock;	/* pin directory dentry in core */
 
+ out_iput:
+	iput(inode);
  out_sput:
-	list_del_init(&sd->s_sibling);
 	sysfs_put(sd);
  out_drop:
 	d_drop(dentry);
@@ -298,71 +289,46 @@ int sysfs_create_dir(struct kobject * kobj, struct dentry *shadow_parent)
 	return error;
 }
 
-/* attaches attribute's sysfs_dirent to the dentry corresponding to the
- * attribute file
- */
-static int sysfs_attach_attr(struct sysfs_dirent * sd, struct dentry * dentry)
-{
-	struct attribute * attr = NULL;
-	struct bin_attribute * bin_attr = NULL;
-	int (* init) (struct inode *) = NULL;
-	int error = 0;
-
-        if (sd->s_type & SYSFS_KOBJ_BIN_ATTR) {
-                bin_attr = sd->s_elem.bin_attr.bin_attr;
-                attr = &bin_attr->attr;
-        } else {
-                attr = sd->s_elem.attr.attr;
-                init = init_file;
-        }
-
-	error = sysfs_create(sd, dentry,
-			     (attr->mode & S_IALLUGO) | S_IFREG, init);
-	if (error)
-		return error;
-
-        if (bin_attr) {
-		dentry->d_inode->i_size = bin_attr->size;
-		dentry->d_inode->i_fop = &bin_fops;
-	}
-
-	sysfs_attach_dentry(sd, dentry);
-
-	return 0;
-}
-
-static int sysfs_attach_link(struct sysfs_dirent * sd, struct dentry * dentry)
-{
-	int err;
-
-	err = sysfs_create(sd, dentry, S_IFLNK|S_IRWXUGO, init_symlink);
-	if (!err)
-		sysfs_attach_dentry(sd, dentry);
-
-	return err;
-}
-
 static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 				struct nameidata *nd)
 {
 	struct sysfs_dirent * parent_sd = dentry->d_parent->d_fsdata;
 	struct sysfs_dirent * sd;
-	int err = 0;
+	struct inode *inode;
+	int found = 0;
 
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
-		if (sd->s_type & SYSFS_NOT_PINNED) {
-			if (strcmp(sd->s_name, dentry->d_name.name))
-				continue;
-
-			if (sd->s_type & SYSFS_KOBJ_LINK)
-				err = sysfs_attach_link(sd, dentry);
-			else
-				err = sysfs_attach_attr(sd, dentry);
+		if ((sd->s_type & SYSFS_NOT_PINNED) &&
+		    !strcmp(sd->s_name, dentry->d_name.name)) {
+			found = 1;
 			break;
 		}
 	}
 
-	return ERR_PTR(err);
+	/* no such entry */
+	if (!found)
+		return NULL;
+
+	/* attach dentry and inode */
+	inode = sysfs_new_inode(sd);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+
+	/* initialize inode according to type */
+	if (sd->s_type & SYSFS_KOBJ_ATTR) {
+		inode->i_size = PAGE_SIZE;
+		inode->i_fop = &sysfs_file_operations;
+	} else if (sd->s_type & SYSFS_KOBJ_BIN_ATTR) {
+		struct bin_attribute *bin_attr = sd->s_elem.bin_attr.bin_attr;
+		inode->i_size = bin_attr->size;
+		inode->i_fop = &bin_fops;
+	} else if (sd->s_type & SYSFS_KOBJ_LINK)
+		inode->i_op = &sysfs_symlink_inode_operations;
+
+	sysfs_instantiate(dentry, inode);
+	sysfs_attach_dentry(sd, dentry);
+
+	return NULL;
 }
 
 const struct inode_operations sysfs_dir_inode_operations = {

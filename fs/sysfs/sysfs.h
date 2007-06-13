@@ -57,9 +57,9 @@ extern struct vfsmount * sysfs_mount;
 extern struct kmem_cache *sysfs_dir_cachep;
 
 extern void sysfs_delete_inode(struct inode *inode);
-extern struct inode * sysfs_new_inode(mode_t mode, struct sysfs_dirent *);
-extern int sysfs_create(struct sysfs_dirent *sd, struct dentry *dentry,
-			int mode, int (*init)(struct inode *));
+extern void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode);
+extern struct inode * sysfs_new_inode(struct sysfs_dirent *sd);
+extern void sysfs_instantiate(struct dentry *dentry, struct inode *inode);
 
 extern void release_sysfs_dirent(struct sysfs_dirent * sd);
 extern int sysfs_dirent_exist(struct sysfs_dirent *, const unsigned char *);
