@@ -211,11 +211,11 @@ void sysfs_instantiate(struct dentry *dentry, struct inode *inode)
  *	parent on entry to this function such that it can't be looked
  *	up anymore.
  *
- *	@sd->s_dentry which is protected with sysfs_lock points to the
- *	currently associated dentry but we're not holding a reference
- *	to it and racing with dput().  Grab dcache_lock and verify
- *	dentry before dropping it.  If @sd->s_dentry is NULL or dput()
- *	beats us, no need to bother.
+ *	@sd->s_dentry which is protected with sysfs_assoc_lock points
+ *	to the currently associated dentry but we're not holding a
+ *	reference to it and racing with dput().  Grab dcache_lock and
+ *	verify dentry before dropping it.  If @sd->s_dentry is NULL or
+ *	dput() beats us, no need to bother.
  */
 void sysfs_drop_dentry(struct sysfs_dirent *sd)
 {
@@ -224,9 +224,9 @@ void sysfs_drop_dentry(struct sysfs_dirent *sd)
 	struct inode *inode;
 
 	/* We're not holding a reference to ->s_dentry dentry but the
-	 * field will stay valid as long as sysfs_lock is held.
+	 * field will stay valid as long as sysfs_assoc_lock is held.
 	 */
-	spin_lock(&sysfs_lock);
+	spin_lock(&sysfs_assoc_lock);
 	spin_lock(&dcache_lock);
 
 	/* drop dentry if it's there and dput() didn't kill it yet */
@@ -238,7 +238,7 @@ void sysfs_drop_dentry(struct sysfs_dirent *sd)
 	}
 
 	spin_unlock(&dcache_lock);
-	spin_unlock(&sysfs_lock);
+	spin_unlock(&sysfs_assoc_lock);
 
 	dput(dentry);
 	/* XXX: unpin if directory, this will go away soon */

@@ -82,12 +82,12 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 		return -EFAULT;
 
 	/* target->sd can go away beneath us but is protected with
-	 * kobj_sysfs_assoc_lock.  Fetch target_sd from it.
+	 * sysfs_assoc_lock.  Fetch target_sd from it.
 	 */
-	spin_lock(&kobj_sysfs_assoc_lock);
+	spin_lock(&sysfs_assoc_lock);
 	if (target->sd)
 		target_sd = sysfs_get(target->sd);
-	spin_unlock(&kobj_sysfs_assoc_lock);
+	spin_unlock(&sysfs_assoc_lock);
 
 	if (!target_sd)
 		return -ENOENT;

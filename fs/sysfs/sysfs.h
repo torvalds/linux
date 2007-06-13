@@ -81,8 +81,7 @@ extern void sysfs_remove_subdir(struct sysfs_dirent *sd);
 extern void sysfs_drop_dentry(struct sysfs_dirent *sd);
 extern int sysfs_setattr(struct dentry *dentry, struct iattr *iattr);
 
-extern spinlock_t sysfs_lock;
-extern spinlock_t kobj_sysfs_assoc_lock;
+extern spinlock_t sysfs_assoc_lock;
 extern struct rw_semaphore sysfs_rename_sem;
 extern struct super_block * sysfs_sb;
 extern const struct file_operations sysfs_dir_operations;

@@ -15,8 +15,7 @@
 #include "sysfs.h"
 
 DECLARE_RWSEM(sysfs_rename_sem);
-spinlock_t sysfs_lock = SPIN_LOCK_UNLOCKED;
-spinlock_t kobj_sysfs_assoc_lock = SPIN_LOCK_UNLOCKED;
+spinlock_t sysfs_assoc_lock = SPIN_LOCK_UNLOCKED;
 
 static spinlock_t sysfs_ino_lock = SPIN_LOCK_UNLOCKED;
 static DEFINE_IDA(sysfs_ino_ida);
@@ -236,10 +235,10 @@ static void sysfs_d_iput(struct dentry * dentry, struct inode * inode)
 	struct sysfs_dirent * sd = dentry->d_fsdata;
 
 	if (sd) {
-		/* sd->s_dentry is protected with sysfs_lock.  This
-		 * allows sysfs_drop_dentry() to dereference it.
+		/* sd->s_dentry is protected with sysfs_assoc_lock.
+		 * This allows sysfs_drop_dentry() to dereference it.
 		 */
-		spin_lock(&sysfs_lock);
+		spin_lock(&sysfs_assoc_lock);
 
 		/* The dentry might have been deleted or another
 		 * lookup could have happened updating sd->s_dentry to
@@ -248,7 +247,7 @@ static void sysfs_d_iput(struct dentry * dentry, struct inode * inode)
 		 */
 		if (sd->s_dentry == dentry)
 			sd->s_dentry = NULL;
-		spin_unlock(&sysfs_lock);
+		spin_unlock(&sysfs_assoc_lock);
 		sysfs_put(sd);
 	}
 	iput(inode);
@@ -298,9 +297,9 @@ static void sysfs_attach_dentry(struct sysfs_dirent *sd, struct dentry *dentry)
 	dentry->d_fsdata = sysfs_get(sd);
 
 	/* protect sd->s_dentry against sysfs_d_iput */
-	spin_lock(&sysfs_lock);
+	spin_lock(&sysfs_assoc_lock);
 	sd->s_dentry = dentry;
-	spin_unlock(&sysfs_lock);
+	spin_unlock(&sysfs_assoc_lock);
 
 	d_rehash(dentry);
 }
@@ -603,9 +602,9 @@ void sysfs_remove_dir(struct kobject * kobj)
 {
 	struct sysfs_dirent *sd = kobj->sd;
 
-	spin_lock(&kobj_sysfs_assoc_lock);
+	spin_lock(&sysfs_assoc_lock);
 	kobj->sd = NULL;
-	spin_unlock(&kobj_sysfs_assoc_lock);
+	spin_unlock(&sysfs_assoc_lock);
 
 	__sysfs_remove_dir(sd);
 }
