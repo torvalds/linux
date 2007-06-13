@@ -499,7 +499,6 @@ static int pci_create_resource_files(struct pci_dev *pdev)
 			sprintf(res_attr_name, "resource%d", i);
 			res_attr->attr.name = res_attr_name;
 			res_attr->attr.mode = S_IRUSR | S_IWUSR;
-			res_attr->attr.owner = THIS_MODULE;
 			res_attr->size = pci_resource_len(pdev, i);
 			res_attr->mmap = pci_mmap_resource;
 			res_attr->private = &pdev->resource[i];
@@ -582,7 +581,6 @@ static struct bin_attribute pci_config_attr = {
 	.attr =	{
 		.name = "config",
 		.mode = S_IRUGO | S_IWUSR,
-		.owner = THIS_MODULE,
 	},
 	.size = 256,
 	.read = pci_read_config,
@@ -593,7 +591,6 @@ static struct bin_attribute pcie_config_attr = {
 	.attr =	{
 		.name = "config",
 		.mode = S_IRUGO | S_IWUSR,
-		.owner = THIS_MODULE,
 	},
 	.size = 4096,
 	.read = pci_read_config,
@@ -628,7 +625,6 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 			rom_attr->size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
 			rom_attr->attr.name = "rom";
 			rom_attr->attr.mode = S_IRUSR;
-			rom_attr->attr.owner = THIS_MODULE;
 			rom_attr->read = pci_read_rom;
 			rom_attr->write = pci_write_rom;
 			retval = sysfs_create_bin_file(&pdev->dev.kobj, rom_attr);

@@ -117,7 +117,6 @@ static struct notification ibm_note;
 static struct bin_attribute ibm_apci_table_attr = {
 	    .attr = {
 		    .name = "apci_table",
-		    .owner = THIS_MODULE,
 		    .mode = S_IRUGO,
 	    },
 	    .read = ibm_read_apci_table,

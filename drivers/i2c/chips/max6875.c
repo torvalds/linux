@@ -152,7 +152,6 @@ static struct bin_attribute user_eeprom_attr = {
 	.attr = {
 		.name = "eeprom",
 		.mode = S_IRUGO,
-		.owner = THIS_MODULE,
 	},
 	.size = USER_EEPROM_SIZE,
 	.read = max6875_read,

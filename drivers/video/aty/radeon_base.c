@@ -2126,7 +2126,6 @@ static ssize_t radeon_show_edid2(struct kobject *kobj, char *buf, loff_t off, si
 static struct bin_attribute edid1_attr = {
 	.attr   = {
 		.name	= "edid1",
-		.owner	= THIS_MODULE,
 		.mode	= 0444,
 	},
 	.size	= EDID_LENGTH,
@@ -2136,7 +2135,6 @@ static struct bin_attribute edid1_attr = {
 static struct bin_attribute edid2_attr = {
 	.attr   = {
 		.name	= "edid2",
-		.owner	= THIS_MODULE,
 		.mode	= 0444,
 	},
 	.size	= EDID_LENGTH,

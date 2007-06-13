@@ -252,7 +252,6 @@ static struct bin_attribute w1_f23_bin_attr = {
 	.attr = {
 		.name = "eeprom",
 		.mode = S_IRUGO | S_IWUSR,
-		.owner = THIS_MODULE,
 	},
 	.size = W1_EEPROM_SIZE,
 	.read = w1_f23_read_bin,

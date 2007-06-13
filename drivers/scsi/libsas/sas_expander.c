@@ -1368,7 +1368,6 @@ static void sas_ex_smp_hook(struct domain_device *dev)
 	memset(bin_attr, 0, sizeof(*bin_attr));
 
 	bin_attr->attr.name = SMP_BIN_ATTR_NAME;
-	bin_attr->attr.owner = THIS_MODULE;
 	bin_attr->attr.mode = 0600;
 
 	bin_attr->size = 0;

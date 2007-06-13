@@ -128,7 +128,6 @@ static struct bin_attribute w1_slave_attr_bin_id = {
       .attr = {
               .name = "id",
               .mode = S_IRUGO,
-              .owner = THIS_MODULE,
       },
       .size = 8,
       .read = w1_slave_read_id,
@@ -167,7 +166,6 @@ static struct bin_attribute w1_default_attr = {
       .attr = {
               .name = "rw",
               .mode = S_IRUGO | S_IWUSR,
-              .owner = THIS_MODULE,
       },
       .size = PAGE_SIZE,
       .read = w1_default_read,

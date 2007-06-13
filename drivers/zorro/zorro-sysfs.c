@@ -78,7 +78,6 @@ static struct bin_attribute zorro_config_attr = {
 	.attr =	{
 		.name = "config",
 		.mode = S_IRUGO | S_IWUSR,
-		.owner = THIS_MODULE
 	},
 	.size = sizeof(struct ConfigDev),
 	.read = zorro_read_config,

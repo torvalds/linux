@@ -605,7 +605,6 @@ int class_device_add(struct class_device *class_dev)
 		goto out3;
 	class_dev->uevent_attr.attr.name = "uevent";
 	class_dev->uevent_attr.attr.mode = S_IWUSR;
-	class_dev->uevent_attr.attr.owner = parent_class->owner;
 	class_dev->uevent_attr.store = store_uevent;
 	error = class_device_create_file(class_dev, &class_dev->uevent_attr);
 	if (error)
@@ -620,7 +619,6 @@ int class_device_add(struct class_device *class_dev)
 		}
 		attr->attr.name = "dev";
 		attr->attr.mode = S_IRUGO;
-		attr->attr.owner = parent_class->owner;
 		attr->show = show_dev;
 		error = class_device_create_file(class_dev, attr);
 		if (error) {

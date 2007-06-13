@@ -48,7 +48,6 @@ static struct bin_attribute w1_therm_bin_attr = {
 	.attr = {
 		.name = "w1_slave",
 		.mode = S_IRUGO,
-		.owner = THIS_MODULE,
 	},
 	.size = W1_SLAVE_DATA_SIZE,
 	.read = w1_therm_read_bin,

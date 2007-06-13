@@ -683,8 +683,6 @@ int device_add(struct device *dev)
 
 	dev->uevent_attr.attr.name = "uevent";
 	dev->uevent_attr.attr.mode = S_IRUGO | S_IWUSR;
-	if (dev->driver)
-		dev->uevent_attr.attr.owner = dev->driver->owner;
 	dev->uevent_attr.store = store_uevent;
 	dev->uevent_attr.show = show_uevent;
 	error = device_create_file(dev, &dev->uevent_attr);
@@ -700,8 +698,6 @@ int device_add(struct device *dev)
 		}
 		attr->attr.name = "dev";
 		attr->attr.mode = S_IRUGO;
-		if (dev->driver)
-			attr->attr.owner = dev->driver->owner;
 		attr->show = show_dev;
 		error = device_create_file(dev, attr);
 		if (error) {

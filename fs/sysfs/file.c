@@ -241,7 +241,6 @@ sysfs_write_file(struct file *file, const char __user *buf, size_t count, loff_t
 static int sysfs_open_file(struct inode *inode, struct file *file)
 {
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
-	struct attribute *attr = attr_sd->s_elem.attr.attr;
 	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
 	struct sysfs_buffer * buffer;
 	struct sysfs_ops * ops = NULL;
@@ -250,11 +249,6 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 	/* need attr_sd for attr and ops, its parent for kobj */
 	if (!sysfs_get_active_two(attr_sd))
 		return -ENODEV;
-
-	/* Grab the module reference for this attribute */
-	error = -ENODEV;
-	if (!try_module_get(attr->owner))
-		goto err_sput;
 
 	/* if the kobject has no ktype, then we assume that it is a subsystem
 	 * itself, and use ops for it.
@@ -272,7 +266,7 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 	 * or the subsystem have no operations.
 	 */
 	if (!ops)
-		goto err_mput;
+		goto err_out;
 
 	/* File needs write support.
 	 * The inode's perms must say it's ok, 
@@ -280,7 +274,7 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 	 */
 	if (file->f_mode & FMODE_WRITE) {
 		if (!(inode->i_mode & S_IWUGO) || !ops->store)
-			goto err_mput;
+			goto err_out;
 	}
 
 	/* File needs read support.
@@ -289,7 +283,7 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 	 */
 	if (file->f_mode & FMODE_READ) {
 		if (!(inode->i_mode & S_IRUGO) || !ops->show)
-			goto err_mput;
+			goto err_out;
 	}
 
 	/* No error? Great, allocate a buffer for the file, and store it
@@ -298,7 +292,7 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 	error = -ENOMEM;
 	buffer = kzalloc(sizeof(struct sysfs_buffer), GFP_KERNEL);
 	if (!buffer)
-		goto err_mput;
+		goto err_out;
 
 	init_MUTEX(&buffer->sem);
 	buffer->needs_read_fill = 1;
@@ -310,9 +304,7 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 	sysfs_get(attr_sd);
 	return 0;
 
- err_mput:
-	module_put(attr->owner);
- err_sput:
+ err_out:
 	sysfs_put_active_two(attr_sd);
 	return error;
 }
@@ -320,12 +312,9 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 static int sysfs_release(struct inode * inode, struct file * filp)
 {
 	struct sysfs_dirent *attr_sd = filp->f_path.dentry->d_fsdata;
-	struct attribute *attr = attr_sd->s_elem.attr.attr;
 	struct sysfs_buffer *buffer = filp->private_data;
 
 	sysfs_put(attr_sd);
-	/* After this point, attr should not be accessed. */
-	module_put(attr->owner);
 
 	if (buffer) {
 		if (buffer->page)

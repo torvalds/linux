@@ -397,7 +397,6 @@ void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len,
 		static struct attribute addpartattr = {
 			.name = "whole_disk",
 			.mode = S_IRUSR | S_IRGRP | S_IROTH,
-			.owner = THIS_MODULE,
 		};
 
 		sysfs_create_file(&p->kobj, &addpartattr);

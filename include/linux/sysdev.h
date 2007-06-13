@@ -101,8 +101,7 @@ struct sysdev_attribute {
 
 #define _SYSDEV_ATTR(_name,_mode,_show,_store)			\
 {								\
-	.attr = { .name = __stringify(_name), .mode = _mode,	\
-		 .owner = THIS_MODULE },			\
+	.attr = { .name = __stringify(_name), .mode = _mode },	\
 	.show	= _show,					\
 	.store	= _store,					\
 }

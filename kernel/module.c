@@ -488,8 +488,7 @@ static void free_modinfo_##field(struct module *mod)                  \
         mod->field = NULL;                                            \
 }                                                                     \
 static struct module_attribute modinfo_##field = {                    \
-	.attr = { .name = __stringify(field), .mode = 0444,           \
-		  .owner = THIS_MODULE },                             \
+	.attr = { .name = __stringify(field), .mode = 0444 },         \
 	.show = show_modinfo_##field,                                 \
 	.setup = setup_modinfo_##field,                               \
 	.test = modinfo_##field##_exists,                             \
@@ -793,7 +792,7 @@ static ssize_t show_refcnt(struct module_attribute *mattr,
 }
 
 static struct module_attribute refcnt = {
-	.attr = { .name = "refcnt", .mode = 0444, .owner = THIS_MODULE },
+	.attr = { .name = "refcnt", .mode = 0444 },
 	.show = show_refcnt,
 };
 
@@ -851,7 +850,7 @@ static ssize_t show_initstate(struct module_attribute *mattr,
 }
 
 static struct module_attribute initstate = {
-	.attr = { .name = "initstate", .mode = 0444, .owner = THIS_MODULE },
+	.attr = { .name = "initstate", .mode = 0444 },
 	.show = show_initstate,
 };
 
@@ -1032,7 +1031,6 @@ static void add_sect_attrs(struct module *mod, unsigned int nsect,
 		sattr->mattr.show = module_sect_show;
 		sattr->mattr.store = NULL;
 		sattr->mattr.attr.name = sattr->name;
-		sattr->mattr.attr.owner = mod;
 		sattr->mattr.attr.mode = S_IRUGO;
 		*(gattr++) = &(sattr++)->mattr.attr;
 	}
@@ -1090,7 +1088,6 @@ int module_add_modinfo_attrs(struct module *mod)
 		if (!attr->test ||
 		    (attr->test && attr->test(mod))) {
 			memcpy(temp_attr, attr, sizeof(*temp_attr));
-			temp_attr->attr.owner = mod;
 			error = sysfs_create_file(&mod->mkobj.kobj,&temp_attr->attr);
 			++temp_attr;
 		}

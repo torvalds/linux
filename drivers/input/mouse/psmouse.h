@@ -119,7 +119,6 @@ static struct psmouse_attribute psmouse_attr_##_name = {			\
 		.attr	= {							\
 			.name	= __stringify(_name),				\
 			.mode	= _mode,					\
-			.owner	= THIS_MODULE,					\
 		},								\
 		.show	= psmouse_attr_show_helper,				\
 		.store	= psmouse_attr_set_helper,				\

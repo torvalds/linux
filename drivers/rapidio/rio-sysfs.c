@@ -197,7 +197,6 @@ static struct bin_attribute rio_config_attr = {
 	.attr = {
 		 .name = "config",
 		 .mode = S_IRUGO | S_IWUSR,
-		 .owner = THIS_MODULE,
 		 },
 	.size = 0x200000,
 	.read = rio_read_config,

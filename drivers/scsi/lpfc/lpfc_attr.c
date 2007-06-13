@@ -1200,7 +1200,6 @@ static struct bin_attribute sysfs_ctlreg_attr = {
 	.attr = {
 		.name = "ctlreg",
 		.mode = S_IRUSR | S_IWUSR,
-		.owner = THIS_MODULE,
 	},
 	.size = 256,
 	.read = sysfs_ctlreg_read,
@@ -1422,7 +1421,6 @@ static struct bin_attribute sysfs_mbox_attr = {
 	.attr = {
 		.name = "mbox",
 		.mode = S_IRUSR | S_IWUSR,
-		.owner = THIS_MODULE,
 	},
 	.size = MAILBOX_CMD_SIZE,
 	.read = sysfs_mbox_read,

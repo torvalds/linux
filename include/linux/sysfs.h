@@ -20,9 +20,13 @@ struct module;
 struct nameidata;
 struct dentry;
 
+/* FIXME
+ * The *owner field is no longer used, but leave around
+ * until the tree gets cleaned up fully.
+ */
 struct attribute {
 	const char		* name;
-	struct module 		* owner;
+	struct module		* owner;
 	mode_t			mode;
 };
 
@@ -39,14 +43,14 @@ struct attribute_group {
  */
 
 #define __ATTR(_name,_mode,_show,_store) { \
-	.attr = {.name = __stringify(_name), .mode = _mode, .owner = THIS_MODULE },	\
+	.attr = {.name = __stringify(_name), .mode = _mode },	\
 	.show	= _show,					\
 	.store	= _store,					\
 }
 
 #define __ATTR_RO(_name) { \
-	.attr	= { .name = __stringify(_name), .mode = 0444, .owner = THIS_MODULE },	\
-	.show	= _name##_show,	\
+	.attr	= { .name = __stringify(_name), .mode = 0444 },	\
+	.show	= _name##_show,					\
 }
 
 #define __ATTR_NULL { .attr = { .name = NULL } }

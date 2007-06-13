@@ -2171,52 +2171,42 @@ static int create_files(struct bmc_device *bmc)
 	int err;
 
 	bmc->device_id_attr.attr.name = "device_id";
-	bmc->device_id_attr.attr.owner = THIS_MODULE;
 	bmc->device_id_attr.attr.mode = S_IRUGO;
 	bmc->device_id_attr.show = device_id_show;
 
 	bmc->provides_dev_sdrs_attr.attr.name = "provides_device_sdrs";
-	bmc->provides_dev_sdrs_attr.attr.owner = THIS_MODULE;
 	bmc->provides_dev_sdrs_attr.attr.mode = S_IRUGO;
 	bmc->provides_dev_sdrs_attr.show = provides_dev_sdrs_show;
 
 	bmc->revision_attr.attr.name = "revision";
-	bmc->revision_attr.attr.owner = THIS_MODULE;
 	bmc->revision_attr.attr.mode = S_IRUGO;
 	bmc->revision_attr.show = revision_show;
 
 	bmc->firmware_rev_attr.attr.name = "firmware_revision";
-	bmc->firmware_rev_attr.attr.owner = THIS_MODULE;
 	bmc->firmware_rev_attr.attr.mode = S_IRUGO;
 	bmc->firmware_rev_attr.show = firmware_rev_show;
 
 	bmc->version_attr.attr.name = "ipmi_version";
-	bmc->version_attr.attr.owner = THIS_MODULE;
 	bmc->version_attr.attr.mode = S_IRUGO;
 	bmc->version_attr.show = ipmi_version_show;
 
 	bmc->add_dev_support_attr.attr.name = "additional_device_support";
-	bmc->add_dev_support_attr.attr.owner = THIS_MODULE;
 	bmc->add_dev_support_attr.attr.mode = S_IRUGO;
 	bmc->add_dev_support_attr.show = add_dev_support_show;
 
 	bmc->manufacturer_id_attr.attr.name = "manufacturer_id";
-	bmc->manufacturer_id_attr.attr.owner = THIS_MODULE;
 	bmc->manufacturer_id_attr.attr.mode = S_IRUGO;
 	bmc->manufacturer_id_attr.show = manufacturer_id_show;
 
 	bmc->product_id_attr.attr.name = "product_id";
-	bmc->product_id_attr.attr.owner = THIS_MODULE;
 	bmc->product_id_attr.attr.mode = S_IRUGO;
 	bmc->product_id_attr.show = product_id_show;
 
 	bmc->guid_attr.attr.name = "guid";
-	bmc->guid_attr.attr.owner = THIS_MODULE;
 	bmc->guid_attr.attr.mode = S_IRUGO;
 	bmc->guid_attr.show = guid_show;
 
 	bmc->aux_firmware_rev_attr.attr.name = "aux_firmware_revision";
-	bmc->aux_firmware_rev_attr.attr.owner = THIS_MODULE;
 	bmc->aux_firmware_rev_attr.attr.mode = S_IRUGO;
 	bmc->aux_firmware_rev_attr.show = aux_firmware_rev_show;
 

@@ -314,7 +314,6 @@ static int at25_probe(struct spi_device *spi)
 	 */
 	at25->bin.attr.name = "eeprom";
 	at25->bin.attr.mode = S_IRUSR;
-	at25->bin.attr.owner = THIS_MODULE;
 	at25->bin.read = at25_bin_read;
 
 	at25->bin.size = at25->chip.byte_len;

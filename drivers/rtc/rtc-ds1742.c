@@ -159,7 +159,6 @@ static struct bin_attribute ds1742_nvram_attr = {
 	.attr = {
 		.name = "nvram",
 		.mode = S_IRUGO | S_IWUGO,
-		.owner = THIS_MODULE,
 	},
 	.read = ds1742_nvram_read,
 	.write = ds1742_nvram_write,

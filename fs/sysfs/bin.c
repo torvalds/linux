@@ -175,25 +175,20 @@ static int open(struct inode * inode, struct file * file)
 	if (!sysfs_get_active(attr_sd))
 		return -ENODEV;
 
-	/* Grab the module reference for this attribute */
-	error = -ENODEV;
-	if (!try_module_get(attr->attr.owner))
-		goto err_sput;
-
 	error = -EACCES;
 	if ((file->f_mode & FMODE_WRITE) && !(attr->write || attr->mmap))
-		goto err_mput;
+		goto err_out;
 	if ((file->f_mode & FMODE_READ) && !(attr->read || attr->mmap))
-		goto err_mput;
+		goto err_out;
 
 	error = -ENOMEM;
 	bb = kzalloc(sizeof(*bb), GFP_KERNEL);
 	if (!bb)
-		goto err_mput;
+		goto err_out;
 
 	bb->buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!bb->buffer)
-		goto err_mput;
+		goto err_out;
 
 	mutex_init(&bb->mutex);
 	file->private_data = bb;
@@ -203,9 +198,7 @@ static int open(struct inode * inode, struct file * file)
 	sysfs_get(attr_sd);
 	return 0;
 
- err_mput:
-	module_put(attr->attr.owner);
- err_sput:
+ err_out:
 	sysfs_put_active(attr_sd);
 	kfree(bb);
 	return error;
@@ -214,13 +207,11 @@ static int open(struct inode * inode, struct file * file)
 static int release(struct inode * inode, struct file * file)
 {
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
-	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
 	struct bin_buffer *bb = file->private_data;
 
 	if (bb->mmapped)
 		sysfs_put_active_two(attr_sd);
 	sysfs_put(attr_sd);
-	module_put(attr->attr.owner);
 	kfree(bb->buffer);
 	kfree(bb);
 	return 0;

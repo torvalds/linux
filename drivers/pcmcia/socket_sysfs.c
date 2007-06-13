@@ -366,7 +366,7 @@ static struct device_attribute *pccard_socket_attributes[] = {
 };
 
 static struct bin_attribute pccard_cis_attr = {
-	.attr = { .name = "cis", .mode = S_IRUGO | S_IWUSR, .owner = THIS_MODULE},
+	.attr = { .name = "cis", .mode = S_IRUGO | S_IWUSR },
 	.size = 0x200,
 	.read = pccard_show_cis,
 	.write = pccard_store_cis,

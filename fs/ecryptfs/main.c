@@ -840,8 +840,6 @@ static int __init ecryptfs_init(void)
 		goto out;
 	}
 	kobj_set_kset_s(&ecryptfs_subsys, fs_subsys);
-	sysfs_attr_version.attr.owner = THIS_MODULE;
-	sysfs_attr_version_str.attr.owner = THIS_MODULE;
 	rc = do_sysfs_registration();
 	if (rc) {
 		printk(KERN_ERR "sysfs registration failed\n");
