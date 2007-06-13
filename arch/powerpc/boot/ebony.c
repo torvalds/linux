@@ -100,6 +100,7 @@ static void ebony_fixups(void)
 	ibm440gp_fixup_clocks(sysclk, 6 * 1843200);
 	ibm44x_fixup_memsize();
 	dt_fixup_mac_addresses(ebony_mac0, ebony_mac1);
+	ibm4xx_fixup_ebc_ranges("/plb/opb/ebc");
 }
 
 void ebony_init(void *mac0, void *mac1)
