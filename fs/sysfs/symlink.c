@@ -49,6 +49,7 @@ static int sysfs_add_link(struct dentry * parent, const char * name, struct kobj
 {
 	struct sysfs_dirent * parent_sd = parent->d_fsdata;
 	struct sysfs_symlink * sl;
+	struct sysfs_dirent * sd;
 	int error;
 
 	error = -ENOMEM;
@@ -63,10 +64,10 @@ static int sysfs_add_link(struct dentry * parent, const char * name, struct kobj
 	strcpy(sl->link_name, name);
 	sl->target_kobj = kobject_get(target);
 
-	error = sysfs_make_dirent(parent_sd, NULL, sl, S_IFLNK|S_IRWXUGO,
-				SYSFS_KOBJ_LINK);
-	if (error)
+	sd = sysfs_new_dirent(sl, S_IFLNK|S_IRWXUGO, SYSFS_KOBJ_LINK);
+	if (!sd)
 		goto err_out;
+	sysfs_attach_dirent(sd, parent_sd, NULL);
 
 	return 0;
 

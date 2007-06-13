@@ -85,10 +85,7 @@ static struct dentry_operations sysfs_dentry_ops = {
 	.d_iput		= sysfs_d_iput,
 };
 
-/*
- * Allocates a new sysfs_dirent and links it to the parent sysfs_dirent
- */
-static struct sysfs_dirent * __sysfs_new_dirent(void * element)
+struct sysfs_dirent *sysfs_new_dirent(void *element, umode_t mode, int type)
 {
 	struct sysfs_dirent * sd;
 
@@ -105,25 +102,25 @@ static struct sysfs_dirent * __sysfs_new_dirent(void * element)
 	atomic_set(&sd->s_event, 1);
 	INIT_LIST_HEAD(&sd->s_children);
 	INIT_LIST_HEAD(&sd->s_sibling);
+
 	sd->s_element = element;
+	sd->s_mode = mode;
+	sd->s_type = type;
 
 	return sd;
 }
 
-static void __sysfs_list_dirent(struct sysfs_dirent *parent_sd,
-			      struct sysfs_dirent *sd)
+void sysfs_attach_dirent(struct sysfs_dirent *sd,
+			 struct sysfs_dirent *parent_sd, struct dentry *dentry)
 {
-	if (sd)
+	if (dentry) {
+		sd->s_dentry = dentry;
+		dentry->d_fsdata = sysfs_get(sd);
+		dentry->d_op = &sysfs_dentry_ops;
+	}
+
+	if (parent_sd)
 		list_add(&sd->s_sibling, &parent_sd->s_children);
-}
-
-static struct sysfs_dirent * sysfs_new_dirent(struct sysfs_dirent *parent_sd,
-						void * element)
-{
-	struct sysfs_dirent *sd;
-	sd = __sysfs_new_dirent(element);
-	__sysfs_list_dirent(parent_sd, sd);
-	return sd;
 }
 
 /*
@@ -149,39 +146,6 @@ int sysfs_dirent_exist(struct sysfs_dirent *parent_sd,
 	}
 
 	return 0;
-}
-
-
-static struct sysfs_dirent *
-__sysfs_make_dirent(struct dentry *dentry, void *element, mode_t mode, int type)
-{
-	struct sysfs_dirent * sd;
-
-	sd = __sysfs_new_dirent(element);
-	if (!sd)
-		goto out;
-
-	sd->s_mode = mode;
-	sd->s_type = type;
-	sd->s_dentry = dentry;
-	if (dentry) {
-		dentry->d_fsdata = sysfs_get(sd);
-		dentry->d_op = &sysfs_dentry_ops;
-	}
-
-out:
-	return sd;
-}
-
-int sysfs_make_dirent(struct sysfs_dirent * parent_sd, struct dentry * dentry,
-			void * element, umode_t mode, int type)
-{
-	struct sysfs_dirent *sd;
-
-	sd = __sysfs_make_dirent(dentry, element, mode, type);
-	__sysfs_list_dirent(parent_sd, sd);
-
-	return sd ? 0 : -ENOMEM;
 }
 
 static int init_dir(struct inode * inode)
@@ -227,10 +191,11 @@ static int create_dir(struct kobject *kobj, struct dentry *parent,
 	if (sysfs_dirent_exist(parent->d_fsdata, name))
 		goto out_dput;
 
-	error = sysfs_make_dirent(parent->d_fsdata, dentry, kobj, mode,
-				  SYSFS_DIR);
-	if (error)
+	error = -ENOMEM;
+	sd = sysfs_new_dirent(kobj, mode, SYSFS_DIR);
+	if (!sd)
 		goto out_drop;
+	sysfs_attach_dirent(sd, parent->d_fsdata, dentry);
 
 	error = sysfs_create(dentry, mode, init_dir);
 	if (error)
@@ -245,7 +210,6 @@ static int create_dir(struct kobject *kobj, struct dentry *parent,
 	goto out_dput;
 
  out_sput:
-	sd = dentry->d_fsdata;
 	list_del_init(&sd->s_sibling);
 	sysfs_put(sd);
  out_drop:
@@ -557,13 +521,16 @@ static int sysfs_dir_open(struct inode *inode, struct file *file)
 {
 	struct dentry * dentry = file->f_path.dentry;
 	struct sysfs_dirent * parent_sd = dentry->d_fsdata;
+	struct sysfs_dirent * sd;
 
 	mutex_lock(&dentry->d_inode->i_mutex);
-	file->private_data = sysfs_new_dirent(parent_sd, NULL);
+	sd = sysfs_new_dirent(NULL, 0, 0);
+	if (sd)
+		sysfs_attach_dirent(sd, parent_sd, NULL);
 	mutex_unlock(&dentry->d_inode->i_mutex);
 
-	return file->private_data ? 0 : -ENOMEM;
-
+	file->private_data = sd;
+	return sd ? 0 : -ENOMEM;
 }
 
 static int sysfs_dir_close(struct inode *inode, struct file *file)
@@ -736,9 +703,10 @@ struct dentry *sysfs_create_shadow_dir(struct kobject *kobj)
 	if (!shadow)
 		goto nomem;
 
-	sd = __sysfs_make_dirent(shadow, kobj, inode->i_mode, SYSFS_DIR);
+	sd = sysfs_new_dirent(kobj, inode->i_mode, SYSFS_DIR);
 	if (!sd)
 		goto nomem;
+	sysfs_attach_dirent(sd, NULL, shadow);
 
 	d_instantiate(shadow, igrab(inode));
 	inc_nlink(inode);

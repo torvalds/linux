@@ -20,8 +20,11 @@ extern int sysfs_create(struct dentry *, int mode, int (*init)(struct inode *));
 
 extern void release_sysfs_dirent(struct sysfs_dirent * sd);
 extern int sysfs_dirent_exist(struct sysfs_dirent *, const unsigned char *);
-extern int sysfs_make_dirent(struct sysfs_dirent *, struct dentry *, void *,
-				umode_t, int);
+extern struct sysfs_dirent *sysfs_new_dirent(void *element, umode_t mode,
+					     int type);
+extern void sysfs_attach_dirent(struct sysfs_dirent *sd,
+				struct sysfs_dirent *parent_sd,
+				struct dentry *dentry);
 
 extern int sysfs_add_file(struct dentry *, const struct attribute *, int);
 extern int sysfs_hash_and_remove(struct dentry * dir, const char * name);

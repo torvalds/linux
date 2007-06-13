@@ -444,14 +444,25 @@ int sysfs_add_file(struct dentry * dir, const struct attribute * attr, int type)
 {
 	struct sysfs_dirent * parent_sd = dir->d_fsdata;
 	umode_t mode = (attr->mode & S_IALLUGO) | S_IFREG;
-	int error = -EEXIST;
+	struct sysfs_dirent *sd;
+	int error = 0;
 
 	mutex_lock(&dir->d_inode->i_mutex);
-	if (!sysfs_dirent_exist(parent_sd, attr->name))
-		error = sysfs_make_dirent(parent_sd, NULL, (void *)attr,
-					  mode, type);
-	mutex_unlock(&dir->d_inode->i_mutex);
 
+	if (sysfs_dirent_exist(parent_sd, attr->name)) {
+		error = -EEXIST;
+		goto out_unlock;
+	}
+
+	sd = sysfs_new_dirent((void *)attr, mode, type);
+	if (!sd) {
+		error = -ENOMEM;
+		goto out_unlock;
+	}
+	sysfs_attach_dirent(sd, parent_sd, NULL);
+
+ out_unlock:
+	mutex_unlock(&dir->d_inode->i_mutex);
 	return error;
 }
 
