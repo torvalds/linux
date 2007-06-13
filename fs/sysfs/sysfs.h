@@ -52,6 +52,7 @@ struct sysfs_addrm_cxt {
 };
 
 extern struct vfsmount * sysfs_mount;
+extern struct sysfs_dirent sysfs_root;
 extern struct kmem_cache *sysfs_dir_cachep;
 
 extern struct dentry *sysfs_get_dentry(struct sysfs_dirent *sd);

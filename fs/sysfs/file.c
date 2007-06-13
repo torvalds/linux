@@ -362,43 +362,22 @@ static unsigned int sysfs_poll(struct file *filp, poll_table *wait)
 	return POLLERR|POLLPRI;
 }
 
-
-static struct dentry *step_down(struct dentry *dir, const char * name)
+void sysfs_notify(struct kobject *k, char *dir, char *attr)
 {
-	struct dentry * de;
+	struct sysfs_dirent *sd = k->sd;
 
-	if (dir == NULL || dir->d_inode == NULL)
-		return NULL;
+	mutex_lock(&sysfs_mutex);
 
-	mutex_lock(&dir->d_inode->i_mutex);
-	de = lookup_one_len(name, dir, strlen(name));
-	mutex_unlock(&dir->d_inode->i_mutex);
-	dput(dir);
-	if (IS_ERR(de))
-		return NULL;
-	if (de->d_inode == NULL) {
-		dput(de);
-		return NULL;
-	}
-	return de;
-}
-
-void sysfs_notify(struct kobject * k, char *dir, char *attr)
-{
-	struct dentry *de = k->sd->s_dentry;
-	if (de)
-		dget(de);
-	if (de && dir)
-		de = step_down(de, dir);
-	if (de && attr)
-		de = step_down(de, attr);
-	if (de) {
-		struct sysfs_dirent * sd = de->d_fsdata;
-		if (sd)
-			atomic_inc(&sd->s_event);
+	if (sd && dir)
+		sd = sysfs_find_dirent(sd, dir);
+	if (sd && attr)
+		sd = sysfs_find_dirent(sd, attr);
+	if (sd) {
+		atomic_inc(&sd->s_event);
 		wake_up_interruptible(&k->poll);
-		dput(de);
 	}
+
+	mutex_unlock(&sysfs_mutex);
 }
 EXPORT_SYMBOL_GPL(sysfs_notify);
 
@@ -485,30 +464,31 @@ EXPORT_SYMBOL_GPL(sysfs_add_file_to_group);
  */
 int sysfs_update_file(struct kobject * kobj, const struct attribute * attr)
 {
-	struct dentry *dir = kobj->sd->s_dentry;
-	struct dentry * victim;
-	int res = -ENOENT;
+	struct sysfs_dirent *victim_sd = NULL;
+	struct dentry *victim = NULL;
+	int rc;
 
-	mutex_lock(&dir->d_inode->i_mutex);
-	victim = lookup_one_len(attr->name, dir, strlen(attr->name));
-	if (!IS_ERR(victim)) {
-		/* make sure dentry is really there */
-		if (victim->d_inode && 
-		    (victim->d_parent->d_inode == dir->d_inode)) {
-			victim->d_inode->i_mtime = CURRENT_TIME;
-			fsnotify_modify(victim);
-			res = 0;
-		} else
-			d_drop(victim);
-		
-		/**
-		 * Drop the reference acquired from lookup_one_len() above.
-		 */
-		dput(victim);
+	rc = -ENOENT;
+	victim_sd = sysfs_get_dirent(kobj->sd, attr->name);
+	if (!victim_sd)
+		goto out;
+
+	victim = sysfs_get_dentry(victim_sd);
+	if (IS_ERR(victim)) {
+		rc = PTR_ERR(victim);
+		victim = NULL;
+		goto out;
 	}
-	mutex_unlock(&dir->d_inode->i_mutex);
 
-	return res;
+	mutex_lock(&victim->d_inode->i_mutex);
+	victim->d_inode->i_mtime = CURRENT_TIME;
+	fsnotify_modify(victim);
+	mutex_unlock(&victim->d_inode->i_mutex);
+	rc = 0;
+ out:
+	dput(victim);
+	sysfs_put(victim_sd);
+	return rc;
 }
 
 
@@ -521,30 +501,34 @@ int sysfs_update_file(struct kobject * kobj, const struct attribute * attr)
  */
 int sysfs_chmod_file(struct kobject *kobj, struct attribute *attr, mode_t mode)
 {
-	struct dentry *dir = kobj->sd->s_dentry;
-	struct dentry *victim;
+	struct sysfs_dirent *victim_sd = NULL;
+	struct dentry *victim = NULL;
 	struct inode * inode;
 	struct iattr newattrs;
-	int res = -ENOENT;
+	int rc;
 
-	mutex_lock(&dir->d_inode->i_mutex);
-	victim = lookup_one_len(attr->name, dir, strlen(attr->name));
-	if (!IS_ERR(victim)) {
-		if (victim->d_inode &&
-		    (victim->d_parent->d_inode == dir->d_inode)) {
-			inode = victim->d_inode;
-			mutex_lock(&inode->i_mutex);
-			newattrs.ia_mode = (mode & S_IALLUGO) |
-						(inode->i_mode & ~S_IALLUGO);
-			newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
-			res = notify_change(victim, &newattrs);
-			mutex_unlock(&inode->i_mutex);
-		}
-		dput(victim);
+	rc = -ENOENT;
+	victim_sd = sysfs_get_dirent(kobj->sd, attr->name);
+	if (!victim_sd)
+		goto out;
+
+	victim = sysfs_get_dentry(victim_sd);
+	if (IS_ERR(victim)) {
+		rc = PTR_ERR(victim);
+		victim = NULL;
+		goto out;
 	}
-	mutex_unlock(&dir->d_inode->i_mutex);
 
-	return res;
+	inode = victim->d_inode;
+	mutex_lock(&inode->i_mutex);
+	newattrs.ia_mode = (mode & S_IALLUGO) | (inode->i_mode & ~S_IALLUGO);
+	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
+	rc = notify_change(victim, &newattrs);
+	mutex_unlock(&inode->i_mutex);
+ out:
+	dput(victim);
+	sysfs_put(victim_sd);
+	return rc;
 }
 EXPORT_SYMBOL_GPL(sysfs_chmod_file);
 

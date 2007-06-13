@@ -24,7 +24,7 @@ static const struct super_operations sysfs_ops = {
 	.drop_inode	= sysfs_delete_inode,
 };
 
-static struct sysfs_dirent sysfs_root = {
+struct sysfs_dirent sysfs_root = {
 	.s_count	= ATOMIC_INIT(1),
 	.s_flags	= SYSFS_ROOT,
 	.s_mode		= S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
