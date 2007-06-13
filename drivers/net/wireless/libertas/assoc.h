@@ -9,6 +9,8 @@ void libertas_association_worker(struct work_struct *work);
 
 struct assoc_request * wlan_get_association_request(wlan_adapter *adapter);
 
+void libertas_sync_channel(struct work_struct *work);
+
 #define ASSOC_DELAY (HZ / 2)
 static inline void wlan_postpone_association_work(wlan_private *priv)
 {

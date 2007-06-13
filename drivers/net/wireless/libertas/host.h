@@ -310,8 +310,8 @@ enum cmd_mesh_access_opts {
 	cmd_act_mesh_get_ttl = 1,
 	cmd_act_mesh_set_ttl,
 	cmd_act_mesh_get_stats,
-	cmd_act_mesh_get_mpp,
-	cmd_act_mesh_set_mpp,
+	cmd_act_mesh_get_anycast,
+	cmd_act_mesh_set_anycast,
 };
 
 /** Card Event definition */
