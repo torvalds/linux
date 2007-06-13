@@ -436,9 +436,9 @@ config PCI
 	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_86xx \
 		|| PPC_MPC52xx || (EMBEDDED && (PPC_PSERIES || PPC_ISERIES)) \
 		|| MPC7448HPC2 || PPC_PS3 || PPC_HOLLY
-	default y if !40x && !CPM2 && !8xx && !APUS && !PPC_83xx \
+	default y if !40x && !CPM2 && !8xx && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx
-	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx && APUS
+	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
 	select ARCH_SUPPORTS_MSI
 	help
