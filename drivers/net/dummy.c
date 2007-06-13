@@ -38,7 +38,6 @@
 static int numdummies = 1;
 
 static int dummy_xmit(struct sk_buff *skb, struct net_device *dev);
-static struct net_device_stats *dummy_get_stats(struct net_device *dev);
 
 static int dummy_set_address(struct net_device *dev, void *p)
 {
@@ -59,7 +58,6 @@ static void set_multicast_list(struct net_device *dev)
 static void __init dummy_setup(struct net_device *dev)
 {
 	/* Initialize the device structure. */
-	dev->get_stats = dummy_get_stats;
 	dev->hard_start_xmit = dummy_xmit;
 	dev->set_multicast_list = set_multicast_list;
 	dev->set_mac_address = dummy_set_address;
@@ -76,18 +74,11 @@ static void __init dummy_setup(struct net_device *dev)
 
 static int dummy_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct net_device_stats *stats = netdev_priv(dev);
-
-	stats->tx_packets++;
-	stats->tx_bytes+=skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 
 	dev_kfree_skb(skb);
 	return 0;
-}
-
-static struct net_device_stats *dummy_get_stats(struct net_device *dev)
-{
-	return netdev_priv(dev);
 }
 
 static struct net_device **dummies;
@@ -101,8 +92,7 @@ static int __init dummy_init_one(int index)
 	struct net_device *dev_dummy;
 	int err;
 
-	dev_dummy = alloc_netdev(sizeof(struct net_device_stats),
-				 "dummy%d", dummy_setup);
+	dev_dummy = alloc_netdev(0, "dummy%d", dummy_setup);
 
 	if (!dev_dummy)
 		return -ENOMEM;
