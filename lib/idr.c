@@ -70,6 +70,26 @@ static void free_layer(struct idr *idp, struct idr_layer *p)
 	spin_unlock_irqrestore(&idp->lock, flags);
 }
 
+static void idr_mark_full(struct idr_layer **pa, int id)
+{
+	struct idr_layer *p = pa[0];
+	int l = 0;
+
+	__set_bit(id & IDR_MASK, &p->bitmap);
+	/*
+	 * If this layer is full mark the bit in the layer above to
+	 * show that this part of the radix tree is full.  This may
+	 * complete the layer above and require walking up the radix
+	 * tree.
+	 */
+	while (p->bitmap == IDR_FULL) {
+		if (!(p = pa[++l]))
+			break;
+		id = id >> IDR_BITS;
+		__set_bit((id & IDR_MASK), &p->bitmap);
+	}
+}
+
 /**
  * idr_pre_get - reserver resources for idr allocation
  * @idp:	idr handle
@@ -95,11 +115,10 @@ int idr_pre_get(struct idr *idp, gfp_t gfp_mask)
 }
 EXPORT_SYMBOL(idr_pre_get);
 
-static int sub_alloc(struct idr *idp, void *ptr, int *starting_id)
+static int sub_alloc(struct idr *idp, int *starting_id, struct idr_layer **pa)
 {
 	int n, m, sh;
 	struct idr_layer *p, *new;
-	struct idr_layer *pa[MAX_LEVEL];
 	int l, id, oid;
 	long bm;
 
@@ -156,30 +175,13 @@ static int sub_alloc(struct idr *idp, void *ptr, int *starting_id)
 		pa[l--] = p;
 		p = p->ary[m];
 	}
-	/*
-	 * We have reached the leaf node, plant the
-	 * users pointer and return the raw id.
-	 */
-	p->ary[m] = (struct idr_layer *)ptr;
-	__set_bit(m, &p->bitmap);
-	p->count++;
-	/*
-	 * If this layer is full mark the bit in the layer above
-	 * to show that this part of the radix tree is full.
-	 * This may complete the layer above and require walking
-	 * up the radix tree.
-	 */
-	n = id;
-	while (p->bitmap == IDR_FULL) {
-		if (!(p = pa[++l]))
-			break;
-		n = n >> IDR_BITS;
-		__set_bit((n & IDR_MASK), &p->bitmap);
-	}
-	return(id);
+
+	pa[l] = p;
+	return id;
 }
 
-static int idr_get_new_above_int(struct idr *idp, void *ptr, int starting_id)
+static int idr_get_empty_slot(struct idr *idp, int starting_id,
+			      struct idr_layer **pa)
 {
 	struct idr_layer *p, *new;
 	int layers, v, id;
@@ -225,10 +227,29 @@ build_up:
 	}
 	idp->top = p;
 	idp->layers = layers;
-	v = sub_alloc(idp, ptr, &id);
+	v = sub_alloc(idp, &id, pa);
 	if (v == -2)
 		goto build_up;
 	return(v);
+}
+
+static int idr_get_new_above_int(struct idr *idp, void *ptr, int starting_id)
+{
+	struct idr_layer *pa[MAX_LEVEL];
+	int id;
+
+	id = idr_get_empty_slot(idp, starting_id, pa);
+	if (id >= 0) {
+		/*
+		 * Successfully found an empty slot.  Install the user
+		 * pointer and mark the slot full.
+		 */
+		pa[0]->ary[id & IDR_MASK] = (struct idr_layer *)ptr;
+		pa[0]->count++;
+		idr_mark_full(pa, id);
+	}
+
+	return id;
 }
 
 /**
