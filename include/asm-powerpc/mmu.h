@@ -5,6 +5,9 @@
 #ifdef CONFIG_PPC64
 /* 64-bit classic hash table MMU */
 #  include <asm/mmu-hash64.h>
+#elif defined(CONFIG_PPC_STD_MMU)
+/* 32-bit classic hash table MMU */
+#  include <asm/mmu-hash32.h>
 #elif defined(CONFIG_44x)
 /* 44x-style software loaded TLB */
 #  include <asm/mmu-44x.h>
