@@ -497,6 +497,9 @@ int sysfs_rename_dir(struct kobject * kobj, struct dentry *new_parent,
 	d_move(kobj->dentry, new_dentry);
 
 	list_del_init(&sd->s_sibling);
+	sysfs_get(parent_sd);
+	sysfs_put(sd->s_parent);
+	sd->s_parent = parent_sd;
 	list_add(&sd->s_sibling, &parent_sd->s_children);
 
 	error = 0;
@@ -550,6 +553,9 @@ again:
 
 	/* Remove from old parent's list and insert into new parent's list. */
 	list_del_init(&sd->s_sibling);
+	sysfs_get(new_parent_sd);
+	sysfs_put(sd->s_parent);
+	sd->s_parent = new_parent_sd;
 	list_add(&sd->s_sibling, &new_parent_sd->s_children);
 
 out:
