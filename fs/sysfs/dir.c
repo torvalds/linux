@@ -47,6 +47,11 @@ static void sysfs_free_ino(ino_t ino)
 
 void release_sysfs_dirent(struct sysfs_dirent * sd)
 {
+	struct sysfs_dirent *parent_sd;
+
+ repeat:
+	parent_sd = sd->s_parent;
+
 	if (sd->s_type & SYSFS_KOBJ_LINK) {
 		struct sysfs_symlink * sl = sd->s_element;
 		kfree(sl->link_name);
@@ -56,6 +61,10 @@ void release_sysfs_dirent(struct sysfs_dirent * sd)
 	kfree(sd->s_iattr);
 	sysfs_free_ino(sd->s_ino);
 	kmem_cache_free(sysfs_dir_cachep, sd);
+
+	sd = parent_sd;
+	if (sd && atomic_dec_and_test(&sd->s_count))
+		goto repeat;
 }
 
 static void sysfs_d_iput(struct dentry * dentry, struct inode * inode)
@@ -119,8 +128,10 @@ void sysfs_attach_dirent(struct sysfs_dirent *sd,
 		dentry->d_op = &sysfs_dentry_ops;
 	}
 
-	if (parent_sd)
+	if (parent_sd) {
+		sd->s_parent = sysfs_get(parent_sd);
 		list_add(&sd->s_sibling, &parent_sd->s_children);
+	}
 }
 
 /*
@@ -571,7 +582,10 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 			i++;
 			/* fallthrough */
 		case 1:
-			ino = parent_ino(dentry);
+			if (parent_sd->s_parent)
+				ino = parent_sd->s_parent->s_ino;
+			else
+				ino = parent_sd->s_ino;
 			if (filldir(dirent, "..", 2, i, ino, DT_DIR) < 0)
 				break;
 			filp->f_pos++;
@@ -688,13 +702,13 @@ int sysfs_make_shadowed_dir(struct kobject *kobj,
 
 struct dentry *sysfs_create_shadow_dir(struct kobject *kobj)
 {
+	struct dentry *dir = kobj->dentry;
+	struct inode *inode = dir->d_inode;
+	struct dentry *parent = dir->d_parent;
+	struct sysfs_dirent *parent_sd = parent->d_fsdata;
+	struct dentry *shadow;
 	struct sysfs_dirent *sd;
-	struct dentry *parent, *dir, *shadow;
-	struct inode *inode;
 
-	dir = kobj->dentry;
-	inode = dir->d_inode;
-	parent = dir->d_parent;
 	shadow = ERR_PTR(-EINVAL);
 	if (!sysfs_is_shadowed_inode(inode))
 		goto out;
@@ -706,6 +720,8 @@ struct dentry *sysfs_create_shadow_dir(struct kobject *kobj)
 	sd = sysfs_new_dirent(kobj, inode->i_mode, SYSFS_DIR);
 	if (!sd)
 		goto nomem;
+	/* point to parent_sd but don't attach to it */
+	sd->s_parent = sysfs_get(parent_sd);
 	sysfs_attach_dirent(sd, NULL, shadow);
 
 	d_instantiate(shadow, igrab(inode));

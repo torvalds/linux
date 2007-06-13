@@ -1,5 +1,6 @@
 struct sysfs_dirent {
 	atomic_t		s_count;
+	struct sysfs_dirent	* s_parent;
 	struct list_head	s_sibling;
 	struct list_head	s_children;
 	void 			* s_element;
