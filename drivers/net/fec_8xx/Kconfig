@@ -1,6 +1,6 @@
 config FEC_8XX
 	tristate "Motorola 8xx FEC driver"
-	depends on NET_ETHERNET && 8xx
+	depends on 8XX
 	select MII
 
 config FEC_8XX_GENERIC_PHY
