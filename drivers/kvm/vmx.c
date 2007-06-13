@@ -160,6 +160,7 @@ static void __vcpu_clear(void *arg)
 		vmcs_clear(vcpu->vmcs);
 	if (per_cpu(current_vmcs, cpu) == vcpu->vmcs)
 		per_cpu(current_vmcs, cpu) = NULL;
+	rdtscll(vcpu->host_tsc);
 }
 
 static void vcpu_clear(struct kvm_vcpu *vcpu)
@@ -376,6 +377,7 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu)
 {
 	u64 phys_addr = __pa(vcpu->vmcs);
 	int cpu;
+	u64 tsc_this, delta;
 
 	cpu = get_cpu();
 
@@ -409,6 +411,13 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu)
 
 		rdmsrl(MSR_IA32_SYSENTER_ESP, sysenter_esp);
 		vmcs_writel(HOST_IA32_SYSENTER_ESP, sysenter_esp); /* 22.2.3 */
+
+		/*
+		 * Make sure the time stamp counter is monotonous.
+		 */
+		rdtscll(tsc_this);
+		delta = vcpu->host_tsc - tsc_this;
+		vmcs_write64(TSC_OFFSET, vmcs_read64(TSC_OFFSET) + delta);
 	}
 }
 
