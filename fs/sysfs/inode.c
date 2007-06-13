@@ -277,12 +277,16 @@ int sysfs_hash_and_remove(struct dentry * dir, const char * name)
 		if (!strcmp(sd->s_name, name)) {
 			list_del_init(&sd->s_sibling);
 			sysfs_drop_dentry(sd, dir);
-			sysfs_put(sd);
 			found = 1;
 			break;
 		}
 	}
 	mutex_unlock(&dir->d_inode->i_mutex);
 
-	return found ? 0 : -ENOENT;
+	if (!found)
+		return -ENOENT;
+
+	sysfs_deactivate(sd);
+	sysfs_put(sd);
+	return 0;
 }

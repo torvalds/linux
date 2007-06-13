@@ -23,6 +23,7 @@
 struct bin_buffer {
 	struct mutex	mutex;
 	void		*buffer;
+	int		mmapped;
 };
 
 static int
@@ -30,12 +31,20 @@ fill_read(struct dentry *dentry, char *buffer, loff_t off, size_t count)
 {
 	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
 	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
-	struct kobject * kobj = to_kobj(dentry->d_parent);
+	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
+	int rc;
 
-	if (!attr->read)
-		return -EIO;
+	/* need attr_sd for attr, its parent for kobj */
+	if (!sysfs_get_active_two(attr_sd))
+		return -ENODEV;
 
-	return attr->read(kobj, buffer, off, count);
+	rc = -EIO;
+	if (attr->read)
+		rc = attr->read(kobj, buffer, off, count);
+
+	sysfs_put_active_two(attr_sd);
+
+	return rc;
 }
 
 static ssize_t
@@ -79,12 +88,20 @@ flush_write(struct dentry *dentry, char *buffer, loff_t offset, size_t count)
 {
 	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
 	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
-	struct kobject *kobj = to_kobj(dentry->d_parent);
+	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
+	int rc;
 
-	if (!attr->write)
-		return -EIO;
+	/* need attr_sd for attr, its parent for kobj */
+	if (!sysfs_get_active_two(attr_sd))
+		return -ENODEV;
 
-	return attr->write(kobj, buffer, offset, count);
+	rc = -EIO;
+	if (attr->write)
+		rc = attr->write(kobj, buffer, offset, count);
+
+	sysfs_put_active_two(attr_sd);
+
+	return rc;
 }
 
 static ssize_t write(struct file *file, const char __user *userbuf,
@@ -124,14 +141,24 @@ static int mmap(struct file *file, struct vm_area_struct *vma)
 	struct bin_buffer *bb = file->private_data;
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
 	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
-	struct kobject *kobj = to_kobj(file->f_path.dentry->d_parent);
+	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
 	int rc;
 
-	if (!attr->mmap)
-		return -EINVAL;
-
 	mutex_lock(&bb->mutex);
-	rc = attr->mmap(kobj, attr, vma);
+
+	/* need attr_sd for attr, its parent for kobj */
+	if (!sysfs_get_active_two(attr_sd))
+		return -ENODEV;
+
+	rc = -EINVAL;
+	if (attr->mmap)
+		rc = attr->mmap(kobj, attr, vma);
+
+	if (rc == 0 && !bb->mmapped)
+		bb->mmapped = 1;
+	else
+		sysfs_put_active_two(attr_sd);
+
 	mutex_unlock(&bb->mutex);
 
 	return rc;
@@ -139,58 +166,60 @@ static int mmap(struct file *file, struct vm_area_struct *vma)
 
 static int open(struct inode * inode, struct file * file)
 {
-	struct kobject *kobj = sysfs_get_kobject(file->f_path.dentry->d_parent);
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
 	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
 	struct bin_buffer *bb = NULL;
-	int error = -EINVAL;
+	int error;
 
-	if (!kobj || !attr)
-		goto Done;
+	/* need attr_sd for attr */
+	if (!sysfs_get_active(attr_sd))
+		return -ENODEV;
 
-	/* Grab the module reference for this attribute if we have one */
+	/* Grab the module reference for this attribute */
 	error = -ENODEV;
-	if (!try_module_get(attr->attr.owner)) 
-		goto Done;
+	if (!try_module_get(attr->attr.owner))
+		goto err_sput;
 
 	error = -EACCES;
 	if ((file->f_mode & FMODE_WRITE) && !(attr->write || attr->mmap))
-		goto Error;
+		goto err_mput;
 	if ((file->f_mode & FMODE_READ) && !(attr->read || attr->mmap))
-		goto Error;
+		goto err_mput;
 
 	error = -ENOMEM;
 	bb = kzalloc(sizeof(*bb), GFP_KERNEL);
 	if (!bb)
-		goto Error;
+		goto err_mput;
 
 	bb->buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!bb->buffer)
-		goto Error;
+		goto err_mput;
 
 	mutex_init(&bb->mutex);
 	file->private_data = bb;
 
-	error = 0;
-	goto Done;
+	/* open succeeded, put active reference and pin attr_sd */
+	sysfs_put_active(attr_sd);
+	sysfs_get(attr_sd);
+	return 0;
 
- Error:
-	kfree(bb);
+ err_mput:
 	module_put(attr->attr.owner);
- Done:
-	if (error)
-		kobject_put(kobj);
+ err_sput:
+	sysfs_put_active(attr_sd);
+	kfree(bb);
 	return error;
 }
 
 static int release(struct inode * inode, struct file * file)
 {
-	struct kobject * kobj = to_kobj(file->f_path.dentry->d_parent);
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
 	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
 	struct bin_buffer *bb = file->private_data;
 
-	kobject_put(kobj);
+	if (bb->mmapped)
+		sysfs_put_active_two(attr_sd);
+	sysfs_put(attr_sd);
 	module_put(attr->attr.owner);
 	kfree(bb->buffer);
 	kfree(bb);

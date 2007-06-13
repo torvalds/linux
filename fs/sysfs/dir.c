@@ -53,6 +53,19 @@ void release_sysfs_dirent(struct sysfs_dirent * sd)
  repeat:
 	parent_sd = sd->s_parent;
 
+	/* If @sd is being released after deletion, s_active is write
+	 * locked.  If @sd is cursor for directory walk or being
+	 * released prematurely, s_active has no reader or writer.
+	 *
+	 * sysfs_deactivate() lies to lockdep that s_active is
+	 * unlocked immediately.  Lie one more time to cover the
+	 * previous lie.
+	 */
+	if (!down_write_trylock(&sd->s_active))
+		rwsem_acquire(&sd->s_active.dep_map,
+			      SYSFS_S_ACTIVE_DEACTIVATE, 0, _RET_IP_);
+	up_write(&sd->s_active);
+
 	if (sd->s_type & SYSFS_KOBJ_LINK)
 		sysfs_put(sd->s_elem.symlink.target_sd);
 	if (sd->s_type & SYSFS_COPY_NAME)
@@ -113,6 +126,7 @@ struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type)
 
 	atomic_set(&sd->s_count, 1);
 	atomic_set(&sd->s_event, 1);
+	init_rwsem(&sd->s_active);
 	INIT_LIST_HEAD(&sd->s_children);
 	INIT_LIST_HEAD(&sd->s_sibling);
 
@@ -371,7 +385,6 @@ static void remove_dir(struct dentry * d)
 	d_delete(d);
 	sd = d->d_fsdata;
  	list_del_init(&sd->s_sibling);
-	sysfs_put(sd);
 	if (d->d_inode)
 		simple_rmdir(parent->d_inode,d);
 
@@ -380,6 +393,9 @@ static void remove_dir(struct dentry * d)
 
 	mutex_unlock(&parent->d_inode->i_mutex);
 	dput(parent);
+
+	sysfs_deactivate(sd);
+	sysfs_put(sd);
 }
 
 void sysfs_remove_subdir(struct dentry * d)
@@ -390,6 +406,7 @@ void sysfs_remove_subdir(struct dentry * d)
 
 static void __sysfs_remove_dir(struct dentry *dentry)
 {
+	LIST_HEAD(removed);
 	struct sysfs_dirent * parent_sd;
 	struct sysfs_dirent * sd, * tmp;
 
@@ -403,11 +420,16 @@ static void __sysfs_remove_dir(struct dentry *dentry)
 	list_for_each_entry_safe(sd, tmp, &parent_sd->s_children, s_sibling) {
 		if (!sd->s_type || !(sd->s_type & SYSFS_NOT_PINNED))
 			continue;
-		list_del_init(&sd->s_sibling);
+		list_move(&sd->s_sibling, &removed);
 		sysfs_drop_dentry(sd, dentry);
-		sysfs_put(sd);
 	}
 	mutex_unlock(&dentry->d_inode->i_mutex);
+
+	list_for_each_entry_safe(sd, tmp, &removed, s_sibling) {
+		list_del_init(&sd->s_sibling);
+		sysfs_deactivate(sd);
+		sysfs_put(sd);
+	}
 
 	remove_dir(dentry);
 	/**

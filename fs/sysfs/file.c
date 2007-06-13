@@ -87,8 +87,8 @@ remove_from_collection(struct sysfs_buffer *buffer, struct inode *node)
  */
 static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer)
 {
-	struct sysfs_dirent * sd = dentry->d_fsdata;
-	struct kobject * kobj = to_kobj(dentry->d_parent);
+	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
+	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
 	struct sysfs_ops * ops = buffer->ops;
 	int ret = 0;
 	ssize_t count;
@@ -98,8 +98,15 @@ static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer
 	if (!buffer->page)
 		return -ENOMEM;
 
-	buffer->event = atomic_read(&sd->s_event);
-	count = ops->show(kobj, sd->s_elem.attr.attr, buffer->page);
+	/* need attr_sd for attr and ops, its parent for kobj */
+	if (!sysfs_get_active_two(attr_sd))
+		return -ENODEV;
+
+	buffer->event = atomic_read(&attr_sd->s_event);
+	count = ops->show(kobj, attr_sd->s_elem.attr.attr, buffer->page);
+
+	sysfs_put_active_two(attr_sd);
+
 	BUG_ON(count > (ssize_t)PAGE_SIZE);
 	if (count >= 0) {
 		buffer->needs_read_fill = 0;
@@ -195,14 +202,23 @@ fill_write_buffer(struct sysfs_buffer * buffer, const char __user * buf, size_t 
  *	passing the buffer that we acquired in fill_write_buffer().
  */
 
-static int 
+static int
 flush_write_buffer(struct dentry * dentry, struct sysfs_buffer * buffer, size_t count)
 {
 	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
-	struct kobject * kobj = to_kobj(dentry->d_parent);
+	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
 	struct sysfs_ops * ops = buffer->ops;
+	int rc;
 
-	return ops->store(kobj, attr_sd->s_elem.attr.attr, buffer->page, count);
+	/* need attr_sd for attr and ops, its parent for kobj */
+	if (!sysfs_get_active_two(attr_sd))
+		return -ENODEV;
+
+	rc = ops->store(kobj, attr_sd->s_elem.attr.attr, buffer->page, count);
+
+	sysfs_put_active_two(attr_sd);
+
+	return rc;
 }
 
 
@@ -246,22 +262,22 @@ out:
 
 static int sysfs_open_file(struct inode *inode, struct file *file)
 {
-	struct kobject *kobj = sysfs_get_kobject(file->f_path.dentry->d_parent);
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
 	struct attribute *attr = attr_sd->s_elem.attr.attr;
+	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
 	struct sysfs_buffer_collection *set;
 	struct sysfs_buffer * buffer;
 	struct sysfs_ops * ops = NULL;
-	int error = 0;
+	int error;
 
-	if (!kobj || !attr)
-		goto Einval;
+	/* need attr_sd for attr and ops, its parent for kobj */
+	if (!sysfs_get_active_two(attr_sd))
+		return -ENODEV;
 
-	/* Grab the module reference for this attribute if we have one */
-	if (!try_module_get(attr->owner)) {
-		error = -ENODEV;
-		goto Done;
-	}
+	/* Grab the module reference for this attribute */
+	error = -ENODEV;
+	if (!try_module_get(attr->owner))
+		goto err_sput;
 
 	/* if the kobject has no ktype, then we assume that it is a subsystem
 	 * itself, and use ops for it.
@@ -276,30 +292,30 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 	/* No sysfs operations, either from having no subsystem,
 	 * or the subsystem have no operations.
 	 */
+	error = -EACCES;
 	if (!ops)
-		goto Eaccess;
+		goto err_mput;
 
 	/* make sure we have a collection to add our buffers to */
 	mutex_lock(&inode->i_mutex);
 	if (!(set = inode->i_private)) {
-		if (!(set = inode->i_private = kmalloc(sizeof(struct sysfs_buffer_collection), GFP_KERNEL))) {
-			error = -ENOMEM;
-			goto Done;
-		} else {
+		error = -ENOMEM;
+		if (!(set = inode->i_private = kmalloc(sizeof(struct sysfs_buffer_collection), GFP_KERNEL)))
+			goto err_mput;
+		else
 			INIT_LIST_HEAD(&set->associates);
-		}
 	}
 	mutex_unlock(&inode->i_mutex);
+
+	error = -EACCES;
 
 	/* File needs write support.
 	 * The inode's perms must say it's ok, 
 	 * and we must have a store method.
 	 */
 	if (file->f_mode & FMODE_WRITE) {
-
 		if (!(inode->i_mode & S_IWUGO) || !ops->store)
-			goto Eaccess;
-
+			goto err_mput;
 	}
 
 	/* File needs read support.
@@ -308,46 +324,45 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 	 */
 	if (file->f_mode & FMODE_READ) {
 		if (!(inode->i_mode & S_IRUGO) || !ops->show)
-			goto Eaccess;
+			goto err_mput;
 	}
 
 	/* No error? Great, allocate a buffer for the file, and store it
 	 * it in file->private_data for easy access.
 	 */
+	error = -ENOMEM;
 	buffer = kzalloc(sizeof(struct sysfs_buffer), GFP_KERNEL);
-	if (buffer) {
-		INIT_LIST_HEAD(&buffer->associates);
-		init_MUTEX(&buffer->sem);
-		buffer->needs_read_fill = 1;
-		buffer->ops = ops;
-		add_to_collection(buffer, inode);
-		file->private_data = buffer;
-	} else
-		error = -ENOMEM;
-	goto Done;
+	if (!buffer)
+		goto err_mput;
 
- Einval:
-	error = -EINVAL;
-	goto Done;
- Eaccess:
-	error = -EACCES;
+	INIT_LIST_HEAD(&buffer->associates);
+	init_MUTEX(&buffer->sem);
+	buffer->needs_read_fill = 1;
+	buffer->ops = ops;
+	add_to_collection(buffer, inode);
+	file->private_data = buffer;
+
+	/* open succeeded, put active references and pin attr_sd */
+	sysfs_put_active_two(attr_sd);
+	sysfs_get(attr_sd);
+	return 0;
+
+ err_mput:
 	module_put(attr->owner);
- Done:
-	if (error)
-		kobject_put(kobj);
+ err_sput:
+	sysfs_put_active_two(attr_sd);
 	return error;
 }
 
 static int sysfs_release(struct inode * inode, struct file * filp)
 {
-	struct kobject * kobj = to_kobj(filp->f_path.dentry->d_parent);
 	struct sysfs_dirent *attr_sd = filp->f_path.dentry->d_fsdata;
 	struct attribute *attr = attr_sd->s_elem.attr.attr;
 	struct sysfs_buffer * buffer = filp->private_data;
 
 	if (buffer)
 		remove_from_collection(buffer, inode);
-	kobject_put(kobj);
+	sysfs_put(attr_sd);
 	/* After this point, attr should not be accessed. */
 	module_put(attr->owner);
 
@@ -376,18 +391,25 @@ static int sysfs_release(struct inode * inode, struct file * filp)
 static unsigned int sysfs_poll(struct file *filp, poll_table *wait)
 {
 	struct sysfs_buffer * buffer = filp->private_data;
-	struct kobject * kobj = to_kobj(filp->f_path.dentry->d_parent);
-	struct sysfs_dirent * sd = filp->f_path.dentry->d_fsdata;
-	int res = 0;
+	struct sysfs_dirent *attr_sd = filp->f_path.dentry->d_fsdata;
+	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
+
+	/* need parent for the kobj, grab both */
+	if (!sysfs_get_active_two(attr_sd))
+		goto trigger;
 
 	poll_wait(filp, &kobj->poll, wait);
 
-	if (buffer->event != atomic_read(&sd->s_event)) {
-		res = POLLERR|POLLPRI;
-		buffer->needs_read_fill = 1;
-	}
+	sysfs_put_active_two(attr_sd);
 
-	return res;
+	if (buffer->event != atomic_read(&attr_sd->s_event))
+		goto trigger;
+
+	return 0;
+
+ trigger:
+	buffer->needs_read_fill = 1;
+	return POLLERR|POLLPRI;
 }
 
 
