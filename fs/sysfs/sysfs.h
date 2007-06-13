@@ -58,7 +58,7 @@ extern struct kmem_cache *sysfs_dir_cachep;
 
 extern void sysfs_delete_inode(struct inode *inode);
 extern void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode);
-extern struct inode * sysfs_new_inode(struct sysfs_dirent *sd);
+extern struct inode * sysfs_get_inode(struct sysfs_dirent *sd);
 extern void sysfs_instantiate(struct dentry *dentry, struct inode *inode);
 
 extern void release_sysfs_dirent(struct sysfs_dirent * sd);

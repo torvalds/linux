@@ -153,10 +153,12 @@ void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode)
 }
 
 /**
- *	sysfs_new_inode - allocate new inode for sysfs_dirent
+ *	sysfs_get_inode - get inode for sysfs_dirent
  *	@sd: sysfs_dirent to allocate inode for
  *
- *	Allocate inode for @sd and initialize basics.
+ *	Get inode for @sd.  If such inode doesn't exist, a new inode
+ *	is allocated and basics are initialized.  New inode is
+ *	returned locked.
  *
  *	LOCKING:
  *	Kernel thread context (may sleep).
@@ -164,12 +166,12 @@ void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode)
  *	RETURNS:
  *	Pointer to allocated inode on success, NULL on failure.
  */
-struct inode * sysfs_new_inode(struct sysfs_dirent *sd)
+struct inode * sysfs_get_inode(struct sysfs_dirent *sd)
 {
 	struct inode *inode;
 
-	inode = new_inode(sysfs_sb);
-	if (inode)
+	inode = iget_locked(sysfs_sb, sd->s_ino);
+	if (inode && (inode->i_state & I_NEW))
 		sysfs_init_inode(sd, inode);
 
 	return inode;
@@ -180,7 +182,7 @@ struct inode * sysfs_new_inode(struct sysfs_dirent *sd)
  *	@dentry: dentry to be instantiated
  *	@inode: inode associated with @sd
  *
- *	Instantiate @dentry with @inode.
+ *	Unlock @inode if locked and instantiate @dentry with @inode.
  *
  *	LOCKING:
  *	None.
@@ -189,9 +191,13 @@ void sysfs_instantiate(struct dentry *dentry, struct inode *inode)
 {
 	BUG_ON(!dentry || dentry->d_inode);
 
-	if (dentry->d_parent && dentry->d_parent->d_inode) {
-		struct inode *p_inode = dentry->d_parent->d_inode;
-		p_inode->i_mtime = p_inode->i_ctime = CURRENT_TIME;
+	if (inode->i_state & I_NEW) {
+		unlock_new_inode(inode);
+
+		if (dentry->d_parent && dentry->d_parent->d_inode) {
+			struct inode *p_inode = dentry->d_parent->d_inode;
+			p_inode->i_mtime = p_inode->i_ctime = CURRENT_TIME;
+		}
 	}
 
 	d_instantiate(dentry, inode);

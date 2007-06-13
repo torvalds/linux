@@ -219,14 +219,16 @@ static int create_dir(struct kobject *kobj, struct dentry *parent,
 		goto out_drop;
 	sd->s_elem.dir.kobj = kobj;
 
-	inode = sysfs_new_inode(sd);
+	inode = sysfs_get_inode(sd);
 	if (!inode)
 		goto out_sput;
 
-	inode->i_op = &sysfs_dir_inode_operations;
-	inode->i_fop = &sysfs_dir_operations;
-	/* directory inodes start off with i_nlink == 2 (for "." entry) */
-	inc_nlink(inode);
+	if (inode->i_state & I_NEW) {
+		inode->i_op = &sysfs_dir_inode_operations;
+		inode->i_fop = &sysfs_dir_operations;
+		/* directory inodes start off with i_nlink == 2 (for ".") */
+		inc_nlink(inode);
+	}
 
 	/* link in */
 	error = -EEXIST;
@@ -310,20 +312,23 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 		return NULL;
 
 	/* attach dentry and inode */
-	inode = sysfs_new_inode(sd);
+	inode = sysfs_get_inode(sd);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
-	/* initialize inode according to type */
-	if (sd->s_type & SYSFS_KOBJ_ATTR) {
-		inode->i_size = PAGE_SIZE;
-		inode->i_fop = &sysfs_file_operations;
-	} else if (sd->s_type & SYSFS_KOBJ_BIN_ATTR) {
-		struct bin_attribute *bin_attr = sd->s_elem.bin_attr.bin_attr;
-		inode->i_size = bin_attr->size;
-		inode->i_fop = &bin_fops;
-	} else if (sd->s_type & SYSFS_KOBJ_LINK)
-		inode->i_op = &sysfs_symlink_inode_operations;
+	if (inode->i_state & I_NEW) {
+		/* initialize inode according to type */
+		if (sd->s_type & SYSFS_KOBJ_ATTR) {
+			inode->i_size = PAGE_SIZE;
+			inode->i_fop = &sysfs_file_operations;
+		} else if (sd->s_type & SYSFS_KOBJ_BIN_ATTR) {
+			struct bin_attribute *bin_attr =
+				sd->s_elem.bin_attr.bin_attr;
+			inode->i_size = bin_attr->size;
+			inode->i_fop = &bin_fops;
+		} else if (sd->s_type & SYSFS_KOBJ_LINK)
+			inode->i_op = &sysfs_symlink_inode_operations;
+	}
 
 	sysfs_instantiate(dentry, inode);
 	sysfs_attach_dentry(sd, dentry);
