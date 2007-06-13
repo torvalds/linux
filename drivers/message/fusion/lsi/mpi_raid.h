@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2001-2005 LSI Logic Corporation.
+ *  Copyright (c) 2001-2007 LSI Logic Corporation.
  *
  *
  *           Name:  mpi_raid.h
  *          Title:  MPI RAID message and structures
  *  Creation Date:  February 27, 2001
  *
- *    mpi_raid.h Version:  01.05.02
+ *    mpi_raid.h Version:  01.05.03
  *
  *  Version History
  *  ---------------
@@ -32,6 +32,8 @@
  *  08-19-04  01.05.01  Original release for MPI v1.5.
  *  01-15-05  01.05.02  Added defines for the two new RAID Actions for
  *                      _SET_RESYNC_RATE and _SET_DATA_SCRUB_RATE.
+ *  02-28-07  01.05.03  Added new RAID Action, Device FW Update Mode, and
+ *                      associated defines.
  *  --------------------------------------------------------------------------
  */
 
@@ -90,6 +92,7 @@ typedef struct _MSG_RAID_ACTION
 #define MPI_RAID_ACTION_INACTIVATE_VOLUME           (0x12)
 #define MPI_RAID_ACTION_SET_RESYNC_RATE             (0x13)
 #define MPI_RAID_ACTION_SET_DATA_SCRUB_RATE         (0x14)
+#define MPI_RAID_ACTION_DEVICE_FW_UPDATE_MODE       (0x15)
 
 /* ActionDataWord defines for use with MPI_RAID_ACTION_CREATE_VOLUME action */
 #define MPI_RAID_ACTION_ADATA_DO_NOT_SYNC           (0x00000001)
@@ -111,6 +114,10 @@ typedef struct _MSG_RAID_ACTION
 /* ActionDataWord defines for use with MPI_RAID_ACTION_SET_DATA_SCRUB_RATE action */
 #define MPI_RAID_ACTION_ADATA_DATA_SCRUB_RATE_MASK  (0x000000FF)
 
+/* ActionDataWord defines for use with MPI_RAID_ACTION_DEVICE_FW_UPDATE_MODE action */
+#define MPI_RAID_ACTION_ADATA_ENABLE_FW_UPDATE          (0x00000001)
+#define MPI_RAID_ACTION_ADATA_MASK_FW_UPDATE_TIMEOUT    (0x0000FF00)
+#define MPI_RAID_ACTION_ADATA_SHIFT_FW_UPDATE_TIMEOUT   (8)
 
 
 /* RAID Action reply message */

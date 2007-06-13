@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2006 LSI Logic Corporation.
+ *  Copyright (c) 2000-2007 LSI Logic Corporation.
  *
  *
  *           Name:  mpi.h
  *          Title:  MPI Message independent structures and definitions
  *  Creation Date:  July 27, 2000
  *
- *    mpi.h Version:  01.05.12
+ *    mpi.h Version:  01.05.13
  *
  *  Version History
  *  ---------------
@@ -78,6 +78,7 @@
  *  08-30-05  01.05.10  Added 2 new IOCStatus codes for Target.
  *  03-27-06  01.05.11  Bumped MPI_HEADER_VERSION_UNIT.
  *  10-11-06  01.05.12  Bumped MPI_HEADER_VERSION_UNIT.
+ *  05-24-07  01.05.13  Bumped MPI_HEADER_VERSION_UNIT.
  *  --------------------------------------------------------------------------
  */
 
@@ -108,7 +109,7 @@
 /* Note: The major versions of 0xe0 through 0xff are reserved */
 
 /* versioning for this MPI header set */
-#define MPI_HEADER_VERSION_UNIT             (0x0E)
+#define MPI_HEADER_VERSION_UNIT             (0x10)
 #define MPI_HEADER_VERSION_DEV              (0x00)
 #define MPI_HEADER_VERSION_UNIT_MASK        (0xFF00)
 #define MPI_HEADER_VERSION_UNIT_SHIFT       (8)
