@@ -2069,8 +2069,15 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			srvTcp->tcpStatus = CifsExiting;
 			spin_unlock(&GlobalMid_Lock);
 			if (srvTcp->tsk) {
+				struct task_struct *tsk;
+				/* If we could verify that kthread_stop would
+				   always wake up processes blocked in
+				   tcp in recv_mesg then we could remove the
+				   send_sig call */
 				send_sig(SIGKILL,srvTcp->tsk,1);
-				kthread_stop(srvTcp->tsk);
+				tsk = srvTcp->tsk;
+				if(tsk)
+					kthread_stop(tsk);
 			}
 		}
 		 /* If find_unc succeeded then rc == 0 so we can not end */
@@ -2085,8 +2092,11 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 					/* if the socketUseCount is now zero */
 					if ((temp_rc == -ESHUTDOWN) &&
 					   (pSesInfo->server) && (pSesInfo->server->tsk)) {
+						struct task_struct *tsk;
 						send_sig(SIGKILL,pSesInfo->server->tsk,1);
-						kthread_stop(pSesInfo->server->tsk);
+						tsk = pSesInfo->server->tsk;
+						if (tsk)
+							kthread_stop(tsk);
 					}
 				} else
 					cFYI(1, ("No session or bad tcon"));
@@ -3334,7 +3344,7 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 				return 0;
 			} else if (rc == -ESHUTDOWN) {
 				cFYI(1,("Waking up socket by sending it signal"));
-				if(cifsd_task) {
+				if (cifsd_task) {
 					send_sig(SIGKILL,cifsd_task,1);
 					kthread_stop(cifsd_task);
 				}

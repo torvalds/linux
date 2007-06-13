@@ -272,7 +272,6 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 	struct page *page;
 	pgoff_t index, end_index;
 	loff_t isize;
-	size_t total_len;
 	int error, page_nr;
 	struct splice_pipe_desc spd = {
 		.pages = pages,
@@ -298,7 +297,6 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 	 * Now fill in the holes:
 	 */
 	error = 0;
-	total_len = 0;
 
 	/*
 	 * Lookup the (hopefully) full range of pages we need.
@@ -415,43 +413,47 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 
 				break;
 			}
+		}
+fill_it:
+		/*
+		 * i_size must be checked after PageUptodate.
+		 */
+		isize = i_size_read(mapping->host);
+		end_index = (isize - 1) >> PAGE_CACHE_SHIFT;
+		if (unlikely(!isize || index > end_index))
+			break;
+
+		/*
+		 * if this is the last page, see if we need to shrink
+		 * the length and stop
+		 */
+		if (end_index == index) {
+			unsigned int plen;
 
 			/*
-			 * i_size must be checked after ->readpage().
+			 * max good bytes in this page
 			 */
-			isize = i_size_read(mapping->host);
-			end_index = (isize - 1) >> PAGE_CACHE_SHIFT;
-			if (unlikely(!isize || index > end_index))
+			plen = ((isize - 1) & ~PAGE_CACHE_MASK) + 1;
+			if (plen <= loff)
 				break;
 
 			/*
-			 * if this is the last page, see if we need to shrink
-			 * the length and stop
+			 * force quit after adding this page
 			 */
-			if (end_index == index) {
-				loff = PAGE_CACHE_SIZE - (isize & ~PAGE_CACHE_MASK);
-				if (total_len + loff > isize)
-					break;
-				/*
-				 * force quit after adding this page
-				 */
-				len = this_len;
-				this_len = min(this_len, loff);
-				loff = 0;
-			}
+			this_len = min(this_len, plen - loff);
+			len = this_len;
 		}
-fill_it:
+
 		partial[page_nr].offset = loff;
 		partial[page_nr].len = this_len;
 		len -= this_len;
-		total_len += this_len;
 		loff = 0;
 		spd.nr_pages++;
 		index++;
 	}
 
 	/*
-	 * Release any pages at the end, if we quit early. 'i' is how far
+	 * Release any pages at the end, if we quit early. 'page_nr' is how far
 	 * we got, 'nr_pages' is how many pages are in the map.
 	 */
 	while (page_nr < nr_pages)
@@ -478,10 +480,18 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 {
 	ssize_t spliced;
 	int ret;
+	loff_t isize, left;
+
+	isize = i_size_read(in->f_mapping->host);
+	if (unlikely(*ppos >= isize))
+		return 0;
+
+	left = isize - *ppos;
+	if (unlikely(left < len))
+		len = left;
 
 	ret = 0;
 	spliced = 0;
-
 	while (len) {
 		ret = __generic_file_splice_read(in, ppos, pipe, len, flags);
 
@@ -644,7 +654,6 @@ find_page:
 	 * accessed, we are now done!
 	 */
 	mark_page_accessed(page);
-	balance_dirty_pages_ratelimited(mapping);
 out:
 	page_cache_release(page);
 	unlock_page(page);
@@ -815,6 +824,7 @@ generic_file_splice_write_nolock(struct pipe_inode_info *pipe, struct file *out,
 			if (err)
 				ret = err;
 		}
+		balance_dirty_pages_ratelimited(mapping);
 	}
 
 	return ret;
@@ -868,6 +878,7 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 			if (err)
 				ret = err;
 		}
+		balance_dirty_pages_ratelimited(mapping);
 	}
 
 	return ret;
@@ -922,7 +933,6 @@ static long do_splice_to(struct file *in, loff_t *ppos,
 			 struct pipe_inode_info *pipe, size_t len,
 			 unsigned int flags)
 {
-	loff_t isize, left;
 	int ret;
 
 	if (unlikely(!in->f_op || !in->f_op->splice_read))
@@ -934,14 +944,6 @@ static long do_splice_to(struct file *in, loff_t *ppos,
 	ret = rw_verify_area(READ, in, ppos, len);
 	if (unlikely(ret < 0))
 		return ret;
-
-	isize = i_size_read(in->f_mapping->host);
-	if (unlikely(*ppos >= isize))
-		return 0;
-	
-	left = isize - *ppos;
-	if (unlikely(left < len))
-		len = left;
 
 	return in->f_op->splice_read(in, ppos, pipe, len, flags);
 }
@@ -1057,8 +1059,6 @@ out_release:
 
 	return ret;
 }
-
-EXPORT_SYMBOL(do_splice_direct);
 
 /*
  * After the inode slimming patch, i_pipe/i_bdev/i_cdev share the same

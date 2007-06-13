@@ -135,9 +135,6 @@ int mlx4_register_device(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_interface *intf;
 
-	INIT_LIST_HEAD(&priv->ctx_list);
-	spin_lock_init(&priv->ctx_lock);
-
 	mutex_lock(&intf_mutex);
 
 	list_add_tail(&priv->dev_list, &dev_list);

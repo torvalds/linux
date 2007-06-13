@@ -146,7 +146,6 @@
 #define USBVISION_CLIPMASK_SIZE		(MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT / 8) //bytesize of clipmask
 
 #define USBVISION_URB_FRAMES		32
-#define USBVISION_MAX_ISOC_PACKET_SIZE 	959			// NT1003 Specs Document says 1023
 
 #define USBVISION_NUM_HEADERMARKER	20
 #define USBVISION_NUMFRAMES		3  /* Maximum number of frames an application can get */

@@ -121,10 +121,7 @@ LEAF(self_ipi)
 	subu	t1,sp,PT_SIZE
 	sw	ra,PT_EPC(t1)
 	sw	a0,PT_PADSLOT4(t1)
-	LONG_L	s0, TI_REGS($28)
-	LONG_S	sp, TI_REGS($28)
 	la	t2,ipi_decode
-	LONG_S	s0, TI_REGS($28)
 	sw	t2,PT_PADSLOT5(t1)
 	/* Save pre-disable value of TCStatus */
 	sw	t0,PT_TCSTATUS(t1)

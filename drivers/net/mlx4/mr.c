@@ -324,15 +324,17 @@ int mlx4_mr_enable(struct mlx4_dev *dev, struct mlx4_mr *mr)
 				       MLX4_MPT_FLAG_MIO	 |
 				       MLX4_MPT_FLAG_REGION	 |
 				       mr->access);
-	if (mr->mtt.order < 0)
-		mpt_entry->flags |= cpu_to_be32(MLX4_MPT_FLAG_PHYSICAL);
 
 	mpt_entry->key	       = cpu_to_be32(key_to_hw_index(mr->key));
 	mpt_entry->pd	       = cpu_to_be32(mr->pd);
 	mpt_entry->start       = cpu_to_be64(mr->iova);
 	mpt_entry->length      = cpu_to_be64(mr->size);
 	mpt_entry->entity_size = cpu_to_be32(mr->mtt.page_shift);
-	mpt_entry->mtt_seg     = cpu_to_be64(mlx4_mtt_addr(dev, &mr->mtt));
+	if (mr->mtt.order < 0) {
+		mpt_entry->flags |= cpu_to_be32(MLX4_MPT_FLAG_PHYSICAL);
+		mpt_entry->mtt_seg = 0;
+	} else
+		mpt_entry->mtt_seg = cpu_to_be64(mlx4_mtt_addr(dev, &mr->mtt));
 
 	err = mlx4_SW2HW_MPT(dev, mailbox,
 			     key_to_hw_index(mr->key) & (dev->caps.num_mpts - 1));

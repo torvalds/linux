@@ -23,4 +23,4 @@ void ivtv_process_vbi_data(struct ivtv *itv, struct ivtv_buffer *buf,
 int ivtv_used_line(struct ivtv *itv, int line, int field);
 void ivtv_disable_vbi(struct ivtv *itv);
 void ivtv_set_vbi(unsigned long arg);
-void vbi_work_handler(struct ivtv *itv);
+void ivtv_vbi_work_handler(struct ivtv *itv);

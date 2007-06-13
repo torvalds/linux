@@ -450,7 +450,7 @@ void ivtv_disable_vbi(struct ivtv *itv)
 }
 
 
-void vbi_work_handler(struct ivtv *itv)
+void ivtv_vbi_work_handler(struct ivtv *itv)
 {
 	struct v4l2_sliced_vbi_data data;
 

@@ -30,7 +30,7 @@
 
 #define CIFS_IOC_CHECKUMOUNT _IO(0xCF, 2)
 
-int cifs_ioctl (struct inode * inode, struct file * filep, 
+int cifs_ioctl (struct inode * inode, struct file * filep,
 		unsigned int command, unsigned long arg)
 {
 	int rc = -ENOTTY; /* strange error - but the precedent */
@@ -47,13 +47,13 @@ int cifs_ioctl (struct inode * inode, struct file * filep,
 
 	xid = GetXid();
 
-        cFYI(1,("ioctl file %p  cmd %u  arg %lu",filep,command,arg));
+	cFYI(1, ("ioctl file %p  cmd %u  arg %lu", filep, command, arg));
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 
 #ifdef CONFIG_CIFS_POSIX
 	tcon = cifs_sb->tcon;
-	if(tcon)
+	if (tcon)
 		caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
 	else {
 		rc = -EIO;
@@ -62,24 +62,24 @@ int cifs_ioctl (struct inode * inode, struct file * filep,
 	}
 #endif /* CONFIG_CIFS_POSIX */
 
-	switch(command) {
+	switch (command) {
 		case CIFS_IOC_CHECKUMOUNT:
-			cFYI(1,("User unmount attempted"));
-			if(cifs_sb->mnt_uid == current->uid)
+			cFYI(1, ("User unmount attempted"));
+			if (cifs_sb->mnt_uid == current->uid)
 				rc = 0;
 			else {
 				rc = -EACCES;
-				cFYI(1,("uids do not match"));
+				cFYI(1, ("uids do not match"));
 			}
 			break;
 #ifdef CONFIG_CIFS_POSIX
 		case FS_IOC_GETFLAGS:
-			if(CIFS_UNIX_EXTATTR_CAP & caps) {
+			if (CIFS_UNIX_EXTATTR_CAP & caps) {
 				if (pSMBFile == NULL)
 					break;
 				rc = CIFSGetExtAttr(xid, tcon, pSMBFile->netfid,
 					&ExtAttrBits, &ExtAttrMask);
-				if(rc == 0)
+				if (rc == 0)
 					rc = put_user(ExtAttrBits &
 						FS_FL_USER_VISIBLE,
 						(int __user *)arg);
@@ -87,8 +87,8 @@ int cifs_ioctl (struct inode * inode, struct file * filep,
 			break;
 
 		case FS_IOC_SETFLAGS:
-			if(CIFS_UNIX_EXTATTR_CAP & caps) {
-				if(get_user(ExtAttrBits,(int __user *)arg)) {
+			if (CIFS_UNIX_EXTATTR_CAP & caps) {
+				if (get_user(ExtAttrBits, (int __user *)arg)) {
 					rc = -EFAULT;
 					break;
 				}
@@ -96,16 +96,15 @@ int cifs_ioctl (struct inode * inode, struct file * filep,
 					break;
 				/* rc= CIFSGetExtAttr(xid,tcon,pSMBFile->netfid,
 					extAttrBits, &ExtAttrMask);*/
-				
 			}
-			cFYI(1,("set flags not implemented yet"));
+			cFYI(1, ("set flags not implemented yet"));
 			break;
 #endif /* CONFIG_CIFS_POSIX */
 		default:
-			cFYI(1,("unsupported ioctl"));
+			cFYI(1, ("unsupported ioctl"));
 			break;
 	}
 
 	FreeXid(xid);
 	return rc;
-} 
+}

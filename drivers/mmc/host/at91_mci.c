@@ -417,7 +417,7 @@ static unsigned int at91_mci_send_command(struct at91mci_host *host, struct mmc_
 		blocks = 0;
 	}
 
-	if (cmd->opcode == MMC_STOP_TRANSMISSION)
+	if (host->flags & FL_SENT_STOP)
 		cmdr |= AT91_MCI_TRCMD_STOP;
 
 	if (host->bus_mode == MMC_BUSMODE_OPENDRAIN)
@@ -563,8 +563,7 @@ static void at91mci_completed_command(struct at91mci_host *host)
 	if (status & (AT91_MCI_RINDE | AT91_MCI_RDIRE | AT91_MCI_RCRCE |
 			AT91_MCI_RENDE | AT91_MCI_RTOE | AT91_MCI_DCRCE |
 			AT91_MCI_DTOE | AT91_MCI_OVRE | AT91_MCI_UNRE)) {
-		if ((status & AT91_MCI_RCRCE) &&
-			((cmd->opcode == MMC_SEND_OP_COND) || (cmd->opcode == SD_APP_OP_COND))) {
+		if ((status & AT91_MCI_RCRCE) && !(mmc_resp_type(cmd) & MMC_RSP_CRC)) {
 			cmd->error = MMC_ERR_NONE;
 		}
 		else {

@@ -237,6 +237,7 @@ extern const u32 yuv_offset[4];
 #define IVTV_IRQ_ENC_VBI_CAP		(0x1 << 29)
 #define IVTV_IRQ_ENC_VIM_RST		(0x1 << 28)
 #define IVTV_IRQ_ENC_DMA_COMPLETE	(0x1 << 27)
+#define IVTV_IRQ_ENC_PIO_COMPLETE	(0x1 << 25)
 #define IVTV_IRQ_DEC_AUD_MODE_CHG	(0x1 << 24)
 #define IVTV_IRQ_DEC_DATA_REQ		(0x1 << 22)
 #define IVTV_IRQ_DEC_DMA_COMPLETE	(0x1 << 20)
@@ -247,7 +248,8 @@ extern const u32 yuv_offset[4];
 #define IVTV_IRQ_DEC_VSYNC		(0x1 << 10)
 
 /* IRQ Masks */
-#define IVTV_IRQ_MASK_INIT (IVTV_IRQ_DMA_ERR|IVTV_IRQ_ENC_DMA_COMPLETE|IVTV_IRQ_DMA_READ)
+#define IVTV_IRQ_MASK_INIT (IVTV_IRQ_DMA_ERR|IVTV_IRQ_ENC_DMA_COMPLETE|\
+		IVTV_IRQ_DMA_READ|IVTV_IRQ_ENC_PIO_COMPLETE)
 
 #define IVTV_IRQ_MASK_CAPTURE (IVTV_IRQ_ENC_START_CAP | IVTV_IRQ_ENC_EOS)
 #define IVTV_IRQ_MASK_DECODE  (IVTV_IRQ_DEC_DATA_REQ|IVTV_IRQ_DEC_AUD_MODE_CHG)
@@ -374,6 +376,9 @@ struct ivtv_mailbox_data {
 #define IVTV_F_S_STREAMOFF	7	/* signal end of stream EOS */
 #define IVTV_F_S_APPL_IO        8	/* this stream is used read/written by an application */
 
+#define IVTV_F_S_PIO_PENDING	9	/* this stream has pending PIO */
+#define IVTV_F_S_PIO_HAS_VBI	1       /* the current PIO request also requests VBI data */
+
 /* per-ivtv, i_flags */
 #define IVTV_F_I_DMA		   0 	/* DMA in progress */
 #define IVTV_F_I_UDMA		   1 	/* UDMA in progress */
@@ -390,8 +395,11 @@ struct ivtv_mailbox_data {
 #define IVTV_F_I_DECODING_YUV	   12 	/* this stream is YUV frame decoding */
 #define IVTV_F_I_ENC_PAUSED	   13 	/* the encoder is paused */
 #define IVTV_F_I_VALID_DEC_TIMINGS 14 	/* last_dec_timing is valid */
-#define IVTV_F_I_WORK_HANDLER_VBI  15	/* there is work to be done for VBI */
-#define IVTV_F_I_WORK_HANDLER_YUV  16	/* there is work to be done for YUV */
+#define IVTV_F_I_HAVE_WORK  	   15	/* Used in the interrupt handler: there is work to be done */
+#define IVTV_F_I_WORK_HANDLER_VBI  16	/* there is work to be done for VBI */
+#define IVTV_F_I_WORK_HANDLER_YUV  17	/* there is work to be done for YUV */
+#define IVTV_F_I_WORK_HANDLER_PIO  18	/* there is work to be done for PIO */
+#define IVTV_F_I_PIO		   19	/* PIO in progress */
 
 /* Event notifications */
 #define IVTV_F_I_EV_DEC_STOPPED	   28	/* decoder stopped event */
@@ -484,6 +492,7 @@ struct ivtv_stream {
 
 	/* Base Dev SG Array for cx23415/6 */
 	struct ivtv_SG_element *SGarray;
+	struct ivtv_SG_element *PIOarray;
 	dma_addr_t SG_handle;
 	int SG_length;
 
@@ -706,6 +715,7 @@ struct ivtv {
 	atomic_t decoding;	/* count number of active decoding streams */
 	u32 irq_rr_idx; /* Round-robin stream index */
 	int cur_dma_stream;	/* index of stream doing DMA */
+	int cur_pio_stream;	/* index of stream doing PIO */
 	u32 dma_data_req_offset;
 	u32 dma_data_req_size;
 	int output_mode;        /* NONE, MPG, YUV, UDMA YUV, passthrough */

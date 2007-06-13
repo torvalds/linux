@@ -787,6 +787,8 @@ static int __devinit mlx4_init_one(struct pci_dev *pdev,
 
 	dev       = &priv->dev;
 	dev->pdev = pdev;
+	INIT_LIST_HEAD(&priv->ctx_list);
+	spin_lock_init(&priv->ctx_lock);
 
 	/*
 	 * Now reset the HCA before we touch the PCI capabilities or

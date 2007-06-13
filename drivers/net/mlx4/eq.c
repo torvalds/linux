@@ -490,9 +490,11 @@ static void mlx4_free_irqs(struct mlx4_dev *dev)
 
 	if (eq_table->have_irq)
 		free_irq(dev->pdev->irq, dev);
-	for (i = 0; i < MLX4_NUM_EQ; ++i)
+	for (i = 0; i < MLX4_EQ_CATAS; ++i)
 		if (eq_table->eq[i].have_irq)
 			free_irq(eq_table->eq[i].irq, eq_table->eq + i);
+	if (eq_table->eq[MLX4_EQ_CATAS].have_irq)
+		free_irq(eq_table->eq[MLX4_EQ_CATAS].irq, dev);
 }
 
 static int __devinit mlx4_map_clr_int(struct mlx4_dev *dev)

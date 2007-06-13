@@ -652,6 +652,7 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	itv->dma_timer.data = (unsigned long)itv;
 
 	itv->cur_dma_stream = -1;
+	itv->cur_pio_stream = -1;
 	itv->audio_stereo_mode = AUDIO_STEREO;
 	itv->audio_bilingual_mode = AUDIO_MONO_LEFT;
 

@@ -6,16 +6,16 @@
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or 
+ *   the Free Software Foundation; either version 2 of the License, or
  *   (at your option) any later version.
- * 
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
  *   the GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software 
+ *   along with this program;  if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/fs.h>
@@ -32,7 +32,7 @@
  *
  */
 int
-cifs_strfromUCS_le(char *to, const __le16 * from,	
+cifs_strfromUCS_le(char *to, const __le16 * from,
 		   int len, const struct nls_table *codepage)
 {
 	int i;
@@ -66,7 +66,7 @@ cifs_strtoUCS(__le16 * to, const char *from, int len,
 {
 	int charlen;
 	int i;
-	wchar_t * wchar_to = (wchar_t *)to; /* needed to quiet sparse */  
+	wchar_t * wchar_to = (wchar_t *)to; /* needed to quiet sparse */
 
 	for (i = 0; len && *from; i++, from += charlen, len -= charlen) {
 
@@ -79,7 +79,7 @@ cifs_strtoUCS(__le16 * to, const char *from, int len,
 			/* A question mark */
 			to[i] = cpu_to_le16(0x003f);
 			charlen = 1;
-		} else 
+		} else
 			to[i] = cpu_to_le16(wchar_to[i]);
 
 	}

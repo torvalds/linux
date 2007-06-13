@@ -519,8 +519,7 @@ static int cinergyt2_release (struct inode *inode, struct file *file)
 	struct dvb_device *dvbdev = file->private_data;
 	struct cinergyt2 *cinergyt2 = dvbdev->priv;
 
-	if (mutex_lock_interruptible(&cinergyt2->sem))
-		return -ERESTARTSYS;
+	mutex_lock(&cinergyt2->sem);
 
 	if (!cinergyt2->disconnect_pending && (file->f_flags & O_ACCMODE) != O_RDONLY) {
 		cancel_delayed_work(&cinergyt2->query_work);
