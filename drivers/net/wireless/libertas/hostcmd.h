@@ -14,12 +14,12 @@
 /* TxPD descriptor */
 struct txpd {
 	/* Current Tx packet status */
-	u32 tx_status;
+	__le32 tx_status;
 	/* Tx control */
-	u32 tx_control;
-	u32 tx_packet_location;
+	__le32 tx_control;
+	__le32 tx_packet_location;
 	/* Tx packet length */
-	u16 tx_packet_length;
+	__le16 tx_packet_length;
 	/* First 2 byte of destination MAC address */
 	u8 tx_dest_addr_high[2];
 	/* Last 4 byte of destination MAC address */
@@ -37,7 +37,7 @@ struct txpd {
 /* RxPD Descriptor */
 struct rxpd {
 	/* Current Rx packet status */
-	u16 status;
+	__le16 status;
 
 	/* SNR */
 	u8 snr;
@@ -46,7 +46,7 @@ struct rxpd {
 	u8 rx_control;
 
 	/* Pkt length */
-	u16 pkt_len;
+	__le16 pkt_len;
 
 	/* Noise Floor */
 	u8 nf;
@@ -55,10 +55,10 @@ struct rxpd {
 	u8 rx_rate;
 
 	/* Pkt addr */
-	u32 pkt_ptr;
+	__le32 pkt_ptr;
 
 	/* Next Rx RxPD addr */
-	u32 next_rxpd_ptr;
+	__le32 next_rxpd_ptr;
 
 	/* Pkt Priority */
 	u8 priority;
@@ -89,30 +89,17 @@ struct cmd_ctrl_node {
  * is determined from the keylength field.
  */
 struct WLAN_802_11_KEY {
-	u32 len;
-	u32 flags;  /* KEY_INFO_* from wlan_defs.h */
+	__le32 len;
+	__le32 flags;  /* KEY_INFO_* from wlan_defs.h */
 	u8 key[MRVL_MAX_KEY_WPA_KEY_LENGTH];
-	u16 type; /* KEY_TYPE_* from wlan_defs.h */
+	__le16 type; /* KEY_TYPE_* from wlan_defs.h */
 };
 
 struct IE_WPA {
 	u8 elementid;
 	u8 len;
 	u8 oui[4];
-	u16 version;
-};
-
-struct WLAN_802_11_SSID {
-	/* SSID length */
-	u32 ssidlength;
-
-	/* SSID information field */
-	u8 ssid[IW_ESSID_MAX_SIZE];
-};
-
-struct WPA_SUPPLICANT {
-	u8 wpa_ie[256];
-	u8 wpa_ie_len;
+	__le16 version;
 };
 
 /* wlan_offset_value */
@@ -122,9 +109,9 @@ struct wlan_offset_value {
 };
 
 struct WLAN_802_11_FIXED_IEs {
-	u8 timestamp[8];
-	u16 beaconinterval;
-	u16 capabilities;
+	__le64 timestamp;
+	__le16 beaconinterval;
+	u16 capabilities; /* Actually struct ieeetypes_capinfo */
 };
 
 struct WLAN_802_11_VARIABLE_IEs {
@@ -136,10 +123,10 @@ struct WLAN_802_11_VARIABLE_IEs {
 /* Define general data structure */
 /* cmd_DS_GEN */
 struct cmd_ds_gen {
-	u16 command;
-	u16 size;
-	u16 seqnum;
-	u16 result;
+	__le16 command;
+	__le16 size;
+	__le16 seqnum;
+	__le16 result;
 };
 
 #define S_DS_GEN sizeof(struct cmd_ds_gen)
@@ -149,44 +136,44 @@ struct cmd_ds_gen {
  */
 struct cmd_ds_get_hw_spec {
 	/* HW Interface version number */
-	u16 hwifversion;
+	__le16 hwifversion;
 	/* HW version number */
-	u16 version;
+	__le16 version;
 	/* Max number of TxPD FW can handle */
-	u16 nr_txpd;
+	__le16 nr_txpd;
 	/* Max no of Multicast address */
-	u16 nr_mcast_adr;
+	__le16 nr_mcast_adr;
 	/* MAC address */
 	u8 permanentaddr[6];
 
 	/* region Code */
-	u16 regioncode;
+	__le16 regioncode;
 
 	/* Number of antenna used */
-	u16 nr_antenna;
+	__le16 nr_antenna;
 
-	/* FW release number, example 0x1234=1.2.3.4 */
-	u32 fwreleasenumber;
+	/* FW release number, example 1,2,3,4 = 3.2.1p4 */
+	u8 fwreleasenumber[4];
 
 	/* Base Address of TxPD queue */
-	u32 wcb_base;
+	__le32 wcb_base;
 	/* Read Pointer of RxPd queue */
-	u32 rxpd_rdptr;
+	__le32 rxpd_rdptr;
 
 	/* Write Pointer of RxPd queue */
-	u32 rxpd_wrptr;
+	__le32 rxpd_wrptr;
 
 	/*FW/HW capability */
-	u32 fwcapinfo;
+	__le32 fwcapinfo;
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_reset {
-	u16 action;
+	__le16 action;
 };
 
 struct cmd_ds_802_11_subscribe_event {
-	u16 action;
-	u16 events;
+	__le16 action;
+	__le16 events;
 };
 
 /*
@@ -205,35 +192,35 @@ struct cmd_ds_802_11_scan {
 };
 
 struct cmd_ds_802_11_scan_rsp {
-	u16 bssdescriptsize;
+	__le16 bssdescriptsize;
 	u8 nr_sets;
 	u8 bssdesc_and_tlvbuffer[1];
 };
 
 struct cmd_ds_802_11_get_log {
-	u32 mcasttxframe;
-	u32 failed;
-	u32 retry;
-	u32 multiretry;
-	u32 framedup;
-	u32 rtssuccess;
-	u32 rtsfailure;
-	u32 ackfailure;
-	u32 rxfrag;
-	u32 mcastrxframe;
-	u32 fcserror;
-	u32 txframe;
-	u32 wepundecryptable;
+	__le32 mcasttxframe;
+	__le32 failed;
+	__le32 retry;
+	__le32 multiretry;
+	__le32 framedup;
+	__le32 rtssuccess;
+	__le32 rtsfailure;
+	__le32 ackfailure;
+	__le32 rxfrag;
+	__le32 mcastrxframe;
+	__le32 fcserror;
+	__le32 txframe;
+	__le32 wepundecryptable;
 };
 
 struct cmd_ds_mac_control {
-	u16 action;
-	u16 reserved;
+	__le16 action;
+	__le16 reserved;
 };
 
 struct cmd_ds_mac_multicast_adr {
-	u16 action;
-	u16 nr_of_adrs;
+	__le16 action;
+	__le16 nr_of_adrs;
 	u8 maclist[ETH_ALEN * MRVDRV_MAX_MULTICAST_LIST_SIZE];
 };
 
@@ -245,14 +232,14 @@ struct cmd_ds_802_11_authenticate {
 
 struct cmd_ds_802_11_deauthenticate {
 	u8 macaddr[6];
-	u16 reasoncode;
+	__le16 reasoncode;
 };
 
 struct cmd_ds_802_11_associate {
 	u8 peerstaaddr[6];
 	struct ieeetypes_capinfo capinfo;
-	u16 listeninterval;
-	u16 bcnperiod;
+	__le16 listeninterval;
+	__le16 bcnperiod;
 	u8 dtimperiod;
 
 #if 0
@@ -265,7 +252,7 @@ struct cmd_ds_802_11_associate {
 
 struct cmd_ds_802_11_disassociate {
 	u8 destmacaddr[6];
-	u16 reasoncode;
+	__le16 reasoncode;
 };
 
 struct cmd_ds_802_11_associate_rsp {
@@ -279,10 +266,10 @@ struct cmd_ds_802_11_ad_hoc_result {
 
 struct cmd_ds_802_11_set_wep {
 	/* ACT_ADD, ACT_REMOVE or ACT_ENABLE */
-	u16 action;
+	__le16 action;
 
 	/* key Index selected for Tx */
-	u16 keyindex;
+	__le16 keyindex;
 
 	/* 40, 128bit or TXWEP */
 	u8 keytype[4];
@@ -290,96 +277,96 @@ struct cmd_ds_802_11_set_wep {
 };
 
 struct cmd_ds_802_3_get_stat {
-	u32 xmitok;
-	u32 rcvok;
-	u32 xmiterror;
-	u32 rcverror;
-	u32 rcvnobuffer;
-	u32 rcvcrcerror;
+	__le32 xmitok;
+	__le32 rcvok;
+	__le32 xmiterror;
+	__le32 rcverror;
+	__le32 rcvnobuffer;
+	__le32 rcvcrcerror;
 };
 
 struct cmd_ds_802_11_get_stat {
-	u32 txfragmentcnt;
-	u32 mcasttxframecnt;
-	u32 failedcnt;
-	u32 retrycnt;
-	u32 Multipleretrycnt;
-	u32 rtssuccesscnt;
-	u32 rtsfailurecnt;
-	u32 ackfailurecnt;
-	u32 frameduplicatecnt;
-	u32 rxfragmentcnt;
-	u32 mcastrxframecnt;
-	u32 fcserrorcnt;
-	u32 bcasttxframecnt;
-	u32 bcastrxframecnt;
-	u32 txbeacon;
-	u32 rxbeacon;
-	u32 wepundecryptable;
+	__le32 txfragmentcnt;
+	__le32 mcasttxframecnt;
+	__le32 failedcnt;
+	__le32 retrycnt;
+	__le32 Multipleretrycnt;
+	__le32 rtssuccesscnt;
+	__le32 rtsfailurecnt;
+	__le32 ackfailurecnt;
+	__le32 frameduplicatecnt;
+	__le32 rxfragmentcnt;
+	__le32 mcastrxframecnt;
+	__le32 fcserrorcnt;
+	__le32 bcasttxframecnt;
+	__le32 bcastrxframecnt;
+	__le32 txbeacon;
+	__le32 rxbeacon;
+	__le32 wepundecryptable;
 };
 
 struct cmd_ds_802_11_snmp_mib {
-	u16 querytype;
-	u16 oid;
-	u16 bufsize;
+	__le16 querytype;
+	__le16 oid;
+	__le16 bufsize;
 	u8 value[128];
 };
 
 struct cmd_ds_mac_reg_map {
-	u16 buffersize;
+	__le16 buffersize;
 	u8 regmap[128];
-	u16 reserved;
+	__le16 reserved;
 };
 
 struct cmd_ds_bbp_reg_map {
-	u16 buffersize;
+	__le16 buffersize;
 	u8 regmap[128];
-	u16 reserved;
+	__le16 reserved;
 };
 
 struct cmd_ds_rf_reg_map {
-	u16 buffersize;
+	__le16 buffersize;
 	u8 regmap[64];
-	u16 reserved;
+	__le16 reserved;
 };
 
 struct cmd_ds_mac_reg_access {
-	u16 action;
-	u16 offset;
-	u32 value;
+	__le16 action;
+	__le16 offset;
+	__le32 value;
 };
 
 struct cmd_ds_bbp_reg_access {
-	u16 action;
-	u16 offset;
+	__le16 action;
+	__le16 offset;
 	u8 value;
 	u8 reserved[3];
 };
 
 struct cmd_ds_rf_reg_access {
-	u16 action;
-	u16 offset;
+	__le16 action;
+	__le16 offset;
 	u8 value;
 	u8 reserved[3];
 };
 
 struct cmd_ds_802_11_radio_control {
-	u16 action;
-	u16 control;
+	__le16 action;
+	__le16 control;
 };
 
 struct cmd_ds_802_11_sleep_params {
 	/* ACT_GET/ACT_SET */
-	u16 action;
+	__le16 action;
 
 	/* Sleep clock error in ppm */
-	u16 error;
+	__le16 error;
 
 	/* Wakeup offset in usec */
-	u16 offset;
+	__le16 offset;
 
 	/* Clock stabilization time in usec */
-	u16 stabletime;
+	__le16 stabletime;
 
 	/* control periodic calibration */
 	u8 calcontrol;
@@ -388,100 +375,100 @@ struct cmd_ds_802_11_sleep_params {
 	u8 externalsleepclk;
 
 	/* reserved field, should be set to zero */
-	u16 reserved;
+	__le16 reserved;
 };
 
 struct cmd_ds_802_11_inactivity_timeout {
 	/* ACT_GET/ACT_SET */
-	u16 action;
+	__le16 action;
 
 	/* Inactivity timeout in msec */
-	u16 timeout;
+	__le16 timeout;
 };
 
 struct cmd_ds_802_11_rf_channel {
-	u16 action;
-	u16 currentchannel;
-	u16 rftype;
-	u16 reserved;
+	__le16 action;
+	__le16 currentchannel;
+	__le16 rftype;
+	__le16 reserved;
 	u8 channellist[32];
 };
 
 struct cmd_ds_802_11_rssi {
 	/* weighting factor */
-	u16 N;
+	__le16 N;
 
-	u16 reserved_0;
-	u16 reserved_1;
-	u16 reserved_2;
+	__le16 reserved_0;
+	__le16 reserved_1;
+	__le16 reserved_2;
 };
 
 struct cmd_ds_802_11_rssi_rsp {
-	u16 SNR;
-	u16 noisefloor;
-	u16 avgSNR;
-	u16 avgnoisefloor;
+	__le16 SNR;
+	__le16 noisefloor;
+	__le16 avgSNR;
+	__le16 avgnoisefloor;
 };
 
 struct cmd_ds_802_11_mac_address {
-	u16 action;
+	__le16 action;
 	u8 macadd[ETH_ALEN];
 };
 
 struct cmd_ds_802_11_rf_tx_power {
-	u16 action;
-	u16 currentlevel;
+	__le16 action;
+	__le16 currentlevel;
 };
 
 struct cmd_ds_802_11_rf_antenna {
-	u16 action;
+	__le16 action;
 
 	/* Number of antennas or 0xffff(diversity) */
-	u16 antennamode;
+	__le16 antennamode;
 
 };
 
 struct cmd_ds_802_11_ps_mode {
-	u16 action;
-	u16 nullpktinterval;
-	u16 multipledtim;
-	u16 reserved;
-	u16 locallisteninterval;
+	__le16 action;
+	__le16 nullpktinterval;
+	__le16 multipledtim;
+	__le16 reserved;
+	__le16 locallisteninterval;
 };
 
 struct PS_CMD_ConfirmSleep {
-	u16 command;
-	u16 size;
-	u16 seqnum;
-	u16 result;
+	__le16 command;
+	__le16 size;
+	__le16 seqnum;
+	__le16 result;
 
-	u16 action;
-	u16 reserved1;
-	u16 multipledtim;
-	u16 reserved;
-	u16 locallisteninterval;
+	__le16 action;
+	__le16 reserved1;
+	__le16 multipledtim;
+	__le16 reserved;
+	__le16 locallisteninterval;
 };
 
 struct cmd_ds_802_11_data_rate {
-	u16 action;
-	u16 reserverd;
+	__le16 action;
+	__le16 reserverd;
 	u8 datarate[G_SUPPORTED_RATES];
 };
 
 struct cmd_ds_802_11_rate_adapt_rateset {
-	u16 action;
-	u16 enablehwauto;
-	u16 bitmap;
+	__le16 action;
+	__le16 enablehwauto;
+	__le16 bitmap;
 };
 
 struct cmd_ds_802_11_ad_hoc_start {
 	u8 SSID[IW_ESSID_MAX_SIZE];
 	u8 bsstype;
-	u16 beaconperiod;
+	__le16 beaconperiod;
 	u8 dtimperiod;
 	union IEEEtypes_ssparamset ssparamset;
 	union ieeetypes_phyparamset phyparamset;
-	u16 probedelay;
+	__le16 probedelay;
 	struct ieeetypes_capinfo cap;
 	u8 datarate[G_SUPPORTED_RATES];
 	u8 tlv_memory_size_pad[100];
@@ -491,10 +478,10 @@ struct adhoc_bssdesc {
 	u8 BSSID[6];
 	u8 SSID[32];
 	u8 bsstype;
-	u16 beaconperiod;
+	__le16 beaconperiod;
 	u8 dtimperiod;
-	u8 timestamp[8];
-	u8 localtime[8];
+	__le64 timestamp;
+	__le64 localtime;
 	union ieeetypes_phyparamset phyparamset;
 	union IEEEtypes_ssparamset ssparamset;
 	struct ieeetypes_capinfo cap;
@@ -508,52 +495,52 @@ struct adhoc_bssdesc {
 
 struct cmd_ds_802_11_ad_hoc_join {
 	struct adhoc_bssdesc bssdescriptor;
-	u16 failtimeout;
-	u16 probedelay;
+	__le16 failtimeout;
+	__le16 probedelay;
 
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_enable_rsn {
-	u16 action;
-	u16 enable;
+	__le16 action;
+	__le16 enable;
 };
 
 struct MrvlIEtype_keyParamSet {
 	/* type ID */
-	u16 type;
+	__le16 type;
 
 	/* length of Payload */
-	u16 length;
+	__le16 length;
 
 	/* type of key: WEP=0, TKIP=1, AES=2 */
-	u16 keytypeid;
+	__le16 keytypeid;
 
 	/* key control Info specific to a keytypeid */
-	u16 keyinfo;
+	__le16 keyinfo;
 
 	/* length of key */
-	u16 keylen;
+	__le16 keylen;
 
 	/* key material of size keylen */
 	u8 key[32];
 };
 
 struct cmd_ds_802_11_key_material {
-	u16 action;
+	__le16 action;
 	struct MrvlIEtype_keyParamSet keyParamSet[2];
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_eeprom_access {
-	u16 action;
+	__le16 action;
 
 	/* multiple 4 */
-	u16 offset;
-	u16 bytecount;
+	__le16 offset;
+	__le16 bytecount;
 	u8 value;
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_tpc_cfg {
-	u16 action;
+	__le16 action;
 	u8 enable;
 	s8 P0;
 	s8 P1;
@@ -562,13 +549,13 @@ struct cmd_ds_802_11_tpc_cfg {
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_led_ctrl {
-	u16 action;
-	u16 numled;
+	__le16 action;
+	__le16 numled;
 	u8 data[256];
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_pwr_cfg {
-	u16 action;
+	__le16 action;
 	u8 enable;
 	s8 PA_P0;
 	s8 PA_P1;
@@ -576,21 +563,21 @@ struct cmd_ds_802_11_pwr_cfg {
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_afc {
-	u16 afc_auto;
+	__le16 afc_auto;
 	union {
 		struct {
-			u16 threshold;
-			u16 period;
+			__le16 threshold;
+			__le16 period;
 		};
 		struct {
-			s16 timing_offset;
-			s16 carrier_offset;
+			__le16 timing_offset; /* signed */
+			__le16 carrier_offset; /* signed */
 		};
 	};
 } __attribute__ ((packed));
 
 struct cmd_tx_rate_query {
-	u16 txrate;
+	__le16 txrate;
 } __attribute__ ((packed));
 
 struct cmd_ds_get_tsf {
@@ -598,41 +585,46 @@ struct cmd_ds_get_tsf {
 } __attribute__ ((packed));
 
 struct cmd_ds_bt_access {
-	u16 action;
-	u32 id;
+	__le16 action;
+	__le32 id;
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN];
 } __attribute__ ((packed));
 
 struct cmd_ds_fwt_access {
-	u16 action;
-	u32 id;
+	__le16 action;
+	__le32 id;
+	u8 valid;
 	u8 da[ETH_ALEN];
 	u8 dir;
 	u8 ra[ETH_ALEN];
-	u32 ssn;
-	u32 dsn;
-	u32 metric;
+	__le32 ssn;
+	__le32 dsn;
+	__le32 metric;
+	u8 rate;
 	u8 hopcount;
 	u8 ttl;
-	u32 expiration;
+	__le32 expiration;
 	u8 sleepmode;
-	u32 snr;
-	u32 references;
+	__le32 snr;
+	__le32 references;
+	u8 prec[ETH_ALEN];
 } __attribute__ ((packed));
 
-#define MESH_STATS_NUM 7
 struct cmd_ds_mesh_access {
-	u16 action;
-	u32 data[MESH_STATS_NUM + 1];	/* last position reserved */
+	__le16 action;
+	__le32 data[32];	/* last position reserved */
 } __attribute__ ((packed));
+
+/* Number of stats counters returned by the firmware */
+#define MESH_STATS_NUM 8
 
 struct cmd_ds_command {
 	/* command header */
-	u16 command;
-	u16 size;
-	u16 seqnum;
-	u16 result;
+	__le16 command;
+	__le16 size;
+	__le16 seqnum;
+	__le16 result;
 
 	/* command Body */
 	union {

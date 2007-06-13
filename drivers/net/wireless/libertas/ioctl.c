@@ -30,6 +30,7 @@
 static int wlan_set_region(wlan_private * priv, u16 region_code)
 {
 	int i;
+	int ret = 0;
 
 	for (i = 0; i < MRVDRV_MAX_REGION_CODE; i++) {
 		// use the region code to search for the index
@@ -42,17 +43,18 @@ static int wlan_set_region(wlan_private * priv, u16 region_code)
 
 	// if it's unidentified region code
 	if (i >= MRVDRV_MAX_REGION_CODE) {
-		lbs_pr_debug(1, "region Code not identified\n");
-		LEAVE();
-		return -1;
+		lbs_deb_ioctl("region Code not identified\n");
+		ret = -1;
+		goto done;
 	}
 
 	if (libertas_set_regiontable(priv, priv->adapter->regioncode, 0)) {
-		LEAVE();
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
-	return 0;
+done:
+	lbs_deb_leave_args(LBS_DEB_IOCTL, "ret %d", ret);
+	return ret;
 }
 
 static inline int hex2int(char c)
@@ -125,8 +127,10 @@ static int wlan_bt_add_ioctl(wlan_private * priv, struct ifreq *req)
 	char ethaddrs_str[18];
 	char *pos;
 	u8 ethaddr[ETH_ALEN];
+	int ret;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_IOCTL);
+
 	if (copy_from_user(ethaddrs_str, wrq->u.data.pointer,
 			   sizeof(ethaddrs_str)))
 		return -EFAULT;
@@ -136,11 +140,12 @@ static int wlan_bt_add_ioctl(wlan_private * priv, struct ifreq *req)
 		return -EINVAL;
 	}
 
-	lbs_pr_debug(1, "BT: adding %s\n", ethaddrs_str);
-	LEAVE();
-	return (libertas_prepare_and_send_command(priv, cmd_bt_access,
+	lbs_deb_ioctl("BT: adding %s\n", ethaddrs_str);
+	ret = libertas_prepare_and_send_command(priv, cmd_bt_access,
 				      cmd_act_bt_access_add,
-				      cmd_option_waitforrsp, 0, ethaddr));
+				      cmd_option_waitforrsp, 0, ethaddr);
+	lbs_deb_leave_args(LBS_DEB_IOCTL, "ret %d", ret);
+	return ret;
 }
 
 /**
@@ -156,7 +161,8 @@ static int wlan_bt_del_ioctl(wlan_private * priv, struct ifreq *req)
 	u8 ethaddr[ETH_ALEN];
 	char *pos;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_IOCTL);
+
 	if (copy_from_user(ethaddrs_str, wrq->u.data.pointer,
 			   sizeof(ethaddrs_str)))
 		return -EFAULT;
@@ -166,13 +172,14 @@ static int wlan_bt_del_ioctl(wlan_private * priv, struct ifreq *req)
 		return -EINVAL;
 	}
 
-	lbs_pr_debug(1, "BT: deleting %s\n", ethaddrs_str);
+	lbs_deb_ioctl("BT: deleting %s\n", ethaddrs_str);
 
 	return (libertas_prepare_and_send_command(priv,
 				      cmd_bt_access,
 				      cmd_act_bt_access_del,
 				      cmd_option_waitforrsp, 0, ethaddr));
-	LEAVE();
+
+	lbs_deb_leave(LBS_DEB_IOCTL);
 	return 0;
 }
 
@@ -183,7 +190,7 @@ static int wlan_bt_del_ioctl(wlan_private * priv, struct ifreq *req)
  */
 static int wlan_bt_reset_ioctl(wlan_private * priv)
 {
-	ENTER();
+	lbs_deb_enter(LBS_DEB_IOCTL);
 
 	lbs_pr_alert( "BT: resetting\n");
 
@@ -192,7 +199,7 @@ static int wlan_bt_reset_ioctl(wlan_private * priv)
 				      cmd_act_bt_access_reset,
 				      cmd_option_waitforrsp, 0, NULL));
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_IOCTL);
 	return 0;
 }
 
@@ -209,17 +216,17 @@ static int wlan_bt_list_ioctl(wlan_private * priv, struct ifreq *req)
 	struct iwreq *wrq = (struct iwreq *)req;
 	/* used to pass id and store the bt entry returned by the FW */
 	union {
-		int id;
+		u32 id;
 		char addr1addr2[2 * ETH_ALEN];
 	} param;
 	static char outstr[64];
 	char *pbuf = outstr;
 	int ret;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_IOCTL);
 
 	if (copy_from_user(outstr, wrq->u.data.pointer, sizeof(outstr))) {
-		lbs_pr_debug(1, "Copy from user failed\n");
+		lbs_deb_ioctl("Copy from user failed\n");
 		return -1;
 	}
 	param.id = simple_strtoul(outstr, NULL, 10);
@@ -234,7 +241,7 @@ static int wlan_bt_list_ioctl(wlan_private * priv, struct ifreq *req)
 	if (ret == 0) {
 		addr1 = param.addr1addr2;
 
-		pos = sprintf(pbuf, "ignoring traffic from ");
+		pos = sprintf(pbuf, "BT includes node ");
 		pbuf += pos;
 		pos = eth_addr2str(addr1, pbuf);
 		pbuf += pos;
@@ -246,11 +253,70 @@ static int wlan_bt_list_ioctl(wlan_private * priv, struct ifreq *req)
 	wrq->u.data.length = strlen(outstr);
 	if (copy_to_user(wrq->u.data.pointer, (char *)outstr,
 			 wrq->u.data.length)) {
-		lbs_pr_debug(1, "BT_LIST: Copy to user failed!\n");
+		lbs_deb_ioctl("BT_LIST: Copy to user failed!\n");
 		return -EFAULT;
 	}
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_IOCTL);
+	return 0 ;
+}
+
+/**
+ *  @brief          Sets inverted state of blacklist (non-zero if inverted)
+ *  @param priv     A pointer to wlan_private structure
+ *  @param req      A pointer to ifreq structure
+ *  @return         0 --success, otherwise fail
+ */
+static int wlan_bt_set_invert_ioctl(wlan_private * priv, struct ifreq *req)
+{
+	int ret;
+	struct iwreq *wrq = (struct iwreq *)req;
+	union {
+		u32 id;
+		char addr1addr2[2 * ETH_ALEN];
+	} param;
+
+	lbs_deb_enter(LBS_DEB_IOCTL);
+
+	param.id = SUBCMD_DATA(wrq) ;
+	ret = libertas_prepare_and_send_command(priv, cmd_bt_access,
+				    cmd_act_bt_access_set_invert,
+				    cmd_option_waitforrsp, 0,
+				    (char *)&param);
+	if (ret != 0)
+		return -EFAULT;
+	lbs_deb_leave(LBS_DEB_IOCTL);
+	return 0;
+}
+
+/**
+ *  @brief          Gets inverted state of blacklist (non-zero if inverted)
+ *  @param priv     A pointer to wlan_private structure
+ *  @param req      A pointer to ifreq structure
+ *  @return         0 --success, otherwise fail
+ */
+static int wlan_bt_get_invert_ioctl(wlan_private * priv, struct ifreq *req)
+{
+	struct iwreq *wrq = (struct iwreq *)req;
+	int ret;
+	union {
+		u32 id;
+		char addr1addr2[2 * ETH_ALEN];
+	} param;
+
+	lbs_deb_enter(LBS_DEB_IOCTL);
+
+	ret = libertas_prepare_and_send_command(priv, cmd_bt_access,
+				    cmd_act_bt_access_get_invert,
+				    cmd_option_waitforrsp, 0,
+				    (char *)&param);
+
+	if (ret == 0)
+		wrq->u.param.value = le32_to_cpu(param.id);
+	else
+		return -EFAULT;
+
+	lbs_deb_leave(LBS_DEB_IOCTL);
 	return 0;
 }
 
@@ -278,8 +344,10 @@ static int wlan_fwt_add_ioctl(wlan_private * priv, struct ifreq *req)
 	char in_str[128];
 	static struct cmd_ds_fwt_access fwt_access;
 	char *ptr;
+	int ret;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_IOCTL);
+
 	if (copy_from_user(in_str, wrq->u.data.pointer, sizeof(in_str)))
 		return -EFAULT;
 
@@ -297,7 +365,7 @@ static int wlan_fwt_add_ioctl(wlan_private * priv, struct ifreq *req)
 		fwt_access.metric =
 			cpu_to_le32(simple_strtoul(ptr, &ptr, 10));
 	else
-		fwt_access.metric = FWT_DEFAULT_METRIC;
+		fwt_access.metric = cpu_to_le32(FWT_DEFAULT_METRIC);
 
 	if ((ptr = next_param(ptr)))
 		fwt_access.dir = (u8)simple_strtoul(ptr, &ptr, 10);
@@ -305,16 +373,21 @@ static int wlan_fwt_add_ioctl(wlan_private * priv, struct ifreq *req)
 		fwt_access.dir = FWT_DEFAULT_DIR;
 
 	if ((ptr = next_param(ptr)))
+		fwt_access.rate = (u8) simple_strtoul(ptr, &ptr, 10);
+	else
+		fwt_access.rate = FWT_DEFAULT_RATE;
+
+	if ((ptr = next_param(ptr)))
 		fwt_access.ssn =
 			cpu_to_le32(simple_strtoul(ptr, &ptr, 10));
 	else
-		fwt_access.ssn = FWT_DEFAULT_SSN;
+		fwt_access.ssn = cpu_to_le32(FWT_DEFAULT_SSN);
 
 	if ((ptr = next_param(ptr)))
 		fwt_access.dsn =
 			cpu_to_le32(simple_strtoul(ptr, &ptr, 10));
 	else
-		fwt_access.dsn = FWT_DEFAULT_DSN;
+		fwt_access.dsn = cpu_to_le32(FWT_DEFAULT_DSN);
 
 	if ((ptr = next_param(ptr)))
 		fwt_access.hopcount = simple_strtoul(ptr, &ptr, 10);
@@ -330,7 +403,7 @@ static int wlan_fwt_add_ioctl(wlan_private * priv, struct ifreq *req)
 		fwt_access.expiration =
 			cpu_to_le32(simple_strtoul(ptr, &ptr, 10));
 	else
-		fwt_access.expiration = FWT_DEFAULT_EXPIRATION;
+		fwt_access.expiration = cpu_to_le32(FWT_DEFAULT_EXPIRATION);
 
 	if ((ptr = next_param(ptr)))
 		fwt_access.sleepmode = (u8)simple_strtoul(ptr, &ptr, 10);
@@ -341,27 +414,29 @@ static int wlan_fwt_add_ioctl(wlan_private * priv, struct ifreq *req)
 		fwt_access.snr =
 			cpu_to_le32(simple_strtoul(ptr, &ptr, 10));
 	else
-		fwt_access.snr = FWT_DEFAULT_SNR;
+		fwt_access.snr = cpu_to_le32(FWT_DEFAULT_SNR);
 
 #ifdef DEBUG
 	{
 		char ethaddr1_str[18], ethaddr2_str[18];
 		eth_addr2str(fwt_access.da, ethaddr1_str);
 		eth_addr2str(fwt_access.ra, ethaddr2_str);
-		lbs_pr_debug(1, "FWT_ADD: adding (da:%s,%i,ra:%s)\n", ethaddr1_str,
+		lbs_deb_ioctl("FWT_ADD: adding (da:%s,%i,ra:%s)\n", ethaddr1_str,
 		       fwt_access.dir, ethaddr2_str);
-		lbs_pr_debug(1, "FWT_ADD: ssn:%u dsn:%u met:%u hop:%u ttl:%u exp:%u slp:%u snr:%u\n",
+		lbs_deb_ioctl("FWT_ADD: ssn:%u dsn:%u met:%u hop:%u ttl:%u exp:%u slp:%u snr:%u\n",
 		       fwt_access.ssn, fwt_access.dsn, fwt_access.metric,
 		       fwt_access.hopcount, fwt_access.ttl, fwt_access.expiration,
 		       fwt_access.sleepmode, fwt_access.snr);
 	}
 #endif
 
-	LEAVE();
-	return (libertas_prepare_and_send_command(priv, cmd_fwt_access,
-						  cmd_act_fwt_access_add,
-						  cmd_option_waitforrsp, 0,
-						  (void *)&fwt_access));
+	ret = libertas_prepare_and_send_command(priv, cmd_fwt_access,
+						cmd_act_fwt_access_add,
+						cmd_option_waitforrsp, 0,
+						(void *)&fwt_access);
+
+	lbs_deb_leave_args(LBS_DEB_IOCTL, "ret %d", ret);
+	return ret;
 }
 
 /**
@@ -376,8 +451,10 @@ static int wlan_fwt_del_ioctl(wlan_private * priv, struct ifreq *req)
 	char in_str[64];
 	static struct cmd_ds_fwt_access fwt_access;
 	char *ptr;
+	int ret;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_IOCTL);
+
 	if (copy_from_user(in_str, wrq->u.data.pointer, sizeof(in_str)))
 		return -EFAULT;
 
@@ -399,20 +476,21 @@ static int wlan_fwt_del_ioctl(wlan_private * priv, struct ifreq *req)
 #ifdef DEBUG
 	{
 		char ethaddr1_str[18], ethaddr2_str[18];
-		lbs_pr_debug(1, "FWT_DEL: line is %s\n", in_str);
+		lbs_deb_ioctl("FWT_DEL: line is %s\n", in_str);
 		eth_addr2str(fwt_access.da, ethaddr1_str);
 		eth_addr2str(fwt_access.ra, ethaddr2_str);
-		lbs_pr_debug(1, "FWT_DEL: removing (da:%s,ra:%s,dir:%d)\n", ethaddr1_str,
+		lbs_deb_ioctl("FWT_DEL: removing (da:%s,ra:%s,dir:%d)\n", ethaddr1_str,
 		       ethaddr2_str, fwt_access.dir);
 	}
 #endif
 
-	LEAVE();
-	return (libertas_prepare_and_send_command(priv,
-						  cmd_fwt_access,
-						  cmd_act_fwt_access_del,
-						  cmd_option_waitforrsp, 0,
-						  (void *)&fwt_access));
+	ret = libertas_prepare_and_send_command(priv,
+						cmd_fwt_access,
+						cmd_act_fwt_access_del,
+						cmd_option_waitforrsp, 0,
+						(void *)&fwt_access);
+	lbs_deb_leave_args(LBS_DEB_IOCTL, "ret %d", ret);
+	return ret;
 }
 
 
@@ -427,15 +505,18 @@ static void print_route(struct cmd_ds_fwt_access fwt_access, char *buf)
 	buf += eth_addr2str(fwt_access.da, buf);
 	buf += sprintf(buf, " ");
 	buf += eth_addr2str(fwt_access.ra, buf);
+	buf += sprintf(buf, " %u", fwt_access.valid);
 	buf += sprintf(buf, " %u", le32_to_cpu(fwt_access.metric));
 	buf += sprintf(buf, " %u", fwt_access.dir);
+	buf += sprintf(buf, " %u", fwt_access.rate);
 	buf += sprintf(buf, " %u", le32_to_cpu(fwt_access.ssn));
 	buf += sprintf(buf, " %u", le32_to_cpu(fwt_access.dsn));
 	buf += sprintf(buf, " %u", fwt_access.hopcount);
 	buf += sprintf(buf, " %u", fwt_access.ttl);
 	buf += sprintf(buf, " %u", le32_to_cpu(fwt_access.expiration));
 	buf += sprintf(buf, " %u", fwt_access.sleepmode);
-	buf += sprintf(buf, " %u", le32_to_cpu(fwt_access.snr));
+	buf += sprintf(buf, " %u ", le32_to_cpu(fwt_access.snr));
+	buf += eth_addr2str(fwt_access.prec, buf);
 }
 
 /**
@@ -453,7 +534,8 @@ static int wlan_fwt_lookup_ioctl(wlan_private * priv, struct ifreq *req)
 	static char out_str[128];
 	int ret;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_IOCTL);
+
 	if (copy_from_user(in_str, wrq->u.data.pointer, sizeof(in_str)))
 		return -EFAULT;
 
@@ -465,9 +547,9 @@ static int wlan_fwt_lookup_ioctl(wlan_private * priv, struct ifreq *req)
 #ifdef DEBUG
 	{
 		char ethaddr1_str[18];
-		lbs_pr_debug(1, "FWT_LOOKUP: line is %s\n", in_str);
+		lbs_deb_ioctl("FWT_LOOKUP: line is %s\n", in_str);
 		eth_addr2str(fwt_access.da, ethaddr1_str);
-		lbs_pr_debug(1, "FWT_LOOKUP: looking for (da:%s)\n", ethaddr1_str);
+		lbs_deb_ioctl("FWT_LOOKUP: looking for (da:%s)\n", ethaddr1_str);
 	}
 #endif
 
@@ -485,11 +567,11 @@ static int wlan_fwt_lookup_ioctl(wlan_private * priv, struct ifreq *req)
 	wrq->u.data.length = strlen(out_str);
 	if (copy_to_user(wrq->u.data.pointer, (char *)out_str,
 			 wrq->u.data.length)) {
-		lbs_pr_debug(1, "FWT_LOOKUP: Copy to user failed!\n");
+		lbs_deb_ioctl("FWT_LOOKUP: Copy to user failed!\n");
 		return -EFAULT;
 	}
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_IOCTL);
 	return 0;
 }
 
@@ -500,7 +582,7 @@ static int wlan_fwt_lookup_ioctl(wlan_private * priv, struct ifreq *req)
  */
 static int wlan_fwt_reset_ioctl(wlan_private * priv)
 {
-	lbs_pr_debug(1, "FWT: resetting\n");
+	lbs_deb_ioctl("FWT: resetting\n");
 
 	return (libertas_prepare_and_send_command(priv,
 				      cmd_fwt_access,
@@ -522,18 +604,21 @@ static int wlan_fwt_list_ioctl(wlan_private * priv, struct ifreq *req)
 	char *ptr = in_str;
 	static char out_str[128];
 	char *pbuf = out_str;
-	int ret;
+	int ret = 0;
 
-	ENTER();
-	if (copy_from_user(in_str, wrq->u.data.pointer, sizeof(in_str)))
-		return -EFAULT;
+	lbs_deb_enter(LBS_DEB_IOCTL);
+
+	if (copy_from_user(in_str, wrq->u.data.pointer, sizeof(in_str))) {
+		ret = -EFAULT;
+		goto out;
+	}
 
 	fwt_access.id = cpu_to_le32(simple_strtoul(ptr, &ptr, 10));
 
 #ifdef DEBUG
 	{
-		lbs_pr_debug(1, "FWT_LIST: line is %s\n", in_str);
-		lbs_pr_debug(1, "FWT_LIST: listing id:%i\n", le32_to_cpu(fwt_access.id));
+		lbs_deb_ioctl("FWT_LIST: line is %s\n", in_str);
+		lbs_deb_ioctl("FWT_LIST: listing id:%i\n", le32_to_cpu(fwt_access.id));
 	}
 #endif
 
@@ -549,12 +634,16 @@ static int wlan_fwt_list_ioctl(wlan_private * priv, struct ifreq *req)
 	wrq->u.data.length = strlen(out_str);
 	if (copy_to_user(wrq->u.data.pointer, (char *)out_str,
 			 wrq->u.data.length)) {
-		lbs_pr_debug(1, "FWT_LIST: Copy to user failed!\n");
-		return -EFAULT;
+		lbs_deb_ioctl("FWT_LIST: Copy to user failed!\n");
+		ret = -EFAULT;
+		goto out;
 	}
 
-	LEAVE();
-	return 0;
+	ret = 0;
+
+out:
+	lbs_deb_leave(LBS_DEB_IOCTL);
+	return ret;
 }
 
 /**
@@ -573,7 +662,8 @@ static int wlan_fwt_list_route_ioctl(wlan_private * priv, struct ifreq *req)
 	char *pbuf = out_str;
 	int ret;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_IOCTL);
+
 	if (copy_from_user(in_str, wrq->u.data.pointer, sizeof(in_str)))
 		return -EFAULT;
 
@@ -581,8 +671,8 @@ static int wlan_fwt_list_route_ioctl(wlan_private * priv, struct ifreq *req)
 
 #ifdef DEBUG
 	{
-		lbs_pr_debug(1, "FWT_LIST_ROUTE: line is %s\n", in_str);
-		lbs_pr_debug(1, "FWT_LIST_ROUTE: listing id:%i\n", le32_to_cpu(fwt_access.id));
+		lbs_deb_ioctl("FWT_LIST_ROUTE: line is %s\n", in_str);
+		lbs_deb_ioctl("FWT_LIST_ROUTE: listing id:%i\n", le32_to_cpu(fwt_access.id));
 	}
 #endif
 
@@ -591,28 +681,18 @@ static int wlan_fwt_list_route_ioctl(wlan_private * priv, struct ifreq *req)
 				    cmd_option_waitforrsp, 0, (void *)&fwt_access);
 
 	if (ret == 0) {
-		pbuf += sprintf(pbuf, " ");
-		pbuf += eth_addr2str(fwt_access.da, pbuf);
-		pbuf += sprintf(pbuf, " %u", le32_to_cpu(fwt_access.metric));
-		pbuf += sprintf(pbuf, " %u", fwt_access.dir);
-		/* note that the firmware returns the nid in the id field */
-		pbuf += sprintf(pbuf, " %u", le32_to_cpu(fwt_access.id));
-		pbuf += sprintf(pbuf, " %u", le32_to_cpu(fwt_access.ssn));
-		pbuf += sprintf(pbuf, " %u", le32_to_cpu(fwt_access.dsn));
-		pbuf += sprintf(pbuf, "  hop %u", fwt_access.hopcount);
-		pbuf += sprintf(pbuf, "  ttl %u", fwt_access.ttl);
-		pbuf += sprintf(pbuf, " %u", le32_to_cpu(fwt_access.expiration));
+		print_route(fwt_access, pbuf);
 	} else
 		pbuf += sprintf(pbuf, " (null)");
 
 	wrq->u.data.length = strlen(out_str);
 	if (copy_to_user(wrq->u.data.pointer, (char *)out_str,
 			 wrq->u.data.length)) {
-		lbs_pr_debug(1, "FWT_LIST_ROUTE: Copy to user failed!\n");
+		lbs_deb_ioctl("FWT_LIST_ROUTE: Copy to user failed!\n");
 		return -EFAULT;
 	}
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_IOCTL);
 	return 0;
 }
 
@@ -632,7 +712,8 @@ static int wlan_fwt_list_neighbor_ioctl(wlan_private * priv, struct ifreq *req)
 	char *pbuf = out_str;
 	int ret;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_IOCTL);
+
 	if (copy_from_user(in_str, wrq->u.data.pointer, sizeof(in_str)))
 		return -EFAULT;
 
@@ -641,8 +722,8 @@ static int wlan_fwt_list_neighbor_ioctl(wlan_private * priv, struct ifreq *req)
 
 #ifdef DEBUG
 	{
-		lbs_pr_debug(1, "FWT_LIST_NEIGHBOR: line is %s\n", in_str);
-		lbs_pr_debug(1, "FWT_LIST_NEIGHBOR: listing id:%i\n", le32_to_cpu(fwt_access.id));
+		lbs_deb_ioctl("FWT_LIST_NEIGHBOR: line is %s\n", in_str);
+		lbs_deb_ioctl("FWT_LIST_NEIGHBOR: listing id:%i\n", le32_to_cpu(fwt_access.id));
 	}
 #endif
 
@@ -663,11 +744,11 @@ static int wlan_fwt_list_neighbor_ioctl(wlan_private * priv, struct ifreq *req)
 	wrq->u.data.length = strlen(out_str);
 	if (copy_to_user(wrq->u.data.pointer, (char *)out_str,
 			 wrq->u.data.length)) {
-		lbs_pr_debug(1, "FWT_LIST_NEIGHBOR: Copy to user failed!\n");
+		lbs_deb_ioctl("FWT_LIST_NEIGHBOR: Copy to user failed!\n");
 		return -EFAULT;
 	}
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_IOCTL);
 	return 0;
 }
 
@@ -684,9 +765,9 @@ static int wlan_fwt_cleanup_ioctl(wlan_private * priv, struct ifreq *req)
 	static struct cmd_ds_fwt_access fwt_access;
 	int ret;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_IOCTL);
 
-	lbs_pr_debug(1, "FWT: cleaning up\n");
+	lbs_deb_ioctl("FWT: cleaning up\n");
 
 	memset(&fwt_access, 0, sizeof(fwt_access));
 
@@ -700,7 +781,7 @@ static int wlan_fwt_cleanup_ioctl(wlan_private * priv, struct ifreq *req)
 	else
 		return -EFAULT;
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_IOCTL);
 	return 0;
 }
 
@@ -716,9 +797,9 @@ static int wlan_fwt_time_ioctl(wlan_private * priv, struct ifreq *req)
 	static struct cmd_ds_fwt_access fwt_access;
 	int ret;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_IOCTL);
 
-	lbs_pr_debug(1, "FWT: getting time\n");
+	lbs_deb_ioctl("FWT: getting time\n");
 
 	memset(&fwt_access, 0, sizeof(fwt_access));
 
@@ -732,7 +813,7 @@ static int wlan_fwt_time_ioctl(wlan_private * priv, struct ifreq *req)
 	else
 		return -EFAULT;
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_IOCTL);
 	return 0;
 }
 
@@ -748,7 +829,7 @@ static int wlan_mesh_get_ttl_ioctl(wlan_private * priv, struct ifreq *req)
 	struct cmd_ds_mesh_access mesh_access;
 	int ret;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_IOCTL);
 
 	memset(&mesh_access, 0, sizeof(mesh_access));
 
@@ -762,7 +843,7 @@ static int wlan_mesh_get_ttl_ioctl(wlan_private * priv, struct ifreq *req)
 	else
 		return -EFAULT;
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_IOCTL);
 	return 0;
 }
 
@@ -777,13 +858,13 @@ static int wlan_mesh_set_ttl_ioctl(wlan_private * priv, int ttl)
 	struct cmd_ds_mesh_access mesh_access;
 	int ret;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_IOCTL);
 
 	if( (ttl > 0xff) || (ttl < 0) )
 		return -EINVAL;
 
 	memset(&mesh_access, 0, sizeof(mesh_access));
-	mesh_access.data[0] = ttl;
+	mesh_access.data[0] = cpu_to_le32(ttl);
 
 	ret = libertas_prepare_and_send_command(priv, cmd_mesh_access,
 						cmd_act_mesh_set_ttl,
@@ -793,7 +874,7 @@ static int wlan_mesh_set_ttl_ioctl(wlan_private * priv, int ttl)
 	if (ret != 0)
 		ret = -EFAULT;
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_IOCTL);
 	return ret;
 }
 
@@ -815,9 +896,9 @@ int libertas_do_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 	wlan_adapter *adapter = priv->adapter;
 	struct iwreq *wrq = (struct iwreq *)req;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_IOCTL);
 
-	lbs_pr_debug(1, "libertas_do_ioctl: ioctl cmd = 0x%x\n", cmd);
+	lbs_deb_ioctl("libertas_do_ioctl: ioctl cmd = 0x%x\n", cmd);
 	switch (cmd) {
 	case WLAN_SETNONE_GETNONE:	/* set WPA mode on/off ioctl #20 */
 		switch (wrq->u.data.flags) {
@@ -847,6 +928,10 @@ int libertas_do_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 			idata = SUBCMD_DATA(wrq);
 			ret = wlan_mesh_set_ttl_ioctl(priv, idata);
 			break;
+
+		case WLAN_SUBCMD_BT_SET_INVERT:
+			ret = wlan_bt_set_invert_ioctl(priv, req);
+			break ;
 
 		default:
 			ret = -EOPNOTSUPP;
@@ -905,6 +990,10 @@ int libertas_do_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 			ret = wlan_mesh_get_ttl_ioctl(priv, req);
 			break;
 
+		case WLAN_SUBCMD_BT_GET_INVERT:
+			ret = wlan_bt_get_invert_ioctl(priv, req);
+			break ;
+
 		default:
 			ret = -EOPNOTSUPP;
 
@@ -937,7 +1026,7 @@ int libertas_do_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 					    (data, wrq->u.data.pointer,
 					     sizeof(int) *
 					     wrq->u.data.length)) {
-						lbs_pr_debug(1,
+						lbs_deb_ioctl(
 						       "Copy from user failed\n");
 						return -EFAULT;
 					}
@@ -970,7 +1059,7 @@ int libertas_do_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 				if (copy_to_user(wrq->u.data.pointer, data,
 						 sizeof(int) *
 						 gpio->header.len)) {
-					lbs_pr_debug(1, "Copy to user failed\n");
+					lbs_deb_ioctl("Copy to user failed\n");
 					return -EFAULT;
 				}
 
@@ -984,7 +1073,8 @@ int libertas_do_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 		ret = -EINVAL;
 		break;
 	}
-	LEAVE();
+
+	lbs_deb_leave_args(LBS_DEB_IOCTL, "ret %d", ret);
 	return ret;
 }
 

@@ -99,11 +99,11 @@
 #define cmd_bt_access                 0x0087
 #define cmd_ret_bt_access                 0x8087
 
-#define cmd_fwt_access                0x0088
-#define cmd_ret_fwt_access                0x8088
+#define cmd_fwt_access                0x0095
+#define cmd_ret_fwt_access                0x8095
 
-#define cmd_mesh_access               0x0090
-#define cmd_ret_mesh_access               0x8090
+#define cmd_mesh_access               0x009b
+#define cmd_ret_mesh_access               0x809b
 
 /* For the IEEE Power Save */
 #define cmd_subcmd_enter_ps               0x0030
@@ -287,7 +287,9 @@ enum cmd_bt_access_opts {
 	cmd_act_bt_access_add = 5,
 	cmd_act_bt_access_del,
 	cmd_act_bt_access_list,
-	cmd_act_bt_access_reset
+	cmd_act_bt_access_reset,
+	cmd_act_bt_access_set_invert,
+	cmd_act_bt_access_get_invert
 };
 
 /* Define action or option for cmd_fwt_access */
@@ -308,8 +310,8 @@ enum cmd_mesh_access_opts {
 	cmd_act_mesh_get_ttl = 1,
 	cmd_act_mesh_set_ttl,
 	cmd_act_mesh_get_stats,
-	cmd_act_mesh_get_mpp,
-	cmd_act_mesh_set_mpp,
+	cmd_act_mesh_get_anycast,
+	cmd_act_mesh_set_anycast,
 };
 
 /** Card Event definition */
@@ -334,5 +336,6 @@ enum cmd_mesh_access_opts {
 #define MACREG_INT_CODE_MAX_FAIL		0x0000001b
 #define MACREG_INT_CODE_RSSI_HIGH		0x0000001c
 #define MACREG_INT_CODE_SNR_HIGH		0x0000001d
+#define MACREG_INT_CODE_MESH_AUTO_STARTED	0x00000023
 
 #endif				/* _HOST_H_ */

@@ -454,16 +454,12 @@ int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port)
 
 int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port)
 {
-	u32 reg;
 	u32 portnum = physical_port[adapter->portnum];
 
 	netxen_crb_writelit_adapter(adapter,
-		NETXEN_NIU_XGE_CONFIG_0+(0x10000*portnum), 0x5);
-	netxen_nic_hw_read_wx(adapter,
-		NETXEN_NIU_XGE_CONFIG_1+(0x10000*portnum), &reg, 4);
-	reg = (reg & ~0x2000UL);
+		NETXEN_NIU_XGE_CONFIG_1+(0x10000*portnum), 0x1447);
 	netxen_crb_writelit_adapter(adapter,
-		NETXEN_NIU_XGE_CONFIG_1+(0x10000*portnum), reg);
+		NETXEN_NIU_XGE_CONFIG_0+(0x10000*portnum), 0x5);
 
 	return 0;
 }

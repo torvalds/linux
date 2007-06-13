@@ -21,11 +21,11 @@ static inline void wlan_activate_thread(struct wlan_thread * thr)
 
 static inline void wlan_deactivate_thread(struct wlan_thread * thr)
 {
-	ENTER();
+	lbs_deb_enter(LBS_DEB_THREAD);
 
 	thr->pid = 0;
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_THREAD);
 }
 
 static inline void wlan_create_thread(int (*wlanfunc) (void *),
@@ -36,7 +36,7 @@ static inline void wlan_create_thread(int (*wlanfunc) (void *),
 
 static inline int wlan_terminate_thread(struct wlan_thread * thr)
 {
-	ENTER();
+	lbs_deb_enter(LBS_DEB_THREAD);
 
 	/* Check if the thread is active or not */
 	if (!thr->pid) {
@@ -45,7 +45,7 @@ static inline int wlan_terminate_thread(struct wlan_thread * thr)
 	}
 	kthread_stop(thr->task);
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_THREAD);
 	return 0;
 }
 

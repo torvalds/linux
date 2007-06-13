@@ -1,7 +1,7 @@
 ================================================================================
 			README for USB8388
 
- (c) Copyright © 2003-2006, Marvell International Ltd.
+ (c) Copyright Â© 2003-2006, Marvell International Ltd.
  All Rights Reserved
 
  This software file (the "File") is distributed by Marvell International
@@ -47,15 +47,19 @@ Version 5 Command:
 	iwpriv ethX ledgpio <n>
 
 BT Commands:
-	The blinding table (BT) contains a list of mac addresses that should be
-	ignored by the firmware.  It is primarily used for debugging and
-	testing networks.  It can be edited and inspected with the following
-	commands:
+	The blinding table (BT) contains a list of mac addresses that will be,
+	by default, ignored by the firmware. It is also possible to invert this
+	behavior so that we will ignore all traffic except for the portion
+	coming from mac addresess in the list. It is primarily used for
+	debugging and testing networks.  It can be edited and inspected with
+	the following commands:
 
 	iwpriv ethX bt_reset
 	iwpriv ethX bt_add <mac_address>
 	iwpriv ethX bt_del <mac_address>
 	iwpriv ethX bt_list <id>
+	iwpriv ethX bt_get_invert <n>
+	iwpriv ethX bt_set_invert <n>
 
 FWT Commands:
 	The forwarding table (FWT) is a feature used to manage mesh network
@@ -135,7 +139,7 @@ fwt_add
 	This command is used to insert an entry into the FWT table. The list of
 	parameters must follow the following structure:
 
-	iwpriv ethX fwt_add da ra [metric dir ssn dsn hopcount ttl expiration sleepmode snr]
+	iwpriv ethX fwt_add da ra [metric dir rate ssn dsn hopcount ttl expiration sleepmode snr]
 
 	The parameters between brackets are optional, but they must appear in
 	the order specified.  For example, if you want to specify the metric,
@@ -150,6 +154,9 @@ fwt_add
 				   preferred, default is 0)
 		dir		-- direction (1 for direct, 0 for reverse,
 				   default is 1)
+		rate		-- data rate used for transmission to the RA,
+				   as specified for the rateadapt command,
+				   default is 3 (11Mbps)
 		ssn		-- Source Sequence Number (time at the RA for
 				   reverse routes.  Default is 0)
 		dsn		-- Destination Sequence Number (time at the DA
@@ -207,13 +214,17 @@ fwt_list
 
 	The output is a string of the following form:
 
-		da ra metric dir ssn dsn hopcount ttl expiration sleepmode snr
+		da ra valid metric dir rate ssn dsn hopcount ttl expiration
+		sleepmode snr precursor
 
 	where the different fields are:-
 		da		-- DA MAC address (in the form "00:11:22:33:44:55")
 		ra		-- RA MAC address (in the form "00:11:22:33:44:55")
+		valid		-- whether the route is valid (0 if not valid)
 		metric		-- route metric (cost: smaller-metric routes are preferred)
 		dir		-- direction (1 for direct, 0 for reverse)
+		rate		-- data rate used for transmission to the RA,
+				   as specified for the rateadapt command
 		ssn		-- Source Sequence Number (time at the RA for reverse routes)
 		dsn		-- Destination Sequence Number (time at the DA for direct routes)
 		hopcount	-- hop count (currently unused)
@@ -221,33 +232,10 @@ fwt_list
 		expiration	-- entry expiration (in ticks, where a tick is 1024us, or ~ 1ms. Use 0 for an indefinite entry)
 		sleepmode	-- RA's sleep mode (currently unused)
 		snr		-- SNR in the link to RA (currently unused)
+		precursor	-- predecessor in direct routes
 
 fwt_list_route
-	This command is used to list a route from the FWT table. The only
-	parameter is the route ID. If you want to list all the routes in a
-	table, start with rid=0, and keep incrementing rid until you get a
-	"(null)" string. This function is similar to fwt_list. The only
-	difference is the output format.  Also note that this command is meant
-	for debugging.  It is expected that users will use fwt_lookup and
-	fwt_list.  One important reason for this is that the route id may change
-	as the route table is altered.
-
-		iwpriv ethX fwt_list_route rid
-
-	The output is a string of the following form:
-
-		da metric dir nid ssn dsn hopcount ttl expiration
-
-	where the different fields are:-
-		da		-- DA MAC address (in the form "00:11:22:33:44:55")
-		metric		-- route metric (cost: smaller-metric routes are preferred)
-		dir		-- direction (1 for direct, 0 for reverse)
-		nid		-- Next-hop (neighbor) host ID (nid)
-		ssn		-- Source Sequence Number (time at the RA for reverse routes)
-		dsn		-- Destination Sequence Number (time at the DA for direct routes)
-		hopcount	-- hop count (currently unused)
-		ttl		-- TTL count (only used in reverse entries)
-		expiration	-- entry expiration (in ticks, where a tick is 1024us, or ~ 1ms. Use 0 for an indefinite entry)
+	This command is equivalent to fwt_list.
 
 fwt_list_neigh
 	This command is used to list a neighbor from the FWT table. The only

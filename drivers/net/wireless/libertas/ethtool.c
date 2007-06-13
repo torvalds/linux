@@ -1,10 +1,8 @@
-
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/delay.h>
 
 #include "host.h"
-#include "sbi.h"
 #include "decl.h"
 #include "defs.h"
 #include "dev.h"
@@ -17,7 +15,8 @@ static const char * mesh_stat_strings[]= {
 			"drop_no_buffers",
 			"fwded_unicast_cnt",
 			"fwded_bcast_cnt",
-			"drop_blind_table"
+			"drop_blind_table",
+			"tx_failed_cnt"
 };
 
 static void libertas_ethtool_get_drvinfo(struct net_device *dev,
@@ -69,7 +68,7 @@ static int libertas_ethtool_get_eeprom(struct net_device *dev,
 
 	/* +14 is for action, offset, and NOB in
 	 * response */
-	lbs_pr_debug(1, "action:%d offset: %x NOB: %02x\n",
+	lbs_deb_ethtool("action:%d offset: %x NOB: %02x\n",
 	       regctrl.action, regctrl.offset, regctrl.NOB);
 
 	ret = libertas_prepare_and_send_command(priv,
@@ -81,8 +80,7 @@ static int libertas_ethtool_get_eeprom(struct net_device *dev,
 	if (ret) {
 		if (adapter->prdeeprom)
 			kfree(adapter->prdeeprom);
-		LEAVE();
-			return ret;
+		goto done;
 	}
 
 	mdelay(10);
@@ -101,7 +99,11 @@ static int libertas_ethtool_get_eeprom(struct net_device *dev,
 		kfree(adapter->prdeeprom);
 //	mutex_unlock(&priv->mutex);
 
-        return 0;
+	ret = 0;
+
+done:
+	lbs_deb_enter_args(LBS_DEB_ETHTOOL, "ret %d", ret);
+        return ret;
 }
 
 static void libertas_ethtool_get_stats(struct net_device * dev,
@@ -109,7 +111,7 @@ static void libertas_ethtool_get_stats(struct net_device * dev,
 {
 	wlan_private *priv = dev->priv;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ETHTOOL);
 
 	stats->cmd = ETHTOOL_GSTATS;
 	BUG_ON(stats->n_stats != MESH_STATS_NUM);
@@ -121,8 +123,9 @@ static void libertas_ethtool_get_stats(struct net_device * dev,
         data[4] = priv->mstats.fwd_unicast_cnt;
         data[5] = priv->mstats.fwd_bcast_cnt;
         data[6] = priv->mstats.drop_blind;
+        data[7] = priv->mstats.tx_failed_cnt;
 
-	LEAVE();
+	lbs_deb_enter(LBS_DEB_ETHTOOL);
 }
 
 static int libertas_ethtool_get_stats_count(struct net_device * dev)
@@ -131,27 +134,32 @@ static int libertas_ethtool_get_stats_count(struct net_device * dev)
 	wlan_private *priv = dev->priv;
 	struct cmd_ds_mesh_access mesh_access;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ETHTOOL);
+
 	/* Get Mesh Statistics */
 	ret = libertas_prepare_and_send_command(priv,
 			cmd_mesh_access, cmd_act_mesh_get_stats,
 			cmd_option_waitforrsp, 0, &mesh_access);
 
 	if (ret) {
-		LEAVE();
-		return 0;
+		ret = 0;
+		goto done;
 	}
 
-        priv->mstats.fwd_drop_rbt = mesh_access.data[0];
-        priv->mstats.fwd_drop_ttl = mesh_access.data[1];
-        priv->mstats.fwd_drop_noroute = mesh_access.data[2];
-        priv->mstats.fwd_drop_nobuf = mesh_access.data[3];
-        priv->mstats.fwd_unicast_cnt = mesh_access.data[4];
-        priv->mstats.fwd_bcast_cnt = mesh_access.data[5];
-        priv->mstats.drop_blind = mesh_access.data[6];
+        priv->mstats.fwd_drop_rbt = le32_to_cpu(mesh_access.data[0]);
+        priv->mstats.fwd_drop_ttl = le32_to_cpu(mesh_access.data[1]);
+        priv->mstats.fwd_drop_noroute = le32_to_cpu(mesh_access.data[2]);
+        priv->mstats.fwd_drop_nobuf = le32_to_cpu(mesh_access.data[3]);
+        priv->mstats.fwd_unicast_cnt = le32_to_cpu(mesh_access.data[4]);
+        priv->mstats.fwd_bcast_cnt = le32_to_cpu(mesh_access.data[5]);
+        priv->mstats.drop_blind = le32_to_cpu(mesh_access.data[6]);
+        priv->mstats.tx_failed_cnt = le32_to_cpu(mesh_access.data[7]);
 
-	LEAVE();
-	return MESH_STATS_NUM;
+	ret = MESH_STATS_NUM;
+
+done:
+	lbs_deb_enter_args(LBS_DEB_ETHTOOL, "ret %d", ret);
+	return ret;
 }
 
 static void libertas_ethtool_get_strings (struct net_device * dev,
@@ -160,7 +168,8 @@ static void libertas_ethtool_get_strings (struct net_device * dev,
 {
 	int i;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_ETHTOOL);
+
 	switch (stringset) {
         case ETH_SS_STATS:
 		for (i=0; i < MESH_STATS_NUM; i++) {
@@ -170,7 +179,7 @@ static void libertas_ethtool_get_strings (struct net_device * dev,
 		}
 		break;
         }
-	LEAVE();
+	lbs_deb_enter(LBS_DEB_ETHTOOL);
 }
 
 struct ethtool_ops libertas_ethtool_ops = {

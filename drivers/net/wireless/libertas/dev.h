@@ -63,11 +63,11 @@ struct wlan_802_11_security {
 
 /** Current Basic Service Set State Structure */
 struct current_bss_params {
-	struct bss_descriptor bssdescriptor;
 	/** bssid */
 	u8 bssid[ETH_ALEN];
 	/** ssid */
-	struct WLAN_802_11_SSID ssid;
+	u8 ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 ssid_len;
 
 	/** band */
 	u8 band;
@@ -89,31 +89,6 @@ struct sleep_params {
 	u16 sp_reserved;
 };
 
-/** Data structure for the Marvell WLAN device */
-typedef struct _wlan_dev {
-	/** device name */
-	char name[DEV_NAME_LEN];
-	/** card pointer */
-	void *card;
-	/** IO port */
-	u32 ioport;
-	/** Upload received */
-	u32 upld_rcv;
-	/** Upload type */
-	u32 upld_typ;
-	/** Upload length */
-	u32 upld_len;
-	/** netdev pointer */
-	struct net_device *netdev;
-	/* Upload buffer */
-	u8 upld_buf[WLAN_UPLD_SIZE];
-	/* Download sent:
-	   bit0 1/0=data_sent/data_tx_done,
-	   bit1 1/0=cmd_sent/cmd_tx_done,
-	   all other bits reserved 0 */
-	u8 dnld_sent;
-} wlan_dev_t, *pwlan_dev_t;
-
 /* Mesh statistics */
 struct wlan_mesh_stats {
 	u32	fwd_bcast_cnt;		/* Fwd: Broadcast counter */
@@ -123,6 +98,7 @@ struct wlan_mesh_stats {
 	u32	fwd_drop_noroute; 	/* Fwd: No route to Destination */
 	u32	fwd_drop_nobuf;		/* Fwd: Run out of internal buffers */
 	u32	drop_blind;		/* Rx:  Dropped by blinding table */
+	u32	tx_failed_cnt;		/* Tx:  Failed transmissions */
 };
 
 /** Private structure for the MV device */
@@ -131,8 +107,11 @@ struct _wlan_private {
 	int mesh_open;
 	int infra_open;
 
+	char name[DEV_NAME_LEN];
+
+	void *card;
 	wlan_adapter *adapter;
-	wlan_dev_t wlan_dev;
+	struct net_device *dev;
 
 	struct net_device_stats stats;
 	struct net_device *mesh_dev ; /* Virtual device */
@@ -153,6 +132,16 @@ struct _wlan_private {
 	u32 bbp_offset;
 	u32 rf_offset;
 
+	/** Upload length */
+	u32 upld_len;
+	/* Upload buffer */
+	u8 upld_buf[WLAN_UPLD_SIZE];
+	/* Download sent:
+	   bit0 1/0=data_sent/data_tx_done,
+	   bit1 1/0=cmd_sent/cmd_tx_done,
+	   all other bits reserved 0 */
+	u8 dnld_sent;
+
 	const struct firmware *firmware;
 	struct device *hotplug_device;
 
@@ -161,6 +150,15 @@ struct _wlan_private {
 
 	struct delayed_work assoc_work;
 	struct workqueue_struct *assoc_thread;
+	struct work_struct sync_channel;
+
+	/** Hardware access */
+	int (*hw_register_dev) (wlan_private * priv);
+	int (*hw_unregister_dev) (wlan_private *);
+	int (*hw_prog_firmware) (wlan_private *);
+	int (*hw_host_to_card) (wlan_private * priv, u8 type, u8 * payload, u16 nb);
+	int (*hw_get_int_status) (wlan_private * priv, u8 *);
+	int (*hw_read_event_cause) (wlan_private *);
 };
 
 /** Association request
@@ -171,18 +169,21 @@ struct _wlan_private {
 struct assoc_request {
 #define ASSOC_FLAG_SSID			1
 #define ASSOC_FLAG_CHANNEL		2
-#define ASSOC_FLAG_MODE			3
-#define ASSOC_FLAG_BSSID		4
-#define ASSOC_FLAG_WEP_KEYS		5
-#define ASSOC_FLAG_WEP_TX_KEYIDX	6
-#define ASSOC_FLAG_WPA_MCAST_KEY	7
-#define ASSOC_FLAG_WPA_UCAST_KEY	8
-#define ASSOC_FLAG_SECINFO		9
-#define ASSOC_FLAG_WPA_IE		10
+#define ASSOC_FLAG_BAND			3
+#define ASSOC_FLAG_MODE			4
+#define ASSOC_FLAG_BSSID		5
+#define ASSOC_FLAG_WEP_KEYS		6
+#define ASSOC_FLAG_WEP_TX_KEYIDX	7
+#define ASSOC_FLAG_WPA_MCAST_KEY	8
+#define ASSOC_FLAG_WPA_UCAST_KEY	9
+#define ASSOC_FLAG_SECINFO		10
+#define ASSOC_FLAG_WPA_IE		11
 	unsigned long flags;
 
-	struct WLAN_802_11_SSID ssid;
+	u8 ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 ssid_len;
 	u8 channel;
+	u8 band;
 	u8 mode;
 	u8 bssid[ETH_ALEN];
 
@@ -199,12 +200,15 @@ struct assoc_request {
 	/** WPA Information Elements*/
 	u8 wpa_ie[MAX_WPA_IE_LEN];
 	u8 wpa_ie_len;
+
+	/* BSS to associate with for infrastructure of Ad-Hoc join */
+	struct bss_descriptor bss;
 };
 
 /** Wlan adapter data structure*/
 struct _wlan_adapter {
 	/** STATUS variables */
-	u32 fwreleasenumber;
+	u8 fwreleasenumber[4];
 	u32 fwcapinfo;
 	/* protected with big lock */
 
@@ -255,13 +259,14 @@ struct _wlan_adapter {
 	/* IW_MODE_* */
 	u8 mode;
 
-	struct bss_descriptor *pattemptedbssdesc;
+	u8 prev_ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 prev_ssid_len;
+	u8 prev_bssid[ETH_ALEN];
 
-	struct WLAN_802_11_SSID previousssid;
-	u8 previousbssid[ETH_ALEN];
-
-	struct bss_descriptor *scantable;
-	u32 numinscantable;
+	/* Scan results list */
+	struct list_head network_list;
+	struct list_head network_free_list;
+	struct bss_descriptor *networks;
 
 	u8 scantype;
 	u32 scanmode;
@@ -288,7 +293,6 @@ struct _wlan_adapter {
 	u32 txantenna;
 	u32 rxantenna;
 
-	u8 adhocchannel;
 	u32 fragthsd;
 	u32 rtsthsd;
 
@@ -324,7 +328,8 @@ struct _wlan_adapter {
 	u16 locallisteninterval;
 	u16 nullpktinterval;
 
-	struct assoc_request * assoc_req;
+	struct assoc_request * pending_assoc_req;
+	struct assoc_request * in_progress_assoc_req;
 
 	/** Encryption parameter */
 	struct wlan_802_11_security secinfo;
@@ -396,6 +401,8 @@ struct _wlan_adapter {
 	u32 radiomode;
 	u32 debugmode;
 	u8 fw_ready;
+
+	u8 last_scanned_channel;
 };
 
 #endif				/* _WLAN_DEV_H_ */

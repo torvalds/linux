@@ -51,7 +51,7 @@ struct wlan_scan_cmd_config {
     /**
      *  @brief Specific BSSID used to filter scan results in the firmware
      */
-	u8 specificBSSID[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
 
     /**
      *  @brief length of TLVs sent in command starting at tlvBuffer
@@ -91,15 +91,6 @@ struct wlan_ioctl_user_scan_chan {
  *  @sa libertas_set_user_scan_ioctl
  */
 struct wlan_ioctl_user_scan_cfg {
-
-    /**
-     *  @brief Flag set to keep the previous scan table intact
-     *
-     *  If set, the scan results will accumulate, replacing any previous
-     *   matched entries for a BSS with the new scan data
-     */
-	u8 keeppreviousscan;	//!< Do not erase the existing scan results
-
     /**
      *  @brief BSS type to be sent in the firmware command
      *
@@ -117,15 +108,22 @@ struct wlan_ioctl_user_scan_cfg {
      */
 	u8 numprobes;
 
-    /**
-     *  @brief BSSID filter sent in the firmware command to limit the results
-     */
-	u8 specificBSSID[ETH_ALEN];
+	/**
+	 *  @brief BSSID filter sent in the firmware command to limit the results
+	 */
+	u8 bssid[ETH_ALEN];
 
-    /**
-     *  @brief SSID filter sent in the firmware command to limit the results
-     */
-	char specificSSID[IW_ESSID_MAX_SIZE + 1];
+	/* Clear existing scan results matching this BSSID */
+	u8 clear_bssid;
+
+	/**
+	 *  @brief SSID filter sent in the firmware command to limit the results
+	 */
+	char ssid[IW_ESSID_MAX_SIZE];
+	u8 ssid_len;
+
+	/* Clear existing scan results matching this SSID */
+	u8 clear_ssid;
 
     /**
      *  @brief Variable number (fixed maximum) of channels to scan up
@@ -137,9 +135,10 @@ struct wlan_ioctl_user_scan_cfg {
  *  @brief Structure used to store information for each beacon/probe response
  */
 struct bss_descriptor {
-	u8 macaddress[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
 
-	struct WLAN_802_11_SSID ssid;
+	u8 ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 ssid_len;
 
 	/* WEP encryption requirement */
 	u32 privacy;
@@ -156,15 +155,15 @@ struct bss_descriptor {
 	u8 mode;
 	u8 libertas_supported_rates[WLAN_SUPPORTED_RATES];
 
-	int extra_ie;
+	__le64 timestamp;	//!< TSF value included in the beacon/probe response
+	unsigned long last_scanned;
 
-	u8 timestamp[8];	//!< TSF value included in the beacon/probe response
 	union ieeetypes_phyparamset phyparamset;
 	union IEEEtypes_ssparamset ssparamset;
 	struct ieeetypes_capinfo cap;
 	u8 datarates[WLAN_SUPPORTED_RATES];
 
-	__le64 networktsf;		//!< TSF timestamp from the current firmware TSF
+	u64 networktsf;		//!< TSF timestamp from the current firmware TSF
 
 	struct ieeetypes_countryinfofullset countryinfo;
 
@@ -172,24 +171,29 @@ struct bss_descriptor {
 	size_t wpa_ie_len;
 	u8 rsn_ie[MAX_WPA_IE_LEN];
 	size_t rsn_ie_len;
+
+	struct list_head list;
 };
 
-extern int libertas_SSID_cmp(struct WLAN_802_11_SSID *ssid1,
-		   struct WLAN_802_11_SSID *ssid2);
-extern int libertas_find_SSID_in_list(wlan_adapter * adapter, struct WLAN_802_11_SSID *ssid,
-			  u8 * bssid, u8 mode);
-int libertas_find_best_SSID_in_list(wlan_adapter * adapter, u8 mode);
-extern int libertas_find_BSSID_in_list(wlan_adapter * adapter, u8 * bssid, u8 mode);
+extern int libertas_ssid_cmp(u8 *ssid1, u8 ssid1_len, u8 *ssid2, u8 ssid2_len);
 
-int libertas_find_best_network_SSID(wlan_private * priv,
-			struct WLAN_802_11_SSID *pSSID,
-			u8 preferred_mode, u8 *out_mode);
+struct bss_descriptor * libertas_find_ssid_in_list(wlan_adapter * adapter,
+			u8 *ssid, u8 ssid_len, u8 * bssid, u8 mode,
+			int channel);
 
-extern int libertas_send_specific_SSID_scan(wlan_private * priv,
-				struct WLAN_802_11_SSID *prequestedssid,
-				u8 keeppreviousscan);
-extern int libertas_send_specific_BSSID_scan(wlan_private * priv,
-				 u8 * bssid, u8 keeppreviousscan);
+struct bss_descriptor * libertas_find_best_ssid_in_list(wlan_adapter * adapter,
+			u8 mode);
+
+extern struct bss_descriptor * libertas_find_bssid_in_list(wlan_adapter * adapter,
+			u8 * bssid, u8 mode);
+
+int libertas_find_best_network_ssid(wlan_private * priv, u8 *out_ssid,
+			u8 *out_ssid_len, u8 preferred_mode, u8 *out_mode);
+
+extern int libertas_send_specific_ssid_scan(wlan_private * priv, u8 *ssid,
+				u8 ssid_len, u8 clear_ssid);
+extern int libertas_send_specific_bssid_scan(wlan_private * priv,
+				 u8 * bssid, u8 clear_bssid);
 
 extern int libertas_cmd_80211_scan(wlan_private * priv,
 				struct cmd_ds_command *cmd,
@@ -199,7 +203,8 @@ extern int libertas_ret_80211_scan(wlan_private * priv,
 				struct cmd_ds_command *resp);
 
 int wlan_scan_networks(wlan_private * priv,
-                const struct wlan_ioctl_user_scan_cfg * puserscanin);
+                const struct wlan_ioctl_user_scan_cfg * puserscanin,
+                int full_scan);
 
 struct ifreq;
 

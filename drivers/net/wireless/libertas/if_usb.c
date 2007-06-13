@@ -2,12 +2,15 @@
   * This file contains functions used in USB interface module.
   */
 #include <linux/delay.h>
+#include <linux/moduleparam.h>
 #include <linux/firmware.h>
 #include <linux/netdevice.h>
+#include <linux/list.h>
 #include <linux/usb.h>
 
+#define DRV_NAME "usb8xxx"
+
 #include "host.h"
-#include "sbi.h"
 #include "decl.h"
 #include "defs.h"
 #include "dev.h"
@@ -16,15 +19,24 @@
 #define MESSAGE_HEADER_LEN	4
 
 static const char usbdriver_name[] = "usb8xxx";
+static u8 *default_fw_name = "usb8388.bin";
+
+char *libertas_fw_name = NULL;
+module_param_named(fw_name, libertas_fw_name, charp, 0644);
+
+/*
+ * We need to send a RESET command to all USB devices before
+ * we tear down the USB connection. Otherwise we would not
+ * be able to re-init device the device if the module gets
+ * loaded again. This is a list of all initialized USB devices,
+ * for the reset code see if_usb_reset_device()
+*/
+static LIST_HEAD(usb_devices);
 
 static struct usb_device_id if_usb_table[] = {
 	/* Enter the device signature inside */
-	{
-		USB_DEVICE(USB8388_VID_1, USB8388_PID_1),
-	},
-	{
-		USB_DEVICE(USB8388_VID_2, USB8388_PID_2),
-	},
+	{ USB_DEVICE(0x1286, 0x2001) },
+	{ USB_DEVICE(0x05a3, 0x8388) },
 	{}	/* Terminating entry */
 };
 
@@ -32,6 +44,13 @@ MODULE_DEVICE_TABLE(usb, if_usb_table);
 
 static void if_usb_receive(struct urb *urb);
 static void if_usb_receive_fwload(struct urb *urb);
+static int if_usb_reset_device(wlan_private *priv);
+static int if_usb_register_dev(wlan_private * priv);
+static int if_usb_unregister_dev(wlan_private *);
+static int if_usb_prog_firmware(wlan_private *);
+static int if_usb_host_to_card(wlan_private * priv, u8 type, u8 * payload, u16 nb);
+static int if_usb_get_int_status(wlan_private * priv, u8 *);
+static int if_usb_read_event_cause(wlan_private *);
 
 /**
  *  @brief  call back function to handle the status of the URB
@@ -42,23 +61,27 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 {
 	wlan_private *priv = (wlan_private *) (urb->context);
 	wlan_adapter *adapter = priv->adapter;
-	struct net_device *dev = priv->wlan_dev.netdev;
+	struct net_device *dev = priv->dev;
 
 	/* handle the transmission complete validations */
 
 	if (urb->status != 0) {
 		/* print the failure status number for debug */
-		lbs_pr_info("URB in failure status\n");
+		lbs_pr_info("URB in failure status: %d\n", urb->status);
 	} else {
-		lbs_dev_dbg(2, &urb->dev->dev, "URB status is successfull\n");
-		lbs_dev_dbg(2, &urb->dev->dev, "Actual length transmitted %d\n",
+		/*
+		lbs_deb_usbd(&urb->dev->dev, "URB status is successfull\n");
+		lbs_deb_usbd(&urb->dev->dev, "Actual length transmitted %d\n",
 		       urb->actual_length);
-		priv->wlan_dev.dnld_sent = DNLD_RES_RECEIVED;
+		*/
+		priv->dnld_sent = DNLD_RES_RECEIVED;
 		/* Wake main thread if commands are pending */
 		if (!adapter->cur_cmd)
 			wake_up_interruptible(&priv->mainthread.waitq);
-		if ((adapter->connect_status == libertas_connected))
+		if ((adapter->connect_status == libertas_connected)) {
 			netif_wake_queue(dev);
+			netif_wake_queue(priv->mesh_dev);
+		}
 	}
 
 	return;
@@ -71,7 +94,7 @@ static void if_usb_write_bulk_callback(struct urb *urb)
  */
 void if_usb_free(struct usb_card_rec *cardp)
 {
-	ENTER();
+	lbs_deb_enter(LBS_DEB_USB);
 
 	/* Unlink tx & rx urb */
 	usb_kill_urb(cardp->tx_urb);
@@ -86,8 +109,7 @@ void if_usb_free(struct usb_card_rec *cardp)
 	kfree(cardp->bulk_out_buffer);
 	cardp->bulk_out_buffer = NULL;
 
-	LEAVE();
-	return;
+	lbs_deb_leave(LBS_DEB_USB);
 }
 
 /**
@@ -102,27 +124,27 @@ static int if_usb_probe(struct usb_interface *intf,
 	struct usb_device *udev;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
-	wlan_private *pwlanpriv;
-	struct usb_card_rec *usb_cardp;
+	wlan_private *priv;
+	struct usb_card_rec *cardp;
 	int i;
 
 	udev = interface_to_usbdev(intf);
 
-	usb_cardp = kzalloc(sizeof(struct usb_card_rec), GFP_KERNEL);
-	if (!usb_cardp) {
+	cardp = kzalloc(sizeof(struct usb_card_rec), GFP_KERNEL);
+	if (!cardp) {
 		lbs_pr_err("Out of memory allocating private data.\n");
 		goto error;
 	}
 
-	usb_cardp->udev = udev;
+	cardp->udev = udev;
 	iface_desc = intf->cur_altsetting;
 
-	lbs_dev_dbg(1, &udev->dev, "bcdUSB = 0x%X bDeviceClass = 0x%X"
+	lbs_deb_usbd(&udev->dev, "bcdUSB = 0x%X bDeviceClass = 0x%X"
 	       " bDeviceSubClass = 0x%X, bDeviceProtocol = 0x%X\n",
-	       udev->descriptor.bcdUSB,
-	       udev->descriptor.bDeviceClass,
-	       udev->descriptor.bDeviceSubClass,
-	       udev->descriptor.bDeviceProtocol);
+		     le16_to_cpu(udev->descriptor.bcdUSB),
+		     udev->descriptor.bDeviceClass,
+		     udev->descriptor.bDeviceSubClass,
+		     udev->descriptor.bDeviceProtocol);
 
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
@@ -130,23 +152,21 @@ static int if_usb_probe(struct usb_interface *intf,
 		    && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
 			USB_ENDPOINT_XFER_BULK)) {
 			/* we found a bulk in endpoint */
-			lbs_dev_dbg(1, &udev->dev, "Bulk in size is %d\n",
-			       endpoint->wMaxPacketSize);
-			if (!
-			    (usb_cardp->rx_urb =
-			     usb_alloc_urb(0, GFP_KERNEL))) {
-				lbs_dev_dbg(1, &udev->dev,
+			lbs_deb_usbd(&udev->dev, "Bulk in size is %d\n",
+				     le16_to_cpu(endpoint->wMaxPacketSize));
+			if (!(cardp->rx_urb = usb_alloc_urb(0, GFP_KERNEL))) {
+				lbs_deb_usbd(&udev->dev,
 				       "Rx URB allocation failed\n");
 				goto dealloc;
 			}
-			usb_cardp->rx_urb_recall = 0;
+			cardp->rx_urb_recall = 0;
 
-			usb_cardp->bulk_in_size =
-			    endpoint->wMaxPacketSize;
-			usb_cardp->bulk_in_endpointAddr =
+			cardp->bulk_in_size =
+				le16_to_cpu(endpoint->wMaxPacketSize);
+			cardp->bulk_in_endpointAddr =
 			    (endpoint->
 			     bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
-			lbs_dev_dbg(1, &udev->dev, "in_endpoint = %d\n",
+			lbs_deb_usbd(&udev->dev, "in_endpoint = %d\n",
 			       endpoint->bEndpointAddress);
 		}
 
@@ -156,55 +176,63 @@ static int if_usb_probe(struct usb_interface *intf,
 		    && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
 			USB_ENDPOINT_XFER_BULK)) {
 			/* We found bulk out endpoint */
-			if (!
-			    (usb_cardp->tx_urb =
-			     usb_alloc_urb(0, GFP_KERNEL))) {
-				lbs_dev_dbg(1,&udev->dev,
+			if (!(cardp->tx_urb = usb_alloc_urb(0, GFP_KERNEL))) {
+				lbs_deb_usbd(&udev->dev,
 				       "Tx URB allocation failed\n");
 				goto dealloc;
 			}
 
-			usb_cardp->bulk_out_size =
-			    endpoint->wMaxPacketSize;
-			lbs_dev_dbg(1, &udev->dev,
-				    "Bulk out size is %d\n",
-				    endpoint->wMaxPacketSize);
-			usb_cardp->bulk_out_endpointAddr =
+			cardp->bulk_out_size =
+				le16_to_cpu(endpoint->wMaxPacketSize);
+			lbs_deb_usbd(&udev->dev,
+				     "Bulk out size is %d\n",
+				     le16_to_cpu(endpoint->wMaxPacketSize));
+			cardp->bulk_out_endpointAddr =
 			    endpoint->bEndpointAddress;
-			lbs_dev_dbg(1, &udev->dev, "out_endpoint = %d\n",
+			lbs_deb_usbd(&udev->dev, "out_endpoint = %d\n",
 				    endpoint->bEndpointAddress);
-			usb_cardp->bulk_out_buffer =
+			cardp->bulk_out_buffer =
 			    kmalloc(MRVDRV_ETH_TX_PACKET_BUFFER_SIZE,
 				    GFP_KERNEL);
 
-			if (!usb_cardp->bulk_out_buffer) {
-				lbs_dev_dbg(1, &udev->dev,
+			if (!cardp->bulk_out_buffer) {
+				lbs_deb_usbd(&udev->dev,
 				       "Could not allocate buffer\n");
 				goto dealloc;
 			}
 		}
 	}
 
-
-	/* At this point wlan_add_card() will be called.  Don't worry
-	 * about keeping pwlanpriv around since it will be set on our
-	 * usb device data in -> add() -> libertas_sbi_register_dev().
-	 */
-	if (!(pwlanpriv = wlan_add_card(usb_cardp)))
+	if (!(priv = libertas_add_card(cardp, &udev->dev)))
 		goto dealloc;
 
-	usb_get_dev(udev);
-	usb_set_intfdata(intf, usb_cardp);
+	if (libertas_add_mesh(priv, &udev->dev))
+		goto err_add_mesh;
 
-	/*
-	 * return card structure, which can be got back in the
-	 * diconnect function as the ptr
-	 * argument.
-	 */
+	priv->hw_register_dev = if_usb_register_dev;
+	priv->hw_unregister_dev = if_usb_unregister_dev;
+	priv->hw_prog_firmware = if_usb_prog_firmware;
+	priv->hw_host_to_card = if_usb_host_to_card;
+	priv->hw_get_int_status = if_usb_get_int_status;
+	priv->hw_read_event_cause = if_usb_read_event_cause;
+
+	if (libertas_activate_card(priv, libertas_fw_name))
+		goto err_activate_card;
+
+	list_add_tail(&cardp->list, &usb_devices);
+
+	usb_get_dev(udev);
+	usb_set_intfdata(intf, cardp);
+
 	return 0;
 
+err_activate_card:
+	libertas_remove_mesh(priv);
+err_add_mesh:
+	free_netdev(priv->dev);
+	kfree(priv->adapter);
 dealloc:
-	if_usb_free(usb_cardp);
+	if_usb_free(cardp);
 
 error:
 	return -ENOMEM;
@@ -212,8 +240,7 @@ error:
 
 /**
  *  @brief free resource and cleanup
- *  @param udev		pointer to usb_device
- *  @param ptr		pointer to usb_cardp
+ *  @param intf		USB interface structure
  *  @return 	   	N/A
  */
 static void if_usb_disconnect(struct usb_interface *intf)
@@ -229,9 +256,12 @@ static void if_usb_disconnect(struct usb_interface *intf)
 	 */
 	adapter->surpriseremoved = 1;
 
+	list_del(&cardp->list);
+
 	/* card is removed and we can call wlan_remove_card */
-	lbs_dev_dbg(1, &cardp->udev->dev, "call remove card\n");
-	wlan_remove_card(cardp);
+	lbs_deb_usbd(&cardp->udev->dev, "call remove card\n");
+	libertas_remove_mesh(priv);
+	libertas_remove_card(priv);
 
 	/* Unlink and free urb */
 	if_usb_free(cardp);
@@ -249,7 +279,7 @@ static void if_usb_disconnect(struct usb_interface *intf)
  */
 static int if_prog_firmware(wlan_private * priv)
 {
-	struct usb_card_rec *cardp = priv->wlan_dev.card;
+	struct usb_card_rec *cardp = priv->card;
 	struct FWData *fwdata;
 	struct fwheader *fwheader;
 	u8 *firmware = priv->firmware->data;
@@ -266,8 +296,10 @@ static int if_prog_firmware(wlan_private * priv)
 		cardp->fwseqnum = cardp->lastseqnum - 1;
 	}
 
-	lbs_dev_dbg(2, &cardp->udev->dev, "totalbytes = %d\n",
+	/*
+	lbs_deb_usbd(&cardp->udev->dev, "totalbytes = %d\n",
 		    cardp->totalbytes);
+	*/
 
 	memcpy(fwheader, &firmware[cardp->totalbytes],
 	       sizeof(struct fwheader));
@@ -275,40 +307,48 @@ static int if_prog_firmware(wlan_private * priv)
 	cardp->fwlastblksent = cardp->totalbytes;
 	cardp->totalbytes += sizeof(struct fwheader);
 
-	lbs_dev_dbg(2, &cardp->udev->dev,"Copy Data\n");
+	/* lbs_deb_usbd(&cardp->udev->dev,"Copy Data\n"); */
 	memcpy(fwdata->data, &firmware[cardp->totalbytes],
-	       fwdata->fwheader.datalength);
+	       le32_to_cpu(fwdata->fwheader.datalength));
 
-	lbs_dev_dbg(2, &cardp->udev->dev,
-		    "Data length = %d\n", fwdata->fwheader.datalength);
+	/*
+	lbs_deb_usbd(&cardp->udev->dev,
+		    "Data length = %d\n", le32_to_cpu(fwdata->fwheader.datalength));
+	*/
 
 	cardp->fwseqnum = cardp->fwseqnum + 1;
 
-	fwdata->seqnum = cardp->fwseqnum;
-	cardp->lastseqnum = fwdata->seqnum;
-	cardp->totalbytes += fwdata->fwheader.datalength;
+	fwdata->seqnum = cpu_to_le32(cardp->fwseqnum);
+	cardp->lastseqnum = cardp->fwseqnum;
+	cardp->totalbytes += le32_to_cpu(fwdata->fwheader.datalength);
 
-	if (fwheader->dnldcmd == FW_HAS_DATA_TO_RECV) {
-		lbs_dev_dbg(2, &cardp->udev->dev, "There is data to follow\n");
-		lbs_dev_dbg(2, &cardp->udev->dev,
+	if (fwheader->dnldcmd == cpu_to_le32(FW_HAS_DATA_TO_RECV)) {
+		/*
+		lbs_deb_usbd(&cardp->udev->dev, "There are data to follow\n");
+		lbs_deb_usbd(&cardp->udev->dev,
 			    "seqnum = %d totalbytes = %d\n", cardp->fwseqnum,
 			    cardp->totalbytes);
+		*/
 		memcpy(cardp->bulk_out_buffer, fwheader, FW_DATA_XMIT_SIZE);
 		usb_tx_block(priv, cardp->bulk_out_buffer, FW_DATA_XMIT_SIZE);
 
-	} else if (fwdata->fwheader.dnldcmd == FW_HAS_LAST_BLOCK) {
-		lbs_dev_dbg(2, &cardp->udev->dev,
+	} else if (fwdata->fwheader.dnldcmd == cpu_to_le32(FW_HAS_LAST_BLOCK)) {
+		/*
+		lbs_deb_usbd(&cardp->udev->dev,
 			    "Host has finished FW downloading\n");
-		lbs_dev_dbg(2, &cardp->udev->dev,
+		lbs_deb_usbd(&cardp->udev->dev,
 			    "Donwloading FW JUMP BLOCK\n");
+		*/
 		memcpy(cardp->bulk_out_buffer, fwheader, FW_DATA_XMIT_SIZE);
 		usb_tx_block(priv, cardp->bulk_out_buffer, FW_DATA_XMIT_SIZE);
 		cardp->fwfinalblk = 1;
 	}
 
-	lbs_dev_dbg(2, &cardp->udev->dev,
+	/*
+	lbs_deb_usbd(&cardp->udev->dev,
 		    "The firmware download is done size is %d\n",
 		    cardp->totalbytes);
+	*/
 
 	kfree(fwdata);
 
@@ -318,14 +358,19 @@ static int if_prog_firmware(wlan_private * priv)
 static int libertas_do_reset(wlan_private *priv)
 {
 	int ret;
-	struct usb_card_rec *cardp = priv->wlan_dev.card;
+	struct usb_card_rec *cardp = priv->card;
+
+	lbs_deb_enter(LBS_DEB_USB);
 
 	ret = usb_reset_device(cardp->udev);
 	if (!ret) {
 		msleep(10);
-		reset_device(priv);
+		if_usb_reset_device(priv);
 		msleep(10);
 	}
+
+	lbs_deb_leave_args(LBS_DEB_USB, "ret %d", ret);
+
 	return ret;
 }
 
@@ -339,12 +384,12 @@ static int libertas_do_reset(wlan_private *priv)
 int usb_tx_block(wlan_private * priv, u8 * payload, u16 nb)
 {
 	/* pointer to card structure */
-	struct usb_card_rec *cardp = priv->wlan_dev.card;
+	struct usb_card_rec *cardp = priv->card;
 	int ret = -1;
 
 	/* check if device is removed */
 	if (priv->adapter->surpriseremoved) {
-		lbs_dev_dbg(1, &cardp->udev->dev, "Device removed\n");
+		lbs_deb_usbd(&cardp->udev->dev, "Device removed\n");
 		goto tx_ret;
 	}
 
@@ -357,10 +402,10 @@ int usb_tx_block(wlan_private * priv, u8 * payload, u16 nb)
 
 	if ((ret = usb_submit_urb(cardp->tx_urb, GFP_ATOMIC))) {
 		/*  transfer failed */
-		lbs_dev_dbg(1, &cardp->udev->dev, "usb_submit_urb failed\n");
+		lbs_deb_usbd(&cardp->udev->dev, "usb_submit_urb failed\n");
 		ret = -1;
 	} else {
-		lbs_dev_dbg(2, &cardp->udev->dev, "usb_submit_urb success\n");
+		/* lbs_deb_usbd(&cardp->udev->dev, "usb_submit_urb success\n"); */
 		ret = 0;
 	}
 
@@ -372,7 +417,7 @@ static int __if_usb_submit_rx_urb(wlan_private * priv,
 				  void (*callbackfn)
 				  (struct urb *urb))
 {
-	struct usb_card_rec *cardp = priv->wlan_dev.card;
+	struct usb_card_rec *cardp = priv->card;
 	struct sk_buff *skb;
 	struct read_cb_info *rinfo = &cardp->rinfo;
 	int ret = -1;
@@ -394,13 +439,13 @@ static int __if_usb_submit_rx_urb(wlan_private * priv,
 
 	cardp->rx_urb->transfer_flags |= URB_ZERO_PACKET;
 
-	lbs_dev_dbg(2, &cardp->udev->dev, "Pointer for rx_urb %p\n", cardp->rx_urb);
+	/* lbs_deb_usbd(&cardp->udev->dev, "Pointer for rx_urb %p\n", cardp->rx_urb); */
 	if ((ret = usb_submit_urb(cardp->rx_urb, GFP_ATOMIC))) {
 		/* handle failure conditions */
-		lbs_dev_dbg(1, &cardp->udev->dev, "Submit Rx URB failed\n");
+		lbs_deb_usbd(&cardp->udev->dev, "Submit Rx URB failed\n");
 		ret = -1;
 	} else {
-		lbs_dev_dbg(2, &cardp->udev->dev, "Submit Rx URB success\n");
+		/* lbs_deb_usbd(&cardp->udev->dev, "Submit Rx URB success\n"); */
 		ret = 0;
 	}
 
@@ -423,12 +468,12 @@ static void if_usb_receive_fwload(struct urb *urb)
 	struct read_cb_info *rinfo = (struct read_cb_info *)urb->context;
 	wlan_private *priv = rinfo->priv;
 	struct sk_buff *skb = rinfo->skb;
-	struct usb_card_rec *cardp = (struct usb_card_rec *)priv->wlan_dev.card;
+	struct usb_card_rec *cardp = (struct usb_card_rec *)priv->card;
 	struct fwsyncheader *syncfwheader;
 	struct bootcmdrespStr bootcmdresp;
 
 	if (urb->status) {
-		lbs_dev_dbg(1, &cardp->udev->dev,
+		lbs_deb_usbd(&cardp->udev->dev,
 			    "URB status is failed during fw load\n");
 		kfree_skb(skb);
 		return;
@@ -437,18 +482,18 @@ static void if_usb_receive_fwload(struct urb *urb)
 	if (cardp->bootcmdresp == 0) {
 		memcpy (&bootcmdresp, skb->data + IPFIELD_ALIGN_OFFSET,
 			sizeof(bootcmdresp));
-		if (cardp->udev->descriptor.bcdDevice < 0x3106) {
+		if (le16_to_cpu(cardp->udev->descriptor.bcdDevice) < 0x3106) {
 			kfree_skb(skb);
 			if_usb_submit_rx_urb_fwload(priv);
 			cardp->bootcmdresp = 1;
-			lbs_dev_dbg(1, &cardp->udev->dev,
+			lbs_deb_usbd(&cardp->udev->dev,
 				    "Received valid boot command response\n");
 			return;
 		}
-		if (bootcmdresp.u32magicnumber != BOOT_CMD_MAGIC_NUMBER) {
+		if (bootcmdresp.u32magicnumber != cpu_to_le32(BOOT_CMD_MAGIC_NUMBER)) {
 			lbs_pr_info(
 				"boot cmd response wrong magic number (0x%x)\n",
-				bootcmdresp.u32magicnumber);
+				le32_to_cpu(bootcmdresp.u32magicnumber));
 		} else if (bootcmdresp.u8cmd_tag != BOOT_CMD_FW_BY_USB) {
 			lbs_pr_info(
 				"boot cmd response cmd_tag error (%d)\n",
@@ -459,7 +504,7 @@ static void if_usb_receive_fwload(struct urb *urb)
 				bootcmdresp.u8result);
 		} else {
 			cardp->bootcmdresp = 1;
-			lbs_dev_dbg(1, &cardp->udev->dev,
+			lbs_deb_usbd(&cardp->udev->dev,
 				    "Received valid boot command response\n");
 		}
 		kfree_skb(skb);
@@ -469,7 +514,7 @@ static void if_usb_receive_fwload(struct urb *urb)
 
 	syncfwheader = kmalloc(sizeof(struct fwsyncheader), GFP_ATOMIC);
 	if (!syncfwheader) {
-		lbs_dev_dbg(1, &cardp->udev->dev, "Failure to allocate syncfwheader\n");
+		lbs_deb_usbd(&cardp->udev->dev, "Failure to allocate syncfwheader\n");
 		kfree_skb(skb);
 		return;
 	}
@@ -478,14 +523,16 @@ static void if_usb_receive_fwload(struct urb *urb)
 			sizeof(struct fwsyncheader));
 
 	if (!syncfwheader->cmd) {
-		lbs_dev_dbg(2, &cardp->udev->dev,
+		/*
+		lbs_deb_usbd(&cardp->udev->dev,
 			    "FW received Blk with correct CRC\n");
-		lbs_dev_dbg(2, &cardp->udev->dev,
+		lbs_deb_usbd(&cardp->udev->dev,
 			    "FW received Blk seqnum = %d\n",
 		       syncfwheader->seqnum);
+		*/
 		cardp->CRC_OK = 1;
 	} else {
-		lbs_dev_dbg(1, &cardp->udev->dev,
+		lbs_deb_usbd(&cardp->udev->dev,
 			    "FW received Blk with CRC error\n");
 		cardp->CRC_OK = 0;
 	}
@@ -515,7 +562,7 @@ static inline void process_cmdtypedata(int recvlength, struct sk_buff *skb,
 {
 	if (recvlength > MRVDRV_ETH_RX_PACKET_BUFFER_SIZE +
 	    MESSAGE_HEADER_LEN || recvlength < MRVDRV_MIN_PKT_LEN) {
-		lbs_dev_dbg(1, &cardp->udev->dev,
+		lbs_deb_usbd(&cardp->udev->dev,
 			    "Packet length is Invalid\n");
 		kfree_skb(skb);
 		return;
@@ -525,7 +572,7 @@ static inline void process_cmdtypedata(int recvlength, struct sk_buff *skb,
 	skb_put(skb, recvlength);
 	skb_pull(skb, MESSAGE_HEADER_LEN);
 	libertas_process_rxed_packet(priv, skb);
-	priv->wlan_dev.upld_len = (recvlength - MESSAGE_HEADER_LEN);
+	priv->upld_len = (recvlength - MESSAGE_HEADER_LEN);
 }
 
 static inline void process_cmdrequest(int recvlength, u8 *recvbuff,
@@ -535,7 +582,7 @@ static inline void process_cmdrequest(int recvlength, u8 *recvbuff,
 {
 	u8 *cmdbuf;
 	if (recvlength > MRVDRV_SIZE_OF_CMD_BUFFER) {
-		lbs_dev_dbg(1, &cardp->udev->dev,
+		lbs_deb_usbd(&cardp->udev->dev,
 			    "The receive buffer is too large\n");
 		kfree_skb(skb);
 		return;
@@ -548,21 +595,21 @@ static inline void process_cmdrequest(int recvlength, u8 *recvbuff,
 	/* take care of cur_cmd = NULL case by reading the
 	 * data to clear the interrupt */
 	if (!priv->adapter->cur_cmd) {
-		cmdbuf = priv->wlan_dev.upld_buf;
+		cmdbuf = priv->upld_buf;
 		priv->adapter->hisregcpy &= ~his_cmdupldrdy;
 	} else
 		cmdbuf = priv->adapter->cur_cmd->bufvirtualaddr;
 
 	cardp->usb_int_cause |= his_cmdupldrdy;
-	priv->wlan_dev.upld_len = (recvlength - MESSAGE_HEADER_LEN);
+	priv->upld_len = (recvlength - MESSAGE_HEADER_LEN);
 	memcpy(cmdbuf, recvbuff + MESSAGE_HEADER_LEN,
-	       priv->wlan_dev.upld_len);
+	       priv->upld_len);
 
 	kfree_skb(skb);
-	libertas_interrupt(priv->wlan_dev.netdev);
+	libertas_interrupt(priv->dev);
 	spin_unlock(&priv->adapter->driver_lock);
 
-	lbs_dev_dbg(1, &cardp->udev->dev,
+	lbs_deb_usbd(&cardp->udev->dev,
 		    "Wake up main thread to handle cmd response\n");
 
 	return;
@@ -580,17 +627,17 @@ static void if_usb_receive(struct urb *urb)
 	struct read_cb_info *rinfo = (struct read_cb_info *)urb->context;
 	wlan_private *priv = rinfo->priv;
 	struct sk_buff *skb = rinfo->skb;
-	struct usb_card_rec *cardp = (struct usb_card_rec *)priv->wlan_dev.card;
+	struct usb_card_rec *cardp = (struct usb_card_rec *)priv->card;
 
 	int recvlength = urb->actual_length;
 	u8 *recvbuff = NULL;
 	u32 recvtype;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_USB);
 
 	if (recvlength) {
 		if (urb->status) {
-			lbs_dev_dbg(1, &cardp->udev->dev,
+			lbs_deb_usbd(&cardp->udev->dev,
 				    "URB status is failed\n");
 			kfree_skb(skb);
 			goto setup_for_next;
@@ -598,12 +645,12 @@ static void if_usb_receive(struct urb *urb)
 
 		recvbuff = skb->data + IPFIELD_ALIGN_OFFSET;
 		memcpy(&recvtype, recvbuff, sizeof(u32));
-		lbs_dev_dbg(1, &cardp->udev->dev,
+		lbs_deb_usbd(&cardp->udev->dev,
 			    "Recv length = 0x%x\n", recvlength);
-		lbs_dev_dbg(1, &cardp->udev->dev,
+		lbs_deb_usbd(&cardp->udev->dev,
 			    "Receive type = 0x%X\n", recvtype);
 		recvtype = le32_to_cpu(recvtype);
-		lbs_dev_dbg(1, &cardp->udev->dev,
+		lbs_deb_usbd(&cardp->udev->dev,
 			    "Receive type after = 0x%X\n", recvtype);
 	} else if (urb->status)
 		goto rx_exit;
@@ -621,18 +668,18 @@ static void if_usb_receive(struct urb *urb)
 	case CMD_TYPE_INDICATION:
 		/* Event cause handling */
 		spin_lock(&priv->adapter->driver_lock);
-		cardp->usb_event_cause = *(u32 *) (recvbuff + MESSAGE_HEADER_LEN);
-		lbs_dev_dbg(1, &cardp->udev->dev,"**EVENT** 0x%X\n",
+		cardp->usb_event_cause = le32_to_cpu(*(__le32 *) (recvbuff + MESSAGE_HEADER_LEN));
+		lbs_deb_usbd(&cardp->udev->dev,"**EVENT** 0x%X\n",
 			    cardp->usb_event_cause);
 		if (cardp->usb_event_cause & 0xffff0000) {
 			libertas_send_tx_feedback(priv);
 			spin_unlock(&priv->adapter->driver_lock);
 			break;
 		}
-		cardp->usb_event_cause = le32_to_cpu(cardp->usb_event_cause) << 3;
+		cardp->usb_event_cause <<= 3;
 		cardp->usb_int_cause |= his_cardevent;
 		kfree_skb(skb);
-		libertas_interrupt(priv->wlan_dev.netdev);
+		libertas_interrupt(priv->dev);
 		spin_unlock(&priv->adapter->driver_lock);
 		goto rx_exit;
 	default:
@@ -643,8 +690,7 @@ static void if_usb_receive(struct urb *urb)
 setup_for_next:
 	if_usb_submit_rx_urb(priv);
 rx_exit:
-	LEAVE();
-	return;
+	lbs_deb_leave(LBS_DEB_USB);
 }
 
 /**
@@ -655,24 +701,24 @@ rx_exit:
  *  @param len		number of bytes
  *  @return 	   	0 or -1
  */
-int libertas_sbi_host_to_card(wlan_private * priv, u8 type, u8 * payload, u16 nb)
+static int if_usb_host_to_card(wlan_private * priv, u8 type, u8 * payload, u16 nb)
 {
 	int ret = -1;
 	u32 tmp;
-	struct usb_card_rec *cardp = (struct usb_card_rec *)priv->wlan_dev.card;
+	struct usb_card_rec *cardp = (struct usb_card_rec *)priv->card;
 
-	lbs_dev_dbg(1, &cardp->udev->dev,"*** type = %u\n", type);
-	lbs_dev_dbg(1, &cardp->udev->dev,"size after = %d\n", nb);
+	lbs_deb_usbd(&cardp->udev->dev,"*** type = %u\n", type);
+	lbs_deb_usbd(&cardp->udev->dev,"size after = %d\n", nb);
 
 	if (type == MVMS_CMD) {
 		tmp = cpu_to_le32(CMD_TYPE_REQUEST);
-		priv->wlan_dev.dnld_sent = DNLD_CMD_SENT;
+		priv->dnld_sent = DNLD_CMD_SENT;
 		memcpy(cardp->bulk_out_buffer, (u8 *) & tmp,
 		       MESSAGE_HEADER_LEN);
 
 	} else {
 		tmp = cpu_to_le32(CMD_TYPE_DATA);
-		priv->wlan_dev.dnld_sent = DNLD_DATA_SENT;
+		priv->dnld_sent = DNLD_DATA_SENT;
 		memcpy(cardp->bulk_out_buffer, (u8 *) & tmp,
 		       MESSAGE_HEADER_LEN);
 	}
@@ -686,39 +732,41 @@ int libertas_sbi_host_to_card(wlan_private * priv, u8 type, u8 * payload, u16 nb
 }
 
 /* called with adapter->driver_lock held */
-int libertas_sbi_get_int_status(wlan_private * priv, u8 * ireg)
+static int if_usb_get_int_status(wlan_private * priv, u8 * ireg)
 {
-	struct usb_card_rec *cardp = priv->wlan_dev.card;
+	struct usb_card_rec *cardp = priv->card;
 
 	*ireg = cardp->usb_int_cause;
 	cardp->usb_int_cause = 0;
 
-	lbs_dev_dbg(1, &cardp->udev->dev,"Int cause is 0x%X\n", *ireg);
+	lbs_deb_usbd(&cardp->udev->dev,"Int cause is 0x%X\n", *ireg);
 
 	return 0;
 }
 
-int libertas_sbi_read_event_cause(wlan_private * priv)
+static int if_usb_read_event_cause(wlan_private * priv)
 {
-	struct usb_card_rec *cardp = priv->wlan_dev.card;
+	struct usb_card_rec *cardp = priv->card;
 	priv->adapter->eventcause = cardp->usb_event_cause;
 	/* Re-submit rx urb here to avoid event lost issue */
 	if_usb_submit_rx_urb(priv);
 	return 0;
 }
 
-int reset_device(wlan_private *priv)
+static int if_usb_reset_device(wlan_private *priv)
 {
 	int ret;
 
+	lbs_deb_enter(LBS_DEB_USB);
 	ret = libertas_prepare_and_send_command(priv, cmd_802_11_reset,
 				    cmd_act_halt, 0, 0, NULL);
 	msleep_interruptible(10);
 
+	lbs_deb_leave_args(LBS_DEB_USB, "ret %d", ret);
 	return ret;
 }
 
-int libertas_sbi_unregister_dev(wlan_private * priv)
+static int if_usb_unregister_dev(wlan_private * priv)
 {
 	int ret = 0;
 
@@ -727,7 +775,7 @@ int libertas_sbi_unregister_dev(wlan_private * priv)
 	 * again.
 	 */
 	if (priv)
-		reset_device(priv);
+		if_usb_reset_device(priv);
 
 	return ret;
 }
@@ -738,42 +786,41 @@ int libertas_sbi_unregister_dev(wlan_private * priv)
  *  @param		priv pointer to wlan_private
  *  @return		0 or -1
  */
-int libertas_sbi_register_dev(wlan_private * priv)
+static int if_usb_register_dev(wlan_private * priv)
 {
+	struct usb_card_rec *cardp = (struct usb_card_rec *)priv->card;
 
-	struct usb_card_rec *cardp = (struct usb_card_rec *)priv->wlan_dev.card;
-	ENTER();
+	lbs_deb_enter(LBS_DEB_USB);
 
 	cardp->priv = priv;
-	cardp->eth_dev = priv->wlan_dev.netdev;
+	cardp->eth_dev = priv->dev;
 	priv->hotplug_device = &(cardp->udev->dev);
 
-	SET_NETDEV_DEV(cardp->eth_dev, &(cardp->udev->dev));
-
-	lbs_dev_dbg(1, &cardp->udev->dev, "udev pointer is at %p\n",
+	lbs_deb_usbd(&cardp->udev->dev, "udev pointer is at %p\n",
 		    cardp->udev);
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_USB);
 	return 0;
 }
 
 
 
-int libertas_sbi_prog_firmware(wlan_private * priv)
+static int if_usb_prog_firmware(wlan_private * priv)
 {
-	struct usb_card_rec *cardp = priv->wlan_dev.card;
+	struct usb_card_rec *cardp = priv->card;
 	int i = 0;
 	static int reset_count = 10;
+	int ret = 0;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_USB);
 
 	cardp->rinfo.priv = priv;
 
 restart:
 	if (if_usb_submit_rx_urb_fwload(priv) < 0) {
-		lbs_dev_dbg(1, &cardp->udev->dev, "URB submission is failed\n");
-		LEAVE();
-		return -1;
+		lbs_deb_usbd(&cardp->udev->dev, "URB submission is failed\n");
+		ret = -1;
+		goto done;
 	}
 
 	cardp->bootcmdresp = 0;
@@ -811,7 +858,7 @@ restart:
 	if_prog_firmware(priv);
 
 	do {
-		lbs_dev_dbg(1, &cardp->udev->dev,"Wlan sched timeout\n");
+		lbs_deb_usbd(&cardp->udev->dev,"Wlan sched timeout\n");
 		i++;
 		msleep_interruptible(100);
 		if (priv->adapter->surpriseremoved || i >= 20)
@@ -826,8 +873,8 @@ restart:
 		}
 
 		lbs_pr_info("FW download failure, time = %d ms\n", i * 100);
-		LEAVE();
-		return -1;
+		ret = -1;
+		goto done;
 	}
 
 	if_usb_submit_rx_urb(priv);
@@ -837,32 +884,10 @@ restart:
 
 	priv->adapter->fw_ready = 1;
 
-	LEAVE();
-	return 0;
+done:
+	lbs_deb_leave_args(LBS_DEB_USB, "ret %d", ret);
+	return ret;
 }
-
-/**
- *  @brief Given a usb_card_rec return its wlan_private
- *  @param card		pointer to a usb_card_rec
- *  @return 	   	pointer to wlan_private
- */
-wlan_private *libertas_sbi_get_priv(void *card)
-{
-	struct usb_card_rec *cardp = card;
-	return cardp->priv;
-}
-
-#ifdef ENABLE_PM
-int libertas_sbi_suspend(wlan_private * priv)
-{
-	return 0;
-}
-
-int libertas_sbi_resume(wlan_private * priv)
-{
-	return 0;
-}
-#endif
 
 #ifdef CONFIG_PM
 static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
@@ -870,12 +895,13 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	struct usb_card_rec *cardp = usb_get_intfdata(intf);
 	wlan_private *priv = cardp->priv;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_USB);
 
 	if (priv->adapter->psstate != PS_STATE_FULL_POWER)
 		return -1;
 
 	netif_device_detach(cardp->eth_dev);
+	netif_device_detach(priv->mesh_dev);
 
 	/* Unlink tx & rx urb */
 	usb_kill_urb(cardp->tx_urb);
@@ -883,23 +909,25 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 
 	cardp->rx_urb_recall = 1;
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_USB);
 	return 0;
 }
 
 static int if_usb_resume(struct usb_interface *intf)
 {
 	struct usb_card_rec *cardp = usb_get_intfdata(intf);
+	wlan_private *priv = cardp->priv;
 
-	ENTER();
+	lbs_deb_enter(LBS_DEB_USB);
 
 	cardp->rx_urb_recall = 0;
 
 	if_usb_submit_rx_urb(cardp->priv);
 
 	netif_device_attach(cardp->eth_dev);
+	netif_device_attach(priv->mesh_dev);
 
-	LEAVE();
+	lbs_deb_leave(LBS_DEB_USB);
 	return 0;
 }
 #else
@@ -920,32 +948,40 @@ static struct usb_driver if_usb_driver = {
 	.resume = if_usb_resume,
 };
 
-/**
- *  @brief This function registers driver.
- *  @param add		pointer to add_card callback function
- *  @param remove	pointer to remove card callback function
- *  @param arg		pointer to call back function parameter
- *  @return 	   	dummy success variable
- */
-int libertas_sbi_register(void)
+static int if_usb_init_module(void)
 {
-	/*
-	 * API registers the Marvell USB driver
-	 * to the USB system
-	 */
-	usb_register(&if_usb_driver);
+	int ret = 0;
 
-	/* Return success to wlan layer */
-	return 0;
+	lbs_deb_enter(LBS_DEB_MAIN);
+
+	if (libertas_fw_name == NULL) {
+		libertas_fw_name = default_fw_name;
+	}
+
+	ret = usb_register(&if_usb_driver);
+
+	lbs_deb_leave_args(LBS_DEB_MAIN, "ret %d", ret);
+	return ret;
 }
 
-/**
- *  @brief This function removes usb driver.
- *  @return 	   	N/A
- */
-void libertas_sbi_unregister(void)
+static void if_usb_exit_module(void)
 {
+	struct usb_card_rec *cardp, *cardp_temp;
+
+	lbs_deb_enter(LBS_DEB_MAIN);
+
+	list_for_each_entry_safe(cardp, cardp_temp, &usb_devices, list)
+		if_usb_reset_device((wlan_private *) cardp->priv);
+
 	/* API unregisters the driver from USB subsystem */
 	usb_deregister(&if_usb_driver);
-	return;
+
+	lbs_deb_leave(LBS_DEB_MAIN);
 }
+
+module_init(if_usb_init_module);
+module_exit(if_usb_exit_module);
+
+MODULE_DESCRIPTION("8388 USB WLAN Driver");
+MODULE_AUTHOR("Marvell International Ltd.");
+MODULE_LICENSE("GPL");

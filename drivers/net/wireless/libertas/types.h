@@ -5,6 +5,7 @@
 #define _WLAN_TYPES_
 
 #include <linux/if_ether.h>
+#include <asm/byteorder.h>
 
 /** IEEE type definitions  */
 enum ieeetypes_elementid {
@@ -29,9 +30,30 @@ enum ieeetypes_elementid {
 	EXTRA_IE = 133,
 } __attribute__ ((packed));
 
+#ifdef __BIG_ENDIAN
 #define CAPINFO_MASK	(~(0xda00))
+#else
+#define CAPINFO_MASK	(~(0x00da))
+#endif
 
 struct ieeetypes_capinfo {
+#ifdef __BIG_ENDIAN_BITFIELD
+	u8 chanagility:1;
+	u8 pbcc:1;
+	u8 shortpreamble:1;
+	u8 privacy:1;
+	u8 cfpollrqst:1;
+	u8 cfpollable:1;
+	u8 ibss:1;
+	u8 ess:1;
+	u8 rsrvd1:2;
+	u8 dsssofdm:1;
+	u8 rsvrd2:1;
+	u8 apsd:1;
+	u8 shortslottime:1;
+	u8 rsrvd3:1;
+	u8 spectrummgmt:1;
+#else
 	u8 ess:1;
 	u8 ibss:1;
 	u8 cfpollable:1;
@@ -47,6 +69,7 @@ struct ieeetypes_capinfo {
 	u8 rsvrd2:1;
 	u8 dsssofdm:1;
 	u8 rsrvd1:2;
+#endif
 } __attribute__ ((packed));
 
 struct ieeetypes_cfparamset {
@@ -54,15 +77,15 @@ struct ieeetypes_cfparamset {
 	u8 len;
 	u8 cfpcnt;
 	u8 cfpperiod;
-	u16 cfpmaxduration;
-	u16 cfpdurationremaining;
+	__le16 cfpmaxduration;
+	__le16 cfpdurationremaining;
 } __attribute__ ((packed));
 
 
 struct ieeetypes_ibssparamset {
 	u8 elementid;
 	u8 len;
-	u16 atimwindow;
+	__le16 atimwindow;
 } __attribute__ ((packed));
 
 union IEEEtypes_ssparamset {
@@ -73,7 +96,7 @@ union IEEEtypes_ssparamset {
 struct ieeetypes_fhparamset {
 	u8 elementid;
 	u8 len;
-	u16 dwelltime;
+	__le16 dwelltime;
 	u8 hopset;
 	u8 hoppattern;
 	u8 hopindex;
@@ -92,8 +115,8 @@ union ieeetypes_phyparamset {
 
 struct ieeetypes_assocrsp {
 	struct ieeetypes_capinfo capability;
-	u16 statuscode;
-	u16 aid;
+	__le16 statuscode;
+	__le16 aid;
 	u8 iebuffer[1];
 } __attribute__ ((packed));
 
@@ -138,8 +161,8 @@ struct ieeetypes_assocrsp {
 
 /** TLV related data structures*/
 struct mrvlietypesheader {
-	u16 type;
-	u16 len;
+	__le16 type;
+	__le16 len;
 } __attribute__ ((packed));
 
 struct mrvlietypes_data {
@@ -164,17 +187,23 @@ struct mrvlietypes_wildcardssidparamset {
 } __attribute__ ((packed));
 
 struct chanscanmode {
+#ifdef __BIG_ENDIAN_BITFIELD
+	u8 reserved_2_7:6;
+	u8 disablechanfilt:1;
+	u8 passivescan:1;
+#else
 	u8 passivescan:1;
 	u8 disablechanfilt:1;
 	u8 reserved_2_7:6;
+#endif
 } __attribute__ ((packed));
 
 struct chanscanparamset {
 	u8 radiotype;
 	u8 channumber;
 	struct chanscanmode chanscanmode;
-	u16 minscantime;
-	u16 maxscantime;
+	__le16 minscantime;
+	__le16 maxscantime;
 } __attribute__ ((packed));
 
 struct mrvlietypes_chanlistparamset {
@@ -185,12 +214,12 @@ struct mrvlietypes_chanlistparamset {
 struct cfparamset {
 	u8 cfpcnt;
 	u8 cfpperiod;
-	u16 cfpmaxduration;
-	u16 cfpdurationremaining;
+	__le16 cfpmaxduration;
+	__le16 cfpdurationremaining;
 } __attribute__ ((packed));
 
 struct ibssparamset {
-	u16 atimwindow;
+	__le16 atimwindow;
 } __attribute__ ((packed));
 
 struct mrvlietypes_ssparamset {
@@ -202,7 +231,7 @@ struct mrvlietypes_ssparamset {
 } __attribute__ ((packed));
 
 struct fhparamset {
-	u16 dwelltime;
+	__le16 dwelltime;
 	u8 hopset;
 	u8 hoppattern;
 	u8 hopindex;
@@ -263,17 +292,17 @@ struct mrvlietypes_beaconsmissed {
 
 struct mrvlietypes_numprobes {
 	struct mrvlietypesheader header;
-	u16 numprobes;
+	__le16 numprobes;
 } __attribute__ ((packed));
 
 struct mrvlietypes_bcastprobe {
 	struct mrvlietypesheader header;
-	u16 bcastprobe;
+	__le16 bcastprobe;
 } __attribute__ ((packed));
 
 struct mrvlietypes_numssidprobe {
 	struct mrvlietypesheader header;
-	u16 numssidprobe;
+	__le16 numssidprobe;
 } __attribute__ ((packed));
 
 struct led_pin {

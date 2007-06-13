@@ -71,7 +71,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.3.0-1.233"
+#define MYRI10GE_VERSION_STR "1.3.1-1.248"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -278,6 +278,8 @@ MODULE_PARM_DESC(myri10ge_debug, "Debug level (0=none,...,16=all)");
 static int myri10ge_fill_thresh = 256;
 module_param(myri10ge_fill_thresh, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(myri10ge_fill_thresh, "Number of empty rx slots allowed\n");
+
+static int myri10ge_reset_recover = 1;
 
 static int myri10ge_wcfifo = 0;
 module_param(myri10ge_wcfifo, int, S_IRUGO);
@@ -1154,9 +1156,11 @@ static inline void myri10ge_check_statblock(struct myri10ge_priv *mgp)
 	struct mcp_irq_data *stats = mgp->fw_stats;
 
 	if (unlikely(stats->stats_updated)) {
-		if (mgp->link_state != stats->link_up) {
-			mgp->link_state = stats->link_up;
-			if (mgp->link_state) {
+		unsigned link_up = ntohl(stats->link_up);
+		if (mgp->link_state != link_up) {
+			mgp->link_state = link_up;
+
+			if (mgp->link_state == MXGEFW_LINK_UP) {
 				if (netif_msg_link(mgp))
 					printk(KERN_INFO
 					       "myri10ge: %s: link up\n",
@@ -1166,8 +1170,11 @@ static inline void myri10ge_check_statblock(struct myri10ge_priv *mgp)
 			} else {
 				if (netif_msg_link(mgp))
 					printk(KERN_INFO
-					       "myri10ge: %s: link down\n",
-					       mgp->dev->name);
+					       "myri10ge: %s: link %s\n",
+					       mgp->dev->name,
+					       (link_up == MXGEFW_LINK_MYRINET ?
+						"mismatch (Myrinet detected)" :
+						"down"));
 				netif_carrier_off(mgp->dev);
 				mgp->link_changes++;
 			}
@@ -2730,8 +2737,14 @@ static void myri10ge_watchdog(struct work_struct *work)
 		 * For now, just report it */
 		reboot = myri10ge_read_reboot(mgp);
 		printk(KERN_ERR
-		       "myri10ge: %s: NIC rebooted (0x%x), resetting\n",
-		       mgp->dev->name, reboot);
+		       "myri10ge: %s: NIC rebooted (0x%x),%s resetting\n",
+		       mgp->dev->name, reboot,
+		       myri10ge_reset_recover ? " " : " not");
+		if (myri10ge_reset_recover == 0)
+			return;
+
+		myri10ge_reset_recover--;
+
 		/*
 		 * A rebooted nic will come back with config space as
 		 * it was after power was applied to PCIe bus.

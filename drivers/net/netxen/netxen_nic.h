@@ -68,9 +68,10 @@
 #define _NETXEN_NIC_LINUX_SUBVERSION 2
 #define NETXEN_NIC_LINUX_VERSIONID  "3.4.2"
 
-#define NUM_FLASH_SECTORS (64)
-#define FLASH_SECTOR_SIZE (64 * 1024)
-#define FLASH_TOTAL_SIZE  (NUM_FLASH_SECTORS * FLASH_SECTOR_SIZE)
+#define NETXEN_NUM_FLASH_SECTORS (64)
+#define NETXEN_FLASH_SECTOR_SIZE (64 * 1024)
+#define NETXEN_FLASH_TOTAL_SIZE  (NETXEN_NUM_FLASH_SECTORS \
+					* NETXEN_FLASH_SECTOR_SIZE)
 
 #define PHAN_VENDOR_ID 0x4040
 
@@ -677,28 +678,28 @@ struct netxen_new_user_info {
 
 /* Flash memory map */
 typedef enum {
-	CRBINIT_START = 0,	/* Crbinit section */
-	BRDCFG_START = 0x4000,	/* board config */
-	INITCODE_START = 0x6000,	/* pegtune code */
-	BOOTLD_START = 0x10000,	/* bootld */
-	IMAGE_START = 0x43000,	/* compressed image */
-	SECONDARY_START = 0x200000,	/* backup images */
-	PXE_START = 0x3E0000,	/* user defined region */
-	USER_START = 0x3E8000,	/* User defined region for new boards */
-	FIXED_START = 0x3F0000	/* backup of crbinit */
+	NETXEN_CRBINIT_START = 0,	/* Crbinit section */
+	NETXEN_BRDCFG_START = 0x4000,	/* board config */
+	NETXEN_INITCODE_START = 0x6000,	/* pegtune code */
+	NETXEN_BOOTLD_START = 0x10000,	/* bootld */
+	NETXEN_IMAGE_START = 0x43000,	/* compressed image */
+	NETXEN_SECONDARY_START = 0x200000,	/* backup images */
+	NETXEN_PXE_START = 0x3E0000,	/* user defined region */
+	NETXEN_USER_START = 0x3E8000,	/* User defined region for new boards */
+	NETXEN_FIXED_START = 0x3F0000	/* backup of crbinit */
 } netxen_flash_map_t;
 
-#define USER_START_OLD PXE_START	/* for backward compatibility */
+#define NETXEN_USER_START_OLD NETXEN_PXE_START	/* for backward compatibility */
 
-#define FLASH_START		(CRBINIT_START)
-#define INIT_SECTOR		(0)
-#define PRIMARY_START 		(BOOTLD_START)
-#define FLASH_CRBINIT_SIZE 	(0x4000)
-#define FLASH_BRDCFG_SIZE 	(sizeof(struct netxen_board_info))
-#define FLASH_USER_SIZE		(sizeof(struct netxen_user_info)/sizeof(u32))
-#define FLASH_SECONDARY_SIZE 	(USER_START-SECONDARY_START)
-#define NUM_PRIMARY_SECTORS	(0x20)
-#define NUM_CONFIG_SECTORS 	(1)
+#define NETXEN_FLASH_START		(NETXEN_CRBINIT_START)
+#define NETXEN_INIT_SECTOR		(0)
+#define NETXEN_PRIMARY_START 		(NETXEN_BOOTLD_START)
+#define NETXEN_FLASH_CRBINIT_SIZE 	(0x4000)
+#define NETXEN_FLASH_BRDCFG_SIZE 	(sizeof(struct netxen_board_info))
+#define NETXEN_FLASH_USER_SIZE		(sizeof(struct netxen_user_info)/sizeof(u32))
+#define NETXEN_FLASH_SECONDARY_SIZE 	(NETXEN_USER_START-NETXEN_SECONDARY_START)
+#define NETXEN_NUM_PRIMARY_SECTORS	(0x20)
+#define NETXEN_NUM_CONFIG_SECTORS 	(1)
 #define PFX "NetXen: "
 extern char netxen_nic_driver_name[];
 
@@ -1048,6 +1049,7 @@ int netxen_rom_se(struct netxen_adapter *adapter, int addr);
 int netxen_do_rom_se(struct netxen_adapter *adapter, int addr);
 
 /* Functions from netxen_nic_isr.c */
+int netxen_nic_link_ok(struct netxen_adapter *adapter);
 void netxen_nic_isr_other(struct netxen_adapter *adapter);
 void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 link);
 void netxen_handle_port_int(struct netxen_adapter *adapter, u32 enable);
