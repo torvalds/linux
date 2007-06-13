@@ -452,8 +452,9 @@ void sysfs_remove_dir(struct kobject * kobj)
 int sysfs_rename_dir(struct kobject * kobj, struct dentry *new_parent,
 		     const char *new_name)
 {
-	int error = 0;
+	int error;
 	struct dentry * new_dentry;
+	struct sysfs_dirent *sd, *parent_sd;
 
 	if (!new_parent)
 		return -EFAULT;
@@ -462,40 +463,48 @@ int sysfs_rename_dir(struct kobject * kobj, struct dentry *new_parent,
 	mutex_lock(&new_parent->d_inode->i_mutex);
 
 	new_dentry = lookup_one_len(new_name, new_parent, strlen(new_name));
-	if (!IS_ERR(new_dentry)) {
-		/* By allowing two different directories with the
-		 * same d_parent we allow this routine to move
-		 * between different shadows of the same directory
-		 */
-		if (kobj->dentry->d_parent->d_inode != new_parent->d_inode)
-			return -EINVAL;
-		else if (new_dentry->d_parent->d_inode != new_parent->d_inode)
-			error = -EINVAL;
-		else if (new_dentry == kobj->dentry)
-			error = -EINVAL;
-		else if (!new_dentry->d_inode) {
-			error = kobject_set_name(kobj, "%s", new_name);
-			if (!error) {
-				struct sysfs_dirent *sd, *parent_sd;
-
-				d_add(new_dentry, NULL);
-				d_move(kobj->dentry, new_dentry);
-
-				sd = kobj->dentry->d_fsdata;
-				parent_sd = new_parent->d_fsdata;
-
-				list_del_init(&sd->s_sibling);
-				list_add(&sd->s_sibling, &parent_sd->s_children);
-			}
-			else
-				d_drop(new_dentry);
-		} else
-			error = -EEXIST;
-		dput(new_dentry);
+	if (IS_ERR(new_dentry)) {
+		error = PTR_ERR(new_dentry);
+		goto out_unlock;
 	}
+
+	/* By allowing two different directories with the same
+	 * d_parent we allow this routine to move between different
+	 * shadows of the same directory
+	 */
+	error = -EINVAL;
+	if (kobj->dentry->d_parent->d_inode != new_parent->d_inode ||
+	    new_dentry->d_parent->d_inode != new_parent->d_inode ||
+	    new_dentry == kobj->dentry)
+		goto out_dput;
+
+	error = -EEXIST;
+	if (new_dentry->d_inode)
+		goto out_dput;
+
+	error = kobject_set_name(kobj, "%s", new_name);
+	if (error)
+		goto out_drop;
+
+	d_add(new_dentry, NULL);
+	d_move(kobj->dentry, new_dentry);
+
+	sd = kobj->dentry->d_fsdata;
+	parent_sd = new_parent->d_fsdata;
+
+	list_del_init(&sd->s_sibling);
+	list_add(&sd->s_sibling, &parent_sd->s_children);
+
+	error = 0;
+	goto out_unlock;
+
+ out_drop:
+	d_drop(new_dentry);
+ out_dput:
+	dput(new_dentry);
+ out_unlock:
 	mutex_unlock(&new_parent->d_inode->i_mutex);
 	up_write(&sysfs_rename_sem);
-
 	return error;
 }
 
