@@ -20,6 +20,11 @@
 
 #include "sysfs.h"
 
+struct bin_buffer {
+	struct mutex	mutex;
+	void		*buffer;
+};
+
 static int
 fill_read(struct dentry *dentry, char *buffer, loff_t off, size_t count)
 {
@@ -36,7 +41,7 @@ fill_read(struct dentry *dentry, char *buffer, loff_t off, size_t count)
 static ssize_t
 read(struct file *file, char __user *userbuf, size_t bytes, loff_t *off)
 {
-	char *buffer = file->private_data;
+	struct bin_buffer *bb = file->private_data;
 	struct dentry *dentry = file->f_path.dentry;
 	int size = dentry->d_inode->i_size;
 	loff_t offs = *off;
@@ -49,17 +54,23 @@ read(struct file *file, char __user *userbuf, size_t bytes, loff_t *off)
 			count = size - offs;
 	}
 
-	count = fill_read(dentry, buffer, offs, count);
-	if (count < 0)
-		return count;
+	mutex_lock(&bb->mutex);
 
-	if (copy_to_user(userbuf, buffer, count))
-		return -EFAULT;
+	count = fill_read(dentry, bb->buffer, offs, count);
+	if (count < 0)
+		goto out_unlock;
+
+	if (copy_to_user(userbuf, bb->buffer, count)) {
+		count = -EFAULT;
+		goto out_unlock;
+	}
 
 	pr_debug("offs = %lld, *off = %lld, count = %d\n", offs, *off, count);
 
 	*off = offs + count;
 
+ out_unlock:
+	mutex_unlock(&bb->mutex);
 	return count;
 }
 
@@ -79,7 +90,7 @@ flush_write(struct dentry *dentry, char *buffer, loff_t offset, size_t count)
 static ssize_t write(struct file *file, const char __user *userbuf,
 		     size_t bytes, loff_t *off)
 {
-	char *buffer = file->private_data;
+	struct bin_buffer *bb = file->private_data;
 	struct dentry *dentry = file->f_path.dentry;
 	int size = dentry->d_inode->i_size;
 	loff_t offs = *off;
@@ -92,25 +103,38 @@ static ssize_t write(struct file *file, const char __user *userbuf,
 			count = size - offs;
 	}
 
-	if (copy_from_user(buffer, userbuf, count))
-		return -EFAULT;
+	mutex_lock(&bb->mutex);
 
-	count = flush_write(dentry, buffer, offs, count);
+	if (copy_from_user(bb->buffer, userbuf, count)) {
+		count = -EFAULT;
+		goto out_unlock;
+	}
+
+	count = flush_write(dentry, bb->buffer, offs, count);
 	if (count > 0)
 		*off = offs + count;
+
+ out_unlock:
+	mutex_unlock(&bb->mutex);
 	return count;
 }
 
 static int mmap(struct file *file, struct vm_area_struct *vma)
 {
+	struct bin_buffer *bb = file->private_data;
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
 	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
 	struct kobject *kobj = to_kobj(file->f_path.dentry->d_parent);
+	int rc;
 
 	if (!attr->mmap)
 		return -EINVAL;
 
-	return attr->mmap(kobj, attr, vma);
+	mutex_lock(&bb->mutex);
+	rc = attr->mmap(kobj, attr, vma);
+	mutex_unlock(&bb->mutex);
+
+	return rc;
 }
 
 static int open(struct inode * inode, struct file * file)
@@ -118,6 +142,7 @@ static int open(struct inode * inode, struct file * file)
 	struct kobject *kobj = sysfs_get_kobject(file->f_path.dentry->d_parent);
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
 	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
+	struct bin_buffer *bb = NULL;
 	int error = -EINVAL;
 
 	if (!kobj || !attr)
@@ -135,14 +160,22 @@ static int open(struct inode * inode, struct file * file)
 		goto Error;
 
 	error = -ENOMEM;
-	file->private_data = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!file->private_data)
+	bb = kzalloc(sizeof(*bb), GFP_KERNEL);
+	if (!bb)
 		goto Error;
 
+	bb->buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!bb->buffer)
+		goto Error;
+
+	mutex_init(&bb->mutex);
+	file->private_data = bb;
+
 	error = 0;
-    goto Done;
+	goto Done;
 
  Error:
+	kfree(bb);
 	module_put(attr->attr.owner);
  Done:
 	if (error)
@@ -155,11 +188,12 @@ static int release(struct inode * inode, struct file * file)
 	struct kobject * kobj = to_kobj(file->f_path.dentry->d_parent);
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
 	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
-	u8 * buffer = file->private_data;
+	struct bin_buffer *bb = file->private_data;
 
 	kobject_put(kobj);
 	module_put(attr->attr.owner);
-	kfree(buffer);
+	kfree(bb->buffer);
+	kfree(bb);
 	return 0;
 }
 
