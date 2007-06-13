@@ -45,7 +45,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		#interrupt-cells = <2>;
-		device_type = "tsi-bridge";
+		device_type = "tsi108-bridge";
 		ranges = <00000000 c0000000 00010000>;
 		reg = <c0000000 00010000>;
 		bus-frequency = <0>;
@@ -55,27 +55,26 @@
 			interrupts = <E 0>;
 			reg = <7000 400>;
 			device_type = "i2c";
-			compatible  = "tsi-i2c";
+			compatible  = "tsi108-i2c";
 		};
 
-		mdio@6000 {
+		MDIO: mdio@6000 {
 			device_type = "mdio";
-			compatible = "tsi-ethernet";
+			compatible = "tsi108-mdio";
+			reg = <6000 50>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
-			phy8: ethernet-phy@6000 {
+			phy8: ethernet-phy@8 {
 				interrupt-parent = <&mpic>;
 				interrupts = <2 1>;
-				reg = <6000 50>;
-				phy-id = <8>;
-				device_type = "ethernet-phy";
+				reg = <8>;
 			};
 
-			phy9: ethernet-phy@6400 {
+			phy9: ethernet-phy@9 {
 				interrupt-parent = <&mpic>;
 				interrupts = <2 1>;
-				reg = <6000 50>;
-				phy-id = <9>;
-				device_type = "ethernet-phy";
+				reg = <9>;
 			};
 
 		};
@@ -83,12 +82,12 @@
 		ethernet@6200 {
 			#size-cells = <0>;
 			device_type = "network";
-			model = "TSI-ETH";
-			compatible = "tsi-ethernet";
+			compatible = "tsi108-ethernet";
 			reg = <6000 200>;
 			address = [ 00 06 D2 00 00 01 ];
 			interrupts = <10 2>;
 			interrupt-parent = <&mpic>;
+			mdio-handle = <&MDIO>;
 			phy-handle = <&phy8>;
 		};
 
@@ -96,12 +95,12 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			device_type = "network";
-			model = "TSI-ETH";
-			compatible = "tsi-ethernet";
+			compatible = "tsi108-ethernet";
 			reg = <6400 200>;
 			address = [ 00 06 D2 00 00 02 ];
 			interrupts = <11 2>;
 			interrupt-parent = <&mpic>;
+			mdio-handle = <&MDIO>;
 			phy-handle = <&phy9>;
 		};
 
@@ -135,7 +134,7 @@
                        	big-endian;
 		};
 		pci@1000 {
-			compatible = "tsi10x";
+			compatible = "tsi108-pci";
 			device_type = "pci";
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
