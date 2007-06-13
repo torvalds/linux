@@ -9,11 +9,41 @@
 #include <linux/module.h>
 #include <linux/kobject.h>
 #include <linux/namei.h>
+#include <linux/idr.h>
 #include <asm/semaphore.h>
 #include "sysfs.h"
 
 DECLARE_RWSEM(sysfs_rename_sem);
 spinlock_t sysfs_lock = SPIN_LOCK_UNLOCKED;
+
+static spinlock_t sysfs_ino_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_IDA(sysfs_ino_ida);
+
+int sysfs_alloc_ino(ino_t *pino)
+{
+	int ino, rc;
+
+ retry:
+	spin_lock(&sysfs_ino_lock);
+	rc = ida_get_new_above(&sysfs_ino_ida, 2, &ino);
+	spin_unlock(&sysfs_ino_lock);
+
+	if (rc == -EAGAIN) {
+		if (ida_pre_get(&sysfs_ino_ida, GFP_KERNEL))
+			goto retry;
+		rc = -ENOMEM;
+	}
+
+	*pino = ino;
+	return rc;
+}
+
+static void sysfs_free_ino(ino_t ino)
+{
+	spin_lock(&sysfs_ino_lock);
+	ida_remove(&sysfs_ino_ida, ino);
+	spin_unlock(&sysfs_ino_lock);
+}
 
 void release_sysfs_dirent(struct sysfs_dirent * sd)
 {
@@ -24,6 +54,7 @@ void release_sysfs_dirent(struct sysfs_dirent * sd)
 		kfree(sl);
 	}
 	kfree(sd->s_iattr);
+	sysfs_free_ino(sd->s_ino);
 	kmem_cache_free(sysfs_dir_cachep, sd);
 }
 
@@ -54,14 +85,6 @@ static struct dentry_operations sysfs_dentry_ops = {
 	.d_iput		= sysfs_d_iput,
 };
 
-static unsigned int sysfs_inode_counter;
-ino_t sysfs_get_inum(void)
-{
-	if (unlikely(sysfs_inode_counter < 3))
-		sysfs_inode_counter = 3;
-	return sysfs_inode_counter++;
-}
-
 /*
  * Allocates a new sysfs_dirent and links it to the parent sysfs_dirent
  */
@@ -73,7 +96,11 @@ static struct sysfs_dirent * __sysfs_new_dirent(void * element)
 	if (!sd)
 		return NULL;
 
-	sd->s_ino = sysfs_get_inum();
+	if (sysfs_alloc_ino(&sd->s_ino)) {
+		kmem_cache_free(sysfs_dir_cachep, sd);
+		return NULL;
+	}
+
 	atomic_set(&sd->s_count, 1);
 	atomic_set(&sd->s_event, 1);
 	INIT_LIST_HEAD(&sd->s_children);
