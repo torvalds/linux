@@ -2357,8 +2357,9 @@ sun4v_ldc_unmap:
 	 nop
 	.size	sun4v_ldc_unmap, .-sun4v_ldc_unmap
 
-	/* %o0:	cookie
-	 * %o1:	mte_cookie
+	/* %o0: channel
+	 * %o1:	cookie
+	 * %o2:	mte_cookie
 	 *
 	 * returns %o0:	status
 	 */
