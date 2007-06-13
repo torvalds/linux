@@ -540,6 +540,9 @@ struct net_device
 	struct device		dev;
 	/* space for optional statistics and wireless sysfs groups */
 	struct attribute_group  *sysfs_groups[3];
+
+	/* rtnetlink link ops */
+	const struct rtnl_link_ops *rtnl_link_ops;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 

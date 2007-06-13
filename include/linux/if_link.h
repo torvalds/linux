@@ -76,6 +76,8 @@ enum
 #define IFLA_WEIGHT IFLA_WEIGHT
 	IFLA_OPERSTATE,
 	IFLA_LINKMODE,
+	IFLA_LINKINFO,
+#define IFLA_LINKINFO IFLA_LINKINFO
 	__IFLA_MAX
 };
 
@@ -139,5 +141,16 @@ struct ifla_cacheinfo
 	__u32	reachable_time;
 	__u32	retrans_time;
 };
+
+enum
+{
+	IFLA_INFO_UNSPEC,
+	IFLA_INFO_KIND,
+	IFLA_INFO_DATA,
+	IFLA_INFO_XSTATS,
+	__IFLA_INFO_MAX,
+};
+
+#define IFLA_INFO_MAX	(__IFLA_INFO_MAX - 1)
 
 #endif /* _LINUX_IF_LINK_H */
