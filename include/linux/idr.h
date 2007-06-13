@@ -83,4 +83,33 @@ void idr_remove(struct idr *idp, int id);
 void idr_destroy(struct idr *idp);
 void idr_init(struct idr *idp);
 
+
+/*
+ * IDA - IDR based id allocator, use when translation from id to
+ * pointer isn't necessary.
+ */
+#define IDA_CHUNK_SIZE		128	/* 128 bytes per chunk */
+#define IDA_BITMAP_LONGS	(128 / sizeof(long) - 1)
+#define IDA_BITMAP_BITS		(IDA_BITMAP_LONGS * sizeof(long) * 8)
+
+struct ida_bitmap {
+	long			nr_busy;
+	unsigned long		bitmap[IDA_BITMAP_LONGS];
+};
+
+struct ida {
+	struct idr		idr;
+	struct ida_bitmap	*free_bitmap;
+};
+
+#define IDA_INIT(name)		{ .idr = IDR_INIT(name), .free_bitmap = NULL, }
+#define DEFINE_IDA(name)	struct ida name = IDA_INIT(name)
+
+int ida_pre_get(struct ida *ida, gfp_t gfp_mask);
+int ida_get_new_above(struct ida *ida, int starting_id, int *p_id);
+int ida_get_new(struct ida *ida, int *p_id);
+void ida_remove(struct ida *ida, int id);
+void ida_destroy(struct ida *ida);
+void ida_init(struct ida *ida);
+
 #endif /* __IDR_H__ */
