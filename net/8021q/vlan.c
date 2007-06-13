@@ -97,15 +97,22 @@ static int __init vlan_proto_init(void)
 
 	/* Register us to receive netdevice events */
 	err = register_netdevice_notifier(&vlan_notifier_block);
-	if (err < 0) {
-		dev_remove_pack(&vlan_packet_type);
-		vlan_proc_cleanup();
-		return err;
-	}
+	if (err < 0)
+		goto err1;
+
+	err = vlan_netlink_init();
+	if (err < 0)
+		goto err2;
 
 	vlan_ioctl_set(vlan_ioctl_handler);
-
 	return 0;
+
+err2:
+	unregister_netdevice_notifier(&vlan_notifier_block);
+err1:
+	vlan_proc_cleanup();
+	dev_remove_pack(&vlan_packet_type);
+	return err;
 }
 
 /* Cleanup all vlan devices
@@ -136,6 +143,7 @@ static void __exit vlan_cleanup_module(void)
 {
 	int i;
 
+	vlan_netlink_fini();
 	vlan_ioctl_set(NULL);
 
 	/* Un-register us from receiving netdevice events */
@@ -306,7 +314,7 @@ static int unregister_vlan_dev(struct net_device *real_dev,
 	return ret;
 }
 
-static int unregister_vlan_device(struct net_device *dev)
+int unregister_vlan_device(struct net_device *dev)
 {
 	int ret;
 
@@ -361,7 +369,7 @@ static int vlan_dev_init(struct net_device *dev)
 	return 0;
 }
 
-static void vlan_setup(struct net_device *new_dev)
+void vlan_setup(struct net_device *new_dev)
 {
 	SET_MODULE_OWNER(new_dev);
 
@@ -410,7 +418,7 @@ static void vlan_transfer_operstate(const struct net_device *dev, struct net_dev
 	}
 }
 
-static int vlan_check_real_dev(struct net_device *real_dev, unsigned short vlan_id)
+int vlan_check_real_dev(struct net_device *real_dev, unsigned short vlan_id)
 {
 	if (real_dev->features & NETIF_F_VLAN_CHALLENGED) {
 		printk(VLAN_DBG "%s: VLANs not supported on %s.\n",
@@ -447,7 +455,7 @@ static int vlan_check_real_dev(struct net_device *real_dev, unsigned short vlan_
 	return 0;
 }
 
-static int register_vlan_dev(struct net_device *dev)
+int register_vlan_dev(struct net_device *dev)
 {
 	struct vlan_dev_info *vlan = VLAN_DEV_INFO(dev);
 	struct net_device *real_dev = vlan->real_dev;
@@ -567,6 +575,7 @@ static int register_vlan_device(struct net_device *real_dev,
 	VLAN_DEV_INFO(new_dev)->dent = NULL;
 	VLAN_DEV_INFO(new_dev)->flags = VLAN_FLAG_REORDER_HDR;
 
+	new_dev->rtnl_link_ops = &vlan_link_ops;
 	err = register_vlan_dev(new_dev);
 	if (err < 0)
 		goto out_free_newdev;

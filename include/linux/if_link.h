@@ -153,4 +153,38 @@ enum
 
 #define IFLA_INFO_MAX	(__IFLA_INFO_MAX - 1)
 
+/* VLAN section */
+
+enum
+{
+	IFLA_VLAN_UNSPEC,
+	IFLA_VLAN_ID,
+	IFLA_VLAN_FLAGS,
+	IFLA_VLAN_EGRESS_QOS,
+	IFLA_VLAN_INGRESS_QOS,
+	__IFLA_VLAN_MAX,
+};
+
+#define IFLA_VLAN_MAX	(__IFLA_VLAN_MAX - 1)
+
+struct ifla_vlan_flags {
+	__u32	flags;
+	__u32	mask;
+};
+
+enum
+{
+	IFLA_VLAN_QOS_UNSPEC,
+	IFLA_VLAN_QOS_MAPPING,
+	__IFLA_VLAN_QOS_MAX
+};
+
+#define IFLA_VLAN_QOS_MAX	(__IFLA_VLAN_QOS_MAX - 1)
+
+struct ifla_vlan_qos_mapping
+{
+	__u32 from;
+	__u32 to;
+};
+
 #endif /* _LINUX_IF_LINK_H */

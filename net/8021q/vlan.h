@@ -72,4 +72,14 @@ void vlan_dev_get_realdev_name(const struct net_device *dev, char *result);
 void vlan_dev_get_vid(const struct net_device *dev, unsigned short *result);
 void vlan_dev_set_multicast_list(struct net_device *vlan_dev);
 
+int vlan_check_real_dev(struct net_device *real_dev, unsigned short vlan_id);
+void vlan_setup(struct net_device *dev);
+int register_vlan_dev(struct net_device *dev);
+int unregister_vlan_device(struct net_device *dev);
+
+int vlan_netlink_init(void);
+void vlan_netlink_fini(void);
+
+extern struct rtnl_link_ops vlan_link_ops;
+
 #endif /* !(__BEN_VLAN_802_1Q_INC__) */
