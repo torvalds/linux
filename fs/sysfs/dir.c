@@ -20,7 +20,7 @@ spinlock_t kobj_sysfs_assoc_lock = SPIN_LOCK_UNLOCKED;
 static spinlock_t sysfs_ino_lock = SPIN_LOCK_UNLOCKED;
 static DEFINE_IDA(sysfs_ino_ida);
 
-int sysfs_alloc_ino(ino_t *pino)
+static int sysfs_alloc_ino(ino_t *pino)
 {
 	int ino, rc;
 
