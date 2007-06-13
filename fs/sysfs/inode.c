@@ -219,9 +219,9 @@ void sysfs_instantiate(struct dentry *dentry, struct inode *inode)
  */
 void sysfs_drop_dentry(struct sysfs_dirent *sd)
 {
-	struct dentry *dentry = NULL, *parent = NULL;
-	struct inode *dir;
+	struct dentry *dentry = NULL;
 	struct timespec curtime;
+	struct inode *inode;
 
 	/* We're not holding a reference to ->s_dentry dentry but the
 	 * field will stay valid as long as sysfs_lock is held.
@@ -229,19 +229,9 @@ void sysfs_drop_dentry(struct sysfs_dirent *sd)
 	spin_lock(&sysfs_lock);
 	spin_lock(&dcache_lock);
 
+	/* drop dentry if it's there and dput() didn't kill it yet */
 	if (sd->s_dentry && sd->s_dentry->d_inode) {
-		/* get dentry if it's there and dput() didn't kill it yet */
 		dentry = dget_locked(sd->s_dentry);
-		parent = dentry->d_parent;
-	} else if (sd->s_parent->s_dentry->d_inode) {
-		/* We need to update the parent even if dentry for the
-		 * victim itself doesn't exist.
-		 */
-		parent = dget_locked(sd->s_parent->s_dentry);
-	}
-
-	/* drop */
-	if (dentry) {
 		spin_lock(&dentry->d_lock);
 		__d_drop(dentry);
 		spin_unlock(&dentry->d_lock);
@@ -250,36 +240,39 @@ void sysfs_drop_dentry(struct sysfs_dirent *sd)
 	spin_unlock(&dcache_lock);
 	spin_unlock(&sysfs_lock);
 
-	/* nothing to do if the parent isn't in dcache */
-	if (!parent)
-		return;
+	dput(dentry);
+	/* XXX: unpin if directory, this will go away soon */
+	if (sd->s_type & SYSFS_DIR)
+		dput(dentry);
 
 	/* adjust nlink and update timestamp */
-	dir = parent->d_inode;
-	mutex_lock(&dir->i_mutex);
-
 	curtime = CURRENT_TIME;
 
-	dir->i_ctime = dir->i_mtime = curtime;
+	inode = ilookup(sysfs_sb, sd->s_ino);
+	if (inode) {
+		mutex_lock(&inode->i_mutex);
 
-	if (dentry) {
-		dentry->d_inode->i_ctime = curtime;
-		drop_nlink(dentry->d_inode);
-		if (sd->s_type & SYSFS_DIR) {
-			drop_nlink(dentry->d_inode);
-			drop_nlink(dir);
-			/* XXX: unpin if directory, this will go away soon */
-			dput(dentry);
-		}
+		inode->i_ctime = curtime;
+		drop_nlink(inode);
+		if (sd->s_type & SYSFS_DIR)
+			drop_nlink(inode);
+
+		mutex_unlock(&inode->i_mutex);
+		iput(inode);
 	}
 
-	mutex_unlock(&dir->i_mutex);
+	/* adjust nlink and udpate timestamp of the parent */
+	inode = ilookup(sysfs_sb, sd->s_parent->s_ino);
+	if (inode) {
+		mutex_lock(&inode->i_mutex);
 
-	/* bye bye */
-	if (dentry)
-		dput(dentry);
-	else
-		dput(parent);
+		inode->i_ctime = inode->i_mtime = curtime;
+		if (sd->s_type & SYSFS_DIR)
+			drop_nlink(inode);
+
+		mutex_unlock(&inode->i_mutex);
+		iput(inode);
+	}
 }
 
 int sysfs_hash_and_remove(struct dentry * dir, const char * name)
