@@ -1,3 +1,17 @@
+/*
+ * Definitions for RTL8187 hardware
+ *
+ * Copyright 2007 Michael Wu <flamingice@sourmilk.net>
+ * Copyright 2007 Andrea Merello <andreamrl@tiscali.it>
+ *
+ * Based on the r8187 driver, which is:
+ * Copyright 2005 Andrea Merello <andreamrl@tiscali.it>, et al.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
 #ifndef RTL8187_H
 #define RTL8187_H
 

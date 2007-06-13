@@ -1,4 +1,3 @@
-
 /*
  * Radio tuning for RTL8225 on RTL8187
  *
@@ -8,7 +7,9 @@
  * Based on the r8187 driver, which is:
  * Copyright 2005 Andrea Merello <andreamrl@tiscali.it>, et al.
  *
- * Thanks to Realtek for their support!
+ * Magic delays, register offsets, and phy value tables below are
+ * taken from the original r8187 driver sources.  Thanks to Realtek
+ * for their support!
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
