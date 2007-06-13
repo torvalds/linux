@@ -826,16 +826,19 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	/* set up files for this cpu device */
 	drv_attr = cpufreq_driver->attr;
 	while ((drv_attr) && (*drv_attr)) {
-		if (sysfs_create_file(&policy->kobj, &((*drv_attr)->attr)))
+		ret = sysfs_create_file(&policy->kobj, &((*drv_attr)->attr));
+		if (ret)
 			goto err_out_driver_exit;
 		drv_attr++;
 	}
 	if (cpufreq_driver->get){
-		if (sysfs_create_file(&policy->kobj, &cpuinfo_cur_freq.attr))
+		ret = sysfs_create_file(&policy->kobj, &cpuinfo_cur_freq.attr);
+		if (ret)
 			goto err_out_driver_exit;
 	}
 	if (cpufreq_driver->target){
-		if (sysfs_create_file(&policy->kobj, &scaling_cur_freq.attr))
+		ret = sysfs_create_file(&policy->kobj, &scaling_cur_freq.attr);
+		if (ret)
 			goto err_out_driver_exit;
 	}
 
