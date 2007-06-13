@@ -410,6 +410,43 @@ static void vlan_transfer_operstate(const struct net_device *dev, struct net_dev
 	}
 }
 
+static int vlan_check_real_dev(struct net_device *real_dev, unsigned short vlan_id)
+{
+	if (real_dev->features & NETIF_F_VLAN_CHALLENGED) {
+		printk(VLAN_DBG "%s: VLANs not supported on %s.\n",
+			__FUNCTION__, real_dev->name);
+		return -EOPNOTSUPP;
+	}
+
+	if ((real_dev->features & NETIF_F_HW_VLAN_RX) &&
+	    !real_dev->vlan_rx_register) {
+		printk(VLAN_DBG "%s: Device %s has buggy VLAN hw accel.\n",
+			__FUNCTION__, real_dev->name);
+		return -EOPNOTSUPP;
+	}
+
+	if ((real_dev->features & NETIF_F_HW_VLAN_FILTER) &&
+	    (!real_dev->vlan_rx_add_vid || !real_dev->vlan_rx_kill_vid)) {
+		printk(VLAN_DBG "%s: Device %s has buggy VLAN hw accel.\n",
+			__FUNCTION__, real_dev->name);
+		return -EOPNOTSUPP;
+	}
+
+	/* The real device must be up and operating in order to
+	 * assosciate a VLAN device with it.
+	 */
+	if (!(real_dev->flags & IFF_UP))
+		return -ENETDOWN;
+
+	if (__find_vlan_dev(real_dev, vlan_id) != NULL) {
+		/* was already registered. */
+		printk(VLAN_DBG "%s: ALREADY had VLAN registered\n", __FUNCTION__);
+		return -EEXIST;
+	}
+
+	return 0;
+}
+
 /*  Attach a VLAN device to a mac address (ie Ethernet Card).
  *  Returns the device that was created, or NULL if there was
  *  an error of some kind.
@@ -429,37 +466,8 @@ static struct net_device *register_vlan_device(struct net_device *real_dev,
 	if (VLAN_ID >= VLAN_VID_MASK)
 		goto out_ret_null;
 
-	if (real_dev->features & NETIF_F_VLAN_CHALLENGED) {
-		printk(VLAN_DBG "%s: VLANs not supported on %s.\n",
-			__FUNCTION__, real_dev->name);
+	if (vlan_check_real_dev(real_dev, VLAN_ID) < 0)
 		goto out_ret_null;
-	}
-
-	if ((real_dev->features & NETIF_F_HW_VLAN_RX) &&
-	    !real_dev->vlan_rx_register) {
-		printk(VLAN_DBG "%s: Device %s has buggy VLAN hw accel.\n",
-			__FUNCTION__, real_dev->name);
-		goto out_ret_null;
-	}
-
-	if ((real_dev->features & NETIF_F_HW_VLAN_FILTER) &&
-	    (!real_dev->vlan_rx_add_vid || !real_dev->vlan_rx_kill_vid)) {
-		printk(VLAN_DBG "%s: Device %s has buggy VLAN hw accel.\n",
-			__FUNCTION__, real_dev->name);
-		goto out_ret_null;
-	}
-
-	/* The real device must be up and operating in order to
-	 * assosciate a VLAN device with it.
-	 */
-	if (!(real_dev->flags & IFF_UP))
-		goto out_ret_null;
-
-	if (__find_vlan_dev(real_dev, VLAN_ID) != NULL) {
-		/* was already registered. */
-		printk(VLAN_DBG "%s: ALREADY had VLAN registered\n", __FUNCTION__);
-		goto out_ret_null;
-	}
 
 	/* Gotta set up the fields for the device. */
 #ifdef VLAN_DEBUG
