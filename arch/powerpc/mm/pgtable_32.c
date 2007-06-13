@@ -36,7 +36,6 @@
 unsigned long ioremap_base;
 unsigned long ioremap_bot;
 EXPORT_SYMBOL(ioremap_bot);	/* aka VMALLOC_END */
-int io_bat_index;
 
 #if defined(CONFIG_6xx) || defined(CONFIG_POWER3)
 #define HAVE_BATS	1
@@ -298,9 +297,6 @@ void __init mapin_ram(void)
 		p += PAGE_SIZE;
 	}
 }
-
-/* is x a power of 4? */
-#define is_power_of_4(x)	is_power_of_2(x) && (ffs(x) & 1)
 
 /* Scan the real Linux page tables and return a PTE pointer for
  * a virtual address in a context.
