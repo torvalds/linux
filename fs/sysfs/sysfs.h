@@ -23,8 +23,8 @@ struct sysfs_dirent {
 	atomic_t		s_count;
 	atomic_t		s_active;
 	struct sysfs_dirent	* s_parent;
-	struct list_head	s_sibling;
-	struct list_head	s_children;
+	struct sysfs_dirent	* s_sibling;
+	struct sysfs_dirent	* s_children;
 	const char		* s_name;
 
 	union {

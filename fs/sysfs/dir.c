@@ -22,6 +22,48 @@ static spinlock_t sysfs_ino_lock = SPIN_LOCK_UNLOCKED;
 static DEFINE_IDA(sysfs_ino_ida);
 
 /**
+ *	sysfs_link_sibling - link sysfs_dirent into sibling list
+ *	@sd: sysfs_dirent of interest
+ *
+ *	Link @sd into its sibling list which starts from
+ *	sd->s_parent->s_children.
+ *
+ *	Locking:
+ *	mutex_lock(sd->s_parent->dentry->d_inode->i_mutex)
+ */
+static void sysfs_link_sibling(struct sysfs_dirent *sd)
+{
+	struct sysfs_dirent *parent_sd = sd->s_parent;
+
+	BUG_ON(sd->s_sibling);
+	sd->s_sibling = parent_sd->s_children;
+	parent_sd->s_children = sd;
+}
+
+/**
+ *	sysfs_unlink_sibling - unlink sysfs_dirent from sibling list
+ *	@sd: sysfs_dirent of interest
+ *
+ *	Unlink @sd from its sibling list which starts from
+ *	sd->s_parent->s_children.
+ *
+ *	Locking:
+ *	mutex_lock(sd->s_parent->dentry->d_inode->i_mutex)
+ */
+static void sysfs_unlink_sibling(struct sysfs_dirent *sd)
+{
+	struct sysfs_dirent **pos;
+
+	for (pos = &sd->s_parent->s_children; *pos; pos = &(*pos)->s_sibling) {
+		if (*pos == sd) {
+			*pos = sd->s_sibling;
+			sd->s_sibling = NULL;
+			break;
+		}
+	}
+}
+
+/**
  *	sysfs_get_active - get an active reference to sysfs_dirent
  *	@sd: sysfs_dirent to get an active reference to
  *
@@ -73,9 +115,9 @@ void sysfs_put_active(struct sysfs_dirent *sd)
 		return;
 
 	/* atomic_dec_return() is a mb(), we'll always see the updated
-	 * sd->s_sibling.next.
+	 * sd->s_sibling.
 	 */
-	cmpl = (void *)sd->s_sibling.next;
+	cmpl = (void *)sd->s_sibling;
 	complete(cmpl);
 }
 
@@ -129,18 +171,18 @@ void sysfs_deactivate(struct sysfs_dirent *sd)
 	DECLARE_COMPLETION_ONSTACK(wait);
 	int v;
 
-	BUG_ON(!list_empty(&sd->s_sibling));
-	sd->s_sibling.next = (void *)&wait;
+	BUG_ON(sd->s_sibling);
+	sd->s_sibling = (void *)&wait;
 
 	/* atomic_add_return() is a mb(), put_active() will always see
-	 * the updated sd->s_sibling.next.
+	 * the updated sd->s_sibling.
 	 */
 	v = atomic_add_return(SD_DEACTIVATED_BIAS, &sd->s_active);
 
 	if (v != SD_DEACTIVATED_BIAS)
 		wait_for_completion(&wait);
 
-	INIT_LIST_HEAD(&sd->s_sibling);
+	sd->s_sibling = NULL;
 }
 
 static int sysfs_alloc_ino(ino_t *pino)
@@ -237,8 +279,6 @@ struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type)
 	atomic_set(&sd->s_count, 1);
 	atomic_set(&sd->s_active, 0);
 	atomic_set(&sd->s_event, 1);
-	INIT_LIST_HEAD(&sd->s_children);
-	INIT_LIST_HEAD(&sd->s_sibling);
 
 	sd->s_name = name;
 	sd->s_mode = mode;
@@ -273,7 +313,7 @@ void sysfs_attach_dirent(struct sysfs_dirent *sd,
 
 	if (parent_sd) {
 		sd->s_parent = sysfs_get(parent_sd);
-		list_add(&sd->s_sibling, &parent_sd->s_children);
+		sysfs_link_sibling(sd);
 	}
 }
 
@@ -289,7 +329,7 @@ int sysfs_dirent_exist(struct sysfs_dirent *parent_sd,
 {
 	struct sysfs_dirent * sd;
 
-	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
+	for (sd = parent_sd->s_children; sd; sd = sd->s_sibling) {
 		if (sd->s_type) {
 			if (strcmp(sd->s_name, new))
 				continue;
@@ -409,7 +449,7 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 	struct inode *inode;
 	int found = 0;
 
-	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
+	for (sd = parent_sd->s_children; sd; sd = sd->s_sibling) {
 		if ((sd->s_type & SYSFS_NOT_PINNED) &&
 		    !strcmp(sd->s_name, dentry->d_name.name)) {
 			found = 1;
@@ -458,7 +498,7 @@ static void remove_dir(struct dentry * d)
 
 	mutex_lock(&parent->d_inode->i_mutex);
 
- 	list_del_init(&sd->s_sibling);
+	sysfs_unlink_sibling(sd);
 
 	pr_debug(" o %s removing done (%d)\n",d->d_name.name,
 		 atomic_read(&d->d_count));
@@ -478,9 +518,9 @@ void sysfs_remove_subdir(struct dentry * d)
 
 static void __sysfs_remove_dir(struct dentry *dentry)
 {
-	LIST_HEAD(removed);
-	struct sysfs_dirent * parent_sd;
-	struct sysfs_dirent * sd, * tmp;
+	struct sysfs_dirent *removed = NULL;
+	struct sysfs_dirent *parent_sd;
+	struct sysfs_dirent **pos;
 
 	if (!dentry)
 		return;
@@ -488,15 +528,25 @@ static void __sysfs_remove_dir(struct dentry *dentry)
 	pr_debug("sysfs %s: removing dir\n",dentry->d_name.name);
 	mutex_lock(&dentry->d_inode->i_mutex);
 	parent_sd = dentry->d_fsdata;
-	list_for_each_entry_safe(sd, tmp, &parent_sd->s_children, s_sibling) {
-		if (!sd->s_type || !(sd->s_type & SYSFS_NOT_PINNED))
-			continue;
-		list_move(&sd->s_sibling, &removed);
+	pos = &parent_sd->s_children;
+	while (*pos) {
+		struct sysfs_dirent *sd = *pos;
+
+		if (sd->s_type && (sd->s_type & SYSFS_NOT_PINNED)) {
+			*pos = sd->s_sibling;
+			sd->s_sibling = removed;
+			removed = sd;
+		} else
+			pos = &(*pos)->s_sibling;
 	}
 	mutex_unlock(&dentry->d_inode->i_mutex);
 
-	list_for_each_entry_safe(sd, tmp, &removed, s_sibling) {
-		list_del_init(&sd->s_sibling);
+	while (removed) {
+		struct sysfs_dirent *sd = removed;
+
+		removed = sd->s_sibling;
+		sd->s_sibling = NULL;
+
 		sysfs_drop_dentry(sd);
 		sysfs_deactivate(sd);
 		sysfs_put(sd);
@@ -577,11 +627,11 @@ int sysfs_rename_dir(struct kobject * kobj, struct dentry *new_parent,
 	d_add(new_dentry, NULL);
 	d_move(kobj->dentry, new_dentry);
 
-	list_del_init(&sd->s_sibling);
+	sysfs_unlink_sibling(sd);
 	sysfs_get(parent_sd);
 	sysfs_put(sd->s_parent);
 	sd->s_parent = parent_sd;
-	list_add(&sd->s_sibling, &parent_sd->s_children);
+	sysfs_link_sibling(sd);
 
 	error = 0;
 	goto out_unlock;
@@ -633,11 +683,11 @@ again:
 	dput(new_dentry);
 
 	/* Remove from old parent's list and insert into new parent's list. */
-	list_del_init(&sd->s_sibling);
+	sysfs_unlink_sibling(sd);
 	sysfs_get(new_parent_sd);
 	sysfs_put(sd->s_parent);
 	sd->s_parent = new_parent_sd;
-	list_add(&sd->s_sibling, &new_parent_sd->s_children);
+	sysfs_link_sibling(sd);
 
 out:
 	mutex_unlock(&new_parent_dentry->d_inode->i_mutex);
@@ -668,7 +718,7 @@ static int sysfs_dir_close(struct inode *inode, struct file *file)
 	struct sysfs_dirent * cursor = file->private_data;
 
 	mutex_lock(&dentry->d_inode->i_mutex);
-	list_del_init(&cursor->s_sibling);
+	sysfs_unlink_sibling(cursor);
 	mutex_unlock(&dentry->d_inode->i_mutex);
 
 	release_sysfs_dirent(cursor);
@@ -687,7 +737,7 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 	struct dentry *dentry = filp->f_path.dentry;
 	struct sysfs_dirent * parent_sd = dentry->d_fsdata;
 	struct sysfs_dirent *cursor = filp->private_data;
-	struct list_head *p, *q = &cursor->s_sibling;
+	struct sysfs_dirent **pos;
 	ino_t ino;
 	int i = filp->f_pos;
 
@@ -710,16 +760,21 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 			i++;
 			/* fallthrough */
 		default:
-			if (filp->f_pos == 2)
-				list_move(q, &parent_sd->s_children);
+			pos = &parent_sd->s_children;
+			while (*pos != cursor)
+				pos = &(*pos)->s_sibling;
 
-			for (p=q->next; p!= &parent_sd->s_children; p=p->next) {
-				struct sysfs_dirent *next;
+			/* unlink cursor */
+			*pos = cursor->s_sibling;
+
+			if (filp->f_pos == 2)
+				pos = &parent_sd->s_children;
+
+			for ( ; *pos; pos = &(*pos)->s_sibling) {
+				struct sysfs_dirent *next = *pos;
 				const char * name;
 				int len;
 
-				next = list_entry(p, struct sysfs_dirent,
-						   s_sibling);
 				if (!next->s_type)
 					continue;
 
@@ -729,12 +784,14 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 
 				if (filldir(dirent, name, len, filp->f_pos, ino,
 						 dt_type(next)) < 0)
-					return 0;
+					break;
 
-				list_move(q, p);
-				p = q;
 				filp->f_pos++;
 			}
+
+			/* put cursor back in */
+			cursor->s_sibling = *pos;
+			*pos = cursor;
 	}
 	return 0;
 }
@@ -759,20 +816,21 @@ static loff_t sysfs_dir_lseek(struct file * file, loff_t offset, int origin)
 		if (file->f_pos >= 2) {
 			struct sysfs_dirent *sd = dentry->d_fsdata;
 			struct sysfs_dirent *cursor = file->private_data;
-			struct list_head *p;
+			struct sysfs_dirent **pos;
 			loff_t n = file->f_pos - 2;
 
-			list_del(&cursor->s_sibling);
-			p = sd->s_children.next;
-			while (n && p != &sd->s_children) {
-				struct sysfs_dirent *next;
-				next = list_entry(p, struct sysfs_dirent,
-						   s_sibling);
+			sysfs_unlink_sibling(cursor);
+
+			pos = &sd->s_children;
+			while (n && *pos) {
+				struct sysfs_dirent *next = *pos;
 				if (next->s_type)
 					n--;
-				p = p->next;
+				pos = &(*pos)->s_sibling;
 			}
-			list_add_tail(&cursor->s_sibling, p);
+
+			cursor->s_sibling = *pos;
+			*pos = cursor;
 		}
 	}
 	mutex_unlock(&dentry->d_inode->i_mutex);
