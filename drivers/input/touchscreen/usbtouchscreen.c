@@ -91,7 +91,7 @@ struct usbtouch_usb {
 };
 
 
-#if defined(CONFIG_USB_TOUCHSCREEN_EGALAX) || defined(CONFIG_USB_TOUCHSCREEN_ETURBO)
+#if defined(CONFIG_TOUCHSCREEN_USB_EGALAX) || defined(CONFIG_TOUCHSCREEN_USB_ETURBO)
 #define MULTI_PACKET
 #endif
 
@@ -113,7 +113,7 @@ enum {
 };
 
 static struct usb_device_id usbtouch_devices[] = {
-#ifdef CONFIG_USB_TOUCHSCREEN_EGALAX
+#ifdef CONFIG_TOUCHSCREEN_USB_EGALAX
 	{USB_DEVICE(0x3823, 0x0001), .driver_info = DEVTYPE_EGALAX},
 	{USB_DEVICE(0x3823, 0x0002), .driver_info = DEVTYPE_EGALAX},
 	{USB_DEVICE(0x0123, 0x0001), .driver_info = DEVTYPE_EGALAX},
@@ -123,30 +123,30 @@ static struct usb_device_id usbtouch_devices[] = {
 	{USB_DEVICE(0x1234, 0x0002), .driver_info = DEVTYPE_EGALAX},
 #endif
 
-#ifdef CONFIG_USB_TOUCHSCREEN_PANJIT
+#ifdef CONFIG_TOUCHSCREEN_USB_PANJIT
 	{USB_DEVICE(0x134c, 0x0001), .driver_info = DEVTYPE_PANJIT},
 	{USB_DEVICE(0x134c, 0x0002), .driver_info = DEVTYPE_PANJIT},
 	{USB_DEVICE(0x134c, 0x0003), .driver_info = DEVTYPE_PANJIT},
 	{USB_DEVICE(0x134c, 0x0004), .driver_info = DEVTYPE_PANJIT},
 #endif
 
-#ifdef CONFIG_USB_TOUCHSCREEN_3M
+#ifdef CONFIG_TOUCHSCREEN_USB_3M
 	{USB_DEVICE(0x0596, 0x0001), .driver_info = DEVTYPE_3M},
 #endif
 
-#ifdef CONFIG_USB_TOUCHSCREEN_ITM
+#ifdef CONFIG_TOUCHSCREEN_USB_ITM
 	{USB_DEVICE(0x0403, 0xf9e9), .driver_info = DEVTYPE_ITM},
 #endif
 
-#ifdef CONFIG_USB_TOUCHSCREEN_ETURBO
+#ifdef CONFIG_TOUCHSCREEN_USB_ETURBO
 	{USB_DEVICE(0x1234, 0x5678), .driver_info = DEVTYPE_ETURBO},
 #endif
 
-#ifdef CONFIG_USB_TOUCHSCREEN_GUNZE
+#ifdef CONFIG_TOUCHSCREEN_USB_GUNZE
 	{USB_DEVICE(0x0637, 0x0001), .driver_info = DEVTYPE_GUNZE},
 #endif
 
-#ifdef CONFIG_USB_TOUCHSCREEN_DMC_TSC10
+#ifdef CONFIG_TOUCHSCREEN_USB_DMC_TSC10
 	{USB_DEVICE(0x0afa, 0x03e8), .driver_info = DEVTYPE_DMC_TSC10},
 #endif
 
@@ -158,7 +158,7 @@ static struct usb_device_id usbtouch_devices[] = {
  * eGalax part
  */
 
-#ifdef CONFIG_USB_TOUCHSCREEN_EGALAX
+#ifdef CONFIG_TOUCHSCREEN_USB_EGALAX
 
 #define EGALAX_PKT_TYPE_MASK		0xFE
 #define EGALAX_PKT_TYPE_REPT		0x80
@@ -197,7 +197,7 @@ static int egalax_get_pkt_len(unsigned char *buf, int len)
 /*****************************************************************************
  * PanJit Part
  */
-#ifdef CONFIG_USB_TOUCHSCREEN_PANJIT
+#ifdef CONFIG_TOUCHSCREEN_USB_PANJIT
 static int panjit_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
 	dev->x = ((pkt[2] & 0x0F) << 8) | pkt[1];
@@ -212,7 +212,7 @@ static int panjit_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 /*****************************************************************************
  * 3M/Microtouch Part
  */
-#ifdef CONFIG_USB_TOUCHSCREEN_3M
+#ifdef CONFIG_TOUCHSCREEN_USB_3M
 
 #define MTOUCHUSB_ASYNC_REPORT          1
 #define MTOUCHUSB_RESET                 7
@@ -262,7 +262,7 @@ static int mtouch_init(struct usbtouch_usb *usbtouch)
 /*****************************************************************************
  * ITM Part
  */
-#ifdef CONFIG_USB_TOUCHSCREEN_ITM
+#ifdef CONFIG_TOUCHSCREEN_USB_ITM
 static int itm_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
 	int touch;
@@ -296,7 +296,7 @@ static int itm_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 /*****************************************************************************
  * eTurboTouch part
  */
-#ifdef CONFIG_USB_TOUCHSCREEN_ETURBO
+#ifdef CONFIG_TOUCHSCREEN_USB_ETURBO
 static int eturbo_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
 	unsigned int shift;
@@ -327,7 +327,7 @@ static int eturbo_get_pkt_len(unsigned char *buf, int len)
 /*****************************************************************************
  * Gunze part
  */
-#ifdef CONFIG_USB_TOUCHSCREEN_GUNZE
+#ifdef CONFIG_TOUCHSCREEN_USB_GUNZE
 static int gunze_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
 	if (!(pkt[0] & 0x80) || ((pkt[1] | pkt[2] | pkt[3]) & 0x80))
@@ -348,7 +348,7 @@ static int gunze_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
  *   http://www.dmccoltd.com/files/controler/tsc10usb_pi_e.pdf
  *   http://www.dmccoltd.com/files/controler/tsc25_usb_e.pdf
  */
-#ifdef CONFIG_USB_TOUCHSCREEN_DMC_TSC10
+#ifdef CONFIG_TOUCHSCREEN_USB_DMC_TSC10
 
 /* supported data rates. currently using 130 */
 #define TSC10_RATE_POINT	0x50
@@ -419,7 +419,7 @@ static int dmc_tsc10_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
  * the different device descriptors
  */
 static struct usbtouch_device_info usbtouch_dev_info[] = {
-#ifdef CONFIG_USB_TOUCHSCREEN_EGALAX
+#ifdef CONFIG_TOUCHSCREEN_USB_EGALAX
 	[DEVTYPE_EGALAX] = {
 		.min_xc		= 0x0,
 		.max_xc		= 0x07ff,
@@ -433,7 +433,7 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 	},
 #endif
 
-#ifdef CONFIG_USB_TOUCHSCREEN_PANJIT
+#ifdef CONFIG_TOUCHSCREEN_USB_PANJIT
 	[DEVTYPE_PANJIT] = {
 		.min_xc		= 0x0,
 		.max_xc		= 0x0fff,
@@ -444,7 +444,7 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 	},
 #endif
 
-#ifdef CONFIG_USB_TOUCHSCREEN_3M
+#ifdef CONFIG_TOUCHSCREEN_USB_3M
 	[DEVTYPE_3M] = {
 		.min_xc		= 0x0,
 		.max_xc		= 0x4000,
@@ -456,7 +456,7 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 	},
 #endif
 
-#ifdef CONFIG_USB_TOUCHSCREEN_ITM
+#ifdef CONFIG_TOUCHSCREEN_USB_ITM
 	[DEVTYPE_ITM] = {
 		.min_xc		= 0x0,
 		.max_xc		= 0x0fff,
@@ -468,7 +468,7 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 	},
 #endif
 
-#ifdef CONFIG_USB_TOUCHSCREEN_ETURBO
+#ifdef CONFIG_TOUCHSCREEN_USB_ETURBO
 	[DEVTYPE_ETURBO] = {
 		.min_xc		= 0x0,
 		.max_xc		= 0x07ff,
@@ -482,7 +482,7 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 	},
 #endif
 
-#ifdef CONFIG_USB_TOUCHSCREEN_GUNZE
+#ifdef CONFIG_TOUCHSCREEN_USB_GUNZE
 	[DEVTYPE_GUNZE] = {
 		.min_xc		= 0x0,
 		.max_xc		= 0x0fff,
@@ -493,7 +493,7 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 	},
 #endif
 
-#ifdef CONFIG_USB_TOUCHSCREEN_DMC_TSC10
+#ifdef CONFIG_TOUCHSCREEN_USB_DMC_TSC10
 	[DEVTYPE_DMC_TSC10] = {
 		.min_xc		= 0x0,
 		.max_xc		= 0x03ff,

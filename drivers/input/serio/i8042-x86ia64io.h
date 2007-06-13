@@ -69,6 +69,15 @@ static inline void i8042_write_command(int val)
 
 static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 	{
+		/* AUX LOOP command does not raise AUX IRQ */
+		.ident = "ASUS P65UP5",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "P/I-P65UP5"),
+			DMI_MATCH(DMI_BOARD_VERSION, "REV 2.X"),
+		},
+	},
+	{
 		.ident = "Compaq Proliant 8500",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Compaq"),
@@ -90,6 +99,15 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "OQO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "ZEPTO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "00"),
+		},
+	},
+	{
+		/* AUX LOOP does not work properly */
+		.ident = "ULI EV4873",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ULI"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "EV4873"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "5a"),
 		},
 	},
 	{ }

@@ -170,17 +170,6 @@ config INPUT_UINPUT
 	  To compile this driver as a module, choose M here: the
 	  module will be called uinput.
 
-config INPUT_POLLDEV
-	tristate "Polled input device skeleton"
-	help
-	  Say Y here if you are using a driver for an input
-	  device that periodically polls hardware state. This
-	  option is only useful for out-of-tree drivers since
-	  in-tree drivers select it automatically.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called input-polldev.
-
 config HP_SDC_RTC
 	tristate "HP SDC Real Time Clock"
 	depends on GSC || HP300
