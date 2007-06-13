@@ -2033,6 +2033,7 @@ static void esp_reset_cleanup(struct esp *esp)
 			starget_for_each_device(tp->starget, NULL,
 						esp_clear_hold);
 	}
+	esp->flags &= ~ESP_FLAG_RESETTING;
 }
 
 /* Runs under host->lock */
