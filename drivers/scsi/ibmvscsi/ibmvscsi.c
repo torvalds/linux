@@ -1018,7 +1018,7 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 
 	if (!found_evt) {
 		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
-		return FAILED;
+		return SUCCESS;
 	}
 
 	evt = get_event_struct(&hostdata->pool);
