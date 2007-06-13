@@ -493,14 +493,14 @@ out_free_group:
 }
 
 /*  Attach a VLAN device to a mac address (ie Ethernet Card).
- *  Returns the device that was created, or NULL if there was
- *  an error of some kind.
+ *  Returns 0 if the device was created or a negative error code otherwise.
  */
-static struct net_device *register_vlan_device(struct net_device *real_dev,
-					       unsigned short VLAN_ID)
+static int register_vlan_device(struct net_device *real_dev,
+				unsigned short VLAN_ID)
 {
 	struct net_device *new_dev;
 	char name[IFNAMSIZ];
+	int err;
 
 #ifdef VLAN_DEBUG
 	printk(VLAN_DBG "%s: if_name -:%s:-	vid: %i\n",
@@ -508,10 +508,11 @@ static struct net_device *register_vlan_device(struct net_device *real_dev,
 #endif
 
 	if (VLAN_ID >= VLAN_VID_MASK)
-		goto out_ret_null;
+		return -ERANGE;
 
-	if (vlan_check_real_dev(real_dev, VLAN_ID) < 0)
-		goto out_ret_null;
+	err = vlan_check_real_dev(real_dev, VLAN_ID);
+	if (err < 0)
+		return err;
 
 	/* Gotta set up the fields for the device. */
 #ifdef VLAN_DEBUG
@@ -547,7 +548,7 @@ static struct net_device *register_vlan_device(struct net_device *real_dev,
 			       vlan_setup);
 
 	if (new_dev == NULL)
-		goto out_ret_null;
+		return -ENOBUFS;
 
 	/* need 4 bytes for extra VLAN header info,
 	 * hope the underlying device can handle it.
@@ -566,7 +567,8 @@ static struct net_device *register_vlan_device(struct net_device *real_dev,
 	VLAN_DEV_INFO(new_dev)->dent = NULL;
 	VLAN_DEV_INFO(new_dev)->flags = 1;
 
-	if (register_vlan_dev(new_dev) < 0)
+	err = register_vlan_dev(new_dev);
+	if (err < 0)
 		goto out_free_newdev;
 
 	/* Account for reference in struct vlan_dev_info */
@@ -574,13 +576,11 @@ static struct net_device *register_vlan_device(struct net_device *real_dev,
 #ifdef VLAN_DEBUG
 	printk(VLAN_DBG "Allocated new device successfully, returning.\n");
 #endif
-	return new_dev;
+	return 0;
 
 out_free_newdev:
 	free_netdev(new_dev);
-
-out_ret_null:
-	return NULL;
+	return err;
 }
 
 static int vlan_device_event(struct notifier_block *unused, unsigned long event, void *ptr)
@@ -753,11 +753,7 @@ static int vlan_ioctl_handler(void __user *arg)
 		err = -EPERM;
 		if (!capable(CAP_NET_ADMIN))
 			break;
-		if (register_vlan_device(dev, args.u.VID)) {
-			err = 0;
-		} else {
-			err = -EINVAL;
-		}
+		err = register_vlan_device(dev, args.u.VID);
 		break;
 
 	case DEL_VLAN_CMD:
