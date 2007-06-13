@@ -29,12 +29,11 @@ int resume_device(struct device * dev)
 
 	down(&dev->sem);
 
-	if (dev->power.pm_parent
-			&& dev->power.pm_parent->power.power_state.event) {
+	if (dev->parent && dev->parent->power.power_state.event) {
 		dev_err(dev, "PM: resume from %d, parent %s still %d\n",
 			dev->power.power_state.event,
-			dev->power.pm_parent->bus_id,
-			dev->power.pm_parent->power.power_state.event);
+			dev->parent->bus_id,
+			dev->parent->power.power_state.event);
 	}
 
 	if (dev->bus && dev->bus->resume) {

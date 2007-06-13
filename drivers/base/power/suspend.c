@@ -55,13 +55,12 @@ int suspend_device(struct device * dev, pm_message_t state)
 		dev_dbg(dev, "PM: suspend %d-->%d\n",
 			dev->power.power_state.event, state.event);
 	}
-	if (dev->power.pm_parent
-			&& dev->power.pm_parent->power.power_state.event) {
+	if (dev->parent && dev->parent->power.power_state.event) {
 		dev_err(dev,
 			"PM: suspend %d->%d, parent %s already %d\n",
 			dev->power.power_state.event, state.event,
-			dev->power.pm_parent->bus_id,
-			dev->power.pm_parent->power.power_state.event);
+			dev->parent->bus_id,
+			dev->parent->power.power_state.event);
 	}
 
 	dev->power.prev_state = dev->power.power_state;
