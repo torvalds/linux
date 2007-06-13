@@ -830,16 +830,15 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 	/* assert(jfs_ip->fileset == AGGREGATE_I); */
 	if (jfs_ip->fileset != AGGREGATE_I) {
 		printk(KERN_ERR "txLock: trying to lock locked page!");
-		printk(KERN_ERR "ip:\n");
-		print_hex_dump(KERN_ERR, DUMP_PREFIX_ADDRESS, ip, sizeof(*ip));
-		printk(KERN_ERR "mp:\n");
-		print_hex_dump(KERN_ERR, DUMP_PREFIX_ADDRESS, mp, sizeof(*mp));
-		printk(KERN_ERR "Locker's tblk:\n");
-		print_hex_dump(KERN_ERR, DUMP_PREFIX_ADDRESS,
-			       tid_to_tblock(tid), sizeof(struct tblock));
-		printk(KERN_ERR "Tlock:\n");
-		print_hex_dump(KERN_ERR, DUMP_PREFIX_ADDRESS, tlck,
-			       sizeof(*tlck));
+		print_hex_dump(KERN_ERR, "ip: ", DUMP_PREFIX_ADDRESS, 16, 4,
+			       ip, sizeof(*ip), 0);
+		print_hex_dump(KERN_ERR, "mp: ", DUMP_PREFIX_ADDRESS, 16, 4,
+			       mp, sizeof(*mp), 0);
+		print_hex_dump(KERN_ERR, "Locker's tblock: ",
+			       DUMP_PREFIX_ADDRESS, 16, 4, tid_to_tblock(tid),
+			       sizeof(struct tblock), 0);
+		print_hex_dump(KERN_ERR, "Tlock: ", DUMP_PREFIX_ADDRESS, 16, 4,
+			       tlck, sizeof(*tlck), 0);
 		BUG();
 	}
 	INCREMENT(stattx.waitlock);	/* statistics */

@@ -890,8 +890,8 @@ int diFree(struct inode *ip)
 	 * the map.
 	 */
 	if (iagno >= imap->im_nextiag) {
-		printk(KERN_ERR "Dump of imap:\n");
-		print_hex_dump(KERN_ERR, DUMP_PREFIX_ADDRESS, imap, 32);
+		print_hex_dump(KERN_ERR, "imap: ", DUMP_PREFIX_ADDRESS, 16, 4,
+			       imap, 32, 0);
 		jfs_error(ip->i_sb,
 			  "diFree: inum = %d, iagno = %d, nextiag = %d",
 			  (uint) inum, iagno, imap->im_nextiag);
