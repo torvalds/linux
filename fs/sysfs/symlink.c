@@ -95,7 +95,7 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 		return -ENOENT;
 
 	mutex_lock(&dentry->d_inode->i_mutex);
-	if (!sysfs_dirent_exist(dentry->d_fsdata, name))
+	if (!sysfs_find_dirent(dentry->d_fsdata, name))
 		error = sysfs_add_link(parent_sd, name, target_sd);
 	mutex_unlock(&dentry->d_inode->i_mutex);
 

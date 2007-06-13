@@ -59,7 +59,10 @@ extern struct inode * sysfs_get_inode(struct sysfs_dirent *sd);
 extern void sysfs_instantiate(struct dentry *dentry, struct inode *inode);
 
 extern void release_sysfs_dirent(struct sysfs_dirent * sd);
-extern int sysfs_dirent_exist(struct sysfs_dirent *, const unsigned char *);
+extern struct sysfs_dirent *sysfs_find_dirent(struct sysfs_dirent *parent_sd,
+					      const unsigned char *name);
+extern struct sysfs_dirent *sysfs_get_dirent(struct sysfs_dirent *parent_sd,
+					     const unsigned char *name);
 extern struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode,
 					     int type);
 extern void sysfs_attach_dirent(struct sysfs_dirent *sd,

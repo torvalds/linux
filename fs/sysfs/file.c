@@ -421,7 +421,7 @@ int sysfs_add_file(struct dentry * dir, const struct attribute * attr, int type)
 
 	mutex_lock(&dir->d_inode->i_mutex);
 
-	if (sysfs_dirent_exist(parent_sd, attr->name)) {
+	if (sysfs_find_dirent(parent_sd, attr->name)) {
 		error = -EEXIST;
 		goto out_unlock;
 	}

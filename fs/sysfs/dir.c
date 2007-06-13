@@ -317,28 +317,55 @@ void sysfs_attach_dirent(struct sysfs_dirent *sd,
 	}
 }
 
-/*
+/**
+ *	sysfs_find_dirent - find sysfs_dirent with the given name
+ *	@parent_sd: sysfs_dirent to search under
+ *	@name: name to look for
  *
- * Return -EEXIST if there is already a sysfs element with the same name for
- * the same parent.
+ *	Look for sysfs_dirent with name @name under @parent_sd.
  *
- * called with parent inode's i_mutex held
+ *	LOCKING:
+ *	mutex_lock(parent->i_mutex)
+ *
+ *	RETURNS:
+ *	Pointer to sysfs_dirent if found, NULL if not.
  */
-int sysfs_dirent_exist(struct sysfs_dirent *parent_sd,
-			  const unsigned char *new)
+struct sysfs_dirent *sysfs_find_dirent(struct sysfs_dirent *parent_sd,
+				       const unsigned char *name)
 {
-	struct sysfs_dirent * sd;
+	struct sysfs_dirent *sd;
 
-	for (sd = parent_sd->s_children; sd; sd = sd->s_sibling) {
-		if (sysfs_type(sd)) {
-			if (strcmp(sd->s_name, new))
-				continue;
-			else
-				return -EEXIST;
-		}
-	}
+	for (sd = parent_sd->s_children; sd; sd = sd->s_sibling)
+		if (sysfs_type(sd) && !strcmp(sd->s_name, name))
+			return sd;
+	return NULL;
+}
 
-	return 0;
+/**
+ *	sysfs_get_dirent - find and get sysfs_dirent with the given name
+ *	@parent_sd: sysfs_dirent to search under
+ *	@name: name to look for
+ *
+ *	Look for sysfs_dirent with name @name under @parent_sd and get
+ *	it if found.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	Pointer to sysfs_dirent if found, NULL if not.
+ */
+struct sysfs_dirent *sysfs_get_dirent(struct sysfs_dirent *parent_sd,
+				      const unsigned char *name)
+{
+	struct sysfs_dirent *sd;
+
+	mutex_lock(&parent_sd->s_dentry->d_inode->i_mutex);
+	sd = sysfs_find_dirent(parent_sd, name);
+	sysfs_get(sd);
+	mutex_unlock(&parent_sd->s_dentry->d_inode->i_mutex);
+
+	return sd;
 }
 
 static int create_dir(struct kobject *kobj, struct dentry *parent,
@@ -382,7 +409,7 @@ static int create_dir(struct kobject *kobj, struct dentry *parent,
 
 	/* link in */
 	error = -EEXIST;
-	if (sysfs_dirent_exist(parent->d_fsdata, name))
+	if (sysfs_find_dirent(parent->d_fsdata, name))
 		goto out_iput;
 
 	sysfs_instantiate(dentry, inode);
