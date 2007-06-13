@@ -70,6 +70,7 @@ struct srp_event_struct {
 	union viosrp_iu iu;
 	void (*cmnd_done) (struct scsi_cmnd *);
 	struct completion comp;
+	struct timer_list timer;
 	union viosrp_iu *sync_srp;
 	struct srp_direct_buf *ext_list;
 	dma_addr_t ext_list_token;

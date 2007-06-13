@@ -509,6 +509,70 @@ static int map_data_for_srp_cmd(struct scsi_cmnd *cmd,
 	return map_single_data(cmd, srp_cmd, dev);
 }
 
+/**
+ * purge_requests: Our virtual adapter just shut down.  purge any sent requests
+ * @hostdata:    the adapter
+ */
+static void purge_requests(struct ibmvscsi_host_data *hostdata, int error_code)
+{
+	struct srp_event_struct *tmp_evt, *pos;
+	unsigned long flags;
+
+	spin_lock_irqsave(hostdata->host->host_lock, flags);
+	list_for_each_entry_safe(tmp_evt, pos, &hostdata->sent, list) {
+		list_del(&tmp_evt->list);
+		del_timer(&tmp_evt->timer);
+		if (tmp_evt->cmnd) {
+			tmp_evt->cmnd->result = (error_code << 16);
+			unmap_cmd_data(&tmp_evt->iu.srp.cmd,
+				       tmp_evt,
+				       tmp_evt->hostdata->dev);
+			if (tmp_evt->cmnd_done)
+				tmp_evt->cmnd_done(tmp_evt->cmnd);
+		} else if (tmp_evt->done)
+			tmp_evt->done(tmp_evt);
+		free_event_struct(&tmp_evt->hostdata->pool, tmp_evt);
+	}
+	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
+}
+
+/**
+ * ibmvscsi_reset_host - Reset the connection to the server
+ * @hostdata:	struct ibmvscsi_host_data to reset
+*/
+static void ibmvscsi_reset_host(struct ibmvscsi_host_data *hostdata)
+{
+	scsi_block_requests(hostdata->host);
+	atomic_set(&hostdata->request_limit, 0);
+
+	purge_requests(hostdata, DID_ERROR);
+	if ((ibmvscsi_reset_crq_queue(&hostdata->queue, hostdata)) ||
+	    (ibmvscsi_send_crq(hostdata, 0xC001000000000000LL, 0)) ||
+	    (vio_enable_interrupts(to_vio_dev(hostdata->dev)))) {
+		atomic_set(&hostdata->request_limit, -1);
+		dev_err(hostdata->dev, "error after reset\n");
+	}
+
+	scsi_unblock_requests(hostdata->host);
+}
+
+/**
+ * ibmvscsi_timeout - Internal command timeout handler
+ * @evt_struct:	struct srp_event_struct that timed out
+ *
+ * Called when an internally generated command times out
+*/
+static void ibmvscsi_timeout(struct srp_event_struct *evt_struct)
+{
+	struct ibmvscsi_host_data *hostdata = evt_struct->hostdata;
+
+	dev_err(hostdata->dev, "Command timed out (%x). Resetting connection\n",
+		evt_struct->iu.srp.cmd.opcode);
+
+	ibmvscsi_reset_host(hostdata);
+}
+
+
 /* ------------------------------------------------------------
  * Routines for sending and receiving SRPs
  */
@@ -516,12 +580,14 @@ static int map_data_for_srp_cmd(struct scsi_cmnd *cmd,
  * ibmvscsi_send_srp_event: - Transforms event to u64 array and calls send_crq()
  * @evt_struct:	evt_struct to be sent
  * @hostdata:	ibmvscsi_host_data of host
+ * @timeout:	timeout in seconds - 0 means do not time command
  *
  * Returns the value returned from ibmvscsi_send_crq(). (Zero for success)
  * Note that this routine assumes that host_lock is held for synchronization
 */
 static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
-				   struct ibmvscsi_host_data *hostdata)
+				   struct ibmvscsi_host_data *hostdata,
+				   unsigned long timeout)
 {
 	u64 *crq_as_u64 = (u64 *) &evt_struct->crq;
 	int request_status;
@@ -577,9 +643,18 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 	 */
 	list_add_tail(&evt_struct->list, &hostdata->sent);
 
+	init_timer(&evt_struct->timer);
+	if (timeout) {
+		evt_struct->timer.data = (unsigned long) evt_struct;
+		evt_struct->timer.expires = jiffies + (timeout * HZ);
+		evt_struct->timer.function = (void (*)(unsigned long))ibmvscsi_timeout;
+		add_timer(&evt_struct->timer);
+	}
+
 	if ((rc =
 	     ibmvscsi_send_crq(hostdata, crq_as_u64[0], crq_as_u64[1])) != 0) {
 		list_del(&evt_struct->list);
+		del_timer(&evt_struct->timer);
 
 		dev_err(hostdata->dev, "send error %d\n", rc);
 		atomic_inc(&hostdata->request_limit);
@@ -709,7 +784,7 @@ static int ibmvscsi_queuecommand(struct scsi_cmnd *cmnd,
 			offsetof(struct srp_indirect_buf, desc_list);
 	}
 
-	return ibmvscsi_send_srp_event(evt_struct, hostdata);
+	return ibmvscsi_send_srp_event(evt_struct, hostdata, 0);
 }
 
 /* ------------------------------------------------------------
@@ -800,7 +875,7 @@ static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
 		return;
 	}
 	
-	if (ibmvscsi_send_srp_event(evt_struct, hostdata)) {
+	if (ibmvscsi_send_srp_event(evt_struct, hostdata, init_timeout * 2)) {
 		dev_err(hostdata->dev, "couldn't send ADAPTER_INFO_REQ!\n");
 		dma_unmap_single(hostdata->dev,
 				 addr,
@@ -889,7 +964,7 @@ static int send_srp_login(struct ibmvscsi_host_data *hostdata)
 	 */
 	atomic_set(&hostdata->request_limit, 1);
 
-	rc = ibmvscsi_send_srp_event(evt_struct, hostdata);
+	rc = ibmvscsi_send_srp_event(evt_struct, hostdata, init_timeout * 2);
 	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 	dev_info(hostdata->dev, "sent SRP login\n");
 	return rc;
@@ -969,7 +1044,7 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 
 	evt->sync_srp = &srp_rsp;
 	init_completion(&evt->comp);
-	rsp_rc = ibmvscsi_send_srp_event(evt, hostdata);
+	rsp_rc = ibmvscsi_send_srp_event(evt, hostdata, init_timeout * 2);
 	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 	if (rsp_rc != 0) {
 		sdev_printk(KERN_ERR, cmd->device,
@@ -1077,7 +1152,7 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 
 	evt->sync_srp = &srp_rsp;
 	init_completion(&evt->comp);
-	rsp_rc = ibmvscsi_send_srp_event(evt, hostdata);
+	rsp_rc = ibmvscsi_send_srp_event(evt, hostdata, init_timeout * 2);
 	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 	if (rsp_rc != 0) {
 		sdev_printk(KERN_ERR, cmd->device,
@@ -1133,32 +1208,30 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 }
 
 /**
- * purge_requests: Our virtual adapter just shut down.  purge any sent requests
- * @hostdata:    the adapter
- */
-static void purge_requests(struct ibmvscsi_host_data *hostdata, int error_code)
+ * ibmvscsi_eh_host_reset_handler - Reset the connection to the server
+ * @cmd:	struct scsi_cmnd having problems
+*/
+static int ibmvscsi_eh_host_reset_handler(struct scsi_cmnd *cmd)
 {
-	struct srp_event_struct *tmp_evt, *pos;
-	unsigned long flags;
+	unsigned long wait_switch = 0;
+	struct ibmvscsi_host_data *hostdata =
+		(struct ibmvscsi_host_data *)cmd->device->host->hostdata;
 
-	spin_lock_irqsave(hostdata->host->host_lock, flags);
-	list_for_each_entry_safe(tmp_evt, pos, &hostdata->sent, list) {
-		list_del(&tmp_evt->list);
-		if (tmp_evt->cmnd) {
-			tmp_evt->cmnd->result = (error_code << 16);
-			unmap_cmd_data(&tmp_evt->iu.srp.cmd, 
-				       tmp_evt,	
-				       tmp_evt->hostdata->dev);
-			if (tmp_evt->cmnd_done)
-				tmp_evt->cmnd_done(tmp_evt->cmnd);
-		} else {
-			if (tmp_evt->done) {
-				tmp_evt->done(tmp_evt);
-			}
-		}
-		free_event_struct(&tmp_evt->hostdata->pool, tmp_evt);
+	dev_err(hostdata->dev, "Resetting connection due to error recovery\n");
+
+	ibmvscsi_reset_host(hostdata);
+
+	for (wait_switch = jiffies + (init_timeout * HZ);
+	     time_before(jiffies, wait_switch) &&
+		     atomic_read(&hostdata->request_limit) < 2;) {
+
+		msleep(10);
 	}
-	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
+
+	if (atomic_read(&hostdata->request_limit) <= 0)
+		return FAILED;
+
+	return SUCCESS;
 }
 
 /**
@@ -1258,6 +1331,8 @@ void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 		atomic_add(evt_struct->xfer_iu->srp.rsp.req_lim_delta,
 			   &hostdata->request_limit);
 
+	del_timer(&evt_struct->timer);
+
 	if (evt_struct->done)
 		evt_struct->done(evt_struct);
 	else
@@ -1313,7 +1388,7 @@ static int ibmvscsi_do_host_config(struct ibmvscsi_host_data *hostdata,
 	}
 
 	init_completion(&evt_struct->comp);
-	rc = ibmvscsi_send_srp_event(evt_struct, hostdata);
+	rc = ibmvscsi_send_srp_event(evt_struct, hostdata, init_timeout * 2);
 	if (rc == 0)
 		wait_for_completion(&evt_struct->comp);
 	dma_unmap_single(hostdata->dev, addr, length, DMA_BIDIRECTIONAL);
@@ -1504,6 +1579,7 @@ static struct scsi_host_template driver_template = {
 	.queuecommand = ibmvscsi_queuecommand,
 	.eh_abort_handler = ibmvscsi_eh_abort_handler,
 	.eh_device_reset_handler = ibmvscsi_eh_device_reset_handler,
+	.eh_host_reset_handler = ibmvscsi_eh_host_reset_handler,
 	.slave_configure = ibmvscsi_slave_configure,
 	.change_queue_depth = ibmvscsi_change_queue_depth,
 	.cmd_per_lun = 16,
