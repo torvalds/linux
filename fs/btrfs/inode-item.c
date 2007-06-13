@@ -35,7 +35,6 @@ int btrfs_insert_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	btrfs_init_path(path);
 	ret = btrfs_insert_item(trans, root, &key, inode_item,
 				sizeof(*inode_item));
 	btrfs_release_path(root, path);

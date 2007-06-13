@@ -402,7 +402,6 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 			 &ins, 0);
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	btrfs_init_path(path);
 	key.objectid = blocknr;
 	key.flags = 0;
 	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
@@ -437,7 +436,6 @@ static int lookup_extent_ref(struct btrfs_trans_handle *trans,
 	struct btrfs_extent_item *item;
 
 	path = btrfs_alloc_path();
-	btrfs_init_path(path);
 	key.objectid = blocknr;
 	key.offset = num_blocks;
 	key.flags = 0;
@@ -807,7 +805,6 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	find_free_extent(trans, root, 0, 0, (u64)-1, 0, &ins, 0);
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	btrfs_init_path(path);
 
 	ret = btrfs_search_slot(trans, extent_root, &key, path, -1, 1);
 	if (ret) {
@@ -1463,7 +1460,6 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	btrfs_init_path(path);
 
 	level = btrfs_header_level(btrfs_buffer_header(snap));
 	orig_level = level;

@@ -36,7 +36,6 @@ int btrfs_find_last_root(struct btrfs_root *root, u64 objectid,
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	btrfs_init_path(path);
 	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
 	if (ret < 0)
 		goto out;
@@ -70,7 +69,6 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	btrfs_init_path(path);
 	ret = btrfs_search_slot(trans, root, key, path, 0, 1);
 	if (ret < 0)
 		goto out;
@@ -106,7 +104,6 @@ int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	btrfs_init_path(path);
 	ret = btrfs_search_slot(trans, root, key, path, -1, 1);
 	if (ret < 0)
 		goto out;

@@ -38,7 +38,6 @@ int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	btrfs_init_path(path);
 	file_key.objectid = objectid;
 	file_key.offset = pos;
 	file_key.flags = 0;
@@ -274,7 +273,6 @@ int btrfs_csum_verify_file_block(struct btrfs_root *root,
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	btrfs_init_path(path);
 	file_key.objectid = objectid;
 	file_key.offset = offset;
 	file_key.flags = 0;

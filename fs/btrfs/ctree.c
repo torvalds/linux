@@ -1647,7 +1647,6 @@ int btrfs_insert_item(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	btrfs_init_path(path);
 	ret = btrfs_insert_empty_item(trans, root, path, cpu_key, data_size);
 	if (!ret) {
 		ptr = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),

@@ -79,7 +79,6 @@ void btrfs_read_locked_inode(struct inode *inode)
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	btrfs_init_path(path);
 	mutex_lock(&root->fs_info->fs_mutex);
 
 	memcpy(&location, &BTRFS_I(inode)->location, sizeof(location));
@@ -177,7 +176,6 @@ static int btrfs_update_inode(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	btrfs_init_path(path);
 	ret = btrfs_lookup_inode(trans, root, path,
 				 &BTRFS_I(inode)->location, 1);
 	if (ret) {
@@ -214,7 +212,6 @@ static int btrfs_unlink_trans(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	btrfs_init_path(path);
 	di = btrfs_lookup_dir_item(trans, root, path, dir->i_ino,
 				    name, name_len, -1);
 	if (IS_ERR(di)) {
@@ -289,7 +286,6 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	btrfs_init_path(path);
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_set_trans_block_group(trans, dir);
@@ -360,7 +356,6 @@ static int btrfs_free_inode(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	btrfs_init_path(path);
 	ret = btrfs_lookup_inode(trans, root, path,
 				 &BTRFS_I(inode)->location, -1);
 	BUG_ON(ret);
@@ -687,7 +682,6 @@ static int btrfs_inode_by_name(struct inode *dir, struct dentry *dentry,
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	btrfs_init_path(path);
 	di = btrfs_lookup_dir_item(NULL, root, path, dir->i_ino, name,
 				    namelen, 0);
 	if (!di || IS_ERR(di)) {
@@ -874,7 +868,6 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	btrfs_set_key_type(&key, key_type);
 	key.offset = filp->f_pos;
 	path = btrfs_alloc_path();
-	btrfs_init_path(path);
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto err;
@@ -1263,7 +1256,6 @@ static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	btrfs_init_path(path);
 	if (create & BTRFS_GET_BLOCK_CREATE) {
 		WARN_ON(1);
 		/* this almost but not quite works */
@@ -1280,7 +1272,7 @@ static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 	}
 
 	ret = btrfs_lookup_file_extent(NULL, root, path,
-				       inode->i_ino,
+				       objectid,
 				       iblock << inode->i_blkbits, 0);
 	if (ret < 0) {
 		err = ret;

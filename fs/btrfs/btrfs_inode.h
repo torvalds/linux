@@ -19,6 +19,7 @@
 #ifndef __BTRFS_I__
 #define __BTRFS_I__
 
+/* in memory btrfs inode */
 struct btrfs_inode {
 	struct btrfs_root *root;
 	struct btrfs_block_group_cache *block_group;

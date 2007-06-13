@@ -74,7 +74,6 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	ret = btrfs_name_hash(name, name_len, &key.offset);
 	BUG_ON(ret);
 	path = btrfs_alloc_path();
-	btrfs_init_path(path);
 	data_size = sizeof(*dir_item) + name_len;
 	dir_item = insert_with_overflow(trans, root, path, &key, data_size,
 					name, name_len);
