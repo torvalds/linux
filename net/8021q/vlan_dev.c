@@ -537,35 +537,50 @@ int vlan_dev_change_mtu(struct net_device *dev, int new_mtu)
 void vlan_dev_set_ingress_priority(const struct net_device *dev,
 				   u32 skb_prio, short vlan_prio)
 {
-	VLAN_DEV_INFO(dev)->ingress_priority_map[vlan_prio & 0x7] = skb_prio;
+	struct vlan_dev_info *vlan = VLAN_DEV_INFO(dev);
+
+	if (vlan->ingress_priority_map[vlan_prio & 0x7] && !skb_prio)
+		vlan->nr_ingress_mappings--;
+	else if (!vlan->ingress_priority_map[vlan_prio & 0x7] && skb_prio)
+		vlan->nr_ingress_mappings++;
+
+	vlan->ingress_priority_map[vlan_prio & 0x7] = skb_prio;
 }
 
 int vlan_dev_set_egress_priority(const struct net_device *dev,
 				 u32 skb_prio, short vlan_prio)
 {
+	struct vlan_dev_info *vlan = VLAN_DEV_INFO(dev);
 	struct vlan_priority_tci_mapping *mp = NULL;
 	struct vlan_priority_tci_mapping *np;
+	u32 vlan_qos = (vlan_prio << 13) & 0xE000;
 
 	/* See if a priority mapping exists.. */
-	mp = VLAN_DEV_INFO(dev)->egress_priority_map[skb_prio & 0xF];
+	mp = vlan->egress_priority_map[skb_prio & 0xF];
 	while (mp) {
 		if (mp->priority == skb_prio) {
-			mp->vlan_qos = ((vlan_prio << 13) & 0xE000);
+			if (mp->vlan_qos && !vlan_qos)
+				vlan->nr_egress_mappings--;
+			else if (!mp->vlan_qos && vlan_qos)
+				vlan->nr_egress_mappings++;
+			mp->vlan_qos = vlan_qos;
 			return 0;
 		}
 		mp = mp->next;
 	}
 
 	/* Create a new mapping then. */
-	mp = VLAN_DEV_INFO(dev)->egress_priority_map[skb_prio & 0xF];
+	mp = vlan->egress_priority_map[skb_prio & 0xF];
 	np = kmalloc(sizeof(struct vlan_priority_tci_mapping), GFP_KERNEL);
 	if (!np)
 		return -ENOBUFS;
 
 	np->next = mp;
 	np->priority = skb_prio;
-	np->vlan_qos = ((vlan_prio << 13) & 0xE000);
-	VLAN_DEV_INFO(dev)->egress_priority_map[skb_prio & 0xF] = np;
+	np->vlan_qos = vlan_qos;
+	vlan->egress_priority_map[skb_prio & 0xF] = np;
+	if (vlan_qos)
+		vlan->nr_egress_mappings++;
 	return 0;
 }
 
