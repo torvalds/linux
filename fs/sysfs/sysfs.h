@@ -111,7 +111,7 @@ static inline struct sysfs_dirent * sysfs_get(struct sysfs_dirent * sd)
 
 static inline void sysfs_put(struct sysfs_dirent * sd)
 {
-	if (atomic_dec_and_test(&sd->s_count))
+	if (sd && atomic_dec_and_test(&sd->s_count))
 		release_sysfs_dirent(sd);
 }
 
