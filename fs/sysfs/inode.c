@@ -191,13 +191,25 @@ int sysfs_create(struct sysfs_dirent *sd, struct dentry *dentry, int mode,
 	return error;
 }
 
-/*
- * Unhashes the dentry corresponding to given sysfs_dirent
- * Called with parent inode's i_mutex held.
+/**
+ *	sysfs_drop_dentry - drop dentry for the specified sysfs_dirent
+ *	@sd: target sysfs_dirent
+ *
+ *	Drop dentry for @sd.  @sd must have been unlinked from its
+ *	parent on entry to this function such that it can't be looked
+ *	up anymore.
+ *
+ *	@sd->s_dentry which is protected with sysfs_lock points to the
+ *	currently associated dentry but we're not holding a reference
+ *	to it and racing with dput().  Grab dcache_lock and verify
+ *	dentry before dropping it.  If @sd->s_dentry is NULL or dput()
+ *	beats us, no need to bother.
  */
-void sysfs_drop_dentry(struct sysfs_dirent * sd, struct dentry * parent)
+void sysfs_drop_dentry(struct sysfs_dirent *sd)
 {
-	struct dentry *dentry = NULL;
+	struct dentry *dentry = NULL, *parent = NULL;
+	struct inode *dir;
+	struct timespec curtime;
 
 	/* We're not holding a reference to ->s_dentry dentry but the
 	 * field will stay valid as long as sysfs_lock is held.
@@ -205,30 +217,57 @@ void sysfs_drop_dentry(struct sysfs_dirent * sd, struct dentry * parent)
 	spin_lock(&sysfs_lock);
 	spin_lock(&dcache_lock);
 
-	/* dget dentry if it's still alive */
-	if (sd->s_dentry && sd->s_dentry->d_inode)
+	if (sd->s_dentry && sd->s_dentry->d_inode) {
+		/* get dentry if it's there and dput() didn't kill it yet */
 		dentry = dget_locked(sd->s_dentry);
+		parent = dentry->d_parent;
+	} else if (sd->s_parent->s_dentry->d_inode) {
+		/* We need to update the parent even if dentry for the
+		 * victim itself doesn't exist.
+		 */
+		parent = dget_locked(sd->s_parent->s_dentry);
+	}
+
+	/* drop */
+	if (dentry) {
+		spin_lock(&dentry->d_lock);
+		__d_drop(dentry);
+		spin_unlock(&dentry->d_lock);
+	}
 
 	spin_unlock(&dcache_lock);
 	spin_unlock(&sysfs_lock);
 
-	/* drop dentry */
-	if (dentry) {
-		spin_lock(&dcache_lock);
-		spin_lock(&dentry->d_lock);
-		if (!d_unhashed(dentry) && dentry->d_inode) {
-			dget_locked(dentry);
-			__d_drop(dentry);
-			spin_unlock(&dentry->d_lock);
-			spin_unlock(&dcache_lock);
-			simple_unlink(parent->d_inode, dentry);
-		} else {
-			spin_unlock(&dentry->d_lock);
-			spin_unlock(&dcache_lock);
-		}
+	/* nothing to do if the parent isn't in dcache */
+	if (!parent)
+		return;
 
-		dput(dentry);
+	/* adjust nlink and update timestamp */
+	dir = parent->d_inode;
+	mutex_lock(&dir->i_mutex);
+
+	curtime = CURRENT_TIME;
+
+	dir->i_ctime = dir->i_mtime = curtime;
+
+	if (dentry) {
+		dentry->d_inode->i_ctime = curtime;
+		drop_nlink(dentry->d_inode);
+		if (sd->s_type & SYSFS_DIR) {
+			drop_nlink(dentry->d_inode);
+			drop_nlink(dir);
+			/* XXX: unpin if directory, this will go away soon */
+			dput(dentry);
+		}
 	}
+
+	mutex_unlock(&dir->i_mutex);
+
+	/* bye bye */
+	if (dentry)
+		dput(dentry);
+	else
+		dput(parent);
 }
 
 int sysfs_hash_and_remove(struct dentry * dir, const char * name)
@@ -251,7 +290,6 @@ int sysfs_hash_and_remove(struct dentry * dir, const char * name)
 			continue;
 		if (!strcmp(sd->s_name, name)) {
 			list_del_init(&sd->s_sibling);
-			sysfs_drop_dentry(sd, dir);
 			found = 1;
 			break;
 		}
@@ -261,7 +299,9 @@ int sysfs_hash_and_remove(struct dentry * dir, const char * name)
 	if (!found)
 		return -ENOENT;
 
+	sysfs_drop_dentry(sd);
 	sysfs_deactivate(sd);
 	sysfs_put(sd);
+
 	return 0;
 }

@@ -372,22 +372,19 @@ const struct inode_operations sysfs_dir_inode_operations = {
 
 static void remove_dir(struct dentry * d)
 {
-	struct dentry * parent = dget(d->d_parent);
-	struct sysfs_dirent * sd;
+	struct dentry *parent = d->d_parent;
+	struct sysfs_dirent *sd = d->d_fsdata;
 
 	mutex_lock(&parent->d_inode->i_mutex);
-	d_delete(d);
-	sd = d->d_fsdata;
+
  	list_del_init(&sd->s_sibling);
-	if (d->d_inode)
-		simple_rmdir(parent->d_inode,d);
 
 	pr_debug(" o %s removing done (%d)\n",d->d_name.name,
 		 atomic_read(&d->d_count));
 
 	mutex_unlock(&parent->d_inode->i_mutex);
-	dput(parent);
 
+	sysfs_drop_dentry(sd);
 	sysfs_deactivate(sd);
 	sysfs_put(sd);
 }
@@ -404,7 +401,6 @@ static void __sysfs_remove_dir(struct dentry *dentry)
 	struct sysfs_dirent * parent_sd;
 	struct sysfs_dirent * sd, * tmp;
 
-	dget(dentry);
 	if (!dentry)
 		return;
 
@@ -415,21 +411,17 @@ static void __sysfs_remove_dir(struct dentry *dentry)
 		if (!sd->s_type || !(sd->s_type & SYSFS_NOT_PINNED))
 			continue;
 		list_move(&sd->s_sibling, &removed);
-		sysfs_drop_dentry(sd, dentry);
 	}
 	mutex_unlock(&dentry->d_inode->i_mutex);
 
 	list_for_each_entry_safe(sd, tmp, &removed, s_sibling) {
 		list_del_init(&sd->s_sibling);
+		sysfs_drop_dentry(sd);
 		sysfs_deactivate(sd);
 		sysfs_put(sd);
 	}
 
 	remove_dir(dentry);
-	/**
-	 * Drop reference from dget() on entrance.
-	 */
-	dput(dentry);
 }
 
 /**
