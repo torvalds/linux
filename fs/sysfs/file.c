@@ -415,29 +415,28 @@ const struct file_operations sysfs_file_operations = {
 int sysfs_add_file(struct sysfs_dirent *dir_sd, const struct attribute *attr,
 		   int type)
 {
-	struct dentry *dir = dir_sd->s_dentry;
 	umode_t mode = (attr->mode & S_IALLUGO) | S_IFREG;
 	struct sysfs_dirent *sd;
-	int error = 0;
-
-	mutex_lock(&dir->d_inode->i_mutex);
-
-	if (sysfs_find_dirent(dir_sd, attr->name)) {
-		error = -EEXIST;
-		goto out_unlock;
-	}
 
 	sd = sysfs_new_dirent(attr->name, mode, type);
-	if (!sd) {
-		error = -ENOMEM;
-		goto out_unlock;
-	}
+	if (!sd)
+		return -ENOMEM;
 	sd->s_elem.attr.attr = (void *)attr;
-	sysfs_attach_dirent(sd, dir_sd, NULL);
 
- out_unlock:
-	mutex_unlock(&dir->d_inode->i_mutex);
-	return error;
+	mutex_lock(&sysfs_mutex);
+
+	if (!sysfs_find_dirent(dir_sd, attr->name)) {
+		sysfs_attach_dirent(sd, dir_sd, NULL);
+		sd = NULL;
+	}
+
+	mutex_unlock(&sysfs_mutex);
+
+	if (sd) {
+		sysfs_put(sd);
+		return -EEXIST;
+	}
+	return 0;
 }
 
 

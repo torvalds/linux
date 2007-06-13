@@ -44,20 +44,6 @@ static void fill_object_path(struct sysfs_dirent *sd, char *buffer, int length)
 	}
 }
 
-static int sysfs_add_link(struct sysfs_dirent * parent_sd, const char * name,
-			  struct sysfs_dirent * target_sd)
-{
-	struct sysfs_dirent * sd;
-
-	sd = sysfs_new_dirent(name, S_IFLNK|S_IRWXUGO, SYSFS_KOBJ_LINK);
-	if (!sd)
-		return -ENOMEM;
-
-	sd->s_elem.symlink.target_sd = target_sd;
-	sysfs_attach_dirent(sd, parent_sd, NULL);
-	return 0;
-}
-
 /**
  *	sysfs_create_link - create symlink between two objects.
  *	@kobj:	object whose directory we're creating the link in.
@@ -68,7 +54,8 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 {
 	struct sysfs_dirent *parent_sd = NULL;
 	struct sysfs_dirent *target_sd = NULL;
-	int error = -EEXIST;
+	struct sysfs_dirent *sd = NULL;
+	int error;
 
 	BUG_ON(!name);
 
@@ -78,8 +65,9 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 	} else
 		parent_sd = kobj->sd;
 
+	error = -EFAULT;
 	if (!parent_sd)
-		return -EFAULT;
+		goto out_put;
 
 	/* target->sd can go away beneath us but is protected with
 	 * sysfs_assoc_lock.  Fetch target_sd from it.
@@ -89,17 +77,30 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 		target_sd = sysfs_get(target->sd);
 	spin_unlock(&sysfs_assoc_lock);
 
+	error = -ENOENT;
 	if (!target_sd)
-		return -ENOENT;
+		goto out_put;
 
-	mutex_lock(&parent_sd->s_dentry->d_inode->i_mutex);
-	if (!sysfs_find_dirent(parent_sd, name))
-		error = sysfs_add_link(parent_sd, name, target_sd);
-	mutex_unlock(&parent_sd->s_dentry->d_inode->i_mutex);
+	error = -ENOMEM;
+	sd = sysfs_new_dirent(name, S_IFLNK|S_IRWXUGO, SYSFS_KOBJ_LINK);
+	if (!sd)
+		goto out_put;
+	sd->s_elem.symlink.target_sd = target_sd;
 
-	if (error)
-		sysfs_put(target_sd);
+	mutex_lock(&sysfs_mutex);
+	error = -EEXIST;
+	if (sysfs_find_dirent(parent_sd, name))
+		goto out_unlock;
+	sysfs_attach_dirent(sd, parent_sd, NULL);
+	mutex_unlock(&sysfs_mutex);
 
+	return 0;
+
+ out_unlock:
+	mutex_unlock(&sysfs_mutex);
+ out_put:
+	sysfs_put(target_sd);
+	sysfs_put(sd);
 	return error;
 }
 
@@ -144,9 +145,9 @@ static int sysfs_getlink(struct dentry *dentry, char * path)
 	struct sysfs_dirent *target_sd = sd->s_elem.symlink.target_sd;
 	int error;
 
-	down_read(&sysfs_rename_sem);
+	mutex_lock(&sysfs_mutex);
 	error = sysfs_get_target_path(parent_sd, target_sd, path);
-	up_read(&sysfs_rename_sem);
+	mutex_unlock(&sysfs_mutex);
 
 	return error;
 }

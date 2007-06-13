@@ -14,7 +14,7 @@
 #include <asm/semaphore.h>
 #include "sysfs.h"
 
-DECLARE_RWSEM(sysfs_rename_sem);
+DEFINE_MUTEX(sysfs_mutex);
 spinlock_t sysfs_assoc_lock = SPIN_LOCK_UNLOCKED;
 
 static spinlock_t sysfs_ino_lock = SPIN_LOCK_UNLOCKED;
@@ -28,7 +28,7 @@ static DEFINE_IDA(sysfs_ino_ida);
  *	sd->s_parent->s_children.
  *
  *	Locking:
- *	mutex_lock(sd->s_parent->dentry->d_inode->i_mutex)
+ *	mutex_lock(sysfs_mutex)
  */
 static void sysfs_link_sibling(struct sysfs_dirent *sd)
 {
@@ -47,7 +47,7 @@ static void sysfs_link_sibling(struct sysfs_dirent *sd)
  *	sd->s_parent->s_children.
  *
  *	Locking:
- *	mutex_lock(sd->s_parent->dentry->d_inode->i_mutex)
+ *	mutex_lock(sysfs_mutex)
  */
 static void sysfs_unlink_sibling(struct sysfs_dirent *sd)
 {
@@ -215,6 +215,9 @@ void release_sysfs_dirent(struct sysfs_dirent * sd)
 	struct sysfs_dirent *parent_sd;
 
  repeat:
+	/* Moving/renaming is always done while holding reference.
+	 * sd->s_parent won't change beneath us.
+	 */
 	parent_sd = sd->s_parent;
 
 	if (sysfs_type(sd) == SYSFS_KOBJ_LINK)
@@ -291,6 +294,17 @@ struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type)
 	return NULL;
 }
 
+/**
+ *	sysfs_attach_dentry - associate sysfs_dirent with dentry
+ *	@sd: target sysfs_dirent
+ *	@dentry: dentry to associate
+ *
+ *	Associate @sd with @dentry.  This is protected by
+ *	sysfs_assoc_lock to avoid race with sysfs_d_iput().
+ *
+ *	LOCKING:
+ *	mutex_lock(sysfs_mutex)
+ */
 static void sysfs_attach_dentry(struct sysfs_dirent *sd, struct dentry *dentry)
 {
 	dentry->d_op = &sysfs_dentry_ops;
@@ -304,6 +318,17 @@ static void sysfs_attach_dentry(struct sysfs_dirent *sd, struct dentry *dentry)
 	d_rehash(dentry);
 }
 
+/**
+ *	sysfs_attach_dirent - attach sysfs_dirent to its parent and dentry
+ *	@sd: sysfs_dirent to attach
+ *	@parent_sd: parent to attach to (optional)
+ *	@dentry: dentry to be associated to @sd (optional)
+ *
+ *	Attach @sd to @parent_sd and/or @dentry.  Both are optional.
+ *
+ *	LOCKING:
+ *	mutex_lock(sysfs_mutex)
+ */
 void sysfs_attach_dirent(struct sysfs_dirent *sd,
 			 struct sysfs_dirent *parent_sd, struct dentry *dentry)
 {
@@ -324,7 +349,7 @@ void sysfs_attach_dirent(struct sysfs_dirent *sd,
  *	Look for sysfs_dirent with name @name under @parent_sd.
  *
  *	LOCKING:
- *	mutex_lock(parent->i_mutex)
+ *	mutex_lock(sysfs_mutex)
  *
  *	RETURNS:
  *	Pointer to sysfs_dirent if found, NULL if not.
@@ -349,7 +374,7 @@ struct sysfs_dirent *sysfs_find_dirent(struct sysfs_dirent *parent_sd,
  *	it if found.
  *
  *	LOCKING:
- *	Kernel thread context (may sleep)
+ *	Kernel thread context (may sleep).  Grabs sysfs_mutex.
  *
  *	RETURNS:
  *	Pointer to sysfs_dirent if found, NULL if not.
@@ -359,10 +384,10 @@ struct sysfs_dirent *sysfs_get_dirent(struct sysfs_dirent *parent_sd,
 {
 	struct sysfs_dirent *sd;
 
-	mutex_lock(&parent_sd->s_dentry->d_inode->i_mutex);
+	mutex_lock(&sysfs_mutex);
 	sd = sysfs_find_dirent(parent_sd, name);
 	sysfs_get(sd);
-	mutex_unlock(&parent_sd->s_dentry->d_inode->i_mutex);
+	mutex_unlock(&sysfs_mutex);
 
 	return sd;
 }
@@ -408,13 +433,19 @@ static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 	}
 
 	/* link in */
+	mutex_lock(&sysfs_mutex);
+
 	error = -EEXIST;
-	if (sysfs_find_dirent(parent_sd, name))
+	if (sysfs_find_dirent(parent_sd, name)) {
+		mutex_unlock(&sysfs_mutex);
 		goto out_iput;
+	}
 
 	sysfs_instantiate(dentry, inode);
 	inc_nlink(parent->d_inode);
 	sysfs_attach_dirent(sd, parent_sd, dentry);
+
+	mutex_unlock(&sysfs_mutex);
 
 	*p_sd = sd;
 	error = 0;
@@ -493,6 +524,8 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
+	mutex_lock(&sysfs_mutex);
+
 	if (inode->i_state & I_NEW) {
 		/* initialize inode according to type */
 		switch (sysfs_type(sd)) {
@@ -516,6 +549,8 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 	sysfs_instantiate(dentry, inode);
 	sysfs_attach_dentry(sd, dentry);
 
+	mutex_unlock(&sysfs_mutex);
+
 	return NULL;
 }
 
@@ -526,16 +561,12 @@ const struct inode_operations sysfs_dir_inode_operations = {
 
 static void remove_dir(struct sysfs_dirent *sd)
 {
-	struct dentry *parent = sd->s_parent->s_dentry;
-
-	mutex_lock(&parent->d_inode->i_mutex);
-
+	mutex_lock(&sysfs_mutex);
 	sysfs_unlink_sibling(sd);
 	sd->s_flags |= SYSFS_FLAG_REMOVED;
+	mutex_unlock(&sysfs_mutex);
 
 	pr_debug(" o %s removing done\n", sd->s_name);
-
-	mutex_unlock(&parent->d_inode->i_mutex);
 
 	sysfs_drop_dentry(sd);
 	sysfs_deactivate(sd);
@@ -552,15 +583,12 @@ static void __sysfs_remove_dir(struct sysfs_dirent *dir_sd)
 {
 	struct sysfs_dirent *removed = NULL;
 	struct sysfs_dirent **pos;
-	struct dentry *dir;
 
 	if (!dir_sd)
 		return;
 
-	dir = dir_sd->s_dentry;
-
 	pr_debug("sysfs %s: removing dir\n", dir_sd->s_name);
-	mutex_lock(&dir->d_inode->i_mutex);
+	mutex_lock(&sysfs_mutex);
 	pos = &dir_sd->s_children;
 	while (*pos) {
 		struct sysfs_dirent *sd = *pos;
@@ -573,7 +601,7 @@ static void __sysfs_remove_dir(struct sysfs_dirent *dir_sd)
 		} else
 			pos = &(*pos)->s_sibling;
 	}
-	mutex_unlock(&dir->d_inode->i_mutex);
+	mutex_unlock(&sysfs_mutex);
 
 	while (removed) {
 		struct sysfs_dirent *sd = removed;
@@ -621,7 +649,6 @@ int sysfs_rename_dir(struct kobject *kobj, struct sysfs_dirent *new_parent_sd,
 	if (!new_parent_sd)
 		return -EFAULT;
 
-	down_write(&sysfs_rename_sem);
 	mutex_lock(&new_parent->d_inode->i_mutex);
 
 	new_dentry = lookup_one_len(new_name, new_parent, strlen(new_name));
@@ -661,11 +688,15 @@ int sysfs_rename_dir(struct kobject *kobj, struct sysfs_dirent *new_parent_sd,
 	d_add(new_dentry, NULL);
 	d_move(sd->s_dentry, new_dentry);
 
+	mutex_lock(&sysfs_mutex);
+
 	sysfs_unlink_sibling(sd);
 	sysfs_get(new_parent_sd);
 	sysfs_put(sd->s_parent);
 	sd->s_parent = new_parent_sd;
 	sysfs_link_sibling(sd);
+
+	mutex_unlock(&sysfs_mutex);
 
 	error = 0;
 	goto out_unlock;
@@ -678,7 +709,6 @@ int sysfs_rename_dir(struct kobject *kobj, struct sysfs_dirent *new_parent_sd,
 	dput(new_dentry);
  out_unlock:
 	mutex_unlock(&new_parent->d_inode->i_mutex);
-	up_write(&sysfs_rename_sem);
 	return error;
 }
 
@@ -717,12 +747,15 @@ again:
 	dput(new_dentry);
 
 	/* Remove from old parent's list and insert into new parent's list. */
+	mutex_lock(&sysfs_mutex);
+
 	sysfs_unlink_sibling(sd);
 	sysfs_get(new_parent_sd);
 	sysfs_put(sd->s_parent);
 	sd->s_parent = new_parent_sd;
 	sysfs_link_sibling(sd);
 
+	mutex_unlock(&sysfs_mutex);
 out:
 	mutex_unlock(&new_parent_dentry->d_inode->i_mutex);
 	mutex_unlock(&old_parent_dentry->d_inode->i_mutex);
@@ -736,11 +769,12 @@ static int sysfs_dir_open(struct inode *inode, struct file *file)
 	struct sysfs_dirent * parent_sd = dentry->d_fsdata;
 	struct sysfs_dirent * sd;
 
-	mutex_lock(&dentry->d_inode->i_mutex);
 	sd = sysfs_new_dirent("_DIR_", 0, 0);
-	if (sd)
+	if (sd) {
+		mutex_lock(&sysfs_mutex);
 		sysfs_attach_dirent(sd, parent_sd, NULL);
-	mutex_unlock(&dentry->d_inode->i_mutex);
+		mutex_unlock(&sysfs_mutex);
+	}
 
 	file->private_data = sd;
 	return sd ? 0 : -ENOMEM;
@@ -748,12 +782,11 @@ static int sysfs_dir_open(struct inode *inode, struct file *file)
 
 static int sysfs_dir_close(struct inode *inode, struct file *file)
 {
-	struct dentry * dentry = file->f_path.dentry;
 	struct sysfs_dirent * cursor = file->private_data;
 
-	mutex_lock(&dentry->d_inode->i_mutex);
+	mutex_lock(&sysfs_mutex);
 	sysfs_unlink_sibling(cursor);
-	mutex_unlock(&dentry->d_inode->i_mutex);
+	mutex_unlock(&sysfs_mutex);
 
 	release_sysfs_dirent(cursor);
 
@@ -794,6 +827,8 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 			i++;
 			/* fallthrough */
 		default:
+			mutex_lock(&sysfs_mutex);
+
 			pos = &parent_sd->s_children;
 			while (*pos != cursor)
 				pos = &(*pos)->s_sibling;
@@ -826,6 +861,8 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 			/* put cursor back in */
 			cursor->s_sibling = *pos;
 			*pos = cursor;
+
+			mutex_unlock(&sysfs_mutex);
 	}
 	return 0;
 }
@@ -834,7 +871,6 @@ static loff_t sysfs_dir_lseek(struct file * file, loff_t offset, int origin)
 {
 	struct dentry * dentry = file->f_path.dentry;
 
-	mutex_lock(&dentry->d_inode->i_mutex);
 	switch (origin) {
 		case 1:
 			offset += file->f_pos;
@@ -842,10 +878,11 @@ static loff_t sysfs_dir_lseek(struct file * file, loff_t offset, int origin)
 			if (offset >= 0)
 				break;
 		default:
-			mutex_unlock(&file->f_path.dentry->d_inode->i_mutex);
 			return -EINVAL;
 	}
 	if (offset != file->f_pos) {
+		mutex_lock(&sysfs_mutex);
+
 		file->f_pos = offset;
 		if (file->f_pos >= 2) {
 			struct sysfs_dirent *sd = dentry->d_fsdata;
@@ -866,8 +903,10 @@ static loff_t sysfs_dir_lseek(struct file * file, loff_t offset, int origin)
 			cursor->s_sibling = *pos;
 			*pos = cursor;
 		}
+
+		mutex_unlock(&sysfs_mutex);
 	}
-	mutex_unlock(&dentry->d_inode->i_mutex);
+
 	return offset;
 }
 
@@ -933,7 +972,9 @@ struct sysfs_dirent *sysfs_create_shadow_dir(struct kobject *kobj)
 	sd->s_elem.dir.kobj = kobj;
 	/* point to parent_sd but don't attach to it */
 	sd->s_parent = sysfs_get(parent_sd);
+	mutex_lock(&sysfs_mutex);
 	sysfs_attach_dirent(sd, NULL, shadow);
+	mutex_unlock(&sysfs_mutex);
 
 	d_instantiate(shadow, igrab(inode));
 	inc_nlink(inode);
