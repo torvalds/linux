@@ -21,7 +21,7 @@ struct sysfs_elem_bin_attr {
  */
 struct sysfs_dirent {
 	atomic_t		s_count;
-	struct rw_semaphore	s_active;
+	atomic_t		s_active;
 	struct sysfs_dirent	* s_parent;
 	struct list_head	s_sibling;
 	struct list_head	s_children;
@@ -42,16 +42,7 @@ struct sysfs_dirent {
 	atomic_t		s_event;
 };
 
-/*
- * A sysfs file which deletes another file when written to need to
- * write lock the s_active of the victim while its s_active is read
- * locked for the write operation.  Tell lockdep that this is okay.
- */
-enum sysfs_s_active_class
-{
-	SYSFS_S_ACTIVE_NORMAL,		/* file r/w access, etc - default */
-	SYSFS_S_ACTIVE_DEACTIVATE,	/* file deactivation */
-};
+#define SD_DEACTIVATED_BIAS	INT_MIN
 
 extern struct vfsmount * sysfs_mount;
 extern struct kmem_cache *sysfs_dir_cachep;

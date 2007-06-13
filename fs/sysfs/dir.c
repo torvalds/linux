@@ -10,6 +10,7 @@
 #include <linux/kobject.h>
 #include <linux/namei.h>
 #include <linux/idr.h>
+#include <linux/completion.h>
 #include <asm/semaphore.h>
 #include "sysfs.h"
 
@@ -32,11 +33,24 @@ static DEFINE_IDA(sysfs_ino_ida);
  */
 struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd)
 {
-	if (sd) {
-		if (unlikely(!down_read_trylock(&sd->s_active)))
-			sd = NULL;
+	if (unlikely(!sd))
+		return NULL;
+
+	while (1) {
+		int v, t;
+
+		v = atomic_read(&sd->s_active);
+		if (unlikely(v < 0))
+			return NULL;
+
+		t = atomic_cmpxchg(&sd->s_active, v, v + 1);
+		if (likely(t == v))
+			return sd;
+		if (t < 0)
+			return NULL;
+
+		cpu_relax();
 	}
-	return sd;
 }
 
 /**
@@ -48,8 +62,21 @@ struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd)
  */
 void sysfs_put_active(struct sysfs_dirent *sd)
 {
-	if (sd)
-		up_read(&sd->s_active);
+	struct completion *cmpl;
+	int v;
+
+	if (unlikely(!sd))
+		return;
+
+	v = atomic_dec_return(&sd->s_active);
+	if (likely(v != SD_DEACTIVATED_BIAS))
+		return;
+
+	/* atomic_dec_return() is a mb(), we'll always see the updated
+	 * sd->s_sibling.next.
+	 */
+	cmpl = (void *)sd->s_sibling.next;
+	complete(cmpl);
 }
 
 /**
@@ -95,17 +122,25 @@ void sysfs_put_active_two(struct sysfs_dirent *sd)
  *	sysfs_deactivate - deactivate sysfs_dirent
  *	@sd: sysfs_dirent to deactivate
  *
- *	Deny new active references and drain existing ones.  s_active
- *	will be unlocked when the sysfs_dirent is released.
+ *	Deny new active references and drain existing ones.
  */
 void sysfs_deactivate(struct sysfs_dirent *sd)
 {
-	down_write_nested(&sd->s_active, SYSFS_S_ACTIVE_DEACTIVATE);
+	DECLARE_COMPLETION_ONSTACK(wait);
+	int v;
 
-	/* s_active will be unlocked by the thread doing the final put
-	 * on @sd.  Lie to lockdep.
+	BUG_ON(!list_empty(&sd->s_sibling));
+	sd->s_sibling.next = (void *)&wait;
+
+	/* atomic_add_return() is a mb(), put_active() will always see
+	 * the updated sd->s_sibling.next.
 	 */
-	rwsem_release(&sd->s_active.dep_map, 1, _RET_IP_);
+	v = atomic_add_return(SD_DEACTIVATED_BIAS, &sd->s_active);
+
+	if (v != SD_DEACTIVATED_BIAS)
+		wait_for_completion(&wait);
+
+	INIT_LIST_HEAD(&sd->s_sibling);
 }
 
 static int sysfs_alloc_ino(ino_t *pino)
@@ -140,19 +175,6 @@ void release_sysfs_dirent(struct sysfs_dirent * sd)
 
  repeat:
 	parent_sd = sd->s_parent;
-
-	/* If @sd is being released after deletion, s_active is write
-	 * locked.  If @sd is cursor for directory walk or being
-	 * released prematurely, s_active has no reader or writer.
-	 *
-	 * sysfs_deactivate() lies to lockdep that s_active is
-	 * unlocked immediately.  Lie one more time to cover the
-	 * previous lie.
-	 */
-	if (!down_write_trylock(&sd->s_active))
-		rwsem_acquire(&sd->s_active.dep_map,
-			      SYSFS_S_ACTIVE_DEACTIVATE, 0, _RET_IP_);
-	up_write(&sd->s_active);
 
 	if (sd->s_type & SYSFS_KOBJ_LINK)
 		sysfs_put(sd->s_elem.symlink.target_sd);
@@ -213,8 +235,8 @@ struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type)
 		goto err_out;
 
 	atomic_set(&sd->s_count, 1);
+	atomic_set(&sd->s_active, 0);
 	atomic_set(&sd->s_event, 1);
-	init_rwsem(&sd->s_active);
 	INIT_LIST_HEAD(&sd->s_children);
 	INIT_LIST_HEAD(&sd->s_sibling);
 
