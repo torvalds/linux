@@ -296,6 +296,7 @@ int sysfs_hash_and_remove(struct dentry * dir, const char * name)
 		if (!sysfs_type(sd))
 			continue;
 		if (!strcmp(sd->s_name, name)) {
+			sd->s_flags |= SYSFS_FLAG_REMOVED;
 			*pos = sd->s_sibling;
 			sd->s_sibling = NULL;
 			found = 1;
