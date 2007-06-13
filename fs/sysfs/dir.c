@@ -30,7 +30,7 @@ static DEFINE_IDA(sysfs_ino_ida);
  *	Locking:
  *	mutex_lock(sysfs_mutex)
  */
-static void sysfs_link_sibling(struct sysfs_dirent *sd)
+void sysfs_link_sibling(struct sysfs_dirent *sd)
 {
 	struct sysfs_dirent *parent_sd = sd->s_parent;
 
@@ -49,7 +49,7 @@ static void sysfs_link_sibling(struct sysfs_dirent *sd)
  *	Locking:
  *	mutex_lock(sysfs_mutex)
  */
-static void sysfs_unlink_sibling(struct sysfs_dirent *sd)
+void sysfs_unlink_sibling(struct sysfs_dirent *sd)
 {
 	struct sysfs_dirent **pos;
 
@@ -165,7 +165,7 @@ void sysfs_put_active_two(struct sysfs_dirent *sd)
  *
  *	Deny new active references and drain existing ones.
  */
-void sysfs_deactivate(struct sysfs_dirent *sd)
+static void sysfs_deactivate(struct sysfs_dirent *sd)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
 	int v;
@@ -318,27 +318,164 @@ static void sysfs_attach_dentry(struct sysfs_dirent *sd, struct dentry *dentry)
 	d_rehash(dentry);
 }
 
+static int sysfs_ilookup_test(struct inode *inode, void *arg)
+{
+	struct sysfs_dirent *sd = arg;
+	return inode->i_ino == sd->s_ino;
+}
+
 /**
- *	sysfs_attach_dirent - attach sysfs_dirent to its parent and dentry
- *	@sd: sysfs_dirent to attach
- *	@parent_sd: parent to attach to (optional)
- *	@dentry: dentry to be associated to @sd (optional)
+ *	sysfs_addrm_start - prepare for sysfs_dirent add/remove
+ *	@acxt: pointer to sysfs_addrm_cxt to be used
+ *	@parent_sd: parent sysfs_dirent
  *
- *	Attach @sd to @parent_sd and/or @dentry.  Both are optional.
+ *	This function is called when the caller is about to add or
+ *	remove sysfs_dirent under @parent_sd.  This function acquires
+ *	sysfs_mutex, grabs inode for @parent_sd if available and lock
+ *	i_mutex of it.  @acxt is used to keep and pass context to
+ *	other addrm functions.
  *
  *	LOCKING:
- *	mutex_lock(sysfs_mutex)
+ *	Kernel thread context (may sleep).  sysfs_mutex is locked on
+ *	return.  i_mutex of parent inode is locked on return if
+ *	available.
  */
-void sysfs_attach_dirent(struct sysfs_dirent *sd,
-			 struct sysfs_dirent *parent_sd, struct dentry *dentry)
+void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
+		       struct sysfs_dirent *parent_sd)
 {
-	if (dentry)
-		sysfs_attach_dentry(sd, dentry);
+	struct inode *inode;
 
-	if (parent_sd) {
-		sd->s_parent = sysfs_get(parent_sd);
-		sysfs_link_sibling(sd);
+	memset(acxt, 0, sizeof(*acxt));
+	acxt->parent_sd = parent_sd;
+
+	/* Lookup parent inode.  inode initialization and I_NEW
+	 * clearing are protected by sysfs_mutex.  By grabbing it and
+	 * looking up with _nowait variant, inode state can be
+	 * determined reliably.
+	 */
+	mutex_lock(&sysfs_mutex);
+
+	inode = ilookup5_nowait(sysfs_sb, parent_sd->s_ino, sysfs_ilookup_test,
+				parent_sd);
+
+	if (inode && !(inode->i_state & I_NEW)) {
+		/* parent inode available */
+		acxt->parent_inode = inode;
+
+		/* sysfs_mutex is below i_mutex in lock hierarchy.
+		 * First, trylock i_mutex.  If fails, unlock
+		 * sysfs_mutex and lock them in order.
+		 */
+		if (!mutex_trylock(&inode->i_mutex)) {
+			mutex_unlock(&sysfs_mutex);
+			mutex_lock(&inode->i_mutex);
+			mutex_lock(&sysfs_mutex);
+		}
+	} else
+		iput(inode);
+}
+
+/**
+ *	sysfs_add_one - add sysfs_dirent to parent
+ *	@acxt: addrm context to use
+ *	@sd: sysfs_dirent to be added
+ *
+ *	Get @acxt->parent_sd and set sd->s_parent to it and increment
+ *	nlink of parent inode if @sd is a directory.  @sd is NOT
+ *	linked into the children list of the parent.  The caller
+ *	should invoke sysfs_link_sibling() after this function
+ *	completes if @sd needs to be on the children list.
+ *
+ *	This function should be called between calls to
+ *	sysfs_addrm_start() and sysfs_addrm_finish() and should be
+ *	passed the same @acxt as passed to sysfs_addrm_start().
+ *
+ *	LOCKING:
+ *	Determined by sysfs_addrm_start().
+ */
+void sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
+{
+	sd->s_parent = sysfs_get(acxt->parent_sd);
+
+	if (sysfs_type(sd) == SYSFS_DIR && acxt->parent_inode)
+		inc_nlink(acxt->parent_inode);
+
+	acxt->cnt++;
+}
+
+/**
+ *	sysfs_remove_one - remove sysfs_dirent from parent
+ *	@acxt: addrm context to use
+ *	@sd: sysfs_dirent to be added
+ *
+ *	Mark @sd removed and drop nlink of parent inode if @sd is a
+ *	directory.  @sd is NOT unlinked from the children list of the
+ *	parent.  The caller is repsonsible for removing @sd from the
+ *	children list before calling this function.
+ *
+ *	This function should be called between calls to
+ *	sysfs_addrm_start() and sysfs_addrm_finish() and should be
+ *	passed the same @acxt as passed to sysfs_addrm_start().
+ *
+ *	LOCKING:
+ *	Determined by sysfs_addrm_start().
+ */
+void sysfs_remove_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
+{
+	BUG_ON(sd->s_sibling || (sd->s_flags & SYSFS_FLAG_REMOVED));
+
+	sd->s_flags |= SYSFS_FLAG_REMOVED;
+	sd->s_sibling = acxt->removed;
+	acxt->removed = sd;
+
+	if (sysfs_type(sd) == SYSFS_DIR && acxt->parent_inode)
+		drop_nlink(acxt->parent_inode);
+
+	acxt->cnt++;
+}
+
+/**
+ *	sysfs_addrm_finish - finish up sysfs_dirent add/remove
+ *	@acxt: addrm context to finish up
+ *
+ *	Finish up sysfs_dirent add/remove.  Resources acquired by
+ *	sysfs_addrm_start() are released and removed sysfs_dirents are
+ *	cleaned up.  Timestamps on the parent inode are updated.
+ *
+ *	LOCKING:
+ *	All mutexes acquired by sysfs_addrm_start() are released.
+ *
+ *	RETURNS:
+ *	Number of added/removed sysfs_dirents since sysfs_addrm_start().
+ */
+int sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt)
+{
+	/* release resources acquired by sysfs_addrm_start() */
+	mutex_unlock(&sysfs_mutex);
+	if (acxt->parent_inode) {
+		struct inode *inode = acxt->parent_inode;
+
+		/* if added/removed, update timestamps on the parent */
+		if (acxt->cnt)
+			inode->i_ctime = inode->i_mtime = CURRENT_TIME;
+
+		mutex_unlock(&inode->i_mutex);
+		iput(inode);
 	}
+
+	/* kill removed sysfs_dirents */
+	while (acxt->removed) {
+		struct sysfs_dirent *sd = acxt->removed;
+
+		acxt->removed = sd->s_sibling;
+		sd->s_sibling = NULL;
+
+		sysfs_drop_dentry(sd);
+		sysfs_deactivate(sd);
+		sysfs_put(sd);
+	}
+
+	return acxt->cnt;
 }
 
 /**
@@ -396,19 +533,20 @@ static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 		      const char *name, struct sysfs_dirent **p_sd)
 {
 	struct dentry *parent = parent_sd->s_dentry;
+	struct sysfs_addrm_cxt acxt;
 	int error;
 	umode_t mode = S_IFDIR| S_IRWXU | S_IRUGO | S_IXUGO;
 	struct dentry *dentry;
 	struct inode *inode;
 	struct sysfs_dirent *sd;
 
-	mutex_lock(&parent->d_inode->i_mutex);
+	sysfs_addrm_start(&acxt, parent_sd);
 
 	/* allocate */
 	dentry = lookup_one_len(name, parent, strlen(name));
 	if (IS_ERR(dentry)) {
 		error = PTR_ERR(dentry);
-		goto out_unlock;
+		goto out_finish;
 	}
 
 	error = -EEXIST;
@@ -433,23 +571,18 @@ static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 	}
 
 	/* link in */
-	mutex_lock(&sysfs_mutex);
-
 	error = -EEXIST;
-	if (sysfs_find_dirent(parent_sd, name)) {
-		mutex_unlock(&sysfs_mutex);
+	if (sysfs_find_dirent(parent_sd, name))
 		goto out_iput;
-	}
 
+	sysfs_add_one(&acxt, sd);
+	sysfs_link_sibling(sd);
 	sysfs_instantiate(dentry, inode);
-	inc_nlink(parent->d_inode);
-	sysfs_attach_dirent(sd, parent_sd, dentry);
-
-	mutex_unlock(&sysfs_mutex);
+	sysfs_attach_dentry(sd, dentry);
 
 	*p_sd = sd;
 	error = 0;
-	goto out_unlock;	/* pin directory dentry in core */
+	goto out_finish;	/* pin directory dentry in core */
 
  out_iput:
 	iput(inode);
@@ -459,8 +592,8 @@ static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 	d_drop(dentry);
  out_dput:
 	dput(dentry);
- out_unlock:
-	mutex_unlock(&parent->d_inode->i_mutex);
+ out_finish:
+	sysfs_addrm_finish(&acxt);
 	return error;
 }
 
@@ -561,16 +694,12 @@ const struct inode_operations sysfs_dir_inode_operations = {
 
 static void remove_dir(struct sysfs_dirent *sd)
 {
-	mutex_lock(&sysfs_mutex);
+	struct sysfs_addrm_cxt acxt;
+
+	sysfs_addrm_start(&acxt, sd->s_parent);
 	sysfs_unlink_sibling(sd);
-	sd->s_flags |= SYSFS_FLAG_REMOVED;
-	mutex_unlock(&sysfs_mutex);
-
-	pr_debug(" o %s removing done\n", sd->s_name);
-
-	sysfs_drop_dentry(sd);
-	sysfs_deactivate(sd);
-	sysfs_put(sd);
+	sysfs_remove_one(&acxt, sd);
+	sysfs_addrm_finish(&acxt);
 }
 
 void sysfs_remove_subdir(struct sysfs_dirent *sd)
@@ -581,38 +710,26 @@ void sysfs_remove_subdir(struct sysfs_dirent *sd)
 
 static void __sysfs_remove_dir(struct sysfs_dirent *dir_sd)
 {
-	struct sysfs_dirent *removed = NULL;
+	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent **pos;
 
 	if (!dir_sd)
 		return;
 
 	pr_debug("sysfs %s: removing dir\n", dir_sd->s_name);
-	mutex_lock(&sysfs_mutex);
+	sysfs_addrm_start(&acxt, dir_sd);
 	pos = &dir_sd->s_children;
 	while (*pos) {
 		struct sysfs_dirent *sd = *pos;
 
 		if (sysfs_type(sd) && (sysfs_type(sd) & SYSFS_NOT_PINNED)) {
-			sd->s_flags |= SYSFS_FLAG_REMOVED;
 			*pos = sd->s_sibling;
-			sd->s_sibling = removed;
-			removed = sd;
+			sd->s_sibling = NULL;
+			sysfs_remove_one(&acxt, sd);
 		} else
 			pos = &(*pos)->s_sibling;
 	}
-	mutex_unlock(&sysfs_mutex);
-
-	while (removed) {
-		struct sysfs_dirent *sd = removed;
-
-		removed = sd->s_sibling;
-		sd->s_sibling = NULL;
-
-		sysfs_drop_dentry(sd);
-		sysfs_deactivate(sd);
-		sysfs_put(sd);
-	}
+	sysfs_addrm_finish(&acxt);
 
 	remove_dir(dir_sd);
 }
@@ -772,7 +889,8 @@ static int sysfs_dir_open(struct inode *inode, struct file *file)
 	sd = sysfs_new_dirent("_DIR_", 0, 0);
 	if (sd) {
 		mutex_lock(&sysfs_mutex);
-		sysfs_attach_dirent(sd, parent_sd, NULL);
+		sd->s_parent = sysfs_get(parent_sd);
+		sysfs_link_sibling(sd);
 		mutex_unlock(&sysfs_mutex);
 	}
 
@@ -957,6 +1075,7 @@ struct sysfs_dirent *sysfs_create_shadow_dir(struct kobject *kobj)
 	struct sysfs_dirent *parent_sd = parent->d_fsdata;
 	struct dentry *shadow;
 	struct sysfs_dirent *sd;
+	struct sysfs_addrm_cxt acxt;
 
 	sd = ERR_PTR(-EINVAL);
 	if (!sysfs_is_shadowed_inode(inode))
@@ -970,15 +1089,18 @@ struct sysfs_dirent *sysfs_create_shadow_dir(struct kobject *kobj)
 	if (!sd)
 		goto nomem;
 	sd->s_elem.dir.kobj = kobj;
-	/* point to parent_sd but don't attach to it */
-	sd->s_parent = sysfs_get(parent_sd);
-	mutex_lock(&sysfs_mutex);
-	sysfs_attach_dirent(sd, NULL, shadow);
-	mutex_unlock(&sysfs_mutex);
 
+	sysfs_addrm_start(&acxt, parent_sd);
+
+	/* add but don't link into children list */
+	sysfs_add_one(&acxt, sd);
+
+	/* attach and instantiate dentry */
+	sysfs_attach_dentry(sd, shadow);
 	d_instantiate(shadow, igrab(inode));
-	inc_nlink(inode);
-	inc_nlink(parent->d_inode);
+	inc_nlink(inode);	/* tj: synchronization? */
+
+	sysfs_addrm_finish(&acxt);
 
 	dget(shadow);		/* Extra count - pin the dentry in core */
 

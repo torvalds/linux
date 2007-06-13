@@ -44,14 +44,29 @@ struct sysfs_dirent {
 
 #define SD_DEACTIVATED_BIAS	INT_MIN
 
+struct sysfs_addrm_cxt {
+	struct sysfs_dirent	*parent_sd;
+	struct inode		*parent_inode;
+	struct sysfs_dirent	*removed;
+	int			cnt;
+};
+
 extern struct vfsmount * sysfs_mount;
 extern struct kmem_cache *sysfs_dir_cachep;
 
+extern void sysfs_link_sibling(struct sysfs_dirent *sd);
+extern void sysfs_unlink_sibling(struct sysfs_dirent *sd);
 extern struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd);
 extern void sysfs_put_active(struct sysfs_dirent *sd);
 extern struct sysfs_dirent *sysfs_get_active_two(struct sysfs_dirent *sd);
 extern void sysfs_put_active_two(struct sysfs_dirent *sd);
-extern void sysfs_deactivate(struct sysfs_dirent *sd);
+extern void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
+			      struct sysfs_dirent *parent_sd);
+extern void sysfs_add_one(struct sysfs_addrm_cxt *acxt,
+			  struct sysfs_dirent *sd);
+extern void sysfs_remove_one(struct sysfs_addrm_cxt *acxt,
+			     struct sysfs_dirent *sd);
+extern int sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt);
 
 extern void sysfs_delete_inode(struct inode *inode);
 extern void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode);
@@ -65,9 +80,6 @@ extern struct sysfs_dirent *sysfs_get_dirent(struct sysfs_dirent *parent_sd,
 					     const unsigned char *name);
 extern struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode,
 					     int type);
-extern void sysfs_attach_dirent(struct sysfs_dirent *sd,
-				struct sysfs_dirent *parent_sd,
-				struct dentry *dentry);
 
 extern int sysfs_add_file(struct sysfs_dirent *dir_sd,
 			  const struct attribute *attr, int type);

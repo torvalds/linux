@@ -55,6 +55,7 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 	struct sysfs_dirent *parent_sd = NULL;
 	struct sysfs_dirent *target_sd = NULL;
 	struct sysfs_dirent *sd = NULL;
+	struct sysfs_addrm_cxt acxt;
 	int error;
 
 	BUG_ON(!name);
@@ -87,17 +88,18 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 		goto out_put;
 	sd->s_elem.symlink.target_sd = target_sd;
 
-	mutex_lock(&sysfs_mutex);
+	sysfs_addrm_start(&acxt, parent_sd);
+
+	if (!sysfs_find_dirent(parent_sd, name)) {
+		sysfs_add_one(&acxt, sd);
+		sysfs_link_sibling(sd);
+	}
+
+	if (sysfs_addrm_finish(&acxt))
+		return 0;
+
 	error = -EEXIST;
-	if (sysfs_find_dirent(parent_sd, name))
-		goto out_unlock;
-	sysfs_attach_dirent(sd, parent_sd, NULL);
-	mutex_unlock(&sysfs_mutex);
-
-	return 0;
-
- out_unlock:
-	mutex_unlock(&sysfs_mutex);
+	/* fall through */
  out_put:
 	sysfs_put(target_sd);
 	sysfs_put(sd);

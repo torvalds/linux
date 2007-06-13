@@ -191,14 +191,8 @@ void sysfs_instantiate(struct dentry *dentry, struct inode *inode)
 {
 	BUG_ON(!dentry || dentry->d_inode);
 
-	if (inode->i_state & I_NEW) {
+	if (inode->i_state & I_NEW)
 		unlock_new_inode(inode);
-
-		if (dentry->d_parent && dentry->d_parent->d_inode) {
-			struct inode *p_inode = dentry->d_parent->d_inode;
-			p_inode->i_mtime = p_inode->i_ctime = CURRENT_TIME;
-		}
-	}
 
 	d_instantiate(dentry, inode);
 }
@@ -220,7 +214,6 @@ void sysfs_instantiate(struct dentry *dentry, struct inode *inode)
 void sysfs_drop_dentry(struct sysfs_dirent *sd)
 {
 	struct dentry *dentry = NULL;
-	struct timespec curtime;
 	struct inode *inode;
 
 	/* We're not holding a reference to ->s_dentry dentry but the
@@ -246,27 +239,12 @@ void sysfs_drop_dentry(struct sysfs_dirent *sd)
 		dput(dentry);
 
 	/* adjust nlink and update timestamp */
-	curtime = CURRENT_TIME;
-
 	inode = ilookup(sysfs_sb, sd->s_ino);
 	if (inode) {
 		mutex_lock(&inode->i_mutex);
 
-		inode->i_ctime = curtime;
+		inode->i_ctime = CURRENT_TIME;
 		drop_nlink(inode);
-		if (sysfs_type(sd) == SYSFS_DIR)
-			drop_nlink(inode);
-
-		mutex_unlock(&inode->i_mutex);
-		iput(inode);
-	}
-
-	/* adjust nlink and udpate timestamp of the parent */
-	inode = ilookup(sysfs_sb, sd->s_parent->s_ino);
-	if (inode) {
-		mutex_lock(&inode->i_mutex);
-
-		inode->i_ctime = inode->i_mtime = curtime;
 		if (sysfs_type(sd) == SYSFS_DIR)
 			drop_nlink(inode);
 
@@ -277,13 +255,13 @@ void sysfs_drop_dentry(struct sysfs_dirent *sd)
 
 int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name)
 {
+	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent **pos, *sd;
-	int found = 0;
 
 	if (!dir_sd)
 		return -ENOENT;
 
-	mutex_lock(&sysfs_mutex);
+	sysfs_addrm_start(&acxt, dir_sd);
 
 	for (pos = &dir_sd->s_children; *pos; pos = &(*pos)->s_sibling) {
 		sd = *pos;
@@ -291,22 +269,14 @@ int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name)
 		if (!sysfs_type(sd))
 			continue;
 		if (!strcmp(sd->s_name, name)) {
-			sd->s_flags |= SYSFS_FLAG_REMOVED;
 			*pos = sd->s_sibling;
 			sd->s_sibling = NULL;
-			found = 1;
+			sysfs_remove_one(&acxt, sd);
 			break;
 		}
 	}
 
-	mutex_unlock(&sysfs_mutex);
-
-	if (!found)
-		return -ENOENT;
-
-	sysfs_drop_dentry(sd);
-	sysfs_deactivate(sd);
-	sysfs_put(sd);
-
-	return 0;
+	if (sysfs_addrm_finish(&acxt))
+		return 0;
+	return -ENOENT;
 }
