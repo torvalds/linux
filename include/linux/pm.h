@@ -268,7 +268,6 @@ struct dev_pm_info {
 #ifdef	CONFIG_PM
 	unsigned		should_wakeup:1;
 	pm_message_t		prev_state;
-	void			* saved_state;
 	struct list_head	entry;
 #endif
 };
