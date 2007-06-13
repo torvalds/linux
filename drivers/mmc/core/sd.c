@@ -427,6 +427,21 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 		mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
 	}
 
+	/*
+	 * Check if read-only switch is active.
+	 */
+	if (!oldcard) {
+		if (!host->ops->get_ro) {
+			printk(KERN_WARNING "%s: host does not "
+				"support reading read-only "
+				"switch. assuming write-enable.\n",
+				mmc_hostname(host));
+		} else {
+			if (host->ops->get_ro(host))
+				mmc_card_set_readonly(card);
+		}
+	}
+
 	if (!oldcard)
 		host->card = card;
 
