@@ -589,9 +589,9 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 
 	fx_init(vcpu);
 	vcpu->fpu_active = 1;
-	vcpu->apic_base = 0xfee00000 |
-			/*for vcpu 0*/ MSR_IA32_APICBASE_BSP |
-			MSR_IA32_APICBASE_ENABLE;
+	vcpu->apic_base = 0xfee00000 | MSR_IA32_APICBASE_ENABLE;
+	if (vcpu == &vcpu->kvm->vcpus[0])
+		vcpu->apic_base |= MSR_IA32_APICBASE_BSP;
 
 	return 0;
 
