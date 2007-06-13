@@ -19,12 +19,9 @@ struct vfsmount *sysfs_mount;
 struct super_block * sysfs_sb = NULL;
 struct kmem_cache *sysfs_dir_cachep;
 
-static void sysfs_clear_inode(struct inode *inode);
-
 static const struct super_operations sysfs_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= sysfs_delete_inode,
-	.clear_inode	= sysfs_clear_inode,
 };
 
 static struct sysfs_dirent sysfs_root = {
@@ -35,11 +32,6 @@ static struct sysfs_dirent sysfs_root = {
 	.s_iattr	= NULL,
 	.s_ino		= 1,
 };
-
-static void sysfs_clear_inode(struct inode *inode)
-{
-	kfree(inode->i_private);
-}
 
 static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 {
