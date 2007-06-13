@@ -38,3 +38,19 @@ void ibm44x_fixup_memsize(void)
 
 	dt_fixup_memory(0, memsize);
 }
+
+#define SPRN_DBCR0		0x134
+#define   DBCR0_RST_SYSTEM	0x30000000
+
+void ibm44x_dbcr_reset(void)
+{
+	unsigned long tmp;
+
+	asm volatile (
+		"mfspr	%0,%1\n"
+		"oris	%0,%0,%2@h\n"
+		"mtspr	%1,%0"
+		: "=&r"(tmp) : "i"(SPRN_DBCR0), "i"(DBCR0_RST_SYSTEM)
+		);
+
+}
