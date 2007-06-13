@@ -546,7 +546,7 @@ struct net_device
 #define	NETDEV_ALIGN		32
 #define	NETDEV_ALIGN_CONST	(NETDEV_ALIGN - 1)
 
-static inline void *netdev_priv(struct net_device *dev)
+static inline void *netdev_priv(const struct net_device *dev)
 {
 	return (char *)dev + ((sizeof(struct net_device)
 					+ NETDEV_ALIGN_CONST)
