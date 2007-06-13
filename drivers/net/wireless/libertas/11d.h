@@ -47,7 +47,7 @@ struct mrvlietypes_domainparamset {
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11d_domain_info {
-	u16 action;
+	__le16 action;
 	struct mrvlietypes_domainparamset domain;
 } __attribute__ ((packed));
 
@@ -98,7 +98,9 @@ int libertas_cmd_enable_11d(wlan_private * priv, struct iwreq *wrq);
 int libertas_ret_802_11d_domain_info(wlan_private * priv,
 				 struct cmd_ds_command *resp);
 
-int libertas_parse_dnld_countryinfo_11d(wlan_private * priv);
+struct bss_descriptor;
+int libertas_parse_dnld_countryinfo_11d(wlan_private * priv,
+                                        struct bss_descriptor * bss);
 
 int libertas_create_dnld_countryinfo_11d(wlan_private * priv);
 

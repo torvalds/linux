@@ -266,16 +266,23 @@ config IPW2200_DEBUG
 
 	  If you are not sure, say N here.
 
-config LIBERTAS_USB
-	tristate "Marvell Libertas 8388 802.11a/b/g cards"
-	depends on USB && WLAN_80211
+config LIBERTAS
+	tristate "Marvell 8xxx Libertas WLAN driver support"
+	depends on WLAN_80211
+	select IEEE80211
 	select FW_LOADER
+	---help---
+	  A library for Marvell Libertas 8xxx devices.
+
+config LIBERTAS_USB
+	tristate "Marvell Libertas 8388 USB 802.11b/g cards"
+	depends on LIBERTAS && USB
 	---help---
 	  A driver for Marvell Libertas 8388 USB devices.
 
-config LIBERTAS_USB_DEBUG
-	bool "Enable full debugging output in the Libertas USB module."
-	depends on LIBERTAS_USB
+config LIBERTAS_DEBUG
+	bool "Enable full debugging output in the Libertas module."
+	depends on LIBERTAS
 	---help---
 	  Debugging support.
 

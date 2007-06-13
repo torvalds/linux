@@ -4,6 +4,7 @@
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <net/iw_handler.h>
+
 #include "dev.h"
 #include "decl.h"
 #include "host.h"
@@ -15,7 +16,9 @@ static char *szStates[] = {
 	"Disconnected"
 };
 
-void libertas_debug_init(wlan_private * priv, struct net_device *dev);
+#ifdef PROC_DEBUG
+static void libertas_debug_init(wlan_private * priv, struct net_device *dev);
+#endif
 
 static int open_file_generic(struct inode *inode, struct file *file)
 {
@@ -60,43 +63,33 @@ static ssize_t libertas_getscantable(struct file *file, char __user *userbuf,
 	int numscansdone = 0, res;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
+	struct bss_descriptor * iter_bss;
 
-	pos += snprintf(buf+pos, len-pos,
-			"---------------------------------------");
-	pos += snprintf(buf+pos, len-pos,
-			"---------------------------------------\n");
 	pos += snprintf(buf+pos, len-pos,
 		"# | ch  | ss  |       bssid       |   cap    |    TSF   | Qual | SSID \n");
-	pos += snprintf(buf+pos, len-pos,
-		"---------------------------------------");
-	pos += snprintf(buf+pos, len-pos,
-		"---------------------------------------\n");
 
-	while (numscansdone < priv->adapter->numinscantable) {
-		struct bss_descriptor *pbssinfo;
+	mutex_lock(&priv->adapter->lock);
+	list_for_each_entry (iter_bss, &priv->adapter->network_list, list) {
 		u16 cap;
 
-		pbssinfo = &priv->adapter->scantable[numscansdone];
-		memcpy(&cap, &pbssinfo->cap, sizeof(cap));
+		memcpy(&cap, &iter_bss->cap, sizeof(cap));
 		pos += snprintf(buf+pos, len-pos,
-			"%02u| %03d | %03ld | %02x:%02x:%02x:%02x:%02x:%02x |",
-			numscansdone, pbssinfo->channel, pbssinfo->rssi,
-			pbssinfo->macaddress[0], pbssinfo->macaddress[1],
-			pbssinfo->macaddress[2], pbssinfo->macaddress[3],
-			pbssinfo->macaddress[4], pbssinfo->macaddress[5]);
+			"%02u| %03d | %03ld | " MAC_FMT " |",
+			numscansdone, iter_bss->channel, iter_bss->rssi,
+			MAC_ARG(iter_bss->bssid));
 		pos += snprintf(buf+pos, len-pos, " %04x-", cap);
 		pos += snprintf(buf+pos, len-pos, "%c%c%c |",
-				pbssinfo->cap.ibss ? 'A' : 'I',
-				pbssinfo->cap.privacy ? 'P' : ' ',
-				pbssinfo->cap.spectrummgmt ? 'S' : ' ');
-		pos += snprintf(buf+pos, len-pos, " %08llx |", pbssinfo->networktsf);
-		pos += snprintf(buf+pos, len-pos, " %d |",
-			SCAN_RSSI(priv->adapter->scantable[numscansdone].rssi));
-
-		pos += snprintf(buf+pos, len-pos, " %s\n", pbssinfo->ssid.ssid);
+				iter_bss->cap.ibss ? 'A' : 'I',
+				iter_bss->cap.privacy ? 'P' : ' ',
+				iter_bss->cap.spectrummgmt ? 'S' : ' ');
+		pos += snprintf(buf+pos, len-pos, " %08llx |", iter_bss->networktsf);
+		pos += snprintf(buf+pos, len-pos, " %d |", SCAN_RSSI(iter_bss->rssi));
+		pos += snprintf(buf+pos, len-pos, " %s\n",
+		                escape_essid(iter_bss->ssid, iter_bss->ssid_len));
 
 		numscansdone++;
 	}
+	mutex_unlock(&priv->adapter->lock);
 
 	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 
@@ -111,7 +104,6 @@ static ssize_t libertas_sleepparams_write(struct file *file,
 	wlan_private *priv = file->private_data;
 	ssize_t buf_size, res;
 	int p1, p2, p3, p4, p5, p6;
-	struct sleep_params sp;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 
@@ -125,14 +117,12 @@ static ssize_t libertas_sleepparams_write(struct file *file,
 		res = -EFAULT;
 		goto out_unlock;
 	}
-	sp.sp_error = p1;
-	sp.sp_offset = p2;
-	sp.sp_stabletime = p3;
-	sp.sp_calcontrol = p4;
-	sp.sp_extsleepclk = p5;
-	sp.sp_reserved = p6;
-
-	memcpy(&priv->adapter->sp, &sp, sizeof(struct sleep_params));
+	priv->adapter->sp.sp_error = p1;
+	priv->adapter->sp.sp_offset = p2;
+	priv->adapter->sp.sp_stabletime = p3;
+	priv->adapter->sp.sp_calcontrol = p4;
+	priv->adapter->sp.sp_extsleepclk = p5;
+	priv->adapter->sp.sp_reserved = p6;
 
         res = libertas_prepare_and_send_command(priv,
 				cmd_802_11_sleep_params,
@@ -185,7 +175,6 @@ static ssize_t libertas_extscan(struct file *file, const char __user *userbuf,
 {
 	wlan_private *priv = file->private_data;
 	ssize_t res, buf_size;
-	struct WLAN_802_11_SSID extscan_ssid;
 	union iwreq_data wrqu;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
@@ -196,13 +185,10 @@ static ssize_t libertas_extscan(struct file *file, const char __user *userbuf,
 		goto out_unlock;
 	}
 
-	memcpy(&extscan_ssid.ssid, buf, strlen(buf)-1);
-	extscan_ssid.ssidlength = strlen(buf)-1;
-
-	libertas_send_specific_SSID_scan(priv, &extscan_ssid, 1);
+	libertas_send_specific_ssid_scan(priv, buf, strlen(buf)-1, 0);
 
 	memset(&wrqu, 0, sizeof(union iwreq_data));
-	wireless_send_event(priv->wlan_dev.netdev, SIOCGIWSCAN, &wrqu, NULL);
+	wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);
 
 out_unlock:
 	free_page(addr);
@@ -251,16 +237,13 @@ static void libertas_parse_bssid(char *buf, size_t count,
 {
 	char *hold;
 	unsigned int mac[ETH_ALEN];
-	int i;
 
 	hold = strstr(buf, "bssid=");
 	if (!hold)
 		return;
 	hold += 6;
-	sscanf(hold, "%2x:%2x:%2x:%2x:%2x:%2x", mac, mac+1, mac+2, mac+3,
-			mac+4, mac+5);
-	for(i=0;i<ETH_ALEN;i++)
-		scan_cfg->specificBSSID[i] = mac[i];
+	sscanf(hold, MAC_FMT, mac, mac+1, mac+2, mac+3, mac+4, mac+5);
+	memcpy(scan_cfg->bssid, mac, ETH_ALEN);
 }
 
 static void libertas_parse_ssid(char *buf, size_t count,
@@ -278,28 +261,26 @@ static void libertas_parse_ssid(char *buf, size_t count,
 		end = buf + count - 1;
 
 	size = min((size_t)IW_ESSID_MAX_SIZE, (size_t) (end - hold));
-	strncpy(scan_cfg->specificSSID, hold, size);
+	strncpy(scan_cfg->ssid, hold, size);
 
 	return;
 }
 
-static void libertas_parse_keep(char *buf, size_t count,
-                        struct wlan_ioctl_user_scan_cfg *scan_cfg)
+static int libertas_parse_clear(char *buf, size_t count, const char *tag)
 {
 	char *hold;
 	int val;
 
-	hold = strstr(buf, "keep=");
+	hold = strstr(buf, tag);
 	if (!hold)
-		return;
-	hold += 5;
+		return 0;
+	hold += strlen(tag);
 	sscanf(hold, "%d", &val);
 
 	if (val != 0)
 		val = 1;
 
-	scan_cfg->keeppreviousscan = val;
-	return;
+	return val;
 }
 
 static int libertas_parse_dur(char *buf, size_t count,
@@ -382,17 +363,18 @@ static ssize_t libertas_setuserscan(struct file *file,
 	dur = libertas_parse_dur(buf, count, scan_cfg);
 	libertas_parse_chan(buf, count, scan_cfg, dur);
 	libertas_parse_bssid(buf, count, scan_cfg);
+	scan_cfg->clear_bssid = libertas_parse_clear(buf, count, "clear_bssid=");
 	libertas_parse_ssid(buf, count, scan_cfg);
-	libertas_parse_keep(buf, count, scan_cfg);
+	scan_cfg->clear_ssid = libertas_parse_clear(buf, count, "clear_ssid=");
 	libertas_parse_probes(buf, count, scan_cfg);
 	libertas_parse_type(buf, count, scan_cfg);
 
-	wlan_scan_networks(priv, scan_cfg);
+	wlan_scan_networks(priv, scan_cfg, 1);
 	wait_event_interruptible(priv->adapter->cmd_pending,
 				 !priv->adapter->nr_cmd_pending);
 
 	memset(&wrqu, 0x00, sizeof(union iwreq_data));
-	wireless_send_event(priv->wlan_dev.netdev, SIOCGIWSCAN, &wrqu, NULL);
+	wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);
 
 out_unlock:
 	free_page(addr);
@@ -407,11 +389,11 @@ static int libertas_event_initcmd(wlan_private *priv, void **response_buf,
 	u16 wait_option = cmd_option_waitforrsp;
 
 	if (!(*cmdnode = libertas_get_free_cmd_ctrl_node(priv))) {
-		lbs_pr_debug(1, "failed libertas_get_free_cmd_ctrl_node\n");
+		lbs_deb_debugfs("failed libertas_get_free_cmd_ctrl_node\n");
 		return -ENOMEM;
 	}
 	if (!(*response_buf = kmalloc(3000, GFP_KERNEL))) {
-		lbs_pr_debug(1, "failed to allocate response buffer!\n");
+		lbs_deb_debugfs("failed to allocate response buffer!\n");
 		return -ENOMEM;
 	}
 	libertas_set_cmd_ctrl_node(priv, *cmdnode, 0, wait_option, NULL);
@@ -420,8 +402,8 @@ static int libertas_event_initcmd(wlan_private *priv, void **response_buf,
 	(*cmdnode)->cmdflags |= CMD_F_HOSTCMD;
 	(*cmdnode)->cmdwaitqwoken = 0;
 	*cmd = (struct cmd_ds_command *)(*cmdnode)->bufvirtualaddr;
-	(*cmd)->command = cmd_802_11_subscribe_event;
-	(*cmd)->seqnum = ++priv->adapter->seqnum;
+	(*cmd)->command = cpu_to_le16(cmd_802_11_subscribe_event);
+	(*cmd)->seqnum = cpu_to_le16(++priv->adapter->seqnum);
 	(*cmd)->result = 0;
 	return 0;
 }
@@ -447,26 +429,25 @@ static ssize_t libertas_lowrssi_read(struct file *file, char __user *userbuf,
 	}
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cmd_act_get;
-	pcmdptr->size =
-	cpu_to_le16(sizeof(struct cmd_ds_802_11_subscribe_event) + S_DS_GEN);
+	event->action = cpu_to_le16(cmd_act_get);
+	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
 
 	/* Sleep until response is generated by FW */
 	wait_event_interruptible(pcmdnode->cmdwait_q,
-				pcmdnode->cmdwaitqwoken);
+				 pcmdnode->cmdwaitqwoken);
 
 	pcmdptr = response_buf;
 	if (pcmdptr->result) {
-		lbs_pr_err("%s: fail, result=%d\n", __FUNCTION__,
-			pcmdptr->result);
+		lbs_pr_err("%s: fail, result=%d\n", __func__,
+			   le16_to_cpu(pcmdptr->result));
 		kfree(response_buf);
 		free_page(addr);
 		return 0;
 	}
 
-	if (pcmdptr->command != cmd_ret_802_11_subscribe_event) {
+	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -474,17 +455,17 @@ static ssize_t libertas_lowrssi_read(struct file *file, char __user *userbuf,
 	}
 
 	cmd_len = S_DS_GEN + sizeof(struct cmd_ds_802_11_subscribe_event);
-	event = (struct cmd_ds_802_11_subscribe_event *)(response_buf + S_DS_GEN);
-	while (cmd_len < pcmdptr->size) {
-		struct mrvlietypesheader *header = (struct mrvlietypesheader *)(response_buf + cmd_len);
-		switch(header->type) {
+	event = (void *)(response_buf + S_DS_GEN);
+	while (cmd_len < le16_to_cpu(pcmdptr->size)) {
+		struct mrvlietypesheader *header = (void *)(response_buf + cmd_len);
+		switch (header->type) {
 		struct mrvlietypes_rssithreshold  *Lowrssi;
-		case TLV_TYPE_RSSI_LOW:
-		Lowrssi = (struct mrvlietypes_rssithreshold *)(response_buf + cmd_len);
-		pos += snprintf(buf+pos, len-pos, "%d %d %d\n",
-				Lowrssi->rssivalue,
-				Lowrssi->rssifreq,
-				(event->events & 0x0001)?1:0);
+		case __constant_cpu_to_le16(TLV_TYPE_RSSI_LOW):
+			Lowrssi = (void *)(response_buf + cmd_len);
+			pos += snprintf(buf+pos, len-pos, "%d %d %d\n",
+					Lowrssi->rssivalue,
+					Lowrssi->rssifreq,
+					(event->events & cpu_to_le16(0x0001))?1:0);
 		default:
 			cmd_len += sizeof(struct mrvlietypes_snrthreshold);
 			break;
@@ -512,21 +493,20 @@ static u16 libertas_get_events_bitmap(wlan_private *priv)
 		return res;
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cmd_act_get;
-	pcmdptr->size =
-	cpu_to_le16(sizeof(struct cmd_ds_802_11_subscribe_event) + S_DS_GEN);
+	event->action = cpu_to_le16(cmd_act_get);
+	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
 
 	/* Sleep until response is generated by FW */
 	wait_event_interruptible(pcmdnode->cmdwait_q,
-				pcmdnode->cmdwaitqwoken);
+				 pcmdnode->cmdwaitqwoken);
 
 	pcmdptr = response_buf;
 
 	if (pcmdptr->result) {
-		lbs_pr_err("%s: fail, result=%d\n", __FUNCTION__,
-			pcmdptr->result);
+		lbs_pr_err("%s: fail, result=%d\n", __func__,
+			   le16_to_cpu(pcmdptr->result));
 		kfree(response_buf);
 		return 0;
 	}
@@ -538,7 +518,7 @@ static u16 libertas_get_events_bitmap(wlan_private *priv)
 	}
 
 	event = (struct cmd_ds_802_11_subscribe_event *)(response_buf + S_DS_GEN);
-	event_bitmap = event->events;
+	event_bitmap = le16_to_cpu(event->events);
 	kfree(response_buf);
 	return event_bitmap;
 }
@@ -579,7 +559,7 @@ static ssize_t libertas_lowrssi_write(struct file *file,
 		goto out_unlock;
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cmd_act_set;
+	event->action = cpu_to_le16(cmd_act_set);
 	pcmdptr->size = cpu_to_le16(S_DS_GEN +
 		sizeof(struct cmd_ds_802_11_subscribe_event) +
 		sizeof(struct mrvlietypes_rssithreshold));
@@ -588,30 +568,30 @@ static ssize_t libertas_lowrssi_write(struct file *file,
 	ptr = (u8*) pcmdptr+cmd_len;
 	rssi_threshold = (struct mrvlietypes_rssithreshold *)(ptr);
 	rssi_threshold->header.type = cpu_to_le16(0x0104);
-	rssi_threshold->header.len = 2;
-	rssi_threshold->rssivalue = cpu_to_le16(value);
-	rssi_threshold->rssifreq = cpu_to_le16(freq);
+	rssi_threshold->header.len = cpu_to_le16(2);
+	rssi_threshold->rssivalue = value;
+	rssi_threshold->rssifreq = freq;
 	event_bitmap |= subscribed ? 0x0001 : 0x0;
-	event->events = event_bitmap;
+	event->events = cpu_to_le16(event_bitmap);
 
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
 
 	/* Sleep until response is generated by FW */
 	wait_event_interruptible(pcmdnode->cmdwait_q,
-				pcmdnode->cmdwaitqwoken);
+				 pcmdnode->cmdwaitqwoken);
 
 	pcmdptr = response_buf;
 
 	if (pcmdptr->result) {
-		lbs_pr_err("%s: fail, result=%d\n", __FUNCTION__,
-			pcmdptr->result);
+		lbs_pr_err("%s: fail, result=%d\n", __func__,
+			   le16_to_cpu(pcmdptr->result));
 		kfree(response_buf);
 		free_page(addr);
 		return 0;
 	}
 
-	if (pcmdptr->command != cmd_ret_802_11_subscribe_event) {
+	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -645,27 +625,26 @@ static ssize_t libertas_lowsnr_read(struct file *file, char __user *userbuf,
 	}
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cmd_act_get;
-	pcmdptr->size =
-	cpu_to_le16(sizeof(struct cmd_ds_802_11_subscribe_event) + S_DS_GEN);
+	event->action = cpu_to_le16(cmd_act_get);
+	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
 
 	/* Sleep until response is generated by FW */
 	wait_event_interruptible(pcmdnode->cmdwait_q,
-				pcmdnode->cmdwaitqwoken);
+				 pcmdnode->cmdwaitqwoken);
 
 	pcmdptr = response_buf;
 
 	if (pcmdptr->result) {
-		lbs_pr_err("%s: fail, result=%d\n", __FUNCTION__,
-			pcmdptr->result);
+		lbs_pr_err("%s: fail, result=%d\n", __func__,
+			   le16_to_cpu(pcmdptr->result));
 		kfree(response_buf);
 		free_page(addr);
 		return 0;
 	}
 
-	if (pcmdptr->command != cmd_ret_802_11_subscribe_event) {
+	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -673,17 +652,17 @@ static ssize_t libertas_lowsnr_read(struct file *file, char __user *userbuf,
 	}
 
 	cmd_len = S_DS_GEN + sizeof(struct cmd_ds_802_11_subscribe_event);
-	event = (struct cmd_ds_802_11_subscribe_event *)(response_buf + S_DS_GEN);
-	while (cmd_len < pcmdptr->size) {
-		struct mrvlietypesheader *header = (struct mrvlietypesheader *)(response_buf + cmd_len);
-		switch(header->type) {
+	event = (void *)(response_buf + S_DS_GEN);
+	while (cmd_len < le16_to_cpu(pcmdptr->size)) {
+		struct mrvlietypesheader *header = (void *)(response_buf + cmd_len);
+		switch (header->type) {
 		struct mrvlietypes_snrthreshold *LowSnr;
-		case TLV_TYPE_SNR_LOW:
-		LowSnr = (struct mrvlietypes_snrthreshold *)(response_buf + cmd_len);
-		pos += snprintf(buf+pos, len-pos, "%d %d %d\n",
-				LowSnr->snrvalue,
-				LowSnr->snrfreq,
-				(event->events & 0x0002)?1:0);
+		case __constant_cpu_to_le16(TLV_TYPE_SNR_LOW):
+			LowSnr = (void *)(response_buf + cmd_len);
+			pos += snprintf(buf+pos, len-pos, "%d %d %d\n",
+					LowSnr->snrvalue,
+					LowSnr->snrfreq,
+					(event->events & cpu_to_le16(0x0002))?1:0);
 		default:
 			cmd_len += sizeof(struct mrvlietypes_snrthreshold);
 			break;
@@ -733,7 +712,7 @@ static ssize_t libertas_lowsnr_write(struct file *file,
 		goto out_unlock;
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cmd_act_set;
+	event->action = cpu_to_le16(cmd_act_set);
 	pcmdptr->size = cpu_to_le16(S_DS_GEN +
 		sizeof(struct cmd_ds_802_11_subscribe_event) +
 		sizeof(struct mrvlietypes_snrthreshold));
@@ -741,30 +720,30 @@ static ssize_t libertas_lowsnr_write(struct file *file,
 	ptr = (u8*) pcmdptr+cmd_len;
 	snr_threshold = (struct mrvlietypes_snrthreshold *)(ptr);
 	snr_threshold->header.type = cpu_to_le16(TLV_TYPE_SNR_LOW);
-	snr_threshold->header.len = 2;
-	snr_threshold->snrvalue = cpu_to_le16(value);
-	snr_threshold->snrfreq = cpu_to_le16(freq);
+	snr_threshold->header.len = cpu_to_le16(2);
+	snr_threshold->snrvalue = value;
+	snr_threshold->snrfreq = freq;
 	event_bitmap |= subscribed ? 0x0002 : 0x0;
-	event->events = event_bitmap;
+	event->events = cpu_to_le16(event_bitmap);
 
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
 
 	/* Sleep until response is generated by FW */
 	wait_event_interruptible(pcmdnode->cmdwait_q,
-				pcmdnode->cmdwaitqwoken);
+				 pcmdnode->cmdwaitqwoken);
 
 	pcmdptr = response_buf;
 
 	if (pcmdptr->result) {
-		lbs_pr_err("%s: fail, result=%d\n", __FUNCTION__,
-			pcmdptr->result);
+		lbs_pr_err("%s: fail, result=%d\n", __func__,
+			   le16_to_cpu(pcmdptr->result));
 		kfree(response_buf);
 		free_page(addr);
 		return 0;
 	}
 
-	if (pcmdptr->command != cmd_ret_802_11_subscribe_event) {
+	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -799,27 +778,26 @@ static ssize_t libertas_failcount_read(struct file *file, char __user *userbuf,
 	}
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cmd_act_get;
-	pcmdptr->size =
-	cpu_to_le16(sizeof(struct cmd_ds_802_11_subscribe_event) + S_DS_GEN);
+	event->action = cpu_to_le16(cmd_act_get);
+	pcmdptr->size =	cpu_to_le16(sizeof(*event) + S_DS_GEN);
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
 
 	/* Sleep until response is generated by FW */
 	wait_event_interruptible(pcmdnode->cmdwait_q,
-				pcmdnode->cmdwaitqwoken);
+				 pcmdnode->cmdwaitqwoken);
 
 	pcmdptr = response_buf;
 
 	if (pcmdptr->result) {
-		lbs_pr_err("%s: fail, result=%d\n", __FUNCTION__,
-			pcmdptr->result);
+		lbs_pr_err("%s: fail, result=%d\n", __func__,
+			   le16_to_cpu(pcmdptr->result));
 		kfree(response_buf);
 		free_page(addr);
 		return 0;
 	}
 
-	if (pcmdptr->command != cmd_ret_802_11_subscribe_event) {
+	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -827,17 +805,17 @@ static ssize_t libertas_failcount_read(struct file *file, char __user *userbuf,
 	}
 
 	cmd_len = S_DS_GEN + sizeof(struct cmd_ds_802_11_subscribe_event);
-	event = (struct cmd_ds_802_11_subscribe_event *)(response_buf + S_DS_GEN);
-	while (cmd_len < pcmdptr->size) {
-		struct mrvlietypesheader *header = (struct mrvlietypesheader *)(response_buf + cmd_len);
-		switch(header->type) {
+	event = (void *)(response_buf + S_DS_GEN);
+	while (cmd_len < le16_to_cpu(pcmdptr->size)) {
+		struct mrvlietypesheader *header = (void *)(response_buf + cmd_len);
+		switch (header->type) {
 		struct mrvlietypes_failurecount *failcount;
-		case TLV_TYPE_FAILCOUNT:
-		failcount = (struct mrvlietypes_failurecount *)(response_buf + cmd_len);
-		pos += snprintf(buf+pos, len-pos, "%d %d %d\n",
-				failcount->failvalue,
-				failcount->Failfreq,
-				(event->events & 0x0004)?1:0);
+		case __constant_cpu_to_le16(TLV_TYPE_FAILCOUNT):
+			failcount = (void *)(response_buf + cmd_len);
+			pos += snprintf(buf+pos, len-pos, "%d %d %d\n",
+					failcount->failvalue,
+					failcount->Failfreq,
+					(event->events & cpu_to_le16(0x0004))?1:0);
 		default:
 			cmd_len += sizeof(struct mrvlietypes_failurecount);
 			break;
@@ -886,7 +864,7 @@ static ssize_t libertas_failcount_write(struct file *file,
 		goto out_unlock;
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cmd_act_set;
+	event->action = cpu_to_le16(cmd_act_set);
 	pcmdptr->size = cpu_to_le16(S_DS_GEN +
 		sizeof(struct cmd_ds_802_11_subscribe_event) +
 		sizeof(struct mrvlietypes_failurecount));
@@ -894,30 +872,30 @@ static ssize_t libertas_failcount_write(struct file *file,
 	ptr = (u8*) pcmdptr+cmd_len;
 	failcount = (struct mrvlietypes_failurecount *)(ptr);
 	failcount->header.type = cpu_to_le16(TLV_TYPE_FAILCOUNT);
-	failcount->header.len = 2;
-	failcount->failvalue = cpu_to_le16(value);
-	failcount->Failfreq = cpu_to_le16(freq);
+	failcount->header.len = cpu_to_le16(2);
+	failcount->failvalue = value;
+	failcount->Failfreq = freq;
 	event_bitmap |= subscribed ? 0x0004 : 0x0;
-	event->events = event_bitmap;
+	event->events = cpu_to_le16(event_bitmap);
 
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
 
 	/* Sleep until response is generated by FW */
 	wait_event_interruptible(pcmdnode->cmdwait_q,
-				pcmdnode->cmdwaitqwoken);
+				 pcmdnode->cmdwaitqwoken);
 
 	pcmdptr = (struct cmd_ds_command *)response_buf;
 
 	if (pcmdptr->result) {
-		lbs_pr_err("%s: fail, result=%d\n", __FUNCTION__,
-			pcmdptr->result);
+		lbs_pr_err("%s: fail, result=%d\n", __func__,
+			   le16_to_cpu(pcmdptr->result));
 		kfree(response_buf);
 		free_page(addr);
 		return 0;
 	}
 
-	if (pcmdptr->command != cmd_ret_802_11_subscribe_event) {
+	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -951,27 +929,26 @@ static ssize_t libertas_bcnmiss_read(struct file *file, char __user *userbuf,
 	}
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cmd_act_get;
-	pcmdptr->size =
-	cpu_to_le16(sizeof(struct cmd_ds_802_11_subscribe_event) + S_DS_GEN);
+	event->action = cpu_to_le16(cmd_act_get);
+	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
 
 	/* Sleep until response is generated by FW */
 	wait_event_interruptible(pcmdnode->cmdwait_q,
-				pcmdnode->cmdwaitqwoken);
+				 pcmdnode->cmdwaitqwoken);
 
 	pcmdptr = response_buf;
 
 	if (pcmdptr->result) {
-		lbs_pr_err("%s: fail, result=%d\n", __FUNCTION__,
-			pcmdptr->result);
+		lbs_pr_err("%s: fail, result=%d\n", __func__,
+			   le16_to_cpu(pcmdptr->result));
 		free_page(addr);
 		kfree(response_buf);
 		return 0;
 	}
 
-	if (pcmdptr->command != cmd_ret_802_11_subscribe_event) {
+	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
 		lbs_pr_err("command response incorrect!\n");
 		free_page(addr);
 		kfree(response_buf);
@@ -979,16 +956,16 @@ static ssize_t libertas_bcnmiss_read(struct file *file, char __user *userbuf,
 	}
 
 	cmd_len = S_DS_GEN + sizeof(struct cmd_ds_802_11_subscribe_event);
-	event = (struct cmd_ds_802_11_subscribe_event *)(response_buf + S_DS_GEN);
-	while (cmd_len < pcmdptr->size) {
-		struct mrvlietypesheader *header = (struct mrvlietypesheader *)(response_buf + cmd_len);
-		switch(header->type) {
+	event = (void *)(response_buf + S_DS_GEN);
+	while (cmd_len < le16_to_cpu(pcmdptr->size)) {
+		struct mrvlietypesheader *header = (void *)(response_buf + cmd_len);
+		switch (header->type) {
 		struct mrvlietypes_beaconsmissed *bcnmiss;
-		case TLV_TYPE_BCNMISS:
-		bcnmiss = (struct mrvlietypes_beaconsmissed *)(response_buf + cmd_len);
-		pos += snprintf(buf+pos, len-pos, "%d N/A %d\n",
-				bcnmiss->beaconmissed,
-				(event->events & 0x0008)?1:0);
+		case __constant_cpu_to_le16(TLV_TYPE_BCNMISS):
+			bcnmiss = (void *)(response_buf + cmd_len);
+			pos += snprintf(buf+pos, len-pos, "%d N/A %d\n",
+					bcnmiss->beaconmissed,
+					(event->events & cpu_to_le16(0x0008))?1:0);
 		default:
 			cmd_len += sizeof(struct mrvlietypes_beaconsmissed);
 			break;
@@ -1038,7 +1015,7 @@ static ssize_t libertas_bcnmiss_write(struct file *file,
 		goto out_unlock;
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cmd_act_set;
+	event->action = cpu_to_le16(cmd_act_set);
 	pcmdptr->size = cpu_to_le16(S_DS_GEN +
 		sizeof(struct cmd_ds_802_11_subscribe_event) +
 		sizeof(struct mrvlietypes_beaconsmissed));
@@ -1046,29 +1023,29 @@ static ssize_t libertas_bcnmiss_write(struct file *file,
 	ptr = (u8*) pcmdptr+cmd_len;
 	bcnmiss = (struct mrvlietypes_beaconsmissed *)(ptr);
 	bcnmiss->header.type = cpu_to_le16(TLV_TYPE_BCNMISS);
-	bcnmiss->header.len = 2;
-	bcnmiss->beaconmissed = cpu_to_le16(value);
+	bcnmiss->header.len = cpu_to_le16(2);
+	bcnmiss->beaconmissed = value;
 	event_bitmap |= subscribed ? 0x0008 : 0x0;
-	event->events = event_bitmap;
+	event->events = cpu_to_le16(event_bitmap);
 
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
 
 	/* Sleep until response is generated by FW */
 	wait_event_interruptible(pcmdnode->cmdwait_q,
-				pcmdnode->cmdwaitqwoken);
+				 pcmdnode->cmdwaitqwoken);
 
 	pcmdptr = response_buf;
 
 	if (pcmdptr->result) {
-		lbs_pr_err("%s: fail, result=%d\n", __FUNCTION__,
-			pcmdptr->result);
+		lbs_pr_err("%s: fail, result=%d\n", __func__,
+			   le16_to_cpu(pcmdptr->result));
 		kfree(response_buf);
 		free_page(addr);
 		return 0;
 	}
 
-	if (pcmdptr->command != cmd_ret_802_11_subscribe_event) {
+	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
 		lbs_pr_err("command response incorrect!\n");
 		free_page(addr);
 		kfree(response_buf);
@@ -1102,27 +1079,26 @@ static ssize_t libertas_highrssi_read(struct file *file, char __user *userbuf,
 	}
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cmd_act_get;
-	pcmdptr->size =
-	cpu_to_le16(sizeof(struct cmd_ds_802_11_subscribe_event) + S_DS_GEN);
+	event->action = cpu_to_le16(cmd_act_get);
+	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
 
 	/* Sleep until response is generated by FW */
 	wait_event_interruptible(pcmdnode->cmdwait_q,
-				pcmdnode->cmdwaitqwoken);
+				 pcmdnode->cmdwaitqwoken);
 
 	pcmdptr = response_buf;
 
 	if (pcmdptr->result) {
-		lbs_pr_err("%s: fail, result=%d\n", __FUNCTION__,
-			pcmdptr->result);
+		lbs_pr_err("%s: fail, result=%d\n", __func__,
+			   le16_to_cpu(pcmdptr->result));
 		kfree(response_buf);
 		free_page(addr);
 		return 0;
 	}
 
-	if (pcmdptr->command != cmd_ret_802_11_subscribe_event) {
+	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -1130,17 +1106,17 @@ static ssize_t libertas_highrssi_read(struct file *file, char __user *userbuf,
 	}
 
 	cmd_len = S_DS_GEN + sizeof(struct cmd_ds_802_11_subscribe_event);
-	event = (struct cmd_ds_802_11_subscribe_event *)(response_buf + S_DS_GEN);
-	while (cmd_len < pcmdptr->size) {
-		struct mrvlietypesheader *header = (struct mrvlietypesheader *)(response_buf + cmd_len);
-		switch(header->type) {
+	event = (void *)(response_buf + S_DS_GEN);
+	while (cmd_len < le16_to_cpu(pcmdptr->size)) {
+		struct mrvlietypesheader *header = (void *)(response_buf + cmd_len);
+		switch (header->type) {
 		struct mrvlietypes_rssithreshold  *Highrssi;
-		case TLV_TYPE_RSSI_HIGH:
-		Highrssi = (struct mrvlietypes_rssithreshold *)(response_buf + cmd_len);
-		pos += snprintf(buf+pos, len-pos, "%d %d %d\n",
-				Highrssi->rssivalue,
-				Highrssi->rssifreq,
-				(event->events & 0x0010)?1:0);
+		case __constant_cpu_to_le16(TLV_TYPE_RSSI_HIGH):
+			Highrssi = (void *)(response_buf + cmd_len);
+			pos += snprintf(buf+pos, len-pos, "%d %d %d\n",
+					Highrssi->rssivalue,
+					Highrssi->rssifreq,
+					(event->events & cpu_to_le16(0x0010))?1:0);
 		default:
 			cmd_len += sizeof(struct mrvlietypes_snrthreshold);
 			break;
@@ -1190,7 +1166,7 @@ static ssize_t libertas_highrssi_write(struct file *file,
 		goto out_unlock;
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cmd_act_set;
+	event->action = cpu_to_le16(cmd_act_set);
 	pcmdptr->size = cpu_to_le16(S_DS_GEN +
 		sizeof(struct cmd_ds_802_11_subscribe_event) +
 		sizeof(struct mrvlietypes_rssithreshold));
@@ -1198,29 +1174,29 @@ static ssize_t libertas_highrssi_write(struct file *file,
 	ptr = (u8*) pcmdptr+cmd_len;
 	rssi_threshold = (struct mrvlietypes_rssithreshold *)(ptr);
 	rssi_threshold->header.type = cpu_to_le16(TLV_TYPE_RSSI_HIGH);
-	rssi_threshold->header.len = 2;
-	rssi_threshold->rssivalue = cpu_to_le16(value);
-	rssi_threshold->rssifreq = cpu_to_le16(freq);
+	rssi_threshold->header.len = cpu_to_le16(2);
+	rssi_threshold->rssivalue = value;
+	rssi_threshold->rssifreq = freq;
 	event_bitmap |= subscribed ? 0x0010 : 0x0;
-	event->events = event_bitmap;
+	event->events = cpu_to_le16(event_bitmap);
 
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
 
 	/* Sleep until response is generated by FW */
 	wait_event_interruptible(pcmdnode->cmdwait_q,
-				pcmdnode->cmdwaitqwoken);
+				 pcmdnode->cmdwaitqwoken);
 
 	pcmdptr = response_buf;
 
 	if (pcmdptr->result) {
-		lbs_pr_err("%s: fail, result=%d\n", __FUNCTION__,
-			pcmdptr->result);
+		lbs_pr_err("%s: fail, result=%d\n", __func__,
+			   le16_to_cpu(pcmdptr->result));
 		kfree(response_buf);
 		return 0;
 	}
 
-	if (pcmdptr->command != cmd_ret_802_11_subscribe_event) {
+	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		return 0;
@@ -1253,27 +1229,26 @@ static ssize_t libertas_highsnr_read(struct file *file, char __user *userbuf,
 	}
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cmd_act_get;
-	pcmdptr->size =
-	cpu_to_le16(sizeof(struct cmd_ds_802_11_subscribe_event) + S_DS_GEN);
+	event->action = cpu_to_le16(cmd_act_get);
+	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
 
 	/* Sleep until response is generated by FW */
 	wait_event_interruptible(pcmdnode->cmdwait_q,
-				pcmdnode->cmdwaitqwoken);
+				 pcmdnode->cmdwaitqwoken);
 
 	pcmdptr = response_buf;
 
 	if (pcmdptr->result) {
-		lbs_pr_err("%s: fail, result=%d\n", __FUNCTION__,
-			pcmdptr->result);
+		lbs_pr_err("%s: fail, result=%d\n", __func__,
+			   le16_to_cpu(pcmdptr->result));
 		kfree(response_buf);
 		free_page(addr);
 		return 0;
 	}
 
-	if (pcmdptr->command != cmd_ret_802_11_subscribe_event) {
+	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -1281,17 +1256,17 @@ static ssize_t libertas_highsnr_read(struct file *file, char __user *userbuf,
 	}
 
 	cmd_len = S_DS_GEN + sizeof(struct cmd_ds_802_11_subscribe_event);
-	event = (struct cmd_ds_802_11_subscribe_event *)(response_buf + S_DS_GEN);
-	while (cmd_len < pcmdptr->size) {
-		struct mrvlietypesheader *header = (struct mrvlietypesheader *)(response_buf + cmd_len);
-		switch(header->type) {
+	event = (void *)(response_buf + S_DS_GEN);
+	while (cmd_len < le16_to_cpu(pcmdptr->size)) {
+		struct mrvlietypesheader *header = (void *)(response_buf + cmd_len);
+		switch (header->type) {
 		struct mrvlietypes_snrthreshold *HighSnr;
-		case TLV_TYPE_SNR_HIGH:
-		HighSnr = (struct mrvlietypes_snrthreshold *)(response_buf + cmd_len);
-		pos += snprintf(buf+pos, len-pos, "%d %d %d\n",
-				HighSnr->snrvalue,
-				HighSnr->snrfreq,
-				(event->events & 0x0020)?1:0);
+		case __constant_cpu_to_le16(TLV_TYPE_SNR_HIGH):
+			HighSnr = (void *)(response_buf + cmd_len);
+			pos += snprintf(buf+pos, len-pos, "%d %d %d\n",
+					HighSnr->snrvalue,
+					HighSnr->snrfreq,
+					(event->events & cpu_to_le16(0x0020))?1:0);
 		default:
 			cmd_len += sizeof(struct mrvlietypes_snrthreshold);
 			break;
@@ -1341,7 +1316,7 @@ static ssize_t libertas_highsnr_write(struct file *file,
 		goto out_unlock;
 
 	event = &pcmdptr->params.subscribe_event;
-	event->action = cmd_act_set;
+	event->action = cpu_to_le16(cmd_act_set);
 	pcmdptr->size = cpu_to_le16(S_DS_GEN +
 		sizeof(struct cmd_ds_802_11_subscribe_event) +
 		sizeof(struct mrvlietypes_snrthreshold));
@@ -1349,30 +1324,30 @@ static ssize_t libertas_highsnr_write(struct file *file,
 	ptr = (u8*) pcmdptr+cmd_len;
 	snr_threshold = (struct mrvlietypes_snrthreshold *)(ptr);
 	snr_threshold->header.type = cpu_to_le16(TLV_TYPE_SNR_HIGH);
-	snr_threshold->header.len = 2;
-	snr_threshold->snrvalue = cpu_to_le16(value);
-	snr_threshold->snrfreq = cpu_to_le16(freq);
+	snr_threshold->header.len = cpu_to_le16(2);
+	snr_threshold->snrvalue = value;
+	snr_threshold->snrfreq = freq;
 	event_bitmap |= subscribed ? 0x0020 : 0x0;
-	event->events = event_bitmap;
+	event->events = cpu_to_le16(event_bitmap);
 
 	libertas_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->mainthread.waitq);
 
 	/* Sleep until response is generated by FW */
 	wait_event_interruptible(pcmdnode->cmdwait_q,
-				pcmdnode->cmdwaitqwoken);
+				 pcmdnode->cmdwaitqwoken);
 
 	pcmdptr = response_buf;
 
 	if (pcmdptr->result) {
-		lbs_pr_err("%s: fail, result=%d\n", __FUNCTION__,
-			pcmdptr->result);
+		lbs_pr_err("%s: fail, result=%d\n", __func__,
+			   le16_to_cpu(pcmdptr->result));
 		kfree(response_buf);
 		free_page(addr);
 		return 0;
 	}
 
-	if (pcmdptr->command != cmd_ret_802_11_subscribe_event) {
+	if (pcmdptr->command != cpu_to_le16(cmd_ret_802_11_subscribe_event)) {
 		lbs_pr_err("command response incorrect!\n");
 		kfree(response_buf);
 		free_page(addr);
@@ -1760,7 +1735,7 @@ void libertas_debugfs_remove_one(wlan_private *priv)
 
 	debugfs_remove(priv->regs_dir);
 
-	for(i=0; i<ARRAY_SIZE(debugfs_files); i++)
+	for(i=0; i<ARRAY_SIZE(debugfs_events_files); i++)
 		debugfs_remove(priv->debugfs_events_files[i]);
 
 	debugfs_remove(priv->events_dir);
@@ -1769,12 +1744,18 @@ void libertas_debugfs_remove_one(wlan_private *priv)
 #endif
 	for(i=0; i<ARRAY_SIZE(debugfs_files); i++)
 		debugfs_remove(priv->debugfs_files[i]);
+	debugfs_remove(priv->debugfs_dir);
 }
+
+
 
 /* debug entry */
 
+#ifdef PROC_DEBUG
+
 #define item_size(n)	(FIELD_SIZEOF(wlan_adapter, n))
 #define item_addr(n)	(offsetof(wlan_adapter, n))
+
 
 struct debug_data {
 	char name[32];
@@ -1863,7 +1844,7 @@ static ssize_t wlan_debugfs_write(struct file *f, const char __user *buf,
 		return 0;
 
 	if (copy_from_user(pdata, buf, cnt)) {
-		lbs_pr_debug(1, "Copy from user failed\n");
+		lbs_deb_debugfs("Copy from user failed\n");
 		kfree(pdata);
 		return 0;
 	}
@@ -1913,7 +1894,7 @@ static struct file_operations libertas_debug_fops = {
  *  @param dev     pointer net_device
  *  @return 	   N/A
  */
-void libertas_debug_init(wlan_private * priv, struct net_device *dev)
+static void libertas_debug_init(wlan_private * priv, struct net_device *dev)
 {
 	int i;
 
@@ -1927,4 +1908,5 @@ void libertas_debug_init(wlan_private * priv, struct net_device *dev)
 						  priv->debugfs_dir, &items[0],
 						  &libertas_debug_fops);
 }
+#endif
 

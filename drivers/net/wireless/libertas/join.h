@@ -9,6 +9,7 @@
 #define _WLAN_JOIN_H
 
 #include "defs.h"
+#include "dev.h"
 
 struct cmd_ds_command;
 extern int libertas_cmd_80211_authenticate(wlan_private * priv,
@@ -21,7 +22,7 @@ extern int libertas_cmd_80211_ad_hoc_stop(wlan_private * priv,
 				       struct cmd_ds_command *cmd);
 extern int libertas_cmd_80211_ad_hoc_start(wlan_private * priv,
 					struct cmd_ds_command *cmd,
-					void *pssid);
+					void *pdata_buf);
 extern int libertas_cmd_80211_deauthenticate(wlan_private * priv,
 					  struct cmd_ds_command *cmd);
 extern int libertas_cmd_80211_associate(wlan_private * priv,
@@ -39,12 +40,10 @@ extern int libertas_ret_80211_associate(wlan_private * priv,
 
 extern int libertas_reassociation_thread(void *data);
 
-struct WLAN_802_11_SSID;
-struct bss_descriptor;
-
 extern int libertas_start_adhoc_network(wlan_private * priv,
-			     struct WLAN_802_11_SSID *adhocssid);
-extern int libertas_join_adhoc_network(wlan_private * priv, struct bss_descriptor *pbssdesc);
+			     struct assoc_request * assoc_req);
+extern int libertas_join_adhoc_network(wlan_private * priv,
+				struct assoc_request * assoc_req);
 extern int libertas_stop_adhoc_network(wlan_private * priv);
 
 extern int libertas_send_deauthentication(wlan_private * priv);
@@ -52,6 +51,6 @@ extern int libertas_send_deauth(wlan_private * priv);
 
 extern int libertas_do_adhocstop_ioctl(wlan_private * priv);
 
-int wlan_associate(wlan_private * priv, struct bss_descriptor * pbssdesc);
+int wlan_associate(wlan_private * priv, struct assoc_request * assoc_req);
 
 #endif

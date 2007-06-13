@@ -7,14 +7,79 @@
 
 #include <linux/spinlock.h>
 
-extern unsigned int libertas_debug;
-
 #ifdef CONFIG_LIBERTAS_DEBUG
 #define DEBUG
 #define PROC_DEBUG
 #endif
 
-#define DRV_NAME		"usb8xxx"
+#ifndef DRV_NAME
+#define DRV_NAME "libertas"
+#endif
+
+
+#define LBS_DEB_ENTER	0x00000001
+#define LBS_DEB_LEAVE	0x00000002
+#define LBS_DEB_MAIN	0x00000004
+#define LBS_DEB_NET	0x00000008
+#define LBS_DEB_MESH	0x00000010
+#define LBS_DEB_WEXT	0x00000020
+#define LBS_DEB_IOCTL	0x00000040
+#define LBS_DEB_SCAN	0x00000080
+#define LBS_DEB_ASSOC	0x00000100
+#define LBS_DEB_JOIN	0x00000200
+#define LBS_DEB_11D	0x00000400
+#define LBS_DEB_DEBUGFS	0x00000800
+#define LBS_DEB_ETHTOOL	0x00001000
+#define LBS_DEB_HOST	0x00002000
+#define LBS_DEB_CMD	0x00004000
+#define LBS_DEB_RX	0x00008000
+#define LBS_DEB_TX	0x00010000
+#define LBS_DEB_USB	0x00020000
+#define LBS_DEB_CS	0x00040000
+#define LBS_DEB_FW	0x00080000
+#define LBS_DEB_THREAD	0x00100000
+#define LBS_DEB_HEX	0x00200000
+
+extern unsigned int libertas_debug;
+
+#ifdef DEBUG
+#define LBS_DEB_LL(grp, fmt, args...) \
+do { if ((libertas_debug & (grp)) == (grp)) \
+  printk(KERN_DEBUG DRV_NAME "%s: " fmt, \
+         in_interrupt() ? " (INT)" : "", ## args); } while (0)
+#else
+#define LBS_DEB_LL(grp, fmt, args...) do {} while (0)
+#endif
+
+#define lbs_deb_enter(grp) \
+  LBS_DEB_LL(grp | LBS_DEB_ENTER, "%s():%d enter\n", __FUNCTION__, __LINE__);
+#define lbs_deb_enter_args(grp, fmt, args...) \
+  LBS_DEB_LL(grp | LBS_DEB_ENTER, "%s(" fmt "):%d\n", __FUNCTION__, ## args, __LINE__);
+#define lbs_deb_leave(grp) \
+  LBS_DEB_LL(grp | LBS_DEB_LEAVE, "%s():%d leave\n", __FUNCTION__, __LINE__);
+#define lbs_deb_leave_args(grp, fmt, args...) \
+  LBS_DEB_LL(grp | LBS_DEB_LEAVE, "%s():%d leave, " fmt "\n", \
+  __FUNCTION__, __LINE__, ##args);
+#define lbs_deb_main(fmt, args...)      LBS_DEB_LL(LBS_DEB_MAIN, fmt, ##args)
+#define lbs_deb_net(fmt, args...)       LBS_DEB_LL(LBS_DEB_NET, fmt, ##args)
+#define lbs_deb_mesh(fmt, args...)      LBS_DEB_LL(LBS_DEB_MESH, fmt, ##args)
+#define lbs_deb_wext(fmt, args...)      LBS_DEB_LL(LBS_DEB_WEXT, fmt, ##args)
+#define lbs_deb_ioctl(fmt, args...)     LBS_DEB_LL(LBS_DEB_IOCTL, fmt, ##args)
+#define lbs_deb_scan(fmt, args...)      LBS_DEB_LL(LBS_DEB_SCAN, fmt, ##args)
+#define lbs_deb_assoc(fmt, args...)     LBS_DEB_LL(LBS_DEB_ASSOC, fmt, ##args)
+#define lbs_deb_join(fmt, args...)      LBS_DEB_LL(LBS_DEB_JOIN, fmt, ##args)
+#define lbs_deb_11d(fmt, args...)       LBS_DEB_LL(LBS_DEB_11D, fmt, ##args)
+#define lbs_deb_debugfs(fmt, args...)   LBS_DEB_LL(LBS_DEB_DEBUGFS, fmt, ##args)
+#define lbs_deb_ethtool(fmt, args...)   LBS_DEB_LL(LBS_DEB_ETHTOOL, fmt, ##args)
+#define lbs_deb_host(fmt, args...)      LBS_DEB_LL(LBS_DEB_HOST, fmt, ##args)
+#define lbs_deb_cmd(fmt, args...)       LBS_DEB_LL(LBS_DEB_CMD, fmt, ##args)
+#define lbs_deb_rx(fmt, args...)        LBS_DEB_LL(LBS_DEB_RX, fmt, ##args)
+#define lbs_deb_tx(fmt, args...)        LBS_DEB_LL(LBS_DEB_TX, fmt, ##args)
+#define lbs_deb_fw(fmt, args...)        LBS_DEB_LL(LBS_DEB_FW, fmt, ##args)
+#define lbs_deb_usb(fmt, args...)       LBS_DEB_LL(LBS_DEB_USB, fmt, ##args)
+#define lbs_deb_usbd(dev, fmt, args...) LBS_DEB_LL(LBS_DEB_USB, "%s:" fmt, (dev)->bus_id, ##args)
+#define lbs_deb_cs(fmt, args...)        LBS_DEB_LL(LBS_DEB_CS, fmt, ##args)
+#define lbs_deb_thread(fmt, args...)    LBS_DEB_LL(LBS_DEB_THREAD, fmt, ##args)
 
 #define lbs_pr_info(format, args...) \
 	printk(KERN_INFO DRV_NAME": " format, ## args)
@@ -24,37 +89,25 @@ extern unsigned int libertas_debug;
 	printk(KERN_ALERT DRV_NAME": " format, ## args)
 
 #ifdef DEBUG
-#define lbs_pr_debug(level, format, args...) \
-	do { if (libertas_debug >= level) \
-	printk(KERN_INFO DRV_NAME": " format, ##args); } while (0)
-#define lbs_dev_dbg(level, device, format, args...) \
-        lbs_pr_debug(level, "%s: " format, \
-        (device)->bus_id , ## args)
-
 static inline void lbs_dbg_hex(char *prompt, u8 * buf, int len)
 {
 	int i = 0;
 
-	if (!libertas_debug)
+	if (!(libertas_debug & LBS_DEB_HEX))
 		return;
 
 	printk(KERN_DEBUG "%s: ", prompt);
 	for (i = 1; i <= len; i++) {
-		printk(KERN_DEBUG "%02x ", (u8) * buf);
+		printk("%02x ", (u8) * buf);
 		buf++;
 	}
 	printk("\n");
 }
 #else
-#define lbs_pr_debug(level, format, args...)		do {} while (0)
-#define lbs_dev_dbg(level, device, format, args...)	do {} while (0)
 #define lbs_dbg_hex(x,y,z)				do {} while (0)
 #endif
 
-#define	ENTER()			lbs_pr_debug(1, "Enter: %s, %s:%i\n", \
-					__FUNCTION__, __FILE__, __LINE__)
-#define	LEAVE()			lbs_pr_debug(1, "Leave: %s, %s:%i\n", \
-					__FUNCTION__, __FILE__, __LINE__)
+
 
 /** Buffer Constants */
 
@@ -74,7 +127,6 @@ static inline void lbs_dbg_hex(char *prompt, u8 * buf, int len)
 #define MRVDRV_NUM_OF_CMD_BUFFER        10
 #define MRVDRV_SIZE_OF_CMD_BUFFER       (2 * 1024)
 #define MRVDRV_MAX_CHANNEL_SIZE		14
-#define MRVDRV_MAX_BSSID_LIST		64
 #define MRVDRV_ASSOCIATION_TIME_OUT	255
 #define MRVDRV_SNAP_HEADER_LEN          8
 
@@ -103,6 +155,13 @@ static inline void lbs_dbg_hex(char *prompt, u8 * buf, int len)
 #define MRVDRV_MIN_BEACON_INTERVAL		20
 #define MRVDRV_MAX_BEACON_INTERVAL		1000
 #define MRVDRV_BEACON_INTERVAL			100
+
+/** INT status Bit Definition*/
+#define his_cmddnldrdy			0x01
+#define his_cardevent			0x02
+#define his_cmdupldrdy			0x04
+
+#define SBI_EVENT_CAUSE_SHIFT		3
 
 /** TxPD status */
 
@@ -204,8 +263,6 @@ typedef struct _wlan_private wlan_private;
 typedef struct _wlan_adapter wlan_adapter;
 extern const char libertas_driver_version[];
 extern u16 libertas_region_code_to_index[MRVDRV_MAX_REGION_CODE];
-
-extern u8 libertas_wlan_data_rates[WLAN_SUPPORTED_RATES];
 
 extern u8 libertas_supported_rates[G_SUPPORTED_RATES];
 
@@ -316,6 +373,8 @@ enum SNMP_MIB_VALUE_e {
 /* Default values for fwt commands. */
 #define FWT_DEFAULT_METRIC 0
 #define FWT_DEFAULT_DIR 1
+/* Default Rate, 11Mbps */
+#define FWT_DEFAULT_RATE 3
 #define FWT_DEFAULT_SSN 0xffffffff
 #define FWT_DEFAULT_DSN 0
 #define FWT_DEFAULT_HOPCOUNT 0

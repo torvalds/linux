@@ -6,6 +6,8 @@
 #ifndef _WLAN_DECL_H_
 #define _WLAN_DECL_H_
 
+#include <linux/device.h>
+
 #include "defs.h"
 
 /** Function Prototype Declaration */
@@ -66,18 +68,24 @@ void libertas_ps_wakeup(wlan_private * priv, int wait_option);
 
 void libertas_tx_runqueue(wlan_private *priv);
 
-extern struct chan_freq_power *libertas_find_cfp_by_band_and_channel(
+struct chan_freq_power *libertas_find_cfp_by_band_and_channel(
 				wlan_adapter * adapter, u8 band, u16 channel);
 
-extern void libertas_mac_event_disconnected(wlan_private * priv);
+void libertas_mac_event_disconnected(wlan_private * priv);
 
 void libertas_send_iwevcustom_event(wlan_private * priv, s8 * str);
 
-int reset_device(wlan_private *priv);
+/* fw.c */
+int libertas_init_fw(wlan_private * priv, char *fw_name);
+
 /* main.c */
-extern struct chan_freq_power *libertas_get_region_cfp_table(u8 region, u8 band,
+struct chan_freq_power *libertas_get_region_cfp_table(u8 region, u8 band,
 						             int *cfp_no);
-wlan_private *wlan_add_card(void *card);
-int wlan_remove_card(void *card);
+wlan_private *libertas_add_card(void *card, struct device *dmdev);
+int libertas_activate_card(wlan_private *priv, char *fw_name);
+int libertas_remove_card(wlan_private *priv);
+int libertas_add_mesh(wlan_private *priv, struct device *dev);
+void libertas_remove_mesh(wlan_private *priv);
+
 
 #endif				/* _WLAN_DECL_H_ */
