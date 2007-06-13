@@ -44,7 +44,7 @@ long iSeries_hpte_insert(unsigned long hpte_group, unsigned long va,
 			 unsigned long vflags, int psize)
 {
 	long slot;
-	hpte_t lhpte;
+	struct hash_pte lhpte;
 	int secondary = 0;
 
 	BUG_ON(psize != MMU_PAGE_4K);
@@ -99,7 +99,7 @@ long iSeries_hpte_insert(unsigned long hpte_group, unsigned long va,
 
 static unsigned long iSeries_hpte_getword0(unsigned long slot)
 {
-	hpte_t hpte;
+	struct hash_pte hpte;
 
 	HvCallHpt_get(&hpte, slot);
 	return hpte.v;
@@ -144,7 +144,7 @@ static long iSeries_hpte_remove(unsigned long hpte_group)
 static long iSeries_hpte_updatepp(unsigned long slot, unsigned long newpp,
 				  unsigned long va, int psize, int local)
 {
-	hpte_t hpte;
+	struct hash_pte hpte;
 	unsigned long want_v;
 
 	iSeries_hlock(slot);
@@ -176,7 +176,7 @@ static long iSeries_hpte_updatepp(unsigned long slot, unsigned long newpp,
  */
 static long iSeries_hpte_find(unsigned long vpn)
 {
-	hpte_t hpte;
+	struct hash_pte hpte;
 	long slot;
 
 	/*

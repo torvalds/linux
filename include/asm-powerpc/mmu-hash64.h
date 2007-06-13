@@ -103,12 +103,12 @@ extern char initial_stab[];
 
 #ifndef __ASSEMBLY__
 
-typedef struct {
+struct hash_pte {
 	unsigned long v;
 	unsigned long r;
-} hpte_t;
+};
 
-extern hpte_t *htab_address;
+extern struct hash_pte *htab_address;
 extern unsigned long htab_size_bytes;
 extern unsigned long htab_hash_mask;
 

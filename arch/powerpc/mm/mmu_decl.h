@@ -39,8 +39,8 @@ extern int __map_without_bats;
 extern unsigned long ioremap_base;
 extern unsigned int rtas_data, rtas_size;
 
-struct _PTE;
-extern struct _PTE *Hash, *Hash_end;
+struct hash_pte;
+extern struct hash_pte *Hash, *Hash_end;
 extern unsigned long Hash_size, Hash_mask;
 
 extern unsigned int num_tlbcam_entries;

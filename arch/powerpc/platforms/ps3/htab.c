@@ -34,7 +34,7 @@
 #define DBG(fmt...) do{if(0)printk(fmt);}while(0)
 #endif
 
-static hpte_t *htab;
+static struct hash_pte *htab;
 static unsigned long htab_addr;
 static unsigned char *bolttab;
 static unsigned char *inusetab;
@@ -44,8 +44,8 @@ static DEFINE_SPINLOCK(ps3_bolttab_lock);
 #define debug_dump_hpte(_a, _b, _c, _d, _e, _f, _g) \
 	_debug_dump_hpte(_a, _b, _c, _d, _e, _f, _g, __func__, __LINE__)
 static void _debug_dump_hpte(unsigned long pa, unsigned long va,
-	unsigned long group, unsigned long bitmap, hpte_t lhpte, int psize,
-	unsigned long slot, const char* func, int line)
+	unsigned long group, unsigned long bitmap, struct hash_pte lhpte,
+	int psize, unsigned long slot, const char* func, int line)
 {
 	DBG("%s:%d: pa     = %lxh\n", func, line, pa);
 	DBG("%s:%d: lpar   = %lxh\n", func, line,
@@ -63,7 +63,7 @@ static long ps3_hpte_insert(unsigned long hpte_group, unsigned long va,
 	unsigned long pa, unsigned long rflags, unsigned long vflags, int psize)
 {
 	unsigned long slot;
-	hpte_t lhpte;
+	struct hash_pte lhpte;
 	int secondary = 0;
 	unsigned long result;
 	unsigned long bitmap;
@@ -255,7 +255,7 @@ void __init ps3_hpte_init(unsigned long htab_size)
 
 	ppc64_pft_size = __ilog2(htab_size);
 
-	bitmap_size = htab_size / sizeof(hpte_t) / 8;
+	bitmap_size = htab_size / sizeof(struct hash_pte) / 8;
 
 	bolttab = __va(lmb_alloc(bitmap_size, 1));
 	inusetab = __va(lmb_alloc(bitmap_size, 1));
@@ -273,8 +273,8 @@ void __init ps3_map_htab(void)
 
 	result = lv1_map_htab(0, &htab_addr);
 
-	htab = (hpte_t *)__ioremap(htab_addr, htab_size,
-				   pgprot_val(PAGE_READONLY_X));
+	htab = (struct hash_pte *)__ioremap(htab_addr, htab_size,
+					    pgprot_val(PAGE_READONLY_X));
 
 	DBG("%s:%d: lpar %016lxh, virt %016lxh\n", __func__, __LINE__,
 		htab_addr, (unsigned long)htab);

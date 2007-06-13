@@ -104,7 +104,7 @@ static inline void tlbie(unsigned long va, int psize, int local)
 		spin_unlock(&native_tlbie_lock);
 }
 
-static inline void native_lock_hpte(hpte_t *hptep)
+static inline void native_lock_hpte(struct hash_pte *hptep)
 {
 	unsigned long *word = &hptep->v;
 
@@ -116,7 +116,7 @@ static inline void native_lock_hpte(hpte_t *hptep)
 	}
 }
 
-static inline void native_unlock_hpte(hpte_t *hptep)
+static inline void native_unlock_hpte(struct hash_pte *hptep)
 {
 	unsigned long *word = &hptep->v;
 
@@ -128,7 +128,7 @@ static long native_hpte_insert(unsigned long hpte_group, unsigned long va,
 			unsigned long pa, unsigned long rflags,
 			unsigned long vflags, int psize)
 {
-	hpte_t *hptep = htab_address + hpte_group;
+	struct hash_pte *hptep = htab_address + hpte_group;
 	unsigned long hpte_v, hpte_r;
 	int i;
 
@@ -177,7 +177,7 @@ static long native_hpte_insert(unsigned long hpte_group, unsigned long va,
 
 static long native_hpte_remove(unsigned long hpte_group)
 {
-	hpte_t *hptep;
+	struct hash_pte *hptep;
 	int i;
 	int slot_offset;
 	unsigned long hpte_v;
@@ -217,7 +217,7 @@ static long native_hpte_remove(unsigned long hpte_group)
 static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 				 unsigned long va, int psize, int local)
 {
-	hpte_t *hptep = htab_address + slot;
+	struct hash_pte *hptep = htab_address + slot;
 	unsigned long hpte_v, want_v;
 	int ret = 0;
 
@@ -250,7 +250,7 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 
 static long native_hpte_find(unsigned long va, int psize)
 {
-	hpte_t *hptep;
+	struct hash_pte *hptep;
 	unsigned long hash;
 	unsigned long i, j;
 	long slot;
@@ -293,7 +293,7 @@ static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
 {
 	unsigned long vsid, va;
 	long slot;
-	hpte_t *hptep;
+	struct hash_pte *hptep;
 
 	vsid = get_kernel_vsid(ea);
 	va = (vsid << 28) | (ea & 0x0fffffff);
@@ -314,7 +314,7 @@ static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
 static void native_hpte_invalidate(unsigned long slot, unsigned long va,
 				   int psize, int local)
 {
-	hpte_t *hptep = htab_address + slot;
+	struct hash_pte *hptep = htab_address + slot;
 	unsigned long hpte_v;
 	unsigned long want_v;
 	unsigned long flags;
@@ -344,7 +344,7 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long va,
 #define LP_BITS		8
 #define LP_MASK(i)	((0xFF >> (i)) << LP_SHIFT)
 
-static void hpte_decode(hpte_t *hpte, unsigned long slot,
+static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
 			int *psize, unsigned long *va)
 {
 	unsigned long hpte_r = hpte->r;
@@ -414,7 +414,7 @@ static void hpte_decode(hpte_t *hpte, unsigned long slot,
 static void native_hpte_clear(void)
 {
 	unsigned long slot, slots, flags;
-	hpte_t *hptep = htab_address;
+	struct hash_pte *hptep = htab_address;
 	unsigned long hpte_v, va;
 	unsigned long pteg_count;
 	int psize;
@@ -461,7 +461,7 @@ static void native_hpte_clear(void)
 static void native_flush_hash_range(unsigned long number, int local)
 {
 	unsigned long va, hash, index, hidx, shift, slot;
-	hpte_t *hptep;
+	struct hash_pte *hptep;
 	unsigned long hpte_v;
 	unsigned long want_v;
 	unsigned long flags;

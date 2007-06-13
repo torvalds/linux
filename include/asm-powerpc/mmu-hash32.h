@@ -28,7 +28,7 @@
 #define BPP_RW	0x02		/* Read/write */
 
 #ifndef __ASSEMBLY__
-typedef struct _BAT {
+struct ppc_bat {
 	struct {
 		unsigned long bepi:15;	/* Effective page index (virtual address) */
 		unsigned long :4;	/* Unused */
@@ -46,7 +46,7 @@ typedef struct _BAT {
 		unsigned long :1;	/* Unused */
 		unsigned long pp:2;	/* Page access protections */
 	} batl;			/* Lower register */
-} BAT;
+};
 #endif /* !__ASSEMBLY__ */
 
 /*
@@ -62,7 +62,7 @@ typedef struct _BAT {
 #ifndef __ASSEMBLY__
 
 /* Hardware Page Table Entry */
-typedef struct _PTE {
+struct hash_pte {
 	unsigned long v:1;	/* Entry is valid */
 	unsigned long vsid:24;	/* Virtual segment identifier */
 	unsigned long h:1;	/* Hash algorithm indicator */
@@ -77,7 +77,7 @@ typedef struct _PTE {
 	unsigned long g:1;	/* Guarded */
 	unsigned long  :1;	/* Unused */
 	unsigned long pp:2;	/* Page protection */
-} PTE;
+};
 
 typedef struct {
 	unsigned long id;

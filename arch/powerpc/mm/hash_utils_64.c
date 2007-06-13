@@ -87,7 +87,7 @@ extern unsigned long dart_tablebase;
 static unsigned long _SDR1;
 struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 
-hpte_t *htab_address;
+struct hash_pte *htab_address;
 unsigned long htab_size_bytes;
 unsigned long htab_hash_mask;
 int mmu_linear_psize = MMU_PAGE_4K;
