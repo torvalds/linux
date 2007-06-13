@@ -398,6 +398,10 @@ enum vlan_ioctl_cmds {
 	GET_VLAN_VID_CMD /* Get the VID of this VLAN (specified by name) */
 };
 
+enum vlan_flags {
+	VLAN_FLAG_REORDER_HDR	= 0x1,
+};
+
 enum vlan_name_types {
 	VLAN_NAME_TYPE_PLUS_VID, /* Name will look like:  vlan0005 */
 	VLAN_NAME_TYPE_RAW_PLUS_VID, /* name will look like:  eth1.0005 */

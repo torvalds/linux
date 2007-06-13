@@ -73,7 +73,7 @@ int vlan_dev_rebuild_header(struct sk_buff *skb)
 
 static inline struct sk_buff *vlan_check_reorder_header(struct sk_buff *skb)
 {
-	if (VLAN_DEV_INFO(skb->dev)->flags & 1) {
+	if (VLAN_DEV_INFO(skb->dev)->flags & VLAN_FLAG_REORDER_HDR) {
 		if (skb_shared(skb) || skb_cloned(skb)) {
 			struct sk_buff *nskb = skb_copy(skb, GFP_ATOMIC);
 			kfree_skb(skb);
@@ -350,7 +350,8 @@ int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 	 * header shuffling in the hard_start_xmit.  Users can turn off this
 	 * REORDER behaviour with the vconfig tool.
 	 */
-	build_vlan_header = ((VLAN_DEV_INFO(dev)->flags & 1) == 0);
+	if (!(VLAN_DEV_INFO(dev)->flags & VLAN_FLAG_REORDER_HDR))
+		build_vlan_header = 1;
 
 	if (build_vlan_header) {
 		vhdr = (struct vlan_hdr *) skb_push(skb, VLAN_HLEN);
@@ -584,16 +585,16 @@ int vlan_dev_set_egress_priority(const struct net_device *dev,
 	return 0;
 }
 
-/* Flags are defined in the vlan_dev_info class in include/linux/if_vlan.h file. */
+/* Flags are defined in the vlan_flags enum in include/linux/if_vlan.h file. */
 int vlan_dev_set_vlan_flag(const struct net_device *dev,
 			   u32 flag, short flag_val)
 {
 	/* verify flag is supported */
-	if (flag == 1) {
+	if (flag == VLAN_FLAG_REORDER_HDR) {
 		if (flag_val) {
-			VLAN_DEV_INFO(dev)->flags |= 1;
+			VLAN_DEV_INFO(dev)->flags |= VLAN_FLAG_REORDER_HDR;
 		} else {
-			VLAN_DEV_INFO(dev)->flags &= ~1;
+			VLAN_DEV_INFO(dev)->flags &= ~VLAN_FLAG_REORDER_HDR;
 		}
 		return 0;
 	}
