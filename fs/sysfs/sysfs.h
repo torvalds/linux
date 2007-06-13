@@ -34,7 +34,7 @@ struct sysfs_dirent {
 		struct sysfs_elem_bin_attr	bin_attr;
 	}			s_elem;
 
-	int			s_type;
+	unsigned int		s_flags;
 	umode_t			s_mode;
 	ino_t			s_ino;
 	struct dentry		* s_dentry;
@@ -85,6 +85,11 @@ extern const struct file_operations sysfs_file_operations;
 extern const struct file_operations bin_fops;
 extern const struct inode_operations sysfs_dir_inode_operations;
 extern const struct inode_operations sysfs_symlink_inode_operations;
+
+static inline unsigned int sysfs_type(struct sysfs_dirent *sd)
+{
+	return sd->s_flags & SYSFS_TYPE_MASK;
+}
 
 static inline struct sysfs_dirent * sysfs_get(struct sysfs_dirent * sd)
 {

@@ -26,7 +26,7 @@ static const struct super_operations sysfs_ops = {
 
 static struct sysfs_dirent sysfs_root = {
 	.s_count	= ATOMIC_INIT(1),
-	.s_type		= SYSFS_ROOT,
+	.s_flags	= SYSFS_ROOT,
 	.s_mode		= S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
 	.s_ino		= 1,
 };

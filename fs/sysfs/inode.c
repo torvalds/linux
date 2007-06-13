@@ -242,7 +242,7 @@ void sysfs_drop_dentry(struct sysfs_dirent *sd)
 
 	dput(dentry);
 	/* XXX: unpin if directory, this will go away soon */
-	if (sd->s_type & SYSFS_DIR)
+	if (sysfs_type(sd) == SYSFS_DIR)
 		dput(dentry);
 
 	/* adjust nlink and update timestamp */
@@ -254,7 +254,7 @@ void sysfs_drop_dentry(struct sysfs_dirent *sd)
 
 		inode->i_ctime = curtime;
 		drop_nlink(inode);
-		if (sd->s_type & SYSFS_DIR)
+		if (sysfs_type(sd) == SYSFS_DIR)
 			drop_nlink(inode);
 
 		mutex_unlock(&inode->i_mutex);
@@ -267,7 +267,7 @@ void sysfs_drop_dentry(struct sysfs_dirent *sd)
 		mutex_lock(&inode->i_mutex);
 
 		inode->i_ctime = inode->i_mtime = curtime;
-		if (sd->s_type & SYSFS_DIR)
+		if (sysfs_type(sd) == SYSFS_DIR)
 			drop_nlink(inode);
 
 		mutex_unlock(&inode->i_mutex);
@@ -293,7 +293,7 @@ int sysfs_hash_and_remove(struct dentry * dir, const char * name)
 	for (pos = &parent_sd->s_children; *pos; pos = &(*pos)->s_sibling) {
 		sd = *pos;
 
-		if (!sd->s_type)
+		if (!sysfs_type(sd))
 			continue;
 		if (!strcmp(sd->s_name, name)) {
 			*pos = sd->s_sibling;

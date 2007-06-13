@@ -218,9 +218,9 @@ void release_sysfs_dirent(struct sysfs_dirent * sd)
  repeat:
 	parent_sd = sd->s_parent;
 
-	if (sd->s_type & SYSFS_KOBJ_LINK)
+	if (sysfs_type(sd) == SYSFS_KOBJ_LINK)
 		sysfs_put(sd->s_elem.symlink.target_sd);
-	if (sd->s_type & SYSFS_COPY_NAME)
+	if (sysfs_type(sd) & SYSFS_COPY_NAME)
 		kfree(sd->s_name);
 	kfree(sd->s_iattr);
 	sysfs_free_ino(sd->s_ino);
@@ -282,7 +282,7 @@ struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type)
 
 	sd->s_name = name;
 	sd->s_mode = mode;
-	sd->s_type = type;
+	sd->s_flags = type;
 
 	return sd;
 
@@ -330,7 +330,7 @@ int sysfs_dirent_exist(struct sysfs_dirent *parent_sd,
 	struct sysfs_dirent * sd;
 
 	for (sd = parent_sd->s_children; sd; sd = sd->s_sibling) {
-		if (sd->s_type) {
+		if (sysfs_type(sd)) {
 			if (strcmp(sd->s_name, new))
 				continue;
 			else
@@ -446,11 +446,12 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 {
 	struct sysfs_dirent * parent_sd = dentry->d_parent->d_fsdata;
 	struct sysfs_dirent * sd;
+	struct bin_attribute *bin_attr;
 	struct inode *inode;
 	int found = 0;
 
 	for (sd = parent_sd->s_children; sd; sd = sd->s_sibling) {
-		if ((sd->s_type & SYSFS_NOT_PINNED) &&
+		if ((sysfs_type(sd) & SYSFS_NOT_PINNED) &&
 		    !strcmp(sd->s_name, dentry->d_name.name)) {
 			found = 1;
 			break;
@@ -468,16 +469,22 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	if (inode->i_state & I_NEW) {
 		/* initialize inode according to type */
-		if (sd->s_type & SYSFS_KOBJ_ATTR) {
+		switch (sysfs_type(sd)) {
+		case SYSFS_KOBJ_ATTR:
 			inode->i_size = PAGE_SIZE;
 			inode->i_fop = &sysfs_file_operations;
-		} else if (sd->s_type & SYSFS_KOBJ_BIN_ATTR) {
-			struct bin_attribute *bin_attr =
-				sd->s_elem.bin_attr.bin_attr;
+			break;
+		case SYSFS_KOBJ_BIN_ATTR:
+			bin_attr = sd->s_elem.bin_attr.bin_attr;
 			inode->i_size = bin_attr->size;
 			inode->i_fop = &bin_fops;
-		} else if (sd->s_type & SYSFS_KOBJ_LINK)
+			break;
+		case SYSFS_KOBJ_LINK:
 			inode->i_op = &sysfs_symlink_inode_operations;
+			break;
+		default:
+			BUG();
+		}
 	}
 
 	sysfs_instantiate(dentry, inode);
@@ -532,7 +539,7 @@ static void __sysfs_remove_dir(struct dentry *dentry)
 	while (*pos) {
 		struct sysfs_dirent *sd = *pos;
 
-		if (sd->s_type && (sd->s_type & SYSFS_NOT_PINNED)) {
+		if (sysfs_type(sd) && (sysfs_type(sd) & SYSFS_NOT_PINNED)) {
 			*pos = sd->s_sibling;
 			sd->s_sibling = removed;
 			removed = sd;
@@ -775,7 +782,7 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 				const char * name;
 				int len;
 
-				if (!next->s_type)
+				if (!sysfs_type(next))
 					continue;
 
 				name = next->s_name;
@@ -824,7 +831,7 @@ static loff_t sysfs_dir_lseek(struct file * file, loff_t offset, int origin)
 			pos = &sd->s_children;
 			while (n && *pos) {
 				struct sysfs_dirent *next = *pos;
-				if (next->s_type)
+				if (sysfs_type(next))
 					n--;
 				pos = &(*pos)->s_sibling;
 			}
