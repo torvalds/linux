@@ -561,11 +561,140 @@ static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_LINKMODE]		= { .type = NLA_U8 },
 };
 
+static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
+		      struct nlattr **tb, char *ifname)
+{
+	int modified = 0, send_addr_notify = 0;
+	int err;
+
+	if (tb[IFLA_MAP]) {
+		struct rtnl_link_ifmap *u_map;
+		struct ifmap k_map;
+
+		if (!dev->set_config) {
+			err = -EOPNOTSUPP;
+			goto errout;
+		}
+
+		if (!netif_device_present(dev)) {
+			err = -ENODEV;
+			goto errout;
+		}
+
+		u_map = nla_data(tb[IFLA_MAP]);
+		k_map.mem_start = (unsigned long) u_map->mem_start;
+		k_map.mem_end = (unsigned long) u_map->mem_end;
+		k_map.base_addr = (unsigned short) u_map->base_addr;
+		k_map.irq = (unsigned char) u_map->irq;
+		k_map.dma = (unsigned char) u_map->dma;
+		k_map.port = (unsigned char) u_map->port;
+
+		err = dev->set_config(dev, &k_map);
+		if (err < 0)
+			goto errout;
+
+		modified = 1;
+	}
+
+	if (tb[IFLA_ADDRESS]) {
+		struct sockaddr *sa;
+		int len;
+
+		if (!dev->set_mac_address) {
+			err = -EOPNOTSUPP;
+			goto errout;
+		}
+
+		if (!netif_device_present(dev)) {
+			err = -ENODEV;
+			goto errout;
+		}
+
+		len = sizeof(sa_family_t) + dev->addr_len;
+		sa = kmalloc(len, GFP_KERNEL);
+		if (!sa) {
+			err = -ENOMEM;
+			goto errout;
+		}
+		sa->sa_family = dev->type;
+		memcpy(sa->sa_data, nla_data(tb[IFLA_ADDRESS]),
+		       dev->addr_len);
+		err = dev->set_mac_address(dev, sa);
+		kfree(sa);
+		if (err)
+			goto errout;
+		send_addr_notify = 1;
+		modified = 1;
+	}
+
+	if (tb[IFLA_MTU]) {
+		err = dev_set_mtu(dev, nla_get_u32(tb[IFLA_MTU]));
+		if (err < 0)
+			goto errout;
+		modified = 1;
+	}
+
+	/*
+	 * Interface selected by interface index but interface
+	 * name provided implies that a name change has been
+	 * requested.
+	 */
+	if (ifm->ifi_index > 0 && ifname[0]) {
+		err = dev_change_name(dev, ifname);
+		if (err < 0)
+			goto errout;
+		modified = 1;
+	}
+
+	if (tb[IFLA_BROADCAST]) {
+		nla_memcpy(dev->broadcast, tb[IFLA_BROADCAST], dev->addr_len);
+		send_addr_notify = 1;
+	}
+
+	if (ifm->ifi_flags || ifm->ifi_change) {
+		unsigned int flags = ifm->ifi_flags;
+
+		/* bugwards compatibility: ifi_change == 0 is treated as ~0 */
+		if (ifm->ifi_change)
+			flags = (flags & ifm->ifi_change) |
+				(dev->flags & ~ifm->ifi_change);
+		dev_change_flags(dev, flags);
+	}
+
+	if (tb[IFLA_TXQLEN])
+		dev->tx_queue_len = nla_get_u32(tb[IFLA_TXQLEN]);
+
+	if (tb[IFLA_WEIGHT])
+		dev->weight = nla_get_u32(tb[IFLA_WEIGHT]);
+
+	if (tb[IFLA_OPERSTATE])
+		set_operstate(dev, nla_get_u8(tb[IFLA_OPERSTATE]));
+
+	if (tb[IFLA_LINKMODE]) {
+		write_lock_bh(&dev_base_lock);
+		dev->link_mode = nla_get_u8(tb[IFLA_LINKMODE]);
+		write_unlock_bh(&dev_base_lock);
+	}
+
+	err = 0;
+
+errout:
+	if (err < 0 && modified && net_ratelimit())
+		printk(KERN_WARNING "A link change request failed with "
+		       "some changes comitted already. Interface %s may "
+		       "have been left with an inconsistent configuration, "
+		       "please check.\n", dev->name);
+
+	if (send_addr_notify)
+		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
+	return err;
+}
+
 static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct ifinfomsg *ifm;
 	struct net_device *dev;
-	int err, send_addr_notify = 0, modified = 0;
+	int err;
 	struct nlattr *tb[IFLA_MAX+1];
 	char ifname[IFNAMSIZ];
 
@@ -600,128 +729,8 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	    nla_len(tb[IFLA_BROADCAST]) < dev->addr_len)
 		goto errout_dev;
 
-	if (tb[IFLA_MAP]) {
-		struct rtnl_link_ifmap *u_map;
-		struct ifmap k_map;
-
-		if (!dev->set_config) {
-			err = -EOPNOTSUPP;
-			goto errout_dev;
-		}
-
-		if (!netif_device_present(dev)) {
-			err = -ENODEV;
-			goto errout_dev;
-		}
-
-		u_map = nla_data(tb[IFLA_MAP]);
-		k_map.mem_start = (unsigned long) u_map->mem_start;
-		k_map.mem_end = (unsigned long) u_map->mem_end;
-		k_map.base_addr = (unsigned short) u_map->base_addr;
-		k_map.irq = (unsigned char) u_map->irq;
-		k_map.dma = (unsigned char) u_map->dma;
-		k_map.port = (unsigned char) u_map->port;
-
-		err = dev->set_config(dev, &k_map);
-		if (err < 0)
-			goto errout_dev;
-
-		modified = 1;
-	}
-
-	if (tb[IFLA_ADDRESS]) {
-		struct sockaddr *sa;
-		int len;
-
-		if (!dev->set_mac_address) {
-			err = -EOPNOTSUPP;
-			goto errout_dev;
-		}
-
-		if (!netif_device_present(dev)) {
-			err = -ENODEV;
-			goto errout_dev;
-		}
-
-		len = sizeof(sa_family_t) + dev->addr_len;
-		sa = kmalloc(len, GFP_KERNEL);
-		if (!sa) {
-			err = -ENOMEM;
-			goto errout_dev;
-		}
-		sa->sa_family = dev->type;
-		memcpy(sa->sa_data, nla_data(tb[IFLA_ADDRESS]),
-		       dev->addr_len);
-		err = dev->set_mac_address(dev, sa);
-		kfree(sa);
-		if (err)
-			goto errout_dev;
-		send_addr_notify = 1;
-		modified = 1;
-	}
-
-	if (tb[IFLA_MTU]) {
-		err = dev_set_mtu(dev, nla_get_u32(tb[IFLA_MTU]));
-		if (err < 0)
-			goto errout_dev;
-		modified = 1;
-	}
-
-	/*
-	 * Interface selected by interface index but interface
-	 * name provided implies that a name change has been
-	 * requested.
-	 */
-	if (ifm->ifi_index > 0 && ifname[0]) {
-		err = dev_change_name(dev, ifname);
-		if (err < 0)
-			goto errout_dev;
-		modified = 1;
-	}
-
-	if (tb[IFLA_BROADCAST]) {
-		nla_memcpy(dev->broadcast, tb[IFLA_BROADCAST], dev->addr_len);
-		send_addr_notify = 1;
-	}
-
-
-	if (ifm->ifi_flags || ifm->ifi_change) {
-		unsigned int flags = ifm->ifi_flags;
-
-		/* bugwards compatibility: ifi_change == 0 is treated as ~0 */
-		if (ifm->ifi_change)
-			flags = (flags & ifm->ifi_change) |
-				(dev->flags & ~ifm->ifi_change);
-		dev_change_flags(dev, flags);
-	}
-
-	if (tb[IFLA_TXQLEN])
-		dev->tx_queue_len = nla_get_u32(tb[IFLA_TXQLEN]);
-
-	if (tb[IFLA_WEIGHT])
-		dev->weight = nla_get_u32(tb[IFLA_WEIGHT]);
-
-	if (tb[IFLA_OPERSTATE])
-		set_operstate(dev, nla_get_u8(tb[IFLA_OPERSTATE]));
-
-	if (tb[IFLA_LINKMODE]) {
-		write_lock_bh(&dev_base_lock);
-		dev->link_mode = nla_get_u8(tb[IFLA_LINKMODE]);
-		write_unlock_bh(&dev_base_lock);
-	}
-
-	err = 0;
-
+	err = do_setlink(dev, ifm, tb, ifname);
 errout_dev:
-	if (err < 0 && modified && net_ratelimit())
-		printk(KERN_WARNING "A link change request failed with "
-		       "some changes comitted already. Interface %s may "
-		       "have been left with an inconsistent configuration, "
-		       "please check.\n", dev->name);
-
-	if (send_addr_notify)
-		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
-
 	dev_put(dev);
 errout:
 	return err;
