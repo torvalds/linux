@@ -272,7 +272,7 @@ int sysfs_hash_and_remove(struct dentry * dir, const char * name)
 	parent_sd = dir->d_fsdata;
 	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
-		if (!sd->s_element)
+		if (!sd->s_type)
 			continue;
 		if (!strcmp(sd->s_name, name)) {
 			list_del_init(&sd->s_sibling);

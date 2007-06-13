@@ -31,7 +31,6 @@ static struct sysfs_dirent sysfs_root = {
 	.s_count	= ATOMIC_INIT(1),
 	.s_sibling	= LIST_HEAD_INIT(sysfs_root.s_sibling),
 	.s_children	= LIST_HEAD_INIT(sysfs_root.s_children),
-	.s_element	= NULL,
 	.s_type		= SYSFS_ROOT,
 	.s_iattr	= NULL,
 	.s_ino		= 1,

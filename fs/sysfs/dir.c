@@ -52,11 +52,8 @@ void release_sysfs_dirent(struct sysfs_dirent * sd)
  repeat:
 	parent_sd = sd->s_parent;
 
-	if (sd->s_type & SYSFS_KOBJ_LINK) {
-		struct sysfs_symlink * sl = sd->s_element;
-		kobject_put(sl->target_kobj);
-		kfree(sl);
-	}
+	if (sd->s_type & SYSFS_KOBJ_LINK)
+		kobject_put(sd->s_elem.symlink.target_kobj);
 	if (sd->s_type & SYSFS_COPY_NAME)
 		kfree(sd->s_name);
 	kfree(sd->s_iattr);
@@ -95,8 +92,7 @@ static struct dentry_operations sysfs_dentry_ops = {
 	.d_iput		= sysfs_d_iput,
 };
 
-struct sysfs_dirent *sysfs_new_dirent(const char *name, void *element,
-				      umode_t mode, int type)
+struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type)
 {
 	char *dup_name = NULL;
 	struct sysfs_dirent *sd = NULL;
@@ -120,7 +116,6 @@ struct sysfs_dirent *sysfs_new_dirent(const char *name, void *element,
 	INIT_LIST_HEAD(&sd->s_sibling);
 
 	sd->s_name = name;
-	sd->s_element = element;
 	sd->s_mode = mode;
 	sd->s_type = type;
 
@@ -160,7 +155,7 @@ int sysfs_dirent_exist(struct sysfs_dirent *parent_sd,
 	struct sysfs_dirent * sd;
 
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
-		if (sd->s_element) {
+		if (sd->s_type) {
 			if (strcmp(sd->s_name, new))
 				continue;
 			else
@@ -215,9 +210,10 @@ static int create_dir(struct kobject *kobj, struct dentry *parent,
 		goto out_dput;
 
 	error = -ENOMEM;
-	sd = sysfs_new_dirent(name, kobj, mode, SYSFS_DIR);
+	sd = sysfs_new_dirent(name, mode, SYSFS_DIR);
 	if (!sd)
 		goto out_drop;
+	sd->s_elem.dir.kobj = kobj;
 	sysfs_attach_dirent(sd, parent->d_fsdata, dentry);
 
 	error = sysfs_create(dentry, mode, init_dir);
@@ -290,10 +286,10 @@ static int sysfs_attach_attr(struct sysfs_dirent * sd, struct dentry * dentry)
 	int error = 0;
 
         if (sd->s_type & SYSFS_KOBJ_BIN_ATTR) {
-                bin_attr = sd->s_element;
+                bin_attr = sd->s_elem.bin_attr.bin_attr;
                 attr = &bin_attr->attr;
         } else {
-                attr = sd->s_element;
+                attr = sd->s_elem.attr.attr;
                 init = init_file;
         }
 
@@ -404,7 +400,7 @@ static void __sysfs_remove_dir(struct dentry *dentry)
 	mutex_lock(&dentry->d_inode->i_mutex);
 	parent_sd = dentry->d_fsdata;
 	list_for_each_entry_safe(sd, tmp, &parent_sd->s_children, s_sibling) {
-		if (!sd->s_element || !(sd->s_type & SYSFS_NOT_PINNED))
+		if (!sd->s_type || !(sd->s_type & SYSFS_NOT_PINNED))
 			continue;
 		list_del_init(&sd->s_sibling);
 		sysfs_drop_dentry(sd, dentry);
@@ -556,7 +552,7 @@ static int sysfs_dir_open(struct inode *inode, struct file *file)
 	struct sysfs_dirent * sd;
 
 	mutex_lock(&dentry->d_inode->i_mutex);
-	sd = sysfs_new_dirent("_DIR_", NULL, 0, 0);
+	sd = sysfs_new_dirent("_DIR_", 0, 0);
 	if (sd)
 		sysfs_attach_dirent(sd, parent_sd, NULL);
 	mutex_unlock(&dentry->d_inode->i_mutex);
@@ -623,7 +619,7 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 
 				next = list_entry(p, struct sysfs_dirent,
 						   s_sibling);
-				if (!next->s_element)
+				if (!next->s_type)
 					continue;
 
 				name = next->s_name;
@@ -671,7 +667,7 @@ static loff_t sysfs_dir_lseek(struct file * file, loff_t offset, int origin)
 				struct sysfs_dirent *next;
 				next = list_entry(p, struct sysfs_dirent,
 						   s_sibling);
-				if (next->s_element)
+				if (next->s_type)
 					n--;
 				p = p->next;
 			}
@@ -738,9 +734,10 @@ struct dentry *sysfs_create_shadow_dir(struct kobject *kobj)
 	if (!shadow)
 		goto nomem;
 
-	sd = sysfs_new_dirent("_SHADOW_", kobj, inode->i_mode, SYSFS_DIR);
+	sd = sysfs_new_dirent("_SHADOW_", inode->i_mode, SYSFS_DIR);
 	if (!sd)
 		goto nomem;
+	sd->s_elem.dir.kobj = kobj;
 	/* point to parent_sd but don't attach to it */
 	sd->s_parent = sysfs_get(parent_sd);
 	sysfs_attach_dirent(sd, NULL, shadow);

@@ -48,30 +48,15 @@ static void fill_object_path(struct kobject * kobj, char * buffer, int length)
 static int sysfs_add_link(struct dentry * parent, const char * name, struct kobject * target)
 {
 	struct sysfs_dirent * parent_sd = parent->d_fsdata;
-	struct sysfs_symlink * sl;
 	struct sysfs_dirent * sd;
-	int error;
 
-	error = -ENOMEM;
-	sl = kzalloc(sizeof(*sl), GFP_KERNEL);
-	if (!sl)
-		goto err_out;
-
-	sl->target_kobj = kobject_get(target);
-
-	sd = sysfs_new_dirent(name, sl, S_IFLNK|S_IRWXUGO, SYSFS_KOBJ_LINK);
+	sd = sysfs_new_dirent(name, S_IFLNK|S_IRWXUGO, SYSFS_KOBJ_LINK);
 	if (!sd)
-		goto err_out;
+		return -ENOMEM;
+
+	sd->s_elem.symlink.target_kobj = kobject_get(target);
 	sysfs_attach_dirent(sd, parent_sd, NULL);
-
 	return 0;
-
- err_out:
-	if (sl) {
-		kobject_put(sl->target_kobj);
-		kfree(sl);
-	}
-	return error;
 }
 
 /**

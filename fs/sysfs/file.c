@@ -88,7 +88,6 @@ remove_from_collection(struct sysfs_buffer *buffer, struct inode *node)
 static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer)
 {
 	struct sysfs_dirent * sd = dentry->d_fsdata;
-	struct attribute * attr = to_attr(dentry);
 	struct kobject * kobj = to_kobj(dentry->d_parent);
 	struct sysfs_ops * ops = buffer->ops;
 	int ret = 0;
@@ -100,7 +99,7 @@ static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer
 		return -ENOMEM;
 
 	buffer->event = atomic_read(&sd->s_event);
-	count = ops->show(kobj,attr,buffer->page);
+	count = ops->show(kobj, sd->s_elem.attr.attr, buffer->page);
 	BUG_ON(count > (ssize_t)PAGE_SIZE);
 	if (count >= 0) {
 		buffer->needs_read_fill = 0;
@@ -199,11 +198,11 @@ fill_write_buffer(struct sysfs_buffer * buffer, const char __user * buf, size_t 
 static int 
 flush_write_buffer(struct dentry * dentry, struct sysfs_buffer * buffer, size_t count)
 {
-	struct attribute * attr = to_attr(dentry);
+	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
 	struct kobject * kobj = to_kobj(dentry->d_parent);
 	struct sysfs_ops * ops = buffer->ops;
 
-	return ops->store(kobj,attr,buffer->page,count);
+	return ops->store(kobj, attr_sd->s_elem.attr.attr, buffer->page, count);
 }
 
 
@@ -248,7 +247,8 @@ out:
 static int sysfs_open_file(struct inode *inode, struct file *file)
 {
 	struct kobject *kobj = sysfs_get_kobject(file->f_path.dentry->d_parent);
-	struct attribute * attr = to_attr(file->f_path.dentry);
+	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
+	struct attribute *attr = attr_sd->s_elem.attr.attr;
 	struct sysfs_buffer_collection *set;
 	struct sysfs_buffer * buffer;
 	struct sysfs_ops * ops = NULL;
@@ -341,15 +341,15 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 static int sysfs_release(struct inode * inode, struct file * filp)
 {
 	struct kobject * kobj = to_kobj(filp->f_path.dentry->d_parent);
-	struct attribute * attr = to_attr(filp->f_path.dentry);
-	struct module * owner = attr->owner;
+	struct sysfs_dirent *attr_sd = filp->f_path.dentry->d_fsdata;
+	struct attribute *attr = attr_sd->s_elem.attr.attr;
 	struct sysfs_buffer * buffer = filp->private_data;
 
 	if (buffer)
 		remove_from_collection(buffer, inode);
 	kobject_put(kobj);
 	/* After this point, attr should not be accessed. */
-	module_put(owner);
+	module_put(attr->owner);
 
 	if (buffer) {
 		if (buffer->page)
@@ -454,11 +454,12 @@ int sysfs_add_file(struct dentry * dir, const struct attribute * attr, int type)
 		goto out_unlock;
 	}
 
-	sd = sysfs_new_dirent(attr->name, (void *)attr, mode, type);
+	sd = sysfs_new_dirent(attr->name, mode, type);
 	if (!sd) {
 		error = -ENOMEM;
 		goto out_unlock;
 	}
+	sd->s_elem.attr.attr = (void *)attr;
 	sysfs_attach_dirent(sd, parent_sd, NULL);
 
  out_unlock:

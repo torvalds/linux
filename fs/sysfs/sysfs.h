@@ -1,10 +1,33 @@
+struct sysfs_elem_dir {
+	struct kobject		* kobj;
+};
+
+struct sysfs_elem_symlink {
+	struct kobject		* target_kobj;
+};
+
+struct sysfs_elem_attr {
+	struct attribute	* attr;
+};
+
+struct sysfs_elem_bin_attr {
+	struct bin_attribute	* bin_attr;
+};
+
 struct sysfs_dirent {
 	atomic_t		s_count;
 	struct sysfs_dirent	* s_parent;
 	struct list_head	s_sibling;
 	struct list_head	s_children;
 	const char		* s_name;
-	void 			* s_element;
+
+	union {
+		struct sysfs_elem_dir		dir;
+		struct sysfs_elem_symlink	symlink;
+		struct sysfs_elem_attr		attr;
+		struct sysfs_elem_bin_attr	bin_attr;
+	}			s_elem;
+
 	int			s_type;
 	umode_t			s_mode;
 	ino_t			s_ino;
@@ -22,8 +45,8 @@ extern int sysfs_create(struct dentry *, int mode, int (*init)(struct inode *));
 
 extern void release_sysfs_dirent(struct sysfs_dirent * sd);
 extern int sysfs_dirent_exist(struct sysfs_dirent *, const unsigned char *);
-extern struct sysfs_dirent *sysfs_new_dirent(const char *name, void *element,
-					     umode_t mode, int type);
+extern struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode,
+					     int type);
 extern void sysfs_attach_dirent(struct sysfs_dirent *sd,
 				struct sysfs_dirent *parent_sd,
 				struct dentry *dentry);
@@ -47,10 +70,6 @@ extern const struct file_operations bin_fops;
 extern const struct inode_operations sysfs_dir_inode_operations;
 extern const struct inode_operations sysfs_symlink_inode_operations;
 
-struct sysfs_symlink {
-	struct kobject * target_kobj;
-};
-
 struct sysfs_buffer {
 	struct list_head		associates;
 	size_t				count;
@@ -70,19 +89,7 @@ struct sysfs_buffer_collection {
 static inline struct kobject * to_kobj(struct dentry * dentry)
 {
 	struct sysfs_dirent * sd = dentry->d_fsdata;
-	return ((struct kobject *) sd->s_element);
-}
-
-static inline struct attribute * to_attr(struct dentry * dentry)
-{
-	struct sysfs_dirent * sd = dentry->d_fsdata;
-	return ((struct attribute *) sd->s_element);
-}
-
-static inline struct bin_attribute * to_bin_attr(struct dentry * dentry)
-{
-	struct sysfs_dirent * sd = dentry->d_fsdata;
-	return ((struct bin_attribute *) sd->s_element);
+	return sd->s_elem.dir.kobj;
 }
 
 static inline struct kobject *sysfs_get_kobject(struct dentry *dentry)
@@ -92,11 +99,10 @@ static inline struct kobject *sysfs_get_kobject(struct dentry *dentry)
 	spin_lock(&dcache_lock);
 	if (!d_unhashed(dentry)) {
 		struct sysfs_dirent * sd = dentry->d_fsdata;
-		if (sd->s_type & SYSFS_KOBJ_LINK) {
-			struct sysfs_symlink * sl = sd->s_element;
-			kobj = kobject_get(sl->target_kobj);
-		} else
-			kobj = kobject_get(sd->s_element);
+		if (sd->s_type & SYSFS_KOBJ_LINK)
+			kobj = kobject_get(sd->s_elem.symlink.target_kobj);
+		else
+			kobj = kobject_get(sd->s_elem.dir.kobj);
 	}
 	spin_unlock(&dcache_lock);
 

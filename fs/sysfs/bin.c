@@ -23,7 +23,8 @@
 static int
 fill_read(struct dentry *dentry, char *buffer, loff_t off, size_t count)
 {
-	struct bin_attribute * attr = to_bin_attr(dentry);
+	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
+	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
 	struct kobject * kobj = to_kobj(dentry->d_parent);
 
 	if (!attr->read)
@@ -65,7 +66,8 @@ read(struct file *file, char __user *userbuf, size_t bytes, loff_t *off)
 static int
 flush_write(struct dentry *dentry, char *buffer, loff_t offset, size_t count)
 {
-	struct bin_attribute *attr = to_bin_attr(dentry);
+	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
+	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
 	struct kobject *kobj = to_kobj(dentry->d_parent);
 
 	if (!attr->write)
@@ -101,9 +103,9 @@ static ssize_t write(struct file *file, const char __user *userbuf,
 
 static int mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct dentry *dentry = file->f_path.dentry;
-	struct bin_attribute *attr = to_bin_attr(dentry);
-	struct kobject *kobj = to_kobj(dentry->d_parent);
+	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
+	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
+	struct kobject *kobj = to_kobj(file->f_path.dentry->d_parent);
 
 	if (!attr->mmap)
 		return -EINVAL;
@@ -114,7 +116,8 @@ static int mmap(struct file *file, struct vm_area_struct *vma)
 static int open(struct inode * inode, struct file * file)
 {
 	struct kobject *kobj = sysfs_get_kobject(file->f_path.dentry->d_parent);
-	struct bin_attribute * attr = to_bin_attr(file->f_path.dentry);
+	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
+	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
 	int error = -EINVAL;
 
 	if (!kobj || !attr)
@@ -150,7 +153,8 @@ static int open(struct inode * inode, struct file * file)
 static int release(struct inode * inode, struct file * file)
 {
 	struct kobject * kobj = to_kobj(file->f_path.dentry->d_parent);
-	struct bin_attribute * attr = to_bin_attr(file->f_path.dentry);
+	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
+	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
 	u8 * buffer = file->private_data;
 
 	kobject_put(kobj);
