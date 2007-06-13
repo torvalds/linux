@@ -633,13 +633,6 @@ extern void __iomem * __ioremap_at(phys_addr_t pa, void *ea,
 				   unsigned long size, unsigned long flags);
 extern void __iounmap_at(void *ea, unsigned long size);
 
-/* Those are more 32 bits only functions */
-extern unsigned long iopa(unsigned long addr);
-extern unsigned long mm_ptov(unsigned long addr) __attribute_const__;
-extern void io_block_mapping(unsigned long virt, phys_addr_t phys,
-			     unsigned int size, int flags);
-
-
 /*
  * When CONFIG_PPC_INDIRECT_IO is set, we use the generic iomap implementation
  * which needs some additional definitions here. They basically allow PIO
