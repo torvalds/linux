@@ -408,13 +408,6 @@ static int map_sg_data(struct scsi_cmnd *cmd,
 		return 1;
 	}
 
-	if (sg_mapped > SG_ALL) {
-		printk(KERN_ERR
-		       "ibmvscsi: More than %d mapped sg entries, got %d\n",
-		       SG_ALL, sg_mapped);
-		return 0;
-	}
-
 	indirect->table_desc.va = 0;
 	indirect->table_desc.len = sg_mapped * sizeof(struct srp_direct_buf);
 	indirect->table_desc.key = 0;
