@@ -66,7 +66,6 @@ static int sysfs_add_link(struct sysfs_dirent * parent_sd, const char * name,
  */
 int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char * name)
 {
-	struct dentry *dentry = NULL;
 	struct sysfs_dirent *parent_sd = NULL;
 	struct sysfs_dirent *target_sd = NULL;
 	int error = -EEXIST;
@@ -75,29 +74,28 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 
 	if (!kobj) {
 		if (sysfs_mount && sysfs_mount->mnt_sb)
-			dentry = sysfs_mount->mnt_sb->s_root;
+			parent_sd = sysfs_mount->mnt_sb->s_root->d_fsdata;
 	} else
-		dentry = kobj->dentry;
+		parent_sd = kobj->sd;
 
-	if (!dentry)
+	if (!parent_sd)
 		return -EFAULT;
-	parent_sd = dentry->d_fsdata;
 
-	/* target->dentry can go away beneath us but is protected with
+	/* target->sd can go away beneath us but is protected with
 	 * kobj_sysfs_assoc_lock.  Fetch target_sd from it.
 	 */
 	spin_lock(&kobj_sysfs_assoc_lock);
-	if (target->dentry)
-		target_sd = sysfs_get(target->dentry->d_fsdata);
+	if (target->sd)
+		target_sd = sysfs_get(target->sd);
 	spin_unlock(&kobj_sysfs_assoc_lock);
 
 	if (!target_sd)
 		return -ENOENT;
 
-	mutex_lock(&dentry->d_inode->i_mutex);
-	if (!sysfs_find_dirent(dentry->d_fsdata, name))
+	mutex_lock(&parent_sd->s_dentry->d_inode->i_mutex);
+	if (!sysfs_find_dirent(parent_sd, name))
 		error = sysfs_add_link(parent_sd, name, target_sd);
-	mutex_unlock(&dentry->d_inode->i_mutex);
+	mutex_unlock(&parent_sd->s_dentry->d_inode->i_mutex);
 
 	if (error)
 		sysfs_put(target_sd);
@@ -114,7 +112,7 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 
 void sysfs_remove_link(struct kobject * kobj, const char * name)
 {
-	sysfs_hash_and_remove(kobj->dentry,name);
+	sysfs_hash_and_remove(kobj->sd, name);
 }
 
 static int sysfs_get_target_path(struct sysfs_dirent * parent_sd,

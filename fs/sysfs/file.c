@@ -385,7 +385,7 @@ static struct dentry *step_down(struct dentry *dir, const char * name)
 
 void sysfs_notify(struct kobject * k, char *dir, char *attr)
 {
-	struct dentry *de = k->dentry;
+	struct dentry *de = k->sd->s_dentry;
 	if (de)
 		dget(de);
 	if (de && dir)
@@ -412,16 +412,17 @@ const struct file_operations sysfs_file_operations = {
 };
 
 
-int sysfs_add_file(struct dentry * dir, const struct attribute * attr, int type)
+int sysfs_add_file(struct sysfs_dirent *dir_sd, const struct attribute *attr,
+		   int type)
 {
-	struct sysfs_dirent * parent_sd = dir->d_fsdata;
+	struct dentry *dir = dir_sd->s_dentry;
 	umode_t mode = (attr->mode & S_IALLUGO) | S_IFREG;
 	struct sysfs_dirent *sd;
 	int error = 0;
 
 	mutex_lock(&dir->d_inode->i_mutex);
 
-	if (sysfs_find_dirent(parent_sd, attr->name)) {
+	if (sysfs_find_dirent(dir_sd, attr->name)) {
 		error = -EEXIST;
 		goto out_unlock;
 	}
@@ -432,7 +433,7 @@ int sysfs_add_file(struct dentry * dir, const struct attribute * attr, int type)
 		goto out_unlock;
 	}
 	sd->s_elem.attr.attr = (void *)attr;
-	sysfs_attach_dirent(sd, parent_sd, NULL);
+	sysfs_attach_dirent(sd, dir_sd, NULL);
 
  out_unlock:
 	mutex_unlock(&dir->d_inode->i_mutex);
@@ -448,9 +449,9 @@ int sysfs_add_file(struct dentry * dir, const struct attribute * attr, int type)
 
 int sysfs_create_file(struct kobject * kobj, const struct attribute * attr)
 {
-	BUG_ON(!kobj || !kobj->dentry || !attr);
+	BUG_ON(!kobj || !kobj->sd || !attr);
 
-	return sysfs_add_file(kobj->dentry, attr, SYSFS_KOBJ_ATTR);
+	return sysfs_add_file(kobj->sd, attr, SYSFS_KOBJ_ATTR);
 
 }
 
@@ -464,16 +465,16 @@ int sysfs_create_file(struct kobject * kobj, const struct attribute * attr)
 int sysfs_add_file_to_group(struct kobject *kobj,
 		const struct attribute *attr, const char *group)
 {
-	struct dentry *dir;
+	struct sysfs_dirent *dir_sd;
 	int error;
 
-	dir = lookup_one_len(group, kobj->dentry, strlen(group));
-	if (IS_ERR(dir))
-		error = PTR_ERR(dir);
-	else {
-		error = sysfs_add_file(dir, attr, SYSFS_KOBJ_ATTR);
-		dput(dir);
-	}
+	dir_sd = sysfs_get_dirent(kobj->sd, group);
+	if (!dir_sd)
+		return -ENOENT;
+
+	error = sysfs_add_file(dir_sd, attr, SYSFS_KOBJ_ATTR);
+	sysfs_put(dir_sd);
+
 	return error;
 }
 EXPORT_SYMBOL_GPL(sysfs_add_file_to_group);
@@ -486,7 +487,7 @@ EXPORT_SYMBOL_GPL(sysfs_add_file_to_group);
  */
 int sysfs_update_file(struct kobject * kobj, const struct attribute * attr)
 {
-	struct dentry * dir = kobj->dentry;
+	struct dentry *dir = kobj->sd->s_dentry;
 	struct dentry * victim;
 	int res = -ENOENT;
 
@@ -522,7 +523,7 @@ int sysfs_update_file(struct kobject * kobj, const struct attribute * attr)
  */
 int sysfs_chmod_file(struct kobject *kobj, struct attribute *attr, mode_t mode)
 {
-	struct dentry *dir = kobj->dentry;
+	struct dentry *dir = kobj->sd->s_dentry;
 	struct dentry *victim;
 	struct inode * inode;
 	struct iattr newattrs;
@@ -560,7 +561,7 @@ EXPORT_SYMBOL_GPL(sysfs_chmod_file);
 
 void sysfs_remove_file(struct kobject * kobj, const struct attribute * attr)
 {
-	sysfs_hash_and_remove(kobj->dentry, attr->name);
+	sysfs_hash_and_remove(kobj->sd, attr->name);
 }
 
 
@@ -573,12 +574,12 @@ void sysfs_remove_file(struct kobject * kobj, const struct attribute * attr)
 void sysfs_remove_file_from_group(struct kobject *kobj,
 		const struct attribute *attr, const char *group)
 {
-	struct dentry *dir;
+	struct sysfs_dirent *dir_sd;
 
-	dir = lookup_one_len(group, kobj->dentry, strlen(group));
-	if (!IS_ERR(dir)) {
-		sysfs_hash_and_remove(dir, attr->name);
-		dput(dir);
+	dir_sd = sysfs_get_dirent(kobj->sd, group);
+	if (dir_sd) {
+		sysfs_hash_and_remove(dir_sd, attr->name);
+		sysfs_put(dir_sd);
 	}
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_file_from_group);

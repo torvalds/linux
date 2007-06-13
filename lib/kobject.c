@@ -44,7 +44,7 @@ static int populate_dir(struct kobject * kobj)
 	return error;
 }
 
-static int create_dir(struct kobject * kobj, struct dentry *shadow_parent)
+static int create_dir(struct kobject *kobj, struct sysfs_dirent *shadow_parent)
 {
 	int error = 0;
 	if (kobject_name(kobj)) {
@@ -162,7 +162,7 @@ static void unlink(struct kobject * kobj)
  *	@shadow_parent: sysfs directory to add to.
  */
 
-int kobject_shadow_add(struct kobject * kobj, struct dentry *shadow_parent)
+int kobject_shadow_add(struct kobject *kobj, struct sysfs_dirent *shadow_parent)
 {
 	int error = 0;
 	struct kobject * parent;
@@ -338,7 +338,7 @@ int kobject_rename(struct kobject * kobj, const char *new_name)
 	/* Note : if we want to send the new name alone, not the full path,
 	 * we could probably use kobject_name(kobj); */
 
-	error = sysfs_rename_dir(kobj, kobj->parent->dentry, new_name);
+	error = sysfs_rename_dir(kobj, kobj->parent->sd, new_name);
 
 	/* This function is mostly/only used for network interface.
 	 * Some hotplug package track interfaces by their name and
@@ -361,8 +361,8 @@ out:
  *	@new_name: object's new name
  */
 
-int kobject_shadow_rename(struct kobject * kobj, struct dentry *new_parent,
-			  const char *new_name)
+int kobject_shadow_rename(struct kobject *kobj,
+			  struct sysfs_dirent *new_parent, const char *new_name)
 {
 	int error = 0;
 

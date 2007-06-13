@@ -69,12 +69,14 @@ extern void sysfs_attach_dirent(struct sysfs_dirent *sd,
 				struct sysfs_dirent *parent_sd,
 				struct dentry *dentry);
 
-extern int sysfs_add_file(struct dentry *, const struct attribute *, int);
-extern int sysfs_hash_and_remove(struct dentry * dir, const char * name);
+extern int sysfs_add_file(struct sysfs_dirent *dir_sd,
+			  const struct attribute *attr, int type);
+extern int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name);
 extern struct sysfs_dirent *sysfs_find(struct sysfs_dirent *dir, const char * name);
 
-extern int sysfs_create_subdir(struct kobject *, const char *, struct dentry **);
-extern void sysfs_remove_subdir(struct dentry *);
+extern int sysfs_create_subdir(struct kobject *kobj, const char *name,
+			       struct sysfs_dirent **p_sd);
+extern void sysfs_remove_subdir(struct sysfs_dirent *sd);
 
 extern void sysfs_drop_dentry(struct sysfs_dirent *sd);
 extern int sysfs_setattr(struct dentry *dentry, struct iattr *iattr);

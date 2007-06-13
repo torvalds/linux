@@ -275,22 +275,23 @@ void sysfs_drop_dentry(struct sysfs_dirent *sd)
 	}
 }
 
-int sysfs_hash_and_remove(struct dentry * dir, const char * name)
+int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name)
 {
+	struct dentry *dir;
 	struct sysfs_dirent **pos, *sd;
-	struct sysfs_dirent *parent_sd;
 	int found = 0;
 
-	if (!dir)
+	if (!dir_sd)
 		return -ENOENT;
+
+	dir = dir_sd->s_dentry;
 
 	if (dir->d_inode == NULL)
 		/* no inode means this hasn't been made visible yet */
 		return -ENOENT;
 
-	parent_sd = dir->d_fsdata;
 	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
-	for (pos = &parent_sd->s_children; *pos; pos = &(*pos)->s_sibling) {
+	for (pos = &dir_sd->s_children; *pos; pos = &(*pos)->s_sibling) {
 		sd = *pos;
 
 		if (!sysfs_type(sd))
