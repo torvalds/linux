@@ -522,28 +522,10 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 		}
 
 		if (status & OMAP_MMC_STAT_CARD_ERR) {
-			if (host->cmd && host->cmd->opcode == MMC_STOP_TRANSMISSION) {
-				u32 response = OMAP_MMC_READ(host, RSP6)
-					| (OMAP_MMC_READ(host, RSP7) << 16);
-				/* STOP sometimes sets must-ignore bits */
-				if (!(response & (R1_CC_ERROR
-								| R1_ILLEGAL_COMMAND
-								| R1_COM_CRC_ERROR))) {
-					end_command = 1;
-					continue;
-				}
-			}
-
-			dev_dbg(mmc_dev(host->mmc), "card status error (CMD%d)\n",
+			dev_dbg(mmc_dev(host->mmc),
+				"ignoring card status error (CMD%d)\n",
 				host->cmd->opcode);
-			if (host->cmd) {
-				host->cmd->error = MMC_ERR_FAILED;
-				end_command = 1;
-			}
-			if (host->data) {
-				host->data->error = MMC_ERR_FAILED;
-				transfer_error = 1;
-			}
+			end_command = 1;
 		}
 
 		/*
