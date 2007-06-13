@@ -156,13 +156,13 @@ struct inode * sysfs_new_inode(mode_t mode, struct sysfs_dirent * sd)
 	return inode;
 }
 
-int sysfs_create(struct dentry * dentry, int mode, int (*init)(struct inode *))
+int sysfs_create(struct sysfs_dirent *sd, struct dentry *dentry, int mode,
+		 int (*init)(struct inode *))
 {
 	int error = 0;
 	struct inode * inode = NULL;
 	if (dentry) {
 		if (!dentry->d_inode) {
-			struct sysfs_dirent * sd = dentry->d_fsdata;
 			if ((inode = sysfs_new_inode(mode, sd))) {
 				if (dentry->d_parent && dentry->d_parent->d_inode) {
 					struct inode *p_inode = dentry->d_parent->d_inode;

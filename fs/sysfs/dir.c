@@ -142,14 +142,24 @@ struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type)
 	return NULL;
 }
 
+static void sysfs_attach_dentry(struct sysfs_dirent *sd, struct dentry *dentry)
+{
+	dentry->d_op = &sysfs_dentry_ops;
+	dentry->d_fsdata = sysfs_get(sd);
+
+	/* protect sd->s_dentry against sysfs_d_iput */
+	spin_lock(&sysfs_lock);
+	sd->s_dentry = dentry;
+	spin_unlock(&sysfs_lock);
+
+	d_rehash(dentry);
+}
+
 void sysfs_attach_dirent(struct sysfs_dirent *sd,
 			 struct sysfs_dirent *parent_sd, struct dentry *dentry)
 {
-	if (dentry) {
-		sd->s_dentry = dentry;
-		dentry->d_fsdata = sysfs_get(sd);
-		dentry->d_op = &sysfs_dentry_ops;
-	}
+	if (dentry)
+		sysfs_attach_dentry(sd, dentry);
 
 	if (parent_sd) {
 		sd->s_parent = sysfs_get(parent_sd);
@@ -229,15 +239,13 @@ static int create_dir(struct kobject *kobj, struct dentry *parent,
 	if (!sd)
 		goto out_drop;
 	sd->s_elem.dir.kobj = kobj;
-	sysfs_attach_dirent(sd, parent->d_fsdata, dentry);
 
-	error = sysfs_create(dentry, mode, init_dir);
+	error = sysfs_create(sd, dentry, mode, init_dir);
 	if (error)
 		goto out_sput;
 
 	inc_nlink(parent->d_inode);
-	dentry->d_op = &sysfs_dentry_ops;
-	d_rehash(dentry);
+	sysfs_attach_dirent(sd, parent->d_fsdata, dentry);
 
 	*p_dentry = dentry;
 	error = 0;
@@ -308,42 +316,28 @@ static int sysfs_attach_attr(struct sysfs_dirent * sd, struct dentry * dentry)
                 init = init_file;
         }
 
-	dentry->d_fsdata = sysfs_get(sd);
-	/* protect sd->s_dentry against sysfs_d_iput */
-	spin_lock(&sysfs_lock);
-	sd->s_dentry = dentry;
-	spin_unlock(&sysfs_lock);
-	error = sysfs_create(dentry, (attr->mode & S_IALLUGO) | S_IFREG, init);
-	if (error) {
-		sysfs_put(sd);
+	error = sysfs_create(sd, dentry,
+			     (attr->mode & S_IALLUGO) | S_IFREG, init);
+	if (error)
 		return error;
-	}
 
         if (bin_attr) {
 		dentry->d_inode->i_size = bin_attr->size;
 		dentry->d_inode->i_fop = &bin_fops;
 	}
-	dentry->d_op = &sysfs_dentry_ops;
-	d_rehash(dentry);
+
+	sysfs_attach_dentry(sd, dentry);
 
 	return 0;
 }
 
 static int sysfs_attach_link(struct sysfs_dirent * sd, struct dentry * dentry)
 {
-	int err = 0;
+	int err;
 
-	dentry->d_fsdata = sysfs_get(sd);
-	/* protect sd->s_dentry against sysfs_d_iput */
-	spin_lock(&sysfs_lock);
-	sd->s_dentry = dentry;
-	spin_unlock(&sysfs_lock);
-	err = sysfs_create(dentry, S_IFLNK|S_IRWXUGO, init_symlink);
-	if (!err) {
-		dentry->d_op = &sysfs_dentry_ops;
-		d_rehash(dentry);
-	} else
-		sysfs_put(sd);
+	err = sysfs_create(sd, dentry, S_IFLNK|S_IRWXUGO, init_symlink);
+	if (!err)
+		sysfs_attach_dentry(sd, dentry);
 
 	return err;
 }
@@ -773,7 +767,6 @@ struct dentry *sysfs_create_shadow_dir(struct kobject *kobj)
 	d_instantiate(shadow, igrab(inode));
 	inc_nlink(inode);
 	inc_nlink(parent->d_inode);
-	shadow->d_op = &sysfs_dentry_ops;
 
 	dget(shadow);		/* Extra count - pin the dentry in core */
 
