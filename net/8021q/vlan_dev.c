@@ -534,135 +534,67 @@ int vlan_dev_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-int vlan_dev_set_ingress_priority(char *dev_name, __u32 skb_prio, short vlan_prio)
+void vlan_dev_set_ingress_priority(const struct net_device *dev,
+				   u32 skb_prio, short vlan_prio)
 {
-	struct net_device *dev = dev_get_by_name(dev_name);
-
-	if (dev) {
-		if (dev->priv_flags & IFF_802_1Q_VLAN) {
-			/* see if a priority mapping exists.. */
-			VLAN_DEV_INFO(dev)->ingress_priority_map[vlan_prio & 0x7] = skb_prio;
-			dev_put(dev);
-			return 0;
-		}
-
-		dev_put(dev);
-	}
-	return -EINVAL;
+	VLAN_DEV_INFO(dev)->ingress_priority_map[vlan_prio & 0x7] = skb_prio;
 }
 
-int vlan_dev_set_egress_priority(char *dev_name, __u32 skb_prio, short vlan_prio)
+int vlan_dev_set_egress_priority(const struct net_device *dev,
+				 u32 skb_prio, short vlan_prio)
 {
-	struct net_device *dev = dev_get_by_name(dev_name);
 	struct vlan_priority_tci_mapping *mp = NULL;
 	struct vlan_priority_tci_mapping *np;
 
-	if (dev) {
-		if (dev->priv_flags & IFF_802_1Q_VLAN) {
-			/* See if a priority mapping exists.. */
-			mp = VLAN_DEV_INFO(dev)->egress_priority_map[skb_prio & 0xF];
-			while (mp) {
-				if (mp->priority == skb_prio) {
-					mp->vlan_qos = ((vlan_prio << 13) & 0xE000);
-					dev_put(dev);
-					return 0;
-				}
-				mp = mp->next;
-			}
-
-			/* Create a new mapping then. */
-			mp = VLAN_DEV_INFO(dev)->egress_priority_map[skb_prio & 0xF];
-			np = kmalloc(sizeof(struct vlan_priority_tci_mapping), GFP_KERNEL);
-			if (np) {
-				np->next = mp;
-				np->priority = skb_prio;
-				np->vlan_qos = ((vlan_prio << 13) & 0xE000);
-				VLAN_DEV_INFO(dev)->egress_priority_map[skb_prio & 0xF] = np;
-				dev_put(dev);
-				return 0;
-			} else {
-				dev_put(dev);
-				return -ENOBUFS;
-			}
+	/* See if a priority mapping exists.. */
+	mp = VLAN_DEV_INFO(dev)->egress_priority_map[skb_prio & 0xF];
+	while (mp) {
+		if (mp->priority == skb_prio) {
+			mp->vlan_qos = ((vlan_prio << 13) & 0xE000);
+			return 0;
 		}
-		dev_put(dev);
+		mp = mp->next;
 	}
-	return -EINVAL;
+
+	/* Create a new mapping then. */
+	mp = VLAN_DEV_INFO(dev)->egress_priority_map[skb_prio & 0xF];
+	np = kmalloc(sizeof(struct vlan_priority_tci_mapping), GFP_KERNEL);
+	if (!np)
+		return -ENOBUFS;
+
+	np->next = mp;
+	np->priority = skb_prio;
+	np->vlan_qos = ((vlan_prio << 13) & 0xE000);
+	VLAN_DEV_INFO(dev)->egress_priority_map[skb_prio & 0xF] = np;
+	return 0;
 }
 
 /* Flags are defined in the vlan_dev_info class in include/linux/if_vlan.h file. */
-int vlan_dev_set_vlan_flag(char *dev_name, __u32 flag, short flag_val)
+int vlan_dev_set_vlan_flag(const struct net_device *dev,
+			   u32 flag, short flag_val)
 {
-	struct net_device *dev = dev_get_by_name(dev_name);
-
-	if (dev) {
-		if (dev->priv_flags & IFF_802_1Q_VLAN) {
-			/* verify flag is supported */
-			if (flag == 1) {
-				if (flag_val) {
-					VLAN_DEV_INFO(dev)->flags |= 1;
-				} else {
-					VLAN_DEV_INFO(dev)->flags &= ~1;
-				}
-				dev_put(dev);
-				return 0;
-			} else {
-				printk(KERN_ERR  "%s: flag %i is not valid.\n",
-					__FUNCTION__, (int)(flag));
-				dev_put(dev);
-				return -EINVAL;
-			}
+	/* verify flag is supported */
+	if (flag == 1) {
+		if (flag_val) {
+			VLAN_DEV_INFO(dev)->flags |= 1;
 		} else {
-			printk(KERN_ERR
-			       "%s: %s is not a vlan device, priv_flags: %hX.\n",
-			       __FUNCTION__, dev->name, dev->priv_flags);
-			dev_put(dev);
+			VLAN_DEV_INFO(dev)->flags &= ~1;
 		}
-	} else {
-		printk(KERN_ERR  "%s: Could not find device: %s\n",
-			__FUNCTION__, dev_name);
+		return 0;
 	}
-
+	printk(KERN_ERR "%s: flag %i is not valid.\n", __FUNCTION__, flag);
 	return -EINVAL;
 }
 
-
-int vlan_dev_get_realdev_name(const char *dev_name, char* result)
+void vlan_dev_get_realdev_name(const struct net_device *dev, char *result)
 {
-	struct net_device *dev = dev_get_by_name(dev_name);
-	int rv = 0;
-	if (dev) {
-		if (dev->priv_flags & IFF_802_1Q_VLAN) {
-			strncpy(result, VLAN_DEV_INFO(dev)->real_dev->name, 23);
-			rv = 0;
-		} else {
-			rv = -EINVAL;
-		}
-		dev_put(dev);
-	} else {
-		rv = -ENODEV;
-	}
-	return rv;
+	strncpy(result, VLAN_DEV_INFO(dev)->real_dev->name, 23);
 }
 
-int vlan_dev_get_vid(const char *dev_name, unsigned short* result)
+void vlan_dev_get_vid(const struct net_device *dev, unsigned short *result)
 {
-	struct net_device *dev = dev_get_by_name(dev_name);
-	int rv = 0;
-	if (dev) {
-		if (dev->priv_flags & IFF_802_1Q_VLAN) {
-			*result = VLAN_DEV_INFO(dev)->vlan_id;
-			rv = 0;
-		} else {
-			rv = -EINVAL;
-		}
-		dev_put(dev);
-	} else {
-		rv = -ENODEV;
-	}
-	return rv;
+	*result = VLAN_DEV_INFO(dev)->vlan_id;
 }
-
 
 int vlan_dev_set_mac_address(struct net_device *dev, void *addr_struct_p)
 {
