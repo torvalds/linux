@@ -845,6 +845,7 @@ static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
 {
 	struct viosrp_adapter_info *req;
 	struct srp_event_struct *evt_struct;
+	unsigned long flags;
 	dma_addr_t addr;
 
 	evt_struct = get_event_struct(&hostdata->pool);
@@ -875,6 +876,7 @@ static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
 		return;
 	}
 	
+	spin_lock_irqsave(hostdata->host->host_lock, flags);
 	if (ibmvscsi_send_srp_event(evt_struct, hostdata, init_timeout * 2)) {
 		dev_err(hostdata->dev, "couldn't send ADAPTER_INFO_REQ!\n");
 		dma_unmap_single(hostdata->dev,
@@ -882,6 +884,7 @@ static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
 				 sizeof(hostdata->madapter_info),
 				 DMA_BIDIRECTIONAL);
 	}
+	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 };
 
 /**
@@ -1357,6 +1360,7 @@ static int ibmvscsi_do_host_config(struct ibmvscsi_host_data *hostdata,
 {
 	struct viosrp_host_config *host_config;
 	struct srp_event_struct *evt_struct;
+	unsigned long flags;
 	dma_addr_t addr;
 	int rc;
 
@@ -1388,7 +1392,9 @@ static int ibmvscsi_do_host_config(struct ibmvscsi_host_data *hostdata,
 	}
 
 	init_completion(&evt_struct->comp);
+	spin_lock_irqsave(hostdata->host->host_lock, flags);
 	rc = ibmvscsi_send_srp_event(evt_struct, hostdata, init_timeout * 2);
+	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 	if (rc == 0)
 		wait_for_completion(&evt_struct->comp);
 	dma_unmap_single(hostdata->dev, addr, length, DMA_BIDIRECTIONAL);
