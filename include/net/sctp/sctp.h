@@ -503,6 +503,13 @@ static inline int sctp_frag_point(const struct sctp_sock *sp, int pmtu)
 	return frag;
 }
 
+static inline void sctp_assoc_pending_pmtu(struct sctp_association *asoc)
+{
+
+	sctp_assoc_sync_pmtu(asoc);
+	asoc->pmtu_pending = 0;
+}
+
 /* Walk through a list of TLV parameters.  Don't trust the
  * individual parameter lengths and instead depend on
  * the chunk length to indicate when to stop.  Make sure

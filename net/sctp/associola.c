@@ -1231,6 +1231,10 @@ void sctp_assoc_sync_pmtu(struct sctp_association *asoc)
 	/* Get the lowest pmtu of all the transports. */
 	list_for_each(pos, &asoc->peer.transport_addr_list) {
 		t = list_entry(pos, struct sctp_transport, transports);
+		if (t->pmtu_pending && t->dst) {
+			sctp_transport_update_pmtu(t, dst_mtu(t->dst));
+			t->pmtu_pending = 0;
+		}
 		if (!pmtu || (t->pathmtu < pmtu))
 			pmtu = t->pathmtu;
 	}

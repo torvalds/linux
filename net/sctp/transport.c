@@ -241,6 +241,45 @@ void sctp_transport_pmtu(struct sctp_transport *transport)
 		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
 }
 
+/* this is a complete rip-off from __sk_dst_check
+ * the cookie is always 0 since this is how it's used in the
+ * pmtu code
+ */
+static struct dst_entry *sctp_transport_dst_check(struct sctp_transport *t)
+{
+	struct dst_entry *dst = t->dst;
+
+	if (dst && dst->obsolete && dst->ops->check(dst, 0) == NULL) {
+		dst_release(t->dst);
+		t->dst = NULL;
+		return NULL;
+	}
+
+	return dst;
+}
+
+void sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
+{
+	struct dst_entry *dst;
+
+	if (unlikely(pmtu < SCTP_DEFAULT_MINSEGMENT)) {
+		printk(KERN_WARNING "%s: Reported pmtu %d too low, "
+		       "using default minimum of %d\n",
+		       __FUNCTION__, pmtu,
+		       SCTP_DEFAULT_MINSEGMENT);
+		/* Use default minimum segment size and disable
+		 * pmtu discovery on this transport.
+		 */
+		t->pathmtu = SCTP_DEFAULT_MINSEGMENT;
+	} else {
+		t->pathmtu = pmtu;
+	}
+
+	dst = sctp_transport_dst_check(t);
+	if (dst)
+		dst->ops->update_pmtu(dst, pmtu);
+}
+
 /* Caches the dst entry and source address for a transport's destination
  * address.
  */
