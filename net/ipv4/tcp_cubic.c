@@ -29,7 +29,7 @@
 static int fast_convergence __read_mostly = 1;
 static int max_increment __read_mostly = 16;
 static int beta __read_mostly = 819;	/* = 819/1024 (BICTCP_BETA_SCALE) */
-static int initial_ssthresh __read_mostly = 100;
+static int initial_ssthresh __read_mostly;
 static int bic_scale __read_mostly = 41;
 static int tcp_friendliness __read_mostly = 1;
 

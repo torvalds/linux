@@ -2037,7 +2037,7 @@ static void tcp_try_to_open(struct sock *sk, int flag)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	tp->left_out = tp->sacked_out;
+	tcp_sync_left_out(tp);
 
 	if (tp->retrans_out == 0)
 		tp->retrans_stamp = 0;
@@ -2932,6 +2932,7 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 					   opt_rx->sack_ok) {
 						TCP_SKB_CB(skb)->sacked = (ptr - 2) - (unsigned char *)th;
 					}
+					break;
 #ifdef CONFIG_TCP_MD5SIG
 				case TCPOPT_MD5SIG:
 					/*

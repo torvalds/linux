@@ -317,23 +317,6 @@ void irlap_do_event(struct irlap_cb *self, IRLAP_EVENT event,
 }
 
 /*
- * Function irlap_next_state (self, state)
- *
- *    Switches state and provides debug information
- *
- */
-static inline void irlap_next_state(struct irlap_cb *self, IRLAP_STATE state)
-{
-	/*
-	if (!self || self->magic != LAP_MAGIC)
-		return;
-
-	IRDA_DEBUG(4, "next LAP state = %s\n", irlap_state[state]);
-	*/
-	self->state = state;
-}
-
-/*
  * Function irlap_state_ndm (event, skb, frame)
  *
  *    NDM (Normal Disconnected Mode) state
@@ -1086,7 +1069,6 @@ static int irlap_state_xmit_p(struct irlap_cb *self, IRLAP_EVENT event,
 			} else {
 				/* Final packet of window */
 				irlap_send_data_primary_poll(self, skb);
-				irlap_next_state(self, LAP_NRM_P);
 
 				/*
 				 * Make sure state machine does not try to send
@@ -1436,14 +1418,14 @@ static int irlap_state_nrm_p(struct irlap_cb *self, IRLAP_EVENT event,
 		 */
 		self->remote_busy = FALSE;
 
+		/* Stop final timer */
+		del_timer(&self->final_timer);
+
 		/*
 		 *  Nr as expected?
 		 */
 		ret = irlap_validate_nr_received(self, info->nr);
 		if (ret == NR_EXPECTED) {
-			/* Stop final timer */
-			del_timer(&self->final_timer);
-
 			/* Update Nr received */
 			irlap_update_nr_received(self, info->nr);
 
@@ -1475,14 +1457,12 @@ static int irlap_state_nrm_p(struct irlap_cb *self, IRLAP_EVENT event,
 
 			/* Resend rejected frames */
 			irlap_resend_rejected_frames(self, CMD_FRAME);
-
-			/* Final timer ??? Jean II */
+			irlap_start_final_timer(self, self->final_timeout * 2);
 
 			irlap_next_state(self, LAP_NRM_P);
 		} else if (ret == NR_INVALID) {
 			IRDA_DEBUG(1, "%s(), Received RR with "
 				   "invalid nr !\n", __FUNCTION__);
-			del_timer(&self->final_timer);
 
 			irlap_next_state(self, LAP_RESET_WAIT);
 
