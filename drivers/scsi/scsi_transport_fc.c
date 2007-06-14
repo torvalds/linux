@@ -1943,6 +1943,9 @@ static int fc_user_scan(struct Scsi_Host *shost, uint channel,
 		if (rport->scsi_target_id == -1)
 			continue;
 
+		if (rport->port_state != FC_PORTSTATE_ONLINE)
+			continue;
+
 		if ((channel == SCAN_WILD_CARD || channel == rport->channel) &&
 		    (id == SCAN_WILD_CARD || id == rport->scsi_target_id)) {
 			scsi_scan_target(&rport->dev, rport->channel,
