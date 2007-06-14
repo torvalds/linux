@@ -42,6 +42,12 @@
 
 #if defined(ANOMALY_05000198)
 
+#define bfin_read8(addr) ({ unsigned char __v; \
+		__asm__ __volatile__ ("NOP;\n\t" \
+			"%0 = b[%1] (z);\n\t" \
+			: "=d"(__v) : "a"(addr)); \
+		__v; })
+
 #define bfin_read16(addr) ({ unsigned __v; \
                        __asm__ __volatile__ ("NOP;\n\t"\
 	         			     			"%0 = w[%1] (z);\n\t"\
@@ -51,6 +57,11 @@
                       __asm__ __volatile__ ("NOP;\n\t"\
                                             "%0 = [%1];\n\t"\
   : "=d"(__v) : "a"(addr)); __v; })
+
+#define bfin_write8(addr, val) ({ \
+		__asm__ __volatile__ ("NOP;\n\t" \
+			"b[%0] = %1;\n\t" \
+			: : "a"(addr), "d"(val) : "memory");})
 
 #define bfin_write16(addr,val) ({\
                       __asm__ __volatile__ ("NOP;\n\t"\
@@ -64,6 +75,12 @@
 
 #else
 
+#define bfin_read8(addr) ({ unsigned char __v; \
+		__asm__ __volatile__ ( \
+			"%0 = b[%1] (z);\n\t" \
+			:"=d"(__v) : "a"(addr)); \
+		__v; })
+
 #define bfin_read16(addr) ({ unsigned __v; \
                        __asm__ __volatile__ (\
 	         			     			"%0 = w[%1] (z);\n\t"\
@@ -73,6 +90,11 @@
                       __asm__ __volatile__ (\
                                             "%0 = [%1];\n\t"\
   : "=d"(__v) : "a"(addr)); __v; })
+
+#define bfin_write8(addr, val) ({ \
+		__asm__ __volatile__ ( \
+			"b[%0] = %1; \n\t" \
+			::"a"(addr), "d"(val) : "memory");})
 
 #define bfin_write16(addr,val) ({\
                       __asm__ __volatile__ (\
