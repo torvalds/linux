@@ -145,7 +145,7 @@ static int parport_isa_probe(int count)
 			 */
 			if (parport_pc_probe_port(base, base + 0x400,
 						  child->irq, PARPORT_DMA_NOFIFO,
-						  child->bus->self))
+						  &child->bus->self->dev))
 				count++;
 		}
 	}
@@ -199,7 +199,8 @@ static int parport_pc_find_nonpci_ports (int autoirq, int autodma)
 
 				if (parport_pc_probe_port(base, base + 0x400,
 							  edev->irqs[0],
-							  count, ebus->self))
+							  count,
+							  &ebus->self->dev))
 					count++;
 			}
 		}

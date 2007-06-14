@@ -46,6 +46,7 @@ extern void irq_install_pre_handler(int virt_irq,
 #define irq_canonicalize(irq)	(irq)
 extern unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap);
 extern unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino);
+extern unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino);
 extern unsigned int sun4v_build_msi(u32 devhandle, unsigned int *virt_irq_p,
 				    unsigned int msi_devino_start,
 				    unsigned int msi_devino_end);
