@@ -471,6 +471,67 @@ close_cplbtab(struct cplb_tab *table)
 	return 0;
 }
 
+/* helper function */
+static void __fill_code_cplbtab(struct cplb_tab *t, int i,
+				u32 a_start, u32 a_end)
+{
+	if (cplb_data[i].psize) {
+		fill_cplbtab(t,
+				cplb_data[i].start,
+				cplb_data[i].end,
+				cplb_data[i].psize,
+				cplb_data[i].i_conf);
+	} else {
+#if (defined(CONFIG_BLKFIN_CACHE) && defined(ANOMALY_05000263))
+		if (i == SDRAM_KERN) {
+			fill_cplbtab(t,
+					cplb_data[i].start,
+					cplb_data[i].end,
+					SIZE_4M,
+					cplb_data[i].i_conf);
+		} else {
+#endif
+			fill_cplbtab(t,
+					cplb_data[i].start,
+					a_start,
+					SIZE_1M,
+					cplb_data[i].i_conf);
+			fill_cplbtab(t,
+					a_start,
+					a_end,
+					SIZE_4M,
+					cplb_data[i].i_conf);
+			fill_cplbtab(t, a_end,
+					cplb_data[i].end,
+					SIZE_1M,
+					cplb_data[i].i_conf);
+		}
+	}
+}
+
+static void __fill_data_cplbtab(struct cplb_tab *t, int i,
+				u32 a_start, u32 a_end)
+{
+	if (cplb_data[i].psize) {
+		fill_cplbtab(t,
+				cplb_data[i].start,
+				cplb_data[i].end,
+				cplb_data[i].psize,
+				cplb_data[i].d_conf);
+	} else {
+		fill_cplbtab(t,
+				cplb_data[i].start,
+				a_start, SIZE_1M,
+				cplb_data[i].d_conf);
+		fill_cplbtab(t, a_start,
+				a_end, SIZE_4M,
+				cplb_data[i].d_conf);
+		fill_cplbtab(t, a_end,
+				cplb_data[i].end,
+				SIZE_1M,
+				cplb_data[i].d_conf);
+	}
+}
 static void __init generate_cpl_tables(void)
 {
 
@@ -540,130 +601,78 @@ static void __init generate_cpl_tables(void)
 		cplb_data[RES_MEM].i_conf = SDRAM_INON_CHBL;
 
 	for (i = ZERO_P; i <= L2_MEM; i++) {
+		if (!cplb_data[i].valid)
+			continue;
 
-		if (cplb_data[i].valid) {
+		as_1m = cplb_data[i].start % SIZE_1M;
 
-			as_1m = cplb_data[i].start % SIZE_1M;
+		/*
+		 * We need to make sure all sections are properly 1M aligned
+		 * However between Kernel Memory and the Kernel mtd section,
+		 * depending on the rootfs size, there can be overlapping
+		 * memory areas.
+		 */
 
-			/* We need to make sure all sections are properly 1M aligned
-			 * However between Kernel Memory and the Kernel mtd section, depending on the
-			 * rootfs size, there can be overlapping memory areas.
-			 */
-
-			if (as_1m &&  i!=L1I_MEM && i!=L1D_MEM) {
+		if (as_1m && i != L1I_MEM && i != L1D_MEM) {
 #ifdef CONFIG_MTD_UCLINUX
-				if (i == SDRAM_RAM_MTD) {
-					if ((cplb_data[SDRAM_KERN].end + 1) > cplb_data[SDRAM_RAM_MTD].start)
-						cplb_data[SDRAM_RAM_MTD].start = (cplb_data[i].start & (-2*SIZE_1M)) + SIZE_1M;
-					else
-						cplb_data[SDRAM_RAM_MTD].start = (cplb_data[i].start & (-2*SIZE_1M));
+			if (i == SDRAM_RAM_MTD) {
+				if ((cplb_data[SDRAM_KERN].end + 1) >
+						cplb_data[SDRAM_RAM_MTD].start)
+					cplb_data[SDRAM_RAM_MTD].start =
+						(cplb_data[i].start &
+						 (-2*SIZE_1M)) + SIZE_1M;
+				else
+					cplb_data[SDRAM_RAM_MTD].start =
+						(cplb_data[i].start &
+						 (-2*SIZE_1M));
+			} else
+#endif
+				printk(KERN_WARNING
+					"Unaligned Start of %s at 0x%X\n",
+					cplb_data[i].name, cplb_data[i].start);
+		}
+
+		as = cplb_data[i].start % SIZE_4M;
+		ae = cplb_data[i].end % SIZE_4M;
+
+		if (as)
+			a_start = cplb_data[i].start + (SIZE_4M - (as));
+		else
+			a_start = cplb_data[i].start;
+
+		a_end = cplb_data[i].end - ae;
+
+		for (j = INITIAL_T; j <= SWITCH_T; j++) {
+
+			switch (j) {
+			case INITIAL_T:
+				if (cplb_data[i].attr & INITIAL_T) {
+					t_i = &cplb.init_i;
+					t_d = &cplb.init_d;
+					process = 1;
 				} else
-#endif
-					printk(KERN_WARNING "Unaligned Start of %s at 0x%X\n",
-					       cplb_data[i].name, cplb_data[i].start);
+					process = 0;
+				break;
+			case SWITCH_T:
+				if (cplb_data[i].attr & SWITCH_T) {
+					t_i = &cplb.switch_i;
+					t_d = &cplb.switch_d;
+					process = 1;
+				} else
+					process = 0;
+				break;
+			default:
+					process = 0;
+				break;
 			}
 
-			as = cplb_data[i].start % SIZE_4M;
-			ae = cplb_data[i].end % SIZE_4M;
+			if (!process)
+				continue;
+			if (cplb_data[i].attr & I_CPLB)
+				__fill_code_cplbtab(t_i, i, a_start, a_end);
 
-			if (as)
-				a_start = cplb_data[i].start + (SIZE_4M - (as));
-			else
-				a_start = cplb_data[i].start;
-
-			a_end = cplb_data[i].end - ae;
-
-			for (j = INITIAL_T; j <= SWITCH_T; j++) {
-
-				switch (j) {
-				case INITIAL_T:
-					if (cplb_data[i].attr & INITIAL_T) {
-						t_i = &cplb.init_i;
-						t_d = &cplb.init_d;
-						process = 1;
-					} else
-						process = 0;
-					break;
-				case SWITCH_T:
-					if (cplb_data[i].attr & SWITCH_T) {
-						t_i = &cplb.switch_i;
-						t_d = &cplb.switch_d;
-						process = 1;
-					} else
-						process = 0;
-					break;
-				default:
-						process = 0;
-					break;
-				}
-
-	if (process) {
-				if (cplb_data[i].attr & I_CPLB) {
-
-					if (cplb_data[i].psize) {
-						fill_cplbtab(t_i,
-							     cplb_data[i].start,
-							     cplb_data[i].end,
-							     cplb_data[i].psize,
-							     cplb_data[i].i_conf);
-					} else {
-						/*icplb_table */
-#if (defined(CONFIG_BLKFIN_CACHE) && defined(ANOMALY_05000263))
-						if (i == SDRAM_KERN) {
-							fill_cplbtab(t_i,
-								     cplb_data[i].start,
-								     cplb_data[i].end,
-								     SIZE_4M,
-								     cplb_data[i].i_conf);
-						} else
-#endif
-						{
-							fill_cplbtab(t_i,
-								     cplb_data[i].start,
-								     a_start,
-								     SIZE_1M,
-								     cplb_data[i].i_conf);
-							fill_cplbtab(t_i,
-								     a_start,
-								     a_end,
-								     SIZE_4M,
-								     cplb_data[i].i_conf);
-							fill_cplbtab(t_i, a_end,
-								     cplb_data[i].end,
-								     SIZE_1M,
-								     cplb_data[i].i_conf);
-						}
-					}
-
-				}
-				if (cplb_data[i].attr & D_CPLB) {
-
-					if (cplb_data[i].psize) {
-						fill_cplbtab(t_d,
-							     cplb_data[i].start,
-							     cplb_data[i].end,
-							     cplb_data[i].psize,
-							     cplb_data[i].d_conf);
-					} else {
-/*dcplb_table*/
-						fill_cplbtab(t_d,
-							     cplb_data[i].start,
-							     a_start, SIZE_1M,
-							     cplb_data[i].d_conf);
-						fill_cplbtab(t_d, a_start,
-							     a_end, SIZE_4M,
-							     cplb_data[i].d_conf);
-						fill_cplbtab(t_d, a_end,
-							     cplb_data[i].end,
-							     SIZE_1M,
-							     cplb_data[i].d_conf);
-
-					}
-
-				}
-			}
-			}
-
+			if (cplb_data[i].attr & D_CPLB)
+				__fill_data_cplbtab(t_d, i, a_start, a_end);
 		}
 	}
 
