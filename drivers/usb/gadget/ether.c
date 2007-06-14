@@ -277,7 +277,7 @@ MODULE_PARM_DESC(host_addr, "Host Ethernet Address");
 #define DEV_CONFIG_CDC
 #endif
 
-#ifdef CONFIG_USB_GADGET_HUSB2DEV
+#ifdef CONFIG_USB_GADGET_ATMEL_USBA
 #define DEV_CONFIG_CDC
 #endif
 

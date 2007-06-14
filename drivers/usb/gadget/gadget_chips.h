@@ -82,10 +82,10 @@
 #define	gadget_is_pxa27x(g)	0
 #endif
 
-#ifdef CONFIG_USB_GADGET_HUSB2DEV
-#define gadget_is_husb2dev(g)	!strcmp("husb2_udc", (g)->name)
+#ifdef CONFIG_USB_GADGET_ATMEL_USBA
+#define gadget_is_atmel_usba(g)	!strcmp("atmel_usba_udc", (g)->name)
 #else
-#define gadget_is_husb2dev(g)	0
+#define gadget_is_atmel_usba(g)	0
 #endif
 
 #ifdef CONFIG_USB_GADGET_S3C2410
@@ -198,7 +198,7 @@ static inline int usb_gadget_controller_number(struct usb_gadget *gadget)
 		return 0x16;
 	else if (gadget_is_mpc8272(gadget))
 		return 0x17;
-	else if (gadget_is_husb2dev(gadget))
+	else if (gadget_is_atmel_usba(gadget))
 		return 0x18;
 	else if (gadget_is_fsl_usb2(gadget))
 		return 0x19;
