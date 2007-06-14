@@ -1235,7 +1235,7 @@ spider_net_decode_one_descr(struct spider_net_card *card)
 		goto bad_desc;
 	}
 
-	if (hwdescr->dmac_cmd_status & 0xfcf4) {
+	if (hwdescr->dmac_cmd_status & SPIDER_NET_DESCR_BAD_STATUS) {
 		dev_err(&card->netdev->dev, "bad status, cmd_status=x%08x\n",
 			       hwdescr->dmac_cmd_status);
 		pr_err("buf_addr=x%08x\n", hw_buf_addr);
