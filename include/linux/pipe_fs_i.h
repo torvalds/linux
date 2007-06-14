@@ -88,7 +88,13 @@ int generic_pipe_buf_steal(struct pipe_inode_info *, struct pipe_buffer *);
 struct splice_desc {
 	unsigned int len, total_len;	/* current and remaining length */
 	unsigned int flags;		/* splice flags */
-	struct file *file;		/* file to read/write */
+	/*
+	 * actor() private data
+	 */
+	union {
+		void __user *userptr;	/* memory to write to */
+		struct file *file;	/* file to read/write */
+	} u;
 	loff_t pos;			/* file position */
 };
 

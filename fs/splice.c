@@ -528,7 +528,7 @@ EXPORT_SYMBOL(generic_file_splice_read);
 static int pipe_to_sendpage(struct pipe_inode_info *pipe,
 			    struct pipe_buffer *buf, struct splice_desc *sd)
 {
-	struct file *file = sd->file;
+	struct file *file = sd->u.file;
 	loff_t pos = sd->pos;
 	int ret, more;
 
@@ -566,7 +566,7 @@ static int pipe_to_sendpage(struct pipe_inode_info *pipe,
 static int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 			struct splice_desc *sd)
 {
-	struct file *file = sd->file;
+	struct file *file = sd->u.file;
 	struct address_space *mapping = file->f_mapping;
 	unsigned int offset, this_len;
 	struct page *page;
@@ -769,7 +769,7 @@ ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 		.total_len = len,
 		.flags = flags,
 		.pos = *ppos,
-		.file = out,
+		.u.file = out,
 	};
 
 	/*
@@ -807,7 +807,7 @@ generic_file_splice_write_nolock(struct pipe_inode_info *pipe, struct file *out,
 		.total_len = len,
 		.flags = flags,
 		.pos = *ppos,
-		.file = out,
+		.u.file = out,
 	};
 	ssize_t ret;
 	int err;
@@ -1087,7 +1087,7 @@ EXPORT_SYMBOL(splice_direct_to_actor);
 static int direct_splice_actor(struct pipe_inode_info *pipe,
 			       struct splice_desc *sd)
 {
-	struct file *file = sd->file;
+	struct file *file = sd->u.file;
 
 	return do_splice_from(pipe, file, &sd->pos, sd->total_len, sd->flags);
 }
@@ -1100,7 +1100,7 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 		.total_len	= len,
 		.flags		= flags,
 		.pos		= *ppos,
-		.file		= out,
+		.u.file		= out,
 	};
 	size_t ret;
 
@@ -1289,28 +1289,131 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 	return error;
 }
 
+static int pipe_to_user(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
+			struct splice_desc *sd)
+{
+	char *src;
+	int ret;
+
+	ret = buf->ops->pin(pipe, buf);
+	if (unlikely(ret))
+		return ret;
+
+	/*
+	 * See if we can use the atomic maps, by prefaulting in the
+	 * pages and doing an atomic copy
+	 */
+	if (!fault_in_pages_writeable(sd->u.userptr, sd->len)) {
+		src = buf->ops->map(pipe, buf, 1);
+		ret = __copy_to_user_inatomic(sd->u.userptr, src + buf->offset,
+							sd->len);
+		buf->ops->unmap(pipe, buf, src);
+		if (!ret) {
+			ret = sd->len;
+			goto out;
+		}
+	}
+
+	/*
+	 * No dice, use slow non-atomic map and copy
+ 	 */
+	src = buf->ops->map(pipe, buf, 0);
+
+	ret = sd->len;
+	if (copy_to_user(sd->u.userptr, src + buf->offset, sd->len))
+		ret = -EFAULT;
+
+out:
+	if (ret > 0)
+		sd->u.userptr += ret;
+	buf->ops->unmap(pipe, buf, src);
+	return ret;
+}
+
+/*
+ * For lack of a better implementation, implement vmsplice() to userspace
+ * as a simple copy of the pipes pages to the user iov.
+ */
+static long vmsplice_to_user(struct file *file, const struct iovec __user *iov,
+			     unsigned long nr_segs, unsigned int flags)
+{
+	struct pipe_inode_info *pipe;
+	struct splice_desc sd;
+	ssize_t size;
+	int error;
+	long ret;
+
+	pipe = pipe_info(file->f_path.dentry->d_inode);
+	if (!pipe)
+		return -EBADF;
+
+	if (pipe->inode)
+		mutex_lock(&pipe->inode->i_mutex);
+
+	error = ret = 0;
+	while (nr_segs) {
+		void __user *base;
+		size_t len;
+
+		/*
+		 * Get user address base and length for this iovec.
+		 */
+		error = get_user(base, &iov->iov_base);
+		if (unlikely(error))
+			break;
+		error = get_user(len, &iov->iov_len);
+		if (unlikely(error))
+			break;
+
+		/*
+		 * Sanity check this iovec. 0 read succeeds.
+		 */
+		if (unlikely(!len))
+			break;
+		if (unlikely(!base)) {
+			error = -EFAULT;
+			break;
+		}
+
+		sd.len = 0;
+		sd.total_len = len;
+		sd.flags = flags;
+		sd.u.userptr = base;
+		sd.pos = 0;
+
+		size = __splice_from_pipe(pipe, &sd, pipe_to_user);
+		if (size < 0) {
+			if (!ret)
+				ret = size;
+
+			break;
+		}
+
+		ret += size;
+
+		if (size < len)
+			break;
+
+		nr_segs--;
+		iov++;
+	}
+
+	if (pipe->inode)
+		mutex_unlock(&pipe->inode->i_mutex);
+
+	if (!ret)
+		ret = error;
+
+	return ret;
+}
+
 /*
  * vmsplice splices a user address range into a pipe. It can be thought of
  * as splice-from-memory, where the regular splice is splice-from-file (or
  * to file). In both cases the output is a pipe, naturally.
- *
- * Note that vmsplice only supports splicing _from_ user memory to a pipe,
- * not the other way around. Splicing from user memory is a simple operation
- * that can be supported without any funky alignment restrictions or nasty
- * vm tricks. We simply map in the user memory and fill them into a pipe.
- * The reverse isn't quite as easy, though. There are two possible solutions
- * for that:
- *
- *	- memcpy() the data internally, at which point we might as well just
- *	  do a regular read() on the buffer anyway.
- *	- Lots of nasty vm tricks, that are neither fast nor flexible (it
- *	  has restriction limitations on both ends of the pipe).
- *
- * Alas, it isn't here.
- *
  */
-static long do_vmsplice(struct file *file, const struct iovec __user *iov,
-			unsigned long nr_segs, unsigned int flags)
+static long vmsplice_to_pipe(struct file *file, const struct iovec __user *iov,
+			     unsigned long nr_segs, unsigned int flags)
 {
 	struct pipe_inode_info *pipe;
 	struct page *pages[PIPE_BUFFERS];
@@ -1325,10 +1428,6 @@ static long do_vmsplice(struct file *file, const struct iovec __user *iov,
 	pipe = pipe_info(file->f_path.dentry->d_inode);
 	if (!pipe)
 		return -EBADF;
-	if (unlikely(nr_segs > UIO_MAXIOV))
-		return -EINVAL;
-	else if (unlikely(!nr_segs))
-		return 0;
 
 	spd.nr_pages = get_iovec_page_array(iov, nr_segs, pages, partial,
 					    flags & SPLICE_F_GIFT);
@@ -1338,6 +1437,22 @@ static long do_vmsplice(struct file *file, const struct iovec __user *iov,
 	return splice_to_pipe(pipe, &spd);
 }
 
+/*
+ * Note that vmsplice only really supports true splicing _from_ user memory
+ * to a pipe, not the other way around. Splicing from user memory is a simple
+ * operation that can be supported without any funky alignment restrictions
+ * or nasty vm tricks. We simply map in the user memory and fill them into
+ * a pipe. The reverse isn't quite as easy, though. There are two possible
+ * solutions for that:
+ *
+ *	- memcpy() the data internally, at which point we might as well just
+ *	  do a regular read() on the buffer anyway.
+ *	- Lots of nasty vm tricks, that are neither fast nor flexible (it
+ *	  has restriction limitations on both ends of the pipe).
+ *
+ * Currently we punt and implement it as a normal copy, see pipe_to_user().
+ *
+ */
 asmlinkage long sys_vmsplice(int fd, const struct iovec __user *iov,
 			     unsigned long nr_segs, unsigned int flags)
 {
@@ -1345,11 +1460,18 @@ asmlinkage long sys_vmsplice(int fd, const struct iovec __user *iov,
 	long error;
 	int fput;
 
+	if (unlikely(nr_segs > UIO_MAXIOV))
+		return -EINVAL;
+	else if (unlikely(!nr_segs))
+		return 0;
+
 	error = -EBADF;
 	file = fget_light(fd, &fput);
 	if (file) {
 		if (file->f_mode & FMODE_WRITE)
-			error = do_vmsplice(file, iov, nr_segs, flags);
+			error = vmsplice_to_pipe(file, iov, nr_segs, flags);
+		else if (file->f_mode & FMODE_READ)
+			error = vmsplice_to_user(file, iov, nr_segs, flags);
 
 		fput_light(file, fput);
 	}

@@ -1640,7 +1640,7 @@ static ssize_t __ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 		.total_len = len,
 		.flags = flags,
 		.pos = *ppos,
-		.file = out,
+		.u.file = out,
 	};
 
 	ret = __splice_from_pipe(pipe, &sd, ocfs2_splice_write_actor);
