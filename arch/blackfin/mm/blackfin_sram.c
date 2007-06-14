@@ -109,8 +109,9 @@ void __init l1_data_sram_init(void)
 #endif
 #if L1_DATA_B_LENGTH != 0
 	memset(&l1_data_B_sram, 0x00, sizeof(l1_data_B_sram));
-	l1_data_B_sram[0].paddr = (void*)L1_DATA_B_START;
-	l1_data_B_sram[0].size = L1_DATA_B_LENGTH;
+	l1_data_B_sram[0].paddr = (void *)L1_DATA_B_START +
+				(_ebss_b_l1 - _sdata_b_l1);
+	l1_data_B_sram[0].size = L1_DATA_B_LENGTH - (_ebss_b_l1 - _sdata_b_l1);
 	l1_data_B_sram[0].flag = SRAM_SLT_FREE;
 
 	printk(KERN_INFO "Blackfin Data B SRAM: %d KB (%d KB free)\n",
