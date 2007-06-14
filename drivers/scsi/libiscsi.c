@@ -140,7 +140,7 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
         hdr->flags = ISCSI_ATTR_SIMPLE;
         int_to_scsilun(sc->device->lun, (struct scsi_lun *)hdr->lun);
         hdr->itt = build_itt(ctask->itt, conn->id, session->age);
-        hdr->data_length = cpu_to_be32(sc->request_bufflen);
+        hdr->data_length = cpu_to_be32(scsi_bufflen(sc));
         hdr->cmdsn = cpu_to_be32(session->cmdsn);
         session->cmdsn++;
         hdr->exp_statsn = cpu_to_be32(conn->exp_statsn);
@@ -172,11 +172,11 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 		ctask->unsol_datasn = 0;
 
 		if (session->imm_data_en) {
-			if (sc->request_bufflen >= session->first_burst)
+			if (scsi_bufflen(sc) >= session->first_burst)
 				ctask->imm_count = min(session->first_burst,
 							conn->max_xmit_dlength);
 			else
-				ctask->imm_count = min(sc->request_bufflen,
+				ctask->imm_count = min(scsi_bufflen(sc),
 							conn->max_xmit_dlength);
 			hton24(ctask->hdr->dlength, ctask->imm_count);
 		} else
@@ -184,7 +184,7 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 
 		if (!session->initial_r2t_en) {
 			ctask->unsol_count = min((session->first_burst),
-				(sc->request_bufflen)) - ctask->imm_count;
+				(scsi_bufflen(sc))) - ctask->imm_count;
 			ctask->unsol_offset = ctask->imm_count;
 		}
 
@@ -204,7 +204,7 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
         debug_scsi("iscsi prep [%s cid %d sc %p cdb 0x%x itt 0x%x len %d "
 		"cmdsn %d win %d]\n",
                 sc->sc_data_direction == DMA_TO_DEVICE ? "write" : "read",
-                conn->id, sc, sc->cmnd[0], ctask->itt, sc->request_bufflen,
+		conn->id, sc, sc->cmnd[0], ctask->itt, scsi_bufflen(sc),
                 session->cmdsn, session->max_cmdsn - session->exp_cmdsn + 1);
 }
 
@@ -297,14 +297,14 @@ invalid_datalen:
 	if (rhdr->flags & ISCSI_FLAG_CMD_UNDERFLOW) {
 		int res_count = be32_to_cpu(rhdr->residual_count);
 
-		if (res_count > 0 && res_count <= sc->request_bufflen)
-			sc->resid = res_count;
+		if (res_count > 0 && res_count <= scsi_bufflen(sc))
+			scsi_set_resid(sc, res_count);
 		else
 			sc->result = (DID_BAD_TARGET << 16) | rhdr->cmd_status;
 	} else if (rhdr->flags & ISCSI_FLAG_CMD_BIDI_UNDERFLOW)
 		sc->result = (DID_BAD_TARGET << 16) | rhdr->cmd_status;
 	else if (rhdr->flags & ISCSI_FLAG_CMD_OVERFLOW)
-		sc->resid = be32_to_cpu(rhdr->residual_count);
+		scsi_set_resid(sc, be32_to_cpu(rhdr->residual_count));
 
 out:
 	debug_scsi("done [sc %lx res %d itt 0x%x]\n",
@@ -876,7 +876,7 @@ fault:
 	printk(KERN_ERR "iscsi: cmd 0x%x is not queued (%d)\n",
 	       sc->cmnd[0], reason);
 	sc->result = (DID_NO_CONNECT << 16);
-	sc->resid = sc->request_bufflen;
+	scsi_set_resid(sc, scsi_bufflen(sc));
 	sc->scsi_done(sc);
 	return 0;
 }
@@ -1145,7 +1145,7 @@ static void fail_command(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 	iscsi_ctask_mtask_cleanup(ctask);
 
 	sc->result = err;
-	sc->resid = sc->request_bufflen;
+	scsi_set_resid(sc, scsi_bufflen(sc));
 	if (conn->ctask == ctask)
 		conn->ctask = NULL;
 	/* release ref from queuecommand */

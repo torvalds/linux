@@ -237,10 +237,10 @@ iscsi_data_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	tcp_ctask->exp_datasn++;
 
 	tcp_ctask->data_offset = be32_to_cpu(rhdr->offset);
-	if (tcp_ctask->data_offset + tcp_conn->in.datalen > sc->request_bufflen) {
+	if (tcp_ctask->data_offset + tcp_conn->in.datalen > scsi_bufflen(sc)) {
 		debug_tcp("%s: data_offset(%d) + data_len(%d) > total_length_in(%d)\n",
 		          __FUNCTION__, tcp_ctask->data_offset,
-		          tcp_conn->in.datalen, sc->request_bufflen);
+		          tcp_conn->in.datalen, scsi_bufflen(sc));
 		return ISCSI_ERR_DATA_OFFSET;
 	}
 
@@ -250,14 +250,14 @@ iscsi_data_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 			int res_count = be32_to_cpu(rhdr->residual_count);
 
 			if (res_count > 0 &&
-			    res_count <= sc->request_bufflen) {
-				sc->resid = res_count;
+			    res_count <= scsi_bufflen(sc)) {
+				scsi_set_resid(sc, res_count);
 				sc->result = (DID_OK << 16) | rhdr->cmd_status;
 			} else
 				sc->result = (DID_BAD_TARGET << 16) |
 					rhdr->cmd_status;
 		} else if (rhdr->flags & ISCSI_FLAG_DATA_OVERFLOW) {
-			sc->resid = be32_to_cpu(rhdr->residual_count);
+			scsi_set_resid(sc, be32_to_cpu(rhdr->residual_count));
 			sc->result = (DID_OK << 16) | rhdr->cmd_status;
 		} else
 			sc->result = (DID_OK << 16) | rhdr->cmd_status;
@@ -285,6 +285,8 @@ iscsi_solicit_data_init(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 {
 	struct iscsi_data *hdr;
 	struct scsi_cmnd *sc = ctask->sc;
+	int i, sg_count = 0;
+	struct scatterlist *sg;
 
 	hdr = &r2t->dtask.hdr;
 	memset(hdr, 0, sizeof(struct iscsi_data));
@@ -312,39 +314,30 @@ iscsi_solicit_data_init(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 	iscsi_buf_init_iov(&r2t->headbuf, (char*)hdr,
 			   sizeof(struct iscsi_hdr));
 
-	if (sc->use_sg) {
-		int i, sg_count = 0;
-		struct scatterlist *sg = sc->request_buffer;
+	sg = scsi_sglist(sc);
+	r2t->sg = NULL;
+	for (i = 0; i < scsi_sg_count(sc); i++, sg += 1) {
+		/* FIXME: prefetch ? */
+		if (sg_count + sg->length > r2t->data_offset) {
+			int page_offset;
 
-		r2t->sg = NULL;
-		for (i = 0; i < sc->use_sg; i++, sg += 1) {
-			/* FIXME: prefetch ? */
-			if (sg_count + sg->length > r2t->data_offset) {
-				int page_offset;
+			/* sg page found! */
 
-				/* sg page found! */
+			/* offset within this page */
+			page_offset = r2t->data_offset - sg_count;
 
-				/* offset within this page */
-				page_offset = r2t->data_offset - sg_count;
+			/* fill in this buffer */
+			iscsi_buf_init_sg(&r2t->sendbuf, sg);
+			r2t->sendbuf.sg.offset += page_offset;
+			r2t->sendbuf.sg.length -= page_offset;
 
-				/* fill in this buffer */
-				iscsi_buf_init_sg(&r2t->sendbuf, sg);
-				r2t->sendbuf.sg.offset += page_offset;
-				r2t->sendbuf.sg.length -= page_offset;
-
-				/* xmit logic will continue with next one */
-				r2t->sg = sg + 1;
-				break;
-			}
-			sg_count += sg->length;
+			/* xmit logic will continue with next one */
+			r2t->sg = sg + 1;
+			break;
 		}
-		BUG_ON(r2t->sg == NULL);
-	} else {
-		iscsi_buf_init_iov(&r2t->sendbuf,
-			    (char*)sc->request_buffer + r2t->data_offset,
-			    r2t->data_count);
-		r2t->sg = NULL;
+		sg_count += sg->length;
 	}
+	BUG_ON(r2t->sg == NULL);
 }
 
 /**
@@ -404,11 +397,11 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 			    r2t->data_length, session->max_burst);
 
 	r2t->data_offset = be32_to_cpu(rhdr->data_offset);
-	if (r2t->data_offset + r2t->data_length > ctask->sc->request_bufflen) {
+	if (r2t->data_offset + r2t->data_length > scsi_bufflen(ctask->sc)) {
 		spin_unlock(&session->lock);
 		printk(KERN_ERR "iscsi_tcp: invalid R2T with data len %u at "
 		       "offset %u and total length %d\n", r2t->data_length,
-		       r2t->data_offset, ctask->sc->request_bufflen);
+		       r2t->data_offset, scsi_bufflen(ctask->sc));
 		return ISCSI_ERR_DATALEN;
 	}
 
@@ -612,7 +605,7 @@ iscsi_ctask_copy(struct iscsi_tcp_conn *tcp_conn, struct iscsi_cmd_task *ctask,
 	       size, tcp_conn->in.offset, tcp_conn->in.copied);
 
 	BUG_ON(size <= 0);
-	BUG_ON(tcp_ctask->sent + size > ctask->sc->request_bufflen);
+	BUG_ON(tcp_ctask->sent + size > scsi_bufflen(ctask->sc));
 
 	rc = skb_copy_bits(tcp_conn->in.skb, tcp_conn->in.offset,
 			   (char*)buf + (offset + tcp_conn->data_copied), size);
@@ -710,25 +703,8 @@ static int iscsi_scsi_data_in(struct iscsi_conn *conn)
 
 	BUG_ON((void*)ctask != sc->SCp.ptr);
 
-	/*
-	 * copying Data-In into the Scsi_Cmnd
-	 */
-	if (!sc->use_sg) {
-		i = ctask->data_count;
-		rc = iscsi_ctask_copy(tcp_conn, ctask, sc->request_buffer,
-				      sc->request_bufflen,
-				      tcp_ctask->data_offset);
-		if (rc == -EAGAIN)
-			return rc;
-		if (conn->datadgst_en)
-			iscsi_recv_digest_update(tcp_conn, sc->request_buffer,
-						 i);
-		rc = 0;
-		goto done;
-	}
-
 	offset = tcp_ctask->data_offset;
-	sg = sc->request_buffer;
+	sg = scsi_sglist(sc);
 
 	if (tcp_ctask->data_offset)
 		for (i = 0; i < tcp_ctask->sg_count; i++)
@@ -737,7 +713,7 @@ static int iscsi_scsi_data_in(struct iscsi_conn *conn)
 	if (offset < 0)
 		offset = 0;
 
-	for (i = tcp_ctask->sg_count; i < sc->use_sg; i++) {
+	for (i = tcp_ctask->sg_count; i < scsi_sg_count(sc); i++) {
 		char *dest;
 
 		dest = kmap_atomic(sg[i].page, KM_SOFTIRQ0);
@@ -782,7 +758,6 @@ static int iscsi_scsi_data_in(struct iscsi_conn *conn)
 	}
 	BUG_ON(ctask->data_count);
 
-done:
 	/* check for non-exceptional status */
 	if (tcp_conn->in.hdr->flags & ISCSI_FLAG_DATA_STATUS) {
 		debug_scsi("done [sc %lx res %d itt 0x%x flags 0x%x]\n",
@@ -1241,7 +1216,6 @@ iscsi_solicit_data_cont(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 			struct iscsi_r2t_info *r2t, int left)
 {
 	struct iscsi_data *hdr;
-	struct scsi_cmnd *sc = ctask->sc;
 	int new_offset;
 
 	hdr = &r2t->dtask.hdr;
@@ -1271,15 +1245,8 @@ iscsi_solicit_data_cont(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 	if (iscsi_buf_left(&r2t->sendbuf))
 		return;
 
-	if (sc->use_sg) {
-		iscsi_buf_init_sg(&r2t->sendbuf, r2t->sg);
-		r2t->sg += 1;
-	} else {
-		iscsi_buf_init_iov(&r2t->sendbuf,
-			    (char*)sc->request_buffer + new_offset,
-			    r2t->data_count);
-		r2t->sg = NULL;
-	}
+	iscsi_buf_init_sg(&r2t->sendbuf, r2t->sg);
+	r2t->sg += 1;
 }
 
 static void iscsi_set_padding(struct iscsi_tcp_cmd_task *tcp_ctask,
@@ -1408,23 +1375,15 @@ iscsi_send_cmd_hdr(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 		tcp_ctask->exp_datasn = 0;
 
 		if (sc->sc_data_direction == DMA_TO_DEVICE) {
-			if (sc->use_sg) {
-				struct scatterlist *sg = sc->request_buffer;
+			struct scatterlist *sg = scsi_sglist(sc);
 
-				iscsi_buf_init_sg(&tcp_ctask->sendbuf, sg);
-				tcp_ctask->sg = sg + 1;
-				tcp_ctask->bad_sg = sg + sc->use_sg;
-			} else {
-				iscsi_buf_init_iov(&tcp_ctask->sendbuf,
-						   sc->request_buffer,
-						   sc->request_bufflen);
-				tcp_ctask->sg = NULL;
-				tcp_ctask->bad_sg = NULL;
-			}
+			iscsi_buf_init_sg(&tcp_ctask->sendbuf, sg);
+			tcp_ctask->sg = sg + 1;
+			tcp_ctask->bad_sg = sg + scsi_sg_count(sc);
 
 			debug_scsi("cmd [itt 0x%x total %d imm_data %d "
 				   "unsol count %d, unsol offset %d]\n",
-				   ctask->itt, sc->request_bufflen,
+				   ctask->itt, scsi_bufflen(sc),
 				   ctask->imm_count, ctask->unsol_count,
 				   ctask->unsol_offset);
 		}
