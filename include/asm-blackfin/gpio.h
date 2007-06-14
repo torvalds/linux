@@ -332,6 +332,7 @@ struct gpio_port_s {
 	unsigned short inen;
 
 	unsigned short fer;
+	unsigned short reserved;
 };
 #endif /*CONFIG_PM*/
 
