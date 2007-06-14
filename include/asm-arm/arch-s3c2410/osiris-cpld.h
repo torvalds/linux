@@ -1,6 +1,6 @@
 /* linux/include/asm-arm/arch-s3c2410/osiris-cpld.h
  *
- * Copyright (c) 2005 Simtec Electronics
+ * Copyright 2005 Simtec Electronics
  *	http://www.simtec.co.uk/products/
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -14,12 +14,17 @@
 #ifndef __ASM_ARCH_OSIRISCPLD_H
 #define __ASM_ARCH_OSIRISCPLD_H
 
-/* CTRL1 - NAND WP control */
+/* CTRL0 - NAND WP control */
 
-#define OSIRIS_CTRL1_NANDSEL		(0x3)
-#define OSIRIS_CTRL1_BOOT_INT		(1<<3)
-#define OSIRIS_CTRL1_PCMCIA		(1<<4)
-#define OSIRIS_CTRL1_PCMCIA_nWAIT	(1<<6)
-#define OSIRIS_CTRL1_PCMCIA_nIOIS16	(1<<7)
+#define OSIRIS_CTRL0_NANDSEL		(0x3)
+#define OSIRIS_CTRL0_BOOT_INT		(1<<3)
+#define OSIRIS_CTRL0_PCMCIA		(1<<4)
+#define OSIRIS_CTRL0_FIX8		(1<<5)
+#define OSIRIS_CTRL0_PCMCIA_nWAIT	(1<<6)
+#define OSIRIS_CTRL0_PCMCIA_nIOIS16	(1<<7)
+
+#define OSIRIS_CTRL1_FIX8		(1<<0)
+
+#define OSIRIS_ID_REVMASK		(0x7)
 
 #endif /* __ASM_ARCH_OSIRISCPLD_H */

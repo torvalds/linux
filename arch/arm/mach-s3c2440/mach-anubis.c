@@ -76,8 +76,8 @@ static struct map_desc anubis_iodesc[] __initdata = {
 	.length		= SZ_4K,
 	.type		= MT_DEVICE,
   }, {
-	.virtual	= (u32)ANUBIS_VA_CTRL2,
-	.pfn		= __phys_to_pfn(ANUBIS_PA_CTRL2),
+	.virtual	= (u32)ANUBIS_VA_IDREG,
+	.pfn		= __phys_to_pfn(ANUBIS_PA_IDREG),
 	.length		= SZ_4K,
 	.type		= MT_DEVICE,
   },

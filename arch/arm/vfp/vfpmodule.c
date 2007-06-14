@@ -26,8 +26,9 @@
  */
 void vfp_testing_entry(void);
 void vfp_support_entry(void);
+void vfp_null_entry(void);
 
-void (*vfp_vector)(void) = vfp_testing_entry;
+void (*vfp_vector)(void) = vfp_null_entry;
 union vfp_state *last_VFP_context[NR_CPUS];
 
 /*
@@ -321,8 +322,10 @@ static int __init vfp_init(void)
 	 * The handler is already setup to just log calls, so
 	 * we just need to read the VFPSID register.
 	 */
+	vfp_vector = vfp_testing_entry;
 	vfpsid = fmrx(FPSID);
 	barrier();
+	vfp_vector = vfp_null_entry;
 
 	printk(KERN_INFO "VFP support v0.3: ");
 	if (VFP_arch) {
