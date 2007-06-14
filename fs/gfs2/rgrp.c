@@ -444,7 +444,6 @@ static int compute_bitstructs(struct gfs2_rgrpd *rgd)
 }
 
 /**
- 
  * gfs2_ri_total - Total up the file system space, according to the rindex.
  *
  */
