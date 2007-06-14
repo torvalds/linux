@@ -127,7 +127,7 @@ static void xprt_clear_locked(struct rpc_xprt *xprt)
 		clear_bit(XPRT_LOCKED, &xprt->state);
 		smp_mb__after_clear_bit();
 	} else
-		schedule_work(&xprt->task_cleanup);
+		queue_work(rpciod_workqueue, &xprt->task_cleanup);
 }
 
 /*
@@ -515,7 +515,7 @@ xprt_init_autodisconnect(unsigned long data)
 	if (xprt_connecting(xprt))
 		xprt_release_write(xprt, NULL);
 	else
-		schedule_work(&xprt->task_cleanup);
+		queue_work(rpciod_workqueue, &xprt->task_cleanup);
 	return;
 out_abort:
 	spin_unlock(&xprt->transport_lock);
