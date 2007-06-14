@@ -28,8 +28,6 @@ EXPORT_SYMBOL(rpc_init_task);
 EXPORT_SYMBOL(rpc_sleep_on);
 EXPORT_SYMBOL(rpc_wake_up_next);
 EXPORT_SYMBOL(rpc_wake_up_task);
-EXPORT_SYMBOL(rpciod_down);
-EXPORT_SYMBOL(rpciod_up);
 EXPORT_SYMBOL(rpc_wake_up_status);
 
 /* RPC client functions */

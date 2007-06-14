@@ -16,7 +16,6 @@ struct nfs_client {
 #define NFS_CS_INITING		1		/* busy initialising */
 	int			cl_nfsversion;	/* NFS protocol version */
 	unsigned long		cl_res_state;	/* NFS resources state */
-#define NFS_CS_RPCIOD		0		/* - rpciod started */
 #define NFS_CS_CALLBACK		1		/* - callback started */
 #define NFS_CS_IDMAP		2		/* - idmap started */
 #define NFS_CS_RENEWD		3		/* - renewd started */
