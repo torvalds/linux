@@ -279,7 +279,7 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	if (err != 0)
 		goto out_no_path;
 	new->cl_parent = clnt;
-	atomic_inc(&clnt->cl_count);
+	kref_get(&clnt->cl_kref);
 	new->cl_xprt = xprt_get(clnt->cl_xprt);
 	/* Turn off autobind on clones */
 	new->cl_autobind = 0;
@@ -337,7 +337,7 @@ rpc_free_client(struct kref *kref)
 		rpc_put_mount();
 	}
 	if (clnt->cl_parent != clnt) {
-		rpc_destroy_client(clnt->cl_parent);
+		rpc_release_client(clnt->cl_parent);
 		goto out_free;
 	}
 	if (clnt->cl_server != clnt->cl_inline_name)
