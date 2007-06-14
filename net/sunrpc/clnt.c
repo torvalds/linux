@@ -121,7 +121,6 @@ static struct rpc_clnt * rpc_new_client(struct rpc_xprt *xprt, char *servname, s
 	clnt = kzalloc(sizeof(*clnt), GFP_KERNEL);
 	if (!clnt)
 		goto out_err;
-	atomic_set(&clnt->cl_count, 1);
 	clnt->cl_parent = clnt;
 
 	clnt->cl_server = clnt->cl_inline_name;
@@ -270,7 +269,6 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	new = kmemdup(clnt, sizeof(*new), GFP_KERNEL);
 	if (!new)
 		goto out_no_clnt;
-	atomic_set(&new->cl_count, 1);
 	new->cl_metrics = rpc_alloc_iostats(clnt);
 	if (new->cl_metrics == NULL)
 		goto out_no_stats;
@@ -303,8 +301,7 @@ out_no_clnt:
  * Properly shut down an RPC client, terminating all outstanding
  * requests.
  */
-int
-rpc_shutdown_client(struct rpc_clnt *clnt)
+void rpc_shutdown_client(struct rpc_clnt *clnt)
 {
 	dprintk("RPC:       shutting down %s client for %s\n",
 			clnt->cl_protname, clnt->cl_server);
@@ -315,7 +312,7 @@ rpc_shutdown_client(struct rpc_clnt *clnt)
 			list_empty(&clnt->cl_tasks), 1*HZ);
 	}
 
-	return rpc_destroy_client(clnt);
+	rpc_release_client(clnt);
 }
 
 /*
@@ -361,18 +358,6 @@ rpc_release_client(struct rpc_clnt *clnt)
 	if (list_empty(&clnt->cl_tasks))
 		wake_up(&destroy_wait);
 	kref_put(&clnt->cl_kref, rpc_free_client);
-}
-
-/*
- * Delete an RPC client
- */
-int
-rpc_destroy_client(struct rpc_clnt *clnt)
-{
-	if (!atomic_dec_and_test(&clnt->cl_count))
-		return 1;
-	kref_put(&clnt->cl_kref, rpc_free_client);
-	return 0;
 }
 
 /**

@@ -380,7 +380,7 @@ void rpcb_getport(struct rpc_task *task)
 	}
 
 	child = rpc_run_task(rpcb_clnt, RPC_TASK_ASYNC, &rpcb_getport_ops, map);
-	rpc_destroy_client(rpcb_clnt);
+	rpc_release_client(rpcb_clnt);
 	if (IS_ERR(child)) {
 		status = -EIO;
 		dprintk("RPC: %5u rpcb_getport rpc_run_task failed\n",
