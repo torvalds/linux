@@ -560,6 +560,40 @@ static const struct ata_port_operations sis_133_ops = {
 	.port_start		= ata_port_start,
 };
 
+static const struct ata_port_operations sis_133_for_sata_ops = {
+	.port_disable		= ata_port_disable,
+	.set_piomode		= sis_133_set_piomode,
+	.set_dmamode		= sis_133_set_dmamode,
+	.mode_filter		= ata_pci_default_filter,
+
+	.tf_load		= ata_tf_load,
+	.tf_read		= ata_tf_read,
+	.check_status		= ata_check_status,
+	.exec_command		= ata_exec_command,
+	.dev_select		= ata_std_dev_select,
+
+	.freeze			= ata_bmdma_freeze,
+	.thaw			= ata_bmdma_thaw,
+	.error_handler		= ata_bmdma_error_handler,
+	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
+	.cable_detect		= sis_133_cable_detect,
+
+	.bmdma_setup		= ata_bmdma_setup,
+	.bmdma_start		= ata_bmdma_start,
+	.bmdma_stop		= ata_bmdma_stop,
+	.bmdma_status		= ata_bmdma_status,
+	.qc_prep		= ata_qc_prep,
+	.qc_issue		= ata_qc_issue_prot,
+	.data_xfer		= ata_data_xfer,
+
+	.irq_handler		= ata_interrupt,
+	.irq_clear		= ata_bmdma_irq_clear,
+	.irq_on			= ata_irq_on,
+	.irq_ack		= ata_irq_ack,
+
+	.port_start		= ata_port_start,
+};
+
 static const struct ata_port_operations sis_133_early_ops = {
 	.port_disable		= ata_port_disable,
 	.set_piomode		= sis_100_set_piomode,
@@ -733,12 +767,19 @@ static const struct ata_port_info sis_info100_early = {
 	.pio_mask	= 0x1f,	/* pio0-4 */
 	.port_ops	= &sis_66_ops,
 };
-const struct ata_port_info sis_info133 = {
+static const struct ata_port_info sis_info133 = {
 	.sht		= &sis_sht,
 	.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 	.pio_mask	= 0x1f,	/* pio0-4 */
 	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &sis_133_ops,
+};
+const struct ata_port_info sis_info133_for_sata = {
+	.sht		= &sis_sht,
+	.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+	.pio_mask	= 0x1f,	/* pio0-4 */
+	.udma_mask	= ATA_UDMA6,
+	.port_ops	= &sis_133_for_sata_ops,
 };
 static const struct ata_port_info sis_info133_early = {
 	.sht		= &sis_sht,
@@ -749,7 +790,7 @@ static const struct ata_port_info sis_info133_early = {
 };
 
 /* Privately shared with the SiS180 SATA driver, not for use elsewhere */
-EXPORT_SYMBOL_GPL(sis_info133);
+EXPORT_SYMBOL_GPL(sis_info133_for_sata);
 
 static void sis_fixup(struct pci_dev *pdev, struct sis_chipset *sis)
 {
@@ -975,6 +1016,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 static const struct pci_device_id sis_pci_tbl[] = {
 	{ PCI_VDEVICE(SI, 0x5513), },	/* SiS 5513 */
 	{ PCI_VDEVICE(SI, 0x5518), },	/* SiS 5518 */
+	{ PCI_VDEVICE(SI, 0x1180), },	/* SiS 1180 */
 
 	{ }
 };
