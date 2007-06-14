@@ -58,7 +58,7 @@ static DECLARE_WAIT_QUEUE_HEAD(client_kill_wait);
  * rpciod-related stuff
  */
 static DEFINE_MUTEX(rpciod_mutex);
-static unsigned int		rpciod_users;
+static atomic_t rpciod_users = ATOMIC_INIT(0);
 struct workqueue_struct *rpciod_workqueue;
 
 /*
@@ -1047,28 +1047,27 @@ rpciod_up(void)
 	struct workqueue_struct *wq;
 	int error = 0;
 
+	if (atomic_inc_not_zero(&rpciod_users))
+		return 0;
+
 	mutex_lock(&rpciod_mutex);
-	dprintk("RPC:       rpciod_up: users %u\n", rpciod_users);
-	rpciod_users++;
-	if (rpciod_workqueue)
-		goto out;
-	/*
-	 * If there's no pid, we should be the first user.
-	 */
-	if (rpciod_users > 1)
-		printk(KERN_WARNING "rpciod_up: no workqueue, %u users??\n", rpciod_users);
+
+	/* Guard against races with rpciod_down() */
+	if (rpciod_workqueue != NULL)
+		goto out_ok;
 	/*
 	 * Create the rpciod thread and wait for it to start.
 	 */
+	dprintk("RPC:       creating workqueue rpciod\n");
 	error = -ENOMEM;
 	wq = create_workqueue("rpciod");
-	if (wq == NULL) {
-		printk(KERN_WARNING "rpciod_up: create workqueue failed, error=%d\n", error);
-		rpciod_users--;
+	if (wq == NULL)
 		goto out;
-	}
+
 	rpciod_workqueue = wq;
 	error = 0;
+out_ok:
+	atomic_inc(&rpciod_users);
 out:
 	mutex_unlock(&rpciod_mutex);
 	return error;
@@ -1077,23 +1076,17 @@ out:
 void
 rpciod_down(void)
 {
+	if (!atomic_dec_and_test(&rpciod_users))
+		return;
+
 	mutex_lock(&rpciod_mutex);
-	dprintk("RPC:       rpciod_down sema %u\n", rpciod_users);
-	if (rpciod_users) {
-		if (--rpciod_users)
-			goto out;
-	} else
-		printk(KERN_WARNING "rpciod_down: no users??\n");
+	dprintk("RPC:       destroying workqueue rpciod\n");
 
-	if (!rpciod_workqueue) {
-		dprintk("RPC:       rpciod_down: Nothing to do!\n");
-		goto out;
+	if (atomic_read(&rpciod_users) == 0 && rpciod_workqueue != NULL) {
+		rpciod_killall();
+		destroy_workqueue(rpciod_workqueue);
+		rpciod_workqueue = NULL;
 	}
-	rpciod_killall();
-
-	destroy_workqueue(rpciod_workqueue);
-	rpciod_workqueue = NULL;
- out:
 	mutex_unlock(&rpciod_mutex);
 }
 
