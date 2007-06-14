@@ -110,11 +110,6 @@ struct rpc_task {
 	if (!list_empty(head) &&  \
 	    ((task=list_entry((head)->next, struct rpc_task, u.tk_wait.list)),1))
 
-/* .. and walking list of all tasks */
-#define	alltask_for_each(task, pos, head) \
-	list_for_each(pos, head) \
-		if ((task=list_entry(pos, struct rpc_task, tk_task)),1)
-
 typedef void			(*rpc_action)(struct rpc_task *);
 
 struct rpc_call_ops {

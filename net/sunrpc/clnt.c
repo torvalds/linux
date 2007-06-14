@@ -148,6 +148,7 @@ static struct rpc_clnt * rpc_new_client(struct rpc_xprt *xprt, char *servname, s
 	if (clnt->cl_metrics == NULL)
 		goto out_no_stats;
 	clnt->cl_program  = program;
+	INIT_LIST_HEAD(&clnt->cl_tasks);
 
 	if (!xprt_bound(clnt->cl_xprt))
 		clnt->cl_autobind = 1;
@@ -172,6 +173,7 @@ static struct rpc_clnt * rpc_new_client(struct rpc_xprt *xprt, char *servname, s
 	if (clnt->cl_nodelen > UNX_MAXNODENAME)
 		clnt->cl_nodelen = UNX_MAXNODENAME;
 	memcpy(clnt->cl_nodename, utsname()->nodename, clnt->cl_nodelen);
+	rpc_register_client(clnt);
 	return clnt;
 
 out_no_auth:
@@ -283,9 +285,11 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	new->cl_autobind = 0;
 	new->cl_oneshot = 0;
 	new->cl_dead = 0;
+	INIT_LIST_HEAD(&new->cl_tasks);
 	rpc_init_rtt(&new->cl_rtt_default, clnt->cl_xprt->timeout.to_initval);
 	if (new->cl_auth)
 		atomic_inc(&new->cl_auth->au_count);
+	rpc_register_client(new);
 	return new;
 out_no_path:
 	rpc_free_iostats(new->cl_metrics);
@@ -357,6 +361,7 @@ rpc_destroy_client(struct rpc_clnt *clnt)
 	if (clnt->cl_server != clnt->cl_inline_name)
 		kfree(clnt->cl_server);
 out_free:
+	rpc_unregister_client(clnt);
 	rpc_free_iostats(clnt->cl_metrics);
 	clnt->cl_metrics = NULL;
 	xprt_put(clnt->cl_xprt);

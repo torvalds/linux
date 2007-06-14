@@ -26,6 +26,8 @@ struct rpc_inode;
 struct rpc_clnt {
 	atomic_t		cl_count;	/* Number of clones */
 	atomic_t		cl_users;	/* number of references */
+	struct list_head	cl_clients;	/* Global list of clients */
+	struct list_head	cl_tasks;	/* List of tasks */
 	struct rpc_xprt *	cl_xprt;	/* transport */
 	struct rpc_procinfo *	cl_procinfo;	/* procedure info */
 	u32			cl_prog,	/* RPC program number */
@@ -122,6 +124,8 @@ struct rpc_clnt *rpc_clone_client(struct rpc_clnt *);
 int		rpc_shutdown_client(struct rpc_clnt *);
 int		rpc_destroy_client(struct rpc_clnt *);
 void		rpc_release_client(struct rpc_clnt *);
+void		rpc_register_client(struct rpc_clnt *);
+void		rpc_unregister_client(struct rpc_clnt *);
 int		rpcb_register(u32, u32, int, unsigned short, int *);
 void		rpcb_getport(struct rpc_task *);
 
