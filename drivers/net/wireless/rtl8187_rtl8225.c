@@ -67,7 +67,7 @@ static void rtl8225_write_bitbang(struct ieee80211_hw *dev, u8 addr, u16 data)
 	msleep(2);
 }
 
-static void rtl8225_write_8051(struct ieee80211_hw *dev, u8 addr, u16 data)
+static void rtl8225_write_8051(struct ieee80211_hw *dev, u8 addr, __le16 data)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	u16 reg80, reg82, reg84;
@@ -106,7 +106,7 @@ void rtl8225_write(struct ieee80211_hw *dev, u8 addr, u16 data)
 	struct rtl8187_priv *priv = dev->priv;
 
 	if (priv->asic_rev)
-		rtl8225_write_8051(dev, addr, data);
+		rtl8225_write_8051(dev, addr, cpu_to_le16(data));
 	else
 		rtl8225_write_bitbang(dev, addr, data);
 }
