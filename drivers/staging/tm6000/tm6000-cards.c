@@ -230,6 +230,7 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 	/* Increment usage count */
 	tm6000_devused|=1<<nr;
 
+	INIT_LIST_HEAD(&dev->tm6000_corelist);
 	dev->udev= usbdev;
 	dev->model=id->driver_info;
 	snprintf(dev->name, 29, "tm6000 #%d", nr);
@@ -354,8 +355,6 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 	if (!dev)
 		return;
 
-	tm6000_i2c_unregister(dev);
-
 	printk("tm6000: disconnecting %s\n", dev->name);
 
 	mutex_lock(&dev->lock);
@@ -369,6 +368,7 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 	dev->state |= DEV_DISCONNECTED;
 
 	mutex_unlock(&dev->lock);
+	kfree(dev);
 }
 
 static struct usb_driver tm6000_usb_driver = {

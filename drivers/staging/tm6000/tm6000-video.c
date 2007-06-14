@@ -1528,15 +1528,14 @@ int tm6000_v4l2_register(struct tm6000_core *dev)
 int tm6000_v4l2_unregister(struct tm6000_core *dev)
 {
 	struct tm6000_core *h;
-	struct list_head *list;
+	struct list_head *pos, *tmp;
 
-	while (!list_empty(&tm6000_corelist)) {
-		list = tm6000_corelist.next;
-		h = list_entry(list, struct tm6000_core, tm6000_corelist);
+	video_unregister_device(&dev->vfd);
+
+	list_for_each_safe(pos, tmp, &tm6000_corelist) {
+		h = list_entry(pos, struct tm6000_core, tm6000_corelist);
 		if (h == dev) {
-			video_unregister_device(&dev->vfd);
 			list_del(list);
-			kfree (h);
 		}
 	}
 
