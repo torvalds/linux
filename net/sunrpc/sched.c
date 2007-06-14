@@ -39,7 +39,6 @@ static mempool_t	*rpc_task_mempool __read_mostly;
 static mempool_t	*rpc_buffer_mempool __read_mostly;
 
 static void			__rpc_default_timer(struct rpc_task *task);
-static void			rpciod_killall(void);
 static void			rpc_async_schedule(struct work_struct *);
 static void			 rpc_release_task(struct rpc_task *task);
 
@@ -52,7 +51,6 @@ static RPC_WAITQ(delay_queue, "delayq");
  * All RPC clients are linked into this list
  */
 static LIST_HEAD(all_clients);
-static DECLARE_WAIT_QUEUE_HEAD(client_kill_wait);
 
 /*
  * rpciod-related stuff
@@ -996,32 +994,6 @@ void rpc_killall_tasks(struct rpc_clnt *clnt)
 	spin_unlock(&clnt->cl_lock);
 }
 
-static void rpciod_killall(void)
-{
-	struct rpc_clnt *clnt;
-	unsigned long flags;
-
-	for(;;) {
-		clear_thread_flag(TIF_SIGPENDING);
-
-		spin_lock(&rpc_sched_lock);
-		list_for_each_entry(clnt, &all_clients, cl_clients)
-			rpc_killall_tasks(clnt);
-		spin_unlock(&rpc_sched_lock);
-		flush_workqueue(rpciod_workqueue);
-		if (!list_empty(&all_clients))
-			break;
-		dprintk("RPC:       rpciod_killall: waiting for tasks "
-					"to exit\n");
-		wait_event_timeout(client_kill_wait,
-				list_empty(&all_clients), 1*HZ);
-	}
-
-	spin_lock_irqsave(&current->sighand->siglock, flags);
-	recalc_sigpending();
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
-}
-
 void rpc_register_client(struct rpc_clnt *clnt)
 {
 	spin_lock(&rpc_sched_lock);
@@ -1033,8 +1005,6 @@ void rpc_unregister_client(struct rpc_clnt *clnt)
 {
 	spin_lock(&rpc_sched_lock);
 	list_del(&clnt->cl_clients);
-	if (list_empty(&all_clients))
-		wake_up(&client_kill_wait);
 	spin_unlock(&rpc_sched_lock);
 }
 
@@ -1083,7 +1053,6 @@ rpciod_down(void)
 	dprintk("RPC:       destroying workqueue rpciod\n");
 
 	if (atomic_read(&rpciod_users) == 0 && rpciod_workqueue != NULL) {
-		rpciod_killall();
 		destroy_workqueue(rpciod_workqueue);
 		rpciod_workqueue = NULL;
 	}

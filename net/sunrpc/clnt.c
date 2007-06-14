@@ -111,6 +111,9 @@ static struct rpc_clnt * rpc_new_client(struct rpc_xprt *xprt, char *servname, s
 	dprintk("RPC:       creating %s client for %s (xprt %p)\n",
 			program->name, servname, xprt);
 
+	err = rpciod_up();
+	if (err)
+		goto out_no_rpciod;
 	err = -EINVAL;
 	if (!xprt)
 		goto out_no_xprt;
@@ -191,6 +194,8 @@ out_no_stats:
 out_err:
 	xprt_put(xprt);
 out_no_xprt:
+	rpciod_down();
+out_no_rpciod:
 	return ERR_PTR(err);
 }
 
@@ -287,6 +292,7 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	xprt_get(clnt->cl_xprt);
 	kref_get(&clnt->cl_kref);
 	rpc_register_client(new);
+	rpciod_up();
 	return new;
 out_no_path:
 	rpc_free_iostats(new->cl_metrics);
@@ -344,6 +350,7 @@ out_free:
 	rpc_free_iostats(clnt->cl_metrics);
 	clnt->cl_metrics = NULL;
 	xprt_put(clnt->cl_xprt);
+	rpciod_down();
 	kfree(clnt);
 }
 
