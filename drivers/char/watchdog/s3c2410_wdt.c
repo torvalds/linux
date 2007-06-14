@@ -348,6 +348,7 @@ static irqreturn_t s3c2410wdt_irq(int irqno, void *param)
 static int s3c2410wdt_probe(struct platform_device *pdev)
 {
 	struct resource *res;
+	unsigned int wtcon;
 	int started = 0;
 	int ret;
 	int size;
@@ -432,6 +433,16 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 
 		s3c2410wdt_stop();
 	}
+
+	/* print out a statement of readiness */
+
+	wtcon = readl(wdt_base + S3C2410_WTCON);
+
+	dev_info(&pdev->dev,
+		 "watchdog %sactive, reset %sabled, irq %sabled\n",
+		 (wtcon & S3C2410_WTCON_ENABLE) ?  "" : "in",
+		 (wtcon & S3C2410_WTCON_RSTEN) ? "" : "dis",
+		 (wtcon & S3C2410_WTCON_INTEN) ? "" : "en");
 
 	return 0;
 
