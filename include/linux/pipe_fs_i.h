@@ -35,20 +35,21 @@ struct pipe_inode_info {
 /*
  * Note on the nesting of these functions:
  *
- * ->pin()
+ * ->confirm()
  *	->steal()
  *	...
  *	->map()
  *	...
  *	->unmap()
  *
- * That is, ->map() must be called on a pinned buffer, same goes for ->steal().
+ * That is, ->map() must be called on a confirmed buffer,
+ * same goes for ->steal().
  */
 struct pipe_buf_operations {
 	int can_merge;
 	void * (*map)(struct pipe_inode_info *, struct pipe_buffer *, int);
 	void (*unmap)(struct pipe_inode_info *, struct pipe_buffer *, void *);
-	int (*pin)(struct pipe_inode_info *, struct pipe_buffer *);
+	int (*confirm)(struct pipe_inode_info *, struct pipe_buffer *);
 	void (*release)(struct pipe_inode_info *, struct pipe_buffer *);
 	int (*steal)(struct pipe_inode_info *, struct pipe_buffer *);
 	void (*get)(struct pipe_inode_info *, struct pipe_buffer *);
@@ -69,7 +70,7 @@ void __free_pipe_info(struct pipe_inode_info *);
 void *generic_pipe_buf_map(struct pipe_inode_info *, struct pipe_buffer *, int);
 void generic_pipe_buf_unmap(struct pipe_inode_info *, struct pipe_buffer *, void *);
 void generic_pipe_buf_get(struct pipe_inode_info *, struct pipe_buffer *);
-int generic_pipe_buf_pin(struct pipe_inode_info *, struct pipe_buffer *);
+int generic_pipe_buf_confirm(struct pipe_inode_info *, struct pipe_buffer *);
 int generic_pipe_buf_steal(struct pipe_inode_info *, struct pipe_buffer *);
 
 #endif

@@ -85,8 +85,8 @@ static void page_cache_pipe_buf_release(struct pipe_inode_info *pipe,
 	buf->flags &= ~PIPE_BUF_FLAG_LRU;
 }
 
-static int page_cache_pipe_buf_pin(struct pipe_inode_info *pipe,
-				   struct pipe_buffer *buf)
+static int page_cache_pipe_buf_confirm(struct pipe_inode_info *pipe,
+				       struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 	int err;
@@ -127,7 +127,7 @@ static const struct pipe_buf_operations page_cache_pipe_buf_ops = {
 	.can_merge = 0,
 	.map = generic_pipe_buf_map,
 	.unmap = generic_pipe_buf_unmap,
-	.pin = page_cache_pipe_buf_pin,
+	.confirm = page_cache_pipe_buf_confirm,
 	.release = page_cache_pipe_buf_release,
 	.steal = page_cache_pipe_buf_steal,
 	.get = generic_pipe_buf_get,
@@ -147,7 +147,7 @@ static const struct pipe_buf_operations user_page_pipe_buf_ops = {
 	.can_merge = 0,
 	.map = generic_pipe_buf_map,
 	.unmap = generic_pipe_buf_unmap,
-	.pin = generic_pipe_buf_pin,
+	.confirm = generic_pipe_buf_confirm,
 	.release = page_cache_pipe_buf_release,
 	.steal = user_page_pipe_buf_steal,
 	.get = generic_pipe_buf_get,
@@ -525,7 +525,7 @@ static int pipe_to_sendpage(struct pipe_inode_info *pipe,
 	loff_t pos = sd->pos;
 	int ret, more;
 
-	ret = buf->ops->pin(pipe, buf);
+	ret = buf->ops->confirm(pipe, buf);
 	if (!ret) {
 		more = (sd->flags & SPLICE_F_MORE) || sd->len < sd->total_len;
 
@@ -569,7 +569,7 @@ static int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	/*
 	 * make sure the data in this buffer is uptodate
 	 */
-	ret = buf->ops->pin(pipe, buf);
+	ret = buf->ops->confirm(pipe, buf);
 	if (unlikely(ret))
 		return ret;
 
@@ -1341,7 +1341,7 @@ static int pipe_to_user(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	char *src;
 	int ret;
 
-	ret = buf->ops->pin(pipe, buf);
+	ret = buf->ops->confirm(pipe, buf);
 	if (unlikely(ret))
 		return ret;
 

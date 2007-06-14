@@ -203,7 +203,8 @@ void generic_pipe_buf_get(struct pipe_inode_info *info, struct pipe_buffer *buf)
 	page_cache_get(buf->page);
 }
 
-int generic_pipe_buf_pin(struct pipe_inode_info *info, struct pipe_buffer *buf)
+int generic_pipe_buf_confirm(struct pipe_inode_info *info,
+			     struct pipe_buffer *buf)
 {
 	return 0;
 }
@@ -212,7 +213,7 @@ static const struct pipe_buf_operations anon_pipe_buf_ops = {
 	.can_merge = 1,
 	.map = generic_pipe_buf_map,
 	.unmap = generic_pipe_buf_unmap,
-	.pin = generic_pipe_buf_pin,
+	.confirm = generic_pipe_buf_confirm,
 	.release = anon_pipe_buf_release,
 	.steal = generic_pipe_buf_steal,
 	.get = generic_pipe_buf_get,
@@ -252,7 +253,7 @@ pipe_read(struct kiocb *iocb, const struct iovec *_iov,
 			if (chars > total_len)
 				chars = total_len;
 
-			error = ops->pin(pipe, buf);
+			error = ops->confirm(pipe, buf);
 			if (error) {
 				if (!ret)
 					error = ret;
@@ -373,7 +374,7 @@ pipe_write(struct kiocb *iocb, const struct iovec *_iov,
 			int error, atomic = 1;
 			void *addr;
 
-			error = ops->pin(pipe, buf);
+			error = ops->confirm(pipe, buf);
 			if (error)
 				goto out;
 

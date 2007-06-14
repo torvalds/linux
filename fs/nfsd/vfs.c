@@ -815,7 +815,7 @@ nfsd_splice_actor(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	size_t size;
 	int ret;
 
-	ret = buf->ops->pin(pipe, buf);
+	ret = buf->ops->confirm(pipe, buf);
 	if (unlikely(ret))
 		return ret;
 

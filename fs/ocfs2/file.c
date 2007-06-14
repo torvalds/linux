@@ -1583,7 +1583,7 @@ static int ocfs2_splice_write_actor(struct pipe_inode_info *pipe,
 	ssize_t copied = 0;
 	struct ocfs2_splice_write_priv sp;
 
-	ret = buf->ops->pin(pipe, buf);
+	ret = buf->ops->confirm(pipe, buf);
 	if (ret)
 		goto out;
 
@@ -1604,7 +1604,7 @@ static int ocfs2_splice_write_actor(struct pipe_inode_info *pipe,
 		 * might enter ocfs2_buffered_write_cluster() more
 		 * than once, so keep track of our progress here.
 		 */
-		copied = ocfs2_buffered_write_cluster(sd->file,
+		copied = ocfs2_buffered_write_cluster(sd->u.file,
 						      (loff_t)sd->pos + total,
 						      count,
 						      ocfs2_map_and_write_splice_data,
