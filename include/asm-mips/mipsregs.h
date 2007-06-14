@@ -15,6 +15,7 @@
 
 #include <linux/linkage.h>
 #include <asm/hazards.h>
+#include <asm/war.h>
 
 /*
  * The following macros are especially useful for __asm__
@@ -536,6 +537,9 @@
 #define MIPS_CONF3_ULRI		(_ULCAST_(1) << 13)
 
 #define MIPS_CONF7_WII		(_ULCAST_(1) << 31)
+
+#define MIPS_CONF7_RPS		(_ULCAST_(1) << 2)
+
 
 /*
  * Bits in the MIPS32/64 coprocessor 1 (FPU) revision register.
@@ -1298,10 +1302,39 @@ static inline void tlb_probe(void)
 
 static inline void tlb_read(void)
 {
+#if MIPS34K_MISSED_ITLB_WAR
+	int res = 0;
+
+	__asm__ __volatile__(
+	"	.set	push					\n"
+	"	.set	noreorder				\n"
+	"	.set	noat					\n"
+	"	.set	mips32r2				\n"
+	"	.word	0x41610001		# dvpe $1	\n"
+	"	move	%0, $1					\n"
+	"	ehb						\n"
+	"	.set	pop					\n"
+	: "=r" (res));
+
+	instruction_hazard();
+#endif
+
 	__asm__ __volatile__(
 		".set noreorder\n\t"
 		"tlbr\n\t"
 		".set reorder");
+
+#if MIPS34K_MISSED_ITLB_WAR
+	if ((res & _ULCAST_(1)))
+		__asm__ __volatile__(
+		"	.set	push				\n"
+		"	.set	noreorder			\n"
+		"	.set	noat				\n"
+		"	.set	mips32r2			\n"
+		"	.word	0x41600021	# evpe		\n"
+		"	ehb					\n"
+		"	.set	pop				\n");
+#endif
 }
 
 static inline void tlb_write_indexed(void)

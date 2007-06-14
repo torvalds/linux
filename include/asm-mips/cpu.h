@@ -109,6 +109,7 @@
  * Definitions for 7:0 on legacy processors
  */
 
+#define PRID_REV_MASK		0x00ff
 
 #define PRID_REV_TX4927		0x0022
 #define PRID_REV_TX4937		0x0030
@@ -125,6 +126,7 @@
 #define PRID_REV_VR4122		0x0070
 #define PRID_REV_VR4181A	0x0070	/* Same as VR4122 */
 #define PRID_REV_VR4130		0x0080
+#define PRID_REV_34K_V1_0_2	0x0022
 
 /*
  * Older processors used to encode processor version and revision in two
