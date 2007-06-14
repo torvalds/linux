@@ -121,7 +121,6 @@ static struct rpc_clnt * rpc_new_client(struct rpc_xprt *xprt, char *servname, s
 	clnt = kzalloc(sizeof(*clnt), GFP_KERNEL);
 	if (!clnt)
 		goto out_err;
-	atomic_set(&clnt->cl_users, 0);
 	atomic_set(&clnt->cl_count, 1);
 	clnt->cl_parent = clnt;
 
@@ -156,6 +155,8 @@ static struct rpc_clnt * rpc_new_client(struct rpc_xprt *xprt, char *servname, s
 
 	clnt->cl_rtt = &clnt->cl_rtt_default;
 	rpc_init_rtt(&clnt->cl_rtt_default, xprt->timeout.to_initval);
+
+	kref_init(&clnt->cl_kref);
 
 	err = rpc_setup_pipedir(clnt, program->pipe_dir_name);
 	if (err < 0)
@@ -272,10 +273,10 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	if (!new)
 		goto out_no_clnt;
 	atomic_set(&new->cl_count, 1);
-	atomic_set(&new->cl_users, 0);
 	new->cl_metrics = rpc_alloc_iostats(clnt);
 	if (new->cl_metrics == NULL)
 		goto out_no_stats;
+	kref_init(&new->cl_kref);
 	err = rpc_setup_pipedir(new, clnt->cl_program->pipe_dir_name);
 	if (err != 0)
 		goto out_no_path;
@@ -311,40 +312,28 @@ out_no_clnt:
 int
 rpc_shutdown_client(struct rpc_clnt *clnt)
 {
-	dprintk("RPC:       shutting down %s client for %s, tasks=%d\n",
-			clnt->cl_protname, clnt->cl_server,
-			atomic_read(&clnt->cl_users));
+	dprintk("RPC:       shutting down %s client for %s\n",
+			clnt->cl_protname, clnt->cl_server);
 
-	while (atomic_read(&clnt->cl_users) > 0) {
+	while (!list_empty(&clnt->cl_tasks)) {
 		/* Don't let rpc_release_client destroy us */
 		clnt->cl_oneshot = 0;
 		clnt->cl_dead = 0;
 		rpc_killall_tasks(clnt);
 		wait_event_timeout(destroy_wait,
-			!atomic_read(&clnt->cl_users), 1*HZ);
-	}
-
-	if (atomic_read(&clnt->cl_users) < 0) {
-		printk(KERN_ERR "RPC: rpc_shutdown_client clnt %p tasks=%d\n",
-				clnt, atomic_read(&clnt->cl_users));
-#ifdef RPC_DEBUG
-		rpc_show_tasks();
-#endif
-		BUG();
+			list_empty(&clnt->cl_tasks), 1*HZ);
 	}
 
 	return rpc_destroy_client(clnt);
 }
 
 /*
- * Delete an RPC client
+ * Free an RPC client
  */
-int
-rpc_destroy_client(struct rpc_clnt *clnt)
+static void
+rpc_free_client(struct kref *kref)
 {
-	if (!atomic_dec_and_test(&clnt->cl_count))
-		return 1;
-	BUG_ON(atomic_read(&clnt->cl_users) != 0);
+	struct rpc_clnt *clnt = container_of(kref, struct rpc_clnt, cl_kref);
 
 	dprintk("RPC:       destroying %s client for %s\n",
 			clnt->cl_protname, clnt->cl_server);
@@ -368,23 +357,33 @@ out_free:
 	clnt->cl_metrics = NULL;
 	xprt_put(clnt->cl_xprt);
 	kfree(clnt);
-	return 0;
 }
 
 /*
- * Release an RPC client
+ * Release reference to the RPC client
  */
 void
 rpc_release_client(struct rpc_clnt *clnt)
 {
-	dprintk("RPC:       rpc_release_client(%p, %d)\n",
-			clnt, atomic_read(&clnt->cl_users));
+	dprintk("RPC:       rpc_release_client(%p)\n", clnt);
 
-	if (!atomic_dec_and_test(&clnt->cl_users))
-		return;
-	wake_up(&destroy_wait);
+	if (list_empty(&clnt->cl_tasks))
+		wake_up(&destroy_wait);
 	if (clnt->cl_oneshot || clnt->cl_dead)
 		rpc_destroy_client(clnt);
+	kref_put(&clnt->cl_kref, rpc_free_client);
+}
+
+/*
+ * Delete an RPC client
+ */
+int
+rpc_destroy_client(struct rpc_clnt *clnt)
+{
+	if (!atomic_dec_and_test(&clnt->cl_count))
+		return 1;
+	kref_put(&clnt->cl_kref, rpc_free_client);
+	return 0;
 }
 
 /**

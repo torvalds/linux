@@ -846,7 +846,7 @@ void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, int flags, cons
 	task->tk_workqueue = rpciod_workqueue;
 
 	if (clnt) {
-		atomic_inc(&clnt->cl_users);
+		kref_get(&clnt->cl_kref);
 		if (clnt->cl_softrtry)
 			task->tk_flags |= RPC_TASK_SOFT;
 		if (!clnt->cl_intr)
@@ -898,9 +898,7 @@ out:
 cleanup:
 	/* Check whether to release the client */
 	if (clnt) {
-		printk("rpc_new_task: failed, users=%d, oneshot=%d\n",
-			atomic_read(&clnt->cl_users), clnt->cl_oneshot);
-		atomic_inc(&clnt->cl_users); /* pretend we were used ... */
+		kref_get(&clnt->cl_kref); /* pretend we were used ... */
 		rpc_release_client(clnt);
 	}
 	goto out;

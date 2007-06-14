@@ -161,15 +161,9 @@ nlm_destroy_host(struct nlm_host *host)
 	 */
 	nsm_unmonitor(host);
 
-	if ((clnt = host->h_rpcclnt) != NULL) {
-		if (atomic_read(&clnt->cl_users)) {
-			printk(KERN_WARNING
-				"lockd: active RPC handle\n");
-			clnt->cl_dead = 1;
-		} else {
-			rpc_destroy_client(host->h_rpcclnt);
-		}
-	}
+	clnt = host->h_rpcclnt;
+	if (clnt != NULL)
+		rpc_shutdown_client(clnt);
 	kfree(host);
 }
 

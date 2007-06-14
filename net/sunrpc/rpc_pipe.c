@@ -344,7 +344,7 @@ rpc_info_open(struct inode *inode, struct file *file)
 		mutex_lock(&inode->i_mutex);
 		clnt = RPC_I(inode)->private;
 		if (clnt) {
-			atomic_inc(&clnt->cl_users);
+			kref_get(&clnt->cl_kref);
 			m->private = clnt;
 		} else {
 			single_release(inode, file);
