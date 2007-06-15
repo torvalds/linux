@@ -466,8 +466,6 @@ struct cx8802_dev {
 #if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
 	/* for dvb only */
 	struct videobuf_dvb        dvb;
-	void*                      fe_handle;
-	int                        (*fe_release)(void *handle);
 
 	void			   *card_priv;
 #endif
