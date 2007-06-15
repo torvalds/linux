@@ -39,11 +39,11 @@ static irqreturn_t ipi_function_handler(int irq, void *msg)
 }
 
 /**
-  * virqs - a per cpu array of virqs for ipi use
+  * ps3_ipi_virqs - a per cpu array of virqs for ipi use
   */
 
 #define MSG_COUNT 4
-static DEFINE_PER_CPU(unsigned int, virqs[MSG_COUNT]);
+static DEFINE_PER_CPU(unsigned int, ps3_ipi_virqs[MSG_COUNT]);
 
 static const char *names[MSG_COUNT] = {
 	"ipi call",
@@ -62,7 +62,7 @@ static void do_message_pass(int target, int msg)
 		return;
 	}
 
-	virq = per_cpu(virqs, target)[msg];
+	virq = per_cpu(ps3_ipi_virqs, target)[msg];
 	result = ps3_send_event_locally(virq);
 
 	if (result)
@@ -94,13 +94,13 @@ static int ps3_smp_probe(void)
 static void __init ps3_smp_setup_cpu(int cpu)
 {
 	int result;
-	unsigned int *virqs = per_cpu(virqs, cpu);
+	unsigned int *virqs = per_cpu(ps3_ipi_virqs, cpu);
 	int i;
 
 	DBG(" -> %s:%d: (%d)\n", __func__, __LINE__, cpu);
 
 	/*
-	 * Check assumptions on virqs[] indexing. If this
+	 * Check assumptions on ps3_ipi_virqs[] indexing. If this
 	 * check fails, then a different mapping of PPC_MSG_
 	 * to index needs to be setup.
 	 */
@@ -132,7 +132,7 @@ static void __init ps3_smp_setup_cpu(int cpu)
 
 void ps3_smp_cleanup_cpu(int cpu)
 {
-	unsigned int *virqs = per_cpu(virqs, cpu);
+	unsigned int *virqs = per_cpu(ps3_ipi_virqs, cpu);
 	int i;
 
 	DBG(" -> %s:%d: (%d)\n", __func__, __LINE__, cpu);
