@@ -1535,7 +1535,7 @@ int tm6000_v4l2_unregister(struct tm6000_core *dev)
 	list_for_each_safe(pos, tmp, &tm6000_corelist) {
 		h = list_entry(pos, struct tm6000_core, tm6000_corelist);
 		if (h == dev) {
-			list_del(list);
+			list_del(pos);
 		}
 	}
 
