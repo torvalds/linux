@@ -239,7 +239,7 @@ void ps3_mm_vas_destroy(void)
  * @size is rounded down to a multiple of the vas large page size.
  */
 
-int ps3_mm_region_create(struct mem_region *r, unsigned long size)
+static int ps3_mm_region_create(struct mem_region *r, unsigned long size)
 {
 	int result;
 	unsigned long muid;
@@ -280,7 +280,7 @@ zero_region:
  * @r: pointer to struct mem_region
  */
 
-void ps3_mm_region_destroy(struct mem_region *r)
+static void ps3_mm_region_destroy(struct mem_region *r)
 {
 	int result;
 
@@ -893,7 +893,7 @@ static int dma_ioc0_map_area(struct ps3_dma_region *r, unsigned long virt_addr,
  * This is the common dma unmap routine.
  */
 
-int dma_sb_unmap_area(struct ps3_dma_region *r, unsigned long bus_addr,
+static int dma_sb_unmap_area(struct ps3_dma_region *r, unsigned long bus_addr,
 	unsigned long len)
 {
 	unsigned long flags;
@@ -929,8 +929,8 @@ int dma_sb_unmap_area(struct ps3_dma_region *r, unsigned long bus_addr,
 	return 0;
 }
 
-int dma_ioc0_unmap_area(struct ps3_dma_region *r, unsigned long bus_addr,
-			unsigned long len)
+static int dma_ioc0_unmap_area(struct ps3_dma_region *r,
+			unsigned long bus_addr, unsigned long len)
 {
 	unsigned long flags;
 	struct dma_chunk *c;
