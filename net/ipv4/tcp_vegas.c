@@ -117,6 +117,9 @@ void tcp_vegas_pkts_acked(struct sock *sk, u32 cnt, ktime_t last)
 	struct vegas *vegas = inet_csk_ca(sk);
 	u32 vrtt;
 
+	if (ktime_equal(last, net_invalid_timestamp()))
+		return;
+
 	/* Never allow zero rtt or baseRTT */
 	vrtt = ktime_to_us(net_timedelta(last)) + 1;
 

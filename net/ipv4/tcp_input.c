@@ -2409,7 +2409,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 	int acked = 0;
 	int prior_packets = tp->packets_out;
 	__s32 seq_rtt = -1;
-	ktime_t last_ackt = ktime_set(0,0);
+	ktime_t last_ackt = net_invalid_timestamp();
 
 	while ((skb = tcp_write_queue_head(sk)) &&
 	       skb != tcp_send_head(sk)) {
@@ -2486,6 +2486,10 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 
 		tcp_ack_update_rtt(sk, acked, seq_rtt);
 		tcp_ack_packets_out(sk);
+
+		/* Is the ACK triggering packet unambiguous? */
+		if (acked & FLAG_RETRANS_DATA_ACKED)
+			last_ackt = net_invalid_timestamp();
 
 		if (ca_ops->pkts_acked)
 			ca_ops->pkts_acked(sk, pkts_acked, last_ackt);

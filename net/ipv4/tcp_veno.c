@@ -74,6 +74,9 @@ static void tcp_veno_pkts_acked(struct sock *sk, u32 cnt, ktime_t last)
 	struct veno *veno = inet_csk_ca(sk);
 	u32 vrtt;
 
+	if (ktime_equal(last, net_invalid_timestamp()))
+		return;
+
 	/* Never allow zero rtt or baseRTT */
 	vrtt = ktime_to_us(net_timedelta(last)) + 1;
 
