@@ -349,6 +349,31 @@ static int compat_radeon_irq_emit(struct file *file, unsigned int cmd,
 			 DRM_IOCTL_RADEON_IRQ_EMIT, (unsigned long)request);
 }
 
+typedef struct drm_radeon_setparam32 {
+	int param;
+	u64 value;
+} __attribute__((packed)) drm_radeon_setparam32_t;
+
+static int compat_radeon_cp_setparam(struct file *file, unsigned int cmd,
+				     unsigned long arg)
+{
+	drm_radeon_setparam32_t req32;
+	drm_radeon_setparam_t __user *request;
+
+	if (copy_from_user(&req32, (void __user *) arg, sizeof(req32)))
+		return -EFAULT;
+
+	request = compat_alloc_user_space(sizeof(*request));
+	if (!access_ok(VERIFY_WRITE, request, sizeof(*request))
+	    || __put_user(req32.param, &request->param)
+	    || __put_user((void __user *)(unsigned long)req32.value,
+			  &request->value))
+		return -EFAULT;
+
+	return drm_ioctl(file->f_dentry->d_inode, file,
+			 DRM_IOCTL_RADEON_SETPARAM, (unsigned long) request);
+}
+
 drm_ioctl_compat_t *radeon_compat_ioctls[] = {
 	[DRM_RADEON_CP_INIT] = compat_radeon_cp_init,
 	[DRM_RADEON_CLEAR] = compat_radeon_cp_clear,
@@ -357,6 +382,7 @@ drm_ioctl_compat_t *radeon_compat_ioctls[] = {
 	[DRM_RADEON_VERTEX2] = compat_radeon_cp_vertex2,
 	[DRM_RADEON_CMDBUF] = compat_radeon_cp_cmdbuf,
 	[DRM_RADEON_GETPARAM] = compat_radeon_cp_getparam,
+	[DRM_RADEON_SETPARAM] = compat_radeon_cp_setparam,
 	[DRM_RADEON_ALLOC] = compat_radeon_mem_alloc,
 	[DRM_RADEON_IRQ_EMIT] = compat_radeon_irq_emit,
 };

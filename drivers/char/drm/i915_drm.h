@@ -142,6 +142,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_SET_VBLANK_PIPE	0x0d
 #define DRM_I915_GET_VBLANK_PIPE	0x0e
 #define DRM_I915_VBLANK_SWAP	0x0f
+#define DRM_I915_HWS_ADDR	0x11
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -261,5 +262,9 @@ typedef struct drm_i915_vblank_swap {
 	drm_vblank_seq_type_t seqtype;
 	unsigned int sequence;
 } drm_i915_vblank_swap_t;
+
+typedef struct drm_i915_hws_addr {
+	uint64_t addr;
+} drm_i915_hws_addr_t;
 
 #endif				/* _I915_DRM_H_ */

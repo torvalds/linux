@@ -91,6 +91,8 @@ typedef struct drm_i915_private {
 	void *hw_status_page;
 	dma_addr_t dma_status_page;
 	unsigned long counter;
+	unsigned int status_gfx_addr;
+	drm_local_map_t hws_map;
 
 	unsigned int cpp;
 	int back_offset;
