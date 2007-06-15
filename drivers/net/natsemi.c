@@ -690,7 +690,7 @@ static ssize_t natsemi_set_dspcfg_workaround(struct device *dev,
 {
 	struct netdev_private *np = netdev_priv(to_net_dev(dev));
 	int new_setting;
-	u32 flags;
+	unsigned long flags;
 
         /* Find out the new setting */
         if (!strncmp("on", buf, count - 1) || !strncmp("1", buf, count - 1))
