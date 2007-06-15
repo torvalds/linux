@@ -143,6 +143,14 @@ static u32 ps3av_vid_video2av(int vid)
 	return PS3AV_CMD_AV_VID_480P;
 }
 
+static int ps3av_hdmi_range(void)
+{
+	if (ps3_compare_firmware_version(1, 8, 0) < 0)
+		return 0;
+	else
+		return 1; /* supported */
+}
+
 int ps3av_cmd_init(void)
 {
 	int res;
@@ -350,6 +358,10 @@ u32 ps3av_cmd_set_av_video_cs(void *p, u32 avport, int video_vid, int cs_out,
 	/* should be same as video_mode.video_cs_out */
 	av_video_cs->av_cs_in = ps3av_cs_video2av(PS3AV_CMD_VIDEO_CS_RGB_8);
 	av_video_cs->bitlen_out = ps3av_cs_video2av_bitlen(cs_out);
+	if ((id & PS3AV_MODE_WHITE) && ps3av_hdmi_range())
+		av_video_cs->super_white = PS3AV_CMD_AV_SUPER_WHITE_ON;
+	else /* default off */
+		av_video_cs->super_white = PS3AV_CMD_AV_SUPER_WHITE_OFF;
 	av_video_cs->aspect = aspect;
 	if (id & PS3AV_MODE_DITHER) {
 		av_video_cs->dither = PS3AV_CMD_AV_DITHER_ON
@@ -392,6 +404,10 @@ u32 ps3av_cmd_set_video_mode(void *p, u32 head, int video_vid, int video_fmt,
 	video_mode->pitch = video_mode->width * 4;	/* line_length */
 	video_mode->video_out_format = PS3AV_CMD_VIDEO_OUT_FORMAT_RGB_12BIT;
 	video_mode->video_format = ps3av_video_fmt_table[video_fmt].format;
+	if ((id & PS3AV_MODE_COLOR) && ps3av_hdmi_range())
+		video_mode->video_cl_cnv = PS3AV_CMD_VIDEO_CL_CNV_DISABLE_LUT;
+	else /* default enable */
+		video_mode->video_cl_cnv = PS3AV_CMD_VIDEO_CL_CNV_ENABLE_LUT;
 	video_mode->video_order = ps3av_video_fmt_table[video_fmt].order;
 
 	pr_debug("%s: video_mode:vid:%x width:%d height:%d pitch:%d out_format:%d format:%x order:%x\n",
