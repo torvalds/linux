@@ -376,7 +376,8 @@ exit:
 		   __FUNCTION__, retval);
 }
 
-int xpad_play_effect(struct input_dev *dev, void *data, struct ff_effect *effect)
+static int xpad_play_effect(struct input_dev *dev, void *data,
+			    struct ff_effect *effect)
 {
 	struct usb_xpad *xpad = input_get_drvdata(dev);
 
