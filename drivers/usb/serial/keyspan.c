@@ -427,14 +427,15 @@ static void	usa26_indat_callback(struct urb *urb)
 	struct usb_serial_port	*port;
 	struct tty_struct	*tty;
 	unsigned char 		*data = urb->transfer_buffer;
+	int status = urb->status;
 
 	dbg ("%s", __FUNCTION__); 
 
 	endpoint = usb_pipeendpoint(urb->pipe);
 
-	if (urb->status) {
+	if (status) {
 		dbg("%s - nonzero status: %x on endpoint %d.",
-		    __FUNCTION__, urb->status, endpoint);
+		    __FUNCTION__, status, endpoint);
 		return;
 	}
 
@@ -519,11 +520,12 @@ static void	usa26_instat_callback(struct urb *urb)
 	struct usb_serial_port			*port;
 	struct keyspan_port_private	 	*p_priv;
 	int old_dcd_state, err;
+	int status = urb->status;
 
 	serial = (struct usb_serial *) urb->context;
 
-	if (urb->status) {
-		dbg("%s - nonzero status: %x", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero status: %x", __FUNCTION__, status);
 		return;
 	}
 	if (urb->actual_length != 9) {
@@ -587,6 +589,7 @@ static void usa28_indat_callback(struct urb *urb)
 	struct tty_struct       *tty;
 	unsigned char           *data;
 	struct keyspan_port_private             *p_priv;
+	int status = urb->status;
 
 	dbg ("%s", __FUNCTION__);
 
@@ -598,9 +601,9 @@ static void usa28_indat_callback(struct urb *urb)
 		return;
 
 	do {
-		if (urb->status) {
+		if (status) {
 			dbg("%s - nonzero status: %x on endpoint %d.",
-			    __FUNCTION__, urb->status, usb_pipeendpoint(urb->pipe));
+			    __FUNCTION__, status, usb_pipeendpoint(urb->pipe));
 			return;
 		}
 
@@ -656,11 +659,12 @@ static void	usa28_instat_callback(struct urb *urb)
 	struct usb_serial_port			*port;
 	struct keyspan_port_private	 	*p_priv;
 	int old_dcd_state;
+	int status = urb->status;
 
 	serial = (struct usb_serial *) urb->context;
 
-	if (urb->status) {
-		dbg("%s - nonzero status: %x", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero status: %x", __FUNCTION__, status);
 		return;
 	}
 
@@ -747,13 +751,14 @@ static void	usa49_instat_callback(struct urb *urb)
 	struct usb_serial_port			*port;
 	struct keyspan_port_private	 	*p_priv;
 	int old_dcd_state;
+	int status = urb->status;
 
 	dbg ("%s", __FUNCTION__);
 
 	serial = (struct usb_serial *) urb->context;
 
-	if (urb->status) {
-		dbg("%s - nonzero status: %x", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero status: %x", __FUNCTION__, status);
 		return;
 	}
 
@@ -813,14 +818,15 @@ static void	usa49_indat_callback(struct urb *urb)
 	struct usb_serial_port	*port;
 	struct tty_struct	*tty;
 	unsigned char 		*data = urb->transfer_buffer;
+	int status = urb->status;
 
 	dbg ("%s", __FUNCTION__);
 
 	endpoint = usb_pipeendpoint(urb->pipe);
 
-	if (urb->status) {
+	if (status) {
 		dbg("%s - nonzero status: %x on endpoint %d.", __FUNCTION__,
-		    urb->status, endpoint);
+		    status, endpoint);
 		return;
 	}
 
@@ -865,13 +871,14 @@ static void usa49wg_indat_callback(struct urb *urb)
 	struct usb_serial_port	*port;
 	struct tty_struct	*tty;
 	unsigned char 		*data = urb->transfer_buffer;
+	int status = urb->status;
 
 	dbg ("%s", __FUNCTION__);
 
 	serial = urb->context;
 
-	if (urb->status) {
-		dbg("%s - nonzero status: %x", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero status: %x", __FUNCTION__, status);
 		return;
 	}
 
@@ -948,14 +955,15 @@ static void usa90_indat_callback(struct urb *urb)
 	struct keyspan_port_private	 	*p_priv;
 	struct tty_struct	*tty;
 	unsigned char 		*data = urb->transfer_buffer;
+	int status = urb->status;
 
 	dbg ("%s", __FUNCTION__); 
 
 	endpoint = usb_pipeendpoint(urb->pipe);
 
-	if (urb->status) {
+	if (status) {
 		dbg("%s - nonzero status: %x on endpoint %d.",
-		    __FUNCTION__, urb->status, endpoint);
+		    __FUNCTION__, status, endpoint);
 		return;
 	}
 
@@ -1021,11 +1029,12 @@ static void	usa90_instat_callback(struct urb *urb)
 	struct usb_serial_port			*port;
 	struct keyspan_port_private	 	*p_priv;
 	int old_dcd_state, err;
+	int status = urb->status;
 
 	serial = (struct usb_serial *) urb->context;
 
-	if (urb->status) {
-		dbg("%s - nonzero status: %x", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero status: %x", __FUNCTION__, status);
 		return;
 	}
 	if (urb->actual_length < 14) {
@@ -1088,13 +1097,14 @@ static void	usa67_instat_callback(struct urb *urb)
 	struct usb_serial_port			*port;
 	struct keyspan_port_private	 	*p_priv;
 	int old_dcd_state;
+	int status = urb->status;
 
 	dbg ("%s", __FUNCTION__);
 
 	serial = urb->context;
 
-	if (urb->status) {
-		dbg("%s - nonzero status: %x", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero status: %x", __FUNCTION__, status);
 		return;
 	}
 
