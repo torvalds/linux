@@ -211,7 +211,7 @@ static struct rxrpc_connection *rxrpc_alloc_connection(gfp_t gfp)
 		conn->header_size = sizeof(struct rxrpc_header);
 	}
 
-	_leave(" = %p{%d}", conn, conn->debug_id);
+	_leave(" = %p{%d}", conn, conn ? conn->debug_id : 0);
 	return conn;
 }
 
