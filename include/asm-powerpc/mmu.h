@@ -11,6 +11,9 @@
 #elif defined(CONFIG_44x)
 /* 44x-style software loaded TLB */
 #  include <asm/mmu-44x.h>
+#elif defined(CONFIG_FSL_BOOKE)
+/* Freescale Book-E software loaded TLB */
+#  include <asm/mmu-fsl-booke.h>
 #else
 /* Other 32-bit.  FIXME: split up the other 32-bit MMU types, and
  * revise for arch/powerpc */
