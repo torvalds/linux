@@ -732,11 +732,13 @@ static void ipaq_read_bulk_callback(struct urb *urb)
 	struct tty_struct	*tty;
 	unsigned char		*data = urb->transfer_buffer;
 	int			result;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (urb->status) {
-		dbg("%s - nonzero read bulk status received: %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero read bulk status received: %d",
+		    __FUNCTION__, status);
 		return;
 	}
 
@@ -870,11 +872,13 @@ static void ipaq_write_bulk_callback(struct urb *urb)
 	struct ipaq_private	*priv = usb_get_serial_port_data(port);
 	unsigned long		flags;
 	int			result;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
-	
-	if (urb->status) {
-		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__, urb->status);
+
+	if (status) {
+		dbg("%s - nonzero write bulk status received: %d",
+		    __FUNCTION__, status);
 		return;
 	}
 
