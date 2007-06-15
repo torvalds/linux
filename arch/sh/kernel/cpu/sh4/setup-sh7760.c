@@ -96,6 +96,19 @@ static struct intc2_data intc2_irq_table[] = {
 	{109,12,  0, 4,  0,  3},	/* CMTI */
 };
 
+static struct intc2_desc intc2_irq_desc __read_mostly = {
+	.prio_base	= 0xfe080000,
+	.msk_base	= 0xfe080040,
+	.mskclr_base	= 0xfe080060,
+
+	.intc2_data	= intc2_irq_table,
+	.nr_irqs	= ARRAY_SIZE(intc2_irq_table),
+
+	.chip = {
+		.name	= "INTC2-sh7760",
+	},
+};
+
 static struct ipr_data sh7760_ipr_map[] = {
 	/* IRQ, IPR-idx, shift, priority */
 	{ 16, 0, 12, 2 }, /* TMU0 TUNI*/
@@ -143,7 +156,7 @@ unsigned int map_ipridx_to_addr(int idx)
 
 void __init init_IRQ_intc2(void)
 {
-	make_intc2_irq(intc2_irq_table, ARRAY_SIZE(intc2_irq_table));
+	register_intc2_controller(&intc2_irq_desc);
 }
 
 void __init  init_IRQ_ipr(void)

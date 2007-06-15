@@ -63,16 +63,6 @@ void make_ipr_irq(struct ipr_data *table, unsigned int nr_irqs);
 void make_imask_irq(unsigned int irq);
 void init_IRQ_ipr(void);
 
-struct intc2_data {
-	unsigned short irq;
-	unsigned char ipr_offset, ipr_shift;
-	unsigned char msk_offset, msk_shift;
-	unsigned char priority;
-};
-
-void make_intc2_irq(struct intc2_data *, unsigned int nr_irqs);
-void init_IRQ_intc2(void);
-
 static inline int generic_irq_demux(int irq)
 {
 	return irq;
