@@ -811,7 +811,10 @@ generic_file_splice_write_nolock(struct pipe_inode_info *pipe, struct file *out,
 
 	ret = __splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_file);
 	if (ret > 0) {
+		unsigned long nr_pages;
+
 		*ppos += ret;
+		nr_pages = (ret + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 
 		/*
 		 * If file or inode is SYNC and we actually wrote some data,
@@ -824,7 +827,7 @@ generic_file_splice_write_nolock(struct pipe_inode_info *pipe, struct file *out,
 			if (err)
 				ret = err;
 		}
-		balance_dirty_pages_ratelimited(mapping);
+		balance_dirty_pages_ratelimited_nr(mapping, nr_pages);
 	}
 
 	return ret;
@@ -863,7 +866,10 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 
 	ret = splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_file);
 	if (ret > 0) {
+		unsigned long nr_pages;
+
 		*ppos += ret;
+		nr_pages = (ret + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 
 		/*
 		 * If file or inode is SYNC and we actually wrote some data,
@@ -878,7 +884,7 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 			if (err)
 				ret = err;
 		}
-		balance_dirty_pages_ratelimited(mapping);
+		balance_dirty_pages_ratelimited_nr(mapping, nr_pages);
 	}
 
 	return ret;
