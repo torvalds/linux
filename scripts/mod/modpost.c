@@ -1052,6 +1052,7 @@ static int init_section_ref_ok(const char *name)
 		".plt",  /* seen on ARCH=um build on x86_64. Harmless */
 		"__ftr_fixup",		/* powerpc cpu feature fixup */
 		"__fw_ftr_fixup",	/* powerpc firmware feature fixup */
+		".cranges",	/* used by sh64 */
 		NULL
 	};
 	/* Start of section names */
@@ -1132,6 +1133,7 @@ static int exit_section_ref_ok(const char *name)
 		".fixup",
 		".smp_locks",
 		".plt",  /* seen on ARCH=um build on x86_64. Harmless */
+		".cranges",	/* used by sh64 */
 		NULL
 	};
 	/* Start of section names */
