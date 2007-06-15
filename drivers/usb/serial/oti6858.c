@@ -916,11 +916,12 @@ static void oti6858_read_int_callback(struct urb *urb)
 	struct usb_serial_port *port = (struct usb_serial_port *) urb->context;
 	struct oti6858_private *priv = usb_get_serial_port_data(port);
 	int transient = 0, can_recv = 0, resubmit = 1;
+	int status = urb->status;
 
-	dbg("%s(port = %d, urb->status = %d)",
-				__FUNCTION__, port->number, urb->status);
+	dbg("%s(port = %d, status = %d)",
+				__FUNCTION__, port->number, status);
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -929,15 +930,15 @@ static void oti6858_read_int_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s(): urb shutting down with status: %d",
-					__FUNCTION__, urb->status);
+					__FUNCTION__, status);
 		return;
 	default:
 		dbg("%s(): nonzero urb status received: %d",
-					__FUNCTION__, urb->status);
+					__FUNCTION__, status);
 		break;
 	}
 
-	if (urb->status == 0 && urb->actual_length == OTI6858_CTRL_PKT_SIZE) {
+	if (status == 0 && urb->actual_length == OTI6858_CTRL_PKT_SIZE) {
 		struct oti6858_control_pkt *xs = urb->transfer_buffer;
 		unsigned long flags;
 
@@ -1032,26 +1033,25 @@ static void oti6858_read_bulk_callback(struct urb *urb)
 	unsigned char *data = urb->transfer_buffer;
 	unsigned long flags;
 	int i, result;
+	int status = urb->status;
 	char tty_flag;
 
-	dbg("%s(port = %d, urb->status = %d)",
-				__FUNCTION__, port->number, urb->status);
+	dbg("%s(port = %d, status = %d)",
+				__FUNCTION__, port->number, status);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->flags.read_urb_in_use = 0;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	if (urb->status != 0) {
+	if (status != 0) {
 		if (!port->open_count) {
 			dbg("%s(): port is closed, exiting", __FUNCTION__);
 			return;
 		}
 		/*
-		if (urb->status == -EPROTO) {
+		if (status == -EPROTO) {
 			// PL2303 mysteriously fails with -EPROTO reschedule the read
 			dbg("%s - caught -EPROTO, resubmitting the urb", __FUNCTION__);
-			urb->status = 0;
-			urb->dev = port->serial->dev;
 			result = usb_submit_urb(urb, GFP_ATOMIC);
 			if (result)
 				dev_err(&urb->dev->dev, "%s - failed resubmitting read urb, error %d\n", __FUNCTION__, result);
@@ -1101,12 +1101,13 @@ static void oti6858_write_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *) urb->context;
 	struct oti6858_private *priv = usb_get_serial_port_data(port);
+	int status = urb->status;
 	int result;
 
-	dbg("%s(port = %d, urb->status = %d)",
-				__FUNCTION__, port->number, urb->status);
+	dbg("%s(port = %d, status = %d)",
+				__FUNCTION__, port->number, status);
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -1115,13 +1116,13 @@ static void oti6858_write_bulk_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s(): urb shutting down with status: %d",
-					__FUNCTION__, urb->status);
+					__FUNCTION__, status);
 		priv->flags.write_urb_in_use = 0;
 		return;
 	default:
 		/* error in the urb, so we have to resubmit it */
 		dbg("%s(): nonzero write bulk status received: %d",
-					__FUNCTION__, urb->status);
+					__FUNCTION__, status);
 		dbg("%s(): overflow in write", __FUNCTION__);
 
 		port->write_urb->transfer_buffer_length = 1;
