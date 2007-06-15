@@ -242,7 +242,7 @@ enum { KE_END, KE_KEY, KE_SW, KE_WIFI, KE_BLUETOOTH };
 #define FE_WIFI_LED 0x02
 #define FE_UNTESTED 0x80
 
-static const struct key_entry *keymap; /* = NULL; Current key map */
+static struct key_entry *keymap; /* = NULL; Current key map */
 static int have_wifi;
 static int have_bluetooth;
 static int have_leds;
@@ -1059,47 +1059,64 @@ static inline void wistron_led_resume(void)
 		led_classdev_resume(&wistron_wifi_led);
 }
 
+static struct key_entry *wistron_get_entry_by_scancode(int code)
+{
+	struct key_entry *key;
+
+	for (key = keymap; key->type != KE_END; key++)
+		if (code == key->code)
+			return key;
+
+	return NULL;
+}
+
+static struct key_entry *wistron_get_entry_by_keycode(int keycode)
+{
+	struct key_entry *key;
+
+	for (key = keymap; key->type != KE_END; key++)
+		if (key->type == KE_KEY && keycode == key->keycode)
+			return key;
+
+	return NULL;
+}
+
 static void handle_key(u8 code)
 {
-	const struct key_entry *key;
+	const struct key_entry *key = wistron_get_entry_by_scancode(code);
 
-	for (key = keymap; key->type != KE_END; key++) {
-		if (code == key->code) {
-			switch (key->type) {
-			case KE_KEY:
-				report_key(wistron_idev->input, key->keycode);
-				break;
+	if (key) {
+		switch (key->type) {
+		case KE_KEY:
+			report_key(wistron_idev->input, key->keycode);
+			break;
 
-			case KE_SW:
-				report_switch(wistron_idev->input,
-					      key->sw.code, key->sw.value);
-				break;
+		case KE_SW:
+			report_switch(wistron_idev->input,
+				      key->sw.code, key->sw.value);
+			break;
 
-			case KE_WIFI:
-				if (have_wifi) {
-					wifi_enabled = !wifi_enabled;
-					bios_set_state(WIFI, wifi_enabled);
-				}
-				break;
-
-			case KE_BLUETOOTH:
-				if (have_bluetooth) {
-					bluetooth_enabled = !bluetooth_enabled;
-					bios_set_state(BLUETOOTH, bluetooth_enabled);
-				}
-				break;
-
-			case KE_END:
-				break;
-
-			default:
-				BUG();
+		case KE_WIFI:
+			if (have_wifi) {
+				wifi_enabled = !wifi_enabled;
+				bios_set_state(WIFI, wifi_enabled);
 			}
-			jiffies_last_press = jiffies;
-			return;
+			break;
+
+		case KE_BLUETOOTH:
+			if (have_bluetooth) {
+				bluetooth_enabled = !bluetooth_enabled;
+				bios_set_state(BLUETOOTH, bluetooth_enabled);
+			}
+			break;
+
+		default:
+			BUG();
 		}
-	}
-	printk(KERN_NOTICE "wistron_btns: Unknown key code %02X\n", code);
+		jiffies_last_press = jiffies;
+	} else
+		printk(KERN_NOTICE
+			"wistron_btns: Unknown key code %02X\n", code);
 }
 
 static void poll_bios(bool discard)
@@ -1134,6 +1151,39 @@ static void wistron_poll(struct input_polled_dev *dev)
 		dev->poll_interval = POLL_INTERVAL_DEFAULT;
 }
 
+static int wistron_getkeycode(struct input_dev *dev, int scancode, int *keycode)
+{
+	const struct key_entry *key = wistron_get_entry_by_scancode(scancode);
+
+	if (key && key->type == KE_KEY) {
+		*keycode = key->keycode;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static int wistron_setkeycode(struct input_dev *dev, int scancode, int keycode)
+{
+	struct key_entry *key;
+	int old_keycode;
+
+	if (keycode < 0 || keycode > KEY_MAX)
+		return -EINVAL;
+
+	key = wistron_get_entry_by_scancode(scancode);
+	if (key && key->type == KE_KEY) {
+		old_keycode = key->keycode;
+		key->keycode = keycode;
+		set_bit(keycode, dev->keybit);
+		if (!wistron_get_entry_by_keycode(old_keycode))
+			clear_bit(old_keycode, dev->keybit);
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static int __devinit setup_input_dev(void)
 {
 	const struct key_entry *key;
@@ -1152,7 +1202,10 @@ static int __devinit setup_input_dev(void)
 	input_dev->name = "Wistron laptop buttons";
 	input_dev->phys = "wistron/input0";
 	input_dev->id.bustype = BUS_HOST;
-	input_dev->cdev.dev = &wistron_device->dev;
+	input_dev->dev.parent = &wistron_device->dev;
+
+	input_dev->getkeycode = wistron_getkeycode;
+	input_dev->setkeycode = wistron_setkeycode;
 
 	for (key = keymap; key->type != KE_END; key++) {
 		switch (key->type) {
