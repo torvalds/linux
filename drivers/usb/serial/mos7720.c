@@ -103,6 +103,7 @@ static void mos7720_interrupt_callback(struct urb *urb)
 {
 	int result;
 	int length;
+	int status = urb->status;
 	__u8 *data;
 	__u8 sp1;
 	__u8 sp2;
@@ -114,7 +115,7 @@ static void mos7720_interrupt_callback(struct urb *urb)
 		return;
 	}
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -123,11 +124,11 @@ static void mos7720_interrupt_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d", __FUNCTION__,
-		    urb->status);
+		    status);
 		return;
 	default:
 		dbg("%s - nonzero urb status received: %d", __FUNCTION__,
-		    urb->status);
+		    status);
 		goto exit;
 	}
 
@@ -198,14 +199,15 @@ exit:
  */
 static void mos7720_bulk_in_callback(struct urb *urb)
 {
-	int status;
+	int retval;
 	unsigned char *data ;
 	struct usb_serial_port *port;
 	struct moschip_port *mos7720_port;
 	struct tty_struct *tty;
+	int status = urb->status;
 
-	if (urb->status) {
-		dbg("nonzero read bulk status received: %d",urb->status);
+	if (status) {
+		dbg("nonzero read bulk status received: %d", status);
 		return;
 	}
 
@@ -236,10 +238,10 @@ static void mos7720_bulk_in_callback(struct urb *urb)
 	if (port->read_urb->status != -EINPROGRESS) {
 		port->read_urb->dev = port->serial->dev;
 
-		status = usb_submit_urb(port->read_urb, GFP_ATOMIC);
-		if (status)
-			dbg("usb_submit_urb(read bulk) failed, status = %d",
-			    status);
+		retval = usb_submit_urb(port->read_urb, GFP_ATOMIC);
+		if (retval)
+			dbg("usb_submit_urb(read bulk) failed, retval = %d",
+			    retval);
 	}
 }
 
@@ -252,9 +254,10 @@ static void mos7720_bulk_out_data_callback(struct urb *urb)
 {
 	struct moschip_port *mos7720_port;
 	struct tty_struct *tty;
+	int status = urb->status;
 
-	if (urb->status) {
-		dbg("nonzero write bulk status received:%d", urb->status);
+	if (status) {
+		dbg("nonzero write bulk status received:%d", status);
 		return;
 	}
 
