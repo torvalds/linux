@@ -138,6 +138,12 @@ static void wacom_close(struct input_dev *dev)
 	usb_kill_urb(wacom->irq);
 }
 
+void input_dev_mo(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
+{
+	input_dev->keybit[LONG(BTN_LEFT)] |= BIT(BTN_1) | BIT(BTN_5);
+	input_set_abs_params(input_dev, ABS_WHEEL, 0, 71, 0, 0);
+}
+
 void input_dev_g4(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 {
 	input_dev->evbit[0] |= BIT(EV_MSC);
