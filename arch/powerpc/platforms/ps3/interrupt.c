@@ -100,24 +100,13 @@ static DEFINE_PER_CPU(struct ps3_private, ps3_private);
 static void ps3_chip_mask(unsigned int virq)
 {
 	struct ps3_private *pd = get_irq_chip_data(virq);
-	u64 bit = 0x8000000000000000UL >> virq;
-	u64 *p = &pd->bmp.mask;
-	u64 old;
 	unsigned long flags;
 
 	pr_debug("%s:%d: thread_id %lu, virq %d\n", __func__, __LINE__,
 		pd->thread_id, virq);
 
 	local_irq_save(flags);
-	asm volatile(
-		     "1:	ldarx %0,0,%3\n"
-		     "andc	%0,%0,%2\n"
-		     "stdcx.	%0,0,%3\n"
-		     "bne-	1b"
-		     : "=&r" (old), "+m" (*p)
-		     : "r" (bit), "r" (p)
-		     : "cc" );
-
+	clear_bit(63 - virq, &pd->bmp.mask);
 	lv1_did_update_interrupt_mask(pd->ppe_id, pd->thread_id);
 	local_irq_restore(flags);
 }
@@ -132,24 +121,13 @@ static void ps3_chip_mask(unsigned int virq)
 static void ps3_chip_unmask(unsigned int virq)
 {
 	struct ps3_private *pd = get_irq_chip_data(virq);
-	u64 bit = 0x8000000000000000UL >> virq;
-	u64 *p = &pd->bmp.mask;
-	u64 old;
 	unsigned long flags;
 
 	pr_debug("%s:%d: thread_id %lu, virq %d\n", __func__, __LINE__,
 		pd->thread_id, virq);
 
 	local_irq_save(flags);
-	asm volatile(
-		     "1:	ldarx %0,0,%3\n"
-		     "or	%0,%0,%2\n"
-		     "stdcx.	%0,0,%3\n"
-		     "bne-	1b"
-		     : "=&r" (old), "+m" (*p)
-		     : "r" (bit), "r" (p)
-		     : "cc" );
-
+	set_bit(63 - virq, &pd->bmp.mask);
 	lv1_did_update_interrupt_mask(pd->ppe_id, pd->thread_id);
 	local_irq_restore(flags);
 }
