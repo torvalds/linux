@@ -51,7 +51,7 @@ extern struct dt_ops dt_ops;
 /* Console operations */
 struct console_ops {
 	int	(*open)(void);
-	void	(*write)(char *buf, int len);
+	void	(*write)(const char *buf, int len);
 	void	(*edit_cmdline)(char *buf, int len);
 	void	(*close)(void);
 	void	*data;

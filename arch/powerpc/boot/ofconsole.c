@@ -33,7 +33,7 @@ static int of_console_open(void)
 	return -1;
 }
 
-static void of_console_write(char *buf, int len)
+static void of_console_write(const char *buf, int len)
 {
 	of_call_prom("write", 3, 1, of_stdout_handle, buf, len);
 }
