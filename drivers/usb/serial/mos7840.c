@@ -434,6 +434,7 @@ static void mos7840_control_callback(struct urb *urb)
 	struct moschip_port *mos7840_port;
 	__u8 regval = 0x0;
 	int result = 0;
+	int status = urb->status;
 
 	if (!urb) {
 		dbg("%s", "Invalid Pointer !!!!:\n");
@@ -442,7 +443,7 @@ static void mos7840_control_callback(struct urb *urb)
 
 	mos7840_port = (struct moschip_port *)urb->context;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -451,11 +452,11 @@ static void mos7840_control_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d", __FUNCTION__,
-		    urb->status);
+		    status);
 		return;
 	default:
 		dbg("%s - nonzero urb status received: %d", __FUNCTION__,
-		    urb->status);
+		    status);
 		goto exit;
 	}
 
@@ -521,6 +522,7 @@ static void mos7840_interrupt_callback(struct urb *urb)
 	__u8 sp[5], st;
 	int i, rv = 0;
 	__u16 wval, wreg = 0;
+	int status = urb->status;
 
 	dbg("%s", " : Entering\n");
 	if (!urb) {
@@ -528,7 +530,7 @@ static void mos7840_interrupt_callback(struct urb *urb)
 		return;
 	}
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -537,11 +539,11 @@ static void mos7840_interrupt_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d", __FUNCTION__,
-		    urb->status);
+		    status);
 		return;
 	default:
 		dbg("%s - nonzero urb status received: %d", __FUNCTION__,
-		    urb->status);
+		    status);
 		goto exit;
 	}
 
@@ -666,20 +668,21 @@ static struct usb_serial *mos7840_get_usb_serial(struct usb_serial_port *port,
 
 static void mos7840_bulk_in_callback(struct urb *urb)
 {
-	int status;
+	int retval;
 	unsigned char *data;
 	struct usb_serial *serial;
 	struct usb_serial_port *port;
 	struct moschip_port *mos7840_port;
 	struct tty_struct *tty;
+	int status = urb->status;
 
 	if (!urb) {
 		dbg("%s", "Invalid Pointer !!!!:\n");
 		return;
 	}
 
-	if (urb->status) {
-		dbg("nonzero read bulk status received: %d", urb->status);
+	if (status) {
+		dbg("nonzero read bulk status received: %d", status);
 		return;
 	}
 
@@ -729,11 +732,11 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 
 	mos7840_port->read_urb->dev = serial->dev;
 
-	status = usb_submit_urb(mos7840_port->read_urb, GFP_ATOMIC);
+	retval = usb_submit_urb(mos7840_port->read_urb, GFP_ATOMIC);
 
-	if (status) {
-		dbg(" usb_submit_urb(read bulk) failed, status = %d",
-		 status);
+	if (retval) {
+		dbg(" usb_submit_urb(read bulk) failed, retval = %d",
+		 retval);
 	}
 }
 
@@ -747,6 +750,7 @@ static void mos7840_bulk_out_data_callback(struct urb *urb)
 {
 	struct moschip_port *mos7840_port;
 	struct tty_struct *tty;
+	int status = urb->status;
 	int i;
 
 	if (!urb) {
@@ -764,8 +768,8 @@ static void mos7840_bulk_out_data_callback(struct urb *urb)
 	}
 	spin_unlock(&mos7840_port->pool_lock);
 
-	if (urb->status) {
-		dbg("nonzero write bulk status received:%d\n", urb->status);
+	if (status) {
+		dbg("nonzero write bulk status received:%d\n", status);
 		return;
 	}
 
