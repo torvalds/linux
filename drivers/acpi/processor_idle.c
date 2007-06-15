@@ -332,15 +332,17 @@ static void acpi_processor_idle(void)
 	int sleep_ticks = 0;
 	u32 t1, t2 = 0;
 
-	pr = processors[smp_processor_id()];
-	if (!pr)
-		return;
-
 	/*
 	 * Interrupts must be disabled during bus mastering calculations and
 	 * for C2/C3 transitions.
 	 */
 	local_irq_disable();
+
+	pr = processors[smp_processor_id()];
+	if (!pr) {
+		local_irq_enable();
+		return;
+	}
 
 	/*
 	 * Check whether we truly need to go idle, or should
