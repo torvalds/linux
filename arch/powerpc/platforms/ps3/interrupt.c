@@ -400,17 +400,15 @@ int ps3_send_event_locally(unsigned int virq)
  * ps3_sb_event_receive_port_setup - Setup a system bus event receive port.
  * @cpu: enum ps3_cpu_binding indicating the cpu the interrupt should be
  * serviced on.
- * @did: The HV device identifier read from the system repository.
- * @interrupt_id: The device interrupt id read from the system repository.
+ * @dev: The system bus device instance.
  * @virq: The assigned Linux virq.
  *
  * An event irq represents a virtual device interrupt.  The interrupt_id
  * coresponds to the software interrupt number.
  */
 
-int ps3_sb_event_receive_port_setup(enum ps3_cpu_binding cpu,
-	const struct ps3_device_id *did, unsigned int interrupt_id,
-	unsigned int *virq)
+int ps3_sb_event_receive_port_setup(struct ps3_system_bus_device *dev,
+	enum ps3_cpu_binding cpu, unsigned int *virq)
 {
 	/* this should go in system-bus.c */
 
@@ -421,8 +419,8 @@ int ps3_sb_event_receive_port_setup(enum ps3_cpu_binding cpu,
 	if (result)
 		return result;
 
-	result = lv1_connect_interrupt_event_receive_port(did->bus_id,
-		did->dev_id, virq_to_hw(*virq), interrupt_id);
+	result = lv1_connect_interrupt_event_receive_port(dev->bus_id,
+		dev->dev_id, virq_to_hw(*virq), dev->interrupt_id);
 
 	if (result) {
 		pr_debug("%s:%d: lv1_connect_interrupt_event_receive_port"
@@ -434,24 +432,24 @@ int ps3_sb_event_receive_port_setup(enum ps3_cpu_binding cpu,
 	}
 
 	pr_debug("%s:%d: interrupt_id %u, virq %u\n", __func__, __LINE__,
-		interrupt_id, *virq);
+		dev->interrupt_id, *virq);
 
 	return 0;
 }
 EXPORT_SYMBOL(ps3_sb_event_receive_port_setup);
 
-int ps3_sb_event_receive_port_destroy(const struct ps3_device_id *did,
-	unsigned int interrupt_id, unsigned int virq)
+int ps3_sb_event_receive_port_destroy(struct ps3_system_bus_device *dev,
+	unsigned int virq)
 {
 	/* this should go in system-bus.c */
 
 	int result;
 
 	pr_debug(" -> %s:%d: interrupt_id %u, virq %u\n", __func__, __LINE__,
-		interrupt_id, virq);
+		dev->interrupt_id, virq);
 
-	result = lv1_disconnect_interrupt_event_receive_port(did->bus_id,
-		did->dev_id, virq_to_hw(virq), interrupt_id);
+	result = lv1_disconnect_interrupt_event_receive_port(dev->bus_id,
+		dev->dev_id, virq_to_hw(virq), dev->interrupt_id);
 
 	if (result)
 		pr_debug("%s:%d: lv1_disconnect_interrupt_event_receive_port"
