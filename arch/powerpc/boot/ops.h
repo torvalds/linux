@@ -19,6 +19,8 @@
 #define	MAX_PATH_LEN		256
 #define	MAX_PROP_LEN		256 /* What should this be? */
 
+typedef void (*kernel_entry_t)(unsigned long r3, unsigned long r4, void *r5);
+
 /* Platform specific operations */
 struct platform_ops {
 	void	(*fixups)(void);
