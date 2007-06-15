@@ -113,7 +113,7 @@ int copy_siginfo_from_user32 (siginfo_t *to, compat_siginfo_t __user *from);
 /* In a deft move of uber-hackery, we decide to carry the top half of all
  * 64-bit registers in a non-portable, non-ABI, hidden structure.
  * Userspace can read the hidden structure if it *wants* but is never
- * guaranteed to be in the same place. Infact the uc_sigmask from the
+ * guaranteed to be in the same place. In fact the uc_sigmask from the
  * ucontext_t structure may push the hidden register file downards
  */
 struct compat_regfile {

@@ -792,8 +792,19 @@
 #define __NR_epoll_pwait	(__NR_Linux + 297)
 #define __NR_statfs64		(__NR_Linux + 298)
 #define __NR_fstatfs64		(__NR_Linux + 299)
+#define __NR_kexec_load		(__NR_Linux + 300)
+#define __NR_utimensat		(__NR_Linux + 301)
+#define __NR_signalfd		(__NR_Linux + 302)
+#define __NR_timerfd		(__NR_Linux + 303)
+#define __NR_eventfd		(__NR_Linux + 304)
 
-#define __NR_Linux_syscalls     (__NR_fstatfs64 + 1)
+#define __NR_Linux_syscalls	(__NR_eventfd + 1)
+
+
+#define __IGNORE_select		/* newselect */
+#define __IGNORE_fadvise64	/* fadvise64_64 */
+#define __IGNORE_utimes		/* utime */
+
 
 #define HPUX_GATEWAY_ADDR       0xC0000004
 #define LINUX_GATEWAY_ADDR      0x100

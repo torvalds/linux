@@ -21,6 +21,7 @@
 #include <linux/mm.h>
 #include <linux/pci.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -34,7 +35,6 @@
 #include <asm/tlbflush.h>	/* for purge_tlb_*() macros */
 
 static struct proc_dir_entry * proc_gsc_root __read_mostly = NULL;
-static int pcxl_proc_info(char *buffer, char **start, off_t offset, int length);
 static unsigned long pcxl_used_bytes __read_mostly = 0;
 static unsigned long pcxl_used_pages __read_mostly = 0;
 
@@ -330,6 +330,54 @@ pcxl_free_range(unsigned long vaddr, size_t size)
 	dump_resmap();
 }
 
+static int proc_pcxl_dma_show(struct seq_file *m, void *v)
+{
+#if 0
+	u_long i = 0;
+	unsigned long *res_ptr = (u_long *)pcxl_res_map;
+#endif
+	unsigned long total_pages = pcxl_res_size << 3;   /* 8 bits per byte */
+
+	seq_printf(m, "\nDMA Mapping Area size    : %d bytes (%ld pages)\n",
+		PCXL_DMA_MAP_SIZE, total_pages);
+
+	seq_printf(m, "Resource bitmap : %d bytes\n", pcxl_res_size);
+
+	seq_puts(m,  "     	  total:    free:    used:   % used:\n");
+	seq_printf(m, "blocks  %8d %8ld %8ld %8ld%%\n", pcxl_res_size,
+		pcxl_res_size - pcxl_used_bytes, pcxl_used_bytes,
+		(pcxl_used_bytes * 100) / pcxl_res_size);
+
+	seq_printf(m, "pages   %8ld %8ld %8ld %8ld%%\n", total_pages,
+		total_pages - pcxl_used_pages, pcxl_used_pages,
+		(pcxl_used_pages * 100 / total_pages));
+
+#if 0
+	seq_puts(m, "\nResource bitmap:");
+
+	for(; i < (pcxl_res_size / sizeof(u_long)); ++i, ++res_ptr) {
+		if ((i & 7) == 0)
+		    seq_puts(m,"\n   ");
+		seq_printf(m, "%s %08lx", buf, *res_ptr);
+	}
+#endif
+	seq_putc(m, '\n');
+	return 0;
+}
+
+static int proc_pcxl_dma_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_pcxl_dma_show, NULL);
+}
+
+static const struct file_operations proc_pcxl_dma_ops = {
+	.owner		= THIS_MODULE,
+	.open		= proc_pcxl_dma_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static int __init
 pcxl_dma_init(void)
 {
@@ -348,9 +396,10 @@ pcxl_dma_init(void)
 			"pcxl_dma_init: Unable to create gsc /proc dir entry\n");
 	else {
 		struct proc_dir_entry* ent;
-		ent = create_proc_info_entry("pcxl_dma", 0,
-				proc_gsc_root, pcxl_proc_info);
-		if (!ent)
+		ent = create_proc_entry("pcxl_dma", 0, proc_gsc_root);
+		if (ent)
+			ent->proc_fops = &proc_pcxl_dma_ops;
+		else
 			printk(KERN_WARNING
 				"pci-dma.c: Unable to create pcxl_dma /proc entry.\n");
 	}
@@ -551,40 +600,3 @@ struct hppa_dma_ops pcx_dma_ops = {
 	.dma_sync_sg_for_cpu =		pa11_dma_sync_sg_for_cpu,
 	.dma_sync_sg_for_device =	pa11_dma_sync_sg_for_device,
 };
-
-
-static int pcxl_proc_info(char *buf, char **start, off_t offset, int len)
-{
-#if 0
-	u_long i = 0;
-	unsigned long *res_ptr = (u_long *)pcxl_res_map;
-#endif
-	unsigned long total_pages = pcxl_res_size << 3;   /* 8 bits per byte */
-
-	sprintf(buf, "\nDMA Mapping Area size    : %d bytes (%ld pages)\n",
-		PCXL_DMA_MAP_SIZE, total_pages);
-	
-	sprintf(buf, "%sResource bitmap : %d bytes\n", buf, pcxl_res_size);
-
-	strcat(buf,  "     	  total:    free:    used:   % used:\n");
-	sprintf(buf, "%sblocks  %8d %8ld %8ld %8ld%%\n", buf, pcxl_res_size,
-		pcxl_res_size - pcxl_used_bytes, pcxl_used_bytes,
-		(pcxl_used_bytes * 100) / pcxl_res_size);
-
-	sprintf(buf, "%spages   %8ld %8ld %8ld %8ld%%\n", buf, total_pages,
-		total_pages - pcxl_used_pages, pcxl_used_pages,
-		(pcxl_used_pages * 100 / total_pages));
-
-#if 0
-	strcat(buf, "\nResource bitmap:");
-
-	for(; i < (pcxl_res_size / sizeof(u_long)); ++i, ++res_ptr) {
-		if ((i & 7) == 0)
-		    strcat(buf,"\n   ");
-		sprintf(buf, "%s %08lx", buf, *res_ptr);
-	}
-#endif
-	strcat(buf, "\n");
-	return strlen(buf);
-}
-

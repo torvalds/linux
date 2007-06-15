@@ -350,7 +350,7 @@ struct parport *__devinit parport_gsc_probe_port (unsigned long base,
 
 #define PARPORT_GSC_OFFSET 0x800
 
-static int __initdata parport_count;
+static int __devinitdata parport_count;
 
 static int __devinit parport_init_chip(struct parisc_device *dev)
 {

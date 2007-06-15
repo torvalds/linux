@@ -31,10 +31,11 @@ enum cpu_type {
 	pcxw	= 8, /* pa8500		pa 2.0  */
 	pcxw_	= 9, /* pa8600	(w+)	pa 2.0  */
 	pcxw2	= 10, /* pa8700		pa 2.0  */
-	mako	= 11  /* pa8800		pa 2.0  */
+	mako	= 11, /* pa8800		pa 2.0  */
+	mako2	= 12  /* pa8900		pa 2.0  */
 };
 
-extern char *cpu_name_version[][2]; /* mapping from enum cpu_type to strings */
+extern const char * const cpu_name_version[][2]; /* mapping from enum cpu_type to strings */
 
 struct parisc_driver;
 

@@ -45,7 +45,7 @@
 #include <asm/io.h>
 #include <asm/setup.h>
 
-char	__initdata command_line[COMMAND_LINE_SIZE];
+static char __initdata command_line[COMMAND_LINE_SIZE];
 
 /* Intended for ccio/sba/cpu statistics under /proc/bus/{runway|gsc} */
 struct proc_dir_entry * proc_runway_root __read_mostly = NULL;
@@ -162,7 +162,7 @@ void __init setup_arch(char **cmdline_p)
 }
 
 /*
- * Display cpu info for all cpu's.
+ * Display CPU info for all CPUs.
  * for parisc this is in processor.c
  */
 extern int show_cpuinfo (struct seq_file *m, void *v);
@@ -225,6 +225,7 @@ static void __init parisc_proc_mkdir(void)
                 }
                 break;
 	case mako:
+	case mako2:
                 if (NULL == proc_mckinley_root)
                 {
                         proc_mckinley_root = proc_mkdir("bus/mckinley", NULL);

@@ -615,7 +615,7 @@ void handle_interruption(int code, struct pt_regs *regs)
 		
 	case 13:
 		/* Conditional Trap
-		   The condition succees in an instruction which traps 
+		   The condition succeeds in an instruction which traps
 		   on condition  */
 		if(user_mode(regs)){
 			si.si_signo = SIGFPE;
@@ -802,13 +802,14 @@ void handle_interruption(int code, struct pt_regs *regs)
 
 int __init check_ivt(void *iva)
 {
+	extern const u32 os_hpmc[];
+	extern const u32 os_hpmc_end[];
+
 	int i;
 	u32 check = 0;
 	u32 *ivap;
 	u32 *hpmcp;
 	u32 length;
-	extern void os_hpmc(void);
-	extern void os_hpmc_end(void);
 
 	if (strcmp((char *)iva, "cows can fly"))
 		return -1;
@@ -820,7 +821,7 @@ int __init check_ivt(void *iva)
 
 	/* Compute Checksum for HPMC handler */
 
-	length = (u32)((unsigned long)os_hpmc_end - (unsigned long)os_hpmc);
+	length = os_hpmc_end - os_hpmc;
 	ivap[7] = length;
 
 	hpmcp = (u32 *)os_hpmc;

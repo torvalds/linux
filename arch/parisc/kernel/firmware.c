@@ -634,7 +634,7 @@ EXPORT_SYMBOL(pdc_lan_station_id);
  * pdc_stable_read - Read data from Stable Storage.
  * @staddr: Stable Storage address to access.
  * @memaddr: The memory address where Stable Storage data shall be copied.
- * @count: number of bytes to transfert. count is multiple of 4.
+ * @count: number of bytes to transfer. count is multiple of 4.
  *
  * This PDC call reads from the Stable Storage address supplied in staddr
  * and copies count bytes to the memory address memaddr.
@@ -660,7 +660,7 @@ EXPORT_SYMBOL(pdc_stable_read);
  * pdc_stable_write - Write data to Stable Storage.
  * @staddr: Stable Storage address to access.
  * @memaddr: The memory address where Stable Storage data shall be read from.
- * @count: number of bytes to transfert. count is multiple of 4.
+ * @count: number of bytes to transfer. count is multiple of 4.
  *
  * This PDC call reads count bytes from the supplied memaddr address,
  * and copies count bytes to the Stable Storage address staddr.

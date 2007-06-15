@@ -8,8 +8,10 @@
 
 /*
  * In parisc assembly a semicolon marks a comment while a
- * exclamation mark is used to seperate independend lines.
+ * exclamation mark is used to seperate independent lines.
  */
+#ifdef __ASSEMBLY__
+
 #define ENTRY(name) \
 	.export name !\
 	ALIGN !\
@@ -24,5 +26,6 @@ name:
 	END(name)
 #endif
 
+#endif /* __ASSEMBLY__ */
 
 #endif  /* __ASM_PARISC_LINKAGE_H */

@@ -30,11 +30,6 @@
  *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#undef ENTRY_SAME
-#undef ENTRY_DIFF
-#undef ENTRY_UHOH
-#undef ENTRY_COMP
-#undef ENTRY_OURS
 #if defined(CONFIG_64BIT) && !defined(SYSCALL_TABLE_64BIT)
 /* Use ENTRY_SAME for 32-bit syscalls which are the same on wide and
  * narrow palinux.  Use ENTRY_DIFF for those where a 32-bit specific
@@ -405,5 +400,16 @@
 	ENTRY_SAME(epoll_pwait)
 	ENTRY_COMP(statfs64)
 	ENTRY_COMP(fstatfs64)
+	ENTRY_COMP(kexec_load)		/* 300 */
+	ENTRY_COMP(utimensat)
+	ENTRY_COMP(signalfd)
+	ENTRY_COMP(timerfd)
+	ENTRY_SAME(eventfd)
+
 	/* Nothing yet */
 
+#undef ENTRY_SAME
+#undef ENTRY_DIFF
+#undef ENTRY_UHOH
+#undef ENTRY_COMP
+#undef ENTRY_OURS

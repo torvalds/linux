@@ -76,7 +76,7 @@ sgl_fsqrt(
                 }
                 /*
                  * Return quiet NaN or positive infinity.
-		 *  Fall thru to negative test if negative infinity.
+		 *  Fall through to negative test if negative infinity.
                  */
 		if (Sgl_iszero_sign(src) || Sgl_isnotzero_mantissa(src)) {
                 	*dstptr = src;

@@ -954,21 +954,6 @@ intr_return:
 	/* NOTE: Need to enable interrupts incase we schedule. */
 	ssm     PSW_SM_I, %r0
 
-	/* Check for software interrupts */
-
-	.import irq_stat,data
-
-	load32	irq_stat,%r19
-#ifdef CONFIG_SMP
-	mfctl   %cr30,%r1
-	ldw	TI_CPU(%r1),%r1 /* get cpu # - int */
-	/* shift left ____cacheline_aligned (aka L1_CACHE_BYTES) amount
-	** irq_stat[] is defined using ____cacheline_aligned.
-	*/
-	SHLREG	%r1,L1_CACHE_SHIFT,%r20
-	add     %r19,%r20,%r19	/* now have &irq_stat[smp_processor_id()] */
-#endif /* CONFIG_SMP */
-
 intr_check_resched:
 
 	/* check for reschedule */
@@ -2034,10 +2019,9 @@ ENTRY(syscall_exit)
 	STREG     %r28,TASK_PT_GR28(%r1)
 
 #ifdef CONFIG_HPUX
-
 /* <linux/personality.h> cannot be easily included */
 #define PER_HPUX 0x10
-	LDREG     TASK_PERSONALITY(%r1),%r19
+	ldw	TASK_PERSONALITY(%r1),%r19
 
 	/* We can't use "CMPIB<> PER_HPUX" since "im5" field is sign extended */
 	ldo	  -PER_HPUX(%r19), %r19
@@ -2054,24 +2038,6 @@ ENTRY(syscall_exit)
 	 * calling a module, and nothing got round to restoring dp on return.
 	 */
 	loadgp
-
-syscall_check_bh:
-
-	/* Check for software interrupts */
-
-	.import irq_stat,data
-
-	load32	irq_stat,%r19
-
-#ifdef CONFIG_SMP
-	/* sched.h: int processor */
-	/* %r26 is used as scratch register to index into irq_stat[] */
-	ldw     TI_CPU-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r26 /* cpu # */
-
-	/* shift left ____cacheline_aligned (aka L1_CACHE_BYTES) bits */
-	SHLREG	%r26,L1_CACHE_SHIFT,%r20
-	add     %r19,%r20,%r19	/* now have &irq_stat[smp_processor_id()] */
-#endif /* CONFIG_SMP */
 
 syscall_check_resched:
 
@@ -2114,7 +2080,7 @@ syscall_restore:
 	/* Are we being ptraced? */
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
 
-	LDREG	TASK_PTRACE(%r1), %r19
+	ldw	TASK_PTRACE(%r1), %r19
 	bb,<	%r19,31,syscall_restore_rfi
 	nop
 
@@ -2244,7 +2210,7 @@ syscall_do_resched:
 #else
 	nop
 #endif
-	b       syscall_check_bh  /* if resched, we start over again */
+	b	syscall_check_resched	/* if resched, we start over again */
 	nop
 ENDPROC(syscall_exit)
 

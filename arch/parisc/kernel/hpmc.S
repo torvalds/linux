@@ -295,8 +295,5 @@ os_hpmc_6:
 	b .
 	nop
 ENDPROC(os_hpmc)
-
-	/* this label used to compute os_hpmc checksum */
-ENTRY(os_hpmc_end)
-
+ENTRY(os_hpmc_end)	/* this label used to compute os_hpmc checksum */
 	nop

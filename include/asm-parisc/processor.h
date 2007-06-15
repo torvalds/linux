@@ -69,8 +69,8 @@ struct system_cpuinfo_parisc {
 		char   sys_model_name[81]; /* PDC-ROM returnes this model name */
 	} pdc;
 
-	char		*cpu_name;	/* e.g. "PA7300LC (PCX-L2)" */
-	char		*family_name;	/* e.g. "1.1e" */
+	const char	*cpu_name;	/* e.g. "PA7300LC (PCX-L2)" */
+	const char	*family_name;	/* e.g. "1.1e" */
 };
 
 
@@ -334,8 +334,8 @@ extern unsigned long get_wchan(struct task_struct *p);
 static inline int parisc_requires_coherency(void)
 {
 #ifdef CONFIG_PA8X00
-	/* FIXME: also pa8900 - when we see one */
-	return boot_cpu_data.cpu_type == mako;
+	return (boot_cpu_data.cpu_type == mako) ||
+		(boot_cpu_data.cpu_type == mako2);
 #else
 	return 0;
 #endif

@@ -76,7 +76,7 @@ dbl_fsqrt(
                 }
                 /*
                  * Return quiet NaN or positive infinity.
-		 *  Fall thru to negative test if negative infinity.
+		 *  Fall through to negative test if negative infinity.
                  */
 		if (Dbl_iszero_sign(srcp1) || 
 		    Dbl_isnotzero_mantissa(srcp1,srcp2)) {

@@ -8,7 +8,7 @@
 ** Lots of stuff stolen from arch/alpha/kernel/smp.c
 ** ...and then parisc stole from arch/ia64/kernel/smp.c. Thanks David! :^)
 **
-** Thanks to John Curry and Ullas Ponnadi. I learned alot from their work.
+** Thanks to John Curry and Ullas Ponnadi. I learned a lot from their work.
 ** -grant (1/12/2001)
 **
 **	This program is free software; you can redistribute it and/or modify
@@ -419,7 +419,7 @@ smp_cpu_init(int cpunum)
 		BUG();
 	enter_lazy_tlb(&init_mm, current);
 
-	init_IRQ();   /* make sure no IRQ's are enabled or pending */
+	init_IRQ();   /* make sure no IRQs are enabled or pending */
 	start_cpu_itimer();
 }
 
@@ -461,7 +461,7 @@ void __init smp_callin(void)
 /*
  * Bring one cpu online.
  */
-int __init smp_boot_one_cpu(int cpuid)
+int __cpuinit smp_boot_one_cpu(int cpuid)
 {
 	struct task_struct *idle;
 	long timeout;
@@ -552,7 +552,7 @@ void __devinit smp_prepare_boot_cpu(void)
 
 /*
 ** inventory.c:do_inventory() hasn't yet been run and thus we
-** don't 'discover' the additional CPU's until later.
+** don't 'discover' the additional CPUs until later.
 */
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
