@@ -447,7 +447,12 @@ mptscsih_issue_sep_command(MPT_ADAPTER *ioc, VirtTarget *vtarget,
 	MPT_FRAME_HDR *mf;
 	SEPRequest_t 	 *SEPMsg;
 
-	if (ioc->bus_type == FC)
+	if (ioc->bus_type != SAS)
+		return;
+
+	/* Not supported for hidden raid components
+	 */
+	if (vtarget->tflags & MPT_TARGET_FLAGS_RAID_COMPONENT)
 		return;
 
 	if ((mf = mpt_get_msg_frame(ioc->InternalCtx, ioc)) == NULL) {
@@ -991,14 +996,19 @@ mptscsih_search_running_cmds(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 			mf = (SCSIIORequest_t *)MPT_INDEX_2_MFPTR(hd->ioc, ii);
 			if (mf == NULL)
 				continue;
+			/* If the device is a hidden raid component, then its
+			 * expected that the mf->function will be RAID_SCSI_IO
+			 */
+			if (vdevice->vtarget->tflags &
+			    MPT_TARGET_FLAGS_RAID_COMPONENT && mf->Function !=
+			    MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH)
+				continue;
+
 			int_to_scsilun(vdevice->lun, &lun);
 			if ((mf->Bus != vdevice->vtarget->channel) ||
 			    (mf->TargetID != vdevice->vtarget->id) ||
 			    memcmp(lun.scsi_lun, mf->LUN, 8))
 				continue;
-			dsprintk(( "search_running: found (sc=%p, mf = %p) "
-			    "channel %d id %d, lun %d \n", hd->ScsiLookup[ii],
-			    mf, mf->Bus, mf->TargetID, vdevice->lun));
 
 			/* Cleanup
 			 */
@@ -1008,9 +1018,11 @@ mptscsih_search_running_cmds(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 			if ((unsigned char *)mf != sc->host_scribble)
 				continue;
 			scsi_dma_unmap(sc);
-
 			sc->host_scribble = NULL;
 			sc->result = DID_NO_CONNECT << 16;
+			dsprintk(( "search_running: found (sc=%p, mf = %p) "
+			    "channel %d id %d, lun %d \n", sc, mf,
+			    vdevice->vtarget->channel, vdevice->vtarget->id, vdevice->lun));
 			sc->scsi_done(sc);
 		}
 	}
@@ -1756,6 +1768,16 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 		goto out;
 	}
 
+	/* Task aborts are not supported for hidden raid components.
+	 */
+	if (vdevice->vtarget->tflags & MPT_TARGET_FLAGS_RAID_COMPONENT) {
+		dtmprintk((MYIOC_s_DEBUG_FMT "task abort: hidden raid "
+		    "component (sc=%p)\n", ioc->name, SCpnt));
+		SCpnt->result = DID_RESET << 16;
+		retval = FAILED;
+		goto out;
+	}
+
 	/* Find this command
 	 */
 	if ((scpnt_idx = SCPNT_TO_LOOKUP_IDX(SCpnt)) < 0) {
@@ -1846,6 +1868,13 @@ mptscsih_dev_reset(struct scsi_cmnd * SCpnt)
 	vdevice = SCpnt->device->hostdata;
 	if (!vdevice || !vdevice->vtarget) {
 		retval = 0;
+		goto out;
+	}
+
+	/* Target reset to hidden raid component is not supported
+	 */
+	if (vdevice->vtarget->tflags & MPT_TARGET_FLAGS_RAID_COMPONENT) {
+		retval = FAILED;
 		goto out;
 	}
 
@@ -3131,6 +3160,16 @@ mptscsih_synchronize_cache(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 {
 	INTERNAL_CMD		 iocmd;
 
+	/* Ignore hidden raid components, this is handled when the command
+	 * is sent to the volume
+	 */
+	if (vdevice->vtarget->tflags & MPT_TARGET_FLAGS_RAID_COMPONENT)
+		return;
+
+	if (vdevice->vtarget->type != TYPE_DISK || vdevice->vtarget->deleted ||
+	    !vdevice->configured_lun)
+		return;
+
 	/* Following parameters will not change
 	 * in this routine.
 	 */
@@ -3145,9 +3184,7 @@ mptscsih_synchronize_cache(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 	iocmd.id = vdevice->vtarget->id;
 	iocmd.lun = vdevice->lun;
 
-	if ((vdevice->vtarget->type == TYPE_DISK) &&
-	    (vdevice->configured_lun))
-		mptscsih_do_cmd(hd, &iocmd);
+	mptscsih_do_cmd(hd, &iocmd);
 }
 
 EXPORT_SYMBOL(mptscsih_remove);
