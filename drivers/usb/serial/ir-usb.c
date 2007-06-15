@@ -392,12 +392,14 @@ static int ir_write (struct usb_serial_port *port, const unsigned char *buf, int
 static void ir_write_bulk_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	port->write_urb_busy = 0;
-	if (urb->status) {
-		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero write bulk status received: %d",
+		    __FUNCTION__, status);
 		return;
 	}
 
@@ -417,6 +419,7 @@ static void ir_read_bulk_callback (struct urb *urb)
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int result;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -425,8 +428,7 @@ static void ir_read_bulk_callback (struct urb *urb)
 		return;
 	}
 
-	switch (urb->status) {
-
+	switch (status) {
 		case 0: /* Successful */
 
 			/*
@@ -490,7 +492,7 @@ static void ir_read_bulk_callback (struct urb *urb)
 		default:
 			dbg("%s - nonzero read bulk status received: %d",
 				__FUNCTION__, 
-				urb->status);
+				status);
 			break ;
 
 	}
