@@ -82,7 +82,7 @@ static int __init sh7750_devices_setup(void)
 }
 __initcall(sh7750_devices_setup);
 
-static struct ipr_data sh7750_ipr_map[] = {
+static struct ipr_data ipr_irq_table[] = {
 	/* IRQ, IPR-idx, shift, priority */
 	{ 16, 0, 12, 2 }, /* TMU0 TUNI*/
 	{ 17, 0, 12, 2 }, /* TMU1 TUNI */
@@ -106,8 +106,27 @@ static struct ipr_data sh7750_ipr_map[] = {
 	{ 38, 2,  8, 7 }, /* DMAC DMAE */
 };
 
+static unsigned long ipr_offsets[] = {
+	0xffd00004UL,	/* 0: IPRA */
+	0xffd00008UL,	/* 1: IPRB */
+	0xffd0000cUL,	/* 2: IPRC */
+	0xffd00010UL,	/* 3: IPRD */
+};
+
+static struct ipr_desc ipr_irq_desc = {
+	.ipr_offsets	= ipr_offsets,
+	.nr_offsets	= ARRAY_SIZE(ipr_offsets),
+
+	.ipr_data	= ipr_irq_table,
+	.nr_irqs	= ARRAY_SIZE(ipr_irq_table),
+
+	.chip = {
+		.name	= "IPR-sh7750",
+	},
+};
+
 #ifdef CONFIG_CPU_SUBTYPE_SH7751
-static struct ipr_data sh7751_ipr_map[] = {
+static struct ipr_data ipr_irq_table_sh7751[] = {
 	{ 44, 2,  8, 7 }, /* DMAC DMTE4 */
 	{ 45, 2,  8, 7 }, /* DMAC DMTE5 */
 	{ 46, 2,  8, 7 }, /* DMAC DMTE6 */
@@ -118,21 +137,26 @@ static struct ipr_data sh7751_ipr_map[] = {
 	/*{ 72, INTPRI00,  8, ? },*/ /* TMU3 TUNI */
 	/*{ 76, INTPRI00, 12, ? },*/ /* TMU4 TUNI */
 };
+
+static struct ipr_desc ipr_irq_desc_sh7751 = {
+	.ipr_offsets	= ipr_offsets,
+	.nr_offsets	= ARRAY_SIZE(ipr_offsets),
+
+	.ipr_data	= ipr_irq_table_sh7751,
+	.nr_irqs	= ARRAY_SIZE(ipr_irq_table_sh7751),
+
+	.chip = {
+		.name	= "IPR-sh7751",
+	},
+};
 #endif
 
-static unsigned long ipr_offsets[] = {
-	0xffd00004UL,	/* 0: IPRA */
-	0xffd00008UL,	/* 1: IPRB */
-	0xffd0000cUL,	/* 2: IPRC */
-	0xffd00010UL,	/* 3: IPRD */
-};
-
-/* given the IPR index return the address of the IPR register */
-unsigned int map_ipridx_to_addr(int idx)
+void __init init_IRQ_ipr(void)
 {
-	if (idx >= ARRAY_SIZE(ipr_offsets))
-		return 0;
-	return ipr_offsets[idx];
+	register_ipr_controller(&ipr_irq_desc);
+#ifdef CONFIG_CPU_SUBTYPE_SH7751
+	register_ipr_controller(&ipr_irq_desc_sh7751);
+#endif
 }
 
 #define INTC_ICR	0xffd00000UL
@@ -142,12 +166,4 @@ unsigned int map_ipridx_to_addr(int idx)
 void ipr_irq_enable_irlm(void)
 {
 	ctrl_outw(ctrl_inw(INTC_ICR) | INTC_ICR_IRLM, INTC_ICR);
-}
-
-void __init init_IRQ_ipr()
-{
-	make_ipr_irq(sh7750_ipr_map, ARRAY_SIZE(sh7750_ipr_map));
-#ifdef CONFIG_CPU_SUBTYPE_SH7751
-	make_ipr_irq(sh7751_ipr_map, ARRAY_SIZE(sh7751_ipr_map));
-#endif
 }
