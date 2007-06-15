@@ -974,10 +974,12 @@ static void whiteheat_unthrottle (struct usb_serial_port *port)
  *****************************************************************************/
 static void command_port_write_callback(struct urb *urb)
 {
+	int status = urb->status;
+
 	dbg("%s", __FUNCTION__);
 
-	if (urb->status) {
-		dbg ("nonzero urb status: %d", urb->status);
+	if (status) {
+		dbg("nonzero urb status: %d", status);
 		return;
 	}
 }
@@ -987,6 +989,7 @@ static void command_port_read_callback(struct urb *urb)
 {
 	struct usb_serial_port *command_port = (struct usb_serial_port *)urb->context;
 	struct whiteheat_command_private *command_info;
+	int status = urb->status;
 	unsigned char *data = urb->transfer_buffer;
 	int result;
 
@@ -997,9 +1000,9 @@ static void command_port_read_callback(struct urb *urb)
 		dbg ("%s - command_info is NULL, exiting.", __FUNCTION__);
 		return;
 	}
-	if (urb->status) {
-		dbg("%s - nonzero urb status: %d", __FUNCTION__, urb->status);
-		if (urb->status != -ENOENT)
+	if (status) {
+		dbg("%s - nonzero urb status: %d", __FUNCTION__, status);
+		if (status != -ENOENT)
 			command_info->command_finished = WHITEHEAT_CMD_FAILURE;
 		wake_up(&command_info->wait_command);
 		return;
@@ -1038,6 +1041,7 @@ static void whiteheat_read_callback(struct urb *urb)
 	struct whiteheat_urb_wrap *wrap;
 	unsigned char *data = urb->transfer_buffer;
 	struct whiteheat_private *info = usb_get_serial_port_data(port);
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -1051,8 +1055,9 @@ static void whiteheat_read_callback(struct urb *urb)
 	list_del(&wrap->list);
 	spin_unlock(&info->lock);
 
-	if (urb->status) {
-		dbg("%s - nonzero read bulk status received: %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero read bulk status received: %d",
+		    __FUNCTION__, status);
 		spin_lock(&info->lock);
 		list_add(&wrap->list, &info->rx_urbs_free);
 		spin_unlock(&info->lock);
@@ -1079,6 +1084,7 @@ static void whiteheat_write_callback(struct urb *urb)
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct whiteheat_private *info = usb_get_serial_port_data(port);
 	struct whiteheat_urb_wrap *wrap;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -1092,8 +1098,9 @@ static void whiteheat_write_callback(struct urb *urb)
 	list_move(&wrap->list, &info->tx_urbs_free);
 	spin_unlock(&info->lock);
 
-	if (urb->status) {
-		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero write bulk status received: %d",
+		    __FUNCTION__, status);
 		return;
 	}
 
