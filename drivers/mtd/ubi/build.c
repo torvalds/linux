@@ -369,7 +369,7 @@ static int attach_by_scanning(struct ubi_device *ubi)
 out_wl:
 	ubi_wl_close(ubi);
 out_vtbl:
-	kfree(ubi->vtbl);
+	vfree(ubi->vtbl);
 out_si:
 	ubi_scan_destroy_si(si);
 	return err;
@@ -629,7 +629,7 @@ static int attach_mtd_dev(const char *mtd_dev, int vid_hdr_offset,
 out_detach:
 	ubi_eba_close(ubi);
 	ubi_wl_close(ubi);
-	kfree(ubi->vtbl);
+	vfree(ubi->vtbl);
 out_free:
 	kfree(ubi);
 out_mtd:
