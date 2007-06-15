@@ -1719,13 +1719,14 @@ static void edge_interrupt_callback (struct urb *urb)
 	int length = urb->actual_length;
 	int port_number;
 	int function;
-	int status;
+	int retval;
 	__u8 lsr;
 	__u8 msr;
+	int status = urb->status;
 
 	dbg("%s", __FUNCTION__);
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -1733,10 +1734,12 @@ static void edge_interrupt_callback (struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__, urb->status);
+		dbg("%s - urb shutting down with status: %d",
+		    __FUNCTION__, status);
 		return;
 	default:
-		dev_err(&urb->dev->dev, "%s - nonzero urb status received: %d\n", __FUNCTION__, urb->status);
+		dev_err(&urb->dev->dev, "%s - nonzero urb status received: "
+			"%d\n", __FUNCTION__, status);
 		goto exit;
 	}
 
@@ -1794,10 +1797,10 @@ static void edge_interrupt_callback (struct urb *urb)
 	}
 
 exit:
-	status = usb_submit_urb (urb, GFP_ATOMIC);
-	if (status)
+	retval = usb_submit_urb (urb, GFP_ATOMIC);
+	if (retval)
 		dev_err (&urb->dev->dev, "%s - usb_submit_urb failed with result %d\n",
-			 __FUNCTION__, status);
+			 __FUNCTION__, retval);
 }
 
 static void edge_bulk_in_callback (struct urb *urb)
@@ -1805,12 +1808,13 @@ static void edge_bulk_in_callback (struct urb *urb)
 	struct edgeport_port *edge_port = (struct edgeport_port *)urb->context;
 	unsigned char *data = urb->transfer_buffer;
 	struct tty_struct *tty;
-	int status = 0;
+	int retval = 0;
 	int port_number;
+	int status = urb->status;
 
 	dbg("%s", __FUNCTION__);
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -1818,17 +1822,18 @@ static void edge_bulk_in_callback (struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__, urb->status);
+		dbg("%s - urb shutting down with status: %d",
+		    __FUNCTION__, status);
 		return;
 	default:
 		dev_err (&urb->dev->dev,"%s - nonzero read bulk status received: %d\n",
-		     __FUNCTION__, urb->status );
+		     __FUNCTION__, status);
 	}
 
-	if (urb->status == -EPIPE)
+	if (status == -EPIPE)
 		goto exit;
 
-	if (urb->status) {
+	if (status) {
 		dev_err(&urb->dev->dev,"%s - stopping read!\n", __FUNCTION__);
 		return;
 	}
@@ -1862,14 +1867,14 @@ exit:
 	spin_lock(&edge_port->ep_lock);
 	if (edge_port->ep_read_urb_state == EDGE_READ_URB_RUNNING) {
 		urb->dev = edge_port->port->serial->dev;
-		status = usb_submit_urb(urb, GFP_ATOMIC);
+		retval = usb_submit_urb(urb, GFP_ATOMIC);
 	} else if (edge_port->ep_read_urb_state == EDGE_READ_URB_STOPPING) {
 		edge_port->ep_read_urb_state = EDGE_READ_URB_STOPPED;
 	}
 	spin_unlock(&edge_port->ep_lock);
-	if (status)
+	if (retval)
 		dev_err (&urb->dev->dev, "%s - usb_submit_urb failed with result %d\n",
-			 __FUNCTION__, status);
+			 __FUNCTION__, retval);
 }
 
 static void edge_tty_recv(struct device *dev, struct tty_struct *tty, unsigned char *data, int length)
@@ -1896,12 +1901,13 @@ static void edge_bulk_out_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
+	int status = urb->status;
 
 	dbg ("%s - port %d", __FUNCTION__, port->number);
 
 	edge_port->ep_write_urb_in_use = 0;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -1909,11 +1915,12 @@ static void edge_bulk_out_callback (struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__, urb->status);
+		dbg("%s - urb shutting down with status: %d",
+		    __FUNCTION__, status);
 		return;
 	default:
-		dev_err (&urb->dev->dev,"%s - nonzero write bulk status received: %d\n",
-		     __FUNCTION__, urb->status);
+		dev_err(&urb->dev->dev, "%s - nonzero write bulk status "
+			"received: %d\n", __FUNCTION__, status);
 	}
 
 	/* send any buffered data */
