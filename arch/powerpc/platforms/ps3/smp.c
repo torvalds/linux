@@ -27,9 +27,9 @@
 #include "platform.h"
 
 #if defined(DEBUG)
-#define DBG(fmt...) udbg_printf(fmt)
+#define DBG udbg_printf
 #else
-#define DBG(fmt...) do{if(0)printk(fmt);}while(0)
+#define DBG pr_debug
 #endif
 
 static irqreturn_t ipi_function_handler(int irq, void *msg)
