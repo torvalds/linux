@@ -273,7 +273,7 @@ void __init ps3_map_htab(void)
 
 	result = lv1_map_htab(0, &htab_addr);
 
-	htab = (struct hash_pte *)__ioremap(htab_addr, htab_size,
+	htab = (__force struct hash_pte *)ioremap_flags(htab_addr, htab_size,
 					    pgprot_val(PAGE_READONLY_X));
 
 	DBG("%s:%d: lpar %016lxh, virt %016lxh\n", __func__, __LINE__,
