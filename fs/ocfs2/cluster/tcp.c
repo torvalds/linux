@@ -1638,8 +1638,8 @@ static void o2net_hb_node_up_cb(struct o2nm_node *node, int node_num,
 
 void o2net_unregister_hb_callbacks(void)
 {
-	o2hb_unregister_callback(&o2net_hb_up);
-	o2hb_unregister_callback(&o2net_hb_down);
+	o2hb_unregister_callback(NULL, &o2net_hb_up);
+	o2hb_unregister_callback(NULL, &o2net_hb_down);
 }
 
 int o2net_register_hb_callbacks(void)
@@ -1651,9 +1651,9 @@ int o2net_register_hb_callbacks(void)
 	o2hb_setup_callback(&o2net_hb_up, O2HB_NODE_UP_CB,
 			    o2net_hb_node_up_cb, NULL, O2NET_HB_PRI);
 
-	ret = o2hb_register_callback(&o2net_hb_up);
+	ret = o2hb_register_callback(NULL, &o2net_hb_up);
 	if (ret == 0)
-		ret = o2hb_register_callback(&o2net_hb_down);
+		ret = o2hb_register_callback(NULL, &o2net_hb_down);
 
 	if (ret)
 		o2net_unregister_hb_callbacks();

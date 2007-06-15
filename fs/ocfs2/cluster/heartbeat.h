@@ -69,8 +69,10 @@ void o2hb_setup_callback(struct o2hb_callback_func *hc,
 			 o2hb_cb_func *func,
 			 void *data,
 			 int priority);
-int o2hb_register_callback(struct o2hb_callback_func *hc);
-void o2hb_unregister_callback(struct o2hb_callback_func *hc);
+int o2hb_register_callback(const char *region_uuid,
+			   struct o2hb_callback_func *hc);
+void o2hb_unregister_callback(const char *region_uuid,
+			      struct o2hb_callback_func *hc);
 void o2hb_fill_node_map(unsigned long *map,
 			unsigned bytes);
 void o2hb_init(void);

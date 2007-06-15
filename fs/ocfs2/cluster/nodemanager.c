@@ -900,6 +900,16 @@ static struct o2nm_cluster_group o2nm_cluster_group = {
 	},
 };
 
+int o2nm_depend_item(struct config_item *item)
+{
+	return configfs_depend_item(&o2nm_cluster_group.cs_subsys, item);
+}
+
+void o2nm_undepend_item(struct config_item *item)
+{
+	configfs_undepend_item(&o2nm_cluster_group.cs_subsys, item);
+}
+
 static void __exit exit_o2nm(void)
 {
 	if (ocfs2_table_header)

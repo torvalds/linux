@@ -1665,7 +1665,56 @@ void o2hb_setup_callback(struct o2hb_callback_func *hc,
 }
 EXPORT_SYMBOL_GPL(o2hb_setup_callback);
 
-int o2hb_register_callback(struct o2hb_callback_func *hc)
+static struct o2hb_region *o2hb_find_region(const char *region_uuid)
+{
+	struct o2hb_region *p, *reg = NULL;
+
+	assert_spin_locked(&o2hb_live_lock);
+
+	list_for_each_entry(p, &o2hb_all_regions, hr_all_item) {
+		if (!strcmp(region_uuid, config_item_name(&p->hr_item))) {
+			reg = p;
+			break;
+		}
+	}
+
+	return reg;
+}
+
+static int o2hb_region_get(const char *region_uuid)
+{
+	int ret = 0;
+	struct o2hb_region *reg;
+
+	spin_lock(&o2hb_live_lock);
+
+	reg = o2hb_find_region(region_uuid);
+	if (!reg)
+		ret = -ENOENT;
+	spin_unlock(&o2hb_live_lock);
+
+	if (!ret)
+		ret = o2nm_depend_item(&reg->hr_item);
+
+	return ret;
+}
+
+static void o2hb_region_put(const char *region_uuid)
+{
+	struct o2hb_region *reg;
+
+	spin_lock(&o2hb_live_lock);
+
+	reg = o2hb_find_region(region_uuid);
+
+	spin_unlock(&o2hb_live_lock);
+
+	if (reg)
+		o2nm_undepend_item(&reg->hr_item);
+}
+
+int o2hb_register_callback(const char *region_uuid,
+			   struct o2hb_callback_func *hc)
 {
 	struct o2hb_callback_func *tmp;
 	struct list_head *iter;
@@ -1679,6 +1728,12 @@ int o2hb_register_callback(struct o2hb_callback_func *hc)
 	if (IS_ERR(hbcall)) {
 		ret = PTR_ERR(hbcall);
 		goto out;
+	}
+
+	if (region_uuid) {
+		ret = o2hb_region_get(region_uuid);
+		if (ret)
+			goto out;
 	}
 
 	down_write(&o2hb_callback_sem);
@@ -1702,15 +1757,20 @@ out:
 }
 EXPORT_SYMBOL_GPL(o2hb_register_callback);
 
-void o2hb_unregister_callback(struct o2hb_callback_func *hc)
+void o2hb_unregister_callback(const char *region_uuid,
+			      struct o2hb_callback_func *hc)
 {
 	BUG_ON(hc->hc_magic != O2HB_CB_MAGIC);
 
 	mlog(ML_HEARTBEAT, "on behalf of %p for funcs %p\n",
 	     __builtin_return_address(0), hc);
 
+	/* XXX Can this happen _with_ a region reference? */
 	if (list_empty(&hc->hc_item))
 		return;
+
+	if (region_uuid)
+		o2hb_region_put(region_uuid);
 
 	down_write(&o2hb_callback_sem);
 
