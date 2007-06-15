@@ -325,11 +325,13 @@ void usb_serial_generic_read_bulk_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	unsigned char *data = urb->transfer_buffer;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (unlikely(urb->status != 0)) {
-		dbg("%s - nonzero read bulk status received: %d", __FUNCTION__, urb->status);
+	if (unlikely(status != 0)) {
+		dbg("%s - nonzero read bulk status received: %d",
+		    __FUNCTION__, status);
 		return;
 	}
 
@@ -347,12 +349,14 @@ EXPORT_SYMBOL_GPL(usb_serial_generic_read_bulk_callback);
 void usb_serial_generic_write_bulk_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	port->write_urb_busy = 0;
-	if (urb->status) {
-		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero write bulk status received: %d",
+		    __FUNCTION__, status);
 		return;
 	}
 
