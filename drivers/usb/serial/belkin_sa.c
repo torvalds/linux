@@ -255,9 +255,10 @@ static void belkin_sa_read_int_callback (struct urb *urb)
 	struct belkin_sa_private *priv;
 	unsigned char *data = urb->transfer_buffer;
 	int retval;
+	int status = urb->status;
 	unsigned long flags;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -265,10 +266,12 @@ static void belkin_sa_read_int_callback (struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__, urb->status);
+		dbg("%s - urb shutting down with status: %d",
+		    __FUNCTION__, status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d", __FUNCTION__, urb->status);
+		dbg("%s - nonzero urb status received: %d",
+		    __FUNCTION__, status);
 		goto exit;
 	}
 
