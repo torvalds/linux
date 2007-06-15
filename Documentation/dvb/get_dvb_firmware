@@ -56,7 +56,7 @@ syntax();
 
 sub sp8870 {
     my $sourcefile = "tt_Premium_217g.zip";
-    my $url = "http://www.technotrend.de/new/217g/$sourcefile";
+    my $url = "http://www.softwarepatch.pl/9999ccd06a4813cb827dbb0005071c71/$sourcefile";
     my $hash = "53970ec17a538945a6d8cb608a7b3899";
     my $outfile = "dvb-fe-sp8870.fw";
     my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
