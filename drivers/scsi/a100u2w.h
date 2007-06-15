@@ -18,27 +18,6 @@
  * along with this program; see the file COPYING.  If not, write to
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * --------------------------------------------------------------------------
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification, immediately at the beginning of the file.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * Where this Software is combined with software released under the terms of 
- * the GNU General Public License ("GPL") and the terms of the GPL would require the 
- * combined work to also be released under the terms of the GPL, the terms
- * and conditions of this License will apply in addition to those of the
- * GPL with the exception of any terms or conditions of this License that
- * conflict with, or are expressly prohibited by, the GPL.
- *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -50,29 +29,18 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- */
-
-/*
+ *
  * Revision History:
  * 06/18/98 HL, Initial production Version 1.02
  * 12/19/98 bv, Use spinlocks for 2.1.95 and up
  * 06/25/02 Doug Ledford <dledford@redhat.com>
  *	 - This and the i60uscsi.h file are almost identical,
  *	   merged them into a single header used by both .c files.
+ * 14/06/07 Alan Cox <alan@redhat.com>
+ *	 - Grand cleanup and Linuxisation
  */
 
 #define inia100_REVID "Initio INI-A100U2W SCSI device driver; Revision: 1.02d"
-
-#define ULONG   unsigned long
-#define USHORT  unsigned short
-#define UCHAR   unsigned char
-#define BYTE    unsigned char
-#define WORD    unsigned short
-#define DWORD   unsigned long
-#define UBYTE   unsigned char
-#define UWORD   unsigned short
-#define UDWORD  unsigned long
-#define U32     u32
 
 #if 1
 #define ORC_MAXQUEUE		245
@@ -90,10 +58,10 @@
 /************************************************************************/
 /*              Scatter-Gather Element Structure                        */
 /************************************************************************/
-typedef struct ORC_SG_Struc {
-	U32 SG_Ptr;		/* Data Pointer */
-	U32 SG_Len;		/* Data Length */
-} ORC_SG;
+struct orc_sgent {
+	u32 base;		/* Data Pointer */
+	u32 length;		/* Data Length */
+};
 
 /* SCSI related definition                                              */
 #define DISC_NOT_ALLOW          0x80	/* Disconnect is not allowed    */
@@ -165,42 +133,45 @@ typedef struct ORC_SG_Struc {
 #define	ORC_PRGMCTR1	0xE3	/* RISC program counter           */
 #define	ORC_RISCRAM	0xEC	/* RISC RAM data port 4 bytes     */
 
-typedef struct orc_extended_scb {	/* Extended SCB                 */
-	ORC_SG ESCB_SGList[TOTAL_SG_ENTRY];	/*0 Start of SG list              */
-	struct scsi_cmnd *SCB_Srb;	/*50 SRB Pointer */
-} ESCB;
+struct orc_extended_scb {	/* Extended SCB                 */
+	struct orc_sgent sglist[TOTAL_SG_ENTRY];	/*0 Start of SG list              */
+	struct scsi_cmnd *srb;	/*50 SRB Pointer */
+};
 
 /***********************************************************************
 		SCSI Control Block
-************************************************************************/
-typedef struct orc_scb {	/* Scsi_Ctrl_Blk                */
-	UBYTE SCB_Opcode;	/*00 SCB command code&residual  */
-	UBYTE SCB_Flags;	/*01 SCB Flags                  */
-	UBYTE SCB_Target;	/*02 Target Id                  */
-	UBYTE SCB_Lun;		/*03 Lun                        */
-	U32 SCB_Reserved0;	/*04 Reserved for ORCHID must 0 */
-	U32 SCB_XferLen;	/*08 Data Transfer Length       */
-	U32 SCB_Reserved1;	/*0C Reserved for ORCHID must 0 */
-	U32 SCB_SGLen;		/*10 SG list # * 8              */
-	U32 SCB_SGPAddr;	/*14 SG List Buf physical Addr  */
-	U32 SCB_SGPAddrHigh;	/*18 SG Buffer high physical Addr */
-	UBYTE SCB_HaStat;	/*1C Host Status                */
-	UBYTE SCB_TaStat;	/*1D Target Status              */
-	UBYTE SCB_Status;	/*1E SCB status                 */
-	UBYTE SCB_Link;		/*1F Link pointer, default 0xFF */
-	UBYTE SCB_SenseLen;	/*20 Sense Allocation Length    */
-	UBYTE SCB_CDBLen;	/*21 CDB Length                 */
-	UBYTE SCB_Ident;	/*22 Identify                   */
-	UBYTE SCB_TagMsg;	/*23 Tag Message                */
-	UBYTE SCB_CDB[IMAX_CDB];	/*24 SCSI CDBs                  */
-	UBYTE SCB_ScbIdx;	/*3C Index for this ORCSCB      */
-	U32 SCB_SensePAddr;	/*34 Sense Buffer physical Addr */
 
-	ESCB *SCB_EScb;		/*38 Extended SCB Pointer       */
-#ifndef ALPHA
-	UBYTE SCB_Reserved2[4];	/*3E Reserved for Driver use    */
+		0x40 bytes long, the last 8 are user bytes
+************************************************************************/
+struct orc_scb {	/* Scsi_Ctrl_Blk                */
+	u8 opcode;	/*00 SCB command code&residual  */
+	u8 flags;	/*01 SCB Flags                  */
+	u8 target;	/*02 Target Id                  */
+	u8 lun;		/*03 Lun                        */
+	u32 reserved0;	/*04 Reserved for ORCHID must 0 */
+	u32 xferlen;	/*08 Data Transfer Length       */
+	u32 reserved1;	/*0C Reserved for ORCHID must 0 */
+	u32 sg_len;		/*10 SG list # * 8              */
+	u32 sg_addr;	/*14 SG List Buf physical Addr  */
+	u32 sg_addrhigh;	/*18 SG Buffer high physical Addr */
+	u8 hastat;	/*1C Host Status                */
+	u8 tastat;	/*1D Target Status              */
+	u8 status;	/*1E SCB status                 */
+	u8 link;		/*1F Link pointer, default 0xFF */
+	u8 sense_len;	/*20 Sense Allocation Length    */
+	u8 cdb_len;	/*21 CDB Length                 */
+	u8 ident;	/*22 Identify                   */
+	u8 tag_msg;	/*23 Tag Message                */
+	u8 cdb[IMAX_CDB];	/*24 SCSI CDBs                  */
+	u8 scbidx;	/*3C Index for this ORCSCB      */
+	u32 sense_addr;	/*34 Sense Buffer physical Addr */
+
+	struct orc_extended_scb *escb; /*38 Extended SCB Pointer       */
+        /* 64bit pointer or 32bit pointer + reserved ? */
+#ifndef CONFIG_64BIT
+	u8 reserved2[4];	/*3E Reserved for Driver use    */
 #endif
-} ORC_SCB;
+};
 
 /* Opcodes of ORCSCB_Opcode */
 #define ORC_EXECSCSI	0x00	/* SCSI initiator command with residual */
@@ -239,13 +210,13 @@ typedef struct orc_scb {	/* Scsi_Ctrl_Blk                */
 		Target Device Control Structure
 **********************************************************************/
 
-typedef struct ORC_Tar_Ctrl_Struc {
-	UBYTE TCS_DrvDASD;	/* 6 */
-	UBYTE TCS_DrvSCSI;	/* 7 */
-	UBYTE TCS_DrvHead;	/* 8 */
-	UWORD TCS_DrvFlags;	/* 4 */
-	UBYTE TCS_DrvSector;	/* 7 */
-} ORC_TCS;
+struct orc_target {
+	u8 TCS_DrvDASD;	/* 6 */
+	u8 TCS_DrvSCSI;	/* 7 */
+	u8 TCS_DrvHead;	/* 8 */
+	u16 TCS_DrvFlags;	/* 4 */
+	u8 TCS_DrvSector;	/* 7 */
+};
 
 /* Bit Definition for TCF_DrvFlags */
 #define	TCS_DF_NODASD_SUPT	0x20	/* Suppress OS/2 DASD Mgr support */
@@ -255,32 +226,23 @@ typedef struct ORC_Tar_Ctrl_Struc {
 /***********************************************************************
               Host Adapter Control Structure
 ************************************************************************/
-typedef struct ORC_Ha_Ctrl_Struc {
-	USHORT HCS_Base;	/* 00 */
-	UBYTE HCS_Index;	/* 02 */
-	UBYTE HCS_Intr;		/* 04 */
-	UBYTE HCS_SCSI_ID;	/* 06    H/A SCSI ID */
-	UBYTE HCS_BIOS;		/* 07    BIOS configuration */
-
-	UBYTE HCS_Flags;	/* 0B */
-	UBYTE HCS_HAConfig1;	/* 1B    SCSI0MAXTags */
-	UBYTE HCS_MaxTar;	/* 1B    SCSI0MAXTags */
-
-	USHORT HCS_Units;	/* Number of units this adapter  */
-	USHORT HCS_AFlags;	/* Adapter info. defined flags   */
-	ULONG HCS_Timeout;	/* Adapter timeout value   */
-	ORC_SCB *HCS_virScbArray;	/* 28 Virtual Pointer to SCB array */
-	dma_addr_t HCS_physScbArray;	/* Scb Physical address */
-	ESCB *HCS_virEscbArray;	/* Virtual pointer to ESCB Scatter list */
-	dma_addr_t HCS_physEscbArray;	/* scatter list Physical address */
-	UBYTE TargetFlag[16];	/* 30  target configuration, TCF_EN_TAG */
-	UBYTE MaximumTags[16];	/* 40  ORC_MAX_SCBS */
-	UBYTE ActiveTags[16][16];	/* 50 */
-	ORC_TCS HCS_Tcs[16];	/* 28 */
-	U32 BitAllocFlag[MAX_CHANNELS][8];	/* Max STB is 256, So 256/32 */
-	spinlock_t BitAllocFlagLock;
+struct orc_host {
+	unsigned long base;	/* Base address */
+	u8 index;		/* Index (Channel)*/
+	u8 scsi_id;		/* H/A SCSI ID */
+	u8 BIOScfg;		/*BIOS configuration */
+	u8 flags;
+	u8 max_targets;		/* SCSI0MAXTags */
+	struct orc_scb *scb_virt;	/* Virtual Pointer to SCB array */
+	dma_addr_t scb_phys;	/* Scb Physical address */
+	struct orc_extended_scb *escb_virt; /* Virtual pointer to ESCB Scatter list */
+	dma_addr_t escb_phys;	/* scatter list Physical address */
+	u8 target_flag[16];	/* target configuration, TCF_EN_TAG */
+	u8 max_tags[16];	/* ORC_MAX_SCBS */
+	u32 allocation_map[MAX_CHANNELS][8];	/* Max STB is 256, So 256/32 */
+	spinlock_t allocation_lock;
 	struct pci_dev *pdev;
-} ORC_HCS;
+};
 
 /* Bit Definition for HCS_Flags */
 
@@ -301,79 +263,79 @@ typedef struct ORC_Ha_Ctrl_Struc {
 #define	HCS_AF_DISABLE_RESET	0x10	/* Adapter disable reset  */
 #define	HCS_AF_DISABLE_ADPT	0x80	/* Adapter disable                */
 
-typedef struct _NVRAM {
+struct orc_nvram {
 /*----------header ---------------*/
-        UCHAR SubVendorID0;     /* 00 - Sub Vendor ID           */
-        UCHAR SubVendorID1;     /* 00 - Sub Vendor ID           */
-        UCHAR SubSysID0;        /* 02 - Sub System ID           */
-        UCHAR SubSysID1;        /* 02 - Sub System ID           */
-        UCHAR SubClass;         /* 04 - Sub Class               */
-        UCHAR VendorID0;        /* 05 - Vendor ID               */
-        UCHAR VendorID1;        /* 05 - Vendor ID               */
-        UCHAR DeviceID0;        /* 07 - Device ID               */
-        UCHAR DeviceID1;        /* 07 - Device ID               */
-        UCHAR Reserved0[2];     /* 09 - Reserved                */
-        UCHAR Revision;         /* 0B - Revision of data structure */
+        u8 SubVendorID0;     /* 00 - Sub Vendor ID           */
+        u8 SubVendorID1;     /* 00 - Sub Vendor ID           */
+        u8 SubSysID0;        /* 02 - Sub System ID           */
+        u8 SubSysID1;        /* 02 - Sub System ID           */
+        u8 SubClass;         /* 04 - Sub Class               */
+        u8 VendorID0;        /* 05 - Vendor ID               */
+        u8 VendorID1;        /* 05 - Vendor ID               */
+        u8 DeviceID0;        /* 07 - Device ID               */
+        u8 DeviceID1;        /* 07 - Device ID               */
+        u8 Reserved0[2];     /* 09 - Reserved                */
+        u8 revision;         /* 0B - revision of data structure */
         /* ----Host Adapter Structure ---- */
-        UCHAR NumOfCh;          /* 0C - Number of SCSI channel  */
-        UCHAR BIOSConfig1;      /* 0D - BIOS configuration 1    */
-        UCHAR BIOSConfig2;      /* 0E - BIOS boot channel&target ID */
-        UCHAR BIOSConfig3;      /* 0F - BIOS configuration 3    */
+        u8 NumOfCh;          /* 0C - Number of SCSI channel  */
+        u8 BIOSConfig1;      /* 0D - BIOS configuration 1    */
+        u8 BIOSConfig2;      /* 0E - BIOS boot channel&target ID */
+        u8 BIOSConfig3;      /* 0F - BIOS configuration 3    */
         /* ----SCSI channel Structure ---- */
         /* from "CTRL-I SCSI Host Adapter SetUp menu "  */
-        UCHAR SCSI0Id;          /* 10 - Channel 0 SCSI ID       */
-        UCHAR SCSI0Config;      /* 11 - Channel 0 SCSI configuration */
-        UCHAR SCSI0MaxTags;     /* 12 - Channel 0 Maximum tags  */
-        UCHAR SCSI0ResetTime;   /* 13 - Channel 0 Reset recovering time */
-        UCHAR ReservedforChannel0[2];   /* 14 - Reserved                */
+        u8 scsi_id;          /* 10 - Channel 0 SCSI ID       */
+        u8 SCSI0Config;      /* 11 - Channel 0 SCSI configuration */
+        u8 SCSI0MaxTags;     /* 12 - Channel 0 Maximum tags  */
+        u8 SCSI0ResetTime;   /* 13 - Channel 0 Reset recovering time */
+        u8 ReservedforChannel0[2];   /* 14 - Reserved                */
 
         /* ----SCSI target Structure ----  */
         /* from "CTRL-I SCSI device SetUp menu "                        */
-        UCHAR Target00Config;   /* 16 - Channel 0 Target 0 config */
-        UCHAR Target01Config;   /* 17 - Channel 0 Target 1 config */
-        UCHAR Target02Config;   /* 18 - Channel 0 Target 2 config */
-        UCHAR Target03Config;   /* 19 - Channel 0 Target 3 config */
-        UCHAR Target04Config;   /* 1A - Channel 0 Target 4 config */
-        UCHAR Target05Config;   /* 1B - Channel 0 Target 5 config */
-        UCHAR Target06Config;   /* 1C - Channel 0 Target 6 config */
-        UCHAR Target07Config;   /* 1D - Channel 0 Target 7 config */
-        UCHAR Target08Config;   /* 1E - Channel 0 Target 8 config */
-        UCHAR Target09Config;   /* 1F - Channel 0 Target 9 config */
-        UCHAR Target0AConfig;   /* 20 - Channel 0 Target A config */
-        UCHAR Target0BConfig;   /* 21 - Channel 0 Target B config */
-        UCHAR Target0CConfig;   /* 22 - Channel 0 Target C config */
-        UCHAR Target0DConfig;   /* 23 - Channel 0 Target D config */
-        UCHAR Target0EConfig;   /* 24 - Channel 0 Target E config */
-        UCHAR Target0FConfig;   /* 25 - Channel 0 Target F config */
+        u8 Target00Config;   /* 16 - Channel 0 Target 0 config */
+        u8 Target01Config;   /* 17 - Channel 0 Target 1 config */
+        u8 Target02Config;   /* 18 - Channel 0 Target 2 config */
+        u8 Target03Config;   /* 19 - Channel 0 Target 3 config */
+        u8 Target04Config;   /* 1A - Channel 0 Target 4 config */
+        u8 Target05Config;   /* 1B - Channel 0 Target 5 config */
+        u8 Target06Config;   /* 1C - Channel 0 Target 6 config */
+        u8 Target07Config;   /* 1D - Channel 0 Target 7 config */
+        u8 Target08Config;   /* 1E - Channel 0 Target 8 config */
+        u8 Target09Config;   /* 1F - Channel 0 Target 9 config */
+        u8 Target0AConfig;   /* 20 - Channel 0 Target A config */
+        u8 Target0BConfig;   /* 21 - Channel 0 Target B config */
+        u8 Target0CConfig;   /* 22 - Channel 0 Target C config */
+        u8 Target0DConfig;   /* 23 - Channel 0 Target D config */
+        u8 Target0EConfig;   /* 24 - Channel 0 Target E config */
+        u8 Target0FConfig;   /* 25 - Channel 0 Target F config */
 
-        UCHAR SCSI1Id;          /* 26 - Channel 1 SCSI ID       */
-        UCHAR SCSI1Config;      /* 27 - Channel 1 SCSI configuration */
-        UCHAR SCSI1MaxTags;     /* 28 - Channel 1 Maximum tags  */
-        UCHAR SCSI1ResetTime;   /* 29 - Channel 1 Reset recovering time */
-        UCHAR ReservedforChannel1[2];   /* 2A - Reserved                */
+        u8 SCSI1Id;          /* 26 - Channel 1 SCSI ID       */
+        u8 SCSI1Config;      /* 27 - Channel 1 SCSI configuration */
+        u8 SCSI1MaxTags;     /* 28 - Channel 1 Maximum tags  */
+        u8 SCSI1ResetTime;   /* 29 - Channel 1 Reset recovering time */
+        u8 ReservedforChannel1[2];   /* 2A - Reserved                */
 
         /* ----SCSI target Structure ----  */
         /* from "CTRL-I SCSI device SetUp menu "                                          */
-        UCHAR Target10Config;   /* 2C - Channel 1 Target 0 config */
-        UCHAR Target11Config;   /* 2D - Channel 1 Target 1 config */
-        UCHAR Target12Config;   /* 2E - Channel 1 Target 2 config */
-        UCHAR Target13Config;   /* 2F - Channel 1 Target 3 config */
-        UCHAR Target14Config;   /* 30 - Channel 1 Target 4 config */
-        UCHAR Target15Config;   /* 31 - Channel 1 Target 5 config */
-        UCHAR Target16Config;   /* 32 - Channel 1 Target 6 config */
-        UCHAR Target17Config;   /* 33 - Channel 1 Target 7 config */
-        UCHAR Target18Config;   /* 34 - Channel 1 Target 8 config */
-        UCHAR Target19Config;   /* 35 - Channel 1 Target 9 config */
-        UCHAR Target1AConfig;   /* 36 - Channel 1 Target A config */
-        UCHAR Target1BConfig;   /* 37 - Channel 1 Target B config */
-        UCHAR Target1CConfig;   /* 38 - Channel 1 Target C config */
-        UCHAR Target1DConfig;   /* 39 - Channel 1 Target D config */
-        UCHAR Target1EConfig;   /* 3A - Channel 1 Target E config */
-        UCHAR Target1FConfig;   /* 3B - Channel 1 Target F config */
-        UCHAR reserved[3];      /* 3C - Reserved                */
+        u8 Target10Config;   /* 2C - Channel 1 Target 0 config */
+        u8 Target11Config;   /* 2D - Channel 1 Target 1 config */
+        u8 Target12Config;   /* 2E - Channel 1 Target 2 config */
+        u8 Target13Config;   /* 2F - Channel 1 Target 3 config */
+        u8 Target14Config;   /* 30 - Channel 1 Target 4 config */
+        u8 Target15Config;   /* 31 - Channel 1 Target 5 config */
+        u8 Target16Config;   /* 32 - Channel 1 Target 6 config */
+        u8 Target17Config;   /* 33 - Channel 1 Target 7 config */
+        u8 Target18Config;   /* 34 - Channel 1 Target 8 config */
+        u8 Target19Config;   /* 35 - Channel 1 Target 9 config */
+        u8 Target1AConfig;   /* 36 - Channel 1 Target A config */
+        u8 Target1BConfig;   /* 37 - Channel 1 Target B config */
+        u8 Target1CConfig;   /* 38 - Channel 1 Target C config */
+        u8 Target1DConfig;   /* 39 - Channel 1 Target D config */
+        u8 Target1EConfig;   /* 3A - Channel 1 Target E config */
+        u8 Target1FConfig;   /* 3B - Channel 1 Target F config */
+        u8 reserved[3];      /* 3C - Reserved                */
         /* ---------- CheckSum ----------       */
-        UCHAR CheckSum;         /* 3F - Checksum of NVRam       */
-} NVRAM, *PNVRAM;
+        u8 CheckSum;         /* 3F - Checksum of NVRam       */
+};
 
 /* Bios Configuration for nvram->BIOSConfig1                            */
 #define NBC_BIOSENABLE  0x01    /* BIOS enable                    */
@@ -407,10 +369,3 @@ typedef struct _NVRAM {
 #define NCC_RESET_TIME  0x0A    /* SCSI RESET recovering time     */
 #define NTC_DEFAULT     (NTC_1GIGA | NTC_NO_WIDESYNC | NTC_DISC_ENABLE)
 
-#define ORC_RD(x,y)             (UCHAR)(inb(  (int)((ULONG)((ULONG)x+(UCHAR)y)) ))
-#define ORC_RDWORD(x,y)         (short)(inl((int)((ULONG)((ULONG)x+(UCHAR)y)) ))
-#define ORC_RDLONG(x,y)         (long)(inl((int)((ULONG)((ULONG)x+(UCHAR)y)) ))
-
-#define ORC_WR(     adr,data)   outb( (UCHAR)(data), (int)(adr))
-#define ORC_WRSHORT(adr,data)   outw( (UWORD)(data), (int)(adr))
-#define ORC_WRLONG( adr,data)   outl( (ULONG)(data), (int)(adr))
