@@ -1,18 +1,22 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.19
-# Wed Dec  6 16:35:36 2006
+# Linux kernel version: 2.6.22-rc4
+# Fri Jun 15 19:43:06 2007
 #
 CONFIG_SUPERH=y
 CONFIG_RWSEM_GENERIC_SPINLOCK=y
+CONFIG_GENERIC_BUG=y
 CONFIG_GENERIC_FIND_NEXT_BIT=y
 CONFIG_GENERIC_HWEIGHT=y
 CONFIG_GENERIC_HARDIRQS=y
 CONFIG_GENERIC_IRQ_PROBE=y
 CONFIG_GENERIC_CALIBRATE_DELAY=y
 # CONFIG_GENERIC_TIME is not set
+# CONFIG_GENERIC_CLOCKEVENTS is not set
 CONFIG_STACKTRACE_SUPPORT=y
 CONFIG_LOCKDEP_SUPPORT=y
+# CONFIG_ARCH_HAS_ILOG2_U32 is not set
+# CONFIG_ARCH_HAS_ILOG2_U64 is not set
 CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
 
 #
@@ -31,8 +35,10 @@ CONFIG_LOCALVERSION=""
 # CONFIG_BSD_PROCESS_ACCT is not set
 # CONFIG_UTS_NS is not set
 # CONFIG_IKCONFIG is not set
+CONFIG_LOG_BUF_SHIFT=14
+CONFIG_SYSFS_DEPRECATED=y
 # CONFIG_RELAY is not set
-CONFIG_INITRAMFS_SOURCE=""
+# CONFIG_BLK_DEV_INITRD is not set
 CONFIG_CC_OPTIMIZE_FOR_SIZE=y
 CONFIG_SYSCTL=y
 CONFIG_EMBEDDED=y
@@ -45,12 +51,17 @@ CONFIG_BUG=y
 # CONFIG_ELF_CORE is not set
 # CONFIG_BASE_FULL is not set
 # CONFIG_FUTEX is not set
+CONFIG_ANON_INODES=y
 # CONFIG_EPOLL is not set
-CONFIG_SLAB=y
+CONFIG_SIGNALFD=y
+CONFIG_TIMERFD=y
+CONFIG_EVENTFD=y
 # CONFIG_VM_EVENT_COUNTERS is not set
+CONFIG_SLAB=y
+# CONFIG_SLUB is not set
+# CONFIG_SLOB is not set
 CONFIG_TINY_SHMEM=y
 CONFIG_BASE_SMALL=1
-# CONFIG_SLOB is not set
 
 #
 # Loadable module support
@@ -80,52 +91,9 @@ CONFIG_DEFAULT_IOSCHED="noop"
 #
 # System type
 #
-# CONFIG_SH_SOLUTION_ENGINE is not set
-# CONFIG_SH_7751_SOLUTION_ENGINE is not set
-# CONFIG_SH_7300_SOLUTION_ENGINE is not set
-# CONFIG_SH_7343_SOLUTION_ENGINE is not set
-# CONFIG_SH_73180_SOLUTION_ENGINE is not set
-# CONFIG_SH_7751_SYSTEMH is not set
-# CONFIG_SH_HP6XX is not set
-# CONFIG_SH_EC3104 is not set
-# CONFIG_SH_SATURN is not set
-# CONFIG_SH_DREAMCAST is not set
-# CONFIG_SH_BIGSUR is not set
-# CONFIG_SH_MPC1211 is not set
-# CONFIG_SH_SH03 is not set
-# CONFIG_SH_SECUREEDGE5410 is not set
-# CONFIG_SH_HS7751RVOIP is not set
-# CONFIG_SH_7710VOIPGW is not set
-# CONFIG_SH_RTS7751R2D is not set
-# CONFIG_SH_R7780RP is not set
-# CONFIG_SH_EDOSK7705 is not set
-# CONFIG_SH_SH4202_MICRODEV is not set
-# CONFIG_SH_LANDISK is not set
-# CONFIG_SH_TITAN is not set
-# CONFIG_SH_SHMIN is not set
-# CONFIG_SH_7206_SOLUTION_ENGINE is not set
-CONFIG_SH_7619_SOLUTION_ENGINE=y
-# CONFIG_SH_UNKNOWN is not set
-
-#
-# Processor selection
-#
 CONFIG_CPU_SH2=y
-
-#
-# SH-2 Processor Support
-#
-# CONFIG_CPU_SUBTYPE_SH7604 is not set
 CONFIG_CPU_SUBTYPE_SH7619=y
-
-#
-# SH-2A Processor Support
-#
 # CONFIG_CPU_SUBTYPE_SH7206 is not set
-
-#
-# SH-3 Processor Support
-#
 # CONFIG_CPU_SUBTYPE_SH7300 is not set
 # CONFIG_CPU_SUBTYPE_SH7705 is not set
 # CONFIG_CPU_SUBTYPE_SH7706 is not set
@@ -133,10 +101,7 @@ CONFIG_CPU_SUBTYPE_SH7619=y
 # CONFIG_CPU_SUBTYPE_SH7708 is not set
 # CONFIG_CPU_SUBTYPE_SH7709 is not set
 # CONFIG_CPU_SUBTYPE_SH7710 is not set
-
-#
-# SH-4 Processor Support
-#
+# CONFIG_CPU_SUBTYPE_SH7712 is not set
 # CONFIG_CPU_SUBTYPE_SH7750 is not set
 # CONFIG_CPU_SUBTYPE_SH7091 is not set
 # CONFIG_CPU_SUBTYPE_SH7750R is not set
@@ -145,32 +110,28 @@ CONFIG_CPU_SUBTYPE_SH7619=y
 # CONFIG_CPU_SUBTYPE_SH7751R is not set
 # CONFIG_CPU_SUBTYPE_SH7760 is not set
 # CONFIG_CPU_SUBTYPE_SH4_202 is not set
-
-#
-# ST40 Processor Support
-#
 # CONFIG_CPU_SUBTYPE_ST40STB1 is not set
 # CONFIG_CPU_SUBTYPE_ST40GX1 is not set
-
-#
-# SH-4A Processor Support
-#
 # CONFIG_CPU_SUBTYPE_SH7770 is not set
 # CONFIG_CPU_SUBTYPE_SH7780 is not set
 # CONFIG_CPU_SUBTYPE_SH7785 is not set
-
-#
-# SH4AL-DSP Processor Support
-#
 # CONFIG_CPU_SUBTYPE_SH73180 is not set
 # CONFIG_CPU_SUBTYPE_SH7343 is not set
+# CONFIG_CPU_SUBTYPE_SH7722 is not set
 
 #
 # Memory management options
 #
+CONFIG_QUICKLIST=y
 CONFIG_PAGE_OFFSET=0x00000000
 CONFIG_MEMORY_START=0x0c000000
 CONFIG_MEMORY_SIZE=0x04000000
+CONFIG_ARCH_FLATMEM_ENABLE=y
+CONFIG_ARCH_SPARSEMEM_ENABLE=y
+CONFIG_ARCH_SPARSEMEM_DEFAULT=y
+CONFIG_MAX_ACTIVE_REGIONS=1
+CONFIG_ARCH_POPULATES_NODE_MAP=y
+CONFIG_ARCH_SELECT_MEMORY_MODEL=y
 CONFIG_PAGE_SIZE_4KB=y
 # CONFIG_PAGE_SIZE_8KB is not set
 # CONFIG_PAGE_SIZE_64KB is not set
@@ -180,34 +141,41 @@ CONFIG_FLATMEM_MANUAL=y
 # CONFIG_SPARSEMEM_MANUAL is not set
 CONFIG_FLATMEM=y
 CONFIG_FLAT_NODE_MEM_MAP=y
-# CONFIG_SPARSEMEM_STATIC is not set
+CONFIG_SPARSEMEM_STATIC=y
 CONFIG_SPLIT_PTLOCK_CPUS=4
 # CONFIG_RESOURCES_64BIT is not set
+CONFIG_ZONE_DMA_FLAG=0
+CONFIG_NR_QUICK=2
 
 #
 # Cache configuration
 #
 # CONFIG_SH_DIRECT_MAPPED is not set
 CONFIG_SH_WRITETHROUGH=y
-# CONFIG_SH_OCRAM is not set
 
 #
 # Processor features
 #
 # CONFIG_CPU_LITTLE_ENDIAN is not set
 CONFIG_CPU_BIG_ENDIAN=y
-# CONFIG_SH_FPU is not set
 # CONFIG_SH_FPU_EMU is not set
 # CONFIG_SH_DSP is not set
+CONFIG_CPU_HAS_IPR_IRQ=y
 
 #
-# Timer support
+# Board support
+#
+CONFIG_SOLUTION_ENGINE=y
+CONFIG_SH_7619_SOLUTION_ENGINE=y
+
+#
+# Timer and clock configuration
 #
 CONFIG_SH_CMT=y
 CONFIG_SH_TIMER_IRQ=86
-# CONFIG_NO_IDLE_HZ is not set
 CONFIG_SH_PCLK_FREQ=31250000
 CONFIG_SH_CLK_MD=5
+# CONFIG_TICK_ONESHOT is not set
 
 #
 # CPU Frequency scaling
@@ -222,11 +190,11 @@ CONFIG_SH_CLK_MD=5
 #
 # Companion Chips
 #
-# CONFIG_HD6446X_SERIES is not set
 
 #
 # Additional SuperH Device Drivers
 #
+# CONFIG_HEARTBEAT is not set
 # CONFIG_PUSH_SWITCH is not set
 
 #
@@ -234,10 +202,11 @@ CONFIG_SH_CLK_MD=5
 #
 CONFIG_HZ_100=y
 # CONFIG_HZ_250 is not set
+# CONFIG_HZ_300 is not set
 # CONFIG_HZ_1000 is not set
 CONFIG_HZ=100
 # CONFIG_KEXEC is not set
-# CONFIG_SMP is not set
+# CONFIG_CRASH_DUMP is not set
 CONFIG_PREEMPT_NONE=y
 # CONFIG_PREEMPT_VOLUNTARY is not set
 # CONFIG_PREEMPT is not set
@@ -247,20 +216,15 @@ CONFIG_PREEMPT_NONE=y
 #
 CONFIG_ZERO_PAGE_OFFSET=0x00001000
 CONFIG_BOOT_LINK_OFFSET=0x00800000
-# CONFIG_UBC_WAKEUP is not set
 # CONFIG_CMDLINE_BOOL is not set
 
 #
 # Bus options
 #
-# CONFIG_PCI is not set
+# CONFIG_ARCH_SUPPORTS_MSI is not set
 
 #
 # PCCARD (PCMCIA/CardBus) support
-#
-
-#
-# PCI Hotplug Support
 #
 
 #
@@ -270,11 +234,6 @@ CONFIG_BINFMT_FLAT=y
 CONFIG_BINFMT_ZFLAT=y
 # CONFIG_BINFMT_SHARED_FLAT is not set
 # CONFIG_BINFMT_MISC is not set
-
-#
-# Power management options (EXPERIMENTAL)
-#
-# CONFIG_PM is not set
 
 #
 # Networking
@@ -295,10 +254,6 @@ CONFIG_BINFMT_ZFLAT=y
 #
 # Connector - unified userspace <-> kernelspace linker
 #
-
-#
-# Memory Technology Devices (MTD)
-#
 CONFIG_MTD=y
 # CONFIG_MTD_DEBUG is not set
 CONFIG_MTD_CONCAT=y
@@ -313,6 +268,7 @@ CONFIG_MTD_REDBOOT_DIRECTORY_BLOCK=-1
 # User Modules And Translation Layers
 #
 CONFIG_MTD_CHAR=y
+CONFIG_MTD_BLKDEVS=y
 CONFIG_MTD_BLOCK=y
 # CONFIG_FTL is not set
 # CONFIG_NFTL is not set
@@ -344,7 +300,6 @@ CONFIG_MTD_CFI_UTIL=y
 # CONFIG_MTD_RAM is not set
 # CONFIG_MTD_ROM is not set
 # CONFIG_MTD_ABSENT is not set
-# CONFIG_MTD_OBSOLETE_CHIPS is not set
 
 #
 # Mapping drivers for chip access
@@ -372,16 +327,13 @@ CONFIG_MTD_PHYSMAP_BANKWIDTH=2
 # CONFIG_MTD_DOC2000 is not set
 # CONFIG_MTD_DOC2001 is not set
 # CONFIG_MTD_DOC2001PLUS is not set
-
-#
-# NAND Flash Device Drivers
-#
 # CONFIG_MTD_NAND is not set
+# CONFIG_MTD_ONENAND is not set
 
 #
-# OneNAND Flash Device Drivers
+# UBI - Unsorted block images
 #
-# CONFIG_MTD_ONENAND is not set
+# CONFIG_MTD_UBI is not set
 
 #
 # Parallel port support
@@ -391,6 +343,7 @@ CONFIG_MTD_PHYSMAP_BANKWIDTH=2
 #
 # Plug and Play support
 #
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
@@ -398,17 +351,12 @@ CONFIG_MTD_PHYSMAP_BANKWIDTH=2
 # CONFIG_BLK_DEV_COW_COMMON is not set
 # CONFIG_BLK_DEV_LOOP is not set
 # CONFIG_BLK_DEV_RAM is not set
-# CONFIG_BLK_DEV_INITRD is not set
 # CONFIG_CDROM_PKTCDVD is not set
 
 #
 # Misc devices
 #
-# CONFIG_TIFM_CORE is not set
-
-#
-# ATA/ATAPI/MFM/RLL support
-#
+# CONFIG_BLINK is not set
 # CONFIG_IDE is not set
 
 #
@@ -417,29 +365,12 @@ CONFIG_MTD_PHYSMAP_BANKWIDTH=2
 # CONFIG_RAID_ATTRS is not set
 # CONFIG_SCSI is not set
 # CONFIG_SCSI_NETLINK is not set
-
-#
-# Serial ATA (prod) and Parallel ATA (experimental) drivers
-#
 # CONFIG_ATA is not set
 
 #
 # Multi-device support (RAID and LVM)
 #
 # CONFIG_MD is not set
-
-#
-# Fusion MPT device support
-#
-# CONFIG_FUSION is not set
-
-#
-# IEEE 1394 (FireWire) support
-#
-
-#
-# I2O device support
-#
 
 #
 # ISDN subsystem
@@ -471,6 +402,7 @@ CONFIG_INPUT=y
 # CONFIG_INPUT_KEYBOARD is not set
 # CONFIG_INPUT_MOUSE is not set
 # CONFIG_INPUT_JOYSTICK is not set
+# CONFIG_INPUT_TABLET is not set
 # CONFIG_INPUT_TOUCHSCREEN is not set
 # CONFIG_INPUT_MISC is not set
 
@@ -506,29 +438,15 @@ CONFIG_SERIAL_CORE_CONSOLE=y
 # IPMI
 #
 # CONFIG_IPMI_HANDLER is not set
-
-#
-# Watchdog Cards
-#
 # CONFIG_WATCHDOG is not set
 # CONFIG_HW_RANDOM is not set
-# CONFIG_GEN_RTC is not set
-# CONFIG_DTLK is not set
 # CONFIG_R3964 is not set
-
-#
-# Ftape, the floppy tape device driver
-#
 # CONFIG_RAW_DRIVER is not set
 
 #
 # TPM devices
 #
 # CONFIG_TCG_TPM is not set
-
-#
-# I2C support
-#
 # CONFIG_I2C is not set
 
 #
@@ -541,32 +459,41 @@ CONFIG_SERIAL_CORE_CONSOLE=y
 # Dallas's 1-wire bus
 #
 # CONFIG_W1 is not set
+# CONFIG_HWMON is not set
 
 #
-# Hardware Monitoring support
+# Multifunction device drivers
 #
-# CONFIG_HWMON is not set
-# CONFIG_HWMON_VID is not set
+# CONFIG_MFD_SM501 is not set
 
 #
 # Multimedia devices
 #
 # CONFIG_VIDEO_DEV is not set
-
-#
-# Digital Video Broadcasting Devices
-#
+CONFIG_DAB=y
 
 #
 # Graphics support
 #
-# CONFIG_FIRMWARE_EDID is not set
+# CONFIG_BACKLIGHT_LCD_SUPPORT is not set
+
+#
+# Display device support
+#
+# CONFIG_DISPLAY_SUPPORT is not set
+# CONFIG_VGASTATE is not set
 # CONFIG_FB is not set
 
 #
 # Sound
 #
 # CONFIG_SOUND is not set
+
+#
+# HID Devices
+#
+CONFIG_HID=y
+# CONFIG_HID_DEBUG is not set
 
 #
 # USB support
@@ -583,10 +510,6 @@ CONFIG_SERIAL_CORE_CONSOLE=y
 # USB Gadget Support
 #
 # CONFIG_USB_GADGET is not set
-
-#
-# MMC/SD Card support
-#
 # CONFIG_MMC is not set
 
 #
@@ -668,7 +591,6 @@ CONFIG_PROC_FS=y
 CONFIG_PROC_SYSCTL=y
 # CONFIG_SYSFS is not set
 # CONFIG_TMPFS is not set
-# CONFIG_HUGETLBFS is not set
 # CONFIG_HUGETLB_PAGE is not set
 CONFIG_RAMFS=y
 
@@ -682,7 +604,6 @@ CONFIG_RAMFS=y
 # CONFIG_BEFS_FS is not set
 # CONFIG_BFS_FS is not set
 # CONFIG_EFS_FS is not set
-# CONFIG_JFFS_FS is not set
 # CONFIG_JFFS2_FS is not set
 # CONFIG_CRAMFS is not set
 # CONFIG_VXFS_FS is not set
@@ -715,14 +636,11 @@ CONFIG_TRACE_IRQFLAGS_SUPPORT=y
 # CONFIG_ENABLE_MUST_CHECK is not set
 # CONFIG_MAGIC_SYSRQ is not set
 # CONFIG_UNUSED_SYMBOLS is not set
-# CONFIG_DEBUG_KERNEL is not set
-CONFIG_LOG_BUF_SHIFT=14
-# CONFIG_DEBUG_BUGVERBOSE is not set
-# CONFIG_UNWIND_INFO is not set
 # CONFIG_HEADERS_CHECK is not set
+# CONFIG_DEBUG_KERNEL is not set
+# CONFIG_DEBUG_BUGVERBOSE is not set
 # CONFIG_SH_STANDARD_BIOS is not set
 # CONFIG_EARLY_SCIF_CONSOLE is not set
-# CONFIG_KGDB is not set
 
 #
 # Security options
@@ -737,8 +655,13 @@ CONFIG_LOG_BUF_SHIFT=14
 #
 # Library routines
 #
+CONFIG_BITREVERSE=y
 # CONFIG_CRC_CCITT is not set
 # CONFIG_CRC16 is not set
+# CONFIG_CRC_ITU_T is not set
 CONFIG_CRC32=y
 # CONFIG_LIBCRC32C is not set
 CONFIG_ZLIB_INFLATE=y
+CONFIG_HAS_IOMEM=y
+CONFIG_HAS_IOPORT=y
+CONFIG_HAS_DMA=y
