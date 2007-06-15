@@ -567,12 +567,13 @@ exit:
 static void klsi_105_write_bulk_callback ( struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	int status = urb->status;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
-	
-	if (urb->status) {
+
+	if (status) {
 		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__,
-		    urb->status);
+		    status);
 		return;
 	}
 
@@ -631,16 +632,17 @@ static void klsi_105_read_bulk_callback (struct urb *urb)
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int rc;
+	int status = urb->status;
 
-        dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	/* The urb might have been killed. */
-        if (urb->status) {
-                dbg("%s - nonzero read bulk status received: %d", __FUNCTION__,
-		    urb->status);
-                return;
-        }
-	
+	if (status) {
+		dbg("%s - nonzero read bulk status received: %d", __FUNCTION__,
+		    status);
+		return;
+	}
+
 	/* The data received is again preceded by a length double-byte in LSB-
 	 * first order (see klsi_105_write() )
 	 */
