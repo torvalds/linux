@@ -485,16 +485,17 @@ static void visor_write_bulk_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct visor_private *priv = usb_get_serial_port_data(port);
+	int status = urb->status;
 	unsigned long flags;
 
 	/* free up the transfer buffer, as usb_free_urb() does not do this */
 	kfree (urb->transfer_buffer);
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
-	
-	if (urb->status)
+
+	if (status)
 		dbg("%s - nonzero write bulk status received: %d",
-		    __FUNCTION__, urb->status);
+		    __FUNCTION__, status);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	--priv->outstanding_urbs;
@@ -509,14 +510,16 @@ static void visor_read_bulk_callback (struct urb *urb)
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct visor_private *priv = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
+	int status = urb->status;
 	struct tty_struct *tty;
 	int result;
 	int available_room;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (urb->status) {
-		dbg("%s - nonzero read bulk status received: %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero read bulk status received: %d",
+		    __FUNCTION__, status);
 		return;
 	}
 
@@ -556,9 +559,10 @@ static void visor_read_bulk_callback (struct urb *urb)
 static void visor_read_int_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	int status = urb->status;
 	int result;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -567,11 +571,11 @@ static void visor_read_int_callback (struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d",
-		    __FUNCTION__, urb->status);
+		    __FUNCTION__, status);
 		return;
 	default:
 		dbg("%s - nonzero urb status received: %d",
-		    __FUNCTION__, urb->status);
+		    __FUNCTION__, status);
 		goto exit;
 	}
 
