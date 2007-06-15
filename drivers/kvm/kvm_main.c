@@ -253,6 +253,28 @@ int kvm_write_guest(struct kvm_vcpu *vcpu, gva_t addr, unsigned long size,
 }
 EXPORT_SYMBOL_GPL(kvm_write_guest);
 
+void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->fpu_active || vcpu->guest_fpu_loaded)
+		return;
+
+	vcpu->guest_fpu_loaded = 1;
+	fx_save(vcpu->host_fx_image);
+	fx_restore(vcpu->guest_fx_image);
+}
+EXPORT_SYMBOL_GPL(kvm_load_guest_fpu);
+
+void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->guest_fpu_loaded)
+		return;
+
+	vcpu->guest_fpu_loaded = 0;
+	fx_save(vcpu->guest_fx_image);
+	fx_restore(vcpu->host_fx_image);
+}
+EXPORT_SYMBOL_GPL(kvm_put_guest_fpu);
+
 /*
  * Switches to specified vcpu, until a matching vcpu_put()
  */

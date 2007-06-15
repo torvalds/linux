@@ -304,6 +304,7 @@ struct kvm_vcpu {
 	char *host_fx_image;
 	char *guest_fx_image;
 	int fpu_active;
+	int guest_fpu_loaded;
 
 	int mmio_needed;
 	int mmio_read_completed;
@@ -508,6 +509,8 @@ void fx_init(struct kvm_vcpu *vcpu);
 void load_msrs(struct vmx_msr_entry *e, int n);
 void save_msrs(struct vmx_msr_entry *e, int n);
 void kvm_resched(struct kvm_vcpu *vcpu);
+void kvm_load_guest_fpu(struct kvm_vcpu *vcpu);
+void kvm_put_guest_fpu(struct kvm_vcpu *vcpu);
 
 int kvm_read_guest(struct kvm_vcpu *vcpu,
 	       gva_t addr,
