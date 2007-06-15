@@ -30,6 +30,7 @@ struct evdev {
 	wait_queue_head_t wait;
 	struct evdev_client *grab;
 	struct list_head client_list;
+	struct device dev;
 };
 
 struct evdev_client {
@@ -94,8 +95,10 @@ static int evdev_flush(struct file *file, fl_owner_t id)
 	return input_flush_device(&evdev->handle, file);
 }
 
-static void evdev_free(struct evdev *evdev)
+static void evdev_free(struct device *dev)
 {
+	struct evdev *evdev = container_of(dev, struct evdev, dev);
+
 	evdev_table[evdev->minor] = NULL;
 	kfree(evdev);
 }
@@ -114,12 +117,10 @@ static int evdev_release(struct inode *inode, struct file *file)
 	list_del(&client->node);
 	kfree(client);
 
-	if (!--evdev->open) {
-		if (evdev->exist)
-			input_close_device(&evdev->handle);
-		else
-			evdev_free(evdev);
-	}
+	if (!--evdev->open && evdev->exist)
+		input_close_device(&evdev->handle);
+
+	put_device(&evdev->dev);
 
 	return 0;
 }
@@ -139,24 +140,32 @@ static int evdev_open(struct inode *inode, struct file *file)
 	if (!evdev || !evdev->exist)
 		return -ENODEV;
 
+	get_device(&evdev->dev);
+
 	client = kzalloc(sizeof(struct evdev_client), GFP_KERNEL);
-	if (!client)
-		return -ENOMEM;
+	if (!client) {
+		error = -ENOMEM;
+		goto err_put_evdev;
+	}
 
 	client->evdev = evdev;
 	list_add_tail(&client->node, &evdev->client_list);
 
 	if (!evdev->open++ && evdev->exist) {
 		error = input_open_device(&evdev->handle);
-		if (error) {
-			list_del(&client->node);
-			kfree(client);
-			return error;
-		}
+		if (error)
+			goto err_free_client;
 	}
 
 	file->private_data = client;
 	return 0;
+
+ err_free_client:
+	list_del(&client->node);
+	kfree(client);
+ err_put_evdev:
+	put_device(&evdev->dev);
+	return error;
 }
 
 #ifdef CONFIG_COMPAT
@@ -625,8 +634,6 @@ static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 			 const struct input_device_id *id)
 {
 	struct evdev *evdev;
-	struct class_device *cdev;
-	dev_t devt;
 	int minor;
 	int error;
 
@@ -649,38 +656,32 @@ static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 	evdev->handle.name = evdev->name;
 	evdev->handle.handler = handler;
 	evdev->handle.private = evdev;
-	sprintf(evdev->name, "event%d", minor);
+	snprintf(evdev->name, sizeof(evdev->name), "event%d", minor);
+
+	snprintf(evdev->dev.bus_id, sizeof(evdev->dev.bus_id),
+		 "event%d", minor);
+	evdev->dev.class = &input_class;
+	evdev->dev.parent = &dev->dev;
+	evdev->dev.devt = MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + minor);
+	evdev->dev.release = evdev_free;
+	device_initialize(&evdev->dev);
 
 	evdev_table[minor] = evdev;
 
-	devt = MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + minor),
-
-	cdev = class_device_create(&input_class, &dev->cdev, devt,
-				   dev->cdev.dev, evdev->name);
-	if (IS_ERR(cdev)) {
-		error = PTR_ERR(cdev);
-		goto err_free_evdev;
-	}
-
-	/* temporary symlink to keep userspace happy */
-	error = sysfs_create_link(&input_class.subsys.kobj,
-				  &cdev->kobj, evdev->name);
+	error = device_add(&evdev->dev);
 	if (error)
-		goto err_cdev_destroy;
+		goto err_free_evdev;
 
 	error = input_register_handle(&evdev->handle);
 	if (error)
-		goto err_remove_link;
+		goto err_delete_evdev;
 
 	return 0;
 
- err_remove_link:
-	sysfs_remove_link(&input_class.subsys.kobj, evdev->name);
- err_cdev_destroy:
-	class_device_destroy(&input_class, devt);
+ err_delete_evdev:
+	device_del(&evdev->dev);
  err_free_evdev:
-	kfree(evdev);
-	evdev_table[minor] = NULL;
+	put_device(&evdev->dev);
 	return error;
 }
 
@@ -690,10 +691,8 @@ static void evdev_disconnect(struct input_handle *handle)
 	struct evdev_client *client;
 
 	input_unregister_handle(handle);
+	device_del(&evdev->dev);
 
-	sysfs_remove_link(&input_class.subsys.kobj, evdev->name);
-	class_device_destroy(&input_class,
-			MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + evdev->minor));
 	evdev->exist = 0;
 
 	if (evdev->open) {
@@ -702,8 +701,9 @@ static void evdev_disconnect(struct input_handle *handle)
 		list_for_each_entry(client, &evdev->client_list, node)
 			kill_fasync(&client->fasync, SIGIO, POLL_HUP);
 		wake_up_interruptible(&evdev->wait);
-	} else
-		evdev_free(evdev);
+	}
+
+	put_device(&evdev->dev);
 }
 
 static const struct input_device_id evdev_ids[] = {

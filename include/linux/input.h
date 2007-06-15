@@ -981,15 +981,15 @@ struct input_dev {
 	struct mutex mutex;	/* serializes open and close operations */
 	unsigned int users;
 
-	struct class_device cdev;
+	struct device dev;
 	union {			/* temporarily so while we switching to struct device */
-		struct device *parent;
-	} dev;
+		struct device *dev;
+	} cdev;
 
 	struct list_head	h_list;
 	struct list_head	node;
 };
-#define to_input_dev(d) container_of(d, struct input_dev, cdev)
+#define to_input_dev(d) container_of(d, struct input_dev, dev)
 
 /*
  * Verify that we are in sync with input_device_id mod_devicetable.h #defines
@@ -1096,22 +1096,22 @@ struct input_handle {
 	struct list_head	h_node;
 };
 
-#define to_dev(n) container_of(n,struct input_dev,node)
-#define to_handler(n) container_of(n,struct input_handler,node)
-#define to_handle(n) container_of(n,struct input_handle,d_node)
-#define to_handle_h(n) container_of(n,struct input_handle,h_node)
+#define to_dev(n) container_of(n, struct input_dev, node)
+#define to_handler(n) container_of(n, struct input_handler, node)
+#define to_handle(n) container_of(n, struct input_handle, d_node)
+#define to_handle_h(n) container_of(n, struct input_handle, h_node)
 
 struct input_dev *input_allocate_device(void);
 void input_free_device(struct input_dev *dev);
 
 static inline struct input_dev *input_get_device(struct input_dev *dev)
 {
-	return to_input_dev(class_device_get(&dev->cdev));
+	return to_input_dev(get_device(&dev->dev));
 }
 
 static inline void input_put_device(struct input_dev *dev)
 {
-	class_device_put(&dev->cdev);
+	put_device(&dev->dev);
 }
 
 static inline void *input_get_drvdata(struct input_dev *dev)
