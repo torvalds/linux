@@ -452,6 +452,20 @@ static int ps3_system_bus_uevent(struct device *_dev, char **envp,
 	return 0;
 }
 
+static ssize_t modalias_show(struct device *_dev, struct device_attribute *a,
+	char *buf)
+{
+	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
+	int len = snprintf(buf, PAGE_SIZE, "ps3:%d\n", dev->match_id);
+
+	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
+}
+
+static struct device_attribute ps3_system_bus_dev_attrs[] = {
+	__ATTR_RO(modalias),
+	__ATTR_NULL,
+};
+
 struct bus_type ps3_system_bus_type = {
 	.name = "ps3_system_bus",
 	.match = ps3_system_bus_match,
@@ -459,6 +473,7 @@ struct bus_type ps3_system_bus_type = {
 	.probe = ps3_system_bus_probe,
 	.remove = ps3_system_bus_remove,
 	.shutdown = ps3_system_bus_shutdown,
+	.dev_attrs = ps3_system_bus_dev_attrs,
 };
 
 static int __init ps3_system_bus_init(void)
