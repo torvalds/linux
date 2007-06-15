@@ -34,7 +34,9 @@
 #endif
 
 .extern ___udivsi3;
+.type ___udivsi3, STT_FUNC;
 .globl	___umodsi3
+.type ___umodsi3, STT_FUNC;
 ___umodsi3:
 
 	CC=R0==0;
@@ -64,3 +66,5 @@ ___umodsi3:
 	R0 = 0;
 .LRETURN_R0:
 	RTS;
+
+.size ___umodsi3, .-___umodsi3

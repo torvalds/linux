@@ -86,6 +86,8 @@ ENTRY(_bfin_icache_init)
 	SSYNC;
 	STI R2;
 	RTS;
+
+ENDPROC(_bfin_icache_init)
 #endif
 
 #if defined(CONFIG_BLKFIN_DCACHE)
@@ -134,4 +136,6 @@ ENTRY(_bfin_dcache_init)
 	SSYNC;
 	STI R2;
 	RTS;
+
+ENDPROC(_bfin_dcache_init)
 #endif

@@ -185,6 +185,7 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 		uart->port.icount.brk++;
 		if (uart_handle_break(&uart->port))
 			goto ignore_char;
+		status &= ~(PE | FE);
 	}
 	if (status & PE)
 		uart->port.icount.parity++;
@@ -341,6 +342,7 @@ static void bfin_serial_dma_rx_chars(struct bfin_serial_port *uart)
 		uart->port.icount.brk++;
 		if (uart_handle_break(&uart->port))
 			goto dma_ignore_char;
+		status &= ~(PE | FE);
 	}
 	if (status & PE)
 		uart->port.icount.parity++;
@@ -517,6 +519,14 @@ static void bfin_serial_mctrl_check(struct bfin_serial_port *uart)
  */
 static void bfin_serial_break_ctl(struct uart_port *port, int break_state)
 {
+	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
+	u16 lcr = UART_GET_LCR(uart);
+	if (break_state)
+		lcr |= SB;
+	else
+		lcr &= ~SB;
+	UART_PUT_LCR(uart, lcr);
+	SSYNC();
 }
 
 static int bfin_serial_startup(struct uart_port *port)
@@ -625,11 +635,12 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	if (termios->c_cflag & CSTOPB)
 		lcr |= STB;
-	if (termios->c_cflag & PARENB) {
+	if (termios->c_cflag & PARENB)
 		lcr |= PEN;
-		if (!(termios->c_cflag & PARODD))
-			lcr |= EPS;
-	}
+	if (!(termios->c_cflag & PARODD))
+		lcr |= EPS;
+	if (termios->c_cflag & CMSPAR)
+		lcr |= STP;
 
 	port->read_status_mask = OE;
 	if (termios->c_iflag & INPCK)

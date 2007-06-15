@@ -28,3 +28,5 @@ ___smulsi3_highpart:
 
 	R0 = R0 + R1;
 	RTS;
+
+.size ___smulsi3_highpart, .-___smulsi3_highpart

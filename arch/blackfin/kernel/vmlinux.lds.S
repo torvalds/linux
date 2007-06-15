@@ -7,7 +7,7 @@
  * Description:  Master linker script for blackfin architecture
  *
  * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
+ *               Copyright 2004-2007 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
@@ -32,97 +32,54 @@
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/mem_map.h>
 
-
 OUTPUT_FORMAT("elf32-bfin")
 ENTRY(__start)
 _jiffies = _jiffies_64;
 
-MEMORY
-{
-	ram         : ORIGIN = CONFIG_BOOT_LOAD, LENGTH = (CONFIG_MEM_SIZE * 1024 * 1024) - (CONFIG_BOOT_LOAD)
-	l1_data_a   : ORIGIN = L1_DATA_A_START,  LENGTH = L1_DATA_A_LENGTH
-	l1_data_b   : ORIGIN = L1_DATA_B_START,  LENGTH = L1_DATA_B_LENGTH
-	l1_code     : ORIGIN = L1_CODE_START,    LENGTH = L1_CODE_LENGTH
-	l1_scratch  : ORIGIN = L1_SCRATCH_START, LENGTH = L1_SCRATCH_LENGTH
-}
-
 SECTIONS
 {
 	. = CONFIG_BOOT_LOAD;
-
 	.text :
 	{
-		 _text = .;
-		 __stext = .;
+		__text = .;
+		_text = .;
+		__stext = .;
 		TEXT_TEXT
 		SCHED_TEXT
+		LOCK_TEXT
 		*(.text.lock)
-		. = ALIGN(16);
-		  ___start___ex_table = .;
-		*(__ex_table)
-		 ___stop___ex_table = .;
-
-		*($code)
-		*(.rodata)
-		*(.rodata.*)
-		*(__vermagic)		/* Kernel version magic */
-		*(.rodata1)
 		*(.fixup)
-		*(.spinlock.text)
 
-		/* Kernel symbol table: Normal symbols */
+		. = ALIGN(16);
+		___start___ex_table = .;
+		*(__ex_table)
+		___stop___ex_table = .;
+
 		. = ALIGN(4);
-		___start___ksymtab = .;
-		*(__ksymtab)
-		___stop___ksymtab = .;
-
-		/* Kernel symbol table: GPL-only symbols */
-		___start___ksymtab_gpl = .;
-		*(__ksymtab_gpl)
-		___stop___ksymtab_gpl = .;
-
-		/* Kernel symbol table: Normal unused symbols */		\
-		___start___ksymtab_unused = .;
-		*(__ksymtab_unused)
-		___stop___ksymtab_unused = .;
-
-		/* Kernel symbol table: GPL-only unused symbols */
-		___start___ksymtab_unused_gpl = .;
-		*(__ksymtab_unused_gpl)
-		___stop___ksymtab_unused_gpl = .;
-
-
-		/* Kernel symbol table: GPL-future symbols */
-		___start___ksymtab_gpl_future = .;
-		*(__ksymtab_gpl_future)
-		___stop___ksymtab_gpl_future = .;
-
-		/* Kernel symbol table: Normal symbols */
-		___start___kcrctab = .;
-		*(__kcrctab)
-		___stop___kcrctab = .;
-
-		/* Kernel symbol table: GPL-only symbols */
-		___start___kcrctab_gpl = .;
-		*(__kcrctab_gpl)
-		___stop___kcrctab_gpl = .;
-
-		/* Kernel symbol table: GPL-future symbols */
-		___start___kcrctab_gpl_future = .;
-		*(__kcrctab_gpl_future)
-		___stop___kcrctab_gpl_future = .;
-
-		/* Kernel symbol table: strings */
-		*(__ksymtab_strings)
-
-		 . = ALIGN(4);
 		__etext = .;
-	} > ram
+	}
 
+	RODATA
+
+	.data :
+	{
+		__sdata = .;
+		. = ALIGN(0x2000);
+		*(.data.init_task)
+		DATA_DATA
+		CONSTRUCTORS
+
+		. = ALIGN(32);
+		*(.data.cacheline_aligned)
+
+		. = ALIGN(0x2000);
+		__edata = .;
+	}
+
+	___init_begin = .;
 	.init :
 	{
 		. = ALIGN(4096);
-		___init_begin = .;
 		__sinittext = .;
 		*(.init.text)
 		__einittext = .;
@@ -148,39 +105,39 @@ SECTIONS
 		*(.init.ramfs)
 		___initramfs_end = .;
 		. = ALIGN(4);
-		___init_end = .;
-	} > ram
+	}
 
-	 __l1_lma_start = .;
+	__l1_lma_start = .;
 
-	.text_l1 :
+	.text_l1 L1_CODE_START : AT(LOADADDR(.init) + SIZEOF(.init))
 	{
 		. = ALIGN(4);
-		 __stext_l1 = .;
+		__stext_l1 = .;
 		*(.l1.text)
 
 		. = ALIGN(4);
-		 __etext_l1 = .;
-	} > l1_code AT > ram
+		__etext_l1 = .;
+	}
 
-	.data_l1 :
+	.data_l1 L1_DATA_A_START : AT(LOADADDR(.text_l1) + SIZEOF(.text_l1))
 	{
 		. = ALIGN(4);
-		 __sdata_l1 = .;
+		__sdata_l1 = .;
 		*(.l1.data)
-		 __edata_l1 = .;
+		__edata_l1 = .;
 
 		. = ALIGN(4);
-		 __sbss_l1 = .;
+		__sbss_l1 = .;
 		*(.l1.bss)
 
 		. = ALIGN(32);
 		*(.data_l1.cacheline_aligned)
 
 		. = ALIGN(4);
-		 __ebss_l1 = .;
-	} > l1_data_a AT > ram
-	.data_b_l1 :
+		__ebss_l1 = .;
+	}
+
+	.data_b_l1 L1_DATA_B_START : AT(LOADADDR(.data_l1) + SIZEOF(.data_l1))
 	{
 		. = ALIGN(4);
 		__sdata_b_l1 = .;
@@ -193,36 +150,25 @@ SECTIONS
 
 		. = ALIGN(4);
 		__ebss_b_l1 = .;
-	} > l1_data_b AT > ram
+	}
 
-	.data :
-	{
-		 __sdata = .;
-		. = ALIGN(0x2000);
-		*(.data.init_task)
-		DATA_DATA
+	___init_end = LOADADDR(.data_b_l1) + SIZEOF(.data_b_l1);
 
-		. = ALIGN(32);
-		*(.data.cacheline_aligned)
-
-		. = ALIGN(0x2000);
-		__edata = .;
-	} > ram
-
-	/DISCARD/ : {			/* Exit code and data*/
-		*(.exit.text)
-		*(.exit.data)
-		*(.exitcall.exit)
-	} > ram
-
-	.bss :
+	.bss LOADADDR(.data_b_l1) + SIZEOF(.data_b_l1) :
 	{
 		. = ALIGN(4);
-		 ___bss_start = .;
+		___bss_start = .;
 		*(.bss)
 		*(COMMON)
 		. = ALIGN(4);
-		 ___bss_stop = .;
-		 __end = .	;
-	} > ram
+		___bss_stop = .;
+		__end = .;
+	}
+
+	/DISCARD/ :
+	{
+		*(.exit.text)
+		*(.exit.data)
+		*(.exitcall.exit)
+	}
 }

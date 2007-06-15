@@ -82,7 +82,7 @@ static char *cplb_print_entry(char *buf, int type)
 	int entry = 0, used_cplb = 0;
 
 	if (type == CPLB_I) {
-		buf += sprintf(buf, "Instrction CPLB entry:\n");
+		buf += sprintf(buf, "Instruction CPLB entry:\n");
 		p_addr = ipdt_table;
 		p_data = ipdt_table + 1;
 		p_icount = ipdt_swapcount_table;

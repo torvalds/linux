@@ -44,6 +44,7 @@
  */
 
 .global   ___divsi3;
+.type ___divsi3, STT_FUNC;
 
 #ifdef CONFIG_ARITHMETIC_OPS_L1
 .section .l1.text
@@ -214,3 +215,5 @@ ___divsi3 :
 .Lret_zero:
   R0 = 0;
   RTS;
+
+.size ___divsi3, .-___divsi3

@@ -155,6 +155,7 @@ ENTRY(_cache_grab_lock)
 	( R7:0,P5:0 ) = [SP++];
 
 	RTS;
+ENDPROC(_cache_grab_lock)
 
 /* After the execution of critical code, the code is now locked into
  * the cache way. Now we need to set ILOC.
@@ -186,6 +187,7 @@ ENTRY(_cache_lock)
 
 	( R7:0,P5:0 ) = [SP++];
 	RTS;
+ENDPROC(_cache_lock)
 
 #endif	/* BLKFIN_CACHE_LOCK */
 
@@ -193,7 +195,6 @@ ENTRY(_cache_lock)
  */
 
 ENTRY(_read_iloc)
-
 	P1.H = (IMEM_CONTROL >> 16);
 	P1.L = (IMEM_CONTROL & 0xFFFF);
 	R1 = 0xF;
@@ -202,3 +203,4 @@ ENTRY(_read_iloc)
 	R0 = R0 & R1;
 
 	RTS;
+ENDPROC(_read_iloc)

@@ -46,7 +46,7 @@ ENTRY(_insl)
 .Llong_loop_e: 	NOP;
 	sti R3;
 	RTS;
-
+ENDPROC(_insl)
 
 ENTRY(_insw)
 	P0 = R0;	/* P0 = port */
@@ -61,6 +61,7 @@ ENTRY(_insw)
 .Lword_loop_e: 	NOP;
 	sti R3;
 	RTS;
+ENDPROC(_insw)
 
 ENTRY(_insb)
 	P0 = R0;	/* P0 = port */
@@ -75,3 +76,4 @@ ENTRY(_insb)
 .Lbyte_loop_e:  NOP;
 	sti R3;
 	RTS;
+ENDPROC(_insb)

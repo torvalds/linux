@@ -1,7 +1,7 @@
 /*
  * File:         arch/blackfin/mach-bf533/boards/cm_bf561.c
  * Based on:     arch/blackfin/mach-bf533/boards/ezkit.c
- * Author:       Aidan Williams <aidan@nicta.com.au> Copright 2005
+ * Author:       Aidan Williams <aidan@nicta.com.au> Copyright 2005
  *
  * Created:      2006
  * Description:  Board description file
@@ -43,7 +43,7 @@
 char *bfin_board_name = "Bluetechnix CM BF561";
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
-/* all SPI perpherals info goes here */
+/* all SPI peripherals info goes here */
 
 #if defined(CONFIG_MTD_M25P80) || defined(CONFIG_MTD_M25P80_MODULE)
 static struct mtd_partition bfin_spi_flash_partitions[] = {

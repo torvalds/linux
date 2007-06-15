@@ -103,6 +103,7 @@ ENTRY(_ex_dcplb)
 	if !cc jump _return_from_exception;
 	/* fall through */
 #endif
+ENDPROC(_ex_dcplb)
 
 ENTRY(_ex_icplb)
 	(R7:6,P5:4) = [sp++];
@@ -113,6 +114,7 @@ ENTRY(_ex_icplb)
 	RESTORE_ALL_SYS
 	SP = RETN;
 	rtx;
+ENDPROC(_ex_icplb)
 
 ENTRY(_ex_spinlock)
 	/* Transform this into a syscall - twiddle the syscall vector.  */
@@ -123,6 +125,7 @@ ENTRY(_ex_spinlock)
 	[p5] = r7;
 	csync;
 	/* Fall through.  */
+ENDPROC(_ex_spinlock)
 
 ENTRY(_ex_syscall)
 	DEBUG_START_HWTRACE
@@ -131,6 +134,7 @@ ENTRY(_ex_syscall)
 	raise 15;		/* invoked by TRAP #0, for sys call */
 	sp = retn;
 	rtx
+ENDPROC(_ex_syscall)
 
 ENTRY(_spinlock_bh)
 	SAVE_ALL_SYS
@@ -150,12 +154,14 @@ ENTRY(_spinlock_bh)
 	[SP + PT_R0] = R0;
 	RESTORE_ALL_SYS
 	rti;
+ENDPROC(_spinlock_bh)
 
 ENTRY(_ex_soft_bp)
 	r7 = retx;
 	r7 += -2;
 	retx = r7;
 	jump.s _ex_trap_c;
+ENDPROC(_ex_soft_bp)
 
 ENTRY(_ex_single_step)
 	r7 = retx;
@@ -191,6 +197,7 @@ _return_from_exception:
 	ASTAT = [sp++];
 	sp = retn;
 	rtx;
+ENDPROC(_ex_soft_bp)
 
 ENTRY(_handle_bad_cplb)
 	/* To get here, we just tried and failed to change a CPLB
@@ -250,6 +257,7 @@ ENTRY(_ex_trap_c)
 	SP = RETN;
 	raise 5;
 	rtx;
+ENDPROC(_ex_trap_c)
 
 ENTRY(_exception_to_level5)
 	SAVE_ALL_SYS
@@ -314,6 +322,7 @@ ENTRY(_exception_to_level5)
 	call _ret_from_exception;
 	RESTORE_ALL_SYS
 	rti;
+ENDPROC(_exception_to_level5)
 
 ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	/* Since the kernel stack can be anywhere, it's not guaranteed to be
@@ -342,6 +351,7 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	r7 = -ENOSYS; 		/* signextending enough */
 	[sp + PT_R0] = r7;	/* return value from system call */
 	jump .Lsyscall_really_exit;
+ENDPROC(_trap)
 
 ENTRY(_kernel_execve)
 	link SIZEOF_PTREGS;
@@ -396,6 +406,7 @@ ENTRY(_kernel_execve)
 1:
 	unlink;
 	rts;
+ENDPROC(_kernel_execve)
 
 ENTRY(_system_call)
 	/* Store IPEND */
@@ -503,6 +514,7 @@ ENTRY(_system_call)
 	r5 = [sp + PT_RESERVED];
 	rets = r5;
 	rts;
+ENDPROC(_system_call)
 
 _sys_trace:
 	call _syscall_trace;
@@ -531,6 +543,7 @@ _sys_trace:
 
 	call _syscall_trace;
 	jump .Lresume_userspace;
+ENDPROC(_sys_trace)
 
 ENTRY(_resume)
 	/*
@@ -580,6 +593,7 @@ _new_old_task:
 	 * in "new" task.
 	 */
 	rts;
+ENDPROC(_resume)
 
 ENTRY(_ret_from_exception)
 	p2.l = lo(IPEND);
@@ -638,6 +652,7 @@ ENTRY(_ret_from_exception)
 	syscfg = r0;
 5:
 	rts;
+ENDPROC(_ret_from_exception)
 
 ENTRY(_return_from_int)
 	/* If someone else already raised IRQ 15, do nothing.  */
@@ -680,6 +695,7 @@ ENTRY(_return_from_int)
 	rti;
 2:
 	rts;
+ENDPROC(_return_from_int)
 
 ENTRY(_lower_to_irq14)
 #if defined(ANOMALY_05000281)
@@ -745,6 +761,7 @@ _schedule_and_signal:
 1:
 	RESTORE_CONTEXT
 	rti;
+ENDPROC(_lower_to_irq14)
 
 /* Make sure when we start, that the circular buffer is initialized properly
  * R0 and P0 are call clobbered, so we can use them here.
@@ -758,6 +775,7 @@ ENTRY(_init_exception_buff)
 	p0.l = _out_ptr_excause;
 	[p0] = r0;
 	rts;
+ENDPROC(_init_exception_buff)
 
 /*
  * Put these in the kernel data section - that should always be covered by

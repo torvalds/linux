@@ -394,41 +394,6 @@ config BFIN_IDLE_LED_PIN
 	default 0x08 if (BFIN533_STAMP && BFIN_IDLE_LED_NUM = 2)
 	default 0x10 if (BFIN533_STAMP && BFIN_IDLE_LED_NUM = 3)
 
-comment "Console UART Setup"
-
-choice
-	prompt "Baud Rate"
-	default BAUD_57600
-config BAUD_9600
-	bool "9600"
-config BAUD_19200
-	bool "19200"
-config BAUD_38400
-	bool "38400"
-config BAUD_57600
-	bool "57600"
-config BAUD_115200
-	bool "115200"
-endchoice
-
-choice
-	prompt "Parity"
-	default BAUD_NO_PARITY
-config  BAUD_NO_PARITY
-	bool "No Parity"
-config  BAUD_PARITY
-	bool "Parity"
-endchoice
-
-choice
-	prompt "Stop Bits"
-	default BAUD_1_STOPBIT
-config  BAUD_1_STOPBIT
-	bool "1"
-config  BAUD_2_STOPBIT
-	bool "2"
-endchoice
-
 endmenu
 
 

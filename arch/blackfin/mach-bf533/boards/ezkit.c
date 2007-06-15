@@ -1,6 +1,6 @@
 /*
  * File:         arch/blackfin/mach-bf533/ezkit.c
- * Based on:     Orginal Work
+ * Based on:     Original Work
  * Author:       Aidan Williams <aidan@nicta.com.au>
  *
  * Created:      2005

@@ -138,7 +138,7 @@ static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PROG0_INT
 
 inline int check_gpio(unsigned short gpio)
 {
-	if (gpio > MAX_BLACKFIN_GPIOS)
+	if (gpio >= MAX_BLACKFIN_GPIOS)
 		return -EINVAL;
 	return 0;
 }
@@ -494,19 +494,24 @@ u32 gpio_pm_setup(void)
 			gpio_bank_saved[bank].dir   = gpio_bankb[bank]->dir;
 			gpio_bank_saved[bank].edge  = gpio_bankb[bank]->edge;
 			gpio_bank_saved[bank].both  = gpio_bankb[bank]->both;
+			gpio_bank_saved[bank].reserved = reserved_map[bank];
 
 			gpio = i;
 
 			while (mask) {
 				if (mask & 1) {
-					bfin_gpio_wakeup_type(gpio, wakeup_flags_map[gpio]);
+					reserved_map[gpio_bank(gpio)] |=
+							gpio_bit(gpio);
+					bfin_gpio_wakeup_type(gpio,
+						wakeup_flags_map[gpio]);
 					set_gpio_data(gpio, 0); /*Clear*/
 				}
 				gpio++;
 				mask >>= 1;
 			}
 
-			sic_iwr |= 1 << (sic_iwr_irqs[bank] - (IRQ_CORETMR + 1));
+			sic_iwr |= 1 <<
+				(sic_iwr_irqs[bank] - (IRQ_CORETMR + 1));
 			gpio_bankb[bank]->maskb_set = wakeup_map[gpio_bank(i)];
 		}
 	}
@@ -535,6 +540,9 @@ void gpio_pm_restore(void)
 			gpio_bankb[bank]->polar = gpio_bank_saved[bank].polar;
 			gpio_bankb[bank]->edge  = gpio_bank_saved[bank].edge;
 			gpio_bankb[bank]->both  = gpio_bank_saved[bank].both;
+
+			reserved_map[bank] = gpio_bank_saved[bank].reserved;
+
 		}
 
 		gpio_bankb[bank]->maskb = gpio_bank_saved[bank].maskb;

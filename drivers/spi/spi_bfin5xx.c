@@ -582,14 +582,19 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 	dev_dbg(&drv_data->pdev->dev, "in dma_irq_handler\n");
 	clear_dma_irqstat(CH_SPI);
 
+	/* Wait for DMA to complete */
+	while (get_dma_curr_irqstat(CH_SPI) & DMA_RUN)
+		continue;
+
 	/*
-	 * wait for the last transaction shifted out.  yes, these two
-	 * while loops are supposed to be the same (see the HRM).
+	 * wait for the last transaction shifted out.  HRM states:
+	 * at this point there may still be data in the SPI DMA FIFO waiting
+	 * to be transmitted ... software needs to poll TXS in the SPI_STAT
+	 * register until it goes low for 2 successive reads
 	 */
 	if (drv_data->tx != NULL) {
-		while (bfin_read_SPI_STAT() & TXS)
-			continue;
-		while (bfin_read_SPI_STAT() & TXS)
+		while ((bfin_read_SPI_STAT() & TXS) ||
+		       (bfin_read_SPI_STAT() & TXS))
 			continue;
 	}
 
@@ -1082,7 +1087,7 @@ static int setup(struct spi_device *spi)
  */
 static void cleanup(struct spi_device *spi)
 {
-	struct chip_data *chip = spi_get_ctldata((struct spi_device *)spi);
+	struct chip_data *chip = spi_get_ctldata(spi);
 
 	kfree(chip);
 }

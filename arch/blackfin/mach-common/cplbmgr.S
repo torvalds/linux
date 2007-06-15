@@ -592,6 +592,7 @@ ENTRY(_cplb_mgr)
 	( R7:4,P5:3 ) = [SP++];
 	R0 = CPLB_RELOADED;
 	RTS;
+ENDPROC(_cplb_mgr)
 
 .data
 .align 4;

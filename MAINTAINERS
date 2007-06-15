@@ -723,42 +723,52 @@ M:	rpurdie@rpsys.net
 S:	Maintained
 
 BLACKFIN ARCHITECTURE
-P:     Aubrey Li
-M:     aubrey.li@analog.com
-P:     Bernd Schmidt
-M:     bernd.schmidt@analog.com
-P:     Bryan Wu
-M:     bryan.wu@analog.com
-P:     Grace Pan
-M:     grace.pan@analog.com
-P:     Michael Hennerich
-M:     michael.hennerich@analog.com
-P:     Mike Frysinger
-M:     michael.frysinger@analog.com
-P:     Jane Lv
-M:     jane.lv@analog.com
-P:     Jerry Zeng
-M:     jerry.zeng@analog.com
-P:     Jie Zhang
-M:     jie.zhang@analog.com
-P:     Robin Getz
-M:     robin.getz@analog.com
-P:     Roy Huang
-M:     roy.huang@analog.com
-P:     Sonic Zhang
-M:     sonic.zhang@analog.com
-P:     Yi Li
-M:     yi.li@analog.com
-L:     uclinux-dist-devel@blackfin.uclinux.org
-W:     http://blackfin.uclinux.org
-S:     Supported
+P:	Aubrey Li
+M:	aubrey.li@analog.com
+P:	Bernd Schmidt
+M:	bernd.schmidt@analog.com
+P:	Bryan Wu
+M:	bryan.wu@analog.com
+P:	Grace Pan
+M:	grace.pan@analog.com
+P:	Marc Hoffman
+M:	marc.hoffman@analog.com
+P:	Michael Hennerich
+M:	michael.hennerich@analog.com
+P:	Mike Frysinger
+M:	michael.frysinger@analog.com
+P:	Jerry Zeng
+M:	jerry.zeng@analog.com
+P:	Jie Zhang
+M:	jie.zhang@analog.com
+P:	Robin Getz
+M:	robin.getz@analog.com
+P:	Roy Huang
+M:	roy.huang@analog.com
+P:	Sonic Zhang
+M:	sonic.zhang@analog.com
+P:	Vivi Li
+M:	vivi.li@analog.com
+P:	Yi Li
+M:	yi.li@analog.com
+L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+W:	http://blackfin.uclinux.org
+S:	Supported
+
+BLACKFIN RTC DRIVER
+P:	Mike Frysinger
+M:	michael.frysinger@analog.com
+M:	vapier.adi@gmail.com
+L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+W:	http://blackfin.uclinux.org
+S:	Supported
 
 BLACKFIN SERIAL DRIVER
-P:     Aubrey Li
-M:     aubrey.li@analog.com
-L:     uclinux-dist-devel@blackfin.uclinux.org
-W:     http://blackfin.uclinux.org
-S:     Supported
+P:	Aubrey Li
+M:	aubrey.li@analog.com
+L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+W:	http://blackfin.uclinux.org
+S:	Supported
 
 BAYCOM/HDLCDRV DRIVERS FOR AX.25
 P:	Thomas Sailer

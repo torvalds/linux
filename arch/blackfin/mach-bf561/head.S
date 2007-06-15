@@ -28,6 +28,7 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/init.h>
 #include <asm/blackfin.h>
 #if CONFIG_BFIN_KERNEL_CLOCK
 #include <asm/mach/mem_init.h>
@@ -42,18 +43,19 @@
 
 #define INITIAL_STACK	0xFFB01000
 
-.text
+__INIT
 
 ENTRY(__start)
-ENTRY(__stext)
-	/*  R0: argument of command line string, passed from uboot, save it */
+	/* R0: argument of command line string, passed from uboot, save it */
 	R7 = R0;
-	/* Set the SYSCFG register */
+	/* Set the SYSCFG register:
+	 * Enable Cycle Counter and Nesting Of Interrupts (3rd Bit)
+	 */
 	R0 = 0x36;
-	SYSCFG = R0; /*Enable Cycle Counter and Nesting Of Interrupts(3rd Bit)*/
+	SYSCFG = R0;
 	R0 = 0;
 
-	/*Clear Out All the data and pointer  Registers*/
+	/* Clear Out All the data and pointer Registers */
 	R1 = R0;
 	R2 = R0;
 	R3 = R0;
@@ -75,7 +77,7 @@ ENTRY(__stext)
 	L2 = r0;
 	L3 = r0;
 
-	/* Clear Out All the DAG Registers*/
+	/* Clear Out All the DAG Registers */
 	B0 = r0;
 	B1 = r0;
 	B2 = r0;
@@ -219,6 +221,7 @@ ENTRY(__stext)
 
 .LWAIT_HERE:
 	jump .LWAIT_HERE;
+ENDPROC(__start)
 
 ENTRY(_real_start)
 	[ -- sp ] = reti;
@@ -238,7 +241,7 @@ ENTRY(_real_start)
 	p2.h = ___bss_stop;
 	r0 = 0;
 	p2 -= p1;
-	lsetup (.L_clear_bss, .L_clear_bss ) lc0 = p2;
+	lsetup (.L_clear_bss, .L_clear_bss) lc0 = p2;
 .L_clear_bss:
 	B[p1++] = r0;
 
@@ -253,11 +256,11 @@ ENTRY(_real_start)
 	r0 = r0 >> 1;
 	p2 = r0;
 	r0 = 0;
-	lsetup (.L_clear_zero, .L_clear_zero ) lc0 = p2;
+	lsetup (.L_clear_zero, .L_clear_zero) lc0 = p2;
 .L_clear_zero:
 	W[p1++] = r0;
 
-/* pass the uboot arguments to the global value command line */
+	/* pass the uboot arguments to the global value command line */
 	R0 = R7;
 	call _cmdline_init;
 
@@ -287,9 +290,10 @@ ENTRY(_real_start)
 	sp = r1;
 	usp = sp;
 	fp = sp;
-	call _start_kernel;
-.L_exit:
-	jump.s	.L_exit;
+	jump.l _start_kernel;
+ENDPROC(_real_start)
+
+__FINIT
 
 .section .l1.text
 #if CONFIG_BFIN_KERNEL_CLOCK
@@ -350,7 +354,7 @@ ENTRY(_start_dma_code)
 	if ! CC jump .Lcheck_again;
 
 	/* Configure SCLK & CCLK Dividers */
-	   	r0 = (CONFIG_CCLK_ACT_DIV | CONFIG_SCLK_DIV);
+	r0 = (CONFIG_CCLK_ACT_DIV | CONFIG_SCLK_DIV);
 	p0.h = hi(PLL_DIV);
 	p0.l = lo(PLL_DIV);
 	w[p0] = r0.l;
@@ -391,6 +395,7 @@ ENTRY(_start_dma_code)
 	SSYNC;
 
 	RTS;
+ENDPROC(_start_dma_code)
 #endif /* CONFIG_BFIN_KERNEL_CLOCK */
 
 ENTRY(_bfin_reset)

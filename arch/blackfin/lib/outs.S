@@ -40,6 +40,7 @@ ENTRY(_outsl)
 .Llong_loop_s: R0 = [P1++];
 .Llong_loop_e: [P0] = R0;
 	RTS;
+ENDPROC(_outsl)
 
 ENTRY(_outsw)
 	P0 = R0;	/* P0 = port */
@@ -50,6 +51,7 @@ ENTRY(_outsw)
 .Lword_loop_s: R0 = W[P1++];
 .Lword_loop_e: W[P0] = R0;
 	RTS;
+ENDPROC(_outsw)
 
 ENTRY(_outsb)
 	P0 = R0;	/* P0 = port */
@@ -60,3 +62,4 @@ ENTRY(_outsb)
 .Lbyte_loop_s: R0 = B[P1++];
 .Lbyte_loop_e: B[P0] = R0;
 	RTS;
+ENDPROC(_outsb)

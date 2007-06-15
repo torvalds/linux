@@ -595,7 +595,7 @@ unsigned short get_dma_curr_ycount(unsigned int channel)
 }
 EXPORT_SYMBOL(get_dma_curr_ycount);
 
-void *_dma_memcpy(void *dest, const void *src, size_t size)
+static void *__dma_memcpy(void *dest, const void *src, size_t size)
 {
 	int direction;	/* 1 - address decrease, 0 - address increase */
 	int flag_align;	/* 1 - address aligned,  0 - address unaligned */
@@ -744,8 +744,8 @@ void *dma_memcpy(void *dest, const void *src, size_t size)
 	bulk = (size >> 16) << 16;
 	rest = size - bulk;
 	if (bulk)
-		_dma_memcpy(dest, src, bulk);
-	addr = _dma_memcpy(dest+bulk, src+bulk, rest);
+		__dma_memcpy(dest, src, bulk);
+	addr = __dma_memcpy(dest+bulk, src+bulk, rest);
 	return addr;
 }
 

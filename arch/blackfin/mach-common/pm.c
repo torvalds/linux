@@ -39,7 +39,7 @@
 #include <asm/io.h>
 #include <asm/dpmc.h>
 #include <asm/irq.h>
-
+#include <asm/gpio.h>
 
 #ifdef CONFIG_PM_WAKEUP_GPIO_POLAR_H
 #define WAKEUP_TYPE	PM_WAKE_HIGH

@@ -59,7 +59,7 @@ static struct resource bfin_pcmcia_cf_resources[] = {
 		.end = 0x20312000,
 		.flags = IORESOURCE_MEM,
 	},{
-		.start = 0x20311000, /* Attribute Memeory */
+		.start = 0x20311000, /* Attribute Memory */
 		.end = 0x20311FFF,
 		.flags = IORESOURCE_MEM,
 	},{

@@ -6,7 +6,11 @@
 #ifndef _BLACKFIN_H_
 #define _BLACKFIN_H_
 
-#include <asm/macros.h>
+#define LO(con32) ((con32) & 0xFFFF)
+#define lo(con32) ((con32) & 0xFFFF)
+#define HI(con32) (((con32) >> 16) & 0xFFFF)
+#define hi(con32) (((con32) >> 16) & 0xFFFF)
+
 #include <asm/mach/blackfin.h>
 #include <asm/bfin-global.h>
 

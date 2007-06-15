@@ -7,7 +7,7 @@
  * Description:
  *
  * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
+ *               Copyright 2004-2007 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
@@ -53,7 +53,7 @@ static unsigned long empty_bad_page;
 
 unsigned long empty_zero_page;
 
-void show_mem(void)
+void __init show_mem(void)
 {
 	unsigned long i;
 	int free = 0, total = 0, reserved = 0, shared = 0;
@@ -86,7 +86,7 @@ void show_mem(void)
  * The parameters are pointers to where to stick the starting and ending
  * addresses  of available kernel virtual memory.
  */
-void paging_init(void)
+void __init paging_init(void)
 {
 	/*
 	 * make sure start_mem is page aligned,  otherwise bootmem and
@@ -125,7 +125,7 @@ void paging_init(void)
 	}
 }
 
-void mem_init(void)
+void __init mem_init(void)
 {
 	unsigned int codek = 0, datak = 0, initk = 0;
 	unsigned long tmp;
@@ -169,7 +169,7 @@ void mem_init(void)
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
-void free_initrd_mem(unsigned long start, unsigned long end)
+void __init free_initrd_mem(unsigned long start, unsigned long end)
 {
 	int pages = 0;
 	for (; start < end; start += PAGE_SIZE) {
@@ -183,14 +183,14 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
-void free_initmem(void)
+void __init free_initmem(void)
 {
 #ifdef CONFIG_RAMKERNEL
 	unsigned long addr;
-/*
- *	the following code should be cool even if these sections
- *	are not page aligned.
- */
+	/*
+	 *	the following code should be cool even if these sections
+	 *	are not page aligned.
+	 */
 	addr = PAGE_ALIGN((unsigned long)(__init_begin));
 	/* next to check that the page we free is not a partial page */
 	for (; addr + PAGE_SIZE < (unsigned long)(__init_end);

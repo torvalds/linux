@@ -66,6 +66,7 @@ ENTRY(_evt_emulation)
 	SP += 12;
 	/* - GDB stub fills this in by itself (if defined) */
 	rte;
+ENDPROC(_evt_emulation)
 #endif
 
 /* Common interrupt entry code.	 First we do CLI, then push
@@ -251,3 +252,4 @@ ENTRY(_evt_system_call)
 #endif
 	call _system_call;
 	jump .Lcommon_restore_context;
+ENDPROC(_evt_system_call)
