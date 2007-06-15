@@ -407,7 +407,7 @@ static int xpad_init_ff(struct usb_interface *intf, struct usb_xpad *xpad)
 
 	xpad->odata = usb_buffer_alloc(xpad->udev, XPAD_PKT_LEN,
 				       GFP_ATOMIC, &xpad->odata_dma );
-	if (!xpad->idata)
+	if (!xpad->odata)
 		goto fail1;
 
 	xpad->irq_out = usb_alloc_urb(0, GFP_KERNEL);
