@@ -340,6 +340,15 @@ unsigned blk_ordered_req_seq(struct request *rq)
 	if (rq == &q->post_flush_rq)
 		return QUEUE_ORDSEQ_POSTFLUSH;
 
+	/*
+	 * !fs requests don't need to follow barrier ordering.  Always
+	 * put them at the front.  This fixes the following deadlock.
+	 *
+	 * http://thread.gmane.org/gmane.linux.kernel/537473
+	 */
+	if (!blk_fs_request(rq))
+		return QUEUE_ORDSEQ_DRAIN;
+
 	if ((rq->cmd_flags & REQ_ORDERED_COLOR) ==
 	    (q->orig_bar_rq->cmd_flags & REQ_ORDERED_COLOR))
 		return QUEUE_ORDSEQ_DRAIN;
