@@ -176,6 +176,7 @@ static const struct pipe_buf_operations user_page_pipe_buf_ops = {
 static ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 			      struct splice_pipe_desc *spd)
 {
+	unsigned int spd_pages = spd->nr_pages;
 	int ret, do_wakeup, page_nr;
 
 	ret = 0;
@@ -244,17 +245,18 @@ static ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 		pipe->waiting_writers--;
 	}
 
-	if (pipe->inode)
+	if (pipe->inode) {
 		mutex_unlock(&pipe->inode->i_mutex);
 
-	if (do_wakeup) {
-		smp_mb();
-		if (waitqueue_active(&pipe->wait))
-			wake_up_interruptible(&pipe->wait);
-		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
+		if (do_wakeup) {
+			smp_mb();
+			if (waitqueue_active(&pipe->wait))
+				wake_up_interruptible(&pipe->wait);
+			kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
+		}
 	}
 
-	while (page_nr < spd->nr_pages)
+	while (page_nr < spd_pages)
 		page_cache_release(spd->pages[page_nr++]);
 
 	return ret;
@@ -811,7 +813,10 @@ generic_file_splice_write_nolock(struct pipe_inode_info *pipe, struct file *out,
 
 	ret = __splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_file);
 	if (ret > 0) {
+		unsigned long nr_pages;
+
 		*ppos += ret;
+		nr_pages = (ret + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 
 		/*
 		 * If file or inode is SYNC and we actually wrote some data,
@@ -824,7 +829,7 @@ generic_file_splice_write_nolock(struct pipe_inode_info *pipe, struct file *out,
 			if (err)
 				ret = err;
 		}
-		balance_dirty_pages_ratelimited(mapping);
+		balance_dirty_pages_ratelimited_nr(mapping, nr_pages);
 	}
 
 	return ret;
@@ -863,7 +868,10 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 
 	ret = splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_file);
 	if (ret > 0) {
+		unsigned long nr_pages;
+
 		*ppos += ret;
+		nr_pages = (ret + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 
 		/*
 		 * If file or inode is SYNC and we actually wrote some data,
@@ -878,7 +886,7 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 			if (err)
 				ret = err;
 		}
-		balance_dirty_pages_ratelimited(mapping);
+		balance_dirty_pages_ratelimited_nr(mapping, nr_pages);
 	}
 
 	return ret;
