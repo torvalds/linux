@@ -1576,14 +1576,15 @@ static void ftdi_write_bulk_callback (struct urb *urb)
 	struct ftdi_private *priv;
 	int data_offset;       /* will be 1 for the SIO and 0 otherwise */
 	unsigned long countback;
+	int status = urb->status;
 
 	/* free up the transfer buffer, as usb_free_urb() does not do this */
 	kfree (urb->transfer_buffer);
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (urb->status) {
-		dbg("nonzero write bulk status received: %d", urb->status);
+	if (status) {
+		dbg("nonzero write bulk status received: %d", status);
 		return;
 	}
 
@@ -1659,6 +1660,7 @@ static void ftdi_read_bulk_callback (struct urb *urb)
 	struct ftdi_private *priv;
 	unsigned long countread;
 	unsigned long flags;
+	int status = urb->status;
 
 	if (urb->number_of_packets > 0) {
 		err("%s transfer_buffer_length %d actual_length %d number of packets %d",__FUNCTION__,
@@ -1687,9 +1689,10 @@ static void ftdi_read_bulk_callback (struct urb *urb)
 		err("%s - Not my urb!", __FUNCTION__);
 	}
 
-	if (urb->status) {
+	if (status) {
 		/* This will happen at close every time so it is a dbg not an err */
-		dbg("(this is ok on close) nonzero read bulk status received: %d", urb->status);
+		dbg("(this is ok on close) nonzero read bulk status received: "
+		    "%d", status);
 		return;
 	}
 
