@@ -151,10 +151,16 @@ static struct console udbg_console = {
 
 static int early_console_initialized;
 
-/* called by setup_system */
+/*
+ * Called by setup_system after ppc_md->probe and ppc_md->early_init.
+ * Call it again after setting udbg_putc in ppc_md->setup_arch.
+ */
 void register_early_udbg_console(void)
 {
 	if (early_console_initialized)
+		return;
+
+	if (!udbg_putc)
 		return;
 
 	if (strstr(boot_command_line, "udbg-immortal")) {
