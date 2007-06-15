@@ -533,7 +533,7 @@ static void _dump_64_bmp(const char *header, const u64 *p, unsigned cpu,
 		*p & 0xffff);
 }
 
-static void __attribute__ ((unused)) _dump_256_bmp(const char *header,
+static void __maybe_unused _dump_256_bmp(const char *header,
 	const u64 *p, unsigned cpu, const char* func, int line)
 {
 	pr_debug("%s:%d: %s %u {%016lx:%016lx:%016lx:%016lx}\n",
@@ -552,7 +552,7 @@ static void _dump_bmp(struct ps3_private* pd, const char* func, int line)
 }
 
 #define dump_mask(_x) _dump_mask(_x, __func__, __LINE__)
-static void __attribute__ ((unused)) _dump_mask(struct ps3_private* pd,
+static void __maybe_unused _dump_mask(struct ps3_private *pd,
 	const char* func, int line)
 {
 	unsigned long flags;

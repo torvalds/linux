@@ -83,7 +83,7 @@ struct ports_bmp {
 } __attribute__ ((aligned (32)));
 
 #define dump_ports_bmp(_b) _dump_ports_bmp(_b, __func__, __LINE__)
-static void __attribute__ ((unused)) _dump_ports_bmp(
+static void __maybe_unused _dump_ports_bmp(
 	const struct ports_bmp* bmp, const char* func, int line)
 {
 	pr_debug("%s:%d: ports_bmp: %016lxh\n", func, line, bmp->status);
@@ -107,7 +107,7 @@ static int ps3_vuart_match_id_to_port(enum ps3_match_id match_id,
 }
 
 #define dump_port_params(_b) _dump_port_params(_b, __func__, __LINE__)
-static void __attribute__ ((unused)) _dump_port_params(unsigned int port_number,
+static void __maybe_unused _dump_port_params(unsigned int port_number,
 	const char* func, int line)
 {
 #if defined(DEBUG)
