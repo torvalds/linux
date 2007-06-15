@@ -409,13 +409,15 @@ extern struct bus_type ps3_system_bus_type;
 
 /* system manager */
 
-#ifdef CONFIG_PS3_SYS_MANAGER
-void ps3_sys_manager_restart(void);
+struct ps3_sys_manager_ops {
+	struct ps3_system_bus_device *dev;
+	void (*power_off)(struct ps3_system_bus_device *dev);
+	void (*restart)(struct ps3_system_bus_device *dev);
+};
+
+void ps3_sys_manager_register_ops(const struct ps3_sys_manager_ops *ops);
 void ps3_sys_manager_power_off(void);
-#else
-static inline void ps3_sys_manager_restart(void) {}
-static inline void ps3_sys_manager_power_off(void) {}
-#endif
+void ps3_sys_manager_restart(void);
 
 struct ps3_prealloc {
     const char *name;
@@ -425,5 +427,6 @@ struct ps3_prealloc {
 };
 
 extern struct ps3_prealloc ps3fb_videomemory;
+
 
 #endif
