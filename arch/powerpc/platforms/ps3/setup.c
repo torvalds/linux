@@ -209,31 +209,12 @@ static int __init ps3_probe(void)
 #if defined(CONFIG_KEXEC)
 static void ps3_kexec_cpu_down(int crash_shutdown, int secondary)
 {
-	DBG(" -> %s:%d\n", __func__, __LINE__);
+	int cpu = smp_processor_id();
 
-	if (secondary) {
-		int cpu;
-		for_each_online_cpu(cpu)
-			if (cpu)
-				ps3_smp_cleanup_cpu(cpu);
-	} else
-		ps3_smp_cleanup_cpu(0);
+	DBG(" -> %s:%d: (%d)\n", __func__, __LINE__, cpu);
 
-	DBG(" <- %s:%d\n", __func__, __LINE__);
-}
-
-static void ps3_machine_kexec(struct kimage *image)
-{
-	unsigned long ppe_id;
-
-	DBG(" -> %s:%d\n", __func__, __LINE__);
-
-	lv1_get_logical_ppe_id(&ppe_id);
-	lv1_configure_irq_state_bitmap(ppe_id, 0, 0);
-	ps3_mm_shutdown();
-	ps3_mm_vas_destroy();
-
-	default_machine_kexec(image);
+	ps3_smp_cleanup_cpu(cpu);
+	ps3_shutdown_IRQ(cpu);
 
 	DBG(" <- %s:%d\n", __func__, __LINE__);
 }
@@ -255,7 +236,7 @@ define_machine(ps3) {
 	.power_off			= ps3_power_off,
 #if defined(CONFIG_KEXEC)
 	.kexec_cpu_down			= ps3_kexec_cpu_down,
-	.machine_kexec			= ps3_machine_kexec,
+	.machine_kexec			= default_machine_kexec,
 	.machine_kexec_prepare		= default_machine_kexec_prepare,
 	.machine_crash_shutdown		= default_machine_crash_shutdown,
 #endif

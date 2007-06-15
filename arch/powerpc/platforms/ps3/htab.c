@@ -234,10 +234,17 @@ static void ps3_hpte_invalidate(unsigned long slot, unsigned long va,
 
 static void ps3_hpte_clear(void)
 {
-	/* Make sure to clean up the frame buffer device first */
-	ps3fb_cleanup();
+	int result;
 
-	lv1_unmap_htab(htab_addr);
+	DBG(" -> %s:%d\n", __func__, __LINE__);
+
+	result = lv1_unmap_htab(htab_addr);
+	BUG_ON(result);
+
+	ps3_mm_shutdown();
+	ps3_mm_vas_destroy();
+
+	DBG(" <- %s:%d\n", __func__, __LINE__);
 }
 
 void __init ps3_hpte_init(unsigned long htab_size)

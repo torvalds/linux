@@ -138,7 +138,7 @@ void ps3_smp_cleanup_cpu(int cpu)
 	DBG(" -> %s:%d: (%d)\n", __func__, __LINE__, cpu);
 
 	for (i = 0; i < MSG_COUNT; i++) {
-		free_irq(virqs[i], (void*)(long)i);
+		/* Can't call free_irq from interrupt context. */
 		ps3_event_receive_port_destroy(virqs[i]);
 		virqs[i] = NO_IRQ;
 	}
