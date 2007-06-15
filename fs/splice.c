@@ -176,6 +176,7 @@ static const struct pipe_buf_operations user_page_pipe_buf_ops = {
 static ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 			      struct splice_pipe_desc *spd)
 {
+	unsigned int spd_pages = spd->nr_pages;
 	int ret, do_wakeup, page_nr;
 
 	ret = 0;
@@ -254,7 +255,7 @@ static ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 	}
 
-	while (page_nr < spd->nr_pages)
+	while (page_nr < spd_pages)
 		page_cache_release(spd->pages[page_nr++]);
 
 	return ret;
