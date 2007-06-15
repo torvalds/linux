@@ -200,14 +200,15 @@ static void omninet_read_bulk_callback (struct urb *urb)
 	struct usb_serial_port 	*port 	= (struct usb_serial_port *)urb->context;
 	unsigned char 		*data 	= urb->transfer_buffer;
 	struct omninet_header 	*header = (struct omninet_header *) &data[0];
-
+	int status = urb->status;
 	int i;
 	int result;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (urb->status) {
-		dbg("%s - nonzero read bulk status received: %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero read bulk status received: %d",
+		    __FUNCTION__, status);
 		return;
 	}
 
@@ -311,12 +312,14 @@ static void omninet_write_bulk_callback (struct urb *urb)
 {
 /*	struct omninet_header	*header = (struct omninet_header  *) urb->transfer_buffer; */
 	struct usb_serial_port 	*port   = (struct usb_serial_port *) urb->context;
+	int status = urb->status;
 
 	dbg("%s - port %0x\n", __FUNCTION__, port->number);
 
 	port->write_urb_busy = 0;
-	if (urb->status) {
-		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__, urb->status);
+	if (status) {
+		dbg("%s - nonzero write bulk status received: %d",
+		    __FUNCTION__, status);
 		return;
 	}
 
