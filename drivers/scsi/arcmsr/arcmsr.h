@@ -48,9 +48,10 @@ struct class_device_attribute;
 
 #define ARCMSR_MAX_OUTSTANDING_CMD 						256
 #define ARCMSR_MAX_FREECCB_NUM							288
-#define ARCMSR_DRIVER_VERSION				"Driver Version 1.20.00.13"
+#define ARCMSR_DRIVER_VERSION				"Driver Version 1.20.00.14"
 #define ARCMSR_SCSI_INITIATOR_ID						255
 #define ARCMSR_MAX_XFER_SECTORS							512
+#define ARCMSR_MAX_XFER_SECTORS_B                                              4096
 #define ARCMSR_MAX_TARGETID							 17
 #define ARCMSR_MAX_TARGETLUN							  8
 #define ARCMSR_MAX_CMD_PERLUN				 ARCMSR_MAX_OUTSTANDING_CMD
@@ -469,4 +470,3 @@ extern void arcmsr_post_Qbuffer(struct AdapterControlBlock *acb);
 extern struct class_device_attribute *arcmsr_host_attrs[];
 extern int arcmsr_alloc_sysfs_attr(struct AdapterControlBlock *acb);
 void arcmsr_free_sysfs_attr(struct AdapterControlBlock *acb);
-
