@@ -1142,6 +1142,8 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct btrfs_path *path,
 			u64 isize);
 /* inode.c */
+int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page);
+int btrfs_readpage(struct file *file, struct page *page);
 void btrfs_delete_inode(struct inode *inode);
 void btrfs_read_locked_inode(struct inode *inode);
 int btrfs_write_inode(struct inode *inode, int wait);

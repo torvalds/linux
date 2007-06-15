@@ -155,9 +155,9 @@ int btrfs_csum_data(struct btrfs_root * root, char *data, size_t len,
 	desc.tfm = tfm;
 	desc.flags = 0;
 	sg_init_one(&sg, data, len);
-	spin_lock(&root->fs_info->hash_lock);
+	spin_lock_irq(&root->fs_info->hash_lock);
 	ret = crypto_hash_digest(&desc, &sg, 1, result);
-	spin_unlock(&root->fs_info->hash_lock);
+	spin_unlock_irq(&root->fs_info->hash_lock);
 	if (ret) {
 		printk("digest failed\n");
 	}

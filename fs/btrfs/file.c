@@ -103,10 +103,6 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		this_write = min((size_t)PAGE_CACHE_SIZE - offset, write_bytes);
 		/* FIXME, one block at a time */
 
-		mutex_lock(&root->fs_info->fs_mutex);
-		trans = btrfs_start_transaction(root, 1);
-		btrfs_set_trans_block_group(trans, inode);
-
 		bh = page_buffers(pages[i]);
 
 		if (buffer_mapped(bh) && bh->b_blocknr == 0) {
@@ -114,6 +110,10 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 			struct btrfs_path *path;
 			char *ptr, *kaddr;
 			u32 datasize;
+
+			mutex_lock(&root->fs_info->fs_mutex);
+			trans = btrfs_start_transaction(root, 1);
+			btrfs_set_trans_block_group(trans, inode);
 
 			/* create an inline extent, and copy the data in */
 			path = btrfs_alloc_path();
@@ -135,24 +135,19 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 			btrfs_set_file_extent_type(ei,
 						   BTRFS_FILE_EXTENT_INLINE);
 			ptr = btrfs_file_extent_inline_start(ei);
+
 			kaddr = kmap_atomic(bh->b_page, KM_USER0);
 			btrfs_memcpy(root, path->nodes[0]->b_data,
 				     ptr, kaddr + bh_offset(bh),
 				     offset + write_bytes);
 			kunmap_atomic(kaddr, KM_USER0);
+
 			mark_buffer_dirty(path->nodes[0]);
 			btrfs_free_path(path);
-		} else if (buffer_mapped(bh)) {
-			/* csum the file data */
-			btrfs_csum_file_block(trans, root, inode->i_ino,
-				      pages[i]->index << PAGE_CACHE_SHIFT,
-				      kmap(pages[i]), PAGE_CACHE_SIZE);
-			kunmap(pages[i]);
+			ret = btrfs_end_transaction(trans, root);
+			BUG_ON(ret);
+			mutex_unlock(&root->fs_info->fs_mutex);
 		}
-		SetPageChecked(pages[i]);
-		ret = btrfs_end_transaction(trans, root);
-		BUG_ON(ret);
-		mutex_unlock(&root->fs_info->fs_mutex);
 
 		ret = btrfs_commit_write(file, pages[i], offset,
 					 offset + this_write);
@@ -503,7 +498,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	if ((pos & (PAGE_CACHE_SIZE - 1))) {
 		pinned[0] = grab_cache_page(inode->i_mapping, first_index);
 		if (!PageUptodate(pinned[0])) {
-			ret = mpage_readpage(pinned[0], btrfs_get_block);
+			ret = btrfs_readpage(NULL, pinned[0]);
 			BUG_ON(ret);
 			wait_on_page_locked(pinned[0]);
 		} else {
@@ -513,7 +508,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	if ((pos + count) & (PAGE_CACHE_SIZE - 1)) {
 		pinned[1] = grab_cache_page(inode->i_mapping, last_index);
 		if (!PageUptodate(pinned[1])) {
-			ret = mpage_readpage(pinned[1], btrfs_get_block);
+			ret = btrfs_readpage(NULL, pinned[1]);
 			BUG_ON(ret);
 			wait_on_page_locked(pinned[1]);
 		} else {
@@ -633,138 +628,6 @@ out:
 	return num_written ? num_written : err;
 }
 
-/*
- * FIXME, do this by stuffing the csum we want in the info hanging off
- * page->private.  For now, verify file csums on read
- */
-static int btrfs_read_actor(read_descriptor_t *desc, struct page *page,
-			unsigned long offset, unsigned long size)
-{
-	char *kaddr;
-	unsigned long left, count = desc->count;
-	struct inode *inode = page->mapping->host;
-
-	if (size > count)
-		size = count;
-
-	if (!PageChecked(page)) {
-		/* FIXME, do it per block */
-		struct btrfs_root *root = BTRFS_I(inode)->root;
-		int ret;
-		struct buffer_head *bh;
-
-		if (page_has_buffers(page)) {
-			bh = page_buffers(page);
-			if (!buffer_mapped(bh)) {
-				SetPageChecked(page);
-				goto checked;
-			}
-		}
-
-		ret = btrfs_csum_verify_file_block(root,
-				  page->mapping->host->i_ino,
-				  page->index << PAGE_CACHE_SHIFT,
-				  kmap(page), PAGE_CACHE_SIZE);
-		if (ret) {
-			if (ret != -ENOENT) {
-				printk("failed to verify ino %lu page %lu ret %d\n",
-				       page->mapping->host->i_ino,
-				       page->index, ret);
-				memset(page_address(page), 1, PAGE_CACHE_SIZE);
-				flush_dcache_page(page);
-			}
-		}
-		SetPageChecked(page);
-		kunmap(page);
-	}
-checked:
-	/*
-	 * Faults on the destination of a read are common, so do it before
-	 * taking the kmap.
-	 */
-	if (!fault_in_pages_writeable(desc->arg.buf, size)) {
-		kaddr = kmap_atomic(page, KM_USER0);
-		left = __copy_to_user_inatomic(desc->arg.buf,
-						kaddr + offset, size);
-		kunmap_atomic(kaddr, KM_USER0);
-		if (left == 0)
-			goto success;
-	}
-
-	/* Do it the slow way */
-	kaddr = kmap(page);
-	left = __copy_to_user(desc->arg.buf, kaddr + offset, size);
-	kunmap(page);
-
-	if (left) {
-		size -= left;
-		desc->error = -EFAULT;
-	}
-success:
-	desc->count = count - size;
-	desc->written += size;
-	desc->arg.buf += size;
-	return size;
-}
-
-/**
- * btrfs_file_aio_read - filesystem read routine, with a mod to csum verify
- * @iocb:	kernel I/O control block
- * @iov:	io vector request
- * @nr_segs:	number of segments in the iovec
- * @pos:	current file position
- */
-static ssize_t btrfs_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
-				   unsigned long nr_segs, loff_t pos)
-{
-	struct file *filp = iocb->ki_filp;
-	ssize_t retval;
-	unsigned long seg;
-	size_t count;
-	loff_t *ppos = &iocb->ki_pos;
-
-	count = 0;
-	for (seg = 0; seg < nr_segs; seg++) {
-		const struct iovec *iv = &iov[seg];
-
-		/*
-		 * If any segment has a negative length, or the cumulative
-		 * length ever wraps negative then return -EINVAL.
-		 */
-		count += iv->iov_len;
-		if (unlikely((ssize_t)(count|iv->iov_len) < 0))
-			return -EINVAL;
-		if (access_ok(VERIFY_WRITE, iv->iov_base, iv->iov_len))
-			continue;
-		if (seg == 0)
-			return -EFAULT;
-		nr_segs = seg;
-		count -= iv->iov_len;	/* This segment is no good */
-		break;
-	}
-	retval = 0;
-	if (count) {
-		for (seg = 0; seg < nr_segs; seg++) {
-			read_descriptor_t desc;
-
-			desc.written = 0;
-			desc.arg.buf = iov[seg].iov_base;
-			desc.count = iov[seg].iov_len;
-			if (desc.count == 0)
-				continue;
-			desc.error = 0;
-			do_generic_file_read(filp, ppos, &desc,
-					     btrfs_read_actor);
-			retval += desc.written;
-			if (desc.error) {
-				retval = retval ?: desc.error;
-				break;
-			}
-		}
-	}
-	return retval;
-}
-
 static int btrfs_sync_file(struct file *file,
 			   struct dentry *dentry, int datasync)
 {
@@ -789,12 +652,25 @@ out:
 	return ret > 0 ? EIO : ret;
 }
 
+static struct vm_operations_struct btrfs_file_vm_ops = {
+	.nopage		= filemap_nopage,
+	.populate	= filemap_populate,
+	.page_mkwrite	= btrfs_page_mkwrite,
+};
+
+static int btrfs_file_mmap(struct file	*filp, struct vm_area_struct *vma)
+{
+	vma->vm_ops = &btrfs_file_vm_ops;
+	file_accessed(filp);
+	return 0;
+}
+
 struct file_operations btrfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
-	.aio_read       = btrfs_file_aio_read,
+	.aio_read       = generic_file_aio_read,
 	.write		= btrfs_file_write,
-	.mmap		= generic_file_mmap,
+	.mmap		= btrfs_file_mmap,
 	.open		= generic_file_open,
 	.ioctl		= btrfs_ioctl,
 	.fsync		= btrfs_sync_file,
