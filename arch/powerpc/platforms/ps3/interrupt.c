@@ -564,6 +564,7 @@ int ps3_vuart_irq_setup(enum ps3_cpu_binding cpu, void* virt_addr_bmp,
 
 	return result;
 }
+EXPORT_SYMBOL_GPL(ps3_vuart_irq_setup);
 
 int ps3_vuart_irq_destroy(unsigned int virq)
 {
@@ -583,6 +584,7 @@ int ps3_vuart_irq_destroy(unsigned int virq)
 
 	return result;
 }
+EXPORT_SYMBOL_GPL(ps3_vuart_irq_destroy);
 
 /**
  * ps3_spe_irq_setup - Setup an spe virq.

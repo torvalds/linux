@@ -407,23 +407,6 @@ static inline void *ps3_system_bus_get_driver_data(
 
 extern struct bus_type ps3_system_bus_type;
 
-/* vuart routines */
-
-struct ps3_vuart_port_priv;
-
-/**
- * struct ps3_vuart_port_device - a device on a vuart port
- */
-
-struct ps3_vuart_port_device {
-	enum ps3_match_id match_id;
-	struct device core;
-	struct ps3_vuart_port_priv* priv; /* private driver variables */
-
-};
-
-int ps3_vuart_port_device_register(struct ps3_vuart_port_device *dev);
-
 /* system manager */
 
 #ifdef CONFIG_PS3_SYS_MANAGER

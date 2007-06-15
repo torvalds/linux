@@ -73,18 +73,12 @@ config PS3_USE_LPAR_ADDR
 
 config PS3_VUART
 	depends on PPC_PS3
-	bool "PS3 Virtual UART support" if PS3_ADVANCED
-	default y
-	help
-	  Include support for the PS3 Virtual UART.
-
-	  This support is required for several system services
-	  including the System Manager and AV Settings.  In
-	  general, all users will say Y.
+	tristate
 
 config PS3_PS3AV
+	depends on PPC_PS3
 	tristate "PS3 AV settings driver" if PS3_ADVANCED
-	depends on PS3_VUART
+	select PS3_VUART
 	default y
 	help
 	  Include support for the PS3 AV Settings driver.
@@ -93,13 +87,14 @@ config PS3_PS3AV
 	  general, all users will say Y or M.
 
 config PS3_SYS_MANAGER
-	bool "PS3 System Manager driver" if PS3_ADVANCED
-	depends on PS3_VUART
-	default y
+	depends on PPC_PS3
+	tristate "PS3 System Manager driver" if PS3_ADVANCED
+	select PS3_VUART
+	default m
 	help
 	  Include support for the PS3 System Manager.
 
 	  This support is required for system control.  In
-	  general, all users will say Y.
+	  general, all users will say Y or M.
 
 endmenu
