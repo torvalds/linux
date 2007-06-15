@@ -42,6 +42,7 @@ static struct spi_board_info spi0_board_info[] __initdata = {
 		.modalias	= "ltv350qv",
 		.max_speed_hz	= 16000000,
 		.chip_select	= 1,
+		.mode		= SPI_MODE_3,
 	},
 };
 
