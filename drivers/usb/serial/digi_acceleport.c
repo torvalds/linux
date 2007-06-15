@@ -1324,19 +1324,21 @@ static void digi_write_bulk_callback( struct urb *urb )
 	struct digi_port *priv;
 	struct digi_serial *serial_priv;
 	int ret = 0;
+	int status = urb->status;
 
 
-dbg( "digi_write_bulk_callback: TOP, urb->status=%d", urb->status );
+	dbg("digi_write_bulk_callback: TOP, urb status=%d", status);
 
 	/* port and serial sanity check */
 	if( port == NULL || (priv=usb_get_serial_port_data(port)) == NULL ) {
-		err("%s: port or port->private is NULL, status=%d", __FUNCTION__,
-			urb->status );
+		err("%s: port or port->private is NULL, status=%d",
+		    __FUNCTION__, status);
 		return;
 	}
 	serial = port->serial;
 	if( serial == NULL || (serial_priv=usb_get_serial_data(serial)) == NULL ) {
-		err("%s: serial or serial->private is NULL, status=%d", __FUNCTION__, urb->status );
+		err("%s: serial or serial->private is NULL, status=%d",
+		    __FUNCTION__, status);
 		return;
 	}
 
@@ -1740,25 +1742,28 @@ static void digi_read_bulk_callback( struct urb *urb )
 	struct digi_port *priv;
 	struct digi_serial *serial_priv;
 	int ret;
+	int status = urb->status;
 
 
 dbg( "digi_read_bulk_callback: TOP" );
 
 	/* port sanity check, do not resubmit if port is not valid */
 	if( port == NULL || (priv=usb_get_serial_port_data(port)) == NULL ) {
-		err("%s: port or port->private is NULL, status=%d", __FUNCTION__,
-			urb->status );
+		err("%s: port or port->private is NULL, status=%d",
+		    __FUNCTION__, status);
 		return;
 	}
 	if( port->serial == NULL
 	|| (serial_priv=usb_get_serial_data(port->serial)) == NULL ) {
-		err("%s: serial is bad or serial->private is NULL, status=%d", __FUNCTION__, urb->status );
+		err("%s: serial is bad or serial->private is NULL, status=%d",
+		    __FUNCTION__, status);
 		return;
 	}
 
 	/* do not resubmit urb if it has any status error */
-	if( urb->status ) {
-		err("%s: nonzero read bulk status: status=%d, port=%d", __FUNCTION__, urb->status, priv->dp_port_num );
+	if (status) {
+		err("%s: nonzero read bulk status: status=%d, port=%d",
+		    __FUNCTION__, status, priv->dp_port_num);
 		return;
 	}
 
@@ -1799,10 +1804,11 @@ static int digi_read_inb_callback( struct urb *urb )
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	int opcode = ((unsigned char *)urb->transfer_buffer)[0];
 	int len = ((unsigned char *)urb->transfer_buffer)[1];
-	int status = ((unsigned char *)urb->transfer_buffer)[2];
+	int port_status = ((unsigned char *)urb->transfer_buffer)[2];
 	unsigned char *data = ((unsigned char *)urb->transfer_buffer)+3;
 	int flag,throttled;
 	int i;
+	int status = urb->status;
 
 	/* do not process callbacks on closed ports */
 	/* but do continue the read chain */
@@ -1811,7 +1817,10 @@ static int digi_read_inb_callback( struct urb *urb )
 
 	/* short/multiple packet check */
 	if( urb->actual_length != len + 2 ) {
-     		err("%s: INCOMPLETE OR MULTIPLE PACKET, urb->status=%d, port=%d, opcode=%d, len=%d, actual_length=%d, status=%d", __FUNCTION__, urb->status, priv->dp_port_num, opcode, len, urb->actual_length, status );
+		err("%s: INCOMPLETE OR MULTIPLE PACKET, urb status=%d, "
+		    "port=%d, opcode=%d, len=%d, actual_length=%d, "
+		    "port_status=%d", __FUNCTION__, status, priv->dp_port_num,
+		    opcode, len, urb->actual_length, port_status);
 		return( -1 );
 	}
 
@@ -1826,25 +1835,25 @@ static int digi_read_inb_callback( struct urb *urb )
 	/* receive data */
 	if( opcode == DIGI_CMD_RECEIVE_DATA ) {
 
-		/* get flag from status */
+		/* get flag from port_status */
 		flag = 0;
 
 		/* overrun is special, not associated with a char */
-		if( status & DIGI_OVERRUN_ERROR ) {
+		if (port_status & DIGI_OVERRUN_ERROR) {
 			tty_insert_flip_char( tty, 0, TTY_OVERRUN );
 		}
 
 		/* break takes precedence over parity, */
 		/* which takes precedence over framing errors */
-		if( status & DIGI_BREAK_ERROR ) {
+		if (port_status & DIGI_BREAK_ERROR) {
 			flag = TTY_BREAK;
-		} else if( status & DIGI_PARITY_ERROR ) {
+		} else if (port_status & DIGI_PARITY_ERROR) {
 			flag = TTY_PARITY;
-		} else if( status & DIGI_FRAMING_ERROR ) {
+		} else if (port_status & DIGI_FRAMING_ERROR) {
 			flag = TTY_FRAME;
 		}
 
-		/* data length is len-1 (one byte of len is status) */
+		/* data length is len-1 (one byte of len is port_status) */
 		--len;
 
 		len = tty_buffer_request_room(tty, len);
