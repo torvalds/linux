@@ -599,14 +599,19 @@ static inline int tcp_skb_mss(const struct sk_buff *skb)
 	return skb_shinfo(skb)->gso_size;
 }
 
-static inline void tcp_dec_pcount_approx(__u32 *count,
-					 const struct sk_buff *skb)
+static inline void tcp_dec_pcount_approx_int(__u32 *count, const int decr)
 {
 	if (*count) {
-		*count -= tcp_skb_pcount(skb);
+		*count -= decr;
 		if ((int)*count < 0)
 			*count = 0;
 	}
+}
+
+static inline void tcp_dec_pcount_approx(__u32 *count,
+					 const struct sk_buff *skb)
+{
+	tcp_dec_pcount_approx_int(count, tcp_skb_pcount(skb));
 }
 
 static inline void tcp_packets_out_inc(struct sock *sk,
