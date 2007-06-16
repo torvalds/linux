@@ -25,6 +25,7 @@
 #include "sysdep/ptrace.h"
 #include "sysdep/stub.h"
 #include "init.h"
+#include "kern_constants.h"
 
 extern unsigned long batch_syscall_stub, __syscall_stub_start;
 
@@ -149,8 +150,8 @@ long run_syscall_stub(struct mm_id * mm_idp, int syscall,
 	*stack = 0;
 	multi_op_count++;
 
-	if(!done && ((((unsigned long) stack) & ~PAGE_MASK) <
-		     PAGE_SIZE - 10 * sizeof(long))){
+	if(!done && ((((unsigned long) stack) & ~UM_KERN_PAGE_MASK) <
+		     UM_KERN_PAGE_SIZE - 10 * sizeof(long))){
 		*addr = stack;
 		return 0;
 	}
@@ -168,8 +169,8 @@ long syscall_stub_data(struct mm_id * mm_idp,
 	/* If *addr still is uninitialized, it *must* contain NULL.
 	 * Thus in this case do_syscall_stub correctly won't be called.
 	 */
-	if((((unsigned long) *addr) & ~PAGE_MASK) >=
-	   PAGE_SIZE - (10 + data_count) * sizeof(long)) {
+	if((((unsigned long) *addr) & ~UM_KERN_PAGE_MASK) >=
+	   UM_KERN_PAGE_SIZE - (10 + data_count) * sizeof(long)) {
 		ret = do_syscall_stub(mm_idp, addr);
 		/* in case of error, don't overwrite data on stack */
 		if(ret)
@@ -183,8 +184,8 @@ long syscall_stub_data(struct mm_id * mm_idp,
 
 	memcpy(stack + 1, data, data_count * sizeof(long));
 
-	*stub_addr = (void *)(((unsigned long)(stack + 1) & ~PAGE_MASK) +
-			      UML_CONFIG_STUB_DATA);
+	*stub_addr = (void *)(((unsigned long)(stack + 1) &
+			       ~UM_KERN_PAGE_MASK) + UML_CONFIG_STUB_DATA);
 
 	return 0;
 }

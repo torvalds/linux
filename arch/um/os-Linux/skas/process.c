@@ -252,11 +252,12 @@ int start_userspace(unsigned long stub_stack)
 	unsigned long sp;
 	int pid, status, n, flags;
 
-	stack = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC,
+	stack = mmap(NULL, UM_KERN_PAGE_SIZE,
+		     PROT_READ | PROT_WRITE | PROT_EXEC,
 		     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if(stack == MAP_FAILED)
 		panic("start_userspace : mmap failed, errno = %d", errno);
-	sp = (unsigned long) stack + PAGE_SIZE - sizeof(void *);
+	sp = (unsigned long) stack + UM_KERN_PAGE_SIZE - sizeof(void *);
 
 	flags = CLONE_FILES | SIGCHLD;
 	if(proc_mm) flags |= CLONE_VM;
@@ -279,7 +280,7 @@ int start_userspace(unsigned long stub_stack)
 		panic("start_userspace : PTRACE_OLDSETOPTIONS failed, errno=%d\n",
 		      errno);
 
-	if(munmap(stack, PAGE_SIZE) < 0)
+	if(munmap(stack, UM_KERN_PAGE_SIZE) < 0)
 		panic("start_userspace : munmap failed, errno = %d\n", errno);
 
 	return(pid);
@@ -365,7 +366,7 @@ static int __init init_thread_regs(void)
 	thread_regs[REGS_IP_INDEX] = UML_CONFIG_STUB_CODE +
 				(unsigned long) stub_clone_handler -
 				(unsigned long) &__syscall_stub_start;
-	thread_regs[REGS_SP_INDEX] = UML_CONFIG_STUB_DATA + PAGE_SIZE -
+	thread_regs[REGS_SP_INDEX] = UML_CONFIG_STUB_DATA + UM_KERN_PAGE_SIZE -
 		sizeof(void *);
 #ifdef __SIGNAL_FRAMESIZE
 	thread_regs[REGS_SP_INDEX] -= __SIGNAL_FRAMESIZE;
@@ -453,7 +454,7 @@ void map_stub_pages(int fd, unsigned long code,
 				      .u         =
 				      { .mmap    =
 					{ .addr    = code,
-					  .len     = PAGE_SIZE,
+					  .len     = UM_KERN_PAGE_SIZE,
 					  .prot    = PROT_EXEC,
 					  .flags   = MAP_FIXED | MAP_PRIVATE,
 					  .fd      = code_fd,
@@ -476,7 +477,7 @@ void map_stub_pages(int fd, unsigned long code,
 				  .u         =
 				  { .mmap    =
 				    { .addr    = data,
-				      .len     = PAGE_SIZE,
+				      .len     = UM_KERN_PAGE_SIZE,
 				      .prot    = PROT_READ | PROT_WRITE,
 				      .flags   = MAP_FIXED | MAP_SHARED,
 				      .fd      = map_fd,

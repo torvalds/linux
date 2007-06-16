@@ -107,11 +107,12 @@ static int start_ptraced_child(void **stack_out)
 	unsigned long sp;
 	int pid, n, status;
 
-	stack = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC,
+	stack = mmap(NULL, UM_KERN_PAGE_SIZE,
+		     PROT_READ | PROT_WRITE | PROT_EXEC,
 		     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if(stack == MAP_FAILED)
 		fatal_perror("check_ptrace : mmap failed");
-	sp = (unsigned long) stack + PAGE_SIZE - sizeof(void *);
+	sp = (unsigned long) stack + UM_KERN_PAGE_SIZE - sizeof(void *);
 	pid = clone(ptrace_child, (void *) sp, SIGCHLD, NULL);
 	if(pid < 0)
 		fatal_perror("start_ptraced_child : clone failed");
@@ -153,7 +154,7 @@ static int stop_ptraced_child(int pid, void *stack, int exitcode,
 		ret = -1;
 	}
 
-	if(munmap(stack, PAGE_SIZE) < 0)
+	if(munmap(stack, UM_KERN_PAGE_SIZE) < 0)
 		fatal_perror("check_ptrace : munmap failed");
 	return ret;
 }
