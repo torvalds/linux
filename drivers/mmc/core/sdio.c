@@ -22,6 +22,7 @@
 #include "mmc_ops.h"
 #include "sd_ops.h"
 #include "sdio_ops.h"
+#include "sdio_cis.h"
 
 static int sdio_read_fbr(struct sdio_func *func)
 {
@@ -62,6 +63,10 @@ static int sdio_init_func(struct mmc_card *card, unsigned int fn)
 	func->num = fn;
 
 	ret = sdio_read_fbr(func);
+	if (ret)
+		goto fail;
+
+	ret = sdio_read_cis(func);
 	if (ret)
 		goto fail;
 
