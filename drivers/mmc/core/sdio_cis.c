@@ -5,6 +5,8 @@
  * Created:	June 11, 2007
  * Copyright:	MontaVista Software Inc.
  *
+ * Copyright 2007 Pierre Ossman
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or (at
@@ -49,7 +51,7 @@ static const struct cis_tpl cis_tpl_list[] = {
 int sdio_read_cis(struct sdio_func *func)
 {
 	int ret;
-	unsigned char *buf;
+	struct sdio_func_tuple *this, **prev;
 	unsigned i, ptr = 0;
 
 	for (i = 0; i < 3; i++) {
@@ -61,13 +63,11 @@ int sdio_read_cis(struct sdio_func *func)
 		ptr |= x << (i * 8);
 	}
 
-	buf = kmalloc(256, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	/* find the list tail */
+	for (prev = &func->tuples; *prev; prev = &(*prev)->next);
 
 	do {
 		unsigned char tpl_code, tpl_link;
-		const struct cis_tpl *tpl;
 
 		ret = mmc_io_rw_direct(func->card, 0, 0, ptr++, 0, &tpl_code);
 		if (ret)
@@ -81,39 +81,64 @@ int sdio_read_cis(struct sdio_func *func)
 		if (ret)
 			break;
 
+		this = kmalloc(sizeof(*this) + tpl_link, GFP_KERNEL);
+		if (!this)
+			return -ENOMEM;
+
+		for (i = 0; i < tpl_link; i++) {
+			ret = mmc_io_rw_direct(func->card, 0, 0,
+					       ptr + i, 0, &this->data[i]);
+			if (ret)
+				break;
+		}
+		if (ret) {
+			kfree(this);
+			break;
+		}
+
 		for (i = 0; i < ARRAY_SIZE(cis_tpl_list); i++)
 			if (cis_tpl_list[i].code == tpl_code)
 				break;
 		if (i >= ARRAY_SIZE(cis_tpl_list)) {
-			printk(KERN_WARNING
-			       "%s: unknown CIS tuple 0x%02x of length %u\n",
+			/* this tuple is unknown to the core */
+			this->next = NULL;
+			this->code = tpl_code;
+			this->size = tpl_link;
+			*prev = this;
+			prev = &this->next;
+			printk(KERN_DEBUG
+			       "%s: queuing CIS tuple 0x%02x length %u\n",
 			       sdio_func_id(func), tpl_code, tpl_link);
-			ptr += tpl_link;
-			continue;
+		} else {
+			const struct cis_tpl *tpl = cis_tpl_list + i;
+			if (tpl_link < tpl->min_size) {
+				printk(KERN_ERR
+				       "%s: bad CIS tuple 0x%02x (length = %u, expected >= %u)\n",
+				       sdio_func_id(func), tpl_code, tpl_link, tpl->min_size);
+				ret = -EINVAL;
+			} else if (tpl->parse)
+				ret = tpl->parse(func, this->data, tpl_link);
+			kfree(this);
 		}
-		tpl = cis_tpl_list + i;
 
-		if (tpl_link < tpl->min_size) {
-			printk(KERN_ERR
-			       "%s: bad CIS tuple 0x%02x (length = %u, expected >= %u\n",
-			       sdio_func_id(func), tpl_code, tpl_link, tpl->min_size);
-			ret = -EINVAL;
-			break;
-		}
-
-		for (i = 0; i < tpl_link; i++) {
-			ret = mmc_io_rw_direct(func->card, 0, 0, ptr + i, 0, &buf[i]);
-			if (ret)
-				break;
-		}
-		if (ret)
-			break;
 		ptr += tpl_link;
-
-		if (tpl->parse)
-			ret = tpl->parse(func, buf, tpl_link);
 	} while (!ret);
 
-	kfree(buf);
 	return ret;
 }
+
+void sdio_free_cis(struct sdio_func *func)
+{
+	struct sdio_func_tuple *tuple, *victim;
+
+	tuple = func->tuples;
+
+	while (tuple) {
+		victim = tuple;
+		tuple = tuple->next;
+		kfree(victim);
+	}
+
+	func->tuples = NULL;
+}
+

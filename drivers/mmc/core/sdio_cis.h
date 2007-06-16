@@ -15,5 +15,6 @@
 #define _MMC_SDIO_CIS_H
 
 int sdio_read_cis(struct sdio_func *func);
+void sdio_free_cis(struct sdio_func *func);
 
 #endif

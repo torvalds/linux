@@ -17,6 +17,7 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio_func.h>
 
+#include "sdio_cis.h"
 #include "sdio_bus.h"
 
 #define dev_to_sdio_func(d)	container_of(d, struct sdio_func, dev)
@@ -93,6 +94,8 @@ EXPORT_SYMBOL_GPL(sdio_unregister_driver);
 static void sdio_release_func(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
+
+	sdio_free_cis(func);
 
 	kfree(func);
 }

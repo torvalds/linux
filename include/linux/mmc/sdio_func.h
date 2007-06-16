@@ -15,6 +15,16 @@
 struct mmc_card;
 
 /*
+ * SDIO function CIS tuple (unknown to the core)
+ */
+struct sdio_func_tuple {
+	struct sdio_func_tuple *next;
+	unsigned char code;
+	unsigned char size;
+	unsigned char data[0];
+};
+
+/*
  * SDIO function devices
  */
 struct sdio_func {
@@ -28,6 +38,8 @@ struct sdio_func {
 
 	unsigned int		state;		/* function state */
 #define SDIO_STATE_PRESENT	(1<<0)		/* present in sysfs */
+
+	struct sdio_func_tuple *tuples;
 };
 
 #define sdio_func_present(f)	((f)->state & SDIO_STATE_PRESENT)
