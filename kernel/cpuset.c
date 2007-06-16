@@ -1682,9 +1682,9 @@ static int pid_array_load(pid_t *pidarray, int npids, struct cpuset *cs)
 
 	do_each_thread(g, p) {
 		if (p->cpuset == cs) {
-			pidarray[n++] = p->pid;
 			if (unlikely(n == npids))
 				goto array_full;
+			pidarray[n++] = p->pid;
 		}
 	} while_each_thread(g, p);
 
