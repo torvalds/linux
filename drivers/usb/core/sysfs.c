@@ -495,6 +495,25 @@ void usb_remove_sysfs_dev_files(struct usb_device *udev)
 	sysfs_remove_group(&dev->kobj, &dev_attr_grp);
 }
 
+/* Interface Accociation Descriptor fields */
+#define usb_intf_assoc_attr(field, format_string)			\
+static ssize_t								\
+show_iad_##field (struct device *dev, struct device_attribute *attr,	\
+		char *buf)						\
+{									\
+	struct usb_interface *intf = to_usb_interface (dev);		\
+									\
+	return sprintf (buf, format_string,				\
+			intf->intf_assoc->field); 		\
+}									\
+static DEVICE_ATTR(iad_##field, S_IRUGO, show_iad_##field, NULL);
+
+usb_intf_assoc_attr (bFirstInterface, "%02x\n")
+usb_intf_assoc_attr (bInterfaceCount, "%02d\n")
+usb_intf_assoc_attr (bFunctionClass, "%02x\n")
+usb_intf_assoc_attr (bFunctionSubClass, "%02x\n")
+usb_intf_assoc_attr (bFunctionProtocol, "%02x\n")
+
 /* Interface fields */
 #define usb_intf_attr(field, format_string)				\
 static ssize_t								\
@@ -558,6 +577,18 @@ static ssize_t show_modalias(struct device *dev,
 }
 static DEVICE_ATTR(modalias, S_IRUGO, show_modalias, NULL);
 
+static struct attribute *intf_assoc_attrs[] = {
+	&dev_attr_iad_bFirstInterface.attr,
+	&dev_attr_iad_bInterfaceCount.attr,
+	&dev_attr_iad_bFunctionClass.attr,
+	&dev_attr_iad_bFunctionSubClass.attr,
+	&dev_attr_iad_bFunctionProtocol.attr,
+	NULL,
+};
+static struct attribute_group intf_assoc_attr_grp = {
+	.attrs = intf_assoc_attrs,
+};
+
 static struct attribute *intf_attrs[] = {
 	&dev_attr_bInterfaceNumber.attr,
 	&dev_attr_bAlternateSetting.attr,
@@ -609,6 +640,8 @@ int usb_create_sysfs_intf_files(struct usb_interface *intf)
 		alt->string = usb_cache_string(udev, alt->desc.iInterface);
 	if (alt->string)
 		retval = device_create_file(dev, &dev_attr_interface);
+	if (intf->intf_assoc)
+		retval = sysfs_create_group(&dev->kobj, &intf_assoc_attr_grp);
 	usb_create_intf_ep_files(intf, udev);
 	return 0;
 }
@@ -620,4 +653,5 @@ void usb_remove_sysfs_intf_files(struct usb_interface *intf)
 	usb_remove_intf_ep_files(intf);
 	device_remove_file(dev, &dev_attr_interface);
 	sysfs_remove_group(&dev->kobj, &intf_attr_grp);
+	sysfs_remove_group(&intf->dev.kobj, &intf_assoc_attr_grp);
 }

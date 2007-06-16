@@ -102,6 +102,10 @@ static const char *format_config =
 /* C:  #Ifs=dd Cfg#=dd Atr=xx MPwr=dddmA */
   "C:%c #Ifs=%2d Cfg#=%2d Atr=%02x MxPwr=%3dmA\n";
   
+static const char *format_iad =
+/* A:  FirstIf#=dd IfCount=dd Cls=xx(sssss) Sub=xx Prot=xx */
+  "A:  FirstIf#=%2d IfCount=%2d Cls=%02x(%-5s) Sub=%02x Prot=%02x\n";
+
 static const char *format_iface =
 /* I:  If#=dd Alt=dd #EPs=dd Cls=xx(sssss) Sub=xx Prot=xx Driver=xxxx*/
   "I:%c If#=%2d Alt=%2d #EPs=%2d Cls=%02x(%-5s) Sub=%02x Prot=%02x Driver=%s\n";
@@ -146,6 +150,7 @@ static const struct class_info clas_info[] =
 	{USB_CLASS_STILL_IMAGE,		"still"},
 	{USB_CLASS_CSCID,		"scard"},
 	{USB_CLASS_CONTENT_SEC,		"c-sec"},
+	{USB_CLASS_VIDEO,		"video"},
 	{-1,				"unk."}		/* leave as last */
 };
 
@@ -286,6 +291,21 @@ static char *usb_dump_interface(
 	return start;
 }
 
+static char *usb_dump_iad_descriptor(char *start, char *end,
+	const struct usb_interface_assoc_descriptor *iad)
+{
+	if (start > end)
+		return start;
+	start += sprintf(start, format_iad,
+			 iad->bFirstInterface,
+			 iad->bInterfaceCount,
+			 iad->bFunctionClass,
+			 class_decode(iad->bFunctionClass),
+			 iad->bFunctionSubClass,
+			 iad->bFunctionProtocol);
+	return start;
+}
+
 /* TBD:
  * 0. TBDs
  * 1. marking active interface altsettings (code lists all, but should mark
@@ -322,6 +342,12 @@ static char *usb_dump_config (
 	if (!config)		/* getting these some in 2.3.7; none in 2.3.6 */
 		return start + sprintf(start, "(null Cfg. desc.)\n");
 	start = usb_dump_config_descriptor(start, end, &config->desc, active);
+	for (i = 0; i < USB_MAXIADS; i++) {
+		if (config->intf_assoc[i] == NULL)
+			break;
+		start = usb_dump_iad_descriptor(start, end,
+					config->intf_assoc[i]);
+	}
 	for (i = 0; i < config->desc.bNumInterfaces; i++) {
 		intfc = config->intf_cache[i];
 		interface = config->interface[i];

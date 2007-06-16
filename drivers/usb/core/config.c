@@ -295,6 +295,7 @@ static int usb_parse_configuration(struct device *ddev, int cfgidx,
 	struct usb_descriptor_header *header;
 	int len, retval;
 	u8 inums[USB_MAXINTERFACES], nalts[USB_MAXINTERFACES];
+	unsigned iad_num = 0;
 
 	memcpy(&config->desc, buffer, USB_DT_CONFIG_SIZE);
 	if (config->desc.bDescriptorType != USB_DT_CONFIG ||
@@ -370,6 +371,20 @@ static int usb_parse_configuration(struct device *ddev, int cfgidx,
 				inums[n] = inum;
 				nalts[n] = 1;
 				++n;
+			}
+
+		} else if (header->bDescriptorType ==
+				USB_DT_INTERFACE_ASSOCIATION) {
+			if (iad_num == USB_MAXIADS) {
+				dev_warn(ddev, "found more Interface "
+					       "Association Descriptors "
+					       "than allocated for in "
+					       "configuration %d\n", cfgno);
+			} else {
+				config->intf_assoc[iad_num] =
+					(struct usb_interface_assoc_descriptor
+					*)header;
+				iad_num++;
 			}
 
 		} else if (header->bDescriptorType == USB_DT_DEVICE ||
