@@ -5,6 +5,7 @@
 #include "choose-mode.h"
 
 #undef STACK_TOP
+#undef STACK_TOP_MAX
 
 extern unsigned long stacksizelim;
 
