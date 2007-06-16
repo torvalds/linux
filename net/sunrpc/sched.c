@@ -25,7 +25,6 @@
 #ifdef RPC_DEBUG
 #define RPCDBG_FACILITY		RPCDBG_SCHED
 #define RPC_TASK_MAGIC_ID	0xf00baa
-static int			rpc_task_id;
 #endif
 
 /*
@@ -268,17 +267,26 @@ static int rpc_wait_bit_interruptible(void *word)
 	return 0;
 }
 
+#ifdef RPC_DEBUG
+static void rpc_task_set_debuginfo(struct rpc_task *task)
+{
+	static atomic_t rpc_pid;
+
+	task->tk_magic = RPC_TASK_MAGIC_ID;
+	task->tk_pid = atomic_inc_return(&rpc_pid);
+}
+#else
+static inline void rpc_task_set_debuginfo(struct rpc_task *task)
+{
+}
+#endif
+
 static void rpc_set_active(struct rpc_task *task)
 {
 	struct rpc_clnt *clnt;
 	if (test_and_set_bit(RPC_TASK_ACTIVE, &task->tk_runstate) != 0)
 		return;
-#ifdef RPC_DEBUG
-	task->tk_magic = RPC_TASK_MAGIC_ID;
-	spin_lock(&rpc_sched_lock);
-	task->tk_pid = rpc_task_id++;
-	spin_unlock(&rpc_sched_lock);
-#endif
+	rpc_task_set_debuginfo(task);
 	/* Add to global list of all tasks */
 	clnt = task->tk_client;
 	if (clnt != NULL) {
