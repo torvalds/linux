@@ -193,25 +193,20 @@ static inline void ccid3_hc_tx_update_s(struct ccid3_hc_tx_sock *hctx, int len)
  *	The algorithm is not applicable if RTT < 4 microseconds.
  */
 static inline void ccid3_hc_tx_update_win_count(struct ccid3_hc_tx_sock *hctx,
-						struct timeval *now)
+						ktime_t now)
 {
-	suseconds_t delta;
 	u32 quarter_rtts;
 
 	if (unlikely(hctx->ccid3hctx_rtt < 4))	/* avoid divide-by-zero */
 		return;
 
-	delta = timeval_delta(now, &hctx->ccid3hctx_t_last_win_count);
-	DCCP_BUG_ON(delta < 0);
-
-	quarter_rtts = (u32)delta / (hctx->ccid3hctx_rtt / 4);
+	quarter_rtts = ktime_us_delta(now, hctx->ccid3hctx_t_last_win_count);
+	quarter_rtts /= hctx->ccid3hctx_rtt / 4;
 
 	if (quarter_rtts > 0) {
-		hctx->ccid3hctx_t_last_win_count = *now;
+		hctx->ccid3hctx_t_last_win_count = now;
 		hctx->ccid3hctx_last_win_count	+= min_t(u32, quarter_rtts, 5);
 		hctx->ccid3hctx_last_win_count	&= 0xF;		/* mod 16 */
-
-		ccid3_pr_debug("now at %#X\n", hctx->ccid3hctx_last_win_count);
 	}
 }
 
@@ -311,8 +306,8 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
-	struct timeval now;
-	suseconds_t delay;
+	ktime_t now = ktime_get_real();
+	s64 delay;
 
 	BUG_ON(hctx == NULL);
 
@@ -323,8 +318,6 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 	 */
 	if (unlikely(skb->len == 0))
 		return -EBADMSG;
-
-	dccp_timestamp(sk, &now);
 
 	switch (hctx->ccid3hctx_state) {
 	case TFRC_SSTATE_NO_SENT:
@@ -348,7 +341,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 			ccid3_pr_debug("SYN RTT = %uus\n", dp->dccps_syn_rtt);
 			hctx->ccid3hctx_rtt  = dp->dccps_syn_rtt;
 			hctx->ccid3hctx_x    = rfc3390_initial_rate(sk);
-			hctx->ccid3hctx_t_ld = now;
+			hctx->ccid3hctx_t_ld = ktime_to_timeval(now);
 		} else {
 			/* Sender does not have RTT sample: X = MSS/second */
 			hctx->ccid3hctx_x = dp->dccps_mss_cache;
@@ -360,7 +353,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 		break;
 	case TFRC_SSTATE_NO_FBACK:
 	case TFRC_SSTATE_FBACK:
-		delay = timeval_delta(&hctx->ccid3hctx_t_nom, &now);
+		delay = ktime_us_delta(hctx->ccid3hctx_t_nom, now);
 		ccid3_pr_debug("delay=%ld\n", (long)delay);
 		/*
 		 *	Scheduling of packet transmissions [RFC 3448, 4.6]
@@ -370,10 +363,10 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 		 * else
 		 *       // send the packet in (t_nom - t_now) milliseconds.
 		 */
-		if (delay - (suseconds_t)hctx->ccid3hctx_delta >= 0)
-			return delay / 1000L;
+		if (delay - (s64)hctx->ccid3hctx_delta >= 0)
+			return (u32)delay / 1000L;
 
-		ccid3_hc_tx_update_win_count(hctx, &now);
+		ccid3_hc_tx_update_win_count(hctx, now);
 		break;
 	case TFRC_SSTATE_TERM:
 		DCCP_BUG("%s(%p) - Illegal state TERM", dccp_role(sk), sk);
@@ -386,8 +379,8 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 	hctx->ccid3hctx_idle = 0;
 
 	/* set the nominal send time for the next following packet */
-	timeval_add_usecs(&hctx->ccid3hctx_t_nom, hctx->ccid3hctx_t_ipi);
-
+	hctx->ccid3hctx_t_nom = ktime_add_us(hctx->ccid3hctx_t_nom,
+					     hctx->ccid3hctx_t_ipi);
 	return 0;
 }
 
