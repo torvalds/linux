@@ -284,6 +284,11 @@ static inline s64 ktime_us_delta(const ktime_t later, const ktime_t earlier)
        return ktime_to_us(ktime_sub(later, earlier));
 }
 
+static inline ktime_t ktime_add_us(const ktime_t kt, const u64 usec)
+{
+	return ktime_add_ns(kt, usec * 1000);
+}
+
 /*
  * The resolution of the clocks. The resolution value is returned in
  * the clock_getres() system call to give application programmers an
