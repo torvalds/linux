@@ -28,7 +28,7 @@ struct wd_ops {
 	void (*unreserve)(void);
 	int (*setup)(unsigned nmi_hz);
 	void (*rearm)(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz);
-	void (*stop)(void *);
+	void (*stop)(void);
 	unsigned perfctr;
 	unsigned evntsel;
 	u64 checkbit;
@@ -142,7 +142,7 @@ void disable_lapic_nmi_watchdog(void)
 	if (atomic_read(&nmi_active) <= 0)
 		return;
 
-	on_each_cpu(wd_ops->stop, NULL, 0, 1);
+	on_each_cpu(stop_apic_nmi_watchdog, NULL, 0, 1);
 	wd_ops->unreserve();
 
 	BUG_ON(atomic_read(&nmi_active) != 0);
@@ -255,7 +255,7 @@ static int setup_k7_watchdog(unsigned nmi_hz)
 	return 1;
 }
 
-static void single_msr_stop_watchdog(void *arg)
+static void single_msr_stop_watchdog(void)
 {
 	struct nmi_watchdog_ctlblk *wd = &__get_cpu_var(nmi_watchdog_ctlblk);
 
@@ -442,7 +442,7 @@ static int setup_p4_watchdog(unsigned nmi_hz)
 	return 1;
 }
 
-static void stop_p4_watchdog(void *arg)
+static void stop_p4_watchdog(void)
 {
 	struct nmi_watchdog_ctlblk *wd = &__get_cpu_var(nmi_watchdog_ctlblk);
 	wrmsr(wd->cccr_msr, 0, 0);
@@ -634,7 +634,7 @@ int lapic_watchdog_init(unsigned nmi_hz)
 void lapic_watchdog_stop(void)
 {
 	if (wd_ops)
-		wd_ops->stop(NULL);
+		wd_ops->stop();
 }
 
 unsigned lapic_adjust_nmi_hz(unsigned hz)
