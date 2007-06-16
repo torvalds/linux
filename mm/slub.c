@@ -2867,7 +2867,7 @@ static int alloc_loc_track(struct loc_track *t, unsigned long max)
 
 	order = get_order(sizeof(struct location) * max);
 
-	l = (void *)__get_free_pages(GFP_KERNEL, order);
+	l = (void *)__get_free_pages(GFP_ATOMIC, order);
 
 	if (!l)
 		return 0;
