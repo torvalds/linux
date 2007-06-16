@@ -1691,9 +1691,10 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		flush_cache_page(vma, address, pte_pfn(orig_pte));
 		entry = pte_mkyoung(orig_pte);
 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-		ptep_set_access_flags(vma, address, page_table, entry, 1);
-		update_mmu_cache(vma, address, entry);
-		lazy_mmu_prot_update(entry);
+		if (ptep_set_access_flags(vma, address, page_table, entry,1)) {
+			update_mmu_cache(vma, address, entry);
+			lazy_mmu_prot_update(entry);
+		}
 		ret |= VM_FAULT_WRITE;
 		goto unlock;
 	}
@@ -2525,10 +2526,9 @@ static inline int handle_pte_fault(struct mm_struct *mm,
 		pte_t *pte, pmd_t *pmd, int write_access)
 {
 	pte_t entry;
-	pte_t old_entry;
 	spinlock_t *ptl;
 
-	old_entry = entry = *pte;
+	entry = *pte;
 	if (!pte_present(entry)) {
 		if (pte_none(entry)) {
 			if (vma->vm_ops) {
@@ -2561,8 +2561,7 @@ static inline int handle_pte_fault(struct mm_struct *mm,
 		entry = pte_mkdirty(entry);
 	}
 	entry = pte_mkyoung(entry);
-	if (!pte_same(old_entry, entry)) {
-		ptep_set_access_flags(vma, address, pte, entry, write_access);
+	if (ptep_set_access_flags(vma, address, pte, entry, write_access)) {
 		update_mmu_cache(vma, address, entry);
 		lazy_mmu_prot_update(entry);
 	} else {

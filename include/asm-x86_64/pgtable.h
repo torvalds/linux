@@ -395,12 +395,14 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
  * bit at the same time. */
 #define  __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 #define ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
-	do {								  \
-		if (__dirty) {						  \
-			set_pte(__ptep, __entry);			  \
-			flush_tlb_page(__vma, __address);		  \
-		}							  \
-	} while (0)
+({									  \
+	int __changed = !pte_same(*(__ptep), __entry);			  \
+	if (__changed && __dirty) {					  \
+		set_pte(__ptep, __entry);			  	  \
+		flush_tlb_page(__vma, __address);		  	  \
+	}								  \
+	__changed;							  \
+})
 
 /* Encode and de-code a swap entry */
 #define __swp_type(x)			(((x).val >> 1) & 0x3f)

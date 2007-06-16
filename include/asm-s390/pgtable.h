@@ -744,7 +744,12 @@ ptep_establish(struct vm_area_struct *vma,
 }
 
 #define ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
-	ptep_establish(__vma, __address, __ptep, __entry)
+({									  \
+	int __changed = !pte_same(*(__ptep), __entry);			  \
+	if (__changed)							  \
+		ptep_establish(__vma, __address, __ptep, __entry);	  \
+	__changed;							  \
+})
 
 /*
  * Test and clear dirty bit in storage key.

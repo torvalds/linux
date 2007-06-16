@@ -533,16 +533,23 @@ extern void lazy_mmu_prot_update (pte_t pte);
  * daccess_bit in ivt.S).
  */
 #ifdef CONFIG_SMP
-# define ptep_set_access_flags(__vma, __addr, __ptep, __entry, __safely_writable)	\
-do {											\
-	if (__safely_writable) {							\
-		set_pte(__ptep, __entry);						\
-		flush_tlb_page(__vma, __addr);						\
-	}										\
-} while (0)
+# define ptep_set_access_flags(__vma, __addr, __ptep, __entry, __safely_writable) \
+({									\
+	int __changed = !pte_same(*(__ptep), __entry);			\
+	if (__changed && __safely_writable) {				\
+		set_pte(__ptep, __entry);				\
+		flush_tlb_page(__vma, __addr);				\
+	}								\
+	__changed;							\
+})
 #else
-# define ptep_set_access_flags(__vma, __addr, __ptep, __entry, __safely_writable)	\
-	ptep_establish(__vma, __addr, __ptep, __entry)
+# define ptep_set_access_flags(__vma, __addr, __ptep, __entry, __safely_writable) \
+({									\
+	int __changed = !pte_same(*(__ptep), __entry);			\
+	if (__changed)							\
+		ptep_establish(__vma, __addr, __ptep, __entry);		\
+	__changed;							\
+})
 #endif
 
 #  ifdef CONFIG_VIRTUAL_MEM_MAP

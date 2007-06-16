@@ -326,9 +326,10 @@ static void set_huge_ptep_writable(struct vm_area_struct *vma,
 	pte_t entry;
 
 	entry = pte_mkwrite(pte_mkdirty(*ptep));
-	ptep_set_access_flags(vma, address, ptep, entry, 1);
-	update_mmu_cache(vma, address, entry);
-	lazy_mmu_prot_update(entry);
+	if (ptep_set_access_flags(vma, address, ptep, entry, 1)) {
+		update_mmu_cache(vma, address, entry);
+		lazy_mmu_prot_update(entry);
+	}
 }
 
 

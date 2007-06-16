@@ -446,6 +446,17 @@ extern int io_remap_pfn_range(struct vm_area_struct *vma,
 #define GET_IOSPACE(pfn)		(pfn >> (BITS_PER_LONG - 4))
 #define GET_PFN(pfn)			(pfn & 0x0fffffffUL)
 
+#define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
+#define ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
+({									  \
+	int __changed = !pte_same(*(__ptep), __entry);			  \
+	if (__changed) {						  \
+		set_pte_at((__vma)->vm_mm, (__address), __ptep, __entry); \
+		flush_tlb_page(__vma, __address);			  \
+	}								  \
+	(sparc_cpu_model == sun4c) || __changed;			  \
+})
+
 #include <asm-generic/pgtable.h>
 
 #endif /* !(__ASSEMBLY__) */

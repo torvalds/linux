@@ -285,13 +285,15 @@ static inline pte_t native_local_ptep_get_and_clear(pte_t *ptep)
  */
 #define  __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 #define ptep_set_access_flags(vma, address, ptep, entry, dirty)		\
-do {									\
-	if (dirty) {							\
+({									\
+	int __changed = !pte_same(*(ptep), entry);			\
+	if (__changed && dirty) {					\
 		(ptep)->pte_low = (entry).pte_low;			\
 		pte_update_defer((vma)->vm_mm, (address), (ptep));	\
 		flush_tlb_page(vma, address);				\
 	}								\
-} while (0)
+	__changed;							\
+})
 
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
 #define ptep_test_and_clear_dirty(vma, addr, ptep) ({			\

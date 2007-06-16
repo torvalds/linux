@@ -27,13 +27,20 @@ do {				  					\
  * Largely same as above, but only sets the access flags (dirty,
  * accessed, and writable). Furthermore, we know it always gets set
  * to a "more permissive" setting, which allows most architectures
- * to optimize this.
+ * to optimize this. We return whether the PTE actually changed, which
+ * in turn instructs the caller to do things like update__mmu_cache.
+ * This used to be done in the caller, but sparc needs minor faults to
+ * force that call on sun4c so we changed this macro slightly
  */
 #define ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
-do {				  					  \
-	set_pte_at((__vma)->vm_mm, (__address), __ptep, __entry);	  \
-	flush_tlb_page(__vma, __address);				  \
-} while (0)
+({									  \
+	int __changed = !pte_same(*(__ptep), __entry);			  \
+	if (__changed) {						  \
+		set_pte_at((__vma)->vm_mm, (__address), __ptep, __entry); \
+		flush_tlb_page(__vma, __address);			  \
+	}								  \
+	__changed;							  \
+})
 #endif
 
 #ifndef __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
