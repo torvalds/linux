@@ -120,8 +120,6 @@ struct rpc_clnt	*rpc_bind_new_program(struct rpc_clnt *,
 struct rpc_clnt *rpc_clone_client(struct rpc_clnt *);
 void		rpc_shutdown_client(struct rpc_clnt *);
 void		rpc_release_client(struct rpc_clnt *);
-void		rpc_register_client(struct rpc_clnt *);
-void		rpc_unregister_client(struct rpc_clnt *);
 int		rpcb_register(u32, u32, int, unsigned short, int *);
 void		rpcb_getport(struct rpc_task *);
 

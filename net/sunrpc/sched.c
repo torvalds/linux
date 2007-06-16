@@ -48,21 +48,11 @@ static void			 rpc_release_task(struct rpc_task *task);
 static RPC_WAITQ(delay_queue, "delayq");
 
 /*
- * All RPC clients are linked into this list
- */
-static LIST_HEAD(all_clients);
-
-/*
  * rpciod-related stuff
  */
 static DEFINE_MUTEX(rpciod_mutex);
 static atomic_t rpciod_users = ATOMIC_INIT(0);
 struct workqueue_struct *rpciod_workqueue;
-
-/*
- * Spinlock for other critical sections of code.
- */
-static DEFINE_SPINLOCK(rpc_sched_lock);
 
 /*
  * Disable the timer for a given RPC task. Should be called with
@@ -994,20 +984,6 @@ void rpc_killall_tasks(struct rpc_clnt *clnt)
 	spin_unlock(&clnt->cl_lock);
 }
 
-void rpc_register_client(struct rpc_clnt *clnt)
-{
-	spin_lock(&rpc_sched_lock);
-	list_add(&clnt->cl_clients, &all_clients);
-	spin_unlock(&rpc_sched_lock);
-}
-
-void rpc_unregister_client(struct rpc_clnt *clnt)
-{
-	spin_lock(&rpc_sched_lock);
-	list_del(&clnt->cl_clients);
-	spin_unlock(&rpc_sched_lock);
-}
-
 /*
  * Start up the rpciod process if it's not already running.
  */
@@ -1058,44 +1034,6 @@ rpciod_down(void)
 	}
 	mutex_unlock(&rpciod_mutex);
 }
-
-#ifdef RPC_DEBUG
-void rpc_show_tasks(void)
-{
-	struct rpc_clnt *clnt;
-	struct rpc_task *t;
-
-	spin_lock(&rpc_sched_lock);
-	if (list_empty(&all_clients))
-		goto out;
-	printk("-pid- proc flgs status -client- -prog- --rqstp- -timeout "
-		"-rpcwait -action- ---ops--\n");
-	list_for_each_entry(clnt, &all_clients, cl_clients) {
-		if (list_empty(&clnt->cl_tasks))
-			continue;
-		spin_lock(&clnt->cl_lock);
-		list_for_each_entry(t, &clnt->cl_tasks, tk_task) {
-			const char *rpc_waitq = "none";
-
-			if (RPC_IS_QUEUED(t))
-				rpc_waitq = rpc_qname(t->u.tk_wait.rpc_waitq);
-
-			printk("%5u %04d %04x %6d %8p %6d %8p %8ld %8s %8p %8p\n",
-				t->tk_pid,
-				(t->tk_msg.rpc_proc ? t->tk_msg.rpc_proc->p_proc : -1),
-				t->tk_flags, t->tk_status,
-				t->tk_client,
-				(t->tk_client ? t->tk_client->cl_prog : 0),
-				t->tk_rqstp, t->tk_timeout,
-				rpc_waitq,
-				t->tk_action, t->tk_ops);
-		}
-		spin_unlock(&clnt->cl_lock);
-	}
-out:
-	spin_unlock(&rpc_sched_lock);
-}
-#endif
 
 void
 rpc_destroy_mempool(void)

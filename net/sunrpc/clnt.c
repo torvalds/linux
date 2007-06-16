@@ -44,6 +44,12 @@
 	dprintk("RPC: %5u %s (status %d)\n", t->tk_pid,		\
 			__FUNCTION__, t->tk_status)
 
+/*
+ * All RPC clients are linked into this list
+ */
+static LIST_HEAD(all_clients);
+static DEFINE_SPINLOCK(rpc_client_lock);
+
 static DECLARE_WAIT_QUEUE_HEAD(destroy_wait);
 
 
@@ -66,6 +72,19 @@ static void	call_connect_status(struct rpc_task *task);
 static __be32 *	call_header(struct rpc_task *task);
 static __be32 *	call_verify(struct rpc_task *task);
 
+static void rpc_register_client(struct rpc_clnt *clnt)
+{
+	spin_lock(&rpc_client_lock);
+	list_add(&clnt->cl_clients, &all_clients);
+	spin_unlock(&rpc_client_lock);
+}
+
+static void rpc_unregister_client(struct rpc_clnt *clnt)
+{
+	spin_lock(&rpc_client_lock);
+	list_del(&clnt->cl_clients);
+	spin_unlock(&rpc_client_lock);
+}
 
 static int
 rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
@@ -1410,3 +1429,41 @@ int rpc_ping(struct rpc_clnt *clnt, int flags)
 	put_rpccred(msg.rpc_cred);
 	return err;
 }
+
+#ifdef RPC_DEBUG
+void rpc_show_tasks(void)
+{
+	struct rpc_clnt *clnt;
+	struct rpc_task *t;
+
+	spin_lock(&rpc_client_lock);
+	if (list_empty(&all_clients))
+		goto out;
+	printk("-pid- proc flgs status -client- -prog- --rqstp- -timeout "
+		"-rpcwait -action- ---ops--\n");
+	list_for_each_entry(clnt, &all_clients, cl_clients) {
+		if (list_empty(&clnt->cl_tasks))
+			continue;
+		spin_lock(&clnt->cl_lock);
+		list_for_each_entry(t, &clnt->cl_tasks, tk_task) {
+			const char *rpc_waitq = "none";
+
+			if (RPC_IS_QUEUED(t))
+				rpc_waitq = rpc_qname(t->u.tk_wait.rpc_waitq);
+
+			printk("%5u %04d %04x %6d %8p %6d %8p %8ld %8s %8p %8p\n",
+				t->tk_pid,
+				(t->tk_msg.rpc_proc ? t->tk_msg.rpc_proc->p_proc : -1),
+				t->tk_flags, t->tk_status,
+				t->tk_client,
+				(t->tk_client ? t->tk_client->cl_prog : 0),
+				t->tk_rqstp, t->tk_timeout,
+				rpc_waitq,
+				t->tk_action, t->tk_ops);
+		}
+		spin_unlock(&clnt->cl_lock);
+	}
+out:
+	spin_unlock(&rpc_client_lock);
+}
+#endif
