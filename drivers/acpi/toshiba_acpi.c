@@ -524,7 +524,7 @@ static acpi_status __init add_device(void)
 	return AE_OK;
 }
 
-static acpi_status __exit remove_device(void)
+static acpi_status remove_device(void)
 {
 	ProcItem *item;
 
