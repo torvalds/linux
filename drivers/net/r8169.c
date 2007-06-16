@@ -2040,9 +2040,11 @@ static u32 rtl8169_rx_fill(struct rtl8169_private *tp, struct net_device *dev,
 {
 	u32 cur;
 
-	for (cur = start; end - cur > 0; cur++) {
+	for (cur = start; end - cur != 0; cur++) {
 		struct sk_buff *skb;
 		unsigned int i = cur % NUM_RX_DESC;
+
+		WARN_ON((s32)(end - cur) < 0);
 
 		if (tp->Rx_skbuff[i])
 			continue;
