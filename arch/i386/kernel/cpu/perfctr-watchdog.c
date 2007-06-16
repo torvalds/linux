@@ -614,6 +614,12 @@ int lapic_watchdog_init(unsigned nmi_hz)
 		probe_nmi_watchdog();
 		if (!wd_ops)
 			return -1;
+
+		if (!wd_ops->reserve()) {
+			printk(KERN_ERR
+				"NMI watchdog: cannot reserve perfctrs\n");
+			return -1;
+		}
 	}
 
 	if (!(wd_ops->setup(nmi_hz))) {
