@@ -1289,10 +1289,7 @@ static void ivtv_remove(struct pci_dev *pci_dev)
 
 	IVTV_DEBUG_INFO(" Releasing irq.\n");
 	free_irq(itv->dev->irq, (void *)itv);
-
-	if (itv->dev) {
-		ivtv_iounmap(itv);
-	}
+	ivtv_iounmap(itv);
 
 	IVTV_DEBUG_INFO(" Releasing mem.\n");
 	release_mem_region(itv->base_addr, IVTV_ENCODER_SIZE);
