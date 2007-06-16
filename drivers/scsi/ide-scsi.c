@@ -463,7 +463,7 @@ static inline unsigned long get_timeout(idescsi_pc_t *pc)
 
 static int idescsi_expiry(ide_drive_t *drive)
 {
-	idescsi_scsi_t *scsi = drive->driver_data;
+	idescsi_scsi_t *scsi = drive_to_idescsi(drive);
 	idescsi_pc_t   *pc   = scsi->pc;
 
 #if IDESCSI_DEBUG_LOG
