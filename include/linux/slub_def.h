@@ -28,7 +28,7 @@ struct kmem_cache {
 	int size;		/* The size of an object including meta data */
 	int objsize;		/* The size of an object without meta data */
 	int offset;		/* Free pointer offset. */
-	unsigned int order;
+	int order;
 
 	/*
 	 * Avoid an extra cache line for UP, SMP and for the node local to
@@ -56,7 +56,13 @@ struct kmem_cache {
 /*
  * Kmalloc subsystem.
  */
-#define KMALLOC_SHIFT_LOW 3
+#if defined(ARCH_KMALLOC_MINALIGN) && ARCH_KMALLOC_MINALIGN > 8
+#define KMALLOC_MIN_SIZE ARCH_KMALLOC_MINALIGN
+#else
+#define KMALLOC_MIN_SIZE 8
+#endif
+
+#define KMALLOC_SHIFT_LOW ilog2(KMALLOC_MIN_SIZE)
 
 /*
  * We keep the general caches in an array of slab caches that are used for
@@ -75,6 +81,9 @@ static inline int kmalloc_index(size_t size)
 
 	if (size > KMALLOC_MAX_SIZE)
 		return -1;
+
+	if (size <= KMALLOC_MIN_SIZE)
+		return KMALLOC_SHIFT_LOW;
 
 	if (size > 64 && size <= 96)
 		return 1;

@@ -2436,6 +2436,7 @@ EXPORT_SYMBOL(krealloc);
 void __init kmem_cache_init(void)
 {
 	int i;
+	int caches = 0;
 
 #ifdef CONFIG_NUMA
 	/*
@@ -2446,20 +2447,29 @@ void __init kmem_cache_init(void)
 	create_kmalloc_cache(&kmalloc_caches[0], "kmem_cache_node",
 		sizeof(struct kmem_cache_node), GFP_KERNEL);
 	kmalloc_caches[0].refcount = -1;
+	caches++;
 #endif
 
 	/* Able to allocate the per node structures */
 	slab_state = PARTIAL;
 
 	/* Caches that are not of the two-to-the-power-of size */
-	create_kmalloc_cache(&kmalloc_caches[1],
+	if (KMALLOC_MIN_SIZE <= 64) {
+		create_kmalloc_cache(&kmalloc_caches[1],
 				"kmalloc-96", 96, GFP_KERNEL);
-	create_kmalloc_cache(&kmalloc_caches[2],
+		caches++;
+	}
+	if (KMALLOC_MIN_SIZE <= 128) {
+		create_kmalloc_cache(&kmalloc_caches[2],
 				"kmalloc-192", 192, GFP_KERNEL);
+		caches++;
+	}
 
-	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++)
+	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
 		create_kmalloc_cache(&kmalloc_caches[i],
 			"kmalloc", 1 << i, GFP_KERNEL);
+		caches++;
+	}
 
 	slab_state = UP;
 
@@ -2476,8 +2486,8 @@ void __init kmem_cache_init(void)
 				nr_cpu_ids * sizeof(struct page *);
 
 	printk(KERN_INFO "SLUB: Genslabs=%d, HWalign=%d, Order=%d-%d, MinObjects=%d,"
-		" Processors=%d, Nodes=%d\n",
-		KMALLOC_SHIFT_HIGH, cache_line_size(),
+		" CPUs=%d, Nodes=%d\n",
+		caches, cache_line_size(),
 		slub_min_order, slub_max_order, slub_min_objects,
 		nr_cpu_ids, nr_node_ids);
 }
