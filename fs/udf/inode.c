@@ -100,14 +100,23 @@ no_delete:
 	clear_inode(inode);
 }
 
+/*
+ * If we are going to release inode from memory, we discard preallocation and
+ * truncate last inode extent to proper length. We could use drop_inode() but
+ * it's called under inode_lock and thus we cannot mark inode dirty there.  We
+ * use clear_inode() but we have to make sure to write inode as it's not written
+ * automatically.
+ */
 void udf_clear_inode(struct inode *inode)
 {
 	if (!(inode->i_sb->s_flags & MS_RDONLY)) {
 		lock_kernel();
+		/* Discard preallocation for directories, symlinks, etc. */
 		udf_discard_prealloc(inode);
+		udf_truncate_tail_extent(inode);
 		unlock_kernel();
+		write_inode_now(inode, 1);
 	}
-
 	kfree(UDF_I_DATA(inode));
 	UDF_I_DATA(inode) = NULL;
 }

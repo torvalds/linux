@@ -61,11 +61,71 @@ static void extent_trunc(struct inode * inode, struct extent_position *epos,
 	}
 }
 
-void udf_discard_prealloc(struct inode * inode)
+/*
+ * Truncate the last extent to match i_size. This function assumes
+ * that preallocation extent is already truncated.
+ */
+void udf_truncate_tail_extent(struct inode *inode)
 {
 	struct extent_position epos = { NULL, 0, {0, 0}};
 	kernel_lb_addr eloc;
 	uint32_t elen, nelen;
+	uint64_t lbcount = 0;
+	int8_t etype = -1, netype;
+	int adsize;
+
+	if (UDF_I_ALLOCTYPE(inode) == ICBTAG_FLAG_AD_IN_ICB ||
+	    inode->i_size == UDF_I_LENEXTENTS(inode))
+		return;
+	/* Are we going to delete the file anyway? */
+	if (inode->i_nlink == 0)
+		return;
+
+	if (UDF_I_ALLOCTYPE(inode) == ICBTAG_FLAG_AD_SHORT)
+		adsize = sizeof(short_ad);
+	else if (UDF_I_ALLOCTYPE(inode) == ICBTAG_FLAG_AD_LONG)
+		adsize = sizeof(long_ad);
+	else
+		BUG();
+
+	/* Find the last extent in the file */
+	while ((netype = udf_next_aext(inode, &epos, &eloc, &elen, 1)) != -1)
+	{
+		etype = netype;
+		lbcount += elen;
+		if (lbcount > inode->i_size) {
+			if (lbcount - inode->i_size >= inode->i_sb->s_blocksize)
+				printk(KERN_WARNING
+				       "udf_truncate_tail_extent(): Too long "
+				       "extent after EOF in inode %u: i_size: "
+				       "%Ld lbcount: %Ld extent %u+%u\n",
+				       (unsigned)inode->i_ino,
+				       (long long)inode->i_size,
+				       (long long)lbcount,
+				       (unsigned)eloc.logicalBlockNum,
+				       (unsigned)elen);
+			nelen = elen - (lbcount - inode->i_size);
+			epos.offset -= adsize;
+			extent_trunc(inode, &epos, eloc, etype, elen, nelen);
+			epos.offset += adsize;
+			if (udf_next_aext(inode, &epos, &eloc, &elen, 1) != -1)
+				printk(KERN_ERR "udf_truncate_tail_extent(): "
+				       "Extent after EOF in inode %u.\n",
+				       (unsigned)inode->i_ino);
+			break;
+		}
+	}
+	/* This inode entry is in-memory only and thus we don't have to mark
+	 * the inode dirty */
+	UDF_I_LENEXTENTS(inode) = inode->i_size;
+	brelse(epos.bh);
+}
+
+void udf_discard_prealloc(struct inode *inode)
+{
+	struct extent_position epos = { NULL, 0, {0, 0}};
+	kernel_lb_addr eloc;
+	uint32_t elen;
 	uint64_t lbcount = 0;
 	int8_t etype = -1, netype;
 	int adsize;
@@ -84,31 +144,18 @@ void udf_discard_prealloc(struct inode * inode)
 	epos.block = UDF_I_LOCATION(inode);
 
 	/* Find the last extent in the file */
-	while ((netype = udf_next_aext(inode, &epos, &eloc, &elen, 1)) != -1)
-	{
+	while ((netype = udf_next_aext(inode, &epos, &eloc, &elen, 1)) != -1) {
 		etype = netype;
 		lbcount += elen;
-		if (lbcount > inode->i_size && lbcount - elen < inode->i_size)
-		{
-			WARN_ON(lbcount - inode->i_size >= inode->i_sb->s_blocksize);
-			nelen = elen - (lbcount - inode->i_size);
-			epos.offset -= adsize;
-			extent_trunc(inode, &epos, eloc, etype, elen, nelen);
-			epos.offset += adsize;
-			lbcount = inode->i_size;
-		}
 	}
 	if (etype == (EXT_NOT_RECORDED_ALLOCATED >> 30)) {
 		epos.offset -= adsize;
 		lbcount -= elen;
 		extent_trunc(inode, &epos, eloc, etype, elen, 0);
-		if (!epos.bh)
-		{
+		if (!epos.bh) {
 			UDF_I_LENALLOC(inode) = epos.offset - udf_file_entry_alloc_offset(inode);
 			mark_inode_dirty(inode);
-		}
-		else
-		{
+		} else {
 			struct allocExtDesc *aed = (struct allocExtDesc *)(epos.bh->b_data);
 			aed->lengthAllocDescs = cpu_to_le32(epos.offset - sizeof(struct allocExtDesc));
 			if (!UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_STRICT) || UDF_SB_UDFREV(inode->i_sb) >= 0x0201)
@@ -118,9 +165,9 @@ void udf_discard_prealloc(struct inode * inode)
 			mark_buffer_dirty_inode(epos.bh, inode);
 		}
 	}
+	/* This inode entry is in-memory only and thus we don't have to mark
+	 * the inode dirty */
 	UDF_I_LENEXTENTS(inode) = lbcount;
-
-	WARN_ON(lbcount != inode->i_size);
 	brelse(epos.bh);
 }
 

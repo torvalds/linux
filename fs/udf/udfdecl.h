@@ -146,6 +146,7 @@ extern void udf_free_inode(struct inode *);
 extern struct inode * udf_new_inode (struct inode *, int, int *);
 
 /* truncate.c */
+extern void udf_truncate_tail_extent(struct inode *);
 extern void udf_discard_prealloc(struct inode *);
 extern void udf_truncate_extents(struct inode *);
 
