@@ -254,8 +254,10 @@ struct mempolicy *shm_get_policy(struct vm_area_struct *vma, unsigned long addr)
 
 	if (sfd->vm_ops->get_policy)
 		pol = sfd->vm_ops->get_policy(vma, addr);
-	else
+	else if (vma->vm_policy)
 		pol = vma->vm_policy;
+	else
+		pol = current->mempolicy;
 	return pol;
 }
 #endif
