@@ -366,9 +366,10 @@ static int newseg (struct ipc_namespace *ns, key_t key, int shmflg, size_t size)
 		return error;
 	}
 
+	sprintf (name, "SYSV%08x", key);
 	if (shmflg & SHM_HUGETLB) {
-		/* hugetlb_zero_setup takes care of mlock user accounting */
-		file = hugetlb_zero_setup(size);
+		/* hugetlb_file_setup takes care of mlock user accounting */
+		file = hugetlb_file_setup(name, size);
 		shp->mlock_user = current->user;
 	} else {
 		int acctflag = VM_ACCOUNT;
@@ -379,7 +380,6 @@ static int newseg (struct ipc_namespace *ns, key_t key, int shmflg, size_t size)
 		if  ((shmflg & SHM_NORESERVE) &&
 				sysctl_overcommit_memory != OVERCOMMIT_NEVER)
 			acctflag = 0;
-		sprintf (name, "SYSV%08x", key);
 		file = shmem_file_setup(name, size, acctflag);
 	}
 	error = PTR_ERR(file);
