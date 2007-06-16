@@ -1159,7 +1159,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 
 		memset(fb, 0, sizeof(*fb));
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
-			break;
+			return -EINVAL;
 		fb->capability = V4L2_FBUF_CAP_EXTERNOVERLAY | V4L2_FBUF_CAP_CHROMAKEY |
 			V4L2_FBUF_CAP_LOCAL_ALPHA | V4L2_FBUF_CAP_GLOBAL_ALPHA;
 		fb->fmt.pixelformat = itv->osd_pixelformat;
@@ -1179,7 +1179,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		struct v4l2_framebuffer *fb = arg;
 
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
-			break;
+			return -EINVAL;
 		itv->osd_global_alpha_state = (fb->flags & V4L2_FBUF_FLAG_GLOBAL_ALPHA) != 0;
 		itv->osd_local_alpha_state = (fb->flags & V4L2_FBUF_FLAG_LOCAL_ALPHA) != 0;
 		itv->osd_color_key_state = (fb->flags & V4L2_FBUF_FLAG_CHROMAKEY) != 0;
