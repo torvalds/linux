@@ -295,22 +295,24 @@ do {									\
 
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
 #define ptep_test_and_clear_dirty(vma, addr, ptep) ({			\
-	int ret = 0;							\
-	if (pte_dirty(*ptep))						\
-		ret = test_and_clear_bit(_PAGE_BIT_DIRTY, &ptep->pte_low); \
-	if (ret)							\
-		pte_update_defer(vma->vm_mm, addr, ptep);		\
-	ret;								\
+	int __ret = 0;							\
+	if (pte_dirty(*(ptep)))						\
+		__ret = test_and_clear_bit(_PAGE_BIT_DIRTY,		\
+						&(ptep)->pte_low);	\
+	if (__ret)							\
+		pte_update((vma)->vm_mm, addr, ptep);			\
+	__ret;								\
 })
 
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 #define ptep_test_and_clear_young(vma, addr, ptep) ({			\
-	int ret = 0;							\
-	if (pte_young(*ptep))						\
-		ret = test_and_clear_bit(_PAGE_BIT_ACCESSED, &ptep->pte_low); \
-	if (ret)							\
-		pte_update_defer(vma->vm_mm, addr, ptep);		\
-	ret;								\
+	int __ret = 0;							\
+	if (pte_young(*(ptep)))						\
+		__ret = test_and_clear_bit(_PAGE_BIT_ACCESSED,		\
+						&(ptep)->pte_low);	\
+	if (__ret)							\
+		pte_update((vma)->vm_mm, addr, ptep);			\
+	__ret;								\
 })
 
 /*
