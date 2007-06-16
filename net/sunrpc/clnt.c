@@ -149,6 +149,7 @@ static struct rpc_clnt * rpc_new_client(struct rpc_xprt *xprt, char *servname, s
 		goto out_no_stats;
 	clnt->cl_program  = program;
 	INIT_LIST_HEAD(&clnt->cl_tasks);
+	spin_lock_init(&clnt->cl_lock);
 
 	if (!xprt_bound(clnt->cl_xprt))
 		clnt->cl_autobind = 1;
@@ -286,6 +287,7 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	new->cl_oneshot = 0;
 	new->cl_dead = 0;
 	INIT_LIST_HEAD(&new->cl_tasks);
+	spin_lock_init(&new->cl_lock);
 	rpc_init_rtt(&new->cl_rtt_default, clnt->cl_xprt->timeout.to_initval);
 	if (new->cl_auth)
 		atomic_inc(&new->cl_auth->au_count);

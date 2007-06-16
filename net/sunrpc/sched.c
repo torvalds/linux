@@ -270,17 +270,22 @@ static int rpc_wait_bit_interruptible(void *word)
 
 static void rpc_set_active(struct rpc_task *task)
 {
+	struct rpc_clnt *clnt;
 	if (test_and_set_bit(RPC_TASK_ACTIVE, &task->tk_runstate) != 0)
 		return;
-	spin_lock(&rpc_sched_lock);
 #ifdef RPC_DEBUG
 	task->tk_magic = RPC_TASK_MAGIC_ID;
+	spin_lock(&rpc_sched_lock);
 	task->tk_pid = rpc_task_id++;
+	spin_unlock(&rpc_sched_lock);
 #endif
 	/* Add to global list of all tasks */
-	if (task->tk_client)
-		list_add_tail(&task->tk_task, &task->tk_client->cl_tasks);
-	spin_unlock(&rpc_sched_lock);
+	clnt = task->tk_client;
+	if (clnt != NULL) {
+		spin_lock(&clnt->cl_lock);
+		list_add_tail(&task->tk_task, &clnt->cl_tasks);
+		spin_unlock(&clnt->cl_lock);
+	}
 }
 
 /*
@@ -924,10 +929,11 @@ static void rpc_release_task(struct rpc_task *task)
 	dprintk("RPC: %5u release task\n", task->tk_pid);
 
 	if (!list_empty(&task->tk_task)) {
+		struct rpc_clnt *clnt = task->tk_client;
 		/* Remove from client task list */
-		spin_lock(&rpc_sched_lock);
+		spin_lock(&clnt->cl_lock);
 		list_del(&task->tk_task);
-		spin_unlock(&rpc_sched_lock);
+		spin_unlock(&clnt->cl_lock);
 	}
 	BUG_ON (RPC_IS_QUEUED(task));
 
@@ -970,12 +976,19 @@ EXPORT_SYMBOL(rpc_run_task);
  * Kill all tasks for the given client.
  * XXX: kill their descendants as well?
  */
-static void rpc_killall_tasks_locked(struct list_head *head)
+void rpc_killall_tasks(struct rpc_clnt *clnt)
 {
 	struct rpc_task	*rovr;
 
 
-	list_for_each_entry(rovr, head, tk_task) {
+	if (list_empty(&clnt->cl_tasks))
+		return;
+	dprintk("RPC:       killing all tasks for client %p\n", clnt);
+	/*
+	 * Spin lock all_tasks to prevent changes...
+	 */
+	spin_lock(&clnt->cl_lock);
+	list_for_each_entry(rovr, &clnt->cl_tasks, tk_task) {
 		if (! RPC_IS_ACTIVATED(rovr))
 			continue;
 		if (!(rovr->tk_flags & RPC_TASK_KILLED)) {
@@ -984,17 +997,7 @@ static void rpc_killall_tasks_locked(struct list_head *head)
 			rpc_wake_up_task(rovr);
 		}
 	}
-}
-
-void rpc_killall_tasks(struct rpc_clnt *clnt)
-{
-	dprintk("RPC:       killing all tasks for client %p\n", clnt);
-	/*
-	 * Spin lock all_tasks to prevent changes...
-	 */
-	spin_lock(&rpc_sched_lock);
-	rpc_killall_tasks_locked(&clnt->cl_tasks);
-	spin_unlock(&rpc_sched_lock);
+	spin_unlock(&clnt->cl_lock);
 }
 
 static void rpciod_killall(void)
@@ -1007,7 +1010,7 @@ static void rpciod_killall(void)
 
 		spin_lock(&rpc_sched_lock);
 		list_for_each_entry(clnt, &all_clients, cl_clients)
-			rpc_killall_tasks_locked(&clnt->cl_tasks);
+			rpc_killall_tasks(clnt);
 		spin_unlock(&rpc_sched_lock);
 		flush_workqueue(rpciod_workqueue);
 		if (!list_empty(&all_clients))
@@ -1110,6 +1113,9 @@ void rpc_show_tasks(void)
 	printk("-pid- proc flgs status -client- -prog- --rqstp- -timeout "
 		"-rpcwait -action- ---ops--\n");
 	list_for_each_entry(clnt, &all_clients, cl_clients) {
+		if (list_empty(&clnt->cl_tasks))
+			continue;
+		spin_lock(&clnt->cl_lock);
 		list_for_each_entry(t, &clnt->cl_tasks, tk_task) {
 			const char *rpc_waitq = "none";
 
@@ -1126,6 +1132,7 @@ void rpc_show_tasks(void)
 				rpc_waitq,
 				t->tk_action, t->tk_ops);
 		}
+		spin_unlock(&clnt->cl_lock);
 	}
 out:
 	spin_unlock(&rpc_sched_lock);
