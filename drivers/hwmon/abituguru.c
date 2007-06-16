@@ -16,9 +16,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 /*
-    This driver supports the sensor part of the custom Abit uGuru chip found
-    on Abit uGuru motherboards. Note: because of lack of specs the CPU / RAM /
-    etc voltage & frequency control is not supported!
+    This driver supports the sensor part of the first and second revision of
+    the custom Abit uGuru chip found on Abit uGuru motherboards. Note: because
+    of lack of specs the CPU/RAM voltage & frequency control is not supported!
 */
 #include <linux/module.h>
 #include <linux/sched.h>
