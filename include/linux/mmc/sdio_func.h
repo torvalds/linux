@@ -12,6 +12,9 @@
 #ifndef MMC_SDIO_FUNC_H
 #define MMC_SDIO_FUNC_H
 
+#include <linux/device.h>
+#include <linux/mod_devicetable.h>
+
 struct mmc_card;
 
 /*
@@ -58,12 +61,37 @@ struct sdio_func {
  */
 struct sdio_driver {
 	char *name;
+	const struct sdio_device_id *id_table;
 
-	int (*probe)(struct sdio_func *);
+	int (*probe)(struct sdio_func *, const struct sdio_device_id *);
 	void (*remove)(struct sdio_func *);
 
 	struct device_driver drv;
 };
+
+/**
+ * SDIO_DEVICE - macro used to describe a specific SDIO device
+ * @vend: the 16 bit manufacturer code
+ * @dev: the 16 bit function id
+ *
+ * This macro is used to create a struct sdio_device_id that matches a
+ * specific device. The class field will be set to SDIO_ANY_ID.
+ */
+#define SDIO_DEVICE(vend,dev) \
+	.class = SDIO_ANY_ID, \
+	.vendor = (vend), .device = (dev)
+
+/**
+ * SDIO_DEVICE_CLASS - macro used to describe a specific SDIO device class
+ * @dev_class: the 8 bit standard interface code
+ *
+ * This macro is used to create a struct sdio_device_id that matches a
+ * specific standard SDIO function type.  The vendor and device fields will
+ * be set to SDIO_ANY_ID.
+ */
+#define SDIO_DEVICE_CLASS(dev_class) \
+	.class = (dev_class), \
+	.vendor = SDIO_ANY_ID, .device = SDIO_ANY_ID
 
 extern int sdio_register_driver(struct sdio_driver *);
 extern void sdio_unregister_driver(struct sdio_driver *);

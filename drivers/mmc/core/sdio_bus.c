@@ -21,14 +21,47 @@
 #include "sdio_bus.h"
 
 #define dev_to_sdio_func(d)	container_of(d, struct sdio_func, dev)
+#define to_sdio_driver(d)      container_of(d, struct sdio_driver, drv)
 
-/*
- * This currently matches any SDIO function to any driver in order
- * to help initial development and testing.
- */
+static const struct sdio_device_id *sdio_match_one(struct sdio_func *func,
+	const struct sdio_device_id *id)
+{
+	if (id->class != (__u8)SDIO_ANY_ID && id->class != func->class)
+		return NULL;
+	if (id->vendor != (__u16)SDIO_ANY_ID && id->vendor != func->vendor)
+		return NULL;
+	if (id->device != (__u16)SDIO_ANY_ID && id->device != func->device)
+		return NULL;
+	return id;
+}
+
+static const struct sdio_device_id *sdio_match_device(struct sdio_func *func,
+	struct sdio_driver *sdrv)
+{
+	const struct sdio_device_id *ids;
+
+	ids = sdrv->id_table;
+
+	if (ids) {
+		while (ids->class || ids->vendor || ids->device) {
+			if (sdio_match_one(func, ids))
+				return ids;
+			ids++;
+		}
+	}
+
+	return NULL;
+}
+
 static int sdio_bus_match(struct device *dev, struct device_driver *drv)
 {
-	return 1;
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct sdio_driver *sdrv = to_sdio_driver(drv);
+
+	if (sdio_match_device(func, sdrv))
+		return 1;
+
+	return 0;
 }
 
 static int
@@ -42,11 +75,24 @@ sdio_bus_uevent(struct device *dev, char **envp, int num_envp, char *buf,
 
 static int sdio_bus_probe(struct device *dev)
 {
-	return -ENODEV;
+	struct sdio_driver *drv = to_sdio_driver(dev->driver);
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	const struct sdio_device_id *id;
+
+	id = sdio_match_device(func, drv);
+	if (!id)
+		return -ENODEV;
+
+	return drv->probe(func, id);
 }
 
 static int sdio_bus_remove(struct device *dev)
 {
+	struct sdio_driver *drv = to_sdio_driver(dev->driver);
+	struct sdio_func *func = dev_to_sdio_func(dev);
+
+	drv->remove(func);
+
 	return 0;
 }
 
