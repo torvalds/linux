@@ -953,7 +953,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	int prior_fackets;
 	u32 lost_retrans = 0;
 	int flag = 0;
-	int dup_sack = 0;
+	int found_dup_sack = 0;
 	int cached_fack_count;
 	int i;
 	int first_sack_index;
@@ -964,20 +964,20 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 
 	/* Check for D-SACK. */
 	if (before(ntohl(sp[0].start_seq), TCP_SKB_CB(ack_skb)->ack_seq)) {
-		dup_sack = 1;
+		found_dup_sack = 1;
 		tp->rx_opt.sack_ok |= 4;
 		NET_INC_STATS_BH(LINUX_MIB_TCPDSACKRECV);
 	} else if (num_sacks > 1 &&
 			!after(ntohl(sp[0].end_seq), ntohl(sp[1].end_seq)) &&
 			!before(ntohl(sp[0].start_seq), ntohl(sp[1].start_seq))) {
-		dup_sack = 1;
+		found_dup_sack = 1;
 		tp->rx_opt.sack_ok |= 4;
 		NET_INC_STATS_BH(LINUX_MIB_TCPDSACKOFORECV);
 	}
 
 	/* D-SACK for already forgotten data...
 	 * Do dumb counting. */
-	if (dup_sack &&
+	if (found_dup_sack &&
 			!after(ntohl(sp[0].end_seq), prior_snd_una) &&
 			after(ntohl(sp[0].end_seq), tp->undo_marker))
 		tp->undo_retrans--;
@@ -1058,6 +1058,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 		__u32 start_seq = ntohl(sp->start_seq);
 		__u32 end_seq = ntohl(sp->end_seq);
 		int fack_count;
+		int dup_sack = (found_dup_sack && (i == first_sack_index));
 
 		skb = cached_skb;
 		fack_count = cached_fack_count;
@@ -2409,7 +2410,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 	int acked = 0;
 	int prior_packets = tp->packets_out;
 	__s32 seq_rtt = -1;
-	ktime_t last_ackt = ktime_set(0,0);
+	ktime_t last_ackt = net_invalid_timestamp();
 
 	while ((skb = tcp_write_queue_head(sk)) &&
 	       skb != tcp_send_head(sk)) {
@@ -2486,6 +2487,10 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 
 		tcp_ack_update_rtt(sk, acked, seq_rtt);
 		tcp_ack_packets_out(sk);
+
+		/* Is the ACK triggering packet unambiguous? */
+		if (acked & FLAG_RETRANS_DATA_ACKED)
+			last_ackt = net_invalid_timestamp();
 
 		if (ca_ops->pkts_acked)
 			ca_ops->pkts_acked(sk, pkts_acked, last_ackt);

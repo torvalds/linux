@@ -261,6 +261,18 @@ static inline s64 ktime_to_ns(const ktime_t kt)
 
 #endif
 
+/**
+ * ktime_equal - Compares two ktime_t variables to see if they are equal
+ * @cmp1:	comparable1
+ * @cmp2:	comparable2
+ *
+ * Compare two ktime_t variables, returns 1 if equal
+ */
+static inline int ktime_equal(const ktime_t cmp1, const ktime_t cmp2)
+{
+	return cmp1.tv64 == cmp2.tv64;
+}
+
 static inline s64 ktime_to_us(const ktime_t kt)
 {
 	struct timeval tv = ktime_to_timeval(kt);
