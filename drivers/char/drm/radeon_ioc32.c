@@ -349,6 +349,8 @@ static int compat_radeon_irq_emit(struct file *file, unsigned int cmd,
 			 DRM_IOCTL_RADEON_IRQ_EMIT, (unsigned long)request);
 }
 
+/* The two 64-bit arches where alignof(u64)==4 in 32-bit code */
+#if defined (CONFIG_X86_64) || defined(CONFIG_IA64)
 typedef struct drm_radeon_setparam32 {
 	int param;
 	u64 value;
@@ -373,6 +375,9 @@ static int compat_radeon_cp_setparam(struct file *file, unsigned int cmd,
 	return drm_ioctl(file->f_dentry->d_inode, file,
 			 DRM_IOCTL_RADEON_SETPARAM, (unsigned long) request);
 }
+#else
+#define compat_radeon_cp_setparam NULL
+#endif /* X86_64 || IA64 */
 
 drm_ioctl_compat_t *radeon_compat_ioctls[] = {
 	[DRM_RADEON_CP_INIT] = compat_radeon_cp_init,
