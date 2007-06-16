@@ -771,7 +771,7 @@ static void __exit mmc_exit(void)
 	destroy_workqueue(workqueue);
 }
 
-module_init(mmc_init);
+subsys_initcall(mmc_init);
 module_exit(mmc_exit);
 
 MODULE_LICENSE("GPL");
