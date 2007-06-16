@@ -1010,7 +1010,6 @@ static int generic_ide_resume(struct device *dev)
 {
 	ide_drive_t *drive = dev->driver_data;
 	ide_hwif_t *hwif = HWIF(drive);
-	ide_driver_t *drv = to_ide_driver(dev->driver);
 	struct request rq;
 	struct request_pm_state rqpm;
 	ide_task_t args;
@@ -1033,8 +1032,12 @@ static int generic_ide_resume(struct device *dev)
 
 	err = ide_do_drive_cmd(drive, &rq, ide_head_wait);
 
-	if (err == 0 && drv && drv->resume)
-		drv->resume(drive);
+	if (err == 0 && dev->driver) {
+		ide_driver_t *drv = to_ide_driver(dev->driver);
+
+		if (drv->resume)
+			drv->resume(drive);
+	}
 
 	return err;
 }
