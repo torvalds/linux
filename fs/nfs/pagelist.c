@@ -429,7 +429,8 @@ int nfs_scan_list(struct nfs_inode *nfsi,
 					goto out;
 			}
 		}
-
+		/* for latency reduction */
+		cond_resched_lock(&nfsi->req_lock);
 	}
 out:
 	return res;
