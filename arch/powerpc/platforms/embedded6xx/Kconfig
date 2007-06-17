@@ -45,6 +45,7 @@ endchoice
 config TSI108_BRIDGE
 	bool
 	depends on MPC7448HPC2 || PPC_HOLLY
+	select PCI
 	select MPIC
 	select MPIC_WEIRD
 	default y
