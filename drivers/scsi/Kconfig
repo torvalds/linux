@@ -1008,7 +1008,7 @@ config SCSI_STEX
 
 config 53C700_BE_BUS
 	bool
-	depends on M68K
+	depends on BVME6000_SCSI
 	default y
 
 config SCSI_SYM53C8XX_2
@@ -1724,8 +1724,8 @@ config MVME16x_SCSI
 	  will want to say Y to this question.
 
 config BVME6000_SCSI
-	bool "NCR53C710 SCSI driver for BVME6000"
-	depends on BVME6000 && SCSI && BROKEN
+	tristate "NCR53C710 SCSI driver for BVME6000"
+	depends on BVME6000 && SCSI
 	select SCSI_SPI_ATTRS
 	help
 	  The BVME4000 and BVME6000 boards from BVM Ltd use the NCR53C710
