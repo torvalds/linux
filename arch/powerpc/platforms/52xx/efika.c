@@ -252,6 +252,8 @@ define_machine(efika)
 	.progress		= rtas_progress,
 	.get_boot_time		= rtas_get_boot_time,
 	.calibrate_decr		= generic_calibrate_decr,
+#ifdef CONFIG_PCI
 	.phys_mem_access_prot	= pci_phys_mem_access_prot,
+#endif
 };
 

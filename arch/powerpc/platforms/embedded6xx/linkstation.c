@@ -56,6 +56,7 @@ static struct mtd_partition linkstation_physmap_partitions[] = {
 
 static int __init linkstation_add_bridge(struct device_node *dev)
 {
+#ifdef CONFIG_PCI
 	int len;
 	struct pci_controller *hose;
 	const int *bus_range;
@@ -78,7 +79,7 @@ static int __init linkstation_add_bridge(struct device_node *dev)
 	/* Interpret the "ranges" property */
 	/* This also maps the I/O region and sets isa_io/mem_base */
 	pci_process_bridge_OF_ranges(hose, dev, 1);
-
+#endif
 	return 0;
 }
 
