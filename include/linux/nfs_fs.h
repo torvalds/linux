@@ -158,7 +158,7 @@ struct nfs_inode {
 	spinlock_t		req_lock;
 	struct radix_tree_root	nfs_page_tree;
 
-	unsigned int		ncommit,
+	unsigned long		ncommit,
 				npages;
 
 	/* Open contexts for shared mmap writes */

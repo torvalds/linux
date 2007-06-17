@@ -425,6 +425,8 @@ int nfs_scan_list(struct nfs_inode *nfsi,
 						req->wb_index, tag);
 				nfs_list_add_request(req, dst);
 				res++;
+				if (res == INT_MAX)
+					goto out;
 			}
 		}
 
