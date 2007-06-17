@@ -716,10 +716,15 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 	/* Write both the fan clock divider (if it changed) and the new
 	   fan min (unconditionally) */
 	if (new_div != data->fan_div[nr]) {
-		if (new_div > data->fan_div[nr])
-			data->fan[nr] >>= (data->fan_div[nr] - new_div);
-		else
-			data->fan[nr] <<= (new_div - data->fan_div[nr]);
+		/* Preserve the fan speed reading */
+		if (data->fan[nr] != 0xff) {
+			if (new_div > data->fan_div[nr])
+				data->fan[nr] >>= new_div - data->fan_div[nr];
+			else if (data->fan[nr] & 0x80)
+				data->fan[nr] = 0xff;
+			else
+				data->fan[nr] <<= data->fan_div[nr] - new_div;
+		}
 
 		dev_dbg(dev, "fan%u clock divider changed from %u to %u\n",
 			nr + 1, div_from_reg(data->fan_div[nr]),
