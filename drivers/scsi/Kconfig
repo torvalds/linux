@@ -1006,6 +1006,11 @@ config SCSI_STEX
 	  To compile this driver as a module, choose M here: the
 	  module will be called stex.
 
+config 53C700_BE_BUS
+	bool
+	depends on M68K
+	default y
+
 config SCSI_SYM53C8XX_2
 	tristate "SYM53C8XX Version 2 SCSI support"
 	depends on PCI && SCSI
@@ -1726,14 +1731,6 @@ config BVME6000_SCSI
 	  The BVME4000 and BVME6000 boards from BVM Ltd use the NCR53C710
 	  SCSI controller chip.  Almost everyone using one of these boards
 	  will want to say Y to this question.
-
-config SCSI_NCR53C7xx_FAST
-	bool "allow FAST-SCSI [10MHz]"
-	depends on SCSI_AMIGA7XX || MVME16x_SCSI || BVME6000_SCSI
-	help
-	  This will enable 10MHz FAST-SCSI transfers with your host
-	  adapter. Some systems have problems with that speed, so it's safest
-	  to say N here.
 
 config SUN3_SCSI
 	tristate "Sun3 NCR5380 SCSI"

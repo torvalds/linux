@@ -653,7 +653,6 @@ NCR_700_chip_setup(struct Scsi_Host *host)
 {
 	struct NCR_700_Host_Parameters *hostdata = 
 		(struct NCR_700_Host_Parameters *)host->hostdata[0];
-	__u32 dcntl_extra = 0;
 	__u8 min_period;
 	__u8 min_xferp = (hostdata->chip710 ? NCR_710_MIN_XFERP : NCR_700_MIN_XFERP);
 
@@ -678,13 +677,14 @@ NCR_700_chip_setup(struct Scsi_Host *host)
 			        burst_disable = BURST_DISABLE;
 			        break;
 		}
-		dcntl_extra = COMPAT_700_MODE;
+		hostdata->dcntl_extra |= COMPAT_700_MODE;
 
-		NCR_700_writeb(dcntl_extra, host, DCNTL_REG);
+		NCR_700_writeb(hostdata->dcntl_extra, host, DCNTL_REG);
 		NCR_700_writeb(burst_length | hostdata->dmode_extra,
 			       host, DMODE_710_REG);
-		NCR_700_writeb(burst_disable | (hostdata->differential ? 
-						DIFF : 0), host, CTEST7_REG);
+		NCR_700_writeb(burst_disable | hostdata->ctest7_extra |
+			       (hostdata->differential ? DIFF : 0),
+			       host, CTEST7_REG);
 		NCR_700_writeb(BTB_TIMER_DISABLE, host, CTEST0_REG);
 		NCR_700_writeb(FULL_ARBITRATION | ENABLE_PARITY | PARITY
 			       | AUTO_ATN, host, SCNTL0_REG);
@@ -719,13 +719,13 @@ NCR_700_chip_setup(struct Scsi_Host *host)
 		 * of spec: sync divider 2, async divider 3 */
 		DEBUG(("53c700: sync 2 async 3\n"));
 		NCR_700_writeb(SYNC_DIV_2_0, host, SBCL_REG);
-		NCR_700_writeb(ASYNC_DIV_3_0 | dcntl_extra, host, DCNTL_REG);
+		NCR_700_writeb(ASYNC_DIV_3_0 | hostdata->dcntl_extra, host, DCNTL_REG);
 		hostdata->sync_clock = hostdata->clock/2;
 	} else	if(hostdata->clock > 50  && hostdata->clock <= 75) {
 		/* sync divider 1.5, async divider 3 */
 		DEBUG(("53c700: sync 1.5 async 3\n"));
 		NCR_700_writeb(SYNC_DIV_1_5, host, SBCL_REG);
-		NCR_700_writeb(ASYNC_DIV_3_0 | dcntl_extra, host, DCNTL_REG);
+		NCR_700_writeb(ASYNC_DIV_3_0 | hostdata->dcntl_extra, host, DCNTL_REG);
 		hostdata->sync_clock = hostdata->clock*2;
 		hostdata->sync_clock /= 3;
 		
@@ -733,18 +733,18 @@ NCR_700_chip_setup(struct Scsi_Host *host)
 		/* sync divider 1, async divider 2 */
 		DEBUG(("53c700: sync 1 async 2\n"));
 		NCR_700_writeb(SYNC_DIV_1_0, host, SBCL_REG);
-		NCR_700_writeb(ASYNC_DIV_2_0 | dcntl_extra, host, DCNTL_REG);
+		NCR_700_writeb(ASYNC_DIV_2_0 | hostdata->dcntl_extra, host, DCNTL_REG);
 		hostdata->sync_clock = hostdata->clock;
 	} else if(hostdata->clock > 25 && hostdata->clock <=37) {
 		/* sync divider 1, async divider 1.5 */
 		DEBUG(("53c700: sync 1 async 1.5\n"));
 		NCR_700_writeb(SYNC_DIV_1_0, host, SBCL_REG);
-		NCR_700_writeb(ASYNC_DIV_1_5 | dcntl_extra, host, DCNTL_REG);
+		NCR_700_writeb(ASYNC_DIV_1_5 | hostdata->dcntl_extra, host, DCNTL_REG);
 		hostdata->sync_clock = hostdata->clock;
 	} else {
 		DEBUG(("53c700: sync 1 async 1\n"));
 		NCR_700_writeb(SYNC_DIV_1_0, host, SBCL_REG);
-		NCR_700_writeb(ASYNC_DIV_1_0 | dcntl_extra, host, DCNTL_REG);
+		NCR_700_writeb(ASYNC_DIV_1_0 | hostdata->dcntl_extra, host, DCNTL_REG);
 		/* sync divider 1, async divider 1 */
 		hostdata->sync_clock = hostdata->clock;
 	}
