@@ -461,7 +461,6 @@ static struct nfs_open_context *alloc_nfs_open_context(struct vfsmount *mnt, str
 
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx != NULL) {
-		atomic_set(&ctx->count, 1);
 		ctx->path.dentry = dget(dentry);
 		ctx->path.mnt = mntget(mnt);
 		ctx->cred = get_rpccred(cred);
@@ -469,6 +468,7 @@ static struct nfs_open_context *alloc_nfs_open_context(struct vfsmount *mnt, str
 		ctx->lockowner = current->files;
 		ctx->error = 0;
 		ctx->dir_cookie = 0;
+		kref_init(&ctx->kref);
 	}
 	return ctx;
 }
@@ -476,27 +476,33 @@ static struct nfs_open_context *alloc_nfs_open_context(struct vfsmount *mnt, str
 struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx)
 {
 	if (ctx != NULL)
-		atomic_inc(&ctx->count);
+		kref_get(&ctx->kref);
 	return ctx;
+}
+
+static void nfs_free_open_context(struct kref *kref)
+{
+	struct nfs_open_context *ctx = container_of(kref,
+			struct nfs_open_context, kref);
+
+	if (!list_empty(&ctx->list)) {
+		struct inode *inode = ctx->path.dentry->d_inode;
+		spin_lock(&inode->i_lock);
+		list_del(&ctx->list);
+		spin_unlock(&inode->i_lock);
+	}
+	if (ctx->state != NULL)
+		nfs4_close_state(&ctx->path, ctx->state, ctx->mode);
+	if (ctx->cred != NULL)
+		put_rpccred(ctx->cred);
+	dput(ctx->path.dentry);
+	mntput(ctx->path.mnt);
+	kfree(ctx);
 }
 
 void put_nfs_open_context(struct nfs_open_context *ctx)
 {
-	if (atomic_dec_and_test(&ctx->count)) {
-		if (!list_empty(&ctx->list)) {
-			struct inode *inode = ctx->path.dentry->d_inode;
-			spin_lock(&inode->i_lock);
-			list_del(&ctx->list);
-			spin_unlock(&inode->i_lock);
-		}
-		if (ctx->state != NULL)
-			nfs4_close_state(&ctx->path, ctx->state, ctx->mode);
-		if (ctx->cred != NULL)
-			put_rpccred(ctx->cred);
-		dput(ctx->path.dentry);
-		mntput(ctx->path.mnt);
-		kfree(ctx);
-	}
+	kref_put(&ctx->kref, nfs_free_open_context);
 }
 
 /*

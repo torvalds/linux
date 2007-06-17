@@ -30,6 +30,7 @@
 #ifdef __KERNEL__
 
 #include <linux/in.h>
+#include <linux/kref.h>
 #include <linux/mm.h>
 #include <linux/namei.h>
 #include <linux/pagemap.h>
@@ -70,7 +71,7 @@ struct nfs_access_entry {
 
 struct nfs4_state;
 struct nfs_open_context {
-	atomic_t count;
+	struct kref kref;
 	struct path path;
 	struct rpc_cred *cred;
 	struct nfs4_state *state;
