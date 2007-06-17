@@ -1441,8 +1441,12 @@ static int tm6000_release(struct inode *inode, struct file *file)
 
 	dprintk(dev, V4L2_DEBUG_OPEN, "tm6000: close called (minor=%d, users=%d)\n",minor,dev->users);
 
-	tm6000_stop_thread(vidq);
-	videobuf_mmap_free(&fh->vb_vidq);
+	dev->users--;
+
+	if (!dev->users) {
+		tm6000_stop_thread(vidq);
+		videobuf_mmap_free(&fh->vb_vidq);
+	}
 
 	kfree (fh);
 
