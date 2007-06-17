@@ -23,6 +23,37 @@
 #define dev_to_sdio_func(d)	container_of(d, struct sdio_func, dev)
 #define to_sdio_driver(d)      container_of(d, struct sdio_driver, drv)
 
+/* show configuration fields */
+#define sdio_config_attr(field, format_string)				\
+static ssize_t								\
+field##_show(struct device *dev, struct device_attribute *attr, char *buf)				\
+{									\
+	struct sdio_func *func;						\
+									\
+	func = dev_to_sdio_func (dev);					\
+	return sprintf (buf, format_string, func->field);		\
+}
+
+sdio_config_attr(class, "0x%02x\n");
+sdio_config_attr(vendor, "0x%04x\n");
+sdio_config_attr(device, "0x%04x\n");
+
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct sdio_func *func = dev_to_sdio_func (dev);
+
+	return sprintf(buf, "sdio:c%02Xv%04Xd%04X\n",
+			func->class, func->vendor, func->device);
+}
+
+struct device_attribute sdio_dev_attrs[] = {
+	__ATTR_RO(class),
+	__ATTR_RO(vendor),
+	__ATTR_RO(device),
+	__ATTR_RO(modalias),
+	__ATTR_NULL,
+};
+
 static const struct sdio_device_id *sdio_match_one(struct sdio_func *func,
 	const struct sdio_device_id *id)
 {
@@ -117,6 +148,7 @@ static int sdio_bus_remove(struct device *dev)
 
 static struct bus_type sdio_bus_type = {
 	.name		= "sdio",
+	.dev_attrs	= sdio_dev_attrs,
 	.match		= sdio_bus_match,
 	.uevent		= sdio_bus_uevent,
 	.probe		= sdio_bus_probe,
