@@ -591,7 +591,7 @@ static int tm6000_start_thread( struct tm6000_dmaqueue  *dma_q,
 
 	/* submit urbs and enables IRQ */
 	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
-		rc = usb_submit_urb(dev->isoc_ctl.urb[i], GFP_KERNEL);
+		rc = usb_submit_urb(dev->isoc_ctl.urb[i], GFP_ATOMIC);
 		if (rc) {
 			tm6000_err("submit of urb %i failed (error=%i)\n", i,
 				   rc);

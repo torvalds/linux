@@ -229,11 +229,15 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 
 	/* Increment usage count */
 	tm6000_devused|=1<<nr;
+	snprintf(dev->name, 29, "tm6000 #%d", nr);
+
+	dev->model=id->driver_info;
+	if ((card[nr]>=0) && (card[nr]<ARRAY_SIZE(tm6000_boards))) {
+		dev->model=card[nr];
+	}
 
 	INIT_LIST_HEAD(&dev->tm6000_corelist);
 	dev->udev= usbdev;
-	dev->model=id->driver_info;
-	snprintf(dev->name, 29, "tm6000 #%d", nr);
 	dev->devno=nr;
 
 	switch (usbdev->speed) {
