@@ -204,12 +204,24 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 	barrier();
 }
 
+#ifdef CONFIG_PREEMPT
+#define S_PREEMPT " PREEMPT"
+#else
+#define S_PREEMPT ""
+#endif
+#ifdef CONFIG_SMP
+#define S_SMP " SMP"
+#else
+#define S_SMP ""
+#endif
+
 static void __die(const char *str, int err, struct thread_info *thread, struct pt_regs *regs)
 {
 	struct task_struct *tsk = thread->task;
 	static int die_counter;
 
-	printk("Internal error: %s: %x [#%d]\n", str, err, ++die_counter);
+	printk("Internal error: %s: %x [#%d]" S_PREEMPT S_SMP "\n",
+	       str, err, ++die_counter);
 	print_modules();
 	__show_regs(regs);
 	printk("Process %s (pid: %d, stack limit = 0x%p)\n",
@@ -232,6 +244,8 @@ NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
 {
 	struct thread_info *thread = current_thread_info();
 
+	oops_enter();
+
 	console_verbose();
 	spin_lock_irq(&die_lock);
 	bust_spinlocks(1);
@@ -239,9 +253,13 @@ NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
 	bust_spinlocks(0);
 	spin_unlock_irq(&die_lock);
 
+	if (in_interrupt())
+		panic("Fatal exception in interrupt");
+
 	if (panic_on_oops)
 		panic("Fatal exception");
 
+	oops_exit();
 	do_exit(SIGSEGV);
 }
 
