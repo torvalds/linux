@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 22
-EXTRAVERSION = -rc4
-NAME = Jeff Thinks I Should Change This, But To What?
+EXTRAVERSION = -rc5
+NAME = Holy Dancing Manatees, Batman!
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
