@@ -214,7 +214,7 @@ static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo)
 }
 
 struct nfs4_opendata {
-	atomic_t count;
+	struct kref kref;
 	struct nfs_openargs o_arg;
 	struct nfs_openres o_res;
 	struct nfs_open_confirmargs c_arg;
@@ -245,7 +245,6 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct path *path,
 	p->o_arg.seqid = nfs_alloc_seqid(&sp->so_seqid);
 	if (p->o_arg.seqid == NULL)
 		goto err_free;
-	atomic_set(&p->count, 1);
 	p->path.mnt = mntget(path->mnt);
 	p->path.dentry = dget(path->dentry);
 	p->dir = parent;
@@ -275,6 +274,7 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct path *path,
 	p->c_arg.fh = &p->o_res.fh;
 	p->c_arg.stateid = &p->o_res.stateid;
 	p->c_arg.seqid = p->o_arg.seqid;
+	kref_init(&p->kref);
 	return p;
 err_free:
 	kfree(p);
@@ -283,16 +283,23 @@ err:
 	return NULL;
 }
 
-static void nfs4_opendata_free(struct nfs4_opendata *p)
+static void nfs4_opendata_free(struct kref *kref)
 {
-	if (p != NULL && atomic_dec_and_test(&p->count)) {
-		nfs_free_seqid(p->o_arg.seqid);
-		nfs4_put_state_owner(p->owner);
-		dput(p->dir);
-		dput(p->path.dentry);
-		mntput(p->path.mnt);
-		kfree(p);
-	}
+	struct nfs4_opendata *p = container_of(kref,
+			struct nfs4_opendata, kref);
+
+	nfs_free_seqid(p->o_arg.seqid);
+	nfs4_put_state_owner(p->owner);
+	dput(p->dir);
+	dput(p->path.dentry);
+	mntput(p->path.mnt);
+	kfree(p);
+}
+
+static void nfs4_opendata_put(struct nfs4_opendata *p)
+{
+	if (p != NULL)
+		kref_put(&p->kref, nfs4_opendata_free);
 }
 
 static int nfs4_wait_for_completion_rpc_task(struct rpc_task *task)
@@ -476,7 +483,7 @@ static int _nfs4_do_open_reclaim(struct nfs_open_context *ctx, struct nfs4_state
 	nfs_copy_fh(&opendata->o_res.fh, opendata->o_arg.fh);
 	opendata->o_arg.u.delegation_type = delegation_type;
 	status = nfs4_open_recover(opendata, state);
-	nfs4_opendata_free(opendata);
+	nfs4_opendata_put(opendata);
 	return status;
 }
 
@@ -522,7 +529,7 @@ static int _nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs
 	memcpy(opendata->o_arg.u.delegation.data, state->stateid.data,
 			sizeof(opendata->o_arg.u.delegation.data));
 	ret = nfs4_open_recover(opendata, state);
-	nfs4_opendata_free(opendata);
+	nfs4_opendata_put(opendata);
 	return ret;
 }
 
@@ -593,7 +600,7 @@ static void nfs4_open_confirm_release(void *calldata)
 	if (state != NULL)
 		nfs4_close_state(&data->path, state, data->o_arg.open_flags);
 out_free:
-	nfs4_opendata_free(data);
+	nfs4_opendata_put(data);
 }
 
 static const struct rpc_call_ops nfs4_open_confirm_ops = {
@@ -611,7 +618,7 @@ static int _nfs4_proc_open_confirm(struct nfs4_opendata *data)
 	struct rpc_task *task;
 	int status;
 
-	atomic_inc(&data->count);
+	kref_get(&data->kref);
 	/*
 	 * If rpc_run_task() ends up calling ->rpc_release(), we
 	 * want to ensure that it takes the 'error' code path.
@@ -696,7 +703,7 @@ static void nfs4_open_release(void *calldata)
 	if (state != NULL)
 		nfs4_close_state(&data->path, state, data->o_arg.open_flags);
 out_free:
-	nfs4_opendata_free(data);
+	nfs4_opendata_put(data);
 }
 
 static const struct rpc_call_ops nfs4_open_ops = {
@@ -717,7 +724,7 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 	struct rpc_task *task;
 	int status;
 
-	atomic_inc(&data->count);
+	kref_get(&data->kref);
 	/*
 	 * If rpc_run_task() ends up calling ->rpc_release(), we
 	 * want to ensure that it takes the 'error' code path.
@@ -826,7 +833,7 @@ static int _nfs4_open_expired(struct nfs_open_context *ctx, struct nfs4_state *s
 		nfs4_drop_state_owner(state->owner);
 		d_drop(ctx->path.dentry);
 	}
-	nfs4_opendata_free(opendata);
+	nfs4_opendata_put(opendata);
 	return ret;
 }
 
@@ -987,7 +994,7 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, int flags, struct
 
 	status = _nfs4_proc_open(opendata);
 	if (status != 0)
-		goto err_opendata_free;
+		goto err_opendata_put;
 
 	if (opendata->o_arg.open_flags & O_EXCL)
 		nfs4_exclusive_attrset(opendata, sattr);
@@ -995,16 +1002,16 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, int flags, struct
 	status = -ENOMEM;
 	state = nfs4_opendata_to_nfs4_state(opendata);
 	if (state == NULL)
-		goto err_opendata_free;
+		goto err_opendata_put;
 	if (opendata->o_res.delegation_type != 0)
 		nfs_inode_set_delegation(state->inode, cred, &opendata->o_res);
-	nfs4_opendata_free(opendata);
+	nfs4_opendata_put(opendata);
 	nfs4_put_state_owner(sp);
 	up_read(&clp->cl_sem);
 	*res = state;
 	return 0;
-err_opendata_free:
-	nfs4_opendata_free(opendata);
+err_opendata_put:
+	nfs4_opendata_put(opendata);
 err_release_rwsem:
 	up_read(&clp->cl_sem);
 err_put_state_owner:
