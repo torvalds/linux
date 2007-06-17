@@ -296,9 +296,8 @@ static void __device_release_driver(struct device * dev)
 {
 	struct device_driver * drv;
 
-	drv = dev->driver;
+	drv = get_driver(dev->driver);
 	if (drv) {
-		get_driver(drv);
 		driver_sysfs_remove(dev);
 		sysfs_remove_link(&dev->kobj, "driver");
 		klist_remove(&dev->knode_driver);
