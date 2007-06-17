@@ -17,7 +17,6 @@ union ktime;
 #define FUTEX_LOCK_PI		6
 #define FUTEX_UNLOCK_PI		7
 #define FUTEX_TRYLOCK_PI	8
-#define FUTEX_CMP_REQUEUE_PI	9
 
 #define FUTEX_PRIVATE_FLAG	128
 #define FUTEX_CMD_MASK		~FUTEX_PRIVATE_FLAG
@@ -98,14 +97,9 @@ struct robust_list_head {
 #define FUTEX_OWNER_DIED	0x40000000
 
 /*
- * Some processes have been requeued on this PI-futex
- */
-#define FUTEX_WAITER_REQUEUED	0x20000000
-
-/*
  * The rest of the robust-futex field is for the TID:
  */
-#define FUTEX_TID_MASK		0x0fffffff
+#define FUTEX_TID_MASK		0x3fffffff
 
 /*
  * This limit protects against a deliberately circular list.
@@ -139,7 +133,6 @@ handle_futex_death(u32 __user *uaddr, struct task_struct *curr, int pi);
 #define FUT_OFF_MMSHARED 2 /* We set bit 1 if key has a reference on mm */
 
 union futex_key {
-	u32 __user *uaddr;
 	struct {
 		unsigned long pgoff;
 		struct inode *inode;

@@ -113,29 +113,6 @@ static inline unsigned long rt_mutex_owner_pending(struct rt_mutex *lock)
 }
 
 /*
- * We can speed up the acquire/release, if the architecture
- * supports cmpxchg and if there's no debugging state to be set up
- */
-#if defined(__HAVE_ARCH_CMPXCHG) && !defined(CONFIG_DEBUG_RT_MUTEXES)
-# define rt_mutex_cmpxchg(l,c,n)	(cmpxchg(&l->owner, c, n) == c)
-static inline void mark_rt_mutex_waiters(struct rt_mutex *lock)
-{
-	unsigned long owner, *p = (unsigned long *) &lock->owner;
-
-	do {
-		owner = *p;
-	} while (cmpxchg(p, owner, owner | RT_MUTEX_HAS_WAITERS) != owner);
-}
-#else
-# define rt_mutex_cmpxchg(l,c,n)	(0)
-static inline void mark_rt_mutex_waiters(struct rt_mutex *lock)
-{
-	lock->owner = (struct task_struct *)
-			((unsigned long)lock->owner | RT_MUTEX_HAS_WAITERS);
-}
-#endif
-
-/*
  * PI-futex support (proxy locking functions, etc.):
  */
 extern struct task_struct *rt_mutex_next_owner(struct rt_mutex *lock);
@@ -143,15 +120,4 @@ extern void rt_mutex_init_proxy_locked(struct rt_mutex *lock,
 				       struct task_struct *proxy_owner);
 extern void rt_mutex_proxy_unlock(struct rt_mutex *lock,
 				  struct task_struct *proxy_owner);
-
-extern void rt_mutex_set_owner(struct rt_mutex *lock, struct task_struct *owner,
-			       unsigned long mask);
-extern void __rt_mutex_adjust_prio(struct task_struct *task);
-extern int rt_mutex_adjust_prio_chain(struct task_struct *task,
-				      int deadlock_detect,
-				      struct rt_mutex *orig_lock,
-				      struct rt_mutex_waiter *orig_waiter,
-				      struct task_struct *top_task);
-extern void remove_waiter(struct rt_mutex *lock,
-			  struct rt_mutex_waiter *waiter);
 #endif
