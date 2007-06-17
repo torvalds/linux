@@ -1008,7 +1008,7 @@ config SCSI_STEX
 
 config 53C700_BE_BUS
 	bool
-	depends on SCSI_A4000T || MVME16x_SCSI || BVME6000_SCSI
+	depends on SCSI_A4000T || SCSI_ZORRO7XX || MVME16x_SCSI || BVME6000_SCSI
 	default y
 
 config SCSI_SYM53C8XX_2
@@ -1625,11 +1625,13 @@ config SCSI_A4000T
 	  To compile this driver as a module, choose M here: the
 	  module will be called a4000t.
 
-config SCSI_AMIGA7XX
-	bool "Amiga NCR53c710 SCSI support (EXPERIMENTAL)"
-	depends on AMIGA && SCSI && EXPERIMENTAL && BROKEN
+config SCSI_ZORRO7XX
+	tristate "Zorro NCR53c710 SCSI support (EXPERIMENTAL)"
+	depends on ZORRO && SCSI && EXPERIMENTAL
+	select SCSI_SPI_ATTRS
 	help
-	  Support for various NCR53c710-based SCSI controllers on the Amiga.
+	  Support for various NCR53c710-based SCSI controllers on Zorro
+	  expansion boards for the Amiga.
 	  This includes:
 	    - the Amiga 4091 Zorro III SCSI-2 controller,
 	    - the MacroSystem Development's WarpEngine Amiga SCSI-2 controller
@@ -1638,10 +1640,6 @@ config SCSI_AMIGA7XX
 	    - the SCSI controller on the Phase5 Blizzard PowerUP 603e+
 	      accelerator card for the Amiga 1200,
 	    - the SCSI controller on the GVP Turbo 040/060 accelerator.
-	  Note that all of the above SCSI controllers, except for the builtin
-	  SCSI controller on the Amiga 4000T, reside on the Zorro expansion
-	  bus, so you also have to enable Zorro bus support if you want to use
-	  them.
 
 config OKTAGON_SCSI
 	tristate "BSC Oktagon SCSI support (EXPERIMENTAL)"
