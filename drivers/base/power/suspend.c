@@ -71,21 +71,19 @@ int suspend_device(struct device * dev, pm_message_t state)
 			dev->parent->power.power_state.event);
 	}
 
-	if (dev->class && dev->class->suspend && !dev->power.power_state.event) {
+	if (dev->class && dev->class->suspend) {
 		suspend_device_dbg(dev, state, "class ");
 		error = dev->class->suspend(dev, state);
 		suspend_report_result(dev->class->suspend, error);
 	}
 
-	if (!error && dev->type && dev->type->suspend
-	    && !dev->power.power_state.event) {
+	if (!error && dev->type && dev->type->suspend) {
 		suspend_device_dbg(dev, state, "type ");
 		error = dev->type->suspend(dev, state);
 		suspend_report_result(dev->type->suspend, error);
 	}
 
-	if (!error && dev->bus && dev->bus->suspend
-	    && !dev->power.power_state.event) {
+	if (!error && dev->bus && dev->bus->suspend) {
 		suspend_device_dbg(dev, state, "");
 		error = dev->bus->suspend(dev, state);
 		suspend_report_result(dev->bus->suspend, error);
@@ -104,8 +102,7 @@ static int suspend_device_late(struct device *dev, pm_message_t state)
 {
 	int error = 0;
 
-	if (dev->bus && dev->bus->suspend_late
-	    && !dev->power.power_state.event) {
+	if (dev->bus && dev->bus->suspend_late) {
 		suspend_device_dbg(dev, state, "LATE ");
 		error = dev->bus->suspend_late(dev, state);
 		suspend_report_result(dev->bus->suspend_late, error);
