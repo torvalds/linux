@@ -19,6 +19,7 @@
 #include <linux/mutex.h>
 #include <linux/freezer.h>
 #include <asm/atomic.h>
+#include <asm/semaphore.h>
 
 #include "csr.h"
 #include "highlevel.h"
@@ -144,8 +145,6 @@ static struct csr1212_bus_ops nodemgr_csr_ops = {
  * driver/device mappings. The old nodemgr used to handle all this itself,
  * but now we are much simpler because of the LDM.
  */
-
-static DEFINE_MUTEX(nodemgr_serialize);
 
 struct host_info {
 	struct hpsb_host *host;
@@ -1382,6 +1381,8 @@ static void nodemgr_suspend_ne(struct node_entry *ne)
 {
 	struct device *dev;
 	struct unit_directory *ud;
+	struct device_driver *drv;
+	int error;
 
 	HPSB_DEBUG("Node suspended: ID:BUS[" NODE_BUS_FMT "]  GUID[%016Lx]",
 		   NODE_BUS_ARGS(ne->host, ne->nodeid), (unsigned long long)ne->guid);
@@ -1395,10 +1396,19 @@ static void nodemgr_suspend_ne(struct node_entry *ne)
 		if (ud->ne != ne)
 			continue;
 
-		if (ud->device.driver &&
-		    (!ud->device.driver->suspend ||
-		      ud->device.driver->suspend(&ud->device, PMSG_SUSPEND)))
+		drv = get_driver(ud->device.driver);
+		if (!drv)
+			continue;
+
+		error = 1; /* release if suspend is not implemented */
+		if (drv->suspend) {
+			down(&ud->device.sem);
+			error = drv->suspend(&ud->device, PMSG_SUSPEND);
+			up(&ud->device.sem);
+		}
+		if (error)
 			device_release_driver(&ud->device);
+		put_driver(drv);
 	}
 	up(&nodemgr_ud_class.sem);
 }
@@ -1408,6 +1418,7 @@ static void nodemgr_resume_ne(struct node_entry *ne)
 {
 	struct device *dev;
 	struct unit_directory *ud;
+	struct device_driver *drv;
 
 	ne->in_limbo = 0;
 	device_remove_file(&ne->device, &dev_attr_ne_in_limbo);
@@ -1418,8 +1429,16 @@ static void nodemgr_resume_ne(struct node_entry *ne)
 		if (ud->ne != ne)
 			continue;
 
-		if (ud->device.driver && ud->device.driver->resume)
-			ud->device.driver->resume(&ud->device);
+		drv = get_driver(ud->device.driver);
+		if (!drv)
+			continue;
+
+		if (drv->resume) {
+			down(&ud->device.sem);
+			drv->resume(&ud->device);
+			up(&ud->device.sem);
+		}
+		put_driver(drv);
 	}
 	up(&nodemgr_ud_class.sem);
 
@@ -1430,9 +1449,11 @@ static void nodemgr_resume_ne(struct node_entry *ne)
 
 static void nodemgr_update_pdrv(struct node_entry *ne)
 {
-	struct unit_directory *ud;
-	struct hpsb_protocol_driver *pdrv;
 	struct device *dev;
+	struct unit_directory *ud;
+	struct device_driver *drv;
+	struct hpsb_protocol_driver *pdrv;
+	int error;
 
 	down(&nodemgr_ud_class.sem);
 	list_for_each_entry(dev, &nodemgr_ud_class.devices, node) {
@@ -1440,13 +1461,20 @@ static void nodemgr_update_pdrv(struct node_entry *ne)
 		if (ud->ne != ne)
 			continue;
 
-		if (ud->device.driver) {
-			pdrv = container_of(ud->device.driver,
-					    struct hpsb_protocol_driver,
-					    driver);
-			if (pdrv->update && pdrv->update(ud))
-				device_release_driver(&ud->device);
+		drv = get_driver(ud->device.driver);
+		if (!drv)
+			continue;
+
+		error = 0;
+		pdrv = container_of(drv, struct hpsb_protocol_driver, driver);
+		if (pdrv->update) {
+			down(&ud->device.sem);
+			error = pdrv->update(ud);
+			up(&ud->device.sem);
 		}
+		if (error)
+			device_release_driver(&ud->device);
+		put_driver(drv);
 	}
 	up(&nodemgr_ud_class.sem);
 }
@@ -1688,18 +1716,12 @@ static int nodemgr_host_thread(void *__hi)
 		if (kthread_should_stop())
 			goto exit;
 
-		if (mutex_lock_interruptible(&nodemgr_serialize)) {
-			if (try_to_freeze())
-				continue;
-			goto exit;
-		}
-
 		/* Pause for 1/4 second in 1/16 second intervals,
 		 * to make sure things settle down. */
 		g = get_hpsb_generation(host);
 		for (i = 0; i < 4 ; i++) {
 			if (msleep_interruptible(63) || kthread_should_stop())
-				goto unlock_exit;
+				goto exit;
 
 			/* Now get the generation in which the node ID's we collect
 			 * are valid.  During the bus scan we will use this generation
@@ -1717,7 +1739,6 @@ static int nodemgr_host_thread(void *__hi)
 		if (!nodemgr_check_irm_capability(host, reset_cycles) ||
 		    !nodemgr_do_irm_duties(host, reset_cycles)) {
 			reset_cycles++;
-			mutex_unlock(&nodemgr_serialize);
 			continue;
 		}
 		reset_cycles = 0;
@@ -1734,11 +1755,7 @@ static int nodemgr_host_thread(void *__hi)
 
 		/* Update some of our sysfs symlinks */
 		nodemgr_update_host_dev_links(host);
-
-		mutex_unlock(&nodemgr_serialize);
 	}
-unlock_exit:
-	mutex_unlock(&nodemgr_serialize);
 exit:
 	HPSB_VERBOSE("NodeMgr: Exiting thread");
 	return 0;
