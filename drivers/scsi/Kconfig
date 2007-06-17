@@ -1008,7 +1008,7 @@ config SCSI_STEX
 
 config 53C700_BE_BUS
 	bool
-	depends on BVME6000_SCSI
+	depends on MVME16x_SCSI || BVME6000_SCSI
 	default y
 
 config SCSI_SYM53C8XX_2
@@ -1715,8 +1715,8 @@ config MVME147_SCSI
 	  single-board computer.
 
 config MVME16x_SCSI
-	bool "NCR53C710 SCSI driver for MVME16x"
-	depends on MVME16x && SCSI && BROKEN
+	tristate "NCR53C710 SCSI driver for MVME16x"
+	depends on MVME16x && SCSI
 	select SCSI_SPI_ATTRS
 	help
 	  The Motorola MVME162, 166, 167, 172 and 177 boards use the NCR53C710
