@@ -1,5 +1,5 @@
 choice
-	prompt "Machine Type"
+	prompt "86xx Board Type"
 	depends on PPC_86xx
 	default MPC8641_HPCN
 
