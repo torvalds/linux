@@ -49,7 +49,7 @@
 #include <linux/fs_enet_pd.h>
 
 #include <sysdev/fsl_soc.h>
-#include <../sysdev/cpm2_pic.h>
+#include <sysdev/cpm2_pic.h>
 
 #include "pq2ads.h"
 
