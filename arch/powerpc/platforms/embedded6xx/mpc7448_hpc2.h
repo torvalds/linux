@@ -18,9 +18,4 @@
 
 #include <asm/ppcboot.h>
 
-/* Base Addresses for the PCI bus
- */
-#define MPC7448_HPC2_PCI_MEM_OFFSET	(0x00000000)
-#define MPC7448_HPC2_ISA_IO_BASE	(0x00000000)
-#define MPC7448_HPC2_ISA_MEM_BASE	(0x00000000)
 #endif				/* __PPC_PLATFORMS_MPC7448_HPC2_H */

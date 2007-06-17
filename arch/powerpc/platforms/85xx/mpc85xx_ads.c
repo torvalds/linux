@@ -38,11 +38,6 @@
 #include <asm/fs_pd.h>
 #endif
 
-#ifndef CONFIG_PCI
-unsigned long isa_io_base = 0;
-unsigned long isa_mem_base = 0;
-#endif
-
 #ifdef CONFIG_PCI
 static int mpc85xx_exclude_device(u_char bus, u_char devfn)
 {

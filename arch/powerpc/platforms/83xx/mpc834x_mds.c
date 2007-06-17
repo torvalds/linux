@@ -38,11 +38,6 @@
 
 #include "mpc83xx.h"
 
-#ifndef CONFIG_PCI
-unsigned long isa_io_base = 0;
-unsigned long isa_mem_base = 0;
-#endif
-
 #define BCSR5_INT_USB		0x02
 /* Note: This is only for PB, not for PB+PIB
  * On PB only port0 is connected using ULPI */

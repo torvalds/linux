@@ -44,13 +44,6 @@
 #define DBG(fmt...) do { } while(0)
 #endif
 
-#ifndef CONFIG_PCI
-unsigned long isa_io_base = 0;
-unsigned long isa_mem_base = 0;
-unsigned long pci_dram_offset = 0;
-#endif
-
-
 #ifdef CONFIG_PCI
 static void mpc86xx_8259_cascade(unsigned int irq, struct irq_desc *desc)
 {
