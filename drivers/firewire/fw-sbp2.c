@@ -34,6 +34,7 @@
 #include <linux/device.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
+#include <linux/blkdev.h>
 #include <linux/timer.h>
 
 #include <scsi/scsi.h>
@@ -1080,7 +1081,8 @@ static int sbp2_scsi_slave_configure(struct scsi_device *sdev)
 		fw_notify("setting fix_capacity for %s\n", unit->device.bus_id);
 		sdev->fix_capacity = 1;
 	}
-
+	if (sd->workarounds & SBP2_WORKAROUND_128K_MAX_TRANS)
+		blk_queue_max_sectors(sdev->request_queue, 128 * 1024 / 512);
 	return 0;
 }
 
