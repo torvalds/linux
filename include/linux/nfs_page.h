@@ -22,6 +22,7 @@
  * Valid flags for the radix tree
  */
 #define NFS_PAGE_TAG_LOCKED	0
+#define NFS_PAGE_TAG_COMMIT	1
 
 /*
  * Valid flags for a dirty buffer
@@ -71,8 +72,8 @@ extern	void nfs_clear_request(struct nfs_page *req);
 extern	void nfs_release_request(struct nfs_page *req);
 
 
-extern	int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *head, struct list_head *dst,
-			  pgoff_t idx_start, unsigned int npages);
+extern	int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *dst,
+			  pgoff_t idx_start, unsigned int npages, int tag);
 extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 			     struct inode *inode,
 			     int (*doio)(struct inode *, struct list_head *, unsigned int, size_t, int),

@@ -381,10 +381,10 @@ void nfs_pageio_cond_complete(struct nfs_pageio_descriptor *desc, pgoff_t index)
 /**
  * nfs_scan_list - Scan a list for matching requests
  * @nfsi: NFS inode
- * @head: One of the NFS inode request lists
  * @dst: Destination list
  * @idx_start: lower bound of page->index to scan
  * @npages: idx_start + npages sets the upper bound to scan.
+ * @tag: tag to scan for
  *
  * Moves elements from one of the inode request lists.
  * If the number of requests is set to 0, the entire address_space
@@ -392,9 +392,9 @@ void nfs_pageio_cond_complete(struct nfs_pageio_descriptor *desc, pgoff_t index)
  * The requests are *not* checked to ensure that they form a contiguous set.
  * You must be holding the inode's req_lock when calling this function
  */
-int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *head,
+int nfs_scan_list(struct nfs_inode *nfsi,
 		struct list_head *dst, pgoff_t idx_start,
-		unsigned int npages)
+		unsigned int npages, int tag)
 {
 	struct nfs_page *pgvec[NFS_SCAN_MAXENTRIES];
 	struct nfs_page *req;
@@ -409,9 +409,9 @@ int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *head,
 		idx_end = idx_start + npages - 1;
 
 	for (;;) {
-		found = radix_tree_gang_lookup(&nfsi->nfs_page_tree,
+		found = radix_tree_gang_lookup_tag(&nfsi->nfs_page_tree,
 				(void **)&pgvec[0], idx_start,
-				NFS_SCAN_MAXENTRIES);
+				NFS_SCAN_MAXENTRIES, tag);
 		if (found <= 0)
 			break;
 		for (i = 0; i < found; i++) {
@@ -419,10 +419,10 @@ int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *head,
 			if (req->wb_index > idx_end)
 				goto out;
 			idx_start = req->wb_index + 1;
-			if (req->wb_list_head != head)
-				continue;
 			if (nfs_set_page_tag_locked(req)) {
 				nfs_list_remove_request(req);
+				radix_tree_tag_clear(&nfsi->nfs_page_tree,
+						req->wb_index, tag);
 				nfs_list_add_request(req, dst);
 				res++;
 			}
