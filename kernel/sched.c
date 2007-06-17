@@ -7071,12 +7071,13 @@ EXPORT_SYMBOL(__might_sleep);
 void normalize_rt_tasks(void)
 {
 	struct prio_array *array;
-	struct task_struct *p;
+	struct task_struct *g, *p;
 	unsigned long flags;
 	struct rq *rq;
 
 	read_lock_irq(&tasklist_lock);
-	for_each_process(p) {
+
+	do_each_thread(g, p) {
 		if (!rt_task(p))
 			continue;
 
@@ -7094,7 +7095,8 @@ void normalize_rt_tasks(void)
 
 		__task_rq_unlock(rq);
 		spin_unlock_irqrestore(&p->pi_lock, flags);
-	}
+	} while_each_thread(g, p);
+
 	read_unlock_irq(&tasklist_lock);
 }
 
