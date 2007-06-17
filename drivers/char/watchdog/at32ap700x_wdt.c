@@ -32,11 +32,11 @@
 #define WDT_CLR			0x04
 
 #define WDT_BIT(name)		(1 << WDT_##name)
-#define WDT_BF(name,value)	((value) << WDT_##name)
+#define WDT_BF(name, value)	((value) << WDT_##name)
 
-#define wdt_readl(dev,reg)				\
+#define wdt_readl(dev, reg)				\
 	__raw_readl((dev)->regs + WDT_##reg)
-#define wdt_writel(dev,reg,value)			\
+#define wdt_writel(dev, reg, value)			\
 	__raw_writel((value), (dev)->regs + WDT_##reg)
 
 struct wdt_at32ap700x {
@@ -51,7 +51,7 @@ static struct wdt_at32ap700x *wdt;
 /*
  * Disable the watchdog.
  */
-static void inline at32_wdt_stop(void)
+static inline void at32_wdt_stop(void)
 {
 	unsigned long psel = wdt_readl(wdt, CTRL) & WDT_BF(CTRL_PSEL, 0x0f);
 	wdt_writel(wdt, CTRL, psel | WDT_BF(CTRL_KEY, 0x55));
@@ -61,7 +61,7 @@ static void inline at32_wdt_stop(void)
 /*
  * Enable and reset the watchdog.
  */
-static void inline at32_wdt_start(void)
+static inline void at32_wdt_start(void)
 {
 	/* 0xf is 2^16 divider = 2 sec, 0xe is 2^15 divider = 1 sec */
 	unsigned long psel = (wdt->timeout > 1) ? 0xf : 0xe;
@@ -77,7 +77,7 @@ static void inline at32_wdt_start(void)
 /*
  * Pat the watchdog timer.
  */
-static void inline at32_wdt_pat(void)
+static inline void at32_wdt_pat(void)
 {
 	wdt_writel(wdt, CLR, 0x42);
 }
