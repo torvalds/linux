@@ -269,6 +269,12 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	new = kmemdup(clnt, sizeof(*new), GFP_KERNEL);
 	if (!new)
 		goto out_no_clnt;
+	new->cl_parent = clnt;
+	/* Turn off autobind on clones */
+	new->cl_autobind = 0;
+	INIT_LIST_HEAD(&new->cl_tasks);
+	spin_lock_init(&new->cl_lock);
+	rpc_init_rtt(&new->cl_rtt_default, clnt->cl_xprt->timeout.to_initval);
 	new->cl_metrics = rpc_alloc_iostats(clnt);
 	if (new->cl_metrics == NULL)
 		goto out_no_stats;
@@ -276,16 +282,10 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	err = rpc_setup_pipedir(new, clnt->cl_program->pipe_dir_name);
 	if (err != 0)
 		goto out_no_path;
-	new->cl_parent = clnt;
-	kref_get(&clnt->cl_kref);
-	new->cl_xprt = xprt_get(clnt->cl_xprt);
-	/* Turn off autobind on clones */
-	new->cl_autobind = 0;
-	INIT_LIST_HEAD(&new->cl_tasks);
-	spin_lock_init(&new->cl_lock);
-	rpc_init_rtt(&new->cl_rtt_default, clnt->cl_xprt->timeout.to_initval);
 	if (new->cl_auth)
 		atomic_inc(&new->cl_auth->au_count);
+	xprt_get(clnt->cl_xprt);
+	kref_get(&clnt->cl_kref);
 	rpc_register_client(new);
 	return new;
 out_no_path:
