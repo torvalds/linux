@@ -21,7 +21,7 @@
 /*
  * Valid flags for the radix tree
  */
-#define NFS_PAGE_TAG_WRITEBACK	0
+#define NFS_PAGE_TAG_LOCKED	0
 
 /*
  * Valid flags for a dirty buffer
@@ -84,8 +84,7 @@ extern	void nfs_pageio_complete(struct nfs_pageio_descriptor *desc);
 extern	void nfs_pageio_cond_complete(struct nfs_pageio_descriptor *, pgoff_t);
 extern  int nfs_wait_on_request(struct nfs_page *);
 extern	void nfs_unlock_request(struct nfs_page *req);
-extern  int nfs_set_page_writeback_locked(struct nfs_page *req);
-extern  void nfs_clear_page_writeback(struct nfs_page *req);
+extern  void nfs_clear_page_tag_locked(struct nfs_page *req);
 
 
 /*

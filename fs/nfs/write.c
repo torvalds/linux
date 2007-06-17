@@ -289,7 +289,7 @@ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 		BUG();
 	}
 	radix_tree_tag_set(&nfsi->nfs_page_tree, req->wb_index,
-			NFS_PAGE_TAG_WRITEBACK);
+			NFS_PAGE_TAG_LOCKED);
 	ret = test_bit(PG_NEED_FLUSH, &req->wb_flags);
 	spin_unlock(req_lock);
 	nfs_pageio_add_request(pgio, req);
@@ -524,7 +524,7 @@ static int nfs_wait_on_requests_locked(struct inode *inode, pgoff_t idx_start, u
 		idx_end = idx_start + npages - 1;
 
 	next = idx_start;
-	while (radix_tree_gang_lookup_tag(&nfsi->nfs_page_tree, (void **)&req, next, 1, NFS_PAGE_TAG_WRITEBACK)) {
+	while (radix_tree_gang_lookup_tag(&nfsi->nfs_page_tree, (void **)&req, next, 1, NFS_PAGE_TAG_LOCKED)) {
 		if (req->wb_index > idx_end)
 			break;
 
@@ -759,7 +759,7 @@ static void nfs_writepage_release(struct nfs_page *req)
 		nfs_inode_remove_request(req);
 	} else
 		nfs_end_page_writeback(req->wb_page);
-	nfs_clear_page_writeback(req);
+	nfs_clear_page_tag_locked(req);
 }
 
 static inline int flush_task_priority(int how)
@@ -888,7 +888,7 @@ out_bad:
 	}
 	nfs_redirty_request(req);
 	nfs_end_page_writeback(req->wb_page);
-	nfs_clear_page_writeback(req);
+	nfs_clear_page_tag_locked(req);
 	return -ENOMEM;
 }
 
@@ -931,7 +931,7 @@ static int nfs_flush_one(struct inode *inode, struct list_head *head, unsigned i
 		nfs_list_remove_request(req);
 		nfs_redirty_request(req);
 		nfs_end_page_writeback(req->wb_page);
-		nfs_clear_page_writeback(req);
+		nfs_clear_page_tag_locked(req);
 	}
 	return -ENOMEM;
 }
@@ -1049,7 +1049,7 @@ remove_request:
 		nfs_end_page_writeback(page);
 		nfs_inode_remove_request(req);
 	next:
-		nfs_clear_page_writeback(req);
+		nfs_clear_page_tag_locked(req);
 	}
 }
 
@@ -1212,7 +1212,7 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how)
 		nfs_list_remove_request(req);
 		nfs_mark_request_commit(req);
 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-		nfs_clear_page_writeback(req);
+		nfs_clear_page_tag_locked(req);
 	}
 	return -ENOMEM;
 }
@@ -1265,7 +1265,7 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
 		dprintk(" mismatch\n");
 		nfs_redirty_request(req);
 	next:
-		nfs_clear_page_writeback(req);
+		nfs_clear_page_tag_locked(req);
 	}
 }
 
