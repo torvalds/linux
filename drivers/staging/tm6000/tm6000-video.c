@@ -3,6 +3,9 @@
 
    Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
 
+   Copyright (C) 2007 Michel Ludwig <michel.ludwig@gmail.com>
+	- Fixed module load/unload
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation version 2
@@ -1153,7 +1156,7 @@ static int vidioc_s_input (struct file *file, void *priv, unsigned int i)
 
 	if (!rc) {
 		dev->input=i;
-		rc=vidioc_s_std (file, priv, &dev->vfd.current_norm);
+		rc=vidioc_s_std (file, priv, &dev->vfd->current_norm);
 	}
 
 	return (rc);
@@ -1317,12 +1320,15 @@ static int tm6000_open(struct inode *inode, struct file *file)
 	enum v4l2_buf_type type = 0;
 	int i,rc;
 
+	printk(KERN_INFO "tm6000: open called (minor=%d)\n",minor);
+
+
 	dprintk(dev, V4L2_DEBUG_OPEN, "tm6000: open called "
 						"(minor=%d)\n",minor);
 
 	list_for_each(list,&tm6000_corelist) {
 		h = list_entry(list, struct tm6000_core, tm6000_corelist);
-		if (h->vfd.minor == minor) {
+		if (h->vfd->minor == minor) {
 			dev  = h;
 			type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		}
@@ -1433,12 +1439,12 @@ static int tm6000_release(struct inode *inode, struct file *file)
 	struct tm6000_dmaqueue *vidq = &dev->vidq;
 	int minor = iminor(inode);
 
+	dprintk(dev, V4L2_DEBUG_OPEN, "tm6000: close called (minor=%d, users=%d)\n",minor,dev->users);
+
 	tm6000_stop_thread(vidq);
 	videobuf_mmap_free(&fh->vb_vidq);
 
 	kfree (fh);
-
-	dprintk(dev, V4L2_DEBUG_OPEN, "tm6000: close called (minor=%d, users=%d)\n",minor,dev->users);
 
 	return 0;
 }
@@ -1505,7 +1511,14 @@ static struct video_device tm6000_template = {
 
 int tm6000_v4l2_register(struct tm6000_core *dev)
 {
-	int ret;
+	int ret = -1;
+	struct video_device *vfd;
+
+	vfd = video_device_alloc();
+	if(!vfd) {
+		return -ENOMEM;
+	}
+	dev->vfd = vfd;
 
 	list_add_tail(&dev->tm6000_corelist,&tm6000_corelist);
 
@@ -1517,10 +1530,10 @@ int tm6000_v4l2_register(struct tm6000_core *dev)
 	dev->vidq.timeout.data     = (unsigned long)dev;
 	init_timer(&dev->vidq.timeout);
 
-	memcpy (&dev->vfd, &tm6000_template, sizeof(dev->vfd));
-	dev->vfd.debug=tm6000_debug;
+	memcpy (dev->vfd, &tm6000_template, sizeof(*(dev->vfd)));
+	dev->vfd->debug=tm6000_debug;
 
-	ret = video_register_device(&dev->vfd, VFL_TYPE_GRABBER, video_nr);
+	ret = video_register_device(dev->vfd, VFL_TYPE_GRABBER, video_nr);
 	printk(KERN_INFO "Trident TVMaster TM5600/TM6000 USB2 board (Load status: %d)\n", ret);
 	return ret;
 }
@@ -1530,7 +1543,7 @@ int tm6000_v4l2_unregister(struct tm6000_core *dev)
 	struct tm6000_core *h;
 	struct list_head *pos, *tmp;
 
-	video_unregister_device(&dev->vfd);
+	video_unregister_device(dev->vfd);
 
 	list_for_each_safe(pos, tmp, &tm6000_corelist) {
 		h = list_entry(pos, struct tm6000_core, tm6000_corelist);

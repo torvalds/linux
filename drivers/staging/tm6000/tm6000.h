@@ -119,7 +119,7 @@ struct tm6000_core {
 
 	/* various device info */
 	unsigned int			resources;
-	struct video_device		vfd;
+	struct video_device		*vfd;
 	struct tm6000_dmaqueue		vidq;
 
 	int				input;

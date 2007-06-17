@@ -359,13 +359,15 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 
 	mutex_lock(&dev->lock);
 
-	tm6000_i2c_unregister(dev);
-
 	tm6000_v4l2_unregister(dev);
+
+	tm6000_i2c_unregister(dev);
 
 //	wake_up_interruptible_all(&dev->open);
 
 	dev->state |= DEV_DISCONNECTED;
+
+	usb_put_dev(dev->udev);
 
 	mutex_unlock(&dev->lock);
 	kfree(dev);
