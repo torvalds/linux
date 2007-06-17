@@ -27,10 +27,6 @@ enum {
 	FW_NODE_LINK_OFF =  0x04,
 };
 
-struct fw_port {
-	struct fw_node *node;
-};
-
 struct fw_node {
 	u16 node_id;
 	u8 color;
@@ -51,7 +47,7 @@ struct fw_node {
 	/* Upper layer specific data. */
 	void *data;
 
-	struct fw_port ports[0];
+	struct fw_node *ports[0];
 };
 
 static inline struct fw_node *

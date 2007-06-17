@@ -135,17 +135,17 @@ static void update_hop_count(struct fw_node *node)
 	int i;
 
 	for (i = 0; i < node->port_count; i++) {
-		if (node->ports[i].node == NULL)
+		if (node->ports[i] == NULL)
 			continue;
 
-		if (node->ports[i].node->max_hops > max_child_hops)
-			max_child_hops = node->ports[i].node->max_hops;
+		if (node->ports[i]->max_hops > max_child_hops)
+			max_child_hops = node->ports[i]->max_hops;
 
-		if (node->ports[i].node->max_depth > depths[0]) {
+		if (node->ports[i]->max_depth > depths[0]) {
 			depths[1] = depths[0];
-			depths[0] = node->ports[i].node->max_depth;
-		} else if (node->ports[i].node->max_depth > depths[1])
-			depths[1] = node->ports[i].node->max_depth;
+			depths[0] = node->ports[i]->max_depth;
+		} else if (node->ports[i]->max_depth > depths[1])
+			depths[1] = node->ports[i]->max_depth;
 	}
 
 	node->max_depth = depths[0] + 1;
@@ -245,12 +245,12 @@ static struct fw_node *build_tree(struct fw_card *card,
 				break;
 
 			case SELFID_PORT_CHILD:
-				node->ports[i].node = child;
+				node->ports[i] = child;
 				/*
 				 * Fix up parent reference for this
 				 * child node.
 				 */
-				child->ports[child->color].node = node;
+				child->ports[child->color] = node;
 				child->color = card->color;
 				child = fw_node(child->link.next);
 				break;
@@ -321,7 +321,7 @@ for_each_fw_node(struct fw_card *card, struct fw_node *root,
 		node->color = card->color;
 
 		for (i = 0; i < node->port_count; i++) {
-			child = node->ports[i].node;
+			child = node->ports[i];
 			if (!child)
 				continue;
 			if (child->color == card->color)
@@ -382,11 +382,11 @@ static void move_tree(struct fw_node *node0, struct fw_node *node1, int port)
 	struct fw_node *tree;
 	int i;
 
-	tree = node1->ports[port].node;
-	node0->ports[port].node = tree;
+	tree = node1->ports[port];
+	node0->ports[port] = tree;
 	for (i = 0; i < tree->port_count; i++) {
-		if (tree->ports[i].node == node1) {
-			tree->ports[i].node = node0;
+		if (tree->ports[i] == node1) {
+			tree->ports[i] = node0;
 			break;
 		}
 	}
@@ -437,19 +437,17 @@ update_tree(struct fw_card *card, struct fw_node *root)
 			card->irm_node = node0;
 
 		for (i = 0; i < node0->port_count; i++) {
-			if (node0->ports[i].node && node1->ports[i].node) {
+			if (node0->ports[i] && node1->ports[i]) {
 				/*
 				 * This port didn't change, queue the
 				 * connected node for further
 				 * investigation.
 				 */
-				if (node0->ports[i].node->color == card->color)
+				if (node0->ports[i]->color == card->color)
 					continue;
-				list_add_tail(&node0->ports[i].node->link,
-					      &list0);
-				list_add_tail(&node1->ports[i].node->link,
-					      &list1);
-			} else if (node0->ports[i].node) {
+				list_add_tail(&node0->ports[i]->link, &list0);
+				list_add_tail(&node1->ports[i]->link, &list1);
+			} else if (node0->ports[i]) {
 				/*
 				 * The nodes connected here were
 				 * unplugged; unref the lost nodes and
@@ -457,10 +455,10 @@ update_tree(struct fw_card *card, struct fw_node *root)
 				 * them.
 				 */
 
-				for_each_fw_node(card, node0->ports[i].node,
+				for_each_fw_node(card, node0->ports[i],
 						 report_lost_node);
-				node0->ports[i].node = NULL;
-			} else if (node1->ports[i].node) {
+				node0->ports[i] = NULL;
+			} else if (node1->ports[i]) {
 				/*
 				 * One or more node were connected to
 				 * this port. Move the new nodes into
@@ -468,7 +466,7 @@ update_tree(struct fw_card *card, struct fw_node *root)
 				 * callbacks for them.
 				 */
 				move_tree(node0, node1, i);
-				for_each_fw_node(card, node0->ports[i].node,
+				for_each_fw_node(card, node0->ports[i],
 						 report_found_node);
 			}
 		}
