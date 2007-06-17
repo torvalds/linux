@@ -34,8 +34,7 @@
 
 struct nfs_inode;
 struct nfs_page {
-	struct list_head	wb_list,	/* Defines state of page: */
-				*wb_list_head;	/*      read/write/commit */
+	struct list_head	wb_list;	/* Defines state of page: */
 	struct page		*wb_page;	/* page to read in/write out */
 	struct nfs_open_context	*wb_context;	/* File state context info */
 	atomic_t		wb_complete;	/* i/os we're waiting for */
@@ -118,7 +117,6 @@ static inline void
 nfs_list_add_request(struct nfs_page *req, struct list_head *head)
 {
 	list_add_tail(&req->wb_list, head);
-	req->wb_list_head = head;
 }
 
 
@@ -132,7 +130,6 @@ nfs_list_remove_request(struct nfs_page *req)
 	if (list_empty(&req->wb_list))
 		return;
 	list_del_init(&req->wb_list);
-	req->wb_list_head = NULL;
 }
 
 static inline struct nfs_page *

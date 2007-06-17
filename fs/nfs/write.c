@@ -459,7 +459,6 @@ nfs_mark_request_commit(struct nfs_page *req)
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	spin_lock(&nfsi->req_lock);
-	nfs_list_add_request(req, &nfsi->commit);
 	nfsi->ncommit++;
 	set_bit(PG_NEED_COMMIT, &(req)->wb_flags);
 	radix_tree_tag_set(&nfsi->nfs_page_tree,
@@ -581,8 +580,6 @@ nfs_scan_commit(struct inode *inode, struct list_head *dst, pgoff_t idx_start, u
 		res = nfs_scan_list(nfsi, dst, idx_start, npages,
 				NFS_PAGE_TAG_COMMIT);
 		nfsi->ncommit -= res;
-		if ((nfsi->ncommit == 0) != list_empty(&nfsi->commit))
-			printk(KERN_ERR "NFS: desynchronized value of nfs_i.ncommit.\n");
 	}
 	return res;
 }
