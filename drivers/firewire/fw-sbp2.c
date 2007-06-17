@@ -30,6 +30,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/mod_devicetable.h>
 #include <linux/device.h>
 #include <linux/scatterlist.h>
@@ -46,6 +47,18 @@
 #include "fw-transaction.h"
 #include "fw-topology.h"
 #include "fw-device.h"
+
+/*
+ * So far only bridges from Oxford Semiconductor are known to support
+ * concurrent logins. Depending on firmware, four or two concurrent logins
+ * are possible on OXFW911 and newer Oxsemi bridges.
+ *
+ * Concurrent logins are useful together with cluster filesystems.
+ */
+static int sbp2_param_exclusive_login = 1;
+module_param_named(exclusive_login, sbp2_param_exclusive_login, bool, 0644);
+MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device "
+		 "(default = Y, use N for concurrent initiators)");
 
 /* I don't know why the SCSI stack doesn't define something like this... */
 typedef void (*scsi_done_fn_t)(struct scsi_cmnd *);
@@ -155,7 +168,7 @@ struct sbp2_orb {
 #define MANAGEMENT_ORB_LUN(v)			((v))
 #define MANAGEMENT_ORB_FUNCTION(v)		((v) << 16)
 #define MANAGEMENT_ORB_RECONNECT(v)		((v) << 20)
-#define MANAGEMENT_ORB_EXCLUSIVE		((1) << 28)
+#define MANAGEMENT_ORB_EXCLUSIVE(v)		((v) ? 1 << 28 : 0)
 #define MANAGEMENT_ORB_REQUEST_FORMAT(v)	((v) << 29)
 #define MANAGEMENT_ORB_NOTIFY			((1) << 31)
 
@@ -431,14 +444,9 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 	orb->request.status_fifo.high = sd->address_handler.offset >> 32;
 	orb->request.status_fifo.low  = sd->address_handler.offset;
 
-	/*
-	 * FIXME: Yeah, ok this isn't elegant, we hardwire exclusive
-	 * login and 1 second reconnect time.  The reconnect setting
-	 * is probably fine, but the exclusive login should be an option.
-	 */
 	if (function == SBP2_LOGIN_REQUEST) {
 		orb->request.misc |=
-			MANAGEMENT_ORB_EXCLUSIVE |
+			MANAGEMENT_ORB_EXCLUSIVE(sbp2_param_exclusive_login) |
 			MANAGEMENT_ORB_RECONNECT(0);
 	}
 
