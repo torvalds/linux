@@ -15,7 +15,7 @@
  * mpc86xx_* files. Mostly for use by mpc86xx_setup().
  */
 
-extern int add_bridge(struct device_node *dev);
+extern int mpc86xx_add_bridge(struct device_node *dev);
 
 extern int mpc86xx_exclude_device(u_char bus, u_char devfn);
 

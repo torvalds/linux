@@ -36,7 +36,7 @@
 int mpc85xx_pci2_busno = 0;
 
 #ifdef CONFIG_PCI
-int __init add_bridge(struct device_node *dev)
+int __init mpc85xx_add_bridge(struct device_node *dev)
 {
 	int len;
 	struct pci_controller *hose;

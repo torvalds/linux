@@ -257,7 +257,7 @@ static void __init mpc85xx_cds_setup_arch(void)
 
 #ifdef CONFIG_PCI
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
-		add_bridge(np);
+		mpc85xx_add_bridge(np);
 
 	ppc_md.pcibios_fixup = mpc85xx_cds_pcibios_fixup;
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;

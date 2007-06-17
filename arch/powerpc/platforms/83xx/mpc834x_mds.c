@@ -129,7 +129,7 @@ static void __init mpc834x_mds_setup_arch(void)
 
 #ifdef CONFIG_PCI
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
-		add_bridge(np);
+		mpc83xx_add_bridge(np);
 
 	ppc_md.pci_exclude_device = mpc83xx_exclude_device;
 #endif

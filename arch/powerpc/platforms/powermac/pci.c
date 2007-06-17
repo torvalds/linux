@@ -35,8 +35,6 @@
 #define DBG(x...)
 #endif
 
-static int add_bridge(struct device_node *dev);
-
 /* XXX Could be per-controller, but I don't think we risk anything by
  * assuming we won't have both UniNorth and Bandit */
 static int has_uninorth;
@@ -897,7 +895,7 @@ static void __init setup_u3_ht(struct pci_controller* hose)
  * "pci" (a MPC106) and no bandit or chaos bridges, and contrariwise,
  * if we have one or more bandit or chaos bridges, we don't have a MPC106.
  */
-static int __init add_bridge(struct device_node *dev)
+static int __init pmac_add_bridge(struct device_node *dev)
 {
 	int len;
 	struct pci_controller *hose;
@@ -1023,7 +1021,7 @@ void __init pmac_pci_init(void)
 		if (strcmp(np->name, "bandit") == 0
 		    || strcmp(np->name, "chaos") == 0
 		    || strcmp(np->name, "pci") == 0) {
-			if (add_bridge(np) == 0)
+			if (pmac_add_bridge(np) == 0)
 				of_node_get(np);
 		}
 		if (strcmp(np->name, "ht") == 0) {
@@ -1037,7 +1035,7 @@ void __init pmac_pci_init(void)
 	/* Probe HT last as it relies on the agp resources to be already
 	 * setup
 	 */
-	if (ht && add_bridge(ht) != 0)
+	if (ht && pmac_add_bridge(ht) != 0)
 		of_node_put(ht);
 
 	/* Setup the linkage between OF nodes and PHBs */

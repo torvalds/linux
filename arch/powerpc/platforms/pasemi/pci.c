@@ -132,7 +132,7 @@ static void __init setup_pa_pxp(struct pci_controller *hose)
 	hose->cfg_data = ioremap(0xe0000000, 0x10000000);
 }
 
-static int __init add_bridge(struct device_node *dev)
+static int __init pas_add_bridge(struct device_node *dev)
 {
 	struct pci_controller *hose;
 
@@ -167,7 +167,7 @@ void __init pas_pci_init(void)
 	}
 
 	for (np = NULL; (np = of_get_next_child(root, np)) != NULL;)
-		if (np->name && !strcmp(np->name, "pxp") && !add_bridge(np))
+		if (np->name && !strcmp(np->name, "pxp") && !pas_add_bridge(np))
 			of_node_get(np);
 
 	of_node_put(root);

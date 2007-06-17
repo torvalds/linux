@@ -444,7 +444,7 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 	u3_ht = hose;
 }
 
-static int __init add_bridge(struct device_node *dev)
+static int __init maple_add_bridge(struct device_node *dev)
 {
 	int len;
 	struct pci_controller *hose;
@@ -541,7 +541,7 @@ void __init maple_pci_init(void)
 			continue;
 		if ((of_device_is_compatible(np, "u4-pcie") ||
 		     of_device_is_compatible(np, "u3-agp")) &&
-		    add_bridge(np) == 0)
+		    maple_add_bridge(np) == 0)
 			of_node_get(np);
 
 		if (of_device_is_compatible(np, "u3-ht")) {
@@ -553,7 +553,7 @@ void __init maple_pci_init(void)
 
 	/* Now setup the HyperTransport host if we found any
 	 */
-	if (ht && add_bridge(ht) != 0)
+	if (ht && maple_add_bridge(ht) != 0)
 		of_node_put(ht);
 
 	/* Setup the linkage between OF nodes and PHBs */ 

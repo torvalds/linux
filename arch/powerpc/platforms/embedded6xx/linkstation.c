@@ -54,7 +54,7 @@ static struct mtd_partition linkstation_physmap_partitions[] = {
 	},
 };
 
-static int __init add_bridge(struct device_node *dev)
+static int __init linkstation_add_bridge(struct device_node *dev)
 {
 	int len;
 	struct pci_controller *hose;
@@ -92,7 +92,7 @@ static void __init linkstation_setup_arch(void)
 
 	/* Lookup PCI host bridges */
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
-		add_bridge(np);
+		linkstation_add_bridge(np);
 
 	printk(KERN_INFO "BUFFALO Network Attached Storage Series\n");
 	printk(KERN_INFO "(C) 2002-2005 BUFFALO INC.\n");

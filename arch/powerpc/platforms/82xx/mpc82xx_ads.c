@@ -515,7 +515,7 @@ static int m82xx_pci_exclude_device(u_char bus, u_char devfn)
 		return PCIBIOS_SUCCESSFUL;
 }
 
-void __init add_bridge(struct device_node *np)
+static void __init mpc82xx_add_bridge(struct device_node *np)
 {
 	int len;
 	struct pci_controller *hose;
@@ -584,7 +584,7 @@ static void __init mpc82xx_ads_setup_arch(void)
 #ifdef CONFIG_PCI
 	ppc_md.pci_exclude_device = m82xx_pci_exclude_device;
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
-		add_bridge(np);
+		mpc82xx_add_bridge(np);
 
 	of_node_put(np);
 #endif

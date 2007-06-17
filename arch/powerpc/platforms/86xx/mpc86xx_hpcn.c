@@ -364,7 +364,7 @@ mpc86xx_hpcn_setup_arch(void)
 
 #ifdef CONFIG_PCI
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
-		add_bridge(np);
+		mpc86xx_add_bridge(np);
 
 	ppc_md.pci_exclude_device = mpc86xx_exclude_device;
 #endif

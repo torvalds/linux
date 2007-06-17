@@ -100,7 +100,7 @@ static void __init mpc85xx_mds_setup_arch(void)
 
 #ifdef CONFIG_PCI
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;) {
-		add_bridge(np);
+		mpc85xx_add_bridge(np);
 	}
 	of_node_put(np);
 #endif

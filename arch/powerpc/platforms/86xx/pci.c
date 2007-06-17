@@ -148,7 +148,7 @@ int mpc86xx_exclude_device(u_char bus, u_char devfn)
 	return PCIBIOS_SUCCESSFUL;
 }
 
-int __init add_bridge(struct device_node *dev)
+int __init mpc86xx_add_bridge(struct device_node *dev)
 {
 	int len;
 	struct pci_controller *hose;
