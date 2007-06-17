@@ -1564,7 +1564,8 @@ dc390_Disconnect( struct dc390_acb* pACB )
 	if( (pSRB->SRBState & (SRB_START_+SRB_MSGOUT)) ||
 	   !(pSRB->SRBState & (SRB_DISCONNECT+SRB_COMPLETED)) )
 	{	/* Selection time out */
-		pSRB->TargetStatus = SCSI_STAT_SEL_TIMEOUT;
+		pSRB->AdaptStatus = H_SEL_TIMEOUT;
+		pSRB->TargetStatus = 0;
 		goto  disc1;
 	}
 	else if (!(pSRB->SRBState & SRB_DISCONNECT) && (pSRB->SRBState & SRB_COMPLETED))
@@ -1713,17 +1714,17 @@ dc390_SRBdone( struct dc390_acb* pACB, struct dc390_dcb* pDCB, struct dc390_srb*
     {	/* Last command was a Request Sense */
 	pSRB->SRBFlag &= ~AUTO_REQSENSE;
 	pSRB->AdaptStatus = 0;
-	pSRB->TargetStatus = CHECK_CONDITION << 1;
+	pSRB->TargetStatus = SAM_STAT_CHECK_CONDITION;
 
 	//pcmd->result = MK_RES(DRIVER_SENSE,DID_OK,0,status);
-	if (status == (CHECK_CONDITION << 1))
+	if (status == SAM_STAT_CHECK_CONDITION)
 	    pcmd->result = MK_RES_LNX(0, DID_BAD_TARGET, 0, /*CHECK_CONDITION*/0);
 	else /* Retry */
 	{
 	    if( pSRB->pcmd->cmnd[0] == TEST_UNIT_READY /* || pSRB->pcmd->cmnd[0] == START_STOP */)
 	    {
 		/* Don't retry on TEST_UNIT_READY */
-		pcmd->result = MK_RES_LNX(DRIVER_SENSE,DID_OK,0,CHECK_CONDITION);
+		pcmd->result = MK_RES_LNX(DRIVER_SENSE, DID_OK, 0, SAM_STAT_CHECK_CONDITION);
 		REMOVABLEDEBUG(printk(KERN_INFO "Cmd=%02x, Result=%08x, XferL=%08x\n",pSRB->pcmd->cmnd[0],\
 		       (u32) pcmd->result, (u32) pSRB->TotalXferredLen));
 	    } else {
@@ -1739,7 +1740,7 @@ dc390_SRBdone( struct dc390_acb* pACB, struct dc390_dcb* pDCB, struct dc390_srb*
     }
     if( status )
     {
-	if( status_byte(status) == CHECK_CONDITION )
+	if (status == SAM_STAT_CHECK_CONDITION)
 	{
 	    if (dc390_RequestSense(pACB, pDCB, pSRB)) {
 		SET_RES_DID(pcmd->result, DID_ERROR);
@@ -1747,7 +1748,7 @@ dc390_SRBdone( struct dc390_acb* pACB, struct dc390_dcb* pDCB, struct dc390_srb*
 	    }
 	    return;
 	}
-	else if( status_byte(status) == QUEUE_FULL )
+	else if (status == SAM_STAT_TASK_SET_FULL)
 	{
 	    scsi_track_queue_full(pcmd->device, pDCB->GoingSRBCnt - 1);
 	    scsi_sg_count(pcmd) = pSRB->SavedSGCount;
@@ -1755,14 +1756,7 @@ dc390_SRBdone( struct dc390_acb* pACB, struct dc390_dcb* pDCB, struct dc390_srb*
 	    pSRB->TotalXferredLen = 0;
 	    SET_RES_DID(pcmd->result, DID_SOFT_ERROR);
 	}
-	else if(status == SCSI_STAT_SEL_TIMEOUT)
-	{
-	    pSRB->AdaptStatus = H_SEL_TIMEOUT;
-	    pSRB->TargetStatus = 0;
-	    pcmd->result = MK_RES(0,DID_NO_CONNECT,0,0);
-	    /* Devices are removed below ... */
-	}
-	else if (status_byte(status) == BUSY && 
+	else if (status == SAM_STAT_BUSY &&
 		 (pcmd->cmnd[0] == TEST_UNIT_READY || pcmd->cmnd[0] == INQUIRY) &&
 		 pACB->scan_devices)
 	{
@@ -1780,11 +1774,16 @@ dc390_SRBdone( struct dc390_acb* pACB, struct dc390_dcb* pDCB, struct dc390_srb*
     else
     {	/*  Target status == 0 */
 	status = pSRB->AdaptStatus;
-	if(status & H_OVER_UNDER_RUN)
+	if (status == H_OVER_UNDER_RUN)
 	{
 	    pSRB->TargetStatus = 0;
 	    SET_RES_DID(pcmd->result,DID_OK);
 	    SET_RES_MSG(pcmd->result,pSRB->EndMessage);
+	}
+	else if (status == H_SEL_TIMEOUT)
+	{
+	    pcmd->result = MK_RES(0, DID_NO_CONNECT, 0, 0);
+	    /* Devices are removed below ... */
 	}
 	else if( pSRB->SRBStatus & PARITY_ERROR)
 	{
