@@ -85,9 +85,8 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 	req->wb_offset  = offset;
 	req->wb_pgbase	= offset;
 	req->wb_bytes   = count;
-	atomic_set(&req->wb_count, 1);
 	req->wb_context = get_nfs_open_context(ctx);
-
+	kref_init(&req->wb_kref);
 	return req;
 }
 
@@ -160,16 +159,19 @@ void nfs_clear_request(struct nfs_page *req)
  *
  * Note: Should never be called with the spinlock held!
  */
-void
-nfs_release_request(struct nfs_page *req)
+static void nfs_free_request(struct kref *kref)
 {
-	if (!atomic_dec_and_test(&req->wb_count))
-		return;
+	struct nfs_page *req = container_of(kref, struct nfs_page, wb_kref);
 
 	/* Release struct file or cached credential */
 	nfs_clear_request(req);
 	put_nfs_open_context(req->wb_context);
 	nfs_page_free(req);
+}
+
+void nfs_release_request(struct nfs_page *req)
+{
+	kref_put(&req->wb_kref, nfs_free_request);
 }
 
 static int nfs_wait_bit_interruptible(void *word)

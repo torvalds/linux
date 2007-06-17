@@ -16,7 +16,7 @@
 #include <linux/sunrpc/auth.h>
 #include <linux/nfs_xdr.h>
 
-#include <asm/atomic.h>
+#include <linux/kref.h>
 
 /*
  * Valid flags for the radix tree
@@ -42,7 +42,7 @@ struct nfs_page {
 	unsigned int		wb_offset,	/* Offset & ~PAGE_CACHE_MASK */
 				wb_pgbase,	/* Start of page data */
 				wb_bytes;	/* Length of request */
-	atomic_t		wb_count;	/* reference count */
+	struct kref		wb_kref;	/* reference count */
 	unsigned long		wb_flags;
 	struct nfs_writeverf	wb_verf;	/* Commit cookie */
 };
@@ -89,7 +89,7 @@ extern  void nfs_clear_page_writeback(struct nfs_page *req);
 
 
 /*
- * Lock the page of an asynchronous request without incrementing the wb_count
+ * Lock the page of an asynchronous request without getting a new reference
  */
 static inline int
 nfs_lock_request_dontget(struct nfs_page *req)
@@ -98,14 +98,14 @@ nfs_lock_request_dontget(struct nfs_page *req)
 }
 
 /*
- * Lock the page of an asynchronous request
+ * Lock the page of an asynchronous request and take a reference
  */
 static inline int
 nfs_lock_request(struct nfs_page *req)
 {
 	if (test_and_set_bit(PG_BUSY, &req->wb_flags))
 		return 0;
-	atomic_inc(&req->wb_count);
+	kref_get(&req->wb_kref);
 	return 1;
 }
 

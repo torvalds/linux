@@ -117,7 +117,7 @@ static struct nfs_page *nfs_page_find_request_locked(struct page *page)
 	if (PagePrivate(page)) {
 		req = (struct nfs_page *)page_private(page);
 		if (req != NULL)
-			atomic_inc(&req->wb_count);
+			kref_get(&req->wb_kref);
 	}
 	return req;
 }
@@ -398,7 +398,7 @@ static int nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 	if (PageDirty(req->wb_page))
 		set_bit(PG_NEED_FLUSH, &req->wb_flags);
 	nfsi->npages++;
-	atomic_inc(&req->wb_count);
+	kref_get(&req->wb_kref);
 	return 0;
 }
 
@@ -531,7 +531,7 @@ static int nfs_wait_on_requests_locked(struct inode *inode, pgoff_t idx_start, u
 		next = req->wb_index + 1;
 		BUG_ON(!NFS_WBACK_BUSY(req));
 
-		atomic_inc(&req->wb_count);
+		kref_get(&req->wb_kref);
 		spin_unlock(&nfsi->req_lock);
 		error = nfs_wait_on_request(req);
 		nfs_release_request(req);
