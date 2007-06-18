@@ -507,8 +507,13 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		    attr->port_num > ibqp->device->phys_port_cnt)
 			goto inval;
 
+	/*
+	 * Note: the chips support a maximum MTU of 4096, but the driver
+	 * hasn't implemented this feature yet, so don't allow Path MTU
+	 * values greater than 2048.
+	 */
 	if (attr_mask & IB_QP_PATH_MTU)
-		if (attr->path_mtu > IB_MTU_4096)
+		if (attr->path_mtu > IB_MTU_2048)
 			goto inval;
 
 	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)

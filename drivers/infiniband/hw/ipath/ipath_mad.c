@@ -292,7 +292,12 @@ static int recv_subn_get_portinfo(struct ib_smp *smp,
 	/* pip->vl_arb_high_cap; // only one VL */
 	/* pip->vl_arb_low_cap; // only one VL */
 	/* InitTypeReply = 0 */
-	pip->inittypereply_mtucap = IB_MTU_4096;
+	/*
+	 * Note: the chips support a maximum MTU of 4096, but the driver
+	 * hasn't implemented this feature yet, so set the maximum value
+	 * to 2048.
+	 */
+	pip->inittypereply_mtucap = IB_MTU_2048;
 	// HCAs ignore VLStallCount and HOQLife
 	/* pip->vlstallcnt_hoqlife; */
 	pip->operationalvl_pei_peo_fpi_fpo = 0x10;	/* OVLs = 1 */

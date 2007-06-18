@@ -310,7 +310,12 @@ static int init_chip_first(struct ipath_devdata *dd,
 	val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_sendpiosize);
 	dd->ipath_piosize2k = val & ~0U;
 	dd->ipath_piosize4k = val >> 32;
-	dd->ipath_ibmtu = 4096;	/* default to largest legal MTU */
+	/*
+	 * Note: the chips support a maximum MTU of 4096, but the driver
+	 * hasn't implemented this feature yet, so set the initial value
+	 * to 2048.
+	 */
+	dd->ipath_ibmtu = 2048;
 	val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_sendpiobufcnt);
 	dd->ipath_piobcnt2k = val & ~0U;
 	dd->ipath_piobcnt4k = val >> 32;
