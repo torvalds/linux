@@ -801,7 +801,6 @@ wlan_private *libertas_add_card(void *card, struct device *dmdev)
 	dev->open = wlan_open;
 	dev->hard_start_xmit = wlan_pre_start_xmit;
 	dev->stop = wlan_close;
-	dev->do_ioctl = libertas_do_ioctl;
 	dev->set_mac_address = wlan_set_mac_address;
 	dev->tx_timeout = wlan_tx_timeout;
 	dev->get_stats = wlan_get_stats;
@@ -920,7 +919,6 @@ int libertas_add_mesh(wlan_private *priv, struct device *dev)
 	mesh_dev->open = mesh_open;
 	mesh_dev->hard_start_xmit = mesh_pre_start_xmit;
 	mesh_dev->stop = mesh_close;
-	mesh_dev->do_ioctl = libertas_do_ioctl;
 	mesh_dev->get_stats = wlan_get_stats;
 	mesh_dev->set_mac_address = wlan_set_mac_address;
 	mesh_dev->ethtool_ops = &libertas_ethtool_ops;

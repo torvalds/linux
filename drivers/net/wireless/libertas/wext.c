@@ -913,148 +913,6 @@ out:
 	return 0;
 }
 
-/*
- * iwpriv settable callbacks
- */
-
-static const iw_handler wlan_private_handler[] = {
-	NULL,			/* SIOCIWFIRSTPRIV */
-};
-
-static const struct iw_priv_args wlan_private_args[] = {
-	/*
-	 * { cmd, set_args, get_args, name }
-	 */
-	/* Using iwpriv sub-command feature */
-	{
-	 WLAN_SETONEINT_GETNONE,	/* IOCTL: 24 */
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 ""},
-	{
-	 WLANSETREGION,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "setregioncode"},
-	{
-	 WLAN_SUBCMD_MESH_SET_TTL,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "mesh_set_ttl"},
-	{
-	 WLAN_SETNONE_GETONEINT,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 ""},
-	{
-	 WLANGETREGION,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "getregioncode"},
-	{
-	 WLAN_SUBCMD_FWT_CLEANUP,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "fwt_cleanup"},
-	{
-	 WLAN_SUBCMD_FWT_TIME,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "fwt_time"},
-	{
-	 WLAN_SUBCMD_MESH_GET_TTL,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "mesh_get_ttl"},
-	{
-	 WLAN_SETNONE_GETNONE,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_NONE,
-	 ""},
-	{
-	 WLAN_SUBCMD_FWT_RESET,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_NONE,
-	 "fwt_reset"},
-	{
-	 WLAN_SUBCMD_BT_RESET,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_NONE,
-	 "bt_reset"},
-	{
-	 WLAN_SET128CHAR_GET128CHAR,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 ""},
-	/* BT Management */
-	{
-	 WLAN_SUBCMD_BT_ADD,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 "bt_add"},
-	{
-	 WLAN_SUBCMD_BT_DEL,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 "bt_del"},
-	{
-	 WLAN_SUBCMD_BT_LIST,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 "bt_list"},
-	{
-	 WLAN_SUBCMD_BT_SET_INVERT,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 IW_PRIV_TYPE_NONE,
-	 "bt_set_invert"},
-	{
-	 WLAN_SUBCMD_BT_GET_INVERT,
-	 IW_PRIV_TYPE_NONE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "bt_get_invert"},
-	/* FWT Management */
-	{
-	 WLAN_SUBCMD_FWT_ADD,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 "fwt_add"},
-	{
-	 WLAN_SUBCMD_FWT_DEL,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 "fwt_del"},
-	{
-	 WLAN_SUBCMD_FWT_LOOKUP,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 "fwt_lookup"},
-	{
-	 WLAN_SUBCMD_FWT_LIST_NEIGHBOR,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 "fwt_list_neigh"},
-	{
-	 WLAN_SUBCMD_FWT_LIST,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 "fwt_list"},
-	{
-	 WLAN_SUBCMD_FWT_LIST_ROUTE,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 IW_PRIV_TYPE_CHAR | 128,
-	 "fwt_list_route"},
-	{
-	 WLAN_SET_GET_SIXTEEN_INT,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 ""},
-	{
-	 WLAN_LED_GPIO_CTRL,
-	 IW_PRIV_TYPE_INT | 16,
-	 IW_PRIV_TYPE_INT | 16,
-	 "ledgpio"},
-};
-
 static struct iw_statistics *wlan_get_wireless_stats(struct net_device *dev)
 {
 	enum {
@@ -2444,22 +2302,12 @@ static const iw_handler mesh_wlan_handler[] = {
 };
 struct iw_handler_def libertas_handler_def = {
 	.num_standard	= sizeof(wlan_handler) / sizeof(iw_handler),
-	.num_private	= sizeof(wlan_private_handler) / sizeof(iw_handler),
-	.num_private_args = sizeof(wlan_private_args) /
-		sizeof(struct iw_priv_args),
 	.standard	= (iw_handler *) wlan_handler,
-	.private	= (iw_handler *) wlan_private_handler,
-	.private_args	= (struct iw_priv_args *)wlan_private_args,
 	.get_wireless_stats = wlan_get_wireless_stats,
 };
 
 struct iw_handler_def mesh_handler_def = {
 	.num_standard	= sizeof(mesh_wlan_handler) / sizeof(iw_handler),
-	.num_private	= sizeof(wlan_private_handler) / sizeof(iw_handler),
-	.num_private_args = sizeof(wlan_private_args) /
-		sizeof(struct iw_priv_args),
 	.standard	= (iw_handler *) mesh_wlan_handler,
-	.private	= (iw_handler *) wlan_private_handler,
-	.private_args	= (struct iw_priv_args *)wlan_private_args,
 	.get_wireless_stats = wlan_get_wireless_stats,
 };
