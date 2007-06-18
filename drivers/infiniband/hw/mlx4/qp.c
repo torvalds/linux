@@ -277,8 +277,8 @@ static int set_kernel_sq_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
 
 	cap->max_send_wr  = qp->sq.max_post = qp->sq.wqe_cnt - qp->sq_spare_wqes;
 	cap->max_send_sge = qp->sq.max_gs;
-	cap->max_inline_data = (1 << qp->sq.wqe_shift) - send_wqe_overhead(type) -
-		sizeof (struct mlx4_wqe_inline_seg);
+	/* We don't support inline sends for kernel QPs (yet) */
+	cap->max_inline_data = 0;
 
 	return 0;
 }
@@ -390,9 +390,6 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			err = -ENOMEM;
 			goto err_wrid;
 		}
-
-		/* We don't support inline sends for kernel QPs (yet) */
-		init_attr->cap.max_inline_data = 0;
 	}
 
 	err = mlx4_qp_alloc(dev->dev, sqpn, &qp->mqp);
