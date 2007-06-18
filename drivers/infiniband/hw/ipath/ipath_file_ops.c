@@ -1403,6 +1403,38 @@ bail:
 	return pollflag;
 }
 
+static int ipath_supports_subports(int user_swmajor, int user_swminor)
+{
+	/* no subport implementation prior to software version 1.3 */
+	return (user_swmajor > 1) || (user_swminor >= 3);
+}
+
+static int ipath_compatible_subports(int user_swmajor, int user_swminor)
+{
+	/* this code is written long-hand for clarity */
+	if (IPATH_USER_SWMAJOR != user_swmajor) {
+		/* no promise of compatibility if major mismatch */
+		return 0;
+	}
+	if (IPATH_USER_SWMAJOR == 1) {
+		switch (IPATH_USER_SWMINOR) {
+		case 0:
+		case 1:
+		case 2:
+			/* no subport implementation so cannot be compatible */
+			return 0;
+		case 3:
+			/* 3 is only compatible with itself */
+			return user_swminor == 3;
+		default:
+			/* >= 4 are compatible (or are expected to be) */
+			return user_swminor >= 4;
+		}
+	}
+	/* make no promises yet for future major versions */
+	return 0;
+}
+
 static int init_subports(struct ipath_devdata *dd,
 			 struct ipath_portdata *pd,
 			 const struct ipath_user_info *uinfo)
@@ -1418,14 +1450,26 @@ static int init_subports(struct ipath_devdata *dd,
 	if (uinfo->spu_subport_cnt <= 1)
 		goto bail;
 
-	/* Old user binaries don't know about new subport implementation */
-	if ((uinfo->spu_userversion & 0xffff) != IPATH_USER_SWMINOR) {
+	/* Self-consistency check for ipath_compatible_subports() */
+	if (ipath_supports_subports(IPATH_USER_SWMAJOR, IPATH_USER_SWMINOR) &&
+	    !ipath_compatible_subports(IPATH_USER_SWMAJOR,
+				       IPATH_USER_SWMINOR)) {
 		dev_info(&dd->pcidev->dev,
-			 "Mismatched user minor version (%d) and driver "
-                         "minor version (%d) while port sharing. Ensure "
+			 "Inconsistent ipath_compatible_subports()\n");
+		goto bail;
+	}
+
+	/* Check for subport compatibility */
+	if (!ipath_compatible_subports(uinfo->spu_userversion >> 16,
+				       uinfo->spu_userversion & 0xffff)) {
+		dev_info(&dd->pcidev->dev,
+			 "Mismatched user version (%d.%d) and driver "
+			 "version (%d.%d) while port sharing. Ensure "
                          "that driver and library are from the same "
                          "release.\n",
+			 (int) (uinfo->spu_userversion >> 16),
                          (int) (uinfo->spu_userversion & 0xffff),
+			 IPATH_USER_SWMAJOR,
 	                 IPATH_USER_SWMINOR);
 		goto bail;
 	}
@@ -1729,14 +1773,13 @@ static int ipath_open(struct inode *in, struct file *fp)
 	return fp->private_data ? 0 : -ENOMEM;
 }
 
-
 /* Get port early, so can set affinity prior to memory allocation */
 static int ipath_assign_port(struct file *fp,
 			      const struct ipath_user_info *uinfo)
 {
 	int ret;
 	int i_minor;
-	unsigned swminor;
+	unsigned swmajor, swminor;
 
 	/* Check to be sure we haven't already initialized this file */
 	if (port_fp(fp)) {
@@ -1745,7 +1788,8 @@ static int ipath_assign_port(struct file *fp,
 	}
 
 	/* for now, if major version is different, bail */
-	if ((uinfo->spu_userversion >> 16) != IPATH_USER_SWMAJOR) {
+	swmajor = uinfo->spu_userversion >> 16;
+	if (swmajor != IPATH_USER_SWMAJOR) {
 		ipath_dbg("User major version %d not same as driver "
 			  "major %d\n", uinfo->spu_userversion >> 16,
 			  IPATH_USER_SWMAJOR);
@@ -1760,7 +1804,8 @@ static int ipath_assign_port(struct file *fp,
 
 	mutex_lock(&ipath_mutex);
 
-	if (swminor == IPATH_USER_SWMINOR && uinfo->spu_subport_cnt &&
+	if (ipath_compatible_subports(swmajor, swminor) &&
+	    uinfo->spu_subport_cnt &&
 	    (ret = find_shared_port(fp, uinfo))) {
 		mutex_unlock(&ipath_mutex);
 		if (ret > 0)
@@ -2024,7 +2069,8 @@ static int ipath_port_info(struct ipath_portdata *pd, u16 subport,
 	info.port = pd->port_port;
 	info.subport = subport;
 	/* Don't return new fields if old library opened the port. */
-	if ((pd->userversion & 0xffff) == IPATH_USER_SWMINOR) {
+	if (ipath_supports_subports(pd->userversion >> 16,
+				    pd->userversion & 0xffff)) {
 		/* Number of user ports available for this device. */
 		info.num_ports = pd->port_dd->ipath_cfgports - 1;
 		info.num_subports = pd->port_subport_cnt;
