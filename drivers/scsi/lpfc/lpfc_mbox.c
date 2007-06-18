@@ -106,7 +106,7 @@ lpfc_read_la(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb, struct lpfc_dmabuf *mp)
 	 */
 	pmb->context1 = (uint8_t *) mp;
 	mb->mbxOwner = OWN_HOST;
-	return (0);
+	return 0;
 }
 
 /**********************************************/
@@ -134,6 +134,7 @@ lpfc_clear_la(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 void
 lpfc_config_link(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 {
+	struct lpfc_vport  *vport = phba->pport;
 	MAILBOX_t *mb = &pmb->mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
@@ -147,7 +148,7 @@ lpfc_config_link(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 		mb->un.varCfgLnk.cr_count = phba->cfg_cr_count;
 	}
 
-	mb->un.varCfgLnk.myId = phba->fc_myDID;
+	mb->un.varCfgLnk.myId = vport->fc_myDID;
 	mb->un.varCfgLnk.edtov = phba->fc_edtov;
 	mb->un.varCfgLnk.arbtov = phba->fc_arbtov;
 	mb->un.varCfgLnk.ratov = phba->fc_ratov;
@@ -208,7 +209,7 @@ lpfc_init_link(struct lpfc_hba * phba,
 	 */
 	vpd = &phba->vpd;
 	if (vpd->rev.feaLevelHigh >= 0x02){
-		switch(linkspeed){
+		switch (linkspeed){
 			case LINK_SPEED_1G:
 			case LINK_SPEED_2G:
 			case LINK_SPEED_4G:
@@ -263,7 +264,7 @@ lpfc_read_sparam(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 			        LOG_MBOX,
 			        "%d:0301 READ_SPARAM: no buffers\n",
 			        phba->brd_no);
-		return (1);
+		return 1;
 	}
 	INIT_LIST_HEAD(&mp->list);
 	mb->mbxCommand = MBX_READ_SPARM64;
@@ -274,7 +275,7 @@ lpfc_read_sparam(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	/* save address for completion */
 	pmb->context1 = mp;
 
-	return (0);
+	return 0;
 }
 
 /********************************************/
@@ -282,7 +283,7 @@ lpfc_read_sparam(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 /*                  mailbox command         */
 /********************************************/
 void
-lpfc_unreg_did(struct lpfc_hba * phba, uint32_t did, LPFC_MBOXQ_t * pmb)
+lpfc_unreg_did(struct lpfc_hba *phba, uint32_t did, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t *mb;
 
@@ -335,16 +336,13 @@ lpfc_read_lnk_stat(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 /*                  mailbox command         */
 /********************************************/
 int
-lpfc_reg_login(struct lpfc_hba * phba,
-	       uint32_t did, uint8_t * param, LPFC_MBOXQ_t * pmb, uint32_t flag)
+lpfc_reg_login(struct lpfc_hba *phba, uint32_t did, uint8_t *param,
+	       LPFC_MBOXQ_t *pmb, uint32_t flag)
 {
+	MAILBOX_t *mb = &pmb->mb;
 	uint8_t *sparam;
 	struct lpfc_dmabuf *mp;
-	MAILBOX_t *mb;
-	struct lpfc_sli *psli;
 
-	psli = &phba->sli;
-	mb = &pmb->mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
 	mb->un.varRegLogin.rpi = 0;
@@ -365,7 +363,7 @@ lpfc_reg_login(struct lpfc_hba * phba,
 			       "%d:0302 REG_LOGIN: no buffers Data x%x x%x\n",
 			       phba->brd_no,
 			       (uint32_t) did, (uint32_t) flag);
-		return (1);
+		return 1;
 	}
 	INIT_LIST_HEAD(&mp->list);
 	sparam = mp->virt;
@@ -381,7 +379,7 @@ lpfc_reg_login(struct lpfc_hba * phba,
 	mb->un.varRegLogin.un.sp64.addrHigh = putPaddrHigh(mp->phys);
 	mb->un.varRegLogin.un.sp64.addrLow = putPaddrLow(mp->phys);
 
-	return (0);
+	return 0;
 }
 
 /**********************************************/
@@ -389,7 +387,7 @@ lpfc_reg_login(struct lpfc_hba * phba,
 /*                    mailbox command         */
 /**********************************************/
 void
-lpfc_unreg_login(struct lpfc_hba * phba, uint32_t rpi, LPFC_MBOXQ_t * pmb)
+lpfc_unreg_login(struct lpfc_hba *phba, uint32_t rpi, LPFC_MBOXQ_t * pmb)
 {
 	MAILBOX_t *mb;
 
@@ -412,14 +410,14 @@ lpfc_config_pcb_setup(struct lpfc_hba * phba)
 	PCB_t *pcbp = &phba->slim2p->pcb;
 	dma_addr_t pdma_addr;
 	uint32_t offset;
-	uint32_t iocbCnt;
+	uint32_t iocbCnt = 0;
 	int i;
 
 	pcbp->maxRing = (psli->num_rings - 1);
 
-	iocbCnt = 0;
 	for (i = 0; i < psli->num_rings; i++) {
 		pring = &psli->ring[i];
+
 		/* A ring MUST have both cmd and rsp entries defined to be
 		   valid */
 		if ((pring->numCiocb == 0) || (pring->numRiocb == 0)) {
@@ -462,9 +460,7 @@ lpfc_config_pcb_setup(struct lpfc_hba * phba)
 void
 lpfc_read_rev(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 {
-	MAILBOX_t *mb;
-
-	mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 	mb->un.varRdRev.cv = 1;
 	mb->mbxCommand = MBX_READ_REV;
@@ -644,8 +640,7 @@ lpfc_mbox_get(struct lpfc_hba * phba)
 	LPFC_MBOXQ_t *mbq = NULL;
 	struct lpfc_sli *psli = &phba->sli;
 
-	list_remove_head((&psli->mboxq), mbq, LPFC_MBOXQ_t,
-			 list);
+	list_remove_head((&psli->mboxq), mbq, LPFC_MBOXQ_t, list);
 	if (mbq) {
 		psli->mboxq_cnt--;
 	}

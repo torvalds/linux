@@ -312,8 +312,7 @@ struct csp {
 
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint16_t increasingOffset:1;	/* FC Word 1, bit 31 */
-	uint16_t randomOffset:1;	/* FC Word 1, bit 30 */
-	uint16_t word1Reserved2:1;	/* FC Word 1, bit 29 */
+	uint16_t response_multiple_Nport:1;	/* FC Word 1, bit 29 */
 	uint16_t fPort:1;	/* FC Word 1, bit 28 */
 	uint16_t altBbCredit:1;	/* FC Word 1, bit 27 */
 	uint16_t edtovResolution:1;	/* FC Word 1, bit 26 */
@@ -2178,8 +2177,8 @@ typedef struct {
 #define  DMP_RSP_OFFSET          0x14   /* word 5 contains first word of rsp */
 #define  DMP_RSP_SIZE            0x6C   /* maximum of 27 words of rsp data */
 
-/* Structure for MB Command CONFIG_PORT (0x88) */
 
+/* Structure for MB Command CONFIG_PORT (0x88) */
 typedef struct {
 	uint32_t pcbLen;
 	uint32_t pcbLow;       /* bit 31:0  of memory based port config block */
@@ -2742,15 +2741,15 @@ struct lpfc_sli2_slim {
 	IOCB_t IOCBs[MAX_SLI2_IOCB];
 };
 
-/*******************************************************************
-This macro check PCI device to allow special handling for LC HBAs.
-
-Parameters:
-device : struct pci_dev 's device field
-
-return 1 => TRUE
-       0 => FALSE
- *******************************************************************/
+/*
+ * This function checks PCI device to allow special handling for LC HBAs.
+ *
+ * Parameters:
+ * device : struct pci_dev 's device field
+ *
+ * return 1 => TRUE
+ *        0 => FALSE
+ */
 static inline int
 lpfc_is_LC_HBA(unsigned short device)
 {

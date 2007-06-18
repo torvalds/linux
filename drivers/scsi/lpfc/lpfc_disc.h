@@ -49,8 +49,8 @@ struct lpfc_work_evt {
 
 struct lpfc_nodelist {
 	struct list_head nlp_listp;
-	struct lpfc_name nlp_portname;		/* port name */
-	struct lpfc_name nlp_nodename;		/* node name */
+	struct lpfc_name nlp_portname;
+	struct lpfc_name nlp_nodename;
 	uint32_t         nlp_flag;		/* entry  flags */
 	uint32_t         nlp_DID;		/* FC D_ID of entry */
 	uint32_t         nlp_last_elscmd;	/* Last ELS cmd sent */
@@ -75,7 +75,7 @@ struct lpfc_nodelist {
 	struct timer_list   nlp_delayfunc;	/* Used for delayed ELS cmds */
 	struct fc_rport *rport;			/* Corresponding FC transport
 						   port structure */
-	struct lpfc_hba      *nlp_phba;
+	struct lpfc_vport *vport;
 	struct lpfc_work_evt els_retry_evt;
 	unsigned long last_ramp_up_time;        /* jiffy of last ramp up */
 	unsigned long last_q_full_time;		/* jiffy of last queue full */

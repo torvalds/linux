@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -37,6 +37,8 @@
 
 #define LPFC_MBUF_POOL_SIZE     64      /* max elements in MBUF safety pool */
 #define LPFC_MEM_POOL_SIZE      64      /* max elem in non-DMA safety pool */
+
+
 
 int
 lpfc_mem_alloc(struct lpfc_hba * phba)
@@ -84,6 +86,7 @@ lpfc_mem_alloc(struct lpfc_hba * phba)
 
  fail_free_mbox_pool:
 	mempool_destroy(phba->mbox_mem_pool);
+	phba->mbox_mem_pool = NULL;
  fail_free_mbuf_pool:
 	while (i--)
 		pci_pool_free(phba->lpfc_mbuf_pool, pool->elements[i].virt,
@@ -91,8 +94,10 @@ lpfc_mem_alloc(struct lpfc_hba * phba)
 	kfree(pool->elements);
  fail_free_lpfc_mbuf_pool:
 	pci_pool_destroy(phba->lpfc_mbuf_pool);
+	phba->lpfc_mbuf_pool = NULL;
  fail_free_dma_buf_pool:
 	pci_pool_destroy(phba->lpfc_scsi_dma_buf_pool);
+	phba->lpfc_scsi_dma_buf_pool = NULL;
  fail:
 	return -ENOMEM;
 }
@@ -106,6 +111,7 @@ lpfc_mem_free(struct lpfc_hba * phba)
 	struct lpfc_dmabuf   *mp;
 	int i;
 
+	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry_safe(mbox, next_mbox, &psli->mboxq, list) {
 		mp = (struct lpfc_dmabuf *) (mbox->context1);
 		if (mp) {
@@ -117,6 +123,7 @@ lpfc_mem_free(struct lpfc_hba * phba)
 	}
 
 	psli->sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
+	spin_unlock_irq(&phba->hbalock);
 	if (psli->mbox_active) {
 		mbox = psli->mbox_active;
 		mp = (struct lpfc_dmabuf *) (mbox->context1);
@@ -132,11 +139,17 @@ lpfc_mem_free(struct lpfc_hba * phba)
 		pci_pool_free(phba->lpfc_mbuf_pool, pool->elements[i].virt,
 						 pool->elements[i].phys);
 	kfree(pool->elements);
+
 	mempool_destroy(phba->nlp_mem_pool);
 	mempool_destroy(phba->mbox_mem_pool);
 
 	pci_pool_destroy(phba->lpfc_scsi_dma_buf_pool);
 	pci_pool_destroy(phba->lpfc_mbuf_pool);
+
+	phba->nlp_mem_pool = NULL;
+	phba->mbox_mem_pool = NULL;
+	phba->lpfc_scsi_dma_buf_pool = NULL;
+	phba->lpfc_mbuf_pool = NULL;
 
 	/* Free the iocb lookup array */
 	kfree(psli->iocbq_lookup);
@@ -148,20 +161,23 @@ void *
 lpfc_mbuf_alloc(struct lpfc_hba *phba, int mem_flags, dma_addr_t *handle)
 {
 	struct lpfc_dma_pool *pool = &phba->lpfc_mbuf_safety_pool;
+	unsigned long iflags;
 	void *ret;
 
 	ret = pci_pool_alloc(phba->lpfc_mbuf_pool, GFP_KERNEL, handle);
 
+	spin_lock_irqsave(&phba->hbalock, iflags);
 	if (!ret && ( mem_flags & MEM_PRI) && pool->current_count) {
 		pool->current_count--;
 		ret = pool->elements[pool->current_count].virt;
 		*handle = pool->elements[pool->current_count].phys;
 	}
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
 	return ret;
 }
 
 void
-lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
+__lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
 {
 	struct lpfc_dma_pool *pool = &phba->lpfc_mbuf_safety_pool;
 
@@ -172,5 +188,16 @@ lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
 	} else {
 		pci_pool_free(phba->lpfc_mbuf_pool, virt, dma);
 	}
+	return;
+}
+
+void
+lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
+{
+	unsigned long iflags;
+
+	spin_lock_irqsave(&phba->hbalock, iflags);
+	__lpfc_mbuf_free(phba, virt, dma);
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
 	return;
 }

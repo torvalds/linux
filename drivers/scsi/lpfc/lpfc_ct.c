@@ -59,13 +59,13 @@ static char *lpfc_release_version = LPFC_DRIVER_VERSION;
  * lpfc_ct_unsol_event
  */
 void
-lpfc_ct_unsol_event(struct lpfc_hba * phba,
-		    struct lpfc_sli_ring * pring, struct lpfc_iocbq * piocbq)
+lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
+		    struct lpfc_iocbq *piocbq)
 {
 
 	struct lpfc_iocbq *next_piocbq;
 	struct lpfc_dmabuf *pmbuf = NULL;
-	struct lpfc_dmabuf *matp, *next_matp;
+	struct lpfc_dmabuf *matp = NULL, *next_matp;
 	uint32_t ctx = 0, size = 0, cnt = 0;
 	IOCB_t *icmd = &piocbq->iocb;
 	IOCB_t *save_icmd = icmd;
@@ -145,7 +145,7 @@ ct_unsol_event_exit_piocbq:
 }
 
 static void
-lpfc_free_ct_rsp(struct lpfc_hba * phba, struct lpfc_dmabuf * mlist)
+lpfc_free_ct_rsp(struct lpfc_hba *phba, struct lpfc_dmabuf *mlist)
 {
 	struct lpfc_dmabuf *mlast, *next_mlast;
 
@@ -160,7 +160,7 @@ lpfc_free_ct_rsp(struct lpfc_hba * phba, struct lpfc_dmabuf * mlist)
 }
 
 static struct lpfc_dmabuf *
-lpfc_alloc_ct_rsp(struct lpfc_hba * phba, int cmdcode, struct ulp_bde64 * bpl,
+lpfc_alloc_ct_rsp(struct lpfc_hba *phba, int cmdcode, struct ulp_bde64 *bpl,
 		  uint32_t size, int *entries)
 {
 	struct lpfc_dmabuf *mlist = NULL;
@@ -216,23 +216,21 @@ lpfc_alloc_ct_rsp(struct lpfc_hba * phba, int cmdcode, struct ulp_bde64 * bpl,
 }
 
 static int
-lpfc_gen_req(struct lpfc_hba *phba, struct lpfc_dmabuf *bmp,
+lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	     struct lpfc_dmabuf *inp, struct lpfc_dmabuf *outp,
 	     void (*cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,
 		     struct lpfc_iocbq *),
 	     struct lpfc_nodelist *ndlp, uint32_t usr_flg, uint32_t num_entry,
 	     uint32_t tmo)
 {
-
-	struct lpfc_sli *psli = &phba->sli;
+	struct lpfc_hba  *phba = vport->phba;
+	struct lpfc_sli  *psli = &phba->sli;
 	struct lpfc_sli_ring *pring = &psli->ring[LPFC_ELS_RING];
 	IOCB_t *icmd;
 	struct lpfc_iocbq *geniocb;
 
 	/* Allocate buffer for  command iocb */
-	spin_lock_irq(phba->host->host_lock);
 	geniocb = lpfc_sli_get_iocbq(phba);
-	spin_unlock_irq(phba->host->host_lock);
 
 	if (geniocb == NULL)
 		return 1;
@@ -276,27 +274,26 @@ lpfc_gen_req(struct lpfc_hba *phba, struct lpfc_dmabuf *bmp,
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
 			"%d:0119 Issue GEN REQ IOCB for NPORT x%x "
 			"Data: x%x x%x\n", phba->brd_no, icmd->un.ulpWord[5],
-			icmd->ulpIoTag, phba->hba_state);
+			icmd->ulpIoTag, vport->port_state);
 	geniocb->iocb_cmpl = cmpl;
 	geniocb->drvrTimeout = icmd->ulpTimeout + LPFC_DRVR_TIMEOUT;
-	spin_lock_irq(phba->host->host_lock);
+	geniocb->vport = vport;
 	if (lpfc_sli_issue_iocb(phba, pring, geniocb, 0) == IOCB_ERROR) {
 		lpfc_sli_release_iocbq(phba, geniocb);
-		spin_unlock_irq(phba->host->host_lock);
 		return 1;
 	}
-	spin_unlock_irq(phba->host->host_lock);
 
 	return 0;
 }
 
 static int
-lpfc_ct_cmd(struct lpfc_hba *phba, struct lpfc_dmabuf *inmp,
+lpfc_ct_cmd(struct lpfc_vport *vport, struct lpfc_dmabuf *inmp,
 	    struct lpfc_dmabuf *bmp, struct lpfc_nodelist *ndlp,
 	    void (*cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,
 			  struct lpfc_iocbq *),
 	    uint32_t rsp_size)
 {
+	struct lpfc_hba  *phba = vport->phba;
 	struct ulp_bde64 *bpl = (struct ulp_bde64 *) bmp->virt;
 	struct lpfc_dmabuf *outmp;
 	int cnt = 0, status;
@@ -310,7 +307,7 @@ lpfc_ct_cmd(struct lpfc_hba *phba, struct lpfc_dmabuf *inmp,
 	if (!outmp)
 		return -ENOMEM;
 
-	status = lpfc_gen_req(phba, bmp, inmp, outmp, cmpl, ndlp, 0,
+	status = lpfc_gen_req(vport, bmp, inmp, outmp, cmpl, ndlp, 0,
 			      cnt+1, 0);
 	if (status) {
 		lpfc_free_ct_rsp(phba, outmp);
@@ -320,19 +317,20 @@ lpfc_ct_cmd(struct lpfc_hba *phba, struct lpfc_dmabuf *inmp,
 }
 
 static int
-lpfc_ns_rsp(struct lpfc_hba * phba, struct lpfc_dmabuf * mp, uint32_t Size)
+lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint32_t Size)
 {
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_sli_ct_request *Response =
 		(struct lpfc_sli_ct_request *) mp->virt;
 	struct lpfc_nodelist *ndlp = NULL;
 	struct lpfc_dmabuf *mlast, *next_mp;
 	uint32_t *ctptr = (uint32_t *) & Response->un.gid.PortType;
-	uint32_t Did;
-	uint32_t CTentry;
+	uint32_t Did, CTentry;
 	int Cnt;
 	struct list_head head;
 
-	lpfc_set_disctmo(phba);
+	lpfc_set_disctmo(vport);
 
 
 	list_add_tail(&head, &mp->list);
@@ -350,39 +348,31 @@ lpfc_ns_rsp(struct lpfc_hba * phba, struct lpfc_dmabuf * mp, uint32_t Size)
 
 		/* Loop through entire NameServer list of DIDs */
 		while (Cnt >= sizeof (uint32_t)) {
-
 			/* Get next DID from NameServer List */
 			CTentry = *ctptr++;
 			Did = ((be32_to_cpu(CTentry)) & Mask_DID);
-
 			ndlp = NULL;
-			if (Did != phba->fc_myDID) {
-				/* Check for rscn processing or not */
-				ndlp = lpfc_setup_disc_node(phba, Did);
-			}
-			/* Mark all node table entries that are in the
-			   Nameserver */
+			/* Check for rscn processing or not */
+			if (Did != vport->fc_myDID)
+				ndlp = lpfc_setup_disc_node(vport, Did);
 			if (ndlp) {
-				/* NameServer Rsp */
 				lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
 						"%d:0238 Process x%x NameServer"
 						" Rsp Data: x%x x%x x%x\n",
 						phba->brd_no,
 						Did, ndlp->nlp_flag,
-						phba->fc_flag,
-						phba->fc_rscn_id_cnt);
+						vport->fc_flag,
+						vport->fc_rscn_id_cnt);
 			} else {
-				/* NameServer Rsp */
 				lpfc_printf_log(phba,
 						KERN_INFO,
 						LOG_DISCOVERY,
 						"%d:0239 Skip x%x NameServer "
 						"Rsp Data: x%x x%x x%x\n",
 						phba->brd_no,
-						Did, Size, phba->fc_flag,
-						phba->fc_rscn_id_cnt);
+						Did, Size, vport->fc_flag,
+						vport->fc_rscn_id_cnt);
 			}
-
 			if (CTentry & (be32_to_cpu(SLI_CT_LAST_ENTRY)))
 				goto nsout1;
 			Cnt -= sizeof (uint32_t);
@@ -395,15 +385,15 @@ nsout1:
 	list_del(&head);
 
 	/*
- 	 * The driver has cycled through all Nports in the RSCN payload.
- 	 * Complete the handling by cleaning up and marking the
- 	 * current driver state.
- 	 */
-	if (phba->hba_state == LPFC_HBA_READY) {
-		lpfc_els_flush_rscn(phba);
-		spin_lock_irq(phba->host->host_lock);
-		phba->fc_flag |= FC_RSCN_MODE; /* we are still in RSCN mode */
-		spin_unlock_irq(phba->host->host_lock);
+	 * The driver has cycled through all Nports in the RSCN payload.
+	 * Complete the handling by cleaning up and marking the
+	 * current driver state.
+	 */
+	if (vport->port_state == LPFC_VPORT_READY) {
+		lpfc_els_flush_rscn(vport);
+		spin_lock_irq(shost->host_lock);
+		vport->fc_flag |= FC_RSCN_MODE; /* we are still in RSCN mode */
+		spin_unlock_irq(shost->host_lock);
 	}
 	return 0;
 }
@@ -412,18 +402,18 @@ nsout1:
 
 
 static void
-lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
-			struct lpfc_iocbq * rspiocb)
+lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+			struct lpfc_iocbq *rspiocb)
 {
+	struct lpfc_vport *vport = cmdiocb->vport;
 	IOCB_t *irsp;
-	struct lpfc_sli *psli;
 	struct lpfc_dmabuf *bmp;
 	struct lpfc_dmabuf *inp;
 	struct lpfc_dmabuf *outp;
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_sli_ct_request *CTrsp;
+	int rc;
 
-	psli = &phba->sli;
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
 	cmdiocb->context_un.rsp_iocb = rspiocb;
 
@@ -435,22 +425,20 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	if (irsp->ulpStatus) {
 		if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
 			((irsp->un.ulpWord[4] == IOERR_SLI_DOWN) ||
-			 (irsp->un.ulpWord[4] == IOERR_SLI_ABORTED))) {
+			 (irsp->un.ulpWord[4] == IOERR_SLI_ABORTED)))
 			goto out;
-		}
 
 		/* Check for retry */
-		if (phba->fc_ns_retry < LPFC_MAX_NS_RETRY) {
-			phba->fc_ns_retry++;
+		if (vport->fc_ns_retry < LPFC_MAX_NS_RETRY) {
+			vport->fc_ns_retry++;
 			/* CT command is being retried */
-			ndlp = lpfc_findnode_did(phba, NameServer_DID);
+			ndlp = lpfc_findnode_did(vport, NameServer_DID);
 			if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
-				if (lpfc_ns_cmd(phba, ndlp, SLI_CTNS_GID_FT) ==
-				    0) {
+				rc = lpfc_ns_cmd(vport, ndlp, SLI_CTNS_GID_FT);
+				if (rc == 0)
 					goto out;
 				}
 			}
-		}
 	} else {
 		/* Good status, continue checking */
 		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
@@ -460,8 +448,8 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 					"%d:0208 NameServer Rsp "
 					"Data: x%x\n",
 					phba->brd_no,
-					phba->fc_flag);
-			lpfc_ns_rsp(phba, outp,
+					vport->fc_flag);
+			lpfc_ns_rsp(vport, outp,
 				    (uint32_t) (irsp->un.genreq64.bdl.bdeSize));
 		} else if (CTrsp->CommandResponse.bits.CmdRsp ==
 			   be16_to_cpu(SLI_CT_RESPONSE_FS_RJT)) {
@@ -473,7 +461,7 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 					CTrsp->CommandResponse.bits.CmdRsp,
 					(uint32_t) CTrsp->ReasonCode,
 					(uint32_t) CTrsp->Explanation,
-					phba->fc_flag);
+					vport->fc_flag);
 		} else {
 			/* NameServer Rsp Error */
 			lpfc_printf_log(phba,
@@ -485,35 +473,31 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 					CTrsp->CommandResponse.bits.CmdRsp,
 					(uint32_t) CTrsp->ReasonCode,
 					(uint32_t) CTrsp->Explanation,
-					phba->fc_flag);
+					vport->fc_flag);
 		}
 	}
 	/* Link up / RSCN discovery */
-	lpfc_disc_start(phba);
+	lpfc_disc_start(vport);
 out:
 	lpfc_free_ct_rsp(phba, outp);
 	lpfc_mbuf_free(phba, inp->virt, inp->phys);
 	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
 	kfree(inp);
 	kfree(bmp);
-	spin_lock_irq(phba->host->host_lock);
 	lpfc_sli_release_iocbq(phba, cmdiocb);
-	spin_unlock_irq(phba->host->host_lock);
 	return;
 }
 
 static void
-lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
-			struct lpfc_iocbq * rspiocb)
+lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+			struct lpfc_iocbq *rspiocb)
 {
-	struct lpfc_sli *psli;
 	struct lpfc_dmabuf *bmp;
 	struct lpfc_dmabuf *inp;
 	struct lpfc_dmabuf *outp;
 	IOCB_t *irsp;
 	struct lpfc_sli_ct_request *CTrsp;
 
-	psli = &phba->sli;
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
 	cmdiocb->context_un.rsp_iocb = rspiocb;
 
@@ -527,31 +511,31 @@ lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	/* RFT request completes status <ulpStatus> CmdRsp <CmdRsp> */
 	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
 			"%d:0209 RFT request completes ulpStatus x%x "
-			"CmdRsp x%x\n", phba->brd_no, irsp->ulpStatus,
-			CTrsp->CommandResponse.bits.CmdRsp);
+			"CmdRsp x%x, Context x%x, Tag x%x\n",
+			phba->brd_no, irsp->ulpStatus,
+			CTrsp->CommandResponse.bits.CmdRsp,
+			cmdiocb->iocb.ulpContext, cmdiocb->iocb.ulpIoTag);
 
 	lpfc_free_ct_rsp(phba, outp);
 	lpfc_mbuf_free(phba, inp->virt, inp->phys);
 	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
 	kfree(inp);
 	kfree(bmp);
-	spin_lock_irq(phba->host->host_lock);
 	lpfc_sli_release_iocbq(phba, cmdiocb);
-	spin_unlock_irq(phba->host->host_lock);
 	return;
 }
 
 static void
-lpfc_cmpl_ct_cmd_rnn_id(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
-			struct lpfc_iocbq * rspiocb)
+lpfc_cmpl_ct_cmd_rnn_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+			struct lpfc_iocbq *rspiocb)
 {
 	lpfc_cmpl_ct_cmd_rft_id(phba, cmdiocb, rspiocb);
 	return;
 }
 
 static void
-lpfc_cmpl_ct_cmd_rsnn_nn(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
-			 struct lpfc_iocbq * rspiocb)
+lpfc_cmpl_ct_cmd_rsnn_nn(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+			 struct lpfc_iocbq *rspiocb)
 {
 	lpfc_cmpl_ct_cmd_rft_id(phba, cmdiocb, rspiocb);
 	return;
@@ -566,7 +550,7 @@ lpfc_cmpl_ct_cmd_rff_id(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 }
 
 void
-lpfc_get_hba_sym_node_name(struct lpfc_hba * phba, uint8_t * symbp)
+lpfc_get_hba_sym_node_name(struct lpfc_hba *phba, uint8_t *symbp)
 {
 	char fwrev[16];
 
@@ -585,8 +569,9 @@ lpfc_get_hba_sym_node_name(struct lpfc_hba * phba, uint8_t * symbp)
  *       LI_CTNS_RFT_ID
  */
 int
-lpfc_ns_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
+lpfc_ns_cmd(struct lpfc_vport *vport, struct lpfc_nodelist * ndlp, int cmdcode)
 {
+	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_dmabuf *mp, *bmp;
 	struct lpfc_sli_ct_request *CtReq;
 	struct ulp_bde64 *bpl;
@@ -620,8 +605,8 @@ lpfc_ns_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 			KERN_INFO,
 			LOG_DISCOVERY,
 			"%d:0236 NameServer Req Data: x%x x%x x%x\n",
-			phba->brd_no, cmdcode, phba->fc_flag,
-			phba->fc_rscn_id_cnt);
+			phba->brd_no, cmdcode, vport->fc_flag,
+			vport->fc_rscn_id_cnt);
 
 	bpl = (struct ulp_bde64 *) bmp->virt;
 	memset(bpl, 0, sizeof(struct ulp_bde64));
@@ -654,9 +639,9 @@ lpfc_ns_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 		CtReq->CommandResponse.bits.CmdRsp =
 		    be16_to_cpu(SLI_CTNS_GID_FT);
 		CtReq->un.gid.Fc4Type = SLI_CTPT_FCP;
-		if (phba->hba_state < LPFC_HBA_READY)
-			phba->hba_state = LPFC_NS_QRY;
-		lpfc_set_disctmo(phba);
+		if (vport->port_state < LPFC_VPORT_READY)
+			vport->port_state = LPFC_NS_QRY;
+		lpfc_set_disctmo(vport);
 		cmpl = lpfc_cmpl_ct_cmd_gid_ft;
 		rsp_size = FC_MAX_NS_RSP;
 		break;
@@ -664,7 +649,7 @@ lpfc_ns_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 	case SLI_CTNS_RFT_ID:
 		CtReq->CommandResponse.bits.CmdRsp =
 		    be16_to_cpu(SLI_CTNS_RFT_ID);
-		CtReq->un.rft.PortId = be32_to_cpu(phba->fc_myDID);
+		CtReq->un.rft.PortId = be32_to_cpu(vport->fc_myDID);
 		CtReq->un.rft.fcpReg = 1;
 		cmpl = lpfc_cmpl_ct_cmd_rft_id;
 		break;
@@ -672,7 +657,7 @@ lpfc_ns_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 	case SLI_CTNS_RFF_ID:
 		CtReq->CommandResponse.bits.CmdRsp =
 			be16_to_cpu(SLI_CTNS_RFF_ID);
-		CtReq->un.rff.PortId = be32_to_cpu(phba->fc_myDID);
+		CtReq->un.rff.PortId = be32_to_cpu(vport->fc_myDID);
 		CtReq->un.rff.feature_res = 0;
 		CtReq->un.rff.feature_tgt = 0;
 		CtReq->un.rff.type_code = FC_FCP_DATA;
@@ -683,8 +668,8 @@ lpfc_ns_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 	case SLI_CTNS_RNN_ID:
 		CtReq->CommandResponse.bits.CmdRsp =
 		    be16_to_cpu(SLI_CTNS_RNN_ID);
-		CtReq->un.rnn.PortId = be32_to_cpu(phba->fc_myDID);
-		memcpy(CtReq->un.rnn.wwnn,  &phba->fc_nodename,
+		CtReq->un.rnn.PortId = be32_to_cpu(vport->fc_myDID);
+		memcpy(CtReq->un.rnn.wwnn,  &vport->fc_nodename,
 		       sizeof (struct lpfc_name));
 		cmpl = lpfc_cmpl_ct_cmd_rnn_id;
 		break;
@@ -692,7 +677,7 @@ lpfc_ns_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 	case SLI_CTNS_RSNN_NN:
 		CtReq->CommandResponse.bits.CmdRsp =
 		    be16_to_cpu(SLI_CTNS_RSNN_NN);
-		memcpy(CtReq->un.rsnn.wwnn, &phba->fc_nodename,
+		memcpy(CtReq->un.rsnn.wwnn, &vport->fc_nodename,
 		       sizeof (struct lpfc_name));
 		lpfc_get_hba_sym_node_name(phba, CtReq->un.rsnn.symbname);
 		CtReq->un.rsnn.len = strlen(CtReq->un.rsnn.symbname);
@@ -700,7 +685,7 @@ lpfc_ns_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 		break;
 	}
 
-	if (!lpfc_ct_cmd(phba, mp, bmp, ndlp, cmpl, rsp_size))
+	if (!lpfc_ct_cmd(vport, mp, bmp, ndlp, cmpl, rsp_size))
 		/* On success, The cmpl function will free the buffers */
 		return 0;
 
@@ -716,8 +701,8 @@ ns_cmd_exit:
 }
 
 static void
-lpfc_cmpl_ct_cmd_fdmi(struct lpfc_hba * phba,
-		      struct lpfc_iocbq * cmdiocb, struct lpfc_iocbq * rspiocb)
+lpfc_cmpl_ct_cmd_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+		      struct lpfc_iocbq * rspiocb)
 {
 	struct lpfc_dmabuf *bmp = cmdiocb->context3;
 	struct lpfc_dmabuf *inp = cmdiocb->context1;
@@ -727,8 +712,9 @@ lpfc_cmpl_ct_cmd_fdmi(struct lpfc_hba * phba,
 	struct lpfc_nodelist *ndlp;
 	uint16_t fdmi_cmd = CTcmd->CommandResponse.bits.CmdRsp;
 	uint16_t fdmi_rsp = CTrsp->CommandResponse.bits.CmdRsp;
+	struct lpfc_vport *vport = cmdiocb->vport;
 
-	ndlp = lpfc_findnode_did(phba, FDMI_DID);
+	ndlp = lpfc_findnode_did(vport, FDMI_DID);
 	if (fdmi_rsp == be16_to_cpu(SLI_CT_RESPONSE_FS_RJT)) {
 		/* FDMI rsp failed */
 		lpfc_printf_log(phba,
@@ -741,18 +727,18 @@ lpfc_cmpl_ct_cmd_fdmi(struct lpfc_hba * phba,
 
 	switch (be16_to_cpu(fdmi_cmd)) {
 	case SLI_MGMT_RHBA:
-		lpfc_fdmi_cmd(phba, ndlp, SLI_MGMT_RPA);
+		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_RPA);
 		break;
 
 	case SLI_MGMT_RPA:
 		break;
 
 	case SLI_MGMT_DHBA:
-		lpfc_fdmi_cmd(phba, ndlp, SLI_MGMT_DPRT);
+		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DPRT);
 		break;
 
 	case SLI_MGMT_DPRT:
-		lpfc_fdmi_cmd(phba, ndlp, SLI_MGMT_RHBA);
+		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_RHBA);
 		break;
 	}
 
@@ -761,14 +747,14 @@ lpfc_cmpl_ct_cmd_fdmi(struct lpfc_hba * phba,
 	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
 	kfree(inp);
 	kfree(bmp);
-	spin_lock_irq(phba->host->host_lock);
 	lpfc_sli_release_iocbq(phba, cmdiocb);
-	spin_unlock_irq(phba->host->host_lock);
 	return;
 }
+
 int
-lpfc_fdmi_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
+lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp, int cmdcode)
 {
+	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_dmabuf *mp, *bmp;
 	struct lpfc_sli_ct_request *CtReq;
 	struct ulp_bde64 *bpl;
@@ -810,7 +796,7 @@ lpfc_fdmi_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 		        LOG_DISCOVERY,
 		        "%d:0218 FDMI Request Data: x%x x%x x%x\n",
 		        phba->brd_no,
-		       phba->fc_flag, phba->hba_state, cmdcode);
+			vport->fc_flag, vport->port_state, cmdcode);
 
 	CtReq = (struct lpfc_sli_ct_request *) mp->virt;
 
@@ -833,11 +819,11 @@ lpfc_fdmi_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 			    be16_to_cpu(SLI_MGMT_RHBA);
 			CtReq->CommandResponse.bits.Size = 0;
 			rh = (REG_HBA *) & CtReq->un.PortID;
-			memcpy(&rh->hi.PortName, &phba->fc_sparam.portName,
+			memcpy(&rh->hi.PortName, &vport->fc_sparam.portName,
 			       sizeof (struct lpfc_name));
 			/* One entry (port) per adapter */
 			rh->rpl.EntryCnt = be32_to_cpu(1);
-			memcpy(&rh->rpl.pe, &phba->fc_sparam.portName,
+			memcpy(&rh->rpl.pe, &vport->fc_sparam.portName,
 			       sizeof (struct lpfc_name));
 
 			/* point to the HBA attribute block */
@@ -853,7 +839,7 @@ lpfc_fdmi_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 			ae->ad.bits.AttrType = be16_to_cpu(NODE_NAME);
 			ae->ad.bits.AttrLen =  be16_to_cpu(FOURBYTES
 						+ sizeof (struct lpfc_name));
-			memcpy(&ae->un.NodeName, &phba->fc_sparam.nodeName,
+			memcpy(&ae->un.NodeName, &vport->fc_sparam.nodeName,
 			       sizeof (struct lpfc_name));
 			ab->EntryCnt++;
 			size += FOURBYTES + sizeof (struct lpfc_name);
@@ -991,7 +977,7 @@ lpfc_fdmi_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 			pab = (REG_PORT_ATTRIBUTE *) & CtReq->un.PortID;
 			size = sizeof (struct lpfc_name) + FOURBYTES;
 			memcpy((uint8_t *) & pab->PortName,
-			       (uint8_t *) & phba->fc_sparam.portName,
+			       (uint8_t *) & vport->fc_sparam.portName,
 			       sizeof (struct lpfc_name));
 			pab->ab.EntryCnt = 0;
 
@@ -1053,7 +1039,7 @@ lpfc_fdmi_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 			ae = (ATTRIBUTE_ENTRY *) ((uint8_t *) pab + size);
 			ae->ad.bits.AttrType = be16_to_cpu(MAX_FRAME_SIZE);
 			ae->ad.bits.AttrLen = be16_to_cpu(FOURBYTES + 4);
-			hsp = (struct serv_parm *) & phba->fc_sparam;
+			hsp = (struct serv_parm *) & vport->fc_sparam;
 			ae->un.MaxFrameSize =
 			    (((uint32_t) hsp->cmn.
 			      bbRcvSizeMsb) << 8) | (uint32_t) hsp->cmn.
@@ -1097,7 +1083,7 @@ lpfc_fdmi_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 		CtReq->CommandResponse.bits.Size = 0;
 		pe = (PORT_ENTRY *) & CtReq->un.PortID;
 		memcpy((uint8_t *) & pe->PortName,
-		       (uint8_t *) & phba->fc_sparam.portName,
+		       (uint8_t *) & vport->fc_sparam.portName,
 		       sizeof (struct lpfc_name));
 		size = GID_REQUEST_SZ - 4 + sizeof (struct lpfc_name);
 		break;
@@ -1107,7 +1093,7 @@ lpfc_fdmi_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 		CtReq->CommandResponse.bits.Size = 0;
 		pe = (PORT_ENTRY *) & CtReq->un.PortID;
 		memcpy((uint8_t *) & pe->PortName,
-		       (uint8_t *) & phba->fc_sparam.portName,
+		       (uint8_t *) & vport->fc_sparam.portName,
 		       sizeof (struct lpfc_name));
 		size = GID_REQUEST_SZ - 4 + sizeof (struct lpfc_name);
 		break;
@@ -1122,7 +1108,7 @@ lpfc_fdmi_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 
 	cmpl = lpfc_cmpl_ct_cmd_fdmi;
 
-	if (!lpfc_ct_cmd(phba, mp, bmp, ndlp, cmpl, FC_MAX_NS_RSP))
+	if (!lpfc_ct_cmd(vport, mp, bmp, ndlp, cmpl, FC_MAX_NS_RSP))
 		return 0;
 
 	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
@@ -1146,37 +1132,36 @@ fdmi_cmd_exit:
 void
 lpfc_fdmi_tmo(unsigned long ptr)
 {
-	struct lpfc_hba *phba = (struct lpfc_hba *)ptr;
+	struct lpfc_vport *vport = (struct lpfc_vport *)ptr;
+	struct lpfc_hba   *phba = vport->phba;
 	unsigned long iflag;
 
-	spin_lock_irqsave(phba->host->host_lock, iflag);
-	if (!(phba->work_hba_events & WORKER_FDMI_TMO)) {
-		phba->work_hba_events |= WORKER_FDMI_TMO;
+	spin_lock_irqsave(&vport->work_port_lock, iflag);
+	if (!(vport->work_port_events & WORKER_FDMI_TMO)) {
+		vport->work_port_events |= WORKER_FDMI_TMO;
 		if (phba->work_wait)
 			wake_up(phba->work_wait);
 	}
-	spin_unlock_irqrestore(phba->host->host_lock,iflag);
+	spin_unlock_irqrestore(&vport->work_port_lock, iflag);
 }
 
 void
-lpfc_fdmi_tmo_handler(struct lpfc_hba *phba)
+lpfc_fdmi_timeout_handler(struct lpfc_vport *vport)
 {
 	struct lpfc_nodelist *ndlp;
 
-	ndlp = lpfc_findnode_did(phba, FDMI_DID);
+	ndlp = lpfc_findnode_did(vport, FDMI_DID);
 	if (ndlp) {
-		if (init_utsname()->nodename[0] != '\0') {
-			lpfc_fdmi_cmd(phba, ndlp, SLI_MGMT_DHBA);
-		} else {
-			mod_timer(&phba->fc_fdmitmo, jiffies + HZ * 60);
-		}
+		if (init_utsname()->nodename[0] != '\0')
+			lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DHBA);
+		else
+			mod_timer(&vport->fc_fdmitmo, jiffies + HZ * 60);
 	}
 	return;
 }
 
-
 void
-lpfc_decode_firmware_rev(struct lpfc_hba * phba, char *fwrevision, int flag)
+lpfc_decode_firmware_rev(struct lpfc_hba *phba, char *fwrevision, int flag)
 {
 	struct lpfc_sli *psli = &phba->sli;
 	lpfc_vpd_t *vp = &phba->vpd;

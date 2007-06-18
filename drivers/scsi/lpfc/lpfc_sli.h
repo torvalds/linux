@@ -20,6 +20,7 @@
 
 /* forward declaration for LPFC_IOCB_t's use */
 struct lpfc_hba;
+struct lpfc_vport;
 
 /* Define the context types that SLI handles for abort and sums. */
 typedef enum _lpfc_ctx_cmd {
@@ -47,6 +48,7 @@ struct lpfc_iocbq {
 	uint8_t abort_count;
 	uint8_t rsvd2;
 	uint32_t drvrTimeout;	/* driver timeout in seconds */
+	struct lpfc_vport *vport;/* virtual port pointer */
 	void *context1;		/* caller context information */
 	void *context2;		/* caller context information */
 	void *context3;		/* caller context information */
@@ -74,6 +76,7 @@ typedef struct lpfcMboxq {
 	/* MBOXQs are used in single linked lists */
 	struct list_head list;	/* ptr to next mailbox command */
 	MAILBOX_t mb;		/* Mailbox cmd */
+	struct lpfc_vport *vport;/* virutal port pointer */
 	void *context1;		/* caller context information */
 	void *context2;		/* caller context information */
 
@@ -197,6 +200,7 @@ struct lpfc_sli {
 #define LPFC_SLI_MBOX_ACTIVE      0x100	/* HBA mailbox is currently active */
 #define LPFC_SLI2_ACTIVE          0x200	/* SLI2 overlay in firmware is active */
 #define LPFC_PROCESS_LA           0x400	/* Able to process link attention */
+#define LPFC_BLOCK_MGMT_IO        0x800	/* Don't allow mgmt mbx or iocb cmds */
 
 	struct lpfc_sli_ring ring[LPFC_MAX_RING];
 	int fcp_ring;		/* ring used for FCP initiator commands */
