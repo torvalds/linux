@@ -246,8 +246,8 @@ struct lanai_vcc {
 };
 
 enum lanai_type {
-	lanai2	= PCI_VENDOR_ID_EF_ATM_LANAI2,
-	lanaihb	= PCI_VENDOR_ID_EF_ATM_LANAIHB
+	lanai2	= PCI_DEVICE_ID_EF_ATM_LANAI2,
+	lanaihb	= PCI_DEVICE_ID_EF_ATM_LANAIHB
 };
 
 struct lanai_dev_stats {
@@ -2622,14 +2622,8 @@ static int __devinit lanai_init_one(struct pci_dev *pci,
 }
 
 static struct pci_device_id lanai_pci_tbl[] = {
-	{
-		PCI_VENDOR_ID_EF, PCI_VENDOR_ID_EF_ATM_LANAI2,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0
-	},
-	{
-		PCI_VENDOR_ID_EF, PCI_VENDOR_ID_EF_ATM_LANAIHB,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0
-	},
+	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_LANAI2) },
+	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_LANAIHB) },
 	{ 0, }	/* terminal entry */
 };
 MODULE_DEVICE_TABLE(pci, lanai_pci_tbl);
