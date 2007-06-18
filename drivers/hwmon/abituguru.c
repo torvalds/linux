@@ -418,7 +418,7 @@ static int __devinit
 abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 				   u8 sensor_addr)
 {
-	u8 val, buf[3];
+	u8 val, test_flag, buf[3];
 	int i, ret = -ENODEV; /* error is the most common used retval :| */
 
 	/* If overriden by the user return the user selected type */
@@ -436,7 +436,7 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 		return -ENODEV;
 
 	/* Test val is sane / usable for sensor type detection. */
-	if ((val < 10u) || (val > 240u)) {
+	if ((val < 10u) || (val > 250u)) {
 		printk(KERN_WARNING ABIT_UGURU_NAME
 			": bank1-sensor: %d reading (%d) too close to limits, "
 			"unable to determine sensor type, skipping sensor\n",
@@ -449,10 +449,20 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 
 	ABIT_UGURU_DEBUG(2, "testing bank1 sensor %d\n", (int)sensor_addr);
 	/* Volt sensor test, enable volt low alarm, set min value ridicously
-	   high. If its a volt sensor this should always give us an alarm. */
-	buf[0] = ABIT_UGURU_VOLT_LOW_ALARM_ENABLE;
-	buf[1] = 245;
-	buf[2] = 250;
+	   high, or vica versa if the reading is very high. If its a volt
+	   sensor this should always give us an alarm. */
+	if (val <= 240u) {
+		buf[0] = ABIT_UGURU_VOLT_LOW_ALARM_ENABLE;
+		buf[1] = 245;
+		buf[2] = 250;
+		test_flag = ABIT_UGURU_VOLT_LOW_ALARM_FLAG;
+	} else {
+		buf[0] = ABIT_UGURU_VOLT_HIGH_ALARM_ENABLE;
+		buf[1] = 5;
+		buf[2] = 10;
+		test_flag = ABIT_UGURU_VOLT_HIGH_ALARM_FLAG;
+	}
+
 	if (abituguru_write(data, ABIT_UGURU_SENSOR_BANK1 + 2, sensor_addr,
 			buf, 3) != 3)
 		goto abituguru_detect_bank1_sensor_type_exit;
@@ -469,13 +479,13 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 				sensor_addr, buf, 3,
 				ABIT_UGURU_MAX_RETRIES) != 3)
 			goto abituguru_detect_bank1_sensor_type_exit;
-		if (buf[0] & ABIT_UGURU_VOLT_LOW_ALARM_FLAG) {
+		if (buf[0] & test_flag) {
 			ABIT_UGURU_DEBUG(2, "  found volt sensor\n");
 			ret = ABIT_UGURU_IN_SENSOR;
 			goto abituguru_detect_bank1_sensor_type_exit;
 		} else
 			ABIT_UGURU_DEBUG(2, "  alarm raised during volt "
-				"sensor test, but volt low flag not set\n");
+				"sensor test, but volt range flag not set\n");
 	} else
 		ABIT_UGURU_DEBUG(2, "  alarm not raised during volt sensor "
 			"test\n");
