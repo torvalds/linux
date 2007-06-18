@@ -215,6 +215,10 @@
 #define USB_VENDOR_ID_MICROSOFT		0x045e
 #define USB_DEVICE_ID_SIDEWINDER_GV	0x003b
 
+#define USB_VENDOR_ID_NCR		0x0404
+#define USB_DEVICE_ID_NCR_FIRST		0x0300
+#define USB_DEVICE_ID_NCR_LAST		0x03ff
+
 #define USB_VENDOR_ID_NEC		0x073e
 #define USB_DEVICE_ID_NEC_USB_GAME_PAD	0x0301
 
@@ -687,6 +691,12 @@ u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct)
 		if (idProduct >= USB_DEVICE_ID_CODEMERCS_IOW_FIRST &&
 				idProduct <= USB_DEVICE_ID_CODEMERCS_IOW_LAST)
 			return HID_QUIRK_IGNORE;
+
+	/* NCR devices must not be queried for reports */
+	if (idVendor == USB_VENDOR_ID_NCR &&
+			idProduct >= USB_DEVICE_ID_NCR_FIRST &&
+			idProduct <= USB_DEVICE_ID_NCR_LAST)
+			return HID_QUIRK_NOGET;
 
 	down_read(&dquirks_rwsem);
 	bl_entry = usbhid_exists_dquirk(idVendor, idProduct);
