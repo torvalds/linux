@@ -37,6 +37,7 @@
 #include "lpfc_logmsg.h"
 #include "lpfc_crtn.h"
 #include "lpfc_vport.h"
+#include "lpfc_debugfs.h"
 
 /* AlpaArray for assignment of scsid for scan-down and bind_method */
 static uint8_t lpfcAlpaArray[] = {
@@ -77,6 +78,10 @@ lpfc_terminate_rport_io(struct fc_rport *rport)
 
 	phba  = ndlp->vport->phba;
 
+	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_RPORT,
+		"rport terminate: sid:x%x did:x%x flg:x%x",
+		ndlp->nlp_sid, ndlp->nlp_DID, ndlp->nlp_flag);
+
 	if (ndlp->nlp_sid != NLP_NO_SID) {
 		lpfc_sli_abort_iocb(phba, &phba->sli.ring[phba->sli.fcp_ring],
 			ndlp->nlp_sid, 0, 0, LPFC_CTX_TGT);
@@ -93,12 +98,10 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 {
 	struct lpfc_rport_data *rdata;
 	struct lpfc_nodelist * ndlp;
-	uint8_t *name;
-	int warn_on = 0;
-	struct lpfc_hba *phba;
 	struct lpfc_vport *vport;
-	int  put_node;
-	int  put_rport;
+	struct lpfc_hba   *phba;
+	struct completion devloss_compl;
+	struct lpfc_work_evt *evtp;
 
 	rdata = rport->dd_data;
 	ndlp = rdata->pnode;
@@ -112,7 +115,70 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		return;
 	}
 
+	vport = ndlp->vport;
+	phba  = vport->phba;
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
+		"rport devlosscb: sid:x%x did:x%x flg:x%x",
+		ndlp->nlp_sid, ndlp->nlp_DID, ndlp->nlp_flag);
+
+	init_completion(&devloss_compl);
+	evtp = &ndlp->dev_loss_evt;
+
+	if (!list_empty(&evtp->evt_listp))
+		return;
+
+	spin_lock_irq(&phba->hbalock);
+	evtp->evt_arg1  = ndlp;
+	evtp->evt_arg2  = &devloss_compl;
+	evtp->evt       = LPFC_EVT_DEV_LOSS;
+	list_add_tail(&evtp->evt_listp, &phba->work_list);
+	if (phba->work_wait)
+		wake_up(phba->work_wait);
+
+	spin_unlock_irq(&phba->hbalock);
+
+	wait_for_completion(&devloss_compl);
+
+	return;
+}
+
+/*
+ * This function is called from the worker thread when dev_loss_tmo
+ * expire.
+ */
+void
+lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
+{
+	struct lpfc_rport_data *rdata;
+	struct fc_rport   *rport;
+	struct lpfc_vport *vport;
+	struct lpfc_hba   *phba;
+	uint8_t *name;
+	int warn_on = 0;
+
+	rport = ndlp->rport;
+
+	if (!rport)
+		return;
+
+	rdata = rport->dd_data;
+	name = (uint8_t *) &ndlp->nlp_portname;
+	vport = ndlp->vport;
+	phba  = vport->phba;
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
+		"rport devlosstmo:did:x%x type:x%x id:x%x",
+		ndlp->nlp_DID, ndlp->nlp_type, rport->scsi_target_id);
+
+	if (!(vport->load_flag & FC_UNLOADING) &&
+	    ndlp->nlp_state == NLP_STE_MAPPED_NODE)
+		return;
+
 	if (ndlp->nlp_type & NLP_FABRIC) {
+		int  put_node;
+		int  put_rport;
+
 		/* We will clean up these Nodes in linkup */
 		put_node = rdata->pnode != NULL;
 		put_rport = ndlp->rport != NULL;
@@ -124,15 +190,6 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 			put_device(&rport->dev);
 		return;
 	}
-
-	name = (uint8_t *)&ndlp->nlp_portname;
-	vport = ndlp->vport;
-	phba  = vport->phba;
-
-	if (!(vport->load_flag & FC_UNLOADING) &&
-	    ndlp->nlp_state == NLP_STE_MAPPED_NODE)
-		return;
-
 
 	if (ndlp->nlp_sid != NLP_NO_SID) {
 		warn_on = 1;
@@ -171,6 +228,9 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 	    (ndlp->nlp_state != NLP_STE_UNMAPPED_NODE))
 		lpfc_disc_state_machine(vport, ndlp, NULL, NLP_EVT_DEVICE_RM);
 	else {
+		int  put_node;
+		int  put_rport;
+
 		put_node = rdata->pnode != NULL;
 		put_rport = ndlp->rport != NULL;
 		rdata->pnode = NULL;
@@ -180,7 +240,6 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		if (put_rport)
 			put_device(&rport->dev);
 	}
-	return;
 }
 
 
@@ -206,12 +265,17 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 		spin_unlock_irq(&phba->hbalock);
 		free_evt = 1;
 		switch (evtp->evt) {
-		case LPFC_EVT_DEV_LOSS:
+		case LPFC_EVT_DEV_LOSS_DELAY:
 			free_evt = 0; /* evt is part of ndlp */
 			ndlp = (struct lpfc_nodelist *) (evtp->evt_arg1);
 			vport = ndlp->vport;
 			if (!vport)
 				break;
+
+			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
+				"rport devlossdly:did:x%x flg:x%x",
+				ndlp->nlp_DID, ndlp->nlp_flag, 0);
+
 			if (!(vport->load_flag & FC_UNLOADING) &&
 			    !(ndlp->nlp_flag & NLP_DELAY_TMO) &&
 			    !(ndlp->nlp_flag & NLP_NPR_2B_DISC)) {
@@ -223,6 +287,14 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 			ndlp = (struct lpfc_nodelist *) (evtp->evt_arg1);
 			lpfc_els_retry_delay_handler(ndlp);
 			free_evt = 0; /* evt is part of ndlp */
+			break;
+		case LPFC_EVT_DEV_LOSS:
+			ndlp = (struct lpfc_nodelist *)(evtp->evt_arg1);
+			lpfc_nlp_get(ndlp);
+			lpfc_dev_loss_tmo_handler(ndlp);
+			free_evt = 0;
+			complete((struct completion *)(evtp->evt_arg2));
+			lpfc_nlp_put(ndlp);
 			break;
 		case LPFC_EVT_ONLINE:
 			if (phba->link_state < LPFC_LINK_DOWN)
@@ -272,13 +344,12 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 
 }
 
-static void
+void
 lpfc_work_done(struct lpfc_hba *phba)
 {
 	struct lpfc_sli_ring *pring;
-	uint32_t ha_copy, control, work_port_events;
+	uint32_t ha_copy, status, control, work_port_events;
 	struct lpfc_vport *vport;
-	int i;
 
 	spin_lock_irq(&phba->hbalock);
 	ha_copy = phba->work_ha;
@@ -310,6 +381,9 @@ lpfc_work_done(struct lpfc_hba *phba)
 		if (work_port_events & WORKER_ELS_TMO)
 			lpfc_els_timeout_handler(vport);
 
+		if (work_port_events & WORKER_HB_TMO)
+			lpfc_hb_timeout_handler(phba);
+
 		if (work_port_events & WORKER_MBOX_TMO)
 			lpfc_mbox_timeout_handler(phba);
 
@@ -333,30 +407,31 @@ lpfc_work_done(struct lpfc_hba *phba)
 	}
 	spin_unlock_irq(&phba->hbalock);
 
-	for (i = 0; i < phba->sli.num_rings; i++, ha_copy >>= 4) {
-		pring = &phba->sli.ring[i];
-		if ((ha_copy & HA_RXATT)
-		    || (pring->flag & LPFC_DEFERRED_RING_EVENT)) {
-			if (pring->flag & LPFC_STOP_IOCB_MASK) {
-				pring->flag |= LPFC_DEFERRED_RING_EVENT;
-			} else {
-				lpfc_sli_handle_slow_ring_event(phba, pring,
-								(ha_copy &
-								 HA_RXMASK));
-				pring->flag &= ~LPFC_DEFERRED_RING_EVENT;
-			}
-			/*
-			 * Turn on Ring interrupts
-			 */
-			spin_lock_irq(&phba->hbalock);
-			control = readl(phba->HCregaddr);
-			control |= (HC_R0INT_ENA << i);
+	pring = &phba->sli.ring[LPFC_ELS_RING];
+	status = (ha_copy & (HA_RXMASK  << (4*LPFC_ELS_RING)));
+	status >>= (4*LPFC_ELS_RING);
+	if ((status & HA_RXMASK)
+		|| (pring->flag & LPFC_DEFERRED_RING_EVENT)) {
+		if (pring->flag & LPFC_STOP_IOCB_MASK) {
+			pring->flag |= LPFC_DEFERRED_RING_EVENT;
+		} else {
+			lpfc_sli_handle_slow_ring_event(phba, pring,
+							(status &
+							 HA_RXMASK));
+			pring->flag &= ~LPFC_DEFERRED_RING_EVENT;
+		}
+		/*
+		 * Turn on Ring interrupts
+		 */
+		spin_lock_irq(&phba->hbalock);
+		control = readl(phba->HCregaddr);
+		if (!(control & (HC_R0INT_ENA << LPFC_ELS_RING))) {
+			control |= (HC_R0INT_ENA << LPFC_ELS_RING);
 			writel(control, phba->HCregaddr);
 			readl(phba->HCregaddr); /* flush */
-			spin_unlock_irq(&phba->hbalock);
 		}
+		spin_unlock_irq(&phba->hbalock);
 	}
-
 	lpfc_work_list_done(phba);
 }
 
@@ -365,7 +440,7 @@ check_work_wait_done(struct lpfc_hba *phba)
 {
 	struct lpfc_vport *vport;
 	struct lpfc_sli_ring *pring;
-	int i, rc = 0;
+	int rc = 0;
 
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry(vport, &phba->port_list, listentry) {
@@ -380,13 +455,10 @@ check_work_wait_done(struct lpfc_hba *phba)
 		rc = 1;
 		goto exit;
 	}
-	for (i = 0; i < phba->sli.num_rings; i++) {
-		pring = &phba->sli.ring[i];
-		if (pring->flag & LPFC_DEFERRED_RING_EVENT) {
-			rc = 1;
-			goto exit;
-		}
-	}
+
+	pring = &phba->sli.ring[LPFC_ELS_RING];
+	if (pring->flag & LPFC_DEFERRED_RING_EVENT)
+		rc = 1;
 exit:
 	if (rc)
 		phba->work_found++;
@@ -506,6 +578,10 @@ lpfc_linkdown_port(struct lpfc_vport *vport)
 
 	fc_host_post_event(shost, fc_get_event_number(), FCH_EVT_LINKDOWN, 0);
 
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+		"Link Down:       state:x%x rtry:x%x flg:x%x",
+		vport->port_state, vport->fc_ns_retry, vport->fc_flag);
+
 	/* Cleanup any outstanding RSCN activity */
 	lpfc_els_flush_rscn(vport);
 
@@ -616,6 +692,10 @@ lpfc_linkup_port(struct lpfc_vport *vport)
 
 	if ((vport->load_flag & FC_UNLOADING) != 0)
 		return;
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+		"Link Up:         top:x%x speed:x%x flg:x%x",
+		phba->fc_topology, phba->fc_linkspeed, phba->link_flag);
 
 	/* If NPIV is not enabled, only bring the physical port up */
 	if (!(phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
@@ -935,7 +1015,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 		}
 	} else {
 		if (!(phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)) {
-			if (phba->max_vpi && lpfc_npiv_enable &&
+			if (phba->max_vpi && phba->cfg_npiv_enable &&
 			   (phba->sli_rev == 3))
 				phba->sli3_options |= LPFC_SLI3_NPIV_ENABLED;
 		}
@@ -1124,8 +1204,6 @@ lpfc_mbx_cmpl_unreg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				"mb status = 0x%x\n",
 				phba->brd_no, vport->vpi, mb->mbxStatus);
 		break;
-	default:
-		phba->vpi_cnt--;
 	}
 	vport->unreg_vpi_cmpl = VPORT_OK;
 	mempool_free(pmb, phba->mbox_mem_pool);
@@ -1182,7 +1260,6 @@ lpfc_mbx_cmpl_reg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		vport->fc_myDID = 0;
 		goto out;
 	}
-	phba->vpi_cnt++;
 
 	vport->num_disc_nodes = 0;
 	/* go thru NPR list and issue ELS PLOGIs */
@@ -1257,16 +1334,13 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 			if (phba->link_flag & LS_NPIV_FAB_SUPPORTED)
 				lpfc_initial_fdisc(next_vport);
-			else {
-				if (phba->sli3_options &
-					LPFC_SLI3_NPIV_ENABLED) {
-					lpfc_vport_set_state(vport,
-						FC_VPORT_NO_FABRIC_SUPP);
-					lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
+			else if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
+				lpfc_vport_set_state(vport,
+						     FC_VPORT_NO_FABRIC_SUPP);
+				lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
 						"%d (%d):0259 No NPIV Fabric "
 						"support\n",
 						phba->brd_no, vport->vpi);
-				}
 			}
 		}
 		lpfc_do_scr_ns_plogi(phba, vport);
@@ -1377,6 +1451,11 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	    ((struct lpfc_rport_data *) ndlp->rport->dd_data)->pnode == ndlp) {
 		lpfc_nlp_put(ndlp);
 	}
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
+		"rport add:       did:x%x flg:x%x type x%x",
+		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
+
 	ndlp->rport = rport = fc_remote_port_add(shost, 0, &rport_ids);
 	if (!rport || !get_device(&rport->dev)) {
 		dev_printk(KERN_WARNING, &phba->pcidev->dev,
@@ -1394,7 +1473,6 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		rport_ids.roles |= FC_RPORT_ROLE_FCP_TARGET;
 	if (ndlp->nlp_type & NLP_FCP_INITIATOR)
 		rport_ids.roles |= FC_RPORT_ROLE_FCP_INITIATOR;
-	del_timer_sync(&ndlp->nlp_initiator_tmr);
 
 
 	if (rport_ids.roles !=  FC_RPORT_ROLE_UNKNOWN)
@@ -1411,6 +1489,10 @@ static void
 lpfc_unregister_remote_port(struct lpfc_nodelist *ndlp)
 {
 	struct fc_rport *rport = ndlp->rport;
+
+	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_RPORT,
+		"rport delete:    did:x%x flg:x%x type x%x",
+		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
 
 	fc_remote_port_delete(rport);
 
@@ -1478,20 +1560,19 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (new_state ==  NLP_STE_MAPPED_NODE ||
 	    new_state == NLP_STE_UNMAPPED_NODE) {
 		vport->phba->nport_event_cnt++;
-			/*
-			 * Tell the fc transport about the port, if we haven't
-			 * already. If we have, and it's a scsi entity, be
-			 * sure to unblock any attached scsi devices
-			 */
-			lpfc_register_remote_port(vport, ndlp);
+		/*
+		 * Tell the fc transport about the port, if we haven't
+		 * already. If we have, and it's a scsi entity, be
+		 * sure to unblock any attached scsi devices
+		 */
+		lpfc_register_remote_port(vport, ndlp);
 	}
-
-			/*
-			 * if we added to Mapped list, but the remote port
-			 * registration failed or assigned a target id outside
-			 * our presentable range - move the node to the
-			 * Unmapped List
-			 */
+	/*
+	 * if we added to Mapped list, but the remote port
+	 * registration failed or assigned a target id outside
+	 * our presentable range - move the node to the
+	 * Unmapped List
+	 */
 	if (new_state == NLP_STE_MAPPED_NODE &&
 	    (!ndlp->rport ||
 	     ndlp->rport->scsi_target_id == -1 ||
@@ -1533,11 +1614,16 @@ lpfc_nlp_set_state(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	char name1[16], name2[16];
 
 	lpfc_printf_log(vport->phba, KERN_INFO, LOG_NODE,
-			"%d:0904 NPort state transition x%06x, %s -> %s\n",
-			vport->phba->brd_no,
+			"%d (%d):0904 NPort state transition x%06x, %s -> %s\n",
+			vport->phba->brd_no, vport->vpi,
 			ndlp->nlp_DID,
 			lpfc_nlp_state_name(name1, sizeof(name1), old_state),
 			lpfc_nlp_state_name(name2, sizeof(name2), state));
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_NODE,
+		"node statechg    did:x%x old:%d ste:%d",
+		ndlp->nlp_DID, old_state, state);
+
 	if (old_state == NLP_STE_NPR_NODE &&
 	    (ndlp->nlp_flag & NLP_DELAY_TMO) != 0 &&
 	    state != NLP_STE_NPR_NODE)
@@ -1571,7 +1657,8 @@ lpfc_dequeue_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	spin_lock_irq(shost->host_lock);
 	list_del_init(&ndlp->nlp_listp);
 	spin_unlock_irq(shost->host_lock);
-	lpfc_nlp_state_cleanup(vport, ndlp, ndlp->nlp_state, 0);
+	lpfc_nlp_state_cleanup(vport, ndlp, ndlp->nlp_state,
+			       NLP_STE_UNUSED_NODE);
 }
 
 void
@@ -1585,6 +1672,7 @@ lpfc_drop_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		lpfc_nlp_counters(vport, ndlp->nlp_state, -1);
 	spin_lock_irq(shost->host_lock);
 	list_del_init(&ndlp->nlp_listp);
+	ndlp->nlp_flag &= ~NLP_TARGET_REMOVE;
 	spin_unlock_irq(shost->host_lock);
 	lpfc_nlp_put(ndlp);
 }
@@ -1607,6 +1695,13 @@ lpfc_set_disctmo(struct lpfc_vport *vport)
 		 * FC spec states we need 3 * ratov for CT requests
 		 */
 		tmo = ((phba->fc_ratov * 3) + 3);
+	}
+
+
+	if (!timer_pending(&vport->fc_disctmo)) {
+		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+			"set disc timer:  tmo:x%x state:x%x flg:x%x",
+			tmo, vport->port_state, vport->fc_flag);
 	}
 
 	mod_timer(&vport->fc_disctmo, jiffies + HZ * tmo);
@@ -1634,6 +1729,10 @@ lpfc_can_disctmo(struct lpfc_vport *vport)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
 	unsigned long iflags;
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+		"can disc timer:  state:x%x rtry:x%x flg:x%x",
+		vport->port_state, vport->fc_ns_retry, vport->fc_flag);
 
 	/* Turn off discovery timer if its running */
 	if (vport->fc_flag & FC_DISC_TMO) {
@@ -1898,12 +1997,16 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 	ndlp->nlp_last_elscmd = 0;
 	del_timer_sync(&ndlp->nlp_delayfunc);
-	del_timer_sync(&ndlp->nlp_initiator_tmr);
 
 	if (!list_empty(&ndlp->els_retry_evt.evt_listp))
 		list_del_init(&ndlp->els_retry_evt.evt_listp);
 	if (!list_empty(&ndlp->dev_loss_evt.evt_listp))
 		list_del_init(&ndlp->dev_loss_evt.evt_listp);
+
+	if (!list_empty(&ndlp->dev_loss_evt.evt_listp)) {
+		list_del_init(&ndlp->dev_loss_evt.evt_listp);
+		complete((struct completion *)(ndlp->dev_loss_evt.evt_arg2));
+	}
 
 	lpfc_unreg_rpi(vport, ndlp);
 
@@ -2418,6 +2521,10 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 	vport->fc_flag &= ~FC_DISC_TMO;
 	spin_unlock_irq(shost->host_lock);
 
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+		"disc timeout:    state:x%x rtry:x%x flg:x%x",
+		vport->port_state, vport->fc_ns_retry, vport->fc_flag);
+
 	switch (vport->port_state) {
 
 	case LPFC_LOCAL_CFG_LINK:
@@ -2743,7 +2850,7 @@ lpfc_findnode_wwpn(struct lpfc_vport *vport, struct lpfc_name *wwpn)
 	spin_lock_irq(shost->host_lock);
 	ndlp = __lpfc_find_node(vport, lpfc_filter_by_wwpn, wwpn);
 	spin_unlock_irq(shost->host_lock);
-	return NULL;
+	return ndlp;
 }
 
 void
@@ -2764,7 +2871,7 @@ lpfc_dev_loss_delay(unsigned long ptr)
 	}
 
 	evtp->evt_arg1  = ndlp;
-	evtp->evt       = LPFC_EVT_DEV_LOSS;
+	evtp->evt       = LPFC_EVT_DEV_LOSS_DELAY;
 	list_add_tail(&evtp->evt_listp, &phba->work_list);
 	if (phba->work_wait)
 		lpfc_worker_wake_up(phba);
@@ -2779,9 +2886,6 @@ lpfc_nlp_init(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	memset(ndlp, 0, sizeof (struct lpfc_nodelist));
 	INIT_LIST_HEAD(&ndlp->els_retry_evt.evt_listp);
 	INIT_LIST_HEAD(&ndlp->dev_loss_evt.evt_listp);
-	init_timer(&ndlp->nlp_initiator_tmr);
-	ndlp->nlp_initiator_tmr.function = lpfc_dev_loss_delay;
-	ndlp->nlp_initiator_tmr.data = (unsigned long)ndlp;
 	init_timer(&ndlp->nlp_delayfunc);
 	ndlp->nlp_delayfunc.function = lpfc_els_retry_delay;
 	ndlp->nlp_delayfunc.data = (unsigned long)ndlp;
@@ -2790,6 +2894,11 @@ lpfc_nlp_init(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	ndlp->nlp_sid = NLP_NO_SID;
 	INIT_LIST_HEAD(&ndlp->nlp_listp);
 	kref_init(&ndlp->kref);
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_NODE,
+		"node init:       did:x%x",
+		ndlp->nlp_DID, 0, 0);
+
 	return;
 }
 
@@ -2798,6 +2907,11 @@ lpfc_nlp_release(struct kref *kref)
 {
 	struct lpfc_nodelist *ndlp = container_of(kref, struct lpfc_nodelist,
 						  kref);
+
+	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
+		"node release:    did:x%x flg:x%x type:x%x",
+		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
+
 	lpfc_nlp_remove(ndlp->vport, ndlp);
 	mempool_free(ndlp, ndlp->vport->phba->nlp_mem_pool);
 }

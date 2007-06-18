@@ -36,6 +36,7 @@ enum lpfc_work_type {
 	LPFC_EVT_WARM_START,
 	LPFC_EVT_KILL,
 	LPFC_EVT_ELS_RETRY,
+	LPFC_EVT_DEV_LOSS_DELAY,
 	LPFC_EVT_DEV_LOSS,
 };
 
@@ -74,7 +75,6 @@ struct lpfc_nodelist {
 #define NLP_FCP_2_DEVICE   0x10			/* FCP-2 device */
 
 	struct timer_list   nlp_delayfunc;	/* Used for delayed ELS cmds */
-	struct timer_list   nlp_initiator_tmr;	/* Used with dev_loss */
 	struct fc_rport *rport;			/* Corresponding FC transport
 						   port structure */
 	struct lpfc_vport *vport;
@@ -101,6 +101,7 @@ struct lpfc_nodelist {
 					   ACC */
 #define NLP_NPR_ADISC      0x2000000	/* Issue ADISC when dq'ed from
 					   NPR list */
+#define NLP_RM_DFLT_RPI    0x4000000	/* need to remove leftover dflt RPI */
 #define NLP_NODEV_REMOVE   0x8000000	/* Defer removal till discovery ends */
 #define NLP_TARGET_REMOVE  0x10000000   /* Target remove in process */
 

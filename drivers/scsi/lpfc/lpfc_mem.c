@@ -88,7 +88,8 @@ lpfc_mem_alloc(struct lpfc_hba * phba)
 	if (!phba->lpfc_hbq_pool)
 		goto fail_free_nlp_mem_pool;
 
-	longs = (phba->max_vpi + BITS_PER_LONG - 1) / BITS_PER_LONG;
+	/* vpi zero is reserved for the physical port so add 1 to max */
+	longs = ((phba->max_vpi + 1) + BITS_PER_LONG - 1) / BITS_PER_LONG;
 	phba->vpi_bmask = kzalloc(longs * sizeof(unsigned long), GFP_KERNEL);
 	if (!phba->vpi_bmask)
 		goto fail_free_hbq_pool;

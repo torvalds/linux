@@ -23,6 +23,7 @@ typedef int (*node_filter)(struct lpfc_nodelist *ndlp, void *param);
 struct fc_rport;
 void lpfc_dump_mem(struct lpfc_hba *, LPFC_MBOXQ_t *, uint16_t);
 void lpfc_read_nv(struct lpfc_hba *, LPFC_MBOXQ_t *);
+void lpfc_heart_beat(struct lpfc_hba *, LPFC_MBOXQ_t *);
 int lpfc_read_la(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb,
 		 struct lpfc_dmabuf *mp);
 void lpfc_clear_la(struct lpfc_hba *, LPFC_MBOXQ_t *);
@@ -45,6 +46,7 @@ void lpfc_mbx_cmpl_read_la(struct lpfc_hba *, LPFC_MBOXQ_t *);
 
 void lpfc_mbx_cmpl_clear_la(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_mbx_cmpl_reg_login(struct lpfc_hba *, LPFC_MBOXQ_t *);
+void lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_mbx_cmpl_ns_reg_login(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *, LPFC_MBOXQ_t *);
@@ -85,6 +87,7 @@ void lpfc_do_scr_ns_plogi(struct lpfc_hba *, struct lpfc_vport *);
 int lpfc_check_sparm(struct lpfc_vport *, struct lpfc_nodelist *,
 		     struct serv_parm *, uint32_t);
 int lpfc_els_abort(struct lpfc_hba *, struct lpfc_nodelist *);
+int lpfc_els_chk_latt(struct lpfc_vport *);
 int lpfc_els_abort_flogi(struct lpfc_hba *);
 int lpfc_initial_flogi(struct lpfc_vport *);
 int lpfc_initial_fdisc(struct lpfc_vport *);
@@ -96,10 +99,11 @@ int lpfc_issue_els_logo(struct lpfc_vport *, struct lpfc_nodelist *, uint8_t);
 int lpfc_issue_els_npiv_logo(struct lpfc_vport *, struct lpfc_nodelist *);
 int lpfc_issue_els_scr(struct lpfc_vport *, uint32_t, uint8_t);
 int lpfc_els_free_iocb(struct lpfc_hba *, struct lpfc_iocbq *);
+int lpfc_ct_free_iocb(struct lpfc_hba *, struct lpfc_iocbq *);
 int lpfc_els_rsp_acc(struct lpfc_vport *, uint32_t, struct lpfc_iocbq *,
 		     struct lpfc_nodelist *, LPFC_MBOXQ_t *, uint8_t);
 int lpfc_els_rsp_reject(struct lpfc_vport *, uint32_t, struct lpfc_iocbq *,
-			struct lpfc_nodelist *);
+			struct lpfc_nodelist *, LPFC_MBOXQ_t *);
 int lpfc_els_rsp_adisc_acc(struct lpfc_vport *, struct lpfc_iocbq *,
 			   struct lpfc_nodelist *);
 int lpfc_els_rsp_prli_acc(struct lpfc_vport *, struct lpfc_iocbq *,
@@ -107,6 +111,7 @@ int lpfc_els_rsp_prli_acc(struct lpfc_vport *, struct lpfc_iocbq *,
 void lpfc_cancel_retry_delay_tmo(struct lpfc_vport *, struct lpfc_nodelist *);
 void lpfc_els_retry_delay(unsigned long);
 void lpfc_els_retry_delay_handler(struct lpfc_nodelist *);
+void lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *);
 void lpfc_els_unsol_event(struct lpfc_hba *, struct lpfc_sli_ring *,
 			  struct lpfc_iocbq *);
 int lpfc_els_handle_rscn(struct lpfc_vport *);
@@ -117,6 +122,8 @@ int lpfc_els_disc_adisc(struct lpfc_vport *);
 int lpfc_els_disc_plogi(struct lpfc_vport *);
 void lpfc_els_timeout(unsigned long);
 void lpfc_els_timeout_handler(struct lpfc_vport *);
+void lpfc_hb_timeout(unsigned long);
+void lpfc_hb_timeout_handler(struct lpfc_hba *);
 
 void lpfc_ct_unsol_event(struct lpfc_hba *, struct lpfc_sli_ring *,
 			 struct lpfc_iocbq *);
@@ -238,7 +245,6 @@ void lpfc_mbuf_free(struct lpfc_hba *, void *, dma_addr_t);
 void lpfc_in_buf_free(struct lpfc_hba *, struct lpfc_dmabuf *);
 /* Function prototypes. */
 const char* lpfc_info(struct Scsi_Host *);
-void lpfc_scan_start(struct Scsi_Host *);
 int lpfc_scan_finished(struct Scsi_Host *, unsigned long);
 
 void lpfc_get_cfgparam(struct lpfc_hba *);
@@ -249,7 +255,6 @@ extern struct scsi_host_template lpfc_template;
 extern struct fc_function_template lpfc_transport_functions;
 extern struct fc_function_template lpfc_vport_transport_functions;
 extern int lpfc_sli_mode;
-extern int lpfc_npiv_enable;
 
 int  lpfc_vport_symbolic_node_name(struct lpfc_vport *, char *, size_t);
 void lpfc_terminate_rport_io(struct fc_rport *);
@@ -261,6 +266,11 @@ void lpfc_mbx_unreg_vpi(struct lpfc_vport *);
 void destroy_port(struct lpfc_vport *);
 int lpfc_get_instance(void);
 void lpfc_host_attrib_init(struct Scsi_Host *);
+
+extern void lpfc_debugfs_initialize(struct lpfc_vport *);
+extern void lpfc_debugfs_terminate(struct lpfc_vport *);
+extern void lpfc_debugfs_disc_trc(struct lpfc_vport *, int, char *, uint32_t,
+	uint32_t, uint32_t);
 
 /* Interface exported by fabric iocb scheduler */
 int lpfc_issue_fabric_iocb(struct lpfc_hba *, struct lpfc_iocbq *);

@@ -391,6 +391,9 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	 */
 	timeout = phba->fc_ratov << 1;
 	mod_timer(&vport->els_tmofunc, jiffies + HZ * timeout);
+	mod_timer(&phba->hb_tmofunc, jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
+	phba->hb_outstanding = 0;
+	phba->last_completion_time = jiffies;
 
 	lpfc_init_link(phba, pmb, phba->cfg_topology, phba->cfg_link_speed);
 	pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
@@ -483,6 +486,119 @@ lpfc_hba_down_post(struct lpfc_hba *phba)
 	}
 
 	return 0;
+}
+
+/* HBA heart beat timeout handler */
+void
+lpfc_hb_timeout(unsigned long ptr)
+{
+	struct lpfc_hba *phba;
+	unsigned long iflag;
+
+	phba = (struct lpfc_hba *)ptr;
+	spin_lock_irqsave(&phba->pport->work_port_lock, iflag);
+	if (!(phba->pport->work_port_events & WORKER_HB_TMO))
+		phba->pport->work_port_events |= WORKER_HB_TMO;
+	spin_unlock_irqrestore(&phba->pport->work_port_lock, iflag);
+
+	if (phba->work_wait)
+		wake_up(phba->work_wait);
+	return;
+}
+
+static void
+lpfc_hb_mbox_cmpl(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq)
+{
+	unsigned long drvr_flag;
+
+	spin_lock_irqsave(&phba->hbalock, drvr_flag);
+	phba->hb_outstanding = 0;
+	spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
+
+	mempool_free(pmboxq, phba->mbox_mem_pool);
+	if (!(phba->pport->fc_flag & FC_OFFLINE_MODE) &&
+		!(phba->link_state == LPFC_HBA_ERROR) &&
+		!(phba->pport->fc_flag & FC_UNLOADING))
+		mod_timer(&phba->hb_tmofunc,
+			jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
+	return;
+}
+
+void
+lpfc_hb_timeout_handler(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *pmboxq;
+	int retval;
+	struct lpfc_sli *psli = &phba->sli;
+
+	if ((phba->link_state == LPFC_HBA_ERROR) ||
+		(phba->pport->fc_flag & FC_UNLOADING) ||
+		(phba->pport->fc_flag & FC_OFFLINE_MODE))
+		return;
+
+	spin_lock_irq(&phba->pport->work_port_lock);
+	/* If the timer is already canceled do nothing */
+	if (!(phba->pport->work_port_events & WORKER_HB_TMO)) {
+		spin_unlock_irq(&phba->pport->work_port_lock);
+		return;
+	}
+
+	if (time_after(phba->last_completion_time + LPFC_HB_MBOX_INTERVAL * HZ,
+		jiffies)) {
+		spin_unlock_irq(&phba->pport->work_port_lock);
+		if (!phba->hb_outstanding)
+			mod_timer(&phba->hb_tmofunc,
+				jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
+		else
+			mod_timer(&phba->hb_tmofunc,
+				jiffies + HZ * LPFC_HB_MBOX_TIMEOUT);
+		return;
+	}
+	spin_unlock_irq(&phba->pport->work_port_lock);
+
+	/* If there is no heart beat outstanding, issue a heartbeat command */
+	if (!phba->hb_outstanding) {
+		pmboxq = mempool_alloc(phba->mbox_mem_pool,GFP_KERNEL);
+		if (!pmboxq) {
+			mod_timer(&phba->hb_tmofunc,
+				jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
+			return;
+		}
+
+		lpfc_heart_beat(phba, pmboxq);
+		pmboxq->mbox_cmpl = lpfc_hb_mbox_cmpl;
+		pmboxq->vport = phba->pport;
+		retval = lpfc_sli_issue_mbox(phba, pmboxq, MBX_NOWAIT);
+
+		if (retval != MBX_BUSY && retval != MBX_SUCCESS) {
+			mempool_free(pmboxq, phba->mbox_mem_pool);
+			mod_timer(&phba->hb_tmofunc,
+				jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
+			return;
+		}
+		mod_timer(&phba->hb_tmofunc,
+			jiffies + HZ * LPFC_HB_MBOX_TIMEOUT);
+		phba->hb_outstanding = 1;
+		return;
+	} else {
+		/*
+		 * If heart beat timeout called with hb_outstanding set we
+		 * need to take the HBA offline.
+		 */
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"%d:0459 Adapter heartbeat failure, taking "
+			"this port offline.\n", phba->brd_no);
+
+		spin_lock_irq(&phba->hbalock);
+		psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
+		spin_unlock_irq(&phba->hbalock);
+
+		lpfc_offline_prep(phba);
+		lpfc_offline(phba);
+		lpfc_unblock_mgmt_io(phba);
+		phba->link_state = LPFC_HBA_ERROR;
+		lpfc_hba_down_post(phba);
+	}
 }
 
 /************************************************************************/
@@ -1190,9 +1306,6 @@ lpfc_cleanup(struct lpfc_vport *vport)
 	lpfc_can_disctmo(vport);
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp)
 		lpfc_nlp_put(ndlp);
-
-	INIT_LIST_HEAD(&vport->fc_nodes);
-
 	return;
 }
 
@@ -1238,6 +1351,8 @@ lpfc_stop_phba_timers(struct lpfc_hba *phba)
 		lpfc_stop_vport_timers(vport);
 	del_timer_sync(&phba->sli.mbox_tmo);
 	del_timer_sync(&phba->fabric_block_timer);
+	phba->hb_outstanding = 0;
+	del_timer_sync(&phba->hb_tmofunc);
 	return;
 }
 
@@ -1474,8 +1589,8 @@ destroy_port(struct lpfc_vport *vport)
 	struct lpfc_hba  *phba = vport->phba;
 
 	kfree(vport->vname);
-	lpfc_free_sysfs_attr(vport);
 
+	lpfc_debugfs_terminate(vport);
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
 
@@ -1500,50 +1615,29 @@ lpfc_get_instance(void)
 	return instance;
 }
 
-static void
-lpfc_remove_device(struct lpfc_vport *vport)
-{
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-
-	lpfc_free_sysfs_attr(vport);
-
-	spin_lock_irq(shost->host_lock);
-	vport->fc_flag |= FC_UNLOADING;
-	spin_unlock_irq(shost->host_lock);
-
-	fc_remove_host(shost);
-	scsi_remove_host(shost);
-}
-
-void lpfc_scan_start(struct Scsi_Host *shost)
-{
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-
-	if (lpfc_sli_hba_setup(phba))
-		goto error;
-
-	/*
-	 * hba setup may have changed the hba_queue_depth so we need to adjust
-	 * the value of can_queue.
-	 */
-	shost->can_queue = phba->cfg_hba_queue_depth - 10;
-	return;
-
-error:
-	lpfc_remove_device(vport);
-}
+/*
+ * Note: there is no scan_start function as adapter initialization
+ * will have asynchronously kicked off the link initialization.
+ */
 
 int lpfc_scan_finished(struct Scsi_Host *shost, unsigned long time)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
+	int stat = 0;
 
+	spin_lock_irq(shost->host_lock);
+
+	if (vport->fc_flag & FC_UNLOADING) {
+		stat = 1;
+		goto finished;
+	}
 	if (time >= 30 * HZ) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"%d:0461 Scanning longer than 30 "
 				"seconds.  Continuing initialization\n",
 				phba->brd_no);
+		stat = 1;
 		goto finished;
 	}
 	if (time >= 15 * HZ && phba->link_state <= LPFC_LINK_DOWN) {
@@ -1551,21 +1645,24 @@ int lpfc_scan_finished(struct Scsi_Host *shost, unsigned long time)
 				"%d:0465 Link down longer than 15 "
 				"seconds.  Continuing initialization\n",
 				phba->brd_no);
+		stat = 1;
 		goto finished;
 	}
 
 	if (vport->port_state != LPFC_VPORT_READY)
-		return 0;
+		goto finished;
 	if (vport->num_disc_nodes || vport->fc_prli_sent)
-		return 0;
+		goto finished;
 	if (vport->fc_map_cnt == 0 && time < 2 * HZ)
-		return 0;
+		goto finished;
 	if ((phba->sli.sli_flag & LPFC_SLI_MBOX_ACTIVE) != 0)
-		return 0;
+		goto finished;
+
+	stat = 1;
 
 finished:
-	lpfc_host_attrib_init(shost);
-	return 1;
+	spin_unlock_irq(shost->host_lock);
+	return stat;
 }
 
 void lpfc_host_attrib_init(struct Scsi_Host *shost)
@@ -1656,7 +1753,12 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* Initialize timers used by driver */
 	init_timer(&phba->fc_estabtmo);
 	phba->fc_estabtmo.function = lpfc_establish_link_tmo;
-	phba->fc_estabtmo.data = (unsigned long) phba;
+	phba->fc_estabtmo.data = (unsigned long)phba;
+
+	init_timer(&phba->hb_tmofunc);
+	phba->hb_tmofunc.function = lpfc_hb_timeout;
+	phba->hb_tmofunc.data = (unsigned long)phba;
+
 	psli = &phba->sli;
 	init_timer(&psli->mbox_tmo);
 	psli->mbox_tmo.function = lpfc_mbox_timeout;
@@ -1791,6 +1893,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	shost = lpfc_shost_from_vport(vport);
 	phba->pport = vport;
+	lpfc_debugfs_initialize(vport);
 
 	pci_set_drvdata(pdev, shost);
 
@@ -1820,15 +1923,32 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	if (lpfc_alloc_sysfs_attr(vport))
 		goto out_free_irq;
 
-	scsi_scan_host(shost);
+	if (lpfc_sli_hba_setup(phba))
+		goto out_remove_device;
+
+	/*
+	 * hba setup may have changed the hba_queue_depth so we need to adjust
+	 * the value of can_queue.
+	 */
+	shost->can_queue = phba->cfg_hba_queue_depth - 10;
+
+	lpfc_host_attrib_init(shost);
+
 	if (phba->cfg_poll & DISABLE_FCP_RING_INT) {
 		spin_lock_irq(shost->host_lock);
 		lpfc_poll_start_timer(phba);
 		spin_unlock_irq(shost->host_lock);
 	}
 
+	scsi_scan_host(shost);
+
 	return 0;
 
+out_remove_device:
+	lpfc_free_sysfs_attr(vport);
+	spin_lock_irq(shost->host_lock);
+	vport->fc_flag |= FC_UNLOADING;
+	spin_unlock_irq(shost->host_lock);
 out_free_irq:
 	lpfc_stop_phba_timers(phba);
 	phba->pport->work_port_events = 0;
@@ -1865,6 +1985,8 @@ out_disable_device:
 	pci_disable_device(pdev);
 out:
 	pci_set_drvdata(pdev, NULL);
+	if (shost)
+		scsi_host_put(shost);
 	return error;
 }
 
@@ -1878,6 +2000,12 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 	list_for_each_entry(port_iterator, &phba->port_list, listentry)
 		port_iterator->load_flag |= FC_UNLOADING;
 
+	kfree(vport->vname);
+	lpfc_free_sysfs_attr(vport);
+
+	fc_remove_host(shost);
+	scsi_remove_host(shost);
+
 	/*
 	 * Bring down the SLI Layer. This step disable all interrupts,
 	 * clears the rings, discards all mailbox commands, and resets
@@ -1887,6 +2015,13 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 	lpfc_sli_brdrestart(phba);
 
 	lpfc_stop_phba_timers(phba);
+	spin_lock_irq(&phba->hbalock);
+	list_del_init(&vport->listentry);
+	spin_unlock_irq(&phba->hbalock);
+
+
+	lpfc_debugfs_terminate(vport);
+	lpfc_cleanup(vport);
 
 	kthread_stop(phba->worker_thread);
 
@@ -1894,9 +2029,8 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 	free_irq(phba->pcidev->irq, phba);
 	pci_disable_msi(phba->pcidev);
 
-	destroy_port(vport);
-
 	pci_set_drvdata(pdev, NULL);
+	scsi_host_put(shost);
 
 	/*
 	 * Call scsi_free before mem_free since scsi bufs are released to their

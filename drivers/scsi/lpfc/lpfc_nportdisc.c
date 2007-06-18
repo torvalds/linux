@@ -36,6 +36,7 @@
 #include "lpfc_logmsg.h"
 #include "lpfc_crtn.h"
 #include "lpfc_vport.h"
+#include "lpfc_debugfs.h"
 
 
 /* Called to verify a rcv'ed ADISC was intended for us. */
@@ -204,11 +205,9 @@ lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	/* First check the txq */
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry_safe(iocb, next_iocb, &pring->txq, list) {
-		/* Check to see if iocb matches the nport we are looking
-		   for */
+		/* Check to see if iocb matches the nport we are looking for */
 		if (lpfc_check_sli_ndlp(phba, pring, iocb, ndlp)) {
-			/* It matches, so deque and call compl with an
-			   error */
+			/* It matches, so deque and call compl with anp error */
 			list_move_tail(&iocb->list, &completions);
 			pring->txq_cnt--;
 		}
@@ -216,8 +215,7 @@ lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 
 	/* Next check the txcmplq */
 	list_for_each_entry_safe(iocb, next_iocb, &pring->txcmplq, list) {
-		/* Check to see if iocb matches the nport we are looking
-		   for */
+		/* Check to see if iocb matches the nport we are looking for */
 		if (lpfc_check_sli_ndlp(phba, pring, iocb, ndlp)) {
 			lpfc_sli_issue_abort_iotag(phba, pring, iocb);
 		}
@@ -282,7 +280,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			stat.un.b.lsRjtRsnCode = LSRJT_LOGICAL_BSY;
 			stat.un.b.lsRjtRsnCodeExp = LSEXP_NOTHING_MORE;
 			lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb,
-					    ndlp);
+					    ndlp, NULL);
 			return 0;
 		}
 	}
@@ -293,7 +291,8 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		/* Reject this request because invalid parameters */
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
 		stat.un.b.lsRjtRsnCodeExp = LSEXP_SPARM_OPTIONS;
-		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp);
+		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp,
+			NULL);
 		return 0;
 	}
 	icmd = &cmdiocb->iocb;
@@ -392,13 +391,30 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		lpfc_els_abort(phba, ndlp);
 	}
 
+	if ((vport->port_type == LPFC_NPIV_PORT &&
+	      phba->cfg_vport_restrict_login)) {
+
+		/* In order to preserve RPIs, we want to cleanup
+		 * the default RPI the firmware created to rcv
+		 * this ELS request. The only way to do this is
+		 * to register, then unregister the RPI.
+		 */
+		spin_lock_irq(shost->host_lock);
+		ndlp->nlp_flag |= NLP_RM_DFLT_RPI;
+		spin_unlock_irq(shost->host_lock);
+		stat.un.b.lsRjtRsnCode = LSRJT_INVALID_CMD;
+		stat.un.b.lsRjtRsnCodeExp = LSEXP_NOTHING_MORE;
+		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb,
+			ndlp, mbox);
+		return 1;
+	}
 	lpfc_els_rsp_acc(vport, ELS_CMD_PLOGI, cmdiocb, ndlp, mbox, 0);
 	return 1;
 
 out:
 	stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
 	stat.un.b.lsRjtRsnCodeExp = LSEXP_OUT_OF_RESOURCE;
-	lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp);
+	lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp, NULL);
 	return 0;
 }
 
@@ -445,7 +461,7 @@ lpfc_rcv_padisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
 	stat.un.b.lsRjtRsnCodeExp = LSEXP_SPARM_OPTIONS;
 	stat.un.b.vendorUnique = 0;
-	lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp);
+	lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp, NULL);
 
 	/* 1 sec timeout */
 	mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ);
@@ -535,6 +551,11 @@ lpfc_rcv_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			roles |= FC_RPORT_ROLE_FCP_INITIATOR;
 		if (ndlp->nlp_type & NLP_FCP_TARGET)
 			roles |= FC_RPORT_ROLE_FCP_TARGET;
+
+		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
+			"rport rolechg:   role:x%x did:x%x flg:x%x",
+			roles, ndlp->nlp_DID, ndlp->nlp_flag);
+
 		fc_remote_port_rolechg(rport, roles);
 	}
 }
@@ -657,7 +678,8 @@ lpfc_rcv_plogi_plogi_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		   ours */
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
 		stat.un.b.lsRjtRsnCodeExp = LSEXP_CMD_IN_PROGRESS;
-		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp);
+		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp,
+			NULL);
 	} else {
 		lpfc_rcv_plogi(vport, ndlp, cmdiocb);
 	} /* If our portname was less */
@@ -675,7 +697,7 @@ lpfc_rcv_prli_plogi_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	memset(&stat, 0, sizeof (struct ls_rjt));
 	stat.un.b.lsRjtRsnCode = LSRJT_LOGICAL_BSY;
 	stat.un.b.lsRjtRsnCodeExp = LSEXP_NOTHING_MORE;
-	lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp);
+	lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp, NULL);
 	return ndlp->nlp_state;
 }
 
@@ -1335,6 +1357,10 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	irsp = &rspiocb->iocb;
 	if (irsp->ulpStatus) {
+		if ((vport->port_type == LPFC_NPIV_PORT) &&
+			phba->cfg_vport_restrict_login) {
+			goto out;
+		}
 		ndlp->nlp_prev_state = NLP_STE_PRLI_ISSUE;
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 		return ndlp->nlp_state;
@@ -1355,6 +1381,7 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (!(ndlp->nlp_type & NLP_FCP_TARGET) &&
 	    (vport->port_type == LPFC_NPIV_PORT) &&
 	     phba->cfg_vport_restrict_login) {
+out:
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_TARGET_REMOVE;
 		spin_unlock_irq(shost->host_lock);
@@ -1606,7 +1633,7 @@ lpfc_rcv_plogi_npr_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	struct lpfc_iocbq *cmdiocb  = (struct lpfc_iocbq *) arg;
 
 	/* Ignore PLOGI if we have an outstanding LOGO */
-	if (ndlp->nlp_flag & NLP_LOGO_SND) {
+	if (ndlp->nlp_flag & (NLP_LOGO_SND | NLP_LOGO_ACC)) {
 		return ndlp->nlp_state;
 	}
 
@@ -1638,7 +1665,7 @@ lpfc_rcv_prli_npr_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	memset(&stat, 0, sizeof (struct ls_rjt));
 	stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
 	stat.un.b.lsRjtRsnCodeExp = LSEXP_NOTHING_MORE;
-	lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp);
+	lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp, NULL);
 
 	if (!(ndlp->nlp_flag & NLP_DELAY_TMO)) {
 		if (ndlp->nlp_flag & NLP_NPR_ADISC) {
@@ -2035,6 +2062,10 @@ lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			phba->brd_no, vport->vpi,
 			evt, ndlp->nlp_DID, cur_state, ndlp->nlp_flag);
 
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_DSM,
+		 "DSM in:          evt:%d ste:%d did:x%x",
+		evt, cur_state, ndlp->nlp_DID);
+
 	func = lpfc_disc_action[(cur_state * NLP_EVT_MAX_EVENT) + evt];
 	rc = (func) (vport, ndlp, arg, evt);
 
@@ -2044,6 +2075,10 @@ lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			"Data: x%x\n",
 			phba->brd_no, vport->vpi,
 			rc, ndlp->nlp_DID, ndlp->nlp_flag);
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_DSM,
+		 "DSM out:         ste:%d did:x%x flg:x%x",
+		rc, ndlp->nlp_DID, ndlp->nlp_flag);
 
 	lpfc_nlp_put(ndlp);
 

@@ -73,7 +73,8 @@ struct lpfc_iocbq {
 #define IOCB_ERROR          2
 #define IOCB_TIMEDOUT       3
 
-#define LPFC_MBX_WAKE	1
+#define LPFC_MBX_WAKE		1
+#define LPFC_MBX_IMED_UNREG	2
 
 typedef struct lpfcMboxq {
 	/* MBOXQs are used in single linked lists */

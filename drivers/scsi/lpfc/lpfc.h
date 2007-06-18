@@ -23,7 +23,6 @@
 
 struct lpfc_sli2_slim;
 
-
 #define LPFC_MAX_TARGET		256	/* max number of targets supported */
 #define LPFC_MAX_DISC_THREADS	64	/* max outstanding discovery els
 					   requests */
@@ -44,6 +43,9 @@ struct lpfc_sli2_slim;
 
 /* Number of exchanges reserved for discovery to complete */
 #define LPFC_DISC_IOCB_BUFF_COUNT 20
+
+#define LPFC_HB_MBOX_INTERVAL   5	/* Heart beat interval in seconds. */
+#define LPFC_HB_MBOX_TIMEOUT    30 	/* Heart beat timeout  in seconds. */
 
 /* Define macros for 64 bit support */
 #define putPaddrLow(addr)    ((uint32_t) (0xffffffff & (u64)(addr)))
@@ -308,13 +310,15 @@ struct lpfc_vport {
 
 	spinlock_t work_port_lock;
 	uint32_t work_port_events; /* Timeout to be handled  */
-#define WORKER_DISC_TMO                0x1	/* Discovery timeout */
-#define WORKER_ELS_TMO                 0x2	/* ELS timeout */
-#define WORKER_MBOX_TMO                0x4	/* MBOX timeout */
-#define WORKER_FDMI_TMO                0x8	/* FDMI timeout */
-#define WORKER_FABRIC_BLOCK_TMO        0x10	/* fabric block timout */
-#define WORKER_RAMP_DOWN_QUEUE    0x20	/* Decrease Q depth */
-#define WORKER_RAMP_UP_QUEUE      0x40	/* Increase Q depth */
+#define WORKER_DISC_TMO                0x1	/* vport: Discovery timeout */
+#define WORKER_ELS_TMO                 0x2	/* vport: ELS timeout */
+#define WORKER_FDMI_TMO                0x4	/* vport: FDMI timeout */
+
+#define WORKER_MBOX_TMO                0x100	/* hba: MBOX timeout */
+#define WORKER_HB_TMO                  0x200	/* hba: Heart beat timeout */
+#define WORKER_FABRIC_BLOCK_TMO        0x400	/* hba: fabric block timout */
+#define WORKER_RAMP_DOWN_QUEUE         0x800	/* hba: Decrease Q depth */
+#define WORKER_RAMP_UP_QUEUE           0x1000	/* hba: Increase Q depth */
 
 	struct timer_list fc_fdmitmo;
 	struct timer_list els_tmofunc;
@@ -326,6 +330,14 @@ struct lpfc_vport {
 #define FC_UNLOADING		0x2	/* HBA in process of unloading drvr */
 	char  *vname;		        /* Application assigned name */
 	struct fc_vport *fc_vport;
+
+#ifdef CONFIG_LPFC_DEBUG_FS
+	struct dentry *debug_disc_trc;
+	struct dentry *debug_nodelist;
+	struct dentry *vport_debugfs_root;
+	struct lpfc_disc_trc *disc_trc;
+	atomic_t disc_trc_cnt;
+#endif
 };
 
 struct hbq_s {
@@ -408,6 +420,7 @@ struct lpfc_hba {
 	uint32_t cfg_hba_queue_depth;
 	uint32_t cfg_peer_port_login;
 	uint32_t cfg_vport_restrict_login;
+	uint32_t cfg_npiv_enable;
 	uint32_t cfg_fcp_class;
 	uint32_t cfg_use_adisc;
 	uint32_t cfg_ack0;
@@ -513,10 +526,10 @@ struct lpfc_hba {
 	mempool_t *nlp_mem_pool;
 
 	struct fc_host_statistics link_stats;
+
 	struct list_head port_list;
 	struct lpfc_vport *pport; /* physical lpfc_vport pointer */
 	uint16_t max_vpi;	/* Maximum virtual nports */
-	uint16_t vpi_cnt;	/* Nport count */
 #define LPFC_MAX_VPI 100  /* Max number of VPorts supported */
 	unsigned long *vpi_bmask; /* vpi allocation table */
 
@@ -531,6 +544,15 @@ struct lpfc_hba {
 	unsigned long last_rsrc_error_time;
 	unsigned long last_ramp_down_time;
 	unsigned long last_ramp_up_time;
+#ifdef CONFIG_LPFC_DEBUG_FS
+	struct dentry *hba_debugfs_root;
+	atomic_t debugfs_vport_count;
+#endif
+
+	/* Fields used for heart beat. */
+	unsigned long last_completion_time;
+	struct timer_list hb_tmofunc;
+	uint8_t hb_outstanding;
 };
 
 static inline struct Scsi_Host *

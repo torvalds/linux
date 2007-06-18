@@ -1278,6 +1278,7 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_KILL_BOARD      0x24
 #define MBX_CONFIG_FARP     0x25
 #define MBX_BEACON          0x2A
+#define MBX_HEARTBEAT       0x31
 
 #define MBX_CONFIG_HBQ	    0x7C
 #define MBX_LOAD_AREA       0x81
@@ -1777,8 +1778,6 @@ typedef struct {
 #define LMT_4Gb       0x040
 #define LMT_8Gb       0x080
 #define LMT_10Gb      0x100
-
-
 	uint32_t rsvd2;
 	uint32_t rsvd3;
 	uint32_t max_xri;
@@ -1787,7 +1786,10 @@ typedef struct {
 	uint32_t avail_xri;
 	uint32_t avail_iocb;
 	uint32_t avail_rpi;
-	uint32_t default_rpi;
+	uint32_t max_vpi;
+	uint32_t rsvd4;
+	uint32_t rsvd5;
+	uint32_t avail_vpi;
 } READ_CONFIG_VAR;
 
 /* Structure for MB Command READ_RCONFIG (12) */
@@ -3170,4 +3172,17 @@ lpfc_is_LC_HBA(unsigned short device)
 		return 1;
 	else
 		return 0;
+}
+
+/*
+ * Determine if an IOCB failed because of a link event or firmware reset.
+ */
+
+static inline int
+lpfc_error_lost_link(IOCB_t *iocbp)
+{
+	return (iocbp->ulpStatus == IOSTAT_LOCAL_REJECT &&
+		(iocbp->un.ulpWord[4] == IOERR_SLI_ABORTED ||
+		 iocbp->un.ulpWord[4] == IOERR_LINK_DOWN ||
+		 iocbp->un.ulpWord[4] == IOERR_SLI_DOWN));
 }

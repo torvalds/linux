@@ -282,9 +282,7 @@ lpfc_issue_lip(struct Scsi_Host *shost)
 	}
 
 	lpfc_set_loopback_flag(phba);
-	if (mbxstatus == MBX_TIMEOUT)
-		pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-	else
+	if (mbxstatus != MBX_TIMEOUT)
 		mempool_free(pmboxq, phba->mbox_mem_pool);
 
 	if (mbxstatus == MBXERR_ERROR)
@@ -439,30 +437,11 @@ lpfc_board_mode_store(struct class_device *cdev, const char *buf, size_t count)
 		return -EIO;
 }
 
-static ssize_t
-lpfc_max_vpi_show(struct class_device *cdev, char *buf)
-{
-	struct Scsi_Host  *shost = class_to_shost(cdev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", phba->max_vpi);
-}
-
-static ssize_t
-lpfc_used_vpi_show(struct class_device *cdev, char *buf)
-{
-	struct Scsi_Host  *shost = class_to_shost(cdev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-
-	/* Don't count the physical port */
-	return snprintf(buf, PAGE_SIZE, "%d\n", phba->vpi_cnt-1);
-}
-
 int
-lpfc_get_hba_info(struct lpfc_hba *phba, uint32_t *mxri,
-	uint32_t *axri, uint32_t *mrpi, uint32_t *arpi)
+lpfc_get_hba_info(struct lpfc_hba *phba,
+		  uint32_t *mxri, uint32_t *axri,
+		  uint32_t *mrpi, uint32_t *arpi,
+		  uint32_t *mvpi, uint32_t *avpi)
 {
 	struct lpfc_sli   *psli = &phba->sli;
 	LPFC_MBOXQ_t *pmboxq;
@@ -498,9 +477,7 @@ lpfc_get_hba_info(struct lpfc_hba *phba, uint32_t *mxri,
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
 
 	if (rc != MBX_SUCCESS) {
-		if (rc == MBX_TIMEOUT)
-			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		else
+		if (rc != MBX_TIMEOUT)
 			mempool_free(pmboxq, phba->mbox_mem_pool);
 		return 0;
 	}
@@ -513,6 +490,10 @@ lpfc_get_hba_info(struct lpfc_hba *phba, uint32_t *mxri,
 		*mxri = pmb->un.varRdConfig.max_xri;
 	if (axri)
 		*axri = pmb->un.varRdConfig.avail_xri;
+	if (mvpi)
+		*mvpi = pmb->un.varRdConfig.max_vpi;
+	if (avpi)
+		*avpi = pmb->un.varRdConfig.avail_vpi;
 
 	mempool_free(pmboxq, phba->mbox_mem_pool);
 	return 1;
@@ -526,7 +507,7 @@ lpfc_max_rpi_show(struct class_device *cdev, char *buf)
 	struct lpfc_hba   *phba = vport->phba;
 	uint32_t cnt;
 
-	if (lpfc_get_hba_info(phba, NULL, NULL, &cnt, NULL))
+	if (lpfc_get_hba_info(phba, NULL, NULL, &cnt, NULL, NULL, NULL))
 		return snprintf(buf, PAGE_SIZE, "%d\n", cnt);
 	return snprintf(buf, PAGE_SIZE, "Unknown\n");
 }
@@ -539,7 +520,7 @@ lpfc_used_rpi_show(struct class_device *cdev, char *buf)
 	struct lpfc_hba   *phba = vport->phba;
 	uint32_t cnt, acnt;
 
-	if (lpfc_get_hba_info(phba, NULL, NULL, &cnt, &acnt))
+	if (lpfc_get_hba_info(phba, NULL, NULL, &cnt, &acnt, NULL, NULL))
 		return snprintf(buf, PAGE_SIZE, "%d\n", (cnt - acnt));
 	return snprintf(buf, PAGE_SIZE, "Unknown\n");
 }
@@ -552,7 +533,7 @@ lpfc_max_xri_show(struct class_device *cdev, char *buf)
 	struct lpfc_hba   *phba = vport->phba;
 	uint32_t cnt;
 
-	if (lpfc_get_hba_info(phba, &cnt, NULL, NULL, NULL))
+	if (lpfc_get_hba_info(phba, &cnt, NULL, NULL, NULL, NULL, NULL))
 		return snprintf(buf, PAGE_SIZE, "%d\n", cnt);
 	return snprintf(buf, PAGE_SIZE, "Unknown\n");
 }
@@ -565,7 +546,33 @@ lpfc_used_xri_show(struct class_device *cdev, char *buf)
 	struct lpfc_hba   *phba = vport->phba;
 	uint32_t cnt, acnt;
 
-	if (lpfc_get_hba_info(phba, &cnt, &acnt, NULL, NULL))
+	if (lpfc_get_hba_info(phba, &cnt, &acnt, NULL, NULL, NULL, NULL))
+		return snprintf(buf, PAGE_SIZE, "%d\n", (cnt - acnt));
+	return snprintf(buf, PAGE_SIZE, "Unknown\n");
+}
+
+static ssize_t
+lpfc_max_vpi_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	uint32_t cnt;
+
+	if (lpfc_get_hba_info(phba, NULL, NULL, NULL, NULL, &cnt, NULL))
+		return snprintf(buf, PAGE_SIZE, "%d\n", cnt);
+	return snprintf(buf, PAGE_SIZE, "Unknown\n");
+}
+
+static ssize_t
+lpfc_used_vpi_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	uint32_t cnt, acnt;
+
+	if (lpfc_get_hba_info(phba, NULL, NULL, NULL, NULL, &cnt, &acnt))
 		return snprintf(buf, PAGE_SIZE, "%d\n", (cnt - acnt));
 	return snprintf(buf, PAGE_SIZE, "Unknown\n");
 }
@@ -995,9 +1002,7 @@ MODULE_PARM_DESC(lpfc_sli_mode, "SLI mode selector:"
 		 " 2 - select SLI-2 even on SLI-3 capable HBAs,"
 		 " 3 - select SLI-3");
 
-int  lpfc_npiv_enable = 0;
-module_param(lpfc_npiv_enable, int, 0);
-MODULE_PARM_DESC(lpfc_npiv_enable, "Enable NPIV functionality");
+LPFC_ATTR_R(npiv_enable, 0, 0, 1, "Enable NPIV functionality");
 
 /*
 # lpfc_nodev_tmo: If set, it will hold all I/O errors on devices that disappear
@@ -1052,6 +1057,24 @@ lpfc_nodev_tmo_init(struct lpfc_hba *phba, int val)
 	return -EINVAL;
 }
 
+static void
+lpfc_update_rport_devloss_tmo(struct lpfc_hba *phba)
+{
+	struct lpfc_vport *vport;
+	struct Scsi_Host  *shost;
+	struct lpfc_nodelist  *ndlp;
+
+	list_for_each_entry(vport, &phba->port_list, listentry) {
+		shost = lpfc_shost_from_vport(vport);
+		spin_lock_irq(shost->host_lock);
+		list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp)
+			if (ndlp->rport)
+				ndlp->rport->dev_loss_tmo =
+					phba->cfg_devloss_tmo;
+		spin_unlock_irq(shost->host_lock);
+	}
+}
+
 static int
 lpfc_nodev_tmo_set(struct lpfc_hba *phba, int val)
 {
@@ -1067,6 +1090,7 @@ lpfc_nodev_tmo_set(struct lpfc_hba *phba, int val)
 	if (val >= LPFC_MIN_DEVLOSS_TMO && val <= LPFC_MAX_DEVLOSS_TMO) {
 		phba->cfg_nodev_tmo = val;
 		phba->cfg_devloss_tmo = val;
+		lpfc_update_rport_devloss_tmo(phba);
 		return 0;
 	}
 
@@ -1102,6 +1126,7 @@ lpfc_devloss_tmo_set(struct lpfc_hba *phba, int val)
 		phba->cfg_nodev_tmo = val;
 		phba->cfg_devloss_tmo = val;
 		phba->dev_loss_tmo_changed = 1;
+		lpfc_update_rport_devloss_tmo(phba);
 		return 0;
 	}
 
@@ -1358,6 +1383,7 @@ struct class_device_attribute *lpfc_hba_attrs[] = {
 	&class_device_attr_lpfc_multi_ring_type,
 	&class_device_attr_lpfc_fdmi_on,
 	&class_device_attr_lpfc_max_luns,
+	&class_device_attr_lpfc_npiv_enable,
 	&class_device_attr_nport_evt_cnt,
 	&class_device_attr_management_version,
 	&class_device_attr_board_mode,
@@ -1641,8 +1667,6 @@ sysfs_mbox_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
 
 		if (rc != MBX_SUCCESS) {
 			if (rc == MBX_TIMEOUT) {
-				phba->sysfs_mbox.mbox->mbox_cmpl =
-					lpfc_sli_def_mbox_cmpl;
 				phba->sysfs_mbox.mbox = NULL;
 			}
 			sysfs_mbox_idle(phba);
@@ -1886,9 +1910,7 @@ lpfc_get_stats(struct Scsi_Host *shost)
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
 
 	if (rc != MBX_SUCCESS) {
-		if (rc == MBX_TIMEOUT)
-			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		else
+		if (rc != MBX_TIMEOUT)
 			mempool_free(pmboxq, phba->mbox_mem_pool);
 		return NULL;
 	}
@@ -1913,9 +1935,7 @@ lpfc_get_stats(struct Scsi_Host *shost)
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
 
 	if (rc != MBX_SUCCESS) {
-		if (rc == MBX_TIMEOUT)
-			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		else
+		if (rc != MBX_TIMEOUT)
 			mempool_free(pmboxq, phba->mbox_mem_pool);
 		return NULL;
 	}
@@ -1993,9 +2013,7 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
 
 	if (rc != MBX_SUCCESS) {
-		if (rc == MBX_TIMEOUT)
-			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		else
+		if (rc != MBX_TIMEOUT)
 			mempool_free(pmboxq, phba->mbox_mem_pool);
 		return;
 	}
@@ -2013,9 +2031,7 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
 
 	if (rc != MBX_SUCCESS) {
-		if (rc == MBX_TIMEOUT)
-			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		else
+		if (rc != MBX_TIMEOUT)
 			mempool_free( pmboxq, phba->mbox_mem_pool);
 		return;
 	}
@@ -2253,6 +2269,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_max_luns_init(phba, lpfc_max_luns);
 	lpfc_poll_tmo_init(phba, lpfc_poll_tmo);
 	lpfc_peer_port_login_init(phba, lpfc_peer_port_login);
+	lpfc_npiv_enable_init(phba, lpfc_npiv_enable);
 	lpfc_vport_restrict_login_init(phba, lpfc_vport_restrict_login);
 	lpfc_use_msi_init(phba, lpfc_use_msi);
 	lpfc_devloss_tmo_init(phba, lpfc_devloss_tmo);

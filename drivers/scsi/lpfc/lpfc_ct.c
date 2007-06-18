@@ -41,6 +41,7 @@
 #include "lpfc_crtn.h"
 #include "lpfc_version.h"
 #include "lpfc_vport.h"
+#include "lpfc_debugfs.h"
 
 #define HBA_PORTSPEED_UNKNOWN               0	/* Unknown - transceiver
 						 * incapable of reporting */
@@ -251,6 +252,32 @@ lpfc_alloc_ct_rsp(struct lpfc_hba *phba, int cmdcode, struct ulp_bde64 *bpl,
 	return mlist;
 }
 
+int
+lpfc_ct_free_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocb)
+{
+	struct lpfc_dmabuf *buf_ptr;
+
+	if (ctiocb->context1) {
+		buf_ptr = (struct lpfc_dmabuf *) ctiocb->context1;
+		lpfc_mbuf_free(phba, buf_ptr->virt, buf_ptr->phys);
+		kfree(buf_ptr);
+		ctiocb->context1 = NULL;
+	}
+	if (ctiocb->context2) {
+		lpfc_free_ct_rsp(phba, (struct lpfc_dmabuf *) ctiocb->context2);
+		ctiocb->context2 = NULL;
+	}
+
+	if (ctiocb->context3) {
+		buf_ptr = (struct lpfc_dmabuf *) ctiocb->context3;
+		lpfc_mbuf_free(phba, buf_ptr->virt, buf_ptr->phys);
+		kfree(buf_ptr);
+		ctiocb->context1 = NULL;
+	}
+	lpfc_sli_release_iocbq(phba, ctiocb);
+	return 0;
+}
+
 static int
 lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	     struct lpfc_dmabuf *inp, struct lpfc_dmabuf *outp,
@@ -428,6 +455,13 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint32_t Size)
 				    (!phba->cfg_vport_restrict_login)) {
 					ndlp = lpfc_setup_disc_node(vport, Did);
 					if (ndlp) {
+						lpfc_debugfs_disc_trc(vport,
+						LPFC_DISC_TRC_CT,
+						"Parse GID_FTrsp: "
+						"did:x%x flg:x%x x%x",
+						Did, ndlp->nlp_flag,
+						vport->fc_flag);
+
 						lpfc_printf_log(phba, KERN_INFO,
 							LOG_DISCOVERY,
 							"%d (%d):0238 Process "
@@ -439,6 +473,13 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint32_t Size)
 							vport->fc_flag,
 							vport->fc_rscn_id_cnt);
 					} else {
+						lpfc_debugfs_disc_trc(vport,
+						LPFC_DISC_TRC_CT,
+						"Skip1 GID_FTrsp: "
+						"did:x%x flg:x%x cnt:%d",
+						Did, vport->fc_flag,
+						vport->fc_rscn_id_cnt);
+
 						lpfc_printf_log(phba, KERN_INFO,
 							LOG_DISCOVERY,
 							"%d (%d):0239 Skip x%x "
@@ -453,12 +494,26 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint32_t Size)
 				} else {
 					if (!(vport->fc_flag & FC_RSCN_MODE) ||
 					(lpfc_rscn_payload_check(vport, Did))) {
+						lpfc_debugfs_disc_trc(vport,
+						LPFC_DISC_TRC_CT,
+						"Query GID_FTrsp: "
+						"did:x%x flg:x%x cnt:%d",
+						Did, vport->fc_flag,
+						vport->fc_rscn_id_cnt);
+
 						if (lpfc_ns_cmd(vport,
 							SLI_CTNS_GFF_ID,
 							0, Did) == 0)
 							vport->num_disc_nodes++;
 					}
 					else {
+						lpfc_debugfs_disc_trc(vport,
+						LPFC_DISC_TRC_CT,
+						"Skip2 GID_FTrsp: "
+						"did:x%x flg:x%x cnt:%d",
+						Did, vport->fc_flag,
+						vport->fc_rscn_id_cnt);
+
 						lpfc_printf_log(phba, KERN_INFO,
 							LOG_DISCOVERY,
 							"%d (%d):0245 Skip x%x "
@@ -492,7 +547,6 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	IOCB_t *irsp;
 	struct lpfc_dmabuf *bmp;
-	struct lpfc_dmabuf *inp;
 	struct lpfc_dmabuf *outp;
 	struct lpfc_sli_ct_request *CTrsp;
 	int rc;
@@ -500,31 +554,39 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
 	cmdiocb->context_un.rsp_iocb = rspiocb;
 
-	inp = (struct lpfc_dmabuf *) cmdiocb->context1;
 	outp = (struct lpfc_dmabuf *) cmdiocb->context2;
 	bmp = (struct lpfc_dmabuf *) cmdiocb->context3;
+	irsp = &rspiocb->iocb;
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+		 "GID_FT cmpl:     status:x%x/x%x rtry:%d",
+		irsp->ulpStatus, irsp->un.ulpWord[4], vport->fc_ns_retry);
 
 	/* Don't bother processing response if vport is being torn down. */
 	if (vport->load_flag & FC_UNLOADING)
 		goto out;
 
-	irsp = &rspiocb->iocb;
-	if (irsp->ulpStatus) {
-		if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
-			((irsp->un.ulpWord[4] == IOERR_SLI_DOWN) ||
-			 (irsp->un.ulpWord[4] == IOERR_SLI_ABORTED)))
-			goto err1;
 
+	if (lpfc_els_chk_latt(vport) || lpfc_error_lost_link(irsp)) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
+				"%d (%d):0216 Link event during NS query\n",
+				phba->brd_no, vport->vpi);
+		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
+		goto out;
+	}
+
+	if (irsp->ulpStatus) {
 		/* Check for retry */
 		if (vport->fc_ns_retry < LPFC_MAX_NS_RETRY) {
-			vport->fc_ns_retry++;
+			if ((irsp->ulpStatus != IOSTAT_LOCAL_REJECT) ||
+				(irsp->un.ulpWord[4] != IOERR_NO_RESOURCES))
+				vport->fc_ns_retry++;
 			/* CT command is being retried */
 			rc = lpfc_ns_cmd(vport, SLI_CTNS_GID_FT,
 					 vport->fc_ns_retry, 0);
 			if (rc == 0)
 				goto out;
 		}
-err1:
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
 			"%d (%d):0257 GID_FT Query error: 0x%x 0x%x\n",
@@ -553,6 +615,13 @@ err1:
 					(uint32_t) CTrsp->ReasonCode,
 					(uint32_t) CTrsp->Explanation,
 					vport->fc_flag);
+
+			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+				"GID_FT rsp err1  cmd:x%x rsn:x%x exp:x%x",
+				(uint32_t)CTrsp->CommandResponse.bits.CmdRsp,
+				(uint32_t) CTrsp->ReasonCode,
+				(uint32_t) CTrsp->Explanation);
+
 		} else {
 			/* NameServer Rsp Error */
 			lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
@@ -563,6 +632,12 @@ err1:
 					(uint32_t) CTrsp->ReasonCode,
 					(uint32_t) CTrsp->Explanation,
 					vport->fc_flag);
+
+			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+				"GID_FT rsp err2  cmd:x%x rsn:x%x exp:x%x",
+				(uint32_t)CTrsp->CommandResponse.bits.CmdRsp,
+				(uint32_t) CTrsp->ReasonCode,
+				(uint32_t) CTrsp->Explanation);
 		}
 	}
 	/* Link up / RSCN discovery */
@@ -586,12 +661,7 @@ err1:
 		lpfc_disc_start(vport);
 	}
 out:
-	lpfc_free_ct_rsp(phba, outp);
-	lpfc_mbuf_free(phba, inp->virt, inp->phys);
-	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
-	kfree(inp);
-	kfree(bmp);
-	lpfc_sli_release_iocbq(phba, cmdiocb);
+	lpfc_ct_free_iocb(phba, cmdiocb);
 	return;
 }
 
@@ -602,7 +672,6 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_vport *vport = cmdiocb->vport;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	IOCB_t *irsp = &rspiocb->iocb;
-	struct lpfc_dmabuf *bmp = (struct lpfc_dmabuf *) cmdiocb->context3;
 	struct lpfc_dmabuf *inp = (struct lpfc_dmabuf *) cmdiocb->context1;
 	struct lpfc_dmabuf *outp = (struct lpfc_dmabuf *) cmdiocb->context2;
 	struct lpfc_sli_ct_request *CTrsp;
@@ -612,6 +681,10 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	did = ((struct lpfc_sli_ct_request *) inp->virt)->un.gff.PortId;
 	did = be32_to_cpu(did);
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+		"GFF_ID cmpl:     status:x%x/x%x did:x%x",
+		irsp->ulpStatus, irsp->un.ulpWord[4], did);
 
 	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
 		/* Good status, continue checking */
@@ -632,6 +705,15 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			}
 		}
 	}
+	else {
+		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
+				"%d (%d):0267 NameServer GFF Rsp"
+				" x%x Error (%d %d) Data: x%x x%x\n",
+				phba->brd_no, vport->vpi, did,
+				irsp->ulpStatus, irsp->un.ulpWord[4],
+				vport->fc_flag, vport->fc_rscn_id_cnt)
+	}
+
 	/* This is a target port, unregistered port, or the GFF_ID failed */
 	ndlp = lpfc_setup_disc_node(vport, did);
 	if (ndlp) {
@@ -670,13 +752,7 @@ out:
 		}
 		lpfc_disc_start(vport);
 	}
-
-	lpfc_free_ct_rsp(phba, outp);
-	lpfc_mbuf_free(phba, inp->virt, inp->phys);
-	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
-	kfree(inp);
-	kfree(bmp);
-	lpfc_sli_release_iocbq(phba, cmdiocb);
+	lpfc_ct_free_iocb(phba, cmdiocb);
 	return;
 }
 
@@ -686,37 +762,45 @@ lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			struct lpfc_iocbq *rspiocb)
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
-	struct lpfc_dmabuf *bmp;
 	struct lpfc_dmabuf *inp;
 	struct lpfc_dmabuf *outp;
 	IOCB_t *irsp;
 	struct lpfc_sli_ct_request *CTrsp;
 	int cmdcode, rc;
 	uint8_t retry;
+	uint32_t latt;
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
 	cmdiocb->context_un.rsp_iocb = rspiocb;
 
 	inp = (struct lpfc_dmabuf *) cmdiocb->context1;
 	outp = (struct lpfc_dmabuf *) cmdiocb->context2;
-	bmp = (struct lpfc_dmabuf *) cmdiocb->context3;
 	irsp = &rspiocb->iocb;
 
 	cmdcode = be16_to_cpu(((struct lpfc_sli_ct_request *) inp->virt)->
 					CommandResponse.bits.CmdRsp);
 	CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
 
-	/* NS request completes status <ulpStatus> CmdRsp <CmdRsp> */
+	latt = lpfc_els_chk_latt(vport);
+
+	/* RFT request completes status <ulpStatus> CmdRsp <CmdRsp> */
 	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-			"%d (%d):0209 NS request %x completes "
-			"ulpStatus x%x / x%x "
-			"CmdRsp x%x, Context x%x, Tag x%x\n",
-			phba->brd_no, vport->vpi,
-			cmdcode, irsp->ulpStatus, irsp->un.ulpWord[4],
+			"%d (%d):0209 RFT request completes, latt %d, "
+			"ulpStatus x%x CmdRsp x%x, Context x%x, Tag x%x\n",
+			phba->brd_no, vport->vpi, latt, irsp->ulpStatus,
 			CTrsp->CommandResponse.bits.CmdRsp,
 			cmdiocb->iocb.ulpContext, cmdiocb->iocb.ulpIoTag);
 
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+		"CT cmd cmpl:     status:x%x/x%x cmd:x%x",
+		irsp->ulpStatus, irsp->un.ulpWord[4], cmdcode);
+
 	if (irsp->ulpStatus) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
+			"%d (%d):0268 NS cmd %x Error (%d %d)\n",
+			phba->brd_no, vport->vpi, cmdcode,
+			irsp->ulpStatus, irsp->un.ulpWord[4]);
+
 		if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
 			((irsp->un.ulpWord[4] == IOERR_SLI_DOWN) ||
 			 (irsp->un.ulpWord[4] == IOERR_SLI_ABORTED)))
@@ -736,12 +820,7 @@ lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 
 out:
-	lpfc_free_ct_rsp(phba, outp);
-	lpfc_mbuf_free(phba, inp->virt, inp->phys);
-	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
-	kfree(inp);
-	kfree(bmp);
-	lpfc_sli_release_iocbq(phba, cmdiocb);
+	lpfc_ct_free_iocb(phba, cmdiocb);
 	return;
 }
 
@@ -840,31 +919,42 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		      struct lpfc_iocbq *) = NULL;
 	uint32_t rsp_size = 1024;
 	size_t   size;
+	int rc = 0;
 
 	ndlp = lpfc_findnode_did(vport, NameServer_DID);
-	if (ndlp == NULL || ndlp->nlp_state != NLP_STE_UNMAPPED_NODE)
-		return 1;
+	if (ndlp == NULL || ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) {
+		rc=1;
+		goto ns_cmd_exit;
+	}
 
 	/* fill in BDEs for command */
 	/* Allocate buffer for command payload */
 	mp = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL);
-	if (!mp)
+	if (!mp) {
+		rc=2;
 		goto ns_cmd_exit;
+	}
 
 	INIT_LIST_HEAD(&mp->list);
 	mp->virt = lpfc_mbuf_alloc(phba, MEM_PRI, &(mp->phys));
-	if (!mp->virt)
+	if (!mp->virt) {
+		rc=3;
 		goto ns_cmd_free_mp;
+	}
 
 	/* Allocate buffer for Buffer ptr list */
 	bmp = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL);
-	if (!bmp)
+	if (!bmp) {
+		rc=4;
 		goto ns_cmd_free_mpvirt;
+	}
 
 	INIT_LIST_HEAD(&bmp->list);
 	bmp->virt = lpfc_mbuf_alloc(phba, MEM_PRI, &(bmp->phys));
-	if (!bmp->virt)
+	if (!bmp->virt) {
+		rc=5;
 		goto ns_cmd_free_bmp;
+	}
 
 	/* NameServer Req */
 	lpfc_printf_log(phba, KERN_INFO ,LOG_DISCOVERY,
@@ -970,10 +1060,15 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		break;
 	}
 
-	if (!lpfc_ct_cmd(vport, mp, bmp, ndlp, cmpl, rsp_size, retry))
+	if (!lpfc_ct_cmd(vport, mp, bmp, ndlp, cmpl, rsp_size, retry)) {
 		/* On success, The cmpl function will free the buffers */
+		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+			"Issue CT cmd:    cmd:x%x did:x%x",
+			cmdcode, ndlp->nlp_DID, 0);
 		return 0;
+	}
 
+	rc=6;
 	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
 ns_cmd_free_bmp:
 	kfree(bmp);
@@ -982,6 +1077,10 @@ ns_cmd_free_mpvirt:
 ns_cmd_free_mp:
 	kfree(mp);
 ns_cmd_exit:
+	lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
+		"%d (%d):0266 Issue NameServer Req x%x err %d Data: x%x x%x\n",
+			phba->brd_no, vport->vpi, cmdcode, rc, vport->fc_flag,
+			vport->fc_rscn_id_cnt);
 	return 1;
 }
 
@@ -989,7 +1088,6 @@ static void
 lpfc_cmpl_ct_cmd_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		      struct lpfc_iocbq * rspiocb)
 {
-	struct lpfc_dmabuf *bmp = cmdiocb->context3;
 	struct lpfc_dmabuf *inp = cmdiocb->context1;
 	struct lpfc_dmabuf *outp = cmdiocb->context2;
 	struct lpfc_sli_ct_request *CTrsp = outp->virt;
@@ -998,6 +1096,25 @@ lpfc_cmpl_ct_cmd_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	uint16_t fdmi_cmd = CTcmd->CommandResponse.bits.CmdRsp;
 	uint16_t fdmi_rsp = CTrsp->CommandResponse.bits.CmdRsp;
 	struct lpfc_vport *vport = cmdiocb->vport;
+	IOCB_t *irsp = &rspiocb->iocb;
+	uint32_t latt;
+
+	latt = lpfc_els_chk_latt(vport);
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+		"FDMI cmpl:       status:x%x/x%x latt:%d",
+		irsp->ulpStatus, irsp->un.ulpWord[4], latt);
+
+	if (latt || irsp->ulpStatus) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
+			        "%d (%d):0229 FDMI cmd %04x failed, latt = %d "
+				"ulpStatus: x%x, rid x%x\n",
+			        phba->brd_no, vport->vpi,
+				be16_to_cpu(fdmi_cmd), latt, irsp->ulpStatus,
+				irsp->un.ulpWord[4]);
+		lpfc_ct_free_iocb(phba, cmdiocb);
+		return;
+	}
 
 	ndlp = lpfc_findnode_did(vport, FDMI_DID);
 	if (fdmi_rsp == be16_to_cpu(SLI_CT_RESPONSE_FS_RJT)) {
@@ -1024,13 +1141,7 @@ lpfc_cmpl_ct_cmd_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_RHBA);
 		break;
 	}
-
-	lpfc_free_ct_rsp(phba, outp);
-	lpfc_mbuf_free(phba, inp->virt, inp->phys);
-	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
-	kfree(inp);
-	kfree(bmp);
-	lpfc_sli_release_iocbq(phba, cmdiocb);
+	lpfc_ct_free_iocb(phba, cmdiocb);
 	return;
 }
 

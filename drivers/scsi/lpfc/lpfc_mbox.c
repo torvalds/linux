@@ -82,6 +82,22 @@ lpfc_read_nv(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 }
 
 /**********************************************/
+/*  lpfc_heart_beat  Issue a HEART_BEAT       */
+/*                mailbox command             */
+/**********************************************/
+void
+lpfc_heart_beat(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
+{
+	MAILBOX_t *mb;
+
+	mb = &pmb->mb;
+	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
+	mb->mbxCommand = MBX_HEARTBEAT;
+	mb->mbxOwner = OWN_HOST;
+	return;
+}
+
+/**********************************************/
 /*  lpfc_read_la  Issue a READ LA             */
 /*                mailbox command             */
 /**********************************************/
@@ -676,7 +692,7 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (phba->sli_rev == 3 && phba->vpd.sli3Feat.cerbm) {
 		mb->un.varCfgPort.cerbm = 1; /* Request HBQs */
 		mb->un.varCfgPort.max_hbq = 1; /* Requesting 2 HBQs */
-		if (phba->max_vpi && lpfc_npiv_enable &&
+		if (phba->max_vpi && phba->cfg_npiv_enable &&
 		    phba->vpd.sli3Feat.cmv) {
 			mb->un.varCfgPort.max_vpi = phba->max_vpi;
 			mb->un.varCfgPort.cmv = 1;

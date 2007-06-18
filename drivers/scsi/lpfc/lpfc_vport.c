@@ -82,7 +82,8 @@ lpfc_alloc_vpi(struct lpfc_hba *phba)
 	int  vpi;
 
 	spin_lock_irq(&phba->hbalock);
-	vpi = find_next_zero_bit(phba->vpi_bmask, phba->max_vpi, 1);
+	/* Start at bit 1 because vpi zero is reserved for the physical port */
+	vpi = find_next_zero_bit(phba->vpi_bmask, (phba->max_vpi + 1), 1);
 	if (vpi > phba->max_vpi)
 		vpi = 0;
 	else
@@ -131,7 +132,8 @@ lpfc_vport_sparm(struct lpfc_hba *phba, struct lpfc_vport *vport)
 				mb->mbxCommand, mb->mbxStatus, rc);
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
-		mempool_free(pmb, phba->mbox_mem_pool);
+		if (rc != MBX_TIMEOUT)
+			mempool_free(pmb, phba->mbox_mem_pool);
 		return -EIO;
 	}
 
@@ -241,6 +243,8 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	}
 
 	vport->vpi = vpi;
+	lpfc_debugfs_initialize(vport);
+
 	if (lpfc_vport_sparm(phba, vport)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_VPORT,
 				"%d:1813 Create VPORT failed: vpi:%d "
@@ -306,8 +310,16 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	 */
 	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
 	if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
-		lpfc_set_disctmo(vport);
-		lpfc_initial_fdisc(vport);
+		if (phba->link_flag & LS_NPIV_FAB_SUPPORTED) {
+			lpfc_set_disctmo(vport);
+			lpfc_initial_fdisc(vport);
+		} else {
+			lpfc_vport_set_state(vport, FC_VPORT_NO_FABRIC_SUPP);
+			lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
+					"%d (%d):0262 No NPIV Fabric "
+					"support\n",
+					phba->brd_no, vport->vpi);
+		}
 	} else {
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 	}
@@ -383,8 +395,16 @@ enable_vport(struct fc_vport *fc_vport)
 	 */
 	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
 	if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
-		lpfc_set_disctmo(vport);
-		lpfc_initial_fdisc(vport);
+		if (phba->link_flag & LS_NPIV_FAB_SUPPORTED) {
+			lpfc_set_disctmo(vport);
+			lpfc_initial_fdisc(vport);
+		} else {
+			lpfc_vport_set_state(vport, FC_VPORT_NO_FABRIC_SUPP);
+			lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
+					"%d (%d):0264 No NPIV Fabric "
+					"support\n",
+					phba->brd_no, vport->vpi);
+		}
 	} else {
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 	}
@@ -441,6 +461,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	vport->load_flag |= FC_UNLOADING;
 
 	kfree(vport->vname);
+	lpfc_debugfs_terminate(vport);
 	fc_remove_host(lpfc_shost_from_vport(vport));
 	scsi_remove_host(lpfc_shost_from_vport(vport));
 
@@ -474,12 +495,6 @@ skip_logo:
 					     NLP_EVT_DEVICE_RECOVERY);
 		lpfc_disc_state_machine(vport, ndlp, NULL,
 					     NLP_EVT_DEVICE_RM);
-	}
-
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		/* free any ndlp's in unused state */
-		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
-			lpfc_drop_node(vport, ndlp);
 	}
 
 	lpfc_stop_vport_timers(vport);
