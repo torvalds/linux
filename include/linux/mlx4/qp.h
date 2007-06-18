@@ -269,6 +269,10 @@ struct mlx4_wqe_data_seg {
 	__be64			addr;
 };
 
+enum {
+	MLX4_INLINE_ALIGN	= 64,
+};
+
 struct mlx4_wqe_inline_seg {
 	__be32			byte_count;
 };
