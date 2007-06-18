@@ -1154,7 +1154,9 @@ xfs_mountfs(
 	 * This may drive us straight to ENOSPC on mount, but that implies
 	 * we were already there on the last unmount.
 	 */
-	resblks = min_t(__uint64_t, mp->m_sb.sb_dblocks / 20, 1024);
+	resblks = mp->m_sb.sb_dblocks;
+	do_div(resblks, 20);
+	resblks = min_t(__uint64_t, resblks, 1024);
 	xfs_reserve_blocks(mp, &resblks, NULL);
 
 	return 0;
