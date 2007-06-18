@@ -1010,6 +1010,8 @@ xfs_page_state_convert(
 		if (buffer_unwritten(bh) || buffer_delay(bh) ||
 		    ((buffer_uptodate(bh) || PageUptodate(page)) &&
 		     !buffer_mapped(bh) && (unmapped || startio))) {
+			int new_ioend = 0;
+
 			/*
 			 * Make sure we don't use a read-only iomap
 			 */
@@ -1028,6 +1030,15 @@ xfs_page_state_convert(
 			}
 
 			if (!iomap_valid) {
+				/*
+				 * if we didn't have a valid mapping then we
+				 * need to ensure that we put the new mapping
+				 * in a new ioend structure. This needs to be
+				 * done to ensure that the ioends correctly
+				 * reflect the block mappings at io completion
+				 * for unwritten extent conversion.
+				 */
+				new_ioend = 1;
 				if (type == IOMAP_NEW) {
 					size = xfs_probe_cluster(inode,
 							page, bh, head, 0);
@@ -1047,7 +1058,7 @@ xfs_page_state_convert(
 				if (startio) {
 					xfs_add_to_ioend(inode, bh, offset,
 							type, &ioend,
-							!iomap_valid);
+							new_ioend);
 				} else {
 					set_buffer_dirty(bh);
 					unlock_buffer(bh);
