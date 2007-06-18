@@ -501,10 +501,27 @@ struct __ipath_sendpkt {
 	struct ipath_iovec sps_iov[4];
 };
 
-/* Passed into diag data special file's ->write method. */
+/*
+ * diagnostics can send a packet by "writing" one of the following
+ * two structs to diag data special file
+ * The first is the legacy version for backward compatibility
+ */
 struct ipath_diag_pkt {
 	__u32 unit;
 	__u64 data;
+	__u32 len;
+};
+
+/* The second diag_pkt struct is the expanded version that allows
+ * more control over the packet, specifically, by allowing a custom
+ * pbc (+ extra) qword, so that special modes and deliberate
+ * changes to CRCs can be used. The elements were also re-ordered
+ * for better alignment and to avoid padding issues.
+ */
+struct ipath_diag_xpkt {
+	__u64 data;
+	__u64 pbc_wd;
+	__u32 unit;
 	__u32 len;
 };
 
