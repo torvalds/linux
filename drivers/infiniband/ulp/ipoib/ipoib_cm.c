@@ -281,7 +281,6 @@ static int ipoib_cm_send_rep(struct net_device *dev, struct ib_cm_id *cm_id,
 	rep.private_data_len = sizeof data;
 	rep.flow_control = 0;
 	rep.rnr_retry_count = req->rnr_retry_count;
-	rep.target_ack_delay = 20; /* FIXME */
 	rep.srq = 1;
 	rep.qp_num = qp->qp_num;
 	rep.starting_psn = psn;

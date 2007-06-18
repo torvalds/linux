@@ -2326,7 +2326,6 @@ static int cma_accept_ib(struct rdma_id_private *id_priv,
 	rep.private_data_len = conn_param->private_data_len;
 	rep.responder_resources = conn_param->responder_resources;
 	rep.initiator_depth = conn_param->initiator_depth;
-	rep.target_ack_delay = CMA_CM_RESPONSE_TIMEOUT;
 	rep.failover_accepted = 0;
 	rep.flow_control = conn_param->flow_control;
 	rep.rnr_retry_count = conn_param->rnr_retry_count;

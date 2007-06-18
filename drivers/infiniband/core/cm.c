@@ -87,6 +87,7 @@ struct cm_port {
 struct cm_device {
 	struct list_head list;
 	struct ib_device *device;
+	u8 ack_delay;
 	struct cm_port port[0];
 };
 
@@ -95,7 +96,7 @@ struct cm_av {
 	union ib_gid dgid;
 	struct ib_ah_attr ah_attr;
 	u16 pkey_index;
-	u8 packet_life_time;
+	u8 timeout;
 };
 
 struct cm_work {
@@ -154,6 +155,7 @@ struct cm_id_private {
 	u8 retry_count;
 	u8 rnr_retry_count;
 	u8 service_timeout;
+	u8 target_ack_delay;
 
 	struct list_head work_list;
 	atomic_t work_count;
@@ -293,7 +295,7 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 	av->port = port;
 	ib_init_ah_from_path(cm_dev->device, port->port_num, path,
 			     &av->ah_attr);
-	av->packet_life_time = path->packet_life_time;
+	av->timeout = path->packet_life_time + 1;
 	return 0;
 }
 
@@ -643,6 +645,25 @@ static inline int cm_convert_to_ms(int iba_time)
 	return 1 << max(iba_time - 8, 0);
 }
 
+/*
+ * calculate: 4.096x2^ack_timeout = 4.096x2^ack_delay + 2x4.096x2^life_time
+ * Because of how ack_timeout is stored, adding one doubles the timeout.
+ * To avoid large timeouts, select the max(ack_delay, life_time + 1), and
+ * increment it (round up) only if the other is within 50%.
+ */
+static u8 cm_ack_timeout(u8 ca_ack_delay, u8 packet_life_time)
+{
+	int ack_timeout = packet_life_time + 1;
+
+	if (ack_timeout >= ca_ack_delay)
+		ack_timeout += (ca_ack_delay >= (ack_timeout - 1));
+	else
+		ack_timeout = ca_ack_delay +
+			      (ack_timeout >= (ca_ack_delay - 1));
+
+	return min(31, ack_timeout);
+}
+
 static void cm_cleanup_timewait(struct cm_timewait_info *timewait_info)
 {
 	if (timewait_info->inserted_remote_id) {
@@ -686,7 +707,7 @@ static void cm_enter_timewait(struct cm_id_private *cm_id_priv)
 	 * timewait before notifying the user that we've exited timewait.
 	 */
 	cm_id_priv->id.state = IB_CM_TIMEWAIT;
-	wait_time = cm_convert_to_ms(cm_id_priv->av.packet_life_time + 1);
+	wait_time = cm_convert_to_ms(cm_id_priv->av.timeout);
 	queue_delayed_work(cm.wq, &cm_id_priv->timewait_info->work.work,
 			   msecs_to_jiffies(wait_time));
 	cm_id_priv->timewait_info = NULL;
@@ -908,7 +929,8 @@ static void cm_format_req(struct cm_req_msg *req_msg,
 	cm_req_set_primary_sl(req_msg, param->primary_path->sl);
 	cm_req_set_primary_subnet_local(req_msg, 1); /* local only... */
 	cm_req_set_primary_local_ack_timeout(req_msg,
-		min(31, param->primary_path->packet_life_time + 1));
+		cm_ack_timeout(cm_id_priv->av.port->cm_dev->ack_delay,
+			       param->primary_path->packet_life_time));
 
 	if (param->alternate_path) {
 		req_msg->alt_local_lid = param->alternate_path->slid;
@@ -923,7 +945,8 @@ static void cm_format_req(struct cm_req_msg *req_msg,
 		cm_req_set_alt_sl(req_msg, param->alternate_path->sl);
 		cm_req_set_alt_subnet_local(req_msg, 1); /* local only... */
 		cm_req_set_alt_local_ack_timeout(req_msg,
-			min(31, param->alternate_path->packet_life_time + 1));
+			cm_ack_timeout(cm_id_priv->av.port->cm_dev->ack_delay,
+				       param->alternate_path->packet_life_time));
 	}
 
 	if (param->private_data && param->private_data_len)
@@ -1433,7 +1456,8 @@ static void cm_format_rep(struct cm_rep_msg *rep_msg,
 	cm_rep_set_starting_psn(rep_msg, cpu_to_be32(param->starting_psn));
 	rep_msg->resp_resources = param->responder_resources;
 	rep_msg->initiator_depth = param->initiator_depth;
-	cm_rep_set_target_ack_delay(rep_msg, param->target_ack_delay);
+	cm_rep_set_target_ack_delay(rep_msg,
+				    cm_id_priv->av.port->cm_dev->ack_delay);
 	cm_rep_set_failover(rep_msg, param->failover_accepted);
 	cm_rep_set_flow_ctrl(rep_msg, param->flow_control);
 	cm_rep_set_rnr_retry_count(rep_msg, param->rnr_retry_count);
@@ -1680,6 +1704,13 @@ static int cm_rep_handler(struct cm_work *work)
 	cm_id_priv->responder_resources = rep_msg->initiator_depth;
 	cm_id_priv->sq_psn = cm_rep_get_starting_psn(rep_msg);
 	cm_id_priv->rnr_retry_count = cm_rep_get_rnr_retry_count(rep_msg);
+	cm_id_priv->target_ack_delay = cm_rep_get_target_ack_delay(rep_msg);
+	cm_id_priv->av.timeout =
+			cm_ack_timeout(cm_id_priv->target_ack_delay,
+				       cm_id_priv->av.timeout - 1);
+	cm_id_priv->alt_av.timeout =
+			cm_ack_timeout(cm_id_priv->target_ack_delay,
+				       cm_id_priv->alt_av.timeout - 1);
 
 	/* todo: handle peer_to_peer */
 
@@ -2291,7 +2322,7 @@ static int cm_mra_handler(struct cm_work *work)
 	work->cm_event.param.mra_rcvd.service_timeout =
 					cm_mra_get_service_timeout(mra_msg);
 	timeout = cm_convert_to_ms(cm_mra_get_service_timeout(mra_msg)) +
-		  cm_convert_to_ms(cm_id_priv->av.packet_life_time);
+		  cm_convert_to_ms(cm_id_priv->av.timeout);
 
 	spin_lock_irq(&cm_id_priv->lock);
 	switch (cm_id_priv->id.state) {
@@ -2363,7 +2394,8 @@ static void cm_format_lap(struct cm_lap_msg *lap_msg,
 	cm_lap_set_sl(lap_msg, alternate_path->sl);
 	cm_lap_set_subnet_local(lap_msg, 1); /* local only... */
 	cm_lap_set_local_ack_timeout(lap_msg,
-		min(31, alternate_path->packet_life_time + 1));
+		cm_ack_timeout(cm_id_priv->av.port->cm_dev->ack_delay,
+			       alternate_path->packet_life_time));
 
 	if (private_data && private_data_len)
 		memcpy(lap_msg->private_data, private_data, private_data_len);
@@ -2394,6 +2426,9 @@ int ib_send_cm_lap(struct ib_cm_id *cm_id,
 	ret = cm_init_av_by_path(alternate_path, &cm_id_priv->alt_av);
 	if (ret)
 		goto out;
+	cm_id_priv->alt_av.timeout =
+			cm_ack_timeout(cm_id_priv->target_ack_delay,
+				       cm_id_priv->alt_av.timeout - 1);
 
 	ret = cm_alloc_msg(cm_id_priv, &msg);
 	if (ret)
@@ -3248,8 +3283,7 @@ static int cm_init_qp_rtr_attr(struct cm_id_private *cm_id_priv,
 			*qp_attr_mask |= IB_QP_ALT_PATH;
 			qp_attr->alt_port_num = cm_id_priv->alt_av.port->port_num;
 			qp_attr->alt_pkey_index = cm_id_priv->alt_av.pkey_index;
-			qp_attr->alt_timeout =
-					cm_id_priv->alt_av.packet_life_time + 1;
+			qp_attr->alt_timeout = cm_id_priv->alt_av.timeout;
 			qp_attr->alt_ah_attr = cm_id_priv->alt_av.ah_attr;
 		}
 		ret = 0;
@@ -3287,8 +3321,7 @@ static int cm_init_qp_rts_attr(struct cm_id_private *cm_id_priv,
 				*qp_attr_mask |= IB_QP_TIMEOUT | IB_QP_RETRY_CNT |
 						 IB_QP_RNR_RETRY |
 						 IB_QP_MAX_QP_RD_ATOMIC;
-				qp_attr->timeout =
-					cm_id_priv->av.packet_life_time + 1;
+				qp_attr->timeout = cm_id_priv->av.timeout;
 				qp_attr->retry_cnt = cm_id_priv->retry_count;
 				qp_attr->rnr_retry = cm_id_priv->rnr_retry_count;
 				qp_attr->max_rd_atomic =
@@ -3302,8 +3335,7 @@ static int cm_init_qp_rts_attr(struct cm_id_private *cm_id_priv,
 			*qp_attr_mask = IB_QP_ALT_PATH | IB_QP_PATH_MIG_STATE;
 			qp_attr->alt_port_num = cm_id_priv->alt_av.port->port_num;
 			qp_attr->alt_pkey_index = cm_id_priv->alt_av.pkey_index;
-			qp_attr->alt_timeout =
-				cm_id_priv->alt_av.packet_life_time + 1;
+			qp_attr->alt_timeout = cm_id_priv->alt_av.timeout;
 			qp_attr->alt_ah_attr = cm_id_priv->alt_av.ah_attr;
 			qp_attr->path_mig_state = IB_MIG_REARM;
 		}
@@ -3343,6 +3375,16 @@ int ib_cm_init_qp_attr(struct ib_cm_id *cm_id,
 }
 EXPORT_SYMBOL(ib_cm_init_qp_attr);
 
+void cm_get_ack_delay(struct cm_device *cm_dev)
+{
+	struct ib_device_attr attr;
+
+	if (ib_query_device(cm_dev->device, &attr))
+		cm_dev->ack_delay = 0; /* acks will rely on packet life time */
+	else
+		cm_dev->ack_delay = attr.local_ca_ack_delay;
+}
+
 static void cm_add_one(struct ib_device *device)
 {
 	struct cm_device *cm_dev;
@@ -3367,6 +3409,7 @@ static void cm_add_one(struct ib_device *device)
 		return;
 
 	cm_dev->device = device;
+	cm_get_ack_delay(cm_dev);
 
 	set_bit(IB_MGMT_METHOD_SEND, reg_req.method_mask);
 	for (i = 1; i <= device->phys_port_cnt; i++) {
