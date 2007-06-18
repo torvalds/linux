@@ -566,6 +566,11 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x0e5: map_key_clear(KEY_BASSBOOST);	break;
 				case 0x0e9: map_key_clear(KEY_VOLUMEUP);	break;
 				case 0x0ea: map_key_clear(KEY_VOLUMEDOWN);	break;
+
+				/* reserved in HUT 1.12. Reported on Petalynx remote */
+				case 0x0f6: map_key_clear(KEY_NEXT);		break;
+				case 0x0fa: map_key_clear(KEY_BACK);		break;
+
 				case 0x183: map_key_clear(KEY_CONFIG);		break;
 				case 0x184: map_key_clear(KEY_WORDPROCESSOR);	break;
 				case 0x185: map_key_clear(KEY_EDITOR);		break;
@@ -727,10 +732,10 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			}
 			break;
 
-		case HID_UP_LOGIVENDOR: /* Reported on Logitech Ultra X Media Remote */
-
+		case HID_UP_LOGIVENDOR:
 			set_bit(EV_REP, input->evbit);
 			switch(usage->hid & HID_USAGE) {
+				/* Reported on Logitech Ultra X Media Remote */
 				case 0x004: map_key_clear(KEY_AGAIN);		break;
 				case 0x00d: map_key_clear(KEY_HOME);		break;
 				case 0x024: map_key_clear(KEY_SHUFFLE);		break;
@@ -748,6 +753,14 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x04d: map_key_clear(KEY_SUBTITLE);	break;
 				case 0x051: map_key_clear(KEY_RED);		break;
 				case 0x052: map_key_clear(KEY_CLOSE);		break;
+
+				/* Reported on Petalynx Maxter remote */
+				case 0x05a: map_key_clear(KEY_TEXT);		break;
+				case 0x05b: map_key_clear(KEY_RED);		break;
+				case 0x05c: map_key_clear(KEY_GREEN);		break;
+				case 0x05d: map_key_clear(KEY_YELLOW);		break;
+				case 0x05e: map_key_clear(KEY_BLUE);		break;
+
 				default:    goto ignore;
 			}
 			break;

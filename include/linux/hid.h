@@ -277,6 +277,7 @@ struct hid_item {
 #define HID_QUIRK_RESET_LEDS			0x00400000
 #define HID_QUIRK_SWAPPED_MIN_MAX		0x00800000
 #define HID_QUIRK_HIDINPUT			0x01000000
+#define HID_QUIRK_PETALYNX_DESCRIPTOR		0x02000000
 
 /*
  * This is the global environment of the parser. This information is

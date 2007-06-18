@@ -688,6 +688,21 @@ static void hid_fixup_logitech_descriptor(unsigned char *rdesc, int rsize)
 	}
 }
 
+/* Petalynx Maxter Remote has maximum for consumer page set too low */
+static void hid_fixup_petalynx_descriptor(unsigned char *rdesc, int rsize)
+{
+	if (rsize >= 60 && rdesc[39] == 0x2a
+			&& rdesc[40] == 0xf5
+			&& rdesc[41] == 0x00
+			&& rdesc[59] == 0x26
+			&& rdesc[60] == 0xf9
+			&& rdesc[61] == 0x00) {
+		info("Fixing up Petalynx Maxter Remote report descriptor");
+		rdesc[60] = 0xfa;
+		rdesc[40] = 0xfa;
+	}
+}
+
 /*
  * Some USB barcode readers from cypress have usage min and usage max in
  * the wrong order
@@ -780,6 +795,9 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 
 	if (quirks & HID_QUIRK_SWAPPED_MIN_MAX)
 		hid_fixup_cypress_descriptor(rdesc, rsize);
+
+	if (quirks & HID_QUIRK_PETALYNX_DESCRIPTOR)
+		hid_fixup_petalynx_descriptor(rdesc, rsize);
 
 #ifdef CONFIG_HID_DEBUG
 	printk(KERN_DEBUG __FILE__ ": report descriptor (size %u, read %d) = ", rsize, n);
