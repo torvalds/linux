@@ -20,12 +20,6 @@
 #define __fw_topology_h
 
 enum {
-	FW_TOPOLOGY_A =		0x01,
-	FW_TOPOLOGY_B =		0x02,
-	FW_TOPOLOGY_MIXED =	0x03,
-};
-
-enum {
 	FW_NODE_CREATED =   0x00,
 	FW_NODE_UPDATED =   0x01,
 	FW_NODE_DESTROYED = 0x02,

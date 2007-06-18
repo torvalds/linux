@@ -172,7 +172,8 @@ static struct fw_node *build_tree(struct fw_card *card,
 	struct list_head stack, *h;
 	u32 *next_sid, *end, q;
 	int i, port_count, child_port_count, phy_id, parent_count, stack_depth;
-	int gap_count, topology_type;
+	int gap_count;
+	bool beta_repeaters_present;
 
 	local_node = NULL;
 	node = NULL;
@@ -182,7 +183,7 @@ static struct fw_node *build_tree(struct fw_card *card,
 	phy_id = 0;
 	irm_node = NULL;
 	gap_count = SELF_ID_GAP_COUNT(*sid);
-	topology_type = 0;
+	beta_repeaters_present = false;
 
 	while (sid < end) {
 		next_sid = count_ports(sid, &port_count, &child_port_count);
@@ -223,11 +224,6 @@ static struct fw_node *build_tree(struct fw_card *card,
 
 		if (SELF_ID_CONTENDER(q))
 			irm_node = node;
-
-		if (node->phy_speed == SCODE_BETA)
-			topology_type |= FW_TOPOLOGY_B;
-		else
-			topology_type |= FW_TOPOLOGY_A;
 
 		parent_count = 0;
 
@@ -278,6 +274,10 @@ static struct fw_node *build_tree(struct fw_card *card,
 		list_add_tail(&node->link, &stack);
 		stack_depth += 1 - child_port_count;
 
+		if (node->phy_speed == SCODE_BETA &&
+		    parent_count + child_port_count > 1)
+			beta_repeaters_present = true;
+
 		/*
 		 * If all PHYs does not report the same gap count
 		 * setting, we fall back to 63 which will force a gap
@@ -295,7 +295,7 @@ static struct fw_node *build_tree(struct fw_card *card,
 	card->root_node = node;
 	card->irm_node = irm_node;
 	card->gap_count = gap_count;
-	card->topology_type = topology_type;
+	card->beta_repeaters_present = beta_repeaters_present;
 
 	return local_node;
 }

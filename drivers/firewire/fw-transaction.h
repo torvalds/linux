@@ -245,7 +245,7 @@ struct fw_card {
 	struct fw_node *irm_node;
 	int color;
 	int gap_count;
-	int topology_type;
+	bool beta_repeaters_present;
 
 	int index;
 
