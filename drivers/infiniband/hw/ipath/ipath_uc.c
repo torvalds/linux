@@ -58,7 +58,6 @@ static void complete_last_send(struct ipath_qp *qp, struct ipath_swqe *wqe,
 		wc->port_num = 0;
 		ipath_cq_enter(to_icq(qp->ibqp.send_cq), wc, 0);
 	}
-	wqe = get_swqe_ptr(qp, qp->s_last);
 }
 
 /**
@@ -97,8 +96,10 @@ int ipath_make_uc_req(struct ipath_qp *qp,
 		 * Signal the completion of the last send
 		 * (if there is one).
 		 */
-		if (qp->s_last != qp->s_tail)
+		if (qp->s_last != qp->s_tail) {
 			complete_last_send(qp, wqe, &wc);
+			wqe = get_swqe_ptr(qp, qp->s_last);
+		}
 
 		/* Check if send work queue is empty. */
 		if (qp->s_tail == qp->s_head)
