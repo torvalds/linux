@@ -77,6 +77,28 @@ xfs_fsb_to_db_io(struct xfs_iocore *io, xfs_fsblock_t fsb)
 #define XFS_FREE_EOF_LOCK	(1<<0)
 #define XFS_FREE_EOF_NOLOCK	(1<<1)
 
+
+/*
+ * helper function to extract extent size hint from inode
+ */
+STATIC_INLINE xfs_extlen_t
+xfs_get_extsz_hint(
+	xfs_inode_t	*ip)
+{
+	xfs_extlen_t	extsz;
+
+	if (unlikely(ip->i_d.di_flags & XFS_DIFLAG_REALTIME)) {
+		extsz = (ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE)
+				? ip->i_d.di_extsize
+				: ip->i_mount->m_sb.sb_rextsize;
+		ASSERT(extsz);
+	} else {
+		extsz = (ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE)
+				? ip->i_d.di_extsize : 0;
+	}
+	return extsz;
+}
+
 /*
  * Prototypes for functions in xfs_rw.c.
  */

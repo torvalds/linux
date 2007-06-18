@@ -2609,8 +2609,7 @@ xfs_bmap_rtalloc(
 	xfs_rtblock_t	rtb;
 
 	mp = ap->ip->i_mount;
-	align = ap->ip->i_d.di_extsize ?
-		ap->ip->i_d.di_extsize : mp->m_sb.sb_rextsize;
+	align = xfs_get_extsz_hint(ap->ip);
 	prod = align / mp->m_sb.sb_rextsize;
 	error = xfs_bmap_extsize_align(mp, ap->gotp, ap->prevp,
 					align, 1, ap->eof, 0,
@@ -2715,9 +2714,7 @@ xfs_bmap_btalloc(
 	int		error;
 
 	mp = ap->ip->i_mount;
-	align = (ap->userdata && ap->ip->i_d.di_extsize &&
-		(ap->ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE)) ?
-		ap->ip->i_d.di_extsize : 0;
+	align = ap->userdata ? xfs_get_extsz_hint(ap->ip) : 0;
 	if (unlikely(align)) {
 		error = xfs_bmap_extsize_align(mp, ap->gotp, ap->prevp,
 						align, 0, ap->eof, 0, ap->conv,
@@ -2817,9 +2814,9 @@ xfs_bmap_btalloc(
 		args.total = ap->total;
 		args.minlen = ap->minlen;
 	}
-	if (unlikely(ap->userdata && ap->ip->i_d.di_extsize &&
-		    (ap->ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE))) {
-		args.prod = ap->ip->i_d.di_extsize;
+	/* apply extent size hints if obtained earlier */
+	if (unlikely(align)) {
+		args.prod = align;
 		if ((args.mod = (xfs_extlen_t)do_mod(ap->off, args.prod)))
 			args.mod = (xfs_extlen_t)(args.prod - args.mod);
 	} else if (mp->m_sb.sb_blocksize >= NBPP) {
@@ -4868,12 +4865,7 @@ xfs_bmapi(
 				xfs_extlen_t	extsz;
 
 				/* Figure out the extent size, adjust alen */
-				if (rt) {
-					if (!(extsz = ip->i_d.di_extsize))
-						extsz = mp->m_sb.sb_rextsize;
-				} else {
-					extsz = ip->i_d.di_extsize;
-				}
+				extsz = xfs_get_extsz_hint(ip);
 				if (extsz) {
 					error = xfs_bmap_extsize_align(mp,
 							&got, &prev, extsz,
@@ -5813,8 +5805,7 @@ xfs_getbmap(
 		   ip->i_d.di_format != XFS_DINODE_FMT_LOCAL)
 		return XFS_ERROR(EINVAL);
 	if (whichfork == XFS_DATA_FORK) {
-		if ((ip->i_d.di_extsize && (ip->i_d.di_flags &
-				(XFS_DIFLAG_REALTIME|XFS_DIFLAG_EXTSIZE))) ||
+		if (xfs_get_extsz_hint(ip) ||
 		    ip->i_d.di_flags & (XFS_DIFLAG_PREALLOC|XFS_DIFLAG_APPEND)){
 			prealloced = 1;
 			fixlen = XFS_MAXIOFFSET(mp);

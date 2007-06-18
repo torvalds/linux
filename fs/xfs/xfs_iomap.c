@@ -451,19 +451,14 @@ xfs_iomap_write_direct(
 		return XFS_ERROR(error);
 
 	rt = XFS_IS_REALTIME_INODE(ip);
-	if (unlikely(rt)) {
-		if (!(extsz = ip->i_d.di_extsize))
-			extsz = mp->m_sb.sb_rextsize;
-	} else {
-		extsz = ip->i_d.di_extsize;
-	}
+	extsz = xfs_get_extsz_hint(ip);
 
 	isize = ip->i_size;
 	if (io->io_new_size > isize)
 		isize = io->io_new_size;
 
-  	offset_fsb = XFS_B_TO_FSBT(mp, offset);
-  	last_fsb = XFS_B_TO_FSB(mp, ((xfs_ufsize_t)(offset + count)));
+	offset_fsb = XFS_B_TO_FSBT(mp, offset);
+	last_fsb = XFS_B_TO_FSB(mp, ((xfs_ufsize_t)(offset + count)));
 	if ((offset + count) > isize) {
 		error = xfs_iomap_eof_align_last_fsb(mp, io, isize, extsz,
 							&last_fsb);
@@ -666,13 +661,7 @@ xfs_iomap_write_delay(
 	if (error)
 		return XFS_ERROR(error);
 
-	if (XFS_IS_REALTIME_INODE(ip)) {
-		if (!(extsz = ip->i_d.di_extsize))
-			extsz = mp->m_sb.sb_rextsize;
-	} else {
-		extsz = ip->i_d.di_extsize;
-	}
-
+	extsz = xfs_get_extsz_hint(ip);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 
 retry:
