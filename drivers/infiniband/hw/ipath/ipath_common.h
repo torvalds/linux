@@ -431,8 +431,15 @@ struct ipath_user_info {
 #define IPATH_CMD_UNUSED_1	25
 #define IPATH_CMD_UNUSED_2	26
 #define IPATH_CMD_PIOAVAILUPD	27	/* force an update of PIOAvail reg */
+#define IPATH_CMD_POLL_TYPE	28	/* set the kind of polling we want */
 
-#define IPATH_CMD_MAX		27
+#define IPATH_CMD_MAX		28
+
+/*
+ * Poll types
+ */
+#define IPATH_POLL_TYPE_URGENT	 0x01
+#define IPATH_POLL_TYPE_OVERFLOW 0x02
 
 struct ipath_port_info {
 	__u32 num_active;	/* number of active units */
@@ -473,6 +480,8 @@ struct ipath_cmd {
 		__u16 part_key;
 		/* user address of __u32 bitmask of active slaves */
 		__u64 slave_mask_addr;
+		/* type of polling we want */
+		__u16 poll_type;
 	} cmd;
 };
 

@@ -1341,65 +1341,98 @@ bail:
 	return ret;
 }
 
+static unsigned int ipath_poll_urgent(struct ipath_portdata *pd,
+				      struct file *fp,
+				      struct poll_table_struct *pt)
+{
+	unsigned pollflag = 0;
+	struct ipath_devdata *dd;
+
+	dd = pd->port_dd;
+
+	if (test_bit(IPATH_PORT_WAITING_OVERFLOW, &pd->int_flag)) {
+		pollflag |= POLLERR;
+		clear_bit(IPATH_PORT_WAITING_OVERFLOW, &pd->int_flag);
+	}
+
+	if (test_bit(IPATH_PORT_WAITING_URG, &pd->int_flag)) {
+		pollflag |= POLLIN | POLLRDNORM;
+		clear_bit(IPATH_PORT_WAITING_URG, &pd->int_flag);
+	}
+
+	if (!pollflag) {
+		set_bit(IPATH_PORT_WAITING_URG, &pd->port_flag);
+		if (pd->poll_type & IPATH_POLL_TYPE_OVERFLOW)
+			set_bit(IPATH_PORT_WAITING_OVERFLOW,
+				&pd->port_flag);
+
+		poll_wait(fp, &pd->port_wait, pt);
+	}
+
+	return pollflag;
+}
+
+static unsigned int ipath_poll_next(struct ipath_portdata *pd,
+				    struct file *fp,
+				    struct poll_table_struct *pt)
+{
+	u32 head, tail;
+	unsigned pollflag = 0;
+	struct ipath_devdata *dd;
+
+	dd = pd->port_dd;
+
+	head = ipath_read_ureg32(dd, ur_rcvhdrhead, pd->port_port);
+	tail = *(volatile u64 *)pd->port_rcvhdrtail_kvaddr;
+
+	if (test_bit(IPATH_PORT_WAITING_OVERFLOW, &pd->int_flag)) {
+		pollflag |= POLLERR;
+		clear_bit(IPATH_PORT_WAITING_OVERFLOW, &pd->int_flag);
+	}
+
+	if (tail != head ||
+	    test_bit(IPATH_PORT_WAITING_RCV, &pd->int_flag)) {
+		pollflag |= POLLIN | POLLRDNORM;
+		clear_bit(IPATH_PORT_WAITING_RCV, &pd->int_flag);
+	}
+
+	if (!pollflag) {
+		set_bit(IPATH_PORT_WAITING_RCV, &pd->port_flag);
+		if (pd->poll_type & IPATH_POLL_TYPE_OVERFLOW)
+			set_bit(IPATH_PORT_WAITING_OVERFLOW,
+				&pd->port_flag);
+
+		set_bit(pd->port_port + INFINIPATH_R_INTRAVAIL_SHIFT,
+			&dd->ipath_rcvctrl);
+
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
+				 dd->ipath_rcvctrl);
+
+		if (dd->ipath_rhdrhead_intr_off) /* arm rcv interrupt */
+			ipath_write_ureg(dd, ur_rcvhdrhead,
+					 dd->ipath_rhdrhead_intr_off | head,
+					 pd->port_port);
+
+		poll_wait(fp, &pd->port_wait, pt);
+	}
+
+	return pollflag;
+}
+
 static unsigned int ipath_poll(struct file *fp,
 			       struct poll_table_struct *pt)
 {
 	struct ipath_portdata *pd;
-	u32 head, tail;
-	int bit;
-	unsigned pollflag = 0;
-	struct ipath_devdata *dd;
+	unsigned pollflag;
 
 	pd = port_fp(fp);
 	if (!pd)
-		goto bail;
-	dd = pd->port_dd;
+		pollflag = 0;
+	else if (pd->poll_type & IPATH_POLL_TYPE_URGENT)
+		pollflag = ipath_poll_urgent(pd, fp, pt);
+	else
+		pollflag = ipath_poll_next(pd, fp, pt);
 
-	bit = pd->port_port + INFINIPATH_R_INTRAVAIL_SHIFT;
-	set_bit(bit, &dd->ipath_rcvctrl);
-
-	/*
-	 * Before blocking, make sure that head is still == tail,
-	 * reading from the chip, so we can be sure the interrupt
-	 * enable has made it to the chip.  If not equal, disable
-	 * interrupt again and return immediately.  This avoids races,
-	 * and the overhead of the chip read doesn't matter much at
-	 * this point, since we are waiting for something anyway.
-	 */
-
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
-			 dd->ipath_rcvctrl);
-
-	head = ipath_read_ureg32(dd, ur_rcvhdrhead, pd->port_port);
-	tail = ipath_read_ureg32(dd, ur_rcvhdrtail, pd->port_port);
-
-	if (tail == head) {
-		set_bit(IPATH_PORT_WAITING_RCV, &pd->port_flag);
-		if (dd->ipath_rhdrhead_intr_off) /* arm rcv interrupt */
-			(void)ipath_write_ureg(dd, ur_rcvhdrhead,
-					       dd->ipath_rhdrhead_intr_off
-					       | head, pd->port_port);
-		poll_wait(fp, &pd->port_wait, pt);
-
-		if (test_bit(IPATH_PORT_WAITING_RCV, &pd->port_flag)) {
-			/* timed out, no packets received */
-			clear_bit(IPATH_PORT_WAITING_RCV, &pd->port_flag);
-			pd->port_rcvwait_to++;
-		}
-		else
-			pollflag = POLLIN | POLLRDNORM;
-	}
-	else {
-		/* it's already happened; don't do wait_event overhead */
-		pollflag = POLLIN | POLLRDNORM;
-		pd->port_rcvnowait++;
-	}
-
-	clear_bit(bit, &dd->ipath_rcvctrl);
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
-			 dd->ipath_rcvctrl);
-
-bail:
 	return pollflag;
 }
 
@@ -2173,6 +2206,11 @@ static ssize_t ipath_write(struct file *fp, const char __user *data,
 		src = NULL;
 		dest = NULL;
 		break;
+	case IPATH_CMD_POLL_TYPE:
+		copy = sizeof(cmd.cmd.poll_type);
+		dest = &cmd.cmd.poll_type;
+		src = &ucmd->cmd.poll_type;
+		break;
 	default:
 		ret = -EINVAL;
 		goto bail;
@@ -2244,6 +2282,9 @@ static ssize_t ipath_write(struct file *fp, const char __user *data,
 		break;
 	case IPATH_CMD_PIOAVAILUPD:
 		ret = ipath_force_pio_avail_update(pd->port_dd);
+		break;
+	case IPATH_CMD_POLL_TYPE:
+		pd->poll_type = cmd.cmd.poll_type;
 		break;
 	}
 

@@ -127,6 +127,8 @@ struct ipath_portdata {
 	u32 port_tidcursor;
 	/* next expected TID to check */
 	unsigned long port_flag;
+	/* what happened */
+	unsigned long int_flag;
 	/* WAIT_RCV that timed out, no interrupt */
 	u32 port_rcvwait_to;
 	/* WAIT_PIO that timed out, no interrupt */
@@ -155,6 +157,8 @@ struct ipath_portdata {
 	u32 userversion;
 	/* Bitmask of active slaves */
 	u32 active_slaves;
+	/* Type of packets or conditions we want to poll for */
+	u16 poll_type;
 };
 
 struct sk_buff;
@@ -754,6 +758,10 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 #define IPATH_PORT_WAITING_PIO   3
 		/* master has not finished initializing */
 #define IPATH_PORT_MASTER_UNINIT 4
+		/* waiting for an urgent packet to arrive */
+#define IPATH_PORT_WAITING_URG 5
+		/* waiting for a header overflow */
+#define IPATH_PORT_WAITING_OVERFLOW 6
 
 /* free up any allocated data at closes */
 void ipath_free_data(struct ipath_portdata *dd);
