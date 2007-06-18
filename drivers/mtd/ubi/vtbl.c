@@ -96,9 +96,6 @@ int ubi_change_vtbl_record(struct ubi_device *ubi, int idx,
 		vtbl_rec->crc = cpu_to_be32(crc);
 	}
 
-	dbg_msg("change record %d", idx);
-	ubi_dbg_dump_vtbl_record(vtbl_rec, idx);
-
 	mutex_lock(&ubi->vtbl_mutex);
 	memcpy(&ubi->vtbl[idx], vtbl_rec, sizeof(struct ubi_vtbl_record));
 	for (i = 0; i < UBI_LAYOUT_VOLUME_EBS; i++) {

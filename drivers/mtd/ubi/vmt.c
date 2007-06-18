@@ -228,7 +228,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	for (i = 0; i < ubi->vtbl_slots; i++)
 		if (ubi->volumes[i] &&
 		    ubi->volumes[i]->name_len == req->name_len &&
-		    strcmp(ubi->volumes[i]->name, req->name) == 0) {
+		    !strcmp(ubi->volumes[i]->name, req->name)) {
 			dbg_err("volume \"%s\" exists (ID %d)", req->name, i);
 			goto out_unlock;
 		}
@@ -351,6 +351,7 @@ out_acc:
 	spin_lock(&ubi->volumes_lock);
 	ubi->rsvd_pebs -= vol->reserved_pebs;
 	ubi->avail_pebs += vol->reserved_pebs;
+	ubi->volumes[vol_id] = NULL;
 out_unlock:
 	spin_unlock(&ubi->volumes_lock);
 	kfree(vol);
@@ -367,6 +368,7 @@ out_sysfs:
 	spin_lock(&ubi->volumes_lock);
 	ubi->rsvd_pebs -= vol->reserved_pebs;
 	ubi->avail_pebs += vol->reserved_pebs;
+	ubi->volumes[vol_id] = NULL;
 	spin_unlock(&ubi->volumes_lock);
 	volume_sysfs_close(vol);
 	return err;
@@ -784,7 +786,7 @@ static void paranoid_check_volume(const struct ubi_device *ubi, int vol_id)
 	return;
 
 fail:
-	ubi_err("paranoid check failed");
+	ubi_err("paranoid check failed for volume %d", vol_id);
 	ubi_dbg_dump_vol_info(vol);
 	ubi_dbg_dump_vtbl_record(&ubi->vtbl[vol_id], vol_id);
 	BUG();

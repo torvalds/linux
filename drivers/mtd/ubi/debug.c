@@ -91,7 +91,7 @@ void ubi_dbg_dump_vol_info(const struct ubi_volume *vol)
 
 	if (vol->name_len <= UBI_VOL_NAME_MAX &&
 	    strnlen(vol->name, vol->name_len + 1) == vol->name_len) {
-		dbg_msg("name          %s", vol->name);
+		dbg_msg("name            %s", vol->name);
 	} else {
 		dbg_msg("the 1st 5 characters of the name: %c%c%c%c%c",
 			vol->name[0], vol->name[1], vol->name[2],
@@ -117,13 +117,13 @@ void ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)
 	dbg_msg("name_len        %d", name_len);
 
 	if (r->name[0] == '\0') {
-		dbg_msg("name          NULL");
+		dbg_msg("name            NULL");
 		return;
 	}
 
 	if (name_len <= UBI_VOL_NAME_MAX &&
 	    strnlen(&r->name[0], name_len + 1) == name_len) {
-		dbg_msg("name          %s", &r->name[0]);
+		dbg_msg("name            %s", &r->name[0]);
 	} else {
 		dbg_msg("1st 5 characters of the name: %c%c%c%c%c",
 			r->name[0], r->name[1], r->name[2], r->name[3],
