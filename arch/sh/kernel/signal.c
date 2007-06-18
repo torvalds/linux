@@ -481,7 +481,7 @@ give_sigsegv:
 
 static int
 handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
-	      sigset_t *oldset, struct pt_regs *regs)
+	      sigset_t *oldset, struct pt_regs *regs, unsigned int save_r0)
 {
 	int ret;
 
@@ -500,6 +500,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 				}
 			/* fallthrough */
 			case -ERESTARTNOINTR:
+				regs->regs[0] = save_r0;
 				regs->pc -= instruction_size(
 						ctrl_inw(regs->pc - 4));
 				break;
@@ -583,7 +584,8 @@ static void do_signal(struct pt_regs *regs, unsigned int save_r0)
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
-		if (handle_signal(signr, &ka, &info, oldset, regs) == 0) {
+		if (handle_signal(signr, &ka, &info, oldset, regs, save_r0)
+		    == 0) {
 			/* a signal was successfully delivered; the saved
 			 * sigmask will have been stored in the signal frame,
 			 * and will be restored by sigreturn, so we can simply
