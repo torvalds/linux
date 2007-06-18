@@ -373,37 +373,6 @@ out:
 	return ret;
 }
 
-/*
- * Return the index of the extent record which contains cluster #v_cluster.
- * -1 is returned if it was not found.
- *
- * Should work fine on interior and exterior nodes.
- */
-static int ocfs2_search_extent_list(struct ocfs2_extent_list *el,
-				    u32 v_cluster)
-{
-	int ret = -1;
-	int i;
-	struct ocfs2_extent_rec *rec;
-	u32 rec_end, rec_start, clusters;
-
-	for(i = 0; i < le16_to_cpu(el->l_next_free_rec); i++) {
-		rec = &el->l_recs[i];
-
-		rec_start = le32_to_cpu(rec->e_cpos);
-		clusters = ocfs2_rec_clusters(el, rec);
-
-		rec_end = rec_start + clusters;
-
-		if (v_cluster >= rec_start && v_cluster < rec_end) {
-			ret = i;
-			break;
-		}
-	}
-
-	return ret;
-}
-
 int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
 		       u32 *p_cluster, u32 *num_clusters,
 		       unsigned int *extent_flags)

@@ -306,6 +306,19 @@ static inline int ocfs2_sparse_alloc(struct ocfs2_super *osb)
 	return 0;
 }
 
+static inline int ocfs2_writes_unwritten_extents(struct ocfs2_super *osb)
+{
+	/*
+	 * Support for sparse files is a pre-requisite
+	 */
+	if (!ocfs2_sparse_alloc(osb))
+		return 0;
+
+	if (osb->s_feature_ro_compat & OCFS2_FEATURE_RO_COMPAT_UNWRITTEN)
+		return 1;
+	return 0;
+}
+
 /* set / clear functions because cluster events can make these happen
  * in parallel so we want the transitions to be atomic. this also
  * means that any future flags osb_flags must be protected by spinlock

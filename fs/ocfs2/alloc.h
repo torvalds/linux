@@ -35,6 +35,11 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 			u64 start_blk,
 			u32 new_clusters,
 			struct ocfs2_alloc_context *meta_ac);
+struct ocfs2_cached_dealloc_ctxt;
+int ocfs2_mark_extent_written(struct inode *inode, struct buffer_head *di_bh,
+			      handle_t *handle, u32 cpos, u32 len, u32 phys,
+			      struct ocfs2_alloc_context *meta_ac,
+			      struct ocfs2_cached_dealloc_ctxt *dealloc);
 int ocfs2_num_free_extents(struct ocfs2_super *osb,
 			   struct inode *inode,
 			   struct ocfs2_dinode *fe);
@@ -102,6 +107,7 @@ int ocfs2_commit_truncate(struct ocfs2_super *osb,
 
 int ocfs2_find_leaf(struct inode *inode, struct ocfs2_extent_list *root_el,
 		    u32 cpos, struct buffer_head **leaf_bh);
+int ocfs2_search_extent_list(struct ocfs2_extent_list *el, u32 v_cluster);
 
 /*
  * Helper function to look at the # of clusters in an extent record.
