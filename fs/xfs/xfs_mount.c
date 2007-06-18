@@ -725,7 +725,7 @@ xfs_mountfs(
 	bhv_vnode_t	*rvp = NULL;
 	int		readio_log, writeio_log;
 	xfs_daddr_t	d;
-	__uint64_t	ret64;
+	__uint64_t	resblks;
 	__int64_t	update_flags;
 	uint		quotamount, quotaflags;
 	int		agno;
@@ -842,6 +842,7 @@ xfs_mountfs(
 	 */
 	if ((mfsi_flags & XFS_MFSI_SECOND) == 0 &&
 	    (mp->m_flags & XFS_MOUNT_NOUUID) == 0) {
+		__uint64_t	ret64;
 		if (xfs_uuid_mount(mp)) {
 			error = XFS_ERROR(EINVAL);
 			goto error1;
@@ -1135,12 +1136,26 @@ xfs_mountfs(
 		goto error4;
 	}
 
-
 	/*
 	 * Complete the quota initialisation, post-log-replay component.
 	 */
 	if ((error = XFS_QM_MOUNT(mp, quotamount, quotaflags, mfsi_flags)))
 		goto error4;
+
+	/*
+	 * Now we are mounted, reserve a small amount of unused space for
+	 * privileged transactions. This is needed so that transaction
+	 * space required for critical operations can dip into this pool
+	 * when at ENOSPC. This is needed for operations like create with
+	 * attr, unwritten extent conversion at ENOSPC, etc. Data allocations
+	 * are not allowed to use this reserved space.
+	 *
+	 * We default to 5% or 1024 fsbs of space reserved, whichever is smaller.
+	 * This may drive us straight to ENOSPC on mount, but that implies
+	 * we were already there on the last unmount.
+	 */
+	resblks = min_t(__uint64_t, mp->m_sb.sb_dblocks / 20, 1024);
+	xfs_reserve_blocks(mp, &resblks, NULL);
 
 	return 0;
 
@@ -1181,6 +1196,7 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 #if defined(DEBUG) || defined(INDUCE_IO_ERROR)
 	int64_t		fsid;
 #endif
+	__uint64_t	resblks;
 
 	/*
 	 * We can potentially deadlock here if we have an inode cluster
@@ -1208,6 +1224,23 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 	if (mp->m_rtdev_targp) {
 		xfs_binval(mp->m_rtdev_targp);
 	}
+
+	/*
+	 * Unreserve any blocks we have so that when we unmount we don't account
+	 * the reserved free space as used. This is really only necessary for
+	 * lazy superblock counting because it trusts the incore superblock
+	 * counters to be aboslutely correct on clean unmount.
+	 *
+	 * We don't bother correcting this elsewhere for lazy superblock
+	 * counting because on mount of an unclean filesystem we reconstruct the
+	 * correct counter value and this is irrelevant.
+	 *
+	 * For non-lazy counter filesystems, this doesn't matter at all because
+	 * we only every apply deltas to the superblock and hence the incore
+	 * value does not matter....
+	 */
+	resblks = 0;
+	xfs_reserve_blocks(mp, &resblks, NULL);
 
 	xfs_log_sbcount(mp, 1);
 	xfs_unmountfs_writesb(mp);
