@@ -354,7 +354,9 @@ struct gfs2_trans {
 
 	unsigned int tr_num_buf;
 	unsigned int tr_num_buf_new;
+	unsigned int tr_num_databuf_new;
 	unsigned int tr_num_buf_rm;
+	unsigned int tr_num_databuf_rm;
 	struct list_head tr_list_buf;
 
 	unsigned int tr_num_revoke;
@@ -599,6 +601,7 @@ struct gfs2_sbd {
 
 	unsigned int sd_log_blks_reserved;
 	unsigned int sd_log_commited_buf;
+	unsigned int sd_log_commited_databuf;
 	unsigned int sd_log_commited_revoke;
 
 	unsigned int sd_log_num_gl;
@@ -607,7 +610,6 @@ struct gfs2_sbd {
 	unsigned int sd_log_num_rg;
 	unsigned int sd_log_num_databuf;
 	unsigned int sd_log_num_jdata;
-	unsigned int sd_log_num_hdrs;
 
 	struct list_head sd_log_le_gl;
 	struct list_head sd_log_le_buf;
