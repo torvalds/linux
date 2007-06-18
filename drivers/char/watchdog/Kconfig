@@ -196,17 +196,6 @@ config AT32AP700X_WDT
 	  Watchdog timer embedded into AT32AP700x devices. This will reboot
 	  your system when the timeout is reached.
 
-config AT32AP700X_WDT_TIMEOUT
-	int "Timeout value for AT32AP700x watchdog"
-	depends on AT32AP700X_WDT
-	default "2"
-	range 1 2
-	help
-	  Sets the timeout value for the watchdog in AT32AP700x devices.
-	  Limited by hardware to be 1 or 2 seconds.
-
-	  Set to 2 seconds by default.
-
 # X86 (i386 + ia64 + x86_64) Architecture
 
 config ACQUIRE_WDT

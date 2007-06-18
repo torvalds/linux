@@ -20,8 +20,15 @@
 #include <linux/io.h>
 
 #define TIMEOUT_MIN		1
-#define TIMEOUT_DEFAULT		CONFIG_AT32AP700X_WDT_TIMEOUT
 #define TIMEOUT_MAX		2
+#define TIMEOUT_DEFAULT		TIMEOUT_MAX
+
+/* module parameters */
+static int timeout =  TIMEOUT_DEFAULT;
+module_param(timeout, int, 0);
+MODULE_PARM_DESC(timeout,
+		"Timeout value. Limited to be 1 or 2 seconds. (default="
+		__MODULE_STRING(TIMEOUT_DEFAULT) ")");
 
 /* Watchdog registers and write/read macro */
 #define WDT_CTRL		0x00
@@ -233,11 +240,11 @@ static int __init at32_wdt_probe(struct platform_device *pdev)
 	wdt->miscdev.name = "watchdog";
 	wdt->miscdev.fops = &at32_wdt_fops;
 
-	if (at32_wdt_settimeout(TIMEOUT_DEFAULT)) {
-		at32_wdt_settimeout(TIMEOUT_MAX);
+	if (at32_wdt_settimeout(timeout)) {
+		at32_wdt_settimeout(TIMEOUT_DEFAULT);
 		dev_dbg(&pdev->dev,
 			"default timeout invalid, set to %d sec.\n",
-			TIMEOUT_MAX);
+			TIMEOUT_DEFAULT);
 	}
 
 	ret = misc_register(&wdt->miscdev);
@@ -248,7 +255,8 @@ static int __init at32_wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, wdt);
 	wdt->miscdev.parent = &pdev->dev;
-	dev_info(&pdev->dev, "AT32AP700X WDT at 0x%p\n", wdt->regs);
+	dev_info(&pdev->dev, "AT32AP700X WDT at 0x%p, timeout %d sec\n",
+		wdt->regs, wdt->timeout);
 
 	return 0;
 
