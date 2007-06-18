@@ -503,7 +503,7 @@ struct cmd_ds_802_11_ad_hoc_join {
 struct cmd_ds_802_11_enable_rsn {
 	__le16 action;
 	__le16 enable;
-};
+} __attribute__ ((packed));
 
 struct MrvlIEtype_keyParamSet {
 	/* type ID */
