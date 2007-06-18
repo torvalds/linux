@@ -44,6 +44,7 @@ int
 lpfc_mem_alloc(struct lpfc_hba * phba)
 {
 	struct lpfc_dma_pool *pool = &phba->lpfc_mbuf_safety_pool;
+	int longs;
 	int i;
 
 	phba->lpfc_scsi_dma_buf_pool = pci_pool_create("lpfc_scsi_dma_buf_pool",
@@ -87,8 +88,15 @@ lpfc_mem_alloc(struct lpfc_hba * phba)
 	if (!phba->lpfc_hbq_pool)
 		goto fail_free_nlp_mem_pool;
 
+	longs = (phba->max_vpi + BITS_PER_LONG - 1) / BITS_PER_LONG;
+	phba->vpi_bmask = kzalloc(longs * sizeof(unsigned long), GFP_KERNEL);
+	if (!phba->vpi_bmask)
+		goto fail_free_hbq_pool;
+
 	return 0;
 
+ fail_free_hbq_pool:
+	lpfc_sli_hbqbuf_free_all(phba);
  fail_free_nlp_mem_pool:
 	mempool_destroy(phba->nlp_mem_pool);
 	phba->nlp_mem_pool = NULL;
@@ -119,10 +127,19 @@ lpfc_mem_free(struct lpfc_hba * phba)
 	struct lpfc_dmabuf   *mp;
 	int i;
 
+	kfree(phba->vpi_bmask);
 	lpfc_sli_hbqbuf_free_all(phba);
 
-	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry_safe(mbox, next_mbox, &psli->mboxq, list) {
+		mp = (struct lpfc_dmabuf *) (mbox->context1);
+		if (mp) {
+			lpfc_mbuf_free(phba, mp->virt, mp->phys);
+			kfree(mp);
+		}
+		list_del(&mbox->list);
+		mempool_free(mbox, phba->mbox_mem_pool);
+	}
+	list_for_each_entry_safe(mbox, next_mbox, &psli->mboxq_cmpl, list) {
 		mp = (struct lpfc_dmabuf *) (mbox->context1);
 		if (mp) {
 			lpfc_mbuf_free(phba, mp->virt, mp->phys);
@@ -133,7 +150,6 @@ lpfc_mem_free(struct lpfc_hba * phba)
 	}
 
 	psli->sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
-	spin_unlock_irq(&phba->hbalock);
 	if (psli->mbox_active) {
 		mbox = psli->mbox_active;
 		mp = (struct lpfc_dmabuf *) (mbox->context1);
@@ -163,7 +179,7 @@ lpfc_mem_free(struct lpfc_hba * phba)
 	phba->lpfc_scsi_dma_buf_pool = NULL;
 	phba->lpfc_mbuf_pool = NULL;
 
-	/* Free the iocb lookup array */
+				/* Free the iocb lookup array */
 	kfree(psli->iocbq_lookup);
 	psli->iocbq_lookup = NULL;
 
@@ -179,7 +195,7 @@ lpfc_mbuf_alloc(struct lpfc_hba *phba, int mem_flags, dma_addr_t *handle)
 	ret = pci_pool_alloc(phba->lpfc_mbuf_pool, GFP_KERNEL, handle);
 
 	spin_lock_irqsave(&phba->hbalock, iflags);
-	if (!ret && ( mem_flags & MEM_PRI) && pool->current_count) {
+	if (!ret && (mem_flags & MEM_PRI) && pool->current_count) {
 		pool->current_count--;
 		ret = pool->elements[pool->current_count].virt;
 		*handle = pool->elements[pool->current_count].phys;
@@ -214,7 +230,6 @@ lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
 	return;
 }
 
-
 void *
 lpfc_hbq_alloc(struct lpfc_hba *phba, int mem_flags, dma_addr_t *handle)
 {
@@ -227,6 +242,27 @@ void
 lpfc_hbq_free(struct lpfc_hba *phba, void *virt, dma_addr_t dma)
 {
 	pci_pool_free(phba->lpfc_hbq_pool, virt, dma);
+	return;
+}
+
+void
+lpfc_in_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
+{
+	struct hbq_dmabuf *hbq_entry;
+
+	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
+		hbq_entry = container_of(mp, struct hbq_dmabuf, dbuf);
+		if (hbq_entry->tag == -1) {
+			lpfc_hbq_free(phba, hbq_entry->dbuf.virt,
+				      hbq_entry->dbuf.phys);
+			kfree(hbq_entry);
+		} else {
+			lpfc_sli_free_hbq(phba, hbq_entry);
+		}
+	} else {
+		lpfc_mbuf_free(phba, mp->virt, mp->phys);
+		kfree(mp);
+	}
 	return;
 }
 

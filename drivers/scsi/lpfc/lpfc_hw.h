@@ -64,6 +64,7 @@
 #define SLI3_IOCB_CMD_SIZE	128
 #define SLI3_IOCB_RSP_SIZE	64
 
+
 /* Common Transport structures and definitions */
 
 union CtRevisionId {
@@ -83,6 +84,9 @@ union CtCommandResponse {
 	} bits;
 	uint32_t word;
 };
+
+#define FC4_FEATURE_INIT 0x2
+#define FC4_FEATURE_TARGET 0x1
 
 struct lpfc_sli_ct_request {
 	/* Structure is in Big Endian format */
@@ -126,20 +130,6 @@ struct lpfc_sli_ct_request {
 
 			uint32_t rsvd[7];
 		} rft;
-		struct rff {
-			uint32_t PortId;
-			uint8_t reserved[2];
-#ifdef __BIG_ENDIAN_BITFIELD
-			uint8_t feature_res:6;
-			uint8_t feature_init:1;
-			uint8_t feature_tgt:1;
-#else  /*  __LITTLE_ENDIAN_BITFIELD */
-			uint8_t feature_tgt:1;
-			uint8_t feature_init:1;
-			uint8_t feature_res:6;
-#endif
-			uint8_t type_code;     /* type=8 for FCP */
-		} rff;
 		struct rnn {
 			uint32_t PortId;	/* For RNN_ID requests */
 			uint8_t wwnn[8];
@@ -149,15 +139,42 @@ struct lpfc_sli_ct_request {
 			uint8_t len;
 			uint8_t symbname[255];
 		} rsnn;
+		struct rspn {	/* For RSPN_ID requests */
+			uint32_t PortId;
+			uint8_t len;
+			uint8_t symbname[255];
+		} rspn;
+		struct gff {
+			uint32_t PortId;
+		} gff;
+		struct gff_acc {
+			uint8_t fbits[128];
+		} gff_acc;
+#define FCP_TYPE_FEATURE_OFFSET 4
+		struct rff {
+			uint32_t PortId;
+			uint8_t reserved[2];
+			uint8_t fbits;
+			uint8_t type_code;     /* type=8 for FCP */
+		} rff;
 	} un;
 };
 
 #define  SLI_CT_REVISION        1
-#define  GID_REQUEST_SZ         (sizeof(struct lpfc_sli_ct_request) - 260)
-#define  RFT_REQUEST_SZ         (sizeof(struct lpfc_sli_ct_request) - 228)
-#define  RFF_REQUEST_SZ         (sizeof(struct lpfc_sli_ct_request) - 235)
-#define  RNN_REQUEST_SZ         (sizeof(struct lpfc_sli_ct_request) - 252)
-#define  RSNN_REQUEST_SZ        (sizeof(struct lpfc_sli_ct_request))
+#define  GID_REQUEST_SZ   (offsetof(struct lpfc_sli_ct_request, un) + \
+			   sizeof(struct gid))
+#define  GFF_REQUEST_SZ   (offsetof(struct lpfc_sli_ct_request, un) + \
+			   sizeof(struct gff))
+#define  RFT_REQUEST_SZ   (offsetof(struct lpfc_sli_ct_request, un) + \
+			   sizeof(struct rft))
+#define  RFF_REQUEST_SZ   (offsetof(struct lpfc_sli_ct_request, un) + \
+			   sizeof(struct rff))
+#define  RNN_REQUEST_SZ   (offsetof(struct lpfc_sli_ct_request, un) + \
+			   sizeof(struct rnn))
+#define  RSNN_REQUEST_SZ  (offsetof(struct lpfc_sli_ct_request, un) + \
+			   sizeof(struct rsnn))
+#define  RSPN_REQUEST_SZ  (offsetof(struct lpfc_sli_ct_request, un) + \
+			   sizeof(struct rspn))
 
 /*
  * FsType Definitions
@@ -232,6 +249,7 @@ struct lpfc_sli_ct_request {
 #define  SLI_CTNS_GFT_ID      0x0117
 #define  SLI_CTNS_GSPN_ID     0x0118
 #define  SLI_CTNS_GPT_ID      0x011A
+#define  SLI_CTNS_GFF_ID      0x011F
 #define  SLI_CTNS_GID_PN      0x0121
 #define  SLI_CTNS_GID_NN      0x0131
 #define  SLI_CTNS_GIP_NN      0x0135
@@ -245,9 +263,9 @@ struct lpfc_sli_ct_request {
 #define  SLI_CTNS_RNN_ID      0x0213
 #define  SLI_CTNS_RCS_ID      0x0214
 #define  SLI_CTNS_RFT_ID      0x0217
-#define  SLI_CTNS_RFF_ID      0x021F
 #define  SLI_CTNS_RSPN_ID     0x0218
 #define  SLI_CTNS_RPT_ID      0x021A
+#define  SLI_CTNS_RFF_ID      0x021F
 #define  SLI_CTNS_RIP_NN      0x0235
 #define  SLI_CTNS_RIPA_NN     0x0236
 #define  SLI_CTNS_RSNN_NN     0x0239
@@ -316,8 +334,9 @@ struct csp {
 	uint8_t bbCreditlsb;	/* FC Word 0, byte 3 */
 
 #ifdef __BIG_ENDIAN_BITFIELD
-	uint16_t increasingOffset:1;	/* FC Word 1, bit 31 */
-	uint16_t response_multiple_Nport:1;	/* FC Word 1, bit 29 */
+	uint16_t request_multiple_Nport:1;	/* FC Word 1, bit 31 */
+	uint16_t randomOffset:1;	/* FC Word 1, bit 30 */
+	uint16_t response_multiple_NPort:1;	/* FC Word 1, bit 29 */
 	uint16_t fPort:1;	/* FC Word 1, bit 28 */
 	uint16_t altBbCredit:1;	/* FC Word 1, bit 27 */
 	uint16_t edtovResolution:1;	/* FC Word 1, bit 26 */
@@ -336,9 +355,9 @@ struct csp {
 	uint16_t edtovResolution:1;	/* FC Word 1, bit 26 */
 	uint16_t altBbCredit:1;	/* FC Word 1, bit 27 */
 	uint16_t fPort:1;	/* FC Word 1, bit 28 */
-	uint16_t word1Reserved2:1;	/* FC Word 1, bit 29 */
+	uint16_t response_multiple_NPort:1;	/* FC Word 1, bit 29 */
 	uint16_t randomOffset:1;	/* FC Word 1, bit 30 */
-	uint16_t increasingOffset:1;	/* FC Word 1, bit 31 */
+	uint16_t request_multiple_Nport:1;	/* FC Word 1, bit 31 */
 
 	uint16_t payloadlength:1;	/* FC Word 1, bit 16 */
 	uint16_t contIncSeqCnt:1;	/* FC Word 1, bit 17 */
@@ -1268,6 +1287,10 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_READ_RPI64      0x8F
 #define MBX_REG_LOGIN64     0x93
 #define MBX_READ_LA64       0x95
+#define MBX_REG_VPI	    0x96
+#define MBX_UNREG_VPI	    0x97
+#define MBX_REG_VNPID	    0x96
+#define MBX_UNREG_VNPID	    0x97
 
 #define MBX_FLASH_WR_ULA    0x98
 #define MBX_SET_DEBUG       0x99
@@ -1570,7 +1593,7 @@ typedef struct {
 #define FLAGS_TOPOLOGY_MODE_PT_PT    0x02 /* Attempt pt-pt only */
 #define FLAGS_TOPOLOGY_MODE_LOOP     0x04 /* Attempt loop only */
 #define FLAGS_TOPOLOGY_MODE_PT_LOOP  0x06 /* Attempt pt-pt then loop */
-#define FLAGS_UNREG_LOGIN_ALL        0x08 /* UNREG_LOGIN all on link down */
+#define	FLAGS_UNREG_LOGIN_ALL	     0x08 /* UNREG_LOGIN all on link down */
 #define FLAGS_LIRP_LILP              0x80 /* LIRP / LILP is disabled */
 
 #define FLAGS_TOPOLOGY_FAILOVER      0x0400	/* Bit 10 */
@@ -2086,6 +2109,45 @@ typedef struct {
 #endif
 } UNREG_LOGIN_VAR;
 
+/* Structure for MB Command REG_VPI (0x96) */
+typedef struct {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t rsvd1;
+	uint32_t rsvd2:8;
+	uint32_t sid:24;
+	uint32_t rsvd3;
+	uint32_t rsvd4;
+	uint32_t rsvd5;
+	uint16_t rsvd6;
+	uint16_t vpi;
+#else	/*  __LITTLE_ENDIAN */
+	uint32_t rsvd1;
+	uint32_t sid:24;
+	uint32_t rsvd2:8;
+	uint32_t rsvd3;
+	uint32_t rsvd4;
+	uint32_t rsvd5;
+	uint16_t vpi;
+	uint16_t rsvd6;
+#endif
+} REG_VPI_VAR;
+
+/* Structure for MB Command UNREG_VPI (0x97) */
+typedef struct {
+	uint32_t rsvd1;
+	uint32_t rsvd2;
+	uint32_t rsvd3;
+	uint32_t rsvd4;
+	uint32_t rsvd5;
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint16_t rsvd6;
+	uint16_t vpi;
+#else	/*  __LITTLE_ENDIAN */
+	uint16_t vpi;
+	uint16_t rsvd6;
+#endif
+} UNREG_VPI_VAR;
+
 /* Structure for MB Command UNREG_D_ID (0x23) */
 
 typedef struct {
@@ -2549,8 +2611,8 @@ typedef union {
 	LOAD_SM_VAR varLdSM;		/* cmd =  1 (LOAD_SM)        */
 	READ_NV_VAR varRDnvp;		/* cmd =  2 (READ_NVPARMS)   */
 	WRITE_NV_VAR varWTnvp;		/* cmd =  3 (WRITE_NVPARMS)  */
-	BIU_DIAG_VAR varBIUdiag;	/* cmd =  4 (RUN_BIU_DIAG)   */
-	INIT_LINK_VAR varInitLnk;	/* cmd =  5 (INIT_LINK)      */
+	BIU_DIAG_VAR varBIUdiag; 	/* cmd =  4 (RUN_BIU_DIAG)   */
+	INIT_LINK_VAR varInitLnk; 	/* cmd =  5 (INIT_LINK)      */
 	DOWN_LINK_VAR varDwnLnk;	/* cmd =  6 (DOWN_LINK)      */
 	CONFIG_LINK varCfgLnk;		/* cmd =  7 (CONFIG_LINK)    */
 	PART_SLIM_VAR varSlim;		/* cmd =  8 (PART_SLIM)      */
@@ -2575,6 +2637,8 @@ typedef union {
 					 */
 	struct config_hbq_var varCfgHbq;/* cmd = 0x7c (CONFIG_HBQ)  */
 	CONFIG_PORT_VAR varCfgPort;	/* cmd = 0x88 (CONFIG_PORT)  */
+	REG_VPI_VAR varRegVpi;		/* cmd = 0x96 (REG_VPI) */
+	UNREG_VPI_VAR varUnregVpi;	/* cmd = 0x97 (UNREG_VPI) */
 } MAILVARIANTS;
 
 /*
@@ -2613,7 +2677,6 @@ typedef union {
 	struct sli3_desc s3;
 	struct sli3_pgp  s3_pgp;
 } SLI_VAR;
-
 
 typedef struct {
 #ifdef __BIG_ENDIAN_BITFIELD
@@ -2935,6 +2998,8 @@ struct rcv_sli3 {
 	struct ulp_bde64 bde2;
 };
 
+
+
 typedef struct _IOCB {	/* IOCB structure */
 	union {
 		GENERIC_RSP grsp;	/* Generic response */
@@ -3011,6 +3076,7 @@ typedef struct _IOCB {	/* IOCB structure */
 	uint32_t ulpXS:1;
 	uint32_t ulpTimeout:8;
 #endif
+
 	union {
 		struct rcv_sli3 rcvsli3; /* words 8 - 15 */
 		uint32_t sli3Words[24]; /* 96 extra bytes for SLI-3 */
@@ -3024,6 +3090,7 @@ typedef struct _IOCB {	/* IOCB structure */
 #define PARM_UNUSED        0	/* PU field (Word 4) not used */
 #define PARM_REL_OFF       1	/* PU field (Word 4) = R. O. */
 #define PARM_READ_CHECK    2	/* PU field (Word 4) = Data Transfer Length */
+#define PARM_NPIV_DID	   3
 #define CLASS1             0	/* Class 1 */
 #define CLASS2             1	/* Class 2 */
 #define CLASS3             2	/* Class 3 */
@@ -3044,7 +3111,7 @@ typedef struct _IOCB {	/* IOCB structure */
 #define IOSTAT_RSVD2           0xC
 #define IOSTAT_RSVD3           0xD
 #define IOSTAT_RSVD4           0xE
-#define IOSTAT_RSVD5           0xF
+#define IOSTAT_NEED_BUFFER     0xF
 #define IOSTAT_DRIVER_REJECT   0x10   /* ulpStatus  - Driver defined */
 #define IOSTAT_DEFAULT         0xF    /* Same as rsvd5 for now */
 #define IOSTAT_CNT             0x11

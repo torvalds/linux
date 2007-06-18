@@ -106,7 +106,7 @@ lpfc_read_la(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb, struct lpfc_dmabuf *mp)
 	 */
 	pmb->context1 = (uint8_t *) mp;
 	mb->mbxOwner = OWN_HOST;
-	return 0;
+	return (0);
 }
 
 /**********************************************/
@@ -209,7 +209,7 @@ lpfc_init_link(struct lpfc_hba * phba,
 	 */
 	vpd = &phba->vpd;
 	if (vpd->rev.feaLevelHigh >= 0x02){
-		switch (linkspeed){
+		switch(linkspeed){
 			case LINK_SPEED_1G:
 			case LINK_SPEED_2G:
 			case LINK_SPEED_4G:
@@ -232,7 +232,6 @@ lpfc_init_link(struct lpfc_hba * phba,
 	mb->mbxCommand = (volatile uint8_t)MBX_INIT_LINK;
 	mb->mbxOwner = OWN_HOST;
 	mb->un.varInitLnk.fabric_AL_PA = phba->fc_pref_ALPA;
-	mb->un.varInitLnk.link_flags |= FLAGS_UNREG_LOGIN_ALL;
 	return;
 }
 
@@ -241,7 +240,7 @@ lpfc_init_link(struct lpfc_hba * phba,
 /*                    mailbox command         */
 /**********************************************/
 int
-lpfc_read_sparam(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
+lpfc_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, int vpi)
 {
 	struct lpfc_dmabuf *mp;
 	MAILBOX_t *mb;
@@ -265,18 +264,19 @@ lpfc_read_sparam(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 			        LOG_MBOX,
 			        "%d:0301 READ_SPARAM: no buffers\n",
 			        phba->brd_no);
-		return 1;
+		return (1);
 	}
 	INIT_LIST_HEAD(&mp->list);
 	mb->mbxCommand = MBX_READ_SPARM64;
 	mb->un.varRdSparm.un.sp64.tus.f.bdeSize = sizeof (struct serv_parm);
 	mb->un.varRdSparm.un.sp64.addrHigh = putPaddrHigh(mp->phys);
 	mb->un.varRdSparm.un.sp64.addrLow = putPaddrLow(mp->phys);
+	mb->un.varRdSparm.vpi = vpi;
 
 	/* save address for completion */
 	pmb->context1 = mp;
 
-	return 0;
+	return (0);
 }
 
 /********************************************/
@@ -284,7 +284,8 @@ lpfc_read_sparam(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 /*                  mailbox command         */
 /********************************************/
 void
-lpfc_unreg_did(struct lpfc_hba *phba, uint32_t did, LPFC_MBOXQ_t *pmb)
+lpfc_unreg_did(struct lpfc_hba * phba, uint16_t vpi, uint32_t did,
+	       LPFC_MBOXQ_t * pmb)
 {
 	MAILBOX_t *mb;
 
@@ -292,6 +293,7 @@ lpfc_unreg_did(struct lpfc_hba *phba, uint32_t did, LPFC_MBOXQ_t *pmb)
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
 	mb->un.varUnregDID.did = did;
+	mb->un.varUnregDID.vpi = vpi;
 
 	mb->mbxCommand = MBX_UNREG_D_ID;
 	mb->mbxOwner = OWN_HOST;
@@ -337,8 +339,8 @@ lpfc_read_lnk_stat(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 /*                  mailbox command         */
 /********************************************/
 int
-lpfc_reg_login(struct lpfc_hba *phba, uint32_t did, uint8_t *param,
-	       LPFC_MBOXQ_t *pmb, uint32_t flag)
+lpfc_reg_login(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
+	       uint8_t *param, LPFC_MBOXQ_t *pmb, uint32_t flag)
 {
 	MAILBOX_t *mb = &pmb->mb;
 	uint8_t *sparam;
@@ -347,6 +349,7 @@ lpfc_reg_login(struct lpfc_hba *phba, uint32_t did, uint8_t *param,
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
 	mb->un.varRegLogin.rpi = 0;
+	mb->un.varRegLogin.vpi = vpi;
 	mb->un.varRegLogin.did = did;
 	mb->un.varWords[30] = flag;	/* Set flag to issue action on cmpl */
 
@@ -358,13 +361,11 @@ lpfc_reg_login(struct lpfc_hba *phba, uint32_t did, uint8_t *param,
 		kfree(mp);
 		mb->mbxCommand = MBX_REG_LOGIN64;
 		/* REG_LOGIN: no buffers */
-		lpfc_printf_log(phba,
-			       KERN_WARNING,
-			       LOG_MBOX,
-			       "%d:0302 REG_LOGIN: no buffers Data x%x x%x\n",
-			       phba->brd_no,
-			       (uint32_t) did, (uint32_t) flag);
-		return 1;
+		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
+				"%d (%d):0302 REG_LOGIN: no buffers, DID x%x, "
+				"flag x%x\n",
+				phba->brd_no, vpi, did, flag);
+		return (1);
 	}
 	INIT_LIST_HEAD(&mp->list);
 	sparam = mp->virt;
@@ -380,7 +381,7 @@ lpfc_reg_login(struct lpfc_hba *phba, uint32_t did, uint8_t *param,
 	mb->un.varRegLogin.un.sp64.addrHigh = putPaddrHigh(mp->phys);
 	mb->un.varRegLogin.un.sp64.addrLow = putPaddrLow(mp->phys);
 
-	return 0;
+	return (0);
 }
 
 /**********************************************/
@@ -388,7 +389,8 @@ lpfc_reg_login(struct lpfc_hba *phba, uint32_t did, uint8_t *param,
 /*                    mailbox command         */
 /**********************************************/
 void
-lpfc_unreg_login(struct lpfc_hba *phba, uint32_t rpi, LPFC_MBOXQ_t * pmb)
+lpfc_unreg_login(struct lpfc_hba *phba, uint16_t vpi, uint32_t rpi,
+		 LPFC_MBOXQ_t * pmb)
 {
 	MAILBOX_t *mb;
 
@@ -397,10 +399,50 @@ lpfc_unreg_login(struct lpfc_hba *phba, uint32_t rpi, LPFC_MBOXQ_t * pmb)
 
 	mb->un.varUnregLogin.rpi = (uint16_t) rpi;
 	mb->un.varUnregLogin.rsvd1 = 0;
+	mb->un.varUnregLogin.vpi = vpi;
 
 	mb->mbxCommand = MBX_UNREG_LOGIN;
 	mb->mbxOwner = OWN_HOST;
 	return;
+}
+
+/**************************************************/
+/*  lpfc_reg_vpi   Issue a REG_VPI                */
+/*                    mailbox command             */
+/**************************************************/
+void
+lpfc_reg_vpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t sid,
+	     LPFC_MBOXQ_t *pmb)
+{
+	MAILBOX_t *mb = &pmb->mb;
+
+	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
+
+	mb->un.varRegVpi.vpi = vpi;
+	mb->un.varRegVpi.sid = sid;
+
+	mb->mbxCommand = MBX_REG_VPI;
+	mb->mbxOwner = OWN_HOST;
+	return;
+
+}
+
+/**************************************************/
+/*  lpfc_unreg_vpi   Issue a UNREG_VNPI           */
+/*                    mailbox command             */
+/**************************************************/
+void
+lpfc_unreg_vpi(struct lpfc_hba *phba, uint16_t vpi, LPFC_MBOXQ_t *pmb)
+{
+	MAILBOX_t *mb = &pmb->mb;
+	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
+
+	mb->un.varUnregVpi.vpi = vpi;
+
+	mb->mbxCommand = MBX_UNREG_VPI;
+	mb->mbxOwner = OWN_HOST;
+	return;
+
 }
 
 static void
@@ -420,9 +462,9 @@ lpfc_config_pcb_setup(struct lpfc_hba * phba)
 		pring = &psli->ring[i];
 
 		pring->sizeCiocb = phba->sli_rev == 3 ? SLI3_IOCB_CMD_SIZE:
-			SLI2_IOCB_CMD_SIZE;
+							SLI2_IOCB_CMD_SIZE;
 		pring->sizeRiocb = phba->sli_rev == 3 ? SLI3_IOCB_RSP_SIZE:
-			SLI2_IOCB_RSP_SIZE;
+							SLI2_IOCB_RSP_SIZE;
 		/* A ring MUST have both cmd and rsp entries defined to be
 		   valid */
 		if ((pring->numCiocb == 0) || (pring->numRiocb == 0)) {
@@ -437,18 +479,18 @@ lpfc_config_pcb_setup(struct lpfc_hba * phba)
 			continue;
 		}
 		/* Command ring setup for ring */
-		pring->cmdringaddr = (void *)&phba->slim2p->IOCBs[iocbCnt];
+		pring->cmdringaddr = (void *) &phba->slim2p->IOCBs[iocbCnt];
 		pcbp->rdsc[i].cmdEntries = pring->numCiocb;
 
-		offset = (uint8_t *)&phba->slim2p->IOCBs[iocbCnt] -
-			 (uint8_t *)phba->slim2p;
+		offset = (uint8_t *) &phba->slim2p->IOCBs[iocbCnt] -
+			 (uint8_t *) phba->slim2p;
 		pdma_addr = phba->slim2p_mapping + offset;
 		pcbp->rdsc[i].cmdAddrHigh = putPaddrHigh(pdma_addr);
 		pcbp->rdsc[i].cmdAddrLow = putPaddrLow(pdma_addr);
 		iocbCnt += pring->numCiocb;
 
 		/* Response ring setup for ring */
-		pring->rspringaddr = (void *)&phba->slim2p->IOCBs[iocbCnt];
+		pring->rspringaddr = (void *) &phba->slim2p->IOCBs[iocbCnt];
 
 		pcbp->rdsc[i].rspEntries = pring->numRiocb;
 		offset = (uint8_t *)&phba->slim2p->IOCBs[iocbCnt] -
@@ -519,7 +561,7 @@ lpfc_config_hbq(struct lpfc_hba *phba, struct lpfc_hbq_init *hbq_desc,
 						       * Notification */
 	hbqmb->numMask    = hbq_desc->mask_count;     /* # R_CTL/TYPE masks
 						       * # in words 0-19 */
-	hbqmb->profile    = hbq_desc->profile;        /* Selection profile:
+	hbqmb->profile    = hbq_desc->profile;	      /* Selection profile:
 						       * 0 = all,
 						       * 7 = logentry */
 	hbqmb->ringMask   = hbq_desc->ring_mask;      /* Binds HBQ to a ring
@@ -538,9 +580,9 @@ lpfc_config_hbq(struct lpfc_hba *phba, struct lpfc_hbq_init *hbq_desc,
 	mb->mbxCommand = MBX_CONFIG_HBQ;
 	mb->mbxOwner = OWN_HOST;
 
-	/* Copy info for profiles 2,3,5. Other
-	 * profiles this area is reserved
-	 */
+				/* Copy info for profiles 2,3,5. Other
+				 * profiles this area is reserved
+				 */
 	if (hbq_desc->profile == 2)
 		lpfc_build_hbq_profile2(hbqmb, hbq_desc);
 	else if (hbq_desc->profile == 3)
@@ -562,6 +604,8 @@ lpfc_config_hbq(struct lpfc_hba *phba, struct lpfc_hbq_init *hbq_desc,
 
 	return;
 }
+
+
 
 void
 lpfc_config_ring(struct lpfc_hba * phba, int ring, LPFC_MBOXQ_t * pmb)
@@ -605,7 +649,7 @@ lpfc_config_ring(struct lpfc_hba * phba, int ring, LPFC_MBOXQ_t * pmb)
 }
 
 void
-lpfc_config_port(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
+lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t __iomem *mb_slim = (MAILBOX_t __iomem *) phba->MBslimaddr;
 	MAILBOX_t *mb = &pmb->mb;
@@ -629,11 +673,19 @@ lpfc_config_port(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 
 	/* If HBA supports SLI=3 ask for it */
 
-	mb->un.varCfgPort.sli_mode = phba->sli_rev;
-	if (phba->sli_rev == 3) {
+	if (phba->sli_rev == 3 && phba->vpd.sli3Feat.cerbm) {
 		mb->un.varCfgPort.cerbm = 1; /* Request HBQs */
 		mb->un.varCfgPort.max_hbq = 1; /* Requesting 2 HBQs */
-	}
+		if (phba->max_vpi && lpfc_npiv_enable &&
+		    phba->vpd.sli3Feat.cmv) {
+			mb->un.varCfgPort.max_vpi = phba->max_vpi;
+			mb->un.varCfgPort.cmv = 1;
+			phba->sli3_options |= LPFC_SLI3_NPIV_ENABLED;
+		} else
+			mb->un.varCfgPort.max_vpi = phba->max_vpi = 0;
+	} else
+		phba->sli_rev = 2;
+	mb->un.varCfgPort.sli_mode = phba->sli_rev;
 
 	/* Now setup pcb */
 	phba->slim2p->pcb.type = TYPE_NATIVE_SLI2;
@@ -748,7 +800,7 @@ lpfc_config_port(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 
 	/* Swap PCB if needed */
 	lpfc_sli_pcimem_bcopy(&phba->slim2p->pcb, &phba->slim2p->pcb,
-								sizeof (PCB_t));
+			      sizeof(PCB_t));
 }
 
 void
@@ -783,11 +835,20 @@ lpfc_mbox_get(struct lpfc_hba * phba)
 	struct lpfc_sli *psli = &phba->sli;
 
 	list_remove_head((&psli->mboxq), mbq, LPFC_MBOXQ_t, list);
-	if (mbq) {
+	if (mbq)
 		psli->mboxq_cnt--;
-	}
 
 	return mbq;
+}
+
+void
+lpfc_mbox_cmpl_put(struct lpfc_hba * phba, LPFC_MBOXQ_t * mbq)
+{
+	/* This function expects to be called from interupt context */
+	spin_lock(&phba->hbalock);
+	list_add_tail(&mbq->list, &phba->sli.mboxq_cmpl);
+	spin_unlock(&phba->hbalock);
+	return;
 }
 
 int

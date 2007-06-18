@@ -44,6 +44,7 @@ struct lpfc_iocbq {
 #define LPFC_IO_WAKE		2	/* High Priority Queue signal flag */
 #define LPFC_IO_FCP		4	/* FCP command -- iocbq in scsi_buf */
 #define LPFC_DRIVER_ABORTED	8	/* driver aborted this request */
+#define LPFC_IO_FABRIC		0x10	/* Iocb send using fabric scheduler */
 
 	uint8_t abort_count;
 	uint8_t rsvd2;
@@ -58,6 +59,8 @@ struct lpfc_iocbq {
 		struct lpfcMboxq   *mbox;
 	} context_un;
 
+	void (*fabric_iocb_cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,
+			   struct lpfc_iocbq *);
 	void (*iocb_cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,
 			   struct lpfc_iocbq *);
 
@@ -173,7 +176,7 @@ struct lpfc_sli_ring {
 /* Structure used for configuring rings to a specific profile or rctl / type */
 struct lpfc_hbq_init {
 	uint32_t rn;		/* Receive buffer notification */
-	uint32_t entry_count;	/* # of entries in HBQ */
+	uint32_t entry_count;	/* max # of entries in HBQ */
 	uint32_t headerLen;	/* 0 if not profile 4 or 5 */
 	uint32_t logEntry;	/* Set to 1 if this HBQ used for LogEntry */
 	uint32_t profile;	/* Selection profile 0=all, 7=logentry */
@@ -188,6 +191,11 @@ struct lpfc_hbq_init {
 	uint32_t cmdmatch[8];
 	uint32_t mask_count;	/* number of mask entries in prt array */
 	struct hbq_mask hbqMasks[6];
+
+	/* Non-config rings fields to keep track of buffer allocations */
+	uint32_t buffer_count;	/* number of buffers allocated */
+	uint32_t init_count;	/* number to allocate when initialized */
+	uint32_t add_count;	/* number to allocate when starved */
 } ;
 
 #define LPFC_MAX_HBQ 16
@@ -238,6 +246,7 @@ struct lpfc_sli {
 	uint16_t mboxq_cnt;	/* current length of queue */
 	uint16_t mboxq_max;	/* max length */
 	LPFC_MBOXQ_t *mbox_active;	/* active mboxq information */
+	struct list_head mboxq_cmpl;
 
 	struct timer_list mbox_tmo;	/* Hold clk to timeout active mbox
 					   cmd */
@@ -249,12 +258,6 @@ struct lpfc_sli {
 	unsigned long  stats_start;        /* in seconds */
 	struct lpfc_lnk_stat lnk_stat_offsets;
 };
-
-/* Given a pointer to the start of the ring, and the slot number of
- * the desired iocb entry, calc a pointer to that entry.
- * (assume iocb entry size is 32 bytes, or 8 words)
- */
-#define IOCB_ENTRY(ring,slot) ((IOCB_t *)(((char *)(ring)) + ((slot) * 32)))
 
 #define LPFC_MBOX_TMO           30	/* Sec tmo for outstanding mbox
 					   command */
