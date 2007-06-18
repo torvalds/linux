@@ -509,6 +509,13 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 		if (!hwerrs) {
 			ipath_dbg("Clearing freezemode on ignored or "
 				  "recovered hardware error\n");
+			/*
+			 * clear all sends, becauase they have may been
+			 * completed by usercode while in freeze mode, and
+			 * therefore would not be sent, and eventually
+			 * might cause the process to run out of bufs
+			 */
+			ipath_cancel_sends(dd);
 			ctrl &= ~INFINIPATH_C_FREEZEMODE;
 			ipath_write_kreg(dd, dd->ipath_kregs->kr_control,
 					 ctrl);
@@ -1566,11 +1573,6 @@ static int ipath_ht_early_init(struct ipath_devdata *dd)
 		writel(16, piobuf);
 		piobuf += pioincr;
 	}
-	/*
-	 * self-clearing
-	 */
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-			 INFINIPATH_S_ABORT);
 
 	ipath_get_eeprom_info(dd);
 	if (dd->ipath_boardrev == 5 && dd->ipath_serial[0] == '1' &&
@@ -1599,7 +1601,6 @@ static int ipath_ht_txe_recover(struct ipath_devdata *dd)
 	}
 	dev_info(&dd->pcidev->dev,
 		"Recovering from TXE PIO parity error\n");
-	ipath_disarm_senderrbufs(dd, 1);
 	return 1;
 }
 

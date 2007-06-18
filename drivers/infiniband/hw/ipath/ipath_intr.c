@@ -93,7 +93,8 @@ void ipath_disarm_senderrbufs(struct ipath_devdata *dd, int rewrite)
 
 	if (sbuf[0] || sbuf[1] || (piobcnt > 128 && (sbuf[2] || sbuf[3]))) {
 		int i;
-		if (ipath_debug & (__IPATH_PKTDBG|__IPATH_DBG)) {
+		if (ipath_debug & (__IPATH_PKTDBG|__IPATH_DBG) &&
+			dd->ipath_lastcancel > jiffies) {
 			__IPATH_DBG_WHICH(__IPATH_PKTDBG|__IPATH_DBG,
 					  "SendbufErrs %lx %lx", sbuf[0],
 					  sbuf[1]);
@@ -108,7 +109,8 @@ void ipath_disarm_senderrbufs(struct ipath_devdata *dd, int rewrite)
 					ipath_clrpiobuf(dd, i);
 				ipath_disarm_piobufs(dd, i, 1);
 			}
-		dd->ipath_lastcancel = jiffies+3; /* no armlaunch for a bit */
+		/* ignore armlaunch errs for a bit */
+		dd->ipath_lastcancel = jiffies+3;
 	}
 }
 
@@ -290,12 +292,7 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 		 * Flush all queued sends when link went to DOWN or INIT,
 		 * to be sure that they don't block SMA and other MAD packets
 		 */
-		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-				 INFINIPATH_S_ABORT);
-		ipath_disarm_piobufs(dd, dd->ipath_lastport_piobuf,
-							(unsigned)(dd->ipath_piobcnt2k +
-					dd->ipath_piobcnt4k) -
-					dd->ipath_lastport_piobuf);
+		ipath_cancel_sends(dd);
 	}
 	else if (lstate == IPATH_IBSTATE_INIT || lstate == IPATH_IBSTATE_ARM ||
 	    lstate == IPATH_IBSTATE_ACTIVE) {

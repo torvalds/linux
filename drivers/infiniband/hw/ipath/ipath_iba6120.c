@@ -430,8 +430,19 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 			*dd->ipath_statusp |= IPATH_STATUS_HWERROR;
 			dd->ipath_flags &= ~IPATH_INITTED;
 		} else {
-			ipath_dbg("Clearing freezemode on ignored hardware "
-				  "error\n");
+			static u32 freeze_cnt;
+
+			freeze_cnt++;
+			ipath_dbg("Clearing freezemode on ignored or recovered "
+				  "hardware error (%u)\n", freeze_cnt);
+			/*
+			 * clear all sends, becauase they have may been
+			 * completed by usercode while in freeze mode, and
+			 * therefore would not be sent, and eventually
+			 * might cause the process to run out of bufs
+			 */
+			ipath_cancel_sends(dd);
+			ctrl &= ~INFINIPATH_C_FREEZEMODE;
 			ipath_write_kreg(dd, dd->ipath_kregs->kr_control,
 			   		 dd->ipath_control);
 		}
@@ -1371,7 +1382,6 @@ static int ipath_pe_txe_recover(struct ipath_devdata *dd)
 		dev_info(&dd->pcidev->dev,
 			"Recovering from TXE PIO parity error\n");
 	}
-	ipath_disarm_senderrbufs(dd, 1);
 	return 1;
 }
 

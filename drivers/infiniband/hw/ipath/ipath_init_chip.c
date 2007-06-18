@@ -777,6 +777,12 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 		   piobufs, dd->ipath_pbufsport, uports);
 
 	dd->ipath_f_early_init(dd);
+	/*
+	 * cancel any possible active sends from early driver load.
+	 * Follows early_init because some chips have to initialize
+	 * PIO buffers in early_init to avoid false parity errors.
+	 */
+	ipath_cancel_sends(dd);
 
 	/* early_init sets rcvhdrentsize and rcvhdrsize, so this must be
 	 * done after early_init */

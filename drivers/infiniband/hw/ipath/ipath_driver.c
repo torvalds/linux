@@ -706,9 +706,9 @@ void ipath_disarm_piobufs(struct ipath_devdata *dd, unsigned first,
 	u64 sendctrl, sendorig;
 
 	ipath_cdbg(PKT, "disarm %u PIObufs first=%u\n", cnt, first);
-	sendorig = dd->ipath_sendctrl | INFINIPATH_S_DISARM;
+	sendorig = dd->ipath_sendctrl;
 	for (i = first; i < last; i++) {
-		sendctrl = sendorig |
+		sendctrl = sendorig  | INFINIPATH_S_DISARM |
 			(i << INFINIPATH_S_DISARMPIOBUF_SHIFT);
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 				 sendctrl);
@@ -719,12 +719,12 @@ void ipath_disarm_piobufs(struct ipath_devdata *dd, unsigned first,
 	 * while we were looping; no critical bits that would require
 	 * locking.
 	 *
-	 * Write a 0, and then the original value, reading scratch in
+	 * disable PIOAVAILUPD, then re-enable, reading scratch in
 	 * between.  This seems to avoid a chip timing race that causes
 	 * pioavail updates to memory to stop.
 	 */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-			 0);
+			 sendorig & ~IPATH_S_PIOBUFAVAILUPD);
 	sendorig = ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 			 dd->ipath_sendctrl);
@@ -1596,6 +1596,35 @@ int ipath_waitfor_mdio_cmdready(struct ipath_devdata *dd)
 	return ret;
 }
 
+
+/*
+ * Flush all sends that might be in the ready to send state, as well as any
+ * that are in the process of being sent.   Used whenever we need to be
+ * sure the send side is idle.  Cleans up all buffer state by canceling
+ * all pio buffers, and issuing an abort, which cleans up anything in the
+ * launch fifo.  The cancel is superfluous on some chip versions, but
+ * it's safer to always do it.
+ * PIOAvail bits are updated by the chip as if normal send had happened.
+ */
+void ipath_cancel_sends(struct ipath_devdata *dd)
+{
+	ipath_dbg("Cancelling all in-progress send buffers\n");
+	dd->ipath_lastcancel = jiffies+HZ/2; /* skip armlaunch errs a bit */
+	/*
+	 * the abort bit is auto-clearing.  We read scratch to be sure
+	 * that cancels and the abort have taken effect in the chip.
+	 */
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
+		INFINIPATH_S_ABORT);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	ipath_disarm_piobufs(dd, 0,
+		(unsigned)(dd->ipath_piobcnt2k + dd->ipath_piobcnt4k));
+
+	/* and again, be sure all have hit the chip */
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+}
+
+
 static void ipath_set_ib_lstate(struct ipath_devdata *dd, int which)
 {
 	static const char *what[4] = {
@@ -1617,14 +1646,8 @@ static void ipath_set_ib_lstate(struct ipath_devdata *dd, int which)
 			   INFINIPATH_IBCS_LINKTRAININGSTATE_MASK]);
 	/* flush all queued sends when going to DOWN or INIT, to be sure that
 	 * they don't block MAD packets */
-	if (!linkcmd || linkcmd == INFINIPATH_IBCC_LINKCMD_INIT) {
-		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-				 INFINIPATH_S_ABORT);
-		ipath_disarm_piobufs(dd, dd->ipath_lastport_piobuf,
-		                    (unsigned)(dd->ipath_piobcnt2k +
-				    dd->ipath_piobcnt4k) -
-				    dd->ipath_lastport_piobuf);
-	}
+	if (!linkcmd || linkcmd == INFINIPATH_IBCC_LINKCMD_INIT)
+		ipath_cancel_sends(dd);
 
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_ibcctrl,
 			 dd->ipath_ibcctrl | which);
@@ -1967,17 +1990,9 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 	 */
 	udelay(5);
 
-	/*
-	 * abort any armed or launched PIO buffers that didn't go. (self
-	 * clearing).  Will cause any packet currently being transmitted to
-	 * go out with an EBP, and may also cause a short packet error on
-	 * the receiver.
-	 */
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-			 INFINIPATH_S_ABORT);
-
 	ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKINITCMD_DISABLE <<
 			    INFINIPATH_IBCC_LINKINITCMD_SHIFT);
+	ipath_cancel_sends(dd);
 
 	/* disable IBC */
 	dd->ipath_control &= ~INFINIPATH_C_LINKENABLE;
