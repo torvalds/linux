@@ -520,17 +520,15 @@ static int sbp2_agent_reset(struct fw_unit *unit)
 static void sbp2_reconnect(struct work_struct *work);
 static struct scsi_host_template scsi_driver_template;
 
-static void
-release_sbp2_device(struct kref *kref)
+static void release_sbp2_device(struct kref *kref)
 {
 	struct sbp2_device *sd = container_of(kref, struct sbp2_device, kref);
 	struct Scsi_Host *host =
 		container_of((void *)sd, struct Scsi_Host, hostdata[0]);
 
+	scsi_remove_host(host);
 	sbp2_send_management_orb(sd->unit, sd->node_id, sd->generation,
 				 SBP2_LOGOUT_REQUEST, sd->login_id, NULL);
-
-	scsi_remove_host(host);
 	fw_core_remove_address_handler(&sd->address_handler);
 	fw_notify("removed sbp2 unit %s\n", sd->unit->device.bus_id);
 	put_device(&sd->unit->device);
