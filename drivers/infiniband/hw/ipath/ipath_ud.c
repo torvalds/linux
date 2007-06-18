@@ -231,6 +231,8 @@ static void ipath_ud_loopback(struct ipath_qp *sqp,
 
 		if (len > length)
 			len = length;
+		if (len > sge->sge_length)
+			len = sge->sge_length;
 		BUG_ON(len == 0);
 		ipath_copy_sge(&rsge, sge->vaddr, len);
 		sge->vaddr += len;

@@ -164,9 +164,11 @@ void ipath_copy_sge(struct ipath_sge_state *ss, void *data, u32 length)
 	while (length) {
 		u32 len = sge->length;
 
-		BUG_ON(len == 0);
 		if (len > length)
 			len = length;
+		if (len > sge->sge_length)
+			len = sge->sge_length;
+		BUG_ON(len == 0);
 		memcpy(sge->vaddr, data, len);
 		sge->vaddr += len;
 		sge->length -= len;
@@ -202,9 +204,11 @@ void ipath_skip_sge(struct ipath_sge_state *ss, u32 length)
 	while (length) {
 		u32 len = sge->length;
 
-		BUG_ON(len == 0);
 		if (len > length)
 			len = length;
+		if (len > sge->sge_length)
+			len = sge->sge_length;
+		BUG_ON(len == 0);
 		sge->vaddr += len;
 		sge->length -= len;
 		sge->sge_length -= len;

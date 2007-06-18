@@ -396,6 +396,8 @@ again:
 
 		if (len > sge->length)
 			len = sge->length;
+		if (len > sge->sge_length)
+			len = sge->sge_length;
 		BUG_ON(len == 0);
 		ipath_copy_sge(&qp->r_sge, sge->vaddr, len);
 		sge->vaddr += len;
