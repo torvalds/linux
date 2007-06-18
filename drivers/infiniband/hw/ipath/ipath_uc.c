@@ -86,7 +86,7 @@ int ipath_make_uc_req(struct ipath_qp *qp,
 
 	/* header size in 32-bit words LRH+BTH = (8+12)/4. */
 	hwords = 5;
-	bth0 = 0;
+	bth0 = 1 << 22; /* Set M bit */
 
 	/* Get the next send request. */
 	wqe = get_swqe_ptr(qp, qp->s_last);

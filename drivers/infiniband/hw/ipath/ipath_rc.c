@@ -188,7 +188,7 @@ static int ipath_make_rc_ack(struct ipath_qp *qp,
 	}
 	qp->s_hdrwords = hwords;
 	qp->s_cur_size = len;
-	*bth0p = bth0;
+	*bth0p = bth0 | (1 << 22); /* Set M bit */
 	*bth2p = bth2;
 	return 1;
 
@@ -240,7 +240,7 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 
 	/* header size in 32-bit words LRH+BTH = (8+12)/4. */
 	hwords = 5;
-	bth0 = 0;
+	bth0 = 1 << 22; /* Set M bit */
 
 	/* Send a request. */
 	wqe = get_swqe_ptr(qp, qp->s_cur);
@@ -604,7 +604,7 @@ static void send_rc_ack(struct ipath_qp *qp)
 	}
 	/* read pkey_index w/o lock (its atomic) */
 	bth0 = ipath_get_pkey(dev->dd, qp->s_pkey_index) |
-		OP(ACKNOWLEDGE) << 24;
+		(OP(ACKNOWLEDGE) << 24) | (1 << 22);
 	if (qp->r_nak_state)
 		ohdr->u.aeth = cpu_to_be32((qp->r_msn & IPATH_MSN_MASK) |
 					    (qp->r_nak_state <<
