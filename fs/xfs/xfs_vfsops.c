@@ -640,7 +640,7 @@ xfs_quiesce_fs(
 	 * we can write the unmount record.
 	 */
 	do {
-		xfs_syncsub(mp, SYNC_REMOUNT|SYNC_ATTR|SYNC_WAIT, NULL);
+		xfs_syncsub(mp, SYNC_INODE_QUIESCE, NULL);
 		pincount = xfs_flush_buftarg(mp->m_ddev_targp, 1);
 		if (!pincount) {
 			delay(50);
@@ -649,6 +649,30 @@ xfs_quiesce_fs(
 	} while (count < 2);
 
 	return 0;
+}
+
+/*
+ * Second stage of a quiesce. The data is already synced, now we have to take
+ * care of the metadata. New transactions are already blocked, so we need to
+ * wait for any remaining transactions to drain out before proceding.
+ */
+STATIC void
+xfs_attr_quiesce(
+	xfs_mount_t	*mp)
+{
+	/* wait for all modifications to complete */
+	while (atomic_read(&mp->m_active_trans) > 0)
+		delay(100);
+
+	/* flush inodes and push all remaining buffers out to disk */
+	xfs_quiesce_fs(mp);
+
+	ASSERT_ALWAYS(atomic_read(&mp->m_active_trans) == 0);
+
+	/* Push the superblock and write an unmount record */
+	xfs_log_sbcount(mp, 1);
+	xfs_log_unmount_write(mp);
+	xfs_unmountfs_writesb(mp);
 }
 
 STATIC int
@@ -670,11 +694,8 @@ xfs_mntupdate(
 			mp->m_flags &= ~XFS_MOUNT_BARRIER;
 		}
 	} else if (!(vfsp->vfs_flag & VFS_RDONLY)) {	/* rw -> ro */
-		bhv_vfs_sync(vfsp, SYNC_FSDATA|SYNC_BDFLUSH|SYNC_ATTR, NULL);
-		xfs_quiesce_fs(mp);
-		xfs_log_sbcount(mp, 1);
-		xfs_log_unmount_write(mp);
-		xfs_unmountfs_writesb(mp);
+		bhv_vfs_sync(vfsp, SYNC_DATA_QUIESCE, NULL);
+		xfs_attr_quiesce(mp);
 		vfsp->vfs_flag |= VFS_RDONLY;
 	}
 	return 0;
@@ -1952,9 +1973,9 @@ xfs_showargs(
 }
 
 /*
- * Second stage of a freeze. The data is already frozen, now we have to take
- * care of the metadata. New transactions are already blocked, so we need to
- * wait for any remaining transactions to drain out before proceding.
+ * Second stage of a freeze. The data is already frozen so we only
+ * need to take care of themetadata. Once that's done write a dummy
+ * record to dirty the log in case of a crash while frozen.
  */
 STATIC void
 xfs_freeze(
@@ -1962,19 +1983,7 @@ xfs_freeze(
 {
 	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
 
-	/* wait for all modifications to complete */
-	while (atomic_read(&mp->m_active_trans) > 0)
-		delay(100);
-
-	/* flush inodes and push all remaining buffers out to disk */
-	xfs_quiesce_fs(mp);
-
-	ASSERT_ALWAYS(atomic_read(&mp->m_active_trans) == 0);
-
-	/* Push the superblock and write an unmount record */
-	xfs_log_sbcount(mp, 1);
-	xfs_log_unmount_write(mp);
-	xfs_unmountfs_writesb(mp);
+	xfs_attr_quiesce(mp);
 	xfs_fs_log_dummy(mp);
 }
 

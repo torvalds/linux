@@ -94,6 +94,20 @@ typedef enum {
 #define SYNC_IOWAIT		0x0100  /* wait for all I/O to complete */
 #define SYNC_SUPER		0x0200  /* flush superblock to disk */
 
+/*
+ * When remounting a filesystem read-only or freezing the filesystem,
+ * we have two phases to execute. This first phase is syncing the data
+ * before we quiesce the fielsystem, and the second is flushing all the
+ * inodes out after we've waited for all the transactions created by
+ * the first phase to complete. The second phase uses SYNC_INODE_QUIESCE
+ * to ensure that the inodes are written to their location on disk
+ * rather than just existing in transactions in the log. This means
+ * after a quiesce there is no log replay required to write the inodes
+ * to disk (this is the main difference between a sync and a quiesce).
+ */
+#define SYNC_DATA_QUIESCE	(SYNC_DELWRI|SYNC_FSDATA|SYNC_WAIT|SYNC_IOWAIT)
+#define SYNC_INODE_QUIESCE	(SYNC_REMOUNT|SYNC_ATTR|SYNC_WAIT)
+
 #define SHUTDOWN_META_IO_ERROR	0x0001	/* write attempt to metadata failed */
 #define SHUTDOWN_LOG_IO_ERROR	0x0002	/* write attempt to the log failed */
 #define SHUTDOWN_FORCE_UMOUNT	0x0004	/* shutdown from a forced unmount */
