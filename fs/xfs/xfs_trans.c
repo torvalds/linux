@@ -638,11 +638,23 @@ xfs_trans_apply_sb_deltas(
 }
 
 /*
- * xfs_trans_unreserve_and_mod_sb() is called to release unused
- * reservations and apply superblock counter changes to the in-core
- * superblock.
+ * xfs_trans_unreserve_and_mod_sb() is called to release unused reservations
+ * and apply superblock counter changes to the in-core superblock.  The
+ * t_res_fdblocks_delta and t_res_frextents_delta fields are explicitly NOT
+ * applied to the in-core superblock.  The idea is that that has already been
+ * done.
  *
  * This is done efficiently with a single call to xfs_mod_incore_sb_batch().
+ * However, we have to ensure that we only modify each superblock field only
+ * once because the application of the delta values may not be atomic. That can
+ * lead to ENOSPC races occurring if we have two separate modifcations of the
+ * free space counter to put back the entire reservation and then take away
+ * what we used.
+ *
+ * If we are not logging superblock counters, then the inode allocated/free and
+ * used block counts are not updated in the on disk superblock. In this case,
+ * XFS_TRANS_SB_DIRTY will not be set when the transaction is updated but we
+ * still need to update the incore superblock with the changes.
  */
 STATIC void
 xfs_trans_unreserve_and_mod_sb(
@@ -654,42 +666,43 @@ xfs_trans_unreserve_and_mod_sb(
 	/* REFERENCED */
 	int		error;
 	int		rsvd;
+	int64_t		blkdelta = 0;
+	int64_t		rtxdelta = 0;
 
 	msbp = msb;
 	rsvd = (tp->t_flags & XFS_TRANS_RESERVE) != 0;
 
-	/*
-	 * Release any reserved blocks.  Any that were allocated
-	 * will be taken back again by fdblocks_delta below.
-	 */
-	if (tp->t_blk_res > 0) {
+	/* calculate free blocks delta */
+	if (tp->t_blk_res > 0)
+		blkdelta = tp->t_blk_res;
+
+	if ((tp->t_fdblocks_delta != 0) &&
+	    (xfs_sb_version_haslazysbcount(&mp->m_sb) ||
+	     (tp->t_flags & XFS_TRANS_SB_DIRTY)))
+	        blkdelta += tp->t_fdblocks_delta;
+
+	if (blkdelta != 0) {
 		msbp->msb_field = XFS_SBS_FDBLOCKS;
-		msbp->msb_delta = tp->t_blk_res;
+		msbp->msb_delta = blkdelta;
 		msbp++;
 	}
 
-	/*
-	 * Release any reserved real time extents .  Any that were
-	 * allocated will be taken back again by frextents_delta below.
-	 */
-	if (tp->t_rtx_res > 0) {
+	/* calculate free realtime extents delta */
+	if (tp->t_rtx_res > 0)
+		rtxdelta = tp->t_rtx_res;
+
+	if ((tp->t_frextents_delta != 0) &&
+	    (tp->t_flags & XFS_TRANS_SB_DIRTY))
+		rtxdelta += tp->t_frextents_delta;
+
+	if (rtxdelta != 0) {
 		msbp->msb_field = XFS_SBS_FREXTENTS;
-		msbp->msb_delta = tp->t_rtx_res;
+		msbp->msb_delta = rtxdelta;
 		msbp++;
 	}
 
-	/*
-	 * Apply any superblock modifications to the in-core version.
-	 * The t_res_fdblocks_delta and t_res_frextents_delta fields are
-	 * explicitly NOT applied to the in-core superblock.
-	 * The idea is that that has already been done.
-	 *
-	 * If we are not logging superblock counters, then the inode
-	 * allocated/free and used block counts are not updated in the
-	 * on disk superblock. In this case, XFS_TRANS_SB_DIRTY will
-	 * not be set when the transaction is updated but we still need
-	 * to update the incore superblock with the changes.
-	 */
+	/* apply remaining deltas */
+
 	if (xfs_sb_version_haslazysbcount(&mp->m_sb) ||
 	     (tp->t_flags & XFS_TRANS_SB_DIRTY)) {
 		if (tp->t_icount_delta != 0) {
@@ -702,19 +715,9 @@ xfs_trans_unreserve_and_mod_sb(
 			msbp->msb_delta = tp->t_ifree_delta;
 			msbp++;
 		}
-		if (tp->t_fdblocks_delta != 0) {
-			msbp->msb_field = XFS_SBS_FDBLOCKS;
-			msbp->msb_delta = tp->t_fdblocks_delta;
-			msbp++;
-		}
 	}
 
 	if (tp->t_flags & XFS_TRANS_SB_DIRTY) {
-		if (tp->t_frextents_delta != 0) {
-			msbp->msb_field = XFS_SBS_FREXTENTS;
-			msbp->msb_delta = tp->t_frextents_delta;
-			msbp++;
-		}
 		if (tp->t_dblocks_delta != 0) {
 			msbp->msb_field = XFS_SBS_DBLOCKS;
 			msbp->msb_delta = tp->t_dblocks_delta;
