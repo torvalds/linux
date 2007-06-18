@@ -32,7 +32,6 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	struct vm_area_struct * vma;
-	unsigned long page;
 	int si_code;
 	siginfo_t info;
 
@@ -170,24 +169,38 @@ no_context:
  * terminate things with extreme prejudice.
  *
  */
-	if (address < PAGE_SIZE)
-		printk(KERN_ALERT "Unable to handle kernel NULL pointer dereference");
-	else
-		printk(KERN_ALERT "Unable to handle kernel paging request");
-	printk(" at virtual address %08lx\n", address);
-	printk(KERN_ALERT "pc = %08lx\n", regs->pc);
-	page = (unsigned long)get_TTB();
-	if (page) {
-		page = ((unsigned long *) page)[address >> PGDIR_SHIFT];
-		printk(KERN_ALERT "*pde = %08lx\n", page);
-		if (page & _PAGE_PRESENT) {
-			page &= PAGE_MASK;
-			address &= 0x003ff000;
-			page = ((unsigned long *) __va(page))[address >> PAGE_SHIFT];
-			printk(KERN_ALERT "*pte = %08lx\n", page);
+
+	bust_spinlocks(1);
+
+	if (oops_may_print()) {
+		__typeof__(pte_val(__pte(0))) page;
+
+		if (address < PAGE_SIZE)
+			printk(KERN_ALERT "Unable to handle kernel NULL "
+					  "pointer dereference");
+		else
+			printk(KERN_ALERT "Unable to handle kernel paging "
+					  "request");
+		printk(" at virtual address %08lx\n", address);
+		printk(KERN_ALERT "pc = %08lx\n", regs->pc);
+		page = (unsigned long)get_TTB();
+		if (page) {
+			page = ((__typeof__(page) *) __va(page))[address >>
+								 PGDIR_SHIFT];
+			printk(KERN_ALERT "*pde = %08lx\n", page);
+			if (page & _PAGE_PRESENT) {
+				page &= PAGE_MASK;
+				address &= 0x003ff000;
+				page = ((__typeof__(page) *)
+						__va(page))[address >>
+							    PAGE_SHIFT];
+				printk(KERN_ALERT "*pte = %08lx\n", page);
+			}
 		}
 	}
+
 	die("Oops", regs, writeaccess);
+	bust_spinlocks(0);
 	do_exit(SIGKILL);
 
 /*
