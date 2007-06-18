@@ -1444,10 +1444,10 @@ static int init_subports(struct ipath_devdata *dd,
 	size_t size;
 
 	/*
-	 * If the user is requesting zero or one port,
+	 * If the user is requesting zero subports,
 	 * skip the subport allocation.
 	 */
-	if (uinfo->spu_subport_cnt <= 1)
+	if (uinfo->spu_subport_cnt <= 0)
 		goto bail;
 
 	/* Self-consistency check for ipath_compatible_subports() */
