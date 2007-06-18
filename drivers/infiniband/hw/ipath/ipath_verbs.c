@@ -981,6 +981,8 @@ static int ipath_query_device(struct ib_device *ibdev,
 	props->max_ah = ib_ipath_max_ahs;
 	props->max_cqe = ib_ipath_max_cqes;
 	props->max_mr = dev->lk_table.max;
+	props->max_fmr = dev->lk_table.max;
+	props->max_map_per_fmr = 32767;
 	props->max_pd = ib_ipath_max_pds;
 	props->max_qp_rd_atom = IPATH_MAX_RDMA_ATOMIC;
 	props->max_qp_init_rd_atom = 255;
