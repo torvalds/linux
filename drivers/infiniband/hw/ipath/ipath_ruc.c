@@ -319,12 +319,22 @@ again:
 		break;
 
 	case IB_WR_RDMA_WRITE_WITH_IMM:
+		if (unlikely(!(qp->qp_access_flags &
+			       IB_ACCESS_REMOTE_WRITE))) {
+			wc.status = IB_WC_REM_INV_REQ_ERR;
+			goto err;
+		}
 		wc.wc_flags = IB_WC_WITH_IMM;
 		wc.imm_data = wqe->wr.imm_data;
 		if (!ipath_get_rwqe(qp, 1))
 			goto rnr_nak;
 		/* FALLTHROUGH */
 	case IB_WR_RDMA_WRITE:
+		if (unlikely(!(qp->qp_access_flags &
+			       IB_ACCESS_REMOTE_WRITE))) {
+			wc.status = IB_WC_REM_INV_REQ_ERR;
+			goto err;
+		}
 		if (wqe->length == 0)
 			break;
 		if (unlikely(!ipath_rkey_ok(qp, &qp->r_sge, wqe->length,
@@ -354,8 +364,10 @@ again:
 
 	case IB_WR_RDMA_READ:
 		if (unlikely(!(qp->qp_access_flags &
-			       IB_ACCESS_REMOTE_READ)))
-			goto acc_err;
+			       IB_ACCESS_REMOTE_READ))) {
+			wc.status = IB_WC_REM_INV_REQ_ERR;
+			goto err;
+		}
 		if (unlikely(!ipath_rkey_ok(qp, &sqp->s_sge, wqe->length,
 					    wqe->wr.wr.rdma.remote_addr,
 					    wqe->wr.wr.rdma.rkey,
@@ -369,8 +381,10 @@ again:
 	case IB_WR_ATOMIC_CMP_AND_SWP:
 	case IB_WR_ATOMIC_FETCH_AND_ADD:
 		if (unlikely(!(qp->qp_access_flags &
-			       IB_ACCESS_REMOTE_ATOMIC)))
-			goto acc_err;
+			       IB_ACCESS_REMOTE_ATOMIC))) {
+			wc.status = IB_WC_REM_INV_REQ_ERR;
+			goto err;
+		}
 		if (unlikely(!ipath_rkey_ok(qp, &qp->r_sge, sizeof(u64),
 					    wqe->wr.wr.atomic.remote_addr,
 					    wqe->wr.wr.atomic.rkey,
