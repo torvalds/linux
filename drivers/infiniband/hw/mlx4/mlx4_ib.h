@@ -95,7 +95,8 @@ struct mlx4_ib_mr {
 struct mlx4_ib_wq {
 	u64		       *wrid;
 	spinlock_t		lock;
-	int			max;
+	int			wqe_cnt;
+	int			max_post;
 	int			max_gs;
 	int			offset;
 	int			wqe_shift;
@@ -113,6 +114,7 @@ struct mlx4_ib_qp {
 
 	u32			doorbell_qpn;
 	__be32			sq_signal_bits;
+	int			sq_spare_wqes;
 	struct mlx4_ib_wq	sq;
 
 	struct ib_umem	       *umem;
@@ -123,6 +125,7 @@ struct mlx4_ib_qp {
 	u8			alt_port;
 	u8			atomic_rd_en;
 	u8			resp_depth;
+	u8			sq_no_prefetch;
 	u8			state;
 };
 

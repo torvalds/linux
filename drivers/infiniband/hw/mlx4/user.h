@@ -39,7 +39,7 @@
  * Increment this value if any changes that break userspace ABI
  * compatibility are made.
  */
-#define MLX4_IB_UVERBS_ABI_VERSION	2
+#define MLX4_IB_UVERBS_ABI_VERSION	3
 
 /*
  * Make sure that all structs defined in this file remain laid out so
@@ -87,9 +87,10 @@ struct mlx4_ib_create_srq_resp {
 struct mlx4_ib_create_qp {
 	__u64	buf_addr;
 	__u64	db_addr;
-        __u8	log_sq_bb_count;
-        __u8	log_sq_stride;
-        __u8	reserved[6];
+	__u8	log_sq_bb_count;
+	__u8	log_sq_stride;
+	__u8	sq_no_prefetch;
+	__u8	reserved[5];
 };
 
 #endif /* MLX4_IB_USER_H */

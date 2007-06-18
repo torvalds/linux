@@ -38,7 +38,7 @@
 #include "icm.h"
 
 enum {
-	MLX4_COMMAND_INTERFACE_REV	= 1
+	MLX4_COMMAND_INTERFACE_REV	= 2,
 };
 
 extern void __buggy_use_of_MLX4_GET(void);
