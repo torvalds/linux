@@ -680,9 +680,9 @@ static int ipath_ht_boardname(struct ipath_devdata *dd, char *name,
 		snprintf(name, namelen, "%s", n);
 
 	if (dd->ipath_majrev != 3 || (dd->ipath_minrev < 2 ||
-		dd->ipath_minrev > 3)) {
+		dd->ipath_minrev > 4)) {
 		/*
-		 * This version of the driver only supports Rev 3.2 and 3.3
+		 * This version of the driver only supports Rev 3.2 - 3.4
 		 */
 		ipath_dev_err(dd,
 			      "Unsupported InfiniPath hardware revision %u.%u!\n",
