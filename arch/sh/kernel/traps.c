@@ -83,6 +83,8 @@ void die(const char * str, struct pt_regs * regs, long err)
 {
 	static int die_counter;
 
+	oops_enter();
+
 	console_verbose();
 	spin_lock_irq(&die_lock);
 	bust_spinlocks(1);
@@ -112,6 +114,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 	if (panic_on_oops)
 		panic("Fatal exception");
 
+	oops_exit();
 	do_exit(SIGSEGV);
 }
 
