@@ -522,7 +522,7 @@ static int mthca_create_eq(struct mthca_dev *dev,
 		dma_list[i] = t;
 		pci_unmap_addr_set(&eq->page_list[i], mapping, t);
 
-		memset(eq->page_list[i].buf, 0, PAGE_SIZE);
+		clear_page(eq->page_list[i].buf);
 	}
 
 	for (i = 0; i < eq->nent; ++i)

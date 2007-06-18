@@ -255,7 +255,7 @@ int mthca_buf_alloc(struct mthca_dev *dev, int size, int max_direct,
 			dma_list[i] = t;
 			pci_unmap_addr_set(&buf->page_list[i], mapping, t);
 
-			memset(buf->page_list[i].buf, 0, PAGE_SIZE);
+			clear_page(buf->page_list[i].buf);
 		}
 	}
 
