@@ -1182,6 +1182,17 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 	int64_t		fsid;
 #endif
 
+	/*
+	 * We can potentially deadlock here if we have an inode cluster
+	 * that has been freed has it's buffer still pinned in memory because
+	 * the transaction is still sitting in a iclog. The stale inodes
+	 * on that buffer will have their flush locks held until the
+	 * transaction hits the disk and the callbacks run. the inode
+	 * flush takes the flush lock unconditionally and with nothing to
+	 * push out the iclog we will never get that unlocked. hence we
+	 * need to force the log first.
+	 */
+	xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE | XFS_LOG_SYNC);
 	xfs_iflush_all(mp);
 
 	XFS_QM_DQPURGEALL(mp, XFS_QMOPT_QUOTALL | XFS_QMOPT_UMOUNTING);
