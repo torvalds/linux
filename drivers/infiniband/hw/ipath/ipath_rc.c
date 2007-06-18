@@ -125,8 +125,10 @@ static int ipath_make_rc_ack(struct ipath_qp *qp,
 			if (len > pmtu) {
 				len = pmtu;
 				qp->s_ack_state = OP(RDMA_READ_RESPONSE_FIRST);
-			} else
+			} else {
 				qp->s_ack_state = OP(RDMA_READ_RESPONSE_ONLY);
+				e->sent = 1;
+			}
 			ohdr->u.aeth = ipath_compute_aeth(qp);
 			hwords++;
 			qp->s_ack_rdma_psn = e->psn;
@@ -143,6 +145,7 @@ static int ipath_make_rc_ack(struct ipath_qp *qp,
 				cpu_to_be32(e->atomic_data);
 			hwords += sizeof(ohdr->u.at) / sizeof(u32);
 			bth2 = e->psn;
+			e->sent = 1;
 		}
 		bth0 = qp->s_ack_state << 24;
 		break;
@@ -158,6 +161,7 @@ static int ipath_make_rc_ack(struct ipath_qp *qp,
 			ohdr->u.aeth = ipath_compute_aeth(qp);
 			hwords++;
 			qp->s_ack_state = OP(RDMA_READ_RESPONSE_LAST);
+			qp->s_ack_queue[qp->s_tail_ack_queue].sent = 1;
 		}
 		bth0 = qp->s_ack_state << 24;
 		bth2 = qp->s_ack_rdma_psn++ & IPATH_PSN_MASK;
@@ -1479,6 +1483,22 @@ static void ipath_rc_error(struct ipath_qp *qp, enum ib_wc_status err)
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 }
 
+static inline void ipath_update_ack_queue(struct ipath_qp *qp, unsigned n)
+{
+	unsigned long flags;
+	unsigned next;
+
+	next = n + 1;
+	if (next > IPATH_MAX_RDMA_ATOMIC)
+		next = 0;
+	spin_lock_irqsave(&qp->s_lock, flags);
+	if (n == qp->s_tail_ack_queue) {
+		qp->s_tail_ack_queue = next;
+		qp->s_ack_state = OP(ACKNOWLEDGE);
+	}
+	spin_unlock_irqrestore(&qp->s_lock, flags);
+}
+
 /**
  * ipath_rc_rcv - process an incoming RC packet
  * @dev: the device this packet came in on
@@ -1741,8 +1761,11 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		next = qp->r_head_ack_queue + 1;
 		if (next > IPATH_MAX_RDMA_ATOMIC)
 			next = 0;
-		if (unlikely(next == qp->s_tail_ack_queue))
-			goto nack_inv;
+		if (unlikely(next == qp->s_tail_ack_queue)) {
+			if (!qp->s_ack_queue[next].sent)
+				goto nack_inv;
+			ipath_update_ack_queue(qp, next);
+		}
 		e = &qp->s_ack_queue[qp->r_head_ack_queue];
 		/* RETH comes after BTH */
 		if (!header_in_data)
@@ -1777,6 +1800,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			e->rdma_sge.sge.sge_length = 0;
 		}
 		e->opcode = opcode;
+		e->sent = 0;
 		e->psn = psn;
 		/*
 		 * We need to increment the MSN here instead of when we
@@ -1812,8 +1836,11 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		next = qp->r_head_ack_queue + 1;
 		if (next > IPATH_MAX_RDMA_ATOMIC)
 			next = 0;
-		if (unlikely(next == qp->s_tail_ack_queue))
-			goto nack_inv;
+		if (unlikely(next == qp->s_tail_ack_queue)) {
+			if (!qp->s_ack_queue[next].sent)
+				goto nack_inv;
+			ipath_update_ack_queue(qp, next);
+		}
 		if (!header_in_data)
 			ateth = &ohdr->u.atomic_eth;
 		else
@@ -1838,6 +1865,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 				      be64_to_cpu(ateth->compare_data),
 				      sdata);
 		e->opcode = opcode;
+		e->sent = 0;
 		e->psn = psn & IPATH_PSN_MASK;
 		qp->r_msn++;
 		qp->r_psn++;

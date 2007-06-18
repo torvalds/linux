@@ -321,6 +321,7 @@ struct ipath_sge_state {
  */
 struct ipath_ack_entry {
 	u8 opcode;
+	u8 sent;
 	u32 psn;
 	union {
 		struct ipath_sge_state rdma_sge;
