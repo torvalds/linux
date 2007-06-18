@@ -267,7 +267,7 @@ again:
 	spin_lock_irqsave(&sqp->s_lock, flags);
 
 	if (!(ib_ipath_state_ops[sqp->state] & IPATH_PROCESS_SEND_OK) ||
-	    qp->s_rnr_timeout) {
+	    sqp->s_rnr_timeout) {
 		spin_unlock_irqrestore(&sqp->s_lock, flags);
 		goto done;
 	}
