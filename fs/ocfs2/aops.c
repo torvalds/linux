@@ -782,7 +782,13 @@ struct ocfs2_write_cluster_desc {
 	 * filled.
 	 */
 	unsigned	c_new;
+	unsigned	c_unwritten;
 };
+
+static inline int ocfs2_should_zero_cluster(struct ocfs2_write_cluster_desc *d)
+{
+	return d->c_new || d->c_unwritten;
+}
 
 struct ocfs2_write_ctxt {
 	/* Logical cluster position / len of write */
@@ -829,6 +835,8 @@ struct ocfs2_write_ctxt {
 	handle_t			*w_handle;
 
 	struct buffer_head		*w_di_bh;
+
+	struct ocfs2_cached_dealloc_ctxt w_dealloc;
 };
 
 static void ocfs2_free_write_ctxt(struct ocfs2_write_ctxt *wc)
@@ -867,6 +875,8 @@ static int ocfs2_alloc_write_ctxt(struct ocfs2_write_ctxt **wcp,
 		wc->w_large_pages = 1;
 	else
 		wc->w_large_pages = 0;
+
+	ocfs2_init_dealloc_ctxt(&wc->w_dealloc);
 
 	*wcp = wc;
 
@@ -1103,16 +1113,19 @@ out:
  * Prepare a single cluster for write one cluster into the file.
  */
 static int ocfs2_write_cluster(struct address_space *mapping,
-			       u32 phys, struct ocfs2_alloc_context *data_ac,
+			       u32 phys, unsigned int unwritten,
+			       struct ocfs2_alloc_context *data_ac,
 			       struct ocfs2_alloc_context *meta_ac,
 			       struct ocfs2_write_ctxt *wc, u32 cpos,
 			       loff_t user_pos, unsigned user_len)
 {
-	int ret, i, new;
+	int ret, i, new, should_zero = 0;
 	u64 v_blkno, p_blkno;
 	struct inode *inode = mapping->host;
 
 	new = phys == 0 ? 1 : 0;
+	if (new || unwritten)
+		should_zero = 1;
 
 	if (new) {
 		u32 tmp_pos;
@@ -1142,11 +1155,20 @@ static int ocfs2_write_cluster(struct address_space *mapping,
 			mlog_errno(ret);
 			goto out;
 		}
-
-		v_blkno = ocfs2_clusters_to_blocks(inode->i_sb, cpos);
-	} else {
-		v_blkno = user_pos >> inode->i_sb->s_blocksize_bits;
+	} else if (unwritten) {
+		ret = ocfs2_mark_extent_written(inode, wc->w_di_bh,
+						wc->w_handle, cpos, 1, phys,
+						meta_ac, &wc->w_dealloc);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out;
+		}
 	}
+
+	if (should_zero)
+		v_blkno = ocfs2_clusters_to_blocks(inode->i_sb, cpos);
+	else
+		v_blkno = user_pos >> inode->i_sb->s_blocksize_bits;
 
 	/*
 	 * The only reason this should fail is due to an inability to
@@ -1169,7 +1191,8 @@ static int ocfs2_write_cluster(struct address_space *mapping,
 
 		tmpret = ocfs2_prepare_page_for_write(inode, &p_blkno, wc,
 						      wc->w_pages[i], cpos,
-						      user_pos, user_len, new);
+						      user_pos, user_len,
+						      should_zero);
 		if (tmpret) {
 			mlog_errno(tmpret);
 			if (ret == 0)
@@ -1200,8 +1223,9 @@ static int ocfs2_write_cluster_by_desc(struct address_space *mapping,
 	for (i = 0; i < wc->w_clen; i++) {
 		desc = &wc->w_desc[i];
 
-		ret = ocfs2_write_cluster(mapping, desc->c_phys, data_ac,
-					  meta_ac, wc, desc->c_cpos, pos, len);
+		ret = ocfs2_write_cluster(mapping, desc->c_phys,
+					  desc->c_unwritten, data_ac, meta_ac,
+					  wc, desc->c_cpos, pos, len);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -1242,19 +1266,19 @@ static void ocfs2_set_target_boundaries(struct ocfs2_super *osb,
 	if (wc->w_large_pages) {
 		/*
 		 * We only care about the 1st and last cluster within
-		 * our range and whether they are holes or not. Either
+		 * our range and whether they should be zero'd or not. Either
 		 * value may be extended out to the start/end of a
 		 * newly allocated cluster.
 		 */
 		desc = &wc->w_desc[0];
-		if (desc->c_new)
+		if (ocfs2_should_zero_cluster(desc))
 			ocfs2_figure_cluster_boundaries(osb,
 							desc->c_cpos,
 							&wc->w_target_from,
 							NULL);
 
 		desc = &wc->w_desc[wc->w_clen - 1];
-		if (desc->c_new)
+		if (ocfs2_should_zero_cluster(desc))
 			ocfs2_figure_cluster_boundaries(osb,
 							desc->c_cpos,
 							NULL,
@@ -1268,28 +1292,52 @@ static void ocfs2_set_target_boundaries(struct ocfs2_super *osb,
 /*
  * Populate each single-cluster write descriptor in the write context
  * with information about the i/o to be done.
+ *
+ * Returns the number of clusters that will have to be allocated, as
+ * well as a worst case estimate of the number of extent records that
+ * would have to be created during a write to an unwritten region.
  */
 static int ocfs2_populate_write_desc(struct inode *inode,
 				     struct ocfs2_write_ctxt *wc,
-				     unsigned int *clusters_to_alloc)
+				     unsigned int *clusters_to_alloc,
+				     unsigned int *extents_to_split)
 {
 	int ret;
 	struct ocfs2_write_cluster_desc *desc;
 	unsigned int num_clusters = 0;
+	unsigned int ext_flags = 0;
 	u32 phys = 0;
 	int i;
+
+	*clusters_to_alloc = 0;
+	*extents_to_split = 0;
 
 	for (i = 0; i < wc->w_clen; i++) {
 		desc = &wc->w_desc[i];
 		desc->c_cpos = wc->w_cpos + i;
 
 		if (num_clusters == 0) {
+			/*
+			 * Need to look up the next extent record.
+			 */
 			ret = ocfs2_get_clusters(inode, desc->c_cpos, &phys,
-						 &num_clusters, NULL);
+						 &num_clusters, &ext_flags);
 			if (ret) {
 				mlog_errno(ret);
 				goto out;
 			}
+
+			/*
+			 * Assume worst case - that we're writing in
+			 * the middle of the extent.
+			 *
+			 * We can assume that the write proceeds from
+			 * left to right, in which case the extent
+			 * insert code is smart enough to coalesce the
+			 * next splits into the previous records created.
+			 */
+			if (ext_flags & OCFS2_EXT_UNWRITTEN)
+				*extents_to_split = *extents_to_split + 2;
 		} else if (phys) {
 			/*
 			 * Only increment phys if it doesn't describe
@@ -1303,6 +1351,8 @@ static int ocfs2_populate_write_desc(struct inode *inode,
 			desc->c_new = 1;
 			*clusters_to_alloc = *clusters_to_alloc + 1;
 		}
+		if (ext_flags & OCFS2_EXT_UNWRITTEN)
+			desc->c_unwritten = 1;
 
 		num_clusters--;
 	}
@@ -1318,7 +1368,7 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 			     struct buffer_head *di_bh, struct page *mmap_page)
 {
 	int ret, credits = OCFS2_INODE_UPDATE_CREDITS;
-	unsigned int clusters_to_alloc = 0;
+	unsigned int clusters_to_alloc, extents_to_split;
 	struct ocfs2_write_ctxt *wc;
 	struct inode *inode = mapping->host;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
@@ -1333,7 +1383,8 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 		return ret;
 	}
 
-	ret = ocfs2_populate_write_desc(inode, wc, &clusters_to_alloc);
+	ret = ocfs2_populate_write_desc(inode, wc, &clusters_to_alloc,
+					&extents_to_split);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -1347,14 +1398,14 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 	 * write out. An allocation requires that we write the entire
 	 * cluster range.
 	 */
-	if (clusters_to_alloc > 0) {
+	if (clusters_to_alloc || extents_to_split) {
 		/*
 		 * XXX: We are stretching the limits of
-		 * ocfs2_lock_allocators(). It greately over-estimates
+		 * ocfs2_lock_allocators(). It greatly over-estimates
 		 * the work to be done.
 		 */
 		ret = ocfs2_lock_allocators(inode, di, clusters_to_alloc,
-					    &data_ac, &meta_ac);
+					    extents_to_split, &data_ac, &meta_ac);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -1365,7 +1416,8 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 
 	}
 
-	ocfs2_set_target_boundaries(osb, wc, pos, len, clusters_to_alloc);
+	ocfs2_set_target_boundaries(osb, wc, pos, len,
+				    clusters_to_alloc + extents_to_split);
 
 	handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(handle)) {
@@ -1393,7 +1445,8 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 	 * extent.
 	 */
 	ret = ocfs2_grab_pages_for_write(mapping, wc, wc->w_cpos, pos,
-					 clusters_to_alloc, mmap_page);
+					 clusters_to_alloc + extents_to_split,
+					 mmap_page);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_commit;
@@ -1538,10 +1591,11 @@ int ocfs2_write_end_nolock(struct address_space *mapping,
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	di->i_mtime = di->i_ctime = cpu_to_le64(inode->i_mtime.tv_sec);
 	di->i_mtime_nsec = di->i_ctime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
-
 	ocfs2_journal_dirty(handle, wc->w_di_bh);
 
 	ocfs2_commit_trans(osb, handle);
+
+	ocfs2_run_deallocs(osb, &wc->w_dealloc);
 
 	ocfs2_free_write_ctxt(wc);
 

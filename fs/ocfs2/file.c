@@ -527,20 +527,21 @@ leave:
  * understand sparse inodes.
  */
 int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_dinode *di,
-			  u32 clusters_to_add,
+			  u32 clusters_to_add, u32 extents_to_split,
 			  struct ocfs2_alloc_context **data_ac,
 			  struct ocfs2_alloc_context **meta_ac)
 {
 	int ret, num_free_extents;
+	unsigned int max_recs_needed = clusters_to_add + 2 * extents_to_split;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	*meta_ac = NULL;
 	*data_ac = NULL;
 
 	mlog(0, "extend inode %llu, i_size = %lld, di->i_clusters = %u, "
-	     "clusters_to_add = %u\n",
+	     "clusters_to_add = %u, extents_to_split = %u\n",
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno, i_size_read(inode),
-	     le32_to_cpu(di->i_clusters), clusters_to_add);
+	     le32_to_cpu(di->i_clusters), clusters_to_add, extents_to_split);
 
 	num_free_extents = ocfs2_num_free_extents(osb, inode, di);
 	if (num_free_extents < 0) {
@@ -558,9 +559,12 @@ int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_dinode *di,
 	 *
 	 * Most of the time we'll only be seeing this 1 cluster at a time
 	 * anyway.
+	 *
+	 * Always lock for any unwritten extents - we might want to
+	 * add blocks during a split.
 	 */
 	if (!num_free_extents ||
-	    (ocfs2_sparse_alloc(osb) && num_free_extents < clusters_to_add)) {
+	    (ocfs2_sparse_alloc(osb) && num_free_extents < max_recs_needed)) {
 		ret = ocfs2_reserve_new_metadata(osb, di, meta_ac);
 		if (ret < 0) {
 			if (ret != -ENOSPC)
@@ -641,7 +645,7 @@ restart_all:
 	down_write(&OCFS2_I(inode)->ip_alloc_sem);
 	drop_alloc_sem = 1;
 
-	status = ocfs2_lock_allocators(inode, fe, clusters_to_add, &data_ac,
+	status = ocfs2_lock_allocators(inode, fe, clusters_to_add, 0, &data_ac,
 				       &meta_ac);
 	if (status) {
 		mlog_errno(status);
