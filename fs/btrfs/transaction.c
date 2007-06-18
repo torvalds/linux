@@ -279,6 +279,7 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 		BUG_ON(ret);
 		kfree(dirty);
 		mutex_unlock(&tree_root->fs_info->fs_mutex);
+		btrfs_btree_balance_dirty(tree_root);
 	}
 	return 0;
 }

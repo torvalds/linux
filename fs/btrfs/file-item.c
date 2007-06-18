@@ -228,7 +228,6 @@ found:
 			   path->nodes[0]->b_data,
 			   root->fs_info->sb->s_blocksize);
 	ret = btrfs_csum_data(root, data, len, &item->csum);
-// printk("file %lu offset %llu csum %X\n", objectid, (unsigned long long)offset, *(int *)(&item->csum));
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 fail:
 	btrfs_release_path(root, path);

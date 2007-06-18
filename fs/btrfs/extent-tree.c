@@ -1477,7 +1477,6 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 			break;
 		if (wret < 0)
 			ret = wret;
-		btrfs_btree_balance_dirty(root);
 	}
 	for (i = 0; i <= orig_level; i++) {
 		if (path->nodes[i]) {

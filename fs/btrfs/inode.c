@@ -962,7 +962,6 @@ void btrfs_dirty_inode(struct inode *inode)
 	btrfs_update_inode(trans, root, inode);
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
-	btrfs_btree_balance_dirty(root);
 }
 
 static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
@@ -1402,7 +1401,6 @@ int btrfs_get_block_csum(struct inode *inode, sector_t iblock,
 		goto out;
 	}
 	memcpy((char *)&result->b_private, &item->csum, BTRFS_CRC32_SIZE);
-printk("get_block_sum file %lu offset %llu csum %X\n", inode->i_ino, (unsigned long long)offset, *(int *)(&item->csum));
 out:
 	if (path)
 		btrfs_free_path(path);
@@ -1476,7 +1474,6 @@ static void btrfs_end_buffer_async_read(struct buffer_head *bh, int uptodate)
 				       (unsigned long long)offset);
 				memset(kaddr + bh_offset(bh), 1, bh->b_size);
 				flush_dcache_page(page);
-printk("bad verify file %lu offset %llu bh_private %lX csum %X\n", inode->i_ino, (unsigned long long)offset, (unsigned long)(bh->b_private), *(int *)csum);
 			}
 			kunmap_atomic(kaddr, KM_IRQ0);
 		}
@@ -1654,6 +1651,13 @@ static int __btrfs_write_full_page(struct inode *inode, struct page *page,
 	BUG_ON(!PageLocked(page));
 
 	last_block = (i_size_read(inode) - 1) >> inode->i_blkbits;
+
+	/* no csumming allowed when from PF_MEMALLOC */
+	if (current->flags & PF_MEMALLOC) {
+		redirty_page_for_writepage(wbc, page);
+		unlock_page(page);
+		return 0;
+	}
 
 	if (!page_has_buffers(page)) {
 		create_empty_buffers(page, blocksize,
@@ -1885,7 +1889,6 @@ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 
 	lock_page(page);
 	wait_on_page_writeback(page);
-printk("btrfs_page_mkwrite %lu %lu\n", page->mapping->host->i_ino, page->index);
 	size = i_size_read(inode);
 	if ((page->mapping != inode->i_mapping) ||
 	    ((page->index << PAGE_CACHE_SHIFT) > size)) {

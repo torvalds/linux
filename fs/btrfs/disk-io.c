@@ -541,6 +541,8 @@ int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 	else
 		ret = submit_bh(WRITE, bh);
 	if (ret == -EOPNOTSUPP) {
+		get_bh(bh);
+		lock_buffer(bh);
 		set_buffer_uptodate(bh);
 		root->fs_info->do_barriers = 0;
 		ret = submit_bh(WRITE, bh);

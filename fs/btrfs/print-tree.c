@@ -31,6 +31,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct btrfs_leaf *l)
 	struct btrfs_dir_item *di;
 	struct btrfs_inode_item *ii;
 	struct btrfs_block_group_item *bi;
+	struct btrfs_file_extent_item *fi;
 	u32 type;
 
 	printk("leaf %llu total ptrs %d free space %d\n",
@@ -74,6 +75,23 @@ void btrfs_print_leaf(struct btrfs_root *root, struct btrfs_leaf *l)
 			ei = btrfs_item_ptr(l, i, struct btrfs_extent_item);
 			printk("\t\textent data refs %u\n",
 				btrfs_extent_refs(ei));
+			break;
+
+		case BTRFS_EXTENT_DATA_KEY:
+			fi = btrfs_item_ptr(l, i,
+					    struct btrfs_file_extent_item);
+			if (btrfs_file_extent_type(fi) ==
+			    BTRFS_FILE_EXTENT_INLINE) {
+				printk("\t\tinline extent data size %u\n",
+			           btrfs_file_extent_inline_len(l->items + i));
+				break;
+			}
+			printk("\t\textent data disk block %llu nr %llu\n",
+			       (unsigned long long)btrfs_file_extent_disk_blocknr(fi),
+			       (unsigned long long)btrfs_file_extent_disk_num_blocks(fi));
+			printk("\t\textent data offset %llu nr %llu\n",
+			  (unsigned long long)btrfs_file_extent_offset(fi),
+			  (unsigned long long)btrfs_file_extent_num_blocks(fi));
 			break;
 		case BTRFS_BLOCK_GROUP_ITEM_KEY:
 			bi = btrfs_item_ptr(l, i,
