@@ -321,13 +321,9 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 	struct fcp_cmnd *fcp_cmnd = lpfc_cmd->fcp_cmnd;
 	struct ulp_bde64 *bpl = lpfc_cmd->fcp_bpl;
 	IOCB_t *iocb_cmd = &lpfc_cmd->cur_iocbq.iocb;
-	uint32_t vpi = (lpfc_cmd->cur_iocbq.vport
-			? lpfc_cmd->cur_iocbq.vport->vpi
-			: 0);
 	dma_addr_t physaddr;
 	uint32_t i, num_bde = 0;
-	int datadir = scsi_cmnd->sc_data_direction;
-	int dma_error;
+	int nseg, datadir = scsi_cmnd->sc_data_direction;
 
 	/*
 	 * There are three possibilities here - use scatter-gather segment, use
@@ -336,26 +332,22 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 	 * data bde entry.
 	 */
 	bpl += 2;
-	if (scsi_cmnd->use_sg) {
+	nseg = scsi_dma_map(scsi_cmnd);
+	if (nseg > 0) {
 		/*
 		 * The driver stores the segment count returned from pci_map_sg
 		 * because this a count of dma-mappings used to map the use_sg
 		 * pages.  They are not guaranteed to be the same for those
 		 * architectures that implement an IOMMU.
 		 */
-		sgel = (struct scatterlist *)scsi_cmnd->request_buffer;
-		lpfc_cmd->seg_cnt = dma_map_sg(&phba->pcidev->dev, sgel,
-						scsi_cmnd->use_sg, datadir);
-		if (lpfc_cmd->seg_cnt == 0)
-			return 1;
 
+		lpfc_cmd->seg_cnt = nseg;
 		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt) {
 			printk(KERN_ERR "%s: Too many sg segments from "
 			       "dma_map_sg.  Config %d, seg_cnt %d",
 			       __FUNCTION__, phba->cfg_sg_seg_cnt,
 			       lpfc_cmd->seg_cnt);
-			dma_unmap_sg(&phba->pcidev->dev, sgel,
-				     lpfc_cmd->seg_cnt, datadir);
+			scsi_dma_unmap(scsi_cmnd);
 			return 1;
 		}
 
@@ -365,7 +357,7 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 		 * single scsi command.  Just run through the seg_cnt and format
 		 * the bde's.
 		 */
-		for (i = 0; i < lpfc_cmd->seg_cnt; i++) {
+		scsi_for_each_sg(scsi_cmnd, sgel, nseg, i) {
 			physaddr = sg_dma_address(sgel);
 			bpl->addrLow = le32_to_cpu(putPaddrLow(physaddr));
 			bpl->addrHigh = le32_to_cpu(putPaddrHigh(physaddr));
@@ -376,35 +368,10 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 				bpl->tus.f.bdeFlags = BUFF_USE_RCV;
 			bpl->tus.w = le32_to_cpu(bpl->tus.w);
 			bpl++;
-			sgel++;
 			num_bde++;
 		}
-	} else if (scsi_cmnd->request_buffer && scsi_cmnd->request_bufflen) {
-		physaddr = dma_map_single(&phba->pcidev->dev,
-					  scsi_cmnd->request_buffer,
-					  scsi_cmnd->request_bufflen,
-					  datadir);
-		dma_error = dma_mapping_error(physaddr);
-		if (dma_error) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
-					"%d (%d):0718 Unable to dma_map_single "
-					"request_buffer: x%x\n",
-					phba->brd_no, vpi, dma_error);
-			return 1;
-		}
-
-		lpfc_cmd->nonsg_phys = physaddr;
-		bpl->addrLow = le32_to_cpu(putPaddrLow(physaddr));
-		bpl->addrHigh = le32_to_cpu(putPaddrHigh(physaddr));
-		bpl->tus.f.bdeSize = scsi_cmnd->request_bufflen;
-		if (datadir == DMA_TO_DEVICE)
-			bpl->tus.f.bdeFlags = 0;
-		else
-			bpl->tus.f.bdeFlags = BUFF_USE_RCV;
-		bpl->tus.w = le32_to_cpu(bpl->tus.w);
-		num_bde = 1;
-		bpl++;
-	}
+	} else if (nseg < 0)
+		return 1;
 
 	/*
 	 * Finish initializing those IOCB fields that are dependent on the
@@ -417,7 +384,7 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 		(num_bde * sizeof (struct ulp_bde64));
 	iocb_cmd->ulpBdeCount = 1;
 	iocb_cmd->ulpLe = 1;
-	fcp_cmnd->fcpDl = be32_to_cpu(scsi_cmnd->request_bufflen);
+	fcp_cmnd->fcpDl = be32_to_cpu(scsi_bufflen(scsi_cmnd));
 	return 0;
 }
 
@@ -430,16 +397,8 @@ lpfc_scsi_unprep_dma_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * psb)
 	 * a request buffer, but did not request use_sg.  There is a third
 	 * case, but it does not require resource deallocation.
 	 */
-	if ((psb->seg_cnt > 0) && (psb->pCmd->use_sg)) {
-		dma_unmap_sg(&phba->pcidev->dev, psb->pCmd->request_buffer,
-				psb->seg_cnt, psb->pCmd->sc_data_direction);
-	} else {
-		 if ((psb->nonsg_phys) && (psb->pCmd->request_bufflen)) {
-			dma_unmap_single(&phba->pcidev->dev, psb->nonsg_phys,
-						psb->pCmd->request_bufflen,
-						psb->pCmd->sc_data_direction);
-		 }
-	}
+	if (psb->seg_cnt > 0)
+		scsi_dma_unmap(psb->pCmd);
 }
 
 static void
@@ -502,15 +461,15 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		}
 	}
 
-	cmnd->resid = 0;
+	scsi_set_resid(cmnd, 0);
 	if (resp_info & RESID_UNDER) {
-		cmnd->resid = be32_to_cpu(fcprsp->rspResId);
+		scsi_set_resid(cmnd, be32_to_cpu(fcprsp->rspResId));
 
 		lpfc_printf_log(phba, KERN_INFO, LOG_FCP,
 				"%d (%d):0716 FCP Read Underrun, expected %d, "
 				"residual %d Data: x%x x%x x%x\n",
 				phba->brd_no, vpi, be32_to_cpu(fcpcmd->fcpDl),
-				cmnd->resid, fcpi_parm, cmnd->cmnd[0],
+				scsi_get_resid(cmnd), fcpi_parm, cmnd->cmnd[0],
 				cmnd->underflow);
 
 		/*
@@ -520,15 +479,16 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		 */
 		if ((cmnd->sc_data_direction == DMA_FROM_DEVICE) &&
 			fcpi_parm &&
-			(cmnd->resid != fcpi_parm)) {
+			(scsi_get_resid(cmnd) != fcpi_parm)) {
 			lpfc_printf_log(phba, KERN_WARNING,
 					LOG_FCP | LOG_FCP_ERROR,
 					"%d (%d):0735 FCP Read Check Error "
 					"and Underrun Data: x%x x%x x%x x%x\n",
 					phba->brd_no, vpi,
 					be32_to_cpu(fcpcmd->fcpDl),
-					cmnd->resid, fcpi_parm, cmnd->cmnd[0]);
-			cmnd->resid = cmnd->request_bufflen;
+					scsi_get_resid(cmnd), fcpi_parm,
+					cmnd->cmnd[0]);
+			scsi_set_resid(cmnd, scsi_bufflen(cmnd));
 			host_status = DID_ERROR;
 		}
 		/*
@@ -539,15 +499,15 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		 */
 		if (!(resp_info & SNS_LEN_VALID) &&
 		    (scsi_status == SAM_STAT_GOOD) &&
-		    (cmnd->request_bufflen - cmnd->resid) < cmnd->underflow) {
+		    (scsi_bufflen(cmnd) - scsi_get_resid(cmnd)
+		     < cmnd->underflow)) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_FCP,
 					"%d (%d):0717 FCP command x%x residual "
 					"underrun converted to error "
 					"Data: x%x x%x x%x\n",
 					phba->brd_no, vpi, cmnd->cmnd[0],
-					cmnd->request_bufflen, cmnd->resid,
-					cmnd->underflow);
-
+					cmnd->request_bufflen,
+					scsi_get_resid(cmnd), cmnd->underflow);
 			host_status = DID_ERROR;
 		}
 	} else if (resp_info & RESID_OVER) {
@@ -555,7 +515,7 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 				"%d (%d):0720 FCP command x%x residual "
 				"overrun error. Data: x%x x%x \n",
 				phba->brd_no, vpi, cmnd->cmnd[0],
-				cmnd->request_bufflen, cmnd->resid);
+				scsi_bufflen(cmnd), scsi_get_resid(cmnd));
 		host_status = DID_ERROR;
 
 	/*
@@ -572,7 +532,7 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 				be32_to_cpu(fcprsp->rspResId),
 				fcpi_parm, cmnd->cmnd[0]);
 		host_status = DID_ERROR;
-		cmnd->resid = cmnd->request_bufflen;
+		scsi_set_resid(cmnd, scsi_bufflen(cmnd));
 	}
 
  out:
@@ -652,7 +612,8 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 				"x%x SNS x%x x%x Data: x%x x%x\n",
 				phba->brd_no, vpi, cmd->device->id,
 				cmd->device->lun, cmd, cmd->result,
-				*lp, *(lp + 3), cmd->retries, cmd->resid);
+				*lp, *(lp + 3), cmd->retries,
+				scsi_get_resid(cmd));
 	}
 
 	result = cmd->result;
@@ -767,7 +728,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	 * bumping the bpl beyond the fcp_cmnd and fcp_rsp regions to the first
 	 * data bde entry.
 	 */
-	if (scsi_cmnd->use_sg) {
+	if (scsi_sg_count(scsi_cmnd)) {
 		if (datadir == DMA_TO_DEVICE) {
 			iocb_cmd->ulpCommand = CMD_FCP_IWRITE64_CR;
 			iocb_cmd->un.fcpi.fcpi_parm = 0;
@@ -777,23 +738,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		} else {
 			iocb_cmd->ulpCommand = CMD_FCP_IREAD64_CR;
 			iocb_cmd->ulpPU = PARM_READ_CHECK;
-			iocb_cmd->un.fcpi.fcpi_parm =
-				scsi_cmnd->request_bufflen;
-			fcp_cmnd->fcpCntl3 = READ_DATA;
-			phba->fc4InputRequests++;
-		}
-	} else if (scsi_cmnd->request_buffer && scsi_cmnd->request_bufflen) {
-		if (datadir == DMA_TO_DEVICE) {
-			iocb_cmd->ulpCommand = CMD_FCP_IWRITE64_CR;
-			iocb_cmd->un.fcpi.fcpi_parm = 0;
-			iocb_cmd->ulpPU = 0;
-			fcp_cmnd->fcpCntl3 = WRITE_DATA;
-			phba->fc4OutputRequests++;
-		} else {
-			iocb_cmd->ulpCommand = CMD_FCP_IREAD64_CR;
-			iocb_cmd->ulpPU = PARM_READ_CHECK;
-			iocb_cmd->un.fcpi.fcpi_parm =
-				scsi_cmnd->request_bufflen;
+			iocb_cmd->un.fcpi.fcpi_parm = scsi_bufflen(scsi_cmnd);
 			fcp_cmnd->fcpCntl3 = READ_DATA;
 			phba->fc4InputRequests++;
 		}
