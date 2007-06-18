@@ -503,11 +503,9 @@ void ipath_no_bufs_available(struct ipath_qp *qp, struct ipath_ibdev *dev)
 	 * could be called.  If we are still in the tasklet function,
 	 * tasklet_hi_schedule() will not call us until the next time
 	 * tasklet_hi_schedule() is called.
-	 * We clear the tasklet flag now since we are committing to return
-	 * from the tasklet function.
+	 * We leave the busy flag set so that another post send doesn't
+	 * try to put the same QP on the piowait list again.
 	 */
-	clear_bit(IPATH_S_BUSY, &qp->s_busy);
-	tasklet_unlock(&qp->s_task);
 	want_buffer(dev->dd);
 	dev->n_piowait++;
 }

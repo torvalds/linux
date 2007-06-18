@@ -948,6 +948,7 @@ int ipath_ib_piobufavail(struct ipath_ibdev *dev)
 		qp = list_entry(dev->piowait.next, struct ipath_qp,
 				piowait);
 		list_del_init(&qp->piowait);
+		clear_bit(IPATH_S_BUSY, &qp->s_busy);
 		tasklet_hi_schedule(&qp->s_task);
 	}
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
