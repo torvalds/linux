@@ -437,27 +437,26 @@ unsigned long rh_alloc_align(rh_info_t * info, int size, int alignment, const ch
 	struct list_head *l;
 	rh_block_t *blk;
 	rh_block_t *newblk;
-	unsigned long start;
+	unsigned long start, sp_size;
 
 	/* Validate size, and alignment must be power of two */
 	if (size <= 0 || (alignment & (alignment - 1)) != 0)
 		return (unsigned long) -EINVAL;
 
-	/* given alignment larger that default rheap alignment */
-	if (alignment > info->alignment)
-		size += alignment - 1;
-
 	/* Align to configured alignment */
 	size = (size + (info->alignment - 1)) & ~(info->alignment - 1);
 
-	if (assure_empty(info, 1) < 0)
+	if (assure_empty(info, 2) < 0)
 		return (unsigned long) -ENOMEM;
 
 	blk = NULL;
 	list_for_each(l, &info->free_list) {
 		blk = list_entry(l, rh_block_t, list);
-		if (size <= blk->size)
-			break;
+		if (size <= blk->size) {
+			start = (blk->start + alignment - 1) & ~(alignment - 1);
+			if (start + size <= blk->start + blk->size)
+				break;
+		}
 		blk = NULL;
 	}
 
@@ -470,24 +469,35 @@ unsigned long rh_alloc_align(rh_info_t * info, int size, int alignment, const ch
 		list_del(&blk->list);
 		newblk = blk;
 	} else {
+		/* Fragment caused, split if needed */
+		/* Create block for fragment in the beginning */
+		sp_size = start - blk->start;
+		if (sp_size) {
+			rh_block_t *spblk;
+
+			spblk = get_slot(info);
+			spblk->start = blk->start;
+			spblk->size = sp_size;
+			/* add before the blk */
+			list_add(&spblk->list, blk->list.prev);
+		}
 		newblk = get_slot(info);
-		newblk->start = blk->start;
+		newblk->start = start;
 		newblk->size = size;
 
-		/* blk still in free list, with updated start, size */
-		blk->start += size;
-		blk->size -= size;
+		/* blk still in free list, with updated start and size
+		 * for fragment in the end */
+		blk->start = start + size;
+		blk->size -= sp_size + size;
+		/* No fragment in the end, remove blk */
+		if (blk->size == 0) {
+			list_del(&blk->list);
+			release_slot(info, blk);
+		}
 	}
 
 	newblk->owner = owner;
-	start = newblk->start;
 	attach_taken_block(info, newblk);
-
-	/* for larger alignment return fixed up pointer  */
-	/* this is no problem with the deallocator since */
-	/* we scan for pointers that lie in the blocks   */
-	if (alignment > info->alignment)
-		start = (start + alignment - 1) & ~(alignment - 1);
 
 	return start;
 }
