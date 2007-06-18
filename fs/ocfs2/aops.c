@@ -712,7 +712,8 @@ int ocfs2_map_page_blocks(struct page *page, u64 *p_blkno,
 			if (!buffer_uptodate(bh))
 				set_buffer_uptodate(bh);
 		} else if (!buffer_uptodate(bh) && !buffer_delay(bh) &&
-		     (block_start < from || block_end > to)) {
+			   !buffer_new(bh) &&
+			   (block_start < from || block_end > to)) {
 			ll_rw_block(READ, 1, &bh);
 			*wait_bh++=bh;
 		}
