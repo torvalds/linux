@@ -65,6 +65,25 @@ typedef enum _lpfc_iocb_type {
 	LPFC_ABORT_IOCB
 } lpfc_iocb_type;
 
+/*
+ * SLI-2/SLI-3 provide different sized iocbs.  Given a pointer to the start of
+ * the ring, and the slot number of the desired iocb entry, calc a pointer to
+ * that entry.
+ */
+static inline IOCB_t *
+lpfc_cmd_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
+{
+	return (IOCB_t *) (((char *) pring->cmdringaddr) +
+			   pring->cmdidx * phba->iocb_cmd_size);
+}
+
+static inline IOCB_t *
+lpfc_resp_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
+{
+	return (IOCB_t *) (((char *) pring->rspringaddr) +
+			   pring->rspidx * phba->iocb_rsp_size);
+}
+
 static struct lpfc_iocbq *
 __lpfc_sli_get_iocbq(struct lpfc_hba *phba)
 {
@@ -180,6 +199,9 @@ lpfc_sli_iocb_cmd_type(uint8_t iocb_cmnd)
 	case CMD_RCV_ELS_REQ_CX:
 	case CMD_RCV_SEQUENCE64_CX:
 	case CMD_RCV_ELS_REQ64_CX:
+	case CMD_IOCB_RCV_SEQ64_CX:
+	case CMD_IOCB_RCV_ELS64_CX:
+	case CMD_IOCB_RCV_CONT64_CX:
 		type = LPFC_UNSOL_IOCB;
 		break;
 	default:
@@ -191,14 +213,19 @@ lpfc_sli_iocb_cmd_type(uint8_t iocb_cmnd)
 }
 
 static int
-lpfc_sli_ring_map(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
+lpfc_sli_ring_map(struct lpfc_hba *phba)
 {
 	struct lpfc_sli *psli = &phba->sli;
-	MAILBOX_t *pmbox = &pmb->mb;
-	int i, rc;
+	LPFC_MBOXQ_t *pmb;
+	MAILBOX_t *pmbox;
+	int i, rc, ret = 0;
 
+	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!pmb)
+		return -ENOMEM;
+	pmbox = &pmb->mb;
+	phba->link_state = LPFC_INIT_MBX_CMDS;
 	for (i = 0; i < psli->num_rings; i++) {
-		phba->link_state = LPFC_INIT_MBX_CMDS;
 		lpfc_config_ring(phba, i, pmb);
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
 		if (rc != MBX_SUCCESS) {
@@ -213,10 +240,12 @@ lpfc_sli_ring_map(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 					pmbox->mbxStatus,
 					i);
 			phba->link_state = LPFC_HBA_ERROR;
-			return -ENXIO;
+			ret = -ENXIO;
+			break;
 		}
 	}
-	return 0;
+	mempool_free(pmb, phba->mbox_mem_pool);
+	return ret;
 }
 
 static int
@@ -255,9 +284,10 @@ lpfc_sli_ringtx_get(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 static IOCB_t *
 lpfc_sli_next_iocb_slot (struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 {
-	struct lpfc_pgp *pgp = &phba->slim2p->mbx.us.s2.port[pring->ringno];
+	struct lpfc_pgp *pgp = (phba->sli_rev == 3) ?
+		&phba->slim2p->mbx.us.s3_pgp.port[pring->ringno] :
+		&phba->slim2p->mbx.us.s2.port[pring->ringno];
 	uint32_t  max_cmd_idx = pring->numCiocb;
-	IOCB_t *iocb = NULL;
 
 	if ((pring->next_cmdidx == pring->cmdidx) &&
 	   (++pring->next_cmdidx >= max_cmd_idx))
@@ -291,9 +321,7 @@ lpfc_sli_next_iocb_slot (struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 			return NULL;
 	}
 
-	iocb = IOCB_ENTRY(pring->cmdringaddr, pring->cmdidx);
-
-	return iocb;
+	return lpfc_cmd_iocb(phba, pring);
 }
 
 uint16_t
@@ -390,8 +418,7 @@ lpfc_sli_submit_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	 * driver will put a command into.
 	 */
 	pring->cmdidx = pring->next_cmdidx;
-	writel(pring->cmdidx, phba->MBslimaddr
-	       + (SLIMOFF + (pring->ringno * 2)) * 4);
+	writel(pring->cmdidx, &phba->host_gp[pring->ringno].cmdPutInx);
 }
 
 static void
@@ -462,7 +489,9 @@ lpfc_sli_resume_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 static void
 lpfc_sli_turn_on_ring(struct lpfc_hba *phba, int ringno)
 {
-	struct lpfc_pgp  *pgp = &phba->slim2p->mbx.us.s2.port[ringno];
+	struct lpfc_pgp *pgp = (phba->sli_rev == 3) ?
+		&phba->slim2p->mbx.us.s3_pgp.port[ringno] :
+		&phba->slim2p->mbx.us.s2.port[ringno];
 	unsigned long iflags;
 
 	/* If the ring is active, flag it */
@@ -479,6 +508,168 @@ lpfc_sli_turn_on_ring(struct lpfc_hba *phba, int ringno)
 		}
 	}
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
+}
+
+struct lpfc_hbq_entry *
+lpfc_sli_next_hbq_slot(struct lpfc_hba *phba, uint32_t hbqno)
+{
+	struct hbq_s *hbqp = &phba->hbqs[hbqno];
+
+	if (hbqp->next_hbqPutIdx == hbqp->hbqPutIdx &&
+	    ++hbqp->next_hbqPutIdx >= hbqp->entry_count)
+		hbqp->next_hbqPutIdx = 0;
+
+	if (unlikely(hbqp->local_hbqGetIdx == hbqp->next_hbqPutIdx)) {
+		uint32_t raw_index = readl(&phba->hbq_get[hbqno]);
+		uint32_t getidx = le32_to_cpu(raw_index);
+
+		hbqp->local_hbqGetIdx = getidx;
+
+		if (unlikely(hbqp->local_hbqGetIdx >= hbqp->entry_count)) {
+			lpfc_printf_log(phba, KERN_ERR,
+					LOG_SLI,
+					"%d:1802 HBQ %d: local_hbqGetIdx "
+					"%u is > than hbqp->entry_count %u\n",
+					phba->brd_no, hbqno,
+					hbqp->local_hbqGetIdx,
+					hbqp->entry_count);
+
+			phba->link_state = LPFC_HBA_ERROR;
+			return NULL;
+		}
+
+		if (hbqp->local_hbqGetIdx == hbqp->next_hbqPutIdx)
+			return NULL;
+	}
+
+	return (struct lpfc_hbq_entry *) phba->hbqslimp.virt + hbqp->hbqPutIdx;
+}
+
+void
+lpfc_sli_hbqbuf_free_all(struct lpfc_hba *phba)
+{
+	uint32_t  i;
+
+	if (!phba->hbq_buffer_pool)
+		return;
+	/* Return all memory used by all HBQs */
+	for (i = 0; i < phba->hbq_buffer_count; i++) {
+		lpfc_hbq_free(phba, phba->hbq_buffer_pool[i].dbuf.virt,
+			      phba->hbq_buffer_pool[i].dbuf.phys);
+	}
+	kfree(phba->hbq_buffer_pool);
+	phba->hbq_buffer_pool = NULL;
+}
+
+static void
+lpfc_sli_hbq_to_firmware(struct lpfc_hba *phba, uint32_t hbqno,
+			 struct hbq_dmabuf *hbq_buf_desc)
+{
+	struct lpfc_hbq_entry *hbqe;
+
+	/* Get next HBQ entry slot to use */
+	hbqe = lpfc_sli_next_hbq_slot(phba, hbqno);
+	if (hbqe) {
+		struct hbq_s *hbqp = &phba->hbqs[hbqno];
+
+		hbqe->bde.addrHigh = putPaddrHigh(hbq_buf_desc->dbuf.phys);
+		hbqe->bde.addrLow  = putPaddrLow(hbq_buf_desc->dbuf.phys);
+		hbqe->bde.tus.f.bdeSize = FCELSSIZE;
+		hbqe->bde.tus.f.bdeFlags = 0;
+		hbqe->buffer_tag = hbq_buf_desc->tag;
+		/* Sync SLIM */
+		hbqp->hbqPutIdx = hbqp->next_hbqPutIdx;
+		writel(hbqp->hbqPutIdx, phba->hbq_put + hbqno);
+		/* flush */
+		readl(phba->hbq_put + hbqno);
+		phba->hbq_buff_count++;
+	}
+}
+
+static void
+lpfc_sli_fill_hbq(struct lpfc_hba *phba, uint32_t hbqno, uint32_t buffer_index)
+{
+	struct hbq_dmabuf *hbq_buf_desc;
+	uint32_t i;
+
+	for (i = 0; i < phba->hbqs[hbqno].entry_count; i++) {
+		/* Search hbqbufq, from the begining,
+		 * looking for an unused entry
+		 */
+		phba->hbq_buffer_pool[buffer_index + i].tag |= hbqno << 16;
+		hbq_buf_desc = phba->hbq_buffer_pool + buffer_index + i;
+		lpfc_sli_hbq_to_firmware(phba, hbqno, hbq_buf_desc);
+	}
+}
+
+int
+lpfc_sli_hbqbuf_fill_hbq(struct lpfc_hba *phba)
+{
+	return 0;
+}
+
+static int
+lpfc_sli_hbqbuf_fill_hbqs(struct lpfc_hba *phba)
+{
+	uint32_t buffer_index = 0;
+	uint32_t hbqno;
+
+	/* Populate HBQ entries */
+	for (hbqno = 0; hbqno < phba->hbq_count; ++hbqno) {
+		/* Find ring associated with HBQ */
+
+		lpfc_sli_fill_hbq(phba, hbqno, buffer_index);
+		buffer_index += phba->hbqs[hbqno].entry_count;
+	}
+	return 0;
+}
+
+struct hbq_dmabuf *
+lpfc_sli_hbqbuf_find(struct lpfc_hba *phba, uint32_t tag)
+{
+	if ((tag & 0xffff) < phba->hbq_buffer_count)
+		return phba->hbq_buffer_pool + (tag & 0xffff);
+
+	lpfc_printf_log(phba, KERN_ERR,
+			LOG_SLI,
+			"%d:1803 Bad hbq tag. Data: x%x x%x\n",
+			phba->brd_no, tag,
+			phba->hbq_buffer_count);
+	return NULL;
+}
+
+void
+lpfc_sli_hbqbuf_free(struct lpfc_hba *phba, void *virt, dma_addr_t phys)
+{
+	uint32_t i, hbqno;
+
+	for (i = 0; i < phba->hbq_buffer_count; i++) {
+		/* Search hbqbufq, from the begining, looking for a match on
+		   phys */
+		if (phba->hbq_buffer_pool[i].dbuf.phys == phys) {
+			hbqno = phba->hbq_buffer_pool[i].tag >> 16;
+			lpfc_sli_hbq_to_firmware(phba, hbqno,
+						 phba->hbq_buffer_pool + i);
+			return;
+		}
+	}
+
+	lpfc_printf_log(phba, KERN_ERR,
+			LOG_SLI,
+			"%d:1804 Cannot find virtual addr for "
+			"mapped buf. Data x%llx\n",
+			phba->brd_no, (unsigned long long) phys);
+}
+
+void
+lpfc_sli_free_hbq(struct lpfc_hba *phba, struct hbq_dmabuf *sp)
+{
+	uint32_t hbqno;
+
+	if (sp) {
+		hbqno = sp->tag >> 16;
+		lpfc_sli_hbq_to_firmware(phba, hbqno, sp);
+	}
 }
 
 static int
@@ -757,7 +948,9 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	match = 0;
 	irsp = &(saveq->iocb);
 	if ((irsp->ulpCommand == CMD_RCV_ELS_REQ64_CX)
-	    || (irsp->ulpCommand == CMD_RCV_ELS_REQ_CX)) {
+	    || (irsp->ulpCommand == CMD_RCV_ELS_REQ_CX)
+	    || (irsp->ulpCommand == CMD_IOCB_RCV_ELS64_CX)
+	    || (irsp->ulpCommand == CMD_IOCB_RCV_CONT64_CX)) {
 		Rctl = FC_ELS_REQ;
 		Type = FC_ELS_DATA;
 	} else {
@@ -769,7 +962,8 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 		/* Firmware Workaround */
 		if ((Rctl == 0) && (pring->ringno == LPFC_ELS_RING) &&
-			(irsp->ulpCommand == CMD_RCV_SEQUENCE64_CX)) {
+		    (irsp->ulpCommand == CMD_RCV_SEQUENCE64_CX ||
+		     irsp->ulpCommand == CMD_IOCB_RCV_SEQ64_CX)) {
 			Rctl = FC_ELS_REQ;
 			Type = FC_ELS_DATA;
 			w5p->hcsw.Rctl = Rctl;
@@ -906,7 +1100,10 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 static void
 lpfc_sli_rsp_pointers_error(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 {
-	struct lpfc_pgp *pgp = &phba->slim2p->mbx.us.s2.port[pring->ringno];
+	struct lpfc_pgp *pgp = (phba->sli_rev == 3) ?
+		&phba->slim2p->mbx.us.s3_pgp.port[pring->ringno] :
+		&phba->slim2p->mbx.us.s2.port[pring->ringno];
+
 	/*
 	 * Ring <ringno> handler: portRspPut <portRspPut> is bigger then
 	 * rsp ring <portRspMax>
@@ -945,14 +1142,15 @@ void lpfc_sli_poll_fcp_ring(struct lpfc_hba *phba)
 	uint32_t portRspPut, portRspMax;
 	int type;
 	uint32_t rsp_cmpl = 0;
-	void __iomem *to_slim;
 	uint32_t ha_copy;
 	unsigned long iflags;
 
 	pring->stats.iocb_event++;
 
-	/* The driver assumes SLI-2 mode */
-	pgp =  &phba->slim2p->mbx.us.s2.port[pring->ringno];
+	pgp = (phba->sli_rev == 3) ?
+		&phba->slim2p->mbx.us.s3_pgp.port[pring->ringno] :
+		&phba->slim2p->mbx.us.s2.port[pring->ringno];
+
 
 	/*
 	 * The next available response entry should never exceed the maximum
@@ -967,9 +1165,7 @@ void lpfc_sli_poll_fcp_ring(struct lpfc_hba *phba)
 
 	rmb();
 	while (pring->rspidx != portRspPut) {
-
-		entry = IOCB_ENTRY(pring->rspringaddr, pring->rspidx);
-
+		entry = lpfc_resp_iocb(phba, pring);
 		if (++pring->rspidx >= portRspMax)
 			pring->rspidx = 0;
 
@@ -1050,9 +1246,7 @@ void lpfc_sli_poll_fcp_ring(struct lpfc_hba *phba)
 		 * been updated, sync the pgp->rspPutInx and fetch the new port
 		 * response put pointer.
 		 */
-		to_slim = phba->MBslimaddr +
-			(SLIMOFF + (pring->ringno * 2) + 1) * 4;
-		writeb(pring->rspidx, to_slim);
+		writel(pring->rspidx, &phba->host_gp[pring->ringno].rspGetInx);
 
 		if (pring->rspidx == portRspPut)
 			portRspPut = le32_to_cpu(pgp->rspPutInx);
@@ -1096,7 +1290,9 @@ static int
 lpfc_sli_handle_fast_ring_event(struct lpfc_hba *phba,
 				struct lpfc_sli_ring *pring, uint32_t mask)
 {
-	struct lpfc_pgp  *pgp = &phba->slim2p->mbx.us.s2.port[pring->ringno];
+	struct lpfc_pgp *pgp = (phba->sli_rev == 3) ?
+		&phba->slim2p->mbx.us.s3_pgp.port[pring->ringno] :
+		&phba->slim2p->mbx.us.s2.port[pring->ringno];
 	IOCB_t *irsp = NULL;
 	IOCB_t *entry = NULL;
 	struct lpfc_iocbq *cmdiocbq = NULL;
@@ -1107,7 +1303,6 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba *phba,
 	lpfc_iocb_type type;
 	unsigned long iflag;
 	uint32_t rsp_cmpl = 0;
-	void __iomem *to_slim;
 
 	spin_lock_irqsave(&phba->hbalock, iflag);
 	pring->stats.iocb_event++;
@@ -1131,14 +1326,14 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba *phba,
 		 * structure.  The copy involves a byte-swap since the
 		 * network byte order and pci byte orders are different.
 		 */
-		entry = IOCB_ENTRY(pring->rspringaddr, pring->rspidx);
+		entry = lpfc_resp_iocb(phba, pring);
 
 		if (++pring->rspidx >= portRspMax)
 			pring->rspidx = 0;
 
 		lpfc_sli_pcimem_bcopy((uint32_t *) entry,
 				      (uint32_t *) &rspiocbq.iocb,
-				      sizeof(IOCB_t));
+				      phba->iocb_rsp_size);
 		INIT_LIST_HEAD(&(rspiocbq.list));
 		irsp = &rspiocbq.iocb;
 
@@ -1222,9 +1417,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba *phba,
 		 * been updated, sync the pgp->rspPutInx and fetch the new port
 		 * response put pointer.
 		 */
-		to_slim = phba->MBslimaddr +
-			(SLIMOFF + (pring->ringno * 2) + 1) * 4;
-		writel(pring->rspidx, to_slim);
+		writel(pring->rspidx, &phba->host_gp[pring->ringno].rspGetInx);
 
 		if (pring->rspidx == portRspPut)
 			portRspPut = le32_to_cpu(pgp->rspPutInx);
@@ -1258,7 +1451,9 @@ int
 lpfc_sli_handle_slow_ring_event(struct lpfc_hba *phba,
 				struct lpfc_sli_ring *pring, uint32_t mask)
 {
-	struct lpfc_pgp  *pgp = &phba->slim2p->mbx.us.s2.port[pring->ringno];
+	struct lpfc_pgp *pgp = (phba->sli_rev == 3) ?
+		&phba->slim2p->mbx.us.s3_pgp.port[pring->ringno] :
+		&phba->slim2p->mbx.us.s2.port[pring->ringno];
 	IOCB_t *entry;
 	IOCB_t *irsp = NULL;
 	struct lpfc_iocbq *rspiocbp = NULL;
@@ -1271,7 +1466,6 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba *phba,
 	uint32_t portRspPut, portRspMax;
 	int rc = 1;
 	unsigned long iflag;
-	void __iomem *to_slim;
 
 	spin_lock_irqsave(&phba->hbalock, iflag);
 	pring->stats.iocb_event++;
@@ -1287,9 +1481,7 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba *phba,
 		 * Ring <ringno> handler: portRspPut <portRspPut> is bigger then
 		 * rsp ring <portRspMax>
 		 */
-		lpfc_printf_log(phba,
-				KERN_ERR,
-				LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"%d:0303 Ring %d handler: portRspPut %d "
 				"is bigger then rsp ring %d\n",
 				phba->brd_no,
@@ -1319,7 +1511,8 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba *phba,
 		 * the ulpLe field is set, the entire Command has been
 		 * received.
 		 */
-		entry = IOCB_ENTRY(pring->rspringaddr, pring->rspidx);
+		entry = lpfc_resp_iocb(phba, pring);
+
 		rspiocbp = __lpfc_sli_get_iocbq(phba);
 		if (rspiocbp == NULL) {
 			printk(KERN_ERR "%s: out of buffers! Failing "
@@ -1327,15 +1520,14 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba *phba,
 			break;
 		}
 
-		lpfc_sli_pcimem_bcopy(entry, &rspiocbp->iocb, sizeof(IOCB_t));
+		lpfc_sli_pcimem_bcopy(entry, &rspiocbp->iocb,
+				      phba->iocb_rsp_size);
 		irsp = &rspiocbp->iocb;
 
 		if (++pring->rspidx >= portRspMax)
 			pring->rspidx = 0;
 
-		to_slim = phba->MBslimaddr + (SLIMOFF + (pring->ringno * 2)
-					      + 1) * 4;
-		writel(pring->rspidx, to_slim);
+		writel(pring->rspidx, &phba->host_gp[pring->ringno].rspGetInx);
 
 		if (list_empty(&(pring->iocb_continueq))) {
 			list_add(&rspiocbp->list, &(pring->iocb_continueq));
@@ -1361,21 +1553,31 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba *phba,
 
 			if (irsp->ulpStatus) {
 				/* Rsp ring <ringno> error: IOCB */
-				lpfc_printf_log(phba,
-					KERN_WARNING,
-					LOG_SLI,
-					"%d:0328 Rsp Ring %d error: IOCB Data: "
-					"x%x x%x x%x x%x x%x x%x x%x x%x\n",
-					phba->brd_no,
-					pring->ringno,
-					irsp->un.ulpWord[0],
-					irsp->un.ulpWord[1],
-					irsp->un.ulpWord[2],
-					irsp->un.ulpWord[3],
-					irsp->un.ulpWord[4],
-					irsp->un.ulpWord[5],
-					*(((uint32_t *) irsp) + 6),
-					*(((uint32_t *) irsp) + 7));
+				lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
+						"%d:0328 Rsp Ring %d error: "
+						"IOCB Data: "
+						"x%x x%x x%x x%x "
+						"x%x x%x x%x x%x "
+						"x%x x%x x%x x%x "
+						"x%x x%x x%x x%x\n",
+						phba->brd_no,
+						pring->ringno,
+						irsp->un.ulpWord[0],
+						irsp->un.ulpWord[1],
+						irsp->un.ulpWord[2],
+						irsp->un.ulpWord[3],
+						irsp->un.ulpWord[4],
+						irsp->un.ulpWord[5],
+						*(((uint32_t *) irsp) + 6),
+						*(((uint32_t *) irsp) + 7),
+						*(((uint32_t *) irsp) + 8),
+						*(((uint32_t *) irsp) + 9),
+						*(((uint32_t *) irsp) + 10),
+						*(((uint32_t *) irsp) + 11),
+						*(((uint32_t *) irsp) + 12),
+						*(((uint32_t *) irsp) + 13),
+						*(((uint32_t *) irsp) + 14),
+						*(((uint32_t *) irsp) + 15));
 			}
 
 			/*
@@ -1659,13 +1861,9 @@ lpfc_sli_brdkill(struct lpfc_hba *phba)
 	psli = &phba->sli;
 
 	/* Kill HBA */
-	lpfc_printf_log(phba,
-		KERN_INFO,
-		LOG_SLI,
+	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 		"%d:0329 Kill HBA Data: x%x x%x\n",
-		phba->brd_no,
-		phba->pport->port_state,
-		psli->sli_flag);
+		phba->brd_no, phba->pport->port_state, psli->sli_flag);
 
 	if ((pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool,
 						  GFP_KERNEL)) == 0)
@@ -1857,13 +2055,10 @@ lpfc_sli_chipset_init(struct lpfc_hba *phba)
 		if (i++ >= 20) {
 			/* Adapter failed to init, timeout, status reg
 			   <status> */
-			lpfc_printf_log(phba,
-					KERN_ERR,
-					LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"%d:0436 Adapter failed to init, "
 					"timeout, status reg x%x\n",
-					phba->brd_no,
-					status);
+					phba->brd_no, status);
 			phba->link_state = LPFC_HBA_ERROR;
 			return -ETIMEDOUT;
 		}
@@ -1873,9 +2068,7 @@ lpfc_sli_chipset_init(struct lpfc_hba *phba)
 			/* ERROR: During chipset initialization */
 			/* Adapter failed to init, chipset, status reg
 			   <status> */
-			lpfc_printf_log(phba,
-					KERN_ERR,
-					LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"%d:0437 Adapter failed to init, "
 					"chipset, status reg x%x\n",
 					phba->brd_no,
@@ -1905,9 +2098,7 @@ lpfc_sli_chipset_init(struct lpfc_hba *phba)
 	if (status & HS_FFERM) {
 		/* ERROR: During chipset initialization */
 		/* Adapter failed to init, chipset, status reg <status> */
-		lpfc_printf_log(phba,
-				KERN_ERR,
-				LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"%d:0438 Adapter failed to init, chipset, "
 				"status reg x%x\n",
 				phba->brd_no,
@@ -1926,8 +2117,145 @@ lpfc_sli_chipset_init(struct lpfc_hba *phba)
 	return 0;
 }
 
+static struct hbq_dmabuf *
+lpfc_alloc_hbq_buffers(struct lpfc_hba *phba, int count)
+{
+	struct hbq_dmabuf *hbq_buffer_pool;
+	int  i;
+
+	hbq_buffer_pool = kmalloc(count * sizeof(struct hbq_dmabuf),
+				  GFP_KERNEL);
+	if (!hbq_buffer_pool)
+		goto out;
+
+	for (i = 0; i < count; ++i) {
+		hbq_buffer_pool[i].dbuf.virt =
+			lpfc_hbq_alloc(phba, MEM_PRI,
+				       &hbq_buffer_pool[i].dbuf.phys);
+		if (hbq_buffer_pool[i].dbuf.virt == NULL)
+			goto alloc_failed;
+		hbq_buffer_pool[i].tag = i;
+	}
+	goto out;
+
+alloc_failed:
+	while (--i >= 0)
+		lpfc_hbq_free(phba, hbq_buffer_pool[i].dbuf.virt,
+			      hbq_buffer_pool[i].dbuf.phys);
+	kfree(hbq_buffer_pool);
+	hbq_buffer_pool = NULL;
+
+out:
+	phba->hbq_buffer_pool = hbq_buffer_pool;
+	return hbq_buffer_pool;
+}
+
+static struct lpfc_hbq_init lpfc_els_hbq = {
+	.rn = 1,
+	.entry_count = 1200,
+	.mask_count = 0,
+	.profile = 0,
+	.ring_mask = 1 << LPFC_ELS_RING,
+};
+
+static struct lpfc_hbq_init *lpfc_hbq_definitions[] = {
+	&lpfc_els_hbq,
+};
+
+static int
+lpfc_sli_hbq_count(void)
+{
+	return ARRAY_SIZE(lpfc_hbq_definitions);
+}
+
+static int
+lpfc_sli_hbq_entry_count(void)
+{
+	int  hbq_count = lpfc_sli_hbq_count();
+	int  count = 0;
+	int  i;
+
+	for (i = 0; i < hbq_count; ++i)
+		count += lpfc_hbq_definitions[i]->entry_count;
+	return count;
+}
+
 int
-lpfc_sli_hba_setup(struct lpfc_hba *phba)
+lpfc_sli_hbq_size(void)
+{
+	return lpfc_sli_hbq_entry_count() * sizeof(struct lpfc_hbq_entry);
+}
+
+static int
+lpfc_sli_hbq_setup(struct lpfc_hba *phba)
+{
+	int  hbq_count = lpfc_sli_hbq_count();
+	LPFC_MBOXQ_t *pmb;
+	MAILBOX_t *pmbox;
+	uint32_t hbqno;
+	uint32_t hbq_entry_index;
+	uint32_t hbq_buffer_count;
+
+	/* count hbq buffers */
+	hbq_buffer_count = lpfc_sli_hbq_entry_count();
+	if (!lpfc_alloc_hbq_buffers(phba, hbq_buffer_count))
+		return -ENOMEM;
+
+	phba->hbq_buffer_count = hbq_buffer_count;
+
+	/* Get a Mailbox buffer to setup mailbox
+	 * commands for HBA initialization
+	 */
+	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+
+	if (!pmb)
+		return -ENOMEM;
+
+	pmbox = &pmb->mb;
+
+	/* Initialize the struct lpfc_sli_hbq structure for each hbq */
+	phba->link_state = LPFC_INIT_MBX_CMDS;
+
+	hbq_entry_index = 0;
+	for (hbqno = 0; hbqno < hbq_count; ++hbqno) {
+		phba->hbqs[hbqno].next_hbqPutIdx = 0;
+		phba->hbqs[hbqno].hbqPutIdx      = 0;
+		phba->hbqs[hbqno].local_hbqGetIdx   = 0;
+		phba->hbqs[hbqno].entry_count =
+			lpfc_hbq_definitions[hbqno]->entry_count;
+		lpfc_config_hbq(phba, lpfc_hbq_definitions[hbqno],
+				hbq_entry_index, pmb);
+		hbq_entry_index += phba->hbqs[hbqno].entry_count;
+
+		if (lpfc_sli_issue_mbox(phba, pmb, MBX_POLL) != MBX_SUCCESS) {
+			/* Adapter failed to init, mbxCmd <cmd> CFG_RING,
+			   mbxStatus <status>, ring <num> */
+
+			lpfc_printf_log(phba, KERN_ERR,
+					LOG_SLI,
+					"%d:1805 Adapter failed to init. "
+					"Data: x%x x%x x%x\n",
+					phba->brd_no, pmbox->mbxCommand,
+					pmbox->mbxStatus, hbqno);
+
+			phba->link_state = LPFC_HBA_ERROR;
+			mempool_free(pmb, phba->mbox_mem_pool);
+			/* Free all HBQ memory */
+			lpfc_sli_hbqbuf_free_all(phba);
+			return ENXIO;
+		}
+	}
+	phba->hbq_count = hbq_count;
+
+	/* Initially populate or replenish the HBQs */
+	lpfc_sli_hbqbuf_fill_hbqs(phba);
+	mempool_free(pmb, phba->mbox_mem_pool);
+
+	return 0;
+}
+
+static int
+lpfc_do_config_port(struct lpfc_hba *phba, int sli_mode)
 {
 	LPFC_MBOXQ_t *pmb;
 	uint32_t resetcount = 0, rc = 0, done = 0;
@@ -1938,6 +2266,7 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 		return -ENOMEM;
 	}
 
+	phba->sli_rev = sli_mode;
 	while (resetcount < 2 && !done) {
 		spin_lock_irq(&phba->hbalock);
 		phba->sli.sli_flag |= LPFC_SLI_MBOX_ACTIVE;
@@ -1954,14 +2283,14 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 		spin_unlock_irq(&phba->hbalock);
 		resetcount++;
 
-	/* Call pre CONFIG_PORT mailbox command initialization.  A value of 0
-	 * means the call was successful.  Any other nonzero value is a failure,
-	 * but if ERESTART is returned, the driver may reset the HBA and try
-	 * again.
-	 */
+		/* Call pre CONFIG_PORT mailbox command initialization.  A
+		 * value of 0 means the call was successful.  Any other
+		 * nonzero value is a failure, but if ERESTART is returned,
+		 * the driver may reset the HBA and try again.
+		 */
 		rc = lpfc_config_port_prep(phba);
 		if (rc == -ERESTART) {
-			phba->pport->port_state = 0;
+			phba->link_state = LPFC_LINK_UNKNOWN;
 			continue;
 		} else if (rc) {
 			break;
@@ -1970,27 +2299,102 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 		phba->link_state = LPFC_INIT_MBX_CMDS;
 		lpfc_config_port(phba, pmb);
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
-		if (rc == MBX_SUCCESS)
-			done = 1;
-		else {
+		if (rc != MBX_SUCCESS) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"%d:0442 Adapter failed to init, mbxCmd x%x "
-				"CONFIG_PORT, mbxStatus x%x Data: x%x\n",
-				phba->brd_no, pmb->mb.mbxCommand,
-				pmb->mb.mbxStatus, 0);
+					"%d:0442 Adapter failed to init, "
+					"mbxCmd x%x CONFIG_PORT, mbxStatus "
+					"x%x Data: x%x\n",
+					phba->brd_no, pmb->mb.mbxCommand,
+					pmb->mb.mbxStatus, 0);
 			spin_lock_irq(&phba->hbalock);
 			phba->sli.sli_flag &= ~LPFC_SLI2_ACTIVE;
 			spin_unlock_irq(&phba->hbalock);
 			rc = -ENXIO;
+		} else {
+			done = 1;
+			/* DBG: Do we need max_vpi, reg_vpi for that matter
+			   phba->max_vpi = 0;
+			*/
 		}
 	}
-	if (!done)
+
+	if (!done) {
+		rc = -EINVAL;
+		goto do_prep_failed;
+	}
+
+	if ((pmb->mb.un.varCfgPort.sli_mode == 3) &&
+	    (!pmb->mb.un.varCfgPort.cMA)) {
+		rc = -ENXIO;
+		goto do_prep_failed;
+	}
+	return rc;
+
+ do_prep_failed:
+	mempool_free(pmb, phba->mbox_mem_pool);
+	return rc;
+}
+
+int
+lpfc_sli_hba_setup(struct lpfc_hba *phba)
+{
+	uint32_t rc;
+	int mode = 3;
+
+	switch (lpfc_sli_mode) {
+	case 2:
+		mode = 2;
+		break;
+	case 0:
+	case 3:
+		break;
+	default:
+		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"%d:1819 Unrecognized lpfc_sli_mode "
+				"parameter: %d.\n",
+				phba->brd_no, lpfc_sli_mode);
+
+		break;
+	}
+
+	rc = lpfc_do_config_port(phba, mode);
+	if (rc && lpfc_sli_mode == 3)
+		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"%d:1820 Unable to select SLI-3.  "
+				"Not supported by adapter.\n",
+				phba->brd_no);
+	if (rc && mode != 2)
+		rc = lpfc_do_config_port(phba, 2);
+	if (rc)
 		goto lpfc_sli_hba_setup_error;
 
-	rc = lpfc_sli_ring_map(phba, pmb);
+	if (phba->sli_rev == 3) {
+		phba->iocb_cmd_size = SLI3_IOCB_CMD_SIZE;
+		phba->iocb_rsp_size = SLI3_IOCB_RSP_SIZE;
+		phba->sli3_options |= LPFC_SLI3_ENABLED;
+		phba->sli3_options |= LPFC_SLI3_HBQ_ENABLED;
+
+	} else {
+		phba->iocb_cmd_size = SLI2_IOCB_CMD_SIZE;
+		phba->iocb_rsp_size = SLI2_IOCB_RSP_SIZE;
+		phba->sli3_options = 0x0;
+	}
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+			"%d:0444 Firmware in SLI %x mode.\n",
+			phba->brd_no, phba->sli_rev);
+	rc = lpfc_sli_ring_map(phba);
 
 	if (rc)
 		goto lpfc_sli_hba_setup_error;
+
+	/* Init HBQs */
+
+	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
+		rc = lpfc_sli_hbq_setup(phba);
+		if (rc)
+			goto lpfc_sli_hba_setup_error;
+	}
 
 	phba->sli.sli_flag |= LPFC_PROCESS_LA;
 
@@ -1998,11 +2402,13 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 	if (rc)
 		goto lpfc_sli_hba_setup_error;
 
-	goto lpfc_sli_hba_setup_exit;
-lpfc_sli_hba_setup_error:
+	return rc;
+
+ lpfc_sli_hba_setup_error:
 	phba->link_state = LPFC_HBA_ERROR;
-lpfc_sli_hba_setup_exit:
-	mempool_free(pmb, phba->mbox_mem_pool);
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+			"%d:0445 Firmware initialization failed\n",
+			phba->brd_no);
 	return rc;
 }
 
@@ -2027,7 +2433,7 @@ lpfc_mbox_timeout(unsigned long ptr)
 	uint32_t tmo_posted;
 
 	spin_lock_irqsave(&phba->pport->work_port_lock, iflag);
-	tmo_posted = (phba->pport->work_port_events & WORKER_MBOX_TMO) == 0;
+	tmo_posted = (phba->pport->work_port_events & WORKER_MBOX_TMO);
 	if (!tmo_posted)
 		phba->pport->work_port_events |= WORKER_MBOX_TMO;
 	spin_unlock_irqrestore(&phba->pport->work_port_lock, iflag);
@@ -2051,9 +2457,7 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 	}
 
 	/* Mbox cmd <mbxCommand> timeout */
-	lpfc_printf_log(phba,
-		KERN_ERR,
-		LOG_MBOX | LOG_SLI,
+	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
 		"%d:0310 Mailbox command x%x timeout Data: x%x x%x x%p\n",
 		phba->brd_no,
 		mb->mbxCommand,
@@ -2105,13 +2509,25 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 	volatile uint32_t word0, ldata;
 	void __iomem *to_slim;
 
+	if (pmbox->mbox_cmpl && pmbox->mbox_cmpl != lpfc_sli_def_mbox_cmpl &&
+	    pmbox->mbox_cmpl != lpfc_sli_wake_mbox_wait) {
+		if(!pmbox->vport) {
+			lpfc_printf_log(phba, KERN_ERR,
+					LOG_MBOX,
+					"%d:1806 Mbox x%x failed. No vport\n",
+					phba->brd_no,
+					pmbox->mb.mbxCommand);
+			dump_stack();
+			return MBXERR_ERROR;
+		}
+	}
+
 	/* If the PCI channel is in offline state, do not post mbox. */
 	if (unlikely(pci_channel_offline(phba->pcidev)))
 		return MBX_NOT_FINISHED;
 
 	spin_lock_irqsave(&phba->hbalock, drvr_flag);
 	psli = &phba->sli;
-
 	mb = &pmbox->mb;
 	status = MBX_SUCCESS;
 
@@ -2172,15 +2588,11 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 		lpfc_mbox_put(phba, pmbox);
 
 		/* Mbox cmd issue - BUSY */
-		lpfc_printf_log(phba,
-			KERN_INFO,
-			LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_SLI,
 			"%d:0308 Mbox cmd issue - BUSY Data: x%x x%x x%x x%x\n",
 			phba->brd_no,
-			mb->mbxCommand,
-			phba->pport->port_state,
-			psli->sli_flag,
-			flag);
+			mb->mbxCommand, phba->pport->port_state,
+			psli->sli_flag, flag);
 
 		psli->slistat.mbox_busy++;
 		spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
@@ -2223,15 +2635,11 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 	}
 
 	/* Mailbox cmd <cmd> issue */
-	lpfc_printf_log(phba,
-		KERN_INFO,
-		LOG_MBOX | LOG_SLI,
+	lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_SLI,
 		"%d:0309 Mailbox cmd x%x issue Data: x%x x%x x%x\n",
 		phba->brd_no,
-		mb->mbxCommand,
-		phba->pport->port_state,
-		psli->sli_flag,
-			flag);
+		mb->mbxCommand, phba->pport->port_state,
+		psli->sli_flag, flag);
 
 	psli->slistat.mbox_cmd++;
 	evtctr = psli->slistat.mbox_event;
@@ -2526,7 +2934,7 @@ lpfc_extra_ring_setup( struct lpfc_hba *phba)
 int
 lpfc_sli_setup(struct lpfc_hba *phba)
 {
-	int i, totiocb = 0;
+	int i, totiocbsize = 0;
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring *pring;
 
@@ -2551,9 +2959,15 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 			pring->numRiocb += SLI2_IOCB_RSP_R1XTRA_ENTRIES;
 			pring->numCiocb += SLI2_IOCB_CMD_R3XTRA_ENTRIES;
 			pring->numRiocb += SLI2_IOCB_RSP_R3XTRA_ENTRIES;
+			pring->sizeCiocb = (phba->sli_rev == 3) ?
+				SLI3_IOCB_CMD_SIZE :
+				SLI2_IOCB_CMD_SIZE;
+			pring->sizeRiocb = (phba->sli_rev == 3) ?
+				SLI3_IOCB_RSP_SIZE :
+				SLI2_IOCB_RSP_SIZE;
 			pring->iotag_ctr = 0;
 			pring->iotag_max =
-			    (phba->cfg_hba_queue_depth * 2);
+				(phba->cfg_hba_queue_depth * 2);
 			pring->fast_iotag = pring->iotag_max;
 			pring->num_mask = 0;
 			break;
@@ -2561,6 +2975,12 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 			/* numCiocb and numRiocb are used in config_port */
 			pring->numCiocb = SLI2_IOCB_CMD_R1_ENTRIES;
 			pring->numRiocb = SLI2_IOCB_RSP_R1_ENTRIES;
+			pring->sizeCiocb = (phba->sli_rev == 3) ?
+				SLI3_IOCB_CMD_SIZE :
+				SLI2_IOCB_CMD_SIZE;
+			pring->sizeRiocb = (phba->sli_rev == 3) ?
+				SLI3_IOCB_RSP_SIZE :
+				SLI2_IOCB_RSP_SIZE;
 			pring->iotag_max = phba->cfg_hba_queue_depth;
 			pring->num_mask = 0;
 			break;
@@ -2568,6 +2988,12 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 			/* numCiocb and numRiocb are used in config_port */
 			pring->numCiocb = SLI2_IOCB_CMD_R2_ENTRIES;
 			pring->numRiocb = SLI2_IOCB_RSP_R2_ENTRIES;
+			pring->sizeCiocb = (phba->sli_rev == 3) ?
+				SLI3_IOCB_CMD_SIZE :
+				SLI2_IOCB_CMD_SIZE;
+			pring->sizeRiocb = (phba->sli_rev == 3) ?
+				SLI3_IOCB_RSP_SIZE :
+				SLI2_IOCB_RSP_SIZE;
 			pring->fast_iotag = 0;
 			pring->iotag_ctr = 0;
 			pring->iotag_max = 4096;
@@ -2576,36 +3002,38 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 			pring->prt[0].rctl = FC_ELS_REQ;
 			pring->prt[0].type = FC_ELS_DATA;
 			pring->prt[0].lpfc_sli_rcv_unsol_event =
-			    lpfc_els_unsol_event;
+				lpfc_els_unsol_event;
 			pring->prt[1].profile = 0;	/* Mask 1 */
 			pring->prt[1].rctl = FC_ELS_RSP;
 			pring->prt[1].type = FC_ELS_DATA;
 			pring->prt[1].lpfc_sli_rcv_unsol_event =
-			    lpfc_els_unsol_event;
+				lpfc_els_unsol_event;
 			pring->prt[2].profile = 0;	/* Mask 2 */
 			/* NameServer Inquiry */
 			pring->prt[2].rctl = FC_UNSOL_CTL;
 			/* NameServer */
 			pring->prt[2].type = FC_COMMON_TRANSPORT_ULP;
 			pring->prt[2].lpfc_sli_rcv_unsol_event =
-			    lpfc_ct_unsol_event;
+				lpfc_ct_unsol_event;
 			pring->prt[3].profile = 0;	/* Mask 3 */
 			/* NameServer response */
 			pring->prt[3].rctl = FC_SOL_CTL;
 			/* NameServer */
 			pring->prt[3].type = FC_COMMON_TRANSPORT_ULP;
 			pring->prt[3].lpfc_sli_rcv_unsol_event =
-			    lpfc_ct_unsol_event;
+				lpfc_ct_unsol_event;
 			break;
 		}
-		totiocb += (pring->numCiocb + pring->numRiocb);
+		totiocbsize += (pring->numCiocb * pring->sizeCiocb) +
+			(pring->numRiocb * pring->sizeRiocb);
 	}
-	if (totiocb > MAX_SLI2_IOCB) {
+	if (totiocbsize > MAX_SLIM_IOCB_SIZE) {
 		/* Too many cmd / rsp ring entries in SLI2 SLIM */
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"%d:0462 Too many cmd / rsp ring entries in "
-				"SLI2 SLIM Data: x%x x%x\n",
-				phba->brd_no, totiocb, MAX_SLI2_IOCB);
+				"SLI2 SLIM Data: x%x x%lx\n",
+				phba->brd_no, totiocbsize,
+				(unsigned long) MAX_SLIM_IOCB_SIZE);
 	}
 	if (phba->cfg_multi_ring_support == 2)
 		lpfc_extra_ring_setup(phba);
@@ -2689,6 +3117,7 @@ lpfc_sli_hba_down(struct lpfc_hba *phba)
 	phba->pport->work_port_events &= ~WORKER_MBOX_TMO;
 	spin_unlock_irqrestore(&phba->pport->work_port_lock, flags);
 
+	spin_lock_irqsave(&phba->hbalock, flags);
 	pmb = psli->mbox_active;
 	if (pmb) {
 		psli->mbox_active = NULL;
@@ -2707,6 +3136,9 @@ lpfc_sli_hba_down(struct lpfc_hba *phba)
 		}
 	}
 	INIT_LIST_HEAD(&psli->mboxq);
+
+	/* Free all HBQ memory */
+	lpfc_sli_hbqbuf_free_all(phba);
 
 	return 1;
 }
@@ -3075,11 +3507,9 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba *phba,
 	retval = lpfc_sli_issue_iocb(phba, pring, piocb, 0);
 	if (retval == IOCB_SUCCESS) {
 		timeout_req = timeout * HZ;
-		spin_unlock_irq(&phba->hbalock);
 		timeleft = wait_event_timeout(done_q,
 				piocb->iocb_flag & LPFC_IO_WAKE,
 				timeout_req);
-		spin_lock_irq(&phba->hbalock);
 
 		if (piocb->iocb_flag & LPFC_IO_WAKE) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
@@ -3164,13 +3594,25 @@ lpfc_sli_flush_mbox_queue(struct lpfc_hba * phba)
 {
 	struct lpfc_vport *vport = phba->pport;
 	int i = 0;
+	uint32_t ha_copy;
 
 	while (phba->sli.sli_flag & LPFC_SLI_MBOX_ACTIVE && !vport->stopped) {
 		if (i++ > LPFC_MBOX_TMO * 1000)
 			return 1;
 
-		if (lpfc_sli_handle_mb_event(phba) == 0)
-			i = 0;
+		/*
+		 * Call lpfc_sli_handle_mb_event only if a mailbox cmd
+		 * did finish. This way we won't get the misleading
+		 * "Stray Mailbox Interrupt" message.
+		 */
+		spin_lock_irq(&phba->hbalock);
+		ha_copy = phba->work_ha;
+		phba->work_ha &= ~HA_MBATT;
+		spin_unlock_irq(&phba->hbalock);
+
+		if (ha_copy & HA_MBATT)
+			if (lpfc_sli_handle_mb_event(phba) == 0)
+				i = 0;
 
 		msleep(1);
 	}

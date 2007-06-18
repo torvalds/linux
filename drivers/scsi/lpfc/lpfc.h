@@ -63,6 +63,11 @@ struct lpfc_dma_pool {
 	uint32_t    current_count;
 };
 
+struct hbq_dmabuf {
+	struct lpfc_dmabuf dbuf;
+	uint32_t tag;
+};
+
 /* Priority bit.  Set value to exceed low water mark in lpfc_mem. */
 #define MEM_PRI		0x100
 
@@ -276,8 +281,25 @@ struct lpfc_vport {
 
 };
 
+
+struct hbq_s {
+	uint16_t entry_count;	  /* Current number of HBQ slots */
+	uint32_t next_hbqPutIdx;  /* Index to next HBQ slot to use */
+	uint32_t hbqPutIdx;	  /* HBQ slot to use */
+	uint32_t local_hbqGetIdx; /* Local copy of Get index from Port */
+};
+
+#define MAX_HBQS  16
+
 struct lpfc_hba {
 	struct lpfc_sli sli;
+	uint32_t sli_rev;		/* SLI2 or SLI3 */
+	uint32_t sli3_options;		/* Mask of enabled SLI3 options */
+#define LPFC_SLI3_ENABLED	0x01
+#define LPFC_SLI3_HBQ_ENABLED	0x02
+#define LPFC_SLI3_INB_ENABLED	0x04
+	uint32_t iocb_cmd_size;
+	uint32_t iocb_rsp_size;
 
 	enum hba_state link_state;
 	uint32_t link_flag;	/* link state flags */
@@ -285,8 +307,6 @@ struct lpfc_hba {
 					/* This flag is set while issuing */
 					/* INIT_LINK mailbox command */
 #define LS_IGNORE_ERATT         0x80000	/* intr handler should ignore ERATT */
-
-	uint32_t pgpOffset; /* PGP offset within host memory */
 
 	struct lpfc_sli2_slim *slim2p;
 	struct lpfc_dmabuf hbqslimp;
@@ -371,6 +391,12 @@ struct lpfc_hba {
 	wait_queue_head_t    *work_wait;
 	struct task_struct   *worker_thread;
 
+	struct   hbq_dmabuf *hbq_buffer_pool;
+	uint32_t hbq_buffer_count;
+	uint32_t hbq_buff_count; 	/* Current hbq buffers */
+	uint32_t hbq_count;	        /* Count of configured HBQs */
+	struct hbq_s hbqs[MAX_HBQS];    /* local copy of hbq indicies  */
+
 	unsigned long pci_bar0_map;     /* Physical address for PCI BAR0 */
 	unsigned long pci_bar2_map;     /* Physical address for PCI BAR2 */
 	void __iomem *slim_memmap_p;	/* Kernel memory mapped address for
@@ -384,6 +410,10 @@ struct lpfc_hba {
 	void __iomem *HSregaddr;	/* virtual address for host status
 					   reg */
 	void __iomem *HCregaddr;	/* virtual address for host ctl reg */
+
+	struct lpfc_hgp __iomem *host_gp; /* Host side get/put pointers */
+	uint32_t __iomem  *hbq_put;     /* Address in SLIM to HBQ put ptrs */
+	uint32_t __iomem  *hbq_get;     /* Address in SLIM to HBQ get ptrs */
 
 	int brd_no;			/* FC board number */
 
@@ -425,6 +455,7 @@ struct lpfc_hba {
 	/* pci_mem_pools */
 	struct pci_pool *lpfc_scsi_dma_buf_pool;
 	struct pci_pool *lpfc_mbuf_pool;
+	struct pci_pool *lpfc_hbq_pool;
 	struct lpfc_dma_pool lpfc_mbuf_safety_pool;
 
 	mempool_t *mbox_mem_pool;

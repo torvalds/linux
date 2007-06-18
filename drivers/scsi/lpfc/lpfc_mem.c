@@ -82,8 +82,16 @@ lpfc_mem_alloc(struct lpfc_hba * phba)
 	if (!phba->nlp_mem_pool)
 		goto fail_free_mbox_pool;
 
+	phba->lpfc_hbq_pool = pci_pool_create("lpfc_hbq_pool",phba->pcidev,
+					      LPFC_BPL_SIZE, 8, 0);
+	if (!phba->lpfc_hbq_pool)
+		goto fail_free_nlp_mem_pool;
+
 	return 0;
 
+ fail_free_nlp_mem_pool:
+	mempool_destroy(phba->nlp_mem_pool);
+	phba->nlp_mem_pool = NULL;
  fail_free_mbox_pool:
 	mempool_destroy(phba->mbox_mem_pool);
 	phba->mbox_mem_pool = NULL;
@@ -110,6 +118,8 @@ lpfc_mem_free(struct lpfc_hba * phba)
 	LPFC_MBOXQ_t *mbox, *next_mbox;
 	struct lpfc_dmabuf   *mp;
 	int i;
+
+	lpfc_sli_hbqbuf_free_all(phba);
 
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry_safe(mbox, next_mbox, &psli->mboxq, list) {
@@ -140,12 +150,14 @@ lpfc_mem_free(struct lpfc_hba * phba)
 						 pool->elements[i].phys);
 	kfree(pool->elements);
 
+	pci_pool_destroy(phba->lpfc_hbq_pool);
 	mempool_destroy(phba->nlp_mem_pool);
 	mempool_destroy(phba->mbox_mem_pool);
 
 	pci_pool_destroy(phba->lpfc_scsi_dma_buf_pool);
 	pci_pool_destroy(phba->lpfc_mbuf_pool);
 
+	phba->lpfc_hbq_pool = NULL;
 	phba->nlp_mem_pool = NULL;
 	phba->mbox_mem_pool = NULL;
 	phba->lpfc_scsi_dma_buf_pool = NULL;
@@ -201,3 +213,20 @@ lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
 	return;
 }
+
+
+void *
+lpfc_hbq_alloc(struct lpfc_hba *phba, int mem_flags, dma_addr_t *handle)
+{
+	void *ret;
+	ret = pci_pool_alloc(phba->lpfc_hbq_pool, GFP_ATOMIC, handle);
+	return ret;
+}
+
+void
+lpfc_hbq_free(struct lpfc_hba *phba, void *virt, dma_addr_t dma)
+{
+	pci_pool_free(phba->lpfc_hbq_pool, virt, dma);
+	return;
+}
+

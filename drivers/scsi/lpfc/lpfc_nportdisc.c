@@ -255,9 +255,8 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				/* Start discovery - this should just do
 				   CLEAR_LA */
 				lpfc_disc_start(vport);
-			} else {
+			} else
 				lpfc_initial_flogi(vport);
-			}
 		} else {
 			stat.un.b.lsRjtRsnCode = LSRJT_LOGICAL_BSY;
 			stat.un.b.lsRjtRsnCodeExp = LSEXP_NOTHING_MORE;
@@ -279,19 +278,16 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	icmd = &cmdiocb->iocb;
 
 	/* PLOGI chkparm OK */
-	lpfc_printf_log(phba,
-			KERN_INFO,
-			LOG_ELS,
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
 			"%d:0114 PLOGI chkparm OK Data: x%x x%x x%x x%x\n",
 			phba->brd_no,
 			ndlp->nlp_DID, ndlp->nlp_state, ndlp->nlp_flag,
 			ndlp->nlp_rpi);
 
-	if (phba->cfg_fcp_class == 2 && sp->cls2.classValid) {
+	if (phba->cfg_fcp_class == 2 && sp->cls2.classValid)
 		ndlp->nlp_fcp_info |= CLASS2;
-	} else {
+	else
 		ndlp->nlp_fcp_info |= CLASS3;
-	}
 
 	ndlp->nlp_class_sup = 0;
 	if (sp->cls1.classValid)
@@ -327,6 +323,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			goto out;
 		lpfc_config_link(phba, mbox);
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		mbox->vport = vport;
 		rc = lpfc_sli_issue_mbox
 			(phba, mbox, (MBX_NOWAIT | MBX_STOP_IOCB));
 		if (rc == MBX_NOT_FINISHED) {
@@ -544,9 +541,7 @@ static uint32_t
 lpfc_disc_illegal(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		  void *arg, uint32_t evt)
 {
-	lpfc_printf_log(vport->phba,
-			KERN_ERR,
-			LOG_DISCOVERY,
+	lpfc_printf_log(vport->phba, KERN_ERR, LOG_DISCOVERY,
 			"%d:0253 Illegal State Transition: node x%x event x%x, "
 			"state x%x Data: x%x x%x\n",
 			vport->phba->brd_no,
@@ -728,9 +723,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 		goto out;
 
 	/* PLOGI chkparm OK */
-	lpfc_printf_log(phba,
-			KERN_INFO,
-			LOG_ELS,
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
 			"%d:0121 PLOGI chkparm OK "
 			"Data: x%x x%x x%x x%x\n",
 			phba->brd_no,
@@ -1105,9 +1098,7 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 
 	if (mb->mbxStatus) {
 		/* RegLogin failed */
-		lpfc_printf_log(phba,
-				KERN_ERR,
-				LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
 				"%d:0246 RegLogin failed Data: x%x x%x x%x\n",
 				phba->brd_no,
 				did, mb->mbxStatus, vport->port_state);
@@ -1470,15 +1461,12 @@ static uint32_t
 lpfc_rcv_prlo_mapped_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			  void *arg, uint32_t evt)
 {
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_iocbq *cmdiocb = (struct lpfc_iocbq *) arg;
 
 	/* flush the target */
-	spin_lock_irq(shost->host_lock);
 	lpfc_sli_abort_iocb(phba, &phba->sli.ring[phba->sli.fcp_ring],
 			       ndlp->nlp_sid, 0, 0, LPFC_CTX_TGT);
-	spin_unlock_irq(shost->host_lock);
 
 	/* Treat like rcv logo */
 	lpfc_rcv_logo(vport, ndlp, cmdiocb, ELS_CMD_PRLO);
@@ -1926,9 +1914,7 @@ lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	cur_state = ndlp->nlp_state;
 
 	/* DSM in event <evt> on NPort <nlp_DID> in state <cur_state> */
-	lpfc_printf_log(phba,
-			KERN_INFO,
-			LOG_DISCOVERY,
+	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
 			"%d:0211 DSM in event x%x on NPort x%x in state %d "
 			"Data: x%x\n",
 			phba->brd_no,
@@ -1938,9 +1924,7 @@ lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	rc = (func) (vport, ndlp, arg, evt);
 
 	/* DSM out state <rc> on NPort <nlp_DID> */
-	lpfc_printf_log(phba,
-		       KERN_INFO,
-		       LOG_DISCOVERY,
+	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
 		       "%d:0212 DSM out state %d on NPort x%x Data: x%x\n",
 		       phba->brd_no,
 		       rc, ndlp->nlp_DID, ndlp->nlp_flag);

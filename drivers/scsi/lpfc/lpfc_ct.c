@@ -58,25 +58,66 @@ static char *lpfc_release_version = LPFC_DRIVER_VERSION;
 /*
  * lpfc_ct_unsol_event
  */
+static void
+lpfc_ct_unsol_buffer(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
+		     struct lpfc_dmabuf *mp, uint32_t size)
+{
+	if (!mp) {
+		printk(KERN_ERR "%s (%d): Unsolited CT, no buffer, "
+		       "piocbq = %p, status = x%x, mp = %p, size = %d\n",
+		       __FUNCTION__, __LINE__,
+		       piocbq, piocbq->iocb.ulpStatus, mp, size);
+	}
+
+	printk(KERN_ERR "%s (%d): Ignoring unsolicted CT piocbq = %p, "
+	       "buffer = %p, size = %d, status = x%x\n",
+	       __FUNCTION__, __LINE__,
+	       piocbq, mp, size,
+	       piocbq->iocb.ulpStatus);
+}
+
+static void
+lpfc_ct_ignore_hbq_buffer(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
+			  struct hbq_dmabuf *sp, uint32_t size)
+{
+	struct lpfc_dmabuf *mp = NULL;
+
+	mp = sp ? &sp->dbuf : NULL;
+	if (!mp) {
+		printk(KERN_ERR "%s (%d): Unsolited CT, no "
+		       "HBQ buffer, piocbq = %p, status = x%x\n",
+		       __FUNCTION__, __LINE__,
+		       piocbq, piocbq->iocb.ulpStatus);
+	} else {
+		lpfc_ct_unsol_buffer(phba, piocbq, mp, size);
+		printk(KERN_ERR "%s (%d): Ignoring unsolicted CT "
+		       "piocbq = %p, buffer = %p, size = %d, "
+		       "status = x%x\n",
+		       __FUNCTION__, __LINE__,
+		       piocbq, mp, size, piocbq->iocb.ulpStatus);
+	}
+}
+
 void
 lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		    struct lpfc_iocbq *piocbq)
 {
-
-	struct lpfc_iocbq *next_piocbq;
-	struct lpfc_dmabuf *pmbuf = NULL;
-	struct lpfc_dmabuf *matp = NULL, *next_matp;
-	uint32_t ctx = 0, size = 0, cnt = 0;
+	struct lpfc_dmabuf *mp = NULL;
+	struct hbq_dmabuf  *sp = NULL;
 	IOCB_t *icmd = &piocbq->iocb;
-	IOCB_t *save_icmd = icmd;
-	int i, go_exit = 0;
-	struct list_head head;
+	int i;
+	struct lpfc_iocbq *iocbq;
+	dma_addr_t paddr;
+	uint32_t size;
 
 	if ((icmd->ulpStatus == IOSTAT_LOCAL_REJECT) &&
-		((icmd->un.ulpWord[4] & 0xff) == IOERR_RCV_BUFFER_WAITING)) {
+	    ((icmd->un.ulpWord[4] & 0xff) == IOERR_RCV_BUFFER_WAITING)) {
 		/* Not enough posted buffers; Try posting more buffers */
 		phba->fc_stat.NoRcvBuf++;
-		lpfc_post_buffer(phba, pring, 0, 1);
+		if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED)
+			lpfc_sli_hbqbuf_fill_hbq(phba);
+		else
+			lpfc_post_buffer(phba, pring, 0, 1);
 		return;
 	}
 
@@ -86,62 +127,62 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	if (icmd->ulpBdeCount == 0)
 		return;
 
-	INIT_LIST_HEAD(&head);
-	list_add_tail(&head, &piocbq->list);
-
-	list_for_each_entry_safe(piocbq, next_piocbq, &head, list) {
-		icmd = &piocbq->iocb;
-		if (ctx == 0)
-			ctx = (uint32_t) (icmd->ulpContext);
-		if (icmd->ulpBdeCount == 0)
-			continue;
-
-		for (i = 0; i < icmd->ulpBdeCount; i++) {
-			matp = lpfc_sli_ringpostbuf_get(phba, pring,
-							getPaddr(icmd->un.
-								 cont64[i].
-								 addrHigh,
-								 icmd->un.
-								 cont64[i].
-								 addrLow));
-			if (!matp) {
-				/* Insert lpfc log message here */
-				lpfc_post_buffer(phba, pring, cnt, 1);
-				go_exit = 1;
-				goto ct_unsol_event_exit_piocbq;
+	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
+		list_for_each_entry(iocbq, &piocbq->list, list) {
+			icmd = &iocbq->iocb;
+			if (icmd->ulpBdeCount == 0) {
+				printk(KERN_ERR "%s (%d): Unsolited CT, no "
+				       "BDE, iocbq = %p, status = x%x\n",
+				       __FUNCTION__, __LINE__,
+				       iocbq, iocbq->iocb.ulpStatus);
+				continue;
 			}
 
-			/* Typically for Unsolicited CT requests */
-			if (!pmbuf) {
-				pmbuf = matp;
-				INIT_LIST_HEAD(&pmbuf->list);
-			} else
-				list_add_tail(&matp->list, &pmbuf->list);
+			size  = icmd->un.cont64[0].tus.f.bdeSize;
+			sp = lpfc_sli_hbqbuf_find(phba, icmd->un.ulpWord[3]);
+			if (sp)
+				phba->hbq_buff_count--;
+			lpfc_ct_ignore_hbq_buffer(phba, iocbq, sp, size);
+			lpfc_sli_free_hbq(phba, sp);
+			if (icmd->ulpBdeCount == 2) {
+				sp = lpfc_sli_hbqbuf_find(phba,
+							  icmd->un.ulpWord[15]);
+				if (sp)
+					phba->hbq_buff_count--;
+				lpfc_ct_ignore_hbq_buffer(phba, iocbq, sp,
+							  size);
+				lpfc_sli_free_hbq(phba, sp);
+			}
 
-			size += icmd->un.cont64[i].tus.f.bdeSize;
-			cnt++;
 		}
+		lpfc_sli_hbqbuf_fill_hbq(phba);
+	} else {
+		struct lpfc_iocbq  *next;
 
-		icmd->ulpBdeCount = 0;
-	}
+		list_for_each_entry_safe(iocbq, next, &piocbq->list, list) {
+			icmd = &iocbq->iocb;
+			if (icmd->ulpBdeCount == 0) {
+				printk(KERN_ERR "%s (%d): Unsolited CT, no "
+				       "BDE, iocbq = %p, status = x%x\n",
+				       __FUNCTION__, __LINE__,
+				       iocbq, iocbq->iocb.ulpStatus);
+				continue;
+			}
 
-	lpfc_post_buffer(phba, pring, cnt, 1);
-	if (save_icmd->ulpStatus) {
-		go_exit = 1;
-	}
-
-ct_unsol_event_exit_piocbq:
-	list_del(&head);
-	if (pmbuf) {
-		list_for_each_entry_safe(matp, next_matp, &pmbuf->list, list) {
-			lpfc_mbuf_free(phba, matp->virt, matp->phys);
-			list_del(&matp->list);
-			kfree(matp);
+			for (i = 0; i < icmd->ulpBdeCount; i++) {
+				paddr = getPaddr(icmd->un.cont64[i].addrHigh,
+						 icmd->un.cont64[i].addrLow);
+				mp = lpfc_sli_ringpostbuf_get(phba, pring,
+							      paddr);
+				size = icmd->un.cont64[i].tus.f.bdeSize;
+				lpfc_ct_unsol_buffer(phba, piocbq, mp, size);
+				lpfc_mbuf_free(phba, mp->virt, mp->phys);
+				kfree(mp);
+			}
+			list_del(&iocbq->list);
+			lpfc_sli_release_iocbq(phba, iocbq);
 		}
-		lpfc_mbuf_free(phba, pmbuf->virt, pmbuf->phys);
-		kfree(pmbuf);
 	}
-	return;
 }
 
 static void
@@ -364,9 +405,7 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint32_t Size)
 						vport->fc_flag,
 						vport->fc_rscn_id_cnt);
 			} else {
-				lpfc_printf_log(phba,
-						KERN_INFO,
-						LOG_DISCOVERY,
+				lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
 						"%d:0239 Skip x%x NameServer "
 						"Rsp Data: x%x x%x x%x\n",
 						phba->brd_no,
@@ -717,12 +756,9 @@ lpfc_cmpl_ct_cmd_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	ndlp = lpfc_findnode_did(vport, FDMI_DID);
 	if (fdmi_rsp == be16_to_cpu(SLI_CT_RESPONSE_FS_RJT)) {
 		/* FDMI rsp failed */
-		lpfc_printf_log(phba,
-			        KERN_INFO,
-			        LOG_DISCOVERY,
-			        "%d:0220 FDMI rsp failed Data: x%x\n",
-			        phba->brd_no,
-			       be16_to_cpu(fdmi_cmd));
+		lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
+				"%d:0220 FDMI rsp failed Data: x%x\n",
+				phba->brd_no, be16_to_cpu(fdmi_cmd));
 	}
 
 	switch (be16_to_cpu(fdmi_cmd)) {
@@ -791,9 +827,7 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp, int cmdcode)
 	INIT_LIST_HEAD(&bmp->list);
 
 	/* FDMI request */
-	lpfc_printf_log(phba,
-		        KERN_INFO,
-		        LOG_DISCOVERY,
+	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
 		        "%d:0218 FDMI Request Data: x%x x%x x%x\n",
 		        phba->brd_no,
 			vport->fc_flag, vport->port_state, cmdcode);
@@ -1120,12 +1154,9 @@ fdmi_cmd_free_mp:
 	kfree(mp);
 fdmi_cmd_exit:
 	/* Issue FDMI request failed */
-	lpfc_printf_log(phba,
-		        KERN_INFO,
-		        LOG_DISCOVERY,
+	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
 		        "%d:0244 Issue FDMI request failed Data: x%x\n",
-		        phba->brd_no,
-			cmdcode);
+		        phba->brd_no, cmdcode);
 	return 1;
 }
 

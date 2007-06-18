@@ -49,6 +49,12 @@ static int lpfc_post_rcv_buf(struct lpfc_hba *);
 static struct scsi_transport_template *lpfc_transport_template = NULL;
 static DEFINE_IDR(lpfc_hba_index);
 
+int lpfc_sli_mode = 0;
+module_param(lpfc_sli_mode, int, 0);
+MODULE_PARM_DESC(lpfc_sli_mode, "SLI mode selector:"
+		 " 0 - auto (SLI-3 if supported),"
+		 " 2 - select SLI-2 even on SLI-3 capable HBAs,"
+		 " 3 - select SLI-3");
 
 
 /************************************************************************/
@@ -102,9 +108,7 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
 
 		if (rc != MBX_SUCCESS) {
-			lpfc_printf_log(phba,
-					KERN_ERR,
-					LOG_MBOX,
+			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
 					"%d:0324 Config Port initialization "
 					"error, mbxCmd x%x READ_NVPARM, "
 					"mbxStatus x%x\n",
@@ -123,9 +127,7 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 	lpfc_read_rev(phba, pmb);
 	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
 	if (rc != MBX_SUCCESS) {
-		lpfc_printf_log(phba,
-				KERN_ERR,
-				LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"%d:0439 Adapter failed to init, mbxCmd x%x "
 				"READ_REV, mbxStatus x%x\n",
 				phba->brd_no,
@@ -147,6 +149,9 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 		mempool_free(pmb, phba->mbox_mem_pool);
 		return -ERESTART;
 	}
+
+	if (phba->sli_rev == 3 && !mb->un.varRdRev.v3rsp)
+		return -EINVAL;
 
 	/* Save information as VPD data */
 	vp->rev.rBit = 1;
@@ -236,10 +241,9 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 
 	/* Get login parameters for NID.  */
 	lpfc_read_sparam(phba, pmb);
+	pmb->vport = vport;
 	if (lpfc_sli_issue_mbox(phba, pmb, MBX_POLL) != MBX_SUCCESS) {
-		lpfc_printf_log(phba,
-				KERN_ERR,
-				LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"%d:0448 Adapter failed init, mbxCmd x%x "
 				"READ_SPARM mbxStatus x%x\n",
 				phba->brd_no,
@@ -296,10 +300,9 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	}
 
 	lpfc_read_config(phba, pmb);
+	pmb->vport = vport;
 	if (lpfc_sli_issue_mbox(phba, pmb, MBX_POLL) != MBX_SUCCESS) {
-		lpfc_printf_log(phba,
-				KERN_ERR,
-				LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"%d:0453 Adapter failed to init, mbxCmd x%x "
 				"READ_CONFIG, mbxStatus x%x\n",
 				phba->brd_no,
@@ -331,9 +334,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	    || ((phba->cfg_link_speed == LINK_SPEED_10G)
 		&& !(phba->lmt & LMT_10Gb))) {
 		/* Reset link speed to auto */
-		lpfc_printf_log(phba,
-			KERN_WARNING,
-			LOG_LINK_EVENT,
+		lpfc_printf_log(phba, KERN_WARNING, LOG_LINK_EVENT,
 			"%d:1302 Invalid speed for this board: "
 			"Reset link speed to auto: x%x\n",
 			phba->brd_no,
@@ -352,7 +353,8 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 		psli->ring[psli->next_ring].flag |= LPFC_STOP_IOCB_EVENT;
 
 	/* Post receive buffers for desired rings */
-	lpfc_post_rcv_buf(phba);
+	if (phba->sli_rev != 3)
+		lpfc_post_rcv_buf(phba);
 
 	/* Enable appropriate host interrupts */
 	spin_lock_irq(&phba->hbalock);
@@ -383,12 +385,11 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 
 	lpfc_init_link(phba, pmb, phba->cfg_topology, phba->cfg_link_speed);
 	pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+	pmb->vport = vport;
 	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
 	lpfc_set_loopback_flag(phba);
 	if (rc != MBX_SUCCESS) {
-		lpfc_printf_log(phba,
-				KERN_ERR,
-				LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"%d:0454 Adapter failed to init, mbxCmd x%x "
 				"INIT_LINK, mbxStatus x%x\n",
 				phba->brd_no,
@@ -630,9 +631,7 @@ lpfc_handle_latt_err_exit:
 
 	/* The other case is an error from issue_mbox */
 	if (rc == -ENOMEM)
-		lpfc_printf_log(phba,
-				KERN_WARNING,
-				LOG_MBOX,
+		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
 			        "%d:0300 READ_LA: no buffers\n",
 				phba->brd_no);
 
@@ -658,9 +657,7 @@ lpfc_parse_vpd(struct lpfc_hba *phba, uint8_t *vpd, int len)
 		return 0;
 
 	/* Vital Product */
-	lpfc_printf_log(phba,
-			KERN_INFO,
-			LOG_INIT,
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 			"%d:0455 Vital Product Data: x%x x%x x%x x%x\n",
 			phba->brd_no,
 			(uint32_t) vpd[0], (uint32_t) vpd[1], (uint32_t) vpd[2],
@@ -1221,9 +1218,7 @@ lpfc_online(struct lpfc_hba *phba)
 	if (!(vport->fc_flag & FC_OFFLINE_MODE))
 		return 0;
 
-	lpfc_printf_log(phba,
-		       KERN_WARNING,
-		       LOG_INIT,
+	lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 		       "%d:0458 Bring Adapter online\n",
 		       phba->brd_no);
 
@@ -1633,13 +1628,22 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	memset(phba->slim2p, 0, SLI2_SLIM_SIZE);
 
+	phba->hbqslimp.virt = dma_alloc_coherent(&phba->pcidev->dev,
+						 lpfc_sli_hbq_size(),
+						 &phba->hbqslimp.phys,
+						 GFP_KERNEL);
+	if (!phba->hbqslimp.virt)
+		goto out_free_slim;
+
+	memset(phba->hbqslimp.virt, 0, lpfc_sli_hbq_size());
+
 	/* Initialize the SLI Layer to run with lpfc HBAs. */
 	lpfc_sli_setup(phba);
 	lpfc_sli_queue_setup(phba);
 
 	error = lpfc_mem_alloc(phba);
 	if (error)
-		goto out_free_slim;
+		goto out_free_hbqslimp;
 
 	/* Initialize and populate the iocb list per host.  */
 	INIT_LIST_HEAD(&phba->lpfc_iocb_list);
@@ -1753,6 +1757,9 @@ out_free_iocbq:
 		phba->total_iocbq_bufs--;
 	}
 	lpfc_mem_free(phba);
+out_free_hbqslimp:
+	dma_free_coherent(&pdev->dev, lpfc_sli_hbq_size(), phba->hbqslimp.virt,
+			  phba->hbqslimp.phys);
 out_free_slim:
 	dma_free_coherent(&pdev->dev, SLI2_SLIM_SIZE, phba->slim2p,
 							phba->slim2p_mapping);
@@ -1810,6 +1817,9 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 	 */
 	lpfc_scsi_free(phba);
 	lpfc_mem_free(phba);
+
+	dma_free_coherent(&pdev->dev, lpfc_sli_hbq_size(), phba->hbqslimp.virt,
+			  phba->hbqslimp.phys);
 
 	/* Free resources associated with SLI2 interface */
 	dma_free_coherent(&pdev->dev, SLI2_SLIM_SIZE,

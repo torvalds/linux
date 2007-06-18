@@ -232,9 +232,9 @@ static void
 lpfc_work_done(struct lpfc_hba *phba)
 {
 	struct lpfc_sli_ring *pring;
-	int i;
 	uint32_t ha_copy, control, work_port_events;
 	struct lpfc_vport *vport;
+	int i;
 
 	spin_lock_irq(&phba->hbalock);
 	ha_copy = phba->work_ha;
@@ -303,9 +303,9 @@ check_work_wait_done(struct lpfc_hba *phba)
 	struct lpfc_vport *vport = phba->pport;
 	int rc = 0;
 
-
 	if (!vport)
 		return 0;
+
 	spin_lock_irq(&phba->hbalock);
 
 	if (phba->work_ha ||
@@ -354,6 +354,7 @@ lpfc_workq_post_event(struct lpfc_hba *phba, void *arg1, void *arg2,
 		      uint32_t evt)
 {
 	struct lpfc_work_evt  *evtp;
+	unsigned long flags;
 
 	/*
 	 * All Mailbox completions and LPFC_ELS_RING rcv ring IOCB events will
@@ -367,11 +368,11 @@ lpfc_workq_post_event(struct lpfc_hba *phba, void *arg1, void *arg2,
 	evtp->evt_arg2  = arg2;
 	evtp->evt       = evt;
 
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irqsave(&phba->hbalock, flags);
 	list_add_tail(&evtp->evt_listp, &phba->work_list);
 	if (phba->work_wait)
 		wake_up(phba->work_wait);
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irqrestore(&phba->hbalock, flags);
 
 	return 1;
 }
@@ -401,6 +402,7 @@ lpfc_linkdown(struct lpfc_hba *phba)
 	mb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (mb) {
 		lpfc_unreg_did(phba, 0xffffffff, mb);
+		mb->vport = vport;
 		mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		if (lpfc_sli_issue_mbox(phba, mb, (MBX_NOWAIT | MBX_STOP_IOCB))
 		    == MBX_NOT_FINISHED) {
@@ -433,6 +435,7 @@ lpfc_linkdown(struct lpfc_hba *phba)
 		if (mb) {
 			lpfc_config_link(phba, mb);
 			mb->mbox_cmpl=lpfc_sli_def_mbox_cmpl;
+			mb->vport = vport;
 			if (lpfc_sli_issue_mbox(phba, mb,
 						(MBX_NOWAIT | MBX_STOP_IOCB))
 			    == MBX_NOT_FINISHED) {
@@ -550,15 +553,11 @@ lpfc_mbx_cmpl_clear_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		spin_unlock_irq(shost->host_lock);
 	}
 
-	printk(KERN_ERR "%s (%d): vport ready\n",
-	       __FUNCTION__, __LINE__);
 	vport->port_state = LPFC_VPORT_READY;
 
 out:
 	/* Device Discovery completes */
-	lpfc_printf_log(phba,
-			 KERN_INFO,
-			 LOG_DISCOVERY,
+	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
 			 "%d:0225 Device Discovery completes\n",
 			 phba->brd_no);
 
@@ -632,8 +631,6 @@ out:
 			phba->brd_no, vport->port_state);
 
 	lpfc_clear_la(phba, pmb);
-	printk(KERN_ERR "%s (%d): do clear_la\n",
-	       __FUNCTION__, __LINE__);
 	pmb->mbox_cmpl = lpfc_mbx_cmpl_clear_la;
 	pmb->vport = vport;
 	rc = lpfc_sli_issue_mbox(phba, pmb, (MBX_NOWAIT | MBX_STOP_IOCB));
@@ -643,8 +640,6 @@ out:
 		psli->ring[(psli->extra_ring)].flag &= ~LPFC_STOP_IOCB_EVENT;
 		psli->ring[(psli->fcp_ring)].flag &= ~LPFC_STOP_IOCB_EVENT;
 		psli->ring[(psli->next_ring)].flag &= ~LPFC_STOP_IOCB_EVENT;
-		printk(KERN_ERR "%s (%d): vport ready\n",
-		       __FUNCTION__, __LINE__);
 		vport->port_state = LPFC_VPORT_READY;
 	}
 	return;
@@ -702,8 +697,6 @@ out:
 		struct lpfc_sli_ring *next_ring = &psli->ring[psli->next_ring];
 
 		lpfc_clear_la(phba, pmb);
-		printk(KERN_ERR "%s (%d): do clear_la\n",
-		       __FUNCTION__, __LINE__);
 		pmb->mbox_cmpl = lpfc_mbx_cmpl_clear_la;
 		pmb->vport = vport;
 		if (lpfc_sli_issue_mbox(phba, pmb, (MBX_NOWAIT | MBX_STOP_IOCB))
@@ -713,8 +706,6 @@ out:
 			extra_ring->flag &= ~LPFC_STOP_IOCB_EVENT;
 			fcp_ring->flag &= ~LPFC_STOP_IOCB_EVENT;
 			next_ring->flag &= ~LPFC_STOP_IOCB_EVENT;
-			printk(KERN_ERR "%s (%d): vport ready\n",
-			       __FUNCTION__, __LINE__);
 			vport->port_state = LPFC_VPORT_READY;
 		}
 	} else {
@@ -875,12 +866,9 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	/* Check for error */
 	if (mb->mbxStatus) {
-		lpfc_printf_log(phba,
-				KERN_INFO,
-				LOG_LINK_EVENT,
+		lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
 				"%d:1307 READ_LA mbox error x%x state x%x\n",
-				phba->brd_no,
-				mb->mbxStatus, vport->port_state);
+				phba->brd_no, mb->mbxStatus, vport->port_state);
 		lpfc_mbx_issue_link_down(phba);
 		phba->link_state = LPFC_HBA_ERROR;
 		goto lpfc_mbx_cmpl_read_la_free_mbuf;
@@ -954,7 +942,6 @@ lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_vport  *vport = pmb->vport;
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) pmb->context1;
 	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
-
 
 	pmb->context1 = NULL;
 
@@ -1553,6 +1540,7 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 		if (mbox) {
 			lpfc_unreg_login(phba, ndlp->nlp_rpi, mbox);
+			mbox->vport = vport;
 			mbox->mbox_cmpl=lpfc_sli_def_mbox_cmpl;
 			rc = lpfc_sli_issue_mbox
 				    (phba, mbox, (MBX_NOWAIT | MBX_STOP_IOCB));
@@ -1925,8 +1913,6 @@ lpfc_disc_start(struct lpfc_vport *vport)
 	if (vport->port_state < LPFC_VPORT_READY && !clear_la_pending) {
 		if (vport->port_type == LPFC_PHYSICAL_PORT) {
 		/* If we get here, there is nothing to ADISC */
-			printk(KERN_ERR "%s (%d): do clear_la\n",
-			       __FUNCTION__, __LINE__);
 			lpfc_issue_clear_la(phba, vport);
 		} else if (!(vport->fc_flag & FC_ABORT_DISCOVERY)) {
 
@@ -1940,8 +1926,6 @@ lpfc_disc_start(struct lpfc_vport *vport)
 				vport->fc_flag &= ~FC_NDISC_ACTIVE;
 				spin_unlock_irq(shost->host_lock);
 			}
-			printk(KERN_ERR "%s (%d): vport ready\n",
-			       __FUNCTION__, __LINE__);
 			vport->port_state = LPFC_VPORT_READY;
 		}
 	} else {
@@ -2095,13 +2079,10 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 	if (!(vport->fc_flag & FC_DISC_TMO))
 		return;
 
-
 	spin_lock_irq(shost->host_lock);
 	vport->fc_flag &= ~FC_DISC_TMO;
 	spin_unlock_irq(shost->host_lock);
 
-	printk(KERN_ERR "%s (%d): link_state = %d, port_state = %d\n",
-	       __FUNCTION__, __LINE__, phba->link_state, vport->port_state);
 	switch (vport->port_state) {
 
 	case LPFC_LOCAL_CFG_LINK:
@@ -2109,9 +2090,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 	 * FAN
 	 */
 				/* FAN timeout */
-		lpfc_printf_log(phba,
-				 KERN_WARNING,
-				 LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_WARNING, LOG_DISCOVERY,
 				 "%d:0221 FAN timeout\n",
 				 phba->brd_no);
 
@@ -2138,9 +2117,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 	case LPFC_FLOGI:
 	/* port_state is identically LPFC_FLOGI while waiting for FLOGI cmpl */
 		/* Initial FLOGI timeout */
-		lpfc_printf_log(phba,
-				 KERN_ERR,
-				 LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
 				 "%d:0222 Initial FLOGI timeout\n",
 				 phba->brd_no);
 
@@ -2203,8 +2180,6 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 
 		phba->link_state = LPFC_CLEAR_LA;
 		lpfc_clear_la(phba, clearlambox);
-		printk(KERN_ERR "%s (%d): do clear_la\n",
-		       __FUNCTION__, __LINE__);
 		clearlambox->mbox_cmpl = lpfc_mbx_cmpl_clear_la;
 		clearlambox->vport = vport;
 		rc = lpfc_sli_issue_mbox(phba, clearlambox,
@@ -2230,6 +2205,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 		lpfc_init_link(phba, initlinkmbox, phba->cfg_topology,
 			       phba->cfg_link_speed);
 		initlinkmbox->mb.un.varInitLnk.lipsr_AL_PA = 0;
+		initlinkmbox->vport = vport;
 		rc = lpfc_sli_issue_mbox(phba, initlinkmbox,
 					 (MBX_NOWAIT | MBX_STOP_IOCB));
 		lpfc_set_loopback_flag(phba);
@@ -2240,9 +2216,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 
 	case LPFC_DISC_AUTH:
 	/* Node Authentication timeout */
-		lpfc_printf_log(phba,
-				 KERN_ERR,
-				 LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
 				 "%d:0227 Node Authentication timeout\n",
 				 phba->brd_no);
 		lpfc_disc_flush_list(vport);
@@ -2259,8 +2233,6 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 		}
 		phba->link_state = LPFC_CLEAR_LA;
 		lpfc_clear_la(phba, clearlambox);
-		printk(KERN_ERR "%s (%d): do clear_la\n",
-		       __FUNCTION__, __LINE__);
 		clearlambox->mbox_cmpl = lpfc_mbx_cmpl_clear_la;
 		clearlambox->vport = vport;
 		rc = lpfc_sli_issue_mbox(phba, clearlambox,
@@ -2273,9 +2245,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 
 	case LPFC_VPORT_READY:
 		if (vport->fc_flag & FC_RSCN_MODE) {
-			lpfc_printf_log(phba,
-					KERN_ERR,
-					LOG_DISCOVERY,
+			lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
 					"%d:0231 RSCN timeout Data: x%x x%x\n",
 					phba->brd_no,
 					vport->fc_ns_retry, LPFC_MAX_NS_RETRY);
@@ -2291,13 +2261,10 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 	case LPFC_STATE_UNKNOWN:
 	case LPFC_NS_REG:
 	case LPFC_BUILD_DISC_LIST:
-		lpfc_printf_log(phba,
-				KERN_ERR,
-				LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
 				"%d:0229 Unexpected discovery timeout, vport "
 				"State x%x\n",
-				vport->port_state,
-				phba->brd_no);
+				vport->port_state, phba->brd_no);
 
 		break;
 	}
@@ -2305,9 +2272,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 	switch (phba->link_state) {
 	case LPFC_CLEAR_LA:
 	/* CLEAR LA timeout */
-		lpfc_printf_log(phba,
-				KERN_ERR,
-				LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
 				"%d:0228 CLEAR LA timeout\n",
 				phba->brd_no);
 		clrlaerr = 1;
@@ -2320,9 +2285,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 	case LPFC_LINK_DOWN:
 	case LPFC_LINK_UP:
 	case LPFC_HBA_ERROR:
-		lpfc_printf_log(phba,
-				KERN_ERR,
-				LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
 				"%d:0230 Unexpected timeout, hba link "
 				"state x%x\n",
 				phba->brd_no, phba->link_state);
@@ -2335,8 +2298,6 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 		psli->ring[(psli->extra_ring)].flag &= ~LPFC_STOP_IOCB_EVENT;
 		psli->ring[(psli->fcp_ring)].flag &= ~LPFC_STOP_IOCB_EVENT;
 		psli->ring[(psli->next_ring)].flag &= ~LPFC_STOP_IOCB_EVENT;
-		printk(KERN_ERR "%s (%d): vport ready\n",
-		       __FUNCTION__, __LINE__);
 		vport->port_state = LPFC_VPORT_READY;
 	}
 

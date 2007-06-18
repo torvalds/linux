@@ -45,9 +45,7 @@ lpfc_els_chk_latt(struct lpfc_vport *vport)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
-	LPFC_MBOXQ_t *mbox;
 	uint32_t ha_copy;
-	int rc;
 
 	if (vport->port_state >= LPFC_VPORT_READY ||
 	    phba->link_state == LPFC_LINK_DOWN)
@@ -76,20 +74,7 @@ lpfc_els_chk_latt(struct lpfc_vport *vport)
 	spin_unlock_irq(shost->host_lock);
 
 	if (phba->link_state != LPFC_CLEAR_LA) {
-		if ((mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL))) {
-			phba->link_state = LPFC_CLEAR_LA;
-			lpfc_clear_la(phba, mbox);
-			mbox->mbox_cmpl = lpfc_mbx_cmpl_clear_la;
-			mbox->vport = vport;
-			printk(KERN_ERR "%s (%d): do clear_la\n",
-			       __FUNCTION__, __LINE__);
-			rc = lpfc_sli_issue_mbox(phba, mbox,
-						 (MBX_NOWAIT | MBX_STOP_IOCB));
-			if (rc == MBX_NOT_FINISHED) {
-				mempool_free(mbox, phba->mbox_mem_pool);
-				phba->link_state = LPFC_HBA_ERROR;
-			}
-		}
+		lpfc_issue_clear_la(phba, vport);
 	}
 
 	return 1;
@@ -153,8 +138,8 @@ lpfc_prep_els_iocb(struct lpfc_vport *vport, uint8_t expectRsp,
 	/* Allocate buffer for Buffer ptr list */
 	pbuflist = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL);
 	if (pbuflist)
-	    pbuflist->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
-					     &pbuflist->phys);
+		pbuflist->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
+						 &pbuflist->phys);
 	if (pbuflist == 0 || pbuflist->virt == 0) {
 		lpfc_sli_release_iocbq(phba, elsiocb);
 		lpfc_mbuf_free(phba, pcmd->virt, pcmd->phys);
@@ -289,6 +274,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	vport->port_state = LPFC_FABRIC_CFG_LINK;
 	lpfc_config_link(phba, mbox);
 	mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+	mbox->vport = vport;
 
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT | MBX_STOP_IOCB);
 	if (rc == MBX_NOT_FINISHED)
@@ -364,6 +350,7 @@ lpfc_cmpl_els_flogi_nport(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		lpfc_config_link(phba, mbox);
 
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		mbox->vport = vport;
 		rc = lpfc_sli_issue_mbox(phba, mbox,
 				MBX_NOWAIT | MBX_STOP_IOCB);
 		if (rc == MBX_NOT_FINISHED) {
@@ -714,8 +701,10 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	irsp = &rspiocb->iocb;
 	ndlp = lpfc_findnode_did(vport, irsp->un.elsreq64.remoteID);
-	if (!ndlp)
+
+	if (!ndlp) {
 		goto out;
+	}
 
 	/* Since ndlp can be freed in the disc state machine, note if this node
 	 * is being used during discovery.
@@ -1110,9 +1099,8 @@ lpfc_cmpl_els_adisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			/* If we get here, there is nothing left to wait for */
 			if (vport->port_state < LPFC_VPORT_READY &&
 			    phba->link_state != LPFC_CLEAR_LA) {
-				if (vport->port_type == LPFC_PHYSICAL_PORT) {
+				if (vport->port_type == LPFC_PHYSICAL_PORT)
 					lpfc_issue_clear_la(phba, vport);
-				}
 			} else {
 				lpfc_rscn_disc(vport);
 			}
@@ -1420,6 +1408,27 @@ lpfc_issue_els_farpr(struct lpfc_vport *vport, uint32_t nportid, uint8_t retry)
 	return 0;
 }
 
+static void
+lpfc_end_rscn(struct lpfc_vport *vport)
+{
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+
+	if (vport->fc_flag & FC_RSCN_MODE) {
+		/*
+		 * Check to see if more RSCNs came in while we were
+		 * processing this one.
+		 */
+		if (vport->fc_rscn_id_cnt ||
+		    (vport->fc_flag & FC_RSCN_DISCOVERY) != 0)
+			lpfc_els_handle_rscn(vport);
+		else {
+			spin_lock_irq(shost->host_lock);
+			vport->fc_flag &= ~FC_RSCN_MODE;
+			spin_unlock_irq(shost->host_lock);
+		}
+	}
+}
+
 void
 lpfc_cancel_retry_delay_tmo(struct lpfc_vport *vport, struct lpfc_nodelist *nlp)
 {
@@ -1449,24 +1458,7 @@ lpfc_cancel_retry_delay_tmo(struct lpfc_vport *vport, struct lpfc_nodelist *nlp)
 				vport->fc_flag &= ~FC_NDISC_ACTIVE;
 				spin_unlock_irq(shost->host_lock);
 				lpfc_can_disctmo(vport);
-				if (vport->fc_flag & FC_RSCN_MODE) {
-					/*
-					 * Check to see if more RSCNs
-					 * came in while we were
-					 * processing this one.
-					 */
-					if (!vport->fc_rscn_id_cnt &&
-					    !(vport->fc_flag &
-					      FC_RSCN_DISCOVERY)) {
-						spin_lock_irq(shost->host_lock);
-						vport->fc_flag &= ~FC_RSCN_MODE;
-						spin_unlock_irq(
-							shost->host_lock);
-					}
-					else {
-						lpfc_els_handle_rscn(vport);
-					}
-				}
+				lpfc_end_rscn(vport);
 			}
 		}
 	}
@@ -1688,6 +1680,9 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		phba->fc_stat.elsRetryExceeded++;
 		retry = 0;
 	}
+
+	if ((vport->load_flag & FC_UNLOADING) != 0)
+		retry = 0;
 
 	if (retry) {
 
@@ -2141,9 +2136,7 @@ lpfc_els_rsp_prli_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
 
 	cmdsize = sizeof (uint32_t) + sizeof (PRLI);
 	elsiocb = lpfc_prep_els_iocb(vport, 0, cmdsize, oldiocb->retry, ndlp,
-				     ndlp->nlp_DID,
-				     (ELS_CMD_ACC |
-				      (ELS_CMD_PRLI & ~ELS_RSP_MASK)));
+	     ndlp->nlp_DID, (ELS_CMD_ACC | (ELS_CMD_PRLI & ~ELS_RSP_MASK)));
 	if (!elsiocb)
 		return 1;
 
@@ -2361,8 +2354,12 @@ lpfc_els_flush_rscn(struct lpfc_vport *vport)
 
 	for (i = 0; i < vport->fc_rscn_id_cnt; i++) {
 		mp = vport->fc_rscn_id_list[i];
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		kfree(mp);
+		if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED)
+			lpfc_sli_hbqbuf_free(phba, mp->virt, mp->phys);
+		else {
+			lpfc_mbuf_free(phba, mp->virt, mp->phys);
+			kfree(mp);
+		}
 		vport->fc_rscn_id_list[i] = NULL;
 	}
 	spin_lock_irq(shost->host_lock);
@@ -2486,9 +2483,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	cmd &= ELS_CMD_MASK;
 
 	/* RSCN received */
-	lpfc_printf_log(phba,
-			KERN_INFO,
-			LOG_DISCOVERY,
+	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
 			"%d:0214 RSCN received Data: x%x x%x x%x x%x\n",
 			phba->brd_no, vport->fc_flag, payload_len, *lp,
 			vport->fc_rscn_id_cnt);
@@ -2581,9 +2576,7 @@ lpfc_els_handle_rscn(struct lpfc_vport *vport)
 	lpfc_set_disctmo(vport);
 
 	/* RSCN processed */
-	lpfc_printf_log(phba,
-			KERN_INFO,
-			LOG_DISCOVERY,
+	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
 			"%d:0215 RSCN processed Data: x%x x%x x%x x%x\n",
 			phba->brd_no,
 			vport->fc_flag, 0, vport->fc_rscn_id_cnt,
@@ -2683,6 +2676,7 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 				       phba->cfg_link_speed);
 			mbox->mb.un.varInitLnk.lipsr_AL_PA = 0;
 			mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+			mbox->vport = vport;
 			rc = lpfc_sli_issue_mbox
 				(phba, mbox, (MBX_NOWAIT | MBX_STOP_IOCB));
 			lpfc_set_loopback_flag(phba);
@@ -2837,10 +2831,8 @@ lpfc_els_rsp_rps_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_acc;
 	phba->fc_stat.elsXmitACC++;
-
-	if (lpfc_sli_issue_iocb(phba, pring, elsiocb, 0) == IOCB_ERROR) {
+	if (lpfc_sli_issue_iocb(phba, pring, elsiocb, 0) == IOCB_ERROR)
 		lpfc_els_free_iocb(phba, elsiocb);
-	}
 	return;
 }
 
@@ -3015,9 +3007,7 @@ lpfc_els_rcv_farp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	fp = (FARP *) lp;
 
 	/* FARP-REQ received from DID <did> */
-	lpfc_printf_log(phba,
-			 KERN_INFO,
-			 LOG_ELS,
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
 			 "%d:0601 FARP-REQ received from DID x%x\n",
 			 phba->brd_no, did);
 
@@ -3077,12 +3067,9 @@ lpfc_els_rcv_farpr(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 
 	cmd = *lp++;
 	/* FARP-RSP received from DID <did> */
-	lpfc_printf_log(phba,
-			 KERN_INFO,
-			 LOG_ELS,
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
 			 "%d:0600 FARP-RSP received from DID x%x\n",
 			 phba->brd_no, did);
-
 	/* ACCEPT the Farp resp request */
 	lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL, 0);
 
@@ -3102,8 +3089,9 @@ lpfc_els_rcv_fan(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_hba *phba = vport->phba;
 
 	/* FAN received */
-	lpfc_printf_log(phba, KERN_INFO, LOG_ELS, "%d:0265 FAN received\n",
-								phba->brd_no);
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
+			"%d:0265 FAN received\n",
+			phba->brd_no);
 
 	icmd = &cmdiocb->iocb;
 	did = icmd->un.elsreq64.remoteID;
@@ -3332,79 +3320,40 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 	return;
 }
 
-void
-lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
-		     struct lpfc_iocbq *elsiocb)
+static void
+lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
+		      struct lpfc_vport *vport, struct lpfc_dmabuf *mp,
+		      struct lpfc_iocbq *elsiocb)
 {
-	struct lpfc_sli *psli;
 	struct lpfc_nodelist *ndlp;
-	struct lpfc_dmabuf *mp = NULL;
-	uint32_t *lp;
-	IOCB_t *icmd;
 	struct ls_rjt stat;
+	uint32_t *lp;
 	uint32_t cmd, did, newnode, rjt_err = 0;
-	uint32_t drop_cmd = 0;	/* by default do NOT drop received cmd */
-	struct lpfc_vport *vport = NULL;
+	IOCB_t *icmd = &elsiocb->iocb;
 
-	psli = &phba->sli;
-	icmd = &elsiocb->iocb;
-
-	if ((icmd->ulpStatus == IOSTAT_LOCAL_REJECT) &&
-		((icmd->un.ulpWord[4] & 0xff) == IOERR_RCV_BUFFER_WAITING)) {
-		phba->fc_stat.NoRcvBuf++;
-		/* Not enough posted buffers; Try posting more buffers */
-		lpfc_post_buffer(phba, pring, 0, 1);
-		return;
-	}
-
-	/* If there are no BDEs associated with this IOCB,
-	 * there is nothing to do.
-	 */
-	if (icmd->ulpBdeCount == 0)
-		return;
-
-		/* type of ELS cmd is first 32bit word in packet */
-	mp = lpfc_sli_ringpostbuf_get(phba, pring,
-				      getPaddr(icmd->un.cont64[0].addrHigh,
-					       icmd->un.cont64[0].addrLow));
-	if (mp == 0) {
-		drop_cmd = 1;
+	if (!vport || !mp)
 		goto dropit;
-	}
-
-	vport = phba->pport;
 
 	newnode = 0;
 	lp = (uint32_t *) mp->virt;
 	cmd = *lp++;
-	lpfc_post_buffer(phba, &psli->ring[LPFC_ELS_RING], 1, 1);
+	if ((phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) == 0)
+		lpfc_post_buffer(phba, pring, 1, 1);
 
-	if (icmd->ulpStatus) {
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		kfree(mp);
-		drop_cmd = 1;
+	if (icmd->ulpStatus)
 		goto dropit;
-	}
 
 	/* Check to see if link went down during discovery */
-	if (lpfc_els_chk_latt(vport)) {
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		kfree(mp);
-		drop_cmd = 1;
+	if (lpfc_els_chk_latt(vport))
 		goto dropit;
-	}
 
 	did = icmd->un.rcvels.remoteID;
 	ndlp = lpfc_findnode_did(vport, did);
 	if (!ndlp) {
 		/* Cannot find existing Fabric ndlp, so allocate a new one */
 		ndlp = mempool_alloc(phba->nlp_mem_pool, GFP_KERNEL);
-		if (!ndlp) {
-			lpfc_mbuf_free(phba, mp->virt, mp->phys);
-			kfree(mp);
-			drop_cmd = 1;
+		if (!ndlp)
 			goto dropit;
-		}
 
 		lpfc_nlp_init(vport, ndlp, did);
 		newnode = 1;
@@ -3428,7 +3377,7 @@ lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
 			"%d:0112 ELS command x%x received from NPORT x%x "
 			"Data: x%x\n", phba->brd_no, cmd, did,
-			 vport->port_state);
+			vport->port_state);
 
 	switch (cmd) {
 	case ELS_CMD_PLOGI:
@@ -3537,8 +3486,9 @@ lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 		/* Unknown ELS command <elsCmd> received from NPORT <did> */
 		lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
-				"%d:0115 Unknown ELS command x%x received from "
-				"NPORT x%x\n", phba->brd_no, cmd, did);
+				"%d:0115 Unknown ELS command x%x "
+				"received from NPORT x%x\n",
+				phba->brd_no, cmd, did);
 		if (newnode)
 			lpfc_drop_node(vport, ndlp);
 		break;
@@ -3553,20 +3503,89 @@ lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, elsiocb, ndlp);
 	}
 
+	return;
+
+dropit:
+	lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
+			"%d:0111 Dropping received ELS cmd "
+			"Data: x%x x%x x%x\n",
+			phba->brd_no,
+			icmd->ulpStatus, icmd->un.ulpWord[4],
+			icmd->ulpTimeout);
+	phba->fc_stat.elsRcvDrop++;
+}
+
+
+void
+lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
+		     struct lpfc_iocbq *elsiocb)
+{
+	struct lpfc_vport *vport = phba->pport;
+	struct lpfc_dmabuf *mp = NULL;
+	IOCB_t *icmd = &elsiocb->iocb;
+	struct hbq_dmabuf *sp = NULL;
+	dma_addr_t paddr;
+
+	if ((icmd->ulpStatus == IOSTAT_LOCAL_REJECT) &&
+	    ((icmd->un.ulpWord[4] & 0xff) == IOERR_RCV_BUFFER_WAITING)) {
+		phba->fc_stat.NoRcvBuf++;
+		/* Not enough posted buffers; Try posting more buffers */
+		if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED)
+			lpfc_sli_hbqbuf_fill_hbq(phba);
+		else
+			lpfc_post_buffer(phba, pring, 0, 1);
+		return;
+	}
+
+	/* If there are no BDEs associated with this IOCB,
+	 * there is nothing to do.
+	 */
+	if (icmd->ulpBdeCount == 0)
+		return;
+
+	/* type of ELS cmd is first 32bit word in packet */
+	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
+		paddr = getPaddr(icmd->un.cont64[0].addrHigh,
+				 icmd->un.cont64[0].addrLow);
+		sp = lpfc_sli_hbqbuf_find(phba, icmd->un.ulpWord[3]);
+		if (sp)
+			phba->hbq_buff_count--;
+		mp = sp ? &sp->dbuf : NULL;
+	} else {
+		paddr = getPaddr(icmd->un.cont64[0].addrHigh,
+				 icmd->un.cont64[0].addrLow);
+		mp = lpfc_sli_ringpostbuf_get(phba, pring, paddr);
+	}
+
+	lpfc_els_unsol_buffer(phba, pring, vport, mp, elsiocb);
+
 	lpfc_nlp_put(elsiocb->context1);
 	elsiocb->context1 = NULL;
 	if (elsiocb->context2) {
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		kfree(mp);
+		if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED)
+			lpfc_sli_free_hbq(phba, sp);
+		else {
+			lpfc_mbuf_free(phba, mp->virt, mp->phys);
+			kfree(mp);
+		}
 	}
-dropit:
-	/* check if need to drop received ELS cmd */
-	if (drop_cmd == 1) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
-				"%d:0111 Dropping received ELS cmd "
-				"Data: x%x x%x x%x\n", phba->brd_no,
-				icmd->ulpStatus, icmd->un.ulpWord[4],
-				icmd->ulpTimeout);
-		phba->fc_stat.elsRcvDrop++;
+
+	/* RCV_ELS64_CX provide for 2 BDEs - process 2nd if included */
+	if ((phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) != 0 &&
+	    icmd->ulpBdeCount == 2) {
+		sp = lpfc_sli_hbqbuf_find(phba, icmd->un.ulpWord[15]);
+		if (sp)
+			phba->hbq_buff_count--;
+		mp = sp ? &sp->dbuf : NULL;
+		lpfc_els_unsol_buffer(phba, pring, vport, mp, elsiocb);
+		/* free mp if we are done with it */
+		if (elsiocb->context2) {
+			if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED)
+				lpfc_sli_free_hbq(phba, sp);
+			else {
+				lpfc_mbuf_free(phba, mp->virt, mp->phys);
+				kfree(mp);
+			}
+		}
 	}
 }

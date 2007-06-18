@@ -138,6 +138,10 @@ void lpfc_mbox_put(struct lpfc_hba *, LPFC_MBOXQ_t *);
 LPFC_MBOXQ_t *lpfc_mbox_get(struct lpfc_hba *);
 int lpfc_mbox_tmo_val(struct lpfc_hba *, int);
 
+void lpfc_config_hbq(struct lpfc_hba *, struct lpfc_hbq_init *, uint32_t ,
+		     LPFC_MBOXQ_t *);
+struct lpfc_hbq_entry * lpfc_sli_next_hbq_slot(struct lpfc_hba *, uint32_t);
+
 int lpfc_mem_alloc(struct lpfc_hba *);
 void lpfc_mem_free(struct lpfc_hba *);
 
@@ -172,6 +176,12 @@ int lpfc_sli_ringpostbuf_put(struct lpfc_hba *, struct lpfc_sli_ring *,
 struct lpfc_dmabuf *lpfc_sli_ringpostbuf_get(struct lpfc_hba *,
 					     struct lpfc_sli_ring *,
 					     dma_addr_t);
+int lpfc_sli_hbqbuf_fill_hbq(struct lpfc_hba *);
+void lpfc_sli_hbqbuf_free(struct lpfc_hba *, void *, dma_addr_t);
+void lpfc_sli_hbqbuf_free_all(struct lpfc_hba *);
+struct hbq_dmabuf *lpfc_sli_hbqbuf_find(struct lpfc_hba *, uint32_t);
+void lpfc_sli_free_hbq(struct lpfc_hba *, struct hbq_dmabuf *);
+int lpfc_sli_hbq_size(void);
 int lpfc_sli_issue_abort_iotag(struct lpfc_hba *, struct lpfc_sli_ring *,
 			       struct lpfc_iocbq *);
 int lpfc_sli_sum_iocb(struct lpfc_hba *, struct lpfc_sli_ring *, uint16_t,
@@ -198,6 +208,9 @@ void lpfc_sli_abort_fcp_cmpl(struct lpfc_hba * phba,
 			     struct lpfc_iocbq * cmdiocb,
 			     struct lpfc_iocbq * rspiocb);
 
+void *lpfc_hbq_alloc(struct lpfc_hba *, int, dma_addr_t *);
+void lpfc_hbq_free(struct lpfc_hba *, void *, dma_addr_t);
+
 void *lpfc_mbuf_alloc(struct lpfc_hba *, int, dma_addr_t *);
 void __lpfc_mbuf_free(struct lpfc_hba *, void *, dma_addr_t);
 void lpfc_mbuf_free(struct lpfc_hba *, void *, dma_addr_t);
@@ -213,6 +226,7 @@ void lpfc_free_sysfs_attr(struct lpfc_vport *);
 extern struct class_device_attribute *lpfc_hba_attrs[];
 extern struct scsi_host_template lpfc_template;
 extern struct fc_function_template lpfc_transport_functions;
+extern int lpfc_sli_mode;
 
 void lpfc_get_hba_sym_node_name(struct lpfc_hba *phba, uint8_t *symbp);
 void lpfc_terminate_rport_io(struct fc_rport *);

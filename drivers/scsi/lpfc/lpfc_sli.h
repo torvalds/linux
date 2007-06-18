@@ -138,6 +138,8 @@ struct lpfc_sli_ring {
 	uint8_t ringno;		/* ring number */
 	uint16_t numCiocb;	/* number of command iocb's per ring */
 	uint16_t numRiocb;	/* number of rsp iocb's per ring */
+	uint16_t sizeCiocb;	/* Size of command iocb's in this ring */
+	uint16_t sizeRiocb; 	/* Size of response iocb's in this ring */
 
 	uint32_t fast_iotag;	/* max fastlookup based iotag           */
 	uint32_t iotag_ctr;	/* keeps track of the next iotag to use */
@@ -167,6 +169,29 @@ struct lpfc_sli_ring {
 	void (*lpfc_sli_cmd_available) (struct lpfc_hba *,
 					struct lpfc_sli_ring *);
 };
+
+/* Structure used for configuring rings to a specific profile or rctl / type */
+struct lpfc_hbq_init {
+	uint32_t rn;		/* Receive buffer notification */
+	uint32_t entry_count;	/* # of entries in HBQ */
+	uint32_t headerLen;	/* 0 if not profile 4 or 5 */
+	uint32_t logEntry;	/* Set to 1 if this HBQ used for LogEntry */
+	uint32_t profile;	/* Selection profile 0=all, 7=logentry */
+	uint32_t ring_mask;	/* Binds HBQ to a ring e.g. Ring0=b0001,
+				 * ring2=b0100 */
+	uint32_t hbq_index;	/* index of this hbq in ring .HBQs[] */
+
+	uint32_t seqlenoff;
+	uint32_t maxlen;
+	uint32_t seqlenbcnt;
+	uint32_t cmdcodeoff;
+	uint32_t cmdmatch[8];
+	uint32_t mask_count;	/* number of mask entries in prt array */
+	struct hbq_mask hbqMasks[6];
+} ;
+
+#define LPFC_MAX_HBQ 16
+
 
 /* Structure used to hold SLI statistical counters and info */
 struct lpfc_sli_stat {
