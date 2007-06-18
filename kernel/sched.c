@@ -1159,21 +1159,72 @@ void wait_task_inactive(struct task_struct *p)
 {
 	unsigned long flags;
 	struct rq *rq;
-	int preempted;
+	struct prio_array *array;
+	int running;
 
 repeat:
-	rq = task_rq_lock(p, &flags);
-	/* Must be off runqueue entirely, not preempted. */
-	if (unlikely(p->array || task_running(rq, p))) {
-		/* If it's preempted, we yield.  It could be a while. */
-		preempted = !task_running(rq, p);
-		task_rq_unlock(rq, &flags);
+	/*
+	 * We do the initial early heuristics without holding
+	 * any task-queue locks at all. We'll only try to get
+	 * the runqueue lock when things look like they will
+	 * work out!
+	 */
+	rq = task_rq(p);
+
+	/*
+	 * If the task is actively running on another CPU
+	 * still, just relax and busy-wait without holding
+	 * any locks.
+	 *
+	 * NOTE! Since we don't hold any locks, it's not
+	 * even sure that "rq" stays as the right runqueue!
+	 * But we don't care, since "task_running()" will
+	 * return false if the runqueue has changed and p
+	 * is actually now running somewhere else!
+	 */
+	while (task_running(rq, p))
 		cpu_relax();
-		if (preempted)
-			yield();
+
+	/*
+	 * Ok, time to look more closely! We need the rq
+	 * lock now, to be *sure*. If we're wrong, we'll
+	 * just go back and repeat.
+	 */
+	rq = task_rq_lock(p, &flags);
+	running = task_running(rq, p);
+	array = p->array;
+	task_rq_unlock(rq, &flags);
+
+	/*
+	 * Was it really running after all now that we
+	 * checked with the proper locks actually held?
+	 *
+	 * Oops. Go back and try again..
+	 */
+	if (unlikely(running)) {
+		cpu_relax();
 		goto repeat;
 	}
-	task_rq_unlock(rq, &flags);
+
+	/*
+	 * It's not enough that it's not actively running,
+	 * it must be off the runqueue _entirely_, and not
+	 * preempted!
+	 *
+	 * So if it wa still runnable (but just not actively
+	 * running right now), it's preempted, and we should
+	 * yield - it could be a while.
+	 */
+	if (unlikely(array)) {
+		yield();
+		goto repeat;
+	}
+
+	/*
+	 * Ahh, all good. It wasn't running, and it wasn't
+	 * runnable, which means that it will never become
+	 * running in the future either. We're all done!
+	 */
 }
 
 /***
