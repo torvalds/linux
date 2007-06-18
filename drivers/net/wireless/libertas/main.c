@@ -181,7 +181,8 @@ u16 libertas_region_code_to_index[MRVDRV_MAX_REGION_CODE] =
  * @brief Get function for sysfs attribute anycast_mask
  */
 static ssize_t libertas_anycast_get(struct device * dev,
-		struct device_attribute *attr, char * buf) {
+		struct device_attribute *attr, char * buf)
+{
 	struct cmd_ds_mesh_access mesh_access;
 
 	memset(&mesh_access, 0, sizeof(mesh_access));
@@ -197,7 +198,8 @@ static ssize_t libertas_anycast_get(struct device * dev,
  * @brief Set function for sysfs attribute anycast_mask
  */
 static ssize_t libertas_anycast_set(struct device * dev,
-		struct device_attribute *attr, const char * buf, size_t count) {
+		struct device_attribute *attr, const char * buf, size_t count)
+{
 	struct cmd_ds_mesh_access mesh_access;
 	uint32_t datum;
 
