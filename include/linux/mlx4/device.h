@@ -41,6 +41,7 @@
 
 enum {
 	MLX4_FLAG_MSI_X		= 1 << 0,
+	MLX4_FLAG_OLD_PORT_CMDS	= 1 << 1,
 };
 
 enum {
@@ -131,10 +132,10 @@ enum {
 struct mlx4_caps {
 	u64			fw_ver;
 	int			num_ports;
-	int			vl_cap;
-	int			mtu_cap;
-	int			gid_table_len;
-	int			pkey_table_len;
+	int			vl_cap[MLX4_MAX_PORTS + 1];
+	int			mtu_cap[MLX4_MAX_PORTS + 1];
+	int			gid_table_len[MLX4_MAX_PORTS + 1];
+	int			pkey_table_len[MLX4_MAX_PORTS + 1];
 	int			local_ca_ack_delay;
 	int			num_uars;
 	int			bf_reg_size;
@@ -174,7 +175,7 @@ struct mlx4_caps {
 	u32			page_size_cap;
 	u32			flags;
 	u16			stat_rate_support;
-	u8			port_width_cap;
+	u8			port_width_cap[MLX4_MAX_PORTS + 1];
 };
 
 struct mlx4_buf_list {
@@ -322,7 +323,7 @@ int mlx4_srq_alloc(struct mlx4_dev *dev, u32 pdn, struct mlx4_mtt *mtt,
 void mlx4_srq_free(struct mlx4_dev *dev, struct mlx4_srq *srq);
 int mlx4_srq_arm(struct mlx4_dev *dev, struct mlx4_srq *srq, int limit_watermark);
 
-int mlx4_INIT_PORT(struct mlx4_dev *dev, struct mlx4_init_port_param *param, int port);
+int mlx4_INIT_PORT(struct mlx4_dev *dev, int port);
 int mlx4_CLOSE_PORT(struct mlx4_dev *dev, int port);
 
 int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16]);

@@ -125,7 +125,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->local_ca_ack_delay  = dev->dev->caps.local_ca_ack_delay;
 	props->atomic_cap	   = dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_ATOMIC ?
 		IB_ATOMIC_HCA : IB_ATOMIC_NONE;
-	props->max_pkeys	   = dev->dev->caps.pkey_table_len;
+	props->max_pkeys	   = dev->dev->caps.pkey_table_len[1];
 	props->max_mcast_grp	   = dev->dev->caps.num_mgms + dev->dev->caps.num_amgms;
 	props->max_mcast_qp_attach = dev->dev->caps.num_qp_per_mgm;
 	props->max_total_mcast_qp_attach = props->max_mcast_qp_attach *
@@ -168,9 +168,9 @@ static int mlx4_ib_query_port(struct ib_device *ibdev, u8 port,
 	props->state		= out_mad->data[32] & 0xf;
 	props->phys_state	= out_mad->data[33] >> 4;
 	props->port_cap_flags	= be32_to_cpup((__be32 *) (out_mad->data + 20));
-	props->gid_tbl_len	= to_mdev(ibdev)->dev->caps.gid_table_len;
+	props->gid_tbl_len	= to_mdev(ibdev)->dev->caps.gid_table_len[port];
 	props->max_msg_sz	= 0x80000000;
-	props->pkey_tbl_len	= to_mdev(ibdev)->dev->caps.pkey_table_len;
+	props->pkey_tbl_len	= to_mdev(ibdev)->dev->caps.pkey_table_len[port];
 	props->bad_pkey_cntr	= be16_to_cpup((__be16 *) (out_mad->data + 46));
 	props->qkey_viol_cntr	= be16_to_cpup((__be16 *) (out_mad->data + 48));
 	props->active_width	= out_mad->data[31] & 0xf;
@@ -280,8 +280,14 @@ static int mlx4_SET_PORT(struct mlx4_ib_dev *dev, u8 port, int reset_qkey_viols,
 		return PTR_ERR(mailbox);
 
 	memset(mailbox->buf, 0, 256);
-	*(u8 *) mailbox->buf	     = !!reset_qkey_viols << 6;
-	((__be32 *) mailbox->buf)[2] = cpu_to_be32(cap_mask);
+
+	if (dev->dev->flags & MLX4_FLAG_OLD_PORT_CMDS) {
+		*(u8 *) mailbox->buf	     = !!reset_qkey_viols << 6;
+		((__be32 *) mailbox->buf)[2] = cpu_to_be32(cap_mask);
+	} else {
+		((u8 *) mailbox->buf)[3]     = !!reset_qkey_viols;
+		((__be32 *) mailbox->buf)[1] = cpu_to_be32(cap_mask);
+	}
 
 	err = mlx4_cmd(dev->dev, mailbox->dma, port, 0, MLX4_CMD_SET_PORT,
 		       MLX4_CMD_TIME_CLASS_B);

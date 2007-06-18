@@ -603,24 +603,6 @@ int mlx4_ib_destroy_qp(struct ib_qp *qp)
 	return 0;
 }
 
-static void init_port(struct mlx4_ib_dev *dev, int port)
-{
-	struct mlx4_init_port_param param;
-	int err;
-
-	memset(&param, 0, sizeof param);
-
-	param.port_width_cap = dev->dev->caps.port_width_cap;
-	param.vl_cap	     = dev->dev->caps.vl_cap;
-	param.mtu	     = ib_mtu_enum_to_int(dev->dev->caps.mtu_cap);
-	param.max_gid	     = dev->dev->caps.gid_table_len;
-	param.max_pkey	     = dev->dev->caps.pkey_table_len;
-
-	err = mlx4_INIT_PORT(dev->dev, &param, port);
-	if (err)
-		printk(KERN_WARNING "INIT_PORT failed, return code %d.\n", err);
-}
-
 static int to_mlx4_st(enum ib_qp_type type)
 {
 	switch (type) {
@@ -694,9 +676,9 @@ static int mlx4_set_path(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah,
 	path->counter_index = 0xff;
 
 	if (ah->ah_flags & IB_AH_GRH) {
-		if (ah->grh.sgid_index >= dev->dev->caps.gid_table_len) {
+		if (ah->grh.sgid_index >= dev->dev->caps.gid_table_len[port]) {
 			printk(KERN_ERR "sgid_index (%u) too large. max is %d\n",
-			       ah->grh.sgid_index, dev->dev->caps.gid_table_len - 1);
+			       ah->grh.sgid_index, dev->dev->caps.gid_table_len[port] - 1);
 			return -1;
 		}
 
@@ -812,11 +794,12 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 	}
 
 	if (attr_mask & IB_QP_ALT_PATH) {
-		if (attr->alt_pkey_index >= dev->dev->caps.pkey_table_len)
-			return -EINVAL;
-
 		if (attr->alt_port_num == 0 ||
 		    attr->alt_port_num > dev->dev->caps.num_ports)
+			return -EINVAL;
+
+		if (attr->alt_pkey_index >=
+		    dev->dev->caps.pkey_table_len[attr->alt_port_num])
 			return -EINVAL;
 
 		if (mlx4_set_path(dev, &attr->alt_ah_attr, &context->alt_path,
@@ -949,7 +932,9 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 	 */
 	if (is_qp0(dev, qp)) {
 		if (cur_state != IB_QPS_RTR && new_state == IB_QPS_RTR)
-			init_port(dev, qp->port);
+			if (mlx4_INIT_PORT(dev->dev, qp->port))
+				printk(KERN_WARNING "INIT_PORT failed for port %d\n",
+				       qp->port);
 
 		if (cur_state != IB_QPS_RESET && cur_state != IB_QPS_ERR &&
 		    (new_state == IB_QPS_RESET || new_state == IB_QPS_ERR))
@@ -1012,14 +997,15 @@ int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type, attr_mask))
 		goto out;
 
-	if ((attr_mask & IB_QP_PKEY_INDEX) &&
-	     attr->pkey_index >= dev->dev->caps.pkey_table_len) {
-		goto out;
-	}
-
 	if ((attr_mask & IB_QP_PORT) &&
 	    (attr->port_num == 0 || attr->port_num > dev->dev->caps.num_ports)) {
 		goto out;
+	}
+
+	if (attr_mask & IB_QP_PKEY_INDEX) {
+		int p = attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
+		if (attr->pkey_index >= dev->dev->caps.pkey_table_len[p])
+			goto out;
 	}
 
 	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC &&
