@@ -396,7 +396,8 @@ static int ipath_tid_update(struct ipath_portdata *pd, struct file *fp,
 			   "TID %u, vaddr %lx, physaddr %llx pgp %p\n",
 			   tid, vaddr, (unsigned long long) physaddr,
 			   pagep[i]);
-		dd->ipath_f_put_tid(dd, &tidbase[tid], 1, physaddr);
+		dd->ipath_f_put_tid(dd, &tidbase[tid], RCVHQ_RCV_TYPE_EXPECTED,
+				    physaddr);
 		/*
 		 * don't check this tid in ipath_portshadow, since we
 		 * just filled it in; start with the next one.
@@ -422,7 +423,8 @@ static int ipath_tid_update(struct ipath_portdata *pd, struct file *fp,
 			if (dd->ipath_pageshadow[porttid + tid]) {
 				ipath_cdbg(VERBOSE, "Freeing TID %u\n",
 					   tid);
-				dd->ipath_f_put_tid(dd, &tidbase[tid], 1,
+				dd->ipath_f_put_tid(dd, &tidbase[tid],
+						    RCVHQ_RCV_TYPE_EXPECTED,
 						    dd->ipath_tidinvalid);
 				pci_unmap_page(dd->pcidev,
 					dd->ipath_physshadow[porttid + tid],
@@ -538,7 +540,8 @@ static int ipath_tid_free(struct ipath_portdata *pd, unsigned subport,
 		if (dd->ipath_pageshadow[porttid + tid]) {
 			ipath_cdbg(VERBOSE, "PID %u freeing TID %u\n",
 				   pd->port_pid, tid);
-			dd->ipath_f_put_tid(dd, &tidbase[tid], 1,
+			dd->ipath_f_put_tid(dd, &tidbase[tid],
+					    RCVHQ_RCV_TYPE_EXPECTED,
 					    dd->ipath_tidinvalid);
 			pci_unmap_page(dd->pcidev,
 				dd->ipath_physshadow[porttid + tid],
@@ -921,7 +924,8 @@ static int ipath_create_user_egr(struct ipath_portdata *pd)
 					    (u64 __iomem *)
 					    ((char __iomem *)
 					     dd->ipath_kregbase +
-					     dd->ipath_rcvegrbase), 0, pa);
+					     dd->ipath_rcvegrbase),
+					    RCVHQ_RCV_TYPE_EAGER, pa);
 			pa += egrsize;
 		}
 		cond_resched();	/* don't hog the cpu */

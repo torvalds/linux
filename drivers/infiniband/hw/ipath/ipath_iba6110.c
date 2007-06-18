@@ -1408,7 +1408,7 @@ static void ipath_ht_quiet_serdes(struct ipath_devdata *dd)
  * ipath_pe_put_tid - write a TID in chip
  * @dd: the infinipath device
  * @tidptr: pointer to the expected TID (in chip) to udpate
- * @tidtype: 0 for eager, 1 for expected
+ * @tidtype: RCVHQ_RCV_TYPE_EAGER (1) for eager, RCVHQ_RCV_TYPE_EXPECTED (0) for expected
  * @pa: physical address of in memory buffer; ipath_tidinvalid if freeing
  *
  * This exists as a separate routine to allow for special locking etc.
@@ -1429,7 +1429,7 @@ static void ipath_ht_put_tid(struct ipath_devdata *dd,
 				 "40 bits, using only 40!!!\n", pa);
 			pa &= INFINIPATH_RT_ADDR_MASK;
 		}
-		if (type == 0)
+		if (type == RCVHQ_RCV_TYPE_EAGER)
 			pa |= dd->ipath_tidtemplate;
 		else {
 			/* in words (fixed, full page).  */
@@ -1469,7 +1469,8 @@ static void ipath_ht_clear_tids(struct ipath_devdata *dd, unsigned port)
 				   port * dd->ipath_rcvtidcnt *
 				   sizeof(*tidbase));
 	for (i = 0; i < dd->ipath_rcvtidcnt; i++)
-		ipath_ht_put_tid(dd, &tidbase[i], 1, dd->ipath_tidinvalid);
+		ipath_ht_put_tid(dd, &tidbase[i], RCVHQ_RCV_TYPE_EXPECTED,
+				 dd->ipath_tidinvalid);
 
 	tidbase = (u64 __iomem *) ((char __iomem *)(dd->ipath_kregbase) +
 				   dd->ipath_rcvegrbase +
@@ -1477,7 +1478,8 @@ static void ipath_ht_clear_tids(struct ipath_devdata *dd, unsigned port)
 				   sizeof(*tidbase));
 
 	for (i = 0; i < dd->ipath_rcvegrcnt; i++)
-		ipath_ht_put_tid(dd, &tidbase[i], 0, dd->ipath_tidinvalid);
+		ipath_ht_put_tid(dd, &tidbase[i], RCVHQ_RCV_TYPE_EAGER,
+				 dd->ipath_tidinvalid);
 }
 
 /**

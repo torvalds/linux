@@ -133,7 +133,8 @@ static int create_port0_egr(struct ipath_devdata *dd)
 				   dd->ipath_ibmaxlen, PCI_DMA_FROMDEVICE);
 		dd->ipath_f_put_tid(dd, e + (u64 __iomem *)
 				    ((char __iomem *) dd->ipath_kregbase +
-				     dd->ipath_rcvegrbase), 0,
+				     dd->ipath_rcvegrbase),
+				    RCVHQ_RCV_TYPE_EAGER,
 				    dd->ipath_port0_skbinfo[e].phys);
 	}
 
