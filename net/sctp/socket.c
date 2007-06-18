@@ -4019,8 +4019,7 @@ static int sctp_getsockopt_peer_addrs(struct sock *sk, int len,
 		return -EINVAL;
 
 	to = optval + offsetof(struct sctp_getaddrs,addrs);
-	space_left = len - sizeof(struct sctp_getaddrs) -
-			offsetof(struct sctp_getaddrs,addrs);
+	space_left = len - offsetof(struct sctp_getaddrs,addrs);
 
 	list_for_each(pos, &asoc->peer.transport_addr_list) {
 		from = list_entry(pos, struct sctp_transport, transports);
@@ -4327,8 +4326,8 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
 	}
 
 	to = optval + offsetof(struct sctp_getaddrs,addrs);
-	space_left = len - sizeof(struct sctp_getaddrs) -
-			 offsetof(struct sctp_getaddrs,addrs);
+	space_left = len - offsetof(struct sctp_getaddrs,addrs);
+
 	addrs = kmalloc(space_left, GFP_KERNEL);
 	if (!addrs)
 		return -ENOMEM;
