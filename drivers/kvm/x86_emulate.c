@@ -98,8 +98,11 @@ static u8 opcode_table[256] = {
 	0, 0, 0, 0,
 	/* 0x40 - 0x4F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/* 0x50 - 0x5F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	/* 0x50 - 0x57 */
+	0, 0, 0, 0, 0, 0, 0, 0,
+	/* 0x58 - 0x5F */
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
 	/* 0x60 - 0x6F */
 	0, 0, 0, DstReg | SrcMem32 | ModRM | Mov /* movsxd (x86/64) */ ,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -1153,6 +1156,16 @@ special_insn:
 	case 0xf4:              /* hlt */
 		ctxt->vcpu->halt_request = 1;
 		goto done;
+	case 0x58 ... 0x5f: /* pop reg */
+		dst.ptr = (unsigned long *)&_regs[b & 0x7];
+
+		if ((rc = ops->read_std(register_address(ctxt->ss_base,
+			_regs[VCPU_REGS_RSP]), dst.ptr, op_bytes, ctxt)) != 0)
+			goto done;
+
+		register_address_increment(_regs[VCPU_REGS_RSP], dst.bytes);
+		dst.orig_val = dst.val; /* Disable writeback. */
+		break;
 	}
 	goto writeback;
 
