@@ -144,7 +144,7 @@ static int cxio_hal_clear_qp_ctx(struct cxio_rdev *rdev_p, u32 qpid)
 	}
 	wqe = (struct t3_modify_qp_wr *) skb_put(skb, sizeof(*wqe));
 	memset(wqe, 0, sizeof(*wqe));
-	build_fw_riwrh((struct fw_riwrh *) wqe, T3_WR_QP_MOD, 3, 1, qpid, 7);
+	build_fw_riwrh((struct fw_riwrh *) wqe, T3_WR_QP_MOD, 3, 0, qpid, 7);
 	wqe->flags = cpu_to_be32(MODQP_WRITE_EC);
 	sge_cmd = qpid << 8 | 3;
 	wqe->sge_cmd = cpu_to_be64(sge_cmd);
@@ -548,7 +548,7 @@ static int cxio_hal_init_ctrl_qp(struct cxio_rdev *rdev_p)
 			V_EC_UP_TOKEN(T3_CTL_QP_TID) | F_EC_VALID)) << 32;
 	wqe = (struct t3_modify_qp_wr *) skb_put(skb, sizeof(*wqe));
 	memset(wqe, 0, sizeof(*wqe));
-	build_fw_riwrh((struct fw_riwrh *) wqe, T3_WR_QP_MOD, 0, 1,
+	build_fw_riwrh((struct fw_riwrh *) wqe, T3_WR_QP_MOD, 0, 0,
 		       T3_CTL_QP_TID, 7);
 	wqe->flags = cpu_to_be32(MODQP_WRITE_EC);
 	sge_cmd = (3ULL << 56) | FW_RI_SGEEC_START << 8 | 3;
