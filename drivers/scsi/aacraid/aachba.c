@@ -1179,6 +1179,7 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	}
 
 	if (!dev->in_reset) {
+		char buffer[16];
 		tmp = le32_to_cpu(dev->adapter_info.kernelrev);
 		printk(KERN_INFO "%s%d: kernel %d.%d-%d[%d] %.*s\n",
 			dev->name, 
@@ -1199,10 +1200,11 @@ int aac_get_adapter_info(struct aac_dev* dev)
 			dev->name, dev->id,
 			tmp>>24,(tmp>>16)&0xff,tmp&0xff,
 			le32_to_cpu(dev->adapter_info.biosbuild));
-		if (le32_to_cpu(dev->adapter_info.serial[0]) != 0xBAD0)
-			printk(KERN_INFO "%s%d: serial %x\n",
-				dev->name, dev->id,
-				le32_to_cpu(dev->adapter_info.serial[0]));
+		buffer[0] = '\0';
+		if (aac_show_serial_number(
+		  shost_to_class(dev->scsi_host_ptr), buffer))
+			printk(KERN_INFO "%s%d: serial %s",
+			  dev->name, dev->id, buffer);
 		if (dev->supplement_adapter_info.VpdInfo.Tsid[0]) {
 			printk(KERN_INFO "%s%d: TSID %.*s\n",
 			  dev->name, dev->id,

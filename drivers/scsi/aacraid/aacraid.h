@@ -1822,6 +1822,10 @@ int aac_get_config_status(struct aac_dev *dev, int commit_flag);
 int aac_get_containers(struct aac_dev *dev);
 int aac_scsi_cmd(struct scsi_cmnd *cmd);
 int aac_dev_ioctl(struct aac_dev *dev, int cmd, void __user *arg);
+#ifndef shost_to_class
+#define shost_to_class(shost) &shost->shost_classdev
+#endif
+ssize_t aac_show_serial_number(struct class_device *class_dev, char *buf);
 int aac_do_ioctl(struct aac_dev * dev, int cmd, void __user *arg);
 int aac_rx_init(struct aac_dev *dev);
 int aac_rkt_init(struct aac_dev *dev);

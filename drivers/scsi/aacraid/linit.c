@@ -770,15 +770,21 @@ static ssize_t aac_show_bios_version(struct class_device *class_dev,
 	return len;
 }
 
-static ssize_t aac_show_serial_number(struct class_device *class_dev,
-		char *buf)
+ssize_t aac_show_serial_number(struct class_device *class_dev, char *buf)
 {
 	struct aac_dev *dev = (struct aac_dev*)class_to_shost(class_dev)->hostdata;
 	int len = 0;
 
 	if (le32_to_cpu(dev->adapter_info.serial[0]) != 0xBAD0)
-		len = snprintf(buf, PAGE_SIZE, "%x\n",
+		len = snprintf(buf, PAGE_SIZE, "%06X\n",
 		  le32_to_cpu(dev->adapter_info.serial[0]));
+	if (len &&
+	  !memcmp(&dev->supplement_adapter_info.MfgPcbaSerialNo[
+	    sizeof(dev->supplement_adapter_info.MfgPcbaSerialNo)+2-len],
+	  buf, len))
+		len = snprintf(buf, PAGE_SIZE, "%.*s\n",
+		  (int)sizeof(dev->supplement_adapter_info.MfgPcbaSerialNo),
+		  dev->supplement_adapter_info.MfgPcbaSerialNo);
 	return len;
 }
 
