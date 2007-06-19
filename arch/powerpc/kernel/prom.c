@@ -1375,7 +1375,7 @@ static void of_node_release(struct kref *kref)
 	struct device_node *node = kref_to_device_node(kref);
 	struct property *prop = node->properties;
 
-	if (!OF_IS_DYNAMIC(node))
+	if (!of_node_check_flag(node, OF_DYNAMIC))
 		return;
 	while (prop) {
 		struct property *next = prop->next;
