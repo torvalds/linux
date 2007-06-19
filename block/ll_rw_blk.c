@@ -527,8 +527,6 @@ int blk_do_ordered(request_queue_t *q, struct request **rqp)
 static int flush_dry_bio_endio(struct bio *bio, unsigned int bytes, int error)
 {
 	request_queue_t *q = bio->bi_private;
-	struct bio_vec *bvec;
-	int i;
 
 	/*
 	 * This is dry run, restore bio_sector and size.  We'll finish
@@ -539,13 +537,6 @@ static int flush_dry_bio_endio(struct bio *bio, unsigned int bytes, int error)
 
 	if (bio->bi_size)
 		return 1;
-
-	/* Rewind bvec's */
-	bio->bi_idx = 0;
-	bio_for_each_segment(bvec, bio, i) {
-		bvec->bv_len += bvec->bv_offset;
-		bvec->bv_offset = 0;
-	}
 
 	/* Reset bio */
 	set_bit(BIO_UPTODATE, &bio->bi_flags);
