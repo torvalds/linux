@@ -927,6 +927,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  ref		Reference board
 	  3stack	D945 3stack
 	  5stack	D945 5stack + SPDIF
+	  dell		Dell XPS M1210
 	  intel-mac-v1	Intel Mac Type 1
 	  intel-mac-v2	Intel Mac Type 2
 	  intel-mac-v3	Intel Mac Type 3

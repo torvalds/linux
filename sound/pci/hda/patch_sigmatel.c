@@ -59,6 +59,7 @@ enum {
 	STAC_D945_REF,
 	STAC_D945GTP3,
 	STAC_D945GTP5,
+	STAC_922X_DELL,
 	STAC_INTEL_MAC_V1,
 	STAC_INTEL_MAC_V2,
 	STAC_INTEL_MAC_V3,
@@ -586,10 +587,17 @@ static unsigned int intel_mac_v5_pin_configs[10] = {
 	0x400000fc, 0x400000fb,
 };
 
+static unsigned int stac922x_dell_pin_configs[10] = {
+	0x0221121e, 0x408103ff, 0x02a1123e, 0x90100310,
+	0x408003f1, 0x0221122f, 0x03451340, 0x40c003f2,
+	0x50a003f3, 0x405003f4
+};
+
 static unsigned int *stac922x_brd_tbl[STAC_922X_MODELS] = {
 	[STAC_D945_REF] = ref922x_pin_configs,
 	[STAC_D945GTP3] = d945gtp3_pin_configs,
 	[STAC_D945GTP5] = d945gtp5_pin_configs,
+	[STAC_922X_DELL] = stac922x_dell_pin_configs,
 	[STAC_INTEL_MAC_V1] = intel_mac_v1_pin_configs,
 	[STAC_INTEL_MAC_V2] = intel_mac_v2_pin_configs,
 	[STAC_INTEL_MAC_V3] = intel_mac_v3_pin_configs,
@@ -608,6 +616,7 @@ static const char *stac922x_models[STAC_922X_MODELS] = {
 	[STAC_D945_REF]	= "ref",
 	[STAC_D945GTP5]	= "5stack",
 	[STAC_D945GTP3]	= "3stack",
+	[STAC_922X_DELL] = "dell",
 	[STAC_INTEL_MAC_V1] = "intel-mac-v1",
 	[STAC_INTEL_MAC_V2] = "intel-mac-v2",
 	[STAC_INTEL_MAC_V3] = "intel-mac-v3",
@@ -683,6 +692,9 @@ static struct snd_pci_quirk stac922x_cfg_tbl[] = {
 	/* Apple Mac Mini (early 2006) */
 	SND_PCI_QUIRK(0x8384, 0x7680,
 		      "Mac Mini", STAC_INTEL_MAC_V3),
+	/* Dell */
+	SND_PCI_QUIRK(0x1028, 0x01d7, "Dell XPS M1210", STAC_922X_DELL),
+
 	{} /* terminator */
 };
 
