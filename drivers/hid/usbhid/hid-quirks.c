@@ -299,8 +299,6 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_SAITEK, USB_DEVICE_ID_SAITEK_RUMBLEPAD, HID_QUIRK_BADPAD },
 	{ USB_VENDOR_ID_TOPMAX, USB_DEVICE_ID_TOPMAX_COBRAPAD, HID_QUIRK_BADPAD },
 	
-	{ USB_VENDOR_ID_CHERRY, USB_DEVICE_ID_CHERRY_CYMOTION, HID_QUIRK_CYMOTION },
-
 	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_DINOVO_EDGE, HID_QUIRK_DUPLICATE_USAGES },
 
 	{ USB_VENDOR_ID_BELKIN, USB_DEVICE_ID_FLIP_KVM, HID_QUIRK_HIDDEV },
@@ -424,16 +422,10 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_ACECAD, USB_DEVICE_ID_ACECAD_FLAIR, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_ACECAD, USB_DEVICE_ID_ACECAD_302, HID_QUIRK_IGNORE },
 
-	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_MX3000_RECEIVER, HID_QUIRK_LOGITECH_DESCRIPTOR },
-	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_RECEIVER, HID_QUIRK_LOGITECH_DESCRIPTOR },
-	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_RECEIVER_2, HID_QUIRK_LOGITECH_DESCRIPTOR },
-
 	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MIGHTYMOUSE, HID_QUIRK_MIGHTYMOUSE | HID_QUIRK_INVERT_HWHEEL },
 
 	{ USB_VENDOR_ID_PANTHERLORD, USB_DEVICE_ID_PANTHERLORD_TWIN_USB_JOYSTICK, HID_QUIRK_MULTI_INPUT | HID_QUIRK_SKIP_OUTPUT_REPORTS },
 	{ USB_VENDOR_ID_PLAYDOTCOM, USB_DEVICE_ID_PLAYDOTCOM_EMS_USBII, HID_QUIRK_MULTI_INPUT },
-
-	{ USB_VENDOR_ID_PETALYNX, USB_DEVICE_ID_PETALYNX_MAXTER_REMOTE, HID_QUIRK_PETALYNX_DESCRIPTOR | HID_QUIRK_NOGET },
 
 	{ USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS3_CONTROLLER, HID_QUIRK_SONY_PS3_CONTROLLER },
 
@@ -443,6 +435,7 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_ATEN, USB_DEVICE_ID_ATEN_4PORTKVM, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_ATEN, USB_DEVICE_ID_ATEN_4PORTKVMC, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WHEEL, HID_QUIRK_NOGET },
+	{ USB_VENDOR_ID_PETALYNX, USB_DEVICE_ID_PETALYNX_MAXTER_REMOTE, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_SUN, USB_DEVICE_ID_RARITAN_KVM_DONGLE, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_TURBOX_KEYBOARD, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_DUAL_USB_JOYPAD, HID_QUIRK_NOGET | HID_QUIRK_MULTI_INPUT },
@@ -466,8 +459,26 @@ static const struct hid_blacklist {
 
 	{ USB_VENDOR_ID_DELL, USB_DEVICE_ID_DELL_W7658, HID_QUIRK_RESET_LEDS },
 
-	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_BARCODE_1, HID_QUIRK_SWAPPED_MIN_MAX },
-	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_BARCODE_2, HID_QUIRK_SWAPPED_MIN_MAX },
+	{ 0, 0 }
+};
+
+/* Quirks for devices which require report descriptor fixup go here */
+static const struct hid_rdesc_blacklist {
+	__u16 idVendor;
+	__u16 idProduct;
+	__u32 quirks;
+} hid_rdesc_blacklist[] = {
+
+	{ USB_VENDOR_ID_CHERRY, USB_DEVICE_ID_CHERRY_CYMOTION, HID_QUIRK_RDESC_CYMOTION },
+
+	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_MX3000_RECEIVER, HID_QUIRK_RDESC_LOGITECH },
+	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_RECEIVER, HID_QUIRK_RDESC_LOGITECH },
+	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_RECEIVER_2, HID_QUIRK_RDESC_LOGITECH },
+
+	{ USB_VENDOR_ID_PETALYNX, USB_DEVICE_ID_PETALYNX_MAXTER_REMOTE, HID_QUIRK_RDESC_PETALYNX },
+
+	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_BARCODE_1, HID_QUIRK_RDESC_SWAPPED_MIN_MAX },
+	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_BARCODE_2, HID_QUIRK_RDESC_SWAPPED_MIN_MAX },
 
 	{ 0, 0 }
 };
@@ -575,7 +586,6 @@ int usbhid_modify_dquirk(const u16 idVendor, const u16 idProduct,
 
 	return 0;
 }
-
 
 /**
  * usbhid_remove_all_dquirks: remove all runtime HID quirks from memory
@@ -709,3 +719,126 @@ u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct)
 	return quirks;
 }
 
+/*
+ * Cherry Cymotion keyboard have an invalid HID report descriptor,
+ * that needs fixing before we can parse it.
+ */
+static void usbhid_fixup_cymotion_descriptor(char *rdesc, int rsize)
+{
+	if (rsize >= 17 && rdesc[11] == 0x3c && rdesc[12] == 0x02) {
+		printk(KERN_INFO "Fixing up Cherry Cymotion report descriptor\n");
+		rdesc[11] = rdesc[16] = 0xff;
+		rdesc[12] = rdesc[17] = 0x03;
+	}
+}
+
+
+/*
+ * Certain Logitech keyboards send in report #3 keys which are far
+ * above the logical maximum described in descriptor. This extends
+ * the original value of 0x28c of logical maximum to 0x104d
+ */
+static void usbhid_fixup_logitech_descriptor(unsigned char *rdesc, int rsize)
+{
+	if (rsize >= 90 && rdesc[83] == 0x26
+			&& rdesc[84] == 0x8c
+			&& rdesc[85] == 0x02) {
+		printk(KERN_INFO "Fixing up Logitech keyboard report descriptor\n");
+		rdesc[84] = rdesc[89] = 0x4d;
+		rdesc[85] = rdesc[90] = 0x10;
+	}
+}
+
+/* Petalynx Maxter Remote has maximum for consumer page set too low */
+static void usbhid_fixup_petalynx_descriptor(unsigned char *rdesc, int rsize)
+{
+	if (rsize >= 60 && rdesc[39] == 0x2a
+			&& rdesc[40] == 0xf5
+			&& rdesc[41] == 0x00
+			&& rdesc[59] == 0x26
+			&& rdesc[60] == 0xf9
+			&& rdesc[61] == 0x00) {
+		printk(KERN_INFO "Fixing up Petalynx Maxter Remote report descriptor\n");
+		rdesc[60] = 0xfa;
+		rdesc[40] = 0xfa;
+	}
+}
+
+/*
+ * Some USB barcode readers from cypress have usage min and usage max in
+ * the wrong order
+ */
+static void usbhid_fixup_cypress_descriptor(unsigned char *rdesc, int rsize)
+{
+	short fixed = 0;
+	int i;
+
+	for (i = 0; i < rsize - 4; i++) {
+		if (rdesc[i] == 0x29 && rdesc [i+2] == 0x19) {
+			unsigned char tmp;
+
+			rdesc[i] = 0x19; rdesc[i+2] = 0x29;
+			tmp = rdesc[i+3];
+			rdesc[i+3] = rdesc[i+1];
+			rdesc[i+1] = tmp;
+		}
+	}
+
+	if (fixed)
+		printk(KERN_INFO "Fixing up Cypress report descriptor\n");
+}
+
+
+static void __usbhid_fixup_report_descriptor(__u32 quirks, char *rdesc, unsigned rsize)
+{
+	if ((quirks & HID_QUIRK_RDESC_CYMOTION))
+		usbhid_fixup_cymotion_descriptor(rdesc, rsize);
+
+	if (quirks & HID_QUIRK_RDESC_LOGITECH)
+		usbhid_fixup_logitech_descriptor(rdesc, rsize);
+
+	if (quirks & HID_QUIRK_RDESC_SWAPPED_MIN_MAX)
+		usbhid_fixup_cypress_descriptor(rdesc, rsize);
+
+	if (quirks & HID_QUIRK_RDESC_PETALYNX)
+		usbhid_fixup_petalynx_descriptor(rdesc, rsize);
+}
+
+/**
+ * usbhid_fixup_report_descriptor: check if report descriptor needs fixup
+ *
+ * Description:
+ *	Walks the hid_rdesc_blacklist[] array and checks whether the device
+ *	is known to have broken report descriptor that needs to be fixed up
+ *	prior to entering the HID parser
+ *
+ * Returns: nothing
+ */
+void usbhid_fixup_report_descriptor(const u16 idVendor, const u16 idProduct,
+				    char *rdesc, unsigned rsize, char **quirks_param)
+{
+	int n, m;
+	u16 paramVendor, paramProduct;
+	u32 quirks;
+
+	/* static rdesc quirk entries */
+	for (n = 0; hid_rdesc_blacklist[n].idVendor; n++)
+		if (hid_rdesc_blacklist[n].idVendor == idVendor &&
+				hid_rdesc_blacklist[n].idProduct == idProduct)
+			__usbhid_fixup_report_descriptor(hid_rdesc_blacklist[n].quirks,
+					rdesc, rsize);
+
+	/* runtime rdesc quirk entries handling */
+	for (n = 0; quirks_param[n] && n < MAX_USBHID_BOOT_QUIRKS; n++) {
+		m = sscanf(quirks_param[n], "0x%hx:0x%hx:0x%x",
+				&paramVendor, &paramProduct, &quirks);
+
+		if (m != 3)
+			printk(KERN_WARNING
+				"Could not parse HID quirk module param %s\n",
+				quirks_param[n]);
+		else if (paramVendor == idVendor && paramProduct == idProduct)
+			__usbhid_fixup_report_descriptor(quirks, rdesc, rsize);
+	}
+
+}
