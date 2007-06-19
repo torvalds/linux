@@ -267,7 +267,9 @@ struct zcore_header {
 	u64 tod;
 	cpuid_t cpu_id;
 	u32 arch_id;
+	u32 volnr;
 	u32 build_arch;
+	u64 rmem_size;
 	char pad2[4016];
 } __attribute__((packed,__aligned__(16)));
 
@@ -559,6 +561,7 @@ static void __init zcore_header_init(int arch, struct zcore_header *hdr)
 	else
 		hdr->arch_id = DUMP_ARCH_S390;
 	hdr->mem_size = sys_info.mem_size;
+	hdr->rmem_size = sys_info.mem_size;
 	hdr->mem_end = sys_info.mem_size;
 	hdr->num_pages = sys_info.mem_size / PAGE_SIZE;
 	hdr->tod = get_clock();
