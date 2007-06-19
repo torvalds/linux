@@ -1693,9 +1693,18 @@ static int o2hb_region_get(const char *region_uuid)
 		ret = -ENOENT;
 	spin_unlock(&o2hb_live_lock);
 
-	if (!ret)
-		ret = o2nm_depend_item(&reg->hr_item);
+	if (ret)
+		goto out;
 
+	ret = o2nm_depend_this_node();
+	if (ret)
+		goto out;
+
+	ret = o2nm_depend_item(&reg->hr_item);
+	if (ret)
+		o2nm_undepend_this_node();
+
+out:
 	return ret;
 }
 
@@ -1709,8 +1718,10 @@ static void o2hb_region_put(const char *region_uuid)
 
 	spin_unlock(&o2hb_live_lock);
 
-	if (reg)
+	if (reg) {
 		o2nm_undepend_item(&reg->hr_item);
+		o2nm_undepend_this_node();
+	}
 }
 
 int o2hb_register_callback(const char *region_uuid,
