@@ -11169,12 +11169,10 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 	
 	if (err < 0)
 		return err;
-	else if (err > 0)
-		/* hack - override the init verbs */
-		spec->init_verbs[0] = alc662_auto_init_verbs;
+	spec->init_verbs[spec->num_init_verbs++] = alc662_auto_init_verbs;
 	spec->mixers[spec->num_mixers] = alc662_capture_mixer;
 	spec->num_mixers++;
-	return err;
+	return 1;
 }
 
 /* additional initialization for auto-configuration model */
@@ -11211,7 +11209,7 @@ static int patch_alc662(struct hda_codec *codec)
 		if (err < 0) {
 			alc_free(codec);
 			return err;
-		} else if (err) {
+		} else if (!err) {
 			printk(KERN_INFO
 			       "hda_codec: Cannot set up configuration "
 			       "from BIOS.  Using base mode...\n");
