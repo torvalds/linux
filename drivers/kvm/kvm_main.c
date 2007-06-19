@@ -361,6 +361,7 @@ static struct kvm *kvm_create_vm(void)
 	if (!kvm)
 		return ERR_PTR(-ENOMEM);
 
+	kvm_io_bus_init(&kvm->pio_bus);
 	spin_lock_init(&kvm->lock);
 	INIT_LIST_HEAD(&kvm->active_mmu_pages);
 	spin_lock(&kvm_lock);
@@ -475,6 +476,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	spin_lock(&kvm_lock);
 	list_del(&kvm->vm_list);
 	spin_unlock(&kvm_lock);
+	kvm_io_bus_destroy(&kvm->pio_bus);
 	kvm_io_bus_destroy(&kvm->mmio_bus);
 	kvm_free_vcpus(kvm);
 	kvm_free_physmem(kvm);
@@ -1108,6 +1110,12 @@ static struct kvm_io_device *vcpu_find_mmio_dev(struct kvm_vcpu *vcpu,
 	 * the LAPIC as well as the general MMIO bus
 	 */
 	return kvm_io_bus_find_dev(&vcpu->kvm->mmio_bus, addr);
+}
+
+static struct kvm_io_device *vcpu_find_pio_dev(struct kvm_vcpu *vcpu,
+					       gpa_t addr)
+{
+	return kvm_io_bus_find_dev(&vcpu->kvm->pio_bus, addr);
 }
 
 static int emulator_read_emulated(unsigned long addr,
@@ -1832,6 +1840,20 @@ static int complete_pio(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+void kernel_pio(struct kvm_io_device *pio_dev, struct kvm_vcpu *vcpu)
+{
+	/* TODO: String I/O for in kernel device */
+
+	if (vcpu->pio.in)
+		kvm_iodevice_read(pio_dev, vcpu->pio.port,
+				  vcpu->pio.size,
+				  vcpu->pio_data);
+	else
+		kvm_iodevice_write(pio_dev, vcpu->pio.port,
+				   vcpu->pio.size,
+				   vcpu->pio_data);
+}
+
 int kvm_setup_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 		  int size, unsigned long count, int string, int down,
 		  gva_t address, int rep, unsigned port)
@@ -1840,6 +1862,7 @@ int kvm_setup_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 	int i;
 	int nr_pages = 1;
 	struct page *page;
+	struct kvm_io_device *pio_dev;
 
 	vcpu->run->exit_reason = KVM_EXIT_IO;
 	vcpu->run->io.direction = in ? KVM_EXIT_IO_IN : KVM_EXIT_IO_OUT;
@@ -1851,17 +1874,27 @@ int kvm_setup_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 	vcpu->pio.cur_count = count;
 	vcpu->pio.size = size;
 	vcpu->pio.in = in;
+	vcpu->pio.port = port;
 	vcpu->pio.string = string;
 	vcpu->pio.down = down;
 	vcpu->pio.guest_page_offset = offset_in_page(address);
 	vcpu->pio.rep = rep;
 
+	pio_dev = vcpu_find_pio_dev(vcpu, port);
 	if (!string) {
 		kvm_arch_ops->cache_regs(vcpu);
 		memcpy(vcpu->pio_data, &vcpu->regs[VCPU_REGS_RAX], 4);
 		kvm_arch_ops->decache_regs(vcpu);
+		if (pio_dev) {
+			kernel_pio(pio_dev, vcpu);
+			complete_pio(vcpu);
+			return 1;
+		}
 		return 0;
 	}
+	/* TODO: String I/O for in kernel device */
+	if (pio_dev)
+		printk(KERN_ERR "kvm_setup_pio: no string io support\n");
 
 	if (!count) {
 		kvm_arch_ops->skip_emulated_instruction(vcpu);

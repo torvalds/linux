@@ -241,6 +241,7 @@ struct kvm_pio_request {
 	struct page *guest_pages[2];
 	unsigned guest_page_offset;
 	int in;
+	int port;
 	int size;
 	int string;
 	int down;
@@ -303,7 +304,8 @@ static inline int kvm_iodevice_inrange(struct kvm_io_device *dev, gpa_t addr)
 
 static inline void kvm_iodevice_destructor(struct kvm_io_device *dev)
 {
-	dev->destructor(dev);
+	if (dev->destructor)
+		dev->destructor(dev);
 }
 
 /*
@@ -453,6 +455,7 @@ struct kvm {
 	struct list_head vm_list;
 	struct file *filp;
 	struct kvm_io_bus mmio_bus;
+	struct kvm_io_bus pio_bus;
 };
 
 struct descriptor_table {
