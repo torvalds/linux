@@ -1432,6 +1432,8 @@ void of_detach_node(const struct device_node *np)
 	write_lock(&devtree_lock);
 
 	parent = np->parent;
+	if (!parent)
+		goto out_unlock;
 
 	if (allnodes == np)
 		allnodes = np->allnext;
@@ -1455,6 +1457,7 @@ void of_detach_node(const struct device_node *np)
 		prevsib->sibling = np->sibling;
 	}
 
+out_unlock:
 	write_unlock(&devtree_lock);
 }
 
