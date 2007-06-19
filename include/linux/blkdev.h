@@ -868,11 +868,6 @@ void kblockd_flush_work(struct work_struct *work);
  */
 #define buffer_heads_over_limit 0
 
-static inline long blk_congestion_wait(int rw, long timeout)
-{
-	return io_schedule_timeout(timeout);
-}
-
 static inline long nr_blockdev_pages(void)
 {
 	return 0;
