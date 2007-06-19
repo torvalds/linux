@@ -1304,9 +1304,9 @@ static int blk_hw_contig_segment(request_queue_t *q, struct bio *bio,
 	if (unlikely(!bio_flagged(nxt, BIO_SEG_VALID)))
 		blk_recount_segments(q, nxt);
 	if (!BIOVEC_VIRT_MERGEABLE(__BVEC_END(bio), __BVEC_START(nxt)) ||
-	    BIOVEC_VIRT_OVERSIZE(bio->bi_hw_front_size + bio->bi_hw_back_size))
+	    BIOVEC_VIRT_OVERSIZE(bio->bi_hw_back_size + nxt->bi_hw_front_size))
 		return 0;
-	if (bio->bi_size + nxt->bi_size > q->max_segment_size)
+	if (bio->bi_hw_back_size + nxt->bi_hw_front_size > q->max_segment_size)
 		return 0;
 
 	return 1;
