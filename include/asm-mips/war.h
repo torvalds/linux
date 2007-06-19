@@ -169,10 +169,9 @@
 
 /*
  * On the RM9000 there is a problem which makes the CreateDirtyExclusive
- * cache operation unusable on SMP systems.
+ * eache operation unusable on SMP systems.
  */
-#if defined(CONFIG_MOMENCO_JAGUAR_ATX) || defined(CONFIG_PMC_YOSEMITE) || \
-    defined(CONFIG_BASLER_EXCITE)
+#if defined(CONFIG_PMC_YOSEMITE) || defined(CONFIG_BASLER_EXCITE)
 #define  RM9000_CDEX_SMP_WAR		1
 #endif
 
@@ -182,11 +181,10 @@
  * I-cache line worth of instructions being fetched may case spurious
  * exceptions.
  */
-#if defined(CONFIG_BASLER_EXCITE) || defined(CONFIG_MOMENCO_JAGUAR_ATX) || \
-    defined(CONFIG_MIPS_ATLAS) || defined(CONFIG_MIPS_MALTA) || \
-    defined(CONFIG_MOMENCO_OCELOT) || defined(CONFIG_MOMENCO_OCELOT_3) || \
-    defined(CONFIG_PMC_YOSEMITE) || defined(CONFIG_SGI_IP32) || \
-    defined(CONFIG_WR_PPMC)
+#if defined(CONFIG_BASLER_EXCITE) || defined(CONFIG_MIPS_ATLAS) || \
+    defined(CONFIG_MIPS_MALTA) || defined(CONFIG_MOMENCO_OCELOT) || \
+    defined(CONFIG_MOMENCO_OCELOT_3) || defined(CONFIG_PMC_YOSEMITE) || \
+    defined(CONFIG_SGI_IP32) || defined(CONFIG_WR_PPMC)
 #define ICACHE_REFILLS_WORKAROUND_WAR	1
 #endif
 
