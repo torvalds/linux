@@ -738,6 +738,7 @@ static void pidff_autocenter(struct pidff_device *pidff, u16 magnitude)
 	pidff->set_effect[PID_TRIGGER_BUTTON].value[0] = 0;
 	pidff->set_effect[PID_TRIGGER_REPEAT_INT].value[0] = 0;
 	pidff_set(&pidff->set_effect[PID_GAIN], magnitude);
+	pidff->set_effect[PID_DIRECTION_ENABLE].value[0] = 1;
 	pidff->set_effect[PID_START_DELAY].value[0] = 0;
 
 	usbhid_submit_report(pidff->hid, pidff->reports[PID_SET_EFFECT],
