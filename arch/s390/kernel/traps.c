@@ -258,6 +258,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 	spin_lock_irq(&die_lock);
 	bust_spinlocks(1);
 	printk("%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
+	print_modules();
         show_regs(regs);
 	bust_spinlocks(0);
         spin_unlock_irq(&die_lock);
