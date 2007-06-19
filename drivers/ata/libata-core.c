@@ -3659,7 +3659,7 @@ static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
 
 /**
  *	ata_dev_reread_id - Re-read IDENTIFY data
- *	@adev: target ATA device
+ *	@dev: target ATA device
  *	@readid_flags: read ID flags
  *
  *	Re-read IDENTIFY page and make sure @dev is still attached to
