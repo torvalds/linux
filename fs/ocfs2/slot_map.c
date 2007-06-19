@@ -121,10 +121,17 @@ static s16 __ocfs2_node_num_to_slot(struct ocfs2_slot_info *si,
 	return ret;
 }
 
-static s16 __ocfs2_find_empty_slot(struct ocfs2_slot_info *si)
+static s16 __ocfs2_find_empty_slot(struct ocfs2_slot_info *si, s16 preferred)
 {
 	int i;
 	s16 ret = OCFS2_INVALID_SLOT;
+
+	if (preferred >= 0 && preferred < si->si_num_slots) {
+		if (OCFS2_INVALID_SLOT == si->si_global_node_nums[preferred]) {
+			ret = preferred;
+			goto out;
+		}
+	}
 
 	for(i = 0; i < si->si_num_slots; i++) {
 		if (OCFS2_INVALID_SLOT == si->si_global_node_nums[i]) {
@@ -132,6 +139,7 @@ static s16 __ocfs2_find_empty_slot(struct ocfs2_slot_info *si)
 			break;
 		}
 	}
+out:
 	return ret;
 }
 
@@ -248,7 +256,7 @@ int ocfs2_find_slot(struct ocfs2_super *osb)
 	if (slot == OCFS2_INVALID_SLOT) {
 		/* if no slot yet, then just take 1st available
 		 * one. */
-		slot = __ocfs2_find_empty_slot(si);
+		slot = __ocfs2_find_empty_slot(si, osb->preferred_slot);
 		if (slot == OCFS2_INVALID_SLOT) {
 			spin_unlock(&si->si_lock);
 			mlog(ML_ERROR, "no free slots available!\n");

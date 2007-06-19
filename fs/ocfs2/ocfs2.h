@@ -219,6 +219,7 @@ struct ocfs2_super
 	u16 max_slots;
 	s16 node_num;
 	s16 slot_num;
+	s16 preferred_slot;
 	int s_sectsize_bits;
 	int s_clustersize;
 	int s_clustersize_bits;

@@ -82,7 +82,8 @@ MODULE_AUTHOR("Oracle");
 MODULE_LICENSE("GPL");
 
 static int ocfs2_parse_options(struct super_block *sb, char *options,
-			       unsigned long *mount_opt, int is_remount);
+			       unsigned long *mount_opt, s16 *slot,
+			       int is_remount);
 static void ocfs2_put_super(struct super_block *sb);
 static int ocfs2_mount_volume(struct super_block *sb);
 static int ocfs2_remount(struct super_block *sb, int *flags, char *data);
@@ -140,6 +141,7 @@ enum {
 	Opt_data_ordered,
 	Opt_data_writeback,
 	Opt_atime_quantum,
+	Opt_slot,
 	Opt_err,
 };
 
@@ -154,6 +156,7 @@ static match_table_t tokens = {
 	{Opt_data_ordered, "data=ordered"},
 	{Opt_data_writeback, "data=writeback"},
 	{Opt_atime_quantum, "atime_quantum=%u"},
+	{Opt_slot, "preferred_slot=%u"},
 	{Opt_err, NULL}
 };
 
@@ -355,9 +358,10 @@ static int ocfs2_remount(struct super_block *sb, int *flags, char *data)
 	int incompat_features;
 	int ret = 0;
 	unsigned long parsed_options;
+	s16 slot;
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 
-	if (!ocfs2_parse_options(sb, data, &parsed_options, 1)) {
+	if (!ocfs2_parse_options(sb, data, &parsed_options, &slot, 1)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -534,6 +538,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	struct dentry *root;
 	int status, sector_size;
 	unsigned long parsed_opt;
+	s16 slot;
 	struct inode *inode = NULL;
 	struct ocfs2_super *osb = NULL;
 	struct buffer_head *bh = NULL;
@@ -541,7 +546,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 
 	mlog_entry("%p, %p, %i", sb, data, silent);
 
-	if (!ocfs2_parse_options(sb, data, &parsed_opt, 0)) {
+	if (!ocfs2_parse_options(sb, data, &parsed_opt, &slot, 0)) {
 		status = -EINVAL;
 		goto read_super_error;
 	}
@@ -571,6 +576,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	brelse(bh);
 	bh = NULL;
 	osb->s_mount_opt = parsed_opt;
+	osb->preferred_slot = slot;
 
 	sb->s_magic = OCFS2_SUPER_MAGIC;
 
@@ -713,6 +719,7 @@ static struct file_system_type ocfs2_fs_type = {
 static int ocfs2_parse_options(struct super_block *sb,
 			       char *options,
 			       unsigned long *mount_opt,
+			       s16 *slot,
 			       int is_remount)
 {
 	int status;
@@ -722,6 +729,7 @@ static int ocfs2_parse_options(struct super_block *sb,
 		   options ? options : "(none)");
 
 	*mount_opt = 0;
+	*slot = OCFS2_INVALID_SLOT;
 
 	if (!options) {
 		status = 1;
@@ -781,6 +789,15 @@ static int ocfs2_parse_options(struct super_block *sb,
 				osb->s_atime_quantum = option;
 			else
 				osb->s_atime_quantum = OCFS2_DEFAULT_ATIME_QUANTUM;
+			break;
+		case Opt_slot:
+			option = 0;
+			if (match_int(&args[0], &option)) {
+				status = 0;
+				goto bail;
+			}
+			if (option)
+				*slot = (s16)option;
 			break;
 		default:
 			mlog(ML_ERROR,
