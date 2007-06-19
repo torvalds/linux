@@ -42,15 +42,15 @@ Table of Contents
     1) Defining child nodes of an SOC
     2) Representing devices without a current OF specification
       a) MDIO IO device
-      c) PHY nodes
       b) Gianfar-compatible ethernet nodes
+      c) PHY nodes
       d) Interrupt controllers
       e) I2C
       f) Freescale SOC USB controllers
       g) Freescale SOC SEC Security Engines
       h) Board Control and Status (BCSR)
       i) Freescale QUICC Engine module (QE)
-      g) Flash chip nodes
+      j) Flash chip nodes
       k) Global Utilities Block
 
   VII - Specifying interrupt information for devices
