@@ -250,6 +250,12 @@ static void print_codec_info(struct snd_info_entry *entry, struct snd_info_buffe
 	snd_iprintf(buffer, "Vendor Id: 0x%x\n", codec->vendor_id);
 	snd_iprintf(buffer, "Subsystem Id: 0x%x\n", codec->subsystem_id);
 	snd_iprintf(buffer, "Revision Id: 0x%x\n", codec->revision_id);
+
+	if (codec->mfg)
+		snd_iprintf(buffer, "Modem Function Group: 0x%x\n", codec->mfg);
+	else
+		snd_iprintf(buffer, "No Modem Function Group found\n");
+
 	if (! codec->afg)
 		return;
 	snd_iprintf(buffer, "Default PCM:\n");
