@@ -535,8 +535,7 @@ void appldata_unregister_ops(struct appldata_ops *ops)
 
 /******************************* init / exit *********************************/
 
-static void
-appldata_online_cpu(int cpu)
+static void __cpuinit appldata_online_cpu(int cpu)
 {
 	init_virt_timer(&per_cpu(appldata_timer, cpu));
 	per_cpu(appldata_timer, cpu).function = appldata_timer_function;
@@ -580,7 +579,7 @@ appldata_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block appldata_nb = {
+static struct notifier_block __cpuinitdata appldata_nb = {
 	.notifier_call = appldata_cpu_notify,
 };
 

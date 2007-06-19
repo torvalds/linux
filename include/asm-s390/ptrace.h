@@ -470,14 +470,7 @@ struct user_regs_struct
 #define regs_return_value(regs)((regs)->gprs[2])
 #define profile_pc(regs) instruction_pointer(regs)
 extern void show_regs(struct pt_regs * regs);
-#endif
-
-static inline void
-psw_set_key(unsigned int key)
-{
-	asm volatile("spka 0(%0)" : : "d" (key));
-}
-
+#endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 
 #endif /* _S390_PTRACE_H */

@@ -745,10 +745,13 @@ mcck_return:
 #endif
 	lpswe	__LC_RETURN_MCCK_PSW	# back to caller
 
-#ifdef CONFIG_SMP
 /*
  * Restart interruption handler, kick starter for additional CPUs
  */
+#ifdef CONFIG_SMP
+#ifndef CONFIG_HOTPLUG_CPU
+	.section .init.text,"ax"
+#endif
 	.globl restart_int_handler
 restart_int_handler:
 	lg	%r15,__LC_SAVE_AREA+120 # load ksp
@@ -759,6 +762,9 @@ restart_int_handler:
 	lmg	%r6,%r15,__SF_GPRS(%r15) # load registers from clone
 	stosm	__SF_EMPTY(%r15),0x04	# now we can turn dat on
 	jg	start_secondary
+#ifndef CONFIG_HOTPLUG_CPU
+	.previous
+#endif
 #else
 /*
  * If we do not run with SMP enabled, let the new CPU crash ...

@@ -253,19 +253,22 @@ void die(const char * str, struct pt_regs * regs, long err)
 {
 	static int die_counter;
 
+	oops_enter();
 	debug_stop_all();
 	console_verbose();
 	spin_lock_irq(&die_lock);
 	bust_spinlocks(1);
 	printk("%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
-        show_regs(regs);
+	print_modules();
+	show_regs(regs);
 	bust_spinlocks(0);
-        spin_unlock_irq(&die_lock);
+	spin_unlock_irq(&die_lock);
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
 	if (panic_on_oops)
 		panic("Fatal exception: panic_on_oops");
-        do_exit(SIGSEGV);
+	oops_exit();
+	do_exit(SIGSEGV);
 }
 
 static void inline

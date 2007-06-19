@@ -769,10 +769,13 @@ mcck_return:
 
 	RESTORE_ALL __LC_RETURN_MCCK_PSW,0
 
-#ifdef CONFIG_SMP
 /*
  * Restart interruption handler, kick starter for additional CPUs
  */
+#ifdef CONFIG_SMP
+#ifndef CONFIG_HOTPLUG_CPU
+	.section .init.text,"ax"
+#endif
 	.globl restart_int_handler
 restart_int_handler:
 	l	%r15,__LC_SAVE_AREA+60	# load ksp
@@ -785,6 +788,9 @@ restart_int_handler:
 	br	%r14			# branch to start_secondary
 restart_addr:
 	.long	start_secondary
+#ifndef CONFIG_HOTPLUG_CPU
+	.previous
+#endif
 #else
 /*
  * If we do not run with SMP enabled, let the new CPU crash ...

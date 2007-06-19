@@ -300,6 +300,7 @@ static void __init setup_zfcpdump(unsigned int console_devno)
 	else
 		sprintf(str, "cio_ignore=all,!0.0.%04x",
 			ipl_info.data.fcp.dev_id.devno);
+	strcat(COMMAND_LINE, " ");
 	strcat(COMMAND_LINE, str);
 	console_loglevel = 2;
 }
