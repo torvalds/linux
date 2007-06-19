@@ -485,6 +485,7 @@ x86_emulate_memop(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	int mode = ctxt->mode;
 	unsigned long modrm_ea;
 	int use_modrm_ea, index_reg = 0, base_reg = 0, scale, rip_relative = 0;
+	int no_wb = 0;
 
 	/* Shadow copy of register state. Committed on successful emulation. */
 	unsigned long _regs[NR_VCPU_REGS];
@@ -1051,7 +1052,7 @@ done_prefixes:
 						      _regs[VCPU_REGS_RSP]),
 				     &dst.val, dst.bytes, ctxt)) != 0)
 				goto done;
-			dst.val = dst.orig_val;	/* skanky: disable writeback */
+			no_wb = 1;
 			break;
 		default:
 			goto cannot_emulate;
@@ -1060,7 +1061,7 @@ done_prefixes:
 	}
 
 writeback:
-	if ((d & Mov) || (dst.orig_val != dst.val)) {
+	if (!no_wb) {
 		switch (dst.type) {
 		case OP_REG:
 			/* The 4-byte case *is* correct: in 64-bit mode we zero-extend. */
@@ -1168,7 +1169,7 @@ pop_instruction:
 			goto done;
 
 		register_address_increment(_regs[VCPU_REGS_RSP], op_bytes);
-		dst.orig_val = dst.val; /* Disable writeback. */
+		no_wb = 1; /* Disable writeback. */
 		break;
 	}
 	goto writeback;
@@ -1323,7 +1324,7 @@ twobyte_insn:
 
 twobyte_special_insn:
 	/* Disable writeback. */
-	dst.orig_val = dst.val;
+	no_wb = 1;
 	switch (b) {
 	case 0x09:		/* wbinvd */
 		break;
