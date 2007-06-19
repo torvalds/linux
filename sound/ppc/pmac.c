@@ -775,7 +775,8 @@ static int snd_pmac_free(struct snd_pmac *chip)
 		out_le32(&chip->awacs->control, in_le32(&chip->awacs->control) & 0xfff);
 	}
 
-	snd_pmac_sound_feature(chip, 0);
+	if (chip->node)
+		snd_pmac_sound_feature(chip, 0);
 
 	/* clean up mixer if any */
 	if (chip->mixer_free)
@@ -925,6 +926,7 @@ static int __init snd_pmac_detect(struct snd_pmac *chip)
 	}
 	if (! sound) {
 		of_node_put(chip->node);
+		chip->node = NULL;
 		return -ENODEV;
 	}
 	prop = of_get_property(sound, "sub-frame", NULL);
@@ -937,7 +939,9 @@ static int __init snd_pmac_detect(struct snd_pmac *chip)
 		printk(KERN_INFO "snd-powermac no longer handles any "
 				 "machines with a layout-id property "
 				 "in the device-tree, use snd-aoa.\n");
+		of_node_put(sound);
 		of_node_put(chip->node);
+		chip->node = NULL;
 		return -ENODEV;
 	}
 	/* This should be verified on older screamers */
@@ -1297,8 +1301,6 @@ int __init snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 	return 0;
 
  __error:
-	if (chip->pdev)
-		pci_dev_put(chip->pdev);
 	snd_pmac_free(chip);
 	return err;
 }
