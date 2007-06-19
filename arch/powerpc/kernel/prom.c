@@ -1375,8 +1375,17 @@ static void of_node_release(struct kref *kref)
 	struct device_node *node = kref_to_device_node(kref);
 	struct property *prop = node->properties;
 
+	/* We should never be releasing nodes that haven't been detached. */
+	if (!of_node_check_flag(node, OF_DETACHED)) {
+		printk("WARNING: Bad of_node_put() on %s\n", node->full_name);
+		dump_stack();
+		kref_init(&node->kref);
+		return;
+	}
+
 	if (!of_node_check_flag(node, OF_DYNAMIC))
 		return;
+
 	while (prop) {
 		struct property *next = prop->next;
 		kfree(prop->name);
@@ -1456,6 +1465,8 @@ void of_detach_node(const struct device_node *np)
 			;
 		prevsib->sibling = np->sibling;
 	}
+
+	of_node_set_flag(np, OF_DETACHED);
 
 out_unlock:
 	write_unlock(&devtree_lock);

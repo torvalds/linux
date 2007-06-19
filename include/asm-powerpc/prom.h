@@ -99,6 +99,7 @@ extern struct device_node *of_chosen;
 
 /* flag descriptions */
 #define OF_DYNAMIC	1 /* node and properties were allocated via kmalloc */
+#define OF_DETACHED	2 /* node has been detached from the device tree */
 
 static inline int of_node_check_flag(struct device_node *n, unsigned long flag)
 {
