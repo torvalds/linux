@@ -2266,7 +2266,7 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 		break;
 
 	case SRB_STATUS_BUSY:
-		scsicmd->result = DID_NO_CONNECT << 16 | COMMAND_COMPLETE << 8;
+		scsicmd->result = DID_BUS_BUSY << 16 | COMMAND_COMPLETE << 8;
 		break;
 
 	case SRB_STATUS_BUS_RESET:
