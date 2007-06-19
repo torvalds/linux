@@ -1465,19 +1465,19 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	int ret;
 	int state;
 
+	if (is_neg_adv_abort(req->status)) {
+		PDBG("%s neg_adv_abort ep %p tid %d\n", __FUNCTION__, ep,
+		     ep->hwtid);
+		t3_l2t_send_event(ep->com.tdev, ep->l2t);
+		return CPL_RET_BUF_DONE;
+	}
+
 	/*
 	 * We get 2 peer aborts from the HW.  The first one must
 	 * be ignored except for scribbling that we need one more.
 	 */
 	if (!(ep->flags & PEER_ABORT_IN_PROGRESS)) {
 		ep->flags |= PEER_ABORT_IN_PROGRESS;
-		return CPL_RET_BUF_DONE;
-	}
-
-	if (is_neg_adv_abort(req->status)) {
-		PDBG("%s neg_adv_abort ep %p tid %d\n", __FUNCTION__, ep,
-		     ep->hwtid);
-		t3_l2t_send_event(ep->com.tdev, ep->l2t);
 		return CPL_RET_BUF_DONE;
 	}
 
