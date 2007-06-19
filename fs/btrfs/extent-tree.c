@@ -741,7 +741,6 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 		BUG_ON(ret);
 	}
 	extent_root->fs_info->extent_tree_insert_nr = 0;
-	extent_root->fs_info->extent_tree_prealloc_nr = 0;
 	return 0;
 }
 
@@ -951,6 +950,18 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		num_blocks = 1;
 		total_needed = (min(level + 1, BTRFS_MAX_LEVEL) + 2) * 3;
 	}
+	if (fill_prealloc) {
+		u64 first;
+		int nr = info->extent_tree_prealloc_nr;
+		first = info->extent_tree_prealloc[nr - 1];
+		if (info->extent_tree_prealloc_nr >= total_needed &&
+		    first >= search_start) {
+			ins->objectid = info->extent_tree_prealloc[0];
+			ins->offset = 1;
+			return 0;
+		}
+		info->extent_tree_prealloc_nr = 0;
+	}
 	if (search_end == (u64)-1)
 		search_end = btrfs_super_total_blocks(info->disk_super);
 	if (hint_block) {
@@ -1107,7 +1118,6 @@ check_pending:
 		if (ins->objectid + num_blocks > first &&
 		    ins->objectid <= info->extent_tree_prealloc[0]) {
 			search_start = info->extent_tree_prealloc[0] + 1;
-			WARN_ON(!full_scan);
 			goto new_group;
 		}
 	}
