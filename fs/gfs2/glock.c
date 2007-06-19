@@ -1327,10 +1327,6 @@ static int nq_m_sync(unsigned int num_gh, struct gfs2_holder *ghs,
  * @num_gh: the number of structures
  * @ghs: an array of struct gfs2_holder structures
  *
- * Figure out how big an impact this function has.  Either:
- * 1) Replace this code with code that calls gfs2_glock_prefetch()
- * 2) Forget async stuff and just call nq_m_sync()
- * 3) Leave it like it is
  *
  * Returns: 0 on success (all glocks acquired),
  *          errno on failure (no glocks acquired)
@@ -1338,62 +1334,28 @@ static int nq_m_sync(unsigned int num_gh, struct gfs2_holder *ghs,
 
 int gfs2_glock_nq_m(unsigned int num_gh, struct gfs2_holder *ghs)
 {
-	int *e;
-	unsigned int x;
-	int borked = 0, serious = 0;
+	struct gfs2_holder *tmp[4];
+	struct gfs2_holder **pph = tmp;
 	int error = 0;
 
-	if (!num_gh)
+	switch(num_gh) {
+	case 0:
 		return 0;
-
-	if (num_gh == 1) {
+	case 1:
 		ghs->gh_flags &= ~(LM_FLAG_TRY | GL_ASYNC);
 		return gfs2_glock_nq(ghs);
-	}
-
-	e = kcalloc(num_gh, sizeof(struct gfs2_holder *), GFP_KERNEL);
-	if (!e)
-		return -ENOMEM;
-
-	for (x = 0; x < num_gh; x++) {
-		ghs[x].gh_flags |= LM_FLAG_TRY | GL_ASYNC;
-		error = gfs2_glock_nq(&ghs[x]);
-		if (error) {
-			borked = 1;
-			serious = error;
-			num_gh = x;
+	default:
+		if (num_gh <= 4)
 			break;
-		}
+		pph = kmalloc(num_gh * sizeof(struct gfs2_holder *), GFP_NOFS);
+		if (!pph)
+			return -ENOMEM;
 	}
 
-	for (x = 0; x < num_gh; x++) {
-		error = e[x] = glock_wait_internal(&ghs[x]);
-		if (error) {
-			borked = 1;
-			if (error != GLR_TRYFAILED && error != GLR_CANCELED)
-				serious = error;
-		}
-	}
+	error = nq_m_sync(num_gh, ghs, pph);
 
-	if (!borked) {
-		kfree(e);
-		return 0;
-	}
-
-	for (x = 0; x < num_gh; x++)
-		if (!e[x])
-			gfs2_glock_dq(&ghs[x]);
-
-	if (serious)
-		error = serious;
-	else {
-		for (x = 0; x < num_gh; x++)
-			gfs2_holder_reinit(ghs[x].gh_state, ghs[x].gh_flags,
-					  &ghs[x]);
-		error = nq_m_sync(num_gh, ghs, (struct gfs2_holder **)e);
-	}
-
-	kfree(e);
+	if (pph != tmp)
+		kfree(pph);
 
 	return error;
 }
