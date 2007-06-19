@@ -1729,7 +1729,7 @@ int xfrm_state_mtu(struct xfrm_state *x, int mtu)
 	    x->type && x->type->get_mtu)
 		res = x->type->get_mtu(x, mtu);
 	else
-		res = mtu;
+		res = mtu - x->props.header_len;
 	spin_unlock_bh(&x->lock);
 	return res;
 }
