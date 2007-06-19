@@ -131,9 +131,9 @@ static u8 opcode_table[256] = {
 	/* 0xB0 - 0xBF */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xC0 - 0xC7 */
-	ByteOp | DstMem | SrcImm | ModRM, DstMem | SrcImmByte | ModRM, 0, 0,
-	0, 0, ByteOp | DstMem | SrcImm | ModRM | Mov,
-	    DstMem | SrcImm | ModRM | Mov,
+	ByteOp | DstMem | SrcImm | ModRM, DstMem | SrcImmByte | ModRM,
+	0, ImplicitOps, 0, 0,
+	ByteOp | DstMem | SrcImm | ModRM | Mov, DstMem | SrcImm | ModRM | Mov,
 	/* 0xC8 - 0xCF */
 	0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xD0 - 0xD7 */
@@ -1156,14 +1156,18 @@ special_insn:
 	case 0xf4:              /* hlt */
 		ctxt->vcpu->halt_request = 1;
 		goto done;
+	case 0xc3: /* ret */
+		dst.ptr = &_eip;
+		goto pop_instruction;
 	case 0x58 ... 0x5f: /* pop reg */
 		dst.ptr = (unsigned long *)&_regs[b & 0x7];
 
+pop_instruction:
 		if ((rc = ops->read_std(register_address(ctxt->ss_base,
 			_regs[VCPU_REGS_RSP]), dst.ptr, op_bytes, ctxt)) != 0)
 			goto done;
 
-		register_address_increment(_regs[VCPU_REGS_RSP], dst.bytes);
+		register_address_increment(_regs[VCPU_REGS_RSP], op_bytes);
 		dst.orig_val = dst.val; /* Disable writeback. */
 		break;
 	}
