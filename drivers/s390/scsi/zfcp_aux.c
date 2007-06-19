@@ -815,9 +815,7 @@ zfcp_get_adapter_by_busid(char *bus_id)
 struct zfcp_unit *
 zfcp_unit_enqueue(struct zfcp_port *port, fcp_lun_t fcp_lun)
 {
-	struct zfcp_unit *unit, *tmp_unit;
-	unsigned int scsi_lun;
-	int found;
+	struct zfcp_unit *unit;
 
 	/*
 	 * check that there is no unit with this FCP_LUN already in list
@@ -863,22 +861,10 @@ zfcp_unit_enqueue(struct zfcp_port *port, fcp_lun_t fcp_lun)
 	}
 
 	zfcp_unit_get(unit);
+	unit->scsi_lun = scsilun_to_int((struct scsi_lun *)&unit->fcp_lun);
 
-	scsi_lun = 0;
-	found = 0;
 	write_lock_irq(&zfcp_data.config_lock);
-	list_for_each_entry(tmp_unit, &port->unit_list_head, list) {
-		if (tmp_unit->scsi_lun != scsi_lun) {
-			found = 1;
-			break;
-		}
-		scsi_lun++;
-	}
-	unit->scsi_lun = scsi_lun;
-	if (found)
-		list_add_tail(&unit->list, &tmp_unit->list);
-	else
-		list_add_tail(&unit->list, &port->unit_list_head);
+	list_add_tail(&unit->list, &port->unit_list_head);
 	atomic_clear_mask(ZFCP_STATUS_COMMON_REMOVE, &unit->status);
 	atomic_set_mask(ZFCP_STATUS_COMMON_RUNNING, &unit->status);
 	write_unlock_irq(&zfcp_data.config_lock);
