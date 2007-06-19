@@ -398,6 +398,33 @@ As a consequence of this, default_groups cannot be removed directly via
 rmdir(2).  They also are not considered when rmdir(2) on the parent
 group is checking for children.
 
+[Dependant Subsystems]
+
+Sometimes other drivers depend on particular configfs items.  For
+example, ocfs2 mounts depend on a heartbeat region item.  If that
+region item is removed with rmdir(2), the ocfs2 mount must BUG or go
+readonly.  Not happy.
+
+configfs provides two additional API calls: configfs_depend_item() and
+configfs_undepend_item().  A client driver can call
+configfs_depend_item() on an existing item to tell configfs that it is
+depended on.  configfs will then return -EBUSY from rmdir(2) for that
+item.  When the item is no longer depended on, the client driver calls
+configfs_undepend_item() on it.
+
+These API cannot be called underneath any configfs callbacks, as
+they will conflict.  They can block and allocate.  A client driver
+probably shouldn't calling them of its own gumption.  Rather it should
+be providing an API that external subsystems call.
+
+How does this work?  Imagine the ocfs2 mount process.  When it mounts,
+it asks for a heartbeat region item.  This is done via a call into the
+heartbeat code.  Inside the heartbeat code, the region item is looked
+up.  Here, the heartbeat code calls configfs_depend_item().  If it
+succeeds, then heartbeat knows the region is safe to give to ocfs2.
+If it fails, it was being torn down anyway, and heartbeat can gracefully
+pass up an error.
+
 [Committable Items]
 
 NOTE: Committable items are currently unimplemented.
