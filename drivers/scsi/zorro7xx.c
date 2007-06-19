@@ -65,7 +65,6 @@ static struct zorro_device_id zorro7xx_zorro_tbl[] __devinitdata = {
 	},
 	{ 0 }
 };
-MODULE_DEVICE_TABLE(zorro, zorro7xx_zorro_tbl);
 
 static int __devinit zorro7xx_init_one(struct zorro_dev *z,
 				       const struct zorro_device_id *ent)

@@ -112,7 +112,7 @@ static int __init bvme6000_scsi_init(void)
 	int err;
 
 	err = driver_register(&bvme6000_scsi_driver);
-	if (err) {
+	if (err)
 		return err;
 
 	bvme6000_scsi_device = platform_device_register_simple("bvme6000-scsi",
