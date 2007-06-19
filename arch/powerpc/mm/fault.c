@@ -279,14 +279,13 @@ good_area:
 #endif /* CONFIG_8xx */
 
 	if (is_exec) {
-#ifdef CONFIG_PPC64
+#if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
 		/* protection fault */
 		if (error_code & DSISR_PROTFAULT)
 			goto bad_area;
 		if (!(vma->vm_flags & VM_EXEC))
 			goto bad_area;
-#endif
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+#else
 		pte_t *ptep;
 		pmd_t *pmdp;
 
