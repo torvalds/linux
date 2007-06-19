@@ -209,7 +209,6 @@ extern struct scsi_device *__scsi_add_device(struct Scsi_Host *,
 extern int scsi_add_device(struct Scsi_Host *host, uint channel,
 			   uint target, uint lun);
 extern void scsi_remove_device(struct scsi_device *);
-extern int scsi_device_cancel(struct scsi_device *, int);
 
 extern int scsi_device_get(struct scsi_device *);
 extern void scsi_device_put(struct scsi_device *);
