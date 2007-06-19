@@ -940,7 +940,6 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	int wrapped = 0;
 	u64 limit;
 
-	path = btrfs_alloc_path();
 	ins->flags = 0;
 	btrfs_set_key_type(ins, BTRFS_EXTENT_ITEM_KEY);
 
@@ -973,6 +972,8 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 						     trans->block_group, 0,
 						     data, 1);
 	}
+
+	path = btrfs_alloc_path();
 
 check_failed:
 	if (!block_group->data)
@@ -1355,6 +1356,28 @@ static int drop_leaf_ref(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+static void reada_walk_down(struct btrfs_root *root,
+			    struct btrfs_node *node)
+{
+	int i;
+	u32 nritems;
+	u64 blocknr;
+	int ret;
+	u32 refs;
+
+	nritems = btrfs_header_nritems(&node->header);
+	for (i = 0; i < nritems; i++) {
+		blocknr = btrfs_node_blockptr(node, i);
+		ret = lookup_extent_ref(NULL, root, blocknr, 1, &refs);
+		BUG_ON(ret);
+		if (refs != 1)
+			continue;
+		ret = readahead_tree_block(root, blocknr);
+		if (ret)
+			break;
+	}
+}
+
 /*
  * helper function for drop_snapshot, this walks down the tree dropping ref
  * counts as it goes.
@@ -1375,6 +1398,7 @@ static int walk_down_tree(struct btrfs_trans_handle *trans, struct btrfs_root
 	BUG_ON(ret);
 	if (refs > 1)
 		goto out;
+
 	/*
 	 * walk down to the last node level and free all the leaves
 	 */
@@ -1382,8 +1406,13 @@ static int walk_down_tree(struct btrfs_trans_handle *trans, struct btrfs_root
 		WARN_ON(*level < 0);
 		WARN_ON(*level >= BTRFS_MAX_LEVEL);
 		cur = path->nodes[*level];
+
+		if (*level > 0 && path->slots[*level] == 0)
+			reada_walk_down(root, btrfs_buffer_node(cur));
+
 		if (btrfs_header_level(btrfs_buffer_header(cur)) != *level)
 			WARN_ON(1);
+
 		if (path->slots[*level] >=
 		    btrfs_header_nritems(btrfs_buffer_header(cur)))
 			break;
