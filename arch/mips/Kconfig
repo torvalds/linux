@@ -918,8 +918,8 @@ config BOOT_ELF32
 
 config MIPS_L1_CACHE_SHIFT
 	int
-	default "4" if MACH_DECSTATION || SNI_RM
-	default "7" if SGI_IP27
+	default "4" if MACH_DECSTATION
+	default "7" if SGI_IP27 || SNI_RM
 	default "4" if PMC_MSP4200_EVAL
 	default "5"
 

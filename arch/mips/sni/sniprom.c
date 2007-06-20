@@ -146,7 +146,10 @@ static void __init sni_console_setup(void)
 		}
 		if (baud)
 			strcpy(options, baud);
-		add_preferred_console("ttyS", port, baud ? options : NULL);
+		if (strncmp (cdev, "tty552", 6) == 0)
+			add_preferred_console("ttyS", port, baud ? options : NULL);
+		else
+			add_preferred_console("ttySC", port, baud ? options : NULL);
 	}
 }
 
