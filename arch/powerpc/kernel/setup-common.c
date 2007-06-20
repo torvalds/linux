@@ -486,6 +486,14 @@ int check_legacy_ioport(unsigned long base_port)
 
 	switch(base_port) {
 	case I8042_DATA_REG:
+		if (!(np = of_find_compatible_node(NULL, NULL, "pnpPNP,303")))
+			np = of_find_compatible_node(NULL, NULL, "pnpPNP,f03");
+		if (np) {
+			parent = of_get_parent(np);
+			of_node_put(np);
+			np = parent;
+			break;
+		}
 		np = of_find_node_by_type(NULL, "8042");
 		break;
 	case FDC_BASE: /* FDC1 */
