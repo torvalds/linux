@@ -74,10 +74,11 @@ static void flush_kernel_map(void *arg)
 	struct page *pg;
 
 	/* When clflush is available always use it because it is
-	   much cheaper than WBINVD */
-	if (!cpu_has_clflush)
+	   much cheaper than WBINVD. Disable clflush for now because
+	   the high level code is not ready yet */
+	if (1 || !cpu_has_clflush)
 		asm volatile("wbinvd" ::: "memory");
-	list_for_each_entry(pg, l, lru) {
+	else list_for_each_entry(pg, l, lru) {
 		void *adr = page_address(pg);
 		if (cpu_has_clflush)
 			cache_flush_page(adr);
