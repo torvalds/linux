@@ -3301,14 +3301,6 @@ S: 12725 SW Millikan Way, Suite 400
 S: Beaverton, Oregon 97005
 S: USA
 
-N: Li Yang
-E: leoli@freescale.com
-D: Freescale Highspeed USB device driver
-D: Freescale QE SoC support and Ethernet driver
-S: B-1206 Jingmao Guojigongyu
-S: 16 Baliqiao Nanjie, Beijing 101100
-S: People's Repulic of China
-
 N: Marcelo Tosatti
 E: marcelo@kvack.org
 D: v2.4 kernel maintainer
@@ -3725,6 +3717,14 @@ D: Xiafs filesystem [defunct]
 S: 542 West 112th Street, 5N
 S: New York, New York 10025
 S: USA
+
+N: Li Yang
+E: leoli@freescale.com
+D: Freescale Highspeed USB device driver
+D: Freescale QE SoC support and Ethernet driver
+S: B-1206 Jingmao Guojigongyu
+S: 16 Baliqiao Nanjie, Beijing 101100
+S: People's Repulic of China
 
 N: Victor Yodaiken
 E: yodaiken@fsmlabs.com
