@@ -31,6 +31,8 @@
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
+static int init_rmode_tss(struct kvm *kvm);
+
 static DEFINE_PER_CPU(struct vmcs *, vmxarea);
 static DEFINE_PER_CPU(struct vmcs *, current_vmcs);
 
@@ -951,6 +953,8 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	fix_rmode_seg(VCPU_SREG_DS, &vcpu->rmode.ds);
 	fix_rmode_seg(VCPU_SREG_GS, &vcpu->rmode.gs);
 	fix_rmode_seg(VCPU_SREG_FS, &vcpu->rmode.fs);
+
+	init_rmode_tss(vcpu->kvm);
 }
 
 #ifdef CONFIG_X86_64
