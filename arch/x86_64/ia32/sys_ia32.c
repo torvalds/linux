@@ -860,3 +860,22 @@ long sys32_lookup_dcookie(u32 addr_low, u32 addr_high,
 	return sys_lookup_dcookie(((u64)addr_high << 32) | addr_low, buf, len);
 }
 
+asmlinkage ssize_t sys32_readahead(int fd, unsigned off_lo, unsigned off_hi, size_t count)
+{
+	return sys_readahead(fd, ((u64)off_hi << 32) | off_lo, count);
+}
+
+asmlinkage long sys32_sync_file_range(int fd, unsigned off_low, unsigned off_hi,
+			   unsigned n_low, unsigned n_hi,  int flags)
+{
+	return sys_sync_file_range(fd,
+				   ((u64)off_hi << 32) | off_low,
+				   ((u64)n_hi << 32) | n_low, flags);
+}
+
+asmlinkage long sys32_fadvise64(int fd, unsigned offset_lo, unsigned offset_hi, size_t len,
+		     int advice)
+{
+	return sys_fadvise64_64(fd, ((u64)offset_hi << 32) | offset_lo,
+				len, advice);
+}
