@@ -5850,9 +5850,9 @@ qeth_add_vlan_mc6(struct qeth_card *card)
 		in_dev = in6_dev_get(netdev);
 		if (!in_dev)
 			continue;
-		read_lock(&in_dev->lock);
+		read_lock_bh(&in_dev->lock);
 		qeth_add_mc6(card,in_dev);
-		read_unlock(&in_dev->lock);
+		read_unlock_bh(&in_dev->lock);
 		in6_dev_put(in_dev);
 	}
 #endif /* CONFIG_QETH_VLAN */
@@ -5869,10 +5869,10 @@ qeth_add_multicast_ipv6(struct qeth_card *card)
 	in6_dev = in6_dev_get(card->dev);
 	if (in6_dev == NULL)
 		return;
-	read_lock(&in6_dev->lock);
+	read_lock_bh(&in6_dev->lock);
 	qeth_add_mc6(card, in6_dev);
 	qeth_add_vlan_mc6(card);
-	read_unlock(&in6_dev->lock);
+	read_unlock_bh(&in6_dev->lock);
 	in6_dev_put(in6_dev);
 }
 #endif /* CONFIG_QETH_IPV6 */
