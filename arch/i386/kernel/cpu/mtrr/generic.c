@@ -42,7 +42,7 @@ static int mtrr_show;
 module_param_named(show, mtrr_show, bool, 0);
 
 /*  Get the MSR pair relating to a var range  */
-static void __init
+static void
 get_mtrr_var_range(unsigned int index, struct mtrr_var_range *vr)
 {
 	rdmsr(MTRRphysBase_MSR(index), vr->base_lo, vr->base_hi);
@@ -68,7 +68,7 @@ void mtrr_save_fixed_ranges(void *info)
 	get_fixed_ranges(mtrr_state.fixed_ranges);
 }
 
-static void __cpuinit print_fixed(unsigned base, unsigned step, const mtrr_type*types)
+static void print_fixed(unsigned base, unsigned step, const mtrr_type*types)
 {
 	unsigned i;
 
