@@ -71,8 +71,8 @@ irqreturn_t sim_timer_interrupt(int irq, void *dev_id)
 
 	int vpflags = dvpe();
 	write_c0_compare (read_c0_count() - 1);
-	clear_c0_cause(0x100 << MIPSCPU_INT_CPUCTR);
-	set_c0_status(0x100 << MIPSCPU_INT_CPUCTR);
+	clear_c0_cause(0x100 << cp0_compare_irq);
+	set_c0_status(0x100 << cp0_compare_irq);
 	irq_enable_hazard();
 	evpe(vpflags);
 
@@ -183,8 +183,8 @@ void __init plat_timer_setup(struct irqaction *irq)
 	}
 	else {
 		if (cpu_has_vint)
-			set_vi_handler(MIPSCPU_INT_CPUCTR, mips_timer_dispatch);
-		mips_cpu_timer_irq = MIPSCPU_INT_BASE + MIPSCPU_INT_CPUCTR;
+			set_vi_handler(cp0_compare_irq, mips_timer_dispatch);
+		mips_cpu_timer_irq = MIPS_CPU_IRQ_BASE + cp0_compare_irq;
 	}
 
 	/* we are using the cpu counter for timer interrupts */

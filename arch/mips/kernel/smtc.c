@@ -13,9 +13,9 @@
 #include <asm/system.h>
 #include <asm/hardirq.h>
 #include <asm/hazards.h>
+#include <asm/irq.h>
 #include <asm/mmu_context.h>
 #include <asm/smp.h>
-#include <asm/mips-boards/maltaint.h>
 #include <asm/mipsregs.h>
 #include <asm/cacheflush.h>
 #include <asm/time.h>
@@ -614,7 +614,7 @@ int setup_irq_smtc(unsigned int irq, struct irqaction * new,
 #ifdef CONFIG_SMTC_IDLE_HOOK_DEBUG
 	unsigned int vpe = current_cpu_data.vpe_id;
 
-	vpemask[vpe][irq - MIPSCPU_INT_BASE] = 1;
+	vpemask[vpe][irq - MIPS_CPU_IRQ_BASE] = 1;
 #endif
 	irq_hwmask[irq] = hwmask;
 
@@ -822,7 +822,7 @@ void ipi_decode(struct smtc_ipi *pipi)
 	switch (type_copy) {
 	case SMTC_CLOCK_TICK:
 		irq_enter();
-		kstat_this_cpu.irqs[MIPSCPU_INT_BASE + MIPSCPU_INT_CPUCTR]++;
+		kstat_this_cpu.irqs[MIPS_CPU_IRQ_BASE + cp0_perfcount_irq]++;
 		/* Invoke Clock "Interrupt" */
 		ipi_timer_latch[dest_copy] = 0;
 #ifdef CONFIG_SMTC_IDLE_HOOK_DEBUG

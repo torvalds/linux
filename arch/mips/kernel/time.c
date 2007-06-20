@@ -200,10 +200,15 @@ EXPORT_SYMBOL(null_perf_irq);
 EXPORT_SYMBOL(perf_irq);
 
 /*
+ * Timer interrupt
+ */
+int cp0_compare_irq;
+
+/*
  * Performance counter IRQ or -1 if shared with timer
  */
-int mipsxx_perfcount_irq;
-EXPORT_SYMBOL(mipsxx_perfcount_irq);
+int cp0_perfcount_irq;
+EXPORT_SYMBOL_GPL(cp0_perfcount_irq);
 
 /*
  * Possibly handle a performance counter interrupt.
@@ -213,12 +218,12 @@ static inline int handle_perf_irq (int r2)
 {
 	/*
 	 * The performance counter overflow interrupt may be shared with the
-	 * timer interrupt (mipsxx_perfcount_irq < 0). If it is and a
+	 * timer interrupt (cp0_perfcount_irq < 0). If it is and a
 	 * performance counter has overflowed (perf_irq() == IRQ_HANDLED)
 	 * and we can't reliably determine if a counter interrupt has also
 	 * happened (!r2) then don't check for a timer interrupt.
 	 */
-	return (mipsxx_perfcount_irq < 0) &&
+	return (cp0_perfcount_irq < 0) &&
 		perf_irq() == IRQ_HANDLED &&
 		!r2;
 }

@@ -106,7 +106,7 @@ asmlinkage void plat_irq_dispatch(void)
 	irq = irq_ffs(pending);
 
 	if (irq >= 0)
-		do_IRQ(MIPSCPU_INT_BASE + irq);
+		do_IRQ(MIPS_CPU_IRQ_BASE + irq);
 	else
 		spurious_interrupt();
 }

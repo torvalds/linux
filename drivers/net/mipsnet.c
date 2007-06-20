@@ -240,7 +240,7 @@ static int __init mipsnet_probe(struct device *dev)
 	 * TODO: probe for these or load them from PARAM
 	 */
 	netdev->base_addr = 0x4200;
-	netdev->irq = MIPSCPU_INT_BASE + MIPSCPU_INT_MB0 +
+	netdev->irq = MIPS_CPU_IRQ_BASE + MIPSCPU_INT_MB0 +
 	              inl(mipsnet_reg_address(netdev, interruptInfo));
 
 	// Get the io region now, get irq on open()

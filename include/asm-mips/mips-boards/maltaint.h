@@ -32,11 +32,6 @@
  */
 #define MALTA_INT_BASE		0
 
-/*
- * Interrupts 16..23 are used for Malta CPU interrupts (nonEIC mode)
- */
-#define MIPSCPU_INT_BASE	MIPS_CPU_IRQ_BASE
-
 /* CPU interrupt offsets */
 #define MIPSCPU_INT_SW0		0
 #define MIPSCPU_INT_SW1		1
@@ -49,7 +44,6 @@
 #define MIPSCPU_INT_COREHI	MIPSCPU_INT_MB3
 #define MIPSCPU_INT_MB4		6
 #define MIPSCPU_INT_CORELO	MIPSCPU_INT_MB4
-#define MIPSCPU_INT_CPUCTR	7
 
 /*
  * Interrupts 64..127 are used for Soc-it Classic interrupts
