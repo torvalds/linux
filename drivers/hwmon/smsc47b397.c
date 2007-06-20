@@ -333,7 +333,7 @@ static int __init smsc47b397_find(unsigned short *addr)
 	superio_enter();
 	id = superio_inb(SUPERIO_REG_DEVID);
 
-	if ((id != 0x6f) && (id != 0x81)) {
+	if ((id != 0x6f) && (id != 0x81) && (id != 0x85)) {
 		superio_exit();
 		return -ENODEV;
 	}
@@ -346,7 +346,8 @@ static int __init smsc47b397_find(unsigned short *addr)
 
 	printk(KERN_INFO DRVNAME ": found SMSC %s "
 		"(base address 0x%04x, revision %u)\n",
-		id == 0x81 ? "SCH5307-NS" : "LPC47B397-NC", *addr, rev);
+		id == 0x81 ? "SCH5307-NS" : id == 0x85 ? "SCH5317" :
+	       "LPC47B397-NC", *addr, rev);
 
 	superio_exit();
 	return 0;
