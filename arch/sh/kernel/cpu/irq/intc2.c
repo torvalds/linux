@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <asm/smp.h>
 
 static inline struct intc2_desc *get_intc2_desc(unsigned int irq)
 {
@@ -24,14 +25,18 @@ static void disable_intc2_irq(unsigned int irq)
 {
 	struct intc2_data *p = get_irq_chip_data(irq);
 	struct intc2_desc *d = get_intc2_desc(irq);
-	ctrl_outl(1 << p->msk_shift, d->msk_base + p->msk_offset);
+
+	ctrl_outl(1 << p->msk_shift, d->msk_base + p->msk_offset +
+				     (hard_smp_processor_id() * 4));
 }
 
 static void enable_intc2_irq(unsigned int irq)
 {
 	struct intc2_data *p = get_irq_chip_data(irq);
 	struct intc2_desc *d = get_intc2_desc(irq);
-	ctrl_outl(1 << p->msk_shift, d->mskclr_base + p->msk_offset);
+
+	ctrl_outl(1 << p->msk_shift, d->mskclr_base + p->msk_offset +
+				     (hard_smp_processor_id() * 4));
 }
 
 /*
