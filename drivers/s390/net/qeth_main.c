@@ -986,15 +986,15 @@ qeth_recover(void *ptr)
 	card->use_hard_stop = 1;
 	__qeth_set_offline(card->gdev,1);
 	rc = __qeth_set_online(card->gdev,1);
+	/* don't run another scheduled recovery */
+	qeth_clear_thread_start_bit(card, QETH_RECOVER_THREAD);
+	qeth_clear_thread_running_bit(card, QETH_RECOVER_THREAD);
 	if (!rc)
 		PRINT_INFO("Device %s successfully recovered!\n",
 			   CARD_BUS_ID(card));
 	else
 		PRINT_INFO("Device %s could not be recovered!\n",
 			   CARD_BUS_ID(card));
-	/* don't run another scheduled recovery */
-	qeth_clear_thread_start_bit(card, QETH_RECOVER_THREAD);
-	qeth_clear_thread_running_bit(card, QETH_RECOVER_THREAD);
 	return 0;
 }
 
@@ -7476,11 +7476,11 @@ qeth_softsetup_card(struct qeth_card *card)
 		QETH_DBF_TEXT_(setup, 2, "1err%d", rc);
 		if (rc == 0xe080){
 			PRINT_WARN("LAN on card %s if offline! "
-				   "Continuing softsetup.\n",
+				   "Waiting for STARTLAN from card.\n",
 				   CARD_BUS_ID(card));
 			card->lan_online = 0;
-		} else
-			return rc;
+		}
+		return rc;
 	} else
 		card->lan_online = 1;
 	if (card->info.type==QETH_CARD_TYPE_OSN)
