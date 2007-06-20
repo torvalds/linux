@@ -1001,7 +1001,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 
 	event = reg_read(ohci, OHCI1394_IntEventClear);
 
-	if (!event)
+	if (!event || !~event)
 		return IRQ_NONE;
 
 	reg_write(ohci, OHCI1394_IntEventClear, event);
