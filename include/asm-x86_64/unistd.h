@@ -626,9 +626,9 @@ __SYSCALL(__NR_utimensat, sys_utimensat)
 __SYSCALL(__NR_epoll_pwait, sys_epoll_pwait)
 #define __NR_signalfd		282
 __SYSCALL(__NR_signalfd, sys_signalfd)
-#define __NR_timerfd		282
+#define __NR_timerfd		283
 __SYSCALL(__NR_timerfd, sys_timerfd)
-#define __NR_eventfd		283
+#define __NR_eventfd		284
 __SYSCALL(__NR_eventfd, sys_eventfd)
 
 #ifndef __NO_STUBS
