@@ -212,7 +212,7 @@ struct iucv_connection {
  */
 static struct list_head iucv_connection_list =
 	LIST_HEAD_INIT(iucv_connection_list);
-static rwlock_t iucv_connection_rwlock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(iucv_connection_rwlock);
 
 /**
  * Representation of event-data for the
