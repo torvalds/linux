@@ -559,5 +559,7 @@ static inline void create_function_call(unsigned long addr, void * func)
 extern void account_system_vtime(struct task_struct *);
 #endif
 
+extern struct dentry *powerpc_debugfs_root;
+
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_SYSTEM_H */
