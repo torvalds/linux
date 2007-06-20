@@ -418,7 +418,7 @@ static int sierra_open(struct usb_serial_port *port, struct file *filp)
 {
 	struct sierra_port_private *portdata;
 	struct usb_serial *serial = port->serial;
-	int i, err;
+	int i;
 	struct urb *urb;
 	int result;
 	__u16 set_mode_dzero = 0x0000;
@@ -434,7 +434,7 @@ static int sierra_open(struct usb_serial_port *port, struct file *filp)
 	/* Reset low level data toggle and start reading from endpoints */
 	for (i = 0; i < N_IN_URB; i++) {
 		urb = portdata->in_urbs[i];
-		if (! urb)
+		if (!urb)
 			continue;
 		if (urb->dev != serial->dev) {
 			dbg("%s: dev %p != %p", __FUNCTION__,
@@ -448,11 +448,10 @@ static int sierra_open(struct usb_serial_port *port, struct file *filp)
 		 */
 		usb_clear_halt(urb->dev, urb->pipe);
 
-		err = usb_submit_urb(urb, GFP_KERNEL);
-		if (err) {
-			dbg("%s: submit urb %d failed (%d) %d",
-				__FUNCTION__, i, err,
-				urb->transfer_buffer_length);
+		result = usb_submit_urb(urb, GFP_KERNEL);
+		if (result) {
+			dev_err(&port->dev, "submit urb %d failed (%d) %d",
+				i, result, urb->transfer_buffer_length);
 		}
 	}
 
@@ -466,7 +465,14 @@ static int sierra_open(struct usb_serial_port *port, struct file *filp)
 
 	sierra_send_setup(port);
 
-	return (0);
+	/* start up the interrupt endpoint if we have one */
+	if (port->interrupt_in_urb) {
+		result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
+		if (result)
+			dev_err(&port->dev, "submit irq_in urb failed %d",
+				result);
+	}
+	return 0;
 }
 
 static void sierra_close(struct usb_serial_port *port, struct file *filp)
@@ -486,62 +492,21 @@ static void sierra_close(struct usb_serial_port *port, struct file *filp)
 
 		/* Stop reading/writing urbs */
 		for (i = 0; i < N_IN_URB; i++)
-			usb_unlink_urb(portdata->in_urbs[i]);
+			usb_kill_urb(portdata->in_urbs[i]);
 	}
+
+	usb_kill_urb(port->interrupt_in_urb);
+
 	port->tty = NULL;
-}
-
-/* Helper functions used by sierra_setup_urbs */
-static struct urb *sierra_setup_urb(struct usb_serial *serial, int endpoint,
-				    int dir, void *ctx, char *buf, int len,
-				    usb_complete_t callback)
-{
-	struct urb *urb;
-
-	if (endpoint == -1)
-		return NULL;		/* endpoint not needed */
-
-	urb = usb_alloc_urb(0, GFP_KERNEL);		/* No ISO */
-	if (urb == NULL) {
-		dbg("%s: alloc for endpoint %d failed.", __FUNCTION__, endpoint);
-		return NULL;
-	}
-
-		/* Fill URB using supplied data. */
-	usb_fill_bulk_urb(urb, serial->dev,
-		      usb_sndbulkpipe(serial->dev, endpoint) | dir,
-		      buf, len, callback, ctx);
-
-	return urb;
-}
-
-/* Setup urbs */
-static void sierra_setup_urbs(struct usb_serial *serial)
-{
-	int i,j;
-	struct usb_serial_port *port;
-	struct sierra_port_private *portdata;
-
-	dbg("%s", __FUNCTION__);
-
-	for (i = 0; i < serial->num_ports; i++) {
-		port = serial->port[i];
-		portdata = usb_get_serial_port_data(port);
-
-	/* Do indat endpoints first */
-		for (j = 0; j < N_IN_URB; ++j) {
-			portdata->in_urbs[j] = sierra_setup_urb (serial,
-                  	port->bulk_in_endpointAddress, USB_DIR_IN, port,
-                  	portdata->in_buffer[j], IN_BUFLEN, sierra_indat_callback);
-		}
-	}
 }
 
 static int sierra_startup(struct usb_serial *serial)
 {
-	int i, err;
 	struct usb_serial_port *port;
 	struct sierra_port_private *portdata;
+	struct urb *urb;
+	int i;
+	int j;
 
 	dbg("%s", __FUNCTION__);
 
@@ -558,15 +523,23 @@ static int sierra_startup(struct usb_serial *serial)
 
 		usb_set_serial_port_data(port, portdata);
 
-		if (! port->interrupt_in_urb)
-			continue;
-		err = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
-		if (err)
-			dbg("%s: submit irq_in urb failed %d",
-				__FUNCTION__, err);
+		/* initialize the in urbs */
+		for (j = 0; j < N_IN_URB; ++j) {
+			urb = usb_alloc_urb(0, GFP_KERNEL);
+			if (urb == NULL) {
+				dbg("%s: alloc for in port failed.",
+				    __FUNCTION__);
+				continue;
+			}
+			/* Fill URB using supplied data. */
+			usb_fill_bulk_urb(urb, serial->dev,
+					  usb_rcvbulkpipe(serial->dev,
+						port->bulk_in_endpointAddress),
+					  portdata->in_buffer[j], IN_BUFLEN,
+					  sierra_indat_callback, port);
+			portdata->in_urbs[j] = urb;
+		}
 	}
-
-	sierra_setup_urbs(serial);
 
 	return 0;
 }
@@ -579,20 +552,6 @@ static void sierra_shutdown(struct usb_serial *serial)
 
 	dbg("%s", __FUNCTION__);
 
-	/* Stop reading/writing urbs */
-	for (i = 0; i < serial->num_ports; ++i) {
-		port = serial->port[i];
-		if (!port)
-			continue;
-		portdata = usb_get_serial_port_data(port);
-		if (!portdata)
-			continue;
-
-		for (j = 0; j < N_IN_URB; j++)
-			usb_unlink_urb(portdata->in_urbs[j]);
-	}
-
-	/* Now free them */
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
 		if (!port)
@@ -602,19 +561,12 @@ static void sierra_shutdown(struct usb_serial *serial)
 			continue;
 
 		for (j = 0; j < N_IN_URB; j++) {
-			if (portdata->in_urbs[j]) {
-				usb_free_urb(portdata->in_urbs[j]);
-				portdata->in_urbs[j] = NULL;
-			}
+			usb_kill_urb(portdata->in_urbs[j]);
+			usb_free_urb(portdata->in_urbs[j]);
+			portdata->in_urbs[j] = NULL;
 		}
-	}
-
-	/* Now free per port private data */
-	for (i = 0; i < serial->num_ports; i++) {
-		port = serial->port[i];
-		if (!port)
-			continue;
-		kfree(usb_get_serial_port_data(port));
+		kfree(portdata);
+		usb_set_serial_port_data(port, NULL);
 	}
 }
 
