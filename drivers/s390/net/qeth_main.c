@@ -2176,13 +2176,6 @@ qeth_ulp_enable(struct qeth_card *card)
 
 }
 
-static inline __u16
-__raw_devno_from_bus_id(char *id)
-{
-	id += (strlen(id) - 4);
-	return (__u16) simple_strtoul(id, &id, 16);
-}
-
 static int
 qeth_ulp_setup_cb(struct qeth_card *card, struct qeth_reply *reply,
 		  unsigned long data)
@@ -2205,6 +2198,7 @@ qeth_ulp_setup(struct qeth_card *card)
 	int rc;
 	__u16 temp;
 	struct qeth_cmd_buffer *iob;
+	struct ccw_dev_id dev_id;
 
 	QETH_DBF_TEXT(setup,2,"ulpsetup");
 
@@ -2218,8 +2212,8 @@ qeth_ulp_setup(struct qeth_card *card)
 	memcpy(QETH_ULP_SETUP_FILTER_TOKEN(iob->data),
 	       &card->token.ulp_filter_r, QETH_MPC_TOKEN_LENGTH);
 
-	temp = __raw_devno_from_bus_id(CARD_DDEV_ID(card));
-	memcpy(QETH_ULP_SETUP_CUA(iob->data), &temp, 2);
+	ccw_device_get_id(CARD_DDEV(card), &dev_id);
+	memcpy(QETH_ULP_SETUP_CUA(iob->data), &dev_id.devno, 2);
 	temp = (card->info.cula << 8) + card->info.unit_addr2;
 	memcpy(QETH_ULP_SETUP_REAL_DEVADDR(iob->data), &temp, 2);
 	rc = qeth_send_control_data(card, ULP_SETUP_SIZE, iob,
