@@ -640,6 +640,7 @@ iso_callback(struct fw_iso_context *context, u32 cycle,
 static int ioctl_create_iso_context(struct client *client, void *buffer)
 {
 	struct fw_cdev_create_iso_context *request = buffer;
+	struct fw_iso_context *context;
 
 	if (request->channel > 63)
 		return -EINVAL;
@@ -661,15 +662,17 @@ static int ioctl_create_iso_context(struct client *client, void *buffer)
 		return -EINVAL;
 	}
 
+	context =  fw_iso_context_create(client->device->card,
+					 request->type,
+					 request->channel,
+					 request->speed,
+					 request->header_size,
+					 iso_callback, client);
+	if (IS_ERR(context))
+		return PTR_ERR(context);
+
 	client->iso_closure = request->closure;
-	client->iso_context = fw_iso_context_create(client->device->card,
-						    request->type,
-						    request->channel,
-						    request->speed,
-						    request->header_size,
-						    iso_callback, client);
-	if (IS_ERR(client->iso_context))
-		return PTR_ERR(client->iso_context);
+	client->iso_context = context;
 
 	/* We only support one context at this time. */
 	request->handle = 0;
