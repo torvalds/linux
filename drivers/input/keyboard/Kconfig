@@ -164,6 +164,9 @@ config KEYBOARD_AMIGA
 	  To compile this driver as a module, choose M here: the
 	  module will be called amikbd.
 
+config ATARI_KBD_CORE
+	bool
+
 config KEYBOARD_ATARI
 	tristate "Atari keyboard"
 	depends on ATARI
