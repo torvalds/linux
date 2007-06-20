@@ -534,6 +534,8 @@
 #define MIPS_CONF3_LPA		(_ULCAST_(1) <<  7)
 #define MIPS_CONF3_DSP		(_ULCAST_(1) << 10)
 
+#define MIPS_CONF7_WII		(_ULCAST_(1) << 31)
+
 /*
  * Bits in the MIPS32/64 coprocessor 1 (FPU) revision register.
  */
