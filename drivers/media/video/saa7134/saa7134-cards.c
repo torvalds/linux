@@ -400,7 +400,7 @@ struct saa7134_board saa7134_boards[] = {
 		.inputs		= {{
 			.name = name_tv,
 			.vmux = 1,
-			.amux = LINE2,
+			.amux = TV,
 			.tv   = 1,
 			.gpio = 0x20000,
 		},{
