@@ -472,8 +472,10 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 		return;
 	}
 	tr->tr_touched = 1;
-	tr->tr_num_buf++;
-	list_add(&bd->bd_list_tr, &tr->tr_list_buf);
+	if (gfs2_is_jdata(ip)) {
+		tr->tr_num_buf++;
+		list_add(&bd->bd_list_tr, &tr->tr_list_buf);
+	}
 	gfs2_log_unlock(sdp);
 	if (!list_empty(&le->le_list))
 		return;
