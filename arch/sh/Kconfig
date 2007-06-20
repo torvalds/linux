@@ -404,50 +404,6 @@ source "arch/sh/boards/renesas/hs7751rvoip/Kconfig"
 source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
 source "arch/sh/boards/renesas/r7780rp/Kconfig"
 
-config CF_ENABLER
-	bool "Compact Flash Enabler support"
-	depends on SH_SOLUTION_ENGINE || SH_SH03
-	---help---
-	  Compact Flash is a small, removable mass storage device introduced
-	  in 1994 originally as a PCMCIA device.  If you say `Y' here, you
-	  compile in support for Compact Flash devices directly connected to
-	  a SuperH processor.  A Compact Flash FAQ is available at
-	  <http://www.compactflash.org/faqs/faq.htm>.
-
-	  If your board has "Directly Connected" CompactFlash at area 5 or 6,
-	  you may want to enable this option.  Then, you can use CF as
-	  primary IDE drive (only tested for SanDisk).
-
-	  If in doubt, select 'N'.
-
-choice
-	prompt "Compact Flash Connection Area"
-	depends on CF_ENABLER
-	default CF_AREA6
-
-config CF_AREA5
-	bool "Area5"
-	help
-	  If your board has "Directly Connected" CompactFlash, You should
-	  select the area where your CF is connected to.
-
-	  - "Area5" if CompactFlash is connected to Area 5 (0x14000000)
-	  - "Area6" if it is connected to Area 6 (0x18000000)
-
-	  "Area6" will work for most boards.
-
-config CF_AREA6
-	bool "Area6"
-
-endchoice
-
-config CF_BASE_ADDR
-	hex
-	depends on CF_ENABLER
-	default "0xb8000000" if CF_AREA6
-	default "0xb4000000" if CF_AREA5
-
-
 menu "Timer and clock configuration"
 
 config SH_TMU
@@ -704,6 +660,49 @@ config SBUS
 config SUPERHYWAY
 	tristate "SuperHyway Bus support"
 	depends on CPU_SUBTYPE_SH4_202
+
+config CF_ENABLER
+	bool "Compact Flash Enabler support"
+	depends on SOLUTION_ENGINE || SH_SH03
+	---help---
+	  Compact Flash is a small, removable mass storage device introduced
+	  in 1994 originally as a PCMCIA device.  If you say `Y' here, you
+	  compile in support for Compact Flash devices directly connected to
+	  a SuperH processor.  A Compact Flash FAQ is available at
+	  <http://www.compactflash.org/faqs/faq.htm>.
+
+	  If your board has "Directly Connected" CompactFlash at area 5 or 6,
+	  you may want to enable this option.  Then, you can use CF as
+	  primary IDE drive (only tested for SanDisk).
+
+	  If in doubt, select 'N'.
+
+choice
+	prompt "Compact Flash Connection Area"
+	depends on CF_ENABLER
+	default CF_AREA6
+
+config CF_AREA5
+	bool "Area5"
+	help
+	  If your board has "Directly Connected" CompactFlash, You should
+	  select the area where your CF is connected to.
+
+	  - "Area5" if CompactFlash is connected to Area 5 (0x14000000)
+	  - "Area6" if it is connected to Area 6 (0x18000000)
+
+	  "Area6" will work for most boards.
+
+config CF_AREA6
+	bool "Area6"
+
+endchoice
+
+config CF_BASE_ADDR
+	hex
+	depends on CF_ENABLER
+	default "0xb8000000" if CF_AREA6
+	default "0xb4000000" if CF_AREA5
 
 source "arch/sh/drivers/pci/Kconfig"
 
