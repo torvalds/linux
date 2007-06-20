@@ -39,4 +39,6 @@ extern struct smp_fn_call_struct smp_fn_call;
 
 #endif /* CONFIG_SMP */
 
+#define hard_smp_processor_id()	(0)
+
 #endif /* __ASM_SH_SMP_H */
