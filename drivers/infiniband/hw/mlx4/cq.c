@@ -354,8 +354,8 @@ static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 	if (is_send) {
 		wq = &(*cur_qp)->sq;
 		wqe_ctr = be16_to_cpu(cqe->wqe_index);
-		wq->tail += wqe_ctr - (u16) wq->tail;
-		wc->wr_id = wq->wrid[wq->tail & (wq->max - 1)];
+		wq->tail += (u16) (wqe_ctr - (u16) wq->tail);
+		wc->wr_id = wq->wrid[wq->tail & (wq->wqe_cnt - 1)];
 		++wq->tail;
 	} else if ((*cur_qp)->ibqp.srq) {
 		srq = to_msrq((*cur_qp)->ibqp.srq);
@@ -364,7 +364,7 @@ static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 		mlx4_ib_free_srq_wqe(srq, wqe_ctr);
 	} else {
 		wq	  = &(*cur_qp)->rq;
-		wc->wr_id = wq->wrid[wq->tail & (wq->max - 1)];
+		wc->wr_id = wq->wrid[wq->tail & (wq->wqe_cnt - 1)];
 		++wq->tail;
 	}
 
@@ -478,7 +478,8 @@ void __mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq)
 {
 	u32 prod_index;
 	int nfreed = 0;
-	struct mlx4_cqe *cqe;
+	struct mlx4_cqe *cqe, *dest;
+	u8 owner_bit;
 
 	/*
 	 * First we need to find the current producer index, so we
@@ -501,9 +502,13 @@ void __mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq)
 			if (srq && !(cqe->owner_sr_opcode & MLX4_CQE_IS_SEND_MASK))
 				mlx4_ib_free_srq_wqe(srq, be16_to_cpu(cqe->wqe_index));
 			++nfreed;
-		} else if (nfreed)
-			memcpy(get_cqe(cq, (prod_index + nfreed) & cq->ibcq.cqe),
-			       cqe, sizeof *cqe);
+		} else if (nfreed) {
+			dest = get_cqe(cq, (prod_index + nfreed) & cq->ibcq.cqe);
+			owner_bit = dest->owner_sr_opcode & MLX4_CQE_OWNER_MASK;
+			memcpy(dest, cqe, sizeof *cqe);
+			dest->owner_sr_opcode = owner_bit |
+				(dest->owner_sr_opcode & ~MLX4_CQE_OWNER_MASK);
+		}
 	}
 
 	if (nfreed) {

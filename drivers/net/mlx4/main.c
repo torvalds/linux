@@ -88,6 +88,7 @@ static struct mlx4_profile default_profile = {
 static int __devinit mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 {
 	int err;
+	int i;
 
 	err = mlx4_QUERY_DEV_CAP(dev, dev_cap);
 	if (err) {
@@ -117,11 +118,15 @@ static int __devinit mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev
 	}
 
 	dev->caps.num_ports	     = dev_cap->num_ports;
+	for (i = 1; i <= dev->caps.num_ports; ++i) {
+		dev->caps.vl_cap[i]	    = dev_cap->max_vl[i];
+		dev->caps.mtu_cap[i]	    = dev_cap->max_mtu[i];
+		dev->caps.gid_table_len[i]  = dev_cap->max_gids[i];
+		dev->caps.pkey_table_len[i] = dev_cap->max_pkeys[i];
+		dev->caps.port_width_cap[i] = dev_cap->max_port_width[i];
+	}
+
 	dev->caps.num_uars	     = dev_cap->uar_size / PAGE_SIZE;
-	dev->caps.vl_cap	     = dev_cap->max_vl;
-	dev->caps.mtu_cap	     = dev_cap->max_mtu;
-	dev->caps.gid_table_len	     = dev_cap->max_gids;
-	dev->caps.pkey_table_len     = dev_cap->max_pkeys;
 	dev->caps.local_ca_ack_delay = dev_cap->local_ca_ack_delay;
 	dev->caps.bf_reg_size	     = dev_cap->bf_reg_size;
 	dev->caps.bf_regs_per_page   = dev_cap->bf_regs_per_page;
@@ -148,7 +153,6 @@ static int __devinit mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev
 	dev->caps.reserved_mrws	     = dev_cap->reserved_mrws;
 	dev->caps.reserved_uars	     = dev_cap->reserved_uars;
 	dev->caps.reserved_pds	     = dev_cap->reserved_pds;
-	dev->caps.port_width_cap     = dev_cap->max_port_width;
 	dev->caps.mtt_entry_sz	     = MLX4_MTT_ENTRY_PER_SEG * dev_cap->mtt_entry_sz;
 	dev->caps.page_size_cap	     = ~(u32) (dev_cap->min_page_sz - 1);
 	dev->caps.flags		     = dev_cap->flags;

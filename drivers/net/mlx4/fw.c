@@ -38,7 +38,9 @@
 #include "icm.h"
 
 enum {
-	MLX4_COMMAND_INTERFACE_REV	= 1
+	MLX4_COMMAND_INTERFACE_MIN_REV		= 2,
+	MLX4_COMMAND_INTERFACE_MAX_REV		= 3,
+	MLX4_COMMAND_INTERFACE_NEW_PORT_CMDS	= 3,
 };
 
 extern void __buggy_use_of_MLX4_GET(void);
@@ -107,6 +109,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	u16 size;
 	u16 stat_rate;
 	int err;
+	int i;
 
 #define QUERY_DEV_CAP_OUT_SIZE		       0x100
 #define QUERY_DEV_CAP_MAX_SRQ_SZ_OFFSET		0x10
@@ -176,7 +179,6 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 
 	err = mlx4_cmd_box(dev, 0, mailbox->dma, 0, 0, MLX4_CMD_QUERY_DEV_CAP,
 			   MLX4_CMD_TIME_CLASS_A);
-
 	if (err)
 		goto out;
 
@@ -216,18 +218,10 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev_cap->max_rdma_global = 1 << (field & 0x3f);
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_ACK_DELAY_OFFSET);
 	dev_cap->local_ca_ack_delay = field & 0x1f;
-	MLX4_GET(field, outbox, QUERY_DEV_CAP_MTU_WIDTH_OFFSET);
-	dev_cap->max_mtu	= field >> 4;
-	dev_cap->max_port_width = field & 0xf;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_VL_PORT_OFFSET);
-	dev_cap->max_vl    = field >> 4;
 	dev_cap->num_ports = field & 0xf;
-	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_GID_OFFSET);
-	dev_cap->max_gids = 1 << (field & 0xf);
 	MLX4_GET(stat_rate, outbox, QUERY_DEV_CAP_RATE_SUPPORT_OFFSET);
 	dev_cap->stat_rate_support = stat_rate;
-	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_PKEY_OFFSET);
-	dev_cap->max_pkeys = 1 << (field & 0xf);
 	MLX4_GET(dev_cap->flags, outbox, QUERY_DEV_CAP_FLAGS_OFFSET);
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_RSVD_UAR_OFFSET);
 	dev_cap->reserved_uars = field >> 4;
@@ -304,6 +298,42 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	MLX4_GET(dev_cap->max_icm_sz, outbox,
 		 QUERY_DEV_CAP_MAX_ICM_SZ_OFFSET);
 
+	if (dev->flags & MLX4_FLAG_OLD_PORT_CMDS) {
+		for (i = 1; i <= dev_cap->num_ports; ++i) {
+			MLX4_GET(field, outbox, QUERY_DEV_CAP_VL_PORT_OFFSET);
+			dev_cap->max_vl[i]	   = field >> 4;
+			MLX4_GET(field, outbox, QUERY_DEV_CAP_MTU_WIDTH_OFFSET);
+			dev_cap->max_mtu[i]	   = field >> 4;
+			dev_cap->max_port_width[i] = field & 0xf;
+			MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_GID_OFFSET);
+			dev_cap->max_gids[i]	   = 1 << (field & 0xf);
+			MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_PKEY_OFFSET);
+			dev_cap->max_pkeys[i]	   = 1 << (field & 0xf);
+		}
+	} else {
+#define QUERY_PORT_MTU_OFFSET			0x01
+#define QUERY_PORT_WIDTH_OFFSET			0x06
+#define QUERY_PORT_MAX_GID_PKEY_OFFSET		0x07
+#define QUERY_PORT_MAX_VL_OFFSET		0x0b
+
+		for (i = 1; i <= dev_cap->num_ports; ++i) {
+			err = mlx4_cmd_box(dev, 0, mailbox->dma, i, 0, MLX4_CMD_QUERY_PORT,
+					   MLX4_CMD_TIME_CLASS_B);
+			if (err)
+				goto out;
+
+			MLX4_GET(field, outbox, QUERY_PORT_MTU_OFFSET);
+			dev_cap->max_mtu[i]	   = field & 0xf;
+			MLX4_GET(field, outbox, QUERY_PORT_WIDTH_OFFSET);
+			dev_cap->max_port_width[i] = field & 0xf;
+			MLX4_GET(field, outbox, QUERY_PORT_MAX_GID_PKEY_OFFSET);
+			dev_cap->max_gids[i]	   = 1 << (field >> 4);
+			dev_cap->max_pkeys[i]	   = 1 << (field & 0xf);
+			MLX4_GET(field, outbox, QUERY_PORT_MAX_VL_OFFSET);
+			dev_cap->max_vl[i]	   = field & 0xf;
+		}
+	}
+
 	if (dev_cap->bmme_flags & 1)
 		mlx4_dbg(dev, "Base MM extensions: yes "
 			 "(flags %d, rsvd L_Key %08x)\n",
@@ -338,8 +368,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	mlx4_dbg(dev, "Max CQEs: %d, max WQEs: %d, max SRQ WQEs: %d\n",
 		 dev_cap->max_cq_sz, dev_cap->max_qp_sz, dev_cap->max_srq_sz);
 	mlx4_dbg(dev, "Local CA ACK delay: %d, max MTU: %d, port width cap: %d\n",
-		 dev_cap->local_ca_ack_delay, 128 << dev_cap->max_mtu,
-		 dev_cap->max_port_width);
+		 dev_cap->local_ca_ack_delay, 128 << dev_cap->max_mtu[1],
+		 dev_cap->max_port_width[1]);
 	mlx4_dbg(dev, "Max SQ desc size: %d, max SQ S/G: %d\n",
 		 dev_cap->max_sq_desc_sz, dev_cap->max_sq_sg);
 	mlx4_dbg(dev, "Max RQ desc size: %d, max RQ S/G: %d\n",
@@ -491,7 +521,8 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 		((fw_ver & 0x0000ffffull) << 16);
 
 	MLX4_GET(cmd_if_rev, outbox, QUERY_FW_CMD_IF_REV_OFFSET);
-	if (cmd_if_rev != MLX4_COMMAND_INTERFACE_REV) {
+	if (cmd_if_rev < MLX4_COMMAND_INTERFACE_MIN_REV ||
+	    cmd_if_rev > MLX4_COMMAND_INTERFACE_MAX_REV) {
 		mlx4_err(dev, "Installed FW has unsupported "
 			 "command interface revision %d.\n",
 			 cmd_if_rev);
@@ -499,11 +530,14 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 			 (int) (dev->caps.fw_ver >> 32),
 			 (int) (dev->caps.fw_ver >> 16) & 0xffff,
 			 (int) dev->caps.fw_ver & 0xffff);
-		mlx4_err(dev, "This driver version supports only revision %d.\n",
-			 MLX4_COMMAND_INTERFACE_REV);
+		mlx4_err(dev, "This driver version supports only revisions %d to %d.\n",
+			 MLX4_COMMAND_INTERFACE_MIN_REV, MLX4_COMMAND_INTERFACE_MAX_REV);
 		err = -ENODEV;
 		goto out;
 	}
+
+	if (cmd_if_rev < MLX4_COMMAND_INTERFACE_NEW_PORT_CMDS)
+		dev->flags |= MLX4_FLAG_OLD_PORT_CMDS;
 
 	MLX4_GET(lg, outbox, QUERY_FW_MAX_CMD_OFFSET);
 	cmd->max_cmds = 1 << lg;
@@ -708,13 +742,15 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 	return err;
 }
 
-int mlx4_INIT_PORT(struct mlx4_dev *dev, struct mlx4_init_port_param *param, int port)
+int mlx4_INIT_PORT(struct mlx4_dev *dev, int port)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	u32 *inbox;
 	int err;
 	u32 flags;
+	u16 field;
 
+	if (dev->flags & MLX4_FLAG_OLD_PORT_CMDS) {
 #define INIT_PORT_IN_SIZE          256
 #define INIT_PORT_FLAGS_OFFSET     0x00
 #define INIT_PORT_FLAG_SIG         (1 << 18)
@@ -729,32 +765,32 @@ int mlx4_INIT_PORT(struct mlx4_dev *dev, struct mlx4_init_port_param *param, int
 #define INIT_PORT_NODE_GUID_OFFSET 0x18
 #define INIT_PORT_SI_GUID_OFFSET   0x20
 
-	mailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(mailbox))
-		return PTR_ERR(mailbox);
-	inbox = mailbox->buf;
+		mailbox = mlx4_alloc_cmd_mailbox(dev);
+		if (IS_ERR(mailbox))
+			return PTR_ERR(mailbox);
+		inbox = mailbox->buf;
 
-	memset(inbox, 0, INIT_PORT_IN_SIZE);
+		memset(inbox, 0, INIT_PORT_IN_SIZE);
 
-	flags = 0;
-	flags |= param->set_guid0     ? INIT_PORT_FLAG_G0  : 0;
-	flags |= param->set_node_guid ? INIT_PORT_FLAG_NG  : 0;
-	flags |= param->set_si_guid   ? INIT_PORT_FLAG_SIG : 0;
-	flags |= (param->vl_cap & 0xf) << INIT_PORT_VL_SHIFT;
-	flags |= (param->port_width_cap & 0xf) << INIT_PORT_PORT_WIDTH_SHIFT;
-	MLX4_PUT(inbox, flags,            INIT_PORT_FLAGS_OFFSET);
+		flags = 0;
+		flags |= (dev->caps.vl_cap[port] & 0xf) << INIT_PORT_VL_SHIFT;
+		flags |= (dev->caps.port_width_cap[port] & 0xf) << INIT_PORT_PORT_WIDTH_SHIFT;
+		MLX4_PUT(inbox, flags,		  INIT_PORT_FLAGS_OFFSET);
 
-	MLX4_PUT(inbox, param->mtu,       INIT_PORT_MTU_OFFSET);
-	MLX4_PUT(inbox, param->max_gid,   INIT_PORT_MAX_GID_OFFSET);
-	MLX4_PUT(inbox, param->max_pkey,  INIT_PORT_MAX_PKEY_OFFSET);
-	MLX4_PUT(inbox, param->guid0,     INIT_PORT_GUID0_OFFSET);
-	MLX4_PUT(inbox, param->node_guid, INIT_PORT_NODE_GUID_OFFSET);
-	MLX4_PUT(inbox, param->si_guid,   INIT_PORT_SI_GUID_OFFSET);
+		field = 128 << dev->caps.mtu_cap[port];
+		MLX4_PUT(inbox, field, INIT_PORT_MTU_OFFSET);
+		field = dev->caps.gid_table_len[port];
+		MLX4_PUT(inbox, field, INIT_PORT_MAX_GID_OFFSET);
+		field = dev->caps.pkey_table_len[port];
+		MLX4_PUT(inbox, field, INIT_PORT_MAX_PKEY_OFFSET);
 
-	err = mlx4_cmd(dev, mailbox->dma, port, 0, MLX4_CMD_INIT_PORT,
-		       MLX4_CMD_TIME_CLASS_A);
+		err = mlx4_cmd(dev, mailbox->dma, port, 0, MLX4_CMD_INIT_PORT,
+			       MLX4_CMD_TIME_CLASS_A);
 
-	mlx4_free_cmd_mailbox(dev, mailbox);
+		mlx4_free_cmd_mailbox(dev, mailbox);
+	} else
+		err = mlx4_cmd(dev, 0, port, 0, MLX4_CMD_INIT_PORT,
+			       MLX4_CMD_TIME_CLASS_A);
 
 	return err;
 }
