@@ -12,6 +12,7 @@
 #include <linux/string.h>
 #include <linux/pci.h>
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <asm/io.h>
 
 struct dma_coherent_mem {
@@ -148,3 +149,29 @@ void *dma_mark_declared_memory_occupied(struct device *dev,
 	return mem->virt_base + (pos << PAGE_SHIFT);
 }
 EXPORT_SYMBOL(dma_mark_declared_memory_occupied);
+
+#ifdef CONFIG_PCI
+/* Many VIA bridges seem to corrupt data for DAC. Disable it here */
+
+int forbid_dac;
+EXPORT_SYMBOL(forbid_dac);
+
+static __devinit void via_no_dac(struct pci_dev *dev)
+{
+	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI && forbid_dac == 0) {
+		printk(KERN_INFO "PCI: VIA PCI bridge detected. Disabling DAC.\n");
+		forbid_dac = 1;
+	}
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, PCI_ANY_ID, via_no_dac);
+
+static int check_iommu(char *s)
+{
+	if (!strcmp(s, "usedac")) {
+		forbid_dac = -1;
+		return 1;
+	}
+	return 0;
+}
+__setup("iommu=", check_iommu);
+#endif

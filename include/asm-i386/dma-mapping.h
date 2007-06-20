@@ -123,6 +123,8 @@ dma_mapping_error(dma_addr_t dma_addr)
 	return 0;
 }
 
+extern int forbid_dac;
+
 static inline int
 dma_supported(struct device *dev, u64 mask)
 {
@@ -133,6 +135,10 @@ dma_supported(struct device *dev, u64 mask)
          */
         if(mask < 0x00ffffff)
                 return 0;
+
+	/* Work around chipset bugs */
+	if (forbid_dac > 0 && mask > 0xffffffffULL)
+		return 0;
 
 	return 1;
 }
