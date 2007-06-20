@@ -441,8 +441,8 @@ static void rmap_write_protect(struct kvm_vcpu *vcpu, u64 gfn)
 		BUG_ON(!(*spte & PT_WRITABLE_MASK));
 		rmap_printk("rmap_write_protect: spte %p %llx\n", spte, *spte);
 		rmap_remove(vcpu, spte);
-		kvm_flush_remote_tlbs(vcpu->kvm);
 		set_shadow_pte(spte, *spte & ~PT_WRITABLE_MASK);
+		kvm_flush_remote_tlbs(vcpu->kvm);
 	}
 }
 
