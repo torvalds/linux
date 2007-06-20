@@ -759,9 +759,9 @@ static int ipoib_cm_rep_handler(struct ib_cm_id *cm_id, struct ib_cm_event *even
 
 	p->mtu = be32_to_cpu(data->mtu);
 
-	if (p->mtu < priv->dev->mtu + IPOIB_ENCAP_LEN) {
-		ipoib_warn(priv, "Rejecting connection: mtu %d < device mtu %d + 4\n",
-			   p->mtu, priv->dev->mtu);
+	if (p->mtu <= IPOIB_ENCAP_LEN) {
+		ipoib_warn(priv, "Rejecting connection: mtu %d <= %d\n",
+			   p->mtu, IPOIB_ENCAP_LEN);
 		return -EINVAL;
 	}
 
