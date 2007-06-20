@@ -94,9 +94,6 @@ static void __init set_hw_addr(struct platform_device *pdev)
 	clk_put(pclk);
 }
 
-struct platform_device *at32_usart_map[1];
-unsigned int at32_nr_usarts = 1;
-
 void __init setup_board(void)
 {
 	at32_map_usart(1, 0);	/* USART 1: /dev/ttyS0, DB9 */
