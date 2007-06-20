@@ -54,7 +54,7 @@
 unsigned long cpu_khz;
 
 static int mips_cpu_timer_irq;
-extern int mipsxx_perfcount_irq;
+extern int cp0_perfcount_irq;
 extern void smtc_timer_broadcast(int);
 
 static void mips_timer_dispatch(void)
@@ -64,7 +64,7 @@ static void mips_timer_dispatch(void)
 
 static void mips_perf_dispatch(void)
 {
-	do_IRQ(mipsxx_perfcount_irq);
+	do_IRQ(cp0_perfcount_irq);
 }
 
 /*
@@ -82,12 +82,12 @@ static inline int handle_perf_irq (int r2)
 {
 	/*
 	 * The performance counter overflow interrupt may be shared with the
-	 * timer interrupt (mipsxx_perfcount_irq < 0). If it is and a
+	 * timer interrupt (cp0_perfcount_irq < 0). If it is and a
 	 * performance counter has overflowed (perf_irq() == IRQ_HANDLED)
 	 * and we can't reliably determine if a counter interrupt has also
 	 * happened (!r2) then don't check for a timer interrupt.
 	 */
-	return (mipsxx_perfcount_irq < 0) &&
+	return (cp0_perfcount_irq < 0) &&
 		perf_irq() == IRQ_HANDLED &&
 		!r2;
 }
@@ -259,42 +259,31 @@ static struct irqaction perf_irqaction = {
 
 void __init plat_perf_setup(struct irqaction *irq)
 {
-	int hwint = 0;
-	mipsxx_perfcount_irq = -1;
+	cp0_perfcount_irq = -1;
 
 #ifdef MSC01E_INT_BASE
 	if (cpu_has_veic) {
 		set_vi_handler (MSC01E_INT_PERFCTR, mips_perf_dispatch);
-		mipsxx_perfcount_irq = MSC01E_INT_BASE + MSC01E_INT_PERFCTR;
+		cp0_perfcount_irq = MSC01E_INT_BASE + MSC01E_INT_PERFCTR;
 	} else
 #endif
-	if (cpu_has_mips_r2) {
-		/*
-		 * Read IntCtl.IPPCI to determine the performance
-		 * counter interrupt
-		 */
-		hwint = (read_c0_intctl () >> 26) & 7;
-		if (hwint != MIPSCPU_INT_CPUCTR) {
-			if (cpu_has_vint)
-				set_vi_handler (hwint, mips_perf_dispatch);
-			mipsxx_perfcount_irq = MIPSCPU_INT_BASE + hwint;
-		}
-	}
-	if (mipsxx_perfcount_irq >= 0) {
+	if (cp0_perfcount_irq >= 0) {
+		if (cpu_has_vint)
+			set_vi_handler(cp0_perfcount_irq, mips_perf_dispatch);
 #ifdef CONFIG_MIPS_MT_SMTC
-		setup_irq_smtc(mipsxx_perfcount_irq, irq, 0x100 << hwint);
+		setup_irq_smtc(cp0_perfcount_irq, irq,
+		               0x100 << cp0_perfcount_irq);
 #else
-		setup_irq(mipsxx_perfcount_irq, irq);
+		setup_irq(cp0_perfcount_irq, irq);
 #endif /* CONFIG_MIPS_MT_SMTC */
 #ifdef CONFIG_SMP
-		set_irq_handler(mipsxx_perfcount_irq, handle_percpu_irq);
+		set_irq_handler(cp0_perfcount_irq, handle_percpu_irq);
 #endif
 	}
 }
 
 void __init plat_timer_setup(struct irqaction *irq)
 {
-	int hwint = 0;
 #ifdef MSC01E_INT_BASE
 	if (cpu_has_veic) {
 		set_vi_handler (MSC01E_INT_CPUCTR, mips_timer_dispatch);
@@ -303,22 +292,15 @@ void __init plat_timer_setup(struct irqaction *irq)
 	else
 #endif
 	{
-		if (cpu_has_mips_r2)
-			/*
-			 * Read IntCtl.IPTI to determine the timer interrupt
-			 */
-			hwint = (read_c0_intctl () >> 29) & 7;
-		else
-			hwint = MIPSCPU_INT_CPUCTR;
 		if (cpu_has_vint)
-			set_vi_handler (hwint, mips_timer_dispatch);
-		mips_cpu_timer_irq = MIPSCPU_INT_BASE + hwint;
+			set_vi_handler(cp0_compare_irq, mips_timer_dispatch);
+		mips_cpu_timer_irq = MIPS_CPU_IRQ_BASE + cp0_compare_irq;
 	}
 
 	/* we are using the cpu counter for timer interrupts */
 	irq->handler = mips_timer_interrupt;	/* we use our own handler */
 #ifdef CONFIG_MIPS_MT_SMTC
-	setup_irq_smtc(mips_cpu_timer_irq, irq, 0x100 << hwint);
+	setup_irq_smtc(mips_cpu_timer_irq, irq, 0x100 << cp0_compare_irq);
 #else
 	setup_irq(mips_cpu_timer_irq, irq);
 #endif /* CONFIG_MIPS_MT_SMTC */

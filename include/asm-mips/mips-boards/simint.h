@@ -21,15 +21,11 @@
 
 #define SIM_INT_BASE		0
 #define MIPSCPU_INT_MB0		2
-#define MIPSCPU_INT_BASE	MIPS_CPU_IRQ_BASE
 #define MIPS_CPU_TIMER_IRQ	7
 
 
-#define MIPSCPU_INT_CPUCTR	7
-
 #define MSC01E_INT_BASE		64
 
-#define MIPSCPU_INT_CPUCTR	7
 #define MSC01E_INT_CPUCTR	11
 
 #endif

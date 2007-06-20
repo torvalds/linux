@@ -72,4 +72,13 @@ extern int allocate_irqno(void);
 extern void alloc_legacy_irqno(void);
 extern void free_irqno(unsigned int irq);
 
+/*
+ * Before R2 the timer and performance counter interrupts were both fixed to
+ * IE7.  Since R2 their number has to be read from the c0_intctl register.
+ */
+#define CP0_LEGACY_COMPARE_IRQ 7
+
+extern int cp0_compare_irq;
+extern int cp0_perfcount_irq;
+
 #endif /* _ASM_IRQ_H */
