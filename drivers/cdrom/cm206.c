@@ -851,7 +851,7 @@ static void do_cm206_request(request_queue_t * q)
 		if (!req)
 			return;
 
-		if (req->cmd != READ) {
+		if (rq_data_dir(req) != READ) {
 			debug(("Non-read command %d on cdrom\n", req->cmd));
 			end_request(req, 0);
 			continue;

@@ -596,7 +596,7 @@ static void do_mcdx_request(request_queue_t * q)
 	xtrace(REQUEST, "do_request() (%lu + %lu)\n",
 	       req->sector, req->nr_sectors);
 
-	if (req->cmd != READ) {
+	if (rq_data_dir(req) != READ) {
 		xwarn("do_request(): non-read command to cd!!\n");
 		xtrace(REQUEST, "end_request(0): write\n");
 		end_request(req, 0);

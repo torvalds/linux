@@ -1064,7 +1064,7 @@ static void sjcd_invalidate_buffers(void)
 static int current_valid(void)
 {
         return CURRENT &&
-		CURRENT->cmd == READ &&
+		rq_data_dir(CURRENT) == READ &&
 		CURRENT->sector != -1;
 }
 
