@@ -49,6 +49,7 @@ config DEBUG_PAGEALLOC
 config DEBUG_RODATA
 	bool "Write protect kernel read-only data structures"
 	depends on DEBUG_KERNEL
+	depends on !KPROBES # temporary for 2.6.22
 	help
 	  Mark the kernel read-only data as write-protected in the pagetables,
 	  in order to catch accidental (and incorrect) writes to such const
