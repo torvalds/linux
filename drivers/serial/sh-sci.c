@@ -367,7 +367,9 @@ static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 	} else {
 #ifdef CONFIG_CPU_SUBTYPE_SH7343
 		/* Nothing */
-#elif defined(CONFIG_CPU_SUBTYPE_SH7780) || defined(CONFIG_CPU_SUBTYPE_SH7785)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7780) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7785) || \
+      defined(CONFIG_CPU_SUBTYPE_SHX3)
 		ctrl_outw(0x0080, SCSPTR0); /* Set RTS = 1 */
 #else
 		ctrl_outw(0x0080, SCSPTR2); /* Set RTS = 1 */

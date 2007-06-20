@@ -36,6 +36,9 @@ config CPU_SUBTYPE_ST40
 config CPU_SHX2
 	bool
 
+config CPU_SHX3
+	bool
+
 choice
 	prompt "Processor sub-type selection"
 
@@ -191,6 +194,12 @@ config CPU_SUBTYPE_SH7785
 	bool "Support SH7785 processor"
 	select CPU_SH4A
 	select CPU_SHX2
+	select CPU_HAS_INTC2_IRQ
+
+config CPU_SUBTYPE_SHX3
+	bool "Support SH-X3 processor"
+	select CPU_SH4A
+	select CPU_SHX3
 	select CPU_HAS_INTC2_IRQ
 
 # SH4AL-DSP Processor Support
