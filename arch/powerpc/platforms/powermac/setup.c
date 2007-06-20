@@ -454,6 +454,9 @@ static int initializing = 1;
 
 static int pmac_late_init(void)
 {
+	if (!machine_is(powermac))
+		return -ENODEV;
+
 	initializing = 0;
 	/* this is udbg (which is __init) and we can later use it during
 	 * cpu hotplug (in smp_core99_kick_cpu) */
