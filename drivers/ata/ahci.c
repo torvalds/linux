@@ -527,7 +527,7 @@ static void ahci_save_initial_config(struct pci_dev *pdev,
 
 	/* fixup zero port_map */
 	if (!port_map) {
-		port_map = (1 << ahci_nr_ports(hpriv->cap)) - 1;
+		port_map = (1 << ahci_nr_ports(cap)) - 1;
 		dev_printk(KERN_WARNING, &pdev->dev,
 			   "PORTS_IMPL is zero, forcing 0x%x\n", port_map);
 
