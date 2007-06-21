@@ -43,7 +43,8 @@
 #endif
 
 /* Issues that are common to 0.5, 0.4, and 0.3 silicon */
-#if  (defined(CONFIG_BF_REV_0_5) || defined(CONFIG_BF_REV_0_4) || defined(CONFIG_BF_REV_0_3))
+#if  (defined(CONFIG_BF_REV_0_5) || defined(CONFIG_BF_REV_0_4) \
+		|| defined(CONFIG_BF_REV_0_3))
 #define ANOMALY_05000074 /* A multi issue instruction with dsp32shiftimm in
                             slot1 and store of a P register in slot 2 is not
                             supported */
@@ -76,11 +77,16 @@
                             control */
 #define ANOMALY_05000283 /* A system MMR write is stalled indefinitely when
                             killed in a particular stage*/
+#define ANOMALY_05000311 /* Erroneous flag pin operations under specific
+			    sequences */
 #define ANOMALY_05000312 /* Errors when SSYNC, CSYNC, or loads to LT, LB and LC
 			    registers are interrupted */
-#define ANOMALY_05000311 /* Erroneous flag pin operations under specific sequences*/
-
-#endif
+#define ANOMALY_05000313 /* PPI Is Level-Sensitive on First Transfer  */
+#define ANOMALY_05000315 /* Killed System MMR Write Completes Erroneously On
+			  *  Next System MMR Access */
+#define ANOMALY_05000319 /* Internal Voltage Regulator Values of 1.05V, 1.10V
+			  *  and 1.15V Not Allowed for LQFP Packages */
+#endif /* Issues that are common to 0.5, 0.4, and 0.3 silicon */
 
 /* These issues only occur on 0.3 or 0.4 BF533 */
 #if (defined(CONFIG_BF_REV_0_4) || defined(CONFIG_BF_REV_0_3))
@@ -134,14 +140,14 @@
                             internal voltage regulator (VDDint) to increase. */
 #define ANOMALY_05000270 /* High I/O activity causes the output voltage of the
                             internal voltage regulator (VDDint) to decrease */
-#endif
+#endif /* issues only occur on 0.3 or 0.4 BF533 */
 
 /* These issues are only on 0.4 silicon */
 #if (defined(CONFIG_BF_REV_0_4))
 #define ANOMALY_05000234 /* Incorrect Revision Number in DSPID Register */
 #define ANOMALY_05000250 /* Incorrect Bit-Shift of Data Word in Multichannel
                             (TDM) */
-#endif
+#endif /* issues are only on 0.4 silicon */
 
 /* These issues are only on 0.3 silicon */
 #if defined(CONFIG_BF_REV_0_3)
@@ -170,6 +176,72 @@
 #define ANOMALY_05000233 /* PPI_FS3 is not driven in 2 or 3 internal Frame
                             Sync Transmit Mode */
 #define ANOMALY_05000271 /* Spontaneous reset of Internal Voltage Regulator */
+#endif /* only on 0.3 silicon */
+
+#if defined(CONFIG_BF_REV_0_2)
+#define ANOMALY_05000067 /* Watchpoints (Hardware Breakpoints) are not
+			  *  supported */
+#define ANOMALY_05000109 /* Reserved bits in SYSCFG register not set at
+			  *  power on */
+#define ANOMALY_05000116 /* Trace Buffers may record discontinuities into
+			  *  emulation mode and/or exception, NMI, reset
+			  *  handlers */
+#define ANOMALY_05000123 /* DTEST_COMMAND initiated memory access may be
+			  *  incorrect if data cache or DMA is active */
+#define ANOMALY_05000124 /* DMA Lock-up at CCLK to SCLK ratios of 4:1, 2:1,
+			  *  or 1:1 */
+#define ANOMALY_05000125 /* Erroneous exception when enabling cache */
+#define ANOMALY_05000126 /* SPI clock polarity and phase bits incorrect
+			  *  during booting */
+#define ANOMALY_05000137 /* DMEM_CONTROL is not set on Reset */
+#define ANOMALY_05000138 /* SPI boot will not complete if there is a zero fill
+			  * block in the loader file */
+#define ANOMALY_05000140 /* Allowing the SPORT RX FIFO to fill will cause an
+			  *  overflow */
+#define ANOMALY_05000141 /* An Infinite Stall occurs with a particular sequence
+			  *  of consecutive dual dag events */
+#define ANOMALY_05000142 /* Interrupts may be lost when a programmable input
+			  *  flag is configured to be edge sensitive */
+#define ANOMALY_05000143 /* A read from external memory may return a wrong
+			  *  value with data cache enabled */
+#define ANOMALY_05000144 /* DMA and TESTSET conflict when both are accessing
+			  *  external memory */
+#define ANOMALY_05000145 /* In PWM_OUT mode, you must enable the PPI block to
+			  *  generate a waveform from PPI_CLK */
+#define ANOMALY_05000146 /* MDMA may lose the first few words of a descriptor
+			  *  chain */
+#define ANOMALY_05000147 /* The source MDMA descriptor may stop with a DMA
+			  *  Error */
+#define ANOMALY_05000148 /* When booting from a 16-bit asynchronous memory
+			  *  device, the upper 8-bits of each word must be
+			  *  0x00 */
+#define ANOMALY_05000153 /* Frame Delay in SPORT Multichannel Mode */
+#define ANOMALY_05000154 /* SPORT TFS signal is active in Multi-channel mode
+			  *  outside of valid channels */
+#define ANOMALY_05000155 /* Timer1 can not be used for PWMOUT mode when a
+			  *  certain PPI mode is in use */
+#define ANOMALY_05000157 /* A killed 32-bit System MMR write will lead to
+			  *  the next system MMR access thinking it should be
+			  *  32-bit. */
+#define ANOMALY_05000163 /* SPORT transmit data is not gated by external frame
+			  *  sync in certain conditions */
+#define ANOMALY_05000168 /* SDRAM auto-refresh and subsequent Power Ups */
+#define ANOMALY_05000169 /* DATA CPLB page miss can result in lost
+			  *  write-through cache data writes */
+#define ANOMALY_05000173 /* DMA vs Core accesses to external memory */
+#define ANOMALY_05000174 /* Cache Fill Buffer Data lost */
+#define ANOMALY_05000175 /* Overlapping Sequencer and Memory Stalls */
+#define ANOMALY_05000176 /* Multiplication of (-1) by (-1) followed by an
+			  *  accumulator saturation */
+#define ANOMALY_05000181 /* Disabling the PPI resets the PPI configuration
+			  *  registers */
+#define ANOMALY_05000185 /* PPI TX Mode with 2 External Frame Syncs */
+#define ANOMALY_05000191 /* PPI does not invert the Driving PPICLK edge in
+			  *  Transmit Modes */
+#define ANOMALY_05000192 /* In PPI Transmit Modes with External Frame Syncs
+			  *  POLC */
+#define ANOMALY_05000206 /* Internal Voltage Regulator may not start up */
+
 #endif
 
 #endif /*  _MACH_ANOMALY_H_ */

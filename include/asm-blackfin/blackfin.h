@@ -39,7 +39,9 @@ static inline void SSYNC (void)
 #elif !defined(ANOMALY_05000312) && defined(ANOMALY_05000244)
 static inline void SSYNC (void)
 {
-	__builtin_bfin_ssync();
+	__asm__ __volatile__ ("nop; nop; nop;\n\t"
+			"ssync;\n\t"
+			::);
 }
 #elif !defined(ANOMALY_05000312) && !defined(ANOMALY_05000244)
 static inline void SSYNC (void)
@@ -71,7 +73,9 @@ static inline void CSYNC (void)
 #elif !defined(ANOMALY_05000312) && defined(ANOMALY_05000244)
 static inline void CSYNC (void)
 {
-	__builtin_bfin_csync();
+	__asm__ __volatile__ ("nop; nop; nop;\n\t"
+			"ssync;\n\t"
+			::);
 }
 #elif !defined(ANOMALY_05000312) && !defined(ANOMALY_05000244)
 static inline void CSYNC (void)
@@ -79,6 +83,31 @@ static inline void CSYNC (void)
 	__asm__ __volatile__ ("csync;\n\t");
 }
 #endif
+
+#else  /* __ASSEMBLY__ */
+
+/* SSYNC & CSYNC implementations for assembly files */
+
+#define ssync(x) SSYNC(x)
+#define csync(x) CSYNC(x)
+
+#if defined(ANOMALY_05000312) && defined(ANOMALY_05000244)
+#define SSYNC(scratch) cli scratch; nop; nop; SSYNC; sti scratch;
+#define CSYNC(scratch) cli scratch; nop; nop; CSYNC; sti scratch;
+
+#elif defined(ANOMALY_05000312) && !defined(ANOMALY_05000244)
+#define SSYNC(scratch) cli scratch; nop; nop; SSYNC; sti scratch;
+#define CSYNC(scratch) cli scratch; nop; nop; CSYNC; sti scratch;
+
+#elif !defined(ANOMALY_05000312) && defined(ANOMALY_05000244)
+#define SSYNC(scratch) nop; nop; nop; SSYNC;
+#define CSYNC(scratch) nop; nop; nop; CSYNC;
+
+#elif !defined(ANOMALY_05000312) && !defined(ANOMALY_05000244)
+#define SSYNC(scratch) SSYNC;
+#define CSYNC(scratch) CSYNC;
+
+#endif /* ANOMALY_05000312 & ANOMALY_05000244 handling */
 
 #endif /* __ASSEMBLY__ */
 

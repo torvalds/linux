@@ -73,8 +73,13 @@
                             control */
 #define ANOMALY_05000283 /* A system MMR write is stalled indefinitely when
                             killed in a particular stage*/
+#define ANOMALY_05000310 /* False hardware errors caused by fetches at the
+			  *  boundary of reserved memory */
 #define ANOMALY_05000312 /* Errors when SSYNC, CSYNC, or loads to LT, LB and LC
 			    registers are interrupted */
+#define ANOMALY_05000313 /* PPI is level sensitive on first transfer */
+#define ANOMALY_05000322 /* EMAC RMII mode at 10-Base-T speed: RX frames not
+			  *  received properly */
 #endif
 
 #if defined(CONFIG_BF_REV_0_2)
@@ -114,7 +119,21 @@
                             DMA system instability */
 #define ANOMALY_05000280 /* SPI Master boot mode does not work well with
                             Atmel Dataflash devices */
-
+#define ANOMALY_05000281 /* False Hardware Error Exception when ISR context
+			  *  is not restored */
+#define ANOMALY_05000282 /* Memory DMA corruption with 32-bit data and traffic
+			  *  control */
+#define ANOMALY_05000283 /* System MMR Write Is Stalled Indefinitely When
+			  *  Killed in a Particular Stage */
+#define ANOMALY_05000285 /* New Feature: EMAC TX DMA Word Alignment
+			  *  (Not Available On Older Silicon) */
+#define ANOMALY_05000288 /* SPORTs may receive bad data if FIFOs fill up */
+#define ANOMALY_05000315 /* Killed System MMR Write Completes Erroneously
+			  *  On Next System MMR Access */
+#define ANOMALY_05000316 /* EMAC RMII mode: collisions occur in Full Duplex
+			  *  mode */
+#define ANOMALY_05000321 /* EMAC RMII mode: TX frames in half duplex fail with
+			  *  status No Carrier */
 #endif  /* CONFIG_BF_REV_0_2 */
 
 #endif /* _MACH_ANOMALY_H_ */

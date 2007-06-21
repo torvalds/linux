@@ -123,14 +123,14 @@ ENTRY(_blackfin_icache_flush_range)
 	R2 = R0 & R2;
 	P0 = R2;
 	P1 = R1;
-	CSYNC;
+	CSYNC(R3);
 	IFLUSH [P0];
 1:
 	IFLUSH [P0++];
 	CC = P0 < P1 (iu);
 	IF CC JUMP 1b (bp);
 	IFLUSH [P0];
-	SSYNC;
+	SSYNC(R3);
 	RTS;
 ENDPROC(_blackfin_icache_flush_range)
 
@@ -148,7 +148,7 @@ ENTRY(_blackfin_icache_dcache_flush_range)
 	R2 = R0 & R2;
 	P0 = R2;
 	P1 = R1;
-	CSYNC;
+	CSYNC(R3);
 	IFLUSH [P0];
 1:
 	FLUSH [P0];
@@ -157,7 +157,7 @@ ENTRY(_blackfin_icache_dcache_flush_range)
 	IF CC JUMP 1b (bp);
 	IFLUSH [P0];
 	FLUSH [P0];
-	SSYNC;
+	SSYNC(R3);
 	RTS;
 ENDPROC(_blackfin_icache_dcache_flush_range)
 
@@ -174,7 +174,7 @@ ENTRY(_blackfin_dcache_invalidate_range)
 	R2 = R0 & R2;
 	P0 = R2;
 	P1 = R1;
-	CSYNC;
+	CSYNC(R3);
 	FLUSHINV[P0];
 1:
 	FLUSHINV[P0++];
@@ -186,7 +186,7 @@ ENTRY(_blackfin_dcache_invalidate_range)
 	 * so do one more.
 	 */
 	FLUSHINV[P0];
-	SSYNC;
+	SSYNC(R3);
 	RTS;
 ENDPROC(_blackfin_dcache_invalidate_range)
 
@@ -235,7 +235,7 @@ ENTRY(_blackfin_dcache_flush_range)
 	R2 = R0 & R2;
 	P0 = R2;
 	P1 = R1;
-	CSYNC;
+	CSYNC(R3);
 	FLUSH[P0];
 1:
 	FLUSH[P0++];
@@ -247,17 +247,17 @@ ENTRY(_blackfin_dcache_flush_range)
 	 * one more.
 	 */
 	FLUSH[P0];
-	SSYNC;
+	SSYNC(R3);
 	RTS;
 ENDPROC(_blackfin_dcache_flush_range)
 
 ENTRY(_blackfin_dflush_page)
 	P1 = 1 << (PAGE_SHIFT - L1_CACHE_SHIFT);
 	P0 = R0;
-	CSYNC;
+	CSYNC(R3);
 	FLUSH[P0];
 	LSETUP (.Lfl1, .Lfl1) LC0 = P1;
 .Lfl1:	FLUSH [P0++];
-	SSYNC;
+	SSYNC(R3);
 	RTS;
 ENDPROC(_blackfin_dflush_page)
