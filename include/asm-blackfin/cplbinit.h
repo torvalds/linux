@@ -101,8 +101,8 @@ struct s_cplb {
 static struct cplb_desc cplb_data[] = {
 	{
 		.start = 0,
-		.end = SIZE_4K,
-		.psize = SIZE_4K,
+		.end = SIZE_1K,
+		.psize = SIZE_1K,
 		.attr = INITIAL_T | SWITCH_T | I_CPLB | D_CPLB,
 		.i_conf = SDRAM_OOPS,
 		.d_conf = SDRAM_OOPS,

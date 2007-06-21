@@ -1,1 +1,3 @@
 include include/asm-generic/Kbuild.asm
+
+header-y += fixed_code.h

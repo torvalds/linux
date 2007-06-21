@@ -741,6 +741,10 @@ _schedule_and_signal_from_int:
 	r0 = [p0];
 	sti r0;
 
+	r0 = sp;
+	sp += -12;
+	call _finish_atomic_sections;
+	sp += 12;
 	jump.s .Lresume_userspace;
 
 _schedule_and_signal:

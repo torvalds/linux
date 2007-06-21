@@ -42,6 +42,7 @@
 #include <asm/cacheflush.h>
 #include <asm/blackfin.h>
 #include <asm/cplbinit.h>
+#include <asm/fixed_code.h>
 
 u16 _bfin_swrst;
 
@@ -404,6 +405,27 @@ void __init setup_arch(char **cmdline_p)
 
 	printk(KERN_INFO "Hardware Trace Enabled\n");
 	bfin_write_TBUFCTL(0x03);
+
+	/* Copy atomic sequences to their fixed location, and sanity check that
+	   these locations are the ones that we advertise to userspace.  */
+	memcpy((void *)FIXED_CODE_START, &fixed_code_start,
+	       FIXED_CODE_END - FIXED_CODE_START);
+	BUG_ON((char *)&sigreturn_stub - (char *)&fixed_code_start
+	       != SIGRETURN_STUB - FIXED_CODE_START);
+	BUG_ON((char *)&atomic_xchg32 - (char *)&fixed_code_start
+	       != ATOMIC_XCHG32 - FIXED_CODE_START);
+	BUG_ON((char *)&atomic_cas32 - (char *)&fixed_code_start
+	       != ATOMIC_CAS32 - FIXED_CODE_START);
+	BUG_ON((char *)&atomic_add32 - (char *)&fixed_code_start
+	       != ATOMIC_ADD32 - FIXED_CODE_START);
+	BUG_ON((char *)&atomic_sub32 - (char *)&fixed_code_start
+	       != ATOMIC_SUB32 - FIXED_CODE_START);
+	BUG_ON((char *)&atomic_ior32 - (char *)&fixed_code_start
+	       != ATOMIC_IOR32 - FIXED_CODE_START);
+	BUG_ON((char *)&atomic_and32 - (char *)&fixed_code_start
+	       != ATOMIC_AND32 - FIXED_CODE_START);
+	BUG_ON((char *)&atomic_xor32 - (char *)&fixed_code_start
+	       != ATOMIC_XOR32 - FIXED_CODE_START);
 }
 
 static int __init topology_init(void)

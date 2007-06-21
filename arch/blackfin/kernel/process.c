@@ -35,6 +35,7 @@
 
 #include <asm/blackfin.h>
 #include <asm/uaccess.h>
+#include <asm/fixed_code.h>
 
 #define	LED_ON	0
 #define	LED_OFF	1
@@ -348,6 +349,70 @@ unsigned long get_wchan(struct task_struct *p)
 	}
 	while (count++ < 16);
 	return 0;
+}
+
+void finish_atomic_sections (struct pt_regs *regs)
+{
+	if (regs->pc < ATOMIC_SEQS_START || regs->pc >= ATOMIC_SEQS_END)
+		return;
+
+	switch (regs->pc) {
+	case ATOMIC_XCHG32 + 2:
+		put_user(regs->r1, (int *)regs->p0);
+		regs->pc += 2;
+		break;
+
+	case ATOMIC_CAS32 + 2:
+	case ATOMIC_CAS32 + 4:
+		if (regs->r0 == regs->r1)
+			put_user(regs->r2, (int *)regs->p0);
+		regs->pc = ATOMIC_CAS32 + 8;
+		break;
+	case ATOMIC_CAS32 + 6:
+		put_user(regs->r2, (int *)regs->p0);
+		regs->pc += 2;
+		break;
+
+	case ATOMIC_ADD32 + 2:
+		regs->r0 = regs->r1 + regs->r0;
+		/* fall through */
+	case ATOMIC_ADD32 + 4:
+		put_user(regs->r0, (int *)regs->p0);
+		regs->pc = ATOMIC_ADD32 + 6;
+		break;
+
+	case ATOMIC_SUB32 + 2:
+		regs->r0 = regs->r1 - regs->r0;
+		/* fall through */
+	case ATOMIC_SUB32 + 4:
+		put_user(regs->r0, (int *)regs->p0);
+		regs->pc = ATOMIC_SUB32 + 6;
+		break;
+
+	case ATOMIC_IOR32 + 2:
+		regs->r0 = regs->r1 | regs->r0;
+		/* fall through */
+	case ATOMIC_IOR32 + 4:
+		put_user(regs->r0, (int *)regs->p0);
+		regs->pc = ATOMIC_IOR32 + 6;
+		break;
+
+	case ATOMIC_AND32 + 2:
+		regs->r0 = regs->r1 & regs->r0;
+		/* fall through */
+	case ATOMIC_AND32 + 4:
+		put_user(regs->r0, (int *)regs->p0);
+		regs->pc = ATOMIC_AND32 + 6;
+		break;
+
+	case ATOMIC_XOR32 + 2:
+		regs->r0 = regs->r1 ^ regs->r0;
+		/* fall through */
+	case ATOMIC_XOR32 + 4:
+		put_user(regs->r0, (int *)regs->p0);
+		regs->pc = ATOMIC_XOR32 + 6;
+		break;
+	}
 }
 
 #if defined(CONFIG_ACCESS_CHECK)
