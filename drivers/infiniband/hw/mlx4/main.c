@@ -529,6 +529,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		(1ull << IB_USER_VERBS_CMD_DETACH_MCAST)	|
 		(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)		|
 		(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)		|
+		(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)		|
 		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ);
 
 	ibdev->ib_dev.query_device	= mlx4_ib_query_device;
@@ -547,6 +548,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.destroy_ah	= mlx4_ib_destroy_ah;
 	ibdev->ib_dev.create_srq	= mlx4_ib_create_srq;
 	ibdev->ib_dev.modify_srq	= mlx4_ib_modify_srq;
+	ibdev->ib_dev.query_srq		= mlx4_ib_query_srq;
 	ibdev->ib_dev.destroy_srq	= mlx4_ib_destroy_srq;
 	ibdev->ib_dev.post_srq_recv	= mlx4_ib_post_srq_recv;
 	ibdev->ib_dev.create_qp		= mlx4_ib_create_qp;
