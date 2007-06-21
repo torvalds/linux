@@ -237,7 +237,7 @@ config MTD_NAND_CAFE
 	select REED_SOLOMON
 	select REED_SOLOMON_DEC16
 	help
-	  Use NAND flash attached to the CAFÉ chip designed for the $100
+	  Use NAND flash attached to the CAFÉ chip designed for the OLPC
 	  laptop.
 
 config MTD_NAND_CS553X
