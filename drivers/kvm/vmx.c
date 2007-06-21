@@ -1987,7 +1987,6 @@ static int dm_request_for_irq_injection(struct kvm_vcpu *vcpu,
 
 static void vmx_flush_tlb(struct kvm_vcpu *vcpu)
 {
-	vmcs_writel(GUEST_CR3, vmcs_readl(GUEST_CR3));
 }
 
 static int vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
