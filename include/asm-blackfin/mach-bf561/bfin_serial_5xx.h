@@ -78,6 +78,7 @@ struct bfin_serial_res {
 };
 
 struct bfin_serial_res bfin_serial_resource[] = {
+	{
 	0xFFC00400,
 	IRQ_UART_RX,
 #ifdef CONFIG_SERIAL_BFIN_DMA
@@ -88,6 +89,7 @@ struct bfin_serial_res bfin_serial_resource[] = {
 	CONFIG_UART0_CTS_PIN,
 	CONFIG_UART0_RTS_PIN,
 #endif
+	}
 };
 
 
