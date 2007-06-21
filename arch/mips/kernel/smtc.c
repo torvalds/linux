@@ -822,7 +822,7 @@ void ipi_decode(struct smtc_ipi *pipi)
 	switch (type_copy) {
 	case SMTC_CLOCK_TICK:
 		irq_enter();
-		kstat_this_cpu.irqs[MIPS_CPU_IRQ_BASE + cp0_perfcount_irq]++;
+		kstat_this_cpu.irqs[MIPS_CPU_IRQ_BASE + cp0_compare_irq]++;
 		/* Invoke Clock "Interrupt" */
 		ipi_timer_latch[dest_copy] = 0;
 #ifdef CONFIG_SMTC_IDLE_HOOK_DEBUG
