@@ -1196,11 +1196,7 @@ static int usb_resume_both(struct usb_device *udev)
 			/* We can't progagate beyond the USB subsystem,
 			 * so if a root hub's controller is suspended
 			 * then we're stuck. */
-			if (udev->dev.parent->power.power_state.event !=
-					PM_EVENT_ON)
-				status = -EHOSTUNREACH;
-			else
-				status = usb_resume_device(udev);
+			status = usb_resume_device(udev);
  		}
 	} else {
 

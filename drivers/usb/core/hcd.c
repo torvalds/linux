@@ -965,19 +965,9 @@ int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 	else switch (hcd->state) {
 	case HC_STATE_RUNNING:
 	case HC_STATE_RESUMING:
-doit:
 		list_add_tail (&urb->urb_list, &ep->urb_list);
 		status = 0;
 		break;
-	case HC_STATE_SUSPENDED:
-		/* HC upstream links (register access, wakeup signaling) can work
-		 * even when the downstream links (and DMA etc) are quiesced; let
-		 * usbcore talk to the root hub.
-		 */
-		if (hcd->self.controller->power.power_state.event == PM_EVENT_ON
-				&& urb->dev->parent == NULL)
-			goto doit;
-		/* FALL THROUGH */
 	default:
 		status = -ESHUTDOWN;
 		break;
