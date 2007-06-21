@@ -29,6 +29,7 @@
 
 #include <linux/linkage.h>
 #include <asm/blackfin.h>
+#include <asm/trace.h>
 #if CONFIG_BFIN_KERNEL_CLOCK
 #include <asm/mach/mem_init.h>
 #endif
@@ -90,6 +91,10 @@ ENTRY(__stext)
 	M1 = r0;
 	M2 = r0;
 	M3 = r0;
+
+	trace_buffer_start(p0,r0);
+	P0 = R1;
+	R0 = R1;
 
 	/* Turn off the icache */
 	p0.l = (IMEM_CONTROL & 0xFFFF);

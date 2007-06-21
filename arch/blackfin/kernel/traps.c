@@ -33,6 +33,7 @@
 #include <asm/blackfin.h>
 #include <asm/uaccess.h>
 #include <asm/irq_handler.h>
+#include <asm/trace.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
@@ -130,16 +131,6 @@ static int printk_address(unsigned long address)
 	/* we were unable to find this address anywhere */
 	return printk("[<0x%p>]", (void*)address);
 }
-
-#define trace_buffer_save(x) \
-	do { \
-		(x) = bfin_read_TBUFCTL(); \
-		bfin_write_TBUFCTL((x) & ~TBUFEN); \
-	} while (0)
-#define trace_buffer_restore(x) \
-	do { \
-		bfin_write_TBUFCTL((x));	\
-	} while (0)
 
 asmlinkage void trap_c(struct pt_regs *fp)
 {

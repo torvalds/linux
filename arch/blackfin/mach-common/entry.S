@@ -54,28 +54,9 @@
 #include <asm/errno.h>
 #include <asm/thread_info.h>  /* TIF_NEED_RESCHED */
 #include <asm/asm-offsets.h>
+#include <asm/trace.h>
 
 #include <asm/mach-common/context.S>
-
-#ifdef CONFIG_DEBUG_BFIN_NO_KERN_HWTRACE
-	/*
-	 * TODO: this should be proper save/restore, but for now
-	 * we'll just cheat and use 0x1/0x13
-	 */
-# define DEBUG_START_HWTRACE \
-	P5.l = LO(TBUFCTL); \
-	P5.h = HI(TBUFCTL); \
-	R7 = 0x13; \
-	[P5] = R7;
-# define DEBUG_STOP_HWTRACE \
-	P5.l = LO(TBUFCTL); \
-	P5.h = HI(TBUFCTL); \
-	R7 = 0x01; \
-	[P5] = R7;
-#else
-# define DEBUG_START_HWTRACE
-# define DEBUG_STOP_HWTRACE
-#endif
 
 #ifdef CONFIG_EXCPT_IRQ_SYSC_L1
 .section .l1.text
@@ -110,7 +91,7 @@ ENTRY(_ex_icplb)
 	ASTAT = [sp++];
 	SAVE_ALL_SYS
 	call __cplb_hdr;
-	DEBUG_START_HWTRACE
+	DEBUG_START_HWTRACE(p5, r7)
 	RESTORE_ALL_SYS
 	SP = RETN;
 	rtx;
@@ -128,7 +109,7 @@ ENTRY(_ex_spinlock)
 ENDPROC(_ex_spinlock)
 
 ENTRY(_ex_syscall)
-	DEBUG_START_HWTRACE
+	DEBUG_START_HWTRACE(p5, r7)
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	raise 15;		/* invoked by TRAP #0, for sys call */
@@ -186,7 +167,7 @@ ENTRY(_ex_single_step)
 	if !cc jump _ex_trap_c;
 
 _return_from_exception:
-	DEBUG_START_HWTRACE
+	DEBUG_START_HWTRACE(p5, r7)
 #ifdef ANOMALY_05000257
 	R7=LC0;
 	LC0=R7;
@@ -208,7 +189,7 @@ ENTRY(_handle_bad_cplb)
 	 * need to make a CPLB exception look like a normal exception
 	 */
 
-	DEBUG_START_HWTRACE
+	DEBUG_START_HWTRACE(p5, r7)
 	RESTORE_ALL_SYS
 	[--sp] = ASTAT;
 	[--sp] = (R7:6, P5:4);
@@ -251,7 +232,7 @@ ENTRY(_ex_trap_c)
 	R6 = SEQSTAT;
 	[P5] = R6;
 
-	DEBUG_START_HWTRACE
+	DEBUG_START_HWTRACE(p5, r7)
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	SP = RETN;
@@ -335,7 +316,7 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	/* Try to deal with syscalls quickly.  */
 	[--sp] = ASTAT;
 	[--sp] = (R7:6, P5:4);
-	DEBUG_STOP_HWTRACE
+	DEBUG_STOP_HWTRACE(p5, r7)
 	r7 = SEQSTAT;		/* reason code is in bit 5:0 */
 	r6.l = lo(SEQSTAT_EXCAUSE);
 	r6.h = hi(SEQSTAT_EXCAUSE);

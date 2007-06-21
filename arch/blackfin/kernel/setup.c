@@ -194,6 +194,17 @@ void __init setup_arch(char **cmdline_p)
 	/* this give a chance to get printk() working before crash. */
 #endif
 
+	printk(KERN_INFO "Hardware Trace ");
+	if (bfin_read_TBUFCTL() & 0x1 )
+		printk("Active ");
+	else
+		printk("Off ");
+	if (bfin_read_TBUFCTL() & 0x2)
+		printk("and Enabled\n");
+	else
+	printk("and Disabled\n");
+
+
 #if defined(CONFIG_CHR_DEV_FLASH) || defined(CONFIG_BLK_DEV_FLASH)
 	/* we need to initialize the Flashrom device here since we might
 	 * do things with flash early on in the boot
@@ -396,9 +407,6 @@ void __init setup_arch(char **cmdline_p)
 #else
 	_bfin_swrst = bfin_read_SWRST();
 #endif
-
-	printk(KERN_INFO "Hardware Trace Enabled\n");
-	bfin_write_TBUFCTL(0x03);
 
 	/* Copy atomic sequences to their fixed location, and sanity check that
 	   these locations are the ones that we advertise to userspace.  */

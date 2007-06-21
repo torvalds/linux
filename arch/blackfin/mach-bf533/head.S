@@ -30,6 +30,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/blackfin.h>
+#include <asm/trace.h>
 #if CONFIG_BFIN_KERNEL_CLOCK
 #include <asm/mach/mem_init.h>
 #endif
@@ -95,6 +96,10 @@ ENTRY(__start)
 	M1 = r0;
 	M2 = r0;
 	M3 = r0;
+
+	trace_buffer_start(p0,r0);
+	P0 = R1;
+	R0 = R1;
 
 #if CONFIG_DEBUG_KERNEL_START
 
