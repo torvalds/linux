@@ -107,7 +107,8 @@ static void ps3_panic(char *str)
 	while(1);
 }
 
-#if defined(CONFIG_FB_PS3) || defined(CONFIG_FB_PS3_MODULE)
+#if defined(CONFIG_FB_PS3) || defined(CONFIG_FB_PS3_MODULE) || \
+    defined(CONFIG_PS3_FLASH) || defined(CONFIG_PS3_FLASH_MODULE)
 static void prealloc(struct ps3_prealloc *p)
 {
 	if (!p->size)
@@ -123,7 +124,9 @@ static void prealloc(struct ps3_prealloc *p)
 	printk(KERN_INFO "%s: %lu bytes at %p\n", p->name, p->size,
 	       p->address);
 }
+#endif
 
+#if defined(CONFIG_FB_PS3) || defined(CONFIG_FB_PS3_MODULE)
 struct ps3_prealloc ps3fb_videomemory = {
 	.name = "ps3fb videomemory",
 	.size = CONFIG_FB_PS3_DEFAULT_SIZE_M*1024*1024,
@@ -144,6 +147,30 @@ static int __init early_parse_ps3fb(char *p)
 early_param("ps3fb", early_parse_ps3fb);
 #else
 #define prealloc_ps3fb_videomemory()	do { } while (0)
+#endif
+
+#if defined(CONFIG_PS3_FLASH) || defined(CONFIG_PS3_FLASH_MODULE)
+struct ps3_prealloc ps3flash_bounce_buffer = {
+	.name = "ps3flash bounce buffer",
+	.size = 256*1024,
+	.align = 256*1024
+};
+EXPORT_SYMBOL_GPL(ps3flash_bounce_buffer);
+#define prealloc_ps3flash_bounce_buffer()	prealloc(&ps3flash_bounce_buffer)
+
+static int __init early_parse_ps3flash(char *p)
+{
+	if (!p)
+		return 1;
+
+	if (!strcmp(p, "off"))
+		ps3flash_bounce_buffer.size = 0;
+
+	return 0;
+}
+early_param("ps3flash", early_parse_ps3flash);
+#else
+#define prealloc_ps3flash_bounce_buffer()	do { } while (0)
 #endif
 
 static int ps3_set_dabr(u64 dabr)
@@ -175,6 +202,8 @@ static void __init ps3_setup_arch(void)
 #endif
 
 	prealloc_ps3fb_videomemory();
+	prealloc_ps3flash_bounce_buffer();
+
 	ppc_md.power_save = ps3_power_save;
 
 	DBG(" <- %s:%d\n", __func__, __LINE__);

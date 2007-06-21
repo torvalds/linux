@@ -427,6 +427,7 @@ struct ps3_prealloc {
 };
 
 extern struct ps3_prealloc ps3fb_videomemory;
+extern struct ps3_prealloc ps3flash_bounce_buffer;
 
 
 #endif
