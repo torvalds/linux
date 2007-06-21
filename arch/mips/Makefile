@@ -283,14 +283,6 @@ load-$(CONFIG_MACH_DECSTATION)	+= 0xffffffff80040000
 CLEAN_FILES			+= drivers/tc/lk201-map.c
 
 #
-# Galileo EV64120 Board
-#
-core-$(CONFIG_MIPS_EV64120)	+= arch/mips/gt64120/ev64120/
-core-$(CONFIG_MIPS_EV64120)	+= arch/mips/gt64120/common/
-cflags-$(CONFIG_MIPS_EV64120)	+= -Iinclude/asm-mips/mach-ev64120
-load-$(CONFIG_MIPS_EV64120)	+= 0xffffffff80100000
-
-#
 # Wind River PPMC Board (4KC + GT64120)
 #
 core-$(CONFIG_WR_PPMC)		+= arch/mips/gt64120/wrppmc/

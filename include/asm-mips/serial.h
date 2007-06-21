@@ -51,24 +51,6 @@
 #define JAZZ_SERIAL_PORT_DEFNS
 #endif
 
-/*
- * Galileo EV64120 evaluation board
- */
-#ifdef CONFIG_MIPS_EV64120
-#include <mach-gt64120.h>
-#define EV64120_SERIAL_PORT_DEFNS                                  \
-    { .baud_base = EV64120_BASE_BAUD, .irq = EV64120_UART_IRQ, \
-      .flags = STD_COM_FLAGS,  \
-      .iomem_base = EV64120_UART0_REGS_BASE, .iomem_reg_shift = 2, \
-      .io_type = SERIAL_IO_MEM }, \
-    { .baud_base = EV64120_BASE_BAUD, .irq = EV64120_UART_IRQ, \
-      .flags = STD_COM_FLAGS, \
-      .iomem_base = EV64120_UART1_REGS_BASE, .iomem_reg_shift = 2, \
-      .io_type = SERIAL_IO_MEM },
-#else
-#define EV64120_SERIAL_PORT_DEFNS
-#endif
-
 #ifdef CONFIG_HAVE_STD_PC_SERIAL_PORT
 #define STD_SERIAL_PORT_DEFNS			\
 	/* UART CLK   PORT IRQ     FLAGS        */			\
@@ -166,7 +148,6 @@
 
 #define SERIAL_PORT_DFNS				\
 	DDB5477_SERIAL_PORT_DEFNS			\
-	EV64120_SERIAL_PORT_DEFNS			\
 	IP32_SERIAL_PORT_DEFNS                          \
 	JAZZ_SERIAL_PORT_DEFNS				\
 	STD_SERIAL_PORT_DEFNS				\

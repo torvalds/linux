@@ -109,12 +109,6 @@
 #define  MACH_COSINE_ORION	0
 
 /*
- * Valid machtype for group GALILEO
- */
-#define MACH_GROUP_GALILEO     11	/* Galileo Eval Boards		*/
-#define  MACH_EV64120A		0	/* EV64120A */
-
-/*
  * Valid machtype for group MOMENCO
  */
 #define MACH_GROUP_MOMENCO	12	/* Momentum Boards		*/

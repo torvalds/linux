@@ -88,24 +88,6 @@ config MACH_DECSTATION
 
 	  otherwise choose R3000.
 
-config MIPS_EV64120
-	bool "Galileo EV64120 Evaluation board (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select PCI_GT64XXX_PCI0
-	select SYS_HAS_CPU_R5000
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_KGDB
-	help
-	  This is an evaluation board based on the Galileo GT-64120
-	  single-chip system controller that contains a MIPS R5000 compatible
-	  core running at 75/100MHz.  Their website is located at
-	  <http://www.marvell.com/>.  Say Y here if you wish to build a
-	  kernel for this platform.
-
 config MACH_JAZZ
 	bool "Jazz family of machines"
 	select ARC
@@ -661,7 +643,6 @@ endchoice
 
 source "arch/mips/au1000/Kconfig"
 source "arch/mips/ddb5xxx/Kconfig"
-source "arch/mips/gt64120/ev64120/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/lasat/Kconfig"
 source "arch/mips/pmc-sierra/Kconfig"
@@ -884,19 +865,11 @@ config SERIAL_RM9000
 #
 choice
 	prompt "Galileo Chip Clock"
-	#default SYSCLK_83 if MIPS_EV64120
-	depends on MIPS_EV64120 || MOMENCO_OCELOT
-	default SYSCLK_83 if MIPS_EV64120
+	depends on MOMENCO_OCELOT
 	default SYSCLK_100 if MOMENCO_OCELOT
 
-config SYSCLK_75
-	bool "75" if MIPS_EV64120
-
-config SYSCLK_83
-	bool "83.3" if MIPS_EV64120
-
 config SYSCLK_100
-	bool "100" if MIPS_EV64120 || MOMENCO_OCELOT
+	bool "100" if MOMENCO_OCELOT
 
 endchoice
 
