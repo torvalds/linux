@@ -120,7 +120,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->max_qp_init_rd_atom = dev->dev->caps.max_qp_init_rdma;
 	props->max_res_rd_atom	   = props->max_qp_rd_atom * props->max_qp;
 	props->max_srq		   = dev->dev->caps.num_srqs - dev->dev->caps.reserved_srqs;
-	props->max_srq_wr	   = dev->dev->caps.max_srq_wqes;
+	props->max_srq_wr	   = dev->dev->caps.max_srq_wqes - 1;
 	props->max_srq_sge	   = dev->dev->caps.max_srq_sge;
 	props->local_ca_ack_delay  = dev->dev->caps.local_ca_ack_delay;
 	props->atomic_cap	   = dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_ATOMIC ?
