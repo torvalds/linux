@@ -605,6 +605,11 @@ void mark_rodata_ro(void)
 	if (num_possible_cpus() > 1)
 		start = (unsigned long)_etext;
 #endif
+
+#ifdef CONFIG_KPROBES
+	start = (unsigned long)__start_rodata;
+#endif
+	
 	end = (unsigned long)__end_rodata;
 	start = (start + PAGE_SIZE - 1) & PAGE_MASK;
 	end &= PAGE_MASK;
