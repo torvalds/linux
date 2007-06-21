@@ -740,18 +740,13 @@ int ocfs2_map_page_blocks(struct page *page, u64 *p_blkno,
 	bh = head;
 	block_start = 0;
 	do {
-		void *kaddr;
-
 		block_end = block_start + bsize;
 		if (block_end <= from)
 			goto next_bh;
 		if (block_start >= to)
 			break;
 
-		kaddr = kmap_atomic(page, KM_USER0);
-		memset(kaddr+block_start, 0, bh->b_size);
-		flush_dcache_page(page);
-		kunmap_atomic(kaddr, KM_USER0);
+		zero_user_page(page, block_start, bh->b_size, KM_USER0);
 		set_buffer_uptodate(bh);
 		mark_buffer_dirty(bh);
 
@@ -906,15 +901,11 @@ static void ocfs2_zero_new_buffers(struct page *page, unsigned from, unsigned to
 			if (block_end > from && block_start < to) {
 				if (!PageUptodate(page)) {
 					unsigned start, end;
-					void *kaddr;
 
 					start = max(from, block_start);
 					end = min(to, block_end);
 
-					kaddr = kmap_atomic(page, KM_USER0);
-					memset(kaddr+start, 0, end - start);
-					flush_dcache_page(page);
-					kunmap_atomic(kaddr, KM_USER0);
+					zero_user_page(page, start, end - start, KM_USER0);
 					set_buffer_uptodate(bh);
 				}
 
