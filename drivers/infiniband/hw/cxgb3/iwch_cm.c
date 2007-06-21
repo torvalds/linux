@@ -254,8 +254,6 @@ static void release_ep_resources(struct iwch_ep *ep)
 	cxgb3_remove_tid(ep->com.tdev, (void *)ep, ep->hwtid);
 	dst_release(ep->dst);
 	l2t_release(L2DATA(ep->com.tdev), ep->l2t);
-	if (ep->com.tdev->type == T3B)
-		release_tid(ep->com.tdev, ep->hwtid, NULL);
 	put_ep(&ep->com);
 }
 
@@ -1103,6 +1101,15 @@ static int abort_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	return CPL_RET_BUF_DONE;
 }
 
+/*
+ * Return whether a failed active open has allocated a TID
+ */
+static inline int act_open_has_tid(int status)
+{
+	return status != CPL_ERR_TCAM_FULL && status != CPL_ERR_CONN_EXIST &&
+	       status != CPL_ERR_ARP_MISS;
+}
+
 static int act_open_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 {
 	struct iwch_ep *ep = ctx;
@@ -1112,7 +1119,7 @@ static int act_open_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	     status2errno(rpl->status));
 	connect_reply_upcall(ep, status2errno(rpl->status));
 	state_set(&ep->com, DEAD);
-	if (ep->com.tdev->type == T3B)
+	if (ep->com.tdev->type == T3B && act_open_has_tid(rpl->status))
 		release_tid(ep->com.tdev, GET_TID(rpl), NULL);
 	cxgb3_free_atid(ep->com.tdev, ep->atid);
 	dst_release(ep->dst);
