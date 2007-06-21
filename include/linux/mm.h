@@ -603,6 +603,10 @@ static inline struct address_space *page_mapping(struct page *page)
 
 	if (unlikely(PageSwapCache(page)))
 		mapping = &swapper_space;
+#ifdef CONFIG_SLUB
+	else if (unlikely(PageSlab(page)))
+		mapping = NULL;
+#endif
 	else if (unlikely((unsigned long)mapping & PAGE_MAPPING_ANON))
 		mapping = NULL;
 	return mapping;
