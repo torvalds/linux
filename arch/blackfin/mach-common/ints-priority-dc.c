@@ -371,6 +371,9 @@ int __init init_arch_irq(void)
 	bfin_write_SICA_IMASK1(SIC_UNMASK_ALL);
 	SSYNC();
 
+	bfin_write_SICA_IWR0(IWR_ENABLE_ALL);  
+	bfin_write_SICA_IWR1(IWR_ENABLE_ALL);  
+
 	local_irq_disable();
 
 	init_exception_buff();

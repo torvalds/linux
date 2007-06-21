@@ -472,8 +472,12 @@ int __init init_arch_irq(void)
 	bfin_write_SIC_IMASK0(SIC_UNMASK_ALL);
 	bfin_write_SIC_IMASK1(SIC_UNMASK_ALL);
 	bfin_write_SIC_IMASK2(SIC_UNMASK_ALL);
+	bfin_write_SIC_IWR0(IWR_ENABLE_ALL);
+	bfin_write_SIC_IWR1(IWR_ENABLE_ALL);
+	bfin_write_SIC_IWR2(IWR_ENABLE_ALL);		
 #else
 	bfin_write_SIC_IMASK(SIC_UNMASK_ALL);
+	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 #endif
 
 	SSYNC();
