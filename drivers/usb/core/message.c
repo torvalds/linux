@@ -404,8 +404,6 @@ int usb_sg_init (
 
 		io->urbs [i]->complete = sg_complete;
 		io->urbs [i]->context = io;
-		io->urbs [i]->status = -EINPROGRESS;
-		io->urbs [i]->actual_length = 0;
 
 		/*
 		 * Some systems need to revert to PIO when DMA is temporarily
@@ -499,7 +497,8 @@ void usb_sg_wait (struct usb_sg_request *io)
 
 	/* queue the urbs.  */
 	spin_lock_irq (&io->lock);
-	for (i = 0; i < entries && !io->status; i++) {
+	i = 0;
+	while (i < entries && !io->status) {
 		int	retval;
 
 		io->urbs [i]->dev = io->dev;
@@ -516,7 +515,6 @@ void usb_sg_wait (struct usb_sg_request *io)
 		case -ENOMEM:
 			io->urbs[i]->dev = NULL;
 			retval = 0;
-			i--;
 			yield ();
 			break;
 
@@ -527,6 +525,7 @@ void usb_sg_wait (struct usb_sg_request *io)
 			 * URBs are queued at once; N milliseconds?
 			 */
 		case 0:
+			++i;
 			cpu_relax ();
 			break;
 
