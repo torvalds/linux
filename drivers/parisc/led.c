@@ -195,12 +195,6 @@ static int led_proc_write(struct file *file, const char *buf,
 
 	cur = lbuf;
 
-	/* skip initial spaces */
-	while (*cur && isspace(*cur))
-	{
-		cur++;
-	}
-
 	switch ((long)data)
 	{
 	case LED_NOLCD:
