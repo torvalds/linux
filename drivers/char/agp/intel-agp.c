@@ -1843,35 +1843,35 @@ static const struct intel_driver_description {
 		&intel_845_driver, &intel_830_driver },
 	{ PCI_DEVICE_ID_INTEL_82875_HB, 0, 0, "i875", &intel_845_driver, NULL },
 	{ PCI_DEVICE_ID_INTEL_82915G_HB, PCI_DEVICE_ID_INTEL_82915G_IG, 0, "915G",
-		&intel_845_driver, &intel_915_driver },
+		NULL, &intel_915_driver },
 	{ PCI_DEVICE_ID_INTEL_82915GM_HB, PCI_DEVICE_ID_INTEL_82915GM_IG, 0, "915GM",
-		&intel_845_driver, &intel_915_driver },
+		NULL, &intel_915_driver },
 	{ PCI_DEVICE_ID_INTEL_82945G_HB, PCI_DEVICE_ID_INTEL_82945G_IG, 0, "945G",
-		&intel_845_driver, &intel_915_driver },
+		NULL, &intel_915_driver },
 	{ PCI_DEVICE_ID_INTEL_82945GM_HB, PCI_DEVICE_ID_INTEL_82945GM_IG, 1, "945GM",
-		&intel_845_driver, &intel_915_driver },
+		NULL, &intel_915_driver },
 	{ PCI_DEVICE_ID_INTEL_82945GM_HB, PCI_DEVICE_ID_INTEL_82945GME_IG, 0, "945GME",
-		&intel_845_driver, &intel_915_driver },
+		NULL, &intel_915_driver },
 	{ PCI_DEVICE_ID_INTEL_82946GZ_HB, PCI_DEVICE_ID_INTEL_82946GZ_IG, 0, "946GZ",
-		&intel_845_driver, &intel_i965_driver },
+		NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_82965G_1_HB, PCI_DEVICE_ID_INTEL_82965G_1_IG, 0, "965G",
-		&intel_845_driver, &intel_i965_driver },
+		NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_82965Q_HB, PCI_DEVICE_ID_INTEL_82965Q_IG, 0, "965Q",
-		&intel_845_driver, &intel_i965_driver },
+		NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_82965G_HB, PCI_DEVICE_ID_INTEL_82965G_IG, 0, "965G",
-		&intel_845_driver, &intel_i965_driver },
+		NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_82965GM_HB, PCI_DEVICE_ID_INTEL_82965GM_IG, 1, "965GM",
-		&intel_845_driver, &intel_i965_driver },
+		NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_82965GM_HB, PCI_DEVICE_ID_INTEL_82965GME_IG, 0, "965GME/GLE",
-		&intel_845_driver, &intel_i965_driver },
+		NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_7505_0, 0, 0, "E7505", &intel_7505_driver, NULL },
 	{ PCI_DEVICE_ID_INTEL_7205_0, 0, 0, "E7205", &intel_7505_driver, NULL },
 	{ PCI_DEVICE_ID_INTEL_G33_HB, PCI_DEVICE_ID_INTEL_G33_IG, 0, "G33",
-		&intel_845_driver, &intel_g33_driver },
+		NULL, &intel_g33_driver },
 	{ PCI_DEVICE_ID_INTEL_Q35_HB, PCI_DEVICE_ID_INTEL_Q35_IG, 0, "Q35",
-		&intel_845_driver, &intel_g33_driver },
+		NULL, &intel_g33_driver },
 	{ PCI_DEVICE_ID_INTEL_Q33_HB, PCI_DEVICE_ID_INTEL_Q33_IG, 0, "Q33",
-		&intel_845_driver, &intel_g33_driver },
+		NULL, &intel_g33_driver },
 	{ 0, 0, 0, NULL, NULL, NULL }
 };
 
@@ -1917,8 +1917,11 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 	}
 
 	if (bridge->driver == NULL) {
-		printk(KERN_WARNING PFX "Failed to find bridge device "
-			"(chip_id: %04x)\n", intel_agp_chipsets[i].gmch_chip_id);
+		/* bridge has no AGP and no IGD detected */
+		if (cap_ptr)
+			printk(KERN_WARNING PFX "Failed to find bridge device "
+				"(chip_id: %04x)\n",
+				intel_agp_chipsets[i].gmch_chip_id);
 		agp_put_bridge(bridge);
 		return -ENODEV;
         }
