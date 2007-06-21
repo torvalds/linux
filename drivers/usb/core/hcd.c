@@ -1291,6 +1291,7 @@ int hcd_bus_resume(struct usb_device *rhdev)
 {
 	struct usb_hcd	*hcd = container_of(rhdev->bus, struct usb_hcd, self);
 	int		status;
+	int		old_state = hcd->state;
 
 	dev_dbg(&rhdev->dev, "usb %s%s\n",
 			rhdev->auto_pm ? "auto-" : "", "resume");
@@ -1309,9 +1310,11 @@ int hcd_bus_resume(struct usb_device *rhdev)
 				: USB_STATE_ADDRESS);
 		hcd->state = HC_STATE_RUNNING;
 	} else {
+		hcd->state = old_state;
 		dev_dbg(&rhdev->dev, "bus %s fail, err %d\n",
 				"resume", status);
-		usb_hc_died(hcd);
+		if (status != -ESHUTDOWN)
+			usb_hc_died(hcd);
 	}
 	return status;
 }

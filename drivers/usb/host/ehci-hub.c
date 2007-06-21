@@ -199,6 +199,10 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	if (time_before (jiffies, ehci->next_statechange))
 		msleep(5);
 	spin_lock_irq (&ehci->lock);
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
+		spin_unlock_irq(&ehci->lock);
+		return -ESHUTDOWN;
+	}
 
 	/* Ideally and we've got a real resume here, and no port's power
 	 * was lost.  (For PCI, that means Vaux was maintained.)  But we

@@ -1784,8 +1784,7 @@ static int dummy_bus_resume (struct usb_hcd *hcd)
 
 	spin_lock_irq (&dum->lock);
 	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
-		dev_warn (&hcd->self.root_hub->dev, "HC isn't running!\n");
-		rc = -ENODEV;
+		rc = -ESHUTDOWN;
 	} else {
 		dum->rh_state = DUMMY_RH_RUNNING;
 		set_link_state (dum);
