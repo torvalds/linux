@@ -282,6 +282,9 @@ int mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		   struct mlx4_qp_context *context, enum mlx4_qp_optpar optpar,
 		   int sqd_event, struct mlx4_qp *qp);
 
+int mlx4_qp_query(struct mlx4_dev *dev, struct mlx4_qp *qp,
+		  struct mlx4_qp_context *context);
+
 static inline struct mlx4_qp *__mlx4_qp_lookup(struct mlx4_dev *dev, u32 qpn)
 {
 	return radix_tree_lookup(&dev->qp_table_tree, qpn & (dev->caps.num_qps - 1));

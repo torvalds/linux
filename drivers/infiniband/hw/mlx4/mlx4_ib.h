@@ -267,6 +267,8 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 int mlx4_ib_destroy_qp(struct ib_qp *qp);
 int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		      int attr_mask, struct ib_udata *udata);
+int mlx4_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_mask,
+		     struct ib_qp_init_attr *qp_init_attr);
 int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		      struct ib_send_wr **bad_wr);
 int mlx4_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
