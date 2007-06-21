@@ -44,7 +44,7 @@ struct dma_register *base_addr[MAX_BLACKFIN_DMA_CHANNEL] = {
 	(struct dma_register *) MDMA_S1_NEXT_DESC_PTR,
 };
 
-int bf533_channel2irq(unsigned int channel)
+int channel2irq(unsigned int channel)
 {
 	int ret_irq = -1;
 
