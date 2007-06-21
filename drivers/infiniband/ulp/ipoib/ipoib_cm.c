@@ -56,13 +56,6 @@ MODULE_PARM_DESC(cm_data_debug_level,
 #define IPOIB_CM_RX_DELAY       (3 * 256 * HZ)
 #define IPOIB_CM_RX_UPDATE_MASK (0x3)
 
-struct ipoib_cm_id {
-	struct ib_cm_id *id;
-	int flags;
-	u32 remote_qpn;
-	u32 remote_mtu;
-};
-
 static struct ib_qp_attr ipoib_cm_err_attr = {
 	.qp_state = IB_QPS_ERR
 };
