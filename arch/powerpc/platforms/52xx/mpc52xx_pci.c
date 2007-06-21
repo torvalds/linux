@@ -117,13 +117,13 @@ mpc52xx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 
 	out_be32(hose->cfg_addr,
 		(1 << 31) |
-		((bus->number - hose->bus_offset) << 16) |
+		(bus->number << 16) |
 		(devfn << 8) |
 		(offset & 0xfc));
 	mb();
 
 #if defined(CONFIG_PPC_MPC5200_BUGFIX)
-	if (bus->number != hose->bus_offset) {
+	if (bus->number) {
 		/* workaround for the bug 435 of the MPC5200 (L25R);
 		 * Don't do 32 bits config access during type-1 cycles */
 		switch (len) {
@@ -174,13 +174,13 @@ mpc52xx_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 
 	out_be32(hose->cfg_addr,
 		(1 << 31) |
-		((bus->number - hose->bus_offset) << 16) |
+		(bus->number << 16) |
 		(devfn << 8) |
 		(offset & 0xfc));
 	mb();
 
 #if defined(CONFIG_PPC_MPC5200_BUGFIX)
-	if (bus->number != hose->bus_offset) {
+	if (bus->number) {
 		/* workaround for the bug 435 of the MPC5200 (L25R);
 		 * Don't do 32 bits config access during type-1 cycles */
 		switch (len) {
@@ -394,7 +394,6 @@ mpc52xx_add_bridge(struct device_node *node)
 	hose->first_busno = bus_range ? bus_range[0] : 0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
-	hose->bus_offset = 0;
 	hose->ops = &mpc52xx_pci_ops;
 
 	pci_regs = ioremap(rsrc.start, rsrc.end - rsrc.start + 1);
