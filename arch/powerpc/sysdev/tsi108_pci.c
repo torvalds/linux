@@ -226,7 +226,6 @@ int __init tsi108_setup_pci(struct device_node *dev, u32 cfg_phys, int primary)
 		return -ENOMEM;
 	}
 	hose->arch_data = dev;
-	hose->set_cfg_type = 1;
 
 	hose->first_busno = bus_range ? bus_range[0] : 0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;

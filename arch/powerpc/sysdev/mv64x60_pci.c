@@ -142,7 +142,6 @@ static int __init mv64x60_add_bridge(struct device_node *dev)
 		return -ENOMEM;
 
 	hose->arch_data = dev;
-	hose->set_cfg_type = 1;
 
 	hose->first_busno = bus_range ? bus_range[0] : 0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;

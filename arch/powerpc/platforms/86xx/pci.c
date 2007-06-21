@@ -172,7 +172,6 @@ int __init mpc86xx_add_bridge(struct device_node *dev)
 	if (!hose)
 		return -ENOMEM;
 	hose->arch_data = dev;
-	hose->set_cfg_type = 1;
 
 	/* last_busno = 0xfe cause by MPC8641 PCIE bug */
 	hose->first_busno = bus_range ? bus_range[0] : 0x0;
