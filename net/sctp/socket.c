@@ -6123,8 +6123,11 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	 * queued to the backlog.  This prevents a potential race between
 	 * backlog processing on the old socket and new-packet processing
 	 * on the new socket.
+	 *
+	 * The caller has just allocated newsk so we can guarantee that other
+	 * paths won't try to lock it and then oldsk.
 	 */
-	sctp_lock_sock(newsk);
+	lock_sock_nested(newsk, SINGLE_DEPTH_NESTING);
 	sctp_assoc_migrate(assoc, newsk);
 
 	/* If the association on the newsk is already closed before accept()
