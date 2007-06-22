@@ -1708,19 +1708,6 @@ int ocfs2_free_dinode(handle_t *handle,
 					inode_alloc_bh, bit, bg_blkno, 1);
 }
 
-int ocfs2_free_extent_block(handle_t *handle,
-			    struct inode *eb_alloc_inode,
-			    struct buffer_head *eb_alloc_bh,
-			    struct ocfs2_extent_block *eb)
-{
-	u64 blk = le64_to_cpu(eb->h_blkno);
-	u16 bit = le16_to_cpu(eb->h_suballoc_bit);
-	u64 bg_blkno = ocfs2_which_suballoc_group(blk, bit);
-
-	return ocfs2_free_suballoc_bits(handle, eb_alloc_inode, eb_alloc_bh,
-					bit, bg_blkno, 1);
-}
-
 int ocfs2_free_clusters(handle_t *handle,
 		       struct inode *bitmap_inode,
 		       struct buffer_head *bitmap_bh,

@@ -83,8 +83,7 @@ int ocfs2_run_deallocs(struct ocfs2_super *osb,
 		       struct ocfs2_cached_dealloc_ctxt *ctxt);
 
 struct ocfs2_truncate_context {
-	struct inode *tc_ext_alloc_inode;
-	struct buffer_head *tc_ext_alloc_bh;
+	struct ocfs2_cached_dealloc_ctxt tc_dealloc;
 	int tc_ext_alloc_locked; /* is it cluster locked? */
 	/* these get destroyed once it's passed to ocfs2_commit_truncate. */
 	struct buffer_head *tc_last_eb_bh;

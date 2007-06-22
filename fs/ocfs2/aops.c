@@ -1498,6 +1498,7 @@ int ocfs2_write_end_nolock(struct address_space *mapping,
 	ocfs2_journal_dirty(handle, wc->w_di_bh);
 
 	ocfs2_commit_trans(osb, handle);
+
 	ocfs2_free_write_ctxt(wc);
 
 	return copied;

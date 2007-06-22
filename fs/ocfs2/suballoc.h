@@ -96,10 +96,6 @@ int ocfs2_free_dinode(handle_t *handle,
 		      struct inode *inode_alloc_inode,
 		      struct buffer_head *inode_alloc_bh,
 		      struct ocfs2_dinode *di);
-int ocfs2_free_extent_block(handle_t *handle,
-			    struct inode *eb_alloc_inode,
-			    struct buffer_head *eb_alloc_bh,
-			    struct ocfs2_extent_block *eb);
 int ocfs2_free_clusters(handle_t *handle,
 			struct inode *bitmap_inode,
 			struct buffer_head *bitmap_bh,

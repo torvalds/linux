@@ -50,6 +50,8 @@
 #include "buffer_head_io.h"
 
 static void ocfs2_free_truncate_context(struct ocfs2_truncate_context *tc);
+static int ocfs2_cache_extent_block_free(struct ocfs2_cached_dealloc_ctxt *ctxt,
+					 struct ocfs2_extent_block *eb);
 
 /*
  * Structures which describe a path through a btree, and functions to
@@ -3161,6 +3163,15 @@ out:
 	return ret;
 }
 
+static int ocfs2_cache_extent_block_free(struct ocfs2_cached_dealloc_ctxt *ctxt,
+					 struct ocfs2_extent_block *eb)
+{
+	return ocfs2_cache_block_dealloc(ctxt, EXTENT_ALLOC_SYSTEM_INODE,
+					 le16_to_cpu(eb->h_suballoc_slot),
+					 le64_to_cpu(eb->h_blkno),
+					 le16_to_cpu(eb->h_suballoc_bit));
+}
+
 /* This function will figure out whether the currently last extent
  * block will be deleted, and if it will, what the new last extent
  * block will be so we can update his h_next_leaf_blk field, as well
@@ -3442,27 +3453,10 @@ delete:
 			BUG_ON(le32_to_cpu(el->l_recs[0].e_cpos));
 			BUG_ON(le64_to_cpu(el->l_recs[0].e_blkno));
 
-			if (le16_to_cpu(eb->h_suballoc_slot) == 0) {
-				/*
-				 * This code only understands how to
-				 * lock the suballocator in slot 0,
-				 * which is fine because allocation is
-				 * only ever done out of that
-				 * suballocator too. A future version
-				 * might change that however, so avoid
-				 * a free if we don't know how to
-				 * handle it. This way an fs incompat
-				 * bit will not be necessary.
-				 */
-				ret = ocfs2_free_extent_block(handle,
-							      tc->tc_ext_alloc_inode,
-							      tc->tc_ext_alloc_bh,
-							      eb);
-
-				/* An error here is not fatal. */
-				if (ret < 0)
-					mlog_errno(ret);
-			}
+			ret = ocfs2_cache_extent_block_free(&tc->tc_dealloc, eb);
+			/* An error here is not fatal. */
+			if (ret < 0)
+				mlog_errno(ret);
 		} else {
 			deleted_eb = 0;
 		}
@@ -3965,6 +3959,8 @@ bail:
 	if (handle)
 		ocfs2_commit_trans(osb, handle);
 
+	ocfs2_run_deallocs(osb, &tc->tc_dealloc);
+
 	ocfs2_free_path(path);
 
 	/* This will drop the ext_alloc cluster lock for us */
@@ -3975,23 +3971,18 @@ bail:
 }
 
 /*
- * Expects the inode to already be locked. This will figure out which
- * inodes need to be locked and will put them on the returned truncate
- * context.
+ * Expects the inode to already be locked.
  */
 int ocfs2_prepare_truncate(struct ocfs2_super *osb,
 			   struct inode *inode,
 			   struct buffer_head *fe_bh,
 			   struct ocfs2_truncate_context **tc)
 {
-	int status, metadata_delete, i;
+	int status;
 	unsigned int new_i_clusters;
 	struct ocfs2_dinode *fe;
 	struct ocfs2_extent_block *eb;
-	struct ocfs2_extent_list *el;
 	struct buffer_head *last_eb_bh = NULL;
-	struct inode *ext_alloc_inode = NULL;
-	struct buffer_head *ext_alloc_bh = NULL;
 
 	mlog_entry_void();
 
@@ -4011,12 +4002,9 @@ int ocfs2_prepare_truncate(struct ocfs2_super *osb,
 		mlog_errno(status);
 		goto bail;
 	}
+	ocfs2_init_dealloc_ctxt(&(*tc)->tc_dealloc);
 
-	metadata_delete = 0;
 	if (fe->id2.i_list.l_tree_depth) {
-		/* If we have a tree, then the truncate may result in
-		 * metadata deletes. Figure this out from the
-		 * rightmost leaf block.*/
 		status = ocfs2_read_block(osb, le64_to_cpu(fe->i_last_eb_blk),
 					  &last_eb_bh, OCFS2_BH_CACHED, inode);
 		if (status < 0) {
@@ -4031,42 +4019,9 @@ int ocfs2_prepare_truncate(struct ocfs2_super *osb,
 			status = -EIO;
 			goto bail;
 		}
-		el = &(eb->h_list);
-
-		i = 0;
-		if (ocfs2_is_empty_extent(&el->l_recs[0]))
-			i = 1;
-		/*
-		 * XXX: Should we check that next_free_rec contains
-		 * the extent?
-		 */
-		if (le32_to_cpu(el->l_recs[i].e_cpos) >= new_i_clusters)
-			metadata_delete = 1;
 	}
 
 	(*tc)->tc_last_eb_bh = last_eb_bh;
-
-	if (metadata_delete) {
-		mlog(0, "Will have to delete metadata for this trunc. "
-		     "locking allocator.\n");
-		ext_alloc_inode = ocfs2_get_system_file_inode(osb, EXTENT_ALLOC_SYSTEM_INODE, 0);
-		if (!ext_alloc_inode) {
-			status = -ENOMEM;
-			mlog_errno(status);
-			goto bail;
-		}
-
-		mutex_lock(&ext_alloc_inode->i_mutex);
-		(*tc)->tc_ext_alloc_inode = ext_alloc_inode;
-
-		status = ocfs2_meta_lock(ext_alloc_inode, &ext_alloc_bh, 1);
-		if (status < 0) {
-			mlog_errno(status);
-			goto bail;
-		}
-		(*tc)->tc_ext_alloc_bh = ext_alloc_bh;
-		(*tc)->tc_ext_alloc_locked = 1;
-	}
 
 	status = 0;
 bail:
@@ -4081,16 +4036,13 @@ bail:
 
 static void ocfs2_free_truncate_context(struct ocfs2_truncate_context *tc)
 {
-	if (tc->tc_ext_alloc_inode) {
-		if (tc->tc_ext_alloc_locked)
-			ocfs2_meta_unlock(tc->tc_ext_alloc_inode, 1);
-
-		mutex_unlock(&tc->tc_ext_alloc_inode->i_mutex);
-		iput(tc->tc_ext_alloc_inode);
-	}
-
-	if (tc->tc_ext_alloc_bh)
-		brelse(tc->tc_ext_alloc_bh);
+	/*
+	 * The caller is responsible for completing deallocation
+	 * before freeing the context.
+	 */
+	if (tc->tc_dealloc.c_first_suballocator != NULL)
+		mlog(ML_NOTICE,
+		     "Truncate completion has non-empty dealloc context\n");
 
 	if (tc->tc_last_eb_bh)
 		brelse(tc->tc_last_eb_bh);
