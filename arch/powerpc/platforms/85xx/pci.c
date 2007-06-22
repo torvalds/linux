@@ -33,8 +33,6 @@
 #define DBG(x...)
 #endif
 
-int mpc85xx_pci2_busno = 0;
-
 #ifdef CONFIG_PCI
 int __init mpc85xx_add_bridge(struct device_node *dev)
 {
@@ -74,7 +72,6 @@ int __init mpc85xx_add_bridge(struct device_node *dev)
 		setup_indirect_pci(hose, immr + 0x9000, immr + 0x9004);
 		primary = 0;
 		hose->bus_offset = hose->first_busno;
-		mpc85xx_pci2_busno = hose->first_busno;
 	}
 
 	printk(KERN_INFO "Found MPC85xx PCI host bridge at 0x%016llx. "

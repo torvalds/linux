@@ -55,16 +55,11 @@ static volatile u8 *cadmus;
 #define ARCADIA_HOST_BRIDGE_IDSEL	17
 #define ARCADIA_2ND_BRIDGE_IDSEL	3
 
-extern int mpc85xx_pci2_busno;
-
 static int mpc85xx_exclude_device(struct pci_controller *hose,
 				  u_char bus, u_char devfn)
 {
-	if (bus == 0 && PCI_SLOT(devfn) == 0)
+	if ((bus == hose->first_busno) && PCI_SLOT(devfn) == 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-	if (mpc85xx_pci2_busno)
-		if (bus == (mpc85xx_pci2_busno) && PCI_SLOT(devfn) == 0)
-			return PCIBIOS_DEVICE_NOT_FOUND;
 	/* We explicitly do not go past the Tundra 320 Bridge */
 	if ((bus == 1) && (PCI_SLOT(devfn) == ARCADIA_2ND_BRIDGE_IDSEL))
 		return PCIBIOS_DEVICE_NOT_FOUND;

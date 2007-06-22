@@ -33,15 +33,10 @@
 #define DBG(x...)
 #endif
 
-int mpc83xx_pci2_busno;
-
 int mpc83xx_exclude_device(struct pci_controller *hose, u_char bus, u_char devfn)
 {
-	if (bus == 0 && PCI_SLOT(devfn) == 0)
+	if ((bus == hose->first_busno) && PCI_SLOT(devfn) == 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-	if (mpc83xx_pci2_busno)
-		if (bus == (mpc83xx_pci2_busno) && PCI_SLOT(devfn) == 0)
-			return PCIBIOS_DEVICE_NOT_FOUND;
 	return PCIBIOS_SUCCESSFUL;
 }
 
@@ -86,7 +81,6 @@ int __init mpc83xx_add_bridge(struct device_node *dev)
 		setup_indirect_pci(hose, immr + 0x8380, immr + 0x8384);
 		primary = 0;
 		hose->bus_offset = hose->first_busno;
-		mpc83xx_pci2_busno = hose->first_busno;
 	}
 
 	printk(KERN_INFO "Found MPC83xx PCI host bridge at 0x%016llx. "
