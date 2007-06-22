@@ -869,8 +869,7 @@ ctnetlink_change_helper(struct nf_conn *ct, struct nfattr *cda[])
 		return 0;
 
 	if (help->helper)
-		/* we had a helper before ... */
-		nf_ct_remove_expectations(ct);
+		return -EBUSY;
 
 	/* need to zero data of old helper */
 	memset(&help->help, 0, sizeof(help->help));
