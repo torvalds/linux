@@ -329,9 +329,10 @@ void __init setup_arch(char **cmdline_p)
 
 	printk(KERN_INFO "Memory map:\n"
 	       KERN_INFO "  text      = 0x%p-0x%p\n"
-	       KERN_INFO "  init      = 0x%p-0x%p\n"
+	       KERN_INFO "  rodata    = 0x%p-0x%p\n"
 	       KERN_INFO "  data      = 0x%p-0x%p\n"
-	       KERN_INFO "  stack     = 0x%p-0x%p\n"
+	       KERN_INFO "    stack   = 0x%p-0x%p\n"
+	       KERN_INFO "  init      = 0x%p-0x%p\n"
 	       KERN_INFO "  bss       = 0x%p-0x%p\n"
 	       KERN_INFO "  available = 0x%p-0x%p\n"
 #ifdef CONFIG_MTD_UCLINUX
@@ -341,9 +342,10 @@ void __init setup_arch(char **cmdline_p)
 	       KERN_INFO "  DMA Zone  = 0x%p-0x%p\n"
 #endif
 	       , _stext, _etext,
-	       __init_begin, __init_end,
+	       __start_rodata, __end_rodata,
 	       _sdata, _edata,
 	       (void*)&init_thread_union, (void*)((int)(&init_thread_union) + 0x2000),
+	       __init_begin, __init_end,
 	       __bss_start, __bss_stop,
 	       (void*)_ramstart, (void*)memory_end
 #ifdef CONFIG_MTD_UCLINUX

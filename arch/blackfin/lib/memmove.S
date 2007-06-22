@@ -69,8 +69,17 @@ ENTRY(_memmove)
 	P2 = R2;                  /* set remainder */
 	R1 = [I0++];
 
-	LSETUP (.Lquad_loop, .Lquad_loop) LC0=P1;
-.Lquad_loop: MNOP || [P0++] = R1 || R1 = [I0++];
+	LSETUP (.Lquad_loops, .Lquad_loope) LC0=P1;
+#ifdef ANOMALY_05000202
+.Lquad_loops:
+	[P0++] = R1;
+.Lquad_loope:
+	R1 = [I0++];
+#else
+.Lquad_loops:
+.Lquad_loope:
+	 MNOP || [P0++] = R1 || R1 = [I0++];
+#endif
 	[P0++] = R1;
 
 	CC = P2 == 0;             /* any remaining bytes? */
@@ -93,6 +102,10 @@ ENTRY(_memmove)
 	R1 = B[P3--] (Z);
 	CC = P2 == 0;
 	IF CC JUMP .Lno_loop;
+#ifdef ANOMALY_05000245
+	NOP;
+	NOP;
+#endif
 	LSETUP (.Lol_s, .Lol_e) LC0 = P2;
 .Lol_s:    B[P0--] = R1;
 .Lol_e:    R1 = B[P3--] (Z);

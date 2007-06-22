@@ -94,13 +94,20 @@ ENTRY(_memcpy)
 .Lmore_than_seven:
 	/* There's at least eight bytes to copy. */
 	P2 += -1;	/* because we unroll one iteration */
-	LSETUP(.Lword_loop, .Lword_loop) LC0=P2;
+	LSETUP(.Lword_loops, .Lword_loope) LC0=P2;
 	R0 = R1;
 	I1 = P1;
 	R3 = [I1++];
-.Lword_loop:
+#ifdef ANOMALY_05000202
+.Lword_loops:
+	[P0++] = R3;
+.Lword_loope:
+	R3 = [I1++];
+#else
+.Lword_loops:
+.Lword_loope:
 	MNOP || [P0++] = R3 || R3 = [I1++];
-
+#endif
 	[P0++] = R3;
 	/* Any remaining bytes to copy? */
 	R3 = 0x3;

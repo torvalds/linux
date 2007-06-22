@@ -20,7 +20,7 @@
  */
 #ifndef __ASSEMBLY__
 
-static inline unsigned char readb(void __iomem *addr)
+static inline unsigned char readb(const volatile void __iomem *addr)
 {
 	unsigned int val;
 	int tmp;
@@ -35,7 +35,7 @@ static inline unsigned char readb(void __iomem *addr)
 	return (unsigned char) val;
 }
 
-static inline unsigned short readw(void __iomem *addr)
+static inline unsigned short readw(const volatile void __iomem *addr)
 {
 	unsigned int val;
 	int tmp;
@@ -50,7 +50,7 @@ static inline unsigned short readw(void __iomem *addr)
 	return (unsigned short) val;
 }
 
-static inline unsigned int readl(void __iomem *addr)
+static inline unsigned int readl(const volatile void __iomem *addr)
 {
 	unsigned int val;
 	int tmp;

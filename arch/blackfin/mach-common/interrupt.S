@@ -139,7 +139,7 @@ __common_int_entry:
 	fp = 0;
 #endif
 
-#ifdef	ANOMALY_05000283
+#if defined (ANOMALY_05000283) || defined (ANOMALY_05000315)
 	cc = r7 == r7;
 	p5.h = 0xffc0;
 	p5.l = 0x0014;
