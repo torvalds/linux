@@ -375,12 +375,3 @@ void __init pxa_init_irq_gpio(int gpio_nr)
 	set_irq_chip(IRQ_GPIO_2_x, &pxa_internal_chip_low);
 	set_irq_chained_handler(IRQ_GPIO_2_x, pxa_gpio_demux_handler);
 }
-
-void __init pxa_init_irq(void)
-{
-	pxa_init_irq_low();
-#ifdef CONFIG_PXA27x
-	pxa_init_irq_high();
-#endif
-	pxa_init_irq_gpio(PXA_LAST_GPIO + 1);
-}

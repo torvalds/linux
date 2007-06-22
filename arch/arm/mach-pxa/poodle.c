@@ -412,7 +412,7 @@ MACHINE_START(POODLE, "SHARP Poodle")
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_poodle,
 	.map_io		= pxa_map_io,
-	.init_irq	= pxa_init_irq,
+	.init_irq	= pxa25x_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= poodle_init,
 MACHINE_END

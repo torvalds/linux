@@ -97,7 +97,7 @@ static void __init lpd270_init_irq(void)
 {
 	int irq;
 
-	pxa_init_irq();
+	pxa27x_init_irq();
 
 	__raw_writew(0, LPD270_INT_MASK);
 	__raw_writew(0, LPD270_INT_STATUS);

@@ -19,6 +19,7 @@
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
+#include <asm/arch/irqs.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/pm.h>
@@ -201,6 +202,13 @@ void __init pxa_set_ohci_info(struct pxaohci_platform_data *info)
 static struct platform_device *devices[] __initdata = {
 	&ohci_device,
 };
+
+void __init pxa27x_init_irq(void)
+{
+	pxa_init_irq_low();
+	pxa_init_irq_high();
+	pxa_init_irq_gpio(128);
+}
 
 static int __init pxa27x_init(void)
 {

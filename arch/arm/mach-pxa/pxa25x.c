@@ -22,6 +22,7 @@
 #include <linux/pm.h>
 
 #include <asm/hardware.h>
+#include <asm/arch/irqs.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pm.h>
 
@@ -127,6 +128,12 @@ static struct pm_ops pxa25x_pm_ops = {
 	.valid		= pm_valid_only_mem,
 };
 #endif
+
+void __init pxa25x_init_irq(void)
+{
+	pxa_init_irq_low();
+	pxa_init_irq_gpio(85);
+}
 
 static int __init pxa25x_init(void)
 {
