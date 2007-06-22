@@ -25,6 +25,7 @@
 #include <asm/arch/irqs.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pm.h>
+#include <asm/arch/dma.h>
 
 #include "generic.h"
 
@@ -137,7 +138,11 @@ void __init pxa25x_init_irq(void)
 
 static int __init pxa25x_init(void)
 {
+	int ret = 0;
+
 	if (cpu_is_pxa21x() || cpu_is_pxa25x()) {
+		if ((ret = pxa_init_dma(16)))
+			return ret;
 #ifdef CONFIG_PM
 		pm_set_ops(&pxa25x_pm_ops);
 #endif

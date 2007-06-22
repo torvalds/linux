@@ -23,6 +23,7 @@
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/pm.h>
+#include <asm/arch/dma.h>
 
 #include "generic.h"
 
@@ -214,6 +215,8 @@ static int __init pxa27x_init(void)
 {
 	int ret = 0;
 	if (cpu_is_pxa27x()) {
+		if ((ret = pxa_init_dma(32)))
+			return ret;
 #ifdef CONFIG_PM
 		pm_set_ops(&pxa27x_pm_ops);
 #endif
