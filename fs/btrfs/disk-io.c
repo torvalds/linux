@@ -580,7 +580,7 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_transaction_flush_work(root);
 	mutex_lock(&fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
-	btrfs_commit_transaction(trans, root);
+	ret = btrfs_commit_transaction(trans, root);
 	/* run commit again to  drop the original snapshot */
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_commit_transaction(trans, root);

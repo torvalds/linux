@@ -125,9 +125,8 @@ static int btrfs_sync_fs(struct super_block *sb, int wait)
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);
 	sb->s_dirt = 0;
-	BUG_ON(ret);
 	mutex_unlock(&root->fs_info->fs_mutex);
-	return 0;
+	return ret;
 }
 
 static void btrfs_write_super(struct super_block *sb)

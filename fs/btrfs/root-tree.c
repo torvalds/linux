@@ -90,7 +90,6 @@ int btrfs_insert_root(struct btrfs_trans_handle *trans, struct btrfs_root
 {
 	int ret;
 	ret = btrfs_insert_item(trans, root, key, item, sizeof(*item));
-	BUG_ON(ret);
 	return ret;
 }
 

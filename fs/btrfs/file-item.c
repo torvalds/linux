@@ -45,6 +45,8 @@ int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_insert_empty_item(trans, root, path, &file_key,
 				      sizeof(*item));
+	if (ret < 0)
+		goto out;
 	BUG_ON(ret);
 	item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]), path->slots[0],
 			      struct btrfs_file_extent_item);
@@ -55,10 +57,9 @@ int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 	btrfs_set_file_extent_generation(item, trans->transid);
 	btrfs_set_file_extent_type(item, BTRFS_FILE_EXTENT_REG);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
-
-	btrfs_release_path(root, path);
+out:
 	btrfs_free_path(path);
-	return 0;
+	return ret;
 }
 
 struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
@@ -213,6 +214,8 @@ insert:
 	csum_offset = 0;
 	ret = btrfs_insert_empty_item(trans, root, path, &file_key,
 				      BTRFS_CRC32_SIZE);
+	if (ret < 0)
+		goto fail;
 	if (ret != 0) {
 		WARN_ON(1);
 		goto fail;
@@ -261,40 +264,3 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-int btrfs_csum_verify_file_block(struct btrfs_root *root,
-				 u64 objectid, u64 offset,
-				 char *data, size_t len)
-{
-	int ret;
-	struct btrfs_key file_key;
-	struct btrfs_path *path;
-	struct btrfs_csum_item *item;
-	char result[BTRFS_CRC32_SIZE];
-
-	path = btrfs_alloc_path();
-	BUG_ON(!path);
-	file_key.objectid = objectid;
-	file_key.offset = offset;
-	file_key.flags = 0;
-	btrfs_set_key_type(&file_key, BTRFS_CSUM_ITEM_KEY);
-	mutex_lock(&root->fs_info->fs_mutex);
-
-	item = btrfs_lookup_csum(NULL, root, path, objectid, offset, 0);
-	if (IS_ERR(item)) {
-		ret = PTR_ERR(item);
-		/* a csum that isn't present is a preallocated region. */
-		if (ret == -ENOENT || ret == -EFBIG)
-			ret = -ENOENT;
-		goto fail;
-	}
-
-	ret = btrfs_csum_data(root, data, len, result);
-	WARN_ON(ret);
-	if (memcmp(result, &item->csum, BTRFS_CRC32_SIZE))
-		ret = 1;
-fail:
-	btrfs_release_path(root, path);
-	btrfs_free_path(path);
-	mutex_unlock(&root->fs_info->fs_mutex);
-	return ret;
-}

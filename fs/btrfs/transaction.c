@@ -219,7 +219,8 @@ static int add_dirty_roots(struct btrfs_trans_handle *trans,
 	struct btrfs_root *root;
 	int i;
 	int ret;
-	int err;
+	int err = 0;
+
 	while(1) {
 		ret = radix_tree_gang_lookup_tag(radix, (void **)gang, 0,
 						 ARRAY_SIZE(gang),
@@ -251,11 +252,12 @@ static int add_dirty_roots(struct btrfs_trans_handle *trans,
 			err = btrfs_insert_root(trans, root->fs_info->tree_root,
 						&root->root_key,
 						&root->root_item);
-			BUG_ON(err);
+			if (err)
+				break;
 			list_add(&dirty->list, list);
 		}
 	}
-	return 0;
+	return err;
 }
 
 static int drop_dirty_roots(struct btrfs_root *tree_root,
@@ -263,7 +265,7 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 {
 	struct dirty_root *dirty;
 	struct btrfs_trans_handle *trans;
-	int ret;
+	int ret = 0;
 	while(!list_empty(list)) {
 		mutex_lock(&tree_root->fs_info->fs_mutex);
 		dirty = list_entry(list->next, struct dirty_root, list);
@@ -274,14 +276,15 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 		BUG_ON(ret);
 
 		ret = btrfs_del_root(trans, tree_root, &dirty->snap_key);
-		BUG_ON(ret);
+		if (ret)
+			break;
 		ret = btrfs_end_transaction(trans, tree_root);
 		BUG_ON(ret);
 		kfree(dirty);
 		mutex_unlock(&tree_root->fs_info->fs_mutex);
 		btrfs_btree_balance_dirty(tree_root);
 	}
-	return 0;
+	return ret;
 }
 
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
@@ -321,9 +324,13 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	}
 	finish_wait(&trans->transaction->writer_wait, &wait);
 	WARN_ON(cur_trans != trans->transaction);
-	add_dirty_roots(trans, &root->fs_info->fs_roots_radix, &dirty_fs_roots);
+	ret = add_dirty_roots(trans, &root->fs_info->fs_roots_radix,
+			      &dirty_fs_roots);
+	BUG_ON(ret);
+
 	ret = btrfs_commit_tree_roots(trans, root);
 	BUG_ON(ret);
+
 	cur_trans = root->fs_info->running_transaction;
 	root->fs_info->running_transaction = NULL;
 	if (cur_trans->list.prev != &root->fs_info->trans_list) {

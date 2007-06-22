@@ -1126,9 +1126,6 @@ int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root,
 			  u64 objectid, u64 offset,
 			  char *data, size_t len);
-int btrfs_csum_verify_file_block(struct btrfs_root *root,
-				 u64 objectid, u64 offset,
-				 char *data, size_t len);
 struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 					  struct btrfs_root *root,
 					  struct btrfs_path *path,

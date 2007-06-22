@@ -47,6 +47,8 @@ static struct btrfs_dir_item *insert_with_overflow(struct btrfs_trans_handle
 		if (ret)
 			return ERR_PTR(ret);
 	}
+	if (ret < 0)
+		return ERR_PTR(ret);
 	WARN_ON(ret > 0);
 	leaf = btrfs_buffer_leaf(path->nodes[0]);
 	item = leaf->items + path->slots[0];
@@ -225,14 +227,13 @@ int btrfs_delete_one_dir_name(struct btrfs_trans_handle *trans,
 	struct btrfs_leaf *leaf;
 	u32 sub_item_len;
 	u32 item_len;
-	int ret;
+	int ret = 0;
 
 	leaf = btrfs_buffer_leaf(path->nodes[0]);
 	sub_item_len = sizeof(*di) + btrfs_dir_name_len(di);
 	item_len = btrfs_item_size(leaf->items + path->slots[0]);
 	if (sub_item_len == btrfs_item_size(leaf->items + path->slots[0])) {
 		ret = btrfs_del_item(trans, root, path);
-		BUG_ON(ret);
 	} else {
 		char *ptr = (char *)di;
 		char *start = btrfs_item_ptr(leaf, path->slots[0], char);
@@ -240,7 +241,6 @@ int btrfs_delete_one_dir_name(struct btrfs_trans_handle *trans,
 			item_len - (ptr + sub_item_len - start));
 		ret = btrfs_truncate_item(trans, root, path,
 					  item_len - sub_item_len);
-		BUG_ON(ret);
 	}
 	return 0;
 }
