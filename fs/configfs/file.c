@@ -27,8 +27,8 @@
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 
 #include <linux/configfs.h>
 #include "configfs_internal.h"
@@ -46,7 +46,7 @@ struct configfs_buffer {
 	loff_t			pos;
 	char			* page;
 	struct configfs_item_operations	* ops;
-	struct semaphore	sem;
+	struct mutex		mutex;
 	int			needs_read_fill;
 };
 
@@ -109,7 +109,7 @@ configfs_read_file(struct file *file, char __user *buf, size_t count, loff_t *pp
 	struct configfs_buffer * buffer = file->private_data;
 	ssize_t retval = 0;
 
-	down(&buffer->sem);
+	mutex_lock(&buffer->mutex);
 	if (buffer->needs_read_fill) {
 		if ((retval = fill_read_buffer(file->f_path.dentry,buffer)))
 			goto out;
@@ -119,7 +119,7 @@ configfs_read_file(struct file *file, char __user *buf, size_t count, loff_t *pp
 	retval = simple_read_from_buffer(buf, count, ppos, buffer->page,
 					 buffer->count);
 out:
-	up(&buffer->sem);
+	mutex_unlock(&buffer->mutex);
 	return retval;
 }
 
@@ -200,13 +200,13 @@ configfs_write_file(struct file *file, const char __user *buf, size_t count, lof
 	struct configfs_buffer * buffer = file->private_data;
 	ssize_t len;
 
-	down(&buffer->sem);
+	mutex_lock(&buffer->mutex);
 	len = fill_write_buffer(buffer, buf, count);
 	if (len > 0)
 		len = flush_write_buffer(file->f_path.dentry, buffer, count);
 	if (len > 0)
 		*ppos += len;
-	up(&buffer->sem);
+	mutex_unlock(&buffer->mutex);
 	return len;
 }
 
@@ -260,7 +260,7 @@ static int check_perm(struct inode * inode, struct file * file)
 		error = -ENOMEM;
 		goto Enomem;
 	}
-	init_MUTEX(&buffer->sem);
+	mutex_init(&buffer->mutex);
 	buffer->needs_read_fill = 1;
 	buffer->ops = ops;
 	file->private_data = buffer;
@@ -299,6 +299,7 @@ static int configfs_release(struct inode * inode, struct file * filp)
 	if (buffer) {
 		if (buffer->page)
 			free_page((unsigned long)buffer->page);
+		mutex_destroy(&buffer->mutex);
 		kfree(buffer);
 	}
 	return 0;
