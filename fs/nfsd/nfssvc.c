@@ -549,7 +549,7 @@ nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	if (nfserr == nfserr_jukebox && rqstp->rq_vers == 2)
 		nfserr = nfserr_dropit;
 	if (nfserr == nfserr_dropit) {
-		dprintk("nfsd: Dropping request due to malloc failure!\n");
+		dprintk("nfsd: Dropping request; may be revisited later\n");
 		nfsd_cache_update(rqstp, RC_NOCACHE, NULL);
 		return 0;
 	}
