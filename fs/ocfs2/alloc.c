@@ -2957,6 +2957,210 @@ int ocfs2_truncate_log_init(struct ocfs2_super *osb)
 	return status;
 }
 
+/*
+ * Delayed de-allocation of suballocator blocks.
+ *
+ * Some sets of block de-allocations might involve multiple suballocator inodes.
+ *
+ * The locking for this can get extremely complicated, especially when
+ * the suballocator inodes to delete from aren't known until deep
+ * within an unrelated codepath.
+ *
+ * ocfs2_extent_block structures are a good example of this - an inode
+ * btree could have been grown by any number of nodes each allocating
+ * out of their own suballoc inode.
+ *
+ * These structures allow the delay of block de-allocation until a
+ * later time, when locking of multiple cluster inodes won't cause
+ * deadlock.
+ */
+
+/*
+ * Describes a single block free from a suballocator
+ */
+struct ocfs2_cached_block_free {
+	struct ocfs2_cached_block_free		*free_next;
+	u64					free_blk;
+	unsigned int				free_bit;
+};
+
+struct ocfs2_per_slot_free_list {
+	struct ocfs2_per_slot_free_list		*f_next_suballocator;
+	int					f_inode_type;
+	int					f_slot;
+	struct ocfs2_cached_block_free		*f_first;
+};
+
+static int ocfs2_free_cached_items(struct ocfs2_super *osb,
+				   int sysfile_type,
+				   int slot,
+				   struct ocfs2_cached_block_free *head)
+{
+	int ret;
+	u64 bg_blkno;
+	handle_t *handle;
+	struct inode *inode;
+	struct buffer_head *di_bh = NULL;
+	struct ocfs2_cached_block_free *tmp;
+
+	inode = ocfs2_get_system_file_inode(osb, sysfile_type, slot);
+	if (!inode) {
+		ret = -EINVAL;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	mutex_lock(&inode->i_mutex);
+
+	ret = ocfs2_meta_lock(inode, &di_bh, 1);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_mutex;
+	}
+
+	handle = ocfs2_start_trans(osb, OCFS2_SUBALLOC_FREE);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		mlog_errno(ret);
+		goto out_unlock;
+	}
+
+	while (head) {
+		bg_blkno = ocfs2_which_suballoc_group(head->free_blk,
+						      head->free_bit);
+		mlog(0, "Free bit: (bit %u, blkno %llu)\n",
+		     head->free_bit, (unsigned long long)head->free_blk);
+
+		ret = ocfs2_free_suballoc_bits(handle, inode, di_bh,
+					       head->free_bit, bg_blkno, 1);
+		if (ret) {
+			mlog_errno(ret);
+			goto out_journal;
+		}
+
+		ret = ocfs2_extend_trans(handle, OCFS2_SUBALLOC_FREE);
+		if (ret) {
+			mlog_errno(ret);
+			goto out_journal;
+		}
+
+		tmp = head;
+		head = head->free_next;
+		kfree(tmp);
+	}
+
+out_journal:
+	ocfs2_commit_trans(osb, handle);
+
+out_unlock:
+	ocfs2_meta_unlock(inode, 1);
+	brelse(di_bh);
+out_mutex:
+	mutex_unlock(&inode->i_mutex);
+	iput(inode);
+out:
+	while(head) {
+		/* Premature exit may have left some dangling items. */
+		tmp = head;
+		head = head->free_next;
+		kfree(tmp);
+	}
+
+	return ret;
+}
+
+int ocfs2_run_deallocs(struct ocfs2_super *osb,
+		       struct ocfs2_cached_dealloc_ctxt *ctxt)
+{
+	int ret = 0, ret2;
+	struct ocfs2_per_slot_free_list *fl;
+
+	if (!ctxt)
+		return 0;
+
+	while (ctxt->c_first_suballocator) {
+		fl = ctxt->c_first_suballocator;
+
+		if (fl->f_first) {
+			mlog(0, "Free items: (type %u, slot %d)\n",
+			     fl->f_inode_type, fl->f_slot);
+			ret2 = ocfs2_free_cached_items(osb, fl->f_inode_type,
+						       fl->f_slot, fl->f_first);
+			if (ret2)
+				mlog_errno(ret2);
+			if (!ret)
+				ret = ret2;
+		}
+
+		ctxt->c_first_suballocator = fl->f_next_suballocator;
+		kfree(fl);
+	}
+
+	return ret;
+}
+
+static struct ocfs2_per_slot_free_list *
+ocfs2_find_per_slot_free_list(int type,
+			      int slot,
+			      struct ocfs2_cached_dealloc_ctxt *ctxt)
+{
+	struct ocfs2_per_slot_free_list *fl = ctxt->c_first_suballocator;
+
+	while (fl) {
+		if (fl->f_inode_type == type && fl->f_slot == slot)
+			return fl;
+
+		fl = fl->f_next_suballocator;
+	}
+
+	fl = kmalloc(sizeof(*fl), GFP_NOFS);
+	if (fl) {
+		fl->f_inode_type = type;
+		fl->f_slot = slot;
+		fl->f_first = NULL;
+		fl->f_next_suballocator = ctxt->c_first_suballocator;
+
+		ctxt->c_first_suballocator = fl;
+	}
+	return fl;
+}
+
+static int ocfs2_cache_block_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
+				     int type, int slot, u64 blkno,
+				     unsigned int bit)
+{
+	int ret;
+	struct ocfs2_per_slot_free_list *fl;
+	struct ocfs2_cached_block_free *item;
+
+	fl = ocfs2_find_per_slot_free_list(type, slot, ctxt);
+	if (fl == NULL) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	item = kmalloc(sizeof(*item), GFP_NOFS);
+	if (item == NULL) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	mlog(0, "Insert: (type %d, slot %u, bit %u, blk %llu)\n",
+	     type, slot, bit, (unsigned long long)blkno);
+
+	item->free_blk = blkno;
+	item->free_bit = bit;
+	item->free_next = fl->f_first;
+
+	fl->f_first = item;
+
+	ret = 0;
+out:
+	return ret;
+}
+
 /* This function will figure out whether the currently last extent
  * block will be deleted, and if it will, what the new last extent
  * block will be so we can update his h_next_leaf_blk field, as well

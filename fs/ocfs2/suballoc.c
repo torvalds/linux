@@ -98,14 +98,6 @@ static int ocfs2_relink_block_group(handle_t *handle,
 				    u16 chain);
 static inline int ocfs2_block_group_reasonably_empty(struct ocfs2_group_desc *bg,
 						     u32 wanted);
-static int ocfs2_free_suballoc_bits(handle_t *handle,
-				    struct inode *alloc_inode,
-				    struct buffer_head *alloc_bh,
-				    unsigned int start_bit,
-				    u64 bg_blkno,
-				    unsigned int count);
-static inline u64 ocfs2_which_suballoc_group(u64 block,
-					     unsigned int bit);
 static inline u32 ocfs2_desc_bitmap_to_cluster_off(struct inode *inode,
 						   u64 bg_blkno,
 						   u16 bg_bit_off);
@@ -1626,12 +1618,12 @@ bail:
 /*
  * expects the suballoc inode to already be locked.
  */
-static int ocfs2_free_suballoc_bits(handle_t *handle,
-				    struct inode *alloc_inode,
-				    struct buffer_head *alloc_bh,
-				    unsigned int start_bit,
-				    u64 bg_blkno,
-				    unsigned int count)
+int ocfs2_free_suballoc_bits(handle_t *handle,
+			     struct inode *alloc_inode,
+			     struct buffer_head *alloc_bh,
+			     unsigned int start_bit,
+			     u64 bg_blkno,
+			     unsigned int count)
 {
 	int status = 0;
 	u32 tmp_used;
@@ -1701,13 +1693,6 @@ bail:
 
 	mlog_exit(status);
 	return status;
-}
-
-static inline u64 ocfs2_which_suballoc_group(u64 block, unsigned int bit)
-{
-	u64 group = block - (u64) bit;
-
-	return group;
 }
 
 int ocfs2_free_dinode(handle_t *handle,

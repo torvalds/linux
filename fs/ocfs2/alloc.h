@@ -63,6 +63,25 @@ int ocfs2_begin_truncate_log_recovery(struct ocfs2_super *osb,
 int ocfs2_complete_truncate_log_recovery(struct ocfs2_super *osb,
 					 struct ocfs2_dinode *tl_copy);
 
+/*
+ * Process local structure which describes the block unlinks done
+ * during an operation. This is populated via
+ * ocfs2_cache_block_dealloc().
+ *
+ * ocfs2_run_deallocs() should be called after the potentially
+ * de-allocating routines. No journal handles should be open, and most
+ * locks should have been dropped.
+ */
+struct ocfs2_cached_dealloc_ctxt {
+	struct ocfs2_per_slot_free_list		*c_first_suballocator;
+};
+static inline void ocfs2_init_dealloc_ctxt(struct ocfs2_cached_dealloc_ctxt *c)
+{
+	c->c_first_suballocator = NULL;
+}
+int ocfs2_run_deallocs(struct ocfs2_super *osb,
+		       struct ocfs2_cached_dealloc_ctxt *ctxt);
+
 struct ocfs2_truncate_context {
 	struct inode *tc_ext_alloc_inode;
 	struct buffer_head *tc_ext_alloc_bh;
