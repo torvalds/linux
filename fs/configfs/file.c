@@ -33,6 +33,13 @@
 #include <linux/configfs.h>
 #include "configfs_internal.h"
 
+/*
+ * A simple attribute can only be 4096 characters.  Why 4k?  Because the
+ * original code limited it to PAGE_SIZE.  That's a bad idea, though,
+ * because an attribute of 16k on ia64 won't work on x86.  So we limit to
+ * 4k, our minimum common page size.
+ */
+#define SIMPLE_ATTR_SIZE 4096
 
 struct configfs_buffer {
 	size_t			count;
@@ -69,7 +76,7 @@ static int fill_read_buffer(struct dentry * dentry, struct configfs_buffer * buf
 
 	count = ops->show_attribute(item,attr,buffer->page);
 	buffer->needs_read_fill = 0;
-	BUG_ON(count > (ssize_t)PAGE_SIZE);
+	BUG_ON(count > (ssize_t)SIMPLE_ATTR_SIZE);
 	if (count >= 0)
 		buffer->count = count;
 	else
@@ -137,8 +144,8 @@ fill_write_buffer(struct configfs_buffer * buffer, const char __user * buf, size
 	if (!buffer->page)
 		return -ENOMEM;
 
-	if (count >= PAGE_SIZE)
-		count = PAGE_SIZE - 1;
+	if (count >= SIMPLE_ATTR_SIZE)
+		count = SIMPLE_ATTR_SIZE - 1;
 	error = copy_from_user(buffer->page,buf,count);
 	buffer->needs_read_fill = 1;
 	/* if buf is assumed to contain a string, terminate it by \0,
