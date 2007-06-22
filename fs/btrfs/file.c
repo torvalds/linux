@@ -607,7 +607,8 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 
 	while(count > 0) {
 		size_t offset = pos & (PAGE_CACHE_SIZE - 1);
-		size_t write_bytes = min(count, nrptrs * PAGE_CACHE_SIZE -
+		size_t write_bytes = min(count, nrptrs *
+					(size_t)PAGE_CACHE_SIZE -
 					 offset);
 		size_t num_pages = (write_bytes + PAGE_CACHE_SIZE - 1) >>
 					PAGE_CACHE_SHIFT;

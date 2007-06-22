@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/blkdev.h>
-#include <linux/crypto.h>
+#include <linux/crc32c.h>
 #include <linux/scatterlist.h>
 #include <linux/swap.h>
 #include <linux/radix-tree.h>
@@ -147,22 +147,12 @@ static int btree_get_block(struct inode *inode, sector_t iblock,
 int btrfs_csum_data(struct btrfs_root * root, char *data, size_t len,
 		    char *result)
 {
-	struct scatterlist sg;
-	struct crypto_hash *tfm = root->fs_info->hash_tfm;
-	struct hash_desc desc;
-	int ret;
-
-	desc.tfm = tfm;
-	desc.flags = 0;
-	sg_init_one(&sg, data, len);
-	spin_lock_irq(&root->fs_info->hash_lock);
-	ret = crypto_hash_digest(&desc, &sg, 1, result);
-	spin_unlock_irq(&root->fs_info->hash_lock);
-	if (ret) {
-		printk("digest failed\n");
-	}
-	return ret;
+	u32 crc;
+	crc = crc32c(0, data, len);
+	memcpy(result, &crc, BTRFS_CRC32_SIZE);
+	return 0;
 }
+
 static int csum_tree_block(struct btrfs_root *root, struct buffer_head *bh,
 			   int verify)
 {
@@ -454,14 +444,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	       sizeof(struct btrfs_key));
 	insert_inode_hash(fs_info->btree_inode);
 	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
-	fs_info->hash_tfm = crypto_alloc_hash("crc32c", 0, CRYPTO_ALG_ASYNC);
-	spin_lock_init(&fs_info->hash_lock);
 
-	if (!fs_info->hash_tfm || IS_ERR(fs_info->hash_tfm)) {
-		printk("btrfs: failed hash setup, modprobe cryptomgr?\n");
-		err = -ENOMEM;
-		goto fail_iput;
-	}
 	mutex_init(&fs_info->trans_mutex);
 	mutex_init(&fs_info->fs_mutex);
 
@@ -613,7 +596,6 @@ int close_ctree(struct btrfs_root *root)
 		btrfs_block_release(fs_info->tree_root,
 				    fs_info->tree_root->node);
 	btrfs_block_release(root, fs_info->sb_buffer);
-	crypto_free_hash(fs_info->hash_tfm);
 	truncate_inode_pages(fs_info->btree_inode->i_mapping, 0);
 	iput(fs_info->btree_inode);
 
