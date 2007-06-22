@@ -106,8 +106,13 @@
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <24000 1000>;
-			address = [ 00 E0 0C 00 73 00 ];
-			local-mac-address = [ 00 E0 0C 00 73 00 ];
+			/*
+			 * address is deprecated and will be removed
+			 * in 2.6.25.  Only recent versions of
+			 * U-Boot support local-mac-address, however.
+			 */
+			address = [ 00 00 00 00 00 00 ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <d 2 e 2 12 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy0>;
@@ -120,8 +125,13 @@
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <25000 1000>;
-			address = [ 00 E0 0C 00 73 01 ];
-			local-mac-address = [ 00 E0 0C 00 73 01 ];
+			/*
+			 * address is deprecated and will be removed
+			 * in 2.6.25.  Only recent versions of
+			 * U-Boot support local-mac-address, however.
+			 */
+			address = [ 00 00 00 00 00 00 ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <13 2 14 2 18 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy1>;
@@ -134,8 +144,13 @@
 			model = "FEC";
 			compatible = "gianfar";
 			reg = <26000 1000>;
-			address = [ 00 E0 0C 00 73 02 ];
-			local-mac-address = [ 00 E0 0C 00 73 02 ];
+			/*
+			 * address is deprecated and will be removed
+			 * in 2.6.25.  Only recent versions of
+			 * U-Boot support local-mac-address, however.
+			 */
+			address = [ 00 00 00 00 00 00 ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <19 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy3>;

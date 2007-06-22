@@ -112,7 +112,7 @@
 			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <24000 1000>;
-			local-mac-address = [ 00 E0 0C 00 73 00 ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <d 2 e 2 12 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy0>;
@@ -125,7 +125,7 @@
 			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <25000 1000>;
-			local-mac-address = [ 00 E0 0C 00 73 01 ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <13 2 14 2 18 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy1>;
@@ -139,7 +139,7 @@
 			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <26000 1000>;
-			local-mac-address = [ 00 E0 0C 00 73 02 ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <f 2 10 2 11 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy2>;
@@ -152,7 +152,7 @@
 			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <27000 1000>;
-			local-mac-address = [ 00 E0 0C 00 73 03 ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <15 2 16 2 17 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy3>;

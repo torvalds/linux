@@ -100,7 +100,7 @@
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <24000 1000>;
-			local-mac-address = [ 00 E0 0C 00 73 00 ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <0d 2 0e 2 12 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy0>;
@@ -113,7 +113,7 @@
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <25000 1000>;
-			local-mac-address = [ 00 E0 0C 00 73 01 ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <13 2 14 2 18 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy1>;
