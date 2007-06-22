@@ -56,7 +56,8 @@
 
 extern void _nmask_and_or_msr(unsigned long nmask, unsigned long or_val);
 
-int mpc7448_hpc2_exclude_device(u_char bus, u_char devfn)
+int mpc7448_hpc2_exclude_device(struct pci_controller *hose,
+				u_char bus, u_char devfn)
 {
 	if (bus == 0 && PCI_SLOT(devfn) == 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;

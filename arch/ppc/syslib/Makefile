@@ -7,6 +7,7 @@ CFLAGS_btext.o          += -fPIC
 
 wdt-mpc8xx-$(CONFIG_8xx_WDT)	+= m8xx_wdt.o
 
+obj-$(CONFIG_PPC_INDIRECT_PCI)	+= indirect_pci.o
 obj-$(CONFIG_PPCBUG_NVRAM)	+= prep_nvram.o
 obj-$(CONFIG_PPC_OCP)		+= ocp.o
 obj-$(CONFIG_IBM_OCP)		+= ibm_ocp.o

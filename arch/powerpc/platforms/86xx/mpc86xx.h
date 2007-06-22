@@ -17,7 +17,8 @@
 
 extern int mpc86xx_add_bridge(struct device_node *dev);
 
-extern int mpc86xx_exclude_device(u_char bus, u_char devfn);
+extern int mpc86xx_exclude_device(struct pci_controller *hose,
+				  u_char bus, u_char devfn);
 
 extern void setup_indirect_pcie(struct pci_controller *hose,
 				       u32 cfg_addr, u32 cfg_data);

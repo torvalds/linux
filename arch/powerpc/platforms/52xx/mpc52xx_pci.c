@@ -112,7 +112,7 @@ mpc52xx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 	u32 value;
 
 	if (ppc_md.pci_exclude_device)
-		if (ppc_md.pci_exclude_device(bus->number, devfn))
+		if (ppc_md.pci_exclude_device(hose, bus->number, devfn))
 			return PCIBIOS_DEVICE_NOT_FOUND;
 
 	out_be32(hose->cfg_addr,
@@ -169,7 +169,7 @@ mpc52xx_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 	u32 value, mask;
 
 	if (ppc_md.pci_exclude_device)
-		if (ppc_md.pci_exclude_device(bus->number, devfn))
+		if (ppc_md.pci_exclude_device(hose, bus->number, devfn))
 			return PCIBIOS_DEVICE_NOT_FOUND;
 
 	out_be32(hose->cfg_addr,

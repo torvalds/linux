@@ -140,7 +140,7 @@ mpc86xx_setup_pcie(struct pci_controller *hose, u32 pcie_offset, u32 pcie_size)
 	early_write_config_dword(hose, 0, 0, PCI_PRIMARY_BUS, temps);
 }
 
-int mpc86xx_exclude_device(u_char bus, u_char devfn)
+int mpc86xx_exclude_device(struct pci_controller *hose, u_char bus, u_char devfn)
 {
 	if (bus == 0 && PCI_SLOT(devfn) == 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;

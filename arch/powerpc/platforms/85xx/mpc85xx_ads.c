@@ -39,7 +39,8 @@
 #endif
 
 #ifdef CONFIG_PCI
-static int mpc85xx_exclude_device(u_char bus, u_char devfn)
+static int mpc85xx_exclude_device(struct pci_controller *hose,
+				   u_char bus, u_char devfn)
 {
 	if (bus == 0 && PCI_SLOT(devfn) == 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;

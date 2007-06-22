@@ -39,7 +39,7 @@ indirect_read_config_pcie(struct pci_bus *bus, unsigned int devfn, int offset,
 	u32 temp;
 
 	if (ppc_md.pci_exclude_device)
-		if (ppc_md.pci_exclude_device(bus->number, devfn))
+		if (ppc_md.pci_exclude_device(hose, bus->number, devfn))
 			return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/* Possible artifact of CDCpp50937 needs further investigation */
@@ -90,7 +90,7 @@ indirect_write_config_pcie(struct pci_bus *bus, unsigned int devfn, int offset,
 	u32 temp;
 
 	if (ppc_md.pci_exclude_device)
-		if (ppc_md.pci_exclude_device(bus->number, devfn))
+		if (ppc_md.pci_exclude_device(hose, bus->number, devfn))
 			return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/* Possible artifact of CDCpp50937 needs further investigation */
