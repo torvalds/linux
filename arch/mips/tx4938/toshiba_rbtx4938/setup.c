@@ -29,6 +29,7 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/bootinfo.h>
+#include <asm/gpio.h>
 #include <asm/tx4938/rbtx4938.h>
 #ifdef CONFIG_SERIAL_TXX9
 #include <linux/tty.h>
@@ -1057,3 +1058,106 @@ static int __init rbtx4938_ne_init(void)
 	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
 }
 device_initcall(rbtx4938_ne_init);
+
+/* GPIO support */
+
+static DEFINE_SPINLOCK(rbtx4938_spi_gpio_lock);
+
+static void rbtx4938_spi_gpio_set(unsigned gpio, int value)
+{
+	u8 val;
+	unsigned long flags;
+	gpio -= 16;
+	spin_lock_irqsave(&rbtx4938_spi_gpio_lock, flags);
+	val = *rbtx4938_spics_ptr;
+	if (value)
+		val |= 1 << gpio;
+	else
+		val &= ~(1 << gpio);
+	*rbtx4938_spics_ptr = val;
+	mmiowb();
+	spin_unlock_irqrestore(&rbtx4938_spi_gpio_lock, flags);
+}
+
+static int rbtx4938_spi_gpio_dir_out(unsigned gpio, int value)
+{
+	rbtx4938_spi_gpio_set(gpio, value);
+	return 0;
+}
+
+static DEFINE_SPINLOCK(tx4938_gpio_lock);
+
+static int tx4938_gpio_get(unsigned gpio)
+{
+	return tx4938_pioptr->din & (1 << gpio);
+}
+
+static void tx4938_gpio_set_raw(unsigned gpio, int value)
+{
+	u32 val;
+	val = tx4938_pioptr->dout;
+	if (value)
+		val |= 1 << gpio;
+	else
+		val &= ~(1 << gpio);
+	tx4938_pioptr->dout = val;
+}
+
+static void tx4938_gpio_set(unsigned gpio, int value)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&tx4938_gpio_lock, flags);
+	tx4938_gpio_set_raw(gpio, value);
+	mmiowb();
+	spin_unlock_irqrestore(&tx4938_gpio_lock, flags);
+}
+
+static int tx4938_gpio_dir_in(unsigned gpio)
+{
+	spin_lock_irq(&tx4938_gpio_lock);
+	tx4938_pioptr->dir &= ~(1 << gpio);
+	mmiowb();
+	spin_unlock_irq(&tx4938_gpio_lock);
+	return 0;
+}
+
+static int tx4938_gpio_dir_out(unsigned int gpio, int value)
+{
+	spin_lock_irq(&tx4938_gpio_lock);
+	tx4938_gpio_set_raw(gpio, value);
+	tx4938_pioptr->dir |= 1 << gpio;
+	mmiowb();
+	spin_unlock_irq(&tx4938_gpio_lock);
+	return 0;
+}
+
+int gpio_direction_input(unsigned gpio)
+{
+	if (gpio < 16)
+		return tx4938_gpio_dir_in(gpio);
+	return -EINVAL;
+}
+
+int gpio_direction_output(unsigned gpio, int value)
+{
+	if (gpio < 16)
+		return tx4938_gpio_dir_out(gpio, value);
+	if (gpio < 16 + 3)
+		return rbtx4938_spi_gpio_dir_out(gpio, value);
+	return -EINVAL;
+}
+
+int gpio_get_value(unsigned gpio)
+{
+	if (gpio < 16)
+		return tx4938_gpio_get(gpio);
+	return 0;
+}
+
+void gpio_set_value(unsigned gpio, int value)
+{
+	if (gpio < 16)
+		tx4938_gpio_set(gpio, value);
+	else
+		rbtx4938_spi_gpio_set(gpio, value);
+}

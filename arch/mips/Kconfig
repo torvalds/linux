@@ -660,6 +660,7 @@ config TOSHIBA_RBTX4938
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_KGDB
 	select GENERIC_HARDIRQS_NO__DO_IRQ
+	select GENERIC_GPIO
 	help
 	  This Toshiba board is based on the TX4938 processor. Say Y here to
 	  support this machine type
