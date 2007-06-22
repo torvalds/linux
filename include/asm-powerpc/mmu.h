@@ -14,10 +14,9 @@
 #elif defined(CONFIG_FSL_BOOKE)
 /* Freescale Book-E software loaded TLB */
 #  include <asm/mmu-fsl-booke.h>
-#else
-/* Other 32-bit.  FIXME: split up the other 32-bit MMU types, and
- * revise for arch/powerpc */
-#  include <asm-ppc/mmu.h>
+#elif defined (CONFIG_PPC_8xx)
+/* Motorola/Freescale 8xx software loaded TLB */
+#  include <asm/mmu-8xx.h>
 #endif
 
 #endif /* __KERNEL__ */
