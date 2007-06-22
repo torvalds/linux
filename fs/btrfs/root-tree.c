@@ -51,7 +51,6 @@ int btrfs_find_last_root(struct btrfs_root *root, u64 objectid,
 	memcpy(item, btrfs_item_ptr(l, slot, struct btrfs_root_item),
 		sizeof(*item));
 	btrfs_disk_key_to_cpu(key, &l->items[slot].key);
-printk("find last finds key %Lu %u %Lu slot %d search for obj %Lu\n", key->objectid, key->flags, key->offset, slot, objectid);
 	ret = 0;
 out:
 	btrfs_release_path(root, path);
@@ -141,7 +140,6 @@ int btrfs_find_dead_roots(struct btrfs_root *root)
 			ret = PTR_ERR(root);
 			goto err;
 		}
-printk("found dead root %Lu %u %Lu\n", key.objectid, key.flags, key.offset);
 		ret = btrfs_add_dead_root(dead_root,
 					  &root->fs_info->dead_roots);
 		if (ret)

@@ -5,19 +5,16 @@ directory can only be changed by btrfsctl right now, and normal filesystem
 operations do not work on it.  The default subvolume is called 'default',
 and you can create files and directories in mount_point/default
 
-Btrfs uses the crypto manager interface in the kernel for file and
-metadata checksums.  You need to compile the kernel with:
+Btrfs uses libcrc32c in the kernel for file and metadata checksums.  You need
+to compile the kernel with:
 
-CONFIG_CRYPTO=y
-CONFIG_CRYPTO_MANAGER=m
-CONFIG_CRYPTO_CRC32C=m
+CONFIG_LIBCRC32C=m
 
-cryptomanager and crc32c can be static as well.  Once your kernel is
-setup, typing make in the btrfs module sources will build against the
-running kernel.  When the build is complete:
+libcrc32c can be static as well.  Once your kernel is setup, typing make in the
+btrfs module sources will build against the running kernel.  When the build is
+complete:
 
-modprobe crc32c
-modprobe cryptomgr
+modprobe libcrc32c
 insmod btrfs.ko
 
 The Btrfs utility programs require libuuid to build.  This can be found

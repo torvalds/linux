@@ -308,7 +308,6 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 		list_del_init(&dirty->list);
 
 		trans = btrfs_start_transaction(tree_root, 1);
-printk("deleting root %Lu %u %Lu\n", dirty->snap_key.objectid, dirty->snap_key.flags, dirty->snap_key.offset);
 		ret = btrfs_drop_snapshot(trans, dirty->root,
 					  dirty->commit_root);
 		BUG_ON(ret);
