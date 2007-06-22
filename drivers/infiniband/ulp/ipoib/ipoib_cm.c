@@ -56,13 +56,6 @@ MODULE_PARM_DESC(cm_data_debug_level,
 #define IPOIB_CM_RX_DELAY       (3 * 256 * HZ)
 #define IPOIB_CM_RX_UPDATE_MASK (0x3)
 
-struct ipoib_cm_id {
-	struct ib_cm_id *id;
-	int flags;
-	u32 remote_qpn;
-	u32 remote_mtu;
-};
-
 static struct ib_qp_attr ipoib_cm_err_attr = {
 	.qp_state = IB_QPS_ERR
 };
@@ -309,6 +302,11 @@ static int ipoib_cm_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *even
 		return -ENOMEM;
 	p->dev = dev;
 	p->id = cm_id;
+	cm_id->context = p;
+	p->state = IPOIB_CM_RX_LIVE;
+	p->jiffies = jiffies;
+	INIT_LIST_HEAD(&p->list);
+
 	p->qp = ipoib_cm_create_rx_qp(dev, p);
 	if (IS_ERR(p->qp)) {
 		ret = PTR_ERR(p->qp);
@@ -320,24 +318,24 @@ static int ipoib_cm_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *even
 	if (ret)
 		goto err_modify;
 
+	spin_lock_irq(&priv->lock);
+	queue_delayed_work(ipoib_workqueue,
+			   &priv->cm.stale_task, IPOIB_CM_RX_DELAY);
+	/* Add this entry to passive ids list head, but do not re-add it
+	 * if IB_EVENT_QP_LAST_WQE_REACHED has moved it to flush list. */
+	p->jiffies = jiffies;
+	if (p->state == IPOIB_CM_RX_LIVE)
+		list_move(&p->list, &priv->cm.passive_ids);
+	spin_unlock_irq(&priv->lock);
+
 	ret = ipoib_cm_send_rep(dev, cm_id, p->qp, &event->param.req_rcvd, psn);
 	if (ret) {
 		ipoib_warn(priv, "failed to send REP: %d\n", ret);
-		goto err_rep;
+		if (ib_modify_qp(p->qp, &ipoib_cm_err_attr, IB_QP_STATE))
+			ipoib_warn(priv, "unable to move qp to error state\n");
 	}
-
-	cm_id->context = p;
-	p->jiffies = jiffies;
-	p->state = IPOIB_CM_RX_LIVE;
-	spin_lock_irq(&priv->lock);
-	if (list_empty(&priv->cm.passive_ids))
-		queue_delayed_work(ipoib_workqueue,
-				   &priv->cm.stale_task, IPOIB_CM_RX_DELAY);
-	list_add(&p->list, &priv->cm.passive_ids);
-	spin_unlock_irq(&priv->lock);
 	return 0;
 
-err_rep:
 err_modify:
 	ib_destroy_qp(p->qp);
 err_qp:
@@ -754,9 +752,9 @@ static int ipoib_cm_rep_handler(struct ib_cm_id *cm_id, struct ib_cm_event *even
 
 	p->mtu = be32_to_cpu(data->mtu);
 
-	if (p->mtu < priv->dev->mtu + IPOIB_ENCAP_LEN) {
-		ipoib_warn(priv, "Rejecting connection: mtu %d < device mtu %d + 4\n",
-			   p->mtu, priv->dev->mtu);
+	if (p->mtu <= IPOIB_ENCAP_LEN) {
+		ipoib_warn(priv, "Rejecting connection: mtu %d <= %d\n",
+			   p->mtu, IPOIB_ENCAP_LEN);
 		return -EINVAL;
 	}
 
