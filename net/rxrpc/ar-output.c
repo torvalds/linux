@@ -640,6 +640,7 @@ static int rxrpc_send_data(struct kiocb *iocb,
 			goto efault;
 		sp->remain -= copy;
 		skb->mark += copy;
+		copied += copy;
 
 		len -= copy;
 		segment -= copy;
@@ -709,6 +710,8 @@ static int rxrpc_send_data(struct kiocb *iocb,
 
 	} while (segment > 0);
 
+success:
+	ret = copied;
 out:
 	call->tx_pending = skb;
 	_leave(" = %d", ret);
@@ -725,7 +728,7 @@ call_aborted:
 
 maybe_error:
 	if (copied)
-		ret = copied;
+		goto success;
 	goto out;
 
 efault:
