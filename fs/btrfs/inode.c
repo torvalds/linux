@@ -2028,6 +2028,8 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 
 	btrfs_set_root_blocknr(&root_item, bh_blocknr(subvol));
 	btrfs_set_root_refs(&root_item, 1);
+	memset(&root_item.drop_progress, 0, sizeof(root_item.drop_progress));
+	root_item.drop_level = 0;
 	brelse(subvol);
 	subvol = NULL;
 

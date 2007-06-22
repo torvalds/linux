@@ -85,11 +85,15 @@ struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 
 	if (root != root->fs_info->tree_root && root->last_trans <
 	    running_trans_id) {
-		radix_tree_tag_set(&root->fs_info->fs_roots_radix,
-				   (unsigned long)root->root_key.objectid,
-				   BTRFS_ROOT_TRANS_TAG);
-		root->commit_root = root->node;
-		get_bh(root->node);
+		if (root->root_item.refs != 0) {
+			radix_tree_tag_set(&root->fs_info->fs_roots_radix,
+					   (unsigned long)root->root_key.objectid,
+					   BTRFS_ROOT_TRANS_TAG);
+			root->commit_root = root->node;
+			get_bh(root->node);
+		} else {
+			WARN_ON(1);
+		}
 	}
 	root->last_trans = running_trans_id;
 	h->transid = running_trans_id;
@@ -208,7 +212,23 @@ struct dirty_root {
 	struct btrfs_key snap_key;
 	struct buffer_head *commit_root;
 	struct btrfs_root *root;
+	int free_on_drop;
 };
+
+int btrfs_add_dead_root(struct btrfs_root *root, struct list_head *dead_list)
+{
+	struct dirty_root *dirty;
+
+	dirty = kmalloc(sizeof(*dirty), GFP_NOFS);
+	if (!dirty)
+		return -ENOMEM;
+	memcpy(&dirty->snap_key, &root->root_key, sizeof(root->root_key));
+	dirty->commit_root = root->node;
+	dirty->root = root;
+	dirty->free_on_drop = 1;
+	list_add(&dirty->list, dead_list);
+	return 0;
+}
 
 static int add_dirty_roots(struct btrfs_trans_handle *trans,
 			   struct radix_tree_root *radix,
@@ -217,9 +237,11 @@ static int add_dirty_roots(struct btrfs_trans_handle *trans,
 	struct dirty_root *dirty;
 	struct btrfs_root *gang[8];
 	struct btrfs_root *root;
+	struct btrfs_root_item tmp_item;
 	int i;
 	int ret;
 	int err = 0;
+	u32 refs;
 
 	while(1) {
 		ret = radix_tree_gang_lookup_tag(radix, (void **)gang, 0,
@@ -246,6 +268,9 @@ static int add_dirty_roots(struct btrfs_trans_handle *trans,
 			dirty->commit_root = root->commit_root;
 			root->commit_root = NULL;
 			dirty->root = root;
+			dirty->free_on_drop = 0;
+			memcpy(&tmp_item, &root->root_item, sizeof(tmp_item));
+
 			root->root_key.offset = root->fs_info->generation;
 			btrfs_set_root_blocknr(&root->root_item,
 					       bh_blocknr(root->node));
@@ -254,7 +279,18 @@ static int add_dirty_roots(struct btrfs_trans_handle *trans,
 						&root->root_item);
 			if (err)
 				break;
-			list_add(&dirty->list, list);
+
+			refs = btrfs_root_refs(&tmp_item);
+			btrfs_set_root_refs(&tmp_item, refs - 1);
+			err = btrfs_update_root(trans, root->fs_info->tree_root,
+						&dirty->snap_key,
+						&tmp_item);
+
+			BUG_ON(err);
+			if (refs == 1)
+				list_add(&dirty->list, list);
+			else
+				kfree(dirty);
 		}
 	}
 	return err;
@@ -270,16 +306,20 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 		mutex_lock(&tree_root->fs_info->fs_mutex);
 		dirty = list_entry(list->next, struct dirty_root, list);
 		list_del_init(&dirty->list);
+
 		trans = btrfs_start_transaction(tree_root, 1);
+printk("deleting root %Lu %u %Lu\n", dirty->snap_key.objectid, dirty->snap_key.flags, dirty->snap_key.offset);
 		ret = btrfs_drop_snapshot(trans, dirty->root,
 					  dirty->commit_root);
 		BUG_ON(ret);
-
 		ret = btrfs_del_root(trans, tree_root, &dirty->snap_key);
 		if (ret)
 			break;
 		ret = btrfs_end_transaction(trans, tree_root);
 		BUG_ON(ret);
+
+		if (dirty->free_on_drop)
+			kfree(dirty->root);
 		kfree(dirty);
 		mutex_unlock(&tree_root->fs_info->fs_mutex);
 		btrfs_btree_balance_dirty(tree_root);

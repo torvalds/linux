@@ -65,6 +65,8 @@ int btrfs_csum_data(struct btrfs_root * root, char *data, size_t len,
 		    char *result);
 struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 				      struct btrfs_key *location);
+struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_fs_info *fs_info,
+					       struct btrfs_key *location);
 u64 bh_blocknr(struct buffer_head *bh);
 int btrfs_insert_dev_radix(struct btrfs_root *root,
 			   struct block_device *bdev,
@@ -75,4 +77,5 @@ int btrfs_map_bh_to_logical(struct btrfs_root *root, struct buffer_head *bh,
 			     u64 logical);
 int btrfs_releasepage(struct page *page, gfp_t flags);
 void btrfs_btree_balance_dirty(struct btrfs_root *root);
+int btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root);
 #endif

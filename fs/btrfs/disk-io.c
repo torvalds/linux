@@ -326,8 +326,8 @@ static int find_and_setup_root(int blocksize,
 	return 0;
 }
 
-struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
-				      struct btrfs_key *location)
+struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_fs_info *fs_info,
+					       struct btrfs_key *location)
 {
 	struct btrfs_root *root;
 	struct btrfs_root *tree_root = fs_info->tree_root;
@@ -336,11 +336,7 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 	u64 highest_inode;
 	int ret = 0;
 
-	root = radix_tree_lookup(&fs_info->fs_roots_radix,
-				 (unsigned long)location->objectid);
-	if (root)
-		return root;
-	root = kmalloc(sizeof(*root), GFP_NOFS);
+	root = kzalloc(sizeof(*root), GFP_NOFS);
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 	if (location->offset == (u64)-1) {
@@ -383,6 +379,28 @@ out:
 	BUG_ON(!root->node);
 insert:
 	root->ref_cows = 1;
+	ret = btrfs_find_highest_inode(root, &highest_inode);
+	if (ret == 0) {
+		root->highest_inode = highest_inode;
+		root->last_inode_alloc = highest_inode;
+	}
+	return root;
+}
+
+struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
+				      struct btrfs_key *location)
+{
+	struct btrfs_root *root;
+	int ret;
+
+	root = radix_tree_lookup(&fs_info->fs_roots_radix,
+				 (unsigned long)location->objectid);
+	if (root)
+		return root;
+
+	root = btrfs_read_fs_root_no_radix(fs_info, location);
+	if (IS_ERR(root))
+		return root;
 	ret = radix_tree_insert(&fs_info->fs_roots_radix,
 				(unsigned long)root->root_key.objectid,
 				root);
@@ -390,11 +408,6 @@ insert:
 		brelse(root->node);
 		kfree(root);
 		return ERR_PTR(ret);
-	}
-	ret = btrfs_find_highest_inode(root, &highest_inode);
-	if (ret == 0) {
-		root->highest_inode = highest_inode;
-		root->last_inode_alloc = highest_inode;
 	}
 	return root;
 }
@@ -489,6 +502,9 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	btrfs_read_block_groups(extent_root);
 
 	fs_info->generation = btrfs_super_generation(disk_super) + 1;
+	ret = btrfs_find_dead_roots(tree_root);
+	if (ret)
+		goto fail_tree_root;
 	mutex_unlock(&fs_info->fs_mutex);
 	return tree_root;
 
@@ -538,7 +554,7 @@ int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 	return 0;
 }
 
-static int free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
+int btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 {
 	radix_tree_delete(&fs_info->fs_roots_radix,
 			  (unsigned long)root->root_key.objectid);
@@ -565,7 +581,7 @@ static int del_fs_roots(struct btrfs_fs_info *fs_info)
 		if (!ret)
 			break;
 		for (i = 0; i < ret; i++)
-			free_fs_root(fs_info, gang[i]);
+			btrfs_free_fs_root(fs_info, gang[i]);
 	}
 	return 0;
 }
