@@ -77,9 +77,8 @@
 /* keep track of when we need to update the rtc */
 time_t last_rtc_update;
 #ifdef CONFIG_PPC_ISERIES
-unsigned long iSeries_recal_titan = 0;
-unsigned long iSeries_recal_tb = 0; 
-static unsigned long first_settimeofday = 1;
+static unsigned long __initdata iSeries_recal_titan;
+static signed long __initdata iSeries_recal_tb;
 #endif
 
 /* The decrementer counts down by 128 every 128ns on a 601. */
@@ -556,10 +555,15 @@ EXPORT_SYMBOL(profile_pc);
  * returned by the service processor for the timebase frequency.  
  */
 
-static void iSeries_tb_recal(void)
+static int __init iSeries_tb_recal(void)
 {
 	struct div_result divres;
 	unsigned long titan, tb;
+
+	/* Make sure we only run on iSeries */
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		return -ENODEV;
+
 	tb = get_tb();
 	titan = HvCallXm_loadTod();
 	if ( iSeries_recal_titan ) {
@@ -600,8 +604,18 @@ static void iSeries_tb_recal(void)
 	}
 	iSeries_recal_titan = titan;
 	iSeries_recal_tb = tb;
+
+	return 0;
 }
-#endif
+late_initcall(iSeries_tb_recal);
+
+/* Called from platform early init */
+void __init iSeries_time_init_early(void)
+{
+	iSeries_recal_tb = get_tb();
+	iSeries_recal_titan = HvCallXm_loadTod();
+}
+#endif /* CONFIG_PPC_ISERIES */
 
 /*
  * For iSeries shared processors, we have to let the hypervisor
@@ -765,12 +779,6 @@ int do_settimeofday(struct timespec *tv)
 	 * to the RTC again, or write to the RTC but then they don't call
 	 * settimeofday to perform this operation.
 	 */
-#ifdef CONFIG_PPC_ISERIES
-	if (firmware_has_feature(FW_FEATURE_ISERIES) && first_settimeofday) {
-		iSeries_tb_recal();
-		first_settimeofday = 0;
-	}
-#endif
 
 	/* Make userspace gettimeofday spin until we're done. */
 	++vdso_data->tb_update_count;

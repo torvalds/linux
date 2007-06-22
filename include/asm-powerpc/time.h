@@ -240,5 +240,7 @@ extern void snapshot_timebases(void);
 #define snapshot_timebases()			do { } while (0)
 #endif
 
+extern void iSeries_time_init_early(void);
+
 #endif /* __KERNEL__ */
 #endif /* __POWERPC_TIME_H */
