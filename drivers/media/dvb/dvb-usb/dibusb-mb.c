@@ -74,7 +74,7 @@ static int dibusb_tuner_probe_and_attach(struct dvb_usb_adapter *adap)
 	struct dibusb_state *st = adap->priv;
 
 	/* the Panasonic sits on I2C addrass 0x60, the Thomson on 0x61 */
-	st->tuner_addr = 0x60;
+	msg[0].addr = msg[1].addr = st->tuner_addr = 0x60;
 
 	if (adap->fe->ops.i2c_gate_ctrl)
 		adap->fe->ops.i2c_gate_ctrl(adap->fe,1);
