@@ -9,6 +9,7 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
 #include <linux/spi/spi.h>
 
 #include <asm/io.h>
@@ -45,19 +46,30 @@
 		.flags		= IORESOURCE_IRQ,	\
 	}
 
+/* REVISIT these assume *every* device supports DMA, but several
+ * don't ... tc, smc, pio, rtc, watchdog, pwm, ps2, and more.
+ */
 #define DEFINE_DEV(_name, _id)					\
-static struct platform_device _name##_id##_device = {		\
-	.name		= #_name,				\
-	.id		= _id,					\
-	.resource	= _name##_id##_resource,		\
-	.num_resources	= ARRAY_SIZE(_name##_id##_resource),	\
-}
-#define DEFINE_DEV_DATA(_name, _id)				\
+static u64 _name##_id##_dma_mask = DMA_32BIT_MASK;		\
 static struct platform_device _name##_id##_device = {		\
 	.name		= #_name,				\
 	.id		= _id,					\
 	.dev		= {					\
+		.dma_mask = &_name##_id##_dma_mask,		\
+		.coherent_dma_mask = DMA_32BIT_MASK,		\
+	},							\
+	.resource	= _name##_id##_resource,		\
+	.num_resources	= ARRAY_SIZE(_name##_id##_resource),	\
+}
+#define DEFINE_DEV_DATA(_name, _id)				\
+static u64 _name##_id##_dma_mask = DMA_32BIT_MASK;		\
+static struct platform_device _name##_id##_device = {		\
+	.name		= #_name,				\
+	.id		= _id,					\
+	.dev		= {					\
+		.dma_mask = &_name##_id##_dma_mask,		\
 		.platform_data	= &_name##_id##_data,		\
+		.coherent_dma_mask = DMA_32BIT_MASK,		\
 	},							\
 	.resource	= _name##_id##_resource,		\
 	.num_resources	= ARRAY_SIZE(_name##_id##_resource),	\
