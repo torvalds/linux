@@ -541,7 +541,7 @@ config HIGHMEM4G
 
 config HIGHMEM64G
 	bool "64GB"
-	depends on X86_CMPXCHG64
+	depends on !M386 && !M486
 	help
 	  Select this if you have a 32-bit processor and more than 4
 	  gigabytes of physical RAM.
