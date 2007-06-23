@@ -2,7 +2,7 @@
 menuconfig MACINTOSH_DRIVERS
 	bool "Macintosh device drivers"
 	depends on PPC || MAC || X86
-	default y if MAC
+	default y if (PPC_PMAC || MAC)
 
 if MACINTOSH_DRIVERS
 
