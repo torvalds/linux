@@ -1163,3 +1163,10 @@ ENTRY(call_softirq)
 	ret
 	CFI_ENDPROC
 ENDPROC(call_softirq)
+
+KPROBE_ENTRY(ignore_sysret)
+	CFI_STARTPROC
+	mov $-ENOSYS,%eax
+	sysret
+	CFI_ENDPROC
+ENDPROC(ignore_sysret)

@@ -150,6 +150,8 @@ void pda_init(int cpu)
 char boot_exception_stacks[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ]
 __attribute__((section(".bss.page_aligned")));
 
+extern asmlinkage void ignore_sysret(void);
+
 /* May not be marked __init: used by software suspend */
 void syscall_init(void)
 {
@@ -160,6 +162,7 @@ void syscall_init(void)
 	 */ 
 	wrmsrl(MSR_STAR,  ((u64)__USER32_CS)<<48  | ((u64)__KERNEL_CS)<<32); 
 	wrmsrl(MSR_LSTAR, system_call); 
+	wrmsrl(MSR_CSTAR, ignore_sysret);
 
 #ifdef CONFIG_IA32_EMULATION   		
 	syscall32_cpu_init ();
