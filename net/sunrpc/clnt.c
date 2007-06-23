@@ -353,7 +353,7 @@ rpc_free_client(struct kref *kref)
 	dprintk("RPC:       destroying %s client for %s\n",
 			clnt->cl_protname, clnt->cl_server);
 	if (clnt->cl_auth) {
-		rpcauth_destroy(clnt->cl_auth);
+		rpcauth_release(clnt->cl_auth);
 		clnt->cl_auth = NULL;
 	}
 	if (!IS_ERR(clnt->cl_dentry)) {

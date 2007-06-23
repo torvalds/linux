@@ -93,7 +93,7 @@ rpcauth_create(rpc_authflavor_t pseudoflavor, struct rpc_clnt *clnt)
 	if (IS_ERR(auth))
 		return auth;
 	if (clnt->cl_auth)
-		rpcauth_destroy(clnt->cl_auth);
+		rpcauth_release(clnt->cl_auth);
 	clnt->cl_auth = auth;
 
 out:
@@ -101,7 +101,7 @@ out:
 }
 
 void
-rpcauth_destroy(struct rpc_auth *auth)
+rpcauth_release(struct rpc_auth *auth)
 {
 	if (!atomic_dec_and_test(&auth->au_count))
 		return;
