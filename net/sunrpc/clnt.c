@@ -1455,6 +1455,16 @@ static int rpc_ping(struct rpc_clnt *clnt, int flags)
 	return err;
 }
 
+struct rpc_task *rpc_call_null(struct rpc_clnt *clnt, struct rpc_cred *cred, int flags)
+{
+	struct rpc_message msg = {
+		.rpc_proc = &rpcproc_null,
+		.rpc_cred = cred,
+	};
+	return rpc_do_run_task(clnt, &msg, flags, &rpc_default_ops, NULL);
+}
+EXPORT_SYMBOL(rpc_call_null);
+
 #ifdef RPC_DEBUG
 void rpc_show_tasks(void)
 {
