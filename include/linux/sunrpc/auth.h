@@ -34,6 +34,7 @@ struct rpc_auth;
 struct rpc_credops;
 struct rpc_cred {
 	struct hlist_node	cr_hash;	/* hash chain */
+	struct list_head	cr_lru;		/* lru garbage collection */
 	struct rpc_auth *	cr_auth;
 	const struct rpc_credops *cr_ops;
 #ifdef RPC_DEBUG

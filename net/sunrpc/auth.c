@@ -25,6 +25,8 @@ static const struct rpc_authops *auth_flavors[RPC_AUTH_MAXFLAVOR] = {
 	NULL,			/* others can be loadable modules */
 };
 
+static LIST_HEAD(cred_unused);
+
 static u32
 pseudoflavor_to_flavor(u32 flavor) {
 	if (flavor >= RPC_AUTH_MAXFLAVOR)
@@ -134,13 +136,13 @@ rpcauth_init_credcache(struct rpc_auth *auth, unsigned long expire)
  * Destroy a list of credentials
  */
 static inline
-void rpcauth_destroy_credlist(struct hlist_head *head)
+void rpcauth_destroy_credlist(struct list_head *head)
 {
 	struct rpc_cred *cred;
 
-	while (!hlist_empty(head)) {
-		cred = hlist_entry(head->first, struct rpc_cred, cr_hash);
-		hlist_del_init(&cred->cr_hash);
+	while (!list_empty(head)) {
+		cred = list_entry(head->next, struct rpc_cred, cr_lru);
+		list_del_init(&cred->cr_lru);
 		put_rpccred(cred);
 	}
 }
@@ -152,17 +154,20 @@ void rpcauth_destroy_credlist(struct hlist_head *head)
 void
 rpcauth_clear_credcache(struct rpc_cred_cache *cache)
 {
-	HLIST_HEAD(free);
-	struct hlist_node *pos, *next;
+	LIST_HEAD(free);
+	struct hlist_head *head;
 	struct rpc_cred	*cred;
 	int		i;
 
 	spin_lock(&rpc_credcache_lock);
 	for (i = 0; i < RPC_CREDCACHE_NR; i++) {
-		hlist_for_each_safe(pos, next, &cache->hashtable[i]) {
-			cred = hlist_entry(pos, struct rpc_cred, cr_hash);
-			__hlist_del(&cred->cr_hash);
-			hlist_add_head(&cred->cr_hash, &free);
+		head = &cache->hashtable[i];
+		while (!hlist_empty(head)) {
+			cred = hlist_entry(head->first, struct rpc_cred, cr_hash);
+			get_rpccred(cred);
+			list_move_tail(&cred->cr_lru, &free);
+			smp_wmb();
+			hlist_del_init(&cred->cr_hash);
 		}
 	}
 	spin_unlock(&rpc_credcache_lock);
@@ -184,38 +189,39 @@ rpcauth_destroy_credcache(struct rpc_auth *auth)
 	}
 }
 
-static void
-rpcauth_prune_expired(struct rpc_auth *auth, struct rpc_cred *cred, struct hlist_head *free)
-{
-	if (atomic_read(&cred->cr_count) != 1)
-	       return;
-	if (time_after(jiffies, cred->cr_expire + auth->au_credcache->expire))
-		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
-	if (test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) == 0) {
-		__hlist_del(&cred->cr_hash);
-		hlist_add_head(&cred->cr_hash, free);
-	}
-}
-
 /*
  * Remove stale credentials. Avoid sleeping inside the loop.
  */
 static void
-rpcauth_gc_credcache(struct rpc_auth *auth, struct hlist_head *free)
+rpcauth_prune_expired(struct list_head *free)
 {
-	struct rpc_cred_cache *cache = auth->au_credcache;
-	struct hlist_node *pos, *next;
-	struct rpc_cred	*cred;
-	int		i;
+	struct rpc_cred *cred;
 
-	dprintk("RPC:       gc'ing RPC credentials for auth %p\n", auth);
-	for (i = 0; i < RPC_CREDCACHE_NR; i++) {
-		hlist_for_each_safe(pos, next, &cache->hashtable[i]) {
-			cred = hlist_entry(pos, struct rpc_cred, cr_hash);
-			rpcauth_prune_expired(auth, cred, free);
-		}
+	while (!list_empty(&cred_unused)) {
+		cred = list_entry(cred_unused.next, struct rpc_cred, cr_lru);
+		if (time_after(jiffies, cred->cr_expire +
+					cred->cr_auth->au_credcache->expire))
+			break;
+		list_del_init(&cred->cr_lru);
+		if (atomic_read(&cred->cr_count) != 0)
+			continue;
+		get_rpccred(cred);
+		list_add_tail(&cred->cr_lru, free);
+		smp_wmb();
+		hlist_del_init(&cred->cr_hash);
 	}
+}
+
+/*
+ * Run garbage collector.
+ */
+static void
+rpcauth_gc_credcache(struct rpc_cred_cache *cache, struct list_head *free)
+{
+	if (time_before(jiffies, cache->nextgc))
+		return;
 	cache->nextgc = jiffies + cache->expire;
+	rpcauth_prune_expired(free);
 }
 
 /*
@@ -225,39 +231,35 @@ struct rpc_cred *
 rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 		int flags)
 {
+	LIST_HEAD(free);
 	struct rpc_cred_cache *cache = auth->au_credcache;
-	HLIST_HEAD(free);
-	struct hlist_node *pos, *next;
+	struct hlist_node *pos;
 	struct rpc_cred	*new = NULL,
-			*cred = NULL;
+			*cred = NULL,
+			*entry;
 	int		nr = 0;
 
 	if (!(flags & RPCAUTH_LOOKUP_ROOTCREDS))
 		nr = acred->uid & RPC_CREDCACHE_MASK;
 retry:
 	spin_lock(&rpc_credcache_lock);
-	if (time_before(cache->nextgc, jiffies))
-		rpcauth_gc_credcache(auth, &free);
-	hlist_for_each_safe(pos, next, &cache->hashtable[nr]) {
-		struct rpc_cred *entry;
-		entry = hlist_entry(pos, struct rpc_cred, cr_hash);
-		if (entry->cr_ops->crmatch(acred, entry, flags)) {
-			hlist_del(&entry->cr_hash);
-			cred = entry;
-			break;
-		}
-		rpcauth_prune_expired(auth, entry, &free);
+	hlist_for_each_entry(entry, pos, &cache->hashtable[nr], cr_hash) {
+		if (!entry->cr_ops->crmatch(acred, entry, flags))
+			continue;
+		cred = get_rpccred(entry);
+		hlist_del(&entry->cr_hash);
+		break;
 	}
 	if (new) {
 		if (cred)
-			hlist_add_head(&new->cr_hash, &free);
+			list_add_tail(&new->cr_lru, &free);
 		else
 			cred = new;
 	}
 	if (cred) {
 		hlist_add_head(&cred->cr_hash, &cache->hashtable[nr]);
-		get_rpccred(cred);
 	}
+	rpcauth_gc_credcache(cache, &free);
 	spin_unlock(&rpc_credcache_lock);
 
 	rpcauth_destroy_credlist(&free);
@@ -303,6 +305,7 @@ rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
 		  struct rpc_auth *auth, const struct rpc_credops *ops)
 {
 	INIT_HLIST_NODE(&cred->cr_hash);
+	INIT_LIST_HEAD(&cred->cr_lru);
 	atomic_set(&cred->cr_count, 1);
 	cred->cr_auth = auth;
 	cred->cr_ops = ops;
@@ -353,9 +356,29 @@ rpcauth_holdcred(struct rpc_task *task)
 void
 put_rpccred(struct rpc_cred *cred)
 {
-	cred->cr_expire = jiffies;
+	/* Fast path for unhashed credentials */
+	if (!hlist_unhashed(&cred->cr_hash))
+		goto need_lock;
+
 	if (!atomic_dec_and_test(&cred->cr_count))
 		return;
+	goto out_destroy;
+
+need_lock:
+	if (!atomic_dec_and_lock(&cred->cr_count, &rpc_credcache_lock))
+		return;
+	if (!list_empty(&cred->cr_lru))
+		list_del_init(&cred->cr_lru);
+	if (test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) == 0)
+		hlist_del(&cred->cr_hash);
+	else if (!hlist_unhashed(&cred->cr_hash)) {
+		cred->cr_expire = jiffies;
+		list_add_tail(&cred->cr_lru, &cred_unused);
+		spin_unlock(&rpc_credcache_lock);
+		return;
+	}
+	spin_unlock(&rpc_credcache_lock);
+out_destroy:
 	cred->cr_ops->crdestroy(cred);
 }
 

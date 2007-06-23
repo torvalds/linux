@@ -133,6 +133,7 @@ const struct rpc_credops null_credops = {
 
 static
 struct rpc_cred null_cred = {
+	.cr_lru		= LIST_HEAD_INIT(null_cred.cr_lru),
 	.cr_auth	= &null_auth,
 	.cr_ops		= &null_credops,
 	.cr_count	= ATOMIC_INIT(1),
