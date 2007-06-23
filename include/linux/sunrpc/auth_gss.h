@@ -85,11 +85,6 @@ struct gss_cred {
 	struct gss_upcall_msg	*gc_upcall;
 };
 
-#define gc_uid			gc_base.cr_uid
-#define gc_count		gc_base.cr_count
-#define gc_flags		gc_base.cr_flags
-#define gc_expire		gc_base.cr_expire
-
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_AUTH_GSS_H */
 

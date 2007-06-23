@@ -727,15 +727,11 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	if (!(cred = kzalloc(sizeof(*cred), GFP_KERNEL)))
 		goto out_err;
 
-	atomic_set(&cred->gc_count, 1);
-	cred->gc_uid = acred->uid;
+	rpcauth_init_cred(&cred->gc_base, acred, auth, &gss_credops);
 	/*
 	 * Note: in order to force a call to call_refresh(), we deliberately
 	 * fail to flag the credential as RPCAUTH_CRED_UPTODATE.
 	 */
-	cred->gc_flags = 0;
-	cred->gc_base.cr_auth = auth;
-	cred->gc_base.cr_ops = &gss_credops;
 	cred->gc_base.cr_flags = RPCAUTH_CRED_NEW;
 	cred->gc_service = gss_auth->service;
 	return &cred->gc_base;

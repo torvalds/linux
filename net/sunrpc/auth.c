@@ -264,13 +264,9 @@ retry:
 
 	if (!cred) {
 		new = auth->au_ops->crcreate(auth, acred, flags);
-		if (!IS_ERR(new)) {
-#ifdef RPC_DEBUG
-			new->cr_magic = RPCAUTH_CRED_MAGIC;
-#endif
+		if (!IS_ERR(new))
 			goto retry;
-		} else
-			cred = new;
+		cred = new;
 	} else if ((cred->cr_flags & RPCAUTH_CRED_NEW)
 			&& cred->cr_ops->cr_init != NULL
 			&& !(flags & RPCAUTH_LOOKUP_NEW)) {
@@ -301,6 +297,22 @@ rpcauth_lookupcred(struct rpc_auth *auth, int flags)
 	put_group_info(acred.group_info);
 	return ret;
 }
+
+void
+rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
+		  struct rpc_auth *auth, const struct rpc_credops *ops)
+{
+	INIT_HLIST_NODE(&cred->cr_hash);
+	atomic_set(&cred->cr_count, 1);
+	cred->cr_auth = auth;
+	cred->cr_ops = ops;
+	cred->cr_expire = jiffies;
+#ifdef RPC_DEBUG
+	cred->cr_magic = RPCAUTH_CRED_MAGIC;
+#endif
+	cred->cr_uid = acred->uid;
+}
+EXPORT_SYMBOL(rpcauth_init_cred);
 
 struct rpc_cred *
 rpcauth_bindcred(struct rpc_task *task)

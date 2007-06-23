@@ -20,9 +20,6 @@ struct unx_cred {
 	gid_t			uc_gids[NFS_NGROUPS];
 };
 #define uc_uid			uc_base.cr_uid
-#define uc_count		uc_base.cr_count
-#define uc_flags		uc_base.cr_flags
-#define uc_expire		uc_base.cr_expire
 
 #define UNX_CRED_EXPIRE		(60 * HZ)
 
@@ -74,8 +71,8 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	if (!(cred = kmalloc(sizeof(*cred), GFP_KERNEL)))
 		return ERR_PTR(-ENOMEM);
 
-	atomic_set(&cred->uc_count, 1);
-	cred->uc_flags = RPCAUTH_CRED_UPTODATE;
+	rpcauth_init_cred(&cred->uc_base, acred, auth, &unix_credops);
+	cred->uc_base.cr_flags = RPCAUTH_CRED_UPTODATE;
 	if (flags & RPCAUTH_LOOKUP_ROOTCREDS) {
 		cred->uc_uid = 0;
 		cred->uc_gid = 0;
@@ -85,15 +82,12 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 		if (groups > NFS_NGROUPS)
 			groups = NFS_NGROUPS;
 
-		cred->uc_uid = acred->uid;
 		cred->uc_gid = acred->gid;
 		for (i = 0; i < groups; i++)
 			cred->uc_gids[i] = GROUP_AT(acred->group_info, i);
 		if (i < NFS_NGROUPS)
 		  cred->uc_gids[i] = NOGROUP;
 	}
-	cred->uc_base.cr_auth = &unix_auth;
-	cred->uc_base.cr_ops = &unix_credops;
 
 	return (struct rpc_cred *) cred;
 }
