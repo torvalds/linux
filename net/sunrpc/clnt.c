@@ -72,6 +72,8 @@ static void	call_connect_status(struct rpc_task *task);
 static __be32 *	call_header(struct rpc_task *task);
 static __be32 *	call_verify(struct rpc_task *task);
 
+static int	rpc_ping(struct rpc_clnt *clnt, int flags);
+
 static void rpc_register_client(struct rpc_clnt *clnt)
 {
 	spin_lock(&rpc_client_lock);
@@ -1441,7 +1443,7 @@ static struct rpc_procinfo rpcproc_null = {
 	.p_decode = rpcproc_decode_null,
 };
 
-int rpc_ping(struct rpc_clnt *clnt, int flags)
+static int rpc_ping(struct rpc_clnt *clnt, int flags)
 {
 	struct rpc_message msg = {
 		.rpc_proc = &rpcproc_null,
