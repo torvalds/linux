@@ -174,6 +174,8 @@ static SENSOR_DEVICE_ATTR(temp4_input, S_IRUGO, show_temp, NULL, 3);
    REG: count of 90kHz pulses / revolution */
 static int fan_from_reg(u16 reg)
 {
+	if (reg == 0 || reg == 0xffff)
+		return 0;
 	return 90000 * 60 / reg;
 }
 
