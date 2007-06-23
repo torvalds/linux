@@ -373,8 +373,8 @@ static void ar_context_tasklet(unsigned long data)
 
 		offset = offsetof(struct ar_buffer, data);
 		dma_unmap_single(ohci->card.device,
-				 ab->descriptor.data_address - offset,
-				 PAGE_SIZE, DMA_BIDIRECTIONAL);
+			le32_to_cpu(ab->descriptor.data_address) - offset,
+			PAGE_SIZE, DMA_BIDIRECTIONAL);
 
 		buffer = ab;
 		ab = ab->next;
@@ -427,7 +427,7 @@ static void ar_context_run(struct ar_context *ctx)
 	size_t offset;
 
 	offset = offsetof(struct ar_buffer, data);
-	ab_bus = ab->descriptor.data_address - offset;
+	ab_bus = le32_to_cpu(ab->descriptor.data_address) - offset;
 
 	reg_write(ctx->ohci, COMMAND_PTR(ctx->regs), ab_bus | 1);
 	reg_write(ctx->ohci, CONTROL_SET(ctx->regs), CONTEXT_RUN);
