@@ -828,6 +828,8 @@ static int acpi_thermal_trip_seq_show(struct seq_file *seq, void *offset)
 {
 	struct acpi_thermal *tz = seq->private;
 	struct acpi_device *device;
+	acpi_status status;
+
 	int i = 0;
 	int j = 0;
 
@@ -850,8 +852,10 @@ static int acpi_thermal_trip_seq_show(struct seq_file *seq, void *offset)
 			   tz->trips.passive.tc1, tz->trips.passive.tc2,
 			   tz->trips.passive.tsp);
 		for (j = 0; j < tz->trips.passive.devices.count; j++) {
-			acpi_bus_get_device(tz->trips.passive.devices.handles[j], &device);
-			seq_printf(seq, "%4.4s ", acpi_device_bid(device));
+			status = acpi_bus_get_device(tz->trips.passive.devices.
+						     handles[j], &device);
+			seq_printf(seq, "%4.4s ", status ? "" :
+				   acpi_device_bid(device));
 		}
 		seq_puts(seq, "\n");
 	}
@@ -863,8 +867,11 @@ static int acpi_thermal_trip_seq_show(struct seq_file *seq, void *offset)
 			   i,
 			   KELVIN_TO_CELSIUS(tz->trips.active[i].temperature));
 		for (j = 0; j < tz->trips.active[i].devices.count; j++){
-			acpi_bus_get_device(tz->trips.active[i].devices.handles[j], &device);
-			seq_printf(seq, "%4.4s ", acpi_device_bid(device));
+			status = acpi_bus_get_device(tz->trips.active[i].
+						     devices.handles[j],
+						     &device);
+			seq_printf(seq, "%4.4s ", status ? "" :
+				   acpi_device_bid(device));
 		}
 		seq_puts(seq, "\n");
 	}
