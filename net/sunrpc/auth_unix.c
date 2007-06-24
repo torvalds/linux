@@ -34,7 +34,7 @@ struct unx_cred {
 
 static struct rpc_auth		unix_auth;
 static struct rpc_cred_cache	unix_cred_cache;
-static struct rpc_credops	unix_credops;
+static const struct rpc_credops	unix_credops;
 
 static struct rpc_auth *
 unx_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
@@ -205,7 +205,7 @@ unx_validate(struct rpc_task *task, __be32 *p)
 	return p;
 }
 
-struct rpc_authops	authunix_ops = {
+const struct rpc_authops authunix_ops = {
 	.owner		= THIS_MODULE,
 	.au_flavor	= RPC_AUTH_UNIX,
 #ifdef RPC_DEBUG
@@ -233,7 +233,7 @@ struct rpc_auth		unix_auth = {
 };
 
 static
-struct rpc_credops	unix_credops = {
+const struct rpc_credops unix_credops = {
 	.cr_name	= "AUTH_UNIX",
 	.crdestroy	= unx_destroy_cred,
 	.crmatch	= unx_match,

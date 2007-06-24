@@ -77,7 +77,7 @@ struct gss_api_mech {
 	struct module		*gm_owner;
 	struct xdr_netobj	gm_oid;
 	char			*gm_name;
-	struct gss_api_ops	*gm_ops;
+	const struct gss_api_ops *gm_ops;
 	/* pseudoflavors supported by this mechanism: */
 	int			gm_pf_num;
 	struct pf_desc *	gm_pfs;

@@ -19,7 +19,7 @@
 #endif
 
 static DEFINE_SPINLOCK(rpc_authflavor_lock);
-static struct rpc_authops *	auth_flavors[RPC_AUTH_MAXFLAVOR] = {
+static const struct rpc_authops *auth_flavors[RPC_AUTH_MAXFLAVOR] = {
 	&authnull_ops,		/* AUTH_NULL */
 	&authunix_ops,		/* AUTH_UNIX */
 	NULL,			/* others can be loadable modules */
@@ -33,7 +33,7 @@ pseudoflavor_to_flavor(u32 flavor) {
 }
 
 int
-rpcauth_register(struct rpc_authops *ops)
+rpcauth_register(const struct rpc_authops *ops)
 {
 	rpc_authflavor_t flavor;
 	int ret = -EPERM;
@@ -50,7 +50,7 @@ rpcauth_register(struct rpc_authops *ops)
 }
 
 int
-rpcauth_unregister(struct rpc_authops *ops)
+rpcauth_unregister(const struct rpc_authops *ops)
 {
 	rpc_authflavor_t flavor;
 	int ret = -EPERM;
@@ -70,7 +70,7 @@ struct rpc_auth *
 rpcauth_create(rpc_authflavor_t pseudoflavor, struct rpc_clnt *clnt)
 {
 	struct rpc_auth		*auth;
-	struct rpc_authops	*ops;
+	const struct rpc_authops *ops;
 	u32			flavor = pseudoflavor_to_flavor(pseudoflavor);
 
 	auth = ERR_PTR(-EINVAL);

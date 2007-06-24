@@ -101,7 +101,7 @@ nul_validate(struct rpc_task *task, __be32 *p)
 	return p;
 }
 
-struct rpc_authops authnull_ops = {
+const struct rpc_authops authnull_ops = {
 	.owner		= THIS_MODULE,
 	.au_flavor	= RPC_AUTH_NULL,
 #ifdef RPC_DEBUG
@@ -122,7 +122,7 @@ struct rpc_auth null_auth = {
 };
 
 static
-struct rpc_credops	null_credops = {
+const struct rpc_credops null_credops = {
 	.cr_name	= "AUTH_NULL",
 	.crdestroy	= nul_destroy_cred,
 	.crmatch	= nul_match,

@@ -35,7 +35,7 @@ struct rpc_credops;
 struct rpc_cred {
 	struct hlist_node	cr_hash;	/* hash chain */
 	struct rpc_auth *	cr_auth;
-	struct rpc_credops *	cr_ops;
+	const struct rpc_credops *cr_ops;
 	unsigned long		cr_expire;	/* when to gc */
 	atomic_t		cr_count;	/* ref count */
 	unsigned short		cr_flags;	/* various flags */
@@ -73,7 +73,7 @@ struct rpc_auth {
 	unsigned int		au_verfsize;
 
 	unsigned int		au_flags;	/* various flags */
-	struct rpc_authops *	au_ops;		/* operations */
+	const struct rpc_authops *au_ops;		/* operations */
 	rpc_authflavor_t	au_flavor;	/* pseudoflavor (note may
 						 * differ from the flavor in
 						 * au_ops->au_flavor in gss
@@ -119,14 +119,11 @@ struct rpc_credops {
 						void *, __be32 *, void *);
 };
 
-extern struct rpc_authops	authunix_ops;
-extern struct rpc_authops	authnull_ops;
-#ifdef CONFIG_SUNRPC_SECURE
-extern struct rpc_authops	authdes_ops;
-#endif
+extern const struct rpc_authops	authunix_ops;
+extern const struct rpc_authops	authnull_ops;
 
-int			rpcauth_register(struct rpc_authops *);
-int			rpcauth_unregister(struct rpc_authops *);
+int			rpcauth_register(const struct rpc_authops *);
+int			rpcauth_unregister(const struct rpc_authops *);
 struct rpc_auth *	rpcauth_create(rpc_authflavor_t, struct rpc_clnt *);
 void			rpcauth_release(struct rpc_auth *);
 struct rpc_cred *	rpcauth_lookup_credcache(struct rpc_auth *, struct auth_cred *, int);

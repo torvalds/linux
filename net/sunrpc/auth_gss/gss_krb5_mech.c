@@ -201,7 +201,7 @@ gss_delete_sec_context_kerberos(void *internal_ctx) {
 	kfree(kctx);
 }
 
-static struct gss_api_ops gss_kerberos_ops = {
+static const struct gss_api_ops gss_kerberos_ops = {
 	.gss_import_sec_context	= gss_import_sec_context_kerberos,
 	.gss_get_mic		= gss_get_mic_kerberos,
 	.gss_verify_mic		= gss_verify_mic_kerberos,

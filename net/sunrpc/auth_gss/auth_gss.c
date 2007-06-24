@@ -54,9 +54,9 @@
 #include <linux/sunrpc/gss_api.h>
 #include <asm/uaccess.h>
 
-static struct rpc_authops authgss_ops;
+static const struct rpc_authops authgss_ops;
 
-static struct rpc_credops gss_credops;
+static const struct rpc_credops gss_credops;
 
 #ifdef RPC_DEBUG
 # define RPCDBG_FACILITY	RPCDBG_AUTH
@@ -1193,7 +1193,7 @@ out:
 	return status;
 }
 
-static struct rpc_authops authgss_ops = {
+static const struct rpc_authops authgss_ops = {
 	.owner		= THIS_MODULE,
 	.au_flavor	= RPC_AUTH_GSS,
 #ifdef RPC_DEBUG
@@ -1205,7 +1205,7 @@ static struct rpc_authops authgss_ops = {
 	.crcreate	= gss_create_cred
 };
 
-static struct rpc_credops gss_credops = {
+static const struct rpc_credops gss_credops = {
 	.cr_name	= "AUTH_GSS",
 	.crdestroy	= gss_destroy_cred,
 	.cr_init	= gss_cred_init,
