@@ -1387,14 +1387,19 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 	    | superio_inb(sioaddr, SIO_REG_ADDR + 1);
 	*addr = val & IOREGION_ALIGNMENT;
 	if (*addr == 0) {
+		printk(KERN_ERR DRVNAME ": Refusing to enable a Super-I/O "
+		       "device with a base I/O port 0.\n");
 		superio_exit(sioaddr);
 		return -ENODEV;
 	}
 
 	/* Activate logical device if needed */
 	val = superio_inb(sioaddr, SIO_REG_ENABLE);
-	if (!(val & 0x01))
+	if (!(val & 0x01)) {
+		printk(KERN_WARNING DRVNAME ": Forcibly enabling Super-I/O. "
+		       "Sensor is probably unusable.\n");
 		superio_outb(sioaddr, SIO_REG_ENABLE, val | 0x01);
+	}
 
 	superio_exit(sioaddr);
 	pr_info(DRVNAME ": Found %s chip at %#x\n", sio_name, *addr);
