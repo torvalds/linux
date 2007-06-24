@@ -617,17 +617,17 @@ config SENSORS_W83627HF
 	  will be called w83627hf.
 
 config SENSORS_W83627EHF
-	tristate "Winbond W83627EHF"
+	tristate "Winbond W83627EHF/DHG"
 	depends on I2C && EXPERIMENTAL
 	select I2C_ISA
 	help
-	  If you say yes here you get preliminary support for the hardware
+	  If you say yes here you get support for the hardware
 	  monitoring functionality of the Winbond W83627EHF Super-I/O chip.
-	  Only fan and temperature inputs are supported at the moment, while
-	  the chip does much more than that.
 
 	  This driver also supports the W83627EHG, which is the lead-free
-	  version of the W83627EHF.
+	  version of the W83627EHF, and the W83627DHG, which is a similar
+	  chip suited for specific Intel processors that use PECI such as
+	  the Core 2 Duo.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83627ehf.
