@@ -1956,7 +1956,7 @@ char con_buf[CON_BUF_SIZE];
 DEFINE_MUTEX(con_buf_mtx);
 
 /* is_double_width() is based on the wcwidth() implementation by
- * Markus Kuhn -- 2003-05-20 (Unicode 4.0)
+ * Markus Kuhn -- 2007-05-26 (Unicode 5.0)
  * Latest version: http://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c
  */
 struct interval {
@@ -1988,8 +1988,8 @@ static int is_double_width(uint32_t ucs)
 	static const struct interval double_width[] = {
 		{ 0x1100, 0x115F }, { 0x2329, 0x232A }, { 0x2E80, 0x303E },
 		{ 0x3040, 0xA4CF }, { 0xAC00, 0xD7A3 }, { 0xF900, 0xFAFF },
-		{ 0xFE30, 0xFE6F }, { 0xFF00, 0xFF60 }, { 0xFFE0, 0xFFE6 },
-		{ 0x20000, 0x2FFFD }, { 0x30000, 0x3FFFD }
+		{ 0xFE10, 0xFE19 }, { 0xFE30, 0xFE6F }, { 0xFF00, 0xFF60 },
+		{ 0xFFE0, 0xFFE6 }, { 0x20000, 0x2FFFD }, { 0x30000, 0x3FFFD }
 	};
 	return bisearch(ucs, double_width,
 		sizeof(double_width) / sizeof(*double_width) - 1);
@@ -2187,9 +2187,12 @@ rescan_last_byte:
 				    continue; /* nothing to display */
 				}
 				/* Glyph not found */
-				if (!(vc->vc_utf && !vc->vc_disp_ctrl) && !(c & ~charmask)) {
+				if ((!(vc->vc_utf && !vc->vc_disp_ctrl) || c < 128) && !(c & ~charmask)) {
 				    /* In legacy mode use the glyph we get by a 1:1 mapping.
-				       This would make absolutely no sense with Unicode in mind. */
+				       This would make absolutely no sense with Unicode in mind,
+				       but do this for ASCII characters since a font may lack
+				       Unicode mapping info and we don't want to end up with
+				       having question marks only. */
 				    tc = c;
 				} else {
 				    /* Display U+FFFD. If it's not found, display an inverse question mark. */
@@ -2213,6 +2216,7 @@ rescan_last_byte:
 				} else {
 					vc_attr = ((vc->vc_attr) & 0x88) | (((vc->vc_attr) & 0x70) >> 4) | (((vc->vc_attr) & 0x07) << 4);
 				}
+				FLUSH
 			}
 
 			while (1) {
@@ -2244,6 +2248,10 @@ rescan_last_byte:
 
 				tc = conv_uni_to_pc(vc, ' '); /* A space is printed in the second column */
 				if (tc < 0) tc = ' ';
+			}
+
+			if (inverse) {
+				FLUSH
 			}
 
 			if (rescan) {
