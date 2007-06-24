@@ -152,6 +152,7 @@ init_sunrpc(void)
 	cache_register(&ip_map_cache);
 	cache_register(&unix_gid_cache);
 	init_socket_xprt();
+	rpc_init_authunix();
 out:
 	return err;
 }

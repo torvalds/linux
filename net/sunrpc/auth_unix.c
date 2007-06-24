@@ -213,6 +213,11 @@ unx_validate(struct rpc_task *task, __be32 *p)
 	return p;
 }
 
+void __init rpc_init_authunix(void)
+{
+	spin_lock_init(&unix_cred_cache.lock);
+}
+
 const struct rpc_authops authunix_ops = {
 	.owner		= THIS_MODULE,
 	.au_flavor	= RPC_AUTH_UNIX,

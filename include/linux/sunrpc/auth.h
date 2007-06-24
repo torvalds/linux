@@ -63,6 +63,7 @@ struct rpc_cred {
 #define RPC_CREDCACHE_MASK	(RPC_CREDCACHE_NR - 1)
 struct rpc_cred_cache {
 	struct hlist_head	hashtable[RPC_CREDCACHE_NR];
+	spinlock_t		lock;
 	unsigned long		nextgc;		/* next garbage collection */
 	unsigned long		expire;		/* cache expiry interval */
 };
@@ -125,6 +126,8 @@ struct rpc_credops {
 
 extern const struct rpc_authops	authunix_ops;
 extern const struct rpc_authops	authnull_ops;
+
+void __init		rpc_init_authunix(void);
 
 int			rpcauth_register(const struct rpc_authops *);
 int			rpcauth_unregister(const struct rpc_authops *);
