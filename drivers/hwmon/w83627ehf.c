@@ -1269,11 +1269,6 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 	/* Initialize the chip */
 	w83627ehf_init_device(data);
 
-	/* A few vars need to be filled upon startup */
-	for (i = 0; i < 5; i++)
-		data->fan_min[i] = w83627ehf_read_value(data,
-				   W83627EHF_REG_FAN_MIN[i]);
-
 	data->vrm = vid_which_vrm();
 	superio_enter(sio_data->sioreg);
 	/* Set VID input sensibility if needed. In theory the BIOS should
