@@ -813,6 +813,9 @@ static DEVICE_ATTR(dbg_regs, 0666, sm501_dbg_regs, NULL);
 /* sm501_init_reg
  *
  * Helper function for the init code to setup a register
+ *
+ * clear the bits which are set in r->mask, and then set
+ * the bits set in r->set.
 */
 
 static inline void sm501_init_reg(struct sm501_devdata *sm,
@@ -822,8 +825,8 @@ static inline void sm501_init_reg(struct sm501_devdata *sm,
 	unsigned long tmp;
 
 	tmp = readl(sm->regs + reg);
-	tmp |= r->set;
 	tmp &= ~r->mask;
+	tmp |= r->set;
 	writel(tmp, sm->regs + reg);
 }
 
