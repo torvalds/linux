@@ -497,15 +497,17 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize, loff
 	for (i = 0; i < next; i++) {		
 		unsigned long start = jiffies;
 		while (!mcelog.entry[i].finished) {
-			if (!time_before(jiffies, start + 2)) {
+			if (time_after_eq(jiffies, start + 2)) {
 				memset(mcelog.entry + i,0, sizeof(struct mce));
-				continue;
+				goto timeout;
 			}
 			cpu_relax();
 		}
 		smp_rmb();
 		err |= copy_to_user(buf, mcelog.entry + i, sizeof(struct mce));
 		buf += sizeof(struct mce); 
+ timeout:
+		;
 	} 
 
 	memset(mcelog.entry, 0, next * sizeof(struct mce));
