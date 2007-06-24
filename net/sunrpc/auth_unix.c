@@ -41,7 +41,7 @@ unx_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 {
 	dprintk("RPC:       creating UNIX authenticator for client %p\n",
 			clnt);
-	if (atomic_inc_return(&unix_auth.au_count) == 0)
+	if (atomic_inc_return(&unix_auth.au_count) == 1)
 		unix_cred_cache.nextgc = jiffies + (unix_cred_cache.expire >> 1);
 	return &unix_auth;
 }
