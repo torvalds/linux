@@ -1445,8 +1445,9 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 		sio_name = sio_name_W83627DHG;
 		break;
 	default:
-		pr_info(DRVNAME ": unsupported chip ID: 0x%04x\n",
-			val);
+		if (val != 0xffff)
+			pr_debug(DRVNAME ": unsupported chip ID: 0x%04x\n",
+				 val);
 		superio_exit(sioaddr);
 		return -ENODEV;
 	}
