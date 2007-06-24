@@ -434,8 +434,8 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 	n->tc_verd = CLR_TC_MUNGED(n->tc_verd);
 	C(iif);
 #endif
-	skb_copy_secmark(n, skb);
 #endif
+	skb_copy_secmark(n, skb);
 	C(truesize);
 	atomic_set(&n->users, 1);
 	C(head);
