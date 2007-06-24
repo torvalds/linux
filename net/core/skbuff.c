@@ -1706,6 +1706,11 @@ next_skb:
 		st->stepped_offset += frag->size;
 	}
 
+	if (st->frag_data) {
+		kunmap_skb_frag(st->frag_data);
+		st->frag_data = NULL;
+	}
+
 	if (st->cur_skb->next) {
 		st->cur_skb = st->cur_skb->next;
 		st->frag_idx = 0;
