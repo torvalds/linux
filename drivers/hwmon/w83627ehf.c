@@ -1205,6 +1205,11 @@ static inline void __devinit w83627ehf_init_device(struct w83627ehf_data *data)
 					      W83627EHF_REG_TEMP_CONFIG[i],
 					      tmp & 0xfe);
 	}
+
+	/* Enable VBAT monitoring if needed */
+	tmp = w83627ehf_read_value(data, W83627EHF_REG_VBAT);
+	if (!(tmp & 0x01))
+		w83627ehf_write_value(data, W83627EHF_REG_VBAT, tmp | 0x01);
 }
 
 static int __devinit w83627ehf_probe(struct platform_device *pdev)
