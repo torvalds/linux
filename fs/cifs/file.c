@@ -1720,7 +1720,9 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	pTcon = cifs_sb->tcon;
 
 	pagevec_init(&lru_pvec, 0);
-
+#ifdef CONFIG_CIFS_DEBUG2
+		cFYI(1,("rpages: num pages %d", num_pages));
+#endif	
 	for (i = 0; i < num_pages; ) {
 		unsigned contig_pages;
 		struct page *tmp_page;
@@ -1753,7 +1755,10 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		/* Read size needs to be in multiples of one page */
 		read_size = min_t(const unsigned int, read_size,
 				  cifs_sb->rsize & PAGE_CACHE_MASK);
-
+#ifdef CONFIG_CIFS_DEBUG2
+		cFYI(1,("rpages: read size 0x%x  contiguous pages %d",
+				read_size, contig_pages));
+#endif		
 		rc = -EAGAIN;
 		while (rc == -EAGAIN) {
 			if ((open_file->invalidHandle) && 

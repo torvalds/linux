@@ -712,6 +712,7 @@ typedef struct smb_com_findclose_req {
 #define REQ_OPLOCK         0x00000002
 #define REQ_BATCHOPLOCK    0x00000004
 #define REQ_OPENDIRONLY    0x00000008
+#define REQ_EXTENDED_INFO  0x00000010
 
 typedef struct smb_com_open_req {	/* also handles create */
 	struct smb_hdr hdr;	/* wct = 24 */
@@ -1885,15 +1886,19 @@ typedef struct {
 #define CIFS_UNIX_POSIX_PATHNAMES_CAP   0x00000010 /* Allow POSIX path chars  */
 #define CIFS_UNIX_POSIX_PATH_OPS_CAP    0x00000020 /* Allow new POSIX path based
 						      calls including posix open
-						      and posix unlink */ 
+						      and posix unlink */
+#define CIFS_UNIX_LARGE_READ_CAP        0x00000040 /* support reads >128K (up
+						      to 0xFFFF00 */				       
+#define CIFS_UNIX_LARGE_WRITE_CAP       0x00000080
+
 #ifdef CONFIG_CIFS_POSIX
 /* Can not set pathnames cap yet until we send new posix create SMB since
    otherwise server can treat such handles opened with older ntcreatex
    (by a new client which knows how to send posix path ops)
    as non-posix handles (can affect write behavior with byte range locks.
    We can add back in POSIX_PATH_OPS cap when Posix Create/Mkdir finished */
-/* #define CIFS_UNIX_CAP_MASK              0x0000003b */
-#define CIFS_UNIX_CAP_MASK              0x0000001b 
+/* #define CIFS_UNIX_CAP_MASK              0x000000fb */
+#define CIFS_UNIX_CAP_MASK              0x000000db 
 #else 
 #define CIFS_UNIX_CAP_MASK              0x00000013
 #endif /* CONFIG_CIFS_POSIX */

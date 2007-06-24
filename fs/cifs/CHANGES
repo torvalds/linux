@@ -8,7 +8,10 @@ when Unix Extensions were ignored).  This allows users to override the
 default uid and gid for files when they are certain that the uids or
 gids on the server do not match those of the client.  Make "sec=none"
 mount override username (so that null user connection is attempted)
-to match what documentation said.
+to match what documentation said. Support for very large reads, over 127K,
+available to some newer servers (such as Samba 3.0.26 and later but
+note that it also requires setting CIFSMaxBufSize at module install
+time to a larger value which may hurt performance in some cases).
 
 Version 1.48
 ------------

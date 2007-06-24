@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/connect.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2006
+ *   Copyright (C) International Business Machines  Corp., 2002,2007
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -1650,19 +1650,19 @@ void reset_cifs_unix_caps(int xid, struct cifsTconInfo * tcon,
 		}
 		
 		cap &= CIFS_UNIX_CAP_MASK;
-		if(vol_info && vol_info->no_psx_acl)
+		if (vol_info && vol_info->no_psx_acl)
 			cap &= ~CIFS_UNIX_POSIX_ACL_CAP;
-		else if(CIFS_UNIX_POSIX_ACL_CAP & cap) {
+		else if (CIFS_UNIX_POSIX_ACL_CAP & cap) {
 			cFYI(1,("negotiated posix acl support"));
 			if(sb)
 				sb->s_flags |= MS_POSIXACL;
 		}
 
-		if(vol_info && vol_info->posix_paths == 0)
+		if (vol_info && vol_info->posix_paths == 0)
 			cap &= ~CIFS_UNIX_POSIX_PATHNAMES_CAP;
-		else if(cap & CIFS_UNIX_POSIX_PATHNAMES_CAP) {
+		else if (cap & CIFS_UNIX_POSIX_PATHNAMES_CAP) {
 			cFYI(1,("negotiate posix pathnames"));
-			if(sb)
+			if (sb)
 				CIFS_SB(sb)->mnt_cifs_flags |= 
 					CIFS_MOUNT_POSIX_PATHS;
 		}
@@ -1670,21 +1670,35 @@ void reset_cifs_unix_caps(int xid, struct cifsTconInfo * tcon,
 		/* We might be setting the path sep back to a different
 		form if we are reconnecting and the server switched its
 		posix path capability for this share */	
-		if(sb && (CIFS_SB(sb)->prepathlen > 0))
+		if (sb && (CIFS_SB(sb)->prepathlen > 0))
 			CIFS_SB(sb)->prepath[0] = CIFS_DIR_SEP(CIFS_SB(sb));
+
+		if (sb && (CIFS_SB(sb)->rsize > 127 * 1024)) {
+			if ((cap & CIFS_UNIX_LARGE_READ_CAP) == 0) {
+				CIFS_SB(sb)->rsize = 127 * 1024;
+#ifdef CONFIG_CIFS_DEBUG2
+				cFYI(1,("larger reads not supported by srv"));
+#endif
+			}
+		}
+		
 	
 		cFYI(1,("Negotiate caps 0x%x",(int)cap));
 #ifdef CONFIG_CIFS_DEBUG2
-		if(cap & CIFS_UNIX_FCNTL_CAP)
+		if (cap & CIFS_UNIX_FCNTL_CAP)
 			cFYI(1,("FCNTL cap"));
-		if(cap & CIFS_UNIX_EXTATTR_CAP)
+		if (cap & CIFS_UNIX_EXTATTR_CAP)
 			cFYI(1,("EXTATTR cap"));
-		if(cap & CIFS_UNIX_POSIX_PATHNAMES_CAP)
+		if (cap & CIFS_UNIX_POSIX_PATHNAMES_CAP)
 			cFYI(1,("POSIX path cap"));
-		if(cap & CIFS_UNIX_XATTR_CAP)
+		if (cap & CIFS_UNIX_XATTR_CAP)
 			cFYI(1,("XATTR cap"));
-		if(cap & CIFS_UNIX_POSIX_ACL_CAP)
+		if (cap & CIFS_UNIX_POSIX_ACL_CAP)
 			cFYI(1,("POSIX ACL cap"));
+		if (cap & CIFS_UNIX_LARGE_READ_CAP)
+			cFYI(1,("very large read cap"));
+		if (cap & CIFS_UNIX_LARGE_WRITE_CAP)
+			cFYI(1,("very large write cap"));
 #endif /* CIFS_DEBUG2 */
 		if (CIFSSMBSetFSUnixInfo(xid, tcon, cap)) {
 			cFYI(1,("setting capabilities failed"));
@@ -1935,13 +1949,14 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			cERROR(1,("rsize %d too large, using MaxBufSize",
 				volume_info.rsize));
 			cifs_sb->rsize = CIFSMaxBufSize;
-		} else if((volume_info.rsize) && (volume_info.rsize <= CIFSMaxBufSize))
+		} else if ((volume_info.rsize) &&
+				(volume_info.rsize <= CIFSMaxBufSize))
 			cifs_sb->rsize = volume_info.rsize;
 		else /* default */
 			cifs_sb->rsize = CIFSMaxBufSize;
 
 		if (volume_info.wsize > PAGEVEC_SIZE * PAGE_CACHE_SIZE) {
-			cERROR(1,("wsize %d too large using 4096 instead",
+			cERROR(1,("wsize %d too large, using 4096 instead",
 				  volume_info.wsize));
 			cifs_sb->wsize = 4096;
 		} else if (volume_info.wsize)
@@ -1960,7 +1975,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		if (cifs_sb->rsize < 2048) {
 			cifs_sb->rsize = 2048; 
 			/* Windows ME may prefer this */
-			cFYI(1,("readsize set to minimum 2048"));
+			cFYI(1,("readsize set to minimum: 2048"));
 		}
 		/* calculate prepath */
 		cifs_sb->prepath = volume_info.prepath;
@@ -2116,7 +2131,13 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		/* tell server which Unix caps we support */
 		if (tcon->ses->capabilities & CAP_UNIX)
 			reset_cifs_unix_caps(xid, tcon, sb, &volume_info);
-		
+		else if(cifs_sb->rsize > (1024 * 127)) {
+			cifs_sb->rsize = 1024 * 127;
+#ifdef CONFIG_CIFS_DEBUG2
+			cFYI(1,("no very large read support, rsize 127K"));
+#endif
+			
+		}
 		if (!(tcon->ses->capabilities & CAP_LARGE_WRITE_X))
 			cifs_sb->wsize = min(cifs_sb->wsize,
 					     (tcon->ses->server->maxBuf -
