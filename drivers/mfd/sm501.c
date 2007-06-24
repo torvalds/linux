@@ -855,6 +855,24 @@ static void sm501_init_regs(struct sm501_devdata *sm,
 		dev_info(sm->dev, "setting MCLK to %ld\n", init->mclk);
 		sm501_set_clock(sm->dev, SM501_CLOCK_MCLK, init->mclk);
 	}
+
+}
+
+/* Check the PLL sources for the M1CLK and M1XCLK
+ *
+ * If the M1CLK and M1XCLKs are not sourced from the same PLL, then
+ * there is a risk (see errata AB-5) that the SM501 will cease proper
+ * function. If this happens, then it is likely the SM501 will
+ * hang the system.
+*/
+
+static int sm501_check_clocks(struct sm501_devdata *sm)
+{
+	unsigned long pwrmode = readl(sm->regs + SM501_CURRENT_CLOCK);
+	unsigned long msrc = (pwrmode & SM501_POWERMODE_M_SRC);
+	unsigned long m1src = (pwrmode & SM501_POWERMODE_M1_SRC);
+
+	return ((msrc == 0 && m1src != 0) || (msrc != 0 && m1src == 0));
 }
 
 static unsigned int sm501_mem_local[] = {
@@ -909,6 +927,13 @@ static int sm501_init_dev(struct sm501_devdata *sm)
 			if (pdata->init->devices & SM501_USE_USB_HOST)
 				sm501_register_usbhost(sm, &mem_avail);
 		}
+	}
+
+	ret = sm501_check_clocks(sm);
+	if (ret) {
+		dev_err(sm->dev, "M1X and M clocks sourced from different "
+					"PLLs\n");
+		return -EINVAL;
 	}
 
 	/* always create a framebuffer */
@@ -1048,8 +1073,12 @@ static struct sm501_initdata sm501_pci_initdata = {
 	},
 
 	.devices	= SM501_USE_ALL,
-	.mclk		= 100 * MHZ,
-	.m1xclk		= 160 * MHZ,
+
+	/* Errata AB-3 says that 72MHz is the fastest available
+	 * for 33MHZ PCI with proper bus-mastering operation */
+
+	.mclk		= 72 * MHZ,
+	.m1xclk		= 144 * MHZ,
 };
 
 static struct sm501_platdata_fbsub sm501_pdata_fbsub = {
