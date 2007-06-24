@@ -58,7 +58,7 @@ cifs_dump_mem(char *label, void *data, int length)
 }
 
 #ifdef CONFIG_CIFS_DEBUG2
-void cifs_dump_detail(struct smb_hdr * smb)
+void cifs_dump_detail(struct smb_hdr *smb)
 {
 	cERROR(1, ("Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d",
 		  smb->Command, smb->Status.CifsError,
@@ -67,10 +67,10 @@ void cifs_dump_detail(struct smb_hdr * smb)
 }
 
 
-void cifs_dump_mids(struct TCP_Server_Info * server)
+void cifs_dump_mids(struct TCP_Server_Info *server)
 {
 	struct list_head *tmp;
-	struct mid_q_entry * mid_entry;
+	struct mid_q_entry *mid_entry;
 
 	if (server == NULL)
 		return;
@@ -114,12 +114,12 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 {
 	struct list_head *tmp;
 	struct list_head *tmp1;
-	struct mid_q_entry * mid_entry;
+	struct mid_q_entry *mid_entry;
 	struct cifsSesInfo *ses;
 	struct cifsTconInfo *tcon;
 	int i;
 	int length = 0;
-	char * original_buf = buf;
+	char *original_buf = buf;
 
 	*beginBuffer = buf + offset;
 

@@ -21,7 +21,7 @@
 
 #include <linux/fs.h>
 #include "cifspdu.h"
-#include "cifsglob.h" 
+#include "cifsglob.h"
 #include "cifs_debug.h"
 #include "md5.h"
 #include "cifs_unicode.h"
@@ -29,54 +29,56 @@
 #include <linux/ctype.h>
 #include <linux/random.h>
 
-/* Calculate and return the CIFS signature based on the mac key and the smb pdu */
+/* Calculate and return the CIFS signature based on the mac key and SMB PDU */
 /* the 16 byte signature must be allocated by the caller  */
 /* Note we only use the 1st eight bytes */
-/* Note that the smb header signature field on input contains the  
+/* Note that the smb header signature field on input contains the
 	sequence number before this function is called */
 
 extern void mdfour(unsigned char *out, unsigned char *in, int n);
 extern void E_md4hash(const unsigned char *passwd, unsigned char *p16);
 extern void SMBencrypt(unsigned char *passwd, unsigned char *c8,
-                       unsigned char *p24);
+		       unsigned char *p24);
 	
-static int cifs_calculate_signature(const struct smb_hdr * cifs_pdu, 
-				    const char * key, char * signature)
+static int cifs_calculate_signature(const struct smb_hdr *cifs_pdu,
+				    const char *key, char *signature)
 {
 	struct	MD5Context context;
 
-	if((cifs_pdu == NULL) || (signature == NULL))
+	if ((cifs_pdu == NULL) || (signature == NULL))
 		return -EINVAL;
 
 	MD5Init(&context);
-	MD5Update(&context,key,CIFS_SESS_KEY_SIZE+16);
-	MD5Update(&context,cifs_pdu->Protocol,cifs_pdu->smb_buf_length);
-	MD5Final(signature,&context);
+	MD5Update(&context, key, CIFS_SESS_KEY_SIZE+16);
+	MD5Update(&context, cifs_pdu->Protocol, cifs_pdu->smb_buf_length);
+	MD5Final(signature, &context);
 	return 0;
 }
 
-int cifs_sign_smb(struct smb_hdr * cifs_pdu, struct TCP_Server_Info * server,
-	__u32 * pexpected_response_sequence_number)
+int cifs_sign_smb(struct smb_hdr *cifs_pdu, struct TCP_Server_Info *server,
+		  __u32 *pexpected_response_sequence_number)
 {
 	int rc = 0;
 	char smb_signature[20];
 
-	if((cifs_pdu == NULL) || (server == NULL))
+	if ((cifs_pdu == NULL) || (server == NULL))
 		return -EINVAL;
 
-	if((cifs_pdu->Flags2 & SMBFLG2_SECURITY_SIGNATURE) == 0) 
+	if ((cifs_pdu->Flags2 & SMBFLG2_SECURITY_SIGNATURE) == 0)
 		return rc;
 
 	spin_lock(&GlobalMid_Lock);
-	cifs_pdu->Signature.Sequence.SequenceNumber = cpu_to_le32(server->sequence_number);
+	cifs_pdu->Signature.Sequence.SequenceNumber = 
+		cpu_to_le32(server->sequence_number);
 	cifs_pdu->Signature.Sequence.Reserved = 0;
 	
 	*pexpected_response_sequence_number = server->sequence_number++;
 	server->sequence_number++;
 	spin_unlock(&GlobalMid_Lock);
 
-	rc = cifs_calculate_signature(cifs_pdu, server->mac_signing_key,smb_signature);
-	if(rc)
+	rc = cifs_calculate_signature(cifs_pdu, server->mac_signing_key,
+				      smb_signature);
+	if (rc)
 		memset(cifs_pdu->Signature.SecuritySignature, 0, 8);
 	else
 		memcpy(cifs_pdu->Signature.SecuritySignature, smb_signature, 8);
@@ -84,88 +86,88 @@ int cifs_sign_smb(struct smb_hdr * cifs_pdu, struct TCP_Server_Info * server,
 	return rc;
 }
 
-static int cifs_calc_signature2(const struct kvec * iov, int n_vec,
-				const char * key, char * signature)
+static int cifs_calc_signature2(const struct kvec *iov, int n_vec,
+				const char *key, char *signature)
 {
 	struct  MD5Context context;
 	int i;
 
-	if((iov == NULL) || (signature == NULL))
+	if ((iov == NULL) || (signature == NULL))
 		return -EINVAL;
 
 	MD5Init(&context);
-	MD5Update(&context,key,CIFS_SESS_KEY_SIZE+16);
-	for(i=0;i<n_vec;i++) {
-		if(iov[i].iov_base == NULL) {
-			cERROR(1,("null iovec entry"));
+	MD5Update(&context, key, CIFS_SESS_KEY_SIZE+16);
+	for (i=0;i<n_vec;i++) {
+		if (iov[i].iov_base == NULL) {
+			cERROR(1 ,("null iovec entry"));
 			return -EIO;
-		} else if(iov[i].iov_len == 0)
+		} else if (iov[i].iov_len == 0)
 			break; /* bail out if we are sent nothing to sign */
-		/* The first entry includes a length field (which does not get 
+		/* The first entry includes a length field (which does not get
 		   signed that occupies the first 4 bytes before the header */
-		if(i==0) {
+		if (i == 0) {
 			if (iov[0].iov_len <= 8 ) /* cmd field at offset 9 */
 				break; /* nothing to sign or corrupt header */
 			MD5Update(&context,iov[0].iov_base+4, iov[0].iov_len-4);
 		} else
-			MD5Update(&context,iov[i].iov_base, iov[i].iov_len);
+			MD5Update(&context, iov[i].iov_base, iov[i].iov_len);
 	}
 
-	MD5Final(signature,&context);
+	MD5Final(signature, &context);
 
 	return 0;
 }
 
 
-int cifs_sign_smb2(struct kvec * iov, int n_vec, struct TCP_Server_Info *server,
+int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
 		   __u32 * pexpected_response_sequence_number)
 {
 	int rc = 0;
 	char smb_signature[20];
-	struct smb_hdr * cifs_pdu = iov[0].iov_base;
+	struct smb_hdr *cifs_pdu = iov[0].iov_base;
 
-	if((cifs_pdu == NULL) || (server == NULL))
+	if ((cifs_pdu == NULL) || (server == NULL))
 		return -EINVAL;
 
-	if((cifs_pdu->Flags2 & SMBFLG2_SECURITY_SIGNATURE) == 0)
+	if ((cifs_pdu->Flags2 & SMBFLG2_SECURITY_SIGNATURE) == 0)
 		return rc;
 
-        spin_lock(&GlobalMid_Lock);
-        cifs_pdu->Signature.Sequence.SequenceNumber = 
+	spin_lock(&GlobalMid_Lock);
+	cifs_pdu->Signature.Sequence.SequenceNumber =
 				cpu_to_le32(server->sequence_number);
-        cifs_pdu->Signature.Sequence.Reserved = 0;
+	cifs_pdu->Signature.Sequence.Reserved = 0;
 
-        *pexpected_response_sequence_number = server->sequence_number++;
-        server->sequence_number++;
-        spin_unlock(&GlobalMid_Lock);
+	*pexpected_response_sequence_number = server->sequence_number++;
+	server->sequence_number++;
+	spin_unlock(&GlobalMid_Lock);
 
-        rc = cifs_calc_signature2(iov, n_vec, server->mac_signing_key,
+	rc = cifs_calc_signature2(iov, n_vec, server->mac_signing_key,
 				      smb_signature);
-        if(rc)
-                memset(cifs_pdu->Signature.SecuritySignature, 0, 8);
-        else
-                memcpy(cifs_pdu->Signature.SecuritySignature, smb_signature, 8);
+	if (rc)
+		memset(cifs_pdu->Signature.SecuritySignature, 0, 8);
+	else
+		memcpy(cifs_pdu->Signature.SecuritySignature, smb_signature, 8);
 
-        return rc;
-
+	return rc;
 }
 
-int cifs_verify_signature(struct smb_hdr * cifs_pdu, const char * mac_key,
-	__u32 expected_sequence_number)
+int cifs_verify_signature(struct smb_hdr *cifs_pdu, const char *mac_key,
+			  __u32 expected_sequence_number)
 {
 	unsigned int rc;
 	char server_response_sig[8];
 	char what_we_think_sig_should_be[20];
 
-	if((cifs_pdu == NULL) || (mac_key == NULL))
+	if ((cifs_pdu == NULL) || (mac_key == NULL))
 		return -EINVAL;
 
 	if (cifs_pdu->Command == SMB_COM_NEGOTIATE)
 		return 0;
 
 	if (cifs_pdu->Command == SMB_COM_LOCKING_ANDX) {
-		struct smb_com_lock_req * pSMB = (struct smb_com_lock_req *)cifs_pdu;
-	    if(pSMB->LockType & LOCKING_ANDX_OPLOCK_RELEASE)
+		struct smb_com_lock_req * pSMB =
+			(struct smb_com_lock_req *)cifs_pdu;
+	    if (pSMB->LockType & LOCKING_ANDX_OPLOCK_RELEASE)
 			return 0;
 	}
 
