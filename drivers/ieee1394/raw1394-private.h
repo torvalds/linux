@@ -36,11 +36,6 @@ struct file_info {
 
         u8 __user *fcp_buffer;
 
-	/* old ISO API */
-        u64 listen_channels;
-        quadlet_t __user *iso_buffer;
-        size_t iso_buffer_length;
-
         u8 notification; /* (busreset-notification) RAW1394_NOTIFY_OFF/ON */
 
 	/* new rawiso API */

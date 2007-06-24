@@ -24,9 +24,8 @@ struct hpsb_packet {
 
 	nodeid_t node_id;
 
-	/* Async and Iso types should be clear, raw means send-as-is, do not
-	 * CRC!  Byte swapping shall still be done in this case. */
-	enum { hpsb_async, hpsb_iso, hpsb_raw } __attribute__((packed)) type;
+	/* hpsb_raw = send as-is, do not CRC (but still byte-swap it) */
+	enum { hpsb_async, hpsb_raw } __attribute__((packed)) type;
 
 	/* Okay, this is core internal and a no care for hosts.
 	 * queued   = queued for sending

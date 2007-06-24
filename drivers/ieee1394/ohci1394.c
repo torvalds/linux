@@ -157,7 +157,6 @@ static void dma_trm_reset(struct dma_trm_ctx *d);
 static int alloc_dma_rcv_ctx(struct ti_ohci *ohci, struct dma_rcv_ctx *d,
 			     enum context_type type, int ctx, int num_desc,
 			     int buf_size, int split_buf_size, int context_base);
-static void stop_dma_rcv_ctx(struct dma_rcv_ctx *d);
 static void free_dma_rcv_ctx(struct dma_rcv_ctx *d);
 
 static int alloc_dma_trm_ctx(struct ti_ohci *ohci, struct dma_trm_ctx *d,
@@ -520,9 +519,6 @@ static void ohci_initialize(struct ti_ohci *ohci)
 	initialize_dma_trm_ctx(&ohci->at_req_context);
 	initialize_dma_trm_ctx(&ohci->at_resp_context);
 	
-	/* Initialize IR Legacy DMA channel mask */
-	ohci->ir_legacy_channels = 0;
-
 	/* Accept AR requests from all nodes */
 	reg_write(ohci, OHCI1394_AsReqFilterHiSet, 0x80000000);
 
@@ -869,36 +865,9 @@ static int ohci_transmit(struct hpsb_host *host, struct hpsb_packet *packet)
 		return -EOVERFLOW;
 	}
 
-	/* Decide whether we have an iso, a request, or a response packet */
 	if (packet->type == hpsb_raw)
 		d = &ohci->at_req_context;
-	else if ((packet->tcode == TCODE_ISO_DATA) && (packet->type == hpsb_iso)) {
-		/* The legacy IT DMA context is initialized on first
-		 * use.  However, the alloc cannot be run from
-		 * interrupt context, so we bail out if that is the
-		 * case. I don't see anyone sending ISO packets from
-		 * interrupt context anyway... */
-
-		if (ohci->it_legacy_context.ohci == NULL) {
-			if (in_interrupt()) {
-				PRINT(KERN_ERR,
-				      "legacy IT context cannot be initialized during interrupt");
-				return -EINVAL;
-			}
-
-			if (alloc_dma_trm_ctx(ohci, &ohci->it_legacy_context,
-					      DMA_CTX_ISO, 0, IT_NUM_DESC,
-					      OHCI1394_IsoXmitContextBase) < 0) {
-				PRINT(KERN_ERR,
-				      "error initializing legacy IT context");
-				return -ENOMEM;
-			}
-
-			initialize_dma_trm_ctx(&ohci->it_legacy_context);
-		}
-
-		d = &ohci->it_legacy_context;
-	} else if ((packet->tcode & 0x02) && (packet->tcode != TCODE_ISO_DATA))
+	else if ((packet->tcode & 0x02) && (packet->tcode != TCODE_ISO_DATA))
 		d = &ohci->at_resp_context;
 	else
 		d = &ohci->at_req_context;
@@ -917,9 +886,7 @@ static int ohci_transmit(struct hpsb_host *host, struct hpsb_packet *packet)
 static int ohci_devctl(struct hpsb_host *host, enum devctl_cmd cmd, int arg)
 {
 	struct ti_ohci *ohci = host->hostdata;
-	int retval = 0;
-	unsigned long flags;
-	int phy_reg;
+	int retval = 0, phy_reg;
 
 	switch (cmd) {
 	case RESET_BUS:
@@ -1012,117 +979,6 @@ static int ohci_devctl(struct hpsb_host *host, enum devctl_cmd cmd, int arg)
 		dma_trm_reset(&ohci->at_resp_context);
 		break;
 
-	case ISO_LISTEN_CHANNEL:
-        {
-		u64 mask;
-		struct dma_rcv_ctx *d = &ohci->ir_legacy_context;
-		int ir_legacy_active;
-
-		if (arg<0 || arg>63) {
-			PRINT(KERN_ERR,
-			      "%s: IS0 listen channel %d is out of range",
-			      __FUNCTION__, arg);
-			return -EFAULT;
-		}
-
-		mask = (u64)0x1<<arg;
-
-                spin_lock_irqsave(&ohci->IR_channel_lock, flags);
-
-		if (ohci->ISO_channel_usage & mask) {
-			PRINT(KERN_ERR,
-			      "%s: IS0 listen channel %d is already used",
-			      __FUNCTION__, arg);
-			spin_unlock_irqrestore(&ohci->IR_channel_lock, flags);
-			return -EFAULT;
-		}
-
-		ir_legacy_active = ohci->ir_legacy_channels;
-
-		ohci->ISO_channel_usage |= mask;
-		ohci->ir_legacy_channels |= mask;
-
-                spin_unlock_irqrestore(&ohci->IR_channel_lock, flags);
-
-		if (!ir_legacy_active) {
-			if (ohci1394_register_iso_tasklet(ohci,
-					  &ohci->ir_legacy_tasklet) < 0) {
-				PRINT(KERN_ERR, "No IR DMA context available");
-				return -EBUSY;
-			}
-
-			/* the IR context can be assigned to any DMA context
-			 * by ohci1394_register_iso_tasklet */
-			d->ctx = ohci->ir_legacy_tasklet.context;
-			d->ctrlSet = OHCI1394_IsoRcvContextControlSet +
-				32*d->ctx;
-			d->ctrlClear = OHCI1394_IsoRcvContextControlClear +
-				32*d->ctx;
-			d->cmdPtr = OHCI1394_IsoRcvCommandPtr + 32*d->ctx;
-			d->ctxtMatch = OHCI1394_IsoRcvContextMatch + 32*d->ctx;
-
-			initialize_dma_rcv_ctx(&ohci->ir_legacy_context, 1);
-
-			if (printk_ratelimit())
-				DBGMSG("IR legacy activated");
-		}
-
-                spin_lock_irqsave(&ohci->IR_channel_lock, flags);
-
-		if (arg>31)
-			reg_write(ohci, OHCI1394_IRMultiChanMaskHiSet,
-				  1<<(arg-32));
-		else
-			reg_write(ohci, OHCI1394_IRMultiChanMaskLoSet,
-				  1<<arg);
-
-                spin_unlock_irqrestore(&ohci->IR_channel_lock, flags);
-                DBGMSG("Listening enabled on channel %d", arg);
-                break;
-        }
-	case ISO_UNLISTEN_CHANNEL:
-        {
-		u64 mask;
-
-		if (arg<0 || arg>63) {
-			PRINT(KERN_ERR,
-			      "%s: IS0 unlisten channel %d is out of range",
-			      __FUNCTION__, arg);
-			return -EFAULT;
-		}
-
-		mask = (u64)0x1<<arg;
-
-                spin_lock_irqsave(&ohci->IR_channel_lock, flags);
-
-		if (!(ohci->ISO_channel_usage & mask)) {
-			PRINT(KERN_ERR,
-			      "%s: IS0 unlisten channel %d is not used",
-			      __FUNCTION__, arg);
-			spin_unlock_irqrestore(&ohci->IR_channel_lock, flags);
-			return -EFAULT;
-		}
-
-		ohci->ISO_channel_usage &= ~mask;
-		ohci->ir_legacy_channels &= ~mask;
-
-		if (arg>31)
-			reg_write(ohci, OHCI1394_IRMultiChanMaskHiClear,
-				  1<<(arg-32));
-		else
-			reg_write(ohci, OHCI1394_IRMultiChanMaskLoClear,
-				  1<<arg);
-
-                spin_unlock_irqrestore(&ohci->IR_channel_lock, flags);
-                DBGMSG("Listening disabled on channel %d", arg);
-
-		if (ohci->ir_legacy_channels == 0) {
-			stop_dma_rcv_ctx(&ohci->ir_legacy_context);
-			DBGMSG("ISO legacy receive context stopped");
-		}
-
-                break;
-        }
 	default:
 		PRINT_G(KERN_ERR, "ohci_devctl cmd %d not implemented yet",
 			cmd);
@@ -2868,22 +2724,6 @@ static void dma_trm_tasklet (unsigned long data)
 	spin_unlock_irqrestore(&d->lock, flags);
 }
 
-static void stop_dma_rcv_ctx(struct dma_rcv_ctx *d)
-{
-	if (d->ctrlClear) {
-		ohci1394_stop_context(d->ohci, d->ctrlClear, NULL);
-
-		if (d->type == DMA_CTX_ISO) {
-			/* disable interrupts */
-			reg_write(d->ohci, OHCI1394_IsoRecvIntMaskClear, 1 << d->ctx);
-			ohci1394_unregister_iso_tasklet(d->ohci, &d->ohci->ir_legacy_tasklet);
-		} else {
-			tasklet_kill(&d->task);
-		}
-	}
-}
-
-
 static void free_dma_rcv_ctx(struct dma_rcv_ctx *d)
 {
 	int i;
@@ -3005,18 +2845,11 @@ alloc_dma_rcv_ctx(struct ti_ohci *ohci, struct dma_rcv_ctx *d,
 
         spin_lock_init(&d->lock);
 
-	if (type == DMA_CTX_ISO) {
-		ohci1394_init_iso_tasklet(&ohci->ir_legacy_tasklet,
-					  OHCI_ISO_MULTICHANNEL_RECEIVE,
-					  dma_rcv_tasklet, (unsigned long) d);
-	} else {
-		d->ctrlSet = context_base + OHCI1394_ContextControlSet;
-		d->ctrlClear = context_base + OHCI1394_ContextControlClear;
-		d->cmdPtr = context_base + OHCI1394_ContextCommandPtr;
+	d->ctrlSet = context_base + OHCI1394_ContextControlSet;
+	d->ctrlClear = context_base + OHCI1394_ContextControlClear;
+	d->cmdPtr = context_base + OHCI1394_ContextCommandPtr;
 
-		tasklet_init (&d->task, dma_rcv_tasklet, (unsigned long) d);
-	}
-
+	tasklet_init(&d->task, dma_rcv_tasklet, (unsigned long) d);
 	return 0;
 }
 
@@ -3097,28 +2930,10 @@ alloc_dma_trm_ctx(struct ti_ohci *ohci, struct dma_trm_ctx *d,
         spin_lock_init(&d->lock);
 
 	/* initialize tasklet */
-	if (type == DMA_CTX_ISO) {
-		ohci1394_init_iso_tasklet(&ohci->it_legacy_tasklet, OHCI_ISO_TRANSMIT,
-					  dma_trm_tasklet, (unsigned long) d);
-		if (ohci1394_register_iso_tasklet(ohci,
-						  &ohci->it_legacy_tasklet) < 0) {
-			PRINT(KERN_ERR, "No IT DMA context available");
-			free_dma_trm_ctx(d);
-			return -EBUSY;
-		}
-
-		/* IT can be assigned to any context by register_iso_tasklet */
-		d->ctx = ohci->it_legacy_tasklet.context;
-		d->ctrlSet = OHCI1394_IsoXmitContextControlSet + 16 * d->ctx;
-		d->ctrlClear = OHCI1394_IsoXmitContextControlClear + 16 * d->ctx;
-		d->cmdPtr = OHCI1394_IsoXmitCommandPtr + 16 * d->ctx;
-	} else {
-		d->ctrlSet = context_base + OHCI1394_ContextControlSet;
-		d->ctrlClear = context_base + OHCI1394_ContextControlClear;
-		d->cmdPtr = context_base + OHCI1394_ContextCommandPtr;
-		tasklet_init (&d->task, dma_trm_tasklet, (unsigned long)d);
-	}
-
+	d->ctrlSet = context_base + OHCI1394_ContextControlSet;
+	d->ctrlClear = context_base + OHCI1394_ContextControlClear;
+	d->cmdPtr = context_base + OHCI1394_ContextCommandPtr;
+	tasklet_init(&d->task, dma_trm_tasklet, (unsigned long)d);
 	return 0;
 }
 
@@ -3344,20 +3159,6 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 	ohci->ISO_channel_usage = 0;
         spin_lock_init(&ohci->IR_channel_lock);
 
-	/* Allocate the IR DMA context right here so we don't have
-	 * to do it in interrupt path - note that this doesn't
-	 * waste much memory and avoids the jugglery required to
-	 * allocate it in IRQ path. */
-	if (alloc_dma_rcv_ctx(ohci, &ohci->ir_legacy_context,
-			      DMA_CTX_ISO, 0, IR_NUM_DESC,
-			      IR_BUF_SIZE, IR_SPLIT_BUF_SIZE,
-			      OHCI1394_IsoRcvContextBase) < 0) {
-		FAIL(-ENOMEM, "Cannot allocate IR Legacy DMA context");
-	}
-
-	/* We hopefully don't have to pre-allocate IT DMA like we did
-	 * for IR DMA above. Allocate it on-demand and mark inactive. */
-	ohci->it_legacy_context.ohci = NULL;
 	spin_lock_init(&ohci->event_lock);
 
 	/*
@@ -3450,8 +3251,6 @@ static void ohci1394_pci_remove(struct pci_dev *pdev)
 		free_dma_rcv_ctx(&ohci->ar_resp_context);
 		free_dma_trm_ctx(&ohci->at_req_context);
 		free_dma_trm_ctx(&ohci->at_resp_context);
-		free_dma_rcv_ctx(&ohci->ir_legacy_context);
-		free_dma_trm_ctx(&ohci->it_legacy_context);
 
 	case OHCI_INIT_HAVE_SELFID_BUFFER:
 		pci_free_consistent(ohci->dev, OHCI1394_SI_DMA_BUF_SIZE,
