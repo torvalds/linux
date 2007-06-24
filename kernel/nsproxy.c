@@ -145,13 +145,11 @@ void free_nsproxy(struct nsproxy *ns)
 
 /*
  * Called from unshare. Unshare all the namespaces part of nsproxy.
- * On sucess, returns the new nsproxy and a reference to old nsproxy
- * to make sure it stays around.
+ * On success, returns the new nsproxy.
  */
 int unshare_nsproxy_namespaces(unsigned long unshare_flags,
 		struct nsproxy **new_nsp, struct fs_struct *new_fs)
 {
-	struct nsproxy *old_ns = current->nsproxy;
 	int err = 0;
 
 	if (!(unshare_flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC)))
@@ -170,13 +168,9 @@ int unshare_nsproxy_namespaces(unsigned long unshare_flags,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	get_nsproxy(old_ns);
-
 	*new_nsp = create_new_namespaces(unshare_flags, current,
 				new_fs ? new_fs : current->fs);
-	if (IS_ERR(*new_nsp)) {
+	if (IS_ERR(*new_nsp))
 		err = PTR_ERR(*new_nsp);
-		put_nsproxy(old_ns);
-	}
 	return err;
 }
