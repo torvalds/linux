@@ -694,15 +694,25 @@ gss_destroy_ctx(struct gss_cl_ctx *ctx)
 }
 
 static void
-gss_destroy_cred(struct rpc_cred *rc)
+gss_free_cred(struct gss_cred *gss_cred)
 {
-	struct gss_cred *cred = container_of(rc, struct gss_cred, gc_base);
+	dprintk("RPC:       gss_free_cred %p\n", gss_cred);
+	if (gss_cred->gc_ctx)
+		gss_put_ctx(gss_cred->gc_ctx);
+	kfree(gss_cred);
+}
 
-	dprintk("RPC:       gss_destroy_cred \n");
+static void
+gss_free_cred_callback(struct rcu_head *head)
+{
+	struct gss_cred *gss_cred = container_of(head, struct gss_cred, gc_base.cr_rcu);
+	gss_free_cred(gss_cred);
+}
 
-	if (cred->gc_ctx)
-		gss_put_ctx(cred->gc_ctx);
-	kfree(cred);
+static void
+gss_destroy_cred(struct rpc_cred *cred)
+{
+	call_rcu(&cred->cr_rcu, gss_free_cred_callback);
 }
 
 /*

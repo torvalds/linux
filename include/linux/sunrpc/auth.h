@@ -16,6 +16,7 @@
 #include <linux/sunrpc/xdr.h>
 
 #include <asm/atomic.h>
+#include <linux/rcupdate.h>
 
 /* size of the nodename buffer */
 #define UNX_MAXNODENAME	32
@@ -35,6 +36,7 @@ struct rpc_credops;
 struct rpc_cred {
 	struct hlist_node	cr_hash;	/* hash chain */
 	struct list_head	cr_lru;		/* lru garbage collection */
+	struct rcu_head		cr_rcu;
 	struct rpc_auth *	cr_auth;
 	const struct rpc_credops *cr_ops;
 #ifdef RPC_DEBUG
@@ -50,6 +52,7 @@ struct rpc_cred {
 };
 #define RPCAUTH_CRED_NEW	0
 #define RPCAUTH_CRED_UPTODATE	1
+#define RPCAUTH_CRED_HASHED	2
 
 #define RPCAUTH_CRED_MAGIC	0x0f4aa4f0
 

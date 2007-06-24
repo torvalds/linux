@@ -93,11 +93,23 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 }
 
 static void
-unx_destroy_cred(struct rpc_cred *rcred)
+unx_free_cred(struct unx_cred *unx_cred)
 {
-	struct unx_cred	*cred = container_of(rcred, struct unx_cred, uc_base);
+	dprintk("RPC:       unx_free_cred %p\n", unx_cred);
+	kfree(unx_cred);
+}
 
-	kfree(cred);
+static void
+unx_free_cred_callback(struct rcu_head *head)
+{
+	struct unx_cred *unx_cred = container_of(head, struct unx_cred, uc_base.cr_rcu);
+	unx_free_cred(unx_cred);
+}
+
+static void
+unx_destroy_cred(struct rpc_cred *cred)
+{
+	call_rcu(&cred->cr_rcu, unx_free_cred_callback);
 }
 
 /*
