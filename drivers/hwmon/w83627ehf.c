@@ -421,7 +421,7 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 
 	mutex_lock(&data->update_lock);
 
-	if (time_after(jiffies, data->last_updated + HZ)
+	if (time_after(jiffies, data->last_updated + HZ + HZ/2)
 	 || !data->valid) {
 		/* Fan clock dividers */
 		i = w83627ehf_read_value(data, W83627EHF_REG_FANDIV1);
@@ -727,6 +727,8 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 			div_from_reg(new_div));
 		data->fan_div[nr] = new_div;
 		w83627ehf_write_fan_div(data, nr);
+		/* Give the chip time to sample a new speed value */
+		data->last_updated = jiffies;
 	}
 	w83627ehf_write_value(data, W83627EHF_REG_FAN_MIN[nr],
 			      data->fan_min[nr]);
