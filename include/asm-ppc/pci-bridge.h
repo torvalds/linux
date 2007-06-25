@@ -48,6 +48,7 @@ struct pci_controller {
 	int first_busno;
 	int last_busno;
 	int self_busno;
+	/* bus_offset is only used by ARCH=ppc */
 	int bus_offset;
 
 	void __iomem *io_base_virt;

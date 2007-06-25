@@ -44,7 +44,7 @@ indirect_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 			cfg_type = 1;
 
 	bus_no = (bus->number == hose->first_busno) ?
-			hose->self_busno : bus->number - hose->bus_offset;
+			hose->self_busno : bus->number;
 
 	PCI_CFG_OUT(hose->cfg_addr,
 		 (0x80000000 | (bus_no << 16)
@@ -87,7 +87,7 @@ indirect_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
 			cfg_type = 1;
 
 	bus_no = (bus->number == hose->first_busno) ?
-			hose->self_busno : bus->number - hose->bus_offset;
+			hose->self_busno : bus->number;
 
 	PCI_CFG_OUT(hose->cfg_addr,
 		 (0x80000000 | (bus_no << 16)

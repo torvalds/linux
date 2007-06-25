@@ -55,6 +55,7 @@ int __init mpc85xx_add_bridge(struct device_node *dev)
 		       " bus 0\n", dev->full_name);
 	}
 
+	pci_assign_all_buses = 1;
 	hose = pcibios_alloc_controller();
 	if (!hose)
 		return -ENOMEM;
@@ -71,7 +72,6 @@ int __init mpc85xx_add_bridge(struct device_node *dev)
 	if ((rsrc.start & 0xfffff) == 0x9000) {
 		setup_indirect_pci(hose, immr + 0x9000, immr + 0x9004);
 		primary = 0;
-		hose->bus_offset = hose->first_busno;
 	}
 
 	printk(KERN_INFO "Found MPC85xx PCI host bridge at 0x%016llx. "
