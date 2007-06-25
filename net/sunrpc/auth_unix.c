@@ -89,12 +89,14 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 		  cred->uc_gids[i] = NOGROUP;
 	}
 
-	return (struct rpc_cred *) cred;
+	return &cred->uc_base;
 }
 
 static void
-unx_destroy_cred(struct rpc_cred *cred)
+unx_destroy_cred(struct rpc_cred *rcred)
 {
+	struct unx_cred	*cred = container_of(rcred, struct unx_cred, uc_base);
+
 	kfree(cred);
 }
 
@@ -106,7 +108,7 @@ unx_destroy_cred(struct rpc_cred *cred)
 static int
 unx_match(struct auth_cred *acred, struct rpc_cred *rcred, int flags)
 {
-	struct unx_cred	*cred = (struct unx_cred *) rcred;
+	struct unx_cred	*cred = container_of(rcred, struct unx_cred, uc_base);
 	int		i;
 
 	if (!(flags & RPCAUTH_LOOKUP_ROOTCREDS)) {
@@ -137,7 +139,7 @@ static __be32 *
 unx_marshal(struct rpc_task *task, __be32 *p)
 {
 	struct rpc_clnt	*clnt = task->tk_client;
-	struct unx_cred	*cred = (struct unx_cred *) task->tk_msg.rpc_cred;
+	struct unx_cred	*cred = container_of(task->tk_msg.rpc_cred, struct unx_cred, uc_base);
 	__be32		*base, *hold;
 	int		i;
 
