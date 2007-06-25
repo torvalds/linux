@@ -28,6 +28,27 @@ machine-$(CONFIG_BF561) := bf561
 MACHINE := $(machine-y)
 export MACHINE
 
+cpu-$(CONFIG_BF531) := bf531
+cpu-$(CONFIG_BF532) := bf532
+cpu-$(CONFIG_BF533) := bf533
+cpu-$(CONFIG_BF534) := bf534
+cpu-$(CONFIG_BF536) := bf536
+cpu-$(CONFIG_BF537) := bf537
+cpu-$(CONFIG_BF548) := bf548
+cpu-$(CONFIG_BF549) := bf549
+cpu-$(CONFIG_BF561) := bf561
+
+rev-$(CONFIG_BF_REV_0_0)  := 0.0
+rev-$(CONFIG_BF_REV_0_1)  := 0.1
+rev-$(CONFIG_BF_REV_0_2)  := 0.2
+rev-$(CONFIG_BF_REV_0_3)  := 0.3
+rev-$(CONFIG_BF_REV_0_4)  := 0.4
+rev-$(CONFIG_BF_REV_0_5)  := 0.5
+rev-$(CONFIG_BF_REV_NONE) := none
+rev-$(CONFIG_BF_REV_ANY)  := any
+
+CFLAGS += -mcpu=$(cpu-y)-$(rev-y)
+AFLAGS += -mcpu=$(cpu-y)-$(rev-y)
 
 head-y   := arch/$(ARCH)/mach-$(MACHINE)/head.o arch/$(ARCH)/kernel/init_task.o
 

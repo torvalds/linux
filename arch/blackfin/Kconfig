@@ -142,6 +142,12 @@ config BF_REV_0_5
 	bool "0.5"
 	depends on (BF561 || BF533 || BF532 || BF531)
 
+config BF_REV_ANY
+	bool "any"
+
+config BF_REV_NONE
+	bool "none"
+
 endchoice
 
 config BFIN_DUAL_CORE
