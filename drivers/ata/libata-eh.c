@@ -1616,7 +1616,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 	unsigned long deadline;
 	unsigned int action;
 	ata_reset_fn_t reset;
-	int i, did_followup_srst, rc;
+	int i, rc;
 
 	/* about to reset */
 	ata_eh_about_to_do(ap, NULL, ehc->i.action & ATA_EH_RESET_MASK);
@@ -1687,11 +1687,9 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 
 	rc = ata_do_reset(ap, reset, classes, deadline);
 
-	did_followup_srst = 0;
 	if (reset == hardreset &&
 	    ata_eh_followup_srst_needed(rc, classify, classes)) {
 		/* okay, let's do follow-up softreset */
-		did_followup_srst = 1;
 		reset = softreset;
 
 		if (!reset) {
