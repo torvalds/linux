@@ -100,6 +100,22 @@ config 8xx_CPU6
 
 	  If in doubt, say N here.
 
+config 8xx_CPU15
+	bool "CPU15 Silicon Errata"
+	default y
+	help
+	  This enables a workaround for erratum CPU15 on MPC8xx chips.
+	  This bug can cause incorrect code execution under certain
+	  circumstances.  This workaround adds some overhead (a TLB miss
+	  every time execution crosses a page boundary), and you may wish
+	  to disable it if you have worked around the bug in the compiler
+	  (by not placing conditional branches or branches to LR or CTR
+	  in the last word of a page, with a target of the last cache
+	  line in the next page), or if you have used some other
+	  workaround.
+
+	  If in doubt, say Y here.
+
 choice
 	prompt "Microcode patch selection"
 	default NO_UCODE_PATCH
