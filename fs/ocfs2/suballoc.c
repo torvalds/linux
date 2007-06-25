@@ -488,13 +488,7 @@ int ocfs2_reserve_new_metadata(struct ocfs2_super *osb,
 
 	(*ac)->ac_bits_wanted = ocfs2_extend_meta_needed(fe);
 	(*ac)->ac_which = OCFS2_AC_USE_META;
-
-#ifndef OCFS2_USE_ALL_METADATA_SUBALLOCATORS
-	slot = 0;
-#else
 	slot = osb->slot_num;
-#endif
-
 	(*ac)->ac_group_search = ocfs2_block_group_search;
 
 	status = ocfs2_reserve_suballoc_bits(osb, (*ac),

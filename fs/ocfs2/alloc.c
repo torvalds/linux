@@ -386,13 +386,7 @@ static int ocfs2_create_new_meta_bhs(struct ocfs2_super *osb,
 			strcpy(eb->h_signature, OCFS2_EXTENT_BLOCK_SIGNATURE);
 			eb->h_blkno = cpu_to_le64(first_blkno);
 			eb->h_fs_generation = cpu_to_le32(osb->fs_generation);
-
-#ifndef OCFS2_USE_ALL_METADATA_SUBALLOCATORS
-			/* we always use slot zero's suballocator */
-			eb->h_suballoc_slot = 0;
-#else
 			eb->h_suballoc_slot = cpu_to_le16(osb->slot_num);
-#endif
 			eb->h_suballoc_bit = cpu_to_le16(suballoc_bit_start);
 			eb->h_list.l_count =
 				cpu_to_le16(ocfs2_extent_recs_per_eb(osb->sb));
