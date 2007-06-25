@@ -250,6 +250,7 @@ err:
 	btrfs_free_path(path);
 	if (!ret) {
 		dir->i_size -= name_len * 2;
+		dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 		btrfs_update_inode(trans, root, dir);
 		drop_nlink(dentry->d_inode);
 		ret = btrfs_update_inode(trans, root, dentry->d_inode);
@@ -1037,6 +1038,7 @@ static int btrfs_add_link(struct btrfs_trans_handle *trans,
 	int ret;
 	struct btrfs_key key;
 	struct btrfs_root *root = BTRFS_I(dentry->d_parent->d_inode)->root;
+	struct inode *parent_inode;
 	key.objectid = inode->i_ino;
 	key.flags = 0;
 	btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
@@ -1047,7 +1049,9 @@ static int btrfs_add_link(struct btrfs_trans_handle *trans,
 				    dentry->d_parent->d_inode->i_ino,
 				    &key, btrfs_inode_type(inode));
 	if (ret == 0) {
-		dentry->d_parent->d_inode->i_size += dentry->d_name.len * 2;
+		parent_inode = dentry->d_parent->d_inode;
+		parent_inode->i_size += dentry->d_name.len * 2;
+		parent_inode->i_mtime = parent_inode->i_ctime = CURRENT_TIME;
 		ret = btrfs_update_inode(trans, root,
 					 dentry->d_parent->d_inode);
 	}
