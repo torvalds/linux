@@ -36,19 +36,19 @@ struct rpc_cred {
 	struct hlist_node	cr_hash;	/* hash chain */
 	struct rpc_auth *	cr_auth;
 	const struct rpc_credops *cr_ops;
-	unsigned long		cr_expire;	/* when to gc */
-	atomic_t		cr_count;	/* ref count */
-	unsigned short		cr_flags;	/* various flags */
 #ifdef RPC_DEBUG
 	unsigned long		cr_magic;	/* 0x0f4aa4f0 */
 #endif
+	unsigned long		cr_expire;	/* when to gc */
+	unsigned long		cr_flags;	/* various flags */
+	atomic_t		cr_count;	/* ref count */
 
 	uid_t			cr_uid;
 
 	/* per-flavor data */
 };
-#define RPCAUTH_CRED_NEW	0x0001
-#define RPCAUTH_CRED_UPTODATE	0x0002
+#define RPCAUTH_CRED_NEW	0
+#define RPCAUTH_CRED_UPTODATE	1
 
 #define RPCAUTH_CRED_MAGIC	0x0f4aa4f0
 

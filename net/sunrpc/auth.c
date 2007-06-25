@@ -190,8 +190,8 @@ rpcauth_prune_expired(struct rpc_auth *auth, struct rpc_cred *cred, struct hlist
 	if (atomic_read(&cred->cr_count) != 1)
 	       return;
 	if (time_after(jiffies, cred->cr_expire + auth->au_credcache->expire))
-		cred->cr_flags &= ~RPCAUTH_CRED_UPTODATE;
-	if (!(cred->cr_flags & RPCAUTH_CRED_UPTODATE)) {
+		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
+	if (test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) == 0) {
 		__hlist_del(&cred->cr_hash);
 		hlist_add_head(&cred->cr_hash, free);
 	}
@@ -267,7 +267,7 @@ retry:
 		if (!IS_ERR(new))
 			goto retry;
 		cred = new;
-	} else if ((cred->cr_flags & RPCAUTH_CRED_NEW)
+	} else if (test_bit(RPCAUTH_CRED_NEW, &cred->cr_flags)
 			&& cred->cr_ops->cr_init != NULL
 			&& !(flags & RPCAUTH_LOOKUP_NEW)) {
 		int res = cred->cr_ops->cr_init(auth, cred);
@@ -440,17 +440,19 @@ rpcauth_refreshcred(struct rpc_task *task)
 void
 rpcauth_invalcred(struct rpc_task *task)
 {
+	struct rpc_cred *cred = task->tk_msg.rpc_cred;
+
 	dprintk("RPC: %5u invalidating %s cred %p\n",
-		task->tk_pid, task->tk_auth->au_ops->au_name, task->tk_msg.rpc_cred);
-	spin_lock(&rpc_credcache_lock);
-	if (task->tk_msg.rpc_cred)
-		task->tk_msg.rpc_cred->cr_flags &= ~RPCAUTH_CRED_UPTODATE;
-	spin_unlock(&rpc_credcache_lock);
+		task->tk_pid, task->tk_auth->au_ops->au_name, cred);
+	if (cred)
+		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
 }
 
 int
 rpcauth_uptodatecred(struct rpc_task *task)
 {
-	return !(task->tk_msg.rpc_cred) ||
-		(task->tk_msg.rpc_cred->cr_flags & RPCAUTH_CRED_UPTODATE);
+	struct rpc_cred *cred = task->tk_msg.rpc_cred;
+
+	return cred == NULL ||
+		test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) != 0;
 }

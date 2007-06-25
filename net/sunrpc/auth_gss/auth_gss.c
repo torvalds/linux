@@ -114,8 +114,8 @@ gss_cred_set_ctx(struct rpc_cred *cred, struct gss_cl_ctx *ctx)
 	write_lock(&gss_ctx_lock);
 	old = gss_cred->gc_ctx;
 	gss_cred->gc_ctx = ctx;
-	cred->cr_flags |= RPCAUTH_CRED_UPTODATE;
-	cred->cr_flags &= ~RPCAUTH_CRED_NEW;
+	set_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
+	clear_bit(RPCAUTH_CRED_NEW, &cred->cr_flags);
 	write_unlock(&gss_ctx_lock);
 	if (old)
 		gss_put_ctx(old);
@@ -128,7 +128,7 @@ gss_cred_is_uptodate_ctx(struct rpc_cred *cred)
 	int res = 0;
 
 	read_lock(&gss_ctx_lock);
-	if ((cred->cr_flags & RPCAUTH_CRED_UPTODATE) && gss_cred->gc_ctx)
+	if (test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) && gss_cred->gc_ctx)
 		res = 1;
 	read_unlock(&gss_ctx_lock);
 	return res;
@@ -732,7 +732,7 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	 * Note: in order to force a call to call_refresh(), we deliberately
 	 * fail to flag the credential as RPCAUTH_CRED_UPTODATE.
 	 */
-	cred->gc_base.cr_flags = RPCAUTH_CRED_NEW;
+	cred->gc_base.cr_flags = 1UL << RPCAUTH_CRED_NEW;
 	cred->gc_service = gss_auth->service;
 	return &cred->gc_base;
 
@@ -764,7 +764,7 @@ gss_match(struct auth_cred *acred, struct rpc_cred *rc, int flags)
 	 * we don't really care if the credential has expired or not,
 	 * since the caller should be prepared to reinitialise it.
 	 */
-	if ((flags & RPCAUTH_LOOKUP_NEW) && (rc->cr_flags & RPCAUTH_CRED_NEW))
+	if ((flags & RPCAUTH_LOOKUP_NEW) && test_bit(RPCAUTH_CRED_NEW, &rc->cr_flags))
 		goto out;
 	/* Don't match with creds that have expired. */
 	if (gss_cred->gc_ctx && time_after(jiffies, gss_cred->gc_ctx->gc_expiry))
@@ -820,7 +820,7 @@ gss_marshal(struct rpc_task *task, __be32 *p)
 	mic.data = (u8 *)(p + 1);
 	maj_stat = gss_get_mic(ctx->gc_gss_ctx, &verf_buf, &mic);
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED) {
-		cred->cr_flags &= ~RPCAUTH_CRED_UPTODATE;
+		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
 	} else if (maj_stat != 0) {
 		printk("gss_marshal: gss_get_mic FAILED (%d)\n", maj_stat);
 		goto out_put_ctx;
@@ -873,7 +873,7 @@ gss_validate(struct rpc_task *task, __be32 *p)
 
 	maj_stat = gss_verify_mic(ctx->gc_gss_ctx, &verf_buf, &mic);
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
-		cred->cr_flags &= ~RPCAUTH_CRED_UPTODATE;
+		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
 	if (maj_stat)
 		goto out_bad;
 	/* We leave it to unwrap to calculate au_rslack. For now we just
@@ -927,7 +927,7 @@ gss_wrap_req_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	maj_stat = gss_get_mic(ctx->gc_gss_ctx, &integ_buf, &mic);
 	status = -EIO; /* XXX? */
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
-		cred->cr_flags &= ~RPCAUTH_CRED_UPTODATE;
+		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
 	else if (maj_stat)
 		return status;
 	q = xdr_encode_opaque(p, NULL, mic.len);
@@ -1026,7 +1026,7 @@ gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	/* We're assuming that when GSS_S_CONTEXT_EXPIRED, the encryption was
 	 * done anyway, so it's safe to put the request on the wire: */
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
-		cred->cr_flags &= ~RPCAUTH_CRED_UPTODATE;
+		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
 	else if (maj_stat)
 		return status;
 
@@ -1113,7 +1113,7 @@ gss_unwrap_resp_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 
 	maj_stat = gss_verify_mic(ctx->gc_gss_ctx, &integ_buf, &mic);
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
-		cred->cr_flags &= ~RPCAUTH_CRED_UPTODATE;
+		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
 	if (maj_stat != GSS_S_COMPLETE)
 		return status;
 	return 0;
@@ -1138,7 +1138,7 @@ gss_unwrap_resp_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 
 	maj_stat = gss_unwrap(ctx->gc_gss_ctx, offset, rcv_buf);
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
-		cred->cr_flags &= ~RPCAUTH_CRED_UPTODATE;
+		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
 	if (maj_stat != GSS_S_COMPLETE)
 		return status;
 	if (ntohl(*(*p)++) != rqstp->rq_seqno)

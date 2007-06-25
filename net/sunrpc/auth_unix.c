@@ -72,7 +72,7 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 		return ERR_PTR(-ENOMEM);
 
 	rpcauth_init_cred(&cred->uc_base, acred, auth, &unix_credops);
-	cred->uc_base.cr_flags = RPCAUTH_CRED_UPTODATE;
+	cred->uc_base.cr_flags = 1UL << RPCAUTH_CRED_UPTODATE;
 	if (flags & RPCAUTH_LOOKUP_ROOTCREDS) {
 		cred->uc_uid = 0;
 		cred->uc_gid = 0;
@@ -172,7 +172,7 @@ unx_marshal(struct rpc_task *task, __be32 *p)
 static int
 unx_refresh(struct rpc_task *task)
 {
-	task->tk_msg.rpc_cred->cr_flags |= RPCAUTH_CRED_UPTODATE;
+	set_bit(RPCAUTH_CRED_UPTODATE, &task->tk_msg.rpc_cred->cr_flags);
 	return 0;
 }
 

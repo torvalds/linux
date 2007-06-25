@@ -76,7 +76,7 @@ nul_marshal(struct rpc_task *task, __be32 *p)
 static int
 nul_refresh(struct rpc_task *task)
 {
-	task->tk_msg.rpc_cred->cr_flags |= RPCAUTH_CRED_UPTODATE;
+	set_bit(RPCAUTH_CRED_UPTODATE, &task->tk_msg.rpc_cred->cr_flags);
 	return 0;
 }
 
@@ -136,7 +136,7 @@ struct rpc_cred null_cred = {
 	.cr_auth	= &null_auth,
 	.cr_ops		= &null_credops,
 	.cr_count	= ATOMIC_INIT(1),
-	.cr_flags	= RPCAUTH_CRED_UPTODATE,
+	.cr_flags	= 1UL << RPCAUTH_CRED_UPTODATE,
 #ifdef RPC_DEBUG
 	.cr_magic	= RPCAUTH_CRED_MAGIC,
 #endif
