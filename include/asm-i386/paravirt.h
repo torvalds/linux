@@ -539,7 +539,7 @@ static inline int paravirt_write_msr(unsigned msr, unsigned low, unsigned high)
 	val = paravirt_read_msr(msr, &_err);	\
 } while(0)
 
-#define wrmsrl(msr,val)		((void)paravirt_write_msr(msr, val, 0))
+#define wrmsrl(msr,val)		wrmsr(msr, (u32)((u64)(val)), ((u64)(val))>>32)
 #define wrmsr_safe(msr,a,b)	paravirt_write_msr(msr, a, b)
 
 /* rdmsr with exception handling */
