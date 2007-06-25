@@ -74,7 +74,8 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 
 	/* read gpio value */
 	gpio = cx_read(ir->gpio_addr);
-	if (core->board == CX88_BOARD_NPGTECH_REALTV_TOP10FM) {
+	switch (core->board) {
+	case CX88_BOARD_NPGTECH_REALTV_TOP10FM:
 		/* This board apparently uses a combination of 2 GPIO
 		   to represent the keys. Additionally, the second GPIO
 		   can be used for parity.
@@ -90,12 +91,14 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 		auxgpio = cx_read(MO_GP1_IO);
 		/* Take out the parity part */
 		gpio=(gpio & 0x7fd) + (auxgpio & 0xef);
-	} else if (core->board == CX88_BOARD_WINFAST_DTV1000) {
+		break;
+	case CX88_BOARD_WINFAST_DTV1000:
 		gpio = (gpio & 0x6ff) | ((cx_read(MO_GP1_IO) << 8) & 0x900);
 		auxgpio = gpio;
-	} else
+		break;
+	default:
 		auxgpio = gpio;
-
+	}
 	if (ir->polling) {
 		if (ir->last_gpio == auxgpio)
 			return;
