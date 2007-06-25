@@ -348,7 +348,6 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	int isMultiRsp;
 	int reconnect;
 
-	allow_signal(SIGKILL);
 	current->flags |= PF_MEMALLOC;
 	server->tsk = current;	/* save process info to wake at shutdown */
 	cFYI(1, ("Demultiplex PID: %d", current->pid));
@@ -2089,7 +2088,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				   always wake up processes blocked in
 				   tcp in recv_mesg then we could remove the
 				   send_sig call */
-				send_sig(SIGKILL,srvTcp->tsk,1);
+				force_sig(SIGKILL,srvTcp->tsk);
 				tsk = srvTcp->tsk;
 				if(tsk)
 					kthread_stop(tsk);
@@ -2106,9 +2105,11 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 					temp_rc = CIFSSMBLogoff(xid, pSesInfo);
 					/* if the socketUseCount is now zero */
 					if ((temp_rc == -ESHUTDOWN) &&
-					   (pSesInfo->server) && (pSesInfo->server->tsk)) {
+					    (pSesInfo->server) && 
+					    (pSesInfo->server->tsk)) {
 						struct task_struct *tsk;
-						send_sig(SIGKILL,pSesInfo->server->tsk,1);
+						force_sig(SIGKILL,
+							pSesInfo->server->tsk);
 						tsk = pSesInfo->server->tsk;
 						if (tsk)
 							kthread_stop(tsk);
@@ -3364,9 +3365,9 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 				FreeXid(xid);
 				return 0;
 			} else if (rc == -ESHUTDOWN) {
-				cFYI(1,("Waking up socket by sending it signal"));
+				cFYI(1,("Waking up socket by sending signal"));
 				if (cifsd_task) {
-					send_sig(SIGKILL,cifsd_task,1);
+					force_sig(SIGKILL,cifsd_task);
 					kthread_stop(cifsd_task);
 				}
 				rc = 0;
