@@ -245,7 +245,7 @@ static void snd_ad1848_mce_down(struct snd_ad1848 *chip)
 			snd_printk(KERN_ERR "mce_down - auto calibration time out (2)\n");
 			return;
 		}
-		time = schedule_timeout_interruptible(time);
+		time = schedule_timeout(time);
 		spin_lock_irqsave(&chip->reg_lock, flags);
 	}
 #if 0
@@ -258,7 +258,7 @@ static void snd_ad1848_mce_down(struct snd_ad1848 *chip)
 			snd_printk(KERN_ERR "mce_down - auto calibration time out (3)\n");
 			return;
 		}
-		time = schedule_timeout_interruptible(time);
+		time = schedule_timeout(time);
 		spin_lock_irqsave(&chip->reg_lock, flags);
 	}
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
