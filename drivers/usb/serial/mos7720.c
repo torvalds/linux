@@ -9,9 +9,9 @@
  * the Free Software Foundation, version 2 of the License.
  *
  * Developed by:
- * 	VijayaKumar.G.N. <vijaykumar@aspirecom.net>
- *	AjayKumar <ajay@aspirecom.net>
- *	Gurudeva.N. <gurudev@aspirecom.net>
+ * 	Vijaya Kumar <vijaykumar.gn@gmail.com>
+ *	Ajay Kumar <naanuajay@yahoo.com>
+ *	Gurudeva <ngurudeva@yahoo.com>
  *
  * Cleaned up from the original by:
  *	Greg Kroah-Hartman <gregkh@suse.de>
