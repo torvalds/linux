@@ -34,9 +34,6 @@
 #include <net/sock.h>
 #include <net/pkt_sched.h>
 
-#define SCHED_TX_DROP -2
-#define SCHED_TX_QUEUE -3
-
 /* Main transmission queue. */
 
 /* Modifications to data participating in scheduling must be protected with
@@ -68,41 +65,24 @@ static inline int qdisc_qlen(struct Qdisc *q)
 	return q->q.qlen;
 }
 
-static inline int handle_dev_cpu_collision(struct net_device *dev)
+static inline int dev_requeue_skb(struct sk_buff *skb, struct net_device *dev,
+				  struct Qdisc *q)
 {
-	if (unlikely(dev->xmit_lock_owner == smp_processor_id())) {
-		if (net_ratelimit())
-			printk(KERN_WARNING
-			       "Dead loop on netdevice %s, fix it urgently!\n",
-			       dev->name);
-		return SCHED_TX_DROP;
-	}
-	__get_cpu_var(netdev_rx_stat).cpu_collision++;
-	return SCHED_TX_QUEUE;
-}
-
-static inline int
-do_dev_requeue(struct sk_buff *skb, struct net_device *dev, struct Qdisc *q)
-{
-
 	if (unlikely(skb->next))
 		dev->gso_skb = skb;
 	else
 		q->ops->requeue(skb, q);
-	/* XXX: Could netif_schedule fail? Or is the fact we are
-	 * requeueing imply the hardware path is closed
-	 * and even if we fail, some interupt will wake us
-	 */
+
 	netif_schedule(dev);
 	return 0;
 }
 
-static inline struct sk_buff *
-try_get_tx_pkt(struct net_device *dev, struct Qdisc *q)
+static inline struct sk_buff *dev_dequeue_skb(struct net_device *dev,
+					      struct Qdisc *q)
 {
-	struct sk_buff *skb = dev->gso_skb;
+	struct sk_buff *skb;
 
-	if (skb)
+	if ((skb = dev->gso_skb))
 		dev->gso_skb = NULL;
 	else
 		skb = q->dequeue(q);
@@ -110,91 +90,116 @@ try_get_tx_pkt(struct net_device *dev, struct Qdisc *q)
 	return skb;
 }
 
-static inline int
-tx_islocked(struct sk_buff *skb, struct net_device *dev, struct Qdisc *q)
+static inline int handle_dev_cpu_collision(struct sk_buff *skb,
+					   struct net_device *dev,
+					   struct Qdisc *q)
 {
-	int ret = handle_dev_cpu_collision(dev);
+	int ret;
 
-	if (ret == SCHED_TX_DROP) {
+	if (unlikely(dev->xmit_lock_owner == smp_processor_id())) {
+		/*
+		 * Same CPU holding the lock. It may be a transient
+		 * configuration error, when hard_start_xmit() recurses. We
+		 * detect it by checking xmit owner and drop the packet when
+		 * deadloop is detected. Return OK to try the next skb.
+		 */
 		kfree_skb(skb);
-		return qdisc_qlen(q);
+		if (net_ratelimit())
+			printk(KERN_WARNING "Dead loop on netdevice %s, "
+			       "fix it urgently!\n", dev->name);
+		ret = qdisc_qlen(q);
+	} else {
+		/*
+		 * Another cpu is holding lock, requeue & delay xmits for
+		 * some time.
+		 */
+		__get_cpu_var(netdev_rx_stat).cpu_collision++;
+		ret = dev_requeue_skb(skb, dev, q);
 	}
 
-	return do_dev_requeue(skb, dev, q);
+	return ret;
 }
 
-
 /*
-   NOTE: Called under dev->queue_lock with locally disabled BH.
-
-   __LINK_STATE_QDISC_RUNNING guarantees only one CPU
-   can enter this region at a time.
-
-   dev->queue_lock serializes queue accesses for this device
-   AND dev->qdisc pointer itself.
-
-   netif_tx_lock serializes accesses to device driver.
-
-   dev->queue_lock and netif_tx_lock are mutually exclusive,
-   if one is grabbed, another must be free.
-
-   Multiple CPUs may contend for the two locks.
-
-   Note, that this procedure can be called by a watchdog timer
-
-   Returns to the caller:
-   Returns:  0  - queue is empty or throttled.
-	    >0  - queue is not empty.
-
-*/
-
+ * NOTE: Called under dev->queue_lock with locally disabled BH.
+ *
+ * __LINK_STATE_QDISC_RUNNING guarantees only one CPU can process this
+ * device at a time. dev->queue_lock serializes queue accesses for
+ * this device AND dev->qdisc pointer itself.
+ *
+ *  netif_tx_lock serializes accesses to device driver.
+ *
+ *  dev->queue_lock and netif_tx_lock are mutually exclusive,
+ *  if one is grabbed, another must be free.
+ *
+ * Note, that this procedure can be called by a watchdog timer
+ *
+ * Returns to the caller:
+ *				0  - queue is empty or throttled.
+ *				>0 - queue is not empty.
+ *
+ */
 static inline int qdisc_restart(struct net_device *dev)
 {
 	struct Qdisc *q = dev->qdisc;
-	unsigned lockless = (dev->features & NETIF_F_LLTX);
 	struct sk_buff *skb;
+	unsigned lockless;
 	int ret;
 
-	skb = try_get_tx_pkt(dev, q);
-	if (skb == NULL)
+	/* Dequeue packet */
+	if (unlikely((skb = dev_dequeue_skb(dev, q)) == NULL))
 		return 0;
 
-	/* we have a packet to send */
-	if (!lockless) {
-		if (!netif_tx_trylock(dev))
-			return tx_islocked(skb, dev, q);
+	/*
+	 * When the driver has LLTX set, it does its own locking in
+	 * start_xmit. These checks are worth it because even uncongested
+	 * locks can be quite expensive. The driver can do a trylock, as
+	 * is being done here; in case of lock contention it should return
+	 * NETDEV_TX_LOCKED and the packet will be requeued.
+	 */
+	lockless = (dev->features & NETIF_F_LLTX);
+
+	if (!lockless && !netif_tx_trylock(dev)) {
+		/* Another CPU grabbed the driver tx lock */
+		return handle_dev_cpu_collision(skb, dev, q);
 	}
-	/* all clear .. */
+
+	/* And release queue */
 	spin_unlock(&dev->queue_lock);
 
 	ret = NETDEV_TX_BUSY;
 	if (!netif_queue_stopped(dev))
-		/* churn baby churn .. */
 		ret = dev_hard_start_xmit(skb, dev);
 
 	if (!lockless)
 		netif_tx_unlock(dev);
 
 	spin_lock(&dev->queue_lock);
-
-	/* we need to refresh q because it may be invalid since
-	 * we dropped  dev->queue_lock earlier ...
-	 * So dont try to be clever grasshopper
-	 */
 	q = dev->qdisc;
-	/* most likely result, packet went ok */
-	if (ret == NETDEV_TX_OK)
-		return qdisc_qlen(q);
-	/* only for lockless drivers .. */
-	if (ret == NETDEV_TX_LOCKED && lockless)
-		return tx_islocked(skb, dev, q);
 
-	if (unlikely (ret != NETDEV_TX_BUSY && net_ratelimit()))
-		printk(KERN_WARNING " BUG %s code %d qlen %d\n",dev->name, ret, q->q.qlen);
+	switch (ret) {
+	case NETDEV_TX_OK:
+		/* Driver sent out skb successfully */
+		ret = qdisc_qlen(q);
+		break;
 
-	return do_dev_requeue(skb, dev, q);
+	case NETDEV_TX_LOCKED:
+		/* Driver try lock failed */
+		ret = handle_dev_cpu_collision(skb, dev, q);
+		break;
+
+	default:
+		/* Driver returned NETDEV_TX_BUSY - requeue skb */
+		if (unlikely (ret != NETDEV_TX_BUSY && net_ratelimit()))
+			printk(KERN_WARNING "BUG %s code %d qlen %d\n",
+			       dev->name, ret, q->q.qlen);
+
+		ret = dev_requeue_skb(skb, dev, q);
+		break;
+	}
+
+	return ret;
 }
-
 
 void __qdisc_run(struct net_device *dev)
 {
