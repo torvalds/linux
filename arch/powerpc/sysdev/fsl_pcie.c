@@ -50,12 +50,12 @@ indirect_read_config_pcie(struct pci_bus *bus, unsigned int devfn, int offset,
 	if (bus->number == 0xff) {
 		PCI_CFG_OUT(hose->cfg_addr,
 			    (0x80000000 | ((offset & 0xf00) << 16) |
-			     ((bus->number - hose->bus_offset) << 16)
+			     (bus->number<< 16)
 			     | (devfn << 8) | ((offset & 0xfc) )));
 	} else {
 		PCI_CFG_OUT(hose->cfg_addr,
 			    (0x80000001 | ((offset & 0xf00) << 16) |
-			     ((bus->number - hose->bus_offset) << 16)
+			     (bus->number<< 16)
 			     | (devfn << 8) | ((offset & 0xfc) )));
 	}
 
@@ -101,12 +101,12 @@ indirect_write_config_pcie(struct pci_bus *bus, unsigned int devfn, int offset,
 	if (bus->number == 0xff) {
 		PCI_CFG_OUT(hose->cfg_addr,
 			    (0x80000000 | ((offset & 0xf00) << 16) |
-			     ((bus->number - hose->bus_offset) << 16)
+			     (bus->number << 16)
 			     | (devfn << 8) | ((offset & 0xfc) )));
 	} else {
 		PCI_CFG_OUT(hose->cfg_addr,
 			    (0x80000001 | ((offset & 0xf00) << 16) |
-			     ((bus->number - hose->bus_offset) << 16)
+			     (bus->number << 16)
 			     | (devfn << 8) | ((offset & 0xfc) )));
         }
 

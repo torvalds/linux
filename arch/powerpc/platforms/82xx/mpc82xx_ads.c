@@ -552,7 +552,6 @@ static void __init mpc82xx_add_bridge(struct device_node *np)
 
 	hose->first_busno = bus_range ? bus_range[0] : 0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
-	hose->bus_offset = 0;
 
 	setup_indirect_pci(hose,
 			   r.start + offsetof(pci_cpm2_t, pci_cfg_addr),
