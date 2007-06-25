@@ -97,6 +97,21 @@ int rtattr_parse(struct rtattr *tb[], int maxattr, struct rtattr *rta, int len)
 	return 0;
 }
 
+int rtattr_parse_nested_compat(struct rtattr *tb[], int maxattr,
+			       struct rtattr *rta, void **data, int len)
+{
+	if (RTA_PAYLOAD(rta) < len)
+		return -1;
+	*data = RTA_DATA(rta);
+
+	if (RTA_PAYLOAD(rta) >= RTA_ALIGN(len) + sizeof(struct rtattr)) {
+		rta = RTA_DATA(rta) + RTA_ALIGN(len);
+		return rtattr_parse_nested(tb, maxattr, rta);
+	}
+	memset(tb, 0, sizeof(struct rtattr *) * maxattr);
+	return 0;
+}
+
 static struct rtnl_link *rtnl_msg_handlers[NPROTO];
 
 static inline int rtm_msgindex(int msgtype)
@@ -1297,6 +1312,7 @@ void __init rtnetlink_init(void)
 EXPORT_SYMBOL(__rta_fill);
 EXPORT_SYMBOL(rtattr_strlcpy);
 EXPORT_SYMBOL(rtattr_parse);
+EXPORT_SYMBOL(rtattr_parse_nested_compat);
 EXPORT_SYMBOL(rtnetlink_put_metrics);
 EXPORT_SYMBOL(rtnl_lock);
 EXPORT_SYMBOL(rtnl_trylock);
