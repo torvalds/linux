@@ -178,6 +178,11 @@ extern void __iounmap(const volatile void __iomem *addr);
 static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
 	unsigned long flags)
 {
+	void __iomem *addr = plat_ioremap(offset, size, flags);
+
+	if (addr)
+		return addr;
+
 #define __IS_LOW512(addr) (!((phys_t)(addr) & (phys_t) ~0x1fffffffULL))
 
 	if (cpu_has_64bit_addresses) {
@@ -282,6 +287,9 @@ static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
 
 static inline void iounmap(const volatile void __iomem *addr)
 {
+	if (plat_iounmap(addr))
+		return;
+
 #define __IS_KSEG1(addr) (((unsigned long)(addr) & ~0x1fffffffUL) == CKSEG1)
 
 	if (cpu_has_64bit_addresses ||
