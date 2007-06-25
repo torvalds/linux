@@ -1665,8 +1665,6 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 
 	/* did prereset() screw up?  if so, fix up to avoid oopsing */
 	if (!reset) {
-		ata_port_printk(ap, KERN_ERR, "BUG: prereset() requested "
-				"invalid reset type\n");
 		if (softreset)
 			reset = softreset;
 		else
