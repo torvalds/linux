@@ -1088,11 +1088,9 @@ static inline u8 ata_wait_idle(struct ata_port *ap)
 {
 	u8 status = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 1000);
 
-	if (status != 0xff && (status & (ATA_BUSY | ATA_DRQ))) {
-		if (ata_msg_warn(ap))
-			printk(KERN_WARNING "ATA: abnormal status 0x%X on port 0x%p\n",
-				status, ap->ioaddr.status_addr);
-	}
+	if (status != 0xff && (status & (ATA_BUSY | ATA_DRQ)))
+		DPRINTK("ATA: abnormal status 0x%X on port 0x%p\n",
+			status, ap->ioaddr.status_addr);
 
 	return status;
 }
