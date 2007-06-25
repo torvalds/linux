@@ -600,8 +600,9 @@ static const char *sata_spd_string(unsigned int spd)
 
 void ata_dev_disable(struct ata_device *dev)
 {
-	if (ata_dev_enabled(dev) && ata_msg_drv(dev->ap)) {
-		ata_dev_printk(dev, KERN_WARNING, "disabled\n");
+	if (ata_dev_enabled(dev)) {
+		if (ata_msg_drv(dev->ap))
+			ata_dev_printk(dev, KERN_WARNING, "disabled\n");
 		ata_down_xfermask_limit(dev, ATA_DNXFER_FORCE_PIO0 |
 					     ATA_DNXFER_QUIET);
 		dev->class++;
