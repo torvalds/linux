@@ -122,7 +122,6 @@ static void __init
 mpc86xx_setup_pcie(struct pci_controller *hose, u32 pcie_offset, u32 pcie_size)
 {
 	u16 cmd;
-	unsigned int temps;
 
 	DBG("PCIE host controller register offset 0x%08x, size 0x%08x.\n",
 			pcie_offset, pcie_size);
@@ -135,6 +134,9 @@ mpc86xx_setup_pcie(struct pci_controller *hose, u32 pcie_offset, u32 pcie_size)
 	early_write_config_byte(hose, 0, 0, PCI_LATENCY_TIMER, 0x80);
 }
 
+#define PCIE_LTSSM	0x404	/* PCIe Link Training and Status */
+#define PCIE_LTSSM_L0	0x16	/* L0 state */
+
 int __init mpc86xx_add_bridge(struct device_node *dev)
 {
 	int len;
@@ -143,6 +145,7 @@ int __init mpc86xx_add_bridge(struct device_node *dev)
 	const int *bus_range;
 	int has_address = 0;
 	int primary = 0;
+	u16 val;
 
 	DBG("Adding PCIE host bridge %s\n", dev->full_name);
 
@@ -159,11 +162,17 @@ int __init mpc86xx_add_bridge(struct device_node *dev)
 	if (!hose)
 		return -ENOMEM;
 	hose->arch_data = dev;
+	hose->indirect_type = PPC_INDIRECT_TYPE_EXT_REG;
 
 	hose->first_busno = bus_range ? bus_range[0] : 0x0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
 	setup_indirect_pci(hose, rsrc.start, rsrc.start + 0x4);
+
+	/* Probe the hose link training status */
+	early_read_config_word(hose, 0, 0, PCIE_LTSSM, &val);
+	if (val < PCIE_LTSSM_L0)
+		return -ENXIO;
 
 	/* Setup the PCIE host controller. */
 	mpc86xx_setup_pcie(hose, rsrc.start, rsrc.end - rsrc.start + 1);
