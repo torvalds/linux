@@ -1218,7 +1218,14 @@ audio_mux(struct bttv *btv, int input, int mute)
 			break;
 		case TVAUDIO_INPUT_TUNER:
 		default:
-			route.input = MSP_INPUT_DEFAULT;
+			/* This is the only card that uses TUNER2, and afaik,
+			   is the only difference between the VOODOOTV_FM
+			   and VOODOOTV_200 */
+			if (btv->c.type == BTTV_BOARD_VOODOOTV_200)
+				route.input = MSP_INPUT(MSP_IN_SCART1, MSP_IN_TUNER2, \
+					MSP_DSP_IN_TUNER, MSP_DSP_IN_TUNER);
+			else
+				route.input = MSP_INPUT_DEFAULT;
 			break;
 		}
 		route.output = MSP_OUTPUT_DEFAULT;
@@ -1253,7 +1260,7 @@ i2c_vidiocschan(struct bttv *btv)
 	v4l2_std_id std = bttv_tvnorms[btv->tvnorm].v4l2_id;
 
 	bttv_call_i2c_clients(btv, VIDIOC_S_STD, &std);
-	if (btv->c.type == BTTV_BOARD_VOODOOTV_FM)
+	if (btv->c.type == BTTV_BOARD_VOODOOTV_FM || btv->c.type == BTTV_BOARD_VOODOOTV_200)
 		bttv_tda9880_setnorm(btv,btv->tvnorm);
 }
 
@@ -1323,6 +1330,7 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 
 	switch (btv->c.type) {
 	case BTTV_BOARD_VOODOOTV_FM:
+	case BTTV_BOARD_VOODOOTV_200:
 		bttv_tda9880_setnorm(btv,norm);
 		break;
 	}

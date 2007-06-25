@@ -178,8 +178,8 @@ static struct CARD {
 	/* this seems to happen as well ... */
 	{ 0xff1211bd, BTTV_BOARD_PINNACLE,      "Pinnacle PCTV" },
 
-	{ 0x3000121a, BTTV_BOARD_VOODOOTV_FM,   "3Dfx VoodooTV FM/ VoodooTV 200" },
-	{ 0x263710b4, BTTV_BOARD_VOODOOTV_FM,   "3Dfx VoodooTV FM/ VoodooTV 200" },
+	{ 0x3000121a, BTTV_BOARD_VOODOOTV_200,  "3Dfx VoodooTV 200" },
+	{ 0x263710b4, BTTV_BOARD_VOODOOTV_FM,   "3Dfx VoodooTV FM" },
 	{ 0x3060121a, BTTV_BOARD_STB2,	  "3Dfx VoodooTV 100/ STB OEM" },
 
 	{ 0x3000144f, BTTV_BOARD_MAGICTVIEW063, "(Askey Magic/others) TView99 CPH06x" },
@@ -1517,7 +1517,29 @@ struct tvcard bttv_tvcards[] = {
 
 	/* ---- card 0x44 ---------------------------------- */
 	[BTTV_BOARD_VOODOOTV_FM] = {
-		.name           = "3Dfx VoodooTV FM (Euro), VoodooTV 200 (USA)",
+		.name           = "3Dfx VoodooTV FM (Euro)",
+		/* try "insmod msp3400 simple=0" if you have
+		* sound problems with this card. */
+		.video_inputs   = 4,
+		.audio_inputs   = 1,
+		.tuner          = 0,
+		.svhs           = -1,
+		.gpiomask       = 0x4f8a00,
+		/* 0x100000: 1=MSP enabled (0=disable again)
+		* 0x010000: Connected to "S0" on tda9880 (0=Pal/BG, 1=NTSC) */
+		.gpiomux        = {0x947fff, 0x987fff,0x947fff,0x947fff },
+		.gpiomute 	= 0x947fff,
+		/* tvtuner, radio,   external,internal, mute,  stereo
+		* tuner, Composit, SVid, Composit-on-Svid-adapter */
+		.muxsel         = { 2, 3 ,0 ,1 },
+		.tuner_type     = TUNER_MT2032,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.pll		= PLL_28,
+		.has_radio	= 1,
+	},
+	[BTTV_BOARD_VOODOOTV_200] = {
+		.name           = "VoodooTV 200 (USA)",
 		/* try "insmod msp3400 simple=0" if you have
 		* sound problems with this card. */
 		.video_inputs   = 4,
@@ -3302,6 +3324,7 @@ void __devinit bttv_init_card1(struct bttv *btv)
 	case BTTV_BOARD_HAUPPAUGE878:
 		boot_msp34xx(btv,5);
 		break;
+	case BTTV_BOARD_VOODOOTV_200:
 	case BTTV_BOARD_VOODOOTV_FM:
 		boot_msp34xx(btv,20);
 		break;
@@ -3865,11 +3888,15 @@ void bttv_tda9880_setnorm(struct bttv *btv, int norm)
 	if(norm==VIDEO_MODE_NTSC) {
 		bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].gpiomux[TVAUDIO_INPUT_TUNER]=0x957fff;
 		bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].gpiomute=0x957fff;
+		bttv_tvcards[BTTV_BOARD_VOODOOTV_200].gpiomux[TVAUDIO_INPUT_TUNER]=0x957fff;
+		bttv_tvcards[BTTV_BOARD_VOODOOTV_200].gpiomute=0x957fff;
 		dprintk("bttv_tda9880_setnorm to NTSC\n");
 	}
 	else {
 		bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].gpiomux[TVAUDIO_INPUT_TUNER]=0x947fff;
 		bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].gpiomute=0x947fff;
+		bttv_tvcards[BTTV_BOARD_VOODOOTV_200].gpiomux[TVAUDIO_INPUT_TUNER]=0x947fff;
+		bttv_tvcards[BTTV_BOARD_VOODOOTV_200].gpiomute=0x947fff;
 		dprintk("bttv_tda9880_setnorm to PAL\n");
 	}
 	/* set GPIO according */
