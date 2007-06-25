@@ -33,22 +33,27 @@ indirect_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 	struct pci_controller *hose = bus->sysdata;
 	volatile void __iomem *cfg_data;
 	u8 cfg_type = 0;
-	u32 bus_no;
+	u32 bus_no, reg;
 
 	if (ppc_md.pci_exclude_device)
 		if (ppc_md.pci_exclude_device(hose, bus->number, devfn))
 			return PCIBIOS_DEVICE_NOT_FOUND;
 	
-	if (hose->set_cfg_type)
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_SET_CFG_TYPE)
 		if (bus->number != hose->first_busno)
 			cfg_type = 1;
 
 	bus_no = (bus->number == hose->first_busno) ?
 			hose->self_busno : bus->number;
 
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_EXT_REG)
+		reg = ((offset & 0xf00) << 16) | (offset & 0xfc);
+	else
+		reg = offset & 0xfc;
+
 	PCI_CFG_OUT(hose->cfg_addr,
 		 (0x80000000 | (bus_no << 16)
-		  | (devfn << 8) | ((offset & 0xfc) | cfg_type)));
+		  | (devfn << 8) | reg | cfg_type));
 
 	/*
 	 * Note: the caller has already checked that offset is
@@ -76,22 +81,27 @@ indirect_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
 	struct pci_controller *hose = bus->sysdata;
 	volatile void __iomem *cfg_data;
 	u8 cfg_type = 0;
-	u32 bus_no;
+	u32 bus_no, reg;
 
 	if (ppc_md.pci_exclude_device)
 		if (ppc_md.pci_exclude_device(hose, bus->number, devfn))
 			return PCIBIOS_DEVICE_NOT_FOUND;
 
-	if (hose->set_cfg_type)
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_SET_CFG_TYPE)
 		if (bus->number != hose->first_busno)
 			cfg_type = 1;
 
 	bus_no = (bus->number == hose->first_busno) ?
 			hose->self_busno : bus->number;
 
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_EXT_REG)
+		reg = ((offset & 0xf00) << 16) | (offset & 0xfc);
+	else
+		reg = offset & 0xfc;
+
 	PCI_CFG_OUT(hose->cfg_addr,
 		 (0x80000000 | (bus_no << 16)
-		  | (devfn << 8) | ((offset & 0xfc) | cfg_type)));
+		  | (devfn << 8) | reg | cfg_type));
 
 	/*
 	 * Note: the caller has already checked that offset is

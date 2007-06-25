@@ -65,8 +65,18 @@ struct pci_controller {
 	/*
 	 * If set, indirect method will set the cfg_type bit as
 	 * needed to generate type 1 configuration transactions.
+	 * use only on ARCH=ppc
 	 */
 	int set_cfg_type;
+
+	/*
+	 * Used for variants of PCI indirect handling and possible quirks:
+	 *  SET_CFG_TYPE - used on 4xx or any PHB that does explicit type0/1
+	 *  EXT_REG - provides access to PCI-e extended registers
+	 */
+#define PPC_INDIRECT_TYPE_SET_CFG_TYPE		(0x00000001)
+#define PPC_INDIRECT_TYPE_EXT_REG		(0x00000002)
+	u32 indirect_type;
 
 	/* Currently, we limit ourselves to 1 IO range and 3 mem
 	 * ranges since the common pci_bus structure can't handle more
