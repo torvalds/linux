@@ -863,6 +863,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack-dig	3-jack with SPDIF OUT
 	  6stack-dig	6-jack with SPDIF OUT
 	  3stack-660	3-jack (for ALC660VD)
+	  3stack-660-digout 3-jack with SPDIF OUT (for ALC660VD)
 	  lenovo	Lenovo 3000 C200
 	  auto		auto-config reading BIOS (default)
 

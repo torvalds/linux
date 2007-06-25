@@ -122,6 +122,7 @@ enum {
 /* ALC861-VD models */
 enum {
 	ALC660VD_3ST,
+	ALC660VD_3ST_DIG,
 	ALC861VD_3ST,
 	ALC861VD_3ST_DIG,
 	ALC861VD_6ST_DIG,
@@ -9987,6 +9988,7 @@ static void alc861vd_dallas_unsol_event(struct hda_codec *codec, unsigned int re
  */
 static const char *alc861vd_models[ALC861VD_MODEL_LAST] = {
 	[ALC660VD_3ST]		= "3stack-660",
+	[ALC660VD_3ST_DIG]= "3stack-660-digout",
 	[ALC861VD_3ST]		= "3stack",
 	[ALC861VD_3ST_DIG]	= "3stack-digout",
 	[ALC861VD_6ST_DIG]	= "6stack-digout",
@@ -9998,7 +10000,7 @@ static const char *alc861vd_models[ALC861VD_MODEL_LAST] = {
 static struct snd_pci_quirk alc861vd_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x12e2, "Asus z35m", ALC660VD_3ST),
 	SND_PCI_QUIRK(0x1043, 0x1339, "Asus G1", ALC660VD_3ST),
-	SND_PCI_QUIRK(0x1043, 0x81e7, "ASUS", ALC660VD_3ST),
+	SND_PCI_QUIRK(0x1043, 0x81e7, "ASUS", ALC660VD_3ST_DIG),
 	SND_PCI_QUIRK(0x10de, 0x03f0, "Realtek ALC660 demo", ALC660VD_3ST),
 	SND_PCI_QUIRK(0x1019, 0xa88d, "Realtek ALC660 demo", ALC660VD_3ST),
 
@@ -10017,6 +10019,19 @@ static struct alc_config_preset alc861vd_presets[] = {
 				 alc861vd_3stack_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc660vd_dac_nids),
 		.dac_nids = alc660vd_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc861vd_adc_nids),
+		.adc_nids = alc861vd_adc_nids,
+		.num_channel_mode = ARRAY_SIZE(alc861vd_3stack_2ch_modes),
+		.channel_mode = alc861vd_3stack_2ch_modes,
+		.input_mux = &alc861vd_capture_source,
+	},
+	[ALC660VD_3ST_DIG] = {
+		.mixers = { alc861vd_3st_mixer },
+		.init_verbs = { alc861vd_volume_init_verbs,
+				 alc861vd_3stack_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc660vd_dac_nids),
+		.dac_nids = alc660vd_dac_nids,
+		.dig_out_nid = ALC861VD_DIGOUT_NID,
 		.num_adc_nids = ARRAY_SIZE(alc861vd_adc_nids),
 		.adc_nids = alc861vd_adc_nids,
 		.num_channel_mode = ARRAY_SIZE(alc861vd_3stack_2ch_modes),
