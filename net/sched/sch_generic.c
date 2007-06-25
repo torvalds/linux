@@ -61,7 +61,6 @@ void qdisc_unlock_tree(struct net_device *dev)
 
 static inline int qdisc_qlen(struct Qdisc *q)
 {
-	BUG_ON((int) q->q.qlen < 0);
 	return q->q.qlen;
 }
 
@@ -167,9 +166,7 @@ static inline int qdisc_restart(struct net_device *dev)
 	/* And release queue */
 	spin_unlock(&dev->queue_lock);
 
-	ret = NETDEV_TX_BUSY;
-	if (!netif_queue_stopped(dev))
-		ret = dev_hard_start_xmit(skb, dev);
+	ret = dev_hard_start_xmit(skb, dev);
 
 	if (!lockless)
 		netif_tx_unlock(dev);
