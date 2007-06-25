@@ -90,6 +90,9 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 		auxgpio = cx_read(MO_GP1_IO);
 		/* Take out the parity part */
 		gpio=(gpio & 0x7fd) + (auxgpio & 0xef);
+	} else if (core->board == CX88_BOARD_WINFAST_DTV1000) {
+		gpio = (gpio & 0x6ff) | ((cx_read(MO_GP1_IO) << 8) & 0x900);
+		auxgpio = gpio;
 	} else
 		auxgpio = gpio;
 
@@ -231,6 +234,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->polling = 50; /* ms */
 		break;
 	case CX88_BOARD_WINFAST2000XP_EXPERT:
+	case CX88_BOARD_WINFAST_DTV1000:
 		ir_codes = ir_codes_winfast;
 		ir->gpio_addr = MO_GP0_IO;
 		ir->mask_keycode = 0x8f8;
