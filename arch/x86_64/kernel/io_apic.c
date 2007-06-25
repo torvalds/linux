@@ -1492,6 +1492,7 @@ static void ack_lapic_irq (unsigned int irq)
 static void end_lapic_irq (unsigned int i) { /* nothing */ }
 
 static struct hw_interrupt_type lapic_irq_type __read_mostly = {
+	.name = "local-APIC",
 	.typename = "local-APIC-edge",
 	.startup = NULL, /* startup_irq() not used for IRQ0 */
 	.shutdown = NULL, /* shutdown_irq() not used for IRQ0 */
