@@ -336,6 +336,7 @@ void ata_scsi_error(struct Scsi_Host *host)
 			}
 			ata_port_printk(ap, KERN_ERR, "EH pending after %d "
 					"tries, giving up\n", ATA_EH_MAX_REPEAT);
+			ap->pflags &= ~ATA_PFLAG_EH_PENDING;
 		}
 
 		/* this run is complete, make sure EH info is clear */
