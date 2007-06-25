@@ -92,6 +92,7 @@ static struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0784, 0x0040), .driver_info = METHOD1 },
 	{USB_DEVICE(0x06d6, 0x0034), .driver_info = METHOD0 },
 	{USB_DEVICE(0x0a17, 0x0062), .driver_info = METHOD2 },
+	{USB_DEVICE(0x06d6, 0x003b), .driver_info = METHOD0 },
 	{}			/* Terminating entry */
 };
 
