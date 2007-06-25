@@ -415,6 +415,7 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 	C(csum);
 	C(local_df);
 	n->cloned = 1;
+	n->hdr_len = skb->nohdr ? skb_headroom(skb) : skb->hdr_len;
 	n->nohdr = 0;
 	C(pkt_type);
 	C(ip_summed);
@@ -676,6 +677,7 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	skb->network_header   += off;
 	skb->mac_header	      += off;
 	skb->cloned   = 0;
+	skb->hdr_len  = 0;
 	skb->nohdr    = 0;
 	atomic_set(&skb_shinfo(skb)->dataref, 1);
 	return 0;

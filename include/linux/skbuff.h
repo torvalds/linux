@@ -147,8 +147,8 @@ struct skb_shared_info {
 
 /* We divide dataref into two halves.  The higher 16 bits hold references
  * to the payload part of skb->data.  The lower 16 bits hold references to
- * the entire skb->data.  It is up to the users of the skb to agree on
- * where the payload starts.
+ * the entire skb->data.  A clone of a headerless skb holds the length of
+ * the header in skb->hdr_len.
  *
  * All users must obey the rule that the skb->data reference count must be
  * greater than or equal to the payload reference count.
@@ -206,6 +206,7 @@ typedef unsigned char *sk_buff_data_t;
  *	@len: Length of actual data
  *	@data_len: Data length
  *	@mac_len: Length of link layer header
+ *	@hdr_len: writable header length of cloned skb
  *	@csum: Checksum (must include start/offset pair)
  *	@csum_start: Offset from skb->head where checksumming should start
  *	@csum_offset: Offset from csum_start where checksum should be stored
@@ -260,8 +261,9 @@ struct sk_buff {
 	char			cb[48];
 
 	unsigned int		len,
-				data_len,
-				mac_len;
+				data_len;
+	__u16			mac_len,
+				hdr_len;
 	union {
 		__wsum		csum;
 		struct {
@@ -1319,6 +1321,20 @@ static inline struct sk_buff *netdev_alloc_skb(struct net_device *dev,
 		unsigned int length)
 {
 	return __netdev_alloc_skb(dev, length, GFP_ATOMIC);
+}
+
+/**
+ *	skb_clone_writable - is the header of a clone writable
+ *	@skb: buffer to check
+ *	@len: length up to which to write
+ *
+ *	Returns true if modifying the header part of the cloned buffer
+ *	does not requires the data to be copied.
+ */
+static inline int skb_clone_writable(struct sk_buff *skb, int len)
+{
+	return !skb_header_cloned(skb) &&
+	       skb_headroom(skb) + len <= skb->hdr_len;
 }
 
 /**

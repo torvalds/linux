@@ -203,7 +203,9 @@ int skb_make_writable(struct sk_buff **pskb, unsigned int writable_len)
 		return 0;
 
 	/* Not exclusive use of packet?  Must copy. */
-	if (skb_shared(*pskb) || skb_cloned(*pskb))
+	if (skb_cloned(*pskb) && !skb_clone_writable(*pskb, writable_len))
+		goto copy_skb;
+	if (skb_shared(*pskb))
 		goto copy_skb;
 
 	return pskb_may_pull(*pskb, writable_len);
