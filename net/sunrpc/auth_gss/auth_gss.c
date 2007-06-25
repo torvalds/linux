@@ -64,7 +64,6 @@ static const struct rpc_credops gss_credops;
 
 #define NFS_NGROUPS	16
 
-#define GSS_CRED_EXPIRE		(60 * HZ)	/* XXX: reasonable? */
 #define GSS_CRED_SLACK		1024		/* XXX: unused */
 /* length of a krb5 verifier (48), plus data added before arguments when
  * using integrity (two 4-byte integers): */
@@ -643,7 +642,7 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 		goto err_put_mech;
 	}
 
-	err = rpcauth_init_credcache(auth, GSS_CRED_EXPIRE);
+	err = rpcauth_init_credcache(auth);
 	if (err)
 		goto err_unlink_pipe;
 

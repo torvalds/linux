@@ -21,8 +21,6 @@ struct unx_cred {
 };
 #define uc_uid			uc_base.cr_uid
 
-#define UNX_CRED_EXPIRE		(60 * HZ)
-
 #define UNX_WRITESLACK		(21 + (UNX_MAXNODENAME >> 2))
 
 #ifdef RPC_DEBUG
@@ -38,8 +36,7 @@ unx_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 {
 	dprintk("RPC:       creating UNIX authenticator for client %p\n",
 			clnt);
-	if (atomic_inc_return(&unix_auth.au_count) == 1)
-		unix_cred_cache.nextgc = jiffies + (unix_cred_cache.expire >> 1);
+	atomic_inc(&unix_auth.au_count);
 	return &unix_auth;
 }
 
@@ -232,7 +229,6 @@ const struct rpc_authops authunix_ops = {
 
 static
 struct rpc_cred_cache	unix_cred_cache = {
-	.expire		= UNX_CRED_EXPIRE,
 };
 
 static

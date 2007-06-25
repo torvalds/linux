@@ -26,6 +26,7 @@ static const struct rpc_authops *auth_flavors[RPC_AUTH_MAXFLAVOR] = {
 };
 
 static LIST_HEAD(cred_unused);
+static unsigned long number_cred_unused;
 
 static u32
 pseudoflavor_to_flavor(u32 flavor) {
@@ -136,7 +137,7 @@ rpcauth_unhash_cred(struct rpc_cred *cred)
  * Initialize RPC credential cache
  */
 int
-rpcauth_init_credcache(struct rpc_auth *auth, unsigned long expire)
+rpcauth_init_credcache(struct rpc_auth *auth)
 {
 	struct rpc_cred_cache *new;
 	int i;
@@ -147,8 +148,6 @@ rpcauth_init_credcache(struct rpc_auth *auth, unsigned long expire)
 	for (i = 0; i < RPC_CREDCACHE_NR; i++)
 		INIT_HLIST_HEAD(&new->hashtable[i]);
 	spin_lock_init(&new->lock);
-	new->expire = expire;
-	new->nextgc = jiffies + (expire >> 1);
 	auth->au_credcache = new;
 	return 0;
 }
@@ -187,7 +186,11 @@ rpcauth_clear_credcache(struct rpc_cred_cache *cache)
 		while (!hlist_empty(head)) {
 			cred = hlist_entry(head->first, struct rpc_cred, cr_hash);
 			get_rpccred(cred);
-			list_move_tail(&cred->cr_lru, &free);
+			if (!list_empty(&cred->cr_lru)) {
+				list_del(&cred->cr_lru);
+				number_cred_unused--;
+			}
+			list_add_tail(&cred->cr_lru, &free);
 			rpcauth_unhash_cred_locked(cred);
 		}
 	}
@@ -214,18 +217,16 @@ rpcauth_destroy_credcache(struct rpc_auth *auth)
 /*
  * Remove stale credentials. Avoid sleeping inside the loop.
  */
-static void
-rpcauth_prune_expired(struct list_head *free)
+static int
+rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 {
 	spinlock_t *cache_lock;
 	struct rpc_cred *cred;
 
 	while (!list_empty(&cred_unused)) {
 		cred = list_entry(cred_unused.next, struct rpc_cred, cr_lru);
-		if (time_after(jiffies, cred->cr_expire +
-					cred->cr_auth->au_credcache->expire))
-			break;
 		list_del_init(&cred->cr_lru);
+		number_cred_unused--;
 		if (atomic_read(&cred->cr_count) != 0)
 			continue;
 		cache_lock = &cred->cr_auth->au_credcache->lock;
@@ -234,23 +235,32 @@ rpcauth_prune_expired(struct list_head *free)
 			get_rpccred(cred);
 			list_add_tail(&cred->cr_lru, free);
 			rpcauth_unhash_cred_locked(cred);
+			nr_to_scan--;
 		}
 		spin_unlock(cache_lock);
+		if (nr_to_scan == 0)
+			break;
 	}
+	return nr_to_scan;
 }
 
 /*
- * Run garbage collector.
+ * Run memory cache shrinker.
  */
-static void
-rpcauth_gc_credcache(struct rpc_cred_cache *cache, struct list_head *free)
+static int
+rpcauth_cache_shrinker(int nr_to_scan, gfp_t gfp_mask)
 {
-	if (list_empty(&cred_unused) || time_before(jiffies, cache->nextgc))
-		return;
+	LIST_HEAD(free);
+	int res;
+
+	if (list_empty(&cred_unused))
+		return 0;
 	spin_lock(&rpc_credcache_lock);
-	cache->nextgc = jiffies + cache->expire;
-	rpcauth_prune_expired(free);
+	nr_to_scan = rpcauth_prune_expired(&free, nr_to_scan);
+	res = (number_cred_unused / 100) * sysctl_vfs_cache_pressure;
 	spin_unlock(&rpc_credcache_lock);
+	rpcauth_destroy_credlist(&free);
+	return res;
 }
 
 /*
@@ -318,7 +328,6 @@ found:
 			cred = ERR_PTR(res);
 		}
 	}
-	rpcauth_gc_credcache(cache, &free);
 	rpcauth_destroy_credlist(&free);
 out:
 	return cred;
@@ -408,13 +417,16 @@ put_rpccred(struct rpc_cred *cred)
 need_lock:
 	if (!atomic_dec_and_lock(&cred->cr_count, &rpc_credcache_lock))
 		return;
-	if (!list_empty(&cred->cr_lru))
+	if (!list_empty(&cred->cr_lru)) {
+		number_cred_unused--;
 		list_del_init(&cred->cr_lru);
+	}
 	if (test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) == 0)
 		rpcauth_unhash_cred(cred);
 	else if (test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) != 0) {
 		cred->cr_expire = jiffies;
 		list_add_tail(&cred->cr_lru, &cred_unused);
+		number_cred_unused++;
 		spin_unlock(&rpc_credcache_lock);
 		return;
 	}
@@ -519,4 +531,19 @@ rpcauth_uptodatecred(struct rpc_task *task)
 
 	return cred == NULL ||
 		test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) != 0;
+}
+
+
+static struct shrinker *rpc_cred_shrinker;
+
+void __init rpcauth_init_module(void)
+{
+	rpc_init_authunix();
+	rpc_cred_shrinker = set_shrinker(DEFAULT_SEEKS, rpcauth_cache_shrinker);
+}
+
+void __exit rpcauth_remove_module(void)
+{
+	if (rpc_cred_shrinker != NULL)
+		remove_shrinker(rpc_cred_shrinker);
 }

@@ -152,7 +152,7 @@ init_sunrpc(void)
 	cache_register(&ip_map_cache);
 	cache_register(&unix_gid_cache);
 	init_socket_xprt();
-	rpc_init_authunix();
+	rpcauth_init_module();
 out:
 	return err;
 }
@@ -160,6 +160,7 @@ out:
 static void __exit
 cleanup_sunrpc(void)
 {
+	rpcauth_remove_module();
 	cleanup_socket_xprt();
 	unregister_rpc_pipefs();
 	rpc_destroy_mempool();

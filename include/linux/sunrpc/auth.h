@@ -64,8 +64,6 @@ struct rpc_cred {
 struct rpc_cred_cache {
 	struct hlist_head	hashtable[RPC_CREDCACHE_NR];
 	spinlock_t		lock;
-	unsigned long		nextgc;		/* next garbage collection */
-	unsigned long		expire;		/* cache expiry interval */
 };
 
 struct rpc_authops;
@@ -128,6 +126,8 @@ extern const struct rpc_authops	authunix_ops;
 extern const struct rpc_authops	authnull_ops;
 
 void __init		rpc_init_authunix(void);
+void __init		rpcauth_init_module(void);
+void __exit		rpcauth_remove_module(void);
 
 int			rpcauth_register(const struct rpc_authops *);
 int			rpcauth_unregister(const struct rpc_authops *);
@@ -147,7 +147,7 @@ int			rpcauth_unwrap_resp(struct rpc_task *task, kxdrproc_t decode, void *rqstp,
 int			rpcauth_refreshcred(struct rpc_task *);
 void			rpcauth_invalcred(struct rpc_task *);
 int			rpcauth_uptodatecred(struct rpc_task *);
-int			rpcauth_init_credcache(struct rpc_auth *, unsigned long);
+int			rpcauth_init_credcache(struct rpc_auth *);
 void			rpcauth_destroy_credcache(struct rpc_auth *);
 void			rpcauth_clear_credcache(struct rpc_cred_cache *);
 
