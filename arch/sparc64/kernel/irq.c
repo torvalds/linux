@@ -400,6 +400,12 @@ static void sun4v_virq_enable(unsigned int virt_irq)
 			       "err(%d)\n",
 			       dev_handle, dev_ino, cpuid, err);
 		err = sun4v_vintr_set_state(dev_handle, dev_ino,
+					    HV_INTR_STATE_IDLE);
+		if (err != HV_EOK)
+			printk("sun4v_vintr_set_state(%lx,%lx,"
+				"HV_INTR_STATE_IDLE): err(%d)\n",
+			       dev_handle, dev_ino, err);
+		err = sun4v_vintr_set_valid(dev_handle, dev_ino,
 					    HV_INTR_ENABLED);
 		if (err != HV_EOK)
 			printk("sun4v_vintr_set_state(%lx,%lx,"
@@ -420,7 +426,7 @@ static void sun4v_virq_disable(unsigned int virt_irq)
 		dev_handle = ino & IMAP_IGN;
 		dev_ino = ino & IMAP_INO;
 
-		err = sun4v_vintr_set_state(dev_handle, dev_ino,
+		err = sun4v_vintr_set_valid(dev_handle, dev_ino,
 					    HV_INTR_DISABLED);
 		if (err != HV_EOK)
 			printk("sun4v_vintr_set_state(%lx,%lx,"
