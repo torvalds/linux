@@ -8,6 +8,8 @@
 #include <linux/videodev.h>
 #include <media/tuner.h>
 #include <media/v4l2-common.h>
+#include <media/tuner-types.h>
+#include "tuner-driver.h"
 
 static int offset = 0;
 module_param(offset, int, 0664);

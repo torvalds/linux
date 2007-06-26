@@ -11,6 +11,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
+#include "tuner-driver.h"
 
 
 /* Chips:

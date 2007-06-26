@@ -20,6 +20,7 @@
 
 #include <media/tuner.h>
 #include <media/v4l2-common.h>
+#include "tuner-driver.h"
 
 #define UNSET (-1U)
 

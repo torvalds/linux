@@ -7,7 +7,7 @@
 #include <linux/i2c.h>
 #include <linux/videodev.h>
 #include <linux/moduleparam.h>
-#include <media/tuner.h>
+#include "tuner-driver.h"
 
 /* ---------------------------------------------------------------------- */
 
