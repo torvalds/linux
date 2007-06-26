@@ -169,7 +169,7 @@ static int mlx4_ib_query_port(struct ib_device *ibdev, u8 port,
 	props->phys_state	= out_mad->data[33] >> 4;
 	props->port_cap_flags	= be32_to_cpup((__be32 *) (out_mad->data + 20));
 	props->gid_tbl_len	= to_mdev(ibdev)->dev->caps.gid_table_len[port];
-	props->max_msg_sz	= 0x80000000;
+	props->max_msg_sz	= to_mdev(ibdev)->dev->caps.max_msg_sz;
 	props->pkey_tbl_len	= to_mdev(ibdev)->dev->caps.pkey_table_len[port];
 	props->bad_pkey_cntr	= be16_to_cpup((__be16 *) (out_mad->data + 46));
 	props->qkey_viol_cntr	= be16_to_cpup((__be16 *) (out_mad->data + 48));

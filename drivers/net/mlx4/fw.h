@@ -60,6 +60,7 @@ struct mlx4_dev_cap {
 	int max_rdma_global;
 	int local_ca_ack_delay;
 	int num_ports;
+	u32 max_msg_sz;
 	int max_mtu[MLX4_MAX_PORTS + 1];
 	int max_port_width[MLX4_MAX_PORTS + 1];
 	int max_vl[MLX4_MAX_PORTS + 1];

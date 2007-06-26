@@ -172,6 +172,7 @@ struct mlx4_caps {
 	int			num_pds;
 	int			reserved_pds;
 	int			mtt_entry_sz;
+	u32			max_msg_sz;
 	u32			page_size_cap;
 	u32			flags;
 	u16			stat_rate_support;
