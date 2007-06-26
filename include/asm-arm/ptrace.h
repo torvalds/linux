@@ -103,6 +103,10 @@ struct pt_regs {
 #define thumb_mode(regs) (0)
 #endif
 
+#define isa_mode(regs) \
+	((((regs)->ARM_cpsr & PSR_J_BIT) >> 23) | \
+	 (((regs)->ARM_cpsr & PSR_T_BIT) >> 5))
+
 #define processor_mode(regs) \
 	((regs)->ARM_cpsr & MODE_MASK)
 
