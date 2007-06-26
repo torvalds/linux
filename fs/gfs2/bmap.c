@@ -927,6 +927,7 @@ static int gfs2_block_truncate_page(struct address_space *mapping)
 		/* Uhhuh. Read error. Complain and punt. */
 		if (!buffer_uptodate(bh))
 			goto unlock;
+		err = 0;
 	}
 
 	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip))
