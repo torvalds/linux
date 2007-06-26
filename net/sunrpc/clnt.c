@@ -352,10 +352,6 @@ rpc_free_client(struct kref *kref)
 
 	dprintk("RPC:       destroying %s client for %s\n",
 			clnt->cl_protname, clnt->cl_server);
-	if (clnt->cl_auth) {
-		rpcauth_release(clnt->cl_auth);
-		clnt->cl_auth = NULL;
-	}
 	if (!IS_ERR(clnt->cl_dentry)) {
 		rpc_rmdir(clnt->cl_dentry);
 		rpc_put_mount();
@@ -376,6 +372,30 @@ out_free:
 }
 
 /*
+ * Free an RPC client
+ */
+static void
+rpc_free_auth(struct kref *kref)
+{
+	struct rpc_clnt *clnt = container_of(kref, struct rpc_clnt, cl_kref);
+
+	if (clnt->cl_auth == NULL) {
+		rpc_free_client(kref);
+		return;
+	}
+
+	/*
+	 * Note: RPCSEC_GSS may need to send NULL RPC calls in order to
+	 *       release remaining GSS contexts. This mechanism ensures
+	 *       that it can do so safely.
+	 */
+	kref_init(kref);
+	rpcauth_release(clnt->cl_auth);
+	clnt->cl_auth = NULL;
+	kref_put(kref, rpc_free_client);
+}
+
+/*
  * Release reference to the RPC client
  */
 void
@@ -385,7 +405,7 @@ rpc_release_client(struct rpc_clnt *clnt)
 
 	if (list_empty(&clnt->cl_tasks))
 		wake_up(&destroy_wait);
-	kref_put(&clnt->cl_kref, rpc_free_client);
+	kref_put(&clnt->cl_kref, rpc_free_auth);
 }
 
 /**
