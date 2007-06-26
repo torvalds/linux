@@ -25,7 +25,8 @@
 static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 			    *orig_root, u64 num_blocks, u64 search_start,
 			    u64 search_end, u64 hint_block,
-			    struct btrfs_key *ins, int data);
+			    struct btrfs_key *ins, u64 exclude_start,
+			    u64 exclude_nr, int data);
 static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 				 btrfs_root *extent_root);
 static int del_pending_extents(struct btrfs_trans_handle *trans, struct
@@ -407,7 +408,7 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 	ret = find_free_extent(trans, root->fs_info->extent_root, 0, 0,
-			       (u64)-1, 0, &ins, 0);
+			       (u64)-1, 0, &ins, 0, 0, 0);
 	if (ret) {
 		btrfs_free_path(path);
 		return ret;
@@ -559,7 +560,8 @@ static int write_one_cache_group(struct btrfs_trans_handle *trans,
 	struct btrfs_block_group_item *bi;
 	struct btrfs_key ins;
 
-	ret = find_free_extent(trans, extent_root, 0, 0, (u64)-1, 0, &ins, 0);
+	ret = find_free_extent(trans, extent_root, 0, 0, (u64)-1, 0, &ins,
+			       0, 0, 0);
 	/* FIXME, set bit to recalc cache groups on next mount */
 	if (ret)
 		return ret;
@@ -868,7 +870,7 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (!path)
 		return -ENOMEM;
 
-	ret = find_free_extent(trans, root, 0, 0, (u64)-1, 0, &ins, 0);
+	ret = find_free_extent(trans, root, 0, 0, (u64)-1, 0, &ins, 0, 0, 0);
 	if (ret) {
 		btrfs_free_path(path);
 		return ret;
@@ -987,7 +989,8 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 			    *orig_root, u64 num_blocks, u64 search_start, u64
 			    search_end, u64 hint_block,
-			    struct btrfs_key *ins, int data)
+			    struct btrfs_key *ins, u64 exclude_start,
+			    u64 exclude_nr, int data)
 {
 	struct btrfs_path *path;
 	struct btrfs_key key;
@@ -1191,6 +1194,11 @@ check_pending:
 			goto new_group;
 		}
 	}
+	if (exclude_nr > 0 && (ins->objectid + num_blocks > exclude_start &&
+	    ins->objectid < exclude_start + exclude_nr)) {
+		search_start = exclude_start + exclude_nr;
+		goto new_group;
+	}
 	if (fill_prealloc) {
 		int nr;
 		test_block = ins->objectid;
@@ -1267,6 +1275,8 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	int pending_ret;
 	u64 super_blocks_used;
 	u64 search_start = 0;
+	u64 exclude_start = 0;
+	u64 exclude_nr = 0;
 	struct btrfs_fs_info *info = root->fs_info;
 	struct btrfs_root *extent_root = info->extent_root;
 	struct btrfs_extent_item extent_item;
@@ -1298,33 +1308,19 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	 */
 	if (data) {
 		ret = find_free_extent(trans, root, 0, 0,
-				       search_end, 0, &prealloc_key, 0);
-		if (ret) {
-			return ret;
-		}
-		if (prealloc_key.objectid + prealloc_key.offset >= search_end) {
-			int nr = info->extent_tree_prealloc_nr;
-			search_end = info->extent_tree_prealloc[nr - 1] - 1;
-		} else {
-			search_start = info->extent_tree_prealloc[0] + 1;
-		}
-	}
-	if (hint_block < search_start)
-		hint_block = search_start;
-	/* do the real allocation */
-	ret = find_free_extent(trans, root, num_blocks, search_start,
-			       search_end, hint_block, ins, data);
-	if (ret) {
-		if (search_start == 0)
-			return ret;
-		search_end = search_start - 1;
-		search_start = 0;
-		hint_block = search_start;
-		ret = find_free_extent(trans, root, num_blocks, search_start,
-				       search_end, hint_block, ins, data);
+				       search_end, 0, &prealloc_key, 0, 0, 0);
 		if (ret)
 			return ret;
+		exclude_nr = info->extent_tree_prealloc_nr;
+		exclude_start = info->extent_tree_prealloc[exclude_nr - 1];
 	}
+
+	/* do the real allocation */
+	ret = find_free_extent(trans, root, num_blocks, search_start,
+			       search_end, hint_block, ins,
+			       exclude_start, exclude_nr, data);
+	if (ret)
+		return ret;
 
 	/*
 	 * if we're doing a metadata allocation, preallocate space in the
@@ -1336,29 +1332,14 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	 * The unused prealloc will get reused the next time around.
 	 */
 	if (!data) {
-		if (ins->objectid + ins->offset >= search_end)
-			search_end = ins->objectid - 1;
-		else
-			search_start = ins->objectid + ins->offset;
-
-		if (hint_block < search_start)
-			hint_block = search_start;
-
+		exclude_start = ins->objectid;
+		exclude_nr = ins->offset;
 		ret = find_free_extent(trans, root, 0, search_start,
 				       search_end, hint_block,
-				       &prealloc_key, 0);
-		if (ret) {
-			if (search_start == 0)
-				return ret;
-			search_end = search_start - 1;
-			search_start = 0;
-			hint_block = search_start;
-			ret = find_free_extent(trans, root, 0, search_start,
-					       search_end, hint_block,
-					       &prealloc_key, 0);
-			if (ret)
-				return ret;
-		}
+				       &prealloc_key, exclude_start,
+				       exclude_nr, 0);
+		if (ret)
+			return ret;
 	}
 
 	super_blocks_used = btrfs_super_blocks_used(&info->super_copy);
