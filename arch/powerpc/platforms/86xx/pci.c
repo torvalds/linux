@@ -134,6 +134,43 @@ mpc86xx_setup_pcie(struct pci_controller *hose, u32 pcie_offset, u32 pcie_size)
 	early_write_config_byte(hose, 0, 0, PCI_LATENCY_TIMER, 0x80);
 }
 
+static void __devinit quirk_fsl_pcie_transparent(struct pci_dev *dev)
+{
+	struct resource *res;
+	int i, res_idx = PCI_BRIDGE_RESOURCES;
+	struct pci_controller *hose;
+
+	/*
+	 * Make the bridge be transparent.
+	 */
+	dev->transparent = 1;
+
+	hose = pci_bus_to_hose(dev->bus->number);
+	if (!hose) {
+		printk(KERN_ERR "Can't find hose for bus %d\n",
+		       dev->bus->number);
+		return;
+	}
+
+	if (hose->io_resource.flags) {
+		res = &dev->resource[res_idx++];
+		res->start = hose->io_resource.start;
+		res->end = hose->io_resource.end;
+		res->flags = hose->io_resource.flags;
+	}
+
+	for (i = 0; i < 3; i++) {
+		res = &dev->resource[res_idx + i];
+		res->start = hose->mem_resources[i].start;
+		res->end = hose->mem_resources[i].end;
+		res->flags = hose->mem_resources[i].flags;
+	}
+}
+
+
+DECLARE_PCI_FIXUP_EARLY(0x1957, 0x7010, quirk_fsl_pcie_transparent);
+DECLARE_PCI_FIXUP_EARLY(0x1957, 0x7011, quirk_fsl_pcie_transparent);
+
 #define PCIE_LTSSM	0x404	/* PCIe Link Training and Status */
 #define PCIE_LTSSM_L0	0x16	/* L0 state */
 
