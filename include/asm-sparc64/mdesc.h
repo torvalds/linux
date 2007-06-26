@@ -15,6 +15,7 @@ struct mdesc_node {
 	u64			node;
 	unsigned int		unique_id;
 	unsigned int		num_arcs;
+	unsigned int		irqs[2];
 	struct property		*properties;
 	struct mdesc_node	*hash_next;
 	struct mdesc_node	*allnodes_next;
