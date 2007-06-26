@@ -1,5 +1,4 @@
-
-	/*
+/*
  * Userland implementation of gettimeofday() for 64 bits processes in a
  * ppc64 kernel for use in the vDSO
  *
@@ -32,6 +31,8 @@ V_FUNCTION_BEGIN(__kernel_gettimeofday)
 	mr	r11,r3			/* r11 holds tv */
 	mr	r10,r4			/* r10 holds tz */
 	bl	V_LOCAL_FUNC(__get_datapage)	/* get data page */
+	cmpldi	r10,0			/* check if tv is NULL */
+	beq	2f
 	bl	V_LOCAL_FUNC(__do_get_xsec)	/* get xsec from tb & kernel */
 	lis     r7,15			/* r7 = 1000000 = USEC_PER_SEC */
 	ori     r7,r7,16960
@@ -43,8 +44,8 @@ V_FUNCTION_BEGIN(__kernel_gettimeofday)
 					 * XSEC_PER_SEC
 					 */
 	rldicl  r0,r0,44,20
-	cmpldi	cr0,r10,0		/* check if tz is NULL */
 	std	r0,TVAL64_TV_USEC(r11)	/* store usec in tv */
+2:	cmpldi	r10,0			/* check if tz is NULL */
 	beq	1f
 	lwz	r4,CFG_TZ_MINUTEWEST(r3)/* fill tz */
 	lwz	r5,CFG_TZ_DSTTIME(r3)

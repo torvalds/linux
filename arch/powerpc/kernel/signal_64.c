@@ -176,6 +176,13 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 	 */
 	discard_lazy_cpu_state();
 
+	/*
+	 * Force reload of FP/VEC.
+	 * This has to be done before copying stuff into current->thread.fpr/vr
+	 * for the reasons explained in the previous comment.
+	 */
+	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1 | MSR_VEC);
+
 	err |= __copy_from_user(&current->thread.fpr, &sc->fp_regs, FP_REGS_SIZE);
 
 #ifdef CONFIG_ALTIVEC
@@ -196,9 +203,6 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 	else
 		current->thread.vrsave = 0;
 #endif /* CONFIG_ALTIVEC */
-
-	/* Force reload of FP/VEC */
-	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1 | MSR_VEC);
 
 	return err;
 }
