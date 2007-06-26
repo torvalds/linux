@@ -158,11 +158,13 @@ int __init mpc86xx_add_bridge(struct device_node *dev)
 		printk(KERN_WARNING "Can't get bus-range for %s, assume"
 		       " bus 0\n", dev->full_name);
 
+	pci_assign_all_buses = 1;
 	hose = pcibios_alloc_controller();
 	if (!hose)
 		return -ENOMEM;
 	hose->arch_data = dev;
-	hose->indirect_type = PPC_INDIRECT_TYPE_EXT_REG;
+	hose->indirect_type = PPC_INDIRECT_TYPE_EXT_REG |
+				PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS;
 
 	hose->first_busno = bus_range ? bus_range[0] : 0x0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;

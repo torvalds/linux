@@ -103,6 +103,12 @@ indirect_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
 		 (0x80000000 | (bus_no << 16)
 		  | (devfn << 8) | reg | cfg_type));
 
+	/* surpress setting of PCI_PRIMARY_BUS */
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS)
+		if ((offset == PCI_PRIMARY_BUS) &&
+			(bus->number == hose->first_busno))
+		val &= 0xffffff00;
+
 	/*
 	 * Note: the caller has already checked that offset is
 	 * suitably aligned and that len is 1, 2 or 4.
