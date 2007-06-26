@@ -1030,7 +1030,7 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 		writel(SDHCI_INT_BUS_POWER, host->ioaddr + SDHCI_INT_STATUS);
 	}
 
-	intmask &= SDHCI_INT_BUS_POWER;
+	intmask &= ~SDHCI_INT_BUS_POWER;
 
 	if (intmask) {
 		printk(KERN_ERR "%s: Unexpected interrupt 0x%08x.\n",
