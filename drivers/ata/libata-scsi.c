@@ -2384,11 +2384,6 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc)
 	int using_pio = (dev->flags & ATA_DFLAG_PIO);
 	int nodata = (scmd->sc_data_direction == DMA_NONE);
 
-	if (!using_pio)
-		/* Check whether ATAPI DMA is safe */
-		if (ata_check_atapi_dma(qc))
-			using_pio = 1;
-
 	memset(qc->cdb, 0, dev->cdb_len);
 	memcpy(qc->cdb, scmd->cmnd, scmd->cmd_len);
 
@@ -2401,19 +2396,22 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc)
 	}
 
 	qc->tf.command = ATA_CMD_PACKET;
+	qc->nbytes = scmd->request_bufflen;
 
-	/* no data, or PIO data xfer */
+	/* check whether ATAPI DMA is safe */
+	if (!using_pio && ata_check_atapi_dma(qc))
+		using_pio = 1;
+
 	if (using_pio || nodata) {
+		/* no data, or PIO data xfer */
 		if (nodata)
 			qc->tf.protocol = ATA_PROT_ATAPI_NODATA;
 		else
 			qc->tf.protocol = ATA_PROT_ATAPI;
 		qc->tf.lbam = (8 * 1024) & 0xff;
 		qc->tf.lbah = (8 * 1024) >> 8;
-	}
-
-	/* DMA data xfer */
-	else {
+	} else {
+		/* DMA data xfer */
 		qc->tf.protocol = ATA_PROT_ATAPI_DMA;
 		qc->tf.feature |= ATAPI_PKT_DMA;
 
@@ -2421,8 +2419,6 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc)
 			/* some SATA bridges need us to indicate data xfer direction */
 			qc->tf.feature |= ATAPI_DMADIR;
 	}
-
-	qc->nbytes = scmd->request_bufflen;
 
 	return 0;
 }
