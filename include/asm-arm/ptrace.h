@@ -112,9 +112,6 @@ struct pt_regs {
 #define fast_interrupts_enabled(regs) \
 	(!((regs)->ARM_cpsr & PSR_F_BIT))
 
-#define condition_codes(regs) \
-	((regs)->ARM_cpsr & (PSR_V_BIT|PSR_C_BIT|PSR_Z_BIT|PSR_N_BIT))
-	
 /* Are the current registers suitable for user mode?
  * (used to maintain security in signal handlers)
  */

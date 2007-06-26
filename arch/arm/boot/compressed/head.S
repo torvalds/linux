@@ -836,6 +836,7 @@ memdump:	mov	r12, r0
 		mov	pc, r10
 #endif
 
+		.ltorg
 reloc_end:
 
 		.align
