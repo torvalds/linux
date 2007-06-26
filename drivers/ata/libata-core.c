@@ -2046,10 +2046,6 @@ int ata_dev_configure(struct ata_device *dev)
 		dev->max_sectors = min_t(unsigned int, ATA_MAX_SECTORS_128,
 					 dev->max_sectors);
 
-	/* limit ATAPI DMA to R/W commands only */
-	if (ata_device_blacklisted(dev) & ATA_HORKAGE_DMA_RW_ONLY)
-		dev->horkage |= ATA_HORKAGE_DMA_RW_ONLY;
-
 	if (ap->ops->dev_config)
 		ap->ops->dev_config(dev);
 
@@ -3780,8 +3776,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "IOMEGA  ZIP 250       ATAPI", NULL,	ATA_HORKAGE_NODMA }, /* temporary fix */
 
 	/* Weird ATAPI devices */
-	{ "TORiSAN DVD-ROM DRD-N216", NULL,	ATA_HORKAGE_MAX_SEC_128 |
-						ATA_HORKAGE_DMA_RW_ONLY },
+	{ "TORiSAN DVD-ROM DRD-N216", NULL,	ATA_HORKAGE_MAX_SEC_128 },
 
 	/* Devices we expect to fail diagnostics */
 
