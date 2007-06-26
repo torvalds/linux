@@ -637,10 +637,9 @@ static int vidioc_s_input (struct file *file, void *priv, unsigned int input)
 
 	if ((input >= usbvision->video_inputs) || (input < 0) )
 		return -EINVAL;
-	usbvision->ctl_input = input;
 
 	down(&usbvision->lock);
-	usbvision_muxsel(usbvision, usbvision->ctl_input);
+	usbvision_muxsel(usbvision, input);
 	usbvision_set_input(usbvision);
 	usbvision_set_output(usbvision,
 			     usbvision->curwidth,
@@ -660,6 +659,8 @@ static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *id)
 	call_i2c_clients(usbvision, VIDIOC_S_STD,
 			 &usbvision->tvnormId);
 	up(&usbvision->lock);
+	/* propagate the change to the decoder */
+	usbvision_muxsel(usbvision, usbvision->ctl_input);
 
 	return 0;
 }

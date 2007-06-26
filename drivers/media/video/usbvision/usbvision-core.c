@@ -2537,7 +2537,9 @@ void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 
 int usbvision_muxsel(struct usb_usbvision *usbvision, int channel)
 {
-	int mode[4];
+	/* inputs #0 and #3 are constant for every SAA711x. */
+	/* inputs #1 and #2 are variable for SAA7111 and SAA7113 */
+	int mode[4]= {SAA7115_COMPOSITE0, 0, 0, SAA7115_COMPOSITE3};
 	int audio[]= {1, 0, 0, 0};
 	struct v4l2_routing route;
 	//channel 0 is TV with audiochannel 1 (tuner mono)
@@ -2547,10 +2549,6 @@ int usbvision_muxsel(struct usb_usbvision *usbvision, int channel)
 
 	RESTRICT_TO_RANGE(channel, 0, usbvision->video_inputs);
 	usbvision->ctl_input = channel;
-	  route.input = SAA7115_COMPOSITE1;
-	  route.output = 0;
-	  call_i2c_clients(usbvision, VIDIOC_INT_S_VIDEO_ROUTING,&route);
-	  call_i2c_clients(usbvision, VIDIOC_S_INPUT, &usbvision->ctl_input);
 
 	// set the new channel
 	// Regular USB TV Tuners -> channel: 0 = Television, 1 = Composite, 2 = S-Video
@@ -2558,28 +2556,27 @@ int usbvision_muxsel(struct usb_usbvision *usbvision, int channel)
 
 	switch (usbvision_device_data[usbvision->DevModel].Codec) {
 		case CODEC_SAA7113:
-			if (SwitchSVideoInput) { // To handle problems with S-Video Input for some devices.  Use SwitchSVideoInput parameter when loading the module.
-				mode[2] = 1;
+			mode[1] = SAA7115_COMPOSITE2;
+			if (SwitchSVideoInput) {
+				/* To handle problems with S-Video Input for
+				 * some devices.  Use SwitchSVideoInput
+				 * parameter when loading the module.*/
+				mode[2] = SAA7115_COMPOSITE1;
 			}
 			else {
-				mode[2] = 7;
-			}
-			if (usbvision_device_data[usbvision->DevModel].VideoChannels == 4) {
-				mode[0] = 0; mode[1] = 2; mode[3] = 3;  // Special for four input devices
-			}
-			else {
-				mode[0] = 0; mode[1] = 2; //modes for regular saa7113 devices
+				mode[2] = SAA7115_SVIDEO1;
 			}
 			break;
 		case CODEC_SAA7111:
-			mode[0] = 0; mode[1] = 1; mode[2] = 7; //modes for saa7111
-			break;
 		default:
-			mode[0] = 0; mode[1] = 1; mode[2] = 7; //default modes
+			/* modes for saa7111 */
+			mode[1] = SAA7115_COMPOSITE1;
+			mode[2] = SAA7115_SVIDEO1;
+			break;
 	}
 	route.input = mode[channel];
+	route.output = 0;
 	call_i2c_clients(usbvision, VIDIOC_INT_S_VIDEO_ROUTING,&route);
-	usbvision->channel = channel;
 	usbvision_set_audio(usbvision, audio[channel]);
 	return 0;
 }

@@ -380,7 +380,6 @@ struct usb_usbvision {
 	int tuner_type;
 	int tuner_addr;
 	int bridgeType;							// NT1003, NT1004, NT1005
-	int channel;
 	int radio;
 	int video_inputs;						// # of inputs
 	unsigned long freq;
