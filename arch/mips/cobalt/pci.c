@@ -35,6 +35,7 @@ static struct pci_controller cobalt_pci_controller = {
 	.mem_resource	= &cobalt_mem_resource,
 	.io_resource	= &cobalt_io_resource,
 	.io_offset	= 0 - GT_DEF_PCI0_IO_BASE,
+	.io_map_base	= CKSEG1ADDR(GT_DEF_PCI0_IO_BASE),
 };
 
 static int __init cobalt_pci_init(void)

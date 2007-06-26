@@ -137,7 +137,6 @@ static inline void check_wait(void)
 	case CPU_4KEC:
 	case CPU_4KSC:
 	case CPU_5KC:
-/*	case CPU_20KC:*/
 	case CPU_24K:
 	case CPU_25KF:
 	case CPU_34K:
@@ -155,6 +154,17 @@ static inline void check_wait(void)
 	case CPU_AU1200:
 		if (allow_au1k_wait)
 			cpu_wait = au1k_wait;
+		break;
+	case CPU_20KC:
+		/*
+		 * WAIT on Rev1.0 has E1, E2, E3 and E16.
+		 * WAIT on Rev2.0 and Rev3.0 has E16.
+		 * Rev3.1 WAIT is nop, why bother
+		 */
+		if ((c->processor_id & 0xff) <= 0x64)
+			break;
+
+		cpu_wait = r4k_wait;
 		break;
 	case CPU_RM9000:
 		if ((c->processor_id & 0x00ff) >= 0x40)
