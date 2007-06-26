@@ -311,8 +311,8 @@ struct usbvision_device_data_st  usbvision_device_data[] = {
 		.vbi           = 1,
 		.Tuner         = 1,
 		.TunerType     = TUNER_PHILIPS_SECAM,
-		.X_Offset      = -1,
-		.Y_Offset      = -1,
+		.X_Offset      = 0x80,
+		.Y_Offset      = 0x16,
 		.ModelString   = "Hauppauge WinTV USB (PAL/SECAM L)",
 	},
 	[HPG_WINTV_PAL_D_K] = {
