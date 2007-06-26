@@ -57,6 +57,7 @@
 static const struct rpc_authops authgss_ops;
 
 static const struct rpc_credops gss_credops;
+static const struct rpc_credops gss_nullops;
 
 #ifdef RPC_DEBUG
 # define RPCDBG_FACILITY	RPCDBG_AUTH
@@ -695,7 +696,39 @@ gss_destroy(struct rpc_auth *auth)
 	kref_put(&gss_auth->kref, gss_free_callback);
 }
 
-/* gss_destroy_cred (and gss_destroy_ctx) are used to clean up after failure
+/*
+ * gss_destroying_context will cause the RPCSEC_GSS to send a NULL RPC call
+ * to the server with the GSS control procedure field set to
+ * RPC_GSS_PROC_DESTROY. This should normally cause the server to release
+ * all RPCSEC_GSS state associated with that context.
+ */
+static int
+gss_destroying_context(struct rpc_cred *cred)
+{
+	struct gss_cred *gss_cred = container_of(cred, struct gss_cred, gc_base);
+	struct gss_auth *gss_auth = container_of(cred->cr_auth, struct gss_auth, rpc_auth);
+	struct rpc_task *task;
+
+	if (gss_cred->gc_ctx == NULL ||
+			gss_cred->gc_ctx->gc_proc == RPC_GSS_PROC_DESTROY)
+		return 0;
+
+	gss_cred->gc_ctx->gc_proc = RPC_GSS_PROC_DESTROY;
+	cred->cr_ops = &gss_nullops;
+
+	/* Take a reference to ensure the cred will be destroyed either
+	 * by the RPC call or by the put_rpccred() below */
+	get_rpccred(cred);
+
+	task = rpc_call_null(gss_auth->client, cred, RPC_TASK_ASYNC);
+	if (!IS_ERR(task))
+		rpc_put_task(task);
+
+	put_rpccred(cred);
+	return 1;
+}
+
+/* gss_destroy_cred (and gss_free_ctx) are used to clean up after failure
  * to create a new cred or context, so they check that things have been
  * allocated before freeing them. */
 static void
@@ -744,6 +777,8 @@ gss_destroy_cred(struct rpc_cred *cred)
 	struct gss_auth *gss_auth = container_of(cred->cr_auth, struct gss_auth, rpc_auth);
 	struct gss_cl_ctx *ctx = gss_cred->gc_ctx;
 
+	if (gss_destroying_context(cred))
+		return;
 	rcu_assign_pointer(gss_cred->gc_ctx, NULL);
 	call_rcu(&cred->cr_rcu, gss_free_cred_callback);
 	if (ctx)
@@ -892,6 +927,13 @@ gss_refresh(struct rpc_task *task)
 	return 0;
 }
 
+/* Dummy refresh routine: used only when destroying the context */
+static int
+gss_refresh_null(struct rpc_task *task)
+{
+	return -EACCES;
+}
+
 static __be32 *
 gss_validate(struct rpc_task *task, __be32 *p)
 {
@@ -921,8 +963,11 @@ gss_validate(struct rpc_task *task, __be32 *p)
 	maj_stat = gss_verify_mic(ctx->gc_gss_ctx, &verf_buf, &mic);
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
 		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
-	if (maj_stat)
+	if (maj_stat) {
+		dprintk("RPC: %5u gss_validate: gss_verify_mic returned"
+				"error 0x%08x\n", task->tk_pid, maj_stat);
 		goto out_bad;
+	}
 	/* We leave it to unwrap to calculate au_rslack. For now we just
 	 * calculate the length of the verifier: */
 	cred->cr_auth->au_verfsize = XDR_QUADLEN(len) + 2;
@@ -1255,6 +1300,17 @@ static const struct rpc_credops gss_credops = {
 	.crmatch	= gss_match,
 	.crmarshal	= gss_marshal,
 	.crrefresh	= gss_refresh,
+	.crvalidate	= gss_validate,
+	.crwrap_req	= gss_wrap_req,
+	.crunwrap_resp	= gss_unwrap_resp,
+};
+
+static const struct rpc_credops gss_nullops = {
+	.cr_name	= "AUTH_GSS",
+	.crdestroy	= gss_destroy_cred,
+	.crmatch	= gss_match,
+	.crmarshal	= gss_marshal,
+	.crrefresh	= gss_refresh_null,
 	.crvalidate	= gss_validate,
 	.crwrap_req	= gss_wrap_req,
 	.crunwrap_resp	= gss_unwrap_resp,
