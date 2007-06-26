@@ -75,6 +75,7 @@ struct gss_cl_ctx {
 	struct xdr_netobj	gc_wire_ctx;
 	u32			gc_win;
 	unsigned long		gc_expiry;
+	struct rcu_head		gc_rcu;
 };
 
 struct gss_upcall_msg;

@@ -78,8 +78,6 @@ static const struct rpc_credops gss_credops;
 /* dump the buffer in `emacs-hexl' style */
 #define isprint(c)      ((c > 0x1f) && (c < 0x7f))
 
-static DEFINE_RWLOCK(gss_ctx_lock);
-
 struct gss_auth {
 	struct rpc_auth rpc_auth;
 	struct gss_api_mech *mech;
@@ -88,7 +86,7 @@ struct gss_auth {
 	struct dentry *dentry;
 };
 
-static void gss_destroy_ctx(struct gss_cl_ctx *);
+static void gss_free_ctx(struct gss_cl_ctx *);
 static struct rpc_pipe_ops gss_upcall_ops;
 
 static inline struct gss_cl_ctx *
@@ -102,20 +100,24 @@ static inline void
 gss_put_ctx(struct gss_cl_ctx *ctx)
 {
 	if (atomic_dec_and_test(&ctx->count))
-		gss_destroy_ctx(ctx);
+		gss_free_ctx(ctx);
 }
 
+/* gss_cred_set_ctx:
+ * called by gss_upcall_callback and gss_create_upcall in order
+ * to set the gss context. The actual exchange of an old context
+ * and a new one is protected by the inode->i_lock.
+ */
 static void
 gss_cred_set_ctx(struct rpc_cred *cred, struct gss_cl_ctx *ctx)
 {
 	struct gss_cred *gss_cred = container_of(cred, struct gss_cred, gc_base);
 	struct gss_cl_ctx *old;
-	write_lock(&gss_ctx_lock);
+
 	old = gss_cred->gc_ctx;
-	gss_cred->gc_ctx = ctx;
+	rcu_assign_pointer(gss_cred->gc_ctx, ctx);
 	set_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
 	clear_bit(RPCAUTH_CRED_NEW, &cred->cr_flags);
-	write_unlock(&gss_ctx_lock);
 	if (old)
 		gss_put_ctx(old);
 }
@@ -126,10 +128,10 @@ gss_cred_is_uptodate_ctx(struct rpc_cred *cred)
 	struct gss_cred *gss_cred = container_of(cred, struct gss_cred, gc_base);
 	int res = 0;
 
-	read_lock(&gss_ctx_lock);
+	rcu_read_lock();
 	if (test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) && gss_cred->gc_ctx)
 		res = 1;
-	read_unlock(&gss_ctx_lock);
+	rcu_read_unlock();
 	return res;
 }
 
@@ -168,10 +170,10 @@ gss_cred_get_ctx(struct rpc_cred *cred)
 	struct gss_cred *gss_cred = container_of(cred, struct gss_cred, gc_base);
 	struct gss_cl_ctx *ctx = NULL;
 
-	read_lock(&gss_ctx_lock);
+	rcu_read_lock();
 	if (gss_cred->gc_ctx)
 		ctx = gss_get_ctx(gss_cred->gc_ctx);
-	read_unlock(&gss_ctx_lock);
+	rcu_read_unlock();
 	return ctx;
 }
 
@@ -333,11 +335,11 @@ gss_upcall_callback(struct rpc_task *task)
 	struct gss_upcall_msg *gss_msg = gss_cred->gc_upcall;
 	struct inode *inode = gss_msg->auth->dentry->d_inode;
 
+	spin_lock(&inode->i_lock);
 	if (gss_msg->ctx)
 		gss_cred_set_ctx(task->tk_msg.rpc_cred, gss_get_ctx(gss_msg->ctx));
 	else
 		task->tk_status = gss_msg->msg.errno;
-	spin_lock(&inode->i_lock);
 	gss_cred->gc_upcall = NULL;
 	rpc_wake_up_status(&gss_msg->rpc_waitqueue, gss_msg->msg.errno);
 	spin_unlock(&inode->i_lock);
@@ -440,7 +442,6 @@ gss_create_upcall(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 		prepare_to_wait(&gss_msg->waitqueue, &wait, TASK_INTERRUPTIBLE);
 		spin_lock(&inode->i_lock);
 		if (gss_msg->ctx != NULL || gss_msg->msg.errno < 0) {
-			spin_unlock(&inode->i_lock);
 			break;
 		}
 		spin_unlock(&inode->i_lock);
@@ -454,6 +455,7 @@ gss_create_upcall(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 		gss_cred_set_ctx(cred, gss_get_ctx(gss_msg->ctx));
 	else
 		err = gss_msg->msg.errno;
+	spin_unlock(&inode->i_lock);
 out_intr:
 	finish_wait(&gss_msg->waitqueue, &wait);
 	gss_release_msg(gss_msg);
@@ -681,9 +683,9 @@ gss_destroy(struct rpc_auth *auth)
  * to create a new cred or context, so they check that things have been
  * allocated before freeing them. */
 static void
-gss_destroy_ctx(struct gss_cl_ctx *ctx)
+gss_do_free_ctx(struct gss_cl_ctx *ctx)
 {
-	dprintk("RPC:       gss_destroy_ctx\n");
+	dprintk("RPC:       gss_free_ctx\n");
 
 	if (ctx->gc_gss_ctx)
 		gss_delete_sec_context(&ctx->gc_gss_ctx);
@@ -693,11 +695,22 @@ gss_destroy_ctx(struct gss_cl_ctx *ctx)
 }
 
 static void
+gss_free_ctx_callback(struct rcu_head *head)
+{
+	struct gss_cl_ctx *ctx = container_of(head, struct gss_cl_ctx, gc_rcu);
+	gss_do_free_ctx(ctx);
+}
+
+static void
+gss_free_ctx(struct gss_cl_ctx *ctx)
+{
+	call_rcu(&ctx->gc_rcu, gss_free_ctx_callback);
+}
+
+static void
 gss_free_cred(struct gss_cred *gss_cred)
 {
 	dprintk("RPC:       gss_free_cred %p\n", gss_cred);
-	if (gss_cred->gc_ctx)
-		gss_put_ctx(gss_cred->gc_ctx);
 	kfree(gss_cred);
 }
 
@@ -711,7 +724,13 @@ gss_free_cred_callback(struct rcu_head *head)
 static void
 gss_destroy_cred(struct rpc_cred *cred)
 {
+	struct gss_cred *gss_cred = container_of(cred, struct gss_cred, gc_base);
+	struct gss_cl_ctx *ctx = gss_cred->gc_ctx;
+
+	rcu_assign_pointer(gss_cred->gc_ctx, NULL);
 	call_rcu(&cred->cr_rcu, gss_free_cred_callback);
+	if (ctx)
+		gss_put_ctx(ctx);
 }
 
 /*
