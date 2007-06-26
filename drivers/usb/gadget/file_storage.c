@@ -686,7 +686,6 @@ struct fsg_dev {
 	int			thread_wakeup_needed;
 	struct completion	thread_notifier;
 	struct task_struct	*thread_task;
-	sigset_t		thread_signal_mask;
 
 	int			cmnd_size;
 	u8			cmnd[MAX_COMMAND_SIZE];
@@ -3277,8 +3276,7 @@ static void handle_exception(struct fsg_dev *fsg)
 	/* Clear the existing signals.  Anything but SIGUSR1 is converted
 	 * into a high-priority EXIT exception. */
 	for (;;) {
-		sig = dequeue_signal_lock(current, &fsg->thread_signal_mask,
-				&info);
+		sig = dequeue_signal_lock(current, &current->blocked, &info);
 		if (!sig)
 			break;
 		if (sig != SIGUSR1) {
@@ -3431,10 +3429,10 @@ static int fsg_main_thread(void *fsg_)
 
 	/* Allow the thread to be killed by a signal, but set the signal mask
 	 * to block everything but INT, TERM, KILL, and USR1. */
-	siginitsetinv(&fsg->thread_signal_mask, sigmask(SIGINT) |
-			sigmask(SIGTERM) | sigmask(SIGKILL) |
-			sigmask(SIGUSR1));
-	sigprocmask(SIG_SETMASK, &fsg->thread_signal_mask, NULL);
+	allow_signal(SIGINT);
+	allow_signal(SIGTERM);
+	allow_signal(SIGKILL);
+	allow_signal(SIGUSR1);
 
 	/* Arrange for userspace references to be interpreted as kernel
 	 * pointers.  That way we can pass a kernel pointer to a routine

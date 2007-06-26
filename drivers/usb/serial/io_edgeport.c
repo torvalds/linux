@@ -3046,11 +3046,11 @@ static void edge_shutdown (struct usb_serial *serial)
 	}
 	/* free up our endpoint stuff */
 	if (edge_serial->is_epic) {
-		usb_unlink_urb(edge_serial->interrupt_read_urb);
+		usb_kill_urb(edge_serial->interrupt_read_urb);
 		usb_free_urb(edge_serial->interrupt_read_urb);
 		kfree(edge_serial->interrupt_in_buffer);
 
-		usb_unlink_urb(edge_serial->read_urb);
+		usb_kill_urb(edge_serial->read_urb);
 		usb_free_urb(edge_serial->read_urb);
 		kfree(edge_serial->bulk_in_buffer);
 	}

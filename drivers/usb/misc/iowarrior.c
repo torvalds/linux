@@ -495,8 +495,8 @@ static int iowarrior_ioctl(struct inode *inode, struct file *file,
 
 	/* verify that the device wasn't unplugged */
 	if (!dev->present) {
-		mutex_unlock(&dev->mutex);
-		return -ENODEV;
+		retval = -ENODEV;
+		goto error_out;
 	}
 
 	dbg("%s - minor %d, cmd 0x%.4x, arg %ld", __func__, dev->minor, cmd,
@@ -579,9 +579,10 @@ static int iowarrior_ioctl(struct inode *inode, struct file *file,
 		retval = -ENOTTY;
 		break;
 	}
-
+error_out:
 	/* unlock the device */
 	mutex_unlock(&dev->mutex);
+	kfree(buffer);
 	return retval;
 }
 
