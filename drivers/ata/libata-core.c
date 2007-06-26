@@ -4109,6 +4109,7 @@ static void ata_fill_sg(struct ata_queued_cmd *qc)
 	if (idx)
 		ap->prd[idx - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
 }
+
 /**
  *	ata_check_atapi_dma - Check whether ATAPI DMA can be supported
  *	@qc: Metadata associated with taskfile to check
@@ -4126,33 +4127,19 @@ static void ata_fill_sg(struct ata_queued_cmd *qc)
 int ata_check_atapi_dma(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	int rc = 0; /* Assume ATAPI DMA is OK by default */
 
-	/* some drives can only do ATAPI DMA on read/write */
-	if (unlikely(qc->dev->horkage & ATA_HORKAGE_DMA_RW_ONLY)) {
-		struct scsi_cmnd *cmd = qc->scsicmd;
-		u8 *scsicmd = cmd->cmnd;
-
-		switch (scsicmd[0]) {
-		case READ_10:
-		case WRITE_10:
-		case READ_12:
-		case WRITE_12:
-		case READ_6:
-		case WRITE_6:
-			/* atapi dma maybe ok */
-			break;
-		default:
-			/* turn off atapi dma */
-			return 1;
-		}
-	}
+	/* Don't allow DMA if it isn't multiple of 16 bytes.  Quite a
+	 * few ATAPI devices choke on such DMA requests.
+	 */
+	if (unlikely(qc->nbytes & 15))
+		return 1;
 
 	if (ap->ops->check_atapi_dma)
-		rc = ap->ops->check_atapi_dma(qc);
+		return ap->ops->check_atapi_dma(qc);
 
-	return rc;
+	return 0;
 }
+
 /**
  *	ata_qc_prep - Prepare taskfile for submission
  *	@qc: Metadata associated with taskfile to be prepared
