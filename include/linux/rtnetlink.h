@@ -570,11 +570,15 @@ static __inline__ int rtattr_strcmp(const struct rtattr *rta, const char *str)
 }
 
 extern int rtattr_parse(struct rtattr *tb[], int maxattr, struct rtattr *rta, int len);
-extern int rtattr_parse_nested_compat(struct rtattr *tb[], int maxattr,
-				      struct rtattr *rta, void **data, int len);
+extern int __rtattr_parse_nested_compat(struct rtattr *tb[], int maxattr,
+				        struct rtattr *rta, int len);
 
 #define rtattr_parse_nested(tb, max, rta) \
 	rtattr_parse((tb), (max), RTA_DATA((rta)), RTA_PAYLOAD((rta)))
+
+#define rtattr_parse_nested_compat(tb, max, rta, data, len) \
+({	data = RTA_PAYLOAD(rta) >= len ? RTA_DATA(rta) : NULL; \
+	__rtattr_parse_nested_compat(tb, max, rta, len); })
 
 extern int rtnetlink_send(struct sk_buff *skb, u32 pid, u32 group, int echo);
 extern int rtnl_unicast(struct sk_buff *skb, u32 pid);
