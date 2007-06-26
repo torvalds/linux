@@ -144,7 +144,7 @@ static int btrfs_get_sb(struct file_system_type *fs_type,
 static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct btrfs_root *root = btrfs_sb(dentry->d_sb);
-	struct btrfs_super_block *disk_super = root->fs_info->disk_super;
+	struct btrfs_super_block *disk_super = &root->fs_info->super_copy;
 
 	buf->f_namelen = BTRFS_NAME_LEN;
 	buf->f_blocks = btrfs_super_total_blocks(disk_super);

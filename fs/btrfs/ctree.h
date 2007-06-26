@@ -306,6 +306,7 @@ struct btrfs_fs_info {
 	u64 generation;
 	struct btrfs_transaction *running_transaction;
 	struct btrfs_super_block *disk_super;
+	struct btrfs_super_block super_copy;
 	struct buffer_head *sb_buffer;
 	struct super_block *sb;
 	struct inode *btree_inode;

@@ -471,6 +471,8 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	if (!fs_info->sb_buffer)
 		goto fail_iput;
 	disk_super = (struct btrfs_super_block *)fs_info->sb_buffer->b_data;
+	fs_info->disk_super = disk_super;
+	memcpy(&fs_info->super_copy, disk_super, sizeof(fs_info->super_copy));
 
 	if (!btrfs_super_root(disk_super))
 		goto fail_sb_buffer;
@@ -479,7 +481,6 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 		     btrfs_super_total_blocks(disk_super) <<
 		     fs_info->btree_inode->i_blkbits);
 
-	fs_info->disk_super = disk_super;
 
 	if (strncmp((char *)(&disk_super->magic), BTRFS_MAGIC,
 		    sizeof(disk_super->magic))) {
@@ -527,8 +528,6 @@ int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 	int ret;
 	struct buffer_head *bh = root->fs_info->sb_buffer;
 
-	btrfs_set_super_root(root->fs_info->disk_super,
-			     bh_blocknr(root->fs_info->tree_root->node));
 	lock_buffer(bh);
 	WARN_ON(atomic_read(&bh->b_count) < 1);
 	clear_buffer_dirty(bh);

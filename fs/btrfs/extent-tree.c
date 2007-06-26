@@ -796,8 +796,8 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 
 	for (i = 0; i < extent_root->fs_info->extent_tree_insert_nr; i++) {
 		ins.objectid = extent_root->fs_info->extent_tree_insert[i];
-		super_blocks_used = btrfs_super_blocks_used(info->disk_super);
-		btrfs_set_super_blocks_used(info->disk_super,
+		super_blocks_used = btrfs_super_blocks_used(&info->super_copy);
+		btrfs_set_super_blocks_used(&info->super_copy,
 					    super_blocks_used + 1);
 		ret = btrfs_insert_item(trans, extent_root, &ins, &extent_item,
 					sizeof(extent_item));
@@ -892,8 +892,8 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 			BUG_ON(ret);
 		}
 
-		super_blocks_used = btrfs_super_blocks_used(info->disk_super);
-		btrfs_set_super_blocks_used(info->disk_super,
+		super_blocks_used = btrfs_super_blocks_used(&info->super_copy);
+		btrfs_set_super_blocks_used(&info->super_copy,
 					    super_blocks_used - num_blocks);
 		ret = btrfs_del_item(trans, extent_root, path);
 		if (ret) {
@@ -1032,7 +1032,7 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		info->extent_tree_prealloc_nr = 0;
 	}
 	if (search_end == (u64)-1)
-		search_end = btrfs_super_total_blocks(info->disk_super);
+		search_end = btrfs_super_total_blocks(&info->super_copy);
 	if (hint_block) {
 		block_group = btrfs_lookup_block_group(info, hint_block);
 		block_group = btrfs_find_block_group(root, block_group,
@@ -1361,8 +1361,8 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	super_blocks_used = btrfs_super_blocks_used(info->disk_super);
-	btrfs_set_super_blocks_used(info->disk_super, super_blocks_used +
+	super_blocks_used = btrfs_super_blocks_used(&info->super_copy);
+	btrfs_set_super_blocks_used(&info->super_copy, super_blocks_used +
 				    num_blocks);
 	ret = btrfs_insert_item(trans, extent_root, ins, &extent_item,
 				sizeof(extent_item));
@@ -1737,7 +1737,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 					   BTRFS_BLOCK_GROUP_AVAIL);
 		}
 		if (key.objectid >=
-		    btrfs_super_total_blocks(info->disk_super))
+		    btrfs_super_total_blocks(&info->super_copy))
 			break;
 	}
 

@@ -380,6 +380,12 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		else
 			prev_trans->use_count++;
 	}
+	btrfs_set_super_generation(&root->fs_info->super_copy,
+				   cur_trans->transid);
+	btrfs_set_super_root(&root->fs_info->super_copy,
+			     bh_blocknr(root->fs_info->tree_root->node));
+	memcpy(root->fs_info->disk_super, &root->fs_info->super_copy,
+	       sizeof(root->fs_info->super_copy));
 	mutex_unlock(&root->fs_info->trans_mutex);
 	mutex_unlock(&root->fs_info->fs_mutex);
 	ret = btrfs_write_and_wait_transaction(trans, root);
@@ -389,8 +395,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		put_transaction(prev_trans);
 		mutex_unlock(&root->fs_info->trans_mutex);
 	}
-	btrfs_set_super_generation(root->fs_info->disk_super,
-				   cur_trans->transid);
 	BUG_ON(ret);
 	write_ctree_super(trans, root);
 
