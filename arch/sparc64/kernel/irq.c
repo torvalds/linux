@@ -329,6 +329,10 @@ static void sun4v_irq_enable(unsigned int virt_irq)
 		if (err != HV_EOK)
 			printk("sun4v_intr_settarget(%x,%lu): err(%d)\n",
 			       ino, cpuid, err);
+		err = sun4v_intr_setstate(ino, HV_INTR_STATE_IDLE);
+		if (err != HV_EOK)
+			printk("sun4v_intr_setstate(%x): "
+			       "err(%d)\n", ino, err);
 		err = sun4v_intr_setenabled(ino, HV_INTR_ENABLED);
 		if (err != HV_EOK)
 			printk("sun4v_intr_setenabled(%x): err(%d)\n",
