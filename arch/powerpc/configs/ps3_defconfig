@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.21
-# Fri May 11 10:16:27 2007
+# Linux kernel version: 2.6.22-rc6
+# Tue Jun 26 14:15:19 2007
 #
 CONFIG_PPC64=y
 CONFIG_64BIT=y
@@ -87,7 +87,11 @@ CONFIG_BUG=y
 CONFIG_ELF_CORE=y
 CONFIG_BASE_FULL=y
 CONFIG_FUTEX=y
+CONFIG_ANON_INODES=y
 CONFIG_EPOLL=y
+CONFIG_SIGNALFD=y
+CONFIG_TIMERFD=y
+CONFIG_EVENTFD=y
 CONFIG_SHMEM=y
 CONFIG_VM_EVENT_COUNTERS=y
 CONFIG_SLAB=y
@@ -301,20 +305,8 @@ CONFIG_IPV6_SIT=y
 # CONFIG_IPV6_MULTIPLE_TABLES is not set
 # CONFIG_NETWORK_SECMARK is not set
 # CONFIG_NETFILTER is not set
-
-#
-# DCCP Configuration (EXPERIMENTAL)
-#
 # CONFIG_IP_DCCP is not set
-
-#
-# SCTP Configuration (EXPERIMENTAL)
-#
 # CONFIG_IP_SCTP is not set
-
-#
-# TIPC Configuration (EXPERIMENTAL)
-#
 # CONFIG_TIPC is not set
 # CONFIG_ATM is not set
 # CONFIG_BRIDGE is not set
@@ -418,10 +410,6 @@ CONFIG_BLK_DEV_RAM_BLOCKSIZE=1024
 # Misc devices
 #
 # CONFIG_BLINK is not set
-
-#
-# ATA/ATAPI/MFM/RLL support
-#
 # CONFIG_IDE is not set
 
 #
@@ -467,11 +455,6 @@ CONFIG_SCSI_WAIT_SCAN=m
 #
 # CONFIG_ISCSI_TCP is not set
 # CONFIG_SCSI_DEBUG is not set
-# CONFIG_SCSI_ESP_CORE is not set
-
-#
-# Serial ATA (prod) and Parallel ATA (experimental) drivers
-#
 # CONFIG_ATA is not set
 
 #
@@ -490,27 +473,12 @@ CONFIG_NETDEVICES=y
 # CONFIG_TUN is not set
 
 #
-# PHY device support
-#
-
-#
 # Ethernet (10 or 100Mbit)
 #
 # CONFIG_NET_ETHERNET is not set
 CONFIG_MII=m
-
-#
-# Ethernet (1000 Mbit)
-#
-
-#
-# Ethernet (10000 Mbit)
-#
-CONFIG_MLX4_DEBUG=y
-
-#
-# Token Ring devices
-#
+CONFIG_NETDEV_1000=y
+CONFIG_NETDEV_10000=y
 
 #
 # Wireless LAN
@@ -536,10 +504,6 @@ CONFIG_USB_NET_MCS7830=m
 # CONFIG_USB_NET_RNDIS_HOST is not set
 # CONFIG_USB_NET_CDC_SUBSET is not set
 # CONFIG_USB_NET_ZAURUS is not set
-
-#
-# Wan interfaces
-#
 # CONFIG_WAN is not set
 # CONFIG_PPP is not set
 # CONFIG_SLIP is not set
@@ -563,6 +527,7 @@ CONFIG_USB_NET_MCS7830=m
 #
 CONFIG_INPUT=y
 # CONFIG_INPUT_FF_MEMLESS is not set
+# CONFIG_INPUT_POLLDEV is not set
 
 #
 # Userland interfaces
@@ -652,12 +617,8 @@ CONFIG_GEN_RTC=y
 # Multimedia devices
 #
 # CONFIG_VIDEO_DEV is not set
-
-#
-# Digital Video Broadcasting Devices
-#
-# CONFIG_DVB is not set
-# CONFIG_USB_DABUSB is not set
+# CONFIG_DVB_CORE is not set
+# CONFIG_DAB is not set
 
 #
 # Graphics support
@@ -672,13 +633,13 @@ CONFIG_GEN_RTC=y
 CONFIG_FB=y
 # CONFIG_FIRMWARE_EDID is not set
 # CONFIG_FB_DDC is not set
-CONFIG_FB_CFB_FILLRECT=y
-CONFIG_FB_CFB_COPYAREA=y
-CONFIG_FB_CFB_IMAGEBLIT=y
-# CONFIG_FB_SYS_FILLRECT is not set
-# CONFIG_FB_SYS_COPYAREA is not set
-# CONFIG_FB_SYS_IMAGEBLIT is not set
-# CONFIG_FB_SYS_FOPS is not set
+# CONFIG_FB_CFB_FILLRECT is not set
+# CONFIG_FB_CFB_COPYAREA is not set
+# CONFIG_FB_CFB_IMAGEBLIT is not set
+CONFIG_FB_SYS_FILLRECT=y
+CONFIG_FB_SYS_COPYAREA=y
+CONFIG_FB_SYS_IMAGEBLIT=y
+CONFIG_FB_SYS_FOPS=y
 CONFIG_FB_DEFERRED_IO=y
 # CONFIG_FB_SVGALIB is not set
 # CONFIG_FB_MACMODES is not set
@@ -751,9 +712,10 @@ CONFIG_SND_VERBOSE_PROCFS=y
 #
 # CONFIG_SND_USB_AUDIO is not set
 # CONFIG_SND_USB_USX2Y is not set
+# CONFIG_SND_USB_CAIAQ is not set
 
 #
-# SoC audio support
+# System on Chip audio support
 #
 # CONFIG_SND_SOC is not set
 
@@ -1098,7 +1060,6 @@ CONFIG_NLS_ISO8859_1=y
 #
 # CONFIG_DLM is not set
 # CONFIG_UCC_SLOW is not set
-# CONFIG_UCC_FAST is not set
 
 #
 # Library routines

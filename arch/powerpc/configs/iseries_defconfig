@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.22-rc1
-# Mon May 14 14:27:46 2007
+# Linux kernel version: 2.6.22-rc6
+# Tue Jun 26 13:22:39 2007
 #
 CONFIG_PPC64=y
 CONFIG_64BIT=y
@@ -281,10 +281,6 @@ CONFIG_INET_TCP_DIAG=y
 CONFIG_TCP_CONG_CUBIC=y
 CONFIG_DEFAULT_TCP_CONG="cubic"
 # CONFIG_TCP_MD5SIG is not set
-
-#
-# IP: Virtual Server Configuration
-#
 # CONFIG_IP_VS is not set
 # CONFIG_IPV6 is not set
 # CONFIG_INET6_XFRM_TUNNEL is not set
@@ -387,25 +383,13 @@ CONFIG_IP_NF_RAW=m
 CONFIG_IP_NF_ARPTABLES=m
 CONFIG_IP_NF_ARPFILTER=m
 CONFIG_IP_NF_ARP_MANGLE=m
-
-#
-# DCCP Configuration (EXPERIMENTAL)
-#
 # CONFIG_IP_DCCP is not set
-
-#
-# SCTP Configuration (EXPERIMENTAL)
-#
 CONFIG_IP_SCTP=m
 # CONFIG_SCTP_DBG_MSG is not set
 # CONFIG_SCTP_DBG_OBJCNT is not set
 # CONFIG_SCTP_HMAC_NONE is not set
 # CONFIG_SCTP_HMAC_SHA1 is not set
 CONFIG_SCTP_HMAC_MD5=y
-
-#
-# TIPC Configuration (EXPERIMENTAL)
-#
 # CONFIG_TIPC is not set
 # CONFIG_ATM is not set
 # CONFIG_BRIDGE is not set
@@ -501,10 +485,6 @@ CONFIG_BLK_DEV_RAM_BLOCKSIZE=1024
 # CONFIG_SGI_IOC4 is not set
 # CONFIG_TIFM_CORE is not set
 # CONFIG_BLINK is not set
-
-#
-# ATA/ATAPI/MFM/RLL support
-#
 # CONFIG_IDE is not set
 
 #
@@ -581,7 +561,6 @@ CONFIG_SCSI_IBMVSCSI=m
 # CONFIG_SCSI_DC395x is not set
 # CONFIG_SCSI_DC390T is not set
 # CONFIG_SCSI_DEBUG is not set
-# CONFIG_SCSI_ESP_CORE is not set
 # CONFIG_SCSI_SRP is not set
 # CONFIG_ATA is not set
 
@@ -634,10 +613,6 @@ CONFIG_DUMMY=m
 CONFIG_BONDING=m
 # CONFIG_EQUALIZER is not set
 CONFIG_TUN=m
-
-#
-# ARCnet devices
-#
 # CONFIG_ARCNET is not set
 # CONFIG_PHYLIB is not set
 
@@ -705,11 +680,6 @@ CONFIG_NETDEV_10000=y
 # CONFIG_NETXEN_NIC is not set
 # CONFIG_PASEMI_MAC is not set
 # CONFIG_MLX4_CORE is not set
-CONFIG_MLX4_DEBUG=y
-
-#
-# Token Ring devices
-#
 CONFIG_TR=y
 CONFIG_IBMOL=y
 # CONFIG_3C359 is not set
@@ -757,6 +727,7 @@ CONFIG_NET_POLL_CONTROLLER=y
 #
 CONFIG_INPUT=y
 # CONFIG_INPUT_FF_MEMLESS is not set
+# CONFIG_INPUT_POLLDEV is not set
 
 #
 # Userland interfaces
@@ -1139,7 +1110,6 @@ CONFIG_NLS_ISO8859_1=y
 CONFIG_DLM=m
 # CONFIG_DLM_DEBUG is not set
 # CONFIG_UCC_SLOW is not set
-# CONFIG_UCC_FAST is not set
 
 #
 # Library routines
