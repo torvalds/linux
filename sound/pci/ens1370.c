@@ -1607,8 +1607,8 @@ struct es1371_quirk {
 	unsigned char rev;		/* revision */
 };
 
-static int __devinit es1371_quirk_lookup(struct ensoniq *ensoniq,
-					 struct es1371_quirk *list)
+static int es1371_quirk_lookup(struct ensoniq *ensoniq,
+				struct es1371_quirk *list)
 {
 	while (list->vid != (unsigned short)PCI_ANY_ID) {
 		if (ensoniq->pci->vendor == list->vid &&
