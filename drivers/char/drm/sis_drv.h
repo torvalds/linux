@@ -33,11 +33,11 @@
 
 #define DRIVER_AUTHOR		"SIS, Tungsten Graphics"
 #define DRIVER_NAME		"sis"
-#define DRIVER_DESC		"SIS 300/630/540"
-#define DRIVER_DATE		"20060704"
+#define DRIVER_DESC		"SIS 300/630/540 and XGI V3XE/V5/V8"
+#define DRIVER_DATE		"20070626"
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		2
-#define DRIVER_PATCHLEVEL	1
+#define DRIVER_MINOR		3
+#define DRIVER_PATCHLEVEL	0
 
 enum sis_family {
 	SIS_OTHER = 0,
