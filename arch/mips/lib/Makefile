@@ -9,4 +9,4 @@ obj-y			+= iomap.o
 obj-$(CONFIG_PCI)	+= iomap-pci.o
 
 # libgcc-style stuff needed in the kernel
-lib-y += ashldi3.o ashrdi3.o lshrdi3.o ucmpdi2.o
+obj-y += ashldi3.o ashrdi3.o lshrdi3.o ucmpdi2.o
