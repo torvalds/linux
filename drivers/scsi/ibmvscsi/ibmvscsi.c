@@ -75,6 +75,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
+#include <scsi/scsi_transport_srp.h>
 #include "ibmvscsi.h"
 
 /* The values below are somewhat arbitrary default values, but 
@@ -86,6 +87,8 @@ static int max_id = 64;
 static int max_channel = 3;
 static int init_timeout = 5;
 static int max_requests = IBMVSCSI_MAX_REQUESTS_DEFAULT;
+
+static struct scsi_transport_template *ibmvscsi_transport_template;
 
 #define IBMVSCSI_VERSION "1.5.8"
 
@@ -1553,6 +1556,8 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	struct ibmvscsi_host_data *hostdata;
 	struct Scsi_Host *host;
 	struct device *dev = &vdev->dev;
+	struct srp_rport_identifiers ids;
+	struct srp_rport *rport;
 	unsigned long wait_switch = 0;
 	int rc;
 
@@ -1565,6 +1570,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 		goto scsi_host_alloc_failed;
 	}
 
+	host->transportt = ibmvscsi_transport_template;
 	hostdata = shost_priv(host);
 	memset(hostdata, 0x00, sizeof(*hostdata));
 	INIT_LIST_HEAD(&hostdata->sent);
@@ -1589,6 +1595,13 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	if (scsi_add_host(hostdata->host, hostdata->dev))
 		goto add_host_failed;
+
+	/* we don't have a proper target_port_id so let's use the fake one */
+	memcpy(ids.port_id, hostdata->madapter_info.partition_name,
+	       sizeof(ids.port_id));
+	rport = srp_rport_add(host, &ids);
+	if (IS_ERR(rport))
+		goto add_srp_port_failed;
 
 	/* Try to send an initialization message.  Note that this is allowed
 	 * to fail if the other end is not acive.  In that case we don't
@@ -1617,6 +1630,8 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	vdev->dev.driver_data = hostdata;
 	return 0;
 
+      add_srp_port_failed:
+	scsi_remove_host(hostdata->host);
       add_host_failed:
 	release_event_pool(&hostdata->pool, hostdata);
       init_pool_failed:
@@ -1633,7 +1648,8 @@ static int ibmvscsi_remove(struct vio_dev *vdev)
 	release_event_pool(&hostdata->pool, hostdata);
 	ibmvscsi_release_crq_queue(&hostdata->queue, hostdata,
 				   max_requests);
-	
+
+	srp_remove_host(hostdata->host);
 	scsi_remove_host(hostdata->host);
 	scsi_host_put(hostdata->host);
 
@@ -1660,14 +1676,28 @@ static struct vio_driver ibmvscsi_driver = {
 	}
 };
 
+static struct srp_function_template ibmvscsi_transport_functions = {
+};
+
 int __init ibmvscsi_module_init(void)
 {
-	return vio_register_driver(&ibmvscsi_driver);
+	int ret;
+
+	ibmvscsi_transport_template =
+		srp_attach_transport(&ibmvscsi_transport_functions);
+	if (!ibmvscsi_transport_template)
+		return -ENOMEM;
+
+	ret = vio_register_driver(&ibmvscsi_driver);
+	if (ret)
+		srp_release_transport(ibmvscsi_transport_template);
+	return ret;
 }
 
 void __exit ibmvscsi_module_exit(void)
 {
 	vio_unregister_driver(&ibmvscsi_driver);
+	srp_release_transport(ibmvscsi_transport_template);
 }
 
 module_init(ibmvscsi_module_init);
