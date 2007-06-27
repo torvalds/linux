@@ -36,6 +36,62 @@
 #define DBG(fmt...)
 #endif
 
+static DEFINE_SPINLOCK(hose_spinlock);
+
+/* XXX kill that some day ... */
+int global_phb_number;		/* Global phb counter */
+
+extern struct list_head hose_list;
+
+/*
+ * pci_controller(phb) initialized common variables.
+ */
+static void __devinit pci_setup_pci_controller(struct pci_controller *hose)
+{
+	memset(hose, 0, sizeof(struct pci_controller));
+
+	spin_lock(&hose_spinlock);
+	hose->global_number = global_phb_number++;
+	list_add_tail(&hose->list_node, &hose_list);
+	spin_unlock(&hose_spinlock);
+}
+
+struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
+{
+	struct pci_controller *phb;
+
+	if (mem_init_done)
+		phb = kmalloc(sizeof(struct pci_controller), GFP_KERNEL);
+	else
+		phb = alloc_bootmem(sizeof (struct pci_controller));
+	if (phb == NULL)
+		return NULL;
+	pci_setup_pci_controller(phb);
+	phb->arch_data = dev;
+	phb->is_dynamic = mem_init_done;
+#ifdef CONFIG_PPC64
+	if (dev) {
+		int nid = of_node_to_nid(dev);
+
+		if (nid < 0 || !node_online(nid))
+			nid = -1;
+
+		PHB_SET_NODE(phb, nid);
+	}
+#endif
+	return phb;
+}
+
+void pcibios_free_controller(struct pci_controller *phb)
+{
+	spin_lock(&hose_spinlock);
+	list_del(&phb->list_node);
+	spin_unlock(&hose_spinlock);
+
+	if (phb->is_dynamic)
+		kfree(phb);
+}
+
 /*
  * Return the domain number for this bus.
  */
@@ -53,6 +109,28 @@ int pci_domain_nr(struct pci_bus *bus)
 EXPORT_SYMBOL(pci_domain_nr);
 
 #ifdef CONFIG_PPC_OF
+
+/* This routine is meant to be used early during boot, when the
+ * PCI bus numbers have not yet been assigned, and you need to
+ * issue PCI config cycles to an OF device.
+ * It could also be used to "fix" RTAS config cycles if you want
+ * to set pci_assign_all_buses to 1 and still use RTAS for PCI
+ * config cycles.
+ */
+struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
+{
+	if (!have_of)
+		return NULL;
+	while(node) {
+		struct pci_controller *hose, *tmp;
+		list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
+			if (hose->arch_data == node)
+				return hose;
+		node = node->parent;
+	}
+	return NULL;
+}
+
 static ssize_t pci_show_devspec(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {

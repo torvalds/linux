@@ -55,8 +55,7 @@ static u8* pci_to_OF_bus_map;
  */
 int pci_assign_all_buses;
 
-struct pci_controller* hose_head;
-struct pci_controller** hose_tail = &hose_head;
+LIST_HEAD(hose_list);
 
 static int pci_bus_count;
 
@@ -607,25 +606,6 @@ pcibios_enable_resources(struct pci_dev *dev, int mask)
 	return 0;
 }
 
-static int next_controller_index;
-
-struct pci_controller * __init
-pcibios_alloc_controller(struct device_node *dev)
-{
-	struct pci_controller *hose;
-
-	hose = (struct pci_controller *)alloc_bootmem(sizeof(*hose));
-	memset(hose, 0, sizeof(struct pci_controller));
-
-	*hose_tail = hose;
-	hose_tail = &hose->next;
-
-	hose->global_number = next_controller_index++;
-	hose->arch_data = dev;
-
-	return hose;
-}
-
 #ifdef CONFIG_PPC_OF
 /*
  * Functions below are used on OpenFirmware machines.
@@ -671,7 +651,7 @@ void
 pcibios_make_OF_bus_map(void)
 {
 	int i;
-	struct pci_controller* hose;
+	struct pci_controller *hose, *tmp;
 	struct property *map_prop;
 	struct device_node *dn;
 
@@ -688,7 +668,7 @@ pcibios_make_OF_bus_map(void)
 		pci_to_OF_bus_map[i] = 0xff;
 
 	/* For each hose, we begin searching bridges */
-	for(hose=hose_head; hose; hose=hose->next) {
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
 		struct device_node* node;	
 		node = (struct device_node *)hose->arch_data;
 		if (!node)
@@ -818,27 +798,6 @@ pci_device_to_OF_node(struct pci_dev *dev)
 	return pci_busdev_to_OF_node(dev->bus, dev->devfn);
 }
 EXPORT_SYMBOL(pci_device_to_OF_node);
-
-/* This routine is meant to be used early during boot, when the
- * PCI bus numbers have not yet been assigned, and you need to
- * issue PCI config cycles to an OF device.
- * It could also be used to "fix" RTAS config cycles if you want
- * to set pci_assign_all_buses to 1 and still use RTAS for PCI
- * config cycles.
- */
-struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
-{
-	if (!have_of)
-		return NULL;
-	while(node) {
-		struct pci_controller* hose;
-		for (hose=hose_head;hose;hose=hose->next)
-			if (hose->arch_data == node)
-				return hose;
-		node=node->parent;
-	}
-	return NULL;
-}
 
 static int
 find_OF_pci_device_filter(struct device_node* node, void* data)
@@ -1248,14 +1207,14 @@ pcibios_fixup_p2p_bridges(void)
 static int __init
 pcibios_init(void)
 {
-	struct pci_controller *hose;
+	struct pci_controller *hose, *tmp;
 	struct pci_bus *bus;
-	int next_busno;
+	int next_busno = 0;
 
 	printk(KERN_INFO "PCI: Probing PCI hardware\n");
 
 	/* Scan all of the recorded PCI controllers.  */
-	for (next_busno = 0, hose = hose_head; hose; hose = hose->next) {
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
 		if (pci_assign_all_buses)
 			hose->first_busno = next_busno;
 		hose->last_busno = 0xff;
@@ -1410,9 +1369,9 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 static struct pci_controller*
 pci_bus_to_hose(int bus)
 {
-	struct pci_controller* hose = hose_head;
+	struct pci_controller *hose, *tmp;
 
-	for (; hose; hose = hose->next)
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
 		if (bus >= hose->first_busno && bus <= hose->last_busno)
 			return hose;
 	return NULL;
@@ -1462,9 +1421,9 @@ long sys_pciconfig_iobase(long which, unsigned long bus, unsigned long devfn)
 
 unsigned long pci_address_to_pio(phys_addr_t address)
 {
-	struct pci_controller* hose = hose_head;
+	struct pci_controller *hose, *tmp;
 
-	for (; hose; hose = hose->next) {
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
 		unsigned int size = hose->io_resource.end -
 			hose->io_resource.start + 1;
 		if (address >= hose->io_base_phys &&

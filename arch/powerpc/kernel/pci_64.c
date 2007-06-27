@@ -59,9 +59,6 @@ LIST_HEAD(hose_list);
 
 static struct dma_mapping_ops *pci_dma_ops;
 
-/* XXX kill that some day ... */
-int global_phb_number;		/* Global phb counter */
-
 void set_pci_dma_ops(struct dma_mapping_ops *dma_ops)
 {
 	pci_dma_ops = dma_ops;
@@ -170,55 +167,6 @@ void pcibios_align_resource(void *data, struct resource *res,
 	}
 
 	res->start = start;
-}
-
-static DEFINE_SPINLOCK(hose_spinlock);
-
-/*
- * pci_controller(phb) initialized common variables.
- */
-static void __devinit pci_setup_pci_controller(struct pci_controller *hose)
-{
-	memset(hose, 0, sizeof(struct pci_controller));
-
-	spin_lock(&hose_spinlock);
-	hose->global_number = global_phb_number++;
-	list_add_tail(&hose->list_node, &hose_list);
-	spin_unlock(&hose_spinlock);
-}
-
-struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
-{
-	struct pci_controller *phb;
-
-	if (mem_init_done)
-		phb = kmalloc(sizeof(struct pci_controller), GFP_KERNEL);
-	else
-		phb = alloc_bootmem(sizeof (struct pci_controller));
-	if (phb == NULL)
-		return NULL;
-	pci_setup_pci_controller(phb);
-	phb->arch_data = dev;
-	phb->is_dynamic = mem_init_done;
-	if (dev) {
-		int nid = of_node_to_nid(dev);
-
-		if (nid < 0 || !node_online(nid))
-			nid = -1;
-
-		PHB_SET_NODE(phb, nid);
-	}
-	return phb;
-}
-
-void pcibios_free_controller(struct pci_controller *phb)
-{
-	spin_lock(&hose_spinlock);
-	list_del(&phb->list_node);
-	spin_unlock(&hose_spinlock);
-
-	if (phb->is_dynamic)
-		kfree(phb);
 }
 
 void __devinit pcibios_claim_one_bus(struct pci_bus *b)
@@ -956,20 +904,6 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 			pcibios_fixup_device_resources(dev, bus);
 }
 EXPORT_SYMBOL(pcibios_fixup_bus);
-
-struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
-{
-	if (!have_of)
-		return NULL;
-	while(node) {
-		struct pci_controller *hose, *tmp;
-		list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
-			if (hose->arch_data == node)
-				return hose;
-		node = node->parent;
-	}
-	return NULL;
-}
 
 unsigned long pci_address_to_pio(phys_addr_t address)
 {

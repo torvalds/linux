@@ -2,9 +2,11 @@
 #define _ASM_POWERPC_PCI_BRIDGE_H
 #ifdef __KERNEL__
 
-#ifndef CONFIG_PPC64
-#include <linux/ioport.h>
 #include <linux/pci.h>
+#include <linux/list.h>
+#include <linux/ioport.h>
+
+#ifndef CONFIG_PPC64
 
 struct device_node;
 struct pci_controller;
@@ -14,8 +16,9 @@ struct pci_controller;
  */
 struct pci_controller {
 	struct pci_bus *bus;
+	char is_dynamic;
 	void *arch_data;
-	struct pci_controller *next;
+	struct list_head list_node;
 	struct device *parent;
 
 	int first_busno;
@@ -84,8 +87,6 @@ extern void setup_grackle(struct pci_controller *hose);
 
 #else
 
-#include <linux/pci.h>
-#include <linux/list.h>
 
 /*
  * This program is free software; you can redistribute it and/or
