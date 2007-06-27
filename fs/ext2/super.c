@@ -1043,6 +1043,7 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 
 	if ((ext2_use_xip(sb)) && (sb->s_blocksize != PAGE_SIZE)) {
 		printk("XIP: Unsupported blocksize\n");
+		err = -EINVAL;
 		goto restore_opts;
 	}
 
