@@ -191,11 +191,7 @@ static ssize_t w1_therm_read_bin(struct kobject *kobj, char *buf, loff_t off, si
 
 			w1_write_8(dev, W1_CONVERT_TEMP);
 
-			while (tm) {
-				tm = msleep_interruptible(tm);
-				if (signal_pending(current))
-					flush_signals(current);
-			}
+			msleep(tm);
 
 			if (!w1_reset_select_slave(sl)) {
 
