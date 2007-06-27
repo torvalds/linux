@@ -422,6 +422,8 @@ static int ecryptfs_prepare_write(struct file *file, struct page *page,
 				goto out;
 			}
 		}
+		if (end_of_prev_pg_pos + 1 > i_size_read(page->mapping->host))
+			zero_user_page(page, 0, PAGE_CACHE_SIZE, KM_USER0);
 	}
 out:
 	return rc;
