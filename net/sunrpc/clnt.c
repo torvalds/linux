@@ -787,7 +787,7 @@ call_reserveresult(struct rpc_task *task)
 static void
 call_allocate(struct rpc_task *task)
 {
-	unsigned int slack = task->tk_auth->au_cslack;
+	unsigned int slack = task->tk_msg.rpc_cred->cr_auth->au_cslack;
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = task->tk_xprt;
 	struct rpc_procinfo *proc = task->tk_msg.rpc_proc;

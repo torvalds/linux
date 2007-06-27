@@ -1071,7 +1071,7 @@ static int encode_read(struct xdr_stream *xdr, const struct nfs_readargs *args)
 
 static int encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg *readdir, struct rpc_rqst *req)
 {
-	struct rpc_auth *auth = req->rq_task->tk_auth;
+	struct rpc_auth *auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
 	uint32_t attrs[2] = {
 		FATTR4_WORD0_RDATTR_ERROR|FATTR4_WORD0_FILEID,
 		FATTR4_WORD1_MOUNTED_ON_FILEID,
@@ -1117,7 +1117,7 @@ static int encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg 
 
 static int encode_readlink(struct xdr_stream *xdr, const struct nfs4_readlink *readlink, struct rpc_rqst *req)
 {
-	struct rpc_auth *auth = req->rq_task->tk_auth;
+	struct rpc_auth *auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
 	unsigned int replen;
 	__be32 *p;
 
@@ -1735,7 +1735,7 @@ out:
  */
 static int nfs4_xdr_enc_read(struct rpc_rqst *req, __be32 *p, struct nfs_readargs *args)
 {
-	struct rpc_auth	*auth = req->rq_task->tk_auth;
+	struct rpc_auth *auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
 		.nops = 2,
@@ -1795,7 +1795,7 @@ nfs4_xdr_enc_getacl(struct rpc_rqst *req, __be32 *p,
 		struct nfs_getaclargs *args)
 {
 	struct xdr_stream xdr;
-	struct rpc_auth *auth = req->rq_task->tk_auth;
+	struct rpc_auth *auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
 	struct compound_hdr hdr = {
 		.nops   = 2,
 	};
@@ -2030,7 +2030,7 @@ static int nfs4_xdr_enc_fs_locations(struct rpc_rqst *req, __be32 *p, struct nfs
 	struct compound_hdr hdr = {
 		.nops = 3,
 	};
-	struct rpc_auth *auth = req->rq_task->tk_auth;
+	struct rpc_auth *auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
 	int replen;
 	int status;
 

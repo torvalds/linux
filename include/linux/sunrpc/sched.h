@@ -98,7 +98,6 @@ struct rpc_task {
 	unsigned short		tk_pid;		/* debugging aid */
 #endif
 };
-#define tk_auth			tk_client->cl_auth
 #define tk_xprt			tk_client->cl_xprt
 
 /* support walking a list of tasks on a wait queue */

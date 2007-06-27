@@ -204,7 +204,7 @@ unx_validate(struct rpc_task *task, __be32 *p)
 		printk("RPC: giant verf size: %u\n", size);
 		return NULL;
 	}
-	task->tk_auth->au_rslack = (size >> 2) + 2;
+	task->tk_msg.rpc_cred->cr_auth->au_rslack = (size >> 2) + 2;
 	p += (size >> 2);
 
 	return p;

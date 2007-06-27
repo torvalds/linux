@@ -906,7 +906,7 @@ gss_validate(struct rpc_task *task, __be32 *p)
 		goto out_bad;
 	/* We leave it to unwrap to calculate au_rslack. For now we just
 	 * calculate the length of the verifier: */
-	task->tk_auth->au_verfsize = XDR_QUADLEN(len) + 2;
+	cred->cr_auth->au_verfsize = XDR_QUADLEN(len) + 2;
 	gss_put_ctx(ctx);
 	dprintk("RPC: %5u gss_validate: gss_verify_mic succeeded.\n",
 			task->tk_pid);
@@ -1206,7 +1206,7 @@ gss_unwrap_resp(struct rpc_task *task,
 			break;
 	}
 	/* take into account extra slack for integrity and privacy cases: */
-	task->tk_auth->au_rslack = task->tk_auth->au_verfsize + (p - savedp)
+	cred->cr_auth->au_rslack = cred->cr_auth->au_verfsize + (p - savedp)
 						+ (savedlen - head->iov_len);
 out_decode:
 	status = decode(rqstp, p, obj);
