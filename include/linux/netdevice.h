@@ -189,15 +189,12 @@ struct dev_addr_list
 /*
  *	We tag multicasts with these structures.
  */
- 
-struct dev_mc_list
-{	
-	struct dev_mc_list	*next;
-	__u8			dmi_addr[MAX_ADDR_LEN];
-	unsigned char		dmi_addrlen;
-	int			dmi_users;
-	int			dmi_gusers;
-};
+
+#define dev_mc_list	dev_addr_list
+#define dmi_addr	da_addr
+#define dmi_addrlen	da_addrlen
+#define dmi_users	da_users
+#define dmi_gusers	da_gusers
 
 struct hh_cache
 {
@@ -400,7 +397,7 @@ struct net_device
 	unsigned char		addr_len;	/* hardware address length	*/
 	unsigned short          dev_id;		/* for shared network cards */
 
-	struct dev_mc_list	*mc_list;	/* Multicast mac addresses	*/
+	struct dev_addr_list	*mc_list;	/* Multicast mac addresses	*/
 	int			mc_count;	/* Number of installed mcasts	*/
 	int			promiscuity;
 	int			allmulti;

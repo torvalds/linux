@@ -102,47 +102,20 @@ void dev_mc_upload(struct net_device *dev)
 
 int dev_mc_delete(struct net_device *dev, void *addr, int alen, int glbl)
 {
-	int err = 0;
-	struct dev_mc_list *dmi, **dmip;
+	int err;
 
 	netif_tx_lock_bh(dev);
+	err = __dev_addr_delete(&dev->mc_list, addr, alen, glbl);
+	if (!err) {
+		dev->mc_count--;
 
-	for (dmip = &dev->mc_list; (dmi = *dmip) != NULL; dmip = &dmi->next) {
 		/*
-		 *	Find the entry we want to delete. The device could
-		 *	have variable length entries so check these too.
+		 *	We have altered the list, so the card
+		 *	loaded filter is now wrong. Fix it
 		 */
-		if (memcmp(dmi->dmi_addr, addr, dmi->dmi_addrlen) == 0 &&
-		    alen == dmi->dmi_addrlen) {
-			if (glbl) {
-				int old_glbl = dmi->dmi_gusers;
-				dmi->dmi_gusers = 0;
-				if (old_glbl == 0)
-					break;
-			}
-			if (--dmi->dmi_users)
-				goto done;
 
-			/*
-			 *	Last user. So delete the entry.
-			 */
-			*dmip = dmi->next;
-			dev->mc_count--;
-
-			kfree(dmi);
-
-			/*
-			 *	We have altered the list, so the card
-			 *	loaded filter is now wrong. Fix it
-			 */
-			__dev_mc_upload(dev);
-
-			netif_tx_unlock_bh(dev);
-			return 0;
-		}
+		__dev_mc_upload(dev);
 	}
-	err = -ENOENT;
-done:
 	netif_tx_unlock_bh(dev);
 	return err;
 }
@@ -153,46 +126,15 @@ done:
 
 int dev_mc_add(struct net_device *dev, void *addr, int alen, int glbl)
 {
-	int err = 0;
-	struct dev_mc_list *dmi, *dmi1;
-
-	dmi1 = kmalloc(sizeof(*dmi), GFP_ATOMIC);
+	int err;
 
 	netif_tx_lock_bh(dev);
-	for (dmi = dev->mc_list; dmi != NULL; dmi = dmi->next) {
-		if (memcmp(dmi->dmi_addr, addr, dmi->dmi_addrlen) == 0 &&
-		    dmi->dmi_addrlen == alen) {
-			if (glbl) {
-				int old_glbl = dmi->dmi_gusers;
-				dmi->dmi_gusers = 1;
-				if (old_glbl)
-					goto done;
-			}
-			dmi->dmi_users++;
-			goto done;
-		}
+	err = __dev_addr_add(&dev->mc_list, addr, alen, glbl);
+	if (!err) {
+		dev->mc_count++;
+		__dev_mc_upload(dev);
 	}
-
-	if ((dmi = dmi1) == NULL) {
-		netif_tx_unlock_bh(dev);
-		return -ENOMEM;
-	}
-	memcpy(dmi->dmi_addr, addr, alen);
-	dmi->dmi_addrlen = alen;
-	dmi->next = dev->mc_list;
-	dmi->dmi_users = 1;
-	dmi->dmi_gusers = glbl ? 1 : 0;
-	dev->mc_list = dmi;
-	dev->mc_count++;
-
-	__dev_mc_upload(dev);
-
 	netif_tx_unlock_bh(dev);
-	return 0;
-
-done:
-	netif_tx_unlock_bh(dev);
-	kfree(dmi1);
 	return err;
 }
 
@@ -203,16 +145,8 @@ done:
 void dev_mc_discard(struct net_device *dev)
 {
 	netif_tx_lock_bh(dev);
-
-	while (dev->mc_list != NULL) {
-		struct dev_mc_list *tmp = dev->mc_list;
-		dev->mc_list = tmp->next;
-		if (tmp->dmi_users > tmp->dmi_gusers)
-			printk("dev_mc_discard: multicast leakage! dmi_users=%d\n", tmp->dmi_users);
-		kfree(tmp);
-	}
+	__dev_addr_discard(&dev->mc_list);
 	dev->mc_count = 0;
-
 	netif_tx_unlock_bh(dev);
 }
 
@@ -244,7 +178,7 @@ static void dev_mc_seq_stop(struct seq_file *seq, void *v)
 
 static int dev_mc_seq_show(struct seq_file *seq, void *v)
 {
-	struct dev_mc_list *m;
+	struct dev_addr_list *m;
 	struct net_device *dev = v;
 
 	netif_tx_lock_bh(dev);
