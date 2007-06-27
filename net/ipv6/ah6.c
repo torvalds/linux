@@ -132,6 +132,8 @@ static void ipv6_rearrange_destopt(struct ipv6hdr *iph, struct ipv6_opt_hdr *des
 bad:
 	return;
 }
+#else
+static void ipv6_rearrange_destopt(struct ipv6hdr *iph, struct ipv6_opt_hdr *destopt) {}
 #endif
 
 /**
@@ -189,10 +191,8 @@ static int ipv6_clear_mutable_options(struct ipv6hdr *iph, int len, int dir)
 	while (exthdr.raw < end) {
 		switch (nexthdr) {
 		case NEXTHDR_DEST:
-#ifdef CONFIG_IPV6_MIP6
 			if (dir == XFRM_POLICY_OUT)
 				ipv6_rearrange_destopt(iph, exthdr.opth);
-#endif
 		case NEXTHDR_HOP:
 			if (!zero_out_mutable_opts(exthdr.opth)) {
 				LIMIT_NETDEBUG(
