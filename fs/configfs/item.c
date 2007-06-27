@@ -62,7 +62,6 @@ void config_item_init(struct config_item * item)
  *	dynamically allocated string that @item->ci_name points to.
  *	Otherwise, use the static @item->ci_namebuf array.
  */
-
 int config_item_set_name(struct config_item * item, const char * fmt, ...)
 {
 	int error = 0;
@@ -139,12 +138,7 @@ struct config_item * config_item_get(struct config_item * item)
 	return item;
 }
 
-/**
- *	config_item_cleanup - free config_item resources.
- *	@item:	item.
- */
-
-void config_item_cleanup(struct config_item * item)
+static void config_item_cleanup(struct config_item * item)
 {
 	struct config_item_type * t = item->ci_type;
 	struct config_group * s = item->ci_group;
@@ -179,12 +173,10 @@ void config_item_put(struct config_item * item)
 		kref_put(&item->ci_kref, config_item_release);
 }
 
-
 /**
  *	config_group_init - initialize a group for use
  *	@k:	group
  */
-
 void config_group_init(struct config_group *group)
 {
 	config_item_init(&group->cg_item);
@@ -201,8 +193,8 @@ void config_group_init(struct config_group *group)
  *	looking for a matching config_item. If matching item is found
  *	take a reference and return the item.
  */
-
-struct config_item * config_group_find_obj(struct config_group * group, const char * name)
+struct config_item *config_group_find_obj(struct config_group *group,
+					  const char * name)
 {
 	struct list_head * entry;
 	struct config_item * ret = NULL;
@@ -218,7 +210,6 @@ struct config_item * config_group_find_obj(struct config_group * group, const ch
 	}
 	return ret;
 }
-
 
 EXPORT_SYMBOL(config_item_init);
 EXPORT_SYMBOL(config_group_init);
