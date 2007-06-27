@@ -11944,12 +11944,11 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	 * checksumming.
 	 */
 	if ((tp->tg3_flags & TG3_FLAG_BROKEN_CHECKSUMS) == 0) {
+		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
 		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
-			dev->features |= NETIF_F_HW_CSUM;
-		else
-			dev->features |= NETIF_F_IP_CSUM;
-		dev->features |= NETIF_F_SG;
+			dev->features |= NETIF_F_IPV6_CSUM;
+
 		tp->tg3_flags |= TG3_FLAG_RX_CHECKSUMS;
 	} else
 		tp->tg3_flags &= ~TG3_FLAG_RX_CHECKSUMS;

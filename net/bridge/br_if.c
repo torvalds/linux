@@ -368,10 +368,18 @@ void br_features_recompute(struct net_bridge *br)
 	list_for_each_entry(p, &br->port_list, list) {
 		unsigned long feature = p->dev->features;
 
+		/* if device needs checksumming, downgrade to hw checksumming */
 		if (checksum & NETIF_F_NO_CSUM && !(feature & NETIF_F_NO_CSUM))
 			checksum ^= NETIF_F_NO_CSUM | NETIF_F_HW_CSUM;
+
+		/* if device can't do all checksum, downgrade to ipv4/ipv6 */
 		if (checksum & NETIF_F_HW_CSUM && !(feature & NETIF_F_HW_CSUM))
-			checksum ^= NETIF_F_HW_CSUM | NETIF_F_IP_CSUM;
+			checksum ^= NETIF_F_HW_CSUM
+				| NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+
+		if (checksum & NETIF_F_IPV6_CSUM && !(feature & NETIF_F_IPV6_CSUM))
+			checksum &= ~NETIF_F_IPV6_CSUM;
+
 		if (!(feature & NETIF_F_IP_CSUM))
 			checksum = 0;
 

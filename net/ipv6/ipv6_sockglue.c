@@ -123,7 +123,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb, int features)
 	struct ipv6hdr *ipv6h;
 	struct inet6_protocol *ops;
 
-	if (!(features & NETIF_F_HW_CSUM))
+	if (!(features & NETIF_F_V6_CSUM))
 		features &= ~NETIF_F_SG;
 
 	if (unlikely(skb_shinfo(skb)->gso_type &

@@ -6490,10 +6490,10 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	memcpy(dev->perm_addr, bp->mac_addr, 6);
 	bp->name = board_info[ent->driver_data].name;
 
+	dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
 	if (CHIP_NUM(bp) == CHIP_NUM_5709)
-		dev->features |= NETIF_F_HW_CSUM | NETIF_F_SG;
-	else
-		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
+		dev->features |= NETIF_F_IPV6_CSUM;
+
 #ifdef BCM_VLAN
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 #endif

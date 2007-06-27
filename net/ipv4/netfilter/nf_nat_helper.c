@@ -178,7 +178,7 @@ nf_nat_mangle_tcp_packet(struct sk_buff **pskb,
 	datalen = (*pskb)->len - iph->ihl*4;
 	if ((*pskb)->ip_summed != CHECKSUM_PARTIAL) {
 		if (!(rt->rt_flags & RTCF_LOCAL) &&
-		    (*pskb)->dev->features & NETIF_F_ALL_CSUM) {
+		    (*pskb)->dev->features & NETIF_F_V4_CSUM) {
 			(*pskb)->ip_summed = CHECKSUM_PARTIAL;
 			(*pskb)->csum_start = skb_headroom(*pskb) +
 					      skb_network_offset(*pskb) +
@@ -265,7 +265,7 @@ nf_nat_mangle_udp_packet(struct sk_buff **pskb,
 
 	if ((*pskb)->ip_summed != CHECKSUM_PARTIAL) {
 		if (!(rt->rt_flags & RTCF_LOCAL) &&
-		    (*pskb)->dev->features & NETIF_F_ALL_CSUM) {
+		    (*pskb)->dev->features & NETIF_F_V4_CSUM) {
 			(*pskb)->ip_summed = CHECKSUM_PARTIAL;
 			(*pskb)->csum_start = skb_headroom(*pskb) +
 					      skb_network_offset(*pskb) +
