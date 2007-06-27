@@ -223,11 +223,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	acpi_fake_ecdt	[HW,ACPI] Workaround failure due to BIOS lacking ECDT
 
-	acpi_generic_hotkey [HW,ACPI]
-			Allow consolidated generic hotkey driver to
-			override platform specific driver.
-			See also Documentation/acpi-hotkey.txt.
-
 	acpi_pm_good	[IA-32,X86-64]
 			Override the pmtimer bug detection: force the kernel
 			to assume that this machine's pmtimer latches its value
