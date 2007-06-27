@@ -9,20 +9,8 @@
 struct device_node;
 struct pci_controller;
 
-/*
- * pci_io_base returns the memory address at which you can access
- * the I/O space for PCI bus number `bus' (or NULL on error).
- */
-extern void __iomem *pci_bus_io_base(unsigned int bus);
-extern unsigned long pci_bus_io_base_phys(unsigned int bus);
-extern unsigned long pci_bus_mem_base_phys(unsigned int bus);
-
 /* Allocate a new PCI host bridge structure */
 extern struct pci_controller* pcibios_alloc_controller(void);
-
-/* Helper function for setting up resources */
-extern void pci_init_resource(struct resource *res, resource_size_t start,
-			      resource_size_t end, int flags, char *name);
 
 /* Get the PCI host controller for a bus */
 extern struct pci_controller* pci_bus_to_hose(int bus);
