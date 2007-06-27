@@ -696,8 +696,8 @@ static inline int
 sn_change_coherence(u64 *new_domain, u64 *old_domain)
 {
 	struct ia64_sal_retval ret_stuff;
-	ia64_sal_oemcall(&ret_stuff, SN_SAL_COHERENCE, (u64)new_domain,
-			 (u64)old_domain, 0, 0, 0, 0, 0);
+	ia64_sal_oemcall_nolock(&ret_stuff, SN_SAL_COHERENCE, (u64)new_domain,
+				(u64)old_domain, 0, 0, 0, 0, 0);
 	return ret_stuff.status;
 }
 
