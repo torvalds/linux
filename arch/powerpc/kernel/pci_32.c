@@ -620,7 +620,7 @@ pcibios_alloc_controller(void)
 	*hose_tail = hose;
 	hose_tail = &hose->next;
 
-	hose->index = next_controller_index++;
+	hose->global_number = next_controller_index++;
 
 	return hose;
 }
@@ -1336,7 +1336,7 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 		if (!res->flags) {
 			if (io_offset)
 				printk(KERN_ERR "I/O resource not set for host"
-				       " bridge %d\n", hose->index);
+				       " bridge %d\n", hose->global_number);
 			res->start = 0;
 			res->end = IO_SPACE_LIMIT;
 			res->flags = IORESOURCE_IO;
@@ -1350,7 +1350,7 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 				if (i > 0)
 					continue;
 				printk(KERN_ERR "Memory resource not set for "
-				       "host bridge %d\n", hose->index);
+				       "host bridge %d\n", hose->global_number);
 				res->start = hose->pci_mem_offset;
 				res->end = ~0U;
 				res->flags = IORESOURCE_MEM;

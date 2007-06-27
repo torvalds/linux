@@ -21,7 +21,6 @@ extern struct pci_controller* pci_bus_to_hose(int bus);
 struct pci_controller {
 	struct pci_bus *bus;
 	void *arch_data;
-	int index;			/* PCI domain number */
 	struct pci_controller *next;
 	struct device *parent;
 
@@ -60,6 +59,7 @@ struct pci_controller {
 	 */
 	struct resource	io_resource;
 	struct resource mem_resources[3];
+	int global_number;		/* PCI domain number */
 };
 
 static inline struct pci_controller *pci_bus_to_host(struct pci_bus *bus)
