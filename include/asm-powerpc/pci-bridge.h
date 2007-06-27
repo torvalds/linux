@@ -146,7 +146,6 @@ struct pci_controller {
 	struct resource io_resource;
 	struct resource mem_resources[3];
 	int global_number;
-	int local_number;
 	unsigned long buid;
 	unsigned long dma_window_base_cur;
 	unsigned long dma_window_size;

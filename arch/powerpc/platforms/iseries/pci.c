@@ -768,7 +768,7 @@ void __init iSeries_pcibios_init(void)
 		if (phb == NULL)
 			continue;
 
-		phb->pci_mem_offset = phb->local_number = bus;
+		phb->pci_mem_offset = bus;
 		phb->first_busno = bus;
 		phb->last_busno = bus;
 		phb->ops = &iSeries_pci_ops;
