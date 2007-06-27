@@ -720,11 +720,17 @@ static int tcp_accept_from_sock(struct connection *con)
 			INIT_WORK(&othercon->rwork, process_recv_sockets);
 			set_bit(CF_IS_OTHERCON, &othercon->flags);
 			newcon->othercon = othercon;
+			othercon->sock = newsock;
+			newsock->sk->sk_user_data = othercon;
+			add_sock(newsock, othercon);
+			addcon = othercon;
 		}
-		othercon->sock = newsock;
-		newsock->sk->sk_user_data = othercon;
-		add_sock(newsock, othercon);
-		addcon = othercon;
+		else {
+			printk("Extra connection from node %d attempted\n", nodeid);
+			result = -EAGAIN;
+			up_write(&newcon->sock_sem);
+			goto accept_err;
+		}
 	}
 	else {
 		newsock->sk->sk_user_data = newcon;
