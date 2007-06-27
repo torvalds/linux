@@ -86,7 +86,10 @@ static struct inode *gfs2_iget(struct super_block *sb, u64 no_addr)
  * Returns: A VFS inode, or an error
  */
 
-struct inode *gfs2_inode_lookup(struct super_block *sb, u64 no_addr, unsigned int type)
+struct inode *gfs2_inode_lookup(struct super_block *sb, 
+				unsigned int type,
+				u64 no_addr,
+				u64 no_formal_ino)
 {
 	struct inode *inode = gfs2_iget(sb, no_addr);
 	struct gfs2_inode *ip = GFS2_I(inode);
@@ -100,6 +103,7 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, u64 no_addr, unsigned in
 		struct gfs2_sbd *sdp = GFS2_SB(inode);
 		umode_t mode;
 		inode->i_private = ip;
+		ip->i_no_formal_ino = no_formal_ino;
 
 		error = gfs2_glock_get(sdp, no_addr, &gfs2_inode_glops, CREATE, &ip->i_gl);
 		if (unlikely(error))
@@ -915,7 +919,9 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	if (error)
 		goto fail_gunlock2;
 
-	inode = gfs2_inode_lookup(dir->i_sb, inum.no_addr, IF2DT(mode));
+	inode = gfs2_inode_lookup(dir->i_sb, IF2DT(mode),
+					inum.no_addr,
+					inum.no_formal_ino);
 	if (IS_ERR(inode))
 		goto fail_gunlock2;
 

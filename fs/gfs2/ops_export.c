@@ -245,7 +245,9 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb, void *inum_obj)
 	gfs2_glock_dq_uninit(&rgd_gh);
 	gfs2_glock_dq_uninit(&ri_gh);
 
-	inode = gfs2_inode_lookup(sb, inum->no_addr, fh_obj->imode);
+	inode = gfs2_inode_lookup(sb, fh_obj->imode,
+					inum->no_addr,
+					inum->no_formal_ino);
 	if (!inode)
 		goto fail;
 	if (IS_ERR(inode)) {

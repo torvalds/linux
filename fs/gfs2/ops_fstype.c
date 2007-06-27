@@ -236,7 +236,7 @@ fail:
 static inline struct inode *gfs2_lookup_root(struct super_block *sb,
 					     u64 no_addr)
 {
-	return gfs2_inode_lookup(sb, no_addr, DT_DIR);
+	return gfs2_inode_lookup(sb, DT_DIR, no_addr, 0);
 }
 
 static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
