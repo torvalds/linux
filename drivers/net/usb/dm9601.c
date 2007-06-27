@@ -489,6 +489,8 @@ static struct sk_buff *dm9601_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	   b3..n: packet data
 	*/
 
+	len = skb->len;
+
 	if (skb_headroom(skb) < DM_TX_OVERHEAD) {
 		struct sk_buff *skb2;
 
@@ -501,10 +503,9 @@ static struct sk_buff *dm9601_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 
 	__skb_push(skb, DM_TX_OVERHEAD);
 
-	len = skb->len;
 	/* usbnet adds padding if length is a multiple of packet size
 	   if so, adjust length value in header */
-	if ((len % dev->maxpacket) == 0)
+	if ((skb->len % dev->maxpacket) == 0)
 		len++;
 
 	skb->data[0] = len;
