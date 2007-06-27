@@ -254,13 +254,12 @@ chrp_find_bridges(void)
 			printk(" at %llx", (unsigned long long)r.start);
 		printk("\n");
 
-		hose = pcibios_alloc_controller();
+		hose = pcibios_alloc_controller(dev);
 		if (!hose) {
 			printk("Can't allocate PCI controller structure for %s\n",
 				dev->full_name);
 			continue;
 		}
-		hose->arch_data = dev;
 		hose->first_busno = bus_range[0];
 		hose->last_busno = bus_range[1];
 

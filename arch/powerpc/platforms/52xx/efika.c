@@ -128,7 +128,7 @@ void __init efika_pcisetup(void)
 	printk(" controlled by %s\n", pcictrl->full_name);
 	printk("\n");
 
-	hose = pcibios_alloc_controller();
+	hose = pcibios_alloc_controller(of_node_get(pcictrl));
 	if (!hose) {
 		printk(KERN_WARNING EFIKA_PLATFORM_NAME
 		       ": Can't allocate PCI controller structure for %s\n",
@@ -136,7 +136,6 @@ void __init efika_pcisetup(void)
 		return;
 	}
 
-	hose->arch_data = of_node_get(pcictrl);
 	hose->first_busno = bus_range[0];
 	hose->last_busno = bus_range[1];
 	hose->ops = &rtas_pci_ops;

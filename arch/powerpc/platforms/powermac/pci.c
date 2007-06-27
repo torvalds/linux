@@ -916,15 +916,9 @@ static int __init pmac_add_bridge(struct device_node *dev)
 		       " bus 0\n", dev->full_name);
 	}
 
-	/* XXX Different prototypes, to be merged */
-#ifdef CONFIG_PPC64
 	hose = pcibios_alloc_controller(dev);
-#else
-	hose = pcibios_alloc_controller();
-#endif
 	if (!hose)
 		return -ENOMEM;
-	hose->arch_data = dev;
 	hose->first_busno = bus_range ? bus_range[0] : 0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 

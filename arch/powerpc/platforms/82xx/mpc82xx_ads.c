@@ -543,12 +543,10 @@ static void __init mpc82xx_add_bridge(struct device_node *np)
 
 	pci_assign_all_buses = 1;
 
-	hose = pcibios_alloc_controller();
+	hose = pcibios_alloc_controller(np);
 
 	if (!hose)
 		return;
-
-	hose->arch_data = np;
 
 	hose->first_busno = bus_range ? bus_range[0] : 0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;

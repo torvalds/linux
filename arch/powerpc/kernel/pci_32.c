@@ -610,7 +610,7 @@ pcibios_enable_resources(struct pci_dev *dev, int mask)
 static int next_controller_index;
 
 struct pci_controller * __init
-pcibios_alloc_controller(void)
+pcibios_alloc_controller(struct device_node *dev)
 {
 	struct pci_controller *hose;
 
@@ -621,6 +621,7 @@ pcibios_alloc_controller(void)
 	hose_tail = &hose->next;
 
 	hose->global_number = next_controller_index++;
+	hose->arch_data = dev;
 
 	return hose;
 }

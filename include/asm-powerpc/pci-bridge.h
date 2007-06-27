@@ -9,9 +9,6 @@
 struct device_node;
 struct pci_controller;
 
-/* Allocate a new PCI host bridge structure */
-extern struct pci_controller* pcibios_alloc_controller(void);
-
 /* Get the PCI host controller for a bus */
 extern struct pci_controller* pci_bus_to_hose(int bus);
 
@@ -232,8 +229,6 @@ static inline struct pci_controller *pci_bus_to_host(struct pci_bus *bus)
 	return PCI_DN(busdn)->phb;
 }
 
-extern struct pci_controller *
-pcibios_alloc_controller(struct device_node *dev);
 extern void pcibios_free_controller(struct pci_controller *phb);
 
 extern void isa_bridge_find_early(struct pci_controller *hose);
@@ -263,6 +258,9 @@ extern void
 pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			   struct device_node *dev, int primary);
 
+/* Allocate a new PCI host bridge structure */
+extern struct pci_controller *
+pcibios_alloc_controller(struct device_node *dev);
 #ifdef CONFIG_PCI
 extern unsigned long pci_address_to_pio(phys_addr_t address);
 #else

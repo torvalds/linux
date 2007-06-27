@@ -68,12 +68,11 @@ static int __init linkstation_add_bridge(struct device_node *dev)
 		printk(KERN_WARNING "Can't get bus-range for %s, assume"
 				" bus 0\n", dev->full_name);
 
-	hose = pcibios_alloc_controller();
+	hose = pcibios_alloc_controller(dev);
 	if (hose == NULL)
 		return -ENOMEM;
 	hose->first_busno = bus_range ? bus_range[0] : 0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
-	hose->arch_data = dev;
 	setup_indirect_pci(hose, 0xfec00000, 0xfee00000);
 
 	/* Interpret the "ranges" property */
