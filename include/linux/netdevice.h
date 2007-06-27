@@ -397,6 +397,9 @@ struct net_device
 	unsigned char		addr_len;	/* hardware address length	*/
 	unsigned short          dev_id;		/* for shared network cards */
 
+	struct dev_addr_list	*uc_list;	/* Secondary unicast mac addresses */
+	int			uc_count;	/* Number of installed ucasts	*/
+	int			uc_promisc;
 	struct dev_addr_list	*mc_list;	/* Multicast mac addresses	*/
 	int			mc_count;	/* Number of installed mcasts	*/
 	int			promiscuity;
@@ -502,6 +505,8 @@ struct net_device
 						void *saddr,
 						unsigned len);
 	int			(*rebuild_header)(struct sk_buff *skb);
+#define HAVE_SET_RX_MODE
+	void			(*set_rx_mode)(struct net_device *dev);
 #define HAVE_MULTICAST			 
 	void			(*set_multicast_list)(struct net_device *dev);
 #define HAVE_SET_MAC_ADDR  		 
@@ -1008,8 +1013,11 @@ extern struct net_device *alloc_netdev(int sizeof_priv, const char *name,
 				       void (*setup)(struct net_device *));
 extern int		register_netdev(struct net_device *dev);
 extern void		unregister_netdev(struct net_device *dev);
-/* Functions used for multicast support */
-extern void		dev_mc_upload(struct net_device *dev);
+/* Functions used for secondary unicast and multicast support */
+extern void		dev_set_rx_mode(struct net_device *dev);
+extern void		__dev_set_rx_mode(struct net_device *dev);
+extern int		dev_unicast_delete(struct net_device *dev, void *addr, int alen);
+extern int		dev_unicast_add(struct net_device *dev, void *addr, int alen);
 extern int 		dev_mc_delete(struct net_device *dev, void *addr, int alen, int all);
 extern int		dev_mc_add(struct net_device *dev, void *addr, int alen, int newonly);
 extern void		dev_mc_discard(struct net_device *dev);

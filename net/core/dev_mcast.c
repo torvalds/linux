@@ -64,39 +64,6 @@
  */
 
 /*
- *	Update the multicast list into the physical NIC controller.
- */
-
-static void __dev_mc_upload(struct net_device *dev)
-{
-	/* Don't do anything till we up the interface
-	 * [dev_open will call this function so the list will
-	 * stay sane]
-	 */
-
-	if (!(dev->flags&IFF_UP))
-		return;
-
-	/*
-	 *	Devices with no set multicast or which have been
-	 *	detached don't get set.
-	 */
-
-	if (dev->set_multicast_list == NULL ||
-	    !netif_device_present(dev))
-		return;
-
-	dev->set_multicast_list(dev);
-}
-
-void dev_mc_upload(struct net_device *dev)
-{
-	netif_tx_lock_bh(dev);
-	__dev_mc_upload(dev);
-	netif_tx_unlock_bh(dev);
-}
-
-/*
  *	Delete a device level multicast
  */
 
@@ -114,7 +81,7 @@ int dev_mc_delete(struct net_device *dev, void *addr, int alen, int glbl)
 		 *	loaded filter is now wrong. Fix it
 		 */
 
-		__dev_mc_upload(dev);
+		__dev_set_rx_mode(dev);
 	}
 	netif_tx_unlock_bh(dev);
 	return err;
@@ -132,7 +99,7 @@ int dev_mc_add(struct net_device *dev, void *addr, int alen, int glbl)
 	err = __dev_addr_add(&dev->mc_list, addr, alen, glbl);
 	if (!err) {
 		dev->mc_count++;
-		__dev_mc_upload(dev);
+		__dev_set_rx_mode(dev);
 	}
 	netif_tx_unlock_bh(dev);
 	return err;
