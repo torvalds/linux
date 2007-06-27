@@ -598,7 +598,7 @@ static struct tuner_params tuner_philips_pal_mk_params[] = {
 
 static struct tuner_range tuner_philips_fcv1236d_ranges[] = {
 	{ 16 * 157.25 /*MHz*/, 0x8e, 0xa0, },
-	{ 16 * 454.00 /*MHz*/, 0x8e, 0x90, },
+	{ 16 * 451.25 /*MHz*/, 0x8e, 0x90, },
 	{ 16 * 999.99        , 0x8e, 0x30, },
 };
 
