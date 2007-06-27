@@ -29,12 +29,14 @@
 
 #include "tm6000.h"
 
-#define TM6000_BOARD_UNKNOWN		0
-#define TM5600_BOARD_GENERIC		1
-#define TM6000_BOARD_GENERIC		2
-#define TM5600_BOARD_10MOONS_UT821	3
-#define TM6000_BOARD_10MOONS_UT330	4
-#define TM6000_BOARD_ADSTECH_DUAL_TV	5
+#define TM6000_BOARD_UNKNOWN			0
+#define TM5600_BOARD_GENERIC			1
+#define TM6000_BOARD_GENERIC			2
+#define TM5600_BOARD_10MOONS_UT821		3
+#define TM6000_BOARD_10MOONS_UT330		4
+#define TM6000_BOARD_ADSTECH_DUAL_TV		5
+#define TM6000_BOARD_FREECOM_AND_SIMILAR	6
+
 
 #define TM6000_MAXBOARDS        16
 static unsigned int card[]     = {[0 ... (TM6000_MAXBOARDS - 1)] = UNSET };
@@ -107,12 +109,25 @@ struct tm6000_board tm6000_boards[] = {
 			.has_eeprom   = 1,
 		},
 	},
+	[TM6000_BOARD_FREECOM_AND_SIMILAR] = {
+		.name         = "Freecom Hybrid Stick / Moka DVB-T Receiver Dual",
+		.tuner_type   = TUNER_XC2028,
+		.tuner_addr   = 0xc2,
+		.caps = {
+			.has_tuner    = 1,
+			.has_dvb      = 1,
+			.has_zl10353  = 1,
+			.has_eeprom   = 0,
+		},
+	},
+
 };
 
 /* table of devices that work with this driver */
 struct usb_device_id tm6000_id_table [] = {
 	{ USB_DEVICE(0x6000, 0x0001), .driver_info = TM5600_BOARD_10MOONS_UT821 },
 	{ USB_DEVICE(0x06e1, 0xf332), .driver_info = TM6000_BOARD_ADSTECH_DUAL_TV },
+	{ USB_DEVICE(0x14aa, 0x620), .driver_info = TM6000_BOARD_FREECOM_AND_SIMILAR },
 	{ },
 };
 
