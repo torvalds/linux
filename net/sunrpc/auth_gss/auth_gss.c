@@ -79,6 +79,7 @@ static const struct rpc_credops gss_credops;
 #define isprint(c)      ((c > 0x1f) && (c < 0x7f))
 
 struct gss_auth {
+	struct kref kref;
 	struct rpc_auth rpc_auth;
 	struct gss_api_mech *mech;
 	enum rpc_gss_svc service;
@@ -636,6 +637,7 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 	auth->au_ops = &authgss_ops;
 	auth->au_flavor = flavor;
 	atomic_set(&auth->au_count, 1);
+	kref_init(&gss_auth->kref);
 
 	gss_auth->dentry = rpc_mkpipe(clnt->cl_dentry, gss_auth->mech->gm_name,
 			clnt, &gss_upcall_ops, RPC_PIPE_WAIT_FOR_OPEN);
@@ -661,6 +663,25 @@ out_dec:
 }
 
 static void
+gss_free(struct gss_auth *gss_auth)
+{
+	rpc_unlink(gss_auth->dentry);
+	gss_auth->dentry = NULL;
+	gss_mech_put(gss_auth->mech);
+
+	kfree(gss_auth);
+	module_put(THIS_MODULE);
+}
+
+static void
+gss_free_callback(struct kref *kref)
+{
+	struct gss_auth *gss_auth = container_of(kref, struct gss_auth, kref);
+
+	gss_free(gss_auth);
+}
+
+static void
 gss_destroy(struct rpc_auth *auth)
 {
 	struct gss_auth *gss_auth;
@@ -671,12 +692,7 @@ gss_destroy(struct rpc_auth *auth)
 	rpcauth_destroy_credcache(auth);
 
 	gss_auth = container_of(auth, struct gss_auth, rpc_auth);
-	rpc_unlink(gss_auth->dentry);
-	gss_auth->dentry = NULL;
-	gss_mech_put(gss_auth->mech);
-
-	kfree(gss_auth);
-	module_put(THIS_MODULE);
+	kref_put(&gss_auth->kref, gss_free_callback);
 }
 
 /* gss_destroy_cred (and gss_destroy_ctx) are used to clean up after failure
@@ -725,12 +741,14 @@ static void
 gss_destroy_cred(struct rpc_cred *cred)
 {
 	struct gss_cred *gss_cred = container_of(cred, struct gss_cred, gc_base);
+	struct gss_auth *gss_auth = container_of(cred->cr_auth, struct gss_auth, rpc_auth);
 	struct gss_cl_ctx *ctx = gss_cred->gc_ctx;
 
 	rcu_assign_pointer(gss_cred->gc_ctx, NULL);
 	call_rcu(&cred->cr_rcu, gss_free_cred_callback);
 	if (ctx)
 		gss_put_ctx(ctx);
+	kref_put(&gss_auth->kref, gss_free_callback);
 }
 
 /*
@@ -762,6 +780,7 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	 */
 	cred->gc_base.cr_flags = 1UL << RPCAUTH_CRED_NEW;
 	cred->gc_service = gss_auth->service;
+	kref_get(&gss_auth->kref);
 	return &cred->gc_base;
 
 out_err:
