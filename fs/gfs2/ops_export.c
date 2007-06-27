@@ -27,12 +27,7 @@
 #include "util.h"
 
 #define GFS2_SMALL_FH_SIZE 4
-#define GFS2_LARGE_FH_SIZE 10
-
-struct gfs2_fh_obj {
-	struct gfs2_inum_host this;
-	u32 imode;
-};
+#define GFS2_LARGE_FH_SIZE 8
 
 static struct dentry *gfs2_decode_fh(struct super_block *sb,
 				     __u32 *p,
@@ -43,11 +38,8 @@ static struct dentry *gfs2_decode_fh(struct super_block *sb,
 				     void *context)
 {
 	__be32 *fh = (__force __be32 *)p;
-	struct gfs2_fh_obj fh_obj;
-	struct gfs2_inum_host *this, parent;
+	struct gfs2_inum_host inum, parent;
 
-	this 		= &fh_obj.this;
-	fh_obj.imode 	= DT_UNKNOWN;
 	memset(&parent, 0, sizeof(struct gfs2_inum));
 
 	switch (fh_len) {
@@ -56,18 +48,17 @@ static struct dentry *gfs2_decode_fh(struct super_block *sb,
 		parent.no_formal_ino |= be32_to_cpu(fh[5]);
 		parent.no_addr = ((u64)be32_to_cpu(fh[6])) << 32;
 		parent.no_addr |= be32_to_cpu(fh[7]);
-		fh_obj.imode = be32_to_cpu(fh[8]);
 	case GFS2_SMALL_FH_SIZE:
-		this->no_formal_ino = ((u64)be32_to_cpu(fh[0])) << 32;
-		this->no_formal_ino |= be32_to_cpu(fh[1]);
-		this->no_addr = ((u64)be32_to_cpu(fh[2])) << 32;
-		this->no_addr |= be32_to_cpu(fh[3]);
+		inum.no_formal_ino = ((u64)be32_to_cpu(fh[0])) << 32;
+		inum.no_formal_ino |= be32_to_cpu(fh[1]);
+		inum.no_addr = ((u64)be32_to_cpu(fh[2])) << 32;
+		inum.no_addr |= be32_to_cpu(fh[3]);
 		break;
 	default:
 		return NULL;
 	}
 
-	return gfs2_export_ops.find_exported_dentry(sb, &fh_obj, &parent,
+	return gfs2_export_ops.find_exported_dentry(sb, &inum, &parent,
 						    acceptable, context);
 }
 
@@ -102,9 +93,6 @@ static int gfs2_encode_fh(struct dentry *dentry, __u32 *p, int *len,
 	fh[5] = cpu_to_be32(ip->i_no_formal_ino & 0xFFFFFFFF);
 	fh[6] = cpu_to_be32(ip->i_no_addr >> 32);
 	fh[7] = cpu_to_be32(ip->i_no_addr & 0xFFFFFFFF);
-
-	fh[8]  = cpu_to_be32(inode->i_mode);
-	fh[9]  = 0;	/* pad to double word */
 	*len = GFS2_LARGE_FH_SIZE;
 
 	iput(inode);
@@ -201,8 +189,7 @@ static struct dentry *gfs2_get_parent(struct dentry *child)
 static struct dentry *gfs2_get_dentry(struct super_block *sb, void *inum_obj)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
-	struct gfs2_fh_obj *fh_obj = (struct gfs2_fh_obj *)inum_obj;
-	struct gfs2_inum_host *inum = &fh_obj->this;
+	struct gfs2_inum_host *inum = inum_obj;
 	struct gfs2_holder i_gh, ri_gh, rgd_gh;
 	struct gfs2_rgrpd *rgd;
 	struct inode *inode;
@@ -245,9 +232,9 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb, void *inum_obj)
 	gfs2_glock_dq_uninit(&rgd_gh);
 	gfs2_glock_dq_uninit(&ri_gh);
 
-	inode = gfs2_inode_lookup(sb, fh_obj->imode,
+	inode = gfs2_inode_lookup(sb, DT_UNKNOWN,
 					inum->no_addr,
-					inum->no_formal_ino);
+					0);
 	if (!inode)
 		goto fail;
 	if (IS_ERR(inode)) {
@@ -260,6 +247,11 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb, void *inum_obj)
 		iput(inode);
 		goto fail;
 	}
+
+	/* Pick up the works we bypass in gfs2_inode_lookup */
+	if (inode->i_state & I_NEW) 
+		gfs2_set_iop(inode);
+
 	if (GFS2_I(inode)->i_no_formal_ino != inum->no_formal_ino) {
 		iput(inode);
 		goto fail;

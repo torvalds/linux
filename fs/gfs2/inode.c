@@ -78,6 +78,36 @@ static struct inode *gfs2_iget(struct super_block *sb, u64 no_addr)
 }
 
 /**
+ * GFS2 lookup code fills in vfs inode contents based on info obtained
+ * from directory entry inside gfs2_inode_lookup(). This has caused issues
+ * with NFS code path since its get_dentry routine doesn't have the relevant
+ * directory entry when gfs2_inode_lookup() is invoked. Part of the code
+ * segment inside gfs2_inode_lookup code needs to get moved around.
+ *
+ * Clean up I_LOCK and I_NEW as well.
+ **/
+
+void gfs2_set_iop(struct inode *inode)
+{
+	umode_t mode = inode->i_mode;
+
+	if (S_ISREG(mode)) {
+		inode->i_op = &gfs2_file_iops;
+		inode->i_fop = &gfs2_file_fops;
+		inode->i_mapping->a_ops = &gfs2_file_aops;
+	} else if (S_ISDIR(mode)) {
+		inode->i_op = &gfs2_dir_iops;
+		inode->i_fop = &gfs2_dir_fops;
+	} else if (S_ISLNK(mode)) {
+		inode->i_op = &gfs2_symlink_iops;
+	} else {
+		inode->i_op = &gfs2_dev_iops;
+	}
+
+	unlock_new_inode(inode);
+}
+
+/**
  * gfs2_inode_lookup - Lookup an inode
  * @sb: The super block
  * @no_addr: The inode number
@@ -101,7 +131,6 @@ struct inode *gfs2_inode_lookup(struct super_block *sb,
 
 	if (inode->i_state & I_NEW) {
 		struct gfs2_sbd *sdp = GFS2_SB(inode);
-		umode_t mode;
 		inode->i_private = ip;
 		ip->i_no_formal_ino = no_formal_ino;
 
@@ -122,6 +151,11 @@ struct inode *gfs2_inode_lookup(struct super_block *sb,
 
 		gfs2_glock_put(io_gl);
 
+		if ((type == DT_UNKNOWN) && (no_formal_ino == 0))
+			goto gfs2_nfsbypass;
+
+		inode->i_mode = DT2IF(type);
+
 		/*
 		 * We must read the inode in order to work out its type in
 		 * this case. Note that this doesn't happen often as we normally
@@ -129,33 +163,19 @@ struct inode *gfs2_inode_lookup(struct super_block *sb,
 		 * unlinked inode recovery (where it is safe to do this glock,
 		 * which is not true in the general case).
 		 */
-		inode->i_mode = mode = DT2IF(type);
 		if (type == DT_UNKNOWN) {
 			struct gfs2_holder gh;
 			error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 			if (unlikely(error))
 				goto fail_glock;
 			/* Inode is now uptodate */
-			mode = inode->i_mode;
 			gfs2_glock_dq_uninit(&gh);
 		}
 
-		if (S_ISREG(mode)) {
-			inode->i_op = &gfs2_file_iops;
-			inode->i_fop = &gfs2_file_fops;
-			inode->i_mapping->a_ops = &gfs2_file_aops;
-		} else if (S_ISDIR(mode)) {
-			inode->i_op = &gfs2_dir_iops;
-			inode->i_fop = &gfs2_dir_fops;
-		} else if (S_ISLNK(mode)) {
-			inode->i_op = &gfs2_symlink_iops;
-		} else {
-			inode->i_op = &gfs2_dev_iops;
-		}
-
-		unlock_new_inode(inode);
+		gfs2_set_iop(inode);
 	}
 
+gfs2_nfsbypass:
 	return inode;
 fail_glock:
 	gfs2_glock_dq(&ip->i_iopen_gh);
