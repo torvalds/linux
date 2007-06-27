@@ -56,9 +56,6 @@ static struct page *ecryptfs_get1page(struct file *file, int index)
 	return read_mapping_page(mapping, index, (void *)file);
 }
 
-static
-int write_zeros(struct file *file, pgoff_t index, int start, int num_zeros);
-
 /**
  * ecryptfs_fill_zeros
  * @file: The ecryptfs file
@@ -101,10 +98,13 @@ int ecryptfs_fill_zeros(struct file *file, loff_t new_length)
 	if (old_end_page_index == new_end_page_index) {
 		/* Start and end are in the same page; we just need to
 		 * set a portion of the existing page to zero's */
-		rc = write_zeros(file, index, (old_end_pos_in_page + 1),
-				 (new_end_pos_in_page - old_end_pos_in_page));
+		rc = ecryptfs_write_zeros(file, index,
+					  (old_end_pos_in_page + 1),
+					  (new_end_pos_in_page
+					   - old_end_pos_in_page));
 		if (rc)
-			ecryptfs_printk(KERN_ERR, "write_zeros(file=[%p], "
+			ecryptfs_printk(KERN_ERR, "ecryptfs_write_zeros("
+					"file=[%p], "
 					"index=[0x%.16x], "
 					"old_end_pos_in_page=[d], "
 					"(PAGE_CACHE_SIZE - new_end_pos_in_page"
@@ -117,10 +117,10 @@ int ecryptfs_fill_zeros(struct file *file, loff_t new_length)
 		goto out;
 	}
 	/* Fill the remainder of the previous last page with zeros */
-	rc = write_zeros(file, index, (old_end_pos_in_page + 1),
+	rc = ecryptfs_write_zeros(file, index, (old_end_pos_in_page + 1),
 			 ((PAGE_CACHE_SIZE - 1) - old_end_pos_in_page));
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "write_zeros(file=[%p], "
+		ecryptfs_printk(KERN_ERR, "ecryptfs_write_zeros(file=[%p], "
 				"index=[0x%.16x], old_end_pos_in_page=[d], "
 				"(PAGE_CACHE_SIZE - old_end_pos_in_page)=[d]) "
 				"returned [%d]\n", file, index,
@@ -131,9 +131,10 @@ int ecryptfs_fill_zeros(struct file *file, loff_t new_length)
 	index++;
 	while (index < new_end_page_index) {
 		/* Fill all intermediate pages with zeros */
-		rc = write_zeros(file, index, 0, PAGE_CACHE_SIZE);
+		rc = ecryptfs_write_zeros(file, index, 0, PAGE_CACHE_SIZE);
 		if (rc) {
-			ecryptfs_printk(KERN_ERR, "write_zeros(file=[%p], "
+			ecryptfs_printk(KERN_ERR, "ecryptfs_write_zeros("
+					"file=[%p], "
 					"index=[0x%.16x], "
 					"old_end_pos_in_page=[d], "
 					"(PAGE_CACHE_SIZE - new_end_pos_in_page"
@@ -149,9 +150,9 @@ int ecryptfs_fill_zeros(struct file *file, loff_t new_length)
 	}
 	/* Fill the portion at the beginning of the last new page with
 	 * zero's */
-	rc = write_zeros(file, index, 0, (new_end_pos_in_page + 1));
+	rc = ecryptfs_write_zeros(file, index, 0, (new_end_pos_in_page + 1));
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "write_zeros(file="
+		ecryptfs_printk(KERN_ERR, "ecryptfs_write_zeros(file="
 				"[%p], index=[0x%.16x], 0, "
 				"new_end_pos_in_page=[%d]"
 				"returned [%d]\n", file, index,
@@ -400,7 +401,6 @@ out:
 static int ecryptfs_prepare_write(struct file *file, struct page *page,
 				  unsigned from, unsigned to)
 {
-	loff_t pos;
 	int rc = 0;
 
 	if (from == 0 && to == PAGE_CACHE_SIZE)
@@ -408,14 +408,19 @@ static int ecryptfs_prepare_write(struct file *file, struct page *page,
 				   up to date. */
 	if (!PageUptodate(page))
 		rc = ecryptfs_do_readpage(file, page, page->index);
-	pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
-	if (pos > i_size_read(page->mapping->host)) {
-		rc = ecryptfs_truncate(file->f_path.dentry, pos);
-		if (rc) {
-			printk(KERN_ERR "Error on attempt to "
-			       "truncate to (higher) offset [%lld];"
-			       " rc = [%d]\n", pos, rc);
-			goto out;
+	if (page->index != 0) {
+		loff_t end_of_prev_pg_pos =
+			(((loff_t)page->index << PAGE_CACHE_SHIFT) - 1);
+
+		if (end_of_prev_pg_pos > i_size_read(page->mapping->host)) {
+			rc = ecryptfs_truncate(file->f_path.dentry,
+					       end_of_prev_pg_pos);
+			if (rc) {
+				printk(KERN_ERR "Error on attempt to "
+				       "truncate to (higher) offset [%lld];"
+				       " rc = [%d]\n", end_of_prev_pg_pos, rc);
+				goto out;
+			}
 		}
 	}
 out:
@@ -753,7 +758,7 @@ out:
 }
 
 /**
- * write_zeros
+ * ecryptfs_write_zeros
  * @file: The ecryptfs file
  * @index: The index in which we are writing
  * @start: The position after the last block of data
@@ -763,8 +768,8 @@ out:
  *
  * (start + num_zeros) must be less than or equal to PAGE_CACHE_SIZE
  */
-static
-int write_zeros(struct file *file, pgoff_t index, int start, int num_zeros)
+int
+ecryptfs_write_zeros(struct file *file, pgoff_t index, int start, int num_zeros)
 {
 	int rc = 0;
 	struct page *tmp_page;

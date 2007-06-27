@@ -800,6 +800,25 @@ int ecryptfs_truncate(struct dentry *dentry, loff_t new_length)
 			goto out_fput;
 		}
 	} else { /* new_length < i_size_read(inode) */
+		pgoff_t index = 0;
+		int end_pos_in_page = -1;
+
+		if (new_length != 0) {
+			index = ((new_length - 1) >> PAGE_CACHE_SHIFT);
+			end_pos_in_page = ((new_length - 1) & ~PAGE_CACHE_MASK);
+		}
+		if (end_pos_in_page != (PAGE_CACHE_SIZE - 1)) {
+			if ((rc = ecryptfs_write_zeros(&fake_ecryptfs_file,
+						       index,
+						       (end_pos_in_page + 1),
+						       ((PAGE_CACHE_SIZE - 1)
+							- end_pos_in_page)))) {
+				printk(KERN_ERR "Error attempting to zero out "
+				       "the remainder of the end page on "
+				       "reducing truncate; rc = [%d]\n", rc);
+				goto out_fput;
+			}
+		}
 		vmtruncate(inode, new_length);
 		rc = ecryptfs_write_inode_size_to_metadata(
 			lower_file, lower_dentry->d_inode, inode, dentry,
