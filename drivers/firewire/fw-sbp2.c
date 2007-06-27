@@ -395,7 +395,7 @@ static void
 complete_management_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 {
 	struct sbp2_management_orb *orb =
-	    (struct sbp2_management_orb *)base_orb;
+		container_of(base_orb, struct sbp2_management_orb, base);
 
 	if (status)
 		memcpy(&orb->status, status, sizeof(*status));
@@ -838,7 +838,8 @@ sbp2_status_to_sense_data(u8 *sbp2_status, u8 *sense_data)
 static void
 complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 {
-	struct sbp2_command_orb *orb = (struct sbp2_command_orb *)base_orb;
+	struct sbp2_command_orb *orb =
+		container_of(base_orb, struct sbp2_command_orb, base);
 	struct fw_unit *unit = orb->unit;
 	struct fw_device *device = fw_device(unit->device.parent);
 	struct scatterlist *sg;
