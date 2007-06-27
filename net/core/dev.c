@@ -2553,6 +2553,75 @@ void dev_set_allmulti(struct net_device *dev, int inc)
 		dev_mc_upload(dev);
 }
 
+int __dev_addr_delete(struct dev_addr_list **list, void *addr, int alen,
+		      int glbl)
+{
+	struct dev_addr_list *da;
+
+	for (; (da = *list) != NULL; list = &da->next) {
+		if (memcmp(da->da_addr, addr, da->da_addrlen) == 0 &&
+		    alen == da->da_addrlen) {
+			if (glbl) {
+				int old_glbl = da->da_gusers;
+				da->da_gusers = 0;
+				if (old_glbl == 0)
+					break;
+			}
+			if (--da->da_users)
+				return 0;
+
+			*list = da->next;
+			kfree(da);
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
+int __dev_addr_add(struct dev_addr_list **list, void *addr, int alen, int glbl)
+{
+	struct dev_addr_list *da;
+
+	for (da = *list; da != NULL; da = da->next) {
+		if (memcmp(da->da_addr, addr, da->da_addrlen) == 0 &&
+		    da->da_addrlen == alen) {
+			if (glbl) {
+				int old_glbl = da->da_gusers;
+				da->da_gusers = 1;
+				if (old_glbl)
+					return 0;
+			}
+			da->da_users++;
+			return 0;
+		}
+	}
+
+	da = kmalloc(sizeof(*da), GFP_ATOMIC);
+	if (da == NULL)
+		return -ENOMEM;
+	memcpy(da->da_addr, addr, alen);
+	da->da_addrlen = alen;
+	da->da_users = 1;
+	da->da_gusers = glbl ? 1 : 0;
+	da->next = *list;
+	*list = da;
+	return 0;
+}
+
+void __dev_addr_discard(struct dev_addr_list **list)
+{
+	struct dev_addr_list *tmp;
+
+	while (*list != NULL) {
+		tmp = *list;
+		*list = tmp->next;
+		if (tmp->da_users > tmp->da_gusers)
+			printk("__dev_addr_discard: address leakage! "
+			       "da_users=%d\n", tmp->da_users);
+		kfree(tmp);
+	}
+}
+
 unsigned dev_get_flags(const struct net_device *dev)
 {
 	unsigned flags;
