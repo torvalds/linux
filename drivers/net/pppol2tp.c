@@ -890,11 +890,11 @@ static int pppol2tp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msgh
 	/* Debug */
 	if (session->send_seq)
 		PRINTK(session->debug, PPPOL2TP_MSG_DATA, KERN_DEBUG,
-		       "%s: send %d bytes, ns=%hu\n", session->name,
+		       "%s: send %Zd bytes, ns=%hu\n", session->name,
 		       total_len, session->ns - 1);
 	else
 		PRINTK(session->debug, PPPOL2TP_MSG_DATA, KERN_DEBUG,
-		       "%s: send %d bytes\n", session->name, total_len);
+		       "%s: send %Zd bytes\n", session->name, total_len);
 
 	if (session->debug & PPPOL2TP_MSG_DATA) {
 		int i;
