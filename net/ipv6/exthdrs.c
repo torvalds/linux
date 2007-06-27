@@ -42,7 +42,7 @@
 #include <net/ndisc.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 #include <net/xfrm.h>
 #endif
 
@@ -90,6 +90,7 @@ int ipv6_find_tlv(struct sk_buff *skb, int offset, int type)
  bad:
 	return -1;
 }
+EXPORT_SYMBOL_GPL(ipv6_find_tlv);
 
 /*
  *	Parsing tlv encoded headers.
@@ -196,7 +197,7 @@ bad:
   Destination options header.
  *****************************/
 
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 static int ipv6_dest_hao(struct sk_buff **skbp, int optoff)
 {
 	struct sk_buff *skb = *skbp;
@@ -270,7 +271,7 @@ static int ipv6_dest_hao(struct sk_buff **skbp, int optoff)
 #endif
 
 static struct tlvtype_proc tlvprocdestopt_lst[] = {
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 	{
 		.type	= IPV6_TLV_HAO,
 		.func	= ipv6_dest_hao,
@@ -283,7 +284,7 @@ static int ipv6_destopt_rcv(struct sk_buff **skbp)
 {
 	struct sk_buff *skb = *skbp;
 	struct inet6_skb_parm *opt = IP6CB(skb);
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 	__u16 dstbuf;
 #endif
 	struct dst_entry *dst;
@@ -298,7 +299,7 @@ static int ipv6_destopt_rcv(struct sk_buff **skbp)
 	}
 
 	opt->lastopt = opt->dst1 = skb_network_header_len(skb);
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 	dstbuf = opt->dst1;
 #endif
 
@@ -308,7 +309,7 @@ static int ipv6_destopt_rcv(struct sk_buff **skbp)
 		skb = *skbp;
 		skb->transport_header += (skb_transport_header(skb)[1] + 1) << 3;
 		opt = IP6CB(skb);
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 		opt->nhoff = dstbuf;
 #else
 		opt->nhoff = opt->dst1;
@@ -427,7 +428,7 @@ static int ipv6_rthdr_rcv(struct sk_buff **skbp)
 looped_back:
 	if (hdr->segments_left == 0) {
 		switch (hdr->type) {
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 		case IPV6_SRCRT_TYPE_2:
 			/* Silently discard type 2 header unless it was
 			 * processed by own
@@ -463,7 +464,7 @@ looped_back:
 			return -1;
 		}
 		break;
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 	case IPV6_SRCRT_TYPE_2:
 		/* Silently discard invalid RTH type 2 */
 		if (hdr->hdrlen != 2 || hdr->segments_left != 1) {
@@ -520,7 +521,7 @@ looped_back:
 	addr += i - 1;
 
 	switch (hdr->type) {
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 	case IPV6_SRCRT_TYPE_2:
 		if (xfrm6_input_addr(skb, (xfrm_address_t *)addr,
 				     (xfrm_address_t *)&ipv6_hdr(skb)->saddr,

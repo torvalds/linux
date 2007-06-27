@@ -658,7 +658,7 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 
 			switch (rthdr->type) {
 			case IPV6_SRCRT_TYPE_0:
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 			case IPV6_SRCRT_TYPE_2:
 #endif
 				break;

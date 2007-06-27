@@ -417,7 +417,7 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			struct ipv6_rt_hdr *rthdr = opt->srcrt;
 			switch (rthdr->type) {
 			case IPV6_SRCRT_TYPE_0:
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 			case IPV6_SRCRT_TYPE_2:
 #endif
 				break;

@@ -543,7 +543,7 @@ int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr)
 			found_rhdr = 1;
 			break;
 		case NEXTHDR_DEST:
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 			if (ipv6_find_tlv(skb, offset, IPV6_TLV_HAO) >= 0)
 				break;
 #endif

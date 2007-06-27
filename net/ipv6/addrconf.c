@@ -1034,7 +1034,7 @@ int ipv6_dev_get_saddr(struct net_device *daddr_dev,
 			}
 
 			/* Rule 4: Prefer home address */
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 			if (hiscore.rule < 4) {
 				if (ifa_result->flags & IFA_F_HOMEADDRESS)
 					hiscore.attrs |= IPV6_SADDR_SCORE_HOA;
@@ -2835,7 +2835,7 @@ void if6_proc_exit(void)
 }
 #endif	/* CONFIG_PROC_FS */
 
-#ifdef CONFIG_IPV6_MIP6
+#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 /* Check if address is a home address configured on any interface. */
 int ipv6_chk_home_addr(struct in6_addr *addr)
 {
