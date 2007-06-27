@@ -24,10 +24,10 @@ static int of_console_open(void)
 {
 	void *devp;
 
-	if (((devp = finddevice("/chosen")) != NULL)
-			&& (getprop(devp, "stdout", &of_stdout_handle,
-				sizeof(of_stdout_handle))
-				== sizeof(of_stdout_handle)))
+	if (((devp = of_finddevice("/chosen")) != NULL)
+	    && (of_getprop(devp, "stdout", &of_stdout_handle,
+			   sizeof(of_stdout_handle))
+		== sizeof(of_stdout_handle)))
 		return 0;
 
 	return -1;

@@ -63,36 +63,6 @@ static void of_image_hdr(const void *hdr)
 	}
 }
 
-static void *of_vmlinux_alloc(unsigned long size)
-{
-	void *p = malloc(size);
-
-	if (!p)
-		fatal("Can't allocate memory for kernel image!\n\r");
-
-	return p;
-}
-
-/*
- * OF device tree routines
- */
-static void *of_finddevice(const char *name)
-{
-	return (phandle) of_call_prom("finddevice", 1, 1, name);
-}
-
-static int of_getprop(const void *phandle, const char *name, void *buf,
-		const int buflen)
-{
-	return of_call_prom("getprop", 4, 1, phandle, name, buf, buflen);
-}
-
-static int of_setprop(const void *phandle, const char *name, const void *buf,
-		const int buflen)
-{
-	return of_call_prom("setprop", 4, 1, phandle, name, buf, buflen);
-}
-
 void platform_init(unsigned long a1, unsigned long a2, void *promptr)
 {
 	platform_ops.image_hdr = of_image_hdr;

@@ -110,25 +110,25 @@ static int check_of_version(void)
 	phandle oprom, chosen;
 	char version[64];
 
-	oprom = finddevice("/openprom");
+	oprom = of_finddevice("/openprom");
 	if (oprom == (phandle) -1)
 		return 0;
-	if (getprop(oprom, "model", version, sizeof(version)) <= 0)
+	if (of_getprop(oprom, "model", version, sizeof(version)) <= 0)
 		return 0;
 	version[sizeof(version)-1] = 0;
 	printf("OF version = '%s'\r\n", version);
 	if (!string_match(version, "Open Firmware, 1.")
 	    && !string_match(version, "FirmWorks,3."))
 		return 0;
-	chosen = finddevice("/chosen");
+	chosen = of_finddevice("/chosen");
 	if (chosen == (phandle) -1) {
-		chosen = finddevice("/chosen@0");
+		chosen = of_finddevice("/chosen@0");
 		if (chosen == (phandle) -1) {
 			printf("no chosen\n");
 			return 0;
 		}
 	}
-	if (getprop(chosen, "mmu", &chosen_mmu, sizeof(chosen_mmu)) <= 0) {
+	if (of_getprop(chosen, "mmu", &chosen_mmu, sizeof(chosen_mmu)) <= 0) {
 		printf("no mmu\n");
 		return 0;
 	}
@@ -166,7 +166,37 @@ void *of_claim(unsigned long virt, unsigned long size, unsigned long align)
 	return (void *) virt;
 }
 
+void *of_vmlinux_alloc(unsigned long size)
+{
+	void *p = malloc(size);
+
+	if (!p)
+		fatal("Can't allocate memory for kernel image!\n\r");
+
+	return p;
+}
+
 void of_exit(void)
 {
 	of_call_prom("exit", 0, 0);
+}
+
+/*
+ * OF device tree routines
+ */
+void *of_finddevice(const char *name)
+{
+	return (phandle) of_call_prom("finddevice", 1, 1, name);
+}
+
+int of_getprop(const void *phandle, const char *name, void *buf,
+	       const int buflen)
+{
+	return of_call_prom("getprop", 4, 1, phandle, name, buf, buflen);
+}
+
+int of_setprop(const void *phandle, const char *name, const void *buf,
+	       const int buflen)
+{
+	return of_call_prom("setprop", 4, 1, phandle, name, buf, buflen);
 }
