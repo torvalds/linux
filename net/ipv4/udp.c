@@ -70,6 +70,7 @@
  *	Alexey Kuznetsov:		allow both IPv4 and IPv6 sockets to bind
  *					a single port at the same time.
  *	Derek Atkins <derek@ihtfp.com>: Add Encapulation Support
+ *	James Chapman		:	Add L2TP encapsulation type.
  *
  *
  *		This program is free software; you can redistribute it and/or
@@ -923,12 +924,10 @@ int udp_disconnect(struct sock *sk, int flags)
  * 	1  if the UDP system should process it
  *	0  if we should drop this packet
  * 	-1 if it should get processed by xfrm4_rcv_encap
+ *	-2 if it should get processed by l2tp
  */
 static int udp_encap_rcv(struct sock * sk, struct sk_buff *skb)
 {
-#ifndef CONFIG_XFRM
-	return 1;
-#else
 	struct udp_sock *up = udp_sk(sk);
 	struct udphdr *uh;
 	struct iphdr *iph;
@@ -983,8 +982,14 @@ static int udp_encap_rcv(struct sock * sk, struct sk_buff *skb)
 			/* Must be an IKE packet.. pass it through */
 			return 1;
 		break;
+	case UDP_ENCAP_L2TPINUDP:
+		/* Let caller know to send this to l2tp */
+		return -2;
 	}
 
+#ifndef CONFIG_XFRM
+	return 1;
+#else
 	/* At this point we are sure that this is an ESPinUDP packet,
 	 * so we need to remove 'len' bytes from the packet (the UDP
 	 * header and optional ESP marker bytes) and then modify the
@@ -1055,12 +1060,25 @@ int udp_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 			kfree_skb(skb);
 			return 0;
 		}
-		if (ret < 0) {
+		if (ret == -1) {
 			/* process the ESP packet */
 			ret = xfrm4_rcv_encap(skb, up->encap_type);
 			UDP_INC_STATS_BH(UDP_MIB_INDATAGRAMS, up->pcflag);
 			return -ret;
 		}
+		if (ret == -2) {
+			/* process the L2TP packet */
+			if (up->encap_rcv != NULL) {
+				ret = (*up->encap_rcv)(sk, skb);
+				if (ret <= 0) {
+					UDP_INC_STATS_BH(UDP_MIB_INDATAGRAMS, up->pcflag);
+					return ret;
+				}
+
+				/* FALLTHROUGH -- pass up as UDP packet */
+			}
+		}
+
 		/* FALLTHROUGH -- it's a UDP Packet */
 	}
 
@@ -1349,6 +1367,7 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 		case 0:
 		case UDP_ENCAP_ESPINUDP:
 		case UDP_ENCAP_ESPINUDP_NON_IKE:
+		case UDP_ENCAP_L2TPINUDP:
 			up->encap_type = val;
 			break;
 		default:
