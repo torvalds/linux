@@ -289,6 +289,13 @@ config SCSI_SAS_ATTRS
 
 source "drivers/scsi/libsas/Kconfig"
 
+config SCSI_SRP_ATTRS
+	tristate "SRP Transport Attributes"
+	depends on SCSI
+	help
+	  If you wish to export transport-specific information about
+	  each attached SRP device to sysfs, say Y.
+
 endmenu
 
 menuconfig SCSI_LOWLEVEL
