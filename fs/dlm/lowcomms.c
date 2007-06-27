@@ -728,7 +728,7 @@ static int tcp_accept_from_sock(struct connection *con)
 		else {
 			printk("Extra connection from node %d attempted\n", nodeid);
 			result = -EAGAIN;
-			up_write(&newcon->sock_sem);
+			mutex_unlock(&newcon->sock_mutex);
 			goto accept_err;
 		}
 	}
