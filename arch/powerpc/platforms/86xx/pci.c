@@ -145,7 +145,7 @@ static void __devinit quirk_fsl_pcie_transparent(struct pci_dev *dev)
 	 */
 	dev->transparent = 1;
 
-	hose = pci_bus_to_hose(dev->bus->number);
+	hose = pci_bus_to_host(dev->bus);
 	if (!hose) {
 		printk(KERN_ERR "Can't find hose for bus %d\n",
 		       dev->bus->number);

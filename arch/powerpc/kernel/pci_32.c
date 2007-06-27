@@ -766,7 +766,7 @@ static struct device_node *scan_OF_for_pci_bus(struct pci_bus *bus)
 
 	/* Are we a root bus ? */
 	if (bus->self == NULL || bus->parent == NULL) {
-		struct pci_controller *hose = pci_bus_to_hose(bus->number);
+		struct pci_controller *hose = pci_bus_to_host(bus);
 		if (hose == NULL)
 			return NULL;
 		return of_node_get(hose->arch_data);
@@ -1492,7 +1492,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	return 0;
 }
 
-struct pci_controller*
+static struct pci_controller*
 pci_bus_to_hose(int bus)
 {
 	struct pci_controller* hose = hose_head;
@@ -1507,7 +1507,7 @@ static struct resource *__pci_mmap_make_offset(struct pci_dev *dev,
 					       resource_size_t *offset,
 					       enum pci_mmap_state mmap_state)
 {
-	struct pci_controller *hose = pci_bus_to_hose(dev->bus->number);
+	struct pci_controller *hose = pci_bus_to_host(dev->bus);
 	unsigned long io_offset = 0;
 	int i, res_bit;
 
@@ -1719,7 +1719,7 @@ void pci_resource_to_user(const struct pci_dev *dev, int bar,
 			  const struct resource *rsrc,
 			  resource_size_t *start, resource_size_t *end)
 {
-	struct pci_controller *hose = pci_bus_to_hose(dev->bus->number);
+	struct pci_controller *hose = pci_bus_to_host(dev->bus);
 	resource_size_t offset = 0;
 
 	if (hose == NULL)

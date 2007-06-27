@@ -9,9 +9,6 @@
 struct device_node;
 struct pci_controller;
 
-/* Get the PCI host controller for a bus */
-extern struct pci_controller* pci_bus_to_hose(int bus);
-
 /*
  * Structure of a PCI controller (host bridge)
  */
