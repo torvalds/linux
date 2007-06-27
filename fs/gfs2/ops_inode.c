@@ -903,8 +903,8 @@ static int setattr_size(struct inode *inode, struct iattr *attr)
 	}
 
 	error = gfs2_truncatei(ip, attr->ia_size);
-	if (error)
-		return error;
+	if (error && (inode->i_size != ip->i_di.di_size))
+		i_size_write(inode, ip->i_di.di_size);
 
 	return error;
 }
