@@ -7,7 +7,7 @@ menuconfig ATM_DRIVERS
 	depends on NETDEVICES && ATM
 	default y
 
-if ATM_DRIVERS
+if ATM_DRIVERS && NETDEVICES && ATM
 
 config ATM_DUMMY
 	tristate "Dummy ATM driver"
