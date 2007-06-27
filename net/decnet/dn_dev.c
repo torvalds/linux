@@ -461,7 +461,6 @@ static int dn_dev_insert_ifa(struct dn_dev *dn_db, struct dn_ifaddr *ifa)
 		if (ifa->ifa_local != dn_eth2dn(dev->dev_addr)) {
 			dn_dn2eth(mac_addr, ifa->ifa_local);
 			dev_mc_add(dev, mac_addr, ETH_ALEN, 0);
-			dev_mc_upload(dev);
 		}
 	}
 
@@ -1063,8 +1062,6 @@ static int dn_eth_up(struct net_device *dev)
 		dev_mc_add(dev, dn_rt_all_end_mcast, ETH_ALEN, 0);
 	else
 		dev_mc_add(dev, dn_rt_all_rt_mcast, ETH_ALEN, 0);
-
-	dev_mc_upload(dev);
 
 	dn_db->use_long = 1;
 

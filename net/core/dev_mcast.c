@@ -292,4 +292,3 @@ void __init dev_mcast_init(void)
 
 EXPORT_SYMBOL(dev_mc_add);
 EXPORT_SYMBOL(dev_mc_delete);
-EXPORT_SYMBOL(dev_mc_upload);
