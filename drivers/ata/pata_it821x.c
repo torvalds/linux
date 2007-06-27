@@ -690,7 +690,7 @@ static struct ata_port_operations it821x_passthru_port_ops = {
 	.port_start	= it821x_port_start,
 };
 
-static void __devinit it821x_disable_raid(struct pci_dev *pdev)
+static void it821x_disable_raid(struct pci_dev *pdev)
 {
 	/* Reset local CPU, and set BIOS not ready */
 	pci_write_config_byte(pdev, 0x5E, 0x01);
