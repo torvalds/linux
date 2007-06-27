@@ -500,4 +500,4 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("IP Payload Compression Protocol (IPComp) for IPv6 - RFC3173");
 MODULE_AUTHOR("Mitsuru KANDA <mk@linux-ipv6.org>");
 
-
+MODULE_ALIAS_XFRM_TYPE(AF_INET6, XFRM_PROTO_COMP);

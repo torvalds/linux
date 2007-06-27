@@ -554,3 +554,4 @@ module_init(ah6_init);
 module_exit(ah6_fini);
 
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_XFRM_TYPE(AF_INET6, XFRM_PROTO_AH);

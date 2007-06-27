@@ -19,9 +19,19 @@
 #include <net/ipv6.h>
 #include <net/ip6_fib.h>
 
+#define XFRM_PROTO_ESP		50
+#define XFRM_PROTO_AH		51
+#define XFRM_PROTO_COMP		108
+#define XFRM_PROTO_IPIP		4
+#define XFRM_PROTO_IPV6		41
+#define XFRM_PROTO_ROUTING	IPPROTO_ROUTING
+#define XFRM_PROTO_DSTOPTS	IPPROTO_DSTOPTS
+
 #define XFRM_ALIGN8(len)	(((len) + 7) & ~7)
 #define MODULE_ALIAS_XFRM_MODE(family, encap) \
 	MODULE_ALIAS("xfrm-mode-" __stringify(family) "-" __stringify(encap))
+#define MODULE_ALIAS_XFRM_TYPE(family, proto) \
+	MODULE_ALIAS("xfrm-type-" __stringify(family) "-" __stringify(proto))
 
 extern struct sock *xfrm_nl;
 extern u32 sysctl_xfrm_aevent_etime;
