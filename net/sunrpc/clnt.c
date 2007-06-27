@@ -1315,9 +1315,9 @@ call_verify(struct rpc_task *task)
 		 * - if it isn't pointer subtraction in the NFS client may give
 		 *   undefined results
 		 */
-		printk(KERN_WARNING
-		       "call_verify: XDR representation not a multiple of"
-		       " 4 bytes: 0x%x\n", task->tk_rqstp->rq_rcv_buf.len);
+		dprintk("RPC: %5u %s: XDR representation not a multiple of"
+		       " 4 bytes: 0x%x\n", task->tk_pid, __FUNCTION__,
+		       task->tk_rqstp->rq_rcv_buf.len);
 		goto out_eio;
 	}
 	if ((len -= 3) < 0)
@@ -1325,7 +1325,8 @@ call_verify(struct rpc_task *task)
 	p += 1;	/* skip XID */
 
 	if ((n = ntohl(*p++)) != RPC_REPLY) {
-		printk(KERN_WARNING "call_verify: not an RPC reply: %x\n", n);
+		dprintk("RPC: %5u %s: not an RPC reply: %x\n",
+				task->tk_pid, __FUNCTION__, n);
 		goto out_garbage;
 	}
 	if ((n = ntohl(*p++)) != RPC_MSG_ACCEPTED) {
@@ -1376,7 +1377,8 @@ call_verify(struct rpc_task *task)
 			       "authentication.\n", task->tk_client->cl_server);
 			break;
 		default:
-			printk(KERN_WARNING "call_verify: unknown auth error: %x\n", n);
+			dprintk("RPC: %5u %s: unknown auth error: %x\n",
+					task->tk_pid, __FUNCTION__, n);
 			error = -EIO;
 		}
 		dprintk("RPC: %5u %s: call rejected %d\n",
@@ -1384,7 +1386,8 @@ call_verify(struct rpc_task *task)
 		goto out_err;
 	}
 	if (!(p = rpcauth_checkverf(task, p))) {
-		printk(KERN_WARNING "call_verify: auth check failed\n");
+		dprintk("RPC: %5u %s: auth check failed\n",
+				task->tk_pid, __FUNCTION__);
 		goto out_garbage;		/* bad verifier, retry */
 	}
 	len = p - (__be32 *)iov->iov_base - 1;
@@ -1423,7 +1426,8 @@ call_verify(struct rpc_task *task)
 				task->tk_pid, __FUNCTION__);
 		break;			/* retry */
 	default:
-		printk(KERN_WARNING "call_verify: server accept status: %x\n", n);
+		dprintk("RPC: %5u %s: server accept status: %x\n",
+				task->tk_pid, __FUNCTION__, n);
 		/* Also retry */
 	}
 
@@ -1437,14 +1441,16 @@ out_garbage:
 out_retry:
 		return ERR_PTR(-EAGAIN);
 	}
-	printk(KERN_WARNING "RPC %s: retry failed, exit EIO\n", __FUNCTION__);
 out_eio:
 	error = -EIO;
 out_err:
 	rpc_exit(task, error);
+	dprintk("RPC: %5u %s: call failed with error %d\n", task->tk_pid,
+			__FUNCTION__, error);
 	return ERR_PTR(error);
 out_overflow:
-	printk(KERN_WARNING "RPC %s: server reply was truncated.\n", __FUNCTION__);
+	dprintk("RPC: %5u %s: server reply was truncated.\n", task->tk_pid,
+			__FUNCTION__);
 	goto out_garbage;
 }
 
