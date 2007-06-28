@@ -1263,6 +1263,7 @@ xfs_free_eofblocks(
 		error = xfs_itruncate_start(ip, XFS_ITRUNC_DEFINITE,
 				    ip->i_size);
 		if (error) {
+			xfs_trans_cancel(tp, 0);
 			if (use_iolock)
 				xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 			return error;
@@ -1687,6 +1688,7 @@ xfs_inactive(
 
 		error = xfs_itruncate_start(ip, XFS_ITRUNC_DEFINITE, 0);
 		if (error) {
+			xfs_trans_cancel(tp, 0);
 			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 			return VN_INACTIVE_CACHE;
 		}
