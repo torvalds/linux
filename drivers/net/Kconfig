@@ -1187,7 +1187,7 @@ config IBMVETH
 
 config IBM_EMAC
 	tristate "PowerPC 4xx on-chip Ethernet support"
-	depends on 4xx
+	depends on 4xx && !PPC_MERGE
 	help
 	  This driver supports the PowerPC 4xx EMAC family of on-chip
           Ethernet controllers.
