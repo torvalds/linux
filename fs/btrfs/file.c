@@ -127,7 +127,7 @@ static int insert_inline_extent(struct btrfs_root *root, struct inode *inode,
 		     ptr, kaddr + bh_offset(bh),
 		     size);
 	kunmap_atomic(kaddr, KM_USER0);
-	mark_buffer_dirty(path->nodes[0]);
+	btrfs_mark_buffer_dirty(path->nodes[0]);
 fail:
 	btrfs_free_path(path);
 	ret = btrfs_end_transaction(trans, root);
@@ -211,11 +211,13 @@ int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	int found_type;
 	int found_extent;
 	int found_inline;
+	int recow;
 
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 	while(1) {
+		recow = 0;
 		btrfs_release_path(root, path);
 		ret = btrfs_lookup_file_extent(trans, root, path, inode->i_ino,
 					       search_start, -1);
@@ -243,6 +245,10 @@ next_slot:
 		}
 		if (btrfs_key_type(&key) > BTRFS_EXTENT_DATA_KEY) {
 			goto out;
+		}
+		if (recow) {
+			search_start = key.offset;
+			continue;
 		}
 		if (btrfs_key_type(&key) == BTRFS_EXTENT_DATA_KEY) {
 			extent = btrfs_item_ptr(leaf, slot,
@@ -274,6 +280,7 @@ next_slot:
 				nextret = btrfs_next_leaf(root, path);
 				if (nextret)
 					goto out;
+				recow = 1;
 			} else {
 				path->slots[0]++;
 			}
@@ -321,7 +328,7 @@ next_slot:
 				}
 				btrfs_set_file_extent_num_blocks(extent,
 								 new_num);
-				mark_buffer_dirty(path->nodes[0]);
+				btrfs_mark_buffer_dirty(path->nodes[0]);
 			} else {
 				WARN_ON(1);
 			}
@@ -452,6 +459,8 @@ static int prepare_pages(struct btrfs_root *root,
 			err = -ENOMEM;
 			goto failed_release;
 		}
+		cancel_dirty_page(pages[i], PAGE_CACHE_SIZE);
+		wait_on_page_writeback(pages[i]);
 	}
 
 	mutex_lock(&root->fs_info->fs_mutex);
@@ -522,8 +531,6 @@ static int prepare_pages(struct btrfs_root *root,
 	mutex_unlock(&root->fs_info->fs_mutex);
 
 	for (i = 0; i < num_pages; i++) {
-		cancel_dirty_page(pages[i], PAGE_CACHE_SIZE);
-		wait_on_page_writeback(pages[i]);
 		offset = pos & (PAGE_CACHE_SIZE -1);
 		this_write = min((size_t)PAGE_CACHE_SIZE - offset, write_bytes);
 		if (!page_has_buffers(pages[i])) {

@@ -1013,18 +1013,13 @@ static inline void btrfs_memmove(struct btrfs_root *root,
 	memmove(dst, src, nr);
 }
 
-static inline void btrfs_mark_buffer_dirty(struct buffer_head *bh)
-{
-	WARN_ON(!atomic_read(&bh->b_count));
-	mark_buffer_dirty(bh);
-}
-
 /* helper function to cast into the data area of the leaf. */
 #define btrfs_item_ptr(leaf, slot, type) \
 	((type *)(btrfs_leaf_data(leaf) + \
 	btrfs_item_offset((leaf)->items + (slot))))
 
 /* extent-tree.c */
+int btrfs_copy_pinned(struct btrfs_root *root, struct radix_tree_root *copy);
 struct btrfs_block_group_cache *btrfs_lookup_block_group(struct
 							 btrfs_fs_info *info,
 							 u64 blocknr);
@@ -1044,8 +1039,9 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		  struct buffer_head *buf);
 int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, u64 blocknr, u64 num_blocks, int pin);
-int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
-			       btrfs_root *root);
+int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root,
+			       struct radix_tree_root *unpin_radix);
 int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
 				u64 blocknr, u64 num_blocks);

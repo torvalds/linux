@@ -523,6 +523,7 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	}
 	return 0;
 fail:
+	WARN_ON(1);
 	for (i =0; i < faili; i++) {
 		if (leaf) {
 			u64 disk_blocknr;
@@ -572,7 +573,7 @@ static int write_one_cache_group(struct btrfs_trans_handle *trans,
 	bi = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]), path->slots[0],
 			    struct btrfs_block_group_item);
 	memcpy(bi, &cache->item, sizeof(*bi));
-	mark_buffer_dirty(path->nodes[0]);
+	btrfs_mark_buffer_dirty(path->nodes[0]);
 	btrfs_release_path(extent_root, path);
 fail:
 	finish_current_insert(trans, extent_root);
@@ -739,8 +740,30 @@ static int try_remove_page(struct address_space *mapping, unsigned long index)
 	return ret;
 }
 
-int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
-			       btrfs_root *root)
+int btrfs_copy_pinned(struct btrfs_root *root, struct radix_tree_root *copy)
+{
+	unsigned long gang[8];
+	u64 last = 0;
+	struct radix_tree_root *pinned_radix = &root->fs_info->pinned_radix;
+	int ret;
+	int i;
+
+	while(1) {
+		ret = find_first_radix_bit(pinned_radix, gang, last,
+					   ARRAY_SIZE(gang));
+		if (!ret)
+			break;
+		for (i = 0 ; i < ret; i++) {
+			set_radix_bit(copy, gang[i]);
+			last = gang[i] + 1;
+		}
+	}
+	return 0;
+}
+
+int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root,
+			       struct radix_tree_root *unpin_radix)
 {
 	unsigned long gang[8];
 	struct inode *btree_inode = root->fs_info->btree_inode;
@@ -752,7 +775,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
 	struct radix_tree_root *extent_radix = &root->fs_info->extent_map_radix;
 
 	while(1) {
-		ret = find_first_radix_bit(pinned_radix, gang, 0,
+		ret = find_first_radix_bit(unpin_radix, gang, 0,
 					   ARRAY_SIZE(gang));
 		if (!ret)
 			break;
@@ -760,6 +783,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
 			first = gang[0];
 		for (i = 0; i < ret; i++) {
 			clear_radix_bit(pinned_radix, gang[i]);
+			clear_radix_bit(unpin_radix, gang[i]);
 			block_group = btrfs_lookup_block_group(root->fs_info,
 							       gang[i]);
 			if (block_group) {
@@ -1309,6 +1333,7 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	if (data) {
 		ret = find_free_extent(trans, root, 0, 0,
 				       search_end, 0, &prealloc_key, 0, 0, 0);
+		BUG_ON(ret);
 		if (ret)
 			return ret;
 		exclude_nr = info->extent_tree_prealloc_nr;
@@ -1319,6 +1344,7 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	ret = find_free_extent(trans, root, num_blocks, search_start,
 			       search_end, hint_block, ins,
 			       exclude_start, exclude_nr, data);
+	BUG_ON(ret);
 	if (ret)
 		return ret;
 
@@ -1334,10 +1360,12 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	if (!data) {
 		exclude_start = ins->objectid;
 		exclude_nr = ins->offset;
+		hint_block = exclude_start + exclude_nr;
 		ret = find_free_extent(trans, root, 0, search_start,
 				       search_end, hint_block,
 				       &prealloc_key, exclude_start,
 				       exclude_nr, 0);
+		BUG_ON(ret);
 		if (ret)
 			return ret;
 	}
@@ -1348,6 +1376,7 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	ret = btrfs_insert_item(trans, extent_root, ins, &extent_item,
 				sizeof(extent_item));
 
+	BUG_ON(ret);
 	finish_current_insert(trans, extent_root);
 	pending_ret = del_pending_extents(trans, extent_root);
 	if (ret) {

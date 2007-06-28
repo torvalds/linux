@@ -75,6 +75,17 @@ static int btrfs_cow_block(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct btrfs_node *cow_node;
 	int ret;
 
+	WARN_ON(!buffer_uptodate(buf));
+	if (trans->transaction != root->fs_info->running_transaction) {
+		printk(KERN_CRIT "trans %Lu running %Lu\n", trans->transid,
+		       root->fs_info->running_transaction->transid);
+		WARN_ON(1);
+	}
+	if (trans->transid != root->fs_info->generation) {
+		printk(KERN_CRIT "trans %Lu running %Lu\n", trans->transid,
+		       root->fs_info->generation);
+		WARN_ON(1);
+	}
 	if (btrfs_header_generation(btrfs_buffer_header(buf)) ==
 				    trans->transid) {
 		*cow_ret = buf;
@@ -107,7 +118,7 @@ static int btrfs_cow_block(struct btrfs_trans_handle *trans, struct btrfs_root
 		btrfs_free_extent(trans, root, bh_blocknr(buf), 1, 1);
 	}
 	btrfs_block_release(root, buf);
-	mark_buffer_dirty(cow);
+	btrfs_mark_buffer_dirty(cow);
 	*cow_ret = cow;
 	return 0;
 }

@@ -270,14 +270,6 @@ fail:
 	return NULL;
 }
 
-int dirty_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		     struct buffer_head *buf)
-{
-	WARN_ON(atomic_read(&buf->b_count) == 0);
-	mark_buffer_dirty(buf);
-	return 0;
-}
-
 int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		     struct buffer_head *buf)
 {
@@ -619,6 +611,20 @@ int close_ctree(struct btrfs_root *root)
 	kfree(fs_info->extent_root);
 	kfree(fs_info->tree_root);
 	return 0;
+}
+
+void btrfs_mark_buffer_dirty(struct buffer_head *bh)
+{
+	struct btrfs_root *root = BTRFS_I(bh->b_page->mapping->host)->root;
+	u64 transid = btrfs_header_generation(btrfs_buffer_header(bh));
+	WARN_ON(!atomic_read(&bh->b_count));
+	if (transid != root->fs_info->generation) {
+		printk(KERN_CRIT "transid mismatch buffer %llu, found %Lu running %Lu\n",
+			(unsigned long long)bh->b_blocknr,
+			transid, root->fs_info->generation);
+		WARN_ON(1);
+	}
+	mark_buffer_dirty(bh);
 }
 
 void btrfs_block_release(struct btrfs_root *root, struct buffer_head *buf)

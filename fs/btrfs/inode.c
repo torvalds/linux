@@ -506,7 +506,7 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 							 extent_num_blocks);
 				inode->i_blocks -= (orig_num_blocks -
 					extent_num_blocks) << 3;
-				mark_buffer_dirty(path->nodes[0]);
+				btrfs_mark_buffer_dirty(path->nodes[0]);
 			} else {
 				extent_start =
 					btrfs_file_extent_disk_blocknr(fi);
@@ -2020,7 +2020,7 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 	btrfs_set_header_owner(&leaf->header, root->root_key.objectid);
 	memcpy(leaf->header.fsid, root->fs_info->disk_super->fsid,
 	       sizeof(leaf->header.fsid));
-	mark_buffer_dirty(subvol);
+	btrfs_mark_buffer_dirty(subvol);
 
 	inode_item = &root_item.inode;
 	memset(inode_item, 0, sizeof(*inode_item));
@@ -2497,7 +2497,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	ptr = btrfs_file_extent_inline_start(ei);
 	btrfs_memcpy(root, path->nodes[0]->b_data,
 		     ptr, symname, name_len);
-	mark_buffer_dirty(path->nodes[0]);
+	btrfs_mark_buffer_dirty(path->nodes[0]);
 	btrfs_free_path(path);
 	inode->i_op = &btrfs_symlink_inode_operations;
 	inode->i_mapping->a_ops = &btrfs_symlink_aops;
