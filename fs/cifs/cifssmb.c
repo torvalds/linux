@@ -426,11 +426,11 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 
 	/* if any of auth flags (ie not sign or seal) are overriden use them */
 	if(ses->overrideSecFlg & (~(CIFSSEC_MUST_SIGN | CIFSSEC_MUST_SEAL)))
-		secFlags = ses->overrideSecFlg;
+		secFlags = ses->overrideSecFlg;  /* BB FIXME fix sign flags? */
 	else /* if override flags set only sign/seal OR them with global auth */
 		secFlags = extended_security | ses->overrideSecFlg;
 
-	cFYI(1,("secFlags 0x%x",secFlags));
+	cFYI(1, ("secFlags 0x%x", secFlags));
 
 	pSMB->hdr.Mid = GetNextMid(server);
 	pSMB->hdr.Flags2 |= (SMBFLG2_UNICODE | SMBFLG2_ERR_STATUS);
@@ -633,22 +633,32 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 signing_check:
 #endif
-	if(sign_CIFS_PDUs == FALSE) {        
+	if ((secFlags & CIFSSEC_MAY_SIGN) == 0) {
+		/* MUST_SIGN already includes the MAY_SIGN FLAG
+		   so if this is zero it means that signing is disabled */
+		cFYI(1, ("Signing disabled"));
 		if(server->secMode & SECMODE_SIGN_REQUIRED)
-			cERROR(1,("Server requires "
-				 "/proc/fs/cifs/PacketSigningEnabled to be on"));
+			cERROR(1, ("Server requires "
+				   "/proc/fs/cifs/PacketSigningEnabled "
+				   "to be on"));
 		server->secMode &= 
 			~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
-	} else if(sign_CIFS_PDUs == 1) {
+	} else if ((secFlags & CIFSSEC_MUST_SIGN) == CIFSSEC_MUST_SIGN) {
+		/* signing required */
+		cFYI(1, ("Must sign - segFlags 0x%x", secFlags));
+		if ((server->secMode &
+			(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED)) == 0) {
+			cERROR(1,
+				("signing required but server lacks support"));
+		} else
+			server->secMode |= SECMODE_SIGN_REQUIRED;
+	} else {
+		/* signing optional ie CIFSSEC_MAY_SIGN */
 		if((server->secMode & SECMODE_SIGN_REQUIRED) == 0)
 			server->secMode &= 
 				~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
-	} else if(sign_CIFS_PDUs == 2) {
-		if((server->secMode & 
-			(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED)) == 0) {
-			cERROR(1,("signing required but server lacks support"));
-		}
 	}
+	
 neg_err_exit:	
 	cifs_buf_release(pSMB);
 
