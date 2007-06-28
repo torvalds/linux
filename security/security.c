@@ -24,6 +24,7 @@ extern struct security_operations dummy_security_ops;
 extern void security_fixup_ops(struct security_operations *ops);
 
 struct security_operations *security_ops;	/* Initialized to NULL */
+unsigned long mmap_min_addr;		/* 0 means no protection */
 
 static inline int verify(struct security_operations *ops)
 {
@@ -176,4 +177,5 @@ EXPORT_SYMBOL_GPL(register_security);
 EXPORT_SYMBOL_GPL(unregister_security);
 EXPORT_SYMBOL_GPL(mod_reg_security);
 EXPORT_SYMBOL_GPL(mod_unreg_security);
+EXPORT_SYMBOL_GPL(mmap_min_addr);
 EXPORT_SYMBOL(security_ops);

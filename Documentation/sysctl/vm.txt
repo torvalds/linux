@@ -31,6 +31,7 @@ Currently, these files are in /proc/sys/vm:
 - min_unmapped_ratio
 - min_slab_ratio
 - panic_on_oom
+- mmap_min_address
 
 ==============================================================
 
@@ -216,3 +217,17 @@ above-mentioned.
 The default value is 0.
 1 and 2 are for failover of clustering. Please select either
 according to your policy of failover.
+
+==============================================================
+
+mmap_min_addr
+
+This file indicates the amount of address space  which a user process will
+be restricted from mmaping.  Since kernel null dereference bugs could
+accidentally operate based on the information in the first couple of pages
+of memory userspace processes should not be allowed to write to them.  By
+default this value is set to 0 and no protections will be enforced by the
+security module.  Setting this value to something like 64k will allow the
+vast majority of applications to work correctly and provide defense in depth
+against future potential kernel bugs.
+
