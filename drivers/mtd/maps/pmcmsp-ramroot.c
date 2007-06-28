@@ -79,7 +79,6 @@ static int __init init_rrmap(void)
 		rr_mtd->owner = THIS_MODULE;
 
 		add_mtd_device(rr_mtd);
-		ROOT_DEV = MKDEV(MTD_BLOCK_MAJOR, rr_mtd->index);
 
 		return 0;
 	}

@@ -421,10 +421,6 @@ int __init nettel_init(void)
 
 	intel_mtd->owner = THIS_MODULE;
 
-#ifndef CONFIG_BLK_DEV_INITRD
-	ROOT_DEV = MKDEV(MTD_BLOCK_MAJOR, 1);
-#endif
-
 	num_intel_partitions = sizeof(nettel_intel_partitions) /
 		sizeof(nettel_intel_partitions[0]);
 
