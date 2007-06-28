@@ -16,7 +16,7 @@
  *
  *   You should have received a copy of the GNU Lesser General Public License
  *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA 
+ *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #ifndef _CIFSFS_H
@@ -43,7 +43,7 @@ extern void cifs_read_inode(struct inode *);
 
 /* Functions related to inodes */
 extern const struct inode_operations cifs_dir_inode_ops;
-extern int cifs_create(struct inode *, struct dentry *, int, 
+extern int cifs_create(struct inode *, struct dentry *, int,
 		       struct nameidata *);
 extern struct dentry * cifs_lookup(struct inode *, struct dentry *,
 				  struct nameidata *);
@@ -63,9 +63,9 @@ extern const struct inode_operations cifs_symlink_inode_ops;
 
 /* Functions related to files and directories */
 extern const struct file_operations cifs_file_ops;
-extern const struct file_operations cifs_file_direct_ops; /* if directio mount */
+extern const struct file_operations cifs_file_direct_ops; /* if directio mnt */
 extern const struct file_operations cifs_file_nobrl_ops;
-extern const struct file_operations cifs_file_direct_nobrl_ops; /* if directio mount */
+extern const struct file_operations cifs_file_direct_nobrl_ops; /* no brlocks */
 extern int cifs_open(struct inode *inode, struct file *file);
 extern int cifs_close(struct inode *inode, struct file *file);
 extern int cifs_closedir(struct inode *inode, struct file *file);
@@ -88,8 +88,9 @@ extern struct dentry_operations cifs_ci_dentry_ops;
 
 /* Functions related to symlinks */
 extern void *cifs_follow_link(struct dentry *direntry, struct nameidata *nd);
-extern void cifs_put_link(struct dentry *direntry, struct nameidata *nd, void *);
-extern int cifs_readlink(struct dentry *direntry, char __user *buffer, 
+extern void cifs_put_link(struct dentry *direntry,
+			  struct nameidata *nd, void *);
+extern int cifs_readlink(struct dentry *direntry, char __user *buffer,
 			 int buflen);
 extern int cifs_symlink(struct inode *inode, struct dentry *direntry,
 			const char *symname);
@@ -98,7 +99,7 @@ extern int 	cifs_setxattr(struct dentry *, const char *, const void *,
 			size_t, int);
 extern ssize_t	cifs_getxattr(struct dentry *, const char *, void *, size_t);
 extern ssize_t	cifs_listxattr(struct dentry *, char *, size_t);
-extern int cifs_ioctl (struct inode * inode, struct file * filep,
+extern int cifs_ioctl (struct inode *inode, struct file *filep,
 		       unsigned int command, unsigned long arg);
 #define CIFS_VERSION   "1.49"
 #endif				/* _CIFSFS_H */
