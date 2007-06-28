@@ -313,6 +313,7 @@ static struct CARD {
 	{ 0xdb1118ac, BTTV_BOARD_DVICO_DVBT_LITE,    "Ultraview DVB-T Lite" },
 	{ 0xd50018ac, BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE,    "DViCO FusionHDTV 5 Lite" },
 	{ 0x00261822, BTTV_BOARD_TWINHAN_DST,	"DNTV Live! Mini "},
+	{ 0xd200dbc0, BTTV_BOARD_DVICO_FUSIONHDTV_2,	"DViCO FusionHDTV 2" },
 
 	{ 0, -1, NULL }
 };
@@ -2953,6 +2954,24 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
+	},
+	/* ---- card 0x94---------------------------------- */
+	[BTTV_BOARD_DVICO_FUSIONHDTV_2] = {
+		.name           = "DViCO FusionHDTV 2",
+		.tuner          = 0,
+		.tuner_type     = TUNER_PHILIPS_ATSC, /* FCV1236D */
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.video_inputs   = 3,
+		.audio_inputs   = 1,
+		.svhs           = 2,
+		.muxsel		= { 2, 3, 1 },
+		.gpiomask       = 0x00e00007,
+		.gpiomux        = { 0x00400005, 0, 0x00000001, 0 },
+		.gpiomute 	= 0x00c00007,
+		.no_msp34xx     = 1,
+		.no_tda9875     = 1,
+		.no_tda7432     = 1,
 	},
 };
 

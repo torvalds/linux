@@ -146,3 +146,4 @@
 145 -> SSAI Security Video Interface                       [4149:5353]
 146 -> SSAI Ultrasound Video Interface                     [414a:5353]
 147 -> VoodooTV 200 (USA)                                  [121a:3000]
+148 -> DViCO FusionHDTV 2                                  [dbc0:d200]
