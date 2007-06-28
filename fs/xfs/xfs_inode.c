@@ -49,6 +49,7 @@
 #include "xfs_quota.h"
 #include "xfs_acl.h"
 
+#include <linux/log2.h>
 
 kmem_zone_t *xfs_ifork_zone;
 kmem_zone_t *xfs_inode_zone;
@@ -4184,7 +4185,7 @@ xfs_iext_realloc_direct(
 			ifp->if_bytes = new_size;
 			return;
 		}
-		if ((new_size & (new_size - 1)) != 0) {
+		if (!is_power_of_2(new_size)){
 			rnew_size = xfs_iroundup(new_size);
 		}
 		if (rnew_size != ifp->if_real_bytes) {
@@ -4207,7 +4208,7 @@ xfs_iext_realloc_direct(
 	 */
 	else {
 		new_size += ifp->if_bytes;
-		if ((new_size & (new_size - 1)) != 0) {
+		if (!is_power_of_2(new_size)) {
 			rnew_size = xfs_iroundup(new_size);
 		}
 		xfs_iext_inline_to_direct(ifp, rnew_size);
