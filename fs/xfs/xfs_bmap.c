@@ -2605,7 +2605,6 @@ xfs_bmap_rtalloc(
 	xfs_extlen_t	prod = 0;	/* product factor for allocators */
 	xfs_extlen_t	ralen = 0;	/* realtime allocation length */
 	xfs_extlen_t	align;		/* minimum allocation alignment */
-	xfs_rtblock_t	rtx;		/* realtime extent number */
 	xfs_rtblock_t	rtb;
 
 	mp = ap->ip->i_mount;
@@ -2643,6 +2642,8 @@ xfs_bmap_rtalloc(
 	 * pick an extent that will space things out in the rt area.
 	 */
 	if (ap->eof && ap->off == 0) {
+		xfs_rtblock_t uninitialized_var(rtx); /* realtime extent no */
+
 		error = xfs_rtpick_extent(mp, ap->tp, ralen, &rtx);
 		if (error)
 			return error;
