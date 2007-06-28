@@ -77,36 +77,6 @@ xfs_open(
 	return 0;
 }
 
-STATIC int
-xfs_close(
-	bhv_desc_t	*bdp,
-	int		flags,
-	lastclose_t	lastclose,
-	cred_t		*credp)
-{
-	bhv_vnode_t	*vp = BHV_TO_VNODE(bdp);
-	xfs_inode_t	*ip = XFS_BHVTOI(bdp);
-
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
-		return XFS_ERROR(EIO);
-
-	if (lastclose != L_TRUE || !VN_ISREG(vp))
-		return 0;
-
-	/*
-	 * If we previously truncated this file and removed old data in
-	 * the process, we want to initiate "early" writeout on the last
-	 * close.  This is an attempt to combat the notorious NULL files
-	 * problem which is particularly noticable from a truncate down,
-	 * buffered (re-)write (delalloc), followed by a crash.  What we
-	 * are effectively doing here is significantly reducing the time
-	 * window where we'd otherwise be exposed to that problem.
-	 */
-	if (VUNTRUNCATE(vp) && VN_DIRTY(vp) && ip->i_delayed_blks > 0)
-		return bhv_vop_flush_pages(vp, 0, -1, XFS_B_ASYNC, FI_NONE);
-	return 0;
-}
-
 /*
  * xfs_getattr
  */
@@ -1565,6 +1535,22 @@ xfs_release(
 	/* If this is a read-only mount, don't do this (would generate I/O) */
 	if (vp->v_vfsp->vfs_flag & VFS_RDONLY)
 		return 0;
+
+	if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+		/*
+		 * If we previously truncated this file and removed old data
+		 * in the process, we want to initiate "early" writeout on
+		 * the last close.  This is an attempt to combat the notorious
+		 * NULL files problem which is particularly noticable from a
+		 * truncate down, buffered (re-)write (delalloc), followed by
+		 * a crash.  What we are effectively doing here is
+		 * significantly reducing the time window where we'd otherwise
+		 * be exposed to that problem.
+		 */
+		if (VUNTRUNCATE(vp) && VN_DIRTY(vp) && ip->i_delayed_blks > 0)
+			bhv_vop_flush_pages(vp, 0, -1, XFS_B_ASYNC, FI_NONE);
+	}
+
 
 #ifdef HAVE_REFCACHE
 	/* If we are in the NFS reference cache then don't do this now */
@@ -4681,7 +4667,6 @@ xfs_change_file_space(
 bhv_vnodeops_t xfs_vnodeops = {
 	BHV_IDENTITY_INIT(VN_BHV_XFS,VNODE_POSITION_XFS),
 	.vop_open		= xfs_open,
-	.vop_close		= xfs_close,
 	.vop_read		= xfs_read,
 #ifdef HAVE_SPLICE
 	.vop_splice_read	= xfs_splice_read,
