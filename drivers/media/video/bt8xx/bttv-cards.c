@@ -3370,10 +3370,9 @@ void __devinit bttv_init_card1(struct bttv *btv)
 /* initialization part two -- after registering i2c bus */
 void __devinit bttv_init_card2(struct bttv *btv)
 {
-	int tda9887;
 	int addr=ADDR_UNSET;
 
-	btv->tuner_type = -1;
+	btv->tuner_type = UNSET;
 
 	if (BTTV_BOARD_UNKNOWN == btv->c.type) {
 		bttv_readee(btv,eeprom_data,0xa0);
@@ -3521,7 +3520,15 @@ void __devinit bttv_init_card2(struct bttv *btv)
 			btv->tuner_type = bttv_tvcards[btv->c.type].tuner_type;
 	if (UNSET != tuner[btv->c.nr])
 		btv->tuner_type = tuner[btv->c.nr];
-	printk("bttv%d: using tuner=%d\n",btv->c.nr,btv->tuner_type);
+
+	if (btv->tuner_type == TUNER_ABSENT ||
+	    bttv_tvcards[btv->c.type].tuner == UNSET)
+		printk(KERN_INFO "bttv%d: tuner absent\n", btv->c.nr);
+	else if(btv->tuner_type == UNSET)
+		printk(KERN_WARNING "bttv%d: tuner type unset\n", btv->c.nr);
+	else
+		printk(KERN_INFO "bttv%d: tuner type=%d\n", btv->c.nr,
+		       btv->tuner_type);
 
 	if (btv->tuner_type != UNSET) {
 		struct tuner_setup tun_setup;
@@ -3563,6 +3570,9 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	if (!autoload)
 		return;
 
+	if (bttv_tvcards[btv->c.type].tuner == UNSET)
+		return;  /* no tuner or related drivers to load */
+
 	/* try to detect audio/fader chips */
 	if (!bttv_tvcards[btv->c.type].no_msp34xx &&
 	    bttv_I2CRead(btv, I2C_ADDR_MSP3400, "MSP34xx") >=0)
@@ -3583,17 +3593,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	if (bttv_tvcards[btv->c.type].needs_tvaudio)
 		request_module("tvaudio");
 
-	/* tuner modules */
-	tda9887 = 0;
-	if (btv->tda9887_conf)
-		tda9887 = 1;
-	if (0 == tda9887 && 0 == bttv_tvcards[btv->c.type].has_dvb &&
-	    bttv_I2CRead(btv, I2C_ADDR_TDA9887, "TDA9887") >=0)
-		tda9887 = 1;
-	/* Hybrid DVB card, DOES have a tda9887 */
-	if (btv->c.type == BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE)
-		tda9887 = 1;
-	if (btv->tuner_type != UNSET)
+	if (btv->tuner_type != UNSET && btv->tuner_type != TUNER_ABSENT)
 		request_module("tuner");
 }
 
