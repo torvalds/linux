@@ -423,7 +423,12 @@ struct jffs2_raw_node_ref *jffs2_add_physical_node_ref(struct jffs2_sb_info *c,
 	   even after refiling c->nextblock */
 	if ((c->nextblock || ((ofs & 3) != REF_OBSOLETE))
 	    && (jeb != c->nextblock || (ofs & ~3) != jeb->offset + (c->sector_size - jeb->free_size))) {
-		printk(KERN_WARNING "argh. node added in wrong place\n");
+		printk(KERN_WARNING "argh. node added in wrong place at 0x%08x(%d)\n", ofs & ~3, ofs & 3);
+		if (c->nextblock)
+			printk(KERN_WARNING "nextblock 0x%08x", c->nextblock->offset);
+		else
+			printk(KERN_WARNING "No nextblock");
+		printk(", expected at %08x\n", jeb->offset + (c->sector_size - jeb->free_size));
 		return ERR_PTR(-EINVAL);
 	}
 #endif
