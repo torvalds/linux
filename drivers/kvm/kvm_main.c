@@ -43,6 +43,7 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/smp.h>
+#include <linux/anon_inodes.h>
 
 #include "x86_emulate.h"
 #include "segment_descriptor.h"
@@ -81,8 +82,6 @@ static struct kvm_stats_debugfs_item {
 
 static struct dentry *debugfs_dir;
 
-struct vfsmount *kvmfs_mnt;
-
 #define MAX_IO_MSRS 256
 
 #define CR0_RESEVED_BITS 0xffffffff1ffaffc0ULL
@@ -103,55 +102,6 @@ struct segment_descriptor_64 {
 
 static long kvm_vcpu_ioctl(struct file *file, unsigned int ioctl,
 			   unsigned long arg);
-
-static struct inode *kvmfs_inode(struct file_operations *fops)
-{
-	int error = -ENOMEM;
-	struct inode *inode = new_inode(kvmfs_mnt->mnt_sb);
-
-	if (!inode)
-		goto eexit_1;
-
-	inode->i_fop = fops;
-
-	/*
-	 * Mark the inode dirty from the very beginning,
-	 * that way it will never be moved to the dirty
-	 * list because mark_inode_dirty() will think
-	 * that it already _is_ on the dirty list.
-	 */
-	inode->i_state = I_DIRTY;
-	inode->i_mode = S_IRUSR | S_IWUSR;
-	inode->i_uid = current->fsuid;
-	inode->i_gid = current->fsgid;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-	return inode;
-
-eexit_1:
-	return ERR_PTR(error);
-}
-
-static struct file *kvmfs_file(struct inode *inode, void *private_data)
-{
-	struct file *file = get_empty_filp();
-
-	if (!file)
-		return ERR_PTR(-ENFILE);
-
-	file->f_path.mnt = mntget(kvmfs_mnt);
-	file->f_path.dentry = d_alloc_anon(inode);
-	if (!file->f_path.dentry)
-		return ERR_PTR(-ENOMEM);
-	file->f_mapping = inode->i_mapping;
-
-	file->f_pos = 0;
-	file->f_flags = O_RDWR;
-	file->f_op = inode->i_fop;
-	file->f_mode = FMODE_READ | FMODE_WRITE;
-	file->f_version = 0;
-	file->private_data = private_data;
-	return file;
-}
 
 unsigned long segment_base(u16 selector)
 {
@@ -2413,34 +2363,12 @@ static int create_vcpu_fd(struct kvm_vcpu *vcpu)
 	struct inode *inode;
 	struct file *file;
 
+	r = anon_inode_getfd(&fd, &inode, &file,
+			     "kvm-vcpu", &kvm_vcpu_fops, vcpu);
+	if (r)
+		return r;
 	atomic_inc(&vcpu->kvm->filp->f_count);
-	inode = kvmfs_inode(&kvm_vcpu_fops);
-	if (IS_ERR(inode)) {
-		r = PTR_ERR(inode);
-		goto out1;
-	}
-
-	file = kvmfs_file(inode, vcpu);
-	if (IS_ERR(file)) {
-		r = PTR_ERR(file);
-		goto out2;
-	}
-
-	r = get_unused_fd();
-	if (r < 0)
-		goto out3;
-	fd = r;
-	fd_install(fd, file);
-
 	return fd;
-
-out3:
-	fput(file);
-out2:
-	iput(inode);
-out1:
-	fput(vcpu->kvm->filp);
-	return r;
 }
 
 /*
@@ -2905,41 +2833,18 @@ static int kvm_dev_ioctl_create_vm(void)
 	struct file *file;
 	struct kvm *kvm;
 
-	inode = kvmfs_inode(&kvm_vm_fops);
-	if (IS_ERR(inode)) {
-		r = PTR_ERR(inode);
-		goto out1;
-	}
-
 	kvm = kvm_create_vm();
-	if (IS_ERR(kvm)) {
-		r = PTR_ERR(kvm);
-		goto out2;
+	if (IS_ERR(kvm))
+		return PTR_ERR(kvm);
+	r = anon_inode_getfd(&fd, &inode, &file, "kvm-vm", &kvm_vm_fops, kvm);
+	if (r) {
+		kvm_destroy_vm(kvm);
+		return r;
 	}
 
-	file = kvmfs_file(inode, kvm);
-	if (IS_ERR(file)) {
-		r = PTR_ERR(file);
-		goto out3;
-	}
 	kvm->filp = file;
 
-	r = get_unused_fd();
-	if (r < 0)
-		goto out4;
-	fd = r;
-	fd_install(fd, file);
-
 	return fd;
-
-out4:
-	fput(file);
-out3:
-	kvm_destroy_vm(kvm);
-out2:
-	iput(inode);
-out1:
-	return r;
 }
 
 static long kvm_dev_ioctl(struct file *filp,
@@ -3211,18 +3116,6 @@ static struct sys_device kvm_sysdev = {
 
 hpa_t bad_page_address;
 
-static int kvmfs_get_sb(struct file_system_type *fs_type, int flags,
-			const char *dev_name, void *data, struct vfsmount *mnt)
-{
-	return get_sb_pseudo(fs_type, "kvm:", NULL, KVMFS_SUPER_MAGIC, mnt);
-}
-
-static struct file_system_type kvm_fs_type = {
-	.name		= "kvmfs",
-	.get_sb		= kvmfs_get_sb,
-	.kill_sb	= kill_anon_super,
-};
-
 int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
 {
 	int r;
@@ -3307,14 +3200,6 @@ static __init int kvm_init(void)
 	if (r)
 		goto out4;
 
-	r = register_filesystem(&kvm_fs_type);
-	if (r)
-		goto out3;
-
-	kvmfs_mnt = kern_mount(&kvm_fs_type);
-	r = PTR_ERR(kvmfs_mnt);
-	if (IS_ERR(kvmfs_mnt))
-		goto out2;
 	kvm_init_debug();
 
 	kvm_init_msr_list();
@@ -3331,10 +3216,6 @@ static __init int kvm_init(void)
 
 out:
 	kvm_exit_debug();
-	mntput(kvmfs_mnt);
-out2:
-	unregister_filesystem(&kvm_fs_type);
-out3:
 	kvm_mmu_module_exit();
 out4:
 	return r;
@@ -3344,8 +3225,6 @@ static __exit void kvm_exit(void)
 {
 	kvm_exit_debug();
 	__free_page(pfn_to_page(bad_page_address >> PAGE_SHIFT));
-	mntput(kvmfs_mnt);
-	unregister_filesystem(&kvm_fs_type);
 	kvm_mmu_module_exit();
 }
 
