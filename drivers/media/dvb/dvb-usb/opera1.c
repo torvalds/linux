@@ -534,18 +534,16 @@ static struct dvb_usb_device_properties opera1_properties = {
 static int opera1_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
-	struct dvb_usb_device *d;
 	struct usb_device *udev = interface_to_usbdev(intf);
 
 	if (udev->descriptor.idProduct == USB_PID_OPERA1_WARM &&
 		udev->descriptor.idVendor == USB_VID_OPERA1 &&
-		(d == NULL
-			|| opera1_xilinx_load_firmware(udev, "dvb-usb-opera1-fpga.fw") != 0)
-		) {
+		opera1_xilinx_load_firmware(udev, "dvb-usb-opera1-fpga.fw") != 0
+	    ) {
 		return -EINVAL;
 	}
 
-	if (dvb_usb_device_init(intf, &opera1_properties, THIS_MODULE, &d) != 0)
+	if (dvb_usb_device_init(intf, &opera1_properties, THIS_MODULE, NULL) != 0)
 		return -EINVAL;
 	return 0;
 }
