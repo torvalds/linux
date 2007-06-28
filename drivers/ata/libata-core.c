@@ -4781,8 +4781,6 @@ static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 		} else
 			ata_qc_complete(qc);
 	}
-
-	ata_altstatus(ap); /* flush */
 }
 
 /**
