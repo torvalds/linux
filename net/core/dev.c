@@ -1509,11 +1509,11 @@ int dev_queue_xmit(struct sk_buff *skb)
 		skb_set_transport_header(skb, skb->csum_start -
 					      skb_headroom(skb));
 
-		if (!(dev->features & NETIF_F_GEN_CSUM)
-		    || ((dev->features & NETIF_F_IP_CSUM)
-			&& skb->protocol == htons(ETH_P_IP))
-		    || ((dev->features & NETIF_F_IPV6_CSUM)
-			&& skb->protocol == htons(ETH_P_IPV6)))
+		if (!(dev->features & NETIF_F_GEN_CSUM) &&
+		    !((dev->features & NETIF_F_IP_CSUM) &&
+		      skb->protocol == htons(ETH_P_IP)) &&
+		    !((dev->features & NETIF_F_IPV6_CSUM) &&
+		      skb->protocol == htons(ETH_P_IPV6)))
 			if (skb_checksum_help(skb))
 				goto out_kfree_skb;
 	}
