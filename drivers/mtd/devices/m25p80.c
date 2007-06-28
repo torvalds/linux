@@ -36,9 +36,9 @@
 #define	OPCODE_READ		0x03	/* Read data bytes (low frequency) */
 #define	OPCODE_FAST_READ	0x0b	/* Read data bytes (high frequency) */
 #define	OPCODE_PP		0x02	/* Page program (up to 256 bytes) */
-#define	OPCODE_BE_4K		0x20	/* Erase 4K block */
-#define	OPCODE_BE_32K		0x52	/* Erase 32K block */
-#define	OPCODE_SE		0xd8	/* Sector erase (usually 64K) */
+#define	OPCODE_BE_4K 		0x20	/* Erase 4KiB block */
+#define	OPCODE_BE_32K		0x52	/* Erase 32KiB block */
+#define	OPCODE_SE		0xd8	/* Sector erase (usually 64KiB) */
 #define	OPCODE_RDID		0x9f	/* Read JEDEC ID */
 
 /* Status Register bits. */
@@ -150,7 +150,7 @@ static int wait_till_ready(struct m25p *flash)
  */
 static int erase_sector(struct m25p *flash, u32 offset)
 {
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: %s %dK at 0x%08x\n",
+	DEBUG(MTD_DEBUG_LEVEL3, "%s: %s %dKiB at 0x%08x\n",
 			flash->spi->dev.bus_id, __FUNCTION__,
 			flash->mtd.erasesize / 1024, offset);
 
@@ -473,7 +473,7 @@ static struct flash_info __devinitdata m25p_data [] = {
 	{ "m25pe80", 0x208014,  64 * 1024, 16, },
 	{ "m25pe16", 0x208015,  64 * 1024, 32, SECT_4K, },
 
-	/* Winbond -- w25x "blocks" are 64K, "sectors" are 4K */
+	/* Winbond -- w25x "blocks" are 64K, "sectors" are 4KiB */
 	{ "w25x10", 0xef3011, 64 * 1024, 2, SECT_4K, },
 	{ "w25x20", 0xef3012, 64 * 1024, 4, SECT_4K, },
 	{ "w25x40", 0xef3013, 64 * 1024, 8, SECT_4K, },
@@ -601,8 +601,8 @@ static int __devinit m25p_probe(struct spi_device *spi)
 			flash->mtd.size / 1024);
 
 	DEBUG(MTD_DEBUG_LEVEL2,
-		"mtd .name = %s, .size = 0x%.8x (%uM) "
-			".erasesize = 0x%.8x (%uK) .numeraseregions = %d\n",
+		"mtd .name = %s, .size = 0x%.8x (%uMiB) "
+			".erasesize = 0x%.8x (%uKiB) .numeraseregions = %d\n",
 		flash->mtd.name,
 		flash->mtd.size, flash->mtd.size / (1024*1024),
 		flash->mtd.erasesize, flash->mtd.erasesize / 1024,
@@ -612,7 +612,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 		for (i = 0; i < flash->mtd.numeraseregions; i++)
 			DEBUG(MTD_DEBUG_LEVEL2,
 				"mtd.eraseregions[%d] = { .offset = 0x%.8x, "
-				".erasesize = 0x%.8x (%uK), "
+				".erasesize = 0x%.8x (%uKiB), "
 				".numblocks = %d }\n",
 				i, flash->mtd.eraseregions[i].offset,
 				flash->mtd.eraseregions[i].erasesize,
@@ -643,7 +643,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 			for (i = 0; i < nr_parts; i++) {
 				DEBUG(MTD_DEBUG_LEVEL2, "partitions[%d] = "
 					"{.name = %s, .offset = 0x%.8x, "
-						".size = 0x%.8x (%uK) }\n",
+						".size = 0x%.8x (%uKiB) }\n",
 					i, parts[i].name,
 					parts[i].offset,
 					parts[i].size,
