@@ -14,16 +14,17 @@
  *
  */
 
+#include "kvm_svm.h"
+#include "x86_emulate.h"
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
 #include <linux/profile.h>
 #include <linux/sched.h>
-#include <asm/desc.h>
 
-#include "kvm_svm.h"
-#include "x86_emulate.h"
+#include <asm/desc.h>
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");

@@ -16,37 +16,33 @@
  */
 
 #include "kvm.h"
+#include "x86_emulate.h"
+#include "segment_descriptor.h"
 
 #include <linux/kvm.h>
 #include <linux/module.h>
 #include <linux/errno.h>
-#include <linux/magic.h>
-#include <asm/processor.h>
 #include <linux/percpu.h>
 #include <linux/gfp.h>
-#include <asm/msr.h>
 #include <linux/mm.h>
 #include <linux/miscdevice.h>
 #include <linux/vmalloc.h>
-#include <asm/uaccess.h>
 #include <linux/reboot.h>
-#include <asm/io.h>
 #include <linux/debugfs.h>
 #include <linux/highmem.h>
 #include <linux/file.h>
-#include <asm/desc.h>
 #include <linux/sysdev.h>
 #include <linux/cpu.h>
-#include <linux/file.h>
-#include <linux/fs.h>
-#include <linux/mount.h>
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/smp.h>
 #include <linux/anon_inodes.h>
 
-#include "x86_emulate.h"
-#include "segment_descriptor.h"
+#include <asm/processor.h>
+#include <asm/msr.h>
+#include <asm/io.h>
+#include <asm/uaccess.h>
+#include <asm/desc.h>
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");

@@ -16,16 +16,18 @@
  * the COPYING file in the top-level directory.
  *
  */
-#include <linux/types.h>
-#include <linux/string.h>
-#include <asm/page.h>
-#include <linux/mm.h>
-#include <linux/highmem.h>
-#include <linux/module.h>
-#include <asm/cmpxchg.h>
 
 #include "vmx.h"
 #include "kvm.h"
+
+#include <linux/types.h>
+#include <linux/string.h>
+#include <linux/mm.h>
+#include <linux/highmem.h>
+#include <linux/module.h>
+
+#include <asm/page.h>
+#include <asm/cmpxchg.h>
 
 #undef MMU_DEBUG
 

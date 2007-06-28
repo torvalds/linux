@@ -17,16 +17,17 @@
 
 #include "kvm.h"
 #include "vmx.h"
+#include "segment_descriptor.h"
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/profile.h>
 #include <linux/sched.h>
+
 #include <asm/io.h>
 #include <asm/desc.h>
-
-#include "segment_descriptor.h"
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
