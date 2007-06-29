@@ -636,28 +636,9 @@ static int __init acpi_parse_hpet(struct acpi_table_header *table)
 		return -1;
 	}
 
-#define HPET_RESOURCE_NAME_SIZE 9
-	hpet_res = alloc_bootmem(sizeof(*hpet_res) + HPET_RESOURCE_NAME_SIZE);
-	if (hpet_res) {
-		memset(hpet_res, 0, sizeof(*hpet_res));
-		hpet_res->name = (void *)&hpet_res[1];
-		hpet_res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-		snprintf((char *)hpet_res->name, HPET_RESOURCE_NAME_SIZE,
-			 "HPET %u", hpet_tbl->sequence);
-		hpet_res->end = (1 * 1024) - 1;
-	}
-
 	hpet_address = hpet_tbl->address.address;
 	printk(KERN_INFO PREFIX "HPET id: %#x base: %#lx\n",
 	       hpet_tbl->id, hpet_address);
-
-	res_start = hpet_address;
-
-	if (hpet_res) {
-		hpet_res->start = res_start;
-		hpet_res->end += res_start;
-		insert_resource(&iomem_resource, hpet_res);
-	}
 
 	return 0;
 }
