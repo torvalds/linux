@@ -70,11 +70,11 @@ static struct timer_list spusched_timer;
 /*
  * These are the 'tuning knobs' of the scheduler:
  *
- * Minimum timeslice is 5 msecs (or 10 jiffies, whichever is larger),
- * default timeslice is 100 msecs, maximum timeslice is 800 msecs.
+ * Minimum timeslice is 5 msecs (or 1 spu scheduler tick, whichever is
+ * larger), default timeslice is 100 msecs, maximum timeslice is 800 msecs.
  */
-#define MIN_SPU_TIMESLICE	max(5 * HZ / 100, 10)
-#define DEF_SPU_TIMESLICE	(100 * HZ / 100)
+#define MIN_SPU_TIMESLICE	max(5 * HZ / (1000 * SPUSCHED_TICK), 1)
+#define DEF_SPU_TIMESLICE	(100 * HZ / (1000 * SPUSCHED_TICK))
 
 #define MAX_USER_PRIO		(MAX_PRIO - MAX_RT_PRIO)
 #define SCALE_PRIO(x, prio) \
