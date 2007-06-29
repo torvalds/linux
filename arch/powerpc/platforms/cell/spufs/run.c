@@ -144,7 +144,6 @@ static int spu_run_init(struct spu_context *ctx, u32 * npc)
 		ctx->ops->runcntl_write(ctx, runcntl);
 	} else {
 		unsigned long mode = SPU_PRIVCNTL_MODE_NORMAL;
-		spu_start_tick(ctx);
 		ctx->ops->npc_write(ctx, *npc);
 		if (test_thread_flag(TIF_SINGLESTEP))
 			mode = SPU_PRIVCNTL_MODE_SINGLE_STEP;
@@ -160,7 +159,6 @@ static int spu_run_fini(struct spu_context *ctx, u32 * npc,
 {
 	int ret = 0;
 
-	spu_stop_tick(ctx);
 	*status = ctx->ops->status_read(ctx);
 	*npc = ctx->ops->npc_read(ctx);
 	spu_release(ctx);
@@ -330,10 +328,8 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 
 		if (unlikely(ctx->state != SPU_STATE_RUNNABLE)) {
 			ret = spu_reacquire_runnable(ctx, npc, &status);
-			if (ret) {
-				spu_stop_tick(ctx);
+			if (ret)
 				goto out2;
-			}
 			continue;
 		}
 		ret = spu_process_events(ctx);

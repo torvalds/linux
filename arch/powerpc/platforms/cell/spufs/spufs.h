@@ -31,6 +31,8 @@
 #include <asm/spu_csa.h>
 #include <asm/spu_info.h>
 
+#define SPU_DEF_TIMESLICE	100
+
 /* The magic number for our file system */
 enum {
 	SPUFS_MAGIC = 0x23c9b64e,
@@ -38,11 +40,6 @@ enum {
 
 struct spu_context_ops;
 struct spu_gang;
-
-/* ctx->sched_flags */
-enum {
-	SPU_SCHED_EXITING = 0,
-};
 
 struct spu_context {
 	struct spu *spu;		  /* pointer to a physical SPU */
@@ -83,7 +80,7 @@ struct spu_context {
 
 	/* scheduler fields */
  	struct list_head rq;
-	struct delayed_work sched_work;
+	unsigned int time_slice;
 	unsigned long sched_flags;
 	unsigned long rt_priority;
 	int policy;
@@ -200,9 +197,6 @@ void spu_acquire_saved(struct spu_context *ctx);
 int spu_activate(struct spu_context *ctx, unsigned long flags);
 void spu_deactivate(struct spu_context *ctx);
 void spu_yield(struct spu_context *ctx);
-void spu_start_tick(struct spu_context *ctx);
-void spu_stop_tick(struct spu_context *ctx);
-void spu_sched_tick(struct work_struct *work);
 int __init spu_sched_init(void);
 void __exit spu_sched_exit(void);
 

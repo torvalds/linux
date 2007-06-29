@@ -35,6 +35,7 @@
 #include <linux/numa.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
+#include <linux/kthread.h>
 
 #include <asm/io.h>
 #include <asm/mmu_context.h>
@@ -45,6 +46,8 @@
 
 #define SPU_TIMESLICE	(HZ)
 
+#define SPUSCHED_TICK	(HZ / 100)
+
 struct spu_prio_array {
 	DECLARE_BITMAP(bitmap, MAX_PRIO);
 	struct list_head runq[MAX_PRIO];
@@ -54,7 +57,8 @@ struct spu_prio_array {
 };
 
 static struct spu_prio_array *spu_prio;
-static struct workqueue_struct *spu_sched_wq;
+static struct task_struct *spusched_task;
+static struct timer_list spusched_timer;
 
 static inline int node_allowed(int node)
 {
@@ -68,31 +72,6 @@ static inline int node_allowed(int node)
 	return 1;
 }
 
-void spu_start_tick(struct spu_context *ctx)
-{
-	if (ctx->policy == SCHED_RR) {
-		/*
-		 * Make sure the exiting bit is cleared.
-		 */
-		clear_bit(SPU_SCHED_EXITING, &ctx->sched_flags);
-		mb();
-		queue_delayed_work(spu_sched_wq, &ctx->sched_work, SPU_TIMESLICE);
-	}
-}
-
-void spu_stop_tick(struct spu_context *ctx)
-{
-	if (ctx->policy == SCHED_RR) {
-		/*
-		 * While the work can be rearming normally setting this flag
-		 * makes sure it does not rearm itself anymore.
-		 */
-		set_bit(SPU_SCHED_EXITING, &ctx->sched_flags);
-		mb();
-		cancel_delayed_work(&ctx->sched_work);
-	}
-}
-
 /**
  * spu_add_to_active_list - add spu to active list
  * @spu:	spu to add to the active list
@@ -104,6 +83,11 @@ static void spu_add_to_active_list(struct spu *spu)
 	mutex_unlock(&spu_prio->active_mutex[spu->node]);
 }
 
+static void __spu_remove_from_active_list(struct spu *spu)
+{
+	list_del_init(&spu->list);
+}
+
 /**
  * spu_remove_from_active_list - remove spu from active list
  * @spu:       spu to remove from the active list
@@ -113,7 +97,7 @@ static void spu_remove_from_active_list(struct spu *spu)
 	int node = spu->node;
 
 	mutex_lock(&spu_prio->active_mutex[node]);
-	list_del_init(&spu->list);
+	__spu_remove_from_active_list(spu);
 	mutex_unlock(&spu_prio->active_mutex[node]);
 }
 
@@ -161,7 +145,6 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 	spu->timestamp = jiffies;
 	spu_cpu_affinity_set(spu, raw_smp_processor_id());
 	spu_switch_notify(spu, ctx);
-	spu_add_to_active_list(spu);
 	ctx->state = SPU_STATE_RUNNABLE;
 }
 
@@ -175,7 +158,6 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 	pr_debug("%s: unbind pid=%d SPU=%d NODE=%d\n", __FUNCTION__,
 		 spu->pid, spu->number, spu->node);
 
-	spu_remove_from_active_list(spu);
 	spu_switch_notify(spu, NULL);
 	spu_unmap_mappings(ctx);
 	spu_save(&ctx->csa, spu);
@@ -312,6 +294,7 @@ static struct spu *find_victim(struct spu_context *ctx)
 				victim = NULL;
 				goto restart;
 			}
+			spu_remove_from_active_list(spu);
 			spu_unbind_context(spu, victim);
 			mutex_unlock(&victim->state_mutex);
 			/*
@@ -354,6 +337,7 @@ int spu_activate(struct spu_context *ctx, unsigned long flags)
 			spu = find_victim(ctx);
 		if (spu) {
 			spu_bind_context(spu, ctx);
+			spu_add_to_active_list(spu);
 			return 0;
 		}
 
@@ -397,6 +381,7 @@ static int __spu_deactivate(struct spu_context *ctx, int force, int max_prio)
 	if (spu) {
 		new = grab_runnable_context(max_prio);
 		if (new || force) {
+			spu_remove_from_active_list(spu);
 			spu_unbind_context(spu, ctx);
 			spu_free(spu);
 			if (new)
@@ -437,51 +422,78 @@ void spu_yield(struct spu_context *ctx)
 	}
 }
 
-void spu_sched_tick(struct work_struct *work)
+static void spusched_tick(struct spu_context *ctx)
 {
-	struct spu_context *ctx =
-		container_of(work, struct spu_context, sched_work.work);
-	int preempted;
-
-	/*
-	 * If this context is being stopped avoid rescheduling from the
-	 * scheduler tick because we would block on the state_mutex.
-	 * The caller will yield the spu later on anyway.
-	 */
-	if (test_bit(SPU_SCHED_EXITING, &ctx->sched_flags))
+	if (ctx->policy != SCHED_RR || --ctx->time_slice)
 		return;
 
-	mutex_lock(&ctx->state_mutex);
-	preempted = __spu_deactivate(ctx, 0, ctx->prio + 1);
-	mutex_unlock(&ctx->state_mutex);
+	/*
+	 * Unfortunately active_mutex ranks outside of state_mutex, so
+	 * we have to trylock here.  If we fail give the context another
+	 * tick and try again.
+	 */
+	if (mutex_trylock(&ctx->state_mutex)) {
+		struct spu_context *new = grab_runnable_context(ctx->prio + 1);
+		if (new) {
+ 			struct spu *spu = ctx->spu;
 
-	if (preempted) {
-		/*
-		 * We need to break out of the wait loop in spu_run manually
-		 * to ensure this context gets put on the runqueue again
-		 * ASAP.
-		 */
-		wake_up(&ctx->stop_wq);
+			__spu_remove_from_active_list(spu);
+			spu_unbind_context(spu, ctx);
+			spu_free(spu);
+			wake_up(&new->stop_wq);
+			/*
+			 * We need to break out of the wait loop in
+			 * spu_run manually to ensure this context
+			 * gets put on the runqueue again ASAP.
+			 */
+			wake_up(&ctx->stop_wq);
+		}
+		ctx->time_slice = SPU_DEF_TIMESLICE;
+		mutex_unlock(&ctx->state_mutex);
 	} else {
-		spu_start_tick(ctx);
+		ctx->time_slice++;
 	}
+}
+
+static void spusched_wake(unsigned long data)
+{
+	mod_timer(&spusched_timer, jiffies + SPUSCHED_TICK);
+	wake_up_process(spusched_task);
+}
+
+static int spusched_thread(void *unused)
+{
+	struct spu *spu, *next;
+	int node;
+
+	setup_timer(&spusched_timer, spusched_wake, 0);
+	__mod_timer(&spusched_timer, jiffies + SPUSCHED_TICK);
+
+	while (!kthread_should_stop()) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
+		for (node = 0; node < MAX_NUMNODES; node++) {
+			mutex_lock(&spu_prio->active_mutex[node]);
+			list_for_each_entry_safe(spu, next,
+						 &spu_prio->active_list[node],
+						 list)
+				spusched_tick(spu->ctx);
+			mutex_unlock(&spu_prio->active_mutex[node]);
+		}
+	}
+
+	del_timer_sync(&spusched_timer);
+	return 0;
 }
 
 int __init spu_sched_init(void)
 {
 	int i;
 
-	spu_sched_wq = create_singlethread_workqueue("spusched");
-	if (!spu_sched_wq)
-		return 1;
-
 	spu_prio = kzalloc(sizeof(struct spu_prio_array), GFP_KERNEL);
-	if (!spu_prio) {
-		printk(KERN_WARNING "%s: Unable to allocate priority queue.\n",
-		       __FUNCTION__);
-		       destroy_workqueue(spu_sched_wq);
-		return 1;
-	}
+	if (!spu_prio)
+		return -ENOMEM;
+
 	for (i = 0; i < MAX_PRIO; i++) {
 		INIT_LIST_HEAD(&spu_prio->runq[i]);
 		__clear_bit(i, spu_prio->bitmap);
@@ -492,13 +504,22 @@ int __init spu_sched_init(void)
 		INIT_LIST_HEAD(&spu_prio->active_list[i]);
 	}
 	spin_lock_init(&spu_prio->runq_lock);
+
+	spusched_task = kthread_run(spusched_thread, NULL, "spusched");
+	if (IS_ERR(spusched_task)) {
+		kfree(spu_prio);
+		return PTR_ERR(spusched_task);
+	}
 	return 0;
+
 }
 
 void __exit spu_sched_exit(void)
 {
 	struct spu *spu, *tmp;
 	int node;
+
+	kthread_stop(spusched_task);
 
 	for (node = 0; node < MAX_NUMNODES; node++) {
 		mutex_lock(&spu_prio->active_mutex[node]);
@@ -510,5 +531,4 @@ void __exit spu_sched_exit(void)
 		mutex_unlock(&spu_prio->active_mutex[node]);
 	}
 	kfree(spu_prio);
-	destroy_workqueue(spu_sched_wq);
 }
