@@ -1499,14 +1499,15 @@ static ssize_t spufs_mfc_write(struct file *file, const char __user *buffer,
 		if (status)
 			ret = status;
 	}
-	spu_release(ctx);
 
 	if (ret)
-		goto out;
+		goto out_unlock;
 
 	ctx->tagwait |= 1 << cmd.tag;
 	ret = size;
 
+out_unlock:
+	spu_release(ctx);
 out:
 	return ret;
 }
@@ -1517,13 +1518,13 @@ static unsigned int spufs_mfc_poll(struct file *file,poll_table *wait)
 	u32 free_elements, tagstatus;
 	unsigned int mask;
 
+	poll_wait(file, &ctx->mfc_wq, wait);
+
 	spu_acquire(ctx);
 	ctx->ops->set_mfc_query(ctx, ctx->tagwait, 2);
 	free_elements = ctx->ops->get_mfc_free_elements(ctx);
 	tagstatus = ctx->ops->read_mfc_tagstatus(ctx);
 	spu_release(ctx);
-
-	poll_wait(file, &ctx->mfc_wq, wait);
 
 	mask = 0;
 	if (free_elements & 0xffff)
