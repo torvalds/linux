@@ -232,10 +232,6 @@ static int spufs_dir_close(struct inode *inode, struct file *file)
 	return dcache_dir_close(inode, file);
 }
 
-const struct inode_operations spufs_dir_inode_operations = {
-	.lookup = simple_lookup,
-};
-
 const struct file_operations spufs_context_fops = {
 	.open		= dcache_dir_open,
 	.release	= spufs_dir_close,
@@ -269,7 +265,7 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 		goto out_iput;
 
 	ctx->flags = flags;
-	inode->i_op = &spufs_dir_inode_operations;
+	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	if (flags & SPU_CREATE_NOSCHED)
 		ret = spufs_fill_dir(dentry, spufs_dir_nosched_contents,
@@ -386,7 +382,7 @@ spufs_mkgang(struct inode *dir, struct dentry *dentry, int mode)
 	if (!gang)
 		goto out_iput;
 
-	inode->i_op = &spufs_dir_inode_operations;
+	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 
 	d_instantiate(dentry, inode);
@@ -593,7 +589,7 @@ spufs_create_root(struct super_block *sb, void *data)
 	if (!inode)
 		goto out;
 
-	inode->i_op = &spufs_dir_inode_operations;
+	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	SPUFS_I(inode)->i_ctx = NULL;
 
