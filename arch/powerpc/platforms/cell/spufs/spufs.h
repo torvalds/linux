@@ -176,6 +176,7 @@ void spu_gang_add_ctx(struct spu_gang *gang, struct spu_context *ctx);
 int spufs_handle_class1(struct spu_context *ctx);
 
 /* context management */
+extern atomic_t nr_spu_contexts;
 static inline void spu_acquire(struct spu_context *ctx)
 {
 	mutex_lock(&ctx->state_mutex);

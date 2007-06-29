@@ -36,6 +36,9 @@
 #include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/kthread.h>
+#include <linux/pid_namespace.h>
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 
 #include <asm/io.h>
 #include <asm/mmu_context.h>
@@ -50,8 +53,11 @@ struct spu_prio_array {
 	spinlock_t runq_lock;
 	struct list_head active_list[MAX_NUMNODES];
 	struct mutex active_mutex[MAX_NUMNODES];
+	int nr_active[MAX_NUMNODES];
+	int nr_waiting;
 };
 
+static unsigned long spu_avenrun[3];
 static struct spu_prio_array *spu_prio;
 static struct task_struct *spusched_task;
 static struct timer_list spusched_timer;
@@ -169,14 +175,18 @@ static int node_allowed(struct spu_context *ctx, int node)
  */
 static void spu_add_to_active_list(struct spu *spu)
 {
-	mutex_lock(&spu_prio->active_mutex[spu->node]);
-	list_add_tail(&spu->list, &spu_prio->active_list[spu->node]);
-	mutex_unlock(&spu_prio->active_mutex[spu->node]);
+	int node = spu->node;
+
+	mutex_lock(&spu_prio->active_mutex[node]);
+	spu_prio->nr_active[node]++;
+	list_add_tail(&spu->list, &spu_prio->active_list[node]);
+	mutex_unlock(&spu_prio->active_mutex[node]);
 }
 
 static void __spu_remove_from_active_list(struct spu *spu)
 {
 	list_del_init(&spu->list);
+	spu_prio->nr_active[spu->node]--;
 }
 
 /**
@@ -275,6 +285,7 @@ static void __spu_add_to_rq(struct spu_context *ctx)
 {
 	int prio = ctx->prio;
 
+	spu_prio->nr_waiting++;
 	list_add_tail(&ctx->rq, &spu_prio->runq[prio]);
 	set_bit(prio, spu_prio->bitmap);
 }
@@ -283,8 +294,10 @@ static void __spu_del_from_rq(struct spu_context *ctx)
 {
 	int prio = ctx->prio;
 
-	if (!list_empty(&ctx->rq))
+	if (!list_empty(&ctx->rq)) {
 		list_del_init(&ctx->rq);
+		spu_prio->nr_waiting--;
+	}
 	if (list_empty(&spu_prio->runq[prio]))
 		clear_bit(prio, spu_prio->bitmap);
 }
@@ -567,10 +580,56 @@ static void spusched_tick(struct spu_context *ctx)
 	}
 }
 
+/**
+ * count_active_contexts - count nr of active tasks
+ *
+ * Return the number of tasks currently running or waiting to run.
+ *
+ * Note that we don't take runq_lock / active_mutex here.  Reading
+ * a single 32bit value is atomic on powerpc, and we don't care
+ * about memory ordering issues here.
+ */
+static unsigned long count_active_contexts(void)
+{
+	int nr_active = 0, node;
+
+	for (node = 0; node < MAX_NUMNODES; node++)
+		nr_active += spu_prio->nr_active[node];
+	nr_active += spu_prio->nr_waiting;
+
+	return nr_active;
+}
+
+/**
+ * spu_calc_load - given tick count, update the avenrun load estimates.
+ * @tick:	tick count
+ *
+ * No locking against reading these values from userspace, as for
+ * the CPU loadavg code.
+ */
+static void spu_calc_load(unsigned long ticks)
+{
+	unsigned long active_tasks; /* fixed-point */
+	static int count = LOAD_FREQ;
+
+	count -= ticks;
+
+	if (unlikely(count < 0)) {
+		active_tasks = count_active_contexts() * FIXED_1;
+		do {
+			CALC_LOAD(spu_avenrun[0], EXP_1, active_tasks);
+			CALC_LOAD(spu_avenrun[1], EXP_5, active_tasks);
+			CALC_LOAD(spu_avenrun[2], EXP_15, active_tasks);
+			count += LOAD_FREQ;
+		} while (count < 0);
+	}
+}
+
 static void spusched_wake(unsigned long data)
 {
 	mod_timer(&spusched_timer, jiffies + SPUSCHED_TICK);
 	wake_up_process(spusched_task);
+	spu_calc_load(SPUSCHED_TICK);
 }
 
 static int spusched_thread(void *unused)
@@ -598,13 +657,52 @@ static int spusched_thread(void *unused)
 	return 0;
 }
 
+#define LOAD_INT(x) ((x) >> FSHIFT)
+#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+
+static int show_spu_loadavg(struct seq_file *s, void *private)
+{
+	int a, b, c;
+
+	a = spu_avenrun[0] + (FIXED_1/200);
+	b = spu_avenrun[1] + (FIXED_1/200);
+	c = spu_avenrun[2] + (FIXED_1/200);
+
+	/*
+	 * Note that last_pid doesn't really make much sense for the
+	 * SPU loadavg (it even seems very odd on the CPU side..),
+	 * but we include it here to have a 100% compatible interface.
+	 */
+	seq_printf(s, "%d.%02d %d.%02d %d.%02d %ld/%d %d\n",
+		LOAD_INT(a), LOAD_FRAC(a),
+		LOAD_INT(b), LOAD_FRAC(b),
+		LOAD_INT(c), LOAD_FRAC(c),
+		count_active_contexts(),
+		atomic_read(&nr_spu_contexts),
+		current->nsproxy->pid_ns->last_pid);
+	return 0;
+}
+
+static int spu_loadavg_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, show_spu_loadavg, NULL);
+}
+
+static const struct file_operations spu_loadavg_fops = {
+	.open		= spu_loadavg_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 int __init spu_sched_init(void)
 {
-	int i;
+	struct proc_dir_entry *entry;
+	int err = -ENOMEM, i;
 
 	spu_prio = kzalloc(sizeof(struct spu_prio_array), GFP_KERNEL);
 	if (!spu_prio)
-		return -ENOMEM;
+		goto out;
 
 	for (i = 0; i < MAX_PRIO; i++) {
 		INIT_LIST_HEAD(&spu_prio->runq[i]);
@@ -619,20 +717,33 @@ int __init spu_sched_init(void)
 
 	spusched_task = kthread_run(spusched_thread, NULL, "spusched");
 	if (IS_ERR(spusched_task)) {
-		kfree(spu_prio);
-		return PTR_ERR(spusched_task);
+		err = PTR_ERR(spusched_task);
+		goto out_free_spu_prio;
 	}
+
+	entry = create_proc_entry("spu_loadavg", 0, NULL);
+	if (!entry)
+		goto out_stop_kthread;
+	entry->proc_fops = &spu_loadavg_fops;
 
 	pr_debug("spusched: tick: %d, min ticks: %d, default ticks: %d\n",
 			SPUSCHED_TICK, MIN_SPU_TIMESLICE, DEF_SPU_TIMESLICE);
 	return 0;
 
+ out_stop_kthread:
+	kthread_stop(spusched_task);
+ out_free_spu_prio:
+	kfree(spu_prio);
+ out:
+	return err;
 }
 
 void __exit spu_sched_exit(void)
 {
 	struct spu *spu, *tmp;
 	int node;
+
+	remove_proc_entry("spu_loadavg", NULL);
 
 	kthread_stop(spusched_task);
 
