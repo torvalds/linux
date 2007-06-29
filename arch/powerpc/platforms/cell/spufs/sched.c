@@ -536,7 +536,7 @@ static void spusched_tick(struct spu_context *ctx)
 	 * tick and try again.
 	 */
 	if (mutex_trylock(&ctx->state_mutex)) {
- 		struct spu *spu = ctx->spu;
+		struct spu *spu = ctx->spu;
 		struct spu_context *new;
 
 		new = grab_runnable_context(ctx->prio + 1, spu->node);

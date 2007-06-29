@@ -78,7 +78,7 @@ struct spu_context {
 	struct spu_gang *gang;
 
 	/* scheduler fields */
- 	struct list_head rq;
+	struct list_head rq;
 	unsigned int time_slice;
 	unsigned long sched_flags;
 	cpumask_t cpus_allowed;
@@ -206,7 +206,7 @@ extern char *isolated_loader;
 
 /*
  * spufs_wait
- * 	Same as wait_event_interruptible(), except that here
+ *	Same as wait_event_interruptible(), except that here
  *	we need to call spu_release(ctx) before sleeping, and
  *	then spu_acquire(ctx) when awoken.
  */

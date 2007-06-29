@@ -70,7 +70,7 @@
   }
 #endif				/* debug */
 
-#define POLL_WHILE_FALSE(_c) 	POLL_WHILE_TRUE(!(_c))
+#define POLL_WHILE_FALSE(_c)	POLL_WHILE_TRUE(!(_c))
 
 static inline void acquire_spu_lock(struct spu *spu)
 {
@@ -1930,7 +1930,7 @@ static void harvest(struct spu_state *prev, struct spu *spu)
 	reset_spu_privcntl(prev, spu);	        /* Step 16. */
 	reset_spu_lslr(prev, spu);              /* Step 17. */
 	setup_mfc_sr1(prev, spu);	        /* Step 18. */
-	spu_invalidate_slbs(spu);        	/* Step 19. */
+	spu_invalidate_slbs(spu);		/* Step 19. */
 	reset_ch_part1(prev, spu);	        /* Step 20. */
 	reset_ch_part2(prev, spu);	        /* Step 21. */
 	enable_interrupts(prev, spu);	        /* Step 22. */
