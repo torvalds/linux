@@ -3,6 +3,9 @@
 
    Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
 
+   Copyright (C) 2007 Michel Ludwig <michel.ludwig@gmail.com>
+	- Fix SMBus Read Byte command
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation version 2
@@ -92,6 +95,7 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 {
 	struct tm6000_core *dev = i2c_adap->algo_data;
 	int addr, rc, i, byte;
+	u8 prev_reg = 0;
 
 	if (num <= 0)
 		return 0;
@@ -100,25 +104,31 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 		i2c_dprintk(2,"%s %s addr=0x%x len=%d:",
 			 (msgs[i].flags & I2C_M_RD) ? "read" : "write",
 			 i == num - 1 ? "stop" : "nonstop", addr, msgs[i].len);
-
 		if (!msgs[i].len) {
 			/* Do I2C scan */
 			rc=tm6000_i2c_scan(i2c_adap, addr);
 		} else if (msgs[i].flags & I2C_M_RD) {
-			char buf[msgs[i].len];
-			memcpy(buf,msgs[i].buf, msgs[i].len-1);
-			buf[msgs[i].len-1]=0;
-
 			/* Read bytes */
 	/* I2C is assumed to have always a subaddr at the first byte of the
 	   message bus. Also, the first i2c value of the answer is returned
 	   out of message data.
 	 */
-			rc = tm6000_read_write_usb (dev,
-				USB_DIR_IN | USB_TYPE_VENDOR,
-				REQ_16_SET_GET_I2CSEQ,
-				addr|(*msgs[i].buf)<<8, 0,
-				msgs[i].buf, msgs[i].len);
+			/* SMBus Read Byte command */
+			if(msgs[i].len == 1) {
+				// we use the previously used register to read from
+				rc = tm6000_read_write_usb (dev,
+					USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+					REQ_16_SET_GET_I2CSEQ,
+					addr | prev_reg<<8, 0,
+					msgs[i].buf, msgs[i].len);
+			}
+			else {
+				rc = tm6000_read_write_usb (dev,
+					USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+					REQ_16_SET_GET_I2CSEQ,
+					addr|(*msgs[i].buf)<<8, 0,
+					msgs[i].buf, msgs[i].len);
+			}
 			if (i2c_debug>=2) {
 				for (byte = 0; byte < msgs[i].len; byte++) {
 					printk(" %02x", msgs[i].buf[byte]);
@@ -136,6 +146,13 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 				REQ_16_SET_GET_I2CSEQ,
 				addr|(*msgs[i].buf)<<8, 0,
 				msgs[i].buf+1, msgs[i].len-1);
+
+			if(msgs[i].len >= 1) {
+				prev_reg = msgs[i].buf[0];
+			}
+			else {
+				prev_reg = 0;
+			}
 		}
 		if (i2c_debug>=2)
 			printk("\n");
