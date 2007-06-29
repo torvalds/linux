@@ -294,9 +294,10 @@ static void __spu_add_to_rq(struct spu_context *ctx)
 {
 	int prio = ctx->prio;
 
-	spu_prio->nr_waiting++;
 	list_add_tail(&ctx->rq, &spu_prio->runq[prio]);
 	set_bit(prio, spu_prio->bitmap);
+	if (!spu_prio->nr_waiting++)
+		__mod_timer(&spusched_timer, jiffies + SPUSCHED_TICK);
 }
 
 static void __spu_del_from_rq(struct spu_context *ctx)
@@ -304,11 +305,13 @@ static void __spu_del_from_rq(struct spu_context *ctx)
 	int prio = ctx->prio;
 
 	if (!list_empty(&ctx->rq)) {
+		if (!--spu_prio->nr_waiting)
+			del_timer(&spusched_timer);
 		list_del_init(&ctx->rq);
-		spu_prio->nr_waiting--;
+
+		if (list_empty(&spu_prio->runq[prio]))
+			clear_bit(prio, spu_prio->bitmap);
 	}
-	if (list_empty(&spu_prio->runq[prio]))
-		clear_bit(prio, spu_prio->bitmap);
 }
 
 static void spu_prio_wait(struct spu_context *ctx)
@@ -654,9 +657,6 @@ static int spusched_thread(void *unused)
 	struct spu *spu, *next;
 	int node;
 
-	setup_timer(&spusched_timer, spusched_wake, 0);
-	__mod_timer(&spusched_timer, jiffies + SPUSCHED_TICK);
-
 	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule();
@@ -670,7 +670,6 @@ static int spusched_thread(void *unused)
 		}
 	}
 
-	del_timer_sync(&spusched_timer);
 	return 0;
 }
 
@@ -732,6 +731,8 @@ int __init spu_sched_init(void)
 	}
 	spin_lock_init(&spu_prio->runq_lock);
 
+	setup_timer(&spusched_timer, spusched_wake, 0);
+
 	spusched_task = kthread_run(spusched_thread, NULL, "spusched");
 	if (IS_ERR(spusched_task)) {
 		err = PTR_ERR(spusched_task);
@@ -762,6 +763,7 @@ void __exit spu_sched_exit(void)
 
 	remove_proc_entry("spu_loadavg", NULL);
 
+	del_timer_sync(&spusched_timer);
 	kthread_stop(spusched_task);
 
 	for (node = 0; node < MAX_NUMNODES; node++) {
