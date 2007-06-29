@@ -496,6 +496,13 @@ static void inic_dev_config(struct ata_device *dev)
 	/* inic can only handle upto LBA28 max sectors */
 	if (dev->max_sectors > ATA_MAX_SECTORS)
 		dev->max_sectors = ATA_MAX_SECTORS;
+
+	if (dev->n_sectors >= 1 << 28) {
+		ata_dev_printk(dev, KERN_ERR,
+	"ERROR: This driver doesn't support LBA48 yet and may cause\n"
+	"                data corruption on such devices.  Disabling.\n");
+		ata_dev_disable(dev);
+	}
 }
 
 static void init_port(struct ata_port *ap)
