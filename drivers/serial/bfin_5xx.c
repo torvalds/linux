@@ -41,6 +41,11 @@
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
 
+#ifdef CONFIG_KGDB_UART
+#include <linux/kgdb.h>
+#include <asm/irq_regs.h>
+#endif
+
 #include <asm/gpio.h>
 #include <asm/mach/bfin_serial_5xx.h>
 
@@ -119,6 +124,9 @@ static void bfin_serial_stop_rx(struct uart_port *port)
 	unsigned short ier;
 
 	ier = UART_GET_IER(uart);
+#ifdef	CONFIG_KGDB_UART
+	if (uart->port.line != CONFIG_KGDB_UART_PORT)
+#endif
 	ier &= ~ERBFI;
 	UART_PUT_IER(uart, ier);
 }
@@ -129,6 +137,49 @@ static void bfin_serial_stop_rx(struct uart_port *port)
 static void bfin_serial_enable_ms(struct uart_port *port)
 {
 }
+
+#ifdef CONFIG_KGDB_UART
+static int kgdb_entry_state;
+
+void kgdb_put_debug_char(int chr)
+{
+	struct bfin_serial_port *uart;
+	
+	if (CONFIG_KGDB_UART_PORT<0 || CONFIG_KGDB_UART_PORT>=NR_PORTS)
+		uart = &bfin_serial_ports[0];
+	else
+		uart = &bfin_serial_ports[CONFIG_KGDB_UART_PORT];
+	
+	while (!(UART_GET_LSR(uart) & THRE)) {
+		__builtin_bfin_ssync();
+	}
+	UART_PUT_LCR(uart, UART_GET_LCR(uart)&(~DLAB));
+	__builtin_bfin_ssync();
+	UART_PUT_CHAR(uart, (unsigned char)chr);
+	__builtin_bfin_ssync();
+}
+
+int kgdb_get_debug_char(void)
+{
+	struct bfin_serial_port *uart;
+	unsigned char chr;
+
+	if (CONFIG_KGDB_UART_PORT<0 || CONFIG_KGDB_UART_PORT>=NR_PORTS)
+		uart = &bfin_serial_ports[0];
+	else
+		uart = &bfin_serial_ports[CONFIG_KGDB_UART_PORT];
+	
+	while(!(UART_GET_LSR(uart) & DR)) {
+		__builtin_bfin_ssync();
+	}
+	UART_PUT_LCR(uart, UART_GET_LCR(uart)&(~DLAB));
+	__builtin_bfin_ssync();
+	chr = UART_GET_CHAR(uart);
+	__builtin_bfin_ssync();
+
+	return chr;
+}
+#endif
 
 #ifdef CONFIG_SERIAL_BFIN_PIO
 static void local_put_char(struct bfin_serial_port *uart, char ch)
@@ -152,6 +203,9 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 {
 	struct tty_struct *tty = uart->port.info->tty;
 	unsigned int status, ch, flg;
+#ifdef CONFIG_KGDB_UART
+	struct pt_regs *regs = get_irq_regs();
+#endif
 #ifdef BF533_FAMILY
 	static int in_break = 0;
 #endif
@@ -160,6 +214,27 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
  	ch = UART_GET_CHAR(uart);
  	uart->port.icount.rx++;
 
+#ifdef CONFIG_KGDB_UART
+	if (uart->port.line == CONFIG_KGDB_UART_PORT) {
+		if (uart->port.cons->index == CONFIG_KGDB_UART_PORT && ch == 0x1) { /* Ctrl + A */
+			kgdb_breakkey_pressed(regs);
+			return;
+		} else if (kgdb_entry_state == 0 && ch == '$') {/* connection from KGDB */
+			kgdb_entry_state = 1;
+		} else if (kgdb_entry_state == 1 && ch == 'q') {
+			kgdb_entry_state = 0;
+			kgdb_breakkey_pressed(regs);
+			return;
+		} else if (ch == 0x3) {/* Ctrl + C */
+			kgdb_entry_state = 0;
+			kgdb_breakkey_pressed(regs);
+			return;
+		} else {
+			kgdb_entry_state = 0;
+		}
+	}
+#endif
+ 
 #ifdef BF533_FAMILY
 	/* The BF533 family of processors have a nice misbehavior where
 	 * they continuously generate characters for a "single" break.
@@ -571,7 +646,11 @@ static int bfin_serial_startup(struct uart_port *port)
 	uart->rx_dma_timer.expires = jiffies + DMA_RX_FLUSH_JIFFIES;
 	add_timer(&(uart->rx_dma_timer));
 #else
+# ifdef	CONFIG_KGDB_UART
+	if (uart->port.line != CONFIG_KGDB_UART_PORT && request_irq
+# else
 	if (request_irq
+# endif
 	    (uart->port.irq, bfin_serial_rx_int, IRQF_DISABLED,
 	     "BFIN_UART_RX", uart)) {
 		printk(KERN_NOTICE "Unable to attach BlackFin UART RX interrupt\n");
@@ -601,6 +680,9 @@ static void bfin_serial_shutdown(struct uart_port *port)
 	free_dma(uart->rx_dma_channel);
 	del_timer(&(uart->rx_dma_timer));
 #else
+#ifdef	CONFIG_KGDB_UART
+	if (uart->port.line != CONFIG_KGDB_UART_PORT)
+#endif
 	free_irq(uart->port.irq, uart);
 	free_irq(uart->port.irq+1, uart);
 #endif
@@ -931,6 +1013,10 @@ static int __init bfin_serial_rs_console_init(void)
 {
 	bfin_serial_init_ports();
 	register_console(&bfin_serial_console);
+#ifdef CONFIG_KGDB_UART
+	kgdb_entry_state = 0;
+	init_kgdb_uart();
+#endif
 	return 0;
 }
 console_initcall(bfin_serial_rs_console_init);
@@ -1023,6 +1109,10 @@ static struct platform_driver bfin_serial_driver = {
 static int __init bfin_serial_init(void)
 {
 	int ret;
+#ifdef CONFIG_KGDB_UART
+	struct bfin_serial_port *uart = &bfin_serial_ports[CONFIG_KGDB_UART_PORT];
+	struct termios t;
+#endif
 
 	pr_info("Serial: Blackfin serial driver\n");
 
@@ -1036,6 +1126,21 @@ static int __init bfin_serial_init(void)
 			uart_unregister_driver(&bfin_serial_reg);
 		}
 	}
+#ifdef CONFIG_KGDB_UART
+	if (uart->port.cons->index != CONFIG_KGDB_UART_PORT) {
+		request_irq(uart->port.irq, bfin_serial_int,
+			IRQF_DISABLED, "BFIN_UART_RX", uart);
+		pr_info("Request irq for kgdb uart port\n");
+		UART_PUT_IER(uart, UART_GET_IER(uart) | ERBFI);
+		__builtin_bfin_ssync();
+		t.c_cflag = CS8|B57600;
+		t.c_iflag = 0;
+		t.c_oflag = 0;
+		t.c_lflag = ICANON;
+		t.c_line = CONFIG_KGDB_UART_PORT;
+		bfin_serial_set_termios(&uart->port, &t, &t);
+	}
+#endif
 	return ret;
 }
 
