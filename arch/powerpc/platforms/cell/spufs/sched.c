@@ -96,6 +96,33 @@ void spu_set_timeslice(struct spu_context *ctx)
 		ctx->time_slice = SCALE_PRIO(DEF_SPU_TIMESLICE, ctx->prio);
 }
 
+/*
+ * Update scheduling information from the owning thread.
+ */
+void __spu_update_sched_info(struct spu_context *ctx)
+{
+	/*
+	 * We do our own priority calculations, so we normally want
+	 * ->static_prio to start with. Unfortunately thies field
+	 * contains junk for threads with a realtime scheduling
+	 * policy so we have to look at ->prio in this case.
+	 */
+	if (rt_prio(current->prio))
+		ctx->prio = current->prio;
+	else
+		ctx->prio = current->static_prio;
+	ctx->policy = current->policy;
+}
+
+void spu_update_sched_info(struct spu_context *ctx)
+{
+	int node = ctx->spu->node;
+
+	mutex_lock(&spu_prio->active_mutex[node]);
+	__spu_update_sched_info(ctx);
+	mutex_unlock(&spu_prio->active_mutex[node]);
+}
+
 static inline int node_allowed(int node)
 {
 	cpumask_t mask;

@@ -301,9 +301,22 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 	ctx->ops->master_start(ctx);
 	ctx->event_return = 0;
 
-	ret = spu_acquire_runnable(ctx, 0);
-	if (ret)
-		return ret;
+	spu_acquire(ctx);
+	if (ctx->state == SPU_STATE_SAVED) {
+		__spu_update_sched_info(ctx);
+
+		ret = spu_activate(ctx, 0);
+		if (ret) {
+			spu_release(ctx);
+			goto out;
+		}
+	} else {
+		/*
+		 * We have to update the scheduling priority under active_mutex
+		 * to protect against find_victim().
+		 */
+		spu_update_sched_info(ctx);
+	}
 
 	ret = spu_run_init(ctx, npc);
 	if (ret) {

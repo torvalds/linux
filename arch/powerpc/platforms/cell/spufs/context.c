@@ -54,17 +54,6 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	if (gang)
 		spu_gang_add_ctx(gang, ctx);
 
-	/*
-	 * We do our own priority calculations, so we normally want
-	 * ->static_prio to start with. Unfortunately thies field
-	 * contains junk for threads with a realtime scheduling
-	 * policy so we have to look at ->prio in this case.
-	 */
-	if (rt_prio(current->prio))
-		ctx->prio = current->prio;
-	else
-		ctx->prio = current->static_prio;
-	ctx->policy = current->policy;
 	spu_set_timeslice(ctx);
 	goto out;
 out_free:

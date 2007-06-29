@@ -195,6 +195,8 @@ int spu_activate(struct spu_context *ctx, unsigned long flags);
 void spu_deactivate(struct spu_context *ctx);
 void spu_yield(struct spu_context *ctx);
 void spu_set_timeslice(struct spu_context *ctx);
+void spu_update_sched_info(struct spu_context *ctx);
+void __spu_update_sched_info(struct spu_context *ctx);
 int __init spu_sched_init(void);
 void __exit spu_sched_exit(void);
 
