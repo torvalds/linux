@@ -40,6 +40,19 @@ enum {
 struct spu_context_ops;
 struct spu_gang;
 
+/*
+ * This is the state for spu utilization reporting to userspace.
+ * Because this state is visible to userspace it must never change and needs
+ * to be kept strictly separate from any internal state kept by the kernel.
+ */
+enum spuctx_execution_state {
+	SPUCTX_UTIL_USER = 0,
+	SPUCTX_UTIL_SYSTEM,
+	SPUCTX_UTIL_IOWAIT,
+	SPUCTX_UTIL_LOADED,
+	SPUCTX_UTIL_MAX
+};
+
 struct spu_context {
 	struct spu *spu;		  /* pointer to a physical SPU */
 	struct spu_state csa;		  /* SPU context save area. */
@@ -87,6 +100,24 @@ struct spu_context {
 	cpumask_t cpus_allowed;
 	int policy;
 	int prio;
+
+	/* statistics */
+	struct {
+		/* updates protected by ctx->state_mutex */
+		enum spuctx_execution_state execution_state;
+		unsigned long tstamp;		/* time of last ctx switch */
+		unsigned long times[SPUCTX_UTIL_MAX];
+		unsigned long long vol_ctx_switch;
+		unsigned long long invol_ctx_switch;
+		unsigned long long min_flt;
+		unsigned long long maj_flt;
+		unsigned long long hash_flt;
+		unsigned long long slb_flt;
+		unsigned long long slb_flt_base; /* # at last ctx switch */
+		unsigned long long class2_intr;
+		unsigned long long class2_intr_base; /* # at last ctx switch */
+		unsigned long long libassist;
+	} stats;
 };
 
 struct spu_gang {
@@ -255,5 +286,25 @@ struct spufs_coredump_reader {
 };
 extern struct spufs_coredump_reader spufs_coredump_read[];
 extern int spufs_coredump_num_notes;
+
+/*
+ * This function is a little bit too large for an inline, but
+ * as fault.c is built into the kernel we can't move it out of
+ * line.
+ */
+static inline void spuctx_switch_state(struct spu_context *ctx,
+		enum spuctx_execution_state new_state)
+{
+	WARN_ON(!mutex_is_locked(&ctx->state_mutex));
+
+	if (ctx->stats.execution_state != new_state) {
+		unsigned long curtime = jiffies;
+
+		ctx->stats.times[ctx->stats.execution_state] +=
+				 curtime - ctx->stats.tstamp;
+		ctx->stats.tstamp = curtime;
+		ctx->stats.execution_state = new_state;
+	}
+}
 
 #endif

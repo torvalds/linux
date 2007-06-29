@@ -156,6 +156,12 @@ struct spu {
 	u64 shadow_int_mask_RW[3];
 
 	struct sys_device sysdev;
+
+	struct {
+		/* protected by interrupt reentrancy */
+		unsigned long long slb_flt;
+		unsigned long long class2_intr;
+	} stats;
 };
 
 struct spu *spu_alloc(void);

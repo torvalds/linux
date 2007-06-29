@@ -183,7 +183,7 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 		spu->slb_replace = 0;
 
 	spu_restart_dma(spu);
-
+	spu->stats.slb_flt++;
 	return 0;
 }
 
@@ -332,6 +332,7 @@ spu_irq_class_2(int irq, void *data)
 	if (stat & 0x10) /* SPU mailbox threshold */
 		spu->wbox_callback(spu);
 
+	spu->stats.class2_intr++;
 	return stat ? IRQ_HANDLED : IRQ_NONE;
 }
 

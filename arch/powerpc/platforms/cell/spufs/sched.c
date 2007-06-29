@@ -229,6 +229,10 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 {
 	pr_debug("%s: pid=%d SPU=%d NODE=%d\n", __FUNCTION__, current->pid,
 		 spu->number, spu->node);
+
+	ctx->stats.slb_flt_base = spu->stats.slb_flt;
+	ctx->stats.class2_intr_base = spu->stats.class2_intr;
+
 	spu->ctx = ctx;
 	spu->flags = 0;
 	ctx->spu = spu;
@@ -275,6 +279,11 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 	ctx->spu = NULL;
 	spu->flags = 0;
 	spu->ctx = NULL;
+
+	ctx->stats.slb_flt +=
+		(spu->stats.slb_flt - ctx->stats.slb_flt_base);
+	ctx->stats.class2_intr +=
+		(spu->stats.class2_intr - ctx->stats.class2_intr_base);
 }
 
 /**
@@ -400,6 +409,7 @@ static struct spu *find_victim(struct spu_context *ctx)
 			}
 			spu_remove_from_active_list(spu);
 			spu_unbind_context(spu, victim);
+			victim->stats.invol_ctx_switch++;
 			mutex_unlock(&victim->state_mutex);
 			/*
 			 * We need to break out of the wait loop in spu_run
@@ -425,6 +435,7 @@ static struct spu *find_victim(struct spu_context *ctx)
  */
 int spu_activate(struct spu_context *ctx, unsigned long flags)
 {
+	spuctx_switch_state(ctx, SPUCTX_UTIL_SYSTEM);
 
 	if (ctx->spu)
 		return 0;
@@ -492,6 +503,7 @@ static int __spu_deactivate(struct spu_context *ctx, int force, int max_prio)
 		if (new || force) {
 			spu_remove_from_active_list(spu);
 			spu_unbind_context(spu, ctx);
+			ctx->stats.vol_ctx_switch++;
 			spu_free(spu);
 			if (new)
 				wake_up(&new->stop_wq);
@@ -521,6 +533,7 @@ void spu_deactivate(struct spu_context *ctx)
 	}
 
 	__spu_deactivate(ctx, 1, MAX_PRIO);
+	spuctx_switch_state(ctx, SPUCTX_UTIL_USER);
 }
 
 /**
@@ -535,7 +548,10 @@ void spu_yield(struct spu_context *ctx)
 {
 	if (!(ctx->flags & SPU_CREATE_NOSCHED)) {
 		mutex_lock(&ctx->state_mutex);
-		__spu_deactivate(ctx, 0, MAX_PRIO);
+		if (__spu_deactivate(ctx, 0, MAX_PRIO))
+			spuctx_switch_state(ctx, SPUCTX_UTIL_USER);
+		else
+			spuctx_switch_state(ctx, SPUCTX_UTIL_LOADED);
 		mutex_unlock(&ctx->state_mutex);
 	}
 }
@@ -564,6 +580,7 @@ static void spusched_tick(struct spu_context *ctx)
 
 			__spu_remove_from_active_list(spu);
 			spu_unbind_context(spu, ctx);
+			ctx->stats.invol_ctx_switch++;
 			spu_free(spu);
 			wake_up(&new->stop_wq);
 			/*

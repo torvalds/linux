@@ -351,6 +351,10 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 				      SPU_STATUS_STOPPED_BY_HALT |
 				       SPU_STATUS_SINGLE_STEP)));
 
+	if ((status & SPU_STATUS_STOPPED_BY_STOP) &&
+	    ((status >> SPU_STOP_STATUS_SHIFT) & 0x2100))
+		ctx->stats.libassist++;
+
 	ctx->ops->master_stop(ctx);
 	ret = spu_run_fini(ctx, npc, &status);
 	spu_yield(ctx);

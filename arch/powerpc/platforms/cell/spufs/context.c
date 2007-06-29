@@ -59,6 +59,8 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 		spu_gang_add_ctx(gang, ctx);
 	ctx->cpus_allowed = current->cpus_allowed;
 	spu_set_timeslice(ctx);
+	ctx->stats.execution_state = SPUCTX_UTIL_USER;
+	ctx->stats.tstamp = jiffies;
 
 	atomic_inc(&nr_spu_contexts);
 	goto out;

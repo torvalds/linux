@@ -2059,6 +2059,83 @@ static const struct file_operations spufs_tid_fops = {
 	.release	= single_release,
 };
 
+static const char *ctx_state_names[] = {
+	"user", "system", "iowait", "loaded"
+};
+
+static unsigned long long spufs_acct_time(struct spu_context *ctx,
+		enum spuctx_execution_state state)
+{
+	unsigned long time = ctx->stats.times[state];
+
+	if (ctx->stats.execution_state == state)
+		time += jiffies - ctx->stats.tstamp;
+
+	return jiffies_to_msecs(time);
+}
+
+static unsigned long long spufs_slb_flts(struct spu_context *ctx)
+{
+	unsigned long long slb_flts = ctx->stats.slb_flt;
+
+	if (ctx->state == SPU_STATE_RUNNABLE) {
+		slb_flts += (ctx->spu->stats.slb_flt -
+			     ctx->stats.slb_flt_base);
+	}
+
+	return slb_flts;
+}
+
+static unsigned long long spufs_class2_intrs(struct spu_context *ctx)
+{
+	unsigned long long class2_intrs = ctx->stats.class2_intr;
+
+	if (ctx->state == SPU_STATE_RUNNABLE) {
+		class2_intrs += (ctx->spu->stats.class2_intr -
+				 ctx->stats.class2_intr_base);
+	}
+
+	return class2_intrs;
+}
+
+
+static int spufs_show_stat(struct seq_file *s, void *private)
+{
+	struct spu_context *ctx = s->private;
+
+	spu_acquire(ctx);
+	seq_printf(s, "%s %llu %llu %llu %llu "
+		      "%llu %llu %llu %llu %llu %llu %llu %llu\n",
+		ctx_state_names[ctx->stats.execution_state],
+		spufs_acct_time(ctx, SPUCTX_UTIL_USER),
+		spufs_acct_time(ctx, SPUCTX_UTIL_SYSTEM),
+		spufs_acct_time(ctx, SPUCTX_UTIL_IOWAIT),
+		spufs_acct_time(ctx, SPUCTX_UTIL_LOADED),
+		ctx->stats.vol_ctx_switch,
+		ctx->stats.invol_ctx_switch,
+		spufs_slb_flts(ctx),
+		ctx->stats.hash_flt,
+		ctx->stats.min_flt,
+		ctx->stats.maj_flt,
+		spufs_class2_intrs(ctx),
+		ctx->stats.libassist);
+	spu_release(ctx);
+	return 0;
+}
+
+static int spufs_stat_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, spufs_show_stat, SPUFS_I(inode)->i_ctx);
+}
+
+static const struct file_operations spufs_stat_fops = {
+	.open		= spufs_stat_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+
 struct tree_descr spufs_dir_contents[] = {
 	{ "capabilities", &spufs_caps_fops, 0444, },
 	{ "mem",  &spufs_mem_fops,  0666, },
@@ -2093,6 +2170,7 @@ struct tree_descr spufs_dir_contents[] = {
 	{ "dma_info", &spufs_dma_info_fops, 0444, },
 	{ "proxydma_info", &spufs_proxydma_info_fops, 0444, },
 	{ "tid", &spufs_tid_fops, 0444, },
+	{ "stat", &spufs_stat_fops, 0444, },
 	{},
 };
 
@@ -2117,6 +2195,7 @@ struct tree_descr spufs_dir_nosched_contents[] = {
 	{ "phys-id", &spufs_id_ops, 0666, },
 	{ "object-id", &spufs_object_id_ops, 0666, },
 	{ "tid", &spufs_tid_fops, 0444, },
+	{ "stat", &spufs_stat_fops, 0444, },
 	{},
 };
 
