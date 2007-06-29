@@ -2259,6 +2259,24 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 		printk(KERN_INFO "bttv%d: ==================  END STATUS CARD #%d  ==================\n", btv->c.nr, btv->c.nr);
 		return 0;
 	}
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	case VIDIOC_DBG_G_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
+	{
+		struct v4l2_register *reg = arg;
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+		if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+			return -EINVAL;
+		/* bt848 has a 12-bit register space */
+		reg->reg &= 0xfff;
+		if (cmd == VIDIOC_DBG_G_REGISTER)
+			reg->val = btread(reg->reg);
+		else
+			btwrite(reg->val, reg->reg);
+		return 0;
+	}
+#endif
 
 	default:
 		return -ENOIOCTLCMD;
@@ -3569,6 +3587,8 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_G_FREQUENCY:
 	case VIDIOC_S_FREQUENCY:
 	case VIDIOC_LOG_STATUS:
+	case VIDIOC_DBG_G_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
 		return bttv_common_ioctls(btv,cmd,arg);
 
 	default:
@@ -3951,6 +3971,8 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOCGAUDIO:
 	case VIDIOCSAUDIO:
 	case VIDIOC_LOG_STATUS:
+	case VIDIOC_DBG_G_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
 		return bttv_common_ioctls(btv,cmd,arg);
 
 	default:
