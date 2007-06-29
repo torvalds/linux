@@ -1,5 +1,14 @@
 /*
  * Contains common pci routines for ALL ppc platform
+ * (based on pci_32.c and pci_64.c)
+ *
+ * Port for PPC64 David Engebretsen, IBM Corp.
+ * Contains common pci routines for ppc64 platform, pSeries and iSeries brands.
+ *
+ * Copyright (C) 2003 Anton Blanchard <anton@au.ibm.com>, IBM
+ *   Rework, based on alpha PCI code.
+ *
+ * Common pmac/prep/chrp pci routines. -- Cort
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
