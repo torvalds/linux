@@ -103,7 +103,7 @@ static int recv_subn_get_nodeinfo(struct ib_smp *smp,
 	/* This is already in network order */
 	nip->sys_guid = to_idev(ibdev)->sys_image_guid;
 	nip->node_guid = dd->ipath_guid;
-	nip->port_guid = nip->sys_guid;
+	nip->port_guid = dd->ipath_guid;
 	nip->partition_cap = cpu_to_be16(ipath_get_npkeys(dd));
 	nip->device_id = cpu_to_be16(dd->ipath_deviceid);
 	majrev = dd->ipath_majrev;
