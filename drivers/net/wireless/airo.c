@@ -2831,7 +2831,7 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 
 	ai = dev->priv;
 	ai->wifidev = NULL;
-	ai->flags = 0;
+	ai->flags = 1 << FLAG_RADIO_DOWN;
 	ai->jobs = 0;
 	ai->dev = dev;
 	if (pci && (pci->device == 0x5000 || pci->device == 0xa504)) {
