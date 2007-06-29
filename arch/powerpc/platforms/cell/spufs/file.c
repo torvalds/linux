@@ -2039,6 +2039,26 @@ static const struct file_operations spufs_proxydma_info_fops = {
 	.read = spufs_proxydma_info_read,
 };
 
+static int spufs_show_tid(struct seq_file *s, void *private)
+{
+	struct spu_context *ctx = s->private;
+
+	seq_printf(s, "%d\n", ctx->tid);
+	return 0;
+}
+
+static int spufs_tid_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, spufs_show_tid, SPUFS_I(inode)->i_ctx);
+}
+
+static const struct file_operations spufs_tid_fops = {
+	.open		= spufs_tid_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 struct tree_descr spufs_dir_contents[] = {
 	{ "capabilities", &spufs_caps_fops, 0444, },
 	{ "mem",  &spufs_mem_fops,  0666, },
@@ -2072,6 +2092,7 @@ struct tree_descr spufs_dir_contents[] = {
 	{ "wbox_info", &spufs_wbox_info_fops, 0444, },
 	{ "dma_info", &spufs_dma_info_fops, 0444, },
 	{ "proxydma_info", &spufs_proxydma_info_fops, 0444, },
+	{ "tid", &spufs_tid_fops, 0444, },
 	{},
 };
 
@@ -2095,6 +2116,7 @@ struct tree_descr spufs_dir_nosched_contents[] = {
 	{ "psmap", &spufs_psmap_fops, 0666, },
 	{ "phys-id", &spufs_id_ops, 0666, },
 	{ "object-id", &spufs_object_id_ops, 0666, },
+	{ "tid", &spufs_tid_fops, 0444, },
 	{},
 };
 

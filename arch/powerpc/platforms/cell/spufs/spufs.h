@@ -77,6 +77,9 @@ struct spu_context {
 	struct list_head gang_list;
 	struct spu_gang *gang;
 
+	/* owner thread */
+	pid_t tid;
+
 	/* scheduler fields */
 	struct list_head rq;
 	unsigned int time_slice;

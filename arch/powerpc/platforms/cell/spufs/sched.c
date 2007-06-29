@@ -102,6 +102,13 @@ void spu_set_timeslice(struct spu_context *ctx)
 void __spu_update_sched_info(struct spu_context *ctx)
 {
 	/*
+	 * 32-Bit assignment are atomic on powerpc, and we don't care about
+	 * memory ordering here because retriving the controlling thread is
+	 * per defintion racy.
+	 */
+	ctx->tid = current->pid;
+
+	/*
 	 * We do our own priority calculations, so we normally want
 	 * ->static_prio to start with. Unfortunately thies field
 	 * contains junk for threads with a realtime scheduling
