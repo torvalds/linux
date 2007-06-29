@@ -522,7 +522,12 @@ void spu_yield(struct spu_context *ctx)
 
 static void spusched_tick(struct spu_context *ctx)
 {
-	if (ctx->policy == SCHED_FIFO || --ctx->time_slice)
+	if (ctx->flags & SPU_CREATE_NOSCHED)
+		return;
+	if (ctx->policy == SCHED_FIFO)
+		return;
+
+	if (--ctx->time_slice)
 		return;
 
 	/*
