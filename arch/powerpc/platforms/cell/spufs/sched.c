@@ -292,12 +292,25 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
  */
 static void __spu_add_to_rq(struct spu_context *ctx)
 {
-	int prio = ctx->prio;
-
-	list_add_tail(&ctx->rq, &spu_prio->runq[prio]);
-	set_bit(prio, spu_prio->bitmap);
-	if (!spu_prio->nr_waiting++)
-		__mod_timer(&spusched_timer, jiffies + SPUSCHED_TICK);
+	/*
+	 * Unfortunately this code path can be called from multiple threads
+	 * on behalf of a single context due to the way the problem state
+	 * mmap support works.
+	 *
+	 * Fortunately we need to wake up all these threads at the same time
+	 * and can simply skip the runqueue addition for every but the first
+	 * thread getting into this codepath.
+	 *
+	 * It's still quite hacky, and long-term we should proxy all other
+	 * threads through the owner thread so that spu_run is in control
+	 * of all the scheduling activity for a given context.
+	 */
+	if (list_empty(&ctx->rq)) {
+		list_add_tail(&ctx->rq, &spu_prio->runq[ctx->prio]);
+		set_bit(ctx->prio, spu_prio->bitmap);
+		if (!spu_prio->nr_waiting++)
+			__mod_timer(&spusched_timer, jiffies + SPUSCHED_TICK);
+	}
 }
 
 static void __spu_del_from_rq(struct spu_context *ctx)
@@ -440,11 +453,17 @@ int spu_activate(struct spu_context *ctx, unsigned long flags)
 {
 	spuctx_switch_state(ctx, SPUCTX_UTIL_SYSTEM);
 
-	if (ctx->spu)
-		return 0;
-
 	do {
 		struct spu *spu;
+
+		/*
+		 * If there are multiple threads waiting for a single context
+		 * only one actually binds the context while the others will
+		 * only be able to acquire the state_mutex once the context
+		 * already is in runnable state.
+		 */
+		if (ctx->spu)
+			return 0;
 
 		spu = spu_get_idle(ctx);
 		/*
