@@ -53,7 +53,7 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	INIT_LIST_HEAD(&ctx->rq);
 	if (gang)
 		spu_gang_add_ctx(gang, ctx);
-
+	ctx->cpus_allowed = current->cpus_allowed;
 	spu_set_timeslice(ctx);
 	goto out;
 out_free:

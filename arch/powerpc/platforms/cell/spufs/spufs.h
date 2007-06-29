@@ -26,6 +26,7 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/fs.h>
+#include <linux/cpumask.h>
 
 #include <asm/spu.h>
 #include <asm/spu_csa.h>
@@ -80,6 +81,7 @@ struct spu_context {
  	struct list_head rq;
 	unsigned int time_slice;
 	unsigned long sched_flags;
+	cpumask_t cpus_allowed;
 	int policy;
 	int prio;
 };

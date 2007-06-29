@@ -112,6 +112,16 @@ void __spu_update_sched_info(struct spu_context *ctx)
 	else
 		ctx->prio = current->static_prio;
 	ctx->policy = current->policy;
+
+	/*
+	 * A lot of places that don't hold active_mutex poke into
+	 * cpus_allowed, including grab_runnable_context which
+	 * already holds the runq_lock.  So abuse runq_lock
+	 * to protect this field aswell.
+	 */
+	spin_lock(&spu_prio->runq_lock);
+	ctx->cpus_allowed = current->cpus_allowed;
+	spin_unlock(&spu_prio->runq_lock);
 }
 
 void spu_update_sched_info(struct spu_context *ctx)
@@ -123,16 +133,27 @@ void spu_update_sched_info(struct spu_context *ctx)
 	mutex_unlock(&spu_prio->active_mutex[node]);
 }
 
-static inline int node_allowed(int node)
+static int __node_allowed(struct spu_context *ctx, int node)
 {
-	cpumask_t mask;
+	if (nr_cpus_node(node)) {
+		cpumask_t mask = node_to_cpumask(node);
 
-	if (!nr_cpus_node(node))
-		return 0;
-	mask = node_to_cpumask(node);
-	if (!cpus_intersects(mask, current->cpus_allowed))
-		return 0;
-	return 1;
+		if (cpus_intersects(mask, ctx->cpus_allowed))
+			return 1;
+	}
+
+	return 0;
+}
+
+static int node_allowed(struct spu_context *ctx, int node)
+{
+	int rval;
+
+	spin_lock(&spu_prio->runq_lock);
+	rval = __node_allowed(ctx, node);
+	spin_unlock(&spu_prio->runq_lock);
+
+	return rval;
 }
 
 /**
@@ -289,7 +310,7 @@ static struct spu *spu_get_idle(struct spu_context *ctx)
 
 	for (n = 0; n < MAX_NUMNODES; n++, node++) {
 		node = (node < MAX_NUMNODES) ? node : 0;
-		if (!node_allowed(node))
+		if (!node_allowed(ctx, node))
 			continue;
 		spu = spu_alloc_node(node);
 		if (spu)
@@ -321,7 +342,7 @@ static struct spu *find_victim(struct spu_context *ctx)
 	node = cpu_to_node(raw_smp_processor_id());
 	for (n = 0; n < MAX_NUMNODES; n++, node++) {
 		node = (node < MAX_NUMNODES) ? node : 0;
-		if (!node_allowed(node))
+		if (!node_allowed(ctx, node))
 			continue;
 
 		mutex_lock(&spu_prio->active_mutex[node]);
@@ -416,23 +437,28 @@ int spu_activate(struct spu_context *ctx, unsigned long flags)
  * Remove the highest priority context on the runqueue and return it
  * to the caller.  Returns %NULL if no runnable context was found.
  */
-static struct spu_context *grab_runnable_context(int prio)
+static struct spu_context *grab_runnable_context(int prio, int node)
 {
-	struct spu_context *ctx = NULL;
+	struct spu_context *ctx;
 	int best;
 
 	spin_lock(&spu_prio->runq_lock);
 	best = sched_find_first_bit(spu_prio->bitmap);
-	if (best < prio) {
+	while (best < prio) {
 		struct list_head *rq = &spu_prio->runq[best];
 
-		BUG_ON(list_empty(rq));
-
-		ctx = list_entry(rq->next, struct spu_context, rq);
-		__spu_del_from_rq(ctx);
+		list_for_each_entry(ctx, rq, rq) {
+			/* XXX(hch): check for affinity here aswell */
+			if (__node_allowed(ctx, node)) {
+				__spu_del_from_rq(ctx);
+				goto found;
+			}
+		}
+		best++;
 	}
+	ctx = NULL;
+ found:
 	spin_unlock(&spu_prio->runq_lock);
-
 	return ctx;
 }
 
@@ -442,7 +468,7 @@ static int __spu_deactivate(struct spu_context *ctx, int force, int max_prio)
 	struct spu_context *new = NULL;
 
 	if (spu) {
-		new = grab_runnable_context(max_prio);
+		new = grab_runnable_context(max_prio, spu->node);
 		if (new || force) {
 			spu_remove_from_active_list(spu);
 			spu_unbind_context(spu, ctx);
@@ -496,9 +522,11 @@ static void spusched_tick(struct spu_context *ctx)
 	 * tick and try again.
 	 */
 	if (mutex_trylock(&ctx->state_mutex)) {
-		struct spu_context *new = grab_runnable_context(ctx->prio + 1);
+ 		struct spu *spu = ctx->spu;
+		struct spu_context *new;
+
+		new = grab_runnable_context(ctx->prio + 1, spu->node);
 		if (new) {
- 			struct spu *spu = ctx->spu;
 
 			__spu_remove_from_active_list(spu);
 			spu_unbind_context(spu, ctx);
