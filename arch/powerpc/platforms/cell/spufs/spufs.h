@@ -31,8 +31,6 @@
 #include <asm/spu_csa.h>
 #include <asm/spu_info.h>
 
-#define SPU_DEF_TIMESLICE	100
-
 /* The magic number for our file system */
 enum {
 	SPUFS_MAGIC = 0x23c9b64e,
@@ -82,7 +80,6 @@ struct spu_context {
  	struct list_head rq;
 	unsigned int time_slice;
 	unsigned long sched_flags;
-	unsigned long rt_priority;
 	int policy;
 	int prio;
 };
@@ -197,6 +194,7 @@ void spu_acquire_saved(struct spu_context *ctx);
 int spu_activate(struct spu_context *ctx, unsigned long flags);
 void spu_deactivate(struct spu_context *ctx);
 void spu_yield(struct spu_context *ctx);
+void spu_set_timeslice(struct spu_context *ctx);
 int __init spu_sched_init(void);
 void __exit spu_sched_exit(void);
 

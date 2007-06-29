@@ -44,10 +44,6 @@
 #include <asm/spu_priv1.h>
 #include "spufs.h"
 
-#define SPU_TIMESLICE	(HZ)
-
-#define SPUSCHED_TICK	(HZ / 100)
-
 struct spu_prio_array {
 	DECLARE_BITMAP(bitmap, MAX_PRIO);
 	struct list_head runq[MAX_PRIO];
@@ -59,6 +55,46 @@ struct spu_prio_array {
 static struct spu_prio_array *spu_prio;
 static struct task_struct *spusched_task;
 static struct timer_list spusched_timer;
+
+/*
+ * Priority of a normal, non-rt, non-niced'd process (aka nice level 0).
+ */
+#define NORMAL_PRIO		120
+
+/*
+ * Frequency of the spu scheduler tick.  By default we do one SPU scheduler
+ * tick for every 10 CPU scheduler ticks.
+ */
+#define SPUSCHED_TICK		(10)
+
+/*
+ * These are the 'tuning knobs' of the scheduler:
+ *
+ * Minimum timeslice is 5 msecs (or 10 jiffies, whichever is larger),
+ * default timeslice is 100 msecs, maximum timeslice is 800 msecs.
+ */
+#define MIN_SPU_TIMESLICE	max(5 * HZ / 100, 10)
+#define DEF_SPU_TIMESLICE	(100 * HZ / 100)
+
+#define MAX_USER_PRIO		(MAX_PRIO - MAX_RT_PRIO)
+#define SCALE_PRIO(x, prio) \
+	max(x * (MAX_PRIO - prio) / (MAX_USER_PRIO / 2), MIN_SPU_TIMESLICE)
+
+/*
+ * scale user-nice values [ -20 ... 0 ... 19 ] to time slice values:
+ * [800ms ... 100ms ... 5ms]
+ *
+ * The higher a thread's priority, the bigger timeslices
+ * it gets during one round of execution. But even the lowest
+ * priority thread gets MIN_TIMESLICE worth of execution time.
+ */
+void spu_set_timeslice(struct spu_context *ctx)
+{
+	if (ctx->prio < NORMAL_PRIO)
+		ctx->time_slice = SCALE_PRIO(DEF_SPU_TIMESLICE * 4, ctx->prio);
+	else
+		ctx->time_slice = SCALE_PRIO(DEF_SPU_TIMESLICE, ctx->prio);
+}
 
 static inline int node_allowed(int node)
 {
@@ -265,8 +301,8 @@ static struct spu *find_victim(struct spu_context *ctx)
 		list_for_each_entry(spu, &spu_prio->active_list[node], list) {
 			struct spu_context *tmp = spu->ctx;
 
-			if (tmp->rt_priority < ctx->rt_priority &&
-			    (!victim || tmp->rt_priority < victim->rt_priority))
+			if (tmp->prio > ctx->prio &&
+			    (!victim || tmp->prio > victim->prio))
 				victim = spu->ctx;
 		}
 		mutex_unlock(&spu_prio->active_mutex[node]);
@@ -333,7 +369,7 @@ int spu_activate(struct spu_context *ctx, unsigned long flags)
 		 * If this is a realtime thread we try to get it running by
 		 * preempting a lower priority thread.
 		 */
-		if (!spu && ctx->rt_priority)
+		if (!spu && rt_prio(ctx->prio))
 			spu = find_victim(ctx);
 		if (spu) {
 			spu_bind_context(spu, ctx);
@@ -424,7 +460,7 @@ void spu_yield(struct spu_context *ctx)
 
 static void spusched_tick(struct spu_context *ctx)
 {
-	if (ctx->policy != SCHED_RR || --ctx->time_slice)
+	if (ctx->policy == SCHED_FIFO || --ctx->time_slice)
 		return;
 
 	/*
@@ -448,7 +484,7 @@ static void spusched_tick(struct spu_context *ctx)
 			 */
 			wake_up(&ctx->stop_wq);
 		}
-		ctx->time_slice = SPU_DEF_TIMESLICE;
+		spu_set_timeslice(ctx);
 		mutex_unlock(&ctx->state_mutex);
 	} else {
 		ctx->time_slice++;
