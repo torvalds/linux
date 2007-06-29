@@ -31,7 +31,7 @@ V_FUNCTION_BEGIN(__kernel_gettimeofday)
 	mr	r11,r3			/* r11 holds tv */
 	mr	r10,r4			/* r10 holds tz */
 	bl	V_LOCAL_FUNC(__get_datapage)	/* get data page */
-	cmpldi	r10,0			/* check if tv is NULL */
+	cmpldi	r11,0			/* check if tv is NULL */
 	beq	2f
 	bl	V_LOCAL_FUNC(__do_get_xsec)	/* get xsec from tb & kernel */
 	lis     r7,15			/* r7 = 1000000 = USEC_PER_SEC */
