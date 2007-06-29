@@ -29,7 +29,8 @@ static inline int spu_stopped(struct spu_context *ctx, u32 * stat)
 	spu = ctx->spu;
 	pte_fault = spu->dsisr &
 	    (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED);
-	return (!(*stat & 0x1) || pte_fault || spu->class_0_pending) ? 1 : 0;
+	return (!(*stat & SPU_STATUS_RUNNING) || pte_fault || spu->class_0_pending) ?
+		1 : 0;
 }
 
 static int spu_setup_isolated(struct spu_context *ctx)

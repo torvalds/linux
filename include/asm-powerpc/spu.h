@@ -448,6 +448,7 @@ struct spu_priv1 {
 #define MFC_STATE1_PROBLEM_STATE_MASK		0x08ull
 #define MFC_STATE1_RELOCATE_MASK		0x10ull
 #define MFC_STATE1_MASTER_RUN_CONTROL_MASK	0x20ull
+#define MFC_STATE1_TABLE_SEARCH_MASK		0x40ull
 	u64 mfc_lpid_RW;					/* 0x008 */
 	u64 spu_idr_RW;						/* 0x010 */
 	u64 mfc_vr_RO;						/* 0x018 */
