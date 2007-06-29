@@ -546,6 +546,9 @@ int __init spu_sched_init(void)
 		kfree(spu_prio);
 		return PTR_ERR(spusched_task);
 	}
+
+	pr_debug("spusched: tick: %d, min ticks: %d, default ticks: %d\n",
+			SPUSCHED_TICK, MIN_SPU_TIMESLICE, DEF_SPU_TIMESLICE);
 	return 0;
 
 }
