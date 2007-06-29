@@ -613,7 +613,7 @@ static inline int read_direntry(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 		jeb->unchecked_size -= len;
 		c->used_size += len;
 		c->unchecked_size -= len;
-		ref->flash_offset = ref_offset(ref) | REF_PRISTINE;
+		ref->flash_offset = ref_offset(ref) | dirent_node_state(rd);
 		spin_unlock(&c->erase_completion_lock);
 	}
 

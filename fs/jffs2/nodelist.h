@@ -139,6 +139,11 @@ static inline struct jffs2_inode_cache *jffs2_raw_ref_to_ic(struct jffs2_raw_nod
 #define ref_obsolete(ref)	(((ref)->flash_offset & 3) == REF_OBSOLETE)
 #define mark_ref_normal(ref)    do { (ref)->flash_offset = ref_offset(ref) | REF_NORMAL; } while(0)
 
+/* Dirent nodes should be REF_PRISTINE only if they are not a deletion
+   dirent. Deletion dirents should be REF_NORMAL so that GC gets to
+   throw them away when appropriate */
+#define dirent_node_state(rd)	( (je32_to_cpu((rd)->ino)?REF_PRISTINE:REF_NORMAL) )
+
 /* NB: REF_PRISTINE for an inode-less node (ref->next_in_ino == NULL) indicates
    it is an unknown node of type JFFS2_NODETYPE_RWCOMPAT_COPY, so it'll get
    copied. If you need to do anything different to GC inode-less nodes, then

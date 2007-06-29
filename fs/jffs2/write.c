@@ -296,7 +296,8 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 		return ERR_PTR(ret?ret:-EIO);
 	}
 	/* Mark the space used */
-	fd->raw = jffs2_add_physical_node_ref(c, flash_ofs | REF_PRISTINE, PAD(sizeof(*rd)+namelen), f->inocache);
+	fd->raw = jffs2_add_physical_node_ref(c, flash_ofs | dirent_node_state(rd),
+					      PAD(sizeof(*rd)+namelen), f->inocache);
 	if (IS_ERR(fd->raw)) {
 		void *hold_err = fd->raw;
 		/* Release the full_dirent which is now useless, and return */
