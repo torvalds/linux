@@ -307,4 +307,17 @@ static inline void spuctx_switch_state(struct spu_context *ctx,
 	}
 }
 
+static inline void spu_switch_state(struct spu *spu,
+		enum spuctx_execution_state new_state)
+{
+	if (spu->stats.utilization_state != new_state) {
+		unsigned long curtime = jiffies;
+
+		spu->stats.times[spu->stats.utilization_state] +=
+				 curtime - spu->stats.tstamp;
+		spu->stats.tstamp = curtime;
+		spu->stats.utilization_state = new_state;
+	}
+}
+
 #endif

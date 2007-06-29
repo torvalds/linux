@@ -585,6 +585,9 @@ static int __init create_spu(void *data)
 	spin_unlock_irqrestore(&spu_list_lock, flags);
 	mutex_unlock(&spu_mutex);
 
+	spu->stats.utilization_state = SPU_UTIL_IDLE;
+	spu->stats.tstamp = jiffies;
+
 	goto out;
 
 out_free_irqs:
@@ -596,6 +599,45 @@ out_free:
 out:
 	return ret;
 }
+
+static const char *spu_state_names[] = {
+	"user", "system", "iowait", "idle"
+};
+
+static unsigned long long spu_acct_time(struct spu *spu,
+		enum spu_utilization_state state)
+{
+	unsigned long long time = spu->stats.times[state];
+
+	if (spu->stats.utilization_state == state)
+		time += jiffies - spu->stats.tstamp;
+
+	return jiffies_to_msecs(time);
+}
+
+
+static ssize_t spu_stat_show(struct sys_device *sysdev, char *buf)
+{
+	struct spu *spu = container_of(sysdev, struct spu, sysdev);
+
+	return sprintf(buf, "%s %llu %llu %llu %llu "
+		      "%llu %llu %llu %llu %llu %llu %llu %llu\n",
+		spu_state_names[spu->stats.utilization_state],
+		spu_acct_time(spu, SPU_UTIL_USER),
+		spu_acct_time(spu, SPU_UTIL_SYSTEM),
+		spu_acct_time(spu, SPU_UTIL_IOWAIT),
+		spu_acct_time(spu, SPU_UTIL_IDLE),
+		spu->stats.vol_ctx_switch,
+		spu->stats.invol_ctx_switch,
+		spu->stats.slb_flt,
+		spu->stats.hash_flt,
+		spu->stats.min_flt,
+		spu->stats.maj_flt,
+		spu->stats.class2_intr,
+		spu->stats.libassist);
+}
+
+static SYSDEV_ATTR(stat, 0644, spu_stat_show, NULL);
 
 static int __init init_spu_base(void)
 {
@@ -621,6 +663,8 @@ static int __init init_spu_base(void)
 	}
 
 	xmon_register_spus(&spu_full_list);
+
+	spu_add_sysdev_attr(&attr_stat);
 
 	return 0;
 

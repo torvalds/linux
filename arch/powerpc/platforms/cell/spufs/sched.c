@@ -251,6 +251,7 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 	spu_cpu_affinity_set(spu, raw_smp_processor_id());
 	spu_switch_notify(spu, ctx);
 	ctx->state = SPU_STATE_RUNNABLE;
+	spu_switch_state(spu, SPU_UTIL_SYSTEM);
 }
 
 /**
@@ -262,6 +263,8 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 {
 	pr_debug("%s: unbind pid=%d SPU=%d NODE=%d\n", __FUNCTION__,
 		 spu->pid, spu->number, spu->node);
+
+	spu_switch_state(spu, SPU_UTIL_IDLE);
 
 	spu_switch_notify(spu, NULL);
 	spu_unmap_mappings(ctx);
@@ -426,6 +429,7 @@ static struct spu *find_victim(struct spu_context *ctx)
 			spu_remove_from_active_list(spu);
 			spu_unbind_context(spu, victim);
 			victim->stats.invol_ctx_switch++;
+			spu->stats.invol_ctx_switch++;
 			mutex_unlock(&victim->state_mutex);
 			/*
 			 * We need to break out of the wait loop in spu_run
@@ -526,6 +530,7 @@ static int __spu_deactivate(struct spu_context *ctx, int force, int max_prio)
 			spu_remove_from_active_list(spu);
 			spu_unbind_context(spu, ctx);
 			ctx->stats.vol_ctx_switch++;
+			spu->stats.vol_ctx_switch++;
 			spu_free(spu);
 			if (new)
 				wake_up(&new->stop_wq);
@@ -572,8 +577,10 @@ void spu_yield(struct spu_context *ctx)
 		mutex_lock(&ctx->state_mutex);
 		if (__spu_deactivate(ctx, 0, MAX_PRIO))
 			spuctx_switch_state(ctx, SPUCTX_UTIL_USER);
-		else
+		else {
 			spuctx_switch_state(ctx, SPUCTX_UTIL_LOADED);
+			spu_switch_state(ctx->spu, SPU_UTIL_USER);
+		}
 		mutex_unlock(&ctx->state_mutex);
 	}
 }
@@ -603,6 +610,7 @@ static void spusched_tick(struct spu_context *ctx)
 			__spu_remove_from_active_list(spu);
 			spu_unbind_context(spu, ctx);
 			ctx->stats.invol_ctx_switch++;
+			spu->stats.invol_ctx_switch++;
 			spu_free(spu);
 			wake_up(&new->stop_wq);
 			/*

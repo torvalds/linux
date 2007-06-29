@@ -106,6 +106,14 @@ struct spu_context;
 struct spu_runqueue;
 struct device_node;
 
+enum spu_utilization_state {
+	SPU_UTIL_SYSTEM,
+	SPU_UTIL_USER,
+	SPU_UTIL_IOWAIT,
+	SPU_UTIL_IDLE,
+	SPU_UTIL_MAX
+};
+
 struct spu {
 	const char *name;
 	unsigned long local_store_phys;
@@ -159,8 +167,17 @@ struct spu {
 
 	struct {
 		/* protected by interrupt reentrancy */
+		enum spu_utilization_state utilization_state;
+		unsigned long tstamp;		/* time of last ctx switch */
+		unsigned long times[SPU_UTIL_MAX];
+		unsigned long long vol_ctx_switch;
+		unsigned long long invol_ctx_switch;
+		unsigned long long min_flt;
+		unsigned long long maj_flt;
+		unsigned long long hash_flt;
 		unsigned long long slb_flt;
 		unsigned long long class2_intr;
+		unsigned long long libassist;
 	} stats;
 };
 

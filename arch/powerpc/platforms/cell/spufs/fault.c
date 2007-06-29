@@ -187,6 +187,10 @@ int spufs_handle_class1(struct spu_context *ctx)
 		dsisr, ctx->state);
 
 	ctx->stats.hash_flt++;
+	if (ctx->state == SPU_STATE_RUNNABLE) {
+		ctx->spu->stats.hash_flt++;
+		spu_switch_state(ctx->spu, SPU_UTIL_IOWAIT);
+	}
 
 	/* we must not hold the lock when entering spu_handle_mm_fault */
 	spu_release(ctx);
@@ -212,6 +216,12 @@ int spufs_handle_class1(struct spu_context *ctx)
 			ctx->stats.min_flt++;
 		else
 			ctx->stats.maj_flt++;
+		if (ctx->state == SPU_STATE_RUNNABLE) {
+			if (flt == VM_FAULT_MINOR)
+				ctx->spu->stats.min_flt++;
+			else
+				ctx->spu->stats.maj_flt++;
+		}
 
 		if (ctx->spu)
 			ctx->ops->restart_dma(ctx);
