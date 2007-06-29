@@ -491,6 +491,15 @@ static int __spu_deactivate(struct spu_context *ctx, int force, int max_prio)
  */
 void spu_deactivate(struct spu_context *ctx)
 {
+	/*
+	 * We must never reach this for a nosched context,
+	 * but handle the case gracefull instead of panicing.
+	 */
+	if (ctx->flags & SPU_CREATE_NOSCHED) {
+		WARN_ON(1);
+		return;
+	}
+
 	__spu_deactivate(ctx, 1, MAX_PRIO);
 }
 
