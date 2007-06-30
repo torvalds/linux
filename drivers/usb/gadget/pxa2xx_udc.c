@@ -27,6 +27,7 @@
 #undef	DEBUG
 // #define	VERBOSE	DBG_VERBOSE
 
+#include <linux/device.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
@@ -46,19 +47,17 @@
 
 #include <asm/byteorder.h>
 #include <asm/dma.h>
+#include <asm/gpio.h>
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/mach-types.h>
 #include <asm/unaligned.h>
 #include <asm/hardware.h>
-#ifdef CONFIG_ARCH_PXA
-#include <asm/arch/pxa-regs.h>
-#endif
 
 #include <linux/usb/ch9.h>
 #include <linux/usb_gadget.h>
 
-#include <asm/arch/udc.h>
+#include <asm/mach/udc_pxa2xx.h>
 
 
 /*
@@ -155,7 +154,7 @@ static int is_vbus_present(void)
 	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
 
 	if (mach->gpio_vbus)
-		return udc_gpio_get(mach->gpio_vbus);
+		return gpio_get_value(mach->gpio_vbus);
 	if (mach->udc_is_connected)
 		return mach->udc_is_connected();
 	return 1;
@@ -167,7 +166,7 @@ static void pullup_off(void)
 	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
 
 	if (mach->gpio_pullup)
-		udc_gpio_set(mach->gpio_pullup, 0);
+		gpio_set_value(mach->gpio_pullup, 0);
 	else if (mach->udc_command)
 		mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
 }
@@ -177,7 +176,7 @@ static void pullup_on(void)
 	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
 
 	if (mach->gpio_pullup)
-		udc_gpio_set(mach->gpio_pullup, 1);
+		gpio_set_value(mach->gpio_pullup, 1);
 	else if (mach->udc_command)
 		mach->udc_command(PXA2XX_UDC_CMD_CONNECT);
 }
@@ -1742,7 +1741,7 @@ lubbock_vbus_irq(int irq, void *_dev)
 static irqreturn_t udc_vbus_irq(int irq, void *_dev)
 {
 	struct pxa2xx_udc	*dev = _dev;
-	int			vbus = udc_gpio_get(dev->mach->gpio_vbus);
+	int			vbus = gpio_get_value(dev->mach->gpio_vbus);
 
 	pxa2xx_udc_vbus_session(&dev->gadget, vbus);
 	return IRQ_HANDLED;
@@ -2535,14 +2534,33 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 	/* other non-static parts of init */
 	dev->dev = &pdev->dev;
 	dev->mach = pdev->dev.platform_data;
+
 	if (dev->mach->gpio_vbus) {
-		udc_gpio_init_vbus(dev->mach->gpio_vbus);
-		vbus_irq = udc_gpio_to_irq(dev->mach->gpio_vbus);
+		if ((retval = gpio_request(dev->mach->gpio_vbus,
+				"pxa2xx_udc GPIO VBUS"))) {
+			dev_dbg(&pdev->dev,
+				"can't get vbus gpio %d, err: %d\n",
+				dev->mach->gpio_vbus, retval);
+			return -EBUSY;
+		}
+		gpio_direction_input(dev->mach->gpio_vbus);
+		vbus_irq = gpio_to_irq(dev->mach->gpio_vbus);
 		set_irq_type(vbus_irq, IRQT_BOTHEDGE);
 	} else
 		vbus_irq = 0;
-	if (dev->mach->gpio_pullup)
-		udc_gpio_init_pullup(dev->mach->gpio_pullup);
+
+	if (dev->mach->gpio_pullup) {
+		if ((retval = gpio_request(dev->mach->gpio_pullup,
+				"pca2xx_udc GPIO PULLUP"))) {
+			dev_dbg(&pdev->dev,
+				"can't get pullup gpio %d, err: %d\n",
+				dev->mach->gpio_pullup, retval);
+			if (dev->mach->gpio_vbus)
+				gpio_free(dev->mach->gpio_vbus);
+			return -EBUSY;
+		}
+		gpio_direction_output(dev->mach->gpio_pullup, 0);
+	}
 
 	init_timer(&dev->timer);
 	dev->timer.function = udc_watchdog;
@@ -2566,6 +2584,10 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 	if (retval != 0) {
 		printk(KERN_ERR "%s: can't get irq %d, err %d\n",
 			driver_name, irq, retval);
+		if (dev->mach->gpio_pullup)
+			gpio_free(dev->mach->gpio_pullup);
+		if (dev->mach->gpio_vbus)
+			gpio_free(dev->mach->gpio_vbus);
 		return -EBUSY;
 	}
 	dev->got_irq = 1;
@@ -2581,6 +2603,10 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 				driver_name, LUBBOCK_USB_DISC_IRQ, retval);
 lubbock_fail0:
 			free_irq(irq, dev);
+			if (dev->mach->gpio_pullup)
+				gpio_free(dev->mach->gpio_pullup);
+			if (dev->mach->gpio_vbus)
+				gpio_free(dev->mach->gpio_vbus);
 			return -EBUSY;
 		}
 		retval = request_irq(LUBBOCK_USB_IRQ,
@@ -2608,6 +2634,10 @@ lubbock_fail0:
 			printk(KERN_ERR "%s: can't get irq %i, err %d\n",
 				driver_name, vbus_irq, retval);
 			free_irq(irq, dev);
+			if (dev->mach->gpio_pullup)
+				gpio_free(dev->mach->gpio_pullup);
+			if (dev->mach->gpio_vbus)
+				gpio_free(dev->mach->gpio_vbus);
 			return -EBUSY;
 		}
 	}
@@ -2641,8 +2671,13 @@ static int __exit pxa2xx_udc_remove(struct platform_device *pdev)
 		free_irq(LUBBOCK_USB_IRQ, dev);
 	}
 #endif
-	if (dev->mach->gpio_vbus)
-		free_irq(IRQ_GPIO(dev->mach->gpio_vbus), dev);
+	if (dev->mach->gpio_vbus) {
+		free_irq(gpio_to_irq(dev->mach->gpio_vbus), dev);
+		gpio_free(dev->mach->gpio_vbus);
+	}
+	if (dev->mach->gpio_pullup)
+		gpio_free(dev->mach->gpio_pullup);
+
 	platform_set_drvdata(pdev, NULL);
 	the_controller = NULL;
 	return 0;
