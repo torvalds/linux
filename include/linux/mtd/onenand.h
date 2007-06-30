@@ -60,6 +60,7 @@ struct onenand_bufferram {
  * @erase_shift:	[INTERN] number of address bits in a block
  * @page_shift:		[INTERN] number of address bits in a page
  * @page_mask:		[INTERN] a page per block mask
+ * @writesize:		[INTERN] a real page size
  * @bufferram_index:	[INTERN] BufferRAM index
  * @bufferram:		[INTERN] BufferRAM info
  * @readw:		[REPLACEABLE] hardware specific function for read short
@@ -100,6 +101,7 @@ struct onenand_chip {
 	unsigned int		erase_shift;
 	unsigned int		page_shift;
 	unsigned int		page_mask;
+	unsigned int		writesize;
 
 	unsigned int		bufferram_index;
 	struct onenand_bufferram	bufferram[MAX_BUFFERRAM];
@@ -140,6 +142,8 @@ struct onenand_chip {
 #define ONENAND_NEXT_BUFFERRAM(this)		(this->bufferram_index ^ 1)
 #define ONENAND_SET_NEXT_BUFFERRAM(this)	(this->bufferram_index ^= 1)
 #define ONENAND_SET_PREV_BUFFERRAM(this)	(this->bufferram_index ^= 1)
+#define ONENAND_SET_BUFFERRAM0(this)		(this->bufferram_index = 0)
+#define ONENAND_SET_BUFFERRAM1(this)		(this->bufferram_index = 1)
 
 #define ONENAND_GET_SYS_CFG1(this)					\
 	(this->read_word(this->base + ONENAND_REG_SYS_CFG1))
@@ -149,6 +153,13 @@ struct onenand_chip {
 #define ONENAND_IS_DDP(this)						\
 	(this->device_id & ONENAND_DEVICE_IS_DDP)
 
+#ifdef CONFIG_MTD_ONENAND_2X_PROGRAM
+#define ONENAND_IS_2PLANE(this)						\
+	(this->options & ONENAND_HAS_2PLANE)
+#else
+#define ONENAND_IS_2PLANE(this)			(0)
+#endif
+
 /* Check byte access in OneNAND */
 #define ONENAND_CHECK_BYTE_ACCESS(addr)		(addr & 0x1)
 
@@ -157,6 +168,7 @@ struct onenand_chip {
  */
 #define ONENAND_HAS_CONT_LOCK		(0x0001)
 #define ONENAND_HAS_UNLOCK_ALL		(0x0002)
+#define ONENAND_HAS_2PLANE		(0x0004)
 #define ONENAND_PAGEBUF_ALLOC		(0x1000)
 #define ONENAND_OOBBUF_ALLOC		(0x2000)
 

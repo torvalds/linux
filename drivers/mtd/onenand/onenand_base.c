@@ -206,6 +206,15 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 	default:
 		block = (int) (addr >> this->erase_shift);
 		page = (int) (addr >> this->page_shift);
+
+		if (ONENAND_IS_2PLANE(this)) {
+			/* Make the even block number */
+			block &= ~1;
+			/* Is it the odd plane? */
+			if (addr & this->writesize)
+				block++;
+			page >>= 1;
+		}
 		page &= this->page_mask;
 		break;
 	}
@@ -216,8 +225,12 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 		value = onenand_bufferram_address(this, block);
 		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS2);
 
-		/* Switch to the next data buffer */
-		ONENAND_SET_NEXT_BUFFERRAM(this);
+		if (ONENAND_IS_2PLANE(this))
+			/* It is always BufferRAM0 */
+			ONENAND_SET_BUFFERRAM0(this);
+		else
+			/* Switch to the next data buffer */
+			ONENAND_SET_NEXT_BUFFERRAM(this);
 
 		return 0;
 	}
@@ -247,6 +260,8 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 			break;
 
 		default:
+			if (ONENAND_IS_2PLANE(this) && cmd == ONENAND_CMD_PROG)
+				cmd = ONENAND_CMD_2X_PROG;
 			dataram = ONENAND_CURRENT_BUFFERRAM(this);
 			break;
 		}
@@ -445,8 +460,9 @@ static inline int onenand_bufferram_offset(struct mtd_info *mtd, int area)
 	struct onenand_chip *this = mtd->priv;
 
 	if (ONENAND_CURRENT_BUFFERRAM(this)) {
+		/* Note: the 'this->writesize' is a real page size */
 		if (area == ONENAND_DATARAM)
-			return mtd->writesize;
+			return this->writesize;
 		if (area == ONENAND_SPARERAM)
 			return mtd->oobsize;
 	}
@@ -572,6 +588,30 @@ static int onenand_write_bufferram(struct mtd_info *mtd, int area,
 }
 
 /**
+ * onenand_get_2x_blockpage - [GENERIC] Get blockpage at 2x program mode
+ * @param mtd		MTD data structure
+ * @param addr		address to check
+ * @return		blockpage address
+ *
+ * Get blockpage address at 2x program mode
+ */
+static int onenand_get_2x_blockpage(struct mtd_info *mtd, loff_t addr)
+{
+	struct onenand_chip *this = mtd->priv;
+	int blockpage, block, page;
+
+	/* Calculate the even block number */
+	block = (int) (addr >> this->erase_shift) & ~1;
+	/* Is it the odd plane? */
+	if (addr & this->writesize)
+		block++;
+	page = (int) (addr >> (this->page_shift + 1)) & this->page_mask;
+	blockpage = (block << 7) | page;
+
+	return blockpage;
+}
+
+/**
  * onenand_check_bufferram - [GENERIC] Check BufferRAM information
  * @param mtd		MTD data structure
  * @param addr		address to check
@@ -585,7 +625,10 @@ static int onenand_check_bufferram(struct mtd_info *mtd, loff_t addr)
 	int blockpage, found = 0;
 	unsigned int i;
 
-	blockpage = (int) (addr >> this->page_shift);
+	if (ONENAND_IS_2PLANE(this))
+		blockpage = onenand_get_2x_blockpage(mtd, addr);
+	else
+		blockpage = (int) (addr >> this->page_shift);
 
 	/* Is there valid data? */
 	i = ONENAND_CURRENT_BUFFERRAM(this);
@@ -625,7 +668,10 @@ static void onenand_update_bufferram(struct mtd_info *mtd, loff_t addr,
 	int blockpage;
 	unsigned int i;
 
-	blockpage = (int) (addr >> this->page_shift);
+	if (ONENAND_IS_2PLANE(this))
+		blockpage = onenand_get_2x_blockpage(mtd, addr);
+	else
+		blockpage = (int) (addr >> this->page_shift);
 
 	/* Invalidate another BufferRAM */
 	i = ONENAND_NEXT_BUFFERRAM(this);
@@ -734,6 +780,7 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	int read = 0, column;
 	int thislen;
 	int ret = 0, boundary = 0;
+	int writesize = this->writesize;
 
 	DEBUG(MTD_DEBUG_LEVEL3, "onenand_read: from = 0x%08x, len = %i\n", (unsigned int) from, (int) len);
 
@@ -754,22 +801,22 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
  	/* Do first load to bufferRAM */
  	if (read < len) {
  		if (!onenand_check_bufferram(mtd, from)) {
- 			this->command(mtd, ONENAND_CMD_READ, from, mtd->writesize);
+			this->command(mtd, ONENAND_CMD_READ, from, writesize);
  			ret = this->wait(mtd, FL_READING);
  			onenand_update_bufferram(mtd, from, !ret);
  		}
  	}
 
- 	thislen = min_t(int, mtd->writesize, len - read);
- 	column = from & (mtd->writesize - 1);
- 	if (column + thislen > mtd->writesize)
- 		thislen = mtd->writesize - column;
+	thislen = min_t(int, writesize, len - read);
+	column = from & (writesize - 1);
+	if (column + thislen > writesize)
+		thislen = writesize - column;
 
  	while (!ret) {
  		/* If there is more to load then start next load */
  		from += thislen;
  		if (read + thislen < len) {
- 			this->command(mtd, ONENAND_CMD_READ, from, mtd->writesize);
+			this->command(mtd, ONENAND_CMD_READ, from, writesize);
  			/*
  			 * Chip boundary handling in DDP
  			 * Now we issued chip 1 read and pointed chip 1
@@ -794,7 +841,7 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
  			this->write_word(ONENAND_DDP_CHIP1, this->base + ONENAND_REG_START_ADDRESS2);
  		ONENAND_SET_NEXT_BUFFERRAM(this);
  		buf += thislen;
- 		thislen = min_t(int, mtd->writesize, len - read);
+		thislen = min_t(int, writesize, len - read);
  		column = 0;
  		cond_resched();
  		/* Now wait for load */
@@ -1079,7 +1126,7 @@ int onenand_bbt_read_oob(struct mtd_info *mtd, loff_t from,
 		/* Read more? */
 		if (read < len) {
 			/* Update Page size */
-			from += mtd->writesize;
+			from += this->writesize;
 			column = 0;
 		}
 	}
@@ -1135,12 +1182,12 @@ static int onenand_verify(struct mtd_info *mtd, const u_char *buf, loff_t addr, 
 	int thislen, column;
 
 	while (len != 0) {
-		thislen = min_t(int, mtd->writesize, len);
-		column = addr & (mtd->writesize - 1);
-		if (column + thislen > mtd->writesize)
-			thislen = mtd->writesize - column;
+		thislen = min_t(int, this->writesize, len);
+		column = addr & (this->writesize - 1);
+		if (column + thislen > this->writesize)
+			thislen = this->writesize - column;
 
-		this->command(mtd, ONENAND_CMD_READ, addr, mtd->writesize);
+		this->command(mtd, ONENAND_CMD_READ, addr, this->writesize);
 
 		onenand_update_bufferram(mtd, addr, 0);
 
@@ -1236,6 +1283,10 @@ static int onenand_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 		/* In partial page write we don't update bufferram */
 		onenand_update_bufferram(mtd, to, !ret && !subpage);
+		if (ONENAND_IS_2PLANE(this)) {
+			ONENAND_SET_BUFFERRAM1(this);
+			onenand_update_bufferram(mtd, to + this->writesize, !ret && !subpage);
+		}
 
 		if (ret) {
 			printk(KERN_ERR "onenand_write: write filaed %d\n", ret);
@@ -1384,6 +1435,10 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 		this->command(mtd, ONENAND_CMD_PROGOOB, to, mtd->oobsize);
 
 		onenand_update_bufferram(mtd, to, 0);
+		if (ONENAND_IS_2PLANE(this)) {
+			ONENAND_SET_BUFFERRAM1(this);
+			onenand_update_bufferram(mtd, to + this->writesize, 0);
+		}
 
 		ret = this->wait(mtd, FL_WRITING);
 		if (ret) {
@@ -2107,6 +2162,7 @@ static int onenand_lock_user_prot_reg(struct mtd_info *mtd, loff_t from,
  *
  * Check and set OneNAND features
  * - lock scheme
+ * - two plane
  */
 static void onenand_check_features(struct mtd_info *mtd)
 {
@@ -2118,19 +2174,35 @@ static void onenand_check_features(struct mtd_info *mtd)
 	process = this->version_id >> ONENAND_VERSION_PROCESS_SHIFT;
 
 	/* Lock scheme */
-	if (density >= ONENAND_DEVICE_DENSITY_1Gb) {
+	switch (density) {
+	case ONENAND_DEVICE_DENSITY_4Gb:
+		this->options |= ONENAND_HAS_2PLANE;
+
+	case ONENAND_DEVICE_DENSITY_2Gb:
+		/* 2Gb DDP don't have 2 plane */
+		if (!ONENAND_IS_DDP(this))
+			this->options |= ONENAND_HAS_2PLANE;
+		this->options |= ONENAND_HAS_UNLOCK_ALL;
+
+	case ONENAND_DEVICE_DENSITY_1Gb:
 		/* A-Die has all block unlock */
-		if (process) {
-			printk(KERN_DEBUG "Chip support all block unlock\n");
+		if (process)
 			this->options |= ONENAND_HAS_UNLOCK_ALL;
-		}
-	} else {
-		/* Some OneNAND has continues lock scheme */
-		if (!process) {
-			printk(KERN_DEBUG "Lock scheme is Continues Lock\n");
+		break;
+
+	default:
+		/* Some OneNAND has continuous lock scheme */
+		if (!process)
 			this->options |= ONENAND_HAS_CONT_LOCK;
-		}
+		break;
 	}
+
+	if (this->options & ONENAND_HAS_CONT_LOCK)
+		printk(KERN_DEBUG "Lock scheme is Continuous Lock\n");
+	if (this->options & ONENAND_HAS_UNLOCK_ALL)
+		printk(KERN_DEBUG "Chip support all block unlock\n");
+	if (this->options & ONENAND_HAS_2PLANE)
+		printk(KERN_DEBUG "Chip has 2 plane\n");
 }
 
 /**
@@ -2257,6 +2329,8 @@ static int onenand_probe(struct mtd_info *mtd)
 	this->erase_shift = ffs(mtd->erasesize) - 1;
 	this->page_shift = ffs(mtd->writesize) - 1;
 	this->page_mask = (1 << (this->erase_shift - this->page_shift)) - 1;
+	/* It's real page size */
+	this->writesize = mtd->writesize;
 
 	/* REVIST: Multichip handling */
 
@@ -2264,6 +2338,17 @@ static int onenand_probe(struct mtd_info *mtd)
 
 	/* Check OneNAND features */
 	onenand_check_features(mtd);
+
+	/*
+	 * We emulate the 4KiB page and 256KiB erase block size
+	 * But oobsize is still 64 bytes.
+	 * It is only valid if you turn on 2X program support,
+	 * Otherwise it will be ignored by compiler.
+	 */
+	if (ONENAND_IS_2PLANE(this)) {
+		mtd->writesize <<= 1;
+		mtd->erasesize <<= 1;
+	}
 
 	return 0;
 }
