@@ -16,6 +16,9 @@
 #include <linux/mod_devicetable.h>
 
 struct mmc_card;
+struct sdio_func;
+
+typedef void (sdio_irq_handler_t)(struct sdio_func *);
 
 /*
  * SDIO function CIS tuple (unknown to the core)
@@ -33,6 +36,7 @@ struct sdio_func_tuple {
 struct sdio_func {
 	struct mmc_card		*card;		/* the card this device belongs to */
 	struct device		dev;		/* the device */
+	sdio_irq_handler_t	*irq_handler;	/* IRQ callback */
 	unsigned int		num;		/* function number */
 
 	unsigned char		class;		/* standard interface class */
@@ -104,6 +108,9 @@ extern void sdio_release_host(struct sdio_func *func);
 
 extern int sdio_enable_func(struct sdio_func *func);
 extern int sdio_disable_func(struct sdio_func *func);
+
+extern int sdio_claim_irq(struct sdio_func *func, sdio_irq_handler_t *handler);
+extern int sdio_release_irq(struct sdio_func *func);
 
 extern unsigned char sdio_readb(struct sdio_func *func,
 	unsigned int addr, int *err_ret);

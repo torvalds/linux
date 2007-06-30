@@ -123,6 +123,10 @@ struct mmc_host {
 	unsigned int		bus_refs;	/* reference counter */
 	unsigned int		bus_dead:1;	/* bus has been released */
 
+	unsigned int		sdio_irqs;
+	struct task_struct	*sdio_irq_thread;
+	atomic_t		sdio_irq_thread_abort;
+
 	unsigned long		private[0] ____cacheline_aligned;
 };
 
