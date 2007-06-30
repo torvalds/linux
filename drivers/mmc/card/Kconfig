@@ -32,3 +32,10 @@ config MMC_BLOCK_BOUNCE
 
 	  If unsure, say Y here.
 
+config SDIO_UART
+	tristate "SDIO UART/GPS class support"
+	depends on MMC
+	help
+	  SDIO function driver for SDIO cards that implements the UART
+	  class, as well as the GPS class which appears like a UART.
+
