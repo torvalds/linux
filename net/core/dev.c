@@ -2607,8 +2607,8 @@ void dev_set_rx_mode(struct net_device *dev)
 	netif_tx_unlock_bh(dev);
 }
 
-int __dev_addr_delete(struct dev_addr_list **list, void *addr, int alen,
-		      int glbl)
+int __dev_addr_delete(struct dev_addr_list **list, int *count,
+		      void *addr, int alen, int glbl)
 {
 	struct dev_addr_list *da;
 
@@ -2626,13 +2626,15 @@ int __dev_addr_delete(struct dev_addr_list **list, void *addr, int alen,
 
 			*list = da->next;
 			kfree(da);
+			(*count)--;
 			return 0;
 		}
 	}
 	return -ENOENT;
 }
 
-int __dev_addr_add(struct dev_addr_list **list, void *addr, int alen, int glbl)
+int __dev_addr_add(struct dev_addr_list **list, int *count,
+		   void *addr, int alen, int glbl)
 {
 	struct dev_addr_list *da;
 
@@ -2659,6 +2661,7 @@ int __dev_addr_add(struct dev_addr_list **list, void *addr, int alen, int glbl)
 	da->da_gusers = glbl ? 1 : 0;
 	da->next = *list;
 	*list = da;
+	(*count)++;
 	return 0;
 }
 
@@ -2692,11 +2695,9 @@ int dev_unicast_delete(struct net_device *dev, void *addr, int alen)
 	ASSERT_RTNL();
 
 	netif_tx_lock_bh(dev);
-	err = __dev_addr_delete(&dev->uc_list, addr, alen, 0);
-	if (!err) {
-		dev->uc_count--;
+	err = __dev_addr_delete(&dev->uc_list, &dev->uc_count, addr, alen, 0);
+	if (!err)
 		__dev_set_rx_mode(dev);
-	}
 	netif_tx_unlock_bh(dev);
 	return err;
 }
@@ -2718,11 +2719,9 @@ int dev_unicast_add(struct net_device *dev, void *addr, int alen)
 	ASSERT_RTNL();
 
 	netif_tx_lock_bh(dev);
-	err = __dev_addr_add(&dev->uc_list, addr, alen, 0);
-	if (!err) {
-		dev->uc_count++;
+	err = __dev_addr_add(&dev->uc_list, &dev->uc_count, addr, alen, 0);
+	if (!err)
 		__dev_set_rx_mode(dev);
-	}
 	netif_tx_unlock_bh(dev);
 	return err;
 }

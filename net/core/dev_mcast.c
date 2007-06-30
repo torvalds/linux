@@ -72,10 +72,9 @@ int dev_mc_delete(struct net_device *dev, void *addr, int alen, int glbl)
 	int err;
 
 	netif_tx_lock_bh(dev);
-	err = __dev_addr_delete(&dev->mc_list, addr, alen, glbl);
+	err = __dev_addr_delete(&dev->mc_list, &dev->mc_count,
+				addr, alen, glbl);
 	if (!err) {
-		dev->mc_count--;
-
 		/*
 		 *	We have altered the list, so the card
 		 *	loaded filter is now wrong. Fix it
@@ -96,11 +95,9 @@ int dev_mc_add(struct net_device *dev, void *addr, int alen, int glbl)
 	int err;
 
 	netif_tx_lock_bh(dev);
-	err = __dev_addr_add(&dev->mc_list, addr, alen, glbl);
-	if (!err) {
-		dev->mc_count++;
+	err = __dev_addr_add(&dev->mc_list, &dev->mc_count, addr, alen, glbl);
+	if (!err)
 		__dev_set_rx_mode(dev);
-	}
 	netif_tx_unlock_bh(dev);
 	return err;
 }
