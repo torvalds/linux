@@ -56,4 +56,11 @@ config MTD_ONENAND_2X_PROGRAM
 
 	  And more recent chips
 
+config MTD_ONENAND_SIM
+	tristate "OneNAND simulator support"
+	depends on MTD_PARTITIONS
+	help
+	  The simulator may simulate various OneNAND flash chips for the
+	  OneNAND MTD layer.
+
 endif # MTD_ONENAND
