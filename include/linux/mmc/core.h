@@ -114,7 +114,18 @@ extern int mmc_wait_for_app_cmd(struct mmc_host *, struct mmc_card *,
 
 extern void mmc_set_data_timeout(struct mmc_data *, const struct mmc_card *);
 
-extern void mmc_claim_host(struct mmc_host *host);
+extern int __mmc_claim_host(struct mmc_host *host, atomic_t *abort);
 extern void mmc_release_host(struct mmc_host *host);
+
+/**
+ *	mmc_claim_host - exclusively claim a host
+ *	@host: mmc host to claim
+ *
+ *	Claim a host for a set of operations.
+ */
+static inline void mmc_claim_host(struct mmc_host *host)
+{
+	__mmc_claim_host(host, NULL);
+}
 
 #endif

@@ -273,15 +273,20 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 EXPORT_SYMBOL(mmc_set_data_timeout);
 
 /**
- *	mmc_claim_host - exclusively claim a host
+ *	__mmc_claim_host - exclusively claim a host
  *	@host: mmc host to claim
+ *	@abort: whether or not the operation should be aborted
  *
- *	Claim a host for a set of operations.
+ *	Claim a host for a set of operations.  If @abort is non null and
+ *	dereference a non-zero value then this will return prematurely with
+ *	that non-zero value without acquiring the lock.  Returns zero
+ *	with the lock held otherwise.
  */
-void mmc_claim_host(struct mmc_host *host)
+int __mmc_claim_host(struct mmc_host *host, atomic_t *abort)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	unsigned long flags;
+	int stop;
 
 	might_sleep();
 
@@ -289,19 +294,24 @@ void mmc_claim_host(struct mmc_host *host)
 	spin_lock_irqsave(&host->lock, flags);
 	while (1) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		if (!host->claimed)
+		stop = abort ? atomic_read(abort) : 0;
+		if (stop || !host->claimed)
 			break;
 		spin_unlock_irqrestore(&host->lock, flags);
 		schedule();
 		spin_lock_irqsave(&host->lock, flags);
 	}
 	set_current_state(TASK_RUNNING);
-	host->claimed = 1;
+	if (!stop)
+		host->claimed = 1;
+	else
+		wake_up(&host->wq);
 	spin_unlock_irqrestore(&host->lock, flags);
 	remove_wait_queue(&host->wq, &wait);
+	return stop;
 }
 
-EXPORT_SYMBOL(mmc_claim_host);
+EXPORT_SYMBOL(__mmc_claim_host);
 
 /**
  *	mmc_release_host - release a host
