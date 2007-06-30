@@ -1348,9 +1348,7 @@ static int __setlease(struct file *filp, long arg, struct file_lock **flp)
 
 	time_out_leases(inode);
 
-	error = -EINVAL;
-	if (!flp || !(*flp) || !(*flp)->fl_lmops || !(*flp)->fl_lmops->fl_break)
-		goto out;
+	BUG_ON(!(*flp)->fl_lmops->fl_break);
 
 	lease = *flp;
 
