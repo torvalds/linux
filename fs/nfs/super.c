@@ -447,6 +447,23 @@ static void nfs_umount_begin(struct vfsmount *vfsmnt, int flags)
 }
 
 /*
+ * Sanity-check a server address provided by the mount command
+ */
+static int nfs_verify_server_address(struct sockaddr *addr)
+{
+	switch (addr->sa_family) {
+	case AF_INET: {
+		struct sockaddr_in *sa = (struct sockaddr_in *) addr;
+		if (sa->sin_addr.s_addr != INADDR_ANY)
+			return 1;
+		break;
+	}
+	}
+
+	return 0;
+}
+
+/*
  * Validate the NFS2/NFS3 mount data
  * - fills in the mount root filehandle
  */
@@ -501,7 +518,7 @@ static int nfs_validate_mount_data(struct nfs_mount_data *data,
 #endif /* CONFIG_NFS_V3 */
 
 	/* We now require that the mount process passes the remote address */
-	if (data->addr.sin_addr.s_addr == INADDR_ANY) {
+	if (!nfs_verify_server_address((struct sockaddr *) &data->addr)) {
 		dprintk("%s: mount program didn't pass remote address!\n",
 			__FUNCTION__);
 		return -EINVAL;
@@ -819,13 +836,12 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 	if (copy_from_user(&addr, data->host_addr, sizeof(addr)))
 		return -EFAULT;
 
-	if (addr.sin_family != AF_INET ||
-	    addr.sin_addr.s_addr == INADDR_ANY
-	    ) {
+	if (!nfs_verify_server_address((struct sockaddr *) &addr)) {
 		dprintk("%s: mount program didn't pass remote IP address!\n",
 				__FUNCTION__);
 		return -EINVAL;
 	}
+
 	/* RFC3530: The default port for NFS is 2049 */
 	if (addr.sin_port == 0)
 		addr.sin_port = htons(NFS_PORT);
