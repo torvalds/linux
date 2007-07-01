@@ -189,7 +189,8 @@ int zd_mac_init(struct zd_mac *mac,
 		struct usb_interface *intf);
 void zd_mac_clear(struct zd_mac *mac);
 
-int zd_mac_init_hw(struct zd_mac *mac, u8 device_type);
+int zd_mac_preinit_hw(struct zd_mac *mac);
+int zd_mac_init_hw(struct zd_mac *mac);
 
 int zd_mac_open(struct net_device *netdev);
 int zd_mac_stop(struct net_device *netdev);
