@@ -633,13 +633,13 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	/* Validate the mount data */
 	error = nfs_validate_mount_data(data, &mntfh);
 	if (error < 0)
-		return error;
+		goto out;
 
 	/* Get a volume representation */
 	server = nfs_create_server(data, &mntfh);
 	if (IS_ERR(server)) {
 		error = PTR_ERR(server);
-		goto out_err_noserver;
+		goto out;
 	}
 
 	/* Get a superblock - note that we may end up sharing one that already exists */
@@ -669,17 +669,19 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	s->s_flags |= MS_ACTIVE;
 	mnt->mnt_sb = s;
 	mnt->mnt_root = mntroot;
-	return 0;
+	error = 0;
+
+out:
+	return error;
 
 out_err_nosb:
 	nfs_free_server(server);
-out_err_noserver:
-	return error;
+	goto out;
 
 error_splat_super:
 	up_write(&s->s_umount);
 	deactivate_super(s);
-	return error;
+	goto out;
 }
 
 /*
