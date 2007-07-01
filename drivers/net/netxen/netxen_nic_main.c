@@ -336,11 +336,9 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
-	if (pci_enable_msi(pdev)) {
+	if (pci_enable_msi(pdev))
 		adapter->flags &= ~NETXEN_NIC_MSI_ENABLED;
-		printk(KERN_WARNING "%s: unable to allocate MSI interrupt"
-		       " error\n", netxen_nic_driver_name);
-	} else
+	else
 		adapter->flags |= NETXEN_NIC_MSI_ENABLED;
 
 	netdev->irq = pdev->irq;
@@ -354,13 +352,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* initialize the adapter */
 	netxen_initialize_adapter_hw(adapter);
-
-#ifdef CONFIG_PPC
-	if ((adapter->ahw.boardcfg.board_type ==
-		NETXEN_BRDTYPE_P2_SB31_10G_IMEZ) &&
-			(pci_func_id == 2))
-		    goto err_out_free_adapter;
-#endif /* CONFIG_PPC */
 
 	/*
 	 *  Adapter in our case is quad port so initialize it before
@@ -509,16 +500,22 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 					NETXEN_CAM_RAM(0x1fc)));
 		if (val == 0x55555555) {
 		    /* This is the first boot after power up */
+		    netxen_nic_read_w0(adapter, NETXEN_PCIE_REG(0x4), &val);
+		    if (!(val & 0x4)) {
+			val |= 0x4;
+			netxen_nic_write_w0(adapter, NETXEN_PCIE_REG(0x4), val);
+			netxen_nic_read_w0(adapter, NETXEN_PCIE_REG(0x4), &val);
+		    }
 		    val = readl(NETXEN_CRB_NORMALIZE(adapter,
 					NETXEN_ROMUSB_GLB_SW_RESET));
 		    printk(KERN_INFO"NetXen: read 0x%08x for reset reg.\n",val);
 		    if (val != 0x80000f) {
 			/* clear the register for future unloads/loads */
-			writel(0, NETXEN_CRB_NORMALIZE(adapter,
-						NETXEN_CAM_RAM(0x1fc)));
-			printk(KERN_ERR "ERROR in NetXen HW init sequence.\n");
-			err = -ENODEV;
-			goto err_out_free_dev;
+				writel(0, NETXEN_CRB_NORMALIZE(adapter,
+							NETXEN_CAM_RAM(0x1fc)));
+				printk(KERN_ERR "ERROR in NetXen HW init sequence.\n");
+				err = -ENODEV;
+				goto err_out_free_dev;
 		    }
 
 		    /* clear the register for future unloads/loads */
