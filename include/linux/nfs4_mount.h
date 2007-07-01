@@ -65,6 +65,6 @@ struct nfs4_mount_data {
 #define NFS4_MOUNT_NOCTO	0x0010	/* 1 */
 #define NFS4_MOUNT_NOAC		0x0020	/* 1 */
 #define NFS4_MOUNT_STRICTLOCK	0x1000	/* 1 */
-#define NFS4_MOUNT_FLAGMASK	0xFFFF
+#define NFS4_MOUNT_FLAGMASK	0x1033
 
 #endif

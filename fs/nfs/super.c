@@ -1541,8 +1541,90 @@ static int nfs4_validate_mount_data(struct nfs4_mount_data **options,
 		*ip_addr = c;
 
 		break;
-	default:
-		goto out_bad_version;
+	default: {
+		unsigned int len;
+		struct nfs_parsed_mount_data args = {
+			.rsize		= NFS_MAX_FILE_IO_SIZE,
+			.wsize		= NFS_MAX_FILE_IO_SIZE,
+			.timeo		= 600,
+			.retrans	= 2,
+			.acregmin	= 3,
+			.acregmax	= 60,
+			.acdirmin	= 30,
+			.acdirmax	= 60,
+			.nfs_server.protocol = IPPROTO_TCP,
+		};
+
+		if (nfs_parse_mount_options((char *) *options, &args) == 0)
+			return -EINVAL;
+
+		if (!nfs_verify_server_address((struct sockaddr *)
+						&args.nfs_server.address))
+			return -EINVAL;
+		*addr = args.nfs_server.address;
+
+		switch (args.auth_flavor_len) {
+		case 0:
+			*authflavour = RPC_AUTH_UNIX;
+			break;
+		case 1:
+			*authflavour = (rpc_authflavor_t) args.auth_flavors[0];
+			break;
+		default:
+			goto out_inval_auth;
+		}
+
+		/*
+		 * Translate to nfs4_mount_data, which nfs4_fill_super
+		 * can deal with.
+		 */
+		data = kzalloc(sizeof(*data), GFP_KERNEL);
+		if (data == NULL)
+			return -ENOMEM;
+		*options = data;
+
+		data->version	= 1;
+		data->flags	= args.flags & NFS4_MOUNT_FLAGMASK;
+		data->rsize	= args.rsize;
+		data->wsize	= args.wsize;
+		data->timeo	= args.timeo;
+		data->retrans	= args.retrans;
+		data->acregmin	= args.acregmin;
+		data->acregmax	= args.acregmax;
+		data->acdirmin	= args.acdirmin;
+		data->acdirmax	= args.acdirmax;
+		data->proto	= args.nfs_server.protocol;
+
+		/*
+		 * Split "dev_name" into "hostname:mntpath".
+		 */
+		c = strchr(dev_name, ':');
+		if (c == NULL)
+			return -EINVAL;
+		/* while calculating len, pretend ':' is '\0' */
+		len = c - dev_name;
+		if (len > NFS4_MAXNAMLEN)
+			return -EINVAL;
+		*hostname = kzalloc(len, GFP_KERNEL);
+		if (*hostname == NULL)
+			return -ENOMEM;
+		strncpy(*hostname, dev_name, len - 1);
+
+		c++;			/* step over the ':' */
+		len = strlen(c);
+		if (len > NFS4_MAXPATHLEN)
+			return -EINVAL;
+		*mntpath = kzalloc(len + 1, GFP_KERNEL);
+		if (*mntpath == NULL)
+			return -ENOMEM;
+		strncpy(*mntpath, c, len);
+
+		dprintk("MNTPATH: %s\n", *mntpath);
+
+		*ip_addr = args.client_address;
+
+		break;
+		}
 	}
 
 	return 0;
@@ -1558,11 +1640,6 @@ out_inval_auth:
 
 out_no_address:
 	dfprintk(MOUNT, "NFS4: mount program didn't pass remote address\n");
-	return -EINVAL;
-
-out_bad_version:
-	dfprintk(MOUNT, "NFS4: bad nfs_mount_data version %d\n",
-		 data->version);
 	return -EINVAL;
 }
 
