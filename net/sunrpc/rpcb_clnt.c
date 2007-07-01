@@ -12,6 +12,8 @@
  *  Copyright (C) 1996, Olaf Kirch <okir@monad.swb.de>
  */
 
+#include <linux/module.h>
+
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/kernel.h>
@@ -247,21 +249,20 @@ int rpcb_register(u32 prog, u32 vers, int prot, unsigned short port, int *okay)
 	return error;
 }
 
-#ifdef CONFIG_ROOT_NFS
 /**
- * rpcb_getport_external - obtain the port for an RPC service on a given host
+ * rpcb_getport_sync - obtain the port for an RPC service on a given host
  * @sin: address of remote peer
  * @prog: RPC program number to bind
  * @vers: RPC version number to bind
  * @prot: transport protocol to use to make this request
  *
  * Called from outside the RPC client in a synchronous task context.
+ * Uses default timeout parameters specified by underlying transport.
  *
- * For now, this supports only version 2 queries, but is used only by
- * mount_clnt for NFS_ROOT.
+ * XXX: Needs to support IPv6, and rpcbind versions 3 and 4
  */
-int rpcb_getport_external(struct sockaddr_in *sin, __u32 prog,
-				__u32 vers, int prot)
+int rpcb_getport_sync(struct sockaddr_in *sin, __u32 prog,
+		      __u32 vers, int prot)
 {
 	struct rpcbind_args map = {
 		.r_prog		= prog,
@@ -278,10 +279,10 @@ int rpcb_getport_external(struct sockaddr_in *sin, __u32 prog,
 	char hostname[40];
 	int status;
 
-	dprintk("RPC:       rpcb_getport_external(%u.%u.%u.%u, %u, %u, %d)\n",
-			NIPQUAD(sin->sin_addr.s_addr), prog, vers, prot);
+	dprintk("RPC:       %s(" NIPQUAD_FMT ", %u, %u, %d)\n",
+		__FUNCTION__, NIPQUAD(sin->sin_addr.s_addr), prog, vers, prot);
 
-	sprintf(hostname, "%u.%u.%u.%u", NIPQUAD(sin->sin_addr.s_addr));
+	sprintf(hostname, NIPQUAD_FMT, NIPQUAD(sin->sin_addr.s_addr));
 	rpcb_clnt = rpcb_create(hostname, (struct sockaddr *)sin, prot, 2, 0);
 	if (IS_ERR(rpcb_clnt))
 		return PTR_ERR(rpcb_clnt);
@@ -296,7 +297,7 @@ int rpcb_getport_external(struct sockaddr_in *sin, __u32 prog,
 	}
 	return status;
 }
-#endif
+EXPORT_SYMBOL_GPL(rpcb_getport_sync);
 
 /**
  * rpcb_getport - obtain the port for a given RPC service on a given host
