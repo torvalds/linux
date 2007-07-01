@@ -18,7 +18,7 @@
 #include <linux/nfs_fs.h>
 
 #ifdef RPC_DEBUG
-# define NFSDBG_FACILITY	NFSDBG_ROOT
+# define NFSDBG_FACILITY	NFSDBG_MOUNT
 #endif
 
 /*
@@ -28,7 +28,6 @@
 #define MOUNT_UMNT		3
  */
 
-static struct rpc_clnt *	mnt_create(struct sockaddr_in *, int, int);
 static struct rpc_program	mnt_program;
 
 struct mnt_fhstatus {
@@ -36,14 +35,21 @@ struct mnt_fhstatus {
 	struct nfs_fh *		fh;
 };
 
-/*
- * Obtain an NFS file handle for the given host and path
+/**
+ * nfs_mount - Obtain an NFS file handle for the given host and path
+ * @addr: pointer to server's address
+ * @len: size of server's address
+ * @hostname: name of server host, or NULL
+ * @path: pointer to string containing export path to mount
+ * @version: mount version to use for this request
+ * @protocol: transport protocol to use for thie request
+ * @fh: pointer to location to place returned file handle
+ *
+ * Uses default timeout parameters specified by underlying transport.
  */
-int
-nfsroot_mount(struct sockaddr_in *addr, char *path, struct nfs_fh *fh,
-		int version, int protocol)
+int nfs_mount(struct sockaddr *addr, size_t len, char *hostname, char *path,
+	      int version, int protocol, struct nfs_fh *fh)
 {
-	struct rpc_clnt		*mnt_clnt;
 	struct mnt_fhstatus	result = {
 		.fh		= fh
 	};
@@ -51,12 +57,23 @@ nfsroot_mount(struct sockaddr_in *addr, char *path, struct nfs_fh *fh,
 		.rpc_argp	= path,
 		.rpc_resp	= &result,
 	};
+	struct rpc_create_args args = {
+		.protocol	= protocol,
+		.address	= addr,
+		.addrsize	= len,
+		.servername	= hostname,
+		.program	= &mnt_program,
+		.version	= version,
+		.authflavor	= RPC_AUTH_UNIX,
+		.flags		= RPC_CLNT_CREATE_INTR,
+	};
+	struct rpc_clnt		*mnt_clnt;
 	int			status;
 
-	dprintk("NFS:      nfs_mount(%08x:%s)\n",
-			(unsigned)ntohl(addr->sin_addr.s_addr), path);
+	dprintk("NFS: sending MNT request for %s:%s\n",
+		(hostname ? hostname : "server"), path);
 
-	mnt_clnt = mnt_create(addr, version, protocol);
+	mnt_clnt = rpc_create(&args);
 	if (IS_ERR(mnt_clnt))
 		return PTR_ERR(mnt_clnt);
 
@@ -68,22 +85,6 @@ nfsroot_mount(struct sockaddr_in *addr, char *path, struct nfs_fh *fh,
 	status = rpc_call_sync(mnt_clnt, &msg, 0);
 	rpc_shutdown_client(mnt_clnt);
 	return status < 0? status : (result.status? -EACCES : 0);
-}
-
-static struct rpc_clnt *mnt_create(struct sockaddr_in *srvaddr, int version,
-				   int protocol)
-{
-	struct rpc_create_args args = {
-		.protocol	= protocol,
-		.address	= (struct sockaddr *)srvaddr,
-		.addrsize	= sizeof(*srvaddr),
-		.program	= &mnt_program,
-		.version	= version,
-		.authflavor	= RPC_AUTH_UNIX,
-		.flags		= RPC_CLNT_CREATE_INTR,
-	};
-
-	return rpc_create(&args);
 }
 
 /*
