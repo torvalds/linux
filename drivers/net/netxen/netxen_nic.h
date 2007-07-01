@@ -937,6 +937,7 @@ struct netxen_adapter {
 	struct netxen_ring_ctx *ctx_desc;
 	struct pci_dev *ctx_desc_pdev;
 	dma_addr_t ctx_desc_phys_addr;
+	int intr_scheme;
 	int (*enable_phy_interrupts) (struct netxen_adapter *);
 	int (*disable_phy_interrupts) (struct netxen_adapter *);
 	void (*handle_phy_intr) (struct netxen_adapter *);
@@ -1080,37 +1081,106 @@ struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);
 
 static inline void netxen_nic_disable_int(struct netxen_adapter *adapter)
 {
-	/*
-	 * ISR_INT_MASK: Can be read from window 0 or 1.
-	 */
-	writel(0x7ff, PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_MASK));
+	uint32_t	mask = 0x7ff;
+	int retries = 32;
 
+	DPRINTK(1, INFO, "Entered ISR Disable \n");
+
+	switch (adapter->portnum) {
+	case 0:
+		writel(0x0, NETXEN_CRB_NORMALIZE(adapter, CRB_SW_INT_MASK_0));
+		break;
+	case 1:
+		writel(0x0, NETXEN_CRB_NORMALIZE(adapter, CRB_SW_INT_MASK_1));
+		break;
+	case 2:
+		writel(0x0, NETXEN_CRB_NORMALIZE(adapter, CRB_SW_INT_MASK_2));
+		break;
+	case 3:
+		writel(0x0, NETXEN_CRB_NORMALIZE(adapter, CRB_SW_INT_MASK_3));
+		break;
+	}
+
+	if (adapter->intr_scheme != -1 &&
+		adapter->intr_scheme != INTR_SCHEME_PERPORT) {
+		writel(mask,
+			(void *)(PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_MASK)));
+	}
+
+	/* Window = 0 or 1 */
+	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
+		do {
+			writel(0xffffffff, (void *)
+				(PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_TARGET_STATUS)));
+			mask = readl((void *)
+					(pci_base_offset(adapter, ISR_INT_VECTOR)));
+			if (!(mask & 0x80))
+				break;
+			udelay(10);
+		} while (--retries);
+
+		if (!retries) {
+			printk(KERN_NOTICE "%s: Failed to disable interrupt completely\n",
+					netxen_nic_driver_name);
+		}
+	}
+
+	DPRINTK(1, INFO, "Done with Disable Int\n");
+
+	return;
 }
 
 static inline void netxen_nic_enable_int(struct netxen_adapter *adapter)
 {
 	u32 mask;
 
-	switch (adapter->ahw.board_type) {
-	case NETXEN_NIC_GBE:
-		mask = 0x77b;
+	DPRINTK(1, INFO, "Entered ISR Enable \n");
+
+	if (adapter->intr_scheme != -1 &&
+		adapter->intr_scheme != INTR_SCHEME_PERPORT) {
+		switch (adapter->ahw.board_type) {
+		case NETXEN_NIC_GBE:
+			mask  =  0x77b;
+			break;
+		case NETXEN_NIC_XGBE:
+			mask  =  0x77f;
+			break;
+		default:
+			mask  =  0x7ff;
+			break;
+		}
+
+		writel(mask,
+			(void *)(PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_MASK)));
+	}
+	switch (adapter->portnum) {
+	case 0:
+		writel(0x1, NETXEN_CRB_NORMALIZE(adapter, CRB_SW_INT_MASK_0));
 		break;
-	case NETXEN_NIC_XGBE:
-		mask = 0x77f;
+	case 1:
+		writel(0x1, NETXEN_CRB_NORMALIZE(adapter, CRB_SW_INT_MASK_1));
 		break;
-	default:
-		mask = 0x7ff;
+	case 2:
+		writel(0x1, NETXEN_CRB_NORMALIZE(adapter, CRB_SW_INT_MASK_2));
+		break;
+	case 3:
+		writel(0x1, NETXEN_CRB_NORMALIZE(adapter, CRB_SW_INT_MASK_3));
 		break;
 	}
-
-	writel(mask, PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_MASK));
 
 	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
 		mask = 0xbff;
-		writel(0X0, NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
-		writel(mask, PCI_OFFSET_SECOND_RANGE(adapter,
-						     ISR_INT_TARGET_MASK));
+		if (adapter->intr_scheme != -1 &&
+			adapter->intr_scheme != INTR_SCHEME_PERPORT) {
+			writel(0X0, NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
+		}
+		writel(mask,
+			(void *)(PCI_OFFSET_SECOND_RANGE(adapter, ISR_INT_TARGET_MASK)));
 	}
+
+	DPRINTK(1, INFO, "Done with enable Int\n");
+
+	return;
 }
 
 /*

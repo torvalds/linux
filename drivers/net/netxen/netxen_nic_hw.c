@@ -392,7 +392,11 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 			return err;
 		}
 	}
-	DPRINTK(INFO, "Recieve Peg ready too. starting stuff\n");
+	adapter->intr_scheme = readl(
+		NETXEN_CRB_NORMALIZE(adapter, CRB_NIC_CAPABILITIES_FW));
+	printk(KERN_NOTICE "%s: FW capabilities:0x%x\n", netdev->name,
+			adapter->intr_scheme);
+	DPRINTK(INFO, "Receive Peg ready too. starting stuff\n");
 
 	addr = netxen_alloc(adapter->ahw.pdev,
 			    sizeof(struct netxen_ring_ctx) +

@@ -139,6 +139,8 @@ int netxen_init_firmware(struct netxen_adapter *adapter)
 		return err;
 	}
 	/* Window 1 call */
+	writel(INTR_SCHEME_PERPORT,
+	       NETXEN_CRB_NORMALIZE(adapter, CRB_NIC_CAPABILITIES_HOST));
 	writel(MPORT_MULTI_FUNCTION_MODE,
 	       NETXEN_CRB_NORMALIZE(adapter, CRB_MPORT_MODE));
 	writel(PHAN_INITIALIZE_ACK,

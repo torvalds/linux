@@ -308,7 +308,13 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapter->netdev  = netdev;
 	adapter->pdev    = pdev;
+
+	/* this will be read from FW later */
+	adapter->intr_scheme = -1;
+
+	/* This will be reset for mezz cards  */
 	adapter->portnum = pci_func_id;
+	adapter->status   &= ~NETXEN_NETDEV_STATUS;
 
 	netdev->open		   = netxen_nic_open;
 	netdev->stop		   = netxen_nic_close;
@@ -1100,28 +1106,26 @@ static int
 netxen_handle_int(struct netxen_adapter *adapter, struct net_device *netdev)
 {
 	u32 ret = 0;
+	u32 our_int = 0;
 
 	DPRINTK(INFO, "Entered handle ISR\n");
 	adapter->stats.ints++;
 
 	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
-		int count = 0;
-		u32 mask;
-		u32 our_int = 0;
 		our_int = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
 		/* not our interrupt */
 		if ((our_int & (0x80 << adapter->portnum)) == 0)
 			return ret;
-		netxen_nic_disable_int(adapter);
-		/* Window = 0 or 1 */
-		do {
-			writel(0xffffffff, PCI_OFFSET_SECOND_RANGE(adapter,
-						ISR_INT_TARGET_STATUS));
-			mask = readl(pci_base_offset(adapter, ISR_INT_VECTOR));
-		} while (((mask & 0x80) != 0) && (++count < 32));
-		if ((mask & 0x80) != 0)
-			printk("Could not disable interrupt completely\n");
+	}
 
+	netxen_nic_disable_int(adapter);
+
+	if (adapter->intr_scheme == INTR_SCHEME_PERPORT) {
+		/* claim interrupt */
+		if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
+			writel(our_int & ~((u32)(0x80 << adapter->portnum)),
+			NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
+		}
 	}
 
 	if (netxen_nic_rx_has_work(adapter) || netxen_nic_tx_has_work(adapter)) {
@@ -1133,7 +1137,7 @@ netxen_handle_int(struct netxen_adapter *adapter, struct net_device *netdev)
 		} else {
 			static unsigned int intcount = 0;
 			if ((++intcount & 0xfff) == 0xfff)
-				printk(KERN_ERR
+				DPRINTK(KERN_ERR
 				       "%s: %s interrupt %d while in poll\n",
 				       netxen_nic_driver_name, netdev->name,
 				       intcount);
