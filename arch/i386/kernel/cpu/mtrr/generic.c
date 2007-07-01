@@ -65,7 +65,8 @@ get_fixed_ranges(mtrr_type * frs)
 
 void mtrr_save_fixed_ranges(void *info)
 {
-	get_fixed_ranges(mtrr_state.fixed_ranges);
+	if (cpu_has_mtrr)
+		get_fixed_ranges(mtrr_state.fixed_ranges);
 }
 
 static void print_fixed(unsigned base, unsigned step, const mtrr_type*types)
