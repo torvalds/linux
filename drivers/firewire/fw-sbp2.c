@@ -937,6 +937,11 @@ static int sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 		sg_len = sg_dma_len(sg + i);
 		sg_addr = sg_dma_address(sg + i);
 		while (sg_len) {
+			/* FIXME: This won't get us out of the pinch. */
+			if (unlikely(j >= ARRAY_SIZE(orb->page_table))) {
+				fw_error("page table overflow\n");
+				goto fail_page_table;
+			}
 			l = min(sg_len, SBP2_MAX_SG_ELEMENT_LENGTH);
 			orb->page_table[j].low = sg_addr;
 			orb->page_table[j].high = (l << 16);
