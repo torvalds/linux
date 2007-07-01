@@ -992,6 +992,63 @@ out_unknown:
 }
 
 /*
+ * Use the remote server's MOUNT service to request the NFS file handle
+ * corresponding to the provided path.
+ */
+static int nfs_try_mount(struct nfs_parsed_mount_data *args,
+			 struct nfs_fh *root_fh)
+{
+	struct sockaddr_in sin;
+	int status;
+
+	if (args->mount_server.version == 0) {
+		if (args->flags & NFS_MOUNT_VER3)
+			args->mount_server.version = NFS_MNT3_VERSION;
+		else
+			args->mount_server.version = NFS_MNT_VERSION;
+	}
+
+	/*
+	 * Construct the mount server's address.
+	 */
+	if (args->mount_server.address.sin_addr.s_addr != INADDR_ANY)
+		sin = args->mount_server.address;
+	else
+		sin = args->nfs_server.address;
+	if (args->mount_server.port == 0) {
+		status = rpcb_getport_sync(&sin,
+					   args->mount_server.program,
+					   args->mount_server.version,
+					   args->mount_server.protocol);
+		if (status < 0)
+			goto out_err;
+		sin.sin_port = htons(status);
+	} else
+		sin.sin_port = htons(args->mount_server.port);
+
+	/*
+	 * Now ask the mount server to map our export path
+	 * to a file handle.
+	 */
+	status = nfs_mount((struct sockaddr *) &sin,
+			   sizeof(sin),
+			   args->nfs_server.hostname,
+			   args->nfs_server.export_path,
+			   args->mount_server.version,
+			   args->mount_server.protocol,
+			   root_fh);
+	if (status < 0)
+		goto out_err;
+
+	return status;
+
+out_err:
+	dfprintk(MOUNT, "NFS: unable to contact server on host "
+		 NIPQUAD_FMT "\n", NIPQUAD(sin.sin_addr.s_addr));
+	return status;
+}
+
+/*
  * Validate the NFS2/NFS3 mount data
  * - fills in the mount root filehandle
  */
