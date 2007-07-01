@@ -923,7 +923,7 @@ static void clean_req (struct usb_ep *ep, struct usb_request *req)
 	struct dev_data		*dev = ep->driver_data;
 
 	if (req->buf != dev->rbuf) {
-		usb_ep_free_buffer (ep, req->buf, req->dma, req->length);
+		kfree(req->buf);
 		req->buf = dev->rbuf;
 		req->dma = DMA_ADDR_INVALID;
 	}
@@ -963,7 +963,7 @@ static int setup_req (struct usb_ep *ep, struct usb_request *req, u16 len)
 		return -EBUSY;
 	}
 	if (len > sizeof (dev->rbuf))
-		req->buf = usb_ep_alloc_buffer (ep, len, &req->dma, GFP_ATOMIC);
+		req->buf = kmalloc(len, GFP_ATOMIC);
 	if (req->buf == 0) {
 		req->buf = dev->rbuf;
 		return -ENOMEM;
