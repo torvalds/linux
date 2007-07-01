@@ -606,7 +606,6 @@ static int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 	// calculate the frequency we set it to
 	return (div * desc->entries[i].stepsize) - desc->iffreq;
 }
-EXPORT_SYMBOL(dvb_pll_configure);
 
 static int dvb_pll_release(struct dvb_frontend *fe)
 {
