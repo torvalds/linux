@@ -518,7 +518,7 @@ static int sbp2_agent_reset(struct fw_unit *unit)
 		return -ENOMEM;
 
 	fw_send_request(device->card, t, TCODE_WRITE_QUADLET_REQUEST,
-			sd->node_id, sd->generation, SCODE_400,
+			sd->node_id, sd->generation, device->max_speed,
 			sd->command_block_agent_address + SBP2_AGENT_RESET,
 			&zero, sizeof(zero), complete_agent_reset_write, t);
 
