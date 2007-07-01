@@ -37,7 +37,7 @@ struct nfs_mount_data {
 	int		acdirmin;		/* 1 */
 	int		acdirmax;		/* 1 */
 	struct sockaddr_in addr;		/* 1 */
-	char		hostname[256];		/* 1 */
+	char		hostname[NFS_MAXNAMLEN + 1];		/* 1 */
 	int		namlen;			/* 2 */
 	unsigned int	bsize;			/* 3 */
 	struct nfs3_fh	root;			/* 4 */

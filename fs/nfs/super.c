@@ -867,12 +867,12 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 		}
 	}
 
-	p = nfs_copy_user_string(NULL, &data->hostname, 256);
+	p = nfs_copy_user_string(NULL, &data->hostname, NFS4_MAXNAMLEN);
 	if (IS_ERR(p))
 		goto out_err;
 	hostname = p;
 
-	p = nfs_copy_user_string(NULL, &data->mnt_path, 1024);
+	p = nfs_copy_user_string(NULL, &data->mnt_path, NFS4_MAXPATHLEN);
 	if (IS_ERR(p))
 		goto out_err;
 	mntpath = p;
