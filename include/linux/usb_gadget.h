@@ -110,13 +110,6 @@ struct usb_ep_ops {
 		gfp_t gfp_flags);
 	void (*free_request) (struct usb_ep *ep, struct usb_request *req);
 
-	void *(*alloc_buffer) (struct usb_ep *ep, unsigned bytes,
-		dma_addr_t *dma, gfp_t gfp_flags);
-	void (*free_buffer) (struct usb_ep *ep, void *buf, dma_addr_t dma,
-		unsigned bytes);
-	// NOTE:  on 2.6, drivers may also use dma_map() and
-	// dma_sync_single_*() to directly manage dma overhead. 
-
 	int (*queue) (struct usb_ep *ep, struct usb_request *req,
 		gfp_t gfp_flags);
 	int (*dequeue) (struct usb_ep *ep, struct usb_request *req);

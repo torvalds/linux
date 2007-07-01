@@ -296,51 +296,6 @@ goku_free_request(struct usb_ep *_ep, struct usb_request *_req)
 
 /*-------------------------------------------------------------------------*/
 
-/* allocating buffers this way eliminates dma mapping overhead, which
- * on some platforms will mean eliminating a per-io buffer copy.  with
- * some kinds of system caches, further tweaks may still be needed.
- */
-static void *
-goku_alloc_buffer(struct usb_ep *_ep, unsigned bytes,
-			dma_addr_t *dma, gfp_t gfp_flags)
-{
-	void		*retval;
-	struct goku_ep	*ep;
-
-	ep = container_of(_ep, struct goku_ep, ep);
-	if (!_ep)
-		return NULL;
-	*dma = DMA_ADDR_INVALID;
-
-	if (ep->dma) {
-		/* the main problem with this call is that it wastes memory
-		 * on typical 1/N page allocations: it allocates 1-N pages.
-		 */
-#warning Using dma_alloc_coherent even with buffers smaller than a page.
-		retval = dma_alloc_coherent(&ep->dev->pdev->dev,
-				bytes, dma, gfp_flags);
-	} else
-		retval = kmalloc(bytes, gfp_flags);
-	return retval;
-}
-
-static void
-goku_free_buffer(struct usb_ep *_ep, void *buf, dma_addr_t dma, unsigned bytes)
-{
-	/* free memory into the right allocator */
-	if (dma != DMA_ADDR_INVALID) {
-		struct goku_ep	*ep;
-
-		ep = container_of(_ep, struct goku_ep, ep);
-		if (!_ep)
-			return;
-		dma_free_coherent(&ep->dev->pdev->dev, bytes, buf, dma);
-	} else
-		kfree (buf);
-}
-
-/*-------------------------------------------------------------------------*/
-
 static void
 done(struct goku_ep *ep, struct goku_request *req, int status)
 {
@@ -1025,9 +980,6 @@ static struct usb_ep_ops goku_ep_ops = {
 
 	.alloc_request	= goku_alloc_request,
 	.free_request	= goku_free_request,
-
-	.alloc_buffer	= goku_alloc_buffer,
-	.free_buffer	= goku_free_buffer,
 
 	.queue		= goku_queue,
 	.dequeue	= goku_dequeue,

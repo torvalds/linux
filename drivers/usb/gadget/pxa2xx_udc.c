@@ -341,26 +341,6 @@ pxa2xx_ep_free_request (struct usb_ep *_ep, struct usb_request *_req)
 	kfree(req);
 }
 
-
-static void *
-pxa2xx_ep_alloc_buffer(struct usb_ep *_ep, unsigned bytes,
-	dma_addr_t *dma, gfp_t gfp_flags)
-{
-	char			*retval;
-
-	retval = kmalloc (bytes, gfp_flags & ~(__GFP_DMA|__GFP_HIGHMEM));
-	if (retval)
-		*dma = (dma_addr_t)~0;
-	return retval;
-}
-
-static void
-pxa2xx_ep_free_buffer(struct usb_ep *_ep, void *buf, dma_addr_t dma,
-		unsigned bytes)
-{
-	kfree (buf);
-}
-
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -926,9 +906,6 @@ static struct usb_ep_ops pxa2xx_ep_ops = {
 
 	.alloc_request	= pxa2xx_ep_alloc_request,
 	.free_request	= pxa2xx_ep_free_request,
-
-	.alloc_buffer	= pxa2xx_ep_alloc_buffer,
-	.free_buffer	= pxa2xx_ep_free_buffer,
 
 	.queue		= pxa2xx_ep_queue,
 	.dequeue	= pxa2xx_ep_dequeue,

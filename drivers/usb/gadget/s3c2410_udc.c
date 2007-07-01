@@ -1197,36 +1197,6 @@ s3c2410_udc_free_request(struct usb_ep *_ep, struct usb_request *_req)
 }
 
 /*
- *	s3c2410_udc_alloc_buffer
- */
-static void *s3c2410_udc_alloc_buffer(struct usb_ep *_ep,
-		unsigned bytes, dma_addr_t *dma, gfp_t mem_flags)
-{
-	char *retval;
-
-	dprintk(DEBUG_VERBOSE, "%s()\n", __func__);
-
-	if (!the_controller->driver)
-		return NULL;
-
-	retval = kmalloc (bytes, mem_flags);
-	*dma = (dma_addr_t) retval;
-	return retval;
-}
-
-/*
- * s3c2410_udc_free_buffer
- */
-static void s3c2410_udc_free_buffer (struct usb_ep *_ep, void *buf,
-		dma_addr_t dma, unsigned bytes)
-{
-	dprintk(DEBUG_VERBOSE, "%s()\n", __func__);
-
-	if (bytes)
-		kfree (buf);
-}
-
-/*
  *	s3c2410_udc_queue
  */
 static int s3c2410_udc_queue(struct usb_ep *_ep, struct usb_request *_req,
@@ -1440,9 +1410,6 @@ static const struct usb_ep_ops s3c2410_ep_ops = {
 
 	.alloc_request	= s3c2410_udc_alloc_request,
 	.free_request	= s3c2410_udc_free_request,
-
-	.alloc_buffer	= s3c2410_udc_alloc_buffer,
-	.free_buffer	= s3c2410_udc_free_buffer,
 
 	.queue		= s3c2410_udc_queue,
 	.dequeue	= s3c2410_udc_dequeue,

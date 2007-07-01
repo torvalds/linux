@@ -601,39 +601,6 @@ static void fsl_free_request(struct usb_ep *_ep, struct usb_request *_req)
 		kfree(req);
 }
 
-/*------------------------------------------------------------------
- * Allocate an I/O buffer
-*---------------------------------------------------------------------*/
-static void *fsl_alloc_buffer(struct usb_ep *_ep, unsigned bytes,
-		dma_addr_t *dma, gfp_t gfp_flags)
-{
-	struct fsl_ep *ep;
-
-	if (!_ep)
-		return NULL;
-
-	ep = container_of(_ep, struct fsl_ep, ep);
-
-	return dma_alloc_coherent(ep->udc->gadget.dev.parent,
-			bytes, dma, gfp_flags);
-}
-
-/*------------------------------------------------------------------
- * frees an i/o buffer
-*---------------------------------------------------------------------*/
-static void fsl_free_buffer(struct usb_ep *_ep, void *buf,
-		dma_addr_t dma, unsigned bytes)
-{
-	struct fsl_ep *ep;
-
-	if (!_ep)
-		return;
-
-	ep = container_of(_ep, struct fsl_ep, ep);
-
-	dma_free_coherent(ep->udc->gadget.dev.parent, bytes, buf, dma);
-}
-
 /*-------------------------------------------------------------------------*/
 static int fsl_queue_td(struct fsl_ep *ep, struct fsl_req *req)
 {
@@ -1046,9 +1013,6 @@ static struct usb_ep_ops fsl_ep_ops = {
 
 	.alloc_request = fsl_alloc_request,
 	.free_request = fsl_free_request,
-
-	.alloc_buffer = fsl_alloc_buffer,
-	.free_buffer = fsl_free_buffer,
 
 	.queue = fsl_ep_queue,
 	.dequeue = fsl_ep_dequeue,

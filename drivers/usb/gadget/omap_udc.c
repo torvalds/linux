@@ -296,111 +296,6 @@ omap_free_request(struct usb_ep *ep, struct usb_request *_req)
 
 /*-------------------------------------------------------------------------*/
 
-/*
- * dma-coherent memory allocation (for dma-capable endpoints)
- *
- * NOTE: the dma_*_coherent() API calls suck.  Most implementations are
- * (a) page-oriented, so small buffers lose big; and (b) asymmetric with
- * respect to calls with irqs disabled:  alloc is safe, free is not.
- * We currently work around (b), but not (a).
- */
-
-static void *
-omap_alloc_buffer(
-	struct usb_ep	*_ep,
-	unsigned	bytes,
-	dma_addr_t	*dma,
-	gfp_t		gfp_flags
-)
-{
-	void		*retval;
-	struct omap_ep	*ep;
-
-	if (!_ep)
-		return NULL;
-
-	ep = container_of(_ep, struct omap_ep, ep);
-	if (use_dma && ep->has_dma) {
-		static int	warned;
-		if (!warned && bytes < PAGE_SIZE) {
-			dev_warn(ep->udc->gadget.dev.parent,
-				"using dma_alloc_coherent for "
-				"small allocations wastes memory\n");
-			warned++;
-		}
-		return dma_alloc_coherent(ep->udc->gadget.dev.parent,
-				bytes, dma, gfp_flags);
-	}
-
-	retval = kmalloc(bytes, gfp_flags);
-	if (retval)
-		*dma = virt_to_phys(retval);
-	return retval;
-}
-
-static DEFINE_SPINLOCK(buflock);
-static LIST_HEAD(buffers);
-
-struct free_record {
-	struct list_head	list;
-	struct device		*dev;
-	unsigned		bytes;
-	dma_addr_t		dma;
-};
-
-static void do_free(unsigned long ignored)
-{
-	spin_lock_irq(&buflock);
-	while (!list_empty(&buffers)) {
-		struct free_record	*buf;
-
-		buf = list_entry(buffers.next, struct free_record, list);
-		list_del(&buf->list);
-		spin_unlock_irq(&buflock);
-
-		dma_free_coherent(buf->dev, buf->bytes, buf, buf->dma);
-
-		spin_lock_irq(&buflock);
-	}
-	spin_unlock_irq(&buflock);
-}
-
-static DECLARE_TASKLET(deferred_free, do_free, 0);
-
-static void omap_free_buffer(
-	struct usb_ep	*_ep,
-	void		*buf,
-	dma_addr_t	dma,
-	unsigned	bytes
-)
-{
-	if (!_ep) {
-		WARN_ON(1);
-		return;
-	}
-
-	/* free memory into the right allocator */
-	if (dma != DMA_ADDR_INVALID) {
-		struct omap_ep		*ep;
-		struct free_record	*rec = buf;
-		unsigned long		flags;
-
-		ep = container_of(_ep, struct omap_ep, ep);
-
-		rec->dev = ep->udc->gadget.dev.parent;
-		rec->bytes = bytes;
-		rec->dma = dma;
-
-		spin_lock_irqsave(&buflock, flags);
-		list_add_tail(&rec->list, &buffers);
-		tasklet_schedule(&deferred_free);
-		spin_unlock_irqrestore(&buflock, flags);
-	} else
-		kfree(buf);
-}
-
-/*-------------------------------------------------------------------------*/
-
 static void
 done(struct omap_ep *ep, struct omap_req *req, int status)
 {
@@ -1270,9 +1165,6 @@ static struct usb_ep_ops omap_ep_ops = {
 
 	.alloc_request	= omap_alloc_request,
 	.free_request	= omap_free_request,
-
-	.alloc_buffer	= omap_alloc_buffer,
-	.free_buffer	= omap_free_buffer,
 
 	.queue		= omap_ep_queue,
 	.dequeue	= omap_ep_dequeue,
