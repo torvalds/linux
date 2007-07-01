@@ -66,7 +66,7 @@ int nfs_mount(struct sockaddr *addr, size_t len, char *hostname, char *path,
 
 	mnt_clnt = rpc_create(&args);
 	if (IS_ERR(mnt_clnt))
-		return PTR_ERR(mnt_clnt);
+		goto out_clnt_err;
 
 	if (version == NFS_MNT3_VERSION)
 		msg.rpc_proc = &mnt_clnt->cl_procinfo[MOUNTPROC3_MNT];
@@ -75,7 +75,31 @@ int nfs_mount(struct sockaddr *addr, size_t len, char *hostname, char *path,
 
 	status = rpc_call_sync(mnt_clnt, &msg, 0);
 	rpc_shutdown_client(mnt_clnt);
-	return status < 0? status : (result.status? -EACCES : 0);
+
+	if (status < 0)
+		goto out_call_err;
+	if (result.status != 0)
+		goto out_mnt_err;
+
+	dprintk("NFS: MNT request succeeded\n");
+	status = 0;
+
+out:
+	return status;
+
+out_clnt_err:
+	status = PTR_ERR(mnt_clnt);
+	dprintk("NFS: failed to create RPC client, status=%d\n", status);
+	goto out;
+
+out_call_err:
+	dprintk("NFS: failed to start MNT request, status=%d\n", status);
+	goto out;
+
+out_mnt_err:
+	dprintk("NFS: MNT server returned result %d\n", result.status);
+	status = -EACCES;
+	goto out;
 }
 
 /*
