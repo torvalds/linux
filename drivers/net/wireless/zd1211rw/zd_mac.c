@@ -113,11 +113,14 @@ int zd_mac_init_hw(struct zd_mac *mac, u8 device_type)
 	if (r)
 		goto disable_int;
 	if (!zd_regdomain_supported(default_regdomain)) {
-		dev_dbg_f(zd_mac_dev(mac),
-			  "Regulatory Domain %#04x is not supported.\n",
-		          default_regdomain);
-		r = -EINVAL;
-		goto disable_int;
+		/* The vendor driver overrides the regulatory domain and
+		 * allowed channel registers and unconditionally restricts
+		 * available channels to 1-11 everywhere. Match their
+		 * questionable behaviour only for regdomains which we don't
+		 * recognise. */
+		dev_warn(zd_mac_dev(mac),  "Unrecognised regulatory domain: "
+			"%#04x. Defaulting to FCC.\n", default_regdomain);
+		default_regdomain = ZD_REGDOMAIN_FCC;
 	}
 	spin_lock_irq(&mac->lock);
 	mac->regdomain = mac->default_regdomain = default_regdomain;
