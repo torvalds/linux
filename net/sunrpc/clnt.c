@@ -234,11 +234,24 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 {
 	struct rpc_xprt *xprt;
 	struct rpc_clnt *clnt;
+	char servername[20];
 
 	xprt = xprt_create_transport(args->protocol, args->address,
 					args->addrsize, args->timeout);
 	if (IS_ERR(xprt))
 		return (struct rpc_clnt *)xprt;
+
+	/*
+	 * If the caller chooses not to specify a hostname, whip
+	 * up a string representation of the passed-in address.
+	 */
+	if (args->servername == NULL) {
+		struct sockaddr_in *addr =
+					(struct sockaddr_in *) &args->address;
+		snprintf(servername, sizeof(servername), NIPQUAD_FMT,
+			NIPQUAD(addr->sin_addr.s_addr));
+		args->servername = servername;
+	}
 
 	/*
 	 * By default, kernel RPC client connects from a reserved port.

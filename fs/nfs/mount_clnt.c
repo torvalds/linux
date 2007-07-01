@@ -28,8 +28,7 @@
 #define MOUNT_UMNT		3
  */
 
-static struct rpc_clnt *	mnt_create(char *, struct sockaddr_in *,
-								int, int);
+static struct rpc_clnt *	mnt_create(struct sockaddr_in *, int, int);
 static struct rpc_program	mnt_program;
 
 struct mnt_fhstatus {
@@ -52,14 +51,12 @@ nfsroot_mount(struct sockaddr_in *addr, char *path, struct nfs_fh *fh,
 		.rpc_argp	= path,
 		.rpc_resp	= &result,
 	};
-	char			hostname[32];
 	int			status;
 
 	dprintk("NFS:      nfs_mount(%08x:%s)\n",
 			(unsigned)ntohl(addr->sin_addr.s_addr), path);
 
-	sprintf(hostname, "%u.%u.%u.%u", NIPQUAD(addr->sin_addr.s_addr));
-	mnt_clnt = mnt_create(hostname, addr, version, protocol);
+	mnt_clnt = mnt_create(addr, version, protocol);
 	if (IS_ERR(mnt_clnt))
 		return PTR_ERR(mnt_clnt);
 
@@ -73,15 +70,13 @@ nfsroot_mount(struct sockaddr_in *addr, char *path, struct nfs_fh *fh,
 	return status < 0? status : (result.status? -EACCES : 0);
 }
 
-static struct rpc_clnt *
-mnt_create(char *hostname, struct sockaddr_in *srvaddr, int version,
-		int protocol)
+static struct rpc_clnt *mnt_create(struct sockaddr_in *srvaddr, int version,
+				   int protocol)
 {
 	struct rpc_create_args args = {
 		.protocol	= protocol,
 		.address	= (struct sockaddr *)srvaddr,
 		.addrsize	= sizeof(*srvaddr),
-		.servername	= hostname,
 		.program	= &mnt_program,
 		.version	= version,
 		.authflavor	= RPC_AUTH_UNIX,
