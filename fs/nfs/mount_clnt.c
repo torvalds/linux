@@ -1,7 +1,5 @@
 /*
- * linux/fs/nfs/mount_clnt.c
- *
- * MOUNT client to support NFSroot.
+ * In-kernel MOUNT protocol client
  *
  * Copyright (C) 1997, Olaf Kirch <okir@monad.swb.de>
  */
@@ -21,18 +19,11 @@
 # define NFSDBG_FACILITY	NFSDBG_MOUNT
 #endif
 
-/*
-#define MOUNT_PROGRAM		100005
-#define MOUNT_VERSION		1
-#define MOUNT_MNT		1
-#define MOUNT_UMNT		3
- */
-
 static struct rpc_program	mnt_program;
 
 struct mnt_fhstatus {
-	unsigned int		status;
-	struct nfs_fh *		fh;
+	u32 status;
+	struct nfs_fh *fh;
 };
 
 /**
@@ -90,8 +81,8 @@ int nfs_mount(struct sockaddr *addr, size_t len, char *hostname, char *path,
 /*
  * XDR encode/decode functions for MOUNT
  */
-static int
-xdr_encode_dirpath(struct rpc_rqst *req, __be32 *p, const char *path)
+static int xdr_encode_dirpath(struct rpc_rqst *req, __be32 *p,
+			      const char *path)
 {
 	p = xdr_encode_string(p, path);
 
@@ -99,8 +90,8 @@ xdr_encode_dirpath(struct rpc_rqst *req, __be32 *p, const char *path)
 	return 0;
 }
 
-static int
-xdr_decode_fhstatus(struct rpc_rqst *req, __be32 *p, struct mnt_fhstatus *res)
+static int xdr_decode_fhstatus(struct rpc_rqst *req, __be32 *p,
+			       struct mnt_fhstatus *res)
 {
 	struct nfs_fh *fh = res->fh;
 
@@ -111,8 +102,8 @@ xdr_decode_fhstatus(struct rpc_rqst *req, __be32 *p, struct mnt_fhstatus *res)
 	return 0;
 }
 
-static int
-xdr_decode_fhstatus3(struct rpc_rqst *req, __be32 *p, struct mnt_fhstatus *res)
+static int xdr_decode_fhstatus3(struct rpc_rqst *req, __be32 *p,
+				struct mnt_fhstatus *res)
 {
 	struct nfs_fh *fh = res->fh;
 
@@ -131,53 +122,53 @@ xdr_decode_fhstatus3(struct rpc_rqst *req, __be32 *p, struct mnt_fhstatus *res)
 #define MNT_fhstatus_sz		(1 + 8)
 #define MNT_fhstatus3_sz	(1 + 16)
 
-static struct rpc_procinfo	mnt_procedures[] = {
-[MNTPROC_MNT] = {
-	  .p_proc		= MNTPROC_MNT,
-	  .p_encode		= (kxdrproc_t) xdr_encode_dirpath,	
-	  .p_decode		= (kxdrproc_t) xdr_decode_fhstatus,
-	  .p_arglen		= MNT_dirpath_sz,
-	  .p_replen		= MNT_fhstatus_sz,
-	  .p_statidx		= MNTPROC_MNT,
-	  .p_name		= "MOUNT",
+static struct rpc_procinfo mnt_procedures[] = {
+	[MNTPROC_MNT] = {
+		.p_proc		= MNTPROC_MNT,
+		.p_encode	= (kxdrproc_t) xdr_encode_dirpath,
+		.p_decode	= (kxdrproc_t) xdr_decode_fhstatus,
+		.p_arglen	= MNT_dirpath_sz,
+		.p_replen	= MNT_fhstatus_sz,
+		.p_statidx	= MNTPROC_MNT,
+		.p_name		= "MOUNT",
 	},
 };
 
 static struct rpc_procinfo mnt3_procedures[] = {
-[MOUNTPROC3_MNT] = {
-	  .p_proc		= MOUNTPROC3_MNT,
-	  .p_encode		= (kxdrproc_t) xdr_encode_dirpath,
-	  .p_decode		= (kxdrproc_t) xdr_decode_fhstatus3,
-	  .p_arglen		= MNT_dirpath_sz,
-	  .p_replen		= MNT_fhstatus3_sz,
-	  .p_statidx		= MOUNTPROC3_MNT,
-	  .p_name		= "MOUNT",
+	[MOUNTPROC3_MNT] = {
+		.p_proc		= MOUNTPROC3_MNT,
+		.p_encode	= (kxdrproc_t) xdr_encode_dirpath,
+		.p_decode	= (kxdrproc_t) xdr_decode_fhstatus3,
+		.p_arglen	= MNT_dirpath_sz,
+		.p_replen	= MNT_fhstatus3_sz,
+		.p_statidx	= MOUNTPROC3_MNT,
+		.p_name		= "MOUNT",
 	},
 };
 
 
-static struct rpc_version	mnt_version1 = {
-		.number		= 1,
-		.nrprocs 	= 2,
-		.procs 		= mnt_procedures
+static struct rpc_version mnt_version1 = {
+	.number		= 1,
+	.nrprocs	= 2,
+	.procs		= mnt_procedures,
 };
 
-static struct rpc_version       mnt_version3 = {
-		.number		= 3,
-		.nrprocs	= 2,
-		.procs		= mnt3_procedures
+static struct rpc_version mnt_version3 = {
+	.number		= 3,
+	.nrprocs	= 2,
+	.procs		= mnt3_procedures,
 };
 
-static struct rpc_version *	mnt_version[] = {
+static struct rpc_version *mnt_version[] = {
 	NULL,
 	&mnt_version1,
 	NULL,
 	&mnt_version3,
 };
 
-static struct rpc_stat		mnt_stats;
+static struct rpc_stat mnt_stats;
 
-static struct rpc_program	mnt_program = {
+static struct rpc_program mnt_program = {
 	.name		= "mount",
 	.number		= NFS_MNT_PROGRAM,
 	.nrvers		= ARRAY_SIZE(mnt_version),
