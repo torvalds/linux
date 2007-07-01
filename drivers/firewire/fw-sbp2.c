@@ -36,6 +36,7 @@
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/blkdev.h>
+#include <linux/string.h>
 #include <linux/timer.h>
 
 #include <scsi/scsi.h>
