@@ -469,11 +469,6 @@ int generic_validate_add_page(unsigned long base, unsigned long size, unsigned i
 		}
 	}
 
-	if (base < 0x100) {
-		printk(KERN_WARNING "mtrr: cannot set region below 1 MiB (0x%lx000,0x%lx000)\n",
-		       base, size);
-		return -EINVAL;
-	}
 	/*  Check upper bits of base and last are equal and lower bits are 0
 	    for base and 1 for last  */
 	last = base + size - 1;
