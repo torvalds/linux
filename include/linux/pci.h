@@ -748,6 +748,17 @@ static inline void pci_release_regions(struct pci_dev *dev) { }
 static inline void pci_block_user_cfg_access(struct pci_dev *dev) { }
 static inline void pci_unblock_user_cfg_access(struct pci_dev *dev) { }
 
+static inline struct pci_bus *pci_find_next_bus(const struct pci_bus *from)
+{ return NULL; }
+
+static inline struct pci_dev *pci_get_slot(struct pci_bus *bus,
+						unsigned int devfn)
+{ return NULL; }
+
+static inline struct pci_dev *pci_get_bus_and_slot(unsigned int bus,
+						unsigned int devfn)
+{ return NULL; }
+
 #endif /* CONFIG_PCI */
 
 /* Include architecture-dependent settings and functions */
