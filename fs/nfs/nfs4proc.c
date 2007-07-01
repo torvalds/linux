@@ -1592,8 +1592,6 @@ static int _nfs4_proc_lookupfh(struct nfs_server *server, struct nfs_fh *dirfh,
 	dprintk("NFS call  lookupfh %s\n", name->name);
 	status = rpc_call_sync(server->client, &msg, 0);
 	dprintk("NFS reply lookupfh: %d\n", status);
-	if (status == -NFS4ERR_MOVED)
-		status = -EREMOTE;
 	return status;
 }
 
@@ -1604,10 +1602,13 @@ static int nfs4_proc_lookupfh(struct nfs_server *server, struct nfs_fh *dirfh,
 	struct nfs4_exception exception = { };
 	int err;
 	do {
-		err = nfs4_handle_exception(server,
-				_nfs4_proc_lookupfh(server, dirfh, name,
-						    fhandle, fattr),
-				&exception);
+		err = _nfs4_proc_lookupfh(server, dirfh, name, fhandle, fattr);
+		/* FIXME: !!!! */
+		if (err == -NFS4ERR_MOVED) {
+			err = -EREMOTE;
+			break;
+		}
+		err = nfs4_handle_exception(server, err, &exception);
 	} while (exception.retry);
 	return err;
 }
@@ -1615,28 +1616,10 @@ static int nfs4_proc_lookupfh(struct nfs_server *server, struct nfs_fh *dirfh,
 static int _nfs4_proc_lookup(struct inode *dir, struct qstr *name,
 		struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
-	int		       status;
-	struct nfs_server *server = NFS_SERVER(dir);
-	struct nfs4_lookup_arg args = {
-		.bitmask = server->attr_bitmask,
-		.dir_fh = NFS_FH(dir),
-		.name = name,
-	};
-	struct nfs4_lookup_res res = {
-		.server = server,
-		.fattr = fattr,
-		.fh = fhandle,
-	};
-	struct rpc_message msg = {
-		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_LOOKUP],
-		.rpc_argp = &args,
-		.rpc_resp = &res,
-	};
-	
-	nfs_fattr_init(fattr);
+	int status;
 	
 	dprintk("NFS call  lookup %s\n", name->name);
-	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
+	status = _nfs4_proc_lookupfh(NFS_SERVER(dir), NFS_FH(dir), name, fhandle, fattr);
 	if (status == -NFS4ERR_MOVED)
 		status = nfs4_get_referral(dir, name, fattr, fhandle);
 	dprintk("NFS reply lookup: %d\n", status);
