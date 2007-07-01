@@ -184,7 +184,8 @@ static struct rpc_clnt *rpcb_create(char *hostname, struct sockaddr *srvaddr,
 		.program	= &rpcb_program,
 		.version	= version,
 		.authflavor	= RPC_AUTH_UNIX,
-		.flags		= RPC_CLNT_CREATE_NOPING,
+		.flags		= (RPC_CLNT_CREATE_NOPING |
+				   RPC_CLNT_CREATE_INTR),
 	};
 
 	((struct sockaddr_in *)srvaddr)->sin_port = htons(RPCBIND_PORT);
