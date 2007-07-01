@@ -490,7 +490,8 @@ config TUNER_3036
 	  If in doubt, say N.
 
 config TUNER_TEA5761
-	tristate "TEA 5761 radio tuner (EXPERIMENTAL)"
+	bool "TEA 5761 radio tuner (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
 	depends on I2C
 	select VIDEO_TUNER
 	help
