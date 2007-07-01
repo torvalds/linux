@@ -220,7 +220,7 @@ struct sbp2_command_orb {
 	scsi_done_fn_t done;
 	struct fw_unit *unit;
 
-	struct sbp2_pointer page_table[SG_ALL];
+	struct sbp2_pointer page_table[SG_ALL] __attribute__((aligned(8)));
 	dma_addr_t page_table_bus;
 };
 
