@@ -785,27 +785,6 @@ static void nfs4_fill_super(struct super_block *sb)
 	nfs_initialise_sb(sb);
 }
 
-static void *nfs_copy_user_string(char *dst, struct nfs_string *src, int maxlen)
-{
-	void *p = NULL;
-
-	if (!src->len)
-		return ERR_PTR(-EINVAL);
-	if (src->len < maxlen)
-		maxlen = src->len;
-	if (dst == NULL) {
-		p = dst = kmalloc(maxlen + 1, GFP_KERNEL);
-		if (p == NULL)
-			return ERR_PTR(-ENOMEM);
-	}
-	if (copy_from_user(dst, src->data, maxlen)) {
-		kfree(p);
-		return ERR_PTR(-EFAULT);
-	}
-	dst[maxlen] = '\0';
-	return dst;
-}
-
 /*
  * Get the superblock for an NFS4 mountpoint
  */
@@ -819,8 +798,7 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 	rpc_authflavor_t authflavour;
 	struct nfs_fh mntfh;
 	struct dentry *mntroot;
-	char *mntpath = NULL, *hostname = NULL, ip_addr[16];
-	void *p;
+	char *p, *mntpath = NULL, *hostname = NULL, *ip_addr = NULL;
 	int error;
 
 	if (data == NULL) {
@@ -857,39 +835,39 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 			dprintk("%s: Invalid number of RPC auth flavours %d.\n",
 					__FUNCTION__, data->auth_flavourlen);
 			error = -EINVAL;
-			goto out_err_noserver;
+			goto out;
 		}
 
 		if (copy_from_user(&authflavour, data->auth_flavours,
 				   sizeof(authflavour))) {
 			error = -EFAULT;
-			goto out_err_noserver;
+			goto out;
 		}
 	}
 
-	p = nfs_copy_user_string(NULL, &data->hostname, NFS4_MAXNAMLEN);
+	p = strndup_user(data->hostname.data, NFS4_MAXNAMLEN);
 	if (IS_ERR(p))
 		goto out_err;
 	hostname = p;
 
-	p = nfs_copy_user_string(NULL, &data->mnt_path, NFS4_MAXPATHLEN);
+	p = strndup_user(data->mnt_path.data, NFS4_MAXPATHLEN);
 	if (IS_ERR(p))
 		goto out_err;
 	mntpath = p;
 
 	dprintk("MNTPATH: %s\n", mntpath);
 
-	p = nfs_copy_user_string(ip_addr, &data->client_addr,
-				 sizeof(ip_addr) - 1);
+	p = strndup_user(data->client_addr.data, 16);
 	if (IS_ERR(p))
 		goto out_err;
+	ip_addr = p;
 
 	/* Get a volume representation */
 	server = nfs4_create_server(data, hostname, &addr, mntpath, ip_addr,
 				    authflavour, &mntfh);
 	if (IS_ERR(server)) {
 		error = PTR_ERR(server);
-		goto out_err_noserver;
+		goto out;
 	}
 
 	/* Get a superblock - note that we may end up sharing one that already exists */
@@ -919,25 +897,26 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 	s->s_flags |= MS_ACTIVE;
 	mnt->mnt_sb = s;
 	mnt->mnt_root = mntroot;
-	kfree(mntpath);
-	kfree(hostname);
-	return 0;
+	error = 0;
 
-out_err:
-	error = PTR_ERR(p);
-	goto out_err_noserver;
-
-out_free:
-	nfs_free_server(server);
-out_err_noserver:
+out:
+	kfree(ip_addr);
 	kfree(mntpath);
 	kfree(hostname);
 	return error;
 
+out_err:
+	error = PTR_ERR(p);
+	goto out;
+
+out_free:
+	nfs_free_server(server);
+	goto out;
+
 error_splat_super:
 	up_write(&s->s_umount);
 	deactivate_super(s);
-	goto out_err_noserver;
+	goto out;
 }
 
 static void nfs4_kill_super(struct super_block *sb)
