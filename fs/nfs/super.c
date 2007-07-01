@@ -263,11 +263,11 @@ static const char *nfs_pseudoflavour_to_name(rpc_authflavor_t flavour)
 		{ RPC_AUTH_GSS_SPKM, "spkm" },
 		{ RPC_AUTH_GSS_SPKMI, "spkmi" },
 		{ RPC_AUTH_GSS_SPKMP, "spkmp" },
-		{ -1, "unknown" }
+		{ UINT_MAX, "unknown" }
 	};
 	int i;
 
-	for (i=0; sec_flavours[i].flavour != -1; i++) {
+	for (i = 0; sec_flavours[i].flavour != UINT_MAX; i++) {
 		if (sec_flavours[i].flavour == flavour)
 			break;
 	}
