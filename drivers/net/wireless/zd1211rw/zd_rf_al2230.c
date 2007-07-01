@@ -21,6 +21,8 @@
 #include "zd_usb.h"
 #include "zd_chip.h"
 
+#define IS_AL2230S(chip) ((chip)->al2230s_bit || (chip)->rf.type == AL2230S_RF)
+
 static const u32 zd1211_al2230_table[][3] = {
 	RF_CHANNEL( 1) = { 0x03f790, 0x033331, 0x00000d, },
 	RF_CHANNEL( 2) = { 0x03f790, 0x0b3331, 0x00000d, },
@@ -176,7 +178,7 @@ static int zd1211_al2230_init_hw(struct zd_rf *rf)
 	if (r)
 		return r;
 
-	if (chip->al2230s_bit) {
+	if (IS_AL2230S(chip)) {
 		r = zd_iowrite16a_locked(chip, ioreqs_init_al2230s,
 			ARRAY_SIZE(ioreqs_init_al2230s));
 		if (r)
@@ -188,7 +190,7 @@ static int zd1211_al2230_init_hw(struct zd_rf *rf)
 		return r;
 
 	/* improve band edge for AL2230S */
-	if (chip->al2230s_bit)
+	if (IS_AL2230S(chip))
 		r = zd_rfwrite_locked(chip, 0x000824, RF_RV_BITS);
 	else
 		r = zd_rfwrite_locked(chip, 0x0005a4, RF_RV_BITS);
@@ -314,7 +316,7 @@ static int zd1211b_al2230_init_hw(struct zd_rf *rf)
 	if (r)
 		return r;
 
-	if (chip->al2230s_bit) {
+	if (IS_AL2230S(chip)) {
 		r = zd_iowrite16a_locked(chip, ioreqs_init_al2230s,
 			ARRAY_SIZE(ioreqs_init_al2230s));
 		if (r)
@@ -328,7 +330,7 @@ static int zd1211b_al2230_init_hw(struct zd_rf *rf)
 	if (r)
 		return r;
 
-	if (chip->al2230s_bit)
+	if (IS_AL2230S(chip))
 		r = zd_rfwrite_locked(chip, 0x241000, RF_RV_BITS);
 	else
 		r = zd_rfwrite_locked(chip, 0x25a000, RF_RV_BITS);
