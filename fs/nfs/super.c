@@ -1051,10 +1051,28 @@ out_err:
 /*
  * Validate the NFS2/NFS3 mount data
  * - fills in the mount root filehandle
+ *
+ * For option strings, user space handles the following behaviors:
+ *
+ * + DNS: mapping server host name to IP address ("addr=" option)
+ *
+ * + failure mode: how to behave if a mount request can't be handled
+ *   immediately ("fg/bg" option)
+ *
+ * + retry: how often to retry a mount request ("retry=" option)
+ *
+ * + breaking back: trying proto=udp after proto=tcp, v2 after v3,
+ *   mountproto=tcp after mountproto=udp, and so on
+ *
+ * XXX: as far as I can tell, changing the NFS program number is not
+ *      supported in the NFS client.
  */
-static int nfs_validate_mount_data(struct nfs_mount_data *data,
-				   struct nfs_fh *mntfh)
+static int nfs_validate_mount_data(struct nfs_mount_data **options,
+				   struct nfs_fh *mntfh,
+				   const char *dev_name)
 {
+	struct nfs_mount_data *data = *options;
+
 	if (data == NULL)
 		goto out_no_data;
 
@@ -1087,8 +1105,78 @@ static int nfs_validate_mount_data(struct nfs_mount_data *data,
 			memset(mntfh->data + mntfh->size, 0,
 			       sizeof(mntfh->data) - mntfh->size);
 		break;
-	default:
-		goto out_bad_version;
+	default: {
+		unsigned int len;
+		char *c;
+		int status;
+		struct nfs_parsed_mount_data args = {
+			.flags		= (NFS_MOUNT_VER3 | NFS_MOUNT_TCP),
+			.rsize		= NFS_MAX_FILE_IO_SIZE,
+			.wsize		= NFS_MAX_FILE_IO_SIZE,
+			.timeo		= 600,
+			.retrans	= 2,
+			.acregmin	= 3,
+			.acregmax	= 60,
+			.acdirmin	= 30,
+			.acdirmax	= 60,
+			.mount_server.protocol = IPPROTO_UDP,
+			.mount_server.program = NFS_MNT_PROGRAM,
+			.nfs_server.protocol = IPPROTO_TCP,
+			.nfs_server.program = NFS_PROGRAM,
+		};
+
+		if (nfs_parse_mount_options((char *) *options, &args) == 0)
+			return -EINVAL;
+
+		data = kzalloc(sizeof(*data), GFP_KERNEL);
+		if (data == NULL)
+			return -ENOMEM;
+
+		/*
+		 * NB: after this point, caller will free "data"
+		 * if we return an error
+		 */
+		*options = data;
+
+		c = strchr(dev_name, ':');
+		if (c == NULL)
+			return -EINVAL;
+		len = c - dev_name - 1;
+		if (len > sizeof(data->hostname))
+			return -EINVAL;
+		strncpy(data->hostname, dev_name, len);
+		args.nfs_server.hostname = data->hostname;
+
+		c++;
+		if (strlen(c) > NFS_MAXPATHLEN)
+			return -EINVAL;
+		args.nfs_server.export_path = c;
+
+		status = nfs_try_mount(&args, mntfh);
+		if (status)
+			return -EINVAL;
+
+		/*
+		 * Translate to nfs_mount_data, which nfs_fill_super
+		 * can deal with.
+		 */
+		data->version		= 6;
+		data->flags		= args.flags;
+		data->rsize		= args.rsize;
+		data->wsize		= args.wsize;
+		data->timeo		= args.timeo;
+		data->retrans		= args.retrans;
+		data->acregmin		= args.acregmin;
+		data->acregmax		= args.acregmax;
+		data->acdirmin		= args.acdirmin;
+		data->acdirmax		= args.acdirmax;
+		data->addr		= args.nfs_server.address;
+		data->namlen		= args.namlen;
+		data->bsize		= args.bsize;
+		data->pseudoflavor	= args.auth_flavors[0];
+
+		break;
+		}
 	}
 
 	if (!(data->flags & NFS_MOUNT_SECFLAVOUR))
@@ -1115,11 +1203,6 @@ out_no_v3:
 
 out_no_sec:
 	dfprintk(MOUNT, "NFS: nfs_mount_data version supports only AUTH_SYS\n");
-	return -EINVAL;
-
-out_bad_version:
-	dfprintk(MOUNT, "NFS: bad nfs_mount_data version %d\n",
-		 data->version);
 	return -EINVAL;
 
 #ifndef CONFIG_NFS_V3
@@ -1242,7 +1325,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	int error;
 
 	/* Validate the mount data */
-	error = nfs_validate_mount_data(data, &mntfh);
+	error = nfs_validate_mount_data(&data, &mntfh, dev_name);
 	if (error < 0)
 		goto out;
 
@@ -1283,6 +1366,8 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	error = 0;
 
 out:
+	if (data != raw_data)
+		kfree(data);
 	return error;
 
 out_err_nosb:
