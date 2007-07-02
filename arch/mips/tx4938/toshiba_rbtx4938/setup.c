@@ -352,7 +352,7 @@ static struct pci_dev *fake_pci_dev(struct pci_controller *hose,
 	static struct pci_dev dev;
 	static struct pci_bus bus;
 
-	dev.sysdata = (void *)hose;
+	dev.sysdata = bus.sysdata = hose;
 	dev.devfn = devfn;
 	bus.number = busnr;
 	bus.ops = hose->pci_ops;
@@ -385,8 +385,10 @@ int txboard_pci66_check(struct pci_controller *hose, int top_bus, int current_bu
 	printk("PCI: Checking 66MHz capabilities...\n");
 
 	for (pci_devfn=devfn_start; pci_devfn<devfn_stop; pci_devfn++) {
-		early_read_config_word(hose, top_bus, current_bus, pci_devfn,
-				       PCI_VENDOR_ID, &vid);
+		if (early_read_config_word(hose, top_bus, current_bus,
+					   pci_devfn, PCI_VENDOR_ID,
+					   &vid) != PCIBIOS_SUCCESSFUL)
+			continue;
 
 		if (vid == 0xffff) continue;
 
@@ -463,7 +465,6 @@ static int __init tx4938_pcibios_init(void)
 	int extarb = !(tx4938_ccfgptr->ccfg & TX4938_CCFG_PCIXARB);
 
 	PCIBIOS_MIN_IO = 0x00001000UL;
-	PCIBIOS_MIN_MEM = 0x01000000UL;
 
 	mem_base[0] = txboard_request_phys_region_shrink(&mem_size[0]);
 	io_base[0] = txboard_request_phys_region_shrink(&io_size[0]);
@@ -578,18 +579,17 @@ arch_initcall(tx4938_pcibios_init);
 #define	SRTC_CS	2	/* IOC */
 
 #ifdef CONFIG_PCI
-static unsigned char rbtx4938_ethaddr[17];
 static int __init rbtx4938_ethaddr_init(void)
 {
+	unsigned char dat[17];
 	unsigned char sum;
 	int i;
 
 	/* 0-3: "MAC\0", 4-9:eth0, 10-15:eth1, 16:sum */
-	if (spi_eeprom_read(SEEPROM1_CS, 0,
-			    rbtx4938_ethaddr, sizeof(rbtx4938_ethaddr)))
+	if (spi_eeprom_read(SEEPROM1_CS, 0, dat, sizeof(dat))) {
 		printk(KERN_ERR "seeprom: read error.\n");
-	else {
-		unsigned char *dat = rbtx4938_ethaddr;
+		return -ENODEV;
+	} else {
 		if (strcmp(dat, "MAC") != 0)
 			printk(KERN_WARNING "seeprom: bad signature.\n");
 		for (i = 0, sum = 0; i < sizeof(dat); i++)
@@ -597,31 +597,22 @@ static int __init rbtx4938_ethaddr_init(void)
 		if (sum)
 			printk(KERN_WARNING "seeprom: bad checksum.\n");
 	}
+	for (i = 0; i < 2; i++) {
+		unsigned int slot = TX4938_PCIC_IDSEL_AD_TO_SLOT(31 - i);
+		unsigned int id = (1 << 8) | PCI_DEVFN(slot, 0); /* bus 1 */
+		struct platform_device *pdev;
+		if (!(tx4938_ccfgptr->pcfg &
+		      (i ? TX4938_PCFG_ETH1_SEL : TX4938_PCFG_ETH0_SEL)))
+			continue;
+		pdev = platform_device_alloc("tc35815-mac", id);
+		if (!pdev ||
+		    platform_device_add_data(pdev, &dat[4 + 6 * i], 6) ||
+		    platform_device_add(pdev))
+			platform_device_put(pdev);
+	}
 	return 0;
 }
 device_initcall(rbtx4938_ethaddr_init);
-
-int rbtx4938_get_tx4938_ethaddr(struct pci_dev *dev, unsigned char *addr)
-{
-	struct pci_controller *channel = (struct pci_controller *)dev->bus->sysdata;
-	int ch = 0;
-
-	if (channel != &tx4938_pci_controller[1])
-		return -ENODEV;
-	/* TX4938 PCIC1 */
-	switch (PCI_SLOT(dev->devfn)) {
-	case TX4938_PCIC_IDSEL_AD_TO_SLOT(31):
-		ch = 0;
-		break;
-	case TX4938_PCIC_IDSEL_AD_TO_SLOT(30):
-		ch = 1;
-		break;
-	default:
-		return -ENODEV;
-	}
-	memcpy(addr, &rbtx4938_ethaddr[4 + 6 * ch], 6);
-	return 0;
-}
 #endif /* CONFIG_PCI */
 
 static void __init rbtx4938_spi_setup(void)
