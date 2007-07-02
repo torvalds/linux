@@ -1000,18 +1000,15 @@ static int cinergyt2_suspend (struct usb_interface *intf, pm_message_t state)
 	if (cinergyt2->disconnect_pending || mutex_lock_interruptible(&cinergyt2->wq_sem))
 		return -ERESTARTSYS;
 
-	if (1) {
-		cinergyt2_suspend_rc(cinergyt2);
-		cancel_rearming_delayed_work(&cinergyt2->query_work);
+	cinergyt2_suspend_rc(cinergyt2);
+	cancel_rearming_delayed_work(&cinergyt2->query_work);
 
-		mutex_lock(&cinergyt2->sem);
-		if (cinergyt2->streaming)
-			cinergyt2_stop_stream_xfer(cinergyt2);
-		cinergyt2_sleep(cinergyt2, 1);
-		mutex_unlock(&cinergyt2->sem);
-	}
+	mutex_lock(&cinergyt2->sem);
+	if (cinergyt2->streaming)
+		cinergyt2_stop_stream_xfer(cinergyt2);
+	cinergyt2_sleep(cinergyt2, 1);
+	mutex_unlock(&cinergyt2->sem);
 
-	mutex_unlock(&cinergyt2->wq_sem);
 	return 0;
 }
 
