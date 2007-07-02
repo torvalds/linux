@@ -1009,11 +1009,6 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 
 	/* Initialize rcode to something not RCODE_COMPLETE. */
 	orb->base.rcode = -1;
-	orb->base.request_bus =
-		dma_map_single(device->card->device, &orb->request,
-			       sizeof(orb->request), DMA_TO_DEVICE);
-	if (dma_mapping_error(orb->base.request_bus))
-		goto fail_mapping;
 
 	orb->unit = unit;
 	orb->done = done;
@@ -1040,7 +1035,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 			COMMAND_ORB_DIRECTION(SBP2_DIRECTION_TO_MEDIA);
 
 	if (cmd->use_sg && sbp2_command_orb_map_scatterlist(orb) < 0)
-		goto fail_map_payload;
+		goto fail_mapping;
 
 	fw_memcpy_to_be32(&orb->request, &orb->request, sizeof(orb->request));
 
@@ -1049,15 +1044,17 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	memcpy(orb->request.command_block, cmd->cmnd, COMMAND_SIZE(*cmd->cmnd));
 
 	orb->base.callback = complete_command_orb;
+	orb->base.request_bus =
+		dma_map_single(device->card->device, &orb->request,
+			       sizeof(orb->request), DMA_TO_DEVICE);
+	if (dma_mapping_error(orb->base.request_bus))
+		goto fail_mapping;
 
 	sbp2_send_orb(&orb->base, unit, sd->node_id, sd->generation,
 		      sd->command_block_agent_address + SBP2_ORB_POINTER);
 
 	return 0;
 
- fail_map_payload:
-	dma_unmap_single(device->card->device, orb->base.request_bus,
-			 sizeof(orb->request), DMA_TO_DEVICE);
  fail_mapping:
 	kfree(orb);
  fail_alloc:
