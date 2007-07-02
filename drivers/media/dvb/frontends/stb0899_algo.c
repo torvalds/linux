@@ -692,24 +692,28 @@ enum stb0899_status stb0899_dvbs_algo(struct stb0899_state *state)
 		case STB0899_FEC_1_2:		/* 13	*/
 			STB0899_SETFIELD_VAL(DEMAPVIT_KDIVIDER, reg, 0x1a);
 			stb0899_write_reg(state, STB0899_DEMAPVIT, reg);
+			reg = 0;
 			STB0899_SETFIELD_VAL(BETA, reg, betaTab[0][clnI]);
 			stb0899_write_reg(state, STB0899_BCLC, reg);
 			break;
 		case STB0899_FEC_2_3:		/* 18	*/
 			STB0899_SETFIELD_VAL(DEMAPVIT_KDIVIDER, reg, 44);
 			stb0899_write_reg(state, STB0899_DEMAPVIT, reg);
+			reg = 0;
 			STB0899_SETFIELD_VAL(BETA, reg, betaTab[1][clnI]);
 			stb0899_write_reg(state, STB0899_BCLC, reg);
 			break;
 		case STB0899_FEC_3_4:		/* 21	*/
 			STB0899_SETFIELD_VAL(DEMAPVIT_KDIVIDER, reg, 60);
 			stb0899_write_reg(state, STB0899_DEMAPVIT, reg);
+			reg = 0;
 			STB0899_SETFIELD_VAL(BETA, reg, betaTab[2][clnI]);
 			stb0899_write_reg(state, STB0899_BCLC, reg);
 			break;
 		case STB0899_FEC_5_6:		/* 24	*/
 			STB0899_SETFIELD_VAL(DEMAPVIT_KDIVIDER, reg, 75);
 			stb0899_write_reg(state, STB0899_DEMAPVIT, reg);
+			reg = 0;
 			STB0899_SETFIELD_VAL(BETA, reg, betaTab[3][clnI]);
 			stb0899_write_reg(state, STB0899_BCLC, reg);
 			break;
@@ -722,6 +726,7 @@ enum stb0899_status stb0899_dvbs_algo(struct stb0899_state *state)
 		case STB0899_FEC_7_8:		/* 26	*/
 			STB0899_SETFIELD_VAL(DEMAPVIT_KDIVIDER, reg, 94);
 			stb0899_write_reg(state, STB0899_DEMAPVIT, reg);
+			reg = 0;
 			STB0899_SETFIELD_VAL(BETA, reg, betaTab[4][clnI]);
 			stb0899_write_reg(state, STB0899_BCLC, reg);
 			break;
