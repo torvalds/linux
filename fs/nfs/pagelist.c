@@ -126,12 +126,13 @@ static int nfs_set_page_tag_locked(struct nfs_page *req)
  */
 void nfs_clear_page_tag_locked(struct nfs_page *req)
 {
-	struct nfs_inode *nfsi = NFS_I(req->wb_context->path.dentry->d_inode);
+	struct inode *inode = req->wb_context->path.dentry->d_inode;
+	struct nfs_inode *nfsi = NFS_I(inode);
 
 	if (req->wb_page != NULL) {
-		spin_lock(&nfsi->req_lock);
+		spin_lock(&inode->i_lock);
 		radix_tree_tag_clear(&nfsi->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_LOCKED);
-		spin_unlock(&nfsi->req_lock);
+		spin_unlock(&inode->i_lock);
 	}
 	nfs_unlock_request(req);
 }
@@ -390,7 +391,7 @@ void nfs_pageio_cond_complete(struct nfs_pageio_descriptor *desc, pgoff_t index)
  * If the number of requests is set to 0, the entire address_space
  * starting at index idx_start, is scanned.
  * The requests are *not* checked to ensure that they form a contiguous set.
- * You must be holding the inode's req_lock when calling this function
+ * You must be holding the inode's i_lock when calling this function
  */
 int nfs_scan_list(struct nfs_inode *nfsi,
 		struct list_head *dst, pgoff_t idx_start,
@@ -430,7 +431,7 @@ int nfs_scan_list(struct nfs_inode *nfsi,
 			}
 		}
 		/* for latency reduction */
-		cond_resched_lock(&nfsi->req_lock);
+		cond_resched_lock(&nfsi->vfs_inode.i_lock);
 	}
 out:
 	return res;

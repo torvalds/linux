@@ -124,12 +124,12 @@ static struct nfs_page *nfs_page_find_request_locked(struct page *page)
 
 static struct nfs_page *nfs_page_find_request(struct page *page)
 {
+	struct inode *inode = page->mapping->host;
 	struct nfs_page *req = NULL;
-	spinlock_t *req_lock = &NFS_I(page->mapping->host)->req_lock;
 
-	spin_lock(req_lock);
+	spin_lock(&inode->i_lock);
 	req = nfs_page_find_request_locked(page);
-	spin_unlock(req_lock);
+	spin_unlock(&inode->i_lock);
 	return req;
 }
 
@@ -251,16 +251,16 @@ static void nfs_end_page_writeback(struct page *page)
 static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 				struct page *page)
 {
+	struct inode *inode = page->mapping->host;
+	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_page *req;
-	struct nfs_inode *nfsi = NFS_I(page->mapping->host);
-	spinlock_t *req_lock = &nfsi->req_lock;
 	int ret;
 
-	spin_lock(req_lock);
+	spin_lock(&inode->i_lock);
 	for(;;) {
 		req = nfs_page_find_request_locked(page);
 		if (req == NULL) {
-			spin_unlock(req_lock);
+			spin_unlock(&inode->i_lock);
 			return 1;
 		}
 		if (nfs_lock_request_dontget(req))
@@ -270,28 +270,28 @@ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 		 *	 succeed provided that someone hasn't already marked the
 		 *	 request as dirty (in which case we don't care).
 		 */
-		spin_unlock(req_lock);
+		spin_unlock(&inode->i_lock);
 		ret = nfs_wait_on_request(req);
 		nfs_release_request(req);
 		if (ret != 0)
 			return ret;
-		spin_lock(req_lock);
+		spin_lock(&inode->i_lock);
 	}
 	if (test_bit(PG_NEED_COMMIT, &req->wb_flags)) {
 		/* This request is marked for commit */
-		spin_unlock(req_lock);
+		spin_unlock(&inode->i_lock);
 		nfs_unlock_request(req);
 		nfs_pageio_complete(pgio);
 		return 1;
 	}
 	if (nfs_set_page_writeback(page) != 0) {
-		spin_unlock(req_lock);
+		spin_unlock(&inode->i_lock);
 		BUG();
 	}
 	radix_tree_tag_set(&nfsi->nfs_page_tree, req->wb_index,
 			NFS_PAGE_TAG_LOCKED);
 	ret = test_bit(PG_NEED_FLUSH, &req->wb_flags);
-	spin_unlock(req_lock);
+	spin_unlock(&inode->i_lock);
 	nfs_pageio_add_request(pgio, req);
 	return ret;
 }
@@ -412,7 +412,7 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 
 	BUG_ON (!NFS_WBACK_BUSY(req));
 
-	spin_lock(&nfsi->req_lock);
+	spin_lock(&inode->i_lock);
 	set_page_private(req->wb_page, 0);
 	ClearPagePrivate(req->wb_page);
 	radix_tree_delete(&nfsi->nfs_page_tree, req->wb_index);
@@ -420,11 +420,11 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 		__set_page_dirty_nobuffers(req->wb_page);
 	nfsi->npages--;
 	if (!nfsi->npages) {
-		spin_unlock(&nfsi->req_lock);
+		spin_unlock(&inode->i_lock);
 		nfs_end_data_update(inode);
 		iput(inode);
 	} else
-		spin_unlock(&nfsi->req_lock);
+		spin_unlock(&inode->i_lock);
 	nfs_clear_request(req);
 	nfs_release_request(req);
 }
@@ -458,13 +458,13 @@ nfs_mark_request_commit(struct nfs_page *req)
 	struct inode *inode = req->wb_context->path.dentry->d_inode;
 	struct nfs_inode *nfsi = NFS_I(inode);
 
-	spin_lock(&nfsi->req_lock);
+	spin_lock(&inode->i_lock);
 	nfsi->ncommit++;
 	set_bit(PG_NEED_COMMIT, &(req)->wb_flags);
 	radix_tree_tag_set(&nfsi->nfs_page_tree,
 			req->wb_index,
 			NFS_PAGE_TAG_COMMIT);
-	spin_unlock(&nfsi->req_lock);
+	spin_unlock(&inode->i_lock);
 	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
 }
@@ -534,10 +534,10 @@ static int nfs_wait_on_requests_locked(struct inode *inode, pgoff_t idx_start, u
 		BUG_ON(!NFS_WBACK_BUSY(req));
 
 		kref_get(&req->wb_kref);
-		spin_unlock(&nfsi->req_lock);
+		spin_unlock(&inode->i_lock);
 		error = nfs_wait_on_request(req);
 		nfs_release_request(req);
-		spin_lock(&nfsi->req_lock);
+		spin_lock(&inode->i_lock);
 		if (error < 0)
 			return error;
 		res++;
@@ -602,7 +602,6 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
 {
 	struct address_space *mapping = page->mapping;
 	struct inode *inode = mapping->host;
-	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_page		*req, *new = NULL;
 	pgoff_t		rqend, end;
 
@@ -612,13 +611,13 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
 		/* Loop over all inode entries and see if we find
 		 * A request for the page we wish to update
 		 */
-		spin_lock(&nfsi->req_lock);
+		spin_lock(&inode->i_lock);
 		req = nfs_page_find_request_locked(page);
 		if (req) {
 			if (!nfs_lock_request_dontget(req)) {
 				int error;
 
-				spin_unlock(&nfsi->req_lock);
+				spin_unlock(&inode->i_lock);
 				error = nfs_wait_on_request(req);
 				nfs_release_request(req);
 				if (error < 0) {
@@ -628,7 +627,7 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
 				}
 				continue;
 			}
-			spin_unlock(&nfsi->req_lock);
+			spin_unlock(&inode->i_lock);
 			if (new)
 				nfs_release_request(new);
 			break;
@@ -639,14 +638,14 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
 			nfs_lock_request_dontget(new);
 			error = nfs_inode_add_request(inode, new);
 			if (error) {
-				spin_unlock(&nfsi->req_lock);
+				spin_unlock(&inode->i_lock);
 				nfs_unlock_request(new);
 				return ERR_PTR(error);
 			}
-			spin_unlock(&nfsi->req_lock);
+			spin_unlock(&inode->i_lock);
 			return new;
 		}
-		spin_unlock(&nfsi->req_lock);
+		spin_unlock(&inode->i_lock);
 
 		new = nfs_create_request(ctx, inode, page, offset, bytes);
 		if (IS_ERR(new))
@@ -974,9 +973,9 @@ static void nfs_writeback_done_partial(struct rpc_task *task, void *calldata)
 	}
 
 	if (nfs_write_need_commit(data)) {
-		spinlock_t *req_lock = &NFS_I(page->mapping->host)->req_lock;
+		struct inode *inode = page->mapping->host;
 
-		spin_lock(req_lock);
+		spin_lock(&inode->i_lock);
 		if (test_bit(PG_NEED_RESCHED, &req->wb_flags)) {
 			/* Do nothing we need to resend the writes */
 		} else if (!test_and_set_bit(PG_NEED_COMMIT, &req->wb_flags)) {
@@ -987,7 +986,7 @@ static void nfs_writeback_done_partial(struct rpc_task *task, void *calldata)
 			clear_bit(PG_NEED_COMMIT, &req->wb_flags);
 			dprintk(" server reboot detected\n");
 		}
-		spin_unlock(req_lock);
+		spin_unlock(&inode->i_lock);
 	} else
 		dprintk(" OK\n");
 
@@ -1277,13 +1276,12 @@ static const struct rpc_call_ops nfs_commit_ops = {
 
 int nfs_commit_inode(struct inode *inode, int how)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
 	LIST_HEAD(head);
 	int res;
 
-	spin_lock(&nfsi->req_lock);
+	spin_lock(&inode->i_lock);
 	res = nfs_scan_commit(inode, &head, 0, 0);
-	spin_unlock(&nfsi->req_lock);
+	spin_unlock(&inode->i_lock);
 	if (res) {
 		int error = nfs_commit_list(inode, &head, how);
 		if (error < 0)
@@ -1301,7 +1299,6 @@ static inline int nfs_commit_list(struct inode *inode, struct list_head *head, i
 long nfs_sync_mapping_wait(struct address_space *mapping, struct writeback_control *wbc, int how)
 {
 	struct inode *inode = mapping->host;
-	struct nfs_inode *nfsi = NFS_I(inode);
 	pgoff_t idx_start, idx_end;
 	unsigned int npages = 0;
 	LIST_HEAD(head);
@@ -1323,7 +1320,7 @@ long nfs_sync_mapping_wait(struct address_space *mapping, struct writeback_contr
 		}
 	}
 	how &= ~FLUSH_NOCOMMIT;
-	spin_lock(&nfsi->req_lock);
+	spin_lock(&inode->i_lock);
 	do {
 		ret = nfs_wait_on_requests_locked(inode, idx_start, npages);
 		if (ret != 0)
@@ -1334,18 +1331,19 @@ long nfs_sync_mapping_wait(struct address_space *mapping, struct writeback_contr
 		if (pages == 0)
 			break;
 		if (how & FLUSH_INVALIDATE) {
-			spin_unlock(&nfsi->req_lock);
+			spin_unlock(&inode->i_lock);
 			nfs_cancel_commit_list(&head);
 			ret = pages;
-			spin_lock(&nfsi->req_lock);
+			spin_lock(&inode->i_lock);
 			continue;
 		}
 		pages += nfs_scan_commit(inode, &head, 0, 0);
-		spin_unlock(&nfsi->req_lock);
+		spin_unlock(&inode->i_lock);
 		ret = nfs_commit_list(inode, &head, how);
-		spin_lock(&nfsi->req_lock);
+		spin_lock(&inode->i_lock);
+
 	} while (ret >= 0);
-	spin_unlock(&nfsi->req_lock);
+	spin_unlock(&inode->i_lock);
 	return ret;
 }
 
@@ -1439,7 +1437,6 @@ int nfs_set_page_dirty(struct page *page)
 {
 	struct address_space *mapping = page->mapping;
 	struct inode *inode;
-	spinlock_t *req_lock;
 	struct nfs_page *req;
 	int ret;
 
@@ -1448,18 +1445,17 @@ int nfs_set_page_dirty(struct page *page)
 	inode = mapping->host;
 	if (!inode)
 		goto out_raced;
-	req_lock = &NFS_I(inode)->req_lock;
-	spin_lock(req_lock);
+	spin_lock(&inode->i_lock);
 	req = nfs_page_find_request_locked(page);
 	if (req != NULL) {
 		/* Mark any existing write requests for flushing */
 		ret = !test_and_set_bit(PG_NEED_FLUSH, &req->wb_flags);
-		spin_unlock(req_lock);
+		spin_unlock(&inode->i_lock);
 		nfs_release_request(req);
 		return ret;
 	}
 	ret = __set_page_dirty_nobuffers(page);
-	spin_unlock(req_lock);
+	spin_unlock(&inode->i_lock);
 	return ret;
 out_raced:
 	return !TestSetPageDirty(page);
