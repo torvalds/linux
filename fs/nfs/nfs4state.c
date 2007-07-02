@@ -528,7 +528,7 @@ void nfs_free_seqid(struct nfs_seqid *seqid)
  * failed with a seqid incrementing error -
  * see comments nfs_fs.h:seqid_mutating_error()
  */
-static inline void nfs_increment_seqid(int status, struct nfs_seqid *seqid)
+static void nfs_increment_seqid(int status, struct nfs_seqid *seqid)
 {
 	switch (status) {
 		case 0:
@@ -557,7 +557,7 @@ void nfs_increment_open_seqid(int status, struct nfs_seqid *seqid)
 				struct nfs4_state_owner, so_seqid);
 		nfs4_drop_state_owner(sp);
 	}
-	return nfs_increment_seqid(status, seqid);
+	nfs_increment_seqid(status, seqid);
 }
 
 /*
@@ -567,7 +567,7 @@ void nfs_increment_open_seqid(int status, struct nfs_seqid *seqid)
  */
 void nfs_increment_lock_seqid(int status, struct nfs_seqid *seqid)
 {
-	return nfs_increment_seqid(status, seqid);
+	nfs_increment_seqid(status, seqid);
 }
 
 int nfs_wait_on_sequence(struct nfs_seqid *seqid, struct rpc_task *task)
