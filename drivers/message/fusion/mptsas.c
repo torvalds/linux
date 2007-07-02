@@ -3301,6 +3301,8 @@ static struct pci_driver mptsas_driver = {
 static int __init
 mptsas_init(void)
 {
+	int error;
+
 	show_mptmod_ver(my_NAME, my_VERSION);
 
 	mptsas_transport_template =
@@ -3324,7 +3326,11 @@ mptsas_init(void)
 		  ": Registered for IOC reset notifications\n"));
 	}
 
-	return pci_register_driver(&mptsas_driver);
+	error = pci_register_driver(&mptsas_driver);
+	if (error)
+		sas_release_transport(mptsas_transport_template);
+
+	return error;
 }
 
 static void __exit
