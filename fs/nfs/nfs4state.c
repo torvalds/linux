@@ -83,7 +83,7 @@ nfs4_client_grab_unused(struct nfs_client *clp, struct rpc_cred *cred)
 	if (!list_empty(&clp->cl_unused)) {
 		sp = list_entry(clp->cl_unused.next, struct nfs4_state_owner, so_list);
 		atomic_inc(&sp->so_count);
-		sp->so_cred = cred;
+		sp->so_cred = get_rpccred(cred);
 		list_move(&sp->so_list, &clp->cl_state_owners);
 		clp->cl_nunused--;
 	}
@@ -175,7 +175,6 @@ struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server, struct 
 	struct nfs_client *clp = server->nfs_client;
 	struct nfs4_state_owner *sp, *new;
 
-	get_rpccred(cred);
 	new = nfs4_alloc_state_owner();
 	spin_lock(&clp->cl_lock);
 	sp = nfs4_find_state_owner(clp, cred);
@@ -185,7 +184,7 @@ struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server, struct 
 		list_add(&new->so_list, &clp->cl_state_owners);
 		new->so_client = clp;
 		new->so_id = nfs4_alloc_lockowner_id(clp);
-		new->so_cred = cred;
+		new->so_cred = get_rpccred(cred);
 		sp = new;
 		new = NULL;
 	}
@@ -193,7 +192,6 @@ struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server, struct 
 	kfree(new);
 	if (sp != NULL)
 		return sp;
-	put_rpccred(cred);
 	return NULL;
 }
 
