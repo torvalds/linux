@@ -42,6 +42,20 @@ config USB_GADGET
 	   For more information, see <http://www.linux-usb.org/gadget> and
 	   the kernel DocBook documentation for this API.
 
+config USB_GADGET_DEBUG
+	boolean "Debugging messages"
+	depends on USB_GADGET && DEBUG_KERNEL && EXPERIMENTAL
+	help
+	   Many controller and gadget drivers will print some debugging
+	   messages if you use this option to ask for those messages.
+
+	   Avoid enabling these messages, even if you're actively
+	   debugging such a driver.  Many drivers will emit so many
+	   messages that the driver timings are affected, which will
+	   either create new failure modes or remove the one you're
+	   trying to track down.  Never enable these messages for a
+	   production build.
+
 config USB_GADGET_DEBUG_FILES
 	boolean "Debugging information files"
 	depends on USB_GADGET && PROC_FS
