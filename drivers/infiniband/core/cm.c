@@ -2808,9 +2808,8 @@ static int cm_sidr_req_handler(struct cm_work *work)
 					sidr_req_msg->service_id,
 					sidr_req_msg->private_data);
 	if (!cur_cm_id_priv) {
-		rb_erase(&cm_id_priv->sidr_id_node, &cm.remote_sidr_table);
 		spin_unlock_irq(&cm.lock);
-		/* todo: reply with no match */
+		cm_reject_sidr_req(cm_id_priv, IB_SIDR_UNSUPPORTED);
 		goto out; /* No match. */
 	}
 	atomic_inc(&cur_cm_id_priv->refcount);
