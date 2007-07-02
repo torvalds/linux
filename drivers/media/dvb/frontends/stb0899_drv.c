@@ -1891,6 +1891,7 @@ struct dvb_frontend *stb0899_attach(struct stb0899_config *config, struct i2c_ad
 	state->i2c				= i2c;
 	state->frontend.ops			= stb0899_ops;
 	state->frontend.demodulator_priv	= state;
+	state->internal.inversion		= IQ_SWAP_AUTO;
 
 	stb0899_wakeup(&state->frontend);
 	if (stb0899_get_dev_id(state) == -ENODEV) {
