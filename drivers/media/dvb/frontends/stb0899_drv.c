@@ -804,11 +804,6 @@ static int stb0899_sleep(struct dvb_frontend *fe)
 	u8 reg;
 
 	dprintk(verbose, FE_DEBUG, 1, "Going to Sleep .. (Really tired .. :-))");
-
-	reg = stb0899_read_reg(state, STB0899_SYNTCTRL);
-	STB0899_SETFIELD_VAL(STANDBY, reg, 1);
-	stb0899_write_reg(state, STB0899_SYNTCTRL, reg);
-
 	return 0;
 }
 
@@ -817,13 +812,6 @@ static int stb0899_wakeup(struct dvb_frontend *fe)
 	int rc;
 	struct stb0899_state *state = fe->demodulator_priv;
 
-	if ((rc = stb0899_write_reg(state, STB0899_SYNTCTRL, STB0899_SELOSCI)))
-		return rc;
-	/* Activate all clocks; DVB-S2 registers are inaccessible otherwise. */
-	if ((rc = stb0899_write_reg(state, STB0899_STOPCLK1, 0x00)))
-		return rc;
-	if ((rc = stb0899_write_reg(state, STB0899_STOPCLK2, 0x00)))
-		return rc;
 
 	return 0;
 }
