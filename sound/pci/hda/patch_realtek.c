@@ -11182,8 +11182,6 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
 	
-	if (err < 0)
-		return err;
 	spec->init_verbs[spec->num_init_verbs++] = alc662_auto_init_verbs;
 	spec->mixers[spec->num_mixers] = alc662_capture_mixer;
 	spec->num_mixers++;
