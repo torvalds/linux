@@ -44,8 +44,6 @@ struct nfs_client {
 
 	struct list_head	cl_delegations;
 	struct list_head	cl_state_owners;
-	struct list_head	cl_unused;
-	int			cl_nunused;
 	spinlock_t		cl_lock;
 
 	unsigned long		cl_lease_time;

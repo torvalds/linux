@@ -131,7 +131,6 @@ static struct nfs_client *nfs_alloc_client(const char *hostname,
 	init_rwsem(&clp->cl_sem);
 	INIT_LIST_HEAD(&clp->cl_delegations);
 	INIT_LIST_HEAD(&clp->cl_state_owners);
-	INIT_LIST_HEAD(&clp->cl_unused);
 	spin_lock_init(&clp->cl_lock);
 	INIT_DELAYED_WORK(&clp->cl_renewd, nfs4_renew_state);
 	rpc_init_wait_queue(&clp->cl_rpcwaitq, "NFS client");
@@ -155,15 +154,6 @@ static void nfs4_shutdown_client(struct nfs_client *clp)
 #ifdef CONFIG_NFS_V4
 	if (__test_and_clear_bit(NFS_CS_RENEWD, &clp->cl_res_state))
 		nfs4_kill_renewd(clp);
-	while (!list_empty(&clp->cl_unused)) {
-		struct nfs4_state_owner *sp;
-
-		sp = list_entry(clp->cl_unused.next,
-				struct nfs4_state_owner,
-				so_list);
-		list_del(&sp->so_list);
-		kfree(sp);
-	}
 	BUG_ON(!list_empty(&clp->cl_state_owners));
 	if (__test_and_clear_bit(NFS_CS_IDMAP, &clp->cl_res_state))
 		nfs_idmap_delete(clp);

@@ -75,21 +75,6 @@ nfs4_alloc_lockowner_id(struct nfs_client *clp)
 	return clp->cl_lockowner_id ++;
 }
 
-static struct nfs4_state_owner *
-nfs4_client_grab_unused(struct nfs_client *clp, struct rpc_cred *cred)
-{
-	struct nfs4_state_owner *sp = NULL;
-
-	if (!list_empty(&clp->cl_unused)) {
-		sp = list_entry(clp->cl_unused.next, struct nfs4_state_owner, so_list);
-		atomic_inc(&sp->so_count);
-		sp->so_cred = get_rpccred(cred);
-		list_move(&sp->so_list, &clp->cl_state_owners);
-		clp->cl_nunused--;
-	}
-	return sp;
-}
-
 struct rpc_cred *nfs4_get_renew_cred(struct nfs_client *clp)
 {
 	struct nfs4_state_owner *sp;
@@ -178,8 +163,6 @@ struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server, struct 
 	new = nfs4_alloc_state_owner();
 	spin_lock(&clp->cl_lock);
 	sp = nfs4_find_state_owner(clp, cred);
-	if (sp == NULL)
-		sp = nfs4_client_grab_unused(clp, cred);
 	if (sp == NULL && new != NULL) {
 		list_add(&new->so_list, &clp->cl_state_owners);
 		new->so_client = clp;
@@ -206,17 +189,6 @@ void nfs4_put_state_owner(struct nfs4_state_owner *sp)
 
 	if (!atomic_dec_and_lock(&sp->so_count, &clp->cl_lock))
 		return;
-	if (clp->cl_nunused >= OPENOWNER_POOL_SIZE)
-		goto out_free;
-	if (list_empty(&sp->so_list))
-		goto out_free;
-	list_move(&sp->so_list, &clp->cl_unused);
-	clp->cl_nunused++;
-	spin_unlock(&clp->cl_lock);
-	put_rpccred(cred);
-	cred = NULL;
-	return;
-out_free:
 	list_del(&sp->so_list);
 	spin_unlock(&clp->cl_lock);
 	put_rpccred(cred);
