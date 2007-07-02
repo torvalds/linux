@@ -1802,58 +1802,19 @@ static int stb0899_get_modcod(struct stb0899_internal *internal, struct dvbs2_pa
  * Once a new lock has established, the internal state
  * frequency (internal->freq) is updated
  */
-static int stb0899_track(struct dvb_frontend *fe, struct dvbfe_params *params)
+static int stb0899_track(struct dvb_frontend *fe, struct dvbfe_params *params, int *delay)
 {
+	u32 lock_lost;
+
 	struct stb0899_state *state		= fe->demodulator_priv;
 	struct stb0899_internal *internal	= &state->internal;
 
-	switch (state->delsys) {
-	case DVBFE_DELSYS_DVBS:
-		dprintk(verbose, FE_DEBUG, 1, "Tracking DVB-S state");
-		if (stb0899_track_carrier(state) == CARRIEROK) {
-			params->frequency			= internal->freq;
-			params->inversion			= internal->inversion;
-			params->delivery			= state->delsys;
-			params->delsys.dvbs.symbol_rate		= internal->srate;
-			params->delsys.dvbs.modulation		= DVBFE_MOD_QPSK;
-			stb0899_get_s1fec(internal, &params->delsys.dvbs.fec);
-		}
-		break;
-	case DVBFE_DELSYS_DSS:
-		dprintk(verbose, FE_DEBUG, 1, "Tracking DSS state");
-		if (stb0899_track_carrier(state) == CARRIEROK) {
-			params->frequency			= internal->freq;
-			params->inversion			= internal->inversion;
-			params->delivery			= state->delsys;
-			params->delsys.dss.symbol_rate		= internal->srate;
-			params->delsys.dss.modulation		= DVBFE_MOD_QPSK;
-			stb0899_get_s1fec(internal, &params->delsys.dss.fec);
-		}
-		break;
-	case DVBFE_DELSYS_DVBS2:
-		dprintk(verbose, FE_DEBUG, 1, "Tracking DVB-S2 state");
-		if (stb0899_get_ifagc(state) == AGC1OK) {
-			params->frequency			= internal->freq;
-			params->inversion			= internal->inversion;
-			params->delivery			= state->delsys;
-			params->delsys.dvbs2.symbol_rate	= internal->srate;
-			stb0899_get_modcod(internal, &params->delsys.dvbs2);
-			params->delsys.dvbs2.rolloff		= internal->rolloff;
-			params->delsys.dvbs2.matype_1		= stb0899_read_reg(state, STB0899_MATSTRL);
-			params->delsys.dvbs2.matype_2		= stb0899_read_reg(state, STB0899_MATSTRM);
-			params->delsys.dvbs2.upl_1		= stb0899_read_reg(state, STB0899_UPLSTRL);
-			params->delsys.dvbs2.upl_2		= stb0899_read_reg(state, STB0899_UPLSTRM);
-			params->delsys.dvbs2.dfl_1		= stb0899_read_reg(state, STB0899_DFLSTRL);
-			params->delsys.dvbs2.dfl_2		= stb0899_read_reg(state, STB0899_DFLSTRM);
-			params->delsys.dvbs2.sync		= stb0899_read_reg(state, STB0899_SYNCSTR);
-			params->delsys.dvbs2.syncd_1		= stb0899_read_reg(state, STB0899_SYNCDSTRL);
-			params->delsys.dvbs2.syncd_2		= stb0899_read_reg(state, STB0899_SYNCDSTRM);
-		}
-		break;
-	default:
-		dprintk(verbose, FE_ERROR, 1, "Unsupported delivery system");
-		return -EINVAL;
-	}
+	lock_lost = STB0899_READ_S2REG(STB0899_S2DEMOD, LOCK_LOST);
+	dprintk(verbose, FE_DEBUG, 1, "Lock Lost=[0x%02x]\n", lock_lost);
+	if (STB0899_GETFIELD(LOCK_LOST, lock_lost))
+		dprintk(verbose, FE_ERROR, 1, "Demodulator LOST LOCK !\n");
+
+	*delay = HZ/10;
 
 	return 0;
 }
