@@ -311,6 +311,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0x003F00;
 		mask_keyup   = 0x040000;
 		break;
+	case SAA7134_BOARD_FLYDVBS_LR300:
 	case SAA7134_BOARD_FLYDVBT_LR301:
 	case SAA7134_BOARD_FLYDVBTDUO:
 		ir_codes     = ir_codes_flydvb;
