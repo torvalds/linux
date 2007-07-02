@@ -1508,7 +1508,7 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe, struct dvbfe_pa
 		if (i_params->srate <= 5000000)
 			stb0899_set_mclk(state, 76500000);
 		else
-			stb0899_set_mclk(state, 99000000);
+			stb0899_set_mclk(state, 90000000);
 
 		switch (state->delsys) {
 		case DVBFE_DELSYS_DVBS:
