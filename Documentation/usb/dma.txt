@@ -32,18 +32,25 @@ ELIMINATING COPIES
 It's good to avoid making CPUs copy data needlessly.  The costs can add up,
 and effects like cache-trashing can impose subtle penalties.
 
-- When you're allocating a buffer for DMA purposes anyway, use the buffer
-  primitives.  Think of them as kmalloc and kfree that give you the right
-  kind of addresses to store in urb->transfer_buffer and urb->transfer_dma,
-  while guaranteeing that no hidden copies through DMA "bounce" buffers will
-  slow things down.  You'd also set URB_NO_TRANSFER_DMA_MAP in
-  urb->transfer_flags:
+- If you're doing lots of small data transfers from the same buffer all
+  the time, that can really burn up resources on systems which use an
+  IOMMU to manage the DMA mappings.  It can cost MUCH more to set up and
+  tear down the IOMMU mappings with each request than perform the I/O!
+
+  For those specific cases, USB has primitives to allocate less expensive
+  memory.  They work like kmalloc and kfree versions that give you the right
+  kind of addresses to store in urb->transfer_buffer and urb->transfer_dma.
+  You'd also set URB_NO_TRANSFER_DMA_MAP in urb->transfer_flags:
 
 	void *usb_buffer_alloc (struct usb_device *dev, size_t size,
 		int mem_flags, dma_addr_t *dma);
 
 	void usb_buffer_free (struct usb_device *dev, size_t size,
 		void *addr, dma_addr_t dma);
+
+  Most drivers should *NOT* be using these primitives; they don't need
+  to use this type of memory ("dma-coherent"), and memory returned from
+  kmalloc() will work just fine.
 
   For control transfers you can use the buffer primitives or not for each
   of the transfer buffer and setup buffer independently.  Set the flag bits
@@ -54,29 +61,39 @@ and effects like cache-trashing can impose subtle penalties.
   The memory buffer returned is "dma-coherent"; sometimes you might need to
   force a consistent memory access ordering by using memory barriers.  It's
   not using a streaming DMA mapping, so it's good for small transfers on
-  systems where the I/O would otherwise tie up an IOMMU mapping.  (See
+  systems where the I/O would otherwise thrash an IOMMU mapping.  (See
   Documentation/DMA-mapping.txt for definitions of "coherent" and "streaming"
   DMA mappings.)
 
   Asking for 1/Nth of a page (as well as asking for N pages) is reasonably
   space-efficient.
 
+  On most systems the memory returned will be uncached, because the
+  semantics of dma-coherent memory require either bypassing CPU caches
+  or using cache hardware with bus-snooping support.  While x86 hardware
+  has such bus-snooping, many other systems use software to flush cache
+  lines to prevent DMA conflicts.
+
 - Devices on some EHCI controllers could handle DMA to/from high memory.
-  Driver probe() routines can notice this using a generic DMA call, then
-  tell higher level code (network, scsi, etc) about it like this:
 
-	if (dma_supported (&intf->dev, 0xffffffffffffffffULL))
-		net->features |= NETIF_F_HIGHDMA;
+  Unfortunately, the current Linux DMA infrastructure doesn't have a sane
+  way to expose these capabilities ... and in any case, HIGHMEM is mostly a
+  design wart specific to x86_32.  So your best bet is to ensure you never
+  pass a highmem buffer into a USB driver.  That's easy; it's the default
+  behavior.  Just don't override it; e.g. with NETIF_F_HIGHDMA.
 
-  That can eliminate dma bounce buffering of requests that originate (or
-  terminate) in high memory, in cases where the buffers aren't allocated
-  with usb_buffer_alloc() but instead are dma-mapped.
+  This may force your callers to do some bounce buffering, copying from
+  high memory to "normal" DMA memory.  If you can come up with a good way
+  to fix this issue (for x86_32 machines with over 1 GByte of memory),
+  feel free to submit patches.
 
 
 WORKING WITH EXISTING BUFFERS
 
 Existing buffers aren't usable for DMA without first being mapped into the
-DMA address space of the device.
+DMA address space of the device.  However, most buffers passed to your
+driver can safely be used with such DMA mapping.  (See the first section
+of DMA-mapping.txt, titled "What memory is DMA-able?")
 
 - When you're using scatterlists, you can map everything at once.  On some
   systems, this kicks in an IOMMU and turns the scatterlists into single
@@ -114,3 +131,8 @@ DMA address space of the device.
   The calls manage urb->transfer_dma for you, and set URB_NO_TRANSFER_DMA_MAP
   so that usbcore won't map or unmap the buffer.  The same goes for
   urb->setup_dma and URB_NO_SETUP_DMA_MAP for control requests.
+
+Note that several of those interfaces are currently commented out, since
+they don't have current users.  See the source code.  Other than the dmasync
+calls (where the underlying DMA primitives have changed), most of them can
+easily be commented back in if you want to use them.
