@@ -277,7 +277,7 @@ static enum stb0899_status stb0899_check_carrier(struct stb0899_state *state)
 
 	reg = stb0899_read_reg(state, STB0899_CFD);
 	STB0899_SETFIELD_VAL(CFD_ON, reg, 1);
-	stb0899_write_reg(state, STB0899_RTF, reg);
+	stb0899_write_reg(state, STB0899_CFD, reg);
 
 	reg = stb0899_read_reg(state, STB0899_DSTATUS);
 	dprintk(state->verbose, FE_DEBUG, 1, "--------------------> STB0899_DSTATUS=[0x%02x]", reg);
@@ -311,7 +311,7 @@ static enum stb0899_status stb0899_search_carrier(struct stb0899_state *state)
 
 	reg = stb0899_read_reg(state, STB0899_CFD);
 	STB0899_SETFIELD_VAL(CFD_ON, reg, 1);
-	stb0899_write_reg(state, STB0899_RTF, reg);
+	stb0899_write_reg(state, STB0899_CFD, reg);
 
 	do {
 		dprintk(state->verbose, FE_DEBUG, 1, "Derot Freq=%d, mclk=%d", derot_freq, internal->mclk);
@@ -326,7 +326,7 @@ static enum stb0899_status stb0899_search_carrier(struct stb0899_state *state)
 			if (next_loop) {
 				reg = stb0899_read_reg(state, STB0899_CFD);
 				STB0899_SETFIELD_VAL(CFD_ON, reg, 1);
-				stb0899_write_reg(state, STB0899_RTF, reg);
+				stb0899_write_reg(state, STB0899_CFD, reg);
 
 				STB0899_SETFIELD_VAL(CFRM, cfr[0], MSB(state->config->inversion * derot_freq));
 				STB0899_SETFIELD_VAL(CFRL, cfr[1], LSB(state->config->inversion * derot_freq));
@@ -429,7 +429,7 @@ static enum stb0899_status stb0899_search_data(struct stb0899_state *state)
 				dprintk(state->verbose, FE_DEBUG, 1, "Derot freq=%d, mclk=%d", derot_freq, internal->mclk);
 				reg = stb0899_read_reg(state, STB0899_CFD);
 				STB0899_SETFIELD_VAL(CFD_ON, reg, 1);
-				stb0899_write_reg(state, STB0899_RTF, reg);
+				stb0899_write_reg(state, STB0899_CFD, reg);
 
 				STB0899_SETFIELD_VAL(CFRM, cfr[0], MSB(state->config->inversion * derot_freq));
 				STB0899_SETFIELD_VAL(CFRL, cfr[1], LSB(state->config->inversion * derot_freq));
@@ -608,7 +608,7 @@ enum stb0899_status stb0899_dvbs_algo(struct stb0899_state *state)
 		stb0899_write_reg(state, STB0899_RTF, reg);
 		reg = stb0899_read_reg(state, STB0899_CFD);
 		STB0899_SETFIELD_VAL(CFD_ON, reg, 1);
-		stb0899_write_reg(state, STB0899_RTF, reg);
+		stb0899_write_reg(state, STB0899_CFD, reg);
 
 		internal->derot_freq = 0;
 		internal->status = NOAGC1;
@@ -742,7 +742,7 @@ enum stb0899_status stb0899_dvbs_algo(struct stb0899_state *state)
 		/* disable carrier detector	*/
 		reg = stb0899_read_reg(state, STB0899_CFD);
 		STB0899_SETFIELD_VAL(CFD_ON, reg, 0);
-		stb0899_write_reg(state, STB0899_RTF, reg);
+		stb0899_write_reg(state, STB0899_CFD, reg);
 
 		stb0899_read_regs(state, STB0899_EQUAI1, eq_const, 10);
 	}
