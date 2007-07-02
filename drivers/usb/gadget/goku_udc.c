@@ -20,7 +20,6 @@
  *  - DMA works with ep1 (OUT transfers) and ep2 (IN transfers).
  */
 
-#undef DEBUG
 // #define	VERBOSE		/* extra debug messages (success too) */
 // #define	USB_TRACE	/* packet-level success messages */
 
@@ -440,7 +439,7 @@ top:
 			/* use ep1/ep2 double-buffering for OUT */
 			if (!(size & PACKET_ACTIVE))
 				size = readl(&regs->EPxSizeLB[ep->num]);
-			if (!(size & PACKET_ACTIVE)) 	// "can't happen"
+			if (!(size & PACKET_ACTIVE))	/* "can't happen" */
 				break;
 			size &= DATASIZE;	/* EPxSizeH == 0 */
 
@@ -1092,17 +1091,17 @@ udc_proc_read(char *buffer, char **start, off_t off, int count,
 		is_usb_connected
 			? ((tmp & PW_PULLUP) ? "full speed" : "powered")
 			: "disconnected",
-		({char *tmp;
+		({char *state;
 		switch(dev->ep0state){
-		case EP0_DISCONNECT:	tmp = "ep0_disconnect"; break;
-		case EP0_IDLE:		tmp = "ep0_idle"; break;
-		case EP0_IN:		tmp = "ep0_in"; break;
-		case EP0_OUT:		tmp = "ep0_out"; break;
-		case EP0_STATUS:	tmp = "ep0_status"; break;
-		case EP0_STALL:		tmp = "ep0_stall"; break;
-		case EP0_SUSPEND:	tmp = "ep0_suspend"; break;
-		default:		tmp = "ep0_?"; break;
-		} tmp; })
+		case EP0_DISCONNECT:	state = "ep0_disconnect"; break;
+		case EP0_IDLE:		state = "ep0_idle"; break;
+		case EP0_IN:		state = "ep0_in"; break;
+		case EP0_OUT:		state = "ep0_out"; break;
+		case EP0_STATUS:	state = "ep0_status"; break;
+		case EP0_STALL:		state = "ep0_stall"; break;
+		case EP0_SUSPEND:	state = "ep0_suspend"; break;
+		default:		state = "ep0_?"; break;
+		} state; })
 		);
 	size -= t;
 	next += t;
@@ -1147,7 +1146,6 @@ udc_proc_read(char *buffer, char **start, off_t off, int count,
 	for (i = 0; i < 4; i++) {
 		struct goku_ep		*ep = &dev->ep [i];
 		struct goku_request	*req;
-		int			t;
 
 		if (i && !ep->desc)
 			continue;
@@ -1235,7 +1233,7 @@ done:
 static void udc_reinit (struct goku_udc *dev)
 {
 	static char *names [] = { "ep0", "ep1-bulk", "ep2-bulk", "ep3-bulk" };
-	
+
 	unsigned i;
 
 	INIT_LIST_HEAD (&dev->gadget.ep_list);
@@ -1848,9 +1846,9 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* done */
 	the_controller = dev;
-	device_register(&dev->gadget.dev);
-
-	return 0;
+	retval = device_register(&dev->gadget.dev);
+	if (retval == 0)
+		return 0;
 
 done:
 	if (dev)
@@ -1862,8 +1860,8 @@ done:
 /*-------------------------------------------------------------------------*/
 
 static struct pci_device_id pci_ids [] = { {
-	.class = 	((PCI_CLASS_SERIAL_USB << 8) | 0xfe),
-	.class_mask = 	~0,
+	.class =	((PCI_CLASS_SERIAL_USB << 8) | 0xfe),
+	.class_mask =	~0,
 	.vendor =	0x102f,		/* Toshiba */
 	.device =	0x0107,		/* this UDC */
 	.subvendor =	PCI_ANY_ID,
