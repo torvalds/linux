@@ -34,7 +34,8 @@ struct nfs_client {
 	nfs4_verifier		cl_confirm;
 	unsigned long		cl_state;
 
-	u32			cl_lockowner_id;
+	struct rb_root		cl_openowner_id;
+	struct rb_root		cl_lockowner_id;
 
 	/*
 	 * The following rwsem ensures exclusive access to the server
@@ -43,7 +44,7 @@ struct nfs_client {
 	struct rw_semaphore	cl_sem;
 
 	struct list_head	cl_delegations;
-	struct list_head	cl_state_owners;
+	struct rb_root		cl_state_owners;
 	spinlock_t		cl_lock;
 
 	unsigned long		cl_lease_time;

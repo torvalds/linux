@@ -253,7 +253,7 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct path *path,
 	p->o_arg.fh = NFS_FH(dir);
 	p->o_arg.open_flags = flags,
 	p->o_arg.clientid = server->nfs_client->cl_clientid;
-	p->o_arg.id = sp->so_id;
+	p->o_arg.id = sp->so_owner_id.id;
 	p->o_arg.name = &p->path.dentry->d_name;
 	p->o_arg.server = server;
 	p->o_arg.bitmask = server->attr_bitmask;
@@ -651,7 +651,7 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 	if (nfs_wait_on_sequence(data->o_arg.seqid, task) != 0)
 		return;
 	/* Update sequence id. */
-	data->o_arg.id = sp->so_id;
+	data->o_arg.id = sp->so_owner_id.id;
 	data->o_arg.clientid = sp->so_client->cl_clientid;
 	if (data->o_arg.claim == NFS4_OPEN_CLAIM_PREVIOUS)
 		msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_NOATTR];
@@ -3029,7 +3029,7 @@ static int _nfs4_proc_getlk(struct nfs4_state *state, int cmd, struct file_lock 
 	if (status != 0)
 		goto out;
 	lsp = request->fl_u.nfs4_fl.owner;
-	arg.lock_owner.id = lsp->ls_id; 
+	arg.lock_owner.id = lsp->ls_id.id;
 	status = rpc_call_sync(server->client, &msg, 0);
 	switch (status) {
 		case 0:
@@ -3243,7 +3243,7 @@ static struct nfs4_lockdata *nfs4_alloc_lockdata(struct file_lock *fl,
 		goto out_free;
 	p->arg.lock_stateid = &lsp->ls_stateid;
 	p->arg.lock_owner.clientid = server->nfs_client->cl_clientid;
-	p->arg.lock_owner.id = lsp->ls_id;
+	p->arg.lock_owner.id = lsp->ls_id.id;
 	p->lsp = lsp;
 	atomic_inc(&lsp->ls_count);
 	p->ctx = get_nfs_open_context(ctx);

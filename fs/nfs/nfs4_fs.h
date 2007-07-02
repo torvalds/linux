@@ -70,19 +70,25 @@ static inline void nfs_confirm_seqid(struct nfs_seqid_counter *seqid, int status
 		seqid->flags |= NFS_SEQID_CONFIRMED;
 }
 
+struct nfs_unique_id {
+	struct rb_node rb_node;
+	__u64 id;
+};
+
 /*
  * NFS4 state_owners and lock_owners are simply labels for ordered
  * sequences of RPC calls. Their sole purpose is to provide once-only
  * semantics by allowing the server to identify replayed requests.
  */
 struct nfs4_state_owner {
-	spinlock_t	     so_lock;
-	struct list_head     so_list;	 /* per-clientid list of state_owners */
+	struct nfs_unique_id so_owner_id;
 	struct nfs_client    *so_client;
-	u32                  so_id;      /* 32-bit identifier, unique */
-	atomic_t	     so_count;
+	struct rb_node	     so_client_node;
 
 	struct rpc_cred	     *so_cred;	 /* Associated cred */
+
+	spinlock_t	     so_lock;
+	atomic_t	     so_count;
 	struct list_head     so_states;
 	struct list_head     so_delegations;
 	struct nfs_seqid_counter so_seqid;
@@ -108,7 +114,7 @@ struct nfs4_lock_state {
 #define NFS_LOCK_INITIALIZED 1
 	int			ls_flags;
 	struct nfs_seqid_counter	ls_seqid;
-	u32			ls_id;
+	struct nfs_unique_id	ls_id;
 	nfs4_stateid		ls_stateid;
 	atomic_t		ls_count;
 };
@@ -189,7 +195,6 @@ extern void nfs4_renew_state(struct work_struct *);
 
 /* nfs4state.c */
 struct rpc_cred *nfs4_get_renew_cred(struct nfs_client *clp);
-extern u32 nfs4_alloc_lockowner_id(struct nfs_client *);
 
 extern struct nfs4_state_owner * nfs4_get_state_owner(struct nfs_server *, struct rpc_cred *);
 extern void nfs4_put_state_owner(struct nfs4_state_owner *);

@@ -119,7 +119,7 @@ struct nfs_openargs {
 	struct nfs_seqid *	seqid;
 	int			open_flags;
 	__u64                   clientid;
-	__u32                   id;
+	__u64                   id;
 	union {
 		struct iattr *  attrs;    /* UNCHECKED, GUARDED */
 		nfs4_verifier   verifier; /* EXCLUSIVE */
@@ -181,7 +181,7 @@ struct nfs_closeres {
  *   */
 struct nfs_lowner {
 	__u64			clientid;
-	u32			id;
+	__u64			id;
 };
 
 struct nfs_lock_args {
