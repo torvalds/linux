@@ -119,8 +119,8 @@ static int nfs4_stat_to_errno(int);
 				3 + (NFS4_VERIFIER_SIZE >> 2))
 #define decode_setclientid_confirm_maxsz \
 				(op_decode_hdr_maxsz)
-#define encode_lookup_maxsz	(op_encode_hdr_maxsz + \
-				1 + ((3 + NFS4_FHSIZE) >> 2))
+#define encode_lookup_maxsz	(op_encode_hdr_maxsz + nfs4_name_maxsz)
+#define decode_lookup_maxsz	(op_decode_hdr_maxsz)
 #define encode_share_access_maxsz \
 				(2)
 #define encode_createmode_maxsz	(1 + nfs4_fattr_maxsz)
@@ -161,6 +161,10 @@ static int nfs4_stat_to_errno(int);
 				nfs4_fattr_bitmap_maxsz)
 #define encode_delegreturn_maxsz (op_encode_hdr_maxsz + 4)
 #define decode_delegreturn_maxsz (op_decode_hdr_maxsz)
+#define encode_fs_locations_maxsz \
+				(encode_getattr_maxsz)
+#define decode_fs_locations_maxsz \
+				(0)
 #define NFS4_enc_compound_sz	(1024)  /* XXX: large enough? */
 #define NFS4_dec_compound_sz	(1024)  /* XXX: large enough? */
 #define NFS4_enc_read_sz	(compound_encode_hdr_maxsz + \
@@ -327,7 +331,7 @@ static int nfs4_stat_to_errno(int);
 				encode_getfh_maxsz)
 #define NFS4_dec_lookup_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				op_decode_hdr_maxsz + \
+				decode_lookup_maxsz + \
 				decode_getattr_maxsz + \
 				decode_getfh_maxsz)
 #define NFS4_enc_lookup_root_sz (compound_encode_hdr_maxsz + \
@@ -446,12 +450,13 @@ static int nfs4_stat_to_errno(int);
 #define NFS4_enc_fs_locations_sz \
 				(compound_encode_hdr_maxsz + \
 				 encode_putfh_maxsz + \
-				 encode_getattr_maxsz)
+				 encode_lookup_maxsz + \
+				 encode_fs_locations_maxsz)
 #define NFS4_dec_fs_locations_sz \
 				(compound_decode_hdr_maxsz + \
 				 decode_putfh_maxsz + \
-				 op_decode_hdr_maxsz + \
-				 nfs4_fattr_bitmap_maxsz)
+				 decode_lookup_maxsz + \
+				 decode_fs_locations_maxsz)
 
 static struct {
 	unsigned int	mode;
