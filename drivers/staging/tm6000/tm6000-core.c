@@ -99,6 +99,8 @@ int tm6000_read_write_usb (struct tm6000_core *dev, u8 req_type, u8 req,
 
 	kfree(data);
 
+	msleep(5);
+
 	return ret;
 }
 
@@ -304,8 +306,8 @@ int tm6000_init (struct tm6000_core *dev)
 	tm6000_set_reg (dev, REQ_05_SET_GET_USBREG, 0x18, 0x00);
 	msleep(5); /* Just to be conservative */
 
-	/* Reset GPIO1. Maybe, this is 10 Moons specific */
-	for (i=0; i< 3; i++) {
+	/* Reset GPIO1 and GPIO4. */
+	for (i=0; i< 2; i++) {
 		rc=tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN, TM6000_GPIO_1, 0);
 		if (rc<0) {
 			printk (KERN_ERR "Error %i doing GPIO1 reset\n",rc);
@@ -319,9 +321,26 @@ int tm6000_init (struct tm6000_core *dev)
 			return rc;
 		}
 
+		msleep(10);
+		rc=tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN, TM6000_GPIO_4, 0);
+		if (rc<0) {
+			printk (KERN_ERR "Error %i doing GPIO4 reset\n",rc);
+			return rc;
+		}
+
+		msleep(10);
+		rc=tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN, TM6000_GPIO_4, 1);
+		if (rc<0) {
+			printk (KERN_ERR "Error %i doing GPIO4 reset\n",rc);
+			return rc;
+		}
+
 		if (!i)
 			rc=tm6000_get_reg16(dev, 0x40,0,0);
 	}
+
+	msleep(50);
+
 	return 0;
 
 #endif /* HACK */
