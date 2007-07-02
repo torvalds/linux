@@ -25,6 +25,7 @@
 #include <linux/pci.h>
 #include <linux/random.h>
 #include <linux/version.h>
+#include <linux/mutex.h>
 #include <linux/videodev2.h>
 #include <linux/dma-mapping.h>
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
@@ -165,7 +166,7 @@ static LIST_HEAD(vivi_devlist);
 struct vivi_dev {
 	struct list_head           vivi_devlist;
 
-	struct semaphore           lock;
+	struct mutex               lock;
 
 	int                        users;
 
@@ -738,16 +739,16 @@ static struct videobuf_queue_ops vivi_video_qops = {
 static int res_get(struct vivi_dev *dev, struct vivi_fh *fh)
 {
 	/* is it free? */
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 	if (dev->resources) {
 		/* no, someone else uses it */
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 		return 0;
 	}
 	/* it's free, grab it */
 	dev->resources =1;
 	dprintk(1,"res: get\n");
-	up(&dev->lock);
+	mutex_unlock(&dev->lock);
 	return 1;
 }
 
@@ -758,10 +759,10 @@ static int res_locked(struct vivi_dev *dev)
 
 static void res_free(struct vivi_dev *dev, struct vivi_fh *fh)
 {
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 	dev->resources = 0;
 	dprintk(1,"res: put\n");
-	up(&dev->lock);
+	mutex_lock(&dev->lock);
 }
 
 /* ------------------------------------------------------------------
@@ -1260,7 +1261,7 @@ static int __init vivi_init(void)
 	init_waitqueue_head(&dev->vidq.wq);
 
 	/* initialize locks */
-	init_MUTEX(&dev->lock);
+	mutex_init(&dev->lock);
 
 	dev->vidq.timeout.function = vivi_vid_timeout;
 	dev->vidq.timeout.data     = (unsigned long)dev;
