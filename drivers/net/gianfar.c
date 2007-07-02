@@ -944,7 +944,7 @@ static inline void gfar_tx_checksum(struct sk_buff *skb, struct txfcb *fcb)
 		flags |= TXFCB_UDP;
 		fcb->phcs = udp_hdr(skb)->check;
 	} else
-		fcb->phcs = udp_hdr(skb)->check;
+		fcb->phcs = tcp_hdr(skb)->check;
 
 	/* l3os is the distance between the start of the
 	 * frame (skb->data) and the start of the IP hdr.
