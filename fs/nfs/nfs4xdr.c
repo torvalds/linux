@@ -70,7 +70,8 @@ static int nfs4_stat_to_errno(int);
 /* lock,open owner id: 
  * we currently use size 1 (u32) out of (NFS4_OPAQUE_LIMIT  >> 2)
  */
-#define owner_id_maxsz          (1 + 1)
+#define open_owner_id_maxsz	(1 + 1)
+#define lock_owner_id_maxsz	(1 + 1)
 #define compound_encode_hdr_maxsz	(3 + (NFS4_MAXTAGLEN >> 2))
 #define compound_decode_hdr_maxsz	(3 + (NFS4_MAXTAGLEN >> 2))
 #define op_encode_hdr_maxsz	(1)
@@ -120,6 +121,25 @@ static int nfs4_stat_to_errno(int);
 				(op_decode_hdr_maxsz)
 #define encode_lookup_maxsz	(op_encode_hdr_maxsz + \
 				1 + ((3 + NFS4_FHSIZE) >> 2))
+#define encode_share_access_maxsz \
+				(2)
+#define encode_createmode_maxsz	(1 + nfs4_fattr_maxsz)
+#define encode_opentype_maxsz	(1 + encode_createmode_maxsz)
+#define encode_claim_null_maxsz	(1 + nfs4_name_maxsz)
+#define encode_open_maxsz	(op_encode_hdr_maxsz + \
+				2 + encode_share_access_maxsz + 2 + \
+				open_owner_id_maxsz + \
+				encode_opentype_maxsz + \
+				encode_claim_null_maxsz)
+#define decode_ace_maxsz	(3 + nfs4_owner_maxsz)
+#define decode_delegation_maxsz	(1 + XDR_QUADLEN(NFS4_STATEID_SIZE) + 1 + \
+				decode_ace_maxsz)
+#define decode_change_info_maxsz	(5)
+#define decode_open_maxsz	(op_decode_hdr_maxsz + \
+				XDR_QUADLEN(NFS4_STATEID_SIZE) + \
+				decode_change_info_maxsz + 1 + \
+				nfs4_fattr_bitmap_maxsz + \
+				decode_delegation_maxsz)
 #define encode_remove_maxsz	(op_encode_hdr_maxsz + \
 				nfs4_name_maxsz)
 #define encode_rename_maxsz	(op_encode_hdr_maxsz + \
@@ -136,7 +156,9 @@ static int nfs4_stat_to_errno(int);
 #define encode_create_maxsz	(op_encode_hdr_maxsz + \
 				2 + nfs4_name_maxsz + \
 				nfs4_fattr_maxsz)
-#define decode_create_maxsz	(op_decode_hdr_maxsz + 8)
+#define decode_create_maxsz	(op_decode_hdr_maxsz + \
+				decode_change_info_maxsz + \
+				nfs4_fattr_bitmap_maxsz)
 #define encode_delegreturn_maxsz (op_encode_hdr_maxsz + 4)
 #define decode_delegreturn_maxsz (op_decode_hdr_maxsz)
 #define NFS4_enc_compound_sz	(1024)  /* XXX: large enough? */
@@ -176,16 +198,21 @@ static int nfs4_stat_to_errno(int);
 				op_decode_hdr_maxsz + 2 + \
 				decode_getattr_maxsz)
 #define NFS4_enc_open_sz        (compound_encode_hdr_maxsz + \
-                                encode_putfh_maxsz + \
-                                op_encode_hdr_maxsz + \
-                                13 + 3 + 2 + 64 + \
-                                encode_getattr_maxsz + \
-                                encode_getfh_maxsz)
+				encode_putfh_maxsz + \
+				encode_savefh_maxsz + \
+				encode_open_maxsz + \
+				encode_getfh_maxsz + \
+				encode_getattr_maxsz + \
+				encode_restorefh_maxsz + \
+				encode_getattr_maxsz)
 #define NFS4_dec_open_sz        (compound_decode_hdr_maxsz + \
-                                decode_putfh_maxsz + \
-                                op_decode_hdr_maxsz + 4 + 5 + 2 + 3 + \
-                                decode_getattr_maxsz + \
-                                decode_getfh_maxsz)
+				decode_putfh_maxsz + \
+				decode_savefh_maxsz + \
+				decode_open_maxsz + \
+				decode_getfh_maxsz + \
+				decode_getattr_maxsz + \
+				decode_restorefh_maxsz + \
+				decode_getattr_maxsz)
 #define NFS4_enc_open_confirm_sz      \
                                 (compound_encode_hdr_maxsz + \
                                 encode_putfh_maxsz + \
@@ -195,12 +222,12 @@ static int nfs4_stat_to_errno(int);
                                         op_decode_hdr_maxsz + 4)
 #define NFS4_enc_open_noattr_sz	(compound_encode_hdr_maxsz + \
 					encode_putfh_maxsz + \
-					op_encode_hdr_maxsz + \
-					11)
+					encode_open_maxsz + \
+					encode_getattr_maxsz)
 #define NFS4_dec_open_noattr_sz	(compound_decode_hdr_maxsz + \
 					decode_putfh_maxsz + \
-					op_decode_hdr_maxsz + \
-					4 + 5 + 2 + 3)
+					decode_open_maxsz + \
+					decode_getattr_maxsz)
 #define NFS4_enc_open_downgrade_sz \
 				(compound_encode_hdr_maxsz + \
                                 encode_putfh_maxsz + \
@@ -258,19 +285,19 @@ static int nfs4_stat_to_errno(int);
 				op_encode_hdr_maxsz + \
 				1 + 1 + 2 + 2 + \
 				1 + 4 + 1 + 2 + \
-				owner_id_maxsz)
+				lock_owner_id_maxsz)
 #define NFS4_dec_lock_sz        (compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
 				decode_getattr_maxsz + \
 				op_decode_hdr_maxsz + \
 				2 + 2 + 1 + 2 + \
-				owner_id_maxsz)
+				lock_owner_id_maxsz)
 #define NFS4_enc_lockt_sz       (compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
 				encode_getattr_maxsz + \
 				op_encode_hdr_maxsz + \
 				1 + 2 + 2 + 2 + \
-				owner_id_maxsz)
+				lock_owner_id_maxsz)
 #define NFS4_dec_lockt_sz       (NFS4_dec_lock_sz)
 #define NFS4_enc_locku_sz       (compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
