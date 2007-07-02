@@ -2794,7 +2794,6 @@ static int cm_sidr_req_handler(struct cm_work *work)
 				work->mad_recv_wc->recv_buf.grh,
 				&cm_id_priv->av);
 	cm_id_priv->id.remote_id = sidr_req_msg->request_id;
-	cm_id_priv->id.state = IB_CM_SIDR_REQ_RCVD;
 	cm_id_priv->tid = sidr_req_msg->hdr.tid;
 	atomic_inc(&cm_id_priv->work_count);
 
@@ -2804,6 +2803,7 @@ static int cm_sidr_req_handler(struct cm_work *work)
 		spin_unlock_irq(&cm.lock);
 		goto out; /* Duplicate message. */
 	}
+	cm_id_priv->id.state = IB_CM_SIDR_REQ_RCVD;
 	cur_cm_id_priv = cm_find_listen(cm_id->device,
 					sidr_req_msg->service_id,
 					sidr_req_msg->private_data);
