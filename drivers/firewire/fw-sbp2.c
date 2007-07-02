@@ -416,21 +416,11 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 	if (orb == NULL)
 		return -ENOMEM;
 
-	/*
-	 * The sbp2 device is going to send a block read request to
-	 * read out the request from host memory, so map it for dma.
-	 */
-	orb->base.request_bus =
-		dma_map_single(device->card->device, &orb->request,
-			       sizeof(orb->request), DMA_TO_DEVICE);
-	if (dma_mapping_error(orb->base.request_bus))
-		goto out;
-
 	orb->response_bus =
 		dma_map_single(device->card->device, &orb->response,
 			       sizeof(orb->response), DMA_FROM_DEVICE);
 	if (dma_mapping_error(orb->response_bus))
-		goto out;
+		goto fail_mapping_response;
 
 	orb->request.response.high    = 0;
 	orb->request.response.low     = orb->response_bus;
@@ -455,6 +445,12 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
 
 	init_completion(&orb->done);
 	orb->base.callback = complete_management_orb;
+
+	orb->base.request_bus =
+		dma_map_single(device->card->device, &orb->request,
+			       sizeof(orb->request), DMA_TO_DEVICE);
+	if (dma_mapping_error(orb->base.request_bus))
+		goto fail_mapping_request;
 
 	sbp2_send_orb(&orb->base, unit,
 		      node_id, generation, sd->management_agent_address);
@@ -487,9 +483,10 @@ sbp2_send_management_orb(struct fw_unit *unit, int node_id, int generation,
  out:
 	dma_unmap_single(device->card->device, orb->base.request_bus,
 			 sizeof(orb->request), DMA_TO_DEVICE);
+ fail_mapping_request:
 	dma_unmap_single(device->card->device, orb->response_bus,
 			 sizeof(orb->response), DMA_FROM_DEVICE);
-
+ fail_mapping_response:
 	if (response)
 		fw_memcpy_from_be32(response,
 				    orb->response, sizeof(orb->response));
