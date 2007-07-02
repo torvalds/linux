@@ -1228,7 +1228,7 @@ static int is_in_dac_nids(struct sigmatel_spec *spec, hda_nid_t nid)
  * and 9202/925x. For those, dac_nids[] must be hard-coded.
  */
 static int stac92xx_auto_fill_dac_nids(struct hda_codec *codec,
-				       const struct auto_pin_cfg *cfg)
+				       struct auto_pin_cfg *cfg)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	int i, j, conn_len = 0; 
@@ -1253,6 +1253,13 @@ static int stac92xx_auto_fill_dac_nids(struct hda_codec *codec,
 		}
 
 		if (j == conn_len) {
+			if (spec->multiout.num_dacs > 0) {
+				/* we have already working output pins,
+				 * so let's drop the broken ones again
+				 */
+				cfg->line_outs = spec->multiout.num_dacs;
+				break;
+			}
 			/* error out, no available DAC found */
 			snd_printk(KERN_ERR
 				   "%s: No available DAC for pin 0x%x\n",
