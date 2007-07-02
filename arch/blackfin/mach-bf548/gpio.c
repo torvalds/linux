@@ -52,6 +52,7 @@ inline int check_gpio(unsigned short gpio)
 {
 	if (gpio == GPIO_PB15 || gpio == GPIO_PC14 || gpio == GPIO_PC15 \
 			|| gpio == GPIO_PH14 || gpio == GPIO_PH15 \
+			|| gpio == GPIO_PJ14 || gpio == GPIO_PJ15 \
 			|| gpio > MAX_BLACKFIN_GPIOS)
 		return -EINVAL;
 	return 0;
@@ -173,3 +174,19 @@ void gpio_direction_output(unsigned short gpio)
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(gpio_direction_output);
+
+void gpio_set_value(unsigned short gpio, unsigned short arg)
+{
+	if (arg)
+		gpio_array[gpio_bank(gpio)]->port_set = gpio_bit(gpio);
+	else
+		gpio_array[gpio_bank(gpio)]->port_clear = gpio_bit(gpio);
+
+}
+EXPORT_SYMBOL(gpio_set_value);
+
+unsigned short gpio_get_value(unsigned short gpio)
+{
+	return (1 & (gpio_array[gpio_bank(gpio)]->port_data >> gpio_sub_n(gpio)));
+}
+EXPORT_SYMBOL(gpio_get_value);

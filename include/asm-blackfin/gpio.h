@@ -234,6 +234,7 @@
 * MODIFICATION HISTORY :
 **************************************************************/
 
+#ifndef BF548_FAMILY
 void set_gpio_dir(unsigned short, unsigned short);
 void set_gpio_inen(unsigned short, unsigned short);
 void set_gpio_polar(unsigned short, unsigned short);
@@ -268,7 +269,6 @@ unsigned short get_gpiop_maska(unsigned short);
 unsigned short get_gpiop_maskb(unsigned short);
 unsigned short get_gpiop_data(unsigned short);
 
-#ifndef BF548_FAMILY
 struct gpio_port_t {
 	unsigned short data;
 	unsigned short dummy1;
@@ -363,8 +363,10 @@ void gpio_free(unsigned short);
 void gpio_set_value(unsigned short gpio, unsigned short arg);
 unsigned short gpio_get_value(unsigned short gpio);
 
+#ifndef BF548_FAMILY
 #define gpio_get_value(gpio) 		get_gpio_data(gpio)
 #define gpio_set_value(gpio, value)	set_gpio_data(gpio, value)
+#endif
 
 void gpio_direction_input(unsigned short gpio);
 void gpio_direction_output(unsigned short gpio);
