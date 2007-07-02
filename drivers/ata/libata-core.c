@@ -6423,13 +6423,13 @@ int ata_host_activate(struct ata_host *host, int irq,
 	if (rc)
 		return rc;
 
+	/* Used to print device info at probe */
+	host->irq = irq;
+
 	rc = ata_host_register(host, sht);
 	/* if failed, just free the IRQ and leave ports alone */
 	if (rc)
 		devm_free_irq(host->dev, irq, host);
-
-	/* Used to print device info at probe */
-	host->irq = irq;
 
 	return rc;
 }

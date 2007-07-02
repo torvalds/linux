@@ -284,6 +284,11 @@ static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_devi
 				      ata_interrupt, 0, DRV_NAME, host);
 		if (rc)
 			return rc;
+
+		if (i == 0)
+			host->irq = irq[0];
+		else
+			host->irq2 = irq[1];
 	}
 
 	return ata_host_register(host, &cs5520_sht);
