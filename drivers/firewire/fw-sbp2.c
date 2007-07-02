@@ -887,7 +887,7 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 
 	if (orb->page_table_bus != 0)
 		dma_unmap_single(device->card->device, orb->page_table_bus,
-				 sizeof(orb->page_table_bus), DMA_TO_DEVICE);
+				 sizeof(orb->page_table), DMA_TO_DEVICE);
 
 	orb->cmd->result = result;
 	orb->done(orb->cmd);
@@ -902,7 +902,6 @@ static int sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 	struct fw_device *device = fw_device(unit->device.parent);
 	struct scatterlist *sg;
 	int sg_len, l, i, j, count;
-	size_t size;
 	dma_addr_t sg_addr;
 
 	sg = (struct scatterlist *)orb->cmd->request_buffer;
@@ -951,7 +950,13 @@ static int sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 		}
 	}
 
-	size = sizeof(orb->page_table[0]) * j;
+	fw_memcpy_to_be32(orb->page_table, orb->page_table,
+			  sizeof(orb->page_table[0]) * j);
+	orb->page_table_bus =
+		dma_map_single(device->card->device, orb->page_table,
+			       sizeof(orb->page_table), DMA_TO_DEVICE);
+	if (dma_mapping_error(orb->page_table_bus))
+		goto fail_page_table;
 
 	/*
 	 * The data_descriptor pointer is the one case where we need
@@ -960,19 +965,11 @@ static int sbp2_command_orb_map_scatterlist(struct sbp2_command_orb *orb)
 	 * initiator (i.e. us), but data_descriptor can refer to data
 	 * on other nodes so we need to put our ID in descriptor.high.
 	 */
-
-	orb->page_table_bus =
-		dma_map_single(device->card->device, orb->page_table,
-			       size, DMA_TO_DEVICE);
-	if (dma_mapping_error(orb->page_table_bus))
-		goto fail_page_table;
 	orb->request.data_descriptor.high = sd->address_high;
 	orb->request.data_descriptor.low  = orb->page_table_bus;
 	orb->request.misc |=
 		COMMAND_ORB_PAGE_TABLE_PRESENT |
 		COMMAND_ORB_DATA_SIZE(j);
-
-	fw_memcpy_to_be32(orb->page_table, orb->page_table, size);
 
 	return 0;
 
