@@ -16,6 +16,11 @@ menuconfig ATA
 	  that "speaks" the ATA protocol, also called ATA controller),
 	  because you will be asked for it.
 
+	  NOTE: ATA enables basic SCSI support; *however*,
+	  'SCSI disk support', 'SCSI tape support', or
+	  'SCSI CDROM support' may also be needed,
+	  depending on your hardware configuration.
+
 if ATA
 
 config ATA_NONSTANDARD
