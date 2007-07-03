@@ -537,6 +537,24 @@ static int wlan_ret_get_log(wlan_private * priv,
 	return 0;
 }
 
+static int libertas_ret_802_11_enable_rsn(wlan_private * priv,
+                                          struct cmd_ds_command *resp)
+{
+	struct cmd_ds_802_11_enable_rsn *enable_rsn = &resp->params.enbrsn;
+	wlan_adapter *adapter = priv->adapter;
+	u32 * pdata_buf = adapter->cur_cmd->pdata_buf;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	if (enable_rsn->action == cpu_to_le16(cmd_act_get)) {
+		if (pdata_buf)
+			*pdata_buf = (u32) le16_to_cpu(enable_rsn->enable);
+	}
+
+	lbs_deb_enter(LBS_DEB_CMD);
+	return 0;
+}
+
 static inline int handle_cmd_response(u16 respcmd,
 				      struct cmd_ds_command *resp,
 				      wlan_private *priv)
@@ -610,7 +628,10 @@ static inline int handle_cmd_response(u16 respcmd,
 	case cmd_ret_802_11_authenticate:
 	case cmd_ret_802_11_radio_control:
 	case cmd_ret_802_11_beacon_stop:
+		break;
+
 	case cmd_ret_802_11_enable_rsn:
+		ret = libertas_ret_802_11_enable_rsn(priv, resp);
 		break;
 
 	case cmd_ret_802_11_data_rate:

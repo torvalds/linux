@@ -953,11 +953,14 @@ static int usbnet_start_xmit (struct sk_buff *skb, struct net_device *net)
 	/* don't assume the hardware handles USB_ZERO_PACKET
 	 * NOTE:  strictly conforming cdc-ether devices should expect
 	 * the ZLP here, but ignore the one-byte packet.
-	 *
-	 * FIXME zero that byte, if it doesn't require a new skb.
 	 */
-	if ((length % dev->maxpacket) == 0)
+	if ((length % dev->maxpacket) == 0) {
 		urb->transfer_buffer_length++;
+		if (skb_tailroom(skb)) {
+			skb->data[skb->len] = 0;
+			__skb_put(skb, 1);
+		}
+	}
 
 	spin_lock_irqsave (&dev->txq.lock, flags);
 

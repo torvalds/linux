@@ -114,6 +114,20 @@
 #define CRB_V2P_3		    NETXEN_NIC_REG(0x29c)
 #define CRB_V2P(port)		    (CRB_V2P_0+((port)*4))
 #define CRB_DRIVER_VERSION	    NETXEN_NIC_REG(0x2a0)
+/* sw int status/mask registers */
+#define CRB_SW_INT_MASK_0	   NETXEN_NIC_REG(0x1d8)
+#define CRB_SW_INT_MASK_1	   NETXEN_NIC_REG(0x1e0)
+#define CRB_SW_INT_MASK_2	   NETXEN_NIC_REG(0x1e4)
+#define CRB_SW_INT_MASK_3	   NETXEN_NIC_REG(0x1e8)
+
+/*
+ * capabilities register, can be used to selectively enable/disable features
+ * for backward compability
+ */
+#define CRB_NIC_CAPABILITIES_HOST	NETXEN_NIC_REG(0x1a8)
+#define CRB_NIC_CAPABILITIES_FW	  	NETXEN_NIC_REG(0x1dc)
+
+#define INTR_SCHEME_PERPORT	      	0x1
 
 /* used for ethtool tests */
 #define CRB_SCRATCHPAD_TEST	    NETXEN_NIC_REG(0x280)

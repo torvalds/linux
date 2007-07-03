@@ -414,17 +414,15 @@ static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->mii.reg_num_mask = 0x1f;
 
 	/* reset */
-	ret = dm_write_reg(dev, DM_NET_CTRL, 1);
+	dm_write_reg(dev, DM_NET_CTRL, 1);
 	udelay(20);
 
 	/* read MAC */
-	ret = dm_read(dev, DM_PHY_ADDR, ETH_ALEN, dev->net->dev_addr);
-	if (ret < 0) {
+	if (dm_read(dev, DM_PHY_ADDR, ETH_ALEN, dev->net->dev_addr) < 0) {
 		printk(KERN_ERR "Error reading MAC address\n");
 		ret = -ENODEV;
 		goto out;
 	}
-
 
 	/* power up phy */
 	dm_write_reg(dev, DM_GPR_CTRL, 1);
@@ -489,6 +487,8 @@ static struct sk_buff *dm9601_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	   b3..n: packet data
 	*/
 
+	len = skb->len;
+
 	if (skb_headroom(skb) < DM_TX_OVERHEAD) {
 		struct sk_buff *skb2;
 
@@ -501,10 +501,9 @@ static struct sk_buff *dm9601_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 
 	__skb_push(skb, DM_TX_OVERHEAD);
 
-	len = skb->len;
 	/* usbnet adds padding if length is a multiple of packet size
 	   if so, adjust length value in header */
-	if ((len % dev->maxpacket) == 0)
+	if ((skb->len % dev->maxpacket) == 0)
 		len++;
 
 	skb->data[0] = len;

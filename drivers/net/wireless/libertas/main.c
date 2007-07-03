@@ -181,7 +181,8 @@ u16 libertas_region_code_to_index[MRVDRV_MAX_REGION_CODE] =
  * @brief Get function for sysfs attribute anycast_mask
  */
 static ssize_t libertas_anycast_get(struct device * dev,
-		struct device_attribute *attr, char * buf) {
+		struct device_attribute *attr, char * buf)
+{
 	struct cmd_ds_mesh_access mesh_access;
 
 	memset(&mesh_access, 0, sizeof(mesh_access));
@@ -197,7 +198,8 @@ static ssize_t libertas_anycast_get(struct device * dev,
  * @brief Set function for sysfs attribute anycast_mask
  */
 static ssize_t libertas_anycast_set(struct device * dev,
-		struct device_attribute *attr, const char * buf, size_t count) {
+		struct device_attribute *attr, const char * buf, size_t count)
+{
 	struct cmd_ds_mesh_access mesh_access;
 	uint32_t datum;
 
@@ -799,7 +801,6 @@ wlan_private *libertas_add_card(void *card, struct device *dmdev)
 	dev->open = wlan_open;
 	dev->hard_start_xmit = wlan_pre_start_xmit;
 	dev->stop = wlan_close;
-	dev->do_ioctl = libertas_do_ioctl;
 	dev->set_mac_address = wlan_set_mac_address;
 	dev->tx_timeout = wlan_tx_timeout;
 	dev->get_stats = wlan_get_stats;
@@ -918,7 +919,6 @@ int libertas_add_mesh(wlan_private *priv, struct device *dev)
 	mesh_dev->open = mesh_open;
 	mesh_dev->hard_start_xmit = mesh_pre_start_xmit;
 	mesh_dev->stop = mesh_close;
-	mesh_dev->do_ioctl = libertas_do_ioctl;
 	mesh_dev->get_stats = wlan_get_stats;
 	mesh_dev->set_mac_address = wlan_set_mac_address;
 	mesh_dev->ethtool_ops = &libertas_ethtool_ops;

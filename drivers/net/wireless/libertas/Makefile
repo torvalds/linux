@@ -2,7 +2,7 @@ libertas-objs := main.o fw.o wext.o \
 		rx.o tx.o cmd.o 	  \
 		cmdresp.o scan.o	  \
 		join.o 11d.o 		  \
-		ioctl.o debugfs.o	  \
+		debugfs.o	  \
 		ethtool.o assoc.o
 
 usb8xxx-objs += if_bootcmd.o
