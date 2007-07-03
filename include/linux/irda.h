@@ -242,6 +242,7 @@ enum nl80211_attrs {
 /* IrDA modes */
 #define IRDA_MODE_PRIMARY   0x1
 #define IRDA_MODE_SECONDARY 0x2
+#define IRDA_MODE_MONITOR   0x4
 
 #endif /* KERNEL_IRDA_H */
 

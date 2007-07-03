@@ -101,6 +101,13 @@ void irlap_queue_xmit(struct irlap_cb *self, struct sk_buff *skb)
 
 	irlap_insert_info(self, skb);
 
+	if (unlikely(self->mode & IRDA_MODE_MONITOR)) {
+		IRDA_DEBUG(3, "%s(): %s is in monitor mode\n", __FUNCTION__,
+			   self->netdev->name);
+		dev_kfree_skb(skb);
+		return;
+	}
+
 	dev_queue_xmit(skb);
 }
 
