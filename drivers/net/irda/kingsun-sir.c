@@ -4,7 +4,7 @@
 * Version:       0.1.1
 * Description:   Irda KingSun/DonShine USB Dongle
 * Status:        Experimental
-* Author:        Alex Villac�s Lasso <a_villacis@palosanto.com>
+* Author:        Alex Villacís Lasso <a_villacis@palosanto.com>
 *
 *  	Based on stir4200 and mcs7780 drivers, with (strange?) differences
 *
@@ -652,6 +652,6 @@ static void __exit kingsun_cleanup(void)
 }
 module_exit(kingsun_cleanup);
 
-MODULE_AUTHOR("Alex Villac�s Lasso <a_villacis@palosanto.com>");
+MODULE_AUTHOR("Alex Villacís Lasso <a_villacis@palosanto.com>");
 MODULE_DESCRIPTION("IrDA-USB Dongle Driver for KingSun/DonShine");
 MODULE_LICENSE("GPL");
