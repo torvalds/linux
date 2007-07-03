@@ -306,11 +306,13 @@ static long __devinit read_counter(u32 dma_base)
  */
 static long __devinit detect_pll_input_clock(unsigned long dma_base)
 {
+	struct timeval start_time, end_time;
 	long start_count, end_count;
-	long pll_input;
+	long pll_input, usec_elapsed;
 	u8 scr1;
 
 	start_count = read_counter(dma_base);
+	do_gettimeofday(&start_time);
 
 	/* Start the test mode */
 	outb(0x01, dma_base + 0x01);
@@ -322,6 +324,7 @@ static long __devinit detect_pll_input_clock(unsigned long dma_base)
 	mdelay(10);
 
 	end_count = read_counter(dma_base);
+	do_gettimeofday(&end_time);
 
 	/* Stop the test mode */
 	outb(0x01, dma_base + 0x01);
@@ -333,7 +336,10 @@ static long __devinit detect_pll_input_clock(unsigned long dma_base)
 	 * Calculate the input clock in Hz
 	 * (the clock counter is 30 bit wide and counts down)
 	 */
-	pll_input = ((start_count - end_count) & 0x3ffffff) * 100;
+	usec_elapsed = (end_time.tv_sec - start_time.tv_sec) * 1000000 +
+		(end_time.tv_usec - start_time.tv_usec);
+	pll_input = ((start_count - end_count) & 0x3ffffff) / 10 *
+		(10000000 / usec_elapsed);
 
 	DBG("start[%ld] end[%ld]\n", start_count, end_count);
 
