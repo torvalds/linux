@@ -4139,6 +4139,373 @@ out:
 	return ret;
 }
 
+static int ocfs2_split_tree(struct inode *inode, struct buffer_head *di_bh,
+			    handle_t *handle, struct ocfs2_path *path,
+			    int index, u32 new_range,
+			    struct ocfs2_alloc_context *meta_ac)
+{
+	int ret, depth, credits = handle->h_buffer_credits;
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
+	struct buffer_head *last_eb_bh = NULL;
+	struct ocfs2_extent_block *eb;
+	struct ocfs2_extent_list *rightmost_el, *el;
+	struct ocfs2_extent_rec split_rec;
+	struct ocfs2_extent_rec *rec;
+	struct ocfs2_insert_type insert;
+
+	/*
+	 * Setup the record to split before we grow the tree.
+	 */
+	el = path_leaf_el(path);
+	rec = &el->l_recs[index];
+	ocfs2_make_right_split_rec(inode->i_sb, &split_rec, new_range, rec);
+
+	depth = path->p_tree_depth;
+	if (depth > 0) {
+		ret = ocfs2_read_block(OCFS2_SB(inode->i_sb),
+				       le64_to_cpu(di->i_last_eb_blk),
+				       &last_eb_bh, OCFS2_BH_CACHED, inode);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		eb = (struct ocfs2_extent_block *) last_eb_bh->b_data;
+		rightmost_el = &eb->h_list;
+	} else
+		rightmost_el = path_leaf_el(path);
+
+	credits += path->p_tree_depth + ocfs2_extend_meta_needed(di);
+	ret = ocfs2_extend_trans(handle, credits);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	if (le16_to_cpu(rightmost_el->l_next_free_rec) ==
+	    le16_to_cpu(rightmost_el->l_count)) {
+		int old_depth = depth;
+
+		ret = ocfs2_grow_tree(inode, handle, di_bh, &depth, &last_eb_bh,
+				      meta_ac);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		if (old_depth != depth) {
+			eb = (struct ocfs2_extent_block *)last_eb_bh->b_data;
+			rightmost_el = &eb->h_list;
+		}
+	}
+
+	memset(&insert, 0, sizeof(struct ocfs2_insert_type));
+	insert.ins_appending = APPEND_NONE;
+	insert.ins_contig = CONTIG_NONE;
+	insert.ins_split = SPLIT_RIGHT;
+	insert.ins_free_records = le16_to_cpu(rightmost_el->l_count)
+		- le16_to_cpu(rightmost_el->l_next_free_rec);
+	insert.ins_tree_depth = depth;
+
+	ret = ocfs2_do_insert_extent(inode, handle, di_bh, &split_rec, &insert);
+	if (ret)
+		mlog_errno(ret);
+
+out:
+	brelse(last_eb_bh);
+	return ret;
+}
+
+static int ocfs2_truncate_rec(struct inode *inode, handle_t *handle,
+			      struct ocfs2_path *path, int index,
+			      struct ocfs2_cached_dealloc_ctxt *dealloc,
+			      u32 cpos, u32 len)
+{
+	int ret;
+	u32 left_cpos, rec_range, trunc_range;
+	int wants_rotate = 0, is_rightmost_tree_rec = 0;
+	struct super_block *sb = inode->i_sb;
+	struct ocfs2_path *left_path = NULL;
+	struct ocfs2_extent_list *el = path_leaf_el(path);
+	struct ocfs2_extent_rec *rec;
+	struct ocfs2_extent_block *eb;
+
+	if (ocfs2_is_empty_extent(&el->l_recs[0]) && index > 0) {
+		ret = ocfs2_rotate_tree_left(inode, handle, path, dealloc);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		index--;
+	}
+
+	if (index == (le16_to_cpu(el->l_next_free_rec) - 1) &&
+	    path->p_tree_depth) {
+		/*
+		 * Check whether this is the rightmost tree record. If
+		 * we remove all of this record or part of its right
+		 * edge then an update of the record lengths above it
+		 * will be required.
+		 */
+		eb = (struct ocfs2_extent_block *)path_leaf_bh(path)->b_data;
+		if (eb->h_next_leaf_blk == 0)
+			is_rightmost_tree_rec = 1;
+	}
+
+	rec = &el->l_recs[index];
+	if (index == 0 && path->p_tree_depth &&
+	    le32_to_cpu(rec->e_cpos) == cpos) {
+		/*
+		 * Changing the leftmost offset (via partial or whole
+		 * record truncate) of an interior (or rightmost) path
+		 * means we have to update the subtree that is formed
+		 * by this leaf and the one to it's left.
+		 *
+		 * There are two cases we can skip:
+		 *   1) Path is the leftmost one in our inode tree.
+		 *   2) The leaf is rightmost and will be empty after
+		 *      we remove the extent record - the rotate code
+		 *      knows how to update the newly formed edge.
+		 */
+
+		ret = ocfs2_find_cpos_for_left_leaf(inode->i_sb, path,
+						    &left_cpos);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		if (left_cpos && le16_to_cpu(el->l_next_free_rec) > 1) {
+			left_path = ocfs2_new_path(path_root_bh(path),
+						   path_root_el(path));
+			if (!left_path) {
+				ret = -ENOMEM;
+				mlog_errno(ret);
+				goto out;
+			}
+
+			ret = ocfs2_find_path(inode, left_path, left_cpos);
+			if (ret) {
+				mlog_errno(ret);
+				goto out;
+			}
+		}
+	}
+
+	ret = ocfs2_extend_rotate_transaction(handle, 0,
+					      handle->h_buffer_credits,
+					      path);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_journal_access_path(inode, handle, path);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_journal_access_path(inode, handle, left_path);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	rec_range = le32_to_cpu(rec->e_cpos) + ocfs2_rec_clusters(el, rec);
+	trunc_range = cpos + len;
+
+	if (le32_to_cpu(rec->e_cpos) == cpos && rec_range == trunc_range) {
+		int next_free;
+
+		memset(rec, 0, sizeof(*rec));
+		ocfs2_cleanup_merge(el, index);
+		wants_rotate = 1;
+
+		next_free = le16_to_cpu(el->l_next_free_rec);
+		if (is_rightmost_tree_rec && next_free > 1) {
+			/*
+			 * We skip the edge update if this path will
+			 * be deleted by the rotate code.
+			 */
+			rec = &el->l_recs[next_free - 1];
+			ocfs2_adjust_rightmost_records(inode, handle, path,
+						       rec);
+		}
+	} else if (le32_to_cpu(rec->e_cpos) == cpos) {
+		/* Remove leftmost portion of the record. */
+		le32_add_cpu(&rec->e_cpos, len);
+		le64_add_cpu(&rec->e_blkno, ocfs2_clusters_to_blocks(sb, len));
+		le16_add_cpu(&rec->e_leaf_clusters, -len);
+	} else if (rec_range == trunc_range) {
+		/* Remove rightmost portion of the record */
+		le16_add_cpu(&rec->e_leaf_clusters, -len);
+		if (is_rightmost_tree_rec)
+			ocfs2_adjust_rightmost_records(inode, handle, path, rec);
+	} else {
+		/* Caller should have trapped this. */
+		mlog(ML_ERROR, "Inode %llu: Invalid record truncate: (%u, %u) "
+		     "(%u, %u)\n", (unsigned long long)OCFS2_I(inode)->ip_blkno,
+		     le32_to_cpu(rec->e_cpos),
+		     le16_to_cpu(rec->e_leaf_clusters), cpos, len);
+		BUG();
+	}
+
+	if (left_path) {
+		int subtree_index;
+
+		subtree_index = ocfs2_find_subtree_root(inode, left_path, path);
+		ocfs2_complete_edge_insert(inode, handle, left_path, path,
+					   subtree_index);
+	}
+
+	ocfs2_journal_dirty(handle, path_leaf_bh(path));
+
+	ret = ocfs2_rotate_tree_left(inode, handle, path, dealloc);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+out:
+	ocfs2_free_path(left_path);
+	return ret;
+}
+
+static int ocfs2_remove_extent(struct inode *inode, struct buffer_head *di_bh,
+			       u32 cpos, u32 len, handle_t *handle,
+			       struct ocfs2_alloc_context *meta_ac,
+			       struct ocfs2_cached_dealloc_ctxt *dealloc)
+{
+	int ret, index;
+	u32 rec_range, trunc_range;
+	struct ocfs2_extent_rec *rec;
+	struct ocfs2_extent_list *el;
+	struct ocfs2_path *path;
+
+	ocfs2_extent_map_trunc(inode, 0);
+
+	path = ocfs2_new_inode_path(di_bh);
+	if (!path) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_find_path(inode, path, cpos);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	el = path_leaf_el(path);
+	index = ocfs2_search_extent_list(el, cpos);
+	if (index == -1 || index >= le16_to_cpu(el->l_next_free_rec)) {
+		ocfs2_error(inode->i_sb,
+			    "Inode %llu has an extent at cpos %u which can no "
+			    "longer be found.\n",
+			    (unsigned long long)OCFS2_I(inode)->ip_blkno, cpos);
+		ret = -EROFS;
+		goto out;
+	}
+
+	/*
+	 * We have 3 cases of extent removal:
+	 *   1) Range covers the entire extent rec
+	 *   2) Range begins or ends on one edge of the extent rec
+	 *   3) Range is in the middle of the extent rec (no shared edges)
+	 *
+	 * For case 1 we remove the extent rec and left rotate to
+	 * fill the hole.
+	 *
+	 * For case 2 we just shrink the existing extent rec, with a
+	 * tree update if the shrinking edge is also the edge of an
+	 * extent block.
+	 *
+	 * For case 3 we do a right split to turn the extent rec into
+	 * something case 2 can handle.
+	 */
+	rec = &el->l_recs[index];
+	rec_range = le32_to_cpu(rec->e_cpos) + ocfs2_rec_clusters(el, rec);
+	trunc_range = cpos + len;
+
+	BUG_ON(cpos < le32_to_cpu(rec->e_cpos) || trunc_range > rec_range);
+
+	mlog(0, "Inode %llu, remove (cpos %u, len %u). Existing index %d "
+	     "(cpos %u, len %u)\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno, cpos, len, index,
+	     le32_to_cpu(rec->e_cpos), ocfs2_rec_clusters(el, rec));
+
+	if (le32_to_cpu(rec->e_cpos) == cpos || rec_range == trunc_range) {
+		ret = ocfs2_truncate_rec(inode, handle, path, index, dealloc,
+					 cpos, len);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+	} else {
+		ret = ocfs2_split_tree(inode, di_bh, handle, path, index,
+				       trunc_range, meta_ac);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		/*
+		 * The split could have manipulated the tree enough to
+		 * move the record location, so we have to look for it again.
+		 */
+		ocfs2_reinit_path(path, 1);
+
+		ret = ocfs2_find_path(inode, path, cpos);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		el = path_leaf_el(path);
+		index = ocfs2_search_extent_list(el, cpos);
+		if (index == -1 || index >= le16_to_cpu(el->l_next_free_rec)) {
+			ocfs2_error(inode->i_sb,
+				    "Inode %llu: split at cpos %u lost record.",
+				    (unsigned long long)OCFS2_I(inode)->ip_blkno,
+				    cpos);
+			ret = -EROFS;
+			goto out;
+		}
+
+		/*
+		 * Double check our values here. If anything is fishy,
+		 * it's easier to catch it at the top level.
+		 */
+		rec = &el->l_recs[index];
+		rec_range = le32_to_cpu(rec->e_cpos) +
+			ocfs2_rec_clusters(el, rec);
+		if (rec_range != trunc_range) {
+			ocfs2_error(inode->i_sb,
+				    "Inode %llu: error after split at cpos %u"
+				    "trunc len %u, existing record is (%u,%u)",
+				    (unsigned long long)OCFS2_I(inode)->ip_blkno,
+				    cpos, len, le32_to_cpu(rec->e_cpos),
+				    ocfs2_rec_clusters(el, rec));
+			ret = -EROFS;
+			goto out;
+		}
+
+		ret = ocfs2_truncate_rec(inode, handle, path, index, dealloc,
+					 cpos, len);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+	}
+
+out:
+	ocfs2_free_path(path);
+	return ret;
+}
+
 static inline int ocfs2_truncate_log_needs_flush(struct ocfs2_super *osb)
 {
 	struct buffer_head *tl_bh = osb->osb_tl_bh;
