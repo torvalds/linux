@@ -324,8 +324,8 @@ config RADIO_ZOLTRIX_PORT
 	  Enter the I/O port of your Zoltrix radio card.
 
 config USB_DSBR
-	tristate "D-Link USB FM radio support (EXPERIMENTAL)"
-	depends on USB && VIDEO_V4L2 && EXPERIMENTAL
+	tristate "D-Link/GemTek USB FM radio support"
+	depends on USB && VIDEO_V4L2
 	---help---
 	  Say Y here if you want to connect this type of radio to your
 	  computer's USB port. Note that the audio is not digital, and
