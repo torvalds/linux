@@ -1072,8 +1072,10 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		invalid &= ~NFS_INO_INVALID_DATA;
 	if (data_stable)
 		invalid &= ~(NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ATIME|NFS_INO_REVAL_PAGECACHE);
-	if (!nfs_have_delegation(inode, FMODE_READ))
+	if (!nfs_have_delegation(inode, FMODE_READ) ||
+			(nfsi->cache_validity & NFS_INO_REVAL_FORCED))
 		nfsi->cache_validity |= invalid;
+	nfsi->cache_validity &= ~NFS_INO_REVAL_FORCED;
 
 	return 0;
  out_changed:

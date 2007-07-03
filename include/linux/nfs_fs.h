@@ -184,6 +184,7 @@ struct nfs_inode {
 #define NFS_INO_INVALID_ACCESS	0x0008		/* cached access cred invalid */
 #define NFS_INO_INVALID_ACL	0x0010		/* cached acls are invalid */
 #define NFS_INO_REVAL_PAGECACHE	0x0020		/* must revalidate pagecache */
+#define NFS_INO_REVAL_FORCED	0x0040		/* force revalidation ignoring a delegation */
 
 /*
  * Bit offsets in flags field
