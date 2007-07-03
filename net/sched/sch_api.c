@@ -19,29 +19,17 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/socket.h>
-#include <linux/sockios.h>
-#include <linux/in.h>
 #include <linux/errno.h>
-#include <linux/interrupt.h>
-#include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/kmod.h>
 #include <linux/list.h>
-#include <linux/bitops.h>
 #include <linux/hrtimer.h>
 
 #include <net/netlink.h>
-#include <net/sock.h>
 #include <net/pkt_sched.h>
-
-#include <asm/processor.h>
-#include <asm/uaccess.h>
-#include <asm/system.h>
 
 static int qdisc_notify(struct sk_buff *oskb, struct nlmsghdr *n, u32 clid,
 			struct Qdisc *old, struct Qdisc *new);

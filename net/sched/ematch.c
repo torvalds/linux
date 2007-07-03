@@ -84,9 +84,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/mm.h>
 #include <linux/errno.h>
-#include <linux/interrupt.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
 #include <net/pkt_cls.h>

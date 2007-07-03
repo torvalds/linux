@@ -9,7 +9,6 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
-#include <linux/netdevice.h> /* for pkt_sched */
 #include <linux/rtnetlink.h>
 #include <net/pkt_sched.h>
 #include <net/dsfield.h>

@@ -8,15 +8,12 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
-#include <linux/interrupt.h>
 #include <linux/atmdev.h>
 #include <linux/atmclip.h>
-#include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/file.h> /* for fput */
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
-#include <net/sock.h>
 
 
 extern struct socket *sockfd_lookup(int fd, int *err); /* @@@ fix this */

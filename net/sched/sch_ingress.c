@@ -9,21 +9,14 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/list.h>
 #include <linux/skbuff.h>
-#include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
 #include <linux/netfilter.h>
-#include <linux/smp.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
-#include <asm/byteorder.h>
-#include <asm/uaccess.h>
-#include <linux/kmod.h>
-#include <linux/stat.h>
-#include <linux/interrupt.h>
-#include <linux/list.h>
 
 
 #undef DEBUG_INGRESS
