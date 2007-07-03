@@ -88,16 +88,23 @@ EXPORT_SYMBOL(irda_notify_init);
  */
 static int __init irda_init(void)
 {
+	int ret = 0;
+
 	IRDA_DEBUG(0, "%s()\n", __FUNCTION__);
 
 	/* Lower layer of the stack */
 	irlmp_init();
 	irlap_init();
 
+	/* Driver/dongle support */
+	irda_device_init();
+
 	/* Higher layers of the stack */
 	iriap_init();
 	irttp_init();
-	irsock_init();
+	ret = irsock_init();
+	if (ret < 0)
+		goto out_err_1;
 
 	/* Add IrDA packet type (Start receiving packets) */
 	dev_add_pack(&irda_packet_type);
@@ -107,13 +114,44 @@ static int __init irda_init(void)
 	irda_proc_register();
 #endif
 #ifdef CONFIG_SYSCTL
-	irda_sysctl_register();
+	ret = irda_sysctl_register();
+	if (ret < 0)
+		goto out_err_2;
 #endif
 
-	/* Driver/dongle support */
-	irda_device_init();
+	ret = irda_nl_register();
+	if (ret < 0)
+		goto out_err_3;
 
 	return 0;
+
+ out_err_3:
+#ifdef CONFIG_SYSCTL
+	irda_sysctl_unregister();
+#endif
+ out_err_2:
+#ifdef CONFIG_PROC_FS
+	irda_proc_unregister();
+#endif
+
+	/* Remove IrDA packet type (stop receiving packets) */
+	dev_remove_pack(&irda_packet_type);
+
+	/* Remove higher layers */
+	irsock_cleanup();
+ out_err_1:
+	irttp_cleanup();
+	iriap_cleanup();
+
+	/* Remove lower layers */
+	irda_device_cleanup();
+	irlap_cleanup(); /* Must be done before irlmp_cleanup()! DB */
+
+	/* Remove middle layer */
+	irlmp_cleanup();
+
+
+	return ret;
 }
 
 /*
@@ -125,6 +163,8 @@ static int __init irda_init(void)
 static void __exit irda_cleanup(void)
 {
 	/* Remove External APIs */
+	irda_nl_unregister();
+
 #ifdef CONFIG_SYSCTL
 	irda_sysctl_unregister();
 #endif

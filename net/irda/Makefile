@@ -10,6 +10,6 @@ obj-$(CONFIG_IRCOMM) += ircomm/
 irda-y := iriap.o iriap_event.o irlmp.o irlmp_event.o irlmp_frame.o \
           irlap.o irlap_event.o irlap_frame.o timer.o qos.o irqueue.o \
           irttp.o irda_device.o irias_object.o wrapper.o af_irda.o \
-	  discovery.o parameters.o irmod.o
+	  discovery.o parameters.o irnetlink.o irmod.o
 irda-$(CONFIG_PROC_FS) += irproc.o
 irda-$(CONFIG_SYSCTL) += irsysctl.o
