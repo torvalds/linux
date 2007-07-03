@@ -41,6 +41,10 @@ int ocfs2_mark_extent_written(struct inode *inode, struct buffer_head *di_bh,
 			      handle_t *handle, u32 cpos, u32 len, u32 phys,
 			      struct ocfs2_alloc_context *meta_ac,
 			      struct ocfs2_cached_dealloc_ctxt *dealloc);
+int ocfs2_remove_extent(struct inode *inode, struct buffer_head *di_bh,
+			u32 cpos, u32 len, handle_t *handle,
+			struct ocfs2_alloc_context *meta_ac,
+			struct ocfs2_cached_dealloc_ctxt *dealloc);
 int ocfs2_num_free_extents(struct ocfs2_super *osb,
 			   struct inode *inode,
 			   struct ocfs2_dinode *fe);
@@ -68,6 +72,12 @@ int ocfs2_begin_truncate_log_recovery(struct ocfs2_super *osb,
 				      struct ocfs2_dinode **tl_copy);
 int ocfs2_complete_truncate_log_recovery(struct ocfs2_super *osb,
 					 struct ocfs2_dinode *tl_copy);
+int ocfs2_truncate_log_needs_flush(struct ocfs2_super *osb);
+int ocfs2_truncate_log_append(struct ocfs2_super *osb,
+			      handle_t *handle,
+			      u64 start_blk,
+			      unsigned int num_clusters);
+int __ocfs2_flush_truncate_log(struct ocfs2_super *osb);
 
 /*
  * Process local structure which describes the block unlinks done

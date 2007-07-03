@@ -541,12 +541,15 @@ int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_dinode *di,
 			  struct ocfs2_alloc_context **data_ac,
 			  struct ocfs2_alloc_context **meta_ac)
 {
-	int ret, num_free_extents;
+	int ret = 0, num_free_extents;
 	unsigned int max_recs_needed = clusters_to_add + 2 * extents_to_split;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	*meta_ac = NULL;
-	*data_ac = NULL;
+	if (data_ac)
+		*data_ac = NULL;
+
+	BUG_ON(clusters_to_add != 0 && data_ac == NULL);
 
 	mlog(0, "extend inode %llu, i_size = %lld, di->i_clusters = %u, "
 	     "clusters_to_add = %u, extents_to_split = %u\n",
@@ -582,6 +585,9 @@ int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_dinode *di,
 			goto out;
 		}
 	}
+
+	if (clusters_to_add == 0)
+		goto out;
 
 	ret = ocfs2_reserve_clusters(osb, clusters_to_add, data_ac);
 	if (ret < 0) {
@@ -1249,6 +1255,238 @@ next:
 
 	ret = 0;
 out:
+	return ret;
+}
+
+static int __ocfs2_remove_inode_range(struct inode *inode,
+				      struct buffer_head *di_bh,
+				      u32 cpos, u32 phys_cpos, u32 len,
+				      struct ocfs2_cached_dealloc_ctxt *dealloc)
+{
+	int ret;
+	u64 phys_blkno = ocfs2_clusters_to_blocks(inode->i_sb, phys_cpos);
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct inode *tl_inode = osb->osb_tl_inode;
+	handle_t *handle;
+	struct ocfs2_alloc_context *meta_ac = NULL;
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
+
+	ret = ocfs2_lock_allocators(inode, di, 0, 1, NULL, &meta_ac);
+	if (ret) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	mutex_lock(&tl_inode->i_mutex);
+
+	if (ocfs2_truncate_log_needs_flush(osb)) {
+		ret = __ocfs2_flush_truncate_log(osb);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out;
+		}
+	}
+
+	handle = ocfs2_start_trans(osb, OCFS2_REMOVE_EXTENT_CREDITS);
+	if (handle == NULL) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_journal_access(handle, inode, di_bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_remove_extent(inode, di_bh, cpos, len, handle, meta_ac,
+				  dealloc);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	OCFS2_I(inode)->ip_clusters -= len;
+	di->i_clusters = cpu_to_le32(OCFS2_I(inode)->ip_clusters);
+
+	ret = ocfs2_journal_dirty(handle, di_bh);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	ret = ocfs2_truncate_log_append(osb, handle, phys_blkno, len);
+	if (ret)
+		mlog_errno(ret);
+
+out_commit:
+	ocfs2_commit_trans(osb, handle);
+out:
+	mutex_unlock(&tl_inode->i_mutex);
+
+	if (meta_ac)
+		ocfs2_free_alloc_context(meta_ac);
+
+	return ret;
+}
+
+/*
+ * Truncate a byte range, avoiding pages within partial clusters. This
+ * preserves those pages for the zeroing code to write to.
+ */
+static void ocfs2_truncate_cluster_pages(struct inode *inode, u64 byte_start,
+					 u64 byte_len)
+{
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	loff_t start, end;
+	struct address_space *mapping = inode->i_mapping;
+
+	start = (loff_t)ocfs2_align_bytes_to_clusters(inode->i_sb, byte_start);
+	end = byte_start + byte_len;
+	end = end & ~(osb->s_clustersize - 1);
+
+	if (start < end) {
+		unmap_mapping_range(mapping, start, end - start, 0);
+		truncate_inode_pages_range(mapping, start, end - 1);
+	}
+}
+
+static int ocfs2_zero_partial_clusters(struct inode *inode,
+				       u64 start, u64 len)
+{
+	int ret = 0;
+	u64 tmpend, end = start + len;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	unsigned int csize = osb->s_clustersize;
+	handle_t *handle;
+
+	/*
+	 * The "start" and "end" values are NOT necessarily part of
+	 * the range whose allocation is being deleted. Rather, this
+	 * is what the user passed in with the request. We must zero
+	 * partial clusters here. There's no need to worry about
+	 * physical allocation - the zeroing code knows to skip holes.
+	 */
+	mlog(0, "byte start: %llu, end: %llu\n",
+	     (unsigned long long)start, (unsigned long long)end);
+
+	/*
+	 * If both edges are on a cluster boundary then there's no
+	 * zeroing required as the region is part of the allocation to
+	 * be truncated.
+	 */
+	if ((start & (csize - 1)) == 0 && (end & (csize - 1)) == 0)
+		goto out;
+
+	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
+	if (handle == NULL) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	/*
+	 * We want to get the byte offset of the end of the 1st cluster.
+	 */
+	tmpend = (u64)osb->s_clustersize + (start & ~(osb->s_clustersize - 1));
+	if (tmpend > end)
+		tmpend = end;
+
+	mlog(0, "1st range: start: %llu, tmpend: %llu\n",
+	     (unsigned long long)start, (unsigned long long)tmpend);
+
+	ret = ocfs2_zero_range_for_truncate(inode, handle, start, tmpend);
+	if (ret)
+		mlog_errno(ret);
+
+	if (tmpend < end) {
+		/*
+		 * This may make start and end equal, but the zeroing
+		 * code will skip any work in that case so there's no
+		 * need to catch it up here.
+		 */
+		start = end & ~(osb->s_clustersize - 1);
+
+		mlog(0, "2nd range: start: %llu, end: %llu\n",
+		     (unsigned long long)start, (unsigned long long)end);
+
+		ret = ocfs2_zero_range_for_truncate(inode, handle, start, end);
+		if (ret)
+			mlog_errno(ret);
+	}
+
+	ocfs2_commit_trans(osb, handle);
+out:
+	return ret;
+}
+
+static int ocfs2_remove_inode_range(struct inode *inode,
+				    struct buffer_head *di_bh, u64 byte_start,
+				    u64 byte_len)
+{
+	int ret = 0;
+	u32 trunc_start, trunc_len, cpos, phys_cpos, alloc_size;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_cached_dealloc_ctxt dealloc;
+
+	ocfs2_init_dealloc_ctxt(&dealloc);
+
+	if (byte_len == 0)
+		return 0;
+
+	trunc_start = ocfs2_clusters_for_bytes(osb->sb, byte_start);
+	trunc_len = (byte_start + byte_len) >> osb->s_clustersize_bits;
+	if (trunc_len >= trunc_start)
+		trunc_len -= trunc_start;
+	else
+		trunc_len = 0;
+
+	mlog(0, "Inode: %llu, start: %llu, len: %llu, cstart: %u, clen: %u\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
+	     (unsigned long long)byte_start,
+	     (unsigned long long)byte_len, trunc_start, trunc_len);
+
+	ret = ocfs2_zero_partial_clusters(inode, byte_start, byte_len);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	cpos = trunc_start;
+	while (trunc_len) {
+		ret = ocfs2_get_clusters(inode, cpos, &phys_cpos,
+					 &alloc_size, NULL);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		if (alloc_size > trunc_len)
+			alloc_size = trunc_len;
+
+		/* Only do work for non-holes */
+		if (phys_cpos != 0) {
+			ret = __ocfs2_remove_inode_range(inode, di_bh, cpos,
+							 phys_cpos, alloc_size,
+							 &dealloc);
+			if (ret) {
+				mlog_errno(ret);
+				goto out;
+			}
+		}
+
+		cpos += alloc_size;
+		trunc_len -= alloc_size;
+	}
+
+	ocfs2_truncate_cluster_pages(inode, byte_start, byte_len);
+
+out:
+	ocfs2_schedule_truncate_log_flush(osb, 1);
+	ocfs2_run_deallocs(osb, &dealloc);
+
 	return ret;
 }
 

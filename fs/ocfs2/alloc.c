@@ -4373,10 +4373,10 @@ out:
 	return ret;
 }
 
-static int ocfs2_remove_extent(struct inode *inode, struct buffer_head *di_bh,
-			       u32 cpos, u32 len, handle_t *handle,
-			       struct ocfs2_alloc_context *meta_ac,
-			       struct ocfs2_cached_dealloc_ctxt *dealloc)
+int ocfs2_remove_extent(struct inode *inode, struct buffer_head *di_bh,
+			u32 cpos, u32 len, handle_t *handle,
+			struct ocfs2_alloc_context *meta_ac,
+			struct ocfs2_cached_dealloc_ctxt *dealloc)
 {
 	int ret, index;
 	u32 rec_range, trunc_range;
@@ -4506,7 +4506,7 @@ out:
 	return ret;
 }
 
-static inline int ocfs2_truncate_log_needs_flush(struct ocfs2_super *osb)
+int ocfs2_truncate_log_needs_flush(struct ocfs2_super *osb)
 {
 	struct buffer_head *tl_bh = osb->osb_tl_bh;
 	struct ocfs2_dinode *di;
@@ -4539,10 +4539,10 @@ static int ocfs2_truncate_log_can_coalesce(struct ocfs2_truncate_log *tl,
 	return current_tail == new_start;
 }
 
-static int ocfs2_truncate_log_append(struct ocfs2_super *osb,
-				     handle_t *handle,
-				     u64 start_blk,
-				     unsigned int num_clusters)
+int ocfs2_truncate_log_append(struct ocfs2_super *osb,
+			      handle_t *handle,
+			      u64 start_blk,
+			      unsigned int num_clusters)
 {
 	int status, index;
 	unsigned int start_cluster, tl_count;
@@ -4698,7 +4698,7 @@ bail:
 }
 
 /* Expects you to already be holding tl_inode->i_mutex */
-static int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
+int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 {
 	int status;
 	unsigned int num_to_flush;
