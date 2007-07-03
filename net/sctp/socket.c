@@ -4170,7 +4170,7 @@ static int sctp_copy_laddrs(struct sock *sk, __u16 port, void *to,
 		to += addrlen;
 		cnt ++;
 		space_left -= addrlen;
-		bytes_copied += addrlen;
+		*bytes_copied += addrlen;
 	}
 
 	return cnt;
