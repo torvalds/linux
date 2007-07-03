@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/hpt366.c		Version 1.04	Jun 4, 2007
+ * linux/drivers/ide/pci/hpt366.c		Version 1.05	Jun 26, 2007
  *
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
@@ -182,6 +182,7 @@ static const char *bad_ata66_4[] = {
 	"IC35L040AVER07-0",
 	"IC35L060AVER07-0",
 	"WDC AC310200R",
+	"MAXTOR STM3320620A",
 	NULL
 };
 
