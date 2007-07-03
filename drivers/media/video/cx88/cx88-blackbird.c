@@ -1034,6 +1034,8 @@ static int vidioc_g_tuner (struct file *file, void *priv,
 
 	if (unlikely(UNSET == core->tuner_type))
 		return -EINVAL;
+	if (0 != t->index)
+		return -EINVAL;
 
 	strcpy(t->name, "Television");
 	t->type       = V4L2_TUNER_ANALOG_TV;
