@@ -699,6 +699,14 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 			tp->fackets_out -= diff;
 			if ((int)tp->fackets_out < 0)
 				tp->fackets_out = 0;
+			/* SACK fastpath might overwrite it unless dealt with */
+			if (tp->fastpath_skb_hint != NULL &&
+			    after(TCP_SKB_CB(tp->fastpath_skb_hint)->seq,
+				  TCP_SKB_CB(skb)->seq)) {
+				tp->fastpath_cnt_hint -= diff;
+				if ((int)tp->fastpath_cnt_hint < 0)
+					tp->fastpath_cnt_hint = 0;
+			}
 		}
 	}
 
