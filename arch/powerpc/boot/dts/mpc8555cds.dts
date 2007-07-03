@@ -81,13 +81,13 @@
 			reg = <24520 20>;
 			phy0: ethernet-phy@0 {
 				interrupt-parent = <&mpic>;
-				interrupts = <5 0>;
+				interrupts = <5 1>;
 				reg = <0>;
 				device_type = "ethernet-phy";
 			};
 			phy1: ethernet-phy@1 {
 				interrupt-parent = <&mpic>;
-				interrupts = <5 0>;
+				interrupts = <5 1>;
 				reg = <1>;
 				device_type = "ethernet-phy";
 			};

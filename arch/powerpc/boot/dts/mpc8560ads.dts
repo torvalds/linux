@@ -216,7 +216,7 @@
 					 a800 0 0 4 &mpic 1 1>;
 
 			interrupt-parent = <&mpic>;
-			interrupts = <18 0>;
+			interrupts = <18 2>;
 			bus-range = <0 0>;
 			ranges = <02000000 0 80000000 80000000 0 20000000
 				  01000000 0 00000000 e2000000 0 01000000>;
@@ -246,7 +246,7 @@
 				interrupt-controller;
 				#address-cells = <0>;
 				#interrupt-cells = <2>;
-				interrupts = <2e 0>;
+				interrupts = <2e 2>;
 				interrupt-parent = <&mpic>;
 				reg = <90c00 80>;
 				built-in;
