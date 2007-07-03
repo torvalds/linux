@@ -356,6 +356,21 @@ static struct nfs4_state *nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data
 	if (state == NULL)
 		goto put_inode;
 	update_open_stateid(state, &data->o_res.stateid, data->o_arg.open_flags);
+	if (data->o_res.delegation_type != 0) {
+		struct nfs_inode *nfsi = NFS_I(inode);
+		int delegation_flags = 0;
+
+		if (nfsi->delegation)
+			delegation_flags = nfsi->delegation->flags;
+		if (!(delegation_flags & NFS_DELEGATION_NEED_RECLAIM))
+			nfs_inode_set_delegation(state->inode,
+					data->owner->so_cred,
+					&data->o_res);
+		else
+			nfs_inode_reclaim_delegation(state->inode,
+					data->owner->so_cred,
+					&data->o_res);
+	}
 put_inode:
 	iput(inode);
 out:
@@ -433,23 +448,8 @@ static int nfs4_open_recover(struct nfs4_opendata *opendata, struct nfs4_state *
 		opendata->o_res.delegation_type = delegation;
 	opendata->o_arg.open_flags |= mode;
 	newstate = nfs4_opendata_to_nfs4_state(opendata);
-	if (newstate != NULL) {
-		if (opendata->o_res.delegation_type != 0) {
-			struct nfs_inode *nfsi = NFS_I(newstate->inode);
-			int delegation_flags = 0;
-			if (nfsi->delegation)
-				delegation_flags = nfsi->delegation->flags;
-			if (!(delegation_flags & NFS_DELEGATION_NEED_RECLAIM))
-				nfs_inode_set_delegation(newstate->inode,
-						opendata->owner->so_cred,
-						&opendata->o_res);
-			else
-				nfs_inode_reclaim_delegation(newstate->inode,
-						opendata->owner->so_cred,
-						&opendata->o_res);
-		}
+	if (newstate != NULL)
 		nfs4_close_state(&opendata->path, newstate, opendata->o_arg.open_flags);
-	}
 	if (newstate != state)
 		return -ESTALE;
 	return 0;
@@ -1005,8 +1005,6 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, int flags, struct
 	state = nfs4_opendata_to_nfs4_state(opendata);
 	if (state == NULL)
 		goto err_opendata_put;
-	if (opendata->o_res.delegation_type != 0)
-		nfs_inode_set_delegation(state->inode, cred, &opendata->o_res);
 	nfs4_opendata_put(opendata);
 	nfs4_put_state_owner(sp);
 	up_read(&clp->cl_sem);
