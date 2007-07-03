@@ -545,7 +545,8 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 
 	if (current->mm) {
 		printk(KERN_EMERG "TEXT = 0x%p-0x%p  DATA = 0x%p-0x%p\n"
-		       "BSS = 0x%p-0x%p   USER-STACK = 0x%p\n\n",
+		       KERN_EMERG "BSS = 0x%p-0x%p   USER-STACK = 0x%p\n"
+		       KERN_EMERG "\n",
 		       (void*)current->mm->start_code,
 		       (void*)current->mm->end_code,
 		       (void*)current->mm->start_data,
