@@ -9,6 +9,7 @@
  *  - eTurboTouch
  *  - Gunze AHL61
  *  - DMC TSC-10/25
+ *  - IRTOUCHSYSTEMS/UNITOP
  *
  * Copyright (C) 2004-2006 by Daniel Ritz <daniel.ritz@gmx.ch>
  * Copyright (C) by Todd E. Johnson (mtouchusb.c)
@@ -110,6 +111,7 @@ enum {
 	DEVTYPE_ETURBO,
 	DEVTYPE_GUNZE,
 	DEVTYPE_DMC_TSC10,
+	DEVTYPE_IRTOUCH,
 };
 
 static struct usb_device_id usbtouch_devices[] = {
@@ -148,6 +150,11 @@ static struct usb_device_id usbtouch_devices[] = {
 
 #ifdef CONFIG_TOUCHSCREEN_USB_DMC_TSC10
 	{USB_DEVICE(0x0afa, 0x03e8), .driver_info = DEVTYPE_DMC_TSC10},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_IRTOUCH
+	{USB_DEVICE(0x595a, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
+	{USB_DEVICE(0x6615, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
 #endif
 
 	{}
@@ -416,6 +423,21 @@ static int dmc_tsc10_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 
 
 /*****************************************************************************
+ * IRTOUCH Part
+ */
+#ifdef CONFIG_TOUCHSCREEN_USB_IRTOUCH
+static int irtouch_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
+{
+	dev->x = (pkt[3] << 8) | pkt[2];
+	dev->y = (pkt[5] << 8) | pkt[4];
+	dev->touch = (pkt[1] & 0x03) ? 1 : 0;
+
+	return 1;
+}
+#endif
+
+
+/*****************************************************************************
  * the different device descriptors
  */
 static struct usbtouch_device_info usbtouch_dev_info[] = {
@@ -502,6 +524,17 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.rept_size	= 5,
 		.init		= dmc_tsc10_init,
 		.read_data	= dmc_tsc10_read_data,
+	},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_IRTOUCH
+	[DEVTYPE_IRTOUCH] = {
+		.min_xc		= 0x0,
+		.max_xc		= 0x0fff,
+		.min_yc		= 0x0,
+		.max_yc		= 0x0fff,
+		.rept_size	= 8,
+		.read_data	= irtouch_read_data,
 	},
 #endif
 };
