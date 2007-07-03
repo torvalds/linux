@@ -197,6 +197,14 @@ config MACB
 
 source "drivers/net/arm/Kconfig"
 
+config AX88796
+	tristate "ASIX AX88796 NE2000 clone support"
+	select CRC32
+	select MII
+	help
+	  AX88796 driver, using platform bus to provide
+	  chip detection and resources
+
 config MACE
 	tristate "MACE (Power Mac ethernet) support"
 	depends on PPC_PMAC && PPC32
