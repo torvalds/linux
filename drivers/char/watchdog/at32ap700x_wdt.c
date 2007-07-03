@@ -18,6 +18,7 @@
 #include <linux/watchdog.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/spinlock.h>
 
 #define TIMEOUT_MIN		1
 #define TIMEOUT_MAX		2
@@ -53,6 +54,7 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 
 struct wdt_at32ap700x {
 	void __iomem		*regs;
+	spinlock_t		io_lock;
 	int			timeout;
 	int			users;
 	struct miscdevice	miscdev;
@@ -66,9 +68,11 @@ static char expect_release;
  */
 static inline void at32_wdt_stop(void)
 {
+	spin_lock(&wdt->io_lock);
 	unsigned long psel = wdt_readl(wdt, CTRL) & WDT_BF(CTRL_PSEL, 0x0f);
 	wdt_writel(wdt, CTRL, psel | WDT_BF(CTRL_KEY, 0x55));
 	wdt_writel(wdt, CTRL, psel | WDT_BF(CTRL_KEY, 0xaa));
+	spin_unlock(&wdt->io_lock);
 }
 
 /*
@@ -79,12 +83,14 @@ static inline void at32_wdt_start(void)
 	/* 0xf is 2^16 divider = 2 sec, 0xe is 2^15 divider = 1 sec */
 	unsigned long psel = (wdt->timeout > 1) ? 0xf : 0xe;
 
+	spin_lock(&wdt->io_lock);
 	wdt_writel(wdt, CTRL, WDT_BIT(CTRL_EN)
 			| WDT_BF(CTRL_PSEL, psel)
 			| WDT_BF(CTRL_KEY, 0x55));
 	wdt_writel(wdt, CTRL, WDT_BIT(CTRL_EN)
 			| WDT_BF(CTRL_PSEL, psel)
 			| WDT_BF(CTRL_KEY, 0xaa));
+	spin_unlock(&wdt->io_lock);
 }
 
 /*
@@ -92,7 +98,9 @@ static inline void at32_wdt_start(void)
  */
 static inline void at32_wdt_pat(void)
 {
+	spin_lock(&wdt->io_lock);
 	wdt_writel(wdt, CLR, 0x42);
+	spin_unlock(&wdt->io_lock);
 }
 
 /*
@@ -272,6 +280,7 @@ static int __init at32_wdt_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "could not map I/O memory\n");
 		goto err_free;
 	}
+	spin_lock_init(&wdt->io_lock);
 	wdt->users = 0;
 	wdt->miscdev.minor = WATCHDOG_MINOR;
 	wdt->miscdev.name = "watchdog";
