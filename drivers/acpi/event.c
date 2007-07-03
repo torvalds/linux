@@ -221,7 +221,6 @@ int acpi_bus_generate_genetlink_event(struct acpi_device *device,
 				  "Failed to send a Genetlink message!\n"));
 	return 0;
 }
-EXPORT_SYMBOL(acpi_bus_generate_genetlink_event);
 
 static int acpi_event_genetlink_init(void)
 {
@@ -245,7 +244,6 @@ int acpi_bus_generate_genetlink_event(struct acpi_device *device, u8 type,
 {
 	return 0;
 }
-EXPORT_SYMBOL(acpi_bus_generate_genetlink_event);
 
 static int acpi_event_genetlink_init(void)
 {
