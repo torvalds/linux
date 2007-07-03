@@ -844,6 +844,10 @@ static int sctp_inet6_bind_verify(struct sctp_sock *opt, union sctp_addr *addr)
 			dev = dev_get_by_index(addr->v6.sin6_scope_id);
 			if (!dev)
 				return 0;
+			if (!ipv6_chk_addr(&addr->v6.sin6_addr, dev, 0)) {
+				dev_put(dev);
+				return 0;
+			}
 			dev_put(dev);
 		}
 		af = opt->pf->af;
