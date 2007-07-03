@@ -56,7 +56,7 @@ struct wdt_at32ap700x {
 	void __iomem		*regs;
 	spinlock_t		io_lock;
 	int			timeout;
-	int			users;
+	unsigned long		users;
 	struct miscdevice	miscdev;
 };
 
@@ -68,8 +68,10 @@ static char expect_release;
  */
 static inline void at32_wdt_stop(void)
 {
+	unsigned long psel;
+
 	spin_lock(&wdt->io_lock);
-	unsigned long psel = wdt_readl(wdt, CTRL) & WDT_BF(CTRL_PSEL, 0x0f);
+	psel = wdt_readl(wdt, CTRL) & WDT_BF(CTRL_PSEL, 0x0f);
 	wdt_writel(wdt, CTRL, psel | WDT_BF(CTRL_KEY, 0x55));
 	wdt_writel(wdt, CTRL, psel | WDT_BF(CTRL_KEY, 0xaa));
 	spin_unlock(&wdt->io_lock);
