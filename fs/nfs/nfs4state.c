@@ -333,13 +333,10 @@ __nfs4_find_state_byowner(struct inode *inode, struct nfs4_state_owner *owner)
 	struct nfs4_state *state;
 
 	list_for_each_entry(state, &nfsi->open_states, inode_states) {
-		/* Is this in the process of being freed? */
-		if (state->state == 0)
+		if (state->owner != owner)
 			continue;
-		if (state->owner == owner) {
-			atomic_inc(&state->count);
+		if (atomic_inc_not_zero(&state->count))
 			return state;
-		}
 	}
 	return NULL;
 }
