@@ -90,25 +90,25 @@
 			reg = <24520 20>;
 			phy0: ethernet-phy@0 {
 				interrupt-parent = <&mpic>;
-				interrupts = <4a 1>;
+				interrupts = <a 1>;
 				reg = <0>;
 				device_type = "ethernet-phy";
 			};
 			phy1: ethernet-phy@1 {
 				interrupt-parent = <&mpic>;
-				interrupts = <4a 1>;
+				interrupts = <a 1>;
 				reg = <1>;
 				device_type = "ethernet-phy";
 			};
 			phy2: ethernet-phy@2 {
 				interrupt-parent = <&mpic>;
-				interrupts = <4a 1>;
+				interrupts = <a 1>;
 				reg = <2>;
 				device_type = "ethernet-phy";
 			};
 			phy3: ethernet-phy@3 {
 				interrupt-parent = <&mpic>;
-				interrupts = <4a 1>;
+				interrupts = <a 1>;
 				reg = <3>;
 				device_type = "ethernet-phy";
 			};
@@ -356,7 +356,7 @@
 							#interrupt-cells = <2>;
 							built-in;
 							compatible = "chrp,iic";
-							interrupts = <49 2>;
+							interrupts = <9 2>;
 							interrupt-parent =
 								<&mpic>;
 						};
@@ -411,10 +411,10 @@
 			interrupt-map-mask = <f800 0 0 7>;
 			interrupt-map = <
 				/* IDSEL 0x0 */
-				0000 0 0 1 &mpic 44 1
-				0000 0 0 2 &mpic 45 1
-				0000 0 0 3 &mpic 46 1
-				0000 0 0 4 &mpic 47 1
+				0000 0 0 1 &mpic 4 1
+				0000 0 0 2 &mpic 5 1
+				0000 0 0 3 &mpic 6 1
+				0000 0 0 4 &mpic 7 1
 				>;
 		};
 
