@@ -686,6 +686,37 @@ out:
 	return x;
 }
 
+struct xfrm_state *
+xfrm_stateonly_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
+		    unsigned short family, u8 mode, u8 proto, u32 reqid)
+{
+	unsigned int h = xfrm_dst_hash(daddr, saddr, reqid, family);
+	struct xfrm_state *rx = NULL, *x = NULL;
+	struct hlist_node *entry;
+
+	spin_lock(&xfrm_state_lock);
+	hlist_for_each_entry(x, entry, xfrm_state_bydst+h, bydst) {
+		if (x->props.family == family &&
+		    x->props.reqid == reqid &&
+		    !(x->props.flags & XFRM_STATE_WILDRECV) &&
+		    xfrm_state_addr_check(x, daddr, saddr, family) &&
+		    mode == x->props.mode &&
+		    proto == x->id.proto &&
+		    x->km.state == XFRM_STATE_VALID) {
+			rx = x;
+			break;
+		}
+	}
+
+	if (rx)
+		xfrm_state_hold(rx);
+	spin_unlock(&xfrm_state_lock);
+
+
+	return rx;
+}
+EXPORT_SYMBOL(xfrm_stateonly_find);
+
 static void __xfrm_state_insert(struct xfrm_state *x)
 {
 	unsigned int h;
