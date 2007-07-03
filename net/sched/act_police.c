@@ -183,7 +183,6 @@ static int tcf_act_police_locate(struct rtattr *rta, struct rtattr *est,
 	ret = ACT_P_CREATED;
 	police->tcf_refcnt = 1;
 	spin_lock_init(&police->tcf_lock);
-	police->tcf_stats_lock = &police->tcf_lock;
 	if (bind)
 		police->tcf_bindcnt = 1;
 override:
@@ -231,7 +230,7 @@ override:
 	if (est)
 		gen_replace_estimator(&police->tcf_bstats,
 				      &police->tcf_rate_est,
-				      police->tcf_stats_lock, est);
+				      &police->tcf_lock, est);
 
 	spin_unlock_bh(&police->tcf_lock);
 	if (ret != ACT_P_CREATED)
@@ -450,7 +449,6 @@ struct tcf_police *tcf_police_locate(struct rtattr *rta, struct rtattr *est)
 
 	police->tcf_refcnt = 1;
 	spin_lock_init(&police->tcf_lock);
-	police->tcf_stats_lock = &police->tcf_lock;
 	if (parm->rate.rate) {
 		police->tcfp_R_tab =
 			qdisc_get_rtab(&parm->rate, tb[TCA_POLICE_RATE-1]);
@@ -490,7 +488,7 @@ struct tcf_police *tcf_police_locate(struct rtattr *rta, struct rtattr *est)
 	police->tcf_action = parm->action;
 	if (est)
 		gen_new_estimator(&police->tcf_bstats, &police->tcf_rate_est,
-				  police->tcf_stats_lock, est);
+				  &police->tcf_lock, est);
 	h = tcf_hash(police->tcf_index, POL_TAB_MASK);
 	write_lock_bh(&police_lock);
 	police->tcf_next = tcf_police_ht[h];
@@ -591,7 +589,7 @@ int tcf_police_dump_stats(struct sk_buff *skb, struct tcf_police *police)
 	struct gnet_dump d;
 
 	if (gnet_stats_start_copy_compat(skb, TCA_STATS2, TCA_STATS,
-					 TCA_XSTATS, police->tcf_stats_lock,
+					 TCA_XSTATS, &police->tcf_lock,
 					 &d) < 0)
 		goto errout;
 

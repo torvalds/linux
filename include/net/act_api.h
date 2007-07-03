@@ -19,7 +19,6 @@ struct tcf_common {
 	struct gnet_stats_basic		tcfc_bstats;
 	struct gnet_stats_queue		tcfc_qstats;
 	struct gnet_stats_rate_est	tcfc_rate_est;
-	spinlock_t			*tcfc_stats_lock;
 	spinlock_t			tcfc_lock;
 };
 #define tcf_next	common.tcfc_next
@@ -32,7 +31,6 @@ struct tcf_common {
 #define tcf_bstats	common.tcfc_bstats
 #define tcf_qstats	common.tcfc_qstats
 #define tcf_rate_est	common.tcfc_rate_est
-#define tcf_stats_lock	common.tcfc_stats_lock
 #define tcf_lock	common.tcfc_lock
 
 struct tcf_police {

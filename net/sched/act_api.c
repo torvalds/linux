@@ -230,13 +230,12 @@ struct tcf_common *tcf_hash_create(u32 index, struct rtattr *est, struct tc_acti
 		p->tcfc_bindcnt = 1;
 
 	spin_lock_init(&p->tcfc_lock);
-	p->tcfc_stats_lock = &p->tcfc_lock;
 	p->tcfc_index = index ? index : tcf_hash_new_index(idx_gen, hinfo);
 	p->tcfc_tm.install = jiffies;
 	p->tcfc_tm.lastuse = jiffies;
 	if (est)
 		gen_new_estimator(&p->tcfc_bstats, &p->tcfc_rate_est,
-				  p->tcfc_stats_lock, est);
+				  &p->tcfc_lock, est);
 	a->priv = (void *) p;
 	return p;
 }
@@ -595,12 +594,12 @@ int tcf_action_copy_stats(struct sk_buff *skb, struct tc_action *a,
 	if (compat_mode) {
 		if (a->type == TCA_OLD_COMPAT)
 			err = gnet_stats_start_copy_compat(skb, 0,
-				TCA_STATS, TCA_XSTATS, h->tcf_stats_lock, &d);
+				TCA_STATS, TCA_XSTATS, &h->tcf_lock, &d);
 		else
 			return 0;
 	} else
 		err = gnet_stats_start_copy(skb, TCA_ACT_STATS,
-			h->tcf_stats_lock, &d);
+					    &h->tcf_lock, &d);
 
 	if (err < 0)
 		goto errout;

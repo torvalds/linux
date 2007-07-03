@@ -71,7 +71,6 @@ struct atm_flow_data {
 	int			ref;		/* reference count */
 	struct gnet_stats_basic	bstats;
 	struct gnet_stats_queue	qstats;
-	spinlock_t		*stats_lock;
 	struct atm_flow_data	*next;
 	struct atm_flow_data	*excess;	/* flow for excess traffic;
 						   NULL to set CLP instead */
