@@ -48,6 +48,7 @@ static void __init mpc8313_rdb_setup_arch(void)
 
 	ppc_md.pci_exclude_device = mpc83xx_exclude_device;
 #endif
+	mpc831x_usb_cfg();
 }
 
 void __init mpc8313_rdb_init_IRQ(void)
