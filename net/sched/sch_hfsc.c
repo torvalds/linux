@@ -1054,11 +1054,9 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		}
 		sch_tree_unlock(sch);
 
-#ifdef CONFIG_NET_ESTIMATOR
 		if (tca[TCA_RATE-1])
 			gen_replace_estimator(&cl->bstats, &cl->rate_est,
 				cl->stats_lock, tca[TCA_RATE-1]);
-#endif
 		return 0;
 	}
 
@@ -1112,11 +1110,9 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	cl->cl_pcvtoff = parent->cl_cvtoff;
 	sch_tree_unlock(sch);
 
-#ifdef CONFIG_NET_ESTIMATOR
 	if (tca[TCA_RATE-1])
 		gen_new_estimator(&cl->bstats, &cl->rate_est,
 			cl->stats_lock, tca[TCA_RATE-1]);
-#endif
 	*arg = (unsigned long)cl;
 	return 0;
 }
@@ -1128,9 +1124,7 @@ hfsc_destroy_class(struct Qdisc *sch, struct hfsc_class *cl)
 
 	tcf_destroy_chain(cl->filter_list);
 	qdisc_destroy(cl->qdisc);
-#ifdef CONFIG_NET_ESTIMATOR
 	gen_kill_estimator(&cl->bstats, &cl->rate_est);
-#endif
 	if (cl != &q->root)
 		kfree(cl);
 }
@@ -1384,9 +1378,7 @@ hfsc_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 	xstats.rtwork  = cl->cl_cumul;
 
 	if (gnet_stats_copy_basic(d, &cl->bstats) < 0 ||
-#ifdef CONFIG_NET_ESTIMATOR
 	    gnet_stats_copy_rate_est(d, &cl->rate_est) < 0 ||
-#endif
 	    gnet_stats_copy_queue(d, &cl->qstats) < 0)
 		return -1;
 

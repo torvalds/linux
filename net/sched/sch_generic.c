@@ -514,9 +514,7 @@ void qdisc_destroy(struct Qdisc *qdisc)
 		return;
 
 	list_del(&qdisc->list);
-#ifdef CONFIG_NET_ESTIMATOR
 	gen_kill_estimator(&qdisc->bstats, &qdisc->rate_est);
-#endif
 	if (ops->reset)
 		ops->reset(qdisc);
 	if (ops->destroy)

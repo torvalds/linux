@@ -42,10 +42,8 @@ void tcf_hash_destroy(struct tcf_common *p, struct tcf_hashinfo *hinfo)
 			write_lock_bh(hinfo->lock);
 			*p1p = p->tcfc_next;
 			write_unlock_bh(hinfo->lock);
-#ifdef CONFIG_NET_ESTIMATOR
 			gen_kill_estimator(&p->tcfc_bstats,
 					   &p->tcfc_rate_est);
-#endif
 			kfree(p);
 			return;
 		}
@@ -236,11 +234,9 @@ struct tcf_common *tcf_hash_create(u32 index, struct rtattr *est, struct tc_acti
 	p->tcfc_index = index ? index : tcf_hash_new_index(idx_gen, hinfo);
 	p->tcfc_tm.install = jiffies;
 	p->tcfc_tm.lastuse = jiffies;
-#ifdef CONFIG_NET_ESTIMATOR
 	if (est)
 		gen_new_estimator(&p->tcfc_bstats, &p->tcfc_rate_est,
 				  p->tcfc_stats_lock, est);
-#endif
 	a->priv = (void *) p;
 	return p;
 }
@@ -614,9 +610,7 @@ int tcf_action_copy_stats(struct sk_buff *skb, struct tc_action *a,
 			goto errout;
 
 	if (gnet_stats_copy_basic(&d, &h->tcf_bstats) < 0 ||
-#ifdef CONFIG_NET_ESTIMATOR
 	    gnet_stats_copy_rate_est(&d, &h->tcf_rate_est) < 0 ||
-#endif
 	    gnet_stats_copy_queue(&d, &h->tcf_qstats) < 0)
 		goto errout;
 
