@@ -210,8 +210,7 @@ static void jffs2_kill_tn(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info *
  * offset, and the one with the smallest length will come first in the
  * ordering.
  *
- * Returns 0 if the node was inserted
- *         1 if the node is obsolete (because we can't mark it so yet)
+ * Returns 0 if the node was handled (including marking it obsolete)
  *         < 0 an if error occurred
  */
 static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
@@ -572,8 +571,7 @@ static struct jffs2_raw_node_ref *jffs2_first_valid_node(struct jffs2_raw_node_r
  * Helper function for jffs2_get_inode_nodes().
  * It is called every time an directory entry node is found.
  *
- * Returns: 0 on succes;
- * 	    1 if the node should be marked obsolete;
+ * Returns: 0 on success;
  * 	    negative error code on failure.
  */
 static inline int read_direntry(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *ref,
@@ -680,8 +678,7 @@ static inline int read_direntry(struct jffs2_sb_info *c, struct jffs2_raw_node_r
  * Helper function for jffs2_get_inode_nodes().
  * It is called every time an inode node is found.
  *
- * Returns: 0 on success;
- * 	    1 if the node should be marked obsolete;
+ * Returns: 0 on success (possibly after marking a bad node obsolete);
  * 	    negative error code on failure.
  */
 static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *ref,
@@ -690,7 +687,7 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 {
 	struct jffs2_tmp_dnode_info *tn;
 	uint32_t len, csize;
-	int ret = 1;
+	int ret = 0;
 	uint32_t crc;
 
 	/* Obsoleted. This cannot happen, surely? dwmw2 20020308 */
@@ -719,8 +716,9 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 		/* Sanity checks */
 		if (unlikely(je32_to_cpu(rd->offset) > je32_to_cpu(rd->isize)) ||
 		    unlikely(PAD(je32_to_cpu(rd->csize) + sizeof(*rd)) != PAD(je32_to_cpu(rd->totlen)))) {
-				JFFS2_WARNING("inode node header CRC is corrupted at %#08x\n", ref_offset(ref));
-				jffs2_dbg_dump_node(c, ref_offset(ref));
+			JFFS2_WARNING("inode node header CRC is corrupted at %#08x\n", ref_offset(ref));
+			jffs2_dbg_dump_node(c, ref_offset(ref));
+			jffs2_mark_node_obsolete(c, ref);
 			goto free_out;
 		}
 
@@ -775,6 +773,7 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 			if (len >= csize && unlikely(tn->partial_crc != je32_to_cpu(rd->data_crc))) {
 				JFFS2_NOTICE("wrong data CRC in data node at 0x%08x: read %#08x, calculated %#08x.\n",
 					ref_offset(ref), tn->partial_crc, je32_to_cpu(rd->data_crc));
+				jffs2_mark_node_obsolete(c, ref);
 				goto free_out;
 			}
 
@@ -854,7 +853,6 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
  * It is called every time an unknown node is found.
  *
  * Returns: 0 on success;
- * 	    1 if the node should be marked obsolete;
  * 	    negative error code on failure.
  */
 static inline int read_unknown(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *ref, struct jffs2_unknown_node *un)
@@ -1088,10 +1086,7 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 			}
 
 			err = read_unknown(c, ref, &node->u);
-			if (err == 1) {
-				jffs2_mark_node_obsolete(c, ref);
-				break;
-			} else if (unlikely(err))
+			if (unlikely(err))
 				goto free_out;
 
 		}
