@@ -12,6 +12,16 @@ config DVB_FE_CUSTOMISE
 
 	  If unsure say N.
 
+comment "Multistandard (satellite) frontends"
+	depends on DVB_CORE
+
+config DVB_STB0899
+	tristate "STB0899 based"
+	depends on DVB_CORE
+	help
+	  A DVB-S/S2/DSS Multistandard demodulator. Say Y when you want
+	  to support this demodulator based frontends
+
 comment "DVB-S (satellite) frontends"
 	depends on DVB_CORE
 
