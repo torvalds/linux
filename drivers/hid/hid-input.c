@@ -882,6 +882,16 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			field->dpad = usage->code;
 	}
 
+	/* for those devices which produce Consumer volume usage as relative,
+	 * we emulate pressing volumeup/volumedown appropriate number of times
+	 * in hidinput_hid_event()
+	 */
+	if ((usage->type == EV_ABS) && (field->flags & HID_MAIN_ITEM_RELATIVE) &&
+			(usage->code == ABS_VOLUME)) {
+		set_bit(KEY_VOLUMEUP, input->keybit);
+		set_bit(KEY_VOLUMEDOWN, input->keybit);
+	}
+
 	hid_resolv_event(usage->type, usage->code);
 #ifdef CONFIG_HID_DEBUG
 	printk("\n");
@@ -971,6 +981,21 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 
 	if ((usage->type == EV_KEY) && (usage->code == 0)) /* Key 0 is "unassigned", not KEY_UNKNOWN */
 		return;
+
+	if ((usage->type == EV_ABS) && (field->flags & HID_MAIN_ITEM_RELATIVE) &&
+			(usage->code == ABS_VOLUME)) {
+		int count = abs(value);
+		int direction = value > 0 ? KEY_VOLUMEUP : KEY_VOLUMEDOWN;
+		int i;
+
+		for (i = 0; i < count; i++) {
+			input_event(input, EV_KEY, direction, 1);
+			input_sync(input);
+			input_event(input, EV_KEY, direction, 0);
+			input_sync(input);
+		}
+		return;
+	}
 
 	input_event(input, usage->type, usage->code, value);
 
