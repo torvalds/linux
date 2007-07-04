@@ -368,7 +368,7 @@ void scsi_log_send(struct scsi_cmnd *cmd)
 			if (level > 3) {
 				printk(KERN_INFO "buffer = 0x%p, bufflen = %d,"
 				       " done = 0x%p, queuecommand 0x%p\n",
-					cmd->request_buffer, cmd->request_bufflen,
+					scsi_sglist(cmd), scsi_bufflen(cmd),
 					cmd->done,
 					cmd->device->host->hostt->queuecommand);
 
