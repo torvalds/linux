@@ -183,27 +183,25 @@ void config_group_init(struct config_group *group)
 	INIT_LIST_HEAD(&group->cg_children);
 }
 
-
 /**
- *	config_group_find_obj - search for item in group.
+ *	config_group_find_item - search for item in group.
  *	@group:	group we're looking in.
  *	@name:	item's name.
  *
- *	Lock group via @group->cg_subsys, and iterate over @group->cg_list,
- *	looking for a matching config_item. If matching item is found
- *	take a reference and return the item.
+ *	Iterate over @group->cg_list, looking for a matching config_item.
+ *	If matching item is found take a reference and return the item.
+ *	Caller must have locked group via @group->cg_subsys->su_mtx.
  */
-struct config_item *config_group_find_obj(struct config_group *group,
-					  const char * name)
+struct config_item *config_group_find_item(struct config_group *group,
+					   const char *name)
 {
 	struct list_head * entry;
 	struct config_item * ret = NULL;
 
-        /* XXX LOCKING! */
 	list_for_each(entry,&group->cg_children) {
 		struct config_item * item = to_item(entry);
 		if (config_item_name(item) &&
-                    !strcmp(config_item_name(item), name)) {
+		    !strcmp(config_item_name(item), name)) {
 			ret = config_item_get(item);
 			break;
 		}
@@ -215,4 +213,4 @@ EXPORT_SYMBOL(config_item_init);
 EXPORT_SYMBOL(config_group_init);
 EXPORT_SYMBOL(config_item_get);
 EXPORT_SYMBOL(config_item_put);
-EXPORT_SYMBOL(config_group_find_obj);
+EXPORT_SYMBOL(config_group_find_item);

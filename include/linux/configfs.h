@@ -86,12 +86,10 @@ struct config_item_type {
 	struct configfs_attribute		**ct_attrs;
 };
 
-
 /**
  *	group - a group of config_items of a specific type, belonging
  *	to a specific subsystem.
  */
-
 struct config_group {
 	struct config_item		cg_item;
 	struct list_head		cg_children;
@@ -99,12 +97,10 @@ struct config_group {
 	struct config_group		**default_groups;
 };
 
-
 extern void config_group_init(struct config_group *group);
 extern void config_group_init_type_name(struct config_group *group,
 					const char *name,
 					struct config_item_type *type);
-
 
 static inline struct config_group *to_config_group(struct config_item *item)
 {
@@ -121,7 +117,8 @@ static inline void config_group_put(struct config_group *group)
 	config_item_put(&group->cg_item);
 }
 
-extern struct config_item *config_group_find_obj(struct config_group *, const char *);
+extern struct config_item *config_group_find_item(struct config_group *,
+						  const char *);
 
 
 struct configfs_attribute {

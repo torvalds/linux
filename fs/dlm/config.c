@@ -752,7 +752,7 @@ static struct space *get_space(char *name)
 		return NULL;
 
 	down(&space_list->cg_subsys->su_sem);
-	i = config_group_find_obj(space_list, name);
+	i = config_group_find_item(space_list, name);
 	up(&space_list->cg_subsys->su_sem);
 
 	return to_space(i);
