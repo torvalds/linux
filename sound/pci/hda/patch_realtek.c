@@ -1900,17 +1900,38 @@ static struct hda_input_mux alc880_lg_lw_capture_source = {
 	},
 };
 
+#define alc880_lg_lw_modes alc880_threestack_modes
+
 static struct snd_kcontrol_new alc880_lg_lw_mixer[] = {
-	HDA_CODEC_VOLUME("Master Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Master Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0f, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Surround Playback Switch", 0x0f, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME_MONO("Center Playback Volume", 0x0e, 1, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MONO("LFE Playback Volume", 0x0e, 2, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE_MONO("Center Playback Switch", 0x0e, 1, 2, HDA_INPUT),
+	HDA_BIND_MUTE_MONO("LFE Playback Switch", 0x0e, 2, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x0b, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x0b, 0x01, HDA_INPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Channel Mode",
+		.info = alc_ch_mode_info,
+		.get = alc_ch_mode_get,
+		.put = alc_ch_mode_put,
+	},
 	{ } /* end */
 };
 
 static struct hda_verb alc880_lg_lw_init_verbs[] = {
+	{0x13, AC_VERB_SET_CONNECT_SEL, 0x00}, /* HP */
+	{0x10, AC_VERB_SET_CONNECT_SEL, 0x02}, /* mic/clfe */
+	{0x12, AC_VERB_SET_CONNECT_SEL, 0x03}, /* line/surround */
+
 	/* set capture source to mic-in */
 	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
@@ -1920,7 +1941,6 @@ static struct hda_verb alc880_lg_lw_init_verbs[] = {
 	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	/* HP-out */
-	{0x13, AC_VERB_SET_CONNECT_SEL, 0x00},
 	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	/* mic-in to input */
@@ -2864,11 +2884,11 @@ static struct alc_config_preset alc880_presets[] = {
 		.mixers = { alc880_lg_lw_mixer },
 		.init_verbs = { alc880_volume_init_verbs,
 				alc880_lg_lw_init_verbs },
-		.num_dacs = 1,
+		.num_dacs = ARRAY_SIZE(alc880_dac_nids),
 		.dac_nids = alc880_dac_nids,
 		.dig_out_nid = ALC880_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc880_2_jack_modes),
-		.channel_mode = alc880_2_jack_modes,
+		.num_channel_mode = ARRAY_SIZE(alc880_lg_lw_modes),
+		.channel_mode = alc880_lg_lw_modes,
 		.input_mux = &alc880_lg_lw_capture_source,
 		.unsol_event = alc880_lg_lw_unsol_event,
 		.init_hook = alc880_lg_lw_automute,
