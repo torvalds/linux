@@ -621,8 +621,6 @@ static int __init acpi_parse_sbf(struct acpi_table_header *table)
 static int __init acpi_parse_hpet(struct acpi_table_header *table)
 {
 	struct acpi_table_hpet *hpet_tbl;
-	struct resource *hpet_res;
-	resource_size_t res_start;
 
 	hpet_tbl = (struct acpi_table_hpet *)table;
 	if (!hpet_tbl) {
