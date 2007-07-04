@@ -434,7 +434,11 @@ struct compat_raw1394_req {
 
 	__u64 sendb;
 	__u64 recvb;
-} __attribute__((packed));
+}
+#if defined(CONFIG_X86_64) || defined(CONFIG_IA64)
+__attribute__((packed))
+#endif
+;
 
 static const char __user *raw1394_compat_write(const char __user *buf)
 {
