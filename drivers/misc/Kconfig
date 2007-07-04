@@ -187,13 +187,5 @@ config THINKPAD_ACPI_BAY
 
 	  If you are not sure, say Y here.
 
-config BLINK
-	tristate "Keyboard blink driver"
-	help
-	  Driver that when loaded will blink the keyboard LEDs continuously.
-	  This is useful for debugging and for kernels that cannot necessarily
-	  output something to the screen like kexec kernels to give the user
-	  a visual indication that the kernel is doing something.
-
 
 endmenu
