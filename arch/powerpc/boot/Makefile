@@ -177,6 +177,11 @@ $(obj)/zImage.initrd.%: vmlinux $(wrapperbits) $(dts)
 $(obj)/zImage.%: vmlinux $(wrapperbits) $(dts)
 	$(call if_changed,wrap,$*,$(dts))
 
+# This cannot be in the root of $(src) as the zImage rule always adds a $(obj)
+# prefix
+$(obj)/vmlinux.strip: vmlinux
+	$(STRIP) -s -R .comment $< -o $@
+
 $(obj)/zImage.iseries: vmlinux
 	$(STRIP) -s -R .comment $< -o $@
 
@@ -198,6 +203,11 @@ $(obj)/treeImage.initrd.%: vmlinux $(dts) $(wrapperbits)
 
 $(obj)/treeImage.%: vmlinux $(dts) $(wrapperbits)
 	$(call if_changed,wrap,treeboot-$*,$(dts))
+
+# If there isn't a platform selected then just strip the vmlinux.
+ifeq (,$(image-y))
+image-y := vmlinux.strip
+endif
 
 $(obj)/zImage:		$(addprefix $(obj)/, $(image-y))
 	@rm -f $@; ln $< $@
