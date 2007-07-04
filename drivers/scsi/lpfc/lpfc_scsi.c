@@ -332,14 +332,18 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 	 * data bde entry.
 	 */
 	bpl += 2;
-	nseg = scsi_dma_map(scsi_cmnd);
-	if (nseg > 0) {
+	if (scsi_sg_count(scsi_cmnd)) {
 		/*
 		 * The driver stores the segment count returned from pci_map_sg
 		 * because this a count of dma-mappings used to map the use_sg
 		 * pages.  They are not guaranteed to be the same for those
 		 * architectures that implement an IOMMU.
 		 */
+
+		nseg = dma_map_sg(&phba->pcidev->dev, scsi_sglist(scsi_cmnd),
+				  scsi_sg_count(scsi_cmnd), datadir);
+		if (unlikely(!nseg))
+			return 1;
 
 		lpfc_cmd->seg_cnt = nseg;
 		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt) {
@@ -370,8 +374,7 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 			bpl++;
 			num_bde++;
 		}
-	} else if (nseg < 0)
-		return 1;
+	}
 
 	/*
 	 * Finish initializing those IOCB fields that are dependent on the
