@@ -230,6 +230,16 @@ struct nfs4_opendata {
 	int cancelled;
 };
 
+
+static void nfs4_init_opendata_res(struct nfs4_opendata *p)
+{
+	p->o_res.f_attr = &p->f_attr;
+	p->o_res.dir_attr = &p->dir_attr;
+	p->o_res.server = p->o_arg.server;
+	nfs_fattr_init(&p->f_attr);
+	nfs_fattr_init(&p->dir_attr);
+}
+
 static struct nfs4_opendata *nfs4_opendata_alloc(struct path *path,
 		struct nfs4_state_owner *sp, int flags,
 		const struct iattr *attrs)
@@ -258,11 +268,6 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct path *path,
 	p->o_arg.server = server;
 	p->o_arg.bitmask = server->attr_bitmask;
 	p->o_arg.claim = NFS4_OPEN_CLAIM_NULL;
-	p->o_res.f_attr = &p->f_attr;
-	p->o_res.dir_attr = &p->dir_attr;
-	p->o_res.server = server;
-	nfs_fattr_init(&p->f_attr);
-	nfs_fattr_init(&p->dir_attr);
 	if (flags & O_EXCL) {
 		u32 *s = (u32 *) p->o_arg.u.verifier.data;
 		s[0] = jiffies;
@@ -274,6 +279,7 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct path *path,
 	p->c_arg.fh = &p->o_res.fh;
 	p->c_arg.stateid = &p->o_res.stateid;
 	p->c_arg.seqid = p->o_arg.seqid;
+	nfs4_init_opendata_res(p);
 	kref_init(&p->kref);
 	return p;
 err_free:
@@ -394,64 +400,54 @@ static struct nfs_open_context *nfs4_state_find_open_context(struct nfs4_state *
 	return ERR_PTR(-ENOENT);
 }
 
-static int nfs4_open_recover_helper(struct nfs4_opendata *opendata, mode_t openflags, nfs4_stateid *stateid)
+static int nfs4_open_recover_helper(struct nfs4_opendata *opendata, mode_t openflags, struct nfs4_state **res)
 {
+	struct nfs4_state *newstate;
 	int ret;
 
 	opendata->o_arg.open_flags = openflags;
+	memset(&opendata->o_res, 0, sizeof(opendata->o_res));
+	memset(&opendata->c_res, 0, sizeof(opendata->c_res));
+	nfs4_init_opendata_res(opendata);
 	ret = _nfs4_proc_open(opendata);
 	if (ret != 0)
 		return ret; 
-	memcpy(stateid->data, opendata->o_res.stateid.data,
-			sizeof(stateid->data));
+	newstate = nfs4_opendata_to_nfs4_state(opendata);
+	if (newstate != NULL)
+		nfs4_close_state(&opendata->path, newstate, openflags);
+	*res = newstate;
 	return 0;
 }
 
 static int nfs4_open_recover(struct nfs4_opendata *opendata, struct nfs4_state *state)
 {
-	nfs4_stateid stateid;
 	struct nfs4_state *newstate;
-	int mode = 0;
-	int delegation = 0;
 	int ret;
 
 	/* memory barrier prior to reading state->n_* */
+	clear_bit(NFS_DELEGATED_STATE, &state->flags);
 	smp_rmb();
 	if (state->n_rdwr != 0) {
-		ret = nfs4_open_recover_helper(opendata, FMODE_READ|FMODE_WRITE, &stateid);
+		ret = nfs4_open_recover_helper(opendata, FMODE_READ|FMODE_WRITE, &newstate);
 		if (ret != 0)
 			return ret;
-		mode |= FMODE_READ|FMODE_WRITE;
-		if (opendata->o_res.delegation_type != 0)
-			delegation = opendata->o_res.delegation_type;
-		smp_rmb();
+		if (newstate != state)
+			return -ESTALE;
 	}
 	if (state->n_wronly != 0) {
-		ret = nfs4_open_recover_helper(opendata, FMODE_WRITE, &stateid);
+		ret = nfs4_open_recover_helper(opendata, FMODE_WRITE, &newstate);
 		if (ret != 0)
 			return ret;
-		mode |= FMODE_WRITE;
-		if (opendata->o_res.delegation_type != 0)
-			delegation = opendata->o_res.delegation_type;
-		smp_rmb();
+		if (newstate != state)
+			return -ESTALE;
 	}
 	if (state->n_rdonly != 0) {
-		ret = nfs4_open_recover_helper(opendata, FMODE_READ, &stateid);
+		ret = nfs4_open_recover_helper(opendata, FMODE_READ, &newstate);
 		if (ret != 0)
 			return ret;
-		mode |= FMODE_READ;
+		if (newstate != state)
+			return -ESTALE;
 	}
-	clear_bit(NFS_DELEGATED_STATE, &state->flags);
-	if (mode == 0)
-		return 0;
-	if (opendata->o_res.delegation_type == 0)
-		opendata->o_res.delegation_type = delegation;
-	opendata->o_arg.open_flags |= mode;
-	newstate = nfs4_opendata_to_nfs4_state(opendata);
-	if (newstate != NULL)
-		nfs4_close_state(&opendata->path, newstate, opendata->o_arg.open_flags);
-	if (newstate != state)
-		return -ESTALE;
 	return 0;
 }
 
@@ -730,6 +726,7 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 	 * want to ensure that it takes the 'error' code path.
 	 */
 	data->rpc_status = -ENOMEM;
+	data->cancelled = 0;
 	task = rpc_run_task(server->client, RPC_TASK_ASYNC, &nfs4_open_ops, data);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
