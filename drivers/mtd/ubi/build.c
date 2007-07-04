@@ -593,8 +593,6 @@ static int attach_mtd_dev(const char *mtd_dev, int vid_hdr_offset,
 	if (err)
 		goto out_detach;
 
-	ubi_devices_cnt += 1;
-
 	ubi_msg("attached mtd%d to ubi%d", ubi->mtd->index, ubi_devices_cnt);
 	ubi_msg("MTD device name:            \"%s\"", ubi->mtd->name);
 	ubi_msg("MTD device size:            %llu MiB", ubi->flash_size >> 20);
@@ -624,6 +622,7 @@ static int attach_mtd_dev(const char *mtd_dev, int vid_hdr_offset,
 		wake_up_process(ubi->bgt_thread);
 	}
 
+	ubi_devices_cnt += 1;
 	return 0;
 
 out_detach:
