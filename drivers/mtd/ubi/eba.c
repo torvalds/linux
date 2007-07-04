@@ -861,7 +861,7 @@ int ubi_eba_atomic_leb_change(struct ubi_device *ubi, int vol_id, int lnum,
 	vid_hdr->data_pad = cpu_to_be32(vol->data_pad);
 
 	crc = crc32(UBI_CRC32_INIT, buf, len);
-	vid_hdr->vol_type = UBI_VID_STATIC;
+	vid_hdr->vol_type = UBI_VID_DYNAMIC;
 	vid_hdr->data_size = cpu_to_be32(len);
 	vid_hdr->copy_flag = 1;
 	vid_hdr->data_crc = cpu_to_be32(crc);
