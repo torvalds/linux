@@ -112,8 +112,9 @@ u64 ticklen_to_xs;	/* 0.64 fraction */
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL_GPL(rtc_lock);
 
-u64 tb_to_ns_scale;
-unsigned tb_to_ns_shift;
+static u64 tb_to_ns_scale __read_mostly;
+static unsigned tb_to_ns_shift __read_mostly;
+static unsigned long boot_tb __read_mostly;
 
 struct gettimeofday_struct do_gtod;
 
@@ -755,7 +756,7 @@ unsigned long long sched_clock(void)
 {
 	if (__USE_RTC())
 		return get_rtc();
-	return mulhdu(get_tb(), tb_to_ns_scale) << tb_to_ns_shift;
+	return mulhdu(get_tb() - boot_tb, tb_to_ns_scale) << tb_to_ns_shift;
 }
 
 int do_settimeofday(struct timespec *tv)
@@ -974,6 +975,8 @@ void __init time_init(void)
 	}
 	tb_to_ns_scale = scale;
 	tb_to_ns_shift = shift;
+	/* Save the current timebase to pretty up CONFIG_PRINTK_TIME */
+	boot_tb = get_tb();
 
 	tm = get_boot_time();
 
