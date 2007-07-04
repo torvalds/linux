@@ -133,14 +133,6 @@ static ssize_t cluster_set(struct cluster *cl, unsigned int *cl_field,
 	return len;
 }
 
-#define __CONFIGFS_ATTR(_name,_mode,_read,_write) {                           \
-	.attr   = { .ca_name = __stringify(_name),                            \
-		    .ca_mode = _mode,                                         \
-		    .ca_owner = THIS_MODULE },                                \
-	.show   = _read,                                                      \
-	.store  = _write,                                                     \
-}
-
 #define CLUSTER_ATTR(name, check_zero)                                        \
 static ssize_t name##_write(struct cluster *cl, const char *buf, size_t len)  \
 {                                                                             \
