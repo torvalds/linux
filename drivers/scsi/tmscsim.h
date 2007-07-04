@@ -57,7 +57,6 @@ u8		SGcount;
 
 u8		MsgCnt;
 u8		EndMessage;
-u8		SavedSGCount;			
 
 u8		MsgInBuf[6];
 u8		MsgOutBuf[6];

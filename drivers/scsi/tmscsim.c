@@ -1681,7 +1681,6 @@ dc390_RequestSense(struct dc390_acb* pACB, struct dc390_dcb* pDCB, struct dc390_
 			      pcmd->cmnd[0], pDCB->TargetID, pDCB->TargetLUN));
 
 	pSRB->SRBFlag |= AUTO_REQSENSE;
-	pSRB->SavedSGCount = scsi_sg_count(pcmd);
 	pSRB->SavedTotXLen = pSRB->TotalXferredLen;
 	pSRB->AdaptStatus = 0;
 	pSRB->TargetStatus = 0; /* CHECK_CONDITION<<1; */
@@ -1729,7 +1728,6 @@ dc390_SRBdone( struct dc390_acb* pACB, struct dc390_dcb* pDCB, struct dc390_srb*
 		       (u32) pcmd->result, (u32) pSRB->TotalXferredLen));
 	    } else {
 		SET_RES_DRV(pcmd->result, DRIVER_SENSE);
-		scsi_sg_count(pcmd) = pSRB->SavedSGCount;
 		//pSRB->ScsiCmdLen	 = (u8) (pSRB->Segment1[0] >> 8);
 		DEBUG0 (printk ("DC390: RETRY pid %li (%02x), target %02i-%02i\n", pcmd->pid, pcmd->cmnd[0], pcmd->device->id, pcmd->device->lun));
 		pSRB->TotalXferredLen = 0;
@@ -1751,7 +1749,6 @@ dc390_SRBdone( struct dc390_acb* pACB, struct dc390_dcb* pDCB, struct dc390_srb*
 	else if (status == SAM_STAT_TASK_SET_FULL)
 	{
 	    scsi_track_queue_full(pcmd->device, pDCB->GoingSRBCnt - 1);
-	    scsi_sg_count(pcmd) = pSRB->SavedSGCount;
 	    DEBUG0 (printk ("DC390: RETRY pid %li (%02x), target %02i-%02i\n", pcmd->pid, pcmd->cmnd[0], pcmd->device->id, pcmd->device->lun));
 	    pSRB->TotalXferredLen = 0;
 	    SET_RES_DID(pcmd->result, DID_SOFT_ERROR);
