@@ -527,9 +527,9 @@ void __init create_mapping(struct map_desc *md)
 		return;
 	}
 
-	addr = md->virtual;
+	addr = md->virtual & PAGE_MASK;
 	phys = (unsigned long)__pfn_to_phys(md->pfn);
-	length = PAGE_ALIGN(md->length);
+	length = PAGE_ALIGN(md->length + (md->virtual & ~PAGE_MASK));
 
 	if (type->prot_l1 == 0 && ((addr | phys | length) & ~SECTION_MASK)) {
 		printk(KERN_WARNING "BUG: map for 0x%08lx at 0x%08lx can not "
