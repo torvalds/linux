@@ -526,7 +526,7 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 	struct cfi_pri_intelext *extp = cfi->cmdset_priv;
 
 	/*
-	 * Probing of multi-partition flash ships.
+	 * Probing of multi-partition flash chips.
 	 *
 	 * To support multiple partitions when available, we simply arrange
 	 * for each of them to have their own flchip structure even if they
