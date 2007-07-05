@@ -11013,7 +11013,7 @@ static int alc662_auto_create_multi_out_ctls(struct alc_spec *spec,
 	for (i = 0; i < cfg->line_outs; i++) {
 		if (!spec->multiout.dac_nids[i])
 			continue;
-		nid = alc880_idx_to_dac(i);
+		nid = alc880_idx_to_mixer(i);
 		if (i == 2) {
 			/* Center/LFE */
 			err = add_control(spec, ALC_CTL_WIDGET_VOL,
