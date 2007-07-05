@@ -1282,7 +1282,7 @@ static unsigned int get_slot_status(struct acpiphp_slot *slot)
 /**
  * acpiphp_eject_slot - physically eject the slot
  */
-static int acpiphp_eject_slot(struct acpiphp_slot *slot)
+int acpiphp_eject_slot(struct acpiphp_slot *slot)
 {
 	acpi_status status;
 	struct acpiphp_func *func;
