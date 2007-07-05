@@ -65,6 +65,7 @@ static int nfs4_async_handle_error(struct rpc_task *, const struct nfs_server *)
 static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry);
 static int nfs4_handle_exception(const struct nfs_server *server, int errorcode, struct nfs4_exception *exception);
 static int nfs4_wait_clnt_recover(struct rpc_clnt *clnt, struct nfs_client *clp);
+static int _nfs4_do_access(struct inode *inode, struct rpc_cred *cred, int openflags);
 
 /* Prevent leaks of NFSv4 errors into userland */
 int nfs4_map_errors(int err)
@@ -224,6 +225,7 @@ struct nfs4_opendata {
 	struct path path;
 	struct dentry *dir;
 	struct nfs4_state_owner *owner;
+	struct nfs4_state *state;
 	struct iattr attrs;
 	unsigned long timestamp;
 	unsigned int rpc_done : 1;
@@ -296,6 +298,8 @@ static void nfs4_opendata_free(struct kref *kref)
 			struct nfs4_opendata, kref);
 
 	nfs_free_seqid(p->o_arg.seqid);
+	if (p->state != NULL)
+		nfs4_put_open_state(p->state);
 	nfs4_put_state_owner(p->owner);
 	dput(p->dir);
 	dput(p->path.dentry);
@@ -318,6 +322,15 @@ static int nfs4_wait_for_completion_rpc_task(struct rpc_task *task)
 	ret = rpc_wait_for_completion_task(task);
 	rpc_clnt_sigunmask(task->tk_client, &oldset);
 	return ret;
+}
+
+static int can_open_delegated(struct nfs_delegation *delegation, mode_t open_flags)
+{
+	if ((delegation->type & open_flags) != open_flags)
+		return 0;
+	if (delegation->flags & NFS_DELEGATION_NEED_RECLAIM)
+		return 0;
+	return 1;
 }
 
 static void update_open_stateflags(struct nfs4_state *state, mode_t open_flags)
@@ -380,6 +393,65 @@ static void update_open_stateid(struct nfs4_state *state, nfs4_stateid *open_sta
 	spin_unlock(&state->owner->so_lock);
 }
 
+static void nfs4_return_incompatible_delegation(struct inode *inode, mode_t open_flags)
+{
+	struct nfs_delegation *delegation;
+
+	rcu_read_lock();
+	delegation = rcu_dereference(NFS_I(inode)->delegation);
+	if (delegation == NULL || (delegation->type & open_flags) == open_flags) {
+		rcu_read_unlock();
+		return;
+	}
+	rcu_read_unlock();
+	nfs_inode_return_delegation(inode);
+}
+
+static struct nfs4_state *nfs4_try_open_delegated(struct nfs4_opendata *opendata)
+{
+	struct nfs4_state *state = opendata->state;
+	struct nfs_inode *nfsi = NFS_I(state->inode);
+	struct nfs_delegation *delegation;
+	int open_mode = opendata->o_arg.open_flags & (FMODE_READ|FMODE_WRITE|O_EXCL);
+	nfs4_stateid stateid;
+	int ret = -EAGAIN;
+
+	rcu_read_lock();
+	delegation = rcu_dereference(nfsi->delegation);
+	if (delegation == NULL)
+		goto out_unlock;
+	for (;;) {
+		if (!can_open_delegated(delegation, open_mode))
+			break;
+		/* Save the delegation */
+		memcpy(stateid.data, delegation->stateid.data, sizeof(stateid.data));
+		rcu_read_unlock();
+		lock_kernel();
+		ret = _nfs4_do_access(state->inode, state->owner->so_cred, open_mode);
+		unlock_kernel();
+		if (ret != 0)
+			goto out;
+		ret = -EAGAIN;
+		rcu_read_lock();
+		delegation = rcu_dereference(nfsi->delegation);
+		if (delegation == NULL)
+			break;
+		/* Is the delegation still valid? */
+		if (memcmp(stateid.data, delegation->stateid.data, sizeof(stateid.data)) != 0)
+			continue;
+		rcu_read_unlock();
+		update_open_stateid(state, NULL, &stateid, open_mode);
+		goto out_return_state;
+	}
+out_unlock:
+	rcu_read_unlock();
+out:
+	return ERR_PTR(ret);
+out_return_state:
+	atomic_inc(&state->count);
+	return state;
+}
+
 static struct nfs4_state *nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data)
 {
 	struct inode *inode;
@@ -387,6 +459,11 @@ static struct nfs4_state *nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data
 	struct nfs_delegation *delegation;
 	nfs4_stateid *deleg_stateid = NULL;
 	int ret;
+
+	if (!data->rpc_done) {
+		state = nfs4_try_open_delegated(data);
+		goto out;
+	}
 
 	ret = -EAGAIN;
 	if (!(data->f_attr.valid & NFS_ATTR_FATTR))
@@ -423,6 +500,7 @@ static struct nfs4_state *nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data
 	update_open_stateid(state, &data->o_res.stateid, deleg_stateid, data->o_arg.open_flags);
 	rcu_read_unlock();
 	iput(inode);
+out:
 	return state;
 err_put_inode:
 	iput(inode);
@@ -690,6 +768,23 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 	
 	if (nfs_wait_on_sequence(data->o_arg.seqid, task) != 0)
 		return;
+	/*
+	 * Check if we still need to send an OPEN call, or if we can use
+	 * a delegation instead.
+	 */
+	if (data->state != NULL) {
+		struct nfs_delegation *delegation;
+
+		rcu_read_lock();
+		delegation = rcu_dereference(NFS_I(data->state->inode)->delegation);
+		if (delegation != NULL &&
+		   (delegation->flags & NFS_DELEGATION_NEED_RECLAIM) == 0) {
+			rcu_read_unlock();
+			task->tk_action = NULL;
+			return;
+		}
+		rcu_read_unlock();
+	}
 	/* Update sequence id. */
 	data->o_arg.id = sp->so_owner_id.id;
 	data->o_arg.clientid = sp->so_client->cl_clientid;
@@ -907,90 +1002,6 @@ static int nfs4_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *sta
 }
 
 /*
- * Returns a referenced nfs4_state if there is an open delegation on the file
- */
-static int _nfs4_open_delegated(struct inode *inode, int flags, struct rpc_cred *cred, struct nfs4_state **res)
-{
-	struct nfs_delegation *delegation;
-	struct nfs_server *server = NFS_SERVER(inode);
-	struct nfs_client *clp = server->nfs_client;
-	struct nfs_inode *nfsi = NFS_I(inode);
-	struct nfs4_state_owner *sp = NULL;
-	struct nfs4_state *state = NULL;
-	int open_flags = flags & (FMODE_READ|FMODE_WRITE);
-	int err;
-
-	err = -ENOMEM;
-	if (!(sp = nfs4_get_state_owner(server, cred))) {
-		dprintk("%s: nfs4_get_state_owner failed!\n", __FUNCTION__);
-		return err;
-	}
-	err = nfs4_recover_expired_lease(server);
-	if (err != 0)
-		goto out_put_state_owner;
-	/* Protect against reboot recovery - NOTE ORDER! */
-	down_read(&clp->cl_sem);
-	/* Protect against delegation recall */
-	down_read(&nfsi->rwsem);
-	delegation = NFS_I(inode)->delegation;
-	err = -ENOENT;
-	if (delegation == NULL || (delegation->type & open_flags) != open_flags)
-		goto out_err;
-	err = -ENOMEM;
-	state = nfs4_get_open_state(inode, sp);
-	if (state == NULL)
-		goto out_err;
-
-	err = -ENOENT;
-	if ((state->state & open_flags) == open_flags) {
-		spin_lock(&inode->i_lock);
-		update_open_stateflags(state, open_flags);
-		spin_unlock(&inode->i_lock);
-		goto out_ok;
-	} else if (state->state != 0)
-		goto out_put_open_state;
-
-	lock_kernel();
-	err = _nfs4_do_access(inode, cred, open_flags);
-	unlock_kernel();
-	if (err != 0)
-		goto out_put_open_state;
-	update_open_stateid(state, NULL, &delegation->stateid, open_flags);
-out_ok:
-	nfs4_put_state_owner(sp);
-	up_read(&nfsi->rwsem);
-	up_read(&clp->cl_sem);
-	*res = state;
-	return 0;
-out_put_open_state:
-	nfs4_put_open_state(state);
-out_err:
-	up_read(&nfsi->rwsem);
-	up_read(&clp->cl_sem);
-	if (err != -EACCES)
-		nfs_inode_return_delegation(inode);
-out_put_state_owner:
-	nfs4_put_state_owner(sp);
-	return err;
-}
-
-static struct nfs4_state *nfs4_open_delegated(struct inode *inode, int flags, struct rpc_cred *cred)
-{
-	struct nfs4_exception exception = { };
-	struct nfs4_state *res = ERR_PTR(-EIO);
-	int err;
-
-	do {
-		err = _nfs4_open_delegated(inode, flags, cred, &res);
-		if (err == 0)
-			break;
-		res = ERR_PTR(nfs4_handle_exception(NFS_SERVER(inode),
-					err, &exception));
-	} while (exception.retry);
-	return res;
-}
-
-/*
  * on an EXCLUSIVE create, the server should send back a bitmask with FATTR4-*
  * fields corresponding to attributes that were used to store the verifier.
  * Make sure we clobber those fields in the later setattr call
@@ -1016,7 +1027,7 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, int flags, struct
 	struct nfs_server       *server = NFS_SERVER(dir);
 	struct nfs_client *clp = server->nfs_client;
 	struct nfs4_opendata *opendata;
-	int                     status;
+	int status;
 
 	/* Protect against reboot recovery conflicts */
 	status = -ENOMEM;
@@ -1027,11 +1038,16 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, int flags, struct
 	status = nfs4_recover_expired_lease(server);
 	if (status != 0)
 		goto err_put_state_owner;
+	if (path->dentry->d_inode != NULL)
+		nfs4_return_incompatible_delegation(path->dentry->d_inode, flags & (FMODE_READ|FMODE_WRITE));
 	down_read(&clp->cl_sem);
 	status = -ENOMEM;
 	opendata = nfs4_opendata_alloc(path, sp, flags, sattr);
 	if (opendata == NULL)
 		goto err_release_rwsem;
+
+	if (path->dentry->d_inode != NULL)
+		opendata->state = nfs4_get_open_state(path->dentry->d_inode, sp);
 
 	status = _nfs4_proc_open(opendata);
 	if (status != 0)
@@ -1096,6 +1112,11 @@ static struct nfs4_state *nfs4_do_open(struct inode *dir, struct path *path, int
 		 * on Page 181 of RFC3530.
 		 */
 		if (status == -NFS4ERR_BAD_STATEID) {
+			exception.retry = 1;
+			continue;
+		}
+		if (status == -EAGAIN) {
+			/* We must have found a delegation */
 			exception.retry = 1;
 			continue;
 		}
@@ -1390,9 +1411,7 @@ nfs4_open_revalidate(struct inode *dir, struct dentry *dentry, int openflags, st
 	cred = rpcauth_lookupcred(NFS_CLIENT(dir)->cl_auth, 0);
 	if (IS_ERR(cred))
 		return PTR_ERR(cred);
-	state = nfs4_open_delegated(dentry->d_inode, openflags, cred);
-	if (IS_ERR(state))
-		state = nfs4_do_open(dir, &path, openflags, NULL, cred);
+	state = nfs4_do_open(dir, &path, openflags, NULL, cred);
 	put_rpccred(cred);
 	if (IS_ERR(state)) {
 		switch (PTR_ERR(state)) {
