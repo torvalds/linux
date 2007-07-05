@@ -26,7 +26,7 @@ struct nfs_delegation {
 
 int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct nfs_openres *res);
 void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred, struct nfs_openres *res);
-int __nfs_inode_return_delegation(struct inode *inode);
+int nfs_inode_return_delegation(struct inode *inode);
 int nfs_async_inode_return_delegation(struct inode *inode, const nfs4_stateid *stateid);
 
 struct inode *nfs_delegation_find_inode(struct nfs_client *clp, const struct nfs_fh *fhandle);
@@ -52,14 +52,6 @@ static inline int nfs_have_delegation(struct inode *inode, int flags)
 	return 0;
 }
 
-static inline int nfs_inode_return_delegation(struct inode *inode)
-{
-	int err = 0;
-
-	if (NFS_I(inode)->delegation != NULL)
-		err = __nfs_inode_return_delegation(inode);
-	return err;
-}
 #else
 static inline int nfs_have_delegation(struct inode *inode, int flags)
 {

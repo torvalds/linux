@@ -57,7 +57,7 @@ out_err:
 	return status;
 }
 
-static void nfs_delegation_claim_opens(struct inode *inode)
+static void nfs_delegation_claim_opens(struct inode *inode, const nfs4_stateid *stateid)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_open_context *ctx;
@@ -71,6 +71,8 @@ again:
 		if (state == NULL)
 			continue;
 		if (!test_bit(NFS_DELEGATED_STATE, &state->flags))
+			continue;
+		if (memcmp(state->stateid.data, stateid->data, sizeof(state->stateid.data)) != 0)
 			continue;
 		get_nfs_open_context(ctx);
 		spin_unlock(&inode->i_lock);
@@ -170,33 +172,55 @@ static void nfs_msync_inode(struct inode *inode)
 /*
  * Basic procedure for returning a delegation to the server
  */
-int __nfs_inode_return_delegation(struct inode *inode)
+static int __nfs_inode_return_delegation(struct inode *inode, struct nfs_delegation *delegation)
 {
 	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
 	struct nfs_inode *nfsi = NFS_I(inode);
-	struct nfs_delegation *delegation;
-	int res = 0;
 
 	nfs_msync_inode(inode);
 	down_read(&clp->cl_sem);
 	/* Guard against new delegated open calls */
 	down_write(&nfsi->rwsem);
-	spin_lock(&clp->cl_lock);
-	delegation = nfsi->delegation;
-	if (delegation != NULL) {
-		list_del_init(&delegation->super_list);
-		nfsi->delegation = NULL;
-		nfsi->delegation_state = 0;
-	}
-	spin_unlock(&clp->cl_lock);
-	nfs_delegation_claim_opens(inode);
+	nfs_delegation_claim_opens(inode, &delegation->stateid);
 	up_write(&nfsi->rwsem);
 	up_read(&clp->cl_sem);
 	nfs_msync_inode(inode);
 
-	if (delegation != NULL)
-		res = nfs_do_return_delegation(inode, delegation);
-	return res;
+	return nfs_do_return_delegation(inode, delegation);
+}
+
+static struct nfs_delegation *nfs_detach_delegation_locked(struct nfs_inode *nfsi, const nfs4_stateid *stateid)
+{
+	struct nfs_delegation *delegation = nfsi->delegation;
+
+	if (delegation == NULL)
+		goto nomatch;
+	if (stateid != NULL && memcmp(delegation->stateid.data, stateid->data,
+				sizeof(delegation->stateid.data)) != 0)
+		goto nomatch;
+	list_del_init(&delegation->super_list);
+	nfsi->delegation = NULL;
+	nfsi->delegation_state = 0;
+	return delegation;
+nomatch:
+	return NULL;
+}
+
+int nfs_inode_return_delegation(struct inode *inode)
+{
+	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_delegation *delegation;
+	int err = 0;
+
+	if (nfsi->delegation_state != 0) {
+		spin_lock(&clp->cl_lock);
+		delegation = nfs_detach_delegation_locked(nfsi, NULL);
+		spin_unlock(&clp->cl_lock);
+		if (delegation != NULL)
+			err = __nfs_inode_return_delegation(inode, delegation);
+	}
+	return err;
 }
 
 /*
@@ -218,8 +242,9 @@ restart:
 		inode = igrab(delegation->inode);
 		if (inode == NULL)
 			continue;
+		nfs_detach_delegation_locked(NFS_I(inode), NULL);
 		spin_unlock(&clp->cl_lock);
-		nfs_inode_return_delegation(inode);
+		__nfs_inode_return_delegation(inode, delegation);
 		iput(inode);
 		goto restart;
 	}
@@ -243,8 +268,9 @@ restart:
 		inode = igrab(delegation->inode);
 		if (inode == NULL)
 			continue;
+		nfs_detach_delegation_locked(NFS_I(inode), NULL);
 		spin_unlock(&clp->cl_lock);
-		nfs_inode_return_delegation(inode);
+		__nfs_inode_return_delegation(inode, delegation);
 		iput(inode);
 		goto restart;
 	}
@@ -285,8 +311,9 @@ restart:
 		inode = igrab(delegation->inode);
 		if (inode == NULL)
 			continue;
+		nfs_detach_delegation_locked(NFS_I(inode), NULL);
 		spin_unlock(&clp->cl_lock);
-		nfs_inode_return_delegation(inode);
+		__nfs_inode_return_delegation(inode, delegation);
 		iput(inode);
 		goto restart;
 	}
@@ -316,21 +343,14 @@ static int recall_thread(void *data)
 	down_read(&clp->cl_sem);
 	down_write(&nfsi->rwsem);
 	spin_lock(&clp->cl_lock);
-	delegation = nfsi->delegation;
-	if (delegation != NULL && memcmp(delegation->stateid.data,
-				args->stateid->data,
-				sizeof(delegation->stateid.data)) == 0) {
-		list_del_init(&delegation->super_list);
-		nfsi->delegation = NULL;
-		nfsi->delegation_state = 0;
+	delegation = nfs_detach_delegation_locked(nfsi, args->stateid);
+	if (delegation != NULL)
 		args->result = 0;
-	} else {
-		delegation = NULL;
+	else
 		args->result = -ENOENT;
-	}
 	spin_unlock(&clp->cl_lock);
 	complete(&args->started);
-	nfs_delegation_claim_opens(inode);
+	nfs_delegation_claim_opens(inode, args->stateid);
 	up_write(&nfsi->rwsem);
 	up_read(&clp->cl_sem);
 	nfs_msync_inode(inode);
