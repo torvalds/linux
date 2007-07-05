@@ -239,7 +239,7 @@ static int __init pas_probe(void)
 	return 1;
 }
 
-define_machine(pas) {
+define_machine(pasemi) {
 	.name			= "PA Semi PA6T-1682M",
 	.probe			= pas_probe,
 	.setup_arch		= pas_setup_arch,
