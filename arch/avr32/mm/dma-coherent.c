@@ -41,6 +41,13 @@ static struct page *__dma_alloc(struct device *dev, size_t size,
 	struct page *page, *free, *end;
 	int order;
 
+	/* Following is a work-around (a.k.a. hack) to prevent pages
+	 * with __GFP_COMP being passed to split_page() which cannot
+	 * handle them.  The real problem is that this flag probably
+	 * should be 0 on AVR32 as it is not supported on this
+	 * platform--see CONFIG_HUGETLB_PAGE. */
+	gfp &= ~(__GFP_COMP);
+
 	size = PAGE_ALIGN(size);
 	order = get_order(size);
 
