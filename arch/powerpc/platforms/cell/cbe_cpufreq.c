@@ -74,6 +74,7 @@ static unsigned int pmi_frequency_limit = 0;
 
 static struct of_device *pmi_dev;
 
+#ifdef CONFIG_PPC_PMI
 static int set_pmode_pmi(int cpu, unsigned int pmode)
 {
 	int ret;
@@ -102,7 +103,7 @@ static int set_pmode_pmi(int cpu, unsigned int pmode)
 #endif
 	return ret;
 }
-
+#endif
 
 static int get_pmode(int cpu)
 {
@@ -157,9 +158,11 @@ static int set_pmode_reg(int cpu, unsigned int pmode)
 }
 
 static int set_pmode(int cpu, unsigned int slow_mode) {
+#ifdef CONFIG_PPC_PMI
 	if (pmi_dev)
 		return set_pmode_pmi(cpu, slow_mode);
 	else
+#endif
 		return set_pmode_reg(cpu, slow_mode);
 }
 
@@ -323,26 +326,28 @@ static struct cpufreq_driver cbe_cpufreq_driver = {
 
 static int __init cbe_cpufreq_init(void)
 {
+#ifdef CONFIG_PPC_PMI
 	struct device_node *np;
-
+#endif
 	if (!machine_is(cell))
 		return -ENODEV;
-
+#ifdef CONFIG_PPC_PMI
 	np = of_find_node_by_type(NULL, "ibm,pmi");
 
 	pmi_dev = of_find_device_by_node(np);
 
 	if (pmi_dev)
 		pmi_register_handler(pmi_dev, &cbe_pmi_handler);
-
+#endif
 	return cpufreq_register_driver(&cbe_cpufreq_driver);
 }
 
 static void __exit cbe_cpufreq_exit(void)
 {
+#ifdef CONFIG_PPC_PMI
 	if (pmi_dev)
 		pmi_unregister_handler(pmi_dev, &cbe_pmi_handler);
-
+#endif
 	cpufreq_unregister_driver(&cbe_cpufreq_driver);
 }
 

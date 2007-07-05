@@ -138,10 +138,7 @@ struct irq_map_entry {
 
 extern struct irq_map_entry irq_map[NR_IRQS];
 
-static inline irq_hw_number_t virq_to_hw(unsigned int virq)
-{
-	return irq_map[virq].hwirq;
-}
+extern irq_hw_number_t virq_to_hw(unsigned int virq);
 
 /**
  * irq_alloc_host - Allocate a new irq_host data structure

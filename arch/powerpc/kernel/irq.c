@@ -412,6 +412,12 @@ struct irq_map_entry irq_map[NR_IRQS];
 static unsigned int irq_virq_count = NR_IRQS;
 static struct irq_host *irq_default_host;
 
+irq_hw_number_t virq_to_hw(unsigned int virq)
+{
+	return irq_map[virq].hwirq;
+}
+EXPORT_SYMBOL_GPL(virq_to_hw);
+
 struct irq_host *irq_alloc_host(unsigned int revmap_type,
 				unsigned int revmap_arg,
 				struct irq_host_ops *ops,
