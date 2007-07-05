@@ -769,8 +769,10 @@ static int serio_driver_remove(struct device *dev)
 
 static void serio_cleanup(struct serio *serio)
 {
+	mutex_lock(&serio->drv_mutex);
 	if (serio->drv && serio->drv->cleanup)
 		serio->drv->cleanup(serio);
+	mutex_unlock(&serio->drv_mutex);
 }
 
 static void serio_shutdown(struct device *dev)
