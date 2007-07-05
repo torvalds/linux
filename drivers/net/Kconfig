@@ -2200,6 +2200,16 @@ config TSI108_ETH
 	     To compile this driver as a module, choose M here: the module
 	     will be called tsi108_eth.
 
+config GELIC_NET
+	tristate "PS3 Gigabit Ethernet driver"
+	depends on PPC_PS3
+	help
+	  This driver supports the network device on the PS3 game
+	  console.  This driver has built-in support for Ethernet.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ps3_gelic.
+
 config GIANFAR
 	tristate "Gianfar Ethernet"
 	depends on 85xx || 83xx || PPC_86xx
