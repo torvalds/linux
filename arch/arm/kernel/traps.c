@@ -181,9 +181,7 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 
 void dump_stack(void)
 {
-#ifdef CONFIG_DEBUG_ERRORS
 	__backtrace();
-#endif
 }
 
 EXPORT_SYMBOL(dump_stack);
