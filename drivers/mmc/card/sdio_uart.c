@@ -913,6 +913,67 @@ static int sdio_uart_tiocmset(struct tty_struct *tty, struct file *file,
 	return result;
 }
 
+static int sdio_uart_read_proc(char *page, char **start, off_t off,
+			       int count, int *eof, void *data)
+{
+	int i, len = 0;
+	off_t begin = 0;
+
+	len += sprintf(page, "serinfo:1.0 driver%s%s revision:%s\n",
+		       "", "", "");
+	for (i = 0; i < UART_NR && len < PAGE_SIZE - 96; i++) {
+		struct sdio_uart_port *port = sdio_uart_port_get(i);
+		if (port) {
+			len += sprintf(page+len, "%d: uart:SDIO", i);
+			if(capable(CAP_SYS_ADMIN)) {
+				len += sprintf(page + len, " tx:%d rx:%d",
+					       port->icount.tx, port->icount.rx);
+				if (port->icount.frame)
+					len += sprintf(page + len, " fe:%d",
+						       port->icount.frame);
+				if (port->icount.parity)
+					len += sprintf(page + len, " pe:%d",
+						       port->icount.parity);
+				if (port->icount.brk)
+					len += sprintf(page + len, " brk:%d",
+						       port->icount.brk);
+				if (port->icount.overrun)
+					len += sprintf(page + len, " oe:%d",
+						       port->icount.overrun);
+				if (port->icount.cts)
+					len += sprintf(page + len, " cts:%d",
+						       port->icount.cts);
+				if (port->icount.dsr)
+					len += sprintf(page + len, " dsr:%d",
+						       port->icount.dsr);
+				if (port->icount.rng)
+					len += sprintf(page + len, " rng:%d",
+						       port->icount.rng);
+				if (port->icount.dcd)
+					len += sprintf(page + len, " dcd:%d",
+						       port->icount.dcd);
+			}
+			strcat(page, "\n");
+			len++;
+			sdio_uart_port_put(port);
+		}
+
+		if (len + begin > off + count)
+			goto done;
+		if (len + begin < off) {
+			begin += len;
+			len = 0;
+		}
+	}
+	*eof = 1;
+
+done:
+	if (off >= len + begin)
+		return 0;
+	*start = page + (off - begin);
+	return (count < begin + len - off) ? count : (begin + len - off);
+}
+
 static const struct tty_operations sdio_uart_ops = {
 	.open			= sdio_uart_open,
 	.close			= sdio_uart_close,
@@ -926,6 +987,7 @@ static const struct tty_operations sdio_uart_ops = {
 	.break_ctl		= sdio_uart_break_ctl,
 	.tiocmget		= sdio_uart_tiocmget,
 	.tiocmset		= sdio_uart_tiocmset,
+	.read_proc		= sdio_uart_read_proc,
 };
 
 static struct tty_driver *sdio_uart_tty_driver;
