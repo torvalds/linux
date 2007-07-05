@@ -177,18 +177,22 @@
 #endif
 
 /*
- * The RM9000 has a bug (though PMC-Sierra opposes it being called that)
- * where invalid instructions in the same I-cache line worth of instructions
- * being fetched may case spurious exceptions.
+ * The RM7000 processors and the E9000 cores have a bug (though PMC-Sierra
+ * opposes it being called that) where invalid instructions in the same
+ * I-cache line worth of instructions being fetched may case spurious
+ * exceptions.
  */
-#if defined(CONFIG_MOMENCO_JAGUAR_ATX) || defined(CONFIG_MOMENCO_OCELOT_3) || \
-    defined(CONFIG_PMC_YOSEMITE) || defined(CONFIG_BASLER_EXCITE)
+#if defined(CONFIG_BASLER_EXCITE) || defined(CONFIG_MOMENCO_JAGUAR_ATX) || \
+    defined(CONFIG_MIPS_ATLAS) || defined(CONFIG_MIPS_MALTA) || \
+    defined(CONFIG_MOMENCO_OCELOT) || defined(CONFIG_MOMENCO_OCELOT_3) || \
+    defined(CONFIG_MOMENCO_OCELOT_C) || defined(CONFIG_PMC_YOSEMITE) || \
+    defined(CONFIG_SGI_IP32) || defined(CONFIG_WR_PPMC)
 #define ICACHE_REFILLS_WORKAROUND_WAR	1
 #endif
 
 
 /*
- * ON the R10000 upto version 2.6 (not sure about 2.7) there is a bug that
+ * On the R10000 upto version 2.6 (not sure about 2.7) there is a bug that
  * may cause ll / sc and lld / scd sequences to execute non-atomically.
  */
 #ifdef CONFIG_SGI_IP27
