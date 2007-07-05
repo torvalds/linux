@@ -719,8 +719,8 @@ static void stex_ys_commands(struct st_hba *hba,
 
 	if (ccb->cmd->cmnd[0] == MGT_CMD &&
 		resp->scsi_status != SAM_STAT_CHECK_CONDITION) {
-		scsi_bufflen(ccb->cmd) =
-			le32_to_cpu(*(__le32 *)&resp->variable[0]);
+		scsi_set_resid(ccb->cmd, scsi_bufflen(ccb->cmd) -
+			le32_to_cpu(*(__le32 *)&resp->variable[0]));
 		return;
 	}
 
