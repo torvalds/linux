@@ -412,7 +412,8 @@ void nfs4_close_state(struct path *path, struct nfs4_state *state, mode_t mode)
 {
 	struct inode *inode = state->inode;
 	struct nfs4_state_owner *owner = state->owner;
-	int oldstate, newstate = 0;
+	int call_close = 0;
+	int newstate;
 
 	atomic_inc(&owner->so_count);
 	/* Protect against nfs4_find_state() */
@@ -428,21 +429,26 @@ void nfs4_close_state(struct path *path, struct nfs4_state *state, mode_t mode)
 		case FMODE_READ|FMODE_WRITE:
 			state->n_rdwr--;
 	}
-	oldstate = newstate = state->state;
+	newstate = FMODE_READ|FMODE_WRITE;
 	if (state->n_rdwr == 0) {
-		if (state->n_rdonly == 0)
+		if (state->n_rdonly == 0) {
 			newstate &= ~FMODE_READ;
-		if (state->n_wronly == 0)
+			call_close |= test_bit(NFS_O_RDONLY_STATE, &state->flags);
+			call_close |= test_bit(NFS_O_RDWR_STATE, &state->flags);
+		}
+		if (state->n_wronly == 0) {
 			newstate &= ~FMODE_WRITE;
+			call_close |= test_bit(NFS_O_WRONLY_STATE, &state->flags);
+			call_close |= test_bit(NFS_O_RDWR_STATE, &state->flags);
+		}
+		if (newstate == 0)
+			clear_bit(NFS_DELEGATED_STATE, &state->flags);
 	}
-	if (test_bit(NFS_DELEGATED_STATE, &state->flags)) {
-		nfs4_state_set_mode_locked(state, newstate);
-		oldstate = newstate;
-	}
+	nfs4_state_set_mode_locked(state, newstate);
 	spin_unlock(&inode->i_lock);
 	spin_unlock(&owner->so_lock);
 
-	if (oldstate == newstate) {
+	if (!call_close) {
 		nfs4_put_open_state(state);
 		nfs4_put_state_owner(owner);
 	} else
@@ -838,6 +844,10 @@ static void nfs4_state_mark_reclaim(struct nfs_client *clp)
 		sp->so_seqid.flags = 0;
 		spin_lock(&sp->so_lock);
 		list_for_each_entry(state, &sp->so_states, open_states) {
+			clear_bit(NFS_DELEGATED_STATE, &state->flags);
+			clear_bit(NFS_O_RDONLY_STATE, &state->flags);
+			clear_bit(NFS_O_WRONLY_STATE, &state->flags);
+			clear_bit(NFS_O_RDWR_STATE, &state->flags);
 			list_for_each_entry(lock, &state->lock_states, ls_locks) {
 				lock->ls_seqid.counter = 0;
 				lock->ls_seqid.flags = 0;

@@ -122,7 +122,10 @@ struct nfs4_lock_state {
 /* bits for nfs4_state->flags */
 enum {
 	LK_STATE_IN_USE,
-	NFS_DELEGATED_STATE,
+	NFS_DELEGATED_STATE,		/* Current stateid is delegation */
+	NFS_O_RDONLY_STATE,		/* OPEN stateid has read-only state */
+	NFS_O_WRONLY_STATE,		/* OPEN stateid has write-only state */
+	NFS_O_RDWR_STATE,		/* OPEN stateid has read/write state */
 };
 
 struct nfs4_state {
@@ -136,11 +139,12 @@ struct nfs4_state {
 	unsigned long flags;		/* Do we hold any locks? */
 	spinlock_t state_lock;		/* Protects the lock_states list */
 
-	nfs4_stateid stateid;
+	nfs4_stateid stateid;		/* Current stateid: may be delegation */
+	nfs4_stateid open_stateid;	/* OPEN stateid */
 
-	unsigned int n_rdonly;
-	unsigned int n_wronly;
-	unsigned int n_rdwr;
+	unsigned int n_rdonly;		/* Number of read-only references */
+	unsigned int n_wronly;		/* Number of write-only references */
+	unsigned int n_rdwr;		/* Number of read/write references */
 	int state;			/* State on the server (R,W, or RW) */
 	atomic_t count;
 };
