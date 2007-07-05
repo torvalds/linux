@@ -145,7 +145,12 @@ static int lm85_scaling[] = {  /* .001 Volts */
 #define INS_FROM_REG(n,val)	SCALE((val), 192, lm85_scaling[n])
 
 /* FAN speed is measured using 90kHz clock */
-#define FAN_TO_REG(val)		(SENSORS_LIMIT( (val)<=0?0: 5400000/(val),0,65534))
+static inline u16 FAN_TO_REG(unsigned long val)
+{
+	if (!val)
+		return 0xffff;
+	return SENSORS_LIMIT(5400000 / val, 1, 0xfffe);
+}
 #define FAN_FROM_REG(val)	((val)==0?-1:(val)==0xffff?0:5400000/(val))
 
 /* Temperature is reported in .001 degC increments */
@@ -391,7 +396,7 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm85_data *data = i2c_get_clientdata(client);
-	long val = simple_strtol(buf, NULL, 10);
+	unsigned long val = simple_strtoul(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
 	data->fan_min[nr] = FAN_TO_REG(val);
