@@ -179,7 +179,6 @@ void qla2x00_build_scsi_iocbs_32(srb_t *sp, cmd_entry_t *cmd_pkt,
 	cur_dsd = (uint32_t *)&cmd_pkt->dseg_0_address;
 
 	/* Load data segments */
-
 	scsi_for_each_sg(cmd, sg, tot_dsds, i) {
 		cont_entry_t *cont_pkt;
 
@@ -316,9 +315,14 @@ qla2x00_start_scsi(srb_t *sp)
 		goto queuing_error;
 
 	/* Map the sg table so we have an accurate count of sg entries needed */
-	nseg = scsi_dma_map(cmd);
-	if (nseg < 0)
-		goto queuing_error;
+	if (scsi_sg_count(cmd)) {
+		nseg = dma_map_sg(&ha->pdev->dev, scsi_sglist(cmd),
+		    scsi_sg_count(cmd), cmd->sc_data_direction);
+		if (unlikely(!nseg))
+			goto queuing_error;
+	} else
+		nseg = 0;
+
 	tot_dsds = nseg;
 
 	/* Calculate the number of request entries needed. */
@@ -414,9 +418,10 @@ __qla2x00_marker(scsi_qla_host_t *ha, uint16_t loop_id, uint16_t lun,
 {
 	mrk_entry_t *mrk;
 	struct mrk_entry_24xx *mrk24;
+	scsi_qla_host_t *pha = to_qla_parent(ha);
 
 	mrk24 = NULL;
-	mrk = (mrk_entry_t *)qla2x00_req_pkt(ha);
+	mrk = (mrk_entry_t *)qla2x00_req_pkt(pha);
 	if (mrk == NULL) {
 		DEBUG2_3(printk("%s(%ld): failed to allocate Marker IOCB.\n",
 		    __func__, ha->host_no));
@@ -433,6 +438,7 @@ __qla2x00_marker(scsi_qla_host_t *ha, uint16_t loop_id, uint16_t lun,
 			mrk24->lun[1] = LSB(lun);
 			mrk24->lun[2] = MSB(lun);
 			host_to_fcp_swap(mrk24->lun, sizeof(mrk24->lun));
+			mrk24->vp_index = ha->vp_idx;
 		} else {
 			SET_TARGET_ID(ha, mrk->target, loop_id);
 			mrk->lun = cpu_to_le16(lun);
@@ -440,7 +446,7 @@ __qla2x00_marker(scsi_qla_host_t *ha, uint16_t loop_id, uint16_t lun,
 	}
 	wmb();
 
-	qla2x00_isp_cmd(ha);
+	qla2x00_isp_cmd(pha);
 
 	return (QLA_SUCCESS);
 }
@@ -712,9 +718,14 @@ qla24xx_start_scsi(srb_t *sp)
 		goto queuing_error;
 
 	/* Map the sg table so we have an accurate count of sg entries needed */
-	nseg = scsi_dma_map(cmd);
-	if (nseg < 0)
+	if (scsi_sg_count(cmd)) {
+		nseg = dma_map_sg(&ha->pdev->dev, scsi_sglist(cmd),
+		    scsi_sg_count(cmd), cmd->sc_data_direction);
+		if (unlikely(!nseg))
 			goto queuing_error;
+	} else
+		nseg = 0;
+
 	tot_dsds = nseg;
 
 	req_cnt = qla24xx_calc_iocbs(tot_dsds);
@@ -750,6 +761,7 @@ qla24xx_start_scsi(srb_t *sp)
 	cmd_pkt->port_id[0] = sp->fcport->d_id.b.al_pa;
 	cmd_pkt->port_id[1] = sp->fcport->d_id.b.area;
 	cmd_pkt->port_id[2] = sp->fcport->d_id.b.domain;
+	cmd_pkt->vp_index = sp->fcport->vp_idx;
 
 	int_to_scsilun(sp->cmd->device->lun, &cmd_pkt->lun);
 	host_to_fcp_swap((uint8_t *)&cmd_pkt->lun, sizeof(cmd_pkt->lun));

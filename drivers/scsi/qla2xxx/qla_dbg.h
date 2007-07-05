@@ -21,6 +21,7 @@
 /* #define QL_DEBUG_LEVEL_12 */ /* Output IP trace msgs */
 /* #define QL_DEBUG_LEVEL_13 */ /* Output fdmi function trace msgs */
 /* #define QL_DEBUG_LEVEL_14 */ /* Output RSCN trace msgs */
+/* #define QL_DEBUG_LEVEL_15 */ /* Output NPIV trace msgs */
 /*
  *  Local Macro Definitions.
  */
@@ -30,7 +31,8 @@
     defined(QL_DEBUG_LEVEL_7)  || defined(QL_DEBUG_LEVEL_8) || \
     defined(QL_DEBUG_LEVEL_9)  || defined(QL_DEBUG_LEVEL_10) || \
     defined(QL_DEBUG_LEVEL_11) || defined(QL_DEBUG_LEVEL_12) || \
-    defined(QL_DEBUG_LEVEL_13) || defined(QL_DEBUG_LEVEL_14)
+    defined(QL_DEBUG_LEVEL_13) || defined(QL_DEBUG_LEVEL_14) || \
+    defined(QL_DEBUG_LEVEL_15)
     #define QL_DEBUG_ROUTINES
 #endif
 
@@ -123,6 +125,12 @@
 #define DEBUG14(x)      do {x;} while (0)
 #else
 #define DEBUG14(x)	do {} while (0)
+#endif
+
+#if defined(QL_DEBUG_LEVEL_15)
+#define DEBUG15(x)      do {x;} while (0)
+#else
+#define DEBUG15(x)	do {} while (0)
 #endif
 
 /*

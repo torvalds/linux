@@ -9,7 +9,6 @@
 #include <scsi/scsi_tcq.h>
 
 static void qla2x00_mbx_completion(scsi_qla_host_t *, uint16_t);
-static void qla2x00_async_event(scsi_qla_host_t *, uint16_t *);
 static void qla2x00_process_completed_request(struct scsi_qla_host *, uint32_t);
 static void qla2x00_status_entry(scsi_qla_host_t *, void *);
 static void qla2x00_status_cont_entry(scsi_qla_host_t *, sts_cont_entry_t *);
@@ -244,7 +243,7 @@ qla2x00_mbx_completion(scsi_qla_host_t *ha, uint16_t mb0)
  * @ha: SCSI driver HA context
  * @mb: Mailbox registers (0 - 3)
  */
-static void
+void
 qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 {
 #define LS_UNKNOWN	2
@@ -386,6 +385,11 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 			qla2x00_mark_all_devices_lost(ha, 1);
 		}
 
+		if (ha->parent) {
+			atomic_set(&ha->vp_state, VP_FAILED);
+			fc_vport_set_state(ha->fc_vport, FC_VPORT_FAILED);
+		}
+
 		set_bit(REGISTER_FC4_NEEDED, &ha->dpc_flags);
 
 		ha->flags.management_server_logged_in = 0;
@@ -422,6 +426,11 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 			qla2x00_mark_all_devices_lost(ha, 1);
 		}
 
+		if (ha->parent) {
+			atomic_set(&ha->vp_state, VP_FAILED);
+			fc_vport_set_state(ha->fc_vport, FC_VPORT_FAILED);
+		}
+
 		ha->flags.management_server_logged_in = 0;
 		ha->link_data_rate = PORT_SPEED_UNKNOWN;
 		if (ql2xfdmienable)
@@ -438,6 +447,11 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 			atomic_set(&ha->loop_state, LOOP_DOWN);
 			atomic_set(&ha->loop_down_timer, LOOP_DOWN_TIME);
 			qla2x00_mark_all_devices_lost(ha, 1);
+		}
+
+		if (ha->parent) {
+			atomic_set(&ha->vp_state, VP_FAILED);
+			fc_vport_set_state(ha->fc_vport, FC_VPORT_FAILED);
 		}
 
 		set_bit(RESET_MARKER_NEEDED, &ha->dpc_flags);
@@ -465,6 +479,11 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 			qla2x00_mark_all_devices_lost(ha, 1);
 		}
 
+		if (ha->parent) {
+			atomic_set(&ha->vp_state, VP_FAILED);
+			fc_vport_set_state(ha->fc_vport, FC_VPORT_FAILED);
+		}
+
 		if (!(test_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags))) {
 			set_bit(RESET_MARKER_NEEDED, &ha->dpc_flags);
 		}
@@ -489,6 +508,11 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 				atomic_set(&ha->loop_down_timer,
 				    LOOP_DOWN_TIME);
 			qla2x00_mark_all_devices_lost(ha, 1);
+		}
+
+		if (ha->parent) {
+			atomic_set(&ha->vp_state, VP_FAILED);
+			fc_vport_set_state(ha->fc_vport, FC_VPORT_FAILED);
 		}
 
 		set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
@@ -530,6 +554,10 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		break;
 
 	case MBA_RSCN_UPDATE:		/* State Change Registration */
+		/* Check if the Vport has issued a SCR */
+		if (ha->parent && test_bit(VP_SCR_NEEDED, &ha->vp_flags))
+			break;
+
 		DEBUG2(printk("scsi(%ld): Asynchronous RSCR UPDATE.\n",
 		    ha->host_no));
 		DEBUG(printk(KERN_INFO
@@ -589,6 +617,9 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		ha->host_no, mb[1], mb[2]));
 		break;
 	}
+
+	if (!ha->parent && ha->num_vhosts)
+		qla2x00_alert_all_vps(ha, mb);
 }
 
 static void
@@ -1392,6 +1423,10 @@ qla24xx_process_response_queue(struct scsi_qla_host *ha)
 			break;
 		case MS_IOCB_TYPE:
 			qla24xx_ms_entry(ha, (struct ct_entry_24xx *)pkt);
+			break;
+		case VP_RPT_ID_IOCB_TYPE:
+			qla24xx_report_id_acquisition(ha,
+			    (struct vp_rpt_id_entry_24xx *)pkt);
 			break;
 		default:
 			/* Type Not Supported. */
