@@ -298,7 +298,7 @@ retry:
 	memset(&ei, 0, sizeof(struct erase_info));
 
 	ei.mtd      = ubi->mtd;
-	ei.addr     = pnum * ubi->peb_size;
+	ei.addr     = (loff_t)pnum * ubi->peb_size;
 	ei.len      = ubi->peb_size;
 	ei.callback = erase_callback;
 	ei.priv     = (unsigned long)&wq;
