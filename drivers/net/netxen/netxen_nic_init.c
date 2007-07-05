@@ -139,6 +139,8 @@ int netxen_init_firmware(struct netxen_adapter *adapter)
 		return err;
 	}
 	/* Window 1 call */
+	writel(INTR_SCHEME_PERPORT,
+	       NETXEN_CRB_NORMALIZE(adapter, CRB_NIC_CAPABILITIES_HOST));
 	writel(MPORT_MULTI_FUNCTION_MODE,
 	       NETXEN_CRB_NORMALIZE(adapter, CRB_MPORT_MODE));
 	writel(PHAN_INITIALIZE_ACK,
@@ -405,10 +407,7 @@ static inline int do_rom_fast_write(struct netxen_adapter *adapter, int addr,
 static inline int
 do_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp)
 {
-	if (jiffies > (last_schedule_time + (8 * HZ))) {
-		last_schedule_time = jiffies;
-		schedule();
-	}
+	cond_resched();
 
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_ADDRESS, addr);
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_ABYTE_CNT, 3);
@@ -854,10 +853,10 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 				netxen_nic_pci_change_crbwindow(adapter, 1);
 			}
 			if (init_delay == 1) {
-				ssleep(1);
+				msleep(2000);
 				init_delay = 0;
 			}
-			msleep(1);
+			msleep(20);
 		}
 		kfree(buf);
 
@@ -933,10 +932,6 @@ int netxen_initialize_adapter_offload(struct netxen_adapter *adapter)
 void netxen_free_adapter_offload(struct netxen_adapter *adapter)
 {
 	if (adapter->dummy_dma.addr) {
-		writel(0, NETXEN_CRB_NORMALIZE(adapter,
-			CRB_HOST_DUMMY_BUF_ADDR_HI));
-		writel(0, NETXEN_CRB_NORMALIZE(adapter,
-			CRB_HOST_DUMMY_BUF_ADDR_LO));
 		pci_free_consistent(adapter->ahw.pdev,
 				    NETXEN_HOST_DUMMY_DMA_SIZE,
 				    adapter->dummy_dma.addr,
@@ -945,25 +940,32 @@ void netxen_free_adapter_offload(struct netxen_adapter *adapter)
 	}
 }
 
-void netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
+int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
 {
 	u32 val = 0;
-	int loops = 0;
+	int retries = 30;
 
 	if (!pegtune_val) {
-		val = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
-		while (val != PHAN_INITIALIZE_COMPLETE && 
-			val != PHAN_INITIALIZE_ACK && loops < 200000) {
-			udelay(100);
-			schedule();
-			val =
-			    readl(NETXEN_CRB_NORMALIZE
+		do {
+			val = readl(NETXEN_CRB_NORMALIZE
 				  (adapter, CRB_CMDPEG_STATE));
-			loops++;
+			pegtune_val = readl(NETXEN_CRB_NORMALIZE
+				  (adapter, NETXEN_ROMUSB_GLB_PEGTUNE_DONE));
+
+			if (val == PHAN_INITIALIZE_COMPLETE ||
+				val == PHAN_INITIALIZE_ACK)
+				return 0;
+
+			msleep(1000);
+		} while (--retries);
+		if (!retries) {
+			printk(KERN_WARNING "netxen_phantom_init: init failed, "
+					"pegtune_val=%x\n", pegtune_val);
+			return -1;
 		}
-		if (val != PHAN_INITIALIZE_COMPLETE)
-			printk("WARNING: Initial boot wait loop failed...\n");
 	}
+
+	return 0;
 }
 
 int netxen_nic_rx_has_work(struct netxen_adapter *adapter)
@@ -1120,6 +1122,7 @@ netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 		adapter->stats.csummed++;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
+	skb->dev = netdev;
 	if (desc_ctx == RCV_DESC_LRO_CTXID) {
 		/* True length was only available on the last pkt */
 		skb_put(skb, buffer->lro_length);
@@ -1224,6 +1227,7 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 		       NETXEN_CRB_NORMALIZE(adapter,
 					    recv_crb_registers[adapter->portnum].
 					    crb_rcv_status_consumer));
+		wmb();
 	}
 
 	return count;
@@ -1276,11 +1280,13 @@ int netxen_process_cmd_ring(unsigned long data)
 		if (skb && (cmpxchg(&buffer->skb, skb, 0) == skb)) {
 			pci_unmap_single(pdev, frag->dma, frag->length,
 					 PCI_DMA_TODEVICE);
+			frag->dma = 0ULL;
 			for (i = 1; i < buffer->frag_count; i++) {
 				DPRINTK(INFO, "getting fragment no %d\n", i);
 				frag++;	/* Get the next frag */
 				pci_unmap_page(pdev, frag->dma, frag->length,
 					       PCI_DMA_TODEVICE);
+				frag->dma = 0ULL;
 			}
 
 			adapter->stats.skbfreed++;
@@ -1446,6 +1452,7 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 			writel(msg,
 			       DB_NORMALIZE(adapter,
 					    NETXEN_RCV_PRODUCER_OFFSET));
+			wmb();
 		}
 	}
 }

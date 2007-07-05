@@ -99,6 +99,11 @@ cat << EOF
 #define __IGNORE_setfsuid32
 #define __IGNORE_setfsgid32
 
+/* sync_file_range had a stupid ABI. Allow sync_file_range2 instead */
+#ifdef __NR_sync_file_range2
+#define __IGNORE_sync_file_range
+#endif
+
 /* Unmerged syscalls for AFS, STREAMS, etc. */
 #define __IGNORE_afs_syscall
 #define __IGNORE_getpmsg

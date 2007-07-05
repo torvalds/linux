@@ -290,7 +290,7 @@ static struct pnp_card_driver sb_pnp_driver = {
 MODULE_DEVICE_TABLE(pnp_card, sb_pnp_card_table);
 #endif /* CONFIG_PNP */
 
-static void __init_or_module sb_unregister_all(void)
+static void sb_unregister_all(void)
 {
 #ifdef CONFIG_PNP
 	if (pnp_registered)

@@ -144,14 +144,14 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 			 * modem interface from an RNDIS non-modem.
 			 */
 			if (rndis) {
-				struct usb_cdc_acm_descriptor *d;
+				struct usb_cdc_acm_descriptor *acm;
 
-				d = (void *) buf;
-				if (d->bmCapabilities) {
+				acm = (void *) buf;
+				if (acm->bmCapabilities) {
 					dev_dbg(&intf->dev,
 						"ACM capabilities %02x, "
 						"not really RNDIS?\n",
-						d->bmCapabilities);
+						acm->bmCapabilities);
 					goto bad_desc;
 				}
 			}

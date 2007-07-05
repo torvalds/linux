@@ -129,7 +129,7 @@ static struct ata_port_operations pcmcia_port_ops = {
 	.irq_on		= ata_irq_on,
 	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 #define CS_CHECK(fn, ret) \

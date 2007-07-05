@@ -307,10 +307,20 @@ void __init setup_arch(char **cmdline_p)
 	init_leds();
 
 	printk(KERN_INFO "Blackfin support (C) 2004-2007 Analog Devices, Inc.\n");
-	printk(KERN_INFO "Compiled for ADSP-%s Rev 0.%d\n", CPU, bfin_compiled_revid());
-	if (bfin_revid() != bfin_compiled_revid())
-		printk(KERN_ERR "Warning: Compiled for Rev %d, but running on Rev %d\n",
-		       bfin_compiled_revid(), bfin_revid());
+	if (bfin_compiled_revid() == 0xffff)
+		printk(KERN_INFO "Compiled for ADSP-%s Rev any\n", CPU);
+	else if (bfin_compiled_revid() == -1)
+		printk(KERN_INFO "Compiled for ADSP-%s Rev none\n", CPU);
+	else
+		printk(KERN_INFO "Compiled for ADSP-%s Rev 0.%d\n", CPU, bfin_compiled_revid());
+	if (bfin_revid() != bfin_compiled_revid()) {
+		if (bfin_compiled_revid() == -1)
+			printk(KERN_ERR "Warning: Compiled for Rev none, but running on Rev %d\n",
+			       bfin_revid());
+		else if (bfin_compiled_revid() != 0xffff)
+			printk(KERN_ERR "Warning: Compiled for Rev %d, but running on Rev %d\n",
+			       bfin_compiled_revid(), bfin_revid());
+	}
 	if (bfin_revid() < SUPPORTED_REVID)
 		printk(KERN_ERR "Warning: Unsupported Chip Revision ADSP-%s Rev 0.%d detected\n",
 		       CPU, bfin_revid());

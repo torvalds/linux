@@ -55,14 +55,45 @@ static DEFINE_PER_CPU(struct nmi_watchdog_ctlblk, nmi_watchdog_ctlblk);
 /* converts an msr to an appropriate reservation bit */
 static inline unsigned int nmi_perfctr_msr_to_bit(unsigned int msr)
 {
-	return wd_ops ? msr - wd_ops->perfctr : 0;
+	/* returns the bit offset of the performance counter register */
+	switch (boot_cpu_data.x86_vendor) {
+	case X86_VENDOR_AMD:
+		return (msr - MSR_K7_PERFCTR0);
+	case X86_VENDOR_INTEL:
+		if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
+			return (msr - MSR_ARCH_PERFMON_PERFCTR0);
+
+		switch (boot_cpu_data.x86) {
+		case 6:
+			return (msr - MSR_P6_PERFCTR0);
+		case 15:
+			return (msr - MSR_P4_BPU_PERFCTR0);
+		}
+	}
+	return 0;
 }
 
 /* converts an msr to an appropriate reservation bit */
 /* returns the bit offset of the event selection register */
 static inline unsigned int nmi_evntsel_msr_to_bit(unsigned int msr)
 {
-	return wd_ops ? msr - wd_ops->evntsel : 0;
+	/* returns the bit offset of the event selection register */
+	switch (boot_cpu_data.x86_vendor) {
+	case X86_VENDOR_AMD:
+		return (msr - MSR_K7_EVNTSEL0);
+	case X86_VENDOR_INTEL:
+		if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
+			return (msr - MSR_ARCH_PERFMON_EVENTSEL0);
+
+		switch (boot_cpu_data.x86) {
+		case 6:
+			return (msr - MSR_P6_EVNTSEL0);
+		case 15:
+			return (msr - MSR_P4_BSU_ESCR0);
+		}
+	}
+	return 0;
+
 }
 
 /* checks for a bit availability (hack for oprofile) */

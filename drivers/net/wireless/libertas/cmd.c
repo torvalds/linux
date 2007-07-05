@@ -228,17 +228,19 @@ static int wlan_cmd_802_11_enable_rsn(wlan_private * priv,
 				      void * pdata_buf)
 {
 	struct cmd_ds_802_11_enable_rsn *penableRSN = &cmd->params.enbrsn;
-	struct assoc_request * assoc_req = pdata_buf;
+	u32 * enable = pdata_buf;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
 	cmd->command = cpu_to_le16(cmd_802_11_enable_rsn);
 	cmd->size = cpu_to_le16(sizeof(*penableRSN) + S_DS_GEN);
 	penableRSN->action = cpu_to_le16(cmd_action);
-	if (assoc_req->secinfo.WPAenabled || assoc_req->secinfo.WPA2enabled) {
-		penableRSN->enable = cpu_to_le16(cmd_enable_rsn);
-	} else {
-		penableRSN->enable = cpu_to_le16(cmd_disable_rsn);
+
+	if (cmd_action == cmd_act_set) {
+		if (*enable)
+			penableRSN->enable = cpu_to_le16(cmd_enable_rsn);
+		else
+			penableRSN->enable = cpu_to_le16(cmd_enable_rsn);
 	}
 
 	lbs_deb_leave(LBS_DEB_CMD);

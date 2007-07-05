@@ -16,12 +16,30 @@ static void do_blink(unsigned long data)
 	add_timer(&blink_timer);
 }
 
-static int blink_init(void)
+static int blink_panic_event(struct notifier_block *blk,
+			     unsigned long event, void *arg)
 {
-	printk(KERN_INFO "Enabling keyboard blinking\n");
 	do_blink(0);
 	return 0;
 }
 
+static struct notifier_block blink_notify = {
+	.notifier_call = blink_panic_event,
+};
+
+static __init int blink_init(void)
+{
+	printk(KERN_INFO "Enabling keyboard blinking\n");
+	atomic_notifier_chain_register(&panic_notifier_list, &blink_notify);
+	return 0;
+}
+
+static __exit void blink_remove(void)
+{
+	del_timer_sync(&blink_timer);
+	atomic_notifier_chain_unregister(&panic_notifier_list, &blink_notify);
+}
+
 module_init(blink_init);
+module_exit(blink_remove);
 

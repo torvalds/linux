@@ -31,8 +31,8 @@ static int pdc2026x_cable_detect(struct ata_port *ap)
 
 	pci_read_config_word(pdev, 0x50, &cis);
 	if (cis & (1 << (10 + ap->port_no)))
-		return ATA_CBL_PATA80;
-	return ATA_CBL_PATA40;
+		return ATA_CBL_PATA40;
+	return ATA_CBL_PATA80;
 }
 
 /**

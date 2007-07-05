@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/hpt366.c		Version 1.04	Jun 4, 2007
+ * linux/drivers/ide/pci/hpt366.c		Version 1.06	Jun 27, 2007
  *
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
@@ -182,6 +182,7 @@ static const char *bad_ata66_4[] = {
 	"IC35L040AVER07-0",
 	"IC35L060AVER07-0",
 	"WDC AC310200R",
+	"MAXTOR STM3320620A",
 	NULL
 };
 
@@ -1513,17 +1514,27 @@ static int __devinit init_setup_hpt366(struct pci_dev *dev, ide_pci_device_t *d)
 		goto init_single;
 
 	/*
-	 * HPT36x chips are single channel and
-	 * do not seem to have the channel enable bit...
+	 * HPT36x chips have one channel per function and have
+	 * both channel enable bits located differently and visible
+	 * to both functions -- really stupid design decision... :-(
+	 * Bit 4 is for the primary channel, bit 5 for the secondary.
 	 */
 	d->channels = 1;
-	d->enablebits[0].reg = 0;
+	d->enablebits[0].mask = d->enablebits[0].val = 0x10;
 
 	if ((dev2 = pci_get_slot(dev->bus, dev->devfn + 1)) != NULL) {
-	  	u8  pin1 = 0, pin2 = 0;
+		u8  mcr1 = 0, pin1 = 0, pin2 = 0;
 		int ret;
 
 		pci_set_drvdata(dev2, info[rev]);
+
+		/*
+		 * Now we'll have to force both channels enabled if
+		 * at least one of them has been enabled by BIOS...
+		 */
+		pci_read_config_byte(dev, 0x50, &mcr1);
+		if (mcr1 & 0x30)
+			pci_write_config_byte(dev, 0x50, mcr1 | 0x30);
 
 		pci_read_config_byte(dev,  PCI_INTERRUPT_PIN, &pin1);
 		pci_read_config_byte(dev2, PCI_INTERRUPT_PIN, &pin2);

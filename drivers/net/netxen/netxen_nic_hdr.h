@@ -687,4 +687,6 @@ enum {
 
 #define PCIE_MAX_MASTER_SPLIT	(0x14048)
 
+#define NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL		(0x14)
+
 #endif				/* __NETXEN_NIC_HDR_H_ */

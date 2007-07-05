@@ -9,7 +9,7 @@ menuconfig RADIO_ADAPTERS
 	---help---
 	  Say Y here to enable selecting AM/FM radio adapters.
 
-if RADIO_ADAPTERS
+if RADIO_ADAPTERS && VIDEO_DEV
 
 config RADIO_CADET
 	tristate "ADS Cadet AM/FM Tuner"

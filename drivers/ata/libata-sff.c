@@ -1065,10 +1065,11 @@ int ata_pci_init_one(struct pci_dev *pdev,
 	if (rc)
 		goto err_out;
 
-	if (!legacy_mode)
+	if (!legacy_mode) {
 		rc = devm_request_irq(dev, pdev->irq, pi->port_ops->irq_handler,
 				      IRQF_SHARED, DRV_NAME, host);
-	else {
+		host->irq = pdev->irq;
+	} else {
 		irq_handler_t handler[2] = { host->ops->irq_handler,
 					     host->ops->irq_handler };
 		unsigned int irq_flags[2] = { IRQF_SHARED, IRQF_SHARED };

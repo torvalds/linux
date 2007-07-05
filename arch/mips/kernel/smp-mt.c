@@ -236,8 +236,6 @@ void __init plat_smp_setup(void)
 	dvpe();
 	dmt();
 
-	mips_mt_set_cpuoptions();
-
 	/* Put MVPE's into 'configuration state' */
 	set_c0_mvpcontrol(MVPCONTROL_VPC);
 
@@ -263,6 +261,8 @@ void __init plat_smp_setup(void)
 
 void __init plat_prepare_cpus(unsigned int max_cpus)
 {
+	mips_mt_set_cpuoptions();
+
 	/* set up ipi interrupts */
 	if (cpu_has_vint) {
 		set_vi_handler(MIPS_CPU_IPI_RESCHED_IRQ, ipi_resched_dispatch);

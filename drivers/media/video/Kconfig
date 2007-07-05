@@ -11,7 +11,7 @@ menuconfig VIDEO_CAPTURE_DRIVERS
 	  webcams, analog TV, and hybrid analog/digital TV.
 	  Some of those devices also supports FM radio.
 
-if VIDEO_CAPTURE_DRIVERS
+if VIDEO_CAPTURE_DRIVERS && VIDEO_DEV
 
 config VIDEO_ADV_DEBUG
 	bool "Enable advanced debug functionality"
@@ -347,7 +347,7 @@ endmenu # encoder / decoder chips
 
 config VIDEO_VIVI
 	tristate "Virtual Video Driver"
-	depends on VIDEO_V4L2 && !SPARC32 && !SPARC64 && PCI && VIDEO_DEV
+	depends on VIDEO_V4L2 && !SPARC32 && !SPARC64 && PCI
 	select VIDEO_BUF
 	default n
 	---help---
@@ -691,7 +691,7 @@ menuconfig V4L_USB_DRIVERS
 	depends on USB
 	default y
 
-if V4L_USB_DRIVERS
+if V4L_USB_DRIVERS && USB
 
 source "drivers/media/video/pvrusb2/Kconfig"
 

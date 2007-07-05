@@ -19,7 +19,8 @@ int eventfd_signal(struct file *file, int n);
 #else /* CONFIG_EVENTFD */
 
 #define eventfd_fget(fd) ERR_PTR(-ENOSYS)
-#define eventfd_signal(f, n) 0
+static inline int eventfd_signal(struct file *file, int n)
+{ return 0; }
 
 #endif /* CONFIG_EVENTFD */
 

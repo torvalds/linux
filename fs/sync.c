@@ -236,6 +236,14 @@ out:
 	return ret;
 }
 
+/* It would be nice if people remember that not all the world's an i386
+   when they introduce new system calls */
+asmlinkage long sys_sync_file_range2(int fd, unsigned int flags,
+				     loff_t offset, loff_t nbytes)
+{
+	return sys_sync_file_range(fd, offset, nbytes, flags);
+}
+
 /*
  * `endbyte' is inclusive
  */
