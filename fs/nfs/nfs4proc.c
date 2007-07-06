@@ -510,32 +510,30 @@ static int nfs4_open_reclaim(struct nfs4_state_owner *sp, struct nfs4_state *sta
 	return ret;
 }
 
-static int _nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state *state)
+static int _nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state *state, const nfs4_stateid *stateid)
 {
 	struct nfs4_state_owner  *sp  = state->owner;
 	struct nfs4_opendata *opendata;
 	int ret;
 
-	if (!test_bit(NFS_DELEGATED_STATE, &state->flags))
-		return 0;
 	opendata = nfs4_opendata_alloc(&ctx->path, sp, 0, NULL);
 	if (opendata == NULL)
 		return -ENOMEM;
 	opendata->o_arg.claim = NFS4_OPEN_CLAIM_DELEGATE_CUR;
-	memcpy(opendata->o_arg.u.delegation.data, state->stateid.data,
+	memcpy(opendata->o_arg.u.delegation.data, stateid->data,
 			sizeof(opendata->o_arg.u.delegation.data));
 	ret = nfs4_open_recover(opendata, state);
 	nfs4_opendata_put(opendata);
 	return ret;
 }
 
-int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state *state)
+int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state *state, const nfs4_stateid *stateid)
 {
 	struct nfs4_exception exception = { };
 	struct nfs_server *server = NFS_SERVER(state->inode);
 	int err;
 	do {
-		err = _nfs4_open_delegation_recall(ctx, state);
+		err = _nfs4_open_delegation_recall(ctx, state, stateid);
 		switch (err) {
 			case 0:
 				return err;

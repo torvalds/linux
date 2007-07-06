@@ -76,7 +76,7 @@ again:
 			continue;
 		get_nfs_open_context(ctx);
 		spin_unlock(&inode->i_lock);
-		err = nfs4_open_delegation_recall(ctx, state);
+		err = nfs4_open_delegation_recall(ctx, state, stateid);
 		if (err >= 0)
 			err = nfs_delegation_claim_locks(ctx, state);
 		put_nfs_open_context(ctx);
