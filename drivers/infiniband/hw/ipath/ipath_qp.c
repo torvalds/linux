@@ -516,14 +516,6 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		if (attr->path_mtu > IB_MTU_2048)
 			goto inval;
 
-	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
-		if (attr->max_dest_rd_atomic > 1)
-			goto inval;
-
-	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC)
-		if (attr->max_rd_atomic > 1)
-			goto inval;
-
 	if (attr_mask & IB_QP_PATH_MIG_STATE)
 		if (attr->path_mig_state != IB_MIG_MIGRATED &&
 		    attr->path_mig_state != IB_MIG_REARM)
