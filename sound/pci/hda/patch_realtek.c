@@ -7778,7 +7778,8 @@ static const char *alc262_models[ALC262_MODEL_LAST] = {
 	[ALC262_HP_BPC]		= "hp-bpc",
 	[ALC262_HP_BPC_D7000_WL]= "hp-bpc-d7000",
 	[ALC262_BENQ_ED8]	= "benq",
-	[ALC262_BENQ_ED8]	= "sony-assamd",
+	[ALC262_BENQ_T31]	= "benq-t31",
+	[ALC262_SONY_ASSAMD]	= "sony-assamd",
 	[ALC262_AUTO]		= "auto",
 };
 
