@@ -656,7 +656,7 @@ static int init_housekeeping(struct ipath_devdata *dd,
 	ret = dd->ipath_f_get_boardname(dd, boardn, sizeof boardn);
 
 	snprintf(dd->ipath_boardversion, sizeof(dd->ipath_boardversion),
-		 "Driver %u.%u, %s, InfiniPath%u %u.%u, PCI %u, "
+		 "ChipABI %u.%u, %s, InfiniPath%u %u.%u, PCI %u, "
 		 "SW Compat %u\n",
 		 IPATH_CHIP_VERS_MAJ, IPATH_CHIP_VERS_MIN, boardn,
 		 (unsigned)(dd->ipath_revision >> INFINIPATH_R_ARCH_SHIFT) &
