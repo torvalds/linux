@@ -2620,7 +2620,7 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 			ata_dev_printk(dev, KERN_WARNING,
 				       "invalid multi_count %u ignored\n",
 				       multi_count);
-	}	
+	}
 
 	/* READ/WRITE LONG use a non-standard sect_size */
 	qc->sect_size = ATA_SECT_SIZE;
