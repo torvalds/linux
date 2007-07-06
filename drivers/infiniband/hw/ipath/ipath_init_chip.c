@@ -737,7 +737,7 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	uports = dd->ipath_cfgports ? dd->ipath_cfgports - 1 : 0;
 	if (ipath_kpiobufs == 0) {
 		/* not set by user (this is default) */
-		if (piobufs >= (uports * IPATH_MIN_USER_PORT_BUFCNT) + 32)
+		if (piobufs > 144)
 			kpiobufs = 32;
 		else
 			kpiobufs = 16;
