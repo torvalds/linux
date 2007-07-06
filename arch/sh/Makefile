@@ -200,7 +200,9 @@ compressed: zImage
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
-CLEAN_FILES += include/asm-sh/machtypes.h
+CLEAN_FILES += include/asm-sh/machtypes.h \
+	       include/asm-sh/cpu include/asm-sh/.cpu \
+	       include/asm-sh/mach include/asm-sh/.mach
 
 define archhelp
 	@echo '* zImage 	           - Compressed kernel image'
