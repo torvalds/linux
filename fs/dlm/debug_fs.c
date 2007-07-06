@@ -27,7 +27,7 @@ static struct dentry *dlm_root;
 
 struct rsb_iter {
 	int entry;
-	int master;
+	int locks;
 	int header;
 	struct dlm_ls *ls;
 	struct list_head *next;
@@ -60,8 +60,8 @@ static char *print_lockmode(int mode)
 	}
 }
 
-static void print_lock(struct seq_file *s, struct dlm_lkb *lkb,
-		       struct dlm_rsb *res)
+static void print_resource_lock(struct seq_file *s, struct dlm_lkb *lkb,
+				struct dlm_rsb *res)
 {
 	seq_printf(s, "%08x %s", lkb->lkb_id, print_lockmode(lkb->lkb_grmode));
 
@@ -134,15 +134,15 @@ static int print_resource(struct dlm_rsb *res, struct seq_file *s)
 	/* Print the locks attached to this resource */
 	seq_printf(s, "Granted Queue\n");
 	list_for_each_entry(lkb, &res->res_grantqueue, lkb_statequeue)
-		print_lock(s, lkb, res);
+		print_resource_lock(s, lkb, res);
 
 	seq_printf(s, "Conversion Queue\n");
 	list_for_each_entry(lkb, &res->res_convertqueue, lkb_statequeue)
-		print_lock(s, lkb, res);
+		print_resource_lock(s, lkb, res);
 
 	seq_printf(s, "Waiting Queue\n");
 	list_for_each_entry(lkb, &res->res_waitqueue, lkb_statequeue)
-		print_lock(s, lkb, res);
+		print_resource_lock(s, lkb, res);
 
 	if (list_empty(&res->res_lookup))
 		goto out;
@@ -160,8 +160,7 @@ static int print_resource(struct dlm_rsb *res, struct seq_file *s)
 	return 0;
 }
 
-static void print_master_lock(struct seq_file *s, struct dlm_lkb *lkb,
-			      struct dlm_rsb *r)
+static void print_lock(struct seq_file *s, struct dlm_lkb *lkb, struct dlm_rsb *r)
 {
 	struct dlm_user_args *ua;
 	unsigned int waiting = 0;
@@ -176,37 +175,40 @@ static void print_master_lock(struct seq_file *s, struct dlm_lkb *lkb,
 	if (lkb->lkb_timestamp)
 		waiting = jiffies_to_msecs(jiffies - lkb->lkb_timestamp);
 
-	/* id nodeid remid pid xid flags sts grmode rqmode time_ms len name */
+	/* id nodeid remid pid xid exflags flags sts grmode rqmode time_ms
+	   r_nodeid r_len r_name */
 
-	seq_printf(s, "%x %d %x %u %llu %x %d %d %d %u %d \"%s\"\n",
+	seq_printf(s, "%x %d %x %u %llu %x %x %d %d %d %u %u %d \"%s\"\n",
 		   lkb->lkb_id,
 		   lkb->lkb_nodeid,
 		   lkb->lkb_remid,
 		   lkb->lkb_ownpid,
 		   (unsigned long long)xid,
 		   lkb->lkb_exflags,
+		   lkb->lkb_flags,
 		   lkb->lkb_status,
 		   lkb->lkb_grmode,
 		   lkb->lkb_rqmode,
 		   waiting,
+		   r->res_nodeid,
 		   r->res_length,
 		   r->res_name);
 }
 
-static int print_master_resource(struct dlm_rsb *r, struct seq_file *s)
+static int print_locks(struct dlm_rsb *r, struct seq_file *s)
 {
 	struct dlm_lkb *lkb;
 
 	lock_rsb(r);
 
 	list_for_each_entry(lkb, &r->res_grantqueue, lkb_statequeue)
-		print_master_lock(s, lkb, r);
+		print_lock(s, lkb, r);
 
 	list_for_each_entry(lkb, &r->res_convertqueue, lkb_statequeue)
-		print_master_lock(s, lkb, r);
+		print_lock(s, lkb, r);
 
 	list_for_each_entry(lkb, &r->res_waitqueue, lkb_statequeue)
-		print_master_lock(s, lkb, r);
+		print_lock(s, lkb, r);
 
 	unlock_rsb(r);
 	return 0;
@@ -325,14 +327,14 @@ static int rsb_seq_show(struct seq_file *file, void *iter_ptr)
 {
 	struct rsb_iter *ri = iter_ptr;
 
-	if (ri->master) {
+	if (ri->locks) {
 		if (ri->header) {
-			seq_printf(file, "id nodeid remid pid xid flags sts "
-					 "grmode rqmode time_ms len name\n");
+			seq_printf(file, "id nodeid remid pid xid exflags flags "
+					 "sts grmode rqmode time_ms r_nodeid "
+					 "r_len r_name\n");
 			ri->header = 0;
 		}
-		if (is_master(ri->rsb))
-			print_master_resource(ri->rsb, file);
+		print_locks(ri->rsb, file);
 	} else {
 		print_resource(ri->rsb, file);
 	}
@@ -371,10 +373,10 @@ static const struct file_operations rsb_fops = {
 };
 
 /*
- * Dump master lock state
+ * Dump state in compact per-lock listing
  */
 
-static struct rsb_iter *master_iter_init(struct dlm_ls *ls, loff_t *pos)
+static struct rsb_iter *locks_iter_init(struct dlm_ls *ls, loff_t *pos)
 {
 	struct rsb_iter *ri;
 
@@ -385,7 +387,7 @@ static struct rsb_iter *master_iter_init(struct dlm_ls *ls, loff_t *pos)
 	ri->ls = ls;
 	ri->entry = 0;
 	ri->next = NULL;
-	ri->master = 1;
+	ri->locks = 1;
 
 	if (*pos == 0)
 		ri->header = 1;
@@ -398,12 +400,12 @@ static struct rsb_iter *master_iter_init(struct dlm_ls *ls, loff_t *pos)
 	return ri;
 }
 
-static void *master_seq_start(struct seq_file *file, loff_t *pos)
+static void *locks_seq_start(struct seq_file *file, loff_t *pos)
 {
 	struct rsb_iter *ri;
 	loff_t n = *pos;
 
-	ri = master_iter_init(file->private, pos);
+	ri = locks_iter_init(file->private, pos);
 	if (!ri)
 		return NULL;
 
@@ -417,19 +419,19 @@ static void *master_seq_start(struct seq_file *file, loff_t *pos)
 	return ri;
 }
 
-static struct seq_operations master_seq_ops = {
-	.start = master_seq_start,
+static struct seq_operations locks_seq_ops = {
+	.start = locks_seq_start,
 	.next  = rsb_seq_next,
 	.stop  = rsb_seq_stop,
 	.show  = rsb_seq_show,
 };
 
-static int master_open(struct inode *inode, struct file *file)
+static int locks_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq;
 	int ret;
 
-	ret = seq_open(file, &master_seq_ops);
+	ret = seq_open(file, &locks_seq_ops);
 	if (ret)
 		return ret;
 
@@ -439,9 +441,9 @@ static int master_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations master_fops = {
+static const struct file_operations locks_fops = {
 	.owner   = THIS_MODULE,
-	.open    = master_open,
+	.open    = locks_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.release = seq_release
@@ -515,14 +517,14 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 	}
 
 	memset(name, 0, sizeof(name));
-	snprintf(name, DLM_LOCKSPACE_LEN+8, "%s_master", ls->ls_name);
+	snprintf(name, DLM_LOCKSPACE_LEN+8, "%s_locks", ls->ls_name);
 
-	ls->ls_debug_master_dentry = debugfs_create_file(name,
-							 S_IFREG | S_IRUGO,
-							 dlm_root,
-							 ls,
-							 &master_fops);
-	if (!ls->ls_debug_master_dentry) {
+	ls->ls_debug_locks_dentry = debugfs_create_file(name,
+							S_IFREG | S_IRUGO,
+							dlm_root,
+							ls,
+							&locks_fops);
+	if (!ls->ls_debug_locks_dentry) {
 		debugfs_remove(ls->ls_debug_waiters_dentry);
 		debugfs_remove(ls->ls_debug_rsb_dentry);
 		return -ENOMEM;
@@ -537,8 +539,8 @@ void dlm_delete_debug_file(struct dlm_ls *ls)
 		debugfs_remove(ls->ls_debug_rsb_dentry);
 	if (ls->ls_debug_waiters_dentry)
 		debugfs_remove(ls->ls_debug_waiters_dentry);
-	if (ls->ls_debug_master_dentry)
-		debugfs_remove(ls->ls_debug_master_dentry);
+	if (ls->ls_debug_locks_dentry)
+		debugfs_remove(ls->ls_debug_locks_dentry);
 }
 
 int dlm_register_debugfs(void)
