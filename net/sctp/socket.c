@@ -980,6 +980,7 @@ static int __sctp_connect(struct sock* sk,
 	union sctp_addr *sa_addr;
 	void *addr_buf;
 	unsigned short port;
+	unsigned int f_flags = 0;
 
 	sp = sctp_sk(sk);
 	ep = sp->ep;
@@ -1106,7 +1107,14 @@ static int __sctp_connect(struct sock* sk,
 	af->to_sk_daddr(&to, sk);
 	sk->sk_err = 0;
 
-	timeo = sock_sndtimeo(sk, sk->sk_socket->file->f_flags & O_NONBLOCK);
+	/* in-kernel sockets don't generally have a file allocated to them
+	 * if all they do is call sock_create_kern().
+	 */
+	if (sk->sk_socket->file)
+		f_flags = sk->sk_socket->file->f_flags;
+
+	timeo = sock_sndtimeo(sk, f_flags & O_NONBLOCK);
+
 	err = sctp_wait_for_connect(asoc, &timeo);
 
 	/* Don't free association on exit. */
@@ -4170,7 +4178,7 @@ static int sctp_copy_laddrs(struct sock *sk, __u16 port, void *to,
 		to += addrlen;
 		cnt ++;
 		space_left -= addrlen;
-		bytes_copied += addrlen;
+		*bytes_copied += addrlen;
 	}
 
 	return cnt;

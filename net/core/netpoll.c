@@ -72,8 +72,7 @@ static void queue_process(struct work_struct *work)
 			netif_tx_unlock(dev);
 			local_irq_restore(flags);
 
-			if (atomic_read(&npinfo->refcnt))
-				schedule_delayed_work(&npinfo->tx_work, HZ/10);
+			schedule_delayed_work(&npinfo->tx_work, HZ/10);
 			return;
 		}
 		netif_tx_unlock(dev);
@@ -786,8 +785,7 @@ void netpoll_cleanup(struct netpoll *np)
 			if (atomic_dec_and_test(&npinfo->refcnt)) {
 				skb_queue_purge(&npinfo->arp_tx);
 				skb_queue_purge(&npinfo->txq);
-				cancel_delayed_work(&npinfo->tx_work);
-				flush_scheduled_work();
+				cancel_rearming_delayed_work(&npinfo->tx_work);
 
 				/* clean after last, unfinished work */
 				if (!skb_queue_empty(&npinfo->txq)) {
