@@ -110,7 +110,7 @@
 
 /* Below errors are used internally (do not come over the wire) for passthrough
    from STATUS codes to POSIX only  */
-#define ErrTooManyLinks         0xFFFE 
+#define ErrTooManyLinks         0xFFFE
 
 /* Following error codes may be generated with the ERRSRV error class.*/
 

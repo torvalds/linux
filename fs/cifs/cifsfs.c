@@ -64,10 +64,10 @@ unsigned int multiuser_mount = 0;
 unsigned int extended_security = CIFSSEC_DEF;
 /* unsigned int ntlmv2_support = 0; */
 unsigned int sign_CIFS_PDUs = 1;
-extern struct task_struct * oplockThread; /* remove sparse warning */
-struct task_struct * oplockThread = NULL;
+extern struct task_struct *oplockThread; /* remove sparse warning */
+struct task_struct *oplockThread = NULL;
 /* extern struct task_struct * dnotifyThread; remove sparse warning */
-static struct task_struct * dnotifyThread = NULL;
+static struct task_struct *dnotifyThread = NULL;
 static const struct super_operations cifs_super_ops;
 unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
 module_param(CIFSMaxBufSize, int, 0);
@@ -765,22 +765,22 @@ cifs_init_request_bufs(void)
 	been more efficient (compacting multiple slab items on one 4k page) 
 	for the case in which debug was on, but this larger size allows
 	more SMBs to use small buffer alloc and is still much more
-	efficient to alloc 1 per page off the slab compared to 17K (5page) 
+	efficient to alloc 1 per page off the slab compared to 17K (5page)
 	alloc of large cifs buffers even when page debugging is on */
 	cifs_sm_req_cachep = kmem_cache_create("cifs_small_rq",
-			MAX_CIFS_SMALL_BUFFER_SIZE, 0, SLAB_HWCACHE_ALIGN, 
+			MAX_CIFS_SMALL_BUFFER_SIZE, 0, SLAB_HWCACHE_ALIGN,
 			NULL, NULL);
 	if (cifs_sm_req_cachep == NULL) {
 		mempool_destroy(cifs_req_poolp);
 		kmem_cache_destroy(cifs_req_cachep);
-		return -ENOMEM;              
+		return -ENOMEM;
 	}
 
 	if (cifs_min_small < 2)
 		cifs_min_small = 2;
 	else if (cifs_min_small > 256) {
 		cifs_min_small = 256;
-		cFYI(1,("cifs_min_small set to maximum (256)"));
+		cFYI(1, ("cifs_min_small set to maximum (256)"));
 	}
 
 	cifs_sm_req_poolp = mempool_create_slab_pool(cifs_min_small,
@@ -843,14 +843,14 @@ cifs_destroy_mids(void)
 
 static int cifs_oplock_thread(void * dummyarg)
 {
-	struct oplock_q_entry * oplock_item;
+	struct oplock_q_entry *oplock_item;
 	struct cifsTconInfo *pTcon;
-	struct inode * inode;
+	struct inode *inode;
 	__u16  netfid;
 	int rc;
 
 	do {
-		if (try_to_freeze()) 
+		if (try_to_freeze())
 			continue;
 		
 		spin_lock(&GlobalMid_Lock);
@@ -859,17 +859,17 @@ static int cifs_oplock_thread(void * dummyarg)
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(39*HZ);
 		} else {
-			oplock_item = list_entry(GlobalOplock_Q.next, 
+			oplock_item = list_entry(GlobalOplock_Q.next,
 				struct oplock_q_entry, qhead);
 			if (oplock_item) {
-				cFYI(1,("found oplock item to write out")); 
+				cFYI(1,("found oplock item to write out"));
 				pTcon = oplock_item->tcon;
 				inode = oplock_item->pinode;
 				netfid = oplock_item->netfid;
 				spin_unlock(&GlobalMid_Lock);
 				DeleteOplockQEntry(oplock_item);
 				/* can not grab inode sem here since it would
-				deadlock when oplock received on delete 
+				deadlock when oplock received on delete
 				since vfs_unlink holds the i_mutex across
 				the call */
 				/* mutex_lock(&inode->i_mutex);*/
@@ -884,20 +884,21 @@ static int cifs_oplock_thread(void * dummyarg)
 				/* mutex_unlock(&inode->i_mutex);*/
 				if (rc)
 					CIFS_I(inode)->write_behind_rc = rc;
-				cFYI(1,("Oplock flush inode %p rc %d",inode,rc));
+				cFYI(1, ("Oplock flush inode %p rc %d",
+					inode, rc));
 
-				/* releasing a stale oplock after recent reconnection 
-				of smb session using a now incorrect file 
-				handle is not a data integrity issue but do  
-				not bother sending an oplock release if session 
-				to server still is disconnected since oplock 
+				/* releasing stale oplock after recent reconnect
+				of smb session using a now incorrect file
+				handle is not a data integrity issue but do
+				not bother sending an oplock release if session
+				to server still is disconnected since oplock
 				already released by the server in that case */
 				if (pTcon->tidStatus != CifsNeedReconnect) {
 				    rc = CIFSSMBLock(0, pTcon, netfid,
-					    0 /* len */ , 0 /* offset */, 0, 
+					    0 /* len */ , 0 /* offset */, 0,
 					    0, LOCKING_ANDX_OPLOCK_RELEASE,
 					    0 /* wait flag */);
-					cFYI(1,("Oplock release rc = %d ",rc));
+					cFYI(1,("Oplock release rc = %d ", rc));
 				}
 			} else
 				spin_unlock(&GlobalMid_Lock);
@@ -924,9 +925,9 @@ static int cifs_dnotify_thread(void * dummyarg)
 		   to be woken up and wakeq so the
 		   thread can wake up and error out */
 		list_for_each(tmp, &GlobalSMBSessionList) {
-			ses = list_entry(tmp, struct cifsSesInfo, 
+			ses = list_entry(tmp, struct cifsSesInfo,
 				cifsSessionList);
-			if (ses && ses->server && 
+			if (ses && ses->server &&
 			     atomic_read(&ses->server->inFlight))
 				wake_up_all(&ses->server->response_q);
 		}
@@ -950,13 +951,13 @@ init_cifs(void)
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	INIT_LIST_HEAD(&GlobalDnotifyReqList);
 	INIT_LIST_HEAD(&GlobalDnotifyRsp_Q);
-#endif	
+#endif
 /*
  *  Initialize Global counters
  */
 	atomic_set(&sesInfoAllocCount, 0);
 	atomic_set(&tconInfoAllocCount, 0);
-	atomic_set(&tcpSesAllocCount,0);
+	atomic_set(&tcpSesAllocCount, 0);
 	atomic_set(&tcpSesReconnectCount, 0);
 	atomic_set(&tconInfoReconnectCount, 0);
 
@@ -977,10 +978,10 @@ init_cifs(void)
 
 	if (cifs_max_pending < 2) {
 		cifs_max_pending = 2;
-		cFYI(1,("cifs_max_pending set to min of 2"));
+		cFYI(1, ("cifs_max_pending set to min of 2"));
 	} else if (cifs_max_pending > 256) {
 		cifs_max_pending = 256;
-		cFYI(1,("cifs_max_pending set to max of 256"));
+		cFYI(1, ("cifs_max_pending set to max of 256"));
 	}
 
 	rc = cifs_init_inodecache();
@@ -1002,14 +1003,14 @@ init_cifs(void)
 	oplockThread = kthread_run(cifs_oplock_thread, NULL, "cifsoplockd");
 	if (IS_ERR(oplockThread)) {
 		rc = PTR_ERR(oplockThread);
-		cERROR(1,("error %d create oplock thread", rc));
+		cERROR(1, ("error %d create oplock thread", rc));
 		goto out_unregister_filesystem;
 	}
 
 	dnotifyThread = kthread_run(cifs_dnotify_thread, NULL, "cifsdnotifyd");
 	if (IS_ERR(dnotifyThread)) {
 		rc = PTR_ERR(dnotifyThread);
-		cERROR(1,("error %d create dnotify thread", rc));
+		cERROR(1, ("error %d create dnotify thread", rc));
 		goto out_stop_oplock_thread;
 	}
 
@@ -1048,7 +1049,7 @@ exit_cifs(void)
 }
 
 MODULE_AUTHOR("Steve French <sfrench@us.ibm.com>");
-MODULE_LICENSE("GPL");		/* combination of LGPL + GPL source behaves as GPL */
+MODULE_LICENSE("GPL");	/* combination of LGPL + GPL source behaves as GPL */
 MODULE_DESCRIPTION
     ("VFS to access servers complying with the SNIA CIFS Specification e.g. Samba and Windows");
 MODULE_VERSION(CIFS_VERSION);

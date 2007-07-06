@@ -2,7 +2,7 @@
  *   fs/cifs/readdir.c
  *
  *   Directory search handling
- * 
+ *
  *   Copyright (C) International Business Machines  Corp., 2004, 2007
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
@@ -34,22 +34,22 @@
 #ifdef CONFIG_CIFS_DEBUG2
 static void dump_cifs_file_struct(struct file *file, char *label)
 {
-	struct cifsFileInfo * cf;
+	struct cifsFileInfo *cf;
 
 	if (file) {
 		cf = file->private_data;
 		if (cf == NULL) {
-			cFYI(1,("empty cifs private file data"));
+			cFYI(1, ("empty cifs private file data"));
 			return;
 		}
 		if (cf->invalidHandle) {
-			cFYI(1,("invalid handle"));
+			cFYI(1, ("invalid handle"));
 		}
 		if (cf->srch_inf.endOfSearch) {
-			cFYI(1,("end of search"));
+			cFYI(1, ("end of search"));
 		}
 		if (cf->srch_inf.emptyDir) {
-			cFYI(1,("empty dir"));
+			cFYI(1, ("empty dir"));
 		}
 		
 	}
@@ -73,7 +73,8 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 	qstring->hash = full_name_hash(qstring->name, qstring->len);
 	tmp_dentry = d_lookup(file->f_path.dentry, qstring);
 	if (tmp_dentry) {
-		cFYI(0, ("existing dentry with inode 0x%p", tmp_dentry->d_inode));
+		cFYI(0, ("existing dentry with inode 0x%p",
+			 tmp_dentry->d_inode));
 		*ptmp_inode = tmp_dentry->d_inode;
 /* BB overwrite old name? i.e. tmp_dentry->d_name and tmp_dentry->d_name.len??*/
 		if (*ptmp_inode == NULL) {
@@ -87,7 +88,7 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 	} else {
 		tmp_dentry = d_alloc(file->f_path.dentry, qstring);
 		if (tmp_dentry == NULL) {
-			cERROR(1,("Failed allocating dentry"));
+			cERROR(1, ("Failed allocating dentry"));
 			*ptmp_inode = NULL;
 			return rc;
 		}
