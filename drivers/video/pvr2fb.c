@@ -115,11 +115,11 @@ enum { VO_PAL, VO_NTSC, VO_VGA };
 enum { PAL_ARGB1555, PAL_RGB565, PAL_ARGB4444, PAL_ARGB8888 };
 
 struct pvr2_params { unsigned int val; char *name; };
-static struct pvr2_params cables[] __initdata = {
+static struct pvr2_params cables[] __devinitdata = {
 	{ CT_VGA, "VGA" }, { CT_RGB, "RGB" }, { CT_COMPOSITE, "COMPOSITE" },
 };
 
-static struct pvr2_params outputs[] __initdata = {
+static struct pvr2_params outputs[] __devinitdata = {
 	{ VO_PAL, "PAL" }, { VO_NTSC, "NTSC" }, { VO_VGA, "VGA" },
 };
 
@@ -228,7 +228,7 @@ static struct fb_ops pvr2fb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-static struct fb_videomode pvr2_modedb[] __initdata = {
+static struct fb_videomode pvr2_modedb[] __devinitdata = {
     /*
      * Broadcast video modes (PAL and NTSC).  I'm unfamiliar with
      * PAL-M and PAL-N, but from what I've read both modes parallel PAL and
@@ -258,7 +258,7 @@ static struct fb_videomode pvr2_modedb[] __initdata = {
 #define DEFMODE_VGA	2
 
 static int defmode = DEFMODE_NTSC;
-static char *mode_option __initdata = NULL;
+static char *mode_option __devinitdata = NULL;
 
 static inline void pvr2fb_set_pal_type(unsigned int type)
 {
@@ -761,7 +761,7 @@ out_unmap:
  * in for flexibility anyways. Who knows, maybe someone has tv-out on a
  * PCI-based version of these things ;-)
  */
-static int __init pvr2fb_common_init(void)
+static int __devinit pvr2fb_common_init(void)
 {
 	struct pvr2fb_par *par = currentpar;
 	unsigned long modememused, rev;
@@ -989,7 +989,7 @@ static void __exit pvr2fb_pci_exit(void)
 }
 #endif /* CONFIG_PCI */
 
-static int __init pvr2_get_param(const struct pvr2_params *p, const char *s,
+static int __devinit pvr2_get_param(const struct pvr2_params *p, const char *s,
                                    int val, int size)
 {
 	int i;
