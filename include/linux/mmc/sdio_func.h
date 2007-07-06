@@ -48,6 +48,8 @@ struct sdio_func {
 	unsigned int		state;		/* function state */
 #define SDIO_STATE_PRESENT	(1<<0)		/* present in sysfs */
 
+	u8			tmpbuf[4];	/* DMA:able scratch buffer */
+
 	struct sdio_func_tuple *tuples;
 };
 
@@ -114,9 +116,27 @@ extern int sdio_release_irq(struct sdio_func *func);
 
 extern unsigned char sdio_readb(struct sdio_func *func,
 	unsigned int addr, int *err_ret);
+extern unsigned short sdio_readw(struct sdio_func *func,
+	unsigned int addr, int *err_ret);
+extern unsigned long sdio_readl(struct sdio_func *func,
+	unsigned int addr, int *err_ret);
+
+extern int sdio_memcpy_fromio(struct sdio_func *func, void *dst,
+	unsigned int addr, int count);
+extern int sdio_readsb(struct sdio_func *func, void *dst,
+	unsigned int addr, int count);
 
 extern void sdio_writeb(struct sdio_func *func, unsigned char b,
 	unsigned int addr, int *err_ret);
+extern void sdio_writew(struct sdio_func *func, unsigned short b,
+	unsigned int addr, int *err_ret);
+extern void sdio_writel(struct sdio_func *func, unsigned long b,
+	unsigned int addr, int *err_ret);
+
+extern int sdio_memcpy_toio(struct sdio_func *func, unsigned int addr,
+	void *src, int count);
+extern int sdio_writesb(struct sdio_func *func, unsigned int addr,
+	void *src, int count);
 
 #endif
 

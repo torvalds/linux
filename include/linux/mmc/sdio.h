@@ -15,6 +15,7 @@
 /* SDIO commands                         type  argument     response */
 #define SD_IO_SEND_OP_COND          5 /* bcr  [23:0] OCR         R4  */
 #define SD_IO_RW_DIRECT            52 /* ac   [31:0] See below   R5  */
+#define SD_IO_RW_EXTENDED          53 /* adtc [31:0] See below   R5  */
 
 /*
  * SD_IO_RW_DIRECT argument format:
@@ -24,6 +25,17 @@
  *      [27] RAW flag
  *      [25:9] Register address
  *      [7:0] Data
+ */
+
+/*
+ * SD_IO_RW_EXTENDED argument format:
+ *
+ *      [31] R/W flag
+ *      [30:28] Function number
+ *      [27] Block mode
+ *      [26] Increment address
+ *      [25:9] Register address
+ *      [8:0] Byte/block count
  */
 
 /*

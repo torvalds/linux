@@ -9,6 +9,9 @@
  * your option) any later version.
  */
 
+#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
+
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/mmc.h>
@@ -80,6 +83,60 @@ int mmc_io_rw_direct(struct mmc_card *card, int write, unsigned fn,
 
 	if (out)
 		*out = cmd.resp[0] & 0xFF;
+
+	return 0;
+}
+
+int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
+	unsigned addr, int bang, u8 *buf, unsigned size)
+{
+	struct mmc_request mrq;
+	struct mmc_command cmd;
+	struct mmc_data data;
+	struct scatterlist sg;
+
+	BUG_ON(!card);
+	BUG_ON(fn > 7);
+	BUG_ON(size > 512);
+
+	memset(&mrq, 0, sizeof(struct mmc_request));
+	memset(&cmd, 0, sizeof(struct mmc_command));
+	memset(&data, 0, sizeof(struct mmc_data));
+
+	mrq.cmd = &cmd;
+	mrq.data = &data;
+
+	cmd.opcode = SD_IO_RW_EXTENDED;
+	cmd.arg = write ? 0x80000000 : 0x00000000;
+	cmd.arg |= fn << 28;
+	cmd.arg |= bang ? 0x00000000 : 0x04000000;
+	cmd.arg |= addr << 9;
+	cmd.arg |= (size == 512) ? 0 : size;
+	cmd.flags = MMC_RSP_R5 | MMC_CMD_ADTC;
+
+	data.blksz = size;
+	data.blocks = 1;
+	data.flags = write ? MMC_DATA_WRITE : MMC_DATA_READ;
+	data.sg = &sg;
+	data.sg_len = 1;
+
+	sg_init_one(&sg, buf, size);
+
+	mmc_set_data_timeout(&data, card);
+
+	mmc_wait_for_req(card->host, &mrq);
+
+	if (cmd.error)
+		return cmd.error;
+	if (data.error)
+		return data.error;
+
+	if (cmd.resp[0] & R5_ERROR)
+		return -EIO;
+	if (cmd.resp[0] & R5_FUNCTION_NUMBER)
+		return -EINVAL;
+	if (cmd.resp[0] & R5_OUT_OF_RANGE)
+		return -ERANGE;
 
 	return 0;
 }

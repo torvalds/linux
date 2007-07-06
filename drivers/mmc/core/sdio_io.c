@@ -196,3 +196,187 @@ void sdio_writeb(struct sdio_func *func, unsigned char b, unsigned int addr,
 }
 EXPORT_SYMBOL_GPL(sdio_writeb);
 
+/**
+ *	sdio_memcpy_fromio - read a chunk of memory from a SDIO function
+ *	@func: SDIO function to access
+ *	@dst: buffer to store the data
+ *	@addr: address to begin reading from
+ *	@count: number of bytes to read
+ *
+ *	Reads up to 512 bytes from the address space of a given SDIO
+ *	function. Return value indicates if the transfer succeeded or
+ *	not.
+ */
+int sdio_memcpy_fromio(struct sdio_func *func, void *dst,
+	unsigned int addr, int count)
+{
+	return mmc_io_rw_extended(func->card, 0, func->num, addr, 0, dst,
+		count);
+}
+EXPORT_SYMBOL_GPL(sdio_memcpy_fromio);
+
+/**
+ *	sdio_memcpy_toio - write a chunk of memory to a SDIO function
+ *	@func: SDIO function to access
+ *	@addr: address to start writing to
+ *	@src: buffer that contains the data to write
+ *	@count: number of bytes to write
+ *
+ *	Writes up to 512 bytes to the address space of a given SDIO
+ *	function. Return value indicates if the transfer succeeded or
+ *	not.
+ */
+int sdio_memcpy_toio(struct sdio_func *func, unsigned int addr,
+	void *src, int count)
+{
+	return mmc_io_rw_extended(func->card, 1, func->num, addr, 0, src,
+		count);
+}
+EXPORT_SYMBOL_GPL(sdio_memcpy_toio);
+
+/**
+ *	sdio_readsb - read from a FIFO on a SDIO function
+ *	@func: SDIO function to access
+ *	@dst: buffer to store the data
+ *	@addr: address of (single byte) FIFO
+ *	@count: number of bytes to read
+ *
+ *	Reads up to 512 bytes from the specified FIFO of a given SDIO
+ *	function. Return value indicates if the transfer succeeded or
+ *	not.
+ */
+int sdio_readsb(struct sdio_func *func, void *dst, unsigned int addr,
+	int count)
+{
+	return mmc_io_rw_extended(func->card, 0, func->num, addr, 1, dst,
+		count);
+}
+
+EXPORT_SYMBOL_GPL(sdio_readsb);
+
+/**
+ *	sdio_writesb - write to a FIFO of a SDIO function
+ *	@func: SDIO function to access
+ *	@addr: address of (single byte) FIFO
+ *	@src: buffer that contains the data to write
+ *	@count: number of bytes to write
+ *
+ *	Writes up to 512 bytes to the specified FIFO of a given SDIO
+ *	function. Return value indicates if the transfer succeeded or
+ *	not.
+ */
+int sdio_writesb(struct sdio_func *func, unsigned int addr, void *src,
+	int count)
+{
+	return mmc_io_rw_extended(func->card, 1, func->num, addr, 1, src,
+		count);
+}
+EXPORT_SYMBOL_GPL(sdio_writesb);
+
+/**
+ *	sdio_readw - read a 16 bit integer from a SDIO function
+ *	@func: SDIO function to access
+ *	@addr: address to read
+ *	@err_ret: optional status value from transfer
+ *
+ *	Reads a 16 bit integer from the address space of a given SDIO
+ *	function. If there is a problem reading the address, 0xffff
+ *	is returned and @err_ret will contain the error code.
+ */
+unsigned short sdio_readw(struct sdio_func *func, unsigned int addr,
+	int *err_ret)
+{
+	int ret;
+
+	if (err_ret)
+		*err_ret = 0;
+
+	ret = sdio_memcpy_fromio(func, func->tmpbuf, addr, 2);
+	if (ret) {
+		if (err_ret)
+			*err_ret = ret;
+		return 0xFFFF;
+	}
+
+	return le16_to_cpu(*(u16*)func->tmpbuf);
+}
+EXPORT_SYMBOL_GPL(sdio_readw);
+
+/**
+ *	sdio_writew - write a 16 bit integer to a SDIO function
+ *	@func: SDIO function to access
+ *	@b: integer to write
+ *	@addr: address to write to
+ *	@err_ret: optional status value from transfer
+ *
+ *	Writes a 16 bit integer to the address space of a given SDIO
+ *	function. @err_ret will contain the status of the actual
+ *	transfer.
+ */
+void sdio_writew(struct sdio_func *func, unsigned short b, unsigned int addr,
+	int *err_ret)
+{
+	int ret;
+
+	*(u16*)func->tmpbuf = cpu_to_le16(b);
+
+	ret = sdio_memcpy_toio(func, addr, func->tmpbuf, 2);
+	if (err_ret)
+		*err_ret = ret;
+}
+EXPORT_SYMBOL_GPL(sdio_writew);
+
+/**
+ *	sdio_readl - read a 32 bit integer from a SDIO function
+ *	@func: SDIO function to access
+ *	@addr: address to read
+ *	@err_ret: optional status value from transfer
+ *
+ *	Reads a 32 bit integer from the address space of a given SDIO
+ *	function. If there is a problem reading the address,
+ *	0xffffffff is returned and @err_ret will contain the error
+ *	code.
+ */
+unsigned long sdio_readl(struct sdio_func *func, unsigned int addr,
+	int *err_ret)
+{
+	int ret;
+
+	if (err_ret)
+		*err_ret = 0;
+
+	ret = sdio_memcpy_fromio(func, func->tmpbuf, addr, 4);
+	if (ret) {
+		if (err_ret)
+			*err_ret = ret;
+		return 0xFFFFFFFF;
+	}
+
+	return le32_to_cpu(*(u32*)func->tmpbuf);
+}
+EXPORT_SYMBOL_GPL(sdio_readl);
+
+/**
+ *	sdio_writel - write a 32 bit integer to a SDIO function
+ *	@func: SDIO function to access
+ *	@b: integer to write
+ *	@addr: address to write to
+ *	@err_ret: optional status value from transfer
+ *
+ *	Writes a 32 bit integer to the address space of a given SDIO
+ *	function. @err_ret will contain the status of the actual
+ *	transfer.
+ */
+void sdio_writel(struct sdio_func *func, unsigned long b, unsigned int addr,
+	int *err_ret)
+{
+	int ret;
+
+	*(u32*)func->tmpbuf = cpu_to_le32(b);
+
+	ret = sdio_memcpy_toio(func, addr, func->tmpbuf, 4);
+	if (err_ret)
+		*err_ret = ret;
+}
+EXPORT_SYMBOL_GPL(sdio_writel);
+
