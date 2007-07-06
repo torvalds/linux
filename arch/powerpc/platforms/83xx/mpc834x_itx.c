@@ -58,6 +58,8 @@ static void __init mpc834x_itx_setup_arch(void)
 
 	ppc_md.pci_exclude_device = mpc83xx_exclude_device;
 #endif
+
+	mpc834x_usb_cfg();
 }
 
 static void __init mpc834x_itx_init_IRQ(void)
