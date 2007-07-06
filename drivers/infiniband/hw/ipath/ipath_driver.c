@@ -1021,14 +1021,10 @@ void ipath_kreceive(struct ipath_devdata *dd)
 		goto bail;
 	}
 
-	/* There is already a thread processing this queue. */
-	if (test_and_set_bit(0, &dd->ipath_rcv_pending))
-		goto bail;
-
 	l = dd->ipath_port0head;
 	hdrqtail = (u32) le64_to_cpu(*dd->ipath_hdrqtailptr);
 	if (l == hdrqtail)
-		goto done;
+		goto bail;
 
 reloop:
 	for (i = 0; l != hdrqtail; i++) {
@@ -1162,10 +1158,6 @@ reloop:
 	ipath_stats.sps_port0pkts += pkttot;
 	ipath_stats.sps_avgpkts_call =
 		ipath_stats.sps_port0pkts / ++totcalls;
-
-done:
-	clear_bit(0, &dd->ipath_rcv_pending);
-	smp_mb__after_clear_bit();
 
 bail:;
 }

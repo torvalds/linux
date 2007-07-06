@@ -1375,13 +1375,6 @@ static void __verbs_timer(unsigned long arg)
 {
 	struct ipath_devdata *dd = (struct ipath_devdata *) arg;
 
-	/*
-	 * If port 0 receive packet interrupts are not available, or
-	 * can be missed, poll the receive queue
-	 */
-	if (dd->ipath_flags & IPATH_POLL_RX_INTR)
-		ipath_kreceive(dd);
-
 	/* Handle verbs layer timeouts. */
 	ipath_ib_timer(dd->verbs_dev);
 

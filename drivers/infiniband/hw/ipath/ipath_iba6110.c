@@ -677,6 +677,12 @@ static int ipath_ht_boardname(struct ipath_devdata *dd, char *name,
 	if (n)
 		snprintf(name, namelen, "%s", n);
 
+	if (dd->ipath_boardrev != 6 && dd->ipath_boardrev != 7 &&
+	    dd->ipath_boardrev != 11) {
+		ipath_dev_err(dd, "Unsupported InfiniPath board %s!\n", name);
+		ret = 1;
+		goto bail;
+	}
 	if (dd->ipath_majrev != 3 || (dd->ipath_minrev < 2 ||
 		dd->ipath_minrev > 4)) {
 		/*
@@ -694,36 +700,11 @@ static int ipath_ht_boardname(struct ipath_devdata *dd, char *name,
 	 * copies
 	 */
 	dd->ipath_flags |= IPATH_32BITCOUNTERS;
+	dd->ipath_flags |= IPATH_GPIO_INTR;
 	if (dd->ipath_htspeed != 800)
 		ipath_dev_err(dd,
 			      "Incorrectly configured for HT @ %uMHz\n",
 			      dd->ipath_htspeed);
-	if (dd->ipath_boardrev == 7 || dd->ipath_boardrev == 11 ||
-	    dd->ipath_boardrev == 6)
-		dd->ipath_flags |= IPATH_GPIO_INTR;
-	else
-		dd->ipath_flags |= IPATH_POLL_RX_INTR;
-	if (dd->ipath_boardrev == 8) {	/* LS/X-1 */
-		u64 val;
-		val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_extstatus);
-		if (val & INFINIPATH_EXTS_SERDESSEL) {
-			/*
-			 * hardware disabled
-			 *
-			 * This means that the chip is hardware disabled,
-			 * and will not be able to bring up the link,
-			 * in any case.  We special case this and abort
-			 * early, to avoid later messages.  We also set
-			 * the DISABLED status bit
-			 */
-			ipath_dbg("Unit %u is hardware-disabled\n",
-				  dd->ipath_unit);
-			*dd->ipath_statusp |= IPATH_STATUS_DISABLED;
-			/* this value is handled differently */
-			ret = 2;
-			goto bail;
-		}
-	}
 	ret = 0;
 
 bail:
@@ -1574,8 +1555,10 @@ static int ipath_ht_early_init(struct ipath_devdata *dd)
 		 * with 128, rather than 112.
 		 */
 		dd->ipath_flags |= IPATH_GPIO_INTR;
-		dd->ipath_flags &= ~IPATH_POLL_RX_INTR;
-	}
+	} else
+		ipath_dev_err(dd, "Unsupported InfiniPath serial "
+			      "number %.16s!\n", dd->ipath_serial);
+
 	return 0;
 }
 
