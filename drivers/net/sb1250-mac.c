@@ -1159,7 +1159,7 @@ static void sbmac_netpoll(struct net_device *netdev)
 
 	__raw_writeq(0, sc->sbm_imr);
 
-	sbmac_intr(irq, netdev, NULL);
+	sbmac_intr(irq, netdev);
 
 #ifdef CONFIG_SBMAC_COALESCE
 	__raw_writeq(((M_MAC_INT_EOP_COUNT | M_MAC_INT_EOP_TIMER) << S_MAC_TX_CH0) |

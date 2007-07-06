@@ -1654,7 +1654,7 @@ static void fs_poll (unsigned long data)
 {
 	struct fs_dev *dev = (struct fs_dev *) data;
   
-	fs_irq (0, dev, NULL);
+	fs_irq (0, dev);
 	dev->timer.expires = jiffies + FS_POLL_FREQ;
 	add_timer (&dev->timer);
 }

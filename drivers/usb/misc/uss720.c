@@ -336,7 +336,7 @@ static int uss720_irq(int usbstatus, void *buffer, int len, void *dev_id)
 	memcpy(priv->reg, buffer, 4);
 	/* if nAck interrupts are enabled and we have an interrupt, call the interrupt procedure */
 	if (priv->reg[2] & priv->reg[1] & 0x10)
-		parport_generic_irq(0, pp, NULL);
+		parport_generic_irq(0, pp);
 	return 1;
 }
 #endif

@@ -222,7 +222,7 @@ static irqreturn_t ixpdev_interrupt(int irq, void *dev_id)
 static void ixpdev_poll_controller(struct net_device *dev)
 {
 	disable_irq(IRQ_IXP2000_THDA0);
-	ixpdev_interrupt(IRQ_IXP2000_THDA0, dev, NULL);
+	ixpdev_interrupt(IRQ_IXP2000_THDA0, dev);
 	enable_irq(IRQ_IXP2000_THDA0);
 }
 #endif
