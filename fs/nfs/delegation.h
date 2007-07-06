@@ -22,6 +22,7 @@ struct nfs_delegation {
 	long flags;
 	loff_t maxsize;
 	__u64 change_attr;
+	struct rcu_head rcu;
 };
 
 int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct nfs_openres *res);
@@ -45,11 +46,16 @@ int nfs4_copy_delegation_stateid(nfs4_stateid *dst, struct inode *inode);
 
 static inline int nfs_have_delegation(struct inode *inode, int flags)
 {
+	struct nfs_delegation *delegation;
+	int ret = 0;
+
 	flags &= FMODE_READ|FMODE_WRITE;
-	smp_rmb();
-	if ((NFS_I(inode)->delegation_state & flags) == flags)
-		return 1;
-	return 0;
+	rcu_read_lock();
+	delegation = rcu_dereference(NFS_I(inode)->delegation);
+	if (delegation != NULL && (delegation->type & flags) == flags)
+		ret = 1;
+	rcu_read_unlock();
+	return ret;
 }
 
 #else
