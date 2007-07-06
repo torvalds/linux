@@ -437,6 +437,9 @@ int ubi_scan_add_used(const struct ubi_device *ubi, struct ubi_scan_info *si,
 	if (IS_ERR(sv) < 0)
 		return PTR_ERR(sv);
 
+	if (si->max_sqnum < sqnum)
+		si->max_sqnum = sqnum;
+
 	/*
 	 * Walk the RB-tree of logical eraseblocks of volume @vol_id to look
 	 * if this is the first instance of this logical eraseblock or not.
@@ -562,9 +565,6 @@ int ubi_scan_add_used(const struct ubi_device *ubi, struct ubi_scan_info *si,
 		sv->highest_lnum = lnum;
 		sv->last_data_size = be32_to_cpu(vid_hdr->data_size);
 	}
-
-	if (si->max_sqnum < sqnum)
-		si->max_sqnum = sqnum;
 
 	sv->leb_count += 1;
 	rb_link_node(&seb->u.rb, parent, p);
