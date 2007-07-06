@@ -108,6 +108,14 @@ struct wireless_dev;
 #define MAX_HEADER (LL_MAX_HEADER + 48)
 #endif
 
+struct net_device_subqueue
+{
+	/* Give a control state for each queue.  This struct may contain
+	 * per-queue locks in the future.
+	 */
+	unsigned long   state;
+};
+
 /*
  *	Network device statistics. Akin to the 2.0 ether stats but
  *	with byte counters.
@@ -331,6 +339,7 @@ struct net_device
 #define NETIF_F_VLAN_CHALLENGED	1024	/* Device cannot handle VLAN packets */
 #define NETIF_F_GSO		2048	/* Enable software GSO. */
 #define NETIF_F_LLTX		4096	/* LockLess TX */
+#define NETIF_F_MULTI_QUEUE	16384	/* Has multiple TX/RX queues */
 
 	/* Segmentation offload features */
 #define NETIF_F_GSO_SHIFT	16
@@ -557,6 +566,10 @@ struct net_device
 
 	/* rtnetlink link ops */
 	const struct rtnl_link_ops *rtnl_link_ops;
+
+	/* The TX queue control structures */
+	unsigned int			egress_subqueue_count;
+	struct net_device_subqueue	egress_subqueue[0];
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
@@ -565,9 +578,7 @@ struct net_device
 
 static inline void *netdev_priv(const struct net_device *dev)
 {
-	return (char *)dev + ((sizeof(struct net_device)
-					+ NETDEV_ALIGN_CONST)
-				& ~NETDEV_ALIGN_CONST);
+	return dev->priv;
 }
 
 #define SET_MODULE_OWNER(dev) do { } while (0)
@@ -719,6 +730,62 @@ static inline int netif_running(const struct net_device *dev)
 	return test_bit(__LINK_STATE_START, &dev->state);
 }
 
+/*
+ * Routines to manage the subqueues on a device.  We only need start
+ * stop, and a check if it's stopped.  All other device management is
+ * done at the overall netdevice level.
+ * Also test the device if we're multiqueue.
+ */
+static inline void netif_start_subqueue(struct net_device *dev, u16 queue_index)
+{
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	clear_bit(__LINK_STATE_XOFF, &dev->egress_subqueue[queue_index].state);
+#endif
+}
+
+static inline void netif_stop_subqueue(struct net_device *dev, u16 queue_index)
+{
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+#ifdef CONFIG_NETPOLL_TRAP
+	if (netpoll_trap())
+		return;
+#endif
+	set_bit(__LINK_STATE_XOFF, &dev->egress_subqueue[queue_index].state);
+#endif
+}
+
+static inline int netif_subqueue_stopped(const struct net_device *dev,
+					 u16 queue_index)
+{
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	return test_bit(__LINK_STATE_XOFF,
+			&dev->egress_subqueue[queue_index].state);
+#else
+	return 0;
+#endif
+}
+
+static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
+{
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+#ifdef CONFIG_NETPOLL_TRAP
+	if (netpoll_trap())
+		return;
+#endif
+	if (test_and_clear_bit(__LINK_STATE_XOFF,
+			       &dev->egress_subqueue[queue_index].state))
+		__netif_schedule(dev);
+#endif
+}
+
+static inline int netif_is_multiqueue(const struct net_device *dev)
+{
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	return (!!(NETIF_F_MULTI_QUEUE & dev->features));
+#else
+	return 0;
+#endif
+}
 
 /* Use this variant when it is known for sure that it
  * is executing from interrupt context.
@@ -1009,8 +1076,11 @@ static inline void netif_tx_disable(struct net_device *dev)
 extern void		ether_setup(struct net_device *dev);
 
 /* Support for loadable net-drivers */
-extern struct net_device *alloc_netdev(int sizeof_priv, const char *name,
-				       void (*setup)(struct net_device *));
+extern struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
+				       void (*setup)(struct net_device *),
+				       unsigned int queue_count);
+#define alloc_netdev(sizeof_priv, name, setup) \
+	alloc_netdev_mq(sizeof_priv, name, setup, 1)
 extern int		register_netdev(struct net_device *dev);
 extern void		unregister_netdev(struct net_device *dev);
 /* Functions used for secondary unicast and multicast support */

@@ -66,8 +66,9 @@ static void queue_process(struct work_struct *work)
 
 		local_irq_save(flags);
 		netif_tx_lock(dev);
-		if (netif_queue_stopped(dev) ||
-		    dev->hard_start_xmit(skb, dev) != NETDEV_TX_OK) {
+		if ((netif_queue_stopped(dev) ||
+		     netif_subqueue_stopped(dev, skb->queue_mapping)) ||
+		     dev->hard_start_xmit(skb, dev) != NETDEV_TX_OK) {
 			skb_queue_head(&npinfo->txq, skb);
 			netif_tx_unlock(dev);
 			local_irq_restore(flags);
@@ -254,7 +255,8 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 		for (tries = jiffies_to_usecs(1)/USEC_PER_POLL;
 		     tries > 0; --tries) {
 			if (netif_tx_trylock(dev)) {
-				if (!netif_queue_stopped(dev))
+				if (!netif_queue_stopped(dev) &&
+				    !netif_subqueue_stopped(dev, skb->queue_mapping))
 					status = dev->hard_start_xmit(skb, dev);
 				netif_tx_unlock(dev);
 
