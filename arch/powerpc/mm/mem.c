@@ -128,8 +128,6 @@ int __devinit arch_add_memory(int nid, u64 start, u64 size)
 	zone = pgdata->node_zones;
 
 	return __add_pages(zone, start_pfn, nr_pages);
-
-	return 0;
 }
 
 /*
