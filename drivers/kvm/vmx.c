@@ -17,6 +17,7 @@
 
 #include "kvm.h"
 #include "x86_emulate.h"
+#include "irq.h"
 #include "vmx.h"
 #include "segment_descriptor.h"
 
@@ -1582,6 +1583,16 @@ static void inject_rmode_irq(struct kvm_vcpu *vcpu, int irq)
 	vmcs_writel(GUEST_RSP, (vmcs_readl(GUEST_RSP) & ~0xffff) | (sp - 6));
 }
 
+static void vmx_inject_irq(struct kvm_vcpu *vcpu, int irq)
+{
+	if (vcpu->rmode.active) {
+		inject_rmode_irq(vcpu, irq);
+		return;
+	}
+	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
+			irq | INTR_TYPE_EXT_INTR | INTR_INFO_VALID_MASK);
+}
+
 static void kvm_do_inject_irq(struct kvm_vcpu *vcpu)
 {
 	int word_index = __ffs(vcpu->irq_summary);
@@ -1591,13 +1602,7 @@ static void kvm_do_inject_irq(struct kvm_vcpu *vcpu)
 	clear_bit(bit_index, &vcpu->irq_pending[word_index]);
 	if (!vcpu->irq_pending[word_index])
 		clear_bit(word_index, &vcpu->irq_summary);
-
-	if (vcpu->rmode.active) {
-		inject_rmode_irq(vcpu, irq);
-		return;
-	}
-	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
-			irq | INTR_TYPE_EXT_INTR | INTR_INFO_VALID_MASK);
+	vmx_inject_irq(vcpu, irq);
 }
 
 
@@ -1681,7 +1686,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		       "intr info 0x%x\n", __FUNCTION__, vect_info, intr_info);
 	}
 
-	if (is_external_interrupt(vect_info)) {
+	if (!irqchip_in_kernel(vcpu->kvm) && is_external_interrupt(vect_info)) {
 		int irq = vect_info & VECTORING_INFO_VECTOR_MASK;
 		set_bit(irq, vcpu->irq_pending);
 		set_bit(irq / BITS_PER_LONG, &vcpu->irq_summary);
@@ -1961,6 +1966,12 @@ static void post_kvm_run_save(struct kvm_vcpu *vcpu,
 static int handle_interrupt_window(struct kvm_vcpu *vcpu,
 				   struct kvm_run *kvm_run)
 {
+	u32 cpu_based_vm_exec_control;
+
+	/* clear pending irq */
+	cpu_based_vm_exec_control = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
+	cpu_based_vm_exec_control &= ~CPU_BASED_VIRTUAL_INTR_PENDING;
+	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
 	/*
 	 * If the user space waits to inject interrupts, exit as soon as
 	 * possible
@@ -2052,6 +2063,55 @@ static void vmx_flush_tlb(struct kvm_vcpu *vcpu)
 {
 }
 
+static void enable_irq_window(struct kvm_vcpu *vcpu)
+{
+	u32 cpu_based_vm_exec_control;
+
+	cpu_based_vm_exec_control = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
+	cpu_based_vm_exec_control |= CPU_BASED_VIRTUAL_INTR_PENDING;
+	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
+}
+
+static void vmx_intr_assist(struct kvm_vcpu *vcpu)
+{
+	u32 idtv_info_field, intr_info_field;
+	int has_ext_irq, interrupt_window_open;
+
+	has_ext_irq = kvm_cpu_has_interrupt(vcpu);
+	intr_info_field = vmcs_read32(VM_ENTRY_INTR_INFO_FIELD);
+	idtv_info_field = vmcs_read32(IDT_VECTORING_INFO_FIELD);
+	if (intr_info_field & INTR_INFO_VALID_MASK) {
+		if (idtv_info_field & INTR_INFO_VALID_MASK) {
+			/* TODO: fault when IDT_Vectoring */
+			printk(KERN_ERR "Fault when IDT_Vectoring\n");
+		}
+		if (has_ext_irq)
+			enable_irq_window(vcpu);
+		return;
+	}
+	if (unlikely(idtv_info_field & INTR_INFO_VALID_MASK)) {
+		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, idtv_info_field);
+		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN,
+				vmcs_read32(VM_EXIT_INSTRUCTION_LEN));
+
+		if (unlikely(idtv_info_field & INTR_INFO_DELIEVER_CODE_MASK))
+			vmcs_write32(VM_ENTRY_EXCEPTION_ERROR_CODE,
+				vmcs_read32(IDT_VECTORING_ERROR_CODE));
+		if (unlikely(has_ext_irq))
+			enable_irq_window(vcpu);
+		return;
+	}
+	if (!has_ext_irq)
+		return;
+	interrupt_window_open =
+		((vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_IF) &&
+		 (vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) & 3) == 0);
+	if (interrupt_window_open)
+		vmx_inject_irq(vcpu, kvm_cpu_get_interrupt(vcpu));
+	else
+		enable_irq_window(vcpu);
+}
+
 static int vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -2088,7 +2148,9 @@ again:
 		goto out;
 	}
 
-	if (!vcpu->mmio_read_completed)
+	if (irqchip_in_kernel(vcpu->kvm))
+		vmx_intr_assist(vcpu);
+	else if (!vcpu->mmio_read_completed)
 		do_interrupt_requests(vcpu, kvm_run);
 
 	vcpu->guest_mode = 1;

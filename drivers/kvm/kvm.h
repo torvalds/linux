@@ -408,7 +408,18 @@ struct kvm {
 	struct file *filp;
 	struct kvm_io_bus mmio_bus;
 	struct kvm_io_bus pio_bus;
+	struct kvm_pic *vpic;
 };
+
+static inline struct kvm_pic *pic_irqchip(struct kvm *kvm)
+{
+	return kvm->vpic;
+}
+
+static inline int irqchip_in_kernel(struct kvm *kvm)
+{
+	return pic_irqchip(kvm) != 0;
+}
 
 struct descriptor_table {
 	u16 limit;

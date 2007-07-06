@@ -16,6 +16,7 @@
 
 #include "kvm_svm.h"
 #include "x86_emulate.h"
+#include "irq.h"
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -921,7 +922,8 @@ static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	enum emulation_result er;
 	int r;
 
-	if (is_external_interrupt(exit_int_info))
+	if (!irqchip_in_kernel(kvm) &&
+		is_external_interrupt(exit_int_info))
 		push_irq(&svm->vcpu, exit_int_info & SVM_EVTINJ_VEC_MASK);
 
 	mutex_lock(&kvm->lock);
@@ -1185,6 +1187,8 @@ static int msr_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 static int interrupt_window_interception(struct vcpu_svm *svm,
 				   struct kvm_run *kvm_run)
 {
+	svm->vmcb->control.intercept &= ~(1ULL << INTERCEPT_VINTR);
+	svm->vmcb->control.int_ctl &= ~V_IRQ_MASK;
 	/*
 	 * If the user space waits to inject interrupts, exit as soon as
 	 * possible
@@ -1289,28 +1293,75 @@ static void pre_svm_run(struct vcpu_svm *svm)
 }
 
 
-static inline void inject_irq(struct vcpu_svm *svm)
+static inline void svm_inject_irq(struct vcpu_svm *svm, int irq)
 {
 	struct vmcb_control_area *control;
 
 	control = &svm->vmcb->control;
-	control->int_vector = pop_irq(&svm->vcpu);
+	control->int_vector = irq;
 	control->int_ctl &= ~V_INTR_PRIO_MASK;
 	control->int_ctl |= V_IRQ_MASK |
 		((/*control->int_vector >> 4*/ 0xf) << V_INTR_PRIO_SHIFT);
 }
 
-static void reput_irq(struct vcpu_svm *svm)
+static void svm_intr_assist(struct vcpu_svm *svm)
 {
+	struct vmcb *vmcb = svm->vmcb;
+	int intr_vector = -1;
+
+	if ((vmcb->control.exit_int_info & SVM_EVTINJ_VALID) &&
+	    ((vmcb->control.exit_int_info & SVM_EVTINJ_TYPE_MASK) == 0)) {
+		intr_vector = vmcb->control.exit_int_info &
+			      SVM_EVTINJ_VEC_MASK;
+		vmcb->control.exit_int_info = 0;
+		svm_inject_irq(svm, intr_vector);
+		return;
+	}
+
+	if (vmcb->control.int_ctl & V_IRQ_MASK)
+		return;
+
+	if (!kvm_cpu_has_interrupt(&svm->vcpu))
+		return;
+
+	if (!(vmcb->save.rflags & X86_EFLAGS_IF) ||
+	    (vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) ||
+	    (vmcb->control.event_inj & SVM_EVTINJ_VALID)) {
+		/* unable to deliver irq, set pending irq */
+		vmcb->control.intercept |= (1ULL << INTERCEPT_VINTR);
+		svm_inject_irq(svm, 0x0);
+		return;
+	}
+	/* Okay, we can deliver the interrupt: grab it and update PIC state. */
+	intr_vector = kvm_cpu_get_interrupt(&svm->vcpu);
+	svm_inject_irq(svm, intr_vector);
+}
+
+static void kvm_reput_irq(struct vcpu_svm *svm)
+{
+	struct kvm_vcpu *vcpu = &svm->vcpu;
 	struct vmcb_control_area *control = &svm->vmcb->control;
 
-	if (control->int_ctl & V_IRQ_MASK) {
+	if ((control->int_ctl & V_IRQ_MASK) && !irqchip_in_kernel(vcpu->kvm)) {
 		control->int_ctl &= ~V_IRQ_MASK;
 		push_irq(&svm->vcpu, control->int_vector);
 	}
 
 	svm->vcpu.interrupt_window_open =
 		!(control->int_state & SVM_INTERRUPT_SHADOW_MASK);
+}
+
+static void svm_do_inject_vector(struct vcpu_svm *svm)
+{
+	struct kvm_vcpu *vcpu = &svm->vcpu;
+	int word_index = __ffs(vcpu->irq_summary);
+	int bit_index = __ffs(vcpu->irq_pending[word_index]);
+	int irq = word_index * BITS_PER_LONG + bit_index;
+
+	clear_bit(bit_index, &vcpu->irq_pending[word_index]);
+	if (!vcpu->irq_pending[word_index])
+		clear_bit(word_index, &vcpu->irq_summary);
+	svm_inject_irq(svm, irq);
 }
 
 static void do_interrupt_requests(struct vcpu_svm *svm,
@@ -1326,7 +1377,7 @@ static void do_interrupt_requests(struct vcpu_svm *svm,
 		/*
 		 * If interrupts enabled, and not blocked by sti or mov ss. Good.
 		 */
-		inject_irq(svm);
+		svm_do_inject_vector(svm);
 
 	/*
 	 * Interrupts blocked.  Wait for unblock.
@@ -1408,7 +1459,9 @@ again:
 		return -EINTR;
 	}
 
-	if (!vcpu->mmio_read_completed)
+	if (irqchip_in_kernel(vcpu->kvm))
+		svm_intr_assist(svm);
+	else if (!vcpu->mmio_read_completed)
 		do_interrupt_requests(svm, kvm_run);
 
 	vcpu->guest_mode = 1;
@@ -1576,7 +1629,7 @@ again:
 
 	stgi();
 
-	reput_irq(svm);
+	kvm_reput_irq(svm);
 
 	svm->next_rip = 0;
 

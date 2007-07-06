@@ -18,6 +18,7 @@
 #include "kvm.h"
 #include "x86_emulate.h"
 #include "segment_descriptor.h"
+#include "irq.h"
 
 #include <linux/kvm.h>
 #include <linux/module.h>
@@ -378,6 +379,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	spin_unlock(&kvm_lock);
 	kvm_io_bus_destroy(&kvm->pio_bus);
 	kvm_io_bus_destroy(&kvm->mmio_bus);
+	kfree(kvm->vpic);
 	kvm_free_vcpus(kvm);
 	kvm_free_physmem(kvm);
 	kfree(kvm);
@@ -1258,7 +1260,8 @@ EXPORT_SYMBOL_GPL(emulate_instruction);
 
 int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->irq_summary)
+	if (vcpu->irq_summary ||
+		(irqchip_in_kernel(vcpu->kvm) && kvm_cpu_has_interrupt(vcpu)))
 		return 1;
 
 	vcpu->run->exit_reason = KVM_EXIT_HLT;
@@ -2715,6 +2718,30 @@ static long kvm_vm_ioctl(struct file *filp,
 			goto out;
 		break;
 	}
+	case KVM_CREATE_IRQCHIP:
+		r = -ENOMEM;
+		kvm->vpic = kvm_create_pic(kvm);
+		if (kvm->vpic)
+			r = 0;
+		else
+			goto out;
+		break;
+	case KVM_IRQ_LINE: {
+		struct kvm_irq_level irq_event;
+
+		r = -EFAULT;
+		if (copy_from_user(&irq_event, argp, sizeof irq_event))
+			goto out;
+		if (irqchip_in_kernel(kvm)) {
+			if (irq_event.irq < 16)
+				kvm_pic_set_irq(pic_irqchip(kvm),
+					irq_event.irq,
+					irq_event.level);
+			/* TODO: IOAPIC */
+			r = 0;
+		}
+		break;
+	}
 	default:
 		;
 	}
@@ -2825,12 +2852,19 @@ static long kvm_dev_ioctl(struct file *filp,
 		r = 0;
 		break;
 	}
-	case KVM_CHECK_EXTENSION:
-		/*
-		 * No extensions defined at present.
-		 */
-		r = 0;
+	case KVM_CHECK_EXTENSION: {
+		int ext = (long)argp;
+
+		switch (ext) {
+		case KVM_CAP_IRQCHIP:
+			r = 1;
+			break;
+		default:
+			r = 0;
+			break;
+		}
 		break;
+	}
 	case KVM_GET_VCPU_MMAP_SIZE:
 		r = -EINVAL;
 		if (arg)

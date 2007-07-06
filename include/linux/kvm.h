@@ -34,6 +34,17 @@ struct kvm_memory_alias {
 	__u64 target_phys_addr;
 };
 
+/* for KVM_SET_IRQ_LEVEL */
+struct kvm_irq_level {
+	/*
+	 * ACPI gsi notion of irq.
+	 * For IA-64 (APIC model) IOAPIC0: irq 0-23; IOAPIC1: irq 24-47..
+	 * For X86 (standard AT mode) PIC0/1: irq 0-15. IOAPIC0: 0-23..
+	 */
+	__u32 irq;
+	__u32 level;
+};
+
 enum kvm_exit_reason {
 	KVM_EXIT_UNKNOWN          = 0,
 	KVM_EXIT_EXCEPTION        = 1,
@@ -269,6 +280,11 @@ struct kvm_signal_mask {
 #define KVM_GET_VCPU_MMAP_SIZE    _IO(KVMIO,   0x04) /* in bytes */
 
 /*
+ * Extension capability list.
+ */
+#define KVM_CAP_IRQCHIP	  0
+
+/*
  * ioctls for VM fds
  */
 #define KVM_SET_MEMORY_REGION     _IOW(KVMIO, 0x40, struct kvm_memory_region)
@@ -279,6 +295,9 @@ struct kvm_signal_mask {
 #define KVM_CREATE_VCPU           _IO(KVMIO,  0x41)
 #define KVM_GET_DIRTY_LOG         _IOW(KVMIO, 0x42, struct kvm_dirty_log)
 #define KVM_SET_MEMORY_ALIAS      _IOW(KVMIO, 0x43, struct kvm_memory_alias)
+/* Device model IOC */
+#define KVM_CREATE_IRQCHIP	  _IO(KVMIO,  0x60)
+#define KVM_IRQ_LINE		  _IO(KVMIO,  0x61)
 
 /*
  * ioctls for vcpu fds
