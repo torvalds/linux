@@ -297,6 +297,8 @@ struct ipath_devdata {
 	u32 ipath_lastport_piobuf;
 	/* is a stats timer active */
 	u32 ipath_stats_timer_active;
+	/* number of interrupts for this device -- saturates... */
+	u32 ipath_int_counter;
 	/* dwords sent read from counter */
 	u32 ipath_lastsword;
 	/* dwords received read from counter */
@@ -570,6 +572,9 @@ struct ipath_devdata {
 	u32 ipath_rxfc_unsupvl_errs;
 	u32 ipath_overrun_thresh_errs;
 	u32 ipath_lli_errs;
+
+	/* status check work */
+	struct delayed_work status_work;
 
 	/*
 	 * Not all devices managed by a driver instance are the same

@@ -1009,6 +1009,9 @@ irqreturn_t ipath_intr(int irq, void *data)
 
 	ipath_stats.sps_ints++;
 
+	if (dd->ipath_int_counter != (u32) -1)
+		dd->ipath_int_counter++;
+
 	if (!(dd->ipath_flags & IPATH_PRESENT)) {
 		/*
 		 * This return value is not great, but we do not want the
