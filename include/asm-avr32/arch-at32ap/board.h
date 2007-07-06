@@ -36,4 +36,18 @@ struct platform_device *
 at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
 		     unsigned long fbmem_start, unsigned long fbmem_len);
 
+/* depending on what's hooked up, not all SSC pins will be used */
+#define	ATMEL_SSC_TK		0x01
+#define	ATMEL_SSC_TF		0x02
+#define	ATMEL_SSC_TD		0x04
+#define	ATMEL_SSC_TX		(ATMEL_SSC_TK | ATMEL_SSC_TF | ATMEL_SSC_TD)
+
+#define	ATMEL_SSC_RK		0x10
+#define	ATMEL_SSC_RF		0x20
+#define	ATMEL_SSC_RD		0x40
+#define	ATMEL_SSC_RX		(ATMEL_SSC_RK | ATMEL_SSC_RF | ATMEL_SSC_RD)
+
+struct platform_device *
+at32_add_device_ssc(unsigned int id, unsigned int flags);
+
 #endif /* __ASM_ARCH_BOARD_H */

@@ -1085,6 +1085,89 @@ err_dup_modedb:
 }
 
 /* --------------------------------------------------------------------
+ *  SSC
+ * -------------------------------------------------------------------- */
+static struct resource ssc0_resource[] = {
+	PBMEM(0xffe01c00),
+	IRQ(10),
+};
+DEFINE_DEV(ssc, 0);
+DEV_CLK(pclk, ssc0, pba, 7);
+
+static struct resource ssc1_resource[] = {
+	PBMEM(0xffe02000),
+	IRQ(11),
+};
+DEFINE_DEV(ssc, 1);
+DEV_CLK(pclk, ssc1, pba, 8);
+
+static struct resource ssc2_resource[] = {
+	PBMEM(0xffe02400),
+	IRQ(12),
+};
+DEFINE_DEV(ssc, 2);
+DEV_CLK(pclk, ssc2, pba, 9);
+
+struct platform_device *__init
+at32_add_device_ssc(unsigned int id, unsigned int flags)
+{
+	struct platform_device *pdev;
+
+	switch (id) {
+	case 0:
+		pdev = &ssc0_device;
+		if (flags & ATMEL_SSC_RF)
+			select_peripheral(PA(21), PERIPH_A, 0);	/* RF */
+		if (flags & ATMEL_SSC_RK)
+			select_peripheral(PA(22), PERIPH_A, 0);	/* RK */
+		if (flags & ATMEL_SSC_TK)
+			select_peripheral(PA(23), PERIPH_A, 0);	/* TK */
+		if (flags & ATMEL_SSC_TF)
+			select_peripheral(PA(24), PERIPH_A, 0);	/* TF */
+		if (flags & ATMEL_SSC_TD)
+			select_peripheral(PA(25), PERIPH_A, 0);	/* TD */
+		if (flags & ATMEL_SSC_RD)
+			select_peripheral(PA(26), PERIPH_A, 0);	/* RD */
+		break;
+	case 1:
+		pdev = &ssc1_device;
+		if (flags & ATMEL_SSC_RF)
+			select_peripheral(PA(0), PERIPH_B, 0);	/* RF */
+		if (flags & ATMEL_SSC_RK)
+			select_peripheral(PA(1), PERIPH_B, 0);	/* RK */
+		if (flags & ATMEL_SSC_TK)
+			select_peripheral(PA(2), PERIPH_B, 0);	/* TK */
+		if (flags & ATMEL_SSC_TF)
+			select_peripheral(PA(3), PERIPH_B, 0);	/* TF */
+		if (flags & ATMEL_SSC_TD)
+			select_peripheral(PA(4), PERIPH_B, 0);	/* TD */
+		if (flags & ATMEL_SSC_RD)
+			select_peripheral(PA(5), PERIPH_B, 0);	/* RD */
+		break;
+	case 2:
+		pdev = &ssc2_device;
+		if (flags & ATMEL_SSC_TD)
+			select_peripheral(PB(13), PERIPH_A, 0);	/* TD */
+		if (flags & ATMEL_SSC_RD)
+			select_peripheral(PB(14), PERIPH_A, 0);	/* RD */
+		if (flags & ATMEL_SSC_TK)
+			select_peripheral(PB(15), PERIPH_A, 0);	/* TK */
+		if (flags & ATMEL_SSC_TF)
+			select_peripheral(PB(16), PERIPH_A, 0);	/* TF */
+		if (flags & ATMEL_SSC_RF)
+			select_peripheral(PB(17), PERIPH_A, 0);	/* RF */
+		if (flags & ATMEL_SSC_RK)
+			select_peripheral(PB(18), PERIPH_A, 0);	/* RK */
+		break;
+	default:
+		return NULL;
+	}
+
+	platform_device_register(pdev);
+	return pdev;
+}
+
+/* --------------------------------------------------------------------
  *  GCLK
  * -------------------------------------------------------------------- */
 static struct clk gclk0 = {
@@ -1166,6 +1249,9 @@ struct clk *at32_clock_list[] = {
 	&atmel_spi1_spi_clk,
 	&atmel_lcdfb0_hck1,
 	&atmel_lcdfb0_pixclk,
+	&ssc0_pclk,
+	&ssc1_pclk,
+	&ssc2_pclk,
 	&gclk0,
 	&gclk1,
 	&gclk2,
