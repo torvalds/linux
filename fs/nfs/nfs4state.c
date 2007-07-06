@@ -156,8 +156,9 @@ static void nfs_free_unique_id(struct rb_root *root, struct nfs_unique_id *id)
 }
 
 static struct nfs4_state_owner *
-nfs4_find_state_owner(struct nfs_client *clp, struct rpc_cred *cred)
+nfs4_find_state_owner(struct nfs_server *server, struct rpc_cred *cred)
 {
+	struct nfs_client *clp = server->nfs_client;
 	struct rb_node **p = &clp->cl_state_owners.rb_node,
 		       *parent = NULL;
 	struct nfs4_state_owner *sp, *res = NULL;
@@ -166,6 +167,14 @@ nfs4_find_state_owner(struct nfs_client *clp, struct rpc_cred *cred)
 		parent = *p;
 		sp = rb_entry(parent, struct nfs4_state_owner, so_client_node);
 
+		if (server < sp->so_server) {
+			p = &parent->rb_left;
+			continue;
+		}
+		if (server > sp->so_server) {
+			p = &parent->rb_right;
+			continue;
+		}
 		if (cred < sp->so_cred)
 			p = &parent->rb_left;
 		else if (cred > sp->so_cred)
@@ -190,6 +199,14 @@ nfs4_insert_state_owner(struct nfs_client *clp, struct nfs4_state_owner *new)
 		parent = *p;
 		sp = rb_entry(parent, struct nfs4_state_owner, so_client_node);
 
+		if (new->so_server < sp->so_server) {
+			p = &parent->rb_left;
+			continue;
+		}
+		if (new->so_server > sp->so_server) {
+			p = &parent->rb_right;
+			continue;
+		}
 		if (new->so_cred < sp->so_cred)
 			p = &parent->rb_left;
 		else if (new->so_cred > sp->so_cred)
@@ -260,7 +277,7 @@ struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server, struct 
 	struct nfs4_state_owner *sp, *new;
 
 	spin_lock(&clp->cl_lock);
-	sp = nfs4_find_state_owner(clp, cred);
+	sp = nfs4_find_state_owner(server, cred);
 	spin_unlock(&clp->cl_lock);
 	if (sp != NULL)
 		return sp;
@@ -268,6 +285,7 @@ struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server, struct 
 	if (new == NULL)
 		return NULL;
 	new->so_client = clp;
+	new->so_server = server;
 	new->so_cred = cred;
 	spin_lock(&clp->cl_lock);
 	sp = nfs4_insert_state_owner(clp, new);
