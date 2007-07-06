@@ -135,7 +135,6 @@ static const struct smb_to_posix_error mapping_table_ERRHRD[] = {
 int
 cifs_inet_pton(int address_family, char *cp,void *dst)
 {
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 	int ret = 0;
 
 	/* calculate length by finding first slash or NULL */
@@ -152,66 +151,6 @@ cifs_inet_pton(int address_family, char *cp,void *dst)
 	if (ret > 0)
 		ret = 1;
 	return ret;
-#else
-	int value;
-	int digit;
-	int i;
-	char temp;
-	char bytes[4];
-	char *end = bytes;
-	static const int addr_class_max[4] =
-	    { 0xffffffff, 0xffffff, 0xffff, 0xff };
-
-	if(address_family != AF_INET)
-		return -EAFNOSUPPORT;
-
-	for (i = 0; i < 4; i++) {
-		bytes[i] = 0;
-	}
-
-	temp = *cp;
-
-	while (TRUE) {
-		if (!isdigit(temp))
-			return 0;
-
-		value = 0;
-		digit = 0;
-		for (;;) {
-			if (isascii(temp) && isdigit(temp)) {
-				value = (value * 10) + temp - '0';
-				temp = *++cp;
-				digit = 1;
-			} else
-				break;
-		}
-
-		if (temp == '.') {
-			if ((end > bytes + 2) || (value > 255))
-				return 0;
-			*end++ = value;
-			temp = *++cp;
-		} else if (temp == ':') {
-			cFYI(1,("IPv6 addresses not supported for CIFS mounts yet"));
-			return -1;
-		} else
-			break;
-	}
-
-	/* check for last characters */
-	if (temp != '\0' && (!isascii(temp) || !isspace(temp)))
-		if (temp != '\\') {
-			if (temp != '/')
-				return 0;
-			else
-				(*cp = '\\');	/* switch the slash the expected way */
-		}
-	if (value > addr_class_max[end - bytes])
-		return 0;
-
-	*((__be32 *)dst) = *((__be32 *) bytes) | htonl(value);
-	return 1; /* success */
-#endif /* EXPERIMENTAL */	
 }
 
 /*****************************************************************************
