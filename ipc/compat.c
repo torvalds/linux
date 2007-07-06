@@ -225,7 +225,7 @@ static inline int put_compat_semid_ds(struct semid64_ds *s,
 	int err;
 
 	if (!access_ok (VERIFY_WRITE, up, sizeof(*up)))
-		err = -EFAULT;
+		return -EFAULT;
 	err  = __put_compat_ipc_perm(&s->sem_perm, &up->sem_perm);
 	err |= __put_user(s->sem_otime, &up->sem_otime);
 	err |= __put_user(s->sem_ctime, &up->sem_ctime);
