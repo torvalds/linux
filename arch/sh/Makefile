@@ -48,8 +48,6 @@ cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -ml
 
 cflags-y	+= $(call as-option,-Wa$(comma)-isa=$(isa-y),) -ffreestanding
 
-cflags-$(CONFIG_SH_DSP)			+= -Wa,-dsp
-
 cflags-$(CONFIG_MORE_COMPILE_OPTIONS)	+= \
 	$(shell echo $(CONFIG_COMPILE_OPTIONS) | sed -e 's/"//g')
 
