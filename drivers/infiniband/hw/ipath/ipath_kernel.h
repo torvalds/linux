@@ -645,6 +645,7 @@ int ipath_enable_wc(struct ipath_devdata *dd);
 void ipath_disable_wc(struct ipath_devdata *dd);
 int ipath_count_units(int *npresentp, int *nupp, u32 *maxportsp);
 void ipath_shutdown_device(struct ipath_devdata *);
+void ipath_clear_freeze(struct ipath_devdata *);
 
 struct file_operations;
 int ipath_cdev_init(int minor, char *name, const struct file_operations *fops,

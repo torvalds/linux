@@ -435,16 +435,7 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 			freeze_cnt++;
 			ipath_dbg("Clearing freezemode on ignored or recovered "
 				  "hardware error (%u)\n", freeze_cnt);
-			/*
-			 * clear all sends, becauase they have may been
-			 * completed by usercode while in freeze mode, and
-			 * therefore would not be sent, and eventually
-			 * might cause the process to run out of bufs
-			 */
-			ipath_cancel_sends(dd);
-			ctrl &= ~INFINIPATH_C_FREEZEMODE;
-			ipath_write_kreg(dd, dd->ipath_kregs->kr_control,
-			   		 dd->ipath_control);
+			ipath_clear_freeze(dd);
 		}
 	}
 

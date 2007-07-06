@@ -133,6 +133,17 @@ void ipath_disarm_senderrbufs(struct ipath_devdata *dd, int rewrite)
 	 INFINIPATH_E_INVALIDADDR)
 
 /*
+ * this is similar to E_SUM_ERRS, but can't ignore armlaunch, don't ignore
+ * errors not related to freeze and cancelling buffers.  Can't ignore
+ * armlaunch because could get more while still cleaning up, and need
+ * to cancel those as they happen.
+ */
+#define E_SPKT_ERRS_IGNORE \
+	 (INFINIPATH_E_SDROPPEDDATAPKT | INFINIPATH_E_SDROPPEDSMPPKT | \
+	 INFINIPATH_E_SMAXPKTLEN | INFINIPATH_E_SMINPKTLEN | \
+	 INFINIPATH_E_SPKTLEN)
+
+/*
  * these are errors that can occur when the link changes state while
  * a packet is being sent or received.  This doesn't cover things
  * like EBP or VCRC that can be the result of a sending having the
@@ -759,6 +770,72 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 
 	return chkerrpkts;
 }
+
+
+/*
+ * try to cleanup as much as possible for anything that might have gone
+ * wrong while in freeze mode, such as pio buffers being written by user
+ * processes (causing armlaunch), send errors due to going into freeze mode,
+ * etc., and try to avoid causing extra interrupts while doing so.
+ * Forcibly update the in-memory pioavail register copies after cleanup
+ * because the chip won't do it for anything changing while in freeze mode
+ * (we don't want to wait for the next pio buffer state change).
+ * Make sure that we don't lose any important interrupts by using the chip
+ * feature that says that writing 0 to a bit in *clear that is set in
+ * *status will cause an interrupt to be generated again (if allowed by
+ * the *mask value).
+ */
+void ipath_clear_freeze(struct ipath_devdata *dd)
+{
+	int i, im;
+	__le64 val;
+
+	/* disable error interrupts, to avoid confusion */
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask, 0ULL);
+
+	/*
+	 * clear all sends, because they have may been
+	 * completed by usercode while in freeze mode, and
+	 * therefore would not be sent, and eventually
+	 * might cause the process to run out of bufs
+	 */
+	ipath_cancel_sends(dd);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_control,
+			 dd->ipath_control);
+
+	/* ensure pio avail updates continue */
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
+		 dd->ipath_sendctrl & ~IPATH_S_PIOBUFAVAILUPD);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
+		 dd->ipath_sendctrl);
+
+	/*
+	 * We just enabled pioavailupdate, so dma copy is almost certainly
+	 * not yet right, so read the registers directly.  Similar to init
+	 */
+	for (i = 0; i < dd->ipath_pioavregs; i++) {
+		/* deal with 6110 chip bug */
+		im = i > 3 ? ((i&1) ? i-1 : i+1) : i;
+		val = ipath_read_kreg64(dd, 0x1000+(im*sizeof(u64)));
+		dd->ipath_pioavailregs_dma[i] = dd->ipath_pioavailshadow[i]
+			= le64_to_cpu(val);
+	}
+
+	/*
+	 * force new interrupt if any hwerr, error or interrupt bits are
+	 * still set, and clear "safe" send packet errors related to freeze
+	 * and cancelling sends.  Re-enable error interrupts before possible
+	 * force of re-interrupt on pending interrupts.
+	 */
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_hwerrclear, 0ULL);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_errorclear,
+		E_SPKT_ERRS_IGNORE);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
+		~dd->ipath_maskederrs);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_intclear, 0ULL);
+}
+
 
 /* this is separate to allow for better optimization of ipath_intr() */
 
