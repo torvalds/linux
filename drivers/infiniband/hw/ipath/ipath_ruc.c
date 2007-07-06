@@ -194,6 +194,8 @@ int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only)
 			ret = 0;
 			goto bail;
 		}
+		/* Make sure entry is read after head index is read. */
+		smp_rmb();
 		wqe = get_rwqe_ptr(rq, tail);
 		if (++tail >= rq->size)
 			tail = 0;

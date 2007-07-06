@@ -176,6 +176,8 @@ static void ipath_ud_loopback(struct ipath_qp *sqp,
 			dev->n_pkt_drops++;
 			goto bail_sge;
 		}
+		/* Make sure entry is read after head index is read. */
+		smp_rmb();
 		wqe = get_rwqe_ptr(rq, tail);
 		if (++tail >= rq->size)
 			tail = 0;

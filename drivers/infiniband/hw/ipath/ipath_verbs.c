@@ -327,6 +327,8 @@ static int ipath_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		wqe->num_sge = wr->num_sge;
 		for (i = 0; i < wr->num_sge; i++)
 			wqe->sg_list[i] = wr->sg_list[i];
+		/* Make sure queue entry is written before the head index. */
+		smp_wmb();
 		wq->head = next;
 		spin_unlock_irqrestore(&qp->r_rq.lock, flags);
 	}
