@@ -12,6 +12,7 @@ to match what documentation said. Support for very large reads, over 127K,
 available to some newer servers (such as Samba 3.0.26 and later but
 note that it also requires setting CIFSMaxBufSize at module install
 time to a larger value which may hurt performance in some cases).
+Make sign option force signing (or fail if server does not support it).
 
 Version 1.48
 ------------

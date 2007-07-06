@@ -645,11 +645,12 @@ signing_check:
 			~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
 	} else if ((secFlags & CIFSSEC_MUST_SIGN) == CIFSSEC_MUST_SIGN) {
 		/* signing required */
-		cFYI(1, ("Must sign - segFlags 0x%x", secFlags));
+		cFYI(1, ("Must sign - secFlags 0x%x", secFlags));
 		if ((server->secMode &
 			(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED)) == 0) {
 			cERROR(1,
 				("signing required but server lacks support"));
+			rc = -EOPNOTSUPP;
 		} else
 			server->secMode |= SECMODE_SIGN_REQUIRED;
 	} else {
