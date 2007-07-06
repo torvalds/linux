@@ -222,7 +222,6 @@ static struct ubi_scan_volume *add_volume(struct ubi_scan_info *si, int vol_id,
 		return ERR_PTR(-ENOMEM);
 
 	sv->highest_lnum = sv->leb_count = 0;
-	si->max_sqnum = 0;
 	sv->vol_id = vol_id;
 	sv->root = RB_ROOT;
 	sv->used_ebs = be32_to_cpu(vid_hdr->used_ebs);
