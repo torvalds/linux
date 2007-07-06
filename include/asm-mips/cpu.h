@@ -125,6 +125,17 @@
 #define PRID_REV_VR4130		0x0080
 
 /*
+ * Older processors used to encode processor version and revision in two
+ * 4-bit bitfields, the 4K seems to simply count up and even newer MTI cores
+ * have switched to use the 8-bits as 3:3:2 bitfield with the last field as
+ * the patch number.  *ARGH*
+ */
+#define PRID_REV_ENCODE_44(ver, rev)					\
+	((ver) << 4 | (rev))
+#define PRID_REV_ENCODE_332(ver, rev, patch)				\
+	((ver) << 5 | (rev) << 2 | (patch))
+
+/*
  * FPU implementation/revision register (CP1 control register 0).
  *
  * +---------------------------------+----------------+----------------+
