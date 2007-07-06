@@ -5668,9 +5668,9 @@ static int ocfs2_ordered_zero_func(handle_t *handle, struct buffer_head *bh)
 	return ocfs2_journal_dirty_data(handle, bh);
 }
 
-static void ocfs2_zero_cluster_pages(struct inode *inode, loff_t isize,
-				     struct page **pages, int numpages,
-				     u64 phys, handle_t *handle)
+static void ocfs2_zero_cluster_pages(struct inode *inode, loff_t start,
+				     loff_t end, struct page **pages,
+				     int numpages, u64 phys, handle_t *handle)
 {
 	int i, ret, partial = 0;
 	void *kaddr;
@@ -5683,25 +5683,13 @@ static void ocfs2_zero_cluster_pages(struct inode *inode, loff_t isize,
 	if (numpages == 0)
 		goto out;
 
-	from = isize & (PAGE_CACHE_SIZE - 1); /* 1st page offset */
-	if (PAGE_CACHE_SHIFT > OCFS2_SB(sb)->s_clustersize_bits) {
-		/*
-		 * Since 'from' has been capped to a value below page
-		 * size, this calculation won't be able to overflow
-		 * 'to'
-		 */
-		to = ocfs2_align_bytes_to_clusters(sb, from);
-
-		/*
-		 * The truncate tail in this case should never contain
-		 * more than one page at maximum. The loop below also
-		 * assumes this.
-		 */
-		BUG_ON(numpages != 1);
-	}
-
+	to = PAGE_CACHE_SIZE;
 	for(i = 0; i < numpages; i++) {
 		page = pages[i];
+
+		from = start & (PAGE_CACHE_SIZE - 1);
+		if ((end >> PAGE_CACHE_SHIFT) == page->index)
+			to = end & (PAGE_CACHE_SIZE - 1);
 
 		BUG_ON(from > PAGE_CACHE_SIZE);
 		BUG_ON(to > PAGE_CACHE_SIZE);
@@ -5739,10 +5727,7 @@ static void ocfs2_zero_cluster_pages(struct inode *inode, loff_t isize,
 
 		flush_dcache_page(page);
 
-		/*
-		 * Every page after the 1st one should be completely zero'd.
-		 */
-		from = 0;
+		start = (page->index + 1) << PAGE_CACHE_SHIFT;
 	}
 out:
 	if (pages) {
@@ -5755,24 +5740,26 @@ out:
 	}
 }
 
-static int ocfs2_grab_eof_pages(struct inode *inode, loff_t isize, struct page **pages,
-				int *num, u64 *phys)
+static int ocfs2_grab_eof_pages(struct inode *inode, loff_t start, loff_t end,
+				struct page **pages, int *num, u64 *phys)
 {
 	int i, numpages = 0, ret = 0;
-	unsigned int csize = OCFS2_SB(inode->i_sb)->s_clustersize;
 	unsigned int ext_flags;
 	struct super_block *sb = inode->i_sb;
 	struct address_space *mapping = inode->i_mapping;
 	unsigned long index;
-	u64 next_cluster_bytes;
+	loff_t last_page_bytes;
 
 	BUG_ON(!ocfs2_sparse_alloc(OCFS2_SB(sb)));
+	BUG_ON(start > end);
 
-	/* Cluster boundary, so we don't need to grab any pages. */
-	if ((isize & (csize - 1)) == 0)
+	if (start == end)
 		goto out;
 
-	ret = ocfs2_extent_map_get_blocks(inode, isize >> sb->s_blocksize_bits,
+	BUG_ON(start >> OCFS2_SB(sb)->s_clustersize_bits !=
+	       (end - 1) >> OCFS2_SB(sb)->s_clustersize_bits);
+
+	ret = ocfs2_extent_map_get_blocks(inode, start >> sb->s_blocksize_bits,
 					  phys, NULL, &ext_flags);
 	if (ret) {
 		mlog_errno(ret);
@@ -5788,8 +5775,8 @@ static int ocfs2_grab_eof_pages(struct inode *inode, loff_t isize, struct page *
 	if (ext_flags & OCFS2_EXT_UNWRITTEN)
 		goto out;
 
-	next_cluster_bytes = ocfs2_align_bytes_to_clusters(inode->i_sb, isize);
-	index = isize >> PAGE_CACHE_SHIFT;
+	last_page_bytes = PAGE_ALIGN(end);
+	index = start >> PAGE_CACHE_SHIFT;
 	do {
 		pages[numpages] = grab_cache_page(mapping, index);
 		if (!pages[numpages]) {
@@ -5800,7 +5787,7 @@ static int ocfs2_grab_eof_pages(struct inode *inode, loff_t isize, struct page *
 
 		numpages++;
 		index++;
-	} while (index < (next_cluster_bytes >> PAGE_CACHE_SHIFT));
+	} while (index < (last_page_bytes >> PAGE_CACHE_SHIFT));
 
 out:
 	if (ret != 0) {
@@ -5829,11 +5816,10 @@ out:
  * otherwise block_write_full_page() will skip writeout of pages past
  * i_size. The new_i_size parameter is passed for this reason.
  */
-int ocfs2_zero_tail_for_truncate(struct inode *inode, handle_t *handle,
-				 u64 new_i_size)
+int ocfs2_zero_range_for_truncate(struct inode *inode, handle_t *handle,
+				  u64 range_start, u64 range_end)
 {
 	int ret, numpages;
-	loff_t endbyte;
 	struct page **pages = NULL;
 	u64 phys;
 
@@ -5852,7 +5838,8 @@ int ocfs2_zero_tail_for_truncate(struct inode *inode, handle_t *handle,
 		goto out;
 	}
 
-	ret = ocfs2_grab_eof_pages(inode, new_i_size, pages, &numpages, &phys);
+	ret = ocfs2_grab_eof_pages(inode, range_start, range_end, pages,
+				   &numpages, &phys);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -5861,17 +5848,16 @@ int ocfs2_zero_tail_for_truncate(struct inode *inode, handle_t *handle,
 	if (numpages == 0)
 		goto out;
 
-	ocfs2_zero_cluster_pages(inode, new_i_size, pages, numpages, phys,
-				 handle);
+	ocfs2_zero_cluster_pages(inode, range_start, range_end, pages,
+				 numpages, phys, handle);
 
 	/*
 	 * Initiate writeout of the pages we zero'd here. We don't
 	 * wait on them - the truncate_inode_pages() call later will
 	 * do that for us.
 	 */
-	endbyte = ocfs2_align_bytes_to_clusters(inode->i_sb, new_i_size);
-	ret = do_sync_mapping_range(inode->i_mapping, new_i_size,
-				    endbyte - 1, SYNC_FILE_RANGE_WRITE);
+	ret = do_sync_mapping_range(inode->i_mapping, range_start,
+				    range_end - 1, SYNC_FILE_RANGE_WRITE);
 	if (ret)
 		mlog_errno(ret);
 

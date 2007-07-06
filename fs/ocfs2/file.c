@@ -263,6 +263,7 @@ static int ocfs2_orphan_for_truncate(struct ocfs2_super *osb,
 	int status;
 	handle_t *handle;
 	struct ocfs2_dinode *di;
+	u64 cluster_bytes;
 
 	mlog_entry_void();
 
@@ -286,7 +287,9 @@ static int ocfs2_orphan_for_truncate(struct ocfs2_super *osb,
 	/*
 	 * Do this before setting i_size.
 	 */
-	status = ocfs2_zero_tail_for_truncate(inode, handle, new_i_size);
+	cluster_bytes = ocfs2_align_bytes_to_clusters(inode->i_sb, new_i_size);
+	status = ocfs2_zero_range_for_truncate(inode, handle, new_i_size,
+					       cluster_bytes);
 	if (status) {
 		mlog_errno(status);
 		goto out_commit;
