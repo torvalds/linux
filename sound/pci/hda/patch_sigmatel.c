@@ -1958,7 +1958,7 @@ static int patch_stac9200(struct hda_codec *codec)
 		return -ENOMEM;
 
 	codec->spec = spec;
-	spec->num_pins = 8;
+	spec->num_pins = ARRAY_SIZE(stac9200_pin_nids);
 	spec->pin_nids = stac9200_pin_nids;
 	spec->board_config = snd_hda_check_board_config(codec, STAC_9200_MODELS,
 							stac9200_models,
@@ -2008,7 +2008,7 @@ static int patch_stac925x(struct hda_codec *codec)
 		return -ENOMEM;
 
 	codec->spec = spec;
-	spec->num_pins = 8;
+	spec->num_pins = ARRAY_SIZE(stac925x_pin_nids);
 	spec->pin_nids = stac925x_pin_nids;
 	spec->board_config = snd_hda_check_board_config(codec, STAC_925x_MODELS,
 							stac925x_models,
@@ -2080,7 +2080,7 @@ static int patch_stac922x(struct hda_codec *codec)
 		return -ENOMEM;
 
 	codec->spec = spec;
-	spec->num_pins = 10;
+	spec->num_pins = ARRAY_SIZE(stac922x_pin_nids);
 	spec->pin_nids = stac922x_pin_nids;
 	spec->board_config = snd_hda_check_board_config(codec, STAC_922X_MODELS,
 							stac922x_models,
@@ -2181,7 +2181,7 @@ static int patch_stac927x(struct hda_codec *codec)
 		return -ENOMEM;
 
 	codec->spec = spec;
-	spec->num_pins = 14;
+	spec->num_pins = ARRAY_SIZE(stac927x_pin_nids);
 	spec->pin_nids = stac927x_pin_nids;
 	spec->board_config = snd_hda_check_board_config(codec, STAC_927X_MODELS,
 							stac927x_models,
@@ -2266,7 +2266,7 @@ static int patch_stac9205(struct hda_codec *codec)
 		return -ENOMEM;
 
 	codec->spec = spec;
-	spec->num_pins = 14;
+	spec->num_pins = ARRAY_SIZE(stac9205_pin_nids);
 	spec->pin_nids = stac9205_pin_nids;
 	spec->board_config = snd_hda_check_board_config(codec, STAC_9205_MODELS,
 							stac9205_models,
