@@ -140,9 +140,9 @@ cifs_inet_pton(int address_family, char *cp,void *dst)
 	/* calculate length by finding first slash or NULL */
 	/* BB Should we convert '/' slash to '\' here since it seems already done
 	   before this */
-	if( address_family == AF_INET ){
+	if ( address_family == AF_INET ) {
 		ret = in4_pton(cp, -1 /* len */, dst , '\\', NULL);	
-	} else if( address_family == AF_INET6 ){
+	} else if ( address_family == AF_INET6 ) {
 		ret = in6_pton(cp, -1 /* len */, dst , '\\', NULL);
 	}
 #ifdef CONFIG_CIFS_DEBUG2
@@ -773,7 +773,7 @@ map_smb_to_linux_error(struct smb_hdr *smb)
 	if (smb->Flags2 & SMBFLG2_ERR_STATUS) {
 		/* translate the newer STATUS codes to old style errors and then to POSIX errors */
 		__u32 err = le32_to_cpu(smb->Status.CifsError);
-		if(cifsFYI & CIFS_RC)
+		if (cifsFYI & CIFS_RC)
 			cifs_print_status(err);
 		ntstatus_to_dos(err, &smberrclass, &smberrcode);
 	} else {
@@ -889,15 +889,15 @@ struct timespec cnvrtDosUnixTm(__u16 date, __u16 time)
 
 	sec = 2 * st->TwoSeconds;
 	min = st->Minutes;
-	if((sec > 59) || (min > 59))
+	if ((sec > 59) || (min > 59))
 		cERROR(1,("illegal time min %d sec %d", min, sec));
 	sec += (min * 60);
 	sec += 60 * 60 * st->Hours;
-	if(st->Hours > 24)
+	if (st->Hours > 24)
 		cERROR(1,("illegal hours %d",st->Hours));
 	days = sd->Day;
 	month = sd->Month;
-	if((days > 31) || (month > 12))
+	if ((days > 31) || (month > 12))
 		cERROR(1,("illegal date, month %d day: %d", month, days));
 	month -= 1;
 	days += total_days_of_prev_months[month];
@@ -911,13 +911,13 @@ struct timespec cnvrtDosUnixTm(__u16 date, __u16 time)
 	 consider 2 special case years, ie the years 2000 and 2100, and only
 	 adjust for the lack of leap year for the year 2100, as 2000 was a 
 	 leap year (divisable by 400) */
-	if(year >= 120)  /* the year 2100 */
+	if (year >= 120)  /* the year 2100 */
 		days = days - 1;  /* do not count leap year for the year 2100 */
 
 	/* adjust for leap year where we are still before leap day */
-	if(year != 120)
+	if (year != 120)
 		days -= ((year & 0x03) == 0) && (month < 2 ? 1 : 0);
-	sec += 24 * 60 * 60 * days; 
+	sec += 24 * 60 * 60 * days;
 
 	ts.tv_sec = sec;
 

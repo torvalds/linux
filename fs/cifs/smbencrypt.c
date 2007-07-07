@@ -1,4 +1,4 @@
-/* 
+/*
    Unix SMB/Netbios implementation.
    Version 1.9.
    SMB parameters and setup
@@ -57,7 +57,7 @@ void SMBNTencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24);
 
 /*
    This implements the X/Open SMB password encryption
-   It takes a password, a 8 byte "crypt key" and puts 24 bytes of 
+   It takes a password, a 8 byte "crypt key" and puts 24 bytes of
    encrypted password into p24 */
 /* Note that password must be uppercased and null terminated */
 void
@@ -74,8 +74,8 @@ SMBencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24)
 
 	SMBOWFencrypt(p21, c8, p24);
 	
-	memset(p14,0,15);
-	memset(p21,0,21);
+	memset(p14, 0, 15);
+	memset(p21, 0, 21);
 }
 
 /* Routines for Windows NT MD4 Hash functions. */
@@ -90,14 +90,14 @@ _my_wcslen(__u16 * str)
 
 /*
  * Convert a string into an NT UNICODE string.
- * Note that regardless of processor type 
+ * Note that regardless of processor type
  * this must be in intel (little-endian)
  * format.
  */
 
 static int
 _my_mbstowcs(__u16 * dst, const unsigned char *src, int len)
-{				/* not a very good conversion routine - change/fix */
+{	/* BB not a very good conversion routine - change/fix */
 	int i;
 	__u16 val;
 
@@ -112,7 +112,7 @@ _my_mbstowcs(__u16 * dst, const unsigned char *src, int len)
 	return i;
 }
 
-/* 
+/*
  * Creates the MD4 Hash of the users password in NT UNICODE.
  */
 
@@ -123,7 +123,7 @@ E_md4hash(const unsigned char *passwd, unsigned char *p16)
 	__u16 wpwd[129];
 
 	/* Password cannot be longer than 128 characters */
-	if(passwd) {
+	if (passwd) {
 		len = strlen((char *) passwd);
 		if (len > 128) {
 			len = 128;
@@ -138,7 +138,7 @@ E_md4hash(const unsigned char *passwd, unsigned char *p16)
 	len = _my_wcslen(wpwd) * sizeof (__u16);
 
 	mdfour(p16, (unsigned char *) wpwd, len);
-	memset(wpwd,0,129 * 2);
+	memset(wpwd, 0, 129 * 2);
 }
 
 #if 0 /* currently unused */
@@ -184,8 +184,8 @@ ntv2_owf_gen(const unsigned char owf[16], const char *user_n,
 	struct HMACMD5Context ctx;
 
 	/* might as well do one alloc to hold both (user_u and dom_u) */
-	user_u = kmalloc(2048 * sizeof(wchar_t),GFP_KERNEL); 
-	if(user_u == NULL)
+	user_u = kmalloc(2048 * sizeof(wchar_t), GFP_KERNEL);
+	if (user_u == NULL)
 		return;
 	dom_u = user_u + 1024;
     
@@ -206,7 +206,7 @@ ntv2_owf_gen(const unsigned char owf[16], const char *user_n,
 
 	kfree(user_u);
 }
-#endif 
+#endif
 
 /* Does the des encryption from the NT or LM MD4 hash. */
 static void
@@ -256,15 +256,15 @@ SMBNTencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24)
 #if 0
 static void
 SMBOWFencrypt_ntv2(const unsigned char kr[16],
-                   const struct data_blob * srv_chal,
-                   const struct data_blob * cli_chal, unsigned char resp_buf[16])
+		   const struct data_blob *srv_chal,
+		   const struct data_blob *cli_chal, unsigned char resp_buf[16])
 {
-        struct HMACMD5Context ctx;
+	struct HMACMD5Context ctx;
 
-        hmac_md5_init_limK_to_64(kr, 16, &ctx);
-        hmac_md5_update(srv_chal->data, srv_chal->length, &ctx);
-        hmac_md5_update(cli_chal->data, cli_chal->length, &ctx);
-        hmac_md5_final(resp_buf, &ctx);
+	hmac_md5_init_limK_to_64(kr, 16, &ctx);
+	hmac_md5_update(srv_chal->data, srv_chal->length, &ctx);
+	hmac_md5_update(cli_chal->data, cli_chal->length, &ctx);
+	hmac_md5_final(resp_buf, &ctx);
 }
 
 static void

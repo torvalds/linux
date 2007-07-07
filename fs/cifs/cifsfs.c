@@ -98,7 +98,7 @@ cifs_read_super(struct super_block *sb, void *data,
 	
 	/* BB should we make this contingent on mount parm? */
 	sb->s_flags |= MS_NODIRATIME | MS_NOATIME;
-	sb->s_fs_info = kzalloc(sizeof(struct cifs_sb_info),GFP_KERNEL);
+	sb->s_fs_info = kzalloc(sizeof(struct cifs_sb_info), GFP_KERNEL);
 	cifs_sb = CIFS_SB(sb);
 	if (cifs_sb == NULL)
 		return -ENOMEM;
@@ -117,9 +117,10 @@ cifs_read_super(struct super_block *sb, void *data,
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	if (experimEnabled != 0)
 		sb->s_export_op = &cifs_export_ops;
-#endif /* EXPERIMENTAL */	
+#endif /* EXPERIMENTAL */
 /*	if (cifs_sb->tcon->ses->server->maxBuf > MAX_CIFS_HDR_SIZE + 512)
-	    sb->s_blocksize = cifs_sb->tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE; */
+	    sb->s_blocksize =
+		cifs_sb->tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE; */
 #ifdef CONFIG_CIFS_QUOTA
 	sb->s_qcop = &cifs_quotactl_ops;
 #endif
@@ -164,10 +165,10 @@ cifs_put_super(struct super_block *sb)
 	cFYI(1, ("In cifs_put_super"));
 	cifs_sb = CIFS_SB(sb);
 	if (cifs_sb == NULL) {
-		cFYI(1,("Empty cifs superblock info passed to unmount"));
+		cFYI(1, ("Empty cifs superblock info passed to unmount"));
 		return;
 	}
-	rc = cifs_umount(sb, cifs_sb); 
+	rc = cifs_umount(sb, cifs_sb);
 	if (rc) {
 		cERROR(1, ("cifs_umount failed with return code %d", rc));
 	}
@@ -180,7 +181,7 @@ static int
 cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
-	int xid; 
+	int xid;
 	int rc = -EOPNOTSUPP;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
@@ -193,7 +194,7 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_type = CIFS_MAGIC_NUMBER;
 
 	/* instead could get the real value via SMB_QUERY_FS_ATTRIBUTE_INFO */
-	buf->f_namelen = PATH_MAX; /* PATH_MAX may be too long - it would 
+	buf->f_namelen = PATH_MAX; /* PATH_MAX may be too long - it would
 				      presumably be total path, but note
 				      that some servers (includinng Samba 3)
 				      have a shorter maximum path */
@@ -217,8 +218,7 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	   bypassed it because we detected that this was an older LANMAN sess */
 	if (rc)
 		rc = SMBOldQFSInfo(xid, pTcon, buf);
-	/*     
-	   int f_type;
+	/* int f_type;
 	   __fsid_t f_fsid;
 	   int f_namelen;  */
 	/* BB get from info in tcon struct at mount time call to QFSAttrInfo */
