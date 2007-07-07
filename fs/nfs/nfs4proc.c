@@ -226,6 +226,7 @@ struct nfs4_opendata {
 	struct nfs4_state_owner *owner;
 	struct iattr attrs;
 	unsigned long timestamp;
+	unsigned int rpc_done : 1;
 	int rpc_status;
 	int cancelled;
 };
@@ -620,6 +621,7 @@ static void nfs4_open_confirm_done(struct rpc_task *task, void *calldata)
 		memcpy(data->o_res.stateid.data, data->c_res.stateid.data,
 				sizeof(data->o_res.stateid.data));
 		renew_lease(data->o_res.server, data->timestamp);
+		data->rpc_done = 1;
 	}
 	nfs_confirm_seqid(&data->owner->so_seqid, data->rpc_status);
 	nfs_increment_open_seqid(data->rpc_status, data->c_arg.seqid);
@@ -634,7 +636,7 @@ static void nfs4_open_confirm_release(void *calldata)
 	if (data->cancelled == 0)
 		goto out_free;
 	/* In case of error, no cleanup! */
-	if (data->rpc_status != 0)
+	if (!data->rpc_done)
 		goto out_free;
 	nfs_confirm_seqid(&data->owner->so_seqid, 0);
 	state = nfs4_opendata_to_nfs4_state(data);
@@ -660,11 +662,8 @@ static int _nfs4_proc_open_confirm(struct nfs4_opendata *data)
 	int status;
 
 	kref_get(&data->kref);
-	/*
-	 * If rpc_run_task() ends up calling ->rpc_release(), we
-	 * want to ensure that it takes the 'error' code path.
-	 */
-	data->rpc_status = -ENOMEM;
+	data->rpc_done = 0;
+	data->rpc_status = 0;
 	task = rpc_run_task(server->client, RPC_TASK_ASYNC, &nfs4_open_confirm_ops, data);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
@@ -725,6 +724,7 @@ static void nfs4_open_done(struct rpc_task *task, void *calldata)
 			nfs_confirm_seqid(&data->owner->so_seqid, 0);
 	}
 	nfs_increment_open_seqid(data->rpc_status, data->o_arg.seqid);
+	data->rpc_done = 1;
 }
 
 static void nfs4_open_release(void *calldata)
@@ -736,7 +736,7 @@ static void nfs4_open_release(void *calldata)
 	if (data->cancelled == 0)
 		goto out_free;
 	/* In case of error, no cleanup! */
-	if (data->rpc_status != 0)
+	if (data->rpc_status != 0 || !data->rpc_done)
 		goto out_free;
 	/* In case we need an open_confirm, no cleanup! */
 	if (data->o_res.rflags & NFS4_OPEN_RESULT_CONFIRM)
@@ -768,11 +768,8 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 	int status;
 
 	kref_get(&data->kref);
-	/*
-	 * If rpc_run_task() ends up calling ->rpc_release(), we
-	 * want to ensure that it takes the 'error' code path.
-	 */
-	data->rpc_status = -ENOMEM;
+	data->rpc_done = 0;
+	data->rpc_status = 0;
 	data->cancelled = 0;
 	task = rpc_run_task(server->client, RPC_TASK_ASYNC, &nfs4_open_ops, data);
 	if (IS_ERR(task))
@@ -784,7 +781,7 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 	} else
 		status = data->rpc_status;
 	rpc_put_task(task);
-	if (status != 0)
+	if (status != 0 || !data->rpc_done)
 		return status;
 
 	if (o_arg->open_flags & O_CREAT) {
