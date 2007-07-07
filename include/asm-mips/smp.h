@@ -49,13 +49,6 @@ extern struct call_data_struct *call_data;
 extern cpumask_t phys_cpu_present_map;
 #define cpu_possible_map	phys_cpu_present_map
 
-extern cpumask_t cpu_callout_map;
-/* We don't mark CPUs online until __cpu_up(), so we need another measure */
-static inline int num_booting_cpus(void)
-{
-	return cpus_weight(cpu_callout_map);
-}
-
 /*
  * These are defined by the board-specific code.
  */
