@@ -2134,7 +2134,7 @@ static void tcp_try_to_open(struct sock *sk, int flag)
 	if (inet_csk(sk)->icsk_ca_state != TCP_CA_CWR) {
 		int state = TCP_CA_Open;
 
-		if (tp->sacked_out || tp->retrans_out || tp->undo_marker)
+		if (tcp_left_out(tp) || tp->retrans_out || tp->undo_marker)
 			state = TCP_CA_Disorder;
 
 		if (inet_csk(sk)->icsk_ca_state != state) {
