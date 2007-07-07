@@ -3164,9 +3164,6 @@ void ata_bus_reset(struct ata_port *ap)
 	if ((slave_possible) && (err != 0x81))
 		ap->device[1].class = ata_dev_try_classify(ap, 1, &err);
 
-	/* re-enable interrupts */
-	ap->ops->irq_on(ap);
-
 	/* is double-select really necessary? */
 	if (ap->device[1].class != ATA_DEV_NONE)
 		ap->ops->dev_select(ap, 1);
@@ -3550,10 +3547,6 @@ void ata_std_postreset(struct ata_port *ap, unsigned int *classes)
 	/* clear SError */
 	if (sata_scr_read(ap, SCR_ERROR, &serror) == 0)
 		sata_scr_write(ap, SCR_ERROR, serror);
-
-	/* re-enable interrupts */
-	if (!ap->ops->error_handler)
-		ap->ops->irq_on(ap);
 
 	/* is double-select really necessary? */
 	if (classes[0] != ATA_DEV_NONE)

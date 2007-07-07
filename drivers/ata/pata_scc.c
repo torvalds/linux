@@ -912,10 +912,6 @@ static void scc_std_postreset (struct ata_port *ap, unsigned int *classes)
 {
 	DPRINTK("ENTER\n");
 
-	/* re-enable interrupts */
-	if (!ap->ops->error_handler)
-		ap->ops->irq_on(ap);
-
 	/* is double-select really necessary? */
 	if (classes[0] != ATA_DEV_NONE)
 		ap->ops->dev_select(ap, 1);
