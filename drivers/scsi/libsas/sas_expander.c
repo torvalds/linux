@@ -37,14 +37,6 @@ static int sas_configure_phy(struct domain_device *dev, int phy_id,
 			     u8 *sas_addr, int include);
 static int sas_disable_routing(struct domain_device *dev,  u8 *sas_addr);
 
-#if 0
-/* FIXME: smp needs to migrate into the sas class */
-static ssize_t smp_portal_read(struct kobject *, struct bin_attribute *,
-			       char *, loff_t, size_t);
-static ssize_t smp_portal_write(struct kobject *, struct bin_attribute *,
-				char *, loff_t, size_t);
-#endif
-
 /* ---------- SMP task management ---------- */
 
 static void smp_task_timedout(unsigned long _task)
@@ -1415,30 +1407,6 @@ static int sas_disable_routing(struct domain_device *dev,  u8 *sas_addr)
 	return 0;
 }
 
-#if 0
-#define SMP_BIN_ATTR_NAME "smp_portal"
-
-static void sas_ex_smp_hook(struct domain_device *dev)
-{
-	struct expander_device *ex_dev = &dev->ex_dev;
-	struct bin_attribute *bin_attr = &ex_dev->smp_bin_attr;
-
-	memset(bin_attr, 0, sizeof(*bin_attr));
-
-	bin_attr->attr.name = SMP_BIN_ATTR_NAME;
-	bin_attr->attr.mode = 0600;
-
-	bin_attr->size = 0;
-	bin_attr->private = NULL;
-	bin_attr->read = smp_portal_read;
-	bin_attr->write= smp_portal_write;
-	bin_attr->mmap = NULL;
-
-	ex_dev->smp_portal_pid = -1;
-	init_MUTEX(&ex_dev->smp_sema);
-}
-#endif
-
 /**
  * sas_discover_expander -- expander discovery
  * @ex: pointer to expander domain device
@@ -1899,80 +1867,6 @@ int sas_ex_revalidate_domain(struct domain_device *port_dev)
 out:
 	return res;
 }
-
-#if 0
-/* ---------- SMP portal ---------- */
-
-static ssize_t smp_portal_write(struct kobject *kobj,
-				struct bin_attribute *bin_attr,
-				char *buf, loff_t offs, size_t size)
-{
-	struct domain_device *dev = to_dom_device(kobj);
-	struct expander_device *ex = &dev->ex_dev;
-
-	if (offs != 0)
-		return -EFBIG;
-	else if (size == 0)
-		return 0;
-
-	down_interruptible(&ex->smp_sema);
-	if (ex->smp_req)
-		kfree(ex->smp_req);
-	ex->smp_req = kzalloc(size, GFP_USER);
-	if (!ex->smp_req) {
-		up(&ex->smp_sema);
-		return -ENOMEM;
-	}
-	memcpy(ex->smp_req, buf, size);
-	ex->smp_req_size = size;
-	ex->smp_portal_pid = current->pid;
-	up(&ex->smp_sema);
-
-	return size;
-}
-
-static ssize_t smp_portal_read(struct kobject *kobj,
-			       struct bin_attribute *bin_attr,
-			       char *buf, loff_t offs, size_t size)
-{
-	struct domain_device *dev = to_dom_device(kobj);
-	struct expander_device *ex = &dev->ex_dev;
-	u8 *smp_resp;
-	int res = -EINVAL;
-
-	/* XXX: sysfs gives us an offset of 0x10 or 0x8 while in fact
-	 *  it should be 0.
-	 */
-
-	down_interruptible(&ex->smp_sema);
-	if (!ex->smp_req || ex->smp_portal_pid != current->pid)
-		goto out;
-
-	res = 0;
-	if (size == 0)
-		goto out;
-
-	res = -ENOMEM;
-	smp_resp = alloc_smp_resp(size);
-	if (!smp_resp)
-		goto out;
-	res = smp_execute_task(dev, ex->smp_req, ex->smp_req_size,
-			       smp_resp, size);
-	if (!res) {
-		memcpy(buf, smp_resp, size);
-		res = size;
-	}
-
-	kfree(smp_resp);
-out:
-	kfree(ex->smp_req);
-	ex->smp_req = NULL;
-	ex->smp_req_size = 0;
-	ex->smp_portal_pid = -1;
-	up(&ex->smp_sema);
-	return res;
-}
-#endif
 
 int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		    struct request *req)
