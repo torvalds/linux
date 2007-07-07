@@ -385,15 +385,19 @@ static struct nfs4_state *nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data
 	struct nfs4_state *state = NULL;
 	struct nfs_delegation *delegation;
 	nfs4_stateid *deleg_stateid = NULL;
+	int ret;
 
+	ret = -EAGAIN;
 	if (!(data->f_attr.valid & NFS_ATTR_FATTR))
-		goto out;
+		goto err;
 	inode = nfs_fhget(data->dir->d_sb, &data->o_res.fh, &data->f_attr);
+	ret = PTR_ERR(inode);
 	if (IS_ERR(inode))
-		goto out;
+		goto err;
+	ret = -ENOMEM;
 	state = nfs4_get_open_state(inode, data->owner);
 	if (state == NULL)
-		goto put_inode;
+		goto err_put_inode;
 	if (data->o_res.delegation_type != 0) {
 		int delegation_flags = 0;
 
@@ -417,10 +421,12 @@ static struct nfs4_state *nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data
 		deleg_stateid = &delegation->stateid;
 	update_open_stateid(state, &data->o_res.stateid, deleg_stateid, data->o_arg.open_flags);
 	rcu_read_unlock();
-put_inode:
 	iput(inode);
-out:
 	return state;
+err_put_inode:
+	iput(inode);
+err:
+	return ERR_PTR(ret);
 }
 
 static struct nfs_open_context *nfs4_state_find_open_context(struct nfs4_state *state)
@@ -453,8 +459,9 @@ static int nfs4_open_recover_helper(struct nfs4_opendata *opendata, mode_t openf
 	if (ret != 0)
 		return ret; 
 	newstate = nfs4_opendata_to_nfs4_state(opendata);
-	if (newstate != NULL)
-		nfs4_close_state(&opendata->path, newstate, openflags);
+	if (IS_ERR(newstate))
+		return PTR_ERR(newstate);
+	nfs4_close_state(&opendata->path, newstate, openflags);
 	*res = newstate;
 	return 0;
 }
@@ -631,7 +638,7 @@ static void nfs4_open_confirm_release(void *calldata)
 		goto out_free;
 	nfs_confirm_seqid(&data->owner->so_seqid, 0);
 	state = nfs4_opendata_to_nfs4_state(data);
-	if (state != NULL)
+	if (!IS_ERR(state))
 		nfs4_close_state(&data->path, state, data->o_arg.open_flags);
 out_free:
 	nfs4_opendata_put(data);
@@ -736,7 +743,7 @@ static void nfs4_open_release(void *calldata)
 		goto out_free;
 	nfs_confirm_seqid(&data->owner->so_seqid, 0);
 	state = nfs4_opendata_to_nfs4_state(data);
-	if (state != NULL)
+	if (!IS_ERR(state))
 		nfs4_close_state(&data->path, state, data->o_arg.open_flags);
 out_free:
 	nfs4_opendata_put(data);
@@ -1036,9 +1043,9 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, int flags, struct
 	if (opendata->o_arg.open_flags & O_EXCL)
 		nfs4_exclusive_attrset(opendata, sattr);
 
-	status = -ENOMEM;
 	state = nfs4_opendata_to_nfs4_state(opendata);
-	if (state == NULL)
+	status = PTR_ERR(state);
+	if (IS_ERR(state))
 		goto err_opendata_put;
 	nfs4_opendata_put(opendata);
 	nfs4_put_state_owner(sp);
