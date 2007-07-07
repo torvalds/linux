@@ -607,7 +607,7 @@ static struct clusters clusters_root = {
 int dlm_config_init(void)
 {
 	config_group_init(&clusters_root.subsys.su_group);
-	init_MUTEX(&clusters_root.subsys.su_sem);
+	mutex_init(&clusters_root.subsys.su_mutex);
 	return configfs_register_subsystem(&clusters_root.subsys);
 }
 
@@ -751,9 +751,9 @@ static struct space *get_space(char *name)
 	if (!space_list)
 		return NULL;
 
-	down(&space_list->cg_subsys->su_sem);
+	mutex_lock(&space_list->cg_subsys->su_mutex);
 	i = config_group_find_item(space_list, name);
-	up(&space_list->cg_subsys->su_sem);
+	mutex_unlock(&space_list->cg_subsys->su_mutex);
 
 	return to_space(i);
 }
@@ -772,7 +772,7 @@ static struct comm *get_comm(int nodeid, struct sockaddr_storage *addr)
 	if (!comm_list)
 		return NULL;
 
-	down(&clusters_root.subsys.su_sem);
+	mutex_lock(&clusters_root.subsys.su_mutex);
 
 	list_for_each_entry(i, &comm_list->cg_children, ci_entry) {
 		cm = to_comm(i);
@@ -792,7 +792,7 @@ static struct comm *get_comm(int nodeid, struct sockaddr_storage *addr)
 			break;
 		}
 	}
-	up(&clusters_root.subsys.su_sem);
+	mutex_unlock(&clusters_root.subsys.su_mutex);
 
 	if (!found)
 		cm = NULL;

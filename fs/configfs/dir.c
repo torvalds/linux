@@ -562,7 +562,7 @@ static int populate_groups(struct config_group *group)
 
 /*
  * All of link_obj/unlink_obj/link_group/unlink_group require that
- * subsys->su_sem is held.
+ * subsys->su_mutex is held.
  */
 
 static void unlink_obj(struct config_item *item)
@@ -783,7 +783,7 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	snprintf(name, dentry->d_name.len + 1, "%s", dentry->d_name.name);
 
-	down(&subsys->su_sem);
+	mutex_lock(&subsys->su_mutex);
 	group = NULL;
 	item = NULL;
 	if (type->ct_group_ops->make_group) {
@@ -797,7 +797,7 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		if (item)
 			link_obj(parent_item, item);
 	}
-	up(&subsys->su_sem);
+	mutex_unlock(&subsys->su_mutex);
 
 	kfree(name);
 	if (!item) {
@@ -841,13 +841,13 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 out_unlink:
 	if (ret) {
 		/* Tear down everything we built up */
-		down(&subsys->su_sem);
+		mutex_lock(&subsys->su_mutex);
 		if (group)
 			unlink_group(group);
 		else
 			unlink_obj(item);
 		client_drop_item(parent_item, item);
-		up(&subsys->su_sem);
+		mutex_unlock(&subsys->su_mutex);
 
 		if (module_got)
 			module_put(owner);
@@ -910,17 +910,17 @@ static int configfs_rmdir(struct inode *dir, struct dentry *dentry)
 	if (sd->s_type & CONFIGFS_USET_DIR) {
 		configfs_detach_group(item);
 
-		down(&subsys->su_sem);
+		mutex_lock(&subsys->su_mutex);
 		unlink_group(to_config_group(item));
 	} else {
 		configfs_detach_item(item);
 
-		down(&subsys->su_sem);
+		mutex_lock(&subsys->su_mutex);
 		unlink_obj(item);
 	}
 
 	client_drop_item(parent_item, item);
-	up(&subsys->su_sem);
+	mutex_unlock(&subsys->su_mutex);
 
 	/* Drop our reference from above */
 	config_item_put(item);

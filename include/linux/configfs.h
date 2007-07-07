@@ -40,9 +40,9 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/kref.h>
+#include <linux/mutex.h>
 
 #include <asm/atomic.h>
-#include <asm/semaphore.h>
 
 #define CONFIGFS_ITEM_NAME_LEN	20
 
@@ -174,7 +174,7 @@ struct configfs_group_operations {
 
 struct configfs_subsystem {
 	struct config_group	su_group;
-	struct semaphore	su_sem;
+	struct mutex		su_mutex;
 };
 
 static inline struct configfs_subsystem *to_configfs_subsystem(struct config_group *group)
