@@ -581,15 +581,6 @@ static int hidp_session(void *arg)
 
 	hidp_del_timer(session);
 
-	fput(session->intr_sock->file);
-
-	wait_event_timeout(*(ctrl_sk->sk_sleep),
-		(ctrl_sk->sk_state == BT_CLOSED), msecs_to_jiffies(500));
-
-	fput(session->ctrl_sock->file);
-
-	__hidp_unlink_session(session);
-
 	if (session->input) {
 		input_unregister_device(session->input);
 		session->input = NULL;
@@ -600,6 +591,15 @@ static int hidp_session(void *arg)
 			hidinput_disconnect(session->hid);
 		hid_free_device(session->hid);
 	}
+
+	fput(session->intr_sock->file);
+
+	wait_event_timeout(*(ctrl_sk->sk_sleep),
+		(ctrl_sk->sk_state == BT_CLOSED), msecs_to_jiffies(500));
+
+	fput(session->ctrl_sock->file);
+
+	__hidp_unlink_session(session);
 
 	up_write(&hidp_session_sem);
 
