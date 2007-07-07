@@ -237,7 +237,7 @@ unsigned long get_wchan(struct task_struct *p);
 
 #define ARCH_HAS_PREFETCH
 
-extern inline void prefetch(const void *addr)
+static inline void prefetch(const void *addr)
 {
 	__asm__ __volatile__(
 	"	.set	mips4		\n"
