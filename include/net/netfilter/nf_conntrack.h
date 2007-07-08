@@ -117,9 +117,6 @@ struct nf_conn
 	/* Unique ID that identifies this conntrack*/
 	unsigned int id;
 
-	/* features - nat, helper, ... used by allocating system */
-	u_int32_t features;
-
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	u_int32_t mark;
 #endif
@@ -133,9 +130,6 @@ struct nf_conn
 
 	/* Extensions */
 	struct nf_ct_ext *ext;
-
-	/* features dynamically at the end: helper, nat (both optional) */
-	char data[0];
 };
 
 static inline struct nf_conn *
@@ -264,14 +258,6 @@ do {							\
 	__get_cpu_var(nf_conntrack_stat).count++;	\
 	local_bh_enable();				\
 } while (0)
-
-/* no helper, no nat */
-#define	NF_CT_F_BASIC	0
-/* for helper */
-#define	NF_CT_F_HELP	1
-/* for nat. */
-#define	NF_CT_F_NAT	2
-#define NF_CT_F_NUM	4
 
 extern int
 nf_conntrack_register_cache(u_int32_t features, const char *name, size_t size);

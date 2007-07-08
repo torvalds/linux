@@ -76,12 +76,6 @@ generic_prepare(struct sk_buff **pskb, unsigned int hooknum,
 }
 
 
-static u_int32_t generic_get_features(const struct nf_conntrack_tuple *tuple)
-
-{
-	return NF_CT_F_BASIC;
-}
-
 struct nf_conntrack_l3proto nf_conntrack_l3proto_generic = {
 	.l3proto	 = PF_UNSPEC,
 	.name		 = "unknown",
@@ -90,6 +84,5 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_generic = {
 	.print_tuple	 = generic_print_tuple,
 	.print_conntrack = generic_print_conntrack,
 	.prepare	 = generic_prepare,
-	.get_features	 = generic_get_features,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_generic);

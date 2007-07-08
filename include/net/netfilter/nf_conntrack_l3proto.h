@@ -64,8 +64,6 @@ struct nf_conntrack_l3proto
 	int (*prepare)(struct sk_buff **pskb, unsigned int hooknum,
 		       unsigned int *dataoff, u_int8_t *protonum);
 
-	u_int32_t (*get_features)(const struct nf_conntrack_tuple *tuple);
-
 	int (*tuple_to_nfattr)(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *t);
 

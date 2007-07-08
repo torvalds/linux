@@ -147,11 +147,6 @@ ipv6_prepare(struct sk_buff **pskb, unsigned int hooknum, unsigned int *dataoff,
 	return NF_ACCEPT;
 }
 
-static u_int32_t ipv6_get_features(const struct nf_conntrack_tuple *tuple)
-{
-	return NF_CT_F_BASIC;
-}
-
 static unsigned int ipv6_confirm(unsigned int hooknum,
 				 struct sk_buff **pskb,
 				 const struct net_device *in,
@@ -397,7 +392,6 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 = {
 	.ctl_table_path		= nf_net_netfilter_sysctl_path,
 	.ctl_table		= nf_ct_ipv6_sysctl_table,
 #endif
-	.get_features		= ipv6_get_features,
 	.me			= THIS_MODULE,
 };
 
