@@ -66,7 +66,7 @@ struct nf_conn;
 /* The structure embedded in the conntrack structure. */
 struct nf_conn_nat
 {
-	struct list_head bysource;
+	struct hlist_node bysource;
 	struct nf_nat_seq seq[IP_CT_DIR_MAX];
 	struct nf_conn *ct;
 	union nf_conntrack_nat_help help;
