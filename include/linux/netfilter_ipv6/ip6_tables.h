@@ -44,8 +44,14 @@ struct ip6t_ip6 {
 	char iniface[IFNAMSIZ], outiface[IFNAMSIZ];
 	unsigned char iniface_mask[IFNAMSIZ], outiface_mask[IFNAMSIZ];
 
-	/* ARGH, HopByHop uses 0, so can't do 0 = ANY,
-	   instead IP6T_F_NOPROTO must be set */
+	/* Upper protocol number
+	 * - The allowed value is 0 (any) or protocol number of last parsable
+	 *   header, which is 50 (ESP), 59 (No Next Header), 135 (MH), or
+	 *   the non IPv6 extension headers.
+	 * - The protocol numbers of IPv6 extension headers except of ESP and
+	 *   MH do not match any packets.
+	 * - You also need to set IP6T_FLAGS_PROTO to "flags" to check protocol.
+	 */
 	u_int16_t proto;
 	/* TOS to match iff flags & IP6T_F_TOS */
 	u_int8_t tos;
