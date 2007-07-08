@@ -8,6 +8,7 @@
 
 extern struct hlist_head *nf_ct_expect_hash;
 extern unsigned int nf_ct_expect_hsize;
+extern unsigned int nf_ct_expect_max;
 
 struct nf_conntrack_expect
 {

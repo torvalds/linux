@@ -35,6 +35,7 @@ EXPORT_SYMBOL_GPL(nf_ct_expect_hsize);
 
 static unsigned int nf_ct_expect_hash_rnd __read_mostly;
 static unsigned int nf_ct_expect_count;
+unsigned int nf_ct_expect_max __read_mostly;
 static int nf_ct_expect_hash_rnd_initted __read_mostly;
 static int nf_ct_expect_vmalloc;
 
@@ -367,6 +368,14 @@ int nf_ct_expect_related(struct nf_conntrack_expect *expect)
 	    master_help->expecting >= master_help->helper->max_expected)
 		evict_oldest_expect(master);
 
+	if (nf_ct_expect_count >= nf_ct_expect_max) {
+		if (net_ratelimit())
+			printk(KERN_WARNING
+			       "nf_conntrack: expectation table full");
+		ret = -EMFILE;
+		goto out;
+	}
+
 	nf_ct_expect_insert(expect);
 	nf_ct_expect_event(IPEXP_NEW, expect);
 	ret = 0;
@@ -522,6 +531,7 @@ int __init nf_conntrack_expect_init(void)
 		if (!nf_ct_expect_hsize)
 			nf_ct_expect_hsize = 1;
 	}
+	nf_ct_expect_max = nf_ct_expect_hsize * 4;
 
 	nf_ct_expect_hash = nf_ct_alloc_hashtable(&nf_ct_expect_hsize,
 						  &nf_ct_expect_vmalloc);
