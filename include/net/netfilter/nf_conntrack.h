@@ -82,6 +82,8 @@ struct nf_conn_help {
 
 	union nf_conntrack_help help;
 
+	struct hlist_head expectations;
+
 	/* Current number of expected connections */
 	unsigned int expecting;
 };

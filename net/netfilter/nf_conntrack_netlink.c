@@ -868,7 +868,7 @@ ctnetlink_change_helper(struct nf_conn *ct, struct nfattr *cda[])
 		/* need to zero data of old helper */
 		memset(&help->help, 0, sizeof(help->help));
 	} else {
-		help = nf_ct_ext_add(ct, NF_CT_EXT_HELPER, GFP_KERNEL);
+		help = nf_ct_helper_ext_add(ct, GFP_KERNEL);
 		if (help == NULL)
 			return -ENOMEM;
 	}
@@ -989,7 +989,7 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 
 	helper = nf_ct_helper_find_get(rtuple);
 	if (helper) {
-		help = nf_ct_ext_add(ct, NF_CT_EXT_HELPER, GFP_KERNEL);
+		help = nf_ct_helper_ext_add(ct, GFP_KERNEL);
 		if (help == NULL) {
 			nf_ct_helper_put(helper);
 			err = -ENOMEM;

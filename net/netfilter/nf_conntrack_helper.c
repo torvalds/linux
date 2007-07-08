@@ -87,6 +87,19 @@ __nf_conntrack_helper_find_byname(const char *name)
 }
 EXPORT_SYMBOL_GPL(__nf_conntrack_helper_find_byname);
 
+struct nf_conn_help *nf_ct_helper_ext_add(struct nf_conn *ct, gfp_t gfp)
+{
+	struct nf_conn_help *help;
+
+	help = nf_ct_ext_add(ct, NF_CT_EXT_HELPER, gfp);
+	if (help)
+		INIT_HLIST_HEAD(&help->expectations);
+	else
+		pr_debug("failed to add helper extension area");
+	return help;
+}
+EXPORT_SYMBOL_GPL(nf_ct_helper_ext_add);
+
 static inline int unhelp(struct nf_conntrack_tuple_hash *i,
 			 const struct nf_conntrack_helper *me)
 {

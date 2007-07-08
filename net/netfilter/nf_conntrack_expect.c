@@ -27,9 +27,6 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
 
-LIST_HEAD(nf_ct_expect_list);
-EXPORT_SYMBOL_GPL(nf_ct_expect_list);
-
 struct hlist_head *nf_ct_expect_hash __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ct_expect_hash);
 
@@ -52,13 +49,14 @@ void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
 	NF_CT_ASSERT(master_help);
 	NF_CT_ASSERT(!timer_pending(&exp->timeout));
 
-	list_del(&exp->list);
 	hlist_del(&exp->hnode);
 	nf_ct_expect_count--;
 
-	NF_CT_STAT_INC(expect_delete);
+	hlist_del(&exp->lnode);
 	master_help->expecting--;
 	nf_ct_expect_put(exp);
+
+	NF_CT_STAT_INC(expect_delete);
 }
 EXPORT_SYMBOL_GPL(nf_ct_unlink_expect);
 
@@ -153,17 +151,18 @@ nf_ct_find_expectation(const struct nf_conntrack_tuple *tuple)
 /* delete all expectations for this conntrack */
 void nf_ct_remove_expectations(struct nf_conn *ct)
 {
-	struct nf_conntrack_expect *i, *tmp;
 	struct nf_conn_help *help = nfct_help(ct);
+	struct nf_conntrack_expect *exp;
+	struct hlist_node *n, *next;
 
 	/* Optimization: most connection never expect any others. */
 	if (!help || help->expecting == 0)
 		return;
 
-	list_for_each_entry_safe(i, tmp, &nf_ct_expect_list, list) {
-		if (i->master == ct && del_timer(&i->timeout)) {
-			nf_ct_unlink_expect(i);
-			nf_ct_expect_put(i);
+	hlist_for_each_entry_safe(exp, n, next, &help->expectations, lnode) {
+		if (del_timer(&exp->timeout)) {
+			nf_ct_unlink_expect(exp);
+			nf_ct_expect_put(exp);
 		}
 	}
 }
@@ -289,9 +288,10 @@ static void nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 	unsigned int h = nf_ct_expect_dst_hash(&exp->tuple);
 
 	atomic_inc(&exp->use);
+
+	hlist_add_head(&exp->lnode, &master_help->expectations);
 	master_help->expecting++;
 
-	list_add(&exp->list, &nf_ct_expect_list);
 	hlist_add_head(&exp->hnode, &nf_ct_expect_hash[h]);
 	nf_ct_expect_count++;
 
@@ -308,16 +308,16 @@ static void nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 /* Race with expectations being used means we could have none to find; OK. */
 static void evict_oldest_expect(struct nf_conn *master)
 {
-	struct nf_conntrack_expect *i;
+	struct nf_conn_help *master_help = nfct_help(master);
+	struct nf_conntrack_expect *exp = NULL;
+	struct hlist_node *n;
 
-	list_for_each_entry_reverse(i, &nf_ct_expect_list, list) {
-		if (i->master == master) {
-			if (del_timer(&i->timeout)) {
-				nf_ct_unlink_expect(i);
-				nf_ct_expect_put(i);
-			}
-			break;
-		}
+	hlist_for_each_entry(exp, n, &master_help->expectations, lnode)
+		; /* nothing */
+
+	if (exp && del_timer(&exp->timeout)) {
+		nf_ct_unlink_expect(exp);
+		nf_ct_expect_put(exp);
 	}
 }
 

@@ -6,14 +6,13 @@
 #define _NF_CONNTRACK_EXPECT_H
 #include <net/netfilter/nf_conntrack.h>
 
-extern struct list_head nf_ct_expect_list;
 extern struct hlist_head *nf_ct_expect_hash;
 extern unsigned int nf_ct_expect_hsize;
 
 struct nf_conntrack_expect
 {
-	/* Internal linked list (global expectation list) */
-	struct list_head list;
+	/* Conntrack expectation list member */
+	struct hlist_node lnode;
 
 	/* Hash member */
 	struct hlist_node hnode;

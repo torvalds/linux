@@ -502,12 +502,9 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 		__set_bit(IPS_EXPECTED_BIT, &conntrack->status);
 		conntrack->master = exp->master;
 		if (exp->helper) {
-			help = nf_ct_ext_add(conntrack, NF_CT_EXT_HELPER,
-					     GFP_ATOMIC);
+			help = nf_ct_helper_ext_add(conntrack, GFP_ATOMIC);
 			if (help)
 				rcu_assign_pointer(help->helper, exp->helper);
-			else
-				DEBUGP("failed to add helper extension area");
 		}
 
 #ifdef CONFIG_NF_CONNTRACK_MARK
@@ -523,14 +520,9 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 
 		helper = __nf_ct_helper_find(&repl_tuple);
 		if (helper) {
-			help = nf_ct_ext_add(conntrack, NF_CT_EXT_HELPER,
-					     GFP_ATOMIC);
+			help = nf_ct_helper_ext_add(conntrack, GFP_ATOMIC);
 			if (help)
-				/* not in hash table yet, so not strictly
-				   necessary */
 				rcu_assign_pointer(help->helper, helper);
-			else
-				DEBUGP("failed to add helper extension area");
 		}
 		NF_CT_STAT_INC(new);
 	}
@@ -721,11 +713,9 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 	}
 
 	if (help == NULL) {
-		help = nf_ct_ext_add(ct, NF_CT_EXT_HELPER, GFP_ATOMIC);
-		if (help == NULL) {
-			DEBUGP("failed to add helper extension area");
+		help = nf_ct_helper_ext_add(ct, GFP_ATOMIC);
+		if (help == NULL)
 			goto out;
-		}
 	} else {
 		memset(&help->help, 0, sizeof(help->help));
 	}
