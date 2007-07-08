@@ -259,7 +259,7 @@ xt_tcpmss_checkentry6(const char *tablename,
 }
 #endif
 
-static struct xt_target xt_tcpmss_reg[] = {
+static struct xt_target xt_tcpmss_reg[] __read_mostly = {
 	{
 		.family		= AF_INET,
 		.name		= "TCPMSS",

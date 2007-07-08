@@ -109,7 +109,7 @@ static int compat_to_user(void __user *dst, void *src)
 }
 #endif /* CONFIG_COMPAT */
 
-static struct xt_match xt_connmark_match[] = {
+static struct xt_match xt_connmark_match[] __read_mostly = {
 	{
 		.name		= "connmark",
 		.family		= AF_INET,

@@ -80,7 +80,7 @@ static bool ipt_ttl_checkentry(const char *tablename,
 	return true;
 }
 
-static struct xt_target ipt_TTL = {
+static struct xt_target ipt_TTL __read_mostly = {
 	.name 		= "TTL",
 	.family		= AF_INET,
 	.target 	= ipt_ttl_target,

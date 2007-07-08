@@ -63,7 +63,7 @@ match(const struct sk_buff *skb,
 	return true;
 }
 
-static struct xt_match iprange_match = {
+static struct xt_match iprange_match __read_mostly = {
 	.name		= "iprange",
 	.family		= AF_INET,
 	.match		= match,

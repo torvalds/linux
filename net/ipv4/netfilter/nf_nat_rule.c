@@ -228,7 +228,7 @@ int nf_nat_rule_find(struct sk_buff **pskb,
 	return ret;
 }
 
-static struct xt_target ipt_snat_reg = {
+static struct xt_target ipt_snat_reg __read_mostly = {
 	.name		= "SNAT",
 	.target		= ipt_snat_target,
 	.targetsize	= sizeof(struct nf_nat_multi_range_compat),
@@ -238,7 +238,7 @@ static struct xt_target ipt_snat_reg = {
 	.family		= AF_INET,
 };
 
-static struct xt_target ipt_dnat_reg = {
+static struct xt_target ipt_dnat_reg __read_mostly = {
 	.name		= "DNAT",
 	.target		= ipt_dnat_target,
 	.targetsize	= sizeof(struct nf_nat_multi_range_compat),

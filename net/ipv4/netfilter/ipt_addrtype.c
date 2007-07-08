@@ -44,7 +44,7 @@ static bool match(const struct sk_buff *skb,
 	return ret;
 }
 
-static struct xt_match addrtype_match = {
+static struct xt_match addrtype_match __read_mostly = {
 	.name		= "addrtype",
 	.family		= AF_INET,
 	.match		= match,

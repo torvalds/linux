@@ -228,7 +228,7 @@ checkentry6_v1(const char *tablename,
 		     multiinfo->count);
 }
 
-static struct xt_match xt_multiport_match[] = {
+static struct xt_match xt_multiport_match[] __read_mostly = {
 	{
 		.name		= "multiport",
 		.family		= AF_INET,

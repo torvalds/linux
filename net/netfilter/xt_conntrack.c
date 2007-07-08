@@ -183,7 +183,7 @@ static int compat_to_user(void __user *dst, void *src)
 }
 #endif
 
-static struct xt_match conntrack_match = {
+static struct xt_match conntrack_match __read_mostly = {
 	.name		= "conntrack",
 	.match		= match,
 	.checkentry	= checkentry,

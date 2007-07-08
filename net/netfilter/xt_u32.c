@@ -99,7 +99,7 @@ static bool u32_match(const struct sk_buff *skb,
 	return ret ^ data->invert;
 }
 
-static struct xt_match u32_reg[] = {
+static struct xt_match u32_reg[] __read_mostly = {
 	{
 		.name       = "u32",
 		.family     = AF_INET,

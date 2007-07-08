@@ -140,7 +140,7 @@ checkentry(const char *tablename,
 		&& !(info->invflags & ~info->flags);
 }
 
-static struct xt_match xt_dccp_match[] = {
+static struct xt_match xt_dccp_match[] __read_mostly = {
 	{
 		.name 		= "dccp",
 		.family		= AF_INET,

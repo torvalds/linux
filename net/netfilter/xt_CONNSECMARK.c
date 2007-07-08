@@ -115,7 +115,7 @@ destroy(const struct xt_target *target, void *targinfo)
 	nf_ct_l3proto_module_put(target->family);
 }
 
-static struct xt_target xt_connsecmark_target[] = {
+static struct xt_target xt_connsecmark_target[] __read_mostly = {
 	{
 		.name		= "CONNSECMARK",
 		.family		= AF_INET,

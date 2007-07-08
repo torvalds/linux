@@ -101,7 +101,7 @@ redirect_target(struct sk_buff **pskb,
 	return nf_nat_setup_info(ct, &newrange, hooknum);
 }
 
-static struct xt_target redirect_reg = {
+static struct xt_target redirect_reg __read_mostly = {
 	.name		= "REDIRECT",
 	.family		= AF_INET,
 	.target		= redirect_target,

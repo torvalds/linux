@@ -73,7 +73,7 @@ static void destroy(const struct xt_match *match, void *matchinfo)
 	textsearch_destroy(STRING_TEXT_PRIV(matchinfo)->config);
 }
 
-static struct xt_match xt_string_match[] = {
+static struct xt_match xt_string_match[] __read_mostly = {
 	{
 		.name 		= "string",
 		.family		= AF_INET,

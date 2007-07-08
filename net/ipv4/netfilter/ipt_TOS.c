@@ -63,7 +63,7 @@ checkentry(const char *tablename,
 	return true;
 }
 
-static struct xt_target ipt_tos_reg = {
+static struct xt_target ipt_tos_reg __read_mostly = {
 	.name		= "TOS",
 	.family		= AF_INET,
 	.target		= target,

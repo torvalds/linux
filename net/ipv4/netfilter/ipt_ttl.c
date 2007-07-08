@@ -44,7 +44,7 @@ static bool match(const struct sk_buff *skb,
 	return false;
 }
 
-static struct xt_match ttl_match = {
+static struct xt_match ttl_match __read_mostly = {
 	.name		= "ttl",
 	.family		= AF_INET,
 	.match		= match,

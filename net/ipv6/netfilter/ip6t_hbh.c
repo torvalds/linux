@@ -193,7 +193,7 @@ checkentry(const char *tablename,
 	return true;
 }
 
-static struct xt_match opts_match[] = {
+static struct xt_match opts_match[] __read_mostly = {
 	{
 		.name		= "hbh",
 		.family		= AF_INET6,

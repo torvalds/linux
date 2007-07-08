@@ -128,7 +128,7 @@ checkentry(const char *tablename,
 	return true;
 }
 
-static struct xt_target ipt_ecn_reg = {
+static struct xt_target ipt_ecn_reg __read_mostly = {
 	.name		= "ECN",
 	.family		= AF_INET,
 	.target		= target,

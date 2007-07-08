@@ -460,7 +460,7 @@ static const struct file_operations recent_fops = {
 };
 #endif /* CONFIG_PROC_FS */
 
-static struct xt_match recent_match = {
+static struct xt_match recent_match __read_mostly = {
 	.name		= "recent",
 	.family		= AF_INET,
 	.match		= ipt_recent_match,

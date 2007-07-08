@@ -33,7 +33,7 @@ target(struct sk_buff **pskb,
 	return XT_CONTINUE;
 }
 
-static struct xt_target xt_notrack_target[] = {
+static struct xt_target xt_notrack_target[] __read_mostly = {
 	{
 		.name		= "NOTRACK",
 		.family		= AF_INET,

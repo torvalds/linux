@@ -1441,13 +1441,13 @@ icmp6_checkentry(const char *tablename,
 }
 
 /* The built-in targets: standard (NULL) and error. */
-static struct xt_target ip6t_standard_target = {
+static struct xt_target ip6t_standard_target __read_mostly = {
 	.name		= IP6T_STANDARD_TARGET,
 	.targetsize	= sizeof(int),
 	.family		= AF_INET6,
 };
 
-static struct xt_target ip6t_error_target = {
+static struct xt_target ip6t_error_target __read_mostly = {
 	.name		= IP6T_ERROR_TARGET,
 	.target		= ip6t_error,
 	.targetsize	= IP6T_FUNCTION_MAXNAMELEN,
@@ -1464,7 +1464,7 @@ static struct nf_sockopt_ops ip6t_sockopts = {
 	.get		= do_ip6t_get_ctl,
 };
 
-static struct xt_match icmp6_matchstruct = {
+static struct xt_match icmp6_matchstruct __read_mostly = {
 	.name		= "icmp6",
 	.match		= &icmp6_match,
 	.matchsize	= sizeof(struct ip6t_icmp),

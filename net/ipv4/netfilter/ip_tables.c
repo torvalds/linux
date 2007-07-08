@@ -2264,7 +2264,7 @@ icmp_checkentry(const char *tablename,
 }
 
 /* The built-in targets: standard (NULL) and error. */
-static struct xt_target ipt_standard_target = {
+static struct xt_target ipt_standard_target __read_mostly = {
 	.name		= IPT_STANDARD_TARGET,
 	.targetsize	= sizeof(int),
 	.family		= AF_INET,
@@ -2275,7 +2275,7 @@ static struct xt_target ipt_standard_target = {
 #endif
 };
 
-static struct xt_target ipt_error_target = {
+static struct xt_target ipt_error_target __read_mostly = {
 	.name		= IPT_ERROR_TARGET,
 	.target		= ipt_error,
 	.targetsize	= IPT_FUNCTION_MAXNAMELEN,
@@ -2298,7 +2298,7 @@ static struct nf_sockopt_ops ipt_sockopts = {
 #endif
 };
 
-static struct xt_match icmp_matchstruct = {
+static struct xt_match icmp_matchstruct __read_mostly = {
 	.name		= "icmp",
 	.match		= icmp_match,
 	.matchsize	= sizeof(struct ipt_icmp),

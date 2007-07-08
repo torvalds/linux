@@ -43,7 +43,7 @@ static bool match(const struct sk_buff *skb,
 	return (type == info->pkttype) ^ info->invert;
 }
 
-static struct xt_match xt_pkttype_match[] = {
+static struct xt_match xt_pkttype_match[] __read_mostly = {
 	{
 		.name		= "pkttype",
 		.family		= AF_INET,

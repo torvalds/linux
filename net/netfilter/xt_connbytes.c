@@ -128,7 +128,7 @@ destroy(const struct xt_match *match, void *matchinfo)
 	nf_ct_l3proto_module_put(match->family);
 }
 
-static struct xt_match xt_connbytes_match[] = {
+static struct xt_match xt_connbytes_match[] __read_mostly = {
 	{
 		.name		= "connbytes",
 		.family		= AF_INET,

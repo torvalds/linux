@@ -578,7 +578,7 @@ static int compat_to_user(void __user *dst, void *src)
 }
 #endif
 
-static struct xt_match xt_hashlimit[] = {
+static struct xt_match xt_hashlimit[] __read_mostly = {
 	{
 		.name		= "hashlimit",
 		.family		= AF_INET,

@@ -52,7 +52,7 @@ nflog_checkentry(const char *tablename, const void *entry,
 	return true;
 }
 
-static struct xt_target xt_nflog_target[] = {
+static struct xt_target xt_nflog_target[] __read_mostly = {
 	{
 		.name		= "NFLOG",
 		.family		= AF_INET,

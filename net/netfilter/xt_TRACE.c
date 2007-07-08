@@ -21,7 +21,7 @@ target(struct sk_buff **pskb,
 	return XT_CONTINUE;
 }
 
-static struct xt_target xt_trace_target[] = {
+static struct xt_target xt_trace_target[] __read_mostly = {
 	{
 		.name		= "TRACE",
 		.family		= AF_INET,

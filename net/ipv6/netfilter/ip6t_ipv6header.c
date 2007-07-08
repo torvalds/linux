@@ -141,7 +141,7 @@ ipv6header_checkentry(const char *tablename,
 	return true;
 }
 
-static struct xt_match ip6t_ipv6header_match = {
+static struct xt_match ip6t_ipv6header_match __read_mostly = {
 	.name		= "ipv6header",
 	.family		= AF_INET6,
 	.match		= &ipv6header_match,

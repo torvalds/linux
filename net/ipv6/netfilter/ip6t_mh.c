@@ -89,7 +89,7 @@ mh_checkentry(const char *tablename,
 	return !(mhinfo->invflags & ~IP6T_MH_INV_MASK);
 }
 
-static struct xt_match mh_match = {
+static struct xt_match mh_match __read_mostly = {
 	.name		= "mh",
 	.family		= AF_INET6,
 	.checkentry	= mh_checkentry,

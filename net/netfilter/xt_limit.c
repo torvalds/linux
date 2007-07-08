@@ -173,7 +173,7 @@ static int compat_to_user(void __user *dst, void *src)
 }
 #endif /* CONFIG_COMPAT */
 
-static struct xt_match xt_limit_match[] = {
+static struct xt_match xt_limit_match[] __read_mostly = {
 	{
 		.name		= "limit",
 		.family		= AF_INET,

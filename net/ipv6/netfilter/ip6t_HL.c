@@ -79,7 +79,7 @@ static bool ip6t_hl_checkentry(const char *tablename,
 	return true;
 }
 
-static struct xt_target ip6t_HL = {
+static struct xt_target ip6t_HL __read_mostly = {
 	.name 		= "HL",
 	.family		= AF_INET6,
 	.target		= ip6t_hl_target,

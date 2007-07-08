@@ -37,7 +37,7 @@ match(const struct sk_buff *skb,
 	return (info->id == (dst->tclassid & info->mask)) ^ info->invert;
 }
 
-static struct xt_match realm_match = {
+static struct xt_match realm_match __read_mostly = {
 	.name		= "realm",
 	.match		= match,
 	.matchsize	= sizeof(struct xt_realm_info),

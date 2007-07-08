@@ -381,7 +381,7 @@ static int compat_to_user(void __user *dst, void *src)
 }
 #endif /* CONFIG_COMPAT */
 
-static struct xt_target ipt_ulog_reg = {
+static struct xt_target ipt_ulog_reg __read_mostly = {
 	.name		= "ULOG",
 	.family		= AF_INET,
 	.target		= ipt_ulog_target,

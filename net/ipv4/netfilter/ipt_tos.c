@@ -33,7 +33,7 @@ match(const struct sk_buff *skb,
 	return (ip_hdr(skb)->tos == info->tos) ^ info->invert;
 }
 
-static struct xt_match tos_match = {
+static struct xt_match tos_match __read_mostly = {
 	.name		= "tos",
 	.family		= AF_INET,
 	.match		= match,

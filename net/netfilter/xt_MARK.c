@@ -133,7 +133,7 @@ static int compat_to_user_v1(void __user *dst, void *src)
 }
 #endif /* CONFIG_COMPAT */
 
-static struct xt_target xt_mark_target[] = {
+static struct xt_target xt_mark_target[] __read_mostly = {
 	{
 		.name		= "MARK",
 		.family		= AF_INET,

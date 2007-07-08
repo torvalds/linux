@@ -53,7 +53,7 @@ match6(const struct sk_buff *skb,
 	return (pktlen >= info->min && pktlen <= info->max) ^ info->invert;
 }
 
-static struct xt_match xt_length_match[] = {
+static struct xt_match xt_length_match[] __read_mostly = {
 	{
 		.name		= "length",
 		.family		= AF_INET,

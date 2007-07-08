@@ -68,7 +68,7 @@ static bool checkentry(const char *tablename,
 	return true;
 }
 
-static struct xt_match xt_dscp_match[] = {
+static struct xt_match xt_dscp_match[] __read_mostly = {
 	{
 		.name		= "dscp",
 		.family		= AF_INET,

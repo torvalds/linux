@@ -66,7 +66,7 @@ checkentry(const char *tablename, const void *entry,
 	return true;
 }
 
-static struct xt_match xt_statistic_match[] = {
+static struct xt_match xt_statistic_match[] __read_mostly = {
 	{
 		.name		= "statistic",
 		.family		= AF_INET,

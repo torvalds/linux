@@ -44,7 +44,7 @@ match(const struct sk_buff *skb,
 		^ info->invert);
 }
 
-static struct xt_match xt_mac_match[] = {
+static struct xt_match xt_mac_match[] __read_mostly = {
 	{
 		.name		= "mac",
 		.family		= AF_INET,

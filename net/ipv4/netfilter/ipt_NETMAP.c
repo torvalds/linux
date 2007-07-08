@@ -85,7 +85,7 @@ target(struct sk_buff **pskb,
 	return nf_nat_setup_info(ct, &newrange, hooknum);
 }
 
-static struct xt_target target_module = {
+static struct xt_target target_module __read_mostly = {
 	.name 		= MODULENAME,
 	.family		= AF_INET,
 	.target 	= target,

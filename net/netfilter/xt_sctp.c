@@ -172,7 +172,7 @@ checkentry(const char *tablename,
 				| SCTP_CHUNK_MATCH_ONLY)));
 }
 
-static struct xt_match xt_sctp_match[] = {
+static struct xt_match xt_sctp_match[] __read_mostly = {
 	{
 		.name		= "sctp",
 		.family		= AF_INET,

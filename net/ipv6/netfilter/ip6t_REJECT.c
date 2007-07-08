@@ -244,7 +244,7 @@ static bool check(const char *tablename,
 	return true;
 }
 
-static struct xt_target ip6t_reject_reg = {
+static struct xt_target ip6t_reject_reg __read_mostly = {
 	.name		= "REJECT",
 	.family		= AF_INET6,
 	.target		= reject6_target,

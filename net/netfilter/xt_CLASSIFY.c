@@ -39,7 +39,7 @@ target(struct sk_buff **pskb,
 	return XT_CONTINUE;
 }
 
-static struct xt_target xt_classify_target[] = {
+static struct xt_target xt_classify_target[] __read_mostly = {
 	{
 		.family		= AF_INET,
 		.name 		= "CLASSIFY",

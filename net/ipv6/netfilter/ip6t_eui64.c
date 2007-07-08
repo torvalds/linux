@@ -62,7 +62,7 @@ match(const struct sk_buff *skb,
 	return false;
 }
 
-static struct xt_match eui64_match = {
+static struct xt_match eui64_match __read_mostly = {
 	.name		= "eui64",
 	.family		= AF_INET6,
 	.match		= match,

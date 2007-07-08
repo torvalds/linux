@@ -53,7 +53,7 @@ checkentry(const char *tablename, const void *entry,
 	return true;
 }
 
-static struct xt_match xt_quota_match[] = {
+static struct xt_match xt_quota_match[] __read_mostly = {
 	{
 		.name		= "quota",
 		.family		= AF_INET,

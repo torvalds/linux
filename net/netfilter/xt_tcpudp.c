@@ -194,7 +194,7 @@ udp_checkentry(const char *tablename,
 	return !(udpinfo->invflags & ~XT_UDP_INV_MASK);
 }
 
-static struct xt_match xt_tcpudp_match[] = {
+static struct xt_match xt_tcpudp_match[] __read_mostly = {
 	{
 		.name		= "tcp",
 		.family		= AF_INET,

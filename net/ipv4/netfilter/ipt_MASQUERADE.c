@@ -169,7 +169,7 @@ static struct notifier_block masq_inet_notifier = {
 	.notifier_call	= masq_inet_event,
 };
 
-static struct xt_target masquerade = {
+static struct xt_target masquerade __read_mostly = {
 	.name		= "MASQUERADE",
 	.family		= AF_INET,
 	.target		= masquerade_target,

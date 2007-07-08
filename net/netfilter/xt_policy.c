@@ -164,7 +164,7 @@ static bool checkentry(const char *tablename, const void *ip_void,
 	return true;
 }
 
-static struct xt_match xt_policy_match[] = {
+static struct xt_match xt_policy_match[] __read_mostly = {
 	{
 		.name		= "policy",
 		.family		= AF_INET,

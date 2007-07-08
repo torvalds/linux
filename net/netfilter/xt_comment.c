@@ -29,7 +29,7 @@ match(const struct sk_buff *skb,
 	return true;
 }
 
-static struct xt_match xt_comment_match[] = {
+static struct xt_match xt_comment_match[] __read_mostly = {
 	{
 		.name		= "comment",
 		.family		= AF_INET,
