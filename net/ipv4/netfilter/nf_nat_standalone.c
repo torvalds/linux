@@ -350,7 +350,6 @@ static int __init nf_nat_standalone_init(void)
 		printk("nf_nat_init: can't register hooks.\n");
 		goto cleanup_rule_init;
 	}
-	nf_nat_module_is_loaded = 1;
 	return ret;
 
  cleanup_rule_init:
@@ -367,7 +366,6 @@ static void __exit nf_nat_standalone_fini(void)
 {
 	nf_unregister_hooks(nf_nat_ops, ARRAY_SIZE(nf_nat_ops));
 	nf_nat_rule_cleanup();
-	nf_nat_module_is_loaded = 0;
 #ifdef CONFIG_XFRM
 	ip_nat_decode_session = NULL;
 	synchronize_net();

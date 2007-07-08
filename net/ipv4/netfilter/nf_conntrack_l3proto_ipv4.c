@@ -103,9 +103,6 @@ ipv4_prepare(struct sk_buff **pskb, unsigned int hooknum, unsigned int *dataoff,
 	return NF_ACCEPT;
 }
 
-int nf_nat_module_is_loaded = 0;
-EXPORT_SYMBOL_GPL(nf_nat_module_is_loaded);
-
 static u_int32_t ipv4_get_features(const struct nf_conntrack_tuple *tuple)
 {
 	return NF_CT_F_BASIC;

@@ -95,8 +95,6 @@ static inline struct nf_conn_nat *nfct_nat(const struct nf_conn *ct)
 	return nf_ct_ext_find(ct, NF_CT_EXT_NAT);
 }
 
-extern int nf_nat_module_is_loaded;
-
 #else  /* !__KERNEL__: iptables wants this to compile. */
 #define nf_nat_multi_range nf_nat_multi_range_compat
 #endif /*__KERNEL__*/
