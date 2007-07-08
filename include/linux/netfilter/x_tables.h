@@ -148,7 +148,7 @@ struct xt_match
 		     const void *matchinfo,
 		     int offset,
 		     unsigned int protoff,
-		     int *hotdrop);
+		     bool *hotdrop);
 
 	/* Called when user tries to insert an entry of this type. */
 	/* Should return true or false. */

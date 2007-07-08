@@ -31,7 +31,7 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	const struct xt_tcpmss_match_info *info = matchinfo;
 	struct tcphdr _tcph, *th;
@@ -77,7 +77,7 @@ out:
 	return info->invert;
 
 dropit:
-	*hotdrop = 1;
+	*hotdrop = true;
 	return 0;
 }
 

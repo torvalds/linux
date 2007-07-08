@@ -28,7 +28,7 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	const struct xt_length_info *info = matchinfo;
 	u_int16_t pktlen = ntohs(ip_hdr(skb)->tot_len);
@@ -44,7 +44,7 @@ match6(const struct sk_buff *skb,
        const void *matchinfo,
        int offset,
        unsigned int protoff,
-       int *hotdrop)
+       bool *hotdrop)
 {
 	const struct xt_length_info *info = matchinfo;
 	const u_int16_t pktlen = (ntohs(ipv6_hdr(skb)->payload_len) +

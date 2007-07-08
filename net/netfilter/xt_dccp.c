@@ -36,7 +36,7 @@ dccp_find_option(u_int8_t option,
 		 const struct sk_buff *skb,
 		 unsigned int protoff,
 		 const struct dccp_hdr *dh,
-		 int *hotdrop)
+		 bool *hotdrop)
 {
 	/* tcp.doff is only 4 bits, ie. max 15 * 4 bytes */
 	unsigned char *op;
@@ -45,7 +45,7 @@ dccp_find_option(u_int8_t option,
 	unsigned int i;
 
 	if (dh->dccph_doff * 4 < __dccp_hdr_len(dh)) {
-		*hotdrop = 1;
+		*hotdrop = true;
 		return 0;
 	}
 
@@ -57,7 +57,7 @@ dccp_find_option(u_int8_t option,
 	if (op == NULL) {
 		/* If we don't have the whole header, drop packet. */
 		spin_unlock_bh(&dccp_buflock);
-		*hotdrop = 1;
+		*hotdrop = true;
 		return 0;
 	}
 
@@ -86,7 +86,7 @@ match_types(const struct dccp_hdr *dh, u_int16_t typemask)
 
 static inline int
 match_option(u_int8_t option, const struct sk_buff *skb, unsigned int protoff,
-	     const struct dccp_hdr *dh, int *hotdrop)
+	     const struct dccp_hdr *dh, bool *hotdrop)
 {
 	return dccp_find_option(option, skb, protoff, dh, hotdrop);
 }
@@ -99,7 +99,7 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	const struct xt_dccp_info *info = matchinfo;
 	struct dccp_hdr _dh, *dh;
@@ -109,7 +109,7 @@ match(const struct sk_buff *skb,
 
 	dh = skb_header_pointer(skb, protoff, sizeof(_dh), &_dh);
 	if (dh == NULL) {
-		*hotdrop = 1;
+		*hotdrop = true;
 		return 0;
 	}
 

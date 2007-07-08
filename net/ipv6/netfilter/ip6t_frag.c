@@ -48,7 +48,7 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	struct frag_hdr _frag, *fh;
 	const struct ip6t_frag *fraginfo = matchinfo;
@@ -58,13 +58,13 @@ match(const struct sk_buff *skb,
 	err = ipv6_find_hdr(skb, &ptr, NEXTHDR_FRAGMENT, NULL);
 	if (err < 0) {
 		if (err != -ENOENT)
-			*hotdrop = 1;
+			*hotdrop = true;
 		return 0;
 	}
 
 	fh = skb_header_pointer(skb, ptr, sizeof(_frag), &_frag);
 	if (fh == NULL) {
-		*hotdrop = 1;
+		*hotdrop = true;
 		return 0;
 	}
 

@@ -27,7 +27,7 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	unsigned char eui64[8];
 	int i = 0;
@@ -35,7 +35,7 @@ match(const struct sk_buff *skb,
 	if (!(skb_mac_header(skb) >= skb->head &&
 	      (skb_mac_header(skb) + ETH_HLEN) <= skb->data) &&
 	    offset != 0) {
-		*hotdrop = 1;
+		*hotdrop = true;
 		return 0;
 	}
 

@@ -48,7 +48,7 @@ match(const struct sk_buff *skb,
 	 const void *matchinfo,
 	 int offset,
 	 unsigned int protoff,
-	 int *hotdrop)
+	 bool *hotdrop)
 {
 	struct ip6_mh _mh, *mh;
 	const struct ip6t_mh *mhinfo = matchinfo;
@@ -62,14 +62,14 @@ match(const struct sk_buff *skb,
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
 		duprintf("Dropping evil MH tinygram.\n");
-		*hotdrop = 1;
+		*hotdrop = true;
 		return 0;
 	}
 
 	if (mh->ip6mh_proto != IPPROTO_NONE) {
 		duprintf("Dropping invalid MH Payload Proto: %u\n",
 			 mh->ip6mh_proto);
-		*hotdrop = 1;
+		*hotdrop = true;
 		return 0;
 	}
 

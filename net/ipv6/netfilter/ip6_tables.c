@@ -102,7 +102,7 @@ ip6_packet_match(const struct sk_buff *skb,
 		 const char *outdev,
 		 const struct ip6t_ip6 *ip6info,
 		 unsigned int *protoff,
-		 int *fragoff, int *hotdrop)
+		 int *fragoff, bool *hotdrop)
 {
 	size_t i;
 	unsigned long ret;
@@ -162,7 +162,7 @@ ip6_packet_match(const struct sk_buff *skb,
 		protohdr = ipv6_find_hdr(skb, protoff, -1, &_frag_off);
 		if (protohdr < 0) {
 			if (_frag_off == 0)
-				*hotdrop = 1;
+				*hotdrop = true;
 			return 0;
 		}
 		*fragoff = _frag_off;
@@ -225,7 +225,7 @@ int do_match(struct ip6t_entry_match *m,
 	     const struct net_device *out,
 	     int offset,
 	     unsigned int protoff,
-	     int *hotdrop)
+	     bool *hotdrop)
 {
 	/* Stop iteration if it doesn't match */
 	if (!m->u.kernel.match->match(skb, in, out, m->u.kernel.match, m->data,
@@ -252,7 +252,7 @@ ip6t_do_table(struct sk_buff **pskb,
 	static const char nulldevname[IFNAMSIZ] __attribute__((aligned(sizeof(long))));
 	int offset = 0;
 	unsigned int protoff = 0;
-	int hotdrop = 0;
+	bool hotdrop = false;
 	/* Initializing verdict to NF_DROP keeps gcc happy. */
 	unsigned int verdict = NF_DROP;
 	const char *indev, *outdev;
@@ -1299,7 +1299,7 @@ icmp6_match(const struct sk_buff *skb,
 	   const void *matchinfo,
 	   int offset,
 	   unsigned int protoff,
-	   int *hotdrop)
+	   bool *hotdrop)
 {
 	struct icmp6hdr _icmp, *ic;
 	const struct ip6t_icmp *icmpinfo = matchinfo;
@@ -1313,7 +1313,7 @@ icmp6_match(const struct sk_buff *skb,
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
 		duprintf("Dropping evil ICMP tinygram.\n");
-		*hotdrop = 1;
+		*hotdrop = true;
 		return 0;
 	}
 

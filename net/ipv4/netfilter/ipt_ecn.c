@@ -30,7 +30,7 @@ static inline int match_ip(const struct sk_buff *skb,
 
 static inline int match_tcp(const struct sk_buff *skb,
 			    const struct ipt_ecn_info *einfo,
-			    int *hotdrop)
+			    bool *hotdrop)
 {
 	struct tcphdr _tcph, *th;
 
@@ -39,7 +39,7 @@ static inline int match_tcp(const struct sk_buff *skb,
 	 */
 	th = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_tcph), &_tcph);
 	if (th == NULL) {
-		*hotdrop = 0;
+		*hotdrop = false;
 		return 0;
 	}
 
@@ -69,7 +69,7 @@ static inline int match_tcp(const struct sk_buff *skb,
 static int match(const struct sk_buff *skb,
 		 const struct net_device *in, const struct net_device *out,
 		 const struct xt_match *match, const void *matchinfo,
-		 int offset, unsigned int protoff, int *hotdrop)
+		 int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct ipt_ecn_info *info = matchinfo;
 

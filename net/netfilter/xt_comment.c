@@ -23,7 +23,7 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protooff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	/* We always match */
 	return 1;

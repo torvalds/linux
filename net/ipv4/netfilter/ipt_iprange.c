@@ -29,7 +29,7 @@ match(const struct sk_buff *skb,
       const struct net_device *out,
       const struct xt_match *match,
       const void *matchinfo,
-      int offset, unsigned int protoff, int *hotdrop)
+      int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct ipt_iprange_info *info = matchinfo;
 	const struct iphdr *iph = ip_hdr(skb);

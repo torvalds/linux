@@ -28,7 +28,7 @@ static int match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	u_int8_t type;
 	const struct xt_pkttype_info *info = matchinfo;

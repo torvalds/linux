@@ -31,7 +31,7 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	int i;
 	static const char nulldevname[IFNAMSIZ];

@@ -28,7 +28,7 @@ static int match(const struct sk_buff *skb,
 		 const void *matchinfo,
 		 int offset,
 		 unsigned int protoff,
-		 int *hotdrop)
+		 bool *hotdrop)
 {
 	const struct xt_string_info *conf = matchinfo;
 	struct ts_state state;

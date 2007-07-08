@@ -173,7 +173,7 @@ static int
 ipt_recent_match(const struct sk_buff *skb,
 		 const struct net_device *in, const struct net_device *out,
 		 const struct xt_match *match, const void *matchinfo,
-		 int offset, unsigned int protoff, int *hotdrop)
+		 int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct ipt_recent_info *info = matchinfo;
 	struct recent_table *t;
@@ -201,7 +201,7 @@ ipt_recent_match(const struct sk_buff *skb,
 			goto out;
 		e = recent_entry_init(t, addr, ttl);
 		if (e == NULL)
-			*hotdrop = 1;
+			*hotdrop = true;
 		ret ^= 1;
 		goto out;
 	}

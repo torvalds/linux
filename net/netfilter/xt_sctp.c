@@ -47,7 +47,7 @@ match_packet(const struct sk_buff *skb,
 	     int chunk_match_type,
 	     const struct xt_sctp_flag_info *flag_info,
 	     const int flag_count,
-	     int *hotdrop)
+	     bool *hotdrop)
 {
 	u_int32_t chunkmapcopy[256 / sizeof (u_int32_t)];
 	sctp_chunkhdr_t _sch, *sch;
@@ -64,7 +64,7 @@ match_packet(const struct sk_buff *skb,
 		sch = skb_header_pointer(skb, offset, sizeof(_sch), &_sch);
 		if (sch == NULL || sch->length == 0) {
 			duprintf("Dropping invalid SCTP packet.\n");
-			*hotdrop = 1;
+			*hotdrop = true;
 			return 0;
 		}
 
@@ -127,7 +127,7 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	const struct xt_sctp_info *info = matchinfo;
 	sctp_sctphdr_t _sh, *sh;
@@ -140,7 +140,7 @@ match(const struct sk_buff *skb,
 	sh = skb_header_pointer(skb, protoff, sizeof(_sh), &_sh);
 	if (sh == NULL) {
 		duprintf("Dropping evil TCP offset=0 tinygram.\n");
-		*hotdrop = 1;
+		*hotdrop = true;
 		return 0;
 	}
 	duprintf("spt: %d\tdpt: %d\n", ntohs(sh->source), ntohs(sh->dest));

@@ -42,7 +42,7 @@ tcp_find_option(u_int8_t option,
 		unsigned int protoff,
 		unsigned int optlen,
 		int invert,
-		int *hotdrop)
+		bool *hotdrop)
 {
 	/* tcp.doff is only 4 bits, ie. max 15 * 4 bytes */
 	u_int8_t _opt[60 - sizeof(struct tcphdr)], *op;
@@ -57,7 +57,7 @@ tcp_find_option(u_int8_t option,
 	op = skb_header_pointer(skb, protoff + sizeof(struct tcphdr),
 				optlen, _opt);
 	if (op == NULL) {
-		*hotdrop = 1;
+		*hotdrop = true;
 		return 0;
 	}
 
@@ -78,7 +78,7 @@ tcp_match(const struct sk_buff *skb,
 	  const void *matchinfo,
 	  int offset,
 	  unsigned int protoff,
-	  int *hotdrop)
+	  bool *hotdrop)
 {
 	struct tcphdr _tcph, *th;
 	const struct xt_tcp *tcpinfo = matchinfo;
@@ -92,7 +92,7 @@ tcp_match(const struct sk_buff *skb,
 		*/
 		if (offset == 1) {
 			duprintf("Dropping evil TCP offset=1 frag.\n");
-			*hotdrop = 1;
+			*hotdrop = true;
 		}
 		/* Must not be a fragment. */
 		return 0;
@@ -105,7 +105,7 @@ tcp_match(const struct sk_buff *skb,
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
 		duprintf("Dropping evil TCP offset=0 tinygram.\n");
-		*hotdrop = 1;
+		*hotdrop = true;
 		return 0;
 	}
 
@@ -123,7 +123,7 @@ tcp_match(const struct sk_buff *skb,
 		return 0;
 	if (tcpinfo->option) {
 		if (th->doff * 4 < sizeof(_tcph)) {
-			*hotdrop = 1;
+			*hotdrop = true;
 			return 0;
 		}
 		if (!tcp_find_option(tcpinfo->option, skb, protoff,
@@ -157,7 +157,7 @@ udp_match(const struct sk_buff *skb,
 	  const void *matchinfo,
 	  int offset,
 	  unsigned int protoff,
-	  int *hotdrop)
+	  bool *hotdrop)
 {
 	struct udphdr _udph, *uh;
 	const struct xt_udp *udpinfo = matchinfo;
@@ -171,7 +171,7 @@ udp_match(const struct sk_buff *skb,
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
 		duprintf("Dropping evil UDP tinygram.\n");
-		*hotdrop = 1;
+		*hotdrop = true;
 		return 0;
 	}
 

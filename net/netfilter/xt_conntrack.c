@@ -27,7 +27,7 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	const struct xt_conntrack_info *sinfo = matchinfo;
 	struct nf_conn *ct;

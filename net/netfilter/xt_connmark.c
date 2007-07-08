@@ -38,7 +38,7 @@ match(const struct sk_buff *skb,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
-      int *hotdrop)
+      bool *hotdrop)
 {
 	const struct xt_connmark_info *info = matchinfo;
 	struct nf_conn *ct;

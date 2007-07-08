@@ -34,7 +34,7 @@ ipv6header_match(const struct sk_buff *skb,
 		 const void *matchinfo,
 		 int offset,
 		 unsigned int protoff,
-		 int *hotdrop)
+		 bool *hotdrop)
 {
 	const struct ip6t_ipv6header_info *info = matchinfo;
 	unsigned int temp;
