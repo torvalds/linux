@@ -239,9 +239,6 @@ static int __init nf_conntrack_irc_init(void)
 		irc[i].tuple.src.l3num = AF_INET;
 		irc[i].tuple.src.u.tcp.port = htons(ports[i]);
 		irc[i].tuple.dst.protonum = IPPROTO_TCP;
-		irc[i].mask.src.l3num = 0xFFFF;
-		irc[i].mask.src.u.tcp.port = htons(0xFFFF);
-		irc[i].mask.dst.protonum = 0xFF;
 		irc[i].max_expected = max_dcc_channels;
 		irc[i].timeout = dcc_timeout;
 		irc[i].me = THIS_MODULE;

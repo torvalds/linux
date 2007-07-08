@@ -1094,22 +1094,29 @@ nfattr_failure:
 static inline int
 ctnetlink_exp_dump_mask(struct sk_buff *skb,
 			const struct nf_conntrack_tuple *tuple,
-			const struct nf_conntrack_tuple *mask)
+			const struct nf_conntrack_tuple_mask *mask)
 {
 	int ret;
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_l4proto *l4proto;
-	struct nfattr *nest_parms = NFA_NEST(skb, CTA_EXPECT_MASK);
+	struct nf_conntrack_tuple m;
+	struct nfattr *nest_parms;
+
+	memset(&m, 0xFF, sizeof(m));
+	m.src.u.all = mask->src.u.all;
+	memcpy(&m.src.u3, &mask->src.u3, sizeof(m.src.u3));
+
+	nest_parms = NFA_NEST(skb, CTA_EXPECT_MASK);
 
 	l3proto = nf_ct_l3proto_find_get(tuple->src.l3num);
-	ret = ctnetlink_dump_tuples_ip(skb, mask, l3proto);
+	ret = ctnetlink_dump_tuples_ip(skb, &m, l3proto);
 	nf_ct_l3proto_put(l3proto);
 
 	if (unlikely(ret < 0))
 		goto nfattr_failure;
 
 	l4proto = nf_ct_l4proto_find_get(tuple->src.l3num, tuple->dst.protonum);
-	ret = ctnetlink_dump_tuples_proto(skb, mask, l4proto);
+	ret = ctnetlink_dump_tuples_proto(skb, &m, l4proto);
 	nf_ct_l4proto_put(l4proto);
 	if (unlikely(ret < 0))
 		goto nfattr_failure;
@@ -1447,7 +1454,8 @@ ctnetlink_create_expect(struct nfattr *cda[], u_int8_t u3)
 	exp->master = ct;
 	exp->helper = NULL;
 	memcpy(&exp->tuple, &tuple, sizeof(struct nf_conntrack_tuple));
-	memcpy(&exp->mask, &mask, sizeof(struct nf_conntrack_tuple));
+	memcpy(&exp->mask.src.u3, &mask.src.u3, sizeof(exp->mask.src.u3));
+	exp->mask.src.u.all = mask.src.u.all;
 
 	err = nf_ct_expect_related(exp);
 	nf_ct_expect_put(exp);

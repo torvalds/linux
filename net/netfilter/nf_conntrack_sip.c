@@ -506,9 +506,6 @@ static int __init nf_conntrack_sip_init(void)
 		for (j = 0; j < 2; j++) {
 			sip[i][j].tuple.dst.protonum = IPPROTO_UDP;
 			sip[i][j].tuple.src.u.udp.port = htons(ports[i]);
-			sip[i][j].mask.src.l3num = 0xFFFF;
-			sip[i][j].mask.src.u.udp.port = htons(0xFFFF);
-			sip[i][j].mask.dst.protonum = 0xFF;
 			sip[i][j].max_expected = 2;
 			sip[i][j].timeout = 3 * 60; /* 3 minutes */
 			sip[i][j].me = THIS_MODULE;

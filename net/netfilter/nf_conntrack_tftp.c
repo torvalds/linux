@@ -126,9 +126,6 @@ static int __init nf_conntrack_tftp_init(void)
 		for (j = 0; j < 2; j++) {
 			tftp[i][j].tuple.dst.protonum = IPPROTO_UDP;
 			tftp[i][j].tuple.src.u.udp.port = htons(ports[i]);
-			tftp[i][j].mask.src.l3num = 0xFFFF;
-			tftp[i][j].mask.dst.protonum = 0xFF;
-			tftp[i][j].mask.src.u.udp.port = htons(0xFFFF);
 			tftp[i][j].max_expected = 1;
 			tftp[i][j].timeout = 5 * 60; /* 5 minutes */
 			tftp[i][j].me = THIS_MODULE;

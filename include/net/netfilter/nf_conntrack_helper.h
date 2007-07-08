@@ -24,10 +24,9 @@ struct nf_conntrack_helper
 					 * expected connections */
 	unsigned int timeout;		/* timeout for expecteds */
 
-	/* Mask of things we will help (compared against server response) */
+	/* Tuple of things we will help (compared against server response) */
 	struct nf_conntrack_tuple tuple;
-	struct nf_conntrack_tuple mask;
-	
+
 	/* Function to call when data passes; return verdict, or -1 to
            invalidate. */
 	int (*help)(struct sk_buff **pskb,

@@ -16,7 +16,8 @@ struct nf_conntrack_expect
 	struct list_head list;
 
 	/* We expect this tuple, with the following mask */
-	struct nf_conntrack_tuple tuple, mask;
+	struct nf_conntrack_tuple tuple;
+	struct nf_conntrack_tuple_mask mask;
 
 	/* Function to call after setup and insertion */
 	void (*expectfn)(struct nf_conn *new,

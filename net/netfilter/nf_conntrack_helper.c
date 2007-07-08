@@ -34,9 +34,10 @@ struct nf_conntrack_helper *
 __nf_ct_helper_find(const struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_helper *h;
+	struct nf_conntrack_tuple_mask mask = { .src.u.all = htons(0xFFFF) };
 
 	list_for_each_entry(h, &helpers, list) {
-		if (nf_ct_tuple_mask_cmp(tuple, &h->tuple, &h->mask))
+		if (nf_ct_tuple_src_mask_cmp(tuple, &h->tuple, &mask))
 			return h;
 	}
 	return NULL;

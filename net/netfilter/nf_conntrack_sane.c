@@ -206,8 +206,6 @@ static int __init nf_conntrack_sane_init(void)
 		for (j = 0; j < 2; j++) {
 			sane[i][j].tuple.src.u.tcp.port = htons(ports[i]);
 			sane[i][j].tuple.dst.protonum = IPPROTO_TCP;
-			sane[i][j].mask.src.u.tcp.port = 0xFFFF;
-			sane[i][j].mask.dst.protonum = 0xFF;
 			sane[i][j].max_expected = 1;
 			sane[i][j].timeout = 5 * 60;	/* 5 Minutes */
 			sane[i][j].me = THIS_MODULE;

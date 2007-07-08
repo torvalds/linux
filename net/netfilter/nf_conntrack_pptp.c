@@ -585,9 +585,6 @@ static struct nf_conntrack_helper pptp __read_mostly = {
 	.tuple.src.l3num	= AF_INET,
 	.tuple.src.u.tcp.port	= __constant_htons(PPTP_CONTROL_PORT),
 	.tuple.dst.protonum	= IPPROTO_TCP,
-	.mask.src.l3num		= 0xffff,
-	.mask.src.u.tcp.port	= __constant_htons(0xffff),
-	.mask.dst.protonum	= 0xff,
 	.help			= conntrack_pptp_help,
 	.destroy		= pptp_destroy_siblings,
 };

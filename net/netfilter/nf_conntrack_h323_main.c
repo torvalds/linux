@@ -626,8 +626,6 @@ static struct nf_conntrack_helper nf_conntrack_helper_h245 __read_mostly = {
 	.max_expected		= H323_RTP_CHANNEL_MAX * 4 + 2 /* T.120 */,
 	.timeout		= 240,
 	.tuple.dst.protonum	= IPPROTO_UDP,
-	.mask.src.u.udp.port	= __constant_htons(0xFFFF),
-	.mask.dst.protonum	= 0xFF,
 	.help			= h245_help
 };
 
@@ -1173,9 +1171,6 @@ static struct nf_conntrack_helper nf_conntrack_helper_q931[] __read_mostly = {
 		.tuple.src.l3num	= AF_INET,
 		.tuple.src.u.tcp.port	= __constant_htons(Q931_PORT),
 		.tuple.dst.protonum	= IPPROTO_TCP,
-		.mask.src.l3num		= 0xFFFF,
-		.mask.src.u.tcp.port	= __constant_htons(0xFFFF),
-		.mask.dst.protonum	= 0xFF,
 		.help			= q931_help
 	},
 	{
@@ -1187,9 +1182,6 @@ static struct nf_conntrack_helper nf_conntrack_helper_q931[] __read_mostly = {
 		.tuple.src.l3num	= AF_INET6,
 		.tuple.src.u.tcp.port	= __constant_htons(Q931_PORT),
 		.tuple.dst.protonum	= IPPROTO_TCP,
-		.mask.src.l3num		= 0xFFFF,
-		.mask.src.u.tcp.port	= __constant_htons(0xFFFF),
-		.mask.dst.protonum	= 0xFF,
 		.help			= q931_help
 	},
 };
@@ -1751,9 +1743,6 @@ static struct nf_conntrack_helper nf_conntrack_helper_ras[] __read_mostly = {
 		.tuple.src.l3num	= AF_INET,
 		.tuple.src.u.udp.port	= __constant_htons(RAS_PORT),
 		.tuple.dst.protonum	= IPPROTO_UDP,
-		.mask.src.l3num		= 0xFFFF,
-		.mask.src.u.udp.port	= __constant_htons(0xFFFF),
-		.mask.dst.protonum	= 0xFF,
 		.help			= ras_help,
 	},
 	{
@@ -1764,9 +1753,6 @@ static struct nf_conntrack_helper nf_conntrack_helper_ras[] __read_mostly = {
 		.tuple.src.l3num	= AF_INET6,
 		.tuple.src.u.udp.port	= __constant_htons(RAS_PORT),
 		.tuple.dst.protonum	= IPPROTO_UDP,
-		.mask.src.l3num		= 0xFFFF,
-		.mask.src.u.udp.port	= __constant_htons(0xFFFF),
-		.mask.dst.protonum	= 0xFF,
 		.help			= ras_help,
 	},
 };
