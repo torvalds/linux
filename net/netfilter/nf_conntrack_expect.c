@@ -29,7 +29,7 @@
 LIST_HEAD(nf_ct_expect_list);
 EXPORT_SYMBOL_GPL(nf_ct_expect_list);
 
-struct kmem_cache *nf_ct_expect_cachep __read_mostly;
+static struct kmem_cache *nf_ct_expect_cachep __read_mostly;
 static unsigned int nf_ct_expect_next_id;
 
 /* nf_conntrack_expect helper functions */
@@ -413,3 +413,49 @@ const struct file_operations exp_file_ops = {
 	.release = seq_release
 };
 #endif /* CONFIG_PROC_FS */
+
+static int __init exp_proc_init(void)
+{
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry *proc;
+
+	proc = proc_net_fops_create("nf_conntrack_expect", 0440, &exp_file_ops);
+	if (!proc)
+		return -ENOMEM;
+#endif /* CONFIG_PROC_FS */
+	return 0;
+}
+
+static void exp_proc_remove(void)
+{
+#ifdef CONFIG_PROC_FS
+	proc_net_remove("nf_conntrack_expect");
+#endif /* CONFIG_PROC_FS */
+}
+
+int __init nf_conntrack_expect_init(void)
+{
+	int err;
+
+	nf_ct_expect_cachep = kmem_cache_create("nf_conntrack_expect",
+					sizeof(struct nf_conntrack_expect),
+					0, 0, NULL, NULL);
+	if (!nf_ct_expect_cachep)
+		return -ENOMEM;
+
+	err = exp_proc_init();
+	if (err < 0)
+		goto err1;
+
+	return 0;
+
+err1:
+	kmem_cache_destroy(nf_ct_expect_cachep);
+	return err;
+}
+
+void nf_conntrack_expect_fini(void)
+{
+	exp_proc_remove();
+	kmem_cache_destroy(nf_ct_expect_cachep);
+}

@@ -961,12 +961,12 @@ void nf_conntrack_cleanup(void)
 	rcu_assign_pointer(nf_ct_destroy, NULL);
 
 	kmem_cache_destroy(nf_conntrack_cachep);
-	kmem_cache_destroy(nf_ct_expect_cachep);
 	nf_ct_free_hashtable(nf_conntrack_hash, nf_conntrack_vmalloc,
 			     nf_conntrack_htable_size);
 
 	nf_conntrack_proto_fini();
 	nf_conntrack_helper_fini();
+	nf_conntrack_expect_fini();
 }
 
 struct hlist_head *nf_ct_alloc_hashtable(int *sizep, int *vmalloced)
@@ -1088,21 +1088,17 @@ int __init nf_conntrack_init(void)
 		goto err_free_hash;
 	}
 
-	nf_ct_expect_cachep = kmem_cache_create("nf_conntrack_expect",
-					sizeof(struct nf_conntrack_expect),
-					0, 0, NULL, NULL);
-	if (!nf_ct_expect_cachep) {
-		printk(KERN_ERR "Unable to create nf_expect slab cache\n");
-		goto err_free_conntrack_slab;
-	}
-
 	ret = nf_conntrack_proto_init();
 	if (ret < 0)
-		goto out_free_expect_slab;
+		goto err_free_conntrack_slab;
+
+	ret = nf_conntrack_expect_init();
+	if (ret < 0)
+		goto out_fini_proto;
 
 	ret = nf_conntrack_helper_init();
 	if (ret < 0)
-		goto out_fini_proto;
+		goto out_fini_expect;
 
 	/* For use by REJECT target */
 	rcu_assign_pointer(ip_ct_attach, __nf_conntrack_attach);
@@ -1116,10 +1112,10 @@ int __init nf_conntrack_init(void)
 
 	return ret;
 
+out_fini_expect:
+	nf_conntrack_expect_fini();
 out_fini_proto:
 	nf_conntrack_proto_fini();
-out_free_expect_slab:
-	kmem_cache_destroy(nf_ct_expect_cachep);
 err_free_conntrack_slab:
 	kmem_cache_destroy(nf_conntrack_cachep);
 err_free_hash:

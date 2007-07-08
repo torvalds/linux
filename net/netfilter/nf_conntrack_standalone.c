@@ -411,7 +411,7 @@ EXPORT_SYMBOL_GPL(nf_ct_log_invalid);
 static int __init nf_conntrack_standalone_init(void)
 {
 #ifdef CONFIG_PROC_FS
-	struct proc_dir_entry *proc, *proc_exp, *proc_stat;
+	struct proc_dir_entry *proc, *proc_stat;
 #endif
 	int ret = 0;
 
@@ -423,13 +423,9 @@ static int __init nf_conntrack_standalone_init(void)
 	proc = proc_net_fops_create("nf_conntrack", 0440, &ct_file_ops);
 	if (!proc) goto cleanup_init;
 
-	proc_exp = proc_net_fops_create("nf_conntrack_expect", 0440,
-					&exp_file_ops);
-	if (!proc_exp) goto cleanup_proc;
-
 	proc_stat = create_proc_entry("nf_conntrack", S_IRUGO, proc_net_stat);
 	if (!proc_stat)
-		goto cleanup_proc_exp;
+		goto cleanup_proc;
 
 	proc_stat->proc_fops = &ct_cpu_seq_fops;
 	proc_stat->owner = THIS_MODULE;
@@ -449,8 +445,6 @@ static int __init nf_conntrack_standalone_init(void)
 #endif
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("nf_conntrack", proc_net_stat);
- cleanup_proc_exp:
-	proc_net_remove("nf_conntrack_expect");
  cleanup_proc:
 	proc_net_remove("nf_conntrack");
  cleanup_init:
@@ -466,7 +460,6 @@ static void __exit nf_conntrack_standalone_fini(void)
 #endif
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("nf_conntrack", proc_net_stat);
-	proc_net_remove("nf_conntrack_expect");
 	proc_net_remove("nf_conntrack");
 #endif /* CNFIG_PROC_FS */
 	nf_conntrack_cleanup();

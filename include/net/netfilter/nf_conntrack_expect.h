@@ -7,8 +7,6 @@
 #include <net/netfilter/nf_conntrack.h>
 
 extern struct list_head nf_ct_expect_list;
-extern struct kmem_cache *nf_ct_expect_cachep;
-extern const struct file_operations exp_file_ops;
 
 struct nf_conntrack_expect
 {
@@ -53,6 +51,8 @@ struct nf_conntrack_expect
 
 #define NF_CT_EXPECT_PERMANENT 0x1
 
+int nf_conntrack_expect_init(void);
+void nf_conntrack_expect_fini(void);
 
 struct nf_conntrack_expect *
 __nf_ct_expect_find(const struct nf_conntrack_tuple *tuple);
