@@ -623,7 +623,7 @@ static void nf_nat_move_storage(struct nf_conn *conntrack, void *old)
 	write_unlock_bh(&nf_nat_lock);
 }
 
-struct nf_ct_ext_type nat_extend = {
+static struct nf_ct_ext_type nat_extend __read_mostly = {
 	.len		= sizeof(struct nf_conn_nat),
 	.align		= __alignof__(struct nf_conn_nat),
 	.destroy	= nf_nat_cleanup_conntrack,
