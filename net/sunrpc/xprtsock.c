@@ -1502,12 +1502,12 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 	.print_stats		= xs_tcp_print_stats,
 };
 
-static struct rpc_xprt *xs_setup_xprt(struct sockaddr *addr, size_t addrlen, unsigned int slot_table_size)
+static struct rpc_xprt *xs_setup_xprt(struct rpc_xprtsock_create *args, unsigned int slot_table_size)
 {
 	struct rpc_xprt *xprt;
 	struct sock_xprt *new;
 
-	if (addrlen > sizeof(xprt->addr)) {
+	if (args->addrlen > sizeof(xprt->addr)) {
 		dprintk("RPC:       xs_setup_xprt: address too large\n");
 		return ERR_PTR(-EBADF);
 	}
@@ -1529,8 +1529,8 @@ static struct rpc_xprt *xs_setup_xprt(struct sockaddr *addr, size_t addrlen, uns
 		return ERR_PTR(-ENOMEM);
 	}
 
-	memcpy(&xprt->addr, addr, addrlen);
-	xprt->addrlen = addrlen;
+	memcpy(&xprt->addr, args->dstaddr, args->addrlen);
+	xprt->addrlen = args->addrlen;
 	new->port = xs_get_random_port();
 
 	return xprt;
@@ -1538,22 +1538,20 @@ static struct rpc_xprt *xs_setup_xprt(struct sockaddr *addr, size_t addrlen, uns
 
 /**
  * xs_setup_udp - Set up transport to use a UDP socket
- * @addr: address of remote server
- * @addrlen: length of address in bytes
- * @to:   timeout parameters
+ * @args: rpc transport creation arguments
  *
  */
-struct rpc_xprt *xs_setup_udp(struct sockaddr *addr, size_t addrlen, struct rpc_timeout *to)
+struct rpc_xprt *xs_setup_udp(struct rpc_xprtsock_create *args)
 {
 	struct rpc_xprt *xprt;
 	struct sock_xprt *transport;
 
-	xprt = xs_setup_xprt(addr, addrlen, xprt_udp_slot_table_entries);
+	xprt = xs_setup_xprt(args, xprt_udp_slot_table_entries);
 	if (IS_ERR(xprt))
 		return xprt;
 	transport = container_of(xprt, struct sock_xprt, xprt);
 
-	if (ntohs(((struct sockaddr_in *)addr)->sin_port) != 0)
+	if (ntohs(((struct sockaddr_in *)args->dstaddr)->sin_port) != 0)
 		xprt_set_bound(xprt);
 
 	xprt->prot = IPPROTO_UDP;
@@ -1569,8 +1567,8 @@ struct rpc_xprt *xs_setup_udp(struct sockaddr *addr, size_t addrlen, struct rpc_
 
 	xprt->ops = &xs_udp_ops;
 
-	if (to)
-		xprt->timeout = *to;
+	if (args->timeout)
+		xprt->timeout = *args->timeout;
 	else
 		xprt_set_timeout(&xprt->timeout, 5, 5 * HZ);
 
@@ -1583,22 +1581,20 @@ struct rpc_xprt *xs_setup_udp(struct sockaddr *addr, size_t addrlen, struct rpc_
 
 /**
  * xs_setup_tcp - Set up transport to use a TCP socket
- * @addr: address of remote server
- * @addrlen: length of address in bytes
- * @to: timeout parameters
+ * @args: rpc transport creation arguments
  *
  */
-struct rpc_xprt *xs_setup_tcp(struct sockaddr *addr, size_t addrlen, struct rpc_timeout *to)
+struct rpc_xprt *xs_setup_tcp(struct rpc_xprtsock_create *args)
 {
 	struct rpc_xprt *xprt;
 	struct sock_xprt *transport;
 
-	xprt = xs_setup_xprt(addr, addrlen, xprt_tcp_slot_table_entries);
+	xprt = xs_setup_xprt(args, xprt_tcp_slot_table_entries);
 	if (IS_ERR(xprt))
 		return xprt;
 	transport = container_of(xprt, struct sock_xprt, xprt);
 
-	if (ntohs(((struct sockaddr_in *)addr)->sin_port) != 0)
+	if (ntohs(((struct sockaddr_in *)args->dstaddr)->sin_port) != 0)
 		xprt_set_bound(xprt);
 
 	xprt->prot = IPPROTO_TCP;
@@ -1613,8 +1609,8 @@ struct rpc_xprt *xs_setup_tcp(struct sockaddr *addr, size_t addrlen, struct rpc_
 
 	xprt->ops = &xs_tcp_ops;
 
-	if (to)
-		xprt->timeout = *to;
+	if (args->timeout)
+		xprt->timeout = *args->timeout;
 	else
 		xprt_set_timeout(&xprt->timeout, 2, 60 * HZ);
 

@@ -234,10 +234,15 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 {
 	struct rpc_xprt *xprt;
 	struct rpc_clnt *clnt;
+	struct rpc_xprtsock_create xprtargs = {
+		.proto = args->protocol,
+		.dstaddr = args->address,
+		.addrlen = args->addrsize,
+		.timeout = args->timeout
+	};
 	char servername[20];
 
-	xprt = xprt_create_transport(args->protocol, args->address,
-					args->addrsize, args->timeout);
+	xprt = xprt_create_transport(&xprtargs);
 	if (IS_ERR(xprt))
 		return (struct rpc_clnt *)xprt;
 
