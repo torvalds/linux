@@ -1323,7 +1323,9 @@ bnx2_setup_serdes_phy(struct bnx2 *bp)
 }
 
 #define ETHTOOL_ALL_FIBRE_SPEED						\
-	(ADVERTISED_1000baseT_Full)
+	(bp->phy_flags & PHY_2_5G_CAPABLE_FLAG) ?			\
+		(ADVERTISED_2500baseX_Full | ADVERTISED_1000baseT_Full) :\
+		(ADVERTISED_1000baseT_Full)
 
 #define ETHTOOL_ALL_COPPER_SPEED					\
 	(ADVERTISED_10baseT_Half | ADVERTISED_10baseT_Full |		\
@@ -1334,6 +1336,27 @@ bnx2_setup_serdes_phy(struct bnx2 *bp)
 	ADVERTISE_100HALF | ADVERTISE_100FULL | ADVERTISE_CSMA)
 
 #define PHY_ALL_1000_SPEED (ADVERTISE_1000HALF | ADVERTISE_1000FULL)
+
+static void
+bnx2_set_default_link(struct bnx2 *bp)
+{
+	bp->autoneg = AUTONEG_SPEED | AUTONEG_FLOW_CTRL;
+	bp->req_line_speed = 0;
+	if (bp->phy_flags & PHY_SERDES_FLAG) {
+		u32 reg;
+
+		bp->advertising = ETHTOOL_ALL_FIBRE_SPEED | ADVERTISED_Autoneg;
+
+		reg = REG_RD_IND(bp, bp->shmem_base + BNX2_PORT_HW_CFG_CONFIG);
+		reg &= BNX2_PORT_HW_CFG_CFG_DFLT_LINK_MASK;
+		if (reg == BNX2_PORT_HW_CFG_CFG_DFLT_LINK_1G) {
+			bp->autoneg = 0;
+			bp->req_line_speed = bp->line_speed = SPEED_1000;
+			bp->req_duplex = DUPLEX_FULL;
+		}
+	} else
+		bp->advertising = ETHTOOL_ALL_COPPER_SPEED | ADVERTISED_Autoneg;
+}
 
 static int
 bnx2_setup_copper_phy(struct bnx2 *bp)
@@ -6374,23 +6397,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		}
 	}
 
-	bp->autoneg = AUTONEG_SPEED | AUTONEG_FLOW_CTRL;
-	bp->req_line_speed = 0;
-	if (bp->phy_flags & PHY_SERDES_FLAG) {
-		bp->advertising = ETHTOOL_ALL_FIBRE_SPEED | ADVERTISED_Autoneg;
-
-		reg = REG_RD_IND(bp, bp->shmem_base + BNX2_PORT_HW_CFG_CONFIG);
-		reg &= BNX2_PORT_HW_CFG_CFG_DFLT_LINK_MASK;
-		if (reg == BNX2_PORT_HW_CFG_CFG_DFLT_LINK_1G) {
-			bp->autoneg = 0;
-			bp->req_line_speed = bp->line_speed = SPEED_1000;
-			bp->req_duplex = DUPLEX_FULL;
-		}
-	}
-	else {
-		bp->advertising = ETHTOOL_ALL_COPPER_SPEED | ADVERTISED_Autoneg;
-	}
-
+	bnx2_set_default_link(bp);
 	bp->req_flow_ctrl = FLOW_CTRL_RX | FLOW_CTRL_TX;
 
 	init_timer(&bp->timer);
