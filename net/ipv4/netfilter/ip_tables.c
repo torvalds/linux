@@ -204,6 +204,112 @@ get_entry(void *base, unsigned int offset)
 	return (struct ipt_entry *)(base + offset);
 }
 
+/* All zeroes == unconditional rule. */
+static inline int
+unconditional(const struct ipt_ip *ip)
+{
+	unsigned int i;
+
+	for (i = 0; i < sizeof(*ip)/sizeof(__u32); i++)
+		if (((__u32 *)ip)[i])
+			return 0;
+
+	return 1;
+}
+
+#if defined(CONFIG_NETFILTER_XT_TARGET_TRACE) || \
+    defined(CONFIG_NETFILTER_XT_TARGET_TRACE_MODULE)
+static const char *hooknames[] = {
+	[NF_IP_PRE_ROUTING]		= "PREROUTING",
+	[NF_IP_LOCAL_IN]		= "INPUT",
+	[NF_IP_FORWARD]			= "FORWARD",
+	[NF_IP_LOCAL_OUT]		= "OUTPUT",
+	[NF_IP_POST_ROUTING]		= "POSTROUTING",
+};
+
+enum nf_ip_trace_comments {
+	NF_IP_TRACE_COMMENT_RULE,
+	NF_IP_TRACE_COMMENT_RETURN,
+	NF_IP_TRACE_COMMENT_POLICY,
+};
+
+static const char *comments[] = {
+	[NF_IP_TRACE_COMMENT_RULE]	= "rule",
+	[NF_IP_TRACE_COMMENT_RETURN]	= "return",
+	[NF_IP_TRACE_COMMENT_POLICY]	= "policy",
+};
+
+static struct nf_loginfo trace_loginfo = {
+	.type = NF_LOG_TYPE_LOG,
+	.u = {
+		.log = {
+			.level = 4,
+			.logflags = NF_LOG_MASK,
+		},
+	},
+};
+
+static inline int
+get_chainname_rulenum(struct ipt_entry *s, struct ipt_entry *e,
+		      char *hookname, char **chainname,
+		      char **comment, unsigned int *rulenum)
+{
+	struct ipt_standard_target *t = (void *)ipt_get_target(s);
+
+	if (strcmp(t->target.u.kernel.target->name, IPT_ERROR_TARGET) == 0) {
+		/* Head of user chain: ERROR target with chainname */
+		*chainname = t->target.data;
+		(*rulenum) = 0;
+	} else if (s == e) {
+		(*rulenum)++;
+
+		if (s->target_offset == sizeof(struct ipt_entry)
+		   && strcmp(t->target.u.kernel.target->name,
+			     IPT_STANDARD_TARGET) == 0
+		   && t->verdict < 0
+		   && unconditional(&s->ip)) {
+			/* Tail of chains: STANDARD target (return/policy) */
+			*comment = *chainname == hookname
+				? (char *)comments[NF_IP_TRACE_COMMENT_POLICY]
+				: (char *)comments[NF_IP_TRACE_COMMENT_RETURN];
+		}
+		return 1;
+	} else
+		(*rulenum)++;
+
+	return 0;
+}
+
+static void trace_packet(struct sk_buff *skb,
+			 unsigned int hook,
+			 const struct net_device *in,
+			 const struct net_device *out,
+			 char *tablename,
+			 struct xt_table_info *private,
+			 struct ipt_entry *e)
+{
+	void *table_base;
+	struct ipt_entry *root;
+	char *hookname, *chainname, *comment;
+	unsigned int rulenum = 0;
+
+	table_base = (void *)private->entries[smp_processor_id()];
+	root = get_entry(table_base, private->hook_entry[hook]);
+
+	hookname = chainname = (char *)hooknames[hook];
+	comment = (char *)comments[NF_IP_TRACE_COMMENT_RULE];
+
+	IPT_ENTRY_ITERATE(root,
+			  private->size - private->hook_entry[hook],
+			  get_chainname_rulenum,
+			  e, hookname, &chainname, &comment, &rulenum);
+
+	nf_log_packet(AF_INET, hook, skb, in, out, &trace_loginfo,
+		      "TRACE: %s:%s:%s:%u ",
+		      tablename, chainname, comment, rulenum);
+}
+#endif
+
 /* Returns one of the generic firewall policies, like NF_ACCEPT. */
 unsigned int
 ipt_do_table(struct sk_buff **pskb,
@@ -261,6 +367,14 @@ ipt_do_table(struct sk_buff **pskb,
 
 			t = ipt_get_target(e);
 			IP_NF_ASSERT(t->u.kernel.target);
+
+#if defined(CONFIG_NETFILTER_XT_TARGET_TRACE) || \
+    defined(CONFIG_NETFILTER_XT_TARGET_TRACE_MODULE)
+			/* The packet is traced: log it */
+			if (unlikely((*pskb)->nf_trace))
+				trace_packet(*pskb, hook, in, out,
+					     table->name, private, e);
+#endif
 			/* Standard target? */
 			if (!t->u.kernel.target->target) {
 				int v;
@@ -339,19 +453,6 @@ ipt_do_table(struct sk_buff **pskb,
 		return NF_DROP;
 	else return verdict;
 #endif
-}
-
-/* All zeroes == unconditional rule. */
-static inline int
-unconditional(const struct ipt_ip *ip)
-{
-	unsigned int i;
-
-	for (i = 0; i < sizeof(*ip)/sizeof(__u32); i++)
-		if (((__u32 *)ip)[i])
-			return 0;
-
-	return 1;
 }
 
 /* Figures out from what hook each rule can be called: returns 0 if
