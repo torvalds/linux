@@ -51,12 +51,30 @@ struct nf_nat_multi_range_compat
 
 #ifdef __KERNEL__
 #include <linux/list.h>
+#include <linux/netfilter/nf_conntrack_pptp.h>
 
 /* The structure embedded in the conntrack structure. */
 struct nf_nat_info
 {
 	struct list_head bysource;
 	struct nf_nat_seq seq[IP_CT_DIR_MAX];
+};
+
+/* per conntrack: nat application helper private data */
+union nf_conntrack_nat_help
+{
+	/* insert nat helper private data here */
+	struct nf_nat_pptp nat_pptp_info;
+};
+
+struct nf_conn_nat
+{
+	struct nf_nat_info info;
+	union nf_conntrack_nat_help help;
+#if defined(CONFIG_IP_NF_TARGET_MASQUERADE) || \
+    defined(CONFIG_IP_NF_TARGET_MASQUERADE_MODULE)
+	int masq_index;
+#endif
 };
 
 struct nf_conn;

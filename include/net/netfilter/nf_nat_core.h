@@ -2,6 +2,7 @@
 #define _NF_NAT_CORE_H
 #include <linux/list.h>
 #include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_nat.h>
 
 /* This header used to share core functionality between the standalone
    NAT module, and the compatibility layer's use of NAT for masquerading. */

@@ -280,6 +280,7 @@ nf_conntrack_unregister_cache(u_int32_t features);
  * nat: nf_conn .. nf_conn_nat, nf_conn .. nf_conn_nat .. nf_conn help
  */
 #ifdef CONFIG_NF_NAT_NEEDED
+#include <net/netfilter/nf_nat.h>
 static inline struct nf_conn_nat *nfct_nat(const struct nf_conn *ct)
 {
 	unsigned int offset = sizeof(struct nf_conn);
