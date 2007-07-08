@@ -20,6 +20,31 @@ private data which gets freed when the network device is freed. If
 separately allocated data is attached to the network device
 (dev->priv) then it is up to the module exit handler to free that.
 
+MTU
+===
+Each network device has a Maximum Transfer Unit. The MTU does not
+include any link layer protocol overhead. Upper layer protocols must
+not pass a socket buffer (skb) to a device to transmit with more data
+than the mtu. The MTU does not include link layer header overhead, so
+for example on Ethernet if the standard MTU is 1500 bytes used, the
+actual skb will contain up to 1514 bytes because of the Ethernet
+header. Devices should allow for the 4 byte VLAN header as well.
+
+Segmentation Offload (GSO, TSO) is an exception to this rule.  The
+upper layer protocol may pass a large socket buffer to the device
+transmit routine, and the device will break that up into separate
+packets based on the current MTU.
+
+MTU is symmetrical and applies both to receive and transmit. A device
+must be able to receive at least the maximum size packet allowed by
+the MTU. A network device may use the MTU as mechanism to size receive
+buffers, but the device should allow packets with VLAN header. With
+standard Ethernet mtu of 1500 bytes, the device should allow up to
+1518 byte packets (1500 + 14 header + 4 tag).  The device may either:
+drop, truncate, or pass up oversize packets, but dropping oversize
+packets is preferred.
+
+
 struct net_device synchronization rules
 =======================================
 dev->open:
