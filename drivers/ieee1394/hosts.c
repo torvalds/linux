@@ -154,6 +154,7 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 
 	memcpy(&h->device, &nodemgr_dev_template_host, sizeof(h->device));
 	h->device.parent = dev;
+	set_dev_node(&h->device, dev_to_node(dev));
 	snprintf(h->device.bus_id, BUS_ID_SIZE, "fw-host%d", h->id);
 
 	h->host_dev.parent = &h->device;
