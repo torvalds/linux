@@ -397,23 +397,7 @@ checkentry(const char *tablename,
 	/* FIXME: further sanity checks */
 
 	config = clusterip_config_find_get(e->ip.dst.s_addr, 1);
-	if (config) {
-		if (cipinfo->config != NULL) {
-			/* Case A: This is an entry that gets reloaded, since
-			 * it still has a cipinfo->config pointer. Simply
-			 * increase the entry refcount and return */
-			if (cipinfo->config != config) {
-				printk(KERN_ERR "CLUSTERIP: Reloaded entry "
-				       "has invalid config pointer!\n");
-				return false;
-			}
-		} else {
-			/* Case B: This is a new rule referring to an existing
-			 * clusterip config. */
-			cipinfo->config = config;
-		}
-	} else {
-		/* Case C: This is a completely new clusterip config */
+	if (!config) {
 		if (!(cipinfo->flags & CLUSTERIP_FLAG_NEW)) {
 			printk(KERN_WARNING "CLUSTERIP: no config found for %u.%u.%u.%u, need 'new'\n", NIPQUAD(e->ip.dst.s_addr));
 			return false;
@@ -440,8 +424,8 @@ checkentry(const char *tablename,
 			}
 			dev_mc_add(config->dev,config->clustermac, ETH_ALEN, 0);
 		}
-		cipinfo->config = config;
 	}
+	cipinfo->config = config;
 
 	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
@@ -466,13 +450,30 @@ static void destroy(const struct xt_target *target, void *targinfo)
 	nf_ct_l3proto_module_put(target->family);
 }
 
+#ifdef CONFIG_COMPAT
+struct compat_ipt_clusterip_tgt_info
+{
+	u_int32_t	flags;
+	u_int8_t	clustermac[6];
+	u_int16_t	num_total_nodes;
+	u_int16_t	num_local_nodes;
+	u_int16_t	local_nodes[CLUSTERIP_MAX_NODES];
+	u_int32_t	hash_mode;
+	u_int32_t	hash_initval;
+	compat_uptr_t	config;
+};
+#endif /* CONFIG_COMPAT */
+
 static struct xt_target clusterip_tgt __read_mostly = {
 	.name		= "CLUSTERIP",
 	.family		= AF_INET,
 	.target		= target,
-	.targetsize	= sizeof(struct ipt_clusterip_tgt_info),
 	.checkentry	= checkentry,
 	.destroy	= destroy,
+	.targetsize	= sizeof(struct ipt_clusterip_tgt_info),
+#ifdef CONFIG_COMPAT
+	.compatsize	= sizeof(struct compat_ipt_clusterip_tgt_info),
+#endif /* CONFIG_COMPAT */
 	.me		= THIS_MODULE
 };
 
