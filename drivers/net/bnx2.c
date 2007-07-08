@@ -604,12 +604,21 @@ bnx2_report_fw_link(struct bnx2 *bp)
 	REG_WR_IND(bp, bp->shmem_base + BNX2_LINK_STATUS, fw_link_status);
 }
 
+static char *
+bnx2_xceiver_str(struct bnx2 *bp)
+{
+	return ((bp->phy_port == PORT_FIBRE) ? "SerDes" :
+		((bp->phy_flags & PHY_SERDES_FLAG) ? "Remote Copper" :
+		 "Copper"));
+}
+
 static void
 bnx2_report_link(struct bnx2 *bp)
 {
 	if (bp->link_up) {
 		netif_carrier_on(bp->dev);
-		printk(KERN_INFO PFX "%s NIC Link is Up, ", bp->dev->name);
+		printk(KERN_INFO PFX "%s NIC %s Link is Up, ", bp->dev->name,
+		       bnx2_xceiver_str(bp));
 
 		printk("%d Mbps ", bp->line_speed);
 
@@ -633,7 +642,8 @@ bnx2_report_link(struct bnx2 *bp)
 	}
 	else {
 		netif_carrier_off(bp->dev);
-		printk(KERN_ERR PFX "%s NIC Link is Down\n", bp->dev->name);
+		printk(KERN_ERR PFX "%s NIC %s Link is Down\n", bp->dev->name,
+		       bnx2_xceiver_str(bp));
 	}
 
 	bnx2_report_fw_link(bp);
