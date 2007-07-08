@@ -78,9 +78,9 @@ match(const struct sk_buff *skb,
 	DEBUGP("SPI %u %08X\n", ntohl(ah->spi), ntohl(ah->spi));
 
 	DEBUGP("IPv6 AH spi %02X ",
-	       (spi_match(ahinfo->spis[0], ahinfo->spis[1],
-			  ntohl(ah->spi),
-			  !!(ahinfo->invflags & IP6T_AH_INV_SPI))));
+	       spi_match(ahinfo->spis[0], ahinfo->spis[1],
+			 ntohl(ah->spi),
+			 !!(ahinfo->invflags & IP6T_AH_INV_SPI)));
 	DEBUGP("len %02X %04X %02X ",
 	       ahinfo->hdrlen, hdrlen,
 	       (!ahinfo->hdrlen ||
@@ -92,9 +92,9 @@ match(const struct sk_buff *skb,
 
 	return (ah != NULL)
 	       &&
-	       (spi_match(ahinfo->spis[0], ahinfo->spis[1],
-			  ntohl(ah->spi),
-			  !!(ahinfo->invflags & IP6T_AH_INV_SPI)))
+	       spi_match(ahinfo->spis[0], ahinfo->spis[1],
+			 ntohl(ah->spi),
+			 !!(ahinfo->invflags & IP6T_AH_INV_SPI))
 	       &&
 	       (!ahinfo->hdrlen ||
 		(ahinfo->hdrlen == hdrlen) ^

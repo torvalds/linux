@@ -122,9 +122,8 @@ __clusterip_config_find(__be32 clusterip)
 	list_for_each(pos, &clusterip_configs) {
 		struct clusterip_config *c = list_entry(pos,
 					struct clusterip_config, list);
-		if (c->clusterip == clusterip) {
+		if (c->clusterip == clusterip)
 			return c;
-		}
 	}
 
 	return NULL;
@@ -155,9 +154,8 @@ clusterip_config_init_nodelist(struct clusterip_config *c,
 {
 	int n;
 
-	for (n = 0; n < i->num_local_nodes; n++) {
+	for (n = 0; n < i->num_local_nodes; n++)
 		set_bit(i->local_nodes[n] - 1, &c->local_nodes);
-	}
 }
 
 static struct clusterip_config *
@@ -255,10 +253,9 @@ clusterip_hashfn(const struct sk_buff *skb,
 		dport = ports[1];
 		break;
 	default:
-		if (net_ratelimit()) {
+		if (net_ratelimit())
 			printk(KERN_NOTICE "CLUSTERIP: unknown protocol `%u'\n",
 				iph->protocol);
-		}
 		sport = dport = 0;
 	}
 
@@ -286,7 +283,7 @@ clusterip_hashfn(const struct sk_buff *skb,
 	}
 
 	/* node numbers are 1..n, not 0..n */
-	return ((hashval % config->num_total_nodes)+1);
+	return (hashval % config->num_total_nodes) + 1;
 }
 
 static inline int

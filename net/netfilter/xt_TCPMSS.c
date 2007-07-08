@@ -93,7 +93,7 @@ tcpmss_mangle_packet(struct sk_buff **pskb,
 				return 0;
 
 			opt[i+2] = (newmss & 0xff00) >> 8;
-			opt[i+3] = (newmss & 0x00ff);
+			opt[i+3] = newmss & 0x00ff;
 
 			nf_proto_csum_replace2(&tcph->check, *pskb,
 					       htons(oldmss), htons(newmss), 0);
@@ -126,7 +126,7 @@ tcpmss_mangle_packet(struct sk_buff **pskb,
 	opt[0] = TCPOPT_MSS;
 	opt[1] = TCPOLEN_MSS;
 	opt[2] = (newmss & 0xff00) >> 8;
-	opt[3] = (newmss & 0x00ff);
+	opt[3] = newmss & 0x00ff;
 
 	nf_proto_csum_replace4(&tcph->check, *pskb, 0, *((__be32 *)opt), 0);
 

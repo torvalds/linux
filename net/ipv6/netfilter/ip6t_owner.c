@@ -38,17 +38,15 @@ match(const struct sk_buff *skb,
 	if (!skb->sk || !skb->sk->sk_socket || !skb->sk->sk_socket->file)
 		return false;
 
-	if (info->match & IP6T_OWNER_UID) {
+	if (info->match & IP6T_OWNER_UID)
 		if ((skb->sk->sk_socket->file->f_uid != info->uid) ^
 		    !!(info->invert & IP6T_OWNER_UID))
 			return false;
-	}
 
-	if (info->match & IP6T_OWNER_GID) {
+	if (info->match & IP6T_OWNER_GID)
 		if ((skb->sk->sk_socket->file->f_gid != info->gid) ^
 		    !!(info->invert & IP6T_OWNER_GID))
 			return false;
-	}
 
 	return true;
 }

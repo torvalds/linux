@@ -77,35 +77,35 @@ match(const struct sk_buff *skb,
 	       ntohl(fh->identification));
 
 	DEBUGP("IPv6 FRAG id %02X ",
-	       (id_match(fraginfo->ids[0], fraginfo->ids[1],
+	       id_match(fraginfo->ids[0], fraginfo->ids[1],
 			 ntohl(fh->identification),
-			 !!(fraginfo->invflags & IP6T_FRAG_INV_IDS))));
+			 !!(fraginfo->invflags & IP6T_FRAG_INV_IDS)));
 	DEBUGP("res %02X %02X%04X %02X ",
-	       (fraginfo->flags & IP6T_FRAG_RES), fh->reserved,
+	       fraginfo->flags & IP6T_FRAG_RES, fh->reserved,
 	       ntohs(fh->frag_off) & 0x6,
 	       !((fraginfo->flags & IP6T_FRAG_RES)
 		 && (fh->reserved || (ntohs(fh->frag_off) & 0x06))));
 	DEBUGP("first %02X %02X %02X ",
-	       (fraginfo->flags & IP6T_FRAG_FST),
+	       fraginfo->flags & IP6T_FRAG_FST,
 	       ntohs(fh->frag_off) & ~0x7,
 	       !((fraginfo->flags & IP6T_FRAG_FST)
 		 && (ntohs(fh->frag_off) & ~0x7)));
 	DEBUGP("mf %02X %02X %02X ",
-	       (fraginfo->flags & IP6T_FRAG_MF),
+	       fraginfo->flags & IP6T_FRAG_MF,
 	       ntohs(fh->frag_off) & IP6_MF,
 	       !((fraginfo->flags & IP6T_FRAG_MF)
 		 && !((ntohs(fh->frag_off) & IP6_MF))));
 	DEBUGP("last %02X %02X %02X\n",
-	       (fraginfo->flags & IP6T_FRAG_NMF),
+	       fraginfo->flags & IP6T_FRAG_NMF,
 	       ntohs(fh->frag_off) & IP6_MF,
 	       !((fraginfo->flags & IP6T_FRAG_NMF)
 		 && (ntohs(fh->frag_off) & IP6_MF)));
 
 	return (fh != NULL)
 	       &&
-	       (id_match(fraginfo->ids[0], fraginfo->ids[1],
-			 ntohl(fh->identification),
-			 !!(fraginfo->invflags & IP6T_FRAG_INV_IDS)))
+	       id_match(fraginfo->ids[0], fraginfo->ids[1],
+			ntohl(fh->identification),
+			!!(fraginfo->invflags & IP6T_FRAG_INV_IDS))
 	       &&
 	       !((fraginfo->flags & IP6T_FRAG_RES)
 		 && (fh->reserved || (ntohs(fh->frag_off) & 0x6)))

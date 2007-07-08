@@ -47,8 +47,8 @@ match6(const struct sk_buff *skb,
        bool *hotdrop)
 {
 	const struct xt_length_info *info = matchinfo;
-	const u_int16_t pktlen = (ntohs(ipv6_hdr(skb)->payload_len) +
-				  sizeof(struct ipv6hdr));
+	const u_int16_t pktlen = ntohs(ipv6_hdr(skb)->payload_len) +
+				 sizeof(struct ipv6hdr);
 
 	return (pktlen >= info->min && pktlen <= info->max) ^ info->invert;
 }

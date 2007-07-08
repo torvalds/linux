@@ -34,9 +34,9 @@ static bool match(const struct sk_buff *skb,
 	const struct xt_pkttype_info *info = matchinfo;
 
 	if (skb->pkt_type == PACKET_LOOPBACK)
-		type = (MULTICAST(ip_hdr(skb)->daddr)
+		type = MULTICAST(ip_hdr(skb)->daddr)
 			? PACKET_MULTICAST
-			: PACKET_BROADCAST);
+			: PACKET_BROADCAST;
 	else
 		type = skb->pkt_type;
 

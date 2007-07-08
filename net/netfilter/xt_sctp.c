@@ -31,11 +31,9 @@ match_flags(const struct xt_sctp_flag_info *flag_info,
 {
 	int i;
 
-	for (i = 0; i < flag_count; i++) {
-		if (flag_info[i].chunktype == chunktype) {
+	for (i = 0; i < flag_count; i++)
+		if (flag_info[i].chunktype == chunktype)
 			return (chunkflags & flag_info[i].flag_mask) == flag_info[i].flag;
-		}
-	}
 
 	return true;
 }
@@ -56,9 +54,8 @@ match_packet(const struct sk_buff *skb,
 	int i = 0;
 #endif
 
-	if (chunk_match_type == SCTP_CHUNK_MATCH_ALL) {
+	if (chunk_match_type == SCTP_CHUNK_MATCH_ALL)
 		SCTP_CHUNKMAP_COPY(chunkmapcopy, chunkmap);
-	}
 
 	do {
 		sch = skb_header_pointer(skb, offset, sizeof(_sch), &_sch);
@@ -86,16 +83,14 @@ match_packet(const struct sk_buff *skb,
 
 			case SCTP_CHUNK_MATCH_ALL:
 				if (match_flags(flag_info, flag_count,
-					sch->type, sch->flags)) {
+				    sch->type, sch->flags))
 					SCTP_CHUNKMAP_CLEAR(chunkmapcopy, sch->type);
-				}
 				break;
 
 			case SCTP_CHUNK_MATCH_ONLY:
 				if (!match_flags(flag_info, flag_count,
-					sch->type, sch->flags)) {
+				    sch->type, sch->flags))
 					return false;
-				}
 				break;
 			}
 		} else {
@@ -145,11 +140,11 @@ match(const struct sk_buff *skb,
 	}
 	duprintf("spt: %d\tdpt: %d\n", ntohs(sh->source), ntohs(sh->dest));
 
-	return  SCCHECK(((ntohs(sh->source) >= info->spts[0])
-			&& (ntohs(sh->source) <= info->spts[1])),
+	return  SCCHECK(ntohs(sh->source) >= info->spts[0]
+			&& ntohs(sh->source) <= info->spts[1],
 			XT_SCTP_SRC_PORTS, info->flags, info->invflags)
-		&& SCCHECK(((ntohs(sh->dest) >= info->dpts[0])
-			&& (ntohs(sh->dest) <= info->dpts[1])),
+		&& SCCHECK(ntohs(sh->dest) >= info->dpts[0]
+			&& ntohs(sh->dest) <= info->dpts[1],
 			XT_SCTP_DEST_PORTS, info->flags, info->invflags)
 		&& SCCHECK(match_packet(skb, protoff + sizeof (sctp_sctphdr_t),
 					info->chunkmap, info->chunk_match_type,

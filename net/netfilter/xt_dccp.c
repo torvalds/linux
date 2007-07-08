@@ -81,7 +81,7 @@ dccp_find_option(u_int8_t option,
 static inline bool
 match_types(const struct dccp_hdr *dh, u_int16_t typemask)
 {
-	return (typemask & (1 << dh->dccph_type));
+	return typemask & (1 << dh->dccph_type);
 }
 
 static inline bool
@@ -113,11 +113,11 @@ match(const struct sk_buff *skb,
 		return false;
 	}
 
-	return  DCCHECK(((ntohs(dh->dccph_sport) >= info->spts[0])
-			&& (ntohs(dh->dccph_sport) <= info->spts[1])),
+	return  DCCHECK(ntohs(dh->dccph_sport) >= info->spts[0]
+			&& ntohs(dh->dccph_sport) <= info->spts[1],
 			XT_DCCP_SRC_PORTS, info->flags, info->invflags)
-		&& DCCHECK(((ntohs(dh->dccph_dport) >= info->dpts[0])
-			&& (ntohs(dh->dccph_dport) <= info->dpts[1])),
+		&& DCCHECK(ntohs(dh->dccph_dport) >= info->dpts[0]
+			&& ntohs(dh->dccph_dport) <= info->dpts[1],
 			XT_DCCP_DEST_PORTS, info->flags, info->invflags)
 		&& DCCHECK(match_types(dh, info->typemask),
 			   XT_DCCP_TYPE, info->flags, info->invflags)

@@ -71,7 +71,7 @@ static bool ip6t_hl_checkentry(const char *tablename,
 			info->mode);
 		return false;
 	}
-	if ((info->mode != IP6T_HL_SET) && (info->hop_limit == 0)) {
+	if (info->mode != IP6T_HL_SET && info->hop_limit == 0) {
 		printk(KERN_WARNING "ip6t_HL: increment/decrement doesn't "
 			"make sense with value 0\n");
 		return false;

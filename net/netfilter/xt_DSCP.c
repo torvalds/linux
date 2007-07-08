@@ -74,7 +74,7 @@ static bool checkentry(const char *tablename,
 {
 	const u_int8_t dscp = ((struct xt_DSCP_info *)targinfo)->dscp;
 
-	if ((dscp > XT_DSCP_MAX)) {
+	if (dscp > XT_DSCP_MAX) {
 		printk(KERN_WARNING "DSCP: dscp %x out of range\n", dscp);
 		return false;
 	}

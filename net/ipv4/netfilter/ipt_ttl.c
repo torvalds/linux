@@ -28,17 +28,13 @@ static bool match(const struct sk_buff *skb,
 
 	switch (info->mode) {
 		case IPT_TTL_EQ:
-			return (ttl == info->ttl);
-			break;
+			return ttl == info->ttl;
 		case IPT_TTL_NE:
-			return (!(ttl == info->ttl));
-			break;
+			return ttl != info->ttl;
 		case IPT_TTL_LT:
-			return (ttl < info->ttl);
-			break;
+			return ttl < info->ttl;
 		case IPT_TTL_GT:
-			return (ttl > info->ttl);
-			break;
+			return ttl > info->ttl;
 		default:
 			printk(KERN_WARNING "ipt_ttl: unknown mode %d\n",
 				info->mode);

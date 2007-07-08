@@ -163,10 +163,9 @@ static void recent_table_flush(struct recent_table *t)
 	struct recent_entry *e, *next;
 	unsigned int i;
 
-	for (i = 0; i < ip_list_hash_size; i++) {
+	for (i = 0; i < ip_list_hash_size; i++)
 		list_for_each_entry_safe(e, next, &t->iphash[i], list)
 			recent_entry_remove(t, e);
-	}
 }
 
 static bool
@@ -329,12 +328,10 @@ static void *recent_seq_start(struct seq_file *seq, loff_t *pos)
 
 	spin_lock_bh(&recent_lock);
 
-	for (st->bucket = 0; st->bucket < ip_list_hash_size; st->bucket++) {
-		list_for_each_entry(e, &t->iphash[st->bucket], list) {
+	for (st->bucket = 0; st->bucket < ip_list_hash_size; st->bucket++)
+		list_for_each_entry(e, &t->iphash[st->bucket], list)
 			if (p-- == 0)
 				return e;
-		}
-	}
 	return NULL;
 }
 

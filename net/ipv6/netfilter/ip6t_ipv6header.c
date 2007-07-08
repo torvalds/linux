@@ -74,9 +74,9 @@ ipv6header_match(const struct sk_buff *skb,
 		BUG_ON(hp == NULL);
 
 		/* Calculate the header length */
-		if (nexthdr == NEXTHDR_FRAGMENT) {
+		if (nexthdr == NEXTHDR_FRAGMENT)
 			hdrlen = 8;
-		} else if (nexthdr == NEXTHDR_AUTH)
+		else if (nexthdr == NEXTHDR_AUTH)
 			hdrlen = (hp->hdrlen + 2) << 2;
 		else
 			hdrlen = ipv6_optlen(hp);
@@ -110,7 +110,7 @@ ipv6header_match(const struct sk_buff *skb,
 			break;
 	}
 
-	if ((nexthdr != NEXTHDR_NONE) && (nexthdr != NEXTHDR_ESP))
+	if (nexthdr != NEXTHDR_NONE && nexthdr != NEXTHDR_ESP)
 		temp |= MASK_PROTO;
 
 	if (info->modeflag)

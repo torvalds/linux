@@ -239,7 +239,7 @@ static bool select_all(const struct xt_hashlimit_htable *ht,
 static bool select_gc(const struct xt_hashlimit_htable *ht,
 		      const struct dsthash_ent *he)
 {
-	return (jiffies >= he->expires);
+	return jiffies >= he->expires;
 }
 
 static void htable_selective_cleanup(struct xt_hashlimit_htable *ht,

@@ -179,12 +179,10 @@ static void ipt_ulog_packet(unsigned int hooknum,
 	unsigned int groupnum = ffs(loginfo->nl_group) - 1;
 
 	/* calculate the size of the skb needed */
-	if ((loginfo->copy_range == 0) ||
-	    (loginfo->copy_range > skb->len)) {
+	if (loginfo->copy_range == 0 || loginfo->copy_range > skb->len)
 		copy_len = skb->len;
-	} else {
+	else
 		copy_len = loginfo->copy_range;
-	}
 
 	size = NLMSG_SPACE(sizeof(*pm) + copy_len);
 
@@ -257,9 +255,8 @@ static void ipt_ulog_packet(unsigned int hooknum,
 		BUG();
 
 	/* check if we are building multi-part messages */
-	if (ub->qlen > 1) {
+	if (ub->qlen > 1)
 		ub->lastnlh->nlmsg_flags |= NLM_F_MULTI;
-	}
 
 	ub->lastnlh = nlh;
 

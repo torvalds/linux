@@ -87,9 +87,9 @@ match(const struct sk_buff *skb,
 	DEBUGP("SGS_LEFT %u %02X\n", rh->segments_left, rh->segments_left);
 
 	DEBUGP("IPv6 RT segsleft %02X ",
-	       (segsleft_match(rtinfo->segsleft[0], rtinfo->segsleft[1],
-			       rh->segments_left,
-			       !!(rtinfo->invflags & IP6T_RT_INV_SGS))));
+	       segsleft_match(rtinfo->segsleft[0], rtinfo->segsleft[1],
+			      rh->segments_left,
+			      !!(rtinfo->invflags & IP6T_RT_INV_SGS)));
 	DEBUGP("type %02X %02X %02X ",
 	       rtinfo->rt_type, rh->type,
 	       (!(rtinfo->flags & IP6T_RT_TYP) ||
@@ -97,11 +97,11 @@ match(const struct sk_buff *skb,
 		 !!(rtinfo->invflags & IP6T_RT_INV_TYP))));
 	DEBUGP("len %02X %04X %02X ",
 	       rtinfo->hdrlen, hdrlen,
-	       (!(rtinfo->flags & IP6T_RT_LEN) ||
+	       !(rtinfo->flags & IP6T_RT_LEN) ||
 		((rtinfo->hdrlen == hdrlen) ^
-		 !!(rtinfo->invflags & IP6T_RT_INV_LEN))));
+		 !!(rtinfo->invflags & IP6T_RT_INV_LEN)));
 	DEBUGP("res %02X %02X %02X ",
-	       (rtinfo->flags & IP6T_RT_RES),
+	       rtinfo->flags & IP6T_RT_RES,
 	       ((const struct rt0_hdr *)rh)->reserved,
 	       !((rtinfo->flags & IP6T_RT_RES) &&
 		 (((const struct rt0_hdr *)rh)->reserved)));
@@ -188,8 +188,8 @@ match(const struct sk_buff *skb,
 					break;
 			}
 			DEBUGP("temp=%d #%d\n", temp, rtinfo->addrnr);
-			if ((temp == rtinfo->addrnr) &&
-			    (temp == (unsigned int)((hdrlen - 8) / 16)))
+			if (temp == rtinfo->addrnr &&
+			    temp == (unsigned int)((hdrlen - 8) / 16))
 				return ret;
 			else
 				return false;

@@ -58,8 +58,8 @@ set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 
 	if ((!(einfo->operation & IPT_ECN_OP_SET_ECE) ||
 	     tcph->ece == einfo->proto.tcp.ece) &&
-	    ((!(einfo->operation & IPT_ECN_OP_SET_CWR) ||
-	     tcph->cwr == einfo->proto.tcp.cwr)))
+	    (!(einfo->operation & IPT_ECN_OP_SET_CWR) ||
+	     tcph->cwr == einfo->proto.tcp.cwr))
 		return true;
 
 	if (!skb_make_writable(pskb, ip_hdrlen(*pskb) + sizeof(*tcph)))

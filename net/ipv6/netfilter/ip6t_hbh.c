@@ -160,7 +160,7 @@ match(const struct sk_buff *skb,
 			DEBUGP("len%04X \n", optlen);
 
 			if ((ptr > skb->len - optlen || hdrlen < optlen) &&
-			    (temp < optinfo->optsnr - 1)) {
+			    temp < optinfo->optsnr - 1) {
 				DEBUGP("new pointer is too large! \n");
 				break;
 			}

@@ -75,7 +75,7 @@ static bool ipt_ttl_checkentry(const char *tablename,
 			info->mode);
 		return false;
 	}
-	if ((info->mode != IPT_TTL_SET) && (info->ttl == 0))
+	if (info->mode != IPT_TTL_SET && info->ttl == 0)
 		return false;
 	return true;
 }

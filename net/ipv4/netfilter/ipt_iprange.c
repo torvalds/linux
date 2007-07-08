@@ -35,8 +35,8 @@ match(const struct sk_buff *skb,
 	const struct iphdr *iph = ip_hdr(skb);
 
 	if (info->flags & IPRANGE_SRC) {
-		if (((ntohl(iph->saddr) < ntohl(info->src.min_ip))
-			  || (ntohl(iph->saddr) > ntohl(info->src.max_ip)))
+		if ((ntohl(iph->saddr) < ntohl(info->src.min_ip)
+			  || ntohl(iph->saddr) > ntohl(info->src.max_ip))
 			 ^ !!(info->flags & IPRANGE_SRC_INV)) {
 			DEBUGP("src IP %u.%u.%u.%u NOT in range %s"
 			       "%u.%u.%u.%u-%u.%u.%u.%u\n",
@@ -48,8 +48,8 @@ match(const struct sk_buff *skb,
 		}
 	}
 	if (info->flags & IPRANGE_DST) {
-		if (((ntohl(iph->daddr) < ntohl(info->dst.min_ip))
-			  || (ntohl(iph->daddr) > ntohl(info->dst.max_ip)))
+		if ((ntohl(iph->daddr) < ntohl(info->dst.min_ip)
+			  || ntohl(iph->daddr) > ntohl(info->dst.max_ip))
 			 ^ !!(info->flags & IPRANGE_DST_INV)) {
 			DEBUGP("dst IP %u.%u.%u.%u NOT in range %s"
 			       "%u.%u.%u.%u-%u.%u.%u.%u\n",

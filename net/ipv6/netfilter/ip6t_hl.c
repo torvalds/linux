@@ -29,16 +29,16 @@ static bool match(const struct sk_buff *skb,
 
 	switch (info->mode) {
 		case IP6T_HL_EQ:
-			return (ip6h->hop_limit == info->hop_limit);
+			return ip6h->hop_limit == info->hop_limit;
 			break;
 		case IP6T_HL_NE:
-			return (!(ip6h->hop_limit == info->hop_limit));
+			return ip6h->hop_limit != info->hop_limit;
 			break;
 		case IP6T_HL_LT:
-			return (ip6h->hop_limit < info->hop_limit);
+			return ip6h->hop_limit < info->hop_limit;
 			break;
 		case IP6T_HL_GT:
-			return (ip6h->hop_limit > info->hop_limit);
+			return ip6h->hop_limit > info->hop_limit;
 			break;
 		default:
 			printk(KERN_WARNING "ip6t_hl: unknown mode %d\n",

@@ -48,7 +48,7 @@ match(const struct sk_buff *skb,
 	if (!ct)
 		return false;
 
-	return (((ct->mark) & info->mask) == info->mark) ^ info->invert;
+	return ((ct->mark & info->mask) == info->mark) ^ info->invert;
 }
 
 static bool

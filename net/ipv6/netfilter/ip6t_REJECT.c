@@ -69,7 +69,7 @@ static void send_reset(struct sk_buff *oldskb)
 	otcplen = oldskb->len - tcphoff;
 
 	/* IP header checks: fragment, too short. */
-	if ((proto != IPPROTO_TCP) || (otcplen < sizeof(struct tcphdr))) {
+	if (proto != IPPROTO_TCP || otcplen < sizeof(struct tcphdr)) {
 		DEBUGP("ip6t_REJECT: proto(%d) != IPPROTO_TCP, or too short. otcplen = %d\n",
 			proto, otcplen);
 		return;
