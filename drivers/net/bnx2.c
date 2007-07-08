@@ -2547,6 +2547,7 @@ bnx2_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *dev = dev_instance;
 	struct bnx2 *bp = netdev_priv(dev);
+	struct status_block *sblk = bp->status_blk;
 
 	/* When using INTx, it is possible for the interrupt to arrive
 	 * at the CPU before the status block posted prior to the
@@ -2554,7 +2555,7 @@ bnx2_interrupt(int irq, void *dev_instance)
 	 * When using MSI, the MSI message will always complete after
 	 * the status block write.
 	 */
-	if ((bp->status_blk->status_idx == bp->last_status_idx) &&
+	if ((sblk->status_idx == bp->last_status_idx) &&
 	    (REG_RD(bp, BNX2_PCICFG_MISC_STATUS) &
 	     BNX2_PCICFG_MISC_STATUS_INTA_VALUE))
 		return IRQ_NONE;
@@ -2563,11 +2564,19 @@ bnx2_interrupt(int irq, void *dev_instance)
 		BNX2_PCICFG_INT_ACK_CMD_USE_INT_HC_PARAM |
 		BNX2_PCICFG_INT_ACK_CMD_MASK_INT);
 
+	/* Read back to deassert IRQ immediately to avoid too many
+	 * spurious interrupts.
+	 */
+	REG_RD(bp, BNX2_PCICFG_INT_ACK_CMD);
+
 	/* Return here if interrupt is shared and is disabled. */
 	if (unlikely(atomic_read(&bp->intr_sem) != 0))
 		return IRQ_HANDLED;
 
-	netif_rx_schedule(dev);
+	if (netif_rx_schedule_prep(dev)) {
+		bp->last_status_idx = sblk->status_idx;
+		__netif_rx_schedule(dev);
+	}
 
 	return IRQ_HANDLED;
 }
