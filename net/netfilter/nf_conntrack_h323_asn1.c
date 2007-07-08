@@ -555,15 +555,6 @@ int decode_seq(bitstr_t * bs, field_t * f, char *base, int level)
 
 	/* Decode the extension components */
 	for (opt = 0; opt < bmp2_len; opt++, i++, son++) {
-		if (i < f->ub && son->attr & STOP) {
-			PRINT("%*.s%s\n", (level + 1) * TAB_SIZE, " ",
-			      son->name);
-			return H323_ERROR_STOP;
-		}
-
-		if (!((0x80000000 >> opt) & bmp2))	/* Not present */
-			continue;
-
 		/* Check Range */
 		if (i >= f->ub) {	/* Newer Version? */
 			CHECK_BOUND(bs, 2);
@@ -572,6 +563,15 @@ int decode_seq(bitstr_t * bs, field_t * f, char *base, int level)
 			bs->cur += len;
 			continue;
 		}
+
+		if (son->attr & STOP) {
+			PRINT("%*.s%s\n", (level + 1) * TAB_SIZE, " ",
+			      son->name);
+			return H323_ERROR_STOP;
+		}
+
+		if (!((0x80000000 >> opt) & bmp2))	/* Not present */
+			continue;
 
 		CHECK_BOUND(bs, 2);
 		len = get_len(bs);
