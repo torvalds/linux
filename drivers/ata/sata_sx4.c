@@ -279,7 +279,7 @@ static const struct ata_port_info pdc_port_info[] = {
 				  ATA_FLAG_NO_ATAPI | ATA_FLAG_PIO_POLLING,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &pdc_20621_ops,
 	},
 

@@ -330,14 +330,14 @@ static const struct ata_port_info ahci_port_info[] = {
 	{
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= 0x1f, /* pio0-4 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
 	/* board_ahci_pi */
 	{
 		.flags		= AHCI_FLAG_COMMON | AHCI_FLAG_HONOR_PI,
 		.pio_mask	= 0x1f, /* pio0-4 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
 	/* board_ahci_vt8251 */
@@ -345,14 +345,14 @@ static const struct ata_port_info ahci_port_info[] = {
 		.flags		= AHCI_FLAG_COMMON | ATA_FLAG_HRST_TO_RESUME |
 				  AHCI_FLAG_NO_NCQ,
 		.pio_mask	= 0x1f, /* pio0-4 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_vt8251_ops,
 	},
 	/* board_ahci_ign_iferr */
 	{
 		.flags		= AHCI_FLAG_COMMON | AHCI_FLAG_IGN_IRQ_IF_ERR,
 		.pio_mask	= 0x1f, /* pio0-4 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
 	/* board_ahci_sb600 */
@@ -361,7 +361,7 @@ static const struct ata_port_info ahci_port_info[] = {
 				  AHCI_FLAG_IGN_SERR_INTERNAL |
 				  AHCI_FLAG_32BIT_ONLY,
 		.pio_mask	= 0x1f, /* pio0-4 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
 };

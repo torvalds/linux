@@ -250,7 +250,7 @@ static const struct ata_port_info pdc_port_info[] = {
 				  PDC_FLAG_SATA_PATA,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &pdc_old_sata_ops,
 	},
 
@@ -259,7 +259,7 @@ static const struct ata_port_info pdc_port_info[] = {
 		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &pdc_pata_ops,
 	},
 
@@ -269,7 +269,7 @@ static const struct ata_port_info pdc_port_info[] = {
 				  PDC_FLAG_4_PORTS,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &pdc_old_sata_ops,
 	},
 
@@ -279,7 +279,7 @@ static const struct ata_port_info pdc_port_info[] = {
 				  PDC_FLAG_4_PORTS,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &pdc_pata_ops,
 	},
 
@@ -289,7 +289,7 @@ static const struct ata_port_info pdc_port_info[] = {
 				  PDC_FLAG_GEN_II | PDC_FLAG_SATA_PATA,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &pdc_sata_ops,
 	},
 
@@ -299,7 +299,7 @@ static const struct ata_port_info pdc_port_info[] = {
 				  PDC_FLAG_GEN_II,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &pdc_pata_ops,
 	},
 
@@ -309,7 +309,7 @@ static const struct ata_port_info pdc_port_info[] = {
 				  PDC_FLAG_GEN_II | PDC_FLAG_4_PORTS,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
-		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &pdc_sata_ops,
 	},
 };
