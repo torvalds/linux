@@ -574,8 +574,8 @@ static void nfs4_open_confirm_done(struct rpc_task *task, void *calldata)
 				sizeof(data->o_res.stateid.data));
 		renew_lease(data->o_res.server, data->timestamp);
 	}
-	nfs_increment_open_seqid(data->rpc_status, data->c_arg.seqid);
 	nfs_confirm_seqid(&data->owner->so_seqid, data->rpc_status);
+	nfs_increment_open_seqid(data->rpc_status, data->c_arg.seqid);
 }
 
 static void nfs4_open_confirm_release(void *calldata)
@@ -674,6 +674,8 @@ static void nfs4_open_done(struct rpc_task *task, void *calldata)
 				data->rpc_status = -ENOTDIR;
 		}
 		renew_lease(data->o_res.server, data->timestamp);
+		if (!(data->o_res.rflags & NFS4_OPEN_RESULT_CONFIRM))
+			nfs_confirm_seqid(&data->owner->so_seqid, 0);
 	}
 	nfs_increment_open_seqid(data->rpc_status, data->o_arg.seqid);
 }
@@ -748,7 +750,6 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 		if (status != 0)
 			return status;
 	}
-	nfs_confirm_seqid(&data->owner->so_seqid, 0);
 	if (!(o_res->f_attr->valid & NFS_ATTR_FATTR))
 		return server->nfs_client->rpc_ops->getattr(server, &o_res->fh, o_res->f_attr);
 	return 0;
