@@ -364,6 +364,7 @@ static int help(struct sk_buff **pskb,
 	unsigned int matchlen, matchoff;
 	struct nf_ct_ftp_master *ct_ftp_info = &nfct_help(ct)->help.ct_ftp_info;
 	struct nf_conntrack_expect *exp;
+	union nf_conntrack_address *daddr;
 	struct nf_conntrack_man cmd = {};
 	unsigned int i;
 	int found = 0, ends_in_nl;
@@ -454,7 +455,7 @@ static int help(struct sk_buff **pskb,
 	/* We refer to the reverse direction ("!dir") tuples here,
 	 * because we're expecting something in the other direction.
 	 * Doesn't matter unless NAT is happening.  */
-	exp->tuple.dst.u3 = ct->tuplehash[!dir].tuple.dst.u3;
+	daddr = &ct->tuplehash[!dir].tuple.dst.u3;
 
 	/* Update the ftp info */
 	if ((cmd.l3num == ct->tuplehash[dir].tuple.src.l3num) &&
@@ -483,37 +484,12 @@ static int help(struct sk_buff **pskb,
 			ret = NF_ACCEPT;
 			goto out_put_expect;
 		}
-		memcpy(&exp->tuple.dst.u3, &cmd.u3.all,
-		       sizeof(exp->tuple.dst.u3));
+		daddr = &cmd.u3;
 	}
 
-	exp->tuple.src.u3 = ct->tuplehash[!dir].tuple.src.u3;
-	exp->tuple.src.l3num = cmd.l3num;
-	exp->tuple.src.u.tcp.port = 0;
-	exp->tuple.dst.u.tcp.port = cmd.u.tcp.port;
-	exp->tuple.dst.protonum = IPPROTO_TCP;
-
-	exp->mask = (struct nf_conntrack_tuple)
-		    { .src = { .l3num = 0xFFFF,
-			       .u = { .tcp = { 0 }},
-			     },
-		      .dst = { .protonum = 0xFF,
-			       .u = { .tcp = { __constant_htons(0xFFFF) }},
-			     },
-		    };
-	if (cmd.l3num == PF_INET) {
-		exp->mask.src.u3.ip = htonl(0xFFFFFFFF);
-		exp->mask.dst.u3.ip = htonl(0xFFFFFFFF);
-	} else {
-		memset(exp->mask.src.u3.ip6, 0xFF,
-		       sizeof(exp->mask.src.u3.ip6));
-		memset(exp->mask.dst.u3.ip6, 0xFF,
-		       sizeof(exp->mask.src.u3.ip6));
-	}
-
-	exp->expectfn = NULL;
-	exp->helper = NULL;
-	exp->flags = 0;
+	nf_ct_expect_init(exp, cmd.l3num,
+			  &ct->tuplehash[!dir].tuple.src.u3, daddr,
+			  IPPROTO_TCP, NULL, &cmd.u.tcp.port);
 
 	/* Now, NAT might want to mangle the packet, and register the
 	 * (possibly changed) expectation itself. */
