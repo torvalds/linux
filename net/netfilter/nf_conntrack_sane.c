@@ -141,27 +141,25 @@ static int help(struct sk_buff **pskb,
 	if (reply->zero != 0)
 		goto out;
 
-	exp = nf_conntrack_expect_alloc(ct);
+	exp = nf_ct_expect_alloc(ct);
 	if (exp == NULL) {
 		ret = NF_DROP;
 		goto out;
 	}
 
 	tuple = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
-	nf_conntrack_expect_init(exp, family,
-				 &tuple->src.u3, &tuple->dst.u3,
-				 IPPROTO_TCP,
-				 NULL, &reply->port);
+	nf_ct_expect_init(exp, family, &tuple->src.u3, &tuple->dst.u3,
+			  IPPROTO_TCP, NULL, &reply->port);
 
 	DEBUGP("nf_ct_sane: expect: ");
 	NF_CT_DUMP_TUPLE(&exp->tuple);
 	NF_CT_DUMP_TUPLE(&exp->mask);
 
 	/* Can't expect this?  Best to drop packet now. */
-	if (nf_conntrack_expect_related(exp) != 0)
+	if (nf_ct_expect_related(exp) != 0)
 		ret = NF_DROP;
 
-	nf_conntrack_expect_put(exp);
+	nf_ct_expect_put(exp);
 
 out:
 	spin_unlock_bh(&nf_sane_lock);

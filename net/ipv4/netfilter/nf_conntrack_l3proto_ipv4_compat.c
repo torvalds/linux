@@ -209,7 +209,7 @@ static const struct file_operations ct_file_ops = {
 /* expects */
 static void *exp_seq_start(struct seq_file *s, loff_t *pos)
 {
-	struct list_head *e = &nf_conntrack_expect_list;
+	struct list_head *e = &nf_ct_expect_list;
 	loff_t i;
 
 	/* strange seq_file api calls stop even if we fail,
@@ -221,7 +221,7 @@ static void *exp_seq_start(struct seq_file *s, loff_t *pos)
 
 	for (i = 0; i <= *pos; i++) {
 		e = e->next;
-		if (e == &nf_conntrack_expect_list)
+		if (e == &nf_ct_expect_list)
 			return NULL;
 	}
 	return e;
@@ -234,7 +234,7 @@ static void *exp_seq_next(struct seq_file *s, void *v, loff_t *pos)
 	++*pos;
 	e = e->next;
 
-	if (e == &nf_conntrack_expect_list)
+	if (e == &nf_ct_expect_list)
 		return NULL;
 
 	return e;

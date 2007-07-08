@@ -123,12 +123,12 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 	list_del(&me->list);
 
 	/* Get rid of expectations */
-	list_for_each_entry_safe(exp, tmp, &nf_conntrack_expect_list, list) {
+	list_for_each_entry_safe(exp, tmp, &nf_ct_expect_list, list) {
 		struct nf_conn_help *help = nfct_help(exp->master);
 		if ((help->helper == me || exp->helper == me) &&
 		    del_timer(&exp->timeout)) {
 			nf_ct_unlink_expect(exp);
-			nf_conntrack_expect_put(exp);
+			nf_ct_expect_put(exp);
 		}
 	}
 

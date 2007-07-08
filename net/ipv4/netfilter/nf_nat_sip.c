@@ -278,7 +278,7 @@ static unsigned int ip_nat_sdp(struct sk_buff **pskb,
 	/* Try to get same port: if not, try to change it. */
 	for (port = ntohs(exp->saved_proto.udp.port); port != 0; port++) {
 		exp->tuple.dst.u.udp.port = htons(port);
-		if (nf_conntrack_expect_related(exp) == 0)
+		if (nf_ct_expect_related(exp) == 0)
 			break;
 	}
 
@@ -286,7 +286,7 @@ static unsigned int ip_nat_sdp(struct sk_buff **pskb,
 		return NF_DROP;
 
 	if (!mangle_sdp(pskb, ctinfo, ct, newip, port, dptr)) {
-		nf_conntrack_unexpect_related(exp);
+		nf_ct_unexpect_related(exp);
 		return NF_DROP;
 	}
 	return NF_ACCEPT;

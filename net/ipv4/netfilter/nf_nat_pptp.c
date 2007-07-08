@@ -81,10 +81,10 @@ static void pptp_nat_expected(struct nf_conn *ct,
 
 	DEBUGP("trying to unexpect other dir: ");
 	NF_CT_DUMP_TUPLE(&t);
-	other_exp = nf_conntrack_expect_find_get(&t);
+	other_exp = nf_ct_expect_find_get(&t);
 	if (other_exp) {
-		nf_conntrack_unexpect_related(other_exp);
-		nf_conntrack_expect_put(other_exp);
+		nf_ct_unexpect_related(other_exp);
+		nf_ct_expect_put(other_exp);
 		DEBUGP("success\n");
 	} else {
 		DEBUGP("not found!\n");

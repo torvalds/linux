@@ -494,7 +494,7 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 	}
 
 	write_lock_bh(&nf_conntrack_lock);
-	exp = find_expectation(tuple);
+	exp = nf_ct_find_expectation(tuple);
 	if (exp) {
 		DEBUGP("conntrack: expectation arrives ct=%p exp=%p\n",
 			conntrack, exp);
@@ -544,7 +544,7 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 	if (exp) {
 		if (exp->expectfn)
 			exp->expectfn(conntrack, exp);
-		nf_conntrack_expect_put(exp);
+		nf_ct_expect_put(exp);
 	}
 
 	return &conntrack->tuplehash[IP_CT_DIR_ORIGINAL];
@@ -961,7 +961,7 @@ void nf_conntrack_cleanup(void)
 	rcu_assign_pointer(nf_ct_destroy, NULL);
 
 	kmem_cache_destroy(nf_conntrack_cachep);
-	kmem_cache_destroy(nf_conntrack_expect_cachep);
+	kmem_cache_destroy(nf_ct_expect_cachep);
 	nf_ct_free_hashtable(nf_conntrack_hash, nf_conntrack_vmalloc,
 			     nf_conntrack_htable_size);
 
@@ -1088,10 +1088,10 @@ int __init nf_conntrack_init(void)
 		goto err_free_hash;
 	}
 
-	nf_conntrack_expect_cachep = kmem_cache_create("nf_conntrack_expect",
+	nf_ct_expect_cachep = kmem_cache_create("nf_conntrack_expect",
 					sizeof(struct nf_conntrack_expect),
 					0, 0, NULL, NULL);
-	if (!nf_conntrack_expect_cachep) {
+	if (!nf_ct_expect_cachep) {
 		printk(KERN_ERR "Unable to create nf_expect slab cache\n");
 		goto err_free_conntrack_slab;
 	}
@@ -1119,7 +1119,7 @@ int __init nf_conntrack_init(void)
 out_fini_proto:
 	nf_conntrack_proto_fini();
 out_free_expect_slab:
-	kmem_cache_destroy(nf_conntrack_expect_cachep);
+	kmem_cache_destroy(nf_ct_expect_cachep);
 err_free_conntrack_slab:
 	kmem_cache_destroy(nf_conntrack_cachep);
 err_free_hash:

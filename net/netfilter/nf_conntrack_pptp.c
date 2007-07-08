@@ -124,12 +124,12 @@ static void pptp_expectfn(struct nf_conn *ct,
 		DEBUGP("trying to unexpect other dir: ");
 		NF_CT_DUMP_TUPLE(&inv_t);
 
-		exp_other = nf_conntrack_expect_find_get(&inv_t);
+		exp_other = nf_ct_expect_find_get(&inv_t);
 		if (exp_other) {
 			/* delete other expectation.  */
 			DEBUGP("found\n");
-			nf_conntrack_unexpect_related(exp_other);
-			nf_conntrack_expect_put(exp_other);
+			nf_ct_unexpect_related(exp_other);
+			nf_ct_expect_put(exp_other);
 		} else {
 			DEBUGP("not found\n");
 		}
@@ -157,11 +157,11 @@ static int destroy_sibling_or_exp(const struct nf_conntrack_tuple *t)
 		nf_ct_put(sibling);
 		return 1;
 	} else {
-		exp = nf_conntrack_expect_find_get(t);
+		exp = nf_ct_expect_find_get(t);
 		if (exp) {
 			DEBUGP("unexpect_related of expect %p\n", exp);
-			nf_conntrack_unexpect_related(exp);
-			nf_conntrack_expect_put(exp);
+			nf_ct_unexpect_related(exp);
+			nf_ct_expect_put(exp);
 			return 1;
 		}
 	}
@@ -201,36 +201,36 @@ static int exp_gre(struct nf_conn *ct, __be16 callid, __be16 peer_callid)
 	int ret = 1;
 	typeof(nf_nat_pptp_hook_exp_gre) nf_nat_pptp_exp_gre;
 
-	exp_orig = nf_conntrack_expect_alloc(ct);
+	exp_orig = nf_ct_expect_alloc(ct);
 	if (exp_orig == NULL)
 		goto out;
 
-	exp_reply = nf_conntrack_expect_alloc(ct);
+	exp_reply = nf_ct_expect_alloc(ct);
 	if (exp_reply == NULL)
 		goto out_put_orig;
 
 	/* original direction, PNS->PAC */
 	dir = IP_CT_DIR_ORIGINAL;
-	nf_conntrack_expect_init(exp_orig, ct->tuplehash[dir].tuple.src.l3num,
-				 &ct->tuplehash[dir].tuple.src.u3,
-				 &ct->tuplehash[dir].tuple.dst.u3,
-				 IPPROTO_GRE, &peer_callid, &callid);
+	nf_ct_expect_init(exp_orig, ct->tuplehash[dir].tuple.src.l3num,
+			  &ct->tuplehash[dir].tuple.src.u3,
+			  &ct->tuplehash[dir].tuple.dst.u3,
+			  IPPROTO_GRE, &peer_callid, &callid);
 	exp_orig->expectfn = pptp_expectfn;
 
 	/* reply direction, PAC->PNS */
 	dir = IP_CT_DIR_REPLY;
-	nf_conntrack_expect_init(exp_reply, ct->tuplehash[dir].tuple.src.l3num,
-				 &ct->tuplehash[dir].tuple.src.u3,
-				 &ct->tuplehash[dir].tuple.dst.u3,
-				 IPPROTO_GRE, &callid, &peer_callid);
+	nf_ct_expect_init(exp_reply, ct->tuplehash[dir].tuple.src.l3num,
+			  &ct->tuplehash[dir].tuple.src.u3,
+			  &ct->tuplehash[dir].tuple.dst.u3,
+			  IPPROTO_GRE, &callid, &peer_callid);
 	exp_reply->expectfn = pptp_expectfn;
 
 	nf_nat_pptp_exp_gre = rcu_dereference(nf_nat_pptp_hook_exp_gre);
 	if (nf_nat_pptp_exp_gre && ct->status & IPS_NAT_MASK)
 		nf_nat_pptp_exp_gre(exp_orig, exp_reply);
-	if (nf_conntrack_expect_related(exp_orig) != 0)
+	if (nf_ct_expect_related(exp_orig) != 0)
 		goto out_put_both;
-	if (nf_conntrack_expect_related(exp_reply) != 0)
+	if (nf_ct_expect_related(exp_reply) != 0)
 		goto out_unexpect_orig;
 
 	/* Add GRE keymap entries */
@@ -243,16 +243,16 @@ static int exp_gre(struct nf_conn *ct, __be16 callid, __be16 peer_callid)
 	ret = 0;
 
 out_put_both:
-	nf_conntrack_expect_put(exp_reply);
+	nf_ct_expect_put(exp_reply);
 out_put_orig:
-	nf_conntrack_expect_put(exp_orig);
+	nf_ct_expect_put(exp_orig);
 out:
 	return ret;
 
 out_unexpect_both:
-	nf_conntrack_unexpect_related(exp_reply);
+	nf_ct_unexpect_related(exp_reply);
 out_unexpect_orig:
-	nf_conntrack_unexpect_related(exp_orig);
+	nf_ct_unexpect_related(exp_orig);
 	goto out_put_both;
 }
 

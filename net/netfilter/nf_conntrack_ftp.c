@@ -445,7 +445,7 @@ static int help(struct sk_buff **pskb,
 	       (int)matchlen, fb_ptr + matchoff,
 	       matchlen, ntohl(th->seq) + matchoff);
 
-	exp = nf_conntrack_expect_alloc(ct);
+	exp = nf_ct_expect_alloc(ct);
 	if (exp == NULL) {
 		ret = NF_DROP;
 		goto out;
@@ -523,14 +523,14 @@ static int help(struct sk_buff **pskb,
 				 matchoff, matchlen, exp);
 	else {
 		/* Can't expect this?  Best to drop packet now. */
-		if (nf_conntrack_expect_related(exp) != 0)
+		if (nf_ct_expect_related(exp) != 0)
 			ret = NF_DROP;
 		else
 			ret = NF_ACCEPT;
 	}
 
 out_put_expect:
-	nf_conntrack_expect_put(exp);
+	nf_ct_expect_put(exp);
 
 out_update_nl:
 	/* Now if this ends in \n, update ftp info.  Seq may have been

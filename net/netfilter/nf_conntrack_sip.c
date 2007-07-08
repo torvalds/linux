@@ -378,23 +378,23 @@ static int set_expected_rtp(struct sk_buff **pskb,
 	int ret;
 	typeof(nf_nat_sdp_hook) nf_nat_sdp;
 
-	exp = nf_conntrack_expect_alloc(ct);
+	exp = nf_ct_expect_alloc(ct);
 	if (exp == NULL)
 		return NF_DROP;
-	nf_conntrack_expect_init(exp, family,
-				 &ct->tuplehash[!dir].tuple.src.u3, addr,
-				 IPPROTO_UDP, NULL, &port);
+	nf_ct_expect_init(exp, family,
+			  &ct->tuplehash[!dir].tuple.src.u3, addr,
+			  IPPROTO_UDP, NULL, &port);
 
 	nf_nat_sdp = rcu_dereference(nf_nat_sdp_hook);
 	if (nf_nat_sdp && ct->status & IPS_NAT_MASK)
 		ret = nf_nat_sdp(pskb, ctinfo, exp, dptr);
 	else {
-		if (nf_conntrack_expect_related(exp) != 0)
+		if (nf_ct_expect_related(exp) != 0)
 			ret = NF_DROP;
 		else
 			ret = NF_ACCEPT;
 	}
-	nf_conntrack_expect_put(exp);
+	nf_ct_expect_put(exp);
 
 	return ret;
 }

@@ -26,11 +26,11 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
 
-LIST_HEAD(nf_conntrack_expect_list);
-EXPORT_SYMBOL_GPL(nf_conntrack_expect_list);
+LIST_HEAD(nf_ct_expect_list);
+EXPORT_SYMBOL_GPL(nf_ct_expect_list);
 
-struct kmem_cache *nf_conntrack_expect_cachep __read_mostly;
-static unsigned int nf_conntrack_expect_next_id;
+struct kmem_cache *nf_ct_expect_cachep __read_mostly;
+static unsigned int nf_ct_expect_next_id;
 
 /* nf_conntrack_expect helper functions */
 void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
@@ -43,57 +43,57 @@ void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
 	list_del(&exp->list);
 	NF_CT_STAT_INC(expect_delete);
 	master_help->expecting--;
-	nf_conntrack_expect_put(exp);
+	nf_ct_expect_put(exp);
 }
 EXPORT_SYMBOL_GPL(nf_ct_unlink_expect);
 
-static void expectation_timed_out(unsigned long ul_expect)
+static void nf_ct_expectation_timed_out(unsigned long ul_expect)
 {
 	struct nf_conntrack_expect *exp = (void *)ul_expect;
 
 	write_lock_bh(&nf_conntrack_lock);
 	nf_ct_unlink_expect(exp);
 	write_unlock_bh(&nf_conntrack_lock);
-	nf_conntrack_expect_put(exp);
+	nf_ct_expect_put(exp);
 }
 
 struct nf_conntrack_expect *
-__nf_conntrack_expect_find(const struct nf_conntrack_tuple *tuple)
+__nf_ct_expect_find(const struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_expect *i;
 
-	list_for_each_entry(i, &nf_conntrack_expect_list, list) {
+	list_for_each_entry(i, &nf_ct_expect_list, list) {
 		if (nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask))
 			return i;
 	}
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(__nf_conntrack_expect_find);
+EXPORT_SYMBOL_GPL(__nf_ct_expect_find);
 
 /* Just find a expectation corresponding to a tuple. */
 struct nf_conntrack_expect *
-nf_conntrack_expect_find_get(const struct nf_conntrack_tuple *tuple)
+nf_ct_expect_find_get(const struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_expect *i;
 
 	read_lock_bh(&nf_conntrack_lock);
-	i = __nf_conntrack_expect_find(tuple);
+	i = __nf_ct_expect_find(tuple);
 	if (i)
 		atomic_inc(&i->use);
 	read_unlock_bh(&nf_conntrack_lock);
 
 	return i;
 }
-EXPORT_SYMBOL_GPL(nf_conntrack_expect_find_get);
+EXPORT_SYMBOL_GPL(nf_ct_expect_find_get);
 
 /* If an expectation for this connection is found, it gets delete from
  * global list then returned. */
 struct nf_conntrack_expect *
-find_expectation(const struct nf_conntrack_tuple *tuple)
+nf_ct_find_expectation(const struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_expect *exp;
 
-	exp = __nf_conntrack_expect_find(tuple);
+	exp = __nf_ct_expect_find(tuple);
 	if (!exp)
 		return NULL;
 
@@ -126,10 +126,10 @@ void nf_ct_remove_expectations(struct nf_conn *ct)
 	if (!help || help->expecting == 0)
 		return;
 
-	list_for_each_entry_safe(i, tmp, &nf_conntrack_expect_list, list) {
+	list_for_each_entry_safe(i, tmp, &nf_ct_expect_list, list) {
 		if (i->master == ct && del_timer(&i->timeout)) {
 			nf_ct_unlink_expect(i);
-			nf_conntrack_expect_put(i);
+			nf_ct_expect_put(i);
 		}
 	}
 }
@@ -172,32 +172,32 @@ static inline int expect_matches(const struct nf_conntrack_expect *a,
 }
 
 /* Generally a bad idea to call this: could have matched already. */
-void nf_conntrack_unexpect_related(struct nf_conntrack_expect *exp)
+void nf_ct_unexpect_related(struct nf_conntrack_expect *exp)
 {
 	struct nf_conntrack_expect *i;
 
 	write_lock_bh(&nf_conntrack_lock);
 	/* choose the oldest expectation to evict */
-	list_for_each_entry_reverse(i, &nf_conntrack_expect_list, list) {
+	list_for_each_entry_reverse(i, &nf_ct_expect_list, list) {
 		if (expect_matches(i, exp) && del_timer(&i->timeout)) {
 			nf_ct_unlink_expect(i);
 			write_unlock_bh(&nf_conntrack_lock);
-			nf_conntrack_expect_put(i);
+			nf_ct_expect_put(i);
 			return;
 		}
 	}
 	write_unlock_bh(&nf_conntrack_lock);
 }
-EXPORT_SYMBOL_GPL(nf_conntrack_unexpect_related);
+EXPORT_SYMBOL_GPL(nf_ct_unexpect_related);
 
 /* We don't increase the master conntrack refcount for non-fulfilled
  * conntracks. During the conntrack destruction, the expectations are
  * always killed before the conntrack itself */
-struct nf_conntrack_expect *nf_conntrack_expect_alloc(struct nf_conn *me)
+struct nf_conntrack_expect *nf_ct_expect_alloc(struct nf_conn *me)
 {
 	struct nf_conntrack_expect *new;
 
-	new = kmem_cache_alloc(nf_conntrack_expect_cachep, GFP_ATOMIC);
+	new = kmem_cache_alloc(nf_ct_expect_cachep, GFP_ATOMIC);
 	if (!new)
 		return NULL;
 
@@ -205,12 +205,12 @@ struct nf_conntrack_expect *nf_conntrack_expect_alloc(struct nf_conn *me)
 	atomic_set(&new->use, 1);
 	return new;
 }
-EXPORT_SYMBOL_GPL(nf_conntrack_expect_alloc);
+EXPORT_SYMBOL_GPL(nf_ct_expect_alloc);
 
-void nf_conntrack_expect_init(struct nf_conntrack_expect *exp, int family,
-			      union nf_conntrack_address *saddr,
-			      union nf_conntrack_address *daddr,
-			      u_int8_t proto, __be16 *src, __be16 *dst)
+void nf_ct_expect_init(struct nf_conntrack_expect *exp, int family,
+		       union nf_conntrack_address *saddr,
+		       union nf_conntrack_address *daddr,
+		       u_int8_t proto, __be16 *src, __be16 *dst)
 {
 	int len;
 
@@ -273,28 +273,29 @@ void nf_conntrack_expect_init(struct nf_conntrack_expect *exp, int family,
 		exp->mask.dst.u.all = 0;
 	}
 }
-EXPORT_SYMBOL_GPL(nf_conntrack_expect_init);
+EXPORT_SYMBOL_GPL(nf_ct_expect_init);
 
-void nf_conntrack_expect_put(struct nf_conntrack_expect *exp)
+void nf_ct_expect_put(struct nf_conntrack_expect *exp)
 {
 	if (atomic_dec_and_test(&exp->use))
-		kmem_cache_free(nf_conntrack_expect_cachep, exp);
+		kmem_cache_free(nf_ct_expect_cachep, exp);
 }
-EXPORT_SYMBOL_GPL(nf_conntrack_expect_put);
+EXPORT_SYMBOL_GPL(nf_ct_expect_put);
 
-static void nf_conntrack_expect_insert(struct nf_conntrack_expect *exp)
+static void nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 {
 	struct nf_conn_help *master_help = nfct_help(exp->master);
 
 	atomic_inc(&exp->use);
 	master_help->expecting++;
-	list_add(&exp->list, &nf_conntrack_expect_list);
+	list_add(&exp->list, &nf_ct_expect_list);
 
-	setup_timer(&exp->timeout, expectation_timed_out, (unsigned long)exp);
+	setup_timer(&exp->timeout, nf_ct_expectation_timed_out,
+		    (unsigned long)exp);
 	exp->timeout.expires = jiffies + master_help->helper->timeout * HZ;
 	add_timer(&exp->timeout);
 
-	exp->id = ++nf_conntrack_expect_next_id;
+	exp->id = ++nf_ct_expect_next_id;
 	atomic_inc(&exp->use);
 	NF_CT_STAT_INC(expect_create);
 }
@@ -304,11 +305,11 @@ static void evict_oldest_expect(struct nf_conn *master)
 {
 	struct nf_conntrack_expect *i;
 
-	list_for_each_entry_reverse(i, &nf_conntrack_expect_list, list) {
+	list_for_each_entry_reverse(i, &nf_ct_expect_list, list) {
 		if (i->master == master) {
 			if (del_timer(&i->timeout)) {
 				nf_ct_unlink_expect(i);
-				nf_conntrack_expect_put(i);
+				nf_ct_expect_put(i);
 			}
 			break;
 		}
@@ -327,7 +328,7 @@ static inline int refresh_timer(struct nf_conntrack_expect *i)
 	return 1;
 }
 
-int nf_conntrack_expect_related(struct nf_conntrack_expect *expect)
+int nf_ct_expect_related(struct nf_conntrack_expect *expect)
 {
 	struct nf_conntrack_expect *i;
 	struct nf_conn *master = expect->master;
@@ -341,7 +342,7 @@ int nf_conntrack_expect_related(struct nf_conntrack_expect *expect)
 		ret = -ESHUTDOWN;
 		goto out;
 	}
-	list_for_each_entry(i, &nf_conntrack_expect_list, list) {
+	list_for_each_entry(i, &nf_ct_expect_list, list) {
 		if (expect_matches(i, expect)) {
 			/* Refresh timer: if it's dying, ignore.. */
 			if (refresh_timer(i)) {
@@ -358,19 +359,19 @@ int nf_conntrack_expect_related(struct nf_conntrack_expect *expect)
 	    master_help->expecting >= master_help->helper->max_expected)
 		evict_oldest_expect(master);
 
-	nf_conntrack_expect_insert(expect);
-	nf_conntrack_expect_event(IPEXP_NEW, expect);
+	nf_ct_expect_insert(expect);
+	nf_ct_expect_event(IPEXP_NEW, expect);
 	ret = 0;
 out:
 	write_unlock_bh(&nf_conntrack_lock);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nf_conntrack_expect_related);
+EXPORT_SYMBOL_GPL(nf_ct_expect_related);
 
 #ifdef CONFIG_PROC_FS
 static void *exp_seq_start(struct seq_file *s, loff_t *pos)
 {
-	struct list_head *e = &nf_conntrack_expect_list;
+	struct list_head *e = &nf_ct_expect_list;
 	loff_t i;
 
 	/* strange seq_file api calls stop even if we fail,
@@ -382,7 +383,7 @@ static void *exp_seq_start(struct seq_file *s, loff_t *pos)
 
 	for (i = 0; i <= *pos; i++) {
 		e = e->next;
-		if (e == &nf_conntrack_expect_list)
+		if (e == &nf_ct_expect_list)
 			return NULL;
 	}
 	return e;
@@ -395,7 +396,7 @@ static void *exp_seq_next(struct seq_file *s, void *v, loff_t *pos)
 	++*pos;
 	e = e->next;
 
-	if (e == &nf_conntrack_expect_list)
+	if (e == &nf_ct_expect_list)
 		return NULL;
 
 	return e;

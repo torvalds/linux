@@ -282,22 +282,22 @@ static int expect_rtp_rtcp(struct sk_buff **pskb, struct nf_conn *ct,
 	rtcp_port = htons(ntohs(port) + 1);
 
 	/* Create expect for RTP */
-	if ((rtp_exp = nf_conntrack_expect_alloc(ct)) == NULL)
+	if ((rtp_exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_conntrack_expect_init(rtp_exp, ct->tuplehash[!dir].tuple.src.l3num,
-				 &ct->tuplehash[!dir].tuple.src.u3,
-				 &ct->tuplehash[!dir].tuple.dst.u3,
-				 IPPROTO_UDP, NULL, &rtp_port);
+	nf_ct_expect_init(rtp_exp, ct->tuplehash[!dir].tuple.src.l3num,
+			  &ct->tuplehash[!dir].tuple.src.u3,
+			  &ct->tuplehash[!dir].tuple.dst.u3,
+			  IPPROTO_UDP, NULL, &rtp_port);
 
 	/* Create expect for RTCP */
-	if ((rtcp_exp = nf_conntrack_expect_alloc(ct)) == NULL) {
-		nf_conntrack_expect_put(rtp_exp);
+	if ((rtcp_exp = nf_ct_expect_alloc(ct)) == NULL) {
+		nf_ct_expect_put(rtp_exp);
 		return -1;
 	}
-	nf_conntrack_expect_init(rtcp_exp, ct->tuplehash[!dir].tuple.src.l3num,
-				 &ct->tuplehash[!dir].tuple.src.u3,
-				 &ct->tuplehash[!dir].tuple.dst.u3,
-				 IPPROTO_UDP, NULL, &rtcp_port);
+	nf_ct_expect_init(rtcp_exp, ct->tuplehash[!dir].tuple.src.l3num,
+			  &ct->tuplehash[!dir].tuple.src.u3,
+			  &ct->tuplehash[!dir].tuple.dst.u3,
+			  IPPROTO_UDP, NULL, &rtcp_port);
 
 	if (memcmp(&ct->tuplehash[dir].tuple.src.u3,
 		   &ct->tuplehash[!dir].tuple.dst.u3,
@@ -308,22 +308,22 @@ static int expect_rtp_rtcp(struct sk_buff **pskb, struct nf_conn *ct,
 		ret = nat_rtp_rtcp(pskb, ct, ctinfo, data, dataoff,
 				   taddr, port, rtp_port, rtp_exp, rtcp_exp);
 	} else {		/* Conntrack only */
-		if (nf_conntrack_expect_related(rtp_exp) == 0) {
-			if (nf_conntrack_expect_related(rtcp_exp) == 0) {
+		if (nf_ct_expect_related(rtp_exp) == 0) {
+			if (nf_ct_expect_related(rtcp_exp) == 0) {
 				DEBUGP("nf_ct_h323: expect RTP ");
 				NF_CT_DUMP_TUPLE(&rtp_exp->tuple);
 				DEBUGP("nf_ct_h323: expect RTCP ");
 				NF_CT_DUMP_TUPLE(&rtcp_exp->tuple);
 			} else {
-				nf_conntrack_unexpect_related(rtp_exp);
+				nf_ct_unexpect_related(rtp_exp);
 				ret = -1;
 			}
 		} else
 			ret = -1;
 	}
 
-	nf_conntrack_expect_put(rtp_exp);
-	nf_conntrack_expect_put(rtcp_exp);
+	nf_ct_expect_put(rtp_exp);
+	nf_ct_expect_put(rtcp_exp);
 
 	return ret;
 }
@@ -349,12 +349,12 @@ static int expect_t120(struct sk_buff **pskb,
 		return 0;
 
 	/* Create expect for T.120 connections */
-	if ((exp = nf_conntrack_expect_alloc(ct)) == NULL)
+	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_conntrack_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
-				 &ct->tuplehash[!dir].tuple.src.u3,
-				 &ct->tuplehash[!dir].tuple.dst.u3,
-				 IPPROTO_TCP, NULL, &port);
+	nf_ct_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
+			  &ct->tuplehash[!dir].tuple.src.u3,
+			  &ct->tuplehash[!dir].tuple.dst.u3,
+			  IPPROTO_TCP, NULL, &port);
 	exp->flags = NF_CT_EXPECT_PERMANENT;	/* Accept multiple channels */
 
 	if (memcmp(&ct->tuplehash[dir].tuple.src.u3,
@@ -366,14 +366,14 @@ static int expect_t120(struct sk_buff **pskb,
 		ret = nat_t120(pskb, ct, ctinfo, data, dataoff, taddr,
 			       port, exp);
 	} else {		/* Conntrack only */
-		if (nf_conntrack_expect_related(exp) == 0) {
+		if (nf_ct_expect_related(exp) == 0) {
 			DEBUGP("nf_ct_h323: expect T.120 ");
 			NF_CT_DUMP_TUPLE(&exp->tuple);
 		} else
 			ret = -1;
 	}
 
-	nf_conntrack_expect_put(exp);
+	nf_ct_expect_put(exp);
 
 	return ret;
 }
@@ -684,12 +684,12 @@ static int expect_h245(struct sk_buff **pskb, struct nf_conn *ct,
 		return 0;
 
 	/* Create expect for h245 connection */
-	if ((exp = nf_conntrack_expect_alloc(ct)) == NULL)
+	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_conntrack_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
-				 &ct->tuplehash[!dir].tuple.src.u3,
-				 &ct->tuplehash[!dir].tuple.dst.u3,
-				 IPPROTO_TCP, NULL, &port);
+	nf_ct_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
+			  &ct->tuplehash[!dir].tuple.src.u3,
+			  &ct->tuplehash[!dir].tuple.dst.u3,
+			  IPPROTO_TCP, NULL, &port);
 	exp->helper = &nf_conntrack_helper_h245;
 
 	if (memcmp(&ct->tuplehash[dir].tuple.src.u3,
@@ -701,14 +701,14 @@ static int expect_h245(struct sk_buff **pskb, struct nf_conn *ct,
 		ret = nat_h245(pskb, ct, ctinfo, data, dataoff, taddr,
 			       port, exp);
 	} else {		/* Conntrack only */
-		if (nf_conntrack_expect_related(exp) == 0) {
+		if (nf_ct_expect_related(exp) == 0) {
 			DEBUGP("nf_ct_q931: expect H.245 ");
 			NF_CT_DUMP_TUPLE(&exp->tuple);
 		} else
 			ret = -1;
 	}
 
-	nf_conntrack_expect_put(exp);
+	nf_ct_expect_put(exp);
 
 	return ret;
 }
@@ -796,11 +796,11 @@ static int expect_callforwarding(struct sk_buff **pskb,
 	}
 
 	/* Create expect for the second call leg */
-	if ((exp = nf_conntrack_expect_alloc(ct)) == NULL)
+	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_conntrack_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
-				 &ct->tuplehash[!dir].tuple.src.u3, &addr,
-				 IPPROTO_TCP, NULL, &port);
+	nf_ct_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
+			  &ct->tuplehash[!dir].tuple.src.u3, &addr,
+			  IPPROTO_TCP, NULL, &port);
 	exp->helper = nf_conntrack_helper_q931;
 
 	if (memcmp(&ct->tuplehash[dir].tuple.src.u3,
@@ -812,14 +812,14 @@ static int expect_callforwarding(struct sk_buff **pskb,
 		ret = nat_callforwarding(pskb, ct, ctinfo, data, dataoff,
 					 taddr, port, exp);
 	} else {		/* Conntrack only */
-		if (nf_conntrack_expect_related(exp) == 0) {
+		if (nf_ct_expect_related(exp) == 0) {
 			DEBUGP("nf_ct_q931: expect Call Forwarding ");
 			NF_CT_DUMP_TUPLE(&exp->tuple);
 		} else
 			ret = -1;
 	}
 
-	nf_conntrack_expect_put(exp);
+	nf_ct_expect_put(exp);
 
 	return ret;
 }
@@ -1225,7 +1225,7 @@ static struct nf_conntrack_expect *find_expect(struct nf_conn *ct,
 	tuple.dst.u.tcp.port = port;
 	tuple.dst.protonum = IPPROTO_TCP;
 
-	exp = __nf_conntrack_expect_find(&tuple);
+	exp = __nf_ct_expect_find(&tuple);
 	if (exp && exp->master == ct)
 		return exp;
 	return NULL;
@@ -1271,14 +1271,13 @@ static int expect_q931(struct sk_buff **pskb, struct nf_conn *ct,
 		return 0;
 
 	/* Create expect for Q.931 */
-	if ((exp = nf_conntrack_expect_alloc(ct)) == NULL)
+	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_conntrack_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
-				 gkrouted_only ? /* only accept calls from GK? */
-					&ct->tuplehash[!dir].tuple.src.u3 :
-					NULL,
-				 &ct->tuplehash[!dir].tuple.dst.u3,
-				 IPPROTO_TCP, NULL, &port);
+	nf_ct_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
+			  gkrouted_only ? /* only accept calls from GK? */
+				&ct->tuplehash[!dir].tuple.src.u3 : NULL,
+			  &ct->tuplehash[!dir].tuple.dst.u3,
+			  IPPROTO_TCP, NULL, &port);
 	exp->helper = nf_conntrack_helper_q931;
 	exp->flags = NF_CT_EXPECT_PERMANENT;	/* Accept multiple calls */
 
@@ -1286,7 +1285,7 @@ static int expect_q931(struct sk_buff **pskb, struct nf_conn *ct,
 	if (nat_q931 && ct->status & IPS_NAT_MASK) {	/* Need NAT */
 		ret = nat_q931(pskb, ct, ctinfo, data, taddr, i, port, exp);
 	} else {		/* Conntrack only */
-		if (nf_conntrack_expect_related(exp) == 0) {
+		if (nf_ct_expect_related(exp) == 0) {
 			DEBUGP("nf_ct_ras: expect Q.931 ");
 			NF_CT_DUMP_TUPLE(&exp->tuple);
 
@@ -1296,7 +1295,7 @@ static int expect_q931(struct sk_buff **pskb, struct nf_conn *ct,
 			ret = -1;
 	}
 
-	nf_conntrack_expect_put(exp);
+	nf_ct_expect_put(exp);
 
 	return ret;
 }
@@ -1343,20 +1342,20 @@ static int process_gcf(struct sk_buff **pskb, struct nf_conn *ct,
 		return 0;
 
 	/* Need new expect */
-	if ((exp = nf_conntrack_expect_alloc(ct)) == NULL)
+	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_conntrack_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
-				 &ct->tuplehash[!dir].tuple.src.u3, &addr,
-				 IPPROTO_UDP, NULL, &port);
+	nf_ct_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
+			  &ct->tuplehash[!dir].tuple.src.u3, &addr,
+			  IPPROTO_UDP, NULL, &port);
 	exp->helper = nf_conntrack_helper_ras;
 
-	if (nf_conntrack_expect_related(exp) == 0) {
+	if (nf_ct_expect_related(exp) == 0) {
 		DEBUGP("nf_ct_ras: expect RAS ");
 		NF_CT_DUMP_TUPLE(&exp->tuple);
 	} else
 		ret = -1;
 
-	nf_conntrack_expect_put(exp);
+	nf_ct_expect_put(exp);
 
 	return ret;
 }
@@ -1548,21 +1547,21 @@ static int process_acf(struct sk_buff **pskb, struct nf_conn *ct,
 	}
 
 	/* Need new expect */
-	if ((exp = nf_conntrack_expect_alloc(ct)) == NULL)
+	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_conntrack_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
-				 &ct->tuplehash[!dir].tuple.src.u3, &addr,
-				 IPPROTO_TCP, NULL, &port);
+	nf_ct_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
+			  &ct->tuplehash[!dir].tuple.src.u3, &addr,
+			  IPPROTO_TCP, NULL, &port);
 	exp->flags = NF_CT_EXPECT_PERMANENT;
 	exp->helper = nf_conntrack_helper_q931;
 
-	if (nf_conntrack_expect_related(exp) == 0) {
+	if (nf_ct_expect_related(exp) == 0) {
 		DEBUGP("nf_ct_ras: expect Q.931 ");
 		NF_CT_DUMP_TUPLE(&exp->tuple);
 	} else
 		ret = -1;
 
-	nf_conntrack_expect_put(exp);
+	nf_ct_expect_put(exp);
 
 	return ret;
 }
@@ -1601,21 +1600,21 @@ static int process_lcf(struct sk_buff **pskb, struct nf_conn *ct,
 		return 0;
 
 	/* Need new expect for call signal */
-	if ((exp = nf_conntrack_expect_alloc(ct)) == NULL)
+	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_conntrack_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
-				 &ct->tuplehash[!dir].tuple.src.u3, &addr,
-				 IPPROTO_TCP, NULL, &port);
+	nf_ct_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
+			  &ct->tuplehash[!dir].tuple.src.u3, &addr,
+			  IPPROTO_TCP, NULL, &port);
 	exp->flags = NF_CT_EXPECT_PERMANENT;
 	exp->helper = nf_conntrack_helper_q931;
 
-	if (nf_conntrack_expect_related(exp) == 0) {
+	if (nf_ct_expect_related(exp) == 0) {
 		DEBUGP("nf_ct_ras: expect Q.931 ");
 		NF_CT_DUMP_TUPLE(&exp->tuple);
 	} else
 		ret = -1;
 
-	nf_conntrack_expect_put(exp);
+	nf_ct_expect_put(exp);
 
 	/* Ignore rasAddress */
 

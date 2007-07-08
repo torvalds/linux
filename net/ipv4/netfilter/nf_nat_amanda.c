@@ -45,7 +45,7 @@ static unsigned int help(struct sk_buff **pskb,
 	/* Try to get same port: if not, try to change it. */
 	for (port = ntohs(exp->saved_proto.tcp.port); port != 0; port++) {
 		exp->tuple.dst.u.tcp.port = htons(port);
-		if (nf_conntrack_expect_related(exp) == 0)
+		if (nf_ct_expect_related(exp) == 0)
 			break;
 	}
 
@@ -57,7 +57,7 @@ static unsigned int help(struct sk_buff **pskb,
 				       matchoff, matchlen,
 				       buffer, strlen(buffer));
 	if (ret != NF_ACCEPT)
-		nf_conntrack_unexpect_related(exp);
+		nf_ct_unexpect_related(exp);
 	return ret;
 }
 

@@ -1239,7 +1239,7 @@ ctnetlink_exp_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	u_int8_t l3proto = nfmsg->nfgen_family;
 
 	read_lock_bh(&nf_conntrack_lock);
-	list_for_each_prev(i, &nf_conntrack_expect_list) {
+	list_for_each_prev(i, &nf_ct_expect_list) {
 		exp = (struct nf_conntrack_expect *) i;
 		if (l3proto && exp->tuple.src.l3num != l3proto)
 			continue;
@@ -1291,14 +1291,14 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 	if (err < 0)
 		return err;
 
-	exp = nf_conntrack_expect_find_get(&tuple);
+	exp = nf_ct_expect_find_get(&tuple);
 	if (!exp)
 		return -ENOENT;
 
 	if (cda[CTA_EXPECT_ID-1]) {
 		__be32 id = *(__be32 *)NFA_DATA(cda[CTA_EXPECT_ID-1]);
 		if (exp->id != ntohl(id)) {
-			nf_conntrack_expect_put(exp);
+			nf_ct_expect_put(exp);
 			return -ENOENT;
 		}
 	}
@@ -1314,14 +1314,14 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 	if (err <= 0)
 		goto free;
 
-	nf_conntrack_expect_put(exp);
+	nf_ct_expect_put(exp);
 
 	return netlink_unicast(ctnl, skb2, NETLINK_CB(skb).pid, MSG_DONTWAIT);
 
 free:
 	kfree_skb(skb2);
 out:
-	nf_conntrack_expect_put(exp);
+	nf_ct_expect_put(exp);
 	return err;
 }
 
@@ -1346,23 +1346,23 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 			return err;
 
 		/* bump usage count to 2 */
-		exp = nf_conntrack_expect_find_get(&tuple);
+		exp = nf_ct_expect_find_get(&tuple);
 		if (!exp)
 			return -ENOENT;
 
 		if (cda[CTA_EXPECT_ID-1]) {
 			__be32 id = *(__be32 *)NFA_DATA(cda[CTA_EXPECT_ID-1]);
 			if (exp->id != ntohl(id)) {
-				nf_conntrack_expect_put(exp);
+				nf_ct_expect_put(exp);
 				return -ENOENT;
 			}
 		}
 
 		/* after list removal, usage count == 1 */
-		nf_conntrack_unexpect_related(exp);
+		nf_ct_unexpect_related(exp);
 		/* have to put what we 'get' above.
 		 * after this line usage count == 0 */
-		nf_conntrack_expect_put(exp);
+		nf_ct_expect_put(exp);
 	} else if (cda[CTA_EXPECT_HELP_NAME-1]) {
 		char *name = NFA_DATA(cda[CTA_EXPECT_HELP_NAME-1]);
 
@@ -1373,24 +1373,22 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 			write_unlock_bh(&nf_conntrack_lock);
 			return -EINVAL;
 		}
-		list_for_each_entry_safe(exp, tmp, &nf_conntrack_expect_list,
-					 list) {
+		list_for_each_entry_safe(exp, tmp, &nf_ct_expect_list, list) {
 			struct nf_conn_help *m_help = nfct_help(exp->master);
 			if (m_help->helper == h
 			    && del_timer(&exp->timeout)) {
 				nf_ct_unlink_expect(exp);
-				nf_conntrack_expect_put(exp);
+				nf_ct_expect_put(exp);
 			}
 		}
 		write_unlock_bh(&nf_conntrack_lock);
 	} else {
 		/* This basically means we have to flush everything*/
 		write_lock_bh(&nf_conntrack_lock);
-		list_for_each_entry_safe(exp, tmp, &nf_conntrack_expect_list,
-					 list) {
+		list_for_each_entry_safe(exp, tmp, &nf_ct_expect_list, list) {
 			if (del_timer(&exp->timeout)) {
 				nf_ct_unlink_expect(exp);
-				nf_conntrack_expect_put(exp);
+				nf_ct_expect_put(exp);
 			}
 		}
 		write_unlock_bh(&nf_conntrack_lock);
@@ -1438,7 +1436,7 @@ ctnetlink_create_expect(struct nfattr *cda[], u_int8_t u3)
 		goto out;
 	}
 
-	exp = nf_conntrack_expect_alloc(ct);
+	exp = nf_ct_expect_alloc(ct);
 	if (!exp) {
 		err = -ENOMEM;
 		goto out;
@@ -1451,8 +1449,8 @@ ctnetlink_create_expect(struct nfattr *cda[], u_int8_t u3)
 	memcpy(&exp->tuple, &tuple, sizeof(struct nf_conntrack_tuple));
 	memcpy(&exp->mask, &mask, sizeof(struct nf_conntrack_tuple));
 
-	err = nf_conntrack_expect_related(exp);
-	nf_conntrack_expect_put(exp);
+	err = nf_ct_expect_related(exp);
+	nf_ct_expect_put(exp);
 
 out:
 	nf_ct_put(nf_ct_tuplehash_to_ctrack(h));
@@ -1482,7 +1480,7 @@ ctnetlink_new_expect(struct sock *ctnl, struct sk_buff *skb,
 		return err;
 
 	write_lock_bh(&nf_conntrack_lock);
-	exp = __nf_conntrack_expect_find(&tuple);
+	exp = __nf_ct_expect_find(&tuple);
 
 	if (!exp) {
 		write_unlock_bh(&nf_conntrack_lock);
@@ -1572,7 +1570,7 @@ static int __init ctnetlink_init(void)
 		goto err_unreg_exp_subsys;
 	}
 
-	ret = nf_conntrack_expect_register_notifier(&ctnl_notifier_exp);
+	ret = nf_ct_expect_register_notifier(&ctnl_notifier_exp);
 	if (ret < 0) {
 		printk("ctnetlink_init: cannot expect register notifier.\n");
 		goto err_unreg_notifier;
@@ -1598,7 +1596,7 @@ static void __exit ctnetlink_exit(void)
 	printk("ctnetlink: unregistering from nfnetlink.\n");
 
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-	nf_conntrack_expect_unregister_notifier(&ctnl_notifier_exp);
+	nf_ct_expect_unregister_notifier(&ctnl_notifier_exp);
 	nf_conntrack_unregister_notifier(&ctnl_notifier);
 #endif
 

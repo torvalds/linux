@@ -26,8 +26,8 @@
 ATOMIC_NOTIFIER_HEAD(nf_conntrack_chain);
 EXPORT_SYMBOL_GPL(nf_conntrack_chain);
 
-ATOMIC_NOTIFIER_HEAD(nf_conntrack_expect_chain);
-EXPORT_SYMBOL_GPL(nf_conntrack_expect_chain);
+ATOMIC_NOTIFIER_HEAD(nf_ct_expect_chain);
+EXPORT_SYMBOL_GPL(nf_ct_expect_chain);
 
 DEFINE_PER_CPU(struct nf_conntrack_ecache, nf_conntrack_ecache);
 EXPORT_PER_CPU_SYMBOL_GPL(nf_conntrack_ecache);
@@ -103,14 +103,14 @@ int nf_conntrack_unregister_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_unregister_notifier);
 
-int nf_conntrack_expect_register_notifier(struct notifier_block *nb)
+int nf_ct_expect_register_notifier(struct notifier_block *nb)
 {
-	return atomic_notifier_chain_register(&nf_conntrack_expect_chain, nb);
+	return atomic_notifier_chain_register(&nf_ct_expect_chain, nb);
 }
-EXPORT_SYMBOL_GPL(nf_conntrack_expect_register_notifier);
+EXPORT_SYMBOL_GPL(nf_ct_expect_register_notifier);
 
-int nf_conntrack_expect_unregister_notifier(struct notifier_block *nb)
+int nf_ct_expect_unregister_notifier(struct notifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&nf_conntrack_expect_chain, nb);
+	return atomic_notifier_chain_unregister(&nf_ct_expect_chain, nb);
 }
-EXPORT_SYMBOL_GPL(nf_conntrack_expect_unregister_notifier);
+EXPORT_SYMBOL_GPL(nf_ct_expect_unregister_notifier);

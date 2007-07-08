@@ -237,12 +237,12 @@ static int nat_rtp_rtcp(struct sk_buff **pskb, struct nf_conn *ct,
 	for (nated_port = ntohs(rtp_exp->tuple.dst.u.udp.port);
 	     nated_port != 0; nated_port += 2) {
 		rtp_exp->tuple.dst.u.udp.port = htons(nated_port);
-		if (nf_conntrack_expect_related(rtp_exp) == 0) {
+		if (nf_ct_expect_related(rtp_exp) == 0) {
 			rtcp_exp->tuple.dst.u.udp.port =
 			    htons(nated_port + 1);
-			if (nf_conntrack_expect_related(rtcp_exp) == 0)
+			if (nf_ct_expect_related(rtcp_exp) == 0)
 				break;
-			nf_conntrack_unexpect_related(rtp_exp);
+			nf_ct_unexpect_related(rtp_exp);
 		}
 	}
 
@@ -261,8 +261,8 @@ static int nat_rtp_rtcp(struct sk_buff **pskb, struct nf_conn *ct,
 		info->rtp_port[i][dir] = rtp_port;
 		info->rtp_port[i][!dir] = htons(nated_port);
 	} else {
-		nf_conntrack_unexpect_related(rtp_exp);
-		nf_conntrack_unexpect_related(rtcp_exp);
+		nf_ct_unexpect_related(rtp_exp);
+		nf_ct_unexpect_related(rtcp_exp);
 		return -1;
 	}
 
@@ -299,7 +299,7 @@ static int nat_t120(struct sk_buff **pskb, struct nf_conn *ct,
 	/* Try to get same port: if not, try to change it. */
 	for (; nated_port != 0; nated_port++) {
 		exp->tuple.dst.u.tcp.port = htons(nated_port);
-		if (nf_conntrack_expect_related(exp) == 0)
+		if (nf_ct_expect_related(exp) == 0)
 			break;
 	}
 
@@ -313,7 +313,7 @@ static int nat_t120(struct sk_buff **pskb, struct nf_conn *ct,
 	if (set_h245_addr(pskb, data, dataoff, taddr,
 			  &ct->tuplehash[!dir].tuple.dst.u3,
 			  htons(nated_port)) < 0) {
-		nf_conntrack_unexpect_related(exp);
+		nf_ct_unexpect_related(exp);
 		return -1;
 	}
 
@@ -347,7 +347,7 @@ static int nat_h245(struct sk_buff **pskb, struct nf_conn *ct,
 	/* Try to get same port: if not, try to change it. */
 	for (; nated_port != 0; nated_port++) {
 		exp->tuple.dst.u.tcp.port = htons(nated_port);
-		if (nf_conntrack_expect_related(exp) == 0)
+		if (nf_ct_expect_related(exp) == 0)
 			break;
 	}
 
@@ -365,7 +365,7 @@ static int nat_h245(struct sk_buff **pskb, struct nf_conn *ct,
 		info->sig_port[dir] = port;
 		info->sig_port[!dir] = htons(nated_port);
 	} else {
-		nf_conntrack_unexpect_related(exp);
+		nf_ct_unexpect_related(exp);
 		return -1;
 	}
 
@@ -433,7 +433,7 @@ static int nat_q931(struct sk_buff **pskb, struct nf_conn *ct,
 	/* Try to get same port: if not, try to change it. */
 	for (; nated_port != 0; nated_port++) {
 		exp->tuple.dst.u.tcp.port = htons(nated_port);
-		if (nf_conntrack_expect_related(exp) == 0)
+		if (nf_ct_expect_related(exp) == 0)
 			break;
 	}
 
@@ -460,7 +460,7 @@ static int nat_q931(struct sk_buff **pskb, struct nf_conn *ct,
 				      info->sig_port[!dir]);
 		}
 	} else {
-		nf_conntrack_unexpect_related(exp);
+		nf_ct_unexpect_related(exp);
 		return -1;
 	}
 
@@ -517,7 +517,7 @@ static int nat_callforwarding(struct sk_buff **pskb, struct nf_conn *ct,
 	/* Try to get same port: if not, try to change it. */
 	for (nated_port = ntohs(port); nated_port != 0; nated_port++) {
 		exp->tuple.dst.u.tcp.port = htons(nated_port);
-		if (nf_conntrack_expect_related(exp) == 0)
+		if (nf_ct_expect_related(exp) == 0)
 			break;
 	}
 
@@ -531,7 +531,7 @@ static int nat_callforwarding(struct sk_buff **pskb, struct nf_conn *ct,
 	if (!set_h225_addr(pskb, data, dataoff, taddr,
 			   &ct->tuplehash[!dir].tuple.dst.u3,
 			   htons(nated_port)) == 0) {
-		nf_conntrack_unexpect_related(exp);
+		nf_ct_unexpect_related(exp);
 		return -1;
 	}
 

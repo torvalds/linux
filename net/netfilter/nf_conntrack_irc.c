@@ -184,16 +184,16 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 				continue;
 			}
 
-			exp = nf_conntrack_expect_alloc(ct);
+			exp = nf_ct_expect_alloc(ct);
 			if (exp == NULL) {
 				ret = NF_DROP;
 				goto out;
 			}
 			tuple = &ct->tuplehash[!dir].tuple;
 			port = htons(dcc_port);
-			nf_conntrack_expect_init(exp, tuple->src.l3num,
-						 NULL, &tuple->dst.u3,
-						 IPPROTO_TCP, NULL, &port);
+			nf_ct_expect_init(exp, tuple->src.l3num,
+					  NULL, &tuple->dst.u3,
+					  IPPROTO_TCP, NULL, &port);
 
 			nf_nat_irc = rcu_dereference(nf_nat_irc_hook);
 			if (nf_nat_irc && ct->status & IPS_NAT_MASK)
@@ -201,9 +201,9 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 						 addr_beg_p - ib_ptr,
 						 addr_end_p - addr_beg_p,
 						 exp);
-			else if (nf_conntrack_expect_related(exp) != 0)
+			else if (nf_ct_expect_related(exp) != 0)
 				ret = NF_DROP;
-			nf_conntrack_expect_put(exp);
+			nf_ct_expect_put(exp);
 			goto out;
 		}
 	}

@@ -74,7 +74,7 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 	if (mask == 0)
 		goto out;
 
-	exp = nf_conntrack_expect_alloc(ct);
+	exp = nf_ct_expect_alloc(ct);
 	if (exp == NULL)
 		goto out;
 
@@ -91,8 +91,8 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 	exp->flags                = NF_CT_EXPECT_PERMANENT;
 	exp->helper               = NULL;
 
-	nf_conntrack_expect_related(exp);
-	nf_conntrack_expect_put(exp);
+	nf_ct_expect_related(exp);
+	nf_ct_expect_put(exp);
 
 	nf_ct_refresh(ct, *pskb, timeout * HZ);
 out:
