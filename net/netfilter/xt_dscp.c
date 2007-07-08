@@ -52,20 +52,20 @@ static bool match6(const struct sk_buff *skb,
 	return (dscp == info->dscp) ^ !!info->invert;
 }
 
-static int checkentry(const char *tablename,
-		      const void *info,
-		      const struct xt_match *match,
-		      void *matchinfo,
-		      unsigned int hook_mask)
+static bool checkentry(const char *tablename,
+		       const void *info,
+		       const struct xt_match *match,
+		       void *matchinfo,
+		       unsigned int hook_mask)
 {
 	const u_int8_t dscp = ((struct xt_dscp_info *)matchinfo)->dscp;
 
 	if (dscp > XT_DSCP_MAX) {
 		printk(KERN_ERR "xt_dscp: dscp %x out of range\n", dscp);
-		return 0;
+		return false;
 	}
 
-	return 1;
+	return true;
 }
 
 static struct xt_match xt_dscp_match[] = {

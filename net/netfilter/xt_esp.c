@@ -74,7 +74,7 @@ match(const struct sk_buff *skb,
 }
 
 /* Called when user tries to insert an entry of this type. */
-static int
+static bool
 checkentry(const char *tablename,
 	   const void *ip_void,
 	   const struct xt_match *match,
@@ -85,10 +85,10 @@ checkentry(const char *tablename,
 
 	if (espinfo->invflags & ~XT_ESP_INV_MASK) {
 		duprintf("xt_esp: unknown flags %X\n", espinfo->invflags);
-		return 0;
+		return false;
 	}
 
-	return 1;
+	return true;
 }
 
 static struct xt_match xt_esp_match[] = {

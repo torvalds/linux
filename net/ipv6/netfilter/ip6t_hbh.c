@@ -174,7 +174,7 @@ match(const struct sk_buff *skb,
 }
 
 /* Called when user tries to insert an entry of this type. */
-static int
+static bool
 checkentry(const char *tablename,
 	   const void *entry,
 	   const struct xt_match *match,
@@ -185,9 +185,9 @@ checkentry(const char *tablename,
 
 	if (optsinfo->invflags & ~IP6T_OPTS_INV_MASK) {
 		DEBUGP("ip6t_opts: unknown flags %X\n", optsinfo->invflags);
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 static struct xt_match opts_match[] = {

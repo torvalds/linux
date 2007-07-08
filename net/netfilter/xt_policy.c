@@ -133,35 +133,35 @@ static bool match(const struct sk_buff *skb,
 	return ret;
 }
 
-static int checkentry(const char *tablename, const void *ip_void,
-		      const struct xt_match *match,
-		      void *matchinfo, unsigned int hook_mask)
+static bool checkentry(const char *tablename, const void *ip_void,
+		       const struct xt_match *match,
+		       void *matchinfo, unsigned int hook_mask)
 {
 	struct xt_policy_info *info = matchinfo;
 
 	if (!(info->flags & (XT_POLICY_MATCH_IN|XT_POLICY_MATCH_OUT))) {
 		printk(KERN_ERR "xt_policy: neither incoming nor "
 				"outgoing policy selected\n");
-		return 0;
+		return false;
 	}
 	/* hook values are equal for IPv4 and IPv6 */
 	if (hook_mask & (1 << NF_IP_PRE_ROUTING | 1 << NF_IP_LOCAL_IN)
 	    && info->flags & XT_POLICY_MATCH_OUT) {
 		printk(KERN_ERR "xt_policy: output policy not valid in "
 				"PRE_ROUTING and INPUT\n");
-		return 0;
+		return false;
 	}
 	if (hook_mask & (1 << NF_IP_POST_ROUTING | 1 << NF_IP_LOCAL_OUT)
 	    && info->flags & XT_POLICY_MATCH_IN) {
 		printk(KERN_ERR "xt_policy: input policy not valid in "
 				"POST_ROUTING and OUTPUT\n");
-		return 0;
+		return false;
 	}
 	if (info->len > XT_POLICY_MAX_ELEM) {
 		printk(KERN_ERR "xt_policy: too many policy elements\n");
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 static struct xt_match xt_policy_match[] = {

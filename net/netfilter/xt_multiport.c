@@ -154,7 +154,7 @@ match_v1(const struct sk_buff *skb,
 	return ports_match_v1(multiinfo, ntohs(pptr[0]), ntohs(pptr[1]));
 }
 
-static inline int
+static inline bool
 check(u_int16_t proto,
       u_int8_t ip_invflags,
       u_int8_t match_flags,
@@ -172,7 +172,7 @@ check(u_int16_t proto,
 }
 
 /* Called when user tries to insert an entry of this type. */
-static int
+static bool
 checkentry(const char *tablename,
 	   const void *info,
 	   const struct xt_match *match,
@@ -186,7 +186,7 @@ checkentry(const char *tablename,
 		     multiinfo->count);
 }
 
-static int
+static bool
 checkentry_v1(const char *tablename,
 	      const void *info,
 	      const struct xt_match *match,
@@ -200,7 +200,7 @@ checkentry_v1(const char *tablename,
 		     multiinfo->count);
 }
 
-static int
+static bool
 checkentry6(const char *tablename,
 	    const void *info,
 	    const struct xt_match *match,
@@ -214,7 +214,7 @@ checkentry6(const char *tablename,
 		     multiinfo->count);
 }
 
-static int
+static bool
 checkentry6_v1(const char *tablename,
 	       const void *info,
 	       const struct xt_match *match,

@@ -235,7 +235,7 @@ out:
 	return ret;
 }
 
-static int
+static bool
 ipt_recent_checkentry(const char *tablename, const void *ip,
 		      const struct xt_match *match, void *matchinfo,
 		      unsigned int hook_mask)
@@ -243,24 +243,24 @@ ipt_recent_checkentry(const char *tablename, const void *ip,
 	const struct ipt_recent_info *info = matchinfo;
 	struct recent_table *t;
 	unsigned i;
-	int ret = 0;
+	bool ret = false;
 
 	if (hweight8(info->check_set &
 		     (IPT_RECENT_SET | IPT_RECENT_REMOVE |
 		      IPT_RECENT_CHECK | IPT_RECENT_UPDATE)) != 1)
-		return 0;
+		return false;
 	if ((info->check_set & (IPT_RECENT_SET | IPT_RECENT_REMOVE)) &&
 	    (info->seconds || info->hit_count))
-		return 0;
+		return false;
 	if (info->name[0] == '\0' ||
 	    strnlen(info->name, IPT_RECENT_NAME_LEN) == IPT_RECENT_NAME_LEN)
-		return 0;
+		return false;
 
 	mutex_lock(&recent_mutex);
 	t = recent_table_lookup(info->name);
 	if (t != NULL) {
 		t->refcnt++;
-		ret = 1;
+		ret = true;
 		goto out;
 	}
 
@@ -287,7 +287,7 @@ ipt_recent_checkentry(const char *tablename, const void *ip,
 	spin_lock_bh(&recent_lock);
 	list_add_tail(&t->list, &tables);
 	spin_unlock_bh(&recent_lock);
-	ret = 1;
+	ret = true;
 out:
 	mutex_unlock(&recent_mutex);
 	return ret;

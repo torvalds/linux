@@ -87,27 +87,27 @@ static bool match(const struct sk_buff *skb,
 	return true;
 }
 
-static int checkentry(const char *tablename, const void *ip_void,
-		      const struct xt_match *match,
-		      void *matchinfo, unsigned int hook_mask)
+static bool checkentry(const char *tablename, const void *ip_void,
+		       const struct xt_match *match,
+		       void *matchinfo, unsigned int hook_mask)
 {
 	const struct ipt_ecn_info *info = matchinfo;
 	const struct ipt_ip *ip = ip_void;
 
 	if (info->operation & IPT_ECN_OP_MATCH_MASK)
-		return 0;
+		return false;
 
 	if (info->invert & IPT_ECN_OP_MATCH_MASK)
-		return 0;
+		return false;
 
 	if (info->operation & (IPT_ECN_OP_MATCH_ECE|IPT_ECN_OP_MATCH_CWR)
 	    && ip->proto != IPPROTO_TCP) {
 		printk(KERN_WARNING "ipt_ecn: can't match TCP bits in rule for"
 		       " non-tcp packets\n");
-		return 0;
+		return false;
 	}
 
-	return 1;
+	return true;
 }
 
 static struct xt_match ecn_match = {

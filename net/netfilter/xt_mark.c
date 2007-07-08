@@ -34,7 +34,7 @@ match(const struct sk_buff *skb,
 	return ((skb->mark & info->mask) == info->mark) ^ info->invert;
 }
 
-static int
+static bool
 checkentry(const char *tablename,
 	   const void *entry,
 	   const struct xt_match *match,
@@ -45,9 +45,9 @@ checkentry(const char *tablename,
 
 	if (minfo->mark > 0xffffffff || minfo->mask > 0xffffffff) {
 		printk(KERN_WARNING "mark: only supports 32bit mark\n");
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 #ifdef CONFIG_COMPAT

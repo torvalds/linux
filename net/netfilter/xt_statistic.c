@@ -52,7 +52,7 @@ match(const struct sk_buff *skb,
 	return ret;
 }
 
-static int
+static bool
 checkentry(const char *tablename, const void *entry,
 	   const struct xt_match *match, void *matchinfo,
 	   unsigned int hook_mask)
@@ -61,9 +61,9 @@ checkentry(const char *tablename, const void *entry,
 
 	if (info->mode > XT_STATISTIC_MODE_MAX ||
 	    info->flags & ~XT_STATISTIC_MASK)
-		return 0;
+		return false;
 	info->master = info;
-	return 1;
+	return true;
 }
 
 static struct xt_match xt_statistic_match[] = {

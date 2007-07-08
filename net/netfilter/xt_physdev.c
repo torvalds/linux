@@ -99,7 +99,7 @@ match_outdev:
 	return ret ^ !(info->invert & XT_PHYSDEV_OP_OUT);
 }
 
-static int
+static bool
 checkentry(const char *tablename,
 		       const void *ip,
 		       const struct xt_match *match,
@@ -110,7 +110,7 @@ checkentry(const char *tablename,
 
 	if (!(info->bitmask & XT_PHYSDEV_OP_MASK) ||
 	    info->bitmask & ~XT_PHYSDEV_OP_MASK)
-		return 0;
+		return false;
 	if (info->bitmask & XT_PHYSDEV_OP_OUT &&
 	    (!(info->bitmask & XT_PHYSDEV_OP_BRIDGED) ||
 	     info->invert & XT_PHYSDEV_OP_BRIDGED) &&
@@ -120,9 +120,9 @@ checkentry(const char *tablename,
 		       "OUTPUT, FORWARD and POSTROUTING chains for non-bridged "
 		       "traffic is not supported anymore.\n");
 		if (hook_mask & (1 << NF_IP_LOCAL_OUT))
-			return 0;
+			return false;
 	}
-	return 1;
+	return true;
 }
 
 static struct xt_match xt_physdev_match[] = {

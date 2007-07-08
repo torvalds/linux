@@ -158,7 +158,7 @@ match(const struct sk_buff *skb,
 			   XT_SCTP_CHUNK_TYPES, info->flags, info->invflags);
 }
 
-static int
+static bool
 checkentry(const char *tablename,
 	   const void *inf,
 	   const struct xt_match *match,

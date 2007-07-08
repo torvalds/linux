@@ -492,7 +492,7 @@ hotdrop:
 	return false;
 }
 
-static int
+static bool
 hashlimit_checkentry(const char *tablename,
 		     const void *inf,
 		     const struct xt_match *match,
@@ -506,20 +506,20 @@ hashlimit_checkentry(const char *tablename,
 	    user2credits(r->cfg.avg * r->cfg.burst) < user2credits(r->cfg.avg)) {
 		printk(KERN_ERR "xt_hashlimit: overflow, try lower: %u/%u\n",
 		       r->cfg.avg, r->cfg.burst);
-		return 0;
+		return false;
 	}
 	if (r->cfg.mode == 0 ||
 	    r->cfg.mode > (XT_HASHLIMIT_HASH_DPT |
 			   XT_HASHLIMIT_HASH_DIP |
 			   XT_HASHLIMIT_HASH_SIP |
 			   XT_HASHLIMIT_HASH_SPT))
-		return 0;
+		return false;
 	if (!r->cfg.gc_interval)
-		return 0;
+		return false;
 	if (!r->cfg.expire)
-		return 0;
+		return false;
 	if (r->name[sizeof(r->name) - 1] != '\0')
-		return 0;
+		return false;
 
 	/* This is the best we've got: We cannot release and re-grab lock,
 	 * since checkentry() is called before x_tables.c grabs xt_mutex.
@@ -531,13 +531,13 @@ hashlimit_checkentry(const char *tablename,
 	r->hinfo = htable_find_get(r->name, match->family);
 	if (!r->hinfo && htable_create(r, match->family) != 0) {
 		mutex_unlock(&hlimit_mutex);
-		return 0;
+		return false;
 	}
 	mutex_unlock(&hlimit_mutex);
 
 	/* Ugly hack: For SMP, we only want to use one set */
 	r->u.master = r;
-	return 1;
+	return true;
 }
 
 static void

@@ -75,7 +75,7 @@ match(const struct sk_buff *skb,
 }
 
 /* Called when user tries to insert an entry of this type. */
-static int
+static bool
 mh_checkentry(const char *tablename,
 	      const void *entry,
 	      const struct xt_match *match,

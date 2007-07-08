@@ -124,7 +124,7 @@ ipv6header_match(const struct sk_buff *skb,
 	}
 }
 
-static int
+static bool
 ipv6header_checkentry(const char *tablename,
 		      const void *ip,
 		      const struct xt_match *match,
@@ -136,9 +136,9 @@ ipv6header_checkentry(const char *tablename,
 	/* invflags is 0 or 0xff in hard mode */
 	if ((!info->modeflag) && info->invflags != 0x00 &&
 	    info->invflags != 0xFF)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 static struct xt_match ip6t_ipv6header_match = {
