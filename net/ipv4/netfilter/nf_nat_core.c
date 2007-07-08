@@ -31,12 +31,6 @@
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 static DEFINE_RWLOCK(nf_nat_lock);
 
 static struct nf_conntrack_l3proto *l3proto = NULL;
@@ -242,7 +236,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	   manips not an issue.  */
 	if (maniptype == IP_NAT_MANIP_SRC) {
 		if (find_appropriate_src(orig_tuple, tuple, range)) {
-			DEBUGP("get_unique_tuple: Found current src map\n");
+			pr_debug("get_unique_tuple: Found current src map\n");
 			if (!(range->flags & IP_NAT_RANGE_PROTO_RANDOM))
 				if (!nf_nat_used_tuple(tuple, ct))
 					return;
@@ -293,7 +287,7 @@ nf_nat_setup_info(struct nf_conn *ct,
 	if (!nat) {
 		nat = nf_ct_ext_add(ct, NF_CT_EXT_NAT, GFP_ATOMIC);
 		if (nat == NULL) {
-			DEBUGP("failed to add NAT extension\n");
+			pr_debug("failed to add NAT extension\n");
 			return NF_ACCEPT;
 		}
 	}
@@ -462,8 +456,9 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 			return 0;
 	}
 
-	DEBUGP("icmp_reply_translation: translating error %p manp %u dir %s\n",
-	       *pskb, manip, dir == IP_CT_DIR_ORIGINAL ? "ORIG" : "REPLY");
+	pr_debug("icmp_reply_translation: translating error %p manip %u "
+		 "dir %s\n", *pskb, manip,
+		 dir == IP_CT_DIR_ORIGINAL ? "ORIG" : "REPLY");
 
 	/* rcu_read_lock()ed by nf_hook_slow */
 	l4proto = __nf_ct_l4proto_find(PF_INET, inside->ip.protocol);

@@ -29,13 +29,6 @@ static int ports_c;
 module_param_array(ports, ushort, &ports_c, 0400);
 MODULE_PARM_DESC(ports, "Port numbers of TFTP servers");
 
-#if 0
-#define DEBUGP(format, args...) printk("%s:%s:" format, \
-				       __FILE__, __FUNCTION__ , ## args)
-#else
-#define DEBUGP(format, args...)
-#endif
-
 unsigned int (*nf_nat_tftp_hook)(struct sk_buff **pskb,
 				 enum ip_conntrack_info ctinfo,
 				 struct nf_conntrack_expect *exp) __read_mostly;
@@ -62,7 +55,6 @@ static int tftp_help(struct sk_buff **pskb,
 	case TFTP_OPCODE_READ:
 	case TFTP_OPCODE_WRITE:
 		/* RRQ and WRQ works the same way */
-		DEBUGP("");
 		NF_CT_DUMP_TUPLE(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 		NF_CT_DUMP_TUPLE(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 
@@ -73,9 +65,8 @@ static int tftp_help(struct sk_buff **pskb,
 		nf_ct_expect_init(exp, family, &tuple->src.u3, &tuple->dst.u3,
 				  IPPROTO_UDP, NULL, &tuple->dst.u.udp.port);
 
-		DEBUGP("expect: ");
+		pr_debug("expect: ");
 		NF_CT_DUMP_TUPLE(&exp->tuple);
-		NF_CT_DUMP_TUPLE(&exp->mask);
 
 		nf_nat_tftp = rcu_dereference(nf_nat_tftp_hook);
 		if (nf_nat_tftp && ct->status & IPS_NAT_MASK)
@@ -86,13 +77,13 @@ static int tftp_help(struct sk_buff **pskb,
 		break;
 	case TFTP_OPCODE_DATA:
 	case TFTP_OPCODE_ACK:
-		DEBUGP("Data/ACK opcode\n");
+		pr_debug("Data/ACK opcode\n");
 		break;
 	case TFTP_OPCODE_ERROR:
-		DEBUGP("Error opcode\n");
+		pr_debug("Error opcode\n");
 		break;
 	default:
-		DEBUGP("Unknown opcode\n");
+		pr_debug("Unknown opcode\n");
 	}
 	return ret;
 }

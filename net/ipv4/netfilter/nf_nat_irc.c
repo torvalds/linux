@@ -22,12 +22,6 @@
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <linux/netfilter/nf_conntrack_irc.h>
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 MODULE_AUTHOR("Harald Welte <laforge@gnumonks.org>");
 MODULE_DESCRIPTION("IRC (DCC) NAT helper");
 MODULE_LICENSE("GPL");
@@ -43,9 +37,6 @@ static unsigned int help(struct sk_buff **pskb,
 	u_int32_t ip;
 	u_int16_t port;
 	unsigned int ret;
-
-	DEBUGP("IRC_NAT: info (seq %u + %u) in %u\n",
-	       expect->seq, exp_irc_info->len, ntohl(tcph->seq));
 
 	/* Reply comes from server. */
 	exp->saved_proto.tcp.port = exp->tuple.dst.u.tcp.port;
@@ -64,8 +55,8 @@ static unsigned int help(struct sk_buff **pskb,
 
 	ip = ntohl(exp->master->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3.ip);
 	sprintf(buffer, "%u %u", ip, port);
-	DEBUGP("nf_nat_irc: inserting '%s' == %u.%u.%u.%u, port %u\n",
-	       buffer, NIPQUAD(ip), port);
+	pr_debug("nf_nat_irc: inserting '%s' == %u.%u.%u.%u, port %u\n",
+		 buffer, NIPQUAD(ip), port);
 
 	ret = nf_nat_mangle_tcp_packet(pskb, exp->master, ctinfo,
 				       matchoff, matchlen, buffer,

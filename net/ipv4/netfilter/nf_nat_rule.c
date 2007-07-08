@@ -24,12 +24,6 @@
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_rule.h>
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 #define NAT_VALID_HOOKS ((1<<NF_IP_PRE_ROUTING) | (1<<NF_IP_POST_ROUTING) | (1<<NF_IP_LOCAL_OUT))
 
 static struct
@@ -186,8 +180,8 @@ alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 	struct nf_nat_range range
 		= { IP_NAT_RANGE_MAP_IPS, ip, ip, { 0 }, { 0 } };
 
-	DEBUGP("Allocating NULL binding for %p (%u.%u.%u.%u)\n",
-	       ct, NIPQUAD(ip));
+	pr_debug("Allocating NULL binding for %p (%u.%u.%u.%u)\n",
+		 ct, NIPQUAD(ip));
 	return nf_nat_setup_info(ct, &range, hooknum);
 }
 
@@ -205,8 +199,8 @@ alloc_null_binding_confirmed(struct nf_conn *ct, unsigned int hooknum)
 	struct nf_nat_range range
 		= { IP_NAT_RANGE_MAP_IPS, ip, ip, { all }, { all } };
 
-	DEBUGP("Allocating NULL binding for confirmed %p (%u.%u.%u.%u)\n",
-	       ct, NIPQUAD(ip));
+	pr_debug("Allocating NULL binding for confirmed %p (%u.%u.%u.%u)\n",
+		 ct, NIPQUAD(ip));
 	return nf_nat_setup_info(ct, &range, hooknum);
 }
 

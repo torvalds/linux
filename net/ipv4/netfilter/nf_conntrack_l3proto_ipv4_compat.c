@@ -18,12 +18,6 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_expect.h>
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 #ifdef CONFIG_NF_CT_ACCT
 static unsigned int
 seq_print_counters(struct seq_file *s,

@@ -32,12 +32,6 @@ struct in_device;
 #include <net/route.h>
 #include <linux/netfilter_ipv6/ip6t_LOG.h>
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 /* Use lock to serialize, so printks don't overlap */
 static DEFINE_SPINLOCK(log_lock);
 
@@ -466,12 +460,12 @@ static bool ip6t_log_checkentry(const char *tablename,
 	const struct ip6t_log_info *loginfo = targinfo;
 
 	if (loginfo->level >= 8) {
-		DEBUGP("LOG: level %u >= 8\n", loginfo->level);
+		pr_debug("LOG: level %u >= 8\n", loginfo->level);
 		return false;
 	}
 	if (loginfo->prefix[sizeof(loginfo->prefix)-1] != '\0') {
-		DEBUGP("LOG: prefix term %i\n",
-		       loginfo->prefix[sizeof(loginfo->prefix)-1]);
+		pr_debug("LOG: prefix term %i\n",
+			 loginfo->prefix[sizeof(loginfo->prefix)-1]);
 		return false;
 	}
 	return true;

@@ -21,12 +21,6 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <linux/netfilter/nf_conntrack_sip.h>
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Hentschel <chentschel@arnet.com.ar>");
 MODULE_DESCRIPTION("SIP connection tracking helper");
@@ -285,7 +279,7 @@ static int epaddr_len(struct nf_conn *ct, const char *dptr,
 	const char *aux = dptr;
 
 	if (!parse_addr(ct, dptr, &dptr, &addr, limit)) {
-		DEBUGP("ip: %s parse failed.!\n", dptr);
+		pr_debug("ip: %s parse failed.!\n", dptr);
 		return 0;
 	}
 
@@ -344,8 +338,8 @@ int ct_sip_get_info(struct nf_conn *ct,
 				    ct_sip_lnlen(dptr, limit),
 				    hnfo->case_sensitive);
 		if (!aux) {
-			DEBUGP("'%s' not found in '%s'.\n", hnfo->ln_str,
-			       hnfo->lname);
+			pr_debug("'%s' not found in '%s'.\n", hnfo->ln_str,
+				 hnfo->lname);
 			return -1;
 		}
 		aux += hnfo->ln_strlen;
@@ -356,11 +350,11 @@ int ct_sip_get_info(struct nf_conn *ct,
 
 		*matchoff = (aux - k) + shift;
 
-		DEBUGP("%s match succeeded! - len: %u\n", hnfo->lname,
-		       *matchlen);
+		pr_debug("%s match succeeded! - len: %u\n", hnfo->lname,
+			 *matchlen);
 		return 1;
 	}
-	DEBUGP("%s header not found.\n", hnfo->lname);
+	pr_debug("%s header not found.\n", hnfo->lname);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ct_sip_get_info);
@@ -424,7 +418,7 @@ static int sip_help(struct sk_buff **pskb,
 	if (!skb_is_nonlinear(*pskb))
 		dptr = (*pskb)->data + dataoff;
 	else {
-		DEBUGP("Copy of skbuff not supported yet.\n");
+		pr_debug("Copy of skbuff not supported yet.\n");
 		goto out;
 	}
 
@@ -518,7 +512,7 @@ static int __init nf_conntrack_sip_init(void)
 				sprintf(tmpname, "sip-%u", i);
 			sip[i][j].name = tmpname;
 
-			DEBUGP("port #%u: %u\n", i, ports[i]);
+			pr_debug("port #%u: %u\n", i, ports[i]);
 
 			ret = nf_conntrack_helper_register(&sip[i][j]);
 			if (ret) {

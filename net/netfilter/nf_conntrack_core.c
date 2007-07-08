@@ -40,12 +40,6 @@
 
 #define NF_CONNTRACK_VERSION	"0.5.0"
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 DEFINE_RWLOCK(nf_conntrack_lock);
 EXPORT_SYMBOL_GPL(nf_conntrack_lock);
 
@@ -141,7 +135,7 @@ EXPORT_SYMBOL_GPL(nf_ct_invert_tuple);
 static void
 clean_from_lists(struct nf_conn *ct)
 {
-	DEBUGP("clean_from_lists(%p)\n", ct);
+	pr_debug("clean_from_lists(%p)\n", ct);
 	hlist_del(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnode);
 	hlist_del(&ct->tuplehash[IP_CT_DIR_REPLY].hnode);
 
@@ -155,7 +149,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	struct nf_conn *ct = (struct nf_conn *)nfct;
 	struct nf_conntrack_l4proto *l4proto;
 
-	DEBUGP("destroy_conntrack(%p)\n", ct);
+	pr_debug("destroy_conntrack(%p)\n", ct);
 	NF_CT_ASSERT(atomic_read(&nfct->use) == 0);
 	NF_CT_ASSERT(!timer_pending(&ct->timeout));
 
@@ -194,7 +188,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	if (ct->master)
 		nf_ct_put(ct->master);
 
-	DEBUGP("destroy_conntrack: returning ct=%p to slab\n", ct);
+	pr_debug("destroy_conntrack: returning ct=%p to slab\n", ct);
 	nf_conntrack_free(ct);
 }
 
@@ -313,7 +307,7 @@ __nf_conntrack_confirm(struct sk_buff **pskb)
 	/* No external references means noone else could have
 	   confirmed us. */
 	NF_CT_ASSERT(!nf_ct_is_confirmed(ct));
-	DEBUGP("Confirming conntrack %p\n", ct);
+	pr_debug("Confirming conntrack %p\n", ct);
 
 	write_lock_bh(&nf_conntrack_lock);
 
@@ -446,7 +440,7 @@ struct nf_conn *nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 
 	conntrack = kmem_cache_zalloc(nf_conntrack_cachep, GFP_ATOMIC);
 	if (conntrack == NULL) {
-		DEBUGP("nf_conntrack_alloc: Can't alloc conntrack.\n");
+		pr_debug("nf_conntrack_alloc: Can't alloc conntrack.\n");
 		atomic_dec(&nf_conntrack_count);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -485,27 +479,27 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 	struct nf_conntrack_expect *exp;
 
 	if (!nf_ct_invert_tuple(&repl_tuple, tuple, l3proto, l4proto)) {
-		DEBUGP("Can't invert tuple.\n");
+		pr_debug("Can't invert tuple.\n");
 		return NULL;
 	}
 
 	conntrack = nf_conntrack_alloc(tuple, &repl_tuple);
 	if (conntrack == NULL || IS_ERR(conntrack)) {
-		DEBUGP("Can't allocate conntrack.\n");
+		pr_debug("Can't allocate conntrack.\n");
 		return (struct nf_conntrack_tuple_hash *)conntrack;
 	}
 
 	if (!l4proto->new(conntrack, skb, dataoff)) {
 		nf_conntrack_free(conntrack);
-		DEBUGP("init conntrack: can't track with proto module\n");
+		pr_debug("init conntrack: can't track with proto module\n");
 		return NULL;
 	}
 
 	write_lock_bh(&nf_conntrack_lock);
 	exp = nf_ct_find_expectation(tuple);
 	if (exp) {
-		DEBUGP("conntrack: expectation arrives ct=%p exp=%p\n",
-			conntrack, exp);
+		pr_debug("conntrack: expectation arrives ct=%p exp=%p\n",
+			 conntrack, exp);
 		/* Welcome, Mr. Bond.  We've been expecting you... */
 		__set_bit(IPS_EXPECTED_BIT, &conntrack->status);
 		conntrack->master = exp->master;
@@ -568,7 +562,7 @@ resolve_normal_ct(struct sk_buff *skb,
 	if (!nf_ct_get_tuple(skb, skb_network_offset(skb),
 			     dataoff, l3num, protonum, &tuple, l3proto,
 			     l4proto)) {
-		DEBUGP("resolve_normal_ct: Can't get tuple\n");
+		pr_debug("resolve_normal_ct: Can't get tuple\n");
 		return NULL;
 	}
 
@@ -591,13 +585,14 @@ resolve_normal_ct(struct sk_buff *skb,
 	} else {
 		/* Once we've had two way comms, always ESTABLISHED. */
 		if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
-			DEBUGP("nf_conntrack_in: normal packet for %p\n", ct);
+			pr_debug("nf_conntrack_in: normal packet for %p\n", ct);
 			*ctinfo = IP_CT_ESTABLISHED;
 		} else if (test_bit(IPS_EXPECTED_BIT, &ct->status)) {
-			DEBUGP("nf_conntrack_in: related packet for %p\n", ct);
+			pr_debug("nf_conntrack_in: related packet for %p\n",
+				 ct);
 			*ctinfo = IP_CT_RELATED;
 		} else {
-			DEBUGP("nf_conntrack_in: new packet for %p\n", ct);
+			pr_debug("nf_conntrack_in: new packet for %p\n", ct);
 			*ctinfo = IP_CT_NEW;
 		}
 		*set_reply = 0;
@@ -629,7 +624,7 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 	l3proto = __nf_ct_l3proto_find((u_int16_t)pf);
 
 	if ((ret = l3proto->prepare(pskb, hooknum, &dataoff, &protonum)) <= 0) {
-		DEBUGP("not prepared to track yet or error occured\n");
+		pr_debug("not prepared to track yet or error occured\n");
 		return -ret;
 	}
 
@@ -665,7 +660,7 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 	if (ret < 0) {
 		/* Invalid: inverse of the return code tells
 		 * the netfilter core what to do */
-		DEBUGP("nf_conntrack_in: Can't track with proto module\n");
+		pr_debug("nf_conntrack_in: Can't track with proto module\n");
 		nf_conntrack_put((*pskb)->nfct);
 		(*pskb)->nfct = NULL;
 		NF_CT_STAT_INC_ATOMIC(invalid);
@@ -706,7 +701,7 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 	/* Should be unconfirmed, so not in hash table yet */
 	NF_CT_ASSERT(!nf_ct_is_confirmed(ct));
 
-	DEBUGP("Altering reply tuple of %p to ", ct);
+	pr_debug("Altering reply tuple of %p to ", ct);
 	NF_CT_DUMP_TUPLE(newreply);
 
 	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *newreply;

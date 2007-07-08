@@ -31,12 +31,6 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <linux/netfilter/nf_conntrack_h323.h>
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 /* Parameters */
 static unsigned int default_rrq_ttl __read_mostly = 300;
 module_param(default_rrq_ttl, uint, 0600);
@@ -150,9 +144,9 @@ static int get_tpkt_data(struct sk_buff **pskb, unsigned int protoff,
 		if (tcpdatalen < 4 || tpkt[0] != 0x03 || tpkt[1] != 0) {
 			/* Netmeeting sends TPKT header and data separately */
 			if (info->tpkt_len[dir] > 0) {
-				DEBUGP("nf_ct_h323: previous packet "
-				       "indicated separate TPKT data of %hu "
-				       "bytes\n", info->tpkt_len[dir]);
+				pr_debug("nf_ct_h323: previous packet "
+					 "indicated separate TPKT data of %hu "
+					 "bytes\n", info->tpkt_len[dir]);
 				if (info->tpkt_len[dir] <= tcpdatalen) {
 					/* Yes, there was a TPKT header
 					 * received */
@@ -163,7 +157,7 @@ static int get_tpkt_data(struct sk_buff **pskb, unsigned int protoff,
 				}
 
 				/* Fragmented TPKT */
-				DEBUGP("nf_ct_h323: fragmented TPKT\n");
+				pr_debug("nf_ct_h323: fragmented TPKT\n");
 				goto clear_out;
 			}
 
@@ -190,9 +184,9 @@ static int get_tpkt_data(struct sk_buff **pskb, unsigned int protoff,
 	if (tpktlen > tcpdatalen) {
 		if (tcpdatalen == 4) {	/* Separate TPKT header */
 			/* Netmeeting sends TPKT header and data separately */
-			DEBUGP("nf_ct_h323: separate TPKT header indicates "
-			       "there will be TPKT data of %hu bytes\n",
-			       tpktlen - 4);
+			pr_debug("nf_ct_h323: separate TPKT header indicates "
+				 "there will be TPKT data of %hu bytes\n",
+				 tpktlen - 4);
 			info->tpkt_len[dir] = tpktlen - 4;
 			return 0;
 		}
@@ -308,9 +302,9 @@ static int expect_rtp_rtcp(struct sk_buff **pskb, struct nf_conn *ct,
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(rtp_exp) == 0) {
 			if (nf_ct_expect_related(rtcp_exp) == 0) {
-				DEBUGP("nf_ct_h323: expect RTP ");
+				pr_debug("nf_ct_h323: expect RTP ");
 				NF_CT_DUMP_TUPLE(&rtp_exp->tuple);
-				DEBUGP("nf_ct_h323: expect RTCP ");
+				pr_debug("nf_ct_h323: expect RTCP ");
 				NF_CT_DUMP_TUPLE(&rtcp_exp->tuple);
 			} else {
 				nf_ct_unexpect_related(rtp_exp);
@@ -365,7 +359,7 @@ static int expect_t120(struct sk_buff **pskb,
 			       port, exp);
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(exp) == 0) {
-			DEBUGP("nf_ct_h323: expect T.120 ");
+			pr_debug("nf_ct_h323: expect T.120 ");
 			NF_CT_DUMP_TUPLE(&exp->tuple);
 		} else
 			ret = -1;
@@ -413,7 +407,7 @@ static int process_olc(struct sk_buff **pskb, struct nf_conn *ct,
 {
 	int ret;
 
-	DEBUGP("nf_ct_h323: OpenLogicalChannel\n");
+	pr_debug("nf_ct_h323: OpenLogicalChannel\n");
 
 	if (olc->forwardLogicalChannelParameters.multiplexParameters.choice ==
 	    eOpenLogicalChannel_forwardLogicalChannelParameters_multiplexParameters_h2250LogicalChannelParameters)
@@ -473,7 +467,7 @@ static int process_olca(struct sk_buff **pskb, struct nf_conn *ct,
 	H2250LogicalChannelAckParameters *ack;
 	int ret;
 
-	DEBUGP("nf_ct_h323: OpenLogicalChannelAck\n");
+	pr_debug("nf_ct_h323: OpenLogicalChannelAck\n");
 
 	if ((olca->options &
 	     eOpenLogicalChannelAck_reverseLogicalChannelParameters) &&
@@ -544,8 +538,8 @@ static int process_h245(struct sk_buff **pskb, struct nf_conn *ct,
 			return process_olc(pskb, ct, ctinfo, data, dataoff,
 					   &mscm->request.openLogicalChannel);
 		}
-		DEBUGP("nf_ct_h323: H.245 Request %d\n",
-		       mscm->request.choice);
+		pr_debug("nf_ct_h323: H.245 Request %d\n",
+			 mscm->request.choice);
 		break;
 	case eMultimediaSystemControlMessage_response:
 		if (mscm->response.choice ==
@@ -554,11 +548,11 @@ static int process_h245(struct sk_buff **pskb, struct nf_conn *ct,
 					    &mscm->response.
 					    openLogicalChannelAck);
 		}
-		DEBUGP("nf_ct_h323: H.245 Response %d\n",
-		       mscm->response.choice);
+		pr_debug("nf_ct_h323: H.245 Response %d\n",
+			 mscm->response.choice);
 		break;
 	default:
-		DEBUGP("nf_ct_h323: H.245 signal %d\n", mscm->choice);
+		pr_debug("nf_ct_h323: H.245 signal %d\n", mscm->choice);
 		break;
 	}
 
@@ -580,23 +574,23 @@ static int h245_help(struct sk_buff **pskb, unsigned int protoff,
 	    ctinfo != IP_CT_ESTABLISHED + IP_CT_IS_REPLY) {
 		return NF_ACCEPT;
 	}
-	DEBUGP("nf_ct_h245: skblen = %u\n", (*pskb)->len);
+	pr_debug("nf_ct_h245: skblen = %u\n", (*pskb)->len);
 
 	spin_lock_bh(&nf_h323_lock);
 
 	/* Process each TPKT */
 	while (get_tpkt_data(pskb, protoff, ct, ctinfo,
 			     &data, &datalen, &dataoff)) {
-		DEBUGP("nf_ct_h245: TPKT len=%d ", datalen);
+		pr_debug("nf_ct_h245: TPKT len=%d ", datalen);
 		NF_CT_DUMP_TUPLE(&ct->tuplehash[CTINFO2DIR(ctinfo)].tuple);
 
 		/* Decode H.245 signal */
 		ret = DecodeMultimediaSystemControlMessage(data, datalen,
 							   &mscm);
 		if (ret < 0) {
-			DEBUGP("nf_ct_h245: decoding error: %s\n",
-			       ret == H323_ERROR_BOUND ?
-			       "out of bound" : "out of range");
+			pr_debug("nf_ct_h245: decoding error: %s\n",
+				 ret == H323_ERROR_BOUND ?
+				 "out of bound" : "out of range");
 			/* We don't drop when decoding error */
 			break;
 		}
@@ -697,7 +691,7 @@ static int expect_h245(struct sk_buff **pskb, struct nf_conn *ct,
 			       port, exp);
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(exp) == 0) {
-			DEBUGP("nf_ct_q931: expect H.245 ");
+			pr_debug("nf_ct_q931: expect H.245 ");
 			NF_CT_DUMP_TUPLE(&exp->tuple);
 		} else
 			ret = -1;
@@ -786,7 +780,7 @@ static int expect_callforwarding(struct sk_buff **pskb,
 	if (callforward_filter &&
 	    callforward_do_filter(&addr, &ct->tuplehash[!dir].tuple.src.u3,
 				  ct->tuplehash[!dir].tuple.src.l3num)) {
-		DEBUGP("nf_ct_q931: Call Forwarding not tracked\n");
+		pr_debug("nf_ct_q931: Call Forwarding not tracked\n");
 		return 0;
 	}
 
@@ -808,7 +802,7 @@ static int expect_callforwarding(struct sk_buff **pskb,
 					 taddr, port, exp);
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(exp) == 0) {
-			DEBUGP("nf_ct_q931: expect Call Forwarding ");
+			pr_debug("nf_ct_q931: expect Call Forwarding ");
 			NF_CT_DUMP_TUPLE(&exp->tuple);
 		} else
 			ret = -1;
@@ -832,7 +826,7 @@ static int process_setup(struct sk_buff **pskb, struct nf_conn *ct,
 	union nf_conntrack_address addr;
 	typeof(set_h225_addr_hook) set_h225_addr;
 
-	DEBUGP("nf_ct_q931: Setup\n");
+	pr_debug("nf_ct_q931: Setup\n");
 
 	if (setup->options & eSetup_UUIE_h245Address) {
 		ret = expect_h245(pskb, ct, ctinfo, data, dataoff,
@@ -847,11 +841,11 @@ static int process_setup(struct sk_buff **pskb, struct nf_conn *ct,
 	    get_h225_addr(ct, *data, &setup->destCallSignalAddress,
 			  &addr, &port) &&
 	    memcmp(&addr, &ct->tuplehash[!dir].tuple.src.u3, sizeof(addr))) {
-		DEBUGP("nf_ct_q931: set destCallSignalAddress "
-		       NIP6_FMT ":%hu->" NIP6_FMT ":%hu\n",
-		       NIP6(*(struct in6_addr *)&addr), ntohs(port),
-		       NIP6(*(struct in6_addr *)&ct->tuplehash[!dir].tuple.src.u3),
-		       ntohs(ct->tuplehash[!dir].tuple.src.u.tcp.port));
+		pr_debug("nf_ct_q931: set destCallSignalAddress "
+			 NIP6_FMT ":%hu->" NIP6_FMT ":%hu\n",
+			 NIP6(*(struct in6_addr *)&addr), ntohs(port),
+			 NIP6(*(struct in6_addr *)&ct->tuplehash[!dir].tuple.src.u3),
+			 ntohs(ct->tuplehash[!dir].tuple.src.u.tcp.port));
 		ret = set_h225_addr(pskb, data, dataoff,
 				    &setup->destCallSignalAddress,
 				    &ct->tuplehash[!dir].tuple.src.u3,
@@ -865,11 +859,11 @@ static int process_setup(struct sk_buff **pskb, struct nf_conn *ct,
 	    get_h225_addr(ct, *data, &setup->sourceCallSignalAddress,
 			  &addr, &port) &&
 	    memcmp(&addr, &ct->tuplehash[!dir].tuple.dst.u3, sizeof(addr))) {
-		DEBUGP("nf_ct_q931: set sourceCallSignalAddress "
-		       NIP6_FMT ":%hu->" NIP6_FMT ":%hu\n",
-		       NIP6(*(struct in6_addr *)&addr), ntohs(port),
-		       NIP6(*(struct in6_addr *)&ct->tuplehash[!dir].tuple.dst.u3),
-		       ntohs(ct->tuplehash[!dir].tuple.dst.u.tcp.port));
+		pr_debug("nf_ct_q931: set sourceCallSignalAddress "
+			 NIP6_FMT ":%hu->" NIP6_FMT ":%hu\n",
+			 NIP6(*(struct in6_addr *)&addr), ntohs(port),
+			 NIP6(*(struct in6_addr *)&ct->tuplehash[!dir].tuple.dst.u3),
+			 ntohs(ct->tuplehash[!dir].tuple.dst.u.tcp.port));
 		ret = set_h225_addr(pskb, data, dataoff,
 				    &setup->sourceCallSignalAddress,
 				    &ct->tuplehash[!dir].tuple.dst.u3,
@@ -900,7 +894,7 @@ static int process_callproceeding(struct sk_buff **pskb,
 	int ret;
 	int i;
 
-	DEBUGP("nf_ct_q931: CallProceeding\n");
+	pr_debug("nf_ct_q931: CallProceeding\n");
 
 	if (callproc->options & eCallProceeding_UUIE_h245Address) {
 		ret = expect_h245(pskb, ct, ctinfo, data, dataoff,
@@ -930,7 +924,7 @@ static int process_connect(struct sk_buff **pskb, struct nf_conn *ct,
 	int ret;
 	int i;
 
-	DEBUGP("nf_ct_q931: Connect\n");
+	pr_debug("nf_ct_q931: Connect\n");
 
 	if (connect->options & eConnect_UUIE_h245Address) {
 		ret = expect_h245(pskb, ct, ctinfo, data, dataoff,
@@ -960,7 +954,7 @@ static int process_alerting(struct sk_buff **pskb, struct nf_conn *ct,
 	int ret;
 	int i;
 
-	DEBUGP("nf_ct_q931: Alerting\n");
+	pr_debug("nf_ct_q931: Alerting\n");
 
 	if (alert->options & eAlerting_UUIE_h245Address) {
 		ret = expect_h245(pskb, ct, ctinfo, data, dataoff,
@@ -990,7 +984,7 @@ static int process_facility(struct sk_buff **pskb, struct nf_conn *ct,
 	int ret;
 	int i;
 
-	DEBUGP("nf_ct_q931: Facility\n");
+	pr_debug("nf_ct_q931: Facility\n");
 
 	if (facility->reason.choice == eFacilityReason_callForwarded) {
 		if (facility->options & eFacility_UUIE_alternativeAddress)
@@ -1029,7 +1023,7 @@ static int process_progress(struct sk_buff **pskb, struct nf_conn *ct,
 	int ret;
 	int i;
 
-	DEBUGP("nf_ct_q931: Progress\n");
+	pr_debug("nf_ct_q931: Progress\n");
 
 	if (progress->options & eProgress_UUIE_h245Address) {
 		ret = expect_h245(pskb, ct, ctinfo, data, dataoff,
@@ -1086,8 +1080,8 @@ static int process_q931(struct sk_buff **pskb, struct nf_conn *ct,
 				       &pdu->h323_message_body.progress);
 		break;
 	default:
-		DEBUGP("nf_ct_q931: Q.931 signal %d\n",
-		       pdu->h323_message_body.choice);
+		pr_debug("nf_ct_q931: Q.931 signal %d\n",
+			 pdu->h323_message_body.choice);
 		break;
 	}
 
@@ -1121,22 +1115,22 @@ static int q931_help(struct sk_buff **pskb, unsigned int protoff,
 	    ctinfo != IP_CT_ESTABLISHED + IP_CT_IS_REPLY) {
 		return NF_ACCEPT;
 	}
-	DEBUGP("nf_ct_q931: skblen = %u\n", (*pskb)->len);
+	pr_debug("nf_ct_q931: skblen = %u\n", (*pskb)->len);
 
 	spin_lock_bh(&nf_h323_lock);
 
 	/* Process each TPKT */
 	while (get_tpkt_data(pskb, protoff, ct, ctinfo,
 			     &data, &datalen, &dataoff)) {
-		DEBUGP("nf_ct_q931: TPKT len=%d ", datalen);
+		pr_debug("nf_ct_q931: TPKT len=%d ", datalen);
 		NF_CT_DUMP_TUPLE(&ct->tuplehash[CTINFO2DIR(ctinfo)].tuple);
 
 		/* Decode Q.931 signal */
 		ret = DecodeQ931(data, datalen, &q931);
 		if (ret < 0) {
-			DEBUGP("nf_ct_q931: decoding error: %s\n",
-			       ret == H323_ERROR_BOUND ?
-			       "out of bound" : "out of range");
+			pr_debug("nf_ct_q931: decoding error: %s\n",
+				 ret == H323_ERROR_BOUND ?
+				 "out of bound" : "out of range");
 			/* We don't drop when decoding error */
 			break;
 		}
@@ -1274,7 +1268,7 @@ static int expect_q931(struct sk_buff **pskb, struct nf_conn *ct,
 		ret = nat_q931(pskb, ct, ctinfo, data, taddr, i, port, exp);
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(exp) == 0) {
-			DEBUGP("nf_ct_ras: expect Q.931 ");
+			pr_debug("nf_ct_ras: expect Q.931 ");
 			NF_CT_DUMP_TUPLE(&exp->tuple);
 
 			/* Save port for looking up expect in processing RCF */
@@ -1295,7 +1289,7 @@ static int process_grq(struct sk_buff **pskb, struct nf_conn *ct,
 {
 	typeof(set_ras_addr_hook) set_ras_addr;
 
-	DEBUGP("nf_ct_ras: GRQ\n");
+	pr_debug("nf_ct_ras: GRQ\n");
 
 	set_ras_addr = rcu_dereference(set_ras_addr_hook);
 	if (set_ras_addr && ct->status & IPS_NAT_MASK)	/* NATed */
@@ -1315,7 +1309,7 @@ static int process_gcf(struct sk_buff **pskb, struct nf_conn *ct,
 	union nf_conntrack_address addr;
 	struct nf_conntrack_expect *exp;
 
-	DEBUGP("nf_ct_ras: GCF\n");
+	pr_debug("nf_ct_ras: GCF\n");
 
 	if (!get_h225_addr(ct, *data, &gcf->rasAddress, &addr, &port))
 		return 0;
@@ -1338,7 +1332,7 @@ static int process_gcf(struct sk_buff **pskb, struct nf_conn *ct,
 	exp->helper = nf_conntrack_helper_ras;
 
 	if (nf_ct_expect_related(exp) == 0) {
-		DEBUGP("nf_ct_ras: expect RAS ");
+		pr_debug("nf_ct_ras: expect RAS ");
 		NF_CT_DUMP_TUPLE(&exp->tuple);
 	} else
 		ret = -1;
@@ -1357,7 +1351,7 @@ static int process_rrq(struct sk_buff **pskb, struct nf_conn *ct,
 	int ret;
 	typeof(set_ras_addr_hook) set_ras_addr;
 
-	DEBUGP("nf_ct_ras: RRQ\n");
+	pr_debug("nf_ct_ras: RRQ\n");
 
 	ret = expect_q931(pskb, ct, ctinfo, data,
 			  rrq->callSignalAddress.item,
@@ -1375,7 +1369,7 @@ static int process_rrq(struct sk_buff **pskb, struct nf_conn *ct,
 	}
 
 	if (rrq->options & eRegistrationRequest_timeToLive) {
-		DEBUGP("nf_ct_ras: RRQ TTL = %u seconds\n", rrq->timeToLive);
+		pr_debug("nf_ct_ras: RRQ TTL = %u seconds\n", rrq->timeToLive);
 		info->timeout = rrq->timeToLive;
 	} else
 		info->timeout = default_rrq_ttl;
@@ -1394,7 +1388,7 @@ static int process_rcf(struct sk_buff **pskb, struct nf_conn *ct,
 	struct nf_conntrack_expect *exp;
 	typeof(set_sig_addr_hook) set_sig_addr;
 
-	DEBUGP("nf_ct_ras: RCF\n");
+	pr_debug("nf_ct_ras: RCF\n");
 
 	set_sig_addr = rcu_dereference(set_sig_addr_hook);
 	if (set_sig_addr && ct->status & IPS_NAT_MASK) {
@@ -1406,14 +1400,13 @@ static int process_rcf(struct sk_buff **pskb, struct nf_conn *ct,
 	}
 
 	if (rcf->options & eRegistrationConfirm_timeToLive) {
-		DEBUGP("nf_ct_ras: RCF TTL = %u seconds\n", rcf->timeToLive);
+		pr_debug("nf_ct_ras: RCF TTL = %u seconds\n", rcf->timeToLive);
 		info->timeout = rcf->timeToLive;
 	}
 
 	if (info->timeout > 0) {
-		DEBUGP
-		    ("nf_ct_ras: set RAS connection timeout to %u seconds\n",
-		     info->timeout);
+		pr_debug("nf_ct_ras: set RAS connection timeout to "
+			 "%u seconds\n", info->timeout);
 		nf_ct_refresh(ct, *pskb, info->timeout * HZ);
 
 		/* Set expect timeout */
@@ -1421,9 +1414,9 @@ static int process_rcf(struct sk_buff **pskb, struct nf_conn *ct,
 		exp = find_expect(ct, &ct->tuplehash[dir].tuple.dst.u3,
 				  info->sig_port[!dir]);
 		if (exp) {
-			DEBUGP("nf_ct_ras: set Q.931 expect "
-			       "timeout to %u seconds for",
-			       info->timeout);
+			pr_debug("nf_ct_ras: set Q.931 expect "
+				 "timeout to %u seconds for",
+				 info->timeout);
 			NF_CT_DUMP_TUPLE(&exp->tuple);
 			set_expect_timeout(exp, info->timeout);
 		}
@@ -1443,7 +1436,7 @@ static int process_urq(struct sk_buff **pskb, struct nf_conn *ct,
 	int ret;
 	typeof(set_sig_addr_hook) set_sig_addr;
 
-	DEBUGP("nf_ct_ras: URQ\n");
+	pr_debug("nf_ct_ras: URQ\n");
 
 	set_sig_addr = rcu_dereference(set_sig_addr_hook);
 	if (set_sig_addr && ct->status & IPS_NAT_MASK) {
@@ -1476,7 +1469,7 @@ static int process_arq(struct sk_buff **pskb, struct nf_conn *ct,
 	union nf_conntrack_address addr;
 	typeof(set_h225_addr_hook) set_h225_addr;
 
-	DEBUGP("nf_ct_ras: ARQ\n");
+	pr_debug("nf_ct_ras: ARQ\n");
 
 	set_h225_addr = rcu_dereference(set_h225_addr_hook);
 	if ((arq->options & eAdmissionRequest_destCallSignalAddress) &&
@@ -1519,7 +1512,7 @@ static int process_acf(struct sk_buff **pskb, struct nf_conn *ct,
 	struct nf_conntrack_expect *exp;
 	typeof(set_sig_addr_hook) set_sig_addr;
 
-	DEBUGP("nf_ct_ras: ACF\n");
+	pr_debug("nf_ct_ras: ACF\n");
 
 	if (!get_h225_addr(ct, *data, &acf->destCallSignalAddress,
 			   &addr, &port))
@@ -1544,7 +1537,7 @@ static int process_acf(struct sk_buff **pskb, struct nf_conn *ct,
 	exp->helper = nf_conntrack_helper_q931;
 
 	if (nf_ct_expect_related(exp) == 0) {
-		DEBUGP("nf_ct_ras: expect Q.931 ");
+		pr_debug("nf_ct_ras: expect Q.931 ");
 		NF_CT_DUMP_TUPLE(&exp->tuple);
 	} else
 		ret = -1;
@@ -1561,7 +1554,7 @@ static int process_lrq(struct sk_buff **pskb, struct nf_conn *ct,
 {
 	typeof(set_ras_addr_hook) set_ras_addr;
 
-	DEBUGP("nf_ct_ras: LRQ\n");
+	pr_debug("nf_ct_ras: LRQ\n");
 
 	set_ras_addr = rcu_dereference(set_ras_addr_hook);
 	if (set_ras_addr && ct->status & IPS_NAT_MASK)
@@ -1581,7 +1574,7 @@ static int process_lcf(struct sk_buff **pskb, struct nf_conn *ct,
 	union nf_conntrack_address addr;
 	struct nf_conntrack_expect *exp;
 
-	DEBUGP("nf_ct_ras: LCF\n");
+	pr_debug("nf_ct_ras: LCF\n");
 
 	if (!get_h225_addr(ct, *data, &lcf->callSignalAddress,
 			   &addr, &port))
@@ -1597,7 +1590,7 @@ static int process_lcf(struct sk_buff **pskb, struct nf_conn *ct,
 	exp->helper = nf_conntrack_helper_q931;
 
 	if (nf_ct_expect_related(exp) == 0) {
-		DEBUGP("nf_ct_ras: expect Q.931 ");
+		pr_debug("nf_ct_ras: expect Q.931 ");
 		NF_CT_DUMP_TUPLE(&exp->tuple);
 	} else
 		ret = -1;
@@ -1618,7 +1611,7 @@ static int process_irr(struct sk_buff **pskb, struct nf_conn *ct,
 	typeof(set_ras_addr_hook) set_ras_addr;
 	typeof(set_sig_addr_hook) set_sig_addr;
 
-	DEBUGP("nf_ct_ras: IRR\n");
+	pr_debug("nf_ct_ras: IRR\n");
 
 	set_ras_addr = rcu_dereference(set_ras_addr_hook);
 	if (set_ras_addr && ct->status & IPS_NAT_MASK) {
@@ -1677,7 +1670,7 @@ static int process_ras(struct sk_buff **pskb, struct nf_conn *ct,
 		return process_irr(pskb, ct, ctinfo, data,
 				   &ras->infoRequestResponse);
 	default:
-		DEBUGP("nf_ct_ras: RAS message %d\n", ras->choice);
+		pr_debug("nf_ct_ras: RAS message %d\n", ras->choice);
 		break;
 	}
 
@@ -1693,7 +1686,7 @@ static int ras_help(struct sk_buff **pskb, unsigned int protoff,
 	int datalen = 0;
 	int ret;
 
-	DEBUGP("nf_ct_ras: skblen = %u\n", (*pskb)->len);
+	pr_debug("nf_ct_ras: skblen = %u\n", (*pskb)->len);
 
 	spin_lock_bh(&nf_h323_lock);
 
@@ -1701,15 +1694,15 @@ static int ras_help(struct sk_buff **pskb, unsigned int protoff,
 	data = get_udp_data(pskb, protoff, &datalen);
 	if (data == NULL)
 		goto accept;
-	DEBUGP("nf_ct_ras: RAS message len=%d ", datalen);
+	pr_debug("nf_ct_ras: RAS message len=%d ", datalen);
 	NF_CT_DUMP_TUPLE(&ct->tuplehash[CTINFO2DIR(ctinfo)].tuple);
 
 	/* Decode RAS message */
 	ret = DecodeRasMessage(data, datalen, &ras);
 	if (ret < 0) {
-		DEBUGP("nf_ct_ras: decoding error: %s\n",
-		       ret == H323_ERROR_BOUND ?
-		       "out of bound" : "out of range");
+		pr_debug("nf_ct_ras: decoding error: %s\n",
+			 ret == H323_ERROR_BOUND ?
+			 "out of bound" : "out of range");
 		goto accept;
 	}
 
@@ -1760,7 +1753,7 @@ static void __exit nf_conntrack_h323_fini(void)
 	nf_conntrack_helper_unregister(&nf_conntrack_helper_q931[1]);
 	nf_conntrack_helper_unregister(&nf_conntrack_helper_q931[0]);
 	kfree(h323_buffer);
-	DEBUGP("nf_ct_h323: fini\n");
+	pr_debug("nf_ct_h323: fini\n");
 }
 
 /****************************************************************************/
@@ -1783,7 +1776,7 @@ static int __init nf_conntrack_h323_init(void)
 	ret = nf_conntrack_helper_register(&nf_conntrack_helper_ras[1]);
 	if (ret < 0)
 		goto err4;
-	DEBUGP("nf_ct_h323: init success\n");
+	pr_debug("nf_ct_h323: init success\n");
 	return 0;
 
 err4:

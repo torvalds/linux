@@ -24,12 +24,6 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 static int ipv4_pkt_to_tuple(const struct sk_buff *skb, unsigned int nhoff,
 			     struct nf_conntrack_tuple *tuple)
 {
@@ -324,13 +318,13 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 
 	/* We only do TCP at the moment: is there a better way? */
 	if (strcmp(sk->sk_prot->name, "TCP")) {
-		DEBUGP("SO_ORIGINAL_DST: Not a TCP socket\n");
+		pr_debug("SO_ORIGINAL_DST: Not a TCP socket\n");
 		return -ENOPROTOOPT;
 	}
 
 	if ((unsigned int) *len < sizeof(struct sockaddr_in)) {
-		DEBUGP("SO_ORIGINAL_DST: len %u not %u\n",
-		       *len, sizeof(struct sockaddr_in));
+		pr_debug("SO_ORIGINAL_DST: len %d not %Zu\n",
+			 *len, sizeof(struct sockaddr_in));
 		return -EINVAL;
 	}
 
@@ -346,17 +340,17 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 			.tuple.dst.u3.ip;
 		memset(sin.sin_zero, 0, sizeof(sin.sin_zero));
 
-		DEBUGP("SO_ORIGINAL_DST: %u.%u.%u.%u %u\n",
-		       NIPQUAD(sin.sin_addr.s_addr), ntohs(sin.sin_port));
+		pr_debug("SO_ORIGINAL_DST: %u.%u.%u.%u %u\n",
+			 NIPQUAD(sin.sin_addr.s_addr), ntohs(sin.sin_port));
 		nf_ct_put(ct);
 		if (copy_to_user(user, &sin, sizeof(sin)) != 0)
 			return -EFAULT;
 		else
 			return 0;
 	}
-	DEBUGP("SO_ORIGINAL_DST: Can't find %u.%u.%u.%u/%u-%u.%u.%u.%u/%u.\n",
-	       NIPQUAD(tuple.src.u3.ip), ntohs(tuple.src.u.tcp.port),
-	       NIPQUAD(tuple.dst.u3.ip), ntohs(tuple.dst.u.tcp.port));
+	pr_debug("SO_ORIGINAL_DST: Can't find %u.%u.%u.%u/%u-%u.%u.%u.%u/%u.\n",
+		 NIPQUAD(tuple.src.u3.ip), ntohs(tuple.src.u.tcp.port),
+		 NIPQUAD(tuple.dst.u3.ip), ntohs(tuple.dst.u.tcp.port));
 	return -ENOENT;
 }
 

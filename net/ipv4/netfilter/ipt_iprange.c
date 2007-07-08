@@ -17,12 +17,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
 MODULE_DESCRIPTION("iptables arbitrary IP range match module");
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
@@ -38,12 +32,12 @@ match(const struct sk_buff *skb,
 		if ((ntohl(iph->saddr) < ntohl(info->src.min_ip)
 			  || ntohl(iph->saddr) > ntohl(info->src.max_ip))
 			 ^ !!(info->flags & IPRANGE_SRC_INV)) {
-			DEBUGP("src IP %u.%u.%u.%u NOT in range %s"
-			       "%u.%u.%u.%u-%u.%u.%u.%u\n",
-				NIPQUAD(iph->saddr),
-				info->flags & IPRANGE_SRC_INV ? "(INV) " : "",
-				NIPQUAD(info->src.min_ip),
-				NIPQUAD(info->src.max_ip));
+			pr_debug("src IP %u.%u.%u.%u NOT in range %s"
+				 "%u.%u.%u.%u-%u.%u.%u.%u\n",
+				 NIPQUAD(iph->saddr),
+				 info->flags & IPRANGE_SRC_INV ? "(INV) " : "",
+				 NIPQUAD(info->src.min_ip),
+				 NIPQUAD(info->src.max_ip));
 			return false;
 		}
 	}
@@ -51,12 +45,12 @@ match(const struct sk_buff *skb,
 		if ((ntohl(iph->daddr) < ntohl(info->dst.min_ip)
 			  || ntohl(iph->daddr) > ntohl(info->dst.max_ip))
 			 ^ !!(info->flags & IPRANGE_DST_INV)) {
-			DEBUGP("dst IP %u.%u.%u.%u NOT in range %s"
-			       "%u.%u.%u.%u-%u.%u.%u.%u\n",
-				NIPQUAD(iph->daddr),
-				info->flags & IPRANGE_DST_INV ? "(INV) " : "",
-				NIPQUAD(info->dst.min_ip),
-				NIPQUAD(info->dst.max_ip));
+			pr_debug("dst IP %u.%u.%u.%u NOT in range %s"
+				 "%u.%u.%u.%u-%u.%u.%u.%u\n",
+				 NIPQUAD(iph->daddr),
+				 info->flags & IPRANGE_DST_INV ? "(INV) " : "",
+				 NIPQUAD(info->dst.min_ip),
+				 NIPQUAD(info->dst.max_ip));
 			return false;
 		}
 	}

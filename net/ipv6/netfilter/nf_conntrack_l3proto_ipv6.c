@@ -26,12 +26,6 @@
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 static int ipv6_pkt_to_tuple(const struct sk_buff *skb, unsigned int nhoff,
 			     struct nf_conntrack_tuple *tuple)
 {
@@ -136,7 +130,7 @@ ipv6_prepare(struct sk_buff **pskb, unsigned int hooknum, unsigned int *dataoff,
 	 * except of IPv6 & ext headers. but it's tracked anyway. - YK
 	 */
 	if ((protoff < 0) || (protoff > (*pskb)->len)) {
-		DEBUGP("ip6_conntrack_core: can't find proto in pkt\n");
+		pr_debug("ip6_conntrack_core: can't find proto in pkt\n");
 		NF_CT_STAT_INC_ATOMIC(error);
 		NF_CT_STAT_INC_ATOMIC(invalid);
 		return -NF_ACCEPT;
@@ -178,7 +172,7 @@ static unsigned int ipv6_confirm(unsigned int hooknum,
 	protoff = nf_ct_ipv6_skip_exthdr(*pskb, extoff, &pnum,
 					 (*pskb)->len - extoff);
 	if (protoff > (*pskb)->len || pnum == NEXTHDR_FRAGMENT) {
-		DEBUGP("proto header not found\n");
+		pr_debug("proto header not found\n");
 		return NF_ACCEPT;
 	}
 

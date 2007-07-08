@@ -26,12 +26,6 @@ MODULE_AUTHOR("Christian Hentschel <chentschel@arnet.com.ar>");
 MODULE_DESCRIPTION("SIP NAT helper");
 MODULE_ALIAS("ip_nat_sip");
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 struct addr_map {
 	struct {
 		char		src[sizeof("nnn.nnn.nnn.nnn:nnnnn")];
@@ -256,8 +250,6 @@ static unsigned int ip_nat_sdp(struct sk_buff **pskb,
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	__be32 newip;
 	u_int16_t port;
-
-	DEBUGP("ip_nat_sdp():\n");
 
 	/* Connection will come from reply */
 	if (ct->tuplehash[dir].tuple.src.u3.ip ==

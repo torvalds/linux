@@ -24,21 +24,15 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("IPv6 RT match");
 MODULE_AUTHOR("Andras Kis-Szabo <kisza@sch.bme.hu>");
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
 /* Returns 1 if the id is matched by the range, 0 otherwise */
 static inline bool
 segsleft_match(u_int32_t min, u_int32_t max, u_int32_t id, bool invert)
 {
 	bool r;
-	DEBUGP("rt segsleft_match:%c 0x%x <= 0x%x <= 0x%x",
-	       invert ? '!' : ' ', min, id, max);
+	pr_debug("rt segsleft_match:%c 0x%x <= 0x%x <= 0x%x",
+		 invert ? '!' : ' ', min, id, max);
 	r = (id >= min && id <= max) ^ invert;
-	DEBUGP(" result %s\n", r ? "PASS" : "FAILED");
+	pr_debug(" result %s\n", r ? "PASS" : "FAILED");
 	return r;
 }
 
@@ -82,29 +76,29 @@ match(const struct sk_buff *skb,
 		return false;
 	}
 
-	DEBUGP("IPv6 RT LEN %u %u ", hdrlen, rh->hdrlen);
-	DEBUGP("TYPE %04X ", rh->type);
-	DEBUGP("SGS_LEFT %u %02X\n", rh->segments_left, rh->segments_left);
+	pr_debug("IPv6 RT LEN %u %u ", hdrlen, rh->hdrlen);
+	pr_debug("TYPE %04X ", rh->type);
+	pr_debug("SGS_LEFT %u %02X\n", rh->segments_left, rh->segments_left);
 
-	DEBUGP("IPv6 RT segsleft %02X ",
-	       segsleft_match(rtinfo->segsleft[0], rtinfo->segsleft[1],
-			      rh->segments_left,
-			      !!(rtinfo->invflags & IP6T_RT_INV_SGS)));
-	DEBUGP("type %02X %02X %02X ",
-	       rtinfo->rt_type, rh->type,
-	       (!(rtinfo->flags & IP6T_RT_TYP) ||
-		((rtinfo->rt_type == rh->type) ^
-		 !!(rtinfo->invflags & IP6T_RT_INV_TYP))));
-	DEBUGP("len %02X %04X %02X ",
-	       rtinfo->hdrlen, hdrlen,
-	       !(rtinfo->flags & IP6T_RT_LEN) ||
-		((rtinfo->hdrlen == hdrlen) ^
-		 !!(rtinfo->invflags & IP6T_RT_INV_LEN)));
-	DEBUGP("res %02X %02X %02X ",
-	       rtinfo->flags & IP6T_RT_RES,
-	       ((const struct rt0_hdr *)rh)->reserved,
-	       !((rtinfo->flags & IP6T_RT_RES) &&
-		 (((const struct rt0_hdr *)rh)->reserved)));
+	pr_debug("IPv6 RT segsleft %02X ",
+		 segsleft_match(rtinfo->segsleft[0], rtinfo->segsleft[1],
+				rh->segments_left,
+				!!(rtinfo->invflags & IP6T_RT_INV_SGS)));
+	pr_debug("type %02X %02X %02X ",
+		 rtinfo->rt_type, rh->type,
+		 (!(rtinfo->flags & IP6T_RT_TYP) ||
+		  ((rtinfo->rt_type == rh->type) ^
+		   !!(rtinfo->invflags & IP6T_RT_INV_TYP))));
+	pr_debug("len %02X %04X %02X ",
+		 rtinfo->hdrlen, hdrlen,
+		 !(rtinfo->flags & IP6T_RT_LEN) ||
+		  ((rtinfo->hdrlen == hdrlen) ^
+		   !!(rtinfo->invflags & IP6T_RT_INV_LEN)));
+	pr_debug("res %02X %02X %02X ",
+		 rtinfo->flags & IP6T_RT_RES,
+		 ((const struct rt0_hdr *)rh)->reserved,
+		 !((rtinfo->flags & IP6T_RT_RES) &&
+		   (((const struct rt0_hdr *)rh)->reserved)));
 
 	ret = (rh != NULL)
 	      &&
@@ -131,18 +125,18 @@ match(const struct sk_buff *skb,
 		ret = (*rp == 0);
 	}
 
-	DEBUGP("#%d ", rtinfo->addrnr);
+	pr_debug("#%d ", rtinfo->addrnr);
 	if (!(rtinfo->flags & IP6T_RT_FST)) {
 		return ret;
 	} else if (rtinfo->flags & IP6T_RT_FST_NSTRICT) {
-		DEBUGP("Not strict ");
+		pr_debug("Not strict ");
 		if (rtinfo->addrnr > (unsigned int)((hdrlen - 8) / 16)) {
-			DEBUGP("There isn't enough space\n");
+			pr_debug("There isn't enough space\n");
 			return false;
 		} else {
 			unsigned int i = 0;
 
-			DEBUGP("#%d ", rtinfo->addrnr);
+			pr_debug("#%d ", rtinfo->addrnr);
 			for (temp = 0;
 			     temp < (unsigned int)((hdrlen - 8) / 16);
 			     temp++) {
@@ -156,25 +150,25 @@ match(const struct sk_buff *skb,
 				BUG_ON(ap == NULL);
 
 				if (ipv6_addr_equal(ap, &rtinfo->addrs[i])) {
-					DEBUGP("i=%d temp=%d;\n", i, temp);
+					pr_debug("i=%d temp=%d;\n", i, temp);
 					i++;
 				}
 				if (i == rtinfo->addrnr)
 					break;
 			}
-			DEBUGP("i=%d #%d\n", i, rtinfo->addrnr);
+			pr_debug("i=%d #%d\n", i, rtinfo->addrnr);
 			if (i == rtinfo->addrnr)
 				return ret;
 			else
 				return false;
 		}
 	} else {
-		DEBUGP("Strict ");
+		pr_debug("Strict ");
 		if (rtinfo->addrnr > (unsigned int)((hdrlen - 8) / 16)) {
-			DEBUGP("There isn't enough space\n");
+			pr_debug("There isn't enough space\n");
 			return false;
 		} else {
-			DEBUGP("#%d ", rtinfo->addrnr);
+			pr_debug("#%d ", rtinfo->addrnr);
 			for (temp = 0; temp < rtinfo->addrnr; temp++) {
 				ap = skb_header_pointer(skb,
 							ptr
@@ -187,7 +181,7 @@ match(const struct sk_buff *skb,
 				if (!ipv6_addr_equal(ap, &rtinfo->addrs[temp]))
 					break;
 			}
-			DEBUGP("temp=%d #%d\n", temp, rtinfo->addrnr);
+			pr_debug("temp=%d #%d\n", temp, rtinfo->addrnr);
 			if (temp == rtinfo->addrnr &&
 			    temp == (unsigned int)((hdrlen - 8) / 16))
 				return ret;
@@ -210,14 +204,14 @@ checkentry(const char *tablename,
 	const struct ip6t_rt *rtinfo = matchinfo;
 
 	if (rtinfo->invflags & ~IP6T_RT_INV_MASK) {
-		DEBUGP("ip6t_rt: unknown flags %X\n", rtinfo->invflags);
+		pr_debug("ip6t_rt: unknown flags %X\n", rtinfo->invflags);
 		return false;
 	}
 	if ((rtinfo->flags & (IP6T_RT_RES | IP6T_RT_FST_MASK)) &&
 	    (!(rtinfo->flags & IP6T_RT_TYP) ||
 	     (rtinfo->rt_type != 0) ||
 	     (rtinfo->invflags & IP6T_RT_INV_TYP))) {
-		DEBUGP("`--rt-type 0' required before `--rt-0-*'");
+		pr_debug("`--rt-type 0' required before `--rt-0-*'");
 		return false;
 	}
 
