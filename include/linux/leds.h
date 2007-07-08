@@ -16,7 +16,6 @@
 #include <linux/spinlock.h>
 
 struct device;
-struct class_device;
 /*
  * LED Core
  */
@@ -38,7 +37,7 @@ struct led_classdev {
 	void		(*brightness_set)(struct led_classdev *led_cdev,
 					  enum led_brightness brightness);
 
-	struct class_device	*class_dev;
+	struct device		*dev;
 	struct list_head	 node;			/* LED Device list */
 	char			*default_trigger;	/* Trigger to use */
 

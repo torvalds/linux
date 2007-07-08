@@ -1,7 +1,7 @@
 /*
  * LED Triggers Core
  *
- * Copyright 2005-2006 Openedhand Ltd.
+ * Copyright 2005-2007 Openedhand Ltd.
  *
  * Author: Richard Purdie <rpurdie@openedhand.com>
  *
@@ -28,10 +28,10 @@
 static DEFINE_RWLOCK(triggers_list_lock);
 static LIST_HEAD(trigger_list);
 
-ssize_t led_trigger_store(struct class_device *dev, const char *buf,
-			size_t count)
+ssize_t led_trigger_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
-	struct led_classdev *led_cdev = class_get_devdata(dev);
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	char trigger_name[TRIG_NAME_MAX];
 	struct led_trigger *trig;
 	size_t len;
@@ -67,9 +67,10 @@ ssize_t led_trigger_store(struct class_device *dev, const char *buf,
 }
 
 
-ssize_t led_trigger_show(struct class_device *dev, char *buf)
+ssize_t led_trigger_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
-	struct led_classdev *led_cdev = class_get_devdata(dev);
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct led_trigger *trig;
 	int len = 0;
 
