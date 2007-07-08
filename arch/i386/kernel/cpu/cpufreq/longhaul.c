@@ -75,6 +75,7 @@ static unsigned int longhaul_index;
 
 /* Module parameters */
 static int scale_voltage;
+static int disable_acpi_c3;
 
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "longhaul", msg)
 
@@ -844,6 +845,9 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 		if (cx->address > 0 && cx->latency <= 1000)
 			longhaul_flags |= USE_ACPI_C3;
 	}
+	/* Disable if it isn't working */
+	if (disable_acpi_c3)
+		longhaul_flags &= ~USE_ACPI_C3;
 	/* Check if northbridge is friendly */
 	if (enable_arbiter_disable())
 		longhaul_flags |= USE_NORTHBRIDGE;
@@ -951,6 +955,9 @@ static void __exit longhaul_exit(void)
 	cpufreq_unregister_driver(&longhaul_driver);
 	kfree(longhaul_table);
 }
+
+module_param (disable_acpi_c3, int, 0644);
+MODULE_PARM_DESC(disable_acpi_c3, "Don't use ACPI C3 support");
 
 module_param (scale_voltage, int, 0644);
 MODULE_PARM_DESC(scale_voltage, "Scale voltage of processor");
