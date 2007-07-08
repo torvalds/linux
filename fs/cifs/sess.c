@@ -75,7 +75,7 @@ static __u32 cifs_ssetup_hdr(struct cifsSesInfo *ses, SESSION_SETUP_ANDX *pSMB)
 	return capabilities;
 }
 
-static void unicode_ssetup_strings(char ** pbcc_area, struct cifsSesInfo *ses,
+static void unicode_ssetup_strings(char **pbcc_area, struct cifsSesInfo *ses,
 				   const struct nls_table *nls_cp)
 {
 	char *bcc_ptr = *pbcc_area;
@@ -108,7 +108,7 @@ static void unicode_ssetup_strings(char ** pbcc_area, struct cifsSesInfo *ses,
 		*(bcc_ptr+1) = 0;
 		bytes_ret = 0;
 	} else
-		bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, ses->domainName, 
+		bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, ses->domainName,
 					  256, nls_cp);
 	bcc_ptr += 2 * bytes_ret;
 	bcc_ptr += 2;  /* account for null terminator */
@@ -130,7 +130,7 @@ static void unicode_ssetup_strings(char ** pbcc_area, struct cifsSesInfo *ses,
 	*pbcc_area = bcc_ptr;
 }
 
-static void ascii_ssetup_strings(char ** pbcc_area, struct cifsSesInfo *ses,
+static void ascii_ssetup_strings(char **pbcc_area, struct cifsSesInfo *ses,
 				 const struct nls_table *nls_cp)
 {
 	char *bcc_ptr = *pbcc_area;
@@ -468,7 +468,8 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 
 	/*	memcpy(bcc_ptr, (char *)ntlm_session_key,LM2_SESS_KEY_SIZE);
 		bcc_ptr += LM2_SESS_KEY_SIZE; */
-		memcpy(bcc_ptr, (char *)v2_sess_key, sizeof(struct ntlmv2_resp));
+		memcpy(bcc_ptr, (char *)v2_sess_key,
+		       sizeof(struct ntlmv2_resp));
 		bcc_ptr += sizeof(struct ntlmv2_resp);
 		kfree(v2_sess_key);
 		if (ses->capabilities & CAP_UNICODE) {
