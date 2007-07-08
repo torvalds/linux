@@ -52,6 +52,7 @@ struct nf_nat_multi_range_compat
 #ifdef __KERNEL__
 #include <linux/list.h>
 #include <linux/netfilter/nf_conntrack_pptp.h>
+#include <net/netfilter/nf_conntrack_extend.h>
 
 struct nf_conn;
 
@@ -88,6 +89,11 @@ extern unsigned int nf_nat_setup_info(struct nf_conn *ct,
 /* Is this tuple already taken? (not by us)*/
 extern int nf_nat_used_tuple(const struct nf_conntrack_tuple *tuple,
 			     const struct nf_conn *ignored_conntrack);
+
+static inline struct nf_conn_nat *nfct_nat(const struct nf_conn *ct)
+{
+	return nf_ct_ext_find(ct, NF_CT_EXT_NAT);
+}
 
 extern int nf_nat_module_is_loaded;
 

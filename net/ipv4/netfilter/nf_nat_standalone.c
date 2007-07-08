@@ -19,6 +19,7 @@
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_extend.h>
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_rule.h>
 #include <net/netfilter/nf_nat_protocol.h>
@@ -113,8 +114,13 @@ nf_nat_fn(unsigned int hooknum,
 		return NF_ACCEPT;
 
 	nat = nfct_nat(ct);
-	if (!nat)
-		return NF_ACCEPT;
+	if (!nat) {
+		nat = nf_ct_ext_add(ct, NF_CT_EXT_NAT, GFP_ATOMIC);
+		if (nat == NULL) {
+			DEBUGP("failed to add NAT extension\n");
+			return NF_ACCEPT;
+		}
+	}
 
 	switch (ctinfo) {
 	case IP_CT_RELATED:
@@ -326,17 +332,9 @@ static struct nf_hook_ops nf_nat_ops[] = {
 
 static int __init nf_nat_standalone_init(void)
 {
-	int size, ret = 0;
+	int ret = 0;
 
 	need_conntrack();
-
-	size = ALIGN(sizeof(struct nf_conn), __alignof__(struct nf_conn_nat)) +
-	       sizeof(struct nf_conn_nat);
-	ret = nf_conntrack_register_cache(NF_CT_F_NAT, "nf_nat:base", size);
-	if (ret < 0) {
-		printk(KERN_ERR "nf_nat_init: Unable to create slab cache\n");
-		return ret;
-	}
 
 #ifdef CONFIG_XFRM
 	BUG_ON(ip_nat_decode_session != NULL);
@@ -362,7 +360,6 @@ static int __init nf_nat_standalone_init(void)
 	ip_nat_decode_session = NULL;
 	synchronize_net();
 #endif
-	nf_conntrack_unregister_cache(NF_CT_F_NAT);
 	return ret;
 }
 

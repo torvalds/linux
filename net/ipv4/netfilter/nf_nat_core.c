@@ -297,10 +297,20 @@ nf_nat_setup_info(struct nf_conn *ct,
 		  unsigned int hooknum)
 {
 	struct nf_conntrack_tuple curr_tuple, new_tuple;
-	struct nf_conn_nat *nat = nfct_nat(ct);
-	struct nf_nat_info *info = &nat->info;
+	struct nf_conn_nat *nat;
+	struct nf_nat_info *info;
 	int have_to_hash = !(ct->status & IPS_NAT_DONE_MASK);
 	enum nf_nat_manip_type maniptype = HOOK2MANIP(hooknum);
+
+	/* nat helper or nfctnetlink also setup binding */
+	nat = nfct_nat(ct);
+	if (!nat) {
+		nat = nf_ct_ext_add(ct, NF_CT_EXT_NAT, GFP_ATOMIC);
+		if (nat == NULL) {
+			DEBUGP("failed to add NAT extension\n");
+			return NF_ACCEPT;
+		}
+	}
 
 	NF_CT_ASSERT(hooknum == NF_IP_PRE_ROUTING ||
 		     hooknum == NF_IP_POST_ROUTING ||
@@ -338,6 +348,8 @@ nf_nat_setup_info(struct nf_conn *ct,
 
 		srchash = hash_by_src(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 		write_lock_bh(&nf_nat_lock);
+		/* nf_conntrack_alter_reply might re-allocate exntension aera */
+		info = &nfct_nat(ct)->info;
 		info->ct = ct;
 		list_add(&info->bysource, &bysource[srchash]);
 		write_unlock_bh(&nf_nat_lock);
@@ -592,17 +604,52 @@ nf_nat_port_nfattr_to_range(struct nfattr *tb[], struct nf_nat_range *range)
 EXPORT_SYMBOL_GPL(nf_nat_port_range_to_nfattr);
 #endif
 
+static void nf_nat_move_storage(struct nf_conn *conntrack, void *old)
+{
+	struct nf_conn_nat *new_nat = nf_ct_ext_find(conntrack, NF_CT_EXT_NAT);
+	struct nf_conn_nat *old_nat = (struct nf_conn_nat *)old;
+	struct nf_conn *ct = old_nat->info.ct;
+	unsigned int srchash;
+
+	if (!(ct->status & IPS_NAT_DONE_MASK))
+		return;
+
+	srchash = hash_by_src(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
+
+	write_lock_bh(&nf_nat_lock);
+	list_replace(&old_nat->info.bysource, &new_nat->info.bysource);
+	new_nat->info.ct = ct;
+	write_unlock_bh(&nf_nat_lock);
+}
+
+struct nf_ct_ext_type nat_extend = {
+	.len	= sizeof(struct nf_conn_nat),
+	.align	= __alignof__(struct nf_conn_nat),
+	.move	= nf_nat_move_storage,
+	.id	= NF_CT_EXT_NAT,
+	.flags	= NF_CT_EXT_F_PREALLOC,
+};
+
 static int __init nf_nat_init(void)
 {
 	size_t i;
+	int ret;
+
+	ret = nf_ct_extend_register(&nat_extend);
+	if (ret < 0) {
+		printk(KERN_ERR "nf_nat_core: Unable to register extension\n");
+		return ret;
+	}
 
 	/* Leave them the same for the moment. */
 	nf_nat_htable_size = nf_conntrack_htable_size;
 
 	/* One vmalloc for both hash tables */
 	bysource = vmalloc(sizeof(struct list_head) * nf_nat_htable_size);
-	if (!bysource)
-		return -ENOMEM;
+	if (!bysource) {
+		ret = -ENOMEM;
+		goto cleanup_extend;
+	}
 
 	/* Sew in builtin protocols. */
 	write_lock_bh(&nf_nat_lock);
@@ -626,6 +673,10 @@ static int __init nf_nat_init(void)
 
 	l3proto = nf_ct_l3proto_find_get((u_int16_t)AF_INET);
 	return 0;
+
+ cleanup_extend:
+	nf_ct_extend_unregister(&nat_extend);
+	return ret;
 }
 
 /* Clear NAT section of all conntracks, in case we're loaded again. */
@@ -647,6 +698,7 @@ static void __exit nf_nat_cleanup(void)
 	synchronize_rcu();
 	vfree(bysource);
 	nf_ct_l3proto_put(l3proto);
+	nf_ct_extend_unregister(&nat_extend);
 }
 
 MODULE_LICENSE("GPL");

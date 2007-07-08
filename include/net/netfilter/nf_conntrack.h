@@ -278,22 +278,5 @@ nf_conntrack_register_cache(u_int32_t features, const char *name, size_t size);
 extern void
 nf_conntrack_unregister_cache(u_int32_t features);
 
-/* valid combinations:
- * basic: nf_conn, nf_conn .. nf_conn_help
- * nat: nf_conn .. nf_conn_nat, nf_conn .. nf_conn_nat .. nf_conn help
- */
-#ifdef CONFIG_NF_NAT_NEEDED
-#include <net/netfilter/nf_nat.h>
-static inline struct nf_conn_nat *nfct_nat(const struct nf_conn *ct)
-{
-	unsigned int offset = sizeof(struct nf_conn);
-
-	if (!(ct->features & NF_CT_F_NAT))
-		return NULL;
-
-	offset = ALIGN(offset, __alignof__(struct nf_conn_nat));
-	return (struct nf_conn_nat *) ((void *)ct + offset);
-}
-#endif /* CONFIG_NF_NAT_NEEDED */
 #endif /* __KERNEL__ */
 #endif /* _NF_CONNTRACK_H */
