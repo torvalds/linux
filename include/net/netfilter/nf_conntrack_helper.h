@@ -15,8 +15,8 @@
 struct module;
 
 struct nf_conntrack_helper
-{	
-	struct list_head list; 		/* Internal use. */
+{
+	struct hlist_node hnode;	/* Internal use. */
 
 	const char *name;		/* name of the module */
 	struct module *me;		/* pointer to self */
