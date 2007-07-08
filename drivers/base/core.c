@@ -24,6 +24,8 @@
 #include "base.h"
 #include "power/power.h"
 
+extern const char *kobject_actions[];
+
 int (*platform_notify)(struct device * dev) = NULL;
 int (*platform_notify_remove)(struct device * dev) = NULL;
 
@@ -303,10 +305,25 @@ out:
 static ssize_t store_uevent(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
-	if (memcmp(buf, "add", 3) != 0)
-		dev_err(dev, "uevent: unsupported action-string; this will "
-			"be ignored in a future kernel version");
+	size_t len = count;
+	enum kobject_action action;
+
+	if (len && buf[len-1] == '\n')
+		len--;
+
+	for (action = 0; action < KOBJ_MAX; action++) {
+		if (strncmp(kobject_actions[action], buf, len) != 0)
+			continue;
+		if (kobject_actions[action][len] != '\0')
+			continue;
+		kobject_uevent(&dev->kobj, action);
+		goto out;
+	}
+
+	dev_err(dev, "uevent: unsupported action-string; this will "
+		     "be ignored in a future kernel version\n");
 	kobject_uevent(&dev->kobj, KOBJ_ADD);
+out:
 	return count;
 }
 
