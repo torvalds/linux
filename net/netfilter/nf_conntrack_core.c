@@ -965,12 +965,14 @@ void nf_conntrack_cleanup(void)
 	nf_conntrack_helper_fini();
 }
 
-static struct list_head *alloc_hashtable(int size, int *vmalloced)
+static struct list_head *alloc_hashtable(int *sizep, int *vmalloced)
 {
 	struct list_head *hash;
-	unsigned int i;
+	unsigned int size, i;
 
 	*vmalloced = 0;
+
+	size = *sizep = roundup(*sizep, PAGE_SIZE / sizeof(struct list_head));
 	hash = (void*)__get_free_pages(GFP_KERNEL,
 				       get_order(sizeof(struct list_head)
 						 * size));
@@ -1003,7 +1005,7 @@ int set_hashsize(const char *val, struct kernel_param *kp)
 	if (!hashsize)
 		return -EINVAL;
 
-	hash = alloc_hashtable(hashsize, &vmalloced);
+	hash = alloc_hashtable(&hashsize, &vmalloced);
 	if (!hash)
 		return -ENOMEM;
 
@@ -1053,18 +1055,18 @@ int __init nf_conntrack_init(void)
 		if (nf_conntrack_htable_size < 16)
 			nf_conntrack_htable_size = 16;
 	}
-	nf_conntrack_max = 8 * nf_conntrack_htable_size;
-
-	printk("nf_conntrack version %s (%u buckets, %d max)\n",
-	       NF_CONNTRACK_VERSION, nf_conntrack_htable_size,
-	       nf_conntrack_max);
-
-	nf_conntrack_hash = alloc_hashtable(nf_conntrack_htable_size,
+	nf_conntrack_hash = alloc_hashtable(&nf_conntrack_htable_size,
 					    &nf_conntrack_vmalloc);
 	if (!nf_conntrack_hash) {
 		printk(KERN_ERR "Unable to create nf_conntrack_hash\n");
 		goto err_out;
 	}
+
+	nf_conntrack_max = 8 * nf_conntrack_htable_size;
+
+	printk("nf_conntrack version %s (%u buckets, %d max)\n",
+	       NF_CONNTRACK_VERSION, nf_conntrack_htable_size,
+	       nf_conntrack_max);
 
 	nf_conntrack_cachep = kmem_cache_create("nf_conntrack",
 						sizeof(struct nf_conn),
