@@ -187,13 +187,13 @@ icmp_error_message(struct sk_buff *skb,
 
 	*ctinfo = IP_CT_RELATED;
 
-	h = nf_conntrack_find_get(&innertuple, NULL);
+	h = nf_conntrack_find_get(&innertuple);
 	if (!h) {
 		/* Locally generated ICMPs will match inverted if they
 		   haven't been SNAT'ed yet */
 		/* FIXME: NAT code has to handle half-done double NAT --RR */
 		if (hooknum == NF_IP_LOCAL_OUT)
-			h = nf_conntrack_find_get(&origtuple, NULL);
+			h = nf_conntrack_find_get(&origtuple);
 
 		if (!h) {
 			DEBUGP("icmp_error_message: no match\n");

@@ -193,7 +193,7 @@ icmpv6_error_message(struct sk_buff *skb,
 
 	*ctinfo = IP_CT_RELATED;
 
-	h = nf_conntrack_find_get(&intuple, NULL);
+	h = nf_conntrack_find_get(&intuple);
 	if (!h) {
 		DEBUGP("icmpv6_error: no match\n");
 		return -NF_ACCEPT;

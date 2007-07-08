@@ -244,13 +244,12 @@ EXPORT_SYMBOL_GPL(__nf_conntrack_find);
 
 /* Find a connection corresponding to a tuple. */
 struct nf_conntrack_tuple_hash *
-nf_conntrack_find_get(const struct nf_conntrack_tuple *tuple,
-		      const struct nf_conn *ignored_conntrack)
+nf_conntrack_find_get(const struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_tuple_hash *h;
 
 	read_lock_bh(&nf_conntrack_lock);
-	h = __nf_conntrack_find(tuple, ignored_conntrack);
+	h = __nf_conntrack_find(tuple, NULL);
 	if (h)
 		atomic_inc(&nf_ct_tuplehash_to_ctrack(h)->ct_general.use);
 	read_unlock_bh(&nf_conntrack_lock);
@@ -574,7 +573,7 @@ resolve_normal_ct(struct sk_buff *skb,
 	}
 
 	/* look for tuple match */
-	h = nf_conntrack_find_get(&tuple, NULL);
+	h = nf_conntrack_find_get(&tuple);
 	if (!h) {
 		h = init_conntrack(&tuple, l3proto, l4proto, skb, dataoff);
 		if (!h)

@@ -146,7 +146,7 @@ static int destroy_sibling_or_exp(const struct nf_conntrack_tuple *t)
 	DEBUGP("trying to timeout ct or exp for tuple ");
 	NF_CT_DUMP_TUPLE(t);
 
-	h = nf_conntrack_find_get(t, NULL);
+	h = nf_conntrack_find_get(t);
 	if (h)  {
 		sibling = nf_ct_tuplehash_to_ctrack(h);
 		DEBUGP("setting timeout of conntrack %p to 0\n", sibling);
