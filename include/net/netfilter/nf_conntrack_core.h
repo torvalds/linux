@@ -30,6 +30,9 @@ extern void nf_conntrack_cleanup(void);
 extern int nf_conntrack_proto_init(void);
 extern void nf_conntrack_proto_fini(void);
 
+extern int nf_conntrack_helper_init(void);
+extern void nf_conntrack_helper_fini(void);
+
 struct nf_conntrack_l3proto;
 extern struct nf_conntrack_l3proto *nf_ct_find_l3proto(u_int16_t pf);
 /* Like above, but you already have conntrack read lock. */

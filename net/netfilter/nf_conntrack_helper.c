@@ -26,6 +26,7 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_extend.h>
 
 static __read_mostly LIST_HEAD(helpers);
 
@@ -100,18 +101,8 @@ static inline int unhelp(struct nf_conntrack_tuple_hash *i,
 
 int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 {
-	int size, ret;
-
 	BUG_ON(me->timeout == 0);
 
-	size = ALIGN(sizeof(struct nf_conn), __alignof__(struct nf_conn_help)) +
-	       sizeof(struct nf_conn_help);
-	ret = nf_conntrack_register_cache(NF_CT_F_HELP, "nf_conntrack:help",
-					  size);
-	if (ret < 0) {
-		printk(KERN_ERR "nf_conntrack_helper_register: Unable to create slab cache for conntracks\n");
-		return ret;
-	}
 	write_lock_bh(&nf_conntrack_lock);
 	list_add(&me->list, &helpers);
 	write_unlock_bh(&nf_conntrack_lock);
@@ -153,3 +144,19 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 	synchronize_net();
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_helper_unregister);
+
+struct nf_ct_ext_type helper_extend = {
+	.len	= sizeof(struct nf_conn_help),
+	.align	= __alignof__(struct nf_conn_help),
+	.id	= NF_CT_EXT_HELPER,
+};
+
+int nf_conntrack_helper_init()
+{
+	return nf_ct_extend_register(&helper_extend);
+}
+
+void nf_conntrack_helper_fini()
+{
+	nf_ct_extend_unregister(&helper_extend);
+}

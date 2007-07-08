@@ -10,6 +10,7 @@
 #ifndef _NF_CONNTRACK_HELPER_H
 #define _NF_CONNTRACK_HELPER_H
 #include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack_extend.h>
 
 struct module;
 
@@ -52,4 +53,8 @@ extern void nf_ct_helper_put(struct nf_conntrack_helper *helper);
 extern int nf_conntrack_helper_register(struct nf_conntrack_helper *);
 extern void nf_conntrack_helper_unregister(struct nf_conntrack_helper *);
 
+static inline struct nf_conn_help *nfct_help(const struct nf_conn *ct)
+{
+	return nf_ct_ext_find(ct, NF_CT_EXT_HELPER);
+}
 #endif /*_NF_CONNTRACK_HELPER_H*/

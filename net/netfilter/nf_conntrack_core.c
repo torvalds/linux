@@ -566,7 +566,6 @@ __nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 		     u_int32_t features)
 {
 	struct nf_conn *conntrack = NULL;
-	struct nf_conntrack_helper *helper;
 
 	if (unlikely(!nf_conntrack_hash_rnd_initted)) {
 		get_random_bytes(&nf_conntrack_hash_rnd, 4);
@@ -592,14 +591,6 @@ __nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 
 	/*  find features needed by this conntrack. */
 	features |= l3proto->get_features(orig);
-
-	/* FIXME: protect helper list per RCU */
-	read_lock_bh(&nf_conntrack_lock);
-	helper = __nf_ct_helper_find(repl);
-	/* NAT might want to assign a helper later */
-	if (helper || features & NF_CT_F_NAT)
-		features |= NF_CT_F_HELP;
-	read_unlock_bh(&nf_conntrack_lock);
 
 	DEBUGP("nf_conntrack_alloc: features=0x%x\n", features);
 
@@ -681,12 +672,6 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 		return NULL;
 	}
 
-	read_lock_bh(&nf_conntrack_lock);
-	exp = __nf_conntrack_expect_find(tuple);
-	if (exp && exp->helper)
-		features = NF_CT_F_HELP;
-	read_unlock_bh(&nf_conntrack_lock);
-
 	conntrack = __nf_conntrack_alloc(tuple, &repl_tuple, l3proto, features);
 	if (conntrack == NULL || IS_ERR(conntrack)) {
 		DEBUGP("Can't allocate conntrack.\n");
@@ -701,16 +686,21 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 
 	write_lock_bh(&nf_conntrack_lock);
 	exp = find_expectation(tuple);
-
-	help = nfct_help(conntrack);
 	if (exp) {
 		DEBUGP("conntrack: expectation arrives ct=%p exp=%p\n",
 			conntrack, exp);
 		/* Welcome, Mr. Bond.  We've been expecting you... */
 		__set_bit(IPS_EXPECTED_BIT, &conntrack->status);
 		conntrack->master = exp->master;
-		if (exp->helper)
-			rcu_assign_pointer(help->helper, exp->helper);
+		if (exp->helper) {
+			help = nf_ct_ext_add(conntrack, NF_CT_EXT_HELPER,
+					     GFP_ATOMIC);
+			if (help)
+				rcu_assign_pointer(help->helper, exp->helper);
+			else
+				DEBUGP("failed to add helper extension area");
+		}
+
 #ifdef CONFIG_NF_CONNTRACK_MARK
 		conntrack->mark = exp->master->mark;
 #endif
@@ -720,10 +710,18 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 		nf_conntrack_get(&conntrack->master->ct_general);
 		NF_CT_STAT_INC(expect_new);
 	} else {
-		if (help) {
-			/* not in hash table yet, so not strictly necessary */
-			rcu_assign_pointer(help->helper,
-					   __nf_ct_helper_find(&repl_tuple));
+		struct nf_conntrack_helper *helper;
+
+		helper = __nf_ct_helper_find(&repl_tuple);
+		if (helper) {
+			help = nf_ct_ext_add(conntrack, NF_CT_EXT_HELPER,
+					     GFP_ATOMIC);
+			if (help)
+				/* not in hash table yet, so not strictly
+				   necessary */
+				rcu_assign_pointer(help->helper, helper);
+			else
+				DEBUGP("failed to add helper extension area");
 		}
 		NF_CT_STAT_INC(new);
 	}
@@ -892,6 +890,7 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 			      const struct nf_conntrack_tuple *newreply)
 {
 	struct nf_conn_help *help = nfct_help(ct);
+	struct nf_conntrack_helper *helper;
 
 	write_lock_bh(&nf_conntrack_lock);
 	/* Should be unconfirmed, so not in hash table yet */
@@ -901,14 +900,28 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 	NF_CT_DUMP_TUPLE(newreply);
 
 	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *newreply;
-	if (!ct->master && help && help->expecting == 0) {
-		struct nf_conntrack_helper *helper;
-		helper = __nf_ct_helper_find(newreply);
-		if (helper)
-			memset(&help->help, 0, sizeof(help->help));
-		/* not in hash table yet, so not strictly necessary */
-		rcu_assign_pointer(help->helper, helper);
+	if (ct->master || (help && help->expecting != 0))
+		goto out;
+
+	helper = __nf_ct_helper_find(newreply);
+	if (helper == NULL) {
+		if (help)
+			rcu_assign_pointer(help->helper, NULL);
+		goto out;
 	}
+
+	if (help == NULL) {
+		help = nf_ct_ext_add(ct, NF_CT_EXT_HELPER, GFP_ATOMIC);
+		if (help == NULL) {
+			DEBUGP("failed to add helper extension area");
+			goto out;
+		}
+	} else {
+		memset(&help->help, 0, sizeof(help->help));
+	}
+
+	rcu_assign_pointer(help->helper, helper);
+out:
 	write_unlock_bh(&nf_conntrack_lock);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_alter_reply);
@@ -1150,6 +1163,7 @@ void nf_conntrack_cleanup(void)
 			    nf_conntrack_htable_size);
 
 	nf_conntrack_proto_fini();
+	nf_conntrack_helper_fini();
 }
 
 static struct list_head *alloc_hashtable(int size, int *vmalloced)
@@ -1272,6 +1286,10 @@ int __init nf_conntrack_init(void)
 	if (ret < 0)
 		goto out_free_expect_slab;
 
+	ret = nf_conntrack_helper_init();
+	if (ret < 0)
+		goto out_fini_proto;
+
 	/* For use by REJECT target */
 	rcu_assign_pointer(ip_ct_attach, __nf_conntrack_attach);
 	rcu_assign_pointer(nf_ct_destroy, destroy_conntrack);
@@ -1284,6 +1302,8 @@ int __init nf_conntrack_init(void)
 
 	return ret;
 
+out_fini_proto:
+	nf_conntrack_proto_fini();
 out_free_expect_slab:
 	kmem_cache_destroy(nf_conntrack_expect_cachep);
 err_free_conntrack_slab:

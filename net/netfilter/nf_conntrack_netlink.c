@@ -856,23 +856,23 @@ ctnetlink_change_helper(struct nf_conn *ct, struct nfattr *cda[])
 		return 0;
 	}
 
-	if (!help) {
-		/* FIXME: we need to reallocate and rehash */
-		return -EBUSY;
-	}
-
 	helper = __nf_conntrack_helper_find_byname(helpname);
 	if (helper == NULL)
 		return -EINVAL;
 
-	if (help->helper == helper)
-		return 0;
+	if (help) {
+		if (help->helper == helper)
+			return 0;
+		if (help->helper)
+			return -EBUSY;
+		/* need to zero data of old helper */
+		memset(&help->help, 0, sizeof(help->help));
+	} else {
+		help = nf_ct_ext_add(ct, NF_CT_EXT_HELPER, GFP_KERNEL);
+		if (help == NULL)
+			return -ENOMEM;
+	}
 
-	if (help->helper)
-		return -EBUSY;
-
-	/* need to zero data of old helper */
-	memset(&help->help, 0, sizeof(help->help));
 	rcu_assign_pointer(help->helper, helper);
 
 	return 0;
@@ -957,7 +957,7 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 	struct nf_conn *ct;
 	int err = -EINVAL;
 	struct nf_conn_help *help;
-	struct nf_conntrack_helper *helper = NULL;
+	struct nf_conntrack_helper *helper;
 
 	ct = nf_conntrack_alloc(otuple, rtuple);
 	if (ct == NULL || IS_ERR(ct))
@@ -987,9 +987,14 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 		ct->mark = ntohl(*(__be32 *)NFA_DATA(cda[CTA_MARK-1]));
 #endif
 
-	help = nfct_help(ct);
-	if (help) {
-		helper = nf_ct_helper_find_get(rtuple);
+	helper = nf_ct_helper_find_get(rtuple);
+	if (helper) {
+		help = nf_ct_ext_add(ct, NF_CT_EXT_HELPER, GFP_KERNEL);
+		if (help == NULL) {
+			nf_ct_helper_put(helper);
+			err = -ENOMEM;
+			goto err;
+		}
 		/* not in hash table yet so not strictly necessary */
 		rcu_assign_pointer(help->helper, helper);
 	}

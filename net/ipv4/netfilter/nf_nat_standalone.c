@@ -338,14 +338,6 @@ static int __init nf_nat_standalone_init(void)
 		return ret;
 	}
 
-	size = ALIGN(size, __alignof__(struct nf_conn_help)) +
-	       sizeof(struct nf_conn_help);
-	ret = nf_conntrack_register_cache(NF_CT_F_NAT|NF_CT_F_HELP,
-					  "nf_nat:help", size);
-	if (ret < 0) {
-		printk(KERN_ERR "nf_nat_init: Unable to create slab cache\n");
-		goto cleanup_register_cache;
-	}
 #ifdef CONFIG_XFRM
 	BUG_ON(ip_nat_decode_session != NULL);
 	ip_nat_decode_session = nat_decode_session;
@@ -370,8 +362,6 @@ static int __init nf_nat_standalone_init(void)
 	ip_nat_decode_session = NULL;
 	synchronize_net();
 #endif
-	nf_conntrack_unregister_cache(NF_CT_F_NAT|NF_CT_F_HELP);
- cleanup_register_cache:
 	nf_conntrack_unregister_cache(NF_CT_F_NAT);
 	return ret;
 }

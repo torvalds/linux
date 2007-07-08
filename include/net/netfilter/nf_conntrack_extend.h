@@ -5,8 +5,11 @@
 
 enum nf_ct_ext_id
 {
+	NF_CT_EXT_HELPER,
 	NF_CT_EXT_NUM,
 };
+
+#define NF_CT_EXT_HELPER_TYPE struct nf_conn_help
 
 /* Extensions: optional stuff which isn't permanently in struct. */
 struct nf_ct_ext {
