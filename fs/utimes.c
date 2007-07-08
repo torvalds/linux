@@ -106,9 +106,16 @@ long do_utimes(int dfd, char __user *filename, struct timespec *times, int flags
                 if (IS_IMMUTABLE(inode))
                         goto dput_and_out;
 
-		if (current->fsuid != inode->i_uid &&
-		    (error = vfs_permission(&nd, MAY_WRITE)) != 0)
-			goto dput_and_out;
+		if (current->fsuid != inode->i_uid) {
+			if (f) {
+				if (!(f->f_mode & FMODE_WRITE))
+					goto dput_and_out;
+			} else {
+				error = vfs_permission(&nd, MAY_WRITE);
+				if (error)
+					goto dput_and_out;
+			}
+		}
 	}
 	mutex_lock(&inode->i_mutex);
 	error = notify_change(dentry, &newattrs);
