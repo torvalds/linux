@@ -913,9 +913,7 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		case NFQNL_CFG_CMD_PF_UNBIND:
 			QDEBUG("unregistering queue handler for pf=%u\n",
 				ntohs(cmd->pf));
-			/* This is a bug and a feature.  We can unregister
-			 * other handlers(!) */
-			ret = nf_unregister_queue_handler(ntohs(cmd->pf));
+			ret = nf_unregister_queue_handler(ntohs(cmd->pf), &nfqh);
 			break;
 		default:
 			ret = -EINVAL;

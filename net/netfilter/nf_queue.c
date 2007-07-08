@@ -44,12 +44,17 @@ int nf_register_queue_handler(int pf, struct nf_queue_handler *qh)
 EXPORT_SYMBOL(nf_register_queue_handler);
 
 /* The caller must flush their queue before this */
-int nf_unregister_queue_handler(int pf)
+int nf_unregister_queue_handler(int pf, struct nf_queue_handler *qh)
 {
 	if (pf >= NPROTO)
 		return -EINVAL;
 
 	write_lock_bh(&queue_handler_lock);
+	if (queue_handler[pf] != qh) {
+		write_unlock_bh(&queue_handler_lock);
+		return -EINVAL;
+	}
+
 	queue_handler[pf] = NULL;
 	write_unlock_bh(&queue_handler_lock);
 
