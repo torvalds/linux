@@ -413,7 +413,6 @@ CONFIG_I2C_CHARDEV=y
 #
 # I2C Hardware Bus support
 #
-# CONFIG_I2C_ISA is not set
 CONFIG_I2C_MPC=y
 # CONFIG_I2C_PARPORT_LIGHT is not set
 # CONFIG_I2C_PCA_ISA is not set

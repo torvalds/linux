@@ -826,7 +826,6 @@ CONFIG_I2C_ALGOBIT=m
 # I2C Hardware Bus support
 #
 # CONFIG_I2C_ELEKTOR is not set
-CONFIG_I2C_ISA=m
 # CONFIG_I2C_OCORES is not set
 # CONFIG_I2C_PARPORT is not set
 # CONFIG_I2C_PARPORT_LIGHT is not set
