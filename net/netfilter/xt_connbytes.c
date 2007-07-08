@@ -26,7 +26,7 @@ match(const struct sk_buff *skb,
       bool *hotdrop)
 {
 	const struct xt_connbytes_info *sinfo = matchinfo;
-	struct nf_conn *ct;
+	const struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	u_int64_t what = 0;	/* initialize to make gcc happy */
 	u_int64_t bytes = 0;

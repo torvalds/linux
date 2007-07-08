@@ -39,12 +39,12 @@ match(const struct sk_buff *skb,
       bool *hotdrop)
 {
 	const struct xt_helper_info *info = matchinfo;
-	struct nf_conn *ct;
-	struct nf_conn_help *master_help;
+	const struct nf_conn *ct;
+	const struct nf_conn_help *master_help;
 	enum ip_conntrack_info ctinfo;
 	bool ret = info->invert;
 
-	ct = nf_ct_get((struct sk_buff *)skb, &ctinfo);
+	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct) {
 		DEBUGP("xt_helper: Eek! invalid conntrack?\n");
 		return ret;

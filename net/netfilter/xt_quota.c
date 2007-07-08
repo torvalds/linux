@@ -22,7 +22,8 @@ match(const struct sk_buff *skb,
       const struct xt_match *match, const void *matchinfo,
       int offset, unsigned int protoff, bool *hotdrop)
 {
-	struct xt_quota_info *q = ((struct xt_quota_info *)matchinfo)->master;
+	struct xt_quota_info *q =
+		((const struct xt_quota_info *)matchinfo)->master;
 	bool ret = q->flags & XT_QUOTA_INVERT;
 
 	spin_lock_bh(&quota_lock);
@@ -43,7 +44,7 @@ checkentry(const char *tablename, const void *entry,
 	   const struct xt_match *match, void *matchinfo,
 	   unsigned int hook_mask)
 {
-	struct xt_quota_info *q = (struct xt_quota_info *)matchinfo;
+	struct xt_quota_info *q = matchinfo;
 
 	if (q->flags & ~XT_QUOTA_MASK)
 		return false;

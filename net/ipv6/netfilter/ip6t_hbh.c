@@ -57,14 +57,17 @@ match(const struct sk_buff *skb,
       unsigned int protoff,
       bool *hotdrop)
 {
-	struct ipv6_opt_hdr _optsh, *oh;
+	struct ipv6_opt_hdr _optsh;
+	const struct ipv6_opt_hdr *oh;
 	const struct ip6t_opts *optinfo = matchinfo;
 	unsigned int temp;
 	unsigned int ptr;
 	unsigned int hdrlen = 0;
 	bool ret = false;
-	u8 _opttype, *tp = NULL;
-	u8 _optlen, *lp = NULL;
+	u8 _opttype;
+	u8 _optlen;
+	const u_int8_t *tp = NULL;
+	const u_int8_t *lp = NULL;
 	unsigned int optlen;
 	int err;
 

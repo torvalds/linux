@@ -334,7 +334,7 @@ static bool ipt_ulog_checkentry(const char *tablename,
 				void *targinfo,
 				unsigned int hookmask)
 {
-	struct ipt_ulog_info *loginfo = (struct ipt_ulog_info *) targinfo;
+	const struct ipt_ulog_info *loginfo = targinfo;
 
 	if (loginfo->prefix[sizeof(loginfo->prefix) - 1] != '\0') {
 		DEBUGP("ipt_ULOG: prefix term %i\n",
@@ -359,7 +359,7 @@ struct compat_ipt_ulog_info {
 
 static void compat_from_user(void *dst, void *src)
 {
-	struct compat_ipt_ulog_info *cl = src;
+	const struct compat_ipt_ulog_info *cl = src;
 	struct ipt_ulog_info l = {
 		.nl_group	= cl->nl_group,
 		.copy_range	= cl->copy_range,
@@ -372,7 +372,7 @@ static void compat_from_user(void *dst, void *src)
 
 static int compat_to_user(void __user *dst, void *src)
 {
-	struct ipt_ulog_info *l = src;
+	const struct ipt_ulog_info *l = src;
 	struct compat_ipt_ulog_info cl = {
 		.nl_group	= l->nl_group,
 		.copy_range	= l->copy_range,

@@ -190,7 +190,7 @@ nf_nat_mangle_tcp_packet(struct sk_buff **pskb,
 			tcph->check = 0;
 			tcph->check = tcp_v4_check(datalen,
 						   iph->saddr, iph->daddr,
-						   csum_partial((char *)tcph,
+						   csum_partial(tcph,
 								datalen, 0));
 		}
 	} else
@@ -278,7 +278,7 @@ nf_nat_mangle_udp_packet(struct sk_buff **pskb,
 			udph->check = 0;
 			udph->check = csum_tcpudp_magic(iph->saddr, iph->daddr,
 							datalen, IPPROTO_UDP,
-							csum_partial((char *)udph,
+							csum_partial(udph,
 								     datalen, 0));
 			if (!udph->check)
 				udph->check = CSUM_MANGLED_0;

@@ -52,13 +52,15 @@ match(const struct sk_buff *skb,
       unsigned int protoff,
       bool *hotdrop)
 {
-	struct ipv6_rt_hdr _route, *rh;
+	struct ipv6_rt_hdr _route;
+	const struct ipv6_rt_hdr *rh;
 	const struct ip6t_rt *rtinfo = matchinfo;
 	unsigned int temp;
 	unsigned int ptr;
 	unsigned int hdrlen = 0;
 	bool ret = false;
-	struct in6_addr *ap, _addr;
+	struct in6_addr _addr;
+	const struct in6_addr *ap;
 	int err;
 
 	err = ipv6_find_hdr(skb, &ptr, NEXTHDR_ROUTING, NULL);
@@ -100,9 +102,9 @@ match(const struct sk_buff *skb,
 		 !!(rtinfo->invflags & IP6T_RT_INV_LEN))));
 	DEBUGP("res %02X %02X %02X ",
 	       (rtinfo->flags & IP6T_RT_RES),
-	       ((struct rt0_hdr *)rh)->reserved,
+	       ((const struct rt0_hdr *)rh)->reserved,
 	       !((rtinfo->flags & IP6T_RT_RES) &&
-		 (((struct rt0_hdr *)rh)->reserved)));
+		 (((const struct rt0_hdr *)rh)->reserved)));
 
 	ret = (rh != NULL)
 	      &&

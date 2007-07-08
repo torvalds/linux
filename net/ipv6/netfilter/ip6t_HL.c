@@ -64,7 +64,7 @@ static bool ip6t_hl_checkentry(const char *tablename,
 		void *targinfo,
 		unsigned int hook_mask)
 {
-	struct ip6t_HL_info *info = targinfo;
+	const struct ip6t_HL_info *info = targinfo;
 
 	if (info->mode > IP6T_HL_MAXMODE) {
 		printk(KERN_WARNING "ip6t_HL: invalid or unknown Mode %u\n",

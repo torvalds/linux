@@ -122,7 +122,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	tcph->check = 0;
 	tcph->check = tcp_v4_check(sizeof(struct tcphdr),
 				   niph->saddr, niph->daddr,
-				   csum_partial((char *)tcph,
+				   csum_partial(tcph,
 						sizeof(struct tcphdr), 0));
 
 	/* Set DF, id = 0 */

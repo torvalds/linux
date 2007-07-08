@@ -41,7 +41,7 @@ match(const struct sk_buff *skb,
       bool *hotdrop)
 {
 	const struct xt_connmark_info *info = matchinfo;
-	struct nf_conn *ct;
+	const struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 
 	ct = nf_ct_get(skb, &ctinfo);
@@ -58,7 +58,7 @@ checkentry(const char *tablename,
 	   void *matchinfo,
 	   unsigned int hook_mask)
 {
-	struct xt_connmark_info *cm = matchinfo;
+	const struct xt_connmark_info *cm = matchinfo;
 
 	if (cm->mark > 0xffffffff || cm->mask > 0xffffffff) {
 		printk(KERN_WARNING "connmark: only support 32bit mark\n");
@@ -88,7 +88,7 @@ struct compat_xt_connmark_info {
 
 static void compat_from_user(void *dst, void *src)
 {
-	struct compat_xt_connmark_info *cm = src;
+	const struct compat_xt_connmark_info *cm = src;
 	struct xt_connmark_info m = {
 		.mark	= cm->mark,
 		.mask	= cm->mask,
@@ -99,7 +99,7 @@ static void compat_from_user(void *dst, void *src)
 
 static int compat_to_user(void __user *dst, void *src)
 {
-	struct xt_connmark_info *m = src;
+	const struct xt_connmark_info *m = src;
 	struct compat_xt_connmark_info cm = {
 		.mark	= m->mark,
 		.mask	= m->mask,

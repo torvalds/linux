@@ -235,12 +235,13 @@ clusterip_del_node(struct clusterip_config *c, u_int16_t nodenum)
 #endif
 
 static inline u_int32_t
-clusterip_hashfn(struct sk_buff *skb, struct clusterip_config *config)
+clusterip_hashfn(const struct sk_buff *skb,
+		 const struct clusterip_config *config)
 {
-	struct iphdr *iph = ip_hdr(skb);
+	const struct iphdr *iph = ip_hdr(skb);
 	unsigned long hashval;
 	u_int16_t sport, dport;
-	u_int16_t *ports;
+	const u_int16_t *ports;
 
 	switch (iph->protocol) {
 	case IPPROTO_TCP:
@@ -249,7 +250,7 @@ clusterip_hashfn(struct sk_buff *skb, struct clusterip_config *config)
 	case IPPROTO_SCTP:
 	case IPPROTO_DCCP:
 	case IPPROTO_ICMP:
-		ports = (void *)iph+iph->ihl*4;
+		ports = (const void *)iph+iph->ihl*4;
 		sport = ports[0];
 		dport = ports[1];
 		break;
@@ -289,7 +290,7 @@ clusterip_hashfn(struct sk_buff *skb, struct clusterip_config *config)
 }
 
 static inline int
-clusterip_responsible(struct clusterip_config *config, u_int32_t hash)
+clusterip_responsible(const struct clusterip_config *config, u_int32_t hash)
 {
 	return test_bit(hash - 1, &config->local_nodes);
 }

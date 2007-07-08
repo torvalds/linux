@@ -32,7 +32,7 @@ match(const struct sk_buff *skb,
       bool *hotdrop)
 {
 	const struct xt_realm_info *info = matchinfo;
-	struct dst_entry *dst = skb->dst;
+	const struct dst_entry *dst = skb->dst;
 
 	return (info->id == (dst->tclassid & info->mask)) ^ info->invert;
 }

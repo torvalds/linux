@@ -43,7 +43,7 @@ nflog_checkentry(const char *tablename, const void *entry,
 		 const struct xt_target *target, void *targetinfo,
 		 unsigned int hookmask)
 {
-	struct xt_nflog_info *info = targetinfo;
+	const struct xt_nflog_info *info = targetinfo;
 
 	if (info->flags & ~XT_NFLOG_MASK)
 		return false;

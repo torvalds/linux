@@ -30,11 +30,11 @@ match(const struct sk_buff *skb,
       bool *hotdrop)
 {
 	const struct xt_conntrack_info *sinfo = matchinfo;
-	struct nf_conn *ct;
+	const struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	unsigned int statebit;
 
-	ct = nf_ct_get((struct sk_buff *)skb, &ctinfo);
+	ct = nf_ct_get(skb, &ctinfo);
 
 #define FWINV(bool,invflg) ((bool) ^ !!(sinfo->invflags & invflg))
 
@@ -150,7 +150,7 @@ struct compat_xt_conntrack_info
 
 static void compat_from_user(void *dst, void *src)
 {
-	struct compat_xt_conntrack_info *cm = src;
+	const struct compat_xt_conntrack_info *cm = src;
 	struct xt_conntrack_info m = {
 		.statemask	= cm->statemask,
 		.statusmask	= cm->statusmask,
@@ -167,7 +167,7 @@ static void compat_from_user(void *dst, void *src)
 
 static int compat_to_user(void __user *dst, void *src)
 {
-	struct xt_conntrack_info *m = src;
+	const struct xt_conntrack_info *m = src;
 	struct compat_xt_conntrack_info cm = {
 		.statemask	= m->statemask,
 		.statusmask	= m->statusmask,

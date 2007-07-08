@@ -46,7 +46,8 @@ match(const struct sk_buff *skb,
       unsigned int protoff,
       bool *hotdrop)
 {
-	struct ip_auth_hdr _ahdr, *ah;
+	struct ip_auth_hdr _ahdr;
+	const struct ip_auth_hdr *ah;
 	const struct ipt_ah *ahinfo = matchinfo;
 
 	/* Must not be a fragment. */

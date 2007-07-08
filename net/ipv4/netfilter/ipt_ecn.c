@@ -32,7 +32,8 @@ static inline bool match_tcp(const struct sk_buff *skb,
 			     const struct ipt_ecn_info *einfo,
 			     bool *hotdrop)
 {
-	struct tcphdr _tcph, *th;
+	struct tcphdr _tcph;
+	const struct tcphdr *th;
 
 	/* In practice, TCP match does this, so can't fail.  But let's
 	 * be good citizens.

@@ -95,7 +95,7 @@ static HLIST_HEAD(hashlimit_htables);
 static struct kmem_cache *hashlimit_cachep __read_mostly;
 
 static inline bool dst_cmp(const struct dsthash_ent *ent,
-			   struct dsthash_dst *b)
+			   const struct dsthash_dst *b)
 {
 	return !memcmp(&ent->dst, b, sizeof(ent->dst));
 }
@@ -107,7 +107,8 @@ hash_dst(const struct xt_hashlimit_htable *ht, const struct dsthash_dst *dst)
 }
 
 static struct dsthash_ent *
-dsthash_find(const struct xt_hashlimit_htable *ht, struct dsthash_dst *dst)
+dsthash_find(const struct xt_hashlimit_htable *ht,
+	     const struct dsthash_dst *dst)
 {
 	struct dsthash_ent *ent;
 	struct hlist_node *pos;
@@ -123,7 +124,8 @@ dsthash_find(const struct xt_hashlimit_htable *ht, struct dsthash_dst *dst)
 
 /* allocate dsthash_ent, initialize dst, put in htable and lock it */
 static struct dsthash_ent *
-dsthash_alloc_init(struct xt_hashlimit_htable *ht, struct dsthash_dst *dst)
+dsthash_alloc_init(struct xt_hashlimit_htable *ht,
+		   const struct dsthash_dst *dst)
 {
 	struct dsthash_ent *ent;
 
@@ -228,19 +230,21 @@ static int htable_create(struct xt_hashlimit_info *minfo, int family)
 	return 0;
 }
 
-static bool select_all(struct xt_hashlimit_htable *ht, struct dsthash_ent *he)
+static bool select_all(const struct xt_hashlimit_htable *ht,
+		       const struct dsthash_ent *he)
 {
 	return 1;
 }
 
-static bool select_gc(struct xt_hashlimit_htable *ht, struct dsthash_ent *he)
+static bool select_gc(const struct xt_hashlimit_htable *ht,
+		      const struct dsthash_ent *he)
 {
 	return (jiffies >= he->expires);
 }
 
 static void htable_selective_cleanup(struct xt_hashlimit_htable *ht,
-				bool (*select)(struct xt_hashlimit_htable *ht,
-					      struct dsthash_ent *he))
+			bool (*select)(const struct xt_hashlimit_htable *ht,
+				      const struct dsthash_ent *he))
 {
 	unsigned int i;
 
@@ -283,7 +287,8 @@ static void htable_destroy(struct xt_hashlimit_htable *hinfo)
 	vfree(hinfo);
 }
 
-static struct xt_hashlimit_htable *htable_find_get(char *name, int family)
+static struct xt_hashlimit_htable *htable_find_get(const char *name,
+						   int family)
 {
 	struct xt_hashlimit_htable *hinfo;
 	struct hlist_node *pos;
@@ -368,7 +373,8 @@ static inline void rateinfo_recalc(struct dsthash_ent *dh, unsigned long now)
 }
 
 static int
-hashlimit_init_dst(struct xt_hashlimit_htable *hinfo, struct dsthash_dst *dst,
+hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
+		   struct dsthash_dst *dst,
 		   const struct sk_buff *skb, unsigned int protoff)
 {
 	__be16 _ports[2], *ports;
@@ -443,8 +449,8 @@ hashlimit_match(const struct sk_buff *skb,
 		unsigned int protoff,
 		bool *hotdrop)
 {
-	struct xt_hashlimit_info *r =
-		((struct xt_hashlimit_info *)matchinfo)->u.master;
+	const struct xt_hashlimit_info *r =
+		((const struct xt_hashlimit_info *)matchinfo)->u.master;
 	struct xt_hashlimit_htable *hinfo = r->hinfo;
 	unsigned long now = jiffies;
 	struct dsthash_ent *dh;
@@ -543,7 +549,7 @@ hashlimit_checkentry(const char *tablename,
 static void
 hashlimit_destroy(const struct xt_match *match, void *matchinfo)
 {
-	struct xt_hashlimit_info *r = matchinfo;
+	const struct xt_hashlimit_info *r = matchinfo;
 
 	htable_put(r->hinfo);
 }

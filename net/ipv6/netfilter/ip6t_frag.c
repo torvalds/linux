@@ -50,7 +50,8 @@ match(const struct sk_buff *skb,
       unsigned int protoff,
       bool *hotdrop)
 {
-	struct frag_hdr _frag, *fh;
+	struct frag_hdr _frag;
+	const struct frag_hdr *fh;
 	const struct ip6t_frag *fraginfo = matchinfo;
 	unsigned int ptr;
 	int err;

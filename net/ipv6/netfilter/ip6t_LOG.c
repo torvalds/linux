@@ -48,7 +48,8 @@ static void dump_packet(const struct nf_loginfo *info,
 {
 	u_int8_t currenthdr;
 	int fragment;
-	struct ipv6hdr _ip6h, *ih;
+	struct ipv6hdr _ip6h;
+	const struct ipv6hdr *ih;
 	unsigned int ptr;
 	unsigned int hdrlen = 0;
 	unsigned int logflags;
@@ -78,7 +79,8 @@ static void dump_packet(const struct nf_loginfo *info,
 	ptr = ip6hoff + sizeof(struct ipv6hdr);
 	currenthdr = ih->nexthdr;
 	while (currenthdr != NEXTHDR_NONE && ip6t_ext_hdr(currenthdr)) {
-		struct ipv6_opt_hdr _hdr, *hp;
+		struct ipv6_opt_hdr _hdr;
+		const struct ipv6_opt_hdr *hp;
 
 		hp = skb_header_pointer(skb, ptr, sizeof(_hdr), &_hdr);
 		if (hp == NULL) {
@@ -92,7 +94,8 @@ static void dump_packet(const struct nf_loginfo *info,
 
 		switch (currenthdr) {
 		case IPPROTO_FRAGMENT: {
-			struct frag_hdr _fhdr, *fh;
+			struct frag_hdr _fhdr;
+			const struct frag_hdr *fh;
 
 			printk("FRAG:");
 			fh = skb_header_pointer(skb, ptr, sizeof(_fhdr),
@@ -131,7 +134,8 @@ static void dump_packet(const struct nf_loginfo *info,
 		/* Max Length */
 		case IPPROTO_AH:
 			if (logflags & IP6T_LOG_IPOPT) {
-				struct ip_auth_hdr _ahdr, *ah;
+				struct ip_auth_hdr _ahdr;
+				const struct ip_auth_hdr *ah;
 
 				/* Max length: 3 "AH " */
 				printk("AH ");
@@ -162,7 +166,8 @@ static void dump_packet(const struct nf_loginfo *info,
 			break;
 		case IPPROTO_ESP:
 			if (logflags & IP6T_LOG_IPOPT) {
-				struct ip_esp_hdr _esph, *eh;
+				struct ip_esp_hdr _esph;
+				const struct ip_esp_hdr *eh;
 
 				/* Max length: 4 "ESP " */
 				printk("ESP ");
@@ -202,7 +207,8 @@ static void dump_packet(const struct nf_loginfo *info,
 
 	switch (currenthdr) {
 	case IPPROTO_TCP: {
-		struct tcphdr _tcph, *th;
+		struct tcphdr _tcph;
+		const struct tcphdr *th;
 
 		/* Max length: 10 "PROTO=TCP " */
 		printk("PROTO=TCP ");
@@ -250,7 +256,8 @@ static void dump_packet(const struct nf_loginfo *info,
 
 		if ((logflags & IP6T_LOG_TCPOPT)
 		    && th->doff * 4 > sizeof(struct tcphdr)) {
-			u_int8_t _opt[60 - sizeof(struct tcphdr)], *op;
+			u_int8_t _opt[60 - sizeof(struct tcphdr)];
+			const u_int8_t *op;
 			unsigned int i;
 			unsigned int optsize = th->doff * 4
 					       - sizeof(struct tcphdr);
@@ -273,7 +280,8 @@ static void dump_packet(const struct nf_loginfo *info,
 	}
 	case IPPROTO_UDP:
 	case IPPROTO_UDPLITE: {
-		struct udphdr _udph, *uh;
+		struct udphdr _udph;
+		const struct udphdr *uh;
 
 		if (currenthdr == IPPROTO_UDP)
 			/* Max length: 10 "PROTO=UDP "     */
@@ -298,7 +306,8 @@ static void dump_packet(const struct nf_loginfo *info,
 		break;
 	}
 	case IPPROTO_ICMPV6: {
-		struct icmp6hdr _icmp6h, *ic;
+		struct icmp6hdr _icmp6h;
+		const struct icmp6hdr *ic;
 
 		/* Max length: 13 "PROTO=ICMPv6 " */
 		printk("PROTO=ICMPv6 ");

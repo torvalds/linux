@@ -68,7 +68,7 @@ static bool ipt_ttl_checkentry(const char *tablename,
 		void *targinfo,
 		unsigned int hook_mask)
 {
-	struct ipt_TTL_info *info = targinfo;
+	const struct ipt_TTL_info *info = targinfo;
 
 	if (info->mode > IPT_TTL_MAXMODE) {
 		printk(KERN_WARNING "ipt_TTL: invalid or unknown Mode %u\n",

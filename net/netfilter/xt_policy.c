@@ -34,7 +34,7 @@ xt_addr_cmp(const union xt_policy_addr *a1, const union xt_policy_addr *m,
 }
 
 static inline bool
-match_xfrm_state(struct xfrm_state *x, const struct xt_policy_elem *e,
+match_xfrm_state(const struct xfrm_state *x, const struct xt_policy_elem *e,
 		 unsigned short family)
 {
 #define MATCH_ADDR(x,y,z)	(!e->match.x ||			       \
@@ -55,7 +55,7 @@ match_policy_in(const struct sk_buff *skb, const struct xt_policy_info *info,
 		unsigned short family)
 {
 	const struct xt_policy_elem *e;
-	struct sec_path *sp = skb->sp;
+	const struct sec_path *sp = skb->sp;
 	int strict = info->flags & XT_POLICY_MATCH_STRICT;
 	int i, pos;
 
@@ -85,7 +85,7 @@ match_policy_out(const struct sk_buff *skb, const struct xt_policy_info *info,
 		 unsigned short family)
 {
 	const struct xt_policy_elem *e;
-	struct dst_entry *dst = skb->dst;
+	const struct dst_entry *dst = skb->dst;
 	int strict = info->flags & XT_POLICY_MATCH_STRICT;
 	int i, pos;
 

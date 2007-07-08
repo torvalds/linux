@@ -323,7 +323,7 @@ struct recent_iter_state {
 static void *recent_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct recent_iter_state *st = seq->private;
-	struct recent_table *t = st->table;
+	const struct recent_table *t = st->table;
 	struct recent_entry *e;
 	loff_t p = *pos;
 

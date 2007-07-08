@@ -36,7 +36,7 @@ match(const struct sk_buff *skb,
 	const struct xt_physdev_info *info = matchinfo;
 	bool ret;
 	const char *indev, *outdev;
-	struct nf_bridge_info *nf_bridge;
+	const struct nf_bridge_info *nf_bridge;
 
 	/* Not a bridged IP packet or no info available yet:
 	 * LOCAL_OUT/mangle and LOCAL_OUT/nat don't know if

@@ -39,7 +39,7 @@ dccp_find_option(u_int8_t option,
 		 bool *hotdrop)
 {
 	/* tcp.doff is only 4 bits, ie. max 15 * 4 bytes */
-	unsigned char *op;
+	const unsigned char *op;
 	unsigned int optoff = __dccp_hdr_len(dh);
 	unsigned int optlen = dh->dccph_doff*4 - __dccp_hdr_len(dh);
 	unsigned int i;
