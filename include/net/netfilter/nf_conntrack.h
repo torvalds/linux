@@ -131,6 +131,9 @@ struct nf_conn
 	/* Storage reserved for other modules: */
 	union nf_conntrack_proto proto;
 
+	/* Extensions */
+	struct nf_ct_ext *ext;
+
 	/* features dynamically at the end: helper, nat (both optional) */
 	char data[0];
 };

@@ -36,6 +36,7 @@
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_extend.h>
 
 #define NF_CONNTRACK_VERSION	"0.5.0"
 
@@ -316,6 +317,8 @@ destroy_conntrack(struct nf_conntrack *nfct)
 				       ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.protonum);
 	if (l4proto && l4proto->destroy)
 		l4proto->destroy(ct);
+
+	nf_ct_ext_destroy(ct);
 
 	destroyed = rcu_dereference(nf_conntrack_destroyed);
 	if (destroyed)
@@ -650,6 +653,7 @@ void nf_conntrack_free(struct nf_conn *conntrack)
 {
 	u_int32_t features = conntrack->features;
 	NF_CT_ASSERT(features >= NF_CT_F_BASIC && features < NF_CT_F_NUM);
+	nf_ct_ext_free(conntrack);
 	DEBUGP("nf_conntrack_free: features = 0x%x, conntrack=%p\n", features,
 	       conntrack);
 	kmem_cache_free(nf_ct_cache[features].cachep, conntrack);
