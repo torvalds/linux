@@ -166,8 +166,8 @@ out:
 	return ret;
 }
 
-static struct nf_conntrack_helper sane[MAX_PORTS][2];
-static char sane_names[MAX_PORTS][2][sizeof("sane-65535")];
+static struct nf_conntrack_helper sane[MAX_PORTS][2] __read_mostly;
+static char sane_names[MAX_PORTS][2][sizeof("sane-65535")] __read_mostly;
 
 /* don't make this __exit, since it's called from __init ! */
 static void nf_conntrack_sane_fini(void)
