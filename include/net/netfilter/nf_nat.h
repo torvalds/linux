@@ -53,11 +53,14 @@ struct nf_nat_multi_range_compat
 #include <linux/list.h>
 #include <linux/netfilter/nf_conntrack_pptp.h>
 
+struct nf_conn;
+
 /* The structure embedded in the conntrack structure. */
 struct nf_nat_info
 {
 	struct list_head bysource;
 	struct nf_nat_seq seq[IP_CT_DIR_MAX];
+	struct nf_conn *ct;
 };
 
 /* per conntrack: nat application helper private data */
@@ -76,8 +79,6 @@ struct nf_conn_nat
 	int masq_index;
 #endif
 };
-
-struct nf_conn;
 
 /* Set up the info structure to map into this range. */
 extern unsigned int nf_nat_setup_info(struct nf_conn *ct,

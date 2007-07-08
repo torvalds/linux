@@ -97,6 +97,7 @@ static void nf_nat_cleanup_conntrack(struct nf_conn *conn)
 	nat = nfct_nat(conn);
 	write_lock_bh(&nf_nat_lock);
 	list_del(&nat->info.bysource);
+	nat->info.ct = NULL;
 	write_unlock_bh(&nf_nat_lock);
 }
 
@@ -169,7 +170,7 @@ find_appropriate_src(const struct nf_conntrack_tuple *tuple,
 
 	read_lock_bh(&nf_nat_lock);
 	list_for_each_entry(nat, &bysource[h], info.bysource) {
-		ct = (struct nf_conn *)((char *)nat - offsetof(struct nf_conn, data));
+		ct = nat->info.ct;
 		if (same_src(ct, tuple)) {
 			/* Copy source part from reply tuple. */
 			nf_ct_invert_tuplepr(result,
@@ -337,6 +338,7 @@ nf_nat_setup_info(struct nf_conn *ct,
 
 		srchash = hash_by_src(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 		write_lock_bh(&nf_nat_lock);
+		info->ct = ct;
 		list_add(&info->bysource, &bysource[srchash]);
 		write_unlock_bh(&nf_nat_lock);
 	}
