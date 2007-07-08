@@ -172,7 +172,7 @@ static bool ipt_dnat_checkentry(const char *tablename,
 	return true;
 }
 
-inline unsigned int
+unsigned int
 alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 {
 	/* Force range to this IP; let proto decide mapping for

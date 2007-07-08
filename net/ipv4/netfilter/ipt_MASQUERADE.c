@@ -109,7 +109,7 @@ masquerade_target(struct sk_buff **pskb,
 	return nf_nat_setup_info(ct, &newrange, hooknum);
 }
 
-static inline int
+static int
 device_cmp(struct nf_conn *i, void *ifindex)
 {
 	const struct nf_conn_nat *nat = nfct_nat(i);
