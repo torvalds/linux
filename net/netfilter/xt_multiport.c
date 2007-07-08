@@ -33,24 +33,24 @@ MODULE_ALIAS("ip6t_multiport");
 #endif
 
 /* Returns 1 if the port is matched by the test, 0 otherwise. */
-static inline int
+static inline bool
 ports_match(const u_int16_t *portlist, enum xt_multiport_flags flags,
 	    u_int8_t count, u_int16_t src, u_int16_t dst)
 {
 	unsigned int i;
 	for (i = 0; i < count; i++) {
 		if (flags != XT_MULTIPORT_DESTINATION && portlist[i] == src)
-			return 1;
+			return true;
 
 		if (flags != XT_MULTIPORT_SOURCE && portlist[i] == dst)
-			return 1;
+			return true;
 	}
 
-	return 0;
+	return false;
 }
 
 /* Returns 1 if the port is matched by the test, 0 otherwise. */
-static inline int
+static inline bool
 ports_match_v1(const struct xt_multiport_v1 *minfo,
 	       u_int16_t src, u_int16_t dst)
 {
@@ -67,34 +67,34 @@ ports_match_v1(const struct xt_multiport_v1 *minfo,
 
 			if (minfo->flags == XT_MULTIPORT_SOURCE
 			    && src >= s && src <= e)
-				return 1 ^ minfo->invert;
+				return true ^ minfo->invert;
 			if (minfo->flags == XT_MULTIPORT_DESTINATION
 			    && dst >= s && dst <= e)
-				return 1 ^ minfo->invert;
+				return true ^ minfo->invert;
 			if (minfo->flags == XT_MULTIPORT_EITHER
 			    && ((dst >= s && dst <= e)
 				|| (src >= s && src <= e)))
-				return 1 ^ minfo->invert;
+				return true ^ minfo->invert;
 		} else {
 			/* exact port matching */
 			duprintf("src or dst matches with %d?\n", s);
 
 			if (minfo->flags == XT_MULTIPORT_SOURCE
 			    && src == s)
-				return 1 ^ minfo->invert;
+				return true ^ minfo->invert;
 			if (minfo->flags == XT_MULTIPORT_DESTINATION
 			    && dst == s)
-				return 1 ^ minfo->invert;
+				return true ^ minfo->invert;
 			if (minfo->flags == XT_MULTIPORT_EITHER
 			    && (src == s || dst == s))
-				return 1 ^ minfo->invert;
+				return true ^ minfo->invert;
 		}
 	}
 
 	return minfo->invert;
 }
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -108,7 +108,7 @@ match(const struct sk_buff *skb,
 	const struct xt_multiport *multiinfo = matchinfo;
 
 	if (offset)
-		return 0;
+		return false;
 
 	pptr = skb_header_pointer(skb, protoff, sizeof(_ports), _ports);
 	if (pptr == NULL) {
@@ -117,7 +117,7 @@ match(const struct sk_buff *skb,
 		 */
 		duprintf("xt_multiport: Dropping evil offset=0 tinygram.\n");
 		*hotdrop = true;
-		return 0;
+		return false;
 	}
 
 	return ports_match(multiinfo->ports,
@@ -125,7 +125,7 @@ match(const struct sk_buff *skb,
 			   ntohs(pptr[0]), ntohs(pptr[1]));
 }
 
-static int
+static bool
 match_v1(const struct sk_buff *skb,
 	 const struct net_device *in,
 	 const struct net_device *out,
@@ -139,7 +139,7 @@ match_v1(const struct sk_buff *skb,
 	const struct xt_multiport_v1 *multiinfo = matchinfo;
 
 	if (offset)
-		return 0;
+		return false;
 
 	pptr = skb_header_pointer(skb, protoff, sizeof(_ports), _ports);
 	if (pptr == NULL) {
@@ -148,7 +148,7 @@ match_v1(const struct sk_buff *skb,
 		 */
 		duprintf("xt_multiport: Dropping evil offset=0 tinygram.\n");
 		*hotdrop = true;
-		return 0;
+		return false;
 	}
 
 	return ports_match_v1(multiinfo, ntohs(pptr[0]), ntohs(pptr[1]));

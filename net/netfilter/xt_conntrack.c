@@ -19,7 +19,7 @@ MODULE_AUTHOR("Marc Boucher <marc@mbsi.ca>");
 MODULE_DESCRIPTION("iptables connection tracking match module");
 MODULE_ALIAS("ipt_conntrack");
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -54,53 +54,53 @@ match(const struct sk_buff *skb,
 		}
 		if (FWINV((statebit & sinfo->statemask) == 0,
 			  XT_CONNTRACK_STATE))
-			return 0;
+			return false;
 	}
 
 	if (ct == NULL) {
 		if (sinfo->flags & ~XT_CONNTRACK_STATE)
-			return 0;
-		return 1;
+			return false;
+		return true;
 	}
 
 	if (sinfo->flags & XT_CONNTRACK_PROTO &&
 	    FWINV(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum !=
 		  sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.protonum,
 		  XT_CONNTRACK_PROTO))
-		return 0;
+		return false;
 
 	if (sinfo->flags & XT_CONNTRACK_ORIGSRC &&
 	    FWINV((ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip &
 		   sinfo->sipmsk[IP_CT_DIR_ORIGINAL].s_addr) !=
 		  sinfo->tuple[IP_CT_DIR_ORIGINAL].src.ip,
 		  XT_CONNTRACK_ORIGSRC))
-		return 0;
+		return false;
 
 	if (sinfo->flags & XT_CONNTRACK_ORIGDST &&
 	    FWINV((ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u3.ip &
 		   sinfo->dipmsk[IP_CT_DIR_ORIGINAL].s_addr) !=
 		  sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.ip,
 		  XT_CONNTRACK_ORIGDST))
-		return 0;
+		return false;
 
 	if (sinfo->flags & XT_CONNTRACK_REPLSRC &&
 	    FWINV((ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u3.ip &
 		   sinfo->sipmsk[IP_CT_DIR_REPLY].s_addr) !=
 		  sinfo->tuple[IP_CT_DIR_REPLY].src.ip,
 		  XT_CONNTRACK_REPLSRC))
-		return 0;
+		return false;
 
 	if (sinfo->flags & XT_CONNTRACK_REPLDST &&
 	    FWINV((ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3.ip &
 		   sinfo->dipmsk[IP_CT_DIR_REPLY].s_addr) !=
 		  sinfo->tuple[IP_CT_DIR_REPLY].dst.ip,
 		  XT_CONNTRACK_REPLDST))
-		return 0;
+		return false;
 
 	if (sinfo->flags & XT_CONNTRACK_STATUS &&
 	    FWINV((ct->status & sinfo->statusmask) == 0,
 		  XT_CONNTRACK_STATUS))
-		return 0;
+		return false;
 
 	if(sinfo->flags & XT_CONNTRACK_EXPIRES) {
 		unsigned long expires = timer_pending(&ct->timeout) ?
@@ -109,9 +109,9 @@ match(const struct sk_buff *skb,
 		if (FWINV(!(expires >= sinfo->expires_min &&
 			    expires <= sinfo->expires_max),
 			  XT_CONNTRACK_EXPIRES))
-			return 0;
+			return false;
 	}
-	return 1;
+	return true;
 }
 
 static int

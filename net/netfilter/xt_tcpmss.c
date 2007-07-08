@@ -23,7 +23,7 @@ MODULE_AUTHOR("Marc Boucher <marc@mbsi.ca>");
 MODULE_DESCRIPTION("iptables TCP MSS match module");
 MODULE_ALIAS("ipt_tcpmss");
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -78,7 +78,7 @@ out:
 
 dropit:
 	*hotdrop = true;
-	return 0;
+	return false;
 }
 
 static struct xt_match xt_tcpmss_match[] = {

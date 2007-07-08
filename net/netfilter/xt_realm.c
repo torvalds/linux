@@ -21,7 +21,7 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("X_tables realm match");
 MODULE_ALIAS("ipt_realm");
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,

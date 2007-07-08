@@ -20,7 +20,7 @@ MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_DESCRIPTION("Xtables IPsec policy matching module");
 MODULE_LICENSE("GPL");
 
-static inline int
+static inline bool
 xt_addr_cmp(const union xt_policy_addr *a1, const union xt_policy_addr *m,
 	    const union xt_policy_addr *a2, unsigned short family)
 {
@@ -30,10 +30,10 @@ xt_addr_cmp(const union xt_policy_addr *a1, const union xt_policy_addr *m,
 	case AF_INET6:
 		return !ipv6_masked_addr_cmp(&a1->a6, &m->a6, &a2->a6);
 	}
-	return 0;
+	return false;
 }
 
-static inline int
+static inline bool
 match_xfrm_state(struct xfrm_state *x, const struct xt_policy_elem *e,
 		 unsigned short family)
 {
@@ -108,14 +108,14 @@ match_policy_out(const struct sk_buff *skb, const struct xt_policy_info *info,
 	return strict ? i == info->len : 0;
 }
 
-static int match(const struct sk_buff *skb,
-		 const struct net_device *in,
-		 const struct net_device *out,
-		 const struct xt_match *match,
-		 const void *matchinfo,
-		 int offset,
-		 unsigned int protoff,
-		 bool *hotdrop)
+static bool match(const struct sk_buff *skb,
+		  const struct net_device *in,
+		  const struct net_device *out,
+		  const struct xt_match *match,
+		  const void *matchinfo,
+		  int offset,
+		  unsigned int protoff,
+		  bool *hotdrop)
 {
 	const struct xt_policy_info *info = matchinfo;
 	int ret;
@@ -126,9 +126,9 @@ static int match(const struct sk_buff *skb,
 		ret = match_policy_out(skb, info, match->family);
 
 	if (ret < 0)
-		ret = info->flags & XT_POLICY_MATCH_NONE ? 1 : 0;
+		ret = info->flags & XT_POLICY_MATCH_NONE ? true : false;
 	else if (info->flags & XT_POLICY_MATCH_NONE)
-		ret = 0;
+		ret = false;
 
 	return ret;
 }

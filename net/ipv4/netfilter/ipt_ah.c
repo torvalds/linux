@@ -25,10 +25,10 @@ MODULE_DESCRIPTION("iptables AH SPI match module");
 #endif
 
 /* Returns 1 if the spi is matched by the range, 0 otherwise */
-static inline int
-spi_match(u_int32_t min, u_int32_t max, u_int32_t spi, int invert)
+static inline bool
+spi_match(u_int32_t min, u_int32_t max, u_int32_t spi, bool invert)
 {
-	int r=0;
+	bool r;
 	duprintf("ah spi_match:%c 0x%x <= 0x%x <= 0x%x",invert? '!':' ',
 		min,spi,max);
 	r=(spi >= min && spi <= max) ^ invert;
@@ -36,7 +36,7 @@ spi_match(u_int32_t min, u_int32_t max, u_int32_t spi, int invert)
 	return r;
 }
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -51,7 +51,7 @@ match(const struct sk_buff *skb,
 
 	/* Must not be a fragment. */
 	if (offset)
-		return 0;
+		return false;
 
 	ah = skb_header_pointer(skb, protoff,
 				sizeof(_ahdr), &_ahdr);

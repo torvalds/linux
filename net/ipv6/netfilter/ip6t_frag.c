@@ -29,10 +29,10 @@ MODULE_AUTHOR("Andras Kis-Szabo <kisza@sch.bme.hu>");
 #endif
 
 /* Returns 1 if the id is matched by the range, 0 otherwise */
-static inline int
-id_match(u_int32_t min, u_int32_t max, u_int32_t id, int invert)
+static inline bool
+id_match(u_int32_t min, u_int32_t max, u_int32_t id, bool invert)
 {
-	int r = 0;
+	bool r;
 	DEBUGP("frag id_match:%c 0x%x <= 0x%x <= 0x%x", invert ? '!' : ' ',
 	       min, id, max);
 	r = (id >= min && id <= max) ^ invert;
@@ -40,7 +40,7 @@ id_match(u_int32_t min, u_int32_t max, u_int32_t id, int invert)
 	return r;
 }
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -59,13 +59,13 @@ match(const struct sk_buff *skb,
 	if (err < 0) {
 		if (err != -ENOENT)
 			*hotdrop = true;
-		return 0;
+		return false;
 	}
 
 	fh = skb_header_pointer(skb, ptr, sizeof(_frag), &_frag);
 	if (fh == NULL) {
 		*hotdrop = true;
-		return 0;
+		return false;
 	}
 
 	DEBUGP("INFO %04X ", fh->frag_off);

@@ -19,10 +19,10 @@ MODULE_AUTHOR("Maciej Soltysiak <solt@dns.toxicfilms.tv>");
 MODULE_DESCRIPTION("IP tables Hop Limit matching module");
 MODULE_LICENSE("GPL");
 
-static int match(const struct sk_buff *skb,
-		 const struct net_device *in, const struct net_device *out,
-		 const struct xt_match *match, const void *matchinfo,
-		 int offset, unsigned int protoff, bool *hotdrop)
+static bool match(const struct sk_buff *skb,
+		  const struct net_device *in, const struct net_device *out,
+		  const struct xt_match *match, const void *matchinfo,
+		  int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct ip6t_hl_info *info = matchinfo;
 	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
@@ -43,10 +43,10 @@ static int match(const struct sk_buff *skb,
 		default:
 			printk(KERN_WARNING "ip6t_hl: unknown mode %d\n",
 				info->mode);
-			return 0;
+			return false;
 	}
 
-	return 0;
+	return false;
 }
 
 static struct xt_match hl_match = {

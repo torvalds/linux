@@ -30,7 +30,7 @@ MODULE_DESCRIPTION("IP tables connmark match module");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_connmark");
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -46,7 +46,7 @@ match(const struct sk_buff *skb,
 
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct)
-		return 0;
+		return false;
 
 	return (((ct->mark) & info->mask) == info->mark) ^ info->invert;
 }

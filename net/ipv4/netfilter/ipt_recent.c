@@ -169,7 +169,7 @@ static void recent_table_flush(struct recent_table *t)
 	}
 }
 
-static int
+static bool
 ipt_recent_match(const struct sk_buff *skb,
 		 const struct net_device *in, const struct net_device *out,
 		 const struct xt_match *match, const void *matchinfo,
@@ -180,7 +180,7 @@ ipt_recent_match(const struct sk_buff *skb,
 	struct recent_entry *e;
 	__be32 addr;
 	u_int8_t ttl;
-	int ret = info->invert;
+	bool ret = info->invert;
 
 	if (info->side == IPT_RECENT_DEST)
 		addr = ip_hdr(skb)->daddr;
@@ -202,15 +202,15 @@ ipt_recent_match(const struct sk_buff *skb,
 		e = recent_entry_init(t, addr, ttl);
 		if (e == NULL)
 			*hotdrop = true;
-		ret ^= 1;
+		ret = !ret;
 		goto out;
 	}
 
 	if (info->check_set & IPT_RECENT_SET)
-		ret ^= 1;
+		ret = !ret;
 	else if (info->check_set & IPT_RECENT_REMOVE) {
 		recent_entry_remove(t, e);
-		ret ^= 1;
+		ret = !ret;
 	} else if (info->check_set & (IPT_RECENT_CHECK | IPT_RECENT_UPDATE)) {
 		unsigned long t = jiffies - info->seconds * HZ;
 		unsigned int i, hits = 0;
@@ -219,7 +219,7 @@ ipt_recent_match(const struct sk_buff *skb,
 			if (info->seconds && time_after(t, e->stamps[i]))
 				continue;
 			if (++hits >= info->hit_count) {
-				ret ^= 1;
+				ret = !ret;
 				break;
 			}
 		}

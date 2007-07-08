@@ -19,7 +19,7 @@ MODULE_DESCRIPTION("IPv6 EUI64 address checking match");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andras Kis-Szabo <kisza@sch.bme.hu>");
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -36,7 +36,7 @@ match(const struct sk_buff *skb,
 	      (skb_mac_header(skb) + ETH_HLEN) <= skb->data) &&
 	    offset != 0) {
 		*hotdrop = true;
-		return 0;
+		return false;
 	}
 
 	memset(eui64, 0, sizeof(eui64));
@@ -55,11 +55,11 @@ match(const struct sk_buff *skb,
 				i++;
 
 			if (i == 8)
-				return 1;
+				return true;
 		}
 	}
 
-	return 0;
+	return false;
 }
 
 static struct xt_match eui64_match = {

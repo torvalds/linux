@@ -20,7 +20,7 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_length");
 MODULE_ALIAS("ip6t_length");
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -36,7 +36,7 @@ match(const struct sk_buff *skb,
 	return (pktlen >= info->min && pktlen <= info->max) ^ info->invert;
 }
 
-static int
+static bool
 match6(const struct sk_buff *skb,
        const struct net_device *in,
        const struct net_device *out,

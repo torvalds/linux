@@ -183,19 +183,19 @@ ipt_error(struct sk_buff **pskb,
 }
 
 static inline
-int do_match(struct ipt_entry_match *m,
-	     const struct sk_buff *skb,
-	     const struct net_device *in,
-	     const struct net_device *out,
-	     int offset,
-	     bool *hotdrop)
+bool do_match(struct ipt_entry_match *m,
+	      const struct sk_buff *skb,
+	      const struct net_device *in,
+	      const struct net_device *out,
+	      int offset,
+	      bool *hotdrop)
 {
 	/* Stop iteration if it doesn't match */
 	if (!m->u.kernel.match->match(skb, in, out, m->u.kernel.match, m->data,
 				      offset, ip_hdrlen(skb), hotdrop))
-		return 1;
+		return true;
 	else
-		return 0;
+		return false;
 }
 
 static inline struct ipt_entry *
@@ -2105,16 +2105,16 @@ void ipt_unregister_table(struct xt_table *table)
 }
 
 /* Returns 1 if the type and code is matched by the range, 0 otherwise */
-static inline int
+static inline bool
 icmp_type_code_match(u_int8_t test_type, u_int8_t min_code, u_int8_t max_code,
 		     u_int8_t type, u_int8_t code,
-		     int invert)
+		     bool invert)
 {
 	return ((test_type == 0xFF) || (type == test_type && code >= min_code && code <= max_code))
 		^ invert;
 }
 
-static int
+static bool
 icmp_match(const struct sk_buff *skb,
 	   const struct net_device *in,
 	   const struct net_device *out,
@@ -2129,7 +2129,7 @@ icmp_match(const struct sk_buff *skb,
 
 	/* Must not be a fragment. */
 	if (offset)
-		return 0;
+		return false;
 
 	ic = skb_header_pointer(skb, protoff, sizeof(_icmph), &_icmph);
 	if (ic == NULL) {
@@ -2138,7 +2138,7 @@ icmp_match(const struct sk_buff *skb,
 		 */
 		duprintf("Dropping evil ICMP tinygram.\n");
 		*hotdrop = true;
-		return 0;
+		return false;
 	}
 
 	return icmp_type_code_match(icmpinfo->type,

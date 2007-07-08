@@ -57,7 +57,7 @@ static DEFINE_SPINLOCK(limit_lock);
 
 #define CREDITS_PER_JIFFY POW2_BELOW32(MAX_CPJ)
 
-static int
+static bool
 ipt_limit_match(const struct sk_buff *skb,
 		const struct net_device *in,
 		const struct net_device *out,
@@ -79,11 +79,11 @@ ipt_limit_match(const struct sk_buff *skb,
 		/* We're not limited. */
 		r->credit -= r->cost;
 		spin_unlock_bh(&limit_lock);
-		return 1;
+		return true;
 	}
 
 	spin_unlock_bh(&limit_lock);
-	return 0;
+	return false;
 }
 
 /* Precision saver. */

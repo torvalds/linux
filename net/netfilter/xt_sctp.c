@@ -23,7 +23,7 @@ MODULE_ALIAS("ipt_sctp");
 #define SCCHECK(cond, option, flag, invflag) (!((flag) & (option)) \
 					      || (!!((invflag) & (option)) ^ (cond)))
 
-static int
+static bool
 match_flags(const struct xt_sctp_flag_info *flag_info,
 	    const int flag_count,
 	    u_int8_t chunktype,
@@ -37,10 +37,10 @@ match_flags(const struct xt_sctp_flag_info *flag_info,
 		}
 	}
 
-	return 1;
+	return true;
 }
 
-static inline int
+static inline bool
 match_packet(const struct sk_buff *skb,
 	     unsigned int offset,
 	     const u_int32_t *chunkmap,
@@ -65,7 +65,7 @@ match_packet(const struct sk_buff *skb,
 		if (sch == NULL || sch->length == 0) {
 			duprintf("Dropping invalid SCTP packet.\n");
 			*hotdrop = true;
-			return 0;
+			return false;
 		}
 
 		duprintf("Chunk num: %d\toffset: %d\ttype: %d\tlength: %d\tflags: %x\n",
@@ -80,7 +80,7 @@ match_packet(const struct sk_buff *skb,
 			case SCTP_CHUNK_MATCH_ANY:
 				if (match_flags(flag_info, flag_count,
 					sch->type, sch->flags)) {
-					return 1;
+					return true;
 				}
 				break;
 
@@ -94,14 +94,14 @@ match_packet(const struct sk_buff *skb,
 			case SCTP_CHUNK_MATCH_ONLY:
 				if (!match_flags(flag_info, flag_count,
 					sch->type, sch->flags)) {
-					return 0;
+					return false;
 				}
 				break;
 			}
 		} else {
 			switch (chunk_match_type) {
 			case SCTP_CHUNK_MATCH_ONLY:
-				return 0;
+				return false;
 			}
 		}
 	} while (offset < skb->len);
@@ -110,16 +110,16 @@ match_packet(const struct sk_buff *skb,
 	case SCTP_CHUNK_MATCH_ALL:
 		return SCTP_CHUNKMAP_IS_CLEAR(chunkmap);
 	case SCTP_CHUNK_MATCH_ANY:
-		return 0;
+		return false;
 	case SCTP_CHUNK_MATCH_ONLY:
-		return 1;
+		return true;
 	}
 
 	/* This will never be reached, but required to stop compiler whine */
-	return 0;
+	return false;
 }
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -134,14 +134,14 @@ match(const struct sk_buff *skb,
 
 	if (offset) {
 		duprintf("Dropping non-first fragment.. FIXME\n");
-		return 0;
+		return false;
 	}
 
 	sh = skb_header_pointer(skb, protoff, sizeof(_sh), &_sh);
 	if (sh == NULL) {
 		duprintf("Dropping evil TCP offset=0 tinygram.\n");
 		*hotdrop = true;
-		return 0;
+		return false;
 	}
 	duprintf("spt: %d\tdpt: %d\n", ntohs(sh->source), ntohs(sh->dest));
 

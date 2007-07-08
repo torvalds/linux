@@ -23,7 +23,7 @@ MODULE_DESCRIPTION("iptables arbitrary IP range match module");
 #define DEBUGP(format, args...)
 #endif
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -44,7 +44,7 @@ match(const struct sk_buff *skb,
 				info->flags & IPRANGE_SRC_INV ? "(INV) " : "",
 				NIPQUAD(info->src.min_ip),
 				NIPQUAD(info->src.max_ip));
-			return 0;
+			return false;
 		}
 	}
 	if (info->flags & IPRANGE_DST) {
@@ -57,10 +57,10 @@ match(const struct sk_buff *skb,
 				info->flags & IPRANGE_DST_INV ? "(INV) " : "",
 				NIPQUAD(info->dst.min_ip),
 				NIPQUAD(info->dst.max_ip));
-			return 0;
+			return false;
 		}
 	}
-	return 1;
+	return true;
 }
 
 static struct xt_match iprange_match = {

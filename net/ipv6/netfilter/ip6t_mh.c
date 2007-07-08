@@ -31,16 +31,13 @@ MODULE_LICENSE("GPL");
 #endif
 
 /* Returns 1 if the type is matched by the range, 0 otherwise */
-static inline int
-type_match(u_int8_t min, u_int8_t max, u_int8_t type, int invert)
+static inline bool
+type_match(u_int8_t min, u_int8_t max, u_int8_t type, bool invert)
 {
-	int ret;
-
-	ret = (type >= min && type <= max) ^ invert;
-	return ret;
+	return (type >= min && type <= max) ^ invert;
 }
 
-static int
+static bool
 match(const struct sk_buff *skb,
 	 const struct net_device *in,
 	 const struct net_device *out,
@@ -55,7 +52,7 @@ match(const struct sk_buff *skb,
 
 	/* Must not be a fragment. */
 	if (offset)
-		return 0;
+		return false;
 
 	mh = skb_header_pointer(skb, protoff, sizeof(_mh), &_mh);
 	if (mh == NULL) {
@@ -63,14 +60,14 @@ match(const struct sk_buff *skb,
 		   can't.  Hence, no choice but to drop. */
 		duprintf("Dropping evil MH tinygram.\n");
 		*hotdrop = true;
-		return 0;
+		return false;
 	}
 
 	if (mh->ip6mh_proto != IPPROTO_NONE) {
 		duprintf("Dropping invalid MH Payload Proto: %u\n",
 			 mh->ip6mh_proto);
 		*hotdrop = true;
-		return 0;
+		return false;
 	}
 
 	return type_match(mhinfo->types[0], mhinfo->types[1], mh->ip6mh_type,

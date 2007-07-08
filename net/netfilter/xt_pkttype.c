@@ -21,7 +21,7 @@ MODULE_DESCRIPTION("IP tables match to match on linklayer packet type");
 MODULE_ALIAS("ipt_pkttype");
 MODULE_ALIAS("ip6t_pkttype");
 
-static int match(const struct sk_buff *skb,
+static bool match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
       const struct xt_match *match,

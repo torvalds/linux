@@ -96,7 +96,7 @@ ip6t_ext_hdr(u8 nexthdr)
 }
 
 /* Returns whether matches rule or not. */
-static inline int
+static inline bool
 ip6_packet_match(const struct sk_buff *skb,
 		 const char *indev,
 		 const char *outdev,
@@ -122,7 +122,7 @@ ip6_packet_match(const struct sk_buff *skb,
 		dprintf("DST: %u. Mask: %u. Target: %u.%s\n", ip->daddr,
 			ipinfo->dmsk.s_addr, ipinfo->dst.s_addr,
 			ipinfo->invflags & IP6T_INV_DSTIP ? " (INV)" : "");*/
-		return 0;
+		return false;
 	}
 
 	/* Look for ifname matches; this should unroll nicely. */
@@ -136,7 +136,7 @@ ip6_packet_match(const struct sk_buff *skb,
 		dprintf("VIA in mismatch (%s vs %s).%s\n",
 			indev, ip6info->iniface,
 			ip6info->invflags&IP6T_INV_VIA_IN ?" (INV)":"");
-		return 0;
+		return false;
 	}
 
 	for (i = 0, ret = 0; i < IFNAMSIZ/sizeof(unsigned long); i++) {
@@ -149,7 +149,7 @@ ip6_packet_match(const struct sk_buff *skb,
 		dprintf("VIA out mismatch (%s vs %s).%s\n",
 			outdev, ip6info->outiface,
 			ip6info->invflags&IP6T_INV_VIA_OUT ?" (INV)":"");
-		return 0;
+		return false;
 	}
 
 /* ... might want to do something with class and flowlabel here ... */
@@ -163,7 +163,7 @@ ip6_packet_match(const struct sk_buff *skb,
 		if (protohdr < 0) {
 			if (_frag_off == 0)
 				*hotdrop = true;
-			return 0;
+			return false;
 		}
 		*fragoff = _frag_off;
 
@@ -174,17 +174,17 @@ ip6_packet_match(const struct sk_buff *skb,
 
 		if (ip6info->proto == protohdr) {
 			if(ip6info->invflags & IP6T_INV_PROTO) {
-				return 0;
+				return false;
 			}
-			return 1;
+			return true;
 		}
 
 		/* We need match for the '-p all', too! */
 		if ((ip6info->proto != 0) &&
 			!(ip6info->invflags & IP6T_INV_PROTO))
-			return 0;
+			return false;
 	}
-	return 1;
+	return true;
 }
 
 /* should be ip6 safe */
@@ -219,20 +219,20 @@ ip6t_error(struct sk_buff **pskb,
 }
 
 static inline
-int do_match(struct ip6t_entry_match *m,
-	     const struct sk_buff *skb,
-	     const struct net_device *in,
-	     const struct net_device *out,
-	     int offset,
-	     unsigned int protoff,
-	     bool *hotdrop)
+bool do_match(struct ip6t_entry_match *m,
+	      const struct sk_buff *skb,
+	      const struct net_device *in,
+	      const struct net_device *out,
+	      int offset,
+	      unsigned int protoff,
+	      bool *hotdrop)
 {
 	/* Stop iteration if it doesn't match */
 	if (!m->u.kernel.match->match(skb, in, out, m->u.kernel.match, m->data,
 				      offset, protoff, hotdrop))
-		return 1;
+		return true;
 	else
-		return 0;
+		return false;
 }
 
 static inline struct ip6t_entry *
@@ -1291,7 +1291,7 @@ icmp6_type_code_match(u_int8_t test_type, u_int8_t min_code, u_int8_t max_code,
 		^ invert;
 }
 
-static int
+static bool
 icmp6_match(const struct sk_buff *skb,
 	   const struct net_device *in,
 	   const struct net_device *out,
@@ -1306,7 +1306,7 @@ icmp6_match(const struct sk_buff *skb,
 
 	/* Must not be a fragment. */
 	if (offset)
-		return 0;
+		return false;
 
 	ic = skb_header_pointer(skb, protoff, sizeof(_icmp), &_icmp);
 	if (ic == NULL) {
@@ -1314,7 +1314,7 @@ icmp6_match(const struct sk_buff *skb,
 		   can't.  Hence, no choice but to drop. */
 		duprintf("Dropping evil ICMP tinygram.\n");
 		*hotdrop = true;
-		return 0;
+		return false;
 	}
 
 	return icmp6_type_code_match(icmpinfo->type,

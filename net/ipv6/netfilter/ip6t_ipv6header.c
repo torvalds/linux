@@ -26,7 +26,7 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("IPv6 headers match");
 MODULE_AUTHOR("Andras Kis-Szabo <kisza@sch.bme.hu>");
 
-static int
+static bool
 ipv6header_match(const struct sk_buff *skb,
 		 const struct net_device *in,
 		 const struct net_device *out,
@@ -58,7 +58,7 @@ ipv6header_match(const struct sk_buff *skb,
 
 		/* Is there enough space for the next ext header? */
 		if (len < (int)sizeof(struct ipv6_opt_hdr))
-			return 0;
+			return false;
 		/* No more exthdr -> evaluate */
 		if (nexthdr == NEXTHDR_NONE) {
 			temp |= MASK_NONE;
@@ -99,7 +99,7 @@ ipv6header_match(const struct sk_buff *skb,
 			temp |= MASK_DSTOPTS;
 			break;
 		default:
-			return 0;
+			return false;
 			break;
 		}
 

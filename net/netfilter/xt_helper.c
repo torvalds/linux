@@ -28,7 +28,7 @@ MODULE_ALIAS("ip6t_helper");
 #define DEBUGP(format, args...)
 #endif
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -42,7 +42,7 @@ match(const struct sk_buff *skb,
 	struct nf_conn *ct;
 	struct nf_conn_help *master_help;
 	enum ip_conntrack_info ctinfo;
-	int ret = info->invert;
+	bool ret = info->invert;
 
 	ct = nf_ct_get((struct sk_buff *)skb, &ctinfo);
 	if (!ct) {
@@ -67,7 +67,7 @@ match(const struct sk_buff *skb,
 		ct->master->helper->name, info->name);
 
 	if (info->name[0] == '\0')
-		ret ^= 1;
+		ret = !ret;
 	else
 		ret ^= !strncmp(master_help->helper->name, info->name,
 				strlen(master_help->helper->name));

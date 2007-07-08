@@ -141,14 +141,14 @@ struct xt_match
 	/* Arguments changed since 2.6.9, as this must now handle
 	   non-linear skb, using skb_header_pointer and
 	   skb_ip_make_writable. */
-	int (*match)(const struct sk_buff *skb,
-		     const struct net_device *in,
-		     const struct net_device *out,
-		     const struct xt_match *match,
-		     const void *matchinfo,
-		     int offset,
-		     unsigned int protoff,
-		     bool *hotdrop);
+	bool (*match)(const struct sk_buff *skb,
+		      const struct net_device *in,
+		      const struct net_device *out,
+		      const struct xt_match *match,
+		      const void *matchinfo,
+		      int offset,
+		      unsigned int protoff,
+		      bool *hotdrop);
 
 	/* Called when user tries to insert an entry of this type. */
 	/* Should return true or false. */

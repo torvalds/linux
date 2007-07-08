@@ -24,26 +24,26 @@ MODULE_ALIAS("ip6t_statistic");
 
 static DEFINE_SPINLOCK(nth_lock);
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in, const struct net_device *out,
       const struct xt_match *match, const void *matchinfo,
       int offset, unsigned int protoff, bool *hotdrop)
 {
 	struct xt_statistic_info *info = (struct xt_statistic_info *)matchinfo;
-	int ret = info->flags & XT_STATISTIC_INVERT ? 1 : 0;
+	bool ret = info->flags & XT_STATISTIC_INVERT;
 
 	switch (info->mode) {
 	case XT_STATISTIC_MODE_RANDOM:
 		if ((net_random() & 0x7FFFFFFF) < info->u.random.probability)
-			ret ^= 1;
+			ret = !ret;
 		break;
 	case XT_STATISTIC_MODE_NTH:
 		info = info->master;
 		spin_lock_bh(&nth_lock);
 		if (info->u.nth.count++ == info->u.nth.every) {
 			info->u.nth.count = 0;
-			ret ^= 1;
+			ret = !ret;
 		}
 		spin_unlock_bh(&nth_lock);
 		break;

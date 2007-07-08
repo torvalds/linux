@@ -47,7 +47,7 @@ MODULE_ALIAS("ip6t_dst");
  *	5	-> RTALERT 2 x x
  */
 
-static int
+static bool
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
@@ -62,7 +62,7 @@ match(const struct sk_buff *skb,
 	unsigned int temp;
 	unsigned int ptr;
 	unsigned int hdrlen = 0;
-	unsigned int ret = 0;
+	bool ret = false;
 	u8 _opttype, *tp = NULL;
 	u8 _optlen, *lp = NULL;
 	unsigned int optlen;
@@ -72,19 +72,19 @@ match(const struct sk_buff *skb,
 	if (err < 0) {
 		if (err != -ENOENT)
 			*hotdrop = true;
-		return 0;
+		return false;
 	}
 
 	oh = skb_header_pointer(skb, ptr, sizeof(_optsh), &_optsh);
 	if (oh == NULL) {
 		*hotdrop = true;
-		return 0;
+		return false;
 	}
 
 	hdrlen = ipv6_optlen(oh);
 	if (skb->len - ptr < hdrlen) {
 		/* Packet smaller than it's length field */
-		return 0;
+		return false;
 	}
 
 	DEBUGP("IPv6 OPTS LEN %u %u ", hdrlen, oh->hdrlen);
@@ -123,7 +123,7 @@ match(const struct sk_buff *skb,
 				DEBUGP("Tbad %02X %02X\n",
 				       *tp,
 				       (optinfo->opts[temp] & 0xFF00) >> 8);
-				return 0;
+				return false;
 			} else {
 				DEBUGP("Tok ");
 			}
@@ -144,7 +144,7 @@ match(const struct sk_buff *skb,
 				if (spec_len != 0x00FF && spec_len != *lp) {
 					DEBUGP("Lbad %02X %04X\n", *lp,
 					       spec_len);
-					return 0;
+					return false;
 				}
 				DEBUGP("Lok ");
 				optlen = *lp + 2;
@@ -167,10 +167,10 @@ match(const struct sk_buff *skb,
 		if (temp == optinfo->optsnr)
 			return ret;
 		else
-			return 0;
+			return false;
 	}
 
-	return 0;
+	return false;
 }
 
 /* Called when user tries to insert an entry of this type. */

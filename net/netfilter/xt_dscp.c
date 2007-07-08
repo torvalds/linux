@@ -22,22 +22,7 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_dscp");
 MODULE_ALIAS("ip6t_dscp");
 
-static int match(const struct sk_buff *skb,
-		 const struct net_device *in,
-		 const struct net_device *out,
-		 const struct xt_match *match,
-		 const void *matchinfo,
-		 int offset,
-		 unsigned int protoff,
-		 bool *hotdrop)
-{
-	const struct xt_dscp_info *info = matchinfo;
-	u_int8_t dscp = ipv4_get_dsfield(ip_hdr(skb)) >> XT_DSCP_SHIFT;
-
-	return (dscp == info->dscp) ^ !!info->invert;
-}
-
-static int match6(const struct sk_buff *skb,
+static bool match(const struct sk_buff *skb,
 		  const struct net_device *in,
 		  const struct net_device *out,
 		  const struct xt_match *match,
@@ -45,6 +30,21 @@ static int match6(const struct sk_buff *skb,
 		  int offset,
 		  unsigned int protoff,
 		  bool *hotdrop)
+{
+	const struct xt_dscp_info *info = matchinfo;
+	u_int8_t dscp = ipv4_get_dsfield(ip_hdr(skb)) >> XT_DSCP_SHIFT;
+
+	return (dscp == info->dscp) ^ !!info->invert;
+}
+
+static bool match6(const struct sk_buff *skb,
+		   const struct net_device *in,
+		   const struct net_device *out,
+		   const struct xt_match *match,
+		   const void *matchinfo,
+		   int offset,
+		   unsigned int protoff,
+		   bool *hotdrop)
 {
 	const struct xt_dscp_info *info = matchinfo;
 	u_int8_t dscp = ipv6_get_dsfield(ipv6_hdr(skb)) >> XT_DSCP_SHIFT;

@@ -94,7 +94,8 @@ static DEFINE_MUTEX(hlimit_mutex);	/* additional checkentry protection */
 static HLIST_HEAD(hashlimit_htables);
 static struct kmem_cache *hashlimit_cachep __read_mostly;
 
-static inline int dst_cmp(const struct dsthash_ent *ent, struct dsthash_dst *b)
+static inline bool dst_cmp(const struct dsthash_ent *ent,
+			   struct dsthash_dst *b)
 {
 	return !memcmp(&ent->dst, b, sizeof(ent->dst));
 }
@@ -227,18 +228,18 @@ static int htable_create(struct xt_hashlimit_info *minfo, int family)
 	return 0;
 }
 
-static int select_all(struct xt_hashlimit_htable *ht, struct dsthash_ent *he)
+static bool select_all(struct xt_hashlimit_htable *ht, struct dsthash_ent *he)
 {
 	return 1;
 }
 
-static int select_gc(struct xt_hashlimit_htable *ht, struct dsthash_ent *he)
+static bool select_gc(struct xt_hashlimit_htable *ht, struct dsthash_ent *he)
 {
 	return (jiffies >= he->expires);
 }
 
 static void htable_selective_cleanup(struct xt_hashlimit_htable *ht,
-				int (*select)(struct xt_hashlimit_htable *ht,
+				bool (*select)(struct xt_hashlimit_htable *ht,
 					      struct dsthash_ent *he))
 {
 	unsigned int i;
@@ -432,7 +433,7 @@ hashlimit_init_dst(struct xt_hashlimit_htable *hinfo, struct dsthash_dst *dst,
 	return 0;
 }
 
-static int
+static bool
 hashlimit_match(const struct sk_buff *skb,
 		const struct net_device *in,
 		const struct net_device *out,
@@ -478,17 +479,17 @@ hashlimit_match(const struct sk_buff *skb,
 		/* We're underlimit. */
 		dh->rateinfo.credit -= dh->rateinfo.cost;
 		spin_unlock_bh(&hinfo->lock);
-		return 1;
+		return true;
 	}
 
 	spin_unlock_bh(&hinfo->lock);
 
 	/* default case: we're overlimit, thus don't match */
-	return 0;
+	return false;
 
 hotdrop:
 	*hotdrop = true;
-	return 0;
+	return false;
 }
 
 static int
