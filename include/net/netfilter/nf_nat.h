@@ -54,16 +54,6 @@ struct nf_nat_multi_range_compat
 #include <linux/netfilter/nf_conntrack_pptp.h>
 #include <net/netfilter/nf_conntrack_extend.h>
 
-struct nf_conn;
-
-/* The structure embedded in the conntrack structure. */
-struct nf_nat_info
-{
-	struct list_head bysource;
-	struct nf_nat_seq seq[IP_CT_DIR_MAX];
-	struct nf_conn *ct;
-};
-
 /* per conntrack: nat application helper private data */
 union nf_conntrack_nat_help
 {
@@ -71,9 +61,14 @@ union nf_conntrack_nat_help
 	struct nf_nat_pptp nat_pptp_info;
 };
 
+struct nf_conn;
+
+/* The structure embedded in the conntrack structure. */
 struct nf_conn_nat
 {
-	struct nf_nat_info info;
+	struct list_head bysource;
+	struct nf_nat_seq seq[IP_CT_DIR_MAX];
+	struct nf_conn *ct;
 	union nf_conntrack_nat_help help;
 #if defined(CONFIG_IP_NF_TARGET_MASQUERADE) || \
     defined(CONFIG_IP_NF_TARGET_MASQUERADE_MODULE)

@@ -155,8 +155,8 @@ find_appropriate_src(const struct nf_conntrack_tuple *tuple,
 	struct nf_conn *ct;
 
 	read_lock_bh(&nf_nat_lock);
-	list_for_each_entry(nat, &bysource[h], info.bysource) {
-		ct = nat->info.ct;
+	list_for_each_entry(nat, &bysource[h], bysource) {
+		ct = nat->ct;
 		if (same_src(ct, tuple)) {
 			/* Copy source part from reply tuple. */
 			nf_ct_invert_tuplepr(result,
@@ -284,7 +284,6 @@ nf_nat_setup_info(struct nf_conn *ct,
 {
 	struct nf_conntrack_tuple curr_tuple, new_tuple;
 	struct nf_conn_nat *nat;
-	struct nf_nat_info *info;
 	int have_to_hash = !(ct->status & IPS_NAT_DONE_MASK);
 	enum nf_nat_manip_type maniptype = HOOK2MANIP(hooknum);
 
@@ -335,9 +334,9 @@ nf_nat_setup_info(struct nf_conn *ct,
 		srchash = hash_by_src(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 		write_lock_bh(&nf_nat_lock);
 		/* nf_conntrack_alter_reply might re-allocate exntension aera */
-		info = &nfct_nat(ct)->info;
-		info->ct = ct;
-		list_add(&info->bysource, &bysource[srchash]);
+		nat = nfct_nat(ct);
+		nat->ct = ct;
+		list_add(&nat->bysource, &bysource[srchash]);
 		write_unlock_bh(&nf_nat_lock);
 	}
 
@@ -595,14 +594,14 @@ static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
 {
 	struct nf_conn_nat *nat = nf_ct_ext_find(ct, NF_CT_EXT_NAT);
 
-	if (nat == NULL || nat->info.ct == NULL)
+	if (nat == NULL || nat->ct == NULL)
 		return;
 
-	NF_CT_ASSERT(nat->info.ct->status & IPS_NAT_DONE_MASK);
+	NF_CT_ASSERT(nat->ct->status & IPS_NAT_DONE_MASK);
 
 	write_lock_bh(&nf_nat_lock);
-	list_del(&nat->info.bysource);
-	nat->info.ct = NULL;
+	list_del(&nat->bysource);
+	nat->ct = NULL;
 	write_unlock_bh(&nf_nat_lock);
 }
 
@@ -610,7 +609,7 @@ static void nf_nat_move_storage(struct nf_conn *conntrack, void *old)
 {
 	struct nf_conn_nat *new_nat = nf_ct_ext_find(conntrack, NF_CT_EXT_NAT);
 	struct nf_conn_nat *old_nat = (struct nf_conn_nat *)old;
-	struct nf_conn *ct = old_nat->info.ct;
+	struct nf_conn *ct = old_nat->ct;
 	unsigned int srchash;
 
 	if (!(ct->status & IPS_NAT_DONE_MASK))
@@ -619,8 +618,8 @@ static void nf_nat_move_storage(struct nf_conn *conntrack, void *old)
 	srchash = hash_by_src(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 
 	write_lock_bh(&nf_nat_lock);
-	list_replace(&old_nat->info.bysource, &new_nat->info.bysource);
-	new_nat->info.ct = ct;
+	list_replace(&old_nat->bysource, &new_nat->bysource);
+	new_nat->ct = ct;
 	write_unlock_bh(&nf_nat_lock);
 }
 

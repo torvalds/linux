@@ -52,8 +52,8 @@ adjust_tcp_sequence(u32 seq,
 
 	dir = CTINFO2DIR(ctinfo);
 
-	this_way = &nat->info.seq[dir];
-	other_way = &nat->info.seq[!dir];
+	this_way = &nat->seq[dir];
+	other_way = &nat->seq[!dir];
 
 	DEBUGP("nf_nat_resize_packet: Seq_offset before: ");
 	DUMP_OFFSET(this_way);
@@ -372,8 +372,7 @@ nf_nat_sack_adjust(struct sk_buff **pskb,
 			    op[1] >= 2+TCPOLEN_SACK_PERBLOCK &&
 			    ((op[1] - 2) % TCPOLEN_SACK_PERBLOCK) == 0)
 				sack_adjust(*pskb, tcph, optoff+2,
-					    optoff+op[1],
-					    &nat->info.seq[!dir]);
+					    optoff+op[1], &nat->seq[!dir]);
 			optoff += op[1];
 		}
 	}
@@ -394,8 +393,8 @@ nf_nat_seq_adjust(struct sk_buff **pskb,
 
 	dir = CTINFO2DIR(ctinfo);
 
-	this_way = &nat->info.seq[dir];
-	other_way = &nat->info.seq[!dir];
+	this_way = &nat->seq[dir];
+	other_way = &nat->seq[!dir];
 
 	if (!skb_make_writable(pskb, ip_hdrlen(*pskb) + sizeof(*tcph)))
 		return 0;
