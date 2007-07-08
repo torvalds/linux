@@ -920,8 +920,7 @@ static int kill_all(struct nf_conn *i, void *data)
 	return 1;
 }
 
-static void free_conntrack_hash(struct hlist_head *hash, int vmalloced,
-				int size)
+void nf_ct_free_hashtable(struct hlist_head *hash, int vmalloced, int size)
 {
 	if (vmalloced)
 		vfree(hash);
@@ -929,6 +928,7 @@ static void free_conntrack_hash(struct hlist_head *hash, int vmalloced,
 		free_pages((unsigned long)hash,
 			   get_order(sizeof(struct hlist_head) * size));
 }
+EXPORT_SYMBOL_GPL(nf_ct_free_hashtable);
 
 void nf_conntrack_flush(void)
 {
@@ -962,14 +962,14 @@ void nf_conntrack_cleanup(void)
 
 	kmem_cache_destroy(nf_conntrack_cachep);
 	kmem_cache_destroy(nf_conntrack_expect_cachep);
-	free_conntrack_hash(nf_conntrack_hash, nf_conntrack_vmalloc,
-			    nf_conntrack_htable_size);
+	nf_ct_free_hashtable(nf_conntrack_hash, nf_conntrack_vmalloc,
+			     nf_conntrack_htable_size);
 
 	nf_conntrack_proto_fini();
 	nf_conntrack_helper_fini();
 }
 
-static struct hlist_head *alloc_hashtable(int *sizep, int *vmalloced)
+struct hlist_head *nf_ct_alloc_hashtable(int *sizep, int *vmalloced)
 {
 	struct hlist_head *hash;
 	unsigned int size, i;
@@ -992,6 +992,7 @@ static struct hlist_head *alloc_hashtable(int *sizep, int *vmalloced)
 
 	return hash;
 }
+EXPORT_SYMBOL_GPL(nf_ct_alloc_hashtable);
 
 int set_hashsize(const char *val, struct kernel_param *kp)
 {
@@ -1009,7 +1010,7 @@ int set_hashsize(const char *val, struct kernel_param *kp)
 	if (!hashsize)
 		return -EINVAL;
 
-	hash = alloc_hashtable(&hashsize, &vmalloced);
+	hash = nf_ct_alloc_hashtable(&hashsize, &vmalloced);
 	if (!hash)
 		return -ENOMEM;
 
@@ -1037,7 +1038,7 @@ int set_hashsize(const char *val, struct kernel_param *kp)
 	nf_conntrack_hash_rnd = rnd;
 	write_unlock_bh(&nf_conntrack_lock);
 
-	free_conntrack_hash(old_hash, old_vmalloced, old_size);
+	nf_ct_free_hashtable(old_hash, old_vmalloced, old_size);
 	return 0;
 }
 
@@ -1066,8 +1067,8 @@ int __init nf_conntrack_init(void)
 		 * entries. */
 		max_factor = 4;
 	}
-	nf_conntrack_hash = alloc_hashtable(&nf_conntrack_htable_size,
-					    &nf_conntrack_vmalloc);
+	nf_conntrack_hash = nf_ct_alloc_hashtable(&nf_conntrack_htable_size,
+						  &nf_conntrack_vmalloc);
 	if (!nf_conntrack_hash) {
 		printk(KERN_ERR "Unable to create nf_conntrack_hash\n");
 		goto err_out;
@@ -1122,8 +1123,8 @@ out_free_expect_slab:
 err_free_conntrack_slab:
 	kmem_cache_destroy(nf_conntrack_cachep);
 err_free_hash:
-	free_conntrack_hash(nf_conntrack_hash, nf_conntrack_vmalloc,
-			    nf_conntrack_htable_size);
+	nf_ct_free_hashtable(nf_conntrack_hash, nf_conntrack_vmalloc,
+			     nf_conntrack_htable_size);
 err_out:
 	return -ENOMEM;
 }
