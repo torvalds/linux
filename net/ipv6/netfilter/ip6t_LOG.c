@@ -448,24 +448,24 @@ ip6t_log_target(struct sk_buff **pskb,
 }
 
 
-static int ip6t_log_checkentry(const char *tablename,
-			       const void *entry,
-			       const struct xt_target *target,
-			       void *targinfo,
-			       unsigned int hook_mask)
+static bool ip6t_log_checkentry(const char *tablename,
+				const void *entry,
+				const struct xt_target *target,
+				void *targinfo,
+				unsigned int hook_mask)
 {
 	const struct ip6t_log_info *loginfo = targinfo;
 
 	if (loginfo->level >= 8) {
 		DEBUGP("LOG: level %u >= 8\n", loginfo->level);
-		return 0;
+		return false;
 	}
 	if (loginfo->prefix[sizeof(loginfo->prefix)-1] != '\0') {
 		DEBUGP("LOG: prefix term %i\n",
 		       loginfo->prefix[sizeof(loginfo->prefix)-1]);
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 static struct xt_target ip6t_log_reg = {

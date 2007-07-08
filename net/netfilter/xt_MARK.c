@@ -65,7 +65,7 @@ target_v1(struct sk_buff **pskb,
 }
 
 
-static int
+static bool
 checkentry_v0(const char *tablename,
 	      const void *entry,
 	      const struct xt_target *target,
@@ -76,12 +76,12 @@ checkentry_v0(const char *tablename,
 
 	if (markinfo->mark > 0xffffffff) {
 		printk(KERN_WARNING "MARK: Only supports 32bit wide mark\n");
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
-static int
+static bool
 checkentry_v1(const char *tablename,
 	      const void *entry,
 	      const struct xt_target *target,
@@ -95,13 +95,13 @@ checkentry_v1(const char *tablename,
 	    && markinfo->mode != XT_MARK_OR) {
 		printk(KERN_WARNING "MARK: unknown mode %u\n",
 		       markinfo->mode);
-		return 0;
+		return false;
 	}
 	if (markinfo->mark > 0xffffffff) {
 		printk(KERN_WARNING "MARK: Only supports 32bit wide mark\n");
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 #ifdef CONFIG_COMPAT

@@ -202,11 +202,11 @@ struct xt_target
            hook_mask is a bitmask of hooks from which it can be
            called. */
 	/* Should return true or false. */
-	int (*checkentry)(const char *tablename,
-			  const void *entry,
-			  const struct xt_target *target,
-			  void *targinfo,
-			  unsigned int hook_mask);
+	bool (*checkentry)(const char *tablename,
+			   const void *entry,
+			   const struct xt_target *target,
+			   void *targinfo,
+			   unsigned int hook_mask);
 
 	/* Called when entry of this type deleted. */
 	void (*destroy)(const struct xt_target *target, void *targinfo);

@@ -38,7 +38,7 @@ nflog_target(struct sk_buff **pskb,
 	return XT_CONTINUE;
 }
 
-static int
+static bool
 nflog_checkentry(const char *tablename, const void *entry,
 		 const struct xt_target *target, void *targetinfo,
 		 unsigned int hookmask)
@@ -46,10 +46,10 @@ nflog_checkentry(const char *tablename, const void *entry,
 	struct xt_nflog_info *info = targetinfo;
 
 	if (info->flags & ~XT_NFLOG_MASK)
-		return 0;
+		return false;
 	if (info->prefix[sizeof(info->prefix) - 1] != '\0')
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
 static struct xt_target xt_nflog_target[] = {

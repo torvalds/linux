@@ -33,7 +33,7 @@ MODULE_DESCRIPTION("iptables special SNAT module for consistent sourceip");
 #define DEBUGP(format, args...)
 #endif
 
-static int
+static bool
 same_check(const char *tablename,
 	      const void *e,
 	      const struct xt_target *target,
@@ -47,13 +47,13 @@ same_check(const char *tablename,
 
 	if (mr->rangesize < 1) {
 		DEBUGP("same_check: need at least one dest range.\n");
-		return 0;
+		return false;
 	}
 	if (mr->rangesize > IPT_SAME_MAX_RANGE) {
 		DEBUGP("same_check: too many ranges specified, maximum "
 				"is %u ranges\n",
 				IPT_SAME_MAX_RANGE);
-		return 0;
+		return false;
 	}
 	for (count = 0; count < mr->rangesize; count++) {
 		if (ntohl(mr->range[count].min_ip) >
@@ -62,11 +62,11 @@ same_check(const char *tablename,
 				"range `%u.%u.%u.%u-%u.%u.%u.%u'.\n",
 				NIPQUAD(mr->range[count].min_ip),
 				NIPQUAD(mr->range[count].max_ip));
-			return 0;
+			return false;
 		}
 		if (!(mr->range[count].flags & IP_NAT_RANGE_MAP_IPS)) {
 			DEBUGP("same_check: bad MAP_IPS.\n");
-			return 0;
+			return false;
 		}
 		rangeip = (ntohl(mr->range[count].max_ip) -
 					ntohl(mr->range[count].min_ip) + 1);
@@ -81,7 +81,7 @@ same_check(const char *tablename,
 		DEBUGP("same_check: Couldn't allocate %u bytes "
 			"for %u ipaddresses!\n",
 			(sizeof(u_int32_t) * mr->ipnum), mr->ipnum);
-		return 0;
+		return false;
 	}
 	DEBUGP("same_check: Allocated %u bytes for %u ipaddresses.\n",
 			(sizeof(u_int32_t) * mr->ipnum), mr->ipnum);
@@ -97,7 +97,7 @@ same_check(const char *tablename,
 			index++;
 		}
 	}
-	return 1;
+	return true;
 }
 
 static void

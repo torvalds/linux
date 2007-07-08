@@ -328,25 +328,25 @@ static void ipt_logfn(unsigned int pf,
 	ipt_ulog_packet(hooknum, skb, in, out, &loginfo, prefix);
 }
 
-static int ipt_ulog_checkentry(const char *tablename,
-			       const void *e,
-			       const struct xt_target *target,
-			       void *targinfo,
-			       unsigned int hookmask)
+static bool ipt_ulog_checkentry(const char *tablename,
+				const void *e,
+				const struct xt_target *target,
+				void *targinfo,
+				unsigned int hookmask)
 {
 	struct ipt_ulog_info *loginfo = (struct ipt_ulog_info *) targinfo;
 
 	if (loginfo->prefix[sizeof(loginfo->prefix) - 1] != '\0') {
 		DEBUGP("ipt_ULOG: prefix term %i\n",
 		       loginfo->prefix[sizeof(loginfo->prefix) - 1]);
-		return 0;
+		return false;
 	}
 	if (loginfo->qthreshold > ULOG_MAX_QLEN) {
 		DEBUGP("ipt_ULOG: queue threshold %i > MAX_QLEN\n",
 			loginfo->qthreshold);
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 #ifdef CONFIG_COMPAT

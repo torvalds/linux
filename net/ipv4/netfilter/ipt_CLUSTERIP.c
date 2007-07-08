@@ -220,17 +220,17 @@ clusterip_add_node(struct clusterip_config *c, u_int16_t nodenum)
 	return 0;
 }
 
-static int
+static bool
 clusterip_del_node(struct clusterip_config *c, u_int16_t nodenum)
 {
 	if (nodenum == 0 ||
 	    nodenum > c->num_total_nodes)
-		return 1;
+		return true;
 
 	if (test_and_clear_bit(nodenum - 1, &c->local_nodes))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 #endif
 
@@ -370,7 +370,7 @@ target(struct sk_buff **pskb,
 	return XT_CONTINUE;
 }
 
-static int
+static bool
 checkentry(const char *tablename,
 	   const void *e_void,
 	   const struct xt_target *target,
@@ -387,13 +387,13 @@ checkentry(const char *tablename,
 	    cipinfo->hash_mode != CLUSTERIP_HASHMODE_SIP_SPT_DPT) {
 		printk(KERN_WARNING "CLUSTERIP: unknown mode `%u'\n",
 			cipinfo->hash_mode);
-		return 0;
+		return false;
 
 	}
 	if (e->ip.dmsk.s_addr != htonl(0xffffffff)
 	    || e->ip.dst.s_addr == 0) {
 		printk(KERN_ERR "CLUSTERIP: Please specify destination IP\n");
-		return 0;
+		return false;
 	}
 
 	/* FIXME: further sanity checks */
@@ -407,7 +407,7 @@ checkentry(const char *tablename,
 			if (cipinfo->config != config) {
 				printk(KERN_ERR "CLUSTERIP: Reloaded entry "
 				       "has invalid config pointer!\n");
-				return 0;
+				return false;
 			}
 		} else {
 			/* Case B: This is a new rule referring to an existing
@@ -418,19 +418,19 @@ checkentry(const char *tablename,
 		/* Case C: This is a completely new clusterip config */
 		if (!(cipinfo->flags & CLUSTERIP_FLAG_NEW)) {
 			printk(KERN_WARNING "CLUSTERIP: no config found for %u.%u.%u.%u, need 'new'\n", NIPQUAD(e->ip.dst.s_addr));
-			return 0;
+			return false;
 		} else {
 			struct net_device *dev;
 
 			if (e->ip.iniface[0] == '\0') {
 				printk(KERN_WARNING "CLUSTERIP: Please specify an interface name\n");
-				return 0;
+				return false;
 			}
 
 			dev = dev_get_by_name(e->ip.iniface);
 			if (!dev) {
 				printk(KERN_WARNING "CLUSTERIP: no such interface %s\n", e->ip.iniface);
-				return 0;
+				return false;
 			}
 
 			config = clusterip_config_init(cipinfo,
@@ -438,7 +438,7 @@ checkentry(const char *tablename,
 			if (!config) {
 				printk(KERN_WARNING "CLUSTERIP: cannot allocate config\n");
 				dev_put(dev);
-				return 0;
+				return false;
 			}
 			dev_mc_add(config->dev,config->clustermac, ETH_ALEN, 0);
 		}
@@ -448,10 +448,10 @@ checkentry(const char *tablename,
 	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
 				    "proto=%d\n", target->family);
-		return 0;
+		return false;
 	}
 
-	return 1;
+	return true;
 }
 
 /* drop reference count of cluster config when rule is deleted */

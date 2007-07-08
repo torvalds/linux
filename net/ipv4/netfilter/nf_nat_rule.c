@@ -140,36 +140,36 @@ static unsigned int ipt_dnat_target(struct sk_buff **pskb,
 	return nf_nat_setup_info(ct, &mr->range[0], hooknum);
 }
 
-static int ipt_snat_checkentry(const char *tablename,
-			       const void *entry,
-			       const struct xt_target *target,
-			       void *targinfo,
-			       unsigned int hook_mask)
+static bool ipt_snat_checkentry(const char *tablename,
+				const void *entry,
+				const struct xt_target *target,
+				void *targinfo,
+				unsigned int hook_mask)
 {
 	struct nf_nat_multi_range_compat *mr = targinfo;
 
 	/* Must be a valid range */
 	if (mr->rangesize != 1) {
 		printk("SNAT: multiple ranges no longer supported\n");
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
-static int ipt_dnat_checkentry(const char *tablename,
-			       const void *entry,
-			       const struct xt_target *target,
-			       void *targinfo,
-			       unsigned int hook_mask)
+static bool ipt_dnat_checkentry(const char *tablename,
+				const void *entry,
+				const struct xt_target *target,
+				void *targinfo,
+				unsigned int hook_mask)
 {
 	struct nf_nat_multi_range_compat *mr = targinfo;
 
 	/* Must be a valid range */
 	if (mr->rangesize != 1) {
 		printk("DNAT: multiple ranges no longer supported\n");
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 inline unsigned int

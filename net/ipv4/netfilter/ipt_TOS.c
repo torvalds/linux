@@ -43,7 +43,7 @@ target(struct sk_buff **pskb,
 	return XT_CONTINUE;
 }
 
-static int
+static bool
 checkentry(const char *tablename,
 	   const void *e_void,
 	   const struct xt_target *target,
@@ -58,9 +58,9 @@ checkentry(const char *tablename,
 	    && tos != IPTOS_MINCOST
 	    && tos != IPTOS_NORMALSVC) {
 		printk(KERN_WARNING "TOS: bad tos value %#x\n", tos);
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 static struct xt_target ipt_tos_reg = {

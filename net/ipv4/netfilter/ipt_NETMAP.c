@@ -29,7 +29,7 @@ MODULE_DESCRIPTION("iptables 1:1 NAT mapping of IP networks target");
 #define DEBUGP(format, args...)
 #endif
 
-static int
+static bool
 check(const char *tablename,
       const void *e,
       const struct xt_target *target,
@@ -40,13 +40,13 @@ check(const char *tablename,
 
 	if (!(mr->range[0].flags & IP_NAT_RANGE_MAP_IPS)) {
 		DEBUGP(MODULENAME":check: bad MAP_IPS.\n");
-		return 0;
+		return false;
 	}
 	if (mr->rangesize != 1) {
 		DEBUGP(MODULENAME":check: bad rangesize %u.\n", mr->rangesize);
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 static unsigned int

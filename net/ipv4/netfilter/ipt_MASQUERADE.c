@@ -37,7 +37,7 @@ MODULE_DESCRIPTION("iptables MASQUERADE target module");
 static DEFINE_RWLOCK(masq_lock);
 
 /* FIXME: Multiple targets. --RR */
-static int
+static bool
 masquerade_check(const char *tablename,
 		 const void *e,
 		 const struct xt_target *target,
@@ -48,13 +48,13 @@ masquerade_check(const char *tablename,
 
 	if (mr->range[0].flags & IP_NAT_RANGE_MAP_IPS) {
 		DEBUGP("masquerade_check: bad MAP_IPS.\n");
-		return 0;
+		return false;
 	}
 	if (mr->rangesize != 1) {
 		DEBUGP("masquerade_check: bad rangesize %u.\n", mr->rangesize);
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 static unsigned int

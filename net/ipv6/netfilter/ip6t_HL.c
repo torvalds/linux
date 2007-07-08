@@ -58,7 +58,7 @@ static unsigned int ip6t_hl_target(struct sk_buff **pskb,
 	return XT_CONTINUE;
 }
 
-static int ip6t_hl_checkentry(const char *tablename,
+static bool ip6t_hl_checkentry(const char *tablename,
 		const void *entry,
 		const struct xt_target *target,
 		void *targinfo,
@@ -69,14 +69,14 @@ static int ip6t_hl_checkentry(const char *tablename,
 	if (info->mode > IP6T_HL_MAXMODE) {
 		printk(KERN_WARNING "ip6t_HL: invalid or unknown Mode %u\n",
 			info->mode);
-		return 0;
+		return false;
 	}
 	if ((info->mode != IP6T_HL_SET) && (info->hop_limit == 0)) {
 		printk(KERN_WARNING "ip6t_HL: increment/decrement doesn't "
 			"make sense with value 0\n");
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 static struct xt_target ip6t_HL = {

@@ -62,7 +62,7 @@ ipt_ttl_target(struct sk_buff **pskb,
 	return XT_CONTINUE;
 }
 
-static int ipt_ttl_checkentry(const char *tablename,
+static bool ipt_ttl_checkentry(const char *tablename,
 		const void *e,
 		const struct xt_target *target,
 		void *targinfo,
@@ -73,11 +73,11 @@ static int ipt_ttl_checkentry(const char *tablename,
 	if (info->mode > IPT_TTL_MAXMODE) {
 		printk(KERN_WARNING "ipt_TTL: invalid or unknown Mode %u\n",
 			info->mode);
-		return 0;
+		return false;
 	}
 	if ((info->mode != IPT_TTL_SET) && (info->ttl == 0))
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
 static struct xt_target ipt_TTL = {
