@@ -60,35 +60,36 @@ struct ct_iter_state {
 	unsigned int bucket;
 };
 
-static struct list_head *ct_get_first(struct seq_file *seq)
+static struct hlist_node *ct_get_first(struct seq_file *seq)
 {
 	struct ct_iter_state *st = seq->private;
 
 	for (st->bucket = 0;
 	     st->bucket < nf_conntrack_htable_size;
 	     st->bucket++) {
-		if (!list_empty(&nf_conntrack_hash[st->bucket]))
-			return nf_conntrack_hash[st->bucket].next;
+		if (!hlist_empty(&nf_conntrack_hash[st->bucket]))
+			return nf_conntrack_hash[st->bucket].first;
 	}
 	return NULL;
 }
 
-static struct list_head *ct_get_next(struct seq_file *seq, struct list_head *head)
+static struct hlist_node *ct_get_next(struct seq_file *seq,
+				      struct hlist_node *head)
 {
 	struct ct_iter_state *st = seq->private;
 
 	head = head->next;
-	while (head == &nf_conntrack_hash[st->bucket]) {
+	while (head == NULL) {
 		if (++st->bucket >= nf_conntrack_htable_size)
 			return NULL;
-		head = nf_conntrack_hash[st->bucket].next;
+		head = nf_conntrack_hash[st->bucket].first;
 	}
 	return head;
 }
 
-static struct list_head *ct_get_idx(struct seq_file *seq, loff_t pos)
+static struct hlist_node *ct_get_idx(struct seq_file *seq, loff_t pos)
 {
-	struct list_head *head = ct_get_first(seq);
+	struct hlist_node *head = ct_get_first(seq);
 
 	if (head)
 		while (pos && (head = ct_get_next(seq, head)))

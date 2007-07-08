@@ -125,8 +125,7 @@ DEBUGP("tuple %p: %u %u " NIP6_FMT " %hu -> " NIP6_FMT " %hu\n",	    \
 /* Connections have two entries in the hash table: one for each way */
 struct nf_conntrack_tuple_hash
 {
-	struct list_head list;
-
+	struct hlist_node hnode;
 	struct nf_conntrack_tuple tuple;
 };
 

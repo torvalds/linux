@@ -116,6 +116,7 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 	unsigned int i;
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conntrack_expect *exp, *tmp;
+	struct hlist_node *n;
 
 	/* Need write lock here, to delete helper. */
 	write_lock_bh(&nf_conntrack_lock);
@@ -132,10 +133,10 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 	}
 
 	/* Get rid of expecteds, set helpers to NULL. */
-	list_for_each_entry(h, &unconfirmed, list)
+	hlist_for_each_entry(h, n, &unconfirmed, hnode)
 		unhelp(h, me);
 	for (i = 0; i < nf_conntrack_htable_size; i++) {
-		list_for_each_entry(h, &nf_conntrack_hash[i], list)
+		hlist_for_each_entry(h, n, &nf_conntrack_hash[i], hnode)
 			unhelp(h, me);
 	}
 	write_unlock_bh(&nf_conntrack_lock);

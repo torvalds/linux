@@ -84,9 +84,9 @@ print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
 	    struct nf_conntrack_l3proto *l3proto,
 	    struct nf_conntrack_l4proto *proto);
 
-extern struct list_head *nf_conntrack_hash;
+extern struct hlist_head *nf_conntrack_hash;
 extern struct list_head nf_conntrack_expect_list;
 extern rwlock_t nf_conntrack_lock ;
-extern struct list_head unconfirmed;
+extern struct hlist_head unconfirmed;
 
 #endif /* _NF_CONNTRACK_CORE_H */
