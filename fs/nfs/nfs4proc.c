@@ -324,6 +324,24 @@ static int nfs4_wait_for_completion_rpc_task(struct rpc_task *task)
 	return ret;
 }
 
+static int can_open_cached(struct nfs4_state *state, int mode)
+{
+	int ret = 0;
+	switch (mode & (FMODE_READ|FMODE_WRITE|O_EXCL)) {
+		case FMODE_READ:
+			ret |= test_bit(NFS_O_RDONLY_STATE, &state->flags) != 0;
+			ret |= test_bit(NFS_O_RDWR_STATE, &state->flags) != 0;
+			break;
+		case FMODE_WRITE:
+			ret |= test_bit(NFS_O_WRONLY_STATE, &state->flags) != 0;
+			ret |= test_bit(NFS_O_RDWR_STATE, &state->flags) != 0;
+			break;
+		case FMODE_READ|FMODE_WRITE:
+			ret |= test_bit(NFS_O_RDWR_STATE, &state->flags) != 0;
+	}
+	return ret;
+}
+
 static int can_open_delegated(struct nfs_delegation *delegation, mode_t open_flags)
 {
 	if ((delegation->type & open_flags) != open_flags)
@@ -407,7 +425,7 @@ static void nfs4_return_incompatible_delegation(struct inode *inode, mode_t open
 	nfs_inode_return_delegation(inode);
 }
 
-static struct nfs4_state *nfs4_try_open_delegated(struct nfs4_opendata *opendata)
+static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 {
 	struct nfs4_state *state = opendata->state;
 	struct nfs_inode *nfsi = NFS_I(state->inode);
@@ -418,9 +436,19 @@ static struct nfs4_state *nfs4_try_open_delegated(struct nfs4_opendata *opendata
 
 	rcu_read_lock();
 	delegation = rcu_dereference(nfsi->delegation);
-	if (delegation == NULL)
-		goto out_unlock;
 	for (;;) {
+		if (can_open_cached(state, open_mode)) {
+			spin_lock(&state->owner->so_lock);
+			if (can_open_cached(state, open_mode)) {
+				update_open_stateflags(state, open_mode);
+				spin_unlock(&state->owner->so_lock);
+				rcu_read_unlock();
+				goto out_return_state;
+			}
+			spin_unlock(&state->owner->so_lock);
+		}
+		if (delegation == NULL)
+			break;
 		if (!can_open_delegated(delegation, open_mode))
 			break;
 		/* Save the delegation */
@@ -434,8 +462,9 @@ static struct nfs4_state *nfs4_try_open_delegated(struct nfs4_opendata *opendata
 		ret = -EAGAIN;
 		rcu_read_lock();
 		delegation = rcu_dereference(nfsi->delegation);
+		/* If no delegation, try a cached open */
 		if (delegation == NULL)
-			break;
+			continue;
 		/* Is the delegation still valid? */
 		if (memcmp(stateid.data, delegation->stateid.data, sizeof(stateid.data)) != 0)
 			continue;
@@ -443,7 +472,6 @@ static struct nfs4_state *nfs4_try_open_delegated(struct nfs4_opendata *opendata
 		update_open_stateid(state, NULL, &stateid, open_mode);
 		goto out_return_state;
 	}
-out_unlock:
 	rcu_read_unlock();
 out:
 	return ERR_PTR(ret);
@@ -461,7 +489,7 @@ static struct nfs4_state *nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data
 	int ret;
 
 	if (!data->rpc_done) {
-		state = nfs4_try_open_delegated(data);
+		state = nfs4_try_open_cached(data);
 		goto out;
 	}
 
@@ -775,13 +803,14 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 	if (data->state != NULL) {
 		struct nfs_delegation *delegation;
 
+		if (can_open_cached(data->state, data->o_arg.open_flags & (FMODE_READ|FMODE_WRITE|O_EXCL)))
+			goto out_no_action;
 		rcu_read_lock();
 		delegation = rcu_dereference(NFS_I(data->state->inode)->delegation);
 		if (delegation != NULL &&
 		   (delegation->flags & NFS_DELEGATION_NEED_RECLAIM) == 0) {
 			rcu_read_unlock();
-			task->tk_action = NULL;
-			return;
+			goto out_no_action;
 		}
 		rcu_read_unlock();
 	}
@@ -792,6 +821,10 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 		msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_NOATTR];
 	data->timestamp = jiffies;
 	rpc_call_setup(task, &msg, 0);
+	return;
+out_no_action:
+	task->tk_action = NULL;
+
 }
 
 static void nfs4_open_done(struct rpc_task *task, void *calldata)
