@@ -40,7 +40,6 @@
 #define BCM_VLAN 1
 #endif
 #include <net/ip.h>
-#include <net/tcp.h>
 #include <net/checksum.h>
 #include <linux/workqueue.h>
 #include <linux/crc32.h>
