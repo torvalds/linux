@@ -87,9 +87,11 @@ static int nfs4_stat_to_errno(int);
 #define encode_getattr_maxsz    (op_encode_hdr_maxsz + nfs4_fattr_bitmap_maxsz)
 #define nfs4_name_maxsz		(1 + ((3 + NFS4_MAXNAMLEN) >> 2))
 #define nfs4_path_maxsz		(1 + ((3 + NFS4_MAXPATHLEN) >> 2))
+#define nfs4_owner_maxsz	(1 + XDR_QUADLEN(IDMAP_NAMESZ))
+#define nfs4_group_maxsz	(1 + XDR_QUADLEN(IDMAP_NAMESZ))
 /* This is based on getfattr, which uses the most attributes: */
 #define nfs4_fattr_value_maxsz	(1 + (1 + 2 + 2 + 4 + 2 + 1 + 1 + 2 + 2 + \
-				3 + 3 + 3 + 2 * nfs4_name_maxsz))
+				3 + 3 + 3 + nfs4_owner_maxsz + nfs4_group_maxsz))
 #define nfs4_fattr_maxsz	(nfs4_fattr_bitmap_maxsz + \
 				nfs4_fattr_value_maxsz)
 #define decode_getattr_maxsz    (op_decode_hdr_maxsz + nfs4_fattr_maxsz)
