@@ -213,9 +213,6 @@ extern void nf_conntrack_tcp_update(struct sk_buff *skb,
 				    struct nf_conn *conntrack,
 				    int dir);
 
-/* Call me when a conntrack is destroyed. */
-extern void (*nf_conntrack_destroyed)(struct nf_conn *conntrack);
-
 /* Fake conntrack entry for untracked connections */
 extern struct nf_conn nf_conntrack_untracked;
 

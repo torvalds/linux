@@ -53,9 +53,6 @@ EXPORT_SYMBOL_GPL(nf_conntrack_lock);
 atomic_t nf_conntrack_count = ATOMIC_INIT(0);
 EXPORT_SYMBOL_GPL(nf_conntrack_count);
 
-void (*nf_conntrack_destroyed)(struct nf_conn *conntrack);
-EXPORT_SYMBOL_GPL(nf_conntrack_destroyed);
-
 unsigned int nf_conntrack_htable_size __read_mostly;
 EXPORT_SYMBOL_GPL(nf_conntrack_htable_size);
 
@@ -157,7 +154,6 @@ destroy_conntrack(struct nf_conntrack *nfct)
 {
 	struct nf_conn *ct = (struct nf_conn *)nfct;
 	struct nf_conntrack_l4proto *l4proto;
-	typeof(nf_conntrack_destroyed) destroyed;
 
 	DEBUGP("destroy_conntrack(%p)\n", ct);
 	NF_CT_ASSERT(atomic_read(&nfct->use) == 0);
@@ -176,10 +172,6 @@ destroy_conntrack(struct nf_conntrack *nfct)
 		l4proto->destroy(ct);
 
 	nf_ct_ext_destroy(ct);
-
-	destroyed = rcu_dereference(nf_conntrack_destroyed);
-	if (destroyed)
-		destroyed(ct);
 
 	rcu_read_unlock();
 

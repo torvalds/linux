@@ -87,20 +87,6 @@ hash_by_src(const struct nf_conntrack_tuple *tuple)
 			    tuple->dst.protonum, 0) % nf_nat_htable_size;
 }
 
-/* Noone using conntrack by the time this called. */
-static void nf_nat_cleanup_conntrack(struct nf_conn *conn)
-{
-	struct nf_conn_nat *nat;
-	if (!(conn->status & IPS_NAT_DONE_MASK))
-		return;
-
-	nat = nfct_nat(conn);
-	write_lock_bh(&nf_nat_lock);
-	list_del(&nat->info.bysource);
-	nat->info.ct = NULL;
-	write_unlock_bh(&nf_nat_lock);
-}
-
 /* Is this tuple already taken? (not by us) */
 int
 nf_nat_used_tuple(const struct nf_conntrack_tuple *tuple,
@@ -604,6 +590,22 @@ nf_nat_port_nfattr_to_range(struct nfattr *tb[], struct nf_nat_range *range)
 EXPORT_SYMBOL_GPL(nf_nat_port_range_to_nfattr);
 #endif
 
+/* Noone using conntrack by the time this called. */
+static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
+{
+	struct nf_conn_nat *nat = nf_ct_ext_find(ct, NF_CT_EXT_NAT);
+
+	if (nat == NULL || nat->info.ct == NULL)
+		return;
+
+	NF_CT_ASSERT(nat->info.ct->status & IPS_NAT_DONE_MASK);
+
+	write_lock_bh(&nf_nat_lock);
+	list_del(&nat->info.bysource);
+	nat->info.ct = NULL;
+	write_unlock_bh(&nf_nat_lock);
+}
+
 static void nf_nat_move_storage(struct nf_conn *conntrack, void *old)
 {
 	struct nf_conn_nat *new_nat = nf_ct_ext_find(conntrack, NF_CT_EXT_NAT);
@@ -623,11 +625,12 @@ static void nf_nat_move_storage(struct nf_conn *conntrack, void *old)
 }
 
 struct nf_ct_ext_type nat_extend = {
-	.len	= sizeof(struct nf_conn_nat),
-	.align	= __alignof__(struct nf_conn_nat),
-	.move	= nf_nat_move_storage,
-	.id	= NF_CT_EXT_NAT,
-	.flags	= NF_CT_EXT_F_PREALLOC,
+	.len		= sizeof(struct nf_conn_nat),
+	.align		= __alignof__(struct nf_conn_nat),
+	.destroy	= nf_nat_cleanup_conntrack,
+	.move		= nf_nat_move_storage,
+	.id		= NF_CT_EXT_NAT,
+	.flags		= NF_CT_EXT_F_PREALLOC,
 };
 
 static int __init nf_nat_init(void)
@@ -664,10 +667,6 @@ static int __init nf_nat_init(void)
 		INIT_LIST_HEAD(&bysource[i]);
 	}
 
-	/* FIXME: Man, this is a hack.  <SIGH> */
-	NF_CT_ASSERT(rcu_dereference(nf_conntrack_destroyed) == NULL);
-	rcu_assign_pointer(nf_conntrack_destroyed, nf_nat_cleanup_conntrack);
-
 	/* Initialize fake conntrack so that NAT will skip it */
 	nf_conntrack_untracked.status |= IPS_NAT_DONE_MASK;
 
@@ -694,7 +693,6 @@ static int clean_nat(struct nf_conn *i, void *data)
 static void __exit nf_nat_cleanup(void)
 {
 	nf_ct_iterate_cleanup(&clean_nat, NULL);
-	rcu_assign_pointer(nf_conntrack_destroyed, NULL);
 	synchronize_rcu();
 	vfree(bysource);
 	nf_ct_l3proto_put(l3proto);
