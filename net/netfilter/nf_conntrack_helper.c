@@ -114,22 +114,25 @@ EXPORT_SYMBOL_GPL(nf_conntrack_helper_register);
 
 void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 {
-	unsigned int i;
 	struct nf_conntrack_tuple_hash *h;
-	struct nf_conntrack_expect *exp, *tmp;
-	struct hlist_node *n;
+	struct nf_conntrack_expect *exp;
+	struct hlist_node *n, *next;
+	unsigned int i;
 
 	/* Need write lock here, to delete helper. */
 	write_lock_bh(&nf_conntrack_lock);
 	list_del(&me->list);
 
 	/* Get rid of expectations */
-	list_for_each_entry_safe(exp, tmp, &nf_ct_expect_list, list) {
-		struct nf_conn_help *help = nfct_help(exp->master);
-		if ((help->helper == me || exp->helper == me) &&
-		    del_timer(&exp->timeout)) {
-			nf_ct_unlink_expect(exp);
-			nf_ct_expect_put(exp);
+	for (i = 0; i < nf_ct_expect_hsize; i++) {
+		hlist_for_each_entry_safe(exp, n, next,
+					  &nf_ct_expect_hash[i], hnode) {
+			struct nf_conn_help *help = nfct_help(exp->master);
+			if ((help->helper == me || exp->helper == me) &&
+			    del_timer(&exp->timeout)) {
+				nf_ct_unlink_expect(exp);
+				nf_ct_expect_put(exp);
+			}
 		}
 	}
 

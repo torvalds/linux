@@ -1237,8 +1237,8 @@ nfattr_failure:
 #endif
 static int ctnetlink_exp_done(struct netlink_callback *cb)
 {
-	if (cb->args[0])
-		nf_ct_expect_put((struct nf_conntrack_expect *)cb->args[0]);
+	if (cb->args[1])
+		nf_ct_expect_put((struct nf_conntrack_expect *)cb->args[1]);
 	return 0;
 }
 
@@ -1246,34 +1246,36 @@ static int
 ctnetlink_exp_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct nf_conntrack_expect *exp, *last;
-	struct list_head *i;
 	struct nfgenmsg *nfmsg = NLMSG_DATA(cb->nlh);
+	struct hlist_node *n;
 	u_int8_t l3proto = nfmsg->nfgen_family;
 
 	read_lock_bh(&nf_conntrack_lock);
-	last = (struct nf_conntrack_expect *)cb->args[0];
+	last = (struct nf_conntrack_expect *)cb->args[1];
+	for (; cb->args[0] < nf_ct_expect_hsize; cb->args[0]++) {
 restart:
-	list_for_each_prev(i, &nf_ct_expect_list) {
-		exp = (struct nf_conntrack_expect *) i;
-		if (l3proto && exp->tuple.src.l3num != l3proto)
-			continue;
-		if (cb->args[0]) {
-			if (exp != last)
+		hlist_for_each_entry(exp, n, &nf_ct_expect_hash[cb->args[0]],
+				     hnode) {
+			if (l3proto && exp->tuple.src.l3num != l3proto)
 				continue;
-			cb->args[0] = 0;
+			if (cb->args[1]) {
+				if (exp != last)
+					continue;
+				cb->args[1] = 0;
+			}
+			if (ctnetlink_exp_fill_info(skb, NETLINK_CB(cb->skb).pid,
+						    cb->nlh->nlmsg_seq,
+						    IPCTNL_MSG_EXP_NEW,
+						    1, exp) < 0) {
+				atomic_inc(&exp->use);
+				cb->args[1] = (unsigned long)exp;
+				goto out;
+			}
 		}
-		if (ctnetlink_exp_fill_info(skb, NETLINK_CB(cb->skb).pid,
-					    cb->nlh->nlmsg_seq,
-					    IPCTNL_MSG_EXP_NEW,
-					    1, exp) < 0) {
-			atomic_inc(&exp->use);
-			cb->args[0] = (unsigned long)exp;
-			goto out;
+		if (cb->args[1]) {
+			cb->args[1] = 0;
+			goto restart;
 		}
-	}
-	if (cb->args[0]) {
-		cb->args[0] = 0;
-		goto restart;
 	}
 out:
 	read_unlock_bh(&nf_conntrack_lock);
@@ -1354,11 +1356,13 @@ static int
 ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 		     struct nlmsghdr *nlh, struct nfattr *cda[])
 {
-	struct nf_conntrack_expect *exp, *tmp;
+	struct nf_conntrack_expect *exp;
 	struct nf_conntrack_tuple tuple;
 	struct nf_conntrack_helper *h;
 	struct nfgenmsg *nfmsg = NLMSG_DATA(nlh);
+	struct hlist_node *n, *next;
 	u_int8_t u3 = nfmsg->nfgen_family;
+	unsigned int i;
 	int err;
 
 	if (nfattr_bad_size(cda, CTA_EXPECT_MAX, cta_min_exp))
@@ -1390,6 +1394,7 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 		nf_ct_expect_put(exp);
 	} else if (cda[CTA_EXPECT_HELP_NAME-1]) {
 		char *name = NFA_DATA(cda[CTA_EXPECT_HELP_NAME-1]);
+		struct nf_conn_help *m_help;
 
 		/* delete all expectations for this helper */
 		write_lock_bh(&nf_conntrack_lock);
@@ -1398,22 +1403,30 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 			write_unlock_bh(&nf_conntrack_lock);
 			return -EINVAL;
 		}
-		list_for_each_entry_safe(exp, tmp, &nf_ct_expect_list, list) {
-			struct nf_conn_help *m_help = nfct_help(exp->master);
-			if (m_help->helper == h
-			    && del_timer(&exp->timeout)) {
-				nf_ct_unlink_expect(exp);
-				nf_ct_expect_put(exp);
+		for (i = 0; i < nf_ct_expect_hsize; i++) {
+			hlist_for_each_entry_safe(exp, n, next,
+						  &nf_ct_expect_hash[i],
+						  hnode) {
+				m_help = nfct_help(exp->master);
+				if (m_help->helper == h
+				    && del_timer(&exp->timeout)) {
+					nf_ct_unlink_expect(exp);
+					nf_ct_expect_put(exp);
+				}
 			}
 		}
 		write_unlock_bh(&nf_conntrack_lock);
 	} else {
 		/* This basically means we have to flush everything*/
 		write_lock_bh(&nf_conntrack_lock);
-		list_for_each_entry_safe(exp, tmp, &nf_ct_expect_list, list) {
-			if (del_timer(&exp->timeout)) {
-				nf_ct_unlink_expect(exp);
-				nf_ct_expect_put(exp);
+		for (i = 0; i < nf_ct_expect_hsize; i++) {
+			hlist_for_each_entry_safe(exp, n, next,
+						  &nf_ct_expect_hash[i],
+						  hnode) {
+				if (del_timer(&exp->timeout)) {
+					nf_ct_unlink_expect(exp);
+					nf_ct_expect_put(exp);
+				}
 			}
 		}
 		write_unlock_bh(&nf_conntrack_lock);
