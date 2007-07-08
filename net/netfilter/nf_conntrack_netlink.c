@@ -1235,32 +1235,50 @@ nfattr_failure:
 	return NOTIFY_DONE;
 }
 #endif
+static int ctnetlink_exp_done(struct netlink_callback *cb)
+{
+	if (cb->args[0])
+		nf_ct_expect_put((struct nf_conntrack_expect *)cb->args[0]);
+	return 0;
+}
 
 static int
 ctnetlink_exp_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct nf_conntrack_expect *exp = NULL;
+	struct nf_conntrack_expect *exp, *last;
 	struct list_head *i;
-	u_int32_t *id = (u_int32_t *) &cb->args[0];
 	struct nfgenmsg *nfmsg = NLMSG_DATA(cb->nlh);
 	u_int8_t l3proto = nfmsg->nfgen_family;
 
 	read_lock_bh(&nf_conntrack_lock);
+	last = (struct nf_conntrack_expect *)cb->args[0];
+restart:
 	list_for_each_prev(i, &nf_ct_expect_list) {
 		exp = (struct nf_conntrack_expect *) i;
 		if (l3proto && exp->tuple.src.l3num != l3proto)
 			continue;
-		if (exp->id <= *id)
-			continue;
+		if (cb->args[0]) {
+			if (exp != last)
+				continue;
+			cb->args[0] = 0;
+		}
 		if (ctnetlink_exp_fill_info(skb, NETLINK_CB(cb->skb).pid,
 					    cb->nlh->nlmsg_seq,
 					    IPCTNL_MSG_EXP_NEW,
-					    1, exp) < 0)
+					    1, exp) < 0) {
+			atomic_inc(&exp->use);
+			cb->args[0] = (unsigned long)exp;
 			goto out;
-		*id = exp->id;
+		}
+	}
+	if (cb->args[0]) {
+		cb->args[0] = 0;
+		goto restart;
 	}
 out:
 	read_unlock_bh(&nf_conntrack_lock);
+	if (last)
+		nf_ct_expect_put(last);
 
 	return skb->len;
 }
@@ -1287,7 +1305,7 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		return netlink_dump_start(ctnl, skb, nlh,
 					  ctnetlink_exp_dump_table,
-					  ctnetlink_done);
+					  ctnetlink_exp_done);
 	}
 
 	if (cda[CTA_EXPECT_MASTER-1])
