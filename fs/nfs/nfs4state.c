@@ -38,6 +38,7 @@
  * subsequent patch.
  */
 
+#include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/nfs_fs.h>
@@ -648,6 +649,12 @@ static void nfs_increment_seqid(int status, struct nfs_seqid *seqid)
 		case 0:
 			break;
 		case -NFS4ERR_BAD_SEQID:
+			if (seqid->sequence->flags & NFS_SEQID_CONFIRMED)
+				return;
+			printk(KERN_WARNING "NFS: v4 server returned a bad"
+					"sequence-id error on an"
+					"unconfirmed sequence %p!\n",
+					seqid->sequence);
 		case -NFS4ERR_STALE_CLIENTID:
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_BAD_STATEID:

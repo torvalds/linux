@@ -1079,7 +1079,9 @@ static struct nfs4_state *nfs4_do_open(struct inode *dir, struct path *path, int
 		 * the user though...
 		 */
 		if (status == -NFS4ERR_BAD_SEQID) {
-			printk(KERN_WARNING "NFS: v4 server returned a bad sequence-id error!\n");
+			printk(KERN_WARNING "NFS: v4 server %s "
+					" returned a bad sequence-id error!\n",
+					NFS_SERVER(dir)->nfs_client->cl_hostname);
 			exception.retry = 1;
 			continue;
 		}
