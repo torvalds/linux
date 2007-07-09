@@ -1491,6 +1491,9 @@ int ehca_query_qp(struct ib_qp *qp,
 	qp_attr->alt_port_num = qpcb->alt_phys_port;
 	qp_attr->alt_timeout = qpcb->timeout_al;
 
+	qp_attr->max_dest_rd_atomic = qpcb->rdma_nr_atomic_resp_res;
+	qp_attr->max_rd_atomic = qpcb->rdma_atomic_outst_dest_qp;
+
 	/* primary av */
 	qp_attr->ah_attr.sl = qpcb->service_level;
 
