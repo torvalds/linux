@@ -861,8 +861,6 @@ int ide_set_dma(ide_drive_t *drive)
 	return rc;
 }
 
-EXPORT_SYMBOL_GPL(ide_set_dma);
-
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 void ide_dma_lost_irq (ide_drive_t *drive)
 {
