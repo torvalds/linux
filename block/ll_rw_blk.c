@@ -4091,6 +4091,13 @@ int blk_register_queue(struct gendisk *disk)
 		return ret;
 	}
 
+	ret = bsg_register_disk(disk);
+	if (ret) {
+		elv_unregister_queue(q);
+		kobject_unregister(&q->kobj);
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -4099,6 +4106,7 @@ void blk_unregister_queue(struct gendisk *disk)
 	request_queue_t *q = disk->queue;
 
 	if (q && q->request_fn) {
+		bsg_unregister_disk(disk);
 		elv_unregister_queue(q);
 
 		kobject_uevent(&q->kobj, KOBJ_REMOVE);

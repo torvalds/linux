@@ -41,6 +41,8 @@ struct elevator_queue;
 typedef struct elevator_queue elevator_t;
 struct request_pm_state;
 struct blk_trace;
+struct request;
+struct sg_io_hdr;
 
 #define BLKDEV_MIN_RQ	4
 #define BLKDEV_MAX_RQ	128	/* Default maximum */
@@ -607,6 +609,11 @@ extern unsigned long blk_max_low_pfn, blk_max_pfn;
 #define BLK_BOUNCE_ANY		((u64)blk_max_pfn << PAGE_SHIFT)
 #define BLK_BOUNCE_ISA		(ISA_DMA_THRESHOLD)
 
+/*
+ * default timeout for SG_IO if none specified
+ */
+#define BLK_DEFAULT_SG_TIMEOUT	(60 * HZ)
+
 #ifdef CONFIG_MMU
 extern int init_emergency_isa_pool(void);
 extern void blk_queue_bounce(request_queue_t *q, struct bio **bio);
@@ -680,6 +687,11 @@ extern int blk_execute_rq(request_queue_t *, struct gendisk *,
 			  struct request *, int);
 extern void blk_execute_rq_nowait(request_queue_t *, struct gendisk *,
 				  struct request *, int, rq_end_io_fn *);
+extern int blk_fill_sghdr_rq(request_queue_t *, struct request *,
+		      struct sg_io_hdr *, int);
+extern int blk_unmap_sghdr_rq(struct request *, struct sg_io_hdr *);
+extern int blk_complete_sghdr_rq(struct request *, struct sg_io_hdr *,
+			  struct bio *);
 
 static inline request_queue_t *bdev_get_queue(struct block_device *bdev)
 {
