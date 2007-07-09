@@ -702,8 +702,22 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base)
 			mask = id->dma_mword & hwif->mwdma_mask;
 		break;
 	case XFER_SW_DMA_0:
-		if (id->field_valid & 2)
+		if (id->field_valid & 2) {
 			mask = id->dma_1word & hwif->swdma_mask;
+		} else if (id->tDMA) {
+			/*
+			 * ide_fix_driveid() doesn't convert ->tDMA to the
+			 * CPU endianness so we need to do it here
+			 */
+			u8 mode = le16_to_cpu(id->tDMA);
+
+			/*
+			 * if the mode is valid convert it to the mask
+			 * (the maximum allowed mode is XFER_SW_DMA_2)
+			 */
+			if (mode <= 2)
+				mask = ((2 << mode) - 1) & hwif->swdma_mask;
+		}
 		break;
 	default:
 		BUG();
