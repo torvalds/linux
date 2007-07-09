@@ -3,8 +3,9 @@
  *
  *  post_send/recv, poll_cq, req_notify
  *
- *  Authors: Waleri Fomin <fomin@de.ibm.com>
- *           Hoang-Nam Nguyen <hnguyen@de.ibm.com>
+ *  Authors: Hoang-Nam Nguyen <hnguyen@de.ibm.com>
+ *           Waleri Fomin <fomin@de.ibm.com>
+ *           Joachim Fenkes <fenkes@de.ibm.com>
  *           Reinhard Ernst <rernst@de.ibm.com>
  *
  *  Copyright (c) 2005 IBM Corporation
@@ -413,16 +414,22 @@ post_send_exit0:
 	return ret;
 }
 
-int ehca_post_recv(struct ib_qp *qp,
-		   struct ib_recv_wr *recv_wr,
-		   struct ib_recv_wr **bad_recv_wr)
+static int internal_post_recv(struct ehca_qp *my_qp,
+			      struct ib_device *dev,
+			      struct ib_recv_wr *recv_wr,
+			      struct ib_recv_wr **bad_recv_wr)
 {
-	struct ehca_qp *my_qp = container_of(qp, struct ehca_qp, ib_qp);
 	struct ib_recv_wr *cur_recv_wr;
 	struct ehca_wqe *wqe_p;
 	int wqe_cnt = 0;
 	int ret = 0;
 	unsigned long spl_flags;
+
+	if (unlikely(!HAS_RQ(my_qp))) {
+		ehca_err(dev, "QP has no RQ  ehca_qp=%p qp_num=%x ext_type=%d",
+			 my_qp, my_qp->real_qp_num, my_qp->ext_type);
+		return -ENODEV;
+	}
 
 	/* LOCK the QUEUE */
 	spin_lock_irqsave(&my_qp->spinlock_r, spl_flags);
@@ -439,8 +446,8 @@ int ehca_post_recv(struct ib_qp *qp,
 				*bad_recv_wr = cur_recv_wr;
 			if (wqe_cnt == 0) {
 				ret = -ENOMEM;
-				ehca_err(qp->device, "Too many posted WQEs "
-					 "qp_num=%x", qp->qp_num);
+				ehca_err(dev, "Too many posted WQEs "
+					 "qp_num=%x", my_qp->real_qp_num);
 			}
 			goto post_recv_exit0;
 		}
@@ -455,14 +462,14 @@ int ehca_post_recv(struct ib_qp *qp,
 			*bad_recv_wr = cur_recv_wr;
 			if (wqe_cnt == 0) {
 				ret = -EINVAL;
-				ehca_err(qp->device, "Could not write WQE "
-					 "qp_num=%x", qp->qp_num);
+				ehca_err(dev, "Could not write WQE "
+					 "qp_num=%x", my_qp->real_qp_num);
 			}
 			goto post_recv_exit0;
 		}
 		wqe_cnt++;
-		ehca_gen_dbg("ehca_qp=%p qp_num=%x wqe_cnt=%d",
-		     my_qp, qp->qp_num, wqe_cnt);
+		ehca_dbg(dev, "ehca_qp=%p qp_num=%x wqe_cnt=%d",
+			 my_qp, my_qp->real_qp_num, wqe_cnt);
 	} /* eof for cur_recv_wr */
 
 post_recv_exit0:
@@ -470,6 +477,22 @@ post_recv_exit0:
 	iosync(); /* serialize GAL register access */
 	hipz_update_rqa(my_qp, wqe_cnt);
 	return ret;
+}
+
+int ehca_post_recv(struct ib_qp *qp,
+		   struct ib_recv_wr *recv_wr,
+		   struct ib_recv_wr **bad_recv_wr)
+{
+	return internal_post_recv(container_of(qp, struct ehca_qp, ib_qp),
+				  qp->device, recv_wr, bad_recv_wr);
+}
+
+int ehca_post_srq_recv(struct ib_srq *srq,
+		       struct ib_recv_wr *recv_wr,
+		       struct ib_recv_wr **bad_recv_wr)
+{
+	return internal_post_recv(container_of(srq, struct ehca_qp, ib_srq),
+				  srq->device, recv_wr, bad_recv_wr);
 }
 
 /*

@@ -5,6 +5,7 @@
  *
  *  Authors: Heiko J Schick <schickhj@de.ibm.com>
  *           Christoph Raisch <raisch@de.ibm.com>
+ *           Joachim Fenkes <fenkes@de.ibm.com>
  *
  *  Copyright (c) 2005 IBM Corporation
  *
@@ -117,9 +118,20 @@ struct ehca_pd {
 	u32 ownpid;
 };
 
+enum ehca_ext_qp_type {
+	EQPT_NORMAL    = 0,
+	EQPT_LLQP      = 1,
+	EQPT_SRQBASE   = 2,
+	EQPT_SRQ       = 3,
+};
+
 struct ehca_qp {
-	struct ib_qp ib_qp;
+	union {
+		struct ib_qp ib_qp;
+		struct ib_srq ib_srq;
+	};
 	u32 qp_type;
+	enum ehca_ext_qp_type ext_type;
 	struct ipz_queue ipz_squeue;
 	struct ipz_queue ipz_rqueue;
 	struct h_galpas galpas;
@@ -141,6 +153,10 @@ struct ehca_qp {
 	u32 mm_count_rqueue;
 	u32 mm_count_galpa;
 };
+
+#define IS_SRQ(qp) (qp->ext_type == EQPT_SRQ)
+#define HAS_SQ(qp) (qp->ext_type != EQPT_SRQ)
+#define HAS_RQ(qp) (qp->ext_type != EQPT_SRQBASE)
 
 /* must be power of 2 */
 #define QP_HASHTAB_LEN 8
@@ -307,6 +323,7 @@ struct ehca_create_qp_resp {
 	u32 qp_num;
 	u32 token;
 	u32 qp_type;
+	u32 ext_type;
 	u32 qkey;
 	/* qp_num assigned by ehca: sqp0/1 may have got different numbers */
 	u32 real_qp_num;
@@ -327,13 +344,6 @@ enum ehca_service_type {
 	ST_UC  = 1,
 	ST_RD  = 2,
 	ST_UD  = 3,
-};
-
-enum ehca_ext_qp_type {
-	EQPT_NORMAL    = 0,
-	EQPT_LLQP      = 1,
-	EQPT_SRQBASE   = 2,
-	EQPT_SRQ       = 3,
 };
 
 enum ehca_ll_comp_flags {

@@ -343,7 +343,7 @@ int ehca_init_device(struct ehca_shca *shca)
 	strlcpy(shca->ib_device.name, "ehca%d", IB_DEVICE_NAME_MAX);
 	shca->ib_device.owner               = THIS_MODULE;
 
-	shca->ib_device.uverbs_abi_ver	    = 6;
+	shca->ib_device.uverbs_abi_ver	    = 7;
 	shca->ib_device.uverbs_cmd_mask	    =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
 		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|
@@ -410,6 +410,20 @@ int ehca_init_device(struct ehca_shca *shca)
 	shca->ib_device.detach_mcast	    = ehca_detach_mcast;
 	/* shca->ib_device.process_mad	    = ehca_process_mad;	    */
 	shca->ib_device.mmap		    = ehca_mmap;
+
+	if (EHCA_BMASK_GET(HCA_CAP_SRQ, shca->hca_cap)) {
+		shca->ib_device.uverbs_cmd_mask |=
+			(1ull << IB_USER_VERBS_CMD_CREATE_SRQ) |
+			(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ) |
+			(1ull << IB_USER_VERBS_CMD_QUERY_SRQ) |
+			(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ);
+
+		shca->ib_device.create_srq          = ehca_create_srq;
+		shca->ib_device.modify_srq          = ehca_modify_srq;
+		shca->ib_device.query_srq           = ehca_query_srq;
+		shca->ib_device.destroy_srq         = ehca_destroy_srq;
+		shca->ib_device.post_srq_recv       = ehca_post_srq_recv;
+	}
 
 	return ret;
 }

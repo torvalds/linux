@@ -257,6 +257,7 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	struct ehca_cq *cq;
 	struct ehca_qp *qp;
 	struct ehca_pd *pd;
+	struct ib_uobject *uobject;
 
 	switch (q_type) {
 	case  1: /* CQ */
@@ -304,7 +305,8 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 			return -ENOMEM;
 		}
 
-		if (!qp->ib_qp.uobject || qp->ib_qp.uobject->context != context)
+		uobject = IS_SRQ(qp) ? qp->ib_srq.uobject : qp->ib_qp.uobject;
+		if (!uobject || uobject->context != context)
 			return -EINVAL;
 
 		ret = ehca_mmap_qp(vma, qp, rsrc_type);

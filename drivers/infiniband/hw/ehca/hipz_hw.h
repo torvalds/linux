@@ -163,6 +163,7 @@ struct hipz_qptemm {
 
 #define QPX_SQADDER EHCA_BMASK_IBM(48,63)
 #define QPX_RQADDER EHCA_BMASK_IBM(48,63)
+#define QPX_AAELOG_RESET_SRQ_LIMIT EHCA_BMASK_IBM(3,3)
 
 #define QPTEMM_OFFSET(x) offsetof(struct hipz_qptemm,x)
 

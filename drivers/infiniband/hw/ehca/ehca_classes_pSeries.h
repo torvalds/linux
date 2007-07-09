@@ -228,8 +228,8 @@ struct hcp_modify_qp_control_block {
 #define MQPCB_QP_NUMBER                         EHCA_BMASK_IBM(8,31)
 #define MQPCB_MASK_QP_ENABLE                    EHCA_BMASK_IBM(48,48)
 #define MQPCB_QP_ENABLE                         EHCA_BMASK_IBM(31,31)
-#define MQPCB_MASK_CURR_SQR_LIMIT               EHCA_BMASK_IBM(49,49)
-#define MQPCB_CURR_SQR_LIMIT                    EHCA_BMASK_IBM(15,31)
+#define MQPCB_MASK_CURR_SRQ_LIMIT               EHCA_BMASK_IBM(49,49)
+#define MQPCB_CURR_SRQ_LIMIT                    EHCA_BMASK_IBM(16,31)
 #define MQPCB_MASK_QP_AFF_ASYN_EV_LOG_REG       EHCA_BMASK_IBM(50,50)
 #define MQPCB_MASK_SHARED_RQ_HNDL               EHCA_BMASK_IBM(51,51)
 

@@ -5,6 +5,7 @@
  *
  *  Authors: Christoph Raisch <raisch@de.ibm.com>
  *           Hoang-Nam Nguyen <hnguyen@de.ibm.com>
+ *           Joachim Fenkes <fenkes@de.ibm.com>
  *           Gerd Bayer <gerd.bayer@de.ibm.com>
  *           Waleri Fomin <fomin@de.ibm.com>
  *
@@ -61,6 +62,12 @@
 #define H_ALL_RES_QP_MAX_OUTST_RECV_WR  EHCA_BMASK_IBM(16, 31)
 #define H_ALL_RES_QP_MAX_SEND_SGE       EHCA_BMASK_IBM(32, 39)
 #define H_ALL_RES_QP_MAX_RECV_SGE       EHCA_BMASK_IBM(40, 47)
+
+#define H_ALL_RES_QP_UD_AV_LKEY         EHCA_BMASK_IBM(32, 63)
+#define H_ALL_RES_QP_SRQ_QP_TOKEN       EHCA_BMASK_IBM(0, 31)
+#define H_ALL_RES_QP_SRQ_QP_HANDLE      EHCA_BMASK_IBM(0, 64)
+#define H_ALL_RES_QP_SRQ_LIMIT          EHCA_BMASK_IBM(48, 63)
+#define H_ALL_RES_QP_SRQ_QPN            EHCA_BMASK_IBM(40, 63)
 
 #define H_ALL_RES_QP_ACT_OUTST_SEND_WR  EHCA_BMASK_IBM(16, 31)
 #define H_ALL_RES_QP_ACT_OUTST_RECV_WR  EHCA_BMASK_IBM(48, 63)
@@ -150,7 +157,7 @@ static long ehca_plpar_hcall9(unsigned long opcode,
 {
 	long ret;
 	int i, sleep_msecs, lock_is_set = 0;
-	unsigned long flags;
+	unsigned long flags = 0;
 
 	ehca_gen_dbg("opcode=%lx arg1=%lx arg2=%lx arg3=%lx arg4=%lx "
 		     "arg5=%lx arg6=%lx arg7=%lx arg8=%lx arg9=%lx",
@@ -282,8 +289,7 @@ u64 hipz_h_alloc_resource_qp(const struct ipz_adapter_handle adapter_handle,
 			     struct ehca_alloc_qp_parms *parms)
 {
 	u64 ret;
-	u64 allocate_controls;
-	u64 max_r10_reg;
+	u64 allocate_controls, max_r10_reg, r11, r12;
 	u64 outs[PLPAR_HCALL9_BUFSIZE];
 
 	allocate_controls =
@@ -309,6 +315,13 @@ u64 hipz_h_alloc_resource_qp(const struct ipz_adapter_handle adapter_handle,
 		| EHCA_BMASK_SET(H_ALL_RES_QP_MAX_RECV_SGE,
 				 parms->max_recv_sge);
 
+	r11 = EHCA_BMASK_SET(H_ALL_RES_QP_SRQ_QP_TOKEN, parms->srq_token);
+
+	if (parms->ext_type == EQPT_SRQ)
+		r12 = EHCA_BMASK_SET(H_ALL_RES_QP_SRQ_LIMIT, parms->srq_limit);
+	else
+		r12 = EHCA_BMASK_SET(H_ALL_RES_QP_SRQ_QPN, parms->srq_qpn);
+
 	ret = ehca_plpar_hcall9(H_ALLOC_RESOURCE, outs,
 				adapter_handle.handle,	           /* r4  */
 				allocate_controls,	           /* r5  */
@@ -316,9 +329,7 @@ u64 hipz_h_alloc_resource_qp(const struct ipz_adapter_handle adapter_handle,
 				parms->recv_cq_handle.handle,
 				parms->eq_handle.handle,
 				((u64)parms->token << 32) | parms->pd.value,
-				max_r10_reg,	                   /* r10 */
-				parms->ud_av_l_key_ctl,            /* r11 */
-				0);
+				max_r10_reg, r11, r12);
 
 	parms->qp_handle.handle = outs[0];
 	parms->real_qp_num = (u32)outs[1];
