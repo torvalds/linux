@@ -60,6 +60,12 @@ MODULE_PARM_DESC(quirks, "Add/modify USB HID quirks by specifying "
 		" quirks=vendorID:productID:quirks"
 		" where vendorID, productID, and quirks are all in"
 		" 0x-prefixed hex");
+static char *rdesc_quirks_param[MAX_USBHID_BOOT_QUIRKS] = { [ 0 ... (MAX_USBHID_BOOT_QUIRKS - 1) ] = NULL };
+module_param_array_named(rdesc_quirks, rdesc_quirks_param, charp, NULL, 0444);
+MODULE_PARM_DESC(rdesc_quirks, "Add/modify report descriptor quirks by specifying "
+		" rdesc_quirks=vendorID:productID:rdesc_quirks"
+		" where vendorID, productID, and rdesc_quirks are all in"
+		" 0x-prefixed hex");
 /*
  * Input submission and I/O error handler.
  */
@@ -633,20 +639,6 @@ static void hid_free_buffers(struct usb_device *dev, struct hid_device *hid)
 }
 
 /*
- * Cherry Cymotion keyboard have an invalid HID report descriptor,
- * that needs fixing before we can parse it.
- */
-
-static void hid_fixup_cymotion_descriptor(char *rdesc, int rsize)
-{
-	if (rsize >= 17 && rdesc[11] == 0x3c && rdesc[12] == 0x02) {
-		info("Fixing up Cherry Cymotion report descriptor");
-		rdesc[11] = rdesc[16] = 0xff;
-		rdesc[12] = rdesc[17] = 0x03;
-	}
-}
-
-/*
  * Sending HID_REQ_GET_REPORT changes the operation mode of the ps3 controller
  * to "operational".  Without this, the ps3 controller will not report any
  * events.
@@ -670,46 +662,6 @@ static void hid_fixup_sony_ps3_controller(struct usb_device *dev, int ifnum)
 		err_hid("%s failed: %d\n", __func__, result);
 
 	kfree(buf);
-}
-
-/*
- * Certain Logitech keyboards send in report #3 keys which are far
- * above the logical maximum described in descriptor. This extends
- * the original value of 0x28c of logical maximum to 0x104d
- */
-static void hid_fixup_logitech_descriptor(unsigned char *rdesc, int rsize)
-{
-	if (rsize >= 90 && rdesc[83] == 0x26
-			&& rdesc[84] == 0x8c
-			&& rdesc[85] == 0x02) {
-		info("Fixing up Logitech keyboard report descriptor");
-		rdesc[84] = rdesc[89] = 0x4d;
-		rdesc[85] = rdesc[90] = 0x10;
-	}
-}
-
-/*
- * Some USB barcode readers from cypress have usage min and usage max in
- * the wrong order
- */
-static void hid_fixup_cypress_descriptor(unsigned char *rdesc, int rsize)
-{
-	short fixed = 0;
-	int i;
-
-	for (i = 0; i < rsize - 4; i++) {
-		if (rdesc[i] == 0x29 && rdesc [i+2] == 0x19) {
-			unsigned char tmp;
-
-			rdesc[i] = 0x19; rdesc[i+2] = 0x29;
-			tmp = rdesc[i+3];
-			rdesc[i+3] = rdesc[i+1];
-			rdesc[i+1] = tmp;
-		}
-	}
-
-	if (fixed)
-		info("Fixing up Cypress report descriptor");
 }
 
 static struct hid_device *usb_hid_configure(struct usb_interface *intf)
@@ -772,14 +724,9 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 		return NULL;
 	}
 
-	if ((quirks & HID_QUIRK_CYMOTION))
-		hid_fixup_cymotion_descriptor(rdesc, rsize);
-
-	if (quirks & HID_QUIRK_LOGITECH_DESCRIPTOR)
-		hid_fixup_logitech_descriptor(rdesc, rsize);
-
-	if (quirks & HID_QUIRK_SWAPPED_MIN_MAX)
-		hid_fixup_cypress_descriptor(rdesc, rsize);
+	usbhid_fixup_report_descriptor(le16_to_cpu(dev->descriptor.idVendor),
+			le16_to_cpu(dev->descriptor.idProduct), rdesc,
+			rsize, rdesc_quirks_param);
 
 	dbg_hid("report descriptor (size %u, read %d) = ", rsize, n);
 	for (n = 0; n < rsize; n++)
@@ -954,7 +901,7 @@ static void hid_disconnect(struct usb_interface *intf)
 	usb_kill_urb(usbhid->urbctrl);
 
 	del_timer_sync(&usbhid->io_retry);
-	flush_scheduled_work();
+	cancel_work_sync(&usbhid->reset_work);
 
 	if (hid->claimed & HID_CLAIMED_INPUT)
 		hidinput_disconnect(hid);
