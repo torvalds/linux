@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/aec62xx.c		Version 0.21	Apr 21, 2007
+ * linux/drivers/ide/pci/aec62xx.c		Version 0.22	Apr 23, 2007
  *
  * Copyright (C) 1999-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2007		MontaVista Software, Inc. <source@mvista.com>
@@ -239,14 +239,6 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 	}
 
 	hwif->ultra_mask = hwif->cds->udma_mask;
-
-	/* atp865 and atp865r */
-	if (hwif->ultra_mask == 0x3f) {
-		/* check bit 0x10 of DMA status register */
-		if (inb(pci_resource_start(dev, 4) + 2) & 0x10)
- 			hwif->ultra_mask = 0x7f; /* udma0-6 */
-	}
-
 	hwif->mwdma_mask = 0x07;
 
 	hwif->ide_dma_check	= &aec62xx_config_drive_xfer_rate;
@@ -287,16 +279,12 @@ static int __devinit init_setup_aec62xx(struct pci_dev *dev, ide_pci_device_t *d
 
 static int __devinit init_setup_aec6x80(struct pci_dev *dev, ide_pci_device_t *d)
 {
-	unsigned long bar4reg = pci_resource_start(dev, 4);
+	unsigned long dma_base = pci_resource_start(dev, 4);
 
-	if (inb(bar4reg+2) & 0x10) {
-		strcpy(d->name, "AEC6880");
-		if (dev->device == PCI_DEVICE_ID_ARTOP_ATP865R)
-			strcpy(d->name, "AEC6880R");
-	} else {
-		strcpy(d->name, "AEC6280");
-		if (dev->device == PCI_DEVICE_ID_ARTOP_ATP865R)
-			strcpy(d->name, "AEC6280R");
+	if (inb(dma_base + 2) & 0x10) {
+		d->name = (dev->device == PCI_DEVICE_ID_ARTOP_ATP865R) ?
+			  "AEC6880R" : "AEC6880";
+		d->udma_mask = 0x7f; /* udma0-6 */
 	}
 
 	return ide_setup_pci_device(dev, d);
@@ -336,7 +324,7 @@ static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
 		.bootable	= NEVER_BOARD,
 		.udma_mask	= 0x1f, /* udma0-4 */
 	},{	/* 3 */
-		.name		= "AEC6X80",
+		.name		= "AEC6280",
 		.init_setup	= init_setup_aec6x80,
 		.init_chipset	= init_chipset_aec62xx,
 		.init_hwif	= init_hwif_aec62xx,
@@ -346,7 +334,7 @@ static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
 		.bootable	= OFF_BOARD,
 		.udma_mask	= 0x3f, /* udma0-5 */
 	},{	/* 4 */
-		.name		= "AEC6X80R",
+		.name		= "AEC6280R",
 		.init_setup	= init_setup_aec6x80,
 		.init_chipset	= init_chipset_aec62xx,
 		.init_hwif	= init_hwif_aec62xx,
@@ -366,13 +354,16 @@ static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
  *
  *	Called when the PCI registration layer (or the IDE initialization)
  *	finds a device matching our IDE device tables.
+ *
+ *	NOTE: since we're going to modify the 'name' field for AEC-6[26]80[R]
+ *	chips, pass a local copy of 'struct pci_device_id' down the call chain.
  */
  
 static int __devinit aec62xx_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t *d = &aec62xx_chipsets[id->driver_data];
+	ide_pci_device_t d = aec62xx_chipsets[id->driver_data];
 
-	return d->init_setup(dev, d);
+	return d.init_setup(dev, &d);
 }
 
 static struct pci_device_id aec62xx_pci_tbl[] = {
