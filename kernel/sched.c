@@ -449,6 +449,18 @@ static inline unsigned long long rq_clock(struct rq *rq)
 #define task_rq(p)		cpu_rq(task_cpu(p))
 #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
 
+#ifdef CONFIG_FAIR_GROUP_SCHED
+/* Change a task's ->cfs_rq if it moves across CPUs */
+static inline void set_task_cfs_rq(struct task_struct *p)
+{
+	p->se.cfs_rq = &task_rq(p)->cfs;
+}
+#else
+static inline void set_task_cfs_rq(struct task_struct *p)
+{
+}
+#endif
+
 #ifndef prepare_arch_switch
 # define prepare_arch_switch(next)	do { } while (0)
 #endif
