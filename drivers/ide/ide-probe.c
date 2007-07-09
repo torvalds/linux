@@ -1025,7 +1025,7 @@ static int init_irq (ide_hwif_t *hwif)
 	BUG_ON(irqs_disabled());	
 	BUG_ON(hwif == NULL);
 
-	down(&ide_cfg_sem);
+	mutex_lock(&ide_cfg_mtx);
 	hwif->hwgroup = NULL;
 #if MAX_HWIFS > 1
 	/*
@@ -1154,7 +1154,7 @@ static int init_irq (ide_hwif_t *hwif)
 		printk(" (%sed with %s)",
 			hwif->sharing_irq ? "shar" : "serializ", match->name);
 	printk("\n");
-	up(&ide_cfg_sem);
+	mutex_unlock(&ide_cfg_mtx);
 	return 0;
 out_unlink:
 	spin_lock_irq(&ide_lock);
@@ -1177,7 +1177,7 @@ out_unlink:
 	}
 	spin_unlock_irq(&ide_lock);
 out_up:
-	up(&ide_cfg_sem);
+	mutex_unlock(&ide_cfg_mtx);
 	return 1;
 }
 

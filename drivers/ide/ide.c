@@ -169,7 +169,7 @@ static const u8 ide_hwif_to_major[] = { IDE0_MAJOR, IDE1_MAJOR,
 static int idebus_parameter;	/* holds the "idebus=" parameter */
 static int system_bus_speed;	/* holds what we think is VESA/PCI bus speed */
 
-DECLARE_MUTEX(ide_cfg_sem);
+DEFINE_MUTEX(ide_cfg_mtx);
  __cacheline_aligned_in_smp DEFINE_SPINLOCK(ide_lock);
 
 #ifdef CONFIG_IDEPCI_PCIBUS_ORDER
@@ -564,7 +564,7 @@ void ide_unregister(unsigned int index)
 {
 	ide_drive_t *drive;
 	ide_hwif_t *hwif, *g;
-	static ide_hwif_t tmp_hwif; /* protected by ide_cfg_sem */
+	static ide_hwif_t tmp_hwif; /* protected by ide_cfg_mtx */
 	ide_hwgroup_t *hwgroup;
 	int irq_count = 0, unit;
 
@@ -572,7 +572,7 @@ void ide_unregister(unsigned int index)
 
 	BUG_ON(in_interrupt());
 	BUG_ON(irqs_disabled());
-	down(&ide_cfg_sem);
+	mutex_lock(&ide_cfg_mtx);
 	spin_lock_irq(&ide_lock);
 	hwif = &ide_hwifs[index];
 	if (!hwif->present)
@@ -679,7 +679,7 @@ void ide_unregister(unsigned int index)
 
 abort:
 	spin_unlock_irq(&ide_lock);
-	up(&ide_cfg_sem);
+	mutex_unlock(&ide_cfg_mtx);
 }
 
 EXPORT_SYMBOL(ide_unregister);

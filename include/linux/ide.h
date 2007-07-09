@@ -1382,11 +1382,11 @@ extern const ide_pio_timings_t ide_pio_timings[6];
 
 
 extern spinlock_t ide_lock;
-extern struct semaphore ide_cfg_sem;
+extern struct mutex ide_cfg_mtx;
 /*
  * Structure locking:
  *
- * ide_cfg_sem and ide_lock together protect changes to
+ * ide_cfg_mtx and ide_lock together protect changes to
  * ide_hwif_t->{next,hwgroup}
  * ide_drive_t->next
  *
