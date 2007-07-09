@@ -456,10 +456,9 @@ static void auide_dma_off_quietly(ide_drive_t *drive)
 	drive->using_dma = 0;
 }
 
-static int auide_dma_lostirq(ide_drive_t *drive)
+static void auide_dma_lost_irq(ide_drive_t *drive)
 {
 	printk(KERN_ERR "%s: IRQ lost\n", drive->name);
-	return 0;
 }
 
 static void auide_ddma_tx_callback(int irq, void *param)
@@ -731,7 +730,7 @@ static int au_ide_probe(struct device *dev)
 	hwif->ide_dma_test_irq          = &auide_dma_test_irq;
 	hwif->dma_host_off		= &auide_dma_host_off;
 	hwif->dma_host_on		= &auide_dma_host_on;
-	hwif->ide_dma_lostirq           = &auide_dma_lostirq;
+	hwif->dma_lost_irq		= &auide_dma_lost_irq;
 	hwif->ide_dma_on                = &auide_dma_on;
 
 	hwif->autodma                   = 1;

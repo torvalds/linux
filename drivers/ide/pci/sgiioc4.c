@@ -316,19 +316,19 @@ static void sgiioc4_dma_host_off(ide_drive_t * drive)
 	sgiioc4_clearirq(drive);
 }
 
-static int
-sgiioc4_ide_dma_lostirq(ide_drive_t * drive)
-{
-	HWIF(drive)->resetproc(drive);
-
-	return __ide_dma_lostirq(drive);
-}
-
 static void
 sgiioc4_resetproc(ide_drive_t * drive)
 {
 	sgiioc4_ide_dma_end(drive);
 	sgiioc4_clearirq(drive);
+}
+
+static void
+sgiioc4_dma_lost_irq(ide_drive_t * drive)
+{
+	sgiioc4_resetproc(drive);
+
+	ide_dma_lost_irq(drive);
 }
 
 static u8
@@ -607,7 +607,7 @@ ide_init_sgiioc4(ide_hwif_t * hwif)
 	hwif->ide_dma_test_irq = &sgiioc4_ide_dma_test_irq;
 	hwif->dma_host_on = &sgiioc4_dma_host_on;
 	hwif->dma_host_off = &sgiioc4_dma_host_off;
-	hwif->ide_dma_lostirq = &sgiioc4_ide_dma_lostirq;
+	hwif->dma_lost_irq = &sgiioc4_dma_lost_irq;
 	hwif->ide_dma_timeout = &__ide_dma_timeout;
 
 	hwif->INB = &sgiioc4_INB;

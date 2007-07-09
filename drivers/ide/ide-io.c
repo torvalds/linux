@@ -1466,7 +1466,7 @@ void ide_timer_expiry (unsigned long data)
 				startstop = handler(drive);
 			} else if (drive_is_ready(drive)) {
 				if (drive->waiting_for_dma)
-					(void) hwgroup->hwif->ide_dma_lostirq(drive);
+					hwgroup->hwif->dma_lost_irq(drive);
 				(void)ide_ack_intr(hwif);
 				printk(KERN_WARNING "%s: lost interrupt\n", drive->name);
 				startstop = handler(drive);

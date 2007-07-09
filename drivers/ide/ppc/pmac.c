@@ -2004,20 +2004,19 @@ static void pmac_ide_dma_host_on(ide_drive_t *drive)
 {
 }
 
-static int
-pmac_ide_dma_lostirq (ide_drive_t *drive)
+static void
+pmac_ide_dma_lost_irq (ide_drive_t *drive)
 {
 	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)HWIF(drive)->hwif_data;
 	volatile struct dbdma_regs __iomem *dma;
 	unsigned long status;
 
 	if (pmif == NULL)
-		return 0;
+		return;
 	dma = pmif->dma_regs;
 
 	status = readl(&dma->status);
 	printk(KERN_ERR "ide-pmac lost interrupt, dma status: %lx\n", status);
-	return 0;
 }
 
 /*
@@ -2058,7 +2057,7 @@ pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	hwif->dma_host_off = &pmac_ide_dma_host_off;
 	hwif->dma_host_on = &pmac_ide_dma_host_on;
 	hwif->ide_dma_timeout = &__ide_dma_timeout;
-	hwif->ide_dma_lostirq = &pmac_ide_dma_lostirq;
+	hwif->dma_lost_irq = &pmac_ide_dma_lost_irq;
 
 	hwif->atapi_dma = 1;
 	switch(pmif->kind) {

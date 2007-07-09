@@ -850,13 +850,12 @@ int ide_set_dma(ide_drive_t *drive)
 EXPORT_SYMBOL_GPL(ide_set_dma);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
-int __ide_dma_lostirq (ide_drive_t *drive)
+void ide_dma_lost_irq (ide_drive_t *drive)
 {
 	printk("%s: DMA interrupt recovery\n", drive->name);
-	return 1;
 }
 
-EXPORT_SYMBOL(__ide_dma_lostirq);
+EXPORT_SYMBOL(ide_dma_lost_irq);
 
 int __ide_dma_timeout (ide_drive_t *drive)
 {
@@ -1020,8 +1019,8 @@ void ide_setup_dma (ide_hwif_t *hwif, unsigned long dma_base, unsigned int num_p
 		hwif->ide_dma_test_irq = &__ide_dma_test_irq;
 	if (!hwif->ide_dma_timeout)
 		hwif->ide_dma_timeout = &__ide_dma_timeout;
-	if (!hwif->ide_dma_lostirq)
-		hwif->ide_dma_lostirq = &__ide_dma_lostirq;
+	if (!hwif->dma_lost_irq)
+		hwif->dma_lost_irq = &ide_dma_lost_irq;
 
 	if (hwif->chipset != ide_trm290) {
 		u8 dma_stat = hwif->INB(hwif->dma_status);

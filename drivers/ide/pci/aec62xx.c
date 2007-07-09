@@ -172,12 +172,9 @@ static int aec62xx_config_drive_xfer_rate (ide_drive_t *drive)
 	return -1;
 }
 
-static int aec62xx_irq_timeout (ide_drive_t *drive)
+static void aec62xx_dma_lost_irq (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
-
-	switch(dev->device) {
+	switch (HWIF(drive)->pci_dev->device) {
 		case PCI_DEVICE_ID_ARTOP_ATP860:
 		case PCI_DEVICE_ID_ARTOP_ATP860R:
 		case PCI_DEVICE_ID_ARTOP_ATP865:
@@ -186,7 +183,6 @@ static int aec62xx_irq_timeout (ide_drive_t *drive)
 		default:
 			break;
 	}
-	return 0;
 }
 
 static unsigned int __devinit init_chipset_aec62xx(struct pci_dev *dev, const char *name)
@@ -254,7 +250,7 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 	hwif->mwdma_mask = 0x07;
 
 	hwif->ide_dma_check	= &aec62xx_config_drive_xfer_rate;
-	hwif->ide_dma_lostirq	= &aec62xx_irq_timeout;
+	hwif->dma_lost_irq	= &aec62xx_dma_lost_irq;
 
 	if (!noautodma)
 		hwif->autodma = 1;

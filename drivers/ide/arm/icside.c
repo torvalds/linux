@@ -461,10 +461,9 @@ static int icside_dma_timeout(ide_drive_t *drive)
 	return icside_dma_end(drive);
 }
 
-static int icside_dma_lostirq(ide_drive_t *drive)
+static void icside_dma_lost_irq(ide_drive_t *drive)
 {
 	printk(KERN_ERR "%s: IRQ lost\n", drive->name);
-	return 1;
 }
 
 static void icside_dma_init(ide_hwif_t *hwif)
@@ -491,7 +490,7 @@ static void icside_dma_init(ide_hwif_t *hwif)
 	hwif->ide_dma_end	= icside_dma_end;
 	hwif->ide_dma_test_irq	= icside_dma_test_irq;
 	hwif->ide_dma_timeout	= icside_dma_timeout;
-	hwif->ide_dma_lostirq	= icside_dma_lostirq;
+	hwif->dma_lost_irq	= icside_dma_lost_irq;
 
 	hwif->drives[0].autodma = hwif->autodma;
 	hwif->drives[1].autodma = hwif->autodma;
