@@ -381,9 +381,7 @@ static int auide_dma_setup(ide_drive_t *drive)
 
 static int auide_dma_check(ide_drive_t *drive)
 {
-	u8 speed;
-
-#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
+	u8 speed = ide_max_dma_mode(drive);
 
 	if( dbdma_init_done == 0 ){
 		auide_hwif.white_list = ide_in_drive_list(drive->id,
@@ -394,7 +392,6 @@ static int auide_dma_check(ide_drive_t *drive)
 		auide_ddma_init(&auide_hwif);
 		dbdma_init_done = 1;
 	}
-#endif
 
 	/* Is the drive in our DMA black list? */
 
@@ -409,8 +406,6 @@ static int auide_dma_check(ide_drive_t *drive)
 	else
 		drive->using_dma = 1;
 
-	speed = ide_find_best_mode(drive, XFER_PIO | XFER_MWDMA);
-	
 	if (drive->autodma && (speed & XFER_MODE) != XFER_PIO)
 		return 0;
 

@@ -1,6 +1,6 @@
 /*
  *
- * Version 3.38
+ * Version 3.40
  *
  * VIA IDE driver for Linux. Supported southbridges:
  *
@@ -9,6 +9,7 @@
  *   vt8235, vt8237, vt8237a
  *
  * Copyright (c) 2000-2002 Vojtech Pavlik
+ * Copyright (c) 2007 Bartlomiej Zolnierkiewicz
  *
  * Based on the work of:
  *	Michel Aubry
@@ -41,8 +42,6 @@
 
 #include "ide-timing.h"
 
-#define DISPLAY_VIA_TIMINGS
-
 #define VIA_IDE_ENABLE		0x40
 #define VIA_IDE_CONFIG		0x41
 #define VIA_FIFO_CONFIG		0x43
@@ -54,18 +53,12 @@
 #define VIA_ADDRESS_SETUP	0x4c
 #define VIA_UDMA_TIMING		0x50
 
-#define VIA_UDMA		0x007
-#define VIA_UDMA_NONE		0x000
-#define VIA_UDMA_33		0x001
-#define VIA_UDMA_66		0x002
-#define VIA_UDMA_100		0x003
-#define VIA_UDMA_133		0x004
-#define VIA_BAD_PREQ		0x010	/* Crashes if PREQ# till DDACK# set */
-#define VIA_BAD_CLK66		0x020	/* 66 MHz clock doesn't work correctly */
-#define VIA_SET_FIFO		0x040	/* Needs to have FIFO split set */
-#define VIA_NO_UNMASK		0x080	/* Doesn't work with IRQ unmasking on */
-#define VIA_BAD_ID		0x100	/* Has wrong vendor ID (0x1107) */
-#define VIA_BAD_AST		0x200	/* Don't touch Address Setup Timing */
+#define VIA_BAD_PREQ		0x01 /* Crashes if PREQ# till DDACK# set */
+#define VIA_BAD_CLK66		0x02 /* 66 MHz clock doesn't work correctly */
+#define VIA_SET_FIFO		0x04 /* Needs to have FIFO split set */
+#define VIA_NO_UNMASK		0x08 /* Doesn't work with IRQ unmasking on */
+#define VIA_BAD_ID		0x10 /* Has wrong vendor ID (0x1107) */
+#define VIA_BAD_AST		0x20 /* Don't touch Address Setup Timing */
 
 /*
  * VIA SouthBridge chips.
@@ -76,36 +69,37 @@ static struct via_isa_bridge {
 	u16 id;
 	u8 rev_min;
 	u8 rev_max;
-	u16 flags;
+	u8 udma_mask;
+	u8 flags;
 } via_isa_bridges[] = {
-	{ "cx700",	PCI_DEVICE_ID_VIA_CX700,    0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
-	{ "vt8237s",	PCI_DEVICE_ID_VIA_8237S,    0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
-	{ "vt6410",	PCI_DEVICE_ID_VIA_6410,     0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
-	{ "vt8251",	PCI_DEVICE_ID_VIA_8251,     0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
-	{ "vt8237",	PCI_DEVICE_ID_VIA_8237,     0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
-	{ "vt8237a",	PCI_DEVICE_ID_VIA_8237A,    0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
-	{ "vt8235",	PCI_DEVICE_ID_VIA_8235,     0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
-	{ "vt8233a",	PCI_DEVICE_ID_VIA_8233A,    0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
-	{ "vt8233c",	PCI_DEVICE_ID_VIA_8233C_0,  0x00, 0x2f, VIA_UDMA_100 },
-	{ "vt8233",	PCI_DEVICE_ID_VIA_8233_0,   0x00, 0x2f, VIA_UDMA_100 },
-	{ "vt8231",	PCI_DEVICE_ID_VIA_8231,     0x00, 0x2f, VIA_UDMA_100 },
-	{ "vt82c686b",	PCI_DEVICE_ID_VIA_82C686,   0x40, 0x4f, VIA_UDMA_100 },
-	{ "vt82c686a",	PCI_DEVICE_ID_VIA_82C686,   0x10, 0x2f, VIA_UDMA_66 },
-	{ "vt82c686",	PCI_DEVICE_ID_VIA_82C686,   0x00, 0x0f, VIA_UDMA_33 | VIA_BAD_CLK66 },
-	{ "vt82c596b",	PCI_DEVICE_ID_VIA_82C596,   0x10, 0x2f, VIA_UDMA_66 },
-	{ "vt82c596a",	PCI_DEVICE_ID_VIA_82C596,   0x00, 0x0f, VIA_UDMA_33 | VIA_BAD_CLK66 },
-	{ "vt82c586b",	PCI_DEVICE_ID_VIA_82C586_0, 0x47, 0x4f, VIA_UDMA_33 | VIA_SET_FIFO },
-	{ "vt82c586b",	PCI_DEVICE_ID_VIA_82C586_0, 0x40, 0x46, VIA_UDMA_33 | VIA_SET_FIFO | VIA_BAD_PREQ },
-	{ "vt82c586b",	PCI_DEVICE_ID_VIA_82C586_0, 0x30, 0x3f, VIA_UDMA_33 | VIA_SET_FIFO },
-	{ "vt82c586a",	PCI_DEVICE_ID_VIA_82C586_0, 0x20, 0x2f, VIA_UDMA_33 | VIA_SET_FIFO },
-	{ "vt82c586",	PCI_DEVICE_ID_VIA_82C586_0, 0x00, 0x0f, VIA_UDMA_NONE | VIA_SET_FIFO },
-	{ "vt82c576",	PCI_DEVICE_ID_VIA_82C576,   0x00, 0x2f, VIA_UDMA_NONE | VIA_SET_FIFO | VIA_NO_UNMASK },
-	{ "vt82c576",	PCI_DEVICE_ID_VIA_82C576,   0x00, 0x2f, VIA_UDMA_NONE | VIA_SET_FIFO | VIA_NO_UNMASK | VIA_BAD_ID },
+	{ "cx700",	PCI_DEVICE_ID_VIA_CX700,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
+	{ "vt8237s",	PCI_DEVICE_ID_VIA_8237S,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
+	{ "vt6410",	PCI_DEVICE_ID_VIA_6410,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
+	{ "vt8251",	PCI_DEVICE_ID_VIA_8251,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
+	{ "vt8237",	PCI_DEVICE_ID_VIA_8237,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
+	{ "vt8237a",	PCI_DEVICE_ID_VIA_8237A,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
+	{ "vt8235",	PCI_DEVICE_ID_VIA_8235,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
+	{ "vt8233a",	PCI_DEVICE_ID_VIA_8233A,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
+	{ "vt8233c",	PCI_DEVICE_ID_VIA_8233C_0,  0x00, 0x2f, ATA_UDMA5, },
+	{ "vt8233",	PCI_DEVICE_ID_VIA_8233_0,   0x00, 0x2f, ATA_UDMA5, },
+	{ "vt8231",	PCI_DEVICE_ID_VIA_8231,     0x00, 0x2f, ATA_UDMA5, },
+	{ "vt82c686b",	PCI_DEVICE_ID_VIA_82C686,   0x40, 0x4f, ATA_UDMA5, },
+	{ "vt82c686a",	PCI_DEVICE_ID_VIA_82C686,   0x10, 0x2f, ATA_UDMA4, },
+	{ "vt82c686",	PCI_DEVICE_ID_VIA_82C686,   0x00, 0x0f, ATA_UDMA2, VIA_BAD_CLK66 },
+	{ "vt82c596b",	PCI_DEVICE_ID_VIA_82C596,   0x10, 0x2f, ATA_UDMA4, },
+	{ "vt82c596a",	PCI_DEVICE_ID_VIA_82C596,   0x00, 0x0f, ATA_UDMA2, VIA_BAD_CLK66 },
+	{ "vt82c586b",	PCI_DEVICE_ID_VIA_82C586_0, 0x47, 0x4f, ATA_UDMA2, VIA_SET_FIFO },
+	{ "vt82c586b",	PCI_DEVICE_ID_VIA_82C586_0, 0x40, 0x46, ATA_UDMA2, VIA_SET_FIFO | VIA_BAD_PREQ },
+	{ "vt82c586b",	PCI_DEVICE_ID_VIA_82C586_0, 0x30, 0x3f, ATA_UDMA2, VIA_SET_FIFO },
+	{ "vt82c586a",	PCI_DEVICE_ID_VIA_82C586_0, 0x20, 0x2f, ATA_UDMA2, VIA_SET_FIFO },
+	{ "vt82c586",	PCI_DEVICE_ID_VIA_82C586_0, 0x00, 0x0f,      0x00, VIA_SET_FIFO },
+	{ "vt82c576",	PCI_DEVICE_ID_VIA_82C576,   0x00, 0x2f,      0x00, VIA_SET_FIFO | VIA_NO_UNMASK },
+	{ "vt82c576",	PCI_DEVICE_ID_VIA_82C576,   0x00, 0x2f,      0x00, VIA_SET_FIFO | VIA_NO_UNMASK | VIA_BAD_ID },
 	{ NULL }
 };
 
 static unsigned int via_clock;
-static char *via_dma[] = { "MWDMA16", "UDMA33", "UDMA66", "UDMA100", "UDMA133" };
+static char *via_dma[] = { "16", "25", "33", "44", "66", "100", "133" };
 
 struct via82cxxx_dev
 {
@@ -140,12 +134,12 @@ static void via_set_speed(ide_hwif_t *hwif, u8 dn, struct ide_timing *timing)
 	pci_write_config_byte(dev, VIA_DRIVE_TIMING + (3 - dn),
 		((FIT(timing->active, 1, 16) - 1) << 4) | (FIT(timing->recover, 1, 16) - 1));
 
-	switch (vdev->via_config->flags & VIA_UDMA) {
-		case VIA_UDMA_33:  t = timing->udma ? (0xe0 | (FIT(timing->udma, 2, 5) - 2)) : 0x03; break;
-		case VIA_UDMA_66:  t = timing->udma ? (0xe8 | (FIT(timing->udma, 2, 9) - 2)) : 0x0f; break;
-		case VIA_UDMA_100: t = timing->udma ? (0xe0 | (FIT(timing->udma, 2, 9) - 2)) : 0x07; break;
-		case VIA_UDMA_133: t = timing->udma ? (0xe0 | (FIT(timing->udma, 2, 9) - 2)) : 0x07; break;
-		default: return;
+	switch (vdev->via_config->udma_mask) {
+	case ATA_UDMA2: t = timing->udma ? (0xe0 | (FIT(timing->udma, 2, 5) - 2)) : 0x03; break;
+	case ATA_UDMA4: t = timing->udma ? (0xe8 | (FIT(timing->udma, 2, 9) - 2)) : 0x0f; break;
+	case ATA_UDMA5: t = timing->udma ? (0xe0 | (FIT(timing->udma, 2, 9) - 2)) : 0x07; break;
+	case ATA_UDMA6: t = timing->udma ? (0xe0 | (FIT(timing->udma, 2, 9) - 2)) : 0x07; break;
+	default: return;
 	}
 
 	pci_write_config_byte(dev, VIA_UDMA_TIMING + (3 - dn), t);
@@ -173,12 +167,12 @@ static int via_set_drive(ide_drive_t *drive, u8 speed)
 
 	T = 1000000000 / via_clock;
 
-	switch (vdev->via_config->flags & VIA_UDMA) {
-		case VIA_UDMA_33:   UT = T;   break;
-		case VIA_UDMA_66:   UT = T/2; break;
-		case VIA_UDMA_100:  UT = T/3; break;
-		case VIA_UDMA_133:  UT = T/4; break;
-		default: UT = T;
+	switch (vdev->via_config->udma_mask) {
+	case ATA_UDMA2: UT = T;   break;
+	case ATA_UDMA4: UT = T/2; break;
+	case ATA_UDMA5: UT = T/3; break;
+	case ATA_UDMA6: UT = T/4; break;
+	default:	UT = T;
 	}
 
 	ide_timing_compute(drive, speed, &t, T, UT);
@@ -208,8 +202,7 @@ static int via_set_drive(ide_drive_t *drive, u8 speed)
 static void via82cxxx_tune_drive(ide_drive_t *drive, u8 pio)
 {
 	if (pio == 255) {
-		via_set_drive(drive,
-			ide_find_best_mode(drive, XFER_PIO | XFER_EPIO));
+		via_set_drive(drive, ide_find_best_pio_mode(drive));
 		return;
 	}
 
@@ -226,16 +219,10 @@ static void via82cxxx_tune_drive(ide_drive_t *drive, u8 pio)
  
 static int via82cxxx_ide_dma_check (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
-	struct via82cxxx_dev *vdev = pci_get_drvdata(hwif->pci_dev);
-	u16 w80 = hwif->udma_four;
+	u8 speed = ide_max_dma_mode(drive);
 
-	u16 speed = ide_find_best_mode(drive,
-		XFER_PIO | XFER_EPIO | XFER_SWDMA | XFER_MWDMA |
-		(vdev->via_config->flags & VIA_UDMA ? XFER_UDMA : 0) |
-		(w80 && (vdev->via_config->flags & VIA_UDMA) >= VIA_UDMA_66 ? XFER_UDMA_66 : 0) |
-		(w80 && (vdev->via_config->flags & VIA_UDMA) >= VIA_UDMA_100 ? XFER_UDMA_100 : 0) |
-		(w80 && (vdev->via_config->flags & VIA_UDMA) >= VIA_UDMA_133 ? XFER_UDMA_133 : 0));
+	if (speed == 0)
+		speed = ide_find_best_pio_mode(drive);
 
 	via_set_drive(drive, speed);
 
@@ -272,8 +259,8 @@ static void __devinit via_cable_detect(struct via82cxxx_dev *vdev, u32 u)
 {
 	int i;
 
-	switch (vdev->via_config->flags & VIA_UDMA) {
-		case VIA_UDMA_66:
+	switch (vdev->via_config->udma_mask) {
+		case ATA_UDMA4:
 			for (i = 24; i >= 0; i -= 8)
 				if (((u >> (i & 16)) & 8) &&
 				    ((u >> i) & 0x20) &&
@@ -286,7 +273,7 @@ static void __devinit via_cable_detect(struct via82cxxx_dev *vdev, u32 u)
 				}
 			break;
 
-		case VIA_UDMA_100:
+		case ATA_UDMA5:
 			for (i = 24; i >= 0; i -= 8)
 				if (((u >> i) & 0x10) ||
 				    (((u >> i) & 0x20) &&
@@ -298,7 +285,7 @@ static void __devinit via_cable_detect(struct via82cxxx_dev *vdev, u32 u)
 				}
 			break;
 
-		case VIA_UDMA_133:
+		case ATA_UDMA6:
 			for (i = 24; i >= 0; i -= 8)
 				if (((u >> i) & 0x10) ||
 				    (((u >> i) & 0x20) &&
@@ -353,7 +340,7 @@ static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev, const 
 
 	via_cable_detect(vdev, u);
 
-	if ((via_config->flags & VIA_UDMA) == VIA_UDMA_66) {
+	if (via_config->udma_mask == ATA_UDMA4) {
 		/* Enable Clk66 */
 		pci_write_config_dword(dev, VIA_UDMA_TIMING, u|0x80008);
 	} else if (via_config->flags & VIA_BAD_CLK66) {
@@ -416,10 +403,12 @@ static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev, const 
 	 */
 
 	pci_read_config_byte(isa, PCI_REVISION_ID, &t);
-	printk(KERN_INFO "VP_IDE: VIA %s (rev %02x) IDE %s "
+	printk(KERN_INFO "VP_IDE: VIA %s (rev %02x) IDE %sDMA%s "
 		"controller on pci%s\n",
 		via_config->name, t,
-		via_dma[via_config->flags & VIA_UDMA],
+		via_config->udma_mask ? "U" : "MW",
+		via_dma[via_config->udma_mask ?
+			(fls(via_config->udma_mask) - 1) : 0],
 		pci_name(dev));
 
 	pci_dev_put(isa);
@@ -454,7 +443,8 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 		return;
 
 	hwif->atapi_dma = 1;
-	hwif->ultra_mask = 0x7f;
+
+	hwif->ultra_mask = vdev->via_config->udma_mask;
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
 

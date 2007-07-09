@@ -1821,28 +1821,11 @@ pmac_ide_dma_check(ide_drive_t *drive)
 		enable = 0;
 
 	if (enable) {
-		short mode;
-		
-		map = XFER_MWDMA;
-		if (pmif->kind == controller_kl_ata4
-		    || pmif->kind == controller_un_ata6
-		    || pmif->kind == controller_k2_ata6
-		    || pmif->kind == controller_sh_ata6) {
-			map |= XFER_UDMA;
-			if (pmif->cable_80) {
-				map |= XFER_UDMA_66;
-				if (pmif->kind == controller_un_ata6 ||
-				    pmif->kind == controller_k2_ata6 ||
-				    pmif->kind == controller_sh_ata6)
-					map |= XFER_UDMA_100;
-				if (pmif->kind == controller_sh_ata6)
-					map |= XFER_UDMA_133;
-			}
-		}
-		mode = ide_find_best_mode(drive, map);
-		if (mode & XFER_UDMA)
+		u8 mode = ide_max_dma_mode(drive);
+
+		if (mode >= XFER_UDMA_0)
 			drive->using_dma = pmac_ide_udma_enable(drive, mode);
-		else if (mode & XFER_MWDMA)
+		else if (mode >= XFER_MW_DMA_0)
 			drive->using_dma = pmac_ide_mdma_enable(drive, mode);
 		hwif->OUTB(0, IDE_CONTROL_REG);
 		/* Apply settings to controller */
