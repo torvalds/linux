@@ -1513,15 +1513,6 @@ static void edge_set_termios (struct usb_serial_port *port, struct ktermios *old
 	}
 
 	cflag = tty->termios->c_cflag;
-	/* check that they really want us to change something */
-	if (old_termios) {
-		if (cflag == old_termios->c_cflag &&
-		    tty->termios->c_iflag == old_termios->c_iflag) {
-			dbg("%s - nothing to change", __FUNCTION__);
-			return;
-		}
-	}
-
 	dbg("%s - clfag %08x iflag %08x", __FUNCTION__, 
 	    tty->termios->c_cflag, tty->termios->c_iflag);
 	if (old_termios) {
