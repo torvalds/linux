@@ -61,6 +61,7 @@
 #define NEQE_EVENT_CODE        EHCA_BMASK_IBM(2,7)
 #define NEQE_PORT_NUMBER       EHCA_BMASK_IBM(8,15)
 #define NEQE_PORT_AVAILABILITY EHCA_BMASK_IBM(16,16)
+#define NEQE_DISRUPTIVE        EHCA_BMASK_IBM(16,16)
 
 #define ERROR_DATA_LENGTH      EHCA_BMASK_IBM(52,63)
 #define ERROR_DATA_TYPE        EHCA_BMASK_IBM(0,7)
@@ -286,30 +287,61 @@ static void parse_identifier(struct ehca_shca *shca, u64 eqe)
 	return;
 }
 
-static void parse_ec(struct ehca_shca *shca, u64 eqe)
+static void dispatch_port_event(struct ehca_shca *shca, int port_num,
+				enum ib_event_type type, const char *msg)
 {
 	struct ib_event event;
+
+	ehca_info(&shca->ib_device, "port %d %s.", port_num, msg);
+	event.device = &shca->ib_device;
+	event.event = type;
+	event.element.port_num = port_num;
+	ib_dispatch_event(&event);
+}
+
+static void notify_port_conf_change(struct ehca_shca *shca, int port_num)
+{
+	struct ehca_sma_attr  new_attr;
+	struct ehca_sma_attr *old_attr = &shca->sport[port_num - 1].saved_attr;
+
+	ehca_query_sma_attr(shca, port_num, &new_attr);
+
+	if (new_attr.sm_sl  != old_attr->sm_sl ||
+	    new_attr.sm_lid != old_attr->sm_lid)
+		dispatch_port_event(shca, port_num, IB_EVENT_SM_CHANGE,
+				    "SM changed");
+
+	if (new_attr.lid != old_attr->lid ||
+	    new_attr.lmc != old_attr->lmc)
+		dispatch_port_event(shca, port_num, IB_EVENT_LID_CHANGE,
+				    "LID changed");
+
+	if (new_attr.pkey_tbl_len != old_attr->pkey_tbl_len ||
+	    memcmp(new_attr.pkeys, old_attr->pkeys,
+		   sizeof(u16) * new_attr.pkey_tbl_len))
+		dispatch_port_event(shca, port_num, IB_EVENT_PKEY_CHANGE,
+				    "P_Key changed");
+
+	*old_attr = new_attr;
+}
+
+static void parse_ec(struct ehca_shca *shca, u64 eqe)
+{
 	u8 ec   = EHCA_BMASK_GET(NEQE_EVENT_CODE, eqe);
 	u8 port = EHCA_BMASK_GET(NEQE_PORT_NUMBER, eqe);
 
 	switch (ec) {
 	case 0x30: /* port availability change */
 		if (EHCA_BMASK_GET(NEQE_PORT_AVAILABILITY, eqe)) {
-			ehca_info(&shca->ib_device,
-				  "port %x is active.", port);
-			event.device = &shca->ib_device;
-			event.event = IB_EVENT_PORT_ACTIVE;
-			event.element.port_num = port;
 			shca->sport[port - 1].port_state = IB_PORT_ACTIVE;
-			ib_dispatch_event(&event);
+			dispatch_port_event(shca, port, IB_EVENT_PORT_ACTIVE,
+					    "is active");
+			ehca_query_sma_attr(shca, port,
+					    &shca->sport[port - 1].saved_attr);
 		} else {
-			ehca_info(&shca->ib_device,
-				  "port %x is inactive.", port);
-			event.device = &shca->ib_device;
-			event.event = IB_EVENT_PORT_ERR;
-			event.element.port_num = port;
 			shca->sport[port - 1].port_state = IB_PORT_DOWN;
-			ib_dispatch_event(&event);
+			dispatch_port_event(shca, port, IB_EVENT_PORT_ERR,
+					    "is inactive");
 		}
 		break;
 	case 0x31:
@@ -317,24 +349,19 @@ static void parse_ec(struct ehca_shca *shca, u64 eqe)
 		 * disruptive change is caused by
 		 * LID, PKEY or SM change
 		 */
-		ehca_warn(&shca->ib_device,
-			  "disruptive port %x configuration change", port);
+		if (EHCA_BMASK_GET(NEQE_DISRUPTIVE, eqe)) {
+			ehca_warn(&shca->ib_device, "disruptive port "
+				  "%d configuration change", port);
 
-		ehca_info(&shca->ib_device,
-			  "port %x is inactive.", port);
-		event.device = &shca->ib_device;
-		event.event = IB_EVENT_PORT_ERR;
-		event.element.port_num = port;
-		shca->sport[port - 1].port_state = IB_PORT_DOWN;
-		ib_dispatch_event(&event);
+			shca->sport[port - 1].port_state = IB_PORT_DOWN;
+			dispatch_port_event(shca, port, IB_EVENT_PORT_ERR,
+					    "is inactive");
 
-		ehca_info(&shca->ib_device,
-			  "port %x is active.", port);
-		event.device = &shca->ib_device;
-		event.event = IB_EVENT_PORT_ACTIVE;
-		event.element.port_num = port;
-		shca->sport[port - 1].port_state = IB_PORT_ACTIVE;
-		ib_dispatch_event(&event);
+			shca->sport[port - 1].port_state = IB_PORT_ACTIVE;
+			dispatch_port_event(shca, port, IB_EVENT_PORT_ACTIVE,
+					    "is active");
+		} else
+			notify_port_conf_change(shca, port);
 		break;
 	case 0x32: /* adapter malfunction */
 		ehca_err(&shca->ib_device, "Adapter malfunction.");

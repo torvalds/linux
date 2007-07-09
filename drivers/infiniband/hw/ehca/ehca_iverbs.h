@@ -49,6 +49,9 @@ int ehca_query_device(struct ib_device *ibdev, struct ib_device_attr *props);
 int ehca_query_port(struct ib_device *ibdev, u8 port,
 		    struct ib_port_attr *props);
 
+int ehca_query_sma_attr(struct ehca_shca *shca, u8 port,
+			struct ehca_sma_attr *attr);
+
 int ehca_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 * pkey);
 
 int ehca_query_gid(struct ib_device *ibdev, u8 port, int index,

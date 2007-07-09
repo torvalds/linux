@@ -193,6 +193,40 @@ query_port1:
 	return ret;
 }
 
+int ehca_query_sma_attr(struct ehca_shca *shca,
+			u8 port, struct ehca_sma_attr *attr)
+{
+	int ret = 0;
+	struct hipz_query_port *rblock;
+
+	rblock = ehca_alloc_fw_ctrlblock(GFP_ATOMIC);
+	if (!rblock) {
+		ehca_err(&shca->ib_device, "Can't allocate rblock memory.");
+		return -ENOMEM;
+	}
+
+	if (hipz_h_query_port(shca->ipz_hca_handle, port, rblock) != H_SUCCESS) {
+		ehca_err(&shca->ib_device, "Can't query port properties");
+		ret = -EINVAL;
+		goto query_sma_attr1;
+	}
+
+	memset(attr, 0, sizeof(struct ehca_sma_attr));
+
+	attr->lid    = rblock->lid;
+	attr->lmc    = rblock->lmc;
+	attr->sm_sl  = rblock->sm_sl;
+	attr->sm_lid = rblock->sm_lid;
+
+	attr->pkey_tbl_len = rblock->pkey_tbl_len;
+	memcpy(attr->pkeys, rblock->pkey_entries, sizeof(attr->pkeys));
+
+query_sma_attr1:
+	ehca_free_fw_ctrlblock(rblock);
+
+	return ret;
+}
+
 int ehca_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 *pkey)
 {
 	int ret = 0;
