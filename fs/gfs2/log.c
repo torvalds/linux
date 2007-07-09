@@ -237,10 +237,7 @@ static void gfs2_ail2_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 		list_del(&bd->bd_ail_st_list);
 		list_del(&bd->bd_ail_gl_list);
 		atomic_dec(&bd->bd_gl->gl_ail_count);
-		if (bd->bd_bh)
-			brelse(bd->bd_bh);
-		else
-			kmem_cache_free(gfs2_bufdata_cachep, bd);
+		brelse(bd->bd_bh);
 	}
 }
 
@@ -583,6 +580,7 @@ static void log_flush_commit(struct gfs2_sbd *sdp)
 	struct list_head *head = &sdp->sd_log_flush_list;
 	struct gfs2_log_buf *lb;
 	struct buffer_head *bh;
+	int flushcount = 0;
 
 	while (!list_empty(head)) {
 		lb = list_entry(head->next, struct gfs2_log_buf, lb_list);
@@ -599,9 +597,20 @@ static void log_flush_commit(struct gfs2_sbd *sdp)
 		} else
 			brelse(bh);
 		kfree(lb);
+		flushcount++;
 	}
 
-	log_write_header(sdp, 0, 0);
+	/* If nothing was journaled, the header is unplanned and unwanted. */
+	if (flushcount) {
+		log_write_header(sdp, 0, 0);
+	} else {
+		unsigned int tail;
+		tail = current_tail(sdp);
+
+		gfs2_ail1_empty(sdp, 0);
+		if (sdp->sd_log_tail != tail)
+			log_pull_tail(sdp, tail);
+	}
 }
 
 /**
