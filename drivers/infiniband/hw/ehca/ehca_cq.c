@@ -163,9 +163,9 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 			goto create_cq_exit1;
 		}
 
-		spin_lock_irqsave(&ehca_cq_idr_lock, flags);
+		write_lock_irqsave(&ehca_cq_idr_lock, flags);
 		ret = idr_get_new(&ehca_cq_idr, my_cq, &my_cq->token);
-		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+		write_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 
 	} while (ret == -EAGAIN);
 
@@ -294,9 +294,9 @@ create_cq_exit3:
 			 "cq_num=%x h_ret=%lx", my_cq, my_cq->cq_number, h_ret);
 
 create_cq_exit2:
-	spin_lock_irqsave(&ehca_cq_idr_lock, flags);
+	write_lock_irqsave(&ehca_cq_idr_lock, flags);
 	idr_remove(&ehca_cq_idr, my_cq->token);
-	spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+	write_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 
 create_cq_exit1:
 	kmem_cache_free(cq_cache, my_cq);
@@ -334,9 +334,9 @@ int ehca_destroy_cq(struct ib_cq *cq)
 	 * remove the CQ from the idr first to make sure
 	 * no more interrupt tasklets will touch this CQ
 	 */
-	spin_lock_irqsave(&ehca_cq_idr_lock, flags);
+	write_lock_irqsave(&ehca_cq_idr_lock, flags);
 	idr_remove(&ehca_cq_idr, my_cq->token);
-	spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+	write_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 
 	/* now wait until all pending events have completed */
 	wait_event(my_cq->wait_completion, !atomic_read(&my_cq->nr_events));

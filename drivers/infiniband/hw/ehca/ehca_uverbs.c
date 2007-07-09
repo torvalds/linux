@@ -253,7 +253,6 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	u32 rsrc_type = (fileoffset >> 24) & 0xF; /* sq,rq,cmnd_window */
 	u32 cur_pid = current->tgid;
 	u32 ret;
-	unsigned long flags;
 	struct ehca_cq *cq;
 	struct ehca_qp *qp;
 	struct ehca_pd *pd;
@@ -261,9 +260,9 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 
 	switch (q_type) {
 	case  1: /* CQ */
-		spin_lock_irqsave(&ehca_cq_idr_lock, flags);
+		read_lock(&ehca_cq_idr_lock);
 		cq = idr_find(&ehca_cq_idr, idr_handle);
-		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+		read_unlock(&ehca_cq_idr_lock);
 
 		/* make sure this mmap really belongs to the authorized user */
 		if (!cq)
@@ -289,9 +288,9 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		break;
 
 	case 2: /* QP */
-		spin_lock_irqsave(&ehca_qp_idr_lock, flags);
+		read_lock(&ehca_qp_idr_lock);
 		qp = idr_find(&ehca_qp_idr, idr_handle);
-		spin_unlock_irqrestore(&ehca_qp_idr_lock, flags);
+		read_unlock(&ehca_qp_idr_lock);
 
 		/* make sure this mmap really belongs to the authorized user */
 		if (!qp)

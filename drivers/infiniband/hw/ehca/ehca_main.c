@@ -96,8 +96,8 @@ MODULE_PARM_DESC(static_rate,
 MODULE_PARM_DESC(scaling_code,
 		 "set scaling code (0: disabled/default, 1: enabled)");
 
-DEFINE_SPINLOCK(ehca_qp_idr_lock);
-DEFINE_SPINLOCK(ehca_cq_idr_lock);
+DEFINE_RWLOCK(ehca_qp_idr_lock);
+DEFINE_RWLOCK(ehca_cq_idr_lock);
 DEFINE_IDR(ehca_qp_idr);
 DEFINE_IDR(ehca_cq_idr);
 

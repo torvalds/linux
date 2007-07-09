@@ -180,12 +180,11 @@ static void qp_event_callback(struct ehca_shca *shca,
 {
 	struct ib_event event;
 	struct ehca_qp *qp;
-	unsigned long flags;
 	u32 token = EHCA_BMASK_GET(EQE_QP_TOKEN, eqe);
 
-	spin_lock_irqsave(&ehca_qp_idr_lock, flags);
+	read_lock(&ehca_qp_idr_lock);
 	qp = idr_find(&ehca_qp_idr, token);
-	spin_unlock_irqrestore(&ehca_qp_idr_lock, flags);
+	read_unlock(&ehca_qp_idr_lock);
 
 
 	if (!qp)
@@ -209,14 +208,13 @@ static void cq_event_callback(struct ehca_shca *shca,
 			      u64 eqe)
 {
 	struct ehca_cq *cq;
-	unsigned long flags;
 	u32 token = EHCA_BMASK_GET(EQE_CQ_TOKEN, eqe);
 
-	spin_lock_irqsave(&ehca_cq_idr_lock, flags);
+	read_lock(&ehca_cq_idr_lock);
 	cq = idr_find(&ehca_cq_idr, token);
 	if (cq)
 		atomic_inc(&cq->nr_events);
-	spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+	read_unlock(&ehca_cq_idr_lock);
 
 	if (!cq)
 		return;
@@ -411,7 +409,6 @@ static inline void process_eqe(struct ehca_shca *shca, struct ehca_eqe *eqe)
 {
 	u64 eqe_value;
 	u32 token;
-	unsigned long flags;
 	struct ehca_cq *cq;
 
 	eqe_value = eqe->entry;
@@ -419,11 +416,11 @@ static inline void process_eqe(struct ehca_shca *shca, struct ehca_eqe *eqe)
 	if (EHCA_BMASK_GET(EQE_COMPLETION_EVENT, eqe_value)) {
 		ehca_dbg(&shca->ib_device, "Got completion event");
 		token = EHCA_BMASK_GET(EQE_CQ_TOKEN, eqe_value);
-		spin_lock_irqsave(&ehca_cq_idr_lock, flags);
+		read_lock(&ehca_cq_idr_lock);
 		cq = idr_find(&ehca_cq_idr, token);
 		if (cq)
 			atomic_inc(&cq->nr_events);
-		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+		read_unlock(&ehca_cq_idr_lock);
 		if (cq == NULL) {
 			ehca_err(&shca->ib_device,
 				 "Invalid eqe for non-existing cq token=%x",
@@ -480,11 +477,11 @@ void ehca_process_eq(struct ehca_shca *shca, int is_irq)
 		eqe_value = eqe_cache[eqe_cnt].eqe->entry;
 		if (EHCA_BMASK_GET(EQE_COMPLETION_EVENT, eqe_value)) {
 			token = EHCA_BMASK_GET(EQE_CQ_TOKEN, eqe_value);
-			spin_lock(&ehca_cq_idr_lock);
+			read_lock(&ehca_cq_idr_lock);
 			eqe_cache[eqe_cnt].cq = idr_find(&ehca_cq_idr, token);
 			if (eqe_cache[eqe_cnt].cq)
 				atomic_inc(&eqe_cache[eqe_cnt].cq->nr_events);
-			spin_unlock(&ehca_cq_idr_lock);
+			read_unlock(&ehca_cq_idr_lock);
 			if (!eqe_cache[eqe_cnt].cq) {
 				ehca_err(&shca->ib_device,
 					 "Invalid eqe for non-existing cq "

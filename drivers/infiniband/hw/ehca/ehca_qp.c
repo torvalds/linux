@@ -512,9 +512,9 @@ struct ehca_qp *internal_create_qp(struct ib_pd *pd,
 			goto create_qp_exit0;
 		}
 
-		spin_lock_irqsave(&ehca_qp_idr_lock, flags);
+		write_lock_irqsave(&ehca_qp_idr_lock, flags);
 		ret = idr_get_new(&ehca_qp_idr, my_qp, &my_qp->token);
-		spin_unlock_irqrestore(&ehca_qp_idr_lock, flags);
+		write_unlock_irqrestore(&ehca_qp_idr_lock, flags);
 
 	} while (ret == -EAGAIN);
 
@@ -733,9 +733,9 @@ create_qp_exit2:
 	hipz_h_destroy_qp(shca->ipz_hca_handle, my_qp);
 
 create_qp_exit1:
-	spin_lock_irqsave(&ehca_qp_idr_lock, flags);
+	write_lock_irqsave(&ehca_qp_idr_lock, flags);
 	idr_remove(&ehca_qp_idr, my_qp->token);
-	spin_unlock_irqrestore(&ehca_qp_idr_lock, flags);
+	write_unlock_irqrestore(&ehca_qp_idr_lock, flags);
 
 create_qp_exit0:
 	kmem_cache_free(qp_cache, my_qp);
@@ -1706,9 +1706,9 @@ int internal_destroy_qp(struct ib_device *dev, struct ehca_qp *my_qp,
 		}
 	}
 
-	spin_lock_irqsave(&ehca_qp_idr_lock, flags);
+	write_lock_irqsave(&ehca_qp_idr_lock, flags);
 	idr_remove(&ehca_qp_idr, my_qp->token);
-	spin_unlock_irqrestore(&ehca_qp_idr_lock, flags);
+	write_unlock_irqrestore(&ehca_qp_idr_lock, flags);
 
 	h_ret = hipz_h_destroy_qp(shca->ipz_hca_handle, my_qp);
 	if (h_ret != H_SUCCESS) {
