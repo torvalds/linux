@@ -27,7 +27,7 @@ struct dccp_li_hist_entry {
 	u32		 dccplih_interval;
 };
 
-struct kmem_cache *dccp_li_cachep __read_mostly;
+static struct kmem_cache *dccp_li_cachep __read_mostly;
 
 static inline struct dccp_li_hist_entry *dccp_li_hist_entry_new(const gfp_t prio)
 {
