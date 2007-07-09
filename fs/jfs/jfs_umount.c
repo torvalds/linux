@@ -60,7 +60,7 @@ int jfs_umount(struct super_block *sb)
 	jfs_info("UnMount JFS: sb:0x%p", sb);
 
 	/*
-	 *      update superblock and close log
+	 *	update superblock and close log
 	 *
 	 * if mounted read-write and log based recovery was enabled
 	 */

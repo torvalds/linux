@@ -62,7 +62,6 @@ extern void jfs_proc_clean(void);
 
 extern int jfsloglevel;
 
-extern void dump_mem(char *label, void *data, int length);
 extern int jfs_txanchor_read(char *, char **, off_t, int, int *, void *);
 
 /* information message: e.g., configuration, major event */
@@ -94,7 +93,6 @@ extern int jfs_txanchor_read(char *, char **, off_t, int, int *, void *);
  *	---------
  */
 #else				/* CONFIG_JFS_DEBUG */
-#define dump_mem(label,data,length) do {} while (0)
 #define ASSERT(p) do {} while (0)
 #define jfs_info(fmt, arg...) do {} while (0)
 #define jfs_debug(fmt, arg...) do {} while (0)
