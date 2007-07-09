@@ -407,10 +407,9 @@ int ehca_post_send(struct ib_qp *qp,
 	} /* eof for cur_send_wr */
 
 post_send_exit0:
-	/* UNLOCK the QUEUE */
-	spin_unlock_irqrestore(&my_qp->spinlock_s, flags);
 	iosync(); /* serialize GAL register access */
 	hipz_update_sqa(my_qp, wqe_cnt);
+	spin_unlock_irqrestore(&my_qp->spinlock_s, flags);
 	return ret;
 }
 
@@ -473,9 +472,9 @@ static int internal_post_recv(struct ehca_qp *my_qp,
 	} /* eof for cur_recv_wr */
 
 post_recv_exit0:
-	spin_unlock_irqrestore(&my_qp->spinlock_r, flags);
 	iosync(); /* serialize GAL register access */
 	hipz_update_rqa(my_qp, wqe_cnt);
+	spin_unlock_irqrestore(&my_qp->spinlock_r, flags);
 	return ret;
 }
 
