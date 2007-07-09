@@ -3475,7 +3475,7 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 
 					if(first_time)
 						cifs_calculate_mac_key(
-							pSesInfo->server->mac_signing_key,
+							&pSesInfo->server->mac_signing_key,
 							ntlm_session_key,
 							pSesInfo->password);
 				}
@@ -3495,7 +3495,7 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 
 			if(first_time) 		
 				cifs_calculate_mac_key(
-					pSesInfo->server->mac_signing_key,
+					&pSesInfo->server->mac_signing_key,
 					ntlm_session_key, pSesInfo->password);
 
 			rc = CIFSSessSetup(xid, pSesInfo,

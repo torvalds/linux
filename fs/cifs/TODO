@@ -18,9 +18,9 @@ better)
 
 d) Kerberos/SPNEGO session setup support - (started)
 
-e) More testing of NTLMv2 authentication (mostly implemented - double check
-that NTLMv2 signing works, also need to cleanup now unneeded SessSetup code in
-fs/cifs/connect.c)
+e) Cleanup now unneeded SessSetup code in
+fs/cifs/connect.c and add back in NTLMSSP code if any servers
+need it
 
 f) MD5-HMAC signing SMB PDUs when SPNEGO style SessionSetup 
 used (Kerberos or NTLMSSP). Signing alreadyimplemented for NTLM

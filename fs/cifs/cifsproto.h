@@ -294,9 +294,11 @@ extern void tconInfoFree(struct cifsTconInfo *);
 extern int cifs_sign_smb(struct smb_hdr *, struct TCP_Server_Info *, __u32 *);
 extern int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *,
 			  __u32 *);
-extern int cifs_verify_signature(struct smb_hdr *, const char *mac_key,
-	__u32 expected_sequence_number);
-extern int cifs_calculate_mac_key(char *key, const char *rn, const char *pass);
+extern int cifs_verify_signature(struct smb_hdr *,
+				 const struct mac_key *mac_key,
+				__u32 expected_sequence_number);
+extern int cifs_calculate_mac_key(struct mac_key *key, const char *rn,
+				 const char *pass);
 extern int CalcNTLMv2_partial_mac_key(struct cifsSesInfo *,
 			const struct nls_table *);
 extern void CalcNTLMv2_response(const struct cifsSesInfo *, char * );

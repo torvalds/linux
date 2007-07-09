@@ -419,7 +419,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 
 		if (first_time) /* should this be moved into common code
 				  with similar ntlmv2 path? */
-			cifs_calculate_mac_key(ses->server->mac_signing_key,
+			cifs_calculate_mac_key(&ses->server->mac_signing_key,
 				ntlm_session_key, ses->password);
 		/* copy session key */
 

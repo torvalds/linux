@@ -104,6 +104,17 @@ enum protocolEnum {
 	/* Netbios frames protocol not supported at this time */
 };
 
+struct mac_key {
+	unsigned int len;
+	union {
+		char ntlm[CIFS_SESS_KEY_SIZE + 16];
+		struct {
+			char key[16];
+			struct ntlmv2_resp resp;
+		} ntlmv2;
+	} data;
+};
+
 /*
  *****************************************************************
  * Except the CIFS PDUs themselves all the
@@ -159,7 +170,8 @@ struct TCP_Server_Info {
 	/* 16th byte of RFC1001 workstation name is always null */
 	char workstation_RFC1001_name[SERVER_NAME_LEN_WITH_NULL];
 	__u32 sequence_number; /* needed for CIFS PDU signature */
-	char mac_signing_key[CIFS_SESS_KEY_SIZE + 16];
+	struct mac_key mac_signing_key;
+	char ntlmv2_hash[16];
 	unsigned long lstrp; /* when we got last response from this server */
 };
 
