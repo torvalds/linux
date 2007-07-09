@@ -1,6 +1,6 @@
 /*
  *
- * Version 3.40
+ * Version 3.45
  *
  * VIA IDE driver for Linux. Supported southbridges:
  *
@@ -34,6 +34,8 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ide.h>
+#include <linux/dmi.h>
+
 #include <asm/io.h>
 
 #ifdef CONFIG_PPC_CHRP
@@ -415,6 +417,42 @@ static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev, const 
 	return 0;
 }
 
+/*
+ *	Cable special cases
+ */
+
+static struct dmi_system_id cable_dmi_table[] = {
+	{
+		.ident = "Acer Ferrari 3400",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Acer,Inc."),
+			DMI_MATCH(DMI_BOARD_NAME, "Ferrari 3400"),
+		},
+	},
+	{ }
+};
+
+static int via_cable_override(void)
+{
+	/* Systems by DMI */
+	if (dmi_check_system(cable_dmi_table))
+		return 1;
+	return 0;
+}
+
+static u8 __devinit via82cxxx_cable_detect(ide_hwif_t *hwif)
+{
+	struct via82cxxx_dev *vdev = pci_get_drvdata(hwif->pci_dev);
+
+	if (via_cable_override())
+		return ATA_CBL_PATA40_SHORT;
+
+	if ((vdev->via_80w >> hwif->channel) & 1)
+		return ATA_CBL_PATA80;
+	else
+		return ATA_CBL_PATA40;
+}
+
 static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 {
 	struct via82cxxx_dev *vdev = pci_get_drvdata(hwif->pci_dev);
@@ -448,12 +486,8 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
 
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT) {
-		if ((vdev->via_80w >> hwif->channel) & 1)
-			hwif->cbl = ATA_CBL_PATA80;
-		else
-			hwif->cbl = ATA_CBL_PATA40;
-	}
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+		hwif->cbl = via82cxxx_cable_detect(hwif);
 
 	hwif->ide_dma_check = &via82cxxx_ide_dma_check;
 	if (!noautodma)
