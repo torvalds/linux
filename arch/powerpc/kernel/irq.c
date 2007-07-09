@@ -336,7 +336,8 @@ void do_IRQ(struct pt_regs *regs)
 
 void __init init_IRQ(void)
 {
-	ppc_md.init_IRQ();
+	if (ppc_md.init_IRQ)
+		ppc_md.init_IRQ();
 #ifdef CONFIG_PPC64
 	irq_ctx_init();
 #endif
