@@ -933,7 +933,7 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 	u64 h_ret;
 	int bad_wqe_cnt = 0;
 	int squeue_locked = 0;
-	unsigned long spl_flags = 0;
+	unsigned long flags = 0;
 
 	/* do query_qp to obtain current attr values */
 	mqpcb = ehca_alloc_fw_ctrlblock(GFP_KERNEL);
@@ -1074,7 +1074,7 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 		if (!ibqp->uobject) {
 			struct ehca_wqe *wqe;
 			/* lock send queue */
-			spin_lock_irqsave(&my_qp->spinlock_s, spl_flags);
+			spin_lock_irqsave(&my_qp->spinlock_s, flags);
 			squeue_locked = 1;
 			/* mark next free wqe */
 			wqe = (struct ehca_wqe*)
@@ -1360,7 +1360,7 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 
 modify_qp_exit2:
 	if (squeue_locked) { /* this means: sqe -> rts */
-		spin_unlock_irqrestore(&my_qp->spinlock_s, spl_flags);
+		spin_unlock_irqrestore(&my_qp->spinlock_s, flags);
 		my_qp->sqerr_purgeflag = 1;
 	}
 

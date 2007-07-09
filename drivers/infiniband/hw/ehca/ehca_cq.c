@@ -56,11 +56,11 @@ int ehca_cq_assign_qp(struct ehca_cq *cq, struct ehca_qp *qp)
 {
 	unsigned int qp_num = qp->real_qp_num;
 	unsigned int key = qp_num & (QP_HASHTAB_LEN-1);
-	unsigned long spl_flags;
+	unsigned long flags;
 
-	spin_lock_irqsave(&cq->spinlock, spl_flags);
+	spin_lock_irqsave(&cq->spinlock, flags);
 	hlist_add_head(&qp->list_entries, &cq->qp_hashtab[key]);
-	spin_unlock_irqrestore(&cq->spinlock, spl_flags);
+	spin_unlock_irqrestore(&cq->spinlock, flags);
 
 	ehca_dbg(cq->ib_cq.device, "cq_num=%x real_qp_num=%x",
 		 cq->cq_number, qp_num);
@@ -74,9 +74,9 @@ int ehca_cq_unassign_qp(struct ehca_cq *cq, unsigned int real_qp_num)
 	unsigned int key = real_qp_num & (QP_HASHTAB_LEN-1);
 	struct hlist_node *iter;
 	struct ehca_qp *qp;
-	unsigned long spl_flags;
+	unsigned long flags;
 
-	spin_lock_irqsave(&cq->spinlock, spl_flags);
+	spin_lock_irqsave(&cq->spinlock, flags);
 	hlist_for_each(iter, &cq->qp_hashtab[key]) {
 		qp = hlist_entry(iter, struct ehca_qp, list_entries);
 		if (qp->real_qp_num == real_qp_num) {
@@ -88,7 +88,7 @@ int ehca_cq_unassign_qp(struct ehca_cq *cq, unsigned int real_qp_num)
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&cq->spinlock, spl_flags);
+	spin_unlock_irqrestore(&cq->spinlock, flags);
 	if (ret)
 		ehca_err(cq->ib_cq.device,
 			 "qp not found cq_num=%x real_qp_num=%x",

@@ -363,10 +363,10 @@ int ehca_post_send(struct ib_qp *qp,
 	struct ehca_wqe *wqe_p;
 	int wqe_cnt = 0;
 	int ret = 0;
-	unsigned long spl_flags;
+	unsigned long flags;
 
 	/* LOCK the QUEUE */
-	spin_lock_irqsave(&my_qp->spinlock_s, spl_flags);
+	spin_lock_irqsave(&my_qp->spinlock_s, flags);
 
 	/* loop processes list of send reqs */
 	for (cur_send_wr = send_wr; cur_send_wr != NULL;
@@ -408,7 +408,7 @@ int ehca_post_send(struct ib_qp *qp,
 
 post_send_exit0:
 	/* UNLOCK the QUEUE */
-	spin_unlock_irqrestore(&my_qp->spinlock_s, spl_flags);
+	spin_unlock_irqrestore(&my_qp->spinlock_s, flags);
 	iosync(); /* serialize GAL register access */
 	hipz_update_sqa(my_qp, wqe_cnt);
 	return ret;
@@ -423,7 +423,7 @@ static int internal_post_recv(struct ehca_qp *my_qp,
 	struct ehca_wqe *wqe_p;
 	int wqe_cnt = 0;
 	int ret = 0;
-	unsigned long spl_flags;
+	unsigned long flags;
 
 	if (unlikely(!HAS_RQ(my_qp))) {
 		ehca_err(dev, "QP has no RQ  ehca_qp=%p qp_num=%x ext_type=%d",
@@ -432,7 +432,7 @@ static int internal_post_recv(struct ehca_qp *my_qp,
 	}
 
 	/* LOCK the QUEUE */
-	spin_lock_irqsave(&my_qp->spinlock_r, spl_flags);
+	spin_lock_irqsave(&my_qp->spinlock_r, flags);
 
 	/* loop processes list of send reqs */
 	for (cur_recv_wr = recv_wr; cur_recv_wr != NULL;
@@ -473,7 +473,7 @@ static int internal_post_recv(struct ehca_qp *my_qp,
 	} /* eof for cur_recv_wr */
 
 post_recv_exit0:
-	spin_unlock_irqrestore(&my_qp->spinlock_r, spl_flags);
+	spin_unlock_irqrestore(&my_qp->spinlock_r, flags);
 	iosync(); /* serialize GAL register access */
 	hipz_update_rqa(my_qp, wqe_cnt);
 	return ret;
@@ -536,7 +536,7 @@ poll_cq_one_read_cqe:
 	if (unlikely(cqe->status & WC_STATUS_PURGE_BIT)) {
 		struct ehca_qp *qp=ehca_cq_get_qp(my_cq, cqe->local_qp_number);
 		int purgeflag;
-		unsigned long spl_flags;
+		unsigned long flags;
 		if (!qp) {
 			ehca_err(cq->device, "cq_num=%x qp_num=%x "
 				 "could not find qp -> ignore cqe",
@@ -546,9 +546,9 @@ poll_cq_one_read_cqe:
 			/* ignore this purged cqe */
 			goto poll_cq_one_read_cqe;
 		}
-		spin_lock_irqsave(&qp->spinlock_s, spl_flags);
+		spin_lock_irqsave(&qp->spinlock_s, flags);
 		purgeflag = qp->sqerr_purgeflag;
-		spin_unlock_irqrestore(&qp->spinlock_s, spl_flags);
+		spin_unlock_irqrestore(&qp->spinlock_s, flags);
 
 		if (purgeflag) {
 			ehca_dbg(cq->device, "Got CQE with purged bit qp_num=%x "
@@ -633,7 +633,7 @@ int ehca_poll_cq(struct ib_cq *cq, int num_entries, struct ib_wc *wc)
 	int nr;
 	struct ib_wc *current_wc = wc;
 	int ret = 0;
-	unsigned long spl_flags;
+	unsigned long flags;
 
 	if (num_entries < 1) {
 		ehca_err(cq->device, "Invalid num_entries=%d ehca_cq=%p "
@@ -642,14 +642,14 @@ int ehca_poll_cq(struct ib_cq *cq, int num_entries, struct ib_wc *wc)
 		goto poll_cq_exit0;
 	}
 
-	spin_lock_irqsave(&my_cq->spinlock, spl_flags);
+	spin_lock_irqsave(&my_cq->spinlock, flags);
 	for (nr = 0; nr < num_entries; nr++) {
 		ret = ehca_poll_cq_one(cq, current_wc);
 		if (ret)
 			break;
 		current_wc++;
 	} /* eof for nr */
-	spin_unlock_irqrestore(&my_cq->spinlock, spl_flags);
+	spin_unlock_irqrestore(&my_cq->spinlock, flags);
 	if (ret == -EAGAIN  || !ret)
 		ret = nr;
 

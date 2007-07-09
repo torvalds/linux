@@ -81,6 +81,8 @@
 #define H_MP_SHUTDOWN                   EHCA_BMASK_IBM(48, 48)
 #define H_MP_RESET_QKEY_CTR             EHCA_BMASK_IBM(49, 49)
 
+static DEFINE_SPINLOCK(hcall_lock);
+
 static u32 get_longbusy_msecs(int longbusy_rc)
 {
 	switch (longbusy_rc) {
