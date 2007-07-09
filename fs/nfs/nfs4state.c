@@ -307,6 +307,7 @@ nfs4_alloc_open_state(void)
 	atomic_set(&state->count, 1);
 	INIT_LIST_HEAD(&state->lock_states);
 	spin_lock_init(&state->state_lock);
+	seqlock_init(&state->seqlock);
 	return state;
 }
 
@@ -411,7 +412,6 @@ void nfs4_put_open_state(struct nfs4_state *state)
  */
 void nfs4_close_state(struct path *path, struct nfs4_state *state, mode_t mode)
 {
-	struct inode *inode = state->inode;
 	struct nfs4_state_owner *owner = state->owner;
 	int call_close = 0;
 	int newstate;
@@ -419,7 +419,6 @@ void nfs4_close_state(struct path *path, struct nfs4_state *state, mode_t mode)
 	atomic_inc(&owner->so_count);
 	/* Protect against nfs4_find_state() */
 	spin_lock(&owner->so_lock);
-	spin_lock(&inode->i_lock);
 	switch (mode & (FMODE_READ | FMODE_WRITE)) {
 		case FMODE_READ:
 			state->n_rdonly--;
@@ -446,7 +445,6 @@ void nfs4_close_state(struct path *path, struct nfs4_state *state, mode_t mode)
 			clear_bit(NFS_DELEGATED_STATE, &state->flags);
 	}
 	nfs4_state_set_mode_locked(state, newstate);
-	spin_unlock(&inode->i_lock);
 	spin_unlock(&owner->so_lock);
 
 	if (!call_close) {
@@ -599,8 +597,12 @@ int nfs4_set_lock_state(struct nfs4_state *state, struct file_lock *fl)
 void nfs4_copy_stateid(nfs4_stateid *dst, struct nfs4_state *state, fl_owner_t fl_owner)
 {
 	struct nfs4_lock_state *lsp;
+	int seq;
 
-	memcpy(dst, &state->stateid, sizeof(*dst));
+	do {
+		seq = read_seqbegin(&state->seqlock);
+		memcpy(dst, &state->stateid, sizeof(*dst));
+	} while (read_seqretry(&state->seqlock, seq));
 	if (test_bit(LK_STATE_IN_USE, &state->flags) == 0)
 		return;
 

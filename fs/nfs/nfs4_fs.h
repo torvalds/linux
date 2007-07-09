@@ -139,9 +139,11 @@ struct nfs4_state {
 	unsigned long flags;		/* Do we hold any locks? */
 	spinlock_t state_lock;		/* Protects the lock_states list */
 
+	seqlock_t seqlock;		/* Protects the stateid/open_stateid */
 	nfs4_stateid stateid;		/* Current stateid: may be delegation */
 	nfs4_stateid open_stateid;	/* OPEN stateid */
 
+	/* The following 3 fields are protected by owner->so_lock */
 	unsigned int n_rdonly;		/* Number of read-only references */
 	unsigned int n_wronly;		/* Number of write-only references */
 	unsigned int n_rdwr;		/* Number of read/write references */

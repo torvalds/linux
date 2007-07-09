@@ -385,29 +385,28 @@ static void nfs_set_open_stateid_locked(struct nfs4_state *state, nfs4_stateid *
 
 static void nfs_set_open_stateid(struct nfs4_state *state, nfs4_stateid *stateid, int open_flags)
 {
-	spin_lock(&state->owner->so_lock);
-	spin_lock(&state->inode->i_lock);
+	write_seqlock(&state->seqlock);
 	nfs_set_open_stateid_locked(state, stateid, open_flags);
-	spin_unlock(&state->inode->i_lock);
-	spin_unlock(&state->owner->so_lock);
+	write_sequnlock(&state->seqlock);
 }
 
 static void update_open_stateid(struct nfs4_state *state, nfs4_stateid *open_stateid, nfs4_stateid *deleg_stateid, int open_flags)
 {
-	struct inode *inode = state->inode;
-
 	open_flags &= (FMODE_READ|FMODE_WRITE);
-	/* Protect against nfs4_find_state_byowner() */
-	spin_lock(&state->owner->so_lock);
-	spin_lock(&inode->i_lock);
+	/*
+	 * Protect the call to nfs4_state_set_mode_locked and
+	 * serialise the stateid update
+	 */
+	write_seqlock(&state->seqlock);
 	if (deleg_stateid != NULL) {
 		memcpy(state->stateid.data, deleg_stateid->data, sizeof(state->stateid.data));
 		set_bit(NFS_DELEGATED_STATE, &state->flags);
 	}
 	if (open_stateid != NULL)
 		nfs_set_open_stateid_locked(state, open_stateid, open_flags);
+	write_sequnlock(&state->seqlock);
+	spin_lock(&state->owner->so_lock);
 	update_open_stateflags(state, open_flags);
-	spin_unlock(&inode->i_lock);
 	spin_unlock(&state->owner->so_lock);
 }
 
@@ -608,12 +607,10 @@ static int nfs4_open_recover(struct nfs4_opendata *opendata, struct nfs4_state *
 	 */
 	if (test_bit(NFS_DELEGATED_STATE, &state->flags) == 0 &&
 	    memcmp(state->stateid.data, state->open_stateid.data, sizeof(state->stateid.data)) != 0) {
-		spin_lock(&state->owner->so_lock);
-		spin_lock(&state->inode->i_lock);
+		write_seqlock(&state->seqlock);
 		if (test_bit(NFS_DELEGATED_STATE, &state->flags) == 0)
 			memcpy(state->stateid.data, state->open_stateid.data, sizeof(state->stateid.data));
-		spin_unlock(&state->inode->i_lock);
-		spin_unlock(&state->owner->so_lock);
+		write_sequnlock(&state->seqlock);
 	}
 	return 0;
 }
@@ -1280,7 +1277,6 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	mode = FMODE_READ|FMODE_WRITE;
 	clear_rd = clear_wr = clear_rdwr = 0;
 	spin_lock(&state->owner->so_lock);
-	spin_lock(&calldata->inode->i_lock);
 	/* Calculate the change in open mode */
 	if (state->n_rdwr == 0) {
 		if (state->n_rdonly == 0) {
@@ -1294,7 +1290,6 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 			clear_rdwr |= test_and_clear_bit(NFS_O_RDWR_STATE, &state->flags);
 		}
 	}
-	spin_unlock(&calldata->inode->i_lock);
 	spin_unlock(&state->owner->so_lock);
 	if (!clear_rd && !clear_wr && !clear_rdwr) {
 		/* Note: exit _without_ calling nfs4_close_done */
