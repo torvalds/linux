@@ -1056,8 +1056,6 @@ void __init early_init_devtree(void *params)
 	DBG(" <- early_init_devtree()\n");
 }
 
-#undef printk
-
 int of_n_addr_cells(struct device_node* np)
 {
 	const int *ip;
