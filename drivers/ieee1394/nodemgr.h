@@ -84,7 +84,7 @@ struct unit_directory {
 	int length;		/* Number of quadlets */
 
 	struct device device;
-	struct class_device class_dev;
+	struct device unit_dev;
 
 	struct csr1212_keyval *ud_kv;
 	u32 lun;		/* logical unit number immediate value */
@@ -107,7 +107,7 @@ struct node_entry {
 	u32 capabilities;
 
 	struct device device;
-	struct class_device class_dev;
+	struct device node_dev;
 
 	/* Means this node is not attached anymore */
 	int in_limbo;

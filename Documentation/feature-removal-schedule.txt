@@ -49,16 +49,6 @@ Who:	Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	raw1394: requests of type RAW1394_REQ_ISO_SEND, RAW1394_REQ_ISO_LISTEN
-When:	June 2007
-Why:	Deprecated in favour of the more efficient and robust rawiso interface.
-	Affected are applications which use the deprecated part of libraw1394
-	(raw1394_iso_write, raw1394_start_iso_write, raw1394_start_iso_rcv,
-	raw1394_stop_iso_rcv) or bypass	libraw1394.
-Who:	Dan Dennedy <dan@dennedy.org>, Stefan Richter <stefanr@s5r6.in-berlin.de>
-
----------------------------
-
 What:	old NCR53C9x driver
 When:	October 2007
 Why:	Replaced by the much better esp_scsi driver.  Actual low-level

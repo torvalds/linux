@@ -40,6 +40,7 @@ struct fw_device {
 	struct fw_node *node;
 	int node_id;
 	int generation;
+	unsigned max_speed;
 	struct fw_card *card;
 	struct device device;
 	struct list_head link;

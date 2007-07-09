@@ -401,8 +401,7 @@ static int read_rom(struct fw_device *device, int index, u32 * data)
 
 	offset = 0xfffff0000400ULL + index * 4;
 	fw_send_request(device->card, &t, TCODE_READ_QUADLET_REQUEST,
-			device->node_id,
-			device->generation, SCODE_100,
+			device->node_id, device->generation, device->max_speed,
 			offset, NULL, 4, complete_transaction, &callback_data);
 
 	wait_for_completion(&callback_data.done);
@@ -418,6 +417,8 @@ static int read_bus_info_block(struct fw_device *device)
 	u32 stack[16], sp, key;
 	int i, end, length;
 
+	device->max_speed = SCODE_100;
+
 	/* First read the bus info block. */
 	for (i = 0; i < 5; i++) {
 		if (read_rom(device, i, &rom[i]) != RCODE_COMPLETE)
@@ -432,6 +433,33 @@ static int read_bus_info_block(struct fw_device *device)
 		 */
 		if (i == 0 && rom[i] == 0)
 			return -1;
+	}
+
+	device->max_speed = device->node->max_speed;
+
+	/*
+	 * Determine the speed of
+	 *   - devices with link speed less than PHY speed,
+	 *   - devices with 1394b PHY (unless only connected to 1394a PHYs),
+	 *   - all devices if there are 1394b repeaters.
+	 * Note, we cannot use the bus info block's link_spd as starting point
+	 * because some buggy firmwares set it lower than necessary and because
+	 * 1394-1995 nodes do not have the field.
+	 */
+	if ((rom[2] & 0x7) < device->max_speed ||
+	    device->max_speed == SCODE_BETA ||
+	    device->card->beta_repeaters_present) {
+		u32 dummy;
+
+		/* for S1600 and S3200 */
+		if (device->max_speed == SCODE_BETA)
+			device->max_speed = device->card->link_speed;
+
+		while (device->max_speed > SCODE_100) {
+			if (read_rom(device, 0, &dummy) == RCODE_COMPLETE)
+				break;
+			device->max_speed--;
+		}
 	}
 
 	/*
@@ -680,8 +708,10 @@ static void fw_device_init(struct work_struct *work)
 		    FW_DEVICE_RUNNING) == FW_DEVICE_SHUTDOWN)
 		fw_device_shutdown(&device->work.work);
 	else
-		fw_notify("created new fw device %s (%d config rom retries)\n",
-			  device->device.bus_id, device->config_rom_retries);
+		fw_notify("created new fw device %s "
+			  "(%d config rom retries, S%d00)\n",
+			  device->device.bus_id, device->config_rom_retries,
+			  1 << device->max_speed);
 
 	/*
 	 * Reschedule the IRM work if we just finished reading the
