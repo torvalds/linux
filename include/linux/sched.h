@@ -1321,6 +1321,8 @@ extern void sched_exec(void);
 #define sched_exec()   {}
 #endif
 
+extern void sched_clock_unstable_event(void);
+
 #ifdef CONFIG_HOTPLUG_CPU
 extern void idle_task_exit(void);
 #else

@@ -4,6 +4,7 @@
  * See comments there for proper credits.
  */
 
+#include <linux/sched.h>
 #include <linux/clocksource.h>
 #include <linux/workqueue.h>
 #include <linux/cpufreq.h>
@@ -106,8 +107,13 @@ unsigned long long sched_clock(void)
 
 	/*
 	 * Fall back to jiffies if there's no TSC available:
+	 * ( But note that we still use it if the TSC is marked
+	 *   unstable. We do this because unlike Time Of Day,
+	 *   the scheduler clock tolerates small errors and it's
+	 *   very important for it to be as fast as the platform
+	 *   can achive it. )
 	 */
-	if (unlikely(!tsc_enabled))
+	if (unlikely(!tsc_enabled && !tsc_unstable))
 		/* No locking but a rare wrong value is not a big deal: */
 		return (jiffies_64 - INITIAL_JIFFIES) * (1000000000 / HZ);
 
@@ -277,6 +283,7 @@ static struct clocksource clocksource_tsc = {
 
 void mark_tsc_unstable(char *reason)
 {
+	sched_clock_unstable_event();
 	if (!tsc_unstable) {
 		tsc_unstable = 1;
 		tsc_enabled = 0;
