@@ -94,7 +94,7 @@ MODULE_PARM_DESC(poll_all_eqs,
 MODULE_PARM_DESC(static_rate,
 		 "set permanent static rate (default: disabled)");
 MODULE_PARM_DESC(scaling_code,
-		 "set scaling code (0: disabled, 1: enabled/default)");
+		 "set scaling code (0: disabled/default, 1: enabled)");
 
 spinlock_t ehca_qp_idr_lock;
 spinlock_t ehca_cq_idr_lock;
