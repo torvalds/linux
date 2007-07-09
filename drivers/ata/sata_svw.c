@@ -361,7 +361,7 @@ static const struct ata_port_info k2_port_info[] = {
 				  ATA_FLAG_MMIO | K2_FLAG_NO_ATAPI_DMA,
 		.pio_mask	= 0x1f,
 		.mwdma_mask	= 0x07,
-		.udma_mask	= 0x7f,
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &k2_sata_ops,
 	},
 	/* board_svw8 */
@@ -371,7 +371,7 @@ static const struct ata_port_info k2_port_info[] = {
 				  K2_FLAG_SATA_8_PORTS,
 		.pio_mask	= 0x1f,
 		.mwdma_mask	= 0x07,
-		.udma_mask	= 0x7f,
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &k2_sata_ops,
 	},
 };

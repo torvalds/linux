@@ -197,7 +197,7 @@ static int jmicron_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 
 		.pio_mask	= 0x1f,
 		.mwdma_mask	= 0x07,
-		.udma_mask 	= 0x3f,
+		.udma_mask 	= ATA_UDMA5,
 
 		.port_ops	= &jmicron_ops,
 	};

@@ -188,7 +188,7 @@ static struct ata_port_info adma_port_info[] = {
 				  ATA_FLAG_NO_LEGACY | ATA_FLAG_MMIO |
 				  ATA_FLAG_PIO_POLLING,
 		.pio_mask	= 0x10, /* pio4 */
-		.udma_mask	= 0x1f, /* udma0-4 */
+		.udma_mask	= ATA_UDMA4,
 		.port_ops	= &adma_ata_ops,
 	},
 };

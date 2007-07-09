@@ -99,7 +99,7 @@ static int netcell_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		   firmware deals with it */
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
-		.udma_mask 	= 0x3f, /* UDMA 133 */
+		.udma_mask 	= ATA_UDMA5, /* UDMA 133 */
 		.port_ops	= &netcell_ops,
 	};
 	const struct ata_port_info *port_info[] = { &info, NULL };
