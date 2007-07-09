@@ -146,6 +146,7 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 	spin_lock_init(&my_cq->spinlock);
 	spin_lock_init(&my_cq->cb_lock);
 	spin_lock_init(&my_cq->task_lock);
+	atomic_set(&my_cq->nr_events, 0);
 	init_waitqueue_head(&my_cq->wait_completion);
 	my_cq->ownpid = current->tgid;
 
@@ -303,16 +304,6 @@ create_cq_exit1:
 	return cq;
 }
 
-static int get_cq_nr_events(struct ehca_cq *my_cq)
-{
-	int ret;
-	unsigned long flags;
-	spin_lock_irqsave(&ehca_cq_idr_lock, flags);
-	ret = my_cq->nr_events;
-	spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
-	return ret;
-}
-
 int ehca_destroy_cq(struct ib_cq *cq)
 {
 	u64 h_ret;
@@ -339,17 +330,18 @@ int ehca_destroy_cq(struct ib_cq *cq)
 		}
 	}
 
+	/*
+	 * remove the CQ from the idr first to make sure
+	 * no more interrupt tasklets will touch this CQ
+	 */
 	spin_lock_irqsave(&ehca_cq_idr_lock, flags);
-	while (my_cq->nr_events) {
-		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
-		wait_event(my_cq->wait_completion, !get_cq_nr_events(my_cq));
-		spin_lock_irqsave(&ehca_cq_idr_lock, flags);
-		/* recheck nr_events to assure no cqe has just arrived */
-	}
-
 	idr_remove(&ehca_cq_idr, my_cq->token);
 	spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 
+	/* now wait until all pending events have completed */
+	wait_event(my_cq->wait_completion, !atomic_read(&my_cq->nr_events));
+
+	/* nobody's using our CQ any longer -- we can destroy it */
 	h_ret = hipz_h_destroy_cq(adapter_handle, my_cq, 0);
 	if (h_ret == H_R_STATE) {
 		/* cq in err: read err data and destroy it forcibly */

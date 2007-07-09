@@ -174,8 +174,8 @@ struct ehca_cq {
 	spinlock_t cb_lock;
 	struct hlist_head qp_hashtab[QP_HASHTAB_LEN];
 	struct list_head entry;
-	u32 nr_callbacks; /* #events assigned to cpu by scaling code */
-	u32 nr_events;    /* #events seen */
+	u32 nr_callbacks;   /* #events assigned to cpu by scaling code */
+	atomic_t nr_events; /* #events seen */
 	wait_queue_head_t wait_completion;
 	spinlock_t task_lock;
 	u32 ownpid;

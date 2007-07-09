@@ -5,6 +5,8 @@
  *
  *  Authors: Heiko J Schick <schickhj@de.ibm.com>
  *           Khadija Souissi <souissi@de.ibm.com>
+ *           Hoang-Nam Nguyen <hnguyen@de.ibm.com>
+ *           Joachim Fenkes <fenkes@de.ibm.com>
  *
  *  Copyright (c) 2005 IBM Corporation
  *
@@ -212,12 +214,17 @@ static void cq_event_callback(struct ehca_shca *shca,
 
 	spin_lock_irqsave(&ehca_cq_idr_lock, flags);
 	cq = idr_find(&ehca_cq_idr, token);
+	if (cq)
+		atomic_inc(&cq->nr_events);
 	spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 
 	if (!cq)
 		return;
 
 	ehca_error_data(shca, cq, cq->ipz_cq_handle.handle);
+
+	if (atomic_dec_and_test(&cq->nr_events))
+		wake_up(&cq->wait_completion);
 
 	return;
 }
@@ -414,25 +421,22 @@ static inline void process_eqe(struct ehca_shca *shca, struct ehca_eqe *eqe)
 		token = EHCA_BMASK_GET(EQE_CQ_TOKEN, eqe_value);
 		spin_lock_irqsave(&ehca_cq_idr_lock, flags);
 		cq = idr_find(&ehca_cq_idr, token);
+		if (cq)
+			atomic_inc(&cq->nr_events);
+		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 		if (cq == NULL) {
-			spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 			ehca_err(&shca->ib_device,
 				 "Invalid eqe for non-existing cq token=%x",
 				 token);
 			return;
 		}
 		reset_eq_pending(cq);
-		cq->nr_events++;
-		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 		if (ehca_scaling_code)
 			queue_comp_task(cq);
 		else {
 			comp_event_callback(cq);
-			spin_lock_irqsave(&ehca_cq_idr_lock, flags);
-			cq->nr_events--;
-			if (!cq->nr_events)
+			if (atomic_dec_and_test(&cq->nr_events))
 				wake_up(&cq->wait_completion);
-			spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 		}
 	} else {
 		ehca_dbg(&shca->ib_device, "Got non completion event");
@@ -478,15 +482,15 @@ void ehca_process_eq(struct ehca_shca *shca, int is_irq)
 			token = EHCA_BMASK_GET(EQE_CQ_TOKEN, eqe_value);
 			spin_lock(&ehca_cq_idr_lock);
 			eqe_cache[eqe_cnt].cq = idr_find(&ehca_cq_idr, token);
+			if (eqe_cache[eqe_cnt].cq)
+				atomic_inc(&eqe_cache[eqe_cnt].cq->nr_events);
+			spin_unlock(&ehca_cq_idr_lock);
 			if (!eqe_cache[eqe_cnt].cq) {
-				spin_unlock(&ehca_cq_idr_lock);
 				ehca_err(&shca->ib_device,
 					 "Invalid eqe for non-existing cq "
 					 "token=%x", token);
 				continue;
 			}
-			eqe_cache[eqe_cnt].cq->nr_events++;
-			spin_unlock(&ehca_cq_idr_lock);
 		} else
 			eqe_cache[eqe_cnt].cq = NULL;
 		eqe_cnt++;
@@ -517,11 +521,8 @@ void ehca_process_eq(struct ehca_shca *shca, int is_irq)
 			else {
 				struct ehca_cq *cq = eq->eqe_cache[i].cq;
 				comp_event_callback(cq);
-				spin_lock(&ehca_cq_idr_lock);
-				cq->nr_events--;
-				if (!cq->nr_events)
+				if (atomic_dec_and_test(&cq->nr_events))
 					wake_up(&cq->wait_completion);
-				spin_unlock(&ehca_cq_idr_lock);
 			}
 		} else {
 			ehca_dbg(&shca->ib_device, "Got non completion event");
@@ -621,13 +622,10 @@ static void run_comp_task(struct ehca_cpu_comp_task* cct)
 	while (!list_empty(&cct->cq_list)) {
 		cq = list_entry(cct->cq_list.next, struct ehca_cq, entry);
 		spin_unlock_irqrestore(&cct->task_lock, flags);
-		comp_event_callback(cq);
 
-		spin_lock_irqsave(&ehca_cq_idr_lock, flags);
-		cq->nr_events--;
-		if (!cq->nr_events)
+		comp_event_callback(cq);
+		if (atomic_dec_and_test(&cq->nr_events))
 			wake_up(&cq->wait_completion);
-		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
 
 		spin_lock_irqsave(&cct->task_lock, flags);
 		spin_lock(&cq->task_lock);
