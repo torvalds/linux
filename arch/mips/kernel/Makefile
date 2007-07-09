@@ -49,7 +49,6 @@ obj-$(CONFIG_I8259)		+= i8259.o
 obj-$(CONFIG_IRQ_CPU)		+= irq_cpu.o
 obj-$(CONFIG_IRQ_CPU_RM7K)	+= irq-rm7000.o
 obj-$(CONFIG_IRQ_CPU_RM9K)	+= irq-rm9000.o
-obj-$(CONFIG_IRQ_MV64340)	+= irq-mv6434x.o
 obj-$(CONFIG_MIPS_BOARDS_GEN)	+= irq-msc01.o
 
 obj-$(CONFIG_32BIT)		+= scall32-o32.o

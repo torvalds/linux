@@ -365,13 +365,6 @@ cflags-$(CONFIG_QEMU)		+= -Iinclude/asm-mips/mach-qemu
 load-$(CONFIG_QEMU)		+= 0xffffffff80010000
 
 #
-# Momentum Ocelot-3
-#
-core-$(CONFIG_MOMENCO_OCELOT_3) 	+= arch/mips/momentum/ocelot_3/
-cflags-$(CONFIG_MOMENCO_OCELOT_3)	+= -Iinclude/asm-mips/mach-ocelot3
-load-$(CONFIG_MOMENCO_OCELOT_3) 	+= 0xffffffff80100000
-
-#
 # Basler eXcite
 #
 core-$(CONFIG_BASLER_EXCITE)	+= arch/mips/basler/excite/

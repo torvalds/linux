@@ -13,10 +13,6 @@
 #ifndef __ASM_MV643XX_H
 #define __ASM_MV643XX_H
 
-#ifdef __mips__
-#include <asm/addrspace.h>
-#include <asm/marvell.h>
-#endif
 #include <asm/types.h>
 
 /****************************************/
