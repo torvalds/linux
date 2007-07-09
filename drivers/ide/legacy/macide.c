@@ -77,15 +77,6 @@ int macide_ack_intr(ide_hwif_t* hwif)
 	return 0;
 }
 
-#ifdef CONFIG_BLK_DEV_MAC_MEDIABAY
-static void macide_mediabay_interrupt(int irq, void *dev_id)
-{
-	int state = baboon->mb_status & 0x04;
-
-	printk(KERN_INFO "macide: media bay %s detected\n", state? "removal":"insertion");
-}
-#endif
-
 /*
  * Probe for a Macintosh IDE interface
  */
@@ -128,11 +119,6 @@ void macide_init(void)
 			ide_drive_t *drive = &ide_hwifs[index].drives[0];
 			drive->capacity64 = drive->cyl*drive->head*drive->sect;
 
-#ifdef CONFIG_BLK_DEV_MAC_MEDIABAY
-			request_irq(IRQ_BABOON_2, macide_mediabay_interrupt,
-					IRQ_FLG_FAST, "mediabay",
-					macide_mediabay_interrupt);
-#endif
 		}
 		break;
 
