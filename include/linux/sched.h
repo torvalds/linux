@@ -788,13 +788,6 @@ struct mempolicy;
 struct pipe_inode_info;
 struct uts_namespace;
 
-enum sleep_type {
-	SLEEP_NORMAL,
-	SLEEP_NONINTERACTIVE,
-	SLEEP_INTERACTIVE,
-	SLEEP_INTERRUPTED,
-};
-
 struct prio_array;
 struct rq;
 struct sched_domain;
@@ -905,7 +898,6 @@ struct task_struct {
 	unsigned long sleep_avg;
 	unsigned long long timestamp, last_ran;
 	unsigned long long sched_time; /* sched_clock time spent running */
-	enum sleep_type sleep_type;
 
 	unsigned int policy;
 	cpumask_t cpus_allowed;
