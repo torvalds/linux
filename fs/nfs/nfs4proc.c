@@ -3275,6 +3275,11 @@ static struct rpc_task *nfs4_do_unlck(struct file_lock *fl,
 {
 	struct nfs4_unlockdata *data;
 
+	/* Ensure this is an unlock - when canceling a lock, the
+	 * canceled lock is passed in, and it won't be an unlock.
+	 */
+	fl->fl_type = F_UNLCK;
+
 	data = nfs4_alloc_unlockdata(fl, ctx, lsp, seqid);
 	if (data == NULL) {
 		nfs_free_seqid(seqid);
