@@ -1054,6 +1054,17 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 		 "ehca_qp=%p qp_num=%x <VALID STATE CHANGE> qp_state_xsit=%x",
 		 my_qp, ibqp->qp_num, statetrans);
 
+	/* eHCA2 rev2 and higher require the SEND_GRH_FLAG to be set
+	 * in non-LL UD QPs.
+	 */
+	if ((my_qp->qp_type == IB_QPT_UD) &&
+	    (my_qp->ext_type != EQPT_LLQP) &&
+	    (statetrans == IB_QPST_INIT2RTR) &&
+	    (shca->hw_level >= 0x22)) {
+		update_mask |= EHCA_BMASK_SET(MQPCB_MASK_SEND_GRH_FLAG, 1);
+		mqpcb->send_grh_flag = 1;
+	}
+
 	/* sqe -> rts: set purge bit of bad wqe before actual trans */
 	if ((my_qp->qp_type == IB_QPT_UD ||
 	     my_qp->qp_type == IB_QPT_GSI ||
