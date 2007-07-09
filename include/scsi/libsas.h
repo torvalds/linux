@@ -674,4 +674,6 @@ extern void sas_target_destroy(struct scsi_target *);
 extern int sas_slave_alloc(struct scsi_device *);
 extern int sas_ioctl(struct scsi_device *sdev, int cmd, void __user *arg);
 
+extern int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
+			   struct request *req);
 #endif /* _SASLIB_H_ */

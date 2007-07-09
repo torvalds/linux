@@ -23,6 +23,7 @@
  */
 
 #include <linux/scatterlist.h>
+#include <linux/blkdev.h>
 
 #include "sas_internal.h"
 
@@ -1972,3 +1973,50 @@ out:
 	return res;
 }
 #endif
+
+int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
+		    struct request *req)
+{
+	struct domain_device *dev;
+	int ret, type = rphy->identify.device_type;
+	struct request *rsp = req->next_rq;
+
+	if (!rsp) {
+		printk("%s: space for a smp response is missing\n",
+		       __FUNCTION__);
+		return -EINVAL;
+	}
+
+	/* seems aic94xx doesn't support */
+	if (!rphy) {
+		printk("%s: can we send a smp request to a host?\n",
+		       __FUNCTION__);
+		return -EINVAL;
+	}
+
+	if (type != SAS_EDGE_EXPANDER_DEVICE &&
+	    type != SAS_FANOUT_EXPANDER_DEVICE) {
+		printk("%s: can we send a smp request to a device?\n",
+		       __FUNCTION__);
+		return -EINVAL;
+	}
+
+	dev = sas_find_dev_by_rphy(rphy);
+	if (!dev) {
+		printk("%s: fail to find a domain_device?\n", __FUNCTION__);
+		return -EINVAL;
+	}
+
+	/* do we need to support multiple segments? */
+	if (req->bio->bi_vcnt > 1 || rsp->bio->bi_vcnt > 1) {
+		printk("%s: multiple segments req %u %u, rsp %u %u\n",
+		       __FUNCTION__, req->bio->bi_vcnt, req->data_len,
+		       rsp->bio->bi_vcnt, rsp->data_len);
+		return -EINVAL;
+	}
+
+	ret = smp_execute_task(dev, bio_data(req->bio), req->data_len,
+			       bio_data(rsp->bio), rsp->data_len);
+
+	return ret;
+}
