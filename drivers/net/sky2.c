@@ -893,24 +893,18 @@ static inline struct sky2_rx_le *sky2_next_rx(struct sky2_port *sky2)
 	return le;
 }
 
-/* Return high part of DMA address (could be 32 or 64 bit) */
-static inline u32 high32(dma_addr_t a)
-{
-	return sizeof(a) > sizeof(u32) ? (a >> 16) >> 16 : 0;
-}
-
 /* Build description to hardware for one receive segment */
 static void sky2_rx_add(struct sky2_port *sky2,  u8 op,
 			dma_addr_t map, unsigned len)
 {
 	struct sky2_rx_le *le;
-	u32 hi = high32(map);
+	u32 hi = upper_32_bits(map);
 
 	if (sky2->rx_addr64 != hi) {
 		le = sky2_next_rx(sky2);
 		le->addr = cpu_to_le32(hi);
 		le->opcode = OP_ADDR64 | HW_OWNER;
-		sky2->rx_addr64 = high32(map + len);
+		sky2->rx_addr64 = upper_32_bits(map + len);
 	}
 
 	le = sky2_next_rx(sky2);
@@ -1424,14 +1418,15 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 	len = skb_headlen(skb);
 	mapping = pci_map_single(hw->pdev, skb->data, len, PCI_DMA_TODEVICE);
-	addr64 = high32(mapping);
+	addr64 = upper_32_bits(mapping);
 
 	/* Send high bits if changed or crosses boundary */
-	if (addr64 != sky2->tx_addr64 || high32(mapping + len) != sky2->tx_addr64) {
+	if (addr64 != sky2->tx_addr64 ||
+	    upper_32_bits(mapping + len) != sky2->tx_addr64) {
 		le = get_tx_le(sky2);
 		le->addr = cpu_to_le32(addr64);
 		le->opcode = OP_ADDR64 | HW_OWNER;
-		sky2->tx_addr64 = high32(mapping + len);
+		sky2->tx_addr64 = upper_32_bits(mapping + len);
 	}
 
 	/* Check for TCP Segmentation Offload */
@@ -1511,7 +1506,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 		mapping = pci_map_page(hw->pdev, frag->page, frag->page_offset,
 				       frag->size, PCI_DMA_TODEVICE);
-		addr64 = high32(mapping);
+		addr64 = upper_32_bits(mapping);
 		if (addr64 != sky2->tx_addr64) {
 			le = get_tx_le(sky2);
 			le->addr = cpu_to_le32(addr64);
