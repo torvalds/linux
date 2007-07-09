@@ -2118,7 +2118,7 @@ config SKGE
 	  will be called skge.  This is recommended.
 
 config SKY2
-	tristate "SysKonnect Yukon2 support (EXPERIMENTAL)"
+	tristate "SysKonnect Yukon2 support"
 	depends on PCI
 	select CRC32
 	---help---
