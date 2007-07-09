@@ -1157,11 +1157,6 @@ static inline int rt_task(struct task_struct *p)
 	return rt_prio(p->prio);
 }
 
-static inline int batch_task(struct task_struct *p)
-{
-	return p->policy == SCHED_BATCH;
-}
-
 static inline pid_t process_group(struct task_struct *tsk)
 {
 	return tsk->signal->pgrp;
