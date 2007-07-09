@@ -93,9 +93,29 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 			break;
 		}
 
-		if (sts_entry->iscsiFlags &
-		    (ISCSI_FLAG_RESIDUAL_OVER|ISCSI_FLAG_RESIDUAL_UNDER))
+		if (sts_entry->iscsiFlags & ISCSI_FLAG_RESIDUAL_OVER) {
+			cmd->result = DID_ERROR << 16;
+			break;
+		}
+
+		if (sts_entry->iscsiFlags &ISCSI_FLAG_RESIDUAL_UNDER) {
 			scsi_set_resid(cmd, residual);
+			if (!scsi_status && ((scsi_bufflen(cmd) - residual) <
+				cmd->underflow)) {
+
+				cmd->result = DID_ERROR << 16;
+
+				DEBUG2(printk("scsi%ld:%d:%d:%d: %s: "
+					"Mid-layer Data underrun0, "
+					"xferlen = 0x%x, "
+					"residual = 0x%x\n", ha->host_no,
+					cmd->device->channel,
+					cmd->device->id,
+					cmd->device->lun, __func__,
+					scsi_bufflen(cmd), residual));
+				break;
+			}
+		}
 
 		cmd->result = DID_OK << 16 | scsi_status;
 
@@ -164,7 +184,8 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 
 	case SCS_DATA_UNDERRUN:
 	case SCS_DATA_OVERRUN:
-		if (sts_entry->iscsiFlags & ISCSI_FLAG_RESIDUAL_OVER) {
+		if ((sts_entry->iscsiFlags & ISCSI_FLAG_RESIDUAL_OVER) ||
+			(sts_entry->completionStatus == SCS_DATA_OVERRUN)) {
 			DEBUG2(printk("scsi%ld:%d:%d:%d: %s: " "Data overrun, "
 				      "residual = 0x%x\n", ha->host_no,
 				      cmd->device->channel, cmd->device->id,
@@ -174,21 +195,7 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 			break;
 		}
 
-		if ((sts_entry->iscsiFlags & ISCSI_FLAG_RESIDUAL_UNDER) == 0) {
-			/*
-			 * Firmware detected a SCSI transport underrun
-			 * condition
-			 */
-			scsi_set_resid(cmd, residual);
-			DEBUG2(printk("scsi%ld:%d:%d:%d: %s: UNDERRUN status "
-				      "detected, xferlen = 0x%x, residual = "
-				      "0x%x\n",
-				      ha->host_no, cmd->device->channel,
-				      cmd->device->id,
-				      cmd->device->lun, __func__,
-				      scsi_bufflen(cmd),
-				      residual));
-		}
+		scsi_set_resid(cmd, residual);
 
 		/*
 		 * If there is scsi_status, it takes precedense over
@@ -245,13 +252,13 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 				 * will return DID_ERROR.
 				 */
 				DEBUG2(printk("scsi%ld:%d:%d:%d: %s: "
-					      "Mid-layer Data underrun, "
-					      "xferlen = 0x%x, "
-					      "residual = 0x%x\n", ha->host_no,
-					      cmd->device->channel,
-					      cmd->device->id,
-					      cmd->device->lun, __func__,
-					      scsi_bufflen(cmd), residual));
+					"Mid-layer Data underrun1, "
+					"xferlen = 0x%x, "
+					"residual = 0x%x\n", ha->host_no,
+					cmd->device->channel,
+					cmd->device->id,
+					cmd->device->lun, __func__,
+					scsi_bufflen(cmd), residual));
 
 				cmd->result = DID_ERROR << 16;
 			} else {
