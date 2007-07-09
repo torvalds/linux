@@ -67,7 +67,6 @@ struct partition {
 #include <linux/string.h>
 #include <linux/fs.h>
 #include <linux/workqueue.h>
-#include <linux/bsg.h>
 
 struct partition {
 	unsigned char boot_ind;		/* 0x80 - active */
@@ -92,7 +91,6 @@ struct hd_struct {
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 	int make_it_fail;
 #endif
-	struct bsg_class_device bsg_dev;
 };
 
 #define GENHD_FL_REMOVABLE			1

@@ -14,6 +14,7 @@
 #include <linux/bio.h>
 #include <linux/module.h>
 #include <linux/stringify.h>
+#include <linux/bsg.h>
 
 #include <asm/scatterlist.h>
 
@@ -470,6 +471,10 @@ struct request_queue
 	unsigned int		bi_size;
 
 	struct mutex		sysfs_lock;
+
+#if defined(CONFIG_BLK_DEV_BSG)
+	struct bsg_class_device bsg_dev;
+#endif
 };
 
 #define QUEUE_FLAG_CLUSTER	0	/* cluster several segments into 1 */

@@ -47,16 +47,16 @@ struct bsg_class_device {
 	struct class_device *class_dev;
 	struct device *dev;
 	int minor;
-	struct gendisk *disk;
 	struct list_head list;
+	struct request_queue *queue;
 };
 
-extern int bsg_register_disk(struct gendisk *);
-extern void bsg_unregister_disk(struct gendisk *);
+extern int bsg_register_queue(struct request_queue *, char *);
+extern void bsg_unregister_queue(struct request_queue *);
 #else
 struct bsg_class_device { };
-#define bsg_register_disk(disk)		(0)
-#define bsg_unregister_disk(disk)	do { } while (0)
+#define bsg_register_queue(disk, name)		(0)
+#define bsg_unregister_queue(disk)	do { } while (0)
 #endif
 
 #endif /* __KERNEL__ */

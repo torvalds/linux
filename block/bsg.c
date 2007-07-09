@@ -34,7 +34,6 @@
 static char bsg_version[] = "block layer sg (bsg) 0.4";
 
 struct bsg_device {
-	struct gendisk *disk;
 	request_queue_t *queue;
 	spinlock_t lock;
 	struct list_head busy_list;
@@ -46,7 +45,7 @@ struct bsg_device {
 	int done_cmds;
 	wait_queue_head_t wq_done;
 	wait_queue_head_t wq_free;
-	char name[BDEVNAME_SIZE];
+	char name[BUS_ID_SIZE];
 	int max_queue;
 	unsigned long flags;
 };
@@ -375,7 +374,7 @@ static void bsg_add_command(struct bsg_device *bd, request_queue_t *q,
 	dprintk("%s: queueing rq %p, bc %p\n", bd->name, rq, bc);
 
 	rq->end_io_data = bc;
-	blk_execute_rq_nowait(q, bd->disk, rq, 1, bsg_rq_end_io);
+	blk_execute_rq_nowait(q, NULL, rq, 1, bsg_rq_end_io);
 }
 
 static inline struct bsg_command *bsg_next_done_cmd(struct bsg_device *bd)
@@ -741,7 +740,7 @@ out:
 }
 
 static struct bsg_device *bsg_add_device(struct inode *inode,
-					 struct gendisk *disk,
+					 struct request_queue *rq,
 					 struct file *file)
 {
 	struct bsg_device *bd = NULL;
@@ -753,17 +752,16 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 	if (!bd)
 		return ERR_PTR(-ENOMEM);
 
-	bd->disk = disk;
-	bd->queue = disk->queue;
-	kobject_get(&disk->queue->kobj);
+	bd->queue = rq;
+	kobject_get(&rq->kobj);
 	bsg_set_block(bd, file);
 
 	atomic_set(&bd->ref_count, 1);
 	bd->minor = iminor(inode);
 	mutex_lock(&bsg_mutex);
-	hlist_add_head(&bd->dev_list,&bsg_device_list[bsg_list_idx(bd->minor)]);
+	hlist_add_head(&bd->dev_list, &bsg_device_list[bsg_list_idx(bd->minor)]);
 
-	strncpy(bd->name, disk->disk_name, sizeof(bd->name) - 1);
+	strncpy(bd->name, rq->bsg_dev.class_dev->class_id, sizeof(bd->name) - 1);
 	dprintk("bound to <%s>, max queue %d\n",
 		format_dev_t(buf, inode->i_rdev), bd->max_queue);
 
@@ -817,7 +815,7 @@ static struct bsg_device *bsg_get_device(struct inode *inode, struct file *file)
 	if (!bcd)
 		return ERR_PTR(-ENODEV);
 
-	return bsg_add_device(inode, bcd->disk, file);
+	return bsg_add_device(inode, bcd->queue, file);
 }
 
 static int bsg_open(struct inode *inode, struct file *file)
@@ -900,7 +898,7 @@ bsg_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	case SG_EMULATED_HOST:
 	case SCSI_IOCTL_SEND_COMMAND: {
 		void __user *uarg = (void __user *) arg;
-		return scsi_cmd_ioctl(file, bd->queue, bd->disk, cmd, uarg);
+		return scsi_cmd_ioctl(file, bd->queue, NULL, cmd, uarg);
 	}
 	case SG_IO: {
 		struct request *rq;
@@ -915,7 +913,7 @@ bsg_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			return PTR_ERR(rq);
 
 		bio = rq->bio;
-		blk_execute_rq(bd->queue, bd->disk, rq, 0);
+		blk_execute_rq(bd->queue, NULL, rq, 0);
 		blk_complete_sgv4_hdr_rq(rq, &hdr, bio);
 
 		if (copy_to_user(uarg, &hdr, sizeof(hdr)))
@@ -945,24 +943,23 @@ static struct file_operations bsg_fops = {
 	.owner		=	THIS_MODULE,
 };
 
-void bsg_unregister_disk(struct gendisk *disk)
+void bsg_unregister_queue(struct request_queue *q)
 {
-	struct bsg_class_device *bcd = &disk->bsg_dev;
+	struct bsg_class_device *bcd = &q->bsg_dev;
 
 	if (!bcd->class_dev)
 		return;
 
 	mutex_lock(&bsg_mutex);
-	sysfs_remove_link(&bcd->disk->queue->kobj, "bsg");
+	sysfs_remove_link(&q->kobj, "bsg");
 	class_device_destroy(bsg_class, MKDEV(BSG_MAJOR, bcd->minor));
 	bcd->class_dev = NULL;
 	list_del_init(&bcd->list);
 	mutex_unlock(&bsg_mutex);
 }
 
-int bsg_register_disk(struct gendisk *disk)
+int bsg_register_queue(struct request_queue *q, char *name)
 {
-	request_queue_t *q = disk->queue;
 	struct bsg_class_device *bcd;
 	dev_t dev;
 
@@ -972,7 +969,7 @@ int bsg_register_disk(struct gendisk *disk)
 	if (!q->request_fn)
 		return 0;
 
-	bcd = &disk->bsg_dev;
+	bcd = &q->bsg_dev;
 	memset(bcd, 0, sizeof(*bcd));
 	INIT_LIST_HEAD(&bcd->list);
 
@@ -980,8 +977,8 @@ int bsg_register_disk(struct gendisk *disk)
 	dev = MKDEV(BSG_MAJOR, bsg_device_nr);
 	bcd->minor = bsg_device_nr;
 	bsg_device_nr++;
-	bcd->disk = disk;
-	bcd->class_dev = class_device_create(bsg_class, NULL, dev, bcd->dev, "%s", disk->disk_name);
+	bcd->queue = q;
+	bcd->class_dev = class_device_create(bsg_class, NULL, dev, bcd->dev, "%s", name);
 	if (!bcd->class_dev)
 		goto err;
 	list_add_tail(&bcd->list, &bsg_class_list);
