@@ -1163,32 +1163,6 @@ int setup_profiling_timer(unsigned int multiplier)
 	return -EINVAL;
 }
 
-static void __init smp_tune_scheduling(void)
-{
-	unsigned int smallest = ~0U;
-	int i;
-
-	for (i = 0; i < NR_CPUS; i++) {
-		unsigned int val = cpu_data(i).ecache_size;
-
-		if (val && val < smallest)
-			smallest = val;
-	}
-
-	/* Any value less than 256K is nonsense.  */
-	if (smallest < (256U * 1024U))
-		smallest = 256 * 1024;
-
-	max_cache_size = smallest;
-
-	if (smallest < 1U * 1024U * 1024U)
-		printk(KERN_INFO "Using max_cache_size of %uKB\n",
-		       smallest / 1024U);
-	else
-		printk(KERN_INFO "Using max_cache_size of %uMB\n",
-		       smallest / 1024U / 1024U);
-}
-
 /* Constrain the number of cpus to max_cpus.  */
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
@@ -1206,7 +1180,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	}
 
 	cpu_data(boot_cpu_id).udelay_val = loops_per_jiffy;
-	smp_tune_scheduling();
 }
 
 void __devinit smp_prepare_boot_cpu(void)

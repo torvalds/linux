@@ -754,12 +754,6 @@ struct sched_domain {
 extern int partition_sched_domains(cpumask_t *partition1,
 				    cpumask_t *partition2);
 
-/*
- * Maximum cache size the migration-costs auto-tuning code will
- * search from:
- */
-extern unsigned int max_cache_size;
-
 #endif	/* CONFIG_SMP */
 
 
