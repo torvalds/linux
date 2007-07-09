@@ -2189,16 +2189,6 @@ static void mos7840_set_termios(struct usb_serial_port *port,
 		return;
 	}
 
-	/* check that they really want us to change something */
-	if (old_termios) {
-		if ((cflag == old_termios->c_cflag) &&
-		    (RELEVANT_IFLAG(tty->termios->c_iflag) ==
-		     RELEVANT_IFLAG(old_termios->c_iflag))) {
-			dbg("%s\n", "Nothing to change");
-			return;
-		}
-	}
-
 	dbg("%s - clfag %08x iflag %08x", __FUNCTION__,
 	    tty->termios->c_cflag, RELEVANT_IFLAG(tty->termios->c_iflag));
 
@@ -2255,30 +2245,6 @@ static int mos7840_get_lsr_info(struct moschip_port *mos7840_port,
 	if (copy_to_user(value, &result, sizeof(int)))
 		return -EFAULT;
 	return 0;
-}
-
-/*****************************************************************************
- * mos7840_get_bytes_avail - get number of bytes available
- *
- * Purpose: Let user call ioctl to get the count of number of bytes available.
- *****************************************************************************/
-
-static int mos7840_get_bytes_avail(struct moschip_port *mos7840_port,
-				   unsigned int __user *value)
-{
-	unsigned int result = 0;
-	struct tty_struct *tty = mos7840_port->port->tty;
-
-	if (!tty)
-		return -ENOIOCTLCMD;
-
-	result = tty->read_cnt;
-
-	dbg("%s(%d) = %d", __FUNCTION__, mos7840_port->port->number, result);
-	if (copy_to_user(value, &result, sizeof(int)))
-		return -EFAULT;
-
-	return -ENOIOCTLCMD;
 }
 
 /*****************************************************************************
@@ -2429,8 +2395,6 @@ static int mos7840_ioctl(struct usb_serial_port *port, struct file *file,
 	struct async_icount cprev;
 	struct serial_icounter_struct icount;
 	int mosret = 0;
-	int retval;
-	struct tty_ldisc *ld;
 
 	if (mos7840_port_paranoia_check(port, __FUNCTION__)) {
 		dbg("%s", "Invalid port \n");
@@ -2448,42 +2412,6 @@ static int mos7840_ioctl(struct usb_serial_port *port, struct file *file,
 
 	switch (cmd) {
 		/* return number of bytes available */
-
-	case TIOCINQ:
-		dbg("%s (%d) TIOCINQ", __FUNCTION__, port->number);
-		return mos7840_get_bytes_avail(mos7840_port, argp);
-
-	case TIOCOUTQ:
-		dbg("%s (%d) TIOCOUTQ", __FUNCTION__, port->number);
-		return put_user(tty->driver->chars_in_buffer ?
-				tty->driver->chars_in_buffer(tty) : 0,
-				(int __user *)arg);
-
-	case TCFLSH:
-		retval = tty_check_change(tty);
-		if (retval)
-			return retval;
-
-		ld = tty_ldisc_ref(tty);
-		switch (arg) {
-		case TCIFLUSH:
-			if (ld && ld->flush_buffer)
-				ld->flush_buffer(tty);
-			break;
-		case TCIOFLUSH:
-			if (ld && ld->flush_buffer)
-				ld->flush_buffer(tty);
-			/* fall through */
-		case TCOFLUSH:
-			if (tty->driver->flush_buffer)
-				tty->driver->flush_buffer(tty);
-			break;
-		default:
-			tty_ldisc_deref(ld);
-			return -EINVAL;
-		}
-		tty_ldisc_deref(ld);
-		return 0;
 
 	case TIOCSERGETLSR:
 		dbg("%s (%d) TIOCSERGETLSR", __FUNCTION__, port->number);
