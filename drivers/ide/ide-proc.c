@@ -156,7 +156,7 @@ static int __ide_add_setting(ide_drive_t *drive, const char *name, int rw, int d
 {
 	ide_settings_t **p = (ide_settings_t **) &drive->settings, *setting = NULL;
 
-	down(&ide_setting_sem);
+	mutex_lock(&ide_setting_mtx);
 	while ((*p) && strcmp((*p)->name, name) < 0)
 		p = &((*p)->next);
 	if ((setting = kzalloc(sizeof(*setting), GFP_KERNEL)) == NULL)
@@ -177,10 +177,10 @@ static int __ide_add_setting(ide_drive_t *drive, const char *name, int rw, int d
 	if (auto_remove)
 		setting->auto_remove = 1;
 	*p = setting;
-	up(&ide_setting_sem);
+	mutex_unlock(&ide_setting_mtx);
 	return 0;
 abort:
-	up(&ide_setting_sem);
+	mutex_unlock(&ide_setting_mtx);
 	kfree(setting);
 	return -1;
 }
@@ -224,7 +224,7 @@ static void __ide_remove_setting (ide_drive_t *drive, char *name)
  *
  *	Automatically remove all the driver specific settings for this
  *	drive. This function may not be called from IRQ context. The
- *	caller must hold ide_setting_sem.
+ *	caller must hold ide_setting_mtx.
  */
 
 static void auto_remove_settings (ide_drive_t *drive)
@@ -269,7 +269,7 @@ static ide_settings_t *ide_find_setting_by_name(ide_drive_t *drive, char *name)
  *	@setting: drive setting
  *
  *	Read a drive setting and return the value. The caller
- *	must hold the ide_setting_sem when making this call.
+ *	must hold the ide_setting_mtx when making this call.
  *
  *	BUGS: the data return and error are the same return value
  *	so an error -EINVAL and true return of the same value cannot
@@ -306,7 +306,7 @@ static int ide_read_setting(ide_drive_t *drive, ide_settings_t *setting)
  *	@val: value
  *
  *	Write a drive setting if it is possible. The caller
- *	must hold the ide_setting_sem when making this call.
+ *	must hold the ide_setting_mtx when making this call.
  *
  *	BUGS: the data return and error are the same return value
  *	so an error -EINVAL and true return of the same value cannot
@@ -367,7 +367,7 @@ static int set_xfer_rate (ide_drive_t *drive, int arg)
  *	@drive: drive being configured
  *
  *	Add the generic parts of the system settings to the /proc files.
- *	The caller must not be holding the ide_setting_sem.
+ *	The caller must not be holding the ide_setting_mtx.
  */
 
 void ide_add_generic_settings (ide_drive_t *drive)
@@ -408,7 +408,7 @@ static int proc_ide_read_settings
 
 	proc_ide_settings_warn();
 
-	down(&ide_setting_sem);
+	mutex_lock(&ide_setting_mtx);
 	out += sprintf(out, "name\t\t\tvalue\t\tmin\t\tmax\t\tmode\n");
 	out += sprintf(out, "----\t\t\t-----\t\t---\t\t---\t\t----\n");
 	while(setting) {
@@ -428,7 +428,7 @@ static int proc_ide_read_settings
 		setting = setting->next;
 	}
 	len = out - page;
-	up(&ide_setting_sem);
+	mutex_unlock(&ide_setting_mtx);
 	PROC_IDE_READ_RETURN(page,start,off,count,eof,len);
 }
 
@@ -508,16 +508,16 @@ static int proc_ide_write_settings(struct file *file, const char __user *buffer,
 				++p;
 			}
 
-			down(&ide_setting_sem);
+			mutex_lock(&ide_setting_mtx);
 			setting = ide_find_setting_by_name(drive, name);
 			if (!setting)
 			{
-				up(&ide_setting_sem);
+				mutex_unlock(&ide_setting_mtx);
 				goto parse_error;
 			}
 			if (for_real)
 				ide_write_setting(drive, setting, val * setting->div_factor / setting->mul_factor);
-			up(&ide_setting_sem);
+			mutex_unlock(&ide_setting_mtx);
 		}
 	} while (!for_real++);
 	free_page((unsigned long)buf);
@@ -705,7 +705,7 @@ EXPORT_SYMBOL(ide_proc_register_driver);
  *	Clean up the driver specific /proc files and IDE settings
  *	for a given drive.
  *
- *	Takes ide_setting_sem and ide_lock.
+ *	Takes ide_setting_mtx and ide_lock.
  *	Caller must hold none of the locks.
  */
 
@@ -715,10 +715,10 @@ void ide_proc_unregister_driver(ide_drive_t *drive, ide_driver_t *driver)
 
 	ide_remove_proc_entries(drive->proc, driver->proc);
 
-	down(&ide_setting_sem);
+	mutex_lock(&ide_setting_mtx);
 	spin_lock_irqsave(&ide_lock, flags);
 	/*
-	 * ide_setting_sem protects the settings list
+	 * ide_setting_mtx protects the settings list
 	 * ide_lock protects the use of settings
 	 *
 	 * so we need to hold both, ide_settings_sem because we want to
@@ -726,11 +726,11 @@ void ide_proc_unregister_driver(ide_drive_t *drive, ide_driver_t *driver)
 	 * a setting out that is being used.
 	 *
 	 * OTOH both ide_{read,write}_setting are only ever used under
-	 * ide_setting_sem.
+	 * ide_setting_mtx.
 	 */
 	auto_remove_settings(drive);
 	spin_unlock_irqrestore(&ide_lock, flags);
-	up(&ide_setting_sem);
+	mutex_unlock(&ide_setting_mtx);
 }
 
 EXPORT_SYMBOL(ide_proc_unregister_driver);
