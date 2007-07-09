@@ -166,8 +166,7 @@ prism54_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_master(pdev);
 
 	/* enable MWI */
-	if (!pci_set_mwi(pdev))
-		printk(KERN_INFO "%s: pci_set_mwi(pdev) succeeded\n", DRV_NAME);
+	pci_try_set_mwi(pdev);
 
 	/* setup the network device interface and its structure */
 	if (!(ndev = islpci_setup(pdev))) {

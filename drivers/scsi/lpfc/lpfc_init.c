@@ -1578,10 +1578,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	INIT_LIST_HEAD(&phba->fc_nodes);
 
 	pci_set_master(pdev);
-	retval = pci_set_mwi(pdev);
-	if (retval)
-		dev_printk(KERN_WARNING, &pdev->dev,
-			   "Warning: pci_set_mwi returned %d\n", retval);
+	pci_try_set_mwi(pdev);
 
 	if (pci_set_dma_mask(phba->pcidev, DMA_64BIT_MASK) != 0)
 		if (pci_set_dma_mask(phba->pcidev, DMA_32BIT_MASK) != 0)

@@ -1186,6 +1186,11 @@ int pci_set_mwi(struct pci_dev *dev)
 	return 0;
 }
 
+int pci_try_set_mwi(struct pci_dev *dev)
+{
+	return 0;
+}
+
 void pci_clear_mwi(struct pci_dev *dev)
 {
 }
@@ -1242,9 +1247,7 @@ pci_set_cacheline_size(struct pci_dev *dev)
  * pci_set_mwi - enables memory-write-invalidate PCI transaction
  * @dev: the PCI device for which MWI is enabled
  *
- * Enables the Memory-Write-Invalidate transaction in %PCI_COMMAND,
- * and then calls @pcibios_set_mwi to do the needed arch specific
- * operations or a generic mwi-prep function.
+ * Enables the Memory-Write-Invalidate transaction in %PCI_COMMAND.
  *
  * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
  */
@@ -1260,12 +1263,28 @@ pci_set_mwi(struct pci_dev *dev)
 
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
 	if (! (cmd & PCI_COMMAND_INVALIDATE)) {
-		pr_debug("PCI: Enabling Mem-Wr-Inval for device %s\n", pci_name(dev));
+		pr_debug("PCI: Enabling Mem-Wr-Inval for device %s\n",
+			pci_name(dev));
 		cmd |= PCI_COMMAND_INVALIDATE;
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
 	
 	return 0;
+}
+
+/**
+ * pci_try_set_mwi - enables memory-write-invalidate PCI transaction
+ * @dev: the PCI device for which MWI is enabled
+ *
+ * Enables the Memory-Write-Invalidate transaction in %PCI_COMMAND.
+ * Callers are not required to check the return value.
+ *
+ * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
+ */
+int pci_try_set_mwi(struct pci_dev *dev)
+{
+	int rc = pci_set_mwi(dev);
+	return rc;
 }
 
 /**
@@ -1600,6 +1619,7 @@ EXPORT_SYMBOL(pci_release_selected_regions);
 EXPORT_SYMBOL(pci_request_selected_regions);
 EXPORT_SYMBOL(pci_set_master);
 EXPORT_SYMBOL(pci_set_mwi);
+EXPORT_SYMBOL(pci_try_set_mwi);
 EXPORT_SYMBOL(pci_clear_mwi);
 EXPORT_SYMBOL_GPL(pci_intx);
 EXPORT_SYMBOL(pci_set_dma_mask);
