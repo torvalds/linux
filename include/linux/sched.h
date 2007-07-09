@@ -639,12 +639,11 @@ static inline int sched_info_on(void)
 #endif
 }
 
-enum idle_type
-{
-	SCHED_IDLE,
-	NOT_IDLE,
-	NEWLY_IDLE,
-	MAX_IDLE_TYPES
+enum cpu_idle_type {
+	CPU_IDLE,
+	CPU_NOT_IDLE,
+	CPU_NEWLY_IDLE,
+	CPU_MAX_IDLE_TYPES
 };
 
 /*
@@ -719,14 +718,14 @@ struct sched_domain {
 
 #ifdef CONFIG_SCHEDSTATS
 	/* load_balance() stats */
-	unsigned long lb_cnt[MAX_IDLE_TYPES];
-	unsigned long lb_failed[MAX_IDLE_TYPES];
-	unsigned long lb_balanced[MAX_IDLE_TYPES];
-	unsigned long lb_imbalance[MAX_IDLE_TYPES];
-	unsigned long lb_gained[MAX_IDLE_TYPES];
-	unsigned long lb_hot_gained[MAX_IDLE_TYPES];
-	unsigned long lb_nobusyg[MAX_IDLE_TYPES];
-	unsigned long lb_nobusyq[MAX_IDLE_TYPES];
+	unsigned long lb_cnt[CPU_MAX_IDLE_TYPES];
+	unsigned long lb_failed[CPU_MAX_IDLE_TYPES];
+	unsigned long lb_balanced[CPU_MAX_IDLE_TYPES];
+	unsigned long lb_imbalance[CPU_MAX_IDLE_TYPES];
+	unsigned long lb_gained[CPU_MAX_IDLE_TYPES];
+	unsigned long lb_hot_gained[CPU_MAX_IDLE_TYPES];
+	unsigned long lb_nobusyg[CPU_MAX_IDLE_TYPES];
+	unsigned long lb_nobusyq[CPU_MAX_IDLE_TYPES];
 
 	/* Active load balancing */
 	unsigned long alb_cnt;

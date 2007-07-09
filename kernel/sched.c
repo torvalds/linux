@@ -496,12 +496,12 @@ static int show_schedstat(struct seq_file *seq, void *v)
 		/* domain-specific stats */
 		preempt_disable();
 		for_each_domain(cpu, sd) {
-			enum idle_type itype;
+			enum cpu_idle_type itype;
 			char mask_str[NR_CPUS];
 
 			cpumask_scnprintf(mask_str, NR_CPUS, sd->span);
 			seq_printf(seq, "domain%d %s", dcnt++, mask_str);
-			for (itype = SCHED_IDLE; itype < MAX_IDLE_TYPES;
+			for (itype = CPU_IDLE; itype < CPU_MAX_IDLE_TYPES;
 					itype++) {
 				seq_printf(seq, " %lu %lu %lu %lu %lu %lu %lu "
 						"%lu",
@@ -2208,7 +2208,7 @@ static void pull_task(struct rq *src_rq, struct prio_array *src_array,
  */
 static
 int can_migrate_task(struct task_struct *p, struct rq *rq, int this_cpu,
-		     struct sched_domain *sd, enum idle_type idle,
+		     struct sched_domain *sd, enum cpu_idle_type idle,
 		     int *all_pinned)
 {
 	/*
@@ -2254,7 +2254,7 @@ int can_migrate_task(struct task_struct *p, struct rq *rq, int this_cpu,
  */
 static int move_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		      unsigned long max_nr_move, unsigned long max_load_move,
-		      struct sched_domain *sd, enum idle_type idle,
+		      struct sched_domain *sd, enum cpu_idle_type idle,
 		      int *all_pinned)
 {
 	int idx, pulled = 0, pinned = 0, this_best_prio, best_prio,
@@ -2372,7 +2372,7 @@ out:
  */
 static struct sched_group *
 find_busiest_group(struct sched_domain *sd, int this_cpu,
-		   unsigned long *imbalance, enum idle_type idle, int *sd_idle,
+		   unsigned long *imbalance, enum cpu_idle_type idle, int *sd_idle,
 		   cpumask_t *cpus, int *balance)
 {
 	struct sched_group *busiest = NULL, *this = NULL, *group = sd->groups;
@@ -2391,9 +2391,9 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 	max_load = this_load = total_load = total_pwr = 0;
 	busiest_load_per_task = busiest_nr_running = 0;
 	this_load_per_task = this_nr_running = 0;
-	if (idle == NOT_IDLE)
+	if (idle == CPU_NOT_IDLE)
 		load_idx = sd->busy_idx;
-	else if (idle == NEWLY_IDLE)
+	else if (idle == CPU_NEWLY_IDLE)
 		load_idx = sd->newidle_idx;
 	else
 		load_idx = sd->idle_idx;
@@ -2477,7 +2477,7 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		 * Busy processors will not participate in power savings
 		 * balance.
 		 */
- 		if (idle == NOT_IDLE || !(sd->flags & SD_POWERSAVINGS_BALANCE))
+ 		if (idle == CPU_NOT_IDLE || !(sd->flags & SD_POWERSAVINGS_BALANCE))
  			goto group_next;
 
 		/*
@@ -2639,7 +2639,7 @@ small_imbalance:
 
 out_balanced:
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
-	if (idle == NOT_IDLE || !(sd->flags & SD_POWERSAVINGS_BALANCE))
+	if (idle == CPU_NOT_IDLE || !(sd->flags & SD_POWERSAVINGS_BALANCE))
 		goto ret;
 
 	if (this == group_leader && group_leader != group_min) {
@@ -2656,7 +2656,7 @@ ret:
  * find_busiest_queue - find the busiest runqueue among the cpus in group.
  */
 static struct rq *
-find_busiest_queue(struct sched_group *group, enum idle_type idle,
+find_busiest_queue(struct sched_group *group, enum cpu_idle_type idle,
 		   unsigned long imbalance, cpumask_t *cpus)
 {
 	struct rq *busiest = NULL, *rq;
@@ -2698,7 +2698,7 @@ static inline unsigned long minus_1_or_zero(unsigned long n)
  * tasks if there is an imbalance.
  */
 static int load_balance(int this_cpu, struct rq *this_rq,
-			struct sched_domain *sd, enum idle_type idle,
+			struct sched_domain *sd, enum cpu_idle_type idle,
 			int *balance)
 {
 	int nr_moved, all_pinned = 0, active_balance = 0, sd_idle = 0;
@@ -2712,9 +2712,9 @@ static int load_balance(int this_cpu, struct rq *this_rq,
 	 * When power savings policy is enabled for the parent domain, idle
 	 * sibling can pick up load irrespective of busy siblings. In this case,
 	 * let the state of idle sibling percolate up as IDLE, instead of
-	 * portraying it as NOT_IDLE.
+	 * portraying it as CPU_NOT_IDLE.
 	 */
-	if (idle != NOT_IDLE && sd->flags & SD_SHARE_CPUPOWER &&
+	if (idle != CPU_NOT_IDLE && sd->flags & SD_SHARE_CPUPOWER &&
 	    !test_sd_parent(sd, SD_POWERSAVINGS_BALANCE))
 		sd_idle = 1;
 
@@ -2848,7 +2848,7 @@ out_one_pinned:
  * Check this_cpu to ensure it is balanced within domain. Attempt to move
  * tasks if there is an imbalance.
  *
- * Called from schedule when this_rq is about to become idle (NEWLY_IDLE).
+ * Called from schedule when this_rq is about to become idle (CPU_NEWLY_IDLE).
  * this_rq is locked.
  */
 static int
@@ -2865,31 +2865,31 @@ load_balance_newidle(int this_cpu, struct rq *this_rq, struct sched_domain *sd)
 	 * When power savings policy is enabled for the parent domain, idle
 	 * sibling can pick up load irrespective of busy siblings. In this case,
 	 * let the state of idle sibling percolate up as IDLE, instead of
-	 * portraying it as NOT_IDLE.
+	 * portraying it as CPU_NOT_IDLE.
 	 */
 	if (sd->flags & SD_SHARE_CPUPOWER &&
 	    !test_sd_parent(sd, SD_POWERSAVINGS_BALANCE))
 		sd_idle = 1;
 
-	schedstat_inc(sd, lb_cnt[NEWLY_IDLE]);
+	schedstat_inc(sd, lb_cnt[CPU_NEWLY_IDLE]);
 redo:
-	group = find_busiest_group(sd, this_cpu, &imbalance, NEWLY_IDLE,
+	group = find_busiest_group(sd, this_cpu, &imbalance, CPU_NEWLY_IDLE,
 				   &sd_idle, &cpus, NULL);
 	if (!group) {
-		schedstat_inc(sd, lb_nobusyg[NEWLY_IDLE]);
+		schedstat_inc(sd, lb_nobusyg[CPU_NEWLY_IDLE]);
 		goto out_balanced;
 	}
 
-	busiest = find_busiest_queue(group, NEWLY_IDLE, imbalance,
+	busiest = find_busiest_queue(group, CPU_NEWLY_IDLE, imbalance,
 				&cpus);
 	if (!busiest) {
-		schedstat_inc(sd, lb_nobusyq[NEWLY_IDLE]);
+		schedstat_inc(sd, lb_nobusyq[CPU_NEWLY_IDLE]);
 		goto out_balanced;
 	}
 
 	BUG_ON(busiest == this_rq);
 
-	schedstat_add(sd, lb_imbalance[NEWLY_IDLE], imbalance);
+	schedstat_add(sd, lb_imbalance[CPU_NEWLY_IDLE], imbalance);
 
 	nr_moved = 0;
 	if (busiest->nr_running > 1) {
@@ -2897,7 +2897,7 @@ redo:
 		double_lock_balance(this_rq, busiest);
 		nr_moved = move_tasks(this_rq, this_cpu, busiest,
 					minus_1_or_zero(busiest->nr_running),
-					imbalance, sd, NEWLY_IDLE, NULL);
+					imbalance, sd, CPU_NEWLY_IDLE, NULL);
 		spin_unlock(&busiest->lock);
 
 		if (!nr_moved) {
@@ -2908,7 +2908,7 @@ redo:
 	}
 
 	if (!nr_moved) {
-		schedstat_inc(sd, lb_failed[NEWLY_IDLE]);
+		schedstat_inc(sd, lb_failed[CPU_NEWLY_IDLE]);
 		if (!sd_idle && sd->flags & SD_SHARE_CPUPOWER &&
 		    !test_sd_parent(sd, SD_POWERSAVINGS_BALANCE))
 			return -1;
@@ -2918,7 +2918,7 @@ redo:
 	return nr_moved;
 
 out_balanced:
-	schedstat_inc(sd, lb_balanced[NEWLY_IDLE]);
+	schedstat_inc(sd, lb_balanced[CPU_NEWLY_IDLE]);
 	if (!sd_idle && sd->flags & SD_SHARE_CPUPOWER &&
 	    !test_sd_parent(sd, SD_POWERSAVINGS_BALANCE))
 		return -1;
@@ -3003,7 +3003,7 @@ static void active_load_balance(struct rq *busiest_rq, int busiest_cpu)
 		schedstat_inc(sd, alb_cnt);
 
 		if (move_tasks(target_rq, target_cpu, busiest_rq, 1,
-			       RTPRIO_TO_LOAD_WEIGHT(100), sd, SCHED_IDLE,
+			       RTPRIO_TO_LOAD_WEIGHT(100), sd, CPU_IDLE,
 			       NULL))
 			schedstat_inc(sd, alb_pushed);
 		else
@@ -3120,7 +3120,7 @@ static DEFINE_SPINLOCK(balancing);
  *
  * Balancing parameters are set up in arch_init_sched_domains.
  */
-static inline void rebalance_domains(int cpu, enum idle_type idle)
+static inline void rebalance_domains(int cpu, enum cpu_idle_type idle)
 {
 	int balance = 1;
 	struct rq *rq = cpu_rq(cpu);
@@ -3134,7 +3134,7 @@ static inline void rebalance_domains(int cpu, enum idle_type idle)
 			continue;
 
 		interval = sd->balance_interval;
-		if (idle != SCHED_IDLE)
+		if (idle != CPU_IDLE)
 			interval *= sd->busy_factor;
 
 		/* scale ms to jiffies */
@@ -3154,7 +3154,7 @@ static inline void rebalance_domains(int cpu, enum idle_type idle)
 				 * longer idle, or one of our SMT siblings is
 				 * not idle.
 				 */
-				idle = NOT_IDLE;
+				idle = CPU_NOT_IDLE;
 			}
 			sd->last_balance = jiffies;
 		}
@@ -3184,7 +3184,7 @@ static void run_rebalance_domains(struct softirq_action *h)
 {
 	int local_cpu = smp_processor_id();
 	struct rq *local_rq = cpu_rq(local_cpu);
-	enum idle_type idle = local_rq->idle_at_tick ? SCHED_IDLE : NOT_IDLE;
+	enum cpu_idle_type idle = local_rq->idle_at_tick ? CPU_IDLE : CPU_NOT_IDLE;
 
 	rebalance_domains(local_cpu, idle);
 
@@ -3210,7 +3210,7 @@ static void run_rebalance_domains(struct softirq_action *h)
 			if (need_resched())
 				break;
 
-			rebalance_domains(balance_cpu, SCHED_IDLE);
+			rebalance_domains(balance_cpu, CPU_IDLE);
 
 			rq = cpu_rq(balance_cpu);
 			if (time_after(local_rq->next_balance, rq->next_balance))
