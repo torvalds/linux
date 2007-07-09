@@ -5018,6 +5018,11 @@ void show_state_filter(unsigned long state_filter)
 		debug_show_all_locks();
 }
 
+void __cpuinit init_idle_bootup_task(struct task_struct *idle)
+{
+	/* nothing yet */
+}
+
 /**
  * init_idle - set up an idle thread for a given CPU
  * @idle: task in question
