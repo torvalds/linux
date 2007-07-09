@@ -167,7 +167,7 @@ static struct dst_ops ipv4_dst_ops = {
 
 #define ECN_OR_COST(class)	TC_PRIO_##class
 
-__u8 ip_tos2prio[16] = {
+const __u8 ip_tos2prio[16] = {
 	TC_PRIO_BESTEFFORT,
 	ECN_OR_COST(FILLER),
 	TC_PRIO_BESTEFFORT,

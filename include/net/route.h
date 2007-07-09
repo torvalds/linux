@@ -135,7 +135,7 @@ static inline void ip_rt_put(struct rtable * rt)
 
 #define IPTOS_RT_MASK	(IPTOS_TOS_MASK & ~3)
 
-extern __u8 ip_tos2prio[16];
+extern const __u8 ip_tos2prio[16];
 
 static inline char rt_tos2priority(u8 tos)
 {
