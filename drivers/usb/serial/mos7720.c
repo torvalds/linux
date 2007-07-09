@@ -1238,16 +1238,6 @@ static void mos7720_set_termios(struct usb_serial_port *port,
 		return;
 	}
 
-	/* check that they really want us to change something */
-	if (old_termios) {
-		if ((cflag == old_termios->c_cflag) &&
-		    (RELEVANT_IFLAG(tty->termios->c_iflag) ==
-		     RELEVANT_IFLAG(old_termios->c_iflag))) {
-			dbg("Nothing to change");
-			return;
-		}
-	}
-
 	dbg("%s - clfag %08x iflag %08x", __FUNCTION__,
 	    tty->termios->c_cflag,
 	    RELEVANT_IFLAG(tty->termios->c_iflag));
