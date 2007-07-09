@@ -29,17 +29,29 @@
 #include <linux/dma-mapping.h>
 
 /**
- * enum dma_event - resource PNP/power managment events
+ * enum dma_state - resource PNP/power managment state
  * @DMA_RESOURCE_SUSPEND: DMA device going into low power state
  * @DMA_RESOURCE_RESUME: DMA device returning to full power
- * @DMA_RESOURCE_ADDED: DMA device added to the system
+ * @DMA_RESOURCE_AVAILABLE: DMA device available to the system
  * @DMA_RESOURCE_REMOVED: DMA device removed from the system
  */
-enum dma_event {
+enum dma_state {
 	DMA_RESOURCE_SUSPEND,
 	DMA_RESOURCE_RESUME,
-	DMA_RESOURCE_ADDED,
+	DMA_RESOURCE_AVAILABLE,
 	DMA_RESOURCE_REMOVED,
+};
+
+/**
+ * enum dma_state_client - state of the channel in the client
+ * @DMA_ACK: client would like to use, or was using this channel
+ * @DMA_DUP: client has already seen this channel, or is not using this channel
+ * @DMA_NAK: client does not want to see any more channels
+ */
+enum dma_state_client {
+	DMA_ACK,
+	DMA_DUP,
+	DMA_NAK,
 };
 
 /**
@@ -104,7 +116,6 @@ struct dma_chan_percpu {
 
 /**
  * struct dma_chan - devices supply DMA channels, clients use them
- * @client: ptr to the client user of this chan, will be %NULL when unused
  * @device: ptr to the dma device who supplies this channel, always !%NULL
  * @cookie: last cookie value returned to client
  * @chan_id: channel ID for sysfs
@@ -112,12 +123,10 @@ struct dma_chan_percpu {
  * @refcount: kref, used in "bigref" slow-mode
  * @slow_ref: indicates that the DMA channel is free
  * @rcu: the DMA channel's RCU head
- * @client_node: used to add this to the client chan list
  * @device_node: used to add this to the device chan list
  * @local: per-cpu pointer to a struct dma_chan_percpu
  */
 struct dma_chan {
-	struct dma_client *client;
 	struct dma_device *device;
 	dma_cookie_t cookie;
 
@@ -129,10 +138,10 @@ struct dma_chan {
 	int slow_ref;
 	struct rcu_head rcu;
 
-	struct list_head client_node;
 	struct list_head device_node;
 	struct dma_chan_percpu *local;
 };
+
 
 void dma_chan_cleanup(struct kref *kref);
 
@@ -158,26 +167,31 @@ static inline void dma_chan_put(struct dma_chan *chan)
 
 /*
  * typedef dma_event_callback - function pointer to a DMA event callback
+ * For each channel added to the system this routine is called for each client.
+ * If the client would like to use the channel it returns '1' to signal (ack)
+ * the dmaengine core to take out a reference on the channel and its
+ * corresponding device.  A client must not 'ack' an available channel more
+ * than once.  When a channel is removed all clients are notified.  If a client
+ * is using the channel it must 'ack' the removal.  A client must not 'ack' a
+ * removed channel more than once.
+ * @client - 'this' pointer for the client context
+ * @chan - channel to be acted upon
+ * @state - available or removed
  */
-typedef void (*dma_event_callback) (struct dma_client *client,
-		struct dma_chan *chan, enum dma_event event);
+struct dma_client;
+typedef enum dma_state_client (*dma_event_callback) (struct dma_client *client,
+		struct dma_chan *chan, enum dma_state state);
 
 /**
  * struct dma_client - info on the entity making use of DMA services
  * @event_callback: func ptr to call when something happens
- * @chan_count: number of chans allocated
- * @chans_desired: number of chans requested. Can be +/- chan_count
- * @lock: protects access to the channels list
- * @channels: the list of DMA channels allocated
+ * @cap_mask: only return channels that satisfy the requested capabilities
+ *  a value of zero corresponds to any capability
  * @global_node: list_head for global dma_client_list
  */
 struct dma_client {
 	dma_event_callback	event_callback;
-	unsigned int		chan_count;
-	unsigned int		chans_desired;
-
-	spinlock_t		lock;
-	struct list_head	channels;
+	dma_cap_mask_t		cap_mask;
 	struct list_head	global_node;
 };
 
@@ -285,10 +299,9 @@ struct dma_device {
 
 /* --- public DMA engine API --- */
 
-struct dma_client *dma_async_client_register(dma_event_callback event_callback);
+void dma_async_client_register(struct dma_client *client);
 void dma_async_client_unregister(struct dma_client *client);
-void dma_async_client_chan_request(struct dma_client *client,
-		unsigned int number);
+void dma_async_client_chan_request(struct dma_client *client);
 dma_cookie_t dma_async_memcpy_buf_to_buf(struct dma_chan *chan,
 	void *dest, void *src, size_t len);
 dma_cookie_t dma_async_memcpy_buf_to_pg(struct dma_chan *chan,
@@ -298,7 +311,6 @@ dma_cookie_t dma_async_memcpy_pg_to_pg(struct dma_chan *chan,
 	unsigned int src_off, size_t len);
 void dma_async_tx_descriptor_init(struct dma_async_tx_descriptor *tx,
 	struct dma_chan *chan);
-
 
 static inline void
 async_tx_ack(struct dma_async_tx_descriptor *tx)

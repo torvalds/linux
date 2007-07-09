@@ -30,9 +30,6 @@
 
 #define IOAT_LOW_COMPLETION_MASK	0xffffffc0
 
-extern struct list_head dma_device_list;
-extern struct list_head dma_client_list;
-
 /**
  * struct ioat_device - internal representation of a IOAT device
  * @pdev: PCI-Express device

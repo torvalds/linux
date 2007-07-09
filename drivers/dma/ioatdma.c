@@ -72,7 +72,6 @@ static int enumerate_dma_channels(struct ioat_device *device)
 		INIT_LIST_HEAD(&ioat_chan->used_desc);
 		/* This should be made common somewhere in dmaengine.c */
 		ioat_chan->common.device = &device->common;
-		ioat_chan->common.client = NULL;
 		list_add_tail(&ioat_chan->common.device_node,
 		              &device->common.channels);
 	}

@@ -37,11 +37,11 @@
  * Each device has a channels list, which runs unlocked but is never modified
  * once the device is registered, it's just setup by the driver.
  *
- * Each client has a channels list, it's only modified under the client->lock
- * and in an RCU callback, so it's safe to read under rcu_read_lock().
+ * Each client is responsible for keeping track of the channels it uses.  See
+ * the definition of dma_event_callback in dmaengine.h.
  *
  * Each device has a kref, which is initialized to 1 when the device is
- * registered. A kref_put is done for each class_device registered.  When the
+ * registered. A kref_get is done for each class_device registered.  When the
  * class_device is released, the coresponding kref_put is done in the release
  * method. Every time one of the device's channels is allocated to a client,
  * a kref_get occurs.  When the channel is freed, the coresponding kref_put
@@ -51,10 +51,12 @@
  * references to finish.
  *
  * Each channel has an open-coded implementation of Rusty Russell's "bigref,"
- * with a kref and a per_cpu local_t.  A single reference is set when on an
- * ADDED event, and removed with a REMOVE event.  Net DMA client takes an
- * extra reference per outstanding transaction.  The relase function does a
- * kref_put on the device. -ChrisL
+ * with a kref and a per_cpu local_t.  A dma_chan_get is called when a client
+ * signals that it wants to use a channel, and dma_chan_put is called when
+ * a channel is removed or a client using it is unregesitered.  A client can
+ * take extra references per outstanding transaction, as is the case with
+ * the NET DMA client.  The release function does a kref_put on the device.
+ *	-ChrisL, DanW
  */
 
 #include <linux/init.h>
@@ -102,8 +104,19 @@ static ssize_t show_bytes_transferred(struct class_device *cd, char *buf)
 static ssize_t show_in_use(struct class_device *cd, char *buf)
 {
 	struct dma_chan *chan = container_of(cd, struct dma_chan, class_dev);
+	int in_use = 0;
 
-	return sprintf(buf, "%d\n", (chan->client ? 1 : 0));
+	if (unlikely(chan->slow_ref) &&
+		atomic_read(&chan->refcount.refcount) > 1)
+		in_use = 1;
+	else {
+		if (local_read(&(per_cpu_ptr(chan->local,
+			get_cpu())->refcount)) > 0)
+			in_use = 1;
+		put_cpu();
+	}
+
+	return sprintf(buf, "%d\n", in_use);
 }
 
 static struct class_device_attribute dma_class_attrs[] = {
@@ -129,42 +142,53 @@ static struct class dma_devclass = {
 
 /* --- client and device registration --- */
 
+#define dma_chan_satisfies_mask(chan, mask) \
+	__dma_chan_satisfies_mask((chan), &(mask))
+static int
+__dma_chan_satisfies_mask(struct dma_chan *chan, dma_cap_mask_t *want)
+{
+	dma_cap_mask_t has;
+
+	bitmap_and(has.bits, want->bits, chan->device->cap_mask.bits,
+		DMA_TX_TYPE_END);
+	return bitmap_equal(want->bits, has.bits, DMA_TX_TYPE_END);
+}
+
 /**
- * dma_client_chan_alloc - try to allocate a channel to a client
+ * dma_client_chan_alloc - try to allocate channels to a client
  * @client: &dma_client
  *
  * Called with dma_list_mutex held.
  */
-static struct dma_chan *dma_client_chan_alloc(struct dma_client *client)
+static void dma_client_chan_alloc(struct dma_client *client)
 {
 	struct dma_device *device;
 	struct dma_chan *chan;
-	unsigned long flags;
 	int desc;	/* allocated descriptor count */
+	enum dma_state_client ack;
 
-	/* Find a channel, any DMA engine will do */
-	list_for_each_entry(device, &dma_device_list, global_node) {
+	/* Find a channel */
+	list_for_each_entry(device, &dma_device_list, global_node)
 		list_for_each_entry(chan, &device->channels, device_node) {
-			if (chan->client)
+			if (!dma_chan_satisfies_mask(chan, client->cap_mask))
 				continue;
 
 			desc = chan->device->device_alloc_chan_resources(chan);
 			if (desc >= 0) {
-				kref_get(&device->refcount);
-				kref_init(&chan->refcount);
-				chan->slow_ref = 0;
-				INIT_RCU_HEAD(&chan->rcu);
-				chan->client = client;
-				spin_lock_irqsave(&client->lock, flags);
-				list_add_tail_rcu(&chan->client_node,
-				                  &client->channels);
-				spin_unlock_irqrestore(&client->lock, flags);
-				return chan;
+				ack = client->event_callback(client,
+						chan,
+						DMA_RESOURCE_AVAILABLE);
+
+				/* we are done once this client rejects
+				 * an available resource
+				 */
+				if (ack == DMA_ACK) {
+					dma_chan_get(chan);
+					kref_get(&device->refcount);
+				} else if (ack == DMA_NAK)
+					return;
 			}
 		}
-	}
-
-	return NULL;
 }
 
 enum dma_status dma_sync_wait(struct dma_chan *chan, dma_cookie_t cookie)
@@ -193,7 +217,6 @@ void dma_chan_cleanup(struct kref *kref)
 {
 	struct dma_chan *chan = container_of(kref, struct dma_chan, refcount);
 	chan->device->device_free_chan_resources(chan);
-	chan->client = NULL;
 	kref_put(&chan->device->refcount, dma_async_device_cleanup);
 }
 EXPORT_SYMBOL(dma_chan_cleanup);
@@ -209,7 +232,7 @@ static void dma_chan_free_rcu(struct rcu_head *rcu)
 	kref_put(&chan->refcount, dma_chan_cleanup);
 }
 
-static void dma_client_chan_free(struct dma_chan *chan)
+static void dma_chan_release(struct dma_chan *chan)
 {
 	atomic_add(0x7FFFFFFF, &chan->refcount.refcount);
 	chan->slow_ref = 1;
@@ -217,41 +240,42 @@ static void dma_client_chan_free(struct dma_chan *chan)
 }
 
 /**
- * dma_chans_rebalance - reallocate channels to clients
- *
- * When the number of DMA channel in the system changes,
- * channels need to be rebalanced among clients.
+ * dma_chans_notify_available - broadcast available channels to the clients
  */
-static void dma_chans_rebalance(void)
+static void dma_clients_notify_available(void)
 {
 	struct dma_client *client;
-	struct dma_chan *chan;
-	unsigned long flags;
+
+	mutex_lock(&dma_list_mutex);
+
+	list_for_each_entry(client, &dma_client_list, global_node)
+		dma_client_chan_alloc(client);
+
+	mutex_unlock(&dma_list_mutex);
+}
+
+/**
+ * dma_chans_notify_available - tell the clients that a channel is going away
+ * @chan: channel on its way out
+ */
+static void dma_clients_notify_removed(struct dma_chan *chan)
+{
+	struct dma_client *client;
+	enum dma_state_client ack;
 
 	mutex_lock(&dma_list_mutex);
 
 	list_for_each_entry(client, &dma_client_list, global_node) {
-		while (client->chans_desired > client->chan_count) {
-			chan = dma_client_chan_alloc(client);
-			if (!chan)
-				break;
-			client->chan_count++;
-			client->event_callback(client,
-	                                       chan,
-	                                       DMA_RESOURCE_ADDED);
-		}
-		while (client->chans_desired < client->chan_count) {
-			spin_lock_irqsave(&client->lock, flags);
-			chan = list_entry(client->channels.next,
-			                  struct dma_chan,
-			                  client_node);
-			list_del_rcu(&chan->client_node);
-			spin_unlock_irqrestore(&client->lock, flags);
-			client->chan_count--;
-			client->event_callback(client,
-			                       chan,
-			                       DMA_RESOURCE_REMOVED);
-			dma_client_chan_free(chan);
+		ack = client->event_callback(client, chan,
+				DMA_RESOURCE_REMOVED);
+
+		/* client was holding resources for this channel so
+		 * free it
+		 */
+		if (ack == DMA_ACK) {
+			dma_chan_put(chan);
+			kref_put(&chan->device->refcount,
+				dma_async_device_cleanup);
 		}
 	}
 
@@ -259,28 +283,14 @@ static void dma_chans_rebalance(void)
 }
 
 /**
- * dma_async_client_register - allocate and register a &dma_client
- * @event_callback: callback for notification of channel addition/removal
+ * dma_async_client_register - register a &dma_client
+ * @client: ptr to a client structure with valid 'event_callback' and 'cap_mask'
  */
-struct dma_client *dma_async_client_register(dma_event_callback event_callback)
+void dma_async_client_register(struct dma_client *client)
 {
-	struct dma_client *client;
-
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
-	if (!client)
-		return NULL;
-
-	INIT_LIST_HEAD(&client->channels);
-	spin_lock_init(&client->lock);
-	client->chans_desired = 0;
-	client->chan_count = 0;
-	client->event_callback = event_callback;
-
 	mutex_lock(&dma_list_mutex);
 	list_add_tail(&client->global_node, &dma_client_list);
 	mutex_unlock(&dma_list_mutex);
-
-	return client;
 }
 EXPORT_SYMBOL(dma_async_client_register);
 
@@ -292,40 +302,42 @@ EXPORT_SYMBOL(dma_async_client_register);
  */
 void dma_async_client_unregister(struct dma_client *client)
 {
+	struct dma_device *device;
 	struct dma_chan *chan;
+	enum dma_state_client ack;
 
 	if (!client)
 		return;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(chan, &client->channels, client_node)
-		dma_client_chan_free(chan);
-	rcu_read_unlock();
-
 	mutex_lock(&dma_list_mutex);
+	/* free all channels the client is holding */
+	list_for_each_entry(device, &dma_device_list, global_node)
+		list_for_each_entry(chan, &device->channels, device_node) {
+			ack = client->event_callback(client, chan,
+				DMA_RESOURCE_REMOVED);
+
+			if (ack == DMA_ACK) {
+				dma_chan_put(chan);
+				kref_put(&chan->device->refcount,
+					dma_async_device_cleanup);
+			}
+		}
+
 	list_del(&client->global_node);
 	mutex_unlock(&dma_list_mutex);
-
-	kfree(client);
-	dma_chans_rebalance();
 }
 EXPORT_SYMBOL(dma_async_client_unregister);
 
 /**
- * dma_async_client_chan_request - request DMA channels
- * @client: &dma_client
- * @number: count of DMA channels requested
- *
- * Clients call dma_async_client_chan_request() to specify how many
- * DMA channels they need, 0 to free all currently allocated.
- * The resulting allocations/frees are indicated to the client via the
- * event callback.
+ * dma_async_client_chan_request - send all available channels to the
+ * client that satisfy the capability mask
+ * @client - requester
  */
-void dma_async_client_chan_request(struct dma_client *client,
-			unsigned int number)
+void dma_async_client_chan_request(struct dma_client *client)
 {
-	client->chans_desired = number;
-	dma_chans_rebalance();
+	mutex_lock(&dma_list_mutex);
+	dma_client_chan_alloc(client);
+	mutex_unlock(&dma_list_mutex);
 }
 EXPORT_SYMBOL(dma_async_client_chan_request);
 
@@ -386,13 +398,16 @@ int dma_async_device_register(struct dma_device *device)
 		}
 
 		kref_get(&device->refcount);
+		kref_init(&chan->refcount);
+		chan->slow_ref = 0;
+		INIT_RCU_HEAD(&chan->rcu);
 	}
 
 	mutex_lock(&dma_list_mutex);
 	list_add_tail(&device->global_node, &dma_device_list);
 	mutex_unlock(&dma_list_mutex);
 
-	dma_chans_rebalance();
+	dma_clients_notify_available();
 
 	return 0;
 
@@ -428,26 +443,16 @@ static void dma_async_device_cleanup(struct kref *kref)
 void dma_async_device_unregister(struct dma_device *device)
 {
 	struct dma_chan *chan;
-	unsigned long flags;
 
 	mutex_lock(&dma_list_mutex);
 	list_del(&device->global_node);
 	mutex_unlock(&dma_list_mutex);
 
 	list_for_each_entry(chan, &device->channels, device_node) {
-		if (chan->client) {
-			spin_lock_irqsave(&chan->client->lock, flags);
-			list_del(&chan->client_node);
-			chan->client->chan_count--;
-			spin_unlock_irqrestore(&chan->client->lock, flags);
-			chan->client->event_callback(chan->client,
-			                             chan,
-			                             DMA_RESOURCE_REMOVED);
-			dma_client_chan_free(chan);
-		}
+		dma_clients_notify_removed(chan);
 		class_device_unregister(&chan->class_dev);
+		dma_chan_release(chan);
 	}
-	dma_chans_rebalance();
 
 	kref_put(&device->refcount, dma_async_device_cleanup);
 	wait_for_completion(&device->done);
