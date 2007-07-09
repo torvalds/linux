@@ -1180,8 +1180,7 @@ static int sky2_rx_start(struct sky2_port *sky2)
 	rx_set_checksum(sky2);
 
 	/* Space needed for frame data + headers rounded up */
-	size = ALIGN(sky2->netdev->mtu + ETH_HLEN + VLAN_HLEN, 8)
-		+ 8;
+	size = roundup(sky2->netdev->mtu + ETH_HLEN + VLAN_HLEN, 8);
 
 	/* Stopping point for hardware truncation */
 	thresh = (size - 8) / sizeof(u32);
