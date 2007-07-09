@@ -83,7 +83,7 @@ static struct pci_ops rtas_pci_ops = {
 };
 
 
-void __init efika_pcisetup(void)
+static void __init efika_pcisetup(void)
 {
 	const int *bus_range;
 	int len;
@@ -144,7 +144,7 @@ void __init efika_pcisetup(void)
 }
 
 #else
-void __init efika_pcisetup(void)
+static void __init efika_pcisetup(void)
 {}
 #endif
 
