@@ -857,16 +857,19 @@ void ide_dma_lost_irq (ide_drive_t *drive)
 
 EXPORT_SYMBOL(ide_dma_lost_irq);
 
-int __ide_dma_timeout (ide_drive_t *drive)
+void ide_dma_timeout (ide_drive_t *drive)
 {
-	printk(KERN_ERR "%s: timeout waiting for DMA\n", drive->name);
-	if (HWIF(drive)->ide_dma_test_irq(drive))
-		return 0;
+	ide_hwif_t *hwif = HWIF(drive);
 
-	return HWIF(drive)->ide_dma_end(drive);
+	printk(KERN_ERR "%s: timeout waiting for DMA\n", drive->name);
+
+	if (hwif->ide_dma_test_irq(drive))
+		return;
+
+	hwif->ide_dma_end(drive);
 }
 
-EXPORT_SYMBOL(__ide_dma_timeout);
+EXPORT_SYMBOL(ide_dma_timeout);
 
 /*
  * Needed for allowing full modular support of ide-driver
@@ -1017,8 +1020,8 @@ void ide_setup_dma (ide_hwif_t *hwif, unsigned long dma_base, unsigned int num_p
 		hwif->ide_dma_end = &__ide_dma_end;
 	if (!hwif->ide_dma_test_irq)
 		hwif->ide_dma_test_irq = &__ide_dma_test_irq;
-	if (!hwif->ide_dma_timeout)
-		hwif->ide_dma_timeout = &__ide_dma_timeout;
+	if (!hwif->dma_timeout)
+		hwif->dma_timeout = &ide_dma_timeout;
 	if (!hwif->dma_lost_irq)
 		hwif->dma_lost_irq = &ide_dma_lost_irq;
 

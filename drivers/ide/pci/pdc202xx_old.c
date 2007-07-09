@@ -277,11 +277,14 @@ static void pdc202xx_dma_lost_irq(ide_drive_t *drive)
 	ide_dma_lost_irq(drive);
 }
 
-static int pdc202xx_ide_dma_timeout(ide_drive_t *drive)
+static void pdc202xx_dma_timeout(ide_drive_t *drive)
 {
-	if (HWIF(drive)->resetproc != NULL)
-		HWIF(drive)->resetproc(drive);
-	return __ide_dma_timeout(drive);
+	ide_hwif_t *hwif = HWIF(drive);
+
+	if (hwif->resetproc != NULL)
+		hwif->resetproc(drive);
+
+	ide_dma_timeout(drive);
 }
 
 static void pdc202xx_reset_host (ide_hwif_t *hwif)
@@ -351,7 +354,7 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 
 	hwif->ide_dma_check = &pdc202xx_config_drive_xfer_rate;
 	hwif->dma_lost_irq = &pdc202xx_dma_lost_irq;
-	hwif->ide_dma_timeout = &pdc202xx_ide_dma_timeout;
+	hwif->dma_timeout = &pdc202xx_dma_timeout;
 
 	if (hwif->pci_dev->device != PCI_DEVICE_ID_PROMISE_20246) {
 		if (!(hwif->udma_four))

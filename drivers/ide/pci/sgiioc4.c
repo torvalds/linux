@@ -608,7 +608,7 @@ ide_init_sgiioc4(ide_hwif_t * hwif)
 	hwif->dma_host_on = &sgiioc4_dma_host_on;
 	hwif->dma_host_off = &sgiioc4_dma_host_off;
 	hwif->dma_lost_irq = &sgiioc4_dma_lost_irq;
-	hwif->ide_dma_timeout = &__ide_dma_timeout;
+	hwif->dma_timeout = &ide_dma_timeout;
 
 	hwif->INB = &sgiioc4_INB;
 }

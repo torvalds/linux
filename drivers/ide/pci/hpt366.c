@@ -799,10 +799,10 @@ static int hpt370_ide_dma_end(ide_drive_t *drive)
 	return __ide_dma_end(drive);
 }
 
-static int hpt370_ide_dma_timeout(ide_drive_t *drive)
+static void hpt370_dma_timeout(ide_drive_t *drive)
 {
 	hpt370_irq_timeout(drive);
-	return __ide_dma_timeout(drive);
+	ide_dma_timeout(drive);
 }
 
 /* returns 1 if DMA IRQ issued, 0 otherwise */
@@ -1353,7 +1353,7 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 	} else if (chip_type >= HPT370) {
 		hwif->dma_start 	= &hpt370_ide_dma_start;
 		hwif->ide_dma_end	= &hpt370_ide_dma_end;
-		hwif->ide_dma_timeout	= &hpt370_ide_dma_timeout;
+		hwif->dma_timeout	= &hpt370_dma_timeout;
 	} else
 		hwif->dma_lost_irq	= &hpt366_dma_lost_irq;
 

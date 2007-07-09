@@ -488,16 +488,16 @@ static void auide_init_dbdma_dev(dbdev_tab_t *dev, u32 dev_id, u32 tsize, u32 de
   
 #if defined(CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA)
 
-static int auide_dma_timeout(ide_drive_t *drive)
+static void auide_dma_timeout(ide_drive_t *drive)
 {
-//      printk("%s\n", __FUNCTION__);
+	ide_hwif_t *hwif = HWIF(drive);
 
 	printk(KERN_ERR "%s: DMA timeout occurred: ", drive->name);
 
-	if (HWIF(drive)->ide_dma_test_irq(drive))
-		return 0;
+	if (hwif->ide_dma_test_irq(drive))
+		return;
 
-	return HWIF(drive)->ide_dma_end(drive);
+	hwif->ide_dma_end(drive);
 }
 					
 
@@ -720,7 +720,7 @@ static int au_ide_probe(struct device *dev)
 
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 	hwif->dma_off_quietly		= &auide_dma_off_quietly;
-	hwif->ide_dma_timeout           = &auide_dma_timeout;
+	hwif->dma_timeout		= &auide_dma_timeout;
 
 	hwif->ide_dma_check             = &auide_dma_check;
 	hwif->dma_exec_cmd              = &auide_dma_exec_cmd;

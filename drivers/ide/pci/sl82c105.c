@@ -241,15 +241,12 @@ static void sl82c105_dma_start(ide_drive_t *drive)
 	ide_dma_start(drive);
 }
 
-static int sl82c105_ide_dma_timeout(ide_drive_t *drive)
+static void sl82c105_dma_timeout(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	DBG(("sl82c105_dma_timeout(drive:%s)\n", drive->name));
 
-	DBG(("sl82c105_ide_dma_timeout(drive:%s)\n", drive->name));
-
-	sl82c105_reset_host(dev);
-	return __ide_dma_timeout(drive);
+	sl82c105_reset_host(HWIF(drive)->pci_dev);
+	ide_dma_timeout(drive);
 }
 
 static int sl82c105_ide_dma_on(ide_drive_t *drive)
@@ -440,7 +437,7 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 	hwif->dma_off_quietly		= &sl82c105_dma_off_quietly;
 	hwif->dma_lost_irq		= &sl82c105_dma_lost_irq;
 	hwif->dma_start			= &sl82c105_dma_start;
-	hwif->ide_dma_timeout		= &sl82c105_ide_dma_timeout;
+	hwif->dma_timeout		= &sl82c105_dma_timeout;
 
 	if (!noautodma)
 		hwif->autodma = 1;

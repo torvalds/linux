@@ -448,17 +448,16 @@ static int icside_dma_test_irq(ide_drive_t *drive)
 			ICS_ARCIN_V6_INTRSTAT_1)) & 1;
 }
 
-static int icside_dma_timeout(ide_drive_t *drive)
+static void icside_dma_timeout(ide_drive_t *drive)
 {
 	printk(KERN_ERR "%s: DMA timeout occurred: ", drive->name);
 
 	if (icside_dma_test_irq(drive))
-		return 0;
+		return;
 
-	ide_dump_status(drive, "DMA timeout",
-		HWIF(drive)->INB(IDE_STATUS_REG));
+	ide_dump_status(drive, "DMA timeout", HWIF(drive)->INB(IDE_STATUS_REG));
 
-	return icside_dma_end(drive);
+	icside_dma_end(drive);
 }
 
 static void icside_dma_lost_irq(ide_drive_t *drive)
@@ -489,7 +488,7 @@ static void icside_dma_init(ide_hwif_t *hwif)
 	hwif->dma_start		= icside_dma_start;
 	hwif->ide_dma_end	= icside_dma_end;
 	hwif->ide_dma_test_irq	= icside_dma_test_irq;
-	hwif->ide_dma_timeout	= icside_dma_timeout;
+	hwif->dma_timeout	= icside_dma_timeout;
 	hwif->dma_lost_irq	= icside_dma_lost_irq;
 
 	hwif->drives[0].autodma = hwif->autodma;

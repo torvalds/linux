@@ -1350,7 +1350,7 @@ static ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 						hwif->INB(IDE_STATUS_REG));
 	} else {
 		printk(KERN_WARNING "%s: DMA timeout retry\n", drive->name);
-		(void) hwif->ide_dma_timeout(drive);
+		hwif->dma_timeout(drive);
 	}
 
 	/*
