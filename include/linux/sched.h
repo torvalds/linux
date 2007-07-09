@@ -1633,10 +1633,7 @@ static inline unsigned int task_cpu(const struct task_struct *p)
 	return task_thread_info(p)->cpu;
 }
 
-static inline void set_task_cpu(struct task_struct *p, unsigned int cpu)
-{
-	task_thread_info(p)->cpu = cpu;
-}
+extern void set_task_cpu(struct task_struct *p, unsigned int cpu);
 
 #else
 

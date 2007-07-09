@@ -1111,6 +1111,12 @@ unsigned long weighted_cpuload(const int cpu)
 }
 
 #ifdef CONFIG_SMP
+
+void set_task_cpu(struct task_struct *p, unsigned int cpu)
+{
+	task_thread_info(p)->cpu = cpu;
+}
+
 struct migration_req {
 	struct list_head list;
 
