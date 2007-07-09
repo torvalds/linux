@@ -14,12 +14,10 @@
        compatible = "MPC8260ADS";
        #address-cells = <1>;
        #size-cells = <1>;
-       linux,phandle = <100>;
 
        cpus {
                #address-cells = <1>;
                #size-cells = <0>;
-               linux,phandle = <200>;
 
                PowerPC,8272@0 {
                        device_type = "cpu";
@@ -32,12 +30,10 @@
                        bus-frequency = <0>;
                        clock-frequency = <0>;
                        32-bit;
-                       linux,phandle = <201>;
                };
        };
 
-       interrupt-controller@f8200000 {
-               linux,phandle = <f8200000>;
+		pci_pic: interrupt-controller@f8200000 {
                #address-cells = <0>;
                #interrupt-cells = <2>;
                interrupt-controller;
@@ -47,15 +43,13 @@
        };
        memory {
                device_type = "memory";
-               linux,phandle = <300>;
                reg = <00000000 4000000 f4500000 00000020>;
        };
 
        chosen {
                name = "chosen";
                linux,platform = <0>;
-               interrupt-controller = <10c00>;
-               linux,phandle = <400>;
+		interrupt-controller = <&Cpm_pic>;
        };
 
        soc8272@f0000000 {
@@ -70,20 +64,17 @@
                        device_type = "mdio";
                        compatible = "fs_enet";
                        reg = <0 0>;
-                       linux,phandle = <24520>;
                        #address-cells = <1>;
                        #size-cells = <0>;
-                       ethernet-phy@0 {
-                               linux,phandle = <2452000>;
-                               interrupt-parent = <10c00>;
+			phy0:ethernet-phy@0 {
+				interrupt-parent = <&Cpm_pic>;
                                interrupts = <17 4>;
                                reg = <0>;
                                bitbang = [ 12 12 13 02 02 01 ];
                                device_type = "ethernet-phy";
                        };
-                       ethernet-phy@1 {
-                               linux,phandle = <2452001>;
-                               interrupt-parent = <10c00>;
+			phy1:ethernet-phy@1 {
+				interrupt-parent = <&Cpm_pic>;
                                interrupts = <17 4>;
                                bitbang = [ 12 12 13 02 02 01 ];
                                reg = <3>;
@@ -101,8 +92,8 @@
                        reg = <11300 20 8400 100 11380 30>;
                        mac-address = [ 00 11 2F 99 43 54 ];
                        interrupts = <20 2>;
-                       interrupt-parent = <10c00>;
-                       phy-handle = <2452000>;
+			interrupt-parent = <&Cpm_pic>;
+			phy-handle = <&Phy0>;
                        rx-clock = <13>;
                        tx-clock = <12>;
                };
@@ -115,14 +106,13 @@
                        reg = <11320 20 8500 100 113b0 30>;
                        mac-address = [ 00 11 2F 99 44 54 ];
                        interrupts = <21 2>;
-                       interrupt-parent = <10c00>;
-                       phy-handle = <2452001>;
+			interrupt-parent = <&Cpm_pic>;
+			phy-handle = <&Phy1>;
                        rx-clock = <17>;
                        tx-clock = <18>;
                };
 
                cpm@f0000000 {
-                       linux,phandle = <f0000000>;
                        #address-cells = <1>;
                        #size-cells = <1>;
                        #interrupt-cells = <2>;
@@ -142,7 +132,7 @@
                                reg = <11a00 20 8000 100>;
                                current-speed = <1c200>;
                                interrupts = <28 2>;
-                               interrupt-parent = <10c00>;
+				interrupt-parent = <&Cpm_pic>;
                                clock-setup = <0 00ffffff>;
                                rx-clock = <1>;
                                tx-clock = <1>;
@@ -156,15 +146,14 @@
                                reg = <11a60 20 8300 100>;
                                current-speed = <1c200>;
                                interrupts = <2b 2>;
-                               interrupt-parent = <10c00>;
+				interrupt-parent = <&Cpm_pic>;
                                clock-setup = <1b ffffff00>;
                                rx-clock = <4>;
                                tx-clock = <4>;
                        };
 
                };
-               interrupt-controller@10c00 {
-                       linux,phandle = <10c00>;
+			cpm_pic:interrupt-controller@10c00 {
                        #address-cells = <0>;
                        #interrupt-cells = <2>;
                        interrupt-controller;
@@ -174,7 +163,6 @@
 		       compatible = "CPM2";
                };
                pci@0500 {
-                       linux,phandle = <0500>;
                        #interrupt-cells = <1>;
                        #size-cells = <2>;
                        #address-cells = <3>;
@@ -202,7 +190,7 @@
                                         c000 0 0 2 f8200000 43 8
                                         c000 0 0 3 f8200000 40 8
                                         c000 0 0 4 f8200000 41 8>;
-                       interrupt-parent = <10c00>;
+			interrupt-parent = <&Cpm_pic>;
                        interrupts = <14 8>;
                        bus-range = <0 0>;
                        ranges = <02000000 0 80000000 80000000 0 40000000
@@ -216,7 +204,7 @@
                        compatible = "talitos";
                        reg = <30000 10000>;
                        interrupts = <b 2>;
-                       interrupt-parent = <10c00>;
+			interrupt-parent = <&Cpm_pic>;
                        num-channels = <4>;
                        channel-fifo-len = <18>;
                        exec-units-mask = <0000007e>;
