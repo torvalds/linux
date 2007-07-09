@@ -891,15 +891,6 @@ static void whiteheat_set_termios(struct usb_serial_port *port, struct ktermios 
 		goto exit;
 	}
 	
-	/* check that they really want us to change something */
-	if (old_termios) {
-		if ((port->tty->termios->c_cflag == old_termios->c_cflag) &&
-		    (port->tty->termios->c_iflag == old_termios->c_iflag)) {
-			dbg("%s - nothing to change...", __FUNCTION__);
-			goto exit;
-		}
-	}
-
 	firm_setup_port(port);
 
 exit:

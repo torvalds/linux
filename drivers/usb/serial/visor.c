@@ -948,14 +948,6 @@ static void visor_set_termios (struct usb_serial_port *port, struct ktermios *ol
 	}
 
 	cflag = port->tty->termios->c_cflag;
-	/* check that they really want us to change something */
-	if (old_termios) {
-		if ((cflag == old_termios->c_cflag) &&
-		    (RELEVANT_IFLAG(port->tty->termios->c_iflag) == RELEVANT_IFLAG(old_termios->c_iflag))) {
-			dbg("%s - nothing to change...", __FUNCTION__);
-			return;
-		}
-	}
 
 	/* get the byte size */
 	switch (cflag & CSIZE) {
