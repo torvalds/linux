@@ -192,7 +192,7 @@ static int init_status (struct usbnet *dev, struct usb_interface *intf)
 				usb_pipeendpoint(pipe), maxp, period);
 		}
 	}
-	return  0;
+	return 0;
 }
 
 /* Passes this packet up the stack, updating its accounting.
@@ -326,7 +326,7 @@ static void rx_submit (struct usbnet *dev, struct urb *urb, gfp_t flags)
 	if (netif_running (dev->net)
 			&& netif_device_present (dev->net)
 			&& !test_bit (EVENT_RX_HALT, &dev->flags)) {
-		switch (retval = usb_submit_urb (urb, GFP_ATOMIC)){
+		switch (retval = usb_submit_urb (urb, GFP_ATOMIC)) {
 		case -EPIPE:
 			usbnet_defer_kevent (dev, EVENT_RX_HALT);
 			break;
@@ -393,8 +393,8 @@ static void rx_complete (struct urb *urb)
 	entry->urb = NULL;
 
 	switch (urb_status) {
-	    // success
-	    case 0:
+	/* success */
+	case 0:
 		if (skb->len < dev->net->hard_header_len) {
 			entry->state = rx_cleanup;
 			dev->stats.rx_errors++;
@@ -404,28 +404,30 @@ static void rx_complete (struct urb *urb)
 		}
 		break;
 
-	    // stalls need manual reset. this is rare ... except that
-	    // when going through USB 2.0 TTs, unplug appears this way.
-	    // we avoid the highspeed version of the ETIMEOUT/EILSEQ
-	    // storm, recovering as needed.
-	    case -EPIPE:
+	/* stalls need manual reset. this is rare ... except that
+	 * when going through USB 2.0 TTs, unplug appears this way.
+	 * we avoid the highspeed version of the ETIMEOUT/EILSEQ
+	 * storm, recovering as needed.
+	 */
+	case -EPIPE:
 		dev->stats.rx_errors++;
 		usbnet_defer_kevent (dev, EVENT_RX_HALT);
 		// FALLTHROUGH
 
-	    // software-driven interface shutdown
-	    case -ECONNRESET:		// async unlink
-	    case -ESHUTDOWN:		// hardware gone
+	/* software-driven interface shutdown */
+	case -ECONNRESET:		/* async unlink */
+	case -ESHUTDOWN:		/* hardware gone */
 		if (netif_msg_ifdown (dev))
 			devdbg (dev, "rx shutdown, code %d", urb_status);
 		goto block;
 
-	    // we get controller i/o faults during khubd disconnect() delays.
-	    // throttle down resubmits, to avoid log floods; just temporarily,
-	    // so we still recover when the fault isn't a khubd delay.
-	    case -EPROTO:
-	    case -ETIME:
-	    case -EILSEQ:
+	/* we get controller i/o faults during khubd disconnect() delays.
+	 * throttle down resubmits, to avoid log floods; just temporarily,
+	 * so we still recover when the fault isn't a khubd delay.
+	 */
+	case -EPROTO:
+	case -ETIME:
+	case -EILSEQ:
 		dev->stats.rx_errors++;
 		if (!timer_pending (&dev->delay)) {
 			mod_timer (&dev->delay, jiffies + THROTTLE_JIFFIES);
@@ -438,12 +440,12 @@ block:
 		urb = NULL;
 		break;
 
-	    // data overrun ... flush fifo?
-	    case -EOVERFLOW:
+	/* data overrun ... flush fifo? */
+	case -EOVERFLOW:
 		dev->stats.rx_over_errors++;
 		// FALLTHROUGH
 
-	    default:
+	default:
 		entry->state = rx_cleanup;
 		dev->stats.rx_errors++;
 		if (netif_msg_rx_err (dev))
@@ -471,22 +473,22 @@ static void intr_complete (struct urb *urb)
 	int		status = urb->status;
 
 	switch (status) {
-	    /* success */
-	    case 0:
+	/* success */
+	case 0:
 		dev->driver_info->status(dev, urb);
 		break;
 
-	    /* software-driven interface shutdown */
-	    case -ENOENT:		// urb killed
-	    case -ESHUTDOWN:		// hardware gone
+	/* software-driven interface shutdown */
+	case -ENOENT:		/* urb killed */
+	case -ESHUTDOWN:	/* hardware gone */
 		if (netif_msg_ifdown (dev))
 			devdbg (dev, "intr shutdown, code %d", status);
 		return;
 
-	    /* NOTE:  not throttling like RX/TX, since this endpoint
-	     * already polls infrequently
-	     */
-	    default:
+	/* NOTE:  not throttling like RX/TX, since this endpoint
+	 * already polls infrequently
+	 */
+	default:
 		devdbg (dev, "intr status %d", status);
 		break;
 	}
@@ -569,9 +571,9 @@ static int usbnet_stop (struct net_device *net)
 	temp = unlink_urbs (dev, &dev->txq) + unlink_urbs (dev, &dev->rxq);
 
 	// maybe wait for deletions to finish.
-	while (!skb_queue_empty(&dev->rxq) &&
-	       !skb_queue_empty(&dev->txq) &&
-	       !skb_queue_empty(&dev->done)) {
+	while (!skb_queue_empty(&dev->rxq)
+			&& !skb_queue_empty(&dev->txq)
+			&& !skb_queue_empty(&dev->done)) {
 		msleep(UNLINK_TIMEOUT_MS);
 		if (netif_msg_ifdown (dev))
 			devdbg (dev, "waited for %d urb completions", temp);
@@ -1011,16 +1013,16 @@ static void usbnet_bh (unsigned long param)
 	while ((skb = skb_dequeue (&dev->done))) {
 		entry = (struct skb_data *) skb->cb;
 		switch (entry->state) {
-		    case rx_done:
+		case rx_done:
 			entry->state = rx_cleanup;
 			rx_process (dev, skb);
 			continue;
-		    case tx_done:
-		    case rx_cleanup:
+		case tx_done:
+		case rx_cleanup:
 			usb_free_urb (entry->urb);
 			dev_kfree_skb (skb);
 			continue;
-		    default:
+		default:
 			devdbg (dev, "bogus skb state %d", entry->state);
 		}
 	}

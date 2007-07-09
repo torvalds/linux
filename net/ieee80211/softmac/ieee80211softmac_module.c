@@ -456,18 +456,13 @@ void
 ieee80211softmac_add_network_locked(struct ieee80211softmac_device *mac,
 	struct ieee80211softmac_network *add_net)
 {
-	struct list_head *list_ptr;
-	struct ieee80211softmac_network *softmac_net = NULL;
+	struct ieee80211softmac_network *softmac_net;
 
-	list_for_each(list_ptr, &mac->network_list) {
-		softmac_net = list_entry(list_ptr, struct ieee80211softmac_network, list);
+	list_for_each_entry(softmac_net, &mac->network_list, list) {
 		if(!memcmp(softmac_net->bssid, add_net->bssid, ETH_ALEN))
-			break;
-		else
-			softmac_net = NULL;
+			return;
 	}
-	if(softmac_net == NULL)
-		list_add(&(add_net->list), &mac->network_list);
+	list_add(&(add_net->list), &mac->network_list);
 }
 
 /* Add a network to the list, with locking */
@@ -506,16 +501,13 @@ struct ieee80211softmac_network *
 ieee80211softmac_get_network_by_bssid_locked(struct ieee80211softmac_device *mac,
 	u8 *bssid)
 {
-	struct list_head *list_ptr;
-	struct ieee80211softmac_network *softmac_net = NULL;
-	list_for_each(list_ptr, &mac->network_list) {
-		softmac_net = list_entry(list_ptr, struct ieee80211softmac_network, list);
+	struct ieee80211softmac_network *softmac_net;
+
+	list_for_each_entry(softmac_net, &mac->network_list, list) {
 		if(!memcmp(softmac_net->bssid, bssid, ETH_ALEN))
-			break;
-		else
-			softmac_net = NULL;
+			return softmac_net;
 	}
-	return softmac_net;
+	return NULL;
 }
 
 /* Get a network from the list by BSSID with locking */
@@ -537,11 +529,9 @@ struct ieee80211softmac_network *
 ieee80211softmac_get_network_by_essid_locked(struct ieee80211softmac_device *mac,
 	struct ieee80211softmac_essid *essid)
 {
-	struct list_head *list_ptr;
-	struct ieee80211softmac_network *softmac_net = NULL;
+	struct ieee80211softmac_network *softmac_net;
 
-	list_for_each(list_ptr, &mac->network_list) {
-		softmac_net = list_entry(list_ptr, struct ieee80211softmac_network, list);
+	list_for_each_entry(softmac_net, &mac->network_list, list) {
 		if (softmac_net->essid.len == essid->len &&
 			!memcmp(softmac_net->essid.data, essid->data, essid->len))
 			return softmac_net;

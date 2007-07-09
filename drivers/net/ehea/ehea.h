@@ -39,7 +39,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"ehea"
-#define DRV_VERSION	"EHEA_0064"
+#define DRV_VERSION	"EHEA_0065"
 
 #define EHEA_MSG_DEFAULT (NETIF_MSG_LINK | NETIF_MSG_TIMER \
 	| NETIF_MSG_RX_ERR | NETIF_MSG_TX_ERR)
@@ -136,10 +136,10 @@ void ehea_dump(void *adr, int len, char *msg);
 	(0xffffffffffffffffULL >> ((64 - (mask)) & 0xffff))
 
 #define EHEA_BMASK_SET(mask, value) \
-        ((EHEA_BMASK_MASK(mask) & ((u64)(value))) << EHEA_BMASK_SHIFTPOS(mask))
+	((EHEA_BMASK_MASK(mask) & ((u64)(value))) << EHEA_BMASK_SHIFTPOS(mask))
 
 #define EHEA_BMASK_GET(mask, value) \
-        (EHEA_BMASK_MASK(mask) & (((u64)(value)) >> EHEA_BMASK_SHIFTPOS(mask)))
+	(EHEA_BMASK_MASK(mask) & (((u64)(value)) >> EHEA_BMASK_SHIFTPOS(mask)))
 
 /*
  * Generic ehea page
@@ -190,7 +190,7 @@ struct ehea_av;
  * Queue attributes passed to ehea_create_qp()
  */
 struct ehea_qp_init_attr {
-        /* input parameter */
+	/* input parameter */
 	u32 qp_token;           /* queue token */
 	u8 low_lat_rq1;
 	u8 signalingtype;       /* cqe generation flag */
@@ -212,7 +212,7 @@ struct ehea_qp_init_attr {
 	u64 recv_cq_handle;
 	u64 aff_eq_handle;
 
-        /* output parameter */
+	/* output parameter */
 	u32 qp_nr;
 	u16 act_nr_send_wqes;
 	u16 act_nr_rwqes_rq1;
@@ -279,12 +279,12 @@ struct ehea_qp {
  * Completion Queue attributes
  */
 struct ehea_cq_attr {
-        /* input parameter */
+	/* input parameter */
 	u32 max_nr_of_cqes;
 	u32 cq_token;
 	u64 eq_handle;
 
-        /* output parameter */
+	/* output parameter */
 	u32 act_nr_of_cqes;
 	u32 nr_pages;
 };

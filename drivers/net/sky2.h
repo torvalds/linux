@@ -14,6 +14,8 @@ enum {
 	PCI_DEV_REG3	= 0x80,
 	PCI_DEV_REG4	= 0x84,
 	PCI_DEV_REG5    = 0x88,
+	PCI_CFG_REG_0	= 0x90,
+	PCI_CFG_REG_1	= 0x94,
 };
 
 enum {
@@ -28,6 +30,7 @@ enum {
 enum pci_dev_reg_1 {
 	PCI_Y2_PIG_ENA	 = 1<<31, /* Enable Plug-in-Go (YUKON-2) */
 	PCI_Y2_DLL_DIS	 = 1<<30, /* Disable PCI DLL (YUKON-2) */
+	PCI_SW_PWR_ON_RST= 1<<30, /* SW Power on Reset (Yukon-EX) */
 	PCI_Y2_PHY2_COMA = 1<<29, /* Set PHY 2 to Coma Mode (YUKON-2) */
 	PCI_Y2_PHY1_COMA = 1<<28, /* Set PHY 1 to Coma Mode (YUKON-2) */
 	PCI_Y2_PHY2_POWD = 1<<27, /* Set PHY 2 to Power Down (YUKON-2) */
@@ -65,6 +68,80 @@ enum pci_dev_reg_4 {
 	P_CLK_GATE_ROOT_COR_ENA	= 1<<0,	/* Enable Gate Root Core Clock */
 	P_ASPM_CONTROL_MSK	= P_FORCE_ASPM_REQUEST | P_ASPM_GPHY_LINK_DOWN
 				  | P_ASPM_CLKRUN_REQUEST | P_ASPM_INT_FIFO_EMPTY,
+};
+
+/*	PCI_OUR_REG_5		32 bit	Our Register 5 (Yukon-ECU only) */
+enum pci_dev_reg_5 {
+					/* Bit 31..27:	for A3 & later */
+	P_CTL_DIV_CORE_CLK_ENA	= 1<<31, /* Divide Core Clock Enable */
+	P_CTL_SRESET_VMAIN_AV	= 1<<30, /* Soft Reset for Vmain_av De-Glitch */
+	P_CTL_BYPASS_VMAIN_AV	= 1<<29, /* Bypass En. for Vmain_av De-Glitch */
+	P_CTL_TIM_VMAIN_AV_MSK	= 3<<27, /* Bit 28..27: Timer Vmain_av Mask */
+					 /* Bit 26..16: Release Clock on Event */
+	P_REL_PCIE_RST_DE_ASS	= 1<<26, /* PCIe Reset De-Asserted */
+	P_REL_GPHY_REC_PACKET	= 1<<25, /* GPHY Received Packet */
+	P_REL_INT_FIFO_N_EMPTY	= 1<<24, /* Internal FIFO Not Empty */
+	P_REL_MAIN_PWR_AVAIL	= 1<<23, /* Main Power Available */
+	P_REL_CLKRUN_REQ_REL	= 1<<22, /* CLKRUN Request Release */
+	P_REL_PCIE_RESET_ASS	= 1<<21, /* PCIe Reset Asserted */
+	P_REL_PME_ASSERTED	= 1<<20, /* PME Asserted */
+	P_REL_PCIE_EXIT_L1_ST	= 1<<19, /* PCIe Exit L1 State */
+	P_REL_LOADER_NOT_FIN	= 1<<18, /* EPROM Loader Not Finished */
+	P_REL_PCIE_RX_EX_IDLE	= 1<<17, /* PCIe Rx Exit Electrical Idle State */
+	P_REL_GPHY_LINK_UP	= 1<<16, /* GPHY Link Up */
+
+					/* Bit 10.. 0: Mask for Gate Clock */
+	P_GAT_PCIE_RST_ASSERTED	= 1<<10,/* PCIe Reset Asserted */
+	P_GAT_GPHY_N_REC_PACKET	= 1<<9, /* GPHY Not Received Packet */
+	P_GAT_INT_FIFO_EMPTY	= 1<<8, /* Internal FIFO Empty */
+	P_GAT_MAIN_PWR_N_AVAIL	= 1<<7, /* Main Power Not Available */
+	P_GAT_CLKRUN_REQ_REL	= 1<<6, /* CLKRUN Not Requested */
+	P_GAT_PCIE_RESET_ASS	= 1<<5, /* PCIe Reset Asserted */
+	P_GAT_PME_DE_ASSERTED	= 1<<4, /* PME De-Asserted */
+	P_GAT_PCIE_ENTER_L1_ST	= 1<<3, /* PCIe Enter L1 State */
+	P_GAT_LOADER_FINISHED	= 1<<2, /* EPROM Loader Finished */
+	P_GAT_PCIE_RX_EL_IDLE	= 1<<1, /* PCIe Rx Electrical Idle State */
+	P_GAT_GPHY_LINK_DOWN	= 1<<0,	/* GPHY Link Down */
+
+	PCIE_OUR5_EVENT_CLK_D3_SET = P_REL_GPHY_REC_PACKET |
+				     P_REL_INT_FIFO_N_EMPTY |
+				     P_REL_PCIE_EXIT_L1_ST |
+				     P_REL_PCIE_RX_EX_IDLE |
+				     P_GAT_GPHY_N_REC_PACKET |
+				     P_GAT_INT_FIFO_EMPTY |
+				     P_GAT_PCIE_ENTER_L1_ST |
+				     P_GAT_PCIE_RX_EL_IDLE,
+};
+
+#/*	PCI_CFG_REG_1			32 bit	Config Register 1 (Yukon-Ext only) */
+enum pci_cfg_reg1 {
+	P_CF1_DIS_REL_EVT_RST	= 1<<24, /* Dis. Rel. Event during PCIE reset */
+										/* Bit 23..21: Release Clock on Event */
+	P_CF1_REL_LDR_NOT_FIN	= 1<<23, /* EEPROM Loader Not Finished */
+	P_CF1_REL_VMAIN_AVLBL	= 1<<22, /* Vmain available */
+	P_CF1_REL_PCIE_RESET	= 1<<21, /* PCI-E reset */
+										/* Bit 20..18: Gate Clock on Event */
+	P_CF1_GAT_LDR_NOT_FIN	= 1<<20, /* EEPROM Loader Finished */
+	P_CF1_GAT_PCIE_RX_IDLE	= 1<<19, /* PCI-E Rx Electrical idle */
+	P_CF1_GAT_PCIE_RESET	= 1<<18, /* PCI-E Reset */
+	P_CF1_PRST_PHY_CLKREQ	= 1<<17, /* Enable PCI-E rst & PM2PHY gen. CLKREQ */
+	P_CF1_PCIE_RST_CLKREQ	= 1<<16, /* Enable PCI-E rst generate CLKREQ */
+
+	P_CF1_ENA_CFG_LDR_DONE	= 1<<8, /* Enable core level Config loader done */
+
+	P_CF1_ENA_TXBMU_RD_IDLE	= 1<<1, /* Enable TX BMU Read  IDLE for ASPM */
+	P_CF1_ENA_TXBMU_WR_IDLE	= 1<<0, /* Enable TX BMU Write IDLE for ASPM */
+
+	PCIE_CFG1_EVENT_CLK_D3_SET = P_CF1_DIS_REL_EVT_RST |
+					P_CF1_REL_LDR_NOT_FIN |
+					P_CF1_REL_VMAIN_AVLBL |
+					P_CF1_REL_PCIE_RESET |
+					P_CF1_GAT_LDR_NOT_FIN |
+					P_CF1_GAT_PCIE_RESET |
+					P_CF1_PRST_PHY_CLKREQ |
+					P_CF1_ENA_CFG_LDR_DONE |
+					P_CF1_ENA_TXBMU_RD_IDLE |
+					P_CF1_ENA_TXBMU_WR_IDLE,
 };
 
 
@@ -364,6 +441,20 @@ enum {
 	TST_CFG_WRITE_OFF= 1<<0, /* Disable Config Reg WR */
 };
 
+/* 	B2_GPIO */
+enum {
+	GLB_GPIO_CLK_DEB_ENA = 1<<31,	/* Clock Debug Enable */
+	GLB_GPIO_CLK_DBG_MSK = 0xf<<26, /* Clock Debug */
+
+	GLB_GPIO_INT_RST_D3_DIS = 1<<15, /* Disable Internal Reset After D3 to D0 */
+	GLB_GPIO_LED_PAD_SPEED_UP = 1<<14, /* LED PAD Speed Up */
+	GLB_GPIO_STAT_RACE_DIS	= 1<<13, /* Status Race Disable */
+	GLB_GPIO_TEST_SEL_MSK	= 3<<11, /* Testmode Select */
+	GLB_GPIO_TEST_SEL_BASE	= 1<<11,
+	GLB_GPIO_RAND_ENA	= 1<<10, /* Random Enable */
+	GLB_GPIO_RAND_BIT_1	= 1<<9,  /* Random Bit 1 */
+};
+
 /*	B2_MAC_CFG		 8 bit	MAC Configuration / Chip Revision */
 enum {
 	CFG_CHIP_R_MSK	  = 0xf<<4,	/* Bit 7.. 4: Chip Revision */
@@ -392,6 +483,11 @@ enum {
 	CHIP_REV_YU_FE_A2    = 2,
 
 };
+enum yukon_ex_rev {
+	CHIP_REV_YU_EX_A0    = 1,
+	CHIP_REV_YU_EX_B0    = 2,
+};
+
 
 /*	B2_Y2_CLK_GATE	 8 bit	Clock Gating (Yukon-2 only) */
 enum {
@@ -515,23 +611,15 @@ enum {
 enum {
 	B8_Q_REGS = 0x0400, /* base of Queue registers */
 	Q_D	= 0x00,	/* 8*32	bit	Current Descriptor */
-	Q_DA_L	= 0x20,	/* 32 bit	Current Descriptor Address Low dWord */
-	Q_DA_H	= 0x24,	/* 32 bit	Current Descriptor Address High dWord */
+	Q_VLAN  = 0x20, /* 16 bit	Current VLAN Tag */
+	Q_DONE	= 0x24,	/* 16 bit	Done Index */
 	Q_AC_L	= 0x28,	/* 32 bit	Current Address Counter Low dWord */
 	Q_AC_H	= 0x2c,	/* 32 bit	Current Address Counter High dWord */
 	Q_BC	= 0x30,	/* 32 bit	Current Byte Counter */
 	Q_CSR	= 0x34,	/* 32 bit	BMU Control/Status Register */
-	Q_F	= 0x38,	/* 32 bit	Flag Register */
-	Q_T1	= 0x3c,	/* 32 bit	Test Register 1 */
-	Q_T1_TR	= 0x3c,	/*  8 bit	Test Register 1 Transfer SM */
-	Q_T1_WR	= 0x3d,	/*  8 bit	Test Register 1 Write Descriptor SM */
-	Q_T1_RD	= 0x3e,	/*  8 bit	Test Register 1 Read Descriptor SM */
-	Q_T1_SV	= 0x3f,	/*  8 bit	Test Register 1 Supervisor SM */
-	Q_T2	= 0x40,	/* 32 bit	Test Register 2	*/
-	Q_T3	= 0x44,	/* 32 bit	Test Register 3	*/
+	Q_TEST	= 0x38,	/* 32 bit	Test/Control Register */
 
 /* Yukon-2 */
-	Q_DONE	= 0x24,	/* 16 bit	Done Index 		(Yukon-2 only) */
 	Q_WM	= 0x40,	/* 16 bit	FIFO Watermark */
 	Q_AL	= 0x42,	/*  8 bit	FIFO Alignment */
 	Q_RSP	= 0x44,	/* 16 bit	FIFO Read Shadow Pointer */
@@ -545,15 +633,16 @@ enum {
 };
 #define Q_ADDR(reg, offs) (B8_Q_REGS + (reg) + (offs))
 
-/*	Q_F				32 bit	Flag Register */
+/*	Q_TEST				32 bit	Test Register */
 enum {
-	F_ALM_FULL	= 1<<27, /* Rx FIFO: almost full */
-	F_EMPTY		= 1<<27, /* Tx FIFO: empty flag */
-	F_FIFO_EOF	= 1<<26, /* Tag (EOF Flag) bit in FIFO */
-	F_WM_REACHED	= 1<<25, /* Watermark reached */
+	/* Transmit */
+	F_TX_CHK_AUTO_OFF = 1<<31, /* Tx checksum auto calc off (Yukon EX) */
+	F_TX_CHK_AUTO_ON  = 1<<30, /* Tx checksum auto calc off (Yukon EX) */
+
+	/* Receive */
 	F_M_RX_RAM_DIS	= 1<<24, /* MAC Rx RAM Read Port disable */
-	F_FIFO_LEVEL	= 0x1fL<<16, /* Bit 23..16:	# of Qwords in FIFO */
-	F_WATER_MARK	= 0x0007ffL, /* Bit 10.. 0:	Watermark */
+
+	/* Hardware testbits not used */
 };
 
 /* Queue Prefetch Unit Offsets, use Y2_QADDR() to address (Yukon-2 only)*/
@@ -1608,6 +1697,16 @@ enum {
 	RX_VLAN_STRIP_ON = 1<<25,	/* enable  VLAN stripping */
 	RX_VLAN_STRIP_OFF = 1<<24,	/* disable VLAN stripping */
 
+	RX_MACSEC_FLUSH_ON  = 1<<23,
+	RX_MACSEC_FLUSH_OFF = 1<<22,
+	RX_MACSEC_ASF_FLUSH_ON = 1<<21,
+	RX_MACSEC_ASF_FLUSH_OFF = 1<<20,
+
+	GMF_RX_OVER_ON      = 1<<19,	/* enable flushing on receive overrun */
+	GMF_RX_OVER_OFF     = 1<<18,	/* disable flushing on receive overrun */
+	GMF_ASF_RX_OVER_ON  = 1<<17,	/* enable flushing of ASF when overrun */
+	GMF_ASF_RX_OVER_OFF = 1<<16,	/* disable flushing of ASF when overrun */
+
 	GMF_WP_TST_ON	= 1<<14,	/* Write Pointer Test On */
 	GMF_WP_TST_OFF	= 1<<13,	/* Write Pointer Test Off */
 	GMF_WP_STEP	= 1<<12,	/* Write Pointer Step/Increment */
@@ -1720,6 +1819,15 @@ enum {
 
 /*	GMAC_CTRL		32 bit	GMAC Control Reg (YUKON only) */
 enum {
+	GMC_SET_RST	    = 1<<15,/* MAC SEC RST */
+	GMC_SEC_RST_OFF     = 1<<14,/* MAC SEC RSt OFF */
+	GMC_BYP_MACSECRX_ON = 1<<13,/* Bypass macsec RX */
+	GMC_BYP_MACSECRX_OFF= 1<<12,/* Bypass macsec RX off */
+	GMC_BYP_MACSECTX_ON = 1<<11,/* Bypass macsec TX */
+	GMC_BYP_MACSECTX_OFF= 1<<10,/* Bypass macsec TX  off*/
+	GMC_BYP_RETR_ON	= 1<<9, /* Bypass retransmit FIFO On */
+	GMC_BYP_RETR_OFF= 1<<8, /* Bypass retransmit FIFO Off */
+
 	GMC_H_BURST_ON	= 1<<7,	/* Half Duplex Burst Mode On */
 	GMC_H_BURST_OFF	= 1<<6,	/* Half Duplex Burst Mode Off */
 	GMC_F_LOOPB_ON	= 1<<5,	/* FIFO Loopback On */
@@ -1805,9 +1913,13 @@ enum {
 	OP_ADDR64VLAN	= OP_ADDR64 | OP_VLAN,
 	OP_LRGLEN	= 0x24,
 	OP_LRGLENVLAN	= OP_LRGLEN | OP_VLAN,
+	OP_MSS		= 0x28,
+	OP_MSSVLAN	= OP_MSS | OP_VLAN,
+
 	OP_BUFFER	= 0x40,
 	OP_PACKET	= 0x41,
 	OP_LARGESEND	= 0x43,
+	OP_LSOV2	= 0x45,
 
 /* YUKON-2 STATUS opcodes defines */
 	OP_RXSTAT	= 0x60,
@@ -1818,6 +1930,19 @@ enum {
 	OP_RXTIMEVLAN	= OP_RXTIMESTAMP | OP_RXVLAN,
 	OP_RSS_HASH	= 0x65,
 	OP_TXINDEXLE	= 0x68,
+	OP_MACSEC	= 0x6c,
+	OP_PUTIDX	= 0x70,
+};
+
+enum status_css {
+	CSS_TCPUDPCSOK	= 1<<7,	/* TCP / UDP checksum is ok */
+	CSS_ISUDP	= 1<<6, /* packet is a UDP packet */
+	CSS_ISTCP	= 1<<5, /* packet is a TCP packet */
+	CSS_ISIPFRAG	= 1<<4, /* packet is a TCP/UDP frag, CS calc not done */
+	CSS_ISIPV6	= 1<<3, /* packet is a IPv6 packet */
+	CSS_IPV4CSUMOK	= 1<<2, /* IP v4: TCP header checksum is ok */
+	CSS_ISIPV4	= 1<<1, /* packet is a IPv4 packet */
+	CSS_LINK_BIT	= 1<<0, /* port number (legacy) */
 };
 
 /* Yukon 2 hardware interface */
@@ -1838,7 +1963,7 @@ struct sky2_rx_le {
 struct sky2_status_le {
 	__le32	status;	/* also checksum */
 	__le16	length;	/* also vlan tag */
-	u8	link;
+	u8	css;
 	u8	opcode;
 } __attribute((packed));
 

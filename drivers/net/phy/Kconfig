@@ -55,6 +55,11 @@ config BROADCOM_PHY
 	---help---
 	  Currently supports the BCM5411, BCM5421 and BCM5461 PHYs.
 
+config ICPLUS_PHY
+	tristate "Drivers for ICPlus PHYs"
+	---help---
+	  Currently supports the IP175C PHY.
+
 config FIXED_PHY
 	tristate "Drivers for PHY emulation on fixed speed/link"
 	---help---

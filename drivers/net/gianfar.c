@@ -130,6 +130,9 @@ static int gfar_remove(struct platform_device *pdev);
 static void free_skb_resources(struct gfar_private *priv);
 static void gfar_set_multi(struct net_device *dev);
 static void gfar_set_hash_for_addr(struct net_device *dev, u8 *addr);
+static void gfar_configure_serdes(struct net_device *dev);
+extern int gfar_local_mdio_write(struct gfar_mii *regs, int mii_id, int regnum, u16 value);
+extern int gfar_local_mdio_read(struct gfar_mii *regs, int mii_id, int regnum);
 #ifdef CONFIG_GFAR_NAPI
 static int gfar_poll(struct net_device *dev, int *budget);
 #endif
@@ -451,6 +454,9 @@ static int init_phy(struct net_device *dev)
 
 	phydev = phy_connect(dev, phy_id, &adjust_link, 0, interface);
 
+	if (interface == PHY_INTERFACE_MODE_SGMII)
+		gfar_configure_serdes(dev);
+
 	if (IS_ERR(phydev)) {
 		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
 		return PTR_ERR(phydev);
@@ -463,6 +469,27 @@ static int init_phy(struct net_device *dev)
 	priv->phydev = phydev;
 
 	return 0;
+}
+
+static void gfar_configure_serdes(struct net_device *dev)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+	struct gfar_mii __iomem *regs =
+			(void __iomem *)&priv->regs->gfar_mii_regs;
+
+	/* Initialise TBI i/f to communicate with serdes (lynx phy) */
+
+	/* Single clk mode, mii mode off(for aerdes communication) */
+	gfar_local_mdio_write(regs, TBIPA_VALUE, MII_TBICON, TBICON_CLK_SELECT);
+
+	/* Supported pause and full-duplex, no half-duplex */
+	gfar_local_mdio_write(regs, TBIPA_VALUE, MII_ADVERTISE,
+			ADVERTISE_1000XFULL | ADVERTISE_1000XPAUSE |
+			ADVERTISE_1000XPSE_ASYM);
+
+	/* ANEG enable, restart ANEG, full duplex mode, speed[1] set */
+	gfar_local_mdio_write(regs, TBIPA_VALUE, MII_BMCR, BMCR_ANENABLE |
+			BMCR_ANRESTART | BMCR_FULLDPLX | BMCR_SPEED1000);
 }
 
 static void init_registers(struct net_device *dev)

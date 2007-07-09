@@ -50,7 +50,7 @@
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
-#define DRV_VERSION		"1.14"
+#define DRV_VERSION		"1.15"
 #define PFX			DRV_NAME " "
 
 /*
@@ -130,7 +130,7 @@ static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4368) }, /* 88EC034 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4369) }, /* 88EC042 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x436A) }, /* 88E8058 */
-//	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x436B) }, /* 88E8071 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x436B) }, /* 88E8071 */
 	{ 0 }
 };
 
@@ -217,13 +217,24 @@ static void sky2_power_on(struct sky2_hw *hw)
 		sky2_write8(hw, B2_Y2_CLK_GATE, 0);
 
 	if (hw->chip_id == CHIP_ID_YUKON_EC_U || hw->chip_id == CHIP_ID_YUKON_EX) {
-		u32 reg1;
+		u32 reg;
 
-		sky2_pci_write32(hw, PCI_DEV_REG3, 0);
-		reg1 = sky2_pci_read32(hw, PCI_DEV_REG4);
-		reg1 &= P_ASPM_CONTROL_MSK;
-		sky2_pci_write32(hw, PCI_DEV_REG4, reg1);
-		sky2_pci_write32(hw, PCI_DEV_REG5, 0);
+		reg = sky2_pci_read32(hw, PCI_DEV_REG4);
+		/* set all bits to 0 except bits 15..12 and 8 */
+		reg &= P_ASPM_CONTROL_MSK;
+		sky2_pci_write32(hw, PCI_DEV_REG4, reg);
+
+		reg = sky2_pci_read32(hw, PCI_DEV_REG5);
+		/* set all bits to 0 except bits 28 & 27 */
+		reg &= P_CTL_TIM_VMAIN_AV_MSK;
+		sky2_pci_write32(hw, PCI_DEV_REG5, reg);
+
+		sky2_pci_write32(hw, PCI_CFG_REG_1, 0);
+
+		/* Enable workaround for dev 4.107 on Yukon-Ultra & Extreme */
+		reg = sky2_read32(hw, B2_GP_IO);
+		reg |= GLB_GPIO_STAT_RACE_DIS;
+		sky2_write32(hw, B2_GP_IO, reg);
 	}
 }
 
@@ -650,6 +661,30 @@ static void sky2_wol_init(struct sky2_port *sky2)
 
 }
 
+static void sky2_set_tx_stfwd(struct sky2_hw *hw, unsigned port)
+{
+	if (hw->chip_id == CHIP_ID_YUKON_EX && hw->chip_rev != CHIP_REV_YU_EX_A0) {
+		sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
+			     TX_STFW_ENA |
+			     (hw->dev[port]->mtu > ETH_DATA_LEN) ? TX_JUMBO_ENA : TX_JUMBO_DIS);
+	} else {
+		if (hw->dev[port]->mtu > ETH_DATA_LEN) {
+			/* set Tx GMAC FIFO Almost Empty Threshold */
+			sky2_write32(hw, SK_REG(port, TX_GMF_AE_THR),
+				     (ECU_JUMBO_WM << 16) | ECU_AE_THR);
+
+			sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
+				     TX_JUMBO_ENA | TX_STFW_DIS);
+
+			/* Can't do offload because of lack of store/forward */
+			hw->dev[port]->features &= ~(NETIF_F_TSO | NETIF_F_SG
+						     | NETIF_F_ALL_CSUM);
+		} else
+			sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
+				     TX_JUMBO_DIS | TX_STFW_ENA);
+	}
+}
+
 static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 {
 	struct sky2_port *sky2 = netdev_priv(hw->dev[port]);
@@ -730,8 +765,11 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 
 	/* Configure Rx MAC FIFO */
 	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_CLR);
-	sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T),
-		     GMF_OPER_ON | GMF_RX_F_FL_ON);
+	reg = GMF_OPER_ON | GMF_RX_F_FL_ON;
+	if (hw->chip_id == CHIP_ID_YUKON_EX)
+		reg |= GMF_RX_OVER_ON;
+
+	sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T), reg);
 
 	/* Flush Rx MAC FIFO on any flow control or error */
 	sky2_write16(hw, SK_REG(port, RX_GMF_FL_MSK), GMR_FS_ANY_ERR);
@@ -747,16 +785,7 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 		sky2_write8(hw, SK_REG(port, RX_GMF_LP_THR), 768/8);
 		sky2_write8(hw, SK_REG(port, RX_GMF_UP_THR), 1024/8);
 
-		/* set Tx GMAC FIFO Almost Empty Threshold */
-		sky2_write32(hw, SK_REG(port, TX_GMF_AE_THR),
-			     (ECU_JUMBO_WM << 16) | ECU_AE_THR);
-
-		if (hw->dev[port]->mtu > ETH_DATA_LEN)
-			sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
-				     TX_JUMBO_ENA | TX_STFW_DIS);
-		else
-			sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
-				     TX_JUMBO_DIS | TX_STFW_ENA);
+		sky2_set_tx_stfwd(hw, port);
 	}
 
 }
@@ -939,14 +968,16 @@ static void rx_set_checksum(struct sky2_port *sky2)
 {
 	struct sky2_rx_le *le;
 
-	le = sky2_next_rx(sky2);
-	le->addr = cpu_to_le32((ETH_HLEN << 16) | ETH_HLEN);
-	le->ctrl = 0;
-	le->opcode = OP_TCPSTART | HW_OWNER;
+	if (sky2->hw->chip_id != CHIP_ID_YUKON_EX) {
+		le = sky2_next_rx(sky2);
+		le->addr = cpu_to_le32((ETH_HLEN << 16) | ETH_HLEN);
+		le->ctrl = 0;
+		le->opcode = OP_TCPSTART | HW_OWNER;
 
-	sky2_write32(sky2->hw,
-		     Q_ADDR(rxqaddr[sky2->port], Q_CSR),
-		     sky2->rx_csum ? BMU_ENA_RX_CHKSUM : BMU_DIS_RX_CHKSUM);
+		sky2_write32(sky2->hw,
+			     Q_ADDR(rxqaddr[sky2->port], Q_CSR),
+			     sky2->rx_csum ? BMU_ENA_RX_CHKSUM : BMU_DIS_RX_CHKSUM);
+	}
 
 }
 
@@ -1134,7 +1165,7 @@ static int sky2_rx_start(struct sky2_port *sky2)
 	if (hw->chip_id == CHIP_ID_YUKON_EC_U &&
 	    (hw->chip_rev == CHIP_REV_YU_EC_U_A1
 	     || hw->chip_rev == CHIP_REV_YU_EC_U_B0))
-		sky2_write32(hw, Q_ADDR(rxq, Q_F), F_M_RX_RAM_DIS);
+		sky2_write32(hw, Q_ADDR(rxq, Q_TEST), F_M_RX_RAM_DIS);
 
 	sky2_prefetch_init(hw, rxq, sky2->rx_le_map, RX_LE_SIZE - 1);
 
@@ -1285,6 +1316,10 @@ static int sky2_up(struct net_device *dev)
 
 	sky2_qset(hw, txqaddr[port]);
 
+	/* This is copied from sk98lin 10.0.5.3; no one tells me about erratta's */
+	if (hw->chip_id == CHIP_ID_YUKON_EX && hw->chip_rev == CHIP_REV_YU_EX_B0)
+		sky2_write32(hw, Q_ADDR(txqaddr[port], Q_TEST), F_TX_CHK_AUTO_OFF);
+
 	/* Set almost empty threshold */
 	if (hw->chip_id == CHIP_ID_YUKON_EC_U
 	    && hw->chip_rev == CHIP_REV_YU_EC_U_A0)
@@ -1393,14 +1428,16 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	/* Check for TCP Segmentation Offload */
 	mss = skb_shinfo(skb)->gso_size;
 	if (mss != 0) {
-		mss += tcp_optlen(skb); /* TCP options */
-		mss += ip_hdrlen(skb) + sizeof(struct tcphdr);
-		mss += ETH_HLEN;
+		if (hw->chip_id != CHIP_ID_YUKON_EX)
+			mss += ETH_HLEN + ip_hdrlen(skb) + tcp_hdrlen(skb);
 
-		if (mss != sky2->tx_last_mss) {
-			le = get_tx_le(sky2);
-			le->addr = cpu_to_le32(mss);
-			le->opcode = OP_LRGLEN | HW_OWNER;
+  		if (mss != sky2->tx_last_mss) {
+  			le = get_tx_le(sky2);
+  			le->addr = cpu_to_le32(mss);
+ 			if (hw->chip_id == CHIP_ID_YUKON_EX)
+				le->opcode = OP_MSS | HW_OWNER;
+			else
+				le->opcode = OP_LRGLEN | HW_OWNER;
 			sky2->tx_last_mss = mss;
 		}
 	}
@@ -1422,24 +1459,30 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 	/* Handle TCP checksum offload */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		const unsigned offset = skb_transport_offset(skb);
-		u32 tcpsum;
+		/* On Yukon EX (some versions) encoding change. */
+ 		if (hw->chip_id == CHIP_ID_YUKON_EX
+		    && hw->chip_rev != CHIP_REV_YU_EX_B0)
+ 			ctrl |= CALSUM;	/* auto checksum */
+		else {
+			const unsigned offset = skb_transport_offset(skb);
+			u32 tcpsum;
 
-		tcpsum = offset << 16;		/* sum start */
-		tcpsum |= offset + skb->csum_offset;	/* sum write */
+			tcpsum = offset << 16;			/* sum start */
+			tcpsum |= offset + skb->csum_offset;	/* sum write */
 
-		ctrl |= CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
-		if (ip_hdr(skb)->protocol == IPPROTO_UDP)
-			ctrl |= UDPTCP;
+			ctrl |= CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
+			if (ip_hdr(skb)->protocol == IPPROTO_UDP)
+				ctrl |= UDPTCP;
 
-		if (tcpsum != sky2->tx_tcpsum) {
-			sky2->tx_tcpsum = tcpsum;
+			if (tcpsum != sky2->tx_tcpsum) {
+				sky2->tx_tcpsum = tcpsum;
 
-			le = get_tx_le(sky2);
-			le->addr = cpu_to_le32(tcpsum);
-			le->length = 0;	/* initial checksum value */
-			le->ctrl = 1;	/* one packet */
-			le->opcode = OP_TCPLISW | HW_OWNER;
+				le = get_tx_le(sky2);
+				le->addr = cpu_to_le32(tcpsum);
+				le->length = 0;	/* initial checksum value */
+				le->ctrl = 1;	/* one packet */
+				le->opcode = OP_TCPLISW | HW_OWNER;
+			}
 		}
 	}
 
@@ -1913,15 +1956,8 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 
 	synchronize_irq(hw->pdev->irq);
 
-	if (hw->chip_id == CHIP_ID_YUKON_EC_U || hw->chip_id == CHIP_ID_YUKON_EX) {
-		if (new_mtu > ETH_DATA_LEN) {
-			sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
-				     TX_JUMBO_ENA | TX_STFW_DIS);
-			dev->features &= NETIF_F_TSO | NETIF_F_SG | NETIF_F_IP_CSUM;
-		} else
-			sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
-				     TX_JUMBO_DIS | TX_STFW_ENA);
-	}
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U || hw->chip_id == CHIP_ID_YUKON_EX)
+		sky2_set_tx_stfwd(hw, port);
 
 	ctl = gma_read16(hw, port, GM_GP_CTRL);
 	gma_write16(hw, port, GM_GP_CTRL, ctl & ~GM_GPCR_RX_ENA);
@@ -2118,6 +2154,7 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 
 	while (hw->st_idx != hwidx) {
 		struct sky2_status_le *le  = hw->st_le + hw->st_idx;
+		unsigned port = le->css & CSS_LINK_BIT;
 		struct net_device *dev;
 		struct sk_buff *skb;
 		u32 status;
@@ -2125,9 +2162,7 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 
 		hw->st_idx = RING_NEXT(hw->st_idx, STATUS_RING_SIZE);
 
-		BUG_ON(le->link >= 2);
-		dev = hw->dev[le->link];
-
+		dev = hw->dev[port];
 		sky2 = netdev_priv(dev);
 		length = le16_to_cpu(le->length);
 		status = le32_to_cpu(le->status);
@@ -2138,6 +2173,16 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 			if (unlikely(!skb)) {
 				sky2->net_stats.rx_dropped++;
 				goto force_update;
+			}
+
+			/* This chip reports checksum status differently */
+			if (hw->chip_id == CHIP_ID_YUKON_EX) {
+				if (sky2->rx_csum &&
+				    (le->css & (CSS_ISIPV4 | CSS_ISIPV6)) &&
+				    (le->css & CSS_TCPUDPCSOK))
+					skb->ip_summed = CHECKSUM_UNNECESSARY;
+				else
+					skb->ip_summed = CHECKSUM_NONE;
 			}
 
 			skb->protocol = eth_type_trans(skb, dev);
@@ -2155,10 +2200,10 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 				netif_receive_skb(skb);
 
 			/* Update receiver after 16 frames */
-			if (++buf_write[le->link] == RX_BUF_WRITE) {
+			if (++buf_write[port] == RX_BUF_WRITE) {
 force_update:
-				sky2_put_idx(hw, rxqaddr[le->link], sky2->rx_put);
-				buf_write[le->link] = 0;
+				sky2_put_idx(hw, rxqaddr[port], sky2->rx_put);
+				buf_write[port] = 0;
 			}
 
 			/* Stop after net poll weight */
@@ -2179,6 +2224,9 @@ force_update:
 			if (!sky2->rx_csum)
 				break;
 
+			if (hw->chip_id == CHIP_ID_YUKON_EX)
+				break;
+
 			/* Both checksum counters are programmed to start at
 			 * the same offset, so unless there is a problem they
 			 * should match. This failure is an early indication that
@@ -2194,7 +2242,7 @@ force_update:
 				       dev->name, status);
 				sky2->rx_csum = 0;
 				sky2_write32(sky2->hw,
-					     Q_ADDR(rxqaddr[le->link], Q_CSR),
+					     Q_ADDR(rxqaddr[port], Q_CSR),
 					     BMU_DIS_RX_CHKSUM);
 			}
 			break;
@@ -2513,6 +2561,9 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 {
 	u8 t8;
 
+	/* Enable all clocks */
+	sky2_pci_write32(hw, PCI_DEV_REG3, 0);
+
 	sky2_write8(hw, B0_CTST, CS_RST_CLR);
 
 	hw->chip_id = sky2_read8(hw, B2_CHIP_ID);
@@ -2521,14 +2572,6 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 			hw->chip_id);
 		return -EOPNOTSUPP;
 	}
-
-	if (hw->chip_id == CHIP_ID_YUKON_EX)
-		dev_warn(&hw->pdev->dev, "this driver not yet tested on this chip type\n"
-			 "Please report success or failure to <netdev@vger.kernel.org>\n");
-
-	/* Make sure and enable all clocks */
-	if (hw->chip_id == CHIP_ID_YUKON_EX || hw->chip_id == CHIP_ID_YUKON_EC_U)
-		sky2_pci_write32(hw, PCI_DEV_REG3, 0);
 
 	hw->chip_rev = (sky2_read8(hw, B2_MAC_CFG) & CFG_CHIP_R_MSK) >> 4;
 
@@ -2589,6 +2632,11 @@ static void sky2_reset(struct sky2_hw *hw)
 	for (i = 0; i < hw->ports; i++) {
 		sky2_write8(hw, SK_REG(i, GMAC_LINK_CTRL), GMLC_RST_SET);
 		sky2_write8(hw, SK_REG(i, GMAC_LINK_CTRL), GMLC_RST_CLR);
+
+		if (hw->chip_id == CHIP_ID_YUKON_EX)
+			sky2_write16(hw, SK_REG(i, GMAC_CTRL),
+				     GMC_BYP_MACSECRX_ON | GMC_BYP_MACSECTX_ON
+				     | GMC_BYP_RETR_ON);
 	}
 
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
@@ -2735,7 +2783,7 @@ static int sky2_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 	sky2->wol = wol->wolopts;
 
-	if (hw->chip_id == CHIP_ID_YUKON_EC_U)
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U || hw->chip_id == CHIP_ID_YUKON_EX)
 		sky2_write32(hw, B0_CTST, sky2->wol
 			     ? Y2_HW_WOL_ON : Y2_HW_WOL_OFF);
 
@@ -3330,7 +3378,7 @@ static int sky2_get_regs_len(struct net_device *dev)
 
 /*
  * Returns copy of control register region
- * Note: access to the RAM address register set will cause timeouts.
+ * Note: ethtool_get_regs always provides full size (16k) buffer
  */
 static void sky2_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 			  void *p)
@@ -3338,15 +3386,19 @@ static void sky2_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	const struct sky2_port *sky2 = netdev_priv(dev);
 	const void __iomem *io = sky2->hw->regs;
 
-	BUG_ON(regs->len < B3_RI_WTO_R1);
 	regs->version = 1;
 	memset(p, 0, regs->len);
 
 	memcpy_fromio(p, io, B3_RAM_ADDR);
 
-	memcpy_fromio(p + B3_RI_WTO_R1,
-		      io + B3_RI_WTO_R1,
-		      regs->len - B3_RI_WTO_R1);
+	/* skip diagnostic ram region */
+	memcpy_fromio(p + B3_RI_WTO_R1, io + B3_RI_WTO_R1, 0x2000 - B3_RI_WTO_R1);
+
+	/* copy GMAC registers */
+	memcpy_fromio(p + BASE_GMAC_1, io + BASE_GMAC_1, 0x1000);
+	if (sky2->hw->ports > 1)
+		memcpy_fromio(p + BASE_GMAC_2, io + BASE_GMAC_2, 0x1000);
+
 }
 
 /* In order to do Jumbo packets on these chips, need to turn off the
@@ -3357,9 +3409,7 @@ static int no_tx_offload(struct net_device *dev)
 	const struct sky2_port *sky2 = netdev_priv(dev);
 	const struct sky2_hw *hw = sky2->hw;
 
-	return dev->mtu > ETH_DATA_LEN &&
-		(hw->chip_id == CHIP_ID_YUKON_EX
-		 || hw->chip_id == CHIP_ID_YUKON_EC_U);
+	return dev->mtu > ETH_DATA_LEN && hw->chip_id == CHIP_ID_YUKON_EC_U;
 }
 
 static int sky2_set_tx_csum(struct net_device *dev, u32 data)
