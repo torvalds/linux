@@ -60,6 +60,19 @@ static const unsigned char hid_keyboard[256] = {
 	150,158,159,128,136,177,178,176,142,152,173,140,unk,unk,unk,unk
 };
 
+/* extended mapping for certain Logitech hardware (Logitech cordless desktop LX500) */
+#define LOGITECH_EXPANDED_KEYMAP_SIZE 80
+static int logitech_expanded_keymap[LOGITECH_EXPANDED_KEYMAP_SIZE] = {
+	  0,216,  0,213,175,156,  0,  0,  0,  0,
+	144,  0,  0,  0,  0,  0,  0,  0,  0,212,
+	174,167,152,161,112,  0,  0,  0,154,  0,
+	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+	  0,  0,  0,  0,  0,183,184,185,186,187,
+	188,189,190,191,192,193,194,  0,  0,  0
+};
+
 static const struct {
 	__s32 x;
 	__s32 y;
@@ -308,9 +321,7 @@ static int hidinput_setkeycode(struct input_dev *dev, int scancode,
 		
 		clear_bit(old_keycode, dev->keybit);
 		set_bit(usage->code, dev->keybit);
-#ifdef CONFIG_HID_DEBUG
-		printk (KERN_DEBUG "Assigned keycode %d to HID usage code %x\n", keycode, scancode);
-#endif
+		dbg_hid(KERN_DEBUG "Assigned keycode %d to HID usage code %x\n", keycode, scancode);
 		/* Set the keybit for the old keycode if the old keycode is used
 		 * by another key */
 		if (hidinput_find_key (hid, 0, old_keycode))
@@ -333,11 +344,9 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 	field->hidinput = hidinput;
 
-#ifdef CONFIG_HID_DEBUG
-	printk(KERN_DEBUG "Mapping: ");
+	dbg_hid("Mapping: ");
 	hid_resolv_usage(usage->hid);
-	printk(" ---> ");
-#endif
+	dbg_hid_line(" ---> ");
 
 	if (field->flags & HID_MAIN_ITEM_CONSTANT)
 		goto ignore;
@@ -376,6 +385,21 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 						case HID_GD_GAMEPAD:  code += 0x130; break;
 						default:              code += 0x100;
 					}
+			}
+
+			/* Special handling for Logitech Cordless Desktop */
+			if (field->application != HID_GD_MOUSE) {
+				if (device->quirks & HID_QUIRK_LOGITECH_EXPANDED_KEYMAP) {
+					int hid = usage->hid & HID_USAGE;
+					if (hid < LOGITECH_EXPANDED_KEYMAP_SIZE && logitech_expanded_keymap[hid] != 0)
+						code = logitech_expanded_keymap[hid];
+				}
+			} else {
+				if (device->quirks & HID_QUIRK_LOGITECH_IGNORE_DOUBLED_WHEEL) {
+					int hid = usage->hid & HID_USAGE;
+					if (hid == 7 || hid == 8)
+						goto ignore;
+				}
 			}
 
 			map_key(code);
@@ -566,6 +590,11 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x0e5: map_key_clear(KEY_BASSBOOST);	break;
 				case 0x0e9: map_key_clear(KEY_VOLUMEUP);	break;
 				case 0x0ea: map_key_clear(KEY_VOLUMEDOWN);	break;
+
+				/* reserved in HUT 1.12. Reported on Petalynx remote */
+				case 0x0f6: map_key_clear(KEY_NEXT);		break;
+				case 0x0fa: map_key_clear(KEY_BACK);		break;
+
 				case 0x183: map_key_clear(KEY_CONFIG);		break;
 				case 0x184: map_key_clear(KEY_WORDPROCESSOR);	break;
 				case 0x185: map_key_clear(KEY_EDITOR);		break;
@@ -598,7 +627,9 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x21b: map_key_clear(KEY_COPY);		break;
 				case 0x21c: map_key_clear(KEY_CUT);		break;
 				case 0x21d: map_key_clear(KEY_PASTE);		break;
-				case 0x221: map_key_clear(KEY_FIND);		break;
+				case 0x21f: map_key_clear(KEY_FIND);		break;
+				case 0x221: map_key_clear(KEY_SEARCH);		break;
+				case 0x222: map_key_clear(KEY_GOTO);		break;
 				case 0x223: map_key_clear(KEY_HOMEPAGE);	break;
 				case 0x224: map_key_clear(KEY_BACK);		break;
 				case 0x225: map_key_clear(KEY_FORWARD);		break;
@@ -688,7 +719,28 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			break;
 
 		case HID_UP_MSVENDOR:
-			goto ignore;
+
+			/* special case - Chicony Chicony KU-0418 tactical pad */
+			if (device->vendor == 0x04f2 && device->product == 0x0418) {
+				set_bit(EV_REP, input->evbit);
+				switch(usage->hid & HID_USAGE) {
+					case 0xff01: map_key_clear(BTN_1);		break;
+					case 0xff02: map_key_clear(BTN_2);		break;
+					case 0xff03: map_key_clear(BTN_3);		break;
+					case 0xff04: map_key_clear(BTN_4);		break;
+					case 0xff05: map_key_clear(BTN_5);		break;
+					case 0xff06: map_key_clear(BTN_6);		break;
+					case 0xff07: map_key_clear(BTN_7);		break;
+					case 0xff08: map_key_clear(BTN_8);		break;
+					case 0xff09: map_key_clear(BTN_9);		break;
+					case 0xff0a: map_key_clear(BTN_A);		break;
+					case 0xff0b: map_key_clear(BTN_B);		break;
+					default:    goto ignore;
+				}
+			} else {
+				goto ignore;
+			}
+			break;
 
 		case HID_UP_CUSTOM: /* Reported on Logitech and Powerbook USB keyboards */
 
@@ -704,10 +756,10 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			}
 			break;
 
-		case HID_UP_LOGIVENDOR: /* Reported on Logitech Ultra X Media Remote */
-
+		case HID_UP_LOGIVENDOR:
 			set_bit(EV_REP, input->evbit);
 			switch(usage->hid & HID_USAGE) {
+				/* Reported on Logitech Ultra X Media Remote */
 				case 0x004: map_key_clear(KEY_AGAIN);		break;
 				case 0x00d: map_key_clear(KEY_HOME);		break;
 				case 0x024: map_key_clear(KEY_SHUFFLE);		break;
@@ -725,6 +777,14 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x04d: map_key_clear(KEY_SUBTITLE);	break;
 				case 0x051: map_key_clear(KEY_RED);		break;
 				case 0x052: map_key_clear(KEY_CLOSE);		break;
+
+				/* Reported on Petalynx Maxter remote */
+				case 0x05a: map_key_clear(KEY_TEXT);		break;
+				case 0x05b: map_key_clear(KEY_RED);		break;
+				case 0x05c: map_key_clear(KEY_GREEN);		break;
+				case 0x05d: map_key_clear(KEY_YELLOW);		break;
+				case 0x05e: map_key_clear(KEY_BLUE);		break;
+
 				default:    goto ignore;
 			}
 			break;
@@ -818,16 +878,24 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			field->dpad = usage->code;
 	}
 
+	/* for those devices which produce Consumer volume usage as relative,
+	 * we emulate pressing volumeup/volumedown appropriate number of times
+	 * in hidinput_hid_event()
+	 */
+	if ((usage->type == EV_ABS) && (field->flags & HID_MAIN_ITEM_RELATIVE) &&
+			(usage->code == ABS_VOLUME)) {
+		set_bit(KEY_VOLUMEUP, input->keybit);
+		set_bit(KEY_VOLUMEDOWN, input->keybit);
+	}
+
 	hid_resolv_event(usage->type, usage->code);
-#ifdef CONFIG_HID_DEBUG
-	printk("\n");
-#endif
+
+	dbg_hid_line("\n");
+
 	return;
 
 ignore:
-#ifdef CONFIG_HID_DEBUG
-	printk("IGNORED\n");
-#endif
+	dbg_hid_line("IGNORED\n");
 	return;
 }
 
@@ -896,17 +964,32 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 	}
 
 	if (usage->hid == (HID_UP_PID | 0x83UL)) { /* Simultaneous Effects Max */
-		dbg("Maximum Effects - %d",value);
+		dbg_hid("Maximum Effects - %d\n",value);
 		return;
 	}
 
 	if (usage->hid == (HID_UP_PID | 0x7fUL)) {
-		dbg("PID Pool Report\n");
+		dbg_hid("PID Pool Report\n");
 		return;
 	}
 
 	if ((usage->type == EV_KEY) && (usage->code == 0)) /* Key 0 is "unassigned", not KEY_UNKNOWN */
 		return;
+
+	if ((usage->type == EV_ABS) && (field->flags & HID_MAIN_ITEM_RELATIVE) &&
+			(usage->code == ABS_VOLUME)) {
+		int count = abs(value);
+		int direction = value > 0 ? KEY_VOLUMEUP : KEY_VOLUMEDOWN;
+		int i;
+
+		for (i = 0; i < count; i++) {
+			input_event(input, EV_KEY, direction, 1);
+			input_sync(input);
+			input_event(input, EV_KEY, direction, 0);
+			input_sync(input);
+		}
+		return;
+	}
 
 	input_event(input, usage->type, usage->code, value);
 
@@ -976,7 +1059,7 @@ int hidinput_connect(struct hid_device *hid)
 			if (IS_INPUT_APPLICATION(hid->collection[i].usage))
 				break;
 
-	if (i == hid->maxcollection)
+	if (i == hid->maxcollection && (hid->quirks & HID_QUIRK_HIDINPUT) == 0)
 		return -1;
 
 	if (hid->quirks & HID_QUIRK_SKIP_OUTPUT_REPORTS)
@@ -994,7 +1077,7 @@ int hidinput_connect(struct hid_device *hid)
 				if (!hidinput || !input_dev) {
 					kfree(hidinput);
 					input_free_device(input_dev);
-					err("Out of memory during hid input probe");
+					err_hid("Out of memory during hid input probe");
 					return -1;
 				}
 

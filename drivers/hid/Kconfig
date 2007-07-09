@@ -1,8 +1,12 @@
 #
 # HID driver configuration
 #
-menu "HID Devices"
+menuconfig HID_SUPPORT
+	bool "HID Devices"
 	depends on INPUT
+	default y
+
+if HID_SUPPORT
 
 config HID
 	tristate "Generic HID support"
@@ -24,6 +28,7 @@ config HID
 
 config HID_DEBUG
 	bool "HID debugging support"
+	default y if !EMBEDDED
 	depends on HID
 	---help---
 	This option lets the HID layer output diagnostics about its internal
@@ -38,5 +43,4 @@ config HID_DEBUG
 
 source "drivers/hid/usbhid/Kconfig"
 
-endmenu
-
+endif # HID_SUPPORT
