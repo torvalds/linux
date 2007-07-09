@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/piix.c	Version 0.47	February 8, 2007
+ *  linux/drivers/ide/pci/piix.c	Version 0.50	Jun 10, 2007
  *
  *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
  *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
@@ -394,12 +394,43 @@ static void piix_dma_clear_irq(ide_drive_t *drive)
 	hwif->OUTB(dma_stat, hwif->dma_status);
 }
 
+struct ich_laptop {
+	u16 device;
+	u16 subvendor;
+	u16 subdevice;
+};
+
+/*
+ *	List of laptops that use short cables rather than 80 wire
+ */
+
+static const struct ich_laptop ich_laptop[] = {
+	/* devid, subvendor, subdev */
+	{ 0x27DF, 0x0005, 0x0280 },	/* ICH7 on Acer 5602WLMi */
+	{ 0x27DF, 0x1025, 0x0110 },	/* ICH7 on Acer 3682WLMi */
+	{ 0x27DF, 0x1043, 0x1267 },	/* ICH7 on Asus W5F */
+	{ 0x24CA, 0x1025, 0x0061 },	/* ICH4 on Acer Aspire 2023WLMi */
+	/* end marker */
+	{ 0, }
+};
+
 static u8 __devinit piix_cable_detect(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev = hwif->pci_dev;
+	struct pci_dev *pdev = hwif->pci_dev;
+	const struct ich_laptop *lap = &ich_laptop[0];
 	u8 reg54h = 0, mask = hwif->channel ? 0xc0 : 0x30;
 
-	pci_read_config_byte(dev, 0x54, &reg54h);
+	/* check for specials */
+	while (lap->device) {
+		if (lap->device == pdev->device &&
+		    lap->subvendor == pdev->subsystem_vendor &&
+		    lap->subdevice == pdev->subsystem_device) {
+			return ATA_CBL_PATA40_SHORT;
+		}
+		lap++;
+	}
+
+	pci_read_config_byte(pdev, 0x54, &reg54h);
 
 	return (reg54h & mask) ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 }
