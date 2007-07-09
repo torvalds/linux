@@ -69,6 +69,7 @@ struct aica_channel {
 };
 
 struct snd_card_aica {
+	struct work_struct spu_dma_work;
 	struct snd_card *card;
 	struct aica_channel *channel;
 	struct snd_pcm_substream *substream;

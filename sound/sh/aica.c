@@ -64,12 +64,6 @@ module_param(enable, bool, 0644);
 MODULE_PARM_DESC(enable, "Enable " CARD_NAME " soundcard.");
 
 /* Use workqueue */
-
-static struct spu_work_holder {
-	struct work_struct spu_dma_work;
-	void *sspointer;
-} spu_working;
-
 static struct workqueue_struct *aica_queue;
 
 /* Simple platform device */
@@ -100,9 +94,9 @@ static void spu_write_wait(void)
 			break;
 		/* To ensure hardware failure doesn't wedge kernel */
 		time_count++;
-		if (time_count > 0x10000)
-		{
-			snd_printk("WARNING: G2 FIFO appears to be blocked.\n");
+		if (time_count > 0x10000) {
+			snd_printk
+			    ("WARNING: G2 FIFO appears to be blocked.\n");
 			break;
 		}
 	}
@@ -226,11 +220,11 @@ static int aica_dma_transfer(int channels, int buffer_size,
 	runtime = substream->runtime;
 	for (q = 0; q < channels; q++) {
 		err = dma_xfer(AICA_DMA_CHANNEL,
-			       (unsigned long)(runtime->dma_area +
-					       (AICA_BUFFER_SIZE * q) /
-					       channels +
-					       AICA_PERIOD_SIZE *
-					       period_offset),
+			       (unsigned long) (runtime->dma_area +
+						(AICA_BUFFER_SIZE * q) /
+						channels +
+						AICA_PERIOD_SIZE *
+						period_offset),
 			       AICA_CHANNEL0_OFFSET + q * CHANNEL_OFFSET +
 			       AICA_PERIOD_SIZE * period_offset,
 			       buffer_size / channels, AICA_DMA_MODE);
@@ -244,26 +238,25 @@ static int aica_dma_transfer(int channels, int buffer_size,
 static void startup_aica(struct snd_card_aica *dreamcastcard)
 {
 	spu_memload(AICA_CHANNEL0_CONTROL_OFFSET,
-		    dreamcastcard->channel,
-		    sizeof(struct aica_channel));
+		    dreamcastcard->channel, sizeof(struct aica_channel));
 	aica_chn_start();
 }
 
 static void run_spu_dma(struct work_struct *work)
 {
 	int buffer_size;
-	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime *runtime;
 	struct snd_card_aica *dreamcastcard;
-	struct spu_work_holder *holder = container_of(work, struct spu_work_holder, spu_dma_work);
-	substream = holder-> sspointer;
-	dreamcastcard = substream->pcm->private_data;
-	runtime = substream->runtime;
+	dreamcastcard =
+	    container_of(work, struct snd_card_aica, spu_dma_work);
+	runtime = dreamcastcard->substream->runtime;
 	if (unlikely(dreamcastcard->dma_check == 0)) {
-		buffer_size = frames_to_bytes(runtime, runtime->buffer_size);
+		buffer_size =
+		    frames_to_bytes(runtime, runtime->buffer_size);
 		if (runtime->channels > 1)
 			dreamcastcard->channel->flags |= 0x01;
-		aica_dma_transfer(runtime->channels, buffer_size, substream);
+		aica_dma_transfer(runtime->channels, buffer_size,
+				  dreamcastcard->substream);
 		startup_aica(dreamcastcard);
 		dreamcastcard->clicks =
 		    buffer_size / (AICA_PERIOD_SIZE * runtime->channels);
@@ -271,13 +264,11 @@ static void run_spu_dma(struct work_struct *work)
 	} else {
 		aica_dma_transfer(runtime->channels,
 				  AICA_PERIOD_SIZE * runtime->channels,
-				  substream);
+				  dreamcastcard->substream);
 		snd_pcm_period_elapsed(dreamcastcard->substream);
 		dreamcastcard->clicks++;
 		if (unlikely(dreamcastcard->clicks >= AICA_PERIOD_NUMBER))
-		{
 			dreamcastcard->clicks %= AICA_PERIOD_NUMBER;
-		}
 		mod_timer(&dreamcastcard->timer, jiffies + 1);
 	}
 }
@@ -289,7 +280,7 @@ static void aica_period_elapsed(unsigned long timer_var)
 	struct snd_pcm_runtime *runtime;
 	struct snd_pcm_substream *substream;
 	struct snd_card_aica *dreamcastcard;
-	substream = (struct snd_pcm_substream *)timer_var;
+	substream = (struct snd_pcm_substream *) timer_var;
 	runtime = substream->runtime;
 	dreamcastcard = substream->pcm->private_data;
 	/* Have we played out an additional period? */
@@ -307,27 +298,24 @@ static void aica_period_elapsed(unsigned long timer_var)
 		dreamcastcard->current_period = play_period;
 	if (unlikely(dreamcastcard->dma_check == 0))
 		dreamcastcard->dma_check = 1;
-		queue_work(aica_queue, &(spu_working.spu_dma_work));
+	queue_work(aica_queue, &(dreamcastcard->spu_dma_work));
 }
 
 static void spu_begin_dma(struct snd_pcm_substream *substream)
 {
-	/* Must be atomic */
 	struct snd_card_aica *dreamcastcard;
 	struct snd_pcm_runtime *runtime;
 	runtime = substream->runtime;
 	dreamcastcard = substream->pcm->private_data;
-	/*  Use queue to do the heavy lifting */
-	spu_working.sspointer = substream;
-	INIT_WORK(&(spu_working.spu_dma_work), run_spu_dma);
-	queue_work(aica_queue, &(spu_working.spu_dma_work));
+	/*get the queue to do the work */
+	queue_work(aica_queue, &(dreamcastcard->spu_dma_work));
 	/* Timer may already be running */
 	if (unlikely(dreamcastcard->timer.data)) {
 		mod_timer(&dreamcastcard->timer, jiffies + 4);
 		return;
 	}
 	init_timer(&(dreamcastcard->timer));
-	dreamcastcard->timer.data = (unsigned long)substream;
+	dreamcastcard->timer.data = (unsigned long) substream;
 	dreamcastcard->timer.function = aica_period_elapsed;
 	dreamcastcard->timer.expires = jiffies + 4;
 	add_timer(&(dreamcastcard->timer));
@@ -366,7 +354,9 @@ static int snd_aicapcm_pcm_close(struct snd_pcm_substream
 				 *substream)
 {
 	struct snd_card_aica *dreamcastcard = substream->pcm->private_data;
-	del_timer(&dreamcastcard->timer);
+	flush_workqueue(aica_queue);
+	if (dreamcastcard->timer.data)
+		del_timer(&dreamcastcard->timer);
 	kfree(dreamcastcard->channel);
 	spu_disable();
 	return 0;
@@ -385,7 +375,8 @@ static int snd_aicapcm_pcm_hw_params(struct snd_pcm_substream
 {
 	/* Allocate a DMA buffer using ALSA built-ins */
 	return
-	    snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
+	    snd_pcm_lib_malloc_pages(substream,
+				     params_buffer_bytes(hw_params));
 }
 
 static int snd_aicapcm_pcm_prepare(struct snd_pcm_substream
@@ -402,15 +393,11 @@ static int snd_aicapcm_pcm_prepare(struct snd_pcm_substream
 static int snd_aicapcm_pcm_trigger(struct snd_pcm_substream
 				   *substream, int cmd)
 {
-	struct snd_card_aica *dreamcastcard;
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		spu_begin_dma(substream);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		dreamcastcard = substream->pcm->private_data;
-		if (dreamcastcard->timer.data)
-			del_timer(&dreamcastcard->timer);
 		aica_chn_halt();
 		break;
 	default:
@@ -444,7 +431,8 @@ static int __init snd_aicapcmchip(struct snd_card_aica
 	int err;
 	/* AICA has no capture ability */
 	err =
-	    snd_pcm_new(dreamcastcard->card, "AICA PCM", pcm_index, 1, 0, &pcm);
+	    snd_pcm_new(dreamcastcard->card, "AICA PCM", pcm_index, 1, 0,
+			&pcm);
 	if (unlikely(err < 0))
 		return err;
 	pcm->private_data = dreamcastcard;
@@ -524,9 +512,7 @@ static int aica_pcmvolume_put(struct snd_kcontrol *kcontrol,
 	dreamcastcard->channel->vol = ucontrol->value.integer.value[0];
 	dreamcastcard->master_volume = ucontrol->value.integer.value[0];
 	spu_memload(AICA_CHANNEL0_CONTROL_OFFSET,
-		    dreamcastcard->channel,
-		    sizeof(struct aica_channel));
-
+		    dreamcastcard->channel, sizeof(struct aica_channel));
 	return 1;
 }
 
@@ -610,6 +596,8 @@ static int __init snd_aica_probe(struct platform_device *devptr)
 	strcpy(dreamcastcard->card->shortname, SND_AICA_DRIVER);
 	strcpy(dreamcastcard->card->longname,
 	       "Yamaha AICA Super Intelligent Sound Processor for SEGA Dreamcast");
+	/* Prepare to use the queue */
+	INIT_WORK(&(dreamcastcard->spu_dma_work), run_spu_dma);
 	/* Load the PCM 'chip' */
 	err = snd_aicapcmchip(dreamcastcard, 0);
 	if (unlikely(err < 0))
@@ -663,8 +651,10 @@ static int __init aica_init(void)
 
 static void __exit aica_exit(void)
 {
-	/* Destroy the aica kernel thread */
-	destroy_workqueue(aica_queue);
+	/* Destroy the aica kernel thread            *
+	 * being extra cautious to check if it exists*/
+	if (likely(aica_queue))
+		destroy_workqueue(aica_queue);
 	platform_device_unregister(pd);
 	platform_driver_unregister(&snd_aica_driver);
 	/* Kill any sound still playing and reset ARM7 to safe state */
