@@ -69,8 +69,8 @@ struct backlight_device {
 
 	/* The framebuffer notifier block */
 	struct notifier_block fb_notif;
-	/* The class device structure */
-	struct class_device class_dev;
+
+	struct device dev;
 };
 
 static inline void backlight_update_status(struct backlight_device *bd)
@@ -85,6 +85,11 @@ extern struct backlight_device *backlight_device_register(const char *name,
 	struct device *dev, void *devdata, struct backlight_ops *ops);
 extern void backlight_device_unregister(struct backlight_device *bd);
 
-#define to_backlight_device(obj) container_of(obj, struct backlight_device, class_dev)
+#define to_backlight_device(obj) container_of(obj, struct backlight_device, dev)
+
+static inline void * bl_get_data(struct backlight_device *bl_dev)
+{
+	return dev_get_drvdata(&bl_dev->dev);
+}
 
 #endif

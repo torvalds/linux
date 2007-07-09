@@ -62,8 +62,8 @@ struct lcd_device {
 	struct mutex update_lock;
 	/* The framebuffer notifier block */
 	struct notifier_block fb_notif;
-	/* The class device structure */
-	struct class_device class_dev;
+
+	struct device dev;
 };
 
 static inline void lcd_set_power(struct lcd_device *ld, int power)
@@ -75,9 +75,15 @@ static inline void lcd_set_power(struct lcd_device *ld, int power)
 }
 
 extern struct lcd_device *lcd_device_register(const char *name,
-	void *devdata, struct lcd_ops *ops);
+	struct device *parent, void *devdata, struct lcd_ops *ops);
 extern void lcd_device_unregister(struct lcd_device *ld);
 
-#define to_lcd_device(obj) container_of(obj, struct lcd_device, class_dev)
+#define to_lcd_device(obj) container_of(obj, struct lcd_device, dev)
+
+static inline void * lcd_get_data(struct lcd_device *ld_dev)
+{
+	return dev_get_drvdata(&ld_dev->dev);
+}
+
 
 #endif

@@ -307,7 +307,7 @@ static int riva_bl_get_level_brightness(struct riva_par *par,
 
 static int riva_bl_update_status(struct backlight_device *bd)
 {
-	struct riva_par *par = class_get_devdata(&bd->class_dev);
+	struct riva_par *par = bl_get_data(bd);
 	U032 tmp_pcrt, tmp_pmc;
 	int level;
 
