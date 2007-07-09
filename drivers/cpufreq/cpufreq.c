@@ -1687,7 +1687,6 @@ static int cpufreq_cpu_callback(struct notifier_block *nfb,
 {
 	unsigned int cpu = (unsigned long)hcpu;
 	struct sys_device *sys_dev;
-	struct cpufreq_policy *policy;
 
 	sys_dev = get_cpu_sysdev(cpu);
 	if (sys_dev) {
@@ -1701,11 +1700,6 @@ static int cpufreq_cpu_callback(struct notifier_block *nfb,
 			if (unlikely(lock_policy_rwsem_write(cpu)))
 				BUG();
 
-			policy = cpufreq_cpu_data[cpu];
-			if (policy) {
-				__cpufreq_driver_target(policy, policy->min,
-						CPUFREQ_RELATION_H);
-			}
 			__cpufreq_remove_dev(sys_dev);
 			break;
 		case CPU_DOWN_FAILED:
