@@ -788,7 +788,6 @@ struct mempolicy;
 struct pipe_inode_info;
 struct uts_namespace;
 
-struct prio_array;
 struct rq;
 struct sched_domain;
 
@@ -884,10 +883,9 @@ struct task_struct {
 	int oncpu;
 #endif
 #endif
-	int load_weight;	/* for niceness load balancing purposes */
+
 	int prio, static_prio, normal_prio;
 	struct list_head run_list;
-	struct prio_array *array;
 	struct sched_class *sched_class;
 	struct sched_entity se;
 
@@ -895,13 +893,10 @@ struct task_struct {
 #ifdef CONFIG_BLK_DEV_IO_TRACE
 	unsigned int btrace_seq;
 #endif
-	unsigned long sleep_avg;
-	unsigned long long timestamp, last_ran;
-	unsigned long long sched_time; /* sched_clock time spent running */
 
 	unsigned int policy;
 	cpumask_t cpus_allowed;
-	unsigned int time_slice, first_time_slice;
+	unsigned int time_slice;
 
 #if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
 	struct sched_info sched_info;
