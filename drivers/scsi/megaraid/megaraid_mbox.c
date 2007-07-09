@@ -3880,7 +3880,7 @@ megaraid_sysfs_alloc_resources(adapter_t *adapter)
 		megaraid_sysfs_free_resources(adapter);
 	}
 
-	sema_init(&raid_dev->sysfs_sem, 1);
+	mutex_init(&raid_dev->sysfs_mtx);
 
 	init_waitqueue_head(&raid_dev->sysfs_wait_q);
 
@@ -3981,7 +3981,7 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
 	/*
 	 * Allow only one read at a time to go through the sysfs attributes
 	 */
-	down(&raid_dev->sysfs_sem);
+	mutex_lock(&raid_dev->sysfs_mtx);
 
 	uioc	= raid_dev->sysfs_uioc;
 	mbox64	= raid_dev->sysfs_mbox64;
@@ -4057,7 +4057,7 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
 
 	del_timer_sync(timerp);
 
-	up(&raid_dev->sysfs_sem);
+	mutex_unlock(&raid_dev->sysfs_mtx);
 
 	return rval;
 }
