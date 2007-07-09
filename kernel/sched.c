@@ -91,6 +91,9 @@ unsigned long long __attribute__((weak)) sched_clock(void)
 #define NS_TO_JIFFIES(TIME)	((TIME) / (1000000000 / HZ))
 #define JIFFIES_TO_NS(TIME)	((TIME) * (1000000000 / HZ))
 
+#define NICE_0_LOAD		SCHED_LOAD_SCALE
+#define NICE_0_SHIFT		SCHED_LOAD_SHIFT
+
 /*
  * These are the 'tuning knobs' of the scheduler:
  *
@@ -218,9 +221,61 @@ static inline unsigned int task_timeslice(struct task_struct *p)
 }
 
 /*
- * These are the runqueue data structures:
+ * This is the priority-queue data structure of the RT scheduling class:
  */
+struct rt_prio_array {
+	DECLARE_BITMAP(bitmap, MAX_RT_PRIO+1); /* include 1 bit for delimiter */
+	struct list_head queue[MAX_RT_PRIO];
+};
 
+struct load_stat {
+	struct load_weight load;
+	u64 load_update_start, load_update_last;
+	unsigned long delta_fair, delta_exec, delta_stat;
+};
+
+/* CFS-related fields in a runqueue */
+struct cfs_rq {
+	struct load_weight load;
+	unsigned long nr_running;
+
+	s64 fair_clock;
+	u64 exec_clock;
+	s64 wait_runtime;
+	u64 sleeper_bonus;
+	unsigned long wait_runtime_overruns, wait_runtime_underruns;
+
+	struct rb_root tasks_timeline;
+	struct rb_node *rb_leftmost;
+	struct rb_node *rb_load_balance_curr;
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	/* 'curr' points to currently running entity on this cfs_rq.
+	 * It is set to NULL otherwise (i.e when none are currently running).
+	 */
+	struct sched_entity *curr;
+	struct rq *rq;	/* cpu runqueue to which this cfs_rq is attached */
+
+	/* leaf cfs_rqs are those that hold tasks (lowest schedulable entity in
+	 * a hierarchy). Non-leaf lrqs hold other higher schedulable entities
+	 * (like users, containers etc.)
+	 *
+	 * leaf_cfs_rq_list ties together list of leaf cfs_rq's in a cpu. This
+	 * list is used during load balance.
+	 */
+	struct list_head leaf_cfs_rq_list; /* Better name : task_cfs_rq_list? */
+#endif
+};
+
+/* Real-Time classes' related field in a runqueue: */
+struct rt_rq {
+	struct rt_prio_array active;
+	int rt_load_balance_idx;
+	struct list_head *rt_load_balance_head, *rt_load_balance_curr;
+};
+
+/*
+ * The prio-array type of the old scheduler:
+ */
 struct prio_array {
 	unsigned int nr_active;
 	DECLARE_BITMAP(bitmap, MAX_PRIO+1); /* include 1 bit for delimiter */
@@ -235,7 +290,7 @@ struct prio_array {
  * acquire operations must be ordered by ascending &runqueue.
  */
 struct rq {
-	spinlock_t lock;
+	spinlock_t lock;	/* runqueue lock */
 
 	/*
 	 * nr_running and cpu_load should be in the same cacheline because
@@ -243,14 +298,21 @@ struct rq {
 	 */
 	unsigned long nr_running;
 	unsigned long raw_weighted_load;
-#ifdef CONFIG_SMP
-	unsigned long cpu_load[3];
+	#define CPU_LOAD_IDX_MAX 5
+	unsigned long cpu_load[CPU_LOAD_IDX_MAX];
 	unsigned char idle_at_tick;
 #ifdef CONFIG_NO_HZ
 	unsigned char in_nohz_recently;
 #endif
+	struct load_stat ls;	/* capture load from *all* tasks on this cpu */
+	unsigned long nr_load_updates;
+	u64 nr_switches;
+
+	struct cfs_rq cfs;
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	struct list_head leaf_cfs_rq_list; /* list of leaf cfs_rq on this cpu */
 #endif
-	unsigned long long nr_switches;
+	struct rt_rq  rt;
 
 	/*
 	 * This is part of a global counter where only the total sum
@@ -261,13 +323,23 @@ struct rq {
 	unsigned long nr_uninterruptible;
 
 	unsigned long expired_timestamp;
-	/* Cached timestamp set by update_cpu_clock() */
 	unsigned long long most_recent_timestamp;
+
 	struct task_struct *curr, *idle;
 	unsigned long next_balance;
 	struct mm_struct *prev_mm;
+
 	struct prio_array *active, *expired, arrays[2];
 	int best_expired_prio;
+
+	u64 clock, prev_clock_raw;
+	s64 clock_max_delta;
+
+	unsigned int clock_warps, clock_overflows;
+	unsigned int clock_unstable_events;
+
+	struct sched_class *load_balance_class;
+
 	atomic_t nr_iowait;
 
 #ifdef CONFIG_SMP
