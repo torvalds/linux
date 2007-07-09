@@ -548,16 +548,12 @@ static inline int blk_send_start_stop(request_queue_t *q, struct gendisk *bd_dis
 	return __blk_send_generic(q, bd_disk, GPCMD_START_STOP_UNIT, data);
 }
 
-int scsi_cmd_ioctl(struct file *file, struct gendisk *bd_disk, unsigned int cmd, void __user *arg)
+int scsi_cmd_ioctl(struct file *file, struct request_queue *q,
+		   struct gendisk *bd_disk, unsigned int cmd, void __user *arg)
 {
-	request_queue_t *q;
 	int err;
 
-	q = bd_disk->queue;
-	if (!q)
-		return -ENXIO;
-
-	if (blk_get_queue(q))
+	if (!q || blk_get_queue(q))
 		return -ENXIO;
 
 	switch (cmd) {

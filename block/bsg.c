@@ -900,7 +900,7 @@ bsg_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	case SG_EMULATED_HOST:
 	case SCSI_IOCTL_SEND_COMMAND: {
 		void __user *uarg = (void __user *) arg;
-		return scsi_cmd_ioctl(file, bd->disk, cmd, uarg);
+		return scsi_cmd_ioctl(file, bd->queue, bd->disk, cmd, uarg);
 	}
 	case SG_IO: {
 		struct request *rq;

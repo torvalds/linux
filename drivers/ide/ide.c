@@ -1052,7 +1052,7 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 	int err, (*setfunc)(ide_drive_t *, int);
 	u8 *val;
 
-	err = scsi_cmd_ioctl(file, bdev->bd_disk, cmd, p);
+	err = scsi_cmd_ioctl(file, bdev->bd_disk->queue, bdev->bd_disk, cmd, p);
 	if (err != -ENOTTY)
 		return err;
 
