@@ -130,7 +130,7 @@ struct hd_i_struct {
 	
 #ifdef HD_TYPE
 static struct hd_i_struct hd_info[] = { HD_TYPE };
-static int NR_HD = ((sizeof (hd_info))/(sizeof (struct hd_i_struct)));
+static int NR_HD = ARRAY_SIZE(hd_info);
 #else
 static struct hd_i_struct hd_info[MAX_HD];
 static int NR_HD;
