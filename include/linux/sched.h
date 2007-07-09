@@ -482,7 +482,6 @@ struct signal_struct {
 	 * from jiffies_to_ns(utime + stime) if sched_clock uses something
 	 * other than jiffies.)
 	 */
-	unsigned long sched_time;
 	unsigned long long sum_sched_runtime;
 
 	/*
