@@ -2058,8 +2058,6 @@ static struct sk_buff *receive_new(struct sky2_port *sky2,
 	struct sk_buff *skb, *nskb;
 	unsigned hdr_space = sky2->rx_data_size;
 
-	pr_debug(PFX "receive new length=%d\n", length);
-
 	/* Don't be tricky about reusing pages (yet) */
 	nskb = sky2_rx_alloc(sky2);
 	if (unlikely(!nskb))
@@ -2727,8 +2725,6 @@ static void sky2_restart(struct work_struct *work)
 	struct sky2_hw *hw = container_of(work, struct sky2_hw, restart_work);
 	struct net_device *dev;
 	int i, err;
-
-	dev_dbg(&hw->pdev->dev, "restarting\n");
 
 	del_timer_sync(&hw->idle_timer);
 
