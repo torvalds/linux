@@ -482,7 +482,8 @@ struct signal_struct {
 	 * from jiffies_to_ns(utime + stime) if sched_clock uses something
 	 * other than jiffies.)
 	 */
-	unsigned long long sched_time;
+	unsigned long sched_time;
+	unsigned long long sum_sched_runtime;
 
 	/*
 	 * We don't bother to synchronize most readers of this at all,
@@ -1308,7 +1309,7 @@ static inline int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
 
 extern unsigned long long sched_clock(void);
 extern unsigned long long
-current_sched_time(const struct task_struct *current_task);
+task_sched_runtime(struct task_struct *task);
 
 /* sched_exec is called by processes performing an exec */
 #ifdef CONFIG_SMP

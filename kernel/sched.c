@@ -3156,28 +3156,23 @@ DEFINE_PER_CPU(struct kernel_stat, kstat);
 EXPORT_PER_CPU_SYMBOL(kstat);
 
 /*
- * This is called on clock ticks and on context switches.
- * Bank in p->sched_time the ns elapsed since the last tick or switch.
+ * Return p->sum_exec_runtime plus any more ns on the sched_clock
+ * that have not yet been banked in case the task is currently running.
  */
-static inline void
-update_cpu_clock(struct task_struct *p, struct rq *rq, unsigned long long now)
+unsigned long long task_sched_runtime(struct task_struct *p)
 {
-	p->sched_time += now - p->last_ran;
-	p->last_ran = rq->most_recent_timestamp = now;
-}
-
-/*
- * Return current->sched_time plus any more ns on the sched_clock
- * that have not yet been banked.
- */
-unsigned long long current_sched_time(const struct task_struct *p)
-{
-	unsigned long long ns;
 	unsigned long flags;
+	u64 ns, delta_exec;
+	struct rq *rq;
 
-	local_irq_save(flags);
-	ns = p->sched_time + sched_clock() - p->last_ran;
-	local_irq_restore(flags);
+	rq = task_rq_lock(p, &flags);
+	ns = p->se.sum_exec_runtime;
+	if (rq->curr == p) {
+		delta_exec = rq_clock(rq) - p->se.exec_start;
+		if ((s64)delta_exec > 0)
+			ns += delta_exec;
+	}
+	task_rq_unlock(rq, &flags);
 
 	return ns;
 }
@@ -3360,13 +3355,10 @@ out_unlock:
  */
 void scheduler_tick(void)
 {
-	unsigned long long now = sched_clock();
 	struct task_struct *p = current;
 	int cpu = smp_processor_id();
 	int idle_at_tick = idle_cpu(cpu);
 	struct rq *rq = cpu_rq(cpu);
-
-	update_cpu_clock(p, rq, now);
 
 	if (!idle_at_tick)
 		task_running_tick(rq, p);
@@ -3549,8 +3541,6 @@ switch_tasks:
 	prefetch_stack(next);
 	clear_tsk_need_resched(prev);
 	rcu_qsctr_inc(task_cpu(prev));
-
-	update_cpu_clock(prev, rq, now);
 
 	prev->sleep_avg -= run_time;
 	if ((long)prev->sleep_avg <= 0)
