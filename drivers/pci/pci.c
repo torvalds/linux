@@ -406,6 +406,13 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	if ((state == PCI_D1 || state == PCI_D2) && pci_no_d1d2(dev))
 		return 0;
 
+	/* find PCI PM capability in list */
+	pm = pci_find_capability(dev, PCI_CAP_ID_PM);
+
+	/* abort if the device doesn't support PM capabilities */
+	if (!pm)
+		return -EIO;
+
 	/* Validate current state:
 	 * Can enter D0 from any state, but if we can only go deeper 
 	 * to sleep if we're already in a low power state
@@ -417,13 +424,6 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	} else if (dev->current_state == state)
 		return 0;        /* we're already there */
 
-
-	/* find PCI PM capability in list */
-	pm = pci_find_capability(dev, PCI_CAP_ID_PM);
-	
-	/* abort if the device doesn't support PM capabilities */
-	if (!pm)
-		return -EIO; 
 
 	pci_read_config_word(dev,pm + PCI_PM_PMC,&pmc);
 	if ((pmc & PCI_PM_CAP_VER_MASK) > 3) {
