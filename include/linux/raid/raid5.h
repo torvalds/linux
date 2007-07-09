@@ -145,6 +145,22 @@ struct stripe_head {
 		unsigned long	flags;
 	} dev[1]; /* allocated with extra space depending of RAID geometry */
 };
+
+/* stripe_head_state - collects and tracks the dynamic state of a stripe_head
+ *     for handle_stripe.  It is only valid under spin_lock(sh->lock);
+ */
+struct stripe_head_state {
+	int syncing, expanding, expanded;
+	int locked, uptodate, to_read, to_write, failed, written;
+	int non_overwrite;
+	int failed_num;
+};
+
+/* r6_state - extra state data only relevant to r6 */
+struct r6_state {
+	int p_failed, q_failed, qd_idx, failed_num[2];
+};
+
 /* Flags */
 #define	R5_UPTODATE	0	/* page contains current data */
 #define	R5_LOCKED	1	/* IO has been submitted on "req" */
