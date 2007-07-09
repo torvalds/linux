@@ -322,13 +322,48 @@ struct ehca_alloc_cq_parms {
 	struct ipz_eq_handle eq_handle;
 };
 
+enum ehca_service_type {
+	ST_RC  = 0,
+	ST_UC  = 1,
+	ST_RD  = 2,
+	ST_UD  = 3,
+};
+
+enum ehca_ext_qp_type {
+	EQPT_NORMAL    = 0,
+	EQPT_LLQP      = 1,
+	EQPT_SRQBASE   = 2,
+	EQPT_SRQ       = 3,
+};
+
+enum ehca_ll_comp_flags {
+	LLQP_SEND_COMP = 0x20,
+	LLQP_RECV_COMP = 0x40,
+	LLQP_COMP_MASK = 0x60,
+};
+
 struct ehca_alloc_qp_parms {
-	int servicetype;
+/* input parameters */
+	enum ehca_service_type servicetype;
 	int sigtype;
-	int daqp_ctrl;
-	int max_send_sge;
-	int max_recv_sge;
+	enum ehca_ext_qp_type ext_type;
+	enum ehca_ll_comp_flags ll_comp_flags;
+
+	int max_send_wr, max_recv_wr;
+	int max_send_sge, max_recv_sge;
 	int ud_av_l_key_ctl;
+
+	u32 token;
+	struct ipz_eq_handle eq_handle;
+	struct ipz_pd pd;
+	struct ipz_cq_handle send_cq_handle, recv_cq_handle;
+
+	u32 srq_qpn, srq_token, srq_limit;
+
+/* output parameters */
+	u32 real_qp_num;
+	struct ipz_qp_handle qp_handle;
+	struct h_galpas galpas;
 
 	u16 act_nr_send_wqes;
 	u16 act_nr_recv_wqes;
@@ -337,9 +372,6 @@ struct ehca_alloc_qp_parms {
 
 	u32 nr_rq_pages;
 	u32 nr_sq_pages;
-
-	struct ipz_eq_handle ipz_eq_handle;
-	struct ipz_pd pd;
 };
 
 int ehca_cq_assign_qp(struct ehca_cq *cq, struct ehca_qp *qp);

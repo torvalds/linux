@@ -234,13 +234,6 @@ static inline enum ib_qp_statetrans get_modqp_statetrans(int ib_fromstate,
 	return index;
 }
 
-enum ehca_service_type {
-	ST_RC = 0,
-	ST_UC = 1,
-	ST_RD = 2,
-	ST_UD = 3
-};
-
 /*
  * ibqptype2servicetype returns hcp service type corresponding to given
  * ib qp type used by create_qp()
@@ -268,15 +261,16 @@ static inline int ibqptype2servicetype(enum ib_qp_type ibqptype)
 }
 
 /*
- * init_qp_queues initializes/constructs r/squeue and registers queue pages.
+ * init_qp_queue initializes/constructs r/squeue and registers queue pages.
  */
-static inline int init_qp_queues(struct ehca_shca *shca,
-				 struct ehca_qp *my_qp,
-				 int nr_sq_pages,
-				 int nr_rq_pages,
-				 int swqe_size,
-				 int rwqe_size,
-				 int nr_send_sges, int nr_receive_sges)
+static inline int init_qp_queue(struct ehca_shca *shca,
+				struct ehca_qp *my_qp,
+				struct ipz_queue *queue,
+				int q_type,
+				u64 expected_hret,
+				int nr_q_pages,
+				int wqe_size,
+				int nr_sges)
 {
 	int ret, cnt, ipz_rc;
 	void *vpage;
@@ -284,104 +278,63 @@ static inline int init_qp_queues(struct ehca_shca *shca,
 	struct ib_device *ib_dev = &shca->ib_device;
 	struct ipz_adapter_handle ipz_hca_handle = shca->ipz_hca_handle;
 
-	ipz_rc = ipz_queue_ctor(&my_qp->ipz_squeue,
-				nr_sq_pages,
-				EHCA_PAGESIZE, swqe_size, nr_send_sges);
+	if (!nr_q_pages)
+		return 0;
+
+	ipz_rc = ipz_queue_ctor(queue, nr_q_pages, EHCA_PAGESIZE,
+				wqe_size, nr_sges);
 	if (!ipz_rc) {
-		ehca_err(ib_dev,"Cannot allocate page for squeue. ipz_rc=%x",
+		ehca_err(ib_dev, "Cannot allocate page for queue. ipz_rc=%x",
 			 ipz_rc);
 		return -EBUSY;
 	}
 
-	ipz_rc = ipz_queue_ctor(&my_qp->ipz_rqueue,
-				nr_rq_pages,
-				EHCA_PAGESIZE, rwqe_size, nr_receive_sges);
-	if (!ipz_rc) {
-		ehca_err(ib_dev, "Cannot allocate page for rqueue. ipz_rc=%x",
-			 ipz_rc);
-		ret = -EBUSY;
-		goto init_qp_queues0;
-	}
-	/* register SQ pages */
-	for (cnt = 0; cnt < nr_sq_pages; cnt++) {
-		vpage = ipz_qpageit_get_inc(&my_qp->ipz_squeue);
+	/* register queue pages */
+	for (cnt = 0; cnt < nr_q_pages; cnt++) {
+		vpage = ipz_qpageit_get_inc(queue);
 		if (!vpage) {
-			ehca_err(ib_dev, "SQ ipz_qpageit_get_inc() "
+			ehca_err(ib_dev, "ipz_qpageit_get_inc() "
 				 "failed p_vpage= %p", vpage);
 			ret = -EINVAL;
-			goto init_qp_queues1;
+			goto init_qp_queue1;
 		}
 		rpage = virt_to_abs(vpage);
 
 		h_ret = hipz_h_register_rpage_qp(ipz_hca_handle,
 						 my_qp->ipz_qp_handle,
-						 &my_qp->pf, 0, 0,
+						 NULL, 0, q_type,
 						 rpage, 1,
 						 my_qp->galpas.kernel);
-		if (h_ret < H_SUCCESS) {
-			ehca_err(ib_dev, "SQ hipz_qp_register_rpage()"
-				 " failed rc=%lx", h_ret);
-			ret = ehca2ib_return_code(h_ret);
-			goto init_qp_queues1;
-		}
-	}
-
-	ipz_qeit_reset(&my_qp->ipz_squeue);
-
-	/* register RQ pages */
-	for (cnt = 0; cnt < nr_rq_pages; cnt++) {
-		vpage = ipz_qpageit_get_inc(&my_qp->ipz_rqueue);
-		if (!vpage) {
-			ehca_err(ib_dev, "RQ ipz_qpageit_get_inc() "
-				 "failed p_vpage = %p", vpage);
-			ret = -EINVAL;
-			goto init_qp_queues1;
-		}
-
-		rpage = virt_to_abs(vpage);
-
-		h_ret = hipz_h_register_rpage_qp(ipz_hca_handle,
-						 my_qp->ipz_qp_handle,
-						 &my_qp->pf, 0, 1,
-						 rpage, 1,my_qp->galpas.kernel);
-		if (h_ret < H_SUCCESS) {
-			ehca_err(ib_dev, "RQ hipz_qp_register_rpage() failed "
-				 "rc=%lx", h_ret);
-			ret = ehca2ib_return_code(h_ret);
-			goto init_qp_queues1;
-		}
-		if (cnt == (nr_rq_pages - 1)) {	/* last page! */
-			if (h_ret != H_SUCCESS) {
-				ehca_err(ib_dev, "RQ hipz_qp_register_rpage() "
+		if (cnt == (nr_q_pages - 1)) {	/* last page! */
+			if (h_ret != expected_hret) {
+				ehca_err(ib_dev, "hipz_qp_register_rpage() "
 					 "h_ret= %lx ", h_ret);
 				ret = ehca2ib_return_code(h_ret);
-				goto init_qp_queues1;
+				goto init_qp_queue1;
 			}
 			vpage = ipz_qpageit_get_inc(&my_qp->ipz_rqueue);
 			if (vpage) {
 				ehca_err(ib_dev, "ipz_qpageit_get_inc() "
 					 "should not succeed vpage=%p", vpage);
 				ret = -EINVAL;
-				goto init_qp_queues1;
+				goto init_qp_queue1;
 			}
 		} else {
 			if (h_ret != H_PAGE_REGISTERED) {
-				ehca_err(ib_dev, "RQ hipz_qp_register_rpage() "
+				ehca_err(ib_dev, "hipz_qp_register_rpage() "
 					 "h_ret= %lx ", h_ret);
 				ret = ehca2ib_return_code(h_ret);
-				goto init_qp_queues1;
+				goto init_qp_queue1;
 			}
 		}
 	}
 
-	ipz_qeit_reset(&my_qp->ipz_rqueue);
+	ipz_qeit_reset(queue);
 
 	return 0;
 
-init_qp_queues1:
-	ipz_queue_dtor(&my_qp->ipz_rqueue);
-init_qp_queues0:
-	ipz_queue_dtor(&my_qp->ipz_squeue);
+init_qp_queue1:
+	ipz_queue_dtor(queue);
 	return ret;
 }
 
@@ -397,13 +350,16 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 					      ib_device);
 	struct ib_ucontext *context = NULL;
 	u64 h_ret;
-	int max_send_sge, max_recv_sge, ret;
+	int is_llqp = 0, has_srq = 0;
+	int qp_type, max_send_sge, max_recv_sge, ret;
 
 	/* h_call's out parameters */
 	struct ehca_alloc_qp_parms parms;
 	u32 swqe_size = 0, rwqe_size = 0;
-	u8 daqp_completion, isdaqp;
 	unsigned long flags;
+
+	memset(&parms, 0, sizeof(parms));
+	qp_type = init_attr->qp_type;
 
 	if (init_attr->sq_sig_type != IB_SIGNAL_REQ_WR &&
 		init_attr->sq_sig_type != IB_SIGNAL_ALL_WR) {
@@ -412,38 +368,47 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 		return ERR_PTR(-EINVAL);
 	}
 
-	/* save daqp completion bits */
-	daqp_completion = init_attr->qp_type & 0x60;
-	/* save daqp bit */
-	isdaqp = (init_attr->qp_type & 0x80) ? 1 : 0;
-	init_attr->qp_type = init_attr->qp_type & 0x1F;
+	/* save LLQP info */
+	if (qp_type & 0x80) {
+		is_llqp = 1;
+		parms.ext_type = EQPT_LLQP;
+		parms.ll_comp_flags = qp_type & LLQP_COMP_MASK;
+	}
+	qp_type &= 0x1F;
 
-	if (init_attr->qp_type != IB_QPT_UD &&
-	    init_attr->qp_type != IB_QPT_SMI &&
-	    init_attr->qp_type != IB_QPT_GSI &&
-	    init_attr->qp_type != IB_QPT_UC &&
-	    init_attr->qp_type != IB_QPT_RC) {
-		ehca_err(pd->device, "wrong QP Type=%x", init_attr->qp_type);
+	/* check for SRQ */
+	has_srq = !!(init_attr->srq);
+	if (is_llqp && has_srq) {
+		ehca_err(pd->device, "LLQPs can't have an SRQ");
 		return ERR_PTR(-EINVAL);
 	}
-	if ((init_attr->qp_type != IB_QPT_RC && init_attr->qp_type != IB_QPT_UD)
-	    && isdaqp) {
-		ehca_err(pd->device, "unsupported LL QP Type=%x",
-			 init_attr->qp_type);
+
+	/* check QP type */
+	if (qp_type != IB_QPT_UD &&
+	    qp_type != IB_QPT_UC &&
+	    qp_type != IB_QPT_RC &&
+	    qp_type != IB_QPT_SMI &&
+	    qp_type != IB_QPT_GSI) {
+		ehca_err(pd->device, "wrong QP Type=%x", qp_type);
 		return ERR_PTR(-EINVAL);
-	} else if (init_attr->qp_type == IB_QPT_RC && isdaqp &&
+	}
+
+	if (is_llqp && (qp_type != IB_QPT_RC && qp_type != IB_QPT_UD)) {
+		ehca_err(pd->device, "unsupported LL QP Type=%x", qp_type);
+		return ERR_PTR(-EINVAL);
+	} else if (is_llqp && qp_type == IB_QPT_RC &&
 		   (init_attr->cap.max_send_wr > 255 ||
 		    init_attr->cap.max_recv_wr > 255 )) {
-		       ehca_err(pd->device, "Invalid Number of max_sq_wr =%x "
-				"or max_rq_wr=%x for QP Type=%x",
-				init_attr->cap.max_send_wr,
-				init_attr->cap.max_recv_wr,init_attr->qp_type);
-		       return ERR_PTR(-EINVAL);
-	} else if (init_attr->qp_type == IB_QPT_UD && isdaqp &&
-		  init_attr->cap.max_send_wr > 255) {
+		ehca_err(pd->device, "Invalid Number of max_sq_wr=%x "
+			 "or max_rq_wr=%x for RC LLQP",
+			 init_attr->cap.max_send_wr,
+			 init_attr->cap.max_recv_wr);
+		return ERR_PTR(-EINVAL);
+	} else if (is_llqp && qp_type == IB_QPT_UD &&
+		 init_attr->cap.max_send_wr > 255) {
 		ehca_err(pd->device,
 			 "Invalid Number of max_send_wr=%x for UD QP_TYPE=%x",
-			 init_attr->cap.max_send_wr, init_attr->qp_type);
+			 init_attr->cap.max_send_wr, qp_type);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -456,7 +421,6 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	memset (&parms, 0, sizeof(struct ehca_alloc_qp_parms));
 	spin_lock_init(&my_qp->spinlock_s);
 	spin_lock_init(&my_qp->spinlock_r);
 
@@ -464,8 +428,6 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 		container_of(init_attr->recv_cq, struct ehca_cq, ib_cq);
 	my_qp->send_cq =
 		container_of(init_attr->send_cq, struct ehca_cq, ib_cq);
-
-	my_qp->init_attr = *init_attr;
 
 	do {
 		if (!idr_pre_get(&ehca_qp_idr, GFP_KERNEL)) {
@@ -486,10 +448,10 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 		goto create_qp_exit0;
 	}
 
-	parms.servicetype = ibqptype2servicetype(init_attr->qp_type);
+	parms.servicetype = ibqptype2servicetype(qp_type);
 	if (parms.servicetype < 0) {
 		ret = -EINVAL;
-		ehca_err(pd->device, "Invalid qp_type=%x", init_attr->qp_type);
+		ehca_err(pd->device, "Invalid qp_type=%x", qp_type);
 		goto create_qp_exit0;
 	}
 
@@ -501,21 +463,23 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 	/* UD_AV CIRCUMVENTION */
 	max_send_sge = init_attr->cap.max_send_sge;
 	max_recv_sge = init_attr->cap.max_recv_sge;
-	if (IB_QPT_UD == init_attr->qp_type ||
-	    IB_QPT_GSI == init_attr->qp_type ||
-	    IB_QPT_SMI == init_attr->qp_type) {
+	if (parms.servicetype == ST_UD) {
 		max_send_sge += 2;
 		max_recv_sge += 2;
 	}
 
-	parms.ipz_eq_handle = shca->eq.ipz_eq_handle;
-	parms.daqp_ctrl = isdaqp | daqp_completion;
+	parms.token = my_qp->token;
+	parms.eq_handle = shca->eq.ipz_eq_handle;
 	parms.pd = my_pd->fw_pd;
-	parms.max_recv_sge = max_recv_sge;
+	parms.send_cq_handle = my_qp->send_cq->ipz_cq_handle;
+	parms.recv_cq_handle = my_qp->recv_cq->ipz_cq_handle;
+
+	parms.max_send_wr = init_attr->cap.max_send_wr;
+	parms.max_recv_wr = init_attr->cap.max_recv_wr;
 	parms.max_send_sge = max_send_sge;
+	parms.max_recv_sge = max_recv_sge;
 
-	h_ret = hipz_h_alloc_resource_qp(shca->ipz_hca_handle, my_qp, &parms);
-
+	h_ret = hipz_h_alloc_resource_qp(shca->ipz_hca_handle, &parms);
 	if (h_ret != H_SUCCESS) {
 		ehca_err(pd->device, "h_alloc_resource_qp() failed h_ret=%lx",
 			 h_ret);
@@ -523,16 +487,18 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 		goto create_qp_exit1;
 	}
 
-	my_qp->ib_qp.qp_num = my_qp->real_qp_num;
+	my_qp->ib_qp.qp_num = my_qp->real_qp_num = parms.real_qp_num;
+	my_qp->ipz_qp_handle = parms.qp_handle;
+	my_qp->galpas = parms.galpas;
 
-	switch (init_attr->qp_type) {
+	switch (qp_type) {
 	case IB_QPT_RC:
-	        if (isdaqp == 0) {
+		if (!is_llqp) {
 			swqe_size = offsetof(struct ehca_wqe, u.nud.sg_list[
 					     (parms.act_nr_send_sges)]);
 			rwqe_size = offsetof(struct ehca_wqe, u.nud.sg_list[
 					     (parms.act_nr_recv_sges)]);
-		} else { /* for daqp we need to use msg size, not wqe size */
+		} else { /* for LLQP we need to use msg size, not wqe size */
 		        swqe_size = da_rc_msg_size[max_send_sge];
 			rwqe_size = da_rc_msg_size[max_recv_sge];
 			parms.act_nr_send_sges = 1;
@@ -552,7 +518,7 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 		/* UD circumvention */
 		parms.act_nr_recv_sges -= 2;
 		parms.act_nr_send_sges -= 2;
-		if (isdaqp) {
+		if (is_llqp) {
 		        swqe_size = da_ud_sq_msg_size[max_send_sge];
 			rwqe_size = da_rc_msg_size[max_recv_sge];
 			parms.act_nr_send_sges = 1;
@@ -564,14 +530,12 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 					     u.ud_av.sg_list[parms.act_nr_recv_sges]);
 		}
 
-		if (IB_QPT_GSI == init_attr->qp_type ||
-		    IB_QPT_SMI == init_attr->qp_type) {
+		if (IB_QPT_GSI == qp_type || IB_QPT_SMI == qp_type) {
 			parms.act_nr_send_wqes = init_attr->cap.max_send_wr;
 			parms.act_nr_recv_wqes = init_attr->cap.max_recv_wr;
 			parms.act_nr_send_sges = init_attr->cap.max_send_sge;
 			parms.act_nr_recv_sges = init_attr->cap.max_recv_sge;
-			my_qp->ib_qp.qp_num =
-				(init_attr->qp_type == IB_QPT_SMI) ? 0 : 1;
+			my_qp->ib_qp.qp_num = (qp_type == IB_QPT_SMI) ? 0 : 1;
 		}
 
 		break;
@@ -580,15 +544,24 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 		break;
 	}
 
-	/* initializes r/squeue and registers queue pages */
-	ret = init_qp_queues(shca, my_qp,
-			     parms.nr_sq_pages, parms.nr_rq_pages,
-			     swqe_size, rwqe_size,
-			     parms.act_nr_send_sges, parms.act_nr_recv_sges);
+	/* initialize r/squeue and register queue pages */
+	ret = init_qp_queue(shca, my_qp, &my_qp->ipz_squeue, 0,
+			    has_srq ? H_SUCCESS : H_PAGE_REGISTERED,
+			    parms.nr_sq_pages, swqe_size,
+			    parms.act_nr_send_sges);
 	if (ret) {
 		ehca_err(pd->device,
-			 "Couldn't initialize r/squeue and pages ret=%x", ret);
+			 "Couldn't initialize squeue and pages ret=%x", ret);
 		goto create_qp_exit2;
+	}
+
+	ret = init_qp_queue(shca, my_qp, &my_qp->ipz_rqueue, 1, H_SUCCESS,
+			    parms.nr_rq_pages, rwqe_size,
+			    parms.act_nr_recv_sges);
+	if (ret) {
+		ehca_err(pd->device,
+			 "Couldn't initialize rqueue and pages ret=%x", ret);
+		goto create_qp_exit3;
 	}
 
 	my_qp->ib_qp.pd = &my_pd->ib_pd;
@@ -597,9 +570,7 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 	my_qp->ib_qp.recv_cq = init_attr->recv_cq;
 	my_qp->ib_qp.send_cq = init_attr->send_cq;
 
-	my_qp->ib_qp.qp_type = init_attr->qp_type;
-
-	my_qp->qp_type = init_attr->qp_type;
+	my_qp->ib_qp.qp_type = my_qp->qp_type = qp_type;
 	my_qp->ib_qp.srq = init_attr->srq;
 
 	my_qp->ib_qp.qp_context = init_attr->qp_context;
@@ -610,15 +581,16 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 	init_attr->cap.max_recv_wr = parms.act_nr_recv_wqes;
 	init_attr->cap.max_send_sge = parms.act_nr_send_sges;
 	init_attr->cap.max_send_wr = parms.act_nr_send_wqes;
+	my_qp->init_attr = *init_attr;
 
 	/* NOTE: define_apq0() not supported yet */
-	if (init_attr->qp_type == IB_QPT_GSI) {
+	if (qp_type == IB_QPT_GSI) {
 		h_ret = ehca_define_sqp(shca, my_qp, init_attr);
 		if (h_ret != H_SUCCESS) {
 			ehca_err(pd->device, "ehca_define_sqp() failed rc=%lx",
 				 h_ret);
 			ret = ehca2ib_return_code(h_ret);
-			goto create_qp_exit3;
+			goto create_qp_exit4;
 		}
 	}
 	if (init_attr->send_cq) {
@@ -628,7 +600,7 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 		if (ret) {
 			ehca_err(pd->device, "Couldn't assign qp to send_cq ret=%x",
 				 ret);
-			goto create_qp_exit3;
+			goto create_qp_exit4;
 		}
 		my_qp->send_cq = cq;
 	}
@@ -659,14 +631,16 @@ struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 		if (ib_copy_to_udata(udata, &resp, sizeof resp)) {
 			ehca_err(pd->device, "Copy to udata failed");
 			ret = -EINVAL;
-			goto create_qp_exit3;
+			goto create_qp_exit4;
 		}
 	}
 
 	return &my_qp->ib_qp;
 
-create_qp_exit3:
+create_qp_exit4:
 	ipz_queue_dtor(&my_qp->ipz_rqueue);
+
+create_qp_exit3:
 	ipz_queue_dtor(&my_qp->ipz_squeue);
 
 create_qp_exit2:
