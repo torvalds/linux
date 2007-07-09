@@ -65,7 +65,6 @@
 #define RX_MAX_PENDING		(RX_LE_SIZE/6 - 2)
 #define RX_DEF_PENDING		RX_MAX_PENDING
 #define RX_SKB_ALIGN		8
-#define RX_BUF_WRITE		16
 
 #define TX_RING_SIZE		512
 #define TX_DEF_PENDING		(TX_RING_SIZE - 1)
@@ -1138,6 +1137,11 @@ nomem:
 	return NULL;
 }
 
+static inline void sky2_rx_update(struct sky2_port *sky2, unsigned rxq)
+{
+	sky2_put_idx(sky2->hw, rxq, sky2->rx_put);
+}
+
 /*
  * Allocate and setup receiver buffer pool.
  * Normal case this ends up creating one list element for skb
@@ -1229,7 +1233,7 @@ static int sky2_rx_start(struct sky2_port *sky2)
 	}
 
 	/* Tell chip about available buffers */
-	sky2_put_idx(hw, rxq, sky2->rx_put);
+	sky2_rx_update(sky2, rxq);
 	return 0;
 nomem:
 	sky2_rx_clean(sky2);
@@ -2147,14 +2151,14 @@ static inline void sky2_tx_done(struct net_device *dev, u16 last)
 /* Process status response ring */
 static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 {
-	struct sky2_port *sky2;
 	int work_done = 0;
-	unsigned buf_write[2] = { 0, 0 };
+	unsigned rx[2] = { 0, 0 };
 	u16 hwidx = sky2_read16(hw, STAT_PUT_IDX);
 
 	rmb();
 
 	while (hw->st_idx != hwidx) {
+		struct sky2_port *sky2;
 		struct sky2_status_le *le  = hw->st_le + hw->st_idx;
 		unsigned port = le->css & CSS_LINK_BIT;
 		struct net_device *dev;
@@ -2171,10 +2175,11 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 
 		switch (le->opcode & ~HW_OWNER) {
 		case OP_RXSTAT:
+			++rx[port];
 			skb = sky2_receive(dev, length, status);
 			if (unlikely(!skb)) {
 				sky2->net_stats.rx_dropped++;
-				goto force_update;
+				break;
 			}
 
 			/* This chip reports checksum status differently */
@@ -2200,13 +2205,6 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 			} else
 #endif
 				netif_receive_skb(skb);
-
-			/* Update receiver after 16 frames */
-			if (++buf_write[port] == RX_BUF_WRITE) {
-force_update:
-				sky2_put_idx(hw, rxqaddr[port], sky2->rx_put);
-				buf_write[port] = 0;
-			}
 
 			/* Stop after net poll weight */
 			if (++work_done >= to_do)
@@ -2263,24 +2261,18 @@ force_update:
 			if (net_ratelimit())
 				printk(KERN_WARNING PFX
 				       "unknown status opcode 0x%x\n", le->opcode);
-			goto exit_loop;
 		}
 	}
 
 	/* Fully processed status ring so clear irq */
 	sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
-	mmiowb();
 
 exit_loop:
-	if (buf_write[0]) {
-		sky2 = netdev_priv(hw->dev[0]);
-		sky2_put_idx(hw, Q_R1, sky2->rx_put);
-	}
+	if (rx[0])
+		sky2_rx_update(netdev_priv(hw->dev[0]), Q_R1);
 
-	if (buf_write[1]) {
-		sky2 = netdev_priv(hw->dev[1]);
-		sky2_put_idx(hw, Q_R2, sky2->rx_put);
-	}
+	if (rx[1])
+		sky2_rx_update(netdev_priv(hw->dev[1]), Q_R2);
 
 	return work_done;
 }
