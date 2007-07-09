@@ -22,6 +22,7 @@
 
 #include <linux/fs_enet_pd.h>
 #include <linux/fs_uart_pd.h>
+#include <linux/fsl_devices.h>
 #include <linux/mii.h>
 
 #include <asm/delay.h>
@@ -50,6 +51,70 @@ extern unsigned int mpc8xx_get_irq(void);
 static void init_smc1_uart_ioports(struct fs_uart_platform_info* fpi);
 static void init_smc2_uart_ioports(struct fs_uart_platform_info* fpi);
 static void init_scc3_ioports(struct fs_platform_info* ptr);
+
+#ifdef CONFIG_PCMCIA_M8XX
+static void pcmcia_hw_setup(int slot, int enable)
+{
+	unsigned *bcsr_io;
+
+	bcsr_io = ioremap(BCSR1, sizeof(unsigned long));
+	if (enable)
+		clrbits32(bcsr_io, BCSR1_PCCEN);
+	else
+		setbits32(bcsr_io, BCSR1_PCCEN);
+
+	iounmap(bcsr_io);
+}
+
+static int pcmcia_set_voltage(int slot, int vcc, int vpp)
+{
+	u32 reg = 0;
+	unsigned *bcsr_io;
+
+	bcsr_io = ioremap(BCSR1, sizeof(unsigned long));
+
+	switch(vcc) {
+	case 0:
+		break;
+	case 33:
+		reg |= BCSR1_PCCVCC0;
+		break;
+	case 50:
+		reg |= BCSR1_PCCVCC1;
+		break;
+	default:
+		return 1;
+	}
+
+	switch(vpp) {
+	case 0:
+		break;
+	case 33:
+	case 50:
+		if(vcc == vpp)
+			reg |= BCSR1_PCCVPP1;
+		else
+			return 1;
+		break;
+	case 120:
+		if ((vcc == 33) || (vcc == 50))
+			reg |= BCSR1_PCCVPP0;
+		else
+			return 1;
+	default:
+		return 1;
+	}
+
+	/* first, turn off all power */
+	clrbits32(bcsr_io, 0x00610000);
+
+	/* enable new powersettings */
+	setbits32(bcsr_io, reg);
+
+	iounmap(bcsr_io);
+	return 0;
+}
+#endif
 
 void __init mpc885ads_board_setup(void)
 {
@@ -114,6 +179,12 @@ void __init mpc885ads_board_setup(void)
 	iounmap(bcsr_io);
 	immr_unmap(io_port);
 
+#endif
+
+#ifdef CONFIG_PCMCIA_M8XX
+	/*Set up board specific hook-ups*/
+	m8xx_pcmcia_ops.hw_ctrl = pcmcia_hw_setup;
+	m8xx_pcmcia_ops.voltage_set = pcmcia_set_voltage;
 #endif
 }
 

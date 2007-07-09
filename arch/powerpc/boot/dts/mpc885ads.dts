@@ -112,6 +112,17 @@
 			compatible = "CPM";
 		};
 
+		pcmcia@0080 {
+			#address-cells = <3>;
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			compatible = "fsl,pq-pcmcia";
+			device_type = "pcmcia";
+			reg = <80 80>;
+			interrupt-parent = <ff000000>;
+			interrupts = <d 1>;
+		};
+
 		cpm@ff000000 {
 			linux,phandle = <ff000000>;
 			#address-cells = <1>;

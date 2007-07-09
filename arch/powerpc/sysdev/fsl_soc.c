@@ -1028,6 +1028,19 @@ err:
 
 arch_initcall(fs_enet_of_init);
 
+static int __init fsl_pcmcia_of_init(void)
+{
+	struct device_node *np = NULL;
+	/*
+	 * Register all the devices which type is "pcmcia"
+	 */
+	while ((np = of_find_compatible_node(np,
+			"pcmcia", "fsl,pq-pcmcia")) != NULL)
+			    of_platform_device_create(np, "m8xx-pcmcia", NULL);
+	return 0;
+}
+
+arch_initcall(fsl_pcmcia_of_init);
 
 static const char *smc_regs = "regs";
 static const char *smc_pram = "pram";
