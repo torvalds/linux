@@ -517,6 +517,7 @@ static inline int ehca_poll_cq_one(struct ib_cq *cq, struct ib_wc *wc)
 	int ret = 0;
 	struct ehca_cq *my_cq = container_of(cq, struct ehca_cq, ib_cq);
 	struct ehca_cqe *cqe;
+	struct ehca_qp *my_qp;
 	int cqe_count = 0;
 
 poll_cq_one_read_cqe:
@@ -568,7 +569,7 @@ poll_cq_one_read_cqe:
 	}
 
 	/* tracing cqe */
-	if (ehca_debug_level) {
+	if (unlikely(ehca_debug_level)) {
 		ehca_dbg(cq->device,
 			 "Received COMPLETION ehca_cq=%p cq_num=%x -----",
 			 my_cq, my_cq->cq_number);
@@ -602,7 +603,11 @@ poll_cq_one_read_cqe:
 	} else
 		wc->status = IB_WC_SUCCESS;
 
-	wc->qp = NULL;
+	read_lock(&ehca_qp_idr_lock);
+	my_qp = idr_find(&ehca_qp_idr, cqe->qp_token);
+	wc->qp = &my_qp->ib_qp;
+	read_unlock(&ehca_qp_idr_lock);
+
 	wc->byte_len = cqe->nr_bytes_transferred;
 	wc->pkey_index = cqe->pkey_index;
 	wc->slid = cqe->rlid;
@@ -612,7 +617,7 @@ poll_cq_one_read_cqe:
 	wc->imm_data = cpu_to_be32(cqe->immediate_data);
 	wc->sl = cqe->service_level;
 
-	if (wc->status != IB_WC_SUCCESS)
+	if (unlikely(wc->status != IB_WC_SUCCESS))
 		ehca_dbg(cq->device,
 			 "ehca_cq=%p cq_num=%x WARNING unsuccessful cqe "
 			 "OPType=%x status=%x qp_num=%x src_qp=%x wr_id=%lx "
