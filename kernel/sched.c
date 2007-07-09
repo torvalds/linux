@@ -672,44 +672,6 @@ static inline void resched_task(struct task_struct *p)
 #include "sched_stats.h"
 
 /*
- * Adding/removing a task to/from a priority array:
- */
-static void dequeue_task(struct task_struct *p, struct prio_array *array)
-{
-	array->nr_active--;
-	list_del(&p->run_list);
-	if (list_empty(array->queue + p->prio))
-		__clear_bit(p->prio, array->bitmap);
-}
-
-static void enqueue_task(struct task_struct *p, struct prio_array *array)
-{
-	sched_info_queued(p);
-	list_add_tail(&p->run_list, array->queue + p->prio);
-	__set_bit(p->prio, array->bitmap);
-	array->nr_active++;
-	p->array = array;
-}
-
-/*
- * Put task to the end of the run list without the overhead of dequeue
- * followed by enqueue.
- */
-static void requeue_task(struct task_struct *p, struct prio_array *array)
-{
-	list_move_tail(&p->run_list, array->queue + p->prio);
-}
-
-static inline void
-enqueue_task_head(struct task_struct *p, struct prio_array *array)
-{
-	list_add(&p->run_list, array->queue + p->prio);
-	__set_bit(p->prio, array->bitmap);
-	array->nr_active++;
-	p->array = array;
-}
-
-/*
  * __normal_prio - return the priority that is based on the static
  * priority but is modified by bonuses/penalties.
  *
@@ -800,6 +762,44 @@ static inline void dec_nr_running(struct task_struct *p, struct rq *rq)
 {
 	rq->nr_running--;
 	dec_raw_weighted_load(rq, p);
+}
+
+/*
+ * Adding/removing a task to/from a priority array:
+ */
+static void dequeue_task(struct task_struct *p, struct prio_array *array)
+{
+	array->nr_active--;
+	list_del(&p->run_list);
+	if (list_empty(array->queue + p->prio))
+		__clear_bit(p->prio, array->bitmap);
+}
+
+static void enqueue_task(struct task_struct *p, struct prio_array *array)
+{
+	sched_info_queued(p);
+	list_add_tail(&p->run_list, array->queue + p->prio);
+	__set_bit(p->prio, array->bitmap);
+	array->nr_active++;
+	p->array = array;
+}
+
+/*
+ * Put task to the end of the run list without the overhead of dequeue
+ * followed by enqueue.
+ */
+static void requeue_task(struct task_struct *p, struct prio_array *array)
+{
+	list_move_tail(&p->run_list, array->queue + p->prio);
+}
+
+static inline void
+enqueue_task_head(struct task_struct *p, struct prio_array *array)
+{
+	list_add(&p->run_list, array->queue + p->prio);
+	__set_bit(p->prio, array->bitmap);
+	array->nr_active++;
+	p->array = array;
 }
 
 /*
