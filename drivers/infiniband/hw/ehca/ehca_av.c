@@ -118,7 +118,7 @@ struct ib_ah *ehca_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 		}
 		memcpy(&av->av.grh.word_1, &gid, sizeof(gid));
 	}
-	av->av.pmtu = EHCA_MAX_MTU;
+	av->av.pmtu = shca->max_mtu;
 
 	/* dgid comes in grh.word_3 */
 	memcpy(&av->av.grh.word_3, &ah_attr->grh.dgid,
@@ -137,6 +137,8 @@ int ehca_modify_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr)
 	struct ehca_av *av;
 	struct ehca_ud_av new_ehca_av;
 	struct ehca_pd *my_pd = container_of(ah->pd, struct ehca_pd, ib_pd);
+	struct ehca_shca *shca = container_of(ah->pd->device, struct ehca_shca,
+					      ib_device);
 	u32 cur_pid = current->tgid;
 
 	if (my_pd->ib_pd.uobject && my_pd->ib_pd.uobject->context &&
@@ -192,7 +194,7 @@ int ehca_modify_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr)
 		memcpy(&new_ehca_av.grh.word_1, &gid, sizeof(gid));
 	}
 
-	new_ehca_av.pmtu = EHCA_MAX_MTU;
+	new_ehca_av.pmtu = shca->max_mtu;
 
 	memcpy(&new_ehca_av.grh.word_3, &ah_attr->grh.dgid,
 	       sizeof(ah_attr->grh.dgid));

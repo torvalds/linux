@@ -205,11 +205,35 @@ static void ehca_destroy_slab_caches(void)
 #define EHCA_HCAAVER  EHCA_BMASK_IBM(32,39)
 #define EHCA_REVID    EHCA_BMASK_IBM(40,63)
 
+static struct cap_descr {
+	u64 mask;
+	char *descr;
+} hca_cap_descr[] = {
+	{ HCA_CAP_AH_PORT_NR_CHECK, "HCA_CAP_AH_PORT_NR_CHECK" },
+	{ HCA_CAP_ATOMIC, "HCA_CAP_ATOMIC" },
+	{ HCA_CAP_AUTO_PATH_MIG, "HCA_CAP_AUTO_PATH_MIG" },
+	{ HCA_CAP_BAD_P_KEY_CTR, "HCA_CAP_BAD_P_KEY_CTR" },
+	{ HCA_CAP_SQD_RTS_PORT_CHANGE, "HCA_CAP_SQD_RTS_PORT_CHANGE" },
+	{ HCA_CAP_CUR_QP_STATE_MOD, "HCA_CAP_CUR_QP_STATE_MOD" },
+	{ HCA_CAP_INIT_TYPE, "HCA_CAP_INIT_TYPE" },
+	{ HCA_CAP_PORT_ACTIVE_EVENT, "HCA_CAP_PORT_ACTIVE_EVENT" },
+	{ HCA_CAP_Q_KEY_VIOL_CTR, "HCA_CAP_Q_KEY_VIOL_CTR" },
+	{ HCA_CAP_WQE_RESIZE, "HCA_CAP_WQE_RESIZE" },
+	{ HCA_CAP_RAW_PACKET_MCAST, "HCA_CAP_RAW_PACKET_MCAST" },
+	{ HCA_CAP_SHUTDOWN_PORT, "HCA_CAP_SHUTDOWN_PORT" },
+	{ HCA_CAP_RC_LL_QP, "HCA_CAP_RC_LL_QP" },
+	{ HCA_CAP_SRQ, "HCA_CAP_SRQ" },
+	{ HCA_CAP_UD_LL_QP, "HCA_CAP_UD_LL_QP" },
+	{ HCA_CAP_RESIZE_MR, "HCA_CAP_RESIZE_MR" },
+	{ HCA_CAP_MINI_QP, "HCA_CAP_MINI_QP" },
+};
+
 int ehca_sense_attributes(struct ehca_shca *shca)
 {
-	int ret = 0;
+	int i, ret = 0;
 	u64 h_ret;
 	struct hipz_query_hca *rblock;
+	struct hipz_query_port *port;
 
 	rblock = ehca_alloc_fw_ctrlblock(GFP_KERNEL);
 	if (!rblock) {
@@ -222,7 +246,7 @@ int ehca_sense_attributes(struct ehca_shca *shca)
 		ehca_gen_err("Cannot query device properties. h_ret=%lx",
 			     h_ret);
 		ret = -EPERM;
-		goto num_ports1;
+		goto sense_attributes1;
 	}
 
 	if (ehca_nr_ports == 1)
@@ -242,18 +266,44 @@ int ehca_sense_attributes(struct ehca_shca *shca)
 		ehca_gen_dbg(" ... hardware version=%x:%x", hcaaver, revid);
 
 		if ((hcaaver == 1) && (revid == 0))
-			shca->hw_level = 0;
+			shca->hw_level = 0x11;
 		else if ((hcaaver == 1) && (revid == 1))
-			shca->hw_level = 1;
+			shca->hw_level = 0x12;
 		else if ((hcaaver == 1) && (revid == 2))
-			shca->hw_level = 2;
+			shca->hw_level = 0x13;
+		else if ((hcaaver == 2) && (revid == 0))
+			shca->hw_level = 0x21;
+		else if ((hcaaver == 2) && (revid == 0x10))
+			shca->hw_level = 0x22;
+		else {
+			ehca_gen_warn("unknown hardware version"
+				      " - assuming default level");
+			shca->hw_level = 0x22;
+		}
 	}
 	ehca_gen_dbg(" ... hardware level=%x", shca->hw_level);
 
 	shca->sport[0].rate = IB_RATE_30_GBPS;
 	shca->sport[1].rate = IB_RATE_30_GBPS;
 
-num_ports1:
+	shca->hca_cap = rblock->hca_cap_indicators;
+	ehca_gen_dbg(" ... HCA capabilities:");
+	for (i = 0; i < ARRAY_SIZE(hca_cap_descr); i++)
+		if (EHCA_BMASK_GET(hca_cap_descr[i].mask, shca->hca_cap))
+			ehca_gen_dbg("   %s", hca_cap_descr[i].descr);
+
+	port = (struct hipz_query_port *) rblock;
+	h_ret = hipz_h_query_port(shca->ipz_hca_handle, 1, port);
+	if (h_ret != H_SUCCESS) {
+		ehca_gen_err("Cannot query port properties. h_ret=%lx",
+			     h_ret);
+		ret = -EPERM;
+		goto sense_attributes1;
+	}
+
+	shca->max_mtu = port->max_mtu;
+
+sense_attributes1:
 	ehca_free_fw_ctrlblock(rblock);
 	return ret;
 }

@@ -45,10 +45,24 @@
 
 int ehca_query_device(struct ib_device *ibdev, struct ib_device_attr *props)
 {
-	int ret = 0;
+	int i, ret = 0;
 	struct ehca_shca *shca = container_of(ibdev, struct ehca_shca,
 					      ib_device);
 	struct hipz_query_hca *rblock;
+
+	static const u32 cap_mapping[] = {
+		IB_DEVICE_RESIZE_MAX_WR,      HCA_CAP_WQE_RESIZE,
+		IB_DEVICE_BAD_PKEY_CNTR,      HCA_CAP_BAD_P_KEY_CTR,
+		IB_DEVICE_BAD_QKEY_CNTR,      HCA_CAP_Q_KEY_VIOL_CTR,
+		IB_DEVICE_RAW_MULTI,          HCA_CAP_RAW_PACKET_MCAST,
+		IB_DEVICE_AUTO_PATH_MIG,      HCA_CAP_AUTO_PATH_MIG,
+		IB_DEVICE_CHANGE_PHY_PORT,    HCA_CAP_SQD_RTS_PORT_CHANGE,
+		IB_DEVICE_UD_AV_PORT_ENFORCE, HCA_CAP_AH_PORT_NR_CHECK,
+		IB_DEVICE_CURR_QP_STATE_MOD,  HCA_CAP_CUR_QP_STATE_MOD,
+		IB_DEVICE_SHUTDOWN_PORT,      HCA_CAP_SHUTDOWN_PORT,
+		IB_DEVICE_INIT_TYPE,          HCA_CAP_INIT_TYPE,
+		IB_DEVICE_PORT_ACTIVE_EVENT,  HCA_CAP_PORT_ACTIVE_EVENT,
+	};
 
 	rblock = ehca_alloc_fw_ctrlblock(GFP_KERNEL);
 	if (!rblock) {
@@ -95,6 +109,13 @@ int ehca_query_device(struct ib_device *ibdev, struct ib_device_attr *props)
 		= min_t(int, rblock->max_mcast_qp_attach, INT_MAX);
 	props->max_total_mcast_qp_attach
 		= min_t(int, rblock->max_total_mcast_qp_attach, INT_MAX);
+
+	/* translate device capabilities */
+	props->device_cap_flags = IB_DEVICE_SYS_IMAGE_GUID |
+		IB_DEVICE_RC_RNR_NAK_GEN | IB_DEVICE_N_NOTIFY_CQ;
+	for (i = 0; i < ARRAY_SIZE(cap_mapping); i += 2)
+		if (rblock->hca_cap_indicators & cap_mapping[i + 1])
+			props->device_cap_flags |= cap_mapping[i];
 
 query_device1:
 	ehca_free_fw_ctrlblock(rblock);
@@ -261,7 +282,7 @@ int ehca_modify_port(struct ib_device *ibdev,
 	}
 
 	if (mutex_lock_interruptible(&shca->modify_mutex))
-                return -ERESTARTSYS;
+		return -ERESTARTSYS;
 
 	rblock = ehca_alloc_fw_ctrlblock(GFP_KERNEL);
 	if (!rblock) {
@@ -290,7 +311,7 @@ modify_port2:
 	ehca_free_fw_ctrlblock(rblock);
 
 modify_port1:
-        mutex_unlock(&shca->modify_mutex);
+	mutex_unlock(&shca->modify_mutex);
 
 	return ret;
 }
