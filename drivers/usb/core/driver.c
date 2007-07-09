@@ -1010,7 +1010,7 @@ static int autosuspend_check(struct usb_device *udev)
 			 * or for the past.
 			 */
 			queue_delayed_work(ksuspend_usb_wq, &udev->autosuspend,
-					suspend_time - jiffies);
+				round_jiffies_relative(suspend_time - jiffies));
 			}
 		return -EAGAIN;
 	}
