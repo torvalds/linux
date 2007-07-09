@@ -724,6 +724,38 @@ static void alc_subsystem_id(struct hda_codec *codec,
 }
 
 /*
+ * Fix-up pin default configurations
+ */
+
+struct alc_pincfg {
+	hda_nid_t nid;
+	u32 val;
+};
+
+static void alc_fix_pincfg(struct hda_codec *codec,
+			   const struct snd_pci_quirk *quirk,
+			   const struct alc_pincfg **pinfix)
+{
+	const struct alc_pincfg *cfg;
+
+	quirk = snd_pci_quirk_lookup(codec->bus->pci, quirk);
+	if (!quirk)
+		return;
+
+	cfg = pinfix[quirk->value];
+	for (; cfg->nid; cfg++) {
+		int i;
+		u32 val = cfg->val;
+		for (i = 0; i < 4; i++) {
+			snd_hda_codec_write(codec, cfg->nid, 0,
+				    AC_VERB_SET_CONFIG_DEFAULT_BYTES_0 + i,
+				    val & 0xff);
+			val >>= 8;
+		}
+	}
+}
+
+/*
  * ALC880 3-stack model
  *
  * DAC: Front = 0x02 (0x0c), Surr = 0x05 (0x0f), CLFE = 0x04 (0x0e)
@@ -5410,6 +5442,29 @@ static struct alc_config_preset alc882_presets[] = {
 
 
 /*
+ * Pin config fixes
+ */
+enum { 
+	PINFIX_ABIT_AW9D_MAX
+};
+
+static struct alc_pincfg alc882_abit_aw9d_pinfix[] = {
+	{ 0x15, 0x01080104 }, /* side */
+	{ 0x16, 0x01011012 }, /* rear */
+	{ 0x17, 0x01016011 }, /* clfe */
+	{ }
+};
+
+static const struct alc_pincfg *alc882_pin_fixes[] = {
+	[PINFIX_ABIT_AW9D_MAX] = alc882_abit_aw9d_pinfix,
+};
+
+static struct snd_pci_quirk alc882_pinfix_tbl[] = {
+	SND_PCI_QUIRK(0x147b, 0x107a, "Abit AW9D-MAX", PINFIX_ABIT_AW9D_MAX),
+	{}
+};
+
+/*
  * BIOS auto configuration
  */
 static void alc882_auto_set_output_and_unmute(struct hda_codec *codec,
@@ -5531,6 +5586,8 @@ static int patch_alc882(struct hda_codec *codec)
 			board_config = ALC882_AUTO;
 		}
 	}
+
+	alc_fix_pincfg(codec, alc882_pinfix_tbl, alc882_pin_fixes);
 
 	if (board_config == ALC882_AUTO) {
 		/* automatic parse from the BIOS config */
