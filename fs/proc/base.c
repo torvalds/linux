@@ -929,6 +929,69 @@ static const struct file_operations proc_fault_inject_operations = {
 };
 #endif
 
+#ifdef CONFIG_SCHED_DEBUG
+/*
+ * Print out various scheduling related per-task fields:
+ */
+static int sched_show(struct seq_file *m, void *v)
+{
+	struct inode *inode = m->private;
+	struct task_struct *p;
+
+	WARN_ON(!inode);
+
+	p = get_proc_task(inode);
+	if (!p)
+		return -ESRCH;
+	proc_sched_show_task(p, m);
+
+	put_task_struct(p);
+
+	return 0;
+}
+
+static ssize_t
+sched_write(struct file *file, const char __user *buf,
+	    size_t count, loff_t *offset)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct task_struct *p;
+
+	WARN_ON(!inode);
+
+	p = get_proc_task(inode);
+	if (!p)
+		return -ESRCH;
+	proc_sched_set_task(p);
+
+	put_task_struct(p);
+
+	return count;
+}
+
+static int sched_open(struct inode *inode, struct file *filp)
+{
+	int ret;
+
+	ret = single_open(filp, sched_show, NULL);
+	if (!ret) {
+		struct seq_file *m = filp->private_data;
+
+		m->private = inode;
+	}
+	return ret;
+}
+
+static const struct file_operations proc_pid_sched_operations = {
+	.open		= sched_open,
+	.read		= seq_read,
+	.write		= sched_write,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
+#endif
+
 static void *proc_pid_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct inode *inode = dentry->d_inode;
@@ -1963,6 +2026,9 @@ static const struct pid_entry tgid_base_stuff[] = {
 	INF("environ",    S_IRUSR, pid_environ),
 	INF("auxv",       S_IRUSR, pid_auxv),
 	INF("status",     S_IRUGO, pid_status),
+#ifdef CONFIG_SCHED_DEBUG
+	REG("sched",      S_IRUGO|S_IWUSR, pid_sched),
+#endif
 	INF("cmdline",    S_IRUGO, pid_cmdline),
 	INF("stat",       S_IRUGO, tgid_stat),
 	INF("statm",      S_IRUGO, pid_statm),
@@ -2247,6 +2313,9 @@ static const struct pid_entry tid_base_stuff[] = {
 	INF("environ",   S_IRUSR, pid_environ),
 	INF("auxv",      S_IRUSR, pid_auxv),
 	INF("status",    S_IRUGO, pid_status),
+#ifdef CONFIG_SCHED_DEBUG
+	REG("sched",     S_IRUGO|S_IWUSR, pid_sched),
+#endif
 	INF("cmdline",   S_IRUGO, pid_cmdline),
 	INF("stat",      S_IRUGO, tid_stat),
 	INF("statm",     S_IRUGO, pid_statm),

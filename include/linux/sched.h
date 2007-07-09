@@ -132,6 +132,26 @@ extern unsigned long nr_active(void);
 extern unsigned long nr_iowait(void);
 extern unsigned long weighted_cpuload(const int cpu);
 
+struct seq_file;
+struct cfs_rq;
+#ifdef CONFIG_SCHED_DEBUG
+extern void proc_sched_show_task(struct task_struct *p, struct seq_file *m);
+extern void proc_sched_set_task(struct task_struct *p);
+extern void
+print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq, u64 now);
+#else
+static inline void
+proc_sched_show_task(struct task_struct *p, struct seq_file *m)
+{
+}
+static inline void proc_sched_set_task(struct task_struct *p)
+{
+}
+static inline void
+print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq, u64 now)
+{
+}
+#endif
 
 /*
  * Task state bitmask. NOTE! These bits are also
