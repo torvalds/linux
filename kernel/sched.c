@@ -22,7 +22,7 @@
 #include <linux/module.h>
 #include <linux/nmi.h>
 #include <linux/init.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/highmem.h>
 #include <linux/smp_lock.h>
 #include <asm/mmu_context.h>
@@ -53,9 +53,9 @@
 #include <linux/kprobes.h>
 #include <linux/delayacct.h>
 #include <linux/reciprocal_div.h>
+#include <linux/unistd.h>
 
 #include <asm/tlb.h>
-#include <asm/unistd.h>
 
 /*
  * Scheduler clock - returns current time in nanosec units.
