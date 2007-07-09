@@ -652,7 +652,14 @@ enum cpu_idle_type {
 /*
  * sched-domains (multiprocessor balancing) declarations:
  */
-#define SCHED_LOAD_SCALE	128UL	/* increase resolution of load */
+
+/*
+ * Increase resolution of nice-level calculations:
+ */
+#define SCHED_LOAD_SHIFT	10
+#define SCHED_LOAD_SCALE	(1L << SCHED_LOAD_SHIFT)
+
+#define SCHED_LOAD_SCALE_FUZZ	(SCHED_LOAD_SCALE >> 5)
 
 #ifdef CONFIG_SMP
 #define SD_LOAD_BALANCE		1	/* Do load balancing on this domain. */
