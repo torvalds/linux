@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/aec62xx.c		Version 0.23	May 23, 2007
+ * linux/drivers/ide/pci/aec62xx.c		Version 0.24	May 24, 2007
  *
  * Copyright (C) 1999-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2007		MontaVista Software, Inc. <source@mvista.com>
@@ -140,25 +140,10 @@ static int aec6260_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 	return(ide_config_drive_speed(drive, speed));
 }
 
-static int aec62xx_tune_chipset (ide_drive_t *drive, u8 speed)
-{
-	switch (HWIF(drive)->pci_dev->device) {
-		case PCI_DEVICE_ID_ARTOP_ATP865:
-		case PCI_DEVICE_ID_ARTOP_ATP865R:
-		case PCI_DEVICE_ID_ARTOP_ATP860:
-		case PCI_DEVICE_ID_ARTOP_ATP860R:
-			return ((int) aec6260_tune_chipset(drive, speed));
-		case PCI_DEVICE_ID_ARTOP_ATP850UF:
-			return ((int) aec6210_tune_chipset(drive, speed));
-		default:
-			return -1;
-	}
-}
-
 static void aec62xx_tune_drive (ide_drive_t *drive, u8 pio)
 {
 	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
-	(void) aec62xx_tune_chipset(drive, pio + XFER_PIO_0);
+	(void) HWIF(drive)->speedproc(drive, pio + XFER_PIO_0);
 }
 
 static int aec62xx_config_drive_xfer_rate (ide_drive_t *drive)
@@ -225,10 +210,13 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 	unsigned long flags;
 
 	hwif->tuneproc = &aec62xx_tune_drive;
-	hwif->speedproc = &aec62xx_tune_chipset;
 
-	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF && hwif->mate)
-		hwif->mate->serialized = hwif->serialized = 1;
+	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF) {
+		if(hwif->mate)
+			hwif->mate->serialized = hwif->serialized = 1;
+		hwif->speedproc = &aec6210_tune_chipset;
+	} else
+		hwif->speedproc = &aec6260_tune_chipset;
 
 	if (!hwif->dma_base) {
 		hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
