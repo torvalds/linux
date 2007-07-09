@@ -796,11 +796,13 @@ static void free_shared_mem(struct s2io_nic *nic)
 	struct mac_info *mac_control;
 	struct config_param *config;
 	int lst_size, lst_per_page;
-	struct net_device *dev = nic->dev;
+	struct net_device *dev;
 	int page_num = 0;
 
 	if (!nic)
 		return;
+
+	dev = nic->dev;
 
 	mac_control = &nic->mac_control;
 	config = &nic->config;
