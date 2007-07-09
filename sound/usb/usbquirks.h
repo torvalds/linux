@@ -1060,7 +1060,15 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		.type = QUIRK_MIDI_STANDARD_INTERFACE
 	}
 },
-	/* TODO: add Roland EXR support */
+{
+	USB_DEVICE(0x0582, 0x0060),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Roland",
+		.product_name = "EXR Series",
+		.ifnum = 0,
+		.type = QUIRK_MIDI_STANDARD_INTERFACE
+	}
+},
 {
 	/* has ID 0x0067 when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0065),
