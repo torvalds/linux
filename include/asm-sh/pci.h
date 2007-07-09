@@ -110,11 +110,6 @@ static inline void pcibios_penalize_isa_irq(int irq, int active)
 #define pci_unmap_len_set(PTR, LEN_NAME, VAL)	do { } while (0)
 #endif
 
-/* Not supporting more than 32-bit PCI bus addresses now, but
- * must satisfy references to this function.  Change if needed.
- */
-#define pci_dac_dma_supported(pci_dev, mask) (0)
-
 #ifdef CONFIG_PCI
 static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 					enum pci_dma_burst_strategy *strat,

@@ -207,6 +207,10 @@ iommu_arena_free(struct pci_iommu_arena *arena, long ofs, long n)
 		p[i] = 0;
 }
 
+/* True if the machine supports DAC addressing, and DEV can
+   make use of it given MASK.  */
+static int pci_dac_dma_supported(struct pci_dev *hwdev, u64 mask);
+
 /* Map a single buffer of the indicated size for PCI DMA in streaming
    mode.  The 32-bit PCI bus mastering address to use is returned.
    Once the device is given the dma address, the device owns this memory
@@ -897,7 +901,7 @@ iommu_unbind(struct pci_iommu_arena *arena, long pg_start, long pg_count)
 /* True if the machine supports DAC addressing, and DEV can
    make use of it given MASK.  */
 
-int
+static int
 pci_dac_dma_supported(struct pci_dev *dev, u64 mask)
 {
 	dma64_addr_t dac_offset = alpha_mv.pci_dac_offset;
@@ -917,32 +921,6 @@ pci_dac_dma_supported(struct pci_dev *dev, u64 mask)
 
 	return ok;
 }
-EXPORT_SYMBOL(pci_dac_dma_supported);
-
-dma64_addr_t
-pci_dac_page_to_dma(struct pci_dev *pdev, struct page *page,
-		    unsigned long offset, int direction)
-{
-	return (alpha_mv.pci_dac_offset
-		+ __pa(page_address(page)) 
-		+ (dma64_addr_t) offset);
-}
-EXPORT_SYMBOL(pci_dac_page_to_dma);
-
-struct page *
-pci_dac_dma_to_page(struct pci_dev *pdev, dma64_addr_t dma_addr)
-{
-	unsigned long paddr = (dma_addr & PAGE_MASK) - alpha_mv.pci_dac_offset;
-	return virt_to_page(__va(paddr));
-}
-EXPORT_SYMBOL(pci_dac_dma_to_page);
-
-unsigned long
-pci_dac_dma_to_offset(struct pci_dev *pdev, dma64_addr_t dma_addr)
-{
-	return (dma_addr & ~PAGE_MASK);
-}
-EXPORT_SYMBOL(pci_dac_dma_to_offset);
 
 /* Helper for generic DMA-mapping functions. */
 

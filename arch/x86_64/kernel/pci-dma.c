@@ -22,8 +22,7 @@ EXPORT_SYMBOL(bad_dma_address);
 int iommu_bio_merge __read_mostly = 0;
 EXPORT_SYMBOL(iommu_bio_merge);
 
-int iommu_sac_force __read_mostly = 0;
-EXPORT_SYMBOL(iommu_sac_force);
+static int iommu_sac_force __read_mostly = 0;
 
 int no_iommu __read_mostly;
 #ifdef CONFIG_IOMMU_DEBUG

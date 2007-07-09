@@ -74,18 +74,6 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 extern void set_pci_dma_ops(struct dma_mapping_ops *dma_ops);
 extern struct dma_mapping_ops *get_pci_dma_ops(void);
 
-/* For DAC DMA, we currently don't support it by default, but
- * we let 64-bit platforms override this.
- */
-static inline int pci_dac_dma_supported(struct pci_dev *hwdev,u64 mask)
-{
-	struct dma_mapping_ops *d = get_pci_dma_ops();
-
-	if (d && d->dac_dma_supported)
-		return d->dac_dma_supported(&hwdev->dev, mask);
-	return 0;
-}
-
 static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 					enum pci_dma_burst_strategy *strat,
 					unsigned long *strategy_parameter)
@@ -123,12 +111,6 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 	*strategy_parameter = ~0UL;
 }
 #endif
-
-/*
- * At present there are very few 32-bit PPC machines that can have
- * memory above the 4GB point, and we don't support that.
- */
-#define pci_dac_dma_supported(pci_dev, mask)	(0)
 
 /* Return the index of the PCI controller for device PDEV. */
 #define pci_domain_nr(bus) ((struct pci_controller *)(bus)->sysdata)->index

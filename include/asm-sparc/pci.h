@@ -142,8 +142,6 @@ static inline int pci_dma_supported(struct pci_dev *hwdev, u64 mask)
 	return 1;
 }
 
-#define pci_dac_dma_supported(dev, mask)	(0)
-
 #ifdef CONFIG_PCI
 static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 					enum pci_dma_burst_strategy *strat,

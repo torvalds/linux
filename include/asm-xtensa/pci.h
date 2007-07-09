@@ -64,9 +64,6 @@ struct pci_dev;
 #define pci_ubnmap_len(PTR, LEN_NAME)		(0)
 #define pci_unmap_len_set(PTR, LEN_NAME, VAL)	do { } while (0)
 
-/* We cannot access memory above 4GB */
-#define pci_dac_dma_supported(pci_dev, mask)	(0)
-
 /* Map a range of PCI memory or I/O space for a device into user space */
 int pci_mmap_page_range(struct pci_dev *pdev, struct vm_area_struct *vma,
                         enum pci_mmap_state mmap_state, int write_combine);

@@ -64,7 +64,6 @@
 /* As we don't really support PCI DMA to cpu memory, and use bounce-buffers
    instead, perversely enough, this becomes always true! */
 # define pci_dma_supported(dev, mask)		1
-# define pci_dac_dma_supported(dev, mask)	0
 # define pcibios_assign_all_busses()		1
 
 #endif /* CONFIG_RTE_MB_A_PCI */
