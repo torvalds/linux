@@ -2109,6 +2109,9 @@ static struct sk_buff *sky2_receive(struct net_device *dev,
 	if (!(status & GMR_FS_RX_OK))
 		goto resubmit;
 
+	if (status >> 16 != length)
+		goto len_mismatch;
+
 	if (length < copybreak)
 		skb = receive_copy(sky2, re, length);
 	else
@@ -2117,6 +2120,11 @@ resubmit:
 	sky2_rx_submit(sky2, re);
 
 	return skb;
+
+len_mismatch:
+	/* Truncation of overlength packets
+	   causes PHY length to not match MAC length */
+	++sky2->net_stats.rx_length_errors;
 
 error:
 	++sky2->net_stats.rx_errors;
