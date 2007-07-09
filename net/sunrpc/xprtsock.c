@@ -235,6 +235,7 @@ struct sock_xprt {
 	 * Connection of transports
 	 */
 	struct delayed_work	connect_worker;
+	struct sockaddr_storage	addr;
 	unsigned short		port;
 
 	/*
@@ -1145,31 +1146,36 @@ static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
 	sap->sin_port = htons(port);
 }
 
-static int xs_bindresvport(struct sock_xprt *transport, struct socket *sock)
+static int xs_bind(struct sock_xprt *transport, struct socket *sock)
 {
 	struct sockaddr_in myaddr = {
 		.sin_family = AF_INET,
 	};
+	struct sockaddr_in *sa;
 	int err;
 	unsigned short port = transport->port;
 
+	if (!transport->xprt.resvport)
+		port = 0;
+	sa = (struct sockaddr_in *)&transport->addr;
+	myaddr.sin_addr = sa->sin_addr;
 	do {
 		myaddr.sin_port = htons(port);
 		err = kernel_bind(sock, (struct sockaddr *) &myaddr,
 						sizeof(myaddr));
+		if (!transport->xprt.resvport)
+			break;
 		if (err == 0) {
 			transport->port = port;
-			dprintk("RPC:       xs_bindresvport bound to port %u\n",
-					port);
-			return 0;
+			break;
 		}
 		if (port <= xprt_min_resvport)
 			port = xprt_max_resvport;
 		else
 			port--;
 	} while (err == -EADDRINUSE && port != transport->port);
-
-	dprintk("RPC:       can't bind to reserved port (%d).\n", -err);
+	dprintk("RPC:       xs_bind "NIPQUAD_FMT":%u: %s (%d)\n",
+		NIPQUAD(myaddr.sin_addr), port, err ? "failed" : "ok", err);
 	return err;
 }
 
@@ -1228,7 +1234,7 @@ static void xs_udp_connect_worker(struct work_struct *work)
 	}
 	xs_reclassify_socket(sock);
 
-	if (xprt->resvport && xs_bindresvport(transport, sock) < 0) {
+	if (xs_bind(transport, sock)) {
 		sock_release(sock);
 		goto out;
 	}
@@ -1315,7 +1321,7 @@ static void xs_tcp_connect_worker(struct work_struct *work)
 		}
 		xs_reclassify_socket(sock);
 
-		if (xprt->resvport && xs_bindresvport(transport, sock) < 0) {
+		if (xs_bind(transport, sock)) {
 			sock_release(sock);
 			goto out;
 		}
@@ -1531,6 +1537,8 @@ static struct rpc_xprt *xs_setup_xprt(struct rpc_xprtsock_create *args, unsigned
 
 	memcpy(&xprt->addr, args->dstaddr, args->addrlen);
 	xprt->addrlen = args->addrlen;
+	if (args->srcaddr)
+		memcpy(&new->addr, args->srcaddr, args->addrlen);
 	new->port = xs_get_random_port();
 
 	return xprt;

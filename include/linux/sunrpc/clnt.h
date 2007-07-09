@@ -98,6 +98,7 @@ struct rpc_create_args {
 	int			protocol;
 	struct sockaddr		*address;
 	size_t			addrsize;
+	struct sockaddr		*saddress;
 	struct rpc_timeout	*timeout;
 	char			*servername;
 	struct rpc_program	*program;

@@ -198,6 +198,7 @@ struct rpc_xprt {
 
 struct rpc_xprtsock_create {
 	int			proto;		/* IPPROTO_UDP or IPPROTO_TCP */
+	struct sockaddr *	srcaddr;	/* optional local address */
 	struct sockaddr *	dstaddr;	/* remote peer address */
 	size_t			addrlen;
 	struct rpc_timeout *	timeout;	/* optional timeout parameters */
