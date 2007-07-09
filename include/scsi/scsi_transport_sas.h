@@ -7,7 +7,7 @@
 
 struct scsi_transport_template;
 struct sas_rphy;
-
+struct request;
 
 enum sas_device_type {
 	SAS_PHY_UNUSED,
@@ -172,6 +172,7 @@ struct sas_function_template {
 	int (*phy_reset)(struct sas_phy *, int);
 	int (*phy_enable)(struct sas_phy *, int);
 	int (*set_phy_speed)(struct sas_phy *, struct sas_phy_linkrates *);
+	int (*smp_handler)(struct Scsi_Host *, struct sas_rphy *, struct request *);
 };
 
 
