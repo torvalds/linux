@@ -394,14 +394,14 @@ static void piix_dma_clear_irq(ide_drive_t *drive)
 	hwif->OUTB(dma_stat, hwif->dma_status);
 }
 
-static int __devinit piix_cable_detect(ide_hwif_t *hwif)
+static u8 __devinit piix_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = hwif->pci_dev;
 	u8 reg54h = 0, mask = hwif->channel ? 0xc0 : 0x30;
 
 	pci_read_config_byte(dev, 0x54, &reg54h);
 
-	return (reg54h & mask) ? 1 : 0;
+	return (reg54h & mask) ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 }
 
 /**
@@ -444,8 +444,8 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 	hwif->swdma_mask = 0x04;
 
 	if (hwif->ultra_mask & 0x78) {
-		if (!hwif->udma_four)
-			hwif->udma_four = piix_cable_detect(hwif);
+		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+			hwif->cbl = piix_cable_detect(hwif);
 	}
 
 	if (no_piix_dma)

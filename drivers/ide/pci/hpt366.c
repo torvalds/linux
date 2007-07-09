@@ -1330,8 +1330,8 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 	} else
 		pci_read_config_byte (dev, 0x5a, &scr1);
 
-	if (!hwif->udma_four)
-		hwif->udma_four = (scr1 & ata66) ? 0 : 1;
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+		hwif->cbl = (scr1 & ata66) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
 
 	hwif->ide_dma_check		= &hpt366_config_drive_xfer_rate;
 

@@ -234,11 +234,12 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 		pci_read_config_byte (dev, 0x54, &reg54);
 		pci_write_config_byte(dev, 0x54, (reg54 & ~mask));
 		spin_unlock_irqrestore(&ide_lock, flags);
-	} else if (!hwif->udma_four) {
+	} else if (hwif->cbl != ATA_CBL_PATA40_SHORT) {
 		u8 ata66 = 0, mask = hwif->channel ? 0x02 : 0x01;
 
 		pci_read_config_byte(hwif->pci_dev, 0x49, &ata66);
-		hwif->udma_four = (ata66 & mask) ? 0 : 1;
+
+		hwif->cbl = (ata66 & mask) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
 	}
 
 	if (!noautodma)

@@ -431,8 +431,13 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 	if ((amd_config->flags & AMD_BAD_SWDMA) == 0)
 		hwif->swdma_mask = 0x07;
 
-	if (!hwif->udma_four)
-		hwif->udma_four = (amd_80w >> hwif->channel) & 1;
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT) {
+		if ((amd_80w >> hwif->channel) & 1)
+			hwif->cbl = ATA_CBL_PATA80;
+		else
+			hwif->cbl = ATA_CBL_PATA40;
+	}
+
         hwif->ide_dma_check = &amd74xx_ide_dma_check;
         if (!noautodma)
                 hwif->autodma = 1;

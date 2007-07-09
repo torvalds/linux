@@ -152,8 +152,10 @@ static void pdc202xx_tune_drive(ide_drive_t *drive, u8 pio)
 static u8 pdc202xx_old_cable_detect (ide_hwif_t *hwif)
 {
 	u16 CIS = 0, mask = (hwif->channel) ? (1<<11) : (1<<10);
+
 	pci_read_config_word(hwif->pci_dev, 0x50, &CIS);
-	return (CIS & mask) ? 1 : 0;
+
+	return (CIS & mask) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
 }
 
 /*
@@ -357,8 +359,9 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 	hwif->dma_timeout = &pdc202xx_dma_timeout;
 
 	if (hwif->pci_dev->device != PCI_DEVICE_ID_PROMISE_20246) {
-		if (!(hwif->udma_four))
-			hwif->udma_four = (pdc202xx_old_cable_detect(hwif)) ? 0 : 1;
+		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+			hwif->cbl = pdc202xx_old_cable_detect(hwif);
+
 		hwif->dma_start = &pdc202xx_old_ide_dma_start;
 		hwif->ide_dma_end = &pdc202xx_old_ide_dma_end;
 	} 

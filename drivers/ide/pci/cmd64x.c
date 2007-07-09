@@ -517,7 +517,7 @@ static unsigned int __devinit init_chipset_cmd64x(struct pci_dev *dev, const cha
 	return 0;
 }
 
-static unsigned int __devinit ata66_cmd64x(ide_hwif_t *hwif)
+static u8 __devinit ata66_cmd64x(ide_hwif_t *hwif)
 {
 	struct pci_dev  *dev	= hwif->pci_dev;
 	u8 bmidecsr = 0, mask	= hwif->channel ? 0x02 : 0x01;
@@ -526,9 +526,9 @@ static unsigned int __devinit ata66_cmd64x(ide_hwif_t *hwif)
 	case PCI_DEVICE_ID_CMD_648:
 	case PCI_DEVICE_ID_CMD_649:
  		pci_read_config_byte(dev, BMIDECSR, &bmidecsr);
-		return (bmidecsr & mask) ? 1 : 0;
+		return (bmidecsr & mask) ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 	default:
-		return 0;
+		return ATA_CBL_PATA40;
 	}
 }
 
@@ -568,8 +568,8 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 
 	hwif->ide_dma_check = &cmd64x_config_drive_for_dma;
 
-	if (!hwif->udma_four)
-		hwif->udma_four = ata66_cmd64x(hwif);
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+		hwif->cbl = ata66_cmd64x(hwif);
 
 	switch (dev->device) {
 	case PCI_DEVICE_ID_CMD_648:

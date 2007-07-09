@@ -796,7 +796,7 @@ static unsigned int __devinit init_chipset_sis5513 (struct pci_dev *dev, const c
 	return 0;
 }
 
-static unsigned int __devinit ata66_sis5513 (ide_hwif_t *hwif)
+static u8 __devinit ata66_sis5513(ide_hwif_t *hwif)
 {
 	u8 ata66 = 0;
 
@@ -811,7 +811,8 @@ static unsigned int __devinit ata66_sis5513 (ide_hwif_t *hwif)
 		pci_read_config_byte(hwif->pci_dev, 0x48, &reg48h);
 		ata66 = (reg48h & mask) ? 0 : 1;
 	}
-        return ata66;
+
+	return ata66 ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 }
 
 static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
@@ -841,8 +842,8 @@ static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
 	if (!chipset_family)
 		return;
 
-	if (!(hwif->udma_four))
-		hwif->udma_four = ata66_sis5513(hwif);
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+		hwif->cbl = ata66_sis5513(hwif);
 
 	if (chipset_family > ATA_16) {
 		hwif->ide_dma_check = &sis5513_config_xfer_rate;

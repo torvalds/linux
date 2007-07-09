@@ -448,8 +448,13 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
 
-	if (!hwif->udma_four)
-		hwif->udma_four = (vdev->via_80w >> hwif->channel) & 1;
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT) {
+		if ((vdev->via_80w >> hwif->channel) & 1)
+			hwif->cbl = ATA_CBL_PATA80;
+		else
+			hwif->cbl = ATA_CBL_PATA40;
+	}
+
 	hwif->ide_dma_check = &via82cxxx_ide_dma_check;
 	if (!noautodma)
 		hwif->autodma = 1;

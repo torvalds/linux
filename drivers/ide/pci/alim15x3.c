@@ -594,7 +594,7 @@ out:
  *	FIXME: frobs bits that are not defined on newer ALi devicea
  */
 
-static unsigned int __devinit ata66_ali15x3 (ide_hwif_t *hwif)
+static u8 __devinit ata66_ali15x3(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev	= hwif->pci_dev;
 	unsigned int ata66	= 0;
@@ -657,7 +657,7 @@ static unsigned int __devinit ata66_ali15x3 (ide_hwif_t *hwif)
 
 	local_irq_restore(flags);
 
-	return(ata66);
+	return ata66 ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 }
 
 /**
@@ -708,8 +708,9 @@ static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 		hwif->dma_setup = &ali15x3_dma_setup;
 		if (!noautodma)
 			hwif->autodma = 1;
-		if (!(hwif->udma_four))
-			hwif->udma_four = ata66_ali15x3(hwif);
+
+		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+			hwif->cbl = ata66_ali15x3(hwif);
 	}
 	hwif->drives[0].autodma = hwif->autodma;
 	hwif->drives[1].autodma = hwif->autodma;
