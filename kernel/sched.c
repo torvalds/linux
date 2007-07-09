@@ -1265,9 +1265,9 @@ static int sched_balance_self(int cpu, int flag)
 	struct sched_domain *tmp, *sd = NULL;
 
 	for_each_domain(cpu, tmp) {
- 		/*
- 	 	 * If power savings logic is enabled for a domain, stop there.
- 	 	 */
+		/*
+		 * If power savings logic is enabled for a domain, stop there.
+		 */
 		if (tmp->flags & SD_POWERSAVINGS_BALANCE)
 			break;
 		if (tmp->flags & flag)
@@ -1350,9 +1350,9 @@ static int wake_idle(int cpu, struct task_struct *p)
 				if (idle_cpu(i))
 					return i;
 			}
-		}
-		else
+		} else {
 			break;
+		}
 	}
 	return cpu;
 }
@@ -1702,7 +1702,7 @@ static inline void finish_task_switch(struct rq *rq, struct task_struct *prev)
 		/*
 		 * Remove function-return probe instances associated with this
 		 * task and put them back on the free list.
-	 	 */
+		 */
 		kprobe_flush_task(prev);
 		put_task_struct(prev);
 	}
@@ -5920,6 +5920,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 		sched_group_nodes[i] = sg;
 		for_each_cpu_mask(j, nodemask) {
 			struct sched_domain *sd;
+
 			sd = &per_cpu(node_domains, j);
 			sd->groups = sg;
 		}
