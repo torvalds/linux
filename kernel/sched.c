@@ -209,15 +209,6 @@ struct rt_rq {
 };
 
 /*
- * The prio-array type of the old scheduler:
- */
-struct prio_array {
-	unsigned int nr_active;
-	DECLARE_BITMAP(bitmap, MAX_PRIO+1); /* include 1 bit for delimiter */
-	struct list_head queue[MAX_PRIO];
-};
-
-/*
  * This is the main, per-CPU runqueue data structure.
  *
  * Locking rule: those places that want to lock multiple runqueues
@@ -232,7 +223,6 @@ struct rq {
 	 * remote CPUs use both these fields when doing load calculation.
 	 */
 	unsigned long nr_running;
-	unsigned long raw_weighted_load;
 	#define CPU_LOAD_IDX_MAX 5
 	unsigned long cpu_load[CPU_LOAD_IDX_MAX];
 	unsigned char idle_at_tick;
@@ -257,15 +247,9 @@ struct rq {
 	 */
 	unsigned long nr_uninterruptible;
 
-	unsigned long expired_timestamp;
-	unsigned long long most_recent_timestamp;
-
 	struct task_struct *curr, *idle;
 	unsigned long next_balance;
 	struct mm_struct *prev_mm;
-
-	struct prio_array *active, *expired, arrays[2];
-	int best_expired_prio;
 
 	u64 clock, prev_clock_raw;
 	s64 clock_max_delta;
