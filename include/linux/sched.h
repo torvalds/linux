@@ -820,6 +820,86 @@ enum sleep_type {
 };
 
 struct prio_array;
+struct rq;
+struct sched_domain;
+
+struct sched_class {
+	struct sched_class *next;
+
+	void (*enqueue_task) (struct rq *rq, struct task_struct *p,
+			      int wakeup, u64 now);
+	void (*dequeue_task) (struct rq *rq, struct task_struct *p,
+			      int sleep, u64 now);
+	void (*yield_task) (struct rq *rq, struct task_struct *p);
+
+	void (*check_preempt_curr) (struct rq *rq, struct task_struct *p);
+
+	struct task_struct * (*pick_next_task) (struct rq *rq, u64 now);
+	void (*put_prev_task) (struct rq *rq, struct task_struct *p, u64 now);
+
+	int (*load_balance) (struct rq *this_rq, int this_cpu,
+			struct rq *busiest,
+			unsigned long max_nr_move, unsigned long max_load_move,
+			struct sched_domain *sd, enum cpu_idle_type idle,
+			int *all_pinned, unsigned long *total_load_moved);
+
+	void (*set_curr_task) (struct rq *rq);
+	void (*task_tick) (struct rq *rq, struct task_struct *p);
+	void (*task_new) (struct rq *rq, struct task_struct *p);
+};
+
+struct load_weight {
+	unsigned long weight, inv_weight;
+};
+
+/*
+ * CFS stats for a schedulable entity (task, task-group etc)
+ *
+ * Current field usage histogram:
+ *
+ *     4 se->block_start
+ *     4 se->run_node
+ *     4 se->sleep_start
+ *     4 se->sleep_start_fair
+ *     6 se->load.weight
+ *     7 se->delta_fair
+ *    15 se->wait_runtime
+ */
+struct sched_entity {
+	long			wait_runtime;
+	unsigned long		delta_fair_run;
+	unsigned long		delta_fair_sleep;
+	unsigned long		delta_exec;
+	s64			fair_key;
+	struct load_weight	load;		/* for load-balancing */
+	struct rb_node		run_node;
+	unsigned int		on_rq;
+
+	u64			wait_start_fair;
+	u64			wait_start;
+	u64			exec_start;
+	u64			sleep_start;
+	u64			sleep_start_fair;
+	u64			block_start;
+	u64			sleep_max;
+	u64			block_max;
+	u64			exec_max;
+	u64			wait_max;
+	u64			last_ran;
+
+	u64			sum_exec_runtime;
+	s64			sum_wait_runtime;
+	s64			sum_sleep_runtime;
+	unsigned long		wait_runtime_overruns;
+	unsigned long		wait_runtime_underruns;
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	struct sched_entity	*parent;
+	/* rq on which this entity is (to be) queued: */
+	struct cfs_rq		*cfs_rq;
+	/* rq "owned" by this entity/group: */
+	struct cfs_rq		*my_q;
+#endif
+};
 
 struct task_struct {
 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
@@ -839,6 +919,8 @@ struct task_struct {
 	int prio, static_prio, normal_prio;
 	struct list_head run_list;
 	struct prio_array *array;
+	struct sched_class *sched_class;
+	struct sched_entity se;
 
 	unsigned short ioprio;
 #ifdef CONFIG_BLK_DEV_IO_TRACE
