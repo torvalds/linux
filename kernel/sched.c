@@ -617,6 +617,58 @@ static inline struct rq *this_rq_lock(void)
 	return rq;
 }
 
+/*
+ * resched_task - mark a task 'to be rescheduled now'.
+ *
+ * On UP this means the setting of the need_resched flag, on SMP it
+ * might also involve a cross-CPU call to trigger the scheduler on
+ * the target CPU.
+ */
+#ifdef CONFIG_SMP
+
+#ifndef tsk_is_polling
+#define tsk_is_polling(t) test_tsk_thread_flag(t, TIF_POLLING_NRFLAG)
+#endif
+
+static void resched_task(struct task_struct *p)
+{
+	int cpu;
+
+	assert_spin_locked(&task_rq(p)->lock);
+
+	if (unlikely(test_tsk_thread_flag(p, TIF_NEED_RESCHED)))
+		return;
+
+	set_tsk_thread_flag(p, TIF_NEED_RESCHED);
+
+	cpu = task_cpu(p);
+	if (cpu == smp_processor_id())
+		return;
+
+	/* NEED_RESCHED must be visible before we test polling */
+	smp_mb();
+	if (!tsk_is_polling(p))
+		smp_send_reschedule(cpu);
+}
+
+static void resched_cpu(int cpu)
+{
+	struct rq *rq = cpu_rq(cpu);
+	unsigned long flags;
+
+	if (!spin_trylock_irqsave(&rq->lock, flags))
+		return;
+	resched_task(cpu_curr(cpu));
+	spin_unlock_irqrestore(&rq->lock, flags);
+}
+#else
+static inline void resched_task(struct task_struct *p)
+{
+	assert_spin_locked(&task_rq(p)->lock);
+	set_tsk_need_resched(p);
+}
+#endif
+
 #include "sched_stats.h"
 
 /*
@@ -952,58 +1004,6 @@ static void deactivate_task(struct task_struct *p, struct rq *rq)
 	dequeue_task(p, p->array);
 	p->array = NULL;
 }
-
-/*
- * resched_task - mark a task 'to be rescheduled now'.
- *
- * On UP this means the setting of the need_resched flag, on SMP it
- * might also involve a cross-CPU call to trigger the scheduler on
- * the target CPU.
- */
-#ifdef CONFIG_SMP
-
-#ifndef tsk_is_polling
-#define tsk_is_polling(t) test_tsk_thread_flag(t, TIF_POLLING_NRFLAG)
-#endif
-
-static void resched_task(struct task_struct *p)
-{
-	int cpu;
-
-	assert_spin_locked(&task_rq(p)->lock);
-
-	if (unlikely(test_tsk_thread_flag(p, TIF_NEED_RESCHED)))
-		return;
-
-	set_tsk_thread_flag(p, TIF_NEED_RESCHED);
-
-	cpu = task_cpu(p);
-	if (cpu == smp_processor_id())
-		return;
-
-	/* NEED_RESCHED must be visible before we test polling */
-	smp_mb();
-	if (!tsk_is_polling(p))
-		smp_send_reschedule(cpu);
-}
-
-static void resched_cpu(int cpu)
-{
-	struct rq *rq = cpu_rq(cpu);
-	unsigned long flags;
-
-	if (!spin_trylock_irqsave(&rq->lock, flags))
-		return;
-	resched_task(cpu_curr(cpu));
-	spin_unlock_irqrestore(&rq->lock, flags);
-}
-#else
-static inline void resched_task(struct task_struct *p)
-{
-	assert_spin_locked(&task_rq(p)->lock);
-	set_tsk_need_resched(p);
-}
-#endif
 
 /**
  * task_curr - is this task currently executing on a CPU?
