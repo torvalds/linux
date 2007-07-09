@@ -60,6 +60,9 @@ struct locomo {
 	unsigned int irq;
 	spinlock_t lock;
 	void __iomem *base;
+#ifdef CONFIG_PM
+	void *saved_state;
+#endif
 };
 
 struct locomo_dev_info {
@@ -565,7 +568,7 @@ static int locomo_suspend(struct platform_device *dev, pm_message_t state)
 	if (!save)
 		return -ENOMEM;
 
-	dev->dev.power.saved_state = (void *) save;
+	lchip->saved_state = save;
 
 	spin_lock_irqsave(&lchip->lock, flags);
 
@@ -605,8 +608,8 @@ static int locomo_resume(struct platform_device *dev)
 	struct locomo_save_data *save;
 	unsigned long r;
 	unsigned long flags;
-	
-	save = (struct locomo_save_data *) dev->dev.power.saved_state;
+
+	save = lchip->saved_state;
 	if (!save)
 		return 0;
 
@@ -628,6 +631,8 @@ static int locomo_resume(struct platform_device *dev)
 	locomo_writel(0x1, lchip->base + LOCOMO_KEYBOARD + LOCOMO_KCMD);
 
 	spin_unlock_irqrestore(&lchip->lock, flags);
+
+	lchip->saved_state = NULL;
 	kfree(save);
 
 	return 0;
