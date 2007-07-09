@@ -68,13 +68,6 @@ unsigned long long __attribute__((weak)) sched_clock(void)
 }
 
 /*
- * CPU frequency is/was unstable - start new by setting prev_clock_raw:
- */
-void sched_clock_unstable_event(void)
-{
-}
-
-/*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
  * to static priority [ MAX_RT_PRIO..MAX_PRIO-1 ],
  * and back.
@@ -627,6 +620,20 @@ static inline struct rq *this_rq_lock(void)
 	spin_lock(&rq->lock);
 
 	return rq;
+}
+
+/*
+ * CPU frequency is/was unstable - start new by setting prev_clock_raw:
+ */
+void sched_clock_unstable_event(void)
+{
+	unsigned long flags;
+	struct rq *rq;
+
+	rq = task_rq_lock(current, &flags);
+	rq->prev_clock_raw = sched_clock();
+	rq->clock_unstable_events++;
+	task_rq_unlock(rq, &flags);
 }
 
 /*
