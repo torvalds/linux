@@ -418,7 +418,7 @@ sn_acpi_slot_fixup(struct pci_dev *dev)
 	void __iomem *addr;
 	struct pcidev_info *pcidev_info = NULL;
 	struct sn_irq_info *sn_irq_info = NULL;
-	size_t size;
+	size_t image_size, size;
 
 	if (sn_acpi_get_pcidev_info(dev, &pcidev_info, &sn_irq_info)) {
 		panic("%s:  Failure obtaining pcidev_info for %s\n",
@@ -428,17 +428,16 @@ sn_acpi_slot_fixup(struct pci_dev *dev)
 	if (pcidev_info->pdi_pio_mapped_addr[PCI_ROM_RESOURCE]) {
 		/*
 		 * A valid ROM image exists and has been shadowed by the
-		 * PROM. Setup the pci_dev ROM resource to point to
-		 * the shadowed copy.
+		 * PROM. Setup the pci_dev ROM resource with the address
+		 * of the shadowed copy, and the actual length of the ROM image.
 		 */
-		size = dev->resource[PCI_ROM_RESOURCE].end -
-				dev->resource[PCI_ROM_RESOURCE].start;
-		addr =
-		     ioremap(pcidev_info->pdi_pio_mapped_addr[PCI_ROM_RESOURCE],
-			     size);
+		size = pci_resource_len(dev, PCI_ROM_RESOURCE);
+		addr = ioremap(pcidev_info->pdi_pio_mapped_addr[PCI_ROM_RESOURCE],
+			       size);
+		image_size = pci_get_rom_size(addr, size);
 		dev->resource[PCI_ROM_RESOURCE].start = (unsigned long) addr;
 		dev->resource[PCI_ROM_RESOURCE].end =
-						(unsigned long) addr + size;
+					(unsigned long) addr + image_size - 1;
 		dev->resource[PCI_ROM_RESOURCE].flags |= IORESOURCE_ROM_BIOS_COPY;
 	}
 	sn_pci_fixup_slot(dev, pcidev_info, sn_irq_info);

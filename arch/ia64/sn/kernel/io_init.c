@@ -259,9 +259,23 @@ sn_io_slot_fixup(struct pci_dev *dev)
 			insert_resource(&ioport_resource, &dev->resource[idx]);
 		else
 			insert_resource(&iomem_resource, &dev->resource[idx]);
-		/* If ROM, mark as shadowed in PROM */
-		if (idx == PCI_ROM_RESOURCE)
-			dev->resource[idx].flags |= IORESOURCE_ROM_BIOS_COPY;
+		/*
+		 * If ROM, set the actual ROM image size, and mark as
+		 * shadowed in PROM.
+		 */
+		if (idx == PCI_ROM_RESOURCE) {
+			size_t image_size;
+			void __iomem *rom;
+
+			rom = ioremap(pci_resource_start(dev, PCI_ROM_RESOURCE),
+				      size + 1);
+			image_size = pci_get_rom_size(rom, size + 1);
+			dev->resource[PCI_ROM_RESOURCE].end =
+				dev->resource[PCI_ROM_RESOURCE].start +
+				image_size - 1;
+			dev->resource[PCI_ROM_RESOURCE].flags |=
+						 IORESOURCE_ROM_BIOS_COPY;
+		}
 	}
 	/* Create a pci_window in the pci_controller struct for
 	 * each device resource.
