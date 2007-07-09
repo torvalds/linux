@@ -1,4 +1,10 @@
 #
+# Generic algorithms support
+#
+config XOR_BLOCKS
+	tristate
+
+#
 # Cryptographic API Configuration
 #
 

@@ -5,7 +5,7 @@
 
 #define MAX_XOR_BLOCKS 5
 
-extern void xor_block(unsigned int count, unsigned int bytes, void **ptr);
+extern void xor_blocks(unsigned int count, unsigned int bytes, void **ptr);
 
 struct xor_block_template {
         struct xor_block_template *next;

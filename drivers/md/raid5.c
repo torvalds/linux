@@ -918,7 +918,7 @@ static void copy_data(int frombio, struct bio *bio,
 
 #define check_xor() 	do { 						\
 			   if (count == MAX_XOR_BLOCKS) {		\
-				xor_block(count, STRIPE_SIZE, ptr);	\
+				xor_blocks(count, STRIPE_SIZE, ptr);	\
 				count = 1;				\
 			   }						\
 			} while(0)
@@ -949,7 +949,7 @@ static void compute_block(struct stripe_head *sh, int dd_idx)
 		check_xor();
 	}
 	if (count != 1)
-		xor_block(count, STRIPE_SIZE, ptr);
+		xor_blocks(count, STRIPE_SIZE, ptr);
 	set_bit(R5_UPTODATE, &sh->dev[dd_idx].flags);
 }
 
@@ -1004,7 +1004,7 @@ static void compute_parity5(struct stripe_head *sh, int method)
 		break;
 	}
 	if (count>1) {
-		xor_block(count, STRIPE_SIZE, ptr);
+		xor_blocks(count, STRIPE_SIZE, ptr);
 		count = 1;
 	}
 	
@@ -1038,7 +1038,7 @@ static void compute_parity5(struct stripe_head *sh, int method)
 			}
 	}
 	if (count != 1)
-		xor_block(count, STRIPE_SIZE, ptr);
+		xor_blocks(count, STRIPE_SIZE, ptr);
 	
 	if (method != CHECK_PARITY) {
 		set_bit(R5_UPTODATE, &sh->dev[pd_idx].flags);
@@ -1160,7 +1160,7 @@ static void compute_block_1(struct stripe_head *sh, int dd_idx, int nozero)
 			check_xor();
 		}
 		if (count != 1)
-			xor_block(count, STRIPE_SIZE, ptr);
+			xor_blocks(count, STRIPE_SIZE, ptr);
 		if (!nozero) set_bit(R5_UPTODATE, &sh->dev[dd_idx].flags);
 		else clear_bit(R5_UPTODATE, &sh->dev[dd_idx].flags);
 	}
