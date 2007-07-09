@@ -3699,74 +3699,85 @@ out:
 }
 EXPORT_SYMBOL(wait_for_completion_interruptible_timeout);
 
-
-#define	SLEEP_ON_VAR					\
-	unsigned long flags;				\
-	wait_queue_t wait;				\
-	init_waitqueue_entry(&wait, current);
-
-#define SLEEP_ON_HEAD					\
-	spin_lock_irqsave(&q->lock,flags);		\
-	__add_wait_queue(q, &wait);			\
-	spin_unlock(&q->lock);
-
-#define	SLEEP_ON_TAIL					\
-	spin_lock_irq(&q->lock);			\
-	__remove_wait_queue(q, &wait);			\
-	spin_unlock_irqrestore(&q->lock, flags);
-
-void fastcall __sched interruptible_sleep_on(wait_queue_head_t *q)
+static inline void
+sleep_on_head(wait_queue_head_t *q, wait_queue_t *wait, unsigned long *flags)
 {
-	SLEEP_ON_VAR
+	spin_lock_irqsave(&q->lock, *flags);
+	__add_wait_queue(q, wait);
+	spin_unlock(&q->lock);
+}
+
+static inline void
+sleep_on_tail(wait_queue_head_t *q, wait_queue_t *wait, unsigned long *flags)
+{
+	spin_lock_irq(&q->lock);
+	__remove_wait_queue(q, wait);
+	spin_unlock_irqrestore(&q->lock, *flags);
+}
+
+void __sched interruptible_sleep_on(wait_queue_head_t *q)
+{
+	unsigned long flags;
+	wait_queue_t wait;
+
+	init_waitqueue_entry(&wait, current);
 
 	current->state = TASK_INTERRUPTIBLE;
 
-	SLEEP_ON_HEAD
+	sleep_on_head(q, &wait, &flags);
 	schedule();
-	SLEEP_ON_TAIL
+	sleep_on_tail(q, &wait, &flags);
 }
 EXPORT_SYMBOL(interruptible_sleep_on);
 
-long fastcall __sched
+long __sched
 interruptible_sleep_on_timeout(wait_queue_head_t *q, long timeout)
 {
-	SLEEP_ON_VAR
+	unsigned long flags;
+	wait_queue_t wait;
+
+	init_waitqueue_entry(&wait, current);
 
 	current->state = TASK_INTERRUPTIBLE;
 
-	SLEEP_ON_HEAD
+	sleep_on_head(q, &wait, &flags);
 	timeout = schedule_timeout(timeout);
-	SLEEP_ON_TAIL
+	sleep_on_tail(q, &wait, &flags);
 
 	return timeout;
 }
 EXPORT_SYMBOL(interruptible_sleep_on_timeout);
 
-void fastcall __sched sleep_on(wait_queue_head_t *q)
+void __sched sleep_on(wait_queue_head_t *q)
 {
-	SLEEP_ON_VAR
+	unsigned long flags;
+	wait_queue_t wait;
+
+	init_waitqueue_entry(&wait, current);
 
 	current->state = TASK_UNINTERRUPTIBLE;
 
-	SLEEP_ON_HEAD
+	sleep_on_head(q, &wait, &flags);
 	schedule();
-	SLEEP_ON_TAIL
+	sleep_on_tail(q, &wait, &flags);
 }
 EXPORT_SYMBOL(sleep_on);
 
-long fastcall __sched sleep_on_timeout(wait_queue_head_t *q, long timeout)
+long __sched sleep_on_timeout(wait_queue_head_t *q, long timeout)
 {
-	SLEEP_ON_VAR
+	unsigned long flags;
+	wait_queue_t wait;
+
+	init_waitqueue_entry(&wait, current);
 
 	current->state = TASK_UNINTERRUPTIBLE;
 
-	SLEEP_ON_HEAD
+	sleep_on_head(q, &wait, &flags);
 	timeout = schedule_timeout(timeout);
-	SLEEP_ON_TAIL
+	sleep_on_tail(q, &wait, &flags);
 
 	return timeout;
 }
-
 EXPORT_SYMBOL(sleep_on_timeout);
 
 #ifdef CONFIG_RT_MUTEXES
