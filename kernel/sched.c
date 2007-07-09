@@ -389,6 +389,52 @@ static inline int cpu_of(struct rq *rq)
 }
 
 /*
+ * Per-runqueue clock, as finegrained as the platform can give us:
+ */
+static unsigned long long __rq_clock(struct rq *rq)
+{
+	u64 prev_raw = rq->prev_clock_raw;
+	u64 now = sched_clock();
+	s64 delta = now - prev_raw;
+	u64 clock = rq->clock;
+
+	/*
+	 * Protect against sched_clock() occasionally going backwards:
+	 */
+	if (unlikely(delta < 0)) {
+		clock++;
+		rq->clock_warps++;
+	} else {
+		/*
+		 * Catch too large forward jumps too:
+		 */
+		if (unlikely(delta > 2*TICK_NSEC)) {
+			clock++;
+			rq->clock_overflows++;
+		} else {
+			if (unlikely(delta > rq->clock_max_delta))
+				rq->clock_max_delta = delta;
+			clock += delta;
+		}
+	}
+
+	rq->prev_clock_raw = now;
+	rq->clock = clock;
+
+	return clock;
+}
+
+static inline unsigned long long rq_clock(struct rq *rq)
+{
+	int this_cpu = smp_processor_id();
+
+	if (this_cpu == cpu_of(rq))
+		return __rq_clock(rq);
+
+	return rq->clock;
+}
+
+/*
  * The domain tree (rq->sd) is protected by RCU's quiescent state transition.
  * See detach_destroy_domains: synchronize_sched for details.
  *
