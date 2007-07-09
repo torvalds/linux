@@ -1383,7 +1383,7 @@ pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
  */
 int pcix_get_max_mmrbc(struct pci_dev *dev)
 {
-	int ret, err, cap;
+	int err, cap;
 	u32 stat;
 
 	cap = pci_find_capability(dev, PCI_CAP_ID_PCIX);
@@ -1394,9 +1394,7 @@ int pcix_get_max_mmrbc(struct pci_dev *dev)
 	if (err)
 		return -EINVAL;
 
-	ret = (stat & PCI_X_STATUS_MAX_READ) >> 12;
-
-	return ret;
+	return (stat & PCI_X_STATUS_MAX_READ) >> 12;
 }
 EXPORT_SYMBOL(pcix_get_max_mmrbc);
 

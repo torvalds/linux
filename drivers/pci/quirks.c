@@ -633,8 +633,8 @@ static void __init quirk_amd_8131_mmrbc(struct pci_dev *dev)
 
 	pci_read_config_byte(dev, PCI_REVISION_ID, &revid);
 	if (dev->subordinate && revid <= 0x12) {
-		printk(KERN_INFO "AMD8131 rev %x detected, disabling PCI-X MMRBC\n",
-			revid);
+		printk(KERN_INFO "AMD8131 rev %x detected, disabling PCI-X "
+				"MMRBC\n", revid);
 		dev->subordinate->bus_flags |= PCI_BUS_FLAGS_NO_MMRBC;
 	}
 }
