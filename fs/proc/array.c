@@ -310,6 +310,41 @@ int proc_pid_status(struct task_struct *task, char * buffer)
 	return buffer - orig;
 }
 
+static clock_t task_utime(struct task_struct *p)
+{
+	clock_t utime = cputime_to_clock_t(p->utime),
+		total = utime + cputime_to_clock_t(p->stime);
+	u64 temp;
+
+	/*
+	 * Use CFS's precise accounting:
+	 */
+	temp = (u64)nsec_to_clock_t(p->se.sum_exec_runtime);
+
+	if (total) {
+		temp *= utime;
+		do_div(temp, total);
+	}
+	utime = (clock_t)temp;
+
+	return utime;
+}
+
+static clock_t task_stime(struct task_struct *p)
+{
+	clock_t stime = cputime_to_clock_t(p->stime);
+
+	/*
+	 * Use CFS's precise accounting. (we subtract utime from
+	 * the total, to make sure the total observed by userspace
+	 * grows monotonically - apps rely on that):
+	 */
+	stime = nsec_to_clock_t(p->se.sum_exec_runtime) - task_utime(p);
+
+	return stime;
+}
+
+
 static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 {
 	unsigned long vsize, eip, esp, wchan = ~0UL;
@@ -324,7 +359,8 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 	unsigned long long start_time;
 	unsigned long cmin_flt = 0, cmaj_flt = 0;
 	unsigned long  min_flt = 0,  maj_flt = 0;
-	cputime_t cutime, cstime, utime, stime;
+	cputime_t cutime, cstime;
+	clock_t utime, stime;
 	unsigned long rsslim = 0;
 	char tcomm[sizeof(task->comm)];
 	unsigned long flags;
@@ -342,7 +378,8 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 
 	sigemptyset(&sigign);
 	sigemptyset(&sigcatch);
-	cutime = cstime = utime = stime = cputime_zero;
+	cutime = cstime = cputime_zero;
+	utime = stime = 0;
 
 	rcu_read_lock();
 	if (lock_task_sighand(task, &flags)) {
@@ -368,15 +405,15 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 			do {
 				min_flt += t->min_flt;
 				maj_flt += t->maj_flt;
-				utime = cputime_add(utime, t->utime);
-				stime = cputime_add(stime, t->stime);
+				utime += task_utime(t);
+				stime += task_stime(t);
 				t = next_thread(t);
 			} while (t != task);
 
 			min_flt += sig->min_flt;
 			maj_flt += sig->maj_flt;
-			utime = cputime_add(utime, sig->utime);
-			stime = cputime_add(stime, sig->stime);
+			utime += cputime_to_clock_t(sig->utime);
+			stime += cputime_to_clock_t(sig->stime);
 		}
 
 		sid = signal_session(sig);
@@ -392,8 +429,8 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 	if (!whole) {
 		min_flt = task->min_flt;
 		maj_flt = task->maj_flt;
-		utime = task->utime;
-		stime = task->stime;
+		utime = task_utime(task);
+		stime = task_stime(task);
 	}
 
 	/* scale priority and nice values from timeslices to -20..20 */
@@ -424,8 +461,8 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 		cmin_flt,
 		maj_flt,
 		cmaj_flt,
-		cputime_to_clock_t(utime),
-		cputime_to_clock_t(stime),
+		utime,
+		stime,
 		cputime_to_clock_t(cutime),
 		cputime_to_clock_t(cstime),
 		priority,
