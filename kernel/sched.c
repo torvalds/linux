@@ -671,6 +671,108 @@ static inline void resched_task(struct task_struct *p)
 
 #include "sched_stats.h"
 
+static u64 div64_likely32(u64 divident, unsigned long divisor)
+{
+#if BITS_PER_LONG == 32
+	if (likely(divident <= 0xffffffffULL))
+		return (u32)divident / divisor;
+	do_div(divident, divisor);
+
+	return divident;
+#else
+	return divident / divisor;
+#endif
+}
+
+#if BITS_PER_LONG == 32
+# define WMULT_CONST	(~0UL)
+#else
+# define WMULT_CONST	(1UL << 32)
+#endif
+
+#define WMULT_SHIFT	32
+
+static inline unsigned long
+calc_delta_mine(unsigned long delta_exec, unsigned long weight,
+		struct load_weight *lw)
+{
+	u64 tmp;
+
+	if (unlikely(!lw->inv_weight))
+		lw->inv_weight = WMULT_CONST / lw->weight;
+
+	tmp = (u64)delta_exec * weight;
+	/*
+	 * Check whether we'd overflow the 64-bit multiplication:
+	 */
+	if (unlikely(tmp > WMULT_CONST)) {
+		tmp = ((tmp >> WMULT_SHIFT/2) * lw->inv_weight)
+				>> (WMULT_SHIFT/2);
+	} else {
+		tmp = (tmp * lw->inv_weight) >> WMULT_SHIFT;
+	}
+
+	return (unsigned long)min(tmp, (u64)sysctl_sched_runtime_limit);
+}
+
+static inline unsigned long
+calc_delta_fair(unsigned long delta_exec, struct load_weight *lw)
+{
+	return calc_delta_mine(delta_exec, NICE_0_LOAD, lw);
+}
+
+static void update_load_add(struct load_weight *lw, unsigned long inc)
+{
+	lw->weight += inc;
+	lw->inv_weight = 0;
+}
+
+static void update_load_sub(struct load_weight *lw, unsigned long dec)
+{
+	lw->weight -= dec;
+	lw->inv_weight = 0;
+}
+
+static void __update_curr_load(struct rq *rq, struct load_stat *ls)
+{
+	if (rq->curr != rq->idle && ls->load.weight) {
+		ls->delta_exec += ls->delta_stat;
+		ls->delta_fair += calc_delta_fair(ls->delta_stat, &ls->load);
+		ls->delta_stat = 0;
+	}
+}
+
+/*
+ * Update delta_exec, delta_fair fields for rq.
+ *
+ * delta_fair clock advances at a rate inversely proportional to
+ * total load (rq->ls.load.weight) on the runqueue, while
+ * delta_exec advances at the same rate as wall-clock (provided
+ * cpu is not idle).
+ *
+ * delta_exec / delta_fair is a measure of the (smoothened) load on this
+ * runqueue over any given interval. This (smoothened) load is used
+ * during load balance.
+ *
+ * This function is called /before/ updating rq->ls.load
+ * and when switching tasks.
+ */
+static void update_curr_load(struct rq *rq, u64 now)
+{
+	struct load_stat *ls = &rq->ls;
+	u64 start;
+
+	start = ls->load_update_start;
+	ls->load_update_start = now;
+	ls->delta_stat += now - start;
+	/*
+	 * Stagger updates to ls->delta_fair. Very frequent updates
+	 * can be expensive.
+	 */
+	if (ls->delta_stat >= sysctl_sched_stat_granularity)
+		__update_curr_load(rq, ls);
+}
+
 /*
  * To aid in avoiding the subversion of "niceness" due to uneven distribution
  * of tasks with abnormal "nice" values across CPUs the contribution that
@@ -692,24 +794,6 @@ static inline void resched_task(struct task_struct *p)
 	LOAD_WEIGHT(static_prio_timeslice(prio))
 #define RTPRIO_TO_LOAD_WEIGHT(rp) \
 	(PRIO_TO_LOAD_WEIGHT(MAX_RT_PRIO) + LOAD_WEIGHT(rp))
-
-static void set_load_weight(struct task_struct *p)
-{
-	if (task_has_rt_policy(p)) {
-#ifdef CONFIG_SMP
-		if (p == task_rq(p)->migration_thread)
-			/*
-			 * The migration thread does the actual balancing.
-			 * Giving its load any weight will skew balancing
-			 * adversely.
-			 */
-			p->load_weight = 0;
-		else
-#endif
-			p->load_weight = RTPRIO_TO_LOAD_WEIGHT(p->rt_priority);
-	} else
-		p->load_weight = PRIO_TO_LOAD_WEIGHT(p->static_prio);
-}
 
 static inline void
 inc_raw_weighted_load(struct rq *rq, const struct task_struct *p)
@@ -733,6 +817,24 @@ static inline void dec_nr_running(struct task_struct *p, struct rq *rq)
 {
 	rq->nr_running--;
 	dec_raw_weighted_load(rq, p);
+}
+
+static void set_load_weight(struct task_struct *p)
+{
+	if (task_has_rt_policy(p)) {
+#ifdef CONFIG_SMP
+		if (p == task_rq(p)->migration_thread)
+			/*
+			 * The migration thread does the actual balancing.
+			 * Giving its load any weight will skew balancing
+			 * adversely.
+			 */
+			p->load_weight = 0;
+		else
+#endif
+			p->load_weight = RTPRIO_TO_LOAD_WEIGHT(p->rt_priority);
+	} else
+		p->load_weight = PRIO_TO_LOAD_WEIGHT(p->static_prio);
 }
 
 /*
