@@ -250,40 +250,50 @@ static void mtdoops_notify_remove(struct mtd_info *mtd)
 	flush_scheduled_work();
 }
 
+static void mtdoops_console_sync(void)
+{
+	struct mtdoops_context *cxt = &oops_cxt;
+	struct mtd_info *mtd = cxt->mtd;
+	size_t retlen;
+	int ret;
+
+	if (!cxt->ready || !mtd)
+		return;
+
+	if (cxt->writecount == 0)
+		return;
+
+	if (cxt->writecount < OOPS_PAGE_SIZE)
+		memset(cxt->oops_buf + cxt->writecount, 0xff,
+					OOPS_PAGE_SIZE - cxt->writecount);
+
+	ret = mtd->write(mtd, cxt->nextpage * OOPS_PAGE_SIZE,
+					OOPS_PAGE_SIZE, &retlen, cxt->oops_buf);
+	cxt->ready = 0;
+	cxt->writecount = 0;
+
+	if ((retlen != OOPS_PAGE_SIZE) || (ret < 0))
+		printk(KERN_ERR "mtdoops: Write failure at %d (%d of %d written), err %d.\n",
+			cxt->nextpage * OOPS_PAGE_SIZE, retlen,	OOPS_PAGE_SIZE, ret);
+
+	ret = mtdoops_inc_counter(cxt);
+	if (ret == 1)
+		schedule_work(&cxt->work);
+}
 
 static void
 mtdoops_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct mtdoops_context *cxt = co->data;
 	struct mtd_info *mtd = cxt->mtd;
-	int i, ret;
+	int i;
 
-	if (!cxt->ready || !mtd)
+	if (!oops_in_progress) {
+		mtdoops_console_sync();
 		return;
-
-	if (!oops_in_progress && cxt->writecount != 0) {
-		size_t retlen;
-		if (cxt->writecount < OOPS_PAGE_SIZE)
-			memset(cxt->oops_buf + cxt->writecount, 0xff,
-					OOPS_PAGE_SIZE - cxt->writecount);
-
-		ret = mtd->write(mtd, cxt->nextpage * OOPS_PAGE_SIZE,
-					OOPS_PAGE_SIZE, &retlen, cxt->oops_buf);
-		cxt->ready = 0;
-		cxt->writecount = 0;
-
-		if ((retlen != OOPS_PAGE_SIZE) || (ret < 0))
-			printk(KERN_ERR "mtdoops: Write failure at %d (%d of %d"
-				" written), err %d.\n",
-				cxt->nextpage * OOPS_PAGE_SIZE, retlen,
-				OOPS_PAGE_SIZE, ret);
-
-		ret = mtdoops_inc_counter(cxt);
-		if (ret == 1)
-			schedule_work(&cxt->work);
 	}
 
-	if (!oops_in_progress)
+	if (!cxt->ready || !mtd)
 		return;
 
 	if (cxt->writecount == 0) {
@@ -323,6 +333,7 @@ static struct console mtdoops_console = {
 	.name		= "ttyMTD",
 	.write		= mtdoops_console_write,
 	.setup		= mtdoops_console_setup,
+	.unblank	= mtdoops_console_sync,
 	.flags		= CON_PRINTBUFFER,
 	.index		= -1,
 	.data		= &oops_cxt,
