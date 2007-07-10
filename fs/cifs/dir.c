@@ -135,10 +135,10 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
 	char *full_path = NULL;
-	FILE_ALL_INFO * buf = NULL;
+	FILE_ALL_INFO *buf = NULL;
 	struct inode *newinode = NULL;
-	struct cifsFileInfo * pCifsFile = NULL;
-	struct cifsInodeInfo * pCifsInode;
+	struct cifsFileInfo *pCifsFile = NULL;
+	struct cifsInodeInfo *pCifsInode;
 	int disposition = FILE_OVERWRITE_IF;
 	int write_only = FALSE;
 
@@ -323,7 +323,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
 	char *full_path = NULL;
-	struct inode * newinode = NULL;
+	struct inode *newinode = NULL;
 
 	if (!old_valid_dev(device_number))
 		return -EINVAL;

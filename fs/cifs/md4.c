@@ -1,4 +1,4 @@
-/* 
+/*
    Unix SMB/Netbios implementation.
    Version 1.9.
    a implementation of MD4 designed for use in the SMB authentication protocol
@@ -170,7 +170,7 @@ mdfour(unsigned char *out, unsigned char *in, int n)
 
 	while (n > 64) {
 		copy64(M, in);
-		mdfour64(M,&A,&B, &C, &D);
+		mdfour64(M, &A, &B, &C, &D);
 		in += 64;
 		n -= 64;
 	}

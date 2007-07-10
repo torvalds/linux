@@ -66,7 +66,7 @@ static __u32 convert_to_cifs_notify_flags(unsigned long fcntl_notify_flags)
 	return cifs_ntfy_flags;
 }
 
-int cifs_dir_notify(struct file * file, unsigned long arg)
+int cifs_dir_notify(struct file *file, unsigned long arg)
 {
 	int xid;
 	int rc = -EINVAL;

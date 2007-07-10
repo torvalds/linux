@@ -145,7 +145,7 @@ cifs_inet_pton(int address_family, char *cp, void *dst)
 		ret = in6_pton(cp, -1 /* len */, dst , '\\', NULL);
 	}
 #ifdef CONFIG_CIFS_DEBUG2
-	cFYI(1,("address conversion returned %d for %s", ret, cp));
+	cFYI(1, ("address conversion returned %d for %s", ret, cp));
 #endif
 	if (ret > 0)
 		ret = 1;
