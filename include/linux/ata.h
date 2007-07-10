@@ -126,6 +126,7 @@ enum {
 	ATA_REG_IRQ		= ATA_REG_NSECT,
 
 	/* ATA device commands */
+	ATA_CMD_DEV_RESET	= 0x08, /* ATAPI device reset */
 	ATA_CMD_CHK_POWER	= 0xE5, /* check power mode */
 	ATA_CMD_STANDBY		= 0xE2, /* place in standby power mode */
 	ATA_CMD_IDLE		= 0xE3, /* place in idle power mode */

@@ -371,7 +371,7 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 				  ATA_FLAG_MMIO,
 		.pio_mask	= 0x1f,
 		.mwdma_mask	= 0x07,
-		.udma_mask	= 0x7f,
+		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &vsc_sata_ops,
 	};
 	const struct ata_port_info *ppi[] = { &pi, NULL };

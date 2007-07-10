@@ -2154,19 +2154,25 @@ static void ata_eh_handle_port_suspend(struct ata_port *ap)
 
 	WARN_ON(ap->pflags & ATA_PFLAG_SUSPENDED);
 
+	/* tell ACPI we're suspending */
+	rc = ata_acpi_on_suspend(ap);
+	if (rc)
+		goto out;
+
 	/* suspend */
 	ata_eh_freeze_port(ap);
 
 	if (ap->ops->port_suspend)
 		rc = ap->ops->port_suspend(ap, ap->pm_mesg);
 
+ out:
 	/* report result */
 	spin_lock_irqsave(ap->lock, flags);
 
 	ap->pflags &= ~ATA_PFLAG_PM_PENDING;
 	if (rc == 0)
 		ap->pflags |= ATA_PFLAG_SUSPENDED;
-	else
+	else if (ap->pflags & ATA_PFLAG_FROZEN)
 		ata_port_schedule_eh(ap);
 
 	if (ap->pm_result) {
@@ -2206,6 +2212,9 @@ static void ata_eh_handle_port_resume(struct ata_port *ap)
 
 	if (ap->ops->port_resume)
 		rc = ap->ops->port_resume(ap);
+
+	/* tell ACPI that we're resuming */
+	ata_acpi_on_resume(ap);
 
 	/* report result */
 	spin_lock_irqsave(ap->lock, flags);

@@ -426,7 +426,7 @@ static const struct ata_port_info sil24_port_info[] = {
 				  SIL24_FLAG_PCIX_IRQ_WOC,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
-		.udma_mask	= 0x3f,			/* udma0-5 */
+		.udma_mask	= ATA_UDMA5,		/* udma0-5 */
 		.port_ops	= &sil24_ops,
 	},
 	/* sil_3132 */
@@ -434,7 +434,7 @@ static const struct ata_port_info sil24_port_info[] = {
 		.flags		= SIL24_COMMON_FLAGS | SIL24_NPORTS2FLAG(2),
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
-		.udma_mask	= 0x3f,			/* udma0-5 */
+		.udma_mask	= ATA_UDMA5,		/* udma0-5 */
 		.port_ops	= &sil24_ops,
 	},
 	/* sil_3131/sil_3531 */
@@ -442,7 +442,7 @@ static const struct ata_port_info sil24_port_info[] = {
 		.flags		= SIL24_COMMON_FLAGS | SIL24_NPORTS2FLAG(1),
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
-		.udma_mask	= 0x3f,			/* udma0-5 */
+		.udma_mask	= ATA_UDMA5,		/* udma0-5 */
 		.port_ops	= &sil24_ops,
 	},
 };
@@ -888,7 +888,7 @@ static irqreturn_t sil24_interrupt(int irq, void *dev_instance)
 		if (status & (1 << i)) {
 			struct ata_port *ap = host->ports[i];
 			if (ap && !(ap->flags & ATA_FLAG_DISABLED)) {
-				sil24_host_intr(host->ports[i]);
+				sil24_host_intr(ap);
 				handled++;
 			} else
 				printk(KERN_ERR DRV_NAME
