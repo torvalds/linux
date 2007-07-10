@@ -26,8 +26,6 @@
  * mess shall be deleted completely. */
 enum {
 	PRISM2_PARAM_IEEE_802_1X = 23,
-	PRISM2_PARAM_ANTSEL_TX = 24,
-	PRISM2_PARAM_ANTSEL_RX = 25,
 
 	/* Instant802 additions */
 	PRISM2_PARAM_CTS_PROTECT_ERP_FRAMES = 1001,

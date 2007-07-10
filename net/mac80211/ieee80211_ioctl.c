@@ -1197,18 +1197,6 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 			sdata->ieee802_1x = value;
 		break;
 
-	case PRISM2_PARAM_ANTSEL_TX:
-		local->hw.conf.antenna_sel_tx = value;
-		if (ieee80211_hw_config(local))
-			ret = -EINVAL;
-		break;
-
-	case PRISM2_PARAM_ANTSEL_RX:
-		local->hw.conf.antenna_sel_rx = value;
-		if (ieee80211_hw_config(local))
-			ret = -EINVAL;
-		break;
-
 	case PRISM2_PARAM_CTS_PROTECT_ERP_FRAMES:
 		local->cts_protect_erp_frames = value;
 		break;
@@ -1338,14 +1326,6 @@ static int ieee80211_ioctl_get_prism2_param(struct net_device *dev,
 	switch (*param) {
 	case PRISM2_PARAM_IEEE_802_1X:
 		*param = sdata->ieee802_1x;
-		break;
-
-	case PRISM2_PARAM_ANTSEL_TX:
-		*param = local->hw.conf.antenna_sel_tx;
-		break;
-
-	case PRISM2_PARAM_ANTSEL_RX:
-		*param = local->hw.conf.antenna_sel_rx;
 		break;
 
 	case PRISM2_PARAM_CTS_PROTECT_ERP_FRAMES:
