@@ -161,7 +161,7 @@ static char irq_tab_raq2[] __initdata = {
   [COBALT_PCICONF_ETH1]    = COBALT_ETH1_IRQ
 };
 
-int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	if (cobalt_board_id < COBALT_BRD_ID_QUBE2)
 		return irq_tab_qube1[slot];

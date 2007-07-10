@@ -84,7 +84,7 @@ static unsigned long __initdata doc_locations[] = {
 #elif defined(CONFIG_MOMENCO_OCELOT)
 	0x2f000000,
         0xff000000,
-#elif defined(CONFIG_MOMENCO_OCELOT_G) || defined (CONFIG_MOMENCO_OCELOT_C)
+#elif defined(CONFIG_MOMENCO_OCELOT_G)
         0xff000000,
 ##else
 #warning Unknown architecture for DiskOnChip. No default probe locations defined

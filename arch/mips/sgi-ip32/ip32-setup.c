@@ -62,12 +62,6 @@ static inline void str2eaddr(unsigned char *ea, unsigned char *str)
 }
 #endif
 
-#ifdef CONFIG_SERIAL_8250
-#include <linux/tty.h>
-#include <linux/serial.h>
-#include <linux/serial_core.h>
-#endif /* CONFIG_SERIAL_8250 */
-
 /* An arbitrary time; this can be decreased if reliability looks good */
 #define WAIT_MS 10
 
@@ -96,36 +90,6 @@ void __init plat_mem_setup(void)
 
 	board_time_init = ip32_time_init;
 
-#ifdef CONFIG_SERIAL_8250
-	{
-		static struct uart_port o2_serial[2];
-
-		memset(o2_serial, 0, sizeof(o2_serial));
-		o2_serial[0].type	= PORT_16550A;
-		o2_serial[0].line	= 0;
-		o2_serial[0].irq	= MACEISA_SERIAL1_IRQ;
-		o2_serial[0].flags	= UPF_SKIP_TEST;
-		o2_serial[0].uartclk	= 1843200;
-		o2_serial[0].iotype	= UPIO_MEM;
-		o2_serial[0].membase	= (char *)&mace->isa.serial1;
-		o2_serial[0].fifosize	= 14;
-                /* How much to shift register offset by. Each UART register
-		 * is replicated over 256 byte space */
-		o2_serial[0].regshift	= 8;
-		o2_serial[1].type	= PORT_16550A;
-		o2_serial[1].line	= 1;
-		o2_serial[1].irq	= MACEISA_SERIAL2_IRQ;
-		o2_serial[1].flags	= UPF_SKIP_TEST;
-		o2_serial[1].uartclk	= 1843200;
-		o2_serial[1].iotype	= UPIO_MEM;
-		o2_serial[1].membase	= (char *)&mace->isa.serial2;
-		o2_serial[1].fifosize	= 14;
-		o2_serial[1].regshift	= 8;
-
-		early_serial_setup(&o2_serial[0]);
-		early_serial_setup(&o2_serial[1]);
-	}
-#endif
 #ifdef CONFIG_SGI_O2MACE_ETH
 	{
 		char *mac = ArcGetEnvironmentVariable("eaddr");

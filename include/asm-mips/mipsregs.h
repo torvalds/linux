@@ -7,7 +7,7 @@
  * Copyright (C) 2000 Silicon Graphics, Inc.
  * Modified for further R[236]000 support by Paul M. Antoine, 1996.
  * Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2000, 07 MIPS Technologies, Inc.
  * Copyright (C) 2003, 2004  Maciej W. Rozycki
  */
 #ifndef _ASM_MIPSREGS_H
@@ -15,6 +15,7 @@
 
 #include <linux/linkage.h>
 #include <asm/hazards.h>
+#include <asm/war.h>
 
 /*
  * The following macros are especially useful for __asm__
@@ -533,8 +534,12 @@
 #define MIPS_CONF3_VEIC		(_ULCAST_(1) <<  6)
 #define MIPS_CONF3_LPA		(_ULCAST_(1) <<  7)
 #define MIPS_CONF3_DSP		(_ULCAST_(1) << 10)
+#define MIPS_CONF3_ULRI		(_ULCAST_(1) << 13)
 
 #define MIPS_CONF7_WII		(_ULCAST_(1) << 31)
+
+#define MIPS_CONF7_RPS		(_ULCAST_(1) << 2)
+
 
 /*
  * Bits in the MIPS32/64 coprocessor 1 (FPU) revision register.
@@ -771,6 +776,9 @@ do {									\
 
 #define read_c0_context()	__read_ulong_c0_register($4, 0)
 #define write_c0_context(val)	__write_ulong_c0_register($4, 0, val)
+
+#define read_c0_userlocal()	__read_ulong_c0_register($4, 2)
+#define write_c0_userlocal(val)	__write_ulong_c0_register($4, 2, val)
 
 #define read_c0_pagemask()	__read_32bit_c0_register($5, 0)
 #define write_c0_pagemask(val)	__write_32bit_c0_register($5, 0, val)
@@ -1294,10 +1302,39 @@ static inline void tlb_probe(void)
 
 static inline void tlb_read(void)
 {
+#if MIPS34K_MISSED_ITLB_WAR
+	int res = 0;
+
+	__asm__ __volatile__(
+	"	.set	push					\n"
+	"	.set	noreorder				\n"
+	"	.set	noat					\n"
+	"	.set	mips32r2				\n"
+	"	.word	0x41610001		# dvpe $1	\n"
+	"	move	%0, $1					\n"
+	"	ehb						\n"
+	"	.set	pop					\n"
+	: "=r" (res));
+
+	instruction_hazard();
+#endif
+
 	__asm__ __volatile__(
 		".set noreorder\n\t"
 		"tlbr\n\t"
 		".set reorder");
+
+#if MIPS34K_MISSED_ITLB_WAR
+	if ((res & _ULCAST_(1)))
+		__asm__ __volatile__(
+		"	.set	push				\n"
+		"	.set	noreorder			\n"
+		"	.set	noat				\n"
+		"	.set	mips32r2			\n"
+		"	.word	0x41600021	# evpe		\n"
+		"	ehb					\n"
+		"	.set	pop				\n");
+#endif
 }
 
 static inline void tlb_write_indexed(void)

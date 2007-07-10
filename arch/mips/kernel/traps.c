@@ -39,7 +39,6 @@
 #include <asm/traps.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
-#include <asm/watch.h>
 #include <asm/types.h>
 #include <asm/stacktrace.h>
 
@@ -70,6 +69,7 @@ extern asmlinkage void handle_reserved(void);
 extern int fpu_emulator_cop1Handler(struct pt_regs *xcp,
 	struct mips_fpu_struct *ctx, int has_fpu);
 
+void (*board_watchpoint_handler)(struct pt_regs *regs);
 void (*board_be_init)(void);
 int (*board_be_handler)(struct pt_regs *regs, int is_fixup);
 void (*board_nmi_handler_setup)(void);
@@ -311,7 +311,7 @@ void show_registers(struct pt_regs *regs)
 
 static DEFINE_SPINLOCK(die_lock);
 
-NORET_TYPE void ATTRIB_NORET die(const char * str, struct pt_regs * regs)
+void __noreturn die(const char * str, struct pt_regs * regs)
 {
 	static int die_counter;
 #ifdef CONFIG_MIPS_MT_SMTC
@@ -753,6 +753,33 @@ asmlinkage void do_ri(struct pt_regs *regs)
 	force_sig(SIGILL, current);
 }
 
+/*
+ * MIPS MT processors may have fewer FPU contexts than CPU threads. If we've
+ * emulated more than some threshold number of instructions, force migration to
+ * a "CPU" that has FP support.
+ */
+static void mt_ase_fp_affinity(void)
+{
+#ifdef CONFIG_MIPS_MT_FPAFF
+	if (mt_fpemul_threshold > 0 &&
+	     ((current->thread.emulated_fp++ > mt_fpemul_threshold))) {
+		/*
+		 * If there's no FPU present, or if the application has already
+		 * restricted the allowed set to exclude any CPUs with FPUs,
+		 * we'll skip the procedure.
+		 */
+		if (cpus_intersects(current->cpus_allowed, mt_fpu_cpumask)) {
+			cpumask_t tmask;
+
+			cpus_and(tmask, current->thread.user_cpus_allowed,
+			         mt_fpu_cpumask);
+			set_cpus_allowed(current, tmask);
+			current->thread.mflags |= MF_FPUBOUND;
+		}
+	}
+#endif /* CONFIG_MIPS_MT_FPAFF */
+}
+
 asmlinkage void do_cpu(struct pt_regs *regs)
 {
 	unsigned int cpid;
@@ -786,36 +813,8 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 						&current->thread.fpu, 0);
 			if (sig)
 				force_sig(sig, current);
-#ifdef CONFIG_MIPS_MT_FPAFF
-			else {
-			/*
-			 * MIPS MT processors may have fewer FPU contexts
-			 * than CPU threads. If we've emulated more than
-			 * some threshold number of instructions, force
-			 * migration to a "CPU" that has FP support.
-			 */
-			 if(mt_fpemul_threshold > 0
-			 && ((current->thread.emulated_fp++
-			    > mt_fpemul_threshold))) {
-			  /*
-			   * If there's no FPU present, or if the
-			   * application has already restricted
-			   * the allowed set to exclude any CPUs
-			   * with FPUs, we'll skip the procedure.
-			   */
-			  if (cpus_intersects(current->cpus_allowed,
-			  			mt_fpu_cpumask)) {
-			    cpumask_t tmask;
-
-			    cpus_and(tmask,
-					current->thread.user_cpus_allowed,
-					mt_fpu_cpumask);
-			    set_cpus_allowed(current, tmask);
-			    current->thread.mflags |= MF_FPUBOUND;
-			  }
-			 }
-			}
-#endif /* CONFIG_MIPS_MT_FPAFF */
+			else
+				mt_ase_fp_affinity();
 		}
 
 		return;
@@ -835,6 +834,11 @@ asmlinkage void do_mdmx(struct pt_regs *regs)
 
 asmlinkage void do_watch(struct pt_regs *regs)
 {
+	if (board_watchpoint_handler) {
+		(*board_watchpoint_handler)(regs);
+		return;
+	}
+
 	/*
 	 * We use the watch exception where available to detect stack
 	 * overflows.
@@ -1343,7 +1347,14 @@ void __init per_cpu_trap_init(void)
 		set_c0_status(ST0_MX);
 
 #ifdef CONFIG_CPU_MIPSR2
-	write_c0_hwrena (0x0000000f); /* Allow rdhwr to all registers */
+	if (cpu_has_mips_r2) {
+		unsigned int enable = 0x0000000f;
+
+		if (cpu_has_userlocal)
+			enable |= (1 << 29);
+
+		write_c0_hwrena(enable);
+	}
 #endif
 
 #ifdef CONFIG_MIPS_MT_SMTC

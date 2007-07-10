@@ -14,7 +14,6 @@
 #include <asm/cpu-features.h>
 #include <asm/mipsregs.h>
 #include <asm/processor.h>
-#include <asm/watch.h>
 
 unsigned int vced_count, vcei_count;
 
@@ -84,6 +83,7 @@ static const char *cpu_name[] = {
 	[CPU_VR4181A]	= "NEC VR4181A",
 	[CPU_SR71000]	= "Sandcraft SR71000",
 	[CPU_PR4450]	= "Philips PR4450",
+	[CPU_LOONGSON2]	= "ICT Loongson-2",
 };
 
 

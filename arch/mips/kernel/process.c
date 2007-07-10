@@ -46,7 +46,7 @@
  * power and have a low exit latency (ie sit in a loop waiting for somebody to
  * say that they'd like to reschedule)
  */
-ATTRIB_NORET void cpu_idle(void)
+void __noreturn cpu_idle(void)
 {
 	/* endless idle loop with no priority at all */
 	while (1) {
@@ -213,7 +213,7 @@ int dump_task_fpu (struct task_struct *t, elf_fpregset_t *fpr)
 /*
  * Create a kernel thread
  */
-static ATTRIB_NORET void kernel_thread_helper(void *arg, int (*fn)(void *))
+static void __noreturn kernel_thread_helper(void *arg, int (*fn)(void *))
 {
 	do_exit(fn(arg));
 }

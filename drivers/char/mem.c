@@ -75,6 +75,13 @@ static inline int uncached_access(struct file *file, unsigned long addr)
 	 * On ia64, we ignore O_SYNC because we cannot tolerate memory attribute aliases.
 	 */
 	return !(efi_mem_attributes(addr) & EFI_MEMORY_WB);
+#elif defined(CONFIG_MIPS)
+	{
+		extern int __uncached_access(struct file *file,
+					     unsigned long addr);
+
+		return __uncached_access(file, addr);
+	}
 #else
 	/*
 	 * Accessing memory above the top the kernel knows about or through a file pointer

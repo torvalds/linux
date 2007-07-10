@@ -30,7 +30,6 @@
 #define COBALT_CPU_IRQ		MIPS_CPU_IRQ_BASE
 
 #define COBALT_GALILEO_IRQ	(COBALT_CPU_IRQ + 2)
-#define COBALT_SCC_IRQ          (COBALT_CPU_IRQ + 3)	/* pre-production has 85C30 */
 #define COBALT_RAQ_SCSI_IRQ	(COBALT_CPU_IRQ + 3)
 #define COBALT_ETH0_IRQ		(COBALT_CPU_IRQ + 3)
 #define COBALT_QUBE1_ETH0_IRQ	(COBALT_CPU_IRQ + 4)
@@ -70,10 +69,6 @@
 #define COBALT_BRD_ID_RAQ2     0x6
 
 extern int cobalt_board_id;
-
-#define PCI_CFG_SET(devfn,where)					\
-	GT_WRITE(GT_PCI0_CFGADDR_OFS, (0x80000000 | (PCI_SLOT (devfn) << 11) |		\
-		(PCI_FUNC (devfn) << 8) | (where)))
 
 #define COBALT_LED_PORT		(*(volatile unsigned char *) CKSEG1ADDR(0x1c000000))
 # define COBALT_LED_BAR_LEFT	(1 << 0)	/* Qube */

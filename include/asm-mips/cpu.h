@@ -89,6 +89,8 @@
 #define PRID_IMP_34K		0x9500
 #define PRID_IMP_24KE		0x9600
 #define PRID_IMP_74K		0x9700
+#define PRID_IMP_LOONGSON1      0x4200
+#define PRID_IMP_LOONGSON2      0x6300
 
 /*
  * These are the PRID's for when 23:16 == PRID_COMP_SIBYTE
@@ -107,6 +109,7 @@
  * Definitions for 7:0 on legacy processors
  */
 
+#define PRID_REV_MASK		0x00ff
 
 #define PRID_REV_TX4927		0x0022
 #define PRID_REV_TX4937		0x0030
@@ -123,6 +126,7 @@
 #define PRID_REV_VR4122		0x0070
 #define PRID_REV_VR4181A	0x0070	/* Same as VR4122 */
 #define PRID_REV_VR4130		0x0080
+#define PRID_REV_34K_V1_0_2	0x0022
 
 /*
  * Older processors used to encode processor version and revision in two
@@ -211,7 +215,10 @@
 #define CPU_SB1A		62
 #define CPU_74K			63
 #define CPU_R14000		64
-#define CPU_LAST		64
+#define CPU_LOONGSON1           65
+#define CPU_LOONGSON2           66
+
+#define CPU_LAST		66
 
 /*
  * ISA Level encodings
@@ -257,6 +264,7 @@
 #define MIPS_CPU_PREFETCH	0x00080000 /* CPU has usable prefetch */
 #define MIPS_CPU_VINT		0x00100000 /* CPU supports MIPSR2 vectored interrupts */
 #define MIPS_CPU_VEIC		0x00200000 /* CPU supports MIPSR2 external interrupt controller mode */
+#define MIPS_CPU_ULRI		0x00400000 /* CPU has ULRI feature */
 
 /*
  * CPU ASE encodings

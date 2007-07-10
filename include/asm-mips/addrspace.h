@@ -129,29 +129,12 @@
 #define PHYS_TO_XKPHYS(cm,a)		(_CONST64_(0x8000000000000000) | \
 					 ((cm)<<59) | (a))
 
-#if defined (CONFIG_CPU_R4300)						\
-    || defined (CONFIG_CPU_R4X00)					\
-    || defined (CONFIG_CPU_R5000)					\
-    || defined (CONFIG_CPU_RM7000)					\
-    || defined (CONFIG_CPU_RM9000)					\
-    || defined (CONFIG_CPU_NEVADA)					\
-    || defined (CONFIG_CPU_TX49XX)					\
-    || defined (CONFIG_CPU_MIPS64)
-#define TO_PHYS_MASK	_CONST64_(0x0000000fffffffff)	/* 2^^36 - 1 */
-#endif
-
-#if defined (CONFIG_CPU_R8000)
-/* We keep KUSIZE consistent with R4000 for now (2^^40) instead of (2^^48) */
-#define TO_PHYS_MASK	_CONST64_(0x000000ffffffffff)	/* 2^^40 - 1 */
-#endif
-
-#if defined (CONFIG_CPU_R10000)
-#define TO_PHYS_MASK	_CONST64_(0x000000ffffffffff)	/* 2^^40 - 1 */
-#endif
-
-#if defined(CONFIG_CPU_SB1) || defined(CONFIG_CPU_SB1A)
-#define TO_PHYS_MASK	_CONST64_(0x00000fffffffffff)	/* 2^^44 - 1 */
-#endif
+/*
+ * The ultimate limited of the 64-bit MIPS architecture:  2 bits for selecting
+ * the region, 3 bits for the CCA mode.  This leaves 59 bits of which the
+ * R8000 implements most with its 48-bit physical address space.
+ */
+#define TO_PHYS_MASK	_CONST64_(0x07ffffffffffffff)	/* 2^^59 - 1 */
 
 #ifndef CONFIG_CPU_R8000
 

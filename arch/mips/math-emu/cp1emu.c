@@ -35,6 +35,7 @@
  * better performance by compiling with -msoft-float!
  */
 #include <linux/sched.h>
+#include <linux/debugfs.h>
 
 #include <asm/inst.h>
 #include <asm/bootinfo.h>
@@ -1277,3 +1278,36 @@ int fpu_emulator_cop1Handler(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 
 	return sig;
 }
+
+#ifdef CONFIG_DEBUG_FS
+extern struct dentry *mips_debugfs_dir;
+static int __init debugfs_fpuemu(void)
+{
+	struct dentry *d, *dir;
+	int i;
+	static struct {
+		const char *name;
+		unsigned int *v;
+	} vars[] __initdata = {
+		{ "emulated", &fpuemustats.emulated },
+		{ "loads",    &fpuemustats.loads },
+		{ "stores",   &fpuemustats.stores },
+		{ "cp1ops",   &fpuemustats.cp1ops },
+		{ "cp1xops",  &fpuemustats.cp1xops },
+		{ "errors",   &fpuemustats.errors },
+	};
+
+	if (!mips_debugfs_dir)
+		return -ENODEV;
+	dir = debugfs_create_dir("fpuemustats", mips_debugfs_dir);
+	if (IS_ERR(dir))
+		return PTR_ERR(dir);
+	for (i = 0; i < ARRAY_SIZE(vars); i++) {
+		d = debugfs_create_u32(vars[i].name, S_IRUGO, dir, vars[i].v);
+		if (IS_ERR(d))
+			return PTR_ERR(d);
+	}
+	return 0;
+}
+__initcall(debugfs_fpuemu);
+#endif

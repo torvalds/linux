@@ -44,7 +44,7 @@ struct task_struct;
  * different thread.
  */
 
-#define switch_to(prev,next,last)					\
+#define __mips_mt_fpaff_switch_to(prev)					\
 do {									\
 	if (cpu_has_fpu &&						\
 	    (prev->thread.mflags & MF_FPUBOUND) &&			\
@@ -52,24 +52,24 @@ do {									\
 		prev->thread.mflags &= ~MF_FPUBOUND;			\
 		prev->cpus_allowed = prev->thread.user_cpus_allowed;	\
 	}								\
-	if (cpu_has_dsp)						\
-		__save_dsp(prev);					\
 	next->thread.emulated_fp = 0;					\
-	(last) = resume(prev, next, task_thread_info(next));		\
-	if (cpu_has_dsp)						\
-		__restore_dsp(current);					\
 } while(0)
 
 #else
+#define __mips_mt_fpaff_switch_to(prev) do { (void) (prev); } while (0)
+#endif
+
 #define switch_to(prev,next,last)					\
 do {									\
+	__mips_mt_fpaff_switch_to(prev);				\
 	if (cpu_has_dsp)						\
 		__save_dsp(prev);					\
 	(last) = resume(prev, next, task_thread_info(next));		\
 	if (cpu_has_dsp)						\
 		__restore_dsp(current);					\
+	if (cpu_has_userlocal)						\
+		write_c0_userlocal(task_thread_info(current)->tp_value);\
 } while(0)
-#endif
 
 /*
  * On SMP systems, when the scheduler does migration-cost autodetection,

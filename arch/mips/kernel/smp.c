@@ -52,7 +52,7 @@ EXPORT_SYMBOL(phys_cpu_present_map);
 EXPORT_SYMBOL(cpu_online_map);
 
 extern void __init calibrate_delay(void);
-extern ATTRIB_NORET void cpu_idle(void);
+extern void cpu_idle(void);
 
 /*
  * First C code run on the secondary CPUs after being started up by

@@ -123,7 +123,7 @@ static struct platform_device *pnx8550_platform_devices[] __initdata = {
 	&pnx8550_uart_device,
 };
 
-int pnx8550_platform_init(void)
+static int __init pnx8550_platform_init(void)
 {
 	return platform_add_devices(pnx8550_platform_devices,
 			            ARRAY_SIZE(pnx8550_platform_devices));

@@ -1104,7 +1104,7 @@ void smtc_idle_loop_hook(void)
 	mtflags = dmt();
 	pdb_msg = &id_ho_db_msg[0];
 	im = read_c0_status();
-	vpe = cpu_data[smp_processor_id()].vpe_id;
+	vpe = current_cpu_data.vpe_id;
 	for (bit = 0; bit < 8; bit++) {
 		/*
 		 * In current prototype, I/O interrupts
