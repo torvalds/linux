@@ -143,7 +143,7 @@ static struct console sercons;
 static unsigned long break_pressed; /* break, really ... */
 #endif
 
-static unsigned char zs_init_regs[16] __initdata = {
+static unsigned char zs_init_regs[16] = {
 	0,				/* write 0 */
 	0,				/* write 1 */
 	0,				/* write 2 */
@@ -1581,7 +1581,7 @@ static void __init show_serial_version(void)
 /*  Initialize Z8530s zs_channels
  */
 
-static void __init probe_sccs(void)
+static void probe_sccs(void)
 {
 	struct dec_serial **pp;
 	int i, n, n_chips = 0, n_channels, chip, channel;
@@ -1923,7 +1923,7 @@ static struct tty_driver *serial_console_device(struct console *c, int *index)
  *	- initialize the serial port
  *	Return non-zero if we didn't find a serial port.
  */
-static int __init serial_console_setup(struct console *co, char *options)
+static int serial_console_setup(struct console *co, char *options)
 {
 	struct dec_serial *info;
 	int baud = 9600;
