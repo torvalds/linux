@@ -327,6 +327,9 @@ config PCI_DOMAINS
 	bool
 	default y
 
+config PCI_SYSCALL
+	def_bool PCI
+
 config ALPHA_CORE_AGP
 	bool
 	depends on ALPHA_GENERIC || ALPHA_TITAN || ALPHA_MARVEL

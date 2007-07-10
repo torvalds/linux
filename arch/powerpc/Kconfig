@@ -698,8 +698,10 @@ config PCI
 	  infrastructure code to support PCI bus devices.
 
 config PCI_DOMAINS
-	bool
-	default PCI
+	def_bool PCI
+
+config PCI_SYSCALL
+	def_bool PCI
 
 config PCI_QSPAN
 	bool "QSpan PCI"

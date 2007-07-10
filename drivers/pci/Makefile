@@ -41,9 +41,7 @@ obj-$(CONFIG_ACPI)    += pci-acpi.o
 # Cardbus & CompactPCI use setup-bus
 obj-$(CONFIG_HOTPLUG) += setup-bus.o
 
-ifndef CONFIG_X86
-obj-y += syscall.o
-endif
+obj-$(CONFIG_PCI_SYSCALL) += syscall.o
 
 ifeq ($(CONFIG_PCI_DEBUG),y)
 EXTRA_CFLAGS += -DDEBUG
