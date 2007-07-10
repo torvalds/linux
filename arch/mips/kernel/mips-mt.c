@@ -109,7 +109,7 @@ asmlinkage long mipsmt_sys_sched_setaffinity(pid_t pid, unsigned int len,
 	read_unlock(&tasklist_lock);
 
 	/* Compute new global allowed CPU set if necessary */
-	if( (p->thread.mflags & MF_FPUBOUND)
+	if ((p->thread.mflags & MF_FPUBOUND)
 	&& cpus_intersects(new_mask, mt_fpu_cpumask)) {
 		cpus_and(effective_mask, new_mask, mt_fpu_cpumask);
 		retval = set_cpus_allowed(p, effective_mask);
@@ -195,27 +195,31 @@ void mips_mt_regdump(unsigned long mvpctl)
 	nvpe = ((mvpconf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT) + 1;
 	ntc = ((mvpconf0 & MVPCONF0_PTC) >> MVPCONF0_PTC_SHIFT) + 1;
 	printk("-- per-VPE State --\n");
-	for(i = 0; i < nvpe; i++) {
-	    for(tc = 0; tc < ntc; tc++) {
+	for (i = 0; i < nvpe; i++) {
+		for (tc = 0; tc < ntc; tc++) {
 			settc(tc);
-		if((read_tc_c0_tcbind() & TCBIND_CURVPE) == i) {
-		    printk("  VPE %d\n", i);
-		    printk("   VPEControl : %08lx\n", read_vpe_c0_vpecontrol());
-		    printk("   VPEConf0 : %08lx\n", read_vpe_c0_vpeconf0());
-		    printk("   VPE%d.Status : %08lx\n",
-				i, read_vpe_c0_status());
-		    printk("   VPE%d.EPC : %08lx\n", i, read_vpe_c0_epc());
-		    printk("   VPE%d.Cause : %08lx\n", i, read_vpe_c0_cause());
-		    printk("   VPE%d.Config7 : %08lx\n",
-				i, read_vpe_c0_config7());
-		    break; /* Next VPE */
+			if ((read_tc_c0_tcbind() & TCBIND_CURVPE) == i) {
+				printk("  VPE %d\n", i);
+				printk("   VPEControl : %08lx\n",
+				       read_vpe_c0_vpecontrol());
+				printk("   VPEConf0 : %08lx\n",
+				       read_vpe_c0_vpeconf0());
+				printk("   VPE%d.Status : %08lx\n",
+				       i, read_vpe_c0_status());
+				printk("   VPE%d.EPC : %08lx\n",
+				       i, read_vpe_c0_epc());
+				printk("   VPE%d.Cause : %08lx\n",
+				       i, read_vpe_c0_cause());
+				printk("   VPE%d.Config7 : %08lx\n",
+				       i, read_vpe_c0_config7());
+				break; /* Next VPE */
+			}
 		}
-	    }
 	}
 	printk("-- per-TC State --\n");
-	for(tc = 0; tc < ntc; tc++) {
+	for (tc = 0; tc < ntc; tc++) {
 		settc(tc);
-		if(read_tc_c0_tcbind() == read_c0_tcbind()) {
+		if (read_tc_c0_tcbind() == read_c0_tcbind()) {
 			/* Are we dumping ourself?  */
 			haltval = 0; /* Then we're not halted, and mustn't be */
 			tcstatval = flags; /* And pre-dump TCStatus is flags */
@@ -384,7 +388,7 @@ void mips_mt_set_cpuoptions(void)
 		mt_fpemul_threshold = fpaff_threshold;
 	} else {
 		mt_fpemul_threshold =
-			(FPUSEFACTOR * (loops_per_jiffy/(500000/HZ))) / HZ;
+			(FPUSEFACTOR * (loops_per_jiffy / (500000 / HZ))) / HZ;
 	}
 	printk("FPU Affinity set after %ld emulations\n",
 			mt_fpemul_threshold);
