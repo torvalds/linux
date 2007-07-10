@@ -43,6 +43,7 @@ static void ap_poll_all(unsigned long);
 static void ap_poll_timeout(unsigned long);
 static int ap_poll_thread_start(void);
 static void ap_poll_thread_stop(void);
+static void ap_request_timeout(unsigned long);
 
 /**
  * Module description.
@@ -189,6 +190,7 @@ int ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length)
 	case AP_RESPONSE_NORMAL:
 		return 0;
 	case AP_RESPONSE_Q_FULL:
+	case AP_RESPONSE_RESET_IN_PROGRESS:
 		return -EBUSY;
 	default:	/* Device is gone. */
 		return -ENODEV;
@@ -251,6 +253,8 @@ int ap_recv(ap_qid_t qid, unsigned long long *psmid, void *msg, size_t length)
 	case AP_RESPONSE_NO_PENDING_REPLY:
 		if (status.queue_empty)
 			return -ENOENT;
+		return -EBUSY;
+	case AP_RESPONSE_RESET_IN_PROGRESS:
 		return -EBUSY;
 	default:
 		return -ENODEV;
@@ -326,11 +330,12 @@ static int ap_init_queue(ap_qid_t qid)
 			i = AP_MAX_RESET;	/* return with -ENODEV */
 			break;
 		case AP_RESPONSE_RESET_IN_PROGRESS:
+			rc = -EBUSY;
 		case AP_RESPONSE_BUSY:
 		default:
 			break;
 		}
-		if (rc != -ENODEV)
+		if (rc != -ENODEV && rc != -EBUSY)
 			break;
 		if (i < AP_MAX_RESET - 1) {
 			udelay(5);
@@ -338,6 +343,40 @@ static int ap_init_queue(ap_qid_t qid)
 		}
 	}
 	return rc;
+}
+
+/**
+ * Arm request timeout if a AP device was idle and a new request is submitted.
+ */
+static void ap_increase_queue_count(struct ap_device *ap_dev)
+{
+	int timeout = ap_dev->drv->request_timeout;
+
+	ap_dev->queue_count++;
+	if (ap_dev->queue_count == 1) {
+		mod_timer(&ap_dev->timeout, jiffies + timeout);
+		ap_dev->reset = AP_RESET_ARMED;
+	}
+}
+
+/**
+ * AP device is still alive, re-schedule request timeout if there are still
+ * pending requests.
+ */
+static void ap_decrease_queue_count(struct ap_device *ap_dev)
+{
+	int timeout = ap_dev->drv->request_timeout;
+
+	ap_dev->queue_count--;
+	if (ap_dev->queue_count > 0)
+		mod_timer(&ap_dev->timeout, jiffies + timeout);
+	else
+		/**
+		 * The timeout timer should to be disabled now - since
+		 * del_timer_sync() is very expensive, we just tell via the
+		 * reset flag to ignore the pending timeout timer.
+		 */
+		ap_dev->reset = AP_RESET_IGNORE;
 }
 
 /**
@@ -498,6 +537,7 @@ static int ap_device_remove(struct device *dev)
 	struct ap_driver *ap_drv = ap_dev->drv;
 
 	ap_flush_queue(ap_dev);
+	del_timer_sync(&ap_dev->timeout);
 	if (ap_drv->remove)
 		ap_drv->remove(ap_dev);
 	spin_lock_bh(&ap_device_lock);
@@ -759,17 +799,21 @@ static void ap_scan_bus(struct work_struct *unused)
 				      __ap_scan_bus);
 		rc = ap_query_queue(qid, &queue_depth, &device_type);
 		if (dev) {
+			if (rc == -EBUSY) {
+				set_current_state(TASK_UNINTERRUPTIBLE);
+				schedule_timeout(AP_RESET_TIMEOUT);
+				rc = ap_query_queue(qid, &queue_depth,
+						    &device_type);
+			}
 			ap_dev = to_ap_dev(dev);
 			spin_lock_bh(&ap_dev->lock);
 			if (rc || ap_dev->unregistered) {
 				spin_unlock_bh(&ap_dev->lock);
-				put_device(dev);
 				device_unregister(dev);
+				put_device(dev);
 				continue;
-			} else
-				spin_unlock_bh(&ap_dev->lock);
-		}
-		if (dev) {
+			}
+			spin_unlock_bh(&ap_dev->lock);
 			put_device(dev);
 			continue;
 		}
@@ -788,6 +832,8 @@ static void ap_scan_bus(struct work_struct *unused)
 		INIT_LIST_HEAD(&ap_dev->pendingq);
 		INIT_LIST_HEAD(&ap_dev->requestq);
 		INIT_LIST_HEAD(&ap_dev->list);
+		setup_timer(&ap_dev->timeout, ap_request_timeout,
+			    (unsigned long) ap_dev);
 		if (device_type == 0)
 			ap_probe_device_type(ap_dev);
 		else
@@ -853,7 +899,7 @@ static int ap_poll_read(struct ap_device *ap_dev, unsigned long *flags)
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		atomic_dec(&ap_poll_requests);
-		ap_dev->queue_count--;
+		ap_decrease_queue_count(ap_dev);
 		list_for_each_entry(ap_msg, &ap_dev->pendingq, list) {
 			if (ap_msg->psmid != ap_dev->reply->psmid)
 				continue;
@@ -904,7 +950,7 @@ static int ap_poll_write(struct ap_device *ap_dev, unsigned long *flags)
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		atomic_inc(&ap_poll_requests);
-		ap_dev->queue_count++;
+		ap_increase_queue_count(ap_dev);
 		list_move_tail(&ap_msg->list, &ap_dev->pendingq);
 		ap_dev->requestq_count--;
 		ap_dev->pendingq_count++;
@@ -914,6 +960,7 @@ static int ap_poll_write(struct ap_device *ap_dev, unsigned long *flags)
 		*flags |= 2;
 		break;
 	case AP_RESPONSE_Q_FULL:
+	case AP_RESPONSE_RESET_IN_PROGRESS:
 		*flags |= 2;
 		break;
 	case AP_RESPONSE_MESSAGE_TOO_BIG:
@@ -960,10 +1007,11 @@ static int __ap_queue_message(struct ap_device *ap_dev, struct ap_message *ap_ms
 			list_add_tail(&ap_msg->list, &ap_dev->pendingq);
 			atomic_inc(&ap_poll_requests);
 			ap_dev->pendingq_count++;
-			ap_dev->queue_count++;
+			ap_increase_queue_count(ap_dev);
 			ap_dev->total_request_count++;
 			break;
 		case AP_RESPONSE_Q_FULL:
+		case AP_RESPONSE_RESET_IN_PROGRESS:
 			list_add_tail(&ap_msg->list, &ap_dev->requestq);
 			ap_dev->requestq_count++;
 			ap_dev->total_request_count++;
@@ -1046,6 +1094,25 @@ static void ap_poll_timeout(unsigned long unused)
 }
 
 /**
+ * Reset a not responding AP device and move all requests from the
+ * pending queue to the request queue.
+ */
+static void ap_reset(struct ap_device *ap_dev)
+{
+	int rc;
+
+	ap_dev->reset = AP_RESET_IGNORE;
+	atomic_sub(ap_dev->queue_count, &ap_poll_requests);
+	ap_dev->queue_count = 0;
+	list_splice_init(&ap_dev->pendingq, &ap_dev->requestq);
+	ap_dev->requestq_count += ap_dev->pendingq_count;
+	ap_dev->pendingq_count = 0;
+	rc = ap_init_queue(ap_dev->qid);
+	if (rc == -ENODEV)
+		ap_dev->unregistered = 1;
+}
+
+/**
  * Poll all AP devices on the bus in a round robin fashion. Continue
  * polling until bit 2^0 of the control flags is not set. If bit 2^1
  * of the control flags has been set arm the poll timer.
@@ -1056,6 +1123,8 @@ static int __ap_poll_all(struct ap_device *ap_dev, unsigned long *flags)
 	if (!ap_dev->unregistered) {
 		if (ap_poll_queue(ap_dev, flags))
 			ap_dev->unregistered = 1;
+		if (ap_dev->reset == AP_RESET_DO)
+			ap_reset(ap_dev);
 	}
 	spin_unlock(&ap_dev->lock);
 	return 0;
@@ -1145,6 +1214,17 @@ static void ap_poll_thread_stop(void)
 		ap_poll_kthread = NULL;
 	}
 	mutex_unlock(&ap_poll_thread_mutex);
+}
+
+/**
+ * Handling of request timeouts
+ */
+static void ap_request_timeout(unsigned long data)
+{
+	struct ap_device *ap_dev = (struct ap_device *) data;
+
+	if (ap_dev->reset == AP_RESET_ARMED)
+		ap_dev->reset = AP_RESET_DO;
 }
 
 static void ap_reset_domain(void)
