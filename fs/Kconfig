@@ -1364,6 +1364,13 @@ config JFFS2_CMODE_SIZE
 	  Tries all compressors and chooses the one which has the smallest
 	  result.
 
+config JFFS2_CMODE_FAVOURLZO
+	bool "Favour LZO"
+	help
+	  Tries all compressors and chooses the one which has the smallest
+	  result but gives some preference to LZO (which has faster
+	  decompression) at the expense of size.
+
 endchoice
 
 config CRAMFS
