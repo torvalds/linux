@@ -371,7 +371,7 @@ static void tsdev_event(struct input_handle *handle, unsigned int type,
 		int x, y, tmp;
 
 		do_gettimeofday(&time);
-		client->event[client->head].millisecs = time.tv_usec / 100;
+		client->event[client->head].millisecs = time.tv_usec / 1000;
 		client->event[client->head].pressure = tsdev->pressure;
 
 		x = tsdev->x;
