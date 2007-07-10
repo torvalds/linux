@@ -1998,6 +1998,7 @@ struct sky2_port {
 	struct sky2_tx_le    *tx_le;
 	u16		     tx_cons;		/* next le to check */
 	u16		     tx_prod;		/* next le to use */
+	u16		     tx_next;		/* debug only */
 	u32		     tx_addr64;
 	u16		     tx_pending;
 	u16		     tx_last_mss;
@@ -2028,6 +2029,9 @@ struct sky2_port {
  	enum flow_control    flow_mode;
  	enum flow_control    flow_status;
 
+#ifdef CONFIG_SKY2_DEBUG
+	struct dentry	     *debugfs;
+#endif
 	struct net_device_stats net_stats;
 
 };

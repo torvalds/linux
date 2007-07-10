@@ -55,10 +55,10 @@ static inline void eeprom_93cx6_pulse_low(struct eeprom_93cx6 *eeprom)
 
 	/*
 	 * Add a short delay for the pulse to work.
-	 * According to the specifications the minimal time
-	 * should be 450ns so a 1us delay is sufficient.
+	 * According to the specifications the "maximum minimum"
+	 * time should be 450ns.
 	 */
-	udelay(1);
+	ndelay(450);
 }
 
 static void eeprom_93cx6_startup(struct eeprom_93cx6 *eeprom)

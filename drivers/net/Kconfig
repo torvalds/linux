@@ -197,6 +197,15 @@ config MACB
 
 source "drivers/net/arm/Kconfig"
 
+config AX88796
+	tristate "ASIX AX88796 NE2000 clone support"
+	depends on ARM || MIPS
+	select CRC32
+	select MII
+	help
+	  AX88796 driver, using platform bus to provide
+	  chip detection and resources
+
 config MACE
 	tristate "MACE (Power Mac ethernet) support"
 	depends on PPC_PMAC && PPC32
@@ -2105,7 +2114,7 @@ config SKGE
 	  with better performance and more complete ethtool support.
 
 	  It does not support the link failover and network management 
-	  features that "portable" vendor supplied sk98lin driver does.
+	  features available in the hardware.
 
 	  This driver supports adapters based on the original Yukon chipset:
 	  Marvell 88E8001, Belkin F5D5005, CNet GigaCard, DLink DGE-530T,
@@ -2118,7 +2127,7 @@ config SKGE
 	  will be called skge.  This is recommended.
 
 config SKY2
-	tristate "SysKonnect Yukon2 support (EXPERIMENTAL)"
+	tristate "SysKonnect Yukon2 support"
 	depends on PCI
 	select CRC32
 	---help---
@@ -2133,92 +2142,15 @@ config SKY2
 	  To compile this driver as a module, choose M here: the module
 	  will be called sky2.  This is recommended.
 
-config SK98LIN
-	tristate "Marvell Yukon Chipset / SysKonnect SK-98xx Support (DEPRECATED)"
-	depends on PCI
-	---help---
-	  Say Y here if you have a Marvell Yukon or SysKonnect SK-98xx/SK-95xx
-	  compliant Gigabit Ethernet Adapter.
+config SKY2_DEBUG
+       bool "Debugging interface"
+       depends on SKY2 && DEBUG_FS
+       help
+	 This option adds the ability to dump driver state for debugging.
+	 The file debugfs/sky2/ethX displays the state of the internal
+	 transmit and receive rings.
 
-	  This driver supports the original Yukon chipset. This driver is
-	  deprecated and will be removed from the kernel in the near future,
-	  it has been replaced by the skge driver. skge is cleaner and
-	  seems to work better.
-
-	  This driver does not support the newer Yukon2 chipset. A separate
-	  driver, sky2, is provided to support Yukon2-based adapters.
-
-	  The following adapters are supported by this driver:
-	    - 3Com 3C940 Gigabit LOM Ethernet Adapter
-	    - 3Com 3C941 Gigabit LOM Ethernet Adapter
-	    - Allied Telesyn AT-2970LX Gigabit Ethernet Adapter
-	    - Allied Telesyn AT-2970LX/2SC Gigabit Ethernet Adapter
-	    - Allied Telesyn AT-2970SX Gigabit Ethernet Adapter
-	    - Allied Telesyn AT-2970SX/2SC Gigabit Ethernet Adapter
-	    - Allied Telesyn AT-2970TX Gigabit Ethernet Adapter
-	    - Allied Telesyn AT-2970TX/2TX Gigabit Ethernet Adapter
-	    - Allied Telesyn AT-2971SX Gigabit Ethernet Adapter
-	    - Allied Telesyn AT-2971T Gigabit Ethernet Adapter
-	    - Belkin Gigabit Desktop Card 10/100/1000Base-T Adapter, Copper RJ-45
-	    - EG1032 v2 Instant Gigabit Network Adapter
-	    - EG1064 v2 Instant Gigabit Network Adapter
-	    - Marvell 88E8001 Gigabit LOM Ethernet Adapter (Abit)
-	    - Marvell 88E8001 Gigabit LOM Ethernet Adapter (Albatron)
-	    - Marvell 88E8001 Gigabit LOM Ethernet Adapter (Asus)
-	    - Marvell 88E8001 Gigabit LOM Ethernet Adapter (ECS)
-	    - Marvell 88E8001 Gigabit LOM Ethernet Adapter (Epox)
-	    - Marvell 88E8001 Gigabit LOM Ethernet Adapter (Foxconn)
-	    - Marvell 88E8001 Gigabit LOM Ethernet Adapter (Gigabyte)
-	    - Marvell 88E8001 Gigabit LOM Ethernet Adapter (Iwill)
-	    - Marvell 88E8050 Gigabit LOM Ethernet Adapter (Intel)
-	    - Marvell RDK-8001 Adapter
-	    - Marvell RDK-8002 Adapter
-	    - Marvell RDK-8003 Adapter
-	    - Marvell RDK-8004 Adapter
-	    - Marvell RDK-8006 Adapter
-	    - Marvell RDK-8007 Adapter
-	    - Marvell RDK-8008 Adapter
-	    - Marvell RDK-8009 Adapter
-	    - Marvell RDK-8010 Adapter
-	    - Marvell RDK-8011 Adapter
-	    - Marvell RDK-8012 Adapter
-	    - Marvell RDK-8052 Adapter
-	    - Marvell Yukon Gigabit Ethernet 10/100/1000Base-T Adapter (32 bit)
-	    - Marvell Yukon Gigabit Ethernet 10/100/1000Base-T Adapter (64 bit)
-	    - N-Way PCI-Bus Giga-Card 1000/100/10Mbps(L)
-	    - SK-9521 10/100/1000Base-T Adapter
-	    - SK-9521 V2.0 10/100/1000Base-T Adapter
-	    - SK-9821 Gigabit Ethernet Server Adapter (SK-NET GE-T)
-	    - SK-9821 V2.0 Gigabit Ethernet 10/100/1000Base-T Adapter
-	    - SK-9822 Gigabit Ethernet Server Adapter (SK-NET GE-T dual link)
-	    - SK-9841 Gigabit Ethernet Server Adapter (SK-NET GE-LX)
-	    - SK-9841 V2.0 Gigabit Ethernet 1000Base-LX Adapter
-	    - SK-9842 Gigabit Ethernet Server Adapter (SK-NET GE-LX dual link)
-	    - SK-9843 Gigabit Ethernet Server Adapter (SK-NET GE-SX)
-	    - SK-9843 V2.0 Gigabit Ethernet 1000Base-SX Adapter
-	    - SK-9844 Gigabit Ethernet Server Adapter (SK-NET GE-SX dual link)
-	    - SK-9851 V2.0 Gigabit Ethernet 1000Base-SX Adapter
-	    - SK-9861 Gigabit Ethernet Server Adapter (SK-NET GE-SX Volition)
-	    - SK-9861 V2.0 Gigabit Ethernet 1000Base-SX Adapter
-	    - SK-9862 Gigabit Ethernet Server Adapter (SK-NET GE-SX Volition dual link)
-	    - SK-9871 Gigabit Ethernet Server Adapter (SK-NET GE-ZX)
-	    - SK-9871 V2.0 Gigabit Ethernet 1000Base-ZX Adapter
-	    - SK-9872 Gigabit Ethernet Server Adapter (SK-NET GE-ZX dual link)
-	    - SMC EZ Card 1000 (SMC9452TXV.2)
-	  
-	  The adapters support Jumbo Frames.
-	  The dual link adapters support link-failover and dual port features.
-	  Both Marvell Yukon and SysKonnect SK-98xx/SK-95xx adapters support 
-	  the scatter-gather functionality with sendfile(). Please refer to 
-	  <file:Documentation/networking/sk98lin.txt> for more information about
-	  optional driver parameters.
-	  Questions concerning this driver may be addressed to:
-	      <linux@syskonnect.de>
-	  
-	  If you want to compile this driver as a module ( = code which can be
-	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/kbuild/modules.txt>. The module will
-	  be called sk98lin. This is recommended.
+	 If unsure, say N.
 
 config VIA_VELOCITY
 	tristate "VIA Velocity support"
@@ -2267,6 +2199,16 @@ config TSI108_ETH
 	     This driver supports Tundra TSI108 gigabit Ethernet ports.
 	     To compile this driver as a module, choose M here: the module
 	     will be called tsi108_eth.
+
+config GELIC_NET
+	tristate "PS3 Gigabit Ethernet driver"
+	depends on PPC_PS3
+	help
+	  This driver supports the network device on the PS3 game
+	  console.  This driver has built-in support for Ethernet.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ps3_gelic.
 
 config GIANFAR
 	tristate "Gianfar Ethernet"

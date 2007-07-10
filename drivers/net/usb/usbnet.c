@@ -1213,7 +1213,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 			status = 0;
 
 	}
-	if (status == 0 && dev->status)
+	if (status >= 0 && dev->status)
 		status = init_status (dev, udev);
 	if (status < 0)
 		goto out3;

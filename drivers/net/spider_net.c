@@ -1441,11 +1441,17 @@ static void
 spider_net_handle_error_irq(struct spider_net_card *card, u32 status_reg)
 {
 	u32 error_reg1, error_reg2;
+	u32 mask_reg1, mask_reg2;
 	u32 i;
 	int show_error = 1;
 
 	error_reg1 = spider_net_read_reg(card, SPIDER_NET_GHIINT1STS);
 	error_reg2 = spider_net_read_reg(card, SPIDER_NET_GHIINT2STS);
+	mask_reg1 = spider_net_read_reg(card, SPIDER_NET_GHIINT1MSK);
+	mask_reg2 = spider_net_read_reg(card,SPIDER_NET_GHIINT2MSK);
+
+	error_reg1 &= mask_reg1;
+	error_reg2 &= mask_reg2;
 
 	/* check GHIINT0STS ************************************/
 	if (status_reg)
@@ -1673,9 +1679,11 @@ spider_net_interrupt(int irq, void *ptr)
 {
 	struct net_device *netdev = ptr;
 	struct spider_net_card *card = netdev_priv(netdev);
-	u32 status_reg;
+	u32 status_reg, mask_reg;
 
 	status_reg = spider_net_read_reg(card, SPIDER_NET_GHIINT0STS);
+	mask_reg = spider_net_read_reg(card, SPIDER_NET_GHIINT0MSK);
+	status_reg &= mask_reg;
 
 	if (!status_reg)
 		return IRQ_NONE;
@@ -1717,6 +1725,38 @@ spider_net_poll_controller(struct net_device *netdev)
 #endif /* CONFIG_NET_POLL_CONTROLLER */
 
 /**
+ * spider_net_enable_interrupts - enable interrupts
+ * @card: card structure
+ *
+ * spider_net_enable_interrupt enables several interrupts
+ */
+static void 
+spider_net_enable_interrupts(struct spider_net_card *card)
+{
+	spider_net_write_reg(card, SPIDER_NET_GHIINT0MSK,
+			     SPIDER_NET_INT0_MASK_VALUE);
+	spider_net_write_reg(card, SPIDER_NET_GHIINT1MSK,
+			     SPIDER_NET_INT1_MASK_VALUE);
+	spider_net_write_reg(card, SPIDER_NET_GHIINT2MSK,
+			     SPIDER_NET_INT2_MASK_VALUE);
+}
+
+/**
+ * spider_net_disable_interrupts - disable interrupts
+ * @card: card structure
+ *
+ * spider_net_disable_interrupts disables all the interrupts
+ */
+static void 
+spider_net_disable_interrupts(struct spider_net_card *card)
+{
+	spider_net_write_reg(card, SPIDER_NET_GHIINT0MSK, 0);
+	spider_net_write_reg(card, SPIDER_NET_GHIINT1MSK, 0);
+	spider_net_write_reg(card, SPIDER_NET_GHIINT2MSK, 0);
+	spider_net_write_reg(card, SPIDER_NET_GMACINTEN, 0);
+}
+
+/**
  * spider_net_init_card - initializes the card
  * @card: card structure
  *
@@ -1736,6 +1776,7 @@ spider_net_init_card(struct spider_net_card *card)
 	spider_net_write_reg(card, SPIDER_NET_GMACOPEMD,
 		spider_net_read_reg(card, SPIDER_NET_GMACOPEMD) | 0x4);
 
+	spider_net_disable_interrupts(card);
 }
 
 /**
@@ -1822,14 +1863,6 @@ spider_net_enable_card(struct spider_net_card *card)
 			     SPIDER_NET_LENLMT_VALUE);
 	spider_net_write_reg(card, SPIDER_NET_GMACOPEMD,
 			     SPIDER_NET_OPMODE_VALUE);
-
-	/* set interrupt mask registers */
-	spider_net_write_reg(card, SPIDER_NET_GHIINT0MSK,
-			     SPIDER_NET_INT0_MASK_VALUE);
-	spider_net_write_reg(card, SPIDER_NET_GHIINT1MSK,
-			     SPIDER_NET_INT1_MASK_VALUE);
-	spider_net_write_reg(card, SPIDER_NET_GHIINT2MSK,
-			     SPIDER_NET_INT2_MASK_VALUE);
 
 	spider_net_write_reg(card, SPIDER_NET_GDTDMACCNTR,
 			     SPIDER_NET_GDTBSTA);
@@ -2007,6 +2040,8 @@ spider_net_open(struct net_device *netdev)
 	netif_carrier_on(netdev);
 	netif_poll_enable(netdev);
 
+	spider_net_enable_interrupts(card);
+
 	return 0;
 
 register_int_failed:
@@ -2179,11 +2214,7 @@ spider_net_stop(struct net_device *netdev)
 	del_timer_sync(&card->tx_timer);
 	del_timer_sync(&card->aneg_timer);
 
-	/* disable/mask all interrupts */
-	spider_net_write_reg(card, SPIDER_NET_GHIINT0MSK, 0);
-	spider_net_write_reg(card, SPIDER_NET_GHIINT1MSK, 0);
-	spider_net_write_reg(card, SPIDER_NET_GHIINT2MSK, 0);
-	spider_net_write_reg(card, SPIDER_NET_GMACINTEN, 0);
+	spider_net_disable_interrupts(card);
 
 	free_irq(netdev->irq, netdev);
 

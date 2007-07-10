@@ -73,6 +73,9 @@ struct ei_device {
 	u32 *reg_offset;		/* Register mapping table */
 	spinlock_t page_lock;		/* Page register locks */
 	unsigned long priv;		/* Private field to store bus IDs etc. */
+#ifdef AX88796_PLATFORM
+	unsigned char rxcr_base;	/* default value for RXCR */
+#endif
 };
 
 /* The maximum number of 8390 interrupt service routines called per IRQ. */
@@ -86,10 +89,18 @@ struct ei_device {
 /* Some generic ethernet register configurations. */
 #define E8390_TX_IRQ_MASK	0xa	/* For register EN0_ISR */
 #define E8390_RX_IRQ_MASK	0x5
+
+#ifdef AX88796_PLATFORM
+#define E8390_RXCONFIG		(ei_status.rxcr_base | 0x04)
+#define E8390_RXOFF		(ei_status.rxcr_base | 0x20)
+#else
 #define E8390_RXCONFIG		0x4	/* EN0_RXCR: broadcasts, no multicast,errors */
 #define E8390_RXOFF		0x20	/* EN0_RXCR: Accept no packets */
+#endif
+
 #define E8390_TXCONFIG		0x00	/* EN0_TXCR: Normal transmit mode */
 #define E8390_TXOFF		0x02	/* EN0_TXCR: Transmitter off */
+
 
 /*  Register accessed at EN_CMD, the 8390 base addr.  */
 #define E8390_STOP	0x01	/* Stop and reset the chip */

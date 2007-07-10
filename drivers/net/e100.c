@@ -159,7 +159,7 @@
 
 #define DRV_NAME		"e100"
 #define DRV_EXT			"-NAPI"
-#define DRV_VERSION		"3.5.17-k4"DRV_EXT
+#define DRV_VERSION		"3.5.23-k4"DRV_EXT
 #define DRV_DESCRIPTION		"Intel(R) PRO/100 Network Driver"
 #define DRV_COPYRIGHT		"Copyright(c) 1999-2006 Intel Corporation"
 #define PFX			DRV_NAME ": "
@@ -1024,10 +1024,16 @@ static void e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 		config->mwi_enable = 0x1;	/* 1=enable, 0=disable */
 		config->standard_tcb = 0x0;	/* 1=standard, 0=extended */
 		config->rx_long_ok = 0x1;	/* 1=VLANs ok, 0=standard */
-		if(nic->mac >= mac_82559_D101M)
+		if (nic->mac >= mac_82559_D101M) {
 			config->tno_intr = 0x1;		/* TCO stats enable */
-		else
+			/* Enable TCO in extended config */
+			if (nic->mac >= mac_82551_10) {
+				config->byte_count = 0x20; /* extended bytes */
+				config->rx_d102_mode = 0x1; /* GMRC for TCO */
+			}
+		} else {
 			config->standard_stat_counter = 0x0;
+		}
 	}
 
 	DPRINTK(HW, DEBUG, "[00-07]=%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n",
