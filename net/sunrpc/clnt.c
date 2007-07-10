@@ -904,10 +904,8 @@ call_encode(struct rpc_task *task)
 	if (encode == NULL)
 		return;
 
-	lock_kernel();
 	task->tk_status = rpcauth_wrap_req(task, encode, req, p,
 			task->tk_msg.rpc_argp);
-	unlock_kernel();
 	if (task->tk_status == -ENOMEM) {
 		/* XXX: Is this sane? */
 		rpc_delay(task, 3*HZ);
@@ -1238,10 +1236,8 @@ call_decode(struct rpc_task *task)
 	task->tk_action = rpc_exit_task;
 
 	if (decode) {
-		lock_kernel();
 		task->tk_status = rpcauth_unwrap_resp(task, decode, req, p,
 						      task->tk_msg.rpc_resp);
-		unlock_kernel();
 	}
 	dprintk("RPC: %5u call_decode result %d\n", task->tk_pid,
 			task->tk_status);
