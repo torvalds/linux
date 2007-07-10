@@ -635,7 +635,6 @@ const struct file_operations gfs2_file_fops = {
 	.release	= gfs2_close,
 	.fsync		= gfs2_fsync,
 	.lock		= gfs2_lock,
-	.sendfile	= generic_file_sendfile,
 	.flock		= gfs2_flock,
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= generic_file_splice_write,

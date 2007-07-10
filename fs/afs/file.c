@@ -32,7 +32,7 @@ const struct file_operations afs_file_operations = {
 	.aio_read	= generic_file_aio_read,
 	.aio_write	= afs_file_write,
 	.mmap		= generic_file_readonly_mmap,
-	.sendfile	= generic_file_sendfile,
+	.splice_read	= generic_file_splice_read,
 	.fsync		= afs_fsync,
 };
 

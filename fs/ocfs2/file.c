@@ -31,7 +31,7 @@
 #include <linux/pagemap.h>
 #include <linux/uio.h>
 #include <linux/sched.h>
-#include <linux/pipe_fs_i.h>
+#include <linux/splice.h>
 #include <linux/mount.h>
 #include <linux/writeback.h>
 
@@ -1583,7 +1583,7 @@ static int ocfs2_splice_write_actor(struct pipe_inode_info *pipe,
 	ssize_t copied = 0;
 	struct ocfs2_splice_write_priv sp;
 
-	ret = buf->ops->pin(pipe, buf);
+	ret = buf->ops->confirm(pipe, buf);
 	if (ret)
 		goto out;
 
@@ -1604,7 +1604,7 @@ static int ocfs2_splice_write_actor(struct pipe_inode_info *pipe,
 		 * might enter ocfs2_buffered_write_cluster() more
 		 * than once, so keep track of our progress here.
 		 */
-		copied = ocfs2_buffered_write_cluster(sd->file,
+		copied = ocfs2_buffered_write_cluster(sd->u.file,
 						      (loff_t)sd->pos + total,
 						      count,
 						      ocfs2_map_and_write_splice_data,
@@ -1636,9 +1636,14 @@ static ssize_t __ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 	int ret, err;
 	struct address_space *mapping = out->f_mapping;
 	struct inode *inode = mapping->host;
+	struct splice_desc sd = {
+		.total_len = len,
+		.flags = flags,
+		.pos = *ppos,
+		.u.file = out,
+	};
 
-	ret = __splice_from_pipe(pipe, out, ppos, len, flags,
-				 ocfs2_splice_write_actor);
+	ret = __splice_from_pipe(pipe, &sd, ocfs2_splice_write_actor);
 	if (ret > 0) {
 		*ppos += ret;
 
@@ -1817,7 +1822,6 @@ const struct inode_operations ocfs2_special_file_iops = {
 const struct file_operations ocfs2_fops = {
 	.read		= do_sync_read,
 	.write		= do_sync_write,
-	.sendfile	= generic_file_sendfile,
 	.mmap		= ocfs2_mmap,
 	.fsync		= ocfs2_sync_file,
 	.release	= ocfs2_file_release,

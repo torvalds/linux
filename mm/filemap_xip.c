@@ -159,28 +159,6 @@ xip_file_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
 }
 EXPORT_SYMBOL_GPL(xip_file_read);
 
-ssize_t
-xip_file_sendfile(struct file *in_file, loff_t *ppos,
-	     size_t count, read_actor_t actor, void *target)
-{
-	read_descriptor_t desc;
-
-	if (!count)
-		return 0;
-
-	desc.written = 0;
-	desc.count = count;
-	desc.arg.data = target;
-	desc.error = 0;
-
-	do_xip_mapping_read(in_file->f_mapping, &in_file->f_ra, in_file,
-			    ppos, &desc, actor);
-	if (desc.written)
-		return desc.written;
-	return desc.error;
-}
-EXPORT_SYMBOL_GPL(xip_file_sendfile);
-
 /*
  * __xip_unmap is invoked from xip_unmap and
  * xip_write

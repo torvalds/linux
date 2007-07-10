@@ -802,7 +802,7 @@ static const struct file_operations fuse_file_operations = {
 	.release	= fuse_release,
 	.fsync		= fuse_fsync,
 	.lock		= fuse_file_lock,
-	.sendfile	= generic_file_sendfile,
+	.splice_read	= generic_file_splice_read,
 };
 
 static const struct file_operations fuse_direct_io_file_operations = {
@@ -814,7 +814,7 @@ static const struct file_operations fuse_direct_io_file_operations = {
 	.release	= fuse_release,
 	.fsync		= fuse_fsync,
 	.lock		= fuse_file_lock,
-	/* no mmap and sendfile */
+	/* no mmap and splice_read */
 };
 
 static const struct address_space_operations fuse_file_aops  = {

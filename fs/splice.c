@@ -20,7 +20,7 @@
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/pagemap.h>
-#include <linux/pipe_fs_i.h>
+#include <linux/splice.h>
 #include <linux/mm_inline.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
@@ -28,22 +28,6 @@
 #include <linux/module.h>
 #include <linux/syscalls.h>
 #include <linux/uio.h>
-
-struct partial_page {
-	unsigned int offset;
-	unsigned int len;
-};
-
-/*
- * Passed to splice_to_pipe
- */
-struct splice_pipe_desc {
-	struct page **pages;		/* page map */
-	struct partial_page *partial;	/* pages[] may not be contig */
-	int nr_pages;			/* number of pages in map */
-	unsigned int flags;		/* splice flags */
-	const struct pipe_buf_operations *ops;/* ops associated with output pipe */
-};
 
 /*
  * Attempt to steal a page from a pipe buffer. This should perhaps go into
@@ -101,8 +85,12 @@ static void page_cache_pipe_buf_release(struct pipe_inode_info *pipe,
 	buf->flags &= ~PIPE_BUF_FLAG_LRU;
 }
 
-static int page_cache_pipe_buf_pin(struct pipe_inode_info *pipe,
-				   struct pipe_buffer *buf)
+/*
+ * Check whether the contents of buf is OK to access. Since the content
+ * is a page cache page, IO may be in flight.
+ */
+static int page_cache_pipe_buf_confirm(struct pipe_inode_info *pipe,
+				       struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 	int err;
@@ -143,7 +131,7 @@ static const struct pipe_buf_operations page_cache_pipe_buf_ops = {
 	.can_merge = 0,
 	.map = generic_pipe_buf_map,
 	.unmap = generic_pipe_buf_unmap,
-	.pin = page_cache_pipe_buf_pin,
+	.confirm = page_cache_pipe_buf_confirm,
 	.release = page_cache_pipe_buf_release,
 	.steal = page_cache_pipe_buf_steal,
 	.get = generic_pipe_buf_get,
@@ -163,18 +151,25 @@ static const struct pipe_buf_operations user_page_pipe_buf_ops = {
 	.can_merge = 0,
 	.map = generic_pipe_buf_map,
 	.unmap = generic_pipe_buf_unmap,
-	.pin = generic_pipe_buf_pin,
+	.confirm = generic_pipe_buf_confirm,
 	.release = page_cache_pipe_buf_release,
 	.steal = user_page_pipe_buf_steal,
 	.get = generic_pipe_buf_get,
 };
 
-/*
- * Pipe output worker. This sets up our pipe format with the page cache
- * pipe buffer operations. Otherwise very similar to the regular pipe_writev().
+/**
+ * splice_to_pipe - fill passed data into a pipe
+ * @pipe:	pipe to fill
+ * @spd:	data to fill
+ *
+ * Description:
+ *    @spd contains a map of pages and len/offset tupples, a long with
+ *    the struct pipe_buf_operations associated with these pages. This
+ *    function will link that data to the pipe.
+ *
  */
-static ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
-			      struct splice_pipe_desc *spd)
+ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
+		       struct splice_pipe_desc *spd)
 {
 	unsigned int spd_pages = spd->nr_pages;
 	int ret, do_wakeup, page_nr;
@@ -201,6 +196,7 @@ static ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 			buf->page = spd->pages[page_nr];
 			buf->offset = spd->partial[page_nr].offset;
 			buf->len = spd->partial[page_nr].len;
+			buf->private = spd->partial[page_nr].private;
 			buf->ops = spd->ops;
 			if (spd->flags & SPLICE_F_GIFT)
 				buf->flags |= PIPE_BUF_FLAG_GIFT;
@@ -296,19 +292,15 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 	page_cache_readahead(mapping, &in->f_ra, in, index, nr_pages);
 
 	/*
-	 * Now fill in the holes:
-	 */
-	error = 0;
-
-	/*
 	 * Lookup the (hopefully) full range of pages we need.
 	 */
 	spd.nr_pages = find_get_pages_contig(mapping, index, nr_pages, pages);
 
 	/*
 	 * If find_get_pages_contig() returned fewer pages than we needed,
-	 * allocate the rest.
+	 * allocate the rest and fill in the holes.
 	 */
+	error = 0;
 	index += spd.nr_pages;
 	while (spd.nr_pages < nr_pages) {
 		/*
@@ -470,11 +462,16 @@ fill_it:
 /**
  * generic_file_splice_read - splice data from file to a pipe
  * @in:		file to splice from
+ * @ppos:	position in @in
  * @pipe:	pipe to splice to
  * @len:	number of bytes to splice
  * @flags:	splice modifier flags
  *
- * Will read pages from given file and fill them into a pipe.
+ * Description:
+ *    Will read pages from given file and fill them into a pipe. Can be
+ *    used as long as the address_space operations for the source implements
+ *    a readpage() hook.
+ *
  */
 ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 				 struct pipe_inode_info *pipe, size_t len,
@@ -528,11 +525,11 @@ EXPORT_SYMBOL(generic_file_splice_read);
 static int pipe_to_sendpage(struct pipe_inode_info *pipe,
 			    struct pipe_buffer *buf, struct splice_desc *sd)
 {
-	struct file *file = sd->file;
+	struct file *file = sd->u.file;
 	loff_t pos = sd->pos;
 	int ret, more;
 
-	ret = buf->ops->pin(pipe, buf);
+	ret = buf->ops->confirm(pipe, buf);
 	if (!ret) {
 		more = (sd->flags & SPLICE_F_MORE) || sd->len < sd->total_len;
 
@@ -566,7 +563,7 @@ static int pipe_to_sendpage(struct pipe_inode_info *pipe,
 static int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 			struct splice_desc *sd)
 {
-	struct file *file = sd->file;
+	struct file *file = sd->u.file;
 	struct address_space *mapping = file->f_mapping;
 	unsigned int offset, this_len;
 	struct page *page;
@@ -576,7 +573,7 @@ static int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	/*
 	 * make sure the data in this buffer is uptodate
 	 */
-	ret = buf->ops->pin(pipe, buf);
+	ret = buf->ops->confirm(pipe, buf);
 	if (unlikely(ret))
 		return ret;
 
@@ -663,36 +660,37 @@ out_ret:
 	return ret;
 }
 
-/*
- * Pipe input worker. Most of this logic works like a regular pipe, the
- * key here is the 'actor' worker passed in that actually moves the data
- * to the wanted destination. See pipe_to_file/pipe_to_sendpage above.
+/**
+ * __splice_from_pipe - splice data from a pipe to given actor
+ * @pipe:	pipe to splice from
+ * @sd:		information to @actor
+ * @actor:	handler that splices the data
+ *
+ * Description:
+ *    This function does little more than loop over the pipe and call
+ *    @actor to do the actual moving of a single struct pipe_buffer to
+ *    the desired destination. See pipe_to_file, pipe_to_sendpage, or
+ *    pipe_to_user.
+ *
  */
-ssize_t __splice_from_pipe(struct pipe_inode_info *pipe,
-			   struct file *out, loff_t *ppos, size_t len,
-			   unsigned int flags, splice_actor *actor)
+ssize_t __splice_from_pipe(struct pipe_inode_info *pipe, struct splice_desc *sd,
+			   splice_actor *actor)
 {
 	int ret, do_wakeup, err;
-	struct splice_desc sd;
 
 	ret = 0;
 	do_wakeup = 0;
-
-	sd.total_len = len;
-	sd.flags = flags;
-	sd.file = out;
-	sd.pos = *ppos;
 
 	for (;;) {
 		if (pipe->nrbufs) {
 			struct pipe_buffer *buf = pipe->bufs + pipe->curbuf;
 			const struct pipe_buf_operations *ops = buf->ops;
 
-			sd.len = buf->len;
-			if (sd.len > sd.total_len)
-				sd.len = sd.total_len;
+			sd->len = buf->len;
+			if (sd->len > sd->total_len)
+				sd->len = sd->total_len;
 
-			err = actor(pipe, buf, &sd);
+			err = actor(pipe, buf, sd);
 			if (err <= 0) {
 				if (!ret && err != -ENODATA)
 					ret = err;
@@ -704,10 +702,10 @@ ssize_t __splice_from_pipe(struct pipe_inode_info *pipe,
 			buf->offset += err;
 			buf->len -= err;
 
-			sd.len -= err;
-			sd.pos += err;
-			sd.total_len -= err;
-			if (sd.len)
+			sd->len -= err;
+			sd->pos += err;
+			sd->total_len -= err;
+			if (sd->len)
 				continue;
 
 			if (!buf->len) {
@@ -719,7 +717,7 @@ ssize_t __splice_from_pipe(struct pipe_inode_info *pipe,
 					do_wakeup = 1;
 			}
 
-			if (!sd.total_len)
+			if (!sd->total_len)
 				break;
 		}
 
@@ -732,7 +730,7 @@ ssize_t __splice_from_pipe(struct pipe_inode_info *pipe,
 				break;
 		}
 
-		if (flags & SPLICE_F_NONBLOCK) {
+		if (sd->flags & SPLICE_F_NONBLOCK) {
 			if (!ret)
 				ret = -EAGAIN;
 			break;
@@ -766,12 +764,32 @@ ssize_t __splice_from_pipe(struct pipe_inode_info *pipe,
 }
 EXPORT_SYMBOL(__splice_from_pipe);
 
+/**
+ * splice_from_pipe - splice data from a pipe to a file
+ * @pipe:	pipe to splice from
+ * @out:	file to splice to
+ * @ppos:	position in @out
+ * @len:	how many bytes to splice
+ * @flags:	splice modifier flags
+ * @actor:	handler that splices the data
+ *
+ * Description:
+ *    See __splice_from_pipe. This function locks the input and output inodes,
+ *    otherwise it's identical to __splice_from_pipe().
+ *
+ */
 ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 			 loff_t *ppos, size_t len, unsigned int flags,
 			 splice_actor *actor)
 {
 	ssize_t ret;
 	struct inode *inode = out->f_mapping->host;
+	struct splice_desc sd = {
+		.total_len = len,
+		.flags = flags,
+		.pos = *ppos,
+		.u.file = out,
+	};
 
 	/*
 	 * The actor worker might be calling ->prepare_write and
@@ -780,7 +798,7 @@ ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 	 * pipe->inode, we have to order lock acquiry here.
 	 */
 	inode_double_lock(inode, pipe->inode);
-	ret = __splice_from_pipe(pipe, out, ppos, len, flags, actor);
+	ret = __splice_from_pipe(pipe, &sd, actor);
 	inode_double_unlock(inode, pipe->inode);
 
 	return ret;
@@ -790,12 +808,14 @@ ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
  * generic_file_splice_write_nolock - generic_file_splice_write without mutexes
  * @pipe:	pipe info
  * @out:	file to write to
+ * @ppos:	position in @out
  * @len:	number of bytes to splice
  * @flags:	splice modifier flags
  *
- * Will either move or copy pages (determined by @flags options) from
- * the given pipe inode to the given file. The caller is responsible
- * for acquiring i_mutex on both inodes.
+ * Description:
+ *    Will either move or copy pages (determined by @flags options) from
+ *    the given pipe inode to the given file. The caller is responsible
+ *    for acquiring i_mutex on both inodes.
  *
  */
 ssize_t
@@ -804,6 +824,12 @@ generic_file_splice_write_nolock(struct pipe_inode_info *pipe, struct file *out,
 {
 	struct address_space *mapping = out->f_mapping;
 	struct inode *inode = mapping->host;
+	struct splice_desc sd = {
+		.total_len = len,
+		.flags = flags,
+		.pos = *ppos,
+		.u.file = out,
+	};
 	ssize_t ret;
 	int err;
 
@@ -811,7 +837,7 @@ generic_file_splice_write_nolock(struct pipe_inode_info *pipe, struct file *out,
 	if (unlikely(err))
 		return err;
 
-	ret = __splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_file);
+	ret = __splice_from_pipe(pipe, &sd, pipe_to_file);
 	if (ret > 0) {
 		unsigned long nr_pages;
 
@@ -841,11 +867,13 @@ EXPORT_SYMBOL(generic_file_splice_write_nolock);
  * generic_file_splice_write - splice data from a pipe to a file
  * @pipe:	pipe info
  * @out:	file to write to
+ * @ppos:	position in @out
  * @len:	number of bytes to splice
  * @flags:	splice modifier flags
  *
- * Will either move or copy pages (determined by @flags options) from
- * the given pipe inode to the given file.
+ * Description:
+ *    Will either move or copy pages (determined by @flags options) from
+ *    the given pipe inode to the given file.
  *
  */
 ssize_t
@@ -896,13 +924,15 @@ EXPORT_SYMBOL(generic_file_splice_write);
 
 /**
  * generic_splice_sendpage - splice data from a pipe to a socket
- * @inode:	pipe inode
+ * @pipe:	pipe to splice from
  * @out:	socket to write to
+ * @ppos:	position in @out
  * @len:	number of bytes to splice
  * @flags:	splice modifier flags
  *
- * Will send @len bytes from the pipe to a network socket. No data copying
- * is involved.
+ * Description:
+ *    Will send @len bytes from the pipe to a network socket. No data copying
+ *    is involved.
  *
  */
 ssize_t generic_splice_sendpage(struct pipe_inode_info *pipe, struct file *out,
@@ -956,14 +986,27 @@ static long do_splice_to(struct file *in, loff_t *ppos,
 	return in->f_op->splice_read(in, ppos, pipe, len, flags);
 }
 
-long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
-		      size_t len, unsigned int flags)
+/**
+ * splice_direct_to_actor - splices data directly between two non-pipes
+ * @in:		file to splice from
+ * @sd:		actor information on where to splice to
+ * @actor:	handles the data splicing
+ *
+ * Description:
+ *    This is a special case helper to splice directly between two
+ *    points, without requiring an explicit pipe. Internally an allocated
+ *    pipe is cached in the process, and reused during the life time of
+ *    that process.
+ *
+ */
+ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
+			       splice_direct_actor *actor)
 {
 	struct pipe_inode_info *pipe;
 	long ret, bytes;
-	loff_t out_off;
 	umode_t i_mode;
-	int i;
+	size_t len;
+	int i, flags;
 
 	/*
 	 * We require the input being a regular file, as we don't want to
@@ -999,7 +1042,13 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 	 */
 	ret = 0;
 	bytes = 0;
-	out_off = 0;
+	len = sd->total_len;
+	flags = sd->flags;
+
+	/*
+	 * Don't block on output, we have to drain the direct pipe.
+	 */
+	sd->flags &= ~SPLICE_F_NONBLOCK;
 
 	while (len) {
 		size_t read_len, max_read_len;
@@ -1009,19 +1058,19 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 		 */
 		max_read_len = min(len, (size_t)(PIPE_BUFFERS*PAGE_SIZE));
 
-		ret = do_splice_to(in, ppos, pipe, max_read_len, flags);
+		ret = do_splice_to(in, &sd->pos, pipe, max_read_len, flags);
 		if (unlikely(ret < 0))
 			goto out_release;
 
 		read_len = ret;
+		sd->total_len = read_len;
 
 		/*
 		 * NOTE: nonblocking mode only applies to the input. We
 		 * must not do the output in nonblocking mode as then we
 		 * could get stuck data in the internal pipe:
 		 */
-		ret = do_splice_from(pipe, out, &out_off, read_len,
-				     flags & ~SPLICE_F_NONBLOCK);
+		ret = actor(pipe, sd);
 		if (unlikely(ret < 0))
 			goto out_release;
 
@@ -1065,6 +1114,48 @@ out_release:
 	if (bytes > 0)
 		return bytes;
 
+	return ret;
+
+}
+EXPORT_SYMBOL(splice_direct_to_actor);
+
+static int direct_splice_actor(struct pipe_inode_info *pipe,
+			       struct splice_desc *sd)
+{
+	struct file *file = sd->u.file;
+
+	return do_splice_from(pipe, file, &sd->pos, sd->total_len, sd->flags);
+}
+
+/**
+ * do_splice_direct - splices data directly between two files
+ * @in:		file to splice from
+ * @ppos:	input file offset
+ * @out:	file to splice to
+ * @len:	number of bytes to splice
+ * @flags:	splice modifier flags
+ *
+ * Description:
+ *    For use by do_sendfile(). splice can easily emulate sendfile, but
+ *    doing it in the application would incur an extra system call
+ *    (splice in + splice out, as compared to just sendfile()). So this helper
+ *    can splice directly through a process-private pipe.
+ *
+ */
+long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
+		      size_t len, unsigned int flags)
+{
+	struct splice_desc sd = {
+		.len		= len,
+		.total_len	= len,
+		.flags		= flags,
+		.pos		= *ppos,
+		.u.file		= out,
+	};
+	size_t ret;
+
+	ret = splice_direct_to_actor(in, &sd, direct_splice_actor);
+	*ppos = sd.pos;
 	return ret;
 }
 
@@ -1248,28 +1339,131 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 	return error;
 }
 
+static int pipe_to_user(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
+			struct splice_desc *sd)
+{
+	char *src;
+	int ret;
+
+	ret = buf->ops->confirm(pipe, buf);
+	if (unlikely(ret))
+		return ret;
+
+	/*
+	 * See if we can use the atomic maps, by prefaulting in the
+	 * pages and doing an atomic copy
+	 */
+	if (!fault_in_pages_writeable(sd->u.userptr, sd->len)) {
+		src = buf->ops->map(pipe, buf, 1);
+		ret = __copy_to_user_inatomic(sd->u.userptr, src + buf->offset,
+							sd->len);
+		buf->ops->unmap(pipe, buf, src);
+		if (!ret) {
+			ret = sd->len;
+			goto out;
+		}
+	}
+
+	/*
+	 * No dice, use slow non-atomic map and copy
+ 	 */
+	src = buf->ops->map(pipe, buf, 0);
+
+	ret = sd->len;
+	if (copy_to_user(sd->u.userptr, src + buf->offset, sd->len))
+		ret = -EFAULT;
+
+out:
+	if (ret > 0)
+		sd->u.userptr += ret;
+	buf->ops->unmap(pipe, buf, src);
+	return ret;
+}
+
+/*
+ * For lack of a better implementation, implement vmsplice() to userspace
+ * as a simple copy of the pipes pages to the user iov.
+ */
+static long vmsplice_to_user(struct file *file, const struct iovec __user *iov,
+			     unsigned long nr_segs, unsigned int flags)
+{
+	struct pipe_inode_info *pipe;
+	struct splice_desc sd;
+	ssize_t size;
+	int error;
+	long ret;
+
+	pipe = pipe_info(file->f_path.dentry->d_inode);
+	if (!pipe)
+		return -EBADF;
+
+	if (pipe->inode)
+		mutex_lock(&pipe->inode->i_mutex);
+
+	error = ret = 0;
+	while (nr_segs) {
+		void __user *base;
+		size_t len;
+
+		/*
+		 * Get user address base and length for this iovec.
+		 */
+		error = get_user(base, &iov->iov_base);
+		if (unlikely(error))
+			break;
+		error = get_user(len, &iov->iov_len);
+		if (unlikely(error))
+			break;
+
+		/*
+		 * Sanity check this iovec. 0 read succeeds.
+		 */
+		if (unlikely(!len))
+			break;
+		if (unlikely(!base)) {
+			error = -EFAULT;
+			break;
+		}
+
+		sd.len = 0;
+		sd.total_len = len;
+		sd.flags = flags;
+		sd.u.userptr = base;
+		sd.pos = 0;
+
+		size = __splice_from_pipe(pipe, &sd, pipe_to_user);
+		if (size < 0) {
+			if (!ret)
+				ret = size;
+
+			break;
+		}
+
+		ret += size;
+
+		if (size < len)
+			break;
+
+		nr_segs--;
+		iov++;
+	}
+
+	if (pipe->inode)
+		mutex_unlock(&pipe->inode->i_mutex);
+
+	if (!ret)
+		ret = error;
+
+	return ret;
+}
+
 /*
  * vmsplice splices a user address range into a pipe. It can be thought of
  * as splice-from-memory, where the regular splice is splice-from-file (or
  * to file). In both cases the output is a pipe, naturally.
- *
- * Note that vmsplice only supports splicing _from_ user memory to a pipe,
- * not the other way around. Splicing from user memory is a simple operation
- * that can be supported without any funky alignment restrictions or nasty
- * vm tricks. We simply map in the user memory and fill them into a pipe.
- * The reverse isn't quite as easy, though. There are two possible solutions
- * for that:
- *
- *	- memcpy() the data internally, at which point we might as well just
- *	  do a regular read() on the buffer anyway.
- *	- Lots of nasty vm tricks, that are neither fast nor flexible (it
- *	  has restriction limitations on both ends of the pipe).
- *
- * Alas, it isn't here.
- *
  */
-static long do_vmsplice(struct file *file, const struct iovec __user *iov,
-			unsigned long nr_segs, unsigned int flags)
+static long vmsplice_to_pipe(struct file *file, const struct iovec __user *iov,
+			     unsigned long nr_segs, unsigned int flags)
 {
 	struct pipe_inode_info *pipe;
 	struct page *pages[PIPE_BUFFERS];
@@ -1284,10 +1478,6 @@ static long do_vmsplice(struct file *file, const struct iovec __user *iov,
 	pipe = pipe_info(file->f_path.dentry->d_inode);
 	if (!pipe)
 		return -EBADF;
-	if (unlikely(nr_segs > UIO_MAXIOV))
-		return -EINVAL;
-	else if (unlikely(!nr_segs))
-		return 0;
 
 	spd.nr_pages = get_iovec_page_array(iov, nr_segs, pages, partial,
 					    flags & SPLICE_F_GIFT);
@@ -1297,6 +1487,22 @@ static long do_vmsplice(struct file *file, const struct iovec __user *iov,
 	return splice_to_pipe(pipe, &spd);
 }
 
+/*
+ * Note that vmsplice only really supports true splicing _from_ user memory
+ * to a pipe, not the other way around. Splicing from user memory is a simple
+ * operation that can be supported without any funky alignment restrictions
+ * or nasty vm tricks. We simply map in the user memory and fill them into
+ * a pipe. The reverse isn't quite as easy, though. There are two possible
+ * solutions for that:
+ *
+ *	- memcpy() the data internally, at which point we might as well just
+ *	  do a regular read() on the buffer anyway.
+ *	- Lots of nasty vm tricks, that are neither fast nor flexible (it
+ *	  has restriction limitations on both ends of the pipe).
+ *
+ * Currently we punt and implement it as a normal copy, see pipe_to_user().
+ *
+ */
 asmlinkage long sys_vmsplice(int fd, const struct iovec __user *iov,
 			     unsigned long nr_segs, unsigned int flags)
 {
@@ -1304,11 +1510,18 @@ asmlinkage long sys_vmsplice(int fd, const struct iovec __user *iov,
 	long error;
 	int fput;
 
+	if (unlikely(nr_segs > UIO_MAXIOV))
+		return -EINVAL;
+	else if (unlikely(!nr_segs))
+		return 0;
+
 	error = -EBADF;
 	file = fget_light(fd, &fput);
 	if (file) {
 		if (file->f_mode & FMODE_WRITE)
-			error = do_vmsplice(file, iov, nr_segs, flags);
+			error = vmsplice_to_pipe(file, iov, nr_segs, flags);
+		else if (file->f_mode & FMODE_READ)
+			error = vmsplice_to_user(file, iov, nr_segs, flags);
 
 		fput_light(file, fput);
 	}

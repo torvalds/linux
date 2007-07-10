@@ -25,7 +25,7 @@ const struct file_operations qnx4_file_operations =
 	.read		= do_sync_read,
 	.aio_read	= generic_file_aio_read,
 	.mmap		= generic_file_mmap,
-	.sendfile	= generic_file_sendfile,
+	.splice_read	= generic_file_splice_read,
 #ifdef CONFIG_QNX4FS_RW
 	.write		= do_sync_write,
 	.aio_write	= generic_file_aio_write,

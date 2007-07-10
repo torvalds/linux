@@ -74,6 +74,7 @@
 #include <linux/highmem.h>
 #include <linux/gfp.h>
 #include <linux/kthread.h>
+#include <linux/splice.h>
 
 #include <asm/uaccess.h>
 
@@ -401,32 +402,44 @@ struct lo_read_data {
 };
 
 static int
-lo_read_actor(read_descriptor_t *desc, struct page *page,
-	      unsigned long offset, unsigned long size)
+lo_splice_actor(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
+		struct splice_desc *sd)
 {
-	unsigned long count = desc->count;
-	struct lo_read_data *p = desc->arg.data;
+	struct lo_read_data *p = sd->u.data;
 	struct loop_device *lo = p->lo;
+	struct page *page = buf->page;
 	sector_t IV;
+	size_t size;
+	int ret;
 
-	IV = ((sector_t) page->index << (PAGE_CACHE_SHIFT - 9))+(offset >> 9);
+	ret = buf->ops->confirm(pipe, buf);
+	if (unlikely(ret))
+		return ret;
 
-	if (size > count)
-		size = count;
+	IV = ((sector_t) page->index << (PAGE_CACHE_SHIFT - 9)) +
+							(buf->offset >> 9);
+	size = sd->len;
+	if (size > p->bsize)
+		size = p->bsize;
 
-	if (lo_do_transfer(lo, READ, page, offset, p->page, p->offset, size, IV)) {
-		size = 0;
+	if (lo_do_transfer(lo, READ, page, buf->offset, p->page, p->offset, size, IV)) {
 		printk(KERN_ERR "loop: transfer error block %ld\n",
 		       page->index);
-		desc->error = -EINVAL;
+		size = -EINVAL;
 	}
 
 	flush_dcache_page(p->page);
 
-	desc->count = count - size;
-	desc->written += size;
-	p->offset += size;
+	if (size > 0)
+		p->offset += size;
+
 	return size;
+}
+
+static int
+lo_direct_splice_actor(struct pipe_inode_info *pipe, struct splice_desc *sd)
+{
+	return __splice_from_pipe(pipe, sd, lo_splice_actor);
 }
 
 static int
@@ -434,17 +447,28 @@ do_lo_receive(struct loop_device *lo,
 	      struct bio_vec *bvec, int bsize, loff_t pos)
 {
 	struct lo_read_data cookie;
+	struct splice_desc sd;
 	struct file *file;
-	int retval;
+	long retval;
 
 	cookie.lo = lo;
 	cookie.page = bvec->bv_page;
 	cookie.offset = bvec->bv_offset;
 	cookie.bsize = bsize;
+
+	sd.len = 0;
+	sd.total_len = bvec->bv_len;
+	sd.flags = 0;
+	sd.pos = pos;
+	sd.u.data = &cookie;
+
 	file = lo->lo_backing_file;
-	retval = file->f_op->sendfile(file, &pos, bvec->bv_len,
-			lo_read_actor, &cookie);
-	return (retval < 0)? retval: 0;
+	retval = splice_direct_to_actor(file, &sd, lo_direct_splice_actor);
+
+	if (retval < 0)
+		return retval;
+
+	return 0;
 }
 
 static int
@@ -679,8 +703,8 @@ static int loop_change_fd(struct loop_device *lo, struct file *lo_file,
 	if (!S_ISREG(inode->i_mode) && !S_ISBLK(inode->i_mode))
 		goto out_putf;
 
-	/* new backing store needs to support loop (eg sendfile) */
-	if (!inode->i_fop->sendfile)
+	/* new backing store needs to support loop (eg splice_read) */
+	if (!inode->i_fop->splice_read)
 		goto out_putf;
 
 	/* size of the new backing store needs to be the same */
@@ -760,7 +784,7 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 		 * If we can't read - sorry. If we only can't write - well,
 		 * it's going to be read-only.
 		 */
-		if (!file->f_op->sendfile)
+		if (!file->f_op->splice_read)
 			goto out_putf;
 		if (aops->prepare_write && aops->commit_write)
 			lo_flags |= LO_FLAGS_USE_AOPS;
