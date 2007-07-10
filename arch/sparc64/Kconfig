@@ -305,6 +305,12 @@ config SUN_IO
 	bool
 	default y
 
+config SUN_LDOMS
+	bool "Sun Logical Domains support"
+	help
+	  Say Y here is you want to support virtual devices via
+	  Logical Domains.
+
 config PCI
 	bool "PCI support"
 	select ARCH_SUPPORTS_MSI
