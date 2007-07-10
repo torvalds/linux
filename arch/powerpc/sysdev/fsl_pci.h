@@ -11,84 +11,77 @@
  */
 
 #ifdef __KERNEL__
-#ifndef __POWERPC_FSL_PCIE_H
-#define __POWERPC_FSL_PCIE_H
+#ifndef __POWERPC_FSL_PCI_H
+#define __POWERPC_FSL_PCI_H
 
-/* PCIE Express IO block registers in 85xx/86xx */
+#define PCIE_LTSSM	0x0404		/* PCIE Link Training and Status */
+#define PCIE_LTSSM_L0	0x16		/* L0 state */
+#define PIWAR_2G	0xa0f5501e	/* Enable, Prefetch, Local Mem, Snoop R/W, 2G */
 
-struct ccsr_pex {
-	__be32 __iomem    pex_config_addr;	/* 0x.000 - PCI Express Configuration Address Register */
-	__be32 __iomem    pex_config_data;	/* 0x.004 - PCI Express Configuration Data Register */
-	u8 __iomem    res1[4];
-	__be32 __iomem    pex_otb_cpl_tor;	/* 0x.00c - PCI Express Outbound completion timeout register */
-	__be32 __iomem    pex_conf_tor;		/* 0x.010 - PCI Express configuration timeout register */
-	u8 __iomem    res2[12];
-	__be32 __iomem    pex_pme_mes_dr;	/* 0x.020 - PCI Express PME and message detect register */
-	__be32 __iomem    pex_pme_mes_disr;	/* 0x.024 - PCI Express PME and message disable register */
-	__be32 __iomem    pex_pme_mes_ier;	/* 0x.028 - PCI Express PME and message interrupt enable register */
-	__be32 __iomem    pex_pmcr;		/* 0x.02c - PCI Express power management command register */
-	u8 __iomem    res3[3024];
-	__be32 __iomem    pexotar0;		/* 0x.c00 - PCI Express outbound translation address register 0 */
-	__be32 __iomem    pexotear0;		/* 0x.c04 - PCI Express outbound translation extended address register 0*/
-	u8 __iomem    res4[8];
-	__be32 __iomem    pexowar0;		/* 0x.c10 - PCI Express outbound window attributes register 0*/
-	u8 __iomem    res5[12];
-	__be32 __iomem    pexotar1;		/* 0x.c20 - PCI Express outbound translation address register 1 */
-	__be32 __iomem    pexotear1;		/* 0x.c24 - PCI Express outbound translation extended address register 1*/
-	__be32 __iomem    pexowbar1;		/* 0x.c28 - PCI Express outbound window base address register 1*/
-	u8 __iomem    res6[4];
-	__be32 __iomem    pexowar1;		/* 0x.c30 - PCI Express outbound window attributes register 1*/
-	u8 __iomem    res7[12];
-	__be32 __iomem    pexotar2;		/* 0x.c40 - PCI Express outbound translation address register 2 */
-	__be32 __iomem    pexotear2;		/* 0x.c44 - PCI Express outbound translation extended address register 2*/
-	__be32 __iomem    pexowbar2;		/* 0x.c48 - PCI Express outbound window base address register 2*/
-	u8 __iomem    res8[4];
-	__be32 __iomem    pexowar2;		/* 0x.c50 - PCI Express outbound window attributes register 2*/
-	u8 __iomem    res9[12];
-	__be32 __iomem    pexotar3;		/* 0x.c60 - PCI Express outbound translation address register 3 */
-	__be32 __iomem    pexotear3;		/* 0x.c64 - PCI Express outbound translation extended address register 3*/
-	__be32 __iomem    pexowbar3;		/* 0x.c68 - PCI Express outbound window base address register 3*/
-	u8 __iomem    res10[4];
-	__be32 __iomem    pexowar3;		/* 0x.c70 - PCI Express outbound window attributes register 3*/
-	u8 __iomem    res11[12];
-	__be32 __iomem    pexotar4;		/* 0x.c80 - PCI Express outbound translation address register 4 */
-	__be32 __iomem    pexotear4;		/* 0x.c84 - PCI Express outbound translation extended address register 4*/
-	__be32 __iomem    pexowbar4;		/* 0x.c88 - PCI Express outbound window base address register 4*/
-	u8 __iomem    res12[4];
-	__be32 __iomem    pexowar4;		/* 0x.c90 - PCI Express outbound window attributes register 4*/
-	u8 __iomem    res13[12];
-	u8 __iomem    res14[256];
-	__be32 __iomem    pexitar3;		/* 0x.da0 - PCI Express inbound translation address register 3 */
-	u8 __iomem    res15[4];
-	__be32 __iomem    pexiwbar3;		/* 0x.da8 - PCI Express inbound window base address register 3 */
-	__be32 __iomem    pexiwbear3;		/* 0x.dac - PCI Express inbound window base extended address register 3 */
-	__be32 __iomem    pexiwar3;		/* 0x.db0 - PCI Express inbound window attributes register 3 */
-	u8 __iomem    res16[12];
-	__be32 __iomem    pexitar2;		/* 0x.dc0 - PCI Express inbound translation address register 2 */
-	u8 __iomem    res17[4];
-	__be32 __iomem    pexiwbar2;		/* 0x.dc8 - PCI Express inbound window base address register 2 */
-	__be32 __iomem    pexiwbear2;		/* 0x.dcc - PCI Express inbound window base extended address register 2 */
-	__be32 __iomem    pexiwar2;		/* 0x.dd0 - PCI Express inbound window attributes register 2 */
-	u8 __iomem    res18[12];
-	__be32 __iomem    pexitar1;		/* 0x.de0 - PCI Express inbound translation address register 2 */
-	u8 __iomem    res19[4];
-	__be32 __iomem    pexiwbar1;		/* 0x.de8 - PCI Express inbound window base address register 2 */
-	__be32 __iomem    pexiwbear1;		/* 0x.dec - PCI Express inbound window base extended address register 2 */
-	__be32 __iomem    pexiwar1;		/* 0x.df0 - PCI Express inbound window attributes register 2 */
-	u8 __iomem    res20[12];
-	__be32 __iomem    pex_err_dr;		/* 0x.e00 - PCI Express error detect register */
-	u8 __iomem    res21[4];
-	__be32 __iomem    pex_err_en;		/* 0x.e08 - PCI Express error interrupt enable register */
-	u8 __iomem    res22[4];
-	__be32 __iomem    pex_err_disr;		/* 0x.e10 - PCI Express error disable register */
-	u8 __iomem    res23[12];
-	__be32 __iomem    pex_err_cap_stat;	/* 0x.e20 - PCI Express error capture status register */
-	u8 __iomem    res24[4];
-	__be32 __iomem    pex_err_cap_r0;	/* 0x.e28 - PCI Express error capture register 0 */
-	__be32 __iomem    pex_err_cap_r1;	/* 0x.e2c - PCI Express error capture register 0 */
-	__be32 __iomem    pex_err_cap_r2;	/* 0x.e30 - PCI Express error capture register 0 */
-	__be32 __iomem    pex_err_cap_r3;	/* 0x.e34 - PCI Express error capture register 0 */
+/* PCI/PCI Express outbound window reg */
+struct pci_outbound_window_regs {
+	__be32	potar;	/* 0x.0 - Outbound translation address register */
+	__be32	potear;	/* 0x.4 - Outbound translation extended address register */
+	__be32	powbar;	/* 0x.8 - Outbound window base address register */
+	u8	res1[4];
+	__be32	powar;	/* 0x.10 - Outbound window attributes register */
+	u8	res2[12];
 };
 
-#endif /* __POWERPC_FSL_PCIE_H */
+/* PCI/PCI Express inbound window reg */
+struct pci_inbound_window_regs {
+	__be32	pitar;	/* 0x.0 - Inbound translation address register */
+	u8	res1[4];
+	__be32	piwbar;	/* 0x.8 - Inbound window base address register */
+	__be32	piwbear;	/* 0x.c - Inbound window base extended address register */
+	__be32	piwar;	/* 0x.10 - Inbound window attributes register */
+	u8	res2[12];
+};
+
+/* PCI/PCI Express IO block registers for 85xx/86xx */
+struct ccsr_pci {
+	__be32	config_addr;		/* 0x.000 - PCI/PCIE Configuration Address Register */
+	__be32	config_data;		/* 0x.004 - PCI/PCIE Configuration Data Register */
+	__be32	int_ack;		/* 0x.008 - PCI Interrupt Acknowledge Register */
+	__be32	pex_otb_cpl_tor;	/* 0x.00c - PCIE Outbound completion timeout register */
+	__be32	pex_conf_tor;		/* 0x.010 - PCIE configuration timeout register */
+	u8	res2[12];
+	__be32	pex_pme_mes_dr;		/* 0x.020 - PCIE PME and message detect register */
+	__be32	pex_pme_mes_disr;	/* 0x.024 - PCIE PME and message disable register */
+	__be32	pex_pme_mes_ier;	/* 0x.028 - PCIE PME and message interrupt enable register */
+	__be32	pex_pmcr;		/* 0x.02c - PCIE power management command register */
+	u8	res3[3024];
+
+/* PCI/PCI Express outbound window 0-4
+ * Window 0 is the default window and is the only window enabled upon reset.
+ * The default outbound register set is used when a transaction misses
+ * in all of the other outbound windows.
+ */
+	struct pci_outbound_window_regs pow[5];
+
+	u8	res14[256];
+
+/* PCI/PCI Express inbound window 3-1
+ * inbound window 1 supports only a 32-bit base address and does not
+ * define an inbound window base extended address register.
+ */
+	struct pci_inbound_window_regs piw[3];
+
+	__be32	pex_err_dr;		/* 0x.e00 - PCI/PCIE error detect register */
+	u8	res21[4];
+	__be32	pex_err_en;		/* 0x.e08 - PCI/PCIE error interrupt enable register */
+	u8	res22[4];
+	__be32	pex_err_disr;		/* 0x.e10 - PCI/PCIE error disable register */
+	u8	res23[12];
+	__be32	pex_err_cap_stat;	/* 0x.e20 - PCI/PCIE error capture status register */
+	u8	res24[4];
+	__be32	pex_err_cap_r0;		/* 0x.e28 - PCIE error capture register 0 */
+	__be32	pex_err_cap_r1;		/* 0x.e2c - PCIE error capture register 0 */
+	__be32	pex_err_cap_r2;		/* 0x.e30 - PCIE error capture register 0 */
+	__be32	pex_err_cap_r3;		/* 0x.e34 - PCIE error capture register 0 */
+};
+
+extern int fsl_add_bridge(struct device_node *dev, int is_primary);
+
+#endif /* __POWERPC_FSL_PCI_H */
 #endif /* __KERNEL__ */
