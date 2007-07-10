@@ -1,5 +1,5 @@
 /*
- * linux/fs/9p/transport.h
+ * include/net/9p/transport.h
  *
  * Transport Definition
  *
@@ -23,23 +23,27 @@
  *
  */
 
-enum v9fs_transport_status {
+#ifndef NET_9P_TRANSPORT_H
+#define NET_9P_TRANSPORT_H
+
+enum p9_transport_status {
 	Connected,
 	Disconnected,
 	Hung,
 };
 
-struct v9fs_transport {
-	enum v9fs_transport_status status;
+struct p9_transport {
+	enum p9_transport_status status;
 	void *priv;
 
-	int (*init) (struct v9fs_session_info *, const char *, char *);
-	int (*write) (struct v9fs_transport *, void *, int);
-	int (*read) (struct v9fs_transport *, void *, int);
-	void (*close) (struct v9fs_transport *);
-	unsigned int (*poll)(struct v9fs_transport *, struct poll_table_struct *);
+	int (*write) (struct p9_transport *, void *, int);
+	int (*read) (struct p9_transport *, void *, int);
+	void (*close) (struct p9_transport *);
+	unsigned int (*poll)(struct p9_transport *, struct poll_table_struct *);
 };
 
-extern struct v9fs_transport v9fs_trans_tcp;
-extern struct v9fs_transport v9fs_trans_unix;
-extern struct v9fs_transport v9fs_trans_fd;
+struct p9_transport *p9_trans_create_tcp(const char *addr, int port);
+struct p9_transport *p9_trans_create_unix(const char *addr);
+struct p9_transport *p9_trans_create_fd(int rfd, int wfd);
+
+#endif /* NET_9P_TRANSPORT_H */

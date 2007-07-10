@@ -32,11 +32,10 @@
 #include <linux/sched.h>
 #include <linux/inet.h>
 #include <linux/idr.h>
+#include <net/9p/9p.h>
+#include <net/9p/client.h>
 
-#include "debug.h"
 #include "v9fs.h"
-#include "9p.h"
-#include "conv.h"
 #include "v9fs_vfs.h"
 #include "fid.h"
 
@@ -46,14 +45,14 @@
  *
  */
 
-static inline int dt_type(struct v9fs_stat *mistat)
+static inline int dt_type(struct p9_stat *mistat)
 {
 	unsigned long perm = mistat->mode;
 	int rettype = DT_REG;
 
-	if (perm & V9FS_DMDIR)
+	if (perm & P9_DMDIR)
 		rettype = DT_DIR;
-	if (perm & V9FS_DMSYMLINK)
+	if (perm & P9_DMSYMLINK)
 		rettype = DT_LNK;
 
 	return rettype;
@@ -69,105 +68,35 @@ static inline int dt_type(struct v9fs_stat *mistat)
 
 static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct v9fs_fcall *fcall = NULL;
-	struct inode *inode = filp->f_path.dentry->d_inode;
-	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
-	struct v9fs_fid *file = filp->private_data;
-	unsigned int i, n, s;
-	int fid = -1;
-	int ret = 0;
-	struct v9fs_stat stat;
-	int over = 0;
+	int over;
+	struct p9_fid *fid;
+	struct v9fs_session_info *v9ses;
+	struct inode *inode;
+	struct p9_stat *st;
 
-	dprintk(DEBUG_VFS, "name %s\n", filp->f_path.dentry->d_name.name);
+	P9_DPRINTK(P9_DEBUG_VFS, "name %s\n", filp->f_path.dentry->d_name.name);
+	inode = filp->f_path.dentry->d_inode;
+	v9ses = v9fs_inode2v9ses(inode);
+	fid = filp->private_data;
+	while ((st = p9_client_dirread(fid, filp->f_pos)) != NULL) {
+		if (IS_ERR(st))
+			return PTR_ERR(st);
 
-	fid = file->fid;
+		over = filldir(dirent, st->name.str, st->name.len, filp->f_pos,
+			v9fs_qid2ino(&st->qid), dt_type(st));
 
-	if (file->rdir_fcall && (filp->f_pos != file->rdir_pos)) {
-		kfree(file->rdir_fcall);
-		file->rdir_fcall = NULL;
-	}
-
-	if (file->rdir_fcall) {
-		n = file->rdir_fcall->params.rread.count;
-		i = file->rdir_fpos;
-		while (i < n) {
-			s = v9fs_deserialize_stat(
-				file->rdir_fcall->params.rread.data + i,
-				n - i, &stat, v9ses->extended);
-
-			if (s == 0) {
-				dprintk(DEBUG_ERROR,
-					"error while deserializing stat\n");
-				ret = -EIO;
-				goto FreeStructs;
-			}
-
-			over = filldir(dirent, stat.name.str, stat.name.len,
-				    filp->f_pos, v9fs_qid2ino(&stat.qid),
-				    dt_type(&stat));
-
-			if (over) {
-				file->rdir_fpos = i;
-				file->rdir_pos = filp->f_pos;
-				break;
-			}
-
-			i += s;
-			filp->f_pos += s;
-		}
-
-		if (!over) {
-			kfree(file->rdir_fcall);
-			file->rdir_fcall = NULL;
-		}
-	}
-
-	while (!over) {
-		ret = v9fs_t_read(v9ses, fid, filp->f_pos,
-			v9ses->maxdata-V9FS_IOHDRSZ, &fcall);
-		if (ret < 0) {
-			dprintk(DEBUG_ERROR, "error while reading: %d: %p\n",
-				ret, fcall);
-			goto FreeStructs;
-		} else if (ret == 0)
+		if (over)
 			break;
 
-		n = ret;
-		i = 0;
-		while (i < n) {
-			s = v9fs_deserialize_stat(fcall->params.rread.data + i,
-				n - i, &stat, v9ses->extended);
-
-			if (s == 0) {
-				dprintk(DEBUG_ERROR,
-					"error while deserializing stat\n");
-				return -EIO;
-			}
-
-			over = filldir(dirent, stat.name.str, stat.name.len,
-				    filp->f_pos, v9fs_qid2ino(&stat.qid),
-				    dt_type(&stat));
-
-			if (over) {
-				file->rdir_fcall = fcall;
-				file->rdir_fpos = i;
-				file->rdir_pos = filp->f_pos;
-				fcall = NULL;
-				break;
-			}
-
-			i += s;
-			filp->f_pos += s;
-		}
-
-		kfree(fcall);
+		filp->f_pos += st->size;
+		kfree(st);
+		st = NULL;
 	}
 
-      FreeStructs:
-	kfree(fcall);
-	return ret;
+	kfree(st);
+	return 0;
 }
+
 
 /**
  * v9fs_dir_release - close a directory
@@ -178,29 +107,13 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 int v9fs_dir_release(struct inode *inode, struct file *filp)
 {
-	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
-	struct v9fs_fid *fid = filp->private_data;
-	int fidnum = -1;
+	struct p9_fid *fid;
 
-	dprintk(DEBUG_VFS, "inode: %p filp: %p fid: %d\n", inode, filp,
-		fid->fid);
-	fidnum = fid->fid;
-
+	fid = filp->private_data;
+	P9_DPRINTK(P9_DEBUG_VFS,
+			"inode: %p filp: %p fid: %d\n", inode, filp, fid->fid);
 	filemap_write_and_wait(inode->i_mapping);
-
-	if (fidnum >= 0) {
-		dprintk(DEBUG_VFS, "fidopen: %d v9f->fid: %d\n", fid->fidopen,
-			fid->fid);
-
-		if (v9fs_t_clunk(v9ses, fidnum))
-			dprintk(DEBUG_ERROR, "clunk failed\n");
-
-		kfree(fid->rdir_fcall);
-		kfree(fid);
-
-		filp->private_data = NULL;
-	}
-
+	p9_client_clunk(fid);
 	return 0;
 }
 
