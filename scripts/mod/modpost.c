@@ -1141,6 +1141,7 @@ static int init_section_ref_ok(const char *name)
 	const char **s;
 	/* Absolute section names */
 	const char *namelist1[] = {
+		"__dbe_table",		/* MIPS generate these */
 		"__ftr_fixup",		/* powerpc cpu feature fixup */
 		"__fw_ftr_fixup",	/* powerpc firmware feature fixup */
 		"__param",
