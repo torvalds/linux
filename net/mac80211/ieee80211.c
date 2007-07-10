@@ -442,7 +442,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_txrx_data *tx)
 	if (!tx->u.tx.rate)
 		return TXRX_DROP;
 	if (tx->u.tx.mode->mode == MODE_IEEE80211G &&
-	    tx->local->cts_protect_erp_frames && tx->fragmented &&
+	    tx->sdata->use_protection && tx->fragmented &&
 	    extra.nonerp) {
 		tx->u.tx.last_frag_rate = tx->u.tx.rate;
 		tx->u.tx.probe_last_frag = extra.probe ? 1 : 0;
@@ -868,8 +868,7 @@ ieee80211_tx_h_misc(struct ieee80211_txrx_data *tx)
 	 * for the frame. */
 	if (mode->mode == MODE_IEEE80211G &&
 	    (tx->u.tx.rate->flags & IEEE80211_RATE_ERP) &&
-	    tx->u.tx.unicast &&
-	    tx->local->cts_protect_erp_frames &&
+	    tx->u.tx.unicast && tx->sdata->use_protection &&
 	    !(control->flags & IEEE80211_TXCTL_USE_RTS_CTS))
 		control->flags |= IEEE80211_TXCTL_USE_CTS_PROTECT;
 

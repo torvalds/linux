@@ -241,7 +241,6 @@ struct ieee80211_if_sta {
 	unsigned int authenticated:1;
 	unsigned int associated:1;
 	unsigned int probereq_poll:1;
-	unsigned int use_protection:1;
 	unsigned int create_ibss:1;
 	unsigned int mixed_cell:1;
 	unsigned int wmm_enabled:1;
@@ -284,6 +283,7 @@ struct ieee80211_sub_if_data {
 	int mc_count;
 	unsigned int allmulti:1;
 	unsigned int promisc:1;
+	unsigned int use_protection:1; /* CTS protect ERP frames */
 
 	struct net_device_stats stats;
 	int drop_unencrypted;
@@ -444,7 +444,6 @@ struct ieee80211_local {
 	int *basic_rates[NUM_IEEE80211_MODES];
 
 	int rts_threshold;
-	int cts_protect_erp_frames;
 	int fragmentation_threshold;
 	int short_retry_limit; /* dot11ShortRetryLimit */
 	int long_retry_limit; /* dot11LongRetryLimit */

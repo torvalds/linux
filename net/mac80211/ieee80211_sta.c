@@ -316,12 +316,11 @@ static void ieee80211_sta_wmm_params(struct net_device *dev,
 
 static void ieee80211_handle_erp_ie(struct net_device *dev, u8 erp_value)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 	int use_protection = (erp_value & WLAN_ERP_USE_PROTECTION) != 0;
 
-	if (use_protection != !!ifsta->use_protection) {
+	if (use_protection != sdata->use_protection) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: CTS protection %s (BSSID="
 			       MAC_FMT ")\n",
@@ -329,8 +328,7 @@ static void ieee80211_handle_erp_ie(struct net_device *dev, u8 erp_value)
 			       use_protection ? "enabled" : "disabled",
 			       MAC_ARG(ifsta->bssid));
 		}
-		ifsta->use_protection = use_protection ? 1 : 0;
-		local->cts_protect_erp_frames = use_protection;
+		sdata->use_protection = use_protection;
 	}
 }
 
@@ -390,6 +388,7 @@ static void ieee80211_set_associated(struct net_device *dev,
 				     struct ieee80211_if_sta *ifsta, int assoc)
 {
 	union iwreq_data wrqu;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	if (ifsta->associated == assoc)
 		return;
@@ -417,6 +416,7 @@ static void ieee80211_set_associated(struct net_device *dev,
 		ieee80211_sta_send_associnfo(dev, ifsta);
 	} else {
 		netif_carrier_off(dev);
+		sdata->use_protection = 0;
 		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
 	}
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
