@@ -56,7 +56,7 @@ do {									\
 } while(0)
 
 #else
-#define __mips_mt_fpaff_switch_to(prev) do { (prev); } while (0)
+#define __mips_mt_fpaff_switch_to(prev) do { (void) (prev); } while (0)
 #endif
 
 #define switch_to(prev,next,last)					\
