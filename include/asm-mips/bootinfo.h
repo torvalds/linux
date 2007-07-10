@@ -218,6 +218,9 @@
 #define MACH_MSP7120_FPGA       5	/* PMC-Sierra MSP7120 Emulation */
 #define MACH_MSP_OTHER        255	/* PMC-Sierra unknown board type */
 
+#define MACH_GROUP_WINDRIVER   28	/* Windriver boards */
+#define MACH_WRPPMC             1
+
 #define CL_SIZE			COMMAND_LINE_SIZE
 
 const char *get_system_type(void);
