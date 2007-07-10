@@ -309,6 +309,10 @@ static void sun4u_irq_disable(unsigned int virt_irq)
 static void sun4u_irq_end(unsigned int virt_irq)
 {
 	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
+	struct irq_desc *desc = irq_desc + virt_irq;
+
+	if (unlikely(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+		return;
 
 	if (likely(data))
 		upa_writeq(ICLR_IDLE, data->iclr);
@@ -373,6 +377,10 @@ static void sun4v_irq_end(unsigned int virt_irq)
 {
 	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
 	unsigned int ino = bucket - &ivector_table[0];
+	struct irq_desc *desc = irq_desc + virt_irq;
+
+	if (unlikely(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+		return;
 
 	if (likely(bucket)) {
 		int err;
@@ -443,6 +451,10 @@ static void sun4v_virq_end(unsigned int virt_irq)
 {
 	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
 	unsigned int ino = bucket - &ivector_table[0];
+	struct irq_desc *desc = irq_desc + virt_irq;
+
+	if (unlikely(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+		return;
 
 	if (likely(bucket)) {
 		unsigned long dev_handle, dev_ino;
