@@ -315,7 +315,7 @@ struct pci_dynids {
 
 /* ---------------------------------------------------------------- */
 /** PCI Error Recovery System (PCI-ERS).  If a PCI device driver provides
- *  a set fof callbacks in struct pci_error_handlers, then that device driver
+ *  a set of callbacks in struct pci_error_handlers, then that device driver
  *  will be notified of PCI bus errors, and will be driven to recovery
  *  when an error occurs.
  */
