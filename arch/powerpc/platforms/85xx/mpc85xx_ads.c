@@ -29,6 +29,7 @@
 #include <asm/udbg.h>
 
 #include <sysdev/fsl_soc.h>
+#include <sysdev/fsl_pci.h>
 #include "mpc85xx.h"
 
 #ifdef CONFIG_CPM2
@@ -217,7 +218,7 @@ static void __init mpc85xx_ads_setup_arch(void)
 
 #ifdef CONFIG_PCI
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
-		mpc85xx_add_bridge(np);
+		fsl_add_bridge(np, 1);
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
 #endif
 }
