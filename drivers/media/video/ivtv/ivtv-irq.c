@@ -48,7 +48,7 @@ static void ivtv_pio_work_handler(struct ivtv *itv)
 	struct list_head *p;
 	int i = 0;
 
-	IVTV_DEBUG_DMA("ivtv_pio_work_handler\n");
+	IVTV_DEBUG_HI_DMA("ivtv_pio_work_handler\n");
 	if (itv->cur_pio_stream < 0 || itv->cur_pio_stream >= IVTV_MAX_STREAMS ||
 			s->v4l2dev == NULL || !ivtv_use_pio(s)) {
 		itv->cur_pio_stream = -1;
@@ -56,7 +56,7 @@ static void ivtv_pio_work_handler(struct ivtv *itv)
 		write_reg(IVTV_IRQ_ENC_PIO_COMPLETE, 0x44);
 		return;
 	}
-	IVTV_DEBUG_DMA("Process PIO %s\n", s->name);
+	IVTV_DEBUG_HI_DMA("Process PIO %s\n", s->name);
 	buf = list_entry(s->q_dma.list.next, struct ivtv_buffer, list);
 	list_for_each(p, &s->q_dma.list) {
 		struct ivtv_buffer *buf = list_entry(p, struct ivtv_buffer, list);
@@ -187,7 +187,7 @@ static int stream_enc_dma_append(struct ivtv_stream *s, u32 data[CX2341X_MBOX_MA
 		bytes_needed += UVsize;
 	}
 
-	IVTV_DEBUG_DMA("%s %s: 0x%08x bytes at 0x%08x\n",
+	IVTV_DEBUG_HI_DMA("%s %s: 0x%08x bytes at 0x%08x\n",
 		ivtv_use_pio(s) ? "PIO" : "DMA", s->name, bytes_needed, offset);
 
 	rc = ivtv_queue_move(s, &s->q_free, &s->q_full, &s->q_predma, bytes_needed);
@@ -242,7 +242,7 @@ static void dma_post(struct ivtv_stream *s)
 	u32 *u32buf;
 	int x = 0;
 
-	IVTV_DEBUG_DMA("%s %s completed (%x)\n", ivtv_use_pio(s) ? "PIO" : "DMA",
+	IVTV_DEBUG_HI_DMA("%s %s completed (%x)\n", ivtv_use_pio(s) ? "PIO" : "DMA",
 			s->name, s->dma_offset);
 	list_for_each(p, &s->q_dma.list) {
 		buf = list_entry(p, struct ivtv_buffer, list);
@@ -321,7 +321,7 @@ void ivtv_dma_stream_dec_prepare(struct ivtv_stream *s, u32 offset, int lock)
 	unsigned long flags = 0;
 	int idx = 0;
 
-	IVTV_DEBUG_DMA("DEC PREPARE DMA %s: %08x %08x\n", s->name, s->q_predma.bytesused, offset);
+	IVTV_DEBUG_HI_DMA("DEC PREPARE DMA %s: %08x %08x\n", s->name, s->q_predma.bytesused, offset);
 	buf = list_entry(s->q_predma.list.next, struct ivtv_buffer, list);
 	list_for_each(p, &s->q_predma.list) {
 		struct ivtv_buffer *buf = list_entry(p, struct ivtv_buffer, list);
@@ -368,7 +368,7 @@ static void ivtv_dma_enc_start(struct ivtv_stream *s)
 	struct ivtv_stream *s_vbi = &itv->streams[IVTV_ENC_STREAM_TYPE_VBI];
 	int i;
 
-	IVTV_DEBUG_DMA("start %s for %s\n", ivtv_use_dma(s) ? "DMA" : "PIO", s->name);
+	IVTV_DEBUG_HI_DMA("start %s for %s\n", ivtv_use_dma(s) ? "DMA" : "PIO", s->name);
 
 	if (s->q_predma.bytesused)
 		ivtv_queue_move(s, &s->q_predma, NULL, &s->q_dma, s->q_predma.bytesused);
@@ -397,7 +397,7 @@ static void ivtv_dma_enc_start(struct ivtv_stream *s)
 		itv->vbi.dma_offset = s_vbi->dma_offset;
 		s_vbi->SG_length = 0;
 		set_bit(IVTV_F_S_DMA_HAS_VBI, &s->s_flags);
-		IVTV_DEBUG_DMA("include DMA for %s\n", s->name);
+		IVTV_DEBUG_HI_DMA("include DMA for %s\n", s->name);
 	}
 
 	/* Mark last buffer size for Interrupt flag */
@@ -431,7 +431,7 @@ static void ivtv_dma_dec_start(struct ivtv_stream *s)
 
 	if (s->q_predma.bytesused)
 		ivtv_queue_move(s, &s->q_predma, NULL, &s->q_dma, s->q_predma.bytesused);
-	IVTV_DEBUG_DMA("start DMA for %s\n", s->name);
+	IVTV_DEBUG_HI_DMA("start DMA for %s\n", s->name);
 	/* put SG Handle into register 0x0c */
 	write_reg(s->SG_handle, IVTV_REG_DECDMAADDR);
 	write_reg_sync(read_reg(IVTV_REG_DMAXFER) | 0x01, IVTV_REG_DMAXFER);
@@ -447,7 +447,7 @@ static void ivtv_irq_dma_read(struct ivtv *itv)
 	struct ivtv_buffer *buf;
 	int hw_stream_type;
 
-	IVTV_DEBUG_IRQ("DEC DMA READ\n");
+	IVTV_DEBUG_HI_IRQ("DEC DMA READ\n");
 	del_timer(&itv->dma_timer);
 	if (read_reg(IVTV_REG_DMASTATUS) & 0x14) {
 		IVTV_DEBUG_WARN("DEC DMA ERROR %x\n", read_reg(IVTV_REG_DMASTATUS));
@@ -462,7 +462,7 @@ static void ivtv_irq_dma_read(struct ivtv *itv)
 			s = &itv->streams[IVTV_DEC_STREAM_TYPE_MPG];
 			hw_stream_type = 0;
 		}
-		IVTV_DEBUG_DMA("DEC DATA READ %s: %d\n", s->name, s->q_dma.bytesused);
+		IVTV_DEBUG_HI_DMA("DEC DATA READ %s: %d\n", s->name, s->q_dma.bytesused);
 
 		ivtv_stream_sync_for_cpu(s);
 
@@ -495,7 +495,7 @@ static void ivtv_irq_enc_dma_complete(struct ivtv *itv)
 
 	del_timer(&itv->dma_timer);
 	ivtv_api_get_data(&itv->enc_mbox, IVTV_MBOX_DMA_END, data);
-	IVTV_DEBUG_IRQ("ENC DMA COMPLETE %x %d\n", data[0], data[1]);
+	IVTV_DEBUG_HI_IRQ("ENC DMA COMPLETE %x %d\n", data[0], data[1]);
 	if (test_and_clear_bit(IVTV_F_I_ENC_VBI, &itv->i_flags))
 		data[1] = 3;
 	else if (data[1] > 2)
@@ -532,7 +532,7 @@ static void ivtv_irq_enc_pio_complete(struct ivtv *itv)
 		return;
 	}
 	s = &itv->streams[itv->cur_pio_stream];
-	IVTV_DEBUG_IRQ("ENC PIO COMPLETE %s\n", s->name);
+	IVTV_DEBUG_HI_IRQ("ENC PIO COMPLETE %s\n", s->name);
 	s->SG_length = 0;
 	clear_bit(IVTV_F_I_ENC_VBI, &itv->i_flags);
 	clear_bit(IVTV_F_I_PIO, &itv->i_flags);
@@ -590,7 +590,7 @@ static void ivtv_irq_enc_start_cap(struct ivtv *itv)
 
 	/* Get DMA destination and size arguments from card */
 	ivtv_api_get_data(&itv->enc_mbox, IVTV_MBOX_DMA, data);
-	IVTV_DEBUG_IRQ("ENC START CAP %d: %08x %08x\n", data[0], data[1], data[2]);
+	IVTV_DEBUG_HI_IRQ("ENC START CAP %d: %08x %08x\n", data[0], data[1], data[2]);
 
 	if (data[0] > 2 || data[1] == 0 || data[2] == 0) {
 		IVTV_DEBUG_WARN("Unknown input: %08x %08x %08x\n",
@@ -610,7 +610,7 @@ static void ivtv_irq_enc_vbi_cap(struct ivtv *itv)
 	u32 data[CX2341X_MBOX_MAX_DATA];
 	struct ivtv_stream *s;
 
-	IVTV_DEBUG_IRQ("ENC START VBI CAP\n");
+	IVTV_DEBUG_HI_IRQ("ENC START VBI CAP\n");
 	s = &itv->streams[IVTV_ENC_STREAM_TYPE_VBI];
 
 	/* If more than two VBI buffers are pending, then
@@ -644,7 +644,7 @@ static void ivtv_irq_dec_vbi_reinsert(struct ivtv *itv)
 	u32 data[CX2341X_MBOX_MAX_DATA];
 	struct ivtv_stream *s = &itv->streams[IVTV_DEC_STREAM_TYPE_VBI];
 
-	IVTV_DEBUG_IRQ("DEC VBI REINSERT\n");
+	IVTV_DEBUG_HI_IRQ("DEC VBI REINSERT\n");
 	if (test_bit(IVTV_F_S_CLAIMED, &s->s_flags) &&
 			!stream_enc_dma_append(s, data)) {
 		set_bit(IVTV_F_S_PIO_PENDING, &s->s_flags);
@@ -669,7 +669,7 @@ static void ivtv_irq_dec_data_req(struct ivtv *itv)
 		itv->dma_data_req_offset = data[1];
 		s = &itv->streams[IVTV_DEC_STREAM_TYPE_MPG];
 	}
-	IVTV_DEBUG_IRQ("DEC DATA REQ %s: %d %08x %u\n", s->name, s->q_full.bytesused,
+	IVTV_DEBUG_HI_IRQ("DEC DATA REQ %s: %d %08x %u\n", s->name, s->q_full.bytesused,
 		       itv->dma_data_req_offset, itv->dma_data_req_size);
 	if (itv->dma_data_req_size == 0 || s->q_full.bytesused < itv->dma_data_req_size) {
 		set_bit(IVTV_F_S_NEEDS_DATA, &s->s_flags);
@@ -791,10 +791,10 @@ irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 	/* Exclude interrupts noted below from the output, otherwise the log is flooded with
 	   these messages */
 	if (combo & ~0xff6d0400)
-		IVTV_DEBUG_IRQ("======= valid IRQ bits: 0x%08x ======\n", combo);
+		IVTV_DEBUG_HI_IRQ("======= valid IRQ bits: 0x%08x ======\n", combo);
 
 	if (combo & IVTV_IRQ_DEC_DMA_COMPLETE) {
-		IVTV_DEBUG_IRQ("DEC DMA COMPLETE\n");
+		IVTV_DEBUG_HI_IRQ("DEC DMA COMPLETE\n");
 	}
 
 	if (combo & IVTV_IRQ_DMA_READ) {
