@@ -28,6 +28,7 @@ static struct proc_dir_entry *dasd_proc_root_entry = NULL;
 static struct proc_dir_entry *dasd_devices_entry = NULL;
 static struct proc_dir_entry *dasd_statistics_entry = NULL;
 
+#ifdef CONFIG_DASD_PROFILE
 static char *
 dasd_get_user_string(const char __user *user_buf, size_t user_len)
 {
@@ -47,6 +48,7 @@ dasd_get_user_string(const char __user *user_buf, size_t user_len)
 		buffer[user_len] = 0;
 	return buffer;
 }
+#endif /* CONFIG_DASD_PROFILE */
 
 static int
 dasd_devices_show(struct seq_file *m, void *v)
@@ -167,6 +169,7 @@ dasd_calc_metrics(char *page, char **start, off_t off,
 	return len;
 }
 
+#ifdef CONFIG_DASD_PROFILE
 static char *
 dasd_statistics_array(char *str, unsigned int *array, int shift)
 {
@@ -180,6 +183,7 @@ dasd_statistics_array(char *str, unsigned int *array, int shift)
 	str += sprintf(str,"\n");
 	return str;
 }
+#endif /* CONFIG_DASD_PROFILE */
 
 static int
 dasd_statistics_read(char *page, char **start, off_t off,

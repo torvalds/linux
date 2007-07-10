@@ -24,7 +24,7 @@
 #define CRYPT_S390_PRIORITY 300
 #define CRYPT_S390_COMPOSITE_PRIORITY 400
 
-/* s930 cryptographic operations */
+/* s390 cryptographic operations */
 enum crypt_s390_operations {
 	CRYPT_S390_KM   = 0x0100,
 	CRYPT_S390_KMC  = 0x0200,

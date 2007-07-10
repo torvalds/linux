@@ -88,7 +88,6 @@ extern u64 cmf_read(struct ccw_device *cdev, int index);
  *    any
  **/
 extern int cmf_readall(struct ccw_device *cdev, struct cmbdata*data);
-extern void cmf_reset(struct ccw_device *cdev);
 
 #endif /* __KERNEL__ */
 #endif /* S390_CMB_H */

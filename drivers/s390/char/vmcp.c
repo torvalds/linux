@@ -175,13 +175,12 @@ static long vmcp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 static const struct file_operations vmcp_fops = {
 	.owner		= THIS_MODULE,
-	.open		= &vmcp_open,
-	.release	= &vmcp_release,
-	.read		= &vmcp_read,
-	.llseek		= &no_llseek,
-	.write		= &vmcp_write,
-	.unlocked_ioctl	= &vmcp_ioctl,
-	.compat_ioctl	= &vmcp_ioctl
+	.open		= vmcp_open,
+	.release	= vmcp_release,
+	.read		= vmcp_read,
+	.write		= vmcp_write,
+	.unlocked_ioctl	= vmcp_ioctl,
+	.compat_ioctl	= vmcp_ioctl
 };
 
 static struct miscdevice vmcp_dev = {
